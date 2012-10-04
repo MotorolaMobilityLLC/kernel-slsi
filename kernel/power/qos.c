@@ -187,6 +187,7 @@ static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 		return plist_first(&c->list)->prio;
 
 	case PM_QOS_MAX:
+	case PM_QOS_FORCE_MAX:
 		return plist_last(&c->list)->prio;
 
 	case PM_QOS_SUM:
@@ -338,6 +339,14 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 	spin_unlock_irqrestore(&pm_qos_lock, flags);
 
 	trace_pm_qos_update_target(action, prev_value, curr_value);
+
+	if (c->type == PM_QOS_FORCE_MAX) {
+		blocking_notifier_call_chain(c->notifiers,
+					     (unsigned long)curr_value,
+					     NULL);
+		return 1;
+	}
+
 	if (prev_value != curr_value) {
 		ret = 1;
 		if (c->notifiers)
