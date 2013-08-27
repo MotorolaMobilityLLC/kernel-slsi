@@ -140,6 +140,7 @@ struct exynos_adc {
 	unsigned int		tsirq;
 	unsigned int		delay;
 	struct regulator	*vdd;
+	bool 			needs_adc_phy;
 
 	struct completion	completion;
 
@@ -154,7 +155,6 @@ struct exynos_adc {
 struct exynos_adc_data {
 	int num_channels;
 	bool needs_sclk;
-	bool needs_adc_phy;
 	int phy_offset;
 	u32 mask;
 
@@ -228,9 +228,6 @@ static void exynos_adc_v1_init_hw(struct exynos_adc *info)
 {
 	u32 con1;
 
-	if (info->data->needs_adc_phy)
-		regmap_write(info->pmu_map, info->data->phy_offset, 1);
-
 	/* set default prescaler values and Enable prescaler */
 	con1 =  ADC_V1_CON_PRSCLV(49) | ADC_V1_CON_PRSCEN;
 
@@ -245,9 +242,6 @@ static void exynos_adc_v1_init_hw(struct exynos_adc *info)
 static void exynos_adc_v1_exit_hw(struct exynos_adc *info)
 {
 	u32 con;
-
-	if (info->data->needs_adc_phy)
-		regmap_write(info->pmu_map, info->data->phy_offset, 0);
 
 	con = readl(ADC_V1_CON(info->regs));
 	con |= ADC_V1_CON_STANDBY;
@@ -273,7 +267,6 @@ static void exynos_adc_v1_start_conv(struct exynos_adc *info,
 static const struct exynos_adc_data exynos_adc_v1_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
-	.needs_adc_phy	= true,
 	.phy_offset	= EXYNOS_ADCV1_PHY_OFFSET,
 
 	.init_hw	= exynos_adc_v1_init_hw,
@@ -363,9 +356,6 @@ static void exynos_adc_v2_init_hw(struct exynos_adc *info)
 {
 	u32 con1, con2;
 
-	if (info->data->needs_adc_phy)
-		regmap_write(info->pmu_map, info->data->phy_offset, 1);
-
 	con1 = ADC_V2_CON1_SOFT_RESET;
 	writel(con1, ADC_V2_CON1(info->regs));
 
@@ -380,9 +370,6 @@ static void exynos_adc_v2_init_hw(struct exynos_adc *info)
 static void exynos_adc_v2_exit_hw(struct exynos_adc *info)
 {
 	u32 con;
-
-	if (info->data->needs_adc_phy)
-		regmap_write(info->pmu_map, info->data->phy_offset, 0);
 
 	con = readl(ADC_V2_CON1(info->regs));
 	con &= ~ADC_CON_EN_START;
@@ -411,7 +398,6 @@ static void exynos_adc_v2_start_conv(struct exynos_adc *info,
 static const struct exynos_adc_data exynos_adc_v2_data = {
 	.num_channels	= MAX_ADC_V2_CHANNELS,
 	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
-	.needs_adc_phy	= true,
 	.phy_offset	= EXYNOS_ADCV2_PHY_OFFSET,
 
 	.init_hw	= exynos_adc_v2_init_hw,
@@ -424,7 +410,6 @@ static const struct exynos_adc_data exynos3250_adc_data = {
 	.num_channels	= MAX_EXYNOS3250_ADC_CHANNELS,
 	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
 	.needs_sclk	= true,
-	.needs_adc_phy	= true,
 	.phy_offset	= EXYNOS_ADCV1_PHY_OFFSET,
 
 	.init_hw	= exynos_adc_v2_init_hw,
@@ -437,7 +422,7 @@ static void exynos_adc_exynos7_init_hw(struct exynos_adc *info)
 {
 	u32 con1, con2;
 
-	if (info->data->needs_adc_phy)
+	if (info->needs_adc_phy)
 		regmap_write(info->pmu_map, info->data->phy_offset, 1);
 
 	con1 = ADC_V2_CON1_SOFT_RESET;
@@ -519,6 +504,9 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	reinit_completion(&info->completion);
 
+	if (info->needs_adc_phy)
+		regmap_write(info->pmu_map, info->data->phy_offset, 1);
+
 	/* Select the channel to be used and Trigger conversion */
 	if (info->data->start_conv)
 		info->data->start_conv(info, chan->address);
@@ -535,6 +523,9 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 		*val2 = 0;
 		ret = IIO_VAL_INT;
 	}
+
+	if (info->needs_adc_phy)
+		regmap_write(info->pmu_map, info->data->phy_offset, 0);
 
 	mutex_unlock(&indio_dev->mlock);
 
@@ -771,13 +762,18 @@ static int exynos_adc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (of_find_property(np, "samsung,adc-phy-control", NULL))
+		info->needs_adc_phy = true;
+	else
+		info->needs_adc_phy = false;
+
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	info->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
 
-	if (info->data->needs_adc_phy) {
+	if (info->needs_adc_phy) {
 		info->pmu_map = syscon_regmap_lookup_by_phandle(
 					pdev->dev.of_node,
 					"samsung,syscon-phandle");
@@ -804,7 +800,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 
 	init_completion(&info->completion);
 
-	info->clk = devm_clk_get(&pdev->dev, "adc");
+	info->clk = devm_clk_get(&pdev->dev, "gate_adcif");
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed getting clock, err = %ld\n",
 							PTR_ERR(info->clk));
@@ -825,13 +821,14 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->vdd)) {
 		dev_err(&pdev->dev, "failed getting regulator, err = %ld\n",
 							PTR_ERR(info->vdd));
-		return PTR_ERR(info->vdd);
+		info->vdd = NULL;
 	}
 
-	ret = regulator_enable(info->vdd);
-	if (ret)
-		return ret;
-
+	if (info->vdd) {
+		ret = regulator_enable(info->vdd);
+		if (ret)
+			return ret;
+	}
 	ret = exynos_adc_prepare_clk(info);
 	if (ret)
 		goto err_disable_reg;
@@ -907,7 +904,8 @@ err_disable_clk:
 err_unprepare_clk:
 	exynos_adc_unprepare_clk(info);
 err_disable_reg:
-	regulator_disable(info->vdd);
+	if (info->vdd)
+		regulator_disable(info->vdd);
 	return ret;
 }
 
@@ -928,7 +926,8 @@ static int exynos_adc_remove(struct platform_device *pdev)
 		info->data->exit_hw(info);
 	exynos_adc_disable_clk(info);
 	exynos_adc_unprepare_clk(info);
-	regulator_disable(info->vdd);
+	if (info->vdd)
+		regulator_disable(info->vdd);
 
 	return 0;
 }
@@ -942,7 +941,8 @@ static int exynos_adc_suspend(struct device *dev)
 	if (info->data->exit_hw)
 		info->data->exit_hw(info);
 	exynos_adc_disable_clk(info);
-	regulator_disable(info->vdd);
+	if (info->vdd)
+		regulator_disable(info->vdd);
 
 	return 0;
 }
@@ -953,9 +953,11 @@ static int exynos_adc_resume(struct device *dev)
 	struct exynos_adc *info = iio_priv(indio_dev);
 	int ret;
 
-	ret = regulator_enable(info->vdd);
-	if (ret)
-		return ret;
+	if (info->vdd) {
+		ret = regulator_enable(info->vdd);
+		if (ret)
+			return ret;
+	}
 
 	ret = exynos_adc_enable_clk(info);
 	if (ret)
