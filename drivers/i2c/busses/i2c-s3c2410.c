@@ -113,6 +113,7 @@ struct s3c24xx_i2c {
 	unsigned long		clkrate;
 
 	void __iomem		*regs;
+	struct clk		*rate_clk;
 	struct clk		*clk;
 	struct device		*dev;
 	struct i2c_adapter	adap;
@@ -856,7 +857,7 @@ static int s3c24xx_i2c_calcdivisor(unsigned long clkin, unsigned int wanted,
 static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 {
 	struct s3c2410_platform_i2c *pdata = i2c->pdata;
-	unsigned long clkin = clk_get_rate(i2c->clk);
+	unsigned long clkin = clk_get_rate(i2c->rate_clk);
 	unsigned int divs, div1;
 	unsigned long target_frequency;
 	u32 iiccon;
@@ -926,7 +927,7 @@ static int s3c24xx_i2c_cpufreq_transition(struct notifier_block *nb,
 	int delta_f;
 	int ret;
 
-	delta_f = clk_get_rate(i2c->clk) - i2c->clkrate;
+	delta_f = clk_get_rate(i2c->rate_clk) - i2c->clkrate;
 
 	/* if we're post-change and the input clock has slowed down
 	 * or at pre-change and the clock is about to speed up, then
@@ -1137,7 +1138,13 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	/* find the clock and enable it */
 
 	i2c->dev = &pdev->dev;
-	i2c->clk = devm_clk_get(&pdev->dev, "i2c");
+	i2c->rate_clk = devm_clk_get(&pdev->dev, "rate_i2c");
+	if (IS_ERR(i2c->rate_clk)) {
+		dev_err(&pdev->dev, "cannot get rate clock\n");
+		return -ENOENT;
+	}
+
+	i2c->clk = devm_clk_get(&pdev->dev, "gate_i2c");
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		return -ENOENT;
