@@ -1249,12 +1249,14 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	/* initialise the i2c controller */
 
-	clk_prepare_enable(i2c->clk);
-	ret = s3c24xx_i2c_init(i2c);
-	clk_disable(i2c->clk);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "I2C controller init failed\n");
-		return ret;
+	if (!(i2c->quirks & QUIRK_FIMC_I2C)) {
+		clk_prepare_enable(i2c->clk);
+		ret = s3c24xx_i2c_init(i2c);
+		clk_disable_unprepare(i2c->clk);
+		if (ret != 0) {
+			dev_err(&pdev->dev, "I2C controller init failed\n");
+			return ret;
+		}
 	}
 	/* find the IRQ for this unit (note, this relies on the init call to
 	 * ensure no current IRQs pending
