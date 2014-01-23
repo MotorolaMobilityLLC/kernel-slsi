@@ -41,7 +41,9 @@
 
 #include <mach/exynos-pm.h>
 
+#ifdef CONFIG_EXYNOS_I2C_RESET_DURING_DSTOP
 static LIST_HEAD(drvdata_list);
+#endif
 
 /* see s3c2410x user guide, v1.1, section 9 (p447) for more info */
 
@@ -1162,7 +1164,7 @@ s3c24xx_i2c_parse_dt(struct device_node *np, struct s3c24xx_i2c *i2c)
 }
 #endif
 
-#ifdef CONFIG_CPU_IDLE
+#ifdef CONFIG_EXYNOS_I2C_RESET_DURING_DSTOP
 static int s3c24xx_i2c_notifier(struct notifier_block *self,
 				unsigned long cmd, void *v)
 {
@@ -1181,7 +1183,7 @@ static int s3c24xx_i2c_notifier(struct notifier_block *self,
 static struct notifier_block s3c24xx_i2c_notifier_block = {
 	.notifier_call = s3c24xx_i2c_notifier,
 };
-#endif /*CONFIG_CPU_IDLE */
+#endif /* CONFIG_EXYNOS_I2C_RESET_DURING_DSTOP */
 
 /* s3c24xx_i2c_probe
  *
@@ -1317,7 +1319,9 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&i2c->adap.dev);
 
+#ifdef CONFIG_EXYNOS_I2C_RESET_DURING_DSTOP
 	list_add_tail(&i2c->node, &drvdata_list);
+#endif
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
 	return 0;
@@ -1415,7 +1419,7 @@ static struct platform_driver s3c24xx_i2c_driver = {
 
 static int __init i2c_adap_s3c_init(void)
 {
-#ifdef CONFIG_CPU_IDLE
+#ifdef CONFIG_EXYNOS_I2C_RESET_DURING_DSTOP
 	exynos_pm_register_notifier(&s3c24xx_i2c_notifier_block);
 #endif
 	return platform_driver_register(&s3c24xx_i2c_driver);
