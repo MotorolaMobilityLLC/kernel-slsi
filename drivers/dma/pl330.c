@@ -851,26 +851,21 @@ static inline u32 _emit_GO(unsigned dry_run, u8 buf[],
 	return SZ_DMAGO;
 }
 
-#define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
-
 /* Returns Time-Out */
 static bool _until_dmac_idle(struct pl330_thread *thrd)
 {
 	void __iomem *regs = thrd->dmac->base;
-	unsigned long loops = msecs_to_loops(5);
+	unsigned long timeout = jiffies + msecs_to_jiffies(5);
 
 	do {
 		/* Until Manager is Idle */
 		if (!(readl(regs + DBGSTATUS) & DBG_BUSY))
-			break;
+			return false;
 
 		cpu_relax();
-	} while (--loops);
+	} while (time_before(jiffies, timeout));
 
-	if (!loops)
-		return true;
-
-	return false;
+	return true;
 }
 
 static inline void _execute_DBGINSN(struct pl330_thread *thrd,
