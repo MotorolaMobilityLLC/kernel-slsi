@@ -52,6 +52,7 @@ static LIST_HEAD(drvdata_list);
 #define S3C2410_IICADD			0x08
 #define S3C2410_IICDS			0x0C
 #define S3C2440_IICLC			0x10
+#define S3C2440_CLK_BYPASS		0x14
 #define S3C2440_IICINT			0x20
 #define S3C2440_IICNCLK_DIV2		0x28
 
@@ -896,6 +897,7 @@ static int s3c24xx_i2c_calcdivisor(struct s3c24xx_i2c *i2c,
 	if (i2c->quirks & QUIRK_FIMC_I2C) {
 		/* Input NCLK is used directly in i2c */
 		writel(0, i2c->regs + S3C2440_IICNCLK_DIV2);
+		writeb(1, i2c->regs + S3C2440_CLK_BYPASS);
 		clk_prescaler = 32;
 	} else
 		clk_prescaler = 16;
