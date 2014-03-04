@@ -307,9 +307,8 @@ static void s3c24xx_i2c_message_start(struct s3c24xx_i2c *i2c,
 		addr ^= 1;
 
 	/* todo - check for whether ack wanted or not */
-	s3c24xx_i2c_enable_ack(i2c);
-
 	iiccon = readl(i2c->regs + S3C2410_IICCON);
+	iiccon |= S3C2410_IICCON_ACKEN;
 	writel(stat, i2c->regs + S3C2410_IICSTAT);
 
 	dev_dbg(i2c->dev, "START: %08lx to IICSTAT, %02x to DS\n", stat, addr);
