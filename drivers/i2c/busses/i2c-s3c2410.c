@@ -61,6 +61,7 @@ static LIST_HEAD(drvdata_list);
 #define S3C2410_IICCON_TXDIV_512	(1 << 6)
 #define S3C2410_IICCON_IRQEN		(1 << 5)
 #define S3C2410_IICCON_IRQPEND		(1 << 4)
+#define S3C2410_IICCON_BUS_RELEASE	(1 << 4)
 #define S3C2410_IICCON_SCALE(x)		((x) & 0xf)
 #define S3C2410_IICCON_SCALEMASK	(0xf)
 
@@ -227,6 +228,8 @@ static inline void s3c24xx_i2c_enable_ack(struct s3c24xx_i2c *i2c)
 	unsigned long tmp;
 
 	tmp = readl(i2c->regs + S3C2410_IICCON);
+	if (i2c->quirks & QUIRK_FIMC_I2C)
+		tmp &= ~S3C2410_IICCON_BUS_RELEASE;
 	writel(tmp | S3C2410_IICCON_ACKEN, i2c->regs + S3C2410_IICCON);
 }
 
