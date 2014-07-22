@@ -934,11 +934,16 @@ static int s3c24xx_i2c_calcdivisor(struct s3c24xx_i2c *i2c,
 static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 {
 	struct s3c2410_platform_i2c *pdata = i2c->pdata;
-	unsigned long clkin = clk_get_rate(i2c->rate_clk);
+	unsigned long clkin;
 	unsigned int divs, div1;
 	unsigned long target_frequency;
 	u32 iiccon;
 	int freq;
+
+	if (i2c->quirks & QUIRK_FIMC_I2C)
+		clkin = 24000000;/* NCLK is fixed 24Mhz */
+	else
+		clkin = clk_get_rate(i2c->rate_clk);
 
 	i2c->clkrate = clkin;
 	clkin /= 1000;		/* clkin now in KHz */
