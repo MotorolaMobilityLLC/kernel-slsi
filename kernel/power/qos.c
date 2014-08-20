@@ -523,7 +523,8 @@ static void pm_qos_work_fn(struct work_struct *work)
  * removal.
  */
 
-void pm_qos_add_request(struct pm_qos_request *req,
+void pm_qos_add_request_trace(char *func, unsigned int line,
+			struct pm_qos_request *req,
 			int pm_qos_class, s32 value)
 {
 	if (!req) /*guard against callers passing in null */
@@ -534,12 +535,14 @@ void pm_qos_add_request(struct pm_qos_request *req,
 		return;
 	}
 	req->pm_qos_class = pm_qos_class;
+	req->func = func;
+	req->line = line;
 	INIT_DELAYED_WORK(&req->work, pm_qos_work_fn);
 	trace_pm_qos_add_request(pm_qos_class, value);
 	pm_qos_update_target(pm_qos_array[pm_qos_class]->constraints,
 			     &req->node, PM_QOS_ADD_REQ, value);
 }
-EXPORT_SYMBOL_GPL(pm_qos_add_request);
+EXPORT_SYMBOL_GPL(pm_qos_add_request_trace);
 
 /**
  * pm_qos_update_request - modifies an existing qos request
@@ -764,7 +767,6 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 
 	return count;
 }
-
 
 static int __init pm_qos_power_init(void)
 {
