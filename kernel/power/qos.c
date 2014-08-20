@@ -625,8 +625,10 @@ static int pm_qos_dbg_show_requests(struct seq_file *s, void *unused)
 			state = "Active";
 		}
 		tot_reqs++;
-		seq_printf(s, "%d: %d: %s\n", tot_reqs,
-			   (req->node).prio, state);
+		seq_printf(s, "%d: %d: %s(%s:%d)\n", tot_reqs,
+			   (req->node).prio, state,
+			   req->func,
+			   req->line);
 	}
 
 	seq_printf(s, "Type=%s, Value=%d, Requests: active=%d / total=%d\n",
