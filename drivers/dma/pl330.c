@@ -249,7 +249,18 @@ enum pl330_byteswap {
 #define MCODE_BUFF_PER_REQ	256
 
 /* Use this _only_ to wait on transient states */
-#define UNTIL(t, s)	while (!(_state(t) & (s))) cpu_relax();
+#define UNTIL(t, s)	do {									\
+				unsigned long timeout = msecs_to_jiffies(5);			\
+				bool timeout_flag = true;					\
+				do { 								\
+					if (_state(t) & (s)) {					\
+						timeout_flag = false;				\
+						break;						\
+					}							\
+					cpu_relax();						\
+				} while (time_before(jiffies, timeout));			\
+				if (timeout_flag) pr_err("%s Timeout error!!!!\n", __func__);	\
+			} while (0)
 
 #ifdef PL330_DEBUG_MCGEN
 static unsigned cmd_line;
@@ -1040,14 +1051,14 @@ static bool _start(struct pl330_thread *thrd)
 		UNTIL(thrd, PL330_STATE_FAULTING | PL330_STATE_KILLING);
 
 		if (_state(thrd) == PL330_STATE_KILLING)
-			UNTIL(thrd, PL330_STATE_STOPPED)
+			UNTIL(thrd, PL330_STATE_STOPPED);
 
 	case PL330_STATE_FAULTING:
 		_stop(thrd);
 
 	case PL330_STATE_KILLING:
 	case PL330_STATE_COMPLETING:
-		UNTIL(thrd, PL330_STATE_STOPPED)
+		UNTIL(thrd, PL330_STATE_STOPPED);
 
 	case PL330_STATE_STOPPED:
 		return _trigger(thrd);
