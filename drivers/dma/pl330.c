@@ -553,6 +553,11 @@ struct _xfer_spec {
 	struct dma_pl330_desc *desc;
 };
 
+static inline u32 get_unaligned_le32(u8 *p)
+{
+	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
+}
+
 static inline bool _queue_full(struct pl330_thread *thrd)
 {
 	return thrd->req[0].desc != NULL && thrd->req[1].desc != NULL;
@@ -892,7 +897,7 @@ static inline void _execute_DBGINSN(struct pl330_thread *thrd,
 	}
 	writel(val, regs + DBGINST0);
 
-	val = le32_to_cpu(*((__le32 *)&insn[2]));
+	val = get_unaligned_le32(&insn[2]);
 	writel(val, regs + DBGINST1);
 
 	/* If timed out due to halted state-machine */
