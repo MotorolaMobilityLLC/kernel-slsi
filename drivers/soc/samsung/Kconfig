@@ -5,6 +5,10 @@ menuconfig SOC_SAMSUNG
 	bool "Samsung SoC driver support" if COMPILE_TEST
 
 if SOC_SAMSUNG
+config EXYNOS_CHIPID
+	bool "Exynos Chip ID Driver Support"
+	depends on ARCH_EXYNOS
+	select SOC_BUS
 
 config EXYNOS_PMU
 	bool "Exynos PMU controller driver" if COMPILE_TEST
