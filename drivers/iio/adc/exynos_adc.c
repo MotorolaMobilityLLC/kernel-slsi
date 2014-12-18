@@ -403,7 +403,7 @@ static void exynos_adc_v2_init_hw(struct exynos_adc *info)
 	writel(con1, ADC_V2_CON1(info->regs));
 
 	con2 = ADC_V2_CON2_OSEL | ADC_V2_CON2_ESEL |
-		ADC_V2_CON2_HIGHF | ADC_V2_CON2_C_TIME(0);
+		ADC_V2_CON2_HIGHF | ADC_V2_CON2_C_TIME(6);
 	writel(con2, ADC_V2_CON2(info->regs));
 
 	/* Enable interrupts */
@@ -412,11 +412,12 @@ static void exynos_adc_v2_init_hw(struct exynos_adc *info)
 
 static void exynos_adc_v2_exit_hw(struct exynos_adc *info)
 {
-	u32 con;
+	u32 con2;
 
-	con = readl(ADC_V2_CON1(info->regs));
-	con &= ~ADC_CON_EN_START;
-	writel(con, ADC_V2_CON1(info->regs));
+	con2 = readl(ADC_V2_CON2(info->regs));
+	con2 &= ~(ADC_V2_CON2_OSEL | ADC_V2_CON2_ESEL |
+		ADC_V2_CON2_HIGHF | ADC_V2_CON2_C_TIME(7));
+	writel(con2, ADC_V2_CON2(info->regs));
 
 	/* Disable interrupts */
 	writel(0, ADC_V2_INT_EN(info->regs));
