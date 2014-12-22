@@ -591,7 +591,7 @@ static inline u32 _emit_END(unsigned dry_run, u8 buf[])
 	return SZ_DMAEND;
 }
 
-static inline u32 _emit_FLUSHP(unsigned dry_run, u8 buf[], u8 peri)
+static inline int _emit_FLUSHP(unsigned dry_run, u8 buf[], u8 peri)
 {
 	if (dry_run)
 		return SZ_DMAFLUSHP;
@@ -646,7 +646,7 @@ static inline u32 _emit_LDP(unsigned dry_run, u8 buf[],
 	return SZ_DMALDP;
 }
 
-static inline u32 _emit_LP(unsigned dry_run, u8 buf[],
+static inline int _emit_LP(unsigned dry_run, u8 buf[],
 		unsigned loop, u8 cnt)
 {
 	if (dry_run)
@@ -672,7 +672,7 @@ struct _arg_LPEND {
 	u8 bjump;
 };
 
-static inline u32 _emit_LPEND(unsigned dry_run, u8 buf[],
+static inline int _emit_LPEND(unsigned dry_run, u8 buf[],
 		const struct _arg_LPEND *arg)
 {
 	enum pl330_cond cond = arg->cond;
@@ -717,7 +717,7 @@ static inline u32 _emit_KILL(unsigned dry_run, u8 buf[])
 	return SZ_DMAKILL;
 }
 
-static inline u32 _emit_MOV(unsigned dry_run, u8 buf[],
+static inline int _emit_MOV(unsigned dry_run, u8 buf[],
 		enum dmamov_dst dst, u32 val)
 {
 	if (dry_run)
@@ -748,7 +748,7 @@ static inline u32 _emit_RMB(unsigned dry_run, u8 buf[])
 	return SZ_DMARMB;
 }
 
-static inline u32 _emit_SEV(unsigned dry_run, u8 buf[], u8 ev)
+static inline int _emit_SEV(unsigned dry_run, u8 buf[], u8 ev)
 {
 	if (dry_run)
 		return SZ_DMASEV;
