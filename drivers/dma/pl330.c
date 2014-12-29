@@ -1115,6 +1115,8 @@ static inline int _ldst_devtomem(struct pl330_dmac *pl330, unsigned dry_run,
 
 	if (pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP)
 		cond = BURST;
+	else if (pxs->desc->rqcfg.brst_len != 1)
+		cond = BURST;
 	else
 		cond = SINGLE;
 
@@ -1139,6 +1141,8 @@ static inline int _ldst_memtodev(struct pl330_dmac *pl330,
 	enum pl330_cond cond;
 
 	if (pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP)
+		cond = BURST;
+	else if (pxs->desc->rqcfg.brst_len != 1)
 		cond = BURST;
 	else
 		cond = SINGLE;
@@ -2869,7 +2873,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		}
 
 		desc->rqcfg.brst_size = pch->burst_sz;
-		desc->rqcfg.brst_len = 1;
+		desc->rqcfg.brst_len = pch->burst_len;
 		desc->rqtype = direction;
 		desc->bytes_requested = sg_dma_len(sg);
 	}
