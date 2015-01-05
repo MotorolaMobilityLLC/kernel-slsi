@@ -118,6 +118,19 @@ static struct pm_qos_object bus_throughput_pm_qos = {
 	.name = "bus_throughput",
 };
 
+static BLOCKING_NOTIFIER_HEAD(bus_throughput_max_notifier);
+static struct pm_qos_constraints bus_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(bus_tput_max_constraints.list),
+	.target_value = PM_QOS_BUS_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_BUS_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &bus_throughput_max_notifier,
+};
+static struct pm_qos_object bus_throughput_max_pm_qos = {
+	.constraints = &bus_tput_max_constraints,
+	.name = "bus_throughput_max",
+};
+
 static BLOCKING_NOTIFIER_HEAD(network_throughput_notifier);
 static struct pm_qos_constraints network_tput_constraints = {
 	.list = PLIST_HEAD_INIT(network_tput_constraints.list),
@@ -181,6 +194,7 @@ static struct pm_qos_object *pm_qos_array[] = {
 	&network_lat_pm_qos,
 	&device_throughput_pm_qos,
 	&bus_throughput_pm_qos,
+	&bus_throughput_max_pm_qos,
 	&network_throughput_pm_qos,
 	&memory_bandwidth_pm_qos,
 	&display_throughput_pm_qos,
