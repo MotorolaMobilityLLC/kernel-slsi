@@ -93,3 +93,5 @@ obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/
 obj-y					+= meson/
 
 obj-$(CONFIG_VIDEO_EXYNOS_SCALER)	+= exynos/scaler/
+
+obj-$(CONFIG_VIDEO_EXYNOS_SMFC)	+= exynos/smfc/
