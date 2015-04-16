@@ -2511,8 +2511,8 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 static inline void _init_desc(struct dma_pl330_desc *desc)
 {
 	desc->rqcfg.swap = SWAP_NO;
-	desc->rqcfg.scctl = CCTRL0;
-	desc->rqcfg.dcctl = CCTRL0;
+	desc->rqcfg.scctl = CCTRL2;
+	desc->rqcfg.dcctl = CCTRL2;
 	desc->txd.tx_submit = pl330_tx_submit;
 
 	INIT_LIST_HEAD(&desc->node);
