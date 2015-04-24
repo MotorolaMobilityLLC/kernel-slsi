@@ -43,7 +43,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <soc/samsung/exynos-powermode.h>
 
 /* S3C/EXYNOS4412/5250 ADC_V1 registers definitions */
 #define ADC_V1_CON(x)		((x) + 0x00)
@@ -154,10 +154,7 @@ struct exynos_adc {
 
 	u32			value;
 	unsigned int            version;
-
-	bool			read_ts;
-	u32			ts_x;
-	u32			ts_y;
+	int			idle_ip_index;
 };
 
 struct exynos_adc_data {
@@ -237,13 +234,14 @@ static int exynos_adc_enable_access(struct exynos_adc *info)
 {
 	int ret;
 
+	exynos_update_ip_idle_status(info->idle_ip_index, 0);
 	if (info->needs_adc_phy)
 		regmap_write(info->pmu_map, info->data->phy_offset, 1);
 
 	if (info->vdd) {
 		ret = regulator_enable(info->vdd);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 	ret = exynos_adc_prepare_clk(info);
@@ -261,7 +259,11 @@ err_unprepare_clk:
 err_disable_reg:
 	if (info->vdd)
 		regulator_disable(info->vdd);
+err:
+	if (info->needs_adc_phy)
+		regmap_write(info->pmu_map, info->data->phy_offset, 0);
 
+	exynos_update_ip_idle_status(info->idle_ip_index, 1);
 	return ret;
 }
 
@@ -274,6 +276,7 @@ static void exynos_adc_disable_access(struct exynos_adc *info)
 
 	if (info->needs_adc_phy)
 		regmap_write(info->pmu_map, info->data->phy_offset, 0);
+	exynos_update_ip_idle_status(info->idle_ip_index, 1);
 }
 
 static void exynos_adc_v1_init_hw(struct exynos_adc *info)
@@ -667,6 +670,9 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 	}
 
+	if (info->data->exit_hw)
+		info->data->exit_hw(info);
+
 	disable_irq(info->irq);
 	exynos_adc_disable_access(info);
 err_unlock:
@@ -950,6 +956,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	info->tsirq = irq;
 
 	info->dev = &pdev->dev;
+	info->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 
 	init_completion(&info->completion);
 
