@@ -136,9 +136,6 @@ struct s3c24xx_i2c {
 	struct s3c2410_platform_i2c	*pdata;
 	int			gpios[2];
 	struct pinctrl          *pctrl;
-#if defined(CONFIG_ARM_S3C24XX_CPUFREQ)
-	struct notifier_block	freq_transition;
-#endif
 };
 
 static const struct platform_device_id s3c24xx_driver_ids[] = {
@@ -998,65 +995,6 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 	return 0;
 }
 
-#if defined(CONFIG_ARM_S3C24XX_CPUFREQ)
-
-#define freq_to_i2c(_n) container_of(_n, struct s3c24xx_i2c, freq_transition)
-
-static int s3c24xx_i2c_cpufreq_transition(struct notifier_block *nb,
-					  unsigned long val, void *data)
-{
-	struct s3c24xx_i2c *i2c = freq_to_i2c(nb);
-	unsigned int got;
-	int delta_f;
-	int ret;
-
-	delta_f = clk_get_rate(i2c->rate_clk) - i2c->clkrate;
-
-	/* if we're post-change and the input clock has slowed down
-	 * or at pre-change and the clock is about to speed up, then
-	 * adjust our clock rate. <0 is slow, >0 speedup.
-	 */
-
-	if ((val == CPUFREQ_POSTCHANGE && delta_f < 0) ||
-	    (val == CPUFREQ_PRECHANGE && delta_f > 0)) {
-		i2c_lock_adapter(&i2c->adap);
-		ret = s3c24xx_i2c_clockrate(i2c, &got);
-		i2c_unlock_adapter(&i2c->adap);
-
-		if (ret < 0)
-			dev_err(i2c->dev, "cannot find frequency\n");
-		else
-			dev_info(i2c->dev, "setting freq %d\n", got);
-	}
-
-	return 0;
-}
-
-static inline int s3c24xx_i2c_register_cpufreq(struct s3c24xx_i2c *i2c)
-{
-	i2c->freq_transition.notifier_call = s3c24xx_i2c_cpufreq_transition;
-
-	return cpufreq_register_notifier(&i2c->freq_transition,
-					 CPUFREQ_TRANSITION_NOTIFIER);
-}
-
-static inline void s3c24xx_i2c_deregister_cpufreq(struct s3c24xx_i2c *i2c)
-{
-	cpufreq_unregister_notifier(&i2c->freq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
-}
-
-#else
-static inline int s3c24xx_i2c_register_cpufreq(struct s3c24xx_i2c *i2c)
-{
-	return 0;
-}
-
-static inline void s3c24xx_i2c_deregister_cpufreq(struct s3c24xx_i2c *i2c)
-{
-}
-#endif
-
 #ifdef CONFIG_OF
 static int s3c24xx_i2c_parse_dt_gpio(struct s3c24xx_i2c *i2c)
 {
@@ -1401,10 +1339,6 @@ static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 #ifdef CONFIG_PM_SLEEP
 	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
 	.resume_noirq = s3c24xx_i2c_resume_noirq,
-	.freeze_noirq = s3c24xx_i2c_suspend_noirq,
-	.thaw_noirq = s3c24xx_i2c_resume_noirq,
-	.poweroff_noirq = s3c24xx_i2c_suspend_noirq,
-	.restore_noirq = s3c24xx_i2c_resume_noirq,
 #endif
 #ifdef CONFIG_PM_RUNTIME
 	.runtime_resume = s3c24xx_i2c_runtime_resume,
