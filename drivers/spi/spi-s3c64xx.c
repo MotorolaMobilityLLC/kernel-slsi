@@ -33,7 +33,7 @@
 #include <linux/platform_data/spi-s3c64xx.h>
 #include <mach/exynos-fimc-is.h>
 
-#if defined(CONFIG_S3C_DMA) || defined(CONFIG_SAMSUNG_DMADEV)
+#if defined(CONFIG_SAMSUNG_DMADEV)
 #include <linux/dma/dma-pl330.h>
 #endif
 
@@ -323,7 +323,7 @@ static void s3c64xx_spi_dmacb(void *data)
 	spin_unlock_irqrestore(&sdd->lock, flags);
 }
 
-#if defined(CONFIG_S3C_DMA) || defined(CONFIG_SAMSUNG_DMADEV)
+#if defined(CONFIG_SAMSUNG_DMADEV)
 /* FIXME: remove this section once arch/arm/mach-s3c64xx uses dmaengine */
 
 static struct s3c2410_dma_client s3c64xx_spi_dma_client = {
@@ -485,125 +485,6 @@ static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
 #else
 	sdd->ops->stop((enum dma_ch)dma->ch);
 #endif
-}
-#else
-
-static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
-					unsigned len, dma_addr_t buf)
-{
-	struct s3c64xx_spi_driver_data *sdd;
-	struct dma_slave_config config;
-	struct scatterlist sg;
-	struct dma_async_tx_descriptor *desc;
-
-	if (dma->direction == DMA_DEV_TO_MEM) {
-		sdd = container_of((void *)dma,
-			struct s3c64xx_spi_driver_data, rx_dma);
-		config.direction = dma->direction;
-		config.src_addr = sdd->sfr_start + S3C64XX_SPI_RX_DATA;
-		config.src_addr_width = sdd->cur_bpw / 8;
-		config.src_maxburst = 1;
-		dmaengine_slave_config(dma->ch, &config);
-	} else {
-		sdd = container_of((void *)dma,
-			struct s3c64xx_spi_driver_data, tx_dma);
-		config.direction = dma->direction;
-		config.dst_addr = sdd->sfr_start + S3C64XX_SPI_TX_DATA;
-		config.dst_addr_width = sdd->cur_bpw / 8;
-		config.dst_maxburst = 1;
-		dmaengine_slave_config(dma->ch, &config);
-	}
-
-	sg_init_table(&sg, 1);
-	sg_dma_len(&sg) = len;
-	sg_set_page(&sg, pfn_to_page(PFN_DOWN(buf)),
-		    len, offset_in_page(buf));
-	sg_dma_address(&sg) = buf;
-
-	desc = dmaengine_prep_slave_sg(dma->ch,
-		&sg, 1, dma->direction, DMA_PREP_INTERRUPT);
-
-	desc->callback = s3c64xx_spi_dmacb;
-	desc->callback_param = dma;
-
-	dmaengine_submit(desc);
-	dma_async_issue_pending(dma->ch);
-}
-
-static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
-{
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
-	dma_filter_fn filter = sdd->cntrlr_info->filter;
-	struct device *dev = &sdd->pdev->dev;
-	dma_cap_mask_t mask;
-	int ret;
-
-	if (sci->dma_mode != DMA_MODE) {
-		ret = pm_runtime_get_sync(&sdd->pdev->dev);
-		if (ret < 0) {
-			dev_err(dev, "Failed to enable device: %d\n", ret);
-			return ret;
-		}
-		return 0;
-	}
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-
-	/* Acquire DMA channels */
-	sdd->rx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				(void *)sdd->rx_dma.dmach, dev, "rx");
-	if (!sdd->rx_dma.ch) {
-		dev_err(dev, "Failed to get RX DMA channel\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				(void *)sdd->tx_dma.dmach, dev, "tx");
-	if (!sdd->tx_dma.ch) {
-		dev_err(dev, "Failed to get TX DMA channel\n");
-		ret = -EBUSY;
-		goto out_rx;
-	}
-
-	ret = pm_runtime_get_sync(&sdd->pdev->dev);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable device: %d\n", ret);
-		goto out_tx;
-	}
-
-	return 0;
-
-out_tx:
-	dma_release_channel(sdd->tx_dma.ch);
-out_rx:
-	dma_release_channel(sdd->rx_dma.ch);
-out:
-	return ret;
-}
-
-static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
-{
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
-
-	if (sci->dma_mode == DMA_MODE) {
-		/* Free DMA channels */
-		dma_release_channel(sdd->rx_dma.ch);
-		dma_release_channel(sdd->tx_dma.ch);
-	}
-
-	pm_runtime_mark_last_busy(&sdd->pdev->dev);
-	pm_runtime_put_autosuspend(&sdd->pdev->dev);
-	return 0;
-}
-
-static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
-				 struct s3c64xx_spi_dma_data *dma)
-{
-	dmaengine_terminate_all(dma->ch);
 }
 #endif
 
