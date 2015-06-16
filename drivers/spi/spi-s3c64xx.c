@@ -1431,6 +1431,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	int ret, irq;
 	char clk_name[16];
+	int fifosize;
 
 	if (!sci && pdev->dev.of_node) {
 		sci = s3c64xx_spi_parse_dt(&pdev->dev);
@@ -1604,6 +1605,18 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		sdd->spi_clkoff_time = 0;
 	} else {
 		dev_err(&pdev->dev, "spi clkoff-time %d\n", sdd->spi_clkoff_time);
+	}
+
+	if (of_property_read_u32(pdev->dev.of_node,
+				"samsung,spi-fifosize", &fifosize)) {
+		dev_err(&pdev->dev, "PORT %d fifosize is not specified\n",
+			sdd->port_id);
+		ret = -EINVAL;
+		goto err3;
+	} else {
+		sdd->port_conf->fifo_lvl_mask[sdd->port_id] = (fifosize << 1) - 1;
+		dev_info(&pdev->dev, "PORT %d fifo_lvl_mask = 0x%x\n",
+			sdd->port_id, sdd->port_conf->fifo_lvl_mask[sdd->port_id]);
 	}
 
 	/* Setup Deufult Mode */
@@ -1990,8 +2003,8 @@ static struct s3c64xx_spi_port_config exynos758x_spi_port_config = {
 	.clk_from_cmu	= true,
 };
 
-static struct s3c64xx_spi_port_config exynos889x_spi_port_config = {
-	.fifo_lvl_mask	= { 0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x1ff, 0x1ff },
+static struct s3c64xx_spi_port_config exynos_spi_port_config = {
+	.fifo_lvl_mask	= { 0, },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
 	.high_speed	= true,
@@ -2024,8 +2037,8 @@ static const struct platform_device_id s3c64xx_spi_driver_ids[] = {
 		.name		= "exynos758x-spi",
 		.driver_data	= (kernel_ulong_t)&exynos758x_spi_port_config,
 	}, {
-		.name		= "exynos889x-spi",
-		.driver_data	= (kernel_ulong_t)&exynos889x_spi_port_config,
+		.name		= "exynos-spi",
+		.driver_data	= (kernel_ulong_t)&exynos_spi_port_config,
 	},
 	{ },
 };
@@ -2047,8 +2060,8 @@ static const struct of_device_id s3c64xx_spi_dt_match[] = {
 	{ .compatible = "samsung,exynos758x-spi",
 			.data = (void *)&exynos758x_spi_port_config,
 	},
-	{ .compatible = "samsung,exynos889x-spi",
-			.data = (void *)&exynos889x_spi_port_config,
+	{ .compatible = "samsung,exynos-spi",
+			.data = (void *)&exynos_spi_port_config,
 	},
 	{ },
 };
