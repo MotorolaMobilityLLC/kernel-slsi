@@ -534,6 +534,7 @@ struct dma_pl330_desc {
 	unsigned peri:5;
 	/* Hook to attach to DMAC's list of reqs with due callback */
 	struct list_head rqd;
+	unsigned int infiniteloop;
 };
 
 struct _xfer_spec {
@@ -1167,6 +1168,77 @@ static int _bursts(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 	return off;
 }
 
+/* Returns bytes consumed */
+static inline int _loop_infiniteloop(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
+		unsigned long bursts, const struct _xfer_spec *pxs, int ev)
+{
+	int cyc, off;
+	unsigned lcnt0, lcnt1, ljmp0, ljmp1, ljmpfe;
+	struct _arg_LPEND lpend;
+
+	off = 0;
+	ljmpfe = off;
+	lcnt0 = pxs->desc->infiniteloop;
+
+	if (bursts > 256) {
+		lcnt1 = 256;
+		cyc = bursts / 256;
+	} else {
+		lcnt1 = bursts;
+		cyc = 1;
+	}
+
+	/* forever loop */
+	off += _emit_MOV(dry_run, &buf[off], SAR, pxs->desc->px.src_addr);
+	off += _emit_MOV(dry_run, &buf[off], DAR, pxs->desc->px.dst_addr);
+	if (pxs->desc->rqtype != DMA_MEM_TO_MEM)
+		off += _emit_FLUSHP(dry_run, &buf[off], pxs->desc->peri);
+
+	/* loop0 */
+	off += _emit_LP(dry_run, &buf[off], 0,  lcnt0);
+	ljmp0 = off;
+
+	/* loop1 */
+	off += _emit_LP(dry_run, &buf[off], 1, lcnt1);
+	ljmp1 = off;
+	off += _bursts(pl330, dry_run, &buf[off], pxs, cyc);
+	lpend.cond = ALWAYS;
+	lpend.forever = false;
+	lpend.loop = 1;
+	lpend.bjump = off - ljmp1;
+	off += _emit_LPEND(dry_run, &buf[off], &lpend);
+
+	/* remainder */
+	lcnt1 = bursts - (lcnt1 * cyc);
+
+	if (lcnt1) {
+		off += _emit_LP(dry_run, &buf[off], 1, lcnt1);
+		ljmp1 = off;
+		off += _bursts(pl330, dry_run, &buf[off], pxs, 1);
+		lpend.cond = ALWAYS;
+		lpend.forever = false;
+		lpend.loop = 1;
+		lpend.bjump = off - ljmp1;
+		off += _emit_LPEND(dry_run, &buf[off], &lpend);
+	}
+
+	off += _emit_SEV(dry_run, &buf[off], ev);
+
+	lpend.cond = ALWAYS;
+	lpend.forever = false;
+	lpend.loop = 0;
+	lpend.bjump = off - ljmp0;
+	off += _emit_LPEND(dry_run, &buf[off], &lpend);
+
+	lpend.cond = ALWAYS;
+	lpend.forever = true;
+	lpend.loop = 1;
+	lpend.bjump = off - ljmpfe;
+	off +=  _emit_LPEND(dry_run, &buf[off], &lpend);
+
+	return off;
+}
+
 /* Returns bytes consumed and updates bursts */
 static inline int _loop(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 		unsigned long *bursts, const struct _xfer_spec *pxs)
@@ -1249,6 +1321,22 @@ static inline int _loop(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 	return off;
 }
 
+static inline int _setup_xfer_infiniteloop(struct pl330_dmac *pl330,
+		unsigned dry_run, u8 buf[],
+		const struct _xfer_spec *pxs, int ev)
+{
+	struct pl330_xfer *x = &pxs->desc->px;
+	u32 ccr = pxs->ccr;
+	unsigned long bursts = BYTE_TO_BURST(x->bytes, ccr);
+	int off = 0;
+
+	/* Setup Loop(s) */
+	off += _loop_infiniteloop(pl330, dry_run, &buf[off], bursts, pxs, ev);
+
+	return off;
+}
+
+
 static inline int _setup_loops(struct pl330_dmac *pl330,
 			       unsigned dry_run, u8 buf[],
 			       const struct _xfer_spec *pxs)
@@ -1308,12 +1396,18 @@ static int _setup_req(struct pl330_dmac *pl330, unsigned dry_run,
 	if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
 		return -EINVAL;
 
-	off += _setup_xfer(pl330, dry_run, &buf[off], pxs);
+	if (!pxs->desc->infiniteloop) {
+		off += _setup_xfer(pl330, dry_run, &buf[off], pxs);
 
-	/* DMASEV peripheral/event */
-	off += _emit_SEV(dry_run, &buf[off], thrd->ev);
-	/* DMAEND */
-	off += _emit_END(dry_run, &buf[off]);
+		/* DMASEV peripheral/event */
+		off += _emit_SEV(dry_run, &buf[off], thrd->ev);
+		/* DMAEND */
+		off += _emit_END(dry_run, &buf[off]);
+	} else {
+		off += _setup_xfer_infiniteloop(pl330,
+				dry_run, &buf[off],
+				pxs, thrd->ev);
+	}
 
 	return off;
 }
@@ -1426,6 +1520,8 @@ xfer_exit:
 	return ret;
 }
 
+static void pl330_tasklet(unsigned long data);
+
 static void dma_pl330_rqcb(struct dma_pl330_desc *desc, enum pl330_op_err err)
 {
 	struct dma_pl330_chan *pch;
@@ -1446,7 +1542,10 @@ static void dma_pl330_rqcb(struct dma_pl330_desc *desc, enum pl330_op_err err)
 
 	spin_unlock_irqrestore(&pch->lock, flags);
 
-	tasklet_schedule(&pch->task);
+	if (desc->infiniteloop)
+		pl330_tasklet((unsigned long)pch);
+	else
+		tasklet_schedule(&pch->task);
 }
 
 static void pl330_dotask(unsigned long data)
@@ -1575,12 +1674,15 @@ static int pl330_update(struct pl330_dmac *pl330)
 
 			/* Detach the req */
 			descdone = thrd->req[active].desc;
-			thrd->req[active].desc = NULL;
 
 			thrd->req_running = -1;
 
-			/* Get going again ASAP */
-			_start(thrd);
+			if (!descdone->infiniteloop) {
+				thrd->req[active].desc = NULL;
+
+				/* Get going again ASAP */
+				_start(thrd);
+			}
 
 			/* For now, just make a list of callbacks to be done */
 			list_add_tail(&descdone->rqd, &pl330->req_done);
@@ -2471,6 +2573,7 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 	desc->txd.cookie = 0;
 	async_tx_ack(&desc->txd);
 
+	desc->infiniteloop = 0;
 	desc->peri = peri_id ? pch->chan.chan_id : 0;
 	desc->rqcfg.pcfg = &pch->dmac->pcfg;
 
@@ -2549,6 +2652,7 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 	unsigned int i;
 	dma_addr_t dst;
 	dma_addr_t src;
+	unsigned int *infinite = context;
 
 	if (len % period_len != 0)
 		return NULL;
@@ -2607,6 +2711,7 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		desc->rqcfg.brst_size = pch->burst_sz;
 		desc->rqcfg.brst_len = 1;
 		desc->bytes_requested = period_len;
+		desc->infiniteloop = *infinite;
 		fill_px(&desc->px, dst, src, period_len);
 
 		if (!first)
