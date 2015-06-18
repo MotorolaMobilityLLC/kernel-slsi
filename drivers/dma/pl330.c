@@ -3050,8 +3050,13 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		}
 	}
 
-	if (adev->dev.of_node)
+	if (adev->dev.of_node){
+		*adev->dev.dma_mask = of_dma_get_mask(adev->dev.of_node,
+				"dma-mask-bit");
+		adev->dev.coherent_dma_mask = of_dma_get_mask(adev->dev.of_node,
+				"coherent-mask-bit");
 		pl330->wrapper = of_dma_get_wrapper_available(adev->dev.of_node);
+	}
 
 	pcfg = &pl330->pcfg;
 
