@@ -152,7 +152,7 @@ free_soc:
 	return -EINVAL;
 }
 
-static struct platform_driver exynos_chipid_driver __initdata = {
+static struct platform_driver exynos_chipid_driver __refdata = {
 	.driver = {
 		.name = "exynos-chipid",
 		.of_match_table = of_exynos_chipid_ids,
