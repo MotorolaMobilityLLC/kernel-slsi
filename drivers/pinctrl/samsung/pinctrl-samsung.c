@@ -1253,6 +1253,9 @@ static void samsung_pinctrl_suspend_dev(
 	if (ret)
 	        dev_err(drvdata->dev, "could not set sleep pinstate %d\n", ret);
 
+	if (!drvdata->suspend)
+		return;
+
 	for (i = 0; i < drvdata->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &drvdata->pin_banks[i];
 		void __iomem *reg = bank->pctl_base + bank->pctl_offset;
@@ -1282,8 +1285,7 @@ static void samsung_pinctrl_suspend_dev(
 		}
 	}
 
-	if (drvdata->suspend)
-		drvdata->suspend(drvdata);
+	drvdata->suspend(drvdata);
 	if (drvdata->retention_ctrl && drvdata->retention_ctrl->enable)
 		drvdata->retention_ctrl->enable(drvdata);
 }
@@ -1300,8 +1302,10 @@ static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
 {
 	int i;
 
-	if (drvdata->resume)
-		drvdata->resume(drvdata);
+	if (!drvdata->resume)
+		return;
+
+	drvdata->resume(drvdata);
 
 	for (i = 0; i < drvdata->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &drvdata->pin_banks[i];
