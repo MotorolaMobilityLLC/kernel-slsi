@@ -1424,8 +1424,6 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		return ret;
 	}
 
-	uart_clock_enable(ourport);
-
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
 		wr_regl(port, S3C64XX_UINTM, 0xf);
@@ -1439,7 +1437,6 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);
-	uart_clock_disable(ourport);
 	return 0;
 }
 
@@ -1623,7 +1620,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	 * so that a potential re-enablement through the pm-callback overlaps
 	 * and keeps the clock enabled in this case.
 	 */
-	clk_disable_unprepare(ourport->clk);
+	uart_clock_disable(ourport);
 
 #ifdef CONFIG_SAMSUNG_CLOCK
 	ret = device_create_file(&pdev->dev, &dev_attr_clock_source);
