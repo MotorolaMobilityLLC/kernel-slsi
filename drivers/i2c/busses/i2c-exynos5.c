@@ -320,6 +320,7 @@ static void recover_gpio_pins(struct exynos5_i2c *i2c)
 
 	if (sda_val == 0) {
 		gpio_direction_output(gpio_scl, 1);
+		gpio_direction_input(gpio_sda);
 
 		for (clk_cnt = 0; clk_cnt < 100; clk_cnt++) {
 			/* Make clock for slave */
