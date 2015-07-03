@@ -67,6 +67,11 @@
 #define ADC_V2_INT_ST(x)	((x) + 0x14)
 #define ADC_V2_VER(x)		((x) + 0x20)
 
+/* Sharing ADC_V3 registers definitions */
+#define ADC_V3_DAT(x)		((x) + 0x08)
+#define ADC_V3_DAT_SUM(x)	((x) + 0x0C)
+#define ADC_V3_DBG_DATA(x)	((x) + 0x1C)
+
 /* Bit definitions for ADC_V1 */
 #define ADC_V1_CON_RES		(1u << 16)
 #define ADC_V1_CON_PRSCEN	(1u << 14)
@@ -104,6 +109,7 @@
 
 /* Bit definitions for ADC_V2 */
 #define ADC_V2_CON1_SOFT_RESET	(1u << 2)
+#define ADC_V2_CON1_SOFT_NON_RESET	(1u << 1)
 
 #define ADC_V2_CON2_OSEL	(1u << 10)
 #define ADC_V2_CON2_ESEL	(1u << 9)
@@ -112,14 +118,16 @@
 #define ADC_V2_CON2_ACH_SEL(x)	(((x) & 0xF) << 0)
 #define ADC_V2_CON2_ACH_MASK	0xF
 
+/* Bit definitions for ADC_V3 */
+#define ADC_V3_DAT_FLAG		(1u << 31)
+
+#define MAX_ADC_V3_CHANNELS		8
 #define MAX_ADC_V2_CHANNELS		10
 #define MAX_ADC_V1_CHANNELS		8
 #define MAX_EXYNOS3250_ADC_CHANNELS	2
 
-/* Bit definitions common for ADC_V1 and ADC_V2 */
+/* Bit definitions common for ADC_V1, ADC_V2, ADC_V3 */
 #define ADC_CON_EN_START	(1u << 0)
-#define ADC_CON_EN_START_MASK	(0x3 << 0)
-#define ADC_DATX_PRESSED	(1u << 15)
 #define ADC_DATX_MASK		0xFFF
 #define ADC_DATY_MASK		0xFFF
 
@@ -162,6 +170,7 @@ struct exynos_adc_data {
 	void (*exit_hw)(struct exynos_adc *info);
 	void (*clear_irq)(struct exynos_adc *info);
 	void (*start_conv)(struct exynos_adc *info, unsigned long addr);
+	irqreturn_t (*adc_isr)(int irq, void *dev_id);
 };
 
 static void exynos_adc_unprepare_clk(struct exynos_adc *info)
@@ -307,6 +316,23 @@ static void exynos_adc_v1_start_conv(struct exynos_adc *info,
 	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
 }
 
+static irqreturn_t exynos_adc_v1_isr(int irq, void *dev_id)
+{
+	struct exynos_adc *info = (struct exynos_adc *)dev_id;
+	u32 mask = info->data->mask;
+
+	/* Read value */
+	info->value = readl(ADC_V1_DATX(info->regs)) & mask;
+
+	/* clear irq */
+	if (info->data->clear_irq)
+		info->data->clear_irq(info);
+
+	complete(&info->completion);
+
+	return IRQ_HANDLED;
+}
+
 static const struct exynos_adc_data exynos_adc_v1_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
@@ -316,6 +342,7 @@ static const struct exynos_adc_data exynos_adc_v1_data = {
 	.exit_hw	= exynos_adc_v1_exit_hw,
 	.clear_irq	= exynos_adc_v1_clear_irq,
 	.start_conv	= exynos_adc_v1_start_conv,
+	.adc_isr	= exynos_adc_v1_isr,
 };
 
 static void exynos_adc_s3c2416_start_conv(struct exynos_adc *info,
@@ -342,6 +369,7 @@ static struct exynos_adc_data const exynos_adc_s3c2416_data = {
 	.init_hw	= exynos_adc_v1_init_hw,
 	.exit_hw	= exynos_adc_v1_exit_hw,
 	.start_conv	= exynos_adc_s3c2416_start_conv,
+	.adc_isr	= exynos_adc_v1_isr,
 };
 
 static void exynos_adc_s3c2443_start_conv(struct exynos_adc *info,
@@ -363,6 +391,7 @@ static struct exynos_adc_data const exynos_adc_s3c2443_data = {
 	.init_hw	= exynos_adc_v1_init_hw,
 	.exit_hw	= exynos_adc_v1_exit_hw,
 	.start_conv	= exynos_adc_s3c2443_start_conv,
+	.adc_isr	= exynos_adc_v1_isr,
 };
 
 static void exynos_adc_s3c64xx_start_conv(struct exynos_adc *info,
@@ -383,6 +412,7 @@ static struct exynos_adc_data const exynos_adc_s3c24xx_data = {
 	.init_hw	= exynos_adc_v1_init_hw,
 	.exit_hw	= exynos_adc_v1_exit_hw,
 	.start_conv	= exynos_adc_s3c64xx_start_conv,
+	.adc_isr	= exynos_adc_v1_isr,
 };
 
 static struct exynos_adc_data const exynos_adc_s3c64xx_data = {
@@ -393,6 +423,7 @@ static struct exynos_adc_data const exynos_adc_s3c64xx_data = {
 	.exit_hw	= exynos_adc_v1_exit_hw,
 	.clear_irq	= exynos_adc_v1_clear_irq,
 	.start_conv	= exynos_adc_s3c64xx_start_conv,
+	.adc_isr	= exynos_adc_v1_isr,
 };
 
 static void exynos_adc_v2_init_hw(struct exynos_adc *info)
@@ -451,6 +482,7 @@ static const struct exynos_adc_data exynos_adc_v2_data = {
 	.exit_hw	= exynos_adc_v2_exit_hw,
 	.clear_irq	= exynos_adc_v2_clear_irq,
 	.start_conv	= exynos_adc_v2_start_conv,
+	.adc_isr	= exynos_adc_v1_isr,
 };
 
 static const struct exynos_adc_data exynos3250_adc_data = {
@@ -463,6 +495,64 @@ static const struct exynos_adc_data exynos3250_adc_data = {
 	.exit_hw	= exynos_adc_v2_exit_hw,
 	.clear_irq	= exynos_adc_v2_clear_irq,
 	.start_conv	= exynos_adc_v2_start_conv,
+	.adc_isr	= exynos_adc_v1_isr,
+};
+
+static void exynos_adc_v3_init_hw(struct exynos_adc *info)
+{
+	u32 con1, con2;
+
+	con1 = ADC_V2_CON1_SOFT_RESET;
+	writel(con1, ADC_V2_CON1(info->regs));
+
+	con1 = ADC_V2_CON1_SOFT_NON_RESET;
+	writel(con1, ADC_V2_CON1(info->regs));
+
+	con2 = ADC_V2_CON2_C_TIME(6);
+	writel(con2, ADC_V2_CON2(info->regs));
+
+	/* Enable interrupts */
+	writel(1, ADC_V2_INT_EN(info->regs));
+}
+
+static void exynos_adc_v3_exit_hw(struct exynos_adc *info)
+{
+	u32 con2;
+
+	con2 = readl(ADC_V2_CON2(info->regs));
+	con2 &= ~ADC_V2_CON2_C_TIME(7);
+	writel(con2, ADC_V2_CON2(info->regs));
+
+	/* Disable interrupts */
+	writel(0, ADC_V2_INT_EN(info->regs));
+}
+
+static irqreturn_t exynos_adc_v3_isr(int irq, void *dev_id)
+{
+	struct exynos_adc *info = (struct exynos_adc *)dev_id;
+	u32 mask = info->data->mask;
+
+	/* Read value */
+	info->value = readl(ADC_V3_DAT(info->regs)) & mask;
+
+	/* clear irq */
+	if (info->data->clear_irq)
+		info->data->clear_irq(info);
+
+	complete(&info->completion);
+
+	return IRQ_HANDLED;
+}
+
+static const struct exynos_adc_data exynos_adc_v3_data = {
+	.num_channels	= MAX_ADC_V3_CHANNELS,
+	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
+
+	.init_hw	= exynos_adc_v3_init_hw,
+	.exit_hw	= exynos_adc_v3_exit_hw,
+	.clear_irq	= exynos_adc_v2_clear_irq,
+	.start_conv	= exynos_adc_v2_start_conv,
+	.adc_isr	= exynos_adc_v3_isr,
 };
 
 static void exynos_adc_exynos7_init_hw(struct exynos_adc *info)
@@ -516,6 +606,9 @@ static const struct of_device_id exynos_adc_match[] = {
 	}, {
 		.compatible = "samsung,exynos-adc-v2",
 		.data = &exynos_adc_v2_data,
+	}, {
+		.compatible = "samsung,exynos-adc-v3",
+		.data = &exynos_adc_v3_data,
 	}, {
 		.compatible = "samsung,exynos3250-adc",
 		.data = &exynos3250_adc_data,
@@ -898,7 +991,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = exynos_adc_iio_channels;
 	indio_dev->num_channels = info->data->num_channels;
 
-	ret = devm_request_irq(&pdev->dev, info->irq, exynos_adc_isr,
+	ret = devm_request_irq(&pdev->dev, info->irq, info->data->adc_isr,
 					0, dev_name(&pdev->dev), info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed requesting irq, irq = %d\n",
