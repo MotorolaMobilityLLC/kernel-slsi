@@ -131,6 +131,8 @@ struct s3c2410_wdt {
 	struct regmap *pmureg;
 };
 
+static struct s3c2410_wdt *s3c_wdt;
+
 static const struct s3c2410_wdt_variant drv_data_s3c2410 = {
 	.quirks = 0
 };
@@ -561,6 +563,46 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 	return variant;
 }
 
+int s3c2410wdt_set_emergency_stop(void)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt;
+	if (!s3c_wdt)
+		return -ENODEV;
+
+	/* stop watchdog */
+	pr_emerg("%s: watchdog is stopped\n", __func__);
+	s3c2410wdt_stop(&wdt->wdt_device);
+	return 0;
+}
+
+#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
+static int s3c2410wdt_panic_handler(struct notifier_block *nb,
+				   unsigned long l, void *buf)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt;
+
+	if (!s3c_wdt)
+		return -ENODEV;
+
+	/* We assumed that num_online_cpus() > 1 status is abnormal */
+	if (exynos_ss_get_hardlockup() || num_online_cpus() > 1) {
+
+		pr_emerg("%s: watchdog reset is started on panic after 5secs\n", __func__);
+
+		/* set watchdog timer is started and  set by 5 seconds*/
+		s3c2410wdt_start(&wdt->wdt_device);
+		s3c2410wdt_set_heartbeat(&wdt->wdt_device, 5);
+		s3c2410wdt_keepalive(&wdt->wdt_device);
+	}
+
+	return 0;
+}
+
+static struct notifier_block nb_panic_block = {
+	.notifier_call = s3c2410wdt_panic_handler,
+};
+#endif
+
 static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -578,6 +620,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->dev = dev;
 	spin_lock_init(&wdt->lock);
 	wdt->wdt_device = s3c2410_wdd;
+	s3c_wdt = wdt;
 
 	wdt->drv_data = s3c2410_get_wdt_drv_data(pdev);
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
@@ -692,6 +735,10 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
 
+#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
+	/* register panic handler for watchdog reset */
+	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);
+#endif
 	dev_info(dev, "watchdog %sactive, reset %sabled, irq %sabled\n",
 		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
 		 (wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",
