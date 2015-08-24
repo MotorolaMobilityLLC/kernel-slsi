@@ -40,11 +40,7 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #ifdef CONFIG_CPU_IDLE
-#include <mach/exynos-pm.h>
-#endif
-
-#ifdef CONFIG_CPU_IDLE
-#include <mach/exynos-pm.h>
+#include <soc/samsung/exynos-pm.h>
 static LIST_HEAD(drvdata_list);
 #endif
 
@@ -1326,8 +1322,8 @@ static int s3c24xx_i2c_suspend_noirq(struct device *dev)
 
 static int s3c24xx_i2c_resume_noirq(struct device *dev)
 {
-	struct s3c24xx_i2c *i2c = dev_get_drvdata(dev);
-	int ret;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
 	i2c->need_hw_init = S3C2410_NEED_REG_INIT;
