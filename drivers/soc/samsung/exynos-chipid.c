@@ -104,6 +104,8 @@ void __init exynos_chipid_early_init(struct device *dev)
 		panic("%s: failed to map registers\n", __func__);
 
 	exynos_soc_info.product_id  = __raw_readl(exynos_chipid_base);
+	exynos_soc_info.unique_id  = __raw_readl(exynos_chipid_base + UNIQUE_ID1);
+	exynos_soc_info.unique_id  |= (u64)__raw_readl(exynos_chipid_base + UNIQUE_ID2) << 32;
 	exynos_soc_info.revision = exynos_soc_info.product_id & EXYNOS_REV_MASK;
 }
 

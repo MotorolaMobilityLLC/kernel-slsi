@@ -31,6 +31,9 @@
 #define EXYNOS4210_REV_1_0	0x10
 #define EXYNOS4210_REV_1_1	0x11
 
+#define UNIQUE_ID1			0x14
+#define UNIQUE_ID2			0x18
+
 /**
  * Struct exynos_chipid_info
  * @soc_product_id: product id allocated to exynos SoC
@@ -40,6 +43,7 @@
 struct exynos_chipid_info {
 	u32 product_id;
 	u32 revision;
+	u64 unique_id;
 };
 
 extern struct exynos_chipid_info exynos_soc_info;
