@@ -599,6 +599,26 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 	return 0;
 }
 
+int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt;
+	unsigned int wtdat = 0x100;
+	unsigned int wtcnt = wtdat + timeout_cnt;
+	unsigned long wtcon;
+
+	if (!s3c_wdt)
+		return -ENODEV;
+
+	/* emergency reset with wdt reset */
+	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
+	wtcon |= S3C2410_WTCON_RSTEN | S3C2410_WTCON_ENABLE;
+
+	writel(wtdat, wdt->reg_base + S3C2410_WTDAT);
+	writel(wtcnt, wdt->reg_base + S3C2410_WTCNT);
+	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
+
+	return 0;
+}
 static struct notifier_block nb_panic_block = {
 	.notifier_call = s3c2410wdt_panic_handler,
 };
