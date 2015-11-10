@@ -3078,7 +3078,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	int num_chan;
 	struct device_node *np = adev->dev.of_node;
 
-	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(36));
 	if (ret)
 		return ret;
 
