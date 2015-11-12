@@ -788,7 +788,7 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	}
 }
 
-#define XFER_DMAADDR_INVALID DMA_BIT_MASK(32)
+#define XFER_DMAADDR_INVALID DMA_BIT_MASK(36)
 
 static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
 						struct spi_message *msg)
@@ -1433,6 +1433,10 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	int ret, irq;
 	char clk_name[16];
 	int fifosize;
+
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
+	if (ret)
+		return ret;
 
 	if (!sci && pdev->dev.of_node) {
 		sci = s3c64xx_spi_parse_dt(&pdev->dev);
