@@ -994,8 +994,9 @@ static void _stop(struct pl330_thread *thrd)
 
 	_emit_KILL(0, insn);
 
-	/* Stop generating interrupts for SEV */
+	/* Stop generating interrupts and clear pandding interrupts for SEV */
 	writel(readl(regs + INTEN) & ~(1 << thrd->ev), regs + INTEN);
+	writel(1 << thrd->ev, regs + INTCLR);
 
 	_execute_DBGINSN(thrd, insn, is_manager(thrd));
 }
