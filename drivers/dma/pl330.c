@@ -252,7 +252,7 @@ enum pl330_byteswap {
 
 /* Use this _only_ to wait on transient states */
 #define UNTIL(t, s)	do {									\
-				unsigned long timeout = msecs_to_jiffies(5);			\
+				unsigned long timeout = jiffies + msecs_to_jiffies(5);		\
 				bool timeout_flag = true;					\
 				do { 								\
 					if (_state(t) & (s)) {					\
