@@ -1594,8 +1594,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 						&ourport->uart_irq_affinity))
 		ourport->uart_irq_affinity = 0;
 
-	if (of_property_read_u32(pdev->dev.of_node, "qos_timeout",
-					(u32 *)&ourport->qos_timeout))
+	if (of_property_read_u64(pdev->dev.of_node, "qos_timeout",
+					(u64 *)&ourport->qos_timeout))
 		ourport->qos_timeout = 0;
 
 	if ((ourport->mif_qos_val || ourport->cpu_qos_val)
