@@ -1462,9 +1462,59 @@ EXPORT_SYMBOL_GPL(s3c24xx_serial_fifo_wait);
 static int s3c24xx_serial_notifier(struct notifier_block *self,
 				unsigned long cmd, void *v)
 {
+	struct s3c24xx_uart_port *ourport;
+	struct uart_port *port;
+	unsigned long flags;
+	unsigned int umcon;
+
 	switch (cmd) {
 	case LPA_ENTER:
 		s3c24xx_serial_fifo_wait();
+		break;
+
+	case SICD_ENTER:
+	case SICD_AUD_ENTER:
+		list_for_each_entry(ourport, &drvdata_list, node) {
+			if (uart_console(&ourport->port))
+				continue;
+
+			port = &ourport->port;
+
+			spin_lock_irqsave(&port->lock, flags);
+
+			uart_clock_enable(ourport);
+			/* disable auto flow control & set nRTS for High */
+			umcon = rd_regl(port, S3C2410_UMCON);
+			umcon &= ~(S3C2410_UMCOM_AFC | S3C2410_UMCOM_RTS_LOW);
+			wr_regl(port, S3C2410_UMCON, umcon);
+			uart_clock_disable(ourport);
+
+			spin_unlock_irqrestore(&port->lock, flags);
+		}
+		break;
+
+	case SICD_EXIT:
+	case SICD_AUD_EXIT:
+		list_for_each_entry(ourport, &drvdata_list, node) {
+			if (uart_console(&ourport->port))
+				continue;
+
+			port = &ourport->port;
+
+			spin_lock_irqsave(&port->lock, flags);
+
+			uart_clock_enable(ourport);
+			/* enable auto flow control */
+			umcon = rd_regl(port, S3C2410_UMCON);
+			umcon |= S3C2410_UMCOM_AFC;
+			wr_regl(port, S3C2410_UMCON, umcon);
+			uart_clock_disable(ourport);
+
+			spin_unlock_irqrestore(&port->lock, flags);
+		}
+		break;
+
+	default:
 		break;
 	}
 
