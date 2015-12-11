@@ -1480,14 +1480,15 @@ static int s3c24xx_serial_notifier(struct notifier_block *self,
 
 			port = &ourport->port;
 
+			if (port->state->pm_state == UART_PM_STATE_OFF)
+				continue;
+
 			spin_lock_irqsave(&port->lock, flags);
 
-			uart_clock_enable(ourport);
 			/* disable auto flow control & set nRTS for High */
 			umcon = rd_regl(port, S3C2410_UMCON);
 			umcon &= ~(S3C2410_UMCOM_AFC | S3C2410_UMCOM_RTS_LOW);
 			wr_regl(port, S3C2410_UMCON, umcon);
-			uart_clock_disable(ourport);
 
 			spin_unlock_irqrestore(&port->lock, flags);
 		}
@@ -1501,14 +1502,15 @@ static int s3c24xx_serial_notifier(struct notifier_block *self,
 
 			port = &ourport->port;
 
+			if (port->state->pm_state == UART_PM_STATE_OFF)
+				continue;
+
 			spin_lock_irqsave(&port->lock, flags);
 
-			uart_clock_enable(ourport);
 			/* enable auto flow control */
 			umcon = rd_regl(port, S3C2410_UMCON);
 			umcon |= S3C2410_UMCOM_AFC;
 			wr_regl(port, S3C2410_UMCON, umcon);
-			uart_clock_disable(ourport);
 
 			spin_unlock_irqrestore(&port->lock, flags);
 		}
