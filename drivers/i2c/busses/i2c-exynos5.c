@@ -28,6 +28,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include "../../pinctrl/core.h"
+#include "i2c-exynos5.h"
 
 #include <soc/samsung/exynos-powermode.h>
 #ifdef CONFIG_CPU_IDLE
@@ -197,50 +198,6 @@ static LIST_HEAD(drvdata_list);
 #define EXYNOS5_FIFO_SIZE		16
 
 #define EXYNOS5_HSI2C_RUNTIME_PM_DELAY	(100)
-
-struct exynos5_i2c {
-	struct list_head	node;
-	struct i2c_adapter	adap;
-	unsigned int		need_hw_init;
-	unsigned int		suspended:1;
-
-	struct i2c_msg		*msg;
-	struct completion	msg_complete;
-	unsigned int		msg_ptr;
-	unsigned int		msg_len;
-
-	unsigned int		irq;
-
-	void __iomem		*regs;
-	struct clk		*clk;
-	struct clk		*rate_clk;
-	struct device		*dev;
-	int			state;
-
-	/*
-	 * Since the TRANS_DONE bit is cleared on read, and we may read it
-	 * either during an IRQ or after a transaction, keep track of its
-	 * state here.
-	 */
-	int			trans_done;
-
-	/* Controller operating frequency */
-	unsigned int		fs_clock;
-	unsigned int		hs_clock;
-
-	/*
-	 * HSI2C Controller can operate in
-	 * 1. High speed upto 3.4Mbps
-	 * 2. Fast speed upto 1Mbps
-	 */
-	int			speed_mode;
-	int			operation_mode;
-	int			bus_id;
-	int			scl_clk_stretch;
-	int			stop_after_trans;
-	unsigned int		transfer_delay;
-	int			idle_ip_index;
-};
 
 static const struct of_device_id exynos5_i2c_match[] = {
 	{ .compatible = "samsung,exynos5-hsi2c" },
