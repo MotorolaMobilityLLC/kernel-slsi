@@ -816,6 +816,16 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
 	clk_prepare_enable(i2c->clk);
 #endif
+
+	/* If master is in arbitration lost state before transfer */
+	/* master should be reset */
+	if (i2c->reset_before_trans) {
+		if (unlikely((readl(i2c->regs + HSI2C_TRANS_STATUS)
+			& HSI2C_MAST_ST_MASK) == 0xC)) {
+			i2c->need_hw_init = 1;
+		}
+	}
+
 	if (i2c->need_hw_init)
 		exynos5_i2c_reset(i2c);
 
@@ -958,6 +968,11 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		i2c->stop_after_trans = 1;
 	else
 		i2c->stop_after_trans = 0;
+
+	if (of_get_property(np, "samsung,reset-before-trans", NULL))
+		i2c->reset_before_trans = 1;
+	else
+		i2c->reset_before_trans = 0;
 
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 

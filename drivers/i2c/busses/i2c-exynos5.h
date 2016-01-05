@@ -54,5 +54,6 @@ struct exynos5_i2c {
 	unsigned int		transfer_delay;
 
 	int			idle_ip_index;
+	int			reset_before_trans;
 };
 #endif /*__I2C_EXYNOS5_H */
