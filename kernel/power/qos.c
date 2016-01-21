@@ -105,6 +105,21 @@ static struct pm_qos_object device_throughput_pm_qos = {
 	.name = "device_throughput",
 };
 
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
+static BLOCKING_NOTIFIER_HEAD(device_throughput_max_notifier);
+static struct pm_qos_constraints device_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(device_tput_max_constraints.list),
+	.target_value = PM_QOS_DEVICE_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_DEVICE_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &device_throughput_max_notifier,
+};
+static struct pm_qos_object device_throughput_max_pm_qos = {
+	.constraints = &device_tput_max_constraints,
+	.name = "device_throughput_max",
+};
+#endif
+
 static BLOCKING_NOTIFIER_HEAD(bus_throughput_notifier);
 static struct pm_qos_constraints bus_tput_constraints = {
 	.list = PLIST_HEAD_INIT(bus_tput_constraints.list),
@@ -174,6 +189,21 @@ static struct pm_qos_object display_throughput_pm_qos = {
 	.name = "display_throughput",
 };
 
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
+static BLOCKING_NOTIFIER_HEAD(display_throughput_max_notifier);
+static struct pm_qos_constraints display_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(display_tput_max_constraints.list),
+	.target_value = PM_QOS_DISPLAY_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_DISPLAY_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &display_throughput_max_notifier,
+};
+static struct pm_qos_object display_throughput_max_pm_qos = {
+	.constraints = &display_tput_max_constraints,
+	.name = "display_throughput_max",
+};
+#endif
+
 static BLOCKING_NOTIFIER_HEAD(cam_throughput_notifier);
 static struct pm_qos_constraints cam_tput_constraints = {
 	.list = PLIST_HEAD_INIT(cam_tput_constraints.list),
@@ -187,18 +217,41 @@ static struct pm_qos_object cam_throughput_pm_qos = {
 	.name = "cam_throughput",
 };
 
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
+static BLOCKING_NOTIFIER_HEAD(cam_throughput_max_notifier);
+static struct pm_qos_constraints cam_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(cam_tput_max_constraints.list),
+	.target_value = PM_QOS_CAM_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_CAM_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &cam_throughput_max_notifier,
+};
+static struct pm_qos_object cam_throughput_max_pm_qos = {
+	.constraints = &cam_tput_max_constraints,
+	.name = "cam_throughput_max",
+};
+#endif
 
 static struct pm_qos_object *pm_qos_array[] = {
 	&null_pm_qos,
 	&cpu_dma_pm_qos,
 	&network_lat_pm_qos,
 	&device_throughput_pm_qos,
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
+	&device_throughput_max_pm_qos,
+#endif
 	&bus_throughput_pm_qos,
 	&bus_throughput_max_pm_qos,
 	&network_throughput_pm_qos,
 	&memory_bandwidth_pm_qos,
 	&display_throughput_pm_qos,
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
+	&display_throughput_max_pm_qos,
+#endif
 	&cam_throughput_pm_qos,
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
+	&cam_throughput_max_pm_qos,
+#endif
 };
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
