@@ -25,7 +25,6 @@
  *
  */
 
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -177,9 +176,6 @@
  * @soc: id of the SOC type.
  * @irq_work: pointer to the irq work structure.
  * @lock: lock to implement synchronization.
- * @clk: pointer to the clock structure.
- * @clk_sec: pointer to the clock structure for accessing the base_second.
- * @sclk: pointer to the clock structure for accessing the tmu special clk.
  * @temp_error1: fused value of the first point trim.
  * @temp_error2: fused value of the second point trim.
  * @regulator: pointer to the TMU regulator structure.
@@ -200,7 +196,6 @@ struct exynos_tmu_data {
 	enum soc_type soc;
 	struct work_struct irq_work;
 	struct mutex lock;
-	struct clk *clk, *clk_sec, *sclk;
 	u16 temp_error1, temp_error2;
 	struct regulator *regulator;
 	struct thermal_zone_device *tzd;
@@ -357,14 +352,8 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	}
 
 	mutex_lock(&data->lock);
-	clk_enable(data->clk);
-	if (!IS_ERR(data->clk_sec))
-		clk_enable(data->clk_sec);
 	ret = data->tmu_initialize(pdev);
-	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
-	if (!IS_ERR(data->clk_sec))
-		clk_disable(data->clk_sec);
 
 	return ret;
 }
@@ -396,9 +385,7 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 
 	mutex_lock(&data->lock);
-	clk_enable(data->clk);
 	data->tmu_control(pdev, on);
-	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 }
 
@@ -894,11 +881,9 @@ static int exynos_get_temp(void *p, int *temp)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
-	clk_enable(data->clk);
 
 	*temp = code_to_temp(data, data->tmu_read(data)) * MCELSIUS;
 
-	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 
 	return 0;
@@ -977,9 +962,7 @@ static int exynos_tmu_set_emulation(void *drv_data, int temp)
 		goto out;
 
 	mutex_lock(&data->lock);
-	clk_enable(data->clk);
 	data->tmu_set_emulation(data, temp);
-	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 	return 0;
 out:
@@ -1022,25 +1005,19 @@ static void exynos_tmu_work(struct work_struct *work)
 			struct exynos_tmu_data, irq_work);
 	unsigned int val_type;
 
-	if (!IS_ERR(data->clk_sec))
-		clk_enable(data->clk_sec);
 	/* Find which sensor generated this interrupt */
 	if (data->soc == SOC_ARCH_EXYNOS5440) {
 		val_type = readl(data->base_second + EXYNOS5440_TMU_IRQ_STATUS);
 		if (!((val_type >> data->id) & 0x1))
 			goto out;
 	}
-	if (!IS_ERR(data->clk_sec))
-		clk_disable(data->clk_sec);
 
 	exynos_report_trigger(data);
 	mutex_lock(&data->lock);
-	clk_enable(data->clk);
 
 	/* TODO: take action based on particular interrupt */
 	data->tmu_clear_irqs(data);
 
-	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 out:
 	enable_irq(data->irq);
@@ -1328,53 +1305,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
 
-	data->clk = devm_clk_get(&pdev->dev, "tmu_apbif");
-	if (IS_ERR(data->clk)) {
-		dev_err(&pdev->dev, "Failed to get clock\n");
-		ret = PTR_ERR(data->clk);
-		goto err_sensor;
-	}
-
-	data->clk_sec = devm_clk_get(&pdev->dev, "tmu_triminfo_apbif");
-	if (IS_ERR(data->clk_sec)) {
-		if (data->soc == SOC_ARCH_EXYNOS5420_TRIMINFO) {
-			dev_err(&pdev->dev, "Failed to get triminfo clock\n");
-			ret = PTR_ERR(data->clk_sec);
-			goto err_sensor;
-		}
-	} else {
-		ret = clk_prepare(data->clk_sec);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to get clock\n");
-			goto err_sensor;
-		}
-	}
-
-	ret = clk_prepare(data->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to get clock\n");
-		goto err_clk_sec;
-	}
-
-	switch (data->soc) {
-	case SOC_ARCH_EXYNOS5433:
-	case SOC_ARCH_EXYNOS7:
-		data->sclk = devm_clk_get(&pdev->dev, "tmu_sclk");
-		if (IS_ERR(data->sclk)) {
-			dev_err(&pdev->dev, "Failed to get sclk\n");
-			goto err_clk;
-		} else {
-			ret = clk_prepare_enable(data->sclk);
-			if (ret) {
-				dev_err(&pdev->dev, "Failed to enable sclk\n");
-				goto err_clk;
-			}
-		}
-		break;
-	default:
-		break;
-	}
-
 	/*
 	 * data->tzd must be registered before calling exynos_tmu_initialize(),
 	 * requesting irq and calling exynos_tmu_control().
@@ -1384,7 +1314,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
 		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
-		goto err_sclk;
+		goto err_sensor;
 	}
 
 	ret = exynos_tmu_initialize(pdev);
@@ -1405,13 +1335,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 err_thermal:
 	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
-err_sclk:
-	clk_disable_unprepare(data->sclk);
-err_clk:
-	clk_unprepare(data->clk);
-err_clk_sec:
-	if (!IS_ERR(data->clk_sec))
-		clk_unprepare(data->clk_sec);
 err_sensor:
 	if (!IS_ERR(data->regulator))
 		regulator_disable(data->regulator);
@@ -1426,11 +1349,6 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 
 	thermal_zone_of_sensor_unregister(&pdev->dev, tzd);
 	exynos_tmu_control(pdev, false);
-
-	clk_disable_unprepare(data->sclk);
-	clk_unprepare(data->clk);
-	if (!IS_ERR(data->clk_sec))
-		clk_unprepare(data->clk_sec);
 
 	if (!IS_ERR(data->regulator))
 		regulator_disable(data->regulator);
