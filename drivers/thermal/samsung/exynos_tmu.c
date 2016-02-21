@@ -33,6 +33,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/cpufreq.h>
 
 #include "exynos_tmu.h"
 #include "../thermal_core.h"
@@ -673,6 +674,9 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data;
 	int ret;
+
+	if (!cpufreq_frequency_get_table(0))
+		return -EPROBE_DEFER;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
 					GFP_KERNEL);
