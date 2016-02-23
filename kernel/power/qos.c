@@ -520,6 +520,33 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 }
 
 /**
+ * pm_qos_read_req_value - returns requested qos value
+ * @pm_qos_class: identification of which qos value is requested
+ * @req: request wanted to find set value
+ *
+ * This function returns the requested qos value by sysfs node.
+ */
+int pm_qos_read_req_value(int pm_qos_class, struct pm_qos_request *req)
+{
+	struct plist_node *p;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pm_qos_lock, flags);
+
+	plist_for_each(p, &pm_qos_array[pm_qos_class]->constraints->list) {
+		if (req == container_of(p, struct pm_qos_request, node)) {
+			spin_unlock_irqrestore(&pm_qos_lock, flags);
+			return p->prio;
+		}
+	}
+
+	spin_unlock_irqrestore(&pm_qos_lock, flags);
+
+	return -ENODATA;
+}
+EXPORT_SYMBOL_GPL(pm_qos_read_req_value);
+
+/**
  * pm_qos_request - returns current system wide qos expectation
  * @pm_qos_class: identification of which qos value is requested
  *
