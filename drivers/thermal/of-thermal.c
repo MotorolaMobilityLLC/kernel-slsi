@@ -973,6 +973,7 @@ int __init of_parse_thermal_zones(void)
 	for_each_available_child_of_node(np, child) {
 		struct thermal_zone_device *zone;
 		struct thermal_zone_params *tzp;
+		const char *governor_name;
 		int i, mask = 0;
 		u32 prop;
 
@@ -1006,6 +1007,9 @@ int __init of_parse_thermal_zones(void)
 		/* these two are left for temperature drivers to use */
 		tzp->slope = tz->slope;
 		tzp->offset = tz->offset;
+
+		if (!of_property_read_string(child, "governor", &governor_name))
+			strncpy(tzp->governor_name, governor_name, THERMAL_NAME_LENGTH);
 
 		zone = thermal_zone_device_register(child->name, tz->ntrips,
 						    mask, tz,
