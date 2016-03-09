@@ -220,6 +220,7 @@ struct exynos_tmu_data {
 	struct regulator *regulator;
 	struct thermal_zone_device *tzd;
 	unsigned int ntrip;
+	struct thermal_cooling_device *cool_dev;
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
@@ -1479,6 +1480,40 @@ static const struct thermal_zone_of_device_ops exynos_sensor_ops = {
 	.get_trend = exynos_get_trend,
 };
 
+static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
+{
+	struct device_node *np, *child, *gchild, *ggchild;
+	struct device_node *cool_np;
+	struct of_phandle_args cooling_spec;
+	struct cpumask mask_val;
+	int cpu, ret;
+
+	np = of_find_node_by_name(NULL, "thermal-zones");
+	if (!np)
+		return -ENODEV;
+
+	/* Regist cpufreq cooling register */
+	child = of_get_next_child(np, NULL);
+	gchild = of_get_child_by_name(child, "cooling-maps");
+	ggchild = of_get_next_child(gchild, NULL);
+	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
+					 0, &cooling_spec);
+	if (ret < 0) {
+		pr_err("exynos_tmu do not get cooling spec \n");
+	}
+	cool_np = cooling_spec.np;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu_topology[cpu].cluster_id == 0) {
+			cpumask_copy(&mask_val, topology_core_cpumask(cpu));
+		}
+	}
+
+	data->cool_dev = of_cpufreq_cooling_register(cool_np, &mask_val);
+
+	return ret;
+}
+
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data;
@@ -1513,6 +1548,12 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	ret = exynos_map_dt_data(pdev);
 	if (ret)
 		goto err_sensor;
+
+	ret = exynos_cpufreq_cooling_register(data);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed cooling register \n");
+		goto err_sensor;
+	}
 
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
 
