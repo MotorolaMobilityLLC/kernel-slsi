@@ -483,6 +483,9 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 
 	for (count = 0; count < tz->trips; count++)
 		handle_thermal_trip(tz, count);
+
+	if (tz->ops->throttle_hotplug)
+		tz->ops->throttle_hotplug(tz);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
 

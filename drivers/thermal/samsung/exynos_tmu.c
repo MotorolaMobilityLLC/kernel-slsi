@@ -35,6 +35,10 @@
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/suspend.h>
+#include <linux/pm_qos.h>
+#include <linux/threads.h>
+#include <linux/thermal.h>
+#include <soc/samsung/cpufreq.h>
 
 #include "exynos_tmu.h"
 #include "../thermal_core.h"
@@ -97,6 +101,7 @@
 #define MCELSIUS	1000
 
 static bool suspended;
+static bool is_cpu_hotplugged_out;
 static DEFINE_MUTEX (thermal_suspend_lock);
 
 /* list of multiple instance for each thermal sensor */
@@ -125,6 +130,10 @@ static LIST_HEAD(dtm_dev_list);
  */
 struct exynos_tmu_data {
 	int id;
+	/* Throttle hotplug related variables */
+	bool hotplug_enable;
+	int hotplug_in_threshold;
+	int hotplug_out_threshold;
 	struct exynos_tmu_platform_data *pdata;
 	void __iomem *base;
 	int irq;
@@ -653,6 +662,21 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		return -EADDRNOTAVAIL;
 	}
 
+	data->hotplug_enable = of_property_read_bool(pdev->dev.of_node,
+							"hotplug_enable");
+	if (data->hotplug_enable) {
+		dev_info(&pdev->dev, "thermal zone use hotplug function \n");
+		of_property_read_u32(pdev->dev.of_node, "hotplug_in_threshold",
+					&data->hotplug_in_threshold);
+		if (!data->hotplug_in_threshold)
+			dev_err(&pdev->dev, "No input hotplug_in_threshold \n");
+
+		of_property_read_u32(pdev->dev.of_node, "hotplug_out_threshold",
+					&data->hotplug_out_threshold);
+		if (!data->hotplug_out_threshold)
+			dev_err(&pdev->dev, "No input hotplug_out_threshold \n");
+	}
+
 	pdata = devm_kzalloc(&pdev->dev,
 			     sizeof(struct exynos_tmu_platform_data),
 			     GFP_KERNEL);
@@ -678,6 +702,48 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 
 	return 0;
 }
+
+struct pm_qos_request thermal_cpu_hotplug_request;
+static int exynos_throttle_cpu_hotplug(void *p, int temp)
+{
+	struct exynos_tmu_data *data = p;
+	struct cpufreq_cooling_device *cpufreq_cdev = (struct cpufreq_cooling_device *)data->cool_dev->devdata;
+	int ret = 0;
+
+	temp = temp / MCELSIUS;
+
+	if (is_cpu_hotplugged_out) {
+		if (temp < data->hotplug_in_threshold) {
+			/*
+			 * If current temperature is lower than low threshold,
+			 * call cluster1_cores_hotplug(false) for hotplugged out cpus.
+			 */
+			pm_qos_update_request(&thermal_cpu_hotplug_request,
+						NR_CPUS);
+			is_cpu_hotplugged_out = false;
+			cpufreq_cdev->cpufreq_state = 0;
+		}
+	} else {
+		if (temp >= data->hotplug_out_threshold) {
+			/*
+			 * If current temperature is higher than high threshold,
+			 * call cluster1_cores_hotplug(true) to hold temperature down.
+			 */
+			is_cpu_hotplugged_out = true;
+
+			pm_qos_update_request(&thermal_cpu_hotplug_request,
+						NR_CLUST1_CPUS);
+		}
+	}
+
+	return ret;
+}
+
+static const struct thermal_zone_of_device_ops exynos_hotplug_sensor_ops = {
+	.get_temp = exynos_get_temp,
+	.set_emul_temp = exynos_tmu_set_emulation,
+	.throttle_cpu_hotplug = exynos_throttle_cpu_hotplug,
+};
 
 static const struct thermal_zone_of_device_ops exynos_sensor_ops = {
 	.get_temp = exynos_get_temp,
@@ -755,7 +821,14 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	 * data->tzd must be registered before calling exynos_tmu_initialize(),
 	 * requesting irq and calling exynos_tmu_control().
 	 */
+	if(data->hotplug_enable)
+		pm_qos_add_request(&thermal_cpu_hotplug_request,
+					PM_QOS_CPU_ONLINE_MAX,
+					PM_QOS_CPU_ONLINE_MAX_DEFAULT_VALUE);
+
 	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
+						    data->hotplug_enable ?
+						    &exynos_hotplug_sensor_ops :
 						    &exynos_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
