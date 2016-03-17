@@ -1482,18 +1482,22 @@ static const struct thermal_zone_of_device_ops exynos_sensor_ops = {
 
 static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 {
-	struct device_node *np, *child, *gchild, *ggchild;
+	struct device_node *np, *child = NULL, *gchild, *ggchild;
 	struct device_node *cool_np;
 	struct of_phandle_args cooling_spec;
 	struct cpumask mask_val;
-	int cpu, ret;
+	int cpu, ret, i;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
 		return -ENODEV;
 
-	/* Regist cpufreq cooling register */
-	child = of_get_next_child(np, NULL);
+	/* Regist cpufreq cooling device */
+	for (i = 0; i <= data->id; i++) {
+		child = of_get_next_child(np, child);
+		if (i == data->id)
+			break;
+	}
 	gchild = of_get_child_by_name(child, "cooling-maps");
 	ggchild = of_get_next_child(gchild, NULL);
 	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
@@ -1504,7 +1508,7 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 	cool_np = cooling_spec.np;
 
 	for_each_possible_cpu(cpu) {
-		if (cpu_topology[cpu].cluster_id == 0) {
+		if (cpu_topology[cpu].cluster_id == data->id) {
 			cpumask_copy(&mask_val, topology_core_cpumask(cpu));
 		}
 	}
