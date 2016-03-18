@@ -29,6 +29,8 @@ thermal_sys-$(CONFIG_DEVFREQ_THERMAL) += devfreq_cooling.o
 
 thermal_sys-$(CONFIG_GPU_THERMAL)	+= gpu_cooling.o
 
+thermal_sys-$(CONFIG_ISP_THERMAL)	+= isp_cooling.o
+
 # platform thermal drivers
 obj-y				+= broadcom/
 obj-$(CONFIG_QCOM_SPMI_TEMP_ALARM)	+= qcom-spmi-temp-alarm.o

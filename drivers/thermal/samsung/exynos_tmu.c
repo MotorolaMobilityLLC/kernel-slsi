@@ -39,6 +39,7 @@
 #include <linux/threads.h>
 #include <linux/thermal.h>
 #include <linux/gpu_cooling.h>
+#include <linux/isp_cooling.h>
 #include <linux/slab.h>
 #include <soc/samsung/cpufreq.h>
 
@@ -747,6 +748,48 @@ static int gpu_cooling_table_init(struct platform_device *pdev)
 static int gpu_cooling_table_init(struct platform_device *pdev) {return 0;}
 #endif
 
+#ifdef CONFIG_ISP_THERMAL
+struct isp_fps_table isp_fps_table[10];
+
+static int isp_cooling_table_init(struct platform_device *pdev)
+{
+	struct isp_fps_table *table_ptr;
+	unsigned int table_size;
+	u32 isp_idx_num = 0;
+	int ret = 0, i = 0;
+
+	/* isp cooling frequency table parse */
+	ret = of_property_read_u32(pdev->dev.of_node, "isp_idx_num",
+					&isp_idx_num);
+	if (ret < 0)
+		dev_err(&pdev->dev, "isp_idx_num happend error value\n");
+
+	if (isp_idx_num) {
+		table_ptr = kzalloc(sizeof(struct isp_fps_table)
+						* isp_idx_num, GFP_KERNEL);
+		if (!table_ptr) {
+			dev_err(&pdev->dev, "failed to allocate for isp_table\n");
+			return -ENODEV;
+		}
+		table_size = sizeof(struct isp_fps_table) / sizeof(unsigned int);
+		ret = of_property_read_u32_array(pdev->dev.of_node, "isp_cooling_table",
+			(unsigned int *)table_ptr, table_size * isp_idx_num);
+
+		for (i = 0; i < isp_idx_num; i++) {
+			isp_fps_table[i].flags = table_ptr[i].flags;
+			isp_fps_table[i].driver_data = table_ptr[i].driver_data;
+			isp_fps_table[i].fps = table_ptr[i].fps;
+			dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
+				isp_fps_table[i].driver_data, isp_fps_table[i].fps);
+		}
+		kfree(table_ptr);
+	}
+	return ret;
+}
+#else
+static int isp_cooling_table_init(struct platform_device *pdev) {return 0;}
+#endif
+
 struct pm_qos_request thermal_cpu_hotplug_request;
 static int exynos_throttle_cpu_hotplug(void *p, int temp)
 {
@@ -868,6 +911,41 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data) {return 0;}
 #endif
 
+#ifdef CONFIG_ISP_THERMAL
+static int exynos_isp_cooling_register(struct exynos_tmu_data *data)
+{
+	struct device_node *np, *child = NULL, *gchild, *ggchild;
+	struct device_node *cool_np;
+	struct of_phandle_args cooling_spec;
+	int ret, i;
+
+	np = of_find_node_by_name(NULL, "thermal-zones");
+	if (!np)
+		return -ENODEV;
+
+	/* Regist isp cooling device */
+	for (i = 0; i <= data->id; i++) {
+		child = of_get_next_child(np, child);
+		if (i == data->id)
+			break;
+	}
+	gchild = of_get_child_by_name(child, "cooling-maps");
+	ggchild = of_get_next_child(gchild, NULL);
+	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
+					 0, &cooling_spec);
+	if (ret < 0) {
+		pr_err("exynos_tmu do not get cooling spec \n");
+	}
+	cool_np = cooling_spec.np;
+
+	data->cool_dev = of_isp_cooling_register(cool_np, NULL);
+
+	return ret;
+}
+#else
+static int exynos_isp_cooling_register(struct exynos_tmu_data *data) {return 0;}
+#endif
+
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data;
@@ -900,6 +978,16 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 			goto err_sensor;
 
 		ret = exynos_gpufreq_cooling_register(data);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed cooling register \n");
+			goto err_sensor;
+		}
+	} else if (data->id == 3) {
+		ret = isp_cooling_table_init(pdev);
+		if (ret)
+			goto err_sensor;
+
+		ret = exynos_isp_cooling_register(data);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed cooling register \n");
 			goto err_sensor;
