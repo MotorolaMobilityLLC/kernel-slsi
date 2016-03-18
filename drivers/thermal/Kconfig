@@ -180,6 +180,15 @@ config DEVFREQ_THERMAL
 
 	  If you want this support, you should say Y here.
 
+config GPU_THERMAL
+	bool "generic gpu cooling support"
+	depends on THERMAL_OF
+	help
+	  This implements the generic gpu cooling mechanism through frequency
+	  reduction.
+
+	  If you want this support, you should say Y here.
+
 config THERMAL_EMULATION
 	bool "Thermal emulation mode support"
 	help

@@ -38,6 +38,8 @@
 #include <linux/pm_qos.h>
 #include <linux/threads.h>
 #include <linux/thermal.h>
+#include <linux/gpu_cooling.h>
+#include <linux/slab.h>
 #include <soc/samsung/cpufreq.h>
 
 #include "exynos_tmu.h"
@@ -106,6 +108,8 @@ static DEFINE_MUTEX (thermal_suspend_lock);
 
 /* list of multiple instance for each thermal sensor */
 static LIST_HEAD(dtm_dev_list);
+struct cpufreq_frequency_table gpu_freq_table[10];
+
 /**
  * struct exynos_tmu_data : A structure to hold the private data of the TMU
 	driver
@@ -702,6 +706,46 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 
 	return 0;
 }
+#ifdef CONFIG_GPU_THERMAL
+static int gpu_cooling_table_init(struct platform_device *pdev)
+{
+	struct cpufreq_frequency_table *table_ptr;
+	unsigned int table_size;
+	u32 gpu_idx_num = 0;
+	int ret = 0, i = 0;
+
+	/* gpu cooling frequency table parse */
+	ret = of_property_read_u32(pdev->dev.of_node, "gpu_idx_num",
+					&gpu_idx_num);
+	if (ret < 0)
+		dev_err(&pdev->dev, "gpu_idx_num happend error value\n");
+
+	if (gpu_idx_num) {
+		table_ptr = kzalloc(sizeof(struct cpufreq_frequency_table)
+						* gpu_idx_num, GFP_KERNEL);
+		if (!table_ptr) {
+			dev_err(&pdev->dev, "failed to allocate for gpu_table\n");
+			return -ENODEV;
+		}
+		table_size = sizeof(struct cpufreq_frequency_table) /
+							sizeof(unsigned int);
+		ret = of_property_read_u32_array(pdev->dev.of_node, "gpu_cooling_table",
+			(unsigned int *)table_ptr, table_size * gpu_idx_num);
+
+		for (i = 0; i < gpu_idx_num; i++) {
+			gpu_freq_table[i].flags = table_ptr[i].flags;
+			gpu_freq_table[i].driver_data = table_ptr[i].driver_data;
+			gpu_freq_table[i].frequency = table_ptr[i].frequency;
+			dev_info(&pdev->dev, "[GPU TMU] index : %d, frequency : %d \n",
+				gpu_freq_table[i].driver_data, gpu_freq_table[i].frequency);
+		}
+		kfree(table_ptr);
+	}
+	return ret;
+}
+#else
+static int gpu_cooling_table_init(struct platform_device *pdev) {return 0;}
+#endif
 
 struct pm_qos_request thermal_cpu_hotplug_request;
 static int exynos_throttle_cpu_hotplug(void *p, int temp)
@@ -789,6 +833,41 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 	return ret;
 }
 
+#ifdef CONFIG_GPU_THERMAL
+static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
+{
+	struct device_node *np, *child = NULL, *gchild, *ggchild;
+	struct device_node *cool_np;
+	struct of_phandle_args cooling_spec;
+	int ret, i;
+
+	np = of_find_node_by_name(NULL, "thermal-zones");
+	if (!np)
+		return -ENODEV;
+
+	/* Regist gpufreq cooling device */
+	for (i = 0; i <= data->id; i++) {
+		child = of_get_next_child(np, child);
+		if (i == data->id)
+			break;
+	}
+	gchild = of_get_child_by_name(child, "cooling-maps");
+	ggchild = of_get_next_child(gchild, NULL);
+	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
+					 0, &cooling_spec);
+	if (ret < 0) {
+		pr_err("exynos_tmu do not get cooling spec \n");
+	}
+	cool_np = cooling_spec.np;
+
+	data->cool_dev = of_gpufreq_cooling_register(cool_np, NULL);
+
+	return ret;
+}
+#else
+static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data) {return 0;}
+#endif
+
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data;
@@ -809,10 +888,22 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_sensor;
 
-	ret = exynos_cpufreq_cooling_register(data);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed cooling register \n");
-		goto err_sensor;
+	if (data->id == 0 || data->id == 1) {
+		ret = exynos_cpufreq_cooling_register(data);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed cooling register \n");
+			goto err_sensor;
+		}
+	} else if (data->id == 2) {
+		ret = gpu_cooling_table_init(pdev);
+		if (ret)
+			goto err_sensor;
+
+		ret = exynos_gpufreq_cooling_register(data);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed cooling register \n");
+			goto err_sensor;
+		}
 	}
 
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
