@@ -1173,6 +1173,8 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 	struct of_phandle_args cooling_spec;
 	struct cpumask mask_val;
 	int cpu, ret;
+	const char *governor_name;
+	u32 power_coefficient = 0;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
@@ -1199,7 +1201,13 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 		if (cpu_topology[cpu].cluster_id == data->id)
 			cpumask_copy(&mask_val, topology_core_cpumask(cpu));
 
-	data->cool_dev = of_cpufreq_cooling_register(cool_np, &mask_val);
+	if (!of_property_read_string(child, "governor", &governor_name)) {
+		if (!strncasecmp(governor_name, "power_allocator", THERMAL_NAME_LENGTH)) {
+			of_property_read_u32(cool_np, "dynamic-power-coefficient", &power_coefficient);
+		}
+	}
+
+	data->cool_dev = of_cpufreq_power_cooling_register(cool_np, &mask_val, power_coefficient, NULL);
 
 	if (IS_ERR(data->cool_dev))
 	        pr_err("cooling device register fail (mask = %x) \n", *(unsigned int*)cpumask_bits(&mask_val));
