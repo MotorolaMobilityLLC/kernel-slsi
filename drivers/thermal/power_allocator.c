@@ -403,6 +403,9 @@ static int allocate_power(struct thermal_zone_device *tz,
 		else
 			weight = instance->weight;
 
+		if (req_power[i] == 0)
+			req_power[i] = 1;
+
 		weighted_req_power[i] = frac_to_int(weight * req_power[i]);
 
 		if (power_actor_get_max_power(cdev, tz, &max_power[i]))
