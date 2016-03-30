@@ -724,6 +724,10 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	}
 
 	exynos_tmu_control(pdev, true);
+
+	if (!IS_ERR(data->tzd))
+		data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_ENABLED);
+
 	return 0;
 
 err_thermal:
