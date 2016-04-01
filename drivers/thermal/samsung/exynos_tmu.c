@@ -1222,6 +1222,8 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 	struct device_node *cool_np;
 	struct of_phandle_args cooling_spec;
 	int ret;
+	const char *governor_name;
+	u32 power_coefficient = 0;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
@@ -1244,7 +1246,13 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 
 	cool_np = cooling_spec.np;
 
-	data->cool_dev = of_gpufreq_cooling_register(cool_np, NULL);
+	if (!of_property_read_string(child, "governor", &governor_name)) {
+		if (!strncasecmp(governor_name, "power_allocator", THERMAL_NAME_LENGTH)) {
+			of_property_read_u32(cool_np, "dynamic-power-coefficient", &power_coefficient);
+		}
+	}
+
+	data->cool_dev = of_gpufreq_power_cooling_register(cool_np, NULL, power_coefficient, NULL);
 
 	return ret;
 }
