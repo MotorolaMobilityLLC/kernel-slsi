@@ -30,6 +30,12 @@
 static struct kmem_cache *lv2table_kmem_cache;
 
 static struct sysmmu_drvdata *sysmmu_drvdata_list;
+static struct exynos_iommu_owner *sysmmu_owner_list;
+
+struct sysmmu_list_data {
+	struct device *sysmmu;
+	struct list_head node;
+};
 
 struct exynos_client {
 	struct list_head list;
@@ -247,6 +253,76 @@ static phys_addr_t exynos_iommu_iova_to_phys(struct iommu_domain *iommu_domain,
 static int exynos_iommu_of_xlate(struct device *master,
 				 struct of_phandle_args *spec)
 {
+	struct exynos_iommu_owner *owner = master->archdata.iommu;
+	struct platform_device *sysmmu_pdev = of_find_device_by_node(spec->np);
+	struct sysmmu_drvdata *data;
+	struct device *sysmmu;
+	struct exynos_client *client, *buf_client;
+	struct sysmmu_list_data *list_data;
+
+	if (!sysmmu_pdev)
+		return -ENODEV;
+
+	data = platform_get_drvdata(sysmmu_pdev);
+	if (!data)
+		return -ENODEV;
+
+	sysmmu = data->sysmmu;
+	if (!owner) {
+		owner = kzalloc(sizeof(*owner), GFP_KERNEL);
+		if (!owner)
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(&owner->sysmmu_list);
+		INIT_LIST_HEAD(&owner->client);
+		master->archdata.iommu = owner;
+		owner->master = master;
+		spin_lock_init(&owner->lock);
+
+		list_for_each_entry_safe(client, buf_client,
+					&exynos_client_list, list) {
+			if (client->master_np == master->of_node) {
+				owner->domain = client->vmm_data->domain;
+				owner->vmm_data = client->vmm_data;
+				list_del(&client->list);
+				kfree(client);
+			}
+		}
+
+		if (!sysmmu_owner_list) {
+			sysmmu_owner_list = owner;
+		} else {
+			owner->next = sysmmu_owner_list->next;
+			sysmmu_owner_list->next = owner;
+		}
+	}
+
+	list_for_each_entry(list_data, &owner->sysmmu_list, node)
+		if (list_data->sysmmu == sysmmu)
+			return 0;
+
+	list_data = devm_kzalloc(sysmmu, sizeof(*list_data), GFP_KERNEL);
+	if (!list_data)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&list_data->node);
+	list_data->sysmmu = sysmmu;
+
+	/*
+	 * Use device link to make relationship between SysMMU and master.
+	 * SysMMU device is supplier, and master device is consumer.
+	 * This relationship guarantees that supplier is enabled before
+	 * consumer, and it is disabled after consumer.
+	 */
+	device_link_add(master, sysmmu, DL_FLAG_PM_RUNTIME);
+
+	/*
+	 * System MMUs are attached in the order of the presence
+	 * in device tree
+	 */
+	list_add_tail(&list_data->node, &owner->sysmmu_list);
+	dev_info(master, "is owner of %s\n", dev_name(sysmmu));
+
 	return 0;
 }
 
@@ -297,7 +373,6 @@ static int __init exynos_iommu_create_domain(void)
 				pr_info("Added client.%d[%s] into domain %s\n",
 						i, np->name, domain_np->name);
 			}
-
 			of_node_put(np);
 		}
 		of_node_put(domain_np);
