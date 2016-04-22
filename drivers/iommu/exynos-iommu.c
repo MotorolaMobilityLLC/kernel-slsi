@@ -29,6 +29,24 @@
 
 static struct kmem_cache *lv2table_kmem_cache;
 
+void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
+					dma_addr_t d_start, size_t size)
+{
+	return;
+}
+
+int exynos_iommu_map_userptr(struct iommu_domain *dom, unsigned long addr,
+			      dma_addr_t d_iova, size_t size, int prot)
+{
+	return 0;
+}
+
+void exynos_iommu_unmap_userptr(struct iommu_domain *dom,
+				dma_addr_t d_iova, size_t size)
+{
+	return;
+}
+
 static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 {
 	/* Dummy */

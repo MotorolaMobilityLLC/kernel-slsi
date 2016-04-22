@@ -23,6 +23,10 @@
 
 typedef u32 sysmmu_pte_t;
 
+#define IOVM_NUM_PAGES(vmsize) (vmsize / PAGE_SIZE)
+#define IOVM_BITMAP_SIZE(vmsize) \
+		((IOVM_NUM_PAGES(vmsize) + BITS_PER_BYTE) / BITS_PER_BYTE)
+
 #define SECT_ORDER 20
 #define LPAGE_ORDER 16
 #define SPAGE_ORDER 12
@@ -66,6 +70,7 @@ struct exynos_iommu_owner {
 	struct iommu_domain *domain;	/* domain of owner */
 	struct device *master;		/* master device */
 	struct list_head client;	/* node for owner clients_list */
+	struct exynos_iovmm *vmm_data;
 };
 
 /*
@@ -85,4 +90,69 @@ struct sysmmu_drvdata {
 	phys_addr_t pgtable;		/* assigned page table structure */
 	unsigned int version;		/* our version */
 };
+
+struct exynos_vm_region {
+	struct list_head node;
+	u32 start;
+	u32 size;
+	u32 section_off;
+	u32 dummy_size;
+};
+
+struct exynos_iovmm {
+	struct iommu_domain *domain;	/* iommu domain for this iovmm */
+	size_t iovm_size;		/* iovm bitmap size per plane */
+	u32 iova_start;			/* iovm start address per plane */
+	unsigned long *vm_map;		/* iovm biatmap per plane */
+	struct list_head regions_list;	/* list of exynos_vm_region */
+	spinlock_t vmlist_lock;		/* lock for updating regions_list */
+	spinlock_t bitmap_lock;		/* lock for manipulating bitmaps */
+	struct device *dev;	/* peripheral device that has this iovmm */
+	size_t allocated_size;
+	int num_areas;
+	unsigned int num_map;
+	unsigned int num_unmap;
+	const char *domain_name;
+};
+
+void exynos_sysmmu_tlb_invalidate(struct iommu_domain *domain, dma_addr_t start,
+				  size_t size);
+int exynos_iommu_map_userptr(struct iommu_domain *dom, unsigned long addr,
+			      dma_addr_t iova, size_t size, int prot);
+void exynos_iommu_unmap_userptr(struct iommu_domain *dom,
+				dma_addr_t iova, size_t size);
+
+#if defined(CONFIG_EXYNOS_IOVMM)
+static inline struct exynos_iovmm *exynos_get_iovmm(struct device *dev)
+{
+	if (!dev->archdata.iommu) {
+		dev_err(dev, "%s: System MMU is not configured\n", __func__);
+		return NULL;
+	}
+
+	return ((struct exynos_iommu_owner *)dev->archdata.iommu)->vmm_data;
+}
+
+struct exynos_vm_region *find_iovm_region(struct exynos_iovmm *vmm,
+						dma_addr_t iova);
+
+struct exynos_iovmm *exynos_create_single_iovmm(const char *name);
+#else
+static inline struct exynos_iovmm *exynos_get_iovmm(struct device *dev)
+{
+	return NULL;
+}
+
+struct exynos_vm_region *find_iovm_region(struct exynos_iovmm *vmm,
+						dma_addr_t iova)
+{
+	return NULL;
+}
+
+static inline struct exynos_iovmm *exynos_create_single_iovmm(const char *name)
+{
+	return NULL;
+}
+#endif /* CONFIG_EXYNOS_IOVMM */
+
 #endif /* _EXYNOS_IOMMU_H_ */
