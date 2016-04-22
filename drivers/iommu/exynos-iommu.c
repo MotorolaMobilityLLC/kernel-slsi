@@ -29,6 +29,31 @@
 
 static struct kmem_cache *lv2table_kmem_cache;
 
+struct exynos_client {
+	struct list_head list;
+	struct device_node *master_np;
+	struct exynos_iovmm *vmm_data;
+};
+static LIST_HEAD(exynos_client_list);
+static DEFINE_SPINLOCK(exynos_client_lock);
+
+int exynos_client_add(struct device_node *np, struct exynos_iovmm *vmm_data)
+{
+	struct exynos_client *client = kzalloc(sizeof(*client), GFP_KERNEL);
+
+	if (!client)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&client->list);
+	client->master_np = np;
+	client->vmm_data = vmm_data;
+	spin_lock(&exynos_client_lock);
+	list_add_tail(&client->list, &exynos_client_list);
+	spin_unlock(&exynos_client_lock);
+
+	return 0;
+}
+
 void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 					dma_addr_t d_start, size_t size)
 {
@@ -142,6 +167,49 @@ static struct iommu_ops exynos_iommu_ops = {
 	.of_xlate = exynos_iommu_of_xlate,
 };
 
+static int __init exynos_iommu_create_domain(void)
+{
+	struct device_node *domain_np;
+	int ret;
+
+	for_each_compatible_node(domain_np, NULL, "samsung,exynos-iommu-bus") {
+		struct device_node *np;
+		struct exynos_iovmm *vmm = NULL;
+		int i = 0;
+
+		while ((np = of_parse_phandle(domain_np, "domain-clients", i++))) {
+			if (!vmm) {
+				vmm = exynos_create_single_iovmm(np->name);
+				if (IS_ERR(vmm)) {
+					pr_err("%s: Failed to create IOVM space\
+							of %s\n",
+							__func__, np->name);
+					of_node_put(np);
+					of_node_put(domain_np);
+					return -ENOMEM;
+				}
+			}
+			/* Relationship between domain and client is added. */
+			ret = exynos_client_add(np, vmm);
+			if (ret) {
+				pr_err("Failed to adding client[%s] to domain %s\n",
+						np->name, domain_np->name);
+				of_node_put(np);
+				of_node_put(domain_np);
+				return -ENOMEM;
+			} else {
+				pr_info("Added client.%d[%s] into domain %s\n",
+						i, np->name, domain_np->name);
+			}
+
+			of_node_put(np);
+		}
+		of_node_put(domain_np);
+	}
+
+	return 0;
+}
+
 static int __init exynos_iommu_init(void)
 {
 	int ret;
@@ -165,8 +233,16 @@ static int __init exynos_iommu_init(void)
 								__func__);
 		goto err_set_iommu;
 	}
+	ret = exynos_iommu_create_domain();
+	if (ret) {
+		pr_err("%s: Failed to create domain\n", __func__);
+		goto err_create_domain;
+	}
 
 	return 0;
+
+err_create_domain:
+	bus_set_iommu(&platform_bus_type, NULL);
 err_set_iommu:
 	platform_driver_unregister(&exynos_sysmmu_driver);
 err_reg_driver:
