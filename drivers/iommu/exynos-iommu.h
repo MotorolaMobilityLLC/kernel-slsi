@@ -42,6 +42,18 @@ typedef u32 sysmmu_pte_t;
 #define NUM_LV2ENTRIES (SECT_SIZE / SPAGE_SIZE)
 #define LV2TABLE_SIZE (NUM_LV2ENTRIES * sizeof(sysmmu_pte_t))
 
+#define REG_MMU_CTRL		0x000
+#define REG_MMU_CFG		0x004
+#define REG_MMU_STATUS		0x008
+#define REG_MMU_VERSION		0x034
+
+#define MMU_MAJ_VER(val)	((val) >> 11)
+#define MMU_MIN_VER(val)	((val >> 4) & 0x7F)
+#define MMU_REV_VER(val)	((val) & 0xF)
+#define MMU_RAW_VER(reg)	(((reg) >> 17) & 0x7FFF) /* upper 15 bits */
+
+#define MAKE_MMU_VER(maj, min)	((((maj) & 0xF) << 11) | \
+					(((min) & 0x7F) << 4))
 /*
  * This structure exynos specific generalization of struct iommu_domain.
  * It contains list of all master devices represented by owner, which has
@@ -84,11 +96,12 @@ struct sysmmu_drvdata {
 	struct device *sysmmu;		/* SYSMMU controller device */
 	void __iomem *sfrbase;		/* our registers */
 	struct clk *clk;		/* SYSMMU's clock */
+	struct iommu_device iommu;	/* IOMMU core handle */
 	int activations;		/* number of calls to sysmmu_enable */
 	int runtime_active;	/* Runtime PM activated count from master */
 	spinlock_t lock;		/* lock for modyfying state */
 	phys_addr_t pgtable;		/* assigned page table structure */
-	unsigned int version;		/* our version */
+	int version;			/* our version */
 };
 
 struct exynos_vm_region {

@@ -29,6 +29,8 @@
 
 static struct kmem_cache *lv2table_kmem_cache;
 
+static struct sysmmu_drvdata *sysmmu_drvdata_list;
+
 struct exynos_client {
 	struct list_head list;
 	struct device_node *master_np;
@@ -72,9 +74,103 @@ void exynos_iommu_unmap_userptr(struct iommu_domain *dom,
 	return;
 }
 
+static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
+static int get_hw_version(struct device *dev, void __iomem *sfrbase)
+{
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to runtime pm get(%d)\n", ret);
+		return ret;
+	}
+	ret = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
+	pm_runtime_put(dev);
+
+	return ret;
+}
+
+static struct iommu_ops exynos_iommu_ops;
 static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 {
-	/* Dummy */
+	int irq, ret;
+	struct device *dev = &pdev->dev;
+	struct sysmmu_drvdata *data;
+	struct resource *res;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "Failed to get resource info\n");
+		return -ENOENT;
+	}
+
+	data->sfrbase = devm_ioremap_resource(dev, res);
+	if (IS_ERR(data->sfrbase))
+		return PTR_ERR(data->sfrbase);
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0) {
+		dev_err(dev, "Unable to find IRQ resource\n");
+		return irq;
+	}
+
+	ret = devm_request_irq(dev, irq, exynos_sysmmu_irq, 0,
+				dev_name(dev), data);
+	if (ret) {
+		dev_err(dev, "Unabled to register handler of irq %d\n", irq);
+		return ret;
+	}
+
+	data->clk = devm_clk_get(dev, "aclk");
+	if (IS_ERR(data->clk)) {
+		dev_err(dev, "Failed to get clock!\n");
+		return PTR_ERR(data->clk);
+	} else  {
+		ret = clk_prepare(data->clk);
+		if (ret) {
+			dev_err(dev, "Failed to prepare clk\n");
+			return ret;
+		}
+	}
+
+	data->sysmmu = dev;
+	spin_lock_init(&data->lock);
+	if (!sysmmu_drvdata_list) {
+		sysmmu_drvdata_list = data;
+	} else {
+		data->next = sysmmu_drvdata_list->next;
+		sysmmu_drvdata_list->next = data;
+	}
+
+	platform_set_drvdata(pdev, data);
+
+	pm_runtime_enable(dev);
+
+	data->version = get_hw_version(dev, data->sfrbase);
+
+	/* TODO: Parsing Device Tree for properties */
+
+	iommu_device_set_ops(&data->iommu, &exynos_iommu_ops);
+	iommu_device_set_fwnode(&data->iommu, &dev->of_node->fwnode);
+
+	ret = iommu_device_register(&data->iommu);
+	if (ret) {
+		dev_err(dev, "Failed to register device\n");
+		return ret;
+	}
+
+	dev_info(data->sysmmu, "is probed. Version %d.%d.%d\n",
+			MMU_MAJ_VER(data->version),
+			MMU_MIN_VER(data->version),
+			MMU_REV_VER(data->version));
 
 	return 0;
 }
