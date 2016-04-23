@@ -39,8 +39,15 @@ typedef u32 sysmmu_pte_t;
 #define LPAGE_MASK (~(LPAGE_SIZE - 1))
 #define SPAGE_MASK (~(SPAGE_SIZE - 1))
 
+#define NUM_LV1ENTRIES	4096
 #define NUM_LV2ENTRIES (SECT_SIZE / SPAGE_SIZE)
 #define LV2TABLE_SIZE (NUM_LV2ENTRIES * sizeof(sysmmu_pte_t))
+
+#define PG_ENT_SHIFT	4
+#define lv1ent_fault(sent)	((*(sent) & 7) == 0)
+#define lv1ent_page(sent)	((*(sent) & 7) == 1)
+
+#define lv2table_base(sent)	((phys_addr_t)(*(sent) & ~0x3F) << PG_ENT_SHIFT)
 
 #define REG_MMU_CTRL		0x000
 #define REG_MMU_CFG		0x004

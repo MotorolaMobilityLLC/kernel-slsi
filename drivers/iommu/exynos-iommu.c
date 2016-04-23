@@ -32,6 +32,11 @@ static struct kmem_cache *lv2table_kmem_cache;
 static struct sysmmu_drvdata *sysmmu_drvdata_list;
 static struct exynos_iommu_owner *sysmmu_owner_list;
 
+static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct exynos_iommu_domain, domain);
+}
+
 struct sysmmu_list_data {
 	struct device *sysmmu;
 	struct list_head node;
@@ -60,6 +65,14 @@ int exynos_client_add(struct device_node *np, struct exynos_iovmm *vmm_data)
 	spin_unlock(&exynos_client_lock);
 
 	return 0;
+}
+
+#define has_sysmmu(dev)		((dev)->archdata.iommu != NULL)
+
+/* For ARM64 only */
+static inline void pgtable_flush(void *vastart, void *vaend)
+{
+	__dma_flush_area(vastart, vaend - vastart);
 }
 
 void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
@@ -181,6 +194,29 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static bool __sysmmu_disable(struct sysmmu_drvdata *drvdata)
+{
+	/* DUMMY */
+	return true;
+}
+
+static void sysmmu_disable_from_master(struct device *master)
+{
+	unsigned long flags;
+	struct exynos_iommu_owner *owner = master->archdata.iommu;
+	struct sysmmu_list_data *list;
+	struct sysmmu_drvdata *drvdata;
+
+	BUG_ON(!has_sysmmu(master));
+
+	spin_lock_irqsave(&owner->lock, flags);
+	list_for_each_entry(list, &owner->sysmmu_list, node) {
+		drvdata = dev_get_drvdata(list->sysmmu);
+		__sysmmu_disable(drvdata);
+	}
+	spin_unlock_irqrestore(&owner->lock, flags);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int exynos_sysmmu_suspend(struct device *dev)
 {
@@ -213,11 +249,70 @@ static struct platform_driver exynos_sysmmu_driver __refdata = {
 
 static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 {
+	struct exynos_iommu_domain *domain;
+
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
+
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	if (!domain)
+		return NULL;
+
+	domain->pgtable = (sysmmu_pte_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 2);
+	if (!domain->pgtable)
+		goto err_pgtable;
+
+	domain->lv2entcnt = (atomic_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 2);
+	if (!domain->lv2entcnt)
+		goto err_counter;
+
+	pgtable_flush(domain->pgtable, domain->pgtable + NUM_LV1ENTRIES);
+
+	spin_lock_init(&domain->lock);
+	spin_lock_init(&domain->pgtablelock);
+	INIT_LIST_HEAD(&domain->clients_list);
+
+	/* TODO: get geometry from device tree */
+	domain->domain.geometry.aperture_start = 0;
+	domain->domain.geometry.aperture_end   = ~0UL;
+	domain->domain.geometry.force_aperture = true;
+
+	return &domain->domain;
+
+err_counter:
+	free_pages((unsigned long)domain->pgtable, 2);
+err_pgtable:
+	kfree(domain);
 	return NULL;
 }
 
 static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 {
+	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
+	struct exynos_iommu_owner *owner;
+	unsigned long flags;
+	int i;
+
+	WARN_ON(!list_empty(&domain->clients_list));
+
+	spin_lock_irqsave(&domain->lock, flags);
+
+	list_for_each_entry(owner, &domain->clients_list, client)
+		sysmmu_disable_from_master(owner->master);
+
+	while (!list_empty(&domain->clients_list))
+		list_del_init(domain->clients_list.next);
+
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	for (i = 0; i < NUM_LV1ENTRIES; i++)
+		if (lv1ent_page(domain->pgtable + i))
+			kmem_cache_free(lv2table_kmem_cache,
+				phys_to_virt(lv2table_base(domain->pgtable + i)));
+
+	free_pages((unsigned long)domain->pgtable, 2);
+	free_pages((unsigned long)domain->lv2entcnt, 2);
+	kfree(domain);
 }
 
 static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
