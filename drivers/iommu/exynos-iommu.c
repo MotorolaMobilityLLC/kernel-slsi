@@ -217,6 +217,42 @@ static void sysmmu_disable_from_master(struct device *master)
 	spin_unlock_irqrestore(&owner->lock, flags);
 }
 
+static int __sysmmu_enable(struct sysmmu_drvdata *drvdata, phys_addr_t pgtable)
+{
+	/* DUMMY */
+	return 0;
+}
+
+static int sysmmu_enable_from_master(struct device *master,
+				struct exynos_iommu_domain *domain)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct exynos_iommu_owner *owner = master->archdata.iommu;
+	struct sysmmu_list_data *list;
+	struct sysmmu_drvdata *drvdata;
+	phys_addr_t pgtable = virt_to_phys(domain->pgtable);
+
+	spin_lock_irqsave(&owner->lock, flags);
+	list_for_each_entry(list, &owner->sysmmu_list, node) {
+		drvdata = dev_get_drvdata(list->sysmmu);
+		ret = __sysmmu_enable(drvdata, pgtable);
+
+		/* rollback if enable is failed */
+		if (ret < 0) {
+			list_for_each_entry_continue_reverse(list,
+						&owner->sysmmu_list, node) {
+				drvdata = dev_get_drvdata(list->sysmmu);
+				__sysmmu_disable(drvdata);
+			}
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&owner->lock, flags);
+
+	return ret;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int exynos_sysmmu_suspend(struct device *dev)
 {
@@ -318,12 +354,71 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 				   struct device *master)
 {
-	return 0;
+	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
+	struct exynos_iommu_owner *owner;
+	phys_addr_t pagetable = virt_to_phys(domain->pgtable);
+	unsigned long flags;
+	int ret = -ENODEV;
+
+	if (!has_sysmmu(master)) {
+		dev_err(master, "has no sysmmu device.\n");
+		return -ENODEV;
+	}
+
+	spin_lock_irqsave(&domain->lock, flags);
+	list_for_each_entry(owner, &domain->clients_list, client) {
+		if (owner->master == master) {
+			dev_err(master, "is already attached!\n");
+			spin_unlock_irqrestore(&domain->lock, flags);
+			return -EEXIST;
+		}
+	}
+	/* owner is under domain. */
+	owner = master->archdata.iommu;
+	list_add_tail(&owner->client, &domain->clients_list);
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	ret = sysmmu_enable_from_master(master, domain);
+	if (ret < 0) {
+		dev_err(master, "%s: Failed to attach IOMMU with pgtable %pa\n",
+					__func__, &pagetable);
+		return ret;
+	}
+
+	dev_dbg(master, "%s: Attached IOMMU with pgtable %pa %s\n",
+		__func__, &pagetable, (ret == 0) ? "" : ", again");
+
+	return ret;
 }
 
 static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 				    struct device *master)
 {
+	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
+	phys_addr_t pagetable = virt_to_phys(domain->pgtable);
+	struct exynos_iommu_owner *owner, *tmp_owner;
+	unsigned long flags;
+	bool found = false;
+
+	if (!has_sysmmu(master))
+		return;
+
+	spin_lock_irqsave(&domain->lock, flags);
+	list_for_each_entry_safe(owner, tmp_owner,
+				&domain->clients_list, client) {
+		if (owner->master == master) {
+			sysmmu_disable_from_master(master);
+			list_del_init(&owner->client);
+			found = true;
+		}
+	}
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	if (found)
+		dev_dbg(master, "%s: Detached IOMMU with pgtable %pa\n",
+					__func__, &pagetable);
+	else
+		dev_err(master, "%s: No IOMMU is attached\n", __func__);
 }
 
 static int exynos_iommu_map(struct iommu_domain *iommu_domain,
