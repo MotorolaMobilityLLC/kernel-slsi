@@ -54,6 +54,34 @@ typedef u32 sysmmu_pte_t;
 #define REG_MMU_STATUS		0x008
 #define REG_MMU_VERSION		0x034
 
+#define CTRL_ENABLE	0x5
+#define CTRL_BLOCK	0x7
+#define CTRL_DISABLE	0x0
+#define CTRL_BLOCK_DISABLE 0x3
+
+#define CFG_MASK	0x01101FBC /* Selecting bit 24, 20, 12-7, 5-2 */
+#define CFG_ACGEN	(1 << 24)
+#define CFG_FLPDCACHE	(1 << 20)
+
+#define REG_PT_BASE_PPN		0x00C
+#define REG_MMU_FLUSH		0x010
+#define REG_MMU_FLUSH_ENTRY	0x014
+#define REG_MMU_FLUSH_RANGE	0x018
+#define REG_FLUSH_RANGE_START	0x020
+#define REG_FLUSH_RANGE_END	0x024
+#define REG_MMU_CAPA		0x030
+#define REG_MMU_CAPA_1		0x038
+#define REG_INT_STATUS		0x060
+#define REG_INT_CLEAR		0x064
+
+#define REG_L2TLB_CFG		0x200
+
+#define MMU_HAVE_PB(reg)	(!!((reg >> 20) & 0xF))
+#define MMU_IS_TLB_CONFIGURABLE(reg)	(!!((reg >> 16) & 0xFF))
+
+#define MMU_MASK_LINE_SIZE	0x7
+#define MMU_DEFAULT_LINE_SIZE	(0x2 << 4)
+
 #define MMU_MAJ_VER(val)	((val) >> 11)
 #define MMU_MIN_VER(val)	((val >> 4) & 0x7F)
 #define MMU_REV_VER(val)	((val) & 0xF)
@@ -141,6 +169,41 @@ int exynos_iommu_map_userptr(struct iommu_domain *dom, unsigned long addr,
 			      dma_addr_t iova, size_t size, int prot);
 void exynos_iommu_unmap_userptr(struct iommu_domain *dom,
 				dma_addr_t iova, size_t size);
+
+static inline bool get_sysmmu_runtime_active(struct sysmmu_drvdata *data)
+{
+	return ++data->runtime_active == 1;
+}
+
+static inline bool put_sysmmu_runtime_active(struct sysmmu_drvdata *data)
+{
+	BUG_ON(data->runtime_active < 1);
+	return --data->runtime_active == 0;
+}
+
+static inline bool is_sysmmu_runtime_active(struct sysmmu_drvdata *data)
+{
+	return data->runtime_active > 0;
+}
+
+static inline bool set_sysmmu_active(struct sysmmu_drvdata *data)
+{
+	/* return true if the System MMU was not active previously
+	   and it needs to be initialized */
+	return ++data->activations == 1;
+}
+
+static inline bool set_sysmmu_inactive(struct sysmmu_drvdata *data)
+{
+	/* return true if the System MMU is needed to be disabled */
+	BUG_ON(data->activations < 1);
+	return --data->activations == 0;
+}
+
+static inline bool is_sysmmu_active(struct sysmmu_drvdata *data)
+{
+	return data->activations > 0;
+}
 
 #if defined(CONFIG_EXYNOS_IOVMM)
 static inline struct exynos_iovmm *exynos_get_iovmm(struct device *dev)

@@ -75,6 +75,48 @@ static inline void pgtable_flush(void *vastart, void *vaend)
 	__dma_flush_area(vastart, vaend - vastart);
 }
 
+static bool has_sysmmu_capable_pbuf(void __iomem *sfrbase)
+{
+	unsigned long cfg = readl_relaxed(sfrbase + REG_MMU_CAPA);
+
+	return MMU_HAVE_PB(cfg);
+}
+
+static bool has_sysmmu_set_associative_tlb(void __iomem *sfrbase)
+{
+	u32 cfg = readl_relaxed(sfrbase + REG_MMU_CAPA_1);
+
+	return MMU_IS_TLB_CONFIGURABLE(cfg);
+}
+
+static void __sysmmu_set_tlb_line_size(void __iomem *sfrbase)
+{
+	u32 cfg =  readl_relaxed(sfrbase + REG_L2TLB_CFG);
+	cfg &= ~MMU_MASK_LINE_SIZE;
+	cfg |= MMU_DEFAULT_LINE_SIZE;
+	writel_relaxed(cfg, sfrbase + REG_L2TLB_CFG);
+}
+
+static void __exynos_sysmmu_set_prefbuf_axi_id(struct sysmmu_drvdata *drvdata)
+{
+	if (!has_sysmmu_capable_pbuf(drvdata->sfrbase))
+		return;
+
+	/* TODO: implement later */
+}
+
+static void __sysmmu_tlb_invalidate_all(void __iomem *sfrbase)
+{
+	writel(0x1, sfrbase + REG_MMU_FLUSH);
+}
+
+static void __sysmmu_set_ptbase(void __iomem *sfrbase, phys_addr_t pfn_pgtable)
+{
+	writel_relaxed(pfn_pgtable, sfrbase + REG_PT_BASE_PPN);
+
+	__sysmmu_tlb_invalidate_all(sfrbase);
+}
+
 void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 					dma_addr_t d_start, size_t size)
 {
@@ -194,10 +236,39 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static void __sysmmu_disable_nocount(struct sysmmu_drvdata *drvdata)
+{
+	writel_relaxed(0, drvdata->sfrbase + REG_MMU_CFG);
+	writel_relaxed(CTRL_BLOCK_DISABLE, drvdata->sfrbase + REG_MMU_CTRL);
+	BUG_ON(readl_relaxed(drvdata->sfrbase + REG_MMU_CTRL) != CTRL_BLOCK_DISABLE);
+
+	clk_disable(drvdata->clk);
+}
+
 static bool __sysmmu_disable(struct sysmmu_drvdata *drvdata)
 {
-	/* DUMMY */
-	return true;
+	bool disabled;
+	unsigned long flags;
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+
+	disabled = set_sysmmu_inactive(drvdata);
+
+	if (disabled) {
+		drvdata->pgtable = 0;
+
+		if (is_sysmmu_runtime_active(drvdata))
+			__sysmmu_disable_nocount(drvdata);
+
+		dev_dbg(drvdata->sysmmu, "Disabled\n");
+	} else  {
+		dev_dbg(drvdata->sysmmu, "%d times left to disable\n",
+					drvdata->activations);
+	}
+
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
+	return disabled;
 }
 
 static void sysmmu_disable_from_master(struct device *master)
@@ -217,10 +288,61 @@ static void sysmmu_disable_from_master(struct device *master)
 	spin_unlock_irqrestore(&owner->lock, flags);
 }
 
+static void __sysmmu_init_config(struct sysmmu_drvdata *drvdata)
+{
+	unsigned long cfg;
+
+	writel_relaxed(CTRL_BLOCK, drvdata->sfrbase + REG_MMU_CTRL);
+
+	if (MMU_MAJ_VER(drvdata->version) >= 7) {
+		/* TODO: implement later */
+	} else {
+		__exynos_sysmmu_set_prefbuf_axi_id(drvdata);
+		if (has_sysmmu_set_associative_tlb(drvdata->sfrbase))
+			__sysmmu_set_tlb_line_size(drvdata->sfrbase);
+	}
+
+	cfg = CFG_FLPDCACHE | CFG_ACGEN;
+	cfg |= __raw_readl(drvdata->sfrbase + REG_MMU_CFG) & ~CFG_MASK;
+	writel_relaxed(cfg, drvdata->sfrbase + REG_MMU_CFG);
+}
+
+static void __sysmmu_enable_nocount(struct sysmmu_drvdata *drvdata)
+{
+	clk_enable(drvdata->clk);
+
+	__sysmmu_init_config(drvdata);
+
+	__sysmmu_set_ptbase(drvdata->sfrbase, drvdata->pgtable / PAGE_SIZE);
+
+	writel(CTRL_ENABLE, drvdata->sfrbase + REG_MMU_CTRL);
+}
+
 static int __sysmmu_enable(struct sysmmu_drvdata *drvdata, phys_addr_t pgtable)
 {
-	/* DUMMY */
-	return 0;
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (set_sysmmu_active(drvdata)) {
+		drvdata->pgtable = pgtable;
+
+		if (is_sysmmu_runtime_active(drvdata))
+			__sysmmu_enable_nocount(drvdata);
+
+		dev_dbg(drvdata->sysmmu, "Enabled\n");
+	} else {
+		ret = (pgtable == drvdata->pgtable) ? 1 : -EBUSY;
+
+		dev_dbg(drvdata->sysmmu, "already enabled\n");
+	}
+
+	if (WARN_ON(ret < 0))
+		set_sysmmu_inactive(drvdata); /* decrement count */
+
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
+	return ret;
 }
 
 static int sysmmu_enable_from_master(struct device *master,
