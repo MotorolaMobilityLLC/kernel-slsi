@@ -543,16 +543,213 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 		dev_err(master, "%s: No IOMMU is attached\n", __func__);
 }
 
+static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
+		sysmmu_pte_t *sent, sysmmu_iova_t iova, atomic_t *pgcounter)
+{
+	if (lv1ent_section(sent)) {
+		WARN(1, "Trying mapping on %#08x mapped with 1MiB page", iova);
+		return ERR_PTR(-EADDRINUSE);
+	}
+
+	if (lv1ent_fault(sent)) {
+		unsigned long flags;
+		spin_lock_irqsave(&domain->pgtablelock, flags);
+		if (lv1ent_fault(sent)) {
+			sysmmu_pte_t *pent;
+
+			pent = kmem_cache_zalloc(lv2table_kmem_cache, GFP_ATOMIC);
+			BUG_ON((unsigned long)pent & (LV2TABLE_SIZE - 1));
+			if (!pent) {
+				spin_unlock_irqrestore(&domain->pgtablelock, flags);
+				return ERR_PTR(-ENOMEM);
+			}
+
+			*sent = mk_lv1ent_page(virt_to_phys(pent));
+			kmemleak_ignore(pent);
+			atomic_set(pgcounter, NUM_LV2ENTRIES);
+			pgtable_flush(pent, pent + NUM_LV2ENTRIES);
+			pgtable_flush(sent, sent + 1);
+		}
+		spin_unlock_irqrestore(&domain->pgtablelock, flags);
+	}
+
+	return page_entry(sent, iova);
+}
+static void clear_lv2_page_table(sysmmu_pte_t *ent, int n)
+{
+	if (n > 0)
+		memset(ent, 0, sizeof(*ent) * n);
+}
+
+static int lv1set_section(struct exynos_iommu_domain *domain,
+			  sysmmu_pte_t *sent, sysmmu_iova_t iova,
+			  phys_addr_t paddr, atomic_t *pgcnt)
+{
+	if (lv1ent_section(sent)) {
+		WARN(1, "Trying mapping on 1MiB@%#08x that is mapped",
+			iova);
+		return -EADDRINUSE;
+	}
+
+	if (lv1ent_page(sent)) {
+		if (WARN_ON(atomic_read(pgcnt) != NUM_LV2ENTRIES)) {
+			WARN(1, "Trying mapping on 1MiB@%#08x that is mapped",
+				iova);
+			return -EADDRINUSE;
+		}
+		/* TODO: for v7, free lv2 page table */
+	}
+
+	*sent = mk_lv1ent_sect(paddr);
+	pgtable_flush(sent, sent + 1);
+
+	return 0;
+}
+
+static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
+								atomic_t *pgcnt)
+{
+	if (size == SPAGE_SIZE) {
+		if (WARN_ON(!lv2ent_fault(pent)))
+			return -EADDRINUSE;
+
+		*pent = mk_lv2ent_spage(paddr);
+		pgtable_flush(pent, pent + 1);
+		atomic_dec(pgcnt);
+	} else { /* size == LPAGE_SIZE */
+		int i;
+
+		for (i = 0; i < SPAGES_PER_LPAGE; i++, pent++) {
+			if (WARN_ON(!lv2ent_fault(pent))) {
+				clear_lv2_page_table(pent - i, i);
+				return -EADDRINUSE;
+			}
+
+			*pent = mk_lv2ent_lpage(paddr);
+		}
+		pgtable_flush(pent - SPAGES_PER_LPAGE, pent);
+		atomic_sub(SPAGES_PER_LPAGE, pgcnt);
+	}
+
+	return 0;
+}
 static int exynos_iommu_map(struct iommu_domain *iommu_domain,
 			    unsigned long l_iova, phys_addr_t paddr, size_t size,
 			    int prot)
 {
-	return 0;
+	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
+	sysmmu_pte_t *entry;
+	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
+	int ret = -ENOMEM;
+
+	BUG_ON(domain->pgtable == NULL);
+
+	entry = section_entry(domain->pgtable, iova);
+
+	if (size == SECT_SIZE) {
+		ret = lv1set_section(domain, entry, iova, paddr,
+				     &domain->lv2entcnt[lv1ent_offset(iova)]);
+	} else {
+		sysmmu_pte_t *pent;
+
+		pent = alloc_lv2entry(domain, entry, iova,
+				      &domain->lv2entcnt[lv1ent_offset(iova)]);
+
+		if (IS_ERR(pent))
+			ret = PTR_ERR(pent);
+		else
+			ret = lv2set_page(pent, paddr, size,
+				       &domain->lv2entcnt[lv1ent_offset(iova)]);
+	}
+
+	if (ret)
+		pr_err("%s: Failed(%d) to map %#zx bytes @ %#x\n",
+			__func__, ret, size, iova);
+
+	return ret;
 }
 
 static size_t exynos_iommu_unmap(struct iommu_domain *iommu_domain,
 				 unsigned long l_iova, size_t size)
 {
+	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
+	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
+	sysmmu_pte_t *sent, *pent;
+	size_t err_pgsize;
+	atomic_t *lv2entcnt = &domain->lv2entcnt[lv1ent_offset(iova)];
+
+	BUG_ON(domain->pgtable == NULL);
+
+	sent = section_entry(domain->pgtable, iova);
+
+	if (lv1ent_section(sent)) {
+		if (WARN_ON(size < SECT_SIZE)) {
+			err_pgsize = SECT_SIZE;
+			goto err;
+		}
+
+		*sent = 0;
+		pgtable_flush(sent, sent + 1);
+		size = SECT_SIZE;
+		goto done;
+	}
+
+	if (unlikely(lv1ent_fault(sent))) {
+		if (size > SECT_SIZE)
+			size = SECT_SIZE;
+		goto done;
+	}
+
+	/* lv1ent_page(sent) == true here */
+
+	pent = page_entry(sent, iova);
+
+	if (unlikely(lv2ent_fault(pent))) {
+		size = SPAGE_SIZE;
+		goto done;
+	}
+
+	if (lv2ent_small(pent)) {
+		*pent = 0;
+		size = SPAGE_SIZE;
+		pgtable_flush(pent, pent + 1);
+		atomic_inc(lv2entcnt);
+		goto unmap_flpd;
+	}
+
+	/* lv1ent_large(pent) == true here */
+	if (WARN_ON(size < LPAGE_SIZE)) {
+		err_pgsize = LPAGE_SIZE;
+		goto err;
+	}
+
+	clear_lv2_page_table(pent, SPAGES_PER_LPAGE);
+	pgtable_flush(pent, pent + SPAGES_PER_LPAGE);
+	size = LPAGE_SIZE;
+	atomic_add(SPAGES_PER_LPAGE, lv2entcnt);
+
+unmap_flpd:
+	/* TODO: for v7, remove all */
+	if (atomic_read(lv2entcnt) == NUM_LV2ENTRIES) {
+		unsigned long flags;
+		spin_lock_irqsave(&domain->pgtablelock, flags);
+		if (atomic_read(lv2entcnt) == NUM_LV2ENTRIES) {
+			kmem_cache_free(lv2table_kmem_cache,
+					page_entry(sent, 0));
+			atomic_set(lv2entcnt, 0);
+			*sent = 0;
+		}
+		spin_unlock_irqrestore(&domain->pgtablelock, flags);
+	}
+
+done:
+	/* TLB invalidation is performed by IOVMM */
+
+	return size;
+err:
+	pr_err("%s: Failed: size(%#zx) @ %#x is smaller than page size %#zx\n",
+		__func__, size, iova, err_pgsize);
+
 	return 0;
 }
 

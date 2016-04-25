@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 
+typedef u32 sysmmu_iova_t;
 typedef u32 sysmmu_pte_t;
 
 #define IOVM_NUM_PAGES(vmsize) (vmsize / PAGE_SIZE)
@@ -39,15 +40,40 @@ typedef u32 sysmmu_pte_t;
 #define LPAGE_MASK (~(LPAGE_SIZE - 1))
 #define SPAGE_MASK (~(SPAGE_SIZE - 1))
 
+#define SPAGES_PER_LPAGE	(LPAGE_SIZE / SPAGE_SIZE)
+
+#define PGBASE_TO_PHYS(pgent)	((phys_addr_t)(pgent) << PG_ENT_SHIFT)
+
 #define NUM_LV1ENTRIES	4096
 #define NUM_LV2ENTRIES (SECT_SIZE / SPAGE_SIZE)
 #define LV2TABLE_SIZE (NUM_LV2ENTRIES * sizeof(sysmmu_pte_t))
+
+#define lv1ent_offset(iova) ((iova) >> SECT_ORDER)
+#define lv2ent_offset(iova) ((iova & ~SECT_MASK) >> SPAGE_ORDER)
 
 #define PG_ENT_SHIFT	4
 #define lv1ent_fault(sent)	((*(sent) & 7) == 0)
 #define lv1ent_page(sent)	((*(sent) & 7) == 1)
 
+#define FLPD_FLAG_MASK	7
+#define SLPD_FLAG_MASK	3
+
+#define SECT_FLAG	2
+#define SLPD_FLAG	1
+
+#define LPAGE_FLAG	1
+#define SPAGE_FLAG	2
+
+#define lv1ent_section(sent) ((*(sent) & FLPD_FLAG_MASK) == SECT_FLAG)
 #define lv2table_base(sent)	((phys_addr_t)(*(sent) & ~0x3F) << PG_ENT_SHIFT)
+#define lv2ent_fault(pent) ((*(pent) & SLPD_FLAG_MASK) == 0)
+#define lv2ent_small(pent) ((*(pent) & SLPD_FLAG_MASK) == SPAGE_FLAG)
+#define lv2ent_large(pent) ((*(pent) & SLPD_FLAG_MASK) == LPAGE_FLAG)
+
+#define mk_lv1ent_sect(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 2)
+#define mk_lv1ent_page(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 1)
+#define mk_lv2ent_lpage(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 1)
+#define mk_lv2ent_spage(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 2)
 
 #define REG_MMU_CTRL		0x000
 #define REG_MMU_CFG		0x004
@@ -203,6 +229,18 @@ static inline bool set_sysmmu_inactive(struct sysmmu_drvdata *data)
 static inline bool is_sysmmu_active(struct sysmmu_drvdata *data)
 {
 	return data->activations > 0;
+}
+
+static inline sysmmu_pte_t *page_entry(sysmmu_pte_t *sent, sysmmu_iova_t iova)
+{
+	return (sysmmu_pte_t *)(phys_to_virt(lv2table_base(sent))) +
+				lv2ent_offset(iova);
+}
+
+static inline sysmmu_pte_t *section_entry(
+				sysmmu_pte_t *pgtable, sysmmu_iova_t iova)
+{
+	return (sysmmu_pte_t *)(pgtable + lv1ent_offset(iova));
 }
 
 #if defined(CONFIG_EXYNOS_IOVMM)
