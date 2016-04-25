@@ -417,11 +417,32 @@ static int sysmmu_enable_from_master(struct device *master,
 #ifdef CONFIG_PM_SLEEP
 static int exynos_sysmmu_suspend(struct device *dev)
 {
+	unsigned long flags;
+	struct sysmmu_drvdata *drvdata = dev_get_drvdata(dev);
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (is_sysmmu_active(drvdata) &&
+			(!pm_runtime_enabled(dev) ||
+			 is_sysmmu_runtime_active(drvdata))) {
+		__sysmmu_disable_nocount(drvdata);
+	}
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
 	return 0;
 }
 
 static int exynos_sysmmu_resume(struct device *dev)
 {
+	unsigned long flags;
+	struct sysmmu_drvdata *drvdata = dev_get_drvdata(dev);
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (is_sysmmu_active(drvdata) &&
+			(!pm_runtime_enabled(dev) ||
+			 is_sysmmu_runtime_active(drvdata)))
+		__sysmmu_enable_nocount(drvdata);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
 	return 0;
 }
 #endif
