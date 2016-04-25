@@ -75,6 +75,8 @@ typedef u32 sysmmu_pte_t;
 #define mk_lv2ent_lpage(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 1)
 #define mk_lv2ent_spage(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 2)
 
+#define SYSMMU_BLOCK_POLLING_COUNT 4096
+
 #define REG_MMU_CTRL		0x000
 #define REG_MMU_CFG		0x004
 #define REG_MMU_STATUS		0x008
@@ -229,6 +231,35 @@ static inline bool set_sysmmu_inactive(struct sysmmu_drvdata *data)
 static inline bool is_sysmmu_active(struct sysmmu_drvdata *data)
 {
 	return data->activations > 0;
+}
+
+static inline void __raw_sysmmu_enable(void __iomem *sfrbase)
+{
+	__raw_writel(CTRL_ENABLE, sfrbase + REG_MMU_CTRL);
+}
+
+#define sysmmu_unblock __raw_sysmmu_enable
+
+void dump_sysmmu_tlb_pb(void __iomem *sfrbase);
+
+static inline bool sysmmu_block(void __iomem *sfrbase)
+{
+	int i = SYSMMU_BLOCK_POLLING_COUNT;
+
+	__raw_writel(CTRL_BLOCK, sfrbase + REG_MMU_CTRL);
+	while ((i > 0) && !(__raw_readl(sfrbase + REG_MMU_STATUS) & 1))
+		--i;
+
+	if (!(__raw_readl(sfrbase + REG_MMU_STATUS) & 1)) {
+		/*
+		 * TODO: dump_sysmmu_tlb_pb(sfrbase);
+		 */
+		panic("Failed to block System MMU!");
+		sysmmu_unblock(sfrbase);
+		return false;
+	}
+
+	return true;
 }
 
 static inline sysmmu_pte_t *page_entry(sysmmu_pte_t *sent, sysmmu_iova_t iova)

@@ -110,6 +110,16 @@ static void __sysmmu_tlb_invalidate_all(void __iomem *sfrbase)
 	writel(0x1, sfrbase + REG_MMU_FLUSH);
 }
 
+static void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *drvdata,
+				dma_addr_t iova, size_t size)
+{
+	void * __iomem sfrbase = drvdata->sfrbase;
+
+	__raw_writel(iova, sfrbase + REG_FLUSH_RANGE_START);
+	__raw_writel(size - 1 + iova, sfrbase + REG_FLUSH_RANGE_END);
+	writel(0x1, sfrbase + REG_MMU_FLUSH_RANGE);
+}
+
 static void __sysmmu_set_ptbase(void __iomem *sfrbase, phys_addr_t pfn_pgtable)
 {
 	writel_relaxed(pfn_pgtable, sfrbase + REG_PT_BASE_PPN);
@@ -120,7 +130,36 @@ static void __sysmmu_set_ptbase(void __iomem *sfrbase, phys_addr_t pfn_pgtable)
 void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 					dma_addr_t d_start, size_t size)
 {
-	return;
+	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
+	struct exynos_iommu_owner *owner;
+	struct sysmmu_list_data *list;
+	sysmmu_iova_t start = (sysmmu_iova_t)d_start;
+	unsigned long flags;
+
+	spin_lock_irqsave(&domain->lock, flags);
+	list_for_each_entry(owner, &domain->clients_list, client) {
+		list_for_each_entry(list, &owner->sysmmu_list, node) {
+			struct sysmmu_drvdata *drvdata = dev_get_drvdata(list->sysmmu);
+
+			spin_lock(&drvdata->lock);
+			if (!is_sysmmu_active(drvdata) ||
+					!is_sysmmu_runtime_active(drvdata)) {
+				spin_unlock(&drvdata->lock);
+				dev_dbg(drvdata->sysmmu,
+					"Skip TLB invalidation %#zx@%#x\n",
+							size, start);
+				continue;
+			}
+
+			dev_dbg(drvdata->sysmmu,
+				"TLB invalidation %#zx@%#x\n", size, start);
+
+			__sysmmu_tlb_invalidate(drvdata, start, size);
+
+			spin_unlock(&drvdata->lock);
+		}
+	}
+	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 int exynos_iommu_map_userptr(struct iommu_domain *dom, unsigned long addr,
