@@ -426,7 +426,35 @@ static int exynos_sysmmu_resume(struct device *dev)
 }
 #endif
 
+int exynos_iommu_runtime_suspend(struct device *sysmmu)
+{
+	unsigned long flags;
+	struct sysmmu_drvdata *drvdata = dev_get_drvdata(sysmmu);
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (put_sysmmu_runtime_active(drvdata) && is_sysmmu_active(drvdata))
+		__sysmmu_disable_nocount(drvdata);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
+	return 0;
+}
+
+int exynos_iommu_runtime_resume(struct device *sysmmu)
+{
+	unsigned long flags;
+	struct sysmmu_drvdata *drvdata = dev_get_drvdata(sysmmu);
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (get_sysmmu_runtime_active(drvdata) && is_sysmmu_active(drvdata))
+		__sysmmu_enable_nocount(drvdata);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
+	return 0;
+}
+
 static const struct dev_pm_ops sysmmu_pm_ops = {
+	SET_RUNTIME_PM_OPS(exynos_iommu_runtime_suspend,
+				exynos_iommu_runtime_resume, NULL)
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(exynos_sysmmu_suspend, exynos_sysmmu_resume)
 };
 
