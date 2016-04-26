@@ -189,6 +189,7 @@ struct exynos_iovmm {
 	unsigned int num_map;
 	unsigned int num_unmap;
 	const char *domain_name;
+	struct iommu_group *group;
 };
 
 void exynos_sysmmu_tlb_invalidate(struct iommu_domain *domain, dma_addr_t start,

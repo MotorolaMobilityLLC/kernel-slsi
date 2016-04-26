@@ -886,6 +886,9 @@ static int exynos_iommu_of_xlate(struct device *master,
 			}
 		}
 
+		/* HACK: Make relationship between group and master */
+		master->iommu_group = owner->vmm_data->group;
+
 		if (!sysmmu_owner_list) {
 			sysmmu_owner_list = owner;
 		} else {
@@ -944,6 +947,7 @@ static int __init exynos_iommu_create_domain(void)
 	for_each_compatible_node(domain_np, NULL, "samsung,exynos-iommu-bus") {
 		struct device_node *np;
 		struct exynos_iovmm *vmm = NULL;
+		struct exynos_iommu_domain *domain;
 		int i = 0;
 
 		while ((np = of_parse_phandle(domain_np, "domain-clients", i++))) {
@@ -957,6 +961,11 @@ static int __init exynos_iommu_create_domain(void)
 					of_node_put(domain_np);
 					return -ENOMEM;
 				}
+
+				/* HACK: Make one group for one domain */
+				domain = to_exynos_domain(vmm->domain);
+				vmm->group = iommu_group_alloc();
+				iommu_attach_group(vmm->domain, vmm->group);
 			}
 			/* Relationship between domain and client is added. */
 			ret = exynos_client_add(np, vmm);
