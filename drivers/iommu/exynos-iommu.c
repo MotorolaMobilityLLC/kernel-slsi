@@ -939,6 +939,29 @@ static struct iommu_ops exynos_iommu_ops = {
 	.of_xlate = exynos_iommu_of_xlate,
 };
 
+void exynos_sysmmu_show_status(struct device *dev)
+{
+	/* DUMMY */
+	dev_info(dev, "Called sysmmu show status\n");
+}
+
+void iovmm_set_fault_handler(struct device *dev,
+			     iommu_fault_handler_t handler, void *token)
+{
+	/* DUMMY */
+	dev_info(dev, "Called set fault handler\n");
+}
+
+int sysmmu_set_prefetch_buffer_property(struct device *dev,
+			unsigned int inplanes, unsigned int onplanes,
+			unsigned int ipoption[], unsigned int opoption[])
+{
+	/* DUMMY */
+	dev_info(dev, "Called prefetch buffer property\n");
+
+	return 0;
+}
+
 static int __init exynos_iommu_create_domain(void)
 {
 	struct device_node *domain_np;
