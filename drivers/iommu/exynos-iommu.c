@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
+#include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/iommu.h>
 #include <linux/interrupt.h>
@@ -1052,3 +1053,96 @@ err_reg_driver:
 core_initcall(exynos_iommu_init);
 
 IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu", NULL);
+
+typedef void (*syncop)(const void *, size_t, int);
+
+static size_t sysmmu_dma_sync_page(phys_addr_t phys, off_t off,
+				  size_t pgsize, size_t size,
+				  syncop op, enum dma_data_direction dir)
+{
+	size_t len;
+	size_t skip_pages = off >> PAGE_SHIFT;
+	struct page *page;
+
+	off = off & ~PAGE_MASK;
+	page = phys_to_page(phys) + skip_pages;
+	len = min(pgsize - off, size);
+	size = len;
+
+	while (len > 0) {
+		size_t sz;
+
+		sz = min(PAGE_SIZE, len + off) - off;
+		op(kmap(page) + off, sz, dir);
+		kunmap(page++);
+		len -= sz;
+		off = 0;
+	}
+
+	return size;
+}
+
+static void exynos_iommu_sync(sysmmu_pte_t *pgtable, dma_addr_t iova,
+			size_t len, syncop op, enum dma_data_direction dir)
+{
+	while (len > 0) {
+		sysmmu_pte_t *entry;
+		size_t done;
+
+		entry = section_entry(pgtable, iova);
+		switch (*entry & FLPD_FLAG_MASK) {
+		case SECT_FLAG:
+			done = sysmmu_dma_sync_page(section_phys(entry),
+					section_offs(iova), SECT_SIZE,
+					len, op, dir);
+			break;
+		case SLPD_FLAG:
+			entry = page_entry(entry, iova);
+			switch (*entry & SLPD_FLAG_MASK) {
+			case LPAGE_FLAG:
+				done = sysmmu_dma_sync_page(lpage_phys(entry),
+						lpage_offs(iova), LPAGE_SIZE,
+						len, op, dir);
+				break;
+			case SPAGE_FLAG:
+				done = sysmmu_dma_sync_page(spage_phys(entry),
+						spage_offs(iova), SPAGE_SIZE,
+						len, op, dir);
+				break;
+			default: /* fault */
+				return;
+			}
+			break;
+		default: /* fault */
+			return;
+		}
+
+		iova += done;
+		len -= done;
+	}
+}
+
+static sysmmu_pte_t *sysmmu_get_pgtable(struct device *dev)
+{
+	struct exynos_iommu_owner *owner = dev->archdata.iommu;
+	struct exynos_iommu_domain *domain = to_exynos_domain(owner->domain);
+
+	return domain->pgtable;
+}
+
+void exynos_iommu_sync_for_device(struct device *dev, dma_addr_t iova,
+				  size_t len, enum dma_data_direction dir)
+{
+	exynos_iommu_sync(sysmmu_get_pgtable(dev),
+			iova, len, __dma_map_area, dir);
+}
+
+void exynos_iommu_sync_for_cpu(struct device *dev, dma_addr_t iova, size_t len,
+				enum dma_data_direction dir)
+{
+	if (dir == DMA_TO_DEVICE)
+		return;
+
+	exynos_iommu_sync(sysmmu_get_pgtable(dev),
+			iova, len, __dma_unmap_area, dir);
+}

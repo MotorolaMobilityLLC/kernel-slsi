@@ -40,6 +40,10 @@ typedef u32 sysmmu_pte_t;
 #define LPAGE_MASK (~(LPAGE_SIZE - 1))
 #define SPAGE_MASK (~(SPAGE_SIZE - 1))
 
+#define SECT_ENT_MASK	~((SECT_SIZE >> PG_ENT_SHIFT) - 1)
+#define LPAGE_ENT_MASK	~((LPAGE_SIZE >> PG_ENT_SHIFT) - 1)
+#define SPAGE_ENT_MASK	~((SPAGE_SIZE >> PG_ENT_SHIFT) - 1)
+
 #define SPAGES_PER_LPAGE	(LPAGE_SIZE / SPAGE_SIZE)
 
 #define PGBASE_TO_PHYS(pgent)	((phys_addr_t)(pgent) << PG_ENT_SHIFT)
@@ -63,6 +67,14 @@ typedef u32 sysmmu_pte_t;
 
 #define LPAGE_FLAG	1
 #define SPAGE_FLAG	2
+
+#define ENT_TO_PHYS(ent) (phys_addr_t)(*(ent))
+#define section_phys(sent) PGBASE_TO_PHYS(ENT_TO_PHYS(sent) & SECT_ENT_MASK)
+#define section_offs(iova) ((iova) & (SECT_SIZE - 1))
+#define lpage_phys(pent) PGBASE_TO_PHYS(ENT_TO_PHYS(pent) & LPAGE_ENT_MASK)
+#define lpage_offs(iova) ((iova) & (LPAGE_SIZE - 1))
+#define spage_phys(pent) PGBASE_TO_PHYS(ENT_TO_PHYS(pent) & SPAGE_ENT_MASK)
+#define spage_offs(iova) ((iova) & (SPAGE_SIZE - 1))
 
 #define lv1ent_section(sent) ((*(sent) & FLPD_FLAG_MASK) == SECT_FLAG)
 #define lv2table_base(sent)	((phys_addr_t)(*(sent) & ~0x3F) << PG_ENT_SHIFT)
