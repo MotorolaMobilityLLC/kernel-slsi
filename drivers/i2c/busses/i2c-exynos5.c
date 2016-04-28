@@ -797,7 +797,7 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	int ret = 0;
 	int stop = 0;
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	int clk_ret = 0;
 #endif
 
@@ -806,7 +806,7 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 		return -EIO;
 	}
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	clk_ret = pm_runtime_get_sync(i2c->dev);
 	if (clk_ret < 0) {
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
@@ -871,7 +871,7 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	}
 
  out:
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (clk_ret < 0) {
 		clk_disable_unprepare(i2c->clk);
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
@@ -995,7 +995,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
 					EXYNOS5_HSI2C_RUNTIME_PM_DELAY);
@@ -1035,7 +1035,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		}
 	}
 	platform_set_drvdata(pdev, i2c);
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_get_sync(&pdev->dev);
 #else
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
@@ -1062,7 +1062,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 #else
@@ -1132,7 +1132,7 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int exynos5_i2c_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1154,7 +1154,7 @@ static int exynos5_i2c_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops exynos5_i2c_pm = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(exynos5_i2c_suspend_noirq,
