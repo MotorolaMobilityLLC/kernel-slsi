@@ -1339,7 +1339,7 @@ static int s3c24xx_i2c_resume_noirq(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int s3c24xx_i2c_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1358,7 +1358,7 @@ static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
 	.resume_noirq = s3c24xx_i2c_resume_noirq,
 #endif
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	.runtime_resume = s3c24xx_i2c_runtime_resume,
 #endif
 };
