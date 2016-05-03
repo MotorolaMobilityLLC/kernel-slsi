@@ -175,8 +175,147 @@ void exynos_iommu_unmap_userptr(struct iommu_domain *dom,
 	return;
 }
 
+static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
+	"PTW ACCESS FAULT",
+	"PAGE FAULT",
+	"L1TLB MULTI-HIT FAULT",
+	"ACCESS FAULT",
+	"SECURITY FAULT",
+	"UNKNOWN FAULT"
+};
+
+void dump_sysmmu_status(void __iomem *sfrbase)
+{
+	int capa, lmm;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	phys_addr_t phys;
+
+	pgd = pgd_offset_k((unsigned long)sfrbase);
+	if (!pgd) {
+		pr_crit("Invalid virtual address %p\n", sfrbase);
+		return;
+	}
+
+	pud = pud_offset(pgd, (unsigned long)sfrbase);
+	if (!pud) {
+		pr_crit("Invalid virtual address %p\n", sfrbase);
+		return;
+	}
+
+	pmd = pmd_offset(pud, (unsigned long)sfrbase);
+	if (!pmd) {
+		pr_crit("Invalid virtual address %p\n", sfrbase);
+		return;
+	}
+
+	pte = pte_offset_kernel(pmd, (unsigned long)sfrbase);
+	if (!pte) {
+		pr_crit("Invalid virtual address %p\n", sfrbase);
+		return;
+	}
+
+	capa = __raw_readl(sfrbase + REG_MMU_CAPA);
+	lmm = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
+
+	phys = pte_pfn(*pte) << PAGE_SHIFT;
+	pr_crit("ADDR: %pa(VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
+		&phys, sfrbase,
+		__raw_readl(sfrbase + REG_MMU_CTRL),
+		__raw_readl(sfrbase + REG_PT_BASE_PPN));
+	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
+		MMU_MAJ_VER(lmm), MMU_MIN_VER(lmm), MMU_REV_VER(lmm),
+		__raw_readl(sfrbase + REG_MMU_CFG),
+		__raw_readl(sfrbase + REG_MMU_STATUS));
+}
+
+static void show_fault_information(struct sysmmu_drvdata *drvdata,
+				   int flags, unsigned long fault_addr)
+{
+	unsigned int info;
+	phys_addr_t pgtable;
+	int fault_id = SYSMMU_FAULT_ID(flags);
+
+	pgtable = __raw_readl(drvdata->sfrbase + REG_PT_BASE_PPN);
+	pgtable <<= PAGE_SHIFT;
+
+	pr_crit("----------------------------------------------------------\n");
+	pr_crit("%s %s %s at %#010lx (page table @ %pa)\n",
+		dev_name(drvdata->sysmmu),
+		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
+		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
+
+	if (fault_id == SYSMMU_FAULT_UNKNOWN) {
+		pr_crit("The fault is not caused by this System MMU.\n");
+		pr_crit("Please check IRQ and SFR base address.\n");
+		goto finish;
+	}
+
+	info = __raw_readl(drvdata->sfrbase +
+			((flags & IOMMU_FAULT_WRITE) ?
+			REG_FAULT_AW_TRANS_INFO : REG_FAULT_AR_TRANS_INFO));
+	pr_crit("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
+
+	if (pgtable != drvdata->pgtable)
+		pr_crit("Page table base of driver: %pa\n",
+			&drvdata->pgtable);
+
+	if (fault_id == SYSMMU_FAULT_PTW_ACCESS)
+		pr_crit("System MMU has failed to access page table\n");
+
+	if (!pfn_valid(pgtable >> PAGE_SHIFT)) {
+		pr_crit("Page table base is not in a valid memory region\n");
+	} else {
+		sysmmu_pte_t *ent;
+		ent = section_entry(phys_to_virt(pgtable), fault_addr);
+		pr_crit("Lv1 entry: %#010x\n", *ent);
+
+		if (lv1ent_page(ent)) {
+			ent = page_entry(ent, fault_addr);
+			pr_crit("Lv2 entry: %#010x\n", *ent);
+		}
+	}
+
+	dump_sysmmu_status(drvdata->sfrbase);
+
+finish:
+	pr_crit("----------------------------------------------------------\n");
+}
+
+#define REG_INT_STATUS_WRITE_BIT 16
 static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 {
+	struct sysmmu_drvdata *drvdata = dev_id;
+	unsigned int itype;
+	unsigned long addr = -1;
+	int flags = 0;
+
+	dev_info(drvdata->sysmmu, "%s:%d: irq(%d) happened\n", __func__, __LINE__, irq);
+
+	WARN(!is_sysmmu_active(drvdata),
+		"Fault occurred while System MMU %s is not enabled!\n",
+		dev_name(drvdata->sysmmu));
+
+	itype =  __ffs(__raw_readl(drvdata->sfrbase + REG_INT_STATUS));
+	if (itype >= REG_INT_STATUS_WRITE_BIT) {
+		itype -= REG_INT_STATUS_WRITE_BIT;
+		flags = IOMMU_FAULT_WRITE;
+	}
+
+	if (WARN_ON(!(itype < SYSMMU_FAULT_UNKNOWN)))
+		itype = SYSMMU_FAULT_UNKNOWN;
+	else
+		addr = __raw_readl(drvdata->sfrbase +
+				((flags & IOMMU_FAULT_WRITE) ?
+				 REG_FAULT_AW_ADDR : REG_FAULT_AR_ADDR));
+	flags |= SYSMMU_FAULT_FLAG(itype);
+
+	show_fault_information(drvdata, flags, addr);
+
+	panic("Unrecoverable System MMU Fault!!");
+
 	return IRQ_HANDLED;
 }
 

@@ -114,6 +114,11 @@ typedef u32 sysmmu_pte_t;
 #define REG_INT_STATUS		0x060
 #define REG_INT_CLEAR		0x064
 
+#define REG_FAULT_AR_ADDR	0x070
+#define REG_FAULT_AR_TRANS_INFO	0x078
+#define REG_FAULT_AW_ADDR	0x080
+#define REG_FAULT_AW_TRANS_INFO	0x088
+
 #define REG_L2TLB_CFG		0x200
 
 #define MMU_HAVE_PB(reg)	(!!((reg >> 20) & 0xF))
@@ -129,6 +134,22 @@ typedef u32 sysmmu_pte_t;
 
 #define MAKE_MMU_VER(maj, min)	((((maj) & 0xF) << 11) | \
 					(((min) & 0x7F) << 4))
+
+#define SYSMMU_FAULT_BITS       4
+#define SYSMMU_FAULT_SHIFT      16
+#define SYSMMU_FAULT_MASK       ((1 << SYSMMU_FAULT_BITS) - 1)
+#define SYSMMU_FAULT_FLAG(id) (((id) & SYSMMU_FAULT_MASK) << SYSMMU_FAULT_SHIFT)
+#define SYSMMU_FAULT_ID(fg)   (((fg) >> SYSMMU_FAULT_SHIFT) & SYSMMU_FAULT_MASK)
+
+#define SYSMMU_FAULT_PTW_ACCESS   0
+#define SYSMMU_FAULT_PAGE_FAULT   1
+#define SYSMMU_FAULT_TLB_MULTIHIT 2
+#define SYSMMU_FAULT_ACCESS       3
+#define SYSMMU_FAULT_SECURITY     4
+#define SYSMMU_FAULT_UNKNOWN      5
+
+#define SYSMMU_FAULTS_NUM         (SYSMMU_FAULT_UNKNOWN + 1)
+
 /*
  * This structure exynos specific generalization of struct iommu_domain.
  * It contains list of all master devices represented by owner, which has
