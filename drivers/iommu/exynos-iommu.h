@@ -21,6 +21,8 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 
+#include <linux/exynos_iovmm.h>
+
 typedef u32 sysmmu_iova_t;
 typedef u32 sysmmu_pte_t;
 
@@ -86,6 +88,10 @@ typedef u32 sysmmu_pte_t;
 #define mk_lv1ent_page(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 1)
 #define mk_lv2ent_lpage(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 1)
 #define mk_lv2ent_spage(pa) ((sysmmu_pte_t) ((pa) >> PG_ENT_SHIFT) | 2)
+#define set_lv1ent_shareable(sent) (*(sent) |= (1 << 6))
+#define set_lv2ent_shareable(sent) (*(sent) |= (1 << 4))
+#define mk_lv2ent_pfnmap(pent) (*(pent) |= (1 << 5)) /* unused field */
+#define lv2ent_pfnmap(pent) ((*(pent) & (1 << 5)) == (1 << 5))
 
 #define SYSMMU_BLOCK_POLLING_COUNT 4096
 
