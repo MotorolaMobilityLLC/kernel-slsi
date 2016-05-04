@@ -158,13 +158,20 @@ static void estimate_pid_constants(struct thermal_zone_device *tz,
 	if (!tz->tzp->k_po || force)
 		tz->tzp->k_po = int_to_frac(sustainable_power) /
 			temperature_threshold;
+	else
+		tz->tzp->k_po = int_to_frac(tz->tzp->k_po);
 
 	if (!tz->tzp->k_pu || force)
 		tz->tzp->k_pu = int_to_frac(2 * sustainable_power) /
 			temperature_threshold;
+	else
+		tz->tzp->k_pu = int_to_frac(tz->tzp->k_pu);
 
 	if (!tz->tzp->k_i || force)
 		tz->tzp->k_i = int_to_frac(10) / 1000;
+	else
+		tz->tzp->k_i = int_to_frac(tz->tzp->k_i);
+
 	/*
 	 * The default for k_d and integral_cutoff is 0, so we can
 	 * leave them as they are.
@@ -209,7 +216,7 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 				       true);
 	}
 
-	err = control_temp - tz->temperature;
+	err = (control_temp - tz->temperature) / 1000;
 	err = int_to_frac(err);
 
 	/* Calculate the proportional term */
@@ -225,8 +232,15 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 
 	if (err < int_to_frac(tz->tzp->integral_cutoff)) {
 		s64 i_next = i + mul_frac(tz->tzp->k_i, err);
+		s64 i_windup = int_to_frac(-1 * (s64)tz->tzp->sustainable_power);
 
-		if (abs(i_next) < max_power_frac) {
+		if (i_next > int_to_frac(tz->tzp->integral_max)) {
+			i = int_to_frac(tz->tzp->integral_max);
+			params->err_integral = div_frac(i, tz->tzp->k_i);
+		} else if (i_next <= i_windup) {
+			i = i_windup;
+			params->err_integral = div_frac(i, tz->tzp->k_i);
+		} else {
 			i = i_next;
 			params->err_integral += err;
 		}

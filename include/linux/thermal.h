@@ -333,6 +333,8 @@ struct thermal_zone_params {
 	/* threshold below which the error is no longer accumulated */
 	s32 integral_cutoff;
 
+	s32 integral_max;
+
 	/*
 	 * @slope:	slope of a linear temperature adjustment curve.
 	 * 		Used by thermal zone drivers.
