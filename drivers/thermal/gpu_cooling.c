@@ -30,6 +30,9 @@
 #include <soc/samsung/tmu.h>
 #include <trace/events/thermal.h>
 
+#include <soc/samsung/cal-if.h>
+#include <soc/samsung/ect_parser.h>
+
 /**
  * struct power_table - frequency to power conversion
  * @frequency:	frequency in KHz
@@ -67,6 +70,11 @@ struct gpufreq_cooling_device {
 	struct power_table *dyn_power_table;
 	int dyn_power_table_entries;
 	get_static_t plat_get_static_power;
+	int *leakage_table;
+	int *leakage_coeff;
+	int *asv_coeff;
+	unsigned int leakage_volt_size;
+	unsigned int leakage_temp_size;
 };
 
 static DEFINE_IDR(gpufreq_idr);
@@ -295,6 +303,120 @@ static int build_dyn_power_table(struct gpufreq_cooling_device *gpufreq_cdev,
 	return 0;
 }
 
+static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
+{
+	int i, j;
+	int ids = cal_asv_get_ids_info(1);
+	int asv_group = cal_asv_get_grp(2, 0);
+	void *gen_block;
+	struct ect_gen_param_table *volt_temp_param, *asv_param;
+
+	gen_block = ect_get_block("GEN");
+	if (gen_block == NULL) {
+		pr_err("%s: Failed to get gen block from ECT\n", __func__);
+		return -EINVAL;
+	}
+
+	volt_temp_param = ect_gen_param_get_table(gen_block, "DTM_GPU_VOLT_TEMP");
+	asv_param = ect_gen_param_get_table(gen_block, "DTM_GPU_ASV");
+
+	if (volt_temp_param && asv_param) {
+		gpufreq_cdev->leakage_volt_size = volt_temp_param->num_of_row - 1;
+		gpufreq_cdev->leakage_temp_size = volt_temp_param->num_of_col - 1;
+
+		gpufreq_cdev->leakage_coeff = kzalloc(sizeof(int) *
+							volt_temp_param->num_of_row *
+							volt_temp_param->num_of_col,
+							GFP_KERNEL);
+		if (!gpufreq_cdev->leakage_coeff)
+			goto err_mem;
+
+		gpufreq_cdev->asv_coeff = kzalloc(sizeof(int) *
+							asv_param->num_of_row *
+							asv_param->num_of_col,
+							GFP_KERNEL);
+		if (!gpufreq_cdev->asv_coeff)
+			goto free_leakage_coeff;
+
+		gpufreq_cdev->leakage_table = kzalloc(sizeof(int) *
+							volt_temp_param->num_of_row *
+							volt_temp_param->num_of_col,
+							GFP_KERNEL);
+		if (!gpufreq_cdev->leakage_table)
+			goto free_asv_coeff;
+
+		memcpy(gpufreq_cdev->leakage_coeff, volt_temp_param->parameter,
+			sizeof(int) * volt_temp_param->num_of_row * volt_temp_param->num_of_col);
+		memcpy(gpufreq_cdev->asv_coeff, asv_param->parameter,
+			sizeof(int) * asv_param->num_of_row * asv_param->num_of_col);
+		memcpy(gpufreq_cdev->leakage_table, volt_temp_param->parameter,
+			sizeof(int) * volt_temp_param->num_of_row * volt_temp_param->num_of_col);
+	} else {
+		pr_err("%s: Failed to get param table from ECT\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = 1; i <= gpufreq_cdev->leakage_volt_size; i++) {
+		long asv_coeff = (long)gpufreq_cdev->asv_coeff[3 * i + 0] * asv_group * asv_group
+				+ (long)gpufreq_cdev->asv_coeff[3 * i + 1] * asv_group
+				+ (long)gpufreq_cdev->asv_coeff[3 * i + 2];
+		asv_coeff = asv_coeff / 100;
+
+		for (j = 1; j <= gpufreq_cdev->leakage_temp_size; j++) {
+			long leakage_coeff = (long)gpufreq_cdev->leakage_coeff[i * (gpufreq_cdev->leakage_temp_size + 1) + j];
+			leakage_coeff =  ids * leakage_coeff * asv_coeff;
+			leakage_coeff = leakage_coeff / 100000;
+			gpufreq_cdev->leakage_table[i * (gpufreq_cdev->leakage_temp_size + 1) + j] = (int)leakage_coeff;
+		}
+	}
+
+free_asv_coeff:
+	kfree(gpufreq_cdev->asv_coeff);
+free_leakage_coeff:
+	kfree(gpufreq_cdev->leakage_coeff);
+err_mem:
+	return -ENOMEM;
+}
+
+static int lookup_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
+		unsigned long voltage, int temperature, u32 *power)
+{
+	int volt_index = 0, temp_index = 0;
+
+	voltage = voltage / 1000;
+	temperature  = temperature / 1000;
+
+	for (volt_index = 0; volt_index <= gpufreq_cdev->leakage_volt_size; volt_index++) {
+		if (voltage < gpufreq_cdev->leakage_table[volt_index * (gpufreq_cdev->leakage_temp_size + 1)]) {
+			volt_index = volt_index - 1;
+			break;
+		}
+	}
+
+	if (volt_index == 0)
+		volt_index = 1;
+
+	if (volt_index > gpufreq_cdev->leakage_volt_size)
+		volt_index = gpufreq_cdev->leakage_volt_size;
+
+	for (temp_index = 0; temp_index <= gpufreq_cdev->leakage_temp_size; temp_index++) {
+		if (temperature < gpufreq_cdev->leakage_table[temp_index]) {
+			temp_index = temp_index - 1;
+			break;
+		}
+	}
+
+	if (temp_index == 0)
+		temp_index = 1;
+
+	if (temp_index > gpufreq_cdev->leakage_temp_size)
+		temp_index = gpufreq_cdev->leakage_temp_size;
+
+	*power = (unsigned int)gpufreq_cdev->leakage_table[volt_index * (gpufreq_cdev->leakage_temp_size + 1) + temp_index];
+
+	return 0;
+}
+
 static u32 gpu_freq_to_power(struct gpufreq_cooling_device *gpufreq_cdev,
 			     u32 freq)
 {
@@ -342,7 +464,7 @@ static int get_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 {
 	unsigned long voltage;
 
-	if (!gpufreq_cdev->plat_get_static_power || freq == 0) {
+	if (!freq) {
 		*power = 0;
 		return 0;
 	}
@@ -354,8 +476,7 @@ static int get_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 		return -EINVAL;
 	}
 
-	return gpufreq_cdev->plat_get_static_power(NULL, tz->passive_delay,
-						     voltage, power);
+	return lookup_static_power(gpufreq_cdev, voltage, tz->temperature, power);
 }
 
 /**
@@ -686,10 +807,13 @@ __gpufreq_cooling_register(struct device_node *np,
 			gpufreq_get_requested_power;
 		gpufreq_cooling_ops.state2power = gpufreq_state2power;
 		gpufreq_cooling_ops.power2state = gpufreq_power2state;
-		gpufreq_cdev->plat_get_static_power = plat_static_func;
 
 		ret = build_dyn_power_table(gpufreq_cdev, capacitance);
 
+		if (ret)
+			return ERR_PTR(ret);
+
+		ret = build_static_power_table(gpufreq_dev);
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -823,7 +947,6 @@ of_gpufreq_power_cooling_register(struct device_node *np,
 				plat_static_func);
 }
 EXPORT_SYMBOL(of_gpufreq_power_cooling_register);
-
 
 /**
  * gpufreq_cooling_unregister - function to remove gpufreq cooling device.
