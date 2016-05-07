@@ -971,7 +971,25 @@ err:
 static phys_addr_t exynos_iommu_iova_to_phys(struct iommu_domain *iommu_domain,
 					  dma_addr_t d_iova)
 {
-	return 0;
+	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
+	sysmmu_iova_t iova = (sysmmu_iova_t)d_iova;
+	sysmmu_pte_t *entry;
+	phys_addr_t phys = 0;
+
+	entry = section_entry(domain->pgtable, iova);
+
+	if (lv1ent_section(entry)) {
+		phys = section_phys(entry) + section_offs(iova);
+	} else if (lv1ent_page(entry)) {
+		entry = page_entry(entry, iova);
+
+		if (lv2ent_large(entry))
+			phys = lpage_phys(entry) + lpage_offs(iova);
+		else if (lv2ent_small(entry))
+			phys = spage_phys(entry) + spage_offs(iova);
+	}
+
+	return phys;
 }
 
 static int exynos_iommu_of_xlate(struct device *master,
