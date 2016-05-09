@@ -34,6 +34,7 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
+#include <linux/suspend.h>
 
 #include "exynos_tmu.h"
 #include "../thermal_core.h"
@@ -94,6 +95,12 @@
 #define EXYNOS_TMU_REG_EMUL_CON			(0x160)
 
 #define MCELSIUS	1000
+
+static bool suspended;
+static DEFINE_MUTEX (thermal_suspend_lock);
+
+/* list of multiple instance for each thermal sensor */
+static LIST_HEAD(dtm_dev_list);
 /**
  * struct exynos_tmu_data : A structure to hold the private data of the TMU
 	driver
@@ -128,6 +135,7 @@ struct exynos_tmu_data {
 	struct thermal_zone_device *tzd;
 	unsigned int ntrip;
 	struct thermal_cooling_device *cool_dev;
+	struct list_head node;
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
@@ -402,6 +410,7 @@ static void exynos8890_tmu_control(struct platform_device *pdev, bool on)
 static int exynos_get_temp(void *p, int *temp)
 {
 	struct exynos_tmu_data *data = p;
+	struct thermal_cooling_device *cdev;
 
 	if (!data || !data->tmu_read)
 		return -EINVAL;
@@ -411,6 +420,18 @@ static int exynos_get_temp(void *p, int *temp)
 	*temp = code_to_temp(data, data->tmu_read(data)) * MCELSIUS;
 
 	mutex_unlock(&data->lock);
+
+	cdev = data->cool_dev;
+
+	if (!cdev)
+		return 0;
+
+	mutex_lock(&thermal_suspend_lock);
+
+	if (cdev->ops->set_cur_temp)
+		cdev->ops->set_cur_temp(cdev, suspended, *temp / 1000);
+
+	mutex_unlock(&thermal_suspend_lock);
 
 	return 0;
 }
@@ -524,6 +545,38 @@ static irqreturn_t exynos_tmu_irq(int irq, void *id)
 
 	return IRQ_HANDLED;
 }
+
+static int exynos_pm_notifier(struct notifier_block *notifier,
+			unsigned long event, void *v)
+{
+	struct exynos_tmu_data *devnode;
+	struct thermal_cooling_device *cdev;
+
+	switch (event) {
+	case PM_SUSPEND_PREPARE:
+		mutex_lock(&thermal_suspend_lock);
+		suspended = true;
+		list_for_each_entry(devnode, &dtm_dev_list, node) {
+			cdev = devnode->cool_dev;
+
+			if (cdev && cdev->ops->set_cur_temp)
+				cdev->ops->set_cur_temp(cdev, suspended, 0);
+		}
+		mutex_unlock(&thermal_suspend_lock);
+		break;
+	case PM_POST_SUSPEND:
+		mutex_lock(&thermal_suspend_lock);
+		suspended = false;
+		mutex_unlock(&thermal_suspend_lock);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block exynos_tmu_pm_notifier = {
+	.notifier_call = exynos_pm_notifier,
+};
 
 static const struct of_device_id exynos_tmu_match[] = {
 	{ .compatible = "samsung,exynos8890-tmu", },
@@ -725,6 +778,13 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	exynos_tmu_control(pdev, true);
 
+	mutex_lock(&data->lock);
+	list_add_tail(&data->node, &dtm_dev_list);
+	mutex_unlock(&data->lock);
+
+	if (list_is_singular(&dtm_dev_list))
+		register_pm_notifier(&exynos_tmu_pm_notifier);
+
 	if (!IS_ERR(data->tzd))
 		data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_ENABLED);
 
@@ -740,9 +800,21 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tzd = data->tzd;
+	struct exynos_tmu_data *devnode;
+
+	if (list_is_singular(&dtm_dev_list))
+		unregister_pm_notifier(&exynos_tmu_pm_notifier);
 
 	thermal_zone_of_sensor_unregister(&pdev->dev, tzd);
 	exynos_tmu_control(pdev, false);
+
+	mutex_lock(&data->lock);
+	list_for_each_entry(devnode, &dtm_dev_list, node) {
+		if (devnode->id == data->id) {
+			list_del(&devnode->node);
+		}
+	}
+	mutex_unlock(&data->lock);
 
 	return 0;
 }
