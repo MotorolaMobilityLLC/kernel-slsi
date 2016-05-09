@@ -723,3 +723,13 @@ err_alloc_vmm:
 
 	return ERR_PTR(ret);
 }
+
+void iovmm_set_fault_handler(struct device *dev,
+			     iommu_fault_handler_t handler, void *token)
+{
+	int ret;
+
+	ret = exynos_iommu_add_fault_handler(dev, handler, token);
+	if (ret)
+		dev_err(dev, "Failed to add fault handler\n");
+}

@@ -53,6 +53,11 @@ struct exynos_client {
 static LIST_HEAD(exynos_client_list);
 static DEFINE_SPINLOCK(exynos_client_lock);
 
+struct owner_fault_info {
+	struct device *master;
+	struct notifier_block nb;
+};
+
 int exynos_client_add(struct device_node *np, struct exynos_iovmm *vmm_data)
 {
 	struct exynos_client *client = kzalloc(sizeof(*client), GFP_KERNEL);
@@ -303,6 +308,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	flags |= SYSMMU_FAULT_FLAG(itype);
 
 	show_fault_information(drvdata, flags, addr);
+	atomic_notifier_call_chain(&drvdata->fault_notifiers, addr, &flags);
 
 	panic("Unrecoverable System MMU Fault!!");
 
@@ -373,6 +379,7 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
+	ATOMIC_INIT_NOTIFIER_HEAD(&data->fault_notifiers);
 	if (!sysmmu_drvdata_list) {
 		sysmmu_drvdata_list = data;
 	} else {
@@ -1090,11 +1097,61 @@ void exynos_sysmmu_show_status(struct device *dev)
 	dev_info(dev, "Called sysmmu show status\n");
 }
 
-void iovmm_set_fault_handler(struct device *dev,
+static int sysmmu_fault_notifier(struct notifier_block *nb,
+				     unsigned long fault_addr, void *data)
+{
+	struct owner_fault_info *info;
+	struct exynos_iommu_owner *owner = NULL;
+
+	info = container_of(nb, struct owner_fault_info, nb);
+	owner = info->master->archdata.iommu;
+
+	if (owner && owner->fault_handler)
+		owner->fault_handler(owner->domain, owner->master,
+			fault_addr, (unsigned long)data, owner->token);
+
+	return 0;
+}
+
+int exynos_iommu_add_fault_handler(struct device *master,
 			     iommu_fault_handler_t handler, void *token)
 {
-	/* DUMMY */
-	dev_info(dev, "Called set fault handler\n");
+	struct exynos_iommu_owner *owner = master->archdata.iommu;
+	struct sysmmu_list_data *list;
+	struct sysmmu_drvdata *drvdata;
+	struct owner_fault_info *info;
+	unsigned long flags;
+
+	if (!has_sysmmu(master)) {
+		dev_info(master, "%s doesn't have sysmmu\n", dev_name(master));
+		return -ENODEV;
+	}
+
+	spin_lock_irqsave(&owner->lock, flags);
+
+	owner->fault_handler = handler;
+	owner->token = token;
+
+	list_for_each_entry(list, &owner->sysmmu_list, node) {
+		info = kzalloc(sizeof(*info), GFP_ATOMIC);
+		if (!info) {
+			spin_unlock_irqrestore(&owner->lock, flags);
+			return -ENOMEM;
+		}
+		info->master = master;
+		info->nb.notifier_call = sysmmu_fault_notifier;
+
+		drvdata = dev_get_drvdata(list->sysmmu);
+
+		atomic_notifier_chain_register(
+				&drvdata->fault_notifiers, &info->nb);
+		dev_info(master, "Fault handler is registered for %s\n",
+						dev_name(list->sysmmu));
+	}
+
+	spin_unlock_irqrestore(&owner->lock, flags);
+
+	return 0;
 }
 
 int sysmmu_set_prefetch_buffer_property(struct device *dev,

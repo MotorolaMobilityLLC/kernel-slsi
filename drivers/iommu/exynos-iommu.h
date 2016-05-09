@@ -185,6 +185,8 @@ struct exynos_iommu_owner {
 	struct device *master;		/* master device */
 	struct list_head client;	/* node for owner clients_list */
 	struct exynos_iovmm *vmm_data;
+	iommu_fault_handler_t fault_handler;
+	void *token;
 };
 
 /*
@@ -204,6 +206,7 @@ struct sysmmu_drvdata {
 	spinlock_t lock;		/* lock for modyfying state */
 	phys_addr_t pgtable;		/* assigned page table structure */
 	int version;			/* our version */
+	struct atomic_notifier_head fault_notifiers;
 };
 
 struct exynos_vm_region {
@@ -237,6 +240,8 @@ int exynos_iommu_map_userptr(struct iommu_domain *dom, unsigned long addr,
 			      dma_addr_t iova, size_t size, int prot);
 void exynos_iommu_unmap_userptr(struct iommu_domain *dom,
 				dma_addr_t iova, size_t size);
+int exynos_iommu_add_fault_handler(struct device *dev,
+				iommu_fault_handler_t handler, void *token);
 
 static inline bool get_sysmmu_runtime_active(struct sysmmu_drvdata *data)
 {
