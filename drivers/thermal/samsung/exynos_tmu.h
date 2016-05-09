@@ -26,17 +26,7 @@
 #include <dt-bindings/thermal/thermal_exynos.h>
 
 enum soc_type {
-	SOC_ARCH_EXYNOS3250 = 1,
-	SOC_ARCH_EXYNOS4210,
-	SOC_ARCH_EXYNOS4412,
-	SOC_ARCH_EXYNOS5250,
-	SOC_ARCH_EXYNOS5260,
-	SOC_ARCH_EXYNOS5420,
-	SOC_ARCH_EXYNOS5420_TRIMINFO,
-	SOC_ARCH_EXYNOS5433,
-	SOC_ARCH_EXYNOS5440,
-	SOC_ARCH_EXYNOS7,
-	SOC_ARCH_EXYNOS8890,
+	SOC_ARCH_EXYNOS8890 = 1,
 };
 
 /**
@@ -50,8 +40,6 @@ enum soc_type {
  *	000, 100, 101, 110 and 111 can be different modes
  * @type: determines the type of SOC
  * @efuse_value: platform defined fuse value
- * @min_efuse_value: minimum valid trimming data
- * @max_efuse_value: maximum valid trimming data
  * @default_temp_offset: default temperature offset in case of no trimming
  * @cal_type: calibration type for temperature
  *
@@ -63,8 +51,6 @@ struct exynos_tmu_platform_data {
 	u8 noise_cancel_mode;
 
 	u32 efuse_value;
-	u32 min_efuse_value;
-	u32 max_efuse_value;
 	u8 first_point_trim;
 	u8 second_point_trim;
 	u8 default_temp_offset;
