@@ -363,7 +363,8 @@ static inline struct exynos_iovmm *exynos_get_iovmm(struct device *dev)
 struct exynos_vm_region *find_iovm_region(struct exynos_iovmm *vmm,
 						dma_addr_t iova);
 
-struct exynos_iovmm *exynos_create_single_iovmm(const char *name);
+struct exynos_iovmm *exynos_create_single_iovmm(const char *name,
+					unsigned int start, unsigned int end);
 #else
 static inline struct exynos_iovmm *exynos_get_iovmm(struct device *dev)
 {
@@ -376,7 +377,8 @@ struct exynos_vm_region *find_iovm_region(struct exynos_iovmm *vmm,
 	return NULL;
 }
 
-static inline struct exynos_iovmm *exynos_create_single_iovmm(const char *name)
+static inline struct exynos_iovmm *exynos_create_single_iovmm(const char *name,
+					unsigned int start, unsigned int end);
 {
 	return NULL;
 }

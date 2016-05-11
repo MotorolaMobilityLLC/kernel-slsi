@@ -30,6 +30,11 @@
 
 #include "exynos-iommu.h"
 
+/* Default IOVA region: [0x1000000, 0xD0000000) */
+#define IOVA_START	0x10000000
+#define IOVA_END	0xD0000000
+#define IOVA_OVFL(x)	((x) > 0xFFFFFFFF)
+
 static struct kmem_cache *lv2table_kmem_cache;
 
 static struct sysmmu_drvdata *sysmmu_drvdata_list;
@@ -1253,11 +1258,30 @@ static int __init exynos_iommu_create_domain(void)
 		struct device_node *np;
 		struct exynos_iovmm *vmm = NULL;
 		struct exynos_iommu_domain *domain;
+		unsigned int start = IOVA_START, end = IOVA_END;
+		dma_addr_t d_addr;
+		size_t d_size;
 		int i = 0;
+
+		ret = of_get_dma_window(domain_np, NULL, 0, NULL, &d_addr, &d_size);
+		if (!ret) {
+			if (d_addr == 0 || IOVA_OVFL(d_addr + d_size)) {
+				pr_err("Failed to get valid dma ranges,\n");
+				pr_err("Domain %s, range %pad++%#zx]\n",
+					domain_np->name, &d_addr, d_size);
+				of_node_put(domain_np);
+				return -EINVAL;
+			}
+			start = d_addr;
+			end = d_addr + d_size;
+		}
+		pr_info("DMA ranges for domain %s. [%#x..%#x]\n",
+					domain_np->name, start, end);
 
 		while ((np = of_parse_phandle(domain_np, "domain-clients", i++))) {
 			if (!vmm) {
-				vmm = exynos_create_single_iovmm(np->name);
+				vmm = exynos_create_single_iovmm(np->name,
+								start, end);
 				if (IS_ERR(vmm)) {
 					pr_err("%s: Failed to create IOVM space\
 							of %s\n",

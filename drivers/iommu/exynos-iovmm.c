@@ -24,9 +24,6 @@
 
 #include "exynos-iommu.h"
 
-/* IOVM region: [0x1000000, 0xD0000000) */
-#define IOVA_START	0x10000000
-#define IOVM_SIZE	(0xD0000000  - IOVA_START)
 #define sg_physically_continuous(sg) (sg_next(sg) == NULL)
 
 /* alloc_iovm_region - Allocate IO virtual memory region
@@ -678,7 +675,8 @@ static void iovmm_register_debugfs(struct exynos_iovmm *vmm)
 			exynos_iovmm_debugfs_root, vmm, &iovmm_debug_fops);
 }
 
-struct exynos_iovmm *exynos_create_single_iovmm(const char *name)
+struct exynos_iovmm *exynos_create_single_iovmm(const char *name,
+					unsigned int start, unsigned int end)
 {
 	struct exynos_iovmm *vmm;
 	int ret = 0;
@@ -689,9 +687,9 @@ struct exynos_iovmm *exynos_create_single_iovmm(const char *name)
 		goto err_alloc_vmm;
 	}
 
-	vmm->iovm_size = IOVM_SIZE;
-	vmm->iova_start = IOVA_START;
-	vmm->vm_map = kzalloc(IOVM_BITMAP_SIZE(IOVM_SIZE), GFP_KERNEL);
+	vmm->iovm_size = (size_t)(end - start);
+	vmm->iova_start = start;
+	vmm->vm_map = kzalloc(IOVM_BITMAP_SIZE(vmm->iovm_size), GFP_KERNEL);
 	if (!vmm->vm_map) {
 		ret = -ENOMEM;
 		goto err_setup_domain;
@@ -712,8 +710,8 @@ struct exynos_iovmm *exynos_create_single_iovmm(const char *name)
 
 	iovmm_register_debugfs(vmm);
 
-	pr_debug("%s IOVMM: Created %#x B IOVMM from %#x.\n",
-			name, IOVM_SIZE, IOVA_START);
+	pr_debug("%s IOVMM: Created %#zx B IOVMM from %#x.\n",
+			name, vmm->iovm_size, vmm->iova_start);
 	return vmm;
 
 err_setup_domain:
