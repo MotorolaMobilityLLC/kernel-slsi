@@ -442,7 +442,7 @@ static int exynos_get_temp(void *p, int *temp)
 
 	mutex_lock(&thermal_suspend_lock);
 
-	if (cdev->ops->set_cur_temp)
+	if (cdev->ops->set_cur_temp && data->id != 1)
 		cdev->ops->set_cur_temp(cdev, suspended, *temp / 1000);
 
 	mutex_unlock(&thermal_suspend_lock);
@@ -573,7 +573,7 @@ static int exynos_pm_notifier(struct notifier_block *notifier,
 		list_for_each_entry(devnode, &dtm_dev_list, node) {
 			cdev = devnode->cool_dev;
 
-			if (cdev && cdev->ops->set_cur_temp)
+			if (cdev && cdev->ops->set_cur_temp && devnode->id != 1)
 				cdev->ops->set_cur_temp(cdev, suspended, 0);
 		}
 		mutex_unlock(&thermal_suspend_lock);
