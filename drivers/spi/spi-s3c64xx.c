@@ -28,14 +28,14 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <mach/exynos-powermode.h>
+#include <soc/samsung/exynos-powermode.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
 #include <linux/dma/dma-pl330.h>
 
 #ifdef CONFIG_CPU_IDLE
-#include <mach/exynos-pm.h>
+#include <soc/samsung/exynos-pm.h>
 #endif
 
 #include "../pinctrl/core.h"
