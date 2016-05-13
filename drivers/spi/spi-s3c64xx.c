@@ -413,11 +413,11 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 {
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	int ret;
 #endif
 
-#ifndef CONFIG_PM_RUNTIME
+#ifndef CONFIG_PM
 	if (sci->dma_mode == DMA_MODE) {
 		/* Acquire DMA channels */
 		while (!acquire_dma(sdd))
@@ -425,7 +425,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	}
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	ret = pm_runtime_get_sync(&sdd->pdev->dev);
 	if(ret < 0)
 		return ret;
@@ -440,11 +440,11 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 {
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	int ret;
 #endif
 
-#ifndef CONFIG_PM_RUNTIME
+#ifndef CONFIG_PM
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
 	/* Free DMA channels */
@@ -465,7 +465,7 @@ static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 	}
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&sdd->pdev->dev);
 	ret = pm_runtime_put_autosuspend(&sdd->pdev->dev);
 	if(ret < 0)
@@ -1166,7 +1166,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 		goto setup_exit;
 	}
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_get_sync(&sdd->pdev->dev);
 #endif
 
@@ -1213,7 +1213,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 	disable_cs(sdd, spi);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&sdd->pdev->dev);
 	pm_runtime_put_autosuspend(&sdd->pdev->dev);
 #endif
@@ -1559,7 +1559,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(sdd->src_clk);
 		goto err2;
 	}
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
@@ -1638,7 +1638,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	       S3C64XX_SPI_INT_TX_OVERRUN_EN | S3C64XX_SPI_INT_TX_UNDERRUN_EN,
 	       sdd->regs + S3C64XX_SPI_INT_EN);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 #endif
@@ -1652,7 +1652,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	list_add_tail(&sci->node, &drvdata_list);
 
 	sdd->is_probed = 1;
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (sci->domain == DOMAIN_TOP)
 		pm_runtime_set_autosuspend_delay(&pdev->dev,
 					sdd->spi_clkoff_time);
@@ -1675,7 +1675,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	return 0;
 
 err3:
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_disable(&pdev->dev);
 #endif
 	clk_disable_unprepare(sdd->src_clk);
@@ -1693,7 +1693,7 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_disable(&pdev->dev);
 #endif
 
@@ -1718,7 +1718,7 @@ static int s3c64xx_spi_suspend_operation(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-#ifndef CONFIG_PM_RUNTIME
+#ifndef CONFIG_PM
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 #endif
 
@@ -1728,7 +1728,7 @@ static int s3c64xx_spi_suspend_operation(struct device *dev)
 		return ret;
 	}
 
-#ifndef CONFIG_PM_RUNTIME
+#ifndef CONFIG_PM
 	if (sci->domain == DOMAIN_TOP) {
 		/* Disable the clock */
 		clk_disable_unprepare(sdd->src_clk);
@@ -1762,7 +1762,7 @@ static int s3c64xx_spi_resume_operation(struct device *dev)
 		else
 			s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 		/* Disable the clock */
 		clk_disable_unprepare(sdd->src_clk);
 		clk_disable_unprepare(sdd->clk);
@@ -1847,7 +1847,7 @@ static int s3c64xx_spi_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static void s3c64xx_spi_pin_ctrl(struct device *dev, int en)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1934,7 +1934,7 @@ static int s3c64xx_spi_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops s3c64xx_spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(s3c64xx_spi_suspend, s3c64xx_spi_resume)
