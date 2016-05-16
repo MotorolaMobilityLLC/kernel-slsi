@@ -697,12 +697,19 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 			       struct thermal_zone_device *tz, u32 power,
 			       unsigned long *state)
 {
-	unsigned int cur_freq, target_freq;
+	unsigned int cpu, cur_freq, target_freq;
 	int ret;
 	s32 dyn_power;
-	u32 last_load, normalised_power, static_power;
+	u32 normalised_power, static_power;
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
+	cpumask_t tempmask;
+	int num_cpus;
+
+	cpumask_and(&tempmask, policy->related_cpus, cpu_online_mask);
+	num_cpus = cpumask_weight(&tempmask);
+
+	cpu = cpumask_any_and(policy->related_cpus, cpu_online_mask);
 
 	cur_freq = cpufreq_quick_get(policy->cpu);
 	ret = get_static_power(cpufreq_cdev, tz, cur_freq, &static_power);
@@ -711,9 +718,16 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 
 	dyn_power = power - static_power;
 	dyn_power = dyn_power > 0 ? dyn_power : 0;
-	last_load = cpufreq_cdev->last_load ?: 1;
-	normalised_power = (dyn_power * 100) / last_load;
+	normalised_power = dyn_power / num_cpus;
 	target_freq = cpu_power_to_freq(cpufreq_cdev, normalised_power);
+
+	*state = cpufreq_cooling_get_level(cpu, target_freq);
+	if (*state == THERMAL_CSTATE_INVALID) {
+		dev_warn_ratelimited(&cdev->device,
+				     "Failed to convert %dKHz for cpu %d into a cdev state\n",
+				     target_freq, cpu);
+		return -EINVAL;
+	}
 
 	*state = get_level(cpufreq_cdev, target_freq);
 	trace_thermal_power_cpu_limit(policy->related_cpus, target_freq, *state,
