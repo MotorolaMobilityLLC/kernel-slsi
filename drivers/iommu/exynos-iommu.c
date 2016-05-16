@@ -28,6 +28,8 @@
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 
+#include <dt-bindings/sysmmu/sysmmu.h>
+
 #include "exynos-iommu.h"
 
 /* Default IOVA region: [0x1000000, 0xD0000000) */
@@ -412,6 +414,122 @@ static int get_hw_version(struct device *dev, void __iomem *sfrbase)
 	return ret;
 }
 
+static int __init sysmmu_parse_dt(struct device *sysmmu,
+				struct sysmmu_drvdata *drvdata)
+{
+	const char *props_name = "sysmmu,tlb_property";
+	struct tlb_props *tlb_props = &drvdata->tlb_props;
+	struct tlb_priv_id *priv_id_cfg = NULL;
+	struct tlb_priv_addr *priv_addr_cfg = NULL;
+	unsigned int qos = DEFAULT_QOS_VALUE;
+	unsigned int prop;
+	int ret;
+	int i, cnt, priv_id_cnt = 0, priv_addr_cnt = 0;
+	unsigned int priv_id_idx = 0, priv_addr_idx = 0;
+
+	/* Parsing QoS */
+	ret = of_property_read_u32_index(sysmmu->of_node, "qos", 0, &qos);
+	if (!ret && (qos > 15)) {
+		dev_err(sysmmu, "Invalid QoS value %d, use default.\n", qos);
+		qos = DEFAULT_QOS_VALUE;
+	}
+	drvdata->qos = qos;
+
+	/* Parsing TLB properties */
+	cnt = of_property_count_u32_elems(sysmmu->of_node, props_name);
+	for (i = 0; i < cnt; i+=2) {
+		ret = of_property_read_u32_index(sysmmu->of_node,
+			props_name, i, &prop);
+		if (ret) {
+			dev_err(sysmmu, "failed to get property."
+				       "cnt = %d, ret = %d\n", i, ret);
+			return -EINVAL;
+		}
+
+		switch (prop & WAY_TYPE_MASK) {
+		case _PRIVATE_WAY_ID:
+			priv_id_cnt++;
+			tlb_props->flags |= TLB_WAY_PRIVATE_ID;
+			break;
+		case _PRIVATE_WAY_ADDR:
+			priv_addr_cnt++;
+			tlb_props->flags |= TLB_WAY_PRIVATE_ADDR;
+			break;
+		case _PUBLIC_WAY:
+			tlb_props->flags |= TLB_WAY_PUBLIC;
+			tlb_props->public_cfg = (prop & ~WAY_TYPE_MASK);
+			break;
+		default:
+			dev_err(sysmmu, "Undefined properties!: %#x\n", prop);
+			break;
+		}
+	}
+
+	if (priv_id_cnt) {
+		priv_id_cfg = kzalloc(sizeof(*priv_id_cfg) * priv_id_cnt,
+								GFP_KERNEL);
+		if (!priv_id_cfg)
+			return -ENOMEM;
+	}
+
+	if (priv_addr_cnt) {
+		priv_addr_cfg = kzalloc(sizeof(*priv_addr_cfg) * priv_addr_cnt,
+								GFP_KERNEL);
+		if (!priv_addr_cfg) {
+			ret = -ENOMEM;
+			goto err_priv_id;
+		}
+	}
+
+	for (i = 0; i < cnt; i+=2) {
+		ret = of_property_read_u32_index(sysmmu->of_node,
+			props_name, i, &prop);
+		if (ret) {
+			dev_err(sysmmu, "failed to get property again? "
+				       "cnt = %d, ret = %d\n", i, ret);
+			ret = -EINVAL;
+			goto err_priv_addr;
+		}
+
+		switch (prop & WAY_TYPE_MASK) {
+		case _PRIVATE_WAY_ID:
+			priv_id_cfg[priv_id_idx].cfg = prop & ~WAY_TYPE_MASK;
+			ret = of_property_read_u32_index(sysmmu->of_node,
+				props_name, i+1, &priv_id_cfg[priv_id_idx].id);
+			if (ret) {
+				dev_err(sysmmu, "failed to get id property"
+						"cnt = %d, ret = %d\n", i, ret);
+				goto err_priv_addr;
+			}
+			priv_id_idx++;
+			break;
+		case _PRIVATE_WAY_ADDR:
+			priv_addr_cfg[priv_addr_idx].cfg = prop & ~WAY_TYPE_MASK;
+			priv_addr_idx++;
+			break;
+		case _PUBLIC_WAY:
+			break;
+		}
+	}
+
+	tlb_props->priv_id_cfg = priv_id_cfg;
+	tlb_props->priv_id_cnt = priv_id_cnt;
+
+	tlb_props->priv_addr_cfg = priv_addr_cfg;
+	tlb_props->priv_addr_cnt = priv_addr_cnt;
+
+	return 0;
+
+err_priv_addr:
+	if (priv_addr_cfg)
+		kfree(priv_addr_cfg);
+err_priv_id:
+	if (priv_id_cfg)
+		kfree(priv_id_cfg);
+
+	return ret;
+}
+
 static struct iommu_ops exynos_iommu_ops;
 static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 {
@@ -462,12 +580,6 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
 	ATOMIC_INIT_NOTIFIER_HEAD(&data->fault_notifiers);
-	if (!sysmmu_drvdata_list) {
-		sysmmu_drvdata_list = data;
-	} else {
-		data->next = sysmmu_drvdata_list->next;
-		sysmmu_drvdata_list->next = data;
-	}
 
 	platform_set_drvdata(pdev, data);
 
@@ -475,7 +587,18 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	data->version = get_hw_version(dev, data->sfrbase);
 
-	/* TODO: Parsing Device Tree for properties */
+	ret = sysmmu_parse_dt(data->sysmmu, data);
+	if (ret) {
+		dev_err(dev, "Failed to parse DT\n");
+		return ret;
+	}
+
+	if (!sysmmu_drvdata_list) {
+		sysmmu_drvdata_list = data;
+	} else {
+		data->next = sysmmu_drvdata_list->next;
+		sysmmu_drvdata_list->next = data;
+	}
 
 	iommu_device_set_ops(&data->iommu, &exynos_iommu_ops);
 	iommu_device_set_fwnode(&data->iommu, &dev->of_node->fwnode);
@@ -546,21 +669,101 @@ static void sysmmu_disable_from_master(struct device *master)
 	spin_unlock_irqrestore(&owner->lock, flags);
 }
 
+static void __sysmmu_set_public_way(struct sysmmu_drvdata *drvdata,
+						unsigned int public_cfg)
+{
+	u32 cfg = __raw_readl(drvdata->sfrbase + REG_PUBLIC_WAY_CFG);
+	cfg &= ~MMU_PUBLIC_WAY_MASK;
+	cfg |= public_cfg;
+
+	writel_relaxed(cfg, drvdata->sfrbase + REG_PUBLIC_WAY_CFG);
+
+	dev_dbg(drvdata->sysmmu, "public_cfg : %#x\n", cfg);
+}
+
+static void __sysmmu_set_private_way_id(struct sysmmu_drvdata *drvdata,
+						unsigned int way_idx)
+{
+	struct tlb_priv_id *priv_cfg = drvdata->tlb_props.priv_id_cfg;
+	u32 cfg = __raw_readl(drvdata->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+
+	cfg &= ~MMU_PRIVATE_WAY_MASK;
+	cfg |= MMU_WAY_CFG_ID_MATCHING | MMU_WAY_CFG_PRIVATE_ENABLE |
+						priv_cfg[way_idx].cfg;
+
+	writel_relaxed(cfg, drvdata->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+	writel_relaxed(priv_cfg[way_idx].id,
+			drvdata->sfrbase + REG_PRIVATE_ID(way_idx));
+
+	dev_dbg(drvdata->sysmmu, "priv ID way[%d] cfg : %#x, id : %#x\n",
+					way_idx, cfg, priv_cfg[way_idx].id);
+}
+
+static void __sysmmu_set_private_way_addr(struct sysmmu_drvdata *drvdata,
+						unsigned int priv_addr_idx)
+{
+	struct tlb_priv_addr *priv_cfg = drvdata->tlb_props.priv_addr_cfg;
+	unsigned int way_idx = drvdata->tlb_props.priv_id_cnt + priv_addr_idx;
+	u32 cfg = __raw_readl(drvdata->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+
+	cfg &= ~MMU_PRIVATE_WAY_MASK;
+	cfg |= MMU_WAY_CFG_ADDR_MATCHING | MMU_WAY_CFG_PRIVATE_ENABLE |
+						priv_cfg[priv_addr_idx].cfg;
+
+	writel_relaxed(cfg, drvdata->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+
+	dev_dbg(drvdata->sysmmu, "priv ADDR way[%d] cfg : %#x\n", way_idx, cfg);
+}
+
 static void __sysmmu_init_config(struct sysmmu_drvdata *drvdata)
 {
-	unsigned long cfg;
+	unsigned long cfg = 0;
 
 	writel_relaxed(CTRL_BLOCK, drvdata->sfrbase + REG_MMU_CTRL);
 
+	if (drvdata->qos != DEFAULT_QOS_VALUE)
+		cfg |= CFG_QOS_OVRRIDE | CFG_QOS(drvdata->qos);
+
 	if (MMU_MAJ_VER(drvdata->version) >= 7) {
-		/* TODO: implement later */
+		u32 cfg = __raw_readl(drvdata->sfrbase + REG_MMU_CAPA_V7);
+		u32 tlb_way_num = MMU_CAPA_NUM_TLB_WAY(cfg);
+		u32 set_cnt = 0;
+		struct tlb_props *tlb_props = &drvdata->tlb_props;
+		unsigned int i;
+		int priv_id_cnt = tlb_props->priv_id_cnt;
+		int priv_addr_cnt = tlb_props->priv_addr_cnt;
+
+		if (tlb_props->flags & TLB_WAY_PUBLIC)
+			__sysmmu_set_public_way(drvdata,
+					tlb_props->public_cfg);
+
+		if (tlb_props->flags & TLB_WAY_PRIVATE_ID) {
+			for (i = 0; i < priv_id_cnt &&
+					set_cnt < tlb_way_num; i++, set_cnt++)
+				__sysmmu_set_private_way_id(drvdata, i);
+		}
+
+		if (tlb_props->flags & TLB_WAY_PRIVATE_ADDR) {
+			for (i = 0; i < priv_addr_cnt &&
+					set_cnt < tlb_way_num; i++, set_cnt++)
+				__sysmmu_set_private_way_addr(drvdata, i);
+		}
+
+		if (priv_id_cnt + priv_addr_cnt > tlb_way_num) {
+			dev_warn(drvdata->sysmmu,
+				"Too many values than TLB way count %d,"
+				" so ignored!\n", tlb_way_num);
+			dev_warn(drvdata->sysmmu,
+				"Number of private way id/addr = %d/%d\n",
+					priv_id_cnt, priv_addr_cnt);
+		}
 	} else {
 		__exynos_sysmmu_set_prefbuf_axi_id(drvdata);
 		if (has_sysmmu_set_associative_tlb(drvdata->sfrbase))
 			__sysmmu_set_tlb_line_size(drvdata->sfrbase);
+		cfg |= CFG_FLPDCACHE | CFG_ACGEN;
 	}
 
-	cfg = CFG_FLPDCACHE | CFG_ACGEN;
 	cfg |= __raw_readl(drvdata->sfrbase + REG_MMU_CFG) & ~CFG_MASK;
 	writel_relaxed(cfg, drvdata->sfrbase + REG_MMU_CFG);
 }

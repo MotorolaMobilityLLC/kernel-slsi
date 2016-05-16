@@ -105,9 +105,26 @@ typedef u32 sysmmu_pte_t;
 #define CTRL_DISABLE	0x0
 #define CTRL_BLOCK_DISABLE 0x3
 
-#define CFG_MASK	0x01101FBC /* Selecting bit 24, 20, 12-7, 5-2 */
+#define CFG_MASK	0x301F1F8C	/* Bit 29-28, 20-16, 12-7, 3-2 */
 #define CFG_ACGEN	(1 << 24)
 #define CFG_FLPDCACHE	(1 << 20)
+#define CFG_QOS_OVRRIDE (1 << 11)
+#define CFG_QOS(n)      (((n) & 0xF) << 7)
+
+#define MMU_WAY_CFG_MASK_PREFETCH	(1 << 1)
+#define MMU_WAY_CFG_MASK_PREFETCH_DIR	(3 << 2)
+#define MMU_WAY_CFG_MASK_MATCH_METHOD	(1 << 4)
+#define MMU_WAY_CFG_MASK_FETCH_SIZE	(7 << 5)
+#define MMU_WAY_CFG_MASK_TARGET_CH	(3 << 8)
+
+#define MMU_WAY_CFG_ID_MATCHING		(1 << 4)
+#define MMU_WAY_CFG_ADDR_MATCHING	(0 << 4)
+#define MMU_WAY_CFG_PRIVATE_ENABLE	(1 << 0)
+
+#define MMU_PUBLIC_WAY_MASK	(MMU_WAY_CFG_MASK_PREFETCH |	\
+		MMU_WAY_CFG_MASK_PREFETCH_DIR | MMU_WAY_CFG_MASK_FETCH_SIZE)
+#define MMU_PRIVATE_WAY_MASK	(MMU_PUBLIC_WAY_MASK |		\
+		MMU_WAY_CFG_MASK_MATCH_METHOD | MMU_WAY_CFG_MASK_TARGET_CH)
 
 #define REG_PT_BASE_PPN		0x00C
 #define REG_MMU_FLUSH		0x010
@@ -130,8 +147,10 @@ typedef u32 sysmmu_pte_t;
 /* For SysMMU v7.x */
 #define REG_MMU_CAPA_V7		0x870
 #define REG_PUBLIC_WAY_CFG	0x120
-#define REG_PRIVATE_WAY_CFG(n)	(0x200 + ((n) * 0x10))
-#define REG_PRIVATE_ID(n)	(0x20C + ((n) * 0x10))
+#define REG_PRIVATE_WAY_CFG(n)		(0x200 + ((n) * 0x10))
+#define REG_PRIVATE_ADDR_START(n)	(0x204 + ((n) * 0x10))
+#define REG_PRIVATE_ADDR_END(n)		(0x208 + ((n) * 0x10))
+#define REG_PRIVATE_ID(n)		(0x20C + ((n) * 0x10))
 #define REG_FAULT_ADDR		0x070
 #define REG_FAULT_TRANS_INFO	0x078
 #define REG_TLB_READ		0x1000
@@ -169,6 +188,8 @@ typedef u32 sysmmu_pte_t;
 
 #define MAKE_MMU_VER(maj, min)	((((maj) & 0xF) << 11) | \
 					(((min) & 0x7F) << 4))
+
+#define DEFAULT_QOS_VALUE	-1
 
 #define SYSMMU_FAULT_BITS       4
 #define SYSMMU_FAULT_SHIFT      16
@@ -218,6 +239,27 @@ struct exynos_iommu_owner {
 	void *token;
 };
 
+struct tlb_priv_addr {
+	unsigned int cfg;
+};
+
+struct tlb_priv_id {
+	unsigned int cfg;
+	unsigned int id;
+};
+
+#define TLB_WAY_PRIVATE_ID	(1 << 0)
+#define TLB_WAY_PRIVATE_ADDR	(1 << 1)
+#define TLB_WAY_PUBLIC		(1 << 2)
+struct tlb_props {
+	int flags;
+	int priv_id_cnt;
+	int priv_addr_cnt;
+	unsigned int public_cfg;
+	struct tlb_priv_id *priv_id_cfg;
+	struct tlb_priv_addr *priv_addr_cfg;
+};
+
 /*
  * This structure hold all data of a single SYSMMU controller, this includes
  * hw resources like registers and clocks, pointers and list nodes to connect
@@ -235,7 +277,9 @@ struct sysmmu_drvdata {
 	spinlock_t lock;		/* lock for modyfying state */
 	phys_addr_t pgtable;		/* assigned page table structure */
 	int version;			/* our version */
+	int qos;
 	struct atomic_notifier_head fault_notifiers;
+	struct tlb_props tlb_props;
 	bool is_suspended;
 };
 
