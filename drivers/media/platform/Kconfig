@@ -493,6 +493,17 @@ config VIDEO_QCOM_VENUS
 	  on various Qualcomm SoCs.
 	  To compile this driver as a module choose m here.
 
+config VIDEO_EXYNOS_SCALER
+	bool "EXYNOS Scaler Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
+	depends on ARCH_EXYNOS
+	select V4L2_MEM2MEM_DEV
+	select MEDIA_M2M1SHOT
+	select VIDEOBUF2_DMA_SG
+	default n
+	---help---
+	  This is a v4l2 driver for EXYNOS Scaler (MSCL) device.
+
 endif # V4L_MEM2MEM_DRIVERS
 
 # TI VIDEO PORT Helper Modules
