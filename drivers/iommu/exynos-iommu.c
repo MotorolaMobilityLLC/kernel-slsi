@@ -552,10 +552,8 @@ static int exynos_sysmmu_suspend(struct device *dev)
 
 	spin_lock_irqsave(&drvdata->lock, flags);
 	if (is_sysmmu_active(drvdata) &&
-			(!pm_runtime_enabled(dev) ||
-			 is_sysmmu_runtime_active(drvdata))) {
+			is_sysmmu_runtime_active(drvdata))
 		__sysmmu_disable_nocount(drvdata);
-	}
 	spin_unlock_irqrestore(&drvdata->lock, flags);
 
 	return 0;
@@ -568,8 +566,7 @@ static int exynos_sysmmu_resume(struct device *dev)
 
 	spin_lock_irqsave(&drvdata->lock, flags);
 	if (is_sysmmu_active(drvdata) &&
-			(!pm_runtime_enabled(dev) ||
-			 is_sysmmu_runtime_active(drvdata)))
+			 is_sysmmu_runtime_active(drvdata))
 		__sysmmu_enable_nocount(drvdata);
 	spin_unlock_irqrestore(&drvdata->lock, flags);
 
