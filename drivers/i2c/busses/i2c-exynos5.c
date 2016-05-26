@@ -301,39 +301,41 @@ static void recover_gpio_pins(struct exynos5_i2c *i2c)
 
 static inline void dump_i2c_register(struct exynos5_i2c *i2c)
 {
-	dev_err(i2c->dev, "Register dump(suspended : %d)\n", i2c->suspended);
-	dev_err(i2c->dev, ": CTL	0x%08x\n"
-			, readl(i2c->regs + HSI2C_CTL));
-	dev_err(i2c->dev, ": FIFO_CTL	0x%08x\n"
-			, readl(i2c->regs + HSI2C_FIFO_CTL));
-	dev_err(i2c->dev, ": INT_EN	0x%08x\n"
-			, readl(i2c->regs + HSI2C_INT_ENABLE));
-	dev_err(i2c->dev, ": INT_STAT	0x%08x\n"
-			, readl(i2c->regs + HSI2C_INT_STATUS));
-	dev_err(i2c->dev, ": FIFO_STAT	0x%08x\n"
-			, readl(i2c->regs + HSI2C_FIFO_STATUS));
-	dev_err(i2c->dev, ": CONF	0x%08x\n"
-			, readl(i2c->regs + HSI2C_CONF));
-	dev_err(i2c->dev, ": AUTO_CONF	0x%08x\n"
-			, readl(i2c->regs + HSI2C_AUTO_CONF));
-	dev_err(i2c->dev, ": TRANS_STAT	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TRANS_STATUS));
-	dev_err(i2c->dev, ": TIMING_HS1	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TIMING_HS1));
-	dev_err(i2c->dev, ": TIMING_HS2	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TIMING_HS2));
-	dev_err(i2c->dev, ": TIMING_HS3	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TIMING_HS3));
-	dev_err(i2c->dev, ": TIMING_FS1	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TIMING_FS1));
-	dev_err(i2c->dev, ": TIMING_FS2	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TIMING_FS2));
-	dev_err(i2c->dev, ": TIMING_FS3	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TIMING_FS3));
-	dev_err(i2c->dev, ": TIMING_SLA	0x%08x\n"
-			, readl(i2c->regs + HSI2C_TIMING_SLA));
-	dev_err(i2c->dev, ": ADDR	0x%08x\n"
-			, readl(i2c->regs + HSI2C_ADDR));
+	dev_err(i2c->dev, "Register dump(suspended : %d)\n"
+		"CTL          0x%08x   "
+		"FIFO_CTL     0x%08x   "
+		"INT_EN       0x%08x   "
+		"INT_STAT     0x%08x \n"
+		"FIFO_STAT    0x%08x   "
+		"CONF         0x%08x   "
+		"AUTO_CONF    0x%08x   "
+		"TRANS_STAT   0x%08x \n"
+		"TIMING_HS1   0x%08x   "
+		"TIMING_HS2   0x%08x   "
+		"TIMING_HS3   0x%08x   "
+		"TIMING_FS1   0x%08x \n"
+		"TIMING_FS2   0x%08x   "
+		"TIMING_FS3   0x%08x   "
+		"TIMING_SLA   0x%08x   "
+		"ADDR         0x%08x \n"
+		, i2c->suspended
+		, readl(i2c->regs + HSI2C_CTL)
+		, readl(i2c->regs + HSI2C_FIFO_CTL)
+		, readl(i2c->regs + HSI2C_INT_ENABLE)
+		, readl(i2c->regs + HSI2C_INT_STATUS)
+		, readl(i2c->regs + HSI2C_FIFO_STATUS)
+		, readl(i2c->regs + HSI2C_CONF)
+		, readl(i2c->regs + HSI2C_AUTO_CONF)
+		, readl(i2c->regs + HSI2C_TRANS_STATUS)
+		, readl(i2c->regs + HSI2C_TIMING_HS1)
+		, readl(i2c->regs + HSI2C_TIMING_HS2)
+		, readl(i2c->regs + HSI2C_TIMING_HS3)
+		, readl(i2c->regs + HSI2C_TIMING_FS1)
+		, readl(i2c->regs + HSI2C_TIMING_FS2)
+		, readl(i2c->regs + HSI2C_TIMING_FS3)
+		, readl(i2c->regs + HSI2C_TIMING_SLA)
+		, readl(i2c->regs + HSI2C_ADDR)
+	);
 
 #ifdef CONFIG_GPIOLIB
 	recover_gpio_pins(i2c);
