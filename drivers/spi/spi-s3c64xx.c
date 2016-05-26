@@ -233,17 +233,18 @@ static void s3c64xx_spi_dump_reg(struct s3c64xx_spi_driver_data *sdd)
 	void __iomem *regs = sdd->regs;
 	struct device *dev = &sdd->pdev->dev;
 
-	dev_err(dev, "Register dump for SPI\n");
-	dev_err(dev, "- CH_CFG 0x%08x\n",
-				readl(regs + S3C64XX_SPI_CH_CFG));
-	dev_err(dev, "- MODE_CFG 0x%08x\n",
-				readl(regs + S3C64XX_SPI_MODE_CFG));
-	dev_err(dev, "- CS_REG 0x%08x\n",
-				readl(regs + S3C64XX_SPI_SLAVE_SEL));
-	dev_err(dev, "- STATUS 0x%08x\n",
-				readl(regs + S3C64XX_SPI_STATUS));
-	dev_err(dev, "- PACKET_CNT 0x%08x\n",
-				readl(regs + S3C64XX_SPI_PACKET_CNT));
+	dev_err(dev, "Register dump for SPI\n"
+		"	CH_CFG       0x%08x\n"
+		"	MODE_CFG     0x%08x\n"
+		"	CS_REG       0x%08x\n"
+		"	STATUS       0x%08x\n"
+		"	PACKET_CNT   0x%08x\n"
+		, readl(regs + S3C64XX_SPI_CH_CFG)
+		, readl(regs + S3C64XX_SPI_MODE_CFG)
+		, readl(regs + S3C64XX_SPI_SLAVE_SEL)
+		, readl(regs + S3C64XX_SPI_STATUS)
+		, readl(regs + S3C64XX_SPI_PACKET_CNT)
+	);
 
 }
 static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
