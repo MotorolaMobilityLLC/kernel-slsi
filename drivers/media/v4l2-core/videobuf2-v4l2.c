@@ -206,7 +206,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	b->reserved2 = vbuf->reserved2;
 	b->reserved = 0;
 
-	if (q->is_multiplanar) {
+	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
 		/*
 		 * Fill in plane-related data if userspace provided an array
 		 * for it. The caller has already verified memory and size.
