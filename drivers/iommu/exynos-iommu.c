@@ -735,7 +735,7 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 	dev_dbg(master, "%s: Attached IOMMU with pgtable %pa %s\n",
 		__func__, &pagetable, (ret == 0) ? "" : ", again");
 
-	return ret;
+	return 0;
 }
 
 static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
