@@ -181,7 +181,7 @@ static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 
 void dump_sysmmu_status(void __iomem *sfrbase)
 {
-	int capa, lmm;
+	int capa, info;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -213,7 +213,7 @@ void dump_sysmmu_status(void __iomem *sfrbase)
 	}
 
 	capa = __raw_readl(sfrbase + REG_MMU_CAPA);
-	lmm = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
+	info = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
 
 	phys = pte_pfn(*pte) << PAGE_SHIFT;
 	pr_crit("ADDR: %pa(VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
@@ -221,7 +221,7 @@ void dump_sysmmu_status(void __iomem *sfrbase)
 		__raw_readl(sfrbase + REG_MMU_CTRL),
 		__raw_readl(sfrbase + REG_PT_BASE_PPN));
 	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
-		MMU_MAJ_VER(lmm), MMU_MIN_VER(lmm), MMU_REV_VER(lmm),
+		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
 		__raw_readl(sfrbase + REG_MMU_CFG),
 		__raw_readl(sfrbase + REG_MMU_STATUS));
 }
@@ -236,6 +236,15 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 	pgtable = __raw_readl(drvdata->sfrbase + REG_PT_BASE_PPN);
 	pgtable <<= PAGE_SHIFT;
 
+	if (MMU_MAJ_VER(drvdata->version) >= 7) {
+		info = __raw_readl(drvdata->sfrbase + REG_FAULT_TRANS_INFO);
+	} else {
+		/* TODO: Remove me later */
+		info = __raw_readl(drvdata->sfrbase +
+			((flags & IOMMU_FAULT_WRITE) ?
+			 REG_FAULT_AW_TRANS_INFO : REG_FAULT_AR_TRANS_INFO));
+	}
+
 	pr_crit("----------------------------------------------------------\n");
 	pr_crit("%s %s %s at %#010lx (page table @ %pa)\n",
 		dev_name(drvdata->sysmmu),
@@ -248,9 +257,6 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 		goto finish;
 	}
 
-	info = __raw_readl(drvdata->sfrbase +
-			((flags & IOMMU_FAULT_WRITE) ?
-			REG_FAULT_AW_TRANS_INFO : REG_FAULT_AR_TRANS_INFO));
 	pr_crit("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
 
 	if (pgtable != drvdata->pgtable)
@@ -293,19 +299,35 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 		"Fault occurred while System MMU %s is not enabled!\n",
 		dev_name(drvdata->sysmmu));
 
-	itype =  __ffs(__raw_readl(drvdata->sfrbase + REG_INT_STATUS));
-	if (itype >= REG_INT_STATUS_WRITE_BIT) {
-		itype -= REG_INT_STATUS_WRITE_BIT;
-		flags = IOMMU_FAULT_WRITE;
-	}
+	if (MMU_MAJ_VER(drvdata->version) >= 7) {
+		u32 info;
 
-	if (WARN_ON(!(itype < SYSMMU_FAULT_UNKNOWN)))
-		itype = SYSMMU_FAULT_UNKNOWN;
-	else
-		addr = __raw_readl(drvdata->sfrbase +
-				((flags & IOMMU_FAULT_WRITE) ?
-				 REG_FAULT_AW_ADDR : REG_FAULT_AR_ADDR));
-	flags |= SYSMMU_FAULT_FLAG(itype);
+		itype =  __ffs(__raw_readl(drvdata->sfrbase + REG_INT_STATUS));
+		if (WARN_ON(!(itype < SYSMMU_FAULT_UNKNOWN)))
+			itype = SYSMMU_FAULT_UNKNOWN;
+		else
+			addr = __raw_readl(drvdata->sfrbase + REG_FAULT_ADDR);
+
+		info = __raw_readl(drvdata->sfrbase + REG_FAULT_TRANS_INFO);
+		flags = MMU_IS_READ_FAULT(info) ?
+			IOMMU_FAULT_READ : IOMMU_FAULT_WRITE;
+		flags |= SYSMMU_FAULT_FLAG(itype);
+	} else {
+		/* TODO: Remove me later */
+		itype =  __ffs(__raw_readl(drvdata->sfrbase + REG_INT_STATUS));
+		if (itype >= REG_INT_STATUS_WRITE_BIT) {
+			itype -= REG_INT_STATUS_WRITE_BIT;
+			flags = IOMMU_FAULT_WRITE;
+		}
+
+		if (WARN_ON(!(itype < SYSMMU_FAULT_UNKNOWN)))
+			itype = SYSMMU_FAULT_UNKNOWN;
+		else
+			addr = __raw_readl(drvdata->sfrbase +
+					((flags & IOMMU_FAULT_WRITE) ?
+					 REG_FAULT_AW_ADDR : REG_FAULT_AR_ADDR));
+		flags |= SYSMMU_FAULT_FLAG(itype);
+	}
 
 	show_fault_information(drvdata, flags, addr);
 	atomic_notifier_call_chain(&drvdata->fault_notifiers, addr, &flags);

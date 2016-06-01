@@ -127,6 +127,22 @@ typedef u32 sysmmu_pte_t;
 
 #define REG_L2TLB_CFG		0x200
 
+/* For SysMMU v7.x */
+#define REG_MMU_CAPA_V7		0x870
+#define REG_PUBLIC_WAY_CFG	0x120
+#define REG_PRIVATE_WAY_CFG(n)	(0x200 + ((n) * 0x10))
+#define REG_PRIVATE_ID(n)	(0x20C + ((n) * 0x10))
+#define REG_FAULT_ADDR		0x070
+#define REG_FAULT_TRANS_INFO	0x078
+
+#define MMU_CAPA_NUM_TLB_SET(reg)	((reg >> 8) & 0xF)
+#define MMU_CAPA_NUM_TLB_WAY(reg)	((reg) & 0xFF)
+
+#define MMU_FAULT_INFO_READ_REQUEST	0
+#define MMU_FAULT_INFO_WRITE_REQUEST	1
+#define MMU_IS_READ_FAULT(reg)		\
+		((((reg) >> 20) & 0x1) == MMU_FAULT_INFO_READ_REQUEST)
+
 #define MMU_HAVE_PB(reg)	(!!((reg >> 20) & 0xF))
 #define MMU_IS_TLB_CONFIGURABLE(reg)	(!!((reg >> 16) & 0xFF))
 
