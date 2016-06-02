@@ -726,7 +726,7 @@ static int gpufreq_power2state(struct thermal_cooling_device *cdev,
 	unsigned int cur_freq, target_freq;
 	int ret;
 	s32 dyn_power;
-	u32 last_load, normalised_power, static_power;
+	u32 static_power;
 	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
 
 	cur_freq = gpu_dvfs_get_cur_clock();
@@ -736,9 +736,7 @@ static int gpufreq_power2state(struct thermal_cooling_device *cdev,
 
 	dyn_power = power - static_power;
 	dyn_power = dyn_power > 0 ? dyn_power : 0;
-	last_load = gpufreq_cdev->last_load ?: 1;
-	normalised_power = (dyn_power * 100) / last_load;
-	target_freq = gpu_power_to_freq(gpufreq_cdev, normalised_power);
+	target_freq = gpu_power_to_freq(gpufreq_cdev, dyn_power);
 
 	*state = gpufreq_cooling_get_level(0, target_freq * 1000);
 	if (*state == THERMAL_CSTATE_INVALID) {
@@ -758,7 +756,6 @@ static struct thermal_cooling_device_ops gpufreq_cooling_ops = {
 	.set_cur_state = gpufreq_set_cur_state,
 	.set_cur_temp = gpufreq_set_cur_temp,
 };
-
 
 int exynos_gpu_add_notifier(struct notifier_block *n)
 {
