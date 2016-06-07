@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/exynos-ss.h>
 
 #include <soc/samsung/exynos-dm.h>
 
@@ -601,8 +602,12 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation);
 int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_freq)
 {
 	struct exynos_dm_data *dm;
+	struct timeval pre, before, after;
+	s32 time = 0, pre_time = 0;
 
+	do_gettimeofday(&pre);
 	mutex_lock(&exynos_dm->lock);
+	do_gettimeofday(&before);
 
 	dm = &exynos_dm->dm_data[dm_type];
 	update_policy_min_max_freq(dm, min_freq, max_freq);
@@ -611,7 +616,15 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	constraint_checker_min(get_min_constraint_list(dm), min_freq);
 	constraint_checker_max(get_max_constraint_list(dm), max_freq);
 
+	do_gettimeofday(&after);
 	mutex_unlock(&exynos_dm->lock);
+
+	pre_time = (before.tv_sec - pre.tv_sec) * USEC_PER_SEC +
+		(before.tv_usec - pre.tv_usec);
+	time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
+		(after.tv_usec - before.tv_usec);
+
+	exynos_ss_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 
 	return 0;
 }
@@ -671,8 +684,12 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	int i;
 	int ret;
 	unsigned int relation = EXYNOS_DM_RELATION_L;
+	struct timeval pre, before, after;
+	s32 time = 0, pre_time = 0;
 
+	do_gettimeofday(&pre);
 	mutex_lock(&exynos_dm->lock);
+	do_gettimeofday(&before);
 
 	dm = &exynos_dm->dm_data[dm_type];
 	dm->gov_min_freq = *target_freq;
@@ -705,7 +722,15 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	else if (dm->target_freq < dm->cur_freq)
 		scaling_callback(DOWN, relation);
 
+	do_gettimeofday(&after);
 	mutex_unlock(&exynos_dm->lock);
+
+	pre_time = (before.tv_sec - pre.tv_sec) * USEC_PER_SEC +
+		(before.tv_usec - pre.tv_usec);
+	time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
+		(after.tv_usec - before.tv_usec);
+
+	exynos_ss_dm((int)dm_type, *target_freq, 0, pre_time, time);
 
 	return 0;
 }
