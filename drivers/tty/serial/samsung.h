@@ -82,6 +82,7 @@ struct s3c24xx_uart_port {
 	struct pm_qos_request		s3c24xx_uart_cpu_qos;
 	struct delayed_work		qos_work;
 
+	unsigned int			in_band_wakeup;
 	unsigned int dbg_mode;
 };
 
