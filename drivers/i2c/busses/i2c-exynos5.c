@@ -810,11 +810,19 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	clk_ret = pm_runtime_get_sync(i2c->dev);
 	if (clk_ret < 0) {
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-		clk_prepare_enable(i2c->clk);
+		ret = clk_enable(i2c->clk);
+		if (ret) {
+			exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+			return ret;
+		}
 	}
 #else
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-	clk_prepare_enable(i2c->clk);
+	ret = clk_enable(i2c->clk);
+	if (ret) {
+		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+		return ret;
+	}
 #endif
 
 	/* If master is in arbitration lost state before transfer */
@@ -873,14 +881,14 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
  out:
 #ifdef CONFIG_PM
 	if (clk_ret < 0) {
-		clk_disable_unprepare(i2c->clk);
+		clk_disable(i2c->clk);
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 	} else {
 		pm_runtime_mark_last_busy(i2c->dev);
 		pm_runtime_put_autosuspend(i2c->dev);
 	}
 #else
-	clk_disable_unprepare(i2c->clk);
+	clk_disable(i2c->clk);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
 
@@ -995,6 +1003,12 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
+	ret = clk_prepare(i2c->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Clock prepare failed\n");
+			return ret;
+	}
+
 #ifdef CONFIG_PM
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
@@ -1007,7 +1021,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	if (i2c->regs == NULL) {
 		dev_err(&pdev->dev, "cannot map HS-I2C IO\n");
 		ret = PTR_ERR(i2c->regs);
-		goto err_clk;
+		goto err_clk1;
 	}
 
 	i2c->adap.dev.of_node = np;
@@ -1021,7 +1035,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		if (ret <= 0) {
 			dev_err(&pdev->dev, "cannot find HS-I2C IRQ\n");
 			ret = -EINVAL;
-			goto err_clk;
+			goto err_clk1;
 		}
 
 		ret = devm_request_irq(&pdev->dev, i2c->irq,
@@ -1031,7 +1045,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n",
 					i2c->irq);
-			goto err_clk;
+			goto err_clk1;
 		}
 	}
 	platform_set_drvdata(pdev, i2c);
@@ -1039,7 +1053,11 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 #else
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-	clk_prepare_enable(i2c->clk);
+	ret = clk_enable(i2c->clk);
+	if (ret) {
+		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+		return ret;
+	}
 #endif
 
 	/* Clear pending interrupts from u-boot or misc causes */
@@ -1049,7 +1067,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 
 	ret = exynos5_hsi2c_clock_setup(i2c);
 	if (ret)
-		goto err_clk;
+		goto err_clk2;
 
 	i2c->bus_id = of_alias_get_id(i2c->adap.dev.of_node, "hsi2c");
 
@@ -1059,14 +1077,14 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
-		goto err_clk;
+		goto err_clk2;
 	}
 
 #ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 #else
-	clk_disable_unprepare(i2c->clk);
+	clk_disable(i2c->clk);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
 
@@ -1076,9 +1094,15 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 
 	return 0;
 
- err_clk:
+ err_clk2:
+#ifdef CONFIG_PM
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
+#else
 	clk_disable_unprepare(i2c->clk);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
+ err_clk1:
 	return ret;
 }
 
@@ -1087,6 +1111,8 @@ static int exynos5_i2c_remove(struct platform_device *pdev)
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
+
+	clk_unprepare(i2c->clk);
 
 	return 0;
 }
@@ -1098,6 +1124,7 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 
 	i2c_lock_adapter(&i2c->adap);
 	i2c->suspended = 1;
+	clk_unprepare(i2c->clk);
 	i2c_unlock_adapter(&i2c->adap);
 
 	return 0;
@@ -1107,12 +1134,17 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
+	int ret = 0;
 
 	i2c_lock_adapter(&i2c->adap);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-	clk_prepare_enable(i2c->clk);
+	ret = clk_prepare_enable(i2c->clk);
+	if (ret) {
+		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+		return ret;
+	}
 	exynos5_i2c_reset(i2c);
-	clk_disable_unprepare(i2c->clk);
+	clk_disable(i2c->clk);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 	i2c->suspended = 0;
 	i2c_unlock_adapter(&i2c->adap);
@@ -1138,7 +1170,7 @@ static int exynos5_i2c_runtime_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(i2c->clk);
+	clk_disable(i2c->clk);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 
 	return 0;
@@ -1148,9 +1180,14 @@ static int exynos5_i2c_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
+	int ret = 0;
 
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-	clk_prepare_enable(i2c->clk);
+	ret = clk_enable(i2c->clk);
+	if (ret) {
+		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+		return ret;
+	}
 
 	return 0;
 }
