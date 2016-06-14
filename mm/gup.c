@@ -57,25 +57,32 @@ static bool __need_migrate_cma_page(struct page *page,
 	return true;
 }
 
-static int __migrate_cma_pinpage(struct page *page, struct vm_area_struct *vma)
+static int __isolate_cma_pinpage(struct page *page)
 {
 	struct zone *zone = page_zone(page);
-	struct list_head migratepages;
 	struct lruvec *lruvec;
+
+	spin_lock_irq(zone_lru_lock(zone));
+	if (__isolate_lru_page(page, 0) != 0) {
+		spin_unlock_irq(zone_lru_lock(zone));
+		dump_page(page, "failed to isolate lru page");
+		return -EBUSY;
+	} else {
+		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
+		del_page_from_lru_list(page, lruvec, page_lru(page));
+	}
+	spin_unlock_irq(zone_lru_lock(zone));
+
+	return 0;
+}
+
+static int __migrate_cma_pinpage(struct page *page, struct vm_area_struct *vma)
+{
+	struct list_head migratepages;
 	int tries = 0;
 	int ret = 0;
 
 	INIT_LIST_HEAD(&migratepages);
-
-	if (__isolate_lru_page(page, 0) != 0) {
-		dump_page(page, "failed to isolate lru page");
-		return -EFAULT;
-	} else {
-		spin_lock_irq(zone_lru_lock(zone));
-		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
-		del_page_from_lru_list(page, lruvec, page_lru(page));
-		spin_unlock_irq(zone_lru_lock(zone));
-	}
 
 	list_add(&page->lru, &migratepages);
 	inc_zone_page_state(page, NR_ISOLATED_ANON + page_is_file_cache(page));
@@ -227,6 +234,13 @@ retry:
 	}
 
 	if (__need_migrate_cma_page(page, vma, address, flags)) {
+		if (__isolate_cma_pinpage(page)) {
+			pr_warn("%s: Failed to migrate a cma page\n", __func__);
+			pr_warn("because of racing with compaction.\n");
+			WARN(1, "Please try again get_user_pages()\n");
+			page = ERR_PTR(-EBUSY);
+			goto out;
+		}
 		pte_unmap_unlock(ptep, ptl);
 		if (__migrate_cma_pinpage(page, vma)) {
 			ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
