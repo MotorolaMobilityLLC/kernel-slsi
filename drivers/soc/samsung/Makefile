@@ -27,3 +27,5 @@ obj-$(CONFIG_EXYNOS_REBOOT)     += exynos-reboot.o
 
 # DEBUG
 obj-$(CONFIG_EXYNOS_DEBUG)      += debug/
+# DVFS
+obj-$(CONFIG_EXYNOS_DVFS_MANAGER)	+= exynos-dm.o

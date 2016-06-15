@@ -96,5 +96,12 @@ config EXYNOS_PM_DOMAINS
 	depends on PM_GENERIC_DOMAINS || COMPILE_TEST
 
 source "drivers/soc/samsung/debug/Kconfig"
+config EXYNOS_DVFS_MANAGER
+	bool "Exynos DVFS Manager"
+	default n
+	depends on ARCH_EXYNOS
+	help
+	  Enable DVFS Manager for Exynos SoC.
+	  This module controls constraint between each DVFS domains.
 
 endif
