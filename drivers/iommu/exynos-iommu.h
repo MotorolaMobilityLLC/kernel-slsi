@@ -134,9 +134,22 @@ typedef u32 sysmmu_pte_t;
 #define REG_PRIVATE_ID(n)	(0x20C + ((n) * 0x10))
 #define REG_FAULT_ADDR		0x070
 #define REG_FAULT_TRANS_INFO	0x078
+#define REG_TLB_READ		0x1000
+#define REG_TLB_VPN		0x1004
+#define REG_TLB_PPN		0x1008
+#define REG_TLB_ATTR		0x100C
+#define REG_SBB_READ		0x1100
+#define REG_SBB_VPN		0x1104
+#define REG_SBB_LINK		0x1108
+#define REG_SBB_ATTR		0x110C
 
+#define MMU_CAPA_NUM_SBB_ENTRY(reg)	((reg >> 12) & 0xF)
 #define MMU_CAPA_NUM_TLB_SET(reg)	((reg >> 8) & 0xF)
 #define MMU_CAPA_NUM_TLB_WAY(reg)	((reg) & 0xFF)
+#define MMU_SET_TLB_READ_ENTRY(set, way, line)		\
+			((set) | ((way) << 8) | ((line) << 16))
+#define MMU_TLB_ENTRY_VALID(reg)	((reg) >> 28)
+#define MMU_SBB_ENTRY_VALID(reg)	((reg) >> 28)
 
 #define MMU_FAULT_INFO_READ_REQUEST	0
 #define MMU_FAULT_INFO_WRITE_REQUEST	1

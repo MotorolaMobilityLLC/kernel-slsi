@@ -170,6 +170,60 @@ void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
+
+static unsigned int dump_set_associative_tlb(void __iomem *sfrbase,
+						int idx_way, int idx_set)
+{
+	if (MMU_TLB_ENTRY_VALID(__raw_readl(sfrbase + REG_TLB_ATTR))) {
+		pr_crit("[%02d][%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
+			idx_way, idx_set,
+			__raw_readl(sfrbase + REG_TLB_VPN),
+			__raw_readl(sfrbase + REG_TLB_PPN),
+			__raw_readl(sfrbase + REG_TLB_ATTR));
+		return 1;
+	}
+	return 0;
+}
+
+#define MMU_NUM_TLB_SUBLINE		4
+static void dump_sysmmu_tlb(void __iomem *sfrbase)
+{
+	int i, j, k;
+	u32 capa = __raw_readl(sfrbase + REG_MMU_CAPA_V7);
+	unsigned int cnt;
+
+	pr_crit("TLB has %d way, %d set. SBB has %d entries.\n",
+			MMU_CAPA_NUM_TLB_WAY(capa),
+			(1 << MMU_CAPA_NUM_TLB_SET(capa)),
+			(1 << MMU_CAPA_NUM_SBB_ENTRY(capa)));
+	pr_crit("------------- TLB[WAY][SET][ENTRY] -------------\n");
+	for (i = 0, cnt = 0; i < MMU_CAPA_NUM_TLB_WAY(capa); i++) {
+		for (j = 0; j < (1 << MMU_CAPA_NUM_TLB_SET(capa)); j++) {
+			for (k = 0; k < MMU_NUM_TLB_SUBLINE; k++) {
+				__raw_writel(MMU_SET_TLB_READ_ENTRY(j, i, k),
+					sfrbase + REG_TLB_READ);
+				cnt += dump_set_associative_tlb(sfrbase, i, j);
+			}
+		}
+	}
+	if (!cnt)
+		pr_crit(">> No Valid TLB Entries\n");
+
+	pr_crit("--- SBB(Second-Level Page Table Base Address Buffer ---\n");
+	for (i = 0, cnt = 0; i < (1 << MMU_CAPA_NUM_SBB_ENTRY(capa)); i++) {
+		__raw_writel(i, sfrbase + REG_SBB_READ);
+		if (MMU_SBB_ENTRY_VALID(__raw_readl(sfrbase + REG_SBB_VPN))) {
+			pr_crit("[%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
+				i, __raw_readl(sfrbase + REG_SBB_VPN),
+				__raw_readl(sfrbase + REG_SBB_LINK),
+				__raw_readl(sfrbase + REG_SBB_ATTR));
+			cnt++;
+		}
+	}
+	if (!cnt)
+		pr_crit(">> No Valid SBB Entries\n");
+}
+
 static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"PTW ACCESS FAULT",
 	"PAGE FAULT",
@@ -181,7 +235,7 @@ static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 
 void dump_sysmmu_status(void __iomem *sfrbase)
 {
-	int capa, info;
+	int info;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -212,7 +266,6 @@ void dump_sysmmu_status(void __iomem *sfrbase)
 		return;
 	}
 
-	capa = __raw_readl(sfrbase + REG_MMU_CAPA);
 	info = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
 
 	phys = pte_pfn(*pte) << PAGE_SHIFT;
@@ -224,6 +277,8 @@ void dump_sysmmu_status(void __iomem *sfrbase)
 		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
 		__raw_readl(sfrbase + REG_MMU_CFG),
 		__raw_readl(sfrbase + REG_MMU_STATUS));
+
+	dump_sysmmu_tlb(sfrbase);
 }
 
 static void show_fault_information(struct sysmmu_drvdata *drvdata,
