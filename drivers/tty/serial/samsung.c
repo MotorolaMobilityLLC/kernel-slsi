@@ -753,6 +753,9 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	unsigned int umcon;
+#ifdef CONFIG_SERIAL_SAMSUNG_HWACG
+	unsigned int ucon;
+#endif
 
 	switch (level) {
 	case S3C24XX_UART_PORT_SUSPEND:
@@ -763,6 +766,14 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 			wr_regl(port, S3C2410_UMCON, umcon);
 		}
 
+#ifdef CONFIG_SERIAL_SAMSUNG_HWACG
+		/* disable Tx, Rx mode bit for suspend in case of HWACG */
+		ucon = rd_regl(port, S3C2410_UCON);
+		ucon &= ~(S3C2410_UCON_RXIRQMODE | S3C2410_UCON_TXIRQMODE) ;
+		wr_regl(port, S3C2410_UCON, ucon);
+		rx_enabled(port) = 0;
+		tx_enabled(port) = 0;
+#endif
 		uart_clock_disable(ourport);
 		break;
 
