@@ -1126,7 +1126,6 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 
 	i2c_lock_adapter(&i2c->adap);
 	i2c->suspended = 1;
-	clk_unprepare(i2c->clk);
 	i2c_unlock_adapter(&i2c->adap);
 
 	return 0;
@@ -1140,9 +1139,10 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 
 	i2c_lock_adapter(&i2c->adap);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-	ret = clk_prepare_enable(i2c->clk);
+	ret = clk_enable(i2c->clk);
 	if (ret) {
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+		i2c_unlock_adapter(&i2c->adap);
 		return ret;
 	}
 	exynos5_i2c_reset(i2c);
