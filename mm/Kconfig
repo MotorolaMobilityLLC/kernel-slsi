@@ -639,6 +639,12 @@ config MAX_STACK_SIZE_MB
 
 	  A sane initial value is 80 MB.
 
+config HPA
+	bool "High-order Pages Allocator"
+	select CMA
+	help
+	  Turns on High-order Pages Allocator based on page migration.
+
 # For architectures that support deferred memory initialisation
 config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	bool
