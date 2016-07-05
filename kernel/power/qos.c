@@ -120,6 +120,34 @@ static struct pm_qos_object device_throughput_max_pm_qos = {
 };
 #endif
 
+static BLOCKING_NOTIFIER_HEAD(intcam_throughput_notifier);
+static struct pm_qos_constraints intcam_tput_constraints = {
+	.list = PLIST_HEAD_INIT(intcam_tput_constraints.list),
+	.target_value = PM_QOS_INTCAM_THROUGHPUT_DEFAULT_VALUE,
+	.default_value = PM_QOS_INTCAM_THROUGHPUT_DEFAULT_VALUE,
+	.type = PM_QOS_FORCE_MAX,
+	.notifiers = &intcam_throughput_notifier,
+};
+static struct pm_qos_object intcam_throughput_pm_qos = {
+	.constraints = &intcam_tput_constraints,
+	.name = "intcam_throughput",
+};
+
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
+static BLOCKING_NOTIFIER_HEAD(intcam_throughput_max_notifier);
+static struct pm_qos_constraints intcam_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(intcam_tput_max_constraints.list),
+	.target_value = PM_QOS_INTCAM_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_INTCAM_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &intcam_throughput_max_notifier,
+};
+static struct pm_qos_object intcam_throughput_max_pm_qos = {
+	.constraints = &intcam_tput_max_constraints,
+	.name = "intcam_throughput_max",
+};
+#endif
+
 static BLOCKING_NOTIFIER_HEAD(bus_throughput_notifier);
 static struct pm_qos_constraints bus_tput_constraints = {
 	.list = PLIST_HEAD_INIT(bus_tput_constraints.list),
@@ -237,8 +265,10 @@ static struct pm_qos_object *pm_qos_array[] = {
 	&cpu_dma_pm_qos,
 	&network_lat_pm_qos,
 	&device_throughput_pm_qos,
+	&intcam_throughput_pm_qos,
 #ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
 	&device_throughput_max_pm_qos,
+	&intcam_throughput_max_pm_qos,
 #endif
 	&bus_throughput_pm_qos,
 	&bus_throughput_max_pm_qos,
