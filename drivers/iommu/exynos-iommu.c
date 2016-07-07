@@ -33,9 +33,10 @@
 #include "exynos-iommu.h"
 
 /* Default IOVA region: [0x1000000, 0xD0000000) */
-#define IOVA_START	0x10000000
-#define IOVA_END	0xD0000000
-#define IOVA_OVFL(x)	((x) > 0xFFFFFFFF)
+#define IOVA_START		0x10000000
+#define IOVA_END		0xD0000000
+#define IOVA_OVFL(addr, size)	((((addr) + (size)) > 0xFFFFFFFF) ||	\
+				((addr) + (size) < (addr)))
 
 static struct kmem_cache *lv2table_kmem_cache;
 
@@ -1468,7 +1469,7 @@ static int __init exynos_iommu_create_domain(void)
 
 		ret = of_get_dma_window(domain_np, NULL, 0, NULL, &d_addr, &d_size);
 		if (!ret) {
-			if (d_addr == 0 || IOVA_OVFL(d_addr + d_size)) {
+			if (d_addr == 0 || IOVA_OVFL(d_addr, d_size)) {
 				pr_err("Failed to get valid dma ranges,\n");
 				pr_err("Domain %s, range %pad++%#zx]\n",
 					domain_np->name, &d_addr, d_size);
