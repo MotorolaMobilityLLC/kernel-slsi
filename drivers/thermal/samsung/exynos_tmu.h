@@ -25,6 +25,8 @@
 #include <linux/cpu_cooling.h>
 #include <dt-bindings/thermal/thermal_exynos.h>
 
+#define NR_HOTPLUG_CPUS	4
+
 enum soc_type {
 	SOC_ARCH_EXYNOS8890 = 1,
 	SOC_ARCH_EXYNOS8895 = 2,

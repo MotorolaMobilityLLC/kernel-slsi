@@ -41,7 +41,7 @@
 #include <linux/gpu_cooling.h>
 #include <linux/isp_cooling.h>
 #include <linux/slab.h>
-#include <soc/samsung/cpufreq.h>
+#include <soc/samsung/tmu.h>
 
 #include "exynos_tmu.h"
 #include "../thermal_core.h"
@@ -979,7 +979,7 @@ static int exynos_throttle_cpu_hotplug(void *p, int temp)
 			is_cpu_hotplugged_out = true;
 
 			pm_qos_update_request(&thermal_cpu_hotplug_request,
-						NR_CLUST1_CPUS);
+						NR_HOTPLUG_CPUS);
 		}
 	}
 
