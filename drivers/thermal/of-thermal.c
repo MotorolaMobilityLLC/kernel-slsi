@@ -1035,6 +1035,9 @@ int __init of_parse_thermal_zones(void)
 		if (!of_property_read_u32(child, "i_max", &prop))
 			tzp->integral_max = prop;
 
+		if (!of_property_read_u32(child, "integral_cutoff", &prop))
+			tzp->integral_cutoff = prop;
+
 		for (i = 0; i < tz->ntrips; i++)
 			mask |= 1 << i;
 
