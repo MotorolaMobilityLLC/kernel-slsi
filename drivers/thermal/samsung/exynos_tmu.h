@@ -27,6 +27,7 @@
 
 enum soc_type {
 	SOC_ARCH_EXYNOS8890 = 1,
+	SOC_ARCH_EXYNOS8895 = 2,
 };
 
 /**
