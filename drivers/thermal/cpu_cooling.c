@@ -35,6 +35,8 @@
 #include <trace/events/thermal.h>
 
 #include <soc/samsung/tmu.h>
+#include <soc/samsung/cal-if.h>
+#include <soc/samsung/ect_parser.h>
 
 /*
  * Cooling state <-> CPUFreq frequency
@@ -231,6 +233,130 @@ static int update_freq_table(struct cpufreq_cooling_device *cpufreq_cdev,
 	return 0;
 }
 
+static int build_static_power_table(struct cpufreq_cooling_device *cpufreq_cdev)
+{
+	int i, j;
+	int ids = cal_asv_get_ids_info(0);
+	int asv_group = cal_asv_get_grp(0, 0);
+	void *gen_block;
+	struct ect_gen_param_table *volt_temp_param, *asv_param;
+
+	gen_block = ect_get_block("GEN");
+	if (gen_block == NULL) {
+		pr_err("%s: Failed to get gen block from ECT\n", __func__);
+		return -EINVAL;
+	}
+
+	volt_temp_param = ect_gen_param_get_table(gen_block, "DTM_MNGS_VOLT_TEMP");
+	asv_param = ect_gen_param_get_table(gen_block, "DTM_MNGS_ASV");
+
+	if (volt_temp_param && asv_param) {
+		cpufreq_cdev->leakage_volt_size = volt_temp_param->num_of_row - 1;
+		cpufreq_cdev->leakage_temp_size = volt_temp_param->num_of_col - 1;
+
+		cpufreq_cdev->leakage_coeff = kzalloc(sizeof(int) *
+							volt_temp_param->num_of_row *
+							volt_temp_param->num_of_col,
+							GFP_KERNEL);
+		if (!cpufreq_cdev->leakage_coeff)
+			goto err_mem;
+
+		cpufreq_cdev->asv_coeff = kzalloc(sizeof(int) *
+							asv_param->num_of_row *
+							asv_param->num_of_col,
+							GFP_KERNEL);
+		if (!cpufreq_cdev->asv_coeff)
+			goto free_leakage_coeff;
+
+		cpufreq_cdev->leakage_table = kzalloc(sizeof(int) *
+							volt_temp_param->num_of_row *
+							volt_temp_param->num_of_col,
+							GFP_KERNEL);
+		if (!cpufreq_cdev->leakage_table)
+			goto free_asv_coeff;
+
+		memcpy(cpufreq_cdev->leakage_coeff, volt_temp_param->parameter,
+			sizeof(int) * volt_temp_param->num_of_row * volt_temp_param->num_of_col);
+		memcpy(cpufreq_cdev->asv_coeff, asv_param->parameter,
+			sizeof(int) * asv_param->num_of_row * asv_param->num_of_col);
+		memcpy(cpufreq_cdev->leakage_table, volt_temp_param->parameter,
+			sizeof(int) * volt_temp_param->num_of_row * volt_temp_param->num_of_col);
+	} else {
+		pr_err("%s: Failed to get param table from ECT\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = 1; i <= cpufreq_cdev->leakage_volt_size; i++) {
+		long asv_coeff = (long)cpufreq_cdev->asv_coeff[3 * i + 0] * asv_group * asv_group
+				+ (long)cpufreq_cdev->asv_coeff[3 * i + 1] * asv_group
+				+ (long)cpufreq_cdev->asv_coeff[3 * i + 2];
+		asv_coeff = asv_coeff / 100;
+
+		for (j = 1; j <= cpufreq_cdev->leakage_temp_size; j++) {
+			long leakage_coeff = (long)cpufreq_cdev->leakage_coeff[i * (cpufreq_cdev->leakage_temp_size + 1) + j];
+			leakage_coeff =  ids * leakage_coeff * asv_coeff;
+			leakage_coeff = leakage_coeff / 100000;
+			cpufreq_cdev->leakage_table[i * (cpufreq_cdev->leakage_temp_size + 1) + j] = (int)leakage_coeff;
+		}
+	}
+
+	return 0;
+
+free_asv_coeff:
+	kfree(cpufreq_cdev->asv_coeff);
+free_leakage_coeff:
+	kfree(cpufreq_cdev->leakage_coeff);
+err_mem:
+	return -ENOMEM;
+}
+
+static int lookup_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
+		unsigned long voltage, int temperature, u32 *power)
+{
+	int volt_index = 0, temp_index = 0;
+	int num_cpus;
+	int max_cpus;
+	struct cpufreq_policy *policy = cpufreq_cdev->policy;
+	struct cpumask *cpumask = policy->related_cpus;
+	cpumask_t tempmask;
+
+	cpumask_and(&tempmask, cpumask, cpu_online_mask);
+	max_cpus = cpumask_weight(cpumask);
+	num_cpus = cpumask_weight(&tempmask);
+	voltage = voltage / 1000;
+	temperature  = temperature / 1000;
+
+	for (volt_index = 0; volt_index <= cpufreq_cdev->leakage_volt_size; volt_index++) {
+		if (voltage < cpufreq_cdev->leakage_table[volt_index * (cpufreq_cdev->leakage_temp_size + 1)]) {
+			volt_index = volt_index - 1;
+			break;
+		}
+	}
+
+	if (volt_index == 0)
+		volt_index = 1;
+
+	if (volt_index > cpufreq_cdev->leakage_volt_size)
+		volt_index = cpufreq_cdev->leakage_volt_size;
+
+	for (temp_index = 0; temp_index <= cpufreq_cdev->leakage_temp_size; temp_index++) {
+		if (temperature < cpufreq_cdev->leakage_table[temp_index]) {
+			temp_index = temp_index - 1;
+			break;
+		}
+	}
+
+	if (temp_index == 0)
+		temp_index = 1;
+
+	if (temp_index > cpufreq_cdev->leakage_temp_size)
+		temp_index = cpufreq_cdev->leakage_temp_size;
+
+	*power = (unsigned int)cpufreq_cdev->leakage_table[volt_index * (cpufreq_cdev->leakage_temp_size + 1) + temp_index] * num_cpus / max_cpus;
+
+	return 0;
+}
+
 static u32 cpu_freq_to_power(struct cpufreq_cooling_device *cpufreq_cdev,
 			     u32 freq)
 {
@@ -314,10 +440,7 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 	unsigned long freq_hz = freq * 1000;
 	struct device *dev;
 
-	if (!cpufreq_cdev->plat_get_static_power) {
-		*power = 0;
-		return 0;
-	}
+	*power = 0;
 
 	dev = get_cpu_device(policy->cpu);
 	WARN_ON(!dev);
@@ -338,8 +461,7 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 		return -EINVAL;
 	}
 
-	return cpufreq_cdev->plat_get_static_power(cpumask, tz->passive_delay,
-						  voltage, power);
+	return lookup_static_power(cpufreq_cdev, voltage, tz->temperature, power);
 }
 
 /**
@@ -757,9 +879,13 @@ __cpufreq_cooling_register(struct device_node *np,
 	}
 
 	if (capacitance) {
-		cpufreq_cdev->plat_get_static_power = plat_static_func;
-
 		ret = update_freq_table(cpufreq_cdev, capacitance);
+		if (ret) {
+			cdev = ERR_PTR(ret);
+			goto remove_ida;
+		}
+
+		ret = build_static_power_table(cpufreq_cdev);
 		if (ret) {
 			cdev = ERR_PTR(ret);
 			goto remove_ida;

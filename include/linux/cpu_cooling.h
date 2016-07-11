@@ -67,6 +67,11 @@ struct cpufreq_cooling_device {
 	struct list_head node;
 	struct time_in_idle *idle_time;
 	get_static_t plat_get_static_power;
+	int *leakage_table;
+	int *leakage_coeff;
+	int *asv_coeff;
+	unsigned int leakage_volt_size;
+	unsigned int leakage_temp_size;
 };
 
 #ifdef CONFIG_CPU_THERMAL
