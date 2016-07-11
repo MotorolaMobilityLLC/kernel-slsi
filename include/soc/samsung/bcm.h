@@ -18,8 +18,8 @@ struct output_data {
 	u32 rd0;
 	u32 rd1;
 	u32 rd2;
-	u32 rd3;
-	u32 rd4;
+	u64 rd3;
+	u64 rd4;
 	u64 rd5;
 };
 

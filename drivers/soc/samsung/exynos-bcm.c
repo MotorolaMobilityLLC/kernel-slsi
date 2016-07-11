@@ -32,7 +32,7 @@
 #define BCM_BDG(x...) do {} while (0)
 #endif
 
-#define BCM_MAX_DATA		4 * 1024 * 1024 / 32
+#define BCM_MAX_DATA		(4 * 1024 * 1024 / sizeof(struct output_data))
 #define MAX_STR			4 * 1024
 #define BCM_SIZE			SZ_64K
 #define NUM_CLK_MAX		8
@@ -53,7 +53,8 @@ struct bcm_info {
 };
 
 static struct fw_system_func {
-	int (*fw_show)(char *);
+	int (*fw_show_tb)(char *);
+	int (*fw_show_cmd)(char *);
 	char * (*fw_cmd)(const char *);
 	struct output_data *(*fw_init)(const int *);
 	struct output_data *(*fw_stop)(u64, unsigned long (*func)(unsigned int),const int *);
@@ -155,7 +156,8 @@ int bcm_pd_sync(struct bcm_info *bcm, bool on)
 				clk_enable(bcm->clk[i]);
 		}
 		spin_lock_irqsave(&bcm_lock, flags);
-		ret = fw_func->pd_sync(bcm, on, get_time());
+		if (fw_func)
+			ret = fw_func->pd_sync(bcm, on, get_time());
 		spin_unlock_irqrestore(&bcm_lock, flags);
 
 		if (!on) {
@@ -174,8 +176,10 @@ static enum hrtimer_restart monitor_fn(struct hrtimer *hrtimer)
 	enum hrtimer_restart ret = HRTIMER_NORESTART;
 
 	spin_lock_irqsave(&bcm_lock, flags);
-	duration = fw_func->fw_periodic(get_time(),
-			cal_dfs_cached_get_rate, NULL);
+	if (fw_func) {
+		duration = fw_func->fw_periodic(get_time(),
+						cal_dfs_cached_get_rate, NULL);
+	}
 	spin_unlock_irqrestore(&bcm_lock, flags);
 
 	if (duration > 0) {
@@ -193,6 +197,11 @@ struct output_data *bcm_start(const int *usr)
 	int duration = 0;
 	if (fw_func) {
 		spin_lock_irqsave(&bcm_lock, flags);
+		if (!fw_func) {
+			spin_unlock_irqrestore(&bcm_lock, flags);
+			return data;
+		}
+
 		data = fw_func->fw_init(usr);
 		if (data) {
 			duration = fw_func->fw_periodic(get_time(),
@@ -240,6 +249,10 @@ struct output_data *bcm_stop(const int *usr)
 	struct output_data *data = NULL;
 	if (fw_func) {
 		spin_lock_irqsave(&bcm_lock, flags);
+		if (!fw_func) {
+			spin_unlock_irqrestore(&bcm_lock, flags);
+			return data;
+		}
 		data = fw_func->fw_stop(get_time(),
 				cal_dfs_cached_get_rate, usr);
 		spin_unlock_irqrestore(&bcm_lock, flags);
@@ -423,7 +436,9 @@ static ssize_t store_load_bcm_fw(struct device *dev,
 		fw_func->fw_cmd("0");
 		spin_unlock_irqrestore(&bcm_lock, flags);
 		fw_func->fw_exit();
+		spin_lock_irqsave(&bcm_lock, flags);
 		fw_func = NULL;
+		spin_unlock_irqrestore(&bcm_lock, flags);
 	}
 	if (value) {
 		if (!os_func.fdata) {
@@ -457,6 +472,8 @@ static ssize_t show_load_bcm_fw(struct device *dev,
 	if(fw_func) {
 		count += snprintf(buf + count, PAGE_SIZE, "%s done\n",
 				  input_file);
+		if (fw_func->fw_show_tb)
+			count += fw_func->fw_show_tb(buf + count);
 	} else {
 		count += snprintf(buf + count, PAGE_SIZE, "%s not yet\n",
 				  input_file);
@@ -532,8 +549,8 @@ static ssize_t show_cmd_bcm_fw(struct device *dev,
 	if (fw_func) {
 		spin_lock_irqsave(&bcm_lock, flags);
 
-		if (fw_func->fw_show)
-			count += fw_func->fw_show(buf);
+		if (fw_func->fw_show_cmd)
+			count += fw_func->fw_show_cmd(buf);
 
 		spin_unlock_irqrestore(&bcm_lock, flags);
 	} else {
@@ -567,10 +584,12 @@ static int exynos_bcm_notifier_event(struct notifier_block *this,
 			return NOTIFY_OK;
 		case PM_SUSPEND_PREPARE:
 			spin_lock_irqsave(&bcm_lock, flags);
-			if (fw_func->fw_stop(get_time(),
-						cal_dfs_cached_get_rate, NULL))
-				hrtimer_try_to_cancel(&bcm_hrtimer);
-			fw_func->fw_cmd(NULL);
+			if (fw_func) {
+				if (fw_func->fw_stop(get_time(),
+						     cal_dfs_cached_get_rate, NULL))
+					hrtimer_try_to_cancel(&bcm_hrtimer);
+				fw_func->fw_cmd(NULL);
+			}
 			spin_unlock_irqrestore(&bcm_lock, flags);
 			return NOTIFY_OK;
 		}
