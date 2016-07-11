@@ -49,6 +49,7 @@
 /* Exynos generic registers */
 #define EXYNOS_TMU_REG_TRIMINFO		0x0
 #define EXYNOS_TMU_REG_TRIMINFO1	0x4
+#define EXYNOS_TMU_REG_TRIMINFO2	0x8
 #define EXYNOS_TMU_REG_CONTROL		0x20
 #define EXYNOS_TMU_REG_STATUS		0x28
 #define EXYNOS_TMU_REG_CURRENT_TEMP1_0 	0x40
@@ -106,6 +107,17 @@
 #define EXYNOS_TMU_REG_INTPEND5			(0x318)
 #define EXYNOS_TMU_REG_INTPEN_OFFSET		(0x10)
 #define EXYNOS_TMU_REG_EMUL_CON			(0x160)
+
+#define EXYNOS_TMU_REG_AVG_CON			(0x38)
+#define EXYNOS_TMU_AVG_CON_SHIFT		(18)
+#define EXYNOS_TMU_AVG_CON_MASK			(0x3)
+#define EXYNOS_TMU_AVG_MODE_MASK		(0x7)
+#define EXYNOS_TMU_AVG_MODE_DEFAULT		(0x0)
+#define EXYNOS_TMU_AVG_MODE_2			(0x5)
+#define EXYNOS_TMU_AVG_MODE_4			(0x6)
+
+#define EXYNOS_TMU_DEM_ENABLE			(1)
+#define EXYNOS_TMU_DEM_SHIFT			(4)
 
 #define MCELSIUS	1000
 
@@ -563,20 +575,29 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
-	unsigned int con, interrupt_en, trim_info, trim_info1;
+	unsigned int con, interrupt_en, trim_info, trim_info1, trim_info2;
 	unsigned int t_buf_vref_sel, t_buf_slope_sel;
 	int i;
+	u32 avg_con, avg_sel;
 
 	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
 	trim_info1 = readl(data->base + EXYNOS_TMU_REG_TRIMINFO1);
+	trim_info2 = readl(data->base + EXYNOS_TMU_REG_TRIMINFO2);
 
 	/* Save fuse buf_vref_sel, calib_sel value to TRIMINFO and 1 register */
 	t_buf_vref_sel = (trim_info >> EXYNOS_TMU_T_BUF_VREF_SEL_SHIFT)
 				& (EXYNOS_TMU_T_BUF_VREF_SEL_MASK);
 	t_buf_slope_sel = (trim_info1 >> EXYNOS_TMU_T_BUF_SLOPE_SEL_SHIFT)
 				& (EXYNOS_TMU_T_BUF_SLOPE_SEL_MASK);
+	avg_sel = (trim_info2 >> EXYNOS_TMU_AVG_CON_SHIFT) & EXYNOS_TMU_AVG_CON_MASK;
 
 	con = get_con_reg(data, readl(data->base + EXYNOS_TMU_REG_CONTROL));
+	avg_con = readl(data->base + EXYNOS_TMU_REG_AVG_CON);
+
+	if(avg_sel)
+		avg_con |= ((avg_con & EXYNOS_TMU_AVG_MODE_MASK) | EXYNOS_TMU_AVG_MODE_DEFAULT);
+	else
+		avg_con |= ((avg_con & EXYNOS_TMU_AVG_MODE_MASK) | EXYNOS_TMU_AVG_MODE_4);
 
 	if (on) {
 		con |= (t_buf_vref_sel << EXYNOS_TMU_REF_VOLTAGE_SHIFT);
@@ -617,6 +638,7 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 		}
 	}
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
+	writel(avg_con, data->base + EXYNOS_TMU_REG_AVG_CON);
 }
 static int exynos_get_temp(void *p, int *temp)
 {
