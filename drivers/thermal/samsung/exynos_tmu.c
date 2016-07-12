@@ -1189,9 +1189,9 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 	ggchild = of_get_next_child(gchild, NULL);
 	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
 					 0, &cooling_spec);
-	if (ret < 0) {
-		pr_err("exynos_tmu do not get cooling spec \n");
-	}
+	if (ret < 0)
+		pr_err("%s do not get cooling spec(err = %d) \n", data->tmu_name, ret);
+
 	cool_np = cooling_spec.np;
 
 	for_each_possible_cpu(cpu) {
@@ -1229,9 +1229,9 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 	ggchild = of_get_next_child(gchild, NULL);
 	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
 					 0, &cooling_spec);
-	if (ret < 0) {
-		pr_err("exynos_tmu do not get cooling spec \n");
-	}
+	if (ret < 0)
+		pr_err("%s do not get cooling spec(err = %d) \n", data->tmu_name, ret);
+
 	cool_np = cooling_spec.np;
 
 	data->cool_dev = of_gpufreq_cooling_register(cool_np, NULL);
@@ -1266,9 +1266,9 @@ static int exynos_isp_cooling_register(struct exynos_tmu_data *data)
 	ggchild = of_get_next_child(gchild, NULL);
 	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
 					 0, &cooling_spec);
-	if (ret < 0) {
-		pr_err("exynos_tmu do not get cooling spec \n");
-	}
+	if (ret < 0)
+		pr_err("%s do not get cooling spec(err = %d) \n", data->tmu_name, ret);
+
 	cool_np = cooling_spec.np;
 
 	data->cool_dev = of_isp_cooling_register(cool_np, NULL);
