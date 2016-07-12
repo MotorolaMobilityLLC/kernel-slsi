@@ -582,6 +582,12 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	int i;
 	u32 avg_con, avg_sel;
 
+	con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
+	con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+	con &= ~(1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
+	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
+	con = 0;
+
 	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
 	trim_info1 = readl(data->base + EXYNOS_TMU_REG_TRIMINFO1);
 	trim_info2 = readl(data->base + EXYNOS_TMU_REG_TRIMINFO2);
