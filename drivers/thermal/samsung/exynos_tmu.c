@@ -944,9 +944,10 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 
 	data->np = pdev->dev.of_node;
 
-	data->id = of_alias_get_id(pdev->dev.of_node, "tmuctrl");
-	if (data->id < 0)
-		data->id = 0;
+	if (of_property_read_u32(pdev->dev.of_node, "id", &data->id)) {
+		dev_err(&pdev->dev, "failed to get TMU ID\n");
+		return -ENODEV;
+	}
 
 	data->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (data->irq <= 0) {
