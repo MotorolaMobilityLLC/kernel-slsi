@@ -182,6 +182,7 @@ struct exynos_tmu_data {
 	struct remote_sensor_info *remote_sensors;
 	int sensing_mode;
 	char tmu_name[THERMAL_NAME_LENGTH];
+	struct device_node *np;
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
@@ -935,6 +936,8 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
 
+	data->np = pdev->dev.of_node;
+
 	data->id = of_alias_get_id(pdev->dev.of_node, "tmuctrl");
 	if (data->id < 0)
 		data->id = 0;
@@ -1162,18 +1165,20 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 	struct device_node *cool_np;
 	struct of_phandle_args cooling_spec;
 	struct cpumask mask_val;
-	int cpu, ret, i;
+	int cpu, ret;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
 		return -ENODEV;
 
-	/* Regist cpufreq cooling device */
-	for (i = 0; i <= data->id; i++) {
-		child = of_get_next_child(np, child);
-		if (i == data->id)
-			break;
+	/* Register cpufreq cooling device */
+	for_each_child_of_node(np, child) {
+		struct device_node *zone_np;
+		zone_np = of_parse_phandle(child, "thermal-sensors", 0);
+
+		if (zone_np == data->np) break;
 	}
+
 	gchild = of_get_child_by_name(child, "cooling-maps");
 	ggchild = of_get_next_child(gchild, NULL);
 	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
@@ -1200,18 +1205,20 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 	struct device_node *np, *child = NULL, *gchild, *ggchild;
 	struct device_node *cool_np;
 	struct of_phandle_args cooling_spec;
-	int ret, i;
+	int ret;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
 		return -ENODEV;
 
 	/* Regist gpufreq cooling device */
-	for (i = 0; i <= data->id; i++) {
-		child = of_get_next_child(np, child);
-		if (i == data->id)
-			break;
+	for_each_child_of_node(np, child) {
+		struct device_node *zone_np;
+		zone_np = of_parse_phandle(child, "thermal-sensors", 0);
+
+		if (zone_np == data->np) break;
 	}
+
 	gchild = of_get_child_by_name(child, "cooling-maps");
 	ggchild = of_get_next_child(gchild, NULL);
 	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
@@ -1235,18 +1242,20 @@ static int exynos_isp_cooling_register(struct exynos_tmu_data *data)
 	struct device_node *np, *child = NULL, *gchild, *ggchild;
 	struct device_node *cool_np;
 	struct of_phandle_args cooling_spec;
-	int ret, i;
+	int ret;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
 		return -ENODEV;
 
 	/* Regist isp cooling device */
-	for (i = 0; i <= data->id; i++) {
-		child = of_get_next_child(np, child);
-		if (i == data->id)
-			break;
+	for_each_child_of_node(np, child) {
+		struct device_node *zone_np;
+		zone_np = of_parse_phandle(child, "thermal-sensors", 0);
+
+		if (zone_np == data->np) break;
 	}
+
 	gchild = of_get_child_by_name(child, "cooling-maps");
 	ggchild = of_get_next_child(gchild, NULL);
 	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
