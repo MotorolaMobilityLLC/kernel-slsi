@@ -181,6 +181,7 @@ struct exynos_tmu_data {
 	int num_of_remotes;
 	struct remote_sensor_info *remote_sensors;
 	int sensing_mode;
+	char tmu_name[THERMAL_NAME_LENGTH];
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
@@ -929,7 +930,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	struct exynos_tmu_platform_data *pdata;
 	struct resource res;
 	int i;
-	const char *temp;
+	const char *temp, *tmu_name;
 
 	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
@@ -969,6 +970,11 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	}
 
 	of_property_read_string(pdev->dev.of_node, "sensing_method", &temp);
+
+	if (of_property_read_string(pdev->dev.of_node, "tmu_name", &tmu_name)) {
+		dev_err(&pdev->dev, "failed to get tmu_name\n");
+	} else
+		strncpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
 
 	for (i = 0; i<ARRAY_SIZE(sensing_method); i++)
 		if (!strcasecmp(temp, sensing_method[i]))
