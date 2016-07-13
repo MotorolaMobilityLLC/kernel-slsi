@@ -42,6 +42,7 @@
 #include <linux/isp_cooling.h>
 #include <linux/slab.h>
 #include <soc/samsung/tmu.h>
+#include <soc/samsung/ect_parser.h>
 
 #include "exynos_tmu.h"
 #include "../thermal_core.h"
@@ -1175,6 +1176,8 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 	int cpu, ret;
 	const char *governor_name;
 	u32 power_coefficient = 0;
+	void *gen_block;
+	struct ect_gen_param_table *pwr_coeff;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
@@ -1203,7 +1206,17 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 
 	if (!of_property_read_string(child, "governor", &governor_name)) {
 		if (!strncasecmp(governor_name, "power_allocator", THERMAL_NAME_LENGTH)) {
-			of_property_read_u32(cool_np, "dynamic-power-coefficient", &power_coefficient);
+			gen_block = ect_get_block("GEN");
+			if (gen_block == NULL) {
+				pr_err("%s: Failed to get gen block from ECT\n", __func__);
+				return -EINVAL;
+			}
+			pwr_coeff = ect_gen_param_get_table(gen_block, "DTM_PWR_Coeff");
+			if (pwr_coeff == NULL) {
+				pr_err("%s: Failed to get power coeff from ECT\n", __func__);
+				return -EINVAL;
+			}
+			power_coefficient = pwr_coeff->parameter[data->id];
 		}
 	}
 
@@ -1224,6 +1237,8 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 	int ret;
 	const char *governor_name;
 	u32 power_coefficient = 0;
+	void *gen_block;
+	struct ect_gen_param_table *pwr_coeff;
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
@@ -1248,7 +1263,17 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 
 	if (!of_property_read_string(child, "governor", &governor_name)) {
 		if (!strncasecmp(governor_name, "power_allocator", THERMAL_NAME_LENGTH)) {
-			of_property_read_u32(cool_np, "dynamic-power-coefficient", &power_coefficient);
+			gen_block = ect_get_block("GEN");
+			if (gen_block == NULL) {
+				pr_err("%s: Failed to get gen block from ECT\n", __func__);
+				return -EINVAL;
+			}
+			pwr_coeff = ect_gen_param_get_table(gen_block, "DTM_PWR_Coeff");
+			if (pwr_coeff == NULL) {
+				pr_err("%s: Failed to get power coeff from ECT\n", __func__);
+				return -EINVAL;
+			}
+			power_coefficient = pwr_coeff->parameter[data->id];
 		}
 	}
 
