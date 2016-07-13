@@ -1195,13 +1195,14 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 
 	cool_np = cooling_spec.np;
 
-	for_each_possible_cpu(cpu) {
-		if (cpu_topology[cpu].cluster_id == data->id) {
+	for_each_possible_cpu(cpu)
+		if (cpu_topology[cpu].cluster_id == data->id)
 			cpumask_copy(&mask_val, topology_core_cpumask(cpu));
-		}
-	}
 
 	data->cool_dev = of_cpufreq_cooling_register(cool_np, &mask_val);
+
+	if (IS_ERR(data->cool_dev))
+	        pr_err("cooling device register fail (mask = %x) \n", *(unsigned int*)cpumask_bits(&mask_val));
 
 	return ret;
 }
