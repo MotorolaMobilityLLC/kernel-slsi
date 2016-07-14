@@ -505,6 +505,16 @@ static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
 #endif
 }
 
+static void s3c64xx_dma_debug(struct s3c64xx_spi_driver_data *sdd,
+				 struct s3c64xx_spi_dma_data *dma)
+{
+#ifdef CONFIG_ARM64
+	sdd->ops->debug((unsigned long)dma->ch);
+#else
+	sdd->ops->debug((enum dma_ch)dma->ch);
+#endif
+}
+
 static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 				struct spi_device *spi,
 				struct spi_transfer *xfer, int dma_mode)
@@ -1005,11 +1015,15 @@ try_transfer:
 
 			if (use_dma) {
 				if (xfer->tx_buf != NULL
-						&& (sdd->state & TXBUSY))
+						&& (sdd->state & TXBUSY)) {
+					s3c64xx_dma_debug(sdd, &sdd->tx_dma);
 					s3c64xx_spi_dma_stop(sdd, &sdd->tx_dma);
+				}
 				if (xfer->rx_buf != NULL
-						&& (sdd->state & RXBUSY))
+						&& (sdd->state & RXBUSY)) {
+					s3c64xx_dma_debug(sdd, &sdd->rx_dma);
 					s3c64xx_spi_dma_stop(sdd, &sdd->rx_dma);
+				}
 			}
 
 			s3c64xx_spi_dump_reg(sdd);
