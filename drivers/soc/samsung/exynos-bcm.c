@@ -37,6 +37,7 @@
 #define BCM_SIZE			SZ_64K
 #define NUM_CLK_MAX		8
 #define FILE_STR		32
+#define BCM_LOG_CNT		100
 
 enum outform {
 	OUT_FILE = 1,
@@ -44,6 +45,7 @@ enum outform {
 };
 
 static size_t fd_virt_addr;
+static struct notifier_block panic_nb;
 
 struct bcm_info {
 	char *pd_name;
@@ -602,6 +604,34 @@ static struct notifier_block exynos_bcm_notifier = {
 	.notifier_call = exynos_bcm_notifier_event,
 };
 
+static int exynos_bcm_notify_panic(struct notifier_block *nb,
+		unsigned long event, void *unused)
+{
+	if (fw_func) {
+		unsigned long flags;
+		char *str;
+		int cnt = 0;
+		str = kzalloc(sizeof(char) * MAX_STR, GFP_KERNEL);
+		if (!str) {
+			return NOTIFY_DONE;
+		}
+		spin_lock_irqsave(&bcm_lock, flags);
+		if (!fw_func) {
+			spin_unlock_irqrestore(&bcm_lock, flags);
+			return NOTIFY_DONE;
+		}
+		fw_func->fw_stop(get_time(),
+				 cal_dfs_cached_get_rate, NULL);
+		while (cnt++ < BCM_LOG_CNT && fw_func->fw_getresult(str)) {
+			pr_info("%s", str);
+		}
+		spin_unlock_irqrestore(&bcm_lock, flags);
+		kfree(str);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int bcm_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -630,6 +660,12 @@ static int bcm_probe(struct platform_device *pdev)
 
 	hrtimer_init(&bcm_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	bcm_hrtimer.function = &monitor_fn;
+
+
+	panic_nb.notifier_call = exynos_bcm_notify_panic;
+	panic_nb.next = NULL;
+	panic_nb.priority = 0;
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_nb);
 
 	BCM_BDG("bcm driver is probed\n");
 
