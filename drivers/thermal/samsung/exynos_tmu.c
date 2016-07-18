@@ -214,6 +214,7 @@ static void exynos_report_trigger(struct exynos_tmu_data *p)
 			break;
 	}
 
+
 	snprintf(data, sizeof(data), "%u", i);
 	kobject_uevent_env(&tz->device.kobj, KOBJ_CHANGE, envp);
 	mutex_unlock(&tz->lock);
@@ -1222,8 +1223,11 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 
 	data->cool_dev = of_cpufreq_power_cooling_register(cool_np, &mask_val, power_coefficient, NULL);
 
-	if (IS_ERR(data->cool_dev))
+	if (IS_ERR(data->cool_dev)) {
+		data->cool_dev = NULL;
 	        pr_err("cooling device register fail (mask = %x) \n", *(unsigned int*)cpumask_bits(&mask_val));
+		return -ENODEV;
+	}
 
 	return ret;
 }
@@ -1279,6 +1283,12 @@ static int exynos_gpufreq_cooling_register(struct exynos_tmu_data *data)
 
 	data->cool_dev = of_gpufreq_power_cooling_register(cool_np, NULL, power_coefficient, NULL);
 
+	if (IS_ERR(data->cool_dev)) {
+		data->cool_dev = NULL;
+	        pr_err("gpu cooling device register fail \n");
+		return -ENODEV;
+	}
+
 	return ret;
 }
 #else
@@ -1315,6 +1325,12 @@ static int exynos_isp_cooling_register(struct exynos_tmu_data *data)
 	cool_np = cooling_spec.np;
 
 	data->cool_dev = of_isp_cooling_register(cool_np, NULL);
+
+	if (IS_ERR(data->cool_dev)) {
+		data->cool_dev = NULL;
+	        pr_err("isp cooling device register fail \n");
+		return -ENODEV;
+	}
 
 	return ret;
 }
