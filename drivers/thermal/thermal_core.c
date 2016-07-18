@@ -468,24 +468,29 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 				enum thermal_notify_event event)
 {
 	int count;
+	enum thermal_device_mode mode;
 
 	if (atomic_read(&in_suspend))
 		return;
 
-	if (!tz->ops->get_temp)
+	if (!tz->ops->get_temp || !tz->ops->get_mode)
 		return;
 
-	update_temperature(tz);
+	tz->ops->get_mode(tz, &mode);
 
-	thermal_zone_set_trips(tz);
+	if (mode == THERMAL_DEVICE_ENABLED) {
+		update_temperature(tz);
 
-	tz->notify_event = event;
+		thermal_zone_set_trips(tz);
 
-	for (count = 0; count < tz->trips; count++)
-		handle_thermal_trip(tz, count);
+		tz->notify_event = event;
 
-	if (tz->ops->throttle_hotplug)
-		tz->ops->throttle_hotplug(tz);
+		for (count = 0; count < tz->trips; count++)
+			handle_thermal_trip(tz, count);
+
+		if (tz->ops->throttle_hotplug)
+			tz->ops->throttle_hotplug(tz);
+	}
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
 
