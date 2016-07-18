@@ -194,10 +194,7 @@ struct exynos_tmu_data {
 
 static void exynos_report_trigger(struct exynos_tmu_data *p)
 {
-	char data[10], *envp[] = { data, NULL };
 	struct thermal_zone_device *tz = p->tzd;
-	int temp;
-	unsigned int i;
 
 	if (!tz) {
 		pr_err("No thermal zone device defined\n");
@@ -205,19 +202,6 @@ static void exynos_report_trigger(struct exynos_tmu_data *p)
 	}
 
 	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
-
-	mutex_lock(&tz->lock);
-	/* Find the level for which trip happened */
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
-		tz->ops->get_trip_temp(tz, i, &temp);
-		if (tz->last_temperature < temp)
-			break;
-	}
-
-
-	snprintf(data, sizeof(data), "%u", i);
-	kobject_uevent_env(&tz->device.kobj, KOBJ_CHANGE, envp);
-	mutex_unlock(&tz->lock);
 }
 
 /*
