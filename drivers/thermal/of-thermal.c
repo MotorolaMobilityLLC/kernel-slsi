@@ -34,6 +34,11 @@
 
 #include "thermal_core.h"
 
+#if defined(CONFIG_ECT)
+#include <soc/samsung/ect_parser.h>
+#include "samsung/exynos_tmu.h"
+#endif
+
 /***   Private data structures to represent thermal device tree data ***/
 
 /**
@@ -500,6 +505,18 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 	struct device_node *np, *child, *sensor_np;
 	struct thermal_zone_device *tzd = ERR_PTR(-ENODEV);
 
+#if defined(CONFIG_ECT)
+	struct thermal_instance *instance;
+	struct __thermal_zone *__tz;
+	void *thermal_block;
+	struct ect_ap_thermal_function *function;
+	int i = 0, j = 0;
+	struct exynos_tmu_data *tmu_data;
+	int hotplug_threshold_temp = 0, hotplug_flag = 0;
+	unsigned int level, freq;
+	int temperature;
+#endif
+
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np)
 		return ERR_PTR(-ENODEV);
@@ -534,6 +551,86 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 		if (sensor_specs.np == sensor_np && id == sensor_id) {
 			tzd = thermal_zone_of_add_sensor(child, sensor_np,
 							 data, ops);
+#if defined(CONFIG_ECT)
+			__tz = tzd->devdata;
+			tmu_data = (struct exynos_tmu_data *)data;
+
+			thermal_block = ect_get_block(BLOCK_AP_THERMAL);
+			if (thermal_block == NULL) {
+				dev_err(dev, "Failed to get thermal block");
+				return ERR_PTR(-EINVAL);
+			}
+
+			pr_info("%s %d thermal zone_name = %s \n", __func__, __LINE__, tzd->type);
+			function = ect_ap_thermal_get_function(thermal_block, tzd->type);
+			if (function == NULL) {
+				dev_err(dev, "Failed to get thermal block %s", tzd->type);
+				return ERR_PTR(-EINVAL);
+			}
+
+			__tz->ntrips = __tz->num_tbps = function->num_of_range;
+			dev_info(dev, "Trip count parsed from ECT : %d, zone : %s", function->num_of_range, tzd->type);
+
+			instance = list_first_entry(&tzd->thermal_instances, typeof(*instance), tz_node);
+
+			for (i = 0; i < function->num_of_range; ++i) {
+				temperature = function->range_list[i].lower_bound_temperature;
+				freq = function->range_list[i].max_frequency;
+
+				for (j = 0; j < ARRAY_SIZE(tz_zone_names); j++)
+					if (!strcasecmp(tzd->type, tz_zone_names[j])) {
+						switch (j) {
+							case MNGS_QUAD :
+								level = cpufreq_cooling_get_level(4, freq);
+								break;
+							case APOLLO :
+								level = cpufreq_cooling_get_level(0, freq);
+								break;
+							case GPU :
+								level = gpufreq_cooling_get_level(0, freq);
+								break;
+							case ISP :
+								level = isp_cooling_get_fps(0, freq);
+								break;
+							case MNGS_DUAL :
+								level = cpufreq_cooling_get_level(4, freq);
+								break;
+						}
+					}
+
+				if (level > 100) {
+					dev_err(dev, "Level is strange!!! freq = %u, level = %u\n", freq, level);
+					level = 0;
+				}
+
+				/* Change 'trips' and 'tbps' data with ECT data instead of DT data */
+				__tz->trips[i].temperature = temperature  * MCELSIUS;
+				__tz->tbps[i].max = level;
+
+				/* Change thermal instance information with tbps data */
+				instance->upper = __tz->tbps[i].max;
+				instance = list_next_entry(instance, tz_node);
+				pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u, level = %lu\n", i, temperature, freq, __tz->tbps[i].max);
+
+				if (function->range_list[i].flag != hotplug_flag) {
+					hotplug_threshold_temp = temperature;
+					hotplug_flag = function->range_list[i].flag;
+					tmu_data->hotplug_out_threshold = temperature;
+
+					if (i)
+						tmu_data->hotplug_in_threshold = function->range_list[i-1].lower_bound_temperature;
+
+					pr_info("[ECT]hotplug_threshold : %d \n", hotplug_threshold_temp);
+					pr_info("[ECT]hotplug_in_threshold : %d \n", tmu_data->hotplug_in_threshold);
+					pr_info("[ECT]hotplug_out_threshold : %d \n", tmu_data->hotplug_out_threshold);
+				}
+			}
+
+			if (hotplug_threshold_temp != 0)
+				tmu_data->hotplug_enable = true;
+			else
+				tmu_data->hotplug_enable = false;
+#endif
 
 			of_node_put(sensor_specs.np);
 			of_node_put(child);

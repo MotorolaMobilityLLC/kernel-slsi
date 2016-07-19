@@ -123,8 +123,6 @@
 #define EXYNOS_TMU_DEM_ENABLE			(1)
 #define EXYNOS_TMU_DEM_SHIFT			(4)
 
-#define MCELSIUS	1000
-
 #define TOTAL_SENSORS	8
 
 static bool suspended;
@@ -134,66 +132,6 @@ static DEFINE_MUTEX (thermal_suspend_lock);
 /* list of multiple instance for each thermal sensor */
 static LIST_HEAD(dtm_dev_list);
 struct cpufreq_frequency_table gpu_freq_table[10];
-
-struct sensor_info {
-	u8 sensor_num;
-	u16 cal_type;
-	u32 temp_error1;
-	u32 temp_error2;
-};
-
-/**
- * struct exynos_tmu_data : A structure to hold the private data of the TMU
-	driver
- * @id: identifier of the one instance of the TMU controller.
- * @pdata: pointer to the tmu platform/configuration data
- * @base: base address of the single instance of the TMU controller.
- * @base_second: base address of the common registers of the TMU controller.
- * @irq: irq number of the TMU controller.
- * @soc: id of the SOC type.
- * @irq_work: pointer to the irq work structure.
- * @lock: lock to implement synchronization.
- * @temp_error1: fused value of the first point trim.
- * @temp_error2: fused value of the second point trim.
- * @regulator: pointer to the TMU regulator structure.
- * @reg_conf: pointer to structure to register with core thermal.
- * @ntrip: number of supported trip points.
- * @tmu_initialize: SoC specific TMU initialization method
- * @tmu_control: SoC specific TMU control method
- * @tmu_read: SoC specific TMU temperature read method
- * @tmu_set_emulation: SoC specific TMU emulation setting method
- * @tmu_clear_irqs: SoC specific TMU interrupts clearing method
- */
-struct exynos_tmu_data {
-	int id;
-	/* Throttle hotplug related variables */
-	bool hotplug_enable;
-	int hotplug_in_threshold;
-	int hotplug_out_threshold;
-	struct exynos_tmu_platform_data *pdata;
-	void __iomem *base;
-	int irq;
-	enum soc_type soc;
-	struct work_struct irq_work;
-	struct mutex lock;
-	u16 temp_error1, temp_error2;
-	struct thermal_zone_device *tzd;
-	unsigned int ntrip;
-	struct thermal_cooling_device *cool_dev;
-	struct list_head node;
-	u32 sensors;
-	int num_of_sensors;
-	struct sensor_info *sensor_info;
-	int sensing_mode;
-	char tmu_name[THERMAL_NAME_LENGTH];
-	struct device_node *np;
-
-	int (*tmu_initialize)(struct platform_device *pdev);
-	void (*tmu_control)(struct platform_device *pdev, bool on);
-	int (*tmu_read)(struct exynos_tmu_data *data);
-	void (*tmu_set_emulation)(struct exynos_tmu_data *data, int temp);
-	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
-};
 
 static int find_sensor(struct exynos_tmu_data *data, int start)
 {
