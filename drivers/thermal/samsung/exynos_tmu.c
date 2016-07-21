@@ -745,7 +745,7 @@ static int exynos8895_tmu_read(struct exynos_tmu_data *data)
 {
 	int i;
 	u32 reg_offset, bit_offset;
-	u32 temp_data[TOTAL_SENSORS];
+	u32 temp_data;
 	u32 count = 0, result = 0;
 
 	for (i = 0; i < TOTAL_SENSORS; i++) {
@@ -758,18 +758,18 @@ static int exynos8895_tmu_read(struct exynos_tmu_data *data)
 				bit_offset = EXYNOS_TMU_TEMP_SHIFT * ((i - 2) % 3);
 			}
 
-			temp_data[i] = (readl(data->base + EXYNOS_TMU_REG_CURRENT_TEMP1_0 + reg_offset)
+			temp_data = (readl(data->base + EXYNOS_TMU_REG_CURRENT_TEMP1_0 + reg_offset)
 					>> bit_offset) & EXYNOS_TMU_TEMP_MASK;
 			count++;
 
 			switch (data->sensing_mode) {
-				case AVG : result = result + temp_data[i];
+				case AVG : result = result + temp_data;
 					break;
-				case MAX : result = result > temp_data[i] ? result : temp_data[i];
+				case MAX : result = result > temp_data ? result : temp_data;
 					break;
-				case MIN : result = result < temp_data[i] ? result : temp_data[i];
+				case MIN : result = result < temp_data ? result : temp_data;
 					break;
-				default : result = temp_data[i];
+				default : result = temp_data;
 					break;
 			}
 		}
