@@ -967,16 +967,18 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	of_property_read_string(pdev->dev.of_node, "sensing_method", &temp);
-
 	if (of_property_read_string(pdev->dev.of_node, "tmu_name", &tmu_name)) {
 		dev_err(&pdev->dev, "failed to get tmu_name\n");
 	} else
 		strncpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
 
-	for (i = 0; i<ARRAY_SIZE(sensing_method); i++)
-		if (!strcasecmp(temp, sensing_method[i]))
-			data->sensing_mode = i;
+	if (of_property_read_string(pdev->dev.of_node, "sensing_mode", &temp))
+	        dev_err(&pdev->dev, "failed to get sensing_mode of thermel sensor\n");
+	else {
+		for (i = 0; i<ARRAY_SIZE(sensing_method); i++)
+			if (!strcasecmp(temp, sensing_method[i]))
+				data->sensing_mode = i;
+	}
 
 	data->hotplug_enable = of_property_read_bool(pdev->dev.of_node, "hotplug_enable");
 	if (data->hotplug_enable) {
