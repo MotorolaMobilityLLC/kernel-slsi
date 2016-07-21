@@ -20,6 +20,7 @@
 #include <linux/videodev2_exynos_media.h>
 #include <linux/io.h>
 #include <linux/pm_qos.h>
+#include <linux/dma-buf.h>
 #include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
@@ -60,6 +61,8 @@ extern int sc_log_level;
 #define CTX_SRC_FMT	5
 #define CTX_DST_FMT	6
 #define CTX_INT_FRAME	7 /* intermediate frame available */
+#define CTX_INT_FRAME_CP 8 /* intermediate frame available */
+
 
 /* CSC equation */
 #define SC_CSC_NARROW	0
@@ -230,6 +233,7 @@ struct sc_variant {
 	u32 version;
 	u32 sc_up_max;
 	u32 sc_down_min;
+	u32 sc_up_swmax;
 	u32 sc_down_swmin;
 	u8 blending:1;
 	u8 prescale:1;
@@ -295,6 +299,9 @@ struct sc_int_frame {
 	struct ion_handle		*handle[3];
 	struct sc_addr			src_addr;
 	struct sc_addr			dst_addr;
+	struct sg_table			*sgt[3];
+	struct dma_buf			*dma_buf[3];
+	struct dma_buf_attachment	*attachment[3];
 };
 
 /*

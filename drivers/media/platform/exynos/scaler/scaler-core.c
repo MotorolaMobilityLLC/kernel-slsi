@@ -333,6 +333,7 @@ static const struct sc_variant sc_variant[] = {
 		.version		= SCALER_VERSION(4, 0, 1),
 		.sc_up_max		= SCALE_RATIO_CONST(1, 8),
 		.sc_down_min		= SCALE_RATIO_CONST(4, 1),
+		.sc_up_swmax		= SCALE_RATIO_CONST(1, 16),
 		.sc_down_swmin		= SCALE_RATIO_CONST(16, 1),
 		.blending		= 0,
 		.prescale		= 0,
@@ -1035,6 +1036,7 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 
 static void free_intermediate_frame(struct sc_ctx *ctx)
 {
+	int i;
 
 	if (ctx->i_frame == NULL)
 		return;
@@ -1042,25 +1044,34 @@ static void free_intermediate_frame(struct sc_ctx *ctx)
 	if (!ctx->i_frame->handle[0])
 		return;
 
-	ion_free(ctx->i_frame->client, ctx->i_frame->handle[0]);
-
-	if (ctx->i_frame->handle[1])
-		ion_free(ctx->i_frame->client, ctx->i_frame->handle[1]);
-	if (ctx->i_frame->handle[2])
-		ion_free(ctx->i_frame->client, ctx->i_frame->handle[2]);
-
 	if (ctx->i_frame->src_addr.y)
-		iovmm_unmap(ctx->sc_dev->dev, ctx->i_frame->src_addr.y);
+		ion_iovmm_unmap(ctx->i_frame->attachment[0],
+				ctx->i_frame->src_addr.y);
 	if (ctx->i_frame->src_addr.cb)
-		iovmm_unmap(ctx->sc_dev->dev, ctx->i_frame->src_addr.cb);
+		ion_iovmm_unmap(ctx->i_frame->attachment[1],
+				ctx->i_frame->src_addr.cb);
 	if (ctx->i_frame->src_addr.cr)
-		iovmm_unmap(ctx->sc_dev->dev, ctx->i_frame->src_addr.cr);
+		ion_iovmm_unmap(ctx->i_frame->attachment[2],
+				ctx->i_frame->src_addr.cr);
 	if (ctx->i_frame->dst_addr.y)
-		iovmm_unmap(ctx->sc_dev->dev, ctx->i_frame->dst_addr.y);
+		ion_iovmm_unmap(ctx->i_frame->attachment[0],
+				ctx->i_frame->dst_addr.y);
 	if (ctx->i_frame->dst_addr.cb)
-		iovmm_unmap(ctx->sc_dev->dev, ctx->i_frame->dst_addr.cb);
+		ion_iovmm_unmap(ctx->i_frame->attachment[1],
+				ctx->i_frame->dst_addr.cb);
 	if (ctx->i_frame->dst_addr.cr)
-		iovmm_unmap(ctx->sc_dev->dev, ctx->i_frame->dst_addr.cr);
+		ion_iovmm_unmap(ctx->i_frame->attachment[2],
+				ctx->i_frame->dst_addr.cr);
+
+	for(i = 0; i < 3; i++) {
+		if (ctx->i_frame->handle[i]) {
+			dma_buf_unmap_attachment(ctx->i_frame->attachment[i],
+					ctx->i_frame->sgt[i], DMA_BIDIRECTIONAL);
+			dma_buf_detach(ctx->i_frame->dma_buf[i], ctx->i_frame->attachment[i]);
+			dma_buf_put(ctx->i_frame->dma_buf[i]);
+			ion_free(ctx->i_frame->client, ctx->i_frame->handle[i]);
+		}
+	}
 
 	memset(&ctx->i_frame->handle, 0, sizeof(struct ion_handle *) * 3);
 	memset(&ctx->i_frame->src_addr, 0, sizeof(ctx->i_frame->src_addr));
@@ -1082,7 +1093,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 {
 	struct sc_frame *frame;
 	struct sc_dev *sc = ctx->sc_dev;
-	struct sg_table *sgt;
+	int ion_mask, flag;
 
 	frame = &ctx->i_frame->frame;
 
@@ -1102,9 +1113,17 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 
 	sc_calc_intbufsize(sc, ctx->i_frame);
 
+	if(test_bit(CTX_INT_FRAME_CP, &sc->state)) {
+		ion_mask = EXYNOS_ION_HEAP_VIDEO_SCALER_MASK;
+		flag = ION_FLAG_PROTECTED;
+	} else {
+		ion_mask = EXYNOS_ION_HEAP_SYSTEM_MASK;
+		flag = 0;
+	}
+
 	if (frame->addr.ysize) {
 		ctx->i_frame->handle[0] = ion_alloc(ctx->i_frame->client,
-				frame->addr.ysize, 0, ION_HEAP_SYSTEM_MASK, 0);
+				frame->addr.ysize, 0, ion_mask, flag);
 		if (IS_ERR(ctx->i_frame->handle[0])) {
 			dev_err(sc->dev,
 			"Failed to allocate intermediate y buffer (err %ld)",
@@ -1113,16 +1132,37 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 			goto err_ion_alloc;
 		}
 
-		sgt = ion_sg_table(ctx->i_frame->client,
-				   ctx->i_frame->handle[0]);
-		if (IS_ERR(sgt)) {
+		ctx->i_frame->dma_buf[0] = ion_share_dma_buf(ctx->i_frame->client,
+				ctx->i_frame->handle[0]);
+		if (IS_ERR(ctx->i_frame->dma_buf[0])) {
 			dev_err(sc->dev,
-			"Failed to get sg_table from ion_handle of y (err %ld)",
-			PTR_ERR(sgt));
+			"Failed to get dma_buf from ion_handle of y (err %ld)",
+			PTR_ERR(ctx->i_frame->dma_buf[0]));
+			ctx->i_frame->dma_buf[0] = NULL;
 			goto err_ion_alloc;
 		}
 
-		ctx->i_frame->src_addr.y = iovmm_map(sc->dev, sgt->sgl, 0,
+		ctx->i_frame->attachment[0] = dma_buf_attach(ctx->i_frame->dma_buf[0],
+				sc->dev);
+		if (IS_ERR(ctx->i_frame->attachment[0])) {
+			dev_err(sc->dev,
+			"Failed to get dma_buf_attach from dma_buf of y (err %ld)",
+			PTR_ERR(ctx->i_frame->attachment[0]));
+			ctx->i_frame->attachment[0] = NULL;
+			goto err_ion_alloc;
+		}
+
+		ctx->i_frame->sgt[0] = dma_buf_map_attachment(ctx->i_frame->attachment[0],
+				DMA_BIDIRECTIONAL);
+		if (IS_ERR(ctx->i_frame->sgt[0])) {
+			dev_err(sc->dev,
+			"Failed to get sgt from dma_buf_attach of y (err %ld)",
+			PTR_ERR(ctx->i_frame->sgt[0]));
+			ctx->i_frame->sgt[0] = NULL;
+			goto err_ion_alloc;
+		}
+
+		ctx->i_frame->src_addr.y = ion_iovmm_map(ctx->i_frame->attachment[0], 0,
 					frame->addr.ysize, DMA_TO_DEVICE, 0);
 		if (IS_ERR_VALUE(ctx->i_frame->src_addr.y)) {
 			dev_err(sc->dev,
@@ -1132,7 +1172,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 			goto err_ion_alloc;
 		}
 
-		ctx->i_frame->dst_addr.y = iovmm_map(sc->dev, sgt->sgl, 0,
+		ctx->i_frame->dst_addr.y = ion_iovmm_map(ctx->i_frame->attachment[0], 0,
 					frame->addr.ysize, DMA_FROM_DEVICE, 0);
 		if (IS_ERR_VALUE(ctx->i_frame->dst_addr.y)) {
 			dev_err(sc->dev,
@@ -1147,7 +1187,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 
 	if (frame->addr.cbsize) {
 		ctx->i_frame->handle[1] = ion_alloc(ctx->i_frame->client,
-				frame->addr.cbsize, 0, ION_HEAP_SYSTEM_MASK, 0);
+				frame->addr.cbsize, 0, ion_mask, flag);
 		if (IS_ERR(ctx->i_frame->handle[1])) {
 			dev_err(sc->dev,
 			"Failed to allocate intermediate cb buffer (err %ld)",
@@ -1156,16 +1196,37 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 			goto err_ion_alloc;
 		}
 
-		sgt = ion_sg_table(ctx->i_frame->client,
-				   ctx->i_frame->handle[1]);
-		if (IS_ERR(sgt)) {
+		ctx->i_frame->dma_buf[1] = ion_share_dma_buf(ctx->i_frame->client,
+				ctx->i_frame->handle[1]);
+		if (IS_ERR(ctx->i_frame->dma_buf[1])) {
 			dev_err(sc->dev,
-			"Failed to get sg_table from ion_handle of cb(err %ld)",
-			PTR_ERR(sgt));
+			"Failed to get dma_buf from ion_handle of cb (err %ld)",
+			PTR_ERR(ctx->i_frame->dma_buf[1]));
+			ctx->i_frame->dma_buf[1] = NULL;
 			goto err_ion_alloc;
 		}
 
-		ctx->i_frame->src_addr.cb = iovmm_map(sc->dev, sgt->sgl, 0,
+		ctx->i_frame->attachment[1] = dma_buf_attach(ctx->i_frame->dma_buf[1],
+				sc->dev);
+		if (IS_ERR(ctx->i_frame->attachment[1])) {
+			dev_err(sc->dev,
+			"Failed to get dma_buf_attach from dma_buf of cb (err %ld)",
+			PTR_ERR(ctx->i_frame->attachment[1]));
+			ctx->i_frame->attachment[1] = NULL;
+			goto err_ion_alloc;
+		}
+
+		ctx->i_frame->sgt[1] = dma_buf_map_attachment(ctx->i_frame->attachment[1],
+				DMA_BIDIRECTIONAL);
+		if (IS_ERR(ctx->i_frame->sgt[1])) {
+			dev_err(sc->dev,
+			"Failed to get sgt from dma_buf_attach of cb (err %ld)",
+			PTR_ERR(ctx->i_frame->sgt[1]));
+			ctx->i_frame->sgt[1] = NULL;
+			goto err_ion_alloc;
+		}
+
+		ctx->i_frame->src_addr.cb = ion_iovmm_map(ctx->i_frame->attachment[1], 0,
 					frame->addr.cbsize, DMA_TO_DEVICE, 0);
 		if (IS_ERR_VALUE(ctx->i_frame->src_addr.cb)) {
 			dev_err(sc->dev,
@@ -1175,7 +1236,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 			goto err_ion_alloc;
 		}
 
-		ctx->i_frame->dst_addr.cb = iovmm_map(sc->dev, sgt->sgl, 0,
+		ctx->i_frame->dst_addr.cb = ion_iovmm_map(ctx->i_frame->attachment[1], 0,
 					frame->addr.cbsize, DMA_FROM_DEVICE, 0);
 		if (IS_ERR_VALUE(ctx->i_frame->dst_addr.cb)) {
 			dev_err(sc->dev,
@@ -1190,7 +1251,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 
 	if (frame->addr.crsize) {
 		ctx->i_frame->handle[2] = ion_alloc(ctx->i_frame->client,
-				frame->addr.crsize, 0, ION_HEAP_SYSTEM_MASK, 0);
+				frame->addr.crsize, 0, ion_mask, flag);
 		if (IS_ERR(ctx->i_frame->handle[2])) {
 			dev_err(sc->dev,
 			"Failed to allocate intermediate cr buffer (err %ld)",
@@ -1199,16 +1260,37 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 			goto err_ion_alloc;
 		}
 
-		sgt = ion_sg_table(ctx->i_frame->client,
-				   ctx->i_frame->handle[2]);
-		if (IS_ERR(sgt)) {
+		ctx->i_frame->dma_buf[2] = ion_share_dma_buf(ctx->i_frame->client,
+				ctx->i_frame->handle[2]);
+		if (IS_ERR(ctx->i_frame->dma_buf[2])) {
 			dev_err(sc->dev,
-			"Failed to get sg_table from ion_handle of cr(err %ld)",
-			PTR_ERR(sgt));
+			"Failed to get dma_buf from ion_handle of cr (err %ld)",
+			PTR_ERR(ctx->i_frame->dma_buf[2]));
+			ctx->i_frame->dma_buf[2] = NULL;
 			goto err_ion_alloc;
 		}
 
-		ctx->i_frame->src_addr.cr = iovmm_map(sc->dev, sgt->sgl, 0,
+		ctx->i_frame->attachment[2] = dma_buf_attach(ctx->i_frame->dma_buf[2],
+				sc->dev);
+		if (IS_ERR(ctx->i_frame->attachment[2])) {
+			dev_err(sc->dev,
+			"Failed to get dma_buf_attach from dma_buf of cr (err %ld)",
+			PTR_ERR(ctx->i_frame->attachment[2]));
+			ctx->i_frame->attachment[2] = NULL;
+			goto err_ion_alloc;
+		}
+
+		ctx->i_frame->sgt[2] = dma_buf_map_attachment(ctx->i_frame->attachment[2],
+				DMA_BIDIRECTIONAL);
+		if (IS_ERR(ctx->i_frame->sgt[2])) {
+			dev_err(sc->dev,
+			"Failed to get sgt from dma_buf_attach of cr (err %ld)",
+			PTR_ERR(ctx->i_frame->sgt[2]));
+			ctx->i_frame->sgt[2] = NULL;
+			goto err_ion_alloc;
+		}
+
+		ctx->i_frame->src_addr.cr = ion_iovmm_map(ctx->i_frame->attachment[2], 0,
 					frame->addr.crsize, DMA_TO_DEVICE, 0);
 		if (IS_ERR_VALUE(ctx->i_frame->src_addr.cr)) {
 			dev_err(sc->dev,
@@ -1218,7 +1300,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 			goto err_ion_alloc;
 		}
 
-		ctx->i_frame->dst_addr.cr = iovmm_map(sc->dev, sgt->sgl, 0,
+		ctx->i_frame->dst_addr.cr = ion_iovmm_map(ctx->i_frame->attachment[2], 0,
 					frame->addr.crsize, DMA_FROM_DEVICE, 0);
 		if (IS_ERR_VALUE(ctx->i_frame->dst_addr.cr)) {
 			dev_err(sc->dev,
@@ -1317,6 +1399,18 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 		}
 	}
 
+	if (*v_ratio < SCALE_RATIO_CONST(1, 8)) {
+		crop.height = src_height * 8;
+		if (crop.height > limit->max_h)
+			crop.height = limit->max_h;
+	}
+
+	if (*h_ratio < SCALE_RATIO_CONST(1, 8)) {
+		crop.width = src_width * 8;
+		if (crop.width > limit->max_w)
+			crop.width = limit->max_w;
+	}
+
 	pixfmt = target_fmt->pixelformat;
 
 	if (sc_fmt_is_yuv422(pixfmt)) {
@@ -1335,7 +1429,13 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 	*v_ratio = SCALE_RATIO(src_height, crop.height);
 
 	if ((ctx->i_frame->frame.sc_fmt != ctx->d_frame.sc_fmt) ||
-			memcmp(&crop, &ctx->i_frame->frame.crop, sizeof(crop))) {
+		memcmp(&crop, &ctx->i_frame->frame.crop, sizeof(crop)) ||
+		(ctx->cp_enabled != test_bit(CTX_INT_FRAME_CP, &sc->state))) {
+		if(ctx->cp_enabled)
+			set_bit(CTX_INT_FRAME_CP, &sc->state);
+		else
+			clear_bit(CTX_INT_FRAME_CP, &sc->state);
+
 		memcpy(&ctx->i_frame->frame, &ctx->d_frame,
 				sizeof(ctx->d_frame));
 		memcpy(&ctx->i_frame->frame.crop, &crop, sizeof(crop));
@@ -1345,6 +1445,7 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 			return -ENOMEM;
 		}
 	}
+
 	return 0;
 }
 
@@ -1486,6 +1587,7 @@ static int sc_find_scaling_ratio(struct sc_ctx *ctx)
 	unsigned int h_ratio, v_ratio;
 	struct sc_dev *sc = ctx->sc_dev;
 	unsigned int sc_down_min = sc->variant->sc_down_min;
+	unsigned int sc_up_max = sc->variant->sc_up_max;
 
 	if ((ctx->s_frame.crop.width == 0) ||
 			(ctx->d_frame.crop.width == 0))
@@ -1513,14 +1615,14 @@ static int sc_find_scaling_ratio(struct sc_ctx *ctx)
 	sc_dbg("Scaling ratio h_ratio %d, v_ratio %d\n", h_ratio, v_ratio);
 
 	if ((h_ratio > sc->variant->sc_down_swmin) ||
-			(h_ratio < sc->variant->sc_up_max)) {
+			(h_ratio < sc->variant->sc_up_swmax)) {
 		dev_err(sc->dev, "Width scaling is out of range(%d -> %d)\n",
 			src_width, ctx->d_frame.crop.width);
 		return -EINVAL;
 	}
 
 	if ((v_ratio > sc->variant->sc_down_swmin) ||
-			(v_ratio < sc->variant->sc_up_max)) {
+			(v_ratio < sc->variant->sc_up_swmax)) {
 		dev_err(sc->dev, "Height scaling is out of range(%d -> %d)\n",
 			src_height, ctx->d_frame.crop.height);
 		return -EINVAL;
@@ -1572,18 +1674,8 @@ static int sc_find_scaling_ratio(struct sc_ctx *ctx)
 		}
 	}
 
-	if ((ctx->cp_enabled) && (h_ratio > sc_down_min)) {
-		dev_err(sc->dev, "Out of width range on protect(%d->%d)\n",
-				src_width, ctx->d_frame.crop.width);
-		return -EINVAL;
-	}
-	if ((ctx->cp_enabled) && (v_ratio > sc_down_min)) {
-		dev_err(sc->dev, "Out of height range on protect(%d->%d)\n",
-				src_height, ctx->d_frame.crop.height);
-		return -EINVAL;
-	}
-
-	if ((h_ratio > sc_down_min) || (v_ratio > sc_down_min)) {
+	if ((h_ratio > sc_down_min) || (v_ratio > sc_down_min)
+			|| (h_ratio < sc_up_max) || (v_ratio < sc_up_max)) {
 		int ret;
 
 		ret = sc_prepare_2nd_scaling(ctx, src_width, src_height,
@@ -1996,6 +2088,22 @@ static void sc_clk_power_disable(struct sc_dev *sc)
 
 	pm_runtime_put(sc->dev);
 }
+
+#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+static int sc_ctrl_protection(struct sc_dev *sc, struct sc_ctx *ctx, bool en)
+{
+	int ret;
+
+	ret = exynos_smc(SMC_PROTECTION_SET, 0,
+			SC_SMC_PROTECTION_ID(sc->dev_id),
+			(en ? SMC_PROTECTION_ENABLE : SMC_PROTECTION_DISABLE));
+	if (ret != 0) {
+		dev_err(sc->dev,
+			"fail to protection enable (%d)\n", ret);
+	}
+	return ret;
+}
+#endif
 
 static int sc_open(struct file *file)
 {
