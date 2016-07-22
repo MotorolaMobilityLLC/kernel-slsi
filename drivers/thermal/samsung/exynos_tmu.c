@@ -41,6 +41,7 @@
 #include <linux/gpu_cooling.h>
 #include <linux/isp_cooling.h>
 #include <linux/slab.h>
+#include <linux/exynos-ss.h>
 #include <soc/samsung/tmu.h>
 #include <soc/samsung/ect_parser.h>
 
@@ -660,6 +661,7 @@ static int exynos_get_temp(void *p, int *temp)
 
 	mutex_unlock(&thermal_suspend_lock);
 
+	exynos_ss_thermal(data->pdata, *temp / 1000, data->tmu_name, 0);
 	return 0;
 }
 
