@@ -85,7 +85,7 @@
 
 #define EXYNOS_THD_TEMP_RISE7_6			0x50
 #define EXYNOS_THD_TEMP_FALL7_6			0x60
-#define EXYNOS_THD_TEMP_R_OFFSET		0x120
+#define EXYNOS_THD_TEMP_R_OFFSET		0x100
 #define EXYNOS_TMU_INTEN_RISE0_SHIFT		0
 #define EXYNOS_TMU_INTEN_RISE1_SHIFT		1
 #define EXYNOS_TMU_INTEN_RISE2_SHIFT		2
@@ -599,7 +599,8 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 				bit_off = ((8 - i) % 2);
 
 				if (data->sensor_info[j].sensor_num > 0)
-					reg_off = reg_off + EXYNOS_THD_TEMP_R_OFFSET;
+					reg_off = reg_off + EXYNOS_THD_TEMP_R_OFFSET
+						+ data->sensor_info[j].sensor_num * 0x20;
 
 				tz->ops->get_trip_temp(tz, i, &temp);
 				temp /= MCELSIUS;
