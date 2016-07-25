@@ -57,7 +57,9 @@
 #define EXYNOS_TMU_REG_CURRENT_TEMP1_0 	0x40
 #define EXYNOS_TMU_REG_CURRENT_TEMP4_2  0x44
 #define EXYNOS_TMU_REG_CURRENT_TEMP7_5  0x48
-#define EXYNOS_TMU_REG_INTEN		0x110
+#define EXYNOS_TMU_REG_INTEN0		0x110
+#define EXYNOS_TMU_REG_INTEN5		0x310
+#define EXYNOS_TMU_REG_INTEN_OFFSET	0x10
 #define EXYNOS_TMU_REG_INTSTAT		0x74
 #define EXYNOS_TMU_REG_INTCLEAR		0x78
 
@@ -516,7 +518,7 @@ static void exynos8890_tmu_control(struct platform_device *pdev, bool on)
 		interrupt_en = 0; /* Disable all interrupts */
 	}
 
-	writel(interrupt_en, data->base + EXYNOS_TMU_REG_INTEN);
+	writel(interrupt_en, data->base + EXYNOS_TMU_REG_INTEN0);
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 }
 
@@ -697,7 +699,14 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	if (strcmp(tz->tzp->governor_name, "power_allocator")) {
 		for (i = 0; i < TOTAL_SENSORS; i++) {
 			if (data->sensors & (1 << i)) {
-				writel(interrupt_en, data->base + EXYNOS_TMU_REG_INTEN + 0x10 * i);
+				int int_offset;
+
+				if (i < 5)
+					int_offset = EXYNOS_TMU_REG_INTEN0 + EXYNOS_TMU_REG_INTEN_OFFSET * i;
+				else
+					int_offset = EXYNOS_TMU_REG_INTEN5 + EXYNOS_TMU_REG_INTEN_OFFSET * (i - 5) ;
+
+				writel(interrupt_en, data->base + int_offset);
 			}
 		}
 	}
@@ -914,7 +923,7 @@ static void exynos8895_tmu_clear_irqs(struct exynos_tmu_data *data)
 			if (i < 5)
 				pend_reg = EXYNOS_TMU_REG_INTPEND0 + EXYNOS_TMU_REG_INTPEN_OFFSET * i;
 			else
-				pend_reg = EXYNOS_TMU_REG_INTPEND5 + EXYNOS_TMU_REG_INTPEN_OFFSET * i;
+				pend_reg = EXYNOS_TMU_REG_INTPEND5 + EXYNOS_TMU_REG_INTPEN_OFFSET * (i - 5);
 
 			val_irq = readl(data->base + pend_reg);
 			writel(val_irq, data->base + pend_reg);
