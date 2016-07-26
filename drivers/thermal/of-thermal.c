@@ -558,14 +558,14 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 			thermal_block = ect_get_block(BLOCK_AP_THERMAL);
 			if (thermal_block == NULL) {
 				dev_err(dev, "Failed to get thermal block");
-				return ERR_PTR(-EINVAL);
+				goto ect_exit;
 			}
 
 			pr_info("%s %d thermal zone_name = %s \n", __func__, __LINE__, tzd->type);
 			function = ect_ap_thermal_get_function(thermal_block, tzd->type);
 			if (function == NULL) {
 				dev_err(dev, "Failed to get thermal block %s", tzd->type);
-				return ERR_PTR(-EINVAL);
+				goto ect_exit;
 			}
 
 			__tz->ntrips = __tz->num_tbps = function->num_of_range;
@@ -631,7 +631,7 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 			else
 				tmu_data->hotplug_enable = false;
 #endif
-
+ect_exit:
 			of_node_put(sensor_specs.np);
 			of_node_put(child);
 			goto exit;
