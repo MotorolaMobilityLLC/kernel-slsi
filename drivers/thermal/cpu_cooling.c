@@ -39,6 +39,12 @@
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/ect_parser.h>
 
+#if defined(CONFIG_SOC_EXYNOS8895) && defined(CONFIG_SOC_EMULATOR8895)
+#include <dt-bindings/clock/emulator8895.h>
+#elif defined(CONFIG_SOC_EXYNOS8895) && !defined(CONFIG_SOC_EMULATOR8895)
+#include <dt-bindings/clock/exynos8895.h>
+#endif
+
 /*
  * Cooling state <-> CPUFreq frequency
  *
@@ -239,8 +245,8 @@ static int update_freq_table(struct cpufreq_cooling_device *cpufreq_cdev,
 static int build_static_power_table(struct cpufreq_cooling_device *cpufreq_cdev)
 {
 	int i, j;
-	int ids = cal_asv_get_ids_info(0);
-	int asv_group = cal_asv_get_grp(0, 0);
+	int ids = cal_asv_get_ids_info(ACPM_DVFS_CPUCL0);
+	int asv_group = cal_asv_get_grp(ACPM_DVFS_CPUCL0);
 	void *gen_block;
 	struct ect_gen_param_table *volt_temp_param, *asv_param;
 
