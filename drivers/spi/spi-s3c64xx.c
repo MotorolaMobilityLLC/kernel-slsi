@@ -1494,6 +1494,12 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		sdd->port_id = pdev->id;
 	}
 
+	if(sdd->port_id >= MAX_SPI_PORTS) {
+		dev_err(&pdev->dev, "the port %d exceeded MAX_SPI_PORTS(%d)\n"
+			, sdd->port_id, MAX_SPI_PORTS);
+		goto err0;
+	}
+
 	sdd->cur_bpw = 8;
 
 	if (sci->dma_mode == DMA_MODE) {
