@@ -956,6 +956,9 @@ static int exynos_of_sensor_conf(struct device_node *np,
 
 	of_property_read_u32(np, "samsung,tmu_cal_type", &pdata->cal_type);
 
+	if (of_property_read_u32(np, "samsung,tmu_sensor_type", &pdata->sensor_type))
+	        pr_err("%s: failed to get thermel sensor type\n", __func__);
+
 	of_node_put(np);
 	return 0;
 }
