@@ -136,6 +136,8 @@ static DEFINE_MUTEX (thermal_suspend_lock);
 static LIST_HEAD(dtm_dev_list);
 struct cpufreq_frequency_table gpu_freq_table[10];
 
+static u32 global_avg_con;
+
 static int find_sensor(struct exynos_tmu_data *data, int start)
 {
 	int i;
@@ -611,6 +613,9 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 		avg_con |= EXYNOS_TMU_DEM_ENABLE << EXYNOS_TMU_DEM_SHIFT;
 	}
 
+	if (data->id == 0 || data->id == 1)
+		global_avg_con = avg_con;
+
 	/* Set MUX_ADDR SFR according to sensor_type */
 	switch (data->pdata->sensor_type) {
 		case TEM1456X :
@@ -669,7 +674,7 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 
 	/* Only TEM1002X sensor needs AVG_CON setting */
 	if (data->pdata->sensor_type == TEM1002X)
-		writel(avg_con, data->base + EXYNOS_TMU_REG_AVG_CON);
+		writel(global_avg_con, data->base + EXYNOS_TMU_REG_AVG_CON);
 
 }
 static int exynos_get_temp(void *p, int *temp)
