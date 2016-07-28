@@ -323,8 +323,8 @@ static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
 		return -EINVAL;
 	}
 
-	volt_temp_param = ect_gen_param_get_table(gen_block, "DTM_GPU_VOLT_TEMP");
-	asv_param = ect_gen_param_get_table(gen_block, "DTM_GPU_ASV");
+	volt_temp_param = ect_gen_param_get_table(gen_block, "DTM_G3D_VOLT_TEMP");
+	asv_param = ect_gen_param_get_table(gen_block, "DTM_G3D_ASV");
 
 	if (volt_temp_param && asv_param) {
 		gpufreq_cdev->leakage_volt_size = volt_temp_param->num_of_row - 1;
@@ -375,6 +375,8 @@ static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
 			gpufreq_cdev->leakage_table[i * (gpufreq_cdev->leakage_temp_size + 1) + j] = (int)leakage_coeff;
 		}
 	}
+
+	return 0;
 
 free_asv_coeff:
 	kfree(gpufreq_cdev->asv_coeff);
