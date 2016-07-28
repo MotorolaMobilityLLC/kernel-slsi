@@ -44,6 +44,7 @@
 #include <linux/exynos-ss.h>
 #include <soc/samsung/tmu.h>
 #include <soc/samsung/ect_parser.h>
+#include <dt-bindings/thermal/thermal_exynos.h>
 
 #include "exynos_tmu.h"
 #include "../thermal_core.h"
@@ -68,6 +69,8 @@
 #define EXYNOS_TMU_BUF_SLOPE_SEL_MASK	0xf
 #define EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT	8
 #define EXYNOS_TMU_CORE_EN_SHIFT	0
+#define EXYNOS_TMU_MUX_ADDR_SHIFT	20
+#define EXYNOS_TMU_MUX_ADDR_MASK	0x3
 
 #define EXYNOS_TMU_TRIP_MODE_SHIFT	13
 #define EXYNOS_TMU_TRIP_MODE_MASK	0x7
@@ -578,6 +581,7 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	unsigned int t_buf_vref_sel, t_buf_slope_sel;
 	int i;
 	u32 avg_con, avg_sel;
+	u32 mux_val;
 
 	con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
 	con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
@@ -603,6 +607,15 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 		avg_con |= ((avg_con & EXYNOS_TMU_AVG_MODE_MASK) | EXYNOS_TMU_AVG_MODE_DEFAULT);
 	else
 		avg_con |= ((avg_con & EXYNOS_TMU_AVG_MODE_MASK) | EXYNOS_TMU_AVG_MODE_4);
+
+	/* Set MUX_ADDR SFR according to sensor_type */
+	switch (data->pdata->sensor_type) {
+		case TEM1456X :
+		case TEM1455X :
+			mux_val = (data->pdata->sensor_type << EXYNOS_TMU_MUX_ADDR_SHIFT);
+			con |= (con & ~(EXYNOS_TMU_MUX_ADDR_MASK << EXYNOS_TMU_MUX_ADDR_SHIFT)) | mux_val;
+			break;
+	}
 
 	if (on) {
 		con |= (t_buf_vref_sel << EXYNOS_TMU_REF_VOLTAGE_SHIFT);
