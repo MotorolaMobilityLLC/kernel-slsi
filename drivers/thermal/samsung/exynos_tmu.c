@@ -603,10 +603,13 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	con = get_con_reg(data, readl(data->base + EXYNOS_TMU_REG_CONTROL));
 	avg_con = readl(data->base + EXYNOS_TMU_REG_AVG_CON);
 
-	if(avg_sel)
+	if (avg_sel) {
 		avg_con |= ((avg_con & EXYNOS_TMU_AVG_MODE_MASK) | EXYNOS_TMU_AVG_MODE_DEFAULT);
-	else
+		avg_con &= ~(EXYNOS_TMU_DEM_ENABLE << EXYNOS_TMU_DEM_SHIFT);
+	} else {
 		avg_con |= ((avg_con & EXYNOS_TMU_AVG_MODE_MASK) | EXYNOS_TMU_AVG_MODE_4);
+		avg_con |= EXYNOS_TMU_DEM_ENABLE << EXYNOS_TMU_DEM_SHIFT;
+	}
 
 	/* Set MUX_ADDR SFR according to sensor_type */
 	switch (data->pdata->sensor_type) {
@@ -663,7 +666,11 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 		}
 	}
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
-	writel(avg_con, data->base + EXYNOS_TMU_REG_AVG_CON);
+
+	/* Only TEM1002X sensor needs AVG_CON setting */
+	if (data->pdata->sensor_type == TEM1002X)
+		writel(avg_con, data->base + EXYNOS_TMU_REG_AVG_CON);
+
 }
 static int exynos_get_temp(void *p, int *temp)
 {
