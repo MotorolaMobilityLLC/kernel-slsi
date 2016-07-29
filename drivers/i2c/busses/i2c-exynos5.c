@@ -1122,9 +1122,25 @@ static int exynos5_i2c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int exynos5_i2c_suspend_noirq(struct device *dev)
 {
-	struct exynos5_i2c *i2c = dev_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
+#ifdef CONFIG_I2C_SAMSUNG_HWACG
+	int ret = 0;
+#endif
 
 	i2c_lock_adapter(&i2c->adap);
+#ifdef CONFIG_I2C_SAMSUNG_HWACG
+	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
+	ret = clk_enable(i2c->clk);
+	if (ret) {
+		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+		i2c_unlock_adapter(&i2c->adap);
+		return ret;
+	}
+	exynos5_i2c_reset(i2c);
+	clk_disable(i2c->clk);
+	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 	i2c->suspended = 1;
 	i2c_unlock_adapter(&i2c->adap);
 
