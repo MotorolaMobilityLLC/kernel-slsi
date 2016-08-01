@@ -241,20 +241,20 @@ static int code_to_temp(struct exynos_tmu_data *data, u16 temp_code)
  * Calculate a temperature value with the index from a temperature code.
  * The unit of the temperature is degree Celsius.
  */
-static int code_to_temp_with_index(struct exynos_tmu_data *data, u16 temp_code, u8 index)
+static int code_to_temp_with_sensorinfo(struct exynos_tmu_data *data, u16 temp_code, struct sensor_info *info)
 {
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	int temp;
 
-	switch (data->sensor_info[index].cal_type) {
+	switch (info->cal_type) {
 	case TYPE_TWO_POINT_TRIMMING:
-		temp = (temp_code - data->sensor_info[index].temp_error1) *
+		temp = (temp_code - info->temp_error1) *
 			(pdata->second_point_trim - pdata->first_point_trim) /
-			(data->sensor_info[index].temp_error2 - data->sensor_info[index].temp_error1) +
+			(info->temp_error2 - info->temp_error1) +
 			pdata->first_point_trim;
 		break;
 	case TYPE_ONE_POINT_TRIMMING:
-		temp = temp_code - data->sensor_info[index].temp_error1 + pdata->first_point_trim;
+		temp = temp_code - info->temp_error1 + pdata->first_point_trim;
 		break;
 	default:
 		temp = temp_code - pdata->default_temp_offset;
@@ -829,7 +829,7 @@ static int exynos8895_tmu_read(struct exynos_tmu_data *data)
 
 		temp_code = (readl(data->base + EXYNOS_TMU_REG_CURRENT_TEMP1_0 + reg_offset)
 				>> bit_offset) & EXYNOS_TMU_TEMP_MASK;
-		temp_cel = code_to_temp_with_index(data, temp_code, i);
+		temp_cel = code_to_temp_with_sensorinfo(data, temp_code, &data->sensor_info[i]);
 
 		switch (data->sensing_mode) {
 			case AVG : result = result + temp_cel;
