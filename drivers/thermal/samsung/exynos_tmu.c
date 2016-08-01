@@ -89,6 +89,7 @@
 #define EXYNOS_THD_TEMP_RISE7_6			0x50
 #define EXYNOS_THD_TEMP_FALL7_6			0x60
 #define EXYNOS_THD_TEMP_R_OFFSET		0x100
+#define EXYNOS_THD_TEMP_RISE7_6_SHIFT		16
 #define EXYNOS_TMU_INTEN_RISE0_SHIFT		0
 #define EXYNOS_TMU_INTEN_RISE1_SHIFT		1
 #define EXYNOS_TMU_INTEN_RISE2_SHIFT		2
@@ -138,20 +139,6 @@ struct cpufreq_frequency_table gpu_freq_table[10];
 
 static u32 global_avg_con;
 
-static int find_sensor(struct exynos_tmu_data *data, int start)
-{
-	int i;
-
-	if (start < 0)
-		i = 0;
-
-	for (i = start; i < TOTAL_SENSORS; i++)
-		if (data->sensors & (1 << i))
-			return i;
-
-	return -EINVAL;
-}
-
 static void exynos_report_trigger(struct exynos_tmu_data *p)
 {
 	struct thermal_zone_device *tz = p->tzd;
@@ -195,7 +182,7 @@ static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
  * TMU treats temperature with the index as a mapped temperature code.
  * The temperature is converted differently depending on the calibration type.
  */
-static int temp_to_code_with_index(struct exynos_tmu_data *data, u8 temp, u8 index)
+static int temp_to_code_with_sensorinfo(struct exynos_tmu_data *data, u16 temp, struct sensor_info *info)
 {
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	int temp_code;
@@ -205,15 +192,15 @@ static int temp_to_code_with_index(struct exynos_tmu_data *data, u8 temp, u8 ind
 	else if (temp < EXYNOS_MIN_TEMP)
 		temp = EXYNOS_MIN_TEMP;
 
-	switch (data->sensor_info[index].cal_type) {
+	switch (info->cal_type) {
 		case TYPE_TWO_POINT_TRIMMING:
 			temp_code = (temp - pdata->first_point_trim) *
-				(data->sensor_info[index].temp_error2 - data->sensor_info[index].temp_error1) /
+				(info->temp_error2 - info->temp_error1) /
 				(pdata->second_point_trim - pdata->first_point_trim) +
-				data->sensor_info[index].temp_error1;
+				info->temp_error1;
 			break;
 		case TYPE_ONE_POINT_TRIMMING:
-			temp_code = temp + data->sensor_info[index].temp_error1 - pdata->first_point_trim;
+			temp_code = temp + info->temp_error1 - pdata->first_point_trim;
 			break;
 		default:
 			temp_code = temp + pdata->default_temp_offset;
@@ -473,49 +460,52 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 	unsigned int rising_threshold = 0, falling_threshold = 0;
 	int temp, temp_hist;
 	unsigned int trim_info;
-	unsigned int reg_off, bit_off;
+	unsigned int reg_off = 0, bit_off;
 	int threshold_code, i;
-	u8 j;
 	int sensor;
+	int count = 0;
+	struct sensor_info temp_info;
 
-	for (i = 0; i < data->num_of_sensors; i++) {
-		sensor = find_sensor(data, i);
+	u16 cal_type;
+	u32 temp_error1;
+	u32 temp_error2;
 
-		if (sensor < 0 || sensor >= TOTAL_SENSORS) {
-			dev_err(&pdev->dev, "Sensor information is strange!\n");
-			return -EINVAL;
-		}
-
-		/* Check tmu core ready status */
+	for (sensor = 0; sensor < TOTAL_SENSORS; sensor++) {
+		/* Read the sensor error value from TRIMINFOX */
 		trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO + 0x4 * sensor);
+		cal_type = (trim_info >> EXYNOS_TMU_CALIB_SEL_SHIFT) & EXYNOS_TMU_CALIB_SEL_MASK;
+		temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
+		temp_error2 = (trim_info >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT) & EXYNOS_TMU_TEMP_MASK;
 
-		/* Save sensor id */
-		data->sensor_info[i].sensor_num = sensor;
-		dev_info(&pdev->dev, "Sensor number = %d\n", sensor);
+		/* If the sensor is used, save its information. */
+		if (data->sensors & (1 << sensor)) {
+			/* Save sensor id */
+			data->sensor_info[count].sensor_num = sensor;
+			dev_info(&pdev->dev, "Sensor number = %d\n", sensor);
 
-		/* Check thermal calibration type */
-		data->sensor_info[i].cal_type = (trim_info >> EXYNOS_TMU_CALIB_SEL_SHIFT)
-						& EXYNOS_TMU_CALIB_SEL_MASK;
-		/* Check temp_error1 value */
-		data->sensor_info[i].temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
-		if (!data->sensor_info[i].temp_error1)
-			data->sensor_info[i].temp_error1 = pdata->efuse_value & EXYNOS_TMU_TEMP_MASK;
+			/* Check thermal calibration type */
+			data->sensor_info[count].cal_type = cal_type;
 
-		/* Check temp_error2 if calibration type is TYPE_TWO_POINT_TRIMMING */
-		if(pdata->cal_type == TYPE_TWO_POINT_TRIMMING) {
-			data->sensor_info[i].temp_error2 = (trim_info >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT)
-							& EXYNOS_TMU_TEMP_MASK;
-			if (!data->sensor_info[i].temp_error2)
-				data->sensor_info[i].temp_error2 = (pdata->efuse_value >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT)
-								& EXYNOS_TMU_TEMP_MASK;
+			/* Check temp_error1 value */
+			data->sensor_info[count].temp_error1 = temp_error1;
+			if (!data->sensor_info[count].temp_error1)
+				data->sensor_info[count].temp_error1 = pdata->efuse_value & EXYNOS_TMU_TEMP_MASK;
+
+			/* Check temp_error2 if calibration type is TYPE_TWO_POINT_TRIMMING */
+			if(pdata->cal_type == TYPE_TWO_POINT_TRIMMING) {
+				data->sensor_info[count].temp_error2 = temp_error2;
+
+				if (!data->sensor_info[count].temp_error2)
+					data->sensor_info[count].temp_error2 = (pdata->efuse_value >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT)
+									& EXYNOS_TMU_TEMP_MASK;
+			}
 		}
- 	}
 
-	/* If the governor is power allocator, we ignore interrupt and don't update thermal zone
-	   Even though we don't control it, thermal framework can handle it by polling.
-	 */
-	if (strcmp(tz->tzp->governor_name, "power_allocator")) {
-		for (j = 0; j < data->num_of_sensors; j++) {
+		temp_info.cal_type = cal_type;
+		temp_info.temp_error1 = temp_error1;
+		temp_info.temp_error2 = temp_error2;
+
+		if (strcmp(tz->tzp->governor_name, "power_allocator") && data->sensors & (1 << sensor)) {
 			/* Write temperature code for rising and falling threshold */
 			for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
 				/*
@@ -541,9 +531,8 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 				reg_off = ((7 - i) / 2) * 4;
 				bit_off = ((8 - i) % 2);
 
-				if (data->sensor_info[j].sensor_num > 0)
-					reg_off = reg_off + EXYNOS_THD_TEMP_R_OFFSET
-						+ data->sensor_info[j].sensor_num * 0x20;
+				if (sensor > 0)
+					reg_off = reg_off + EXYNOS_THD_TEMP_R_OFFSET + sensor * 0x20;
 
 				tz->ops->get_trip_temp(tz, i, &temp);
 				temp /= MCELSIUS;
@@ -552,7 +541,7 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 				temp_hist = temp - (temp_hist / MCELSIUS);
 
 				/* Set 9-bit temperature code for rising threshold levels */
-				threshold_code = temp_to_code_with_index(data, temp, j);
+				threshold_code = temp_to_code_with_sensorinfo(data, temp, &data->sensor_info[count]);
 				rising_threshold = readl(data->base +
 					EXYNOS_THD_TEMP_RISE7_6 + reg_off);
 				rising_threshold &= ~(EXYNOS_TMU_TEMP_MASK << (16 * bit_off));
@@ -561,12 +550,23 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 				       data->base + EXYNOS_THD_TEMP_RISE7_6 + reg_off);
 
 				/* Set 9-bit temperature code for falling threshold levels */
-				threshold_code = temp_to_code_with_index(data, temp_hist, j);
+				threshold_code = temp_to_code_with_sensorinfo(data, temp_hist, &data->sensor_info[count]);
 				falling_threshold &= ~(EXYNOS_TMU_TEMP_MASK << (16 * bit_off));
 				falling_threshold |= threshold_code << (16 * bit_off);
 				writel(falling_threshold,
 				       data->base + EXYNOS_THD_TEMP_FALL7_6 + reg_off);
 			}
+			count++;
+		} else {
+			/* The HW trip interrupt for all sensors are set to protect SoC from thermal damage. */
+			if (sensor > 0)
+				reg_off = EXYNOS_THD_TEMP_R_OFFSET + sensor * 0x20;
+
+			threshold_code = temp_to_code_with_sensorinfo(data, data->pdata->trip_temp, &temp_info);
+			rising_threshold = readl(data->base + EXYNOS_THD_TEMP_RISE7_6 + reg_off);
+			rising_threshold &= ~(EXYNOS_TMU_TEMP_MASK << EXYNOS_THD_TEMP_RISE7_6_SHIFT);
+			rising_threshold |= threshold_code << EXYNOS_THD_TEMP_RISE7_6_SHIFT;
+			writel(rising_threshold, data->base + EXYNOS_THD_TEMP_RISE7_6 + reg_off);
 		}
 	}
 
@@ -630,44 +630,46 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 		con |= (t_buf_slope_sel << EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT);
 		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		con |= (1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
-		interrupt_en =
-			(of_thermal_is_trip_valid(tz, 7)
-			<< EXYNOS_TMU_INTEN_RISE7_SHIFT) |
-			(of_thermal_is_trip_valid(tz, 6)
-			<< EXYNOS_TMU_INTEN_RISE6_SHIFT) |
-			(of_thermal_is_trip_valid(tz, 5)
-			<< EXYNOS_TMU_INTEN_RISE5_SHIFT) |
-			(of_thermal_is_trip_valid(tz, 4)
-			<< EXYNOS_TMU_INTEN_RISE4_SHIFT) |
-			(of_thermal_is_trip_valid(tz, 3)
-			<< EXYNOS_TMU_INTEN_RISE3_SHIFT) |
-			(of_thermal_is_trip_valid(tz, 2)
-			<< EXYNOS_TMU_INTEN_RISE2_SHIFT) |
-			(of_thermal_is_trip_valid(tz, 1)
-			<< EXYNOS_TMU_INTEN_RISE1_SHIFT) |
-			(of_thermal_is_trip_valid(tz, 0)
-			<< EXYNOS_TMU_INTEN_RISE0_SHIFT);
 
-		interrupt_en |=
-			interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
+		if (strcmp(tz->tzp->governor_name, "power_allocator")) {
+			interrupt_en =
+				(of_thermal_is_trip_valid(tz, 7)
+				<< EXYNOS_TMU_INTEN_RISE7_SHIFT) |
+				(of_thermal_is_trip_valid(tz, 6)
+				<< EXYNOS_TMU_INTEN_RISE6_SHIFT) |
+				(of_thermal_is_trip_valid(tz, 5)
+				<< EXYNOS_TMU_INTEN_RISE5_SHIFT) |
+				(of_thermal_is_trip_valid(tz, 4)
+				<< EXYNOS_TMU_INTEN_RISE4_SHIFT) |
+				(of_thermal_is_trip_valid(tz, 3)
+				<< EXYNOS_TMU_INTEN_RISE3_SHIFT) |
+				(of_thermal_is_trip_valid(tz, 2)
+				<< EXYNOS_TMU_INTEN_RISE2_SHIFT) |
+				(of_thermal_is_trip_valid(tz, 1)
+				<< EXYNOS_TMU_INTEN_RISE1_SHIFT) |
+				(of_thermal_is_trip_valid(tz, 0)
+				<< EXYNOS_TMU_INTEN_RISE0_SHIFT);
+
+			interrupt_en |=
+				interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
+		} else
+			interrupt_en = 1 << EXYNOS_TMU_INTEN_RISE7_SHIFT;
 	} else {
 		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		con &= ~(1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
 		interrupt_en = 0; /* Disable all interrupts */
 	}
 
-	if (strcmp(tz->tzp->governor_name, "power_allocator")) {
-		for (i = 0; i < TOTAL_SENSORS; i++) {
-			if (data->sensors & (1 << i)) {
-				int int_offset;
+	for (i = 0; i < TOTAL_SENSORS; i++) {
+		if (data->sensors & (1 << i)) {
+			int int_offset;
 
-				if (i < 5)
-					int_offset = EXYNOS_TMU_REG_INTEN0 + EXYNOS_TMU_REG_INTEN_OFFSET * i;
-				else
-					int_offset = EXYNOS_TMU_REG_INTEN5 + EXYNOS_TMU_REG_INTEN_OFFSET * (i - 5) ;
+			if (i < 5)
+				int_offset = EXYNOS_TMU_REG_INTEN0 + EXYNOS_TMU_REG_INTEN_OFFSET * i;
+			else
+				int_offset = EXYNOS_TMU_REG_INTEN5 + EXYNOS_TMU_REG_INTEN_OFFSET * (i - 5) ;
 
-				writel(interrupt_en, data->base + int_offset);
-			}
+			writel(interrupt_en, data->base + int_offset);
 		}
 	}
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
@@ -772,7 +774,7 @@ static void exynos8895_tmu_set_emulation(struct exynos_tmu_data *data,
 	if (temp) {
 		temp /= MCELSIUS;
 		val &= ~(EXYNOS_EMUL_DATA_MASK << EXYNOS_EMUL_DATA_SHIFT);
-		val |= (temp_to_code_with_index(data, temp, 0) << EXYNOS_EMUL_DATA_SHIFT)
+		val |= (temp_to_code_with_sensorinfo(data, temp, &data->sensor_info[0]) << EXYNOS_EMUL_DATA_SHIFT)
 			| EXYNOS_EMUL_ENABLE;
 	} else {
 		val &= ~EXYNOS_EMUL_ENABLE;
@@ -979,6 +981,7 @@ static int exynos_of_sensor_conf(struct device_node *np,
 	of_property_read_u32(np, "samsung,tmu_default_temp_offset", &value);
 	pdata->default_temp_offset = (u8)value;
 
+	of_property_read_u32(np, "samsung,tmu_default_trip_temp", &pdata->trip_temp);
 	of_property_read_u32(np, "samsung,tmu_cal_type", &pdata->cal_type);
 
 	if (of_property_read_u32(np, "samsung,tmu_sensor_type", &pdata->sensor_type))

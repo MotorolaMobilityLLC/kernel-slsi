@@ -60,6 +60,7 @@ struct exynos_tmu_platform_data {
 	u8 first_point_trim;
 	u8 second_point_trim;
 	u8 default_temp_offset;
+	u32 trip_temp;
 
 	enum soc_type type;
 	u32 sensor_type;
