@@ -127,6 +127,14 @@
 #define EXYNOS_TMU_DEM_ENABLE			(1)
 #define EXYNOS_TMU_DEM_SHIFT			(4)
 
+#define EXYNOS_TMU_REG_COUNTER_VALUE0		(0x30)
+#define EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT	(0)
+#define EXYNOS_TMU_EN_TEMP_SEN_OFF_MASK		(0xffff)
+#define EXYNOS_TMU_REG_COUNTER_VALUE1		(0x34)
+#define EXYNOS_TMU_CLK_SENSE_ON_SHIFT		(16)
+#define EXYNOS_TMU_CLK_SENSE_ON_MASK		(0xffff)
+#define EXYNOS_TMU_TEM1456X_SENSE_VALUE		(0x0A28)
+
 #define TOTAL_SENSORS	8
 
 static bool suspended;
@@ -584,6 +592,7 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	int i;
 	u32 avg_con, avg_sel;
 	u32 mux_val;
+	u32 counter_value0, counter_value1;
 
 	con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
 	con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
@@ -619,6 +628,15 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	/* Set MUX_ADDR SFR according to sensor_type */
 	switch (data->pdata->sensor_type) {
 		case TEM1456X :
+			counter_value0 = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
+			counter_value0 &= ~(EXYNOS_TMU_EN_TEMP_SEN_OFF_MASK << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT);
+			counter_value0 |= EXYNOS_TMU_TEM1456X_SENSE_VALUE << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT;
+			writel(counter_value0, data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
+
+			counter_value1 = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
+			counter_value1 &= ~(EXYNOS_TMU_CLK_SENSE_ON_MASK << EXYNOS_TMU_CLK_SENSE_ON_SHIFT);
+			counter_value1 |= EXYNOS_TMU_TEM1456X_SENSE_VALUE << EXYNOS_TMU_CLK_SENSE_ON_SHIFT;
+			writel(counter_value1, data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
 		case TEM1455X :
 			mux_val = (data->pdata->sensor_type << EXYNOS_TMU_MUX_ADDR_SHIFT);
 			con |= (con & ~(EXYNOS_TMU_MUX_ADDR_MASK << EXYNOS_TMU_MUX_ADDR_SHIFT)) | mux_val;
