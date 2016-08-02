@@ -277,6 +277,12 @@ static unsigned cmd_line;
 #define PL330_DBGMC_START(addr)		do {} while (0)
 #endif
 
+#ifdef CONFIG_DMADEVICES_DEBUG
+#define DBG_PRINT(x...)		exynos_ss_printk(x);
+#else
+#define DBG_PRINT(x...)		do {} while (0)
+#endif
+
 /* The number of default descriptors */
 
 #define NR_DEFAULT_DESC	16
@@ -2173,11 +2179,13 @@ static void pl330_tasklet(unsigned long data)
 
 		dma_descriptor_unmap(&desc->txd);
 
+		DBG_PRINT("[%s] before callback\n", __func__);
 		if (dmaengine_desc_callback_valid(&cb)) {
 			spin_unlock_irqrestore(&pch->lock, flags);
 			dmaengine_desc_callback_invoke(&cb, NULL);
 			spin_lock_irqsave(&pch->lock, flags);
 		}
+		DBG_PRINT("[%s] after callback\n", __func__);
 	}
 	spin_unlock_irqrestore(&pch->lock, flags);
 
@@ -2937,6 +2945,38 @@ static irqreturn_t pl330_irq_handler(int irq, void *data)
 	else
 		return IRQ_NONE;
 }
+
+int pl330_dma_debug(struct dma_chan *chan)
+{
+	struct dma_pl330_chan *pch = to_pchan(chan);
+	void __iomem *regs;
+	struct pl330_thread *thrd;
+
+	if (unlikely(!pch))
+		return -EINVAL;
+
+	thrd = pch->thread;
+	regs = &pch->dmac->base;
+
+	dev_info(pch->dmac->ddma.dev,"[ DMA Register Dump(id: %d) ]\n", thrd->id);
+	dev_info(pch->dmac->ddma.dev,"DAR:0x%x\n", readl(regs + DA(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"SAR:0x%x\n", readl(regs + SA(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"DBGSTATUS:0x%x\n", readl(regs + DBGSTATUS));
+	dev_info(pch->dmac->ddma.dev,"INTMIS:0x%x\n", readl(regs + INTSTATUS));
+	dev_info(pch->dmac->ddma.dev,"DSR:0x%x\n", readl(regs + DS));
+	dev_info(pch->dmac->ddma.dev,"CCR:0x%x\n", readl(regs + CC(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"CSR:0x%x\n", readl(regs + CS(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"CRD:0x%x\n", readl(regs + CRD));
+	dev_info(pch->dmac->ddma.dev,"LC0:0x%x\n", readl(regs + LC0(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"LC1:0x%x\n", readl(regs + LC1(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"FTR:0x%x\n", readl(regs + FTC(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"FTRD:0x%x\n", readl(regs + FTM));
+	dev_info(pch->dmac->ddma.dev,"FSRC:0x%x\n", readl(regs + FSC));
+	dev_info(pch->dmac->ddma.dev,"FSRD:0x%x\n", readl(regs + FSM));
+
+	return 0;
+}
+EXPORT_SYMBOL(pl330_dma_debug);
 
 int pl330_dma_getposition(struct dma_chan *chan,
 		dma_addr_t *src, dma_addr_t *dst)
