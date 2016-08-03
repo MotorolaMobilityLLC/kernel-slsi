@@ -120,6 +120,7 @@ struct sensor_info {
  * @lock: lock to implement synchronization.
  * @temp_error1: fused value of the first point trim.
  * @temp_error2: fused value of the second point trim.
+ * @num_probe: number of probe for TMU_CONTROL1 SFR setting.
  * @regulator: pointer to the TMU regulator structure.
  * @reg_conf: pointer to structure to register with core thermal.
  * @ntrip: number of supported trip points.
@@ -147,6 +148,7 @@ struct exynos_tmu_data {
 	struct thermal_cooling_device *cool_dev;
 	struct list_head node;
 	u32 sensors;
+	int num_probe;
 	int num_of_sensors;
 	struct sensor_info *sensor_info;
 	int sensing_mode;

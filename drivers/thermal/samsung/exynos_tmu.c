@@ -54,6 +54,7 @@
 #define EXYNOS_TMU_REG_TRIMINFO1	0x4
 #define EXYNOS_TMU_REG_TRIMINFO2	0x8
 #define EXYNOS_TMU_REG_CONTROL		0x20
+#define EXYNOS_TMU_REG_CONTROL1		0x24
 #define EXYNOS_TMU_REG_STATUS		0x28
 #define EXYNOS_TMU_REG_CURRENT_TEMP1_0 	0x40
 #define EXYNOS_TMU_REG_CURRENT_TEMP4_2  0x44
@@ -134,6 +135,9 @@
 #define EXYNOS_TMU_CLK_SENSE_ON_SHIFT		(16)
 #define EXYNOS_TMU_CLK_SENSE_ON_MASK		(0xffff)
 #define EXYNOS_TMU_TEM1456X_SENSE_VALUE		(0x0A28)
+
+#define EXYNOS_TMU_NUM_PROBE_SHIFT		(16)
+#define EXYNOS_TMU_NUM_PROBE_MASK		(0x7)
 
 #define TOTAL_SENSORS	8
 
@@ -587,7 +591,7 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
-	unsigned int con, interrupt_en, trim_info, trim_info1, trim_info2;
+	unsigned int con, con1, interrupt_en, trim_info, trim_info1, trim_info2;
 	unsigned int t_buf_vref_sel, t_buf_slope_sel;
 	int i;
 	u32 avg_con, avg_sel;
@@ -599,6 +603,11 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	con &= ~(1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 	con = 0;
+
+	con1 = readl(data->base + EXYNOS_TMU_REG_CONTROL1);
+	con1 &= ~(EXYNOS_TMU_NUM_PROBE_MASK << EXYNOS_TMU_NUM_PROBE_SHIFT);
+	con1 |= (data->num_probe << EXYNOS_TMU_NUM_PROBE_SHIFT);
+	writel(con1, data->base + EXYNOS_TMU_REG_CONTROL1);
 
 	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
 	trim_info1 = readl(data->base + EXYNOS_TMU_REG_TRIMINFO1);
@@ -1485,6 +1494,9 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
 		goto err_sensor;
 	}
+
+	data->num_probe = (readl(data->base + EXYNOS_TMU_REG_CONTROL1) >> EXYNOS_TMU_NUM_PROBE_SHIFT)
+				& EXYNOS_TMU_NUM_PROBE_MASK;
 
 	ret = exynos_tmu_initialize(pdev);
 	if (ret) {
