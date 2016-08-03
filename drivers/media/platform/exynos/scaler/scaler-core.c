@@ -2639,14 +2639,6 @@ static int sc_run_next_job(struct sc_dev *sc)
 		}
 	}
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-	if (sc->cfw) {
-		ret = exynos_smc(MC_FC_SET_CFW_PROT,
-				MC_FC_DRM_SET_CFW_PROT,
-				SC_SMC_PROTECTION_ID(sc->dev_id), 0);
-		if (ret != SMC_TZPC_OK)
-			dev_err(sc->dev,
-				"fail to set cfw protection (%d)\n", ret);
-	}
 	if (ctx->cp_enabled) {
 		ret = sc_ctrl_protection(sc, ctx, true);
 		if (!ret)
