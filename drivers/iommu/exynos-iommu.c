@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/smc.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 
@@ -89,6 +90,19 @@ int exynos_client_add(struct device_node *np, struct exynos_iovmm *vmm_data)
 static inline void pgtable_flush(void *vastart, void *vaend)
 {
 	__dma_flush_area(vastart, vaend - vastart);
+}
+
+#define is_secure_info_fail(x)	((((x) >> 16) & 0xffff) == 0xdead)
+static u32 __secure_info_read(unsigned int addr)
+{
+	u32 ret;
+
+	ret = exynos_smc(SMC_DRM_SEC_SMMU_INFO, (unsigned long)addr,
+			0, SEC_SMMU_SFR_READ);
+	if (is_secure_info_fail(ret))
+		pr_err("Invalid value returned, %#x\n", ret);
+
+	return ret;
 }
 
 static bool has_sysmmu_capable_pbuf(void __iomem *sfrbase)
@@ -289,6 +303,64 @@ void dump_sysmmu_status(void __iomem *sfrbase)
 	dump_sysmmu_tlb(sfrbase);
 }
 
+static void show_secure_fault_information(struct sysmmu_drvdata *drvdata,
+				   int flags, unsigned long fault_addr)
+{
+	unsigned int info;
+	phys_addr_t pgtable;
+	int fault_id = SYSMMU_FAULT_ID(flags);
+	unsigned int sfrbase = drvdata->securebase;
+
+	pgtable = __secure_info_read(sfrbase + REG_PT_BASE_PPN);
+	pgtable <<= PAGE_SHIFT;
+
+	info = __secure_info_read(sfrbase + REG_FAULT_TRANS_INFO);
+
+	pr_crit("----------------------------------------------------------\n");
+	pr_crit("%s %s %s at %#010lx (page table @ %pa)\n",
+		dev_name(drvdata->sysmmu),
+		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
+		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
+
+	if (fault_id == SYSMMU_FAULT_UNKNOWN) {
+		pr_crit("The fault is not caused by this System MMU.\n");
+		pr_crit("Please check IRQ and SFR base address.\n");
+		goto finish;
+	}
+
+	pr_crit("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
+
+	if (fault_id == SYSMMU_FAULT_PTW_ACCESS)
+		pr_crit("System MMU has failed to access page table\n");
+
+	if (!pfn_valid(pgtable >> PAGE_SHIFT)) {
+		pr_crit("Page table base is not in a valid memory region\n");
+	} else {
+		sysmmu_pte_t *ent;
+		ent = section_entry(phys_to_virt(pgtable), fault_addr);
+		pr_crit("Lv1 entry: %#010x\n", *ent);
+
+		if (lv1ent_page(ent)) {
+			ent = page_entry(ent, fault_addr);
+			pr_crit("Lv2 entry: %#010x\n", *ent);
+		}
+	}
+
+	info = MMU_RAW_VER(__secure_info_read(sfrbase + REG_MMU_VERSION));
+
+	pr_crit("ADDR: %#x, MMU_CTRL: %#010x, PT_BASE: %#010x\n",
+		sfrbase,
+		__secure_info_read(sfrbase + REG_MMU_CTRL),
+		__secure_info_read(sfrbase + REG_PT_BASE_PPN));
+	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
+		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
+		__secure_info_read(sfrbase + REG_MMU_CFG),
+		__secure_info_read(sfrbase + REG_MMU_STATUS));
+
+finish:
+	pr_crit("----------------------------------------------------------\n");
+}
+
 static void show_fault_information(struct sysmmu_drvdata *drvdata,
 				   int flags, unsigned long fault_addr)
 {
@@ -349,6 +421,41 @@ finish:
 }
 
 #define REG_INT_STATUS_WRITE_BIT 16
+
+irqreturn_t exynos_sysmmu_irq_secure(int irq, void *dev_id)
+{
+	struct sysmmu_drvdata *drvdata = dev_id;
+	unsigned int itype = 0;
+	unsigned long addr = -1;
+	int flags = 0;
+
+	dev_err(drvdata->sysmmu, "Secure irq occured!\n");
+	if (!drvdata->securebase) {
+		dev_err(drvdata->sysmmu, "Unknown interrupt occurred\n");
+		BUG();
+	} else {
+		dev_err(drvdata->sysmmu, "Secure base = %#lx\n",
+				(unsigned long)drvdata->securebase);
+	}
+
+	itype =  __ffs(__secure_info_read(drvdata->securebase + REG_INT_STATUS));
+	if (itype >= REG_INT_STATUS_WRITE_BIT) {
+		itype -= REG_INT_STATUS_WRITE_BIT;
+		flags = IOMMU_FAULT_WRITE;
+	}
+
+	addr = __secure_info_read(drvdata->securebase + REG_FAULT_ADDR);
+	flags |= SYSMMU_FAULT_FLAG(itype);
+
+	show_secure_fault_information(drvdata, flags, addr);
+
+	atomic_notifier_call_chain(&drvdata->fault_notifiers, addr, &flags);
+
+	BUG();
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 {
 	struct sysmmu_drvdata *drvdata = dev_id;
@@ -415,6 +522,40 @@ static int get_hw_version(struct device *dev, void __iomem *sfrbase)
 	return ret;
 }
 
+static int __init __sysmmu_secure_irq_init(struct device *sysmmu,
+				     struct sysmmu_drvdata *drvdata)
+{
+	struct platform_device *pdev = to_platform_device(sysmmu);
+	u32 secure_reg;
+	int ret;
+
+	ret = platform_get_irq(pdev, 1);
+	if (ret <= 0) {
+		dev_err(sysmmu, "Unable to find secure IRQ resource\n");
+		return -EINVAL;
+	}
+	dev_info(sysmmu, "Registering secure irq %d\n", ret);
+
+	ret = devm_request_irq(sysmmu, ret, exynos_sysmmu_irq_secure, 0,
+			dev_name(sysmmu), drvdata);
+	if (ret) {
+		dev_err(sysmmu, "Failed to register secure irq handler\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(sysmmu->of_node,
+				"sysmmu,secure_base", &secure_reg);
+	if (!ret) {
+		drvdata->securebase = secure_reg;
+		dev_info(sysmmu, "Secure base = %#x\n", drvdata->securebase);
+	} else {
+		dev_err(sysmmu, "Failed to get secure register\n");
+		return ret;
+	}
+
+	return ret;
+}
+
 static int __init sysmmu_parse_dt(struct device *sysmmu,
 				struct sysmmu_drvdata *drvdata)
 {
@@ -435,6 +576,15 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 		qos = DEFAULT_QOS_VALUE;
 	}
 	drvdata->qos = qos;
+
+	/* Secure IRQ */
+	if (of_find_property(sysmmu->of_node, "sysmmu,secure-irq", NULL)) {
+		ret = __sysmmu_secure_irq_init(sysmmu, drvdata);
+		if (ret) {
+			dev_err(sysmmu, "Failed to init secure irq\n");
+			return ret;
+		}
+	}
 
 	/* Parsing TLB properties */
 	cnt = of_property_count_u32_elems(sysmmu->of_node, props_name);

@@ -278,6 +278,7 @@ struct sysmmu_drvdata {
 	phys_addr_t pgtable;		/* assigned page table structure */
 	int version;			/* our version */
 	int qos;
+	int securebase;
 	struct atomic_notifier_head fault_notifiers;
 	struct tlb_props tlb_props;
 	bool is_suspended;
