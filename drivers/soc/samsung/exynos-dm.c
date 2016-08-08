@@ -17,6 +17,8 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/exynos-ss.h>
+#include "acpm/acpm.h"
+#include "acpm/acpm_ipc.h"
 
 #include <soc/samsung/exynos-dm.h>
 
@@ -599,10 +601,15 @@ static int constraint_checker_max(struct list_head *head, u32 freq);
 static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt);
 static int scaling_callback(enum dvfs_direction dir, unsigned int relation);
 
+#define POLICY_REQ	4
+
 int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_freq)
 {
 	struct exynos_dm_data *dm;
 	struct timeval pre, before, after;
+	struct ipc_config config;
+	unsigned int cmd[4];
+	int size, ch_num, ret;
 	s32 time = 0, pre_time = 0;
 
 	do_gettimeofday(&pre);
@@ -610,12 +617,39 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	do_gettimeofday(&before);
 
 	dm = &exynos_dm->dm_data[dm_type];
+	if (dm->policy_max_freq == max_freq)
+		goto out;
+
 	update_policy_min_max_freq(dm, min_freq, max_freq);
 
 	/* Check dependent domains */
 	constraint_checker_min(get_min_constraint_list(dm), min_freq);
 	constraint_checker_max(get_max_constraint_list(dm), max_freq);
 
+	/*Send policy to FVP*/
+	if (dm_type == DM_MIF || dm_type == DM_INT) {
+		ret = acpm_ipc_request_channel(exynos_dm->dev->of_node, NULL, &ch_num, &size);
+		if (ret) {
+			dev_err(exynos_dm->dev,
+					"acpm request channel is failed, id:%u, size:%u\n", ch_num, size);
+			return -EINVAL;
+		}
+		config.cmd = cmd;
+		config.response = true;
+		config.indirection = false;
+		config.cmd[0] = 0x0B040000;
+		config.cmd[1] = max_freq;
+		config.cmd[2] = POLICY_REQ;
+		config.cmd[3] = dm_type;
+
+		ret = acpm_ipc_send_data(ch_num, &config);
+		if (ret) {
+			dev_err(exynos_dm->dev, "Failed to send policy data to FVP");
+			return -EINVAL;
+		}
+	}
+
+out:
 	do_gettimeofday(&after);
 	mutex_unlock(&exynos_dm->lock);
 
