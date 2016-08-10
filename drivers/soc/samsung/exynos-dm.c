@@ -623,7 +623,6 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	update_policy_min_max_freq(dm, min_freq, max_freq);
 
 	/* Check dependent domains */
-	constraint_checker_min(get_min_constraint_list(dm), min_freq);
 	constraint_checker_max(get_max_constraint_list(dm), max_freq);
 
 	/*Send policy to FVP*/
