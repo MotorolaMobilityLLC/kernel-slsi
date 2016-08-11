@@ -304,6 +304,7 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 	for_each_child_of_node(np, child_np) {
 		int index;
 		const char *available;
+		const char *policy_use;
 
 		if (of_property_read_u32(child_np, "dm-index", &index))
 			return -ENODEV;
@@ -325,6 +326,13 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 			INIT_LIST_HEAD(&dm->dm_data[index].max_clist);
 		} else {
 			dm->dm_data[index].available = false;
+		}
+
+		if (of_property_read_string(child_np, "policy_use", &policy_use)) {
+			dev_info(dm->dev, "This doesn't need to send policy to ACPM\n");
+		} else {
+			if (!strcmp(policy_use, "true"))
+				dm->dm_data[index].policy_use = true;
 		}
 	}
 
@@ -626,7 +634,7 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	constraint_checker_max(get_max_constraint_list(dm), max_freq);
 
 	/*Send policy to FVP*/
-	if (dm_type == DM_MIF || dm_type == DM_INT) {
+	if (dm->policy_use) {
 		ret = acpm_ipc_request_channel(exynos_dm->dev->of_node, NULL, &ch_num, &size);
 		if (ret) {
 			dev_err(exynos_dm->dev,
@@ -636,10 +644,9 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 		config.cmd = cmd;
 		config.response = true;
 		config.indirection = false;
-		config.cmd[0] = 0x0B040000;
+		config.cmd[0] = dm_type;
 		config.cmd[1] = max_freq;
 		config.cmd[2] = POLICY_REQ;
-		config.cmd[3] = dm_type;
 
 		ret = acpm_ipc_send_data(ch_num, &config);
 		if (ret) {

@@ -84,6 +84,7 @@ struct exynos_dm_constraint {
 
 struct exynos_dm_data {
 	bool				available;		/* use for DVFS domain available */
+	bool				policy_use;
 
 	enum exynos_dm_type		dm_type;
 	enum exynos_dvfs_type		dvfs_type;
