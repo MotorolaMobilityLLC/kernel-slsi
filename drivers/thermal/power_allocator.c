@@ -522,7 +522,7 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 		params->trip_max_desired_temperature = last_passive;
 	} else if (found_first_passive) {
 		params->trip_max_desired_temperature = params->trip_switch_on;
-		params->trip_switch_on = INVALID_TRIP;
+		params->trip_switch_on = last_active;
 	} else {
 		params->trip_switch_on = INVALID_TRIP;
 		params->trip_max_desired_temperature = last_active;
