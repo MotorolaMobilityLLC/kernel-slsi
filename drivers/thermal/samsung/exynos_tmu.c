@@ -475,8 +475,9 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 	unsigned int reg_off = 0, bit_off;
 	int threshold_code, i;
 	int sensor;
-	int count = 0;
+	int count = 0, interrupt_count = 0;
 	struct sensor_info temp_info;
+	enum thermal_trip_type type;
 
 	u16 cal_type;
 	u32 temp_error1;
@@ -517,7 +518,8 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 		temp_info.temp_error1 = temp_error1;
 		temp_info.temp_error2 = temp_error2;
 
-		if (strcmp(tz->tzp->governor_name, "power_allocator") && data->sensors & (1 << sensor)) {
+		if (data->sensors & (1 << sensor)) {
+			interrupt_count = 0;
 			/* Write temperature code for rising and falling threshold */
 			for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
 				/*
@@ -540,8 +542,14 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 				 * Based on the above, calculate the register and bit offsets
 				 * for rising/falling threshold levels and populate them.
 				 */
-				reg_off = ((7 - i) / 2) * 4;
-				bit_off = ((8 - i) % 2);
+
+				tz->ops->get_trip_type(tz, i, &type);
+
+				if (type == THERMAL_TRIP_PASSIVE)
+					continue;
+
+				reg_off = (interrupt_count / 2) * 4;
+				bit_off = ((interrupt_count + 1) % 2);
 
 				if (sensor > 0)
 					reg_off = reg_off + EXYNOS_THD_TEMP_R_OFFSET + sensor * 0x20;
@@ -567,18 +575,10 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 				falling_threshold |= threshold_code << (16 * bit_off);
 				writel(falling_threshold,
 				       data->base + EXYNOS_THD_TEMP_FALL7_6 + reg_off);
+
+				interrupt_count++;
 			}
 			count++;
-		} else {
-			/* The HW trip interrupt for all sensors are set to protect SoC from thermal damage. */
-			if (sensor > 0)
-				reg_off = EXYNOS_THD_TEMP_R_OFFSET + sensor * 0x20;
-
-			threshold_code = temp_to_code_with_sensorinfo(data, data->pdata->trip_temp, &temp_info);
-			rising_threshold = readl(data->base + EXYNOS_THD_TEMP_RISE7_6 + reg_off);
-			rising_threshold &= ~(EXYNOS_TMU_TEMP_MASK << EXYNOS_THD_TEMP_RISE7_6_SHIFT);
-			rising_threshold |= threshold_code << EXYNOS_THD_TEMP_RISE7_6_SHIFT;
-			writel(rising_threshold, data->base + EXYNOS_THD_TEMP_RISE7_6 + reg_off);
 		}
 	}
 
@@ -593,11 +593,14 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 	struct thermal_zone_device *tz = data->tzd;
 	unsigned int con, con1, interrupt_en, trim_info, trim_info1, trim_info2;
 	unsigned int t_buf_vref_sel, t_buf_slope_sel;
-	int i;
+	unsigned int bit_off;
+	int i, interrupt_count = 0;
 	u32 avg_con, avg_sel;
 	u32 mux_val;
 	u32 counter_value0, counter_value1;
+	enum thermal_trip_type type;
 
+	interrupt_en = 0;
 	con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
 	con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
 	con &= ~(1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
@@ -658,29 +661,21 @@ static void exynos8895_tmu_control(struct platform_device *pdev, bool on)
 		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		con |= (1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
 
-		if (strcmp(tz->tzp->governor_name, "power_allocator")) {
-			interrupt_en =
-				(of_thermal_is_trip_valid(tz, 7)
-				<< EXYNOS_TMU_INTEN_RISE7_SHIFT) |
-				(of_thermal_is_trip_valid(tz, 6)
-				<< EXYNOS_TMU_INTEN_RISE6_SHIFT) |
-				(of_thermal_is_trip_valid(tz, 5)
-				<< EXYNOS_TMU_INTEN_RISE5_SHIFT) |
-				(of_thermal_is_trip_valid(tz, 4)
-				<< EXYNOS_TMU_INTEN_RISE4_SHIFT) |
-				(of_thermal_is_trip_valid(tz, 3)
-				<< EXYNOS_TMU_INTEN_RISE3_SHIFT) |
-				(of_thermal_is_trip_valid(tz, 2)
-				<< EXYNOS_TMU_INTEN_RISE2_SHIFT) |
-				(of_thermal_is_trip_valid(tz, 1)
-				<< EXYNOS_TMU_INTEN_RISE1_SHIFT) |
-				(of_thermal_is_trip_valid(tz, 0)
-				<< EXYNOS_TMU_INTEN_RISE0_SHIFT);
+		for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
 
-			interrupt_en |=
-				interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
-		} else
-			interrupt_en = 1 << EXYNOS_TMU_INTEN_RISE7_SHIFT;
+			tz->ops->get_trip_type(tz, i, &type);
+
+			if (type == THERMAL_TRIP_PASSIVE)
+				continue;
+
+			bit_off = EXYNOS_TMU_INTEN_RISE7_SHIFT - interrupt_count;
+
+			interrupt_en |= of_thermal_is_trip_valid(tz, i) << bit_off;
+			interrupt_count++;
+		}
+
+		interrupt_en |=
+			interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
 	} else {
 		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		con &= ~(1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
