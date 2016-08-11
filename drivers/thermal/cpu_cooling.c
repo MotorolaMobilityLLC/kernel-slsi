@@ -600,6 +600,11 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 
 	freq = cpufreq_quick_get(policy->cpu);
 
+	if (freq == 0) {
+		*power = 0;
+		return 0;
+	}
+
 	if (trace_thermal_power_cpu_get_power_enabled()) {
 		u32 ncpus = cpumask_weight(policy->related_cpus);
 
