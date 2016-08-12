@@ -105,6 +105,7 @@ struct exynos_dm_data {
 	struct list_head		min_clist;
 	struct list_head		max_clist;
 	u32				constraint_checked;
+	u32				cal_id;
 };
 
 struct exynos_dm_device {

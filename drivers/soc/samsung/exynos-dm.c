@@ -334,6 +334,9 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 			if (!strcmp(policy_use, "true"))
 				dm->dm_data[index].policy_use = true;
 		}
+
+		if (of_property_read_u32(child_np, "cal_id", &dm->dm_data[index].cal_id))
+			return -ENODEV;
 	}
 
 	return ret;
@@ -644,7 +647,7 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 		config.cmd = cmd;
 		config.response = true;
 		config.indirection = false;
-		config.cmd[0] = dm_type;
+		config.cmd[0] = dm->cal_id;
 		config.cmd[1] = max_freq;
 		config.cmd[2] = POLICY_REQ;
 
