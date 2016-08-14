@@ -258,7 +258,7 @@ static int isp_apply_cooling(struct isp_cooling_device *isp_device,
 
 	isp_device->isp_state = cooling_state;
 
-	blocking_notifier_call_chain(&isp_notifier, cooling_state, &cooling_state);
+	blocking_notifier_call_chain(&isp_notifier, ISP_THROTTLING, &cooling_state);
 
 	return 0;
 }
