@@ -28,6 +28,10 @@
 #include <linux/isp_cooling.h>
 
 #include <soc/samsung/tmu.h>
+#if defined(CONFIG_ECT)
+#include <soc/samsung/ect_parser.h>
+#endif
+#include "samsung/exynos_tmu.h"
 
 /**
  * struct isp_cooling_device - data for cooling device with isp
@@ -57,7 +61,7 @@ static BLOCKING_NOTIFIER_HEAD(isp_notifier);
 
 static unsigned int isp_dev_count;
 
-extern struct isp_fps_table isp_fps_table[];
+struct isp_fps_table *isp_fps_table;
 
 /**
  * get_idr - function to get a unique id.
@@ -478,3 +482,88 @@ void isp_cooling_unregister(struct thermal_cooling_device *cdev)
 	kfree(isp_dev);
 }
 EXPORT_SYMBOL_GPL(isp_cooling_unregister);
+
+/**
+ * isp_cooling_table_init - function to make ISP fps throttling table.
+ * @pdev : struct platform_device pointer
+ *
+ * Return : a valid struct isp_fps_table pointer on success,
+ * on failture, it returns a corresponding ERR_PTR().
+ */
+int isp_cooling_table_init(struct platform_device *pdev)
+{
+	int ret = 0, i = 0;
+#if defined(CONFIG_ECT)
+	struct exynos_tmu_data *exynos_data;
+	void *thermal_block;
+	struct ect_ap_thermal_function *function;
+	int last_fps = -1, count = 0;
+#else
+	unsigned int table_size;
+	u32 isp_idx_num = 0;
+#endif
+
+#if defined(CONFIG_ECT)
+	exynos_data = platform_get_drvdata(pdev);
+
+	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
+	if (thermal_block == NULL) {
+		dev_err(&pdev->dev, "Failed to get thermal block");
+		return -ENODEV;
+	}
+
+	function = ect_ap_thermal_get_function(thermal_block, exynos_data->tmu_name);
+	if (function == NULL) {
+		dev_err(&pdev->dev, "Failed to get %s information", exynos_data->tmu_name);
+		return -ENODEV;
+	}
+
+	/* Table size can be num_of_range + 1 since last row has the value of TABLE_END */
+	isp_fps_table = kzalloc(sizeof(struct isp_fps_table) * (function->num_of_range + 1), GFP_KERNEL);
+
+	if (thermal_block != NULL && function != NULL) {
+		for (i = 0; i < function->num_of_range + 1; i++) {
+			if (last_fps == function->range_list[i].max_frequency)
+				continue;
+
+			isp_fps_table[count].flags = 0;
+			isp_fps_table[count].driver_data = count;
+
+			if (i == function->num_of_range)
+				isp_fps_table[count].fps = ISP_FPS_TABLE_END;
+			else
+				isp_fps_table[count].fps = function->range_list[i].max_frequency;
+
+			last_fps = isp_fps_table[count].fps;
+
+			dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
+				isp_fps_table[count].driver_data, isp_fps_table[count].fps);
+			count++;
+		}
+	} else
+		return -EINVAL;
+#else
+	/* isp cooling frequency table parse */
+	ret = of_property_read_u32(pdev->dev.of_node, "isp_idx_num", &isp_idx_num);
+	if (ret < 0)
+		dev_err(&pdev->dev, "isp_idx_num happend error value\n");
+
+	if (isp_idx_num) {
+		isp_fps_table = kzalloc(sizeof(struct isp_fps_table)* isp_idx_num, GFP_KERNEL);
+		if (!isp_fps_table) {
+			dev_err(&pdev->dev, "failed to allocate for isp_table\n");
+			return -ENODEV;
+		}
+		table_size = sizeof(struct isp_fps_table) / sizeof(unsigned int);
+		ret = of_property_read_u32_array(pdev->dev.of_node, "isp_cooling_table",
+			(unsigned int *)isp_fps_table, table_size * isp_idx_num);
+
+		for (i = 0; i < isp_idx_num; i++) {
+			dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
+				isp_fps_table[i].driver_data, isp_fps_table[i].fps);
+		}
+	}
+#endif
+	return ret;
+}
+EXPORT_SYMBOL_GPL(isp_cooling_table_init);

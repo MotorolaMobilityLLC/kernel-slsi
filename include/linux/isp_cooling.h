@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/thermal.h>
 #include <linux/cpumask.h>
+#include <linux/platform_device.h>
 
 #define ISP_FPS_INVALID     ~1
 
@@ -105,6 +106,11 @@ void isp_cooling_unregister(struct thermal_cooling_device *cdev);
 
 unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps);
 unsigned long isp_cooling_get_fps(unsigned int isp, unsigned long level);
+/**
+ * isp_cooling_table_init - function to make ISP fps throttling table.
+ * @pdev : platform_device pointer
+ */
+int isp_cooling_table_init(struct platform_device *pdev);
 #else /* !CONFIG_GPU_THERMAL */
 static inline struct thermal_cooling_device *
 isp_cooling_register(const struct cpumask *clip_gpus)
@@ -131,6 +137,10 @@ static inline
 unsigned long isp_cooling_get_fps(unsigned int isp, unsigned long level)
 {
 	return ISP_FPS_INVALID;
+}
+static inline int isp_cooling_table_init(struct platform_device *dev)
+{
+	return true;
 }
 #endif	/* CONFIG_ISP_THERMAL */
 
