@@ -1165,48 +1165,6 @@ static int gpu_cooling_table_init(struct platform_device *pdev)
 static int gpu_cooling_table_init(struct platform_device *pdev) {return 0;}
 #endif
 
-#ifdef CONFIG_ISP_THERMAL
-struct isp_fps_table isp_fps_table[10];
-
-static int isp_cooling_table_init(struct platform_device *pdev)
-{
-	struct isp_fps_table *table_ptr;
-	unsigned int table_size;
-	u32 isp_idx_num = 0;
-	int ret = 0, i = 0;
-
-	/* isp cooling frequency table parse */
-	ret = of_property_read_u32(pdev->dev.of_node, "isp_idx_num",
-					&isp_idx_num);
-	if (ret < 0)
-		dev_err(&pdev->dev, "isp_idx_num happend error value\n");
-
-	if (isp_idx_num) {
-		table_ptr = kzalloc(sizeof(struct isp_fps_table)
-						* isp_idx_num, GFP_KERNEL);
-		if (!table_ptr) {
-			dev_err(&pdev->dev, "failed to allocate for isp_table\n");
-			return -ENODEV;
-		}
-		table_size = sizeof(struct isp_fps_table) / sizeof(unsigned int);
-		ret = of_property_read_u32_array(pdev->dev.of_node, "isp_cooling_table",
-			(unsigned int *)table_ptr, table_size * isp_idx_num);
-
-		for (i = 0; i < isp_idx_num; i++) {
-			isp_fps_table[i].flags = table_ptr[i].flags;
-			isp_fps_table[i].driver_data = table_ptr[i].driver_data;
-			isp_fps_table[i].fps = table_ptr[i].fps;
-			dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
-				isp_fps_table[i].driver_data, isp_fps_table[i].fps);
-		}
-		kfree(table_ptr);
-	}
-	return ret;
-}
-#else
-static int isp_cooling_table_init(struct platform_device *pdev) {return 0;}
-#endif
-
 struct pm_qos_request thermal_cpu_hotplug_request;
 static int exynos_throttle_cpu_hotplug(void *p, int temp)
 {
