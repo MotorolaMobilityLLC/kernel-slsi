@@ -201,7 +201,7 @@ static int get_property(unsigned int isp, unsigned long input,
  * Return: The matched cooling level on success or THERMAL_CSTATE_INVALID
  * otherwise.
  */
-unsigned long isp_cooling_get_fps(unsigned int isp, unsigned int fps)
+unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps)
 {
 	unsigned int val;
 
@@ -210,7 +210,7 @@ unsigned long isp_cooling_get_fps(unsigned int isp, unsigned int fps)
 
 	return (unsigned long)val;
 }
-EXPORT_SYMBOL_GPL(isp_cooling_get_fps);
+EXPORT_SYMBOL_GPL(isp_cooling_get_level);
 
 /**
  * isp_apply_cooling - function to apply fps clipping.

@@ -590,7 +590,7 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 								level = gpufreq_cooling_get_level(0, freq);
 								break;
 							case ISP :
-								level = isp_cooling_get_fps(0, freq);
+								level = isp_cooling_get_level(0, freq);
 								break;
 							case MNGS_DUAL :
 								level = cpufreq_cooling_get_level(4, freq);

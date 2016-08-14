@@ -101,7 +101,7 @@ of_isp_cooling_register(struct device_node *np,
  */
 void isp_cooling_unregister(struct thermal_cooling_device *cdev);
 
-unsigned long isp_cooling_get_fps(unsigned int isp, unsigned int fps);
+unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps);
 #else /* !CONFIG_GPU_THERMAL */
 static inline struct thermal_cooling_device *
 isp_cooling_register(const struct cpumask *clip_gpus)
@@ -120,7 +120,7 @@ void isp_cooling_unregister(struct thermal_cooling_device *cdev)
 	return;
 }
 static inline
-unsigned long isp_cooling_get_fps(unsigned int isp, unsigned int fps)
+unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps)
 {
 	return THERMAL_CSTATE_INVALID;
 }
