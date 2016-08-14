@@ -28,6 +28,8 @@
 #include <linux/thermal.h>
 #include <linux/cpumask.h>
 
+#define ISP_FPS_INVALID     ~1
+
 #ifdef CONFIG_ISP_THERMAL
 
 #define ISP_FPS_ENTRY_INVALID ~0
@@ -102,6 +104,7 @@ of_isp_cooling_register(struct device_node *np,
 void isp_cooling_unregister(struct thermal_cooling_device *cdev);
 
 unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps);
+unsigned long isp_cooling_get_fps(unsigned int isp, unsigned long level);
 #else /* !CONFIG_GPU_THERMAL */
 static inline struct thermal_cooling_device *
 isp_cooling_register(const struct cpumask *clip_gpus)
@@ -123,6 +126,11 @@ static inline
 unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps)
 {
 	return THERMAL_CSTATE_INVALID;
+}
+static inline
+unsigned long isp_cooling_get_fps(unsigned int isp, unsigned long level)
+{
+	return ISP_FPS_INVALID;
 }
 #endif	/* CONFIG_ISP_THERMAL */
 

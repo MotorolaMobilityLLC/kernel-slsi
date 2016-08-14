@@ -99,7 +99,7 @@ static void release_idr(struct idr *idr, int id)
 
 enum isp_cooling_property {
 	GET_LEVEL,
-	GET_FREQ,
+	GET_FPS,
 	GET_MAXL,
 };
 
@@ -166,6 +166,7 @@ static int get_property(unsigned int isp, unsigned long input,
 	}
 
 	i = 0;
+	level = (int)input;
 	isp_fps_for_each_valid_entry(pos, table) {
 		/* ignore duplicate entry */
 		if (fps == pos->fps)
@@ -179,7 +180,7 @@ static int get_property(unsigned int isp, unsigned long input,
 			*output = descend ? i : (max_level - i);
 			return 0;
 		}
-		if (property == GET_FREQ && level == i) {
+		if (property == GET_FPS && level == i) {
 			/* get fps by level */
 			*output = fps;
 			return 0;
@@ -211,6 +212,26 @@ unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps)
 	return (unsigned long)val;
 }
 EXPORT_SYMBOL_GPL(isp_cooling_get_level);
+
+/**
+ * isp_cooling_get_fps - for a give isp, return the fps value corresponding to cooling level.
+ * @isp: isp for which the level is required
+ * @level: the cooling level
+ *
+ * This function will match the fps value corresponding to the
+ * requested @level and return it.
+ *
+ * Return: The matched fps value on success or ISP_FPS_INVALID otherwise.
+ */
+unsigned long isp_cooling_get_fps(unsigned int isp, unsigned long level)
+{
+	unsigned int val;
+
+	if (get_property(isp, level, &val, GET_FPS))
+		return ISP_FPS_INVALID;
+
+	return (unsigned long)val;
+}
 
 /**
  * isp_apply_cooling - function to apply fps clipping.
