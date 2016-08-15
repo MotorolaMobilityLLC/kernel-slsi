@@ -304,8 +304,9 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 	for_each_child_of_node(np, child_np) {
 		int index;
 		const char *available;
+#ifdef CONFIG_EXYNOS_ACPM
 		const char *policy_use;
-
+#endif
 		if (of_property_read_u32(child_np, "dm-index", &index))
 			return -ENODEV;
 
@@ -327,7 +328,7 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 		} else {
 			dm->dm_data[index].available = false;
 		}
-
+#ifdef CONFIG_EXYNOS_ACPM
 		if (of_property_read_string(child_np, "policy_use", &policy_use)) {
 			dev_info(dm->dev, "This doesn't need to send policy to ACPM\n");
 		} else {
@@ -337,6 +338,7 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 
 		if (of_property_read_u32(child_np, "cal_id", &dm->dm_data[index].cal_id))
 			return -ENODEV;
+#endif
 	}
 
 	return ret;
@@ -618,9 +620,11 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 {
 	struct exynos_dm_data *dm;
 	struct timeval pre, before, after;
+#ifdef CONFIG_EXYNOS_ACPM
 	struct ipc_config config;
 	unsigned int cmd[4];
 	int size, ch_num, ret;
+#endif
 	s32 time = 0, pre_time = 0;
 
 	do_gettimeofday(&pre);
@@ -637,6 +641,7 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	constraint_checker_max(get_max_constraint_list(dm), max_freq);
 
 	/*Send policy to FVP*/
+#ifdef CONFIG_EXYNOS_ACPM
 	if (dm->policy_use) {
 		ret = acpm_ipc_request_channel(exynos_dm->dev->of_node, NULL, &ch_num, &size);
 		if (ret) {
@@ -657,6 +662,7 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 			return -EINVAL;
 		}
 	}
+#endif
 
 out:
 	do_gettimeofday(&after);

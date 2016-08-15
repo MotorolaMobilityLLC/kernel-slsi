@@ -84,8 +84,9 @@ struct exynos_dm_constraint {
 
 struct exynos_dm_data {
 	bool				available;		/* use for DVFS domain available */
+#ifdef CONFIG_EXYNOS_ACPM
 	bool				policy_use;
-
+#endif
 	enum exynos_dm_type		dm_type;
 	enum exynos_dvfs_type		dvfs_type;
 	char				dm_type_name[EXYNOS_DM_TYPE_NAME_LEN];
@@ -105,7 +106,9 @@ struct exynos_dm_data {
 	struct list_head		min_clist;
 	struct list_head		max_clist;
 	u32				constraint_checked;
+#ifdef CONFIG_EXYNOS_ACPM
 	u32				cal_id;
+#endif
 };
 
 struct exynos_dm_device {
