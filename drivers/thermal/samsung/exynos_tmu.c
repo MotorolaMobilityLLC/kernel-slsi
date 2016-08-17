@@ -952,6 +952,12 @@ static int exynos_pm_notifier(struct notifier_block *notifier,
 	case PM_POST_SUSPEND:
 		mutex_lock(&thermal_suspend_lock);
 		suspended = false;
+		list_for_each_entry(devnode, &dtm_dev_list, node) {
+			cdev = devnode->cool_dev;
+
+			if (cdev && cdev->ops->set_cur_temp && devnode->id != 1)
+				cdev->ops->set_cur_temp(cdev, suspended, devnode->tzd->temperature / 1000);
+		}
 		mutex_unlock(&thermal_suspend_lock);
 		break;
 	}
