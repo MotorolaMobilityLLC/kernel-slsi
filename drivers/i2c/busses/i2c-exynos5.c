@@ -651,7 +651,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 		writel(i2c_int_en, i2c->regs + HSI2C_INT_ENABLE);
 		enable_irq(i2c->irq);
 	} else {
-		writel(0x0, i2c->regs + HSI2C_INT_ENABLE);
+		writel(HSI2C_INT_TRANSFER_DONE, i2c->regs + HSI2C_INT_ENABLE);
 	}
 
 	ret = -EAGAIN;
@@ -660,7 +660,8 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 			timeout = jiffies + EXYNOS5_I2C_TIMEOUT;
 			while (time_before(jiffies, timeout)){
 				if ((readl(i2c->regs + HSI2C_FIFO_STATUS) &
-					0x1000000) == 0) {
+					HSI2C_RX_FIFO_EMPTY) == 0) {
+					/* RX FIFO is not empty */
 					byte = (unsigned char)readl
 						(i2c->regs + HSI2C_RX_DATA);
 					i2c->msg->buf[i2c->msg_ptr++]
@@ -722,13 +723,10 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 				(i2c->msg_ptr < i2c->msg->len)) {
 				if ((readl(i2c->regs + HSI2C_FIFO_STATUS)
 					& HSI2C_TX_FIFO_LVL_MASK) < EXYNOS5_FIFO_SIZE) {
-					byte = i2c->msg->buf
-						[i2c->msg_ptr++];
-					writel(byte,
-						i2c->regs + HSI2C_TX_DATA);
+					byte = i2c->msg->buf[i2c->msg_ptr++];
+					writel(byte, i2c->regs + HSI2C_TX_DATA);
 				}
 			}
-
 		} else {
 			timeout = wait_for_completion_timeout
 				(&i2c->msg_complete, EXYNOS5_I2C_TIMEOUT);
@@ -745,14 +743,18 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 		}
 
 		if (operation_mode == HSI2C_POLLING) {
+			unsigned long int_status;
+			unsigned long fifo_status;
 			while (time_before(jiffies, timeout)) {
-				trans_status = readl(i2c->regs + HSI2C_INT_STATUS);
-				writel(trans_status, i2c->regs +  HSI2C_INT_STATUS);
-				if (trans_status & HSI2C_INT_TRANSFER_DONE) {
+				int_status = readl(i2c->regs + HSI2C_INT_STATUS);
+				fifo_status = readl(i2c->regs + HSI2C_FIFO_STATUS);
+				if (int_status & HSI2C_INT_TRANSFER_DONE &&
+					fifo_status & HSI2C_TX_FIFO_EMPTY) {
+					writel(int_status, i2c->regs +  HSI2C_INT_STATUS);
 					ret = 0;
 					break;
 				}
-				udelay(100);
+				udelay(1);
 			}
 			if (ret == -EAGAIN) {
 				dump_i2c_register(i2c);
