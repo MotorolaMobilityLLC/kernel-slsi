@@ -37,7 +37,7 @@
 #define BCM_SIZE			SZ_64K
 #define NUM_CLK_MAX		8
 #define FILE_STR		32
-#define BCM_LOG_CNT		100
+#define BCM_LOG_CNT		200
 
 enum outform {
 	OUT_FILE = 1,
@@ -227,21 +227,9 @@ EXPORT_SYMBOL(bcm_start);
 static int bcm_log(void)
 {
 	unsigned long flags;
-	char *str;
-	int err;
-	str = kzalloc(sizeof(char) * MAX_STR, GFP_KERNEL);
-	if (!str) {
-		err = -ENOMEM;
-		return err;
-	}
 	spin_lock_irqsave(&bcm_lock, flags);
-	while (fw_func->fw_getresult(str)) {
-		spin_unlock_irqrestore(&bcm_lock, flags);
-		pr_info("%s", str);
-		spin_lock_irqsave(&bcm_lock, flags);
-	}
+	while (fw_func->fw_getresult(NULL));
 	spin_unlock_irqrestore(&bcm_lock, flags);
-	kfree(str);
 	return 0;
 }
 
@@ -609,12 +597,7 @@ static int exynos_bcm_notify_panic(struct notifier_block *nb,
 {
 	if (fw_func) {
 		unsigned long flags;
-		char *str;
 		int cnt = 0;
-		str = kzalloc(sizeof(char) * MAX_STR, GFP_KERNEL);
-		if (!str) {
-			return NOTIFY_DONE;
-		}
 		spin_lock_irqsave(&bcm_lock, flags);
 		if (!fw_func) {
 			spin_unlock_irqrestore(&bcm_lock, flags);
@@ -622,11 +605,8 @@ static int exynos_bcm_notify_panic(struct notifier_block *nb,
 		}
 		fw_func->fw_stop(get_time(),
 				 cal_dfs_cached_get_rate, NULL);
-		while (cnt++ < BCM_LOG_CNT && fw_func->fw_getresult(str)) {
-			pr_info("%s", str);
-		}
+		while (cnt++ < BCM_LOG_CNT && fw_func->fw_getresult(NULL));
 		spin_unlock_irqrestore(&bcm_lock, flags);
-		kfree(str);
 	}
 
 	return NOTIFY_DONE;
