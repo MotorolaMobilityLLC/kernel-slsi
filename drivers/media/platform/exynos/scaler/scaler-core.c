@@ -2693,6 +2693,9 @@ static irqreturn_t sc_irq_handler(int irq, void *priv)
 		clear_bit(DEV_CP, &sc->state);
 	}
 #endif
+	if (!SCALER_INT_OK(irq_status))
+		sc_hwset_soft_reset(sc);
+
 	sc_clk_power_disable(sc);
 
 	clear_bit(CTX_RUN, &ctx->flags);
