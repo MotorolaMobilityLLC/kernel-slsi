@@ -582,9 +582,8 @@ static int sc_v4l2_try_fmt_mplane(struct file *file, void *fh,
 	 * Y_SPAN - should even in interleaved YCbCr422
 	 * C_SPAN - should even in YCbCr420 and YCbCr422
 	 */
-	if (sc_fmt_is_yuv422(sc_fmt->pixelformat) ||
-			sc_fmt_is_yuv420(sc_fmt->pixelformat))
-		w_align = 1;
+	w_align = sc_fmt->h_shift;
+	h_align = sc_fmt->v_shift;
 
 	/* Bound an image to have width and height in limit */
 	v4l_bound_align_image(&pixm->width, limit->min_w, limit->max_w,
@@ -847,7 +846,6 @@ static int sc_v4l2_s_crop(struct file *file, void *fh,
 	struct sc_frame *frame;
 	struct v4l2_rect rect = cr->c;
 	const struct sc_size_limit *limit = NULL;
-	int x_align = 0, y_align = 0;
 	int w_align = 0;
 	int h_align = 0;
 	int ret = 0;
@@ -879,34 +877,18 @@ static int sc_v4l2_s_crop(struct file *file, void *fh,
 		set_bit(CTX_DST_FMT, &ctx->flags);
 	}
 
-	if (sc_fmt_is_yuv422(frame->sc_fmt->pixelformat)) {
-		w_align = 1;
-	} else if (sc_fmt_is_yuv420(frame->sc_fmt->pixelformat)) {
-		w_align = 1;
-		h_align = 1;
-	}
+	w_align = frame->sc_fmt->h_shift;
+	h_align = frame->sc_fmt->v_shift;
 
 	/* Bound an image to have crop width and height in limit */
 	v4l_bound_align_image(&rect.width, limit->min_w, limit->max_w,
 			w_align, &rect.height, limit->min_h,
 			limit->max_h, h_align, 0);
 
-	if (V4L2_TYPE_IS_OUTPUT(cr->type)) {
-		if (sc_fmt_is_yuv422(frame->sc_fmt->pixelformat))
-			x_align = 1;
-	} else {
-		if (sc_fmt_is_yuv422(frame->sc_fmt->pixelformat)) {
-			x_align = 1;
-		} else if (sc_fmt_is_yuv420(frame->sc_fmt->pixelformat)) {
-			x_align = 1;
-			y_align = 1;
-		}
-	}
-
 	/* Bound an image to have crop position in limit */
 	v4l_bound_align_image(&rect.left, 0, frame->width - rect.width,
-			x_align, &rect.top, 0, frame->height - rect.height,
-			y_align, 0);
+			w_align, &rect.top, 0, frame->height - rect.height,
+			h_align, 0);
 
 	if ((rect.height > frame->height) || (rect.top > frame->height) ||
 		(rect.width > frame->width) || (rect.left > frame->width)) {
@@ -1354,7 +1336,6 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 	struct v4l2_rect crop = ctx->d_frame.crop;
 	const struct sc_size_limit *limit;
 	unsigned int halign = 0, walign = 0;
-	__u32 pixfmt;
 	const struct sc_fmt *target_fmt = ctx->d_frame.sc_fmt;
 
 	if (!allocate_intermediate_frame(ctx))
@@ -1411,14 +1392,8 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 			crop.width = limit->max_w;
 	}
 
-	pixfmt = target_fmt->pixelformat;
-
-	if (sc_fmt_is_yuv422(pixfmt)) {
-		walign = 1;
-	} else if (sc_fmt_is_yuv420(pixfmt)) {
-		walign = 1;
-		halign = 1;
-	}
+	walign = target_fmt->h_shift;
+	halign = target_fmt->v_shift;
 
 	limit = &sc->variant->limit_output;
 	v4l_bound_align_image(&crop.width, limit->min_w, limit->max_w,
@@ -2347,12 +2322,8 @@ static bool sc_process_2nd_stage(struct sc_dev *sc, struct sc_ctx *ctx)
 	s_frame->addr.cb = ctx->i_frame->src_addr.cb;
 	s_frame->addr.cr = ctx->i_frame->src_addr.cr;
 
-	if (sc_fmt_is_yuv422(d_frame->sc_fmt->pixelformat)) {
-		walign = 1;
-	} else if (sc_fmt_is_yuv420(d_frame->sc_fmt->pixelformat)) {
-		walign = 1;
-		halign = 1;
-	}
+	walign = d_frame->sc_fmt->h_shift;
+	halign = d_frame->sc_fmt->v_shift;
 
 	limit = &sc->variant->limit_input;
 	v4l_bound_align_image(&s_frame->crop.width, limit->min_w, limit->max_w,
