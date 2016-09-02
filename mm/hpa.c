@@ -61,7 +61,7 @@ static int hpa_killer(void)
 	unsigned long rem = 0;
 	int tasksize;
 	int selected_tasksize = 0;
-	short selected_oom_score_adj;
+	short selected_oom_score_adj = HPA_MIN_OOMADJ;
 	int ret = 0;
 
 	rcu_read_lock();
