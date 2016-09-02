@@ -867,7 +867,9 @@ static int exynos8895_tmu_read(struct exynos_tmu_data *data)
 	}
 
 	switch (data->sensing_mode) {
-		case AVG : result = result / count;
+		case AVG :
+			if (count != 0)
+				result = result / count;
 			break;
 		case MAX :
 		case MIN :
