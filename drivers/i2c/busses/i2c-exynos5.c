@@ -1137,7 +1137,7 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 		i2c_unlock_adapter(&i2c->adap);
 		return ret;
 	}
-	exynos5_i2c_reset(i2c);
+	writel(HSI2C_SW_RST, i2c->regs + HSI2C_CTL);
 	clk_disable(i2c->clk);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
