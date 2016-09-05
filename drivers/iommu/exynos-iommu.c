@@ -644,6 +644,8 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 
 		switch (prop & WAY_TYPE_MASK) {
 		case _PRIVATE_WAY_ID:
+			BUG_ON(!priv_id_cfg || priv_id_idx >= priv_id_cnt);
+
 			priv_id_cfg[priv_id_idx].cfg = prop & ~WAY_TYPE_MASK;
 			ret = of_property_read_u32_index(sysmmu->of_node,
 				props_name, i+1, &priv_id_cfg[priv_id_idx].id);
@@ -655,6 +657,8 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 			priv_id_idx++;
 			break;
 		case _PRIVATE_WAY_ADDR:
+			BUG_ON(!priv_addr_cfg || priv_addr_idx >= priv_addr_cnt);
+
 			priv_addr_cfg[priv_addr_idx].cfg = prop & ~WAY_TYPE_MASK;
 			priv_addr_idx++;
 			break;
