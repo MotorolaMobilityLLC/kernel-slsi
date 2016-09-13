@@ -32,7 +32,10 @@ static void update_policy_min_max_freq(struct exynos_dm_data *dm_data, u32 min_f
 static void get_current_freq(struct exynos_dm_data *dm_data, u32 *cur_freq);
 static void get_target_freq(struct exynos_dm_data *dm_data, u32 *target_freq);
 
+#define DM_EMPTY	0xFF
 static struct exynos_dm_device *exynos_dm;
+static enum exynos_dm_type min_order[DM_TYPE_END + 1] = {DM_EMPTY, };
+static enum exynos_dm_type max_order[DM_TYPE_END + 1] = {DM_EMPTY, };
 
 /*
  * SYSFS for Debugging
@@ -613,7 +616,10 @@ static int dm_data_updater(enum exynos_dm_type dm_type);
 static int constraint_checker_min(struct list_head *head, u32 freq);
 static int constraint_checker_max(struct list_head *head, u32 freq);
 static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt);
+static int max_constraint_data_updater(enum exynos_dm_type dm_type, int cnt);
 static int scaling_callback(enum dvfs_direction dir, unsigned int relation);
+
+static bool max_flag = false;
 
 #define POLICY_REQ	4
 
@@ -633,13 +639,17 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	do_gettimeofday(&before);
 
 	dm = &exynos_dm->dm_data[dm_type];
-	if ((dm->policy_min_freq == min_freq)&&(dm->policy_max_freq == max_freq))
+	if ((dm->policy_min_freq == min_freq) && (dm->policy_max_freq == max_freq))
 		goto out;
 
 	update_policy_min_max_freq(dm, min_freq, max_freq);
 
 	/* Check dependent domains */
 	constraint_checker_max(get_max_constraint_list(dm), max_freq);
+	if (dm->max_freq < dm->cur_freq)
+		max_flag = true;
+	else
+		max_flag = false;
 
 	/*Send policy to FVP*/
 #ifdef CONFIG_EXYNOS_ACPM
@@ -767,6 +777,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 
 	/* Constratin checker should be called to decide target frequency */
 	constraint_data_updater(dm_type, 1);
+	max_constraint_data_updater(dm_type, 1);
 
 	if (dm->target_freq > dm->cur_freq)
 		scaling_callback(UP, relation);
@@ -841,13 +852,18 @@ static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt)
 	dm = &exynos_dm->dm_data[dm_type];
 
 	/* Check dependent domains */
-	constraint_checker_min(get_min_constraint_list(dm), dm->target_freq);
+	constraint_checker_min(get_min_constraint_list(dm), dm->min_freq);
 
-	dm->constraint_checked += cnt;
+	if (!dm->constraint_checked)
+		dm->constraint_checked += cnt;
+
+	min_order[dm->constraint_checked] = dm_type;
 
 	constraint_list = get_min_constraint_list(dm);
 	if (list_empty(constraint_list))
 		return 0;
+
+	min_order[0] = 0;
 
 	list_for_each_entry(constraint, constraint_list, node) {
 		dm = &exynos_dm->dm_data[constraint->constraint_dm_type];
@@ -863,6 +879,42 @@ static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt)
 	return 0;
 }
 
+static int max_constraint_data_updater(enum exynos_dm_type dm_type, int cnt)
+{
+	struct exynos_dm_data *dm;
+	struct exynos_dm_constraint *constraint;
+	struct list_head *constraint_list;
+
+	dm = &exynos_dm->dm_data[dm_type];
+
+	/* Check dependent domains */
+	constraint_checker_max(get_max_constraint_list(dm), dm->max_freq);
+
+	if (!dm->constraint_checked)
+		dm->constraint_checked += cnt;
+
+	max_order[dm->constraint_checked] = dm_type;
+
+	constraint_list = get_max_constraint_list(dm);
+	if (list_empty(constraint_list))
+		return 0;
+
+	max_order[0] = 0;
+
+	list_for_each_entry(constraint, constraint_list, node) {
+		dm = &exynos_dm->dm_data[constraint->constraint_dm_type];
+		dm_data_updater(dm->dm_type);
+
+		dm->target_freq = dm->min_freq;
+		if (dm->target_freq >= dm->max_freq)
+			dm->target_freq = dm->max_freq;
+
+		max_constraint_data_updater(dm->dm_type, cnt + 1);
+	}
+
+	return 0;
+}
+
 /*
  * Scaling Callback
  * Call callback function in each DVFS drivers to scaling frequency
@@ -870,45 +922,68 @@ static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt)
 static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 {
 	struct exynos_dm_data *dm;
-	int cnt = 0;
-	int i, j;
+	int i;
 
 	switch (dir) {
 	case DOWN:
-		for (j = 0; j < DM_TYPE_END; j++) {
-			cnt = j;
-			if ((&exynos_dm->dm_data[cnt])->constraint_checked) {
-				for (i = 0; i < DM_TYPE_END; i++) {
-					if ((&exynos_dm->dm_data[i])->constraint_checked &&
-						((&exynos_dm->dm_data[cnt])->constraint_checked
-							> (&exynos_dm->dm_data[i])->constraint_checked))
-						cnt = i;
+		if (min_order[0] == 0 && max_flag == false) {
+			for (i = 1; i <= DM_TYPE_END; i++) {
+				if (min_order[i] == DM_EMPTY)
+					continue;
+
+				dm = &exynos_dm->dm_data[min_order[i]];
+				if (dm->constraint_checked) {
+					if (dm->freq_scaler) {
+						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->cur_freq = dm->target_freq;
+					}
+					dm->constraint_checked = 0;
 				}
-				dm = &exynos_dm->dm_data[cnt];
-				if (dm->freq_scaler) {
-					dm->freq_scaler(cnt, dm->target_freq, relation);
-					dm->cur_freq = dm->target_freq;
+			}
+		} else if (max_order[0] == 0) {
+			for (i = DM_TYPE_END; i > 0; i--) {
+				if (max_order[i] == DM_EMPTY)
+					continue;
+
+				dm = &exynos_dm->dm_data[max_order[i]];
+				if (dm->constraint_checked) {
+					if (dm->freq_scaler) {
+						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->cur_freq = dm->target_freq;
+					}
+					dm->constraint_checked = 0;
 				}
-				(&exynos_dm->dm_data[cnt])->constraint_checked = 0;
 			}
 		}
 		break;
 	case UP:
-		for (j = 0; j < DM_TYPE_END; j++) {
-			cnt = j;
-			if ((&exynos_dm->dm_data[cnt])->constraint_checked) {
-				for (i = 0; i < DM_TYPE_END; i++) {
-					if ((&exynos_dm->dm_data[i])->constraint_checked &&
-						((&exynos_dm->dm_data[cnt])->constraint_checked
-							< (&exynos_dm->dm_data[i])->constraint_checked))
-						cnt = i;
+		if (min_order[0] == 0) {
+			for (i = DM_TYPE_END; i > 0; i--) {
+				if (min_order[i] == DM_EMPTY)
+					continue;
+
+				dm = &exynos_dm->dm_data[min_order[i]];
+				if (dm->constraint_checked) {
+					if (dm->freq_scaler) {
+						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->cur_freq = dm->target_freq;
+					}
+					dm->constraint_checked = 0;
 				}
-				dm = &exynos_dm->dm_data[cnt];
-				if (dm->freq_scaler) {
-					dm->freq_scaler(cnt, dm->target_freq, relation);
-					dm->cur_freq = dm->target_freq;
+			}
+		} else if (max_order[0] == 0) {
+			for (i = 1; i <= DM_TYPE_END; i++) {
+				if (max_order[i] == DM_EMPTY)
+					continue;
+
+				dm = &exynos_dm->dm_data[max_order[i]];
+				if (dm->constraint_checked) {
+					if (dm->freq_scaler) {
+						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->cur_freq = dm->target_freq;
+					}
+					dm->constraint_checked = 0;
 				}
-				(&exynos_dm->dm_data[cnt])->constraint_checked = 0;
 			}
 		}
 		break;
@@ -916,15 +991,26 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 		break;
 	}
 
-	for (j = 0; j < DM_TYPE_END; j++)
-		if ((&exynos_dm->dm_data[j])->constraint_checked) {
-			dm = &exynos_dm->dm_data[j];
+	for (i = 1; i <= DM_TYPE_END; i++) {
+		if (min_order[i] == DM_EMPTY)
+			continue;
+
+		dm = &exynos_dm->dm_data[min_order[i]];
+		if (dm->constraint_checked) {
 			if (dm->freq_scaler) {
-				dm->freq_scaler(j, dm->target_freq, relation);
+				dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
 				dm->cur_freq = dm->target_freq;
 			}
-			(&exynos_dm->dm_data[j])->constraint_checked = 0;
+			dm->constraint_checked = 0;
 		}
+	}
+
+	for (i = 0; i <= DM_TYPE_END; i++) {
+		min_order[i] = DM_EMPTY;
+		max_order[i] = DM_EMPTY;
+	}
+
+	max_flag = false;
 
 	return 0;
 }
