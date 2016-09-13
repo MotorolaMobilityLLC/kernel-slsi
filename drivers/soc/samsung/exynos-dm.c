@@ -82,8 +82,8 @@ static ssize_t show_constraint_tables_##type_name					\
 	constraint_list = get_min_constraint_list(&dm->dm_data[dm_type]);		\
 	if (list_empty(constraint_list)) {						\
 		count += snprintf(buf + count, PAGE_SIZE,				\
-				"This dm_type have not constraint tables\n\n");		\
-		return count;								\
+				"This dm_type have not min constraint tables\n\n");	\
+		goto next;								\
 	}										\
 											\
 	list_for_each_entry(constraint, constraint_list, node) {			\
@@ -108,10 +108,11 @@ static ssize_t show_constraint_tables_##type_name					\
 				"-------------------------------------------------\n");	\
 	}										\
 											\
+next:											\
 	constraint_list = get_max_constraint_list(&dm->dm_data[dm_type]);		\
 	if (list_empty(constraint_list)) {						\
 		count += snprintf(buf + count, PAGE_SIZE,				\
-				"This dm_type have not constraint tables\n\n");		\
+				"This dm_type have not max constraint tables\n\n");	\
 		return count;								\
 	}										\
 											\
