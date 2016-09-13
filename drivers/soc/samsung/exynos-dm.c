@@ -754,11 +754,11 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 		return -EAGAIN;
 	}
 
-	if (*target_freq >= dm->min_freq && *target_freq < dm->max_freq)
-		dm->target_freq = *target_freq;
-	if (*target_freq < dm->min_freq)
+	dm->target_freq = *target_freq;
+
+	if (dm->target_freq < dm->min_freq)
 		dm->target_freq = dm->min_freq;
-	if (*target_freq >= dm->max_freq) {
+	if (dm->target_freq >= dm->max_freq) {
 		dm->target_freq = dm->max_freq;
 		relation = EXYNOS_DM_RELATION_H;
 	}
