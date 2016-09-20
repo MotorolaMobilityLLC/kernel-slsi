@@ -648,7 +648,7 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 		if (ret) {
 			dev_err(exynos_dm->dev,
 					"acpm request channel is failed, id:%u, size:%u\n", ch_num, size);
-			return -EINVAL;
+			goto out;
 		}
 		config.cmd = cmd;
 		config.response = true;
@@ -660,7 +660,7 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 		ret = acpm_ipc_send_data(ch_num, &config);
 		if (ret) {
 			dev_err(exynos_dm->dev, "Failed to send policy data to FVP");
-			return -EINVAL;
+			goto out;
 		}
 	}
 #endif
@@ -750,6 +750,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	ret = dm_data_updater(dm_type);
 	if (ret) {
 		pr_err("Failed to update DM DATA!\n");
+		mutex_unlock(&exynos_dm->lock);
 		return -EAGAIN;
 	}
 
