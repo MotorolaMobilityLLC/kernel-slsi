@@ -3647,6 +3647,21 @@ static int sc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void sc_shutdown(struct platform_device *pdev)
+{
+	struct sc_dev *sc = platform_get_drvdata(pdev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->slock, flags);
+	set_bit(DEV_SUSPEND, &sc->state);
+	spin_unlock_irqrestore(&sc->slock, flags);
+
+	wait_event(sc->wait,
+			!test_bit(DEV_RUN, &sc->state));
+
+	iovmm_deactivate(sc->dev);
+}
+
 static const struct of_device_id exynos_sc_match[] = {
 	{
 		.compatible = "samsung,exynos5-scaler",
@@ -3658,6 +3673,7 @@ MODULE_DEVICE_TABLE(of, exynos_sc_match);
 static struct platform_driver sc_driver = {
 	.probe		= sc_probe,
 	.remove		= sc_remove,
+	.shutdown	= sc_shutdown,
 	.driver = {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,
