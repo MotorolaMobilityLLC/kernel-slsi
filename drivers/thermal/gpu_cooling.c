@@ -594,12 +594,13 @@ static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	return gpufreq_apply_cooling(gpufreq_cdev, state);
 }
 
-static enum tmu_noti_state_t gpu_tstate = GPU_COLD;
+static enum gpu_noti_state_t gpu_tstate = GPU_COLD;
 
 static int gpufreq_set_cur_temp(struct thermal_cooling_device *cdev,
 				bool suspended, int temp)
 {
-	enum tmu_noti_state_t tstate;
+	enum gpu_noti_state_t tstate;
+	unsigned long value;
 
 	if (suspended || temp < EXYNOS_COLD_TEMP)
 		tstate = GPU_COLD;
@@ -610,8 +611,9 @@ static int gpufreq_set_cur_temp(struct thermal_cooling_device *cdev,
 		return 0;
 
 	gpu_tstate = tstate;
+	value = tstate;
 
-	blocking_notifier_call_chain(&gpu_notifier, tstate, &tstate);
+	blocking_notifier_call_chain(&gpu_notifier, tstate, &value);
 
 	return 0;
 }
