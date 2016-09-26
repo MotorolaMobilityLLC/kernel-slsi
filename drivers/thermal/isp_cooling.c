@@ -522,24 +522,23 @@ int isp_cooling_table_init(struct platform_device *pdev)
 	isp_fps_table = kzalloc(sizeof(struct isp_fps_table) * (function->num_of_range + 1), GFP_KERNEL);
 
 	if (thermal_block != NULL && function != NULL) {
-		for (i = 0; i < function->num_of_range + 1; i++) {
+		for (i = 0; i < function->num_of_range; i++) {
 			if (last_fps == function->range_list[i].max_frequency)
 				continue;
 
 			isp_fps_table[count].flags = 0;
 			isp_fps_table[count].driver_data = count;
-
-			if (i == function->num_of_range)
-				isp_fps_table[count].fps = ISP_FPS_TABLE_END;
-			else
-				isp_fps_table[count].fps = function->range_list[i].max_frequency;
-
+			isp_fps_table[count].fps = function->range_list[i].max_frequency;
 			last_fps = isp_fps_table[count].fps;
 
 			dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
 				isp_fps_table[count].driver_data, isp_fps_table[count].fps);
 			count++;
 		}
+
+		if (i == function->num_of_range)
+			isp_fps_table[count + 1].fps = ISP_FPS_TABLE_END;
+
 	} else
 		return -EINVAL;
 #else
