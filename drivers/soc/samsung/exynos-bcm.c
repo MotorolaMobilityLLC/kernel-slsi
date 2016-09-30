@@ -37,7 +37,6 @@
 #define BCM_SIZE			SZ_64K
 #define NUM_CLK_MAX		8
 #define FILE_STR		32
-#define BCM_LOG_CNT		200
 
 enum outform {
 	OUT_FILE = 1,
@@ -245,17 +244,18 @@ struct output_data *bcm_stop(const int *usr)
 		}
 		data = fw_func->fw_stop(get_time(),
 				cal_dfs_cached_get_rate, usr);
-		spin_unlock_irqrestore(&bcm_lock, flags);
-		if (data) {
+		if (data)
 			hrtimer_try_to_cancel(&bcm_hrtimer);
-			switch (fw_func->get_outform()) {
-			case OUT_FILE:
-				bcm_file_out(NULL);
-				break;
-			case OUT_LOG:
-				bcm_log();
-				break;
-			}
+		spin_unlock_irqrestore(&bcm_lock, flags);
+		switch (fw_func->get_outform()) {
+		case OUT_FILE:
+			bcm_file_out(NULL);
+			break;
+		case OUT_LOG:
+			bcm_log();
+			break;
+		default:
+			break;
 		}
 	}
 	return data;
@@ -277,16 +277,21 @@ static void pd_init(void)
 {
 	struct exynos_pm_domain *exypd = NULL;
 	struct bcm_info *bcm;
+	int ret;
 	int i;
 	while (bcm = fw_func->get_pd(), bcm) {
 		for (i = 0; i < NUM_CLK_MAX; i++){
 			if (bcm->clk_name[i]) {
 				bcm->clk[i] = clk_get(NULL, bcm->clk_name[i]);
-				if (IS_ERR(bcm->clk[i]))
+				if (IS_ERR(bcm->clk[i])) {
 					pr_err("failed to get clk %s\n",
 						bcm->clk_name[i]);
-				else
-					clk_prepare(bcm->clk[i]);
+				} else {
+					ret = clk_prepare(bcm->clk[i]);
+					if (ret < 0)
+						pr_err("failed to prepare clk %s\n",
+						       bcm->clk_name[i]);
+				}
 			} else {
 				bcm->clk[i] = NULL;
 				break;
@@ -494,12 +499,15 @@ static ssize_t store_cmd_bcm_fw(struct device *dev,
 				hrtimer_try_to_cancel(&bcm_hrtimer);
 			info_str = fw_func->fw_cmd(buf);
 			spin_unlock_irqrestore(&bcm_lock, flags);
-			switch (fw_func->get_outform()) {
+			switch (option) {
+			case OUT_FILE:
+				write_file(NULL);
+				break;
 			case OUT_LOG:
 				bcm_log();
 				break;
 			default:
-				write_file(NULL);
+				break;
 			}
 			break;
 		case BCM_START:
@@ -597,7 +605,6 @@ static int exynos_bcm_notify_panic(struct notifier_block *nb,
 {
 	if (fw_func) {
 		unsigned long flags;
-		int cnt = 0;
 		spin_lock_irqsave(&bcm_lock, flags);
 		if (!fw_func) {
 			spin_unlock_irqrestore(&bcm_lock, flags);
@@ -605,7 +612,7 @@ static int exynos_bcm_notify_panic(struct notifier_block *nb,
 		}
 		fw_func->fw_stop(get_time(),
 				 cal_dfs_cached_get_rate, NULL);
-		while (cnt++ < BCM_LOG_CNT && fw_func->fw_getresult(NULL));
+		while (fw_func->fw_getresult(NULL));
 		spin_unlock_irqrestore(&bcm_lock, flags);
 	}
 
