@@ -490,6 +490,8 @@ struct pl330_dmac {
 	/* To protect desc_pool manipulation */
 	spinlock_t pool_lock;
 
+	spinlock_t multiirq_lock;
+
 	/* Size of MicroCode buffers for each channel. */
 	unsigned mcbufsz;
 	/* ioremap'ed address of PL330 registers. */
@@ -525,6 +527,10 @@ struct pl330_dmac {
 	/* Peripheral channels connected to this DMAC */
 	unsigned int num_peripherals;
 	struct dma_pl330_chan *peripherals; /* keep at end */
+
+	bool multi_irq;
+	int irqnum_having_multi[AMBA_NR_IRQS];
+
 	int quirks;
 };
 
@@ -1666,6 +1672,11 @@ static int pl330_update(struct pl330_dmac *pl330)
 	u32 val;
 	int id, ev, ret = 0;
 
+	if (pl330->multi_irq && !spin_trylock(&pl330->multiirq_lock)) {
+		ret = 1;
+		goto no_handle;
+	}
+
 	regs = pl330->base;
 
 	spin_lock_irqsave(&pl330->lock, flags);
@@ -1673,6 +1684,8 @@ static int pl330_update(struct pl330_dmac *pl330)
 	if (!pl330->usage_count) {
 		dev_err(pl330->ddma.dev, "%s:%d event is not exist!\n", __func__, __LINE__);
 		spin_unlock_irqrestore(&pl330->lock, flags);
+		if (pl330->multi_irq)
+			spin_unlock(&pl330->multiirq_lock);
 		return 0;
 	}
 
@@ -1764,6 +1777,10 @@ updt_exit:
 		ret = 1;
 		tasklet_schedule(&pl330->tasks);
 	}
+
+no_handle:
+	if (pl330->multi_irq)
+		spin_unlock(&pl330->multiirq_lock);
 
 	return ret;
 }
@@ -3085,11 +3102,22 @@ static int pl330_notifier(struct notifier_block *nb,
 static int pl330_resume(struct device *dev)
 {
 	struct pl330_dmac *pl330;
+	int i;
 
 	pl330 = (struct pl330_dmac *)dev_get_drvdata(dev);
 
 	if (pl330->inst_wrapper)
 		__raw_writel((pl330->mcode_bus >> 32) & 0xf, pl330->inst_wrapper);
+
+	if(pl330->multi_irq) {
+		for (i = 0; i < AMBA_NR_IRQS; i++) {
+			int irq = pl330->irqnum_having_multi[i];
+			if (irq)
+				irq_set_affinity(irq, cpu_all_mask);
+			else
+				break;
+		}
+	}
 
 	return 0;
 }
@@ -3119,6 +3147,8 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	int i, ret, irq;
 	int num_chan;
 	struct device_node *np = adev->dev.of_node;
+	int irq_flags = 0;
+	int count_irq = 0;
 
 #ifdef  CONFIG_ZONE_DMA
 	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
@@ -3149,14 +3179,25 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, pl330);
 
+	if (adev->dev.of_node){
+		pl330->multi_irq = of_dma_multi_irq(adev->dev.of_node);
+		if(pl330->multi_irq)
+			irq_flags = IRQF_GIC_MULTI_TARGET;
+	}
+
 	for (i = 0; i < AMBA_NR_IRQS; i++) {
 		irq = adev->irq[i];
 		if (irq) {
 			ret = devm_request_irq(&adev->dev, irq,
-					       pl330_irq_handler, 0,
+					       pl330_irq_handler, irq_flags,
 					       dev_name(&adev->dev), pl330);
 			if (ret)
 				return ret;
+
+			if(pl330->multi_irq) {
+				irq_set_affinity(irq, cpu_all_mask);
+				pl330->irqnum_having_multi[count_irq++] = irq;
+			}
 		} else {
 			break;
 		}
@@ -3179,6 +3220,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	INIT_LIST_HEAD(&pl330->desc_pool);
 	spin_lock_init(&pl330->pool_lock);
+	spin_lock_init(&pl330->multiirq_lock);
 
 	/* Create a descriptor pool of default size */
 	if (!add_desc(pl330, GFP_KERNEL, NR_DEFAULT_DESC))
