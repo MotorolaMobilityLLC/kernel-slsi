@@ -1037,10 +1037,6 @@ static bool _trigger(struct pl330_thread *thrd)
 	if (!req)
 		return true;
 
-	/* Return if req is running */
-	if (idx == thrd->req_running)
-		return true;
-
 	desc = req->desc;
 
 	ns = desc->rqcfg.nonsecure ? 1 : 0;
@@ -1727,8 +1723,6 @@ static int pl330_update(struct pl330_dmac *pl330)
 
 			/* Detach the req */
 			descdone = thrd->req[active].desc;
-
-			thrd->req_running = -1;
 
 			if (!descdone->infiniteloop) {
 				thrd->req[active].desc = NULL;
