@@ -3281,6 +3281,9 @@ static int sc_m2m1shot_prepare_buffer(struct m2m1shot_context *m21ctx,
 		return ret;
 	}
 
+	m2m1shot_sync_for_device(m21ctx->m21dev->dev,
+				&buf_dma->plane[plane], dir);
+
 	return 0;
 }
 
@@ -3289,6 +3292,8 @@ static void sc_m2m1shot_finish_buffer(struct m2m1shot_context *m21ctx,
 			int plane,
 			enum dma_data_direction dir)
 {
+	m2m1shot_sync_for_cpu(m21ctx->m21dev->dev,
+			      &buf_dma->plane[plane], dir);
 	m2m1shot_dma_addr_unmap(m21ctx->m21dev->dev, buf_dma, plane);
 	m2m1shot_unmap_dma_buf(m21ctx->m21dev->dev,
 				&buf_dma->plane[plane], dir);
