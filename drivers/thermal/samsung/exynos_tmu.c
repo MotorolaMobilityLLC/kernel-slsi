@@ -1198,7 +1198,6 @@ struct pm_qos_request thermal_cpu_hotplug_request;
 static int exynos_throttle_cpu_hotplug(void *p, int temp)
 {
 	struct exynos_tmu_data *data = p;
-	struct cpufreq_cooling_device *cpufreq_cdev = (struct cpufreq_cooling_device *)data->cool_dev->devdata;
 	int ret = 0;
 
 	temp = temp / MCELSIUS;
@@ -1212,7 +1211,6 @@ static int exynos_throttle_cpu_hotplug(void *p, int temp)
 			pm_qos_update_request(&thermal_cpu_hotplug_request,
 						NR_CPUS);
 			is_cpu_hotplugged_out = false;
-			cpufreq_cdev->cpufreq_state = 0;
 		}
 	} else {
 		if (temp >= data->hotplug_out_threshold) {
