@@ -1219,8 +1219,9 @@ static inline int _loop_infiniteloop(struct pl330_dmac *pl330, unsigned dry_run,
 	/* forever loop */
 	off += _emit_MOV(dry_run, &buf[off], SAR, pxs->desc->px.src_addr);
 	off += _emit_MOV(dry_run, &buf[off], DAR, pxs->desc->px.dst_addr);
-	if (pxs->desc->rqtype != DMA_MEM_TO_MEM)
-		off += _emit_FLUSHP(dry_run, &buf[off], pxs->desc->peri);
+
+	off += _emit_NOP(dry_run, &buf[off]);
+	off += _emit_NOP(dry_run, &buf[off]);
 
 	/* loop0 */
 	off += _emit_LP(dry_run, &buf[off], 0,  lcnt0);
