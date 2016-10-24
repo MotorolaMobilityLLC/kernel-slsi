@@ -490,8 +490,6 @@ struct pl330_dmac {
 	/* To protect desc_pool manipulation */
 	spinlock_t pool_lock;
 
-	spinlock_t multiirq_lock;
-
 	/* Size of MicroCode buffers for each channel. */
 	unsigned mcbufsz;
 	/* ioremap'ed address of PL330 registers. */
@@ -1672,11 +1670,6 @@ static int pl330_update(struct pl330_dmac *pl330)
 	u32 val;
 	int id, ev, ret = 0;
 
-	if (pl330->multi_irq && !spin_trylock(&pl330->multiirq_lock)) {
-		ret = 1;
-		goto no_handle;
-	}
-
 	regs = pl330->base;
 
 	spin_lock_irqsave(&pl330->lock, flags);
@@ -1684,8 +1677,6 @@ static int pl330_update(struct pl330_dmac *pl330)
 	if (!pl330->usage_count) {
 		dev_err(pl330->ddma.dev, "%s:%d event is not exist!\n", __func__, __LINE__);
 		spin_unlock_irqrestore(&pl330->lock, flags);
-		if (pl330->multi_irq)
-			spin_unlock(&pl330->multiirq_lock);
 		return 0;
 	}
 
@@ -1777,10 +1768,6 @@ updt_exit:
 		ret = 1;
 		tasklet_schedule(&pl330->tasks);
 	}
-
-no_handle:
-	if (pl330->multi_irq)
-		spin_unlock(&pl330->multiirq_lock);
 
 	return ret;
 }
@@ -3220,7 +3207,6 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	INIT_LIST_HEAD(&pl330->desc_pool);
 	spin_lock_init(&pl330->pool_lock);
-	spin_lock_init(&pl330->multiirq_lock);
 
 	/* Create a descriptor pool of default size */
 	if (!add_desc(pl330, GFP_KERNEL, NR_DEFAULT_DESC))
