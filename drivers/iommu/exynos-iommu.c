@@ -193,7 +193,7 @@ void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 }
 
 
-static unsigned int dump_set_associative_tlb(void __iomem *sfrbase,
+static unsigned int dump_tlb_entry_way_type(void __iomem *sfrbase,
 						int idx_way, int idx_set)
 {
 	if (MMU_TLB_ENTRY_VALID(__raw_readl(sfrbase + REG_TLB_ATTR))) {
@@ -207,12 +207,29 @@ static unsigned int dump_set_associative_tlb(void __iomem *sfrbase,
 	return 0;
 }
 
+static unsigned int dump_tlb_entry_port_type(void __iomem *sfrbase,
+						int idx_way, int idx_set)
+{
+	if (MMU_TLB_ENTRY_VALID(__raw_readl(sfrbase + REG_CAPA1_TLB_ATTR))) {
+		pr_crit("[%02d][%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
+			idx_way, idx_set,
+			__raw_readl(sfrbase + REG_CAPA1_TLB_VPN),
+			__raw_readl(sfrbase + REG_CAPA1_TLB_PPN),
+			__raw_readl(sfrbase + REG_CAPA1_TLB_ATTR));
+		return 1;
+	}
+	return 0;
+}
+
 #define MMU_NUM_TLB_SUBLINE		4
-static void dump_sysmmu_tlb(void __iomem *sfrbase)
+static void dump_sysmmu_tlb_way(struct sysmmu_drvdata *drvdata)
 {
 	int i, j, k;
-	u32 capa = __raw_readl(sfrbase + REG_MMU_CAPA_V7);
+	u32 capa;
 	unsigned int cnt;
+	void __iomem *sfrbase = drvdata->sfrbase;
+
+	capa = __raw_readl(sfrbase + REG_MMU_CAPA0_V7);
 
 	pr_crit("TLB has %d way, %d set. SBB has %d entries.\n",
 			MMU_CAPA_NUM_TLB_WAY(capa),
@@ -224,7 +241,7 @@ static void dump_sysmmu_tlb(void __iomem *sfrbase)
 			for (k = 0; k < MMU_NUM_TLB_SUBLINE; k++) {
 				__raw_writel(MMU_SET_TLB_READ_ENTRY(j, i, k),
 					sfrbase + REG_TLB_READ);
-				cnt += dump_set_associative_tlb(sfrbase, i, j);
+				cnt += dump_tlb_entry_way_type(sfrbase, i, j);
 			}
 		}
 	}
@@ -246,6 +263,61 @@ static void dump_sysmmu_tlb(void __iomem *sfrbase)
 		pr_crit(">> No Valid SBB Entries\n");
 }
 
+static void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata)
+{
+	int t, i, j, k;
+	u32 capa0, capa1, info;
+	unsigned int cnt;
+	int num_tlb, num_port, num_sbb;
+	void __iomem *sfrbase = drvdata->sfrbase;
+
+	capa0 = __raw_readl(sfrbase + REG_MMU_CAPA0_V7);
+	capa1 = __raw_readl(sfrbase + REG_MMU_CAPA1_V7);
+
+	num_tlb = MMU_CAPA1_NUM_TLB(capa1);
+	num_port = MMU_CAPA1_NUM_PORT(capa1);
+	num_sbb = 1 << MMU_CAPA_NUM_SBB_ENTRY(capa0);
+
+	pr_crit("SysMMU has %d TLBs, %d ports, %d sbb entries\n",
+					num_tlb, num_port, num_sbb);
+
+	for (t = 0; t < num_tlb; t++) {
+		int num_set, num_way;
+
+		info = __raw_readl(sfrbase + MMU_TLB_INFO(t));
+		num_way = MMU_CAPA1_NUM_TLB_WAY(info);
+		num_set = MMU_CAPA1_NUM_TLB_SET(info);
+
+		pr_crit("TLB.%d has %d way, %d set.\n", t, num_way, num_set);
+		pr_crit("------------- TLB[WAY][SET][ENTRY] -------------\n");
+		for (i = 0, cnt = 0; i < num_way; i++) {
+			for (j = 0; j < num_set; j++) {
+				for (k = 0; k < MMU_NUM_TLB_SUBLINE; k++) {
+					__raw_writel(MMU_CAPA1_SET_TLB_READ_ENTRY(t, j, i, k),
+							sfrbase + REG_CAPA1_TLB_READ);
+					cnt += dump_tlb_entry_port_type(sfrbase, i, j);
+				}
+			}
+		}
+	}
+	if (!cnt)
+		pr_crit(">> No Valid TLB Entries\n");
+
+	pr_crit("--- SBB(Second-Level Page Table Base Address Buffer ---\n");
+	for (i = 0, cnt = 0; i < num_sbb; i++) {
+		__raw_writel(i, sfrbase + REG_CAPA1_SBB_READ);
+		if (MMU_SBB_ENTRY_VALID(__raw_readl(sfrbase + REG_CAPA1_SBB_VPN))) {
+			pr_crit("[%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
+				i, __raw_readl(sfrbase + REG_CAPA1_SBB_VPN),
+				__raw_readl(sfrbase + REG_CAPA1_SBB_LINK),
+				__raw_readl(sfrbase + REG_CAPA1_SBB_ATTR));
+			cnt++;
+		}
+	}
+	if (!cnt)
+		pr_crit(">> No Valid SBB Entries\n");
+}
+
 static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"PTW ACCESS FAULT",
 	"PAGE FAULT",
@@ -255,7 +327,7 @@ static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"UNKNOWN FAULT"
 };
 
-void dump_sysmmu_status(void __iomem *sfrbase)
+void dump_sysmmu_status(struct sysmmu_drvdata *drvdata)
 {
 	int info;
 	pgd_t *pgd;
@@ -263,6 +335,7 @@ void dump_sysmmu_status(void __iomem *sfrbase)
 	pmd_t *pmd;
 	pte_t *pte;
 	phys_addr_t phys;
+	void __iomem *sfrbase = drvdata->sfrbase;
 
 	pgd = pgd_offset_k((unsigned long)sfrbase);
 	if (!pgd) {
@@ -300,7 +373,10 @@ void dump_sysmmu_status(void __iomem *sfrbase)
 		__raw_readl(sfrbase + REG_MMU_CFG),
 		__raw_readl(sfrbase + REG_MMU_STATUS));
 
-	dump_sysmmu_tlb(sfrbase);
+	if (IS_TLB_WAY_TYPE(drvdata))
+		dump_sysmmu_tlb_way(drvdata);
+	else if(IS_TLB_PORT_TYPE(drvdata))
+		dump_sysmmu_tlb_port(drvdata);
 }
 
 static void show_secure_fault_information(struct sysmmu_drvdata *drvdata,
@@ -422,7 +498,7 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 		}
 	}
 
-	dump_sysmmu_status(drvdata->sfrbase);
+	dump_sysmmu_status(drvdata);
 
 finish:
 	pr_crit("----------------------------------------------------------\n");
@@ -515,19 +591,32 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int get_hw_version(struct device *dev, void __iomem *sfrbase)
+static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 {
 	int ret;
+	void __iomem *sfrbase = data->sfrbase;
+	struct tlb_props *tlb_props = &data->tlb_props;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(data->sysmmu);
 	if (ret < 0) {
-		dev_err(dev, "Failed to runtime pm get(%d)\n", ret);
+		dev_err(data->sysmmu, "Failed to runtime pm get(%d)\n", ret);
 		return ret;
 	}
-	ret = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
-	pm_runtime_put(dev);
 
-	return ret;
+	data->version = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
+
+	/*
+	 * If CAPA1 doesn't exist, sysmmu uses TLB way dedication.
+	 * If CAPA1[31:28] is zero, sysmmu uses TLB port dedication.
+	 */
+	if (!(__raw_readl(sfrbase + REG_MMU_CAPA0_V7) & (1 << 11)))
+		tlb_props->flags |= TLB_TYPE_WAY;
+	else if (!(__raw_readl(sfrbase + REG_MMU_CAPA1_V7) & (0xF << 28)))
+		tlb_props->flags |= TLB_TYPE_PORT;
+
+	pm_runtime_put(data->sysmmu);
+
+	return 0;
 }
 
 static int __init __sysmmu_secure_irq_init(struct device *sysmmu,
@@ -751,7 +840,11 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	data->version = get_hw_version(dev, data->sfrbase);
+	ret = sysmmu_get_hw_info(data);
+	if (ret) {
+		dev_err(dev, "Failed to get h/w info\n");
+		return ret;
+	}
 
 	ret = sysmmu_parse_dt(data->sysmmu, data);
 	if (ret) {
@@ -891,7 +984,7 @@ static void __sysmmu_init_config(struct sysmmu_drvdata *drvdata)
 		cfg |= CFG_QOS_OVRRIDE | CFG_QOS(drvdata->qos);
 
 	if (MMU_MAJ_VER(drvdata->version) >= 7) {
-		u32 cfg = __raw_readl(drvdata->sfrbase + REG_MMU_CAPA_V7);
+		u32 cfg = __raw_readl(drvdata->sfrbase + REG_MMU_CAPA0_V7);
 		u32 tlb_way_num = MMU_CAPA_NUM_TLB_WAY(cfg);
 		u32 set_cnt = 0;
 		struct tlb_props *tlb_props = &drvdata->tlb_props;
@@ -1593,7 +1686,7 @@ void exynos_sysmmu_show_status(struct device *master)
 		}
 
 		dev_info(drvdata->sysmmu, "Dumping status.\n");
-		dump_sysmmu_status(drvdata->sfrbase);
+		dump_sysmmu_status(drvdata);
 
 		spin_unlock_irqrestore(&drvdata->lock, flags);
 	}

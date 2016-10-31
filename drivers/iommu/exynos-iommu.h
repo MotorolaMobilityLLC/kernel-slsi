@@ -145,7 +145,8 @@ typedef u32 sysmmu_pte_t;
 #define REG_L2TLB_CFG		0x200
 
 /* For SysMMU v7.x */
-#define REG_MMU_CAPA_V7		0x870
+#define REG_MMU_CAPA0_V7	0x870
+#define REG_MMU_CAPA1_V7	0x874
 #define REG_PUBLIC_WAY_CFG	0x120
 #define REG_PRIVATE_WAY_CFG(n)		(0x200 + ((n) * 0x10))
 #define REG_PRIVATE_ADDR_START(n)	(0x204 + ((n) * 0x10))
@@ -161,6 +162,23 @@ typedef u32 sysmmu_pte_t;
 #define REG_SBB_VPN		0x1104
 #define REG_SBB_LINK		0x1108
 #define REG_SBB_ATTR		0x110C
+
+/* For SysMMU v7.1 */
+#define MMU_CAPA1_NUM_TLB(reg)	((reg >> 4) & 0xFF)
+#define MMU_CAPA1_NUM_PORT(reg)	((reg) & 0xF)
+#define MMU_TLB_INFO(n)		(0x2000 + ((n) * 0x20))
+#define MMU_CAPA1_NUM_TLB_SET(reg)	((reg >> 16) & 0xFF)
+#define MMU_CAPA1_NUM_TLB_WAY(reg)	((reg) & 0xFF)
+#define REG_CAPA1_TLB_READ		0x8000
+#define REG_CAPA1_TLB_VPN		0x8004
+#define REG_CAPA1_TLB_PPN		0x8008
+#define REG_CAPA1_TLB_ATTR		0x800C
+#define REG_CAPA1_SBB_READ		0x8020
+#define REG_CAPA1_SBB_VPN		0x8024
+#define REG_CAPA1_SBB_LINK		0x8028
+#define REG_CAPA1_SBB_ATTR		0x802C
+#define MMU_CAPA1_SET_TLB_READ_ENTRY(tid, set, way, line)		\
+			((set) | ((way) << 8) | ((line) << 16) | ((tid) << 20))
 
 #define MMU_CAPA_NUM_SBB_ENTRY(reg)	((reg >> 12) & 0xF)
 #define MMU_CAPA_NUM_TLB_SET(reg)	((reg >> 8) & 0xF)
@@ -247,6 +265,19 @@ struct tlb_priv_id {
 	unsigned int cfg;
 	unsigned int id;
 };
+
+/*
+ * flags[7:4] specifies TLB matching types.
+ * 0x1 : TLB way dedication
+ * 0x2 : TLB port dedication
+ */
+#define TLB_TYPE_MASK(x)	((x) & (0xF << 4))
+#define TLB_TYPE_WAY		(0x1 << 4)
+#define TLB_TYPE_PORT		(0x2 << 4)
+#define IS_TLB_WAY_TYPE(data)	(TLB_TYPE_MASK((data)->tlb_props.flags)	\
+				== TLB_TYPE_WAY)
+#define IS_TLB_PORT_TYPE(data)	(TLB_TYPE_MASK((data)->tlb_props.flags)	\
+				== TLB_TYPE_PORT)
 
 #define TLB_WAY_PRIVATE_ID	(1 << 0)
 #define TLB_WAY_PRIVATE_ADDR	(1 << 1)
