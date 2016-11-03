@@ -76,11 +76,11 @@ struct gpufreq_cooling_device {
 	struct power_table *dyn_power_table;
 	int dyn_power_table_entries;
 	get_static_t plat_get_static_power;
-	int *leakage_table;
-	int *leakage_coeff;
+	int *var_table;
+	int *var_coeff;
 	int *asv_coeff;
-	unsigned int leakage_volt_size;
-	unsigned int leakage_temp_size;
+	unsigned int var_volt_size;
+	unsigned int var_temp_size;
 };
 
 static DEFINE_IDR(gpufreq_idr);
@@ -312,10 +312,14 @@ static int build_dyn_power_table(struct gpufreq_cooling_device *gpufreq_cdev,
 static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
 {
 	int i, j;
-	int ids = cal_asv_get_ids_info(ACPM_DVFS_G3D);
+	int ratio = cal_asv_get_ids_info(ACPM_DVFS_G3D);
 	int asv_group = cal_asv_get_grp(ACPM_DVFS_G3D);
 	void *gen_block;
 	struct ect_gen_param_table *volt_temp_param, *asv_param;
+	int ratio_table[16] = { 0, 25, 29, 35, 41, 48, 57, 67, 79, 94, 110, 130, 151, 162, 162, 162};
+
+	if (!ratio)
+		ratio = ratio_table[asv_group];
 
 	gen_block = ect_get_block("GEN");
 	if (gen_block == NULL) {
@@ -327,14 +331,14 @@ static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
 	asv_param = ect_gen_param_get_table(gen_block, "DTM_G3D_ASV");
 
 	if (volt_temp_param && asv_param) {
-		gpufreq_cdev->leakage_volt_size = volt_temp_param->num_of_row - 1;
-		gpufreq_cdev->leakage_temp_size = volt_temp_param->num_of_col - 1;
+		gpufreq_cdev->var_volt_size = volt_temp_param->num_of_row - 1;
+		gpufreq_cdev->var_temp_size = volt_temp_param->num_of_col - 1;
 
-		gpufreq_cdev->leakage_coeff = kzalloc(sizeof(int) *
+		gpufreq_cdev->var_coeff = kzalloc(sizeof(int) *
 							volt_temp_param->num_of_row *
 							volt_temp_param->num_of_col,
 							GFP_KERNEL);
-		if (!gpufreq_cdev->leakage_coeff)
+		if (!gpufreq_cdev->var_coeff)
 			goto err_mem;
 
 		gpufreq_cdev->asv_coeff = kzalloc(sizeof(int) *
@@ -342,37 +346,37 @@ static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
 							asv_param->num_of_col,
 							GFP_KERNEL);
 		if (!gpufreq_cdev->asv_coeff)
-			goto free_leakage_coeff;
+			goto free_var_coeff;
 
-		gpufreq_cdev->leakage_table = kzalloc(sizeof(int) *
+		gpufreq_cdev->var_table = kzalloc(sizeof(int) *
 							volt_temp_param->num_of_row *
 							volt_temp_param->num_of_col,
 							GFP_KERNEL);
-		if (!gpufreq_cdev->leakage_table)
+		if (!gpufreq_cdev->var_table)
 			goto free_asv_coeff;
 
-		memcpy(gpufreq_cdev->leakage_coeff, volt_temp_param->parameter,
+		memcpy(gpufreq_cdev->var_coeff, volt_temp_param->parameter,
 			sizeof(int) * volt_temp_param->num_of_row * volt_temp_param->num_of_col);
 		memcpy(gpufreq_cdev->asv_coeff, asv_param->parameter,
 			sizeof(int) * asv_param->num_of_row * asv_param->num_of_col);
-		memcpy(gpufreq_cdev->leakage_table, volt_temp_param->parameter,
+		memcpy(gpufreq_cdev->var_table, volt_temp_param->parameter,
 			sizeof(int) * volt_temp_param->num_of_row * volt_temp_param->num_of_col);
 	} else {
 		pr_err("%s: Failed to get param table from ECT\n", __func__);
 		return -EINVAL;
 	}
 
-	for (i = 1; i <= gpufreq_cdev->leakage_volt_size; i++) {
+	for (i = 1; i <= gpufreq_cdev->var_volt_size; i++) {
 		long asv_coeff = (long)gpufreq_cdev->asv_coeff[3 * i + 0] * asv_group * asv_group
 				+ (long)gpufreq_cdev->asv_coeff[3 * i + 1] * asv_group
 				+ (long)gpufreq_cdev->asv_coeff[3 * i + 2];
 		asv_coeff = asv_coeff / 100;
 
-		for (j = 1; j <= gpufreq_cdev->leakage_temp_size; j++) {
-			long leakage_coeff = (long)gpufreq_cdev->leakage_coeff[i * (gpufreq_cdev->leakage_temp_size + 1) + j];
-			leakage_coeff =  ids * leakage_coeff * asv_coeff;
-			leakage_coeff = leakage_coeff / 100000;
-			gpufreq_cdev->leakage_table[i * (gpufreq_cdev->leakage_temp_size + 1) + j] = (int)leakage_coeff;
+		for (j = 1; j <= gpufreq_cdev->var_temp_size; j++) {
+			long var_coeff = (long)gpufreq_cdev->var_coeff[i * (gpufreq_cdev->var_temp_size + 1) + j];
+			var_coeff =  ratio * var_coeff * asv_coeff;
+			var_coeff = var_coeff / 100000;
+			gpufreq_cdev->var_table[i * (gpufreq_cdev->var_temp_size + 1) + j] = (int)var_coeff;
 		}
 	}
 
@@ -380,8 +384,8 @@ static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
 
 free_asv_coeff:
 	kfree(gpufreq_cdev->asv_coeff);
-free_leakage_coeff:
-	kfree(gpufreq_cdev->leakage_coeff);
+free_var_coeff:
+	kfree(gpufreq_cdev->var_coeff);
 err_mem:
 	return -ENOMEM;
 }
@@ -394,8 +398,8 @@ static int lookup_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 	voltage = voltage / 1000;
 	temperature  = temperature / 1000;
 
-	for (volt_index = 0; volt_index <= gpufreq_cdev->leakage_volt_size; volt_index++) {
-		if (voltage < gpufreq_cdev->leakage_table[volt_index * (gpufreq_cdev->leakage_temp_size + 1)]) {
+	for (volt_index = 0; volt_index <= gpufreq_cdev->var_volt_size; volt_index++) {
+		if (voltage < gpufreq_cdev->var_table[volt_index * (gpufreq_cdev->var_temp_size + 1)]) {
 			volt_index = volt_index - 1;
 			break;
 		}
@@ -404,11 +408,11 @@ static int lookup_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 	if (volt_index == 0)
 		volt_index = 1;
 
-	if (volt_index > gpufreq_cdev->leakage_volt_size)
-		volt_index = gpufreq_cdev->leakage_volt_size;
+	if (volt_index > gpufreq_cdev->var_volt_size)
+		volt_index = gpufreq_cdev->var_volt_size;
 
-	for (temp_index = 0; temp_index <= gpufreq_cdev->leakage_temp_size; temp_index++) {
-		if (temperature < gpufreq_cdev->leakage_table[temp_index]) {
+	for (temp_index = 0; temp_index <= gpufreq_cdev->var_temp_size; temp_index++) {
+		if (temperature < gpufreq_cdev->var_table[temp_index]) {
 			temp_index = temp_index - 1;
 			break;
 		}
@@ -417,10 +421,10 @@ static int lookup_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 	if (temp_index == 0)
 		temp_index = 1;
 
-	if (temp_index > gpufreq_cdev->leakage_temp_size)
-		temp_index = gpufreq_cdev->leakage_temp_size;
+	if (temp_index > gpufreq_cdev->var_temp_size)
+		temp_index = gpufreq_cdev->var_temp_size;
 
-	*power = (unsigned int)gpufreq_cdev->leakage_table[volt_index * (gpufreq_cdev->leakage_temp_size + 1) + temp_index];
+	*power = (unsigned int)gpufreq_cdev->var_table[volt_index * (gpufreq_cdev->var_temp_size + 1) + temp_index];
 
 	return 0;
 }
