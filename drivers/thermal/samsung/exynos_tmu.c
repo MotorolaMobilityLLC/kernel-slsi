@@ -483,10 +483,12 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 	u32 temp_error1;
 	u32 temp_error2;
 
+	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
+	cal_type = (trim_info >> EXYNOS_TMU_CALIB_SEL_SHIFT) & EXYNOS_TMU_CALIB_SEL_MASK;
+
 	for (sensor = 0; sensor < TOTAL_SENSORS; sensor++) {
 		/* Read the sensor error value from TRIMINFOX */
 		trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO + 0x4 * sensor);
-		cal_type = (trim_info >> EXYNOS_TMU_CALIB_SEL_SHIFT) & EXYNOS_TMU_CALIB_SEL_MASK;
 		temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
 		temp_error2 = (trim_info >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT) & EXYNOS_TMU_TEMP_MASK;
 
@@ -505,7 +507,7 @@ static int exynos8895_tmu_initialize(struct platform_device *pdev)
 				data->sensor_info[count].temp_error1 = pdata->efuse_value & EXYNOS_TMU_TEMP_MASK;
 
 			/* Check temp_error2 if calibration type is TYPE_TWO_POINT_TRIMMING */
-			if(pdata->cal_type == TYPE_TWO_POINT_TRIMMING) {
+			if (data->sensor_info[count].cal_type == TYPE_TWO_POINT_TRIMMING) {
 				data->sensor_info[count].temp_error2 = temp_error2;
 
 				if (!data->sensor_info[count].temp_error2)
