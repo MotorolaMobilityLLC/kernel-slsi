@@ -653,40 +653,19 @@ static int __init __sysmmu_secure_irq_init(struct device *sysmmu,
 	return ret;
 }
 
-static int __init sysmmu_parse_dt(struct device *sysmmu,
+static int __init sysmmu_parse_tlb_way_dt(struct device *sysmmu,
 				struct sysmmu_drvdata *drvdata)
 {
 	const char *props_name = "sysmmu,tlb_property";
 	struct tlb_props *tlb_props = &drvdata->tlb_props;
 	struct tlb_priv_id *priv_id_cfg = NULL;
 	struct tlb_priv_addr *priv_addr_cfg = NULL;
-	unsigned int qos = DEFAULT_QOS_VALUE;
-	unsigned int prop;
-	int ret;
 	int i, cnt, priv_id_cnt = 0, priv_addr_cnt = 0;
 	unsigned int priv_id_idx = 0, priv_addr_idx = 0;
+	unsigned int prop;
+	int ret;
 
-	/* Parsing QoS */
-	ret = of_property_read_u32_index(sysmmu->of_node, "qos", 0, &qos);
-	if (!ret && (qos > 15)) {
-		dev_err(sysmmu, "Invalid QoS value %d, use default.\n", qos);
-		qos = DEFAULT_QOS_VALUE;
-	}
-	drvdata->qos = qos;
-
-	/* Secure IRQ */
-	if (of_find_property(sysmmu->of_node, "sysmmu,secure-irq", NULL)) {
-		ret = __sysmmu_secure_irq_init(sysmmu, drvdata);
-		if (ret) {
-			dev_err(sysmmu, "Failed to init secure irq\n");
-			return ret;
-		}
-	}
-
-	if (of_property_read_bool(sysmmu->of_node, "sysmmu,no-suspend"))
-		dev_pm_syscore_device(sysmmu, true);
-
-	/* Parsing TLB properties */
+	/* Parsing TLB way properties */
 	cnt = of_property_count_u32_elems(sysmmu->of_node, props_name);
 	for (i = 0; i < cnt; i+=2) {
 		ret = of_property_read_u32_index(sysmmu->of_node,
@@ -708,7 +687,7 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 			break;
 		case _PUBLIC_WAY:
 			tlb_props->flags |= TLB_WAY_PUBLIC;
-			tlb_props->public_cfg = (prop & ~WAY_TYPE_MASK);
+			tlb_props->way_props.public_cfg = (prop & ~WAY_TYPE_MASK);
 			break;
 		default:
 			dev_err(sysmmu, "Undefined properties!: %#x\n", prop);
@@ -767,11 +746,11 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 		}
 	}
 
-	tlb_props->priv_id_cfg = priv_id_cfg;
-	tlb_props->priv_id_cnt = priv_id_cnt;
+	tlb_props->way_props.priv_id_cfg = priv_id_cfg;
+	tlb_props->way_props.priv_id_cnt = priv_id_cnt;
 
-	tlb_props->priv_addr_cfg = priv_addr_cfg;
-	tlb_props->priv_addr_cnt = priv_addr_cnt;
+	tlb_props->way_props.priv_addr_cfg = priv_addr_cfg;
+	tlb_props->way_props.priv_addr_cnt = priv_addr_cnt;
 
 	return 0;
 
@@ -781,6 +760,96 @@ err_priv_addr:
 err_priv_id:
 	if (priv_id_cfg)
 		kfree(priv_id_cfg);
+
+	return ret;
+}
+
+static int __init sysmmu_parse_tlb_port_dt(struct device *sysmmu,
+				struct sysmmu_drvdata *drvdata)
+{
+	const char *props_name = "sysmmu,tlb_property";
+	struct tlb_props *tlb_props = &drvdata->tlb_props;
+	struct tlb_port_cfg *port_cfg = NULL;
+	int i, cnt, ret;
+	int port_id_cnt = 0;
+
+	cnt = of_property_count_u32_elems(sysmmu->of_node, props_name);
+	if (!cnt || cnt < 0) {
+		dev_info(sysmmu, "No TLB port propeties found.\n");
+		return 0;
+	}
+
+	port_cfg = kzalloc(sizeof(*port_cfg) * (cnt/2), GFP_KERNEL);
+	if (!port_cfg)
+		return -ENOMEM;
+
+	for (i = 0; i < cnt; i+=2) {
+		ret = of_property_read_u32_index(sysmmu->of_node,
+			props_name, i, &port_cfg[port_id_cnt].cfg);
+		if (ret) {
+			dev_err(sysmmu, "failed to get cfg property."
+				       "cnt = %d, ret = %d\n", i, ret);
+			ret = -EINVAL;
+			goto err_port_prop;
+		}
+
+		ret = of_property_read_u32_index(sysmmu->of_node,
+			props_name, i+1, &port_cfg[port_id_cnt].id);
+		if (ret) {
+			dev_err(sysmmu, "failed to get id property."
+				       "cnt = %d, ret = %d\n", i, ret);
+			ret = -EINVAL;
+			goto err_port_prop;
+		}
+		port_id_cnt++;
+	}
+
+	tlb_props->port_props.port_id_cnt = port_id_cnt;
+	tlb_props->port_props.port_cfg = port_cfg;
+
+	return 0;
+
+err_port_prop:
+	kfree(port_cfg);
+
+	return ret;
+}
+
+static int __init sysmmu_parse_dt(struct device *sysmmu,
+				struct sysmmu_drvdata *drvdata)
+{
+	unsigned int qos = DEFAULT_QOS_VALUE;
+	int ret;
+
+	/* Parsing QoS */
+	ret = of_property_read_u32_index(sysmmu->of_node, "qos", 0, &qos);
+	if (!ret && (qos > 15)) {
+		dev_err(sysmmu, "Invalid QoS value %d, use default.\n", qos);
+		qos = DEFAULT_QOS_VALUE;
+	}
+	drvdata->qos = qos;
+
+	/* Secure IRQ */
+	if (of_find_property(sysmmu->of_node, "sysmmu,secure-irq", NULL)) {
+		ret = __sysmmu_secure_irq_init(sysmmu, drvdata);
+		if (ret) {
+			dev_err(sysmmu, "Failed to init secure irq\n");
+			return ret;
+		}
+	}
+
+	if (of_property_read_bool(sysmmu->of_node, "sysmmu,no-suspend"))
+		dev_pm_syscore_device(sysmmu, true);
+
+	if (IS_TLB_WAY_TYPE(drvdata)) {
+		ret = sysmmu_parse_tlb_way_dt(sysmmu, drvdata);
+		if (ret)
+			dev_err(sysmmu, "Failed to parse TLB way property\n");
+	} else if (IS_TLB_PORT_TYPE(drvdata)) {
+		ret = sysmmu_parse_tlb_port_dt(sysmmu, drvdata);
+		if (ret)
+			dev_err(sysmmu, "Failed to parse TLB port property\n");
+	};
 
 	return ret;
 }
@@ -943,7 +1012,7 @@ static void __sysmmu_set_public_way(struct sysmmu_drvdata *drvdata,
 static void __sysmmu_set_private_way_id(struct sysmmu_drvdata *drvdata,
 						unsigned int way_idx)
 {
-	struct tlb_priv_id *priv_cfg = drvdata->tlb_props.priv_id_cfg;
+	struct tlb_priv_id *priv_cfg = drvdata->tlb_props.way_props.priv_id_cfg;
 	u32 cfg = __raw_readl(drvdata->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
 
 	cfg &= ~MMU_PRIVATE_WAY_MASK;
@@ -961,8 +1030,8 @@ static void __sysmmu_set_private_way_id(struct sysmmu_drvdata *drvdata,
 static void __sysmmu_set_private_way_addr(struct sysmmu_drvdata *drvdata,
 						unsigned int priv_addr_idx)
 {
-	struct tlb_priv_addr *priv_cfg = drvdata->tlb_props.priv_addr_cfg;
-	unsigned int way_idx = drvdata->tlb_props.priv_id_cnt + priv_addr_idx;
+	struct tlb_priv_addr *priv_cfg = drvdata->tlb_props.way_props.priv_addr_cfg;
+	unsigned int way_idx = drvdata->tlb_props.way_props.priv_id_cnt + priv_addr_idx;
 	u32 cfg = __raw_readl(drvdata->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
 
 	cfg &= ~MMU_PRIVATE_WAY_MASK;
@@ -974,54 +1043,108 @@ static void __sysmmu_set_private_way_addr(struct sysmmu_drvdata *drvdata,
 	dev_dbg(drvdata->sysmmu, "priv ADDR way[%d] cfg : %#x\n", way_idx, cfg);
 }
 
+static void __sysmmu_set_tlb_way_dedication(struct sysmmu_drvdata *drvdata)
+{
+	u32 cfg = __raw_readl(drvdata->sfrbase + REG_MMU_CAPA0_V7);
+	u32 tlb_way_num = MMU_CAPA_NUM_TLB_WAY(cfg);
+	u32 set_cnt = 0;
+	struct tlb_props *tlb_props = &drvdata->tlb_props;
+	unsigned int i;
+	int priv_id_cnt = tlb_props->way_props.priv_id_cnt;
+	int priv_addr_cnt = tlb_props->way_props.priv_addr_cnt;
+
+	if (tlb_props->flags & TLB_WAY_PUBLIC)
+		__sysmmu_set_public_way(drvdata,
+				tlb_props->way_props.public_cfg);
+
+	if (tlb_props->flags & TLB_WAY_PRIVATE_ID) {
+		for (i = 0; i < priv_id_cnt &&
+				set_cnt < tlb_way_num; i++, set_cnt++)
+			__sysmmu_set_private_way_id(drvdata, i);
+	}
+
+	if (tlb_props->flags & TLB_WAY_PRIVATE_ADDR) {
+		for (i = 0; i < priv_addr_cnt &&
+				set_cnt < tlb_way_num; i++, set_cnt++)
+			__sysmmu_set_private_way_addr(drvdata, i);
+	}
+
+	if (priv_id_cnt + priv_addr_cnt > tlb_way_num) {
+		dev_warn(drvdata->sysmmu,
+				"Too many values than TLB way count %d,"
+				" so ignored!\n", tlb_way_num);
+		dev_warn(drvdata->sysmmu,
+				"Number of private way id/addr = %d/%d\n",
+				priv_id_cnt, priv_addr_cnt);
+	}
+}
+
+static void __sysmmu_set_tlb_port(struct sysmmu_drvdata *drvdata,
+						unsigned int port_idx)
+{
+	struct tlb_port_cfg *port_cfg = drvdata->tlb_props.port_props.port_cfg;
+
+	writel_relaxed(MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg),
+			drvdata->sfrbase + REG_MMU_TLB_CFG(port_idx));
+
+	/* port_idx 0 is default port. */
+	if (port_idx == 0) {
+		dev_dbg(drvdata->sysmmu, "port[%d] cfg : %#x for common\n",
+				port_idx,
+				MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg));
+		return;
+	}
+
+	writel_relaxed(MMU_TLB_MATCH_CFG_MASK(port_cfg[port_idx].cfg),
+			drvdata->sfrbase + REG_MMU_TLB_MATCH_CFG(port_idx));
+	writel_relaxed(port_cfg[port_idx].id,
+			drvdata->sfrbase + REG_MMU_TLB_MATCH_ID(port_idx));
+
+	dev_dbg(drvdata->sysmmu, "port[%d] cfg : %#x, match : %#x, id : %#x\n",
+				port_idx,
+				MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg),
+				MMU_TLB_MATCH_CFG_MASK(port_cfg[port_idx].cfg),
+				port_cfg[port_idx].id);
+}
+
+static void __sysmmu_set_tlb_port_dedication(struct sysmmu_drvdata *drvdata)
+{
+	u32 cfg = __raw_readl(drvdata->sfrbase + REG_MMU_CAPA1_V7);
+	u32 tlb_num = MMU_CAPA1_NUM_TLB(cfg);
+	struct tlb_props *tlb_props = &drvdata->tlb_props;
+	unsigned int i;
+	int port_id_cnt = tlb_props->port_props.port_id_cnt;
+
+	if (port_id_cnt > tlb_num) {
+		dev_warn(drvdata->sysmmu,
+				"Too many values %d than TLB count %d,"
+				" so ignored!\n", port_id_cnt, tlb_num);
+		port_id_cnt = tlb_num;
+	}
+
+	for (i = 0; i < port_id_cnt; i++)
+		__sysmmu_set_tlb_port(drvdata, i);
+}
+
 static void __sysmmu_init_config(struct sysmmu_drvdata *drvdata)
 {
 	unsigned long cfg = 0;
 
 	writel_relaxed(CTRL_BLOCK, drvdata->sfrbase + REG_MMU_CTRL);
 
-	if (drvdata->qos != DEFAULT_QOS_VALUE)
-		cfg |= CFG_QOS_OVRRIDE | CFG_QOS(drvdata->qos);
-
-	if (MMU_MAJ_VER(drvdata->version) >= 7) {
-		u32 cfg = __raw_readl(drvdata->sfrbase + REG_MMU_CAPA0_V7);
-		u32 tlb_way_num = MMU_CAPA_NUM_TLB_WAY(cfg);
-		u32 set_cnt = 0;
-		struct tlb_props *tlb_props = &drvdata->tlb_props;
-		unsigned int i;
-		int priv_id_cnt = tlb_props->priv_id_cnt;
-		int priv_addr_cnt = tlb_props->priv_addr_cnt;
-
-		if (tlb_props->flags & TLB_WAY_PUBLIC)
-			__sysmmu_set_public_way(drvdata,
-					tlb_props->public_cfg);
-
-		if (tlb_props->flags & TLB_WAY_PRIVATE_ID) {
-			for (i = 0; i < priv_id_cnt &&
-					set_cnt < tlb_way_num; i++, set_cnt++)
-				__sysmmu_set_private_way_id(drvdata, i);
-		}
-
-		if (tlb_props->flags & TLB_WAY_PRIVATE_ADDR) {
-			for (i = 0; i < priv_addr_cnt &&
-					set_cnt < tlb_way_num; i++, set_cnt++)
-				__sysmmu_set_private_way_addr(drvdata, i);
-		}
-
-		if (priv_id_cnt + priv_addr_cnt > tlb_way_num) {
-			dev_warn(drvdata->sysmmu,
-				"Too many values than TLB way count %d,"
-				" so ignored!\n", tlb_way_num);
-			dev_warn(drvdata->sysmmu,
-				"Number of private way id/addr = %d/%d\n",
-					priv_id_cnt, priv_addr_cnt);
-		}
+	if (IS_TLB_WAY_TYPE(drvdata)) {
+		__sysmmu_set_tlb_way_dedication(drvdata);
+	} else if (IS_TLB_PORT_TYPE(drvdata)) {
+		__sysmmu_set_tlb_port_dedication(drvdata);
 	} else {
 		__exynos_sysmmu_set_prefbuf_axi_id(drvdata);
 		if (has_sysmmu_set_associative_tlb(drvdata->sfrbase))
 			__sysmmu_set_tlb_line_size(drvdata->sfrbase);
 		cfg |= CFG_FLPDCACHE | CFG_ACGEN;
 	}
+
+	if (drvdata->qos != DEFAULT_QOS_VALUE)
+		cfg |= CFG_QOS_OVRRIDE | CFG_QOS(drvdata->qos);
 
 	cfg |= __raw_readl(drvdata->sfrbase + REG_MMU_CFG) & ~CFG_MASK;
 	writel_relaxed(cfg, drvdata->sfrbase + REG_MMU_CFG);

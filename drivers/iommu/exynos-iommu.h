@@ -169,6 +169,11 @@ typedef u32 sysmmu_pte_t;
 #define MMU_TLB_INFO(n)		(0x2000 + ((n) * 0x20))
 #define MMU_CAPA1_NUM_TLB_SET(reg)	((reg >> 16) & 0xFF)
 #define MMU_CAPA1_NUM_TLB_WAY(reg)	((reg) & 0xFF)
+#define REG_MMU_TLB_CFG(n)		(0x2000 + ((n) * 0x20) + 0x4)
+#define REG_MMU_TLB_MATCH_CFG(n)	(0x2000 + ((n) * 0x20) + 0x8)
+#define REG_MMU_TLB_MATCH_SVA(n)	(0x2000 + ((n) * 0x20) + 0xC)
+#define REG_MMU_TLB_MATCH_EVA(n)	(0x2000 + ((n) * 0x20) + 0x10)
+#define REG_MMU_TLB_MATCH_ID(n)		(0x2000 + ((n) * 0x20) + 0x14)
 #define REG_CAPA1_TLB_READ		0x8000
 #define REG_CAPA1_TLB_VPN		0x8004
 #define REG_CAPA1_TLB_PPN		0x8008
@@ -179,6 +184,8 @@ typedef u32 sysmmu_pte_t;
 #define REG_CAPA1_SBB_ATTR		0x802C
 #define MMU_CAPA1_SET_TLB_READ_ENTRY(tid, set, way, line)		\
 			((set) | ((way) << 8) | ((line) << 16) | ((tid) << 20))
+#define MMU_TLB_CFG_MASK(reg)		((reg) & ((0x7 << 5) | (0x3 << 2) | (0x1 << 1)))
+#define MMU_TLB_MATCH_CFG_MASK(reg)	((reg) & ((0xFFFF << 16) | (0x3 << 8)))
 
 #define MMU_CAPA_NUM_SBB_ENTRY(reg)	((reg >> 12) & 0xF)
 #define MMU_CAPA_NUM_TLB_SET(reg)	((reg >> 8) & 0xF)
@@ -266,6 +273,11 @@ struct tlb_priv_id {
 	unsigned int id;
 };
 
+struct tlb_port_cfg {
+	unsigned int cfg;
+	unsigned int id;
+};
+
 /*
  * flags[7:4] specifies TLB matching types.
  * 0x1 : TLB way dedication
@@ -282,13 +294,26 @@ struct tlb_priv_id {
 #define TLB_WAY_PRIVATE_ID	(1 << 0)
 #define TLB_WAY_PRIVATE_ADDR	(1 << 1)
 #define TLB_WAY_PUBLIC		(1 << 2)
-struct tlb_props {
-	int flags;
+
+struct tlb_way_props {
 	int priv_id_cnt;
 	int priv_addr_cnt;
 	unsigned int public_cfg;
 	struct tlb_priv_id *priv_id_cfg;
 	struct tlb_priv_addr *priv_addr_cfg;
+};
+
+struct tlb_port_props {
+	int port_id_cnt;
+	struct tlb_port_cfg *port_cfg;
+};
+
+struct tlb_props {
+	int flags;
+	union {
+		struct tlb_way_props way_props;
+		struct tlb_port_props port_props;
+	};
 };
 
 /*
