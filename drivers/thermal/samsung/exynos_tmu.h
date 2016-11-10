@@ -103,8 +103,8 @@ static const char * const tz_zone_names[] = {
 struct sensor_info {
 	u16 sensor_num;
 	u16 cal_type;
-	u32 temp_error1;
-	u32 temp_error2;
+	u16 temp_error1;
+	u16 temp_error2;
 };
 
 /**
