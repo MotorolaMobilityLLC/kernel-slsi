@@ -1701,10 +1701,13 @@ static int s3c24xx_serial_suspend(struct device *dev)
 	if (port) {
 		uart_suspend_port(&s3c24xx_uart_drv, port);
 #ifdef CONFIG_SERIAL_SAMSUNG_HWACG
+		uart_clock_enable(ourport);
 		/* disable Tx, Rx mode bit for suspend in case of HWACG */
 		ucon = rd_regl(port, S3C2410_UCON);
 		ucon &= ~(S3C2410_UCON_RXIRQMODE | S3C2410_UCON_TXIRQMODE) ;
 		wr_regl(port, S3C2410_UCON, ucon);
+		uart_clock_disable(ourport);
+
 		rx_enabled(port) = 0;
 		tx_enabled(port) = 0;
 #endif
