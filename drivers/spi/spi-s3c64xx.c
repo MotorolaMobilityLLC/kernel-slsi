@@ -1720,6 +1720,95 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static void s3c64xx_spi_pin_ctrl(struct device *dev, int en)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct pinctrl_state *pin_stat;
+
+	if (!sdd->pin_idle)
+		return;
+
+	pin_stat = en ? sdd->pin_def : sdd->pin_idle;
+	if (!IS_ERR(pin_stat)) {
+		sdd->pinctrl->state = NULL;
+		if (pinctrl_select_state(sdd->pinctrl, pin_stat))
+			dev_err(dev, "could not set pinctrl.\n");
+	} else {
+		dev_warn(dev, "pinctrl stat is null pointer.\n");
+	}
+}
+
+static int s3c64xx_spi_runtime_suspend(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
+
+	if (__clk_get_enable_count(sdd->clk))
+		clk_disable_unprepare(sdd->clk);
+	if (__clk_get_enable_count(sdd->src_clk))
+		clk_disable_unprepare(sdd->src_clk);
+
+	exynos_update_ip_idle_status(sdd->idle_ip_index, 1);
+
+	/* Free DMA channels */
+	if (sci->dma_mode == DMA_MODE && sdd->is_probed && sdd->ops != NULL) {
+	#ifdef CONFIG_ARM64
+		sdd->ops->release((unsigned long)sdd->rx_dma.ch,
+					&s3c64xx_spi_dma_client);
+		sdd->ops->release((unsigned long)sdd->tx_dma.ch,
+						&s3c64xx_spi_dma_client);
+	#else
+		sdd->ops->release((enum dma_ch)sdd->rx_dma.ch,
+						&s3c64xx_spi_dma_client);
+		sdd->ops->release((enum dma_ch)sdd->tx_dma.ch,
+						&s3c64xx_spi_dma_client);
+	#endif
+		sdd->rx_dma.ch = NULL;
+		sdd->tx_dma.ch = NULL;
+	}
+
+	s3c64xx_spi_pin_ctrl(dev, 0);
+
+	return 0;
+}
+
+static int s3c64xx_spi_runtime_resume(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
+
+	s3c64xx_spi_pin_ctrl(dev, 1);
+
+	if (sci->dma_mode == DMA_MODE && sdd->is_probed) {
+		/* Acquire DMA channels */
+		while (!acquire_dma(sdd))
+			usleep_range(10000, 11000);
+	}
+
+	if (sci->domain == DOMAIN_TOP) {
+		exynos_update_ip_idle_status(sdd->idle_ip_index, 0);
+		clk_prepare_enable(sdd->src_clk);
+		clk_prepare_enable(sdd->clk);
+	}
+
+#if defined(CONFIG_VIDEO_EXYNOS_FIMC_IS) || defined(CONFIG_VIDEO_EXYNOS_FIMC_IS2)
+	else if (sci->domain == DOMAIN_CAM1 || sci->domain == DOMAIN_ISP) {
+		exynos_update_ip_idle_status(sdd->idle_ip_index, 0);
+		clk_prepare_enable(sdd->src_clk);
+		clk_prepare_enable(sdd->clk);
+
+		s3c64xx_spi_hwinit(sdd, sdd->port_id);
+	}
+#endif
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 #ifdef CONFIG_PM_SLEEP
 static int s3c64xx_spi_suspend_operation(struct device *dev)
 {
@@ -1743,6 +1832,9 @@ static int s3c64xx_spi_suspend_operation(struct device *dev)
 		exynos_update_ip_idle_status(sdd->idle_ip_index, 1);
 	}
 #endif
+	if (!pm_runtime_status_suspended(dev))
+	        s3c64xx_spi_runtime_suspend(dev);
+
 	sdd->cur_speed = 0; /* Output Clock is stopped */
 
 	return 0;
@@ -1754,6 +1846,9 @@ static int s3c64xx_spi_resume_operation(struct device *dev)
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	int ret;
+
+	if (!pm_runtime_status_suspended(dev))
+	        s3c64xx_spi_runtime_resume(dev);
 
 	if (sci->domain == DOMAIN_TOP) {
 		/* Enable the clock */
@@ -1853,95 +1948,6 @@ static int s3c64xx_spi_resume(struct device *dev)
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
-
-#ifdef CONFIG_PM
-static void s3c64xx_spi_pin_ctrl(struct device *dev, int en)
-{
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct pinctrl_state *pin_stat;
-
-	if (!sdd->pin_idle)
-		return;
-
-	pin_stat = en ? sdd->pin_def : sdd->pin_idle;
-	if (!IS_ERR(pin_stat)) {
-		sdd->pinctrl->state = NULL;
-		if (pinctrl_select_state(sdd->pinctrl, pin_stat))
-			dev_err(dev, "could not set pinctrl.\n");
-	} else {
-		dev_warn(dev, "pinctrl stat is null pointer.\n");
-	}
-}
-
-static int s3c64xx_spi_runtime_suspend(struct device *dev)
-{
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
-
-	if (__clk_get_enable_count(sdd->clk))
-		clk_disable_unprepare(sdd->clk);
-	if (__clk_get_enable_count(sdd->src_clk))
-		clk_disable_unprepare(sdd->src_clk);
-
-	exynos_update_ip_idle_status(sdd->idle_ip_index, 1);
-
-	/* Free DMA channels */
-	if (sci->dma_mode == DMA_MODE && sdd->is_probed && sdd->ops != NULL) {
-	#ifdef CONFIG_ARM64
-		sdd->ops->release((unsigned long)sdd->rx_dma.ch,
-					&s3c64xx_spi_dma_client);
-		sdd->ops->release((unsigned long)sdd->tx_dma.ch,
-						&s3c64xx_spi_dma_client);
-	#else
-		sdd->ops->release((enum dma_ch)sdd->rx_dma.ch,
-						&s3c64xx_spi_dma_client);
-		sdd->ops->release((enum dma_ch)sdd->tx_dma.ch,
-						&s3c64xx_spi_dma_client);
-	#endif
-		sdd->rx_dma.ch = NULL;
-		sdd->tx_dma.ch = NULL;
-	}
-
-	s3c64xx_spi_pin_ctrl(dev, 0);
-
-	return 0;
-}
-
-static int s3c64xx_spi_runtime_resume(struct device *dev)
-{
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
-
-	s3c64xx_spi_pin_ctrl(dev, 1);
-
-	if (sci->dma_mode == DMA_MODE && sdd->is_probed) {
-		/* Acquire DMA channels */
-		while (!acquire_dma(sdd))
-			usleep_range(10000, 11000);
-	}
-
-	if (sci->domain == DOMAIN_TOP) {
-		exynos_update_ip_idle_status(sdd->idle_ip_index, 0);
-		clk_prepare_enable(sdd->src_clk);
-		clk_prepare_enable(sdd->clk);
-	}
-
-#if defined(CONFIG_VIDEO_EXYNOS_FIMC_IS) || defined(CONFIG_VIDEO_EXYNOS_FIMC_IS2)
-	else if (sci->domain == DOMAIN_CAM1 || sci->domain == DOMAIN_ISP) {
-		exynos_update_ip_idle_status(sdd->idle_ip_index, 0);
-		clk_prepare_enable(sdd->src_clk);
-		clk_prepare_enable(sdd->clk);
-
-		s3c64xx_spi_hwinit(sdd, sdd->port_id);
-	}
-#endif
-
-	return 0;
-}
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops s3c64xx_spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(s3c64xx_spi_suspend, s3c64xx_spi_resume)
