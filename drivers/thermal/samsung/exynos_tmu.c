@@ -141,6 +141,7 @@
 #define EXYNOS_TMU_NUM_PROBE_MASK		(0x7)
 
 #define TOTAL_SENSORS	8
+#define DEFAULT_BALANCE_OFFSET	20
 
 static bool suspended;
 static bool is_cpu_hotplugged_out;
@@ -886,6 +887,15 @@ static int exynos8895_tmu_read(struct exynos_tmu_data *data)
 				break;
 			case MIN : result = result < temp_cel ? result : temp_cel;
 				break;
+			case BALANCE:
+				if (data->sensor_info[i].sensor_num != 0) {
+					if (temp_cel >= data->balance_offset)
+						temp_cel = temp_cel - data->balance_offset;
+					else
+						temp_cel = 0;
+				}
+				result = result > temp_cel ? result : temp_cel;
+				break;
 			default : result = temp_cel;
 				break;
 		}
@@ -899,6 +909,7 @@ static int exynos8895_tmu_read(struct exynos_tmu_data *data)
 			break;
 		case MAX :
 		case MIN :
+		case BALANCE:
 		default :
 			break;
 	}
@@ -1107,6 +1118,8 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 			if (!strcasecmp(temp, sensing_method[i]))
 				data->sensing_mode = i;
 	}
+
+	data->balance_offset = DEFAULT_BALANCE_OFFSET;
 
 	data->hotplug_enable = of_property_read_bool(pdev->dev.of_node, "hotplug_enable");
 	if (data->hotplug_enable) {
@@ -1419,6 +1432,156 @@ static int exynos_isp_cooling_register(struct exynos_tmu_data *data)
 static int exynos_isp_cooling_register(struct exynos_tmu_data *data) {return 0;}
 #endif
 
+static ssize_t
+balance_offset_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", data->balance_offset);
+}
+
+static ssize_t
+balance_offset_store(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	int balance_offset = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &balance_offset)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->balance_offset = balance_offset;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
+all_temp_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	int i, len = 0;
+	u32 reg_offset, bit_offset;
+	u32 temp_code, temp_cel;
+
+	for (i = 0; i < data->num_of_sensors; i++) {
+		if (data->sensor_info[i].sensor_num < 2) {
+			reg_offset = 0;
+			bit_offset = EXYNOS_TMU_TEMP_SHIFT * data->sensor_info[i].sensor_num;
+		} else {
+			reg_offset = ((data->sensor_info[i].sensor_num - 2) / 3 + 1) * 4;
+			bit_offset = EXYNOS_TMU_TEMP_SHIFT * ((data->sensor_info[i].sensor_num - 2) % 3);
+		}
+
+		temp_code = (readl(data->base + EXYNOS_TMU_REG_CURRENT_TEMP1_0 + reg_offset)
+				>> bit_offset) & EXYNOS_TMU_TEMP_MASK;
+		temp_cel = code_to_temp_with_sensorinfo(data, temp_code, &data->sensor_info[i]);
+
+		len += snprintf(&buf[len], PAGE_SIZE, "%u, ", temp_cel);
+	}
+
+	len += snprintf(&buf[len], PAGE_SIZE, "\n");
+
+	return len;
+}
+
+static ssize_t
+hotplug_out_temp_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_out_threshold);
+}
+
+static ssize_t
+hotplug_out_temp_store(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	int hotplug_out = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &hotplug_out)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->hotplug_out_threshold = hotplug_out;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
+hotplug_in_temp_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_in_threshold);
+}
+
+static ssize_t
+hotplug_in_temp_store(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	int hotplug_in = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &hotplug_in)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->hotplug_in_threshold = hotplug_in;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(balance_offset, S_IWUSR | S_IRUGO, balance_offset_show,
+		balance_offset_store);
+
+static DEVICE_ATTR(all_temp, S_IRUGO, all_temp_show, NULL);
+
+static DEVICE_ATTR(hotplug_out_temp, S_IWUSR | S_IRUGO, hotplug_out_temp_show,
+		hotplug_out_temp_store);
+
+static DEVICE_ATTR(hotplug_in_temp, S_IWUSR | S_IRUGO, hotplug_in_temp_show,
+		hotplug_in_temp_store);
+
+static struct attribute *exynos_tmu_attrs[] = {
+	&dev_attr_balance_offset.attr,
+	&dev_attr_all_temp.attr,
+	&dev_attr_hotplug_out_temp.attr,
+	&dev_attr_hotplug_in_temp.attr,
+	NULL,
+};
+
+static const struct attribute_group exynos_tmu_attr_group = {
+	.attrs = exynos_tmu_attrs,
+};
+
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data;
@@ -1506,6 +1669,10 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	}
 
 	exynos_tmu_control(pdev, true);
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &exynos_tmu_attr_group);
+	if (ret)
+		dev_err(&pdev->dev, "cannot create exynos tmu attr group");
 
 	mutex_lock(&data->lock);
 	list_add_tail(&data->node, &dtm_dev_list);

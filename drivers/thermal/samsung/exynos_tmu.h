@@ -71,6 +71,7 @@ enum sensing_type {
 	AVG = 0,
 	MAX,
 	MIN,
+	BALANCE,
 	END_OF_TYPE,
 };
 
@@ -78,6 +79,7 @@ static const char * const sensing_method[] = {
 	[AVG] = "avg",
 	[MAX] = "max",
 	[MIN] = "min",
+	[BALANCE] = "balance",
 };
 
 enum thermal_zone_name {
@@ -154,6 +156,7 @@ struct exynos_tmu_data {
 	int sensing_mode;
 	char tmu_name[THERMAL_NAME_LENGTH];
 	struct device_node *np;
+	int balance_offset;
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
