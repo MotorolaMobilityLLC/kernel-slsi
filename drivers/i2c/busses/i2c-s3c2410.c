@@ -464,7 +464,7 @@ static int i2c_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		    !(i2c->msg->flags & I2C_M_IGNORE_NAK)) {
 			/* ack was not received... */
 
-			dev_dbg(i2c->dev, "ack was not received\n");
+			dev_err(i2c->dev, "ack was not received\n");
 			s3c24xx_i2c_stop(i2c, -ENXIO);
 			goto out_ack;
 		}
@@ -813,9 +813,9 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	 * noisy when doing an i2cdetect */
 
 	if (timeout == 0)
-		dev_dbg(i2c->dev, "timeout\n");
+		dev_err(i2c->dev, "timeout\n");
 	else if (ret != num)
-		dev_dbg(i2c->dev, "incomplete xfer (%d)\n", ret);
+		dev_err(i2c->dev, "incomplete xfer (%d)\n", ret);
 
 	/* For QUIRK_HDMIPHY, bus is already disabled */
 	if (i2c->quirks & QUIRK_HDMIPHY)
