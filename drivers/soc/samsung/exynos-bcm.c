@@ -410,17 +410,16 @@ static ssize_t store_load_bcm_fw(struct device *dev,
 	unsigned long flags;
 	int ret;
 	bool value = true;
-	char str[FILE_STR];
 
-	ret = sscanf(buf, "%s", str);
-	if (ret != 1) {
-		dev_err(dev, "failed sscanf %d\n", ret);
-		return -EINVAL;
-	}
-	if (str[0] == '0')
+	if (buf[0] == '0') {
 		value = false;
-	else if (str[0] == '/')
-		strncpy(input_file, str, strlen(str) + 1);
+	} else if (buf[0] == '/' && strlen(buf) < FILE_STR) {
+		ret = sscanf(buf, "%s", input_file);
+		if (ret != 1) {
+			dev_err(dev, "failed sscanf %d\n", ret);
+			return -EINVAL;
+		}
+	}
 
 	/* bcm stop and pd unprepare */
 	if (fw_func) {
