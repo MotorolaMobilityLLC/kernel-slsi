@@ -1547,10 +1547,37 @@ static struct iommu_ops exynos_iommu_ops = {
 	.of_xlate = exynos_iommu_of_xlate,
 };
 
-void exynos_sysmmu_show_status(struct device *dev)
+void exynos_sysmmu_show_status(struct device *master)
 {
-	/* DUMMY */
-	dev_info(dev, "Called sysmmu show status\n");
+	struct exynos_iommu_owner *owner;
+	struct sysmmu_list_data *list;
+
+	if (!has_sysmmu(master)) {
+		dev_err(master, "has no sysmmu!\n");
+		return;
+	}
+
+	owner = master->archdata.iommu;
+	list_for_each_entry(list, &owner->sysmmu_list, node) {
+		unsigned long flags;
+		struct sysmmu_drvdata *drvdata;
+
+		drvdata = dev_get_drvdata(list->sysmmu);
+
+		spin_lock_irqsave(&drvdata->lock, flags);
+		if (!is_sysmmu_active(drvdata) ||
+				!is_sysmmu_runtime_active(drvdata)) {
+			dev_info(drvdata->sysmmu,
+				"%s: SysMMU is not active\n", __func__);
+			spin_unlock_irqrestore(&drvdata->lock, flags);
+			continue;
+		}
+
+		dev_info(drvdata->sysmmu, "Dumping status.\n");
+		dump_sysmmu_status(drvdata->sfrbase);
+
+		spin_unlock_irqrestore(&drvdata->lock, flags);
+	}
 }
 
 static int sysmmu_fault_notifier(struct notifier_block *nb,
