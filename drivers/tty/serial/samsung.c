@@ -1476,7 +1476,7 @@ static int s3c24xx_serial_notifier(struct notifier_block *self,
 	case SICD_ENTER:
 	case SICD_AUD_ENTER:
 		list_for_each_entry(ourport, &drvdata_list, node) {
-			if (uart_console(&ourport->port))
+			if (ourport->port.line == CONFIG_S3C_LOWLEVEL_UART_PORT)
 				continue;
 
 			port = &ourport->port;
@@ -1498,7 +1498,7 @@ static int s3c24xx_serial_notifier(struct notifier_block *self,
 	case SICD_EXIT:
 	case SICD_AUD_EXIT:
 		list_for_each_entry(ourport, &drvdata_list, node) {
-			if (uart_console(&ourport->port))
+			if (ourport->port.line == CONFIG_S3C_LOWLEVEL_UART_PORT)
 				continue;
 
 			port = &ourport->port;
