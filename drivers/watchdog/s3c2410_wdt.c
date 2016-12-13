@@ -567,12 +567,24 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 int s3c2410wdt_set_emergency_stop(void)
 {
 	struct s3c2410_wdt *wdt = s3c_wdt;
-	if (!s3c_wdt)
+	if (!wdt)
 		return -ENODEV;
 
 	/* stop watchdog */
 	pr_emerg("%s: watchdog is stopped\n", __func__);
 	s3c2410wdt_stop(&wdt->wdt_device);
+	return 0;
+}
+
+int s3c2410wdt_keepalive_emergency(void)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt;
+
+	if (!wdt)
+		return -ENODEV;
+
+	/* This Function must be called during panic sequence only */
+	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
 	return 0;
 }
 
@@ -582,7 +594,7 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 {
 	struct s3c2410_wdt *wdt = s3c_wdt;
 
-	if (!s3c_wdt)
+	if (!wdt)
 		return -ENODEV;
 
 	/* We assumed that num_online_cpus() > 1 status is abnormal */
@@ -591,8 +603,13 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 		pr_emerg("%s: watchdog reset is started on panic after 5secs\n", __func__);
 
 		/* set watchdog timer is started and  set by 5 seconds*/
-		s3c2410wdt_start(&wdt->wdt_device);
 		s3c2410wdt_set_heartbeat(&wdt->wdt_device, 5);
+		s3c2410wdt_start(&wdt->wdt_device);
+	} else {
+		/*
+		 * kick watchdog to prevent unexpected reset during panic sequence
+		 * and it prevents the hang during panic sequence by watchedog
+		 */
 		s3c2410wdt_keepalive(&wdt->wdt_device);
 	}
 
@@ -606,7 +623,7 @@ int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt)
 	unsigned int wtcnt = wtdat + timeout_cnt;
 	unsigned long wtcon;
 
-	if (!s3c_wdt)
+	if (!wdt)
 		return -ENODEV;
 
 	/* emergency reset with wdt reset */
