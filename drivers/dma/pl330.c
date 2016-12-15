@@ -2953,12 +2953,35 @@ int pl330_dma_debug(struct dma_chan *chan)
 	thrd = pch->thread;
 	regs = &pch->dmac->base;
 
+	idx = 1 - thrd->lstenq;
+	if (thrd->req[idx].desc != NULL) {
+		dev_info(pch->dmac->ddma.dev,"%d: mc_cpu:%lu\n",
+				thrd->lstenq, (unsigned long)thrd->req[idx].mc_cpu);
+		dev_info(pch->dmac->ddma.dev,"%d: mc_bus:%lu\n", thrd->lstenq,
+				(unsigned long)thrd->req[idx].mc_bus);
+	} else {
+		idx = thrd->lstenq;
+		if (thrd->req[idx].desc != NULL) {
+			dev_info(pch->dmac->ddma.dev,"%d: mc_cpu:%lu\n",
+					thrd->lstenq, (unsigned long)thrd->req[idx].mc_cpu);
+			dev_info(pch->dmac->ddma.dev,"%d: mc_bus:%lu\n",thrd->lstenq,
+					(unsigned long)thrd->req[idx].mc_bus);
+		} else {
+			dev_info(pch->dmac->ddma.dev,"No Information\n");
+		}
+	}
+
 	dev_info(pch->dmac->ddma.dev,"[ DMA Register Dump(id: %d) ]\n", thrd->id);
 	dev_info(pch->dmac->ddma.dev,"DAR:0x%x\n", readl(regs + DA(thrd->id)));
 	dev_info(pch->dmac->ddma.dev,"SAR:0x%x\n", readl(regs + SA(thrd->id)));
+	dev_info(pch->dmac->ddma.dev,"arwrapper_inst:0x%x\n", readl(regs + 0x4500));
+	dev_info(pch->dmac->ddma.dev,"arwrapper:0x%x\n", readl(regs + 0x4400 + 0x20*thrd->id));
+	dev_info(pch->dmac->ddma.dev,"awwrapper:0x%x\n", readl(regs + 0x4404 + 0x20*thrd->id));
 	dev_info(pch->dmac->ddma.dev,"DBGSTATUS:0x%x\n", readl(regs + DBGSTATUS));
 	dev_info(pch->dmac->ddma.dev,"INTMIS:0x%x\n", readl(regs + INTSTATUS));
+	dev_info(pch->dmac->ddma.dev,"INTEN:0x%x\n", readl(regs + INTEN));
 	dev_info(pch->dmac->ddma.dev,"DSR:0x%x\n", readl(regs + DS));
+	dev_info(pch->dmac->ddma.dev,"CPC:0x%x\n", readl(regs + CPC(thrd->id)));
 	dev_info(pch->dmac->ddma.dev,"CCR:0x%x\n", readl(regs + CC(thrd->id)));
 	dev_info(pch->dmac->ddma.dev,"CSR:0x%x\n", readl(regs + CS(thrd->id)));
 	dev_info(pch->dmac->ddma.dev,"CRD:0x%x\n", readl(regs + CRD));
@@ -2979,6 +3002,7 @@ int pl330_dma_getposition(struct dma_chan *chan,
 	struct dma_pl330_chan *pch = to_pchan(chan);
 	void __iomem *regs;
 	struct pl330_thread *thrd;
+	int idx;
 
 	if (unlikely(!pch))
 		return -EINVAL;
