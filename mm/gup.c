@@ -39,7 +39,7 @@ static bool __need_migrate_cma_page(struct page *page,
 	if (!(flags & FOLL_GET))
 		return false;
 
-	if (!get_pageblock_migratetype(page) != MIGRATE_CMA)
+	if (get_pageblock_migratetype(page) != MIGRATE_CMA)
 		return false;
 
 	if ((vma->vm_flags & VM_STACK_INCOMPLETE_SETUP) ==
