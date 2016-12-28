@@ -2468,21 +2468,18 @@ static int sc_run_next_job(struct sc_dev *sc)
 	unsigned int h_shift, v_shift;
 	int ret;
 
+	ret = sc_power_clk_enable(sc);
+	if (ret)
+		return ret;
+
 	spin_lock_irqsave(&sc->ctxlist_lock, flags);
 
 	if (sc->current_ctx || list_empty(&sc->context_list)) {
 		/* a job is currently being processed or no job is to run */
+		sc_clk_power_disable(sc);
 		spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
 		return 0;
 	}
-
-	ctx = list_first_entry(&sc->context_list, struct sc_ctx, node);
-
-	list_del_init(&ctx->node);
-
-	sc->current_ctx = ctx;
-
-	spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
 
 	/*
 	 * sc_run_next_job() must not reenter while sc->state is DEV_RUN.
@@ -2490,14 +2487,26 @@ static int sc_run_next_job(struct sc_dev *sc)
 	 */
 	BUG_ON(test_bit(DEV_RUN, &sc->state));
 
+	set_bit(DEV_RUN, &sc->state);
+
+	if (test_bit(DEV_SUSPEND, &sc->state)) {
+		clear_bit(DEV_RUN, &sc->state);
+		sc_clk_power_disable(sc);
+		spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
+		return 0;
+	}
+
+	ctx = list_first_entry(&sc->context_list, struct sc_ctx, node);
+
+	set_bit(CTX_RUN, &ctx->flags);
+	list_del_init(&ctx->node);
+
+	sc->current_ctx = ctx;
+
+	spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
+
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
-
-	ret = sc_power_clk_enable(sc);
-	if (ret) {
-		pm_runtime_put(sc->dev);
-		return ret;
-	}
 
 	sc_hwset_init(sc);
 
@@ -2588,9 +2597,6 @@ static int sc_run_next_job(struct sc_dev *sc)
 
 	sc_hwset_int_en(sc);
 
-	set_bit(DEV_RUN, &sc->state);
-	set_bit(CTX_RUN, &ctx->flags);
-
 	sc_set_prefetch_buffers(sc->dev, ctx);
 
 	mod_timer(&sc->wdt.timer, jiffies + SC_TIMEOUT);
@@ -2625,6 +2631,11 @@ static int sc_add_context_and_run(struct sc_dev *sc, struct sc_ctx *ctx)
 {
 	unsigned long flags;
 
+	if (test_bit(CTX_ABORT, &ctx->flags)) {
+		dev_err(sc->dev, "aborted scaler device run\n");
+		return -EAGAIN;
+	}
+
 	spin_lock_irqsave(&sc->ctxlist_lock, flags);
 	list_add_tail(&ctx->node, &sc->context_list);
 	spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
@@ -2640,8 +2651,6 @@ static irqreturn_t sc_irq_handler(int irq, void *priv)
 	u32 irq_status;
 
 	spin_lock(&sc->slock);
-
-	clear_bit(DEV_RUN, &sc->state);
 
 	/*
 	 * ok to access sc->current_ctx withot ctxlist_lock held
@@ -2667,9 +2676,10 @@ static irqreturn_t sc_irq_handler(int irq, void *priv)
 	if (!SCALER_INT_OK(irq_status))
 		sc_hwset_soft_reset(sc);
 
-	sc_clk_power_disable(sc);
-
+	clear_bit(DEV_RUN, &sc->state);
 	clear_bit(CTX_RUN, &ctx->flags);
+
+	sc_clk_power_disable(sc);
 
 	if (ctx->context_type == SC_CTX_V4L2_TYPE) {
 		BUG_ON(ctx != v4l2_m2m_get_curr_priv(sc->m2m.m2m_dev));
@@ -2696,16 +2706,10 @@ static irqreturn_t sc_irq_handler(int irq, void *priv)
 			SCALER_INT_OK(irq_status) ?
 				VB2_BUF_STATE_DONE : VB2_BUF_STATE_ERROR);
 
-		if (test_bit(DEV_SUSPEND, &sc->state)) {
-			sc_dbg("wake up blocked process by suspend\n");
-			wake_up(&sc->wait);
-		} else {
-			v4l2_m2m_job_finish(sc->m2m.m2m_dev, ctx->m2m_ctx);
-		}
+		v4l2_m2m_job_finish(sc->m2m.m2m_dev, ctx->m2m_ctx);
 
 		/* Wake up from CTX_ABORT state */
-		if (test_and_clear_bit(CTX_ABORT, &ctx->flags))
-			wake_up(&sc->wait);
+		clear_bit(CTX_ABORT, &ctx->flags);
 	} else {
 		struct m2m1shot_task *task =
 					m2m1shot_get_current_task(sc->m21dev);
@@ -2724,6 +2728,8 @@ static irqreturn_t sc_irq_handler(int irq, void *priv)
 	spin_lock(&sc->ctxlist_lock);
 	sc->current_ctx = NULL;
 	spin_unlock(&sc->ctxlist_lock);
+
+	wake_up(&sc->wait);
 
 	sc_run_next_job(sc);
 
@@ -2846,16 +2852,6 @@ static void sc_m2m_device_run(void *priv)
 	struct sc_ctx *ctx = priv;
 	struct sc_dev *sc = ctx->sc_dev;
 	struct sc_frame *s_frame, *d_frame;
-
-	if (test_bit(DEV_SUSPEND, &sc->state)) {
-		dev_err(sc->dev, "Scaler is in suspend state\n");
-		return;
-	}
-
-	if (test_bit(CTX_ABORT, &ctx->flags)) {
-		dev_err(sc->dev, "aborted scaler device run\n");
-		return;
-	}
 
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
@@ -3277,13 +3273,6 @@ static int sc_m2m1shot_device_run(struct m2m1shot_context *m21ctx,
 	struct sc_dev *sc = ctx->sc_dev;
 	struct sc_frame *s_frame, *d_frame;
 
-	if (test_bit(DEV_SUSPEND, &sc->state)) {
-		dev_err(sc->dev, "Scaler is in suspend state\n");
-		return -EAGAIN;
-	}
-
-	/* no aborted state is required for m2m1shot */
-
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
 
@@ -3423,6 +3412,8 @@ static int sc_resume(struct device *dev)
 	struct sc_dev *sc = dev_get_drvdata(dev);
 
 	clear_bit(DEV_SUSPEND, &sc->state);
+
+	sc_run_next_job(sc);
 
 	return 0;
 }
@@ -3650,11 +3641,8 @@ static int sc_remove(struct platform_device *pdev)
 static void sc_shutdown(struct platform_device *pdev)
 {
 	struct sc_dev *sc = platform_get_drvdata(pdev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&sc->slock, flags);
 	set_bit(DEV_SUSPEND, &sc->state);
-	spin_unlock_irqrestore(&sc->slock, flags);
 
 	wait_event(sc->wait,
 			!test_bit(DEV_RUN, &sc->state));
