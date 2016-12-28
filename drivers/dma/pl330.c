@@ -2929,7 +2929,10 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	}
 
 	/* Return the last desc in the chain */
-	desc->txd.flags = flg;
+	if (desc)
+		desc->txd.flags = flg;
+	else
+		return NULL;
 	return &desc->txd;
 }
 
