@@ -768,10 +768,33 @@ static int __init sysmmu_parse_tlb_port_dt(struct device *sysmmu,
 				struct sysmmu_drvdata *drvdata)
 {
 	const char *props_name = "sysmmu,tlb_property";
+	const char *slot_props_name = "sysmmu,slot_property";
 	struct tlb_props *tlb_props = &drvdata->tlb_props;
 	struct tlb_port_cfg *port_cfg = NULL;
+	unsigned int *slot_cfg = NULL;
 	int i, cnt, ret;
 	int port_id_cnt = 0;
+
+	cnt = of_property_count_u32_elems(sysmmu->of_node, slot_props_name);
+	if (cnt > 0) {
+		slot_cfg = kzalloc(sizeof(*slot_cfg) * cnt, GFP_KERNEL);
+		if (!slot_cfg)
+			return -ENOMEM;
+
+		for (i = 0; i < cnt; i++) {
+			ret = of_property_read_u32_index(sysmmu->of_node,
+					slot_props_name, i, &slot_cfg[i]);
+			if (ret) {
+				dev_err(sysmmu, "failed to get slot property."
+						"cnt = %d, ret = %d\n", i, ret);
+				ret = -EINVAL;
+				goto err_slot_prop;
+			}
+		}
+
+		tlb_props->port_props.slot_cnt = cnt;
+		tlb_props->port_props.slot_cfg = slot_cfg;
+	}
 
 	cnt = of_property_count_u32_elems(sysmmu->of_node, props_name);
 	if (!cnt || cnt < 0) {
@@ -780,8 +803,10 @@ static int __init sysmmu_parse_tlb_port_dt(struct device *sysmmu,
 	}
 
 	port_cfg = kzalloc(sizeof(*port_cfg) * (cnt/2), GFP_KERNEL);
-	if (!port_cfg)
-		return -ENOMEM;
+	if (!port_cfg) {
+		ret = -ENOMEM;
+		goto err_slot_prop;
+	}
 
 	for (i = 0; i < cnt; i+=2) {
 		ret = of_property_read_u32_index(sysmmu->of_node,
@@ -811,6 +836,9 @@ static int __init sysmmu_parse_tlb_port_dt(struct device *sysmmu,
 
 err_port_prop:
 	kfree(port_cfg);
+
+err_slot_prop:
+	kfree(slot_cfg);
 
 	return ret;
 }
@@ -1114,6 +1142,7 @@ static void __sysmmu_set_tlb_port_dedication(struct sysmmu_drvdata *drvdata)
 	struct tlb_props *tlb_props = &drvdata->tlb_props;
 	unsigned int i;
 	int port_id_cnt = tlb_props->port_props.port_id_cnt;
+	int slot_cnt = tlb_props->port_props.slot_cnt;
 
 	if (port_id_cnt > tlb_num) {
 		dev_warn(drvdata->sysmmu,
@@ -1124,6 +1153,10 @@ static void __sysmmu_set_tlb_port_dedication(struct sysmmu_drvdata *drvdata)
 
 	for (i = 0; i < port_id_cnt; i++)
 		__sysmmu_set_tlb_port(drvdata, i);
+
+	for (i = 0; i < slot_cnt; i++)
+		writel_relaxed(tlb_props->port_props.slot_cfg[i],
+				drvdata->sfrbase + REG_SLOT_RSV(i));
 }
 
 static void __sysmmu_init_config(struct sysmmu_drvdata *drvdata)

@@ -182,6 +182,7 @@ typedef u32 sysmmu_pte_t;
 #define REG_CAPA1_SBB_VPN		0x8024
 #define REG_CAPA1_SBB_LINK		0x8028
 #define REG_CAPA1_SBB_ATTR		0x802C
+#define REG_SLOT_RSV(n)			(0x4000 + ((n) * 0x20))
 #define MMU_CAPA1_SET_TLB_READ_ENTRY(tid, set, way, line)		\
 			((set) | ((way) << 8) | ((line) << 16) | ((tid) << 20))
 #define MMU_TLB_CFG_MASK(reg)		((reg) & ((0x7 << 5) | (0x3 << 2) | (0x1 << 1)))
@@ -305,7 +306,9 @@ struct tlb_way_props {
 
 struct tlb_port_props {
 	int port_id_cnt;
+	int slot_cnt;
 	struct tlb_port_cfg *port_cfg;
+	unsigned int *slot_cfg;
 };
 
 struct tlb_props {
