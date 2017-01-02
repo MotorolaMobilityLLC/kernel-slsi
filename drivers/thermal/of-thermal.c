@@ -510,10 +510,12 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 	struct __thermal_zone *__tz;
 	void *thermal_block;
 	struct ect_ap_thermal_function *function;
-	int i = 0, j = 0;
+	int i = 0, zone = 0;
 	struct exynos_tmu_data *tmu_data;
 	int hotplug_threshold_temp = 0, hotplug_flag = 0;
-	unsigned int level, freq;
+	unsigned int freq;
+	unsigned long level = THERMAL_CSTATE_INVALID;
+	unsigned long max_level = THERMAL_CSTATE_INVALID;
 	int temperature;
 #endif
 
@@ -571,35 +573,47 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 			__tz->ntrips = __tz->num_tbps = function->num_of_range;
 			dev_info(dev, "Trip count parsed from ECT : %d, zone : %s", function->num_of_range, tzd->type);
 
+			/* Find thermal zone number with thermal zone name defined in DT */
+			for (zone = 0; zone < ARRAY_SIZE(tz_zone_names); zone++)
+				if (!strcasecmp(tzd->type, tz_zone_names[zone]))
+					break;
+
+			if (zone == ARRAY_SIZE(tz_zone_names))
+				dev_err(dev, "Error!!! Thermal zone name isn't matched!!\n");
+
 			instance = list_first_entry(&tzd->thermal_instances, typeof(*instance), tz_node);
 
-			for (i = 0; i < function->num_of_range; ++i) {
+			for (i = 0; i < function->num_of_range && instance != NULL; ++i) {
 				temperature = function->range_list[i].lower_bound_temperature;
 				freq = function->range_list[i].max_frequency;
 
-				for (j = 0; j < ARRAY_SIZE(tz_zone_names); j++)
-					if (!strcasecmp(tzd->type, tz_zone_names[j])) {
-						switch (j) {
-							case MNGS_QUAD :
-								level = cpufreq_cooling_get_level(4, freq);
-								break;
-							case APOLLO :
-								level = cpufreq_cooling_get_level(0, freq);
-								break;
-							case GPU :
-								level = gpufreq_cooling_get_level(0, freq);
-								break;
-							case ISP :
-								level = isp_cooling_get_level(0, freq);
-								break;
-							case MNGS_DUAL :
-								level = cpufreq_cooling_get_level(4, freq);
-								break;
-						}
-					}
+				switch (zone) {
+					case MNGS_QUAD :
+					case MNGS_DUAL :
+						level = cpufreq_cooling_get_level(4, freq);
+						break;
+					case APOLLO :
+						level = cpufreq_cooling_get_level(0, freq);
+						break;
+					case GPU :
+						level = gpufreq_cooling_get_level(0, freq);
+						break;
+					case ISP :
+						level = isp_cooling_get_level(0, freq);
+						break;
+					default :
+						level = 0;
+						break;
+				}
+
+				instance->cdev->ops->get_max_state(instance->cdev, &max_level);
+
+				if ((zone == ARRAY_SIZE(tz_zone_names) && level == 0) || level == THERMAL_CSTATE_INVALID)
+					level = max_level;
 
 				if (level > 100) {
-					dev_err(dev, "Level is strange!!! freq = %u, level = %u\n", freq, level);
+					dev_err(dev, "Level is invalid!!! freq = %u, level = %lu, max_level=%lu\n",
+							freq, level, max_level);
 					level = 0;
 				}
 
@@ -610,7 +624,8 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 				/* Change thermal instance information with tbps data */
 				instance->upper = __tz->tbps[i].max;
 				instance = list_next_entry(instance, tz_node);
-				pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u, level = %lu\n", i, temperature, freq, __tz->tbps[i].max);
+				pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u, level = %lu\n",
+						i, temperature, freq, __tz->tbps[i].max);
 
 				if (function->range_list[i].flag != hotplug_flag) {
 					hotplug_threshold_temp = temperature;
