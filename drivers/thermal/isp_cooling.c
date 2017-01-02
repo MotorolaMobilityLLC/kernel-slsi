@@ -521,26 +521,22 @@ int isp_cooling_table_init(struct platform_device *pdev)
 	/* Table size can be num_of_range + 1 since last row has the value of TABLE_END */
 	isp_fps_table = kzalloc(sizeof(struct isp_fps_table) * (function->num_of_range + 1), GFP_KERNEL);
 
-	if (thermal_block != NULL && function != NULL) {
-		for (i = 0; i < function->num_of_range; i++) {
-			if (last_fps == function->range_list[i].max_frequency)
-				continue;
+	for (i = 0; i < function->num_of_range; i++) {
+		if (last_fps == function->range_list[i].max_frequency)
+			continue;
 
-			isp_fps_table[count].flags = 0;
-			isp_fps_table[count].driver_data = count;
-			isp_fps_table[count].fps = function->range_list[i].max_frequency;
-			last_fps = isp_fps_table[count].fps;
+		isp_fps_table[count].flags = 0;
+		isp_fps_table[count].driver_data = count;
+		isp_fps_table[count].fps = function->range_list[i].max_frequency;
+		last_fps = isp_fps_table[count].fps;
 
-			dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
-				isp_fps_table[count].driver_data, isp_fps_table[count].fps);
-			count++;
-		}
+		dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
+			isp_fps_table[count].driver_data, isp_fps_table[count].fps);
+		count++;
+	}
 
-		if (i == function->num_of_range)
-			isp_fps_table[count].fps = ISP_FPS_TABLE_END;
-
-	} else
-		return -EINVAL;
+	if (i == function->num_of_range)
+		isp_fps_table[count].fps = ISP_FPS_TABLE_END;
 #else
 	/* isp cooling frequency table parse */
 	ret = of_property_read_u32(pdev->dev.of_node, "isp_idx_num", &isp_idx_num);
