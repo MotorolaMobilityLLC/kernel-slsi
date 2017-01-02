@@ -537,7 +537,7 @@ int isp_cooling_table_init(struct platform_device *pdev)
 		}
 
 		if (i == function->num_of_range)
-			isp_fps_table[count + 1].fps = ISP_FPS_TABLE_END;
+			isp_fps_table[count].fps = ISP_FPS_TABLE_END;
 
 	} else
 		return -EINVAL;
