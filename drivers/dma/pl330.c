@@ -2954,7 +2954,7 @@ int pl330_dma_debug(struct dma_chan *chan)
 		return -EINVAL;
 
 	thrd = pch->thread;
-	regs = &pch->dmac->base;
+	regs = pch->dmac->base;
 
 	idx = 1 - thrd->lstenq;
 	if (thrd->req[idx].desc != NULL) {
