@@ -40,6 +40,10 @@
 #define S3C2410_UERSTAT	  (0x14)
 #define S3C2410_UFSTAT	  (0x18)
 #define S3C2410_UMSTAT	  (0x1C)
+#define USI_HWACG	  (0xC8)
+
+#define USI_HWACG_CLKREQ_ON		(1<<1)
+#define USI_HWACG_CLKSTOP_ON		(1<<2)
 
 #define S3C2410_LCON_CFGMASK	  ((0xF<<3)|(0x3))
 

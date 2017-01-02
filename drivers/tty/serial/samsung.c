@@ -1273,6 +1273,13 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 
 	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
 
+#ifdef CONFIG_SERIAL_SAMSUNG_HWACG
+	/* set the HWACG option bit in case of UART Rx mode.
+	 * CLKREQ_ON = 1, CLKSTOP_ON = 0 (set USI_OPTION[2:1] = 2'h1)
+	 */
+	wr_regl(port, USI_HWACG, USI_HWACG_CLKREQ_ON);
+#endif
+
 	/* reset both fifos */
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon);
