@@ -2977,9 +2977,9 @@ int pl330_dma_debug(struct dma_chan *chan)
 	dev_info(pch->dmac->ddma.dev,"[ DMA Register Dump(id: %d) ]\n", thrd->id);
 	dev_info(pch->dmac->ddma.dev,"DAR:0x%x\n", readl(regs + DA(thrd->id)));
 	dev_info(pch->dmac->ddma.dev,"SAR:0x%x\n", readl(regs + SA(thrd->id)));
-	dev_info(pch->dmac->ddma.dev,"arwrapper_inst:0x%x\n", readl(regs + 0x4500));
-	dev_info(pch->dmac->ddma.dev,"arwrapper:0x%x\n", readl(regs + 0x4400 + 0x20*thrd->id));
-	dev_info(pch->dmac->ddma.dev,"awwrapper:0x%x\n", readl(regs + 0x4404 + 0x20*thrd->id));
+	dev_info(pch->dmac->ddma.dev,"arwrapper_inst:0x%x\n", readl(pch->dmac->inst_wrapper));
+	dev_info(pch->dmac->ddma.dev,"arwrapper:0x%x\n", readl(thrd->ar_wrapper));
+	dev_info(pch->dmac->ddma.dev,"awwrapper:0x%x\n",readl(thrd->aw_wrapper));
 	dev_info(pch->dmac->ddma.dev,"DBGSTATUS:0x%x\n", readl(regs + DBGSTATUS));
 	dev_info(pch->dmac->ddma.dev,"INTMIS:0x%x\n", readl(regs + INTSTATUS));
 	dev_info(pch->dmac->ddma.dev,"INTEN:0x%x\n", readl(regs + INTEN));
