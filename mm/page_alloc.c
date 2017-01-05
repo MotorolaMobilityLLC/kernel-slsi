@@ -2780,6 +2780,25 @@ static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
 		else
 			page = list_first_entry(list, struct page, lru);
 
+		/*
+		 * If the head or the tail page in the pcp list is CMA page and
+		 * the gfp flags is not GFP_HIGHUSER_MOVABLE, do not allocate a
+		 * page from the pcp list. The free list of MIGRATE_CMA is a
+		 * special case of the free list of MIGRATE_MOVABLE and the
+		 * pages from the free list of MIGRATE_CMA are pushed to the pcp
+		 * list of MIGRATE_MOVABLE. Since the pcp list of
+		 * MIGRATE_MOVABLE is selected if the gfp flags has GFP_MOVABLE,
+		 * we should avoid the case that a cma page in the pcp list of
+		 * MIGRATE_MOVABLE is allocated to a movable allocation without
+		 * GFP_HIGHUSER_MOVABLE.
+		 * If this is the case, allocate a movable page from the free
+		 * list of MIGRATE_MOVABLE instead of pcp list of
+		 * MIGRATE_MOVABLE.
+		 */
+#ifdef CONFIG_CMA
+		if (is_migrate_cma_page(page) && (migratetype != MIGRATE_CMA))
+			return NULL;
+#endif
 		list_del(&page->lru);
 		pcp->count--;
 	} while (check_new_pcp(page));
@@ -2790,7 +2809,8 @@ static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
 /* Lock and remove page from the per-cpu list */
 static struct page *rmqueue_pcplist(struct zone *preferred_zone,
 			struct zone *zone, unsigned int order,
-			gfp_t gfp_flags, int migratetype)
+			gfp_t gfp_flags, int migratetype,
+			int migratetype_rmqueue)
 {
 	struct per_cpu_pages *pcp;
 	struct list_head *list;
@@ -2801,7 +2821,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
 	local_irq_save(flags);
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
 	list = &pcp->lists[migratetype];
-	page = __rmqueue_pcplist(zone,  migratetype, cold, pcp, list);
+	page = __rmqueue_pcplist(zone,  migratetype_rmqueue, cold, pcp, list);
 	if (page) {
 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
 		zone_statistics(preferred_zone, zone);
@@ -2828,11 +2848,18 @@ struct page *rmqueue(struct zone *preferred_zone,
 	    ((gfp_flags & GFP_HIGHUSER_MOVABLE) == GFP_HIGHUSER_MOVABLE))
 		migratetype_rmqueue = MIGRATE_CMA;
 #endif
-
 	if (likely(order == 0)) {
 		page = rmqueue_pcplist(preferred_zone, zone, order,
-				gfp_flags, migratetype);
-		goto out;
+				gfp_flags, migratetype, migratetype_rmqueue);
+		/*
+		 * Allocation with GFP_MOVABLE and !GFP_HIGHMEM will have
+		 * another chance of page allocation from the free list.
+		 * See the comment in __rmqueue_pcplist().
+		 */
+#ifdef CONFIG_CMA
+		if (likely(page) || (migratetype_rmqueue != MIGRATE_MOVABLE))
+#endif
+			goto out;
 	}
 
 	/*
