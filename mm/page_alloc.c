@@ -2289,20 +2289,35 @@ do_steal:
 /*
  * Do the hard work of removing an element from the buddy allocator.
  * Call me with the zone->lock already held.
+ * If gfp mask of the page allocation has GFP_HIGHUSER_MOVABLE, @migratetype
+ * is changed from MIGRATE_MOVABLE to MIGRATE_CMA in rmqueue() to select the
+ * free list of MIGRATE_CMA. It helps depleting CMA free pages so that
+ * evaluation of watermark for unmovable page allocations is not too different
+ * from movable page allocations.
+ * If @migratetype is MIGRATE_CMA, it should be corrected to MIGRATE_MOVABLE
+ * after the free list of MIGRATE_CMA is searched to have a chance to search the
+ * free list of MIGRATE_MOVABLE. It also records correct migrate type in the
+ * trace as intended by the page allocation.
  */
 static struct page *__rmqueue(struct zone *zone, unsigned int order,
 				int migratetype)
 {
-	struct page *page;
+	struct page *page = NULL;
 
-retry:
-	page = __rmqueue_smallest(zone, order, migratetype);
-	if (unlikely(!page)) {
-		if (migratetype == MIGRATE_MOVABLE)
-			page = __rmqueue_cma_fallback(zone, order);
+#ifdef CONFIG_CMA
+	if (migratetype == MIGRATE_CMA) {
+#else
+	if (migratetype == MIGRATE_MOVABLE) {
+#endif
+		page = __rmqueue_cma_fallback(zone, order);
+		migratetype = MIGRATE_MOVABLE;
+	}
 
-		if (!page && __rmqueue_fallback(zone, order, migratetype))
-			goto retry;
+	while (!page) {
+		page = __rmqueue_smallest(zone, order, migratetype);
+		if (unlikely(!page) &&
+		    !__rmqueue_fallback(zone, order, migratetype))
+			break;
 	}
 
 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
@@ -2806,6 +2821,13 @@ struct page *rmqueue(struct zone *preferred_zone,
 {
 	unsigned long flags;
 	struct page *page;
+	int migratetype_rmqueue = migratetype;
+
+#ifdef CONFIG_CMA
+	if ((migratetype_rmqueue == MIGRATE_MOVABLE) &&
+	    ((gfp_flags & GFP_HIGHUSER_MOVABLE) == GFP_HIGHUSER_MOVABLE))
+		migratetype_rmqueue = MIGRATE_CMA;
+#endif
 
 	if (likely(order == 0)) {
 		page = rmqueue_pcplist(preferred_zone, zone, order,
@@ -2828,7 +2850,7 @@ struct page *rmqueue(struct zone *preferred_zone,
 				trace_mm_page_alloc_zone_locked(page, order, migratetype);
 		}
 		if (!page)
-			page = __rmqueue(zone, order, migratetype);
+			page = __rmqueue(zone, order, migratetype_rmqueue);
 	} while (page && check_new_pages(page, order));
 	spin_unlock(&zone->lock);
 	if (!page)
@@ -3661,7 +3683,8 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
 		alloc_flags |= ALLOC_HARDER;
 
 #ifdef CONFIG_CMA
-	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+	if ((gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE) ||
+		((gfp_mask & GFP_HIGHUSER_MOVABLE) == GFP_HIGHUSER_MOVABLE))
 		alloc_flags |= ALLOC_CMA;
 #endif
 	return alloc_flags;
