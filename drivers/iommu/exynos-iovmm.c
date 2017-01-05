@@ -513,7 +513,7 @@ dma_addr_t exynos_iovmm_map_userptr(struct device *dev, unsigned long vaddr,
 	struct exynos_vm_region *region;
 
 	vma = find_vma(current->mm, vaddr);
-	if (vaddr < vma->vm_start) {
+	if (!vma || (vaddr < vma->vm_start)) {
 		dev_err(dev, "%s: invalid address %#lx\n", __func__, vaddr);
 		goto err;
 	}
