@@ -1343,7 +1343,7 @@ static inline int _loop(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 		off += _emit_LPEND(dry_run, &buf[off], &lpend);
 	}
 
-	*bursts = lcnt1 * cyc;
+	*bursts = (unsigned long)lcnt1 * cyc;
 	if (lcnt0)
 		*bursts *= lcnt0;
 
