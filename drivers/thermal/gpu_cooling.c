@@ -32,6 +32,7 @@
 
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/ect_parser.h>
+#include "samsung/exynos_tmu.h"
 
 #if defined(CONFIG_SOC_EXYNOS8895) && defined(CONFIG_SOC_EMULATOR8895)
 #include <dt-bindings/clock/emulator8895.h>
@@ -91,7 +92,7 @@ static BLOCKING_NOTIFIER_HEAD(gpu_notifier);
 
 static unsigned int gpufreq_cdev_count;
 
-extern struct cpufreq_frequency_table gpu_freq_table[];
+struct cpufreq_frequency_table *gpu_freq_table;
 
 /**
  * get_idr - function to get a unique id.
@@ -986,3 +987,86 @@ void gpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	kfree(gpufreq_cdev);
 }
 EXPORT_SYMBOL_GPL(gpufreq_cooling_unregister);
+
+/**
+ * gpu_cooling_table_init - function to make GPU throttling table.
+ * @pdev : struct platform_device pointer
+ *
+ * Return : a valid struct gpu_freq_table pointer on success,
+ * on failture, it returns a corresponding ERR_PTR().
+ */
+int gpu_cooling_table_init(struct platform_device *pdev)
+{
+	int ret = 0, i = 0;
+#if defined(CONFIG_ECT)
+	struct exynos_tmu_data *exynos_data;
+	void *thermal_block;
+	struct ect_ap_thermal_function *function;
+	int last_level = -1, count = 0;
+#else
+	struct cpufreq_frequency_table *table_ptr;
+	unsigned int table_size;
+	u32 gpu_idx_num = 0;
+#endif
+
+#if defined(CONFIG_ECT)
+	exynos_data = platform_get_drvdata(pdev);
+
+	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
+	if (thermal_block == NULL) {
+		dev_err(&pdev->dev, "Failed to get thermal block");
+		return -ENODEV;
+	}
+
+	function = ect_ap_thermal_get_function(thermal_block, exynos_data->tmu_name);
+	if (function == NULL) {
+		dev_err(&pdev->dev, "Failed to get %s information", exynos_data->tmu_name);
+		return -ENODEV;
+	}
+
+	/* Table size can be num_of_range + 1 since last row has the value of TABLE_END */
+	gpu_freq_table = kzalloc(sizeof(struct cpufreq_frequency_table)
+					* (function->num_of_range + 1), GFP_KERNEL);
+
+	for (i = 0; i < function->num_of_range; i++) {
+		if (last_level == function->range_list[i].max_frequency)
+			continue;
+
+		gpu_freq_table[count].flags = 0;
+		gpu_freq_table[count].driver_data = count;
+		gpu_freq_table[count].frequency = function->range_list[i].max_frequency;
+		last_level = gpu_freq_table[count].frequency;
+
+		dev_info(&pdev->dev, "[GPU TMU] index : %d, frequency : %d \n",
+			gpu_freq_table[count].driver_data, gpu_freq_table[count].frequency);
+		count++;
+	}
+
+	if (i == function->num_of_range)
+		gpu_freq_table[count].frequency = GPU_TABLE_END;
+#else
+	/* gpu cooling frequency table parse */
+	ret = of_property_read_u32(pdev->dev.of_node, "gpu_idx_num", &gpu_idx_num);
+	if (ret < 0)
+		dev_err(&pdev->dev, "gpu_idx_num happend error value\n");
+
+	if (gpu_idx_num) {
+		gpu_freq_table= kzalloc(sizeof(struct cpufreq_frequency_table)
+							* gpu_idx_num, GFP_KERNEL);
+		if (!gpu_freq_table) {
+			dev_err(&pdev->dev, "failed to allocate for gpu_table\n");
+			return -ENODEV;
+		}
+		table_size = sizeof(struct cpufreq_frequency_table) / sizeof(unsigned int);
+
+		ret = of_property_read_u32_array(pdev->dev.of_node, "gpu_cooling_table",
+			(unsigned int *)gpu_freq_table, table_size * gpu_idx_num);
+
+		for (i = 0; i < gpu_idx_num; i++)
+			dev_info(&pdev->dev, "[GPU TMU] index : %d, frequency : %d \n",
+				gpu_freq_table[i].driver_data, gpu_freq_table[i].frequency);
+	}
+#endif
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gpu_cooling_table_init);

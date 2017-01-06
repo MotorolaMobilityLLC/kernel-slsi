@@ -149,7 +149,6 @@ static DEFINE_MUTEX (thermal_suspend_lock);
 
 /* list of multiple instance for each thermal sensor */
 static LIST_HEAD(dtm_dev_list);
-struct cpufreq_frequency_table gpu_freq_table[10];
 
 static u32 global_avg_con;
 
@@ -1166,46 +1165,6 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 
 	return 0;
 }
-#ifdef CONFIG_GPU_THERMAL
-static int gpu_cooling_table_init(struct platform_device *pdev)
-{
-	struct cpufreq_frequency_table *table_ptr;
-	unsigned int table_size;
-	u32 gpu_idx_num = 0;
-	int ret = 0, i = 0;
-
-	/* gpu cooling frequency table parse */
-	ret = of_property_read_u32(pdev->dev.of_node, "gpu_idx_num",
-					&gpu_idx_num);
-	if (ret < 0)
-		dev_err(&pdev->dev, "gpu_idx_num happend error value\n");
-
-	if (gpu_idx_num) {
-		table_ptr = kzalloc(sizeof(struct cpufreq_frequency_table)
-						* gpu_idx_num, GFP_KERNEL);
-		if (!table_ptr) {
-			dev_err(&pdev->dev, "failed to allocate for gpu_table\n");
-			return -ENODEV;
-		}
-		table_size = sizeof(struct cpufreq_frequency_table) /
-							sizeof(unsigned int);
-		ret = of_property_read_u32_array(pdev->dev.of_node, "gpu_cooling_table",
-			(unsigned int *)table_ptr, table_size * gpu_idx_num);
-
-		for (i = 0; i < gpu_idx_num; i++) {
-			gpu_freq_table[i].flags = table_ptr[i].flags;
-			gpu_freq_table[i].driver_data = table_ptr[i].driver_data;
-			gpu_freq_table[i].frequency = table_ptr[i].frequency;
-			dev_info(&pdev->dev, "[GPU TMU] index : %d, frequency : %d \n",
-				gpu_freq_table[i].driver_data, gpu_freq_table[i].frequency);
-		}
-		kfree(table_ptr);
-	}
-	return ret;
-}
-#else
-static int gpu_cooling_table_init(struct platform_device *pdev) {return 0;}
-#endif
 
 struct pm_qos_request thermal_cpu_hotplug_request;
 static int exynos_throttle_cpu_hotplug(void *p, int temp)
