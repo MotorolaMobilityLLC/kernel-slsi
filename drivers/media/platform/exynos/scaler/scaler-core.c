@@ -2679,8 +2679,6 @@ static irqreturn_t sc_irq_handler(int irq, void *priv)
 	clear_bit(DEV_RUN, &sc->state);
 	clear_bit(CTX_RUN, &ctx->flags);
 
-	sc_clk_power_disable(sc);
-
 	if (ctx->context_type == SC_CTX_V4L2_TYPE) {
 		BUG_ON(ctx != v4l2_m2m_get_curr_priv(sc->m2m.m2m_dev));
 
@@ -2733,6 +2731,7 @@ static irqreturn_t sc_irq_handler(int irq, void *priv)
 
 	sc_run_next_job(sc);
 
+	sc_clk_power_disable(sc);
 isr_unlock:
 	spin_unlock(&sc->slock);
 
