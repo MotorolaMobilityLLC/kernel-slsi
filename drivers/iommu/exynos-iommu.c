@@ -1212,7 +1212,8 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 }
 
 static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
-		sysmmu_pte_t *sent, sysmmu_iova_t iova, atomic_t *pgcounter)
+				sysmmu_pte_t *sent, sysmmu_iova_t iova,
+				atomic_t *pgcounter, gfp_t gfpmask)
 {
 	if (lv1ent_section(sent)) {
 		WARN(1, "Trying mapping on %#08x mapped with 1MiB page", iova);
@@ -1221,15 +1222,22 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 
 	if (lv1ent_fault(sent)) {
 		unsigned long flags;
+		sysmmu_pte_t *pent = NULL;
+
+		if (!(gfpmask & __GFP_ATOMIC)) {
+			pent = kmem_cache_zalloc(lv2table_kmem_cache, gfpmask);
+			if (!pent)
+				return ERR_PTR(-ENOMEM);
+		}
+
 		spin_lock_irqsave(&domain->pgtablelock, flags);
 		if (lv1ent_fault(sent)) {
-			sysmmu_pte_t *pent;
-
-			pent = kmem_cache_zalloc(lv2table_kmem_cache, GFP_ATOMIC);
-			BUG_ON((unsigned long)pent & (LV2TABLE_SIZE - 1));
 			if (!pent) {
-				spin_unlock_irqrestore(&domain->pgtablelock, flags);
-				return ERR_PTR(-ENOMEM);
+				pent = kmem_cache_zalloc(lv2table_kmem_cache, gfpmask);
+				if (!pent) {
+					spin_unlock_irqrestore(&domain->pgtablelock, flags);
+					return ERR_PTR(-ENOMEM);
+				}
 			}
 
 			*sent = mk_lv1ent_page(virt_to_phys(pent));
@@ -1237,6 +1245,9 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 			atomic_set(pgcounter, NUM_LV2ENTRIES);
 			pgtable_flush(pent, pent + NUM_LV2ENTRIES);
 			pgtable_flush(sent, sent + 1);
+		} else {
+			/* Pre-allocated entry is not used, so free it. */
+			kmem_cache_free(lv2table_kmem_cache, pent);
 		}
 		spin_unlock_irqrestore(&domain->pgtablelock, flags);
 	}
@@ -1331,7 +1342,7 @@ static int exynos_iommu_map(struct iommu_domain *iommu_domain,
 		sysmmu_pte_t *pent;
 
 		pent = alloc_lv2entry(domain, entry, iova,
-				      &domain->lv2entcnt[lv1ent_offset(iova)]);
+			      &domain->lv2entcnt[lv1ent_offset(iova)], GFP_KERNEL);
 
 		if (IS_ERR(pent))
 			ret = PTR_ERR(pent);
@@ -1775,7 +1786,7 @@ static sysmmu_pte_t *alloc_lv2entry_userptr(struct exynos_iommu_domain *domain,
 						sysmmu_iova_t iova)
 {
 	return alloc_lv2entry(domain, section_entry(domain->pgtable, iova),
-				iova, &domain->lv2entcnt[lv1ent_offset(iova)]);
+			iova, &domain->lv2entcnt[lv1ent_offset(iova)], GFP_ATOMIC);
 }
 
 static int sysmmu_map_pte(struct mm_struct *mm,
