@@ -590,9 +590,11 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 				switch (zone) {
 					case MNGS_QUAD :
 					case MNGS_DUAL :
+					case BIG :
 						level = cpufreq_cooling_get_level(4, freq);
 						break;
 					case APOLLO :
+					case LITTLE :
 						level = cpufreq_cooling_get_level(0, freq);
 						break;
 					case GPU :
