@@ -2468,15 +2468,10 @@ static int sc_run_next_job(struct sc_dev *sc)
 	unsigned int h_shift, v_shift;
 	int ret;
 
-	ret = sc_power_clk_enable(sc);
-	if (ret)
-		return ret;
-
 	spin_lock_irqsave(&sc->ctxlist_lock, flags);
 
 	if (sc->current_ctx || list_empty(&sc->context_list)) {
 		/* a job is currently being processed or no job is to run */
-		sc_clk_power_disable(sc);
 		spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
 		return 0;
 	}
@@ -2491,7 +2486,6 @@ static int sc_run_next_job(struct sc_dev *sc)
 
 	if (test_bit(DEV_SUSPEND, &sc->state)) {
 		clear_bit(DEV_RUN, &sc->state);
-		sc_clk_power_disable(sc);
 		spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
 		return 0;
 	}
@@ -2504,6 +2498,34 @@ static int sc_run_next_job(struct sc_dev *sc)
 	sc->current_ctx = ctx;
 
 	spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
+
+	ret = sc_power_clk_enable(sc);
+	if (ret) {
+		/*
+		 * Failed to enable the power and the clock. Let's push the task
+		 * again for the later retry.
+		 */
+		spin_lock_irqsave(&sc->ctxlist_lock, flags);
+
+		list_add(&ctx->node, &sc->context_list);
+		sc->current_ctx = NULL;
+
+		clear_bit(CTX_RUN, &ctx->flags);
+
+		spin_unlock_irqrestore(&sc->ctxlist_lock, flags);
+
+		clear_bit(DEV_RUN, &sc->state);
+
+		/*
+		 * V4L2 mem2mem assumes that the tasks in device_run() are
+		 * always succeed in processing in H/W while m2m1shot accepts
+		 * failure in device_run(). m2m1shot2 returns failure to the
+		 * users if devce_run() fails. To prevent returning failure to
+		 * users and losing a task to run, we should assume that
+		 * processing a task always succeeds.
+		 */
+		return 0;
+	}
 
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
