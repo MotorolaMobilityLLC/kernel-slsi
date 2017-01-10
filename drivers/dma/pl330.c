@@ -3018,6 +3018,9 @@ int pl330_dma_getposition(struct dma_chan *chan,
 	*src = readl(regs + SA(thrd->id));
 	*dst = readl(regs + DA(thrd->id));
 
+	*src |= (dma_addr_t)readl(thrd->ar_wrapper) << 32;
+	*dst |= (dma_addr_t)readl(thrd->aw_wrapper) << 32;
+
 	return 0;
 }
 EXPORT_SYMBOL(pl330_dma_getposition);
@@ -3107,7 +3110,11 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	int num_chan;
 	struct device_node *np = adev->dev.of_node;
 
+#ifdef  CONFIG_ZONE_DMA
+	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
+#else
 	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(36));
+#endif
 	if (ret)
 		return ret;
 
