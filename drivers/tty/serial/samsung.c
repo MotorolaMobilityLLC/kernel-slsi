@@ -202,6 +202,7 @@ uart_dbg_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(uart_dbg, 0640, uart_dbg_show, uart_dbg_store);
 
+static void exynos_usi_init(struct uart_port *port);
 static void s3c24xx_serial_resetport(struct uart_port *port,
 				   struct s3c2410_uartcfg *cfg);
 static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
@@ -769,6 +770,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 	case S3C24XX_UART_PORT_RESUME:
 		uart_clock_enable(ourport);
 
+		exynos_usi_init(port);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
 		break;
 	default:
@@ -1248,6 +1250,21 @@ static struct s3c24xx_uart_port *exynos_serial_default_port(int port_index)
 }
 #undef __PORT_LOCK_UNLOCKED
 
+static void exynos_usi_init(struct uart_port *port)
+{
+	/* USI_RESET is active High signal.
+	 * Reset value of USI_RESET is 'h1 to drive stable value to PAD.
+	 * Due to this feature, the USI_RESET must be cleared (set as '0')
+	 * before transaction starts.
+	 */
+	wr_regl(port, USI_CON, USI_RESET);
+
+	/* set the HWACG option bit in case of UART Rx mode.
+	 * CLKREQ_ON = 1, CLKSTOP_ON = 0 (set USI_OPTION[2:1] = 2'h1)
+	 */
+	wr_regl(port, USI_OPTION, USI_HWACG_CLKREQ_ON);
+}
+
 /* s3c24xx_serial_resetport
  *
  * reset the fifos and other the settings.
@@ -1272,13 +1289,6 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 	}
 
 	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
-
-#ifdef CONFIG_SERIAL_SAMSUNG_HWACG
-	/* set the HWACG option bit in case of UART Rx mode.
-	 * CLKREQ_ON = 1, CLKSTOP_ON = 0 (set USI_OPTION[2:1] = 2'h1)
-	 */
-	wr_regl(port, USI_HWACG, USI_HWACG_CLKREQ_ON);
-#endif
 
 	/* reset both fifos */
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
@@ -1390,6 +1400,8 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		pr_err("uart: clock failed to prepare+enable: %d\n", ret);
 		return ret;
 	}
+
+	exynos_usi_init(port);
 
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
@@ -1732,6 +1744,7 @@ static int s3c24xx_serial_resume(struct device *dev)
 
 	if (port) {
 		uart_clock_enable(ourport);
+		exynos_usi_init(port);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
 		uart_clock_disable(ourport);
 
