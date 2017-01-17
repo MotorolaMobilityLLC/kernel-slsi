@@ -126,6 +126,7 @@ struct s3c2410_wdt {
 	spinlock_t		lock;
 	unsigned long		wtcon_save;
 	unsigned long		wtdat_save;
+	unsigned long		freq;
 	struct watchdog_device	wdt_device;
 	struct notifier_block	freq_transition;
 	const struct s3c2410_wdt_variant *drv_data;
@@ -355,7 +356,7 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd,
 				    unsigned int timeout)
 {
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
-	unsigned long freq = clk_get_rate(wdt->rate_clock);
+	unsigned long freq = wdt->freq;
 	unsigned int count;
 	unsigned int divisor = 1;
 	unsigned long wtcon;
@@ -693,6 +694,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		ret = PTR_ERR(wdt->rate_clock);
 		goto err;
 	}
+	wdt->freq = clk_get_rate(wdt->rate_clock);
 
 	wdt->gate_clock = devm_clk_get(dev, "gate_watchdog");
 	if (IS_ERR(wdt->gate_clock)) {
