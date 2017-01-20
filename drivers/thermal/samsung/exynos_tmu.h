@@ -154,7 +154,7 @@ struct exynos_tmu_data {
 	int num_of_sensors;
 	struct sensor_info *sensor_info;
 	int sensing_mode;
-	char tmu_name[THERMAL_NAME_LENGTH];
+	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
 	int balance_offset;
 
