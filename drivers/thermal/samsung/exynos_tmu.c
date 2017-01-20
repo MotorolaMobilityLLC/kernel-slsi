@@ -1287,7 +1287,7 @@ static int exynos_cpufreq_cooling_register(struct exynos_tmu_data *data)
 	cool_np = cooling_spec.np;
 
 	for_each_possible_cpu(cpu)
-		if (cpu_topology[cpu].cluster_id == data->id)
+		if (cpu < NR_CPUS && cpu_topology[cpu].cluster_id == data->id)
 			cpumask_copy(&mask_val, topology_core_cpumask(cpu));
 
 	if (!of_property_read_string(child, "governor", &governor_name)) {
