@@ -148,6 +148,13 @@ static LIST_HEAD(drvdata_list);
 #define SPI_DBG_MODE		(0x1 << 0)
 #define SPI_LOOPBACK_MODE	(0x1 << 1)
 
+#define USI_CON				(0xC4)
+#define USI_OPTION			(0xC8)
+
+#define USI_RESET			(0<<0)
+#define USI_HWACG_CLKREQ_ON		(1<<1)
+#define USI_HWACG_CLKSTOP_ON		(1<<2)
+
 /**
  * struct s3c64xx_spi_info - SPI Controller hardware info
  * @fifo_lvl_mask: Bit-mask for {TX|RX}_FIFO_LVL bits in SPI_STATUS register.
@@ -417,6 +424,7 @@ static int acquire_dma(struct s3c64xx_spi_driver_data *sdd)
 	return 1;
 }
 
+static void exynos_usi_init(struct s3c64xx_spi_driver_data *sdd);
 static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel);
 
 static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
@@ -441,8 +449,10 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 		return ret;
 #endif
 
-	if (sci->need_hw_init)
+	if (sci->need_hw_init) {
+		exynos_usi_init(sdd);
 		s3c64xx_spi_hwinit(sdd, sdd->port_id);
+	}
 
 	return 0;
 }
@@ -1301,6 +1311,18 @@ static irqreturn_t s3c64xx_spi_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void exynos_usi_init(struct s3c64xx_spi_driver_data *sdd)
+{
+	void __iomem *regs = sdd->regs;
+
+	/* USI_RESET is active High signal.
+	 * Reset value of USI_RESET is 'h1 to drive stable value to PAD.
+	 * Due to this feature, the USI_RESET must be cleared (set as '0')
+	 * before transaction starts.
+	 */
+	writel(USI_RESET, regs + USI_CON);
+}
+
 static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 {
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
@@ -1644,6 +1666,8 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 			sdd->port_id, sdd->port_conf->fifo_lvl_mask[sdd->port_id]);
 	}
 
+	exynos_usi_init(sdd);
+
 	/* Setup Deufult Mode */
 	s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
@@ -1819,6 +1843,7 @@ static int s3c64xx_spi_runtime_resume(struct device *dev)
 		clk_prepare_enable(sdd->src_clk);
 		clk_prepare_enable(sdd->clk);
 
+		exynos_usi_init(sdd);
 		s3c64xx_spi_hwinit(sdd, sdd->port_id);
 	}
 #endif
@@ -1879,8 +1904,10 @@ static int s3c64xx_spi_resume_operation(struct device *dev)
 
 		if (sci->secure_mode)
 			sci->need_hw_init = 1;
-		else
+		else {
+			exynos_usi_init(sdd);
 			s3c64xx_spi_hwinit(sdd, sdd->port_id);
+		}
 
 #ifdef CONFIG_PM
 		/* Disable the clock */
