@@ -81,6 +81,7 @@ static LIST_HEAD(drvdata_list);
 #define S3C64XX_SPI_MODE_BUS_TSZ_HALFWORD	(1<<17)
 #define S3C64XX_SPI_MODE_BUS_TSZ_WORD		(2<<17)
 #define S3C64XX_SPI_MODE_BUS_TSZ_MASK		(3<<17)
+#define S3C64XX_SPI_MODE_SELF_LOOPBACK		(1<<3)
 #define S3C64XX_SPI_MODE_RXDMA_ON		(1<<2)
 #define S3C64XX_SPI_MODE_TXDMA_ON		(1<<1)
 #define S3C64XX_SPI_MODE_4BURST			(1<<0)
@@ -144,7 +145,8 @@ static LIST_HEAD(drvdata_list);
 #define RXBUSY    (1<<2)
 #define TXBUSY    (1<<3)
 
-#define SPI_DBG_MODE (0x1 << 0)
+#define SPI_DBG_MODE		(0x1 << 0)
+#define SPI_LOOPBACK_MODE	(0x1 << 1)
 
 /**
  * struct s3c64xx_spi_info - SPI Controller hardware info
@@ -176,9 +178,11 @@ spi_dbg_show(struct device *dev, struct device_attribute *attr, char *buf)
 	ret += snprintf(buf + ret, PAGE_SIZE - ret,
 			"SPI Debug Mode Configuration.\n");
 	ret += snprintf(buf + ret, PAGE_SIZE - ret,
-			"0 : Change DBG mode.\n");
+			"0 : Change loopback & DBG mode.\n");
 	ret += snprintf(buf + ret, PAGE_SIZE - ret,
-			"1 : Change Normal mode.\n");
+			"1 : Change DBG mode.\n");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+			"2 : Change Normal mode.\n");
 
 	if (ret < PAGE_SIZE - 1) {
 		ret += snprintf(buf+ret, PAGE_SIZE-ret, "\n");
@@ -211,15 +215,20 @@ spi_dbg_store(struct device *dev, struct device_attribute *attr,
 		case 0:
 			printk(KERN_ERR "Change SPI%d to Loopback(DBG) mode\n",
 						sdd->port_id);
-			sci->dbg_mode = SPI_DBG_MODE;
+			sci->dbg_mode = SPI_DBG_MODE | SPI_LOOPBACK_MODE;
 			break;
 		case 1:
+			printk(KERN_ERR "Change SPI%d to DBG mode\n",
+						sdd->port_id);
+			sci->dbg_mode = SPI_DBG_MODE;
+			break;
+		case 2:
 			printk(KERN_ERR "Change SPI%d to normal mode\n",
 						sdd->port_id);
 			sci->dbg_mode = 0;
 			break;
 		default:
-			printk(KERN_ERR "Wrong Command!(0/1)\n");
+			printk(KERN_ERR "Wrong Command!(0/1/2)\n");
 		}
 	}
 
@@ -761,6 +770,11 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 		if (sci->swap_mode == SWAP_MODE)
 			writel(0, regs + S3C64XX_SPI_SWAP_CFG);
 		break;
+	}
+
+	if (sci->dbg_mode & SPI_LOOPBACK_MODE) {
+		dev_err(&sdd->pdev->dev, "Change Loopback mode!\n");
+		val |= S3C64XX_SPI_MODE_SELF_LOOPBACK;
 	}
 
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
