@@ -2156,8 +2156,10 @@ static int sc_release(struct file *file)
 
 	atomic_dec(&sc->m2m.in_use);
 
-	destroy_intermediate_frame(ctx);
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
+
+	destroy_intermediate_frame(ctx);
+
 	if (!IS_ERR(sc->aclk))
 		clk_unprepare(sc->aclk);
 	if (!IS_ERR(sc->pclk))
