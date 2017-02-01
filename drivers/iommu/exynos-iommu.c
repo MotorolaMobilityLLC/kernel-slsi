@@ -310,15 +310,19 @@ static void show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 	phys_addr_t pgtable;
 	int fault_id = SYSMMU_FAULT_ID(flags);
 	unsigned int sfrbase = drvdata->securebase;
+	const char *port_name = NULL;
 
 	pgtable = __secure_info_read(sfrbase + REG_PT_BASE_PPN);
 	pgtable <<= PAGE_SHIFT;
 
 	info = __secure_info_read(sfrbase + REG_FAULT_TRANS_INFO);
 
+	of_property_read_string(drvdata->sysmmu->of_node,
+					"port-name", &port_name);
+
 	pr_crit("----------------------------------------------------------\n");
-	pr_crit("%s %s %s at %#010lx (page table @ %pa)\n",
-		dev_name(drvdata->sysmmu),
+	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
+		port_name ? port_name : dev_name(drvdata->sysmmu),
 		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
 		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
 
@@ -367,6 +371,7 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 	unsigned int info;
 	phys_addr_t pgtable;
 	int fault_id = SYSMMU_FAULT_ID(flags);
+	const char *port_name = NULL;
 
 	pgtable = __raw_readl(drvdata->sfrbase + REG_PT_BASE_PPN);
 	pgtable <<= PAGE_SHIFT;
@@ -380,9 +385,12 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 			 REG_FAULT_AW_TRANS_INFO : REG_FAULT_AR_TRANS_INFO));
 	}
 
+	of_property_read_string(drvdata->sysmmu->of_node,
+					"port-name", &port_name);
+
 	pr_crit("----------------------------------------------------------\n");
-	pr_crit("%s %s %s at %#010lx (page table @ %pa)\n",
-		dev_name(drvdata->sysmmu),
+	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
+		port_name ? port_name : dev_name(drvdata->sysmmu),
 		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
 		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
 
