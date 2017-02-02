@@ -261,6 +261,13 @@ retry:
 		if (tmp < (pfn + nr_pages))
 			continue;
 
+		/* CMA pages should not be reclaimed */
+		if (is_migrate_cma_page(pfn_to_page(pfn))) {
+			/* nr_pages is added before next iteration */
+			pfn = ALIGN(pfn + 1, pageblock_nr_pages) - nr_pages;
+			continue;
+		}
+
 		if (!is_movable_chunk(pfn, order))
 			continue;
 
