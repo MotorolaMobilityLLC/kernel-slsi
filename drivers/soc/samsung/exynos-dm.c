@@ -752,7 +752,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	do_gettimeofday(&before);
 
 	dm = &exynos_dm->dm_data[dm_type];
-	dm->gov_min_freq = *target_freq;
+	dm->gov_min_freq = (u32)(*target_freq);
 
 	for (i = 0; i < DM_TYPE_END; i++)
 		(&exynos_dm->dm_data[i])->constraint_checked = 0;
@@ -764,7 +764,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 		return -EAGAIN;
 	}
 
-	dm->target_freq = *target_freq;
+	dm->target_freq = (u32)(*target_freq);
 
 	if (dm->target_freq < dm->min_freq)
 		dm->target_freq = dm->min_freq;
