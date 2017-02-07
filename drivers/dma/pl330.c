@@ -1212,7 +1212,7 @@ static inline int _loop_infiniteloop(struct pl330_dmac *pl330, unsigned dry_run,
 		lcnt1 = 256;
 		cyc = bursts / 256;
 	} else {
-		lcnt1 = bursts;
+		lcnt1 = (unsigned int)bursts;
 		cyc = 1;
 	}
 
@@ -1238,7 +1238,7 @@ static inline int _loop_infiniteloop(struct pl330_dmac *pl330, unsigned dry_run,
 	off += _emit_LPEND(dry_run, &buf[off], &lpend);
 
 	/* remainder */
-	lcnt1 = bursts - (lcnt1 * cyc);
+	lcnt1 = (unsigned int)(bursts - (lcnt1 * cyc));
 
 	if (lcnt1) {
 		off += _emit_LP(dry_run, &buf[off], 1, lcnt1);
@@ -1286,10 +1286,10 @@ static inline int _loop(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 		cyc = *bursts / lcnt1 / lcnt0;
 	} else if (*bursts > 256) {
 		lcnt1 = 256;
-		lcnt0 = *bursts / lcnt1;
+		lcnt0 = (unsigned int)((unsigned int)(*bursts) / lcnt1);
 		cyc = 1;
 	} else {
-		lcnt1 = *bursts;
+		lcnt1 = (unsigned int)(*bursts);
 		lcnt0 = 0;
 		cyc = 1;
 	}
@@ -2655,7 +2655,7 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 static inline void fill_px(struct pl330_xfer *px,
 		dma_addr_t dst, dma_addr_t src, size_t len)
 {
-	px->bytes = len;
+	px->bytes = (u32)len;
 	px->dst_addr = dst;
 	px->src_addr = src;
 }
