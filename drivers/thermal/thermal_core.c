@@ -1519,7 +1519,7 @@ static inline void genetlink_exit(void) {}
 static int thermal_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
-	unsigned int cpu = (unsigned long)hcpu;
+	unsigned long cpu = (unsigned long)hcpu;
 	struct thermal_zone_device *pos;
 
 	switch (action) {
