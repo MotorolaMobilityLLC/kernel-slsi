@@ -181,7 +181,7 @@ static int get_property(unsigned int isp, unsigned long input,
 
 		if (property == GET_LEVEL && (unsigned int)input == fps) {
 			/* get level by fps */
-			*output = descend ? i : (max_level - i);
+			*output = (unsigned int)(descend ? i : (max_level - i));
 			return 0;
 		}
 		if (property == GET_FPS && level == i) {
