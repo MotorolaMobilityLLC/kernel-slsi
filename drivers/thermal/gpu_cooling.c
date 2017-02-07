@@ -211,7 +211,7 @@ static int get_property(unsigned int gpu, unsigned long input,
 
 		if (property == GET_LEVEL && (unsigned int)input == freq) {
 			/* get level by frequency */
-			*output = descend ? i : (max_level - i);
+			*output = (unsigned int)(descend ? i : (max_level - i));
 			return 0;
 		}
 		if (property == GET_FREQ && level == i) {
@@ -296,7 +296,7 @@ static int build_dyn_power_table(struct gpufreq_cooling_device *gpufreq_cdev,
 		power = (u64)capacitance * freq * voltage_mv * voltage_mv;
 		do_div(power, 1000000000);
 
-		power_table[i].frequency = freq;
+		power_table[i].frequency = (unsigned int)freq;
 
 		/* power is stored in mW */
 		power_table[i].power = power;
@@ -394,6 +394,7 @@ static int lookup_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 		unsigned long voltage, int temperature, u32 *power)
 {
 	int volt_index = 0, temp_index = 0;
+	int index = 0;
 
 	voltage = voltage / 1000;
 	temperature  = temperature / 1000;
@@ -424,7 +425,8 @@ static int lookup_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 	if (temp_index > gpufreq_cdev->var_temp_size)
 		temp_index = gpufreq_cdev->var_temp_size;
 
-	*power = (unsigned int)gpufreq_cdev->var_table[volt_index * (gpufreq_cdev->var_temp_size + 1) + temp_index];
+	index = (int)(volt_index * (gpufreq_cdev->var_temp_size + 1) + temp_index);
+	*power = (unsigned int)gpufreq_cdev->var_table[index];
 
 	return 0;
 }
