@@ -23,6 +23,8 @@
 #include <linux/smc.h>
 #include <linux/exynos_ion.h>
 
+#include <linux/sched/clock.h>
+
 #include <media/v4l2-ioctl.h>
 #include <media/m2m1shot.h>
 #include <media/m2m1shot-helper.h>
@@ -3439,6 +3441,16 @@ static int sc_runtime_resume(struct device *dev)
 static int sc_runtime_suspend(struct device *dev)
 {
 	struct sc_dev *sc = dev_get_drvdata(dev);
+	const int *ptr = sc->q_reg;
+	int i, idx;
+
+	idx = sc->dbg_idx % SC_DEBUG_MAX_NUM;
+	sc->qch_dbg[idx].time = sched_clock();
+	for (i = 0; i < G2D_QCH_NUM; i++)
+		sc->qch_dbg[idx].log[i] = ptr[i];
+
+	sc->dbg_idx++;
+
 	if (sc->qosreq_int_level > 0)
 		pm_qos_update_request(&sc->qosreq_int, 0);
 	return 0;
@@ -3568,6 +3580,19 @@ static int sc_probe(struct platform_device *pdev)
 		}
 	}
 
+	sc->q_reg = ioremap(0x13a07000, 0x100);
+	if (sc->q_reg == NULL) {
+		dev_err(&pdev->dev, "failed to ioremap address region\n");
+		ret = -ENOENT;
+		goto err_qch_reg;
+	}
+
+	sc->qch_dbg = kzalloc(sizeof(struct sc_qch_dbg) * SC_DEBUG_MAX_NUM, GFP_KERNEL);
+	if (sc->qch_dbg == NULL) {
+		ret = -ENOENT;
+		goto err_qch_dbg;
+	}
+
 	sc->version = SCALER_VERSION(2, 0, 0);
 
 	hwver = __raw_readl(sc->regs + SCALER_VER);
@@ -3599,6 +3624,11 @@ static int sc_probe(struct platform_device *pdev)
 		hwver, sc->version);
 
 	return 0;
+err_qch_dbg:
+	iounmap(sc->q_reg);
+err_qch_reg:
+	if (!IS_ERR(sc->aclk))
+		clk_disable_unprepare(sc->aclk);
 err_ver_aclk_get:
 	if (!IS_ERR(sc->pclk))
 		clk_disable_unprepare(sc->pclk);
@@ -3619,6 +3649,9 @@ err_m2m:
 static int sc_remove(struct platform_device *pdev)
 {
 	struct sc_dev *sc = platform_get_drvdata(pdev);
+
+	iounmap(sc->q_reg);
+	kfree(sc->qch_dbg);
 
 	iovmm_deactivate(sc->dev);
 
