@@ -251,6 +251,9 @@ static int build_static_power_table(struct cpufreq_cooling_device *cpufreq_cdev)
 	struct ect_gen_param_table *volt_temp_param, *asv_param;
 	int ratio_table[16] = { 0, 18, 22, 27, 33, 40, 49, 60, 73, 89, 108, 131, 159, 194, 232, 250};
 
+	if (asv_group < 0 || asv_group > 15)
+		asv_group = 0;
+
 	if (!ratio)
 		ratio = ratio_table[asv_group];
 

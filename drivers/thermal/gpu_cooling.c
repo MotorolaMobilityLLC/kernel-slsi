@@ -315,6 +315,9 @@ static int build_static_power_table(struct gpufreq_cooling_device *gpufreq_cdev)
 	struct ect_gen_param_table *volt_temp_param, *asv_param;
 	int ratio_table[16] = { 0, 25, 29, 35, 41, 48, 57, 67, 79, 94, 110, 130, 151, 162, 162, 162};
 
+	if (asv_group < 0 || asv_group > 15)
+		asv_group = 0;
+
 	if (!ratio)
 		ratio = ratio_table[asv_group];
 
