@@ -168,9 +168,6 @@ static int get_property(unsigned int gpu, unsigned long input,
 	if (!output)
 		return -EINVAL;
 
-	if (!table)
-		return -EINVAL;
-
 	cpufreq_for_each_valid_entry(pos, table) {
 		/* ignore duplicate entry */
 		if (freq == pos->frequency)
