@@ -634,6 +634,8 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 #endif
 	s32 time = 0, pre_time = 0;
 
+	exynos_ss_dm((int)dm_type, min_freq, max_freq, pre_time, time);
+
 	do_gettimeofday(&pre);
 	mutex_lock(&exynos_dm->lock);
 	do_gettimeofday(&before);
@@ -645,11 +647,6 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	update_policy_min_max_freq(dm, min_freq, max_freq);
 
 	/* Check dependent domains */
-	constraint_checker_max(get_max_constraint_list(dm), max_freq);
-	if (dm->max_freq < dm->cur_freq)
-		max_flag = true;
-	else
-		max_flag = false;
 
 	/*Send policy to FVP*/
 #ifdef CONFIG_EXYNOS_ACPM
@@ -744,18 +741,27 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	int i;
 	int ret;
 	unsigned int relation = EXYNOS_DM_RELATION_L;
+	u32 old_min_freq;
 	struct timeval pre, before, after;
 	s32 time = 0, pre_time = 0;
+
+	exynos_ss_dm((int)dm_type, *target_freq, 1, pre_time, time);
 
 	do_gettimeofday(&pre);
 	mutex_lock(&exynos_dm->lock);
 	do_gettimeofday(&before);
 
 	dm = &exynos_dm->dm_data[dm_type];
+	old_min_freq = dm->min_freq;
 	dm->gov_min_freq = (u32)(*target_freq);
 
 	for (i = 0; i < DM_TYPE_END; i++)
 		(&exynos_dm->dm_data[i])->constraint_checked = 0;
+
+	if (dm->policy_max_freq < dm->cur_freq)
+		max_flag = true;
+	else
+		max_flag = false;
 
 	ret = dm_data_updater(dm_type);
 	if (ret) {
@@ -783,6 +789,16 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 		scaling_callback(UP, relation);
 	else if (dm->target_freq < dm->cur_freq)
 		scaling_callback(DOWN, relation);
+	else if (dm->min_freq > old_min_freq)
+		scaling_callback(UP, relation);
+	else if (dm->min_freq < old_min_freq)
+		scaling_callback(DOWN, relation);
+
+	/* min/max order clear */
+	for (i = 0; i <= DM_TYPE_END; i++) {
+		min_order[i] = DM_EMPTY;
+		max_order[i] = DM_EMPTY;
+	}
 
 	do_gettimeofday(&after);
 	mutex_unlock(&exynos_dm->lock);
@@ -792,7 +808,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
 		(after.tv_usec - before.tv_usec);
 
-	exynos_ss_dm((int)dm_type, *target_freq, 0, pre_time, time);
+	exynos_ss_dm((int)dm_type, *target_freq, 3, pre_time, time);
 
 	return 0;
 }
@@ -940,7 +956,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 					dm->constraint_checked = 0;
 				}
 			}
-		} else if (max_order[0] == 0) {
+		} else if (max_order[0] == 0 && max_flag == true) {
 			for (i = DM_TYPE_END; i > 0; i--) {
 				if (max_order[i] == DM_EMPTY)
 					continue;
@@ -1003,11 +1019,6 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 			}
 			dm->constraint_checked = 0;
 		}
-	}
-
-	for (i = 0; i <= DM_TYPE_END; i++) {
-		min_order[i] = DM_EMPTY;
-		max_order[i] = DM_EMPTY;
 	}
 
 	max_flag = false;
