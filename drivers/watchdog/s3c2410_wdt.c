@@ -381,7 +381,7 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd,
 
 		if (divisor > 0x100) {
 			dev_err(wdt->dev, "timeout %d too big\n", timeout);
-			return -EINVAL;
+			divisor = 0x100;
 		}
 	}
 
@@ -578,13 +578,18 @@ int s3c2410wdt_set_emergency_stop(void)
 	return 0;
 }
 
-int s3c2410wdt_keepalive_emergency(void)
+int s3c2410wdt_keepalive_emergency(bool reset)
 {
 	struct s3c2410_wdt *wdt = s3c_wdt;
 
 	if (!wdt)
 		return -ENODEV;
 
+	if (reset) {
+		pr_emerg("watchdog reset is started to 30secs\n");
+		s3c2410wdt_set_heartbeat(&wdt->wdt_device, 30);
+		s3c2410wdt_start(&wdt->wdt_device);
+	}
 	/* This Function must be called during panic sequence only */
 	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
 	return 0;
@@ -646,22 +651,17 @@ static struct notifier_block nb_panic_block = {
 #ifdef CONFIG_PM
 static int s3c2410wdt_suspend(void)
 {
-	int ret = 0;
 	struct s3c2410_wdt *wdt = s3c_wdt;
 
 	if (!wdt)
-		return ret;
+		return 0;
 
+	s3c2410wdt_keepalive(&wdt->wdt_device);
 	/* Save watchdog state, and turn it off. */
 	wdt->wtcon_save = readl(wdt->reg_base + S3C2410_WTCON);
 	wdt->wtdat_save = readl(wdt->reg_base + S3C2410_WTDAT);
 
-	/* Note that WTCNT doesn't need to be saved. */
-	s3c2410wdt_stop(&wdt->wdt_device);
-
-	ret = s3c2410wdt_mask_wdt_reset(wdt, true);
-
-	return ret;
+	return 0;
 }
 
 static void s3c2410wdt_resume(void)
