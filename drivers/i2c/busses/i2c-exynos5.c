@@ -199,6 +199,13 @@ static LIST_HEAD(drvdata_list);
 
 #define EXYNOS5_HSI2C_RUNTIME_PM_DELAY	(100)
 
+#define USI_CON				(0xC4)
+#define USI_OPTION			(0xC8)
+
+#define USI_RESET			(0<<0)
+#define USI_HWACG_CLKREQ_ON		(1<<1)
+#define USI_HWACG_CLKSTOP_ON		(1<<2)
+
 static const struct of_device_id exynos5_i2c_match[] = {
 	{ .compatible = "samsung,exynos5-hsi2c" },
 	{},
@@ -454,6 +461,16 @@ static int exynos5_hsi2c_clock_setup(struct exynos5_i2c *i2c)
 		return ret;
 
 	return exynos5_i2c_set_timing(i2c, true);
+}
+
+static void exynos_usi_init(struct exynos5_i2c *i2c)
+{
+	/* USI_RESET is active High signal.
+	 * Reset value of USI_RESET is 'h1 to drive stable value to PAD.
+	 * Due to this feature, the USI_RESET must be cleared (set as '0')
+	 * before transaction starts.
+	 */
+	writel(USI_RESET, i2c->regs + USI_CON);
 }
 
 /*
@@ -1063,6 +1080,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 #endif
+	exynos_usi_init(i2c);
 
 	/* Clear pending interrupts from u-boot or misc causes */
 	exynos5_i2c_clr_pend_irq(i2c);
@@ -1202,6 +1220,8 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 		i2c_unlock_adapter(&i2c->adap);
 		return ret;
 	}
+
+	exynos_usi_init(i2c);
 	exynos5_i2c_reset(i2c);
 	clk_disable(i2c->clk);
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
