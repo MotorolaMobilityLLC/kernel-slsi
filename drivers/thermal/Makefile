@@ -27,10 +27,6 @@ thermal_sys-$(CONFIG_CLOCK_THERMAL)	+= clock_cooling.o
 # devfreq cooling
 thermal_sys-$(CONFIG_DEVFREQ_THERMAL) += devfreq_cooling.o
 
-thermal_sys-$(CONFIG_GPU_THERMAL)	+= gpu_cooling.o
-
-thermal_sys-$(CONFIG_ISP_THERMAL)	+= isp_cooling.o
-
 # platform thermal drivers
 obj-y				+= broadcom/
 obj-$(CONFIG_QCOM_SPMI_TEMP_ALARM)	+= qcom-spmi-temp-alarm.o
@@ -65,3 +61,6 @@ obj-$(CONFIG_MTK_THERMAL)	+= mtk_thermal.o
 obj-$(CONFIG_GENERIC_ADC_THERMAL)	+= thermal-generic-adc.o
 obj-$(CONFIG_ZX2967_THERMAL)	+= zx2967_thermal.o
 obj-$(CONFIG_UNIPHIER_THERMAL)	+= uniphier_thermal.o
+
+obj-$(CONFIG_GPU_THERMAL)	+= gpu_cooling.o
+obj-$(CONFIG_ISP_THERMAL)	+= isp_cooling.o
