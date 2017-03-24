@@ -1774,10 +1774,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data;
 	int ret;
-#ifdef CONFIG_CPU_FREQ
-	if (!cpufreq_frequency_get_table(0))
-		return -EPROBE_DEFER;
-#endif
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
 					GFP_KERNEL);
