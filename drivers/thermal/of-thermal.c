@@ -39,60 +39,6 @@
 #include "samsung/exynos_tmu.h"
 #endif
 
-/***   Private data structures to represent thermal device tree data ***/
-
-/**
- * struct __thermal_bind_param - a match between trip and cooling device
- * @cooling_device: a pointer to identify the referred cooling device
- * @trip_id: the trip point index
- * @usage: the percentage (from 0 to 100) of cooling contribution
- * @min: minimum cooling state used at this trip point
- * @max: maximum cooling state used at this trip point
- */
-
-struct __thermal_bind_params {
-	struct device_node *cooling_device;
-	unsigned int trip_id;
-	unsigned int usage;
-	unsigned long min;
-	unsigned long max;
-};
-
-/**
- * struct __thermal_zone - internal representation of a thermal zone
- * @mode: current thermal zone device mode (enabled/disabled)
- * @passive_delay: polling interval while passive cooling is activated
- * @polling_delay: zone polling interval
- * @slope: slope of the temperature adjustment curve
- * @offset: offset of the temperature adjustment curve
- * @ntrips: number of trip points
- * @trips: an array of trip points (0..ntrips - 1)
- * @num_tbps: number of thermal bind params
- * @tbps: an array of thermal bind params (0..num_tbps - 1)
- * @sensor_data: sensor private data used while reading temperature and trend
- * @ops: set of callbacks to handle the thermal zone based on DT
- */
-
-struct __thermal_zone {
-	enum thermal_device_mode mode;
-	int passive_delay;
-	int polling_delay;
-	int slope;
-	int offset;
-
-	/* trip data */
-	int ntrips;
-	struct thermal_trip *trips;
-
-	/* cooling binding data */
-	int num_tbps;
-	struct __thermal_bind_params *tbps;
-
-	/* sensor interface */
-	void *sensor_data;
-	const struct thermal_zone_of_device_ops *ops;
-};
-
 /***   DT thermal zone device callbacks   ***/
 
 static int of_thermal_get_temp(struct thermal_zone_device *tz,
