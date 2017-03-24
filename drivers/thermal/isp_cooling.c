@@ -217,6 +217,12 @@ unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps)
 }
 EXPORT_SYMBOL_GPL(isp_cooling_get_level);
 
+static int exynos_isp_cooling_get_level(struct thermal_cooling_device *cdev,
+				 unsigned long value)
+{
+	return isp_cooling_get_level(0, value);
+}
+
 /**
  * isp_cooling_get_fps - for a give isp, return the fps value corresponding to cooling level.
  * @isp: isp for which the level is required
@@ -355,6 +361,7 @@ static struct thermal_cooling_device_ops const isp_cooling_ops = {
 	.get_cur_state = isp_get_cur_state,
 	.set_cur_state = isp_set_cur_state,
 	.set_cur_temp = isp_set_cur_temp,
+	.get_cooling_level = exynos_isp_cooling_get_level,
 };
 
 

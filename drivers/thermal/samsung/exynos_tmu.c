@@ -1615,6 +1615,72 @@ static const struct attribute_group exynos_tmu_attr_group = {
 	.attrs = exynos_tmu_attrs,
 };
 
+static int exynos_tmu_parse_ect(struct exynos_tmu_data *data)
+{
+	struct thermal_zone_device *tz = data->tzd;
+	struct __thermal_zone *__tz;
+	void *thermal_block;
+	struct ect_ap_thermal_function *function;
+	int i, temperature;
+	int hotplug_threshold_temp = 0, hotplug_flag = 0;
+	unsigned int freq;
+
+	if (!tz)
+		return -EINVAL;
+
+	__tz = (struct __thermal_zone *)tz->devdata;
+
+	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
+	if (thermal_block == NULL) {
+		pr_err("Failed to get thermal block");
+		return -EINVAL;
+	}
+
+	pr_info("%s %d thermal zone_name = %s\n", __func__, __LINE__, tz->type);
+
+	function = ect_ap_thermal_get_function(thermal_block, tz->type);
+	if (function == NULL) {
+		pr_err("Failed to get thermal block %s", tz->type);
+		return -EINVAL;
+	}
+
+	__tz->ntrips = __tz->num_tbps = function->num_of_range;
+	pr_info("Trip count parsed from ECT : %d, zone : %s", function->num_of_range, tz->type);
+
+
+	for (i = 0; i < function->num_of_range; ++i) {
+		temperature = function->range_list[i].lower_bound_temperature;
+		freq = function->range_list[i].max_frequency;
+		__tz->trips[i].temperature = temperature  * MCELSIUS;
+		__tz->tbps[i].value = freq;
+
+		pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u\n",
+			i, temperature, freq);
+
+		if (function->range_list[i].flag != hotplug_flag) {
+			if (function->range_list[i].flag != hotplug_flag) {
+				hotplug_threshold_temp = temperature;
+				hotplug_flag = function->range_list[i].flag;
+				data->hotplug_out_threshold = temperature;
+
+				if (i)
+					data->hotplug_in_threshold = function->range_list[i-1].lower_bound_temperature;
+
+				pr_info("[ECT]hotplug_threshold : %d\n", hotplug_threshold_temp);
+				pr_info("[ECT]hotplug_in_threshold : %d\n", data->hotplug_in_threshold);
+				pr_info("[ECT]hotplug_out_threshold : %d\n", data->hotplug_out_threshold);
+			}
+		}
+
+		if (hotplug_threshold_temp != 0)
+			data->hotplug_enable = true;
+		else
+			data->hotplug_enable = false;
+
+	}
+	return 0;
+};
+
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS
 struct exynos_tmu_data *gpu_thermal_data;
 #endif
@@ -1656,6 +1722,10 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
 		goto err_sensor;
 	}
+
+#if defined(CONFIG_ECT)
+	exynos_tmu_parse_ect(data);
+#endif
 
 	data->num_probe = (readl(data->base + EXYNOS_TMU_REG_CONTROL1) >> EXYNOS_TMU_NUM_PROBE_SHIFT)
 				& EXYNOS_TMU_NUM_PROBE_MASK;

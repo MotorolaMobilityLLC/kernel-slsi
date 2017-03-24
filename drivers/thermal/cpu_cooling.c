@@ -575,6 +575,14 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
+static int exynos_cpufreq_cooling_get_level(struct thermal_cooling_device *cdev,
+				 unsigned long value)
+{
+	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
+
+	return get_level(cpufreq_cdev, value);
+}
+
 /**
  * cpufreq_get_requested_power() - get the current power
  * @cdev:	&thermal_cooling_device pointer
@@ -790,6 +798,7 @@ static struct thermal_cooling_device_ops cpufreq_cooling_ops = {
 	.get_max_state = cpufreq_get_max_state,
 	.get_cur_state = cpufreq_get_cur_state,
 	.set_cur_state = cpufreq_set_cur_state,
+	.get_cooling_level = exynos_cpufreq_cooling_get_level,
 };
 
 static struct thermal_cooling_device_ops cpufreq_power_cooling_ops = {
