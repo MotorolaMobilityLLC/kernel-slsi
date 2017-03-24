@@ -1108,3 +1108,25 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	kfree(cpufreq_cdev);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cooling_unregister);
+
+struct thermal_cooling_device *
+exynos_cpufreq_cooling_register(const struct cpumask *clip_cpus)
+{
+	struct device *dev;
+	struct device_node *np;
+	u32 capacitance = 0;
+
+	dev = get_cpu_device(cpumask_first(clip_cpus));
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	np = of_node_get(dev->of_node);
+
+	if (!np)
+		return ERR_PTR(-EINVAL);
+
+	return __cpufreq_cooling_register(np, clip_cpus, capacitance,
+				NULL);
+}
+EXPORT_SYMBOL_GPL(exynos_cpufreq_cooling_register);
