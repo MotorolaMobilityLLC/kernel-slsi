@@ -1441,49 +1441,6 @@ static const struct thermal_zone_of_device_ops exynos_sensor_ops = {
 	.get_trend = exynos_get_trend,
 };
 
-#ifdef CONFIG_ISP_THERMAL
-static int exynos_isp_cooling_register(struct exynos_tmu_data *data)
-{
-	struct device_node *np, *child = NULL, *gchild, *ggchild;
-	struct device_node *cool_np;
-	struct of_phandle_args cooling_spec;
-	int ret;
-
-	np = of_find_node_by_name(NULL, "thermal-zones");
-	if (!np)
-		return -ENODEV;
-
-	/* Regist isp cooling device */
-	for_each_child_of_node(np, child) {
-		struct device_node *zone_np;
-		zone_np = of_parse_phandle(child, "thermal-sensors", 0);
-
-		if (zone_np == data->np) break;
-	}
-
-	gchild = of_get_child_by_name(child, "cooling-maps");
-	ggchild = of_get_next_child(gchild, NULL);
-	ret = of_parse_phandle_with_args(ggchild, "cooling-device", "#cooling-cells",
-					 0, &cooling_spec);
-	if (ret < 0)
-		pr_err("%s do not get cooling spec(err = %d) \n", data->tmu_name, ret);
-
-	cool_np = cooling_spec.np;
-
-	data->cool_dev = of_isp_cooling_register(cool_np, NULL);
-
-	if (IS_ERR(data->cool_dev)) {
-		data->cool_dev = NULL;
-	        pr_err("isp cooling device register fail \n");
-		return -ENODEV;
-	}
-
-	return ret;
-}
-#else
-static int exynos_isp_cooling_register(struct exynos_tmu_data *data) {return 0;}
-#endif
-
 static ssize_t
 balance_offset_show(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
@@ -1654,18 +1611,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	ret = exynos_map_dt_data(pdev);
 	if (ret)
 		goto err_sensor;
-
-	if (data->id == 3) {
-		ret = isp_cooling_table_init(pdev);
-		if (ret)
-			goto err_sensor;
-
-		ret = exynos_isp_cooling_register(data);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed cooling register \n");
-			goto err_sensor;
-		}
-	}
 
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
 

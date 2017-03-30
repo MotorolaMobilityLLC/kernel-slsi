@@ -485,36 +485,29 @@ EXPORT_SYMBOL_GPL(isp_cooling_unregister);
 
 /**
  * isp_cooling_table_init - function to make ISP fps throttling table.
- * @pdev : struct platform_device pointer
  *
  * Return : a valid struct isp_fps_table pointer on success,
  * on failture, it returns a corresponding ERR_PTR().
  */
-int isp_cooling_table_init(struct platform_device *pdev)
+static int isp_cooling_table_init(void)
 {
 	int ret = 0, i = 0;
 #if defined(CONFIG_ECT)
-	struct exynos_tmu_data *exynos_data;
 	void *thermal_block;
 	struct ect_ap_thermal_function *function;
 	int last_fps = -1, count = 0;
-#else
-	unsigned int table_size;
-	u32 isp_idx_num = 0;
 #endif
 
 #if defined(CONFIG_ECT)
-	exynos_data = platform_get_drvdata(pdev);
-
 	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
 	if (thermal_block == NULL) {
-		dev_err(&pdev->dev, "Failed to get thermal block");
+		pr_err("Failed to get thermal block");
 		return -ENODEV;
 	}
 
-	function = ect_ap_thermal_get_function(thermal_block, exynos_data->tmu_name);
+	function = ect_ap_thermal_get_function(thermal_block, "ISP");
 	if (function == NULL) {
-		dev_err(&pdev->dev, "Failed to get %s information", exynos_data->tmu_name);
+		pr_err("Failed to get ISP thermal information");
 		return -ENODEV;
 	}
 
@@ -530,7 +523,7 @@ int isp_cooling_table_init(struct platform_device *pdev)
 		isp_fps_table[count].fps = function->range_list[i].max_frequency;
 		last_fps = isp_fps_table[count].fps;
 
-		dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
+		pr_info("[ISP TMU] index : %d, fps : %d\n",
 			isp_fps_table[count].driver_data, isp_fps_table[count].fps);
 		count++;
 	}
@@ -538,27 +531,39 @@ int isp_cooling_table_init(struct platform_device *pdev)
 	if (i == function->num_of_range)
 		isp_fps_table[count].fps = ISP_FPS_TABLE_END;
 #else
-	/* isp cooling frequency table parse */
-	ret = of_property_read_u32(pdev->dev.of_node, "isp_idx_num", &isp_idx_num);
-	if (ret < 0)
-		dev_err(&pdev->dev, "isp_idx_num happend error value\n");
-
-	if (isp_idx_num) {
-		isp_fps_table = kzalloc(sizeof(struct isp_fps_table)* isp_idx_num, GFP_KERNEL);
-		if (!isp_fps_table) {
-			dev_err(&pdev->dev, "failed to allocate for isp_table\n");
-			return -ENODEV;
-		}
-		table_size = sizeof(struct isp_fps_table) / sizeof(unsigned int);
-		ret = of_property_read_u32_array(pdev->dev.of_node, "isp_cooling_table",
-			(unsigned int *)isp_fps_table, table_size * isp_idx_num);
-
-		for (i = 0; i < isp_idx_num; i++) {
-			dev_info(&pdev->dev, "[ISP TMU] index : %d, fps : %d \n",
-				isp_fps_table[i].driver_data, isp_fps_table[i].fps);
-		}
-	}
+	pr_err("[ISP cooling] could not find ECT information\n");
+	ret = -EINVAL;
 #endif
 	return ret;
 }
-EXPORT_SYMBOL_GPL(isp_cooling_table_init);
+
+static int __init exynos_isp_cooling_init(void)
+{
+	struct device_node *np;
+	struct thermal_cooling_device *dev;
+	int ret = 0;
+
+	ret = isp_cooling_table_init();
+
+	if (ret) {
+		pr_err("Fail to initialize isp_cooling_table\n");
+		return ret;
+	}
+
+	np = of_find_node_by_name(NULL, "fimc_is");
+
+	if (!np) {
+		pr_err("Fail to find device node\n");
+		return -EINVAL;
+	}
+
+	dev = of_isp_cooling_register(np, 0);
+
+	if (IS_ERR(dev)) {
+		pr_err("Fail to register isp cooling\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+device_initcall(exynos_isp_cooling_init);
