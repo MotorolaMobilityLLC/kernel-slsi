@@ -86,7 +86,6 @@ of_gpufreq_power_cooling_register(struct device_node *np,
 void gpufreq_cooling_unregister(struct thermal_cooling_device *cdev);
 
 unsigned long gpufreq_cooling_get_level(unsigned int gpu, unsigned int freq);
-int gpu_cooling_table_init(struct platform_device *pdev);
 #else /* !CONFIG_GPU_THERMAL */
 static inline struct thermal_cooling_device *
 gpufreq_cooling_register(const struct cpumask *clip_gpus)
@@ -126,11 +125,6 @@ static inline
 unsigned long gpufreq_cooling_get_level(unsigned int gpu, unsigned int freq)
 {
 	return THERMAL_CSTATE_INVALID;
-}
-
-static inline int gpu_cooling_table_init(struct platform_device *dev)
-{
-	return true;
 }
 #endif	/* CONFIG_GPU_THERMAL */
 #ifdef CONFIG_MALI_DVFS
