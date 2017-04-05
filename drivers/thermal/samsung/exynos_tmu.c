@@ -1059,6 +1059,24 @@ static int exynos_get_temp(void *p, int *temp)
 	return 0;
 }
 
+static int exynos_get_trend(void *p, int trip, enum thermal_trend *trend)
+{
+	struct exynos_tmu_data *data = p;
+	struct thermal_zone_device *tz = data->tzd;
+	int trip_temp, ret = 0;
+
+	ret = tz->ops->get_trip_temp(tz, trip, &trip_temp);
+	if (ret < 0)
+		return ret;
+
+	if (tz->temperature >= trip_temp)
+		*trend = THERMAL_TREND_RAISE_FULL;
+	else
+		*trend = THERMAL_TREND_DROP_FULL;
+
+	return 0;
+}
+
 #ifdef CONFIG_THERMAL_EMULATION
 static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
 			    int temp)
@@ -1458,6 +1476,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 static const struct thermal_zone_of_device_ops exynos_sensor_ops = {
 	.get_temp = exynos_get_temp,
 	.set_emul_temp = exynos_tmu_set_emulation,
+	.get_trend = exynos_get_trend,
 };
 
 static int exynos_tmu_probe(struct platform_device *pdev)
