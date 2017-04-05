@@ -28,9 +28,6 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/dmaengine.h>
-#include <linux/dma-mapping.h>
-#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -45,14 +42,24 @@
 #include <linux/serial_s3c.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/cpufreq.h>
+#include <linux/suspend.h>
 #include <linux/of.h>
 
 #include <asm/irq.h>
 
 #include "samsung.h"
+#include "../../pinctrl/core.h"
+
+#ifdef CONFIG_CPU_IDLE
+#include <soc/samsung/exynos-pm.h>
+#endif
+
+#ifdef CONFIG_PM_DEVFREQ
+#include <linux/pm_qos.h>
+#endif
 
 #if	defined(CONFIG_SERIAL_SAMSUNG_DEBUG) &&	\
+	defined(CONFIG_DEBUG_LL) &&		\
 	!defined(MODULE)
 
 extern void printascii(const char *);
@@ -80,10 +87,10 @@ static void dbg(const char *fmt, ...)
 #define S3C24XX_SERIAL_MAJOR	204
 #define S3C24XX_SERIAL_MINOR	64
 
-#define S3C24XX_TX_PIO			1
-#define S3C24XX_TX_DMA			2
-#define S3C24XX_RX_PIO			1
-#define S3C24XX_RX_DMA			2
+/* Baudrate definition*/
+#define MAX_BAUD	3000000
+#define MIN_BAUD	0
+
 /* macros to change one thing to another */
 
 #define tx_enabled(port) ((port)->unused[0])
@@ -91,6 +98,129 @@ static void dbg(const char *fmt, ...)
 
 /* flag to ignore all characters coming in */
 #define RXSTAT_DUMMY_READ (0x10000000)
+
+static LIST_HEAD(drvdata_list);
+s3c_wake_peer_t s3c2410_serial_wake_peer[CONFIG_SERIAL_SAMSUNG_UARTS];
+EXPORT_SYMBOL_GPL(s3c2410_serial_wake_peer);
+
+#define UART_LOOPBACK_MODE	(0x1 << 0)
+#define UART_DBG_MODE		(0x1 << 1)
+
+static void print_uart_mode(struct uart_port *port,
+		struct ktermios *termios, unsigned int baud)
+{
+	printk(KERN_ERR "UART port%d configurations\n", port->line);
+
+	switch (termios->c_cflag & CSIZE) {
+	case CS5:
+		printk(KERN_ERR " - 5bits word length\n");
+		break;
+	case CS6:
+		printk(KERN_ERR " - 6bits word length\n");
+		break;
+	case CS7:
+		printk(KERN_ERR " - 7bits word length\n");
+		break;
+	case CS8:
+	default:
+		printk(KERN_ERR " - 8bits word length\n");
+		break;
+	}
+
+	if (termios->c_cflag & CSTOPB)
+		printk(KERN_ERR " - Use TWO stop bit\n");
+	else
+		printk(KERN_ERR " - Use one stop bit\n");
+
+	if (termios->c_cflag & CRTSCTS)
+		printk(KERN_ERR " - Use Autoflow control\n");
+
+	printk(KERN_ERR " - Baudrate : %u\n", baud);
+}
+
+static ssize_t
+uart_dbg_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+			"UART Debug Mode Configuration.\n");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+			"0 : Change loopback & DBG mode.\n");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+			"1 : Change DBG mode.\n");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+			"2 : Change Normal mode.\n");
+
+	if (ret < PAGE_SIZE - 1) {
+		ret += snprintf(buf+ret, PAGE_SIZE-ret, "\n");
+	} else {
+		buf[PAGE_SIZE-2] = '\n';
+		buf[PAGE_SIZE-1] = '\0';
+		ret = PAGE_SIZE-1;
+	}
+
+	return ret;
+}
+
+static ssize_t
+uart_dbg_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int input_cmd = 0, ret;
+	struct s3c24xx_uart_port *ourport;
+
+	ret = sscanf(buf, "%d", &input_cmd);
+
+	list_for_each_entry(ourport, &drvdata_list, node) {
+		if (&ourport->pdev->dev != dev)
+			continue;
+
+		switch(input_cmd) {
+		case 0:
+			printk(KERN_ERR "Change UART%d to Loopback(DBG) mode\n",
+						ourport->port.line);
+			ourport->dbg_mode = UART_DBG_MODE | UART_LOOPBACK_MODE;
+			break;
+		case 1:
+			printk(KERN_ERR "Change UART%d to DBG mode\n",
+						ourport->port.line);
+			ourport->dbg_mode = UART_DBG_MODE;
+			break;
+		case 2:
+			printk(KERN_ERR "Change UART%d to normal mode\n",
+						ourport->port.line);
+			ourport->dbg_mode = 0;
+			break;
+		default:
+			printk(KERN_ERR "Wrong Command!(0/1/2)\n");
+		}
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(uart_dbg, 0640, uart_dbg_show, uart_dbg_store);
+
+static void s3c24xx_serial_resetport(struct uart_port *port,
+				   struct s3c2410_uartcfg *cfg);
+static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
+			      unsigned int old);
+static struct uart_driver s3c24xx_uart_drv;
+
+static inline void uart_clock_enable(struct s3c24xx_uart_port *ourport)
+{
+	if (ourport->check_separated_clk)
+		clk_prepare_enable(ourport->separated_clk);
+	clk_prepare_enable(ourport->clk);
+}
+
+static inline void uart_clock_disable(struct s3c24xx_uart_port *ourport)
+{
+	clk_disable_unprepare(ourport->clk);
+	if (ourport->check_separated_clk)
+		clk_disable_unprepare(ourport->separated_clk);
+}
 
 static inline struct s3c24xx_uart_port *to_ourport(struct uart_port *port)
 {
@@ -160,257 +290,48 @@ static void s3c24xx_serial_rx_disable(struct uart_port *port)
 static void s3c24xx_serial_stop_tx(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-	struct circ_buf *xmit = &port->state->xmit;
-	struct dma_tx_state state;
-	int count;
 
-	if (!tx_enabled(port))
-		return;
-
-	if (s3c24xx_serial_has_interrupt_mask(port))
-		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
-	else
-		disable_irq_nosync(ourport->tx_irq);
-
-	if (dma && dma->tx_chan && ourport->tx_in_progress == S3C24XX_TX_DMA) {
-		dmaengine_pause(dma->tx_chan);
-		dmaengine_tx_status(dma->tx_chan, dma->tx_cookie, &state);
-		dmaengine_terminate_all(dma->tx_chan);
-		dma_sync_single_for_cpu(ourport->port.dev,
-			dma->tx_transfer_addr, dma->tx_size, DMA_TO_DEVICE);
-		async_tx_ack(dma->tx_desc);
-		count = dma->tx_bytes_requested - state.residue;
-		xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
-		port->icount.tx += count;
+	if (tx_enabled(port)) {
+		if (s3c24xx_serial_has_interrupt_mask(port))
+			__set_bit(S3C64XX_UINTM_TXD,
+				portaddrl(port, S3C64XX_UINTM));
+		else
+			disable_irq_nosync(ourport->tx_irq);
+		tx_enabled(port) = 0;
+		if (port->flags & UPF_CONS_FLOW)
+			s3c24xx_serial_rx_enable(port);
 	}
-
-	tx_enabled(port) = 0;
-	ourport->tx_in_progress = 0;
-
-	if (port->flags & UPF_CONS_FLOW)
-		s3c24xx_serial_rx_enable(port);
-
-	ourport->tx_mode = 0;
-}
-
-static void s3c24xx_serial_start_next_tx(struct s3c24xx_uart_port *ourport);
-
-static void s3c24xx_serial_tx_dma_complete(void *args)
-{
-	struct s3c24xx_uart_port *ourport = args;
-	struct uart_port *port = &ourport->port;
-	struct circ_buf *xmit = &port->state->xmit;
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-	struct dma_tx_state state;
-	unsigned long flags;
-	int count;
-
-
-	dmaengine_tx_status(dma->tx_chan, dma->tx_cookie, &state);
-	count = dma->tx_bytes_requested - state.residue;
-	async_tx_ack(dma->tx_desc);
-
-	dma_sync_single_for_cpu(ourport->port.dev, dma->tx_transfer_addr,
-				dma->tx_size, DMA_TO_DEVICE);
-
-	spin_lock_irqsave(&port->lock, flags);
-
-	xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
-	port->icount.tx += count;
-	ourport->tx_in_progress = 0;
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	s3c24xx_serial_start_next_tx(ourport);
-	spin_unlock_irqrestore(&port->lock, flags);
-}
-
-static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
-{
-	struct uart_port *port = &ourport->port;
-	u32 ucon;
-
-	/* Mask Tx interrupt */
-	if (s3c24xx_serial_has_interrupt_mask(port))
-		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
-	else
-		disable_irq_nosync(ourport->tx_irq);
-
-	/* Enable tx dma mode */
-	ucon = rd_regl(port, S3C2410_UCON);
-	ucon &= ~(S3C64XX_UCON_TXBURST_MASK | S3C64XX_UCON_TXMODE_MASK);
-	ucon |= (dma_get_cache_alignment() >= 16) ?
-		S3C64XX_UCON_TXBURST_16 : S3C64XX_UCON_TXBURST_1;
-	ucon |= S3C64XX_UCON_TXMODE_DMA;
-	wr_regl(port,  S3C2410_UCON, ucon);
-
-	ourport->tx_mode = S3C24XX_TX_DMA;
-}
-
-static void enable_tx_pio(struct s3c24xx_uart_port *ourport)
-{
-	struct uart_port *port = &ourport->port;
-	u32 ucon, ufcon;
-
-	/* Set ufcon txtrig */
-	ourport->tx_in_progress = S3C24XX_TX_PIO;
-	ufcon = rd_regl(port, S3C2410_UFCON);
-	wr_regl(port,  S3C2410_UFCON, ufcon);
-
-	/* Enable tx pio mode */
-	ucon = rd_regl(port, S3C2410_UCON);
-	ucon &= ~(S3C64XX_UCON_TXMODE_MASK);
-	ucon |= S3C64XX_UCON_TXMODE_CPU;
-	wr_regl(port,  S3C2410_UCON, ucon);
-
-	/* Unmask Tx interrupt */
-	if (s3c24xx_serial_has_interrupt_mask(port))
-		s3c24xx_clear_bit(port, S3C64XX_UINTM_TXD,
-				  S3C64XX_UINTM);
-	else
-		enable_irq(ourport->tx_irq);
-
-	ourport->tx_mode = S3C24XX_TX_PIO;
-}
-
-static void s3c24xx_serial_start_tx_pio(struct s3c24xx_uart_port *ourport)
-{
-	if (ourport->tx_mode != S3C24XX_TX_PIO)
-		enable_tx_pio(ourport);
-}
-
-static int s3c24xx_serial_start_tx_dma(struct s3c24xx_uart_port *ourport,
-				      unsigned int count)
-{
-	struct uart_port *port = &ourport->port;
-	struct circ_buf *xmit = &port->state->xmit;
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-
-
-	if (ourport->tx_mode != S3C24XX_TX_DMA)
-		enable_tx_dma(ourport);
-
-	dma->tx_size = count & ~(dma_get_cache_alignment() - 1);
-	dma->tx_transfer_addr = dma->tx_addr + xmit->tail;
-
-	dma_sync_single_for_device(ourport->port.dev, dma->tx_transfer_addr,
-				dma->tx_size, DMA_TO_DEVICE);
-
-	dma->tx_desc = dmaengine_prep_slave_single(dma->tx_chan,
-				dma->tx_transfer_addr, dma->tx_size,
-				DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
-	if (!dma->tx_desc) {
-		dev_err(ourport->port.dev, "Unable to get desc for Tx\n");
-		return -EIO;
-	}
-
-	dma->tx_desc->callback = s3c24xx_serial_tx_dma_complete;
-	dma->tx_desc->callback_param = ourport;
-	dma->tx_bytes_requested = dma->tx_size;
-
-	ourport->tx_in_progress = S3C24XX_TX_DMA;
-	dma->tx_cookie = dmaengine_submit(dma->tx_desc);
-	dma_async_issue_pending(dma->tx_chan);
-	return 0;
-}
-
-static void s3c24xx_serial_start_next_tx(struct s3c24xx_uart_port *ourport)
-{
-	struct uart_port *port = &ourport->port;
-	struct circ_buf *xmit = &port->state->xmit;
-	unsigned long count;
-
-	/* Get data size up to the end of buffer */
-	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-
-	if (!count) {
-		s3c24xx_serial_stop_tx(port);
-		return;
-	}
-
-	if (!ourport->dma || !ourport->dma->tx_chan ||
-	    count < ourport->min_dma_size ||
-	    xmit->tail & (dma_get_cache_alignment() - 1))
-		s3c24xx_serial_start_tx_pio(ourport);
-	else
-		s3c24xx_serial_start_tx_dma(ourport, count);
 }
 
 static void s3c24xx_serial_start_tx(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	struct circ_buf *xmit = &port->state->xmit;
 
 	if (!tx_enabled(port)) {
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_disable(port);
 
+		if (s3c24xx_serial_has_interrupt_mask(port))
+			__clear_bit(S3C64XX_UINTM_TXD,
+				portaddrl(port, S3C64XX_UINTM));
+		else
+			enable_irq(ourport->tx_irq);
 		tx_enabled(port) = 1;
-		if (!ourport->dma || !ourport->dma->tx_chan)
-			s3c24xx_serial_start_tx_pio(ourport);
-	}
-
-	if (ourport->dma && ourport->dma->tx_chan) {
-		if (!uart_circ_empty(xmit) && !ourport->tx_in_progress)
-			s3c24xx_serial_start_next_tx(ourport);
-	}
-}
-
-static void s3c24xx_uart_copy_rx_to_tty(struct s3c24xx_uart_port *ourport,
-		struct tty_port *tty, int count)
-{
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-	int copied;
-
-	if (!count)
-		return;
-
-	dma_sync_single_for_cpu(ourport->port.dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
-
-	ourport->port.icount.rx += count;
-	if (!tty) {
-		dev_err(ourport->port.dev, "No tty port\n");
-		return;
-	}
-	copied = tty_insert_flip_string(tty,
-			((unsigned char *)(ourport->dma->rx_buf)), count);
-	if (copied != count) {
-		WARN_ON(1);
-		dev_err(ourport->port.dev, "RxData copy to tty layer failed\n");
 	}
 }
 
 static void s3c24xx_serial_stop_rx(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-	struct tty_port *t = &port->state->port;
-	struct dma_tx_state state;
-	enum dma_status dma_status;
-	unsigned int received;
 
 	if (rx_enabled(port)) {
 		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
 		if (s3c24xx_serial_has_interrupt_mask(port))
-			s3c24xx_set_bit(port, S3C64XX_UINTM_RXD,
-					S3C64XX_UINTM);
+			__set_bit(S3C64XX_UINTM_RXD,
+				portaddrl(port, S3C64XX_UINTM));
 		else
 			disable_irq_nosync(ourport->rx_irq);
 		rx_enabled(port) = 0;
-	}
-	if (dma && dma->rx_chan) {
-		dmaengine_pause(dma->tx_chan);
-		dma_status = dmaengine_tx_status(dma->rx_chan,
-				dma->rx_cookie, &state);
-		if (dma_status == DMA_IN_PROGRESS ||
-			dma_status == DMA_PAUSED) {
-			received = dma->rx_bytes_requested - state.residue;
-			dmaengine_terminate_all(dma->rx_chan);
-			s3c24xx_uart_copy_rx_to_tty(ourport, t, received);
-		}
 	}
 }
 
@@ -443,177 +364,37 @@ static int s3c24xx_serial_rx_fifocnt(struct s3c24xx_uart_port *ourport,
 	return (ufstat & info->rx_fifomask) >> info->rx_fifoshift;
 }
 
-static void s3c64xx_start_rx_dma(struct s3c24xx_uart_port *ourport);
-static void s3c24xx_serial_rx_dma_complete(void *args)
+static int s3c24xx_serial_tx_fifocnt(struct s3c24xx_uart_port *ourport,
+				     unsigned long ufstat)
 {
-	struct s3c24xx_uart_port *ourport = args;
-	struct uart_port *port = &ourport->port;
+	struct s3c24xx_uart_info *info = ourport->info;
 
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-	struct tty_port *t = &port->state->port;
-	struct tty_struct *tty = tty_port_tty_get(&ourport->port.state->port);
+	if (ufstat & info->tx_fifofull)
+		return ourport->port.fifosize;
 
-	struct dma_tx_state state;
-	unsigned long flags;
-	int received;
-
-	dmaengine_tx_status(dma->rx_chan,  dma->rx_cookie, &state);
-	received  = dma->rx_bytes_requested - state.residue;
-	async_tx_ack(dma->rx_desc);
-
-	spin_lock_irqsave(&port->lock, flags);
-
-	if (received)
-		s3c24xx_uart_copy_rx_to_tty(ourport, t, received);
-
-	if (tty) {
-		tty_flip_buffer_push(t);
-		tty_kref_put(tty);
-	}
-
-	s3c64xx_start_rx_dma(ourport);
-
-	spin_unlock_irqrestore(&port->lock, flags);
-}
-
-static void s3c64xx_start_rx_dma(struct s3c24xx_uart_port *ourport)
-{
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-
-	dma_sync_single_for_device(ourport->port.dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
-
-	dma->rx_desc = dmaengine_prep_slave_single(dma->rx_chan,
-				dma->rx_addr, dma->rx_size, DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT);
-	if (!dma->rx_desc) {
-		dev_err(ourport->port.dev, "Unable to get desc for Rx\n");
-		return;
-	}
-
-	dma->rx_desc->callback = s3c24xx_serial_rx_dma_complete;
-	dma->rx_desc->callback_param = ourport;
-	dma->rx_bytes_requested = dma->rx_size;
-
-	dma->rx_cookie = dmaengine_submit(dma->rx_desc);
-	dma_async_issue_pending(dma->rx_chan);
+	return (ufstat & info->tx_fifomask) >> info->tx_fifoshift;
 }
 
 /* ? - where has parity gone?? */
 #define S3C2410_UERSTAT_PARITY (0x1000)
 
-static void enable_rx_dma(struct s3c24xx_uart_port *ourport)
+static irqreturn_t
+s3c24xx_serial_rx_chars(int irq, void *dev_id)
 {
-	struct uart_port *port = &ourport->port;
-	unsigned int ucon;
-
-	/* set Rx mode to DMA mode */
-	ucon = rd_regl(port, S3C2410_UCON);
-	ucon &= ~(S3C64XX_UCON_RXBURST_MASK |
-			S3C64XX_UCON_TIMEOUT_MASK |
-			S3C64XX_UCON_EMPTYINT_EN |
-			S3C64XX_UCON_DMASUS_EN |
-			S3C64XX_UCON_TIMEOUT_EN |
-			S3C64XX_UCON_RXMODE_MASK);
-	ucon |= S3C64XX_UCON_RXBURST_16 |
-			0xf << S3C64XX_UCON_TIMEOUT_SHIFT |
-			S3C64XX_UCON_EMPTYINT_EN |
-			S3C64XX_UCON_TIMEOUT_EN |
-			S3C64XX_UCON_RXMODE_DMA;
-	wr_regl(port, S3C2410_UCON, ucon);
-
-	ourport->rx_mode = S3C24XX_RX_DMA;
-}
-
-static void enable_rx_pio(struct s3c24xx_uart_port *ourport)
-{
-	struct uart_port *port = &ourport->port;
-	unsigned int ucon;
-
-	/* set Rx mode to DMA mode */
-	ucon = rd_regl(port, S3C2410_UCON);
-	ucon &= ~(S3C64XX_UCON_TIMEOUT_MASK |
-			S3C64XX_UCON_EMPTYINT_EN |
-			S3C64XX_UCON_DMASUS_EN |
-			S3C64XX_UCON_TIMEOUT_EN |
-			S3C64XX_UCON_RXMODE_MASK);
-	ucon |= 0xf << S3C64XX_UCON_TIMEOUT_SHIFT |
-			S3C64XX_UCON_TIMEOUT_EN |
-			S3C64XX_UCON_RXMODE_CPU;
-	wr_regl(port, S3C2410_UCON, ucon);
-
-	ourport->rx_mode = S3C24XX_RX_PIO;
-}
-
-static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport);
-
-static irqreturn_t s3c24xx_serial_rx_chars_dma(void *dev_id)
-{
-	unsigned int utrstat, ufstat, received;
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
-	struct s3c24xx_uart_dma *dma = ourport->dma;
-	struct tty_struct *tty = tty_port_tty_get(&ourport->port.state->port);
-	struct tty_port *t = &port->state->port;
+	unsigned int ufcon, ch, flag, ufstat, uerstat;
 	unsigned long flags;
-	struct dma_tx_state state;
-
-	utrstat = rd_regl(port, S3C2410_UTRSTAT);
-	ufstat = rd_regl(port, S3C2410_UFSTAT);
+	int max_count = 64;
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	if (!(utrstat & S3C2410_UTRSTAT_TIMEOUT)) {
-		s3c64xx_start_rx_dma(ourport);
-		if (ourport->rx_mode == S3C24XX_RX_PIO)
-			enable_rx_dma(ourport);
-		goto finish;
-	}
-
-	if (ourport->rx_mode == S3C24XX_RX_DMA) {
-		dmaengine_pause(dma->rx_chan);
-		dmaengine_tx_status(dma->rx_chan, dma->rx_cookie, &state);
-		dmaengine_terminate_all(dma->rx_chan);
-		received = dma->rx_bytes_requested - state.residue;
-		s3c24xx_uart_copy_rx_to_tty(ourport, t, received);
-
-		enable_rx_pio(ourport);
-	}
-
-	s3c24xx_serial_rx_drain_fifo(ourport);
-
-	if (tty) {
-		tty_flip_buffer_push(t);
-		tty_kref_put(tty);
-	}
-
-	wr_regl(port, S3C2410_UTRSTAT, S3C2410_UTRSTAT_TIMEOUT);
-
-finish:
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	return IRQ_HANDLED;
-}
-
-static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
-{
-	struct uart_port *port = &ourport->port;
-	unsigned int ufcon, ch, flag, ufstat, uerstat;
-	unsigned int fifocnt = 0;
-	int max_count = port->fifosize;
-
 	while (max_count-- > 0) {
-		/*
-		 * Receive all characters known to be in FIFO
-		 * before reading FIFO level again
-		 */
-		if (fifocnt == 0) {
-			ufstat = rd_regl(port, S3C2410_UFSTAT);
-			fifocnt = s3c24xx_serial_rx_fifocnt(ourport, ufstat);
-			if (fifocnt == 0)
-				break;
-		}
-		fifocnt--;
+		ufcon = rd_regl(port, S3C2410_UFCON);
+		ufstat = rd_regl(port, S3C2410_UFSTAT);
+
+		if (s3c24xx_serial_rx_fifocnt(ourport, ufstat) == 0)
+			break;
 
 		uerstat = rd_regl(port, S3C2410_UERSTAT);
 		ch = rd_regb(port, S3C2410_URXH);
@@ -628,11 +409,12 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 				}
 			} else {
 				if (txe) {
-					ufcon = rd_regl(port, S3C2410_UFCON);
 					ufcon |= S3C2410_UFCON_RESETRX;
 					wr_regl(port, S3C2410_UFCON, ufcon);
 					rx_enabled(port) = 1;
-					return;
+					spin_unlock_irqrestore(&port->lock,
+							flags);
+					goto out;
 				}
 				continue;
 			}
@@ -652,7 +434,7 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 				dbg("break!\n");
 				port->icount.brk++;
 				if (uart_handle_break(port))
-					continue; /* Ignore character */
+					goto ignore_char;
 			}
 
 			if (uerstat & S3C2410_UERSTAT_FRAME)
@@ -672,36 +454,20 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 		}
 
 		if (uart_handle_sysrq_char(port, ch))
-			continue; /* Ignore character */
+			goto ignore_char;
 
 		uart_insert_char(port, uerstat, S3C2410_UERSTAT_OVERRUN,
 				 ch, flag);
+
+ ignore_char:
+		continue;
 	}
 
-	tty_flip_buffer_push(&port->state->port);
-}
-
-static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
-{
-	struct s3c24xx_uart_port *ourport = dev_id;
-	struct uart_port *port = &ourport->port;
-	unsigned long flags;
-
-	spin_lock_irqsave(&port->lock, flags);
-	s3c24xx_serial_rx_drain_fifo(ourport);
 	spin_unlock_irqrestore(&port->lock, flags);
+	tty_flip_buffer_push(&port->state->port);
 
+ out:
 	return IRQ_HANDLED;
-}
-
-
-static irqreturn_t s3c24xx_serial_rx_chars(int irq, void *dev_id)
-{
-	struct s3c24xx_uart_port *ourport = dev_id;
-
-	if (ourport->dma && ourport->dma->rx_chan)
-		return s3c24xx_serial_rx_chars_dma(dev_id);
-	return s3c24xx_serial_rx_chars_pio(dev_id);
 }
 
 static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
@@ -710,21 +476,9 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 	struct uart_port *port = &ourport->port;
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned long flags;
-	int count, dma_count = 0;
+	int count = 256;
 
 	spin_lock_irqsave(&port->lock, flags);
-
-	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-
-	if (ourport->dma && ourport->dma->tx_chan &&
-	    count >= ourport->min_dma_size) {
-		int align = dma_get_cache_alignment() -
-			(xmit->tail & (dma_get_cache_alignment() - 1));
-		if (count-align >= ourport->min_dma_size) {
-			dma_count = count-align;
-			count = align;
-		}
-	}
 
 	if (port->x_char) {
 		wr_regb(port, S3C2410_UTXH, port->x_char);
@@ -744,24 +498,13 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	/* try and drain the buffer... */
 
-	if (count > port->fifosize) {
-		count = port->fifosize;
-		dma_count = 0;
-	}
-
-	while (!uart_circ_empty(xmit) && count > 0) {
+	while (!uart_circ_empty(xmit) && count-- > 0) {
 		if (rd_regl(port, S3C2410_UFSTAT) & ourport->info->tx_fifofull)
 			break;
 
 		wr_regb(port, S3C2410_UTXH, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
-		count--;
-	}
-
-	if (!count && dma_count) {
-		s3c24xx_serial_start_tx_dma(ourport, dma_count);
-		goto out;
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS) {
@@ -778,6 +521,26 @@ out:
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ
+static void s3c64xx_serial_qos_func(struct work_struct *work)
+{
+	struct s3c24xx_uart_port *ourport =
+		container_of(work, struct s3c24xx_uart_port, qos_work.work);
+	struct uart_port *port = &ourport->port;
+
+	if (ourport->mif_qos_val)
+		pm_qos_update_request_timeout(&ourport->s3c24xx_uart_mif_qos,
+				ourport->mif_qos_val, ourport->qos_timeout);
+
+	if (ourport->cpu_qos_val)
+		pm_qos_update_request_timeout(&ourport->s3c24xx_uart_cpu_qos,
+				ourport->cpu_qos_val, ourport->qos_timeout);
+
+	if (ourport->uart_irq_affinity)
+		irq_set_affinity(port->irq, cpumask_of(ourport->uart_irq_affinity));
+}
+#endif
+
 /* interrupt handler for s3c64xx and later SoC's.*/
 static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
 {
@@ -785,6 +548,13 @@ static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
 	struct uart_port *port = &ourport->port;
 	unsigned int pend = rd_regl(port, S3C64XX_UINTP);
 	irqreturn_t ret = IRQ_HANDLED;
+
+#ifdef CONFIG_PM_DEVFREQ
+	if ((ourport->mif_qos_val || ourport->cpu_qos_val)
+					&& ourport->qos_timeout)
+		schedule_delayed_work(&ourport->qos_work,
+						msecs_to_jiffies(100));
+#endif
 
 	if (pend & S3C64XX_UINTM_RXD_MSK) {
 		ret = s3c24xx_serial_rx_chars(irq, id);
@@ -856,100 +626,6 @@ static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
-{
-	struct s3c24xx_uart_dma	*dma = p->dma;
-	int ret;
-
-	/* Default slave configuration parameters */
-	dma->rx_conf.direction		= DMA_DEV_TO_MEM;
-	dma->rx_conf.src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
-	dma->rx_conf.src_addr		= p->port.mapbase + S3C2410_URXH;
-	dma->rx_conf.src_maxburst	= 16;
-
-	dma->tx_conf.direction		= DMA_MEM_TO_DEV;
-	dma->tx_conf.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
-	dma->tx_conf.dst_addr		= p->port.mapbase + S3C2410_UTXH;
-	if (dma_get_cache_alignment() >= 16)
-		dma->tx_conf.dst_maxburst = 16;
-	else
-		dma->tx_conf.dst_maxburst = 1;
-
-	dma->rx_chan = dma_request_chan(p->port.dev, "rx");
-
-	if (IS_ERR(dma->rx_chan))
-		return PTR_ERR(dma->rx_chan);
-
-	dmaengine_slave_config(dma->rx_chan, &dma->rx_conf);
-
-	dma->tx_chan = dma_request_chan(p->port.dev, "tx");
-	if (IS_ERR(dma->tx_chan)) {
-		ret = PTR_ERR(dma->tx_chan);
-		goto err_release_rx;
-	}
-
-	dmaengine_slave_config(dma->tx_chan, &dma->tx_conf);
-
-	/* RX buffer */
-	dma->rx_size = PAGE_SIZE;
-
-	dma->rx_buf = kmalloc(dma->rx_size, GFP_KERNEL);
-	if (!dma->rx_buf) {
-		ret = -ENOMEM;
-		goto err_release_tx;
-	}
-
-	dma->rx_addr = dma_map_single(p->port.dev, dma->rx_buf,
-				dma->rx_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(p->port.dev, dma->rx_addr)) {
-		ret = -EIO;
-		goto err_free_rx;
-	}
-
-	/* TX buffer */
-	dma->tx_addr = dma_map_single(p->port.dev, p->port.state->xmit.buf,
-				UART_XMIT_SIZE, DMA_TO_DEVICE);
-	if (dma_mapping_error(p->port.dev, dma->tx_addr)) {
-		ret = -EIO;
-		goto err_unmap_rx;
-	}
-
-	return 0;
-
-err_unmap_rx:
-	dma_unmap_single(p->port.dev, dma->rx_addr, dma->rx_size,
-			 DMA_FROM_DEVICE);
-err_free_rx:
-	kfree(dma->rx_buf);
-err_release_tx:
-	dma_release_channel(dma->tx_chan);
-err_release_rx:
-	dma_release_channel(dma->rx_chan);
-	return ret;
-}
-
-static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
-{
-	struct s3c24xx_uart_dma	*dma = p->dma;
-
-	if (dma->rx_chan) {
-		dmaengine_terminate_all(dma->rx_chan);
-		dma_unmap_single(p->port.dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
-		kfree(dma->rx_buf);
-		dma_release_channel(dma->rx_chan);
-		dma->rx_chan = NULL;
-	}
-
-	if (dma->tx_chan) {
-		dmaengine_terminate_all(dma->tx_chan);
-		dma_unmap_single(p->port.dev, dma->tx_addr,
-				UART_XMIT_SIZE, DMA_TO_DEVICE);
-		dma_release_channel(dma->tx_chan);
-		dma->tx_chan = NULL;
-	}
-}
-
 static void s3c24xx_serial_shutdown(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
@@ -959,7 +635,6 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 			free_irq(ourport->tx_irq, ourport);
 		tx_enabled(port) = 0;
 		ourport->tx_claimed = 0;
-		ourport->tx_mode = 0;
 	}
 
 	if (ourport->rx_claimed) {
@@ -976,11 +651,6 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 		wr_regl(port, S3C64XX_UINTP, 0xf);
 		wr_regl(port, S3C64XX_UINTM, 0xf);
 	}
-
-	if (ourport->dma)
-		s3c24xx_serial_release_dma(ourport);
-
-	ourport->tx_in_progress = 0;
 }
 
 static int s3c24xx_serial_startup(struct uart_port *port)
@@ -990,6 +660,9 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	dbg("s3c24xx_serial_startup: port=%p (%08llx,%p)\n",
 	    port, (unsigned long long)port->mapbase, port->membase);
+
+	ourport->cfg->wake_peer[port->line] =
+				s3c2410_serial_wake_peer[port->line];
 
 	rx_enabled(port) = 1;
 
@@ -1032,26 +705,23 @@ err:
 static int s3c64xx_serial_startup(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	unsigned long flags;
-	unsigned int ufcon;
 	int ret;
 
 	dbg("s3c64xx_serial_startup: port=%p (%08llx,%p)\n",
 	    port, (unsigned long long)port->mapbase, port->membase);
 
-	wr_regl(port, S3C64XX_UINTM, 0xf);
-	if (ourport->dma) {
-		ret = s3c24xx_serial_request_dma(ourport);
-		if (ret < 0) {
-			dev_warn(port->dev,
-				 "DMA request failed, DMA will not be used\n");
-			devm_kfree(port->dev, ourport->dma);
-			ourport->dma = NULL;
-		}
-	}
+	ourport->cfg->wake_peer[port->line] =
+				s3c2410_serial_wake_peer[port->line];
 
-	ret = request_irq(port->irq, s3c64xx_serial_handle_irq, IRQF_SHARED,
-			  s3c24xx_serial_portname(port), ourport);
+	wr_regl(port, S3C64XX_UINTM, 0xf);
+
+	if (ourport->use_default_irq == 1)
+		ret = devm_request_irq(port->dev, port->irq, s3c64xx_serial_handle_irq,
+				IRQF_SHARED, s3c24xx_serial_portname(port), ourport);
+	else
+		ret = request_threaded_irq(port->irq, NULL, s3c64xx_serial_handle_irq,
+				IRQF_ONESHOT, s3c24xx_serial_portname(port), ourport);
+
 	if (ret) {
 		dev_err(port->dev, "cannot get irq %d\n", port->irq);
 		return ret;
@@ -1063,52 +733,33 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	tx_enabled(port) = 0;
 	ourport->tx_claimed = 1;
 
-	spin_lock_irqsave(&port->lock, flags);
-
-	ufcon = rd_regl(port, S3C2410_UFCON);
-	ufcon |= S3C2410_UFCON_RESETRX | S5PV210_UFCON_RXTRIG8;
-	if (!uart_console(port))
-		ufcon |= S3C2410_UFCON_RESETTX;
-	wr_regl(port, S3C2410_UFCON, ufcon);
-
-	enable_rx_pio(ourport);
-
-	spin_unlock_irqrestore(&port->lock, flags);
-
 	/* Enable Rx Interrupt */
-	s3c24xx_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
-
+	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
 	dbg("s3c64xx_serial_startup ok\n");
 	return ret;
 }
 
 /* power power management control */
-
 static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 			      unsigned int old)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	int timeout = 10000;
-
-	ourport->pm_level = level;
+	unsigned int umcon;
 
 	switch (level) {
-	case 3:
-		while (--timeout && !s3c24xx_serial_txempty_nofifo(port))
-			udelay(100);
+	case S3C24XX_UART_PORT_SUSPEND:
+		/* disable auto flow control & set nRTS for High */
+		umcon = rd_regl(port, S3C2410_UMCON);
+		umcon &= ~(S3C2410_UMCOM_AFC | S3C2410_UMCOM_RTS_LOW);
+		wr_regl(port, S3C2410_UMCON, umcon);
 
-		if (!IS_ERR(ourport->baudclk))
-			clk_disable_unprepare(ourport->baudclk);
-
-		clk_disable_unprepare(ourport->clk);
+		uart_clock_disable(ourport);
 		break;
 
-	case 0:
-		clk_prepare_enable(ourport->clk);
+	case S3C24XX_UART_PORT_RESUME:
+		uart_clock_enable(ourport);
 
-		if (!IS_ERR(ourport->baudclk))
-			clk_prepare_enable(ourport->baudclk);
-
+		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
 		break;
 	default:
 		dev_err(port->dev, "s3c24xx_serial: unknown pm %d\n", level);
@@ -1178,12 +829,16 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 		if (!(clk_sel & (1 << cnt)))
 			continue;
 
-		sprintf(clkname, "clk_uart_baud%d", cnt);
+		snprintf(clkname, sizeof(clkname), "sclk_uart%d", ourport->port.line);
 		clk = clk_get(ourport->port.dev, clkname);
 		if (IS_ERR(clk))
 			continue;
 
 		rate = clk_get_rate(clk);
+
+		if (ourport->dbg_mode & UART_DBG_MODE)
+			printk(" - Clock rate : %ld\n", rate);
+
 		if (!rate)
 			continue;
 
@@ -1268,7 +923,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	 * Ask the core to calculate the divisor for us.
 	 */
 
-	baud = uart_get_baud_rate(port, termios, old, 0, 115200*8);
+	baud = uart_get_baud_rate(port, termios, old, MIN_BAUD, MAX_BAUD);
 	quot = s3c24xx_serial_getclk(ourport, baud, &clk, &clk_sel);
 	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST)
 		quot = port->custom_divisor;
@@ -1278,14 +933,14 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	/* check to see if we need  to change clock source */
 
 	if (ourport->baudclk != clk) {
-		clk_prepare_enable(clk);
-
 		s3c24xx_serial_setsource(port, clk_sel);
 
 		if (!IS_ERR(ourport->baudclk)) {
 			clk_disable_unprepare(ourport->baudclk);
 			ourport->baudclk = ERR_PTR(-EINVAL);
 		}
+
+		clk_prepare_enable(clk);
 
 		ourport->baudclk = clk;
 		ourport->baudclk_rate = clk ? clk_get_rate(clk) : 0;
@@ -1363,6 +1018,9 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	    rd_regl(port, S3C2410_ULCON),
 	    rd_regl(port, S3C2410_UCON),
 	    rd_regl(port, S3C2410_UFCON));
+
+	if (ourport->dbg_mode & UART_DBG_MODE)
+		print_uart_mode(port, termios, baud);
 
 	/*
 	 * Update the per-port timeout.
@@ -1446,6 +1104,13 @@ s3c24xx_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return 0;
 }
 
+static void s3c24xx_serial_wake_peer(struct uart_port *port)
+{
+	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
+
+	if (cfg->wake_peer[port->line])
+		cfg->wake_peer[port->line](port);
+}
 
 #ifdef CONFIG_SERIAL_SAMSUNG_CONSOLE
 
@@ -1453,6 +1118,28 @@ static struct console s3c24xx_serial_console;
 
 static int __init s3c24xx_serial_console_init(void)
 {
+	struct clk *console_clk;
+	char pclk_name[16], sclk_name[16];
+
+	snprintf(pclk_name, sizeof(pclk_name), "console-pclk%d", CONFIG_S3C_LOWLEVEL_UART_PORT);
+	snprintf(sclk_name, sizeof(sclk_name), "console-sclk%d", CONFIG_S3C_LOWLEVEL_UART_PORT);
+
+	pr_info("Enable clock for console to add reference counter\n");
+
+	console_clk = clk_get(NULL, pclk_name);
+	if (IS_ERR(console_clk)) {
+		pr_err("Can't get %s!(it's not err)\n", pclk_name);
+	} else {
+		clk_prepare_enable(console_clk);
+	}
+
+	console_clk = clk_get(NULL, sclk_name);
+	if (IS_ERR(console_clk)) {
+		pr_err("Can't get %s!(it's not err)\n", sclk_name);
+	} else {
+		clk_prepare_enable(console_clk);
+	}
+
 	register_console(&s3c24xx_serial_console);
 	return 0;
 }
@@ -1486,6 +1173,7 @@ static struct uart_ops s3c24xx_serial_ops = {
 	.request_port	= s3c24xx_serial_request_port,
 	.config_port	= s3c24xx_serial_config_port,
 	.verify_port	= s3c24xx_serial_verify_port,
+	.wake_peer	= s3c24xx_serial_wake_peer,
 #if defined(CONFIG_SERIAL_SAMSUNG_CONSOLE) && defined(CONFIG_CONSOLE_POLL)
 	.poll_get_char = s3c24xx_serial_get_poll_char,
 	.poll_put_char = s3c24xx_serial_put_poll_char,
@@ -1553,9 +1241,49 @@ s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS] = {
 			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 3,
 		}
-	}
+	},
+#endif
+#if CONFIG_SERIAL_SAMSUNG_UARTS > 4
+	[4] = {
+		.port = {
+			.lock		= __PORT_LOCK_UNLOCKED(4),
+			.iotype		= UPIO_MEM,
+			.uartclk	= 0,
+			.fifosize	= 16,
+			.ops		= &s3c24xx_serial_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 4,
+		}
+	},
+#endif
+#if CONFIG_SERIAL_SAMSUNG_UARTS > 5
+	[5] = {
+		.port = {
+			.lock		= __PORT_LOCK_UNLOCKED(5),
+			.iotype		= UPIO_MEM,
+			.uartclk	= 0,
+			.fifosize	= 16,
+			.ops		= &s3c24xx_serial_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 5,
+		}
+	},
 #endif
 };
+
+static struct s3c24xx_uart_port *exynos_serial_default_port(int port_index)
+{
+	s3c24xx_serial_ports[port_index].port.lock = __PORT_LOCK_UNLOCKED(port_index);
+	s3c24xx_serial_ports[port_index].port.iotype = UPIO_MEM;
+	s3c24xx_serial_ports[port_index].port.uartclk = 0;
+	s3c24xx_serial_ports[port_index].port.fifosize = 0;
+	s3c24xx_serial_ports[port_index].port.ops =
+		&s3c24xx_serial_ops;
+	s3c24xx_serial_ports[port_index].port.flags = UPF_BOOT_AUTOCONF;
+	s3c24xx_serial_ports[port_index].port.line = port_index;
+
+	return &s3c24xx_serial_ports[port_index];
+}
 #undef __PORT_LOCK_UNLOCKED
 
 /* s3c24xx_serial_resetport
@@ -1567,6 +1295,7 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 				   struct s3c2410_uartcfg *cfg)
 {
 	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
 	unsigned int ucon_mask;
 
@@ -1575,6 +1304,11 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 		ucon_mask |= S3C2440_UCON0_DIVMASK;
 
 	ucon &= ucon_mask;
+	if (ourport->dbg_mode & UART_LOOPBACK_MODE) {
+		dev_err(port->dev, "Change Loopback mode!\n");
+		ucon |= S3C2443_UCON_LOOPBACK;
+	}
+
 	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
 
 	/* reset both fifos */
@@ -1584,93 +1318,6 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 	/* some delay is required after fifo reset */
 	udelay(1);
 }
-
-
-#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
-
-static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
-					     unsigned long val, void *data)
-{
-	struct s3c24xx_uart_port *port;
-	struct uart_port *uport;
-
-	port = container_of(nb, struct s3c24xx_uart_port, freq_transition);
-	uport = &port->port;
-
-	/* check to see if port is enabled */
-
-	if (port->pm_level != 0)
-		return 0;
-
-	/* try and work out if the baudrate is changing, we can detect
-	 * a change in rate, but we do not have support for detecting
-	 * a disturbance in the clock-rate over the change.
-	 */
-
-	if (IS_ERR(port->baudclk))
-		goto exit;
-
-	if (port->baudclk_rate == clk_get_rate(port->baudclk))
-		goto exit;
-
-	if (val == CPUFREQ_PRECHANGE) {
-		/* we should really shut the port down whilst the
-		 * frequency change is in progress. */
-
-	} else if (val == CPUFREQ_POSTCHANGE) {
-		struct ktermios *termios;
-		struct tty_struct *tty;
-
-		if (uport->state == NULL)
-			goto exit;
-
-		tty = uport->state->port.tty;
-
-		if (tty == NULL)
-			goto exit;
-
-		termios = &tty->termios;
-
-		if (termios == NULL) {
-			dev_warn(uport->dev, "%s: no termios?\n", __func__);
-			goto exit;
-		}
-
-		s3c24xx_serial_set_termios(uport, termios, NULL);
-	}
-
-exit:
-	return 0;
-}
-
-static inline int
-s3c24xx_serial_cpufreq_register(struct s3c24xx_uart_port *port)
-{
-	port->freq_transition.notifier_call = s3c24xx_serial_cpufreq_transition;
-
-	return cpufreq_register_notifier(&port->freq_transition,
-					 CPUFREQ_TRANSITION_NOTIFIER);
-}
-
-static inline void
-s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *port)
-{
-	cpufreq_unregister_notifier(&port->freq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
-}
-
-#else
-static inline int
-s3c24xx_serial_cpufreq_register(struct s3c24xx_uart_port *port)
-{
-	return 0;
-}
-
-static inline void
-s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *port)
-{
-}
-#endif
 
 /* s3c24xx_serial_init_port
  *
@@ -1683,6 +1330,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	struct uart_port *port = &ourport->port;
 	struct s3c2410_uartcfg *cfg = ourport->cfg;
 	struct resource *res;
+	char clkname[MAX_CLK_NAME_LENGTH];
 	int ret;
 
 	dbg("s3c24xx_serial_init_port: port=%p, platdev=%p\n", port, platdev);
@@ -1695,6 +1343,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	/* setup info for port */
 	port->dev	= &platdev->dev;
+	ourport->pdev	= platdev;
 
 	/* Startup sequence is different for s3c64xx and higher SoC's */
 	if (s3c24xx_serial_has_interrupt_mask(port))
@@ -1736,36 +1385,47 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	ret = platform_get_irq(platdev, 1);
 	if (ret > 0)
 		ourport->tx_irq = ret;
-	/*
-	 * DMA is currently supported only on DT platforms, if DMA properties
-	 * are specified.
-	 */
-	if (platdev->dev.of_node && of_find_property(platdev->dev.of_node,
-						     "dmas", NULL)) {
-		ourport->dma = devm_kzalloc(port->dev,
-					    sizeof(*ourport->dma),
-					    GFP_KERNEL);
-		if (!ourport->dma) {
-			ret = -ENOMEM;
-			goto err;
-		}
-	}
-#if 0
-	ourport->clk	= clk_get(&platdev->dev, "uart");
+
+	if (of_get_property(platdev->dev.of_node,
+			"samsung,separate-uart-clk", NULL))
+		ourport->check_separated_clk = 1;
+	else
+		ourport->check_separated_clk = 0;
+
+	snprintf(clkname, sizeof(clkname), "gate_uart%d", ourport->port.line);
+	ourport->clk = clk_get(&platdev->dev, clkname);
 	if (IS_ERR(ourport->clk)) {
 		pr_err("%s: Controller clock not found\n",
 				dev_name(&platdev->dev));
-		ret = PTR_ERR(ourport->clk);
-		goto err;
+		return PTR_ERR(ourport->clk);
+	}
+
+	if (ourport->check_separated_clk) {
+		snprintf(clkname, sizeof(clkname), "gate_pclk%d", ourport->port.line);
+		ourport->separated_clk = clk_get(&platdev->dev, clkname);
+		if (IS_ERR(ourport->separated_clk)) {
+			pr_err("%s: Controller clock not found\n",
+					dev_name(&platdev->dev));
+			return PTR_ERR(ourport->separated_clk);
+		}
+
+		ret = clk_prepare_enable(ourport->separated_clk);
+		if (ret) {
+			pr_err("uart: clock failed to prepare+enable: %d\n", ret);
+			clk_put(ourport->separated_clk);
+			return ret;
+		}
 	}
 
 	ret = clk_prepare_enable(ourport->clk);
 	if (ret) {
 		pr_err("uart: clock failed to prepare+enable: %d\n", ret);
 		clk_put(ourport->clk);
-		goto err;
+		return ret;
 	}
-#endif
+
+	uart_clock_enable(ourport);
+
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
 		wr_regl(port, S3C64XX_UINTM, 0xf);
@@ -1779,13 +1439,27 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);
-
+	uart_clock_disable(ourport);
 	return 0;
-
-err:
-	port->mapbase = 0;
-	return ret;
 }
+
+#ifdef CONFIG_SAMSUNG_CLOCK
+static ssize_t s3c24xx_serial_show_clksrc(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct uart_port *port = s3c24xx_dev_to_port(dev);
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	if (IS_ERR(ourport->baudclk))
+		return -EINVAL;
+
+	return snprintf(buf, PAGE_SIZE, "* %s\n",
+			ourport->baudclk->name ?: "(null)");
+}
+
+static DEVICE_ATTR(clock_source, S_IRUGO, s3c24xx_serial_show_clksrc, NULL);
+#endif
 
 /* Device driver serial port probe */
 
@@ -1806,22 +1480,68 @@ static inline struct s3c24xx_serial_drv_data *s3c24xx_get_driver_data(
 			platform_get_device_id(pdev)->driver_data;
 }
 
+void s3c24xx_serial_fifo_wait(void)
+{
+	struct s3c24xx_uart_port *ourport;
+	struct uart_port *port;
+	unsigned int fifo_stat;
+	unsigned long wait_time;
+
+	list_for_each_entry(ourport, &drvdata_list, node) {
+		if (ourport->port.line != CONFIG_S3C_LOWLEVEL_UART_PORT)
+			continue;
+
+		wait_time = jiffies + HZ / 4;
+		do {
+			port = &ourport->port;
+			fifo_stat = rd_regl(port, S3C2410_UFSTAT);
+			cpu_relax();
+		} while (s3c24xx_serial_tx_fifocnt(ourport, fifo_stat)
+				&& time_before(jiffies, wait_time));
+	}
+}
+EXPORT_SYMBOL_GPL(s3c24xx_serial_fifo_wait);
+
+#ifdef CONFIG_CPU_IDLE
+static int s3c24xx_serial_notifier(struct notifier_block *self,
+				unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case LPA_ENTER:
+		s3c24xx_serial_fifo_wait();
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block s3c24xx_serial_notifier_block = {
+	.notifier_call = s3c24xx_serial_notifier,
+};
+#endif
+
 static int s3c24xx_serial_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct s3c24xx_uart_port *ourport;
 	int index = probe_index;
-	int ret;
-
-	if (np) {
-		ret = of_alias_get_id(np, "serial");
-		if (ret >= 0)
-			index = ret;
-	}
+	int ret, fifo_size;
+	int port_index = probe_index;
 
 	dbg("s3c24xx_serial_probe(%p) %d\n", pdev, index);
 
-	ourport = &s3c24xx_serial_ports[index];
+	if (pdev->dev.of_node) {
+		ret = of_alias_get_id(pdev->dev.of_node, "uart");
+		if (ret < 0) {
+			dev_err(&pdev->dev, "UART aliases are not defined(%d).\n",
+				ret);
+		} else {
+			port_index = ret;
+		}
+	}
+	ourport = &s3c24xx_serial_ports[port_index];
+
+	if (ourport->port.line != port_index)
+		ourport = exynos_serial_default_port(port_index);
 
 	ourport->drv_data = s3c24xx_get_driver_data(pdev);
 	if (!ourport->drv_data) {
@@ -1835,35 +1555,64 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 			dev_get_platdata(&pdev->dev) :
 			ourport->drv_data->def_cfg;
 
-	if (np)
-		of_property_read_u32(np,
-			"samsung,uart-fifosize", &ourport->port.fifosize);
+	ourport->port.fifosize = (ourport->info->fifosize) ?
+		ourport->info->fifosize :
+		ourport->drv_data->fifosize[port_index];
 
-	if (ourport->drv_data->fifosize[index])
-		ourport->port.fifosize = ourport->drv_data->fifosize[index];
-	else if (ourport->info->fifosize)
-		ourport->port.fifosize = ourport->info->fifosize;
+	if (!of_property_read_u32(pdev->dev.of_node, "samsung,fifo-size",
+				&fifo_size)) {
+		ourport->port.fifosize = fifo_size;
+		ourport->info->fifosize = fifo_size;
+	} else {
+		dev_err(&pdev->dev,
+				"Please add FIFO size in device tree!(UART%d)\n", port_index);
+		return -EINVAL;
+	}
 
-	/*
-	 * DMA transfers must be aligned at least to cache line size,
-	 * so find minimal transfer size suitable for DMA mode
-	 */
-	ourport->min_dma_size = max_t(int, ourport->port.fifosize,
-				    dma_get_cache_alignment());
+	probe_index++;
 
 	dbg("%s: initialising port %p...\n", __func__, ourport);
+
+#ifdef CONFIG_ARM_EXYNOS_DEVFREQ
+	if (of_property_read_u32(pdev->dev.of_node, "mif_qos_val",
+						&ourport->mif_qos_val))
+		ourport->mif_qos_val = 0;
+
+	if (of_property_read_u32(pdev->dev.of_node, "cpu_qos_val",
+						&ourport->cpu_qos_val))
+		ourport->cpu_qos_val = 0;
+
+	if (of_property_read_u32(pdev->dev.of_node, "irq_affinity",
+						&ourport->uart_irq_affinity))
+		ourport->uart_irq_affinity = 0;
+
+	if (of_property_read_u32(pdev->dev.of_node, "qos_timeout",
+					(u32 *)&ourport->qos_timeout))
+		ourport->qos_timeout = 0;
+
+	if ((ourport->mif_qos_val || ourport->cpu_qos_val)
+					&& ourport->qos_timeout) {
+		INIT_DELAYED_WORK(&ourport->qos_work,
+						s3c64xx_serial_qos_func);
+		/* request pm qos */
+		if (ourport->mif_qos_val)
+			pm_qos_add_request(&ourport->s3c24xx_uart_mif_qos,
+						PM_QOS_BUS_THROUGHPUT, 0);
+
+		if (ourport->cpu_qos_val)
+			pm_qos_add_request(&ourport->s3c24xx_uart_cpu_qos,
+						PM_QOS_CLUSTER1_FREQ_MIN, 0);
+	}
+#endif
+
+	if (of_find_property(pdev->dev.of_node, "samsung,use-default-irq", NULL))
+		ourport->use_default_irq =1;
+	else
+		ourport->use_default_irq =0;
 
 	ret = s3c24xx_serial_init_port(ourport, pdev);
 	if (ret < 0)
 		return ret;
-
-	if (!s3c24xx_uart_drv.state) {
-		ret = uart_register_driver(&s3c24xx_uart_drv);
-		if (ret < 0) {
-			pr_err("Failed to register Samsung UART driver\n");
-			return ret;
-		}
-	}
 
 	dbg("%s: adding port\n", __func__);
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
@@ -1876,11 +1625,19 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	 */
 	clk_disable_unprepare(ourport->clk);
 
-	ret = s3c24xx_serial_cpufreq_register(ourport);
+#ifdef CONFIG_SAMSUNG_CLOCK
+	ret = device_create_file(&pdev->dev, &dev_attr_clock_source);
 	if (ret < 0)
-		dev_err(&pdev->dev, "failed to add cpufreq notifier\n");
+		dev_err(&pdev->dev, "failed to add clock source attr.\n");
+#endif
 
-	probe_index++;
+	list_add_tail(&ourport->node, &drvdata_list);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_uart_dbg);
+	if (ret < 0)
+		dev_err(&pdev->dev, "failed to create sysfs file.\n");
+
+	ourport->dbg_mode = 0;
 
 	return 0;
 }
@@ -1889,8 +1646,20 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
+#ifdef CONFIG_PM_DEVFREQ
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	if (ourport->mif_qos_val && ourport->qos_timeout)
+		pm_qos_remove_request(&ourport->s3c24xx_uart_mif_qos);
+
+	if (ourport->cpu_qos_val && ourport->qos_timeout)
+		pm_qos_remove_request(&ourport->s3c24xx_uart_cpu_qos);
+#endif
+
 	if (port) {
-		s3c24xx_serial_cpufreq_deregister(to_ourport(port));
+#ifdef CONFIG_SAMSUNG_CLOCK
+		device_remove_file(&dev->dev, &dev_attr_clock_source);
+#endif
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 	}
 
@@ -1904,9 +1673,13 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 static int s3c24xx_serial_suspend(struct device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
-	if (port)
+	if (port) {
 		uart_suspend_port(&s3c24xx_uart_drv, port);
+		if (ourport->dbg_mode & UART_DBG_MODE)
+			dev_err(dev, "UART suspend notification for tty framework.\n");
+	}
 
 	return 0;
 }
@@ -1917,11 +1690,13 @@ static int s3c24xx_serial_resume(struct device *dev)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
-		clk_prepare_enable(ourport->clk);
+		uart_clock_enable(ourport);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
-		clk_disable_unprepare(ourport->clk);
+		uart_clock_disable(ourport);
 
 		uart_resume_port(&s3c24xx_uart_drv, port);
+		if (ourport->dbg_mode & UART_DBG_MODE)
+			dev_err(dev, "UART resume notification for tty framework.\n");
 	}
 
 	return 0;
@@ -1940,9 +1715,9 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 				uintm &= ~S3C64XX_UINTM_TXD_MSK;
 			if (rx_enabled(port))
 				uintm &= ~S3C64XX_UINTM_RXD_MSK;
-			clk_prepare_enable(ourport->clk);
+			uart_clock_enable(ourport);
 			wr_regl(port, S3C64XX_UINTM, uintm);
-			clk_disable_unprepare(ourport->clk);
+			uart_clock_disable(ourport);
 		}
 	}
 
@@ -2060,7 +1835,6 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 	unsigned int ucon;
 	unsigned int ubrdiv;
 	unsigned long rate;
-	unsigned int clk_sel;
 	char clk_name[MAX_CLK_NAME_LENGTH];
 
 	ulcon  = rd_regl(port, S3C2410_ULCON);
@@ -2104,8 +1878,7 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 
 		/* now calculate the baud rate */
 
-		clk_sel = s3c24xx_serial_getsource(port);
-		sprintf(clk_name, "clk_uart_baud%d", clk_sel);
+		snprintf(clk_name, sizeof(clk_name), "sclk_uart%d", port->line);
 
 		clk = clk_get(port->dev, clk_name);
 		if (!IS_ERR(clk))
@@ -2341,24 +2114,14 @@ static struct s3c24xx_serial_drv_data exynos4210_serial_drv_data = {
 	.fifosize = { 256, 64, 16, 16 },
 };
 
-static struct s3c24xx_serial_drv_data exynos5433_serial_drv_data = {
-	EXYNOS_COMMON_SERIAL_DRV_DATA,
-	.fifosize = { 64, 256, 16, 256 },
-};
-
 static struct s3c24xx_serial_drv_data exynos_serial_drv_data = {
 	EXYNOS_COMMON_SERIAL_DRV_DATA,
 	.fifosize = { 0, },
 };
 
 #define EXYNOS4210_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos4210_serial_drv_data)
-#define EXYNOS5433_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos5433_serial_drv_data)
-#define EXYNOS4210_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos4210_serial_drv_data)
 #define EXYNOS_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos_serial_drv_data)
-
 #else
-#define EXYNOS4210_SERIAL_DRV_DATA (kernel_ulong_t)NULL
-#define EXYNOS5433_SERIAL_DRV_DATA (kernel_ulong_t)NULL
 #define EXYNOS4210_SERIAL_DRV_DATA (kernel_ulong_t)NULL
 #define EXYNOS_SERIAL_DRV_DATA (kernel_ulong_t)NULL
 #endif
@@ -2383,9 +2146,6 @@ static const struct platform_device_id s3c24xx_serial_driver_ids[] = {
 		.name		= "exynos4210-uart",
 		.driver_data	= EXYNOS4210_SERIAL_DRV_DATA,
 	}, {
-		.name		= "exynos5433-uart",
-		.driver_data	= EXYNOS5433_SERIAL_DRV_DATA,
-	}, {
 		.name		= "exynos-uart",
 		.driver_data	= EXYNOS_SERIAL_DRV_DATA,
 	},
@@ -2407,8 +2167,6 @@ static const struct of_device_id s3c24xx_uart_dt_match[] = {
 		.data = (void *)S5PV210_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,exynos4210-uart",
 		.data = (void *)EXYNOS4210_SERIAL_DRV_DATA },
-	{ .compatible = "samsung,exynos5433-uart",
-		.data = (void *)EXYNOS5433_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,exynos-uart",
 		.data = (void *)EXYNOS_SERIAL_DRV_DATA },
 	{},
@@ -2427,7 +2185,33 @@ static struct platform_driver samsung_serial_driver = {
 	},
 };
 
-module_platform_driver(samsung_serial_driver);
+/* module initialisation code */
+
+static int __init s3c24xx_serial_modinit(void)
+{
+	int ret;
+
+	ret = uart_register_driver(&s3c24xx_uart_drv);
+	if (ret < 0) {
+		pr_err("Failed to register Samsung UART driver\n");
+		return ret;
+	}
+
+#ifdef CONFIG_CPU_IDLE
+	exynos_pm_register_notifier(&s3c24xx_serial_notifier_block);
+#endif
+
+	return platform_driver_register(&samsung_serial_driver);
+}
+
+static void __exit s3c24xx_serial_modexit(void)
+{
+	platform_driver_unregister(&samsung_serial_driver);
+	uart_unregister_driver(&s3c24xx_uart_drv);
+}
+
+module_init(s3c24xx_serial_modinit);
+module_exit(s3c24xx_serial_modexit);
 
 #ifdef CONFIG_SERIAL_SAMSUNG_CONSOLE
 /*
