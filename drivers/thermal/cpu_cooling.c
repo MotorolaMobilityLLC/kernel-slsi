@@ -1123,6 +1123,9 @@ exynos_cpufreq_cooling_register(const struct cpumask *clip_cpus)
 {
 	struct device *dev;
 	struct device_node *np;
+	struct thermal_zone_device *tz;
+	void *gen_block;
+	struct ect_gen_param_table *pwr_coeff;
 	u32 capacitance = 0;
 
 	dev = get_cpu_device(cpumask_first(clip_cpus));
@@ -1135,6 +1138,25 @@ exynos_cpufreq_cooling_register(const struct cpumask *clip_cpus)
 	if (!np)
 		return ERR_PTR(-EINVAL);
 
+	tz = thermal_zone_get_zone_by_cool_np(np);
+
+	if (tz) {
+		gen_block = ect_get_block("GEN");
+		if (gen_block == NULL) {
+			pr_err("%s: Failed to get gen block from ECT\n", __func__);
+			goto regist;
+		}
+		pwr_coeff = ect_gen_param_get_table(gen_block, "DTM_PWR_Coeff");
+		if (pwr_coeff == NULL) {
+			pr_err("%s: Failed to get power coeff from ECT\n", __func__);
+			goto regist;
+		}
+		capacitance = pwr_coeff->parameter[tz->id];
+	} else {
+		pr_err("%s: could not find thermal zone\n", __func__);
+	}
+
+regist:
 	return __cpufreq_cooling_register(np, clip_cpus, capacitance,
 				NULL);
 }

@@ -1079,6 +1079,10 @@ static int __init exynos_gpu_cooling_init(void)
 {
 	struct device_node *np;
 	struct thermal_cooling_device *dev;
+	struct thermal_zone_device *tz;
+	void *gen_block;
+	struct ect_gen_param_table *pwr_coeff;
+	u32 capacitance = 0;
 	int ret = 0;
 
 	ret = gpu_cooling_table_init();
@@ -1095,7 +1099,26 @@ static int __init exynos_gpu_cooling_init(void)
 		return -EINVAL;
 	}
 
-	dev = __gpufreq_cooling_register(np, NULL, 0, NULL);
+	tz = thermal_zone_get_zone_by_cool_np(np);
+
+	if (tz) {
+		gen_block = ect_get_block("GEN");
+		if (gen_block == NULL) {
+			pr_err("%s: Failed to get gen block from ECT\n", __func__);
+			goto regist;
+		}
+		pwr_coeff = ect_gen_param_get_table(gen_block, "DTM_PWR_Coeff");
+		if (pwr_coeff == NULL) {
+			pr_err("%s: Failed to get power coeff from ECT\n", __func__);
+			goto regist;
+		}
+		capacitance = pwr_coeff->parameter[tz->id];
+	} else {
+		pr_err("%s: could not find thermal zone\n", __func__);
+	}
+
+regist:
+	dev = __gpufreq_cooling_register(np, NULL, capacitance, NULL);
 
 	if (IS_ERR(dev)) {
 		pr_err("Fail to register gpufreq cooling\n");
