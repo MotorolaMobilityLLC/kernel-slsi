@@ -790,8 +790,8 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
 
 	if (sdd->port_conf->clk_from_cmu) {
-		/* There is half-multiplier before the SPI */
-		clk_set_rate(sdd->src_clk, sdd->cur_speed * 2);
+		/* There is a quarter-multiplier before the SPI */
+		clk_set_rate(sdd->src_clk, sdd->cur_speed * 4);
 	} else {
 		/* Configure Clock */
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
