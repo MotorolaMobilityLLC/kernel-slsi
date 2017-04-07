@@ -1424,6 +1424,38 @@ exit:
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_name);
 
+struct thermal_zone_device *
+thermal_zone_get_zone_by_cool_np(struct device_node *cool_np)
+{
+	struct thermal_zone_device *pos = NULL, *ref = ERR_PTR(-EINVAL);
+	unsigned int i;
+
+	if (!cool_np)
+		goto exit;
+
+	mutex_lock(&thermal_list_lock);
+	list_for_each_entry(pos, &thermal_tz_list, node) {
+		struct __thermal_zone *data = pos->devdata;
+
+		for (i = 0; i < data->num_tbps; i++) {
+			struct __thermal_bind_params *tbp = data->tbps + i;
+			if (tbp->cooling_device == cool_np) {
+				ref = pos;
+				mutex_unlock(&thermal_list_lock);
+				goto exit;
+			}
+		}
+	}
+	mutex_unlock(&thermal_list_lock);
+
+	/* nothing has been found, thus an error code for it */
+	ref = ERR_PTR(-ENODEV);
+exit:
+	return ref;
+
+}
+EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_cool_np);
+
 #ifdef CONFIG_NET
 static const struct genl_multicast_group thermal_event_mcgrps[] = {
 	{ .name = THERMAL_GENL_MCAST_GROUP_NAME, },
