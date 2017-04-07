@@ -508,6 +508,7 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 			if (!found_first_passive) {
 				params->trip_switch_on = i;
 				found_first_passive = true;
+				break;
 			} else  {
 				last_passive = i;
 			}
