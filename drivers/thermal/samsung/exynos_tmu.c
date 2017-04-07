@@ -1615,68 +1615,171 @@ static const struct attribute_group exynos_tmu_attr_group = {
 	.attrs = exynos_tmu_attrs,
 };
 
+#define PARAM_NAME_LENGTH	25
+#define FRAC_BITS 10	/* FRAC_BITS should be same with power_allocator */
+
+static int exynos_tmu_ect_get_param(struct ect_pidtm_block *pidtm_block, char *name)
+{
+	int i;
+	int param_value = -1;
+
+	for (i = 0; i < pidtm_block->num_of_parameter; i++) {
+		if (!strncasecmp(pidtm_block->param_name_list[i], name, PARAM_NAME_LENGTH)) {
+			param_value = pidtm_block->param_value_list[i];
+			break;
+		}
+	}
+
+	return param_value;
+}
+
 static int exynos_tmu_parse_ect(struct exynos_tmu_data *data)
 {
 	struct thermal_zone_device *tz = data->tzd;
 	struct __thermal_zone *__tz;
-	void *thermal_block;
-	struct ect_ap_thermal_function *function;
-	int i, temperature;
-	int hotplug_threshold_temp = 0, hotplug_flag = 0;
-	unsigned int freq;
 
 	if (!tz)
 		return -EINVAL;
 
 	__tz = (struct __thermal_zone *)tz->devdata;
 
-	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
-	if (thermal_block == NULL) {
-		pr_err("Failed to get thermal block");
-		return -EINVAL;
-	}
+	if (strncasecmp(tz->tzp->governor_name, "power_allocator",
+						THERMAL_NAME_LENGTH)) {
+		/* if governor is not power_allocator */
+		void *thermal_block;
+		struct ect_ap_thermal_function *function;
+		int i, temperature;
+		int hotplug_threshold_temp = 0, hotplug_flag = 0;
+		unsigned int freq;
 
-	pr_info("%s %d thermal zone_name = %s\n", __func__, __LINE__, tz->type);
-
-	function = ect_ap_thermal_get_function(thermal_block, tz->type);
-	if (function == NULL) {
-		pr_err("Failed to get thermal block %s", tz->type);
-		return -EINVAL;
-	}
-
-	__tz->ntrips = __tz->num_tbps = function->num_of_range;
-	pr_info("Trip count parsed from ECT : %d, zone : %s", function->num_of_range, tz->type);
-
-
-	for (i = 0; i < function->num_of_range; ++i) {
-		temperature = function->range_list[i].lower_bound_temperature;
-		freq = function->range_list[i].max_frequency;
-		__tz->trips[i].temperature = temperature  * MCELSIUS;
-		__tz->tbps[i].value = freq;
-
-		pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u\n",
-			i, temperature, freq);
-
-		if (function->range_list[i].flag != hotplug_flag) {
-			if (function->range_list[i].flag != hotplug_flag) {
-				hotplug_threshold_temp = temperature;
-				hotplug_flag = function->range_list[i].flag;
-				data->hotplug_out_threshold = temperature;
-
-				if (i)
-					data->hotplug_in_threshold = function->range_list[i-1].lower_bound_temperature;
-
-				pr_info("[ECT]hotplug_threshold : %d\n", hotplug_threshold_temp);
-				pr_info("[ECT]hotplug_in_threshold : %d\n", data->hotplug_in_threshold);
-				pr_info("[ECT]hotplug_out_threshold : %d\n", data->hotplug_out_threshold);
-			}
+		thermal_block = ect_get_block(BLOCK_AP_THERMAL);
+		if (thermal_block == NULL) {
+			pr_err("Failed to get thermal block");
+			return -EINVAL;
 		}
 
-		if (hotplug_threshold_temp != 0)
-			data->hotplug_enable = true;
-		else
-			data->hotplug_enable = false;
+		pr_info("%s %d thermal zone_name = %s\n", __func__, __LINE__, tz->type);
 
+		function = ect_ap_thermal_get_function(thermal_block, tz->type);
+		if (function == NULL) {
+			pr_err("Failed to get thermal block %s", tz->type);
+			return -EINVAL;
+		}
+
+		__tz->ntrips = __tz->num_tbps = function->num_of_range;
+		pr_info("Trip count parsed from ECT : %d, zone : %s", function->num_of_range, tz->type);
+
+		for (i = 0; i < function->num_of_range; ++i) {
+			temperature = function->range_list[i].lower_bound_temperature;
+			freq = function->range_list[i].max_frequency;
+			__tz->trips[i].temperature = temperature  * MCELSIUS;
+			__tz->tbps[i].value = freq;
+
+			pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u\n",
+					i, temperature, freq);
+
+			if (function->range_list[i].flag != hotplug_flag) {
+				if (function->range_list[i].flag != hotplug_flag) {
+					hotplug_threshold_temp = temperature;
+					hotplug_flag = function->range_list[i].flag;
+					data->hotplug_out_threshold = temperature;
+
+					if (i)
+						data->hotplug_in_threshold = function->range_list[i-1].lower_bound_temperature;
+
+					pr_info("[ECT]hotplug_threshold : %d\n", hotplug_threshold_temp);
+					pr_info("[ECT]hotplug_in_threshold : %d\n", data->hotplug_in_threshold);
+					pr_info("[ECT]hotplug_out_threshold : %d\n", data->hotplug_out_threshold);
+				}
+			}
+
+			if (hotplug_threshold_temp != 0)
+				data->hotplug_enable = true;
+			else
+				data->hotplug_enable = false;
+
+		}
+	} else {
+		void *block;
+		struct ect_pidtm_block *pidtm_block;
+		int i, temperature, value;
+		int hotplug_out_threshold = 0, hotplug_in_threshold = 0;
+
+		block = ect_get_block(BLOCK_PIDTM);
+		if (block == NULL) {
+			pr_err("Failed to get PIDTM block");
+			return -EINVAL;
+		}
+
+		pr_info("%s %d thermal zone_name = %s\n", __func__, __LINE__, tz->type);
+
+		pidtm_block = ect_pidtm_get_block(block, tz->type);
+		if (pidtm_block == NULL) {
+			pr_err("Failed to get PIDTM block %s", tz->type);
+			return -EINVAL;
+		}
+
+		__tz->ntrips = pidtm_block->num_of_temperature;
+
+		for (i = 0; i < pidtm_block->num_of_temperature; ++i) {
+			temperature = pidtm_block->temperature_list[i];
+			__tz->trips[i].temperature = temperature  * MCELSIUS;
+
+			pr_info("Parsed From ECT : [%d] Temperature : %d\n", i, temperature);
+		}
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "k_po")) != -1) {
+			pr_info("Parse from ECT k_po: %d\n", value);
+			tz->tzp->k_po = value << FRAC_BITS;
+		} else
+			pr_err("Fail to parse k_po parameter\n");
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "k_pu")) != -1) {
+			pr_info("Parse from ECT k_pu: %d\n", value);
+			tz->tzp->k_pu = value << FRAC_BITS;
+		} else
+			pr_err("Fail to parse k_pu parameter\n");
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "k_i")) != -1) {
+			pr_info("Parse from ECT k_i: %d\n", value);
+			tz->tzp->k_i = value << FRAC_BITS;
+		} else
+			pr_err("Fail to parse k_i parameter\n");
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "i_max")) != -1) {
+			pr_info("Parse from ECT i_max: %d\n", value);
+			tz->tzp->integral_max = value;
+		} else
+			pr_err("Fail to parse i_max parameter\n");
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "integral_cutoff")) != -1) {
+			pr_info("Parse from ECT integral_cutoff: %d\n", value);
+			tz->tzp->integral_cutoff = value;
+		} else
+			pr_err("Fail to parse integral_cutoff parameter\n");
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "p_control_t")) != -1) {
+			pr_info("Parse from ECT p_control_t: %d\n", value);
+			tz->tzp->sustainable_power = value;
+		} else
+			pr_err("Fail to parse p_control_t parameter\n");
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "hotplug_out_threshold")) != -1) {
+			pr_info("Parse from ECT hotplug_out_threshold: %d\n", value);
+			hotplug_out_threshold = value;
+		}
+
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "hotplug_in_threshold")) != -1) {
+			pr_info("Parse from ECT hotplug_in_threshold: %d\n", value);
+			hotplug_in_threshold = value;
+		}
+
+		if (hotplug_out_threshold != 0 && hotplug_in_threshold != 0) {
+			data->hotplug_out_threshold = hotplug_out_threshold;
+			data->hotplug_in_threshold = hotplug_in_threshold;
+			data->hotplug_enable = true;
+		} else
+			data->hotplug_enable = false;
 	}
 	return 0;
 };
