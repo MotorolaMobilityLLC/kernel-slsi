@@ -131,9 +131,8 @@ struct s3c64xx_spi_driver_data {
 	unsigned                        cur_speed;
 	struct s3c64xx_spi_dma_data	rx_dma;
 	struct s3c64xx_spi_dma_data	tx_dma;
-#if defined(CONFIG_S3C_DMA) || defined(CONFIG_SAMSUNG_DMADEV)
 	struct samsung_dma_ops		*ops;
-#endif
+
 	struct s3c64xx_spi_port_config	*port_conf;
 	unsigned int			port_id;
 	unsigned long			gpios[4];
