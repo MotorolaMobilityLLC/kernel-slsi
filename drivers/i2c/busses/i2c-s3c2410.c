@@ -1359,13 +1359,9 @@ static int s3c24xx_i2c_runtime_resume(struct device *dev)
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
-	.resume_noirq = s3c24xx_i2c_resume_noirq,
-#endif
-#ifdef CONFIG_PM
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(s3c24xx_i2c_suspend_noirq,
+				      s3c24xx_i2c_resume_noirq)
 	.runtime_resume = s3c24xx_i2c_runtime_resume,
-#endif
 };
 
 #define S3C24XX_DEV_PM_OPS (&s3c24xx_i2c_dev_pm_ops)
