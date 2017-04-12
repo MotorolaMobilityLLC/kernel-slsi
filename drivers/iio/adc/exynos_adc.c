@@ -681,6 +681,7 @@ err_unlock:
 	return ret;
 }
 
+#ifdef ADC_TS
 static int exynos_read_s3c64xx_ts(struct iio_dev *indio_dev, int *x, int *y)
 {
 	struct exynos_adc *info = iio_priv(indio_dev);
@@ -779,6 +780,7 @@ static irqreturn_t exynos_ts_isr(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 static int exynos_adc_reg_access(struct iio_dev *indio_dev,
 			      unsigned reg, unsigned writeval,
@@ -843,6 +845,7 @@ static int exynos_adc_remove_devices(struct device *dev, void *c)
 	return 0;
 }
 
+#ifdef ADC_TS
 static int exynos_adc_ts_open(struct input_dev *dev)
 {
 	struct exynos_adc *info = input_get_drvdata(dev);
@@ -897,12 +900,12 @@ static int exynos_adc_ts_init(struct exynos_adc *info)
 
 	return ret;
 }
+#endif
 
 static int exynos_adc_probe(struct platform_device *pdev)
 {
 	struct exynos_adc *info = NULL;
 	struct device_node *np = pdev->dev.of_node;
-	struct s3c2410_ts_mach_info *pdata = dev_get_platdata(&pdev->dev);
 	struct iio_dev *indio_dev = NULL;
 	struct resource	*mem;
 	bool has_ts = false;
@@ -1031,8 +1034,10 @@ err_of_populate:
 		input_unregister_device(info->input);
 		free_irq(info->tsirq, info);
 	}
+#ifdef ADC_TS
 err_iio:
 	iio_device_unregister(indio_dev);
+#endif
 err_irq:
 	free_irq(info->irq, info);
 err_disable_clk:
