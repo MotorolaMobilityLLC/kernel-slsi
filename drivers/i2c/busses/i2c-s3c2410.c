@@ -99,7 +99,7 @@ static LIST_HEAD(drvdata_list);
 #define QUIRK_HDMIPHY		(1 << 1)
 #define QUIRK_NO_GPIO		(1 << 2)
 #define QUIRK_POLL		(1 << 3)
-#define QUIRK_FIMC_I2C		(1 << 3)
+#define QUIRK_FIMC_I2C		(1 << 4)
 
 /* Max time to wait for bus to become idle after a xfer (in us) */
 #define S3C2410_IDLE_TIMEOUT	5000
