@@ -943,7 +943,8 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	}
 
 	/* preserve original lcon IR settings */
-	ulcon |= (cfg->ulcon & S3C2410_LCON_IRM);
+	if (!ourport->usi_v2)
+		ulcon |= (cfg->ulcon & S3C2410_LCON_IRM);
 
 	if (termios->c_cflag & CSTOPB)
 		ulcon |= S3C2410_LCON_STOPB;
@@ -1593,6 +1594,11 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	ourport->port.fifosize = (ourport->info->fifosize) ?
 		ourport->info->fifosize :
 		ourport->drv_data->fifosize[port_index];
+
+	if (of_get_property(pdev->dev.of_node, "samsung,usi-serial-v2", NULL))
+		ourport->usi_v2 = 1;
+	else
+		ourport->usi_v2 = 0;
 
 	if (!of_property_read_u32(pdev->dev.of_node, "samsung,fifo-size",
 				&fifo_size)) {

@@ -72,6 +72,7 @@ struct s3c24xx_uart_port {
 	s32				cpu_qos_val;
 	u32				use_default_irq;
 	unsigned long			qos_timeout;
+	unsigned int			usi_v2;
 
 	/* reference to platform data */
 	struct s3c2410_uartcfg		*cfg;
