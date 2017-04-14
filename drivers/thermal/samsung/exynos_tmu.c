@@ -1396,6 +1396,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos8890_tmu_read;
 		data->tmu_set_emulation = exynos8890_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos8890_tmu_clear_irqs;
+		data->ntrip = 8;
 		break;
 	case SOC_ARCH_EXYNOS8895:
 		data->tmu_initialize = exynos8895_tmu_initialize;
@@ -1403,6 +1404,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos8895_tmu_read;
 		data->tmu_set_emulation = exynos8895_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos8895_tmu_clear_irqs;
+		data->ntrip = 8;
 		break;
 	case SOC_ARCH_EXYNOS7872:
 		data->tmu_initialize = exynos78XX_tmu_initialize;
@@ -1410,6 +1412,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos8895_tmu_read;
 		data->tmu_set_emulation = exynos8895_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos8895_tmu_clear_irqs;
+		data->ntrip = 8;
 		break;
 	default:
 		dev_err(&pdev->dev, "Platform not supported\n");
