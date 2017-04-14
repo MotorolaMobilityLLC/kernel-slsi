@@ -19,6 +19,7 @@
 #include <asm/cacheflush.h>
 #include <soc/samsung/exynos-pd.h>
 #include <linux/suspend.h>
+#include <linux/slab.h>
 
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/bcm.h>
