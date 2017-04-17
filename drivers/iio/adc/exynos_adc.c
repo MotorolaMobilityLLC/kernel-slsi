@@ -45,6 +45,14 @@
 
 #include <soc/samsung/exynos-powermode.h>
 
+/* Semaphore for peterson algorithm  */
+#define AP_TURN 0
+#define CHUB_TURN 1
+
+#define AP_FLAG_OFFSET		(0x3100)
+#define CHUB_FLAG_OFFSET	(0x3104)
+#define INIT_TURN_OFFSET	(0x3108)
+
 /* S3C/EXYNOS4412/5250 ADC_V1 registers definitions */
 #define ADC_V1_CON(x)		((x) + 0x00)
 #define ADC_V1_TSC(x)		((x) + 0x04)
@@ -141,6 +149,7 @@ struct exynos_adc {
 	struct device		*dev;
 	struct input_dev	*input;
 	void __iomem		*regs;
+	void __iomem		*cmgp_sysreg;
 	struct regmap		*pmu_map;
 	struct clk		*clk;
 	struct clk		*sclk;
@@ -638,9 +647,26 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 				long mask)
 {
 	struct exynos_adc *info = iio_priv(indio_dev);
-	unsigned long timeout;
+	unsigned long timeout, sysreg_timeout = 0;
 	int ret;
 
+	if (info->cmgp_sysreg) {
+		__raw_writel(true, info->cmgp_sysreg + AP_FLAG_OFFSET);
+		__raw_writel(CHUB_TURN,	info->cmgp_sysreg + INIT_TURN_OFFSET);
+		while ((__raw_readl(info->cmgp_sysreg + CHUB_FLAG_OFFSET) == true)
+				&& (__raw_readl(info->cmgp_sysreg + INIT_TURN_OFFSET) == CHUB_TURN)
+				&& (sysreg_timeout < 100)) {
+			/* If CHUB does not use ADC or timeout value is 100, this loop end. */
+			mdelay(1);
+			sysreg_timeout++;
+		}
+		if (sysreg_timeout >= 100) {
+			dev_err(&indio_dev->dev, "Time out! Adc is currently being used by CHUB.\n");
+			return -ETIMEDOUT;
+		}
+	}
+
+	/* critical section start */
 	if (mask != IIO_CHAN_INFO_RAW)
 		return -EINVAL;
 
@@ -677,6 +703,11 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 	exynos_adc_disable_access(info);
 err_unlock:
 	mutex_unlock(&indio_dev->mlock);
+
+
+	/* critical section end */
+	if (info->cmgp_sysreg)
+		__raw_writel(false, info->cmgp_sysreg + AP_FLAG_OFFSET);
 
 	return ret;
 }
@@ -911,6 +942,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	bool has_ts = false;
 	int ret = -ENODEV;
 	int irq;
+	unsigned int sysreg;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct exynos_adc));
 	if (!indio_dev) {
@@ -930,6 +962,17 @@ static int exynos_adc_probe(struct platform_device *pdev)
 		info->needs_adc_phy = true;
 	else
 		info->needs_adc_phy = false;
+
+	if (of_property_read_u32(np, "sysreg", &sysreg)) {
+		dev_info(&pdev->dev, "Do not use Peterson algorithm\n");
+		info->cmgp_sysreg = NULL;
+	} else {
+		info->cmgp_sysreg = devm_ioremap(&pdev->dev, sysreg, SZ_64K);
+		if (IS_ERR(info->cmgp_sysreg)) {
+			dev_err(&pdev->dev, "Failed devm_ioremap\n");
+			return PTR_ERR(info->cmgp_sysreg);
+		}
+	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	info->regs = devm_ioremap_resource(&pdev->dev, mem);
