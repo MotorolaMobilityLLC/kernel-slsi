@@ -212,12 +212,12 @@ wmark_fail:
 	return count;
 }
 
-static void prep_highorder_pages(unsigned long start_pfn, int order)
+static void prep_highorder_pages(unsigned long base_pfn, int order)
 {
 	int nr_pages = 1 << order;
 	unsigned long pfn;
 
-	for (pfn = start_pfn + 1; pfn < start_pfn + nr_pages; pfn++)
+	for (pfn = base_pfn + 1; pfn < base_pfn + nr_pages; pfn++)
 		set_page_count(pfn_to_page(pfn), 0);
 }
 
@@ -227,7 +227,6 @@ int alloc_pages_highorder(int order, struct page **pages, int nents)
 	unsigned int nr_pages = 1 << order;
 	unsigned long total_scanned = 0;
 	unsigned long pfn, tmp;
-	int p = 0;
 	int remained = nents;
 	int ret;
 	int retry_count = 0;
@@ -284,7 +283,7 @@ retry:
 		else
 			continue;
 
-		pages[p++] = pfn_to_page(pfn);
+		pages[nents - remained] = pfn_to_page(pfn);
 		remained--;
 	}
 
@@ -304,7 +303,7 @@ retry:
 			goto retry;
 		}
 
-		for (i = 0; i < p; i++)
+		for (i = 0; i < (nents - remained); i++)
 			__free_pages(pages[i], order);
 
 		pr_info("%s: remained=%d / %d, not enough memory in order %d\n",
