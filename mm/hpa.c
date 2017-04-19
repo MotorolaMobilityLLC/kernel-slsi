@@ -277,7 +277,7 @@ retry:
 		if (!is_movable_chunk(pfn, order))
 			continue;
 
-		ret = alloc_contig_range(pfn, pfn + nr_pages,
+		ret = alloc_contig_range_fast(pfn, pfn + nr_pages,
 				get_pageblock_migratetype(pfn_to_page(pfn)));
 		if (ret == 0)
 			prep_highorder_pages(pfn, order);
