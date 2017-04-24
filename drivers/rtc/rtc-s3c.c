@@ -123,7 +123,7 @@ static irqreturn_t s3c_rtc_tickirq(int irq, void *id)
 	struct s3c_rtc *info = (struct s3c_rtc *)id;
 
 	if (info->data->irq_handler)
-		info->data->irq_handler(info, S3C2410_INTP_TIC);
+		info->data->irq_handler(info, S3C2410_INTP_TIC_0);
 
 	return IRQ_HANDLED;
 }
@@ -453,9 +453,9 @@ static void s3c24xx_rtc_disable(struct s3c_rtc *info)
 	con &= ~S3C2410_RTCCON_RTCEN;
 	writew(con, info->base + S3C2410_RTCCON);
 
-	con = readb(info->base + S3C2410_TICNT);
+	con = readb(info->base + S3C2410_TICNT_0);
 	con &= ~S3C2410_TICNT_ENABLE;
-	writeb(con, info->base + S3C2410_TICNT);
+	writeb(con, info->base + S3C2410_TICNT_0);
 }
 
 static void s3c6410_rtc_disable(struct s3c_rtc *info)
@@ -463,7 +463,7 @@ static void s3c6410_rtc_disable(struct s3c_rtc *info)
 	unsigned int con;
 
 	con = readw(info->base + S3C2410_RTCCON);
-	con &= ~S3C64XX_RTCCON_TICEN;
+	con &= ~S3C64XX_RTCCON_TICEN_0;
 	con &= ~S3C2410_RTCCON_RTCEN;
 	writew(con, info->base + S3C2410_RTCCON);
 }
@@ -691,13 +691,13 @@ static void s3c2410_rtc_setfreq(struct s3c_rtc *info, int freq)
 	unsigned int tmp = 0;
 	int val;
 
-	tmp = readb(info->base + S3C2410_TICNT);
+	tmp = readb(info->base + S3C2410_TICNT_0);
 	tmp &= S3C2410_TICNT_ENABLE;
 
 	val = (info->rtc->max_user_freq / freq) - 1;
 	tmp |= val;
 
-	writel(tmp, info->base + S3C2410_TICNT);
+	writel(tmp, info->base + S3C2410_TICNT_0);
 }
 
 static void s3c2416_rtc_setfreq(struct s3c_rtc *info, int freq)
@@ -705,7 +705,7 @@ static void s3c2416_rtc_setfreq(struct s3c_rtc *info, int freq)
 	unsigned int tmp = 0;
 	int val;
 
-	tmp = readb(info->base + S3C2410_TICNT);
+	tmp = readb(info->base + S3C2410_TICNT_0);
 	tmp &= S3C2410_TICNT_ENABLE;
 
 	val = (info->rtc->max_user_freq / freq) - 1;
@@ -715,7 +715,7 @@ static void s3c2416_rtc_setfreq(struct s3c_rtc *info, int freq)
 
 	writel(S3C2416_TICNT2_PART(val), info->base + S3C2416_TICNT2);
 
-	writel(tmp, info->base + S3C2410_TICNT);
+	writel(tmp, info->base + S3C2410_TICNT_0);
 }
 
 static void s3c2443_rtc_setfreq(struct s3c_rtc *info, int freq)
@@ -723,7 +723,7 @@ static void s3c2443_rtc_setfreq(struct s3c_rtc *info, int freq)
 	unsigned int tmp = 0;
 	int val;
 
-	tmp = readb(info->base + S3C2410_TICNT);
+	tmp = readb(info->base + S3C2410_TICNT_0);
 	tmp &= S3C2410_TICNT_ENABLE;
 
 	val = (info->rtc->max_user_freq / freq) - 1;
@@ -731,7 +731,7 @@ static void s3c2443_rtc_setfreq(struct s3c_rtc *info, int freq)
 	tmp |= S3C2443_TICNT_PART(val);
 	writel(S3C2443_TICNT1_PART(val), info->base + S3C2443_TICNT1);
 
-	writel(tmp, info->base + S3C2410_TICNT);
+	writel(tmp, info->base + S3C2410_TICNT_0);
 }
 
 static void s3c6410_rtc_setfreq(struct s3c_rtc *info, int freq)
@@ -739,14 +739,14 @@ static void s3c6410_rtc_setfreq(struct s3c_rtc *info, int freq)
 	int val;
 
 	val = (info->rtc->max_user_freq / freq) - 1;
-	writel(val, info->base + S3C2410_TICNT);
+	writel(val, info->base + S3C2410_TICNT_0);
 }
 
 static void s3c24xx_rtc_enable_tick(struct s3c_rtc *info, struct seq_file *seq)
 {
 	unsigned int ticnt;
 
-	ticnt = readb(info->base + S3C2410_TICNT);
+	ticnt = readb(info->base + S3C2410_TICNT_0);
 	ticnt &= S3C2410_TICNT_ENABLE;
 
 	seq_printf(seq, "periodic_IRQ\t: %s\n", ticnt  ? "yes" : "no");
@@ -757,7 +757,7 @@ static void s3c2416_rtc_select_tick_clk(struct s3c_rtc *info)
 	unsigned int con;
 
 	con = readw(info->base + S3C2410_RTCCON);
-	con |= S3C2443_RTCCON_TICSEL;
+	con |= S3C2443_RTCCON_TICSEL_0;
 	writew(con, info->base + S3C2410_RTCCON);
 }
 
@@ -766,33 +766,33 @@ static void s3c6410_rtc_enable_tick(struct s3c_rtc *info, struct seq_file *seq)
 	unsigned int ticnt;
 
 	ticnt = readw(info->base + S3C2410_RTCCON);
-	ticnt &= S3C64XX_RTCCON_TICEN;
+	ticnt &= S3C64XX_RTCCON_TICEN_0;
 
 	seq_printf(seq, "periodic_IRQ\t: %s\n", ticnt  ? "yes" : "no");
 }
 
 static void s3c24xx_rtc_save_tick_cnt(struct s3c_rtc *info)
 {
-	info->ticnt_save = readb(info->base + S3C2410_TICNT);
+	info->ticnt_save = readb(info->base + S3C2410_TICNT_0);
 }
 
 static void s3c24xx_rtc_restore_tick_cnt(struct s3c_rtc *info)
 {
-	writeb(info->ticnt_save, info->base + S3C2410_TICNT);
+	writeb(info->ticnt_save, info->base + S3C2410_TICNT_0);
 }
 
 static void s3c6410_rtc_save_tick_cnt(struct s3c_rtc *info)
 {
 	info->ticnt_en_save = readw(info->base + S3C2410_RTCCON);
-	info->ticnt_en_save &= S3C64XX_RTCCON_TICEN;
-	info->ticnt_save = readl(info->base + S3C2410_TICNT);
+	info->ticnt_en_save &= S3C64XX_RTCCON_TICEN_0;
+	info->ticnt_save = readl(info->base + S3C2410_TICNT_0);
 }
 
 static void s3c6410_rtc_restore_tick_cnt(struct s3c_rtc *info)
 {
 	unsigned int con;
 
-	writel(info->ticnt_save, info->base + S3C2410_TICNT);
+	writel(info->ticnt_save, info->base + S3C2410_TICNT_0);
 	if (info->ticnt_en_save) {
 		con = readw(info->base + S3C2410_RTCCON);
 		writew(con | info->ticnt_en_save, info->base + S3C2410_RTCCON);
