@@ -267,13 +267,15 @@ struct sc_fmt {
 	u8	cspan:1;
 };
 
+enum {
+	SC_PLANE_Y = 0,
+	SC_PLANE_CB,
+	SC_PLANE_CR,
+};
+
 struct sc_addr {
-	dma_addr_t	y;
-	dma_addr_t	cb;
-	dma_addr_t	cr;
-	unsigned int	ysize;
-	unsigned int	cbsize;
-	unsigned int	crsize;
+	dma_addr_t	ioaddr[SC_MAX_PLANES];
+	unsigned int	size[SC_MAX_PLANES];
 };
 
 /*

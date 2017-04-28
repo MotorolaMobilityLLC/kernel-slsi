@@ -853,16 +853,16 @@ void sc_hwset_dst_imgsize(struct sc_dev *sc, struct sc_frame *frame)
 
 void sc_hwset_src_addr(struct sc_dev *sc, struct sc_addr *addr)
 {
-	writel(addr->y, sc->regs + SCALER_SRC_Y_BASE);
-	writel(addr->cb, sc->regs + SCALER_SRC_CB_BASE);
-	writel(addr->cr, sc->regs + SCALER_SRC_CR_BASE);
+	writel(addr->ioaddr[SC_PLANE_Y], sc->regs + SCALER_SRC_Y_BASE);
+	writel(addr->ioaddr[SC_PLANE_CB], sc->regs + SCALER_SRC_CB_BASE);
+	writel(addr->ioaddr[SC_PLANE_CR], sc->regs + SCALER_SRC_CR_BASE);
 }
 
 void sc_hwset_dst_addr(struct sc_dev *sc, struct sc_addr *addr)
 {
-	writel(addr->y, sc->regs + SCALER_DST_Y_BASE);
-	writel(addr->cb, sc->regs + SCALER_DST_CB_BASE);
-	writel(addr->cr, sc->regs + SCALER_DST_CR_BASE);
+	writel(addr->ioaddr[SC_PLANE_Y], sc->regs + SCALER_DST_Y_BASE);
+	writel(addr->ioaddr[SC_PLANE_CB], sc->regs + SCALER_DST_CB_BASE);
+	writel(addr->ioaddr[SC_PLANE_CR], sc->regs + SCALER_DST_CR_BASE);
 }
 
 void sc_hwregs_dump(struct sc_dev *sc)
