@@ -97,3 +97,5 @@ obj-y					+= meson/
 obj-$(CONFIG_VIDEO_EXYNOS_SCALER)	+= exynos/scaler/
 
 obj-$(CONFIG_VIDEO_EXYNOS_SMFC)	+= exynos/smfc/
+
+obj-$(CONFIG_VIDEO_EXYNOS_FIMC_IS2)     += exynos/fimc-is2/

@@ -35,6 +35,8 @@ source "drivers/media/platform/blackfin/Kconfig"
 
 source "drivers/media/platform/exynos/Kconfig"
 
+source "drivers/media/platform/exynos/fimc-is2/Kconfig"
+
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
 	depends on MEDIA_CAMERA_SUPPORT

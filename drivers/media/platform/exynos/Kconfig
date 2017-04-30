@@ -10,6 +10,7 @@ config VIDEO_EXYNOS
 
 if VIDEO_EXYNOS
         source "drivers/media/platform/exynos/mfc/Kconfig"
+        source "drivers/media/platform/exynos/camera-pp/Kconfig"
 endif
 
 config MEDIA_EXYNOS
