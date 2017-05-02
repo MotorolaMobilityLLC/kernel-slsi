@@ -207,17 +207,22 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 		 * just display low 16 bits of address to keep
 		 * each line of the dump < 80 characters
 		 */
-		printk("%04lx ", (unsigned long)p & 0xffff);
+		printk("%04lx :", (unsigned long)p & 0xffff);
 		for (j = 0; j < 8; j++) {
 			u32	data;
 			if (probe_kernel_address(p, data)) {
-				printk(" ********");
+				if (j == 7)
+					pr_cont(" ********\n");
+				else
+					pr_cont(" ********");
 			} else {
-				printk(" %08x", data);
+				if (j == 7)
+					pr_cont(" %08X\n", data);
+				else
+					pr_cont(" %08X", data);
 			}
 			++p;
 		}
-		printk("\n");
 	}
 }
 
