@@ -252,8 +252,6 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
 	struct samsung_pwm_channel *our_chan;
-	unsigned char clk_tin_name[16];
-	unsigned char clk_tdiv_name[16];
 	unsigned long flags;
 
 	if (!(our_chip->variant.output_mask & BIT(pwm->hwpwm))) {
@@ -268,20 +266,6 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return -ENOMEM;
 
 	pwm_set_chip_data(pwm, our_chan);
-
-	snprintf(clk_tin_name, sizeof(clk_tin_name), "pwm-tin%d", pwm->hwpwm);
-	our_chan->clk_tin = devm_clk_get(chip->dev, clk_tin_name);
-	if (IS_ERR(our_chan->clk_tin)) {
-		dev_err(chip->dev, "failed to get pwm tin clk\n");
-		return PTR_ERR(our_chan->clk_tin);
-	}
-
-	snprintf(clk_tdiv_name, sizeof(clk_tdiv_name), "pwm-tdiv%d", pwm->hwpwm);
-	our_chan->clk_div = devm_clk_get(chip->dev, clk_tdiv_name);
-	if (IS_ERR(our_chan->clk_div)) {
-		dev_err(chip->dev, "failed to get pwm tdiv clk\n");
-		return PTR_ERR(our_chan->clk_div);
-	}
 
 	exynos_update_ip_idle_status(our_chip->idle_ip_index, 0);
 	clk_prepare_enable(our_chip->base_clk);
