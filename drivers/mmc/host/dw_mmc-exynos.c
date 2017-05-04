@@ -34,20 +34,6 @@ enum dw_mci_exynos_type {
 	DW_MCI_TYPE_EXYNOS7_SMU,
 };
 
-/* Exynos implementation specific driver private data */
-struct dw_mci_exynos_priv_data {
-	enum dw_mci_exynos_type		ctrl_type;
-	u8				ciu_div;
-	u32				sdr_timing;
-	u32				ddr_timing;
-	u32				hs400_timing;
-	u32				tuned_sample;
-	u32				cur_speed;
-	u32				dqs_delay;
-	u32				saved_dqs_en;
-	u32				saved_strobe_ctrl;
-};
-
 static struct dw_mci_exynos_compatible {
 	char				*compatible;
 	enum dw_mci_exynos_type		ctrl_type;
@@ -232,9 +218,31 @@ static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 	dqs = priv->saved_dqs_en;
 	strobe = priv->saved_strobe_ctrl;
 
-	if (timing == MMC_TIMING_MMC_HS400) {
-		dqs |= DATA_STROBE_EN;
-		strobe = DQS_CTRL_RD_DELAY(strobe, priv->dqs_delay);
+	if (timing == MMC_TIMING_MMC_HS400 ||
+			timing == MMC_TIMING_MMC_HS400_ES) {
+		dqs &= ~(DWMCI_TXDT_CRC_TIMER_SET(0xFF, 0xFF));
+		dqs |= (DWMCI_TXDT_CRC_TIMER_SET(priv->ddr200_tx_t_fastlimit,
+			priv->ddr200_tx_t_initval) | DWMCI_RDDQS_EN |
+				DWMCI_AXI_NON_BLOCKING_WRITE);
+		if (host->pdata->quirks & DW_MCI_QUIRK_ENABLE_ULP) {
+			if (priv->delay_line || priv->tx_delay_line)
+				strobe = DWMCI_WD_DQS_DELAY_CTRL(priv->tx_delay_line) |
+				DWMCI_FIFO_CLK_DELAY_CTRL(0x2) |
+				DWMCI_RD_DQS_DELAY_CTRL(priv->delay_line);
+			else
+				strobe = DWMCI_FIFO_CLK_DELAY_CTRL(0x2) |
+				DWMCI_RD_DQS_DELAY_CTRL(90);
+		} else {
+			if (priv->delay_line)
+				strobe = DWMCI_FIFO_CLK_DELAY_CTRL(0x2) |
+				DWMCI_RD_DQS_DELAY_CTRL(priv->delay_line);
+			else
+				strobe = DWMCI_FIFO_CLK_DELAY_CTRL(0x2) |
+				DWMCI_RD_DQS_DELAY_CTRL(90);
+		}
+		dqs |= (DATA_STROBE_EN | DWMCI_AXI_NON_BLOCKING_WRITE);
+		if (timing == MMC_TIMING_MMC_HS400_ES)
+			dqs |= DWMCI_RESP_RCLK_MODE;
 	} else {
 		dqs &= ~DATA_STROBE_EN;
 	}
@@ -283,6 +291,7 @@ static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 
 	switch (timing) {
 	case MMC_TIMING_MMC_HS400:
+	case MMC_TIMING_MMC_HS400_ES:
 		/* Update tuned sample timing */
 		clksel = SDMMC_CLKSEL_UP_SAMPLE(
 				priv->hs400_timing, priv->tuned_sample);
@@ -312,7 +321,7 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv;
 	struct device_node *np = host->dev->of_node;
-	u32 timing[2];
+	u32 timing[4];
 	u32 div = 0;
 	int idx;
 	int ret;
@@ -336,28 +345,28 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	}
 
 	ret = of_property_read_u32_array(np,
-			"samsung,dw-mshc-sdr-timing", timing, 2);
+			"samsung,dw-mshc-sdr-timing", timing, 4);
 	if (ret)
 		return ret;
 
-	priv->sdr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
+	priv->sdr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], timing[2], timing[3]);
 
 	ret = of_property_read_u32_array(np,
-			"samsung,dw-mshc-ddr-timing", timing, 2);
+			"samsung,dw-mshc-ddr-timing", timing, 4);
 	if (ret)
 		return ret;
 
-	priv->ddr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
+	priv->ddr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], timing[2], timing[3]);
 
 	ret = of_property_read_u32_array(np,
-			"samsung,dw-mshc-hs400-timing", timing, 2);
+			"samsung,dw-mshc-hs400-timing", timing, 4);
 	if (!ret && of_property_read_u32(np,
 				"samsung,read-strobe-delay", &priv->dqs_delay))
 		dev_dbg(host->dev,
 			"read-strobe-delay is not found, assuming usage of default value\n");
 
-	priv->hs400_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1],
-						HS400_FIXED_CIU_CLK_DIV);
+	priv->hs400_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], timing[2], timing[3]);
+
 	host->priv = priv;
 	return 0;
 }

@@ -203,26 +203,26 @@ static void dw_mci_init_debugfs(struct dw_mci_slot *slot)
 	if (!root)
 		return;
 
-	node = debugfs_create_file("regs", S_IRUSR, root, host,
+	node = debugfs_create_file("regs", 0400, root, host,
 				   &dw_mci_regs_fops);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_file("req", S_IRUSR, root, slot,
+	node = debugfs_create_file("req", 0400, root, slot,
 				   &dw_mci_req_fops);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
+	node = debugfs_create_u32("state", 0400, root, (u32 *)&host->state);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_x32("pending_events", S_IRUSR, root,
+	node = debugfs_create_x32("pending_events", 0400, root,
 				  (u32 *)&host->pending_events);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_x32("completed_events", S_IRUSR, root,
+	node = debugfs_create_x32("completed_events", 0400, root,
 				  (u32 *)&host->completed_events);
 	if (!node)
 		goto err;
@@ -1469,7 +1469,8 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	/* DDR mode set */
 	if (ios->timing == MMC_TIMING_MMC_DDR52 ||
 	    ios->timing == MMC_TIMING_UHS_DDR50 ||
-	    ios->timing == MMC_TIMING_MMC_HS400)
+	    ios->timing == MMC_TIMING_MMC_HS400 ||
+		ios->timing == MMC_TIMING_MMC_HS400_ES)
 		regs |= ((0x1 << slot->id) << 16);
 	else
 		regs &= ~((0x1 << slot->id) << 16);
