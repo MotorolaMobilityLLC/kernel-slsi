@@ -53,6 +53,7 @@
 #include "../thermal_core.h"
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 #include "exynos_acpm_tmu.h"
+#include "soc/samsung/exynos-pmu.h"
 #endif
 
 /* Exynos generic registers */
@@ -167,8 +168,18 @@
 #define DEFAULT_BALANCE_OFFSET	20
 
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
+#define PMUREG_AUD_STATUS			0x4004
 static struct acpm_tmu_cap cap;
 static unsigned int num_of_devices, suspended_count;
+static bool cp_call_mode;
+static bool is_aud_on(void)
+{
+	unsigned int val;
+
+	exynos_pmu_read(PMUREG_AUD_STATUS, &val);
+
+	return ((val & 0xf) == 0xf);
+}
 #else
 static bool suspended;
 static DEFINE_MUTEX (thermal_suspend_lock);
@@ -2231,11 +2242,18 @@ static int exynos_tmu_suspend(struct device *dev)
 	suspended_count++;
 	disable_irq(data->irq);
 
-	exynos_tmu_control(pdev, false);
-
-	if (suspended_count == num_of_devices) {
-		exynos_acpm_tmu_set_suspend();
-		pr_info("%s: TMU suspend complete\n", __func__);
+	cp_call_mode = is_aud_on() && cap.acpm_irq;
+	if (cp_call_mode) {
+		if (suspended_count == num_of_devices) {
+			exynos_acpm_tmu_set_cp_call();
+			pr_info("%s: TMU suspend w/ AUD-on complete\n", __func__);
+		}
+	} else {
+		exynos_tmu_control(pdev, false);
+		if (suspended_count == num_of_devices) {
+			exynos_acpm_tmu_set_suspend();
+			pr_info("%s: TMU suspend complete\n", __func__);
+		}
 	}
 #else
 	exynos_tmu_control(to_platform_device(dev), false);
@@ -2254,8 +2272,10 @@ static int exynos_tmu_resume(struct device *dev)
 	if (suspended_count == num_of_devices)
 		exynos_acpm_tmu_set_resume();
 
-	exynos_tmu_initialize(pdev);
-	exynos_tmu_control(pdev, true);
+	if (!cp_call_mode) {
+		exynos_tmu_initialize(pdev);
+		exynos_tmu_control(pdev, true);
+	}
 
 	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp);
 
