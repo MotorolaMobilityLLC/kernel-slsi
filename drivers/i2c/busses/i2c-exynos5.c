@@ -790,7 +790,8 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	/* master should be reset */
 	if (i2c->reset_before_trans) {
 		if (unlikely((readl(i2c->regs + HSI2C_TRANS_STATUS)
-			& HSI2C_MAST_ST_MASK) == 0xC)) {
+			& HSI2C_MAST_ST_MASK) == 0x6)) {
+			pr_info("%s trans status and reset = %s\n", __func__, adap->name);
 			i2c->need_hw_init = 1;
 		}
 	}
