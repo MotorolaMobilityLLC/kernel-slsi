@@ -118,6 +118,14 @@ config EXYNOS_CONTENT_PATH_PROTECTION
 	  Enable content path protection of EXYNOS.
 
 source "drivers/soc/samsung/debug/Kconfig"
+
+config EXYNOS_OCP
+	bool "Exynos OCP Handler"
+	depends on CPU_FREQ
+	default n
+	help
+	  Enable OCP handler for Exynos SoC.
+
 config EXYNOS_DVFS_MANAGER
 	bool "Exynos DVFS Manager"
 	default n

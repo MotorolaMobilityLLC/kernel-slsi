@@ -593,6 +593,27 @@ DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_remove_request,
 	TP_ARGS(name, type, new_value)
 );
 
+TRACE_EVENT(ocp_max_limit,
+
+	TP_PROTO(unsigned int clipped_freq, bool start),
+
+	TP_ARGS(clipped_freq, start),
+
+	TP_STRUCT__entry(
+		__field(	u32,		clipped_freq	)
+		__field(	bool,		start	)
+	),
+
+	TP_fast_assign(
+		__entry->clipped_freq = clipped_freq;
+		__entry->start = start;
+	),
+
+	TP_printk("clipped_freq=%lu %s",
+		  (unsigned long)__entry->clipped_freq,
+		  (__entry->start)?"begin":"end")
+);
+
 TRACE_EVENT(emc_cpu_load,
 
 	TP_PROTO(int cpu, int load, int max_load),

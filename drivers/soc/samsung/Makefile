@@ -39,6 +39,9 @@ obj-$(CONFIG_EXYNOS_MODE_CHANGER)	+= exynos-emc.o
 # CPU Topology
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-topology.o
 
+# OCP
+obj-$(CONFIG_EXYNOS_OCP)	+= exynos-ocp.o
+
 #CPU Power Management
 obj-$(CONFIG_ARCH_EXYNOS)      += exynos-cpupm.o
 
