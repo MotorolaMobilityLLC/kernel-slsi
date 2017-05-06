@@ -256,6 +256,44 @@ static const struct sc_fmt sc_formats[] = {
 		.num_comp	= 3,
 		.h_shift	= 1,
 		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr 8+2 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12M_S10B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P |
+					SCALER_CFG_10BIT_S10,
+		.bitperpixel	= { 10, 5 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr 10-bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12M_P010,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P |
+					SCALER_CFG_10BIT_P010,
+		.bitperpixel	= { 16, 8 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:2 contiguous 2-planar, Y/CbCr 8+2 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV16M_S10B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR422_2P |
+					SCALER_CFG_10BIT_S10,
+		.bitperpixel	= { 10, 10 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:2 contiguous 2-planar, Y/CrCb 8+2 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV61M_S10B,
+		.cfg_val	= SCALER_CFG_FMT_YCRCB422_2P |
+					SCALER_CFG_10BIT_S10,
+		.bitperpixel	= { 10, 10 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
 	},
 };
 
@@ -575,6 +613,67 @@ static int sc_v4l2_g_fmt_mplane(struct file *file, void *fh,
 	return 0;
 }
 
+int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
+				u32 *ysize, u32 *csize, bool only_8bit)
+{
+	int ret = 0;
+
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_NV12M_S10B:
+			*ysize = NV12M_Y_SIZE(width, height);
+			*csize = NV12M_CBCR_SIZE(width, height);
+		break;
+	case V4L2_PIX_FMT_NV16M_S10B:
+	case V4L2_PIX_FMT_NV61M_S10B:
+			*ysize = NV16M_Y_SIZE(width, height);
+			*csize = NV16M_CBCR_SIZE(width, height);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret || only_8bit)
+		return ret;
+
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_NV12M_S10B:
+			*ysize += NV12M_Y_2B_SIZE(width, height);
+			*csize += NV12M_CBCR_2B_SIZE(width, height);
+		break;
+	case V4L2_PIX_FMT_NV16M_S10B:
+	case V4L2_PIX_FMT_NV61M_S10B:
+			*ysize += NV16M_Y_2B_SIZE(width, height);
+			*csize += NV16M_CBCR_2B_SIZE(width, height);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int sc_calc_fmt_s10b_size(const struct sc_fmt *sc_fmt,
+		struct v4l2_pix_format_mplane *pixm)
+{
+	int i, ret;
+
+	BUG_ON(sc_fmt->num_comp != 2);
+
+	for (i = 0; i < pixm->num_planes; i++)
+		pixm->plane_fmt[i].bytesperline = (pixm->width *
+				sc_fmt->bitperpixel[i]) >> 3;
+
+	ret = sc_calc_s10b_planesize(sc_fmt->pixelformat,
+			pixm->width, pixm->height,
+			&pixm->plane_fmt[0].sizeimage,
+			&pixm->plane_fmt[1].sizeimage, false);
+	if (ret)
+		pr_err("Scaler doesn't support %s format\n", sc_fmt->name);
+
+	return ret;
+}
+
 static int sc_v4l2_try_fmt_mplane(struct file *file, void *fh,
 			    struct v4l2_format *f)
 {
@@ -618,6 +717,9 @@ static int sc_v4l2_try_fmt_mplane(struct file *file, void *fh,
 
 	pixm->num_planes = sc_fmt->num_planes;
 	pixm->colorspace = 0;
+
+	if (sc_fmt_is_s10bit_yuv(sc_fmt->pixelformat))
+		return sc_calc_fmt_s10b_size(sc_fmt, pixm);
 
 	for (i = 0; i < pixm->num_planes; ++i) {
 		pixm->plane_fmt[i].bytesperline = (pixm->width *
@@ -1012,7 +1114,12 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 			frame->addr.size[SC_PLANE_Y] = pixsize;
 			frame->addr.size[SC_PLANE_CB] = bytesize - pixsize;
 		} else if (frame->sc_fmt->num_planes == 2) {
-			sc_calc_planesize(frame, pixsize);
+			if (frame->sc_fmt->pixelformat == V4L2_PIX_FMT_NV12M_S10B) {
+				frame->addr.size[SC_PLANE_Y] = NV12M_Y_SIZE(frame->width, frame->height);
+				frame->addr.size[SC_PLANE_CB] = NV12M_CBCR_SIZE(frame->width, frame->height);
+			} else {
+				sc_calc_planesize(frame, pixsize);
+			}
 		}
 		break;
 	case 3:
@@ -2228,8 +2335,8 @@ static bool sc_process_2nd_stage(struct sc_dev *sc, struct sc_ctx *ctx)
 	sc_hwset_dst_pos(sc, d_frame->crop.left, d_frame->crop.top);
 	sc_hwset_dst_wh(sc, d_frame->crop.width, d_frame->crop.height);
 
-	sc_hwset_src_addr(sc, &s_frame->addr);
-	sc_hwset_dst_addr(sc, &d_frame->addr);
+	sc_hwset_src_addr(sc, s_frame);
+	sc_hwset_dst_addr(sc, d_frame);
 
 	if ((ctx->flip_rot_cfg & SCALER_ROT_MASK) &&
 		(ctx->dnoise_ft.strength > SC_FT_BLUR))
@@ -2414,8 +2521,8 @@ static int sc_run_next_job(struct sc_dev *sc)
 	if (sc->variant->initphase)
 		sc_set_initial_phase(ctx);
 
-	sc_hwset_src_addr(sc, &s_frame->addr);
-	sc_hwset_dst_addr(sc, &d_frame->addr);
+	sc_hwset_src_addr(sc, s_frame);
+	sc_hwset_dst_addr(sc, d_frame);
 
 	sc_set_dithering(ctx);
 
@@ -2609,7 +2716,13 @@ static int sc_get_bufaddr(struct sc_dev *sc, struct vb2_buffer *vb2buf,
 			}
 		} else if (frame->sc_fmt->num_planes == 2) {
 			frame->addr.ioaddr[SC_PLANE_CB] = vb2_dma_sg_plane_dma_addr(vb2buf, 1);
-			sc_calc_planesize(frame, pixsize);
+			if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat))
+				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
+						frame->width, frame->height,
+						&frame->addr.size[SC_PLANE_Y],
+						&frame->addr.size[SC_PLANE_CB], false);
+			else
+				sc_calc_planesize(frame, pixsize);
 		}
 		break;
 	case 3:
@@ -3022,7 +3135,13 @@ static void sc_m2m1shot_get_bufaddr(struct sc_dev *sc,
 		} else if (frame->sc_fmt->num_planes == 2) {
 			frame->addr.ioaddr[SC_PLANE_CB] = buf->plane[1].dma_addr;
 
-			sc_calc_planesize(frame, pixsize);
+			if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat))
+				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
+						frame->width, frame->height,
+						&frame->addr.size[SC_PLANE_Y],
+						&frame->addr.size[SC_PLANE_CB], false);
+			else
+				sc_calc_planesize(frame, pixsize);
 		}
 		break;
 	case 3:

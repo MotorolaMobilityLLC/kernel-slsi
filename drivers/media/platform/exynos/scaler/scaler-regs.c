@@ -851,18 +851,76 @@ void sc_hwset_dst_imgsize(struct sc_dev *sc, struct sc_frame *frame)
 	writel(cfg, sc->regs + SCALER_DST_SPAN);
 }
 
-void sc_hwset_src_addr(struct sc_dev *sc, struct sc_addr *addr)
+int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
+				u32 *ysize, u32 *csize, bool only_8bit);
+static void sc_hwset_src_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 {
+	u32 yaddr_2bit, caddr_2bit;
+	unsigned long cfg = 0;
+
+	BUG_ON(frame->sc_fmt->num_comp != 2);
+
+	sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
+				frame->width, frame->height,
+				&yaddr_2bit, &caddr_2bit, true);
+	yaddr_2bit += frame->addr.ioaddr[SC_PLANE_Y];
+	caddr_2bit += frame->addr.ioaddr[SC_PLANE_CB];
+
+	writel(yaddr_2bit, sc->regs + SCALER_SRC_2BIT_Y_BASE);
+	writel(caddr_2bit, sc->regs + SCALER_SRC_2BIT_C_BASE);
+
+	cfg &= ~(SCALER_SRC_2BIT_CSPAN_MASK | SCALER_SRC_2BIT_YSPAN_MASK);
+	cfg |= frame->width;
+	cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
+	writel(cfg, sc->regs + SCALER_SRC_2BIT_SPAN);
+}
+
+void sc_hwset_src_addr(struct sc_dev *sc, struct sc_frame *frame)
+{
+	struct sc_addr *addr = &frame->addr;
+
 	writel(addr->ioaddr[SC_PLANE_Y], sc->regs + SCALER_SRC_Y_BASE);
 	writel(addr->ioaddr[SC_PLANE_CB], sc->regs + SCALER_SRC_CB_BASE);
 	writel(addr->ioaddr[SC_PLANE_CR], sc->regs + SCALER_SRC_CR_BASE);
+
+	if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) &&
+			sc->variant->pixfmt_10bit)
+		sc_hwset_src_2bit_addr(sc, frame);
 }
 
-void sc_hwset_dst_addr(struct sc_dev *sc, struct sc_addr *addr)
+static void sc_hwset_dst_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 {
+	u32 yaddr_2bit, caddr_2bit;
+	unsigned long cfg = 0;
+
+	BUG_ON(frame->sc_fmt->num_comp != 2);
+
+	sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
+				frame->width, frame->height,
+				&yaddr_2bit, &caddr_2bit, true);
+	yaddr_2bit += frame->addr.ioaddr[SC_PLANE_Y];
+	caddr_2bit += frame->addr.ioaddr[SC_PLANE_CB];
+
+	writel(yaddr_2bit, sc->regs + SCALER_DST_2BIT_Y_BASE);
+	writel(caddr_2bit, sc->regs + SCALER_DST_2BIT_C_BASE);
+
+	cfg &= ~(SCALER_DST_2BIT_CSPAN_MASK | SCALER_DST_2BIT_YSPAN_MASK);
+	cfg |= frame->width;
+	cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
+	writel(cfg, sc->regs + SCALER_DST_2BIT_SPAN);
+}
+
+void sc_hwset_dst_addr(struct sc_dev *sc, struct sc_frame *frame)
+{
+	struct sc_addr *addr = &frame->addr;
+
 	writel(addr->ioaddr[SC_PLANE_Y], sc->regs + SCALER_DST_Y_BASE);
 	writel(addr->ioaddr[SC_PLANE_CB], sc->regs + SCALER_DST_CB_BASE);
 	writel(addr->ioaddr[SC_PLANE_CR], sc->regs + SCALER_DST_CR_BASE);
+
+	if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) &&
+			sc->variant->pixfmt_10bit)
+		sc_hwset_dst_2bit_addr(sc, frame);
 }
 
 void sc_hwregs_dump(struct sc_dev *sc)
@@ -889,11 +947,17 @@ void sc_hwregs_dump(struct sc_dev *sc)
 	if (sc->version <= SCALER_VERSION(2, 1, 1))
 		print_hex_dump(KERN_NOTICE, "", DUMP_PREFIX_ADDRESS, 16, 4,
 			sc->regs + 0x280, 0x28C - 0x280 + 4, false);
+	if (sc->version >= SCALER_VERSION(5, 0, 0))
+		print_hex_dump(KERN_NOTICE, "", DUMP_PREFIX_ADDRESS, 16, 4,
+			sc->regs + 0x280, 0x288 - 0x280 + 4, false);
 	print_hex_dump(KERN_NOTICE, "", DUMP_PREFIX_ADDRESS, 16, 4,
 			sc->regs + 0x290, 0x298 - 0x290 + 4, false);
 	if (sc->version <= SCALER_VERSION(2, 1, 1))
 		print_hex_dump(KERN_NOTICE, "", DUMP_PREFIX_ADDRESS, 16, 4,
 			sc->regs + 0x2A8, 0x2A8 - 0x2A0 + 4, false);
+	if (sc->version >= SCALER_VERSION(5, 0, 0))
+		print_hex_dump(KERN_NOTICE, "", DUMP_PREFIX_ADDRESS, 16, 4,
+			sc->regs + 0x2A0, 0x2A8 - 0x280 + 4, false);
 	print_hex_dump(KERN_NOTICE, "", DUMP_PREFIX_ADDRESS, 16, 4,
 			sc->regs + 0x2B0, 0x2C4 - 0x2B0 + 4, false);
 	if (sc->version >= SCALER_VERSION(3, 0, 0))

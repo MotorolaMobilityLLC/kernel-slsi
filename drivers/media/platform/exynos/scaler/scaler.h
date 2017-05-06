@@ -93,6 +93,9 @@ extern int sc_log_level;
 		(x == V4L2_PIX_FMT_NV21M) || (x == V4L2_PIX_FMT_YUV420M) || \
 		(x == V4L2_PIX_FMT_YVU420M) || (x == V4L2_PIX_FMT_NV12MT_16X16))
 #define sc_fmt_is_ayv12(x)	((x) == V4L2_PIX_FMT_YVU420)
+#define sc_fmt_is_s10bit_yuv(x)	((x == V4L2_PIX_FMT_NV12M_S10B) || \
+		(x == V4L2_PIX_FMT_NV12N_10B) || (x == V4L2_PIX_FMT_NV16M_S10B) || \
+		(x == V4L2_PIX_FMT_NV61M_S10B))
 #define sc_dith_val(a, b, c)	((a << SCALER_DITH_R_SHIFT) |	\
 		(b << SCALER_DITH_G_SHIFT) | (c << SCALER_DITH_B_SHIFT))
 
@@ -511,8 +514,8 @@ void sc_hwset_src_crop(struct sc_dev *sc, struct v4l2_rect *rect,
 		       const struct sc_fmt *fmt,
 		       unsigned int pre_h_ratio, unsigned int pre_v_ratio);
 void sc_hwset_dst_crop(struct sc_dev *sc, struct v4l2_rect *rect);
-void sc_hwset_src_addr(struct sc_dev *sc, struct sc_addr *addr);
-void sc_hwset_dst_addr(struct sc_dev *sc, struct sc_addr *addr);
+void sc_hwset_src_addr(struct sc_dev *sc, struct sc_frame *frame);
+void sc_hwset_dst_addr(struct sc_dev *sc, struct sc_frame *frame);
 void sc_hwset_hcoef(struct sc_dev *sc, unsigned int coef);
 void sc_hwset_vcoef(struct sc_dev *sc, unsigned int coef);
 
