@@ -321,6 +321,7 @@ static const struct sc_variant sc_variant[] = {
 		.prescale		= 0,
 		.ratio_20bit		= 1,
 		.initphase		= 1,
+		.pixfmt_10bit		= 1,
 	}, {
 		.limit_input = {
 			.min_w		= 16,

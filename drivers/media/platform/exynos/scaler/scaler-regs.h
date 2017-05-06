@@ -129,7 +129,7 @@
 #define SCALER_CSC_COEF02		0x238
 #define SCALER_CSC_COEF12		0x23c
 #define SCALER_CSC_COEF22		0x240
-#define SCALER_CSC_COEF_MASK		(0xfff << 0)
+#define SCALER_CSC_COEF_MASK		(0xffff << 0)
 
 #define SCALER_DITH_CFG			0x250
 #define SCALER_DITH_R_MASK		(7 << 6)

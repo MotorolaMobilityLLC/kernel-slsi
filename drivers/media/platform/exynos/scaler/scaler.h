@@ -240,6 +240,7 @@ struct sc_variant {
 	u8 prescale:1;
 	u8 ratio_20bit:1;
 	u8 initphase:1;
+	u8 pixfmt_10bit:1;
 };
 
 /*
