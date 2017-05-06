@@ -1065,7 +1065,7 @@ static void free_intermediate_frame(struct sc_ctx *ctx)
 					ctx->i_frame->sgt[i], DMA_BIDIRECTIONAL);
 			dma_buf_detach(ctx->i_frame->dma_buf[i], ctx->i_frame->attachment[i]);
 			dma_buf_put(ctx->i_frame->dma_buf[i]);
-			ion_free(ctx->i_frame->client, ctx->i_frame->handle[i]);
+			ion_free(ctx->sc_dev->client, ctx->i_frame->handle[i]);
 		}
 	}
 
@@ -1078,7 +1078,6 @@ static void destroy_intermediate_frame(struct sc_ctx *ctx)
 {
 	if (ctx->i_frame) {
 		free_intermediate_frame(ctx);
-		ion_client_destroy(ctx->i_frame->client);
 		kfree(ctx->i_frame);
 		ctx->i_frame = NULL;
 		clear_bit(CTX_INT_FRAME, &ctx->flags);
@@ -1122,7 +1121,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 		if (!frame->addr.size[i])
 			break;
 
-		ctx->i_frame->handle[i] = ion_alloc(ctx->i_frame->client,
+		ctx->i_frame->handle[i] = ion_alloc(ctx->sc_dev->client,
 				frame->addr.size[i], 0, ion_mask, flag);
 		if (IS_ERR(ctx->i_frame->handle[i])) {
 			dev_err(sc->dev,
@@ -1132,7 +1131,7 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 			goto err_ion_alloc;
 		}
 
-		ctx->i_frame->dma_buf[i] = ion_share_dma_buf(ctx->i_frame->client,
+		ctx->i_frame->dma_buf[i] = ion_share_dma_buf(ctx->sc_dev->client,
 				ctx->i_frame->handle[i]);
 		if (IS_ERR(ctx->i_frame->dma_buf[i])) {
 			dev_err(sc->dev,
@@ -1199,17 +1198,6 @@ static bool allocate_intermediate_frame(struct sc_ctx *ctx)
 		if (ctx->i_frame == NULL) {
 			dev_err(ctx->sc_dev->dev,
 				"Failed to allocate intermediate frame\n");
-			return false;
-		}
-
-		ctx->i_frame->client = exynos_ion_client_create("scaler-int");
-		if (IS_ERR(ctx->i_frame->client)) {
-			dev_err(ctx->sc_dev->dev,
-			"Failed to create ION client for int.buf.(err %ld)\n",
-				PTR_ERR(ctx->i_frame->client));
-			ctx->i_frame->client = NULL;
-			kfree(ctx->i_frame);
-			ctx->i_frame = NULL;
 			return false;
 		}
 	}
@@ -3417,6 +3405,14 @@ static int sc_probe(struct platform_device *pdev)
 		goto err_qch_dbg;
 	}
 
+	sc->client = exynos_ion_client_create("scaler-int");
+	if (IS_ERR(sc->client)) {
+		ret = PTR_ERR(sc->client);
+		dev_err(&pdev->dev,
+			"Failed to create ION client for int.buf.(err %d)\n", ret);
+		goto err_ion_client_create;
+	}
+
 	sc->version = SCALER_VERSION(2, 0, 0);
 
 	hwver = __raw_readl(sc->regs + SCALER_VER);
@@ -3448,6 +3444,9 @@ static int sc_probe(struct platform_device *pdev)
 		hwver, sc->version);
 
 	return 0;
+
+err_ion_client_create:
+	kfree(sc->qch_dbg);
 err_qch_dbg:
 	iounmap(sc->q_reg);
 err_qch_reg:
@@ -3474,6 +3473,7 @@ static int sc_remove(struct platform_device *pdev)
 {
 	struct sc_dev *sc = platform_get_drvdata(pdev);
 
+	ion_client_destroy(sc->client);
 	iounmap(sc->q_reg);
 	kfree(sc->qch_dbg);
 

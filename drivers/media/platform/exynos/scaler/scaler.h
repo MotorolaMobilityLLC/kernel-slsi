@@ -299,7 +299,6 @@ struct sc_frame {
 
 struct sc_int_frame {
 	struct sc_frame			frame;
-	struct ion_client		*client;
 	struct ion_handle		*handle[3];
 	struct sc_addr			src_addr;
 	struct sc_addr			dst_addr;
@@ -417,6 +416,7 @@ struct sc_dev {
 	u32				cfw;
 	int				dbg_idx;
 	struct sc_qch_dbg		*qch_dbg;
+	struct ion_client		*client;
 };
 
 enum SC_CONTEXT_TYPE {
