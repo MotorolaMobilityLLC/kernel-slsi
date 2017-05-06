@@ -393,8 +393,10 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 		utemp = readl(i2c->regs + HSI2C_TIMING_HS1) & ~0x00FF0000;
 		writel(utemp | (uTSTART_HD_HS << 16), i2c->regs + HSI2C_TIMING_HS1);
 
-		pr_info("%s nPclk = %d nOpClk = %d Div = %d Timing HS1 = %X TIMING HS2 = %X TIMING HS3 = %X\n",__func__, nPclk, nOpClk, uCLK_DIV_HS,
-				readl(i2c->regs + HSI2C_TIMING_HS1),  readl(i2c->regs + HSI2C_TIMING_HS2),readl(i2c->regs + HSI2C_TIMING_HS3));
+		dev_info(i2c->dev, "%s nPclk = %d nOpClk = %d Div = %d Timing HS1 = %X "
+				"TIMING HS2 = %X TIMING HS3 = %X\n",__func__, nPclk, nOpClk, uCLK_DIV_HS,
+				readl(i2c->regs + HSI2C_TIMING_HS1),  readl(i2c->regs + HSI2C_TIMING_HS2),
+				readl(i2c->regs + HSI2C_TIMING_HS3));
 	}
 	else {
 		/* Fast speed mode */
@@ -418,8 +420,10 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS1) & ~0x00FF0000;
 		writel(utemp | (uTSTART_HD_FS << 16), i2c->regs + HSI2C_TIMING_FS1);
 
-		pr_info("%s nPclk = %d nOpClk = %d Div = %d Timing FS1 = %X TIMING FS2 = %X TIMING FS3 = %X\n",__func__, nPclk, nOpClk, uCLK_DIV_FS,
-				readl(i2c->regs + HSI2C_TIMING_FS1),  readl(i2c->regs + HSI2C_TIMING_FS2),readl(i2c->regs + HSI2C_TIMING_FS3));
+		dev_info(i2c->dev, "%s nPclk = %d nOpClk = %d Div = %d Timing FS1 = %X "
+				"TIMING FS2 = %X TIMING FS3 = %X\n",__func__, nPclk, nOpClk, uCLK_DIV_FS,
+				readl(i2c->regs + HSI2C_TIMING_FS1),  readl(i2c->regs + HSI2C_TIMING_FS2),
+				readl(i2c->regs + HSI2C_TIMING_FS3));
 	}
 
 	return 0;
