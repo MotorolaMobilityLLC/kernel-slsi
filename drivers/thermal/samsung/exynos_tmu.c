@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/exynos-ss.h>
+#include <linux/soc/samsung/exynos-soc.h>
 #include <soc/samsung/tmu.h>
 #include <soc/samsung/ect_parser.h>
 #ifdef CONFIG_EXYNOS_MCINFO
@@ -954,6 +955,7 @@ static void exynos78XX_tmu_control(struct platform_device *pdev, bool on)
 
 static int exynos9810_tmu_initialize(struct platform_device *pdev)
 {
+#define NZVYT_LOTID	0x152633
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
 	struct exynos_tmu_platform_data *pdata = data->pdata;
@@ -968,6 +970,9 @@ static int exynos9810_tmu_initialize(struct platform_device *pdev)
 	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(0));
 	cal_type = (trim_info >> EXYNOS_TMU_CALIB_SEL_SHIFT) & EXYNOS_TMU_CALIB_SEL_MASK;
 
+	if (exynos_soc_info.lot_id == NZVYT_LOTID)
+		cal_type = TYPE_ONE_POINT_TRIMMING;
+
 	for (sensor = 0; sensor < TOTAL_SENSORS; sensor++) {
 
 		if (!(data->sensors & (1 << sensor)))
@@ -977,6 +982,9 @@ static int exynos9810_tmu_initialize(struct platform_device *pdev)
 		trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(sensor));
 		temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
 		temp_error2 = (trim_info >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT) & EXYNOS_TMU_TEMP_MASK;
+
+		if (exynos_soc_info.lot_id == NZVYT_LOTID)
+			temp_error1 = (temp_error1 >> 3) | 0x100;
 
 		/* Save sensor id */
 		data->sensor_info[count].sensor_num = sensor;
