@@ -157,6 +157,7 @@ static LIST_HEAD(drvdata_list);
 #define HSI2C_TRANS_ABORT			(1u << 1)
 #define HSI2C_TRANS_DONE			(1u << 0)
 #define HSI2C_MAST_ST_MASK			(0xf << 0)
+#define HSI2C_MASTER_ST_INIT			(0x1)
 
 /* I2C_TRANS_STATUS register bits for Exynos7 variant */
 #define HSI2C_MASTER_ST_MASK			0xf
@@ -568,6 +569,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 			      struct i2c_msg *msgs, int stop)
 {
 	unsigned long timeout;
+	unsigned long trans_status;
 	unsigned long i2c_ctl;
 	unsigned long i2c_auto_conf;
 	unsigned long i2c_timeout;
@@ -676,6 +678,22 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 				(&i2c->msg_complete, EXYNOS5_I2C_TIMEOUT);
 
 			ret = 0;
+
+			if (i2c->scl_clk_stretch) {
+				unsigned long timeout = jiffies + msecs_to_jiffies(100);
+
+				do {
+					trans_status = readl(i2c->regs + HSI2C_TRANS_STATUS);
+					if ((trans_status & HSI2C_MAST_ST_MASK) == HSI2C_MASTER_ST_INIT){
+						timeout = 0;
+						break;
+					}
+				} while(time_before(jiffies, timeout));
+
+				if (timeout)
+					dev_err(i2c->dev, "SDA check timeout AT READ!!! = 0x%8lx\n",trans_status);
+			}
+
 			disable_irq(i2c->irq);
 
 			if (i2c->trans_done < 0) {
@@ -743,8 +761,24 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 				dev_err(i2c->dev, "ack was not received at write\n");
 				ret = i2c->trans_done;
 				exynos5_i2c_reset(i2c);
-			} else
+			} else {
+				if (i2c->scl_clk_stretch) {
+					unsigned long timeout = jiffies + msecs_to_jiffies(100);
+
+					do {
+						trans_status = readl(i2c->regs + HSI2C_TRANS_STATUS);
+						if ((trans_status & HSI2C_MAST_ST_MASK) == HSI2C_MASTER_ST_INIT){
+							timeout = 0;
+							break;
+						}
+					} while(time_before(jiffies, timeout));
+
+					if (timeout)
+						dev_err(i2c->dev, "SDA check timeout AT WRITE!!! = 0x%8lx\n",trans_status);
+				}
+
 				ret = 0;
+			}
 		}
 	}
 
