@@ -128,24 +128,18 @@ static int hpa_killer(void)
 	return ret;
 }
 
-static bool is_movable_chunk(unsigned long start_pfn, unsigned int order)
+static bool is_movable_chunk(unsigned long pfn, unsigned int order)
 {
-	unsigned long pfn = start_pfn;
-	struct page *page = pfn_to_page(start_pfn);
+	struct page *page = pfn_to_page(pfn);
+	struct page *page_end = pfn_to_page(pfn + (1 << order));
 
-	for (pfn = start_pfn; pfn < start_pfn + (1 << order); pfn++) {
-		page = pfn_to_page(pfn);
-		if (PageBuddy(page)) {
-			pfn += (1 << page_order(page)) - 1;
-			continue;
-		}
-		if (PageCompound(page))
+	while (page != page_end) {
+		if (PageCompound(page) || PageReserved(page) || !PageLRU(page))
 			return false;
-		if (PageReserved(page))
-			return false;
-		if (!PageLRU(page))
-			return false;
+
+		page += PageBuddy(page) ? 1 << page_order(page) : 1;
 	}
+
 	return true;
 }
 
