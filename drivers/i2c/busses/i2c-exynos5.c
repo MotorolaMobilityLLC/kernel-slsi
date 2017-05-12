@@ -315,7 +315,7 @@ static inline void dump_i2c_register(struct exynos5_i2c *i2c)
 		"INT_STAT     0x%08x \n"
 		"FIFO_STAT    0x%08x   "
 		"CONF         0x%08x   "
-		"AUTO_CONF    0x%08x   "
+		"CONF2        0x%08x   "
 		"TRANS_STAT   0x%08x \n"
 		"TIMING_HS1   0x%08x   "
 		"TIMING_HS2   0x%08x   "
@@ -323,7 +323,6 @@ static inline void dump_i2c_register(struct exynos5_i2c *i2c)
 		"TIMING_FS1   0x%08x \n"
 		"TIMING_FS2   0x%08x   "
 		"TIMING_FS3   0x%08x   "
-		"TIMING_SLA   0x%08x   "
 		"ADDR         0x%08x \n"
 		, i2c->suspended
 		, readl(i2c->regs + HSI2C_CTL)
@@ -340,7 +339,6 @@ static inline void dump_i2c_register(struct exynos5_i2c *i2c)
 		, readl(i2c->regs + HSI2C_TIMING_FS1)
 		, readl(i2c->regs + HSI2C_TIMING_FS2)
 		, readl(i2c->regs + HSI2C_TIMING_FS3)
-		, readl(i2c->regs + HSI2C_TIMING_SLA)
 		, readl(i2c->regs + HSI2C_ADDR)
 	);
 
@@ -364,65 +362,65 @@ static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
  */
 static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 {
-	unsigned int nPclk = clk_get_rate(i2c->rate_clk);
-	unsigned int nOpClk = (mode == HSI2C_HIGH_SPD) ?
+	unsigned int ipclk = clk_get_rate(i2c->rate_clk);
+	unsigned int op_clk = (mode == HSI2C_HIGH_SPD) ?
 		i2c->hs_clock : i2c->fs_clock;
 
-	u32 uCLK_DIV_HS, uTSCL_H_HS, uTSTART_HD_HS;
-	u32 uCLK_DIV_FS, uTSCL_H_FS, uTSTART_HD_FS;
+	u32 hs_div, uTSCL_H_HS, uTSTART_HD_HS;
+	u32 fs_div, uTSCL_H_FS, uTSTART_HD_FS;
 	u32 utemp;
 
 	if (mode == HSI2C_HIGH_SPD) {
-		/* nPclk's unit is Hz, nOpClk's unit is Hz */
-		uCLK_DIV_HS = nPclk / (nOpClk * 15);
-		uCLK_DIV_HS &= 0xFF;
+		/* ipclk's unit is Hz, op_clk's unit is Hz */
+		hs_div = ipclk / (op_clk * 15);
+		hs_div &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_HS3) & ~0x00FF0000;
-		writel(utemp | (uCLK_DIV_HS << 16), i2c->regs + HSI2C_TIMING_HS3);
+		writel(utemp | (hs_div << 16), i2c->regs + HSI2C_TIMING_HS3);
 
-		uTSCL_H_HS = ((7 * nPclk) / (1000 * 1000)) / ((uCLK_DIV_HS + 1) * 100);
+		uTSCL_H_HS = ((7 * ipclk) / (1000 * 1000)) / ((hs_div + 1) * 100);
 		/* make to 0 into TSCL_H_HS from LSB */
 		uTSCL_H_HS = (0xFFFFFFFF >> uTSCL_H_HS) << uTSCL_H_HS;
 		uTSCL_H_HS &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_HS2) & ~0x000000FF;
 		writel(utemp | (uTSCL_H_HS << 0), i2c->regs + HSI2C_TIMING_HS2);
 
-		uTSTART_HD_HS = (7 * nPclk / (1000 * 1000)) / ((uCLK_DIV_HS + 1) * 100) - 1;
+		uTSTART_HD_HS = (7 * ipclk / (1000 * 1000)) / ((hs_div + 1) * 100) - 1;
 		/* make to 0 into uTSTART_HD_HS from LSB */
 		uTSTART_HD_HS = (0xFFFFFFFF >> uTSTART_HD_HS) << uTSTART_HD_HS;
 		uTSTART_HD_HS &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_HS1) & ~0x00FF0000;
 		writel(utemp | (uTSTART_HD_HS << 16), i2c->regs + HSI2C_TIMING_HS1);
 
-		dev_info(i2c->dev, "%s nPclk = %d nOpClk = %d Div = %d Timing HS1 = %X "
-				"TIMING HS2 = %X TIMING HS3 = %X\n",__func__, nPclk, nOpClk, uCLK_DIV_HS,
-				readl(i2c->regs + HSI2C_TIMING_HS1),  readl(i2c->regs + HSI2C_TIMING_HS2),
+		dev_info(i2c->dev, "%s IPCLK = %d OP_CLK = %d DIV = %d Timing HS1 = 0x%08X "
+				"TIMING HS2 = 0x%08X TIMING HS3 = 0x%08X\n",__func__, ipclk, op_clk, hs_div,
+				readl(i2c->regs + HSI2C_TIMING_HS1), readl(i2c->regs + HSI2C_TIMING_HS2),
 				readl(i2c->regs + HSI2C_TIMING_HS3));
 	}
 	else {
 		/* Fast speed mode */
-		/* nPclk's unit is Hz, nOpClk's unit is Hz */
-		uCLK_DIV_FS = nPclk / (nOpClk * 15);
-		uCLK_DIV_FS &= 0xFF;
+		/* ipclk's unit is Hz, op_clk's unit is Hz */
+		fs_div = ipclk / (op_clk * 15);
+		fs_div &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
-		writel(utemp | (uCLK_DIV_FS << 16), i2c->regs + HSI2C_TIMING_FS3);
+		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
 
-		uTSCL_H_FS = ((9 * nPclk) / (1000 * 1000)) / ((uCLK_DIV_FS + 1) * 10);
+		uTSCL_H_FS = ((9 * ipclk) / (1000 * 1000)) / ((fs_div + 1) * 10);
 		/* make to 0 into TSCL_H_FS from LSB */
 		uTSCL_H_FS = (0xFFFFFFFF >> uTSCL_H_FS) << uTSCL_H_FS;
 		uTSCL_H_FS &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x000000FF;
 		writel(utemp | (uTSCL_H_FS << 0), i2c->regs + HSI2C_TIMING_FS2);
 
-		uTSTART_HD_FS = (9 * nPclk / (1000 * 1000)) / ((uCLK_DIV_FS + 1) * 10) - 1;
+		uTSTART_HD_FS = (9 * ipclk / (1000 * 1000)) / ((fs_div + 1) * 10) - 1;
 		/* make to 0 into uTSTART_HD_FS from LSB */
 		uTSTART_HD_FS = (0xFFFFFFFF >> uTSTART_HD_FS) << uTSTART_HD_FS;
 		uTSTART_HD_FS &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS1) & ~0x00FF0000;
 		writel(utemp | (uTSTART_HD_FS << 16), i2c->regs + HSI2C_TIMING_FS1);
 
-		dev_info(i2c->dev, "%s nPclk = %d nOpClk = %d Div = %d Timing FS1 = %X "
-				"TIMING FS2 = %X TIMING FS3 = %X\n",__func__, nPclk, nOpClk, uCLK_DIV_FS,
-				readl(i2c->regs + HSI2C_TIMING_FS1),  readl(i2c->regs + HSI2C_TIMING_FS2),
+		dev_info(i2c->dev, "%s IPCLK = %d OP_CLK = %d DIV = %d Timing FS1 = 0x%X "
+				"TIMING FS2 = 0x%X TIMING FS3 = 0x%X\n",__func__, ipclk, op_clk, fs_div,
+				readl(i2c->regs + HSI2C_TIMING_FS1), readl(i2c->regs + HSI2C_TIMING_FS2),
 				readl(i2c->regs + HSI2C_TIMING_FS3));
 	}
 
