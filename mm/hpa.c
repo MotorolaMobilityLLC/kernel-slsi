@@ -134,7 +134,9 @@ static bool is_movable_chunk(unsigned long pfn, unsigned int order)
 	struct page *page_end = pfn_to_page(pfn + (1 << order));
 
 	while (page != page_end) {
-		if (PageCompound(page) || PageReserved(page) || !PageLRU(page))
+		if (PageCompound(page) || PageReserved(page))
+			return false;
+		if (!PageLRU(page) && !__PageMovable(page))
 			return false;
 
 		page += PageBuddy(page) ? 1 << page_order(page) : 1;
