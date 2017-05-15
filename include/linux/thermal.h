@@ -239,7 +239,6 @@ struct thermal_zone_device {
 	struct list_head node;
 	struct delayed_work poll_queue;
 	enum thermal_notify_event notify_event;
-	int poll_queue_cpu;
 };
 
 /**
