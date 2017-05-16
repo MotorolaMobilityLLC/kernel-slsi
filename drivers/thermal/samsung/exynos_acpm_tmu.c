@@ -34,6 +34,20 @@
 static bool cold_comp;
 static unsigned int acpm_tmu_ch_num, acpm_tmu_size;
 
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+static bool acpm_tmu_test_mode;
+
+bool exynos_acpm_tmu_is_test_mode(void)
+{
+	return acpm_tmu_test_mode;
+}
+
+void exynos_acpm_tmu_set_test_mode(bool mode)
+{
+	acpm_tmu_test_mode = mode;
+}
+#endif
+
 #define acpm_ipc_err_check() \
 	do { \
 		if (ret < 0) { \
@@ -102,6 +116,11 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *cur_temp)
 
 	*cur_temp = 0;
 
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	if (acpm_tmu_test_mode)
+		return -1;
+#endif
+
 	memset(&message, 0, sizeof(message));
 
 	message.req.type = TMU_IPC_READ_TEMP;
@@ -154,6 +173,13 @@ int exynos_acpm_tmu_set_suspend(void)
 	acpm_ipc_latency_check();
 
 	memcpy(message.data, config.cmd, sizeof(message.data));
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+			message.data[0],
+			message.data[1],
+			message.data[2],
+			message.data[3]);
+#endif
 
 	cold_comp = message.resp.cold;
 
@@ -187,6 +213,13 @@ int exynos_acpm_tmu_set_cp_call(void)
 	acpm_ipc_latency_check();
 
 	memcpy(&message.data, config.cmd, sizeof(message.data));
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+			message.data[0],
+			message.data[1],
+			message.data[2],
+			message.data[3]);
+#endif
 
 	return 0;
 }
@@ -218,6 +251,13 @@ int exynos_acpm_tmu_set_resume(void)
 	acpm_ipc_latency_check();
 
 	memcpy(&message.data, config.cmd, sizeof(message.data));
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+			message.data[0],
+			message.data[1],
+			message.data[2],
+			message.data[3]);
+#endif
 
 	return 0;
 }

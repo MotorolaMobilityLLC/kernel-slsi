@@ -15,3 +15,11 @@ config EXYNOS_ACPM_THERMAL
 	depends on EXYNOS_THERMAL
 	help
 	  This feature supports ACPM TMU plug-in for Exynos thermal driver.
+
+config EXYNOS_THERMAL_DEBUG
+	bool
+	prompt "Exynos thermal debug support"
+	depends on DEBUG_FS
+	depends on EXYNOS_THERMAL
+	help
+	  Create debugfs for debugging exynos thermal

@@ -41,6 +41,7 @@
 #include <linux/gpu_cooling.h>
 #include <linux/isp_cooling.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 #include <linux/exynos-ss.h>
 #include <soc/samsung/tmu.h>
 #include <soc/samsung/ect_parser.h>
@@ -2311,6 +2312,75 @@ static struct platform_driver exynos_tmu_driver = {
 };
 
 module_platform_driver(exynos_tmu_driver);
+
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+#ifdef CONFIG_EXYNOS_ACPM_THERMAL
+static void exynos_acpm_tmu_test_cp_call(bool mode)
+{
+	struct exynos_tmu_data *devnode;
+
+	if (mode) {
+		list_for_each_entry(devnode, &dtm_dev_list, node) {
+			disable_irq(devnode->irq);
+		}
+		exynos_acpm_tmu_set_cp_call();
+	} else {
+		exynos_acpm_tmu_set_resume();
+		list_for_each_entry(devnode, &dtm_dev_list, node) {
+			enable_irq(devnode->irq);
+		}
+	}
+}
+
+static ssize_t test_cp_call_write(struct file *file, const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	ssize_t len;
+	char buf[32];
+
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
+
+	buf[len] = '\0';
+
+	if (buf[0] == '1' && exynos_acpm_tmu_is_test_mode() == false) {
+		exynos_acpm_tmu_set_test_mode(true);
+		exynos_acpm_tmu_test_cp_call(true);
+	} else if (buf[0] == '0' && exynos_acpm_tmu_is_test_mode() == true) {
+		exynos_acpm_tmu_set_test_mode(false);
+		exynos_acpm_tmu_test_cp_call(false);
+	} else
+		return -EINVAL;
+
+	return len;
+}
+
+static const struct file_operations test_cp_call_ops = {
+	.open = simple_open,
+	.write = test_cp_call_write,
+	.llseek = default_llseek,
+};
+#endif
+
+static struct dentry *debugfs_root;
+
+static int exynos_thermal_create_debugfs(void)
+{
+	debugfs_root = debugfs_create_dir("exynos-thermal", NULL);
+	if (!debugfs_root) {
+		pr_err("Failed to create exynos thermal debugfs\n");
+		return 0;
+	}
+
+#ifdef CONFIG_EXYNOS_ACPM_THERMAL
+	debugfs_create_file("test_cp_call", 0x200, debugfs_root, NULL, &test_cp_call_ops);
+	pr_info("Created exynos thermal debugfs\n");
+#endif
+	return 0;
+}
+arch_initcall(exynos_thermal_create_debugfs);
+#endif
 
 MODULE_DESCRIPTION("EXYNOS TMU Driver");
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");
