@@ -37,6 +37,7 @@
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/syscore_ops.h>
+#include <linux/soc/samsung/exynos-soc.h>
 
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
@@ -74,6 +75,9 @@
 /* These quirks require that we have a PMU register map */
 #define QUIRKS_HAVE_PMUREG			(QUIRK_HAS_PMU_CONFIG | \
 						 QUIRK_HAS_RST_STAT)
+#define MAX_WATCHDOG_CLUSTER_CNT		2
+#define LITTLE_CLUSTER				0
+#define BIG_CLUSTER				1
 
 static bool nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
@@ -132,9 +136,10 @@ struct s3c2410_wdt {
 	struct notifier_block	freq_transition;
 	const struct s3c2410_wdt_variant *drv_data;
 	struct regmap *pmureg;
+	unsigned int cluster;
 };
 
-static struct s3c2410_wdt *s3c_wdt;
+static struct s3c2410_wdt *s3c_wdt[MAX_WATCHDOG_CLUSTER_CNT];
 
 static const struct s3c2410_wdt_variant drv_data_s3c2410 = {
 	.quirks = 0
@@ -566,9 +571,10 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 	return variant;
 }
 
-int s3c2410wdt_set_emergency_stop(void)
+int s3c2410wdt_set_emergency_stop(int index)
 {
-	struct s3c2410_wdt *wdt = s3c_wdt;
+	struct s3c2410_wdt *wdt = s3c_wdt[index];
+
 	if (!wdt)
 		return -ENODEV;
 
@@ -578,9 +584,9 @@ int s3c2410wdt_set_emergency_stop(void)
 	return 0;
 }
 
-int s3c2410wdt_keepalive_emergency(bool reset)
+int s3c2410wdt_keepalive_emergency(bool reset, int index)
 {
-	struct s3c2410_wdt *wdt = s3c_wdt;
+	struct s3c2410_wdt *wdt = s3c_wdt[index];
 
 	if (!wdt)
 		return -ENODEV;
@@ -596,10 +602,18 @@ int s3c2410wdt_keepalive_emergency(bool reset)
 }
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
+
+static struct wdt_panic_block {
+	struct notifier_block nb_panic_block;
+	struct s3c2410_wdt *wdt;
+} wdt_block;
+
 static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 				   unsigned long l, void *buf)
 {
-	struct s3c2410_wdt *wdt = s3c_wdt;
+	struct wdt_panic_block *wdt_panic =
+		(struct wdt_panic_block *)nb;
+	struct s3c2410_wdt *wdt = wdt_panic->wdt;
 
 	if (!wdt)
 		return -ENODEV;
@@ -623,9 +637,9 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 	return 0;
 }
 
-inline int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt)
+inline int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt, int index)
 {
-	struct s3c2410_wdt *wdt = s3c_wdt;
+	struct s3c2410_wdt *wdt = s3c_wdt[index];
 	unsigned int wtdat = 0;
 	unsigned int wtcnt = wtdat + timeout_cnt;
 	unsigned long wtcon;
@@ -643,15 +657,76 @@ inline int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt)
 
 	return 0;
 }
-static struct notifier_block nb_panic_block = {
-	.notifier_call = s3c2410wdt_panic_handler,
-};
 #endif
 
-#ifdef CONFIG_PM
-static int s3c2410wdt_suspend(void)
+#ifdef CONFIG_PM_SLEEP
+static int s3c2410wdt_dev_suspend(struct device *dev)
 {
-	struct s3c2410_wdt *wdt = s3c_wdt;
+	struct s3c2410_wdt *wdt = dev_get_drvdata(dev);
+
+	if (!wdt)
+		return 0;
+
+	/* little cluster wdt should excute syscore suspend */
+	if (wdt->cluster == LITTLE_CLUSTER)
+		return 0;
+
+	s3c2410wdt_keepalive(&wdt->wdt_device);
+	/* Save watchdog state, and turn it off. */
+	wdt->wtcon_save = readl(wdt->reg_base + S3C2410_WTCON);
+	wdt->wtdat_save = readl(wdt->reg_base + S3C2410_WTDAT);
+
+	return 0;
+}
+
+static int s3c2410wdt_dev_resume(struct device *dev)
+{
+	int ret;
+	unsigned int val;
+	struct s3c2410_wdt *wdt = dev_get_drvdata(dev);
+
+	if (!wdt)
+		return 0;
+
+	/* little cluster wdt should excute syscore resume */
+	if (wdt->cluster == LITTLE_CLUSTER)
+		return 0;
+
+	ret = s3c2410wdt_automatic_disable_wdt(wdt, false);
+	if (ret < 0) {
+		dev_info(wdt->dev, "automatic_dsiable fail");
+		return 0;
+	}
+
+	s3c2410wdt_stop_intclear(wdt);
+	/* Restore watchdog state. */
+	writel(wdt->wtdat_save, wdt->reg_base + S3C2410_WTDAT);
+	writel(wdt->wtdat_save, wdt->reg_base + S3C2410_WTCNT);/* Reset count */
+	writel(wdt->wtcon_save, wdt->reg_base + S3C2410_WTCON);
+
+	ret = s3c2410wdt_mask_wdt_reset(wdt, false);
+	if (ret < 0) {
+		dev_info(wdt->dev, "wdt reset mask fail");
+		return 0;
+	}
+
+	val = readl(wdt->reg_base + S3C2410_WTCON);
+	dev_info(wdt->dev, "watchdog %sabled, con: 0x%08x, dat: 0x%08x, cnt: 0x%08x\n",
+		(val & S3C2410_WTCON_ENABLE) ? "en" : "dis", val,
+		readl(wdt->reg_base + S3C2410_WTDAT),
+		readl(wdt->reg_base + S3C2410_WTCNT));
+	return 0;
+}
+#else
+#define	s3c2410wdt_dev_suspend	NULL
+#define	s3c2410wdt_dev_resume	NULL
+#endif
+static SIMPLE_DEV_PM_OPS(s3c_wdt_pm_ops, s3c2410wdt_dev_suspend, s3c2410wdt_dev_resume);
+
+#ifdef CONFIG_PM
+static int s3c2410wdt_syscore_suspend(void)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt[LITTLE_CLUSTER];
 
 	if (!wdt)
 		return 0;
@@ -664,11 +739,11 @@ static int s3c2410wdt_suspend(void)
 	return 0;
 }
 
-static void s3c2410wdt_resume(void)
+static void s3c2410wdt_syscore_resume(void)
 {
 	int ret;
 	unsigned int val;
-	struct s3c2410_wdt *wdt = s3c_wdt;
+	struct s3c2410_wdt *wdt = s3c_wdt[LITTLE_CLUSTER];
 
 	if (!wdt)
 		return;
@@ -697,14 +772,15 @@ static void s3c2410wdt_resume(void)
 		readl(wdt->reg_base + S3C2410_WTDAT),
 		readl(wdt->reg_base + S3C2410_WTCNT));
 }
+
 #else
-#define s3c2410_wdt_suspend		NULL
-#define s3c2410_wdt_resume		NULL
+#define s3c2410_wdt_syscore_suspend		NULL
+#define s3c2410_wdt_syscore_resume		NULL
 #endif
 
 static struct syscore_ops s3c2410wdt_syscore_ops = {
-	.suspend	= s3c2410wdt_suspend,
-	.resume		= s3c2410wdt_resume,
+	.suspend	= s3c2410wdt_syscore_suspend,
+	.resume		= s3c2410wdt_syscore_resume,
 };
 
 static int s3c2410wdt_probe(struct platform_device *pdev)
@@ -715,7 +791,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	struct resource *wdt_irq;
 	unsigned int wtcon;
 	int started = 0;
-	int ret;
+	int ret, cluster_index;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -724,7 +800,20 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->dev = dev;
 	spin_lock_init(&wdt->lock);
 	wdt->wdt_device = s3c2410_wdd;
-	s3c_wdt = wdt;
+
+	if (of_property_read_u32(dev->of_node, "index", &cluster_index)) {
+		dev_err(dev, "Watchdog cluster index lookup failed.\n");
+		return PTR_ERR(&cluster_index);
+	}
+	dev_info(dev, "watchdog cluster%d probe\n", cluster_index);
+
+	/* s3c_wdt[0] = Little cluster wdt, s3c_wdt[1] = Big cluster wdt */
+	if (cluster_index >= MAX_WATCHDOG_CLUSTER_CNT) {
+		dev_err(dev, "Watchdog index property too large.\n");
+		return -EINVAL;
+	}
+	s3c_wdt[cluster_index] = wdt;
+	wdt->cluster = cluster_index;
 
 	wdt->drv_data = s3c2410_get_wdt_drv_data(pdev);
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
@@ -816,10 +905,12 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->wdt_device.bootstatus = s3c2410wdt_get_bootstatus(wdt);
 	wdt->wdt_device.parent = dev;
 
-	ret = watchdog_register_device(&wdt->wdt_device);
-	if (ret) {
-		dev_err(dev, "cannot register watchdog (%d)\n", ret);
-		goto err_cpufreq;
+	if (cluster_index == LITTLE_CLUSTER) {
+		ret = watchdog_register_device(&wdt->wdt_device);
+		if (ret) {
+			dev_err(dev, "cannot register watchdog (%d)\n", ret);
+			goto err_cpufreq;
+		}
 	}
 
 	ret = s3c2410wdt_automatic_disable_wdt(wdt, false);
@@ -848,13 +939,18 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	/* print out a statement of readiness */
 
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
-
-	register_syscore_ops(&s3c2410wdt_syscore_ops);
+	if (cluster_index == LITTLE_CLUSTER)
+		register_syscore_ops(&s3c2410wdt_syscore_ops);
 #ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
 	/* register panic handler for watchdog reset */
-	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);
+	if (cluster_index == BIG_CLUSTER) {
+		wdt_block.nb_panic_block.notifier_call = s3c2410wdt_panic_handler;
+		wdt_block.wdt = wdt;
+		atomic_notifier_chain_register(&panic_notifier_list,
+				&wdt_block.nb_panic_block);
+	}
 #endif
-	dev_info(dev, "watchdog %sactive, reset %sabled, irq %sabled\n",
+	dev_info(dev, "watchdog cluster %d, %sactive, reset %sabled, irq %sabled\n", cluster_index,
 		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
 		 (wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",
 		 (wtcon & S3C2410_WTCON_INTEN) ? "en" : "dis");
@@ -899,7 +995,9 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 {
 	struct s3c2410_wdt *wdt = platform_get_drvdata(dev);
 
-	s3c2410wdt_mask_wdt_reset(wdt, true);
+	/* Only little cluster watchdog excute mask function */
+	if (wdt->cluster == LITTLE_CLUSTER)
+		s3c2410wdt_mask_wdt_reset(wdt, true);
 
 	s3c2410wdt_stop(&wdt->wdt_device);
 }
@@ -911,6 +1009,7 @@ static struct platform_driver s3c2410wdt_driver = {
 	.id_table	= s3c2410_wdt_ids,
 	.driver		= {
 		.name	= "s3c2410-wdt",
+		.pm	= &s3c_wdt_pm_ops,
 		.of_match_table	= of_match_ptr(s3c2410_wdt_match),
 	},
 };
