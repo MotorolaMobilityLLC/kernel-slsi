@@ -188,8 +188,12 @@ show_constraint_tables(DM_CPU_CL1, dm_cpu_cl1);
 show_constraint_tables(DM_MIF, dm_mif);
 show_constraint_tables(DM_INT, dm_int);
 show_constraint_tables(DM_INTCAM, dm_intcam);
-show_constraint_tables(DM_DISP, dm_disp);
+show_constraint_tables(DM_FSYS0, dm_fsys0);
 show_constraint_tables(DM_CAM, dm_cam);
+show_constraint_tables(DM_DISP, dm_disp);
+show_constraint_tables(DM_AUD, dm_aud);
+show_constraint_tables(DM_IVA, dm_iva);
+show_constraint_tables(DM_SCORE, dm_score);
 show_constraint_tables(DM_GPU, dm_gpu);
 
 show_dm_policy(DM_CPU_CL0, dm_cpu_cl0);
@@ -197,8 +201,12 @@ show_dm_policy(DM_CPU_CL1, dm_cpu_cl1);
 show_dm_policy(DM_MIF, dm_mif);
 show_dm_policy(DM_INT, dm_int);
 show_dm_policy(DM_INTCAM, dm_intcam);
-show_dm_policy(DM_DISP, dm_disp);
+show_dm_policy(DM_FSYS0, dm_fsys0);
 show_dm_policy(DM_CAM, dm_cam);
+show_dm_policy(DM_DISP, dm_disp);
+show_dm_policy(DM_AUD, dm_aud);
+show_dm_policy(DM_IVA, dm_iva);
+show_dm_policy(DM_SCORE, dm_score);
 show_dm_policy(DM_GPU, dm_gpu);
 
 static DEVICE_ATTR(available, 0440, show_available, NULL);
@@ -207,16 +215,24 @@ static DEVICE_ATTR(constraint_tables_dm_cpu_cl1, 0440, show_constraint_tables_dm
 static DEVICE_ATTR(constraint_tables_dm_mif, 0440, show_constraint_tables_dm_mif, NULL);
 static DEVICE_ATTR(constraint_tables_dm_int, 0440, show_constraint_tables_dm_int, NULL);
 static DEVICE_ATTR(constraint_tables_dm_intcam, 0440, show_constraint_tables_dm_intcam, NULL);
-static DEVICE_ATTR(constraint_tables_dm_disp, 0440, show_constraint_tables_dm_disp, NULL);
+static DEVICE_ATTR(constraint_tables_dm_fsys0, 0440, show_constraint_tables_dm_fsys0, NULL);
 static DEVICE_ATTR(constraint_tables_dm_cam, 0440, show_constraint_tables_dm_cam, NULL);
+static DEVICE_ATTR(constraint_tables_dm_disp, 0440, show_constraint_tables_dm_disp, NULL);
+static DEVICE_ATTR(constraint_tables_dm_aud, 0440, show_constraint_tables_dm_aud, NULL);
+static DEVICE_ATTR(constraint_tables_dm_iva, 0440, show_constraint_tables_dm_iva, NULL);
+static DEVICE_ATTR(constraint_tables_dm_score, 0440, show_constraint_tables_dm_score, NULL);
 static DEVICE_ATTR(constraint_tables_dm_gpu, 0440, show_constraint_tables_dm_gpu, NULL);
 static DEVICE_ATTR(dm_policy_dm_cpu_cl0, 0440, show_dm_policy_dm_cpu_cl0, NULL);
 static DEVICE_ATTR(dm_policy_dm_cpu_cl1, 0440, show_dm_policy_dm_cpu_cl1, NULL);
 static DEVICE_ATTR(dm_policy_dm_mif, 0440, show_dm_policy_dm_mif, NULL);
 static DEVICE_ATTR(dm_policy_dm_int, 0440, show_dm_policy_dm_int, NULL);
 static DEVICE_ATTR(dm_policy_dm_intcam, 0440, show_dm_policy_dm_intcam, NULL);
-static DEVICE_ATTR(dm_policy_dm_disp, 0440, show_dm_policy_dm_disp, NULL);
+static DEVICE_ATTR(dm_policy_dm_fsys0, 0440, show_dm_policy_dm_fsys0, NULL);
 static DEVICE_ATTR(dm_policy_dm_cam, 0440, show_dm_policy_dm_cam, NULL);
+static DEVICE_ATTR(dm_policy_dm_disp, 0440, show_dm_policy_dm_disp, NULL);
+static DEVICE_ATTR(dm_policy_dm_aud, 0440, show_dm_policy_dm_aud, NULL);
+static DEVICE_ATTR(dm_policy_dm_iva, 0440, show_dm_policy_dm_iva, NULL);
+static DEVICE_ATTR(dm_policy_dm_score, 0440, show_dm_policy_dm_score, NULL);
 static DEVICE_ATTR(dm_policy_dm_gpu, 0440, show_dm_policy_dm_gpu, NULL);
 
 static struct attribute *exynos_dm_sysfs_entries[] = {
@@ -226,16 +242,24 @@ static struct attribute *exynos_dm_sysfs_entries[] = {
 	&dev_attr_constraint_tables_dm_mif.attr,
 	&dev_attr_constraint_tables_dm_int.attr,
 	&dev_attr_constraint_tables_dm_intcam.attr,
-	&dev_attr_constraint_tables_dm_disp.attr,
+	&dev_attr_constraint_tables_dm_fsys0.attr,
 	&dev_attr_constraint_tables_dm_cam.attr,
+	&dev_attr_constraint_tables_dm_disp.attr,
+	&dev_attr_constraint_tables_dm_aud.attr,
+	&dev_attr_constraint_tables_dm_iva.attr,
+	&dev_attr_constraint_tables_dm_score.attr,
 	&dev_attr_constraint_tables_dm_gpu.attr,
 	&dev_attr_dm_policy_dm_cpu_cl0.attr,
 	&dev_attr_dm_policy_dm_cpu_cl1.attr,
 	&dev_attr_dm_policy_dm_mif.attr,
 	&dev_attr_dm_policy_dm_int.attr,
 	&dev_attr_dm_policy_dm_intcam.attr,
-	&dev_attr_dm_policy_dm_disp.attr,
+	&dev_attr_dm_policy_dm_fsys0.attr,
 	&dev_attr_dm_policy_dm_cam.attr,
+	&dev_attr_dm_policy_dm_disp.attr,
+	&dev_attr_dm_policy_dm_aud.attr,
+	&dev_attr_dm_policy_dm_iva.attr,
+	&dev_attr_dm_policy_dm_score.attr,
 	&dev_attr_dm_policy_dm_gpu.attr,
 	NULL,
 };
@@ -281,7 +305,7 @@ static enum exynos_dvfs_type exynos_dm_dvfs_type(enum exynos_dm_type dm_type)
 	case DM_CPU_CL0...DM_CPU_CL1:
 		dvfs_type = DVFS_CPUFREQ;
 		break;
-	case DM_MIF...DM_CAM:
+	case DM_MIF...DM_SCORE:
 		dvfs_type = DVFS_DEVFREQ;
 		break;
 	case DM_GPU:
