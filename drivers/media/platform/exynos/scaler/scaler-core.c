@@ -1947,7 +1947,7 @@ static const struct v4l2_ctrl_config sc_custom_ctrl[] = {
 		.flags = V4L2_CTRL_FLAG_SLIDER,
 		.step = 1,
 		.min = V4L2_COLORSPACE_DEFAULT,
-		.max = V4L2_COLORSPACE_DCI_P3,
+		.max = V4L2_COLORSPACE_BT2020,
 		.def = V4L2_COLORSPACE_DEFAULT,
 	}, {
 		.ops = &sc_ctrl_ops,

@@ -125,8 +125,6 @@ struct sc_csc_tab {
 	int wide_709[9];
 	int narrow_2020[9];
 	int wide_2020[9];
-	int narrow_p3[9];
-	int wide_p3[9];
 };
 
 enum sc_clk_status {
