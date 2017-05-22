@@ -387,9 +387,9 @@ static const struct dma_map_ops swiotlb_dma_ops = {
 };
 
 static void *arm_exynos_dma_mcode_alloc(struct device *dev, size_t size,
-	dma_addr_t *handle, gfp_t gfp, struct dma_attrs *attrs);
+	dma_addr_t *handle, gfp_t gfp, unsigned long attrs);
 static void arm_exynos_dma_mcode_free(struct device *dev, size_t size, void *cpu_addr,
-				  dma_addr_t handle, struct dma_attrs *attrs);
+				  dma_addr_t handle, unsigned long attrs);
 
 struct dma_map_ops arm_exynos_dma_mcode_ops = {
 	.alloc			= arm_exynos_dma_mcode_alloc,
@@ -398,7 +398,7 @@ struct dma_map_ops arm_exynos_dma_mcode_ops = {
 EXPORT_SYMBOL(arm_exynos_dma_mcode_ops);
 
 static void *arm_exynos_dma_mcode_alloc(struct device *dev, size_t size,
-	dma_addr_t *handle, gfp_t gfp, struct dma_attrs *attrs)
+	dma_addr_t *handle, gfp_t gfp, unsigned long attrs)
 {
 	void *addr;
 
@@ -411,7 +411,7 @@ static void *arm_exynos_dma_mcode_alloc(struct device *dev, size_t size,
 }
 
 static void arm_exynos_dma_mcode_free(struct device *dev, size_t size, void *cpu_addr,
-				  dma_addr_t handle, struct dma_attrs *attrs)
+				  dma_addr_t handle, unsigned long attrs)
 {
 	iounmap(cpu_addr);
 }
