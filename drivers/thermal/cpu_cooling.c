@@ -45,6 +45,8 @@
 #include <dt-bindings/clock/exynos8895.h>
 #elif defined(CONFIG_SOC_EXYNOS7872)
 #include <dt-bindings/clock/exynos7872.h>
+#elif defined(CONFIG_SOC_EXYNOS9810)
+#include <dt-bindings/clock/exynos9810.h>
 #endif
 
 /*
@@ -247,8 +249,8 @@ static int update_freq_table(struct cpufreq_cooling_device *cpufreq_cdev,
 static int build_static_power_table(struct cpufreq_cooling_device *cpufreq_cdev)
 {
 	int i, j;
-	int ratio = cal_asv_get_ids_info(ACPM_DVFS_CPUCL0);
-	int asv_group = cal_asv_get_grp(ACPM_DVFS_CPUCL0);
+	int ratio = cal_asv_get_ids_info(ACPM_DVFS_CPUCL1);
+	int asv_group = cal_asv_get_grp(ACPM_DVFS_CPUCL1);
 	void *gen_block;
 	struct ect_gen_param_table *volt_temp_param, *asv_param;
 	int ratio_table[16] = { 0, 18, 22, 27, 33, 40, 49, 60, 73, 89, 108, 131, 159, 194, 232, 250};
@@ -265,8 +267,8 @@ static int build_static_power_table(struct cpufreq_cooling_device *cpufreq_cdev)
 		return -EINVAL;
 	}
 
-	volt_temp_param = ect_gen_param_get_table(gen_block, "DTM_MNGS_VOLT_TEMP");
-	asv_param = ect_gen_param_get_table(gen_block, "DTM_MNGS_ASV");
+	volt_temp_param = ect_gen_param_get_table(gen_block, "DTM_BIG_VOLT_TEMP");
+	asv_param = ect_gen_param_get_table(gen_block, "DTM_BIG_ASV");
 
 	if (volt_temp_param && asv_param) {
 		cpufreq_cdev->var_volt_size = volt_temp_param->num_of_row - 1;
