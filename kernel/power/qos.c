@@ -245,6 +245,58 @@ static struct pm_qos_object cam_throughput_pm_qos = {
 	.name = "cam_throughput",
 };
 
+static BLOCKING_NOTIFIER_HEAD(aud_throughput_notifier);
+static struct pm_qos_constraints aud_tput_constraints = {
+	.list = PLIST_HEAD_INIT(aud_tput_constraints.list),
+	.target_value = PM_QOS_AUD_THROUGHPUT_DEFAULT_VALUE,
+	.default_value = PM_QOS_AUD_THROUGHPUT_DEFAULT_VALUE,
+	.type = PM_QOS_MAX,
+	.notifiers = &aud_throughput_notifier,
+};
+static struct pm_qos_object aud_throughput_pm_qos = {
+	.constraints = &aud_tput_constraints,
+	.name = "aud_throughput",
+};
+
+static BLOCKING_NOTIFIER_HEAD(iva_throughput_notifier);
+static struct pm_qos_constraints iva_tput_constraints = {
+	.list = PLIST_HEAD_INIT(iva_tput_constraints.list),
+	.target_value = PM_QOS_IVA_THROUGHPUT_DEFAULT_VALUE,
+	.default_value = PM_QOS_IVA_THROUGHPUT_DEFAULT_VALUE,
+	.type = PM_QOS_MAX,
+	.notifiers = &iva_throughput_notifier,
+};
+static struct pm_qos_object iva_throughput_pm_qos = {
+	.constraints = &iva_tput_constraints,
+	.name = "iva_throughput",
+};
+
+static BLOCKING_NOTIFIER_HEAD(score_throughput_notifier);
+static struct pm_qos_constraints score_tput_constraints = {
+	.list = PLIST_HEAD_INIT(score_tput_constraints.list),
+	.target_value = PM_QOS_SCORE_THROUGHPUT_DEFAULT_VALUE,
+	.default_value = PM_QOS_SCORE_THROUGHPUT_DEFAULT_VALUE,
+	.type = PM_QOS_MAX,
+	.notifiers = &score_throughput_notifier,
+};
+static struct pm_qos_object score_throughput_pm_qos = {
+	.constraints = &score_tput_constraints,
+	.name = "score_throughput",
+};
+
+static BLOCKING_NOTIFIER_HEAD(fsys0_throughput_notifier);
+static struct pm_qos_constraints fsys0_tput_constraints = {
+	.list = PLIST_HEAD_INIT(fsys0_tput_constraints.list),
+	.target_value = PM_QOS_FSYS0_THROUGHPUT_DEFAULT_VALUE,
+	.default_value = PM_QOS_FSYS0_THROUGHPUT_DEFAULT_VALUE,
+	.type = PM_QOS_MAX,
+	.notifiers = &fsys0_throughput_notifier,
+};
+static struct pm_qos_object fsys0_throughput_pm_qos = {
+	.constraints = &fsys0_tput_constraints,
+	.name = "fsys0_throughput",
+};
+
 #ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
 static BLOCKING_NOTIFIER_HEAD(cam_throughput_max_notifier);
 static struct pm_qos_constraints cam_tput_max_constraints = {
@@ -257,6 +309,58 @@ static struct pm_qos_constraints cam_tput_max_constraints = {
 static struct pm_qos_object cam_throughput_max_pm_qos = {
 	.constraints = &cam_tput_max_constraints,
 	.name = "cam_throughput_max",
+};
+
+static BLOCKING_NOTIFIER_HEAD(aud_throughput_max_notifier);
+static struct pm_qos_constraints aud_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(aud_tput_max_constraints.list),
+	.target_value = PM_QOS_AUD_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_AUD_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &aud_throughput_max_notifier,
+};
+static struct pm_qos_object aud_throughput_max_pm_qos = {
+	.constraints = &aud_tput_max_constraints,
+	.name = "aud_throughput_max",
+};
+
+static BLOCKING_NOTIFIER_HEAD(iva_throughput_max_notifier);
+static struct pm_qos_constraints iva_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(iva_tput_max_constraints.list),
+	.target_value = PM_QOS_IVA_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_IVA_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &iva_throughput_max_notifier,
+};
+static struct pm_qos_object iva_throughput_max_pm_qos = {
+	.constraints = &iva_tput_max_constraints,
+	.name = "iva_throughput_max",
+};
+
+static BLOCKING_NOTIFIER_HEAD(score_throughput_max_notifier);
+static struct pm_qos_constraints score_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(score_tput_max_constraints.list),
+	.target_value = PM_QOS_SCORE_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_SCORE_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &score_throughput_max_notifier,
+};
+static struct pm_qos_object score_throughput_max_pm_qos = {
+	.constraints = &score_tput_max_constraints,
+	.name = "score_throughput_max",
+};
+
+static BLOCKING_NOTIFIER_HEAD(fsys0_throughput_max_notifier);
+static struct pm_qos_constraints fsys0_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(fsys0_tput_max_constraints.list),
+	.target_value = PM_QOS_FSYS0_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_FSYS0_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &fsys0_throughput_max_notifier,
+};
+static struct pm_qos_object fsys0_throughput_max_pm_qos = {
+	.constraints = &fsys0_tput_max_constraints,
+	.name = "fsys0_throughput_max",
 };
 #endif
 
@@ -279,8 +383,16 @@ static struct pm_qos_object *pm_qos_array[] = {
 	&display_throughput_max_pm_qos,
 #endif
 	&cam_throughput_pm_qos,
+	&aud_throughput_pm_qos,
+	&iva_throughput_pm_qos,
+	&score_throughput_pm_qos,
+	&fsys0_throughput_pm_qos,
 #ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
 	&cam_throughput_max_pm_qos,
+	&aud_throughput_max_pm_qos,
+	&iva_throughput_max_pm_qos,
+	&score_throughput_max_pm_qos,
+	&fsys0_throughput_max_pm_qos,
 #endif
 };
 
