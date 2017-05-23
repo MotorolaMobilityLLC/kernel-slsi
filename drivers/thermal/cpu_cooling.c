@@ -581,8 +581,12 @@ static int exynos_cpufreq_cooling_get_level(struct thermal_cooling_device *cdev,
 				 unsigned long value)
 {
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
+	int level = get_level(cpufreq_cdev, value);
 
-	return get_level(cpufreq_cdev, value);
+	if (level == THERMAL_CSTATE_INVALID && value > cpufreq_cdev->freq_table[0].frequency)
+		level = 0;
+
+	return level;
 }
 
 /**
