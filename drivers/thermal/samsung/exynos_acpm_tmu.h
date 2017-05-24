@@ -114,5 +114,6 @@ int exynos_acpm_tmu_set_cp_call(void);
 int exynos_acpm_tmu_set_resume(void);
 bool exynos_acpm_tmu_is_test_mode(void);
 void exynos_acpm_tmu_set_test_mode(bool mode);
+void exynos_acpm_tmu_log(bool mode);
 
 #endif /* __EXYNOS_ACPM_TMU_H__ */

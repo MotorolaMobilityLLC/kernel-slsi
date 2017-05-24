@@ -1029,6 +1029,11 @@ static int exynos9810_tmu_initialize(struct platform_device *pdev)
 			rising_threshold &= ~(EXYNOS_TMU_TEMP_MASK << bit_off);
 			rising_threshold |= threshold_code << bit_off;
 			writel(rising_threshold, data->base + reg_off);
+#ifdef TMU_DEBUG
+			pr_info("[TMU%d:%d:%d] addr 0x%04x bit-shift %d rise 0x%08x code 0x%x temp %d\n",
+					data->id, sensor, i, reg_off, bit_off,
+					rising_threshold, threshold_code, temp);
+#endif
 
 			/* Set 9-bit temperature code for falling threshold levels */
 			threshold_code = temp_to_code_with_sensorinfo(data, temp_hist, &data->sensor_info[count]);
@@ -1036,6 +1041,11 @@ static int exynos9810_tmu_initialize(struct platform_device *pdev)
 			falling_threshold &= ~(EXYNOS_TMU_TEMP_MASK << bit_off);
 			falling_threshold |= threshold_code << bit_off;
 			writel(falling_threshold, data->base + reg_off + 0x10);
+#ifdef TMU_DEBUG
+			pr_info("[TMU%d:%d:%d] addr 0x%04x bit-shift %d fall 0x%08x code 0x%x hyst %d\n",
+					data->id, sensor, i, reg_off + 0x10, bit_off,
+					falling_threshold, threshold_code, temp_hist);
+#endif
 
 			interrupt_count++;
 		}
@@ -2369,6 +2379,34 @@ static const struct file_operations test_cp_call_ops = {
 	.write = test_cp_call_write,
 	.llseek = default_llseek,
 };
+
+static ssize_t acpm_tmu_log_write(struct file *file, const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	ssize_t len;
+	char buf[32];
+
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
+
+	buf[len] = '\0';
+
+	if (buf[0] == '1')
+		exynos_acpm_tmu_log(true);
+	else if (buf[0] == '0')
+		exynos_acpm_tmu_log(false);
+	else
+		return -EINVAL;
+
+	return len;
+}
+
+static const struct file_operations acpm_tmu_log_ops = {
+	.open = simple_open,
+	.write = acpm_tmu_log_write,
+	.llseek = default_llseek,
+};
 #endif
 
 static struct dentry *debugfs_root;
@@ -2383,6 +2421,7 @@ static int exynos_thermal_create_debugfs(void)
 
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 	debugfs_create_file("test_cp_call", 0x200, debugfs_root, NULL, &test_cp_call_ops);
+	debugfs_create_file("acpm_tmu_log", 0x200, debugfs_root, NULL, &acpm_tmu_log_ops);
 	pr_info("Created exynos thermal debugfs\n");
 #endif
 	return 0;

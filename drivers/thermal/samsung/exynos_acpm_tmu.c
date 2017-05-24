@@ -36,6 +36,7 @@ static unsigned int acpm_tmu_ch_num, acpm_tmu_size;
 
 #ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 static bool acpm_tmu_test_mode;
+static bool acpm_tmu_log;
 
 bool exynos_acpm_tmu_is_test_mode(void)
 {
@@ -46,6 +47,20 @@ void exynos_acpm_tmu_set_test_mode(bool mode)
 {
 	acpm_tmu_test_mode = mode;
 }
+
+void exynos_acpm_tmu_log(bool mode)
+{
+	acpm_tmu_log = mode;
+}
+
+#define acpm_ipc_latency_check() \
+	do { \
+		if (acpm_tmu_log) { \
+			pr_info("[acpm_tmu] type 0x%02x latency %llu ns ret %d\n", \
+					message.req.type, latency, ret); \
+		} \
+	} while (0)
+
 #endif
 
 #define acpm_ipc_err_check() \
@@ -57,14 +72,6 @@ void exynos_acpm_tmu_set_test_mode(bool mode)
 		} \
 	} while (0)
 
-#define acpm_ipc_latency_check() \
-	do { \
-		if (latency > 2000000) { \
-			pr_info("[acpm_tmu] type 0x%02x latency %llu ns ret %d\n", \
-					message.req.type, latency, ret); \
-		} \
-	} while (0)
-
 /*
  * TMU_IPC_INIT
  */
@@ -72,8 +79,10 @@ int exynos_acpm_tmu_set_init(struct acpm_tmu_cap *cap)
 {
 	struct ipc_config config;
 	union tmu_ipc_message message;
-	unsigned long long before, after, latency;
 	int ret;
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	unsigned long long before, after, latency;
+#endif
 
 	memset(&message, 0, sizeof(message));
 
@@ -83,10 +92,14 @@ int exynos_acpm_tmu_set_init(struct acpm_tmu_cap *cap)
 	config.response = true;
 	config.indirection = false;
 
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	before = sched_clock();
+#endif
 	ret = acpm_ipc_send_data(acpm_tmu_ch_num, &config);
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	after = sched_clock();
 	latency = after - before;
+#endif
 
 	acpm_ipc_err_check();
 	acpm_ipc_latency_check();
@@ -111,8 +124,10 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *cur_temp)
 {
 	struct ipc_config config;
 	union tmu_ipc_message message;
-	unsigned long long before, after, latency;
 	int ret;
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	unsigned long long before, after, latency;
+#endif
 
 	*cur_temp = 0;
 
@@ -130,15 +145,28 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *cur_temp)
 	config.response = true;
 	config.indirection = false;
 
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	before = sched_clock();
+#endif
 	ret = acpm_ipc_send_data(acpm_tmu_ch_num, &config);
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	after = sched_clock();
 	latency = after - before;
+#endif
 
 	acpm_ipc_err_check();
 	acpm_ipc_latency_check();
 
 	memcpy(message.data, config.cmd, sizeof(message.data));
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	if (acpm_tmu_log) {
+		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+				message.data[0],
+				message.data[1],
+				message.data[2],
+				message.data[3]);
+	}
+#endif
 
 	cold_comp = message.resp.cold;
 	*cur_temp = message.resp.temp;
@@ -153,8 +181,10 @@ int exynos_acpm_tmu_set_suspend(void)
 {
 	struct ipc_config config;
 	union tmu_ipc_message message;
-	unsigned long long before, after, latency;
 	int ret;
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	unsigned long long before, after, latency;
+#endif
 
 	memset(&message, 0, sizeof(message));
 
@@ -164,21 +194,27 @@ int exynos_acpm_tmu_set_suspend(void)
 	config.response = true;
 	config.indirection = false;
 
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	before = sched_clock();
+#endif
 	ret = acpm_ipc_send_data(acpm_tmu_ch_num, &config);
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	after = sched_clock();
 	latency = after - before;
+#endif
 
 	acpm_ipc_err_check();
 	acpm_ipc_latency_check();
 
 	memcpy(message.data, config.cmd, sizeof(message.data));
 #ifdef CONFIG_EXYNOS_THERMAL_DEBUG
-	pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+	if (acpm_tmu_log) {
+		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+				message.data[0],
+				message.data[1],
+				message.data[2],
+				message.data[3]);
+	}
 #endif
 
 	cold_comp = message.resp.cold;
@@ -193,8 +229,10 @@ int exynos_acpm_tmu_set_cp_call(void)
 {
 	struct ipc_config config;
 	union tmu_ipc_message message;
-	unsigned long long before, after, latency;
 	int ret;
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
+	unsigned long long before, after, latency;
+#endif
 
 	memset(&message, 0, sizeof(message));
 
@@ -204,21 +242,27 @@ int exynos_acpm_tmu_set_cp_call(void)
 	config.response = true;
 	config.indirection = false;
 
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	before = sched_clock();
+#endif
 	ret = acpm_ipc_send_data(acpm_tmu_ch_num, &config);
+#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 	after = sched_clock();
 	latency = after - before;
+#endif
 
 	acpm_ipc_err_check();
 	acpm_ipc_latency_check();
 
 	memcpy(&message.data, config.cmd, sizeof(message.data));
 #ifdef CONFIG_EXYNOS_THERMAL_DEBUG
-	pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+	if (acpm_tmu_log) {
+		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+				message.data[0],
+				message.data[1],
+				message.data[2],
+				message.data[3]);
+	}
 #endif
 
 	return 0;
@@ -252,11 +296,13 @@ int exynos_acpm_tmu_set_resume(void)
 
 	memcpy(&message.data, config.cmd, sizeof(message.data));
 #ifdef CONFIG_EXYNOS_THERMAL_DEBUG
-	pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+	if (acpm_tmu_log) {
+		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+				message.data[0],
+				message.data[1],
+				message.data[2],
+				message.data[3]);
+	}
 #endif
 
 	return 0;
