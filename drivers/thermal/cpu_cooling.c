@@ -249,8 +249,13 @@ static int update_freq_table(struct cpufreq_cooling_device *cpufreq_cdev,
 static int build_static_power_table(struct cpufreq_cooling_device *cpufreq_cdev)
 {
 	int i, j;
+#if defined(CONFIG_SOC_EXYNOS9810)
 	int ratio = cal_asv_get_ids_info(ACPM_DVFS_CPUCL1);
 	int asv_group = cal_asv_get_grp(ACPM_DVFS_CPUCL1);
+#else
+	int ratio = cal_asv_get_ids_info(ACPM_DVFS_CPUCL0);
+	int asv_group = cal_asv_get_grp(ACPM_DVFS_CPUCL0);
+#endif
 	void *gen_block;
 	struct ect_gen_param_table *volt_temp_param, *asv_param;
 	int ratio_table[16] = { 0, 18, 22, 27, 33, 40, 49, 60, 73, 89, 108, 131, 159, 194, 232, 250};
