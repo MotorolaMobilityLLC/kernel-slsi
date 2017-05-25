@@ -1029,11 +1029,6 @@ static int exynos9810_tmu_initialize(struct platform_device *pdev)
 			rising_threshold &= ~(EXYNOS_TMU_TEMP_MASK << bit_off);
 			rising_threshold |= threshold_code << bit_off;
 			writel(rising_threshold, data->base + reg_off);
-#ifdef TMU_DEBUG
-			pr_info("[TMU%d:%d:%d] addr 0x%04x bit-shift %d rise 0x%08x code 0x%x temp %d\n",
-					data->id, sensor, i, reg_off, bit_off,
-					rising_threshold, threshold_code, temp);
-#endif
 
 			/* Set 9-bit temperature code for falling threshold levels */
 			threshold_code = temp_to_code_with_sensorinfo(data, temp_hist, &data->sensor_info[count]);
@@ -1041,12 +1036,6 @@ static int exynos9810_tmu_initialize(struct platform_device *pdev)
 			falling_threshold &= ~(EXYNOS_TMU_TEMP_MASK << bit_off);
 			falling_threshold |= threshold_code << bit_off;
 			writel(falling_threshold, data->base + reg_off + 0x10);
-#ifdef TMU_DEBUG
-			pr_info("[TMU%d:%d:%d] addr 0x%04x bit-shift %d fall 0x%08x code 0x%x hyst %d\n",
-					data->id, sensor, i, reg_off + 0x10, bit_off,
-					falling_threshold, threshold_code, temp_hist);
-#endif
-
 			interrupt_count++;
 		}
 		count++;
@@ -2331,7 +2320,6 @@ static struct platform_driver exynos_tmu_driver = {
 
 module_platform_driver(exynos_tmu_driver);
 
-#ifdef CONFIG_EXYNOS_THERMAL_DEBUG
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 static void exynos_acpm_tmu_test_cp_call(bool mode)
 {
@@ -2422,12 +2410,10 @@ static int exynos_thermal_create_debugfs(void)
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 	debugfs_create_file("test_cp_call", 0x200, debugfs_root, NULL, &test_cp_call_ops);
 	debugfs_create_file("acpm_tmu_log", 0x200, debugfs_root, NULL, &acpm_tmu_log_ops);
-	pr_info("Created exynos thermal debugfs\n");
 #endif
 	return 0;
 }
 arch_initcall(exynos_thermal_create_debugfs);
-#endif
 
 MODULE_DESCRIPTION("EXYNOS TMU Driver");
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");
