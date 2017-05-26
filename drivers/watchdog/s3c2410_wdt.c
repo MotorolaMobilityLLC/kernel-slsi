@@ -939,17 +939,16 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	/* print out a statement of readiness */
 
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
-	if (cluster_index == LITTLE_CLUSTER)
+	if (cluster_index == LITTLE_CLUSTER) {
 		register_syscore_ops(&s3c2410wdt_syscore_ops);
 #ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
 	/* register panic handler for watchdog reset */
-	if (cluster_index == BIG_CLUSTER) {
 		wdt_block.nb_panic_block.notifier_call = s3c2410wdt_panic_handler;
 		wdt_block.wdt = wdt;
 		atomic_notifier_chain_register(&panic_notifier_list,
 				&wdt_block.nb_panic_block);
-	}
 #endif
+	}
 	dev_info(dev, "watchdog cluster %d, %sactive, reset %sabled, irq %sabled\n", cluster_index,
 		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
 		 (wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",
