@@ -51,6 +51,15 @@ config CAMERA_CIS_2P2_OBJ
 		default n
 		help
 		  Use to build 2P2 camera sensor.
+
+config CAMERA_CIS_2P6_OBJ
+		bool "Use 2P6 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 2P6 camera sensor.
+
 config CAMERA_CIS_2P8_OBJ
 		bool "Use 2P8 camera cis"
 	depends on USE_DIRECT_IS_CONTROL

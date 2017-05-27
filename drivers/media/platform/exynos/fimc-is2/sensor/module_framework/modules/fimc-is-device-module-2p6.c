@@ -56,15 +56,15 @@ static struct fimc_is_sensor_cfg config_module_2p6[] = {
 	/* 4624x2624@30fps */
 	FIMC_IS_SENSOR_CFG_EXT(4624, 2624, 30, 32, 1, CSI_DATA_LANES_4, 0, SET_VC(VC_TAIL_MODE_PDAF, 144, 640), 0, 0),
 	/* 2312x1734@30fps */
-	FIMC_IS_SENSOR_CFG(2312, 1734, 30, 32, 3, CSI_DATA_LANES_4),
+	FIMC_IS_SENSOR_CFG(2312, 1734, 30, 32, 2, CSI_DATA_LANES_4),
 	/* 2312x1734@15fps */
-	FIMC_IS_SENSOR_CFG(2312, 1734, 15, 32, 4, CSI_DATA_LANES_4),
+	FIMC_IS_SENSOR_CFG(2312, 1734, 15, 32, 3, CSI_DATA_LANES_4),
 	/* 2312x1312@30fps */
-	FIMC_IS_SENSOR_CFG(2312, 1312, 30, 32, 6, CSI_DATA_LANES_4),
+	FIMC_IS_SENSOR_CFG(2312, 1312, 30, 32, 4, CSI_DATA_LANES_4),
 	/* 1156x864@120fps */
-	FIMC_IS_SENSOR_CFG(1156, 864, 120, 32, 7, CSI_DATA_LANES_4),
+	FIMC_IS_SENSOR_CFG(1156, 864, 120, 32, 5, CSI_DATA_LANES_4),
 	/* 1156x656@120fps */
-	FIMC_IS_SENSOR_CFG(1156, 656, 120, 32, 8, CSI_DATA_LANES_4),
+	FIMC_IS_SENSOR_CFG(1156, 656, 120, 32, 6, CSI_DATA_LANES_4),
 };
 
 static struct fimc_is_vci vci_module_2p6[] = {
@@ -92,12 +92,17 @@ static const struct v4l2_subdev_core_ops core_ops = {
 
 static const struct v4l2_subdev_video_ops video_ops = {
 	.s_stream = sensor_module_s_stream,
-	.s_mbus_fmt = sensor_module_s_format,
+	.s_parm = sensor_module_s_param
+};
+
+static const struct v4l2_subdev_pad_ops pad_ops = {
+	.set_fmt = sensor_module_s_format
 };
 
 static const struct v4l2_subdev_ops subdev_ops = {
 	.core = &core_ops,
 	.video = &video_ops,
+	.pad = &pad_ops
 };
 
 static int sensor_module_2p6_power_setpin_with_af(struct platform_device *pdev,
@@ -652,7 +657,6 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 
 	ext = &module->ext;
 	ext->mipi_lane_num = module->lanes;
-	ext->I2CSclk = 0;
 
 	ext->sensor_con.product_name = module->sensor_id;
 	ext->sensor_con.peri_type = SE_I2C;

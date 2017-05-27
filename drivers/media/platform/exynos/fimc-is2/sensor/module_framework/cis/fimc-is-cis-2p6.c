@@ -36,33 +36,105 @@
 #include "fimc-is-device-sensor-peri.h"
 #include "fimc-is-resourcemgr.h"
 #include "fimc-is-dt.h"
-#include "fimc-is-cis-3p8.h"
-#include "fimc-is-cis-3p8-setA.h"
-#include "fimc-is-cis-3p8-setB.h"
+#include "fimc-is-cis-2p6.h"
+#include "fimc-is-cis-2p6-setA.h"
+#include "fimc-is-cis-2p6-setB.h"
 
 #include "fimc-is-helper-i2c.h"
 
-#define SENSOR_NAME "S5K3P8"
-/* #define DEBUG_3P8_PLL */
+#define SENSOR_NAME "S5K2P6"
+/* #define DEBUG_2P6_PLL */
 
 static const struct v4l2_subdev_ops subdev_ops;
 
-static const u32 *sensor_3p8_global;
-static u32 sensor_3p8_global_size;
-static const u32 **sensor_3p8_setfiles;
-static const u32 *sensor_3p8_setfile_sizes;
-static u32 sensor_3p8_max_setfile_num;
-static const struct sensor_pll_info **sensor_3p8_pllinfos;
+static const u32 *sensor_2p6_global;
+static u32 sensor_2p6_global_size;
+static const u32 **sensor_2p6_setfiles;
+static const u32 *sensor_2p6_setfile_sizes;
+static u32 sensor_2p6_max_setfile_num;
+#ifdef S5K2P6_USE_COMPACT_PLL_INFO
+static const struct sensor_pll_info_compact **sensor_2p6_pllinfos;
+#else
+static const struct sensor_pll_info **sensor_2p6_pllinfos;
+#endif
 
 /* variables of pdaf setting */
-static const u32 *sensor_3p8_pdaf_global;
-static u32 sensor_3p8_pdaf_global_size;
-static const u32 **sensor_3p8_pdaf_setfiles;
-static const u32 *sensor_3p8_pdaf_setfile_sizes;
-static u32 sensor_3p8_pdaf_max_setfile_num;
-static const struct sensor_pll_info **sensor_3p8_pdaf_pllinfos;
+static const u32 *sensor_2p6_pdaf_global;
+static u32 sensor_2p6_pdaf_global_size;
+static const u32 **sensor_2p6_pdaf_setfiles;
+static const u32 *sensor_2p6_pdaf_setfile_sizes;
+static u32 sensor_2p6_pdaf_max_setfile_num;
+#ifdef S5K2P6_USE_COMPACT_PLL_INFO
+static const struct sensor_pll_info_compact **sensor_2p6_pdaf_pllinfos;
+#else
+static const struct sensor_pll_info **sensor_2p6_pdaf_pllinfos;
+#endif
 
-static void sensor_3p8_cis_data_calculation(const struct sensor_pll_info *pll_info, cis_shared_data *cis_data)
+#ifdef S5K2P6_USE_COMPACT_PLL_INFO
+static void sensor_2p6_cis_data_calculation(const struct sensor_pll_info_compact *pll_info_compact, cis_shared_data *cis_data)
+{
+	u32 vt_pix_clk_hz = 0;
+	u32 frame_rate = 0, max_fps = 0, frame_valid_us = 0;
+
+	BUG_ON(!pll_info_compact);
+
+	/* 1. get pclk value from pll info */
+	vt_pix_clk_hz = pll_info_compact->pclk;
+
+	dbg_sensor(1, "ext_clock(%d), mipi_datarate(%d), pclk(%d)\n",
+			pll_info_compact->ext_clk, pll_info_compact->mipi_datarate, pll_info_compact->pclk);
+
+	/* 2. the time of processing one frame calculation (us) */
+	cis_data->min_frame_us_time = (pll_info_compact->frame_length_lines * pll_info_compact->line_length_pck
+					/ (vt_pix_clk_hz / (1000 * 1000)));
+	cis_data->cur_frame_us_time = cis_data->min_frame_us_time;
+
+	/* 3. FPS calculation */
+	frame_rate = vt_pix_clk_hz / (pll_info_compact->frame_length_lines * pll_info_compact->line_length_pck);
+	dbg_sensor(1, "frame_rate (%d) = vt_pix_clk_hz(%d) / "
+		KERN_CONT "(pll_info_compact->frame_length_lines(%d) * pll_info_compact->line_length_pck(%d))\n",
+		frame_rate, vt_pix_clk_hz, pll_info_compact->frame_length_lines, pll_info_compact->line_length_pck);
+
+	/* calculate max fps */
+	max_fps = (vt_pix_clk_hz * 10) / (pll_info_compact->frame_length_lines * pll_info_compact->line_length_pck);
+	max_fps = (max_fps % 10 >= 5 ? frame_rate + 1 : frame_rate);
+
+	cis_data->pclk = vt_pix_clk_hz;
+	cis_data->max_fps = max_fps;
+	cis_data->frame_length_lines = pll_info_compact->frame_length_lines;
+	cis_data->line_length_pck = pll_info_compact->line_length_pck;
+	cis_data->line_readOut_time = sensor_cis_do_div64((u64)cis_data->line_length_pck * (u64)(1000 * 1000 * 1000), cis_data->pclk);
+	cis_data->rolling_shutter_skew = (cis_data->cur_height - 1) * cis_data->line_readOut_time;
+	cis_data->stream_on = false;
+
+	/* Frame valid time calcuration */
+	frame_valid_us = sensor_cis_do_div64((u64)cis_data->cur_height * (u64)cis_data->line_length_pck * (u64)(1000 * 1000), cis_data->pclk);
+	cis_data->frame_valid_us_time = (int)frame_valid_us;
+
+	dbg_sensor(1, "%s\n", __func__);
+	dbg_sensor(1, "Sensor size(%d x %d) setting: SUCCESS!\n",
+					cis_data->cur_width, cis_data->cur_height);
+	dbg_sensor(1, "Frame Valid(us): %d\n", frame_valid_us);
+	dbg_sensor(1, "rolling_shutter_skew: %lld\n", cis_data->rolling_shutter_skew);
+
+	dbg_sensor(1, "Fps: %d, max fps(%d)\n", frame_rate, cis_data->max_fps);
+	dbg_sensor(1, "min_frame_time(%d us)\n", cis_data->min_frame_us_time);
+	dbg_sensor(1, "Pixel rate(Mbps): %d\n", cis_data->pclk / 1000000);
+
+	/* Frame period calculation */
+	cis_data->frame_time = (cis_data->line_readOut_time * cis_data->cur_height / 1000);
+	cis_data->rolling_shutter_skew = (cis_data->cur_height - 1) * cis_data->line_readOut_time;
+
+	dbg_sensor(1, "[%s] frame_time(%d), rolling_shutter_skew(%lld)\n", __func__,
+		cis_data->frame_time, cis_data->rolling_shutter_skew);
+
+	/* Constant values */
+	cis_data->min_fine_integration_time = SENSOR_2P6_FINE_INTEGRATION_TIME_MIN;
+	cis_data->max_fine_integration_time = SENSOR_2P6_FINE_INTEGRATION_TIME_MAX;
+	cis_data->min_coarse_integration_time = SENSOR_2P6_COARSE_INTEGRATION_TIME_MIN;
+}
+#else
+static void sensor_2p6_cis_data_calculation(const struct sensor_pll_info *pll_info, cis_shared_data *cis_data)
 {
 	u32 pll_voc_a = 0, vt_pix_clk_hz = 0;
 	u32 frame_rate = 0, max_fps = 0, frame_valid_us = 0;
@@ -135,13 +207,14 @@ static void sensor_3p8_cis_data_calculation(const struct sensor_pll_info *pll_in
 		cis_data->frame_time, cis_data->rolling_shutter_skew);
 
 	/* Constant values */
-	cis_data->min_fine_integration_time = SENSOR_3P8_FINE_INTEGRATION_TIME_MIN;
-	cis_data->max_fine_integration_time = SENSOR_3P8_FINE_INTEGRATION_TIME_MAX;
-	cis_data->min_coarse_integration_time = SENSOR_3P8_COARSE_INTEGRATION_TIME_MIN;
-	cis_data->max_margin_coarse_integration_time = SENSOR_3P8_COARSE_INTEGRATION_TIME_MAX_MARGIN;
+	cis_data->min_fine_integration_time = SENSOR_2P6_FINE_INTEGRATION_TIME_MIN;
+	cis_data->max_fine_integration_time = SENSOR_2P6_FINE_INTEGRATION_TIME_MAX;
+	cis_data->min_coarse_integration_time = SENSOR_2P6_COARSE_INTEGRATION_TIME_MIN;
+	cis_data->max_margin_coarse_integration_time = SENSOR_2P6_COARSE_INTEGRATION_TIME_MAX_MARGIN;
 }
+#endif
 
-static int sensor_3p8_wait_stream_off_status(cis_shared_data *cis_data)
+static int sensor_2p6_wait_stream_off_status(cis_shared_data *cis_data)
 {
 	int ret = 0;
 	u32 timeout = 0;
@@ -167,7 +240,7 @@ static int sensor_3p8_wait_stream_off_status(cis_shared_data *cis_data)
 }
 
 /* CIS OPS */
-int sensor_3p8_cis_init(struct v4l2_subdev *subdev)
+int sensor_2p6_cis_init(struct v4l2_subdev *subdev)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -191,17 +264,17 @@ int sensor_3p8_cis_init(struct v4l2_subdev *subdev)
 
 	ret = sensor_cis_check_rev(cis);
 	if (ret < 0) {
-		warn("sensor_3p8_check_rev is fail when cis init");
+		warn("sensor_2p6_check_rev is fail when cis init");
 		cis->rev_flag = true;
 		ret = 0;
 	}
 
-	cis->cis_data->cur_width = SENSOR_3P8_MAX_WIDTH;
-	cis->cis_data->cur_height = SENSOR_3P8_MAX_HEIGHT;
+	cis->cis_data->cur_width = SENSOR_2P6_MAX_WIDTH;
+	cis->cis_data->cur_height = SENSOR_2P6_MAX_HEIGHT;
 	cis->cis_data->low_expo_start = 33000;
 	cis->need_mode_change = false;
 
-	sensor_3p8_cis_data_calculation(sensor_3p8_pllinfos[setfile_index], cis->cis_data);
+	sensor_2p6_cis_data_calculation(sensor_2p6_pllinfos[setfile_index], cis->cis_data);
 
 	setinfo.return_value = 0;
 	CALL_CISOPS(cis, cis_get_min_exposure_time, subdev, &setinfo.return_value);
@@ -231,7 +304,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_log_status(struct v4l2_subdev *subdev)
+int sensor_2p6_cis_log_status(struct v4l2_subdev *subdev)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -266,9 +339,9 @@ int sensor_3p8_cis_log_status(struct v4l2_subdev *subdev)
 	if (unlikely(!ret)) printk("[SEN:DUMP] mode_select(%x)\n", data8);
 
 	if (cis->use_pdaf == true) {
-		sensor_cis_dump_registers(subdev, sensor_3p8_pdaf_setfiles[0], sensor_3p8_pdaf_setfile_sizes[0]);
+		sensor_cis_dump_registers(subdev, sensor_2p6_pdaf_setfiles[0], sensor_2p6_pdaf_setfile_sizes[0]);
 	} else {
-		sensor_cis_dump_registers(subdev, sensor_3p8_setfiles[0], sensor_3p8_setfile_sizes[0]);
+		sensor_cis_dump_registers(subdev, sensor_2p6_setfiles[0], sensor_2p6_setfile_sizes[0]);
 	}
 
 	pr_err("[SEN:DUMP] *******************************\n");
@@ -278,7 +351,7 @@ p_err:
 }
 
 #if USE_GROUP_PARAM_HOLD
-static int sensor_3p8_cis_group_param_hold_func(struct v4l2_subdev *subdev, unsigned int hold)
+static int sensor_2p6_cis_group_param_hold_func(struct v4l2_subdev *subdev, unsigned int hold)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
@@ -313,7 +386,7 @@ p_err:
 	return ret;
 }
 #else
-static inline int sensor_3p8_cis_group_param_hold_func(struct v4l2_subdev *subdev, unsigned int hold)
+static inline int sensor_2p6_cis_group_param_hold_func(struct v4l2_subdev *subdev, unsigned int hold)
 { return 0; }
 #endif
 
@@ -324,7 +397,7 @@ static inline int sensor_3p8_cis_group_param_hold_func(struct v4l2_subdev *subde
  *		positive - setted by request
  *		negative - ERROR value
  */
-int sensor_3p8_cis_group_param_hold(struct v4l2_subdev *subdev, bool hold)
+int sensor_2p6_cis_group_param_hold(struct v4l2_subdev *subdev, bool hold)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
@@ -336,7 +409,7 @@ int sensor_3p8_cis_group_param_hold(struct v4l2_subdev *subdev, bool hold)
 	BUG_ON(!cis);
 	BUG_ON(!cis->cis_data);
 
-	ret = sensor_3p8_cis_group_param_hold_func(subdev, hold);
+	ret = sensor_2p6_cis_group_param_hold_func(subdev, hold);
 	if (ret < 0)
 		goto p_err;
 
@@ -344,7 +417,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_set_global_setting(struct v4l2_subdev *subdev)
+int sensor_2p6_cis_set_global_setting(struct v4l2_subdev *subdev)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
@@ -362,13 +435,13 @@ int sensor_3p8_cis_set_global_setting(struct v4l2_subdev *subdev)
 
 	/* setfile global setting is at camera entrance */
 	if (cis->use_pdaf == true) {
-		ret = sensor_cis_set_registers(subdev, sensor_3p8_pdaf_global, sensor_3p8_pdaf_global_size);
+		ret = sensor_cis_set_registers(subdev, sensor_2p6_pdaf_global, sensor_2p6_pdaf_global_size);
 	} else {
-		ret = sensor_cis_set_registers(subdev, sensor_3p8_global, sensor_3p8_global_size);
+		ret = sensor_cis_set_registers(subdev, sensor_2p6_global, sensor_2p6_global_size);
 	}
 
 	if (ret < 0) {
-		err("sensor_3p8_set_registers fail!!");
+		err("sensor_2p6_set_registers fail!!");
 		goto p_err;
 	}
 
@@ -378,7 +451,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
+int sensor_2p6_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 {
 	int ret = 0;
 	u32 max_setfile_num = 0;
@@ -391,9 +464,9 @@ int sensor_3p8_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	BUG_ON(!cis->cis_data);
 
 	if (cis->use_pdaf == true) {
-		max_setfile_num = sensor_3p8_pdaf_max_setfile_num;
+		max_setfile_num = sensor_2p6_pdaf_max_setfile_num;
 	} else {
-		max_setfile_num = sensor_3p8_max_setfile_num;
+		max_setfile_num = sensor_2p6_max_setfile_num;
 	}
 
 	if (mode > max_setfile_num) {
@@ -407,33 +480,33 @@ int sensor_3p8_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 		cis->rev_flag = false;
 		ret = sensor_cis_check_rev(cis);
 		if (ret < 0) {
-			err("sensor_3p8_check_rev is fail");
+			err("sensor_2p6_check_rev is fail");
 			goto p_err;
 		}
 	}
 
 	if (cis->use_pdaf == true) {
-		sensor_3p8_cis_data_calculation(sensor_3p8_pdaf_pllinfos[mode], cis->cis_data);
-		ret = sensor_cis_set_registers(subdev, sensor_3p8_pdaf_setfiles[mode], sensor_3p8_pdaf_setfile_sizes[mode]);
+		sensor_2p6_cis_data_calculation(sensor_2p6_pdaf_pllinfos[mode], cis->cis_data);
+		ret = sensor_cis_set_registers(subdev, sensor_2p6_pdaf_setfiles[mode], sensor_2p6_pdaf_setfile_sizes[mode]);
 	} else {
-		sensor_3p8_cis_data_calculation(sensor_3p8_pllinfos[mode], cis->cis_data);
-		ret = sensor_cis_set_registers(subdev, sensor_3p8_setfiles[mode], sensor_3p8_setfile_sizes[mode]);
+		sensor_2p6_cis_data_calculation(sensor_2p6_pllinfos[mode], cis->cis_data);
+		ret = sensor_cis_set_registers(subdev, sensor_2p6_setfiles[mode], sensor_2p6_setfile_sizes[mode]);
 	}
 
 	if (ret < 0) {
-		err("sensor_3p8_set_registers fail!!");
+		err("sensor_2p6_set_registers fail!!");
 		goto p_err;
 	}
 
 	if (cis->use_pdaf == true) {
-#if defined(S5K3P8_PDAF_DISABLE)
+#if defined(S5K2P6_PDAF_DISABLE)
 		/* TEMP : PDAF disable */
 		ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
 		ret = fimc_is_sensor_write8(cis->client, 0x3059, 0x00);
-		info("[%s] S5K3P8_PDAF_DISABLE\n", __func__);
+		info("[%s] S5K2P6_PDAF_DISABLE\n", __func__);
 #endif
 
-#if defined(S5K3P8_TAIL_DISABLE)
+#if defined(S5K2P6_TAIL_DISABLE)
 		/* TEMP : Tail mode disable */
 		ret = fimc_is_sensor_write16(cis->client, 0x6028, 0x2000);
 		ret = fimc_is_sensor_write16(cis->client, 0x602A, 0x19E0);
@@ -441,14 +514,14 @@ int sensor_3p8_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 
 		ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
 		ret = fimc_is_sensor_write16(cis->client, 0x30E2, 0x0000);
-		info("[%s] S5K3P8_TAIL_DISABLE\n", __func__);
+		info("[%s] S5K2P6_TAIL_DISABLE\n", __func__);
 #endif
 
-#if defined(S5K3P8_BPC_DISABLE)
+#if defined(S5K2P6_BPC_DISABLE)
 		/* TEMP : BPC disable */
 		ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
 		ret = fimc_is_sensor_write8(cis->client, 0x0B0E, 0x00);
-		info("[%s] S5K3P8_BPC_DISABLE\n", __func__);
+		info("[%s] S5K2P6_BPC_DISABLE\n", __func__);
 #endif
 	}
 
@@ -459,7 +532,7 @@ p_err:
 }
 
 /* TODO: Sensor set size sequence(sensor done, sensor stop, 3AA done in FW case */
-int sensor_3p8_cis_set_size(struct v4l2_subdev *subdev, cis_shared_data *cis_data)
+int sensor_2p6_cis_set_size(struct v4l2_subdev *subdev, cis_shared_data *cis_data)
 {
 	int ret = 0;
 	bool binning = false;
@@ -496,7 +569,7 @@ int sensor_3p8_cis_set_size(struct v4l2_subdev *subdev, cis_shared_data *cis_dat
 	}
 
 	/* Wait actual stream off */
-	ret = sensor_3p8_wait_stream_off_status(cis_data);
+	ret = sensor_2p6_wait_stream_off_status(cis_data);
 	if (ret) {
 		err("Must stream off\n");
 		ret = -EINVAL;
@@ -505,15 +578,15 @@ int sensor_3p8_cis_set_size(struct v4l2_subdev *subdev, cis_shared_data *cis_dat
 
 	binning = cis_data->binning;
 	if (binning) {
-		ratio_w = (SENSOR_3P8_MAX_WIDTH / cis_data->cur_width);
-		ratio_h = (SENSOR_3P8_MAX_HEIGHT / cis_data->cur_height);
+		ratio_w = (SENSOR_2P6_MAX_WIDTH / cis_data->cur_width);
+		ratio_h = (SENSOR_2P6_MAX_HEIGHT / cis_data->cur_height);
 	} else {
 		ratio_w = 1;
 		ratio_h = 1;
 	}
 
-	if (((cis_data->cur_width * ratio_w) > SENSOR_3P8_MAX_WIDTH) ||
-		((cis_data->cur_height * ratio_h) > SENSOR_3P8_MAX_HEIGHT)) {
+	if (((cis_data->cur_width * ratio_w) > SENSOR_2P6_MAX_WIDTH) ||
+		((cis_data->cur_height * ratio_h) > SENSOR_2P6_MAX_HEIGHT)) {
 		err("Config max sensor size over~!!\n");
 		ret = -EINVAL;
 		goto p_err;
@@ -525,8 +598,8 @@ int sensor_3p8_cis_set_size(struct v4l2_subdev *subdev, cis_shared_data *cis_dat
 		 goto p_err;
 
 	/* 2. pixel address region setting */
-	start_x = ((SENSOR_3P8_MAX_WIDTH - cis_data->cur_width * ratio_w) / 2) & (~0x1);
-	start_y = ((SENSOR_3P8_MAX_HEIGHT - cis_data->cur_height * ratio_h) / 2) & (~0x1);
+	start_x = ((SENSOR_2P6_MAX_WIDTH - cis_data->cur_width * ratio_w) / 2) & (~0x1);
+	start_y = ((SENSOR_2P6_MAX_HEIGHT - cis_data->cur_height * ratio_h) / 2) & (~0x1);
 	end_x = start_x + (cis_data->cur_width * ratio_w - 1);
 	end_y = start_y + (cis_data->cur_height * ratio_h - 1);
 
@@ -615,7 +688,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_stream_on(struct v4l2_subdev *subdev)
+int sensor_2p6_cis_stream_on(struct v4l2_subdev *subdev)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -645,11 +718,11 @@ int sensor_3p8_cis_stream_on(struct v4l2_subdev *subdev)
 
 	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
 
-	ret = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+	ret = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 	if (ret < 0)
-		err("[%s] sensor_3p8_cis_group_param_hold_func fail\n", __func__);
+		err("[%s] sensor_2p6_cis_group_param_hold_func fail\n", __func__);
 
-#ifdef DEBUG_3P8_PLL
+#ifdef DEBUG_2P6_PLL
 	{
 	u16 pll;
 	ret = fimc_is_sensor_read16(client, 0x0300, &pll);
@@ -695,7 +768,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_stream_off(struct v4l2_subdev *subdev)
+int sensor_2p6_cis_stream_off(struct v4l2_subdev *subdev)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -725,9 +798,9 @@ int sensor_3p8_cis_stream_off(struct v4l2_subdev *subdev)
 
 	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
 
-	ret = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+	ret = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 	if (ret < 0)
-		err("[%s] sensor_3p8_cis_group_param_hold_func fail\n", __func__);
+		err("[%s] sensor_2p6_cis_group_param_hold_func fail\n", __func__);
 
 	/* Sensor stream off */
 	ret = fimc_is_sensor_write16(client, 0x6028, 0x4000);
@@ -748,7 +821,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param *target_exposure)
+int sensor_2p6_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param *target_exposure)
 {
 	int ret = 0;
 	int hold = 0;
@@ -825,7 +898,7 @@ int sensor_3p8_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param
 		short_coarse_int = cis_data->min_coarse_integration_time;
 	}
 
-	hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x01);
+	hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
 		goto p_err;
@@ -836,12 +909,14 @@ int sensor_3p8_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param
 	if (ret < 0)
 		goto p_err;
 
+#ifdef S5K2P6_USE_WDR
 	/* Long exposure */
 	if (cis_data->companion_data.enable_wdr == true) {
 		ret = fimc_is_sensor_write16(client, 0x021E, long_coarse_int);
 		if (ret < 0)
 			goto p_err;
 	}
+#endif
 
 	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), vt_pic_clk_freq_mhz (%d),"
 		KERN_CONT "line_length_pck(%d), min_fine_int (%d)\n", cis->id, __func__,
@@ -857,7 +932,7 @@ int sensor_3p8_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param
 
 p_err:
 	if (hold > 0) {
-		hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+		hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 		if (hold < 0)
 			ret = hold;
 	}
@@ -865,7 +940,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_get_min_exposure_time(struct v4l2_subdev *subdev, u32 *min_expo)
+int sensor_2p6_cis_get_min_exposure_time(struct v4l2_subdev *subdev, u32 *min_expo)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
@@ -914,7 +989,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_get_max_exposure_time(struct v4l2_subdev *subdev, u32 *max_expo)
+int sensor_2p6_cis_get_max_exposure_time(struct v4l2_subdev *subdev, u32 *max_expo)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -976,7 +1051,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
+int sensor_2p6_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 						u32 input_exposure_time,
 						u32 *target_duration)
 {
@@ -1026,7 +1101,7 @@ int sensor_3p8_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 	return ret;
 }
 
-int sensor_3p8_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_duration)
+int sensor_2p6_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_duration)
 {
 	int ret = 0;
 	int hold = 0;
@@ -1073,7 +1148,7 @@ int sensor_3p8_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_dura
 		KERN_CONT "(line_length_pck%#x), frame_length_lines(%#x)\n",
 		cis->id, __func__, vt_pic_clk_freq_mhz, frame_duration, line_length_pck, frame_length_lines);
 
-	hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x01);
+	hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
 		goto p_err;
@@ -1094,7 +1169,7 @@ int sensor_3p8_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_dura
 
 p_err:
 	if (hold > 0) {
-		hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+		hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 		if (hold < 0)
 			ret = hold;
 	}
@@ -1102,7 +1177,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_set_frame_rate(struct v4l2_subdev *subdev, u32 min_fps)
+int sensor_2p6_cis_set_frame_rate(struct v4l2_subdev *subdev, u32 min_fps)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -1141,7 +1216,7 @@ int sensor_3p8_cis_set_frame_rate(struct v4l2_subdev *subdev, u32 min_fps)
 	dbg_sensor(1, "[MOD:D:%d] %s, set FPS(%d), frame duration(%d)\n",
 			cis->id, __func__, min_fps, frame_duration);
 
-	ret = sensor_3p8_cis_set_frame_duration(subdev, frame_duration);
+	ret = sensor_2p6_cis_set_frame_duration(subdev, frame_duration);
 	if (ret < 0) {
 		err("[MOD:D:%d] %s, set frame duration is fail(%d)\n",
 			cis->id, __func__, ret);
@@ -1160,7 +1235,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_adjust_analog_gain(struct v4l2_subdev *subdev, u32 input_again, u32 *target_permile)
+int sensor_2p6_cis_adjust_analog_gain(struct v4l2_subdev *subdev, u32 input_again, u32 *target_permile)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -1206,7 +1281,7 @@ int sensor_3p8_cis_adjust_analog_gain(struct v4l2_subdev *subdev, u32 input_agai
 	return ret;
 }
 
-int sensor_3p8_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param *again)
+int sensor_2p6_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param *again)
 {
 	int ret = 0;
 	int hold = 0;
@@ -1247,7 +1322,7 @@ int sensor_3p8_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param *
 	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_again = %d us, analog_gain(%#x)\n",
 		cis->id, __func__, cis->cis_data->sen_vsync_count, again->val, analog_gain);
 
-	hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x01);
+	hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
 		goto p_err;
@@ -1264,7 +1339,7 @@ int sensor_3p8_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param *
 
 p_err:
 	if (hold > 0) {
-		hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+		hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 		if (hold < 0)
 			ret = hold;
 	}
@@ -1272,7 +1347,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_get_analog_gain(struct v4l2_subdev *subdev, u32 *again)
+int sensor_2p6_cis_get_analog_gain(struct v4l2_subdev *subdev, u32 *again)
 {
 	int ret = 0;
 	int hold = 0;
@@ -1300,7 +1375,7 @@ int sensor_3p8_cis_get_analog_gain(struct v4l2_subdev *subdev, u32 *again)
 		goto p_err;
 	}
 
-	hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x01);
+	hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
 		goto p_err;
@@ -1322,7 +1397,7 @@ int sensor_3p8_cis_get_analog_gain(struct v4l2_subdev *subdev, u32 *again)
 
 p_err:
 	if (hold > 0) {
-		hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+		hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 		if (hold < 0)
 			ret = hold;
 	}
@@ -1330,7 +1405,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_get_min_analog_gain(struct v4l2_subdev *subdev, u32 *min_again)
+int sensor_2p6_cis_get_min_analog_gain(struct v4l2_subdev *subdev, u32 *min_again)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -1383,7 +1458,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_again)
+int sensor_2p6_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_again)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -1436,7 +1511,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param *dgain)
+int sensor_2p6_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param *dgain)
 {
 	int ret = 0;
 	int hold = 0;
@@ -1490,7 +1565,7 @@ int sensor_3p8_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param 
 	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_dgain = %d/%d us, long_gain(%#x), short_gain(%#x)\n",
 			cis->id, __func__, cis->cis_data->sen_vsync_count, dgain->long_val, dgain->short_val, long_gain, short_gain);
 
-	hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x01);
+	hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
 		goto p_err;
@@ -1502,6 +1577,7 @@ int sensor_3p8_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param 
 	if (ret < 0)
 		goto p_err;
 
+#ifdef S5K2P6_USE_WDR
 	/* Long digital gain */
 	if (cis_data->companion_data.enable_wdr == true) {
 		dgains[0] = dgains[1] = dgains[2] = dgains[3] = long_gain;
@@ -1509,6 +1585,7 @@ int sensor_3p8_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param 
 		if (ret < 0)
 			goto p_err;
 	}
+#endif
 
 #ifdef DEBUG_SENSOR_TIME
 	do_gettimeofday(&end);
@@ -1517,7 +1594,7 @@ int sensor_3p8_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param 
 
 p_err:
 	if (hold > 0) {
-		hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+		hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 		if (hold < 0)
 			ret = hold;
 	}
@@ -1525,7 +1602,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_get_digital_gain(struct v4l2_subdev *subdev, u32 *dgain)
+int sensor_2p6_cis_get_digital_gain(struct v4l2_subdev *subdev, u32 *dgain)
 {
 	int ret = 0;
 	int hold = 0;
@@ -1553,7 +1630,7 @@ int sensor_3p8_cis_get_digital_gain(struct v4l2_subdev *subdev, u32 *dgain)
 		goto p_err;
 	}
 
-	hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x01);
+	hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
 		goto p_err;
@@ -1575,7 +1652,7 @@ int sensor_3p8_cis_get_digital_gain(struct v4l2_subdev *subdev, u32 *dgain)
 
 p_err:
 	if (hold > 0) {
-		hold = sensor_3p8_cis_group_param_hold_func(subdev, 0x00);
+		hold = sensor_2p6_cis_group_param_hold_func(subdev, 0x00);
 		if (hold < 0)
 			ret = hold;
 	}
@@ -1583,7 +1660,7 @@ p_err:
 	return ret;
 }
 
-int sensor_3p8_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_dgain)
+int sensor_2p6_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_dgain)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -1604,7 +1681,7 @@ int sensor_3p8_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_dga
 
 	cis_data = cis->cis_data;
 
-	/* 3P8 cannot read min/max digital gain */
+	/* 2P6 cannot read min/max digital gain */
 	cis_data->min_digital_gain[0] = 0x0100;
 
 	cis_data->min_digital_gain[1] = 1000;
@@ -1622,7 +1699,7 @@ int sensor_3p8_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_dga
 	return ret;
 }
 
-int sensor_3p8_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max_dgain)
+int sensor_2p6_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max_dgain)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -1643,7 +1720,7 @@ int sensor_3p8_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max_dga
 
 	cis_data = cis->cis_data;
 
-	/* 3P8 cannot read min/max digital gain */
+	/* 2P6 cannot read min/max digital gain */
 	cis_data->max_digital_gain[0] = 0x1000;
 
 	cis_data->max_digital_gain[1] = 16000;
@@ -1662,35 +1739,35 @@ int sensor_3p8_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max_dga
 }
 
 static struct fimc_is_cis_ops cis_ops = {
-	.cis_init = sensor_3p8_cis_init,
-	.cis_log_status = sensor_3p8_cis_log_status,
-	.cis_group_param_hold = sensor_3p8_cis_group_param_hold,
-	.cis_set_global_setting = sensor_3p8_cis_set_global_setting,
-	.cis_mode_change = sensor_3p8_cis_mode_change,
-	.cis_set_size = sensor_3p8_cis_set_size,
-	.cis_stream_on = sensor_3p8_cis_stream_on,
-	.cis_stream_off = sensor_3p8_cis_stream_off,
-	.cis_set_exposure_time = sensor_3p8_cis_set_exposure_time,
-	.cis_get_min_exposure_time = sensor_3p8_cis_get_min_exposure_time,
-	.cis_get_max_exposure_time = sensor_3p8_cis_get_max_exposure_time,
-	.cis_adjust_frame_duration = sensor_3p8_cis_adjust_frame_duration,
-	.cis_set_frame_duration = sensor_3p8_cis_set_frame_duration,
-	.cis_set_frame_rate = sensor_3p8_cis_set_frame_rate,
-	.cis_adjust_analog_gain = sensor_3p8_cis_adjust_analog_gain,
-	.cis_set_analog_gain = sensor_3p8_cis_set_analog_gain,
-	.cis_get_analog_gain = sensor_3p8_cis_get_analog_gain,
-	.cis_get_min_analog_gain = sensor_3p8_cis_get_min_analog_gain,
-	.cis_get_max_analog_gain = sensor_3p8_cis_get_max_analog_gain,
-	.cis_set_digital_gain = sensor_3p8_cis_set_digital_gain,
-	.cis_get_digital_gain = sensor_3p8_cis_get_digital_gain,
-	.cis_get_min_digital_gain = sensor_3p8_cis_get_min_digital_gain,
-	.cis_get_max_digital_gain = sensor_3p8_cis_get_max_digital_gain,
+	.cis_init = sensor_2p6_cis_init,
+	.cis_log_status = sensor_2p6_cis_log_status,
+	.cis_group_param_hold = sensor_2p6_cis_group_param_hold,
+	.cis_set_global_setting = sensor_2p6_cis_set_global_setting,
+	.cis_mode_change = sensor_2p6_cis_mode_change,
+	.cis_set_size = sensor_2p6_cis_set_size,
+	.cis_stream_on = sensor_2p6_cis_stream_on,
+	.cis_stream_off = sensor_2p6_cis_stream_off,
+	.cis_set_exposure_time = sensor_2p6_cis_set_exposure_time,
+	.cis_get_min_exposure_time = sensor_2p6_cis_get_min_exposure_time,
+	.cis_get_max_exposure_time = sensor_2p6_cis_get_max_exposure_time,
+	.cis_adjust_frame_duration = sensor_2p6_cis_adjust_frame_duration,
+	.cis_set_frame_duration = sensor_2p6_cis_set_frame_duration,
+	.cis_set_frame_rate = sensor_2p6_cis_set_frame_rate,
+	.cis_adjust_analog_gain = sensor_2p6_cis_adjust_analog_gain,
+	.cis_set_analog_gain = sensor_2p6_cis_set_analog_gain,
+	.cis_get_analog_gain = sensor_2p6_cis_get_analog_gain,
+	.cis_get_min_analog_gain = sensor_2p6_cis_get_min_analog_gain,
+	.cis_get_max_analog_gain = sensor_2p6_cis_get_max_analog_gain,
+	.cis_set_digital_gain = sensor_2p6_cis_set_digital_gain,
+	.cis_get_digital_gain = sensor_2p6_cis_get_digital_gain,
+	.cis_get_min_digital_gain = sensor_2p6_cis_get_min_digital_gain,
+	.cis_get_max_digital_gain = sensor_2p6_cis_get_max_digital_gain,
 	.cis_compensate_gain_for_extremely_br = sensor_cis_compensate_gain_for_extremely_br,
 	.cis_wait_streamoff = sensor_cis_wait_streamoff,
 	.cis_wait_streamon = sensor_cis_wait_streamon,
 };
 
-int cis_3p8_probe(struct i2c_client *client,
+int cis_2p6_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	int ret = 0;
@@ -1732,7 +1809,7 @@ int cis_3p8_probe(struct i2c_client *client,
 
 	device = &core->sensor[sensor_id];
 
-	sensor_peri = find_peri_by_cis_id(device, SENSOR_NAME_S5K3P8);
+	sensor_peri = find_peri_by_cis_id(device, SENSOR_NAME_S5K2P6);
 	if (!sensor_peri) {
 		probe_info("sensor peri is net yet probed");
 		return -EPROBE_DEFER;
@@ -1753,7 +1830,7 @@ int cis_3p8_probe(struct i2c_client *client,
 	}
 	sensor_peri->subdev_cis = subdev_cis;
 
-	cis->id = SENSOR_NAME_S5K3P8;
+	cis->id = SENSOR_NAME_S5K2P6;
 	cis->subdev = subdev_cis;
 	cis->device = 0;
 	cis->client = client;
@@ -1800,28 +1877,28 @@ int cis_3p8_probe(struct i2c_client *client,
 	if (strcmp(setfile, "default") == 0 ||
 			strcmp(setfile, "setA") == 0) {
 		probe_info("%s : setfile_A for Non-PDAF\n", __func__);
-		sensor_3p8_global = sensor_3p8_setfile_A_Global;
-		sensor_3p8_global_size = sizeof(sensor_3p8_setfile_A_Global) / sizeof(sensor_3p8_setfile_A_Global[0]);
-		sensor_3p8_setfiles = sensor_3p8_setfiles_A;
-		sensor_3p8_setfile_sizes = sensor_3p8_setfile_A_sizes;
-		sensor_3p8_max_setfile_num = sizeof(sensor_3p8_setfiles_A) / sizeof(sensor_3p8_setfiles_A[0]);
-		sensor_3p8_pllinfos = sensor_3p8_pllinfos_A;
+		sensor_2p6_global = sensor_2p6_setfile_A_Global;
+		sensor_2p6_global_size = sizeof(sensor_2p6_setfile_A_Global) / sizeof(sensor_2p6_setfile_A_Global[0]);
+		sensor_2p6_setfiles = sensor_2p6_setfiles_A;
+		sensor_2p6_setfile_sizes = sensor_2p6_setfile_A_sizes;
+		sensor_2p6_max_setfile_num = sizeof(sensor_2p6_setfiles_A) / sizeof(sensor_2p6_setfiles_A[0]);
+		sensor_2p6_pllinfos = sensor_2p6_pllinfos_A;
 	} else if (strcmp(setfile, "setB") == 0) {
 		probe_info("%s setfile_B for PDAF\n", __func__);
-		sensor_3p8_pdaf_global = sensor_3p8_setfile_B_Global;
-		sensor_3p8_pdaf_global_size = sizeof(sensor_3p8_setfile_B_Global) / sizeof(sensor_3p8_setfile_B_Global[0]);
-		sensor_3p8_pdaf_setfiles = sensor_3p8_setfiles_B;
-		sensor_3p8_pdaf_setfile_sizes = sensor_3p8_setfile_B_sizes;
-		sensor_3p8_pdaf_max_setfile_num = sizeof(sensor_3p8_setfiles_B) / sizeof(sensor_3p8_setfiles_B[0]);
-		sensor_3p8_pdaf_pllinfos = sensor_3p8_pllinfos_B;
+		sensor_2p6_pdaf_global = sensor_2p6_setfile_B_Global;
+		sensor_2p6_pdaf_global_size = sizeof(sensor_2p6_setfile_B_Global) / sizeof(sensor_2p6_setfile_B_Global[0]);
+		sensor_2p6_pdaf_setfiles = sensor_2p6_setfiles_B;
+		sensor_2p6_pdaf_setfile_sizes = sensor_2p6_setfile_B_sizes;
+		sensor_2p6_pdaf_max_setfile_num = sizeof(sensor_2p6_setfiles_B) / sizeof(sensor_2p6_setfiles_B[0]);
+		sensor_2p6_pdaf_pllinfos = sensor_2p6_pllinfos_B;
 	} else {
 		err("%s setfile index out of bound, take default (setfile_A)", __func__);
-		sensor_3p8_global = sensor_3p8_setfile_A_Global;
-		sensor_3p8_global_size = sizeof(sensor_3p8_setfile_A_Global) / sizeof(sensor_3p8_setfile_A_Global[0]);
-		sensor_3p8_setfiles = sensor_3p8_setfiles_A;
-		sensor_3p8_setfile_sizes = sensor_3p8_setfile_A_sizes;
-		sensor_3p8_max_setfile_num = sizeof(sensor_3p8_setfiles_A) / sizeof(sensor_3p8_setfiles_A[0]);
-		sensor_3p8_pllinfos = sensor_3p8_pllinfos_A;
+		sensor_2p6_global = sensor_2p6_setfile_A_Global;
+		sensor_2p6_global_size = sizeof(sensor_2p6_setfile_A_Global) / sizeof(sensor_2p6_setfile_A_Global[0]);
+		sensor_2p6_setfiles = sensor_2p6_setfiles_A;
+		sensor_2p6_setfile_sizes = sensor_2p6_setfile_A_sizes;
+		sensor_2p6_max_setfile_num = sizeof(sensor_2p6_setfiles_A) / sizeof(sensor_2p6_setfiles_A[0]);
+		sensor_2p6_pllinfos = sensor_2p6_pllinfos_A;
 	}
 
 	v4l2_i2c_subdev_init(subdev_cis, client, &subdev_ops);
@@ -1835,33 +1912,33 @@ p_err:
 	return ret;
 }
 
-static int cis_3p8_remove(struct i2c_client *client)
+static int cis_2p6_remove(struct i2c_client *client)
 {
 	int ret = 0;
 	return ret;
 }
 
-static const struct of_device_id exynos_fimc_is_cis_3p8_match[] = {
+static const struct of_device_id exynos_fimc_is_cis_2p6_match[] = {
 	{
-		.compatible = "samsung,exynos5-fimc-is-cis-3p8",
+		.compatible = "samsung,exynos5-fimc-is-cis-2p6",
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_fimc_is_cis_3p8_match);
+MODULE_DEVICE_TABLE(of, exynos_fimc_is_cis_2p6_match);
 
-static const struct i2c_device_id cis_3p8_idt[] = {
+static const struct i2c_device_id cis_2p6_idt[] = {
 	{ SENSOR_NAME, 0 },
 	{},
 };
 
-static struct i2c_driver cis_3p8_driver = {
+static struct i2c_driver cis_2p6_driver = {
 	.driver = {
 		.name	= SENSOR_NAME,
 		.owner	= THIS_MODULE,
-		.of_match_table = exynos_fimc_is_cis_3p8_match
+		.of_match_table = exynos_fimc_is_cis_2p6_match
 	},
-	.probe	= cis_3p8_probe,
-	.remove	= cis_3p8_remove,
-	.id_table = cis_3p8_idt
+	.probe	= cis_2p6_probe,
+	.remove	= cis_2p6_remove,
+	.id_table = cis_2p6_idt
 };
-module_i2c_driver(cis_3p8_driver);
+module_i2c_driver(cis_2p6_driver);
