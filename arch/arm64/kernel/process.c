@@ -188,8 +188,19 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 	 * don't attempt to dump non-kernel addresses or
 	 * values that are probably just small negative numbers
 	 */
-	if (addr < PAGE_OFFSET || addr > -256UL)
-		return;
+	if (addr < PAGE_OFFSET || addr > -256UL) {
+		/*
+		 * If kaslr is enabled, Kernel code is able to
+		 * locate in VMALLOC address.
+		 */
+		if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+			if (addr < (unsigned long)KERNEL_START ||
+			    addr > (unsigned long)KERNEL_END)
+				return;
+		} else {
+			return;
+		}
+	}
 
 	printk("\n%s: %#lx:\n", name, addr);
 
