@@ -159,6 +159,7 @@
 #define EXYNOS_TMU_CLK_SENSE_ON_SHIFT		(16)
 #define EXYNOS_TMU_CLK_SENSE_ON_MASK		(0xffff)
 #define EXYNOS_TMU_TEM1456X_SENSE_VALUE		(0x0A28)
+#define EXYNOS_TMU_TEM1051X_SENSE_VALUE		(0x028A)
 
 #define EXYNOS_TMU_NUM_PROBE_SHIFT		(16)
 #if defined(CONFIG_SOC_EXYNOS9810)
@@ -1134,6 +1135,7 @@ static void exynos9810_tmu_control(struct platform_device *pdev, bool on)
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim, ctrl, con1, avgc;
 	unsigned int t_buf_vref_sel, t_buf_slope_sel, avg_mode;
+	unsigned int counter_value;
 
 	tmu_core_disable(pdev);
 	tmu_irqs_disable(pdev);
@@ -1176,6 +1178,17 @@ static void exynos9810_tmu_control(struct platform_device *pdev, bool on)
 		avgc |= (EXYNOS_TMU_DEM_ENABLE << EXYNOS_TMU_DEM_SHIFT);
 	}
 	writel(avgc, data->base + EXYNOS_TMU_REG_AVG_CON);
+
+	/* set COUNTER_VALUE */
+	counter_value = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
+	counter_value &= ~(EXYNOS_TMU_EN_TEMP_SEN_OFF_MASK << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT);
+	counter_value |= EXYNOS_TMU_TEM1051X_SENSE_VALUE << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT;
+	writel(counter_value, data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
+
+	counter_value = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
+	counter_value &= ~(EXYNOS_TMU_CLK_SENSE_ON_MASK << EXYNOS_TMU_CLK_SENSE_ON_SHIFT);
+	counter_value |= EXYNOS_TMU_TEM1051X_SENSE_VALUE << EXYNOS_TMU_CLK_SENSE_ON_SHIFT;
+	writel(counter_value, data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
 
 	tmu_irqs_enable(pdev);
 	tmu_core_enable(pdev);
