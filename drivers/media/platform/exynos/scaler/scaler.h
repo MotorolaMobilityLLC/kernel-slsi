@@ -541,5 +541,6 @@ void sc_hwset_hcoef(struct sc_dev *sc, unsigned int coef);
 void sc_hwset_vcoef(struct sc_dev *sc, unsigned int coef);
 
 void sc_hwregs_dump(struct sc_dev *sc);
+void sc_ctx_dump(struct sc_ctx *ctx);
 
 #endif /* SCALER__H_ */

@@ -42,6 +42,9 @@ module_param_named(sc_log_level, sc_log_level, uint, 0644);
 int sc_set_blur;
 module_param_named(sc_set_blur, sc_set_blur, uint, 0644);
 
+int sc_show_stat;
+module_param_named(sc_show_stat, sc_show_stat, uint, 0644);
+
 #define BUF_EXT_SIZE	512
 #define BUF_WIDTH_ALIGN	128
 
@@ -2388,6 +2391,8 @@ static void sc_watchdog(unsigned long arg)
 
 	if (test_bit(DEV_RUN, &sc->state)) {
 		sc_hwregs_dump(sc);
+		if (sc->current_ctx)
+			sc_ctx_dump(sc->current_ctx);
 		exynos_sysmmu_show_status(sc->dev);
 		atomic_inc(&sc->wdt.cnt);
 		dev_err(sc->dev, "scaler is still running\n");
@@ -2689,6 +2694,11 @@ static int sc_run_next_job(struct sc_dev *sc)
 		sc_hwset_flip_rotation(sc, ctx->flip_rot_cfg);
 
 	sc_hwset_int_en(sc);
+
+	if (sc_show_stat & 0x1)
+		sc_hwregs_dump(sc);
+	if (sc_show_stat & 0x2)
+		sc_ctx_dump(ctx);
 
 	mod_timer(&sc->wdt.timer, jiffies + SC_TIMEOUT);
 

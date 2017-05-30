@@ -1037,6 +1037,8 @@ static void sc_print_irq_err_status(struct sc_dev *sc, u32 status)
 	status >>= 1; /* ignore the INT_STATUS_FRAME_END */
 	if (status) {
 		sc_hwregs_dump(sc);
+		if (sc->current_ctx)
+			sc_ctx_dump(sc->current_ctx);
 
 		while (status) {
 			if (status & 1)
