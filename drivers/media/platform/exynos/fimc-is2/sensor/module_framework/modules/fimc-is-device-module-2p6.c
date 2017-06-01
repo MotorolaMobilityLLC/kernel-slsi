@@ -105,10 +105,9 @@ static const struct v4l2_subdev_ops subdev_ops = {
 	.pad = &pad_ops
 };
 
-static int sensor_module_2p6_power_setpin_with_af(struct platform_device *pdev,
+static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 	struct exynos_platform_fimc_is_module *pdata)
 {
-	struct device *dev;
 	struct device_node *dnode;
 	int gpio_reset = 0;
 	int gpio_mclk = 0;
@@ -124,9 +123,8 @@ static int sensor_module_2p6_power_setpin_with_af(struct platform_device *pdev,
 	int gpio_ois_io_en = 0;
 #endif
 
-	BUG_ON(!pdev);
+	BUG_ON(!dev);
 
-	dev = &pdev->dev;
 	dnode = dev->of_node;
 
 	dev_info(dev, "%s E v4\n", __func__);
@@ -227,7 +225,9 @@ static int sensor_module_2p6_power_setpin_with_af(struct platform_device *pdev,
 	if (gpio_is_valid(gpio_cam_avdd_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_cam_avdd_en, "pdaf gpio_cam_avdd_en", PIN_OUTPUT, 1, 200);
 	} else {
+#if !defined (CONFIG_SOC_EXYNOS7885)
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDA_2.8V_CAM", PIN_REGULATOR, 1, 200);
+#endif
 	}
 
 #if defined (CONFIG_OIS_USE)
@@ -418,10 +418,9 @@ static int sensor_module_2p6_power_setpin_with_af(struct platform_device *pdev,
 	return 0;
 }
 
-static int sensor_module_2p6_power_setpin(struct platform_device *pdev,
+static int sensor_module_2p6_power_setpin(struct device *dev,
 	struct exynos_platform_fimc_is_module *pdata)
 {
-	struct device *dev;
 	struct device_node *dnode;
 	int gpio_reset = 0;
 	int gpio_mclk = 0;
@@ -430,9 +429,8 @@ static int sensor_module_2p6_power_setpin(struct platform_device *pdev,
 	int gpio_cam_avdd_en = 0;
 	int gpio_cam_io_en = 0;
 
-	BUG_ON(!pdev);
+	BUG_ON(!dev);
 
-	dev = &pdev->dev;
 	dnode = dev->of_node;
 
 	dev_info(dev, "%s E v4\n", __func__);
@@ -551,7 +549,7 @@ static int sensor_module_2p6_power_setpin(struct platform_device *pdev,
 	return 0;
 }
 
-static int (* module_2p6_power_setpin[MAX_2P6_SETPIN_CNT])(struct platform_device *pdev,
+static int (* module_2p6_power_setpin[MAX_2P6_SETPIN_CNT])(struct device *pdev,
 	struct exynos_platform_fimc_is_module *pdata) = {
 	sensor_module_2p6_power_setpin,
 	sensor_module_2p6_power_setpin_with_af
@@ -596,7 +594,7 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 
 	probe_info("%s exist_actuator(%d)\n", __func__, exist_actuator);
 
-	fimc_is_sensor_module_parse_dt(pdev, module_2p6_power_setpin[exist_actuator]);
+	fimc_is_module_parse_dt(dev, module_2p6_power_setpin[exist_actuator]);
 
 	pdata = dev_get_platdata(dev);
 	device = &core->sensor[pdata->id];
