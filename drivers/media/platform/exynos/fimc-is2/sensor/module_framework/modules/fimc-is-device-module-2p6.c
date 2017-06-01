@@ -270,7 +270,7 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 	if (gpio_is_valid(gpio_cam_af_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_cam_af_en, "pdaf gpio_cam_af_en", PIN_OUTPUT, 0, 200);
 	} else {
-		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDAF_2.8V_CAM", PIN_REGULATOR, 0, 200);
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDD_CAM_AF_2P8", PIN_REGULATOR, 0, 200);
 	}
 
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 1, 0);
@@ -412,6 +412,70 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 		SET_PIN(pdata, SENSOR_SCENARIO_OIS_FACTORY, GPIO_SCENARIO_OFF, gpio_ois_io_en, "pdaf gpio_ois_io_en", PIN_OUTPUT, 0, 10);
 	}
 #endif
+
+	/* VISION - POWER ON */
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_reset, "pdaf sen_rst low", PIN_OUTPUT, 0, 0);
+
+	if (gpio_is_valid(gpio_cam_avdd_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_cam_avdd_en, "pdaf gpio_cam_avdd_en", PIN_OUTPUT, 1, 200);
+	} else {
+#if !defined (CONFIG_SOC_EXYNOS7885)
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "VDDA_2.8V_CAM", PIN_REGULATOR, 1, 200);
+#endif
+	}
+
+	if (gpio_is_valid(gpio_core_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_core_en, "pdaf gpio_core_en", PIN_OUTPUT, 1, 200);
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "VDDD_1.2V_CAM", PIN_REGULATOR, 1, 200);
+	}
+
+	if (gpio_is_valid(gpio_cam_af_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_cam_af_en, "pdaf gpio_cam_af_en", PIN_OUTPUT, 1, 7000);
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "VDD_CAM_AF_2P8", PIN_REGULATOR, 1, 7000);
+	}
+
+	if (gpio_is_valid(gpio_cam_io_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_cam_io_en, "pdaf gpio_cam_io_en", PIN_OUTPUT, 1, 3000);
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "VDDIO_1.8V_CAM", PIN_REGULATOR, 1, 3000);
+	}
+
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_reset, "pdaf sen_rst high", PIN_OUTPUT, 1, 500);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
+
+	/* VISION - POWER OFF */
+	if (gpio_is_valid(gpio_cam_af_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_cam_af_en, "pdaf gpio_cam_af_en", PIN_OUTPUT, 0, 200);
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "VDD_CAM_AF_2P8", PIN_REGULATOR, 0, 200);
+	}
+
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "pin_none", PIN_NONE, 1, 500);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_reset, "pdaf sen_rst", PIN_OUTPUT, 0, 200);
+
+	if (gpio_is_valid(gpio_cam_io_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_cam_io_en, "pdaf gpio_cam_io_en", PIN_OUTPUT, 0, 100);
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "VDDIO_1.8V_CAM", PIN_REGULATOR, 0, 100);
+	}
+
+	if (gpio_is_valid(gpio_core_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_core_en, "pdaf gpio_core_en", PIN_OUTPUT, 0, 100);
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "VDDD_1.2V_CAM", PIN_REGULATOR, 0, 100);
+	}
+
+	if (gpio_is_valid(gpio_cam_avdd_en)) {
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_cam_avdd_en, "pdaf gpio_cam_avdd_en", PIN_OUTPUT, 0, 100);
+	} else {
+#if !defined (CONFIG_SOC_EXYNOS7885)
+		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "VDDA_2.8V_CAM", PIN_REGULATOR, 0, 100);
+#endif
+	}
+
 
 	dev_info(dev, "%s X v4\n", __func__);
 
