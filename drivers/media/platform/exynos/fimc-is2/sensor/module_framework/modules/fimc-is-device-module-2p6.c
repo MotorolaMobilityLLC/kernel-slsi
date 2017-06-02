@@ -52,9 +52,9 @@ enum sensor_module_2p6_position {
 
 static struct fimc_is_sensor_cfg config_module_2p6[] = {
 	/* 4624x3468@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(4624, 3468, 30, 32, 0, CSI_DATA_LANES_4, 0, SET_VC(VC_TAIL_MODE_PDAF, 144, 864), 0, 0),
+	FIMC_IS_SENSOR_CFG_EXT(4624, 3468, 30, 32, 0, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 1152, 864), 0, 0),
 	/* 4624x2624@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(4624, 2624, 30, 32, 1, CSI_DATA_LANES_4, 0, SET_VC(VC_TAIL_MODE_PDAF, 144, 640), 0, 0),
+	FIMC_IS_SENSOR_CFG_EXT(4624, 2624, 30, 32, 1, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 1152, 656), 0, 0),
 	/* 2312x1734@30fps */
 	FIMC_IS_SENSOR_CFG(2312, 1734, 30, 32, 2, CSI_DATA_LANES_4),
 	/* 2312x1734@15fps */
@@ -70,13 +70,22 @@ static struct fimc_is_sensor_cfg config_module_2p6[] = {
 static struct fimc_is_vci vci_module_2p6[] = {
 	{
 		.pixelformat = V4L2_PIX_FMT_SBGGR10,
-		.config = {{0, HW_FORMAT_RAW10}, {1, HW_FORMAT_RAW10}, {2, HW_FORMAT_USER}, {3, 0}}
+		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
+			{1, HW_FORMAT_USER, VCI_DMA_INTERNAL},
+			{2, 0, VCI_DMA_NORMAL},
+			{3, 0, VCI_DMA_NORMAL}}
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR12,
-		.config = {{0, HW_FORMAT_RAW10}, {1, HW_FORMAT_RAW10}, {2, HW_FORMAT_USER}, {3, 0}}
+		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
+			{1, HW_FORMAT_USER, VCI_DMA_INTERNAL},
+			{2, 0, VCI_DMA_NORMAL},
+			{3, 0, VCI_DMA_NORMAL}}
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR16,
-		.config = {{0, HW_FORMAT_RAW10}, {1, HW_FORMAT_RAW10}, {2, HW_FORMAT_USER}, {3, 0}}
+		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
+			{1, HW_FORMAT_USER, VCI_DMA_INTERNAL},
+			{2, 0, VCI_DMA_NORMAL},
+			{3, 0, VCI_DMA_NORMAL}}
 	}
 };
 
