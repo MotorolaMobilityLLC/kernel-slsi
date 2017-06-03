@@ -136,6 +136,16 @@
 #define EXYNOS_TMU_T_BUF_SLOPE_SEL_MASK		(0xF)
 #define EXYNOS_TMU_T_BUF_CONT_MASK		(0xF)
 
+#define EXYNOS_TMU_REG_TRIM0			(0x3C)
+#define EXYNOS_TMU_T_TRIM0_SHIFT		(18)
+#define EXYNOS_TMU_T_TRIM0_MASK			(0xF)
+#define EXYNOS_TMU_BGRI_TRIM_SHIFT		(20)
+#define EXYNOS_TMU_BGRI_TRIM_MASK		(0xF)
+#define EXYNOS_TMU_VREF_TRIM_SHIFT		(12)
+#define EXYNOS_TMU_VREF_TRIM_MASK		(0xF)
+#define EXYNOS_TMU_VBEI_TRIM_SHIFT		(8)
+#define EXYNOS_TMU_VBEI_TRIM_MASK		(0xF)
+
 #define EXYNOS_TMU_REG_INTPEND0			(0x118)
 #define EXYNOS_TMU_REG_INTPEND5			(0x318)
 #define EXYNOS_TMU_REG_INTPEND8			(0x658)
@@ -201,6 +211,10 @@ static bool is_cpu_hotplugged_out;
 static LIST_HEAD(dtm_dev_list);
 
 static u32 global_avg_con;
+
+static u32 t_bgri_trim;
+static u32 t_vref_trim;
+static u32 t_vbei_trim;
 
 static void exynos_report_trigger(struct exynos_tmu_data *p)
 {
@@ -1198,6 +1212,17 @@ static void exynos9810_tmu_control(struct platform_device *pdev, bool on)
 	counter_value |= EXYNOS_TMU_TEM1051X_SENSE_VALUE << EXYNOS_TMU_CLK_SENSE_ON_SHIFT;
 	writel(counter_value, data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
 
+	/* set TRIM0 BGR_I/VREF/VBE_I */
+	/* write TRIM0 values read from TMU_TOP to each TMU_TOP and TMU_SUB */
+	ctrl = readl(data->base + EXYNOS_TMU_REG_TRIM0);
+	ctrl &= ~(EXYNOS_TMU_BGRI_TRIM_MASK << EXYNOS_TMU_BGRI_TRIM_SHIFT);
+	ctrl &= ~(EXYNOS_TMU_VREF_TRIM_MASK << EXYNOS_TMU_VREF_TRIM_SHIFT);
+	ctrl &= ~(EXYNOS_TMU_VBEI_TRIM_MASK << EXYNOS_TMU_VBEI_TRIM_SHIFT);
+	ctrl |= (t_bgri_trim << EXYNOS_TMU_BGRI_TRIM_SHIFT);
+	ctrl |= (t_vref_trim << EXYNOS_TMU_VREF_TRIM_SHIFT);
+	ctrl |= (t_vbei_trim << EXYNOS_TMU_VBEI_TRIM_SHIFT);
+	writel(ctrl, data->base + EXYNOS_TMU_REG_TRIM0);
+
 	tmu_irqs_enable(pdev);
 	tmu_core_enable(pdev);
 }
@@ -2145,6 +2170,7 @@ struct exynos_tmu_data *gpu_thermal_data;
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data;
+	unsigned int ctrl;
 	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
@@ -2186,6 +2212,17 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	data->num_probe = (readl(data->base + EXYNOS_TMU_REG_CONTROL1) >> EXYNOS_TMU_NUM_PROBE_SHIFT)
 				& EXYNOS_TMU_NUM_PROBE_MASK;
+
+#if defined(CONFIG_SOC_EXYNOS9810)
+	if (data->id == 0) {
+		ctrl = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(3));
+		t_bgri_trim = (ctrl >> EXYNOS_TMU_T_TRIM0_SHIFT) & EXYNOS_TMU_T_TRIM0_MASK;
+		ctrl = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(4));
+		t_vref_trim = (ctrl >> EXYNOS_TMU_T_TRIM0_SHIFT) & EXYNOS_TMU_T_TRIM0_MASK;
+		ctrl = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(5));
+		t_vbei_trim = (ctrl >> EXYNOS_TMU_T_TRIM0_SHIFT) & EXYNOS_TMU_T_TRIM0_MASK;
+	}
+#endif
 
 	ret = exynos_tmu_initialize(pdev);
 	if (ret) {
