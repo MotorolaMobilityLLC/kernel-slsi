@@ -316,7 +316,9 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 	if (gpio_is_valid(gpio_cam_avdd_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_cam_avdd_en, "pdaf gpio_cam_avdd_en", PIN_OUTPUT, 0, 100);
 	} else {
+#if !defined (CONFIG_SOC_EXYNOS7885)
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDA_2.8V_CAM", PIN_REGULATOR, 0, 100);
+#endif
 	}
 
 	/* READ_ROM - POWER ON */
