@@ -49,10 +49,10 @@ static bool __need_migrate_cma_page(struct page *page,
 	if (!(flags & FOLL_CMA))
 		return false;
 
-	migrate_prep_local();
-
-	if (!PageLRU(page))
+	if (WARN_ON(!PageLRU(page))) {
+		__dump_page(page, "non-lru cma page");
 		return false;
+	}
 
 	return true;
 }
@@ -782,6 +782,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	 */
 	if (!(gup_flags & FOLL_FORCE))
 		gup_flags |= FOLL_NUMA;
+
+	if ((gup_flags & FOLL_CMA) != 0)
+		migrate_prep();
 
 	do {
 		struct page *page;
