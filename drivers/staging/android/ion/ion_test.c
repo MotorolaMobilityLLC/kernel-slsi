@@ -200,7 +200,7 @@ static long ion_test_ioctl(struct file *filp, unsigned int cmd,
 	}
 
 	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (copy_to_user((void __user *)arg, &data, sizeof(data)))
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 	}
 	return ret;
