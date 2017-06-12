@@ -42,6 +42,14 @@ module_param_named(sc_log_level, sc_log_level, uint, 0644);
 int sc_set_blur;
 module_param_named(sc_set_blur, sc_set_blur, uint, 0644);
 
+#define BUF_EXT_SIZE	512
+#define BUF_WIDTH_ALIGN	128
+
+static inline unsigned int sc_ext_buf_size(int width)
+{
+	return IS_ALIGNED(width, BUF_WIDTH_ALIGN) ? 0 : BUF_EXT_SIZE;
+}
+
 /*
  * If true, writes the latency of H/W operation to v4l2_buffer.reserved2
  * in the unit of nano seconds.  It must not be enabled with real use-case
@@ -360,6 +368,7 @@ static const struct sc_variant sc_variant[] = {
 		.ratio_20bit		= 1,
 		.initphase		= 1,
 		.pixfmt_10bit		= 1,
+		.extra_buf		= 1,
 	}, {
 		.limit_input = {
 			.min_w		= 16,
@@ -654,7 +663,7 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 }
 
 static int sc_calc_fmt_s10b_size(const struct sc_fmt *sc_fmt,
-		struct v4l2_pix_format_mplane *pixm)
+		struct v4l2_pix_format_mplane *pixm, unsigned int ext_size)
 {
 	int i, ret;
 
@@ -668,8 +677,13 @@ static int sc_calc_fmt_s10b_size(const struct sc_fmt *sc_fmt,
 			pixm->width, pixm->height,
 			&pixm->plane_fmt[0].sizeimage,
 			&pixm->plane_fmt[1].sizeimage, false);
-	if (ret)
+	if (ret) {
 		pr_err("Scaler doesn't support %s format\n", sc_fmt->name);
+		return ret;
+	}
+
+	for (i = 0; ext_size && i < pixm->num_planes; i++)
+		pixm->plane_fmt[i].sizeimage += (i == 0) ? ext_size : ext_size/2;
 
 	return ret;
 }
@@ -684,6 +698,7 @@ static int sc_v4l2_try_fmt_mplane(struct file *file, void *fh,
 	int i;
 	int h_align = 0;
 	int w_align = 0;
+	unsigned int ext_size = 0;
 
 	if (!V4L2_TYPE_IS_MULTIPLANAR(f->type)) {
 		v4l2_err(&ctx->sc_dev->m2m.v4l2_dev,
@@ -718,8 +733,11 @@ static int sc_v4l2_try_fmt_mplane(struct file *file, void *fh,
 	pixm->num_planes = sc_fmt->num_planes;
 	pixm->colorspace = 0;
 
+	if (ctx->sc_dev->variant->extra_buf && V4L2_TYPE_IS_OUTPUT(f->type))
+		ext_size = sc_ext_buf_size(pixm->width);
+
 	if (sc_fmt_is_s10bit_yuv(sc_fmt->pixelformat))
-		return sc_calc_fmt_s10b_size(sc_fmt, pixm);
+		return sc_calc_fmt_s10b_size(sc_fmt, pixm, ext_size);
 
 	for (i = 0; i < pixm->num_planes; ++i) {
 		pixm->plane_fmt[i].bytesperline = (pixm->width *
@@ -740,6 +758,9 @@ static int sc_v4l2_try_fmt_mplane(struct file *file, void *fh,
 				i, pixm->plane_fmt[i].bytesperline,
 				pixm->plane_fmt[i].sizeimage);
 	}
+
+	for (i = 0; ext_size && i < pixm->num_planes; i++)
+		pixm->plane_fmt[i].sizeimage += (i == 0) ? ext_size : ext_size/2;
 
 	return 0;
 }
@@ -1101,9 +1122,13 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 {
 	struct sc_frame *frame = &int_frame->frame;
 	unsigned int pixsize, bytesize;
+	unsigned int ext_size = 0, i;
 
 	pixsize = frame->width * frame->height;
 	bytesize = (pixsize * frame->sc_fmt->bitperpixel[0]) >> 3;
+
+	if (sc->variant->extra_buf)
+		ext_size = sc_ext_buf_size(frame->width);
 
 	switch (frame->sc_fmt->num_comp) {
 	case 1:
@@ -1145,6 +1170,9 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 	default:
 		break;
 	}
+
+	for (i = 0; ext_size && i < frame->sc_fmt->num_comp; i++)
+		frame->addr.size[i] += (i == 0) ? ext_size : ext_size/2;
 
 	memcpy(&int_frame->src_addr, &frame->addr, sizeof(int_frame->src_addr));
 	memcpy(&int_frame->dst_addr, &frame->addr, sizeof(int_frame->dst_addr));
@@ -2952,6 +2980,7 @@ static int sc_m2m1shot_prepare_format(struct m2m1shot_context *m21ctx,
 					&ctx->s_frame : &ctx->d_frame;
 	s32 size_min = (dir == DMA_TO_DEVICE) ? 16 : 4;
 	int i;
+	unsigned int ext_size = 0;
 
 	frame->sc_fmt = sc_find_format(ctx->sc_dev, fmt->fmt,
 						(dir == DMA_TO_DEVICE));
@@ -3017,6 +3046,13 @@ static int sc_m2m1shot_prepare_format(struct m2m1shot_context *m21ctx,
 			bytes_used[i] *= frame->sc_fmt->bitperpixel[i];
 			bytes_used[i] /= 8;
 		}
+	}
+
+	if (ctx->sc_dev->variant->extra_buf && dir == DMA_TO_DEVICE) {
+		ext_size = sc_ext_buf_size(fmt->width);
+
+		for (i = 0; i < frame->sc_fmt->num_planes; i++)
+			bytes_used[i] += (i == 0) ? ext_size : ext_size/2;
 	}
 
 	frame->width = fmt->width;
