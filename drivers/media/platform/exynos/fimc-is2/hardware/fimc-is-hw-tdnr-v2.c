@@ -240,6 +240,17 @@ static int fimc_is_hw_mcsc_cfg_tdnr_rdma(struct fimc_is_hw_ip *hw_ip,
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
+	/* buffer addr setting
+	 * at OTF, RDMA[n+1] = WDMA[n]
+	 *
+	 * image buffer
+	 */
+	if (tdnr_mode == TDNR_MODE_2DNR) {
+		fimc_is_scaler_clear_tdnr_rdma_addr(hw_ip->regs, TDNR_IMAGE);
+		fimc_is_scaler_clear_tdnr_rdma_addr(hw_ip->regs, TDNR_WEIGHT);
+		return ret;
+	}
+
 	fimc_is_scaler_get_tdnr_wdma_addr(hw_ip->regs, TDNR_IMAGE,
 			&prev_wdma_addr, NULL, NULL, USE_DMA_BUFFER_INDEX);
 	fimc_is_scaler_set_tdnr_rdma_addr(hw_ip->regs, TDNR_IMAGE,
@@ -252,12 +263,12 @@ static int fimc_is_hw_mcsc_cfg_tdnr_rdma(struct fimc_is_hw_ip *hw_ip,
 	fimc_is_scaler_get_tdnr_wdma_size(hw_ip->regs,
 			TDNR_IMAGE, &prev_width, &prev_height);
 	fimc_is_scaler_get_tdnr_wdma_stride(hw_ip->regs,
-			TDNR_IMAGE, &prev_y_stride, NULL);
+			TDNR_IMAGE, &prev_y_stride, &prev_uv_stride);
 
 	if (prev_width == 0 || prev_height == 0
-			|| prev_y_stride == 0 || prev_uv_stride == 0) {
-		warn_hw("[ID:%d] MCSC prev_image size(%dx%d), stride(y:%d,uv:%d)is invalid",
-				hw_ip->id, prev_width, prev_height, prev_y_stride, prev_uv_stride);
+			|| prev_y_stride == 0) {
+		warn_hw("[ID:%d] MCSC prev_image size(%dx%d), stride(y:%d)is invalid",
+				hw_ip->id, prev_width, prev_height, prev_y_stride);
 		return -EINVAL;
 	}
 
@@ -288,22 +299,37 @@ static int fimc_is_hw_mcsc_cfg_tdnr_wdma(struct fimc_is_hw_ip *hw_ip,
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
-	if (tdnr_mode == TDNR_MODE_2DNR) {
+	switch (tdnr_mode) {
+	case TDNR_MODE_2DNR:
 		wdma_addr = hw_mcsc->dvaddr_tdnr[0];
-	} else if (tdnr_mode == TDNR_MODE_3DNR) {
+		break;
+	case TDNR_MODE_3DNR:
 		fimc_is_scaler_get_tdnr_wdma_addr(hw_ip->regs, TDNR_IMAGE,
 				&prev_wdma_addr, NULL, NULL, USE_DMA_BUFFER_INDEX);
 		wdma_addr = (prev_wdma_addr == hw_mcsc->dvaddr_tdnr[0]) ?
 			hw_mcsc->dvaddr_tdnr[1] : hw_mcsc->dvaddr_tdnr[0];
+		break;
+	case TDNR_MODE_BYPASS:
+	default:
+		return -EINVAL;
 	}
+
 	fimc_is_scaler_set_tdnr_wdma_addr(hw_ip->regs, TDNR_IMAGE,
 			wdma_addr, 0, 0, USE_DMA_BUFFER_INDEX);
 
 	if (hw_mcsc->cur_tdnr_mode == TDNR_MODE_3DNR && tdnr_mode == TDNR_MODE_3DNR)
 		return ret;
 
-	fimc_is_scaler_get_tdnr_wdma_size(hw_ip->regs,
-			TDNR_IMAGE, &img_width, &img_height);
+	switch (tdnr_mode) {
+	case TDNR_MODE_2DNR:
+	case TDNR_MODE_3DNR:
+		img_width = mcs_param->input.width;
+		img_height = mcs_param->input.height;
+		break;
+	case TDNR_MODE_BYPASS:
+	default:
+		return -EINVAL;
+	}
 
 	if (hw_mcsc->yic_en == TDNR_YIC_ENABLE) {
 		/* Compression */
