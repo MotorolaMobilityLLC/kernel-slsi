@@ -1584,7 +1584,7 @@ static int __init thermal_init(void)
 
 	attr.nice = 0;
 	attr.no_numa = true;
-	cpumask_copy(attr.cpumask, &hmp_slow_cpu_mask);
+	cpumask_copy(attr.cpumask, cpu_coregroup_mask(0));
 
 	thermal_wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_UNBOUND |\
 			WQ_MEM_RECLAIM | WQ_FREEZABLE,
