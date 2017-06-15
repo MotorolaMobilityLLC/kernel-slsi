@@ -427,27 +427,8 @@ int sensor_2p6_cis_set_global_setting(struct v4l2_subdev *subdev)
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	BUG_ON(!cis);
 
-	/* ARM start */
-	ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
-	ret = fimc_is_sensor_write16(cis->client, 0x6010, 0x0001);
-	/* 3ms delay to operate sensor FW */
-	usleep_range(3000, 3000);
-
-	/* setfile global setting is at camera entrance */
-	if (cis->use_pdaf == true) {
-		ret = sensor_cis_set_registers(subdev, sensor_2p6_pdaf_global, sensor_2p6_pdaf_global_size);
-	} else {
-		ret = sensor_cis_set_registers(subdev, sensor_2p6_global, sensor_2p6_global_size);
-	}
-
-	if (ret < 0) {
-		err("sensor_2p6_set_registers fail!!");
-		goto p_err;
-	}
-
 	dbg_sensor(1, "[%s] global setting done\n", __func__);
 
-p_err:
 	return ret;
 }
 
