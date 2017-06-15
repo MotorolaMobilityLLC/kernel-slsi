@@ -363,13 +363,22 @@ static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
  */
 static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 {
-	unsigned int ipclk = clk_get_rate(i2c->rate_clk);
+	unsigned int ipclk, ret;
 	unsigned int op_clk = (mode == HSI2C_HIGH_SPD) ?
 		i2c->hs_clock : i2c->fs_clock;
 
 	u32 hs_div, uTSCL_H_HS, uTSTART_HD_HS;
 	u32 fs_div, uTSCL_H_FS, uTSTART_HD_FS;
 	u32 utemp;
+
+	if (i2c->default_clk) {
+		ret = clk_set_rate(i2c->rate_clk, i2c->default_clk);
+
+		if (ret < 0)
+			dev_err(i2c->dev, "Failed to set clock\n");
+	}
+
+	ipclk = clk_get_rate(i2c->rate_clk);
 
 	if (mode == HSI2C_HIGH_SPD) {
 		/* ipclk's unit is Hz, op_clk's unit is Hz */
@@ -941,6 +950,9 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no memory for state\n");
 		return -ENOMEM;
 	}
+
+	if (of_property_read_u32(np, "default-clk", &i2c->default_clk))
+		dev_err(i2c->dev, "Failed to get default clk info\n");
 
 	/* Mode of operation High/Fast Speed mode */
 	if (of_get_property(np, "samsung,hs-mode", NULL)) {

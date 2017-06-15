@@ -41,6 +41,9 @@ struct exynos5_i2c {
 	unsigned int		fs_clock;
 	unsigned int		hs_clock;
 
+	/* to set the source clock */
+	unsigned int		default_clk;
+
 	/*
 	 * HSI2C Controller can operate in
 	 * 1. High speed upto 3.4Mbps
