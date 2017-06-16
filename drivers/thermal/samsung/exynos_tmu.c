@@ -2396,63 +2396,34 @@ static void exynos_acpm_tmu_test_cp_call(bool mode)
 	}
 }
 
-static ssize_t test_cp_call_write(struct file *file, const char __user *user_buf,
-					size_t count, loff_t *ppos)
+static int emul_call_get(void *data, unsigned long long *val)
 {
-	ssize_t len;
-	char buf[32];
+	*val = exynos_acpm_tmu_is_test_mode();
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-	if (len < 0)
-		return len;
-
-	buf[len] = '\0';
-
-	if (buf[0] == '1' && exynos_acpm_tmu_is_test_mode() == false) {
-		exynos_acpm_tmu_set_test_mode(true);
-		exynos_acpm_tmu_test_cp_call(true);
-	} else if (buf[0] == '0' && exynos_acpm_tmu_is_test_mode() == true) {
-		exynos_acpm_tmu_set_test_mode(false);
-		exynos_acpm_tmu_test_cp_call(false);
-	} else
-		return -EINVAL;
-
-	return len;
+	return 0;
 }
 
-static const struct file_operations test_cp_call_ops = {
-	.open = simple_open,
-	.write = test_cp_call_write,
-	.llseek = default_llseek,
-};
-
-static ssize_t acpm_tmu_log_write(struct file *file, const char __user *user_buf,
-					size_t count, loff_t *ppos)
+static int emul_call_set(void *data, unsigned long long val)
 {
-	ssize_t len;
-	char buf[32];
+	int status = exynos_acpm_tmu_is_test_mode();
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-	if (len < 0)
-		return len;
+	if ((val == 0 || val == 1) && (val != status)) {
+		exynos_acpm_tmu_set_test_mode(val);
+		exynos_acpm_tmu_test_cp_call(val);
+	}
 
-	buf[len] = '\0';
-
-	if (buf[0] == '1')
-		exynos_acpm_tmu_log(true);
-	else if (buf[0] == '0')
-		exynos_acpm_tmu_log(false);
-	else
-		return -EINVAL;
-
-	return len;
+	return 0;
 }
+DEFINE_SIMPLE_ATTRIBUTE(emul_call_fops, emul_call_get, emul_call_set, "%llu\n");
 
-static const struct file_operations acpm_tmu_log_ops = {
-	.open = simple_open,
-	.write = acpm_tmu_log_write,
-	.llseek = default_llseek,
-};
+static int log_print_set(void *data, unsigned long long val)
+{
+	if (val == 0 || val == 1)
+		exynos_acpm_tmu_log(val);
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(log_print_fops, NULL, log_print_set, "%llu\n");
 
 static ssize_t ipc_dump1_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
@@ -2522,8 +2493,8 @@ static int exynos_thermal_create_debugfs(void)
 	}
 
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
-	debugfs_create_file("test_cp_call", 0x200, debugfs_root, NULL, &test_cp_call_ops);
-	debugfs_create_file("acpm_tmu_log", 0x200, debugfs_root, NULL, &acpm_tmu_log_ops);
+	debugfs_create_file("emul_call", 0644, debugfs_root, NULL, &emul_call_fops);
+	debugfs_create_file("log_print", 0644, debugfs_root, NULL, &log_print_fops);
 	debugfs_create_file("ipc_dump1", 0644, debugfs_root, NULL, &ipc_dump1_fops);
 	debugfs_create_file("ipc_dump2", 0644, debugfs_root, NULL, &ipc_dump2_fops);
 #endif
