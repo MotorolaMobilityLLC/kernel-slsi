@@ -271,6 +271,45 @@ int exynos_acpm_tmu_set_resume(void)
 	return 0;
 }
 
+int exynos_acpm_tmu_ipc_dump(int no, unsigned int dump[])
+{
+	struct ipc_config config;
+	union tmu_ipc_message message;
+	unsigned long long before, after, latency;
+	int ret;
+
+	memset(&message, 0, sizeof(message));
+
+	message.req.type = TMU_IPC_READ_TEMP;
+	message.req.tzid = no;
+
+	config.cmd = message.data;
+	config.response = true;
+	config.indirection = false;
+
+	before = sched_clock();
+	ret = acpm_ipc_send_data(acpm_tmu_ch_num, &config);
+	after = sched_clock();
+	latency = after - before;
+
+	acpm_ipc_err_check();
+	acpm_ipc_latency_check();
+
+	memcpy(message.data, config.cmd, sizeof(message.data));
+	if (acpm_tmu_log) {
+		pr_info("[acpm_tmu_dump] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+				message.data[0],
+				message.data[1],
+				message.data[2],
+				message.data[3]);
+	}
+
+	dump[0] = message.data[2];
+	dump[1] = message.data[3];
+
+	return 0;
+}
+
 static int __init exynos_acpm_tmu_init(void)
 {
 	struct device_node *np;

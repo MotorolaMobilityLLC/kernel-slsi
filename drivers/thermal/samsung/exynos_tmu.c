@@ -2453,6 +2453,62 @@ static const struct file_operations acpm_tmu_log_ops = {
 	.write = acpm_tmu_log_write,
 	.llseek = default_llseek,
 };
+
+static ssize_t ipc_dump1_read(struct file *file, char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	union {
+		unsigned int dump[2];
+		unsigned char val[8];
+	} data;
+	char buf[48];
+	ssize_t ret;
+
+	exynos_acpm_tmu_ipc_dump(0, data.dump);
+
+	ret = snprintf(buf, sizeof(buf), "%3d %3d %3d %3d %3d %3d %3d\n",
+			data.val[1], data.val[2], data.val[3],
+			data.val[4], data.val[5], data.val[6], data.val[7]);
+	if (ret < 0)
+		return ret;
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+}
+
+static ssize_t ipc_dump2_read(struct file *file, char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	union {
+		unsigned int dump[2];
+		unsigned char val[8];
+	} data;
+	char buf[48];
+	ssize_t ret;
+
+	exynos_acpm_tmu_ipc_dump(2, data.dump);
+
+	ret = snprintf(buf, sizeof(buf), "%3d %3d %3d %3d %3d %3d %3d\n",
+			data.val[1], data.val[2], data.val[3],
+			data.val[4], data.val[5], data.val[6], data.val[7]);
+	if (ret < 0)
+		return ret;
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+
+}
+
+static const struct file_operations ipc_dump1_fops = {
+	.open = simple_open,
+	.read = ipc_dump1_read,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations ipc_dump2_fops = {
+	.open = simple_open,
+	.read = ipc_dump2_read,
+	.llseek = default_llseek,
+};
+
 #endif
 
 static struct dentry *debugfs_root;
@@ -2468,6 +2524,8 @@ static int exynos_thermal_create_debugfs(void)
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 	debugfs_create_file("test_cp_call", 0x200, debugfs_root, NULL, &test_cp_call_ops);
 	debugfs_create_file("acpm_tmu_log", 0x200, debugfs_root, NULL, &acpm_tmu_log_ops);
+	debugfs_create_file("ipc_dump1", 0644, debugfs_root, NULL, &ipc_dump1_fops);
+	debugfs_create_file("ipc_dump2", 0644, debugfs_root, NULL, &ipc_dump2_fops);
 #endif
 	return 0;
 }
