@@ -659,6 +659,9 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 		break;
 	}
 
+	/* Do not consider extra size for 2bit CbCr */
+	*csize -= 256;
+
 	return ret;
 }
 
