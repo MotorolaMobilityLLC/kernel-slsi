@@ -890,14 +890,10 @@ int sensor_2p6_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param
 	if (ret < 0)
 		goto p_err;
 
-#ifdef S5K2P6_USE_WDR
 	/* Long exposure */
-	if (cis_data->companion_data.enable_wdr == true) {
-		ret = fimc_is_sensor_write16(client, 0x021E, long_coarse_int);
-		if (ret < 0)
-			goto p_err;
-	}
-#endif
+	ret = fimc_is_sensor_write16(client, 0x021E, long_coarse_int);
+	if (ret < 0)
+		goto p_err;
 
 	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), vt_pic_clk_freq_mhz (%d),"
 		KERN_CONT "line_length_pck(%d), min_fine_int (%d)\n", cis->id, __func__,
@@ -1558,15 +1554,11 @@ int sensor_2p6_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param 
 	if (ret < 0)
 		goto p_err;
 
-#ifdef S5K2P6_USE_WDR
 	/* Long digital gain */
-	if (cis_data->companion_data.enable_wdr == true) {
-		dgains[0] = dgains[1] = dgains[2] = dgains[3] = long_gain;
-		ret = fimc_is_sensor_write16_array(client, 0x3062, dgains, 4);
-		if (ret < 0)
-			goto p_err;
-	}
-#endif
+	dgains[0] = dgains[1] = dgains[2] = dgains[3] = long_gain;
+	ret = fimc_is_sensor_write16_array(client, 0x3062, dgains, 4);
+	if (ret < 0)
+		goto p_err;
 
 #ifdef DEBUG_SENSOR_TIME
 	do_gettimeofday(&end);
