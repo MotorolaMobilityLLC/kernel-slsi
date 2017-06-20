@@ -5921,6 +5921,9 @@ static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	hba = shost_priv(host);
 	tag = cmd->request->tag;
 
+	/* secure log */
+	exynos_smc(SMC_CMD_UFS_LOG, 1, 0, hba->secure_log.paddr);
+
 	/* Dump debugging information to system memory */
 	ufshcd_vops_dbg_register_dump(hba);
 	exynos_ufs_show_uic_info(hba);
@@ -6013,6 +6016,8 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	if (lrbp->lun == UFS_UPIU_UFS_DEVICE_WLUN)
 		return ufshcd_eh_host_reset_handler(cmd);
 
+	/* secure log */
+	exynos_smc(SMC_CMD_UFS_LOG, 1, 0, hba->secure_log.paddr);
 
 	if (cmd->cmnd[0] == READ_10 || cmd->cmnd[0] == WRITE_10) {
 		unsigned long lba = (cmd->cmnd[2] << 24) |

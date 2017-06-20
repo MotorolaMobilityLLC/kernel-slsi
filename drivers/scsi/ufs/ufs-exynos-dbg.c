@@ -971,8 +971,8 @@ static void exynos_ufs_get_sfr(struct ufs_hba *hba,
 				cfg->val = ufshcd_readl(hba, cfg->offset);
 			else if (sel_api == LOG_VS_HCI_SFR)
 				cfg->val = hci_readl(ufs, cfg->offset);
-//			else if (sel_api == LOG_FMP_SFR)
-//				cfg->val = exynos_smc(SMC_CMD_FMP_DUMP, 0, 0, cfg->offset);
+			else if (sel_api == LOG_FMP_SFR)
+				cfg->val = exynos_smc(SMC_CMD_FMP_SMU_DUMP, 0, 0, cfg->offset);
 			else if (sel_api == LOG_UNIPRO_SFR)
 				cfg->val = unipro_readl(ufs, cfg->offset);
 			else if (sel_api == LOG_PMA_SFR)
@@ -1116,8 +1116,8 @@ void exynos_ufs_dump_uic_info(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 
-//	/* secure log */
-//	exynos_smc(SMC_CMD_UFS_LOG, 1, 0, hba->secure_log.paddr);
+	/* secure log */
+	exynos_smc(SMC_CMD_UFS_LOG, 1, 0, hba->secure_log.paddr);
 
 	exynos_ufs_get_sfr(hba, ufs->debug.sfr);
 	exynos_ufs_get_attr(hba, ufs->debug.attr);
@@ -1163,8 +1163,8 @@ int exynos_ufs_init_dbg(struct ufs_hba *hba)
 		list_add_tail(&exynos_clki->list, &ufs->debug.misc.clk_list_head);
 	}
 
-//	hba->secure_log.paddr = exynos_ss_get_spare_paddr(0);
-//	hba->secure_log.vaddr = (u32 *)exynos_ss_get_spare_vaddr(0);
+	hba->secure_log.paddr = exynos_ss_get_spare_paddr(0);
+	hba->secure_log.vaddr = (u32 *)exynos_ss_get_spare_vaddr(0);
 
 	return 0;
 }

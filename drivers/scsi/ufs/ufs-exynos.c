@@ -648,7 +648,7 @@ success:
 	exynos_ufs_dev_hw_reset(hba);
 
 	/* secure log */
-//	exynos_smc(SMC_CMD_LOG, 0, 0, 2);
+	exynos_smc(SMC_CMD_UFS_LOG, 0, 0, 0);
 out:
 	return;
 }
@@ -893,7 +893,7 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	exynos_ufs_smu_resume(ufs);
 
 	/* secure log */
-//	exynos_smc(SMC_CMD_LOG, 0, 0, 2);
+	exynos_smc(SMC_CMD_UFS_LOG, 0, 0, 0);
 
 	if (ufshcd_is_clkgating_allowed(hba))
 		clk_disable_unprepare(ufs->clk_hci);
