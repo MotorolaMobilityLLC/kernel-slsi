@@ -727,6 +727,7 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 
 	switch (pixelformat) {
 	case V4L2_PIX_FMT_NV12M_S10B:
+	case V4L2_PIX_FMT_NV12N_10B:
 			*ysize = NV12M_Y_SIZE(width, height);
 			*csize = NV12M_CBCR_SIZE(width, height);
 		break;
@@ -745,6 +746,7 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 
 	switch (pixelformat) {
 	case V4L2_PIX_FMT_NV12M_S10B:
+	case V4L2_PIX_FMT_NV12N_10B:
 			*ysize += NV12M_Y_2B_SIZE(width, height);
 			*csize += NV12M_CBCR_2B_SIZE(width, height);
 		break;
