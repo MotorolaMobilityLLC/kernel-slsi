@@ -6012,10 +6012,10 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	exynos_smc(SMC_CMD_UFS_LOG, 1, 0, hba->secure_log.paddr);
 
 	if (cmd->cmnd[0] == READ_10 || cmd->cmnd[0] == WRITE_10) {
-		unsigned long lba = (cmd->cmnd[2] << 24) |
+		unsigned long lba = (unsigned long) ((cmd->cmnd[2] << 24) |
 					(cmd->cmnd[3] << 16) |
 					(cmd->cmnd[4] << 8) |
-					(cmd->cmnd[5] << 0);
+					(cmd->cmnd[5] << 0));
 		unsigned int sct = (cmd->cmnd[7] << 8) |
 					(cmd->cmnd[8] << 0);
 
