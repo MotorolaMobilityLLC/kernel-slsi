@@ -236,7 +236,7 @@ static int ufshcd_parse_pm_lvl_policy(struct ufs_hba *hba)
 			lvl[i] = lvl_def[i];
 		}
 
-		if (lvl[i] < UFS_PM_LVL_0 || lvl[i] >= UFS_PM_LVL_MAX) {
+		if (lvl[i] >= UFS_PM_LVL_MAX) {
 			dev_warn(hba->dev,
 				"UFS power management: out of range level%d index %d\n",
 				lvl[i], i);
