@@ -2716,7 +2716,8 @@ static bool ufshcd_get_dev_cmd_tag(struct ufs_hba *hba, int *tag_out)
 
 	do {
 		tmp = ~hba->lrb_in_use;
-		tag = find_last_bit(&tmp, hba->nutrs);
+		tmp &= BITMAP_LAST_WORD_MASK(hba->nutrs);
+		tag = (tmp) ? __fls(tmp) : ~0ul;
 		if (tag >= hba->nutrs)
 			goto out;
 	} while (test_and_set_bit_lock(tag, &hba->lrb_in_use));
