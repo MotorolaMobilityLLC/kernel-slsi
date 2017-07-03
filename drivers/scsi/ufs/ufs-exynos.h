@@ -540,6 +540,8 @@ struct exynos_ufs {
 	void __iomem *reg_unipro;
 	void __iomem *reg_ufsp;
 
+	struct regmap *pmureg;
+
 	struct clk *clk_hci;
 	struct clk *pclk;
 	struct clk *clk_unipro;
@@ -554,6 +556,7 @@ struct exynos_ufs {
 
 	struct exynos_ufs_phy phy;
 	struct exynos_ufs_sys sys;
+	struct notifier_block tcxo_nb;
 	struct uic_pwr_mode req_pmd_parm;
 	struct uic_pwr_mode act_pmd_parm;
 
@@ -657,6 +660,13 @@ extern int exynos_ufs_init_dbg(struct ufs_hba *hba);
 extern void exynos_ufs_show_uic_info(struct ufs_hba *hba);
 extern void exynos_ufs_cmd_log_start(struct ufs_hba *hba, struct scsi_cmnd *cmd);
 extern void exynos_ufs_cmd_log_end(struct ufs_hba *hba, int tag);
+
+/* TCXO UFS */
+enum shared_resource_owner {
+        OWNER_FIRST,
+        OWNER_SECOND,
+        OWNER_MAX,
+};
 
 #ifndef __EXYNOS_UFS_VS_DEBUG__
 #define __EXYNOS_UFS_VS_DEBUG__

@@ -23,6 +23,13 @@
 #include "ufs-exynos.h"
 #include "ufs-exynos-fmp.h"
 #include "ufs-exynos-smu.h"
+#include <soc/samsung/exynos-fsys0-tcxo.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+#include <linux/soc/samsung/exynos-soc.h>
+#include <linux/spinlock.h>
+
+
 
 
 /*
@@ -39,6 +46,10 @@
 
 #define IATOVAL_NSEC		20000	/* unit: ns */
 
+#if defined(CONFIG_SOC_EXYNOS9810)
+#define UFS_PHY_CONTROL_OFFSET 0x0724
+#endif
+
 /* UFS CAL interface */
 
 /*
@@ -46,6 +57,7 @@
  */
 static struct exynos_ufs *ufs_host_backup[1];
 static int ufs_host_index = 0;
+static spinlock_t fsys0_tcxo_lock;
 
 static struct exynos_ufs_sfr_log ufs_log_std_sfr[] = {
 	{"CAPABILITIES"			,	REG_CONTROLLER_CAPABILITIES,	0},
@@ -232,16 +244,18 @@ unsigned long ufs_lld_calc_timeout(const unsigned int ms)
 	return msecs_to_jiffies(ms);
 }
 
+
 static inline void exynos_ufs_ctrl_phy_pwr(struct exynos_ufs *ufs, bool en)
 {
-	u32 reg;
-
-	reg = readl(ufs->phy.reg_pmu);
+	int ret = 0;
 
 	if (en)
-		writel(reg | BIT(0), ufs->phy.reg_pmu);
+		ret = regmap_update_bits(ufs->pmureg, UFS_PHY_CONTROL_OFFSET, 0x1, 1);
 	else
-		writel(reg & ~(BIT(0)), ufs->phy.reg_pmu);
+		ret = regmap_update_bits(ufs->pmureg, UFS_PHY_CONTROL_OFFSET, 0x1, 0);
+
+	if (ret)
+		dev_err(ufs->dev, "Unable to update PHY ISO control\n");
 }
 
 #ifndef __EXYNOS_UFS_VS_DEBUG__
@@ -662,15 +676,59 @@ static inline void exynos_ufs_dev_reset_ctrl(struct exynos_ufs *ufs, bool en)
 		hci_writel(ufs, 0 << 0, HCI_GPIO_OUT);
 }
 
+static void exynos_ufs_tcxo_ctrl(struct exynos_ufs *ufs, bool tcxo_on)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(ufs->pmureg , UFS_PHY_CONTROL_OFFSET , &val);
+
+	if (tcxo_on == true)
+		val |= (1 << 16);
+	else
+		val &= ~(1 << 16);
+
+	if (!ret)
+		ret = regmap_write(ufs->pmureg , UFS_PHY_CONTROL_OFFSET , val);
+
+	if (ret)
+		dev_err(ufs->dev, "Unable to access the pmureg using regmap\n");
+}
+
+
+static bool tcxo_used_by[OWNER_MAX];
+
+static int exynos_check_shared_resource(int owner)
+{
+        if (owner == OWNER_FIRST)
+                return tcxo_used_by[OWNER_SECOND];
+        else
+                return tcxo_used_by[OWNER_FIRST];
+}
+
+
+static bool exynos_use_shared_resource(int owner, bool use)
+{
+        tcxo_used_by[owner] = use;
+
+        return exynos_check_shared_resource(owner);
+}
 static int exynos_ufs_pre_setup_clocks(struct ufs_hba *hba, bool on)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int ret = 0;
+	unsigned long flags;
 
 	if (on) {
 #ifdef CONFIG_CPU_IDLE
 		exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
 #endif
+
+		spin_lock_irqsave(&fsys0_tcxo_lock, flags);
+		if (exynos_use_shared_resource(OWNER_FIRST, on) == !on)
+			exynos_ufs_tcxo_ctrl(ufs, true);
+		spin_unlock_irqrestore(&fsys0_tcxo_lock, flags);
+
 		/*
 		 * Now all used blocks would not be turned off in a host.
 		 */
@@ -695,6 +753,7 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int ret = 0;
+	unsigned long flags;
 
 	if (on) {
 		/*
@@ -713,6 +772,12 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on)
 
 		/* HWAGC enable */
 		exynos_ufs_set_hwacg_control(ufs, true);
+
+		spin_lock_irqsave(&fsys0_tcxo_lock, flags);
+		if (exynos_use_shared_resource(OWNER_FIRST, on) == on)
+			exynos_ufs_tcxo_ctrl(ufs, false);
+		spin_unlock_irqrestore(&fsys0_tcxo_lock, flags);
+
 
 #ifdef CONFIG_CPU_IDLE
 		exynos_update_ip_idle_status(ufs->idle_ip_index, 1);
@@ -1015,9 +1080,10 @@ static int exynos_ufs_populate_dt_sys(struct device *dev, struct exynos_ufs *ufs
 
 static int exynos_ufs_populate_dt_phy(struct device *dev, struct exynos_ufs *ufs)
 {
-	struct device_node *ufs_phy, *phy_sys;
+	struct device_node *ufs_phy;
 	struct exynos_ufs_phy *phy = &ufs->phy;
 	struct resource io_res;
+	struct device_node *phy_sys = dev->of_node;
 	int ret;
 
 	ufs_phy = of_get_child_by_name(dev->of_node, "ufs-phy");
@@ -1039,27 +1105,14 @@ static int exynos_ufs_populate_dt_phy(struct device *dev, struct exynos_ufs *ufs
 		goto err_0;
 	}
 
-	phy_sys = of_get_child_by_name(ufs_phy, "ufs-phy-sys");
-	if (!phy_sys) {
-		dev_err(dev, "failed to get ufs-phy-sys node\n");
-		ret = -ENODEV;
-		goto err_0;
-	}
+	/* regmap pmureg*/
+	ufs->pmureg = syscon_regmap_lookup_by_phandle(phy_sys,
+					 "samsung,pmu-phandle");
+	if (IS_ERR(ufs->pmureg)) {
+			 dev_err(dev, "syscon regmap lookup failed.\n");
+			 return PTR_ERR(ufs->pmureg);
+	 }
 
-	ret = of_address_to_resource(phy_sys, 0, &io_res);
-	if (ret) {
-		dev_err(dev, "failed to get i/o address ufs-phy pmu\n");
-		goto err_1;
-	}
-
-	phy->reg_pmu = devm_ioremap_resource(dev, &io_res);
-	if (!phy->reg_pmu) {
-		dev_err(dev, "failed to ioremap for ufs-phy pmu\n");
-		ret = -ENOMEM;
-	}
-
-err_1:
-	of_node_put(phy_sys);
 err_0:
 	of_node_put(ufs_phy);
 
@@ -1119,6 +1172,31 @@ out:
 	return ret;
 }
 
+static int exynos_ufs_lp_event(struct notifier_block *nb, unsigned long event, void *data)
+{
+	struct exynos_ufs *ufs =
+		container_of(nb, struct exynos_ufs, tcxo_nb);
+	int ret = NOTIFY_DONE;
+	bool on = true;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fsys0_tcxo_lock, flags);
+	switch (event) {
+	case SLEEP_ENTER:
+		on = false;
+		if (exynos_use_shared_resource(OWNER_SECOND, on) == on)
+			exynos_ufs_tcxo_ctrl(ufs, false);
+		break;
+	case SLEEP_EXIT:
+                if (exynos_use_shared_resource(OWNER_SECOND, on) == !on)
+                        exynos_ufs_tcxo_ctrl(ufs, true);
+		break;
+	}
+	spin_unlock_irqrestore(&fsys0_tcxo_lock, flags);
+
+	return ret;
+}
+
 static u64 exynos_ufs_dma_mask = DMA_BIT_MASK(32);
 
 static int exynos_ufs_probe(struct platform_device *pdev)
@@ -1169,6 +1247,15 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ufs->tcxo_nb.notifier_call = exynos_ufs_lp_event;
+	ufs->tcxo_nb.next = NULL;
+	ufs->tcxo_nb.priority = 0;
+
+	ret = exynos_fsys0_tcxo_register_notifier(&ufs->tcxo_nb);
+	if (ret) {
+		dev_err(dev, "failed to register fsys0 txco notifier\n");
+		return ret;
+	}
 #ifdef CONFIG_CPU_IDLE
 	ufs->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 	exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
@@ -1179,6 +1266,7 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	dev->dma_mask = &exynos_ufs_dma_mask;
 
 	pm_qos_add_request(&ufs->pm_qos_fsys0, PM_QOS_FSYS0_THROUGHPUT, 0);
+	spin_lock_init(&fsys0_tcxo_lock);
 
 	ret = ufshcd_pltfrm_init(pdev, &exynos_ufs_ops);
 

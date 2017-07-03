@@ -949,7 +949,7 @@ static void exynos_ufs_get_misc(struct ufs_hba *hba)
 		if (!IS_ERR_OR_NULL(clki->clk))
 			clki->freq = clk_get_rate(clki->clk);
 	}
-	ufs->debug.misc.isolation = readl(ufs->phy.reg_pmu);
+//	ufs->debug.misc.isolation = readl(ufs->phy.reg_pmu);
 }
 
 static void exynos_ufs_get_sfr(struct ufs_hba *hba,
