@@ -203,6 +203,7 @@ uart_dbg_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(uart_dbg, 0640, uart_dbg_show, uart_dbg_store);
 
 static void exynos_usi_init(struct uart_port *port);
+static void exynos_usi_stop(struct uart_port *port);
 static void s3c24xx_serial_resetport(struct uart_port *port,
 				   struct s3c2410_uartcfg *cfg);
 static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
@@ -1266,6 +1267,15 @@ static void exynos_usi_init(struct uart_port *port)
 	wr_regl(port, USI_OPTION, USI_HWACG_CLKREQ_ON);
 }
 
+static void exynos_usi_stop(struct uart_port *port)
+{
+	/* when USI CLKSTOP_ON is set high, this makes the
+	 * Q-ch state enter into STOP state by driving both the
+	 * IP_CLKREQ and IP_BUSACTREQ as low
+	 */
+	wr_regl(port, USI_OPTION, USI_HWACG_CLKSTOP_ON);
+}
+
 /* s3c24xx_serial_resetport
  *
  * reset the fifos and other the settings.
@@ -1731,6 +1741,7 @@ static int s3c24xx_serial_suspend(struct device *dev)
 		ucon = rd_regl(port, S3C2410_UCON);
 		ucon &= ~(S3C2410_UCON_RXIRQMODE | S3C2410_UCON_TXIRQMODE) ;
 		wr_regl(port, S3C2410_UCON, ucon);
+		exynos_usi_stop(port);
 		uart_clock_disable(ourport);
 
 		rx_enabled(port) = 0;
