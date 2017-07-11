@@ -658,6 +658,55 @@ inline int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt, int index)
 
 	return 0;
 }
+
+inline void s3c2410wdt_reset_confirm(unsigned long mtime, int index)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt[index];
+	unsigned int wtcon, wtdat, wtcnt, disable_reg, mask_reset_reg;
+	unsigned long total_time = 0;
+	int ret;
+
+	if (!wdt)
+		return;
+
+	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
+
+	dev_info(wdt->dev, "Current %s_cluster watchdog %sable, wtcon = %x\n",
+			index ? "Big" : "Little",
+			(wtcon & S3C2410_WTCON_ENABLE) ? "en" : "dis", wtcon);
+
+	ret = regmap_read(wdt->pmureg, wdt->drv_data->mask_reset_reg, &mask_reset_reg);
+	if (ret) {
+		dev_err(wdt->dev, "Couldn't get MASK_WDT_RESET register\n");
+		return;
+	}
+
+	ret = regmap_read(wdt->pmureg, wdt->drv_data->disable_reg, &disable_reg);
+	if (ret) {
+		dev_err(wdt->dev, "Couldn't get DISABLE_WDT register\n");
+		return;
+	}
+
+	/*  Fake watchdog bits in both registers must be cleared. */
+	dev_info(wdt->dev, "DISABLE_WDT reg:  %x, MASK_WDT_RESET reg: %x\n", disable_reg, mask_reset_reg);
+
+	/* If watchdog is disabled, do not print wtcnt value. */
+	if(!(wtcon & S3C2410_WTCON_ENABLE))
+		return;
+
+	do {
+		/* It continues to print the wtcnt and wddat values
+		 * until watchdog reset is taken. */
+		wtdat = readl(wdt->reg_base + S3C2410_WTDAT);
+		wtcnt = readl(wdt->reg_base + S3C2410_WTCNT);
+		dev_info(wdt->dev, "%lu milliseconds, wtdat = %u, wtcnt = %u",
+				total_time, wtdat, wtcnt);
+		total_time += mtime;
+		mdelay(mtime);
+	} while(1);
+
+	/* This function does not return. */
+}
 #endif
 
 #ifdef CONFIG_PM_SLEEP
