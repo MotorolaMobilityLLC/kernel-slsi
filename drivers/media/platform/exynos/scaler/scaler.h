@@ -110,6 +110,10 @@ extern int sc_log_level;
 #define V4L2_CID_2D_DITH		(V4L2_CID_EXYNOS_BASE + 105)
 #define V4L2_CID_2D_FMT_PREMULTI	(V4L2_CID_EXYNOS_BASE + 106)
 
+/* for performance */
+#define SC_CID_FRAMERATE		(V4L2_CID_EXYNOS_BASE + 110)
+#define SC_FRAMERATE_MAX		(500)
+
 /* for denoising filter */
 #define SC_CID_DNOISE_FT		(V4L2_CID_EXYNOS_BASE + 150)
 #define SC_M2M1SHOT_OP_FILTER_SHIFT	(28)
@@ -366,6 +370,12 @@ struct sc_qch_dbg {
 	u32 log[G2D_QCH_NUM];
 };
 
+struct sc_qos_table {
+	unsigned int freq_mif;
+	unsigned int freq_int;
+	unsigned int data_size;
+};
+
 struct sc_ctx;
 
 /*
@@ -421,11 +431,18 @@ struct sc_dev {
 	int				dbg_idx;
 	struct sc_qch_dbg		*qch_dbg;
 	struct ion_client		*client;
+	struct sc_qos_table		*qos_table;
+	int qos_table_cnt;
 };
 
 enum SC_CONTEXT_TYPE {
 	SC_CTX_V4L2_TYPE,
 	SC_CTX_M2M1SHOT_TYPE
+};
+
+struct sc_qos_request {
+	struct pm_qos_request mif_req;
+	struct pm_qos_request int_req;
 };
 
 /*
@@ -479,6 +496,9 @@ struct sc_ctx {
 	struct sc_csc			csc;
 	struct sc_init_phase		init_phase;
 	struct sc_dnoise_filter		dnoise_ft;
+	struct sc_qos_request		pm_qos;
+	int				pm_qos_lv;
+	int				framerate;
 };
 
 static inline struct sc_frame *ctx_get_frame(struct sc_ctx *ctx,

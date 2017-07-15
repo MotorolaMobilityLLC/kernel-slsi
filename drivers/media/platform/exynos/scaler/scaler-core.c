@@ -520,6 +520,101 @@ static const struct sc_variant sc_variant[] = {
 	},
 };
 
+#if defined(CONFIG_PM_DEVFREQ) && defined(CONFIG_NEVER_DEFINED_FIXME)
+static void sc_pm_qos_update_devfreq(struct sc_qos_request *qos_req,
+				int pm_qos_class, u32 freq)
+{
+	struct pm_qos_request *req;
+
+	if (pm_qos_class == PM_QOS_BUS_THROUGHPUT)
+		req = &qos_req->mif_req;
+	else if (pm_qos_class == PM_QOS_DEVICE_THROUGHPUT)
+		req = &qos_req->int_req;
+	else
+		return;
+
+	if (!pm_qos_request_active(req))
+		pm_qos_add_request(req, pm_qos_class, 0);
+
+	pm_qos_update_request(req, freq);
+}
+
+static void sc_pm_qos_remove_devfreq(struct sc_qos_request *qos_req,
+				int pm_qos_class)
+{
+	struct pm_qos_request *req;
+
+	if (pm_qos_class == PM_QOS_BUS_THROUGHPUT)
+		req = &qos_req->mif_req;
+	else if (pm_qos_class == PM_QOS_DEVICE_THROUGHPUT)
+		req = &qos_req->int_req;
+	else
+		return;
+
+	if (pm_qos_request_active(req))
+		pm_qos_remove_request(req);
+}
+#else
+#define sc_pm_qos_update_devfreq(qos_req, pm_qos_class, freq) do { } while (0)
+#define sc_pm_qos_remove_devfreq(qos_req, pm_qos_class) do { } while (0)
+#endif
+
+void sc_remove_devfreq(struct sc_qos_request *qos_req,
+			struct sc_qos_table *qos_table)
+{
+	sc_pm_qos_remove_devfreq(qos_req, PM_QOS_BUS_THROUGHPUT);
+	sc_pm_qos_remove_devfreq(qos_req, PM_QOS_DEVICE_THROUGHPUT);
+}
+
+void sc_request_devfreq(struct sc_qos_request *qos_req,
+		struct sc_qos_table *qos_table, unsigned long lv)
+{
+	sc_pm_qos_update_devfreq(qos_req,
+			PM_QOS_BUS_THROUGHPUT, qos_table[lv].freq_mif);
+	sc_pm_qos_update_devfreq(qos_req,
+			PM_QOS_DEVICE_THROUGHPUT, qos_table[lv].freq_int);
+}
+
+static bool sc_get_pm_qos_level(struct sc_ctx *ctx, int framerate)
+{
+	struct sc_dev *sc = ctx->sc_dev;
+	struct sc_frame *frame = &ctx->d_frame;
+	struct sc_qos_table *qos_table = sc->qos_table;
+	unsigned int dst_len = 0;
+	int i;
+
+	/* No need to calculate if no qos_table exists. */
+	if (!qos_table)
+		return false;
+
+	for (i = 0; i < frame->sc_fmt->num_planes; i++)
+		dst_len += frame->bytesused[i];
+
+	/*
+	 * We don't need accurate size for level selection.
+	 * It is divided by 256 to use data size within 32bit value.
+	 * It should be done before calculating framerate.
+	 */
+	dst_len /= 256;
+	dst_len *= framerate;
+
+	for (i = 0; i < sc->qos_table_cnt; i++)
+		if (qos_table[i].data_size < dst_len)
+			break;
+
+	/* Set the minimum level */
+	if (i == sc->qos_table_cnt)
+		i--;
+
+	/* No request is required if level is same. */
+	if (ctx->pm_qos_lv == i)
+		return false;
+
+	ctx->pm_qos_lv = i;
+
+	return true;
+}
+
 /* Find the matches format */
 static const struct sc_fmt *sc_find_format(struct sc_dev *sc,
 						u32 pixfmt, bool output_buf)
@@ -1880,6 +1975,20 @@ static int sc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case SC_CID_DNOISE_FT:
 		ctx->dnoise_ft.strength = ctrl->val;
 		break;
+	case SC_CID_FRAMERATE:
+		if (!ctx->sc_dev->qos_table)
+			break;
+
+		if (ctrl->val == 0) {
+			sc_remove_devfreq(&ctx->pm_qos, ctx->sc_dev->qos_table);
+			ctx->framerate = 0;
+		} else if (ctrl->val != ctx->framerate) {
+			ctx->framerate = ctrl->val;
+			if (sc_get_pm_qos_level(ctx, ctx->framerate))
+				sc_request_devfreq(&ctx->pm_qos,
+					ctx->sc_dev->qos_table, ctx->pm_qos_lv);
+		}
+		break;
 	}
 
 	return ret;
@@ -1968,6 +2077,15 @@ static const struct v4l2_ctrl_config sc_custom_ctrl[] = {
 		.step = 1,
 		.min = 0,
 		.max = SC_FT_MAX,
+		.def = 0,
+	}, {
+		.ops = &sc_ctrl_ops,
+		.id = SC_CID_FRAMERATE,
+		.name = "Frame rate setting",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.step = 1,
+		.min = 0,
+		.max = SC_FRAMERATE_MAX,
 		.def = 0,
 	}
 };
@@ -2158,6 +2276,11 @@ static int sc_release(struct file *file)
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 
 	destroy_intermediate_frame(ctx);
+
+	if (ctx->framerate) {
+		sc_remove_devfreq(&ctx->pm_qos, ctx->sc_dev->qos_table);
+		ctx->framerate = 0;
+	}
 
 	if (!IS_ERR(sc->aclk))
 		clk_unprepare(sc->aclk);
@@ -3432,6 +3555,39 @@ static const struct dev_pm_ops sc_pm_ops = {
 	SET_RUNTIME_PM_OPS(NULL, sc_runtime_resume, sc_runtime_suspend)
 };
 
+static int sc_populate_dt(struct sc_dev *sc)
+{
+	struct device *dev = sc->dev;
+	struct sc_qos_table *qos_table;
+	int i, len;
+
+	len = of_property_count_u32_elems(dev->of_node, "mscl_qos_table");
+	if (len < 0) {
+		dev_info(dev, "No qos table for scaler\n");
+		return 0;
+	}
+
+	sc->qos_table_cnt = len / 3;
+
+	qos_table = devm_kzalloc(dev, sizeof(struct sc_qos_table) * sc->qos_table_cnt, GFP_KERNEL);
+	if (!qos_table)
+		return -ENOMEM;
+
+	of_property_read_u32_array(dev->of_node, "mscl_qos_table",
+					(unsigned int *)qos_table, len);
+
+	for (i = 0; i < sc->qos_table_cnt; i++) {
+		dev_info(dev, "MSCL QoS Table[%d] mif : %u int : %u [%u]\n", i,
+			qos_table[i].freq_mif,
+			qos_table[i].freq_int,
+			qos_table[i].data_size);
+	}
+
+	sc->qos_table = qos_table;
+
+	return 0;
+}
+
 static int sc_probe(struct platform_device *pdev)
 {
 	struct sc_dev *sc;
@@ -3495,6 +3651,10 @@ static int sc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sc);
 
 	pm_runtime_enable(&pdev->dev);
+
+	ret = sc_populate_dt(sc);
+	if (ret)
+		return ret;
 
 	ret = sc_register_m2m_device(sc, sc->dev_id);
 	if (ret) {
