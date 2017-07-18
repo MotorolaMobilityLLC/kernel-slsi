@@ -49,9 +49,12 @@ static bool __need_migrate_cma_page(struct page *page,
 	if (!(flags & FOLL_CMA))
 		return false;
 
-	if (WARN_ON(!PageLRU(page))) {
-		__dump_page(page, "non-lru cma page");
-		return false;
+	if (!PageLRU(page)) {
+		migrate_prep_local();
+		if (WARN_ON(!PageLRU(page))) {
+			__dump_page(page, "non-lru cma page");
+			return false;
+		}
 	}
 
 	return true;
