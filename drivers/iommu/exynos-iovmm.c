@@ -177,6 +177,9 @@ static void free_iovm_region(struct exynos_iovmm *vmm,
 			region->size >> PAGE_SHIFT);
 	spin_unlock(&vmm->bitmap_lock);
 
+	SYSMMU_EVENT_LOG_IOVMM_UNMAP(IOVMM_TO_LOG(vmm),
+			region->start, region->start + region->size);
+
 	kfree(region);
 }
 
@@ -416,6 +419,9 @@ dma_addr_t iovmm_map(struct device *dev, struct scatterlist *sg, off_t offset,
 	dev_dbg(dev, "IOVMM: Allocated VM region @ %#x/%#x bytes.\n",
 				(unsigned int)start, (unsigned int)size);
 
+	SYSMMU_EVENT_LOG_IOVMM_MAP(IOVMM_TO_LOG(vmm), start, start + size,
+						region->size - size);
+
 	return start;
 
 err_map_map:
@@ -566,6 +572,8 @@ dma_addr_t exynos_iovmm_map_userptr(struct device *dev, unsigned long vaddr,
 	region = find_iovm_region(vmm, start);
 	BUG_ON(!region);
 
+	SYSMMU_EVENT_LOG_IOVMM_MAP(IOVMM_TO_LOG(vmm), start, start + size,
+						region->size - size);
 	return start;
 err_map:
 	free_iovm_region(vmm, remove_iovm_region(vmm, start));
@@ -624,7 +632,7 @@ static int exynos_iovmm_create_debugfs(void)
 
 	return 0;
 }
-arch_initcall(exynos_iovmm_create_debugfs);
+core_initcall(exynos_iovmm_create_debugfs);
 
 static int iovmm_debug_show(struct seq_file *s, void *unused)
 {
@@ -708,6 +716,16 @@ struct exynos_iovmm *exynos_create_single_iovmm(const char *name,
 		goto err_setup_domain;
 	}
 
+	ret = exynos_iommu_init_event_log(IOVMM_TO_LOG(vmm), IOVMM_LOG_LEN);
+	if (!ret) {
+		iovmm_add_log_to_debugfs(exynos_iovmm_debugfs_root,
+				IOVMM_TO_LOG(vmm), name);
+		iommu_add_log_to_debugfs(exynos_iommu_debugfs_root,
+				IOMMU_TO_LOG(vmm->domain), name);
+	} else {
+		goto err_init_event_log;
+	}
+
 	spin_lock_init(&vmm->vmlist_lock);
 	spin_lock_init(&vmm->bitmap_lock);
 
@@ -721,6 +739,8 @@ struct exynos_iovmm *exynos_create_single_iovmm(const char *name,
 			name, vmm->iovm_size, vmm->iova_start);
 	return vmm;
 
+err_init_event_log:
+	iommu_domain_free(vmm->domain);
 err_setup_domain:
 	kfree(vmm);
 err_alloc_vmm:
