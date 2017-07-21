@@ -166,6 +166,8 @@ typedef u32 sysmmu_pte_t;
 #define REG_SBB_ATTR		0x110C
 
 /* For SysMMU v7.1 */
+#define MMU_CAPA1_EXIST(reg)	((reg >> 11) & 0x1)
+#define MMU_CAPA1_TYPE(reg)	((reg >> 28) & 0xF)
 #define MMU_CAPA1_NUM_TLB(reg)	((reg >> 4) & 0xFF)
 #define MMU_CAPA1_NUM_PORT(reg)	((reg) & 0xF)
 #define MMU_TLB_INFO(n)		(0x2000 + ((n) * 0x20))
