@@ -3927,7 +3927,7 @@ int slsi_mlme_set_ctwindow(struct slsi_dev *sdev, struct net_device *dev, unsign
 	if (!req)
 		return -ENOMEM;
 
-	fapi_set_u16(req, u.mlme_set_ctwindow_req.ctwindow, ((ct_param * 1000) / 1024));
+	fapi_set_u16(req, u.mlme_set_ctwindow_req.ctwindow, ct_param);
 
 	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_SET_CTWINDOW_CFM);
 	if (!cfm)
