@@ -56,7 +56,7 @@ int s5p_mfc_peek_buf_csd(spinlock_t *plock, struct s5p_mfc_buf_queue *queue)
 	csd = mfc_buf->vb.reserved2 & FLAG_CSD ? 1 : 0;
 
 	mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0]);
+	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	spin_unlock_irqrestore(plock, flags);
 	return csd;
@@ -82,7 +82,7 @@ struct s5p_mfc_buf *s5p_mfc_get_buf(spinlock_t *plock, struct s5p_mfc_buf_queue 
 		mfc_buf->used = used;
 
 	mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0]);
+	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	spin_unlock_irqrestore(plock, flags);
 	return mfc_buf;
@@ -108,7 +108,7 @@ struct s5p_mfc_buf *s5p_mfc_get_del_buf(spinlock_t *plock, struct s5p_mfc_buf_qu
 		mfc_buf->used = used;
 
 	mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0]);
+	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	list_del(&mfc_buf->list);
 	queue->count--;
@@ -135,7 +135,7 @@ struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(spinlock_t *plock, struct s5p_mf
 	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
 
 	mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0]);
+	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	remained = (unsigned int)(mfc_buf->vb.vb2_buf.planes[0].bytesused - consumed);
 
@@ -178,7 +178,7 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf(spinlock_t *plock,
 		mfc_buf->used = used;
 
 	mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0]);
+	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	list_del(&mfc_buf->list);
 	from_queue->count--;
@@ -212,7 +212,7 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_used(spinlock_t *plock,
 
 	if (mfc_buf->used) {
 		mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-		mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0]);
+		mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 		list_del(&mfc_buf->list);
 		from_queue->count--;
@@ -245,8 +245,9 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_addr(spinlock_t *plock,
 
 	mfc_buf = list_entry(from_queue->head.next, struct s5p_mfc_buf, list);
 
-	if (mfc_buf->addr[0] == addr) {
-		mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0]);
+	if (mfc_buf->addr[0][0] == addr) {
+		mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
+		mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 		list_del(&mfc_buf->list);
 		from_queue->count--;
@@ -262,18 +263,35 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_addr(spinlock_t *plock,
 	}
 }
 
-struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		dma_addr_t addr)
+struct s5p_mfc_buf *s5p_mfc_find_first_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+		dma_addr_t addr, int search_queue)
 {
 	unsigned long flags;
 	struct s5p_mfc_buf *mfc_buf = NULL;
 	dma_addr_t mb_addr;
+	int i;
 
 	spin_lock_irqsave(plock, flags);
 
+	if (list_empty(&queue->head)) {
+		mfc_debug(2, "queue is empty\n");
+		spin_unlock_irqrestore(plock, flags);
+		return mfc_buf;
+	}
+
 	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
-	list_for_each_entry(mfc_buf, &queue->head, list) {
-		mb_addr = mfc_buf->addr[0];
+	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+	if (search_queue > 0) {
+		for (i = 0; i < search_queue; i++) {
+			mb_addr = mfc_buf->addr[i][0];
+			mfc_debug(2, "batch buf[%d] plane[0] addr: 0x%08llx\n", i, mb_addr);
+			if (addr == mb_addr) {
+				spin_unlock_irqrestore(plock, flags);
+				return mfc_buf;
+			}
+		}
+	} else {
+		mb_addr = mfc_buf->addr[0][0];
 		mfc_debug(2, "plane[0] addr: 0x%08llx\n", mb_addr);
 
 		if (addr == mb_addr) {
@@ -286,24 +304,75 @@ struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue
 	return NULL;
 }
 
-struct s5p_mfc_buf *s5p_mfc_find_del_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		dma_addr_t addr)
+struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+		dma_addr_t addr, int search_queue)
 {
 	unsigned long flags;
 	struct s5p_mfc_buf *mfc_buf = NULL;
 	dma_addr_t mb_addr;
-	int found = 0;
+	int i;
 
 	spin_lock_irqsave(plock, flags);
 
 	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
 	list_for_each_entry(mfc_buf, &queue->head, list) {
-		mb_addr = mfc_buf->addr[0];
-		mfc_debug(2, "plane[0] addr: 0x%08llx\n", mb_addr);
+		if (search_queue > 0) {
+			for (i = 0; i < search_queue; i++) {
+				mb_addr = mfc_buf->addr[i][0];
+				mfc_debug(2, "batch buf[%d] plane[0] addr: 0x%08llx\n", i, mb_addr);
+				if (addr == mb_addr) {
+					spin_unlock_irqrestore(plock, flags);
+					return mfc_buf;
+				}
+			}
+		} else {
+			mb_addr = mfc_buf->addr[0][0];
+			mfc_debug(2, "plane[0] addr: 0x%08llx\n", mb_addr);
 
-		if (addr == mb_addr) {
-			found = 1;
-			break;
+			if (addr == mb_addr) {
+				spin_unlock_irqrestore(plock, flags);
+				return mfc_buf;
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(plock, flags);
+	return NULL;
+}
+
+struct s5p_mfc_buf *s5p_mfc_find_del_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+		dma_addr_t addr, int search_queue)
+{
+	unsigned long flags;
+	struct s5p_mfc_buf *mfc_buf = NULL;
+	dma_addr_t mb_addr;
+	int found = 0, i;
+
+	spin_lock_irqsave(plock, flags);
+
+	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
+	list_for_each_entry(mfc_buf, &queue->head, list) {
+		if (search_queue > 0) {
+			for (i = 0; i < search_queue; i++) {
+				mb_addr = mfc_buf->addr[i][0];
+				mfc_debug(2, "batch buf[%d] plane[0] addr: 0x%08llx\n", i, mb_addr);
+
+				if (addr == mb_addr) {
+					found = 1;
+					break;
+				}
+			}
+
+			if (found)
+				break;
+		} else {
+			mb_addr = mfc_buf->addr[0][0];
+			mfc_debug(2, "plane[0] addr: 0x%08llx\n", mb_addr);
+
+			if (addr == mb_addr) {
+				found = 1;
+				break;
+			}
 		}
 	}
 
@@ -332,7 +401,7 @@ struct s5p_mfc_buf *s5p_mfc_find_move_buf(spinlock_t *plock,
 
 	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
 	list_for_each_entry(mfc_buf, &from_queue->head, list) {
-		mb_addr = mfc_buf->addr[0];
+		mb_addr = mfc_buf->addr[0][0];
 		mfc_debug(2, "plane[0] addr: 0x%08llx\n", mb_addr);
 
 		if (addr == mb_addr) {
@@ -371,7 +440,7 @@ struct s5p_mfc_buf *s5p_mfc_find_move_buf_used(spinlock_t *plock,
 
 	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
 	list_for_each_entry(mfc_buf, &from_queue->head, list) {
-		mb_addr = mfc_buf->addr[0];
+		mb_addr = mfc_buf->addr[0][0];
 		mfc_debug(2, "plane[0] addr: 0x%08llx, used: %d\n",
 				mb_addr, mfc_buf->used);
 
@@ -900,7 +969,7 @@ int s5p_mfc_is_last_frame(struct s5p_mfc_ctx *ctx)
 	src_mb = list_entry(ctx->src_buf_queue.head.next, struct s5p_mfc_buf, list);
 
 	mfc_debug(2, "mfc_buf: 0x%p\n", src_mb);
-	mfc_debug(2, "First plane address: 0x%08llx\n", src_mb->addr[0]);
+	mfc_debug(2, "First plane address: 0x%08llx\n", src_mb->addr[0][0]);
 
 	if (src_mb->vb.reserved2 & FLAG_LAST_FRAME) {
 		mfc_debug(2, "last frame!\n");

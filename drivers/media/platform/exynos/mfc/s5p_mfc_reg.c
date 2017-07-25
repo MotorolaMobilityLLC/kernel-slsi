@@ -310,7 +310,7 @@ int s5p_mfc_set_dec_stream_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *m
 	cpb_buf_size = ALIGN(dec->src_buf_size, STREAM_BUF_ALIGN);
 
 	if (mfc_buf) {
-		addr = mfc_buf->addr[0];
+		addr = mfc_buf->addr[0][0];
 		if (strm_size > set_strm_size_max(cpb_buf_size)) {
 			mfc_info_ctx("Decrease strm_size because of %d align: %u -> %u\n",
 				STREAM_BUF_ALIGN, strm_size, set_strm_size_max(cpb_buf_size));
@@ -348,16 +348,29 @@ void s5p_mfc_set_enc_frame_buffer(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	dma_addr_t addr[3] = { 0, 0, 0 };
-	dma_addr_t addr_2bit[2];
+	dma_addr_t addr_2bit[2] = { 0, 0 };
 	int i;
 
-	if (mfc_buf) {
+	if (!mfc_buf) {
+		mfc_debug(3, "enc zero buffer set\n");
+		goto buffer_set;
+	}
+
+	if (IS_BUFFER_BATCH_MODE(ctx)) {
 		for (i = 0; i < num_planes; i++) {
-			addr[i] = mfc_buf->addr[i];
+			addr[i] = mfc_buf->addr[mfc_buf->next_index][i];
+			mfc_debug(2, "enc batch buf[%d] src[%d] addr: 0x%08llx\n",
+					mfc_buf->next_index, i, addr[i]);
+		}
+		mfc_buf->next_index++;
+	} else {
+		for (i = 0; i < num_planes; i++) {
+			addr[i] = mfc_buf->addr[0][i];
 			mfc_debug(2, "enc src[%d] addr: 0x%08llx\n", i, addr[i]);
 		}
 	}
 
+buffer_set:
 	for (i = 0; i < num_planes; i++)
 		MFC_WRITEL(addr[i], S5P_FIMV_E_SOURCE_FIRST_ADDR + (i * 4));
 
@@ -386,7 +399,7 @@ int s5p_mfc_set_enc_stream_buffer(struct s5p_mfc_ctx *ctx,
 	dma_addr_t addr;
 	unsigned int size, offset;
 
-	addr = mfc_buf->addr[0];
+	addr = mfc_buf->addr[0][0];
 	offset = mfc_buf->vb.vb2_buf.planes[0].data_offset;
 	size = (unsigned int)vb2_plane_size(&mfc_buf->vb.vb2_buf, 0);
 	size = ALIGN(size, 512);
@@ -445,13 +458,13 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 	set_bit(dst_index, &dec->available_dpb);
 	dec->dynamic_set = 1 << dst_index;
 	mfc_debug(2, "ADDING Flag after: 0x%lx\n", dec->available_dpb);
-	mfc_debug(2, "Dst addr [%d] = 0x%08llx\n", dst_index, dst_mb->addr[0]);
+	mfc_debug(2, "Dst addr [%d] = 0x%08llx\n", dst_index, dst_mb->addr[0][0]);
 
 	/* for debugging about black bar detection */
 	if (FW_HAS_BLACK_BAR_DETECT(dev) && dec->detect_black_bar) {
 		for (i = 0; i < raw->num_planes; i++) {
 			dec->frame_vaddr[i][dec->frame_cnt] = vb2_plane_vaddr(&dst_mb->vb.vb2_buf, i);
-			dec->frame_daddr[i][dec->frame_cnt] = dst_mb->addr[i];
+			dec->frame_daddr[i][dec->frame_cnt] = dst_mb->addr[0][i];
 			dec->frame_size[i][dec->frame_cnt] = raw->plane_size[i];
 			dec->index[i][dec->frame_cnt] = dst_index;
 			dec->fd[i][dec->frame_cnt] = dst_mb->vb.vb2_buf.planes[0].m.fd;
@@ -467,12 +480,12 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 	for (i = 0; i < raw->num_planes; i++) {
 		MFC_WRITEL(raw->plane_size[i],
 				S5P_FIMV_D_FIRST_PLANE_DPB_SIZE + i*4);
-		MFC_WRITEL(dst_mb->addr[i],
+		MFC_WRITEL(dst_mb->addr[0][i],
 				S5P_FIMV_D_FIRST_PLANE_DPB0 + (i*0x100 + dst_index*4));
 	}
 
 	MFC_TRACE_CTX("Set dst[%d] fd: %d, %#llx / avail %#lx used %#x\n",
-			dst_index, dst_mb->vb.vb2_buf.planes[0].m.fd, dst_mb->addr[0],
+			dst_index, dst_mb->vb.vb2_buf.planes[0].m.fd, dst_mb->addr[0][0],
 			dec->available_dpb, dec->dynamic_used);
 
 	return 0;

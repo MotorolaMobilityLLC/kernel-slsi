@@ -47,6 +47,9 @@
 /* Maximum number of temporal layers */
 #define VIDEO_MAX_TEMPORAL_LAYERS	7
 
+#define MAX_NUM_IMAGES_IN_VB		8
+#define MAX_NUM_BUFCON_BUFS		32
+
 /*
  *  MFC version
  */
@@ -222,7 +225,11 @@ struct s5p_mfc_debug {
 struct s5p_mfc_buf {
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
-	dma_addr_t addr[MFC_MAX_PLANES];
+	dma_addr_t addr[MAX_NUM_IMAGES_IN_VB][MFC_MAX_PLANES];
+	struct dma_buf *dmabufs[MAX_NUM_IMAGES_IN_VB][MFC_MAX_PLANES];
+	struct dma_buf_attachment *attachments[MAX_NUM_IMAGES_IN_VB][MFC_MAX_PLANES];
+	int next_index;
+	int done_index;
 	int used;
 	unsigned char *vir_addr;
 };
@@ -1321,6 +1328,8 @@ struct s5p_mfc_ctx {
 	unsigned long raw_protect_flag;
 	unsigned long stream_protect_flag;
 	struct _otf_handle *otf_handle;
+
+	int num_bufs_in_vb;
 };
 
 #endif /* __S5P_MFC_DATA_STRUCT_H */

@@ -188,3 +188,65 @@ void s5p_mfc_mem_ion_free(struct s5p_mfc_dev *dev,
 	special_buf->daddr = 0;
 	special_buf->vaddr = NULL;
 }
+
+void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf, int plane)
+{
+	int i;
+
+	for (i = 0; i < ctx->num_bufs_in_vb; i++) {
+		if (mfc_buf->addr[i][plane]) {
+			mfc_debug(4, "put batch buf addr[%d][%d]: 0x%08llx\n",
+					i, plane, mfc_buf->addr[i][plane]);
+			ion_iovmm_unmap(mfc_buf->attachments[i][plane], mfc_buf->addr[i][plane]);
+		}
+		if (mfc_buf->attachments[i][plane])
+			dma_buf_detach(mfc_buf->dmabufs[i][plane], mfc_buf->attachments[i][plane]);
+		if (mfc_buf->dmabufs[i][plane])
+			dma_buf_put(mfc_buf->dmabufs[i][plane]);
+
+		mfc_buf->addr[i][plane] = 0;
+		mfc_buf->attachments[i][plane] = NULL;
+		mfc_buf->dmabufs[i][plane] = NULL;
+	}
+}
+
+int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+					struct dma_buf *bufcon_dmabuf, int plane)
+{
+	struct s5p_mfc_dev *dev = ctx->dev;
+	struct s5p_mfc_raw_info *raw = &ctx->raw_buf;
+	int i;
+
+	for (i = 0; i < ctx->num_bufs_in_vb; i++) {
+		mfc_buf->dmabufs[i][plane] = dmabuf_container_get_buffer(bufcon_dmabuf, i);
+		if (IS_ERR(mfc_buf->dmabufs[i][plane])) {
+			mfc_err_ctx("Failed to get dma_buf (err %ld)",
+					PTR_ERR(mfc_buf->dmabufs[i][plane]));
+			goto err_get_daddr;
+		}
+
+		mfc_buf->attachments[i][plane] = dma_buf_attach(mfc_buf->dmabufs[i][plane], dev->device);
+		if (IS_ERR(mfc_buf->attachments[i][plane])) {
+			mfc_err_ctx("Failed to get dma_buf_attach (err %ld)",
+					PTR_ERR(mfc_buf->attachments[i][plane]));
+			goto err_get_daddr;
+		}
+
+		mfc_buf->addr[i][plane] = ion_iovmm_map(mfc_buf->attachments[i][plane], 0,
+				raw->plane_size[plane], DMA_BIDIRECTIONAL, 0);
+		if (IS_ERR_VALUE(mfc_buf->addr[i][plane])) {
+			mfc_err_ctx("Failed to allocate iova (err %pa)",
+					&mfc_buf->addr[i][plane]);
+			goto err_get_daddr;
+		}
+
+		mfc_debug(4, "get batch buf addr[%d][%d]: 0x%08llx, size: %d\n",
+				i, plane, mfc_buf->addr[i][plane], raw->plane_size[plane]);
+	}
+
+	return i;
+
+err_get_daddr:
+	s5p_mfc_bufcon_put_daddr(ctx, mfc_buf, plane);
+	return -1;
+}

@@ -124,7 +124,7 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct s5p_mfc_ctx *ctx = vq->drv_priv;
 	struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
-	dma_addr_t start_raw;
+	struct dma_buf *dmabuf;
 	int i, ret;
 
 	mfc_debug_enter();
@@ -134,7 +134,7 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 		if (ret < 0)
 			return ret;
 
-		buf->addr[0] = s5p_mfc_mem_get_daddr_vb(vb, 0);
+		buf->addr[0][0] = s5p_mfc_mem_get_daddr_vb(vb, 0);
 
 		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_DST,
 					vb->index) < 0)
@@ -145,33 +145,55 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 		if (ret < 0)
 			return ret;
 
-		start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
-		if (start_raw == 0) {
-			mfc_err_ctx("Plane mem not allocated.\n");
-			return -ENOMEM;
-		}
-		if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV12N) {
-			buf->addr[0] = start_raw;
-			buf->addr[1] = NV12N_CBCR_BASE(start_raw,
-							ctx->img_width,
-							ctx->img_height);
-		} else if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_YUV420N) {
-			buf->addr[0] = start_raw;
-			buf->addr[1] = YUV420N_CB_BASE(start_raw,
-							ctx->img_width,
-							ctx->img_height);
-			buf->addr[2] = YUV420N_CR_BASE(start_raw,
-							ctx->img_width,
-							ctx->img_height);
-		} else {
-			for (i = 0; i < ctx->src_fmt->num_planes; i++)
-				buf->addr[i] = s5p_mfc_mem_get_daddr_vb(vb, i);
-		}
+		for (i = 0; i < ctx->src_fmt->num_planes; i++) {
+			dmabuf = s5p_mfc_mem_get_dmabuf(vb->planes[i].m.fd);
+			if (!dmabuf)
+				return -ENOMEM;
 
-		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_SRC,
-					vb->index) < 0)
-			mfc_err_ctx("failed in init_buf_ctrls\n");
+			ctx->num_bufs_in_vb = s5p_mfc_bufcon_get_buf_count(dmabuf);
+			mfc_debug(3, "bufcon count:%d\n", ctx->num_bufs_in_vb);
 
+			if (IS_BUFFER_BATCH_MODE(ctx)) {
+				int count = 0;
+
+				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf, i);
+				if (count != ctx->num_bufs_in_vb) {
+					mfc_err_ctx("invalid buffer count %d != num_bufs_in_vb %d\n",
+							count, ctx->num_bufs_in_vb);
+					return -EFAULT;
+				}
+
+				s5p_mfc_mem_put_dmabuf(dmabuf);
+			} else {
+				dma_addr_t start_raw;
+
+				start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
+				if (start_raw == 0) {
+					mfc_err_ctx("Plane mem not allocated.\n");
+					return -ENOMEM;
+				}
+				if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV12N) {
+					buf->addr[0][0] = start_raw;
+					buf->addr[0][1] = NV12N_CBCR_BASE(start_raw,
+							ctx->img_width,
+							ctx->img_height);
+				} else if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_YUV420N) {
+					buf->addr[0][0] = start_raw;
+					buf->addr[0][1] = YUV420N_CB_BASE(start_raw,
+							ctx->img_width,
+							ctx->img_height);
+					buf->addr[0][2] = YUV420N_CR_BASE(start_raw,
+							ctx->img_width,
+							ctx->img_height);
+				} else {
+					buf->addr[0][i] = s5p_mfc_mem_get_daddr_vb(vb, i);
+				}
+
+				if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_SRC,
+							vb->index) < 0)
+					mfc_err_ctx("failed in init_buf_ctrls\n");
+			}
+		}
 	} else {
 		mfc_err_ctx("inavlid queue type: %d\n", vq->type);
 		return -EINVAL;
@@ -371,9 +393,12 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 
 	mfc_debug_enter();
 
+	buf->next_index = 0;
+	buf->done_index = 0;
+
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		mfc_debug(2, "dst queue: 0x%p\n", &ctx->dst_buf_queue);
-		mfc_debug(2, "Adding to dst vb: 0x%p, addr: %08llx\n", vb, buf->addr[0]);
+		mfc_debug(2, "Adding to dst vb: 0x%p, addr: %08llx\n", vb, buf->addr[0][0]);
 
 		/* Mark destination as available for use by MFC */
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, buf);

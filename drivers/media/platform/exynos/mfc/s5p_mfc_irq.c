@@ -173,7 +173,7 @@ static void mfc_handle_frame_copy_timestamp(struct s5p_mfc_ctx *ctx)
 		return;
 	}
 
-	ref_mb = s5p_mfc_find_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dec_y_addr);
+	ref_mb = s5p_mfc_find_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dec_y_addr, 0);
 	if (ref_mb)
 		ref_mb->vb.vb2_buf.timestamp = src_mb->vb.vb2_buf.timestamp;
 }
@@ -192,7 +192,7 @@ static void mfc_handle_frame_output_move(struct s5p_mfc_ctx *ctx,
 		mfc_debug(2, "Listing: %d\n", ref_mb->vb.vb2_buf.index);
 		/* Check if this is the buffer we're looking for */
 		mfc_debug(2, "Found 0x%08llx, looking for 0x%08llx\n",
-				ref_mb->addr[0], dspl_y_addr);
+				ref_mb->addr[0][0], dspl_y_addr);
 
 		index = ref_mb->vb.vb2_buf.index;
 
@@ -248,12 +248,12 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 	}
 
 	ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-			&ctx->ref_buf_queue, dspl_y_addr);
+			&ctx->ref_buf_queue, dspl_y_addr, 0);
 	if (ref_mb) {
 		mfc_debug(2, "Listing: %d\n", ref_mb->vb.vb2_buf.index);
 		/* Check if this is the buffer we're looking for */
 		mfc_debug(2, "Found 0x%08llx, looking for 0x%08llx\n",
-				ref_mb->addr[0], dspl_y_addr);
+				ref_mb->addr[0][0], dspl_y_addr);
 
 		index = ref_mb->vb.vb2_buf.index;
 
@@ -484,7 +484,7 @@ static void mfc_handle_ref_frame(struct s5p_mfc_ctx *ctx)
 			&ctx->ref_buf_queue, &ctx->dst_buf_queue, dec_addr);
 	if (dst_mb) {
 		mfc_debug(2, "Found in dst queue = 0x%08llx, buf = 0x%08llx\n",
-				dec_addr, dst_mb->addr[0]);
+				dec_addr, dst_mb->addr[0][0]);
 
 		if (!(dec->dynamic_set & s5p_mfc_get_dec_used_flag()))
 			dec->dynamic_used |= dec->dynamic_set;
@@ -779,30 +779,62 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 			mfc_debug(2, "encoded[%d] addr: 0x%08llx\n",
 						i, enc_addr[i]);
 
-		src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-			&ctx->src_buf_queue, enc_addr[0]);
-		if (src_mb) {
-			index = src_mb->vb.vb2_buf.index;
-			if (call_cop(ctx, recover_buf_ctrls_val, ctx,
-					&ctx->src_ctrls[index]) < 0)
-				mfc_err_ctx("failed in recover_buf_ctrls_val\n");
+		if (IS_BUFFER_BATCH_MODE(ctx)) {
+			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
+					&ctx->src_buf_queue, enc_addr[0], ctx->num_bufs_in_vb);
+			if (src_mb) {
+				src_mb->done_index++;
+				mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
 
-			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+				index = src_mb->vb.vb2_buf.index;
 
-			/* encoder src buffer CFW UNPROT */
-			if (ctx->is_drm)
-				s5p_mfc_raw_unprotect(ctx, src_mb, index);
-		}
+				if (call_cop(ctx, recover_buf_ctrls_val, ctx,
+							&ctx->src_ctrls[index]) < 0)
+					mfc_err_ctx("failed in recover_buf_ctrls_val\n");
 
-		ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-			&ctx->ref_buf_queue, enc_addr[0]);
-		if (ref_mb) {
-			vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+				/* last image in a buffer container */
+				if (src_mb->done_index == ctx->num_bufs_in_vb) {
+					src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+							&ctx->src_buf_queue, enc_addr[0],
+							ctx->num_bufs_in_vb);
+					if (src_mb) {
+						for (i = 0; i < raw->num_planes; i++)
+							s5p_mfc_bufcon_put_daddr(ctx, src_mb, i);
+						vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+					}
+				}
 
-			/* encoder src buffer CFW UNPROT */
-			if (ctx->is_drm) {
-				index = ref_mb->vb.vb2_buf.index;
-				s5p_mfc_raw_unprotect(ctx, ref_mb, index);
+				/* encoder src buffer CFW UNPROT */
+				if (ctx->is_drm)
+					s5p_mfc_raw_unprotect(ctx, src_mb, index);
+			}
+		} else {
+			/* normal single buffer */
+			src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+					&ctx->src_buf_queue, enc_addr[0], 0);
+			if (src_mb) {
+				index = src_mb->vb.vb2_buf.index;
+				if (call_cop(ctx, recover_buf_ctrls_val, ctx,
+							&ctx->src_ctrls[index]) < 0)
+					mfc_err_ctx("failed in recover_buf_ctrls_val\n");
+
+				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+
+				/* encoder src buffer CFW UNPROT */
+				if (ctx->is_drm)
+					s5p_mfc_raw_unprotect(ctx, src_mb, index);
+			}
+
+			ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+					&ctx->ref_buf_queue, enc_addr[0], 0);
+			if (ref_mb) {
+				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+
+				/* encoder src buffer CFW UNPROT */
+				if (ctx->is_drm) {
+					index = ref_mb->vb.vb2_buf.index;
+					s5p_mfc_raw_unprotect(ctx, ref_mb, index);
+				}
 			}
 		}
 	} else if (ctx->state == MFCINST_FINISHING) {
@@ -936,6 +968,9 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 	/* handle source buffer */
 	mfc_handle_stream_input(ctx, slice_type);
 
+	if (IS_BUFFER_BATCH_MODE(ctx))
+		return 0;
+
 	if (ctx->enc_res_change_re_input)
 		ctx->enc_res_change_re_input = 0;
 
@@ -947,8 +982,10 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 		s5p_mfc_move_first_buf_used(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, &ctx->src_buf_queue, MFC_QUEUE_ADD_BOTTOM);
 
-		/* slice_type = 4 && strm_size = 0, skipped enable
-		   should be considered */
+		/*
+		 * slice_type = 4 && strm_size = 0, skipped enable
+		 * should be considered
+		 */
 		if ((slice_type == -1) && (strm_size == 0))
 			s5p_mfc_change_state(ctx, MFCINST_RUNNING_NO_OUTPUT);
 

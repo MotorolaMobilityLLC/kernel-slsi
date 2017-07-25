@@ -181,26 +181,26 @@ static int s5p_mfc_dec_buf_init(struct vb2_buffer *vb)
 
 		start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
 		if (ctx->dst_fmt->fourcc == V4L2_PIX_FMT_NV12N) {
-			buf->addr[0] = start_raw;
-			buf->addr[1] = NV12N_CBCR_BASE(start_raw,
+			buf->addr[0][0] = start_raw;
+			buf->addr[0][1] = NV12N_CBCR_BASE(start_raw,
 							ctx->img_width,
 							ctx->img_height);
 		} else if (ctx->dst_fmt->fourcc == V4L2_PIX_FMT_NV12N_10B) {
-			buf->addr[0] = start_raw;
-			buf->addr[1] = NV12N_10B_CBCR_BASE(start_raw,
+			buf->addr[0][0] = start_raw;
+			buf->addr[0][1] = NV12N_10B_CBCR_BASE(start_raw,
 							ctx->img_width,
 							ctx->img_height);
 		} else if (ctx->dst_fmt->fourcc == V4L2_PIX_FMT_YUV420N) {
-			buf->addr[0] = start_raw;
-			buf->addr[1] = YUV420N_CB_BASE(start_raw,
+			buf->addr[0][0] = start_raw;
+			buf->addr[0][1] = YUV420N_CB_BASE(start_raw,
 							ctx->img_width,
 							ctx->img_height);
-			buf->addr[2] = YUV420N_CR_BASE(start_raw,
+			buf->addr[0][2] = YUV420N_CR_BASE(start_raw,
 							ctx->img_width,
 							ctx->img_height);
 		} else {
 			for (i = 0; i < ctx->dst_fmt->mem_planes; i++)
-				buf->addr[i] = s5p_mfc_mem_get_daddr_vb(vb, i);
+				buf->addr[0][i] = s5p_mfc_mem_get_daddr_vb(vb, i);
 		}
 
 		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_DST,
@@ -211,7 +211,7 @@ static int s5p_mfc_dec_buf_init(struct vb2_buffer *vb)
 		if (ret < 0)
 			return ret;
 
-		buf->addr[0] = s5p_mfc_mem_get_daddr_vb(vb, 0);
+		buf->addr[0][0] = s5p_mfc_mem_get_daddr_vb(vb, 0);
 
 		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_SRC,
 					vb->index) < 0)
@@ -580,7 +580,7 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 		mfc_debug(2, "Src queue: 0x%p\n", &ctx->src_buf_queue);
 		mfc_debug(2, "Adding to src: 0x%p (0x%08llx, 0x%08llx)\n", vb,
 				s5p_mfc_mem_get_daddr_vb(vb, 0),
-				buf->addr[0]);
+				buf->addr[0][0]);
 		if (dec->dst_memtype == V4L2_MEMORY_DMABUF &&
 				ctx->state < MFCINST_HEAD_PARSED && !ctx->is_drm)
 			stream_vir = vb2_plane_vaddr(vb, 0);
@@ -590,7 +590,7 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
 
 		MFC_TRACE_CTX("Q src[%d] fd: %d, %#llx\n",
-				vb->index, vb->planes[0].m.fd, buf->addr[0]);
+				vb->index, vb->planes[0].m.fd, buf->addr[0][0]);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		index = vb->index;
 		mfc_debug(2, "Dst queue: 0x%p\n", &ctx->dst_buf_queue);
@@ -598,7 +598,7 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 				s5p_mfc_mem_get_daddr_vb(vb, 0));
 		for (i = 0; i < ctx->dst_fmt->num_planes; i++)
 			mfc_debug(2, "dec dst plane[%d]: %08llx\n",
-					i, buf->addr[i]);
+					i, buf->addr[0][i]);
 		s5p_mfc_store_dpb(ctx, vb);
 
 		if ((dec->dst_memtype == V4L2_MEMORY_USERPTR || dec->dst_memtype == V4L2_MEMORY_DMABUF) &&
@@ -607,7 +607,7 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 			ctx->capture_state = QUEUE_BUFS_MMAPED;
 
 		MFC_TRACE_CTX("Q dst[%d] fd: %d, %#llx / avail %#lx used %#x\n",
-				index, vb->planes[0].m.fd, buf->addr[0],
+				index, vb->planes[0].m.fd, buf->addr[0][0],
 				dec->available_dpb, dec->dynamic_used);
 	} else {
 		mfc_err_ctx("Unsupported buffer type (%d)\n", vq->type);

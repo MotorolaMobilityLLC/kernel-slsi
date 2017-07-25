@@ -62,7 +62,7 @@ int s5p_mfc_run_dec_init(struct s5p_mfc_ctx *ctx)
 			0, src_mb->vb.vb2_buf.planes[0].bytesused);
 	}
 
-	mfc_debug(2, "Header addr: 0x%08llx\n", src_mb->addr[0]);
+	mfc_debug(2, "Header addr: 0x%08llx\n", src_mb->addr[0][0]);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 	s5p_mfc_init_decode(ctx);
 
@@ -235,7 +235,7 @@ int s5p_mfc_run_enc_init(struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_set_enc_stride(ctx);
 
-	mfc_debug(2, "Header addr: 0x%08llx\n", dst_mb->addr[0]);
+	mfc_debug(2, "Header addr: 0x%08llx\n", dst_mb->addr[0][0]);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 
 	ret = s5p_mfc_init_encode(ctx);
@@ -259,7 +259,13 @@ int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 		return -EAGAIN;
 	}
 
-	last_frame = mfc_check_last_frame(ctx, src_mb);
+	if (IS_BUFFER_BATCH_MODE(ctx)) {
+		/* last image in a buffer container */
+		if (src_mb->next_index == (ctx->num_bufs_in_vb - 1))
+			last_frame = mfc_check_last_frame(ctx, src_mb);
+	} else {
+		last_frame = mfc_check_last_frame(ctx, src_mb);
+	}
 
 	index = src_mb->vb.vb2_buf.index;
 

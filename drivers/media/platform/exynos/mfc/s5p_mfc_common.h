@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/ion_exynos.h>
+#include <linux/dmabuf_container.h>
 #include <media/videobuf2-dma-sg.h>
 #include <asm/cacheflush.h>
 
@@ -135,6 +136,8 @@
 				IS_BPG_DEC(ctx) || IS_BPG_ENC(ctx))
 #define ON_RES_CHANGE(ctx)	(((ctx)->state >= MFCINST_RES_CHANGE_INIT) &&	\
 				 ((ctx)->state <= MFCINST_RES_CHANGE_END))
+
+#define IS_BUFFER_BATCH_MODE(ctx)	((ctx)->num_bufs_in_vb > 0)
 
 /* UHD resoluition */
 #define MFC_UHD_RES		(3840 * 2160)

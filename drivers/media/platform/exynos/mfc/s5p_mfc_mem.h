@@ -30,6 +30,26 @@ static inline dma_addr_t s5p_mfc_mem_get_daddr_vb(
 	return addr;
 }
 
+static inline struct dma_buf *s5p_mfc_mem_get_dmabuf(int fd)
+{
+	struct dma_buf *dmabuf = NULL;
+
+	dmabuf = dma_buf_get(fd);
+	WARN_ON(dmabuf == NULL);
+
+	return dmabuf;
+}
+
+static inline void s5p_mfc_mem_put_dmabuf(struct dma_buf *dmabuf)
+{
+	dma_buf_put(dmabuf);
+}
+
+static inline int s5p_mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
+{
+	return dmabuf_container_get_count(dmabuf);
+}
+
 struct vb2_mem_ops *s5p_mfc_mem_ops(void);
 
 void s5p_mfc_mem_set_cacheable(bool cacheable);
@@ -50,4 +70,7 @@ int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 void s5p_mfc_mem_ion_free(struct s5p_mfc_dev *dev,
 		struct s5p_mfc_special_buf *special_buf);
 
+void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf, int plane);
+int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+					struct dma_buf *bufcon_dmabuf, int plane);
 #endif /* __S5P_MFC_MEM_H */
