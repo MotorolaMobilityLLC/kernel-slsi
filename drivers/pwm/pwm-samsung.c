@@ -573,7 +573,7 @@ static const struct samsung_pwm_variant s3c24xx_variant = {
 
 static const struct samsung_pwm_variant s3c64xx_variant = {
 	.bits		= 16,
-	.div_base	= 1,
+	.div_base	= 0,
 	.has_tint_cstat	= true,
 	.tclk_mask	= BIT(7) | BIT(6) | BIT(5),
 };
@@ -640,7 +640,7 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct samsung_pwm_chip *chip;
 	struct resource *res;
-	unsigned int chan;
+	unsigned int chan, reg_tcfg0;
 	int ret;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
@@ -693,6 +693,15 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to enable clock\n");
 		return ret;
 	}
+
+	/* Initialize Prescaler */
+	reg_tcfg0 = readl(chip->base + REG_TCFG0);
+	reg_tcfg0 &= ~(TCFG0_PRESCALER_MASK |
+			(TCFG0_PRESCALER_MASK << TCFG0_PRESCALER1_SHIFT));
+	writel(reg_tcfg0, chip->base + REG_TCFG0);
+
+	/* Initialize Divider MUX */
+	writel(0, chip->base + REG_TCFG1);
 
 	for (chan = 0; chan < SAMSUNG_PWM_NUM; ++chan)
 		if (chip->variant.output_mask & BIT(chan))
