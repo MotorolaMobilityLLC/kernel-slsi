@@ -664,6 +664,8 @@ int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_
 	mutex_lock(&exynos_dm->lock);
 	do_gettimeofday(&before);
 
+	min_freq = min(min_freq, max_freq);
+
 	dm = &exynos_dm->dm_data[dm_type];
 	if ((dm->policy_min_freq == min_freq) && (dm->policy_max_freq == max_freq))
 		goto out;
