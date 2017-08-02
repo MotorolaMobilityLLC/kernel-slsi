@@ -614,7 +614,7 @@ static int mfc_qos_get_interval(struct list_head *head, struct list_head *entry)
 	return (prev_interval < next_interval ? prev_interval : next_interval);
 }
 
-static int mfc_qos_dec_add_timestamp(struct s5p_mfc_ctx *ctx,
+static int mfc_qos_add_timestamp(struct s5p_mfc_ctx *ctx,
 			struct timeval *time, struct list_head *head)
 {
 	int replace_entry = 0;
@@ -661,7 +661,7 @@ static unsigned long mfc_qos_get_fps_by_timestamp(struct s5p_mfc_ctx *ctx, struc
 	}
 
 	if (list_empty(&ctx->ts_list)) {
-		mfc_qos_dec_add_timestamp(ctx, time, &ctx->ts_list);
+		mfc_qos_add_timestamp(ctx, time, &ctx->ts_list);
 		return mfc_qos_get_framerate_by_interval(0);
 	} else {
 		found = 0;
@@ -673,14 +673,14 @@ static unsigned long mfc_qos_get_fps_by_timestamp(struct s5p_mfc_ctx *ctx, struc
 				break;
 			} else if (time_diff > 0) {
 				/* Add this after temp_ts */
-				mfc_qos_dec_add_timestamp(ctx, time, &temp_ts->list);
+				mfc_qos_add_timestamp(ctx, time, &temp_ts->list);
 				found = 1;
 				break;
 			}
 		}
 
 		if (!found)	/* Add this at first entry */
-			mfc_qos_dec_add_timestamp(ctx, time, &ctx->ts_list);
+			mfc_qos_add_timestamp(ctx, time, &ctx->ts_list);
 	}
 
 	list_for_each_entry(temp_ts, &ctx->ts_list, list) {

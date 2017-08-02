@@ -156,6 +156,9 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 			if (IS_BUFFER_BATCH_MODE(ctx)) {
 				int count = 0;
 
+				ctx->framerate = ctx->num_bufs_in_vb * ENC_DEFAULT_CAM_FPS;
+				mfc_debug(3, "framerate: %ld\n", ctx->framerate);
+
 				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf, i);
 				if (count != ctx->num_bufs_in_vb) {
 					mfc_err_ctx("invalid buffer count %d != num_bufs_in_vb %d\n",
@@ -404,15 +407,16 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, buf);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
+
+		mfc_debug(7, "framerate: %ld, timestamp: %lld\n",
+				ctx->framerate, buf->vb.vb2_buf.timestamp);
+		mfc_debug(7, "qos ratio: %d\n", ctx->qos_ratio);
+
+		s5p_mfc_qos_update_last_framerate(ctx, buf->vb.vb2_buf.timestamp);
+		s5p_mfc_qos_update_framerate(ctx);
 	} else {
 		mfc_err_ctx("unsupported buffer type (%d)\n", vq->type);
 	}
-
-	mfc_debug(7, "timestamp: %lld\n", buf->vb.vb2_buf.timestamp);
-	mfc_debug(7, "qos ratio: %d\n", ctx->qos_ratio);
-
-	s5p_mfc_qos_update_last_framerate(ctx, buf->vb.vb2_buf.timestamp);
-	s5p_mfc_qos_update_framerate(ctx);
 
 	if (s5p_mfc_enc_ctx_ready(ctx)) {
 		s5p_mfc_set_bit(ctx->num, &dev->work_bits);

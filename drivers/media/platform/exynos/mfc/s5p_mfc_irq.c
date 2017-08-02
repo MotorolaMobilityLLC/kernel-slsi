@@ -757,6 +757,40 @@ static void mfc_enc_res_change(struct s5p_mfc_ctx *ctx)
 	}
 }
 
+static void mfc_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *src_mb)
+{
+	struct s5p_mfc_dev *dev;
+	struct s5p_mfc_buf *dst_mb;
+	u64 interval;
+	u64 start_timestamp;
+	u64 new_timestamp;
+
+	if (!ctx) {
+		mfc_err_dev("no mfc context to run\n");
+		return;
+	}
+
+	dev = ctx->dev;
+	if (!dev) {
+		mfc_err_dev("no device to run\n");
+		return;
+	}
+
+	start_timestamp = src_mb->vb.vb2_buf.timestamp;
+	interval = NSEC_PER_SEC / (ctx->framerate / 1000);
+	mfc_debug(3, "%ldfps, start timestamp: %lld, base interval: %lld\n",
+			ctx->framerate / 1000, start_timestamp, interval);
+
+	new_timestamp = start_timestamp + (interval * src_mb->done_index);
+	mfc_debug(3, "new timestamp: %lld, interval: %lld\n",
+			new_timestamp, interval * src_mb->done_index);
+
+	/* Get the destination buffer */
+	dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
+	if (dst_mb)
+		dst_mb->vb.vb2_buf.timestamp = new_timestamp;
+}
+
 static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 {
 	struct s5p_mfc_raw_info *raw;
@@ -791,6 +825,8 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 				if (call_cop(ctx, recover_buf_ctrls_val, ctx,
 							&ctx->src_ctrls[index]) < 0)
 					mfc_err_ctx("failed in recover_buf_ctrls_val\n");
+
+				mfc_handle_stream_copy_timestamp(ctx, src_mb);
 
 				/* last image in a buffer container */
 				if (src_mb->done_index == ctx->num_bufs_in_vb) {
@@ -955,9 +991,6 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 
 	ctx->sequence++;
 
-	/* handle destination buffer */
-	mfc_handle_stream_output(ctx, slice_type, strm_size);
-
 	if (enc->in_slice) {
 		if (s5p_mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->dst_buf_queue, 0)) {
 			s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
@@ -967,6 +1000,9 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 
 	/* handle source buffer */
 	mfc_handle_stream_input(ctx, slice_type);
+
+	/* handle destination buffer */
+	mfc_handle_stream_output(ctx, slice_type, strm_size);
 
 	if (IS_BUFFER_BATCH_MODE(ctx))
 		return 0;

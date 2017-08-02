@@ -799,6 +799,40 @@ static void mfc_nal_q_get_enc_frame_buffer(struct s5p_mfc_ctx *ctx,
 	mfc_debug(2, "NAL Q: recon c addr: 0x%08lx\n", enc_recon_c_addr);
 }
 
+static void mfc_nal_q_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *src_mb)
+{
+	struct s5p_mfc_dev *dev;
+	struct s5p_mfc_buf *dst_mb;
+	u64 interval;
+	u64 start_timestamp;
+	u64 new_timestamp;
+
+	if (!ctx) {
+		mfc_err_dev("NAL Q: no mfc context to run\n");
+		return;
+	}
+
+	dev = ctx->dev;
+	if (!dev) {
+		mfc_err_dev("NAL Q: no device to run\n");
+		return;
+	}
+
+	start_timestamp = src_mb->vb.vb2_buf.timestamp;
+	interval = NSEC_PER_SEC / (ctx->framerate / 1000);
+	mfc_debug(3, "NAL Q: %ldfps, start timestamp: %lld, base interval: %lld\n",
+			ctx->framerate / 1000, start_timestamp, interval);
+
+	new_timestamp = start_timestamp + (interval * src_mb->done_index);
+	mfc_debug(3, "NAL Q: new timestamp: %lld, interval: %lld\n",
+			new_timestamp, interval * src_mb->done_index);
+
+	/* Get the destination buffer */
+	dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
+	if (dst_mb)
+		dst_mb->vb.vb2_buf.timestamp = new_timestamp;
+}
+
 static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type,
 				unsigned int strm_size, EncoderOutputStr *pOutStr)
 {
@@ -827,12 +861,16 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 			if (src_mb) {
 				src_mb->done_index++;
 				mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
+
+				mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
 			} else {
 				src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
 						&ctx->src_buf_nal_queue, enc_addr[0], ctx->num_bufs_in_vb);
 				if (src_mb) {
 					src_mb->done_index++;
 					mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
+
+					mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
 
 					/* last image in a buffer container */
 					if (src_mb->done_index == ctx->num_bufs_in_vb) {
@@ -932,6 +970,9 @@ static void mfc_nal_q_handle_stream(struct s5p_mfc_ctx *ctx, EncoderOutputStr *p
 
 	ctx->sequence++;
 
+	/* handle input buffer */
+	mfc_nal_q_handle_stream_input(ctx, slice_type, strm_size, pOutStr);
+
 	/* handle output buffer */
 	if (strm_size > 0) {
 		/* at least one more dest. buffers exist always  */
@@ -981,9 +1022,6 @@ static void mfc_nal_q_handle_stream(struct s5p_mfc_ctx *ctx, EncoderOutputStr *p
 		else
 			vb2_buffer_done(&dst_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
-
-	/* handle input buffer */
-	mfc_nal_q_handle_stream_input(ctx, slice_type, strm_size, pOutStr);
 
 	mfc_debug_leave();
 
