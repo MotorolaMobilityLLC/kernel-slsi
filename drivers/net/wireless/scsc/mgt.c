@@ -929,6 +929,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 							       { SLSI_PSID_UNIFI24_G40_MHZ_CHANNELS, {0, 0} },
 							       { SLSI_PSID_UNIFI_HARDWARE_PLATFORM, {0, 0} },
 							       { SLSI_PSID_UNIFI_REG_DOM_VERSION, {0, 0} },
+							       { SLSI_PSID_UNIFI_NAN_ENABLED, {0, 0} },
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 							       { SLSI_PSID_UNIFI_WI_FI_SHARING5_GHZ_CHANNEL, {0, 0} },
 #endif
@@ -1049,6 +1050,13 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		} else {
 			SLSI_WARN(sdev, "Error reading Reg domain version\n");
 		}
+		/* NAN enabled? */
+		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) {
+			sdev->nan_enabled = values[mib_index].u.boolValue;
+		} else {
+			sdev->nan_enabled = false;
+			SLSI_WARN(sdev, "Error reading NAN enabled mib\n");
+                }
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 		if (values[++mib_index].type == SLSI_MIB_TYPE_OCTET) {  /* 5Ghz Allowed Channels */
 			if (values[mib_index].u.octetValue.dataLength >= 8) {

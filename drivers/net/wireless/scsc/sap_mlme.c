@@ -167,8 +167,16 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
 	case MLME_EVENT_LOG_IND:
 		slsi_rx_event_log_indication(sdev, dev, skb);
-		break;
 #endif
+	case MLME_NAN_EVENT_IND:
+		slsi_nan_event(sdev, dev, skb);
+		break;
+	case MLME_NAN_FOLLOWUP_IND:
+		slsi_nan_followup_ind(sdev, dev, skb);
+		break;
+	case MLME_NAN_SERVICE_IND:
+		slsi_nan_service_ind(sdev, dev, skb);
+		break;
 	default:
 		slsi_kfree_skb(skb);
 		SLSI_NET_ERR(dev, "Unhandled Ind: 0x%.4x\n", id);
@@ -312,6 +320,11 @@ static int sap_mlme_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 			return slsi_rx_enqueue_netdev_mlme(sdev, skb,  SLSI_NET_INDEX_WLAN);
 		case MLME_SIGNIFICANT_CHANGE_IND:
 			return slsi_rx_enqueue_netdev_mlme(sdev, skb, SLSI_NET_INDEX_WLAN);
+
+		case MLME_NAN_EVENT_IND:
+		case MLME_NAN_FOLLOWUP_IND:
+		case MLME_NAN_SERVICE_IND:
+			return slsi_rx_enqueue_netdev_mlme(sdev, skb, vif);
 #endif
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
 		case MLME_EVENT_LOG_IND:

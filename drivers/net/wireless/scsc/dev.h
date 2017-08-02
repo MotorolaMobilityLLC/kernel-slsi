@@ -552,6 +552,14 @@ struct slsi_vif_ap {
 	u8                                ssid_len;
 };
 
+#define SLSI_NAN_MAX_PUBLISH_ID 16
+#define SLSI_NAN_MAX_SUBSCRIBE_ID 16
+
+struct slsi_vif_nan {
+	u32 publish_id_map;
+	u32 subscribe_id_map;
+};
+
 #define TCP_ACK_SUPPRESSION_RECORDS_MAX				16
 #define TCP_ACK_SUPPRESSION_RECORD_UNUSED_TIMEOUT	10 /* in seconds */
 
@@ -711,6 +719,7 @@ struct netdev_vif {
 	struct slsi_vif_unsync      unsync;
 	struct slsi_vif_sta         sta;
 	struct slsi_vif_ap          ap;
+	struct slsi_vif_nan         nan;
 
 	/* TCP ack suppression. */
 	struct slsi_tcp_ack_s *last_tcp_ack;
@@ -813,6 +822,7 @@ struct slsi_dev_config {
 #define SLSI_NET_INDEX_WLAN 1
 #define SLSI_NET_INDEX_P2P  2
 #define SLSI_NET_INDEX_P2PX_SWLAN 3
+#define SLSI_NET_INDEX_NAN  4
 
 /* States used during P2P operations */
 enum slsi_p2p_states {
@@ -1012,6 +1022,7 @@ struct slsi_dev {
 	int                        num_5g_restricted_channels;
 #endif
 	bool                       fw_2g_40mhz_enabled;
+	bool                       nan_enabled;
 	u16                        assoc_result_code; /* Status of latest association in STA mode */
 	bool                       allow_switch_40_mhz; /* Used in AP cert to disable HT40 when not configured */
 	bool                       allow_switch_80_mhz; /* Used in AP cert to disable VHT when not configured */
@@ -1091,6 +1102,7 @@ bool slsi_dev_epno_supported(void);
 bool slsi_dev_vo_vi_block_ack(void);
 int slsi_dev_get_scan_result_count(void);
 bool slsi_dev_llslogs_supported(void);
+int slsi_dev_nan_supported(struct slsi_dev *sdev);
 void slsi_regd_init(struct slsi_dev *sdev);
 
 static inline u16 slsi_tx_host_tag(struct slsi_dev *sdev, enum slsi_traffic_q tq)

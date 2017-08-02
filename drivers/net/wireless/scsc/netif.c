@@ -163,7 +163,11 @@ static int slsi_net_open(struct net_device *dev)
 		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN], sdev->hw_addr);
 		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][0] |= 0x02; /* Set the local bit */
 		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][4] ^= 0x80; /* EXOR 5th byte with 0x80 */
-
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_NAN], sdev->hw_addr);
+		sdev->netdev_addresses[SLSI_NET_INDEX_NAN][0] |= 0x02; /* Set the local bit */
+		sdev->netdev_addresses[SLSI_NET_INDEX_NAN][3] ^= 0x80; /* EXOR 4th byte with 0x80 */
+#endif
 		sdev->initial_scan = true;
 	}
 
@@ -1042,12 +1046,12 @@ static void slsi_if_setup(struct net_device *dev)
 #endif	
 }
 
-static int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
+int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 {
 	struct net_device   *dev = NULL;
 	struct netdev_vif   *ndev_vif;
 	struct wireless_dev *wdev;
-	int                 alloc_size, txq_count, ret;
+	int                 alloc_size, txq_count = 0, ret;
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(sdev->netdev_add_remove_mutex));
 
@@ -1092,8 +1096,8 @@ static int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int if
 	slsi_spinlock_create(&ndev_vif->peer_lock);
 	atomic_set(&ndev_vif->ba_flush, 0);
 
-	/* Reserve memory for the peer database - Not required for p2p0 interface */
-	if (!SLSI_IS_VIF_INDEX_P2P(ndev_vif)) {
+	/* Reserve memory for the peer database - Not required for p2p0/nan interface */
+	if (!(SLSI_IS_VIF_INDEX_P2P(ndev_vif) || SLSI_IS_VIF_INDEX_NAN(ndev_vif))) {
 		int queueset;
 
 		for (queueset = 0; queueset < SLSI_ADHOC_PEER_CONNECTIONS_MAX; queueset++) {
@@ -1241,7 +1245,16 @@ int slsi_netif_init(struct slsi_dev *sdev)
 		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 		return -EINVAL;
 	}
-
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+	if (slsi_netif_add_locked(sdev, "nan%d", SLSI_NET_INDEX_NAN) != 0) {
+		rtnl_lock();
+		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_WLAN]);
+		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_P2P]);
+		rtnl_unlock();
+		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+		return -EINVAL;
+	}
+#endif
 	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 	return 0;
 }

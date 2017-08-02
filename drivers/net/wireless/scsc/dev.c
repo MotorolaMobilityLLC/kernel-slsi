@@ -73,6 +73,10 @@ static int max_scan_result_count = 200;
 module_param(max_scan_result_count, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_scan_result_count, "Max scan results to be reported");
 
+static bool nan_disabled;
+module_param(nan_disabled, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(nan_disabled, "Disable NAN: to disable NAN set 1.");
+
 bool slsi_dev_gscan_supported(void)
 {
 	return !gscan_disabled;
@@ -101,6 +105,17 @@ bool slsi_dev_vo_vi_block_ack(void)
 int slsi_dev_get_scan_result_count(void)
 {
 	return max_scan_result_count;
+}
+
+int slsi_dev_nan_supported(struct slsi_dev *sdev)
+{
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+	if (sdev)
+		return sdev->nan_enabled && !nan_disabled;
+	return false;
+#else
+	return false;
+#endif
 }
 
 static int slsi_dev_inetaddr_changed(struct notifier_block *nb, unsigned long data, void *arg)
@@ -338,6 +353,12 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 		SLSI_ERR(sdev, "failed to register with p2p netdev\n");
 		goto err_wlan_registered;
 	}
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+	if (slsi_netif_register(sdev, sdev->netdev[SLSI_NET_INDEX_NAN]) != 0) {
+		SLSI_ERR(sdev, "failed to register with NAN netdev\n");
+		goto err_p2p_registered;
+	}
+#endif
 #endif
 #ifdef CONFIG_SCSC_WLAN_KIC_OPS
 	if (wifi_kic_register(sdev) < 0)
@@ -352,9 +373,21 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	sdev->device_wq = alloc_ordered_workqueue("slsi_wlan_wq", 0);
 	if (!sdev->device_wq) {
 		SLSI_ERR(sdev, "Cannot allocate workqueue\n");
-		goto err_wlan_registered;
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+		goto err_nan_registered;
+#else
+		goto err_p2p_registered;
+#endif
 	}
 	return sdev;
+
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+err_nan_registered:
+	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_NAN]);
+#endif
+
+err_p2p_registered:
+	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_P2P]);
 
 err_wlan_registered:
 	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_WLAN]);
