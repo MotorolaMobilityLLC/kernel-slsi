@@ -785,24 +785,40 @@ int csi_hw_s_dma_common_pattern(u32 __iomem *base_reg,
 	u32 width, u32 height, u32 fps, u32 clk)
 {
 	u32 val;
+	int clk_mhz;
+	int vvalid;
 	int vblank;
-	u32 hblank = 8;
-	u32 v_to_hblank = 16;
-	u32 h_to_vblank = 2;
+	int vblank_size;
+	u32 hblank = 70;	/* This value should be guided according to 3AA HW constrain. */
+	u32 v_to_hblank = 0x80;	/* This value should be guided according to 3AA HW constrain. */
+	u32 h_to_vblank = 0x40;	/* This value should be guided according to 3AA HW constrain. */
 
-	if (!width) {
+	if (!width || (width % 8 != 0)) {
 		err("A width(%d) is not aligned to 8", width);
 		return -EINVAL;
 	}
 
-	/* V-blank Calculation */
-	vblank = (clk * 2 / fps) - (width + hblank) * height - v_to_hblank - h_to_vblank;
-	if (vblank <= 0) {
-		info("Invalid size & fps: size(%d x %d), vblank(%d), fps(%d), clk(%d Mhz)\n",
-			width, height, vblank, fps, clk);
-		vblank = clk * 1000; /* 100 us */
-		fps = clk * 2 / (vblank + (width + hblank) * height + v_to_hblank + h_to_vblank);
+	clk_mhz = clk / 1000000;
+
+	/*
+	 * V-valid Calculation:
+	 * The unit of v-valid is usec.
+	 * 2 means 2ppc.
+	 */
+	vvalid = (width * height) / (clk_mhz * 2);
+
+	/*
+	 * V-blank Calculation:
+	 * The unit of v-blank is usec.
+	 * v-blank operates with 1ppc.
+	 */
+	vblank = ((1000000 / fps) - vvalid);
+	if (vblank < 0) {
+		vblank = 1000; /* 1000 us */
+		info("FPS is too high. So, FPS is adjusted forcely. vvalid(%d us), vblank(%d us)\n",
+			vvalid, vblank);
 	}
+	vblank_size = vblank * clk_mhz;
 
 	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_TEST_PATTERN_CTRL]);
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_VTOHBLANK], v_to_hblank);
@@ -817,14 +833,14 @@ int csi_hw_s_dma_common_pattern(u32 __iomem *base_reg,
 
 	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_TEST_PATTERN_ENABLE]);
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_PPC_MODE], CSIS_PIXEL_MODE_DUAL);
-	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_VBLANK], vblank);
+	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_VBLANK], vblank_size);
 	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_TEST_PATTERN_ENABLE], val);
 
 	fimc_is_hw_set_field(base_reg, &csi_dma_regs[CSIS_DMA_R_TEST_PATTERN_ENABLE],
 			&csi_dma_fields[CSIS_DMA_F_TESTPATTERN], 1);
 
-	info("Enable Pattern Generator: size(%d x %d), vblank(%d), fps(%d), clk(%d Mhz)\n",
-		width, height, vblank, fps, clk);
+	info("Enable Pattern Generator: size(%d x %d), fps(%d), clk(%d Hz), vvalid(%d us), vblank(%d us)\n",
+		width, height, fps, clk, vvalid, vblank);
 
 	return 0;
 }
