@@ -209,7 +209,7 @@ retry_get_time:
 	rtc_tm->tm_hour = readb(info->base + S3C2410_RTCHOUR);
 	rtc_tm->tm_mday = readb(info->base + S3C2410_RTCDATE);
 	rtc_tm->tm_mon  = readb(info->base + S3C2410_RTCMON);
-	rtc_tm->tm_year = readb(info->base + S3C2410_RTCYEAR);
+	rtc_tm->tm_year = readw(info->base + S3C2410_RTCYEAR);
 	rtc_tm->tm_sec  = readb(info->base + S3C2410_RTCSEC);
 
 	/* the only way to work out whether the system was mid-update
@@ -268,7 +268,7 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 	writeb(bin2bcd(tm->tm_hour), info->base + S3C2410_RTCHOUR);
 	writeb(bin2bcd(tm->tm_mday), info->base + S3C2410_RTCDATE);
 	writeb(bin2bcd(tm->tm_mon + 1), info->base + S3C2410_RTCMON);
-	writeb(bin2bcd(year), info->base + S3C2410_RTCYEAR);
+	writew(bin2bcd(year), info->base + S3C2410_RTCYEAR);
 
 	s3c_rtc_disable_clk(info);
 
@@ -291,7 +291,7 @@ static int s3c_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alm_tm->tm_hour = readb(info->base + S3C2410_ALMHOUR);
 	alm_tm->tm_mon  = readb(info->base + S3C2410_ALMMON);
 	alm_tm->tm_mday = readb(info->base + S3C2410_ALMDATE);
-	alm_tm->tm_year = readb(info->base + S3C2410_ALMYEAR);
+	alm_tm->tm_year = readw(info->base + S3C2410_ALMYEAR);
 
 	alm_en = readb(info->base + S3C2410_RTCALM);
 
@@ -365,7 +365,7 @@ static int s3c_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	if (year < 100 && year >= 0) {
 		alrm_en |= S3C2410_RTCALM_YEAREN;
-		writeb(bin2bcd(year), info->base + S3C2410_ALMYEAR);
+		writew(bin2bcd(year), info->base + S3C2410_ALMYEAR);
 	}
 
 	if (tm->tm_mon < 12 && tm->tm_mon >= 0) {
@@ -566,19 +566,14 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	/* Check RTC Time */
-	if (s3c_rtc_gettime(&pdev->dev, &rtc_tm)) {
-		rtc_tm.tm_year	= 100;
-		rtc_tm.tm_mon	= 0;
-		rtc_tm.tm_mday	= 1;
-		rtc_tm.tm_hour	= 0;
-		rtc_tm.tm_min	= 0;
-		rtc_tm.tm_sec	= 0;
-
-		s3c_rtc_settime(&pdev->dev, &rtc_tm);
-
-		dev_warn(&pdev->dev, "warning: invalid RTC value so initializing it\n");
-	}
+	/* Initialize BCD register */
+	rtc_tm.tm_year	= 100;
+	rtc_tm.tm_mon	= 0;
+	rtc_tm.tm_mday	= 1;
+	rtc_tm.tm_hour	= 0;
+	rtc_tm.tm_min	= 0;
+	rtc_tm.tm_sec	= 0;
+	s3c_rtc_settime(&pdev->dev, &rtc_tm);
 
 	/* register RTC and exit */
 	info->rtc = devm_rtc_device_register(&pdev->dev, "s3c", &s3c_rtcops,
