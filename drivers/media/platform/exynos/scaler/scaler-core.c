@@ -330,7 +330,8 @@ static const struct sc_fmt sc_formats[] = {
 
 /* must specify in revers order of SCALER_VERSION(xyz) */
 static const u32 sc_version_table[][2] = {
-	{ 0x02000000, SCALER_VERSION(5, 0, 0) }, /* SC_POLY */
+	{ 0x02000100, SCALER_VERSION(5, 0, 0) }, /* SC_POLY */
+	{ 0x02000000, SCALER_VERSION(5, 0, 0) },
 	{ 0x80060007, SCALER_VERSION(4, 2, 0) }, /* SC_BI */
 	{ 0x0100000f, SCALER_VERSION(4, 0, 1) }, /* SC_POLY */
 	{ 0xA0000013, SCALER_VERSION(4, 0, 1) },
