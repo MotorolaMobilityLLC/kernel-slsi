@@ -59,82 +59,109 @@ static bool g2d_still_need_perf(struct g2d_device *g2d_dev)
 	return false;
 }
 
-static inline char perf_index_sc(struct g2d_performance_layer_data *layer)
-{
-	u32 basis = 1000;
-	u32 ratio = ((u64)layer->window_width *
-		layer->window_height * basis) /
-		(layer->crop_width * layer->crop_height);
-	int i;
-
-	if (ratio == basis)
-		return PPC_NO_SCALE;
-
-	if (ratio > basis)
-		return PPC_SC_UP;
-
-	for (i = PPC_SC_DOWN_1; i < PPC_SC_DOWN_16; i++) {
-		if (ratio > basis / i / i)
-			return i;
-	}
-
-	return PPC_SC_DOWN_16;
-}
-
 static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 					  struct g2d_performance_data *data)
 {
 	struct g2d_device *g2d_dev = g2d_ctx->g2d_dev;
 	struct g2d_performance_frame_data *frame;
-	struct g2d_performance_layer_data *layer;
-	u32 (*ppc)[PPC_SC] = (u32 (*)[PPC_SC])g2d_dev->hw_ppc;
-	unsigned int cycle, ip_clock, crop, window;
+	struct g2d_performance_layer_data *layer, *pair;
+	unsigned int cycle, cycle_src, cycle_dst, ip_clock;
+	unsigned int rot_size, no_rot_size;
+	unsigned int dst_ppc, ppc[G2D_MAX_IMAGES];
 	int i, j;
-	int sc, fmt, rot;
+	char sc, yuv2p, rot, rot_skip, gap;
 
 	cycle = 0;
+	gap = false;
 
 	for (i = 0; i < data->num_frame; i++) {
 		frame = &data->frame[i];
 
+		rot_size = 0;
+		no_rot_size = 0;
+		cycle_src = 0;
+
+		/*
+		 * The rotate variable means that the rotated layers and
+		 * non-rotated layers are mixed.
+		 * If all layers are rotated or are non rotated, that is
+		 * excluded.
+		 */
 		rot = 0;
 		for (j = 0; j < frame->num_layers; j++) {
-			if (perf_index_rotate(&frame->layer[j])) {
+			if (is_perf_layer_rotate(&frame->layer[j]))
 				rot++;
-				break;
-			}
 		}
+		rot_skip = (rot == frame->num_layers) ? 1 : 0;
 
 		for (j = 0; j < frame->num_layers; j++) {
 			layer = &frame->layer[j];
 
-			crop = (u32)layer->crop_width * layer->crop_height;
-			window = (u32)layer->window_width * layer->window_height;
+			yuv2p = is_perf_layer_yuv2p(layer) ? 1 : 0;
+			sc = is_perf_layer_scaling(layer) ? 1 : 0;
+			rot = !rot_skip && is_perf_layer_rotate(layer) ? 1 : 0;
 
-			fmt = perf_index_fmt(layer);
-			sc = perf_index_sc(layer);
+			ppc[j] =
+				g2d_dev->hw_ppc[(yuv2p << 2) | (rot << 1) | sc];
 
-			if (fmt == PPC_FMT)
-				return;
-
-			cycle += max(crop, window) / ppc[fmt * PPC_ROT + rot][sc];
+			cycle_src += layer->pixelcount / ppc[j];
 
 			/*
-			 * If frame has colorfill layer on the bottom,
-			 * upper layaer is treated as opaque.
-			 * In this case, colorfill is not be processed
-			 * as much as the overlapping area.
+			 * check rotated size for cycle_dst. rotated size is
+			 * bigger than non-rotated size, g2d write direction
+			 * is vertical, and it affects performance.
 			 */
-			if (!j && is_perf_frame_colorfill(frame)) {
-				unsigned int pixelcount;
+			if (is_perf_layer_rotate(layer))
+				rot_size += layer->pixelcount;
+			else
+				no_rot_size += layer->pixelcount;
 
-				pixelcount = frame->target_pixelcount -
-					layer->window_width * layer->window_height;
-				if (pixelcount > 0)
-					cycle += pixelcount / g2d_dev->hw_ppc[PPC_COLORFILL];
+			/*
+			 * The rotated layer affects the pair layer,
+			 * so we add the cycle using gap_ppc between pair
+			 * N layer and N+1 layer. The gap ppc is calculated
+			 * on odd layer and gap_pixelcount is pair layer's
+			 * nested region from 2 layers that means
+			 * the smaller region.
+			 */
+			if (rot && (yuv2p || sc))
+				gap = true;
 
+			if (gap && (j & 0x1)) {
+				unsigned int gap_pixelcount, gap_ppc;
+
+				pair = &frame->layer[j - 1];
+				gap = false;
+
+				gap_ppc = (ppc[j] > ppc[j - 1]) ?
+					(ppc[j] - ppc[j - 1]) :
+					(ppc[j - 1] - ppc[j]);
+				if (!gap_ppc)
+					continue;
+
+				gap_ppc = (ppc[j] * ppc[j - 1]) / gap_ppc;
+
+				gap_pixelcount = min(layer->pixelcount, pair->pixelcount);
+
+				cycle_src += gap_pixelcount / gap_ppc;
 			}
 		}
+
+		rot = (rot_size > no_rot_size) ? 1 : 0;
+		if (!rot && is_perf_frame_yuv2p(frame))
+			dst_ppc = g2d_dev->hw_ppc[G2D_PPC_DST_YUV2P];
+		else if (!rot)
+			dst_ppc = g2d_dev->hw_ppc[G2D_PPC_DST_DEFAULT];
+		else
+			dst_ppc = g2d_dev->hw_ppc[G2D_PPC_DST_ROT];
+
+		cycle_dst = frame->target_pixelcount / dst_ppc;
+
+		cycle += max(cycle_src, cycle_dst);
+
+		if (is_perf_frame_colorfill(frame))
+			cycle += frame->target_pixelcount /
+					g2d_dev->hw_ppc[G2D_PPC_COLORFILL];
 	}
 
 	/* ip_clock(Mhz) = cycles / time_in_ms * 1000 */
@@ -245,16 +272,6 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 void g2d_set_performance(struct g2d_context *ctx,
 				struct g2d_performance_data *data)
 {
-	int i;
-
-	if (data->num_frame > G2D_PERF_MAX_FRAMES)
-		return;
-
-	for (i = 0; i < data->num_frame; i++) {
-		if (data->frame[i].num_layers > G2D_MAX_IMAGES)
-			return;
-	}
-
 	g2d_set_qos_frequency(ctx, data);
 	g2d_set_device_frequency(ctx, data);
 }

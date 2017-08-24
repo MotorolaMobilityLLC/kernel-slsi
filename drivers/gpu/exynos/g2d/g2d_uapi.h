@@ -212,23 +212,15 @@ struct g2d_task_data {
 /* flags of g2d_performance_layer_data.layer_attr */
 #define G2D_PERF_LAYER_ROTATE		(1 << 0)
 #define G2D_PERF_LAYER_SCALING		(1 << 1)
-#define G2D_PERF_LAYER_YUV2P		(1 << 4)
-#define G2D_PERF_LAYER_YUV2P_82	(1 << 5)
-#define G2D_PERF_LAYER_FMTMASK		(3 << 4)
+#define G2D_PERF_LAYER_YUV2P		(1 << 2)
 
 /*
  * struct g2d_performance_frame_data - description of needed performance.
- * @crop_width/height : the width and height of the image that
- * 		participates in the image processing
- * @window_width/height : the width and height of valid rectangle,
- *		the region is drawn on target
+ * @pixelcount : the pixecount of layer, is used to calculate the frequency.
  * @layer_attr : attribute of layer affecting performance.
  */
 struct g2d_performance_layer_data {
-	__u16 crop_width;
-	__u16 crop_height;
-	__u16 window_width;
-	__u16 window_height;
+	__u32 pixelcount;
 	__u32 layer_attr;
 };
 
