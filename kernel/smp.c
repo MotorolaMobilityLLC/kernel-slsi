@@ -499,6 +499,8 @@ EXPORT_SYMBOL(smp_call_function);
 /* Setup configured maximum number of CPUs to activate */
 unsigned int setup_max_cpus = NR_CPUS;
 EXPORT_SYMBOL(setup_max_cpus);
+struct cpumask early_cpu_mask;
+EXPORT_SYMBOL(early_cpu_mask);
 
 
 /*
@@ -570,12 +572,16 @@ void __init smp_init(void)
 
 	pr_info("Bringing up secondary CPUs ...\n");
 
+	cpumask_clear(&early_cpu_mask);
+	cpumask_set_cpu(0, &early_cpu_mask);
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= setup_max_cpus)
 			break;
-		if (!cpu_online(cpu))
+		if (!cpu_online(cpu)) {
 			cpu_up(cpu);
+			cpumask_set_cpu(cpu, &early_cpu_mask);
+		}
 	}
 
 	num_nodes = num_online_nodes();

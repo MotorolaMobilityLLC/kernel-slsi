@@ -136,6 +136,7 @@ bool exynos_cpu_hotplug_enabled(void)
  * than maximum online CPU. If mininum is greater than maximum, online CPU will
  * be maximum.
  */
+extern struct cpumask early_cpu_mask;
 static struct cpumask create_cpumask(void)
 {
 	int online_cpu_min, online_cpu_max;
@@ -147,11 +148,25 @@ static struct cpumask create_cpumask(void)
 
 	cpumask_clear(&mask);
 
-	for (cpu = 0; cpu < online_cpu_min; cpu++)
-		cpumask_set_cpu(cpu, &mask);
+	for_each_possible_cpu (cpu) {
+		if (!cpumask_test_cpu(cpu, &early_cpu_mask))
+			continue;
 
-	for (cpu = nr_cpu_ids - 1; cpu >= online_cpu_max; cpu--)
-		cpumask_clear_cpu(cpu, &mask);
+		if (cpumask_weight(&mask) < online_cpu_min)
+			cpumask_set_cpu(cpu, &mask);
+		else
+			break;
+	}
+
+	for (cpu = nr_cpu_ids - 1; cpu >= 0; cpu--) {
+		if (!cpumask_test_cpu(cpu, &early_cpu_mask))
+			continue;
+
+		if (cpumask_weight(&mask) > online_cpu_max)
+			cpumask_clear_cpu(cpu, &mask);
+		else
+			break;
+	}
 
 	return mask;
 }
@@ -263,6 +278,7 @@ static int control_cpu_hotplug(bool enable)
 
 		cpumask_setall(&mask);
 		cpumask_andnot(&mask, &mask, cpu_online_mask);
+		cpumask_and(&mask, &mask, &early_cpu_mask);
 
 		/*
 		 * If it success to enable all CPUs, clear cpu_hotplug.enabled flag.

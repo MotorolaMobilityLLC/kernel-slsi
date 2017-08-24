@@ -977,6 +977,7 @@ static ssize_t show_cpufreq_max_limit(struct kobject *kobj,
 }
 
 struct pm_qos_request cpu_online_max_qos_req;
+extern struct cpumask early_cpu_mask;
 static void enable_domain_cpus(struct exynos_cpufreq_domain *domain)
 {
 	struct cpumask mask;
@@ -984,7 +985,7 @@ static void enable_domain_cpus(struct exynos_cpufreq_domain *domain)
 	if (domain == first_domain())
 		return;
 
-	cpumask_or(&mask, cpu_online_mask, &domain->cpus);
+	cpumask_or(&mask, &early_cpu_mask, &domain->cpus);
 	pm_qos_update_request(&cpu_online_max_qos_req, cpumask_weight(&mask));
 }
 
@@ -995,7 +996,7 @@ static void disable_domain_cpus(struct exynos_cpufreq_domain *domain)
 	if (domain == first_domain())
 		return;
 
-	cpumask_andnot(&mask, cpu_online_mask, &domain->cpus);
+	cpumask_andnot(&mask, &early_cpu_mask, &domain->cpus);
 	pm_qos_update_request(&cpu_online_max_qos_req, cpumask_weight(&mask));
 }
 
