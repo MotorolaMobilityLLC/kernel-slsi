@@ -1,0 +1,184 @@
+/*
+ * SAMSUNG EXYNOS9610 SoC device tree source
+ *
+ * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * SAMSUNG EXYNOS9610 SoC device nodes are listed in this file.
+ * EXYNOS9610 based board files can include this file and provide
+ * values for board specfic bindings.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/clock/exynos9610.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "exynos9610-pinctrl.dtsi"
+
+/ {
+	compatible = "samsung,armv8", "samsung,exynos9610";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	aliases {
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
+		pinctrl3 = &pinctrl_3;
+		pinctrl4 = &pinctrl_4;
+//		pinctrl5 = &pinctrl_5;
+		uart0 = &serial_0;
+	};
+
+	chipid@10000000 {
+		compatible = "samsung,exynos9610-chipid";
+		reg = <0x0 0x10000000 0x100>;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x100>;
+			enable-method = "psci";
+		};
+	};
+
+	gic:interrupt-controller@12300000 {
+		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg =	<0x0 0x12301000 0x1000>,
+			<0x0 0x12302000 0x1000>,
+			<0x0 0x12304000 0x2000>,
+			<0x0 0x12306000 0x2000>;
+		interrupts = <1 9 0xf04>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13
+				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14
+				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11
+				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10
+				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+	        clock-frequency = <26000000>;
+		use-clocksource-only;
+		use-physical-timer;
+	};
+
+	clock: clock-controller@0x11800000 {
+		compatible = "samsung,exynos9610-clock";
+		reg = <0x0 0x11800000 0x8000>;
+		#clock-cells = <1>;
+	};
+
+	mct@10040000 {
+		compatible = "samsung,exynos4210-mct";
+		reg = <0x0 0x10040000 0x800>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		interrupt-parent = <&mct_map>;
+		interrupts =	<0>, <1>, <2>, <3>,
+				<4>, <5>, <6>, <7>,
+				<8>, <9>, <10>, <11>;
+		clocks = <&clock OSCCLK>, <&clock GATE_MCT_QCH>;
+		clock-names = "fin_pll", "mct";
+		use-clockevent-only;
+
+		mct_map: mct-map {
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <0 &gic 0 234 0>,
+					<1 &gic 0 235 0>,
+					<2 &gic 0 236 0>,
+					<3 &gic 0 237 0>,
+					<4 &gic 0 238 0>,
+					<5 &gic 0 239 0>,
+					<6 &gic 0 240 0>,
+					<7 &gic 0 241 0>,
+					<8 &gic 0 242 0>,
+					<9 &gic 0 243 0>,
+					<10 &gic 0 244 0>,
+					<11 &gic 0 245 0>;
+		};
+	};
+
+	/* ALIVE */
+	pinctrl_0: pinctrl@11850000 {
+		compatible = "samsung,exynos9610-pinctrl";
+		reg = <0x0 0x11850000 0x1000>;
+		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
+				<0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
+				<0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
+				<0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>,
+				<0 16 0>, <0 17 0>, <0 18 0>, <0 19 0>,
+				<0 20 0>, <0 21 0>, <0 22 0>, <0 23 0>;
+	};
+
+	/* CMGP */
+	pinctrl_1: pinctrl@11C20000{
+		compatible = "samsung,exynos9610-pinctrl";
+		reg = <0x0 0x11C20000 0x1000>;
+		interrupts = <0 142 0>, <0 143 0>, <0 144 0>, <0 145 0>,
+				<0 158 0>, <0 159 0>, <0 160 0>, <0 161 0>,
+				<0 162 0>, <0 170 0>, <0 171 0>, <0 172 0>,
+				<0 173 0>, <0 174 0>, <0 185 0>, <0 196 0>,
+				<0 197 0>, <0 226 0>, <0 227 0>, <0 228 0>,
+				<0 269 0>, <0 270 0>, <0 272 0>, <0 278 0>,
+				<0 318 0>, <0 319 0>;
+	};
+
+	/* DISPAUD */
+	pinctrl_2: pinctrl@14A60000{
+		compatible = "samsung,exynos9610-pinctrl";
+		reg = <0x0 0x14A60000 0x1000>;
+	};
+
+	/* FSYS */
+	pinctrl_3: pinctrl@13490000 {
+		compatible = "samsung,exynos9610-pinctrl";
+		reg = <0x0 0x13490000 0x1000>;
+		interrupts = <0 150 0>;
+	};
+
+	/* TOP */
+	pinctrl_4: pinctrl@139B0000 {
+		compatible = "samsung,exynos9610-pinctrl";
+		reg = <0x0 0x139B0000 0x1000>;
+		interrupts = <0 266 0>;
+	};
+
+#if 0
+	/* SHUB */
+	pinctrl_5: pinctrl@11080000{
+		compatible = "samsung,exynos9610-pinctrl";
+		reg = <0x0 0x11080000 0x1000>;
+		interrupts = <0 116 0>;
+	};
+#endif
+
+	serial_0: uart@13820000 {
+		compatible = "samsung,exynos-uart";
+		samsung,separate-uart-clk;
+		reg = <0x0 0x13820000 0x100>;
+		samsung,fifo-size = <256>;
+		interrupts = <0 246 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_bus>;
+		clocks = <&clock GATE_UART_QCH>, <&clock UART>;
+		clock-names = "gate_pclk0", "gate_uart0";
+		status = "disabled";
+	};
+};
