@@ -123,18 +123,6 @@ static void g2d_set_hwfc_commands(struct g2d_task *task)
 	task->cmd_count++;
 }
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-void g2d_complete_commands(struct g2d_task *task)
-{
-	/* 832 is the total number of the G2D registers */
-	BUG_ON(task->cmd_count > 830);
-
-	g2d_set_taskctl_commands(task);
-
-	if (IS_HWFC(task->flags))
-		g2d_set_hwfc_commands(task);
-}
-#else
 void g2d_complete_commands(struct g2d_task *task)
 {
 	struct g2d_reg *regs = page_address(task->cmd_page);
@@ -164,7 +152,6 @@ void g2d_complete_commands(struct g2d_task *task)
 	regs[task->cmd_count].value = 1;
 	task->cmd_count++;
 }
-#endif
 
 static const struct g2d_fmt g2d_formats[] = {
 	{
@@ -975,6 +962,9 @@ bool g2d_prepare_source(struct g2d_task *task,
 	if ((layer->flags & G2D_LAYERFLAG_COLORFILL) != 0)
 		return true;
 
+	if ((layer->flags & G2D_LAYERFLAG_SECURE) != 0)
+		reg[TASK_REG_LAYER_SECURE].value |= 1 << index;
+
 	task->cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
 			? g2d_set_afbc_buffer(task, layer, LAYER_OFFSET(index))
 			: g2d_set_image_buffer(task, layer, colormode,
@@ -988,7 +978,11 @@ bool g2d_prepare_source(struct g2d_task *task,
 
 bool g2d_prepare_target(struct g2d_task *task)
 {
+	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
 	u32 colormode = task->target.commands[G2DSFR_IMG_COLORMODE].value;
+
+	if ((task->target.flags & G2D_LAYERFLAG_SECURE) != 0)
+		reg[TASK_REG_LAYER_SECURE].value |= 1 << 24;
 
 	task->cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
 			? g2d_set_afbc_buffer(task, &task->target,

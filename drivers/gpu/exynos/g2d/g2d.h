@@ -22,14 +22,6 @@
 
 struct g2d_task; /* defined in g2d_task.h */
 
-struct g2d_task_secbuf {
-	unsigned long cmd_paddr;
-	int cmd_count;
-	int priority;
-	int job_id;
-	int secure_layer;
-};
-
 enum g2d_priority {
 	G2D_LOW_PRIORITY,
 	G2D_MEDIUM_PRIORITY,
