@@ -1212,6 +1212,10 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 
 static void s3c2410wdt_shutdown(struct platform_device *dev)
 {
+#ifdef CONFIG_S3C2410_SHUTDOWN_REBOOT
+	pr_emerg("%s: watchdog is still alive\n", __func__);
+	s3c2410wdt_keepalive_emergency(true, 0);
+#else
 	struct s3c2410_wdt *wdt = platform_get_drvdata(dev);
 
 	/* Only little cluster watchdog excute mask function */
@@ -1219,6 +1223,7 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 		s3c2410wdt_mask_wdt_reset(wdt, true);
 
 	s3c2410wdt_stop(&wdt->wdt_device);
+#endif
 }
 
 static struct platform_driver s3c2410wdt_driver = {
