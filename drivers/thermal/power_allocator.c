@@ -530,10 +530,13 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 	}
 }
 
-static void reset_pid_controller(struct power_allocator_params *params)
+static void reset_pid_controller(struct power_allocator_params *params, struct thermal_zone_device *tz)
 {
-	params->err_integral = 0;
+	s64 i = int_to_frac(tz->tzp->integral_max);
+
+	params->err_integral = div_frac(i, tz->tzp->k_i);
 	params->prev_err = 0;
+
 }
 
 static void allow_maximum_power(struct thermal_zone_device *tz)
@@ -598,7 +601,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 					       control_temp, false);
 	}
 
-	reset_pid_controller(params);
+	reset_pid_controller(params, tz);
 
 	tz->governor_data = params;
 
@@ -642,7 +645,7 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 				     &switch_on_temp);
 	if (!ret && (tz->temperature < switch_on_temp)) {
 		tz->passive = 0;
-		reset_pid_controller(params);
+		reset_pid_controller(params, tz);
 		allow_maximum_power(tz);
 		return 0;
 	}
