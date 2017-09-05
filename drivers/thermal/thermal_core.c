@@ -53,13 +53,11 @@ static bool power_off_triggered;
 
 static struct workqueue_struct *thermal_wq;
 
-#ifdef CONFIG_SCHED_HMP
 static void start_poll_queue(struct thermal_zone_device *tz, int delay)
 {
 	mod_delayed_work(thermal_wq, &tz->poll_queue,
 			msecs_to_jiffies(delay));
 }
-#endif
 
 static struct thermal_governor *def_governor;
 
@@ -304,19 +302,10 @@ static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 					    int delay)
 {
 	if (delay > 1000)
-#ifdef CONFIG_SCHED_HMP
 		start_poll_queue(tz, delay);
-#else
-		mod_delayed_work(system_freezable_wq, &tz->poll_queue,
-				 round_jiffies(msecs_to_jiffies(delay)));
-#endif
+
 	else if (delay)
-#ifdef CONFIG_SCHED_HMP
 		start_poll_queue(tz, delay);
-#else
-		mod_delayed_work(system_freezable_wq, &tz->poll_queue,
-				 msecs_to_jiffies(delay));
-#endif
 	else
 		cancel_delayed_work(&tz->poll_queue);
 }
