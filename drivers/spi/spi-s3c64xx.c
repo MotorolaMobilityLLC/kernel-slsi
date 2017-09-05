@@ -653,6 +653,12 @@ static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 		do {
 			status = readl(regs + S3C64XX_SPI_STATUS);
 		} while (RX_FIFO_LVL(status, sdd) < xfer->len && --val);
+
+		if (master->bus_num == 0) {
+			chcfg = readl(regs + S3C64XX_SPI_CH_CFG);
+			chcfg &= ~S3C64XX_SPI_CH_RXCH_ON;
+			writel(chcfg, regs + S3C64XX_SPI_CH_CFG);
+		}
 	}
 
 	if (!val)
