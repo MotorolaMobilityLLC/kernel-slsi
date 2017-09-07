@@ -269,11 +269,11 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 	unsigned long loops;
 	u32 val;
 
-	writel(0, regs + S3C64XX_SPI_PACKET_CNT);
-
 	val = readl(regs + S3C64XX_SPI_CH_CFG);
 	val &= ~(S3C64XX_SPI_CH_RXCH_ON | S3C64XX_SPI_CH_TXCH_ON);
 	writel(val, regs + S3C64XX_SPI_CH_CFG);
+
+	writel(0, regs + S3C64XX_SPI_PACKET_CNT);
 
 	val = readl(regs + S3C64XX_SPI_CH_CFG);
 	val |= S3C64XX_SPI_CH_SW_RST;
@@ -520,7 +520,7 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 				struct spi_transfer *xfer, int dma_mode)
 {
 	void __iomem *regs = sdd->regs;
-	u32 modecfg, chcfg, dma_burst_len;
+	u32 modecfg, chcfg, dma_burst_len, packet_cnt_en;
 
 	chcfg = readl(regs + S3C64XX_SPI_CH_CFG);
 	chcfg &= ~S3C64XX_SPI_CH_TXCH_ON;
@@ -540,9 +540,17 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 		 * as exactly needed.
 		 */
 		chcfg |= S3C64XX_SPI_CH_RXCH_ON;
-		writel(((xfer->len * 8 / sdd->cur_bpw) & 0xffff)
-					| S3C64XX_SPI_PACKET_CNT_EN,
-					regs + S3C64XX_SPI_PACKET_CNT);
+
+		packet_cnt_en = readl(regs + S3C64XX_SPI_PACKET_CNT);
+		packet_cnt_en &= ~S3C64XX_SPI_PACKET_CNT_EN;
+		writel(packet_cnt_en, regs + S3C64XX_SPI_PACKET_CNT);
+
+		writel(((xfer->len * 8 / sdd->cur_bpw) & 0xffff),
+			regs + S3C64XX_SPI_PACKET_CNT);
+
+		packet_cnt_en = readl(regs + S3C64XX_SPI_PACKET_CNT);
+		packet_cnt_en |= S3C64XX_SPI_PACKET_CNT_EN;
+		writel(packet_cnt_en, regs + S3C64XX_SPI_PACKET_CNT);
 	}
 
 	writel(modecfg, regs + S3C64XX_SPI_MODE_CFG);
