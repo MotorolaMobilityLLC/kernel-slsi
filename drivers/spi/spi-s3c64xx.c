@@ -740,6 +740,7 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	u32 val;
+	int ret;
 
 	/* Disable Clock */
 	if (!sdd->port_conf->clk_from_cmu) {
@@ -809,7 +810,10 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 
 	if (sdd->port_conf->clk_from_cmu) {
 		/* There is a quarter-multiplier before the SPI */
-		clk_set_rate(sdd->src_clk, sdd->cur_speed * 4);
+		ret = clk_set_rate(sdd->src_clk, sdd->cur_speed * 4);
+		if (ret < 0)
+			dev_err(&sdd->pdev->dev, "SPI clk set failed\n");
+
 	} else {
 		/* Configure Clock */
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
