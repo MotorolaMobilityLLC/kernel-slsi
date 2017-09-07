@@ -363,7 +363,8 @@ static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
  */
 static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 {
-	unsigned int ipclk, ret;
+	int ret;
+	unsigned int ipclk;
 	unsigned int op_clk = (mode == HSI2C_HIGH_SPD) ?
 		i2c->hs_clock : i2c->fs_clock;
 
