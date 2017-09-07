@@ -803,7 +803,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(dev->of_node, "index", &cluster_index)) {
 		dev_err(dev, "Watchdog cluster index lookup failed.\n");
-		return PTR_ERR(&cluster_index);
+		return -EINVAL;
 	}
 	dev_info(dev, "watchdog cluster%d probe\n", cluster_index);
 
