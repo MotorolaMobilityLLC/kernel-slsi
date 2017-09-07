@@ -939,7 +939,6 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct iio_dev *indio_dev = NULL;
 	struct resource	*mem;
-	bool has_ts = false;
 	int ret = -ENODEV;
 	int irq;
 	unsigned int sysreg;
@@ -1073,10 +1072,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 err_of_populate:
 	device_for_each_child(&indio_dev->dev, NULL,
 				exynos_adc_remove_devices);
-	if (has_ts) {
-		input_unregister_device(info->input);
-		free_irq(info->tsirq, info);
-	}
+
 #ifdef ADC_TS
 err_iio:
 	iio_device_unregister(indio_dev);
