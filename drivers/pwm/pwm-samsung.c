@@ -556,6 +556,33 @@ static int pwm_samsung_set_polarity(struct pwm_chip *chip,
 	return 0;
 }
 
+static int pwm_samsung_capture(struct pwm_chip *chip, struct pwm_device *pwm,
+		       struct pwm_capture *result, unsigned long timeout)
+{
+	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
+	struct samsung_pwm_channel *chan = pwm_get_chip_data(pwm);
+	unsigned long freq;
+	u32 tcon, tcnt, tcmp, polarity, enabled;
+	u32 tcon_chan = to_tcon_channel(pwm->hwpwm);
+
+	result->period = chan->period_ns;
+	result->duty_cycle = chan->duty_ns;
+
+	tcon = readl(our_chip->base + REG_TCON);
+	polarity = tcon & TCON_INVERT(tcon_chan);
+	enabled = tcon & TCON_START(tcon_chan);
+
+	tcnt = readl(our_chip->base + REG_TCNTB(pwm->hwpwm));
+	tcmp = readl(our_chip->base + REG_TCMPB(pwm->hwpwm));
+	freq = clk_get_rate(our_chip->pwm_sclk) / tcnt;
+	dev_info(our_chip->chip.dev, "output freq = %luHz, tcnt = %u, tcmp = %u\n",
+			freq, tcnt, tcmp);
+	dev_info(our_chip->chip.dev, "pwm %sabled, polarity: %s",
+			(enabled ? "en":"dis"), (polarity ? "inverse" : "normal"));
+
+	return 0;
+}
+
 static const struct pwm_ops pwm_samsung_ops = {
 	.request	= pwm_samsung_request,
 	.free		= pwm_samsung_free,
@@ -563,6 +590,7 @@ static const struct pwm_ops pwm_samsung_ops = {
 	.disable	= pwm_samsung_disable,
 	.config		= pwm_samsung_config,
 	.set_polarity	= pwm_samsung_set_polarity,
+	.capture	= pwm_samsung_capture,
 	.owner		= THIS_MODULE,
 };
 
