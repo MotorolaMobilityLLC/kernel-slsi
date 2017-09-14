@@ -11,6 +11,93 @@
 #ifndef __EXYNOS_BTS_H_
 #define __EXYNOS_BTS_H_
 
+#if defined(CONFIG_EXYNOS9610_BTS)
+#define BUS_WIDTH		16
+#define DISP_UTIL		75
+
+enum bts_scen_type {
+	BS_DEFAULT,
+	BS_MFC_UHD,
+	BS_G3D_PERFORMANCE,
+	BS_DP_DEFAULT,
+	BS_CAMERA_DEFAULT,
+	BS_MAX,
+};
+
+enum bts_bw_type {
+	/* RT */
+	BTS_BW_DECON0,
+	BTS_BW_DECON1,
+	BTS_BW_DECON2,
+	BTS_BW_CAMERA,
+	BTS_BW_AUDIO,
+	BTS_BW_CP,
+	/* non-RT */
+	BTS_BW_G2D,
+	BTS_BW_MFC,
+	BTS_BW_MCSL,
+	BTS_BW_MAX,
+	BTS_BW_RT = BTS_BW_G2D,
+};
+
+enum bts_dpp_type {
+	BTS_DPP0,
+	BTS_DPP1,
+	BTS_DPP2,
+	BTS_DPP3,
+	BTS_DPP_MAX,
+};
+
+enum bts_dpu_type {
+	BTS_DPU0,
+	BTS_DPU1,
+	BTS_DPU_MAX,
+};
+
+struct bts_layer_position {
+	unsigned int x1;
+	/* x2 = x1 + width */
+	unsigned int x2;
+	unsigned int y1;
+	/* y2 = y1 + height */
+	unsigned int y2;
+};
+
+struct bts_dpp_info {
+	bool used;
+	unsigned int bpp;
+	unsigned int src_h;
+	unsigned int src_w;
+	struct bts_layer_position dst;
+	unsigned int bw;
+	bool rotation;
+};
+
+struct bts_decon_info {
+	struct bts_dpp_info dpp[BTS_DPP_MAX];
+	/* Khz */
+	unsigned int vclk;
+	unsigned int lcd_w;
+	unsigned int lcd_h;
+};
+
+struct bts_bw {
+	unsigned int peak;
+	unsigned int read;
+	unsigned int write;
+};
+
+void bts_update_scen(enum bts_scen_type type, unsigned int val);
+/* bandwidth (KB/s) */
+void bts_update_bw(enum bts_bw_type type, struct bts_bw bw);
+unsigned int bts_calc_bw(enum bts_bw_type type, void *data);
+
+#else
+#define bts_update_scen(a, b) do {} while(0)
+#define bts_update_bw(a, b) do {} while(0)
+#define bts_calc_bw(a, b) do {} while(0)
+#endif
+
 #if defined(CONFIG_EXYNOS5422_BTS) || defined(CONFIG_EXYNOS5433_BTS)	\
 	|| defined(CONFIG_EXYNOS7420_BTS) || defined(CONFIG_EXYNOS7890_BTS) \
 	|| defined(CONFIG_EXYNOS8890_BTS)

@@ -23,4 +23,14 @@ config EXYNOS8890_BTS_OPTIMIZATION
 	depends on EXYNOS8890_BTS
 	help
 	  Enable BTS (Bus traffic shaper) optimized set
+
+config EXYNOS9610_BTS
+	bool "Bus traffic shaper support"
+	default y
+	depends on SOC_EXYNOS9610
+	help
+	  With this configuration bts driver will be enabled which is for
+	  setting BTS and DVFS to manage bus traffic. Default setting
+	  is different to chipset because of the hardware change and DVFS
+	  status.
 endif
