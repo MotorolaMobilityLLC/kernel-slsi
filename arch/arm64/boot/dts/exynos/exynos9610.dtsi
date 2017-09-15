@@ -17,6 +17,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "exynos9610-pinctrl.dtsi"
 #include <dt-bindings/ufs/ufs.h>
+#include "exynos9610-sysmmu.dtsi"
 
 / {
 	compatible = "samsung,armv8", "samsung,exynos9610";
@@ -1489,5 +1490,59 @@
 		clocks = <&clock GATE_PWM_MOTOR_QCH>, <&clock OSCCLK>;
 		clock-names = "pwm_pclk", "pwm_sclk";
 		status = "ok";
+	};
+
+	iommu-domain_dpu {
+		compatible = "samsung,exynos-iommu-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		domain-clients = <>;
+	};
+
+	iommu-domain_vipx {
+		compatible = "samsung,exynos-iommu-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		domain-clients = <>;
+	};
+
+	iommu-domain_abox {
+		compatible = "samsung,exynos-iommu-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		domain-clients = <>;
+	};
+
+	iommu-domain_isp {
+		compatible = "samsung,exynos-iommu-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		domain-clients = <>;
+	};
+
+	iommu-domain_mfc {
+		compatible = "samsung,exynos-iommu-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		domain-clients = <>;
+	};
+
+	iommu-domain_g2dmscljpeg {
+		compatible = "samsung,exynos-iommu-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		domain-clients = <>;
 	};
 };
