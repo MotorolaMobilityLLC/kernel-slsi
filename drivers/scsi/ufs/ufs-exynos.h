@@ -458,32 +458,8 @@ struct ufs_phy_cfg {
 	u32 lyr;
 };
 
-struct exynos_ufs_soc {
-	struct ufs_phy_cfg *tbl_phy_init;
-	struct ufs_phy_cfg *tbl_post_phy_init;
-	struct ufs_phy_cfg *tbl_calib_of_pwm;
-	struct ufs_phy_cfg *tbl_calib_of_hs_rate_a;
-	struct ufs_phy_cfg *tbl_calib_of_hs_rate_b;
-	struct ufs_phy_cfg *tbl_post_calib_of_pwm;
-	struct ufs_phy_cfg *tbl_post_calib_of_hs_rate_a;
-	struct ufs_phy_cfg *tbl_post_calib_of_hs_rate_b;
-	struct ufs_phy_cfg *tbl_lpa_restore;
-	struct ufs_phy_cfg *tbl_pre_clk_off;
-	struct ufs_phy_cfg *tbl_post_clk_on;
-	struct ufs_phy_cfg *tbl_lane1_sq_off;
-};
-
 struct exynos_ufs_phy {
 	void __iomem *reg_pma;
-	void __iomem *reg_pmu;
-	struct exynos_ufs_soc *soc;
-};
-
-#define NUM_OF_SYSREG 1
-struct exynos_ufs_sys {
-	void __iomem *reg_sys[NUM_OF_SYSREG];
-	u32 mask[NUM_OF_SYSREG];
-	u32 bits[NUM_OF_SYSREG];
 };
 
 struct exynos_ufs_clk_info {
@@ -532,6 +508,12 @@ struct exynos_fmp_data {
 	struct platform_device *pdev;
 };
 
+struct exynos_access_cxt {
+	u32 offset;
+	u32 mask;
+	u32 val;
+};
+
 struct exynos_ufs {
 	struct device *dev;
 	struct ufs_hba *hba;
@@ -541,6 +523,7 @@ struct exynos_ufs {
 	void __iomem *reg_ufsp;
 
 	struct regmap *pmureg;
+	struct regmap *sysreg;
 
 	struct clk *clk_hci;
 	struct clk *pclk;
@@ -555,7 +538,6 @@ struct exynos_ufs {
 	int num_tx_lanes;
 
 	struct exynos_ufs_phy phy;
-	struct exynos_ufs_sys sys;
 	struct notifier_block tcxo_nb;
 	struct uic_pwr_mode req_pmd_parm;
 	struct uic_pwr_mode act_pmd_parm;
@@ -579,6 +561,10 @@ struct exynos_ufs {
 	int idle_ip_index;
 
 	u32 hw_rev;
+
+	u32 tcxo_ex_ctrl;			/* TCXO exclusive control */
+	struct exynos_access_cxt cxt_iso;	/* phy isolation */
+	struct exynos_access_cxt cxt_coherency;	/* io coherency */
 
 	struct pm_qos_request	pm_qos_int;
 	s32			pm_qos_int_value;

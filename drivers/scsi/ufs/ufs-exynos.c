@@ -46,10 +46,6 @@
 
 #define IATOVAL_NSEC		20000	/* unit: ns */
 
-#if defined(CONFIG_SOC_EXYNOS9810)
-#define UFS_PHY_CONTROL_OFFSET 0x0724
-#endif
-
 /* UFS CAL interface */
 
 /*
@@ -244,15 +240,16 @@ unsigned long ufs_lld_calc_timeout(const unsigned int ms)
 	return msecs_to_jiffies(ms);
 }
 
-
 static inline void exynos_ufs_ctrl_phy_pwr(struct exynos_ufs *ufs, bool en)
 {
 	int ret = 0;
 
 	if (en)
-		ret = regmap_update_bits(ufs->pmureg, UFS_PHY_CONTROL_OFFSET, 0x1, 1);
+		ret = regmap_update_bits(ufs->pmureg, ufs->cxt_iso.offset,
+					ufs->cxt_iso.mask, ufs->cxt_iso.val);
 	else
-		ret = regmap_update_bits(ufs->pmureg, UFS_PHY_CONTROL_OFFSET, 0x1, 0);
+		ret = regmap_update_bits(ufs->pmureg, ufs->cxt_iso.offset,
+					ufs->cxt_iso.mask, 0);
 
 	if (ret)
 		dev_err(ufs->dev, "Unable to update PHY ISO control\n");
@@ -493,39 +490,29 @@ static void exynos_ufs_post_hibern8(struct ufs_hba *hba, u8 enter)
 	}
 }
 
-static void exynos_ufs_modify_sysreg(struct exynos_ufs *ufs, int index)
-{
-	struct exynos_ufs_sys *sys = &ufs->sys;
-	void __iomem *reg_sys = sys->reg_sys[index];
-	const char *const name[NUM_OF_SYSREG] = {
-		"ufs-io-coherency",
-	};
-	u32 reg;
-
-	if (!of_get_child_by_name(ufs->dev->of_node, name[index]))
-		return;
-
-	reg = readl(reg_sys);
-	writel((reg & ~(sys->mask[index])) | sys->bits[index], reg_sys);
-}
-
 static int exynos_ufs_init_system(struct exynos_ufs *ufs)
 {
 	struct device *dev = ufs->dev;
 	int ret = 0;
+	bool is_io_coherency;
+	bool is_dma_coherent;
 
 	/* PHY isolation bypass */
 	exynos_ufs_ctrl_phy_pwr(ufs, true);
 
 	/* IO cohernecy */
-	if (!of_get_child_by_name(dev->of_node, "ufs-io-coherency")) {
-		dev_err(dev, "Not configured to use IO coherency\n");
-	} else {
-		if (!of_find_property(dev->of_node, "dma-coherent", NULL))
-			BUG();
+	is_io_coherency = !IS_ERR(ufs->sysreg);
+	is_dma_coherent = !!of_find_property(dev->of_node,
+						"dma-coherent", NULL);
 
-		exynos_ufs_modify_sysreg(ufs, 0);
-	}
+	if (is_io_coherency != is_dma_coherent)
+		BUG();
+
+	if (!is_io_coherency)
+		dev_err(dev, "Not configured to use IO coherency\n");
+	else
+		ret = regmap_update_bits(ufs->sysreg, ufs->cxt_coherency.offset,
+			ufs->cxt_coherency.mask, ufs->cxt_coherency.val);
 
 	return ret;
 }
@@ -535,6 +522,7 @@ static int exynos_ufs_get_clks(struct ufs_hba *hba)
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct list_head *head = &hba->clk_list_head;
 	struct ufs_clk_info *clki;
+	int i = 0;
 
 	ufs_host_backup[ufs_host_index++] = ufs;
 	ufs->debug.std_sfr = ufs_log_std_sfr;
@@ -543,13 +531,15 @@ static int exynos_ufs_get_clks(struct ufs_hba *hba)
 		goto out;
 
 	list_for_each_entry(clki, head, list) {
-		if (!IS_ERR_OR_NULL(clki->clk)) {
-			if (!strcmp(clki->name, "GATE_UFS_EMBD"))
-				ufs->clk_hci = clki->clk;
-			if (!strcmp(clki->name, "UFS_EMBD")) {
-				ufs->clk_unipro = clki->clk;
-			}
-		}
+		/*
+		 * get clock with an order listed in device tree
+		 */
+		if (i == 0)
+			ufs->clk_hci = clki->clk;
+		else if (i == 1)
+			ufs->clk_unipro = clki->clk;
+
+		i++;
 	}
 out:
 	if (!ufs->clk_hci || !ufs->clk_unipro)
@@ -681,7 +671,7 @@ static void exynos_ufs_tcxo_ctrl(struct exynos_ufs *ufs, bool tcxo_on)
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(ufs->pmureg , UFS_PHY_CONTROL_OFFSET , &val);
+	ret = regmap_read(ufs->pmureg, ufs->cxt_iso.offset, &val);
 
 	if (tcxo_on == true)
 		val |= (1 << 16);
@@ -689,7 +679,7 @@ static void exynos_ufs_tcxo_ctrl(struct exynos_ufs *ufs, bool tcxo_on)
 		val &= ~(1 << 16);
 
 	if (!ret)
-		ret = regmap_write(ufs->pmureg , UFS_PHY_CONTROL_OFFSET , val);
+		ret = regmap_write(ufs->pmureg, ufs->cxt_iso.offset, val);
 
 	if (ret)
 		dev_err(ufs->dev, "Unable to access the pmureg using regmap\n");
@@ -724,10 +714,12 @@ static int exynos_ufs_pre_setup_clocks(struct ufs_hba *hba, bool on)
 		exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
 #endif
 
-		spin_lock_irqsave(&fsys0_tcxo_lock, flags);
-		if (exynos_use_shared_resource(OWNER_FIRST, on) == !on)
-			exynos_ufs_tcxo_ctrl(ufs, true);
-		spin_unlock_irqrestore(&fsys0_tcxo_lock, flags);
+		if (ufs->tcxo_ex_ctrl) {
+			spin_lock_irqsave(&fsys0_tcxo_lock, flags);
+			if (exynos_use_shared_resource(OWNER_FIRST, on) == !on)
+				exynos_ufs_tcxo_ctrl(ufs, true);
+			spin_unlock_irqrestore(&fsys0_tcxo_lock, flags);
+		}
 
 		/*
 		 * Now all used blocks would not be turned off in a host.
@@ -738,7 +730,8 @@ static int exynos_ufs_pre_setup_clocks(struct ufs_hba *hba, bool on)
 		/* HWAGC disable */
 		exynos_ufs_set_hwacg_control(ufs, false);
 	} else {
-		pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
+		pm_qos_update_request(&ufs->pm_qos_int, 0);
+//		pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
 
 		/*
 		 * BG/SQ off
@@ -761,22 +754,25 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on)
 		 */
 		ret = ufs_pre_h8_exit(ufs);
 
-		pm_qos_update_request(&ufs->pm_qos_fsys0, ufs->pm_qos_fsys0_value);
+		pm_qos_update_request(&ufs->pm_qos_int, ufs->pm_qos_int_value);
+//		pm_qos_update_request(&ufs->pm_qos_fsys0, ufs->pm_qos_fsys0_value);
 
 	} else {
 		/*
 		 * Now all used blocks would be turned off in a host.
 		 */
-		exynos_ufs_gate_clk(ufs, true);
+		//exynos_ufs_gate_clk(ufs, true);
 		exynos_ufs_ctrl_auto_hci_clk(ufs, true);
 
 		/* HWAGC enable */
 		exynos_ufs_set_hwacg_control(ufs, true);
 
-		spin_lock_irqsave(&fsys0_tcxo_lock, flags);
-		if (exynos_use_shared_resource(OWNER_FIRST, on) == on)
-			exynos_ufs_tcxo_ctrl(ufs, false);
-		spin_unlock_irqrestore(&fsys0_tcxo_lock, flags);
+		if (ufs->tcxo_ex_ctrl) {
+			spin_lock_irqsave(&fsys0_tcxo_lock, flags);
+			if (exynos_use_shared_resource(OWNER_FIRST, on) == on)
+				exynos_ufs_tcxo_ctrl(ufs, false);
+			spin_unlock_irqrestore(&fsys0_tcxo_lock, flags);
+		}
 
 
 #ifdef CONFIG_CPU_IDLE
@@ -928,7 +924,8 @@ static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 
-	pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
+	pm_qos_update_request(&ufs->pm_qos_int, 0);
+//	pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
 
 	exynos_ufs_dev_reset_ctrl(ufs, false);
 
@@ -1022,68 +1019,11 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.access_control_abort = exynos_ufs_access_control_abort,
 };
 
-static int exynos_ufs_populate_dt_sys_per_feature(struct device *dev,
-				struct exynos_ufs *ufs,	int index)
-{
-	struct device_node *np;
-	struct exynos_ufs_sys *sys = &ufs->sys;
-	struct resource io_res;
-	int ret;
-	const char *const name[NUM_OF_SYSREG] = {
-		"ufs-io-coherency",
-	};
-
-	np = of_get_child_by_name(dev->of_node, name[index]);
-	if (!np) {
-		dev_err(dev, "failed to get ufs-sys node\n");
-		return -ENODEV;
-	}
-
-	ret = of_address_to_resource(np, 0, &io_res);
-	if (ret) {
-		dev_err(dev, "failed to get i/o address %s\n", name[index]);
-		if (ret == -EINVAL)
-			ret = 0;
-	} else {
-		sys->reg_sys[index] = devm_ioremap_resource(dev, &io_res);
-		if (IS_ERR(sys->reg_sys[index])) {
-			dev_err(dev, "failed to ioremap sysreg\n");
-			ret = -ENOMEM;
-		} else {
-			ret = of_property_read_u32(np, "mask",
-						&sys->mask[index]);
-			ret = of_property_read_u32(np, "bits",
-						&sys->bits[index]);
-			if (ret)
-				ret = -EINVAL;
-		}
-	}
-
-	of_node_put(np);
-
-	return ret;
-}
-
-static int exynos_ufs_populate_dt_sys(struct device *dev, struct exynos_ufs *ufs)
-{
-	int i = 0;
-	int ret;
-
-	for (i = 0 ; i < NUM_OF_SYSREG ; i++) {
-		ret = exynos_ufs_populate_dt_sys_per_feature(dev, ufs, i);
-		if (ret && ret != -ENODEV)
-			break;
-	}
-
-	return ret;
-}
-
 static int exynos_ufs_populate_dt_phy(struct device *dev, struct exynos_ufs *ufs)
 {
 	struct device_node *ufs_phy;
 	struct exynos_ufs_phy *phy = &ufs->phy;
 	struct resource io_res;
-	struct device_node *phy_sys = dev->of_node;
 	int ret;
 
 	ufs_phy = of_get_child_by_name(dev->of_node, "ufs-phy");
@@ -1105,16 +1045,103 @@ static int exynos_ufs_populate_dt_phy(struct device *dev, struct exynos_ufs *ufs
 		goto err_0;
 	}
 
-	/* regmap pmureg*/
-	ufs->pmureg = syscon_regmap_lookup_by_phandle(phy_sys,
-					 "samsung,pmu-phandle");
-	if (IS_ERR(ufs->pmureg)) {
-			 dev_err(dev, "syscon regmap lookup failed.\n");
-			 return PTR_ERR(ufs->pmureg);
-	 }
-
 err_0:
 	of_node_put(ufs_phy);
+
+	return ret;
+}
+
+/*
+ * This function is to define offset, mask and shift to access somewhere.
+ */
+static int exynos_ufs_set_context_for_access(struct device *dev,
+				const char *name, struct exynos_access_cxt *cxt)
+{
+	struct device_node *np;
+	int ret;
+
+	np = of_get_child_by_name(dev->of_node, name);
+	if (!np) {
+		dev_err(dev, "failed to get node(%s)\n", name);
+		return 1;
+	}
+
+	ret = of_property_read_u32(np, "offset", &cxt->offset);
+	if (IS_ERR(&cxt->offset)) {
+		dev_err(dev, "failed to set cxt(%s) offset\n", name);
+		return cxt->offset;
+	}
+
+	ret = of_property_read_u32(np, "mask", &cxt->mask);
+	if (IS_ERR(&cxt->mask)) {
+		dev_err(dev, "failed to set cxt(%s) mask\n", name);
+		return cxt->mask;
+	}
+
+	ret = of_property_read_u32(np, "val", &cxt->val);
+	if (IS_ERR(&cxt->val)) {
+		dev_err(dev, "failed to set cxt(%s) val\n", name);
+		return cxt->val;
+	}
+
+	return 0;
+}
+
+static int exynos_ufs_populate_dt_system(struct device *dev, struct exynos_ufs *ufs)
+{
+	struct device_node *np = dev->of_node;
+	int ret;
+
+	/* regmap pmureg */
+	ufs->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
+					 "samsung,pmu-phandle");
+	if (IS_ERR(ufs->pmureg)) {
+		/*
+		 * phy isolation should be available.
+		 * so this case need to be failed.
+		 */
+		dev_err(dev, "pmu regmap lookup failed.\n");
+		return PTR_ERR(ufs->pmureg);
+	}
+
+	/* Set access context for phy isolation bypass */
+	ret = exynos_ufs_set_context_for_access(dev, "ufs-phy-iso",
+							&ufs->cxt_iso);
+	if (ret == 1) {
+		/* no device node, default */
+		ufs->cxt_iso.offset = 0x0724;
+		ufs->cxt_iso.mask = 0x1;
+		ufs->cxt_iso.val = 0x1;
+		ret = 0;
+	}
+
+	/* regmap sysreg */
+	ufs->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+					 "samsung,sysreg-fsys-phandle");
+	if (IS_ERR(ufs->sysreg)) {
+		/*
+		 * Currently, ufs driver gets sysreg for io coherency.
+		 * Some architecture might not support this feature.
+		 * So the device node might not exist.
+		 */
+		dev_err(dev, "sysreg regmap lookup failed.\n");
+		return 0;
+	}
+
+	/* Set access context for io coherency */
+	ret = exynos_ufs_set_context_for_access(dev, "ufs-dma-coherency",
+							&ufs->cxt_coherency);
+	if (ret == 1) {
+		/* no device node, default */
+		ufs->cxt_coherency.offset = 0x0700;
+		ufs->cxt_coherency.mask = 0x300;	/* bit 8,9 */
+		ufs->cxt_coherency.val = 0x3;
+		ret = 0;
+	}
+
+	/* TCXO exclusive control */
+	if (of_property_read_u32(np, "tcxo-ex-ctrl", &ufs->tcxo_ex_ctrl))
+		ufs->tcxo_ex_ctrl = 1;
 
 	return ret;
 }
@@ -1152,9 +1179,11 @@ static int exynos_ufs_populate_dt(struct device *dev, struct exynos_ufs *ufs)
 		goto out;
 	}
 
-	ret = exynos_ufs_populate_dt_sys(dev, ufs);
-	if (ret)
-		dev_err(dev, "failed to populate ufs-sys\n");
+	ret = exynos_ufs_populate_dt_system(dev, ufs);
+	if (ret) {
+		dev_err(dev, "failed to populate dt-pmu\n");
+		goto out;
+	}
 
 	exynos_ufs_get_pwr_mode(np, ufs);
 
@@ -1247,14 +1276,19 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ufs->tcxo_nb.notifier_call = exynos_ufs_lp_event;
-	ufs->tcxo_nb.next = NULL;
-	ufs->tcxo_nb.priority = 0;
+	/*
+	 * pmu node and txco syscon node should be exclusive
+	 */
+	if (ufs->tcxo_ex_ctrl) {
+		ufs->tcxo_nb.notifier_call = exynos_ufs_lp_event;
+		ufs->tcxo_nb.next = NULL;
+		ufs->tcxo_nb.priority = 0;
 
-	ret = exynos_fsys0_tcxo_register_notifier(&ufs->tcxo_nb);
-	if (ret) {
-		dev_err(dev, "failed to register fsys0 txco notifier\n");
-		return ret;
+		ret = exynos_fsys0_tcxo_register_notifier(&ufs->tcxo_nb);
+		if (ret) {
+			dev_err(dev, "failed to register fsys0 txco notifier\n");
+			return ret;
+		}
 	}
 #ifdef CONFIG_CPU_IDLE
 	ufs->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
@@ -1265,8 +1299,11 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	dev->platform_data = ufs;
 	dev->dma_mask = &exynos_ufs_dma_mask;
 
-	pm_qos_add_request(&ufs->pm_qos_fsys0, PM_QOS_FSYS0_THROUGHPUT, 0);
-	spin_lock_init(&fsys0_tcxo_lock);
+
+	pm_qos_add_request(&ufs->pm_qos_int, PM_QOS_DEVICE_THROUGHPUT, 0);
+//	pm_qos_add_request(&ufs->pm_qos_fsys0, PM_QOS_FSYS0_THROUGHPUT, 0);
+	if (ufs->tcxo_ex_ctrl)
+		spin_lock_init(&fsys0_tcxo_lock);
 
 	ret = ufshcd_pltfrm_init(pdev, &exynos_ufs_ops);
 
