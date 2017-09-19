@@ -3870,7 +3870,7 @@ static int synaptics_power_ctrl(void *data, bool on)
 	struct synaptics_rmi4_data *rmi4_data = (struct synaptics_rmi4_data *)data;
 	const struct synaptics_rmi4_platform_data *pdata = rmi4_data->board;
 	struct device *dev = &rmi4_data->i2c_client->dev;
-	/* struct regulator *regulator_avdd; */
+	struct regulator *regulator_avdd;
 	struct pinctrl *pinctrl_irq;
 	static bool enabled;
 	int retval = 0;
@@ -3878,14 +3878,13 @@ static int synaptics_power_ctrl(void *data, bool on)
 	if (enabled == on)
 		return retval;
 
-	/*
 	regulator_avdd = regulator_get(NULL, pdata->regulator_avdd);
 	if (IS_ERR(regulator_avdd)) {
 		tsp_debug_err(true, dev, "%s: Failed to get %s regulator.\n",
 			 __func__, pdata->regulator_avdd);
 		return PTR_ERR(regulator_avdd);
 	}
-	*/
+
 	tsp_debug_info(true, dev, "%s: %s\n", __func__, on ? "on" : "off");
 
 	if (on) {
@@ -3894,13 +3893,13 @@ static int synaptics_power_ctrl(void *data, bool on)
 			tsp_debug_err(true, dev, "%s: Failed to enable vdd: %d\n", __func__, retval);
 			return retval;
 		}
-		/*
+
 		retval = regulator_enable(regulator_avdd);
 		if (retval) {
 			tsp_debug_err(true, dev, "%s: Failed to enable avdd: %d\n", __func__, retval);
 			return retval;
 		}
-		*/
+
 		if (IS_ERR(pinctrl_irq))
 			tsp_debug_err(true, dev, "%s: Failed to configure tsp_attn pin\n", __func__);
 
@@ -3910,17 +3909,17 @@ static int synaptics_power_ctrl(void *data, bool on)
 
 	} else {
 		regulator_disable(pdata->regul_dvdd);
-		/*
+
 		if (regulator_is_enabled(regulator_avdd))
 			regulator_disable(regulator_avdd);
-		*/
+
 		pinctrl_irq = devm_pinctrl_get_select(dev, "off_state");
 		if (IS_ERR(pinctrl_irq))
 			tsp_debug_err(true, dev, "%s: Failed to configure tsp_attn pin\n", __func__);
 	}
 
 	enabled = on;
-	/* regulator_put(regulator_avdd); */
+	regulator_put(regulator_avdd);
 
 	return retval;
 }
@@ -3970,12 +3969,12 @@ static int synaptics_parse_dt(struct i2c_client *client)
 		tsp_debug_err(true, dev, "Failed to get regulator_dvdd name property\n");
 		return -EINVAL;
 	}
-	/*
+
 	if (of_property_read_string(np, "synaptics,regulator_avdd", &pdata->regulator_avdd)) {
 		tsp_debug_err(true, dev, "Failed to get regulator_avdd name property\n");
 		return -EINVAL;
 	}
-	*/
+
 	pdata->power = synaptics_power_ctrl;
 
 	pdata->regul_dvdd = regulator_get(dev, pdata->regulator_dvdd);
