@@ -13,7 +13,11 @@
 #define _UFS_EXYNOS_H_
 
 #include <linux/pm_qos.h>
+#ifdef CONFIG_SOC_EXYNOS9610
+#include "ufs-cal-9610.h"
+#else
 #include "ufs-cal-9810.h"
+#endif
 
 #define UFS_VER_0004	4
 #define UFS_VER_0005	5
