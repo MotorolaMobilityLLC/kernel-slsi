@@ -484,7 +484,6 @@ static void late_enable_irq(struct work_struct *work)
 		return;
 
 	if (data->touch_stopped) {
-		dev_err(&data->i2c_client->dev, "Enable IRQ when S/W touch stopped\n");
 		retval = synaptics_rmi4_start_device(data);
 		if (retval < 0) {
 			tsp_debug_err(true, &data->i2c_client->dev,
@@ -3900,8 +3899,8 @@ static int synaptics_power_ctrl(void *data, bool on)
 			return retval;
 		}
 
-		if (IS_ERR(pinctrl_irq))
-			tsp_debug_err(true, dev, "%s: Failed to configure tsp_attn pin\n", __func__);
+		/*if (IS_ERR(pinctrl_irq))
+			tsp_debug_err(true, dev, "%s: Failed to configure tsp_attn pin\n", __func__);*/
 
 		pinctrl_irq = devm_pinctrl_get_select(dev, "on_state");
 		if (IS_ERR(pinctrl_irq))
@@ -4177,7 +4176,7 @@ err_tsp_reboot:
 	}
 
 	pr_info("%s schdule delayed work for irq at probe\n",__func__);
-	schedule_delayed_work(&rmi4_data->work_init_irq, 4500);
+	schedule_delayed_work(&rmi4_data->work_init_irq, 1500);
 #if 0
 	/* Enable attn pin */
 	retval = synaptics_rmi4_irq_enable(rmi4_data, true);
@@ -4228,7 +4227,7 @@ err_tsp_reboot:
 	rmi4_data->tsp_probe = true;
 
 	/* it will be started by input reader */
-	synaptics_rmi4_stop_device(rmi4_data);
+	//synaptics_rmi4_stop_device(rmi4_data);
 
 	complete_all(&rmi4_data->init_done);
 
@@ -4245,6 +4244,9 @@ err_sysfs:
 	}
 	synaptics_rmi4_irq_enable(rmi4_data, false);
 
+/*err_enable_irq:
+	synaptics_rmi4_remove_exp_fn(rmi4_data);
+*/
 err_init_exp_fn:
 	input_unregister_device(rmi4_data->input_dev);
 	input_free_device(rmi4_data->input_dev);
