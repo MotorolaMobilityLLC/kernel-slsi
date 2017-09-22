@@ -2839,4 +2839,10 @@
 			};
 		};
 	};
+
+	/* Secure log */
+	seclog {
+		compatible = "samsung,exynos-seclog";
+		interrupts = <0 455 0>;
+	};
 };
