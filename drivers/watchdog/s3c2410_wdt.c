@@ -78,6 +78,7 @@
 #define MAX_WATCHDOG_CLUSTER_CNT		2
 #define LITTLE_CLUSTER				0
 #define BIG_CLUSTER				1
+#define MULTISTAGE_WDT_RATIO			70
 
 static bool nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
@@ -137,9 +138,16 @@ struct s3c2410_wdt {
 	const struct s3c2410_wdt_variant *drv_data;
 	struct regmap *pmureg;
 	unsigned int cluster;
+	int use_multistage_wdt;
 };
 
 static struct s3c2410_wdt *s3c_wdt[MAX_WATCHDOG_CLUSTER_CNT];
+
+static int s3c2410wdt_multistage_wdt_stop(void);
+static int s3c2410wdt_multistage_wdt_start(void);
+static int s3c2410wdt_multistage_set_heartbeat(struct s3c2410_wdt *wdt, int ratio);
+static void s3c2410wdt_multistage_wdt_keepalive(void);
+static int s3c2410wdt_get_multistage_index(void);
 
 static const struct s3c2410_wdt_variant drv_data_s3c2410 = {
 	.quirks = 0
@@ -283,6 +291,8 @@ static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
 	unsigned long flags;
 
+	s3c2410wdt_multistage_wdt_keepalive();
+
 	spin_lock_irqsave(&wdt->lock, flags);
 	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
 	spin_unlock_irqrestore(&wdt->lock, flags);
@@ -293,6 +303,8 @@ static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 static void __s3c2410wdt_stop(struct s3c2410_wdt *wdt)
 {
 	unsigned long wtcon;
+
+	s3c2410wdt_multistage_wdt_stop();
 
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
 	wtcon &= ~(S3C2410_WTCON_ENABLE | S3C2410_WTCON_RSTEN);
@@ -349,6 +361,8 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	writel(wdt->count, wdt->reg_base + S3C2410_WTDAT);
 	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
 	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
+	s3c2410wdt_multistage_wdt_start();
+
 	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	return 0;
@@ -406,6 +420,7 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd,
 	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
 
 	wdd->timeout = (count * divisor) / freq;
+	s3c2410wdt_multistage_set_heartbeat(wdt, MULTISTAGE_WDT_RATIO);
 
 	return 0;
 }
@@ -427,6 +442,8 @@ static int s3c2410wdt_restart(struct watchdog_device *wdd, unsigned long action,
 	writel(S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV16 |
 		S3C2410_WTCON_RSTEN | S3C2410_WTCON_PRESCALE(0x20),
 		wdt_base + S3C2410_WTCON);
+
+	s3c2410wdt_multistage_wdt_start();
 
 	/* wait for reset to assert... */
 	mdelay(500);
@@ -596,9 +613,113 @@ int s3c2410wdt_keepalive_emergency(bool reset, int index)
 		pr_emerg("watchdog reset is started to 30secs\n");
 		s3c2410wdt_set_heartbeat(&wdt->wdt_device, 30);
 		s3c2410wdt_start(&wdt->wdt_device);
+		s3c2410wdt_multistage_wdt_stop();
 	}
 	/* This Function must be called during panic sequence only */
 	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
+	return 0;
+}
+
+static int s3c2410wdt_get_multistage_index(void)
+{
+	int i;
+
+	for (i = 0; i < MAX_WATCHDOG_CLUSTER_CNT; i++) {
+		if (!s3c_wdt[i])
+			continue;
+
+		if (s3c_wdt[i]->use_multistage_wdt)
+			return i;
+	}
+
+	return -ENODEV;
+}
+
+static int s3c2410wdt_multistage_set_heartbeat(struct s3c2410_wdt *wdt, int ratio)
+{
+	int index, count;
+	unsigned int wtcon, multi_wtcon;
+
+	index = s3c2410wdt_get_multistage_index();
+
+	if (index < 0)
+		return -ENODEV;
+
+	/* set the pre-scaler */
+	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
+	wtcon &= S3C2410_WTCON_PRESCALE_MASK;
+
+	multi_wtcon = readl(s3c_wdt[index]->reg_base + S3C2410_WTCON);
+	multi_wtcon &= ~S3C2410_WTCON_PRESCALE_MASK;
+	multi_wtcon |= wtcon;
+
+	count = (wdt->count * ratio) / 100;
+
+	writel(count, s3c_wdt[index]->reg_base + S3C2410_WTDAT);
+	writel(multi_wtcon, s3c_wdt[index]->reg_base + S3C2410_WTCON);
+
+	s3c_wdt[index]->count = count;
+
+	return 0;
+}
+
+static void s3c2410wdt_multistage_wdt_keepalive(void)
+{
+	int index;
+	unsigned long flags;
+
+	index = s3c2410wdt_get_multistage_index();
+
+	if (index < 0)
+		return;
+
+	spin_lock_irqsave(&s3c_wdt[index]->lock, flags);
+	writel(s3c_wdt[index]->count, s3c_wdt[index]->reg_base + S3C2410_WTCNT);
+	spin_unlock_irqrestore(&s3c_wdt[index]->lock, flags);
+}
+
+static int s3c2410wdt_multistage_wdt_stop(void)
+{
+	int index;
+	unsigned long wtcon;
+
+	index = s3c2410wdt_get_multistage_index();
+
+	if (index < 0)
+		return -ENODEV;
+
+	wtcon = readl(s3c_wdt[index]->reg_base + S3C2410_WTCON);
+	wtcon &= ~(S3C2410_WTCON_ENABLE | S3C2410_WTCON_INTEN);
+	writel(wtcon, s3c_wdt[index]->reg_base + S3C2410_WTCON);
+
+	return 0;
+}
+
+static int s3c2410wdt_multistage_wdt_start(void)
+{
+	int index;
+	unsigned long wtcon;
+
+	index = s3c2410wdt_get_multistage_index();
+
+	if (index < 0)
+		return -ENODEV;
+
+	s3c2410wdt_multistage_wdt_stop();
+
+	wtcon = readl(s3c_wdt[index]->reg_base + S3C2410_WTCON);
+	wtcon |= S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV128;
+
+	wtcon |= S3C2410_WTCON_INTEN;
+	wtcon &= ~S3C2410_WTCON_RSTEN;
+
+	writel(s3c_wdt[index]->count, s3c_wdt[index]->reg_base + S3C2410_WTDAT);
+	writel(s3c_wdt[index]->count, s3c_wdt[index]->reg_base + S3C2410_WTCNT);
+	writel(wtcon, s3c_wdt[index]->reg_base + S3C2410_WTCON);
+
+	DBG("%s: count=0x%08x, wtcon=%08lx\n",
+	    __func__, s3c_wdt[index]->count, wtcon);
+
 	return 0;
 }
 
@@ -635,6 +756,11 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 		s3c2410wdt_keepalive(&wdt->wdt_device);
 	}
 
+	/* If not all core hardlocks and panic sequences,
+	 * multistage watchdog should be turned off.
+	 */
+	s3c2410wdt_multistage_wdt_stop();
+
 	return 0;
 }
 
@@ -655,6 +781,29 @@ inline int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt, int index)
 	writel(wtdat, wdt->reg_base + S3C2410_WTDAT);
 	writel(wtcnt, wdt->reg_base + S3C2410_WTCNT);
 	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
+
+	return 0;
+}
+
+inline int s3c2410wdt_multistage_emergency_reset(unsigned int timeout_cnt)
+{
+	unsigned int wtdat = 0;
+	unsigned int wtcnt = wtdat + timeout_cnt;
+	unsigned long wtcon;
+	int index;
+
+	index = s3c2410wdt_get_multistage_index();
+
+	if (index < 0)
+		return -ENODEV;
+
+	/* emergency reset with wdt reset */
+	wtcon = readl(s3c_wdt[index]->reg_base + S3C2410_WTCON);
+	wtcon |= S3C2410_WTCON_INTEN | S3C2410_WTCON_ENABLE;
+
+	writel(wtdat, s3c_wdt[index]->reg_base + S3C2410_WTDAT);
+	writel(wtcnt, s3c_wdt[index]->reg_base + S3C2410_WTCNT);
+	writel(wtcon, s3c_wdt[index]->reg_base + S3C2410_WTCON);
 
 	return 0;
 }
@@ -754,10 +903,12 @@ static int s3c2410wdt_dev_resume(struct device *dev)
 	writel(wdt->wtdat_save, wdt->reg_base + S3C2410_WTCNT);/* Reset count */
 	writel(wdt->wtcon_save, wdt->reg_base + S3C2410_WTCON);
 
-	ret = s3c2410wdt_mask_wdt_reset(wdt, false);
-	if (ret < 0) {
-		dev_info(wdt->dev, "wdt reset mask fail");
-		return 0;
+	if (!wdt->use_multistage_wdt) {
+		ret = s3c2410wdt_mask_wdt_reset(wdt, false);
+		if (ret < 0) {
+			dev_info(wdt->dev, "wdt reset mask fail");
+			return 0;
+		}
 	}
 
 	val = readl(wdt->reg_base + S3C2410_WTCON);
@@ -810,10 +961,12 @@ static void s3c2410wdt_syscore_resume(void)
 	writel(wdt->wtdat_save, wdt->reg_base + S3C2410_WTCNT);/* Reset count */
 	writel(wdt->wtcon_save, wdt->reg_base + S3C2410_WTCON);
 
-	ret = s3c2410wdt_mask_wdt_reset(wdt, false);
-	if (ret < 0) {
-		dev_info(wdt->dev, "wdt reset mask fail");
-		return;
+	if (!wdt->use_multistage_wdt) {
+		ret = s3c2410wdt_mask_wdt_reset(wdt, false);
+		if (ret < 0) {
+			dev_info(wdt->dev, "wdt reset mask fail");
+			return;
+		}
 	}
 
 	val = readl(wdt->reg_base + S3C2410_WTCON);
@@ -866,6 +1019,16 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->cluster = cluster_index;
 
 	wdt->drv_data = s3c2410_get_wdt_drv_data(pdev);
+
+	if (of_find_property(dev->of_node, "use_multistage_wdt", NULL)) {
+		/* If use multistage watchdog, value is 1*/
+		wdt->use_multistage_wdt = true;
+	} else {
+		/* Not use Multistage watchdog */
+		wdt->use_multistage_wdt = false;
+		dev_info(dev, "It is not a multistage watchdog.\n");
+	}
+
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
 		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
 						"samsung,syscon-phandle");
@@ -966,12 +1129,16 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	ret = s3c2410wdt_automatic_disable_wdt(wdt, false);
 	if (ret < 0)
 		goto err_unregister;
+
 	/* Prevent watchdog reset while setting */
 	s3c2410wdt_stop_intclear(wdt);
-	ret = s3c2410wdt_mask_wdt_reset(wdt, false);
-	if (ret < 0)
-		goto err_unregister;
 
+
+	if (!wdt->use_multistage_wdt) {
+		ret = s3c2410wdt_mask_wdt_reset(wdt, false);
+		if (ret < 0)
+			goto err_unregister;
+	}
 
 	if (tmr_atboot && started == 0) {
 		dev_info(dev, "starting watchdog timer\n");
@@ -999,10 +1166,13 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 				&wdt_block.nb_panic_block);
 #endif
 	}
-	dev_info(dev, "watchdog cluster %d, %sactive, reset %sabled, irq %sabled\n", cluster_index,
-		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
-		 (wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",
-		 (wtcon & S3C2410_WTCON_INTEN) ? "en" : "dis");
+	dev_info(dev, "watchdog cluster %d, %sactive, reset %sabled, irq %sabled\n",
+		cluster_index,
+		(wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
+		(wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",
+		(wtcon & S3C2410_WTCON_INTEN) ? "en" : "dis");
+	dev_info(dev, "Multistage watchdog %sabled",
+		wdt->use_multistage_wdt ? "en" : "dis");
 
 	return 0;
 
