@@ -21,6 +21,7 @@ enum bts_scen_type {
 	BS_G3D_PERFORMANCE,
 	BS_DP_DEFAULT,
 	BS_CAMERA_DEFAULT,
+	BS_FHD_480_ENCODING,
 	BS_MAX,
 };
 
