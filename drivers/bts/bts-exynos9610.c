@@ -210,8 +210,8 @@ static struct bts_info exynos_bts[] = {
 		.table[BS_DEFAULT].stat.rmo = 0x20,
 		.table[BS_DEFAULT].stat.wmo = 0x20,
 		.table[BS_DEFAULT].stat.timeout_en = true,
-		.table[BS_DEFAULT].stat.timeout_r = 0x40,
-		.table[BS_DEFAULT].stat.timeout_w = 0x40,
+		.table[BS_DEFAULT].stat.timeout_r = 0xc,
+		.table[BS_DEFAULT].stat.timeout_w = 0xc,
 	},
 	[BTS_IDX_DPU] = {
 		.name = "dpu",
@@ -223,8 +223,8 @@ static struct bts_info exynos_bts[] = {
 		.table[BS_DEFAULT].stat.rmo = 0x20,
 		.table[BS_DEFAULT].stat.wmo = 0x20,
 		.table[BS_DEFAULT].stat.timeout_en = true,
-		.table[BS_DEFAULT].stat.timeout_r = 0x50,
-		.table[BS_DEFAULT].stat.timeout_w = 0x50,
+		.table[BS_DEFAULT].stat.timeout_r = 0x20,
+		.table[BS_DEFAULT].stat.timeout_w = 0x20,
 	},
 	[BTS_IDX_DIT] = {
 		.name = "dit",
@@ -368,8 +368,8 @@ static struct bts_info exynos_bts[] = {
 		.table[BS_DEFAULT].stat.scen_en = true,
 		.table[BS_DEFAULT].stat.priority = 0xD,
 		.table[BS_DEFAULT].stat.timeout_en = true,
-		.table[BS_DEFAULT].stat.timeout_r = 0x40,
-		.table[BS_DEFAULT].stat.timeout_w = 0x40,
+		.table[BS_DEFAULT].stat.timeout_r = 0xc,
+		.table[BS_DEFAULT].stat.timeout_w = 0xa,
 	},
 	[BTS_IDX_MODEM1] = {
 		.name = "modem1",
