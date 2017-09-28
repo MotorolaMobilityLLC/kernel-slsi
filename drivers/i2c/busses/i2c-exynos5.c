@@ -90,10 +90,10 @@ static LIST_HEAD(drvdata_list);
 #define HSI2C_RXFIFO_EN				(1u << 0)
 #define HSI2C_TXFIFO_EN				(1u << 1)
 #define HSI2C_FIFO_MAX				(0x40)
-#define HSI2C_RXFIFO_TRIGGER_LEVEL		(0x8 << 4)
-#define HSI2C_TXFIFO_TRIGGER_LEVEL		(0x8 << 16)
+#define HSI2C_RXFIFO_TRIGGER_LEVEL(x)	(x << 4)
+#define HSI2C_TXFIFO_TRIGGER_LEVEL(x)	(x << 16)
 /* I2C_TRAILING_CTL Register bits */
-#define HSI2C_TRAILING_COUNT			(0xf)
+#define HSI2C_TRAILING_COUNT			(0xffffff)
 
 /* I2C_INT_EN Register bits */
 #define HSI2C_INT_TX_ALMOSTEMPTY_EN		(1u << 0)
@@ -206,6 +206,8 @@ static LIST_HEAD(drvdata_list);
 #define USI_RESET			(0<<0)
 #define USI_HWACG_CLKREQ_ON		(1<<1)
 #define USI_HWACG_CLKSTOP_ON		(1<<2)
+
+#define FIFO_TRIG_CRITERIA	(8)
 
 static const struct of_device_id exynos5_i2c_match[] = {
 	{ .compatible = "samsung,exynos5-hsi2c" },
@@ -324,6 +326,7 @@ static inline void dump_i2c_register(struct exynos5_i2c *i2c)
 		"TIMING_FS1   0x%08x \n"
 		"TIMING_FS2   0x%08x   "
 		"TIMING_FS3   0x%08x   "
+		"TRAILING_CTL 0x%08x   "
 		"ADDR         0x%08x \n"
 		, i2c->suspended
 		, readl(i2c->regs + HSI2C_CTL)
@@ -340,6 +343,7 @@ static inline void dump_i2c_register(struct exynos5_i2c *i2c)
 		, readl(i2c->regs + HSI2C_TIMING_FS1)
 		, readl(i2c->regs + HSI2C_TIMING_FS2)
 		, readl(i2c->regs + HSI2C_TIMING_FS3)
+		, readl(i2c->regs + HSI2C_TRAILIG_CTL)
 		, readl(i2c->regs + HSI2C_ADDR)
 	);
 
@@ -602,8 +606,20 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	i2c_timeout &= ~HSI2C_TIMEOUT_EN;
 	writel(i2c_timeout, i2c->regs + HSI2C_TIMEOUT);
 
-	i2c_fifo_ctl = HSI2C_RXFIFO_EN | HSI2C_TXFIFO_EN |
-		HSI2C_TXFIFO_TRIGGER_LEVEL | HSI2C_RXFIFO_TRIGGER_LEVEL;
+	/*
+	 * In case of short length request it'd be better to set
+	 * trigger level as msg length
+	 */
+	if (i2c->msg->len >= FIFO_TRIG_CRITERIA) {
+		i2c_fifo_ctl = HSI2C_RXFIFO_EN | HSI2C_TXFIFO_EN |
+			HSI2C_RXFIFO_TRIGGER_LEVEL(FIFO_TRIG_CRITERIA) |
+			HSI2C_TXFIFO_TRIGGER_LEVEL(FIFO_TRIG_CRITERIA);
+	} else {
+		i2c_fifo_ctl = HSI2C_RXFIFO_EN | HSI2C_TXFIFO_EN |
+			HSI2C_RXFIFO_TRIGGER_LEVEL(i2c->msg->len) |
+			HSI2C_TXFIFO_TRIGGER_LEVEL(i2c->msg->len);
+	}
+
 	writel(i2c_fifo_ctl, i2c->regs + HSI2C_FIFO_CTL);
 
 	i2c_int_en = 0;
