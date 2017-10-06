@@ -148,7 +148,7 @@ int csi_hw_s_phy_default_value(u32 __iomem *base_reg, u32 instance)
 
 	csi_hw_s_phy_sctrl_n(base_reg, 0x9E003E00, 0);
 	csi_hw_s_phy_sctrl_n(base_reg, 0x46, 1);
-	csi_hw_s_phy_sctrl_n(base_reg, 0xC000002C, 2);
+	csi_hw_s_phy_sctrl_n(base_reg, 0x0000002C, 2);
 
 #if defined(CONFIG_SOC_EXYNOS8895)
 	if (instance == CSI_ID_A || instance == CSI_ID_C)
@@ -161,6 +161,7 @@ int csi_hw_s_phy_default_value(u32 __iomem *base_reg, u32 instance)
 	if (config_dphy_s2) {
 		csi_hw_s_phy_sctrl_n(base_reg, 0xC000, 3);
 	} else {
+		csi_hw_s_phy_sctrl_n(base_reg, 0x200, 3);
 		csi_hw_s_phy_sctrl_n(base_reg, 0x3FEA, 4);
 		csi_hw_s_phy_sctrl_n(base_reg, 0xC0000, 5);
 		csi_hw_s_phy_sctrl_n(base_reg, 0x140, 6);
