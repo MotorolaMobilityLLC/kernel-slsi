@@ -12,6 +12,8 @@
 
 #include "s5p_mfc_sync.h"
 
+#include "s5p_mfc_perf_measure.h"
+
 #include "s5p_mfc_queue.h"
 
 #define R2H_BIT(x)	(((x) > 0) ? (1 << ((x) - 1)) : 0)
@@ -230,6 +232,7 @@ int s5p_mfc_dec_ctx_ready(struct s5p_mfc_ctx *ctx)
 		src_buf_queue_greater_than_0)
 		return 1;
 
+	s5p_mfc_perf_cancel_drv_margin(dev);
 	mfc_debug(2, "ctx is not ready.\n");
 
 	return 0;
@@ -296,6 +299,7 @@ int s5p_mfc_enc_ctx_ready(struct s5p_mfc_ctx *ctx)
 		src_buf_queue_greater_than_0 && dst_buf_queue_greater_than_0)
 		return 1;
 
+	s5p_mfc_perf_cancel_drv_margin(dev);
 	mfc_debug(2, "ctx is not ready.\n");
 
 	return 0;

@@ -15,6 +15,7 @@
 #include "s5p_mfc_cmd.h"
 #include "s5p_mfc_enc_param.h"
 #include "s5p_mfc_cal.h"
+#include "s5p_mfc_perf_measure.h"
 #include "s5p_mfc_reg.h"
 
 #include "s5p_mfc_utils.h"
@@ -239,6 +240,8 @@ int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	 * is the last frame or not. */
 	switch (last_frame) {
 	case 0:
+		s5p_mfc_perf_measure_on(dev);
+
 		s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_NAL_START);
 		break;
 	case 1:
@@ -412,6 +415,8 @@ int s5p_mfc_encode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	 * is the last frame or not. */
 	switch (last_frame) {
 	case 0:
+		s5p_mfc_perf_measure_on(dev);
+
 		s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_NAL_START);
 		break;
 	case 1:

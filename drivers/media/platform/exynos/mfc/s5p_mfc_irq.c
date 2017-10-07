@@ -21,6 +21,7 @@
 
 #include "s5p_mfc_pm.h"
 #include "s5p_mfc_cal.h"
+#include "s5p_mfc_perf_measure.h"
 #include "s5p_mfc_reg.h"
 
 #include "s5p_mfc_qos.h"
@@ -1276,6 +1277,8 @@ irqreturn_t s5p_mfc_top_half_irq(int irq, void *priv)
 	mfc_debug(2, "[c:%d] Int reason: %d (err: %d)\n",
 			dev->curr_ctx, reason, err);
 	MFC_TRACE_CTX("<< INT(top): %d\n", reason);
+
+	s5p_mfc_perf_measure_off(dev);
 
 	return IRQ_WAKE_THREAD;
 }

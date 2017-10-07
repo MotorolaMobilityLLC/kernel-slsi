@@ -27,6 +27,7 @@ unsigned int nal_q_dump;
 unsigned int nal_q_disable;
 unsigned int nal_q_parallel_disable;
 unsigned int otf_dump;
+unsigned int perf_measure_option;
 
 static int mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -131,4 +132,6 @@ void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
 			0644, debugfs->root, &nal_q_parallel_disable);
 	debugfs->otf_dump = debugfs_create_u32("otf_dump",
 			0644, debugfs->root, &otf_dump);
+	debugfs->perf_measure_option = debugfs_create_u32("perf_measure_option",
+			0644, debugfs->root, &perf_measure_option);
 }

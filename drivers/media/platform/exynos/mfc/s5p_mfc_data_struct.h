@@ -319,6 +319,7 @@ struct s5p_mfc_debugfs {
 	struct dentry *nal_q_disable;
 	struct dentry *nal_q_parallel_disable;
 	struct dentry *otf_dump;
+	struct dentry *perf_measure_option;
 };
 
 /**
@@ -633,6 +634,18 @@ struct _otf_handle {
 };
 /********************************************************************/
 
+struct s5p_mfc_perf {
+	void __iomem *regs_base0;
+	void __iomem *regs_base1;
+
+	struct timeval begin;
+	struct timeval end;
+
+	int new_start;
+	int count;
+	int drv_margin;
+};
+
 /**
  * struct s5p_mfc_dev - The struct containing driver internal parameters.
  */
@@ -735,6 +748,8 @@ struct s5p_mfc_dev {
 #endif
 
 	struct s5p_mfc_debugfs debugfs;
+
+	struct s5p_mfc_perf perf;
 };
 
 /**

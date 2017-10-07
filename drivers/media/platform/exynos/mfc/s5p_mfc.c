@@ -37,6 +37,7 @@
 #include "s5p_mfc_inst.h"
 #include "s5p_mfc_pm.h"
 #include "s5p_mfc_cal.h"
+#include "s5p_mfc_perf_measure.h"
 #include "s5p_mfc_reg.h"
 
 #include "s5p_mfc_qos.h"
@@ -561,6 +562,7 @@ static int s5p_mfc_open(struct file *file)
 			goto err_init_inst;
 	}
 
+	s5p_mfc_perf_init(dev);
 	trace_mfc_node_open(ctx->num, dev->num_inst, ctx->type, ctx->is_drm);
 	mfc_info_ctx("MFC open completed [%d:%d] dev = 0x%p, ctx = 0x%p, version = %d\n",
 			dev->num_drm_inst, dev->num_inst, dev, ctx, MFC_DRIVER_INFO);
@@ -757,6 +759,8 @@ static int s5p_mfc_release(struct file *file)
 
 	dev->ctx[ctx->num] = 0;
 	kfree(ctx);
+
+	s5p_mfc_perf_print();
 
 	mfc_info_dev("mfc driver release finished [%d:%d], dev = 0x%p\n",
 			dev->num_drm_inst, dev->num_inst, dev);
@@ -973,6 +977,8 @@ static int mfc_register_resource(struct platform_device *pdev, struct s5p_mfc_de
 {
 	struct resource *res;
 	int ret;
+
+	s5p_mfc_perf_register(dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
