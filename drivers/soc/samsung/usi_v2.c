@@ -61,7 +61,7 @@ static int usi_v2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	data->ch_id = of_alias_get_id(pdev->dev.of_node, "usi_v2");
+	data->ch_id = of_alias_get_id(pdev->dev.of_node, "usi");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->base = devm_ioremap_resource(&pdev->dev, res);
