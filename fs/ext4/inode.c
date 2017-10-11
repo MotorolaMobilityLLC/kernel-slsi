@@ -1215,19 +1215,21 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 		if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
 		    !buffer_unwritten(bh) &&
 		    (block_start < from || block_end > to)) {
-		    int bi_opf = 0;
+			int bi_opf = 0;
 
-			if (S_ISREG(inode->i_mode) && ext4_encrypted_inode(inode)
-					&& fscrypt_has_encryption_key(inode)) {
-					bh->b_private = fscrypt_get_diskcipher(inode);
-					if (bh->b_private)
-						bi_opf = REQ_CRYPT | REQ_AUX_PRIV;
+			decrypt = ext4_encrypted_inode(inode) &&
+				S_ISREG(inode->i_mode);
+			bi_opf = decrypt ? REQ_NOENCRYPT : 0;
+			if (decrypt && fscrypt_has_encryption_key(inode)) {
+				bh->b_private = fscrypt_get_diskcipher(inode);
+				if (bh->b_private) {
+					bi_opf |= (REQ_CRYPT | REQ_AUX_PRIV);
+					decrypt = 0;
 				}
+			}
 			ll_rw_block(REQ_OP_READ, bi_opf, 1, &bh);
 			crypto_diskcipher_debug(FS_BLOCK_WRITE, bi_opf);
 			*wait_bh++ = bh;
-			decrypt = ext4_encrypted_inode(inode) &&
-				S_ISREG(inode->i_mode) && !bh->b_private;
 		}
 	}
 	/*
@@ -3991,6 +3993,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 	struct inode *inode = mapping->host;
 	struct buffer_head *bh;
 	struct page *page;
+	bool decrypt;
 	int err = 0;
 
 	page = find_or_create_page(mapping, from >> PAGE_SHIFT,
@@ -4033,20 +4036,22 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 
 	if (!buffer_uptodate(bh)) {
 		err = -EIO;
-		if (S_ISREG(inode->i_mode) && ext4_encrypted_inode(inode)
-				&& fscrypt_has_encryption_key(inode))
+		decrypt = S_ISREG(inode->i_mode) &&
+		    ext4_encrypted_inode(inode);
+		if (decrypt && fscrypt_has_encryption_key(inode))
 			bh->b_private = fscrypt_get_diskcipher(inode);
-		if (bh->b_private)
-			ll_rw_block(REQ_OP_READ, REQ_CRYPT, 1, &bh);
 		else
-			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+			bh->b_private = NULL;
+		if (bh->b_private)
+			ll_rw_block(REQ_OP_READ, REQ_CRYPT | REQ_NOENCRYPT, 1, &bh);
+		else
+			ll_rw_block(REQ_OP_READ, (decrypt ? REQ_NOENCRYPT : 0), 1, &bh);
 
 		wait_on_buffer(bh);
 		/* Uhhuh. Read error. Complain and punt. */
 		if (!buffer_uptodate(bh))
 			goto unlock;
-		if (S_ISREG(inode->i_mode) &&
-		    ext4_encrypted_inode(inode)) {
+		if (decrypt) {
 			/* We expect the key to be set. */
 			BUG_ON(!fscrypt_has_encryption_key(inode));
 			BUG_ON(blocksize != PAGE_SIZE);
