@@ -297,6 +297,13 @@ static void s5p_mfc_enc_buf_cleanup(struct vb2_buffer *vb)
 					MFC_CTRL_TYPE_DST, index) < 0)
 			mfc_err_ctx("failed in cleanup_buf_ctrls\n");
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		if (IS_BUFFER_BATCH_MODE(ctx)) {
+			struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
+			int i;
+
+			for (i = 0; i < ctx->src_fmt->num_planes; i++)
+				s5p_mfc_bufcon_put_daddr(ctx, buf, i);
+		}
 		if (call_cop(ctx, cleanup_buf_ctrls, ctx,
 					MFC_CTRL_TYPE_SRC, index) < 0)
 			mfc_err_ctx("failed in cleanup_buf_ctrls\n");

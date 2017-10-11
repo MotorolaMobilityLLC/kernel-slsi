@@ -833,11 +833,8 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 					src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 							&ctx->src_buf_queue, enc_addr[0],
 							ctx->num_bufs_in_vb);
-					if (src_mb) {
-						for (i = 0; i < raw->num_planes; i++)
-							s5p_mfc_bufcon_put_daddr(ctx, src_mb, i);
+					if (src_mb)
 						vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-					}
 				}
 
 				/* encoder src buffer CFW UNPROT */
