@@ -155,7 +155,61 @@ static int get_exception_of_page(phys_addr_t phys,
 		    (phys <= exception_areas[i][1]))
 			return i;
 	return -1;
+}
 
+static inline void expand(struct zone *zone, struct page *page,
+			  int low, int high, struct free_area *area,
+			  int migratetype)
+{
+	unsigned long size = 1 << high;
+
+	while (high > low) {
+		area--;
+		high--;
+		size >>= 1;
+
+		list_add(&page[size].lru, &area->free_list[migratetype]);
+		area->nr_free++;
+		set_page_private(&page[size], high);
+		__SetPageBuddy(&page[size]);
+	}
+}
+
+static struct page *alloc_freepage_one(struct zone *zone, unsigned int order,
+				       phys_addr_t exception_areas[][2],
+				       int nr_exception)
+{
+	unsigned int current_order;
+	struct free_area *area;
+	struct page *page;
+	int mt;
+
+	for (mt = MIGRATE_UNMOVABLE; mt < MIGRATE_PCPTYPES; ++mt) {
+		for (current_order = order;
+		     current_order < MAX_ORDER; ++current_order) {
+			area = &(zone->free_area[current_order]);
+
+			list_for_each_entry(page, &area->free_list[mt], lru) {
+				if (get_exception_of_page(page_to_phys(page),
+							  exception_areas,
+							  nr_exception) >= 0)
+					continue;
+
+				list_del(&page->lru);
+
+				__ClearPageBuddy(page);
+				set_page_private(page, 0);
+				area->nr_free--;
+				expand(zone, page, order,
+				       current_order, area, mt);
+				set_pcppage_migratetype(page, mt);
+
+				return page;
+			}
+		}
+	}
+
+	return NULL;
 }
 
 static int alloc_freepages_range(struct zone *zone, unsigned int order,
@@ -164,68 +218,27 @@ static int alloc_freepages_range(struct zone *zone, unsigned int order,
 				 int nr_exception)
 
 {
-	unsigned int current_order;
-	unsigned int mt;
 	unsigned long wmark;
 	unsigned long flags;
-	LIST_HEAD(isolated);
-	struct free_area *area;
 	struct page *page;
-	int i;
 	int count = 0;
 
 	spin_lock_irqsave(&zone->lock, flags);
 
-	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
-		area = &(zone->free_area[current_order]);
-		wmark = min_wmark_pages(zone) + (1 << current_order);
+	while (required > count) {
+		wmark = min_wmark_pages(zone) + (1 << order);
+		if (!zone_watermark_ok(zone, order, wmark, 0, 0))
+			goto wmark_fail;
 
-		for (mt = MIGRATE_UNMOVABLE; mt < MIGRATE_PCPTYPES; ++mt) {
-			while (!list_empty(&area->free_list[mt])) {
-				if (!zone_watermark_ok(zone, current_order,
-							wmark, 0, 0))
-					goto wmark_fail;
-				/*
-				 * expanding the current free chunk is not
-				 * supported here due to the complex logic of
-				 * expand().
-				 */
-				if ((required << order) < (1 << current_order))
-					break;
+		page = alloc_freepage_one(zone, order, exception_areas,
+					  nr_exception);
+		if (!page)
+			break;
 
-				page = list_entry(area->free_list[mt].next,
-							struct page, lru);
-				list_del(&page->lru);
-
-				if (get_exception_of_page(page_to_phys(page),
-							  exception_areas,
-							  nr_exception) >= 0) {
-					list_add_tail(&page->lru, &isolated);
-					continue;
-				}
-
-				__ClearPageBuddy(page);
-				set_page_private(page, 0);
-				set_pcppage_migratetype(page, mt);
-				/*
-				 * skip checking bad page state
-				 * for fast allocation
-				 */
-				area->nr_free--;
-				__mod_zone_page_state(zone, NR_FREE_PAGES,
-							-(1 << current_order));
-
-				required -= 1 << (current_order - order);
-
-				for (i = 1 << (current_order - order); i > 0; i--) {
-					post_alloc_hook(page, order, GFP_KERNEL);
-					pages[count++] = page;
-					page += 1 << order;
-				}
-			}
-
-			list_splice_init(&isolated, &area->free_list[mt]);
-		}
+		post_alloc_hook(page, order, GFP_KERNEL);
+		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+		pages[count++] = page;
+		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
 	}
 
 wmark_fail:
