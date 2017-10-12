@@ -1403,6 +1403,12 @@ static ssize_t exynos_dmc_timeout_write(struct file *file, const char __user *us
 
 	spin_lock(&bts_lock);
 	drex->table[scen].stat.drex_timeout[qos] = timeout;
+
+	if (!drex->table[scen].stat.scen_en) {
+		drex->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex->top_scen)
 		bts_set_drex_table(drex);
 	spin_unlock(&bts_lock);
@@ -1482,6 +1488,11 @@ static ssize_t exynos_mo_write(struct file *file, const char __user *user_buf,
 		bts->table[scen].stat.rmo = mo;
 	else
 		bts->table[scen].stat.wmo = mo;
+
+	if (!bts->table[scen].stat.scen_en) {
+		bts->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
 
 	if (scen == bts->top_scen)
 		bts_setqos(bts->va_base, &bts->table[scen].stat);
@@ -1563,6 +1574,11 @@ static ssize_t exynos_max_mo_write(struct file *file, const char __user *user_bu
 	else
 		bts->table[scen].stat.max_wmo = mo;
 
+	if (!bts->table[scen].stat.scen_en) {
+		bts->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == bts->top_scen)
 		bts_setqos(bts->va_base, &bts->table[scen].stat);
 	spin_unlock(&bts_lock);
@@ -1643,6 +1659,11 @@ static ssize_t exynos_full_mo_write(struct file *file, const char __user *user_b
 	else
 		bts->table[scen].stat.full_wmo = mo;
 
+	if (!bts->table[scen].stat.scen_en) {
+		bts->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == bts->top_scen)
 		bts_setqos(bts->va_base, &bts->table[scen].stat);
 	spin_unlock(&bts_lock);
@@ -1717,6 +1738,12 @@ static ssize_t exynos_prio_write(struct file *file, const char __user *user_buf,
 
 	spin_lock(&bts_lock);
 	bts->table[scen].stat.priority = prio;
+
+	if (!bts->table[scen].stat.scen_en) {
+		bts->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == bts->top_scen)
 		bts_setqos(bts->va_base, &bts->table[scen].stat);
 	spin_unlock(&bts_lock);
@@ -1927,6 +1954,11 @@ static ssize_t exynos_timeout_write(struct file *file, const char __user *user_b
 	else
 		bts->table[scen].stat.timeout_w = timeout;
 
+	if (!bts->table[scen].stat.scen_en) {
+		bts->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == bts->top_scen)
 		bts_setqos(bts->va_base, &bts->table[scen].stat);
 	spin_unlock(&bts_lock);
@@ -2002,6 +2034,12 @@ static ssize_t exynos_timeout_en_write(struct file *file, const char __user *use
 
 	spin_lock(&bts_lock);
 	bts->table[scen].stat.timeout_en = timeout_en;
+
+	if (!bts->table[scen].stat.scen_en) {
+		bts->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == bts->top_scen)
 		bts_setqos(bts->va_base, &bts->table[scen].stat);
 	spin_unlock(&bts_lock);
@@ -2080,6 +2118,12 @@ static ssize_t exynos_write_flush_write(struct file *file, const char __user *us
 
 	spin_lock(&bts_lock);
 	drex->table[scen].stat.write_flush_config[set] = config;
+
+	if (!drex->table[scen].stat.scen_en) {
+		drex->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex->top_scen)
 		bts_set_drex_table(drex);
 	spin_unlock(&bts_lock);
@@ -2174,6 +2218,11 @@ static ssize_t exynos_vc_timer_th_write(struct file *file, const char __user *us
 					(threshold & BTS_VC_TIMER_TH_MASK);
 	}
 
+	if (!drex->table[scen].stat.scen_en) {
+		drex->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex->top_scen)
 		bts_set_drex_table(drex);
 	spin_unlock(&bts_lock);
@@ -2250,6 +2299,12 @@ static ssize_t exynos_cutoff_con_write(struct file *file, const char __user *use
 
 	spin_lock(&bts_lock);
 	drex->table[scen].stat.cutoff_con = control;
+
+	if (!drex->table[scen].stat.scen_en) {
+		drex->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex->top_scen)
 		bts_set_drex_table(drex);
 	spin_unlock(&bts_lock);
@@ -2326,6 +2381,12 @@ static ssize_t exynos_brb_cutoff_write(struct file *file, const char __user *use
 
 	spin_lock(&bts_lock);
 	drex->table[scen].stat.brb_cutoff_config = config;
+
+	if (!drex->table[scen].stat.scen_en) {
+		drex->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex->top_scen)
 		bts_set_drex_table(drex);
 	spin_unlock(&bts_lock);
@@ -2402,6 +2463,12 @@ static ssize_t exynos_rdbuf_cutoff_write(struct file *file, const char __user *u
 
 	spin_lock(&bts_lock);
 	drex->table[scen].stat.rdbuf_cutoff_config = config;
+
+	if (!drex->table[scen].stat.scen_en) {
+		drex->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex->top_scen)
 		bts_set_drex_table(drex);
 	spin_unlock(&bts_lock);
@@ -2478,6 +2545,12 @@ static ssize_t exynos_rreq_thrt_con_write(struct file *file, const char __user *
 
 	spin_lock(&bts_lock);
 	drex_pf->table[scen].stat.pf_rreq_thrt_con = control;
+
+	if (!drex_pf->table[scen].stat.scen_en) {
+		drex_pf->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex_pf->top_scen)
 		bts_set_drex_pf_table(drex_pf);
 	spin_unlock(&bts_lock);
@@ -2554,6 +2627,12 @@ static ssize_t exynos_allow_mo_region_write(struct file *file, const char __user
 
 	spin_lock(&bts_lock);
 	drex_pf->table[scen].stat.allow_mo_for_region = config;
+
+	if (!drex_pf->table[scen].stat.scen_en) {
+		drex_pf->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
+	}
+
 	if (scen == drex_pf->top_scen)
 		bts_set_drex_pf_table(drex_pf);
 	spin_unlock(&bts_lock);
@@ -2646,6 +2725,11 @@ static ssize_t exynos_pf_qos_timer_write(struct file *file, const char __user *u
 					~(BTS_PF_TIMER_MASK);
 		drex_pf->table[scen].stat.pf_qos_timer[set] |=
 					(timeout & BTS_PF_TIMER_MASK);
+	}
+
+	if (!drex_pf->table[scen].stat.scen_en) {
+		drex_pf->table[scen].stat.scen_en = true;
+		scen_chaining(scen);
 	}
 
 	if (scen == drex_pf->top_scen)
