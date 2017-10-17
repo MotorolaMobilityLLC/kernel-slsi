@@ -268,6 +268,7 @@ int sysmmu_set_prefetch_buffer_property(struct device *dev,
 			unsigned int ipoption[], unsigned int opoption[]);
 void exynos_sysmmu_show_status(struct device *dev);
 void exynos_sysmmu_dump_pgtable(struct device *dev);
+void exynos_sysmmu_control(struct device *master, bool enable);
 
 /*
  * exynos_sysmmu_set/clear/show_ppc_event() -

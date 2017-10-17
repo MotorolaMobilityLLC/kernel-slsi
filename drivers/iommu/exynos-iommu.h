@@ -348,6 +348,7 @@ struct sysmmu_drvdata {
 	bool is_suspended;
 	bool hold_rpm_on_boot;
 	struct exynos_iommu_event_log log;
+	bool no_rpm_control;
 };
 
 struct exynos_vm_region {
@@ -387,18 +388,18 @@ int exynos_iommu_add_fault_handler(struct device *dev,
 
 static inline bool get_sysmmu_runtime_active(struct sysmmu_drvdata *data)
 {
-	return ++data->runtime_active == 1;
+	return ++data->runtime_active == 1 && !data->no_rpm_control;
 }
 
 static inline bool put_sysmmu_runtime_active(struct sysmmu_drvdata *data)
 {
 	BUG_ON(data->runtime_active < 1);
-	return --data->runtime_active == 0;
+	return --data->runtime_active == 0 && !data->no_rpm_control;
 }
 
 static inline bool is_sysmmu_runtime_active(struct sysmmu_drvdata *data)
 {
-	return data->runtime_active > 0;
+	return data->runtime_active > 0 && !data->no_rpm_control;
 }
 
 static inline bool set_sysmmu_active(struct sysmmu_drvdata *data)

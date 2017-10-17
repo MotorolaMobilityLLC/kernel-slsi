@@ -466,6 +466,9 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 	if (of_property_read_bool(sysmmu->of_node, "sysmmu,hold-rpm-on-boot"))
 		drvdata->hold_rpm_on_boot = true;
 
+	if (of_property_read_bool(sysmmu->of_node, "sysmmu,no-rpm-control"))
+		drvdata->no_rpm_control = true;
+
 	if (IS_TLB_WAY_TYPE(drvdata)) {
 		ret = sysmmu_parse_tlb_way_dt(sysmmu, drvdata);
 		if (ret)
@@ -685,6 +688,28 @@ static int sysmmu_enable_from_master(struct device *master,
 	return ret;
 }
 
+void exynos_sysmmu_control(struct device *master, bool enable)
+{
+	unsigned long flags;
+	struct exynos_iommu_owner *owner = master->archdata.iommu;
+	struct sysmmu_list_data *list;
+	struct sysmmu_drvdata *drvdata;
+
+	BUG_ON(!has_sysmmu(master));
+
+	spin_lock_irqsave(&owner->lock, flags);
+	list_for_each_entry(list, &owner->sysmmu_list, node) {
+		drvdata = dev_get_drvdata(list->sysmmu);
+		if (!drvdata->no_rpm_control)
+			continue;
+		if (enable)
+			__sysmmu_enable_nocount(drvdata);
+		else
+			__sysmmu_disable_nocount(drvdata);
+	}
+	spin_unlock_irqrestore(&owner->lock, flags);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int exynos_sysmmu_suspend(struct device *dev)
 {
@@ -708,7 +733,7 @@ static int exynos_sysmmu_resume(struct device *dev)
 	struct sysmmu_drvdata *drvdata = dev_get_drvdata(dev);
 
 	spin_lock_irqsave(&drvdata->lock, flags);
-	if (drvdata->is_suspended) {
+	if (drvdata->is_suspended && !drvdata->no_rpm_control) {
 		__sysmmu_enable_nocount(drvdata);
 		drvdata->is_suspended = false;
 	}
