@@ -759,7 +759,10 @@ static void s3c24xx_i2c_wait_idle(struct s3c24xx_i2c *i2c)
 	}
 
 	if (iicstat & S3C2410_IICSTAT_START) {
-		dev_warn(i2c->dev, "timeout waiting for bus idle\n");
+		dev_warn(i2c->dev, "timeout waiting for bus idle\n"
+				"I2C Stat Reg dump:\n"
+				"IIC STAT = 0x%08x\n"
+				, readl(i2c->regs + S3C2410_IICSTAT));
 		if (i2c->state != STATE_STOP)
 			s3c24xx_i2c_stop(i2c, -ENXIO);
 	}
