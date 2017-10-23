@@ -265,6 +265,7 @@
 		clocks = <&clock GATE_SMMU_ABOX_QCH>;
 		port-name = "ABox";
 		sysmmu,no-suspend;
+		sysmmu,no-rpm-control;
 		sysmmu,tlb_property =
 			<(SYSMMU_PORT_NO_PREFETCH_READ(0x0) | SYSMMU_BL1) SYSMMU_NOID>;
 		#iommu-cells = <0>;
