@@ -1773,6 +1773,13 @@ int fimc_is_itf_stream_on(struct fimc_is_device_ischain *device)
 				static_ctrl->scenarios[static_ctrl->cur_scenario_idx].scenario_nm);
 			fimc_is_set_dvfs((struct fimc_is_core *)device->interface->core, device, scenario_id);
 		}
+#ifdef CONFIG_EXYNOS_BTS
+		if (scenario_id == FIMC_IS_SN_VIDEO_HIGH_SPEED_480FPS) {
+			info("%s: re_call bts_update_scen(1)\n", __func__);
+			bts_update_scen(BS_CAMERA_DEFAULT, 0);
+			bts_update_scen(BS_FHD_480_ENCODING, 1);
+		}
+#endif
 
 		mutex_unlock(&dvfs_ctrl->lock);
 	}

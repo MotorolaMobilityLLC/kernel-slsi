@@ -1618,6 +1618,7 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 #ifdef CONFIG_EXYNOS_BTS
 			info("%s: call bts_update_scen(0)\n", __func__);
 			bts_update_scen(BS_CAMERA_DEFAULT, 0);
+			bts_update_scen(BS_FHD_480_ENCODING, 0);
 #endif
 			break;
 		default:
