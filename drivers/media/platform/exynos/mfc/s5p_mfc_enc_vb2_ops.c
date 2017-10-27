@@ -156,7 +156,7 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 			if (IS_BUFFER_BATCH_MODE(ctx)) {
 				int count = 0;
 
-				ctx->framerate = ctx->num_bufs_in_vb * ENC_DEFAULT_CAM_FPS;
+				ctx->framerate = ctx->num_bufs_in_vb * ENC_DEFAULT_CAM_CAPTURE_FPS;
 				mfc_debug(3, "framerate: %ld\n", ctx->framerate);
 
 				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf, i);

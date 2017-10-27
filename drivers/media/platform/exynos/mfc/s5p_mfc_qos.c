@@ -660,6 +660,12 @@ static unsigned long mfc_qos_get_fps_by_timestamp(struct s5p_mfc_ctx *ctx, struc
 			time->tv_sec, time->tv_usec, ctx->ts_count);
 	}
 
+	if (IS_BUFFER_BATCH_MODE(ctx)) {
+		mfc_debug(3, "Keep framerate if buffer batch mode is used, %ldfps\n",
+			ctx->framerate);
+		return ctx->framerate;
+	}
+
 	if (list_empty(&ctx->ts_list)) {
 		mfc_qos_add_timestamp(ctx, time, &ctx->ts_list);
 		return mfc_qos_get_framerate_by_interval(0);

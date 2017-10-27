@@ -819,9 +819,9 @@ static void mfc_nal_q_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, stru
 	}
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
-	interval = NSEC_PER_SEC / (ctx->framerate / 1000);
-	mfc_debug(3, "NAL Q: %ldfps, start timestamp: %lld, base interval: %lld\n",
-			ctx->framerate / 1000, start_timestamp, interval);
+	interval = NSEC_PER_SEC / (ENC_DEFAULT_CAM_VIDEO_FPS / 1000);
+	mfc_debug(3, "NAL Q: %dfps, start timestamp: %lld, base interval: %lld\n",
+			(ENC_DEFAULT_CAM_VIDEO_FPS / 1000), start_timestamp, interval);
 
 	new_timestamp = start_timestamp + (interval * src_mb->done_index);
 	mfc_debug(3, "NAL Q: new timestamp: %lld, interval: %lld\n",

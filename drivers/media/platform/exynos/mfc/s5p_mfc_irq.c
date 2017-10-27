@@ -778,9 +778,9 @@ static void mfc_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p
 	}
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
-	interval = NSEC_PER_SEC / (ctx->framerate / 1000);
-	mfc_debug(3, "%ldfps, start timestamp: %lld, base interval: %lld\n",
-			ctx->framerate / 1000, start_timestamp, interval);
+	interval = NSEC_PER_SEC / (ENC_DEFAULT_CAM_VIDEO_FPS / 1000);
+	mfc_debug(3, "%dfps, start timestamp: %lld, base interval: %lld\n",
+			(ENC_DEFAULT_CAM_VIDEO_FPS / 1000), start_timestamp, interval);
 
 	new_timestamp = start_timestamp + (interval * src_mb->done_index);
 	mfc_debug(3, "new timestamp: %lld, interval: %lld\n",
