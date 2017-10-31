@@ -112,8 +112,8 @@ void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 			struct sysmmu_drvdata *drvdata = dev_get_drvdata(list->sysmmu);
 
 			spin_lock(&drvdata->lock);
-			if (!is_sysmmu_active(drvdata) ||
-					!is_sysmmu_runtime_active(drvdata)) {
+			if (!is_runtime_active_or_enabled(drvdata) ||
+					!is_sysmmu_active(drvdata)) {
 				spin_unlock(&drvdata->lock);
 				dev_dbg(drvdata->sysmmu,
 					"Skip TLB invalidation %#zx@%#x\n",
@@ -467,7 +467,7 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 		drvdata->hold_rpm_on_boot = true;
 
 	if (of_property_read_bool(sysmmu->of_node, "sysmmu,no-rpm-control"))
-		drvdata->no_rpm_control = true;
+		drvdata->no_rpm_control = SYSMMU_STATE_DISABLED;
 
 	if (IS_TLB_WAY_TYPE(drvdata)) {
 		ret = sysmmu_parse_tlb_way_dt(sysmmu, drvdata);
@@ -700,12 +700,19 @@ void exynos_sysmmu_control(struct device *master, bool enable)
 	spin_lock_irqsave(&owner->lock, flags);
 	list_for_each_entry(list, &owner->sysmmu_list, node) {
 		drvdata = dev_get_drvdata(list->sysmmu);
-		if (!drvdata->no_rpm_control)
+		spin_lock(&drvdata->lock);
+		if (!drvdata->no_rpm_control) {
+			spin_unlock(&drvdata->lock);
 			continue;
-		if (enable)
+		}
+		if (enable) {
 			__sysmmu_enable_nocount(drvdata);
-		else
+			drvdata->no_rpm_control = SYSMMU_STATE_ENABLED;
+		} else {
 			__sysmmu_disable_nocount(drvdata);
+			drvdata->no_rpm_control = SYSMMU_STATE_DISABLED;
+		}
+		spin_unlock(&drvdata->lock);
 	}
 	spin_unlock_irqrestore(&owner->lock, flags);
 }
@@ -1309,7 +1316,7 @@ void exynos_sysmmu_show_status(struct device *master)
 
 		spin_lock_irqsave(&drvdata->lock, flags);
 		if (!is_sysmmu_active(drvdata) ||
-				!is_sysmmu_runtime_active(drvdata)) {
+				!is_runtime_active_or_enabled(drvdata)) {
 			dev_info(drvdata->sysmmu,
 				"%s: SysMMU is not active\n", __func__);
 			spin_unlock_irqrestore(&drvdata->lock, flags);
