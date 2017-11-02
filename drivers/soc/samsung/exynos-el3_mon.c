@@ -18,6 +18,7 @@
 #include <soc/samsung/exynos-el3_mon.h>
 
 static char *smc_lockup;
+static char *smc_debug_mem;
 
 #ifdef CONFIG_EXYNOS_KERNEL_PROTECTION
 static int __init exynos_protect_kernel_text(void)
@@ -87,10 +88,10 @@ core_initcall(exynos_protect_kernel_text);
 static int  __init exynos_set_debug_mem(void)
 {
 	int ret;
-	static char *smc_debug_mem;
 	char *phys;
+	unsigned int size = PAGE_SIZE * 2;
 
-	smc_debug_mem = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	smc_debug_mem = kmalloc(size, GFP_KERNEL);
 
 	if (!smc_debug_mem) {
 		pr_err("%s: kmalloc for smc_debug failed.\n", __func__);
@@ -98,16 +99,16 @@ static int  __init exynos_set_debug_mem(void)
 	}
 
 	/* to map & flush memory */
-	memset(smc_debug_mem, 0x00, PAGE_SIZE);
-	__flush_dcache_area(smc_debug_mem, PAGE_SIZE);
+	memset(smc_debug_mem, 0x00, size);
+	__flush_dcache_area(smc_debug_mem, size);
 
 	phys = (char *)virt_to_phys(smc_debug_mem);
-	pr_err("%s: alloc kmem for smc_dbg virt: 0x%p phys: 0x%p size: %ld.\n",
-			__func__, smc_debug_mem, phys, PAGE_SIZE);
-	ret = exynos_smc(SMC_CMD_SET_DEBUG_MEM, (u64)phys, (u64)PAGE_SIZE, 0);
+	pr_err("%s: alloc kmem for smc_dbg virt: 0x%p phys: 0x%p size: %d.\n",
+			__func__, smc_debug_mem, phys, size);
+	ret = exynos_smc(SMC_CMD_SET_DEBUG_MEM, (u64)phys, (u64)size, 0);
 
 	/* correct return value is input size */
-	if (ret != PAGE_SIZE) {
+	if (ret != size) {
 		pr_err("%s: Can not set the address to el3 monitor. "
 				"ret = 0x%x. free the kmem\n", __func__, ret);
 		kfree(smc_debug_mem);
@@ -237,8 +238,13 @@ check_exit:
 static void exynos_smart_exception_handler(unsigned int id,
 				unsigned long elr, unsigned long esr,
 				unsigned long sctlr, unsigned long ttbr,
-				unsigned long tcr, unsigned long x6)
+				unsigned long tcr, unsigned long x6,
+				unsigned int offset)
 {
+	int i;
+	unsigned long *ptr;
+	unsigned long tmp;
+
 	pr_err("========================================="
 		"=========================================\n");
 
@@ -263,9 +269,23 @@ static void exynos_smart_exception_handler(unsigned int id,
 								sctlr, ttbr);
 		pr_err("tcr_el3   : 0x%016lx, \tscr_el3  : 0x%016lx\n\n",
 								tcr, x6);
+
+		if ((offset > 0x0 && offset < (PAGE_SIZE * 2))
+				&& !(offset % 0x8) && (smc_debug_mem)) {
+			tmp = (unsigned long)smc_debug_mem;
+			tmp += (unsigned long)offset;
+			ptr = (unsigned long *)tmp;
+
+			for (i = 0; i < 15; i++) {
+				pr_err("x%02d : 0x%016lx, \tx%02d : 0x%016lx\n",
+					i * 2, ptr[i * 2],
+					i * 2 + 1, ptr[i * 2 + 1]);
+			}
+			pr_err("x%02d : 0x%016lx\n", i * 2,  ptr[i * 2]);
+		}
 	}
 
-	pr_err("[WARNING] IT'S GOING TO CAUSE KERNEL PANIC FOR DEBUGGING.\n\n");
+	pr_err("\n[WARNING] IT'S GOING TO CAUSE KERNEL PANIC FOR DEBUGGING.\n\n");
 
 	pr_err("========================================="
 		"=========================================\n");
