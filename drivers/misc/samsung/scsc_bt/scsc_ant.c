@@ -606,6 +606,9 @@ unsigned int scsc_shm_ant_poll(struct file *file, poll_table *wait)
 	/* Add the wait queue to the polling queue */
 	poll_wait(file, &ant_service.read_wait, wait);
 
+	if (atomic_read(&ant_service.error_count) != 0)
+		return POLLERR;
+
 	/* Has en error been detect then just return with an error */
 	if (ant_service.asmhcp_protocol->header.mailbox_data_ctr_driv_write !=
 	    ant_service.asmhcp_protocol->header.mailbox_data_ctr_driv_read ||
