@@ -161,6 +161,7 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 
 				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf, i);
 				if (count != ctx->num_bufs_in_vb) {
+					s5p_mfc_mem_put_dmabuf(dmabuf);
 					mfc_err_ctx("invalid buffer count %d != num_bufs_in_vb %d\n",
 							count, ctx->num_bufs_in_vb);
 					return -EFAULT;
@@ -170,6 +171,7 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 			} else {
 				dma_addr_t start_raw;
 
+				s5p_mfc_mem_put_dmabuf(dmabuf);
 				start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
 				if (start_raw == 0) {
 					mfc_err_ctx("Plane mem not allocated.\n");
