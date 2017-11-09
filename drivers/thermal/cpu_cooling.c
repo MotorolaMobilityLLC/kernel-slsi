@@ -374,11 +374,10 @@ static int lookup_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 	int num_cpus;
 	int max_cpus;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
-	struct cpumask *cpumask = policy->related_cpus;
 	cpumask_t tempmask;
 
-	cpumask_and(&tempmask, cpumask, cpu_online_mask);
-	max_cpus = cpumask_weight(cpumask);
+	cpumask_and(&tempmask, policy->related_cpus, cpu_online_mask);
+	max_cpus = cpumask_weight(policy->related_cpus);
 	num_cpus = cpumask_weight(&tempmask);
 	voltage = voltage / 1000;
 	temperature  = temperature / 1000;
@@ -410,7 +409,7 @@ static int lookup_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 		temp_index = cpufreq_cdev->var_temp_size;
 
 	index = (int)(volt_index * (cpufreq_cdev->var_temp_size + 1) + temp_index);
-	*power = (unsigned int)cpufreq_cdev->var_table[index] * num_cpus / max_cpus;
+	*power = (unsigned int)cpufreq_cdev->var_table[index];
 
 	return 0;
 }
@@ -494,9 +493,11 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 	struct dev_pm_opp *opp;
 	unsigned long voltage;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
-	struct cpumask *cpumask = policy->related_cpus;
 	unsigned long freq_hz = freq * 1000;
 	struct device *dev;
+	cpumask_t tempmask;
+	int num_cpus, max_cpus;
+	u32 raw_cpu_power;
 
 	*power = 0;
 
@@ -519,7 +520,15 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 		return -EINVAL;
 	}
 
-	return lookup_static_power(cpufreq_cdev, voltage, tz->temperature, power);
+	lookup_static_power(cpufreq_cdev, voltage, tz->temperature, &raw_cpu_power);
+
+	cpumask_and(&tempmask, policy->related_cpus, cpu_online_mask);
+	num_cpus = cpumask_weight(&tempmask);
+	max_cpus = cpumask_weight(policy->related_cpus);
+
+	*power = (raw_cpu_power * (num_cpus + 1)) / (max_cpus + 1);
+
+	return 0;
 }
 
 /**
