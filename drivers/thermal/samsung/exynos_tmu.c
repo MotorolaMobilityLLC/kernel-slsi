@@ -43,6 +43,8 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/exynos-ss.h>
+#include <linux/soc/samsung/exynos-soc.h>
+#include <soc/samsung/exynos-cpu_hotplug.h>
 #include <soc/samsung/tmu.h>
 #include <soc/samsung/ect_parser.h>
 #ifdef CONFIG_EXYNOS_MCINFO
@@ -834,6 +836,26 @@ static struct notifier_block exynos_tmu_pm_notifier = {
 };
 #endif
 
+static int thermal_cpu_hotplug_handler(struct notifier_block *b, unsigned long val, void *v)
+{
+	struct thermal_zone_device *tz;
+	struct exynos_tmu_data *devnode;
+
+	list_for_each_entry(devnode, &dtm_dev_list, node) {
+		if (devnode->hotplug_enable) {
+			tz = devnode->tzd;
+			thermal_zone_device_update(tz, THERMAL_DEVICE_POWER_CAPABILITY_CHANGED);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static struct notifier_block thermal_cpu_hotplug_notifier = {
+	.notifier_call = thermal_cpu_hotplug_handler,
+};
+
 static const struct of_device_id exynos_tmu_match[] = {
 	{ .compatible = "samsung,exynos9810-tmu", },
 	{ /* sentinel */ },
@@ -1379,10 +1401,12 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	 * data->tzd must be registered before calling exynos_tmu_initialize(),
 	 * requesting irq and calling exynos_tmu_control().
 	 */
-	if(data->hotplug_enable)
+	if (data->hotplug_enable) {
 		pm_qos_add_request(&thermal_cpu_hotplug_request,
 					PM_QOS_CPU_ONLINE_MAX,
 					PM_QOS_CPU_ONLINE_MAX_DEFAULT_VALUE);
+		exynos_cpuhotplug_register_notifier(&thermal_cpu_hotplug_notifier, 0);
+	}
 
 	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
 						    data->hotplug_enable ?
