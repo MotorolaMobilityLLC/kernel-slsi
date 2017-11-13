@@ -79,6 +79,7 @@ struct g2d_device {
 	struct device		*dev;
 	struct clk		*clock;
 	void __iomem		*reg;
+	void __iomem		*sysreg;
 
 	u64			fence_context;
 	atomic_t		fence_timeline;

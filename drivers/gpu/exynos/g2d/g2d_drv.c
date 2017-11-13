@@ -768,6 +768,8 @@ static int g2d_probe(struct platform_device *pdev)
 	if (IS_ERR(g2d_dev->reg))
 		return PTR_ERR(g2d_dev->reg);
 
+	g2d_dev->sysreg = ioremap(0x17610000, SZ_4K);
+
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "Failed to get IRQ resource");
@@ -910,7 +912,12 @@ static int g2d_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int g2d_runtime_resume(struct device *dev)
 {
+	struct g2d_device *g2d_dev = dev_get_drvdata(dev);
+
 	g2d_stamp_task(NULL, G2D_STAMP_STATE_RUNTIME_PM, 0);
+
+	/* clear [0:12] bit from SHARABILITY_CTRL */
+	writel((readl(g2d_dev->sysreg + 0x408) & ~0x1FFF), g2d_dev->sysreg + 0x408);
 
 	return 0;
 }
