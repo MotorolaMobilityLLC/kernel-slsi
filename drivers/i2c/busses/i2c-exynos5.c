@@ -112,6 +112,7 @@ static LIST_HEAD(drvdata_list);
 #define HSI2C_INT_RX_OVERRUN			(1u << 5)
 #define HSI2C_INT_TRAILING			(1u << 6)
 #define HSI2C_INT_I2C				(1u << 9)
+#define HSI2C_INT_NODEV				(1u << 10)
 #define HSI2C_RX_INT				(HSI2C_INT_RX_ALMOSTFULL | \
 						 HSI2C_INT_RX_UNDERRUN | \
 						 HSI2C_INT_RX_OVERRUN | \
@@ -563,6 +564,13 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 		dev_err(i2c->dev, "HSI2C Error Interrupt "
 				"occurred(IS:0x%08x, TR:0x%08x)\n",
 				(unsigned int)reg_val, (unsigned int)trans_status);
+
+		if (reg_val & HSI2C_INT_NODEV) {
+			dev_err(i2c->dev, "HSI2C NO ACK occured\n");
+			if (i2c->nack_restart)
+				goto out;
+		}
+
 		i2c->trans_done = -ENXIO;
 		exynos5_i2c_stop(i2c);
 		goto out;
@@ -1011,6 +1019,12 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		i2c->reset_before_trans = 1;
 	else
 		i2c->reset_before_trans = 0;
+
+	if (of_get_property(np, "samsung,no-dev-restart", NULL))
+		i2c->nack_restart = 1;
+	else
+		i2c->nack_restart = 0;
+
 
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 

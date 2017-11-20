@@ -59,5 +59,6 @@ struct exynos5_i2c {
 	int			idle_ip_index;
 	int			reset_before_trans;
 	unsigned int		runtime_resumed;
+	int			nack_restart;
 };
 #endif /*__I2C_EXYNOS5_H */
