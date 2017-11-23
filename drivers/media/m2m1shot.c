@@ -720,8 +720,8 @@ static long m2m1shot_compat_ioctl32(struct file *filp,
 		data.op.quality_level = task.task.op.quality_level;
 		data.op.rotate = task.task.op.rotate;
 		data.op.op = task.task.op.op;
-		data.reserved[0] = task.task.reserved[0];
-		data.reserved[1] = task.task.reserved[1];
+		data.reserved[0] = (compat_ulong_t)task.task.reserved[0];
+		data.reserved[1] = (compat_ulong_t)task.task.reserved[1];
 
 		if (copy_to_user(compat_ptr(arg), &data, sizeof(data))) {
 			dev_err(m21dev->dev,
