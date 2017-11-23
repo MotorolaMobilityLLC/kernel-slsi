@@ -135,7 +135,7 @@ void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
 			int *flags, unsigned long *addr, bool is_secure)
 {
-	unsigned int itype;
+	unsigned long itype;
 	u32 info;
 
 	itype =  __ffs(__sysmmu_get_intr_status(data, is_secure));
@@ -1308,7 +1308,7 @@ static int sysmmu_fault_notifier(struct notifier_block *nb,
 
 	if (owner && owner->fault_handler)
 		owner->fault_handler(owner->domain, owner->master,
-			fault_addr, (unsigned long)data, owner->token);
+			fault_addr, *(int *)data, owner->token);
 
 	return 0;
 }
@@ -1576,7 +1576,7 @@ static int sysmmu_map_pte(struct mm_struct *mm,
 			set_lv2ent_shareable(ent);
 
 		ent++;
-		iova += PAGE_SIZE;
+		iova += (sysmmu_iova_t)PAGE_SIZE;
 
 		if ((iova & SECT_MASK) != ((iova - 1) & SECT_MASK)) {
 			pgtable_flush(ent_beg, ent);
@@ -1611,7 +1611,7 @@ static inline int sysmmu_map_pmd(struct mm_struct *mm,
 		next = pmd_addr_end(addr, end);
 		if (sysmmu_map_pte(mm, pmd, addr, next, domain, iova, prot))
 			return -ENOMEM;
-		iova += (next - addr);
+		iova += (sysmmu_iova_t)(next - addr);
 	} while (pmd++, addr = next, addr != end);
 	return 0;
 }
@@ -1629,7 +1629,7 @@ static inline int sysmmu_map_pud(struct mm_struct *mm,
 		next = pud_addr_end(addr, end);
 		if (sysmmu_map_pmd(mm, pud, addr, next, domain, iova, prot))
 			return -ENOMEM;
-		iova += (next - addr);
+		iova += (sysmmu_iova_t)(next - addr);
 	} while (pud++, addr = next, addr != end);
 	return 0;
 }
@@ -1654,7 +1654,7 @@ int exynos_iommu_map_userptr(struct iommu_domain *dom, unsigned long addr,
 		ret = sysmmu_map_pud(mm, pgd, addr, next, domain, iova, prot);
 		if (ret)
 			goto err;
-		iova += (next - addr);
+		iova += (sysmmu_iova_t)(next - addr);
 	} while (pgd++, addr = next, addr != end);
 
 	return 0;
@@ -1673,7 +1673,7 @@ void exynos_iommu_unmap_userptr(struct iommu_domain *dom,
 	struct exynos_iommu_domain *domain = to_exynos_domain(dom);
 	sysmmu_iova_t iova = (sysmmu_iova_t)d_iova;
 	sysmmu_pte_t *sent = section_entry(domain->pgtable, iova);
-	unsigned int entries = size >> SPAGE_ORDER;
+	unsigned int entries = (unsigned int)(size >> SPAGE_ORDER);
 	dma_addr_t start = d_iova;
 
 	while (entries > 0) {

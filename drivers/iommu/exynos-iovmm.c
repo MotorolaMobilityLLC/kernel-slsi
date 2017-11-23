@@ -110,7 +110,7 @@ again:
 	region->start = vstart;
 	region->size = vsize << PAGE_SHIFT;
 	region->dummy_size = region->size - size;
-	region->section_off = section_offset << PAGE_SHIFT;
+	region->section_off = (unsigned int)(section_offset << PAGE_SHIFT);
 
 	spin_lock(&vmm->vmlist_lock);
 	list_add_tail(&region->node, &vmm->regions_list);
@@ -194,7 +194,7 @@ static dma_addr_t add_iovm_region(struct exynos_iovmm *vmm,
 
 	INIT_LIST_HEAD(&region->node);
 	region->start = start;
-	region->size = size;
+	region->size = (u32)size;
 
 	spin_lock(&vmm->vmlist_lock);
 
