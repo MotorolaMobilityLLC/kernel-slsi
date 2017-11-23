@@ -52,11 +52,12 @@
  * In addition, the location of autoreload bit for channel 4 (TCON channel 5)
  * in its set of bits is 2 as opposed to 3 for other channels.
  */
-#define TCON_START(chan)		BIT(4 * (chan) + 0)
-#define TCON_MANUALUPDATE(chan)		BIT(4 * (chan) + 1)
-#define TCON_INVERT(chan)		BIT(4 * (chan) + 2)
-#define _TCON_AUTORELOAD(chan)		BIT(4 * (chan) + 3)
-#define _TCON_AUTORELOAD4(chan)		BIT(4 * (chan) + 2)
+#define PWM_BIT(nr)			(1U << (nr))
+#define TCON_START(chan)		PWM_BIT(4 * (chan) + 0)
+#define TCON_MANUALUPDATE(chan)		PWM_BIT(4 * (chan) + 1)
+#define TCON_INVERT(chan)		PWM_BIT(4 * (chan) + 2)
+#define _TCON_AUTORELOAD(chan)		PWM_BIT(4 * (chan) + 3)
+#define _TCON_AUTORELOAD4(chan)		PWM_BIT(4 * (chan) + 2)
 #define TCON_AUTORELOAD(chan)		\
 	((chan < 5) ? _TCON_AUTORELOAD(chan) : _TCON_AUTORELOAD4(chan))
 
@@ -426,7 +427,7 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		unsigned long tin_rate;
 		u32 period;
 
-		period = NSEC_PER_SEC / period_ns;
+		period = (unsigned int)(NSEC_PER_SEC / period_ns);
 
 		dev_dbg(our_chip->chip.dev, "duty_ns=%d, period_ns=%d (%u)\n",
 						duty_ns, period_ns, period);
@@ -436,7 +437,7 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		if(!tin_rate)
 			return -EINVAL;
 
-		tin_ns = NSEC_PER_SEC / tin_rate;
+		tin_ns = (unsigned int)(NSEC_PER_SEC / tin_rate);
 	}
 
 	/* Note that counters count down. */
