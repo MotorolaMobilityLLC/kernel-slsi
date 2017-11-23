@@ -780,8 +780,6 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 			*ysize += NV16M_Y_2B_SIZE(width, height);
 			*csize += NV16M_CBCR_2B_SIZE(width, height);
 		break;
-	default:
-		break;
 	}
 
 	/* Do not consider extra size for 2bit CbCr */
