@@ -725,13 +725,28 @@ static int exynos_tmu_set_emulation(void *drv_data, int temp)
 	{ return -EINVAL; }
 #endif /* CONFIG_THERMAL_EMULATION */
 
+static bool cpufreq_limited;
+static struct pm_qos_request thermal_cpu_limit_request;
+
 static int exynos9810_tmu_read(struct exynos_tmu_data *data)
 {
-	int temp = 0;
+	int temp = 0, stat = 0;
 
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
-	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp);
+	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp, &stat);
 #endif
+
+	if (data->hotplug_enable) {
+		if ((stat & 0x2) && !cpufreq_limited) {
+			pm_qos_update_request(&thermal_cpu_limit_request,
+					data->limited_frequency);
+			cpufreq_limited = true;
+		} else if (!(stat & 0x2) && cpufreq_limited) {
+			pm_qos_update_request(&thermal_cpu_limit_request,
+					PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
+			cpufreq_limited = false;
+		}
+	}
 
 	return temp;
 }
@@ -1291,7 +1306,7 @@ static int exynos_tmu_parse_ect(struct exynos_tmu_data *data)
 		void *block;
 		struct ect_pidtm_block *pidtm_block;
 		int i, temperature, value;
-		int hotplug_out_threshold = 0, hotplug_in_threshold = 0;
+		int hotplug_out_threshold = 0, hotplug_in_threshold = 0, limited_frequency = 0;
 
 		block = ect_get_block(BLOCK_PIDTM);
 		if (block == NULL) {
@@ -1362,9 +1377,15 @@ static int exynos_tmu_parse_ect(struct exynos_tmu_data *data)
 			hotplug_in_threshold = value;
 		}
 
+		if ((value = exynos_tmu_ect_get_param(pidtm_block, "limited_frequency")) != -1) {
+			pr_info("Parse from ECT limited_frequency: %d\n", value);
+			limited_frequency = value;
+		}
+
 		if (hotplug_out_threshold != 0 && hotplug_in_threshold != 0) {
 			data->hotplug_out_threshold = hotplug_out_threshold;
 			data->hotplug_in_threshold = hotplug_in_threshold;
+			data->limited_frequency = limited_frequency;
 			data->hotplug_enable = true;
 		} else
 			data->hotplug_enable = false;
@@ -1405,6 +1426,9 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		pm_qos_add_request(&thermal_cpu_hotplug_request,
 					PM_QOS_CPU_ONLINE_MAX,
 					PM_QOS_CPU_ONLINE_MAX_DEFAULT_VALUE);
+		pm_qos_add_request(&thermal_cpu_limit_request,
+					PM_QOS_CLUSTER1_FREQ_MAX,
+					PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
 		exynos_cpuhotplug_register_notifier(&thermal_cpu_hotplug_notifier, 0);
 	}
 
@@ -1545,7 +1569,7 @@ static int exynos_tmu_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
-	int temp;
+	int temp, stat;
 
 	if (suspended_count == num_of_devices)
 		exynos_acpm_tmu_set_resume();
@@ -1555,7 +1579,7 @@ static int exynos_tmu_resume(struct device *dev)
 		exynos_tmu_control(pdev, true);
 	}
 
-	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp);
+	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp, &stat);
 
 	enable_irq(data->irq);
 	suspended_count--;

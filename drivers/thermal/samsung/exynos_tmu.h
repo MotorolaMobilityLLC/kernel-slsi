@@ -144,6 +144,7 @@ struct exynos_tmu_data {
 	bool hotplug_enable;
 	int hotplug_in_threshold;
 	int hotplug_out_threshold;
+	int limited_frequency;
 	struct exynos_tmu_platform_data *pdata;
 	void __iomem *base;
 	int irq;

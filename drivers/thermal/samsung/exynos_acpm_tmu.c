@@ -31,7 +31,6 @@
 #include <soc/samsung/acpm_ipc_ctrl.h>
 #include "exynos_acpm_tmu.h"
 
-static bool cold_comp;
 static unsigned int acpm_tmu_ch_num, acpm_tmu_size;
 
 static bool acpm_tmu_test_mode;
@@ -111,14 +110,12 @@ int exynos_acpm_tmu_set_init(struct acpm_tmu_cap *cap)
  *
  * - tz: thermal zone index registered in device tree
  */
-int exynos_acpm_tmu_set_read_temp(int tz, int *cur_temp)
+int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
 {
 	struct ipc_config config;
 	union tmu_ipc_message message;
 	int ret;
 	unsigned long long before, after, latency;
-
-	*cur_temp = 0;
 
 	if (acpm_tmu_test_mode)
 		return -1;
@@ -149,8 +146,8 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *cur_temp)
 				message.data[3]);
 	}
 
-	cold_comp = message.resp.cold;
-	*cur_temp = message.resp.temp;
+	*temp = message.resp.temp;
+	*stat = message.resp.stat;
 
 	return 0;
 }
@@ -189,8 +186,6 @@ int exynos_acpm_tmu_set_suspend(void)
 				message.data[2],
 				message.data[3]);
 	}
-
-	cold_comp = message.resp.cold;
 
 	return 0;
 }

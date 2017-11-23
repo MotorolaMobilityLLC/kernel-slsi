@@ -77,7 +77,7 @@ struct tmu_ipc_request {
  * ---------------------------------------------
  * | temp     |  tz_id   | ret      | type     |
  * ---------------------------------------------
- * |          |          |          | cold     |
+ * |          |          |          | stat     |
  * ---------------------------------------------
  * |          |          |          |          |
  * ---------------------------------------------
@@ -89,7 +89,7 @@ struct tmu_ipc_response {
 	s8 ret;
 	u8 tzid;
 	u8 temp;
-	u8 cold;
+	u8 stat;
 	u8 rsvd;
 	u8 rsvd2;
 	u8 rsvd3;
@@ -108,7 +108,7 @@ struct acpm_tmu_cap {
 };
 
 int exynos_acpm_tmu_set_init(struct acpm_tmu_cap *cap);
-int exynos_acpm_tmu_set_read_temp(int tz, int *temp);
+int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat);
 int exynos_acpm_tmu_set_suspend(void);
 int exynos_acpm_tmu_set_cp_call(void);
 int exynos_acpm_tmu_set_resume(void);
