@@ -384,7 +384,7 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 			dev_err(i2c->dev, "Failed to set clock\n");
 	}
 
-	ipclk = clk_get_rate(i2c->rate_clk);
+	ipclk = (unsigned int)clk_get_rate(i2c->rate_clk);
 
 	if (mode == HSI2C_HIGH_SPD) {
 		/* ipclk's unit is Hz, op_clk's unit is Hz */
