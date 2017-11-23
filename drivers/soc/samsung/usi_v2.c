@@ -38,7 +38,7 @@ static const struct usi_v2_mode usi_v2_modes[] = {
 
 static int get_usi_v2_mode(const char* mode_name)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < sizeof(usi_v2_modes)/sizeof(struct usi_v2_mode); i++) {
 		if (!strncmp(mode_name, usi_v2_modes[i].name,
