@@ -15,6 +15,8 @@
 
 #define S5P_VA_ECT (VMALLOC_START + 0xF6000000 + 0x02D00000)
 
+#define ARRAY_SIZE32(array)		((u32)ARRAY_SIZE(array))
+
 /* Variable */
 
 static struct ect_info ect_list[];
@@ -56,9 +58,9 @@ static int ect_parse_string(void **address, char **value, unsigned int *length)
 	*value = *address;
 
 	if (*length % ALIGNMENT_SIZE != 0)
-		*address += *length + ALIGNMENT_SIZE - (*length % ALIGNMENT_SIZE);
+		*address += (unsigned long)(*length + ALIGNMENT_SIZE - (*length % ALIGNMENT_SIZE));
 	else
-		*address += *length;
+		*address += (unsigned long)*length;
 
 	return 0;
 }
@@ -1427,7 +1429,7 @@ static struct ect_info* ect_get_info(char *block_name)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ect_list); ++i) {
+	for (i = 0; i < ARRAY_SIZE32(ect_list); ++i) {
 		if (ect_strcmp(block_name, ect_list[i].block_name) == 0)
 			return &ect_list[i];
 	}
@@ -2077,8 +2079,8 @@ static int ect_dump_all(struct seq_file *s, void *data)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(ect_list); ++i) {
-		for (j = 0; j < ARRAY_SIZE(ect_list); ++j) {
+	for (i = 0; i < ARRAY_SIZE32(ect_list); ++i) {
+		for (j = 0; j < ARRAY_SIZE32(ect_list); ++j) {
 			if (ect_list[j].block_precedence != i)
 				continue;
 
@@ -2167,7 +2169,7 @@ static int ect_dump_init(void)
 	if (!d)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(ect_list); ++i) {
+	for (i = 0; i < ARRAY_SIZE32(ect_list); ++i) {
 		if (ect_list[i].block_handle == NULL)
 			continue;
 
@@ -2223,7 +2225,7 @@ void *ect_get_block(char *block_name)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ect_list); ++i) {
+	for (i = 0; i < ARRAY_SIZE32(ect_list); ++i) {
 		if (ect_strcmp(block_name, ect_list[i].block_name) == 0)
 			return ect_list[i].block_handle;
 	}
@@ -2570,7 +2572,7 @@ int ect_parse_binary_header(void)
 
 		ect_parse_integer(&address, &offset);
 
-		for (j = 0; j < ARRAY_SIZE(ect_list); ++j) {
+		for (j = 0; j < ARRAY_SIZE32(ect_list); ++j) {
 			if (strncmp(block_name, ect_list[j].block_name, ect_list[j].block_name_length) != 0)
 				continue;
 
