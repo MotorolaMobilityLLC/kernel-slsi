@@ -925,7 +925,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct exynos_tmu_platform_data *pdata;
 	struct resource res;
-	int i;
+	unsigned int i;
 	const char *temp, *tmu_name;
 
 	if (!data || !pdev->dev.of_node)
@@ -977,7 +977,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	else {
 		for (i = 0; i<ARRAY_SIZE(sensing_method); i++)
 			if (!strcasecmp(temp, sensing_method[i]))
-				data->sensing_mode = i;
+				data->sensing_mode = (int)i;
 	}
 
 	data->balance_offset = DEFAULT_BALANCE_OFFSET;

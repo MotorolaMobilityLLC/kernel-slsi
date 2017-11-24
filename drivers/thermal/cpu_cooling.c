@@ -383,7 +383,7 @@ static int lookup_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 	temperature  = temperature / 1000;
 
 	for (volt_index = 0; volt_index <= cpufreq_cdev->var_volt_size; volt_index++) {
-		if (voltage < cpufreq_cdev->var_table[volt_index * (cpufreq_cdev->var_temp_size + 1)]) {
+		if (voltage < cpufreq_cdev->var_table[volt_index * ((int)cpufreq_cdev->var_temp_size + 1)]) {
 			volt_index = volt_index - 1;
 			break;
 		}

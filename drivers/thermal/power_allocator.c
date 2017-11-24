@@ -234,8 +234,8 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 		s64 i_next = i + mul_frac(tz->tzp->k_i, err);
 		s64 i_windup = int_to_frac(-1 * (s64)tz->tzp->sustainable_power);
 
-		if (i_next > int_to_frac(tz->tzp->integral_max)) {
-			i = int_to_frac(tz->tzp->integral_max);
+		if (i_next > int_to_frac((s64)tz->tzp->integral_max)) {
+			i = int_to_frac((s64)tz->tzp->integral_max);
 			params->err_integral = div_frac(i, tz->tzp->k_i);
 		} else if (i_next <= i_windup) {
 			i = i_windup;
@@ -532,7 +532,7 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 
 static void reset_pid_controller(struct power_allocator_params *params, struct thermal_zone_device *tz)
 {
-	s64 i = int_to_frac(tz->tzp->integral_max);
+	s64 i = int_to_frac((s64)tz->tzp->integral_max);
 
 	params->err_integral = div_frac(i, tz->tzp->k_i);
 	params->prev_err = 0;

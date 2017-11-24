@@ -427,7 +427,7 @@ static int lookup_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
 	temperature  = temperature / 1000;
 
 	for (volt_index = 0; volt_index <= gpufreq_cdev->var_volt_size; volt_index++) {
-		if (voltage < gpufreq_cdev->var_table[volt_index * (gpufreq_cdev->var_temp_size + 1)]) {
+		if (voltage < gpufreq_cdev->var_table[volt_index * ((int)gpufreq_cdev->var_temp_size + 1)]) {
 			volt_index = volt_index - 1;
 			break;
 		}
@@ -1063,7 +1063,7 @@ static int gpu_cooling_table_init(void)
 
 		gpu_freq_table[count].flags = 0;
 		gpu_freq_table[count].driver_data = count;
-		gpu_freq_table[count].frequency = freq * 1000;
+		gpu_freq_table[count].frequency = (unsigned int)freq * 1000;
 
 		pr_info("[GPU cooling] index : %d, frequency : %d\n",
 			gpu_freq_table[count].driver_data, gpu_freq_table[count].frequency);
