@@ -580,7 +580,7 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 
 		/* last image in a buffer container */
 		/* move src_queue -> src_queue_nal_q */
-		if (src_mb->next_index == (ctx->num_bufs_in_vb - 1)) {
+		if (src_mb->next_index == (src_mb->num_bufs_in_vb - 1)) {
 			src_mb = s5p_mfc_get_move_buf(&ctx->buf_queue_lock,
 					&ctx->src_buf_nal_queue, &ctx->src_buf_queue,
 					MFC_BUF_SET_USED, MFC_QUEUE_ADD_BOTTOM);
@@ -857,7 +857,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 
 		if (IS_BUFFER_BATCH_MODE(ctx)) {
 			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
-				&ctx->src_buf_queue, enc_addr[0], ctx->num_bufs_in_vb);
+					&ctx->src_buf_queue, enc_addr[0]);
 			if (src_mb) {
 				src_mb->done_index++;
 				mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
@@ -865,7 +865,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 				mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
 			} else {
 				src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
-						&ctx->src_buf_nal_queue, enc_addr[0], ctx->num_bufs_in_vb);
+						&ctx->src_buf_nal_queue, enc_addr[0]);
 				if (src_mb) {
 					src_mb->done_index++;
 					mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
@@ -873,10 +873,9 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 					mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
 
 					/* last image in a buffer container */
-					if (src_mb->done_index == ctx->num_bufs_in_vb) {
+					if (src_mb->done_index == src_mb->num_bufs_in_vb) {
 						src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-								&ctx->src_buf_nal_queue, enc_addr[0],
-								ctx->num_bufs_in_vb);
+								&ctx->src_buf_nal_queue, enc_addr[0]);
 						if (src_mb)
 							vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 					}
@@ -884,7 +883,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 			}
 		} else {
 			src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-					&ctx->src_buf_nal_queue, enc_addr[0], 0);
+					&ctx->src_buf_nal_queue, enc_addr[0]);
 			if (!src_mb) {
 				mfc_err_dev("NAL Q: no src buffers\n");
 				return;
@@ -893,7 +892,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
 			ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-					&ctx->ref_buf_queue, enc_addr[0], 0);
+					&ctx->ref_buf_queue, enc_addr[0]);
 			if (ref_mb)
 				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
@@ -1120,7 +1119,7 @@ static void mfc_nal_q_handle_frame_copy_timestamp(struct s5p_mfc_ctx *ctx, Decod
 		return;
 	}
 
-	ref_mb = s5p_mfc_find_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dec_y_addr, 0);
+	ref_mb = s5p_mfc_find_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dec_y_addr);
 	if (ref_mb)
 		ref_mb->vb.vb2_buf.timestamp = src_mb->vb.vb2_buf.timestamp;
 
@@ -1198,8 +1197,7 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 		frame_type = pOutStr->DisplayFrameType & S5P_FIMV_DISPLAY_FRAME_MASK;
 	}
 
-	ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-			&ctx->ref_buf_queue, dspl_y_addr, 0);
+	ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dspl_y_addr);
 	if (ref_mb) {
 		mfc_debug(2, "NAL Q: find display buf, index: %d\n", ref_mb->vb.vb2_buf.index);
 		/* Check if this is the buffer we're looking for */

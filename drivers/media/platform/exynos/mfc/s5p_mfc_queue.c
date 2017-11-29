@@ -264,7 +264,7 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_addr(spinlock_t *plock,
 }
 
 struct s5p_mfc_buf *s5p_mfc_find_first_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		dma_addr_t addr, int search_queue)
+		dma_addr_t addr)
 {
 	unsigned long flags;
 	struct s5p_mfc_buf *mfc_buf = NULL;
@@ -281,8 +281,8 @@ struct s5p_mfc_buf *s5p_mfc_find_first_buf(spinlock_t *plock, struct s5p_mfc_buf
 
 	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
 	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
-	if (search_queue > 0) {
-		for (i = 0; i < search_queue; i++) {
+	if (mfc_buf->num_bufs_in_vb > 0) {
+		for (i = 0; i < mfc_buf->num_bufs_in_vb; i++) {
 			mb_addr = mfc_buf->addr[i][0];
 			mfc_debug(2, "batch buf[%d] plane[0] addr: 0x%08llx\n", i, mb_addr);
 			if (addr == mb_addr) {
@@ -305,7 +305,7 @@ struct s5p_mfc_buf *s5p_mfc_find_first_buf(spinlock_t *plock, struct s5p_mfc_buf
 }
 
 struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		dma_addr_t addr, int search_queue)
+		dma_addr_t addr)
 {
 	unsigned long flags;
 	struct s5p_mfc_buf *mfc_buf = NULL;
@@ -316,8 +316,8 @@ struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue
 
 	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
 	list_for_each_entry(mfc_buf, &queue->head, list) {
-		if (search_queue > 0) {
-			for (i = 0; i < search_queue; i++) {
+		if (mfc_buf->num_bufs_in_vb > 0) {
+			for (i = 0; i < mfc_buf->num_bufs_in_vb; i++) {
 				mb_addr = mfc_buf->addr[i][0];
 				mfc_debug(2, "batch buf[%d] plane[0] addr: 0x%08llx\n", i, mb_addr);
 				if (addr == mb_addr) {
@@ -341,7 +341,7 @@ struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue
 }
 
 struct s5p_mfc_buf *s5p_mfc_find_del_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		dma_addr_t addr, int search_queue)
+		dma_addr_t addr)
 {
 	unsigned long flags;
 	struct s5p_mfc_buf *mfc_buf = NULL;
@@ -352,8 +352,8 @@ struct s5p_mfc_buf *s5p_mfc_find_del_buf(spinlock_t *plock, struct s5p_mfc_buf_q
 
 	mfc_debug(2, "Looking for this address: 0x%08llx\n", addr);
 	list_for_each_entry(mfc_buf, &queue->head, list) {
-		if (search_queue > 0) {
-			for (i = 0; i < search_queue; i++) {
+		if (mfc_buf->num_bufs_in_vb > 0) {
+			for (i = 0; i < mfc_buf->num_bufs_in_vb; i++) {
 				mb_addr = mfc_buf->addr[i][0];
 				mfc_debug(2, "batch buf[%d] plane[0] addr: 0x%08llx\n", i, mb_addr);
 
@@ -909,6 +909,13 @@ void s5p_mfc_cleanup_nal_queue(struct s5p_mfc_ctx *ctx)
 		call_cop(ctx, recover_buf_ctrls_nal_q, ctx, &ctx->src_ctrls[index]);
 
 		src_mb->used = 0;
+
+		/* If it is not buffer batch mode, index is always zero */
+		if (src_mb->next_index > src_mb->done_index) {
+			mfc_debug(2, "NAL Q: batch buf next index[%d] recover to %d\n",
+					src_mb->next_index, src_mb->done_index);
+			src_mb->next_index = src_mb->done_index;
+		}
 
 		list_del(&src_mb->list);
 		ctx->src_buf_nal_queue.count--;

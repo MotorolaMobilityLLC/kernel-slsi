@@ -150,20 +150,24 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 			if (!dmabuf)
 				return -ENOMEM;
 
-			ctx->num_bufs_in_vb = s5p_mfc_bufcon_get_buf_count(dmabuf);
-			mfc_debug(3, "bufcon count:%d\n", ctx->num_bufs_in_vb);
+			buf->num_bufs_in_vb = s5p_mfc_bufcon_get_buf_count(dmabuf);
+			mfc_debug(3, "bufcon count:%d\n", buf->num_bufs_in_vb);
+			if (!ctx->batch_mode && buf->num_bufs_in_vb > 0) {
+				ctx->batch_mode = 1;
+				mfc_debug(3, "buffer batch mode enabled\n");
+			}
 
-			if (IS_BUFFER_BATCH_MODE(ctx)) {
+			if (buf->num_bufs_in_vb > 0) {
 				int count = 0;
 
-				ctx->framerate = ctx->num_bufs_in_vb * ENC_DEFAULT_CAM_CAPTURE_FPS;
+				ctx->framerate = buf->num_bufs_in_vb * ENC_DEFAULT_CAM_CAPTURE_FPS;
 				mfc_debug(3, "framerate: %ld\n", ctx->framerate);
 
 				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf, i);
-				if (count != ctx->num_bufs_in_vb) {
+				if (count != buf->num_bufs_in_vb) {
 					s5p_mfc_mem_put_dmabuf(dmabuf);
 					mfc_err_ctx("invalid buffer count %d != num_bufs_in_vb %d\n",
-							count, ctx->num_bufs_in_vb);
+							count, buf->num_bufs_in_vb);
 					return -EFAULT;
 				}
 
@@ -194,11 +198,11 @@ static int s5p_mfc_enc_buf_init(struct vb2_buffer *vb)
 					buf->addr[0][i] = s5p_mfc_mem_get_daddr_vb(vb, i);
 				}
 
-				if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_SRC,
-							vb->index) < 0)
-					mfc_err_ctx("failed in init_buf_ctrls\n");
 			}
 		}
+		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_SRC,
+					vb->index) < 0)
+			mfc_err_ctx("failed in init_buf_ctrls\n");
 	} else {
 		mfc_err_ctx("inavlid queue type: %d\n", vq->type);
 		return -EINVAL;

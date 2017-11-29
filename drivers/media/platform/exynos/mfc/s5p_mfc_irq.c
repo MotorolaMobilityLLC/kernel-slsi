@@ -174,7 +174,7 @@ static void mfc_handle_frame_copy_timestamp(struct s5p_mfc_ctx *ctx)
 		return;
 	}
 
-	ref_mb = s5p_mfc_find_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dec_y_addr, 0);
+	ref_mb = s5p_mfc_find_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dec_y_addr);
 	if (ref_mb)
 		ref_mb->vb.vb2_buf.timestamp = src_mb->vb.vb2_buf.timestamp;
 }
@@ -249,7 +249,7 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 	}
 
 	ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-			&ctx->ref_buf_queue, dspl_y_addr, 0);
+			&ctx->ref_buf_queue, dspl_y_addr);
 	if (ref_mb) {
 		mfc_debug(2, "Listing: %d\n", ref_mb->vb.vb2_buf.index);
 		/* Check if this is the buffer we're looking for */
@@ -816,7 +816,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 
 		if (IS_BUFFER_BATCH_MODE(ctx)) {
 			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
-					&ctx->src_buf_queue, enc_addr[0], ctx->num_bufs_in_vb);
+					&ctx->src_buf_queue, enc_addr[0]);
 			if (src_mb) {
 				src_mb->done_index++;
 				mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
@@ -829,11 +829,10 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 
 				mfc_handle_stream_copy_timestamp(ctx, src_mb);
 
-				/* last image in a buffer container */
-				if (src_mb->done_index == ctx->num_bufs_in_vb) {
+				/* single buffer || last image in a buffer container */
+				if (!src_mb->num_bufs_in_vb || src_mb->done_index == src_mb->num_bufs_in_vb) {
 					src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-							&ctx->src_buf_queue, enc_addr[0],
-							ctx->num_bufs_in_vb);
+							&ctx->src_buf_queue, enc_addr[0]);
 					if (src_mb)
 						vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 				}
@@ -845,7 +844,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 		} else {
 			/* normal single buffer */
 			src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-					&ctx->src_buf_queue, enc_addr[0], 0);
+					&ctx->src_buf_queue, enc_addr[0]);
 			if (src_mb) {
 				index = src_mb->vb.vb2_buf.index;
 				if (call_cop(ctx, recover_buf_ctrls_val, ctx,
@@ -860,7 +859,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 			}
 
 			ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-					&ctx->ref_buf_queue, enc_addr[0], 0);
+					&ctx->ref_buf_queue, enc_addr[0]);
 			if (ref_mb) {
 				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 

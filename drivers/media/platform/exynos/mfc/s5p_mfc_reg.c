@@ -356,7 +356,7 @@ void s5p_mfc_set_enc_frame_buffer(struct s5p_mfc_ctx *ctx,
 		goto buffer_set;
 	}
 
-	if (IS_BUFFER_BATCH_MODE(ctx)) {
+	if (mfc_buf->num_bufs_in_vb > 0) {
 		for (i = 0; i < num_planes; i++) {
 			addr[i] = mfc_buf->addr[mfc_buf->next_index][i];
 			mfc_debug(2, "enc batch buf[%d] src[%d] addr: 0x%08llx\n",

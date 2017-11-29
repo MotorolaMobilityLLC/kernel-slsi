@@ -137,7 +137,7 @@
 #define ON_RES_CHANGE(ctx)	(((ctx)->state >= MFCINST_RES_CHANGE_INIT) &&	\
 				 ((ctx)->state <= MFCINST_RES_CHANGE_END))
 
-#define IS_BUFFER_BATCH_MODE(ctx)	((ctx)->num_bufs_in_vb > 0)
+#define IS_BUFFER_BATCH_MODE(ctx)	((ctx)->batch_mode == 1)
 
 /* UHD resoluition */
 #define MFC_UHD_RES		(3840 * 2160)

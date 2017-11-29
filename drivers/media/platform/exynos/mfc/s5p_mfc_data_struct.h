@@ -231,6 +231,7 @@ struct s5p_mfc_buf {
 	int next_index;
 	int done_index;
 	int used;
+	int num_bufs_in_vb;
 	unsigned char *vir_addr;
 };
 
@@ -1344,7 +1345,7 @@ struct s5p_mfc_ctx {
 	unsigned long stream_protect_flag;
 	struct _otf_handle *otf_handle;
 
-	int num_bufs_in_vb;
+	int batch_mode;
 };
 
 #endif /* __S5P_MFC_DATA_STRUCT_H */

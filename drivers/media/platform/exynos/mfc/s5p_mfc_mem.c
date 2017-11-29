@@ -193,7 +193,7 @@ void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_b
 {
 	int i;
 
-	for (i = 0; i < ctx->num_bufs_in_vb; i++) {
+	for (i = 0; i < mfc_buf->num_bufs_in_vb; i++) {
 		if (mfc_buf->addr[i][plane]) {
 			mfc_debug(4, "put batch buf addr[%d][%d]: 0x%08llx\n",
 					i, plane, mfc_buf->addr[i][plane]);
@@ -217,7 +217,7 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 	struct s5p_mfc_raw_info *raw = &ctx->raw_buf;
 	int i;
 
-	for (i = 0; i < ctx->num_bufs_in_vb; i++) {
+	for (i = 0; i < mfc_buf->num_bufs_in_vb; i++) {
 		mfc_buf->dmabufs[i][plane] = dmabuf_container_get_buffer(bufcon_dmabuf, i);
 		if (IS_ERR(mfc_buf->dmabufs[i][plane])) {
 			mfc_err_ctx("Failed to get dma_buf (err %ld)",
