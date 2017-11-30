@@ -1235,6 +1235,11 @@ static int __maybe_unused samsung_pinctrl_suspend(struct device *dev)
 	if (!drvdata->suspend)
 		return -EINVAL;
 
+	if (!IS_ERR(drvdata->pctl_dev->p)) {
+		/* This is ignore to disable mux configuration. */
+		drvdata->pctl_dev->p->state = NULL;
+	}
+
 	ret = pinctrl_force_sleep(drvdata->pctl_dev);
 	if (ret)
 	        dev_err(drvdata->dev, "could not set sleep pinstate %d\n", ret);
