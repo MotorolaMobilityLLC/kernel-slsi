@@ -697,8 +697,10 @@ void s5p_mfc_cleanup_enc_src_queue(struct s5p_mfc_ctx *ctx)
 
 			s5p_mfc_raw_unprotect(ctx, src_mb, i);
 
-			for (i = 0; i < src_mb->vb.vb2_buf.num_planes; i++)
+			for (i = 0; i < src_mb->vb.vb2_buf.num_planes; i++) {
+				s5p_mfc_bufcon_put_daddr(ctx, src_mb, i);
 				vb2_set_plane_payload(&src_mb->vb.vb2_buf, i, 0);
+			}
 
 			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 			list_del(&src_mb->list);
