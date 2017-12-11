@@ -555,6 +555,32 @@ void s5p_mfc_cleanup_queue(spinlock_t *plock, struct s5p_mfc_buf_queue *queue)
 	spin_unlock_irqrestore(plock, flags);
 }
 
+static void mfc_cleanup_batch_queue(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf_queue *queue)
+{
+	unsigned long flags;
+	struct s5p_mfc_buf *mfc_buf = NULL;
+	int i;
+
+	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
+
+	while (!list_empty(&queue->head)) {
+		mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+
+		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++) {
+			s5p_mfc_bufcon_put_daddr(ctx, mfc_buf, i);
+			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
+		}
+		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		list_del(&mfc_buf->list);
+		queue->count--;
+	}
+
+	INIT_LIST_HEAD(&queue->head);
+	queue->count = 0;
+
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+}
+
 /*
  * Check released buffers are enqueued again.
  * s5p_mfc_dec.assigned_fd
@@ -712,7 +738,10 @@ void s5p_mfc_cleanup_enc_src_queue(struct s5p_mfc_ctx *ctx)
 
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 	} else {
-		s5p_mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_queue);
+		if (IS_BUFFER_BATCH_MODE(ctx))
+			mfc_cleanup_batch_queue(ctx, &ctx->src_buf_queue);
+		else
+			s5p_mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_queue);
 	}
 }
 
