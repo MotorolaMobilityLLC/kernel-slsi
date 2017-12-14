@@ -497,7 +497,7 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 			handle_thermal_trip(tz, count);
 
 		if (event != THERMAL_DEVICE_POWER_CAPABILITY_CHANGED) {
-			if (tz->ops->throttle_hotplug)
+			if (tz->ops->throttle_hotplug && tz->cdev_bound)
 				tz->ops->throttle_hotplug(tz);
 		}
 	}
@@ -1010,9 +1010,11 @@ __thermal_cooling_device_register(struct device_node *np,
 
 	mutex_lock(&thermal_list_lock);
 	list_for_each_entry(pos, &thermal_tz_list, node)
-		if (atomic_cmpxchg(&pos->need_update, 1, 0))
+		if (atomic_cmpxchg(&pos->need_update, 1, 0)) {
+			pos->cdev_bound = true;
 			thermal_zone_device_update(pos,
 						   THERMAL_EVENT_UNSPECIFIED);
+		}
 	mutex_unlock(&thermal_list_lock);
 
 	return cdev;
