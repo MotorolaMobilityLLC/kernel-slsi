@@ -737,11 +737,11 @@ static int exynos9810_tmu_read(struct exynos_tmu_data *data)
 #endif
 
 	if (data->hotplug_enable) {
-		if ((stat & 0x2) && !cpufreq_limited) {
+		if ((stat == 2) && !cpufreq_limited) {
 			pm_qos_update_request(&thermal_cpu_limit_request,
 					data->limited_frequency);
 			cpufreq_limited = true;
-		} else if (!(stat & 0x2) && cpufreq_limited) {
+		} else if ((stat == 0 || stat == 1) && cpufreq_limited) {
 			pm_qos_update_request(&thermal_cpu_limit_request,
 					PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
 			cpufreq_limited = false;
