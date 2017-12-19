@@ -2237,6 +2237,42 @@ static struct v4l2_queryctrl controls[] = {
 		.step = 1,
 		.default_value = 0,
 	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_FULL_RANGE_FLAG,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Color range",
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_COLOUR_PRIMARIES,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Colour primaries",
+		.minimum = 0,
+		.maximum = 10,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_TRANSFER_CHARACTERISTICS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Transfer characteristics",
+		.minimum = 0,
+		.maximum = 17,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_MATRIX_COEFFICIENTS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Matrix coefficients",
+		.minimum = 0,
+		.maximum = 10,
+		.step = 1,
+		.default_value = 0,
+	},
 };
 
 #define NUM_CTRLS ARRAY_SIZE(controls)

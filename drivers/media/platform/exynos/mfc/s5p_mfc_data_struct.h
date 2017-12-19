@@ -967,6 +967,11 @@ struct s5p_mfc_enc_params {
 	u32 i_frm_ctrl_mode;
 	u32 i_frm_ctrl;
 
+	u32 color_range;
+	u32 colour_primaries;
+	u32 transfer_characteristics;
+	u32 matrix_coefficients;
+
 	union {
 		struct s5p_mfc_h264_enc_params h264;
 		struct s5p_mfc_mpeg4_enc_params mpeg4;
@@ -1161,6 +1166,9 @@ struct s5p_mfc_dec {
 	unsigned char frame_cnt;
 
 	unsigned int num_of_tile_over_4;
+
+	unsigned int color_range;
+	unsigned int color_space;
 };
 
 struct s5p_mfc_enc {
@@ -1307,9 +1315,6 @@ struct s5p_mfc_ctx {
 	struct list_head ts_list;
 	int ts_count;
 	int ts_is_full;
-
-	unsigned int color_range;
-	unsigned int color_space;
 
 	int buf_process_type;
 

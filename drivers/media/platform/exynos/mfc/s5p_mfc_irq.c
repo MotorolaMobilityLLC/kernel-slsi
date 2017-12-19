@@ -284,7 +284,7 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 		}
 
 		if (IS_VP9_DEC(ctx) && FW_HAS_VP9_HDR(dev)) {
-			if (ctx->color_space != S5P_FIMV_D_COLOR_UNKNOWN) {
+			if (dec->color_space != S5P_FIMV_D_COLOR_UNKNOWN) {
 				ref_mb->vb.reserved2 |= (1 << 3);
 				mfc_debug(2, "color space parsed\n");
 			}
@@ -1108,10 +1108,10 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 	}
 
 	if (IS_VP9_DEC(ctx)) {
-		ctx->color_range = s5p_mfc_get_color_range();
-		ctx->color_space = s5p_mfc_get_color_space();
+		dec->color_range = s5p_mfc_get_color_range();
+		dec->color_space = s5p_mfc_get_color_space();
 		mfc_debug(2, "color range: %d, color space: %d, It's valid for VP9\n",
-				ctx->color_range, ctx->color_space);
+				dec->color_range, dec->color_space);
 	}
 
 	return 0;

@@ -1124,7 +1124,7 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 		}
 
 		if (IS_VP9_DEC(ctx) && FW_HAS_VP9_HDR(dev)) {
-			if (ctx->color_space != S5P_FIMV_D_COLOR_UNKNOWN) {
+			if (dec->color_space != S5P_FIMV_D_COLOR_UNKNOWN) {
 				ref_mb->vb.reserved2 |= (1 << 3);
 				mfc_debug(2, "NAL Q: color space parsed\n");
 			}
