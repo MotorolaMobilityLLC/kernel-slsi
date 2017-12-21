@@ -283,6 +283,9 @@ static int madera_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	if (IS_ENABLED(CONFIG_REGULATOR_S2MPU09))
+		msleep(10);
+
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
 
