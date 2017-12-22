@@ -702,7 +702,7 @@ static struct v4l2_queryctrl controls[] = {
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Hierarchical Coding Layer",
 		.minimum = 0,
-		.maximum = 7,
+		.maximum = INT_MAX,
 		.step = 1,
 		.default_value = 0,
 	},
