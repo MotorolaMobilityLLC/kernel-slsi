@@ -2007,7 +2007,7 @@ static void set_group_shots(struct fimc_is_group *group,
 		group->skip_shots = group->asyn_shots;
 	}
 #else
-	if (ex_mode == EX_DUALFPS) {
+	if (ex_mode == EX_DUALFPS || framerate > 240) {
 		group->asyn_shots = MIN_OF_ASYNC_SHOTS + 1;
 		group->sync_shots = MIN_OF_SYNC_SHOTS;
 	} else {
