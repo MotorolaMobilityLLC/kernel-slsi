@@ -482,7 +482,7 @@ void tasklet_csis_str_otf(unsigned long data)
 		backup_fcount = atomic_read(&group_sensor->backup_fcount);
 		g_print_cnt = 0;
 #if defined(ENABLE_HW_FAST_READ_OUT)
-		if ((fcount + device->num_buffers - 1) % device->num_buffers == 0)
+		if ((fcount >= backup_fcount) || ((fcount + device->num_buffers - 2) % device->num_buffers == 0))
 #else
 		if (fcount + group_sensor->skip_shots > backup_fcount)
 #endif
