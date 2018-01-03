@@ -106,6 +106,30 @@ EXPORT_SYMBOL_GPL(s3c2410_serial_wake_peer);
 #define UART_LOOPBACK_MODE	(0x1 << 0)
 #define UART_DBG_MODE		(0x1 << 1)
 
+#define RTS_PINCTRL			(1)
+#define DEFAULT_PINCTRL		(0)
+
+static void change_uart_gpio(int value, struct s3c24xx_uart_port *ourport)
+{
+	int status = 0;
+
+	if (value) {
+		if (!IS_ERR(ourport->uart_pinctrl_rts)) {
+			ourport->default_uart_pinctrl->state = NULL;
+			status = pinctrl_select_state(ourport->default_uart_pinctrl, ourport->uart_pinctrl_rts);
+			if (status)
+				dev_err(ourport->port.dev, "Can't set RTS uart pins!!!\n");
+		}
+	} else {
+		if (!IS_ERR(ourport->uart_pinctrl_default)) {
+			ourport->default_uart_pinctrl->state = NULL;
+			status = pinctrl_select_state(ourport->default_uart_pinctrl, ourport->uart_pinctrl_default);
+			if (status)
+				dev_err(ourport->port.dev, "Can't set default uart pins!!!\n");
+		}
+	}
+}
+
 static void print_uart_mode(struct uart_port *port,
 		struct ktermios *termios, unsigned int baud)
 {
@@ -1016,6 +1040,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 		port->ignore_status_mask |= RXSTAT_DUMMY_READ;
 
 	spin_unlock_irqrestore(&port->lock, flags);
+
 }
 
 static const char *s3c24xx_serial_type(struct uart_port *port)
@@ -1522,6 +1547,9 @@ static int s3c24xx_serial_notifier(struct notifier_block *self,
 			wr_regl(port, S3C2410_UMCON, umcon);
 
 			spin_unlock_irqrestore(&port->lock, flags);
+
+			if (ourport->rts_control)
+				change_uart_gpio(RTS_PINCTRL, ourport);
 		}
 		break;
 
@@ -1544,6 +1572,9 @@ static int s3c24xx_serial_notifier(struct notifier_block *self,
 			wr_regl(port, S3C2410_UMCON, umcon);
 
 			spin_unlock_irqrestore(&port->lock, flags);
+
+			if (ourport->rts_control)
+				change_uart_gpio(DEFAULT_PINCTRL, ourport);
 		}
 		break;
 
@@ -1609,6 +1640,24 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		ourport->usi_v2 = 1;
 	else
 		ourport->usi_v2 = 0;
+
+	if (of_get_property(pdev->dev.of_node, "samsung,rts-gpio-control", NULL)) {
+		ourport->rts_control = 1;
+		ourport->default_uart_pinctrl = devm_pinctrl_get(&pdev->dev);
+		if (IS_ERR(ourport->default_uart_pinctrl))
+			dev_err(&pdev->dev, "Can't get uart pinctrl!!!\n");
+		else {
+			ourport->uart_pinctrl_rts = pinctrl_lookup_state(ourport->default_uart_pinctrl,
+						"rts");
+			if (IS_ERR(ourport->uart_pinctrl_rts))
+				dev_err(&pdev->dev, "Can't get RTS pinstate!!!\n");
+
+			ourport->uart_pinctrl_default = pinctrl_lookup_state(ourport->default_uart_pinctrl,
+						"default");
+			if (IS_ERR(ourport->uart_pinctrl_default))
+				dev_err(&pdev->dev, "Can't get Default pinstate!!!\n");
+		}
+	}
 
 	if (!of_property_read_u32(pdev->dev.of_node, "samsung,fifo-size",
 				&fifo_size)) {
@@ -1734,12 +1783,19 @@ static int s3c24xx_serial_suspend(struct device *dev)
 #endif
 
 	if (port) {
+		/*
+		 * If rts line must be protected while suspending
+		 * we change the gpio pad as output high
+		*/
+		if (ourport->rts_control)
+			change_uart_gpio(RTS_PINCTRL, ourport);
+
 		uart_suspend_port(&s3c24xx_uart_drv, port);
 #ifdef CONFIG_SERIAL_SAMSUNG_HWACG
 		uart_clock_enable(ourport);
 		/* disable Tx, Rx mode bit for suspend in case of HWACG */
 		ucon = rd_regl(port, S3C2410_UCON);
-		ucon &= ~(S3C2410_UCON_RXIRQMODE | S3C2410_UCON_TXIRQMODE) ;
+		ucon &= ~(S3C2410_UCON_RXIRQMODE | S3C2410_UCON_TXIRQMODE);
 		wr_regl(port, S3C2410_UCON, ucon);
 		exynos_usi_stop(port);
 		uart_clock_disable(ourport);
@@ -1766,6 +1822,10 @@ static int s3c24xx_serial_resume(struct device *dev)
 		uart_clock_disable(ourport);
 
 		uart_resume_port(&s3c24xx_uart_drv, port);
+
+		if (ourport->rts_control)
+			change_uart_gpio(DEFAULT_PINCTRL, ourport);
+
 		if (ourport->dbg_mode & UART_DBG_MODE)
 			dev_err(dev, "UART resume notification for tty framework.\n");
 	}
@@ -1782,6 +1842,7 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 		/* restore IRQ mask */
 		if (s3c24xx_serial_has_interrupt_mask(port)) {
 			unsigned int uintm = 0xf;
+
 			if (tx_enabled(port))
 				uintm &= ~S3C64XX_UINTM_TXD_MSK;
 			if (rx_enabled(port))
