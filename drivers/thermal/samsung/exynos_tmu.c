@@ -174,6 +174,7 @@
 #define EXYNOS_TMU_CLK_SENSE_ON_MASK		(0xffff)
 #define EXYNOS_TMU_TEM1456X_SENSE_VALUE		(0x0A28)
 #define EXYNOS_TMU_TEM1051X_SENSE_VALUE		(0x028A)
+#define EXYNOS_TMU_TEM1002X_SENSE_VALUE		(0x0514)
 
 #define EXYNOS_TMU_NUM_PROBE_SHIFT		(16)
 #define EXYNOS_TMU_NUM_PROBE_MASK		(0xf)
@@ -744,12 +745,12 @@ static void exynos9610_tmu_control(struct platform_device *pdev, bool on)
 	/* set COUNTER_VALUE */
 	counter_value = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
 	counter_value &= ~(EXYNOS_TMU_EN_TEMP_SEN_OFF_MASK << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT);
-	counter_value |= EXYNOS_TMU_TEM1051X_SENSE_VALUE << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT;
+	counter_value |= EXYNOS_TMU_TEM1002X_SENSE_VALUE << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT;
 	writel(counter_value, data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
 
 	counter_value = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
 	counter_value &= ~(EXYNOS_TMU_CLK_SENSE_ON_MASK << EXYNOS_TMU_CLK_SENSE_ON_SHIFT);
-	counter_value |= EXYNOS_TMU_TEM1051X_SENSE_VALUE << EXYNOS_TMU_CLK_SENSE_ON_SHIFT;
+	counter_value |= EXYNOS_TMU_TEM1002X_SENSE_VALUE << EXYNOS_TMU_CLK_SENSE_ON_SHIFT;
 	writel(counter_value, data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
 
 	/* set TRIM0 BGR_I/VREF/VBE_I */
