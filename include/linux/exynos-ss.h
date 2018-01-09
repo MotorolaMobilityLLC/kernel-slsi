@@ -97,9 +97,15 @@ extern void exynos_ss_spinlock(void *lock, int en);
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_CLK
 struct clk;
-extern void exynos_ss_clk(void *clock, const char *func_name, int mode);
+extern void exynos_ss_clk(void *clock, const char *func_name, unsigned long arg, int mode);
 #else
-#define exynos_ss_clk(a,b,c)		do { } while(0);
+#define exynos_ss_clk(a,b,c,d)		do { } while(0);
+#endif
+
+#ifdef CONFIG_EXYNOS_SNAPSHOT_PMU
+extern void exynos_ss_pmu(int id, const char *func_name, int mode);
+#else
+#define exynos_ss_pmu(a,b,c)            do { } while(0)
 #endif
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_FREQ
@@ -148,7 +154,8 @@ void exynos_ss_dump_sfr(void);
 #define exynos_ss_irq_exit(a,b)		do { } while(0)
 #define exynos_ss_irqs_disabled(a)	do { } while(0)
 #define exynos_ss_spinlock(a,b)		do { } while(0)
-#define exynos_ss_clk(a,b,c)		do { } while(0)
+#define exynos_ss_clk(a,b,c,d)		do { } while(0)
+#define exynos_ss_pmu(a,b,c)            do { } while(0)
 #define exynos_ss_freq(a,b,c,d)		do { } while(0)
 #define exynos_ss_irq_exit_var(v)	do { v = 0; } while(0)
 #define exynos_ss_reg(a,b,c,d)		do { } while(0)
