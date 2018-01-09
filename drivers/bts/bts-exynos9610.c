@@ -1535,7 +1535,7 @@ static ssize_t exynos_dmc_timeout_write(struct file *file, const char __user *us
 	}
 
 	if (drex_ip < 0 || drex_ip > nr_drex || scen < 0 ||
-			scen > nr_scen || qos < 0 || timeout < 0) {
+			scen > nr_scen || qos < 0 || qos > BTS_PRIORITY_MAX) {
 		pr_err("Invalid variable\n");
 		goto out;
 	}
@@ -2338,7 +2338,7 @@ static ssize_t exynos_vc_timer_th_write(struct file *file, const char __user *us
 	}
 
 	if (drex_ip < 0 || drex_ip > nr_drex || scen < 0 ||
-			scen > nr_scen || qos < 0 || threshold < 0) {
+			scen > nr_scen || qos < 0 || qos > BTS_PRIORITY_MAX) {
 		pr_err("Invalid variable\n");
 		goto out;
 	}
@@ -2847,7 +2847,7 @@ static ssize_t exynos_pf_qos_timer_write(struct file *file, const char __user *u
 	}
 
 	if (drex_pf_ip < 0 || drex_pf_ip > nr_drex_pf || scen < 0 ||
-			scen > nr_scen || qos < 0 || timeout < 0) {
+			scen > nr_scen || qos < 0 || qos > BTS_PRIORITY_MAX) {
 		pr_err("Invalid variable\n");
 		goto out;
 	}
