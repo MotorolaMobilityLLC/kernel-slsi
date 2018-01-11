@@ -314,6 +314,7 @@ struct ufs_hba_variant_ops {
 	int	(*setup_clocks)(struct ufs_hba *, bool,
 				enum ufs_notify_change_status);
 	int     (*setup_regulators)(struct ufs_hba *, bool);
+	void    (*host_reset)(struct ufs_hba *);
 	int	(*hce_enable_notify)(struct ufs_hba *,
 				     enum ufs_notify_change_status);
 	int	(*link_startup_notify)(struct ufs_hba *,
