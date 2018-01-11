@@ -43,10 +43,16 @@ extern int disable_mc_powerdn(void);
 #endif
 
 /* option */
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
-extern void exynos_ss_regulator(char* f_name, unsigned int addr, unsigned int volt, int en);
+#ifdef CONFIG_EXYNOS_SNAPSHOT_ACPM
+extern void exynos_ss_acpm(unsigned long long timestamp, const char *log, unsigned int data);
 #else
-#define exynos_ss_regulator(a,b,c,d)         do { } while(0)
+#define exynos_ss_acpm(a,b,c)         do { } while(0)
+#endif
+
+#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
+extern void exynos_ss_regulator(unsigned long long timestamp, char* f_name, unsigned int addr, unsigned int volt, unsigned int rvolt, int en);
+#else
+#define exynos_ss_regulator(a,b,c,d,e,f)         do { } while(0)
 #endif
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_THERMAL
@@ -142,12 +148,13 @@ void exynos_ss_dump_sfr(void);
 #endif
 
 #else
+#define exynos_ss_acpm(a,b,c)		do { } while(0)
 #define exynos_ss_task(a,b)		do { } while(0)
 #define exynos_ss_work(a,b,c,d)		do { } while(0)
 #define exynos_ss_clockevent(a,b,c)	do { } while(0)
 #define exynos_ss_cpuidle(a,b,c,d)	do { } while(0)
 #define exynos_ss_suspend(a,b,c)	do { } while(0)
-#define exynos_ss_regulator(a,b,c,d)	do { } while(0)
+#define exynos_ss_regulator(a,b,c,d,e,f)	do { } while(0)
 #define exynos_ss_thermal(a,b,c,d)	do { } while(0)
 #define exynos_ss_mailbox(a,b,c,d)	do { } while(0)
 #define exynos_ss_irq(a,b,c,d)		do { } while(0)
