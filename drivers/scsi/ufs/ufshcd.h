@@ -220,6 +220,14 @@ struct ufs_dev_cmd {
 	struct ufs_query query;
 };
 
+/**
+ * ufs_hba_variant: host specific data
+ */
+struct ufs_hba_variant {
+	const struct ufs_hba_variant_ops *ops;
+	u32 quirks;
+	void *vs_data;
+};
 struct ufs_desc_size {
 	int dev_desc;
 	int pwr_desc;
