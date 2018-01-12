@@ -81,3 +81,4 @@ targets := $(patsubst $(obj)/%,%, \
 # Without this, built-in.o won't be created when it's empty, and the
 # final vmlinux link will fail.
 obj- := dummy
+fw-shipped-$(CONFIG_EXYNOS9810_ACPM) += exynos9810_acpm_tmu.fw
