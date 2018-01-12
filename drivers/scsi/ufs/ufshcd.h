@@ -423,6 +423,16 @@ struct ufs_clk_scaling {
  */
 struct ufs_init_prefetch {
 	u32 icc_level;
+
+/**
+ * struct ufs_monitor - monitors ufs driver's behaviors
+ */
+struct ufs_monitor {
+	struct device_attribute attrs;
+	unsigned long flag;
+#define UFSHCD_MONITOR_LEVEL1	(1 << 0)
+#define UFSHCD_MONITOR_LEVEL2	(1 << 1)
+};
 };
 
 #define UIC_ERR_REG_HIST_LENGTH 8
@@ -695,6 +705,8 @@ struct ufs_hba {
 	struct devfreq *devfreq;
 	struct ufs_clk_scaling clk_scaling;
 	bool is_sys_suspended;
+
+	struct ufs_monitor monitor;
 
 	enum bkops_status urgent_bkops_lvl;
 	bool is_urgent_bkops_lvl_checked;

@@ -254,6 +254,39 @@ static inline bool ufshcd_valid_tag(struct ufs_hba *hba, int tag)
 	return tag >= 0 && tag < hba->nutrs;
 }
 
+static ssize_t ufshcd_monitor_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", hba->monitor.flag);
+}
+
+static ssize_t ufshcd_monitor_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	unsigned long value;
+
+	if (kstrtoul(buf, 0, &value))
+		return -EINVAL;
+
+	hba->monitor.flag = value;
+	return count;
+}
+
+static void ufshcd_init_monitor(struct ufs_hba *hba)
+{
+	hba->monitor.attrs.show = ufshcd_monitor_show;
+	hba->monitor.attrs.store = ufshcd_monitor_store;
+	sysfs_attr_init(&hba->monitor.attrs.attr);
+	hba->monitor.attrs.attr.name = "monitor";
+	hba->monitor.attrs.attr.mode = S_IRUGO | S_IWUSR;
+	if (device_create_file(hba->dev, &hba->monitor.attrs))
+		dev_err(hba->dev, "Failed to create sysfs for monitor\n");
+}
+
+
 static inline int ufshcd_enable_irq(struct ufs_hba *hba)
 {
 	int ret = 0;
@@ -2458,6 +2491,9 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	if (hba->vops && hba->vops->set_nexus_t_xfer_req)
 		hba->vops->set_nexus_t_xfer_req(hba, tag, lrbp->cmd);
 	ufshcd_send_command(hba, tag);
+
+	if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL1)
+		dev_info(hba->dev, "IO issued(%d)\n", tag);
 out_unlock:
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 out:
@@ -3936,6 +3972,14 @@ static int ufshcd_link_hibern8_ctrl(struct ufs_hba *hba, bool en)
 			ret = hba->saved_err;
 		goto out;
 	}
+
+	if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL2) {
+		if (en)
+			dev_info(hba->dev, "H8+\n");
+		else
+			dev_info(hba->dev, "H8-\n");
+	}
+
 	if (hba->vops && hba->vops->hibern8_notify)
 		hba->vops->hibern8_notify(hba, en, POST_CHANGE);
 out:
@@ -4868,6 +4912,10 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 			/* Do not touch lrbp after scsi done */
 			cmd->scsi_done(cmd);
 			__ufshcd_release(hba);
+			if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL1)
+				dev_info(hba->dev, "Transfer Done(%d)\n",
+						index);
+
 		} else if (lrbp->command_type == UTP_CMD_TYPE_DEV_MANAGE ||
 			lrbp->command_type == UTP_CMD_TYPE_UFS_STORAGE) {
 			if (hba->dev_cmd.complete) {
@@ -6775,6 +6823,9 @@ out:
 		scsi_report_bus_reset(hba->host, 0);
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
 	}
+
+	hba->async_resume = false;
+
 	return ret;
 }
 
@@ -7942,6 +7993,10 @@ enable_gating:
 	ufshcd_release(hba);
 out:
 	hba->pm_op_in_progress = 0;
+
+	if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL1)
+		dev_info(hba->dev, "UFS suspend done\n");
+
 	return ret;
 }
 
@@ -8003,7 +8058,14 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 			goto vendor_suspend;
 		}
 	} else if (ufshcd_is_link_off(hba)) {
+#ifdef CONFIG_SCSI_UFS_ASYNC_RELINK
+		hba->async_resume = true;
 		ret = ufshcd_host_reset_and_restore(hba);
+		goto async_resume;
+#else
+		ret = ufshcd_host_reset_and_restore(hba);
+#endif
+
 		/*
 		 * ufshcd_host_reset_and_restore() should have already
 		 * set the link state as active
@@ -8026,7 +8088,9 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		 * keep auto-bkops enabled or else disable it.
 		 */
 		ufshcd_urgent_bkops(hba);
-
+#ifdef CONFIG_SCSI_UFS_ASYNC_RELINK
+async_resume:
+#endif
 	hba->clk_gating.is_suspended = false;
 
 #if defined(CONFIG_PM_DEVFREQ)
@@ -8051,6 +8115,10 @@ disable_vreg:
 	ufshcd_vreg_set_lpm(hba);
 out:
 	hba->pm_op_in_progress = 0;
+
+	if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL1)
+		dev_info(hba->dev, "UFS resume done\n");
+
 	return ret;
 }
 
@@ -8542,6 +8610,8 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	/* Initialize device management tag acquire wait queue */
 	init_waitqueue_head(&hba->dev_cmd.tag_wq);
 
+	/* Initialize monitor */
+	ufshcd_init_monitor(hba);
 	
 	err = ufshcd_init_clk_gating(hba);
 	if (err) {
