@@ -323,8 +323,9 @@ struct ufs_hba_variant_ops {
 					enum ufs_notify_change_status status,
 					struct ufs_pa_layer_attr *,
 					struct ufs_pa_layer_attr *);
-	void	(*setup_xfer_req)(struct ufs_hba *, int, bool);
-	void	(*setup_task_mgmt)(struct ufs_hba *, int, u8);
+	void	(*set_nexus_t_xfer_req)(struct ufs_hba *,
+					int, struct scsi_cmnd *);
+	void	(*set_nexus_t_task_mgmt)(struct ufs_hba *, int, u8);
 	void    (*hibern8_notify)(struct ufs_hba *, u8, bool);
 	int	(*apply_dev_quirks)(struct ufs_hba *);
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
@@ -546,7 +547,7 @@ struct ufs_hba {
 	int nutrs;
 	int nutmrs;
 	u32 ufs_version;
-	struct ufs_hba_variant_ops *vops;
+	const struct ufs_hba_variant_ops *vops;
 	void *priv;
 	unsigned int irq;
 	bool is_irq_enabled;
