@@ -44,6 +44,8 @@
 #include "ufshcd.h"
 #include "ufs_quirks.h"
 #include "unipro.h"
+#include "ufs-exynos.h"
+#include "ufs_quirks.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ufs.h>
@@ -3090,6 +3092,25 @@ static int ufshcd_read_desc_param(struct ufs_hba *hba,
 		goto out;
 	}
 
+	/*
+	 * While reading variable size descriptors (like string descriptor),
+	 * some UFS devices may report the "LENGTH" (field in "Transaction
+	 * Specific fields" of Query Response UPIU) same as what was requested
+	 * in Query Request UPIU instead of reporting the actual size of the
+	 * variable size descriptor.
+	 * Although it's safe to ignore the "LENGTH" field for variable size
+	 * descriptors as we can always derive the length of the descriptor from
+	 * the descriptor header fields. Hence this change impose the length
+	 * match check only for fixed size descriptors (for which we always
+	 * request the correct size as part of Query Request UPIU).
+	 */
+	if ((desc_id != QUERY_DESC_IDN_STRING) &&
+			(buff_len != desc_buf[QUERY_DESC_LENGTH_OFFSET])) {
+		dev_err(hba->dev, "%s: desc_buf length mismatch: buff_len %d, buff_len(desc_header) %d",
+				__func__, buff_len, desc_buf[QUERY_DESC_LENGTH_OFFSET]);
+		ret = -EINVAL;
+		goto out;
+	}
 	/* Check wherher we will not copy more data, than available */
 	if (is_kmalloc && param_size > buff_len)
 		param_size = buff_len;
@@ -3217,6 +3238,20 @@ static inline int ufshcd_read_unit_desc_param(struct ufs_hba *hba,
 
 	return ufshcd_read_desc_param(hba, QUERY_DESC_IDN_UNIT, lun,
 				      param_offset, param_read_buf, param_size);
+}
+
+int ufshcd_read_health_desc(struct ufs_hba *hba, u8 *buf, u32 size)
+{
+	int err = 0;
+
+	err = ufshcd_read_desc(hba,
+			       QUERY_DESC_IDN_HEALTH, 0, buf, size);
+
+	if (err)
+		dev_err(hba->dev, "%s: reading Device Health Desc failed. err = %d\n",
+			__func__, err);
+
+	return err;
 }
 
 /**

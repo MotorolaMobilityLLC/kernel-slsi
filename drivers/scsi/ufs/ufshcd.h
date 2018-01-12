@@ -996,4 +996,5 @@ static inline void ufshcd_vops_dbg_register_dump(struct ufs_hba *hba)
 		hba->vops->dbg_register_dump(hba);
 }
 
+int ufshcd_read_health_desc(struct ufs_hba *hba, u8 *buf, u32 size);
 #endif /* End of Header */
