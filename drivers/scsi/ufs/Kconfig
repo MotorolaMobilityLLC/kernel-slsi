@@ -103,6 +103,18 @@ config SCSI_UFS_ASYNC_RELINK
 
 	  If unsure, say N.
 
+config SCSI_UFS_CMD_LOGGING
+	tristate "UFS cmd loggging support"
+	depends on SCSI_UFSHCD && SCSI_UFSHCD_PLATFORM
+	---help---
+	  This feature is to support UFS cmd logging.
+	  When UFS cmd transferred to UFS HCI
+	  various data logs for debugging purpose.
+
+	  If you want to enable this feature, say Y or M here.
+
+	  If unsure, say N.
+
 config SCSI_UFS_QCOM
 	tristate "QCOM specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && ARCH_QCOM

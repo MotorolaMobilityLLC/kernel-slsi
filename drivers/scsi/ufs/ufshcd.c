@@ -2530,6 +2530,9 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	if (hba->vops && hba->vops->set_nexus_t_xfer_req)
 		hba->vops->set_nexus_t_xfer_req(hba, tag, lrbp->cmd);
+#ifdef CONFIG_SCSI_UFS_CMD_LOGGING
+	exynos_ufs_cmd_log_start(hba, cmd);
+#endif
 	ufshcd_send_command(hba, tag);
 
 	if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL1)
@@ -4970,6 +4973,9 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 			clear_bit_unlock(index, &hba->lrb_in_use);
 			/* Do not touch lrbp after scsi done */
 			cmd->scsi_done(cmd);
+#ifdef CONFIG_SCSI_UFS_CMD_LOGGING
+			exynos_ufs_cmd_log_end(hba, index);
+#endif
 			__ufshcd_release(hba);
 			if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL1)
 				dev_info(hba->dev, "Transfer Done(%d)\n",
