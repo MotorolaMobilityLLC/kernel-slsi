@@ -4506,7 +4506,7 @@ link_startup:
 		 * but we can't be sure if the link is up until link startup
 		 * succeeds. So reset the local Uni-Pro and try again.
 		 */
-		if (ret && ufshcd_hba_enable(hba))
+		if ((ret && !retries) || (ret && ufshcd_hba_enable(hba)))
 			goto out;
 	} while (ret && retries--);
 
@@ -7530,6 +7530,7 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 			if (on && !clki->enabled) {
 				ret = clk_prepare_enable(clki->clk);
 				if (ret) {
+					hba->clk_gating.state = CLKS_DISABLE;
 					dev_err(hba->dev, "%s: %s prepare enable failed, %d\n",
 						__func__, clki->name, ret);
 					goto out;
