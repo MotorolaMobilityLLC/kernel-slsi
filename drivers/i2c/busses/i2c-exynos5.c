@@ -30,7 +30,9 @@
 #include "../../pinctrl/core.h"
 #include "i2c-exynos5.h"
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 #include <soc/samsung/exynos-powermode.h>
+#endif
 #ifdef CONFIG_CPU_IDLE
 #include <soc/samsung/exynos-pm.h>
 #endif
@@ -368,7 +370,7 @@ static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
  * Returns 0 on success, -EINVAL if the cycle length cannot
  * be calculated.
  */
-static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
+static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 {
 	int ret;
 	unsigned int ipclk;
@@ -470,11 +472,22 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 
 static int exynos5_hsi2c_clock_setup(struct exynos5_i2c *i2c)
 {
-	/* always set Fast Speed timings */
-	int ret = exynos5_i2c_set_timing(i2c, false);
+	/*
+	 * Configure the Fast speed timing values
+	 * Even the High Speed mode initially starts with Fast mode
+	 */
+	if (exynos5_i2c_set_timing(i2c, HSI2C_FAST_SPD)) {
+		dev_err(i2c->dev, "HSI2C FS Clock set up failed\n");
+		return -EINVAL;
+	}
 
-	if (ret < 0 || i2c->op_clock < HSI2C_HS_TX_CLOCK)
-		return ret;
+	/* configure the High speed timing values */
+	if (i2c->speed_mode == HSI2C_HIGH_SPD) {
+		if (exynos5_i2c_set_timing(i2c, HSI2C_HIGH_SPD)) {
+			dev_err(i2c->dev, "HSI2C HS Clock set up failed\n");
+			return -EINVAL;
+		}
+	}
 
 	/* Configure the Standard mode timing values */
 	if (i2c->speed_mode == HSI2C_STAND_SPD) {
@@ -878,18 +891,26 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 #ifdef CONFIG_PM
 	clk_ret = pm_runtime_get_sync(i2c->dev);
 	if (clk_ret < 0) {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
+#endif
 		ret = clk_enable(i2c->clk);
 		if (ret) {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 			exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 			return ret;
 		}
 	}
 #else
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
+#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 		return ret;
 	}
 #endif
@@ -952,14 +973,18 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 #ifdef CONFIG_PM
 	if (clk_ret < 0) {
 		clk_disable(i2c->clk);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 	} else {
 		pm_runtime_mark_last_busy(i2c->dev);
 		pm_runtime_put_autosuspend(i2c->dev);
 	}
 #else
 	clk_disable(i2c->clk);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 #endif
 
 	return ret;
@@ -1066,7 +1091,9 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		i2c->nack_restart = 0;
 
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
+#endif
 
 	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
@@ -1136,10 +1163,14 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM
 	pm_runtime_get_sync(&pdev->dev);
 #else
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
+#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 		return ret;
 	}
 #endif
@@ -1170,7 +1201,9 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	pm_runtime_put_autosuspend(&pdev->dev);
 #else
 	clk_disable(i2c->clk);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 #endif
 
 #if defined(CONFIG_CPU_IDLE)
@@ -1185,7 +1218,9 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	pm_runtime_put_autosuspend(&pdev->dev);
 #else
 	clk_disable_unprepare(i2c->clk);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 #endif
  err_clk1:
 	return ret;
@@ -1209,7 +1244,9 @@ static int exynos5_i2c_runtime_suspend(struct device *dev)
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
 	clk_disable(i2c->clk);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 	i2c->runtime_resumed = 0;
 
 	return 0;
@@ -1221,11 +1258,15 @@ static int exynos5_i2c_runtime_resume(struct device *dev)
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 	int ret = 0;
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
+#endif
 	ret = clk_enable(i2c->clk);
 	i2c->runtime_resumed = 1;
 	if (ret) {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 		return ret;
 	}
 
@@ -1244,16 +1285,22 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 
 	i2c_lock_adapter(&i2c->adap);
 #ifdef CONFIG_I2C_SAMSUNG_HWACG
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
+#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 		i2c_unlock_adapter(&i2c->adap);
 		return ret;
 	}
 	writel(HSI2C_SW_RST, i2c->regs + HSI2C_CTL);
 	clk_disable(i2c->clk);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 #endif
 
 	if (!pm_runtime_status_suspended(dev))
@@ -1276,10 +1323,14 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 	if (!pm_runtime_status_suspended(dev))
 		exynos5_i2c_runtime_resume(dev);
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
+#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 		i2c_unlock_adapter(&i2c->adap);
 		return ret;
 	}
@@ -1287,7 +1338,9 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 	exynos_usi_init(i2c);
 	exynos5_i2c_reset(i2c);
 	clk_disable(i2c->clk);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
+#endif
 	i2c->suspended = 0;
 	i2c_unlock_adapter(&i2c->adap);
 
