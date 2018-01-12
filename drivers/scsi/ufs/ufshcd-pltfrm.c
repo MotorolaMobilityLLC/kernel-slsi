@@ -221,6 +221,34 @@ out:
 	return err;
 }
 
+static int ufshcd_parse_pm_lvl_policy(struct ufs_hba *hba)
+{
+	struct device *dev = hba->dev;
+	struct device_node *np = dev->of_node;
+	u32 lvl_def[] = {UFS_PM_LVL_2, UFS_PM_LVL_5};
+	u32 lvl[2] = {0,}, i;
+
+	for (i = 0; i < ARRAY_SIZE(lvl); i++) {
+		if (of_property_read_u32_index(np, "pm_lvl_states", i, lvl +i)) {
+			dev_info(hba->dev,
+				"UFS power management: set default level%d index %d\n",
+				lvl_def[i], i);
+			lvl[i] = lvl_def[i];
+		}
+
+		if (lvl[i] < UFS_PM_LVL_0 || lvl[i] >= UFS_PM_LVL_MAX) {
+			dev_warn(hba->dev,
+				"UFS power management: out of range level%d index %d\n",
+				lvl[i], i);
+			lvl[i] =  lvl_def[i];
+		}
+	}
+
+	hba->rpm_lvl = lvl[0];
+	hba->spm_lvl = lvl[1];
+
+	return 0;
+}
 #ifdef CONFIG_PM
 /**
  * ufshcd_pltfrm_suspend - suspend power management function
@@ -340,6 +368,7 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 		goto dealloc_host;
 	}
 
+	ufshcd_parse_pm_lvl_policy(hba);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 

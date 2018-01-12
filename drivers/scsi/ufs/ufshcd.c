@@ -3969,8 +3969,10 @@ static int ufshcd_change_power_mode(struct ufs_hba *hba,
 		dev_err(hba->dev,
 			"%s: power mode change failed %d\n", __func__, ret);
 	} else {
-		ufshcd_vops_pwr_change_notify(hba, POST_CHANGE, NULL,
+		ret = ufshcd_vops_pwr_change_notify(hba, POST_CHANGE, NULL,
 								pwr_mode);
+		if (ret)
+			goto out;
 
 		memcpy(&hba->pwr_info, pwr_mode,
 			sizeof(struct ufs_pa_layer_attr));
@@ -3993,13 +3995,17 @@ int ufshcd_config_pwr_mode(struct ufs_hba *hba,
 	ret = ufshcd_vops_pwr_change_notify(hba, PRE_CHANGE,
 					desired_pwr_mode, &final_params);
 
-	if (ret)
-		memcpy(&final_params, desired_pwr_mode, sizeof(final_params));
+	if (ret) {
+		if (ret == -ENOTSUPP)
+			memcpy(&final_params, desired_pwr_mode, sizeof(final_params));
+		else
+			goto out;
+	}
 
 	ret = ufshcd_change_power_mode(hba, &final_params);
 	if (!ret)
 		ufshcd_print_pwr_info(hba);
-
+out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ufshcd_config_pwr_mode);
@@ -6899,6 +6905,7 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 	int ret = 0;
 	struct ufs_clk_info *clki;
 	struct list_head *head = &hba->clk_list_head;
+	const char *ref_clk = "ref_clk";
 	unsigned long flags;
 	ktime_t start = ktime_get();
 	bool clk_state_changed = false;
@@ -6912,7 +6919,8 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 
 	list_for_each_entry(clki, head, list) {
 		if (!IS_ERR_OR_NULL(clki->clk)) {
-			if (skip_ref_clk && !strcmp(clki->name, "ref_clk"))
+			if (skip_ref_clk &&
+			    !strncmp(clki->name, ref_clk, strlen(ref_clk)))
 				continue;
 
 			clk_state_changed = on ^ clki->enabled;
@@ -7426,17 +7434,13 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	if (ret)
 		goto set_dev_active;
 
-	ufshcd_vreg_set_lpm(hba);
-
 disable_clks:
 	/*
-	 * Call vendor specific suspend callback. As these callbacks may access
-	 * vendor specific host controller register space call them before the
-	 * host clocks are ON.
+	 * Disable the host irq as host controller as there won't be any
+	 * host controller trasanction expected till resume.
 	 */
-	ret = ufshcd_vops_suspend(hba, pm_op);
-	if (ret)
-		goto set_link_active;
+	ufshcd_disable_irq(hba);
+
 
 	if (!ufshcd_is_link_active(hba))
 		ufshcd_setup_clocks(hba, false);
@@ -7447,10 +7451,15 @@ disable_clks:
 	hba->clk_gating.state = CLKS_OFF;
 	trace_ufshcd_clk_gating(dev_name(hba->dev), hba->clk_gating.state);
 	/*
-	 * Disable the host irq as host controller as there won't be any
-	 * host controller transaction expected till resume.
+	 * Call vendor specific suspend callback. As these callbacks may access
+	 * vendor specific host controller register space call them before the
+	 * host clocks are ON.
 	 */
-	ufshcd_disable_irq(hba);
+	ret = ufshcd_vops_suspend(hba, pm_op);
+	if (ret)
+		goto set_link_active;
+
+
 	/* Put the host controller in low power mode if possible */
 	ufshcd_hba_vreg_set_lpm(hba);
 	goto out;
