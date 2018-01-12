@@ -1963,12 +1963,20 @@ static inline bool ufshcd_ready_for_uic_cmd(struct ufs_hba *hba)
  * This function gets the UPMCRS field of HCS register
  * Returns value of UPMCRS field
  */
-static inline u8 ufshcd_get_upmcrs(struct ufs_hba *hba)
+static inline u8 ufshcd_get_upmcrs(struct ufs_hba *hba, struct uic_command *cmd)
 {
 	if (hba->quirks & UFSHCD_QUIRK_GET_GENERRCODE_DIRECT) {
+		if (cmd->command == UIC_CMD_DME_SET &&
+				cmd->argument1 == UIC_ARG_MIB(PA_PWRMODE))
 			return ufshcd_vops_get_unipro(hba, 3);
+		else if (cmd->command == UIC_CMD_DME_HIBER_ENTER)
+			return ufshcd_vops_get_unipro(hba, 4);
+		else if (cmd->command == UIC_CMD_DME_HIBER_EXIT)
+			return ufshcd_vops_get_unipro(hba, 5);
+		else
+			return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) >> 8) & 0x7;
 	} else
-	return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) >> 8) & 0x7;
+		return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) >> 8) & 0x7;
 }
 
 /**
@@ -3805,7 +3813,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 		goto out;
 	}
 
-	status = ufshcd_get_upmcrs(hba);
+	status = ufshcd_get_upmcrs(hba, cmd);
 	if (status != PWR_LOCAL) {
 		dev_err(hba->dev,
 			"pwr ctrl cmd 0x%0x failed, host upmcrs:0x%x\n",
