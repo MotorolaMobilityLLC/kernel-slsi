@@ -6003,7 +6003,7 @@ out:
  */
 static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 {
-	int err;
+	int err = 0;
 	unsigned long flags;
 
 	/* Reset the host controller */
@@ -6017,12 +6017,20 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 	ufshcd_scale_clks(hba, true);
 
 	/* Establish the link again and restore the device */
-	err = ufshcd_probe_hba(hba);
+#ifdef CONFIG_SCSI_UFS_ASYNC_RELINK
+	if (hba->pm_op_in_progress)
+		async_schedule(ufshcd_async_scan, hba);
+	else
+#endif
+	{
+		err = ufshcd_probe_hba(hba);
 
 		if (!err && (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL)) {
 			dev_err(hba->dev, "%s: failed\n", __func__);
 			err = -EIO;
 		}
+	}
+
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	ufshcd_clear_eh_in_progress(hba);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
@@ -6685,7 +6693,8 @@ retry:
 	 * If we are in error handling context or in power management callbacks
 	 * context, no need to scan the host
 	 */
-	if (!ufshcd_eh_in_progress(hba) && !hba->pm_op_in_progress) {
+	if (!ufshcd_eh_in_progress(hba) && !hba->pm_op_in_progress
+			&& !hba->async_resume) {
 		bool flag;
 
 		/* clear any previous UFS device information */
@@ -6777,8 +6786,30 @@ out:
 static void ufshcd_async_scan(void *data, async_cookie_t cookie)
 {
 	struct ufs_hba *hba = (struct ufs_hba *)data;
+	int err = 0;
 
-	ufshcd_probe_hba(hba);
+	if (hba->async_resume) {
+		scsi_block_requests(hba->host);
+		err = ufshcd_probe_hba(hba);
+		if (err)
+			goto err;
+
+		if (!ufshcd_is_ufs_dev_active(hba)) {
+			scsi_unblock_requests(hba->host);
+			ufshcd_set_dev_pwr_mode(hba, UFS_ACTIVE_PWR_MODE);
+			scsi_block_requests(hba->host);
+		}
+
+		/*
+		 * If BKOPs operations are urgently needed at this moment then
+		 * keep auto-bkops enabled or else disable it.
+		 */
+		ufshcd_urgent_bkops(hba);
+err:
+		scsi_unblock_requests(hba->host);
+	} else {
+		ufshcd_probe_hba(hba);
+	}
 }
 
 static enum blk_eh_timer_return ufshcd_eh_timed_out(struct scsi_cmnd *scmd)

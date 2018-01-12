@@ -87,6 +87,18 @@ config SCSI_UFS_DWC_TC_PLATFORM
 
 	  If unsure, say N.
 
+config SCSI_UFS_ASYNC_RELINK
+	tristate "Asynchronous link establishment on UFS device resume"
+	depends on SCSI_UFSHCD && SCSI_UFSHCD_PLATFORM
+	---help---
+	  This feature is to support concurrency of UFS resume and the others.
+	  In UFS re-link, system wake-up may task a long time when UFS resume
+	  time is increased for device latency or etc.
+
+	  If you want to enable this feature, say Y or M here.
+
+	  If unsure, say N.
+
 config SCSI_UFS_QCOM
 	tristate "QCOM specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && ARCH_QCOM
