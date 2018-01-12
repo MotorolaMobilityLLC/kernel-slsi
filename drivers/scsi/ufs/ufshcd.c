@@ -3910,7 +3910,14 @@ static int ufshcd_link_hibern8_ctrl(struct ufs_hba *hba, bool en)
 		ret = ufshcd_uic_hibern8_enter(hba);
 	else
 		ret = ufshcd_uic_hibern8_exit(hba);
-	if (ret)
+
+	if (ret || (hba->saved_err & INT_FATAL_ERRORS) ||
+		((hba->saved_err & UIC_ERROR) &&
+		((hba->saved_uic_err & UFSHCD_UIC_DL_PA_INIT_ERROR) ||
+		(hba->saved_uic_err & UFSHCD_UIC_DL_ERROR)))) {
+
+		if (!ret)
+			ret = hba->saved_err;
 		goto out;
 	}
 	if (hba->vops && hba->vops->hibern8_notify)
