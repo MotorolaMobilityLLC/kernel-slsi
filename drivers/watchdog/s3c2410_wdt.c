@@ -45,7 +45,6 @@
 #define S3C2410_WTCLRINT	0x0c
 
 #define S3C2410_WTCNT_MAXCNT	0xffff
-#define S3C2410_WTCLRINT		0x0C
 
 #define S3C2410_WTCON_RSTEN	(1 << 0)
 #define S3C2410_WTCON_INTEN	(1 << 2)
@@ -820,7 +819,7 @@ static int s3c2410wdt_multistage_wdt_start(void)
 	writel(s3c_wdt[index]->count, s3c_wdt[index]->reg_base + S3C2410_WTCNT);
 	writel(wtcon, s3c_wdt[index]->reg_base + S3C2410_WTCON);
 
-	DBG("%s: count=0x%08x, wtcon=%08lx\n",
+	dev_info(s3c_wdt[index]->dev, "%s: count=0x%08x, wtcon=%08lx\n",
 	    __func__, s3c_wdt[index]->count, wtcon);
 
 	return 0;
@@ -1175,7 +1174,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	DBG("probe: mapped reg_base=%p\n", wdt->reg_base);
+	dev_info(dev, "probe: mapped reg_base=%p\n", wdt->reg_base);
 
 	wdt->rate_clock = devm_clk_get(dev, "rate_watchdog");
 	if (IS_ERR(wdt->rate_clock)) {
