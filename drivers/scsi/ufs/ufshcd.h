@@ -115,6 +115,8 @@ enum uic_link_state {
 	UIC_LINK_OFF_STATE	= 0, /* Link powered down or disabled */
 	UIC_LINK_ACTIVE_STATE	= 1, /* Link is in Fast/Slow/Sleep state */
 	UIC_LINK_HIBERN8_STATE	= 2, /* Link is in Hibernate state */
+	UIC_LINK_TRANS_ACTIVE_STATE	= 3,
+	UIC_LINK_TRANS_HIBERN8_STATE	= 4,
 };
 
 #define ufshcd_is_link_off(hba) ((hba)->uic_link_state == UIC_LINK_OFF_STATE)
@@ -127,7 +129,10 @@ enum uic_link_state {
 				    UIC_LINK_ACTIVE_STATE)
 #define ufshcd_set_link_hibern8(hba) ((hba)->uic_link_state = \
 				    UIC_LINK_HIBERN8_STATE)
-
+#define ufshcd_set_link_trans_active(hba) ((hba)->uic_link_state = \
+				    UIC_LINK_TRANS_ACTIVE_STATE)
+#define ufshcd_set_link_trans_hibern8(hba) ((hba)->uic_link_state = \
+				    UIC_LINK_TRANS_HIBERN8_STATE)
 /*
  * UFS Power management levels.
  * Each level is in increasing order of power savings.
@@ -724,6 +729,10 @@ static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
 #else
 return true;
 #endif
+}
+static inline bool ufshcd_can_fake_clkgating(struct ufs_hba *hba)
+{
+	return hba->caps & UFSHCD_CAP_FAKE_CLK_GATING;
 }
 
 #define ufshcd_writel(hba, val, reg)	\
