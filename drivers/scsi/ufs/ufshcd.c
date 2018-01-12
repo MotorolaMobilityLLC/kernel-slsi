@@ -6897,10 +6897,10 @@ out:
 			__func__, ret);
 		exynos_ufs_dump_uic_info(hba);
 		spin_lock_irqsave(hba->host->host_lock, flags);
-		hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
+		hba->ufshcd_state = UFSHCD_STATE_ERROR;
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
 	}
-	}
+
 	/*
 	 * If we failed to initialize the device or the device is not
 	 * present, turn off the power/clocks etc.
