@@ -4244,6 +4244,9 @@ static int ufshcd_complete_dev_init(struct ufs_hba *hba)
 		err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG,
 			QUERY_FLAG_IDN_FDEVICEINIT, &flag_res);
 
+	if (!err && flag_res)
+		udelay(100);
+
 	if (err)
 		dev_err(hba->dev,
 			"%s reading fDeviceInit flag failed with error %d\n",
