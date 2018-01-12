@@ -5902,6 +5902,23 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	if (lrbp->lun == UFS_UPIU_UFS_DEVICE_WLUN)
 		return ufshcd_eh_host_reset_handler(cmd);
 
+
+	if (cmd->cmnd[0] == READ_10 || cmd->cmnd[0] == WRITE_10) {
+		unsigned long lba = (cmd->cmnd[2] << 24) |
+					(cmd->cmnd[3] << 16) |
+					(cmd->cmnd[4] << 8) |
+					(cmd->cmnd[5] << 0);
+		unsigned int sct = (cmd->cmnd[7] << 8) |
+					(cmd->cmnd[8] << 0);
+
+		dev_err(hba->dev, "%s: tag:%d, cmd:0x%x, "
+				"lba:0x%08lx, sct:0x%04x, retries %d\n",
+				__func__, tag, cmd->cmnd[0], lba, sct, cmd->retries);
+	} else {
+		dev_err(hba->dev, "%s: tag:%d, cmd:0x%x, retries %d\n",
+				__func__, tag, cmd->cmnd[0], cmd->retries);
+	}
+
 	ufshcd_hold(hba, false);
 	/* Dump debugging information to system memory */
 	ufshcd_vops_dbg_register_dump(hba);
