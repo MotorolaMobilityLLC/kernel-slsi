@@ -25,6 +25,11 @@
 #define UFS_VENDOR_SAMSUNG     0x1CE
 #define UFS_VENDOR_SKHYNIX     0x1AD
 
+/*uniqueu number*/
+#define	UFS_UN_16_DIGITS 16
+#define UFS_UN_18_DIGITS 18
+#define UFS_UN_MAX_DIGITS 19 //current max digit + 1
+
 /**
  * ufs_dev_fix - ufs device quirk info
  * @card: ufs card details

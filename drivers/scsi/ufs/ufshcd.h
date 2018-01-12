@@ -70,6 +70,7 @@
 
 #include "ufs.h"
 #include "ufshci.h"
+#include "ufs_quirks.h"
 
 #define UFSHCD "ufshcd"
 #define UFSHCD_DRIVER_VERSION "0.2"
@@ -711,6 +712,8 @@ struct ufs_hba {
 	struct ufs_clk_scaling clk_scaling;
 	bool is_sys_suspended;
 
+	char unique_number[UFS_UN_MAX_DIGITS];
+	
 	struct ufs_monitor monitor;
 
 	enum bkops_status urgent_bkops_lvl;
