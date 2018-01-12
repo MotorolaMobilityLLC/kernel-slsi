@@ -620,6 +620,7 @@ struct ufs_hba {
 	#define UFSHCD_QUIRK_PRDT_BYTE_GRAN			UFS_BIT(7)
 
 	#define UFSHCD_QUIRK_USE_OF_HCE				UFS_BIT(8)
+	#define UFSHCI_QUIRK_SKIP_INTR_AGGR			UFS_BIT(10)
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
 	/* Device deviations from standard UFS device spec. */
