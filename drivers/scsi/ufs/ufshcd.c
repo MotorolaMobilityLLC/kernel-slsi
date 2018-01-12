@@ -92,6 +92,8 @@
 /* Link Hibernation delay, msecs */
 #define LINK_H8_DELAY  20
 
+/* UFS link setup retries */
+#define UFS_LINK_SETUP_RETRIES 5
 
 #define ufshcd_toggle_vreg(_dev, _vreg, _on)				\
 	({                                                              \
@@ -4233,6 +4235,9 @@ static int ufshcd_hba_enable(struct ufs_hba *hba)
 	} else {
 		ret = __ufshcd_hba_enable(hba);
 	}
+	if (ret)
+		dev_err(hba->dev, "Host controller enable failed\n");
+
 	return ret;
 }
 
@@ -5857,18 +5862,13 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 	/* scale up clocks to max frequency before full reinitialization */
 	ufshcd_scale_clks(hba, true);
 
-	err = ufshcd_hba_enable(hba);
-	if (err)
-		goto out;
-
 	/* Establish the link again and restore the device */
 	err = ufshcd_probe_hba(hba);
 
-	if (!err && (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL))
-		err = -EIO;
-out:
-	if (err)
-		dev_err(hba->dev, "%s: Host init failed %d\n", __func__, err);
+		if (!err && (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL)) {
+			dev_err(hba->dev, "%s: failed\n", __func__);
+			err = -EIO;
+		}
 
 	return err;
 }
@@ -6450,6 +6450,10 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	ktime_t start = ktime_get();
 
 retry:
+	ret = ufshcd_hba_enable(hba);
+	if (ret)
+		goto out;
+
 	ret = ufshcd_link_startup(hba);
 	if (ret)
 		goto out;
@@ -6527,9 +6531,15 @@ retry:
 		if (!hba->is_init_prefetch)
 			ufshcd_init_icc_levels(hba);
 
+		scsi_scan_host(hba->host);
+
 		/* Add required well known logical units to scsi mid layer */
-		if (ufshcd_scsi_add_wlus(hba))
-			goto out;
+		ret = ufshcd_scsi_add_wlus(hba);
+		if (ret) {
+			dev_warn(hba->dev, "%s failed to add w-lus %d\n",
+				__func__, ret);
+			ret = 0;
+		}
 
 		/* Initialize devfreq after UFS device is detected */
 		if (ufshcd_is_clkscaling_supported(hba)) {
@@ -6552,7 +6562,6 @@ retry:
 			hba->clk_scaling.is_allowed = true;
 		}
 
-		scsi_scan_host(hba->host);
 		pm_runtime_put_sync(hba->dev);
 	}
 
@@ -6560,8 +6569,11 @@ retry:
 		hba->is_init_prefetch = true;
 
 out:
-	if (ret) {
+	if (ret && re_cnt++ < UFS_LINK_SETUP_RETRIES) {
+		dev_err(hba->dev, "%s failed with err %d, retrying:%d\n",
+			__func__, ret, re_cnt);
 		goto retry;
+	}
 	}
 	/*
 	 * If we failed to initialize the device or the device is not
@@ -8077,15 +8089,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	if (err) {
 		dev_err(hba->dev, "scsi_add_host failed\n");
 		goto exit_gating;
-	}
-
-	/* Host controller enable */
-	err = ufshcd_hba_enable(hba);
-	if (err) {
-		dev_err(hba->dev, "Host controller enable failed\n");
-		ufshcd_print_host_regs(hba);
-		ufshcd_print_host_state(hba);
-		goto out_remove_scsi_host;
 	}
 
 	if (ufshcd_is_clkscaling_supported(hba)) {
