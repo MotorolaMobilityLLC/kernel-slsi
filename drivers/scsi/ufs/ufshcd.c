@@ -6756,6 +6756,16 @@ out:
 	trace_ufshcd_init(dev_name(hba->dev), ret,
 		ktime_to_us(ktime_sub(ktime_get(), start)),
 		hba->curr_dev_pwr_mode, hba->uic_link_state);
+
+	if (!ret) {
+		/*
+		 * Inform scsi mid-layer that we did reset and allow to handle
+		 * Unit Attention properly.
+		 */
+		spin_lock_irqsave(hba->host->host_lock, flags);
+		scsi_report_bus_reset(hba->host, 0);
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
+	}
 	return ret;
 }
 
