@@ -2623,7 +2623,8 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 	unsigned long flags;
 
 	if (!ufshcd_is_link_active(hba)) {
-
+		flush_work(&hba->clk_gating.ungate_work);
+		if (!ufshcd_is_link_active(hba))
 			return -EPERM;
 	}
 	down_read(&hba->clk_scaling_lock);
