@@ -4597,6 +4597,8 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 
 	blk_queue_softirq_done(sdev->request_queue, ufshcd_done);
 
+	blk_queue_update_dma_alignment(sdev->request_queue, PAGE_SIZE - 1);
+
 	return 0;
 }
 
