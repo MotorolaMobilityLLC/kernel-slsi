@@ -616,6 +616,7 @@ struct ufs_hba {
 	u32 ufshcd_state;
 	u32 eh_flags;
 	u32 intr_mask;
+	u32 transferred_sector;
 	u16 ee_ctrl_mask;
 	bool is_powered;
 	bool is_init_prefetch;
