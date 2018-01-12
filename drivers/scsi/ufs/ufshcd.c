@@ -1517,7 +1517,7 @@ start:
 		hba->clk_gating.state = REQ_CLKS_ON;
 		trace_ufshcd_clk_gating(dev_name(hba->dev),
 					hba->clk_gating.state);
-		schedule_work(&hba->clk_gating.ungate_work);
+		queue_work(hba->ufshcd_workq, &hba->clk_gating.ungate_work);
 		/*
 		 * fall through to check if we should wait for this
 		 * work to be done or not.
@@ -1643,7 +1643,7 @@ static void __ufshcd_release(struct ufs_hba *hba)
 
 	hba->clk_gating.state = REQ_CLKS_OFF;
 	trace_ufshcd_clk_gating(dev_name(hba->dev), hba->clk_gating.state);
-	schedule_delayed_work(&hba->clk_gating.gate_work,
+	queue_delayed_work(hba->ufshcd_workq, &hba->clk_gating.gate_work,
 			msecs_to_jiffies(hba->clk_gating.delay_ms));
 }
 
@@ -1715,10 +1715,18 @@ out:
 	return count;
 }
 
-static void ufshcd_init_clk_gating(struct ufs_hba *hba)
+static int ufshcd_init_clk_gating(struct ufs_hba *hba)
 {
+	int ret = 0;
+
 	if (!ufshcd_is_clkgating_allowed(hba))
-		return;
+		goto out;
+
+	hba->ufshcd_workq = alloc_workqueue("ufshcd_wq", WQ_HIGHPRI, 0);
+	if (!hba->ufshcd_workq) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	hba->clk_gating.delay_ms = LINK_H8_DELAY;
 	INIT_DELAYED_WORK(&hba->clk_gating.gate_work, ufshcd_gate_work);
@@ -1741,12 +1749,16 @@ static void ufshcd_init_clk_gating(struct ufs_hba *hba)
 	hba->clk_gating.enable_attr.attr.mode = 0644;
 	if (device_create_file(hba->dev, &hba->clk_gating.enable_attr))
 		dev_err(hba->dev, "Failed to create sysfs for clkgate_enable\n");
+		
+out:
+       return ret;		
 }
 
 static void ufshcd_exit_clk_gating(struct ufs_hba *hba)
 {
 	if (!ufshcd_is_clkgating_allowed(hba))
 		return;
+	destroy_workqueue(hba->ufshcd_workq);
 	device_remove_file(hba->dev, &hba->clk_gating.delay_attr);
 	device_remove_file(hba->dev, &hba->clk_gating.enable_attr);
 }
@@ -8217,7 +8229,12 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	/* Initialize device management tag acquire wait queue */
 	init_waitqueue_head(&hba->dev_cmd.tag_wq);
 
-	ufshcd_init_clk_gating(hba);
+	
+	err = ufshcd_init_clk_gating(hba);
+	if (err) {
+		dev_err(hba->dev, "init clk_gating failed\n");
+		goto out_disable;
+	}
 
 	/*
 	 * In order to avoid any spurious interrupt immediately after
