@@ -249,6 +249,25 @@ static int ufshcd_parse_pm_lvl_policy(struct ufs_hba *hba)
 
 	return 0;
 }
+static int ufshcd_parse_caps_info(struct ufs_hba *hba)
+{
+	struct device *dev = hba->dev;
+	struct device_node *np = dev->of_node;
+
+	if (of_find_property(np, "ufs-cap-clk-gating", NULL))
+		hba->caps |= UFSHCD_CAP_CLK_GATING;
+	if (of_find_property(np, "ufs-cap-hibern8-with-clk-gating", NULL))
+		hba->caps |= UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
+	if (of_find_property(np, "ufs-cap-clk-scaling", NULL))
+		hba->caps |= UFSHCD_CAP_CLK_SCALING;
+	if (of_find_property(np, "ufs-cap-auto-bkops-suspend", NULL))
+		hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
+	if (of_find_property(np, "ufs-cap-fake-clk-gating", NULL))
+		hba->caps |= UFSHCD_CAP_FAKE_CLK_GATING;
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
 /**
  * ufshcd_pltfrm_suspend - suspend power management function
@@ -369,6 +388,7 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 	}
 
 	ufshcd_parse_pm_lvl_policy(hba);
+	ufshcd_parse_caps_info(hba);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
