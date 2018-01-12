@@ -43,7 +43,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#include <soc/samsung/exynos-powermode.h>
 
 /* Semaphore for peterson algorithm  */
 #define AP_TURN 0
@@ -238,12 +237,17 @@ static int exynos_adc_enable_clk(struct exynos_adc *info)
 
 	return 0;
 }
-
+static void exynos_adc_update_ip_idle_status(struct exynos_adc *info, int idle)
+{
+#ifdef CONFIG_ARCH_EXYNOS_PM
+	exynos_update_ip_idle_status(info->idle_ip_index, idle);
+#endif
+}
 static int exynos_adc_enable_access(struct exynos_adc *info)
 {
 	int ret;
 
-	exynos_update_ip_idle_status(info->idle_ip_index, 0);
+	exynos_adc_update_ip_idle_status(info, 0);
 	if (info->needs_adc_phy)
 		regmap_write(info->pmu_map, info->data->phy_offset, 1);
 
@@ -272,7 +276,7 @@ err:
 	if (info->needs_adc_phy)
 		regmap_write(info->pmu_map, info->data->phy_offset, 0);
 
-	exynos_update_ip_idle_status(info->idle_ip_index, 1);
+	exynos_adc_update_ip_idle_status(info, 1);
 	return ret;
 }
 
@@ -285,7 +289,7 @@ static void exynos_adc_disable_access(struct exynos_adc *info)
 
 	if (info->needs_adc_phy)
 		regmap_write(info->pmu_map, info->data->phy_offset, 0);
-	exynos_update_ip_idle_status(info->idle_ip_index, 1);
+	exynos_adc_update_ip_idle_status(info, 1);
 }
 
 static void exynos_adc_v1_init_hw(struct exynos_adc *info)
@@ -1003,8 +1007,9 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	info->tsirq = irq;
 
 	info->dev = &pdev->dev;
+#ifdef CONFIG_ARCH_EXYNOS_PM
 	info->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
-
+#endif
 	init_completion(&info->completion);
 
 	info->clk = devm_clk_get(&pdev->dev, "gate_adcif");
