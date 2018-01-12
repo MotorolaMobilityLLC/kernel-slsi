@@ -111,6 +111,8 @@
 		_ret;                                                   \
 	})
 
+static int ufs_shutdown_state = 0;
+
 #define ufshcd_hex_dump(prefix_str, buf, len) \
 print_hex_dump(KERN_ERR, prefix_str, DUMP_PREFIX_OFFSET, 16, 4, buf, len, false)
 
@@ -2446,6 +2448,10 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	if (!down_read_trylock(&hba->clk_scaling_lock))
 		return SCSI_MLQUEUE_HOST_BUSY;
+	if ((ufs_shutdown_state == 1) && (cmd->cmnd[0] == START_STOP)) {
+		scsi_block_requests(hba->host);
+		cancel_work_sync(&hba->clk_gating.ungate_work);
+	}
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	switch (hba->ufshcd_state) {
@@ -7997,6 +8003,9 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 			ufshcd_disable_auto_bkops(hba);
 		}
 	}
+
+	if (ufshcd_is_shutdown_pm(pm_op))
+		ufs_shutdown_state = 1;
 
 	if ((req_dev_pwr_mode != hba->curr_dev_pwr_mode) &&
 	     ((ufshcd_is_runtime_pm(pm_op) && !hba->auto_bkops_enabled) ||
