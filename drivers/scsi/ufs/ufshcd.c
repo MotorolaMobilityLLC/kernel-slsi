@@ -6839,6 +6839,10 @@ out:
 		dev_err(hba->dev, "%s failed with err %d, retrying:%d\n",
 			__func__, ret, re_cnt);
 		goto retry;
+	} else if (ret && re_cnt >= UFS_LINK_SETUP_RETRIES) {
+		dev_err(hba->dev, "%s failed after retries with err %d\n",
+			__func__, ret);
+		exynos_ufs_dump_uic_info(hba);
 		spin_lock_irqsave(hba->host->host_lock, flags);
 		hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
