@@ -28,8 +28,6 @@
 
 /* For struct samsung_timer_variant and samsung_pwm_lock. */
 #include <clocksource/samsung_pwm.h>
-#include <soc/samsung/exynos-pm.h>
-#include <soc/samsung/exynos-powermode.h>
 
 #define REG_TCFG0			0x00
 #define REG_TCFG1			0x04
@@ -127,11 +125,18 @@ struct samsung_pwm_chip {
 static DEFINE_SPINLOCK(samsung_pwm_lock);
 #endif
 
+static void pwm_samsung_update_ip_idle_status(struct samsung_pwm_chip *chip, int idle)
+{
+#ifdef CONFIG_ARCH_EXYNOS_PM
+	exynos_update_ip_idle_status(chip->idle_ip_index, idle);
+#endif
+}
+
 static int pwm_samsung_clk_enable(struct samsung_pwm_chip *chip)
 {
 	int ret;
 
-	exynos_update_ip_idle_status(chip->idle_ip_index, 0);
+	pwm_samsung_update_ip_idle_status(chip, 0);
 
 	ret = clk_enable(chip->pwm_pclk);
 	if (ret)
@@ -145,7 +150,7 @@ static int pwm_samsung_clk_enable(struct samsung_pwm_chip *chip)
 pwm_sclk_err:
 	clk_disable(chip->pwm_pclk);
 pwm_pclk_err:
-	exynos_update_ip_idle_status(chip->idle_ip_index, 1);
+	pwm_samsung_update_ip_idle_status(chip, 1);
 	return ret;
 }
 
@@ -153,7 +158,7 @@ static void pwm_samsung_clk_disable(struct samsung_pwm_chip *chip)
 {
 	clk_disable(chip->pwm_sclk);
 	clk_disable(chip->pwm_pclk);
-	exynos_update_ip_idle_status(chip->idle_ip_index, 1);
+	pwm_samsung_update_ip_idle_status(chip, 1);
 }
 
 static inline
@@ -331,7 +336,7 @@ static void pwm_samsung_manual_update(struct samsung_pwm_chip *chip,
 	else
 		tcon |= TCON_AUTORELOAD(tcon_chan);
 
-	our_chip->disabled_mask &= ~BIT(pwm->hwpwm);
+	chip->disabled_mask &= ~BIT(pwm->hwpwm);
 
 	if (!(tcon & TCON_START(tcon_chan)))
 		tcon |= TCON_START(tcon_chan);
@@ -683,8 +688,9 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 	chip->chip.base = -1;
 	chip->chip.npwm = SAMSUNG_PWM_NUM;
 	chip->inverter_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+#ifdef CONFIG_ARCH_EXYNOS_PM
 	chip->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
-
+#endif
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
 		ret = pwm_samsung_parse_dt(chip);
 		if (ret)
@@ -719,7 +725,7 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->pwm_sclk);
 	}
 
-	exynos_update_ip_idle_status(chip->idle_ip_index, 0);
+	pwm_samsung_update_ip_idle_status(chip, 0);
 
 	/* pwm clock enable */
 	ret = clk_prepare_enable(chip->pwm_pclk);
@@ -770,7 +776,7 @@ chip_add_err:
 sclk_err:
 	clk_disable_unprepare(chip->pwm_pclk);
 base_clk_err:
-	exynos_update_ip_idle_status(chip->idle_ip_index, 1);
+	pwm_samsung_update_ip_idle_status(chip, 1);
 	return ret;
 
 }
