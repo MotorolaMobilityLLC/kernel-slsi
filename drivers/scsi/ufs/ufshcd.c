@@ -1965,6 +1965,9 @@ static inline bool ufshcd_ready_for_uic_cmd(struct ufs_hba *hba)
  */
 static inline u8 ufshcd_get_upmcrs(struct ufs_hba *hba)
 {
+	if (hba->quirks & UFSHCD_QUIRK_GET_GENERRCODE_DIRECT) {
+			return ufshcd_vops_get_unipro(hba, 3);
+	} else
 	return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) >> 8) & 0x7;
 }
 
@@ -2005,11 +2008,24 @@ ufshcd_wait_for_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
 {
 	int ret;
 	unsigned long flags;
+	int index;
+
+	if (uic_cmd->command == UIC_CMD_DME_LINK_STARTUP)
+		index = 0;
+	else if ((uic_cmd->command == UIC_CMD_DME_HIBER_ENTER))
+		index = 1;
+	else if ((uic_cmd->command == UIC_CMD_DME_HIBER_EXIT))
+		index = 2;
+	else
+		index = -1;
 
 	if (wait_for_completion_timeout(&uic_cmd->done,
-					msecs_to_jiffies(UIC_CMD_TIMEOUT)))
-		ret = uic_cmd->argument2 & MASK_UIC_COMMAND_RESULT;
-	else
+				msecs_to_jiffies(UIC_CMD_TIMEOUT))) {
+		if ((hba->quirks & UFSHCD_QUIRK_GET_GENERRCODE_DIRECT) && (index != -1))
+			ret = ufshcd_vops_get_unipro(hba, index);
+		else
+			ret = uic_cmd->argument2 & MASK_UIC_COMMAND_RESULT;
+	} else
 		ret = -ETIMEDOUT;
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
