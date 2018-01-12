@@ -1237,6 +1237,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 
 	transport_configure_device(&starget->dev);
 
+	device_enable_async_suspend(&sdev->sdev_gendev);
 	scsi_autopm_get_target(starget);
 	pm_runtime_set_active(&sdev->sdev_gendev);
 	pm_runtime_forbid(&sdev->sdev_gendev);
@@ -1261,6 +1262,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		return error;
 	}
 
+	device_enable_async_suspend(&sdev->sdev_dev);
 	error = device_add(&sdev->sdev_dev);
 	if (error) {
 		sdev_printk(KERN_INFO, sdev,
