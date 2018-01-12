@@ -3830,6 +3830,7 @@ out:
 	/* Dump debugging information to system memory */
 	if (ret) {
 		ufshcd_vops_dbg_register_dump(hba);
+		exynos_ufs_show_uic_info(hba);	
 		ufshcd_print_host_state(hba);
 		ufshcd_print_pwr_info(hba);
 		ufshcd_print_host_regs(hba);
@@ -4879,6 +4880,9 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 			    ufshcd_is_exception_event(lrbp->ucd_rsp_ptr) &&
 				scsi_host_in_recovery(hba->host)) {
 				schedule_work(&hba->eeh_work);
+				dev_info(hba->dev, "execption event reported\n");
+			}
+
 			break;
 		case UPIU_TRANSACTION_REJECT_UPIU:
 			/* TODO: handle Reject UPIU Response */
@@ -5218,8 +5222,12 @@ static int ufshcd_bkops_ctrl(struct ufs_hba *hba,
 		goto out;
 	}
 
-	if (curr_status >= status)
+	if (curr_status >= status) {
 		err = ufshcd_enable_auto_bkops(hba);
+		if (!err)
+		dev_info(hba->dev, "%s: auto_bkops enabled, status : %d\n",
+			__func__, curr_status);
+	}
 	else
 		err = ufshcd_disable_auto_bkops(hba);
 out:
@@ -5423,6 +5431,7 @@ static void ufshcd_err_handler(struct work_struct *work)
 
 	hba->ufshcd_state = UFSHCD_STATE_RESET;
 	ufshcd_set_eh_in_progress(hba);
+	exynos_ufs_show_uic_info(hba);
 
 	/* Complete requests that have door-bell cleared by h/w */
 	ufshcd_complete_requests(hba);
@@ -8035,6 +8044,8 @@ disable_clks:
 	 */
 	ufshcd_disable_irq(hba);
 
+	ufshcd_vreg_set_lpm(hba);
+	udelay(50);
 
 	if (gating_allowed) {
 		if (!ufshcd_is_link_active(hba))
