@@ -2377,6 +2377,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		goto out_unlock;
 	case UFSHCD_STATE_ERROR:
 		set_host_byte(cmd, DID_ERROR);
+		scsi_dma_map(cmd);
 		cmd->scsi_done(cmd);
 		goto out_unlock;
 	default:
@@ -4552,6 +4553,13 @@ static inline void ufshcd_get_lu_power_on_wp_status(struct ufs_hba *hba,
 	}
 }
 
+static void ufshcd_done(struct request *rq)
+{
+	struct scsi_cmnd *cmd = rq->special;
+	scsi_dma_unmap(cmd);
+	scsi_softirq_done(rq);
+}
+
 /**
  * ufshcd_slave_alloc - handle initial SCSI device configurations
  * @sdev: pointer to SCSI device
@@ -4577,6 +4585,8 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 	ufshcd_set_queue_depth(sdev);
 
 	ufshcd_get_lu_power_on_wp_status(hba, sdev);
+
+	blk_queue_softirq_done(sdev->request_queue, ufshcd_done);
 
 	return 0;
 }
@@ -4834,7 +4844,6 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 		if (cmd) {
 			ufshcd_add_command_trace(hba, index, "complete");
 			result = ufshcd_transfer_rsp_status(hba, lrbp);
-			scsi_dma_unmap(cmd);
 			cmd->result = result;
 				if (reason)
 					set_host_byte(cmd, reason);
