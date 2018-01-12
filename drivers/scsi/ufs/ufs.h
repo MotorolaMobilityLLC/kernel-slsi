@@ -73,6 +73,16 @@ enum {
 	UFS_UPIU_RPMB_WLUN		= 0xC4,
 };
 
+/**
+ * ufs_is_valid_unit_desc_lun - checks if the given LUN has a unit descriptor
+ * @lun: LU number to check
+ * @return: true if the lun has a matching unit descriptor, false otherwise
+ */
+static inline bool ufs_is_valid_unit_desc_lun(u8 lun)
+{
+	return (lun == UFS_UPIU_RPMB_WLUN || (lun < UFS_UPIU_MAX_GENERAL_LUN));
+}
+
 /*
  * UFS Protocol Information Unit related definitions
  */
@@ -130,9 +140,15 @@ enum {
 
 /* Flag idn for Query Requests*/
 enum flag_idn {
-	QUERY_FLAG_IDN_FDEVICEINIT      = 0x01,
-	QUERY_FLAG_IDN_PWR_ON_WPE	= 0x03,
-	QUERY_FLAG_IDN_BKOPS_EN         = 0x04,
+	QUERY_FLAG_IDN_FDEVICEINIT      	= 0x01,
+	QUERY_FLAG_IDN_PERMANENT_WPE		= 0x02,
+	QUERY_FLAG_IDN_PWR_ON_WPE			= 0x03,
+	QUERY_FLAG_IDN_BKOPS_EN 			= 0x04,
+	QUERY_FLAG_IDN_RESERVED1			= 0x05,
+	QUERY_FLAG_IDN_PURGE_ENABLE 		= 0x06,
+	QUERY_FLAG_IDN_RESERVED2			= 0x07,
+	QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL	= 0x08,
+	QUERY_FLAG_IDN_BUSY_RTC 			= 0x09,
 };
 
 /* Attribute idn for Query requests */
