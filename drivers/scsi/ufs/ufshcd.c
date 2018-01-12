@@ -136,6 +136,7 @@ enum {
 	UFSHCD_UIC_NL_ERROR = (1 << 3), /* Network layer error */
 	UFSHCD_UIC_TL_ERROR = (1 << 4), /* Transport Layer error */
 	UFSHCD_UIC_DME_ERROR = (1 << 5), /* DME error */
+	UFSHCD_UIC_DL_ERROR = (1 << 6), /* Data link layer error */
 };
 
 #define ufshcd_set_eh_in_progress(h) \
@@ -3873,6 +3874,9 @@ static int ufshcd_link_hibern8_ctrl(struct ufs_hba *hba, bool en)
 	if (hba->vops && hba->vops->hibern8_notify)
 		hba->vops->hibern8_notify(hba, en, POST_CHANGE);
 out:
+	hba->tcx_replay_timer_expired_cnt = 0;
+	hba->fcx_protection_timer_expired_cnt = 0;
+
 	return ret;
 }
 
@@ -5369,6 +5373,16 @@ static void ufshcd_update_uic_error(struct ufs_hba *hba)
 		else if (reg & UIC_DATA_LINK_LAYER_ERROR_TCx_REPLAY_TIMEOUT)
 			hba->uic_error |= UFSHCD_UIC_DL_TCx_REPLAY_ERROR;
 	}
+
+	if (reg & UIC_DATA_LINK_LAYER_ERROR_TCX_REP_TIMER_EXP)
+		hba->tcx_replay_timer_expired_cnt++;
+
+	if (reg & UIC_DATA_LINK_LAYER_ERROR_FCX_PRO_TIMER_EXP)
+		hba->fcx_protection_timer_expired_cnt++;
+
+	if (hba->tcx_replay_timer_expired_cnt >= 2 ||
+	    hba->fcx_protection_timer_expired_cnt >= 2)
+		hba->uic_error |= UFSHCD_UIC_DL_ERROR;
 
 	/* UIC NL/TL/DME errors needs software retry */
 	reg = ufshcd_readl(hba, REG_UIC_ERROR_CODE_NETWORK_LAYER);

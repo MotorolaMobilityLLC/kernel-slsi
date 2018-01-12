@@ -634,6 +634,9 @@ struct ufs_hba {
 	u32 saved_uic_err;
 	struct ufs_stats ufs_stats;
 
+	u32 tcx_replay_timer_expired_cnt;
+	u32 fcx_protection_timer_expired_cnt;
+
 	/* Device management request data */
 	struct ufs_dev_cmd dev_cmd;
 	ktime_t last_dme_cmd_tstamp;
