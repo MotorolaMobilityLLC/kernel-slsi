@@ -701,6 +701,7 @@ struct Scsi_Host {
 	
 
 	enum scsi_host_state shost_state;
+	bool wlun_clr_uac;
 
 	/* ldm bits */
 	struct device		shost_gendev, shost_dev;
