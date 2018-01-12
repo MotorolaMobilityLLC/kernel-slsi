@@ -627,6 +627,7 @@ struct ufs_hba {
 	#define UFSHCD_QUIRK_USE_OF_HCE				UFS_BIT(8)
 	#define UFSHCI_QUIRK_SKIP_INTR_AGGR			UFS_BIT(10)
 	#define UFSHCD_QUIRK_GET_GENERRCODE_DIRECT		UFS_BIT(11)
+	#define UFSHCD_QUIRK_UNRESET_INTR_AGGR			UFS_BIT(12)
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
 	/* Device deviations from standard UFS device spec. */
@@ -757,6 +758,12 @@ static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
 return true;
 #endif
 }
+
+static inline bool ufshcd_can_reset_intr_aggr(struct ufs_hba *hba)
+{
+	return hba->quirks & UFSHCD_QUIRK_UNRESET_INTR_AGGR;
+}
+
 static inline bool ufshcd_can_fake_clkgating(struct ufs_hba *hba)
 {
 	return hba->caps & UFSHCD_CAP_FAKE_CLK_GATING;
