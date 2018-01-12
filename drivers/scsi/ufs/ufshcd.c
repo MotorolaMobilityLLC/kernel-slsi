@@ -7376,7 +7376,8 @@ static int ufshcd_link_state_transition(struct ufs_hba *hba,
 	if (req_link_state == hba->uic_link_state)
 		return 0;
 
-	if (req_link_state == UIC_LINK_HIBERN8_STATE) {
+	if (req_link_state == UIC_LINK_HIBERN8_STATE ||
+			req_link_state == UIC_LINK_OFF_STATE) {
 		ufshcd_set_link_trans_hibern8(hba);
 		ret = ufshcd_link_hibern8_ctrl(hba, true);
 		if (!ret)
@@ -7397,37 +7398,33 @@ static int ufshcd_link_state_transition(struct ufs_hba *hba,
 			hba->clk_gating.is_suspended = saved_is_suspended;
 
 			goto out;
-	}
-	/*
-	 * If autobkops is enabled, link can't be turned off because
-	 * turning off the link would also turn off the device.
-	 */
-	else if ((req_link_state == UIC_LINK_OFF_STATE) &&
-		   (!check_for_bkops || (check_for_bkops &&
-		    !hba->auto_bkops_enabled))) {
+		}
+
+
 		/*
-		 * Let's make sure that link is in low power mode, we are doing
-		 * this currently by putting the link in Hibern8. Otherway to
-		 * put the link in low power mode is to send the DME end point
-		 * to device and then send the DME reset command to local
-		 * unipro. But putting the link in hibern8 is much faster.
+		 * If autobkops is enabled, link can't be turned off because
+		 * turning off the link would also turn off the device.
 		 */
-		ret = ufshcd_uic_hibern8_enter(hba);
-		if (ret)
-			goto out;
-		/*
-		 * Change controller state to "reset state" which
-		 * should also put the link in off/reset state
-		 */
+		if ((req_link_state == UIC_LINK_OFF_STATE) &&
+				(!check_for_bkops || (check_for_bkops &&
+						      !hba->auto_bkops_enabled))) {
+			unsigned long flags;
+
+			/*
+			 * Change controller state to "reset state" which
+			 * should also put the link in off/reset state
+			 */
+
 			spin_lock_irqsave(hba->host->host_lock, flags);
 			hba->ufshcd_state = UFSHCD_STATE_RESET;
 			ufshcd_hba_stop(hba, true);
 			spin_unlock_irqrestore(hba->host->host_lock, flags);
-		/*
-		 * TODO: Check if we need any delay to make sure that
-		 * controller is reset
-		 */
-		ufshcd_set_link_off(hba);
+			/*
+			 * TODO: Check if we need any delay to make sure that
+			 * controller is reset
+			 */
+			ufshcd_set_link_off(hba);
+		}
 	}
 
 out:
