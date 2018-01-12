@@ -38,7 +38,9 @@
  */
 
 #include <linux/async.h>
+#if defined(CONFIG_PM_DEVFREQ)
 #include <linux/devfreq.h>
+#endif
 #include <linux/nls.h>
 #include <linux/of.h>
 #include "ufshcd.h"
@@ -893,6 +895,7 @@ static bool ufshcd_is_unipro_pa_params_tuning_req(struct ufs_hba *hba)
 		return false;
 }
 
+#if defined(CONFIG_PM_DEVFREQ)
 static int ufshcd_scale_clks(struct ufs_hba *hba, bool scale_up)
 {
 	int ret = 0;
@@ -1409,6 +1412,7 @@ static void ufshcd_clkscaling_init_sysfs(struct ufs_hba *hba)
 	if (device_create_file(hba->dev, &hba->clk_scaling.enable_attr))
 		dev_err(hba->dev, "Failed to create sysfs for clkscale_enable\n");
 }
+#endif
 
 static void ufshcd_ungate_work(struct work_struct *work)
 {
@@ -1763,6 +1767,7 @@ static void ufshcd_exit_clk_gating(struct ufs_hba *hba)
 	device_remove_file(hba->dev, &hba->clk_gating.enable_attr);
 }
 
+#if defined(CONFIG_PM_DEVFREQ)
 /* Must be called with host lock acquired */
 static void ufshcd_clk_scaling_start_busy(struct ufs_hba *hba)
 {
@@ -1807,6 +1812,8 @@ static void ufshcd_clk_scaling_update_busy(struct ufs_hba *hba)
 		scaling->is_busy_started = false;
 	}
 }
+#endif
+
 /**
  * ufshcd_send_command - Send SCSI or device management commands
  * @hba: per adapter instance
@@ -1816,7 +1823,9 @@ static inline
 void ufshcd_send_command(struct ufs_hba *hba, unsigned int task_tag)
 {
 	hba->lrb[task_tag].issue_time_stamp = ktime_get();
+#if defined(CONFIG_PM_DEVFREQ)
 	ufshcd_clk_scaling_start_busy(hba);
+#endif
 	__set_bit(task_tag, &hba->outstanding_reqs);
 	ufshcd_writel(hba, 1 << task_tag, REG_UTP_TRANSFER_REQ_DOOR_BELL);
 	/* Make sure that doorbell is committed immediately */
@@ -4867,9 +4876,9 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 
 	/* clear corresponding bits of completed commands */
 	hba->outstanding_reqs ^= completed_reqs;
-
+#if defined(CONFIG_PM_DEVFREQ)
 	ufshcd_clk_scaling_update_busy(hba);
-
+#endif
 	/* we might have free'd some tags above */
 	wake_up(&hba->dev_cmd.tag_wq);
 }
@@ -7141,7 +7150,9 @@ static int ufshcd_init_clocks(struct ufs_hba *hba)
 					clki->max_freq, ret);
 				goto out;
 			}
+#if defined(CONFIG_PM_DEVFREQ)
 			clki->curr_freq = clki->max_freq;
+#endif
 		}
 		dev_dbg(dev, "%s: clk: %s, rate: %lu\n", __func__,
 				clki->name, clk_get_rate(clki->clk));
@@ -7747,8 +7758,10 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 
 	hba->clk_gating.is_suspended = false;
 
+#if defined(CONFIG_PM_DEVFREQ)
 	if (hba->clk_scaling.is_allowed)
 		ufshcd_resume_clkscaling(hba);
+#endif
 
 	/* Schedule clock gating in case of no access to UFS device yet */
 	ufshcd_release(hba);
@@ -8095,8 +8108,10 @@ void ufshcd_remove(struct ufs_hba *hba)
 	ufshcd_hba_stop(hba, true);
 
 	ufshcd_exit_clk_gating(hba);
+#if defined(CONFIG_PM_DEVFREQ)
 	if (ufshcd_is_clkscaling_supported(hba))
 		device_remove_file(hba->dev, &hba->clk_scaling.enable_attr);
+#endif
 	ufshcd_hba_exit(hba);
 }
 EXPORT_SYMBOL_GPL(ufshcd_remove);
@@ -8292,6 +8307,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		goto exit_gating;
 	}
 
+#if defined(CONFIG_PM_DEVFREQ)
 	if (ufshcd_is_clkscaling_supported(hba)) {
 		char wq_name[sizeof("ufs_clkscaling_00")];
 
@@ -8306,7 +8322,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 
 		ufshcd_clkscaling_init_sysfs(hba);
 	}
-
+#endif
 	/*
 	 * Set the default power management level for runtime and system PM.
 	 * Default power saving mode is to keep UFS link in Hibern8 state
