@@ -4288,9 +4288,14 @@ static inline int ufshcd_disable_device_tx_lcc(struct ufs_hba *hba)
 static int ufshcd_hba_enable(struct ufs_hba *hba)
 {
 	int ret;
+	unsigned long flags;
+
 	ufshcd_hold(hba, false);
 
+	spin_lock_irqsave(hba->host->host_lock, flags);
 	hba->ufshcd_state = UFSHCD_STATE_RESET;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
 	if (hba->vops && hba->vops->host_reset)
 		hba->vops->host_reset(hba);
 	if (hba->quirks & UFSHCD_QUIRK_USE_OF_HCE) {
@@ -5340,6 +5345,9 @@ skip_pending_xfer_clear:
 		err = ufshcd_reset_and_restore(hba);
 		spin_lock_irqsave(hba->host->host_lock, flags);
 		if (err) {
+			spin_lock_irqsave(hba->host->host_lock, flags);
+			hba->ufshcd_state = UFSHCD_STATE_ERROR;
+			spin_unlock_irqrestore(hba->host->host_lock, flags);
 			dev_err(hba->dev, "%s: reset and restore failed\n",
 					__func__);
 			hba->ufshcd_state = UFSHCD_STATE_ERROR;
@@ -6540,6 +6548,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	int re_cnt = 0;
 	int ret;
 	ktime_t start = ktime_get();
+	unsigned long flags;
 
 retry:
 	ret = ufshcd_hba_enable(hba);
@@ -6665,6 +6674,9 @@ out:
 		dev_err(hba->dev, "%s failed with err %d, retrying:%d\n",
 			__func__, ret, re_cnt);
 		goto retry;
+		spin_lock_irqsave(hba->host->host_lock, flags);
+		hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
 	}
 	}
 	/*
@@ -7356,7 +7368,10 @@ static int ufshcd_link_state_transition(struct ufs_hba *hba,
 		 * Change controller state to "reset state" which
 		 * should also put the link in off/reset state
 		 */
-		ufshcd_hba_stop(hba, true);
+			spin_lock_irqsave(hba->host->host_lock, flags);
+			hba->ufshcd_state = UFSHCD_STATE_RESET;
+			ufshcd_hba_stop(hba, true);
+			spin_unlock_irqrestore(hba->host->host_lock, flags);
 		/*
 		 * TODO: Check if we need any delay to make sure that
 		 * controller is reset
