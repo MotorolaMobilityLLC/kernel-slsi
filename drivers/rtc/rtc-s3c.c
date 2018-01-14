@@ -75,7 +75,7 @@ static int s3c_rtc_enable_clk(struct s3c_rtc *info)
 	int ret = 0;
 
 	if (info->data->clock_ctrl_disable)
-		return;
+		return ret;
 
 	spin_lock_irqsave(&info->alarm_clk_lock, irq_flags);
 
@@ -614,8 +614,6 @@ err_nortc:
 
 	if (info->data->needs_src_clk)
 		clk_disable_unprepare(info->rtc_src_clk);
-err_src_clk:
-	clk_disable_unprepare(info->rtc_clk);
 
 	return ret;
 }
