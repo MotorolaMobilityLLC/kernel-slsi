@@ -126,6 +126,13 @@ config EXYNOS_OCP
 	help
 	  Enable OCP handler for Exynos SoC.
 
+config EXYNOS_HIU
+	bool "Exynos HIU Handler"
+	depends on CPU_FREQ
+	default n
+	help
+	  Enable HIU handler for Exynos SoC.
+
 config EXYNOS_DVFS_MANAGER
 	bool "Exynos DVFS Manager"
 	default n

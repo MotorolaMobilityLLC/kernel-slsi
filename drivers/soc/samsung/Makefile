@@ -63,3 +63,6 @@ obj-$(CONFIG_USI_V2) += usi_v2.o
 
 # secmem
 obj-$(CONFIG_ARCH_EXYNOS)       += secmem.o
+
+# HIU
+obj-$(CONFIG_EXYNOS_HIU)	+= exynos-hiu.o
