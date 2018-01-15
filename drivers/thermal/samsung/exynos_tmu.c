@@ -49,6 +49,9 @@
 #include <soc/samsung/exynos-mcinfo.h>
 #endif
 #include <dt-bindings/thermal/thermal_exynos.h>
+#ifdef CONFIG_SND_SOC_SAMSUNG_ABOX
+#include <sound/samsung/abox.h>
+#endif
 
 #include "exynos_tmu.h"
 #include "../thermal_core.h"
@@ -191,6 +194,8 @@
 static struct acpm_tmu_cap cap;
 static unsigned int num_of_devices, suspended_count;
 static bool cp_call_mode;
+#ifdef CONFIG_SND_SOC_SAMSUNG_ABOX
+#if defined(CONFIG_SOC_EXYNOS9810)
 static bool is_aud_on(void)
 {
 	unsigned int val;
@@ -199,6 +204,8 @@ static bool is_aud_on(void)
 
 	return ((val & 0xf) == 0xf);
 }
+#endif
+#endif
 #else
 static bool suspended;
 static DEFINE_MUTEX (thermal_suspend_lock);
@@ -1772,7 +1779,14 @@ static int exynos_tmu_suspend(struct device *dev)
 	suspended_count++;
 	disable_irq(data->irq);
 
+#ifdef CONFIG_SND_SOC_SAMSUNG_ABOX
+#if defined(CONFIG_SOC_EXYNOS9810)
 	cp_call_mode = is_aud_on() && cap.acpm_irq;
+#elif defined(CONFIG_SOC_EXYNOS9610)
+	cp_call_mode = abox_is_on() && cap.acpm_irq;
+#endif
+#endif
+
 	if (cp_call_mode) {
 		if (suspended_count == num_of_devices) {
 			exynos_acpm_tmu_set_cp_call();
