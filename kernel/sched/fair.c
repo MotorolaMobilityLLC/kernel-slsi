@@ -33,6 +33,7 @@
 #include <linux/mempolicy.h>
 #include <linux/migrate.h>
 #include <linux/task_work.h>
+#include <linux/ehmp.h>
 
 #include <trace/events/sched.h>
 
@@ -609,7 +610,7 @@ struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
 	return rb_entry(left, struct sched_entity, run_node);
 }
 
-static struct sched_entity *__pick_next_entity(struct sched_entity *se)
+struct sched_entity *__pick_next_entity(struct sched_entity *se)
 {
 	struct rb_node *next = rb_next(&se->run_node);
 
@@ -757,6 +758,8 @@ void init_entity_runnable_average(struct sched_entity *se)
 	sa->util_avg = 0;
 	sa->util_sum = 0;
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
+
+	ontime_new_entity_load(current, se);
 }
 
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
@@ -793,6 +796,11 @@ void post_init_entity_util_avg(struct sched_entity *se)
 	struct sched_avg *sa = &se->avg;
 	long cap = (long)(SCHED_CAPACITY_SCALE - cfs_rq->avg.util_avg) / 2;
 
+	if (sched_feat(EXYNOS_HMP)) {
+		exynos_init_entity_util_avg(se);
+		goto util_init_done;
+	}
+
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
 			sa->util_avg  = cfs_rq->avg.util_avg * se->load.weight;
@@ -806,6 +814,7 @@ void post_init_entity_util_avg(struct sched_entity *se)
 		sa->util_sum = sa->util_avg * LOAD_AVG_MAX;
 	}
 
+util_init_done:
 	if (entity_is_task(se)) {
 		struct task_struct *p = task_of(se);
 		if (p->sched_class != &fair_sched_class) {
@@ -2840,7 +2849,7 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
  * Approximate:
  *   val * y^n,    where y^32 ~= 0.5 (~1 scheduling period)
  */
-static u64 decay_load(u64 val, u64 n)
+u64 decay_load(u64 val, u64 n)
 {
 	unsigned int local_n;
 
@@ -3024,6 +3033,9 @@ ___update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 	 */
 	if (!weight)
 		running = 0;
+
+	if (!cfs_rq && !rt_rq)
+		ontime_update_load_avg(delta, cpu, weight, sa);
 
 	/*
 	 * Now we know we crossed measurement unit boundaries. The *_avg
@@ -3458,6 +3470,9 @@ static inline void update_load_avg(struct sched_entity *se, int flags)
 
 	if (decayed && (flags & UPDATE_TG))
 		update_tg_load_avg(cfs_rq, 0);
+
+	if (entity_is_task(se))
+		ontime_trace_task_info(task_of(se));
 }
 
 /**
@@ -5550,85 +5565,6 @@ static unsigned long __cpu_norm_util(unsigned long util, unsigned long capacity)
  * Hence - be careful when enabling DEBUG_EENV_DECISIONS
  * expecially if WALT is the task signal.
  */
-/*#define DEBUG_EENV_DECISIONS*/
-
-#ifdef DEBUG_EENV_DECISIONS
-/* max of 8 levels of sched groups traversed */
-#define EAS_EENV_DEBUG_LEVELS 16
-
-struct _eenv_debug {
-	unsigned long cap;
-	unsigned long norm_util;
-	unsigned long cap_energy;
-	unsigned long idle_energy;
-	unsigned long this_energy;
-	unsigned long this_busy_energy;
-	unsigned long this_idle_energy;
-	cpumask_t group_cpumask;
-	unsigned long cpu_util[1];
-};
-#endif
-
-struct eenv_cpu {
-	/* CPU ID, must be in cpus_mask */
-	int     cpu_id;
-
-	/*
-	 * Index (into sched_group_energy::cap_states) of the OPP the
-	 * CPU needs to run at if the task is placed on it.
-	 * This includes the both active and blocked load, due to
-	 * other tasks on this CPU,  as well as the task's own
-	 * utilization.
-	*/
-	int     cap_idx;
-	int     cap;
-
-	/* Estimated system energy */
-	unsigned long energy;
-
-	/* Estimated energy variation wrt EAS_CPU_PRV */
-	long nrg_delta;
-
-#ifdef DEBUG_EENV_DECISIONS
-	struct _eenv_debug *debug;
-	int debug_idx;
-#endif /* DEBUG_EENV_DECISIONS */
-};
-
-struct energy_env {
-	/* Utilization to move */
-	struct task_struct	*p;
-	unsigned long		util_delta;
-	unsigned long		util_delta_boosted;
-
-	/* Mask of CPUs candidates to evaluate */
-	cpumask_t		cpus_mask;
-
-	/* CPU candidates to evaluate */
-	struct eenv_cpu *cpu;
-	int eenv_cpu_count;
-
-#ifdef DEBUG_EENV_DECISIONS
-	/* pointer to the memory block reserved
-	 * for debug on this CPU - there will be
-	 * sizeof(struct _eenv_debug) *
-	 *  (EAS_CPU_CNT * EAS_EENV_DEBUG_LEVELS)
-	 * bytes allocated here.
-	 */
-	struct _eenv_debug *debug;
-#endif
-	/*
-	 * Index (into energy_env::cpu) of the morst energy efficient CPU for
-	 * the specified energy_env::task
-	 */
-	int	next_idx;
-	int	max_cpu_count;
-
-	/* Support data */
-	struct sched_group	*sg_top;
-	struct sched_group	*sg_cap;
-	struct sched_group	*sg;
-};
 
 static int cpu_util_wake(int cpu, struct task_struct *p);
 
@@ -6014,7 +5950,7 @@ static void dump_eenv_debug(struct energy_env *eenv)
  * A value greater than zero means that the most energy efficient CPU is the
  * one represented by eenv->cpu[eenv->next_idx].cpu_id.
  */
-static inline int select_energy_cpu_idx(struct energy_env *eenv)
+int select_energy_cpu_idx(struct energy_env *eenv)
 {
 	int last_cpu_idx = eenv->max_cpu_count - 1;
 	struct sched_domain *sd;
@@ -6295,7 +6231,7 @@ boosted_cpu_util(int cpu)
 	return util + margin;
 }
 
-static inline unsigned long
+unsigned long
 boosted_task_util(struct task_struct *task)
 {
 	unsigned long util = task_util(task);
@@ -6882,7 +6818,7 @@ static int start_cpu(bool boosted)
 	return boosted ? rd->max_cap_orig_cpu : rd->min_cap_orig_cpu;
 }
 
-static inline int find_best_target(struct task_struct *p, int *backup_cpu,
+int find_best_target(struct task_struct *p, int *backup_cpu,
 				   bool boosted, bool prefer_idle)
 {
 	unsigned long best_idle_min_cap_orig = ULONG_MAX;
@@ -7277,7 +7213,7 @@ static inline void reset_eenv(struct energy_env *eenv)
  * filled in here. Callers are responsible for adding
  * other CPU candidates up to eenv->max_cpu_count.
  */
-static inline struct energy_env *get_eenv(struct task_struct *p, int prev_cpu)
+struct energy_env *get_eenv(struct task_struct *p, int prev_cpu)
 {
 	struct energy_env *eenv;
 	cpumask_t cpumask_possible_cpus;
@@ -7493,6 +7429,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 			      !wake_wide(p, sibling_count_hint) &&
 			      !wake_cap(p, cpu, prev_cpu) &&
 			      cpumask_test_cpu(cpu, &p->cpus_allowed);
+	}
+
+	if (sched_feat(EXYNOS_HMP)) {
+		int selected_cpu;
+
+		selected_cpu = exynos_select_cpu(p, prev_cpu, sync, sd_flag);
+		if (selected_cpu >= 0)
+			return selected_cpu;
 	}
 
 	for_each_domain(cpu, tmp) {
@@ -8268,6 +8212,11 @@ static inline int migrate_degrades_locality(struct task_struct *p,
 }
 #endif
 
+static inline bool smaller_cpu_capacity(int cpu, int ref)
+{
+	return capacity_orig_of(cpu) < capacity_orig_of(ref);
+}
+
 /*
  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
  */
@@ -8280,11 +8229,21 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 
 	/*
 	 * We do not migrate tasks that are:
+	 * 0) cannot be migrated to smaller capacity cpu due to schedtune.prefer_perf, or
 	 * 1) throttled_lb_pair, or
 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
 	 * 3) running (obviously), or
 	 * 4) are cache-hot on their current CPU.
 	 */
+	if (!ontime_can_migration(p, env->dst_cpu))
+		return 0;
+
+#ifdef CONFIG_SCHED_TUNE
+	if (smaller_cpu_capacity(env->dst_cpu, env->src_cpu) &&
+	    schedtune_prefer_perf(p))
+		return 0;
+#endif
+
 	if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
 		return 0;
 
@@ -9762,6 +9721,9 @@ static int need_active_balance(struct lb_env *env)
 			return 1;
 	}
 
+	if (sched_feat(EXYNOS_HMP))
+		return exynos_need_active_balance(env->idle, sd, env->src_cpu, env->dst_cpu);
+
 	/*
 	 * The dst_cpu is idle and the src_cpu CPU has only 1 CFS task.
 	 * It's worth migrating the task if the src_cpu's capacity is reduced
@@ -10820,6 +10782,9 @@ static __latent_entropy void run_rebalance_domains(struct softirq_action *h)
 #else
 	rebalance_domains(this_rq, idle);
 #endif
+
+	ontime_migration();
+	schedtune_group_util_update();
 }
 
 /*

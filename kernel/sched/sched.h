@@ -788,6 +788,9 @@ struct rq {
 	u64 cum_window_demand;
 #endif /* CONFIG_SCHED_WALT */
 
+#ifdef CONFIG_SCHED_EHMP
+	bool ontime_migrating;
+#endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	u64 prev_irq_time;
@@ -2140,6 +2143,85 @@ extern void nohz_balance_exit_idle(unsigned int cpu);
 static inline void nohz_balance_exit_idle(unsigned int cpu) { }
 #endif
 
+/*#define DEBUG_EENV_DECISIONS*/
+
+#ifdef DEBUG_EENV_DECISIONS
+/* max of 8 levels of sched groups traversed */
+#define EAS_EENV_DEBUG_LEVELS 16
+
+struct _eenv_debug {
+	unsigned long cap;
+	unsigned long norm_util;
+	unsigned long cap_energy;
+	unsigned long idle_energy;
+	unsigned long this_energy;
+	unsigned long this_busy_energy;
+	unsigned long this_idle_energy;
+	cpumask_t group_cpumask;
+	unsigned long cpu_util[1];
+};
+#endif
+
+struct eenv_cpu {
+	/* CPU ID, must be in cpus_mask */
+	int     cpu_id;
+
+	/*
+	 * Index (into sched_group_energy::cap_states) of the OPP the
+	 * CPU needs to run at if the task is placed on it.
+	 * This includes the both active and blocked load, due to
+	 * other tasks on this CPU,  as well as the task's own
+	 * utilization.
+	*/
+	int     cap_idx;
+	int     cap;
+
+	/* Estimated system energy */
+	unsigned long energy;
+
+	/* Estimated energy variation wrt EAS_CPU_PRV */
+	long nrg_delta;
+
+#ifdef DEBUG_EENV_DECISIONS
+	struct _eenv_debug *debug;
+	int debug_idx;
+#endif /* DEBUG_EENV_DECISIONS */
+};
+
+struct energy_env {
+	/* Utilization to move */
+	struct task_struct	*p;
+	unsigned long		util_delta;
+	unsigned long		util_delta_boosted;
+
+	/* Mask of CPUs candidates to evaluate */
+	cpumask_t		cpus_mask;
+
+	/* CPU candidates to evaluate */
+	struct eenv_cpu *cpu;
+	int eenv_cpu_count;
+
+#ifdef DEBUG_EENV_DECISIONS
+	/* pointer to the memory block reserved
+	 * for debug on this CPU - there will be
+	 * sizeof(struct _eenv_debug) *
+	 *  (EAS_CPU_CNT * EAS_EENV_DEBUG_LEVELS)
+	 * bytes allocated here.
+	 */
+	struct _eenv_debug *debug;
+#endif
+	/*
+	 * Index (into energy_env::cpu) of the morst energy efficient CPU for
+	 * the specified energy_env::task
+	 */
+	int	next_idx;
+	int	max_cpu_count;
+
+	/* Support data */
+	struct sched_group	*sg_top;
+	struct sched_group	*sg_cap;
+	struct sched_group	*sg;
+};
 
 #ifdef CONFIG_SMP
 
