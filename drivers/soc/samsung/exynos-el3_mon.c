@@ -12,7 +12,6 @@
 
 #include <linux/slab.h>
 #include <linux/smc.h>
-#include <linux/kallsyms.h>
 #include <asm/cacheflush.h>
 
 #include <soc/samsung/exynos-el3_mon.h>
@@ -29,14 +28,14 @@ static int __init exynos_protect_kernel_text(void)
 	unsigned long ktext_end_pa = 0;
 
 	/* Get virtual addresses of kernel text */
-	ktext_start_va = kallsyms_lookup_name("_text");
+	ktext_start_va = (unsigned long)_text;
 	if (!ktext_start_va) {
 		pr_err("%s: [ERROR] Kernel text start address is invalid\n",
 								__func__);
 		return -1;
 	}
 
-	ktext_end_va = kallsyms_lookup_name("_etext");
+	ktext_end_va = (unsigned long)_etext;
 	if (!ktext_end_va) {
 		pr_err("%s: [ERROR] Kernel text end address is invalid\n",
 								__func__);
