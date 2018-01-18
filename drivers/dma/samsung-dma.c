@@ -31,10 +31,10 @@ static unsigned long samsung_dmadev_request(enum dma_ch dma_ch,
 	{
 		channel = (unsigned long)dma_request_slave_channel(dev, ch_name);
 		return channel;
+	} else {
+		pr_err("No channel: %s\n", __func__);
+		return 0;
 	}
-	else
-		return (u64)dma_request_channel(mask, pl330_filter,
-							(void *)dma_ch);
 }
 
 static int samsung_dmadev_release(unsigned long ch, void *param)
