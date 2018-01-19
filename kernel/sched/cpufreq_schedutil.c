@@ -165,10 +165,34 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 	return false;
 }
 
+static int sugov_select_scaling_cpu(void)
+{
+	int cpu;
+	cpumask_t mask;
+
+	cpumask_clear(&mask);
+	cpumask_and(&mask, cpu_coregroup_mask(0), cpu_online_mask);
+
+	/* Idle core of the boot cluster is selected to scaling cpu */
+	for_each_cpu(cpu, &mask)
+		if (idle_cpu(cpu))
+			return cpu;
+
+	/* if panic_cpu is not Little core, mask will be empty */
+	if (unlikely(!cpumask_weight(&mask))) {
+		cpu = atomic_read(&panic_cpu);
+		if (cpu != PANIC_CPU_INVALID)
+			return cpu;
+	}
+
+	return cpumask_weight(&mask) - 1;
+}
+
 static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 				unsigned int next_freq)
 {
 	struct cpufreq_policy *policy = sg_policy->policy;
+	int cpu;
 
 	if (sg_policy->next_freq == next_freq)
 		return;
@@ -187,8 +211,12 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 		policy->cur = next_freq;
 		trace_cpu_frequency(next_freq, smp_processor_id());
 	} else {
+		cpu = sugov_select_scaling_cpu();
+		if (cpu < 0)
+			return;
+
 		sg_policy->work_in_progress = true;
-		irq_work_queue(&sg_policy->irq_work);
+		irq_work_queue_on(&sg_policy->irq_work, cpu);
 	}
 }
 
