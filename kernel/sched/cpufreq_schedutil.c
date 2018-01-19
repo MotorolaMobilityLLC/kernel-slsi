@@ -171,6 +171,15 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 	}
 }
 
+#ifdef CONFIG_FREQVAR_TUNE
+unsigned int freqvar_tipping_point(int cpu, unsigned int freq);
+#else
+static inline unsigned int freqvar_tipping_point(int cpu, unsigned int freq)
+{
+	return  freq + (freq >> 2);
+}
+#endif
+
 /**
  * get_next_freq - Compute a new frequency for a given cpufreq policy.
  * @sg_policy: schedutil policy object to compute the new frequency for.
@@ -200,7 +209,7 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	unsigned int freq = arch_scale_freq_invariant() ?
 				policy->cpuinfo.max_freq : policy->cur;
 
-	freq = (freq + (freq >> 2)) * util / max;
+	freq = freqvar_tipping_point(policy->cpu, freq) * util / max;
 
 	if (freq == sg_policy->cached_raw_freq && sg_policy->next_freq != UINT_MAX)
 		return sg_policy->next_freq;
@@ -431,6 +440,54 @@ static void sugov_irq_work(struct irq_work *irq_work)
 	 * neglected for now.
 	 */
 	kthread_queue_work(&sg_policy->worker, &sg_policy->work);
+}
+
+/************************ Governor externals ***********************/
+static void update_min_rate_limit_ns(struct sugov_policy *sg_policy);
+void sugov_update_rate_limit_us(struct cpufreq_policy *policy,
+			int up_rate_limit_ms, int down_rate_limit_ms)
+{
+	struct sugov_policy *sg_policy;
+	struct sugov_tunables *tunables;
+
+	sg_policy = policy->governor_data;
+	if (!sg_policy)
+		return;
+
+	tunables = sg_policy->tunables;
+	if (!tunables)
+		return;
+
+	tunables->up_rate_limit_us = (unsigned int)(up_rate_limit_ms * USEC_PER_MSEC);
+	tunables->down_rate_limit_us = (unsigned int)(down_rate_limit_ms * USEC_PER_MSEC);
+
+	sg_policy->up_rate_delay_ns = up_rate_limit_ms * NSEC_PER_MSEC;
+	sg_policy->down_rate_delay_ns = down_rate_limit_ms * NSEC_PER_MSEC;
+
+	update_min_rate_limit_ns(sg_policy);
+}
+
+int sugov_sysfs_add_attr(struct cpufreq_policy *policy, const struct attribute *attr)
+{
+	struct sugov_policy *sg_policy;
+	struct sugov_tunables *tunables;
+
+	sg_policy = policy->governor_data;
+	if (!sg_policy)
+		return -ENODEV;
+
+	tunables = sg_policy->tunables;
+	if (!tunables)
+		return -ENODEV;
+
+	return sysfs_create_file(&tunables->attr_set.kobj, attr);
+}
+
+struct cpufreq_policy *sugov_get_attr_policy(struct gov_attr_set *attr_set)
+{
+	struct sugov_policy *sg_policy = list_first_entry(&attr_set->policy_list,
+						typeof(*sg_policy), tunables_hook);
+	return sg_policy->policy;
 }
 
 /************************** sysfs interface ************************/
