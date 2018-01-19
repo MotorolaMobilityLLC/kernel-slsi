@@ -13,8 +13,6 @@
 #ifndef __S5P_MFC_UTILS_H
 #define __S5P_MFC_UTILS_H __FILE__
 
-#include <linux/time.h>
-
 #include "s5p_mfc_common.h"
 
 static inline void s5p_mfc_clean_dev_int_flags(struct s5p_mfc_dev *dev)

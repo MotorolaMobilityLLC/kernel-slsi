@@ -13,8 +13,6 @@
 #ifndef __S5P_MFC_REG_H
 #define __S5P_MFC_REG_H __FILE__
 
-#include <linux/io.h>
-
 #include "s5p_mfc_common.h"
 
 #include "s5p_mfc_utils.h"
