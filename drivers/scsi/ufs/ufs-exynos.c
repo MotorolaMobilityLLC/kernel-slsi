@@ -14,8 +14,8 @@
 #include <linux/of_address.h>
 #include <linux/clk.h>
 #include <linux/smc.h>
-//#include <soc/samsung/exynos-pm.h>
-//#include <soc/samsung/exynos-powermode.h>
+#include <soc/samsung/exynos-pm.h>
+#include <soc/samsung/exynos-powermode.h>
 #include "ufshcd.h"
 #include "unipro.h"
 #include "mphy.h"
@@ -664,7 +664,7 @@ static int exynos_ufs_pre_setup_clocks(struct ufs_hba *hba, bool on)
 		/* HWAGC disable */
 		exynos_ufs_set_hwacg_control(ufs, false);
 	} else {
-//		pm_qos_update_request(&ufs->pm_qos_int, 0);
+		pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
 
 		/*
 		 * BG/SQ off
@@ -686,7 +686,7 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on)
 		 */
 		ret = ufs_pre_h8_exit(ufs);
 
-//		pm_qos_update_request(&ufs->pm_qos_int, ufs->pm_qos_int_value);
+		pm_qos_update_request(&ufs->pm_qos_fsys0, ufs->pm_qos_fsys0_value);
 
 	} else {
 		/*
@@ -847,7 +847,7 @@ static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 
-//	pm_qos_update_request(&ufs->pm_qos_int, 0);
+	pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
 
 	exynos_ufs_dev_reset_ctrl(ufs, false);
 
@@ -1133,7 +1133,7 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	dev->platform_data = ufs;
 	dev->dma_mask = &exynos_ufs_dma_mask;
 
-//	pm_qos_add_request(&ufs->pm_qos_int, PM_QOS_DEVICE_THROUGHPUT, 0);
+	pm_qos_add_request(&ufs->pm_qos_fsys0, PM_QOS_FSYS0_THROUGHPUT, 0);
 
 	ret = ufshcd_pltfrm_init(pdev, &exynos_ufs_ops);
 
