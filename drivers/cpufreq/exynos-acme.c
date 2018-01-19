@@ -1649,7 +1649,7 @@ static int __init exynos_cpufreq_init(void)
 	list_for_each_entry(domain, &domains, list) {
 		set_policy(domain);
 		enable_domain(domain);
-		exynos_cpufreq_cooling_register(domain->dn, &domain->cpus);
+		//exynos_cpufreq_cooling_register(domain->dn, &domain->cpus);
 
 		set_boot_qos(domain);
 	}
