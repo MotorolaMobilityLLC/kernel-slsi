@@ -18,8 +18,6 @@
 
 int s5p_mfc_check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 {
-	int i;
-
 	if (!fmt)
 		return -EINVAL;
 
@@ -27,17 +25,6 @@ int s5p_mfc_check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 		mfc_err_dev("plane number is different (%d != %d)\n",
 				fmt->mem_planes, vb->num_planes);
 		return -EINVAL;
-	}
-
-	for (i = 0; i < vb->num_planes; i++) {
-		if (!s5p_mfc_mem_get_daddr_vb(vb, i)) {
-			mfc_err_dev("failed to get plane cookie\n");
-			return -ENOMEM;
-		}
-
-		mfc_debug(2, "index: %d, plane[%d] cookie: 0x%08llx\n",
-				vb->index, i,
-				s5p_mfc_mem_get_daddr_vb(vb, i));
 	}
 
 	return 0;

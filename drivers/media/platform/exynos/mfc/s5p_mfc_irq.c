@@ -172,8 +172,7 @@ static void mfc_handle_frame_copy_timestamp(struct s5p_mfc_ctx *ctx)
 		return;
 	}
 
-	ref_mb = s5p_mfc_find_buf_vb(&ctx->buf_queue_lock,
-			&ctx->ref_buf_queue, dec_y_addr);
+	ref_mb = s5p_mfc_find_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dec_y_addr);
 	if (ref_mb)
 		ref_mb->vb.vb2_buf.timestamp = src_mb->vb.vb2_buf.timestamp;
 }
@@ -186,13 +185,13 @@ static void mfc_handle_frame_output_move(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_buf *ref_mb;
 	int index;
 
-	ref_mb = s5p_mfc_find_move_buf_vb(&ctx->buf_queue_lock,
+	ref_mb = s5p_mfc_find_move_buf(&ctx->buf_queue_lock,
 			&ctx->dst_buf_queue, &ctx->ref_buf_queue, dspl_y_addr, released_flag);
 	if (ref_mb) {
 		mfc_debug(2, "Listing: %d\n", ref_mb->vb.vb2_buf.index);
 		/* Check if this is the buffer we're looking for */
 		mfc_debug(2, "Found 0x%08llx, looking for 0x%08llx\n",
-				s5p_mfc_mem_get_daddr_vb(&ref_mb->vb.vb2_buf, 0), dspl_y_addr);
+				ref_mb->addr[0], dspl_y_addr);
 
 		index = ref_mb->vb.vb2_buf.index;
 
@@ -247,13 +246,13 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 		frame_type = s5p_mfc_get_disp_frame_type();
 	}
 
-	ref_mb = s5p_mfc_find_del_buf_vb(&ctx->buf_queue_lock,
+	ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, dspl_y_addr);
 	if (ref_mb) {
 		mfc_debug(2, "Listing: %d\n", ref_mb->vb.vb2_buf.index);
 		/* Check if this is the buffer we're looking for */
 		mfc_debug(2, "Found 0x%08llx, looking for 0x%08llx\n",
-				s5p_mfc_mem_get_daddr_vb(&ref_mb->vb.vb2_buf, 0), dspl_y_addr);
+				ref_mb->addr[0], dspl_y_addr);
 
 		index = ref_mb->vb.vb2_buf.index;
 
@@ -480,11 +479,11 @@ static void mfc_handle_ref_frame(struct s5p_mfc_ctx *ctx)
 	dec_addr = (dma_addr_t)s5p_mfc_get_dec_y_addr();
 
 	/* Try to search decoded address in whole dst queue */
-	dst_mb = s5p_mfc_find_move_buf_vb_used(&ctx->buf_queue_lock,
+	dst_mb = s5p_mfc_find_move_buf_used(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, &ctx->dst_buf_queue, dec_addr);
 	if (dst_mb) {
 		mfc_debug(2, "Found in dst queue = 0x%08llx, buf = 0x%08llx\n",
-				dec_addr, s5p_mfc_mem_get_daddr_vb(&dst_mb->vb.vb2_buf, 0));
+				dec_addr, dst_mb->addr[0]);
 
 		if (!(dec->dynamic_set & s5p_mfc_get_dec_used_flag()))
 			dec->dynamic_used |= dec->dynamic_set;
@@ -776,7 +775,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 			mfc_debug(2, "encoded[%d] addr: 0x%08llx\n",
 						i, enc_addr[i]);
 
-		src_mb = s5p_mfc_find_del_buf_raw(&ctx->buf_queue_lock,
+		src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 			&ctx->src_buf_queue, enc_addr[0]);
 		if (src_mb) {
 			index = src_mb->vb.vb2_buf.index;
@@ -791,7 +790,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 				s5p_mfc_raw_unprotect(ctx, src_mb, index);
 		}
 
-		ref_mb = s5p_mfc_find_del_buf_raw(&ctx->buf_queue_lock,
+		ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, enc_addr[0]);
 		if (ref_mb) {
 			vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);

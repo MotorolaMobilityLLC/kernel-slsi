@@ -122,16 +122,14 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_addr(spinlock_t *plock,
 		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,
 		dma_addr_t addr);
 
-struct s5p_mfc_buf *s5p_mfc_find_buf_vb(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
 		dma_addr_t addr);
-struct s5p_mfc_buf *s5p_mfc_find_del_buf_raw(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct s5p_mfc_buf *s5p_mfc_find_del_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
 		dma_addr_t addr);
-struct s5p_mfc_buf *s5p_mfc_find_del_buf_vb(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		dma_addr_t addr);
-struct s5p_mfc_buf *s5p_mfc_find_move_buf_vb(spinlock_t *plock,
+struct s5p_mfc_buf *s5p_mfc_find_move_buf(spinlock_t *plock,
 		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,
 		dma_addr_t addr, unsigned int released_flag);
-struct s5p_mfc_buf *s5p_mfc_find_move_buf_vb_used(spinlock_t *plock,
+struct s5p_mfc_buf *s5p_mfc_find_move_buf_used(spinlock_t *plock,
 		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,
 		dma_addr_t addr);
 

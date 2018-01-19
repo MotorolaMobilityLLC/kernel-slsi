@@ -222,10 +222,7 @@ struct s5p_mfc_debug {
 struct s5p_mfc_buf {
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
-	union {
-		dma_addr_t raw[3];
-		dma_addr_t stream;
-	} planes;
+	dma_addr_t addr[MFC_MAX_PLANES];
 	int used;
 	unsigned char *vir_addr;
 };

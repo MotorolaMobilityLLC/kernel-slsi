@@ -62,7 +62,7 @@ int s5p_mfc_run_dec_init(struct s5p_mfc_ctx *ctx)
 			0, src_mb->vb.vb2_buf.planes[0].bytesused);
 	}
 
-	mfc_debug(2, "Header addr: 0x%08llx\n", s5p_mfc_mem_get_daddr_vb(&src_mb->vb.vb2_buf, 0));
+	mfc_debug(2, "Header addr: 0x%08llx\n", src_mb->addr[0]);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 	s5p_mfc_init_decode(ctx);
 
@@ -235,7 +235,7 @@ int s5p_mfc_run_enc_init(struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_set_enc_stride(ctx);
 
-	mfc_debug(2, "Header addr: 0x%08llx\n", s5p_mfc_mem_get_daddr_vb(&dst_mb->vb.vb2_buf, 0));
+	mfc_debug(2, "Header addr: 0x%08llx\n", dst_mb->addr[0]);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 
 	ret = s5p_mfc_init_encode(ctx);
