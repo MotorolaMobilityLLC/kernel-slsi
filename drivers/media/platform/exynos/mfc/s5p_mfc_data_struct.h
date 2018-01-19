@@ -19,6 +19,8 @@
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 #include <linux/pm_qos.h>
+#endif
+#ifdef CONFIG_EXYNOS_BTS
 #include <soc/samsung/bts.h>
 #endif
 #include <linux/videodev2.h>
@@ -728,7 +730,7 @@ struct s5p_mfc_dev {
 
 	struct s5p_mfc_special_buf dbg_info_buf;
 
-#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+#ifdef CONFIG_EXYNOS_BTS
 	struct bts_bw mfc_bw;
 #endif
 
