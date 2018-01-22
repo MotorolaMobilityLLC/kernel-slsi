@@ -171,6 +171,14 @@ config CAMERA_CIS_2P7SQ_OBJ
 		help
 		  Use to build 2P7SQ camera sensor.
 
+config CAMERA_CIS_2T7SX_OBJ
+		bool "Use 2T7SX camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 2T7SX camera sensor.
+
 config CAMERA_CIS_2L2_OBJ
 		bool "Use 2L2 camera cis"
 	depends on USE_DIRECT_IS_CONTROL
