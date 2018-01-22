@@ -18,6 +18,7 @@ obj-$(CONFIG_CAMERA_CIS_3P8_OBJ) += fimc-is-device-module-3p8.o
 obj-$(CONFIG_CAMERA_CIS_3P8SP_OBJ) += fimc-is-device-module-3p8sp.o
 obj-$(CONFIG_CAMERA_CIS_2P7SX_OBJ) += fimc-is-device-module-2p7sx.o
 obj-$(CONFIG_CAMERA_CIS_RPB_OBJ) += fimc-is-device-module-rpb.o
+obj-$(CONFIG_CAMERA_CIS_2P7SQ_OBJ) += fimc-is-device-module-2p7sq.o
 obj-$(CONFIG_CAMERA_CIS_2L2_OBJ) += fimc-is-device-module-2l2.o
 obj-$(CONFIG_CAMERA_CIS_2L3_OBJ) += fimc-is-device-module-2l3.o
 obj-$(CONFIG_CAMERA_CIS_IMX260_OBJ) += fimc-is-device-module-imx260.o

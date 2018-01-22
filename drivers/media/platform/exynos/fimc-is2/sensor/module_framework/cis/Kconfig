@@ -163,6 +163,14 @@ config CAMERA_CIS_RPB_OBJ
 		help
 		  Use to build RPB camera sensor.
 
+config CAMERA_CIS_2P7SQ_OBJ
+		bool "Use 2P7SQ camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 2P7SQ camera sensor.
+
 config CAMERA_CIS_2L2_OBJ
 		bool "Use 2L2 camera cis"
 	depends on USE_DIRECT_IS_CONTROL
