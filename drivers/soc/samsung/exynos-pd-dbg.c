@@ -66,6 +66,37 @@ static struct generic_pm_domain *exynos_pd_dbg_dev_to_genpd(struct device *dev)
 	return pd_to_genpd(dev->pm_domain);
 }
 
+static void exynos_pd_dbg_genpd_lock_spin(struct generic_pm_domain *genpd)
+	__acquires(&genpd->slock)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&genpd->slock, flags);
+	genpd->lock_flags = flags;
+}
+
+static void exynos_pd_dbg_genpd_unlock_spin(struct generic_pm_domain *genpd)
+	__releases(&genpd->slock)
+{
+	spin_unlock_irqrestore(&genpd->slock, genpd->lock_flags);
+}
+
+static void exynos_pd_dbg_genpd_lock(struct generic_pm_domain *genpd)
+{
+	if (genpd->flags & GENPD_FLAG_IRQ_SAFE)
+		exynos_pd_dbg_genpd_lock_spin(genpd);
+	else
+		mutex_lock(&genpd->mlock);
+}
+
+static void exynos_pd_dbg_genpd_unlock(struct generic_pm_domain *genpd)
+{
+	if (genpd->flags & GENPD_FLAG_IRQ_SAFE)
+		exynos_pd_dbg_genpd_unlock_spin(genpd);
+	else
+		mutex_unlock(&genpd->mlock);
+}
+
 static void exynos_pd_dbg_summary_show(struct generic_pm_domain *genpd)
 {
 	static const char * const gpd_status_lookup[] = {
@@ -82,11 +113,11 @@ static void exynos_pd_dbg_summary_show(struct generic_pm_domain *genpd)
 	struct pm_domain_data *pm_data;
 	struct gpd_link *link;
 
-	mutex_lock(&genpd->lock);
+	exynos_pd_dbg_genpd_lock(genpd);
 
 	if (genpd->status >= ARRAY_SIZE(gpd_status_lookup)) {
 		pr_err("%s invalid GPD_STATUS\n", EXYNOS_PD_DBG_PREFIX);
-		mutex_unlock(&genpd->lock);
+		exynos_pd_dbg_genpd_unlock(genpd);
 		return ;
 	}
 
@@ -110,7 +141,7 @@ static void exynos_pd_dbg_summary_show(struct generic_pm_domain *genpd)
 	list_for_each_entry(link, &genpd->master_links, master_node)
 		exynos_pd_dbg_summary_show(link->slave);
 
-	mutex_unlock(&genpd->lock);
+	exynos_pd_dbg_genpd_unlock(genpd);
 }
 
 static ssize_t exynos_pd_dbg_read(struct file *file, char __user *user_buf,
