@@ -253,17 +253,24 @@ static void of_get_power_down_ok(struct exynos_pm_domain *pd)
 	}
 }
 
-static void exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
+static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 {
 	pd->genpd.name = pd->name;
 	pd->genpd.power_off = exynos_pd_power_off;
 	pd->genpd.power_on = exynos_pd_power_on;
 
 	/* pd power on/off latency is less than 1ms */
+	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
+
+	pd->genpd.states = kzalloc(sizeof(pd->genpd.states), GFP_KERNEL);
+
+	if (!pd->genpd.states)
+		return -ENOMEM;
+
 	pd->genpd.states[0].power_on_latency_ns = 1000000;
 	pd->genpd.states[0].power_off_latency_ns = 1000000;
 
-	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
+	return 0;
 }
 
 /* exynos_pd_show_power_domain - show current power domain status.
@@ -350,7 +357,13 @@ static __init int exynos_pd_dt_parse(void)
 		mutex_init(&pd->access_lock);
 		platform_set_drvdata(pdev, pd);
 
-		exynos_pd_genpd_init(pd, initial_state);
+		ret = exynos_pd_genpd_init(pd, initial_state);
+		if (ret) {
+			pr_err(EXYNOS_PD_PREFIX "%s: exynos_pd_genpd_init fail: %s, ret:%d\n",
+					__func__, pd->name, ret);
+			return ret;
+		}
+
 		of_genpd_add_provider_simple(np, &pd->genpd);
 
 		/* add LOGICAL sub-domain
@@ -388,7 +401,13 @@ static __init int exynos_pd_dt_parse(void)
 			mutex_init(&sub_pd->access_lock);
 			platform_set_drvdata(sub_pdev, sub_pd);
 
-			exynos_pd_genpd_init(sub_pd, initial_state);
+			ret = exynos_pd_genpd_init(sub_pd, initial_state);
+			if (ret) {
+				pr_err(EXYNOS_PD_PREFIX "%s: exynos_pd_genpd_init fail: %s, ret:%d\n",
+						__func__, pd->name, ret);
+				return ret;
+			}
+
 			of_genpd_add_provider_simple(children, &sub_pd->genpd);
 
 			if (pm_genpd_add_subdomain(&pd->genpd, &sub_pd->genpd))
