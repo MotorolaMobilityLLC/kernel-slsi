@@ -109,7 +109,7 @@ struct acpm_tmu_cap {
 
 int exynos_acpm_tmu_set_init(struct acpm_tmu_cap *cap);
 int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat);
-int exynos_acpm_tmu_set_suspend(int flag);
+int exynos_acpm_tmu_set_suspend(void);
 int exynos_acpm_tmu_set_cp_call(void);
 int exynos_acpm_tmu_set_resume(void);
 int exynos_acpm_tmu_ipc_dump(int no, unsigned int dump[]);

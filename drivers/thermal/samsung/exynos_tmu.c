@@ -58,9 +58,6 @@
 #include "exynos_acpm_tmu.h"
 #include "soc/samsung/exynos-pmu.h"
 #endif
-#ifdef CONFIG_SOC_EXYNOS9810
-#include "linux/mcu_ipc.h"
-#endif
 
 /* Exynos generic registers */
 #define EXYNOS_TMU_REG_TRIMINFO7_0(p)	(((p) - 0) * 4)
@@ -195,28 +192,8 @@ static bool is_aud_on(void)
 
 	exynos_pmu_read(PMUREG_AUD_STATUS, &val);
 
-	pr_info("%s AUD_STATUS %d\n", __func__, val);
-
 	return ((val & 0xf) == 0xf);
 }
-
-#ifdef CONFIG_SOC_EXYNOS9810
-#define CP_MBOX_NUM		3
-#define CP_MBOX_MASK		1
-#define CP_MBOX_SHIFT		25
-static bool is_cp_net_conn(void)
-{
-	unsigned int val;
-
-	val = mbox_extract_value(MCU_CP, CP_MBOX_NUM, CP_MBOX_MASK, CP_MBOX_SHIFT);
-
-	pr_info("%s CP mobx value %d\n", __func__, val);
-
-	return !!val;
-}
-#else
-#define is_cp_net_conn()	false
-#endif
 #else
 static bool suspended;
 static DEFINE_MUTEX (thermal_suspend_lock);
@@ -1563,7 +1540,6 @@ static int exynos_tmu_suspend(struct device *dev)
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
-	int cp_state;
 
 	suspended_count++;
 	disable_irq(data->irq);
@@ -1572,14 +1548,13 @@ static int exynos_tmu_suspend(struct device *dev)
 	if (cp_call_mode) {
 		if (suspended_count == num_of_devices) {
 			exynos_acpm_tmu_set_cp_call();
-			pr_info("%s: TMU suspend w/ AUD-on\n", __func__);
+			pr_info("%s: TMU suspend w/ AUD-on complete\n", __func__);
 		}
 	} else {
 		exynos_tmu_control(pdev, false);
 		if (suspended_count == num_of_devices) {
-			cp_state = is_cp_net_conn();
-			exynos_acpm_tmu_set_suspend(cp_state);
-			pr_info("%s: TMU suspend w/ cp_state %d\n", __func__, cp_state);
+			exynos_acpm_tmu_set_suspend();
+			pr_info("%s: TMU suspend complete\n", __func__);
 		}
 	}
 #else
@@ -1605,9 +1580,6 @@ static int exynos_tmu_resume(struct device *dev)
 	}
 
 	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp, &stat);
-
-	pr_info("%s: thermal zone %d temp %d stat %d\n",
-			__func__, data->tzd->id, temp, stat);
 
 	enable_irq(data->irq);
 	suspended_count--;

@@ -155,7 +155,7 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
 /*
  * TMU_IPC_AP_SUSPEND
  */
-int exynos_acpm_tmu_set_suspend(int flag)
+int exynos_acpm_tmu_set_suspend(void)
 {
 	struct ipc_config config;
 	union tmu_ipc_message message;
@@ -165,7 +165,6 @@ int exynos_acpm_tmu_set_suspend(int flag)
 	memset(&message, 0, sizeof(message));
 
 	message.req.type = TMU_IPC_AP_SUSPEND;
-	message.req.rsvd = flag;
 
 	config.cmd = message.data;
 	config.response = true;
@@ -263,9 +262,6 @@ int exynos_acpm_tmu_set_resume(void)
 				message.data[2],
 				message.data[3]);
 	}
-
-	pr_info("%s: acpm irq %d cold cnt %d stat %d\n",
-			__func__, message.resp.rsvd2, message.resp.rsvd, message.resp.stat);
 
 	return 0;
 }
