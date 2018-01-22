@@ -1052,14 +1052,3 @@ bool cpus_are_stuck_in_kernel(void)
 
 	return !!cpus_stuck_in_kernel || smp_spin_tables;
 }
-
-static void flush_all_cpu_cache(void *info)
-{
-	flush_cache_louis();
-}
-
-static void flush_all_cluster_cache(void *info)
-{
-	flush_cache_all();
-}
-
