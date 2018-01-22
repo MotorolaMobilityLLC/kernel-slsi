@@ -2105,7 +2105,7 @@ static struct file_operations ops_all_dump = {
 	.release = single_release,
 };
 
-static ssize_t store_ect_create_binary(struct class *class,
+static ssize_t create_binary_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t size)
 {
 	char filename_buffer[512];
@@ -2145,7 +2145,7 @@ static ssize_t store_ect_create_binary(struct class *class,
 }
 
 
-static CLASS_ATTR(create_binary, S_IWUSR | S_IRUGO, NULL, store_ect_create_binary);
+static CLASS_ATTR_WO(create_binary);
 
 
 static int ect_dump_init(void)
