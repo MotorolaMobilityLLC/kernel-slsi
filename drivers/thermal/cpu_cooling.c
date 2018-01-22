@@ -1169,7 +1169,7 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 EXPORT_SYMBOL_GPL(cpufreq_cooling_unregister);
 
 struct thermal_cooling_device *
-exynos_cpufreq_cooling_register(struct device_node *np, const struct cpumask *clip_cpus)
+exynos_cpufreq_cooling_register(struct device_node *np, struct cpufreq_policy *policy)
 {
 	struct thermal_zone_device *tz;
 	void *gen_block;
@@ -1198,7 +1198,7 @@ exynos_cpufreq_cooling_register(struct device_node *np, const struct cpumask *cl
 	}
 
 regist:
-	return __cpufreq_cooling_register(np, clip_cpus, capacitance,
+	return __cpufreq_cooling_register(np, policy, capacitance,
 				NULL);
 }
 EXPORT_SYMBOL_GPL(exynos_cpufreq_cooling_register);
