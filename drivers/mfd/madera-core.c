@@ -749,6 +749,9 @@ int madera_dev_init(struct madera *madera)
 		goto err_enable;
 	}
 
+	if (IS_ENABLED(CONFIG_REGULATOR_S2MPU09))
+		msleep(10);
+
 	madera_disable_hard_reset(madera);
 
 	regcache_cache_only(madera->regmap, false);
