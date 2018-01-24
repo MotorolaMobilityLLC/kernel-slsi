@@ -2121,7 +2121,8 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	struct scatterlist *sg;
 	struct scsi_cmnd *cmd;
 	int sg_segments;
-	int i;
+	int i, ret;
+	int sector_offset = 0;
 
 	cmd = lrbp->cmd;
 	sg_segments = scsi_dma_map(cmd);
@@ -2149,6 +2150,14 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 			prd_table[i].reserved = 0;
 			hba->transferred_sector += prd_table[i].size;
 
+			ret = ufshcd_vops_crypto_engine_cfg(hba, lrbp, sg, i, sector_offset);
+			if (ret) {
+				dev_err(hba->dev,
+					"%s: failed to configure crypto engine (%d)\n",
+					__func__, ret);
+				return ret;
+			}
+			sector_offset += UFSHCI_SECTOR_SIZE / MIN_SECTOR_SIZE;
 		}
 	} else {
 		lrbp->utr_descriptor_ptr->prd_table_length = 0;
@@ -4967,6 +4976,12 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 		cmd = lrbp->cmd;
 		if (cmd) {
 			ufshcd_add_command_trace(hba, index, "complete");
+			result = ufshcd_vops_crypto_engine_clear(hba, lrbp);
+			if (result) {
+				dev_err(hba->dev,
+					"%s: failed to clear crypto engine (%d)\n",
+					__func__, result);
+			}
 			result = ufshcd_transfer_rsp_status(hba, lrbp);
 			cmd->result = result;
 				if (reason)

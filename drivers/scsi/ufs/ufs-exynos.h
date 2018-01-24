@@ -558,7 +558,6 @@ struct exynos_ufs {
 	struct uic_pwr_mode act_pmd_parm;
 
 	struct exynos_smu_data smu;
-	struct exynos_fmp_data fmp;
 
 	u32 rx_min_actv_time_cap;
 	u32 rx_hibern8_time_cap;
