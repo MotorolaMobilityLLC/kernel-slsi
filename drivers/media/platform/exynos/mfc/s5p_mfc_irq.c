@@ -1170,6 +1170,9 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 	ctx->dpb_count = s5p_mfc_get_enc_dpb_count();
 	ctx->scratch_buf_size = s5p_mfc_get_enc_scratch_size();
 
+	/* If the ROI is enabled at SEQ_START, clear ROI_ENABLE bit */
+	s5p_mfc_clear_roi_enable(dev);
+
 	ret = s5p_mfc_alloc_codec_buffers(ctx);
 	if (ret) {
 		mfc_err_ctx("Failed to allocate encoding buffers.\n");

@@ -224,6 +224,15 @@ static inline void s5p_mfc_clear_enc_res_change(struct s5p_mfc_dev *dev)
 	MFC_WRITEL(reg, S5P_FIMV_E_PARAM_CHANGE);
 }
 
+static inline void s5p_mfc_clear_roi_enable(struct s5p_mfc_dev *dev)
+{
+	unsigned int reg = 0;
+
+	reg = MFC_READL(S5P_FIMV_E_RC_ROI_CTRL);
+	reg &= ~(0x1);
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_ROI_CTRL);
+}
+
 void s5p_mfc_dbg_enable(struct s5p_mfc_dev *dev);
 void s5p_mfc_dbg_disable(struct s5p_mfc_dev *dev);
 void s5p_mfc_dbg_set_addr(struct s5p_mfc_dev *dev);
