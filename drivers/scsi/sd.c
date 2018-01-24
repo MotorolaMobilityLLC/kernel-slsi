@@ -70,6 +70,9 @@
 #include "sd.h"
 #include "scsi_priv.h"
 #include "scsi_logging.h"
+#if defined(CONFIG_UFS_SRPMB)
+#include "scsi_srpmb.h"
+#endif
 
 MODULE_AUTHOR("Eric Youngdale");
 MODULE_DESCRIPTION("SCSI disk (sd) driver");
@@ -3397,6 +3400,16 @@ static int sd_probe(struct device *dev)
 	get_device(&sdkp->dev);	/* prevent release before async_schedule */
 	async_schedule_domain(sd_probe_async, sdkp, &scsi_sd_probe_domain);
 
+#if defined(CONFIG_UFS_SRPMB)
+	/* rpmb operation for LDFW */
+	if (strncmp(dev_name(dev), IS_INCLUDE_RPMB_DEVICE,
+				sizeof(IS_INCLUDE_RPMB_DEVICE)) == 0) {
+		int ret;
+		ret = init_wsm(dev);
+		if (ret)
+			printk("srpmb init_wsm failed: %x\n", ret);
+	}
+#endif
 	return 0;
 
  out_free_index:
