@@ -866,6 +866,15 @@ static inline unsigned int blk_queue_depth(struct request_queue *q)
 	return q->nr_requests;
 }
 
+static inline bool blk_crypt_mergeable(struct bio *a, struct bio *b)
+{
+	if (bio_has_crypt(a) && bio_has_crypt(b))
+		if (a->bi_aux_private != b->bi_aux_private)
+			return false;
+
+	return true;
+}
+
 /*
  * q->prep_rq_fn return values
  */
