@@ -1636,10 +1636,10 @@ static int __init exynos_cpufreq_init(void)
 
 	cpufreq_register_notifier(&exynos_cpufreq_policy_notifier,
 					CPUFREQ_POLICY_NOTIFIER);
-	cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_EXYNOS_ACME,
-						"exynos:acme",
-						exynos_cpufreq_cpu_up_callback,
-						exynos_cpufreq_cpu_down_callback);
+	cpuhp_setup_state_nocalls(CPUHP_AP_EXYNOS_ACME,
+					"exynos:acme",
+					exynos_cpufreq_cpu_up_callback,
+					exynos_cpufreq_cpu_down_callback);
 
 	register_pm_notifier(&exynos_cpufreq_pm);
 
