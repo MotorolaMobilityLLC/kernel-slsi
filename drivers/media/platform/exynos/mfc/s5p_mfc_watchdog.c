@@ -25,7 +25,7 @@
 #include "s5p_mfc_queue.h"
 #include "s5p_mfc_utils.h"
 
-#define MFC_SFR_AREA_COUNT	22
+#define MFC_SFR_AREA_COUNT	21
 static void mfc_dump_regs(struct s5p_mfc_dev *dev)
 {
 	int i;
@@ -52,7 +52,6 @@ static void mfc_dump_regs(struct s5p_mfc_dev *dev)
 		{ 0xA000, 0x20C },
 		{ 0xB000, 0x444 },
 		{ 0xC000, 0x84 },
-		{ 0xD000, 0x74 },
 	};
 
 	pr_err("-----------dumping MFC registers (SFR base = 0x%p, dev = 0x%p)\n",
