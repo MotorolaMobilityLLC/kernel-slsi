@@ -7993,15 +7993,15 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	if (ufshcd_is_shutdown_pm(pm_op))
 		ufs_shutdown_state = 1;
 
-	if ((req_dev_pwr_mode != hba->curr_dev_pwr_mode) &&
-	     ((ufshcd_is_runtime_pm(pm_op) && !hba->auto_bkops_enabled) ||
-	       !ufshcd_is_runtime_pm(pm_op))) {
+//	if ((req_dev_pwr_mode != hba->curr_dev_pwr_mode) &&
+//	     ((ufshcd_is_runtime_pm(pm_op) && !hba->auto_bkops_enabled) ||
+//	       !ufshcd_is_runtime_pm(pm_op))) {
 		/* ensure that bkops is disabled */
-		ufshcd_disable_auto_bkops(hba);
-		ret = ufshcd_set_dev_pwr_mode(hba, req_dev_pwr_mode);
-		if (ret)
-			goto enable_gating;
-	}
+//		ufshcd_disable_auto_bkops(hba);
+//		ret = ufshcd_set_dev_pwr_mode(hba, req_dev_pwr_mode);
+//		if (ret)
+//			goto enable_gating;
+//	}
 
 	ret = ufshcd_link_state_transition(hba, req_link_state, 1);
 	if (ret)
@@ -8026,11 +8026,11 @@ disable_clks:
 	udelay(50);
 
 	if (gating_allowed) {
-		if (!ufshcd_is_link_active(hba))
-			ufshcd_setup_clocks(hba, false);
-		else
-			/* If link is active, device ref_clk can't be switched off */
-			__ufshcd_setup_clocks(hba, false, true);
+//		if (!ufshcd_is_link_active(hba))
+//			ufshcd_setup_clocks(hba, false);
+///		else
+//			/* If link is active, device ref_clk can't be switched off */
+///			__ufshcd_setup_clocks(hba, false, true);
 	}
 
 	hba->clk_gating.state = CLKS_OFF;
