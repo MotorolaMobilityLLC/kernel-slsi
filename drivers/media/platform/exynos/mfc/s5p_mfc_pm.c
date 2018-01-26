@@ -40,7 +40,6 @@ int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
 {
 	int ret = 0;
 	int state;
-	unsigned long flags;
 
 	dev->pm.clock_on_steps = 1;
 	state = atomic_read(&dev->clk_ref);
@@ -57,7 +56,10 @@ int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
 		s5p_mfc_set_risc_base_addr(dev, dev->pm.base_type);
 
 	dev->pm.clock_on_steps |= 0x1 << 2;
+#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	if (dev->curr_ctx_is_drm) {
+		unsigned long flags;
+
 		spin_lock_irqsave(&dev->pm.clklock, flags);
 		mfc_debug(3, "Begin: enable protection\n");
 		ret = exynos_smc(SMC_PROTECTION_SET, 0,
@@ -72,7 +74,7 @@ int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
 		mfc_debug(3, "End: enable protection\n");
 		spin_unlock_irqrestore(&dev->pm.clklock, flags);
 	}
-
+#endif
 	dev->pm.clock_on_steps |= 0x1 << 4;
 	atomic_inc_return(&dev->clk_ref);
 
@@ -99,8 +101,6 @@ int s5p_mfc_pm_clock_on_with_base(struct s5p_mfc_dev *dev,
 void s5p_mfc_pm_clock_off(struct s5p_mfc_dev *dev)
 {
 	int state;
-	unsigned long flags;
-	int ret = 0;
 
 	dev->pm.clock_off_steps = 1;
 	atomic_dec_return(&dev->clk_ref);
@@ -113,7 +113,11 @@ void s5p_mfc_pm_clock_off(struct s5p_mfc_dev *dev)
 		atomic_set(&dev->clk_ref, 0);
 		dev->pm.clock_off_steps |= 0x1 << 2;
 	} else {
+#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 		if (dev->curr_ctx_is_drm) {
+			unsigned long flags;
+			int ret = 0;
+
 			mfc_debug(3, "Begin: disable protection\n");
 			spin_lock_irqsave(&dev->pm.clklock, flags);
 			dev->pm.clock_off_steps |= 0x1 << 3;
@@ -129,6 +133,7 @@ void s5p_mfc_pm_clock_off(struct s5p_mfc_dev *dev)
 			dev->pm.clock_off_steps |= 0x1 << 4;
 			spin_unlock_irqrestore(&dev->pm.clklock, flags);
 		}
+#endif
 		dev->pm.clock_off_steps |= 0x1 << 5;
 		clk_disable(dev->pm.clock);
 	}
