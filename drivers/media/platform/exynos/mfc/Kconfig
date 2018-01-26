@@ -3,6 +3,7 @@ config VIDEO_EXYNOS_MFC
 	default n
 	depends on VIDEO_EXYNOS
 	select VIDEOBUF2_CORE
+	select VIDEOBUF2_DMA_SG
 	select EXYNOS_MFC_V12
 	---help---
 	  MFC driver for V4L2.

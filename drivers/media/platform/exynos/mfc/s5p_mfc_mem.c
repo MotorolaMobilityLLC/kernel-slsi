@@ -14,15 +14,14 @@
 
 struct vb2_mem_ops *s5p_mfc_mem_ops(void)
 {
-	return (struct vb2_mem_ops *)&vb2_ion_memops;
+	return (struct vb2_mem_ops *)&vb2_dma_sg_memops;
 }
 
 void s5p_mfc_mem_clean(struct s5p_mfc_dev *dev,
 			struct s5p_mfc_special_buf *special_buf,
 			off_t offset, size_t size)
 {
-	exynos_ion_sync_vaddr_for_device(dev->device, special_buf->dma_buf,
-			special_buf->vaddr, size, offset, DMA_TO_DEVICE);
+	__dma_map_area(special_buf->vaddr + offset, size, DMA_TO_DEVICE);
 	return;
 }
 
@@ -30,45 +29,8 @@ void s5p_mfc_mem_invalidate(struct s5p_mfc_dev *dev,
 			struct s5p_mfc_special_buf *special_buf,
 			off_t offset, size_t size)
 {
-	exynos_ion_sync_vaddr_for_device(dev->device, special_buf->dma_buf,
-			special_buf->vaddr, size, offset, DMA_FROM_DEVICE);
+	__dma_map_area(special_buf->vaddr + offset, size, DMA_FROM_DEVICE);
 	return;
-}
-
-int s5p_mfc_mem_clean_vb(struct vb2_buffer *vb, u32 num_planes)
-{
-	struct vb2_ion_cookie *cookie;
-	int i;
-	size_t size;
-
-	for (i = 0; i < num_planes; i++) {
-		cookie = vb2_plane_cookie(vb, i);
-		if (!cookie)
-			continue;
-
-		size = vb->planes[i].length;
-		vb2_ion_sync_for_device(cookie, 0, size, DMA_TO_DEVICE);
-	}
-
-	return 0;
-}
-
-int s5p_mfc_mem_inv_vb(struct vb2_buffer *vb, u32 num_planes)
-{
-	struct vb2_ion_cookie *cookie;
-	int i;
-	size_t size;
-
-	for (i = 0; i < num_planes; i++) {
-		cookie = vb2_plane_cookie(vb, i);
-		if (!cookie)
-			continue;
-
-		size = vb->planes[i].length;
-		vb2_ion_sync_for_device(cookie, 0, size, DMA_FROM_DEVICE);
-	}
-
-	return 0;
 }
 
 int s5p_mfc_mem_get_user_shared_handle(struct s5p_mfc_ctx *ctx,

@@ -238,8 +238,6 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 
-	s5p_mfc_mem_buf_prepare(vb);
-
 	mfc_debug_leave();
 
 	return 0;
@@ -259,8 +257,6 @@ static void s5p_mfc_enc_buf_finish(struct vb2_buffer *vb)
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_err_ctx("failed in to_ctx_ctrls\n");
 	}
-
-	s5p_mfc_mem_buf_finish(vb);
 }
 
 static void s5p_mfc_enc_buf_cleanup(struct vb2_buffer *vb)

@@ -279,8 +279,6 @@ static int s5p_mfc_dec_buf_prepare(struct vb2_buffer *vb)
 			mfc_err_ctx("failed in to_buf_ctrls\n");
 	}
 
-	s5p_mfc_mem_buf_prepare(vb);
-
 	return 0;
 }
 
@@ -302,8 +300,6 @@ static void s5p_mfc_dec_buf_finish(struct vb2_buffer *vb)
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_err_ctx("failed in to_ctx_ctrls\n");
 	}
-
-	s5p_mfc_mem_buf_finish(vb);
 }
 
 static void s5p_mfc_dec_buf_cleanup(struct vb2_buffer *vb)
@@ -586,10 +582,9 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 				s5p_mfc_mem_get_daddr_vb(vb, 0),
 				buf->addr[0]);
 		if (dec->dst_memtype == V4L2_MEMORY_DMABUF &&
-				ctx->state < MFCINST_HEAD_PARSED && !ctx->is_drm) {
+				ctx->state < MFCINST_HEAD_PARSED && !ctx->is_drm)
 			stream_vir = vb2_plane_vaddr(vb, 0);
-			s5p_mfc_mem_inv_vb(vb, 1);
-		}
+
 		buf->vir_addr = stream_vir;
 
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);

@@ -528,7 +528,6 @@ static int mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_spec
 	}
 
 	memset(roi_buf->vaddr, 0, buf_size->shared_buf);
-	s5p_mfc_mem_clean(dev, roi_buf, 0, roi_buf->size);
 
 	return 0;
 }
@@ -586,7 +585,6 @@ int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
 			return -EINVAL;
 		}
 		memset(buf->vaddr, 0, raw->total_plane_size);
-		s5p_mfc_mem_clean(dev, buf, 0, buf->size);
 	}
 
 	mfc_debug_leave();
@@ -722,13 +720,9 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	}
 
 	memcpy(dev->fw_buf.vaddr, fw_blob->data, fw_blob->size);
-	s5p_mfc_mem_clean(dev, &dev->fw_buf, 0, fw_blob->size);
-	s5p_mfc_mem_invalidate(dev, &dev->fw_buf, 0, fw_blob->size);
 	if (dev->drm_fw_buf.vaddr) {
 		memcpy(dev->drm_fw_buf.vaddr, fw_blob->data, fw_blob->size);
 		mfc_debug(2, "copy firmware to secure region\n");
-		s5p_mfc_mem_clean(dev, &dev->drm_fw_buf, 0, fw_blob->size);
-		s5p_mfc_mem_invalidate(dev, &dev->drm_fw_buf, 0, fw_blob->size);
 	}
 	release_firmware(fw_blob);
 	trace_mfc_loadfw_end(dev->fw.size, firmware_size);
