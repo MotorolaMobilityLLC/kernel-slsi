@@ -34,3 +34,6 @@ obj-$(CONFIG_EXYNOS_PD)        += exynos-pd.o exynos-pd-dbg.o
 obj-$(CONFIG_EXYNOS_PM_DOMAINS) += pm_domains.o
 #CPUHOTPLUG
 obj-$(CONFIG_ARCH_EXYNOS)      += exynos-cpu_hotplug.o
+
+#CPU Power Management
+obj-$(CONFIG_ARCH_EXYNOS)      += exynos-cpupm.o
