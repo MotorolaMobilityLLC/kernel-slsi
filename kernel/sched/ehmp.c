@@ -55,11 +55,6 @@ static inline struct cpumask *sched_group_cpus(struct sched_group *sg)
 	return to_cpumask(sg->cpumask);
 }
 
-static bool sd_overutilized(struct sched_domain *sd)
-{
-	return sd->shared->overutilized;
-}
-
 #define tsk_cpus_allowed(tsk)	(&(tsk)->cpus_allowed)
 
 /**********************************************************************
@@ -1531,109 +1526,57 @@ pure_initcall(init_ontime);
  **********************************************************************/
 extern unsigned long boosted_task_util(struct task_struct *task);
 extern unsigned long capacity_curr_of(int cpu);
-extern struct energy_env *get_eenv(struct task_struct *p, int prev_cpu);
-extern int select_energy_cpu_idx(struct energy_env *eenv);
 extern int find_best_target(struct task_struct *p, int *backup_cpu,
 				   bool boosted, bool prefer_idle);
+extern int start_cpu(bool boosted);
 
 #define EAS_CPU_PRV	0
 #define EAS_CPU_NXT	1
 #define EAS_CPU_BKP	2
 
-static int select_energy_cpu(struct sched_domain *sd, struct task_struct *p,
-				int prev_cpu, bool boosted)
+int exynos_select_cpu(struct task_struct *p, int *backup_cpu,
+				bool boosted, bool prefer_idle)
 {
-	struct energy_env *eenv;
-	int energy_cpu = -1;
-
-	eenv = get_eenv(p, prev_cpu);
-	if (eenv->max_cpu_count < 2)
-		return energy_cpu;
-
-	eenv->max_cpu_count = EAS_CPU_BKP + 1;
-
-	/* Find a cpu with sufficient capacity */
-	eenv->cpu[EAS_CPU_NXT].cpu_id = find_best_target(p,
-			&eenv->cpu[EAS_CPU_BKP].cpu_id, boosted, 0);
-
-	/* take note if no backup was found */
-	if (eenv->cpu[EAS_CPU_BKP].cpu_id < 0)
-		eenv->max_cpu_count = EAS_CPU_BKP;
-
-	/* take note if no target was found */
-	 if (eenv->cpu[EAS_CPU_NXT].cpu_id < 0)
-		 eenv->max_cpu_count = EAS_CPU_NXT;
-
-	if (eenv->max_cpu_count == EAS_CPU_NXT) {
-		/*
-		 * we did not find any energy-awareness
-		 * candidates beyond prev_cpu, so we will
-		 * fall-back to the regular slow-path.
-		 */
-		return energy_cpu;
-	}
-
-	/* find most energy-efficient CPU */
-	energy_cpu = select_energy_cpu_idx(eenv) < 0 ? -1 :
-					eenv->cpu[eenv->next_idx].cpu_id;
-
-	return energy_cpu;
-}
-
-int exynos_select_cpu(struct task_struct *p, int prev_cpu, int sync, int sd_flag)
-{
-	struct sched_domain *sd, *prev_sd;
+	struct sched_domain *sd;
 	int target_cpu = -1;
-	bool boosted, prefer_idle;
+	int cpu;
 	unsigned long min_util;
 	struct boost_trigger trigger = {
 		.trigger = 0,
 		.boost_val = 0
 	};
 
-	rcu_read_lock();
-
 	target_cpu = ontime_task_wakeup(p);
 	if (cpu_selected(target_cpu))
-		goto unlock;
+		goto exit;
 
-	/* Find target cpu from lowest capacity domain(cpu0) */
-	sd = rcu_dereference(per_cpu(sd_ea, 0));
+	/* Find target cpu from lowest capacity domain */
+	cpu = start_cpu(boosted);
+	if (cpu < 0)
+		goto exit;
+
+	/* Find SD for the start CPU */
+	sd = rcu_dereference(per_cpu(sd_ea, cpu));
 	if (!sd)
-		goto unlock;
-
-	boosted = schedtune_task_boost(p) > 0;
-	prefer_idle = sched_feat(EAS_PREFER_IDLE) ? (schedtune_task_boost(p) > 0) : 0;
+		goto exit;
 
 	min_util = boosted_task_util(p);
 
 	if (check_boost_trigger(p, &trigger)) {
 		target_cpu = find_boost_target(sd, p, min_util, &trigger);
 		if (cpu_selected(target_cpu))
-			goto unlock;
-	}
-
-	if (sysctl_sched_sync_hint_enable && sync) {
-		int cpu = smp_processor_id();
-
-		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) {
-			target_cpu = cpu;
-			goto unlock;
-		}
+			goto exit;
 	}
 
 	if (prefer_idle) {
 		target_cpu = find_prefer_idle_target(sd, p, min_util);
 		if (cpu_selected(target_cpu))
-			goto unlock;
+			goto exit;
 	}
 
-	prev_sd = rcu_dereference_sched(cpu_rq(prev_cpu)->sd);
-	if (sched_feat(ENERGY_AWARE) && sd_overutilized(sd))
-		target_cpu = select_energy_cpu(sd, p, prev_cpu, boosted);
+	target_cpu = find_best_target(p, backup_cpu, 0, 0);
 
-unlock:
-	rcu_read_unlock();
+exit:
 
 	return target_cpu;
 }

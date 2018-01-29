@@ -6820,7 +6820,7 @@ static inline int task_fits_capacity(struct task_struct *p, long capacity)
 	return capacity * 1024 > boosted_task_util(p) * capacity_margin;
 }
 
-static int start_cpu(bool boosted)
+int start_cpu(bool boosted)
 {
 	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
 
@@ -7321,9 +7321,14 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 		eenv->max_cpu_count = EAS_CPU_BKP + 1;
 
 		/* Find a cpu with sufficient capacity */
-		eenv->cpu[EAS_CPU_NXT].cpu_id = find_best_target(p,
-				&eenv->cpu[EAS_CPU_BKP].cpu_id,
-				boosted, prefer_idle);
+		if (sched_feat(EXYNOS_HMP))
+			eenv->cpu[EAS_CPU_NXT].cpu_id = exynos_select_cpu(p,
+					&eenv->cpu[EAS_CPU_BKP].cpu_id,
+					boosted, prefer_idle);
+		else
+			eenv->cpu[EAS_CPU_NXT].cpu_id = find_best_target(p,
+					&eenv->cpu[EAS_CPU_BKP].cpu_id,
+					boosted, prefer_idle);
 
 		/* take note if no backup was found */
 		if (eenv->cpu[EAS_CPU_BKP].cpu_id < 0)
@@ -7438,14 +7443,6 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 			      !wake_wide(p, sibling_count_hint) &&
 			      !wake_cap(p, cpu, prev_cpu) &&
 			      cpumask_test_cpu(cpu, &p->cpus_allowed);
-	}
-
-	if (sched_feat(EXYNOS_HMP)) {
-		int selected_cpu;
-
-		selected_cpu = exynos_select_cpu(p, prev_cpu, sync, sd_flag);
-		if (selected_cpu >= 0)
-			return selected_cpu;
 	}
 
 	for_each_domain(cpu, tmp) {
