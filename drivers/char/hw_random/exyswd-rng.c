@@ -192,7 +192,7 @@ static int exynos_swd_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	retry_cnt = 0;
 	while (read_size) {
 		spin_lock_irqsave(&hwrandom_lock, flag);
-		ret = exynos_smc(SMC_CMD_RANDOM, HWRNG_GET_DATA, 0, 0);
+		ret = __exynos_smc(SMC_CMD_RANDOM, HWRNG_GET_DATA, 0, 0);
 		__asm__ volatile(
 			"\t"
 			: "+r"(reg0), "+r"(reg1), "+r"(reg2), "+r"(reg3)
