@@ -2022,7 +2022,7 @@ static int __target_index(struct cpufreq_policy *policy, int index)
 	return retval;
 }
 
-int __cpufreq_driver_target(struct cpufreq_policy *policy,
+int __weak __cpufreq_driver_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq,
 			    unsigned int relation)
 {
