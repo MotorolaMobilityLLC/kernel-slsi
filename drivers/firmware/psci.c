@@ -431,28 +431,21 @@ static u32 psci_power_state_pack(u32 id, u32 type, u32 affinity_level)
 static int psci_suspend_customized_finisher(unsigned long index)
 {
 	u32 state;
+	u32 id = 0, type = 0, affinity_level = 0;
 
-	switch (index) {
-	case PSCI_CLUSTER_SLEEP:
-		state = psci_power_state_pack(0, 0, 1);
-		break;
-	case PSCI_SYSTEM_IDLE:
-	case PSCI_SYSTEM_IDLE_AUDIO:
-		state = psci_power_state_pack(1, 0, 0);
-		break;
-	case PSCI_SYSTEM_IDLE_CLUSTER_SLEEP:
-		state = psci_power_state_pack(1, 0, 1);
-		break;
-	case PSCI_CP_CALL:
-		state = psci_power_state_pack(0, 0, 2);
-		break;
-	case PSCI_SYSTEM_SLEEP:
-		state = psci_power_state_pack(0, 0, 3);
-		break;
-	default:
-		panic("Unsupported psci state, index = %ld\n", index);
-		break;
-	};
+	if (index & PSCI_SYSTEM_IDLE)
+		id = 1;
+
+	if (index & PSCI_CLUSTER_SLEEP)
+		affinity_level = 1;
+
+	if (index & PSCI_CP_CALL)
+		affinity_level = 2;
+
+	if (index & PSCI_SYSTEM_SLEEP)
+		affinity_level = 3;
+
+	state = psci_power_state_pack(id, type, affinity_level);
 
 	return psci_ops.cpu_suspend(state, virt_to_phys(cpu_resume));
 }
@@ -468,7 +461,7 @@ int psci_cpu_suspend_enter(unsigned long index)
 	if (WARN_ON_ONCE(!index))
 		return -EINVAL;
 
-	if (unlikely(index >= PSCI_UNUSED_INDEX))
+	if (unlikely(index >= PSCI_CUSTOMIZED_INDEX))
 		return cpu_suspend(index, psci_suspend_customized_finisher);
 
 	if (!psci_power_state_loses_context(state[index - 1]))
