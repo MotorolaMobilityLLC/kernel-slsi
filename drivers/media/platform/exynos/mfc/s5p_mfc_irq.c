@@ -121,6 +121,7 @@ static void mfc_handle_frame_all_extracted(struct s5p_mfc_ctx *ctx)
 
 		dst_mb->vb.sequence = (ctx->sequence++);
 		dst_mb->vb.field = mfc_handle_frame_field(ctx);
+		dst_mb->vb.reserved2 = 0;
 
 		clear_bit(dst_mb->vb.vb2_buf.index, &dec->available_dpb);
 
