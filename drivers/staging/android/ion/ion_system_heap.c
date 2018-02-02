@@ -440,7 +440,7 @@ static struct ion_heap *__ion_system_contig_heap_create(void)
 	return heap;
 }
 
-static int ion_system_contig_heap_create(void)
+static int __maybe_unused ion_system_contig_heap_create(void)
 {
 	struct ion_heap *heap;
 
@@ -451,5 +451,4 @@ static int ion_system_contig_heap_create(void)
 	ion_device_add_heap(heap);
 	return 0;
 }
-subsys_initcall_sync(ion_system_contig_heap_create);
 
