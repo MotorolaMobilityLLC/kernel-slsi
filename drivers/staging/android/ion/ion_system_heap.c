@@ -358,7 +358,7 @@ static int ion_system_heap_create(void)
 	ion_device_add_heap(heap);
 	return 0;
 }
-device_initcall(ion_system_heap_create);
+subsys_initcall_sync(ion_system_heap_create);
 
 static int ion_system_contig_heap_allocate(struct ion_heap *heap,
 					   struct ion_buffer *buffer,
@@ -451,5 +451,5 @@ static int ion_system_contig_heap_create(void)
 	ion_device_add_heap(heap);
 	return 0;
 }
-device_initcall(ion_system_contig_heap_create);
+subsys_initcall_sync(ion_system_contig_heap_create);
 
