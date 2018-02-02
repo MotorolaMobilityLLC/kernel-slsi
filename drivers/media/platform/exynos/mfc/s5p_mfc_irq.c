@@ -552,6 +552,9 @@ static void mfc_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int err)
 		dec->remained_size = src_mb->vb.vb2_buf.planes[0].bytesused
 					- dec->consumed;
 		dec->has_multiframe = 1;
+
+		MFC_TRACE_CTX("** consumed:%ld, remained:%ld, addr:0x%08llx\n",
+			dec->consumed, dec->remained_size, dec->y_addr_for_pb);
 		/* Do not move src buffer to done_list */
 		return;
 	}

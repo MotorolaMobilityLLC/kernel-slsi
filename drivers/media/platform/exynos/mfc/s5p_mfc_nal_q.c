@@ -270,7 +270,7 @@ nal_queue_handle *s5p_mfc_nal_q_create(struct s5p_mfc_dev *dev)
 		return NULL;
 	}
 
-	spin_lock_init(&nal_q_handle->nal_q_in_handle->lock);
+	spin_lock_init(&nal_q_handle->lock);
 
 	nal_q_handle->nal_q_out_handle = mfc_nal_q_create_out_q(dev, nal_q_handle);
 	if (!nal_q_handle->nal_q_out_handle) {
@@ -1245,6 +1245,7 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 					DecoderOutputStr *pOutStr)
 {
 	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *src_mb;
 	unsigned int index;
 	int deleted = 0;
@@ -1281,6 +1282,9 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 		dec->remained_size = src_mb->vb.vb2_buf.planes[0].bytesused
 			- dec->consumed;
 		dec->has_multiframe = 1;
+
+		MFC_TRACE_CTX("** consumed:%ld, remained:%ld, addr:0x%08llx\n",
+			dec->consumed, dec->remained_size, dec->y_addr_for_pb);
 		/* Do not move src buffer to done_list */
 		return;
 	}
@@ -1533,7 +1537,7 @@ int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ct
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&nal_q_in_handle->lock, flags);
+	spin_lock_irqsave(&nal_q_in_handle->nal_q_handle->lock, flags);
 
 	input_count = s5p_mfc_get_nal_q_input_count();
 	input_exe_count = s5p_mfc_get_nal_q_input_exe_count();
@@ -1553,7 +1557,7 @@ int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ct
 
 	if ((input_diff < 0) || (input_diff >= NAL_Q_IN_QUEUE_SIZE)) {
 		mfc_err_dev("NAL Q: No available input slot(%d)\n", input_diff);
-		spin_unlock_irqrestore(&nal_q_in_handle->lock, flags);
+		spin_unlock_irqrestore(&nal_q_in_handle->nal_q_handle->lock, flags);
 		return -EINVAL;
 	}
 
@@ -1569,7 +1573,7 @@ int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ct
 
 	if (ret != 0) {
 		mfc_debug(2, "NAL Q: Failed to set input queue\n");
-		spin_unlock_irqrestore(&nal_q_in_handle->lock, flags);
+		spin_unlock_irqrestore(&nal_q_in_handle->nal_q_handle->lock, flags);
 		return ret;
 	}
 
@@ -1587,7 +1591,7 @@ int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ct
 	if (input_diff == 0)
 		s5p_mfc_watchdog_start_tick(dev);
 
-	spin_unlock_irqrestore(&nal_q_in_handle->lock, flags);
+	spin_unlock_irqrestore(&nal_q_in_handle->nal_q_handle->lock, flags);
 
 	MFC_TRACE_CTX("NAL %s in: diff %d count %d exe %d\n",
 			ctx->type == MFCINST_ENCODER ? "ENC" : "DEC",
@@ -1621,7 +1625,7 @@ EncoderOutputStr *s5p_mfc_nal_q_dequeue_out_buf(struct s5p_mfc_dev *dev,
 		return pStr;
 	}
 
-	spin_lock_irqsave(&nal_q_out_handle->nal_q_handle->nal_q_in_handle->lock, flags);
+	spin_lock_irqsave(&nal_q_out_handle->nal_q_handle->lock, flags);
 
 	output_count = s5p_mfc_get_nal_q_output_count();
 	output_exe_count = nal_q_out_handle->out_exe_count;
@@ -1639,7 +1643,7 @@ EncoderOutputStr *s5p_mfc_nal_q_dequeue_out_buf(struct s5p_mfc_dev *dev,
 	mfc_debug(2, "NAL Q: output_diff = %d(out: %d, exe: %d)\n",
 			output_diff, output_count, output_exe_count);
 	if ((output_diff <= 0) || (output_diff > NAL_Q_OUT_QUEUE_SIZE)) {
-		spin_unlock_irqrestore(&nal_q_out_handle->nal_q_handle->nal_q_in_handle->lock, flags);
+		spin_unlock_irqrestore(&nal_q_out_handle->nal_q_handle->lock, flags);
 		mfc_debug(2, "NAL Q: No available output slot(%d)\n", output_diff);
 		return pStr;
 	}
@@ -1677,7 +1681,7 @@ EncoderOutputStr *s5p_mfc_nal_q_dequeue_out_buf(struct s5p_mfc_dev *dev,
 		s5p_mfc_watchdog_reset_tick(dev);
 	}
 
-	spin_unlock_irqrestore(&nal_q_out_handle->nal_q_handle->nal_q_in_handle->lock, flags);
+	spin_unlock_irqrestore(&nal_q_out_handle->nal_q_handle->lock, flags);
 
 	MFC_TRACE_CTX("NAL %s out: diff %d count %d exe %d\n",
 			ctx->type == MFCINST_ENCODER ? "ENC" : "DEC",
