@@ -36,13 +36,6 @@ enum exynos_dm_type {
 	DM_TYPE_END
 };
 
-enum exynos_dvfs_type {
-	DVFS_CPUFREQ = 0,
-	DVFS_DEVFREQ,
-	DVFS_GPU,
-	DVFS_TYPE_END
-};
-
 enum exynos_constraint_type {
 	CONSTRAINT_MIN = 0,
 	CONSTRAINT_MAX,
@@ -88,7 +81,6 @@ struct exynos_dm_data {
 	bool				policy_use;
 #endif
 	enum exynos_dm_type		dm_type;
-	enum exynos_dvfs_type		dvfs_type;
 	char				dm_type_name[EXYNOS_DM_TYPE_NAME_LEN];
 
 	u32				min_freq;

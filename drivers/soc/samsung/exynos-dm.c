@@ -53,9 +53,8 @@ static ssize_t show_available(struct device *dev,
 			continue;
 
 		count += snprintf(buf + count, PAGE_SIZE,
-				"dm_type: %d(%s), dvfs_type: %d, available = %s\n",
+				"dm_type: %d(%s), available = %s\n",
 				dm->dm_data[i].dm_type, dm->dm_data[i].dm_type_name,
-				dm->dm_data[i].dvfs_type,
 				dm->dm_data[i].available ? "true" : "false");
 	}
 
@@ -282,44 +281,20 @@ static void print_available_dm_data(struct exynos_dm_device *dm)
 		if (!dm->dm_data[i].available)
 			continue;
 
-		dev_info(dm->dev, "dm_type: %d(%s), dvfs_type: %d, available = %s\n",
+		dev_info(dm->dev, "dm_type: %d(%s), available = %s\n",
 				dm->dm_data[i].dm_type, dm->dm_data[i].dm_type_name,
-				dm->dm_data[i].dvfs_type,
 				dm->dm_data[i].available ? "true" : "false");
 	}
 }
 
 static int exynos_dm_index_validate(enum exynos_dm_type index)
 {
-	if ((index < DM_CPU_CL0) || (index >= DM_TYPE_END)) {
+	if ((index < 0) || (index >= DM_TYPE_END)) {
 		dev_err(exynos_dm->dev, "invalid dm_index (%d)\n", index);
 		return -EINVAL;
 	}
 
 	return 0;
-}
-
-static enum exynos_dvfs_type exynos_dm_dvfs_type(enum exynos_dm_type dm_type)
-{
-	enum exynos_dvfs_type dvfs_type;
-
-	switch (dm_type) {
-	case DM_CPU_CL0...DM_CPU_CL1:
-		dvfs_type = DVFS_CPUFREQ;
-		break;
-	case DM_MIF...DM_SCORE:
-		dvfs_type = DVFS_DEVFREQ;
-		break;
-	case DM_GPU:
-		dvfs_type = DVFS_GPU;
-		break;
-	default:
-		dvfs_type = DVFS_TYPE_END;
-		dev_err(exynos_dm->dev, "invalid dm_type (%d)\n", dm_type);
-		break;
-	}
-
-	return dvfs_type;
 }
 
 #ifdef CONFIG_OF
@@ -351,7 +326,6 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 		if (!strcmp(available, "true")) {
 			dm->dm_data[index].dm_type = index;
 			dm->dm_data[index].available = true;
-			dm->dm_data[index].dvfs_type = exynos_dm_dvfs_type(index);
 
 			if (!of_property_read_string(child_np, "dm_type_name", &name))
 				strncpy(dm->dm_data[index].dm_type_name, name, EXYNOS_DM_TYPE_NAME_LEN);
