@@ -3240,9 +3240,10 @@ int fimc_is_hardware_recovery_shot(struct fimc_is_hardware *hardware, u32 instan
 	frame = get_frame(framemgr, FS_HW_REQUEST);
 	if (!frame) {
 		ret = make_internal_shot(hw_ip, instance, recov_fcount, &frame, framemgr);
-		framemgr_x_barrier_common(framemgr, 0, flags);
-		if (ret)
+		if (ret) {
+			framemgr_x_barrier_common(framemgr, 0, flags);
 			goto exit;
+		}
 	}
 	framemgr_x_barrier_common(framemgr, 0, flags);
 
