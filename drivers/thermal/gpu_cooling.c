@@ -870,7 +870,7 @@ __gpufreq_cooling_register(struct device_node *np,
 		if (ret)
 			return ERR_PTR(ret);
 
-		ret = build_static_power_table(gpufreq_dev);
+		ret = build_static_power_table(gpufreq_cdev);
 		if (ret)
 			return ERR_PTR(ret);
 	}
