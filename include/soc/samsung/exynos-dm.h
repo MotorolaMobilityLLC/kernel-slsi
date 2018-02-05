@@ -15,6 +15,7 @@
 
 #define EXYNOS_DM_MODULE_NAME		"exynos-dm"
 #define EXYNOS_DM_TYPE_NAME_LEN		16
+#define EXYNOS_DM_ATTR_NAME_LEN		(EXYNOS_DM_TYPE_NAME_LEN + 12)
 
 #define EXYNOS_DM_RELATION_L		0
 #define EXYNOS_DM_RELATION_H		1
@@ -33,21 +34,6 @@ enum exynos_dm_type {
 	DM_SCORE,
 	DM_GPU,
 	DM_TYPE_END
-};
-
-static const char dm_type_name[DM_TYPE_END][EXYNOS_DM_TYPE_NAME_LEN] = {
-	"dm_cpu_cl0",
-	"dm_cpu_cl1",
-	"dm_mif",
-	"dm_int",
-	"dm_intcam",
-	"dm_fsys0",
-	"dm_cam",
-	"dm_disp",
-	"dm_aud",
-	"dm_iva",
-	"dm_score",
-	"dm_gpu",
 };
 
 enum exynos_dvfs_type {
@@ -72,6 +58,11 @@ enum dvfs_direction {
 struct exynos_dm_freq {
 	u32				master_freq;
 	u32				constraint_freq;
+};
+
+struct exynos_dm_attrs {
+	struct device_attribute attr;
+	char name[EXYNOS_DM_ATTR_NAME_LEN];
 };
 
 struct exynos_dm_constraint {
@@ -120,6 +111,9 @@ struct exynos_dm_data {
 #endif
 
 	void				*devdata;
+
+	struct exynos_dm_attrs		dm_policy_attr;
+	struct exynos_dm_attrs		constraint_table_attr;
 };
 
 struct exynos_dm_device {
