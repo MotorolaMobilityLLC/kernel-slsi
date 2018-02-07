@@ -149,6 +149,13 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 		     -1);
 	carveout_heap->heap.ops = &carveout_heap_ops;
 	carveout_heap->heap.type = ION_HEAP_TYPE_CARVEOUT;
+	carveout_heap->heap.name = kstrndup(heap_data->name,
+					    MAX_HEAP_NAME - 1, GFP_KERNEL);
+	if (!carveout_heap->heap.name) {
+		kfree(carveout_heap);
+		gen_pool_destroy(carveout_heap->pool);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	return &carveout_heap->heap;
 }
