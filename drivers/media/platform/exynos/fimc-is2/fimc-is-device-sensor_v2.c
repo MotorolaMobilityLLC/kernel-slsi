@@ -1001,6 +1001,9 @@ static int fimc_is_sensor_notify_by_fstr(struct fimc_is_device_sensor *device, v
 	struct fimc_is_subdev *dma_subdev;
 	struct v4l2_control ctrl;
 	u32 frameptr;
+#if defined(MEASURE_TIME) && defined(MONITOR_TIME)
+	struct fimc_is_group *group;
+#endif
 
 	FIMC_BUG(!device);
 	FIMC_BUG(!arg);
@@ -1013,14 +1016,15 @@ static int fimc_is_sensor_notify_by_fstr(struct fimc_is_device_sensor *device, v
 			wake_up(&device->instant_wait);
 	}
 
+#if !defined(ENABLE_HW_FAST_READ_OUT)
 	hashkey = device->fcount % FIMC_IS_TIMESTAMP_HASH_KEY;
 	device->timestamp[hashkey] = fimc_is_get_timestamp();
 	device->timestampboot[hashkey] = fimc_is_get_timestamp_boot();
+#endif
 
 #ifdef MEASURE_TIME
 #ifdef MONITOR_TIME
 	{
-		struct fimc_is_group *group;
 		frame = NULL;
 		framemgr = NULL;
 		group = &device->group_sensor;
@@ -1031,6 +1035,17 @@ static int fimc_is_sensor_notify_by_fstr(struct fimc_is_device_sensor *device, v
 		if (frame && frame->fcount == device->fcount)
 			TIME_SHOT(TMS_SHOT2);
 	}
+
+#ifdef ENABLE_HW_FAST_READ_OUT
+	if ((frame) && (device->image.framerate > 240)
+		&& (group->tail->id == FULL_OTF_TAIL_GROUP_ID))		/* FULL OTF path + 480fps */
+		hashkey = frame->fcount % FIMC_IS_TIMESTAMP_HASH_KEY;
+	else
+		hashkey = device->fcount % FIMC_IS_TIMESTAMP_HASH_KEY;
+
+	device->timestamp[hashkey] = fimc_is_get_timestamp();
+	device->timestampboot[hashkey] = fimc_is_get_timestamp_boot();
+#endif
 #endif
 #endif
 
