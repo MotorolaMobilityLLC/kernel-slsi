@@ -50,7 +50,7 @@ struct ion_platform_heap {
 	phys_addr_t base;
 	size_t size;
 	phys_addr_t align;
-	void *priv;
+	bool untouchable;
 };
 
 /**

@@ -33,6 +33,9 @@ struct ion_carveout_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
 	phys_addr_t base;
+	size_t size;
+	size_t alloc_align;
+	bool untouchable;
 };
 
 static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
@@ -40,7 +43,8 @@ static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 {
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
-	unsigned long offset = gen_pool_alloc(carveout_heap->pool, size);
+	unsigned long offset = gen_pool_alloc(carveout_heap->pool,
+				ALIGN(size, carveout_heap->alloc_align));
 
 	if (!offset)
 		return ION_CARVEOUT_ALLOCATE_FAIL;
@@ -48,15 +52,13 @@ static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 	return offset;
 }
 
-static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
-			      unsigned long size)
+static void ion_carveout_free(struct ion_carveout_heap *carveout_heap,
+			      phys_addr_t addr, unsigned long size)
 {
-	struct ion_carveout_heap *carveout_heap =
-		container_of(heap, struct ion_carveout_heap, heap);
-
 	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
 		return;
-	gen_pool_free(carveout_heap->pool, addr, size);
+	gen_pool_free(carveout_heap->pool, addr,
+		      ALIGN(size, carveout_heap->alloc_align));
 }
 
 static int ion_carveout_heap_allocate(struct ion_heap *heap,
@@ -95,26 +97,54 @@ err_free:
 
 static void ion_carveout_heap_free(struct ion_buffer *buffer)
 {
-	struct ion_heap *heap = buffer->heap;
+	struct ion_carveout_heap *carveout_heap =
+		container_of(buffer->heap, struct ion_carveout_heap, heap);
 	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
 	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
 
-	ion_heap_buffer_zero(buffer);
-	/* the free pages in carveout pool should be cache cold */
-	if ((buffer->flags & ION_FLAG_CACHED) != 0)
-		__flush_dcache_area(page_to_virt(page), buffer->size);
+	if (!carveout_heap->untouchable) {
+		ion_heap_buffer_zero(buffer);
+		/* the free pages in carveout pool should be cache cold */
+		if ((buffer->flags & ION_FLAG_CACHED) != 0)
+			__flush_dcache_area(page_to_virt(page), buffer->size);
+	}
 
-	ion_carveout_free(heap, paddr, buffer->size);
+	ion_carveout_free(carveout_heap, paddr, buffer->size);
 	sg_free_table(table);
 	kfree(table);
+}
+
+static int carveout_heap_map_user(struct ion_heap *heap,
+				  struct ion_buffer *buffer,
+				  struct vm_area_struct *vma)
+{
+	struct ion_carveout_heap *carveout_heap =
+		container_of(heap, struct ion_carveout_heap, heap);
+
+	if (carveout_heap->untouchable)
+		return -EACCES;
+
+	return ion_heap_map_user(heap, buffer, vma);
+}
+
+static void *carveout_heap_map_kernel(struct ion_heap *heap,
+				      struct ion_buffer *buffer)
+{
+	struct ion_carveout_heap *carveout_heap =
+		container_of(heap, struct ion_carveout_heap, heap);
+
+	if (carveout_heap->untouchable)
+		return ERR_PTR(-EACCES);
+
+	return ion_heap_map_kernel(heap, buffer);
 }
 
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
-	.map_user = ion_heap_map_user,
-	.map_kernel = ion_heap_map_kernel,
+	.map_user = carveout_heap_map_user,
+	.map_kernel = carveout_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
 };
 
@@ -129,17 +159,20 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 	page = pfn_to_page(PFN_DOWN(heap_data->base));
 	size = heap_data->size;
 
-	ret = ion_heap_pages_zero(page, size, PAGE_KERNEL);
-	if (ret)
-		return ERR_PTR(ret);
+	if (!heap_data->untouchable) {
+		ret = ion_heap_pages_zero(page, size, PAGE_KERNEL);
+		if (ret)
+			return ERR_PTR(ret);
 
-	__flush_dcache_area(page_to_virt(page), size);
+		__flush_dcache_area(page_to_virt(page), size);
+	}
 
 	carveout_heap = kzalloc(sizeof(*carveout_heap), GFP_KERNEL);
 	if (!carveout_heap)
 		return ERR_PTR(-ENOMEM);
 
-	carveout_heap->pool = gen_pool_create(PAGE_SHIFT, -1);
+	carveout_heap->pool = gen_pool_create(
+				get_order(heap_data->align) + PAGE_SHIFT, -1);
 	if (!carveout_heap->pool) {
 		kfree(carveout_heap);
 		return ERR_PTR(-ENOMEM);
@@ -156,6 +189,9 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 		gen_pool_destroy(carveout_heap->pool);
 		return ERR_PTR(-ENOMEM);
 	}
+	carveout_heap->size = heap_data->size;
+	carveout_heap->alloc_align = heap_data->align;
+	carveout_heap->untouchable = heap_data->untouchable;
 
 	return &carveout_heap->heap;
 }
