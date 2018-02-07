@@ -10,6 +10,13 @@ menuconfig ION
 	  If you're not using Android its probably safe to
 	  say N here.
 
+config ION_EXYNOS
+	bool "Exynos Extension to ION"
+	depends on ION
+	help
+	  Choose this option for Exynos SoCs. Initialization of cma heap is
+	  changed.
+
 config ION_TEST
 	tristate "Ion Test Device"
 	depends on ION
