@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/cma.h>
 
 #include "ion.h"
 #include "ion_exynos.h"
@@ -24,6 +25,7 @@
 unsigned int reserved_mem_count __initdata;
 struct ion_reserved_mem_struct {
 	char		*heapname;
+	struct cma	*cma;
 	phys_addr_t	base;
 	phys_addr_t	size;
 	unsigned int	alloc_align;
@@ -32,12 +34,13 @@ struct ion_reserved_mem_struct {
 
 static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 {
-	bool untch;
+	bool untch, reusable;
 	size_t alloc_align = PAGE_SIZE;
 	char *heapname;
 	const __be32 *prop;
 	int len;
 
+	reusable = !!of_get_flat_dt_prop(rmem->fdt_node, "ion,reusable", NULL);
 	untch = !!of_get_flat_dt_prop(rmem->fdt_node, "ion,untouchable", NULL);
 
 	prop = of_get_flat_dt_prop(rmem->fdt_node, "ion,alignment", &len);
@@ -61,6 +64,27 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 		return -ENOMEM;
 	}
 
+	if (untch && reusable) {
+		pr_err("%s: 'reusable', 'untouchable' should not be together\n",
+		       __func__);
+		return -EINVAL;
+	}
+
+	if (reusable) {
+		struct cma *cma;
+		int ret;
+
+		ret = cma_init_reserved_mem(rmem->base, rmem->size, 0,
+					    heapname, &cma);
+		if (ret < 0) {
+			pr_err("%s: failed to init cma for '%s'\n",
+			       __func__, heapname);
+			return ret;
+		}
+
+		ion_reserved_mem[reserved_mem_count].cma = cma;
+	}
+
 	ion_reserved_mem[reserved_mem_count].base = rmem->base;
 	ion_reserved_mem[reserved_mem_count].size = rmem->size;
 	ion_reserved_mem[reserved_mem_count].heapname = heapname;
@@ -81,14 +105,21 @@ static int __init exynos_ion_register_heaps(void)
 		struct ion_platform_heap pheap;
 		struct ion_heap *heap;
 
-		pheap.type	  = ION_HEAP_TYPE_CARVEOUT;
 		pheap.name	  = ion_reserved_mem[i].heapname;
 		pheap.base	  = ion_reserved_mem[i].base;
 		pheap.size	  = ion_reserved_mem[i].size;
 		pheap.align	  = ion_reserved_mem[i].alloc_align;
 		pheap.untouchable = ion_reserved_mem[i].untouchable;
 
-		heap = ion_carveout_heap_create(&pheap);
+		if (ion_reserved_mem[i].cma) {
+			pheap.type = ION_HEAP_TYPE_DMA;
+			heap = ion_cma_heap_create(ion_reserved_mem[i].cma,
+						   &pheap);
+		} else {
+			pheap.type = ION_HEAP_TYPE_CARVEOUT;
+			heap = ion_carveout_heap_create(&pheap);
+		}
+
 		if (IS_ERR(heap)) {
 			pr_err("%s: failed to register '%s' heap\n",
 			       __func__, pheap.name);
