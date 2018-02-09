@@ -23,6 +23,8 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 
+#include <asm/cacheflush.h>
+
 #include "ion.h"
 
 static void *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
@@ -85,8 +87,12 @@ struct page *ion_page_pool_alloc(struct ion_page_pool *pool)
 		page = ion_page_pool_remove(pool, false);
 	mutex_unlock(&pool->mutex);
 
-	if (!page)
+	if (!page) {
 		page = ion_page_pool_alloc_pages(pool);
+		if (!pool->cached)
+			__flush_dcache_area(page_to_virt(page),
+					    1 << (PAGE_SHIFT + pool->order));
+	}
 
 	return page;
 }
@@ -161,8 +167,7 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order,
 	pool->order = order;
 	mutex_init(&pool->mutex);
 	plist_node_init(&pool->list, order);
-	if (cached)
-		pool->cached = true;
+	pool->cached = cached;
 
 	return pool;
 }

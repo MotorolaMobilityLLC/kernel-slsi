@@ -22,6 +22,9 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+
+#include <asm/cacheflush.h>
+
 #include "ion.h"
 
 #define ION_CARVEOUT_ALLOCATE_FAIL	-1
@@ -98,6 +101,9 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
 
 	ion_heap_buffer_zero(buffer);
+	/* the free pages in carveout pool should be cache cold */
+	if ((buffer->flags & ION_FLAG_CACHED) != 0)
+		__flush_dcache_area(page_to_virt(page), buffer->size);
 
 	ion_carveout_free(heap, paddr, buffer->size);
 	sg_free_table(table);
@@ -123,9 +129,11 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 	page = pfn_to_page(PFN_DOWN(heap_data->base));
 	size = heap_data->size;
 
-	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
+	ret = ion_heap_pages_zero(page, size, PAGE_KERNEL);
 	if (ret)
 		return ERR_PTR(ret);
+
+	__flush_dcache_area(page_to_virt(page), size);
 
 	carveout_heap = kzalloc(sizeof(*carveout_heap), GFP_KERNEL);
 	if (!carveout_heap)
