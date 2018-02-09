@@ -46,6 +46,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	unsigned long size = PAGE_ALIGN(len);
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	unsigned long align = cma_heap->align_order;
+	bool cacheflush = !(flags & ION_FLAG_CACHED) ||
+			  ((flags & ION_FLAG_SYNC_FORCE) != 0);
 	int ret = -ENOMEM;
 
 	pages = cma_alloc(cma_heap->cma, nr_pages, align, GFP_KERNEL);
@@ -55,20 +57,22 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		return -ENOMEM;
 	}
 
-	if (PageHighMem(pages)) {
-		unsigned long nr_clear_pages = nr_pages;
-		struct page *page = pages;
+	if (!(flags & ION_FLAG_NOZEROED)) {
+		if (PageHighMem(pages)) {
+			unsigned long nr_clear_pages = nr_pages;
+			struct page *page = pages;
 
-		while (nr_clear_pages > 0) {
-			void *vaddr = kmap_atomic(page);
+			while (nr_clear_pages > 0) {
+				void *vaddr = kmap_atomic(page);
 
-			memset(vaddr, 0, PAGE_SIZE);
-			kunmap_atomic(vaddr);
-			page++;
-			nr_clear_pages--;
+				memset(vaddr, 0, PAGE_SIZE);
+				kunmap_atomic(vaddr);
+				page++;
+				nr_clear_pages--;
+			}
+		} else {
+			memset(page_address(pages), 0, size);
 		}
-	} else {
-		memset(page_address(pages), 0, size);
 	}
 
 	table = kmalloc(sizeof(*table), GFP_KERNEL);
@@ -84,7 +88,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	buffer->priv_virt = pages;
 	buffer->sg_table = table;
 
-	if (!(flags & ION_FLAG_CACHED))
+	if (cacheflush)
 		__flush_dcache_area(page_to_virt(pages), len);
 
 	return 0;

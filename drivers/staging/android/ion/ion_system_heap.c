@@ -64,15 +64,17 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 				      unsigned long order)
 {
 	bool cached = ion_buffer_cached(buffer);
+	bool nozero = buffer->flags & ION_FLAG_NOZEROED;
+	bool cleancache = buffer->flags & ION_FLAG_SYNC_FORCE;
 	struct ion_page_pool *pool;
 	struct page *page;
 
-	if (!cached)
+	if (!cached || cleancache)
 		pool = heap->uncached_pools[order_to_index(order)];
 	else
 		pool = heap->cached_pools[order_to_index(order)];
 
-	page = ion_page_pool_alloc(pool);
+	page = ion_page_pool_alloc(pool, nozero);
 
 	return page;
 }

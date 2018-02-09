@@ -56,6 +56,18 @@ enum ion_heap_type {
  * when the buffer is mapped for dma
  */
 #define ION_FLAG_CACHED 1
+/*
+ * the allocated buffer is not cleared with zeroes to avoid initialization
+ * overhead. Mapping to userspace is not allowed.
+ */
+#define ION_FLAG_NOZEROED 8
+/*
+ * the allocated buffer does not have dirty cache line allocated. In other
+ * words, ION flushes the cache even though allocation flags includes
+ * ION_FLAG_CACHED. This is required by some H/W drivers that wants to reduce
+ * overhead by explicit cache maintenance.
+ */
+#define ION_FLAG_SYNC_FORCE 32
 
 /**
  * DOC: Ion Userspace API
