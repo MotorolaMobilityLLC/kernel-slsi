@@ -374,6 +374,7 @@ static int pafstat_s_stream(struct v4l2_subdev *subdev, int pd_mode)
 	pafstat_hw_com_s_lic_mode(pafstat->regs_com, pafstat->id, lic_mode, input);
 	pafstat_hw_com_s_output_mask(pafstat->regs_com, 0);
 	pafstat_hw_s_input_path(pafstat->regs, input);
+	pafstat_hw_s_img_size(pafstat->regs, pafstat->in_width, pafstat->in_height);
 
 	pafstat_hw_s_ready(pafstat->regs, 1);
 	pafstat_hw_s_enable(pafstat->regs, 1);
@@ -484,7 +485,7 @@ static const struct v4l2_subdev_ops subdev_ops = {
 struct fimc_is_paf_ops pafstat_ops = {
 	.set_param = pafstat_hw_set_regs,
 	.get_ready = pafstat_hw_get_ready,
-	.set_num_buffers = pafstat_set_num_buffers
+	.set_num_buffers = pafstat_set_num_buffers,
 };
 
 static int __init pafstat_probe(struct platform_device *pdev)

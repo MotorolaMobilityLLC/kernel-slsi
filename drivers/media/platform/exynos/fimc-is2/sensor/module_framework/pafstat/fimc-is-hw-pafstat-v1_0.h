@@ -21,6 +21,24 @@
 #define PAFSTAT_STATIC_MAXHEIGHT	15
 #define PAFSTAT_STATIC_ELEMENT_SIZE	448
 
+enum pafstat_rdma_format {
+	/*
+	 * RDAM data format.
+	 * 0 : 8bit
+	 * 1 : 10bit
+	 * 2 : 12bit {00, 10bit}
+	 * 3 : 12bit {10bit, 00}
+	 * 4 : 16bit {000000, 10bit}
+	 * 5 : Android10
+	 */
+	PAFSTAT_RDMA_FORMAT_8BIT_PACK = 0,
+	PAFSTAT_RDMA_FORMAT_10BIT_PACK,
+	PAFSTAT_RDMA_FORMAT_12BIT_PACK_LSB_ALIGN,
+	PAFSTAT_RDMA_FORMAT_12BIT_PACK_MSB_ALIGN,
+	PAFSTAT_RDMA_FORMAT_16BIT_PACK_LSB_ALIGN,
+	PAFSTAT_RDMA_FORMAT_ANDROID10,
+};
+
 /* the total count of PAFSTAT v1.0's regs */
 enum fimc_is_hw_pafstat_reg_name {
 	/* common between context0 and context1 */
