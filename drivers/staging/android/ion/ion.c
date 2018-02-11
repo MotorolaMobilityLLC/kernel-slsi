@@ -430,13 +430,13 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.vunmap = ion_dma_buf_vunmap,
 };
 
-int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
+			    unsigned int flags)
 {
 	struct ion_device *dev = internal_dev;
 	struct ion_buffer *buffer = NULL;
 	struct ion_heap *heap;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
-	int fd;
 	struct dma_buf *dmabuf;
 
 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
@@ -450,7 +450,7 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	len = PAGE_ALIGN(len);
 
 	if (!len)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	down_read(&dev->lock);
 	plist_for_each_entry(heap, &dev->heaps, node) {
@@ -464,10 +464,10 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	up_read(&dev->lock);
 
 	if (!buffer)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
+		return ERR_CAST(buffer);
 
 	exp_info.ops = &dma_buf_ops;
 	exp_info.size = buffer->size;
@@ -475,10 +475,19 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	exp_info.priv = buffer;
 
 	dmabuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dmabuf)) {
+	if (IS_ERR(dmabuf))
 		_ion_buffer_destroy(buffer);
+
+	return dmabuf;
+}
+
+int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+{
+	struct dma_buf *dmabuf = __ion_alloc(len, heap_id_mask, flags);
+	int fd;
+
+	if (IS_ERR(dmabuf))
 		return PTR_ERR(dmabuf);
-	}
 
 	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
 	if (fd < 0)
@@ -536,6 +545,21 @@ int ion_query_heaps(struct ion_heap_query *query)
 out:
 	up_read(&dev->lock);
 	return ret;
+}
+
+struct ion_heap *ion_get_heap_by_name(const char *heap_name)
+{
+	struct ion_device *dev = internal_dev;
+	struct ion_heap *heap;
+
+	plist_for_each_entry(heap, &dev->heaps, node) {
+		if (strlen(heap_name) != strlen(heap->name))
+			continue;
+		if (strcmp(heap_name, heap->name) == 0)
+			return heap;
+	}
+
+	return NULL;
 }
 
 static const struct file_operations ion_fops = {

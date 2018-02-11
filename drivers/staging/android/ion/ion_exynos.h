@@ -18,6 +18,7 @@
 #define _ION_EXYNOS_H_
 
 struct cma;
+struct dma_buf;
 struct ion_heap;
 struct ion_platform_heap;
 
@@ -78,4 +79,7 @@ static inline void *ion_buffer_protect_single(unsigned int protection_id,
 #define ion_buffer_unprotect(priv) do { } while (0)
 #endif
 
+struct ion_heap *ion_get_heap_by_name(const char *heap_name);
+struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
+			    unsigned int flags);
 #endif /* _ION_EXYNOS_H_ */
