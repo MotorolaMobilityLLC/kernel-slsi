@@ -106,17 +106,33 @@ struct ion_allocation_data {
 #define MAX_HEAP_NAME			32
 
 /**
+ * freed buffer to the heap may not be returned to the free pool immediately
+ */
+#define ION_HEAPDATA_FLAGS_DEFER_FREE		1
+/**
+ * ION_FLAG_PROTECTED is applicable.
+ */
+#define ION_HEAPDATA_FLAGS_ALLOW_PROTECTION	2
+/**
+ * access to the buffer from this heap is not allowed in both of userland and
+ * kernel space. mmap() and dmabuf kmap/vmap always fail.
+ */
+#define ION_HEAPDATA_FLAGS_UNTOUCHABLE		4
+/**
  * struct ion_heap_data - data about a heap
  * @name - first 32 characters of the heap name
  * @type - heap type
  * @heap_id - heap id for the heap
+ * @size - size of the memory pool if the heap type is dma, carveout and chunk
+ * @heap_flags - properties of heap
+ *
  */
 struct ion_heap_data {
 	char name[MAX_HEAP_NAME];
 	__u32 type;
 	__u32 heap_id;
-	__u32 reserved0;
-	__u32 reserved1;
+	__u32 size;       /* reserved0 */
+	__u32 heap_flags; /* reserved1 */
 	__u32 reserved2;
 };
 

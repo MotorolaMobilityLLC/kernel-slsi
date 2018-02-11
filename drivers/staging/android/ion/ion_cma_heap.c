@@ -130,12 +130,22 @@ static void ion_cma_free(struct ion_buffer *buffer)
 	kfree(buffer->sg_table);
 }
 
+static void cma_heap_query(struct ion_heap *heap, struct ion_heap_data *data)
+{
+	struct ion_cma_heap *cma_heap = to_cma_heap(heap);
+
+	data->size = (u32)cma_get_size(cma_heap->cma);
+	if (cma_heap->secure)
+		data->heap_flags |= ION_HEAPDATA_FLAGS_ALLOW_PROTECTION;
+}
+
 static struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
 	.map_user = ion_heap_map_user,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
+	.query_heap = cma_heap_query,
 };
 
 #ifdef CONFIG_ION_EXYNOS

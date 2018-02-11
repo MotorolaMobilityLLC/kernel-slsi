@@ -495,8 +495,6 @@ int ion_query_heaps(struct ion_heap_query *query)
 	struct ion_heap *heap;
 	struct ion_heap_data hdata;
 
-	memset(&hdata, 0, sizeof(hdata));
-
 	down_read(&dev->lock);
 	if (!buffer) {
 		query->cnt = dev->heap_cnt;
@@ -510,10 +508,18 @@ int ion_query_heaps(struct ion_heap_query *query)
 	max_cnt = query->cnt;
 
 	plist_for_each_entry(heap, &dev->heaps, node) {
+		memset(&hdata, 0, sizeof(hdata));
+
 		strncpy(hdata.name, heap->name, MAX_HEAP_NAME);
 		hdata.name[sizeof(hdata.name) - 1] = '\0';
 		hdata.type = heap->type;
 		hdata.heap_id = heap->id;
+
+		if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
+			hdata.heap_flags = ION_HEAPDATA_FLAGS_DEFER_FREE;
+
+		if (heap->ops->query_heap)
+			heap->ops->query_heap(heap, &hdata);
 
 		if (copy_to_user(&buffer[cnt], &hdata, sizeof(hdata))) {
 			ret = -EFAULT;

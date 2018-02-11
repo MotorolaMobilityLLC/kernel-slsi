@@ -113,6 +113,7 @@ struct ion_device {
  * @map_kernel		map memory to the kernel
  * @unmap_kernel	unmap memory to the kernel
  * @map_user		map memory to userspace
+ * @query_heap		specifies heap specific data to ion_heap_data to users
  *
  * allocate, phys, and map_user return 0 on success, -errno on error.
  * map_dma and map_kernel return pointer on success, ERR_PTR on
@@ -120,6 +121,7 @@ struct ion_device {
  * the buffer's private_flags when called from a shrinker. In that
  * case, the pages being free'd must be truly free'd back to the
  * system, not put in a page pool or otherwise cached.
+ * @query_heap is optional.
  */
 struct ion_heap_ops {
 	int (*allocate)(struct ion_heap *heap,
@@ -131,6 +133,7 @@ struct ion_heap_ops {
 	int (*map_user)(struct ion_heap *mapper, struct ion_buffer *buffer,
 			struct vm_area_struct *vma);
 	int (*shrink)(struct ion_heap *heap, gfp_t gfp_mask, int nr_to_scan);
+	void (*query_heap)(struct ion_heap *heap, struct ion_heap_data *data);
 };
 
 /**

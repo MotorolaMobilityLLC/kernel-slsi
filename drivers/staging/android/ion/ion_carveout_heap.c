@@ -162,12 +162,26 @@ static void *carveout_heap_map_kernel(struct ion_heap *heap,
 	return ion_heap_map_kernel(heap, buffer);
 }
 
+static void carveout_heap_query(struct ion_heap *heap,
+				struct ion_heap_data *data)
+{
+	struct ion_carveout_heap *carveout_heap =
+		container_of(heap, struct ion_carveout_heap, heap);
+
+	data->size = carveout_heap->size;
+	if (carveout_heap->secure)
+		data->heap_flags |= ION_HEAPDATA_FLAGS_ALLOW_PROTECTION;
+	if (carveout_heap->untouchable)
+		data->heap_flags |= ION_HEAPDATA_FLAGS_UNTOUCHABLE;
+}
+
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
 	.map_user = carveout_heap_map_user,
 	.map_kernel = carveout_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
+	.query_heap = carveout_heap_query,
 };
 
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
