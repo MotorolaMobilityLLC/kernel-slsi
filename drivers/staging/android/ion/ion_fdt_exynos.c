@@ -29,19 +29,27 @@ struct ion_reserved_mem_struct {
 	phys_addr_t	base;
 	phys_addr_t	size;
 	unsigned int	alloc_align;
+	unsigned int	protection_id;
+	bool		secure;
 	bool		untouchable;
 } ion_reserved_mem[ION_NUM_HEAP_IDS - 1] __initdata;
 
 static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 {
-	bool untch, reusable;
+	bool untch, reusable, secure;
 	size_t alloc_align = PAGE_SIZE;
 	char *heapname;
 	const __be32 *prop;
+	__u32 protection_id = 0;
 	int len;
 
 	reusable = !!of_get_flat_dt_prop(rmem->fdt_node, "ion,reusable", NULL);
 	untch = !!of_get_flat_dt_prop(rmem->fdt_node, "ion,untouchable", NULL);
+	secure = !!of_get_flat_dt_prop(rmem->fdt_node, "ion,secure", NULL);
+
+	prop = of_get_flat_dt_prop(rmem->fdt_node, "ion,protection_id", &len);
+	if (prop)
+		protection_id = be32_to_cpu(prop[0]);
 
 	prop = of_get_flat_dt_prop(rmem->fdt_node, "ion,alignment", &len);
 	if (prop && (be32_to_cpu(prop[0]) >= PAGE_SIZE)) {
@@ -89,6 +97,8 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 	ion_reserved_mem[reserved_mem_count].size = rmem->size;
 	ion_reserved_mem[reserved_mem_count].heapname = heapname;
 	ion_reserved_mem[reserved_mem_count].alloc_align = alloc_align;
+	ion_reserved_mem[reserved_mem_count].protection_id = protection_id;
+	ion_reserved_mem[reserved_mem_count].secure = secure;
 	ion_reserved_mem[reserved_mem_count].untouchable = untch;
 	reserved_mem_count++;
 
@@ -100,15 +110,18 @@ RESERVEDMEM_OF_DECLARE(ion, "exynos9820-ion", exynos_ion_reserved_mem_setup);
 static int __init exynos_ion_register_heaps(void)
 {
 	unsigned int i;
+	bool secure = false;
 
 	for (i = 0; i < reserved_mem_count; i++) {
 		struct ion_platform_heap pheap;
 		struct ion_heap *heap;
 
 		pheap.name	  = ion_reserved_mem[i].heapname;
+		pheap.id	  = ion_reserved_mem[i].protection_id;
 		pheap.base	  = ion_reserved_mem[i].base;
 		pheap.size	  = ion_reserved_mem[i].size;
 		pheap.align	  = ion_reserved_mem[i].alloc_align;
+		pheap.secure	  = ion_reserved_mem[i].secure;
 		pheap.untouchable = ion_reserved_mem[i].untouchable;
 
 		if (ion_reserved_mem[i].cma) {
@@ -128,7 +141,19 @@ static int __init exynos_ion_register_heaps(void)
 
 		ion_device_add_heap(heap);
 		pr_info("ION: registered '%s' heap\n", pheap.name);
+
+		if (pheap.secure)
+			secure = true;
 	}
+
+	/*
+	 * ion_secure_iova_pool_create() should success. If it fails, it is
+	 * because of design flaw or out of memory. Nothing to do with the
+	 * failure. Just debug. ion_secure_iova_pool_create() disables
+	 * protection if it fails.
+	 */
+	if (secure)
+		ion_secure_iova_pool_create();
 
 	return 0;
 }

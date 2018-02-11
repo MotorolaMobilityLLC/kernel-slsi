@@ -301,6 +301,12 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		return -EACCES;
 	}
 
+	if ((buffer->flags & ION_FLAG_PROTECTED) != 0) {
+		pr_err("%s: mmap() to protected buffer is not allowed\n",
+		       __func__);
+		return -EACCES;
+	}
+
 	if (!(buffer->flags & ION_FLAG_CACHED))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 

@@ -21,6 +21,26 @@ struct cma;
 struct ion_heap;
 struct ion_platform_heap;
 
+/**
+ * struct ion_buffer_prot_info - buffer protection information
+ * @chunk_count: number of physically contiguous memory chunks to protect
+ *               each chunk should has the same size.
+ * @dma_addr:    device virtual address for protected memory access
+ * @flags:       protection flags but actually, protection_id
+ * @chunk_size:  length in bytes of each chunk.
+ * @bus_address: if @chunk_count is 1, this is the physical address the chunk.
+ *               if @chunk_count > 1, this is the physical address of unsigned
+ *               long array of @chunk_count elements that contains the physical
+ *               address of each chunk.
+ */
+struct ion_buffer_prot_info {
+	unsigned int chunk_count;
+	unsigned int dma_addr;
+	unsigned int flags;
+	unsigned int chunk_size;
+	unsigned long bus_address;
+};
+
 #ifdef CONFIG_ION_CARVEOUT_HEAP
 extern struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *);
 #else
@@ -32,6 +52,30 @@ extern struct ion_heap *ion_cma_heap_create(struct cma *cma,
 					    struct ion_platform_heap *pheap);
 #else
 #define ion_cma_heap_create(cma, p) ERR_PTR(-ENODEV)
+#endif
+
+#if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) && defined(CONFIG_ION_EXYNOS)
+int __init ion_secure_iova_pool_create(void)
+#else
+static inline int ion_secure_iova_pool_create(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_ION_EXYNOS
+void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
+				unsigned long phys, unsigned int protalign);
+void ion_buffer_unprotect(void *priv);
+#else
+static inline void *ion_buffer_protect_single(unsigned int protection_id,
+					      unsigned int size,
+					      unsigned long phys,
+					      unsigned int protalign)
+{
+	return NULL;
+}
+#define ion_buffer_unprotect(priv) do { } while (0)
 #endif
 
 #endif /* _ION_EXYNOS_H_ */

@@ -1,0 +1,198 @@
+/*
+ * drivers/staging/android/ion/ion_buffer_protect.c
+ *
+ * Copyright (C) 2018 Samsung Electronics Co., Ltd.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
+
+#include <linux/slab.h>
+
+#include "ion_exynos.h"
+
+#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+
+#define ION_SECURE_DMA_BASE	0x80000000
+#define ION_SECURE_DMA_END	0xE0000000
+
+static struct gen_pool *secure_iova_pool;
+static DEFINE_SPINLOCK(siova_pool_lock);
+
+static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
+				 unsigned int align)
+{
+	unsigned int out_addr;
+
+	if (!secure_iova_pool) {
+		pr_err("%s: Secure IOVA pool is not created\n", __func__);
+		return -ENODEV;
+	}
+
+	spin_lock(&siova_pool_lock);
+	if (align > PAGE_SIZE) {
+		gen_pool_set_algo(secure_iova_pool,
+				  find_first_fit_with_align, &align);
+		out_addr = gen_pool_alloc(secure_iova_pool, size);
+		gen_pool_set_algo(secure_iova_pool, NULL, NULL);
+	} else {
+		out_addr = gen_pool_alloc(secure_iova_pool, size);
+	}
+	spin_unlock(&siova_pool_lock);
+
+	if (out_addr == 0) {
+		pr_err("%s: failed alloc secure iova. %zu/%zu bytes used\n",
+		       __func__, gen_pool_avail(secure_iova_pool),
+		       gen_pool_size(secure_iova_pool));
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void ion_secure_iova_free(unsigned long addr, unsigned long size)
+{
+	if (!secure_iova_pool) {
+		pr_err("%s: Secure IOVA pool is not created\n", __func__);
+		return;
+	}
+
+	spin_lock(&siova_pool_lock);
+	gen_pool_free(secure_iova_pool, addr, size);
+	spin_unlock(&siova_pool_lock);
+}
+
+int __init ion_secure_iova_pool_create(void)
+{
+	secure_iova_pool = gen_pool_create(PAGE_SHIFT, -1);
+	if (!secure_iova_pool) {
+		pr_err("%s: failed to create Secure IOVA pool\n", __func__);
+		return -ENOMEM;
+	}
+
+	if (gen_pool_add(secure_iova_pool, ION_SECURE_DMA_BASE,
+			 ION_SECURE_DMA_END - ION_SECURE_DMA_BASE, -1)) {
+		pr_err("%s: failed to set address range of Secure IOVA pool\n",
+		       __func__);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int ion_secure_protect(struct ion_buffer_prot_info *protdesc,
+			      unsigned int protalign)
+{
+	unsigned long size = protdesc->chunk_count * protdesc->chunk_size;
+	unsigned long dma_addr = 0;
+	drmdrv_result_t drmret = DRMDRV_OK;
+	int ret;
+
+	ret = ion_secure_iova_alloc(&dma_addr, size, max(protalign, PAGE_SIZE));
+	if (ret)
+		goto err_iova;
+
+	prot->dma_addr = (unsigned int)dma_addr;
+
+	__flush_dcache_area(prot, sizeof(*protdesc));
+	if (protdesc->chunk_count > 1)
+		__flush_dcache_area(phys_to_virt(protdesc->bus_address),
+				sizeof(unsigned long) * protdesc->chunk_count);
+
+	drmret = exynos_smc(SMC_DRM_PPMP_PROT, virt_to_phys(protdesc), 0, 0);
+	if (drmret != DRMDRV_OK) {
+		ret = -EACCES;
+		goto err_smc;
+	}
+
+	return 0;
+err_smc:
+	ion_secure_iova_free(dma_addr, size);
+err_iova:
+	pr_err("%s: PROT:%d (err=%d,va=%#lx,len=%#lx,cnt=%u,flg=%u)\n",
+	       __func__, SMC_DRM_PPMP_PROT, drmret, dma_addr, size,
+	       protdesc->chunk_count, protdesc->flags);
+
+	return ret;
+}
+
+static int ion_secure_unprotect(struct ion_buffer_prot_info *protdesc)
+{
+	unsigned long size = protdesc->chunk_count * protdesc->chunk_size;
+	int ret;
+	/*
+	 * No need to flush protdesc for unprotection because it is never
+	 * modified since the buffer is protected.
+	 */
+	ret = exynos_smc(SMC_DRM_PPMP_UNPROT, virt_to_phys(protdesc), 0, 0);
+
+	ion_secure_iova_free(info->prot_desc.dma_addr, size);
+
+	if (ret != DRMDRV_OK) {
+		pr_err("%s: UNPROT:%d(err=%d,va=%#lx,len=%#lx,cnt=%u,flg=%u)\n",
+		       __func__, SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
+		       size, protdesc->chunk_count, protdesc->flags);
+		return -EACCES;
+	}
+
+	return 0;
+}
+
+#else /* !CONFIG_EXYNOS_CONTENT_PATH_PROTECTION */
+
+static int ion_secure_protect(struct ion_buffer_prot_info *prot,
+			      unsigned int protalign)
+{
+	return -ENODEV;
+}
+
+static int ion_secure_unprotect(struct ion_buffer_prot_info *prot)
+{
+	return -ENODEV;
+}
+
+#endif /* CONFIG_EXYNOS_CONTENT_PATH_PROTECTION */
+
+void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
+				unsigned long phys, unsigned int protalign)
+{
+	struct ion_buffer_prot_info *protdesc;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		return NULL;
+
+	protdesc = kmalloc(sizeof(*protdesc), GFP_KERNEL);
+	if (!protdesc)
+		return ERR_PTR(-ENOMEM);
+
+	protdesc->chunk_count = 1,
+	protdesc->flags = protection_id;
+	protdesc->chunk_size = size;
+	protdesc->bus_address = phys;
+
+	ret = ion_secure_protect(protdesc, protalign);
+	if (ret) {
+		kfree(protdesc);
+		return ERR_PTR(ret);
+	}
+
+	return protdesc;
+}
+
+void ion_buffer_unprotect(void *priv)
+{
+	struct ion_buffer_prot_info *protdesc = priv;
+
+	if (priv) {
+		ion_secure_unprotect(protdesc);
+		kfree(protdesc);
+	}
+}

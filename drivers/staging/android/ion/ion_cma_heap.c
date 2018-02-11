@@ -26,11 +26,14 @@
 #include <asm/cacheflush.h>
 
 #include "ion.h"
+#include "ion_exynos.h"
 
 struct ion_cma_heap {
 	struct ion_heap heap;
 	struct cma *cma;
 	unsigned int align_order;
+	unsigned int protection_id;
+	bool secure;
 };
 
 #define to_cma_heap(x) container_of(x, struct ion_cma_heap, heap)
@@ -48,6 +51,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	unsigned long align = cma_heap->align_order;
 	bool cacheflush = !(flags & ION_FLAG_CACHED) ||
 			  ((flags & ION_FLAG_SYNC_FORCE) != 0);
+	bool protected = cma_heap->secure && (flags & ION_FLAG_PROTECTED);
 	int ret = -ENOMEM;
 
 	pages = cma_alloc(cma_heap->cma, nr_pages, align, GFP_KERNEL);
@@ -85,14 +89,24 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	sg_set_page(table->sgl, pages, size, 0);
 
-	buffer->priv_virt = pages;
 	buffer->sg_table = table;
 
-	if (cacheflush)
+	if (cacheflush || protected)
 		__flush_dcache_area(page_to_virt(pages), len);
 
-	return 0;
+	if (protected) {
+		buffer->priv_virt = ion_buffer_protect_single(
+					cma_heap->protection_id,
+					(unsigned int)len,
+					page_to_phys(pages),
+					PAGE_SIZE << cma_heap->align_order);
+		if (IS_ERR(buffer->priv_virt))
+			goto err_prot;
+	}
 
+	return 0;
+err_prot:
+	sg_free_table(buffer->sg_table);
 free_mem:
 	kfree(table);
 err:
@@ -103,11 +117,14 @@ err:
 static void ion_cma_free(struct ion_buffer *buffer)
 {
 	struct ion_cma_heap *cma_heap = to_cma_heap(buffer->heap);
-	struct page *pages = buffer->priv_virt;
 	unsigned long nr_pages = PAGE_ALIGN(buffer->size) >> PAGE_SHIFT;
+	bool protected = cma_heap->secure &&
+			 (buffer->flags & ION_FLAG_PROTECTED);
 
+	if (protected)
+		ion_buffer_unprotect(buffer->priv_virt);
 	/* release memory */
-	cma_release(cma_heap->cma, pages, nr_pages);
+	cma_release(cma_heap->cma, sg_page(buffer->sg_table->sgl), nr_pages);
 	/* release sg table */
 	sg_free_table(buffer->sg_table);
 	kfree(buffer->sg_table);
@@ -137,6 +154,8 @@ struct ion_heap *ion_cma_heap_create(struct cma *cma,
 	cma_heap->heap.name = kstrndup(heap_data->name,
 				       MAX_HEAP_NAME - 1, GFP_KERNEL);
 	cma_heap->align_order = get_order(heap_data->align);
+	cma_heap->secure = heap_data->secure;
+	cma_heap->protection_id = heap_data->id;
 
 	return &cma_heap->heap;
 }

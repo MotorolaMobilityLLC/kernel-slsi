@@ -26,6 +26,7 @@
 #include <asm/cacheflush.h>
 
 #include "ion.h"
+#include "ion_exynos.h"
 
 #define ION_CARVEOUT_ALLOCATE_FAIL	-1
 
@@ -35,16 +36,15 @@ struct ion_carveout_heap {
 	phys_addr_t base;
 	size_t size;
 	size_t alloc_align;
+	unsigned int protection_id;
+	bool secure;
 	bool untouchable;
 };
 
-static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
+static phys_addr_t ion_carveout_allocate(struct ion_carveout_heap *heap,
 					 unsigned long size)
 {
-	struct ion_carveout_heap *carveout_heap =
-		container_of(heap, struct ion_carveout_heap, heap);
-	unsigned long offset = gen_pool_alloc(carveout_heap->pool,
-				ALIGN(size, carveout_heap->alloc_align));
+	unsigned long offset = gen_pool_alloc(heap->pool, size);
 
 	if (!offset)
 		return ION_CARVEOUT_ALLOCATE_FAIL;
@@ -66,9 +66,18 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 				      unsigned long size,
 				      unsigned long flags)
 {
+	struct ion_carveout_heap *carveout_heap =
+		container_of(heap, struct ion_carveout_heap, heap);
 	struct sg_table *table;
+	unsigned long aligned_size = ALIGN(size, carveout_heap->alloc_align);
 	phys_addr_t paddr;
 	int ret;
+
+	if (carveout_heap->untouchable && !(flags & ION_FLAG_PROTECTED)) {
+		pr_err("%s: ION_FLAG_PROTECTED needed by untouchable heap %s\n",
+		       __func__, heap->name);
+		return -EACCES;
+	}
 
 	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
@@ -77,7 +86,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	if (ret)
 		goto err_free;
 
-	paddr = ion_carveout_allocate(heap, size);
+	paddr = ion_carveout_allocate(carveout_heap, aligned_size);
 	if (paddr == ION_CARVEOUT_ALLOCATE_FAIL) {
 		ret = -ENOMEM;
 		goto err_free_table;
@@ -86,8 +95,18 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), size, 0);
 	buffer->sg_table = table;
 
-	return 0;
+	if (carveout_heap->secure && (flags & ION_FLAG_PROTECTED)) {
+		buffer->priv_virt = ion_buffer_protect_single(
+						carveout_heap->protection_id,
+						(unsigned int)aligned_size,
+						paddr,
+						carveout_heap->alloc_align);
+		if (IS_ERR(buffer->priv_virt))
+			goto err_prot;
+	}
 
+	return 0;
+err_prot:
 err_free_table:
 	sg_free_table(table);
 err_free:
@@ -102,6 +121,9 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
 	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
+
+	if (carveout_heap->secure && (buffer->flags & ION_FLAG_PROTECTED))
+		ion_buffer_unprotect(buffer->priv_virt);
 
 	if (!carveout_heap->untouchable) {
 		ion_heap_buffer_zero(buffer);
@@ -191,6 +213,8 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 	}
 	carveout_heap->size = heap_data->size;
 	carveout_heap->alloc_align = heap_data->align;
+	carveout_heap->protection_id = heap_data->id;
+	carveout_heap->secure = heap_data->secure;
 	carveout_heap->untouchable = heap_data->untouchable;
 
 	return &carveout_heap->heap;

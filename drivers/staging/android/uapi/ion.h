@@ -62,6 +62,14 @@ enum ion_heap_type {
  */
 #define ION_FLAG_NOZEROED 8
 /*
+ * the allocated buffer is not allowed to access without a proper permission.
+ * Both of mmap() and dmabuf kmap/vmap will fail. Acessing by any other mapping
+ * will generate data abort exception and get oops.
+ * ION_FLAG_PROTECTED is only applicable to the heaps with security property.
+ * Other heaps ignore this flag.
+ */
+#define ION_FLAG_PROTECTED 16
+/*
  * the allocated buffer does not have dirty cache line allocated. In other
  * words, ION flushes the cache even though allocation flags includes
  * ION_FLAG_CACHED. This is required by some H/W drivers that wants to reduce
