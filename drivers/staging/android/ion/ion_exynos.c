@@ -34,6 +34,11 @@ struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 	return __ion_alloc(len, 1 << heap->id, flags);
 }
 
+bool ion_cached_dmabuf(struct dma_buf *dmabuf)
+{
+	return ion_buffer_cached(dmabuf->priv);
+}
+
 struct ion_iovm_map {
 	struct list_head list;
 	struct device *dev;

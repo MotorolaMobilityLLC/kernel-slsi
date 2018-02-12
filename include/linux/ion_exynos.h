@@ -26,11 +26,16 @@ struct dma_buf_attachment;
 #ifdef CONFIG_ION_EXYNOS
 struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 				 size_t len, unsigned int flags);
+bool ion_cached_dmabuf(struct dma_buf *dmabuf);
 #else
 static inline struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 					       size_t len, unsigned int flags)
 {
 	return ERR_PTR(-ENODEV);
+}
+static inline bool ion_cached_dmabuf(struct dma_buf *dmabuf)
+{
+	return false;
 }
 #endif
 
