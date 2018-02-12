@@ -76,6 +76,11 @@ enum ion_heap_type {
  * overhead by explicit cache maintenance.
  */
 #define ION_FLAG_SYNC_FORCE 32
+/*
+ * the allocated buffer is possibly written by H/W(GPU) before initializing by
+ * S/W except buffer initialization by ION on allocation.
+ */
+#define ION_FLAG_MAY_HWRENDER 64
 
 /**
  * DOC: Ion Userspace API

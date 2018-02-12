@@ -27,13 +27,20 @@ struct dma_buf_attachment;
 struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 				 size_t len, unsigned int flags);
 bool ion_cached_dmabuf(struct dma_buf *dmabuf);
+bool ion_hwrender_dmabuf(struct dma_buf *dmabuf);
 #else
 static inline struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 					       size_t len, unsigned int flags)
 {
 	return ERR_PTR(-ENODEV);
 }
+
 static inline bool ion_cached_dmabuf(struct dma_buf *dmabuf)
+{
+	return false;
+}
+
+static inline bool ion_cached_hwrender(struct dma_buf *dmabuf)
 {
 	return false;
 }

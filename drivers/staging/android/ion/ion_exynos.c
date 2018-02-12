@@ -39,6 +39,13 @@ bool ion_cached_dmabuf(struct dma_buf *dmabuf)
 	return ion_buffer_cached(dmabuf->priv);
 }
 
+bool ion_hwrender_dmabuf(struct dma_buf *dmabuf)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+
+	return !!(buffer->flags & ION_FLAG_MAY_HWRENDER);
+}
+
 struct ion_iovm_map {
 	struct list_head list;
 	struct device *dev;
