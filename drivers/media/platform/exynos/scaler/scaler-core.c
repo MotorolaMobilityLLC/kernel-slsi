@@ -21,7 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/exynos_iovmm.h>
 #include <linux/smc.h>
-#include <linux/exynos_ion.h>
+#include <linux/ion_exynos.h>
 
 #include <linux/sched/clock.h>
 
@@ -1311,7 +1311,7 @@ static void free_intermediate_frame(struct sc_ctx *ctx)
 	if (ctx->i_frame == NULL)
 		return;
 
-	if (!ctx->i_frame->handle[0])
+	if (!ctx->i_frame->dma_buf[0])
 		return;
 
 	for(i = 0; i < 3; i++) {
@@ -1321,16 +1321,15 @@ static void free_intermediate_frame(struct sc_ctx *ctx)
 		if (ctx->i_frame->dst_addr.ioaddr[i])
 			ion_iovmm_unmap(ctx->i_frame->attachment[i],
 					ctx->i_frame->dst_addr.ioaddr[i]);
-		if (ctx->i_frame->handle[i]) {
+		if (ctx->i_frame->dma_buf[i]) {
 			dma_buf_unmap_attachment(ctx->i_frame->attachment[i],
 					ctx->i_frame->sgt[i], DMA_BIDIRECTIONAL);
 			dma_buf_detach(ctx->i_frame->dma_buf[i], ctx->i_frame->attachment[i]);
 			dma_buf_put(ctx->i_frame->dma_buf[i]);
-			ion_free(ctx->sc_dev->client, ctx->i_frame->handle[i]);
 		}
 	}
 
-	memset(&ctx->i_frame->handle, 0, sizeof(struct ion_handle *) * 3);
+	memset(&ctx->i_frame->dma_buf, 0, sizeof(struct dma_buf *) * 3);
 	memset(&ctx->i_frame->src_addr, 0, sizeof(ctx->i_frame->src_addr));
 	memset(&ctx->i_frame->dst_addr, 0, sizeof(ctx->i_frame->dst_addr));
 }
@@ -1345,11 +1344,79 @@ static void destroy_intermediate_frame(struct sc_ctx *ctx)
 	}
 }
 
+static bool alloc_intermediate_buffer(struct device *dev,
+				      struct sc_int_frame *iframe, int i,
+				      size_t size, const char *heapname,
+				      unsigned long flags)
+{
+	iframe->dma_buf[i] = ion_alloc_dmabuf(heapname, size, flags);
+	if (IS_ERR(iframe->dma_buf[i])) {
+		dev_err(dev,
+			"Failed to allocate intermediate buffer.%d (err %ld)",
+			i, PTR_ERR(iframe->dma_buf[i]));
+		goto err_dmabuf;
+	}
+
+	iframe->attachment[i] = dma_buf_attach(iframe->dma_buf[i], dev);
+	if (IS_ERR(iframe->attachment[i])) {
+		dev_err(dev,
+			"Failed to attach from dma_buf of buffer.%d (err %ld)",
+			i, PTR_ERR(iframe->attachment[i]));
+		goto err_attach;
+	}
+
+	iframe->sgt[i] = dma_buf_map_attachment(iframe->attachment[i],
+						DMA_BIDIRECTIONAL);
+	if (IS_ERR(iframe->sgt[i])) {
+		dev_err(dev, "Failed to get sgt from buffer.%d (err %ld)",
+			i, PTR_ERR(iframe->sgt[i]));
+		goto err_map;
+	}
+
+	iframe->src_addr.ioaddr[i] = ion_iovmm_map(iframe->attachment[i], 0,
+						   size, DMA_TO_DEVICE, 0);
+	if (IS_ERR_VALUE(iframe->src_addr.ioaddr[i])) {
+		dev_err(dev,
+			"Failed to allocate iova of buffer.%d (err %pa)",
+			i, &iframe->src_addr.ioaddr[i]);
+		goto err_src_map;
+	}
+
+	iframe->dst_addr.ioaddr[i] = ion_iovmm_map(iframe->attachment[i], 0,
+						   size, DMA_FROM_DEVICE, 0);
+	if (IS_ERR_VALUE(iframe->dst_addr.ioaddr[i])) {
+		dev_err(dev,
+			"Failed to allocate iova of buffer.%d (err %pa)",
+			i, &iframe->dst_addr.ioaddr[i]);
+		goto err_dst_map;
+	}
+
+	return true;
+
+err_dst_map:
+	iframe->dst_addr.ioaddr[i] = 0;
+	ion_iovmm_unmap(iframe->attachment[i], iframe->src_addr.ioaddr[i]);
+err_src_map:
+	iframe->src_addr.ioaddr[i] = 0;
+	dma_buf_unmap_attachment(iframe->attachment[i], iframe->sgt[i],
+				 DMA_BIDIRECTIONAL);
+err_map:
+	iframe->sgt[i] = NULL;
+	dma_buf_detach(iframe->dma_buf[i], iframe->attachment[i]);
+err_attach:
+	iframe->attachment[i] = NULL;
+	dma_buf_put(iframe->dma_buf[i]);
+err_dmabuf:
+	iframe->dma_buf[i] = NULL;
+	return false;
+}
+
 static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 {
 	struct sc_frame *frame;
 	struct sc_dev *sc = ctx->sc_dev;
-	int ion_mask, flag;
+	const char *heapname;
+	unsigned long flag;
 	int i;
 
 	frame = &ctx->i_frame->frame;
@@ -1365,16 +1432,16 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 	 * needed to be initialized because image setting is never changed
 	 * while streaming continues.
 	 */
-	if (ctx->i_frame->handle[0])
+	if (ctx->i_frame->dma_buf[0])
 		return true;
 
 	sc_calc_intbufsize(sc, ctx->i_frame);
 
 	if(test_bit(CTX_INT_FRAME_CP, &sc->state)) {
-		ion_mask = EXYNOS_ION_HEAP_VIDEO_SCALER_MASK;
+		heapname = "vscaler_heap";
 		flag = ION_FLAG_PROTECTED;
 	} else {
-		ion_mask = EXYNOS_ION_HEAP_SYSTEM_MASK;
+		heapname = "ion_system_heap";
 		flag = 0;
 	}
 
@@ -1382,65 +1449,10 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 		if (!frame->addr.size[i])
 			break;
 
-		ctx->i_frame->handle[i] = ion_alloc(ctx->sc_dev->client,
-				frame->addr.size[i], 0, ion_mask, flag);
-		if (IS_ERR(ctx->i_frame->handle[i])) {
-			dev_err(sc->dev,
-			"Failed to allocate intermediate buffer.%d (err %ld)",
-				i, PTR_ERR(ctx->i_frame->handle[i]));
-			ctx->i_frame->handle[i] = NULL;
+		if (!alloc_intermediate_buffer(sc->dev, ctx->i_frame, i,
+					       frame->addr.size[i],
+					       heapname, flag))
 			goto err_ion_alloc;
-		}
-
-		ctx->i_frame->dma_buf[i] = ion_share_dma_buf(ctx->sc_dev->client,
-				ctx->i_frame->handle[i]);
-		if (IS_ERR(ctx->i_frame->dma_buf[i])) {
-			dev_err(sc->dev,
-			"Failed to get dma_buf from ion_handle of buffer.%d (err %ld)",
-				i, PTR_ERR(ctx->i_frame->dma_buf[i]));
-			ctx->i_frame->dma_buf[i] = NULL;
-			goto err_ion_alloc;
-		}
-
-		ctx->i_frame->attachment[i] = dma_buf_attach(ctx->i_frame->dma_buf[i],
-				sc->dev);
-		if (IS_ERR(ctx->i_frame->attachment[i])) {
-			dev_err(sc->dev,
-			"Failed to get dma_buf_attach from dma_buf of buffer.%d (err %ld)",
-				i, PTR_ERR(ctx->i_frame->attachment[i]));
-			ctx->i_frame->attachment[i] = NULL;
-			goto err_ion_alloc;
-		}
-
-		ctx->i_frame->sgt[i] = dma_buf_map_attachment(ctx->i_frame->attachment[i],
-				DMA_BIDIRECTIONAL);
-		if (IS_ERR(ctx->i_frame->sgt[i])) {
-			dev_err(sc->dev,
-			"Failed to get sgt from dma_buf_attach of buffer.%d (err %ld)",
-				i, PTR_ERR(ctx->i_frame->sgt[i]));
-			ctx->i_frame->sgt[i] = NULL;
-			goto err_ion_alloc;
-		}
-
-		ctx->i_frame->src_addr.ioaddr[i] = ion_iovmm_map(ctx->i_frame->attachment[i], 0,
-					frame->addr.size[i], DMA_TO_DEVICE, 0);
-		if (IS_ERR_VALUE(ctx->i_frame->src_addr.ioaddr[i])) {
-			dev_err(sc->dev,
-				"Failed to allocate iova of buffer.%d (err %pa)",
-				i, &ctx->i_frame->src_addr.ioaddr[i]);
-			ctx->i_frame->src_addr.ioaddr[i] = 0;
-			goto err_ion_alloc;
-		}
-
-		ctx->i_frame->dst_addr.ioaddr[i] = ion_iovmm_map(ctx->i_frame->attachment[i], 0,
-					frame->addr.size[i], DMA_FROM_DEVICE, 0);
-		if (IS_ERR_VALUE(ctx->i_frame->dst_addr.ioaddr[i])) {
-			dev_err(sc->dev,
-				"Failed to allocate iova of buffer.%d (err %pa)",
-				i, &ctx->i_frame->dst_addr.ioaddr[i]);
-			ctx->i_frame->dst_addr.ioaddr[i] = 0;
-			goto err_ion_alloc;
-		}
 
 		frame->addr.ioaddr[i] = ctx->i_frame->dst_addr.ioaddr[i];
 	}
@@ -3671,6 +3683,8 @@ static int sc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+
 	atomic_set(&sc->wdt.cnt, 0);
 	setup_timer(&sc->wdt.timer, sc_watchdog, (unsigned long)sc);
 
@@ -3766,14 +3780,6 @@ static int sc_probe(struct platform_device *pdev)
 		goto err_qch_dbg;
 	}
 
-	sc->client = exynos_ion_client_create("scaler-int");
-	if (IS_ERR(sc->client)) {
-		ret = PTR_ERR(sc->client);
-		dev_err(&pdev->dev,
-			"Failed to create ION client for int.buf.(err %d)\n", ret);
-		goto err_ion_client_create;
-	}
-
 	sc->version = SCALER_VERSION(2, 0, 0);
 
 	hwver = __raw_readl(sc->regs + SCALER_VER);
@@ -3806,8 +3812,6 @@ static int sc_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_ion_client_create:
-	kfree(sc->qch_dbg);
 err_qch_dbg:
 	iounmap(sc->q_reg);
 err_qch_reg:
@@ -3834,7 +3838,6 @@ static int sc_remove(struct platform_device *pdev)
 {
 	struct sc_dev *sc = platform_get_drvdata(pdev);
 
-	ion_client_destroy(sc->client);
 	iounmap(sc->q_reg);
 	kfree(sc->qch_dbg);
 
