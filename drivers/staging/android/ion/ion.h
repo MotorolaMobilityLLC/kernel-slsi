@@ -85,6 +85,7 @@ struct ion_buffer {
 	int kmap_cnt;
 	void *vaddr;
 	struct sg_table *sg_table;
+	struct list_head iovas;
 };
 void ion_buffer_destroy(struct ion_buffer *buffer);
 
