@@ -52,14 +52,15 @@ static int __init get_cpu_for_node(struct device_node *node)
 	return -1;
 }
 
-static int __init parse_core(struct device_node *core, int cluster_id,
-			     int core_id)
+static int __init
+parse_core(struct device_node *core, int cluster_id, int coregroup_id, int core_id)
 {
 	int cpu;
 
 	cpu = get_cpu_for_node(core);
 	if (cpu >= 0) {
 		cpu_topology[cpu].cluster_id = cluster_id;
+		cpu_topology[cpu].coregroup_id = coregroup_id;
 		cpu_topology[cpu].core_id = core_id;
 	} else {
 		pr_err("%pOF: Can't get CPU for leaf core\n", core);
@@ -76,6 +77,7 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 	bool has_cores = false;
 	struct device_node *c;
 	static int cluster_id __initdata;
+	static int coregroup_id __initdata;
 	int core_id = 0;
 	int i, ret;
 
@@ -114,7 +116,7 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 			}
 
 			if (leaf) {
-				ret = parse_core(c, cluster_id, core_id++);
+				ret = parse_core(c, cluster_id, coregroup_id, core_id++);
 			} else {
 				pr_err("%pOF: Non-leaf cluster with core %s\n",
 				       cluster, name);
@@ -132,6 +134,8 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 		pr_warn("%pOF: empty cluster\n", cluster);
 
 	if (leaf)
+		coregroup_id++;
+	if (depth == 1)
 		cluster_id++;
 
 	return 0;
@@ -203,6 +207,13 @@ static void update_siblings_masks(unsigned int cpuid)
 		if (cpuid_topo->cluster_id != cpu_topo->cluster_id)
 			continue;
 
+		cpumask_set_cpu(cpuid, &cpu_topo->cluster_sibling);
+		if (cpu != cpuid)
+			cpumask_set_cpu(cpu, &cpuid_topo->cluster_sibling);
+
+		if (cpuid_topo->coregroup_id != cpu_topo->coregroup_id)
+			continue;
+
 		cpumask_set_cpu(cpuid, &cpu_topo->core_sibling);
 		if (cpu != cpuid)
 			cpumask_set_cpu(cpu, &cpuid_topo->core_sibling);
@@ -235,6 +246,7 @@ void store_cpu_topology(unsigned int cpuid)
 	cpuid_topo->cluster_id = MPIDR_AFFINITY_LEVEL(mpidr, 1) |
 				 MPIDR_AFFINITY_LEVEL(mpidr, 2) << 8 |
 				 MPIDR_AFFINITY_LEVEL(mpidr, 3) << 16;
+	cpuid_topo->coregroup_id = cpuid_topo->cluster_id;
 
 	pr_debug("CPU%u: cluster %d core %d mpidr %#016llx\n",
 			cpuid, cpuid_topo->cluster_id, cpuid_topo->core_id, mpidr);
@@ -322,8 +334,11 @@ static void __init reset_cpu_topology(void)
 		struct cpu_topology *cpu_topo = &cpu_topology[cpu];
 
 		cpu_topo->core_id = 0;
+		cpu_topo->coregroup_id = -1;
 		cpu_topo->cluster_id = -1;
 
+		cpumask_clear(&cpu_topo->cluster_sibling);
+		cpumask_set_cpu(cpu, &cpu_topo->cluster_sibling);
 		cpumask_clear(&cpu_topo->core_sibling);
 		cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
 		cpumask_clear(&cpu_topo->thread_sibling);
