@@ -63,7 +63,6 @@ struct fimc_is_priv_buf {
 
 	const struct fimc_is_priv_buf_ops	*ops;
 	void					*priv;
-	struct ion_handle			*handle;
 	struct dma_buf				*dma_buf;
 	struct dma_buf_attachment		*attachment;
 	enum dma_data_direction			direction;
@@ -102,7 +101,6 @@ struct fimc_is_mem_ops {
 
 struct fimc_is_ion_ctx {
 	struct device		*dev;
-	struct ion_client	*client;
 	unsigned long		alignment;
 	long			flags;
 

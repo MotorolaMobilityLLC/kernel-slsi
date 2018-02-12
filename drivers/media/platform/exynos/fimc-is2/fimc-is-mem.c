@@ -30,7 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/dma-buf.h>
-#include <linux/exynos_ion.h>
+#include <linux/ion_exynos.h>
 #include <asm/cacheflush.h>
 
 #include "fimc-is-core.h"
@@ -142,31 +142,24 @@ static void fimc_is_ion_free(struct fimc_is_priv_buf *pbuf)
 		ion_iovmm_unmap(pbuf->attachment, pbuf->iova);
 	mutex_unlock(&alloc_ctx->lock);
 
+	if (pbuf->kva)
+		dma_buf_vunmap(pbuf->dma_buf, pbuf->kva);
+
 	dma_buf_unmap_attachment(pbuf->attachment, pbuf->sgt,
 				DMA_BIDIRECTIONAL);
 	dma_buf_detach(pbuf->dma_buf, pbuf->attachment);
 	dma_buf_put(pbuf->dma_buf);
-
-	if (pbuf->kva)
-		ion_unmap_kernel(alloc_ctx->client, pbuf->handle);
-	ion_free(alloc_ctx->client, pbuf->handle);
 
 	vfree(pbuf);
 }
 
 static ulong fimc_is_ion_kvaddr(struct fimc_is_priv_buf *pbuf)
 {
-	struct fimc_is_ion_ctx *alloc_ctx;
-
 	if (!pbuf)
 		return 0;
 
-	alloc_ctx = pbuf->ctx;
-	if (!pbuf->kva) {
-		pbuf->kva = ion_map_kernel(alloc_ctx->client, pbuf->handle);
-		if (IS_ERR_OR_NULL(pbuf->kva))
-			pbuf->kva = NULL;
-	}
+	if (!pbuf->kva)
+		pbuf->kva = dma_buf_vmap(pbuf->dma_buf);
 
 	return (ulong)pbuf->kva;
 }
@@ -235,15 +228,8 @@ static void *fimc_is_ion_init(struct platform_device *pdev)
 		return ERR_PTR(-ENOMEM);
 
 	ctx->dev = &pdev->dev;
-	ctx->client = exynos_ion_client_create(dev_name(&pdev->dev));
-	if (IS_ERR(ctx->client)) {
-		void *retp = ctx->client;
-		kfree(ctx);
-		return retp;
-	}
-
 	ctx->alignment = SZ_4K;
-	ctx->flags = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC;
+	ctx->flags = ION_FLAG_CACHED;
 	mutex_init(&ctx->lock);
 
 	return ctx;
@@ -255,7 +241,6 @@ static void fimc_is_ion_deinit(void *ctx)
 	struct fimc_is_ion_ctx *alloc_ctx = ctx;
 
 	mutex_destroy(&alloc_ctx->lock);
-	ion_client_destroy(alloc_ctx->client);
 	vfree(alloc_ctx);
 }
 
@@ -264,7 +249,7 @@ static struct fimc_is_priv_buf *fimc_is_ion_alloc(void *ctx,
 {
 	struct fimc_is_ion_ctx *alloc_ctx = ctx;
 	struct fimc_is_priv_buf *buf;
-	int heapflags = EXYNOS_ION_HEAP_SYSTEM_MASK;
+	const char *heapname = "ion_system_heap";
 	int ret = 0;
 
 	buf = vzalloc(sizeof(*buf));
@@ -273,17 +258,10 @@ static struct fimc_is_priv_buf *fimc_is_ion_alloc(void *ctx,
 
 	size = PAGE_ALIGN(size);
 
-	buf->handle = ion_alloc(alloc_ctx->client, size, alloc_ctx->alignment,
-				heapflags, alloc_ctx->flags);
-	if (IS_ERR(buf->handle)) {
+	buf->dma_buf = ion_alloc_dmabuf(heapname, size, alloc_ctx->flags);
+	if (IS_ERR(buf->dma_buf)) {
 		ret = -ENOMEM;
 		goto err_alloc;
-	}
-
-	buf->dma_buf = ion_share_dma_buf(alloc_ctx->client, buf->handle);
-	if (IS_ERR(buf->dma_buf)) {
-		ret = PTR_ERR(buf->dma_buf);
-		goto err_share;
 	}
 
 	buf->attachment = dma_buf_attach(buf->dma_buf, alloc_ctx->dev);
@@ -317,16 +295,12 @@ static struct fimc_is_priv_buf *fimc_is_ion_alloc(void *ctx,
 	return buf;
 
 err_ion_map_io:
-	if (buf->kva)
-		ion_unmap_kernel(alloc_ctx->client, buf->handle);
 	dma_buf_unmap_attachment(buf->attachment, buf->sgt,
 				DMA_BIDIRECTIONAL);
 err_map_dmabuf:
 	dma_buf_detach(buf->dma_buf, buf->attachment);
 err_attach:
 	dma_buf_put(buf->dma_buf);
-err_share:
-	ion_free(alloc_ctx->client, buf->handle);
 err_alloc:
 	vfree(buf);
 
