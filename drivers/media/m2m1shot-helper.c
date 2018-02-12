@@ -22,7 +22,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/exynos_iovmm.h>
-#include <linux/exynos_ion.h>
+#include <linux/ion_exynos.h>
 
 #include <media/m2m1shot-helper.h>
 
