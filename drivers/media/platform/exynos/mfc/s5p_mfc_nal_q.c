@@ -169,15 +169,7 @@ static nal_queue_in_handle* mfc_nal_q_create_in_q(struct s5p_mfc_dev *dev,
 		kfree(nal_q_in_handle);
 		return NULL;
 	}
-
-	nal_q_in_handle->nal_q_in_addr
-		= (nal_in_queue *)s5p_mfc_mem_get_vaddr(dev, &nal_q_in_handle->in_buf);
-	if (!nal_q_in_handle->nal_q_in_addr) {
-		mfc_err_dev("NAL Q: failed to get vaddr\n");
-		s5p_mfc_mem_ion_free(dev, &nal_q_in_handle->in_buf);
-		kfree(nal_q_in_handle);
-		return NULL;
-	}
+	nal_q_in_handle->nal_q_in_addr = (nal_in_queue *)nal_q_in_handle->in_buf.vaddr;
 
 	mfc_debug_leave();
 
@@ -210,15 +202,7 @@ static nal_queue_out_handle* mfc_nal_q_create_out_q(struct s5p_mfc_dev *dev,
 		kfree(nal_q_out_handle);
 		return NULL;
 	}
-
-	nal_q_out_handle->nal_q_out_addr
-		= (nal_out_queue *)s5p_mfc_mem_get_vaddr(dev, &nal_q_out_handle->out_buf);
-	if (!nal_q_out_handle->nal_q_out_addr) {
-		mfc_err_dev("NAL Q : failed to get vaddr\n");
-		s5p_mfc_mem_ion_free(dev, &nal_q_out_handle->out_buf);
-		kfree(nal_q_out_handle);
-		return NULL;
-	}
+	nal_q_out_handle->nal_q_out_addr = (nal_out_queue *)nal_q_out_handle->out_buf.vaddr;
 
 	mfc_debug_leave();
 

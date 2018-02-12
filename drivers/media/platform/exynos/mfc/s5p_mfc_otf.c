@@ -93,7 +93,7 @@ static int mfc_otf_map_buf(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "OTF: buffer count: %d\n", buf_info->buffer_count);
 	/* map buffers */
 	for (i = 0; i < buf_info->buffer_count; i++) {
-		mfc_debug(2, "OTF: dma_buf: %p\n", buf_info->bufs[i]);
+		mfc_debug(2, "OTF: dma_buf: 0x%p\n", buf_info->bufs[i]);
 		buf_addr->otf_buf_attach[i] = dma_buf_attach(buf_info->bufs[i], dev->device);
 		if (IS_ERR(buf_addr->otf_buf_attach[i])) {
 			mfc_err_ctx("OTF: Failed to get attachment (err %ld)",
@@ -389,7 +389,7 @@ int s5p_mfc_otf_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	raw = &ctx->raw_buf;
 
 	if (!handle) {
-		mfc_err_ctx("OTF: There is no otf_handle, handle: %p\n", handle);
+		mfc_err_ctx("OTF: There is no otf_handle, handle: 0x%p\n", handle);
 		return -EINVAL;
 	}
 

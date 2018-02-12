@@ -372,8 +372,8 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 	mfc_debug_enter();
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		mfc_debug(2, "dst queue: %p\n", &ctx->dst_buf_queue);
-		mfc_debug(2, "Adding to dst vb: %p, addr: %08llx\n", vb, buf->addr[0]);
+		mfc_debug(2, "dst queue: 0x%p\n", &ctx->dst_buf_queue);
+		mfc_debug(2, "Adding to dst vb: 0x%p, addr: %08llx\n", vb, buf->addr[0]);
 
 		/* Mark destination as available for use by MFC */
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, buf);

@@ -42,14 +42,12 @@ void s5p_mfc_mem_invalidate(struct s5p_mfc_dev *dev,
 
 int s5p_mfc_mem_get_user_shared_handle(struct s5p_mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle);
-int s5p_mfc_mem_cleanup_user_shared_handle(struct s5p_mfc_ctx *ctx,
+void s5p_mfc_mem_cleanup_user_shared_handle(struct s5p_mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle);
 
-void *s5p_mfc_mem_get_vaddr(struct s5p_mfc_dev *dev,
+int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 		struct s5p_mfc_special_buf *special_buf);
 void s5p_mfc_mem_ion_free(struct s5p_mfc_dev *dev,
-		struct s5p_mfc_special_buf *special_buf);
-int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 		struct s5p_mfc_special_buf *special_buf);
 
 #endif /* __S5P_MFC_MEM_H */

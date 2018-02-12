@@ -55,7 +55,7 @@ static void mfc_dump_regs(struct s5p_mfc_dev *dev)
 		{ 0xD000, 0x74 },
 	};
 
-	pr_err("-----------dumping MFC registers (SFR base = %p, dev = %p)\n",
+	pr_err("-----------dumping MFC registers (SFR base = 0x%p, dev = 0x%p)\n",
 				dev->regs_base, dev);
 
 	s5p_mfc_enable_all_clocks(dev);

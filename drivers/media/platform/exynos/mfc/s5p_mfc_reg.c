@@ -117,7 +117,7 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 	buf_addr1 = ctx->codec_buf.daddr;
 	buf_size1 = ctx->codec_buf.size;
 
-	mfc_debug(2, "Buf1: %p (%d)\n", (void *)buf_addr1, buf_size1);
+	mfc_debug(2, "Buf1: 0x%p (%d)\n", (void *)buf_addr1, buf_size1);
 	mfc_debug(2, "Total DPB COUNT: %d\n", dec->total_dpb_count);
 	mfc_debug(2, "Setting display delay to %d\n", dec->display_delay);
 
@@ -208,14 +208,14 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 			align_gap = buf_addr1 - align_gap;
 			buf_size1 -= align_gap;
 
-			mfc_debug(2, "\tBuf1: %p, size: %d\n", (void *)buf_addr1, buf_size1);
+			mfc_debug(2, "\tBuf1: 0x%p, size: %d\n", (void *)buf_addr1, buf_size1);
 			MFC_WRITEL(buf_addr1, S5P_FIMV_D_MV_BUFFER0 + i * 4);
 			buf_addr1 += frame_size_mv;
 			buf_size1 -= frame_size_mv;
 		}
 	}
 
-	mfc_debug(2, "Buf1: %p, buf_size1: %d (frames %d)\n",
+	mfc_debug(2, "Buf1: 0x%p, buf_size1: %d (frames %d)\n",
 			(void *)buf_addr1, buf_size1, dec->total_dpb_count);
 	if (buf_size1 < 0) {
 		mfc_debug(2, "Not enough memory has been allocated.\n");
@@ -240,7 +240,7 @@ int s5p_mfc_set_enc_codec_buffers(struct s5p_mfc_ctx *ctx)
 	buf_addr1 = ctx->codec_buf.daddr;
 	buf_size1 = ctx->codec_buf.size;
 
-	mfc_debug(2, "Buf1: %p (%d)\n", (void *)buf_addr1, buf_size1);
+	mfc_debug(2, "Buf1: 0x%p (%d)\n", (void *)buf_addr1, buf_size1);
 
 	MFC_WRITEL(buf_addr1, S5P_FIMV_E_SCRATCH_BUFFER_ADDR);
 	MFC_WRITEL(ctx->scratch_buf_size, S5P_FIMV_E_SCRATCH_BUFFER_SIZE);
@@ -270,7 +270,7 @@ int s5p_mfc_set_enc_codec_buffers(struct s5p_mfc_ctx *ctx)
 	buf_addr1 += enc->tmv_buffer_size >> 1;
 	buf_size1 -= enc->tmv_buffer_size;
 
-	mfc_debug(2, "Buf1: %p, buf_size1: %d (ref frames %d)\n",
+	mfc_debug(2, "Buf1: 0x%p, buf_size1: %d (ref frames %d)\n",
 			(void *)buf_addr1, buf_size1, ctx->dpb_count);
 	if (buf_size1 < 0) {
 		mfc_debug(2, "Not enough memory has been allocated.\n");

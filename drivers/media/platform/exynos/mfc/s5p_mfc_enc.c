@@ -645,7 +645,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return 0;
 	}
 
-	mfc_debug(2, "Addr: %p %p %p Type: %d\n", &ctx->vq_src, buf, buf->m.planes,
+	mfc_debug(2, "Addr: 0x%p 0x%p 0x%p Type: %d\n", &ctx->vq_src, buf, buf->m.planes,
 								buf->type);
 	if (ctx->state == MFCINST_ERROR) {
 		mfc_err_ctx("Call on DQBUF after unrecoverable error.\n");
@@ -1675,10 +1675,8 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 					(enc->sh_handle_svc.fd == -1)) {
 						enc->sh_handle_svc.fd = ctrl->value;
 						if (s5p_mfc_mem_get_user_shared_handle(ctx,
-									&enc->sh_handle_svc)) {
-							enc->sh_handle_svc.fd = -1;
+									&enc->sh_handle_svc))
 							return -EINVAL;
-						}
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH &&
 						p->i_frm_ctrl_mode) {
@@ -1693,13 +1691,12 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 					ctx_ctrl->val = mfc_enc_h264_level((enum v4l2_mpeg_video_h264_level)(ctrl->value));
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_PROFILE)
 					ctx_ctrl->val = mfc_enc_h264_profile(ctx, (enum v4l2_mpeg_video_h264_profile)(ctrl->value));
-				if (ctx_ctrl->id == \
-					V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
-					enc->sh_handle_roi.fd = ctrl->value;
-					if (s5p_mfc_mem_get_user_shared_handle(ctx,
-								&enc->sh_handle_roi)) {
-						enc->sh_handle_roi.fd = -1;
-						return -EINVAL;
+				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
+					if (enc->sh_handle_roi.fd == -1) {
+						enc->sh_handle_roi.fd = ctrl->value;
+						if (s5p_mfc_mem_get_user_shared_handle(ctx,
+									&enc->sh_handle_roi))
+							return -EINVAL;
 					}
 					index = enc->roi_index;
 					memcpy(&enc->roi_info[index],

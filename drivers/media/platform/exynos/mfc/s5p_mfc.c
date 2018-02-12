@@ -562,7 +562,7 @@ static int s5p_mfc_open(struct file *file)
 	}
 
 	trace_mfc_node_open(ctx->num, dev->num_inst, ctx->type, ctx->is_drm);
-	mfc_info_ctx("MFC open completed [%d:%d] dev = %p, ctx = %p, version = %d\n",
+	mfc_info_ctx("MFC open completed [%d:%d] dev = 0x%p, ctx = 0x%p, version = %d\n",
 			dev->num_drm_inst, dev->num_inst, dev, ctx, MFC_DRIVER_INFO);
 	mutex_unlock(&dev->mfc_mutex);
 	return ret;
@@ -758,7 +758,7 @@ static int s5p_mfc_release(struct file *file)
 	dev->ctx[ctx->num] = 0;
 	kfree(ctx);
 
-	mfc_info_dev("mfc driver release finished [%d:%d], dev = %p\n",
+	mfc_info_dev("mfc driver release finished [%d:%d], dev = 0x%p\n",
 			dev->num_drm_inst, dev->num_inst, dev);
 
 	if (s5p_mfc_is_work_to_do(dev))
@@ -1082,6 +1082,8 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	dev->mfc_trace = g_mfc_trace;
 	dev->mfc_trace_hwlock = g_mfc_trace_hwlock;
 
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+
 	s5p_mfc_pm_init(dev);
 	ret = mfc_register_resource(pdev, dev);
 	if (ret)
@@ -1177,14 +1179,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	}
 	INIT_WORK(&dev->butler_work, s5p_mfc_butler_worker);
 
-#ifdef CONFIG_ION_EXYNOS
-	dev->mfc_ion_client = exynos_ion_client_create("mfc");
-	if (IS_ERR(dev->mfc_ion_client)) {
-		dev_err(&pdev->dev, "failed to ion_client_create\n");
-		goto err_ion_client;
-	}
-#endif
-
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	atomic_set(&dev->qos_req_cur, 0);
 
@@ -1223,10 +1217,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 err_alloc_debug:
 	iovmm_deactivate(&pdev->dev);
 err_iovmm_active:
-#ifdef CONFIG_ION_EXYNOS
-	ion_client_destroy(dev->mfc_ion_client);
-err_ion_client:
-#endif
 	destroy_workqueue(dev->butler_wq);
 err_butler_wq:
 	destroy_workqueue(dev->watchdog_wq);
@@ -1282,9 +1272,6 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	remove_proc_entry(MFC_PROC_ROOT, NULL);
 #endif
 	s5p_mfc_destroy_listable_wq_dev(dev);
-#ifdef CONFIG_ION_EXYNOS
-	ion_client_destroy(dev->mfc_ion_client);
-#endif
 	iovmm_deactivate(&pdev->dev);
 	mfc_debug(2, "Will now deinit HW\n");
 	s5p_mfc_deinit_hw(dev);

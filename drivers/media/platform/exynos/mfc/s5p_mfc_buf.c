@@ -43,7 +43,7 @@ static int mfc_alloc_common_context(struct s5p_mfc_dev *dev,
 
 	firmware_size = dev->variant->buf_size->firmware_code;
 
-	ctx_buf->handle = NULL;
+	ctx_buf->dma_buf = NULL;
 	ctx_buf->vaddr = NULL;
 	ctx_buf->daddr = fw_daddr + firmware_size;
 
@@ -88,7 +88,7 @@ static void mfc_release_common_context(struct s5p_mfc_dev *dev,
 		ctx_buf = &dev->drm_common_ctx_buf;
 #endif
 
-	ctx_buf->handle = NULL;
+	ctx_buf->dma_buf = NULL;
 	ctx_buf->vaddr = NULL;
 	ctx_buf->daddr = 0;
 }
@@ -167,14 +167,6 @@ int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
 
 	if (s5p_mfc_mem_ion_alloc(dev, &ctx->instance_ctx_buf)) {
 		mfc_err_ctx("Allocating context buffer failed\n");
-		return -ENOMEM;
-	}
-
-	ctx->instance_ctx_buf.vaddr = s5p_mfc_mem_get_vaddr(dev, &ctx->instance_ctx_buf);
-
-	if (!ctx->instance_ctx_buf.vaddr) {
-		mfc_err_dev("failed to get instance ctx buffer vaddr\n");
-		s5p_mfc_mem_ion_free(dev, &ctx->instance_ctx_buf);
 		return -ENOMEM;
 	}
 
@@ -421,13 +413,6 @@ int s5p_mfc_alloc_codec_buffers(struct s5p_mfc_ctx *ctx)
 			mfc_err_ctx("Allocating codec buffer failed\n");
 			return -ENOMEM;
 		}
-
-		ctx->codec_buf.vaddr = s5p_mfc_mem_get_vaddr(dev, &ctx->codec_buf);
-		if (!ctx->codec_buf.vaddr) {
-			mfc_err_dev("failed to get codec buffer vaddr\n");
-			s5p_mfc_mem_ion_free(dev, &ctx->codec_buf);
-			return -ENOMEM;
-		}
 		ctx->codec_buffer_allocated = 1;
 	} else if (ctx->codec_mode == S5P_FIMV_CODEC_MPEG2_DEC) {
 		ctx->codec_buffer_allocated = 1;
@@ -472,17 +457,8 @@ int s5p_mfc_alloc_dbg_info_buffer(struct s5p_mfc_dev *dev)
 		mfc_err_dev("Allocating debug info buffer failed\n");
 		return -ENOMEM;
 	}
-	mfc_debug(2, "dev->dbg_info_buf.daddr = 0x%08llx\n",
-			dev->dbg_info_buf.daddr);
-
-	dev->dbg_info_buf.vaddr = s5p_mfc_mem_get_vaddr(dev, &dev->dbg_info_buf);
-	if (!dev->dbg_info_buf.vaddr) {
-		mfc_err_dev("failed to get debug info buffer vaddr\n");
-		s5p_mfc_mem_ion_free(dev, &dev->dbg_info_buf);
-		return -ENOMEM;
-	}
-	mfc_debug(2, "dev->dbg_info_buf.vaddr = 0x%p\n",
-					dev->dbg_info_buf.vaddr);
+	mfc_debug(2, "dev->dbg_info_buf.daddr = 0x%08llx, vaddr = 0x%p\n",
+			dev->dbg_info_buf.daddr, dev->dbg_info_buf.vaddr);
 
 	return 0;
 }
@@ -495,7 +471,7 @@ int s5p_mfc_release_dbg_info_buffer(struct s5p_mfc_dev *dev)
 		return -EINVAL;
 	}
 
-	if (!dev->dbg_info_buf.handle) {
+	if (!dev->dbg_info_buf.dma_buf) {
 		mfc_debug(2, "debug info buffer is already freed\n");
 		return 0;
 	}
@@ -518,14 +494,8 @@ static int mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_spec
 		mfc_err_ctx("Allocating ROI buffer failed\n");
 		return -ENOMEM;
 	}
-	mfc_debug(2, "roi_buf.daddr = 0x%08llx\n", roi_buf->daddr);
-
-	roi_buf->vaddr = s5p_mfc_mem_get_vaddr(dev, roi_buf);
-	if (!roi_buf->vaddr) {
-		mfc_err_dev("failed to get ROI buffer vaddr\n");
-		s5p_mfc_mem_ion_free(dev, roi_buf);
-		return -ENOMEM;
-	}
+	mfc_debug(2, "roi_buf.daddr = 0x%08llx, vaddr = 0x%p\n",
+			roi_buf->daddr, roi_buf->vaddr);
 
 	memset(roi_buf->vaddr, 0, buf_size->shared_buf);
 
@@ -555,7 +525,7 @@ void s5p_mfc_release_enc_roi_buffer(struct s5p_mfc_ctx *ctx)
 	int i;
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++)
-		if (enc->roi_buf[i].handle)
+		if (enc->roi_buf[i].dma_buf)
 			s5p_mfc_mem_ion_free(ctx->dev, &enc->roi_buf[i]);
 }
 
@@ -578,12 +548,6 @@ int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
 			mfc_err_ctx("OTF: Allocating stream buffer failed\n");
 			return -EINVAL;
 		}
-		buf->vaddr = s5p_mfc_mem_get_vaddr(dev, buf);
-		if (!buf->vaddr) {
-			mfc_err_dev("OTF: failed to get stream buffer vaddr\n");
-			s5p_mfc_mem_ion_free(dev, buf);
-			return -EINVAL;
-		}
 		memset(buf->vaddr, 0, raw->total_plane_size);
 	}
 
@@ -604,7 +568,7 @@ void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx)
 
 	for (i = 0; i < OTF_MAX_BUF; i++) {
 		buf = &debug->stream_buf[i];
-		if (buf->handle)
+		if (buf->dma_buf)
 			s5p_mfc_mem_ion_free(dev, buf);
 	}
 
@@ -630,7 +594,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	firmware_size = dev->variant->buf_size->firmware_code;
 	dev->fw.size = firmware_size + buf_size->dev_ctx;
 
-	if (dev->fw_buf.handle)
+	if (dev->fw_buf.dma_buf)
 		return 0;
 
 	mfc_debug(2, "Allocating memory for firmware.\n");
@@ -643,12 +607,6 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		return -ENOMEM;
 	}
 
-	dev->fw_buf.vaddr = s5p_mfc_mem_get_vaddr(dev, &dev->fw_buf);
-	if (!dev->fw_buf.vaddr) {
-		mfc_err_dev("failed to get normal firmware buffer vaddr\n");
-		s5p_mfc_mem_ion_free(dev, &dev->fw_buf);
-		return -EIO;
-	}
 	mfc_debug(2, "FW normal: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
 			dev->fw_buf.daddr, dev->fw_buf.vaddr,
 			dev->fw_buf.size);
@@ -659,14 +617,6 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	if (s5p_mfc_mem_ion_alloc(dev, &dev->drm_fw_buf)) {
 		mfc_err_dev("Allocating DRM firmware buffer failed\n");
 		return -ENOMEM;
-	}
-
-	dev->drm_fw_buf.vaddr = s5p_mfc_mem_get_vaddr(dev, &dev->drm_fw_buf);
-	if (!dev->drm_fw_buf.vaddr) {
-		mfc_err_dev("failed to get DRM firmware buffer vaddr\n");
-		s5p_mfc_mem_ion_free(dev, &dev->fw_buf);
-		s5p_mfc_mem_ion_free(dev, &dev->drm_fw_buf);
-		return -EIO;
 	}
 
 	mfc_debug(2, "FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
@@ -713,7 +663,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 		return -ENOMEM;
 	}
 
-	if (dev->fw_buf.handle == NULL || dev->fw_buf.daddr == 0) {
+	if (dev->fw_buf.dma_buf == NULL || dev->fw_buf.daddr == 0) {
 		mfc_err_dev("MFC firmware is not allocated or was not mapped correctly.\n");
 		release_firmware(fw_blob);
 		return -EINVAL;
@@ -740,7 +690,7 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 		return -EINVAL;
 	}
 
-	if (!dev->fw_buf.handle) {
+	if (!dev->fw_buf.dma_buf) {
 		mfc_err_dev("firmware memory is already freed\n");
 		return -EINVAL;
 	}

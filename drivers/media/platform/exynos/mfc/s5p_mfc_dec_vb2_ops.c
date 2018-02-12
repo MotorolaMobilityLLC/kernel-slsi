@@ -577,8 +577,8 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(2, "Src queue: %p\n", &ctx->src_buf_queue);
-		mfc_debug(2, "Adding to src: %p (0x%08llx, 0x%08llx)\n", vb,
+		mfc_debug(2, "Src queue: 0x%p\n", &ctx->src_buf_queue);
+		mfc_debug(2, "Adding to src: 0x%p (0x%08llx, 0x%08llx)\n", vb,
 				s5p_mfc_mem_get_daddr_vb(vb, 0),
 				buf->addr[0]);
 		if (dec->dst_memtype == V4L2_MEMORY_DMABUF &&
@@ -593,8 +593,8 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 				vb->index, vb->planes[0].m.fd, buf->addr[0]);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		index = vb->index;
-		mfc_debug(2, "Dst queue: %p\n", &ctx->dst_buf_queue);
-		mfc_debug(2, "Adding to dst: %p (0x%08llx)\n", vb,
+		mfc_debug(2, "Dst queue: 0x%p\n", &ctx->dst_buf_queue);
+		mfc_debug(2, "Adding to dst: 0x%p (0x%08llx)\n", vb,
 				s5p_mfc_mem_get_daddr_vb(vb, 0));
 		for (i = 0; i < ctx->dst_fmt->num_planes; i++)
 			mfc_debug(2, "dec dst plane[%d]: %08llx\n",

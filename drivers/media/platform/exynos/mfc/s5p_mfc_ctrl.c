@@ -40,7 +40,7 @@ static int mfc_init_hw(struct s5p_mfc_dev *dev, enum mfc_buf_usage_type buf_type
 
 	curr_ctx_is_drm_backup = dev->curr_ctx_is_drm;
 
-	if (!dev->fw_buf.handle)
+	if (!dev->fw_buf.dma_buf)
 		return -EINVAL;
 
 	/* 0. MFC reset */

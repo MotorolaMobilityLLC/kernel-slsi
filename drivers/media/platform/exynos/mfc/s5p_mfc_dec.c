@@ -739,7 +739,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	int ncount = 0;
 
 	mfc_debug_enter();
-	mfc_debug(2, "Addr: %p %p %p Type: %d\n", &ctx->vq_src, buf, buf->m.planes,
+	mfc_debug(2, "Addr: 0x%p 0x%p 0x%p Type: %d\n", &ctx->vq_src, buf, buf->m.planes,
 								buf->type);
 	if (ctx->state == MFCINST_ERROR) {
 		mfc_err_ctx("Call on DQBUF after unrecoverable error.\n");
@@ -1086,10 +1086,10 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			mfc_err_dev("is_dynamic_dpb is 0. it has to be enabled.\n");
 		break;
 	case V4L2_CID_MPEG_MFC_SET_USER_SHARED_HANDLE:
-		dec->sh_handle.fd = ctrl->value;
-		if (s5p_mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle)) {
-			dec->sh_handle.fd = -1;
-			return -EINVAL;
+		if (dec->sh_handle.fd == -1) {
+			dec->sh_handle.fd = ctrl->value;
+			if (s5p_mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle))
+				return -EINVAL;
 		}
 		break;
 	case V4L2_CID_MPEG_MFC_SET_BUF_PROCESS_TYPE:

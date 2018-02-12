@@ -322,7 +322,6 @@ struct s5p_mfc_debugfs {
  */
 struct s5p_mfc_special_buf {
 	enum mfc_buf_usage_type		buftype;
-	struct ion_handle		*handle;
 	struct dma_buf			*dma_buf;
 	struct dma_buf_attachment	*attachment;
 	struct sg_table			*sgt;
@@ -639,9 +638,6 @@ struct s5p_mfc_dev {
 	struct video_device	*vfd_enc_otf;
 	struct video_device	*vfd_enc_otf_drm;
 	struct device		*device;
-#ifdef CONFIG_ION_EXYNOS
-	struct ion_client	*mfc_ion_client;
-#endif
 
 	void __iomem		*regs_base;
 	void __iomem		*sysmmu0_base;
@@ -1086,7 +1082,7 @@ struct mfc_enc_roi_info {
 
 struct mfc_user_shared_handle {
 	int fd;
-	struct ion_handle *ion_handle;
+	struct dma_buf *dma_buf;
 	void *vaddr;
 };
 
