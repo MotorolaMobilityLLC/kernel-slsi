@@ -79,6 +79,8 @@ static inline void *ion_buffer_protect_single(unsigned int protection_id,
 #define ion_buffer_unprotect(priv) do { } while (0)
 #endif
 
+extern const struct dma_buf_ops ion_dma_buf_ops;
+
 struct ion_heap *ion_get_heap_by_name(const char *heap_name);
 struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 			    unsigned int flags);
