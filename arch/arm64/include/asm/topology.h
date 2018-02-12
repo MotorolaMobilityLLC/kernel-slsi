@@ -26,6 +26,7 @@ extern struct cpu_topology cpu_topology[NR_CPUS];
 void init_cpu_topology(void);
 void store_cpu_topology(unsigned int cpuid);
 const struct cpumask *cpu_coregroup_mask(int cpu);
+const struct cpumask *cpu_cluster_mask(int cpu);
 
 #ifdef CONFIG_NUMA
 

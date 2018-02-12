@@ -195,6 +195,11 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 	return &cpu_topology[cpu].core_sibling;
 }
 
+const struct cpumask *cpu_cluster_mask(int cpu)
+{
+	return &cpu_topology[cpu].cluster_sibling;
+}
+
 static void update_siblings_masks(unsigned int cpuid)
 {
 	struct cpu_topology *cpu_topo, *cpuid_topo = &cpu_topology[cpuid];
@@ -321,6 +326,7 @@ static struct sched_domain_topology_level arm64_topology[] = {
 #ifdef CONFIG_SCHED_MC
 	{ cpu_coregroup_mask, core_flags, cpu_core_energy, SD_INIT_NAME(MC) },
 #endif
+	{ cpu_cluster_mask, SD_INIT_NAME(DSU) },
 	{ cpu_cpu_mask, cpu_flags, cpu_cluster_energy, SD_INIT_NAME(DIE) },
 	{ cpu_cpu_mask, NULL, cpu_system_energy, SD_INIT_NAME(SYS) },
 	{ NULL, }
