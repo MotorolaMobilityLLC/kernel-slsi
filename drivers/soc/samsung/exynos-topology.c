@@ -55,44 +55,13 @@ static int __init get_cpu_for_node(struct device_node *node)
 static int __init parse_core(struct device_node *core, int cluster_id,
 			     int core_id)
 {
-	char name[10];
-	bool leaf = true;
-	int i = 0;
 	int cpu;
-	struct device_node *t;
-
-	do {
-		snprintf(name, sizeof(name), "thread%d", i);
-		t = of_get_child_by_name(core, name);
-		if (t) {
-			leaf = false;
-			cpu = get_cpu_for_node(t);
-			if (cpu >= 0) {
-				cpu_topology[cpu].cluster_id = cluster_id;
-				cpu_topology[cpu].core_id = core_id;
-				cpu_topology[cpu].thread_id = i;
-			} else {
-				pr_err("%pOF: Can't get CPU for thread\n",
-				       t);
-				of_node_put(t);
-				return -EINVAL;
-			}
-			of_node_put(t);
-		}
-		i++;
-	} while (t);
 
 	cpu = get_cpu_for_node(core);
 	if (cpu >= 0) {
-		if (!leaf) {
-			pr_err("%pOF: Core has both threads and CPU\n",
-			       core);
-			return -EINVAL;
-		}
-
 		cpu_topology[cpu].cluster_id = cluster_id;
 		cpu_topology[cpu].core_id = core_id;
-	} else if (leaf) {
+	} else {
 		pr_err("%pOF: Can't get CPU for leaf core\n", core);
 		return -EINVAL;
 	}
@@ -262,36 +231,18 @@ void store_cpu_topology(unsigned int cpuid)
 		return;
 
 	/* Create cpu topology mapping based on MPIDR. */
-	if (mpidr & MPIDR_MT_BITMASK) {
-		/* Multiprocessor system : Multi-threads per core */
-		cpuid_topo->thread_id  = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-		cpuid_topo->core_id    = MPIDR_AFFINITY_LEVEL(mpidr, 1);
-		cpuid_topo->cluster_id = MPIDR_AFFINITY_LEVEL(mpidr, 2) |
-					 MPIDR_AFFINITY_LEVEL(mpidr, 3) << 8;
-	} else {
-		/* Multiprocessor system : Single-thread per core */
-		cpuid_topo->thread_id  = -1;
-		cpuid_topo->core_id    = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-		cpuid_topo->cluster_id = MPIDR_AFFINITY_LEVEL(mpidr, 1) |
-					 MPIDR_AFFINITY_LEVEL(mpidr, 2) << 8 |
-					 MPIDR_AFFINITY_LEVEL(mpidr, 3) << 16;
-	}
+	cpuid_topo->core_id    = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+	cpuid_topo->cluster_id = MPIDR_AFFINITY_LEVEL(mpidr, 1) |
+				 MPIDR_AFFINITY_LEVEL(mpidr, 2) << 8 |
+				 MPIDR_AFFINITY_LEVEL(mpidr, 3) << 16;
 
-	pr_debug("CPU%u: cluster %d core %d thread %d mpidr %#016llx\n",
-		 cpuid, cpuid_topo->cluster_id, cpuid_topo->core_id,
-		 cpuid_topo->thread_id, mpidr);
+	pr_debug("CPU%u: cluster %d core %d mpidr %#016llx\n",
+			cpuid, cpuid_topo->cluster_id, cpuid_topo->core_id, mpidr);
 
 topology_populated:
 	update_siblings_masks(cpuid);
 	topology_detect_flags();
 }
-
-#ifdef CONFIG_SCHED_SMT
-static int smt_flags(void)
-{
-	return cpu_smt_flags() | topology_smt_flags();
-}
-#endif
 
 #ifdef CONFIG_SCHED_MC
 static int core_flags(void)
@@ -355,9 +306,6 @@ const struct sched_group_energy * const cpu_system_energy(int cpu)
 }
 
 static struct sched_domain_topology_level arm64_topology[] = {
-#ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, smt_flags, SD_INIT_NAME(SMT) },
-#endif
 #ifdef CONFIG_SCHED_MC
 	{ cpu_coregroup_mask, core_flags, cpu_core_energy, SD_INIT_NAME(MC) },
 #endif
@@ -373,7 +321,6 @@ static void __init reset_cpu_topology(void)
 	for_each_possible_cpu(cpu) {
 		struct cpu_topology *cpu_topo = &cpu_topology[cpu];
 
-		cpu_topo->thread_id = -1;
 		cpu_topo->core_id = 0;
 		cpu_topo->cluster_id = -1;
 
