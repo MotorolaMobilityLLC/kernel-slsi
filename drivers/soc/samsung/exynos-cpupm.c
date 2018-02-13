@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/tick.h>
 #include <linux/psci.h>
+#include <linux/cpuhotplug.h>
 
 #include <soc/samsung/exynos-cpupm.h>
 #include <soc/samsung/cal-if.h>
@@ -356,6 +357,35 @@ void exynos_cpu_pm_exit(int cpu, int cancel)
 }
 
 /******************************************************************************
+ *                               CPU HOTPLUG                                  *
+ ******************************************************************************/
+static int cpuhp_cpupm_online(unsigned int cpu)
+{
+	struct cpumask mask;
+
+	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
+	if (cpumask_weight(&mask) == 0)
+		cluster_enable(cpu);
+
+	cpu_enable(cpu);
+
+	return 0;
+}
+
+static int cpuhp_cpupm_offline(unsigned int cpu)
+{
+	struct cpumask mask;
+
+	cpu_disable(cpu);
+
+	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
+	if (cpumask_weight(&mask) == 0)
+		cluster_disable(cpu);
+
+	return 0;
+}
+
+/******************************************************************************
  *                                Initialization                              *
  ******************************************************************************/
 static void __init
@@ -424,3 +454,16 @@ static int __init exynos_cpupm_init(void)
 	return 0;
 }
 arch_initcall(exynos_cpupm_init);
+
+static int __init exynos_cpupm_early_init(void)
+{
+	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_UP_POWER_CONTROL,
+				"AP_EXYNOS_CPU_UP_POWER_CONTROL",
+				cpuhp_cpupm_online, NULL);
+	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_DOWN_POWER_CONTROL,
+				"AP_EXYNOS_CPU_DOWN_POWER_CONTROL",
+				NULL, cpuhp_cpupm_offline);
+
+	return 0;
+}
+early_initcall(exynos_cpupm_early_init);
