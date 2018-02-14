@@ -58,114 +58,132 @@ parse_core(struct device_node *core, int cluster_id, int coregroup_id, int core_
 	int cpu;
 
 	cpu = get_cpu_for_node(core);
-	if (cpu >= 0) {
-		cpu_topology[cpu].cluster_id = cluster_id;
-		cpu_topology[cpu].coregroup_id = coregroup_id;
-		cpu_topology[cpu].core_id = core_id;
-	} else {
+	if (cpu < 0) {
 		pr_err("%pOF: Can't get CPU for leaf core\n", core);
 		return -EINVAL;
 	}
 
+	cpu_topology[cpu].cluster_id = cluster_id;
+	cpu_topology[cpu].coregroup_id = coregroup_id;
+	cpu_topology[cpu].core_id = core_id;
+
 	return 0;
 }
 
-static int __init parse_cluster(struct device_node *cluster, int depth)
+static int __init
+parse_coregroup(struct device_node *coregroup, int cluster_id, int coregroup_id)
 {
 	char name[10];
+	bool has_cores = false;
+	struct device_node *c;
+	int core_id;
+	int ret;
+
+	core_id = 0;
+	do {
+		snprintf(name, sizeof(name), "core%d", core_id);
+		c = of_get_child_by_name(coregroup, name);
+		if (c) {
+			has_cores = true;
+			ret = parse_core(c, cluster_id, coregroup_id, core_id++);
+			of_node_put(c);
+			if (ret != 0)
+				return ret;
+		}
+	} while (c);
+
+	if (!has_cores)
+		pr_warn("%pOF: empty coregroup\n", coregroup);
+
+	return 0;
+}
+
+static int __init parse_cluster(struct device_node *cluster, int cluster_id)
+{
+	char name[20];
 	bool leaf = true;
 	bool has_cores = false;
 	struct device_node *c;
-	static int cluster_id __initdata;
-	static int coregroup_id __initdata;
-	int core_id = 0;
-	int i, ret;
+	int coregroup_id, core_id;
+	int ret;
 
-	/*
-	 * First check for child clusters; we currently ignore any
-	 * information about the nesting of clusters and present the
-	 * scheduler with a flat list of them.
-	 */
-	i = 0;
+	/* Firstly check for child coregroup */
+	coregroup_id = 0;
 	do {
-		snprintf(name, sizeof(name), "cluster%d", i);
+		snprintf(name, sizeof(name), "coregroup%d", coregroup_id);
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
 			leaf = false;
-			ret = parse_cluster(c, depth + 1);
+			ret = parse_coregroup(c, cluster_id, coregroup_id++);
 			of_node_put(c);
 			if (ret != 0)
 				return ret;
 		}
-		i++;
 	} while (c);
 
-	/* Now check for cores */
-	i = 0;
+	/* Cluster shouldn't have child coregroup and core simultaneously */
+	if (!leaf)
+		return 0;
+
+	/* If cluster doesn't have coregroup, check for cores */
+	core_id = 0;
 	do {
-		snprintf(name, sizeof(name), "core%d", i);
+		snprintf(name, sizeof(name), "core%d", core_id);
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
 			has_cores = true;
-
-			if (depth == 0) {
-				pr_err("%pOF: cpu-map children should be clusters\n",
-				       c);
-				of_node_put(c);
-				return -EINVAL;
-			}
-
-			if (leaf) {
-				ret = parse_core(c, cluster_id, coregroup_id, core_id++);
-			} else {
-				pr_err("%pOF: Non-leaf cluster with core %s\n",
-				       cluster, name);
-				ret = -EINVAL;
-			}
-
+			ret = parse_core(c, cluster_id, coregroup_id, core_id++);
 			of_node_put(c);
 			if (ret != 0)
 				return ret;
 		}
-		i++;
 	} while (c);
 
-	if (leaf && !has_cores)
+	if (!has_cores)
 		pr_warn("%pOF: empty cluster\n", cluster);
-
-	if (leaf)
-		coregroup_id++;
-	if (depth == 1)
-		cluster_id++;
 
 	return 0;
 }
 
 static int __init parse_dt_topology(void)
 {
-	struct device_node *cn, *map;
-	int ret = 0;
+	char name[10];
+	bool has_cluster = false;
+	struct device_node *map, *cluster;
+	int cluster_id;
 	int cpu;
-
-	cn = of_find_node_by_path("/cpus");
-	if (!cn) {
-		pr_err("No CPU information found in DT\n");
-		return 0;
-	}
+	int ret;
 
 	/*
 	 * When topology is provided cpu-map is essentially a root
 	 * cluster with restricted subnodes.
 	 */
-	map = of_get_child_by_name(cn, "cpu-map");
-	if (!map)
-		goto out;
+	map = of_find_node_by_path("/cpus/cpu-map");
+	if (!map) {
+		pr_err("No CPU information found in DT\n");
+		return 0;
+	}
 
 	init_sched_energy_costs();
 
-	ret = parse_cluster(map, 0);
-	if (ret != 0)
+	cluster_id = 0;
+	do {
+		snprintf(name, sizeof(name), "cluster%d", cluster_id);
+		cluster = of_get_child_by_name(map, name);
+		if (cluster) {
+			has_cluster = true;
+			ret = parse_cluster(cluster, cluster_id++);
+			of_node_put(cluster);
+			if (ret != 0)
+				goto out_map;
+		}
+	} while (cluster);
+
+	if (!has_cluster) {
+		pr_err("%pOF: cpu-map children should be clusters\n", map);
+		ret = -EINVAL;
 		goto out_map;
+	}
 
 	topology_normalize_cpu_scale();
 
@@ -179,8 +197,6 @@ static int __init parse_dt_topology(void)
 
 out_map:
 	of_node_put(map);
-out:
-	of_node_put(cn);
 	return ret;
 }
 
