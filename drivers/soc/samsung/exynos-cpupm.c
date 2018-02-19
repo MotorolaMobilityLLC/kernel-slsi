@@ -15,6 +15,7 @@
 #include <linux/cpuhotplug.h>
 
 #include <soc/samsung/exynos-cpupm.h>
+#include <soc/samsung/exynos-powermode.h>
 #include <soc/samsung/cal-if.h>
 
 /******************************************************************************
@@ -106,6 +107,12 @@ struct power_mode {
 
 	/* disable count */
 	atomic_t	disable;
+
+	/*
+	 * Some power modes can determine whether to enter power mode
+	 * depending on system idle state
+	 */
+	bool		system_idle;
 };
 
 /* Maximum number of power modes manageable per cpu */
@@ -231,6 +238,11 @@ static int cpus_busy(int target_residency, const struct cpumask *cpus)
 	return 0;
 }
 
+static int system_busy(void)
+{
+	return 0;
+}
+
 /*
  * In order to enter the power mode, the following conditions must be met:
  * 1. power mode should not be disabled
@@ -248,6 +260,9 @@ static int can_enter_power_mode(int cpu, struct power_mode *mode)
 		return 0;
 
 	if (cpus_busy(mode->target_residency, &mode->siblings))
+		return 0;
+
+	if (mode->system_idle && system_busy())
 		return 0;
 
 	return 1;
@@ -272,6 +287,10 @@ static int try_to_enter_power_mode(int cpu, struct power_mode *mode)
 	case POWERMODE_TYPE_CLUSTER:
 		cluster_disable(cpu_topology[cpu].cluster_id);
 		break;
+	case POWERMODE_TYPE_SYSTEM:
+		if (unlikely(exynos_system_idle_enter()))
+			return 0;
+		break;
 	}
 
 	exynos_ss_cpuidle(mode->name, 0, 0, ESS_FLAG_IN);
@@ -280,7 +299,7 @@ static int try_to_enter_power_mode(int cpu, struct power_mode *mode)
 	return 1;
 }
 
-static void exit_mode(int cpu, struct power_mode *mode)
+static void exit_mode(int cpu, struct power_mode *mode, int cancel)
 {
 	/*
 	 * Configure settings to exit power mode. This is executed by the
@@ -292,6 +311,9 @@ static void exit_mode(int cpu, struct power_mode *mode)
 	switch (mode->type) {
 	case POWERMODE_TYPE_CLUSTER:
 		cluster_enable(cpu_topology[cpu].cluster_id);
+		break;
+	case POWERMODE_TYPE_SYSTEM:
+		exynos_system_idle_exit(cancel);
 		break;
 	}
 }
@@ -344,7 +366,7 @@ void exynos_cpu_pm_exit(int cpu, int cancel)
 			break;
 
 		if (check_state_powerdown(mode))
-			exit_mode(cpu, mode);
+			exit_mode(cpu, mode, cancel);
 	}
 
 	/* Set cpu state to RUN */
@@ -428,6 +450,9 @@ static int __init cpu_power_mode_init(void)
 		of_property_read_u32(dn, "target-residency", &mode->target_residency);
 		of_property_read_u32(dn, "psci-index", &mode->psci_index);
 		of_property_read_u32(dn, "type", &mode->type);
+
+		if (of_property_read_bool(dn, "system-idle"))
+			mode->system_idle = true;
 
 		if (!of_property_read_string(dn, "siblings", &buf))
 			cpulist_parse(buf, &mode->siblings);

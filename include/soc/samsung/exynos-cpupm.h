@@ -14,6 +14,7 @@ extern void exynos_cpu_pm_exit(int cpu, int cancel);
 
 enum {
 	POWERMODE_TYPE_CLUSTER = 0,
+	POWERMODE_TYPE_SYSTEM,
 };
 
 extern void disable_mode(int cpu, int type);
