@@ -327,26 +327,12 @@ const struct sched_group_energy * const cpu_cluster_energy(int cpu)
 	return sge;
 }
 
-static inline
-const struct sched_group_energy * const cpu_system_energy(int cpu)
-{
-	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL3];
-
-	if (!sge) {
-		pr_warn("Invalid sched_group_energy for System%d\n", cpu);
-		return NULL;
-	}
-
-	return sge;
-}
-
 static struct sched_domain_topology_level arm64_topology[] = {
 #ifdef CONFIG_SCHED_MC
 	{ cpu_coregroup_mask, core_flags, cpu_core_energy, SD_INIT_NAME(MC) },
 #endif
 	{ cpu_cluster_mask, cluster_flags, cpu_coregroup_energy, SD_INIT_NAME(DSU) },
 	{ cpu_cpu_mask, cpu_flags, cpu_cluster_energy, SD_INIT_NAME(DIE) },
-	{ cpu_cpu_mask, NULL, cpu_system_energy, SD_INIT_NAME(SYS) },
 	{ NULL, }
 };
 
