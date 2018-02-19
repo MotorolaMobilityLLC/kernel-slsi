@@ -300,12 +300,10 @@ void store_cpu_topology(unsigned int cpuid)
 	topology_detect_flags();
 }
 
-#ifdef CONFIG_SCHED_MC
 static int core_flags(void)
 {
 	return cpu_core_flags() | topology_core_flags();
 }
-#endif
 
 static int cluster_flags(void)
 {
@@ -381,14 +379,60 @@ const struct sched_group_energy * const cpu_cluster_energy(int cpu)
 	return sge;
 }
 
-static struct sched_domain_topology_level arm64_topology[] = {
-#ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, core_flags, cpu_core_energy, SD_INIT_NAME(MC) },
+static struct sched_domain_topology_level exynos_topology[NR_SD_LEVELS];
+
+#ifdef CONFIG_SCHED_DEBUG
+#define sd_init_name(topology, type)	topology.name = #type
+#else
+#define sd_init_name(topology, type)
 #endif
-	{ cpu_cluster_mask, cluster_flags, cpu_coregroup_energy, SD_INIT_NAME(DSU) },
-	{ cpu_cpu_mask, cpu_flags, cpu_cluster_energy, SD_INIT_NAME(DIE) },
-	{ NULL, }
-};
+
+static void __init build_sched_topology(void)
+{
+	struct cpu_topology *cpuid_topo, *cpu_topo = &cpu_topology[0];
+	bool cluster_level = false;
+	bool coregroup_level = false;
+	bool core_level = false;
+	int cpu;
+	int level = 0;
+
+	for_each_possible_cpu(cpu) {
+		cpuid_topo = &cpu_topology[cpu];
+
+		if (cpuid_topo->cluster_id != cpu_topo->cluster_id)
+			cluster_level = true;
+		if (cpuid_topo->coregroup_id != cpu_topo->coregroup_id)
+			coregroup_level = true;
+		if (cpuid_topo->core_id != cpu_topo->core_id)
+			core_level = true;
+	}
+
+	if (core_level) {
+		exynos_topology[level].mask = cpu_coregroup_mask;
+		exynos_topology[level].sd_flags = core_flags;
+		exynos_topology[level].energy = cpu_core_energy;
+		sd_init_name(exynos_topology[level], MC);
+
+		level++;
+	}
+	if (coregroup_level) {
+		exynos_topology[level].mask = cpu_cluster_mask;
+		exynos_topology[level].sd_flags = cluster_flags;
+		exynos_topology[level].energy = cpu_coregroup_energy;
+		sd_init_name(exynos_topology[level], DSU);
+
+		level++;
+	}
+	if (cluster_level) {
+		exynos_topology[level].mask = cpu_cpu_mask;
+		exynos_topology[level].sd_flags = cpu_flags;
+		exynos_topology[level].energy = cpu_cluster_energy;
+		sd_init_name(exynos_topology[level], DIE);
+
+		level++;
+	}
+	exynos_topology[level].mask = NULL;
+}
 
 static void __init reset_cpu_topology(void)
 {
@@ -425,6 +469,8 @@ void __init init_cpu_topology(void)
 	 */
 	if (of_have_populated_dt() && parse_dt_topology())
 		reset_cpu_topology();
-	else
-		set_sched_topology(arm64_topology);
+	else {
+		build_sched_topology();
+		set_sched_topology(exynos_topology);
+	}
 }
