@@ -29,6 +29,12 @@
 #include <asm/cputype.h>
 #include <asm/topology.h>
 
+struct cpu_energy_level {
+	int core;
+	int coregroup;
+	int cluster;
+} cpu_energy_level[NR_CPUS];
+
 static int __init get_cpu_for_node(struct device_node *node)
 {
 	struct device_node *cpu_node;
@@ -52,10 +58,11 @@ static int __init get_cpu_for_node(struct device_node *node)
 	return -1;
 }
 
-static int __init
-parse_core(struct device_node *core, int cluster_id, int coregroup_id, int core_id)
+static int __init parse_core(struct device_node *core, int cluster_id, int cluster_elvl,
+					int coregroup_id, int coregroup_elvl, int core_id)
 {
 	int cpu;
+	int core_elvl = -1;
 
 	cpu = get_cpu_for_node(core);
 	if (cpu < 0) {
@@ -67,17 +74,39 @@ parse_core(struct device_node *core, int cluster_id, int coregroup_id, int core_
 	cpu_topology[cpu].coregroup_id = coregroup_id;
 	cpu_topology[cpu].core_id = core_id;
 
+	if (!of_property_read_bool(core, "ignore-energy-costs")) {
+		core_elvl = 0;
+
+		if (coregroup_elvl != -1)
+			coregroup_elvl++;
+
+		if (cluster_elvl != -1)
+			cluster_elvl++;
+	}
+
+	cpu_energy_level[cpu].core = core_elvl;
+	cpu_energy_level[cpu].coregroup = coregroup_elvl;
+	cpu_energy_level[cpu].cluster = cluster_elvl;
+
 	return 0;
 }
 
-static int __init
-parse_coregroup(struct device_node *coregroup, int cluster_id, int coregroup_id)
+static int __init parse_coregroup(struct device_node *coregroup, int cluster_id, int cluster_elvl,
+						int coregroup_id)
 {
 	char name[10];
 	bool has_cores = false;
 	struct device_node *c;
 	int core_id;
+	int coregroup_elvl = -1;
 	int ret;
+
+	if (!of_property_read_bool(coregroup, "ignore-energy-costs")) {
+		coregroup_elvl = 0;
+
+		if (cluster_elvl != -1)
+			cluster_elvl++;
+	}
 
 	core_id = 0;
 	do {
@@ -85,7 +114,8 @@ parse_coregroup(struct device_node *coregroup, int cluster_id, int coregroup_id)
 		c = of_get_child_by_name(coregroup, name);
 		if (c) {
 			has_cores = true;
-			ret = parse_core(c, cluster_id, coregroup_id, core_id++);
+			ret = parse_core(c, cluster_id, cluster_elvl,
+					coregroup_id, coregroup_elvl, core_id++);
 			of_node_put(c);
 			if (ret != 0)
 				return ret;
@@ -105,16 +135,21 @@ static int __init parse_cluster(struct device_node *cluster, int cluster_id)
 	bool has_cores = false;
 	struct device_node *c;
 	int coregroup_id, core_id;
+	int cluster_elvl = -1;
 	int ret;
 
-	/* Firstly check for child coregroup */
+	if (!of_property_read_bool(cluster, "ignore-energy-costs"))
+		cluster_elvl = 0;
+
+	/* First check for child coregroup */
 	coregroup_id = 0;
 	do {
 		snprintf(name, sizeof(name), "coregroup%d", coregroup_id);
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
 			leaf = false;
-			ret = parse_coregroup(c, cluster_id, coregroup_id++);
+			ret = parse_coregroup(c, cluster_id, cluster_elvl,
+					coregroup_id++);
 			of_node_put(c);
 			if (ret != 0)
 				return ret;
@@ -132,7 +167,8 @@ static int __init parse_cluster(struct device_node *cluster, int cluster_id)
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
 			has_cores = true;
-			ret = parse_core(c, cluster_id, coregroup_id, core_id++);
+			ret = parse_core(c, cluster_id, cluster_elvl,
+					coregroup_id, -1, core_id++);
 			of_node_put(c);
 			if (ret != 0)
 				return ret;
@@ -284,10 +320,15 @@ static int cpu_flags(void)
 static inline
 const struct sched_group_energy * const cpu_core_energy(int cpu)
 {
-	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL0];
+	struct sched_group_energy *sge;
 	unsigned long capacity;
 	int max_cap_idx;
+	int level = cpu_energy_level[cpu].core;
 
+	if (level < 0)
+		return NULL;
+
+	sge = sge_array[cpu][level];
 	if (!sge) {
 		pr_warn("Invalid sched_group_energy for CPU%d\n", cpu);
 		return NULL;
@@ -307,8 +348,13 @@ const struct sched_group_energy * const cpu_core_energy(int cpu)
 static inline
 const struct sched_group_energy * const cpu_coregroup_energy(int cpu)
 {
-	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL1];
+	struct sched_group_energy *sge;
+	int level = cpu_energy_level[cpu].coregroup;
 
+	if (level < 0)
+		return NULL;
+
+	sge = sge_array[cpu][level];
 	if (!sge) {
 		pr_warn("Invalid sched_group_energy for Coregroup%d\n", cpu);
 		return NULL;
@@ -320,8 +366,13 @@ const struct sched_group_energy * const cpu_coregroup_energy(int cpu)
 static inline
 const struct sched_group_energy * const cpu_cluster_energy(int cpu)
 {
-	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL2];
+	struct sched_group_energy *sge;
+	int level = cpu_energy_level[cpu].cluster;
 
+	if (level < 0)
+		return NULL;
+
+	sge = sge_array[cpu][level];
 	if (!sge) {
 		pr_warn("Invalid sched_group_energy for Cluster%d\n", cpu);
 		return NULL;
@@ -345,6 +396,7 @@ static void __init reset_cpu_topology(void)
 
 	for_each_possible_cpu(cpu) {
 		struct cpu_topology *cpu_topo = &cpu_topology[cpu];
+		struct cpu_energy_level *cpu_elvl = &cpu_energy_level[cpu];
 
 		cpu_topo->core_id = 0;
 		cpu_topo->coregroup_id = -1;
@@ -356,6 +408,10 @@ static void __init reset_cpu_topology(void)
 		cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
 		cpumask_clear(&cpu_topo->thread_sibling);
 		cpumask_set_cpu(cpu, &cpu_topo->thread_sibling);
+
+		cpu_elvl->core = -1;
+		cpu_elvl->coregroup = -1;
+		cpu_elvl->cluster = -1;
 	}
 }
 
