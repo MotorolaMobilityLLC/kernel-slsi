@@ -235,28 +235,15 @@ static void update_siblings_masks(unsigned int cpuid)
 void store_cpu_topology(unsigned int cpuid)
 {
 	struct cpu_topology *cpuid_topo = &cpu_topology[cpuid];
-	u64 mpidr;
 
-	if (cpuid_topo->cluster_id != -1)
-		goto topology_populated;
+	if (cpuid_topo->cluster_id == -1) {
+		pr_err("CPU topology isn't composed properly\n");
+		BUG_ON(cpuid_topo->cluster_id);
+	}
 
-	mpidr = read_cpuid_mpidr();
+	pr_debug("CPU%u: cluster %d coregroup %d core %d\n", cpuid,
+			cpuid_topo->cluster_id, cpuid_topo->coregroup_id, cpuid_topo->core_id);
 
-	/* Uniprocessor systems can rely on default topology values */
-	if (mpidr & MPIDR_UP_BITMASK)
-		return;
-
-	/* Create cpu topology mapping based on MPIDR. */
-	cpuid_topo->core_id    = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-	cpuid_topo->cluster_id = MPIDR_AFFINITY_LEVEL(mpidr, 1) |
-				 MPIDR_AFFINITY_LEVEL(mpidr, 2) << 8 |
-				 MPIDR_AFFINITY_LEVEL(mpidr, 3) << 16;
-	cpuid_topo->coregroup_id = cpuid_topo->cluster_id;
-
-	pr_debug("CPU%u: cluster %d core %d mpidr %#016llx\n",
-			cpuid, cpuid_topo->cluster_id, cpuid_topo->core_id, mpidr);
-
-topology_populated:
 	update_siblings_masks(cpuid);
 	topology_detect_flags();
 }
