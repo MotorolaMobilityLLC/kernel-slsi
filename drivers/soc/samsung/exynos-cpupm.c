@@ -13,6 +13,7 @@
 #include <linux/tick.h>
 #include <linux/psci.h>
 #include <linux/cpuhotplug.h>
+#include <linux/cpuidle_profiler.h>
 
 #include <soc/samsung/exynos-cpupm.h>
 #include <soc/samsung/exynos-powermode.h>
@@ -40,11 +41,42 @@ char *idle_ip_names[NUM_IDLE_IP_REG][IDLE_IP_REG_SIZE];
 static int check_idle_ip(int reg_index)
 {
 	unsigned int val, mask;
+	int ret;
 
 	exynos_pmu_read(PMU_IDLE_IP(reg_index), &val);
 	mask = idle_ip_mask[reg_index];
 
-	return (val & ~mask) == ~mask ? 0 : -EBUSY;
+	ret = (val & ~mask) == ~mask ? 0 : -EBUSY;
+	if (ret) {
+		/*
+		 * Profile non-idle IP using idle_ip.
+		 * A bit of idle-ip equals 0, it means non-idle. But then, if
+		 * same bit of idle-ip-mask is 1, PMU does not see this bit.
+		 * To know what IP blocks to enter system power mode, suppose
+		 * below example: (express only 8 bits)
+		 *
+		 * idle-ip  : 1 0 1 1 0 0 1 0
+		 * mask     : 1 1 0 0 1 0 0 1
+		 *
+		 * First, clear masked idle-ip bit.
+		 *
+		 * idle-ip  : 1 0 1 1 0 0 1 0
+		 * ~mask    : 0 0 1 1 0 1 1 0
+		 * -------------------------- (AND)
+		 * idle-ip' : 0 0 1 1 0 0 1 0
+		 *
+		 * In upper case, only idle-ip[2] is not in idle. Calculates
+		 * as follows, then we can get the non-idle IP easily.
+		 *
+		 * idle-ip' : 0 0 1 1 0 0 1 0
+		 * ~mask    : 0 0 1 1 0 1 1 0
+		 *--------------------------- (XOR)
+		 *            0 0 0 0 0 1 0 0
+		 */
+		cpuidle_profile_idle_ip(reg_index, ((val & ~mask) ^ ~mask));
+	}
+
+	return ret;
 }
 
 static void set_idle_ip_mask(void)
@@ -288,6 +320,9 @@ enum {
  * than target_residency.
  */
 struct power_mode {
+	/* id of this power mode, it is used by cpuidle profiler now */
+	int		id;
+
 	/* name of power mode, it is declared in device tree */
 	char		name[NAME_LEN];
 
@@ -511,11 +546,15 @@ static int try_to_enter_power_mode(int cpu, struct power_mode *mode)
 	exynos_ss_cpuidle(mode->name, 0, 0, ESS_FLAG_IN);
 	set_state_powerdown(mode);
 
+	cpuidle_profile_group_idle_enter(mode->id);
+
 	return 1;
 }
 
 static void exit_mode(int cpu, struct power_mode *mode, int cancel)
 {
+	cpuidle_profile_group_idle_exit(mode->id, cancel);
+
 	/*
 	 * Configure settings to exit power mode. This is executed by the
 	 * first cpu exiting from power mode.
@@ -647,6 +686,7 @@ static int __init cpu_power_mode_init(void)
 	struct device_node *dn = NULL;
 	struct power_mode *mode;
 	const char *buf;
+	int id = 0;
 
 	while ((dn = of_find_node_by_type(dn, "cpupm"))) {
 		int cpu;
@@ -661,6 +701,7 @@ static int __init cpu_power_mode_init(void)
 			continue;
 		}
 
+		mode->id = id++;
 		strncpy(mode->name, dn->name, NAME_LEN);
 
 		of_property_read_u32(dn, "target-residency", &mode->target_residency);
@@ -681,6 +722,8 @@ static int __init cpu_power_mode_init(void)
 		/* Connect power mode to the cpus in the power domain */
 		for_each_cpu(cpu, &mode->siblings)
 			add_mode(per_cpu(cpupm, cpu).modes, mode);
+
+		cpuidle_profile_group_idle_register(mode->id, mode->name);
 	}
 
 	return 0;

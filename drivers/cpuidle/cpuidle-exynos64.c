@@ -18,6 +18,7 @@
 #include <linux/reboot.h>
 #include <linux/of.h>
 #include <linux/psci.h>
+#include <linux/cpuidle_profiler.h>
 
 #include <asm/tlbflush.h>
 #include <asm/cpuidle.h>
@@ -26,7 +27,6 @@
 #include <soc/samsung/exynos-cpupm.h>
 
 #include "dt_idle_states.h"
-#include "profiler.h"
 
 /*
  * Exynos cpuidle driver supports the below idle states
@@ -47,14 +47,14 @@ static unsigned int prepare_idle(unsigned int cpu, int index)
 		entry_state = exynos_cpu_pm_enter(cpu, index);
 	}
 
-	cpuidle_profile_start(cpu, index, entry_state);
+	cpuidle_profile_cpu_idle_enter(cpu, index);
 
 	return entry_state;
 }
 
 static void post_idle(unsigned int cpu, int index, int fail)
 {
-	cpuidle_profile_finish(cpu, fail);
+	cpuidle_profile_cpu_idle_exit(cpu, index, fail);
 
 	if (!index)
 		return;
@@ -202,9 +202,10 @@ static int __init exynos_idle_init(void)
 		}
 	}
 
+	cpuidle_profile_cpu_idle_register(&exynos_idle_driver[0]);
+
 	register_reboot_notifier(&exynos_cpuidle_reboot_nb);
 
-	cpuidle_profile_register(&exynos_idle_driver[0]);
 
 	pr_info("Exynos cpuidle driver Initialized\n");
 
