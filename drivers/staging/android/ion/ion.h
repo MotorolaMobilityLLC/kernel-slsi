@@ -362,4 +362,7 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 int ion_query_heaps(struct ion_heap_query *query);
 
+void ion_contig_heap_show_buffers(struct ion_heap *heap,
+				  phys_addr_t base, size_t pool_size);
+
 #endif /* _ION_H */

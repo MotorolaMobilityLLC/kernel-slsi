@@ -113,6 +113,9 @@ free_mem:
 	kfree(table);
 err:
 	cma_release(cma_heap->cma, pages, nr_pages);
+	ion_contig_heap_show_buffers(&cma_heap->heap,
+				     cma_get_base(cma_heap->cma),
+				     cma_get_size(cma_heap->cma));
 	return ret;
 }
 

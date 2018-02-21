@@ -116,6 +116,8 @@ err_free_table:
 	sg_free_table(table);
 err_free:
 	kfree(table);
+	ion_contig_heap_show_buffers(&carveout_heap->heap,
+				     carveout_heap->base, carveout_heap->size);
 	return ret;
 }
 
