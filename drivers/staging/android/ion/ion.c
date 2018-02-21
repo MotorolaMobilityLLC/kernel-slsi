@@ -39,6 +39,7 @@
 #include <linux/sched/task.h>
 
 #include "ion.h"
+#include "ion_exynos.h"
 
 static struct ion_device *internal_dev;
 static int heap_id;
@@ -111,6 +112,10 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	buffer->dev = dev;
 	buffer->size = len;
 
+	ret = exynos_ion_alloc_fixup(dev, buffer);
+	if (ret < 0)
+		goto err1;
+
 	INIT_LIST_HEAD(&buffer->iovas);
 	mutex_init(&buffer->lock);
 	mutex_lock(&dev->buffer_lock);
@@ -127,6 +132,7 @@ err2:
 
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
+	exynos_ion_free_fixup(buffer);
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	buffer->heap->ops->free(buffer);
@@ -659,6 +665,7 @@ static int ion_device_create(void)
 	}
 
 debugfs_done:
+	exynos_ion_fixup(idev);
 	idev->buffers = RB_ROOT;
 	mutex_init(&idev->buffer_lock);
 	init_rwsem(&idev->lock);

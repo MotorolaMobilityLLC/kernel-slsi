@@ -21,6 +21,8 @@ struct cma;
 struct dma_buf;
 struct ion_heap;
 struct ion_platform_heap;
+struct ion_device;
+struct ion_buffer;
 
 /**
  * struct ion_buffer_prot_info - buffer protection information
@@ -68,6 +70,10 @@ static inline int ion_secure_iova_pool_create(void)
 void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
 				unsigned long phys, unsigned int protalign);
 void ion_buffer_unprotect(void *priv);
+void exynos_ion_fixup(struct ion_device *idev);
+int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer);
+void exynos_ion_free_fixup(struct ion_buffer *buffer);
+
 #else
 static inline void *ion_buffer_protect_single(unsigned int protection_id,
 					      unsigned int size,
@@ -77,6 +83,14 @@ static inline void *ion_buffer_protect_single(unsigned int protection_id,
 	return NULL;
 }
 #define ion_buffer_unprotect(priv) do { } while (0)
+#define exynos_ion_fixup(idev) do { } while (0)
+static inline int exynos_ion_alloc_fixup(struct ion_device *idev,
+					 struct ion_buffer *buffer)
+{
+	return 0;
+}
+
+#define exynos_ion_free_fixup(buffer) do { } while (0)
 #endif
 
 extern const struct dma_buf_ops ion_dma_buf_ops;
@@ -84,4 +98,5 @@ extern const struct dma_buf_ops ion_dma_buf_ops;
 struct ion_heap *ion_get_heap_by_name(const char *heap_name);
 struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 			    unsigned int flags);
+
 #endif /* _ION_EXYNOS_H_ */
