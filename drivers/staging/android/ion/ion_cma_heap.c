@@ -45,7 +45,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	unsigned long size = PAGE_ALIGN(len);
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	unsigned long align = get_order(size);
-	int ret;
+	int ret = -ENOMEM;
 
 	if (align > CONFIG_CMA_ALIGNMENT)
 		align = CONFIG_CMA_ALIGNMENT;
@@ -92,7 +92,7 @@ free_mem:
 	kfree(table);
 err:
 	cma_release(cma_heap->cma, pages, nr_pages);
-	return -ENOMEM;
+	return ret;
 }
 
 static void ion_cma_free(struct ion_buffer *buffer)
