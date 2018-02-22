@@ -207,3 +207,26 @@ void exynos_ion_free_fixup(struct ion_buffer *buffer)
 			   table->orig_nents, DMA_TO_DEVICE,
 			   DMA_ATTR_SKIP_CPU_SYNC);
 }
+
+struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
+					enum dma_data_direction direction)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+
+	if (ion_buffer_cached(buffer))
+		dma_sync_sg_for_device(attachment->dev, buffer->sg_table->sgl,
+				       buffer->sg_table->nents, direction);
+
+	return buffer->sg_table;
+}
+
+void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,
+			      struct sg_table *table,
+			      enum dma_data_direction direction)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+
+	if (ion_buffer_cached(buffer))
+		dma_sync_sg_for_cpu(attachment->dev, table->sgl,
+				    table->nents, direction);
+}

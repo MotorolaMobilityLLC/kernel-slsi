@@ -17,12 +17,14 @@
 #ifndef _ION_EXYNOS_H_
 #define _ION_EXYNOS_H_
 
+#include <linux/dma-direction.h>
 struct cma;
 struct dma_buf;
 struct ion_heap;
 struct ion_platform_heap;
 struct ion_device;
 struct ion_buffer;
+struct dma_buf_attachment;
 
 /**
  * struct ion_buffer_prot_info - buffer protection information
@@ -73,6 +75,11 @@ void ion_buffer_unprotect(void *priv);
 void exynos_ion_fixup(struct ion_device *idev);
 int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer);
 void exynos_ion_free_fixup(struct ion_buffer *buffer);
+struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
+					enum dma_data_direction direction);
+void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,
+			      struct sg_table *table,
+			      enum dma_data_direction direction);
 
 #else
 static inline void *ion_buffer_protect_single(unsigned int protection_id,
@@ -91,6 +98,14 @@ static inline int exynos_ion_alloc_fixup(struct ion_device *idev,
 }
 
 #define exynos_ion_free_fixup(buffer) do { } while (0)
+
+static struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *att,
+					       enum dma_data_direction dir)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+#define ion_exynos_unmap_dma_buf(attachment, table, direction) do { } while (0)
 #endif
 
 extern const struct dma_buf_ops ion_dma_buf_ops;
