@@ -140,8 +140,10 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	unsigned long size_remaining = PAGE_ALIGN(size);
 	unsigned int max_order = orders[0];
 
-	if (size / PAGE_SIZE > totalram_pages / 2)
+	if (size / PAGE_SIZE > totalram_pages / 2) {
+		pr_err("%s: too large allocation, %zu bytes\n", __func__, size);
 		return -ENOMEM;
+	}
 
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
@@ -158,8 +160,10 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	if (!table)
 		goto free_pages;
 
-	if (sg_alloc_table(table, i, GFP_KERNEL))
+	if (sg_alloc_table(table, i, GFP_KERNEL)) {
+		pr_err("%s: failed to alloc sgtable of %d nent\n", __func__, i);
 		goto free_table;
+	}
 
 	sg = table->sgl;
 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {

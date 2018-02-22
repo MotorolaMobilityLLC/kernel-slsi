@@ -84,8 +84,10 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		goto err;
 
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);
-	if (ret)
+	if (ret) {
+		pr_err("%s: failed to alloc sgtable(err %d)\n", __func__, -ret);
 		goto free_mem;
+	}
 
 	sg_set_page(table->sgl, pages, size, 0);
 

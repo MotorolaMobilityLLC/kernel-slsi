@@ -180,6 +180,8 @@ void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
 
 	ret = ion_secure_protect(protdesc, protalign);
 	if (ret) {
+		pr_err("%s: protection failure (id%u,len%u,base%#lx,align%#x\n",
+		       __func__, protection_id, size, phys, protalign);
 		kfree(protdesc);
 		return ERR_PTR(ret);
 	}

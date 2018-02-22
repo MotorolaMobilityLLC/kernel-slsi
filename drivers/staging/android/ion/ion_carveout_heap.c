@@ -83,11 +83,16 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	if (!table)
 		return -ENOMEM;
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);
-	if (ret)
+	if (ret) {
+		pr_err("%s: failed to allocate scatterlist (err %d)\n",
+		       __func__, ret);
 		goto err_free;
+	}
 
 	paddr = ion_carveout_allocate(carveout_heap, aligned_size);
 	if (paddr == ION_CARVEOUT_ALLOCATE_FAIL) {
+		pr_err("%s: failed to allocate from %s(id %d), size %lu\n",
+		       __func__, heap->name, heap->id, size);
 		ret = -ENOMEM;
 		goto err_free_table;
 	}
@@ -144,8 +149,10 @@ static int carveout_heap_map_user(struct ion_heap *heap,
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
 
-	if (carveout_heap->untouchable)
+	if (carveout_heap->untouchable) {
+		pr_err("%s: mmap of %s heap unallowed\n", __func__, heap->name);
 		return -EACCES;
+	}
 
 	return ion_heap_map_user(heap, buffer, vma);
 }
@@ -156,8 +163,10 @@ static void *carveout_heap_map_kernel(struct ion_heap *heap,
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
 
-	if (carveout_heap->untouchable)
+	if (carveout_heap->untouchable) {
+		pr_err("%s: mapping %s heap unallowed\n", __func__, heap->name);
 		return ERR_PTR(-EACCES);
+	}
 
 	return ion_heap_map_kernel(heap, buffer);
 }

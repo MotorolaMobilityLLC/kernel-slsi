@@ -127,6 +127,8 @@ err1:
 	heap->ops->free(buffer);
 err2:
 	kfree(buffer);
+	pr_err("%s: failed to alloc (len %zu, flag %#lx) buffer from %s heap\n",
+	       __func__, len, flags, heap->name);
 	return ERR_PTR(ret);
 }
 
@@ -166,8 +168,11 @@ static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 	if (WARN_ONCE(!vaddr,
 		      "heap->ops->map_kernel should return ERR_PTR on error"))
 		return ERR_PTR(-EINVAL);
-	if (IS_ERR(vaddr))
+	if (IS_ERR(vaddr)) {
+		pr_err("%s: failed to alloc kernel address of %zu buffer\n",
+		       __func__, buffer->size);
 		return vaddr;
+	}
 	buffer->vaddr = vaddr;
 	buffer->kmap_cnt++;
 	return vaddr;
@@ -440,8 +445,11 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 	 */
 	len = PAGE_ALIGN(len);
 
-	if (!len)
+	if (!len) {
+		pr_err("%s: zero size allocation - heapmask %#x, flags %#x\n",
+		       __func__, heap_id_mask, flags);
 		return ERR_PTR(-EINVAL);
+	}
 
 	down_read(&dev->lock);
 	plist_for_each_entry(heap, &dev->heaps, node) {
@@ -454,8 +462,11 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 	}
 	up_read(&dev->lock);
 
-	if (!buffer)
+	if (!buffer) {
+		pr_err("%s: no matching heap found against heapmaks %#x\n",
+		       __func__, heap_id_mask);
 		return ERR_PTR(-ENODEV);
+	}
 
 	if (IS_ERR(buffer))
 		return ERR_CAST(buffer);
@@ -466,8 +477,11 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 	exp_info.priv = buffer;
 
 	dmabuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dmabuf))
+	if (IS_ERR(dmabuf)) {
+		pr_err("%s: failed to export dmabuf (err %ld)\n", __func__,
+		       -PTR_ERR(dmabuf));
 		_ion_buffer_destroy(buffer);
+	}
 
 	return dmabuf;
 }
@@ -481,8 +495,10 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 		return PTR_ERR(dmabuf);
 
 	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
-	if (fd < 0)
+	if (fd < 0) {
+		pr_err("%s: failed to get dmabuf fd (err %d)\n", __func__, -fd);
 		dma_buf_put(dmabuf);
+	}
 
 	return fd;
 }
@@ -502,8 +518,10 @@ int ion_query_heaps(struct ion_heap_query *query)
 		goto out;
 	}
 
-	if (query->cnt <= 0)
+	if (query->cnt <= 0) {
+		pr_err("%s: invalid heapdata count %u\n", __func__, query->cnt);
 		goto out;
+	}
 
 	max_cnt = query->cnt;
 
