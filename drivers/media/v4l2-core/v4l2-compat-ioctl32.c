@@ -505,6 +505,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *kp,
 
 	if (V4L2_TYPE_IS_OUTPUT(type))
 		if (assign_in_user(&kp->bytesused, &up->bytesused) ||
+		    assign_in_user(&kp->reserved2, &up->reserved2) ||
 		    assign_in_user(&kp->field, &up->field) ||
 		    assign_in_user(&kp->timestamp.tv_sec,
 				   &up->timestamp.tv_sec) ||
