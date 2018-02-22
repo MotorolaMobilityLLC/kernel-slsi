@@ -530,7 +530,7 @@ struct rt_rq {
 	struct plist_head pushable_tasks;
 
 	struct sched_avg avg;
-
+	struct sched_rt_entity *curr;
 #endif /* CONFIG_SMP */
 	int rt_queued;
 
