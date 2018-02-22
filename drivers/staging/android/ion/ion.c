@@ -233,9 +233,13 @@ static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
 {
 	struct sg_table *table = attachment->priv;
+	unsigned long attrs = 0;
 
-	if (!dma_map_sg(attachment->dev, table->sgl, table->nents,
-			direction))
+	if (!ion_buffer_cached(attachment->dmabuf->priv))
+		attrs = DMA_ATTR_SKIP_CPU_SYNC;
+
+	if (!dma_map_sg_attrs(attachment->dev, table->sgl, table->nents,
+			      direction, attrs))
 		return ERR_PTR(-ENOMEM);
 
 	return table;
@@ -245,7 +249,13 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      struct sg_table *table,
 			      enum dma_data_direction direction)
 {
-	dma_unmap_sg(attachment->dev, table->sgl, table->nents, direction);
+	unsigned long attrs = 0;
+
+	if (!ion_buffer_cached(attachment->dmabuf->priv))
+		attrs = DMA_ATTR_SKIP_CPU_SYNC;
+
+	dma_unmap_sg_attrs(attachment->dev, table->sgl, table->nents,
+			   direction, attrs);
 }
 
 static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
