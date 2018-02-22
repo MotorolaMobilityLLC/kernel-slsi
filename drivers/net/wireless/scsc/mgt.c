@@ -4651,10 +4651,12 @@ void slsi_update_supported_channels_regd_flags(struct slsi_dev *sdev)
 			chan->flags |= IEEE80211_CHAN_DISABLED;
 		}
 	}
-	for (i = 0; i <  ARRAY_SIZE(sdev->supported_5g_channels); i++) {
-		if (sdev->supported_5g_channels[i] == 0) {
-			chan = &wiphy->bands[1]->channels[i];
-			chan->flags |= IEEE80211_CHAN_DISABLED;
+	if (sdev->band_5g_supported) {
+		for (i = 0; i <  ARRAY_SIZE(sdev->supported_5g_channels); i++) {
+			if (sdev->supported_5g_channels[i] == 0) {
+				chan = &wiphy->bands[1]->channels[i];
+				chan->flags |= IEEE80211_CHAN_DISABLED;
+			}
 		}
 	}
 }
