@@ -1319,7 +1319,7 @@ int fimc_is_spin_lock_finish(void *slock_lib)
 #ifdef LIB_MEM_TRACK
 	add_free_track(MT_TYPE_SPINLOCK, (ulong)slock_lib);
 #endif
-	vfree(slock_lib);
+	vfree_atomic(slock_lib);
 
 	return 0;
 }
