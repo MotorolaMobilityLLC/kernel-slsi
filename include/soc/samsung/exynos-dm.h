@@ -111,7 +111,8 @@ struct exynos_dm_data {
 struct exynos_dm_device {
 	struct device			*dev;
 	struct mutex			lock;
-	struct exynos_dm_data		dm_data[DM_TYPE_END];
+	int				domain_count;
+	struct exynos_dm_data		*dm_data;
 };
 
 /* External Function call */

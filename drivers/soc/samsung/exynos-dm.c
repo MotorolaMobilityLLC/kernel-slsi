@@ -34,8 +34,8 @@ static void get_target_freq(struct exynos_dm_data *dm_data, u32 *target_freq);
 
 #define DM_EMPTY	0xFF
 static struct exynos_dm_device *exynos_dm;
-static enum exynos_dm_type min_order[DM_TYPE_END + 1] = {DM_EMPTY, };
-static enum exynos_dm_type max_order[DM_TYPE_END + 1] = {DM_EMPTY, };
+static int *min_order;
+static int *max_order;
 
 /*
  * SYSFS for Debugging
@@ -48,7 +48,7 @@ static ssize_t show_available(struct device *dev,
 	ssize_t count = 0;
 	int i;
 
-	for (i = 0; i < DM_TYPE_END; i++) {
+	for (i = 0; i < dm->domain_count; i++) {
 		if (!dm->dm_data[i].available)
 			continue;
 
@@ -188,7 +188,7 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 	count += snprintf(buf + count, PAGE_SIZE, "min constraint by\n");
 	find = 0;
 
-	for (i = 0; i < DM_TYPE_END; i++) {
+	for (i = 0; i < exynos_dm->domain_count; i++) {
 		if (!exynos_dm->dm_data[i].available)
 			continue;
 
@@ -223,7 +223,7 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 	count += snprintf(buf + count, PAGE_SIZE, "max constraint by\n");
 	find = INT_MAX;
 
-	for (i = 0; i < DM_TYPE_END; i++) {
+	for (i = 0; i < exynos_dm->domain_count; i++) {
 		if (!exynos_dm->dm_data[i].available)
 			continue;
 
@@ -277,7 +277,7 @@ static void print_available_dm_data(struct exynos_dm_device *dm)
 {
 	int i;
 
-	for (i = 0; i < DM_TYPE_END; i++) {
+	for (i = 0; i < dm->domain_count; i++) {
 		if (!dm->dm_data[i].available)
 			continue;
 
@@ -287,9 +287,9 @@ static void print_available_dm_data(struct exynos_dm_device *dm)
 	}
 }
 
-static int exynos_dm_index_validate(enum exynos_dm_type index)
+static int exynos_dm_index_validate(int index)
 {
-	if ((index < 0) || (index >= DM_TYPE_END)) {
+	if (index < 0) {
 		dev_err(exynos_dm->dev, "invalid dm_index (%d)\n", index);
 		return -EINVAL;
 	}
@@ -300,14 +300,47 @@ static int exynos_dm_index_validate(enum exynos_dm_type index)
 #ifdef CONFIG_OF
 static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *dm)
 {
-	struct device_node *child_np;
+	struct device_node *child_np, *domain_np = NULL;
 	const char *name;
 	int ret = 0;
+	int i = 0;
 
 	if (!np)
 		return -ENODEV;
 
-	for_each_child_of_node(np, child_np) {
+	domain_np = of_get_child_by_name(np, "dm_domains");
+	if (!domain_np)
+		return -ENODEV;
+
+	dm->domain_count = of_get_child_count(domain_np);
+	if (!dm->domain_count)
+		return -ENODEV;
+
+	dm->dm_data = kzalloc(sizeof(struct exynos_dm_data) * dm->domain_count, GFP_KERNEL);
+	if (!dm->dm_data) {
+		dev_err(dm->dev, "failed to allocate dm_data\n");
+		return -ENOMEM;
+	}
+
+	min_order = kzalloc(sizeof(int) * (dm->domain_count + 1), GFP_KERNEL);
+	if (!min_order) {
+		dev_err(dm->dev, "failed to allocate min_order\n");
+		return -ENOMEM;
+	}
+
+	max_order = kzalloc(sizeof(int) * (dm->domain_count + 1), GFP_KERNEL);
+	if (!max_order) {
+		dev_err(dm->dev, "failed to allocate max_order\n");
+		return -ENOMEM;
+	}
+
+	/* min/max order clear */
+	for (i = 0; i <= dm->domain_count; i++) {
+		min_order[i] = DM_EMPTY;
+		max_order[i] = DM_EMPTY;
+	}
+
+	for_each_child_of_node(domain_np, child_np) {
 		int index;
 		const char *available;
 #ifdef CONFIG_EXYNOS_ACPM
@@ -763,7 +796,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	old_min_freq = dm->min_freq;
 	dm->gov_min_freq = (u32)(*target_freq);
 
-	for (i = 0; i < DM_TYPE_END; i++)
+	for (i = 0; i < exynos_dm->domain_count; i++)
 		(&exynos_dm->dm_data[i])->constraint_checked = 0;
 
 	if (dm->policy_max_freq < dm->cur_freq)
@@ -803,7 +836,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 		scaling_callback(DOWN, relation);
 
 	/* min/max order clear */
-	for (i = 0; i <= DM_TYPE_END; i++) {
+	for (i = 0; i <= exynos_dm->domain_count; i++) {
 		min_order[i] = DM_EMPTY;
 		max_order[i] = DM_EMPTY;
 	}
@@ -836,7 +869,7 @@ static int dm_data_updater(enum exynos_dm_type dm_type)
 	max_freq = dm->policy_max_freq;
 
 	/* Check min/max constraint conditions */
-	for (i = 0; i < DM_TYPE_END; i++) {
+	for (i = 0; i < exynos_dm->domain_count; i++) {
 		if (!exynos_dm->dm_data[i].available)
 			continue;
 
@@ -848,7 +881,7 @@ static int dm_data_updater(enum exynos_dm_type dm_type)
 				min_freq = max(min_freq, constraint->min_freq);
 		}
 	}
-	for (i = 0; i < DM_TYPE_END; i++) {
+	for (i = 0; i < exynos_dm->domain_count; i++) {
 		if (!exynos_dm->dm_data[i].available)
 			continue;
 
@@ -951,7 +984,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 	switch (dir) {
 	case DOWN:
 		if (min_order[0] == 0 && max_flag == false) {
-			for (i = 1; i <= DM_TYPE_END; i++) {
+			for (i = 1; i <= exynos_dm->domain_count; i++) {
 				if (min_order[i] == DM_EMPTY)
 					continue;
 
@@ -965,7 +998,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 				}
 			}
 		} else if (max_order[0] == 0 && max_flag == true) {
-			for (i = DM_TYPE_END; i > 0; i--) {
+			for (i = exynos_dm->domain_count; i > 0; i--) {
 				if (max_order[i] == DM_EMPTY)
 					continue;
 
@@ -982,7 +1015,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 		break;
 	case UP:
 		if (min_order[0] == 0) {
-			for (i = DM_TYPE_END; i > 0; i--) {
+			for (i = exynos_dm->domain_count; i > 0; i--) {
 				if (min_order[i] == DM_EMPTY)
 					continue;
 
@@ -996,7 +1029,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 				}
 			}
 		} else if (max_order[0] == 0) {
-			for (i = 1; i <= DM_TYPE_END; i++) {
+			for (i = 1; i <= exynos_dm->domain_count; i++) {
 				if (max_order[i] == DM_EMPTY)
 					continue;
 
@@ -1015,7 +1048,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 		break;
 	}
 
-	for (i = 1; i <= DM_TYPE_END; i++) {
+	for (i = 1; i <= exynos_dm->domain_count; i++) {
 		if (min_order[i] == DM_EMPTY)
 			continue;
 
@@ -1117,7 +1150,7 @@ static int exynos_dm_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(dm->dev, "failed create sysfs for DVFS Manager\n");
 
-	for (i = 0; i < DM_TYPE_END; i++) {
+	for (i = 0; i < dm->domain_count; i++) {
 		if (!dm->dm_data[i].available)
 			continue;
 
