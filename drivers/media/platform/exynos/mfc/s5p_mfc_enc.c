@@ -764,6 +764,9 @@ static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
 	if (FW_HAS_ENC_COLOR_ASPECT(dev))
 		val |= ENC_SET_COLOR_ASPECT;
 
+	if (FW_HAS_HP_BITRATE_CONTROL(dev))
+		val |= ENC_SET_HP_BITRATE_CONTROL;
+
 	return val;
 }
 
@@ -1593,6 +1596,9 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_MATRIX_COEFFICIENTS:
 		p->matrix_coefficients = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HIERARCHICAL_BITRATE_CTRL:
+		p->hier_bitrate_ctrl = ctrl->value;
 		break;
 	default:
 		mfc_err_ctx("Invalid control: 0x%08x\n", ctrl->id);

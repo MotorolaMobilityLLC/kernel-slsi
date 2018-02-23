@@ -164,6 +164,7 @@
 #define	ENC_SET_PVC_MODE		(1 << 7)
 #define	ENC_SET_RATIO_OF_INTRA		(1 << 8)
 #define	ENC_SET_COLOR_ASPECT		(1 << 9)
+#define	ENC_SET_HP_BITRATE_CONTROL	(1 << 10)
 
 #define MFC_VER_MAJOR(dev)	((s5p_mfc_version(dev) >> 8) & 0xFF)
 #define MFC_VER_MINOR(dev)	(s5p_mfc_version(dev) & 0xFF)
@@ -199,6 +200,8 @@
 					(dev->fw.date >= 0x171113))
 #define FW_HAS_ENC_COLOR_ASPECT(dev)	(FROM_MFCV11X(dev) &&		\
 					(dev->fw.date >= 0x171023))
+#define FW_HAS_HP_BITRATE_CONTROL(dev)	(FROM_MFCV11X(dev) &&		\
+					(dev->fw.date >= 0x180314))
 
 static inline unsigned int s5p_mfc_version(struct s5p_mfc_dev *dev)
 {

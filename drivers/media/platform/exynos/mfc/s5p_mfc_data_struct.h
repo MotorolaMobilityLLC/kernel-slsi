@@ -985,6 +985,7 @@ struct s5p_mfc_enc_params {
 	enum v4l2_mpeg_mfc51_video_frame_skip_mode frame_skip_mode;
 	u8 fixed_target_bit;
 	u8 num_hier_max_layer;
+	u8 hier_bitrate_ctrl;
 	u8 weighted_enable;
 	u8 roi_enable;
 	u8 ivf_header_disable;	/* VP8, VP9 */

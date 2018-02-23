@@ -1031,7 +1031,7 @@ static void mfc_enc_set_buf_ctrls_temporal_svc(struct s5p_mfc_ctx *ctx,
 
 		/* enable RC_BIT_RATE_CHANGE */
 		value = MFC_READL(buf_ctrl->flag_addr);
-		if (temporal_LC.temporal_layer_bitrate[0] > 0)
+		if (temporal_LC.temporal_layer_bitrate[0] > 0 || p->hier_bitrate_ctrl)
 			/* set RC_BIT_RATE_CHANGE */
 			value |= (1 << 2);
 		else
@@ -1046,11 +1046,13 @@ static void mfc_enc_set_buf_ctrls_temporal_svc(struct s5p_mfc_ctx *ctx,
 		buf_ctrl->old_val2 = value;
 		value &= ~(0x7);
 		value |= (temporal_LC.temporal_layer_count & 0x7);
+		value &= ~(0x1 << 8);
+		value |= (p->hier_bitrate_ctrl & 0x1) << 8;
 		MFC_WRITEL(value, S5P_FIMV_E_NUM_T_LAYER);
 		mfc_debug(3, "Temporal SVC: E_NUM_T_LAYER %#x\n", value);
 		for (i = 0; i < (temporal_LC.temporal_layer_count & 0x7); i++) {
-			mfc_debug(3, "Temporal SVC: layer bitrate[%d] %d\n",
-					i, temporal_LC.temporal_layer_bitrate[i]);
+			mfc_debug(3, "Temporal SVC: layer bitrate[%d] %d (FW ctrl: %d)\n",
+					i, temporal_LC.temporal_layer_bitrate[i], p->hier_bitrate_ctrl);
 			MFC_WRITEL(temporal_LC.temporal_layer_bitrate[i],
 					buf_ctrl->addr + i * 4);
 		}
@@ -1363,7 +1365,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 					temporal_LC.temporal_layer_count & 0x7;
 
 			/* enable RC_BIT_RATE_CHANGE */
-			if (temporal_LC.temporal_layer_bitrate[0] > 0)
+			if (temporal_LC.temporal_layer_bitrate[0] > 0 || p->hier_bitrate_ctrl)
 				pInStr->ParamChange |= (1 << 2);
 			else
 				pInStr->ParamChange &= ~(1 << 2);
@@ -1378,9 +1380,11 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 
 			pInStr->NumTLayer &= ~(0x7);
 			pInStr->NumTLayer |= (temporal_LC.temporal_layer_count & 0x7);
+			pInStr->NumTLayer &= ~(0x1 << 8);
+			pInStr->NumTLayer |= (p->hier_bitrate_ctrl & 0x1) << 8;
 			for (i = 0; i < (temporal_LC.temporal_layer_count & 0x7); i++) {
-				mfc_debug(3, "Temporal SVC: layer bitrate[%d] %d\n",
-					i, temporal_LC.temporal_layer_bitrate[i]);
+				mfc_debug(3, "Temporal SVC: layer bitrate[%d] %d (FW ctrl: %d)\n",
+					i, temporal_LC.temporal_layer_bitrate[i], p->hier_bitrate_ctrl);
 				pInStr->HierarchicalBitRateLayer[i] =
 					temporal_LC.temporal_layer_bitrate[i];
 			}
