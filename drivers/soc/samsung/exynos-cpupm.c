@@ -17,6 +17,213 @@
 #include <soc/samsung/exynos-cpupm.h>
 #include <soc/samsung/exynos-powermode.h>
 #include <soc/samsung/cal-if.h>
+#include <soc/samsung/exynos-pmu.h>
+
+/******************************************************************************
+ *                                  IDLE_IP                                   *
+ ******************************************************************************/
+#define PMU_IDLE_IP_BASE		0x03E0
+#define PMU_IDLE_IP_MASK_BASE		0x03F0
+#define PMU_IDLE_IP(x)			(PMU_IDLE_IP_BASE + (x * 0x4))
+#define PMU_IDLE_IP_MASK(x)		(PMU_IDLE_IP_MASK_BASE + (x * 0x4))
+
+#define IDLE_IP_REG_SIZE		32
+#define NUM_IDLE_IP_REG			4
+
+static int idle_ip_mask[NUM_IDLE_IP_REG];
+
+#define IDLE_IP_MAX_INDEX		127
+static int idle_ip_max_index = IDLE_IP_MAX_INDEX;
+
+char *idle_ip_names[NUM_IDLE_IP_REG][IDLE_IP_REG_SIZE];
+
+static int check_idle_ip(int reg_index)
+{
+	unsigned int val, mask;
+
+	exynos_pmu_read(PMU_IDLE_IP(reg_index), &val);
+	mask = idle_ip_mask[reg_index];
+
+	return (val & ~mask) == ~mask ? 0 : -EBUSY;
+}
+
+static void set_idle_ip_mask(void)
+{
+	int i;
+
+	for (i = 0; i < NUM_IDLE_IP_REG; i++)
+		exynos_pmu_write(PMU_IDLE_IP_MASK(i), idle_ip_mask[i]);
+}
+
+static void clear_idle_ip_mask(void)
+{
+	int i;
+
+	for (i = 0; i < NUM_IDLE_IP_REG; i++)
+		exynos_pmu_write(PMU_IDLE_IP_MASK(i), 0);
+}
+
+/**
+ * There are 4 IDLE_IP registers in PMU, IDLE_IP therefore supports 128 index,
+ * 0 from 127. To access the IDLE_IP register, convert_idle_ip_index() converts
+ * idle_ip index to register index and bit in regster. For example, idle_ip index
+ * 33 converts to IDLE_IP1[1]. convert_idle_ip_index() returns register index
+ * and ships bit in register to *ip_index.
+ */
+static int convert_idle_ip_index(int *ip_index)
+{
+	int reg_index;
+
+	reg_index = *ip_index / IDLE_IP_REG_SIZE;
+	*ip_index = *ip_index % IDLE_IP_REG_SIZE;
+
+	return reg_index;
+}
+
+static int idle_ip_index_available(int ip_index)
+{
+	struct device_node *dn = of_find_node_by_path("/cpupm/idle-ip");
+	int proplen;
+	int ref_idle_ip[IDLE_IP_MAX_INDEX];
+	int i;
+
+	proplen = of_property_count_u32_elems(dn, "idle-ip-mask");
+
+	if (proplen <= 0)
+		return false;
+
+	if (!of_property_read_u32_array(dn, "idle-ip-mask",
+					ref_idle_ip, proplen)) {
+		for (i = 0; i < proplen; i++)
+			if (ip_index == ref_idle_ip[i])
+				return true;
+	}
+
+	return false;
+}
+
+static DEFINE_SPINLOCK(idle_ip_mask_lock);
+static void unmask_idle_ip(int ip_index)
+{
+	int reg_index;
+	unsigned long flags;
+
+	if (!idle_ip_index_available(ip_index))
+		return;
+
+	reg_index = convert_idle_ip_index(&ip_index);
+
+	spin_lock_irqsave(&idle_ip_mask_lock, flags);
+	idle_ip_mask[reg_index] &= ~(0x1 << ip_index);
+	spin_unlock_irqrestore(&idle_ip_mask_lock, flags);
+}
+
+int exynos_get_idle_ip_index(const char *ip_name)
+{
+	struct device_node *dn = of_find_node_by_path("/cpupm/idle-ip");
+	int ip_index;
+
+	ip_index = of_property_match_string(dn, "idle-ip-list", ip_name);
+	if (ip_index < 0) {
+		pr_err("%s: Fail to find %s in idle-ip list with err %d\n",
+					__func__, ip_name, ip_index);
+		return ip_index;
+	}
+
+	if (ip_index > idle_ip_max_index) {
+		pr_err("%s: %s index %d is out of range\n",
+					__func__, ip_name, ip_index);
+		return -EINVAL;
+	}
+
+	/**
+	 * If it successes to find IP in idle_ip list, we set
+	 * corresponding bit in idle_ip mask.
+	 */
+	unmask_idle_ip(ip_index);
+
+	return ip_index;
+}
+
+static DEFINE_SPINLOCK(ip_idle_lock);
+void exynos_update_ip_idle_status(int ip_index, int idle)
+{
+	unsigned long flags;
+	int reg_index;
+
+	if (ip_index < 0 || ip_index > idle_ip_max_index)
+		return;
+
+	reg_index = convert_idle_ip_index(&ip_index);
+
+	spin_lock_irqsave(&ip_idle_lock, flags);
+	exynos_pmu_update(PMU_IDLE_IP(reg_index),
+				1 << ip_index, idle << ip_index);
+	spin_unlock_irqrestore(&ip_idle_lock, flags);
+
+	return;
+}
+
+static void __init init_idle_ip_names(struct device_node *dn)
+{
+	int size;
+	const char *list[IDLE_IP_MAX_INDEX];
+	int i, bit, reg_index;
+
+	size = of_property_count_strings(dn, "idle-ip-list");
+	if (size < 0)
+		return;
+
+	of_property_read_string_array(dn, "idle-ip-list", list, size);
+	for (i = 0, bit = 0; i < size; i++, bit = i) {
+		reg_index = convert_idle_ip_index(&bit);
+		idle_ip_names[reg_index][bit] = (char *)list[i];
+	}
+
+	size = of_property_count_strings(dn, "fix-idle-ip");
+	if (size < 0)
+		return;
+
+	of_property_read_string_array(dn, "fix-idle-ip", list, size);
+	for (i = 0; i < size; i++) {
+		if (!of_property_read_u32_index(dn, "fix-idle-ip-index", i, &bit)) {
+			reg_index = convert_idle_ip_index(&bit);
+			idle_ip_names[reg_index][bit] = (char *)list[i];
+		}
+	}
+}
+
+static void __init idle_ip_init(void)
+{
+	struct device_node *dn = of_find_node_by_path("/cpupm/idle-ip");
+	int index, count, i;
+
+	for (i = 0; i < NUM_IDLE_IP_REG; i++)
+		idle_ip_mask[i] = 0xFFFFFFFF;
+
+	init_idle_ip_names(dn);
+
+	/*
+	 * To unmask fixed idle-ip, fix-idle-ip and fix-idle-ip-index,
+	 * both properties must be existed and size must be same.
+	 */
+	if (!of_find_property(dn, "fix-idle-ip", NULL)
+			|| !of_find_property(dn, "fix-idle-ip-index", NULL))
+		return;
+
+	count = of_property_count_strings(dn, "fix-idle-ip");
+	if (count != of_property_count_u32_elems(dn, "fix-idle-ip-index")) {
+		pr_err("Mismatch between fih-idle-ip and fix-idle-ip-index\n");
+		return;
+	}
+
+	for (i = 0; i < count; i++) {
+		of_property_read_u32_index(dn, "fix-idle-ip-index", i, &index);
+		unmask_idle_ip(index);
+	}
+
+	idle_ip_max_index -= count;
+}
 
 /******************************************************************************
  *                                CAL interfaces                              *
@@ -240,6 +447,12 @@ static int cpus_busy(int target_residency, const struct cpumask *cpus)
 
 static int system_busy(void)
 {
+	int i;
+
+	for (i = 0; i < NUM_IDLE_IP_REG; i++)
+		if (check_idle_ip(i))
+			return 1;
+
 	return 0;
 }
 
@@ -290,6 +503,8 @@ static int try_to_enter_power_mode(int cpu, struct power_mode *mode)
 	case POWERMODE_TYPE_SYSTEM:
 		if (unlikely(exynos_system_idle_enter()))
 			return 0;
+
+		set_idle_ip_mask();
 		break;
 	}
 
@@ -314,6 +529,7 @@ static void exit_mode(int cpu, struct power_mode *mode, int cancel)
 		break;
 	case POWERMODE_TYPE_SYSTEM:
 		exynos_system_idle_exit(cancel);
+		clear_idle_ip_mask();
 		break;
 	}
 }
@@ -475,6 +691,8 @@ static int __init exynos_cpupm_init(void)
 	cpu_power_mode_init();
 
 	spin_lock_init(&cpupm_lock);
+
+	idle_ip_init();
 
 	return 0;
 }

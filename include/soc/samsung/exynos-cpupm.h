@@ -20,4 +20,19 @@ enum {
 extern void disable_mode(int cpu, int type);
 extern void enable_mode(int cpu, int type);
 
+#ifdef CONFIG_CPU_IDLE
+void exynos_update_ip_idle_status(int index, int idle);
+int exynos_get_idle_ip_index(const char *name);
+#else
+static inline void exynos_update_ip_idle_status(int index, int idle)
+{
+	return;
+}
+
+static inline int exynos_get_idle_ip_index(const char *name)
+{
+	return 0;
+}
+#endif
+
 #endif /* __EXYNOS_CPUPM_H */
