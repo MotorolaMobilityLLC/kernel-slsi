@@ -43,7 +43,7 @@ struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name)
 }
 EXPORT_SYMBOL(exynos_pd_lookup_name);
 
-static int exynos_pd_status(struct exynos_pm_domain *pd)
+int exynos_pd_status(struct exynos_pm_domain *pd)
 {
 	int status;
 
@@ -56,7 +56,7 @@ static int exynos_pd_status(struct exynos_pm_domain *pd)
 
 	return status;
 }
-
+EXPORT_SYMBOL(exynos_pd_status);
 /* Power domain on sequence.
  * on_pre, on_post functions are registered as notification handler at CAL code.
  */

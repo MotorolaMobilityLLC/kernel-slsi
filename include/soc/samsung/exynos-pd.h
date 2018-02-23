@@ -82,8 +82,13 @@ struct exynos_pd_dbg_info {
 
 #ifdef CONFIG_EXYNOS_PD
 struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name);
+int exynos_pd_status(struct exynos_pm_domain *pd);
 #else
 static inline struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name)
+{
+	return NULL;
+}
+static inline int exynos_pd_status(struct exynos_pm_domain *pd)
 {
 	return NULL;
 }
