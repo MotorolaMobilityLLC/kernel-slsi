@@ -75,7 +75,7 @@ static inline void reset_hung_task_detector(void) { }
 #define NMI_WATCHDOG_ENABLED      (1 << NMI_WATCHDOG_ENABLED_BIT)
 #define SOFT_WATCHDOG_ENABLED     (1 << SOFT_WATCHDOG_ENABLED_BIT)
 
-#if defined(CONFIG_HARDLOCKUP_DETECTOR)
+#if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HARDLOCKUP_DETECTOR_OTHER_CPU)
 extern void hardlockup_detector_disable(void);
 extern unsigned int hardlockup_panic;
 #else
@@ -121,12 +121,15 @@ int watchdog_nmi_probe(void);
  * may be used to reset the timeout - for code which intentionally
  * disables interrupts for a long time. This call is stateless.
  */
+#if defined(CONFIG_HARDLOCKUP_DETECTOR_OTHER_CPU)
+extern void touch_nmi_watchdog(void);
+#else
 static inline void touch_nmi_watchdog(void)
 {
 	arch_touch_nmi_watchdog();
 	touch_softlockup_watchdog();
 }
-
+#endif
 /*
  * Create trigger_all_cpu_backtrace() out of the arch-provided
  * base function. Return whether such support was available,
