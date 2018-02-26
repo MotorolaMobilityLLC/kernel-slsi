@@ -260,6 +260,12 @@ static void __init idle_ip_init(void)
 /******************************************************************************
  *                                CAL interfaces                              *
  ******************************************************************************/
+#ifdef CONFIG_EXYNOS_REBOOT
+extern void big_reset_control(int en);
+#else
+static inline void big_reset_control(int en) { }
+#endif
+
 static void cpu_enable(unsigned int cpu)
 {
 	cal_cpu_enable(cpu);
@@ -273,10 +279,12 @@ static void cpu_disable(unsigned int cpu)
 static void cluster_enable(unsigned int cluster_id)
 {
 	cal_cluster_enable(cluster_id);
+	big_reset_control(1);
 }
 
 static void cluster_disable(unsigned int cluster_id)
 {
+	big_reset_control(0);
 	cal_cluster_disable(cluster_id);
 }
 
