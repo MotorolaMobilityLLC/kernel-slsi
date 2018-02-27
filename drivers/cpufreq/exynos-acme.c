@@ -76,19 +76,6 @@ exynos_cpufreq_domain *find_domain_cpumask(const struct cpumask *mask)
 	return NULL;
 }
 
-static
-struct exynos_cpufreq_domain *find_domain_dm_type(enum exynos_dm_type dm_type)
-{
-	struct exynos_cpufreq_domain *domain;
-
-	list_for_each_entry(domain, &domains, list)
-		if (domain->dm_type == dm_type)
-			return domain;
-
-	pr_err("cannot find cpufreq domain by DVFS Manager type\n");
-	return NULL;
-}
-
 static struct exynos_cpufreq_domain* first_domain(void)
 {
 	return list_first_entry(&domains,
@@ -524,10 +511,10 @@ static void update_dm_constraint(struct exynos_cpufreq_domain *domain,
 						  min(policy_max, pm_qos_max));
 }
 
-static int dm_scaler(enum exynos_dm_type dm_type, unsigned int target_freq,
+static int dm_scaler(enum exynos_dm_type dm_type, void *devdata, unsigned int target_freq,
 						unsigned int relation)
 {
-	struct exynos_cpufreq_domain *domain = find_domain_dm_type(dm_type);
+	struct exynos_cpufreq_domain *domain = devdata;
 	struct cpufreq_policy *policy;
 	struct cpumask mask;
 	int ret;
@@ -1382,7 +1369,7 @@ static int init_dm(struct exynos_cpufreq_domain *domain,
 	if (ret)
 		return ret;
 
-	ret = exynos_dm_data_init(domain->dm_type, domain->min_freq,
+	ret = exynos_dm_data_init(domain->dm_type, domain, domain->min_freq,
 				domain->max_freq, domain->old);
 	if (ret)
 		return ret;
