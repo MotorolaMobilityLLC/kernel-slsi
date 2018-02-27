@@ -202,10 +202,18 @@ int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer)
 void exynos_ion_free_fixup(struct ion_buffer *buffer)
 {
 	struct sg_table *table = buffer->sg_table;
+	struct ion_iovm_map *iovm_map, *tmp;
 
 	dma_unmap_sg_attrs(buffer->dev->dev.this_device, table->sgl,
 			   table->orig_nents, DMA_TO_DEVICE,
 			   DMA_ATTR_SKIP_CPU_SYNC);
+
+	list_for_each_entry_safe(iovm_map, tmp, &buffer->iovas, list) {
+		iovmm_unmap(iovm_map->dev, iovm_map->iova);
+		list_del(&iovm_map->list);
+		kfree(iovm_map);
+	}
+
 }
 
 struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
