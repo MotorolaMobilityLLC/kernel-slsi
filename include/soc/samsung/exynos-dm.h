@@ -110,7 +110,7 @@ struct exynos_dm_data {
 	u32				policy_min_freq;
 	u32				policy_max_freq;
 
-	int (*freq_scaler)		(enum exynos_dm_type dm_type, u32 target_freq, unsigned int relation);
+	int				(*freq_scaler)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation);
 
 	struct list_head		min_clist;
 	struct list_head		max_clist;
@@ -118,6 +118,8 @@ struct exynos_dm_data {
 #ifdef CONFIG_EXYNOS_ACPM
 	u32				cal_id;
 #endif
+
+	void				*devdata;
 };
 
 struct exynos_dm_device {
@@ -128,20 +130,20 @@ struct exynos_dm_device {
 
 /* External Function call */
 #if defined(CONFIG_EXYNOS_DVFS_MANAGER)
-int exynos_dm_data_init(enum exynos_dm_type dm_type,
+int exynos_dm_data_init(enum exynos_dm_type dm_type, void *data,
 			u32 min_freq, u32 max_freq, u32 cur_freq);
 int register_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
 				struct exynos_dm_constraint *constraint);
 int unregister_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
 				struct exynos_dm_constraint *constraint);
 int register_exynos_dm_freq_scaler(enum exynos_dm_type dm_type,
-			int (*scaler_func)(enum exynos_dm_type dm_type, u32 target_freq, unsigned int relation));
+			int (*scaler_func)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation));
 int unregister_exynos_dm_freq_scaler(enum exynos_dm_type dm_type);
 int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_freq);
 int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq);
 #else
 static inline
-int exynos_dm_data_init(enum exynos_dm_type dm_type,
+int exynos_dm_data_init(enum exynos_dm_type dm_type, void *data,
 			u32 min_freq, u32 max_freq, u32 cur_freq)
 {
 	return 0;
@@ -160,7 +162,7 @@ int unregister_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
 }
 static inline
 int register_exynos_dm_freq_scaler(enum exynos_dm_type dm_type,
-			int (*scaler_func)(enum exynos_dm_type dm_type, u32 target_freq, unsigned int relation))
+			int (*scaler_func)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation))
 {
 	return 0;
 }

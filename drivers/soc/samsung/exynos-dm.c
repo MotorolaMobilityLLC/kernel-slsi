@@ -468,7 +468,7 @@ static struct list_head *get_max_constraint_list(struct exynos_dm_data *dm_data)
  * before DVFS driver registration to DVFS framework.
  * 	Initialize sequence Step.1
  */
-int exynos_dm_data_init(enum exynos_dm_type dm_type,
+int exynos_dm_data_init(enum exynos_dm_type dm_type, void *data,
 			u32 min_freq, u32 max_freq, u32 cur_freq)
 {
 	int ret = 0;
@@ -496,6 +496,8 @@ int exynos_dm_data_init(enum exynos_dm_type dm_type,
 
 	if (!exynos_dm->dm_data[dm_type].max_freq)
 		exynos_dm->dm_data[dm_type].max_freq = max_freq;
+
+	exynos_dm->dm_data[dm_type].devdata = data;
 
 out:
 	mutex_unlock(&exynos_dm->lock);
@@ -643,7 +645,7 @@ int unregister_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
  * 	Initialize sequence Step.3
  */
 int register_exynos_dm_freq_scaler(enum exynos_dm_type dm_type,
-			int (*scaler_func)(enum exynos_dm_type dm_type, u32 target_freq, unsigned int relation))
+			int (*scaler_func)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation))
 {
 	int ret = 0;
 
@@ -1052,7 +1054,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 				dm = &exynos_dm->dm_data[min_order[i]];
 				if (dm->constraint_checked) {
 					if (dm->freq_scaler) {
-						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->freq_scaler(dm->dm_type, dm->devdata, dm->target_freq, relation);
 						dm->cur_freq = dm->target_freq;
 					}
 					dm->constraint_checked = 0;
@@ -1066,7 +1068,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 				dm = &exynos_dm->dm_data[max_order[i]];
 				if (dm->constraint_checked) {
 					if (dm->freq_scaler) {
-						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->freq_scaler(dm->dm_type, dm->devdata, dm->target_freq, relation);
 						dm->cur_freq = dm->target_freq;
 					}
 					dm->constraint_checked = 0;
@@ -1083,7 +1085,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 				dm = &exynos_dm->dm_data[min_order[i]];
 				if (dm->constraint_checked) {
 					if (dm->freq_scaler) {
-						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->freq_scaler(dm->dm_type, dm->devdata, dm->target_freq, relation);
 						dm->cur_freq = dm->target_freq;
 					}
 					dm->constraint_checked = 0;
@@ -1097,7 +1099,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 				dm = &exynos_dm->dm_data[max_order[i]];
 				if (dm->constraint_checked) {
 					if (dm->freq_scaler) {
-						dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+						dm->freq_scaler(dm->dm_type, dm->devdata, dm->target_freq, relation);
 						dm->cur_freq = dm->target_freq;
 					}
 					dm->constraint_checked = 0;
@@ -1116,7 +1118,7 @@ static int scaling_callback(enum dvfs_direction dir, unsigned int relation)
 		dm = &exynos_dm->dm_data[min_order[i]];
 		if (dm->constraint_checked) {
 			if (dm->freq_scaler) {
-				dm->freq_scaler(dm->dm_type, dm->target_freq, relation);
+				dm->freq_scaler(dm->dm_type, dm->devdata, dm->target_freq, relation);
 				dm->cur_freq = dm->target_freq;
 			}
 			dm->constraint_checked = 0;
