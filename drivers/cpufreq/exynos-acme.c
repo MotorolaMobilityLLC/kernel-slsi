@@ -511,7 +511,7 @@ static void update_dm_constraint(struct exynos_cpufreq_domain *domain,
 						  min(policy_max, pm_qos_max));
 }
 
-static int dm_scaler(enum exynos_dm_type dm_type, void *devdata, unsigned int target_freq,
+static int dm_scaler(int dm_type, void *devdata, unsigned int target_freq,
 						unsigned int relation)
 {
 	struct exynos_cpufreq_domain *domain = devdata;
@@ -1270,9 +1270,6 @@ static int init_constraint_table_ect(struct exynos_cpufreq_domain *domain,
 	unsigned int index, c_index;
 	bool valid_row = false;
 	int ret;
-
-	if (dm->c.constraint_dm_type != DM_MIF)
-		return -EINVAL;
 
 	ret = of_property_read_string(dn, "ect-name", &ect_name);
 	if (ret)
