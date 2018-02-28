@@ -405,7 +405,7 @@ static struct list_head *get_max_constraint_list(struct exynos_dm_data *dm_data)
  * before DVFS driver registration to DVFS framework.
  * 	Initialize sequence Step.1
  */
-int exynos_dm_data_init(enum exynos_dm_type dm_type, void *data,
+int exynos_dm_data_init(int dm_type, void *data,
 			u32 min_freq, u32 max_freq, u32 cur_freq)
 {
 	int ret = 0;
@@ -445,7 +445,7 @@ out:
 /*
  * 	Initialize sequence Step.2
  */
-int register_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
+int register_exynos_dm_constraint_table(int dm_type,
 				struct exynos_dm_constraint *constraint)
 {
 	struct exynos_dm_constraint *sub_constraint;
@@ -545,7 +545,7 @@ err_sub_const:
 	return ret;
 }
 
-int unregister_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
+int unregister_exynos_dm_constraint_table(int dm_type,
 				struct exynos_dm_constraint *constraint)
 {
 	struct exynos_dm_constraint *sub_constraint;
@@ -581,8 +581,8 @@ int unregister_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
  * before return to corresponding DVFS drvier.
  * 	Initialize sequence Step.3
  */
-int register_exynos_dm_freq_scaler(enum exynos_dm_type dm_type,
-			int (*scaler_func)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation))
+int register_exynos_dm_freq_scaler(int dm_type,
+			int (*scaler_func)(int dm_type, void *devdata, u32 target_freq, unsigned int relation))
 {
 	int ret = 0;
 
@@ -613,7 +613,7 @@ out:
 	return 0;
 }
 
-int unregister_exynos_dm_freq_scaler(enum exynos_dm_type dm_type)
+int unregister_exynos_dm_freq_scaler(int dm_type)
 {
 	int ret = 0;
 
@@ -650,18 +650,18 @@ out:
  * After that, DVFS Manager will decide min/max freq. of current domain
  * and check dependent domains whether update is necessary.
  */
-static int dm_data_updater(enum exynos_dm_type dm_type);
+static int dm_data_updater(int dm_type);
 static int constraint_checker_min(struct list_head *head, u32 freq);
 static int constraint_checker_max(struct list_head *head, u32 freq);
-static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt);
-static int max_constraint_data_updater(enum exynos_dm_type dm_type, int cnt);
+static int constraint_data_updater(int dm_type, int cnt);
+static int max_constraint_data_updater(int dm_type, int cnt);
 static int scaling_callback(enum dvfs_direction dir, unsigned int relation);
 
 static bool max_flag = false;
 
 #define POLICY_REQ	4
 
-int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_freq)
+int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 {
 	struct exynos_dm_data *dm;
 	struct timeval pre, before, after;
@@ -776,7 +776,7 @@ static int constraint_checker_max(struct list_head *head, u32 freq)
 /*
  * DM CALL
  */
-int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
+int DM_CALL(int dm_type, unsigned long *target_freq)
 {
 	struct exynos_dm_data *dm;
 	int i;
@@ -854,7 +854,7 @@ int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
 	return 0;
 }
 
-static int dm_data_updater(enum exynos_dm_type dm_type)
+static int dm_data_updater(int dm_type)
 {
 	struct exynos_dm_data *dm;
 	struct exynos_dm_constraint *constraint;
@@ -900,7 +900,7 @@ static int dm_data_updater(enum exynos_dm_type dm_type)
 	return 0;
 }
 
-static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt)
+static int constraint_data_updater(int dm_type, int cnt)
 {
 	struct exynos_dm_data *dm;
 	struct exynos_dm_constraint *constraint;
@@ -936,7 +936,7 @@ static int constraint_data_updater(enum exynos_dm_type dm_type, int cnt)
 	return 0;
 }
 
-static int max_constraint_data_updater(enum exynos_dm_type dm_type, int cnt)
+static int max_constraint_data_updater(int dm_type, int cnt)
 {
 	struct exynos_dm_data *dm;
 	struct exynos_dm_constraint *constraint;

@@ -20,22 +20,6 @@
 #define EXYNOS_DM_RELATION_L		0
 #define EXYNOS_DM_RELATION_H		1
 
-enum exynos_dm_type {
-	DM_CPU_CL0 = 0,
-	DM_CPU_CL1,
-	DM_MIF,
-	DM_INT,
-	DM_INTCAM,
-	DM_FSYS0,
-	DM_CAM,
-	DM_DISP,
-	DM_AUD,
-	DM_IVA,
-	DM_SCORE,
-	DM_GPU,
-	DM_TYPE_END
-};
-
 enum exynos_constraint_type {
 	CONSTRAINT_MIN = 0,
 	CONSTRAINT_MAX,
@@ -65,7 +49,7 @@ struct exynos_dm_constraint {
 	u32				table_length;
 
 	enum exynos_constraint_type	constraint_type;
-	enum exynos_dm_type		constraint_dm_type;
+	int		constraint_dm_type;
 	char				dm_type_name[EXYNOS_DM_TYPE_NAME_LEN];
 	struct exynos_dm_freq		*freq_table;
 	u32				min_freq;
@@ -80,7 +64,7 @@ struct exynos_dm_data {
 #ifdef CONFIG_EXYNOS_ACPM
 	bool				policy_use;
 #endif
-	enum exynos_dm_type		dm_type;
+	int		dm_type;
 	char				dm_type_name[EXYNOS_DM_TYPE_NAME_LEN];
 
 	u32				min_freq;
@@ -93,7 +77,7 @@ struct exynos_dm_data {
 	u32				policy_min_freq;
 	u32				policy_max_freq;
 
-	int				(*freq_scaler)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation);
+	int				(*freq_scaler)(int dm_type, void *devdata, u32 target_freq, unsigned int relation);
 
 	struct list_head		min_clist;
 	struct list_head		max_clist;
@@ -117,54 +101,54 @@ struct exynos_dm_device {
 
 /* External Function call */
 #if defined(CONFIG_EXYNOS_DVFS_MANAGER)
-int exynos_dm_data_init(enum exynos_dm_type dm_type, void *data,
+int exynos_dm_data_init(int dm_type, void *data,
 			u32 min_freq, u32 max_freq, u32 cur_freq);
-int register_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
+int register_exynos_dm_constraint_table(int dm_type,
 				struct exynos_dm_constraint *constraint);
-int unregister_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
+int unregister_exynos_dm_constraint_table(int dm_type,
 				struct exynos_dm_constraint *constraint);
-int register_exynos_dm_freq_scaler(enum exynos_dm_type dm_type,
-			int (*scaler_func)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation));
-int unregister_exynos_dm_freq_scaler(enum exynos_dm_type dm_type);
-int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_freq);
-int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq);
+int register_exynos_dm_freq_scaler(int dm_type,
+			int (*scaler_func)(int dm_type, void *devdata, u32 target_freq, unsigned int relation));
+int unregister_exynos_dm_freq_scaler(int dm_type);
+int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq);
+int DM_CALL(int dm_type, unsigned long *target_freq);
 #else
 static inline
-int exynos_dm_data_init(enum exynos_dm_type dm_type, void *data,
+int exynos_dm_data_init(int dm_type, void *data,
 			u32 min_freq, u32 max_freq, u32 cur_freq)
 {
 	return 0;
 }
 static inline
-int register_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
+int register_exynos_dm_constraint_table(int dm_type,
 				struct exynos_dm_constraint *constraint)
 {
 	return 0;
 }
 static inline
-int unregister_exynos_dm_constraint_table(enum exynos_dm_type dm_type,
+int unregister_exynos_dm_constraint_table(int dm_type,
 				struct exynos_dm_constraint *constraint)
 {
 	return 0;
 }
 static inline
-int register_exynos_dm_freq_scaler(enum exynos_dm_type dm_type,
-			int (*scaler_func)(enum exynos_dm_type dm_type, void *devdata, u32 target_freq, unsigned int relation))
+int register_exynos_dm_freq_scaler(int dm_type,
+			int (*scaler_func)(int dm_type, void *devdata, u32 target_freq, unsigned int relation))
 {
 	return 0;
 }
 static inline
-int unregister_exynos_dm_freq_scaler(enum exynos_dm_type dm_type)
+int unregister_exynos_dm_freq_scaler(int dm_type)
 {
 	return 0;
 }
 static inline
-int policy_update_call_to_DM(enum exynos_dm_type dm_type, u32 min_freq, u32 max_freq)
+int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 {
 	return 0;
 }
 static inline
-int DM_CALL(enum exynos_dm_type dm_type, unsigned long *target_freq)
+int DM_CALL(int dm_type, unsigned long *target_freq)
 {
 	return 0;
 }
