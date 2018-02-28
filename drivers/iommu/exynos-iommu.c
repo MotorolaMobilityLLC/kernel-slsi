@@ -529,8 +529,6 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	pm_runtime_enable(dev);
-
 	ret = exynos_iommu_init_event_log(SYSMMU_DRVDATA_TO_LOG(data),
 				SYSMMU_LOG_LEN);
 	if (!ret)
@@ -566,6 +564,8 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register device\n");
 		return ret;
 	}
+
+	pm_runtime_enable(dev);
 
 	dev_info(data->sysmmu, "is probed. Version %d.%d.%d\n",
 			MMU_MAJ_VER(data->version),
