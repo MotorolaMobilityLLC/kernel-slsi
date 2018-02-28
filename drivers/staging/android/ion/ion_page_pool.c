@@ -98,7 +98,7 @@ struct page *ion_page_pool_alloc(struct ion_page_pool *pool, bool nozero)
 
 	if (!page) {
 		page = ion_page_pool_alloc_pages(pool, nozero);
-		if (!pool->cached)
+		if (page && !pool->cached)
 			__flush_dcache_area(page_to_virt(page),
 					    1 << (PAGE_SHIFT + pool->order));
 	}
