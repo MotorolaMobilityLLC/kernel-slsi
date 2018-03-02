@@ -160,7 +160,7 @@ int cal_dll_apm_enable(void)
 		return -EINVAL;
 
 	/* DLL_APM_N_DCO settings */
-	__raw_writel(0x632, dll_apm_base + 0x4);
+	__raw_writel(0x1574, dll_apm_base + 0x4);
 
 	/* DLL_APM_CTRL0 settings */
 	__raw_writel(0x111, sysreg_apm_base + 0x0440);
