@@ -182,4 +182,5 @@
 
 /* #define BDS_DVFS */
 #define ENABLE_HW_FAST_READ_OUT
+#define FULL_OTF_TAIL_GROUP_ID		GROUP_ID_MCS0
 #endif
