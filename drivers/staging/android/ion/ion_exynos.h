@@ -99,8 +99,9 @@ static inline int exynos_ion_alloc_fixup(struct ion_device *idev,
 
 #define exynos_ion_free_fixup(buffer) do { } while (0)
 
-static struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *att,
-					       enum dma_data_direction dir)
+static inline struct sg_table *ion_exynos_map_dma_buf(
+					struct dma_buf_attachment *att,
+					enum dma_data_direction dir)
 {
 	return ERR_PTR(-ENODEV);
 }
