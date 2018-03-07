@@ -367,7 +367,7 @@ static int pafstat_s_stream(struct v4l2_subdev *subdev, int pd_mode)
 	enable = pafstat_hw_s_sensor_mode(pafstat->regs, pd_mode);
 	pafstat_hw_s_irq_mask(pafstat->regs, PAFSTAT_INT_MASK);
 
-	cis_data->companion_data.paf_stat_enable = enable;
+	cis_data->is_data.paf_stat_enable = enable;
 	irq_state = pafstat_hw_g_irq_src(pafstat->regs);
 
 	lic_mode = (pafstat->fro_cnt == 0 ? LIC_MODE_INTERLEAVING : LIC_MODE_SINGLE_BUFFER);
