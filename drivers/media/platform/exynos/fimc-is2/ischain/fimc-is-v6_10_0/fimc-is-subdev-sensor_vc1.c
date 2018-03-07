@@ -41,8 +41,8 @@ static int fimc_is_sensor_vc1_tag(struct fimc_is_subdev *subdev,
 	struct v4l2_subdev *subdev_csi;
 	struct fimc_is_device_sensor *device;
 
-	BUG_ON(!subdev);
-	BUG_ON(!ldr_frame);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!ldr_frame);
 
 	device = (struct fimc_is_device_sensor *)device_data;
 	subdev_csi = device->subdev_csi;

@@ -44,12 +44,12 @@ static int fimc_is_ischain_isp_cfg(struct fimc_is_subdev *leader,
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
-	BUG_ON(!leader);
-	BUG_ON(!device);
-	BUG_ON(!incrop);
-	BUG_ON(!lindex);
-	BUG_ON(!hindex);
-	BUG_ON(!indexes);
+	FIMC_BUG(!leader);
+	FIMC_BUG(!device);
+	FIMC_BUG(!incrop);
+	FIMC_BUG(!lindex);
+	FIMC_BUG(!hindex);
+	FIMC_BUG(!indexes);
 
 	width = incrop->w;
 	height = incrop->h;
@@ -193,10 +193,10 @@ static int fimc_is_ischain_isp_tag(struct fimc_is_subdev *subdev,
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
-	BUG_ON(!subdev);
-	BUG_ON(!device);
-	BUG_ON(!device->is_region);
-	BUG_ON(!frame);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!device);
+	FIMC_BUG(!device->is_region);
+	FIMC_BUG(!frame);
 
 	mdbgs_ischain(4, "ISP TAG\n", device);
 

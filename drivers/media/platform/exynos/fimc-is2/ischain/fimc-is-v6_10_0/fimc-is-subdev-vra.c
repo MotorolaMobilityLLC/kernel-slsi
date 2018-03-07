@@ -38,12 +38,12 @@ static int fimc_is_ischain_vra_cfg(struct fimc_is_subdev *leader,
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
-	BUG_ON(!leader);
-	BUG_ON(!device);
-	BUG_ON(!incrop);
-	BUG_ON(!lindex);
-	BUG_ON(!hindex);
-	BUG_ON(!indexes);
+	FIMC_BUG(!leader);
+	FIMC_BUG(!device);
+	FIMC_BUG(!incrop);
+	FIMC_BUG(!lindex);
+	FIMC_BUG(!hindex);
+	FIMC_BUG(!indexes);
 
 	width = incrop->w;
 	height = incrop->h;
@@ -120,11 +120,11 @@ static int fimc_is_ischain_vra_tag(struct fimc_is_subdev *subdev,
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
-	BUG_ON(!subdev);
-	BUG_ON(!device);
-	BUG_ON(!device->is_region);
-	BUG_ON(!frame);
-	BUG_ON(!frame->shot);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!device);
+	FIMC_BUG(!device->is_region);
+	FIMC_BUG(!frame);
+	FIMC_BUG(!frame->shot);
 
 	incrop = (struct fimc_is_crop *)node->input.cropRegion;
 	otcrop = (struct fimc_is_crop *)node->output.cropRegion;

@@ -48,8 +48,8 @@ static int fimc_is_ischain_mxp_cfg(struct fimc_is_subdev *subdev,
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
-	BUG_ON(!device);
-	BUG_ON(!incrop);
+	FIMC_BUG(!device);
+	FIMC_BUG(!incrop);
 
 	queue = GET_SUBDEV_QUEUE(subdev);
 	if (!queue) {
@@ -235,8 +235,8 @@ static int fimc_is_ischain_mxp_start(struct fimc_is_device_ischain *device,
 	struct param_otf_input *otf_input;
 	u32 crange;
 
-	BUG_ON(!queue);
-	BUG_ON(!queue->framecfg.format);
+	FIMC_BUG(!queue);
+	FIMC_BUG(!queue->framecfg.format);
 
 	format = queue->framecfg.format;
 
@@ -400,13 +400,13 @@ static int fimc_is_ischain_mxp_tag(struct fimc_is_subdev *subdev,
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
-	BUG_ON(!device);
-	BUG_ON(!device->is_region);
-	BUG_ON(!subdev);
-	BUG_ON(!GET_SUBDEV_QUEUE(subdev));
-	BUG_ON(!ldr_frame);
-	BUG_ON(!ldr_frame->shot);
-	BUG_ON(!node);
+	FIMC_BUG(!device);
+	FIMC_BUG(!device->is_region);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!GET_SUBDEV_QUEUE(subdev));
+	FIMC_BUG(!ldr_frame);
+	FIMC_BUG(!ldr_frame->shot);
+	FIMC_BUG(!node);
 
 	mdbgs_ischain(4, "MXP TAG(request %d)\n", device, node->request);
 

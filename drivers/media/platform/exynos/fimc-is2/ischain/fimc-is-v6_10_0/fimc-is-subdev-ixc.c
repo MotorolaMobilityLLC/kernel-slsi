@@ -46,8 +46,8 @@ static int fimc_is_ischain_ixc_start(struct fimc_is_device_ischain *device,
 	u32 votf_dst_ip = 0;
 	u32 votf_dst_axi_id_m = 0;
 
-	BUG_ON(!queue);
-	BUG_ON(!queue->framecfg.format);
+	FIMC_BUG(!queue);
+	FIMC_BUG(!queue->framecfg.format);
 
 	group = &device->group_isp;
 	if (group->vnext) {
@@ -131,12 +131,12 @@ static int fimc_is_ischain_ixc_tag(struct fimc_is_subdev *subdev,
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
-	BUG_ON(!device);
-	BUG_ON(!device->is_region);
-	BUG_ON(!subdev);
-	BUG_ON(!GET_SUBDEV_QUEUE(subdev));
-	BUG_ON(!ldr_frame);
-	BUG_ON(!ldr_frame->shot);
+	FIMC_BUG(!device);
+	FIMC_BUG(!device->is_region);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!GET_SUBDEV_QUEUE(subdev));
+	FIMC_BUG(!ldr_frame);
+	FIMC_BUG(!ldr_frame->shot);
 
 	mdbgs_ischain(4, "ISPC TAG(request %d)\n", device, node->request);
 
