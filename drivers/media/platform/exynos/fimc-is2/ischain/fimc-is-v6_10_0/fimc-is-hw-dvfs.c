@@ -317,11 +317,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_SECURE_FRONT)
 /* pip camcording */
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_CAMCORDING)
 {
-	if (((device->setfile & FIMC_IS_SETFILE_MASK) == ISS_SUB_SCENARIO_DUAL_VIDEO) &&
-		stream_cnt > 1)
-		return 1;
-	else
-		return 0;
+	return 0;
 }
 
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_CAMCORDING_CAPTURE)
