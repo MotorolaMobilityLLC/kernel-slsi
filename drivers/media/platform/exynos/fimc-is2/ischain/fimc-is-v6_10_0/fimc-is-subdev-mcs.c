@@ -17,6 +17,7 @@
 #include "fimc-is-video.h"
 #include "fimc-is-type.h"
 
+#ifdef USE_VRA_OTF
 static int fimc_is_ischain_mcs_bypass(struct fimc_is_subdev *leader,
 	void *device_data,
 	struct fimc_is_frame *frame,
@@ -74,6 +75,7 @@ find_subdev:
 p_err:
 	return ret;
 }
+#endif
 
 static int fimc_is_ischain_mcs_cfg(struct fimc_is_subdev *leader,
 	void *device_data,
@@ -91,7 +93,9 @@ static int fimc_is_ischain_mcs_cfg(struct fimc_is_subdev *leader,
 	struct param_mcs_input *input;
 	struct param_control *control;
 	struct fimc_is_device_ischain *device;
+#ifdef USE_VRA_OTF
 	struct fimc_is_subdev *subdev = NULL, *subdev_temp = NULL, *temp;
+#endif
 
 	device = (struct fimc_is_device_ischain *)device_data;
 
@@ -169,6 +173,7 @@ static int fimc_is_ischain_mcs_cfg(struct fimc_is_subdev *leader,
 		goto p_err;
 	}
 
+#ifdef USE_VRA_OTF
 	list_for_each_entry_safe(subdev_temp, temp, &group->subdev_list, list) {
 		if (subdev_temp == &group->leader)
 			continue;
@@ -186,6 +191,7 @@ find_subdev:
 	}
 
 	CALL_SOPS(subdev, cfg, device, frame, incrop, NULL, lindex, hindex, indexes);
+#endif
 
 p_err:
 	return ret;
@@ -267,7 +273,11 @@ p_err:
 }
 
 const struct fimc_is_subdev_ops fimc_is_subdev_mcs_ops = {
+#ifdef USE_VRA_OTF
 	.bypass			= fimc_is_ischain_mcs_bypass,
+#else
+	.bypass			= NULL,
+#endif
 	.cfg			= fimc_is_ischain_mcs_cfg,
 	.tag			= fimc_is_ischain_mcs_tag,
 };

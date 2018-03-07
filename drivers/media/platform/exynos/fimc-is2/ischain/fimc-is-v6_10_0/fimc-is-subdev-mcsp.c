@@ -359,7 +359,7 @@ static int fimc_is_ischain_mxp_stop(struct fimc_is_device_ischain *device,
 	return ret;
 }
 
-static int fimc_is_ischain_mxp_otf_enable(struct fimc_is_device_ischain *device,
+static void fimc_is_ischain_mxp_otf_enable(struct fimc_is_device_ischain *device,
 	struct fimc_is_subdev *subdev,
 	struct fimc_is_frame *frame,
 	struct param_mcs_output *mcs_output,
@@ -368,16 +368,46 @@ static int fimc_is_ischain_mxp_otf_enable(struct fimc_is_device_ischain *device,
 	u32 *hindex,
 	u32 *indexes)
 {
-	int ret = 0;
+#if !defined(USE_VRA_OTF)
+	struct param_mcs_input *input;
 
-	mdbgd_ischain("%s\n", device, __func__);
+	input = fimc_is_itf_g_param(device, frame, PARAM_MCS_INPUT);
 
 	mcs_output->otf_cmd = OTF_OUTPUT_COMMAND_ENABLE;
+
+	mcs_output->otf_format = OTF_OUTPUT_FORMAT_YUV422;
+	mcs_output->otf_bitwidth = OTF_OUTPUT_BIT_WIDTH_8BIT;
+	mcs_output->otf_order = OTF_OUTPUT_ORDER_BAYER_GR_BG;
+
+	mcs_output->crop_offset_x = 0;
+	mcs_output->crop_offset_y = 0;
+
+	if (input->otf_cmd == OTF_INPUT_COMMAND_ENABLE) {
+		mcs_output->crop_width = input->width;
+		mcs_output->crop_height = input->height;
+	} else {
+		mcs_output->crop_width = input->dma_crop_width;
+		mcs_output->crop_height = input->dma_crop_height;
+	}
+
+	/* HACK */
+	if (mcs_output->crop_width > 640 && mcs_output->crop_height > 480) {
+		mcs_output->width = mcs_output->crop_width;
+		mcs_output->height = mcs_output->crop_height;
+	} else {
+		mcs_output->width = 640;
+		mcs_output->height = 480;
+	}
+
 	*lindex |= LOWBIT_OF(index);
 	*hindex |= HIGHBIT_OF(index);
 	(*indexes)++;
 
-	return ret;
+	mdbg_pframe("OTF only enable [%d, %d, %d, %d]-->[%d, %d]\n", device, subdev, frame,
+		mcs_output->crop_offset_x, mcs_output->crop_offset_y,
+		mcs_output->crop_width, mcs_output->crop_height,
+		mcs_output->width, mcs_output->height);
+#endif
 }
 
 static int fimc_is_ischain_mxp_tag(struct fimc_is_subdev *subdev,
@@ -562,8 +592,8 @@ static int fimc_is_ischain_mxp_tag(struct fimc_is_subdev *subdev,
 		}
 
 		if ((node->vid - FIMC_IS_VIDEO_M0P_NUM)
-			== (ldr_frame->shot->uctl.scalerUd.mcsc_sub_blk_port[INTERFACE_TYPE_DS])) {
-			ret = fimc_is_ischain_mxp_otf_enable(device,
+			== (ldr_frame->shot->uctl.scalerUd.mcsc_sub_blk_port[INTERFACE_TYPE_DS]))
+			fimc_is_ischain_mxp_otf_enable(device,
 				subdev,
 				ldr_frame,
 				mcs_output,
@@ -571,11 +601,6 @@ static int fimc_is_ischain_mxp_tag(struct fimc_is_subdev *subdev,
 				&lindex,
 				&hindex,
 				&indexes);
-			if (ret) {
-				merr("fimc_is_ischain_mxp_otf_enable is fail(%d)", device, ret);
-				goto p_err;
-			}
-		}
 
 		target_addr[0] = 0;
 		target_addr[1] = 0;
