@@ -59,7 +59,7 @@ static void sensor_2p7sq_cis_data_calculation(const struct sensor_pll_info_compa
 	u32 vt_pix_clk_hz = 0;
 	u32 frame_rate = 0, max_fps = 0, frame_valid_us = 0;
 
-	BUG_ON(!pll_info_compact);
+	FIMC_BUG_VOID(!pll_info_compact);
 
 	/* 1. get pclk value from pll info */
 	vt_pix_clk_hz = pll_info_compact->pclk;
@@ -123,7 +123,7 @@ static int sensor_2p7sq_wait_stream_off_status(cis_shared_data *cis_data)
 	int ret = 0;
 	u32 timeout = 0;
 
-	BUG_ON(!cis_data);
+	FIMC_BUG(!cis_data);
 
 #define STREAM_OFF_WAIT_TIME 250
 	while (timeout < STREAM_OFF_WAIT_TIME) {
@@ -155,7 +155,7 @@ int sensor_2p7sq_cis_init(struct v4l2_subdev *subdev)
 
 	setinfo.param = NULL;
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	if (!cis) {
@@ -164,7 +164,7 @@ int sensor_2p7sq_cis_init(struct v4l2_subdev *subdev)
 		goto p_err;
 	}
 
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis->cis_data);
 	memset(cis->cis_data, 0, sizeof(cis_shared_data));
 	cis->rev_flag = false;
 
@@ -218,7 +218,7 @@ int sensor_2p7sq_cis_log_status(struct v4l2_subdev *subdev)
 	u8 data8 = 0;
 	u16 data16 = 0;
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	if (!cis) {
@@ -259,12 +259,12 @@ static int sensor_2p7sq_cis_group_param_hold_func(struct v4l2_subdev *subdev, un
 	struct fimc_is_cis *cis = NULL;
 	struct i2c_client *client = NULL;
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -304,12 +304,12 @@ int sensor_2p7sq_cis_group_param_hold(struct v4l2_subdev *subdev, bool hold)
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	ret = sensor_2p7sq_cis_group_param_hold_func(subdev, hold);
 	if (ret < 0)
@@ -324,10 +324,10 @@ int sensor_2p7sq_cis_set_global_setting(struct v4l2_subdev *subdev)
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
-	BUG_ON(!cis);
+	FIMC_BUG(!cis);
 
 	ret = sensor_cis_set_registers(subdev, sensor_2p7sq_global, sensor_2p7sq_global_size);
 
@@ -347,11 +347,11 @@ int sensor_2p7sq_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	if (mode > sensor_2p7sq_max_setfile_num) {
 		err("invalid mode(%d)!!", mode);
@@ -402,10 +402,10 @@ int sensor_2p7sq_cis_set_size(struct v4l2_subdev *subdev, cis_shared_data *cis_d
 
 	do_gettimeofday(&st);
 #endif
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
-	BUG_ON(!cis);
+	FIMC_BUG(!cis);
 
 	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
 
@@ -559,12 +559,12 @@ int sensor_2p7sq_cis_stream_on(struct v4l2_subdev *subdev)
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -643,12 +643,12 @@ int sensor_2p7sq_cis_stream_off(struct v4l2_subdev *subdev)
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -700,13 +700,13 @@ int sensor_2p7sq_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!target_exposure);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!target_exposure);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -814,13 +814,13 @@ int sensor_2p7sq_cis_get_min_exposure_time(struct v4l2_subdev *subdev, u32 *min_
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!min_expo);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!min_expo);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	cis_data = cis->cis_data;
 
@@ -867,13 +867,13 @@ int sensor_2p7sq_cis_get_max_exposure_time(struct v4l2_subdev *subdev, u32 *max_
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!max_expo);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!max_expo);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	cis_data = cis->cis_data;
 
@@ -930,13 +930,13 @@ int sensor_2p7sq_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!target_duration);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!target_duration);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	cis_data = cis->cis_data;
 
@@ -983,12 +983,12 @@ int sensor_2p7sq_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1058,12 +1058,12 @@ int sensor_2p7sq_cis_set_frame_rate(struct v4l2_subdev *subdev, u32 min_fps)
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	cis_data = cis->cis_data;
 
@@ -1118,13 +1118,13 @@ int sensor_2p7sq_cis_adjust_analog_gain(struct v4l2_subdev *subdev, u32 input_ag
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!target_permile);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!target_permile);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	cis_data = cis->cis_data;
 
@@ -1164,12 +1164,12 @@ int sensor_2p7sq_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!again);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!again);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
+	FIMC_BUG(!cis);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1229,12 +1229,12 @@ int sensor_2p7sq_cis_get_analog_gain(struct v4l2_subdev *subdev, u32 *again)
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!again);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!again);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
+	FIMC_BUG(!cis);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1288,13 +1288,13 @@ int sensor_2p7sq_cis_get_min_analog_gain(struct v4l2_subdev *subdev, u32 *min_ag
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!min_again);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!min_again);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1339,13 +1339,13 @@ int sensor_2p7sq_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_ag
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!max_again);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!max_again);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1393,13 +1393,13 @@ int sensor_2p7sq_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_para
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!dgain);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!dgain);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1478,12 +1478,12 @@ int sensor_2p7sq_cis_get_digital_gain(struct v4l2_subdev *subdev, u32 *dgain)
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!dgain);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!dgain);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
+	FIMC_BUG(!cis);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1537,13 +1537,13 @@ int sensor_2p7sq_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_d
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!min_dgain);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!min_dgain);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1589,13 +1589,13 @@ int sensor_2p7sq_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max_d
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!max_dgain);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!max_dgain);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
-	BUG_ON(!cis);
-	BUG_ON(!cis->cis_data);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -1669,8 +1669,8 @@ static int cis_2p7sq_probe(struct i2c_client *client,
 	struct device *dev;
 	struct device_node *dnode;
 
-	BUG_ON(!client);
-	BUG_ON(!fimc_is_dev);
+	FIMC_BUG(!client);
+	FIMC_BUG(!fimc_is_dev);
 
 	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
 	if (!core) {
