@@ -336,6 +336,7 @@ struct fimc_is_cis_ops {
 #ifdef CAMERA_REAR2_SENSOR_SHIFT_CROP
 	int (*cis_update_pdaf_tail_size)(struct v4l2_subdev *subdev, struct fimc_is_sensor_cfg *select);
 #endif
+	int (*cis_set_initial_exposure)(struct v4l2_subdev *subdev);
 };
 
 struct fimc_is_sensor_ctl
@@ -732,6 +733,13 @@ struct fimc_is_cis_interface_ops {
 	/* Set sensor 3a mode - OTF/M2M */
 	int (*set_sensor_3a_mode)(struct fimc_is_sensor_interface *itf,
 					u32 mode);
+	int (*get_initial_exposure_gain_of_sensor)(struct fimc_is_sensor_interface *itf,
+					u32 *long_expo,
+					u32 *long_again,
+					u32 *long_dgain,
+					u32 *short_expo,
+					u32 *short_again,
+					u32 *short_dgain);
 };
 
 struct fimc_is_cis_ext_interface_ops {

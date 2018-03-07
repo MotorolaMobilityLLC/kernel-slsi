@@ -85,6 +85,11 @@ struct fimc_is_cis {
 	u32				ctrl_delay;
 	u32				ae_exposure;
 	u32				ae_deltaev;
+
+	/* settings for initial AE */
+	bool				use_initial_ae;
+	ae_setting			init_ae_setting;
+	ae_setting			last_ae_setting;
 };
 
 struct fimc_is_actuator_data {
