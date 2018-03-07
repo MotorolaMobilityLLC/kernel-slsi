@@ -1379,6 +1379,17 @@ struct is_fast_control {
 
 #define MAX_SHARED_COUNT	400
 
+struct is_fdae_info {
+	u32			id[MAX_FACE_COUNT];
+	u32			score[MAX_FACE_COUNT];
+	struct is_fd_rect	rect[MAX_FACE_COUNT];
+	u32			is_rot[MAX_FACE_COUNT];
+	u32			rot[MAX_FACE_COUNT];
+	u32			face_num;
+	u32			frame_count;
+	spinlock_t		slock;
+};
+
 struct is_region {
 	struct is_param_region	parameter;
 	struct is_tune_region	tune;
@@ -1387,6 +1398,7 @@ struct is_region {
 	struct is_debug_region	debug;
 	struct is_fast_control	fast_ctl;
 	u32			reserved[96];
+	struct is_fdae_info	fdae_info;
 	u32			shared[MAX_SHARED_COUNT];
 };
 
