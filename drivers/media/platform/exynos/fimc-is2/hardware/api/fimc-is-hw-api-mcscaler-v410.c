@@ -849,7 +849,11 @@ void fimc_is_scaler_set_poly_scaler_v_coef(void __iomem *base_addr, u32 output_i
 	}
 }
 
-void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr, u32 output_id, u32 hratio, u32 vratio)
+void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr,
+	u32 output_id,
+	u32 hratio,
+	u32 vratio,
+	enum exynos_sensor_position sensor_position)
 {
 	u32 h_coef = 0;
 	u32 v_coef = 0;
@@ -3796,17 +3800,21 @@ void fimc_is_scaler_set_ds_enable(void __iomem *base_addr, u32 ds_enable)
 	fimc_is_hw_set_field(base_addr, &mcsc_regs[MCSC_R_DS_CTRL], &mcsc_fields[MCSC_F_DS_ENABLE], ds_enable);
 }
 
-void fimc_is_scaler_set_ds_src_size(void __iomem *base_addr, u32 width, u32 height)
+void fimc_is_scaler_set_ds_img_size(void __iomem *base_addr, u32 width, u32 height)
 {
 	u32 reg_value = 0;
 
 	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_DS_IMG_HSIZE], width);
 	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_DS_IMG_VSIZE], height);
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DS_IMG_SIZE], reg_value);
+}
 
-	reg_value = 0;
-	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_DS_CROP_POS_H], 0);
-	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_DS_CROP_POS_V], 0);
+void fimc_is_scaler_set_ds_src_size(void __iomem *base_addr, u32 width, u32 height, u32 x_pos, u32 y_pos)
+{
+	u32 reg_value = 0;
+
+	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_DS_CROP_POS_H], x_pos);
+	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_DS_CROP_POS_V], y_pos);
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DS_CROP_POS], reg_value);
 
 	reg_value = 0;
