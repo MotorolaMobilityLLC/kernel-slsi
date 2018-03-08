@@ -84,30 +84,6 @@ static const char * const sensing_method[] = {
 	[BALANCE] = "balance",
 };
 
-enum thermal_zone_name {
-	MNGS_QUAD = 0,
-	APOLLO,
-	GPU,
-	ISP,
-	MNGS_DUAL,
-	BIG,
-	LITTLE,
-	END_ZONE_NAME,
-};
-
-/**
- * It maps 'enum znoe_name' defined in above and is used to define zone name.
- */
-static const char * const tz_zone_names[] = {
-	[MNGS_QUAD]= "MNGS_QUAD",
-	[APOLLO] = "APOLLO",
-	[GPU] = "GPU",
-	[ISP] = "ISP",
-	[MNGS_DUAL]= "MNGS_DUAL",
-	[BIG]="BIG",
-	[LITTLE]="LITTLE",
-};
-
 struct sensor_info {
 	u16 sensor_num;
 	u16 cal_type;
