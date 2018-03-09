@@ -20,6 +20,7 @@
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/exynos-pmu.h>
 
+#ifdef CONFIG_CPU_IDLE
 /******************************************************************************
  *                                  IDLE_IP                                   *
  ******************************************************************************/
@@ -256,6 +257,7 @@ static void __init idle_ip_init(void)
 
 	idle_ip_max_index -= count;
 }
+#endif
 
 /******************************************************************************
  *                                CAL interfaces                              *
@@ -287,6 +289,37 @@ static void cluster_disable(unsigned int cluster_id)
 	big_reset_control(0);
 	cal_cluster_disable(cluster_id);
 }
+
+/******************************************************************************
+ *                               CPU HOTPLUG                                  *
+ ******************************************************************************/
+static int cpuhp_cpupm_online(unsigned int cpu)
+{
+	struct cpumask mask;
+
+	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
+	if (cpumask_weight(&mask) == 0)
+		cluster_enable(cpu);
+
+	cpu_enable(cpu);
+
+	return 0;
+}
+
+static int cpuhp_cpupm_offline(unsigned int cpu)
+{
+	struct cpumask mask;
+
+	cpu_disable(cpu);
+
+	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
+	if (cpumask_weight(&mask) == 0)
+		cluster_disable(cpu);
+
+	return 0;
+}
+
+#ifdef CONFIG_CPU_IDLE
 
 /******************************************************************************
  *                            CPU idle management                             *
@@ -642,35 +675,6 @@ void exynos_cpu_pm_exit(int cpu, int cancel)
 }
 
 /******************************************************************************
- *                               CPU HOTPLUG                                  *
- ******************************************************************************/
-static int cpuhp_cpupm_online(unsigned int cpu)
-{
-	struct cpumask mask;
-
-	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
-	if (cpumask_weight(&mask) == 0)
-		cluster_enable(cpu);
-
-	cpu_enable(cpu);
-
-	return 0;
-}
-
-static int cpuhp_cpupm_offline(unsigned int cpu)
-{
-	struct cpumask mask;
-
-	cpu_disable(cpu);
-
-	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
-	if (cpumask_weight(&mask) == 0)
-		cluster_disable(cpu);
-
-	return 0;
-}
-
-/******************************************************************************
  *                                Initialization                              *
  ******************************************************************************/
 static void __init
@@ -748,6 +752,7 @@ static int __init exynos_cpupm_init(void)
 	return 0;
 }
 arch_initcall(exynos_cpupm_init);
+#endif
 
 static int __init exynos_cpupm_early_init(void)
 {
