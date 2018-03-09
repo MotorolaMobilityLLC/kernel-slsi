@@ -28,7 +28,7 @@
 #include "exynos_mfc_media.h"
 #include "s5p_mfc_data_struct.h"
 
-#define MFC_DRIVER_INFO		170522
+#define MFC_DRIVER_INFO		180315
 
 #define MFC_MAX_REF_BUFS	2
 #define MFC_FRAME_PLANES	2
