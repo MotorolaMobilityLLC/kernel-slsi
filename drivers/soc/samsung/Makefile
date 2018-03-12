@@ -45,3 +45,6 @@ obj-$(CONFIG_ARCH_EXYNOS)      += exynos-cpupm.o
 #PM
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-powermode.o
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-pm.o
+
+# Exynos Secure Log
+obj-$(CONFIG_EXYNOS_SECURE_LOG)	+= exynos-seclog.o
