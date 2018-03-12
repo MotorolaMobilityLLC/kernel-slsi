@@ -11,6 +11,7 @@
 
 #include "../../../../../include/generated/autoconf.h"
 #include <dt-bindings/soc/samsung/debug-snapshot-table.h>
+#include <dt-bindings/soc/samsung/exynos9610-seclog.h>
 
 /memreserve/ 0xE0000000 0x1900000;
 / {
@@ -21,7 +22,7 @@
 
 		seclog_mem {
 			compatible = "exynos,seclog";
-			reg = <0x0 0xC0000000 0x80000>;
+			reg = <0x0 SECLOG_LOG_BUF_BASE SECLOG_LOG_BUF_TOTAL_SIZE>;
 		};
 
 		abox_rmem: abox_rmem@0xE9400000 {
