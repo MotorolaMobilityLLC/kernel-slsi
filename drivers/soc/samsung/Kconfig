@@ -125,4 +125,9 @@ config EXYNOS_SECURE_LOG
 	default y
 	help
 	  Support Exynos Secure Log
+
+config EXYNOS_KERNEL_PROTECTION
+	bool "Exynos Kernel Code Protection"
+	help
+	  Support Exynos Kernel Code Protection
 endif
