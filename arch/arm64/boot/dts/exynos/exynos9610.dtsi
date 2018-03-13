@@ -3318,7 +3318,8 @@
 			<0x0 0x14640000 0x10000>, /* MC_SCALER */
 			<0x0 0x14610000 0x10000>, /* FIMC-VRA (Set A) */
 			<0x0 0x14620000 0x10000>, /* FIMC-VRA (Set B) */
-			<0x0 0x144A0000 0x100>; /* PAFSTAT RDMA */
+			<0x0 0x14440000 0x10000>, /* PAFSTAT_CORE */
+			<0x0 0x144A0000 0x10000>; /* PAFSTAT_RDMA0 */
 		interrupts = <0 335 0>, /* 3AA0_0 */
 			<0 336 0>, /* 3AA0_1 */
 			<0 337 0>, /* 3AA1_0 */
@@ -3326,7 +3327,9 @@
 			<0 344 0>, /* ISP_0 */
 			<0 345 0>, /* ISP_1 */
 			<0 348 0>, /* MC_SC_0 */
-			<0 346 0>; /* VRA_1 */
+			<0 346 0>, /* VRA_1 */
+			<0 329 0>, /* PAFSTAT0 */
+			<0 330 0>; /* PAFSTAT1 */
 		pinctrl-names = "default","release";
 		pinctrl-0 = <>;
 		pinctrl-1 = <>;
