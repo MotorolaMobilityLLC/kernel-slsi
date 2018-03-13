@@ -7346,10 +7346,13 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 		eenv->max_cpu_count = EAS_CPU_BKP + 1;
 
 		/* Find a cpu with sufficient capacity */
-		if (sched_feat(EXYNOS_HMP))
+		if (sched_feat(EXYNOS_HMP)) {
 			eenv->cpu[EAS_CPU_NXT].cpu_id = exynos_select_cpu(p,
 					&eenv->cpu[EAS_CPU_BKP].cpu_id,
 					boosted, prefer_idle);
+			if (ontime_of(p)->flags == ONTIME)
+				return eenv->cpu[EAS_CPU_NXT].cpu_id;
+		}
 		else
 			eenv->cpu[EAS_CPU_NXT].cpu_id = find_best_target(p,
 					&eenv->cpu[EAS_CPU_BKP].cpu_id,
