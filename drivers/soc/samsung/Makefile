@@ -57,3 +57,6 @@ obj-$(CONFIG_EXYNOS_SDM) += exynos-sdm.o
 
 # USI_V2
 obj-$(CONFIG_USI_V2) += usi_v2.o
+
+# secmem
+obj-$(CONFIG_ARCH_EXYNOS)       += secmem.o
