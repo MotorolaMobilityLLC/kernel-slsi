@@ -6277,6 +6277,12 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 	unsigned long imbalance = scale_load_down(NICE_0_LOAD) *
 				(sd->imbalance_pct-100) / 100;
 
+	if (sched_feat(EXYNOS_HMP)) {
+		idlest = exynos_fit_idlest_group(sd, p);
+		if (idlest)
+			return idlest;
+	}
+
 	if (sd_flag & SD_BALANCE_WAKE)
 		load_idx = sd->wake_idx;
 
