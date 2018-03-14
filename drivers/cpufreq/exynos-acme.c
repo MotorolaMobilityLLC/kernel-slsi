@@ -1600,7 +1600,7 @@ static int __init exynos_cpufreq_init(void)
 		list_add_tail(&domain->list, &domains);
 
 		domain->dn = dn;
-		domain->id = domain_id;
+		domain->id = domain_id++;
 		ret = init_domain(domain, dn);
 		if (ret) {
 			pr_err("failed to initialize cpufreq domain%d\n",
@@ -1610,7 +1610,6 @@ static int __init exynos_cpufreq_init(void)
 		}
 
 		print_domain_info(domain);
-		domain_id++;
 	}
 
 	if (!domain_id) {
