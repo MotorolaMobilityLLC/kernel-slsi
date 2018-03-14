@@ -24,6 +24,7 @@ extern unsigned int nal_q_dump;
 extern unsigned int nal_q_disable;
 extern unsigned int nal_q_parallel_disable;
 extern unsigned int otf_dump;
+extern unsigned int sfr_dump;
 
 #define mfc_debug(level, fmt, args...)				\
 	do {							\

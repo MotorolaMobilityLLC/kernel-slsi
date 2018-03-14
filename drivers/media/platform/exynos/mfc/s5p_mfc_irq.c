@@ -25,7 +25,6 @@
 
 #include "s5p_mfc_qos.h"
 #include "s5p_mfc_queue.h"
-#include "s5p_mfc_utils.h"
 #include "s5p_mfc_buf.h"
 #include "s5p_mfc_mem.h"
 
@@ -1538,6 +1537,13 @@ irqreturn_t s5p_mfc_irq(int irq, void *priv)
 
 	if (dbg_enable && (reason != S5P_FIMV_R2H_CMD_QUEUE_DONE_RET))
 		s5p_mfc_dbg_disable(dev);
+
+	if ((sfr_dump & MFC_DUMP_ERR_INT) && (reason == S5P_FIMV_R2H_CMD_ERR_RET))
+		call_dop(dev, dump_regs, dev);
+
+	if ((sfr_dump & MFC_DUMP_WARN_INT) &&
+			(err && (reason != S5P_FIMV_R2H_CMD_ERR_RET)))
+		call_dop(dev, dump_regs, dev);
 
 #ifdef NAL_Q_ENABLE
 	if (dev->nal_q_handle) {

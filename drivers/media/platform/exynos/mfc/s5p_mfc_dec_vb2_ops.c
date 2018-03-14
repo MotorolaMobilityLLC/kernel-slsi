@@ -419,6 +419,7 @@ static void mfc_dec_src_stop_streaming(struct s5p_mfc_ctx *ctx)
 
 	dec->consumed = 0;
 	dec->remained_size = 0;
+	ctx->check_dump = 0;
 
 	s5p_mfc_init_queue(&ctx->src_buf_queue);
 

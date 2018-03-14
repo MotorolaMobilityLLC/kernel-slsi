@@ -146,6 +146,23 @@ static inline void s5p_mfc_clear_assigned_dpb(struct s5p_mfc_ctx *ctx)
 		dec->assigned_dpb[i] = NULL;
 }
 
+static inline int s5p_mfc_dec_status_decoding(unsigned int dst_frame_status)
+{
+	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY ||
+	    dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_ONLY)
+		return 1;
+	return 0;
+}
+
+static inline int s5p_mfc_dec_status_display(unsigned int dst_frame_status)
+{
+	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DISPLAY_ONLY ||
+	    dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY)
+		return 1;
+
+	return 0;
+}
+
 void s5p_mfc_cleanup_assigned_dpb(struct s5p_mfc_ctx *ctx);
 void s5p_mfc_unprotect_released_dpb(struct s5p_mfc_ctx *ctx, unsigned int released_flag);
 void s5p_mfc_protect_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb);

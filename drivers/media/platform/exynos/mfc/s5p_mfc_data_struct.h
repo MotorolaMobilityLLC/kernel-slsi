@@ -312,6 +312,18 @@ struct s5p_mfc_variant {
 	int	num_entities;
 };
 
+enum mfc_sfr_dump_type {
+	MFC_DUMP_NONE			= 0,
+	MFC_DUMP_DEC_SEQ_START		= (1 << 0),
+	MFC_DUMP_DEC_INIT_BUFS		= (1 << 1),
+	MFC_DUMP_DEC_NAL_START		= (1 << 2),
+	MFC_DUMP_ENC_SEQ_START		= (1 << 3),
+	MFC_DUMP_ENC_INIT_BUFS		= (1 << 4),
+	MFC_DUMP_ENC_NAL_START		= (1 << 5),
+	MFC_DUMP_ERR_INT		= (1 << 6),
+	MFC_DUMP_WARN_INT		= (1 << 7),
+};
+
 struct s5p_mfc_debugfs {
 	struct dentry *root;
 	struct dentry *mfc_info;
@@ -324,6 +336,7 @@ struct s5p_mfc_debugfs {
 	struct dentry *nal_q_parallel_disable;
 	struct dentry *otf_dump;
 	struct dentry *perf_measure_option;
+	struct dentry *sfr_dump;
 };
 
 /**
@@ -652,6 +665,7 @@ struct s5p_mfc_perf {
 
 extern struct s5p_mfc_dump_ops mfc_dump_ops;
 struct s5p_mfc_dump_ops {
+	void (*dump_regs)(struct s5p_mfc_dev *dev);
 	void (*dump_and_stop_always)(struct s5p_mfc_dev *dev);
 };
 
@@ -1358,6 +1372,7 @@ struct s5p_mfc_ctx {
 	struct _otf_handle *otf_handle;
 
 	int batch_mode;
+	bool check_dump;
 };
 
 #endif /* __S5P_MFC_DATA_STRUCT_H */

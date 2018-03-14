@@ -189,6 +189,10 @@ int s5p_mfc_init_decode(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "SEI enable was set, 0x%x\n", MFC_READL(S5P_FIMV_D_SEI_ENABLE));
 
 	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+
+	if (sfr_dump & MFC_DUMP_DEC_SEQ_START)
+		call_dop(dev, dump_regs, dev);
+
 	s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_SEQ_HEADER);
 
 	mfc_debug_leave();
@@ -236,6 +240,12 @@ int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	MFC_WRITEL(MFC_TIMEOUT_VALUE, S5P_FIMV_DEC_TIMEOUT_VALUE);
 
 	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+
+	if ((sfr_dump & MFC_DUMP_DEC_NAL_START) && !ctx->check_dump) {
+		call_dop(dev, dump_regs, dev);
+		ctx->check_dump = 1;
+	}
+
 	/* Issue different commands to instance basing on whether it
 	 * is the last frame or not. */
 	switch (last_frame) {
@@ -286,6 +296,10 @@ int s5p_mfc_init_encode(struct s5p_mfc_ctx *ctx)
 			MFC_READL(S5P_FIMV_E_RC_MODE));
 
 	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+
+	if (sfr_dump & MFC_DUMP_ENC_SEQ_START)
+		call_dop(dev, dump_regs, dev);
+
 	s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_SEQ_HEADER);
 
 	mfc_debug(2, "--\n");
@@ -411,6 +425,12 @@ int s5p_mfc_encode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	}
 
 	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+
+	if ((sfr_dump & MFC_DUMP_ENC_NAL_START) && !ctx->check_dump) {
+		call_dop(dev, dump_regs, dev);
+		ctx->check_dump = 1;
+	}
+
 	/* Issue different commands to instance basing on whether it
 	 * is the last frame or not. */
 	switch (last_frame) {

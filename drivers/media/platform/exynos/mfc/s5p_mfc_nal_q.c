@@ -23,7 +23,6 @@
 #include "s5p_mfc_utils.h"
 #include "s5p_mfc_buf.h"
 #include "s5p_mfc_mem.h"
-#include "s5p_mfc_irq.h"
 
 #ifdef NAL_Q_ENABLE
 #define CBR_I_LIMIT_MAX			5

@@ -16,27 +16,11 @@
 #include <linux/interrupt.h>
 
 #include "s5p_mfc_common.h"
-#include "s5p_mfc_reg.h"
+
+#include "s5p_mfc_utils.h"
 
 irqreturn_t s5p_mfc_top_half_irq(int irq, void *priv);
 irqreturn_t s5p_mfc_irq(int irq, void *priv);
-
-static inline int s5p_mfc_dec_status_decoding(unsigned int dst_frame_status)
-{
-	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY ||
-	    dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_ONLY)
-		return 1;
-	return 0;
-}
-
-static inline int s5p_mfc_dec_status_display(unsigned int dst_frame_status)
-{
-	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DISPLAY_ONLY ||
-	    dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY)
-		return 1;
-
-	return 0;
-}
 
 static inline void s5p_mfc_handle_force_change_status(struct s5p_mfc_ctx *ctx)
 {
@@ -44,4 +28,5 @@ static inline void s5p_mfc_handle_force_change_status(struct s5p_mfc_ctx *ctx)
 			ctx->state != MFCINST_RES_CHANGE_FLUSH)
 		s5p_mfc_change_state(ctx, MFCINST_RUNNING);
 }
+
 #endif /* __S5P_MFC_IRQ_H */

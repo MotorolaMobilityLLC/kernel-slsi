@@ -28,6 +28,7 @@ unsigned int nal_q_disable;
 unsigned int nal_q_parallel_disable;
 unsigned int otf_dump;
 unsigned int perf_measure_option;
+unsigned int sfr_dump;
 
 static int mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -77,6 +78,18 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 static int mfc_debug_info_show(struct seq_file *s, void *unused)
 {
 	seq_puts(s, ">> MFC debug information\n");
+
+	seq_puts(s, "-----SFR dump options (bit setting)\n");
+	seq_puts(s, "ex) echo 0xff > /d/mfc/sfr_dump (all dump mode)\n");
+	seq_puts(s, "1   (1 << 0): dec SEQ_START\n");
+	seq_puts(s, "2   (1 << 1): dec INIT_BUFS\n");
+	seq_puts(s, "4   (1 << 2): dec NAL_START\n");
+	seq_puts(s, "8   (1 << 3): enc SEQ_START\n");
+	seq_puts(s, "16  (1 << 4): enc INIT_BUFS\n");
+	seq_puts(s, "32  (1 << 5): enc NAL_START\n");
+	seq_puts(s, "64  (1 << 6): ERR interrupt\n");
+	seq_puts(s, "128 (1 << 7): WARN interrupt\n");
+
 	return 0;
 }
 
@@ -134,4 +147,6 @@ void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
 			0644, debugfs->root, &otf_dump);
 	debugfs->perf_measure_option = debugfs_create_u32("perf_measure_option",
 			0644, debugfs->root, &perf_measure_option);
+	debugfs->sfr_dump = debugfs_create_u32("sfr_dump",
+			0644, debugfs->root, &sfr_dump);
 }

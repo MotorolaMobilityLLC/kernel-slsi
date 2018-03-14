@@ -320,5 +320,6 @@ void s5p_mfc_watchdog_worker(struct work_struct *work)
 }
 
 struct s5p_mfc_dump_ops mfc_dump_ops = {
+	.dump_regs			= mfc_dump_regs,
 	.dump_and_stop_always		= mfc_dump_info_and_stop_hw,
 };

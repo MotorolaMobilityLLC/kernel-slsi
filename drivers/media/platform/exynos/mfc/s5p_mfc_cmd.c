@@ -239,6 +239,10 @@ int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx)
 	}
 
 	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+
+	if (sfr_dump & MFC_DUMP_DEC_INIT_BUFS)
+		call_dop(dev, dump_regs, dev);
+
 	s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_INIT_BUFFERS);
 
 	return ret;
@@ -285,6 +289,10 @@ int s5p_mfc_cmd_enc_init_buffers(struct s5p_mfc_ctx *ctx)
 	}
 
 	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+
+	if (sfr_dump & MFC_DUMP_ENC_INIT_BUFS)
+		call_dop(dev, dump_regs, dev);
+
 	s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_INIT_BUFFERS);
 
 	return ret;

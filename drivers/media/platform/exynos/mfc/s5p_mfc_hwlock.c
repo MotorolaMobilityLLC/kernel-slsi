@@ -857,7 +857,7 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 		s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
 		s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
 		ctx->state, ctx->dpb_count);
-	mfc_debug(2, "ctx->state=%d\n", ctx->state);
+	mfc_debug(2, "ctx->state = %d\n", ctx->state);
 	/* Last frame has already been sent to MFC
 	 * Now obtaining frames from MFC buffer */
 
