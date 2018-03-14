@@ -3072,6 +3072,7 @@ static int __maybe_unused pl330_suspend(struct device *dev)
 static int pl330_notifier(struct notifier_block *nb,
 			unsigned long event, void *data)
 {
+#ifdef CONFIG_EXYNOS_PD
 	struct pl330_dmac *pl330 =
 		container_of(nb, struct pl330_dmac, lpa_nb);
 
@@ -3081,7 +3082,7 @@ static int pl330_notifier(struct notifier_block *nb,
 			__raw_writel((pl330->mcode_bus >> 32) & 0xf, pl330->inst_wrapper);
 		break;
 	}
-
+#endif
 	return NOTIFY_OK;
 }
 #endif /* CONFIG_CPU_IDLE */
@@ -3319,12 +3320,13 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pl330->lpa_nb.next = NULL;
 	pl330->lpa_nb.priority = 0;
 
+#ifdef CONFIG_EXYNOS_PD
 	ret = exynos_pm_register_notifier(&pl330->lpa_nb);
-
 	if (ret) {
 		dev_err(&adev->dev, "failed to register pm notifier\n");
 		goto probe_err3;
 	}
+#endif
 #endif
 
 	return 0;
