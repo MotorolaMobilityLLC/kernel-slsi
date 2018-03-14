@@ -43,6 +43,41 @@ static struct seclog_ctx slog_ctx;
 static struct sec_log_info *sec_log[NR_CPUS];
 
 
+static void exynos_ldfw_error(struct platform_device *pdev,
+				int error)
+{
+	int err_ldfw, i;
+
+	for (i = 0; i < LDFW_MAX_NUM; i++) {
+		err_ldfw = (error >> (BITLEN_LDFW_ERROR * i))
+				& MASK_LDFW_ERROR;
+
+		switch (err_ldfw) {
+		case 0:
+			break;
+		case ERROR_NOT_SUPPORT_LDFW_SEC_LOG:
+			dev_err(&pdev->dev,
+				"[ERROR] LDFW[%d] doesn't support Secure log\n",
+				i);
+			break;
+		case ERROR_LDFW_ALREADY_INITIALIZED:
+			dev_err(&pdev->dev,
+				"[ERROR] LDFW[%d] already initialized Secure log\n",
+				i);
+			break;
+		case ERROR_NOT_SUPPORT_LDFW_ERR_VALUE:
+			dev_err(&pdev->dev,
+				"[ERROR] LDFW[%d] returns unsupported error value\n",
+				i);
+			break;
+		default:
+			dev_err(&pdev->dev,
+				"[ERROR] LDFW[%d] Unknown error value from LDFW [err = %#x]\n",
+				i, err_ldfw);
+		}
+	}
+}
+
 static void *exynos_seclog_request_region(unsigned long addr,
 					unsigned int size)
 {
@@ -174,7 +209,7 @@ static int exynos_seclog_probe(struct platform_device *pdev)
 {
 	struct irq_data *seclog_irqd = NULL;
 	irq_hw_number_t hwirq = 0;
-	int err, err_ldfw, i;
+	int err, i;
 
 	/* Translate PA to VA of message buffer */
 	ldata.virt_addr = exynos_seclog_request_region(ldata.phys_addr, ldata.size);
@@ -257,41 +292,7 @@ static int exynos_seclog_probe(struct platform_device *pdev)
 		default:
 			/* Error cases by LDFW */
 			if ((err & MASK_LDFW_MAGIC) == LDFW_MAGIC) {
-				for (i = 0; i < LDFW_MAX_NUM; i++) {
-					err_ldfw = (err >> (BITLEN_LDFW_ERROR * i))
-							& MASK_LDFW_ERROR;
-
-					if (err_ldfw) {
-						switch (err_ldfw) {
-						case ERROR_NOT_SUPPORT_LDFW_SEC_LOG:
-							dev_err(&pdev->dev,
-								"[ERROR] LDFW[%d]"
-								" doesn't support Secure log\n",
-								i);
-							break;
-						case ERROR_LDFW_ALREADY_INITIALIZED:
-							dev_err(&pdev->dev,
-								"[ERROR] LDFW[%d]"
-								" already initialized Secure log\n",
-								i);
-							break;
-						case ERROR_NOT_SUPPORT_LDFW_ERR_VALUE:
-							dev_err(&pdev->dev,
-								"[ERROR] LDFW[%d]"
-								" returns unsupported error value\n",
-								i);
-							break;
-						default:
-							dev_err(&pdev->dev,
-								"[ERROR] LDFW[%d]"
-								" Unknown error value from LDFW "
-								"[err = %#x]\n",
-								i, err_ldfw);
-							break;
-						}
-					}
-				}
-
+				exynos_ldfw_error(pdev, err);
 				goto detect_ldfw_err;
 			} else {
 				dev_err(&pdev->dev,
