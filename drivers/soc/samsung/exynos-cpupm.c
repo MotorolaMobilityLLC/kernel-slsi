@@ -440,7 +440,7 @@ static void awake_cpus(const struct cpumask *cpus)
 	struct cpumask mask;
 
 	cpumask_and(&mask, cpus, cpu_online_mask);
-	smp_call_function_many(&mask, do_nothing, NULL, 0);
+	smp_call_function_single(cpumask_any(&mask), do_nothing, NULL, 1);
 }
 
 /*
@@ -455,12 +455,18 @@ void disable_power_mode(int cpu, int type)
 	struct power_mode *mode;
 	int pos;
 
-	spin_lock(&cpupm_lock);
 	pm = &per_cpu(cpupm, cpu);
 
 	for_each_mode(mode, pm->modes, pos) {
 		if (IS_NULL(mode))
 			break;
+
+		/*
+		 * There are no entry allowed cpus, it means that mode is
+		 * disabled, skip awaking cpus.
+		 */
+		if (cpumask_empty(&mode->entry_allowed))
+			continue;
 
 		if (mode->type == type) {
 			/*
@@ -471,7 +477,6 @@ void disable_power_mode(int cpu, int type)
 				awake_cpus(&mode->siblings);
 		}
 	}
-	spin_unlock(&cpupm_lock);
 }
 
 void enable_power_mode(int cpu, int type)
@@ -480,7 +485,6 @@ void enable_power_mode(int cpu, int type)
 	struct power_mode *mode;
 	int pos;
 
-	spin_lock(&cpupm_lock);
 	pm = &per_cpu(cpupm, cpu);
 
 	for_each_mode(mode, pm->modes, pos) {
@@ -490,7 +494,6 @@ void enable_power_mode(int cpu, int type)
 		if (mode->type == type)
 			atomic_dec(&mode->disable);
 	}
-	spin_unlock(&cpupm_lock);
 }
 
 /* get sleep length of given cpu from tickless framework */

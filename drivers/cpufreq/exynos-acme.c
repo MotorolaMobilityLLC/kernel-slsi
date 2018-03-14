@@ -26,6 +26,7 @@
 #include <soc/samsung/exynos-dm.h>
 #include <soc/samsung/ect_parser.h>
 #include <soc/samsung/exynos-cpu_hotplug.h>
+#include <soc/samsung/exynos-cpupm.h>
 
 #include "exynos-acme.h"
 
@@ -134,13 +135,24 @@ static unsigned int index_to_freq(struct cpufreq_frequency_table *table,
 /*********************************************************************
  *                         FREQUENCY SCALING                         *
  *********************************************************************/
+/*
+ * Depending on cluster structure, it cannot be possible to get/set
+ * cpu frequency while cluster is off. For this, disable cluster-wide
+ * power mode while getting/setting frequency.
+ */
 static unsigned int get_freq(struct exynos_cpufreq_domain *domain)
 {
-	unsigned int freq = (unsigned int)cal_dfs_get_rate(domain->cal_id);
+	unsigned int freq;
 
-	/* On changing state, CAL returns 0 */
-	if (!freq)
-		return domain->old;
+	disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
+
+	freq = (unsigned int)cal_dfs_get_rate(domain->cal_id);
+	if (!freq) {
+		/* On changing state, CAL returns 0 */
+		freq = domain->old;
+	}
+
+	enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	return freq;
 }
@@ -149,6 +161,8 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 					unsigned int target_freq)
 {
 	int err;
+
+	disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	exynos_ss_printk("ID %d: %d -> %d (%d)\n",
 		domain->id, domain->old, target_freq, ESS_FLAG_IN);
@@ -160,6 +174,8 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 
 	exynos_ss_printk("ID %d: %d -> %d (%d)\n",
 		domain->id, domain->old, target_freq, ESS_FLAG_OUT);
+
+	enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	return err;
 }
