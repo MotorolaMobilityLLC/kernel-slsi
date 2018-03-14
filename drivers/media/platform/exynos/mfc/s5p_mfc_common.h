@@ -83,6 +83,10 @@
 	(((c)->c_ops->op) ?		\
 		((c)->c_ops->op(args)) : 0)
 
+#define call_dop(d, op, args...)	\
+	(((d)->dump_ops->op) ?		\
+		((d)->dump_ops->op(args)) : 0)
+
 #define	MFC_CTRL_TYPE_GET	(MFC_CTRL_TYPE_GET_SRC | MFC_CTRL_TYPE_GET_DST)
 #define	MFC_CTRL_TYPE_SRC	(MFC_CTRL_TYPE_SET | MFC_CTRL_TYPE_GET_SRC)
 #define	MFC_CTRL_TYPE_DST	(MFC_CTRL_TYPE_GET_DST)

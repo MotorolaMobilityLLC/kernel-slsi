@@ -15,7 +15,6 @@
 #include "s5p_mfc_hwlock.h"
 #include "s5p_mfc_nal_q.h"
 #include "s5p_mfc_otf.h"
-#include "s5p_mfc_watchdog.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_sync.h"
 

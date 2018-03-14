@@ -635,7 +635,7 @@ static int mfc_wait_close_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 					S5P_FIMV_R2H_CMD_CLOSE_INSTANCE_RET)) {
 			mfc_err_ctx("waiting once more but timed out\n");
 			dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_CLOSE_INST);
-			s5p_mfc_dump_info_and_stop_hw(dev);
+			call_dop(dev, dump_and_stop_always, dev);
 		}
 	}
 
@@ -902,7 +902,7 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 	dev->logging_data->fault_addr = (unsigned int)addr;
 
 	s5p_mfc_dump_buffer_info(dev, addr);
-	s5p_mfc_dump_info_and_stop_hw(dev);
+	call_dop(dev, dump_and_stop_always, dev);
 
 	return 0;
 }
@@ -1189,6 +1189,9 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		goto err_butler_wq;
 	}
 	INIT_WORK(&dev->butler_work, s5p_mfc_butler_worker);
+
+	/* dump information call-back function */
+	dev->dump_ops = &mfc_dump_ops;
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	atomic_set(&dev->qos_req_cur, 0);

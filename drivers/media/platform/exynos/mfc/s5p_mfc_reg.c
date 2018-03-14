@@ -14,8 +14,6 @@
 
 #include "s5p_mfc_reg.h"
 
-#include "s5p_mfc_mem.h"
-
 void s5p_mfc_dbg_enable(struct s5p_mfc_dev *dev)
 {
 	mfc_debug(2, "MFC debug info enable\n");

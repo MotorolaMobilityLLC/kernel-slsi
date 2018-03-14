@@ -14,7 +14,6 @@
 
 #include "s5p_mfc_nal_q.h"
 #include "s5p_mfc_otf.h"
-#include "s5p_mfc_watchdog.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_sync.h"
 
@@ -617,7 +616,7 @@ void s5p_mfc_cache_flush(struct s5p_mfc_dev *dev, int is_drm)
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_CACHE_FLUSH_RET)) {
 		mfc_err_dev("Failed to CACHE_FLUSH\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_CHACHE_FLUSH);
-		s5p_mfc_dump_info_and_stop_hw(dev);
+		call_dop(dev, dump_and_stop_always, dev);
 	}
 
 	s5p_mfc_pm_clock_off(dev);
@@ -696,7 +695,7 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 					S5P_FIMV_R2H_CMD_COMPLETE_QUEUE_RET)) {
 				mfc_err_dev("NAL Q: Failed to stop queue.\n");
 				dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_STOP_NAL_Q);
-				s5p_mfc_dump_info_and_stop_hw(dev);
+				call_dop(dev, dump_and_stop_always, dev);
 	                }
 			nal_q_handle->nal_q_exception = 0;
 			ret = 1;

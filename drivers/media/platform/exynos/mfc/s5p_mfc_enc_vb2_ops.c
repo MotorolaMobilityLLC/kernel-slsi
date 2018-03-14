@@ -17,8 +17,6 @@
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_sync.h"
 
-#include "s5p_mfc_pm.h"
-
 #include "s5p_mfc_qos.h"
 #include "s5p_mfc_queue.h"
 #include "s5p_mfc_utils.h"

@@ -264,7 +264,7 @@ void s5p_mfc_dump_buffer_info(struct s5p_mfc_dev *dev, unsigned long addr)
 	}
 }
 
-void s5p_mfc_dump_info_and_stop_hw(struct s5p_mfc_dev *dev)
+static void mfc_dump_info_and_stop_hw(struct s5p_mfc_dev *dev)
 {
 	MFC_TRACE_DEV("** mfc will stop!!!\n");
 	mfc_display_state(dev);
@@ -316,5 +316,9 @@ void s5p_mfc_watchdog_worker(struct work_struct *work)
 	atomic_set(&dev->watchdog_tick_cnt, 0);
 
 	/* Stop after dumping information */
-	s5p_mfc_dump_info_and_stop_hw(dev);
+	mfc_dump_info_and_stop_hw(dev);
 }
+
+struct s5p_mfc_dump_ops mfc_dump_ops = {
+	.dump_and_stop_always		= mfc_dump_info_and_stop_hw,
+};

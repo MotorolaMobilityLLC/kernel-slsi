@@ -14,7 +14,6 @@
 
 #include "s5p_mfc_hwlock.h"
 #include "s5p_mfc_nal_q.h"
-#include "s5p_mfc_watchdog.h"
 #include "s5p_mfc_sync.h"
 
 #include "s5p_mfc_pm.h"
@@ -259,7 +258,7 @@ int s5p_mfc_sleep(struct s5p_mfc_dev *dev)
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_SLEEP_RET)) {
 		mfc_err_dev("Failed to SLEEP\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_SLEEP);
-		s5p_mfc_dump_info_and_stop_hw(dev);
+		call_dop(dev, dump_and_stop_always, dev);
 		return -EIO;
 	}
 
@@ -335,7 +334,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_FW_STATUS_RET)) {
 		mfc_err_dev("Failed to RISC_ON\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_RISC_ON);
-		s5p_mfc_dump_info_and_stop_hw(dev);
+		call_dop(dev, dump_and_stop_always, dev);
 		return -EIO;
 	}
 
@@ -346,7 +345,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_WAKEUP_RET)) {
 		mfc_err_dev("Failed to WAKEUP\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_WAKEUP);
-		s5p_mfc_dump_info_and_stop_hw(dev);
+		call_dop(dev, dump_and_stop_always, dev);
 		return -EIO;
 	}
 

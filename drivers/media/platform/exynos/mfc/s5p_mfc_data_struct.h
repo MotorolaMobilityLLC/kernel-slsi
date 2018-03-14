@@ -650,6 +650,11 @@ struct s5p_mfc_perf {
 	int drv_margin;
 };
 
+extern struct s5p_mfc_dump_ops mfc_dump_ops;
+struct s5p_mfc_dump_ops {
+	void (*dump_and_stop_always)(struct s5p_mfc_dev *dev);
+};
+
 /**
  * struct s5p_mfc_dev - The struct containing driver internal parameters.
  */
@@ -753,6 +758,7 @@ struct s5p_mfc_dev {
 #endif
 
 	struct s5p_mfc_debugfs debugfs;
+	struct s5p_mfc_dump_ops *dump_ops;
 
 	struct s5p_mfc_perf perf;
 };

@@ -14,8 +14,6 @@
 
 #include "s5p_mfc_utils.h"
 
-#include "s5p_mfc_mem.h"
-
 int s5p_mfc_check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 {
 	if (!fmt)

@@ -12,7 +12,6 @@
 
 #include "s5p_mfc_nal_q.h"
 
-#include "s5p_mfc_watchdog.h"
 #include "s5p_mfc_sync.h"
 
 #include "s5p_mfc_pm.h"
@@ -481,7 +480,7 @@ void s5p_mfc_nal_q_stop_if_started(struct s5p_mfc_dev *dev)
 				S5P_FIMV_R2H_CMD_COMPLETE_QUEUE_RET)) {
 		mfc_err_dev("NAL Q: Failed to stop qeueue during get hwlock\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_STOP_NAL_Q_FOR_OTHER);
-		s5p_mfc_dump_info_and_stop_hw(dev);
+		call_dop(dev, dump_and_stop_always, dev);
 	}
 
 	mfc_debug_leave();

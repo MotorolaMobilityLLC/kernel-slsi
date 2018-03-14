@@ -21,7 +21,6 @@
 #include "s5p_mfc_otf.h"
 #include "s5p_mfc_hwfc_internal.h"
 
-#include "s5p_mfc_watchdog.h"
 #include "s5p_mfc_sync.h"
 
 #include "s5p_mfc_inst.h"

@@ -14,11 +14,8 @@
 
 #include "s5p_mfc_hwlock.h"
 #include "s5p_mfc_nal_q.h"
-#include "s5p_mfc_watchdog.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_sync.h"
-
-#include "s5p_mfc_pm.h"
 
 #include "s5p_mfc_queue.h"
 #include "s5p_mfc_utils.h"
@@ -531,7 +528,7 @@ static void s5p_mfc_dec_stop_streaming(struct vb2_queue *q)
 		if (s5p_mfc_wait_for_done_ctx(ctx, S5P_FIMV_R2H_CMD_DPB_FLUSH_RET)) {
 			mfc_err_ctx("time out during DPB flush\n");
 			dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_DPB_FLUSH);
-			s5p_mfc_dump_info_and_stop_hw(dev);
+			call_dop(dev, dump_and_stop_always, dev);
 		}
 
 		s5p_mfc_change_state(ctx, prev_state);
