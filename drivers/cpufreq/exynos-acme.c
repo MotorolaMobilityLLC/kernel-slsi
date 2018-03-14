@@ -1632,13 +1632,8 @@ static int __init exynos_cpufreq_init(void)
 	 * Update frequency as soon as domain is enabled.
 	 */
 	list_for_each_entry(domain, &domains, list) {
-		struct cpufreq_policy *policy;
 		set_policy(domain);
 		enable_domain(domain);
-		policy = cpufreq_cpu_get_raw(cpumask_first(&domain->cpus));
-		if (policy)
-			exynos_cpufreq_cooling_register(domain->dn, policy);
-
 		set_boot_qos(domain);
 	}
 
