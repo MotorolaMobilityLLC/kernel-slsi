@@ -90,6 +90,10 @@ void exynos_wakeup_sys_powerdown(enum sys_powerdown mode, bool early_wakeup)
 /******************************************************************************
  *                            Driver initialization                           *
  ******************************************************************************/
+
+#define for_each_syspwr_mode(mode)                              \
+       for ((mode) = 0; (mode) < NUM_SYS_POWERDOWN; (mode)++)
+
 static int alloc_wakeup_mask(int num_wakeup_mask)
 {
 	unsigned int mode;
