@@ -55,7 +55,7 @@ static void *exynos_seclog_request_region(unsigned long addr,
 	if (!addr)
 		return NULL;
 
-	pages = kmalloc(sizeof(struct page *) * num_pages, GFP_ATOMIC);
+	pages = kmalloc_array(num_pages, sizeof(struct page *), GFP_ATOMIC);
 	if (!pages)
 		return NULL;
 
