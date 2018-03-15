@@ -20,16 +20,12 @@
 #include "ufshcd-pltfrm.h"
 #include "ufs-exynos.h"
 #include "ufs-exynos-fmp.h"
-#include "ufs-exynos-smu.h"
 #include <soc/samsung/exynos-fsys0-tcxo.h>
 #include <soc/samsung/exynos-cpupm.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/soc/samsung/exynos-soc.h>
 #include <linux/spinlock.h>
-
-
-
 
 /*
  * Unipro attribute value
@@ -583,6 +579,7 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int ret;
+	int id;
 
 	/* set features, such as caps or quirks */
 	exynos_ufs_set_features(hba, ufs->hw_rev);
@@ -597,19 +594,21 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	if (ret)
 		return ret;
 
-	ret = exynos_ufs_smu_get_dev(ufs);
-	if (ret == -EPROBE_DEFER) {
-		dev_err(ufs->dev, "%s: SMU device not probed yet (%d)\n",
-				__func__, ret);
-		return ret;
-	} else if (ret) {
-		dev_err(ufs->dev, "%s, Fail to get SMU device (%d)\n",
-				__func__, ret);
-		return ret;
-	}
+	/* get fmp & smu id */
+	ret = of_property_read_u32(ufs->dev->of_node, "fmp-id", &id);
+	if (ret)
+		ufs->fmp = SMU_ID_MAX;
+	else
+		ufs->fmp = id;
+
+	ret = of_property_read_u32(ufs->dev->of_node, "smu-id", &id);
+	if (ret)
+		ufs->smu = SMU_ID_MAX;
+	else
+		ufs->smu = id;
 
 	/* FMPSECURITY & SMU */
-	exynos_ufs_smu_sec_cfg(ufs);
+	exynos_ufs_fmp_sec_cfg(ufs);
 	exynos_ufs_smu_init(ufs);
 
 	/* Enable log */
@@ -952,7 +951,7 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	exynos_ufs_ctrl_auto_hci_clk(ufs, false);
 
 	/* FMPSECURITY & SMU resume */
-	exynos_ufs_smu_sec_cfg(ufs);
+	exynos_ufs_fmp_sec_cfg(ufs);
 	exynos_ufs_smu_resume(ufs);
 
 	/* secure log */
