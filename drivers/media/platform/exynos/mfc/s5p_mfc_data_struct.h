@@ -723,6 +723,7 @@ struct s5p_mfc_dev {
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	struct list_head qos_queue;
 	atomic_t qos_req_cur;
+	struct pm_qos_request qos_req_mfc;
 	struct pm_qos_request qos_req_int;
 	struct pm_qos_request qos_req_mif;
 #ifdef CONFIG_ARM_EXYNOS_MP_CPUFREQ

@@ -849,6 +849,7 @@ static int mfc_parse_mfc_qos_platdata(struct device_node *np, char *node_name,
 	}
 
 	of_property_read_u32(np_qos, "thrd_mb", &qosdata->threshold_mb);
+	of_property_read_u32(np_qos, "freq_mfc", &qosdata->freq_mfc);
 	of_property_read_u32(np_qos, "freq_int", &qosdata->freq_int);
 	of_property_read_u32(np_qos, "freq_mif", &qosdata->freq_mif);
 	of_property_read_u32(np_qos, "freq_cpu", &qosdata->freq_cpu);
@@ -1189,8 +1190,9 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	atomic_set(&dev->qos_req_cur, 0);
 
 	for (i = 0; i < dev->pdata->num_qos_steps; i++) {
-		mfc_info_dev("QoS table[%d] int : %d, mif : %d\n",
+		mfc_info_dev("QoS table[%d] mfc: %d, int : %d, mif : %d\n",
 				i,
+				dev->pdata->qos_table[i].freq_mfc,
 				dev->pdata->qos_table[i].freq_int,
 				dev->pdata->qos_table[i].freq_mif);
 	}
