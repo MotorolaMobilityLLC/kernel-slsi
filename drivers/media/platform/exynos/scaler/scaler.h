@@ -39,9 +39,6 @@ extern int sc_log_level;
 #define SC_TIMEOUT		(2 * HZ)	/* 2 seconds */
 #define SC_WDT_CNT		3
 #define SC_MAX_CTRL_NUM		11
-#define SC_QCH_SIZE		(sizeof(u32) * 21)
-#define SC_DEBUG_MAX_NUM	16
-#define G2D_QCH_NUM		21
 
 #define SC_MAX_PLANES		3
 /* Address index */
@@ -364,11 +361,6 @@ struct sc_dnoise_filter {
 	u32			h;
 };
 
-struct sc_qch_dbg {
-	unsigned long long time;
-	u32 log[G2D_QCH_NUM];
-};
-
 struct sc_qos_table {
 	unsigned int freq_mif;
 	unsigned int freq_int;
@@ -409,7 +401,6 @@ struct sc_dev {
 	struct clk			*clk_chld;
 	struct clk			*clk_parn;
 	void __iomem			*regs;
-	void __iomem			*q_reg;
 	struct resource			*regs_res;
 	struct workqueue_struct		*qosclr_int_wq;
 	wait_queue_head_t		wait;
@@ -427,8 +418,6 @@ struct sc_dev {
 	u32				version;
 	bool				pb_disable;
 	u32				cfw;
-	int				dbg_idx;
-	struct sc_qch_dbg		*qch_dbg;
 	struct sc_qos_table		*qos_table;
 	int qos_table_cnt;
 };
