@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/smc.h>
 #include <asm/cacheflush.h>
+#include <asm/memory.h>
 
 #include <soc/samsung/exynos-el3_mon.h>
 
@@ -43,8 +44,8 @@ static int __init exynos_protect_kernel_text(void)
 	}
 
 	/* Translate VA to PA */
-	ktext_start_pa = virt_to_phys((void *)ktext_start_va);
-	ktext_end_pa = virt_to_phys((void *)ktext_end_va);
+	ktext_start_pa = (unsigned long)__pa_symbol(_text);
+	ktext_end_pa = (unsigned long)__pa_symbol(_etext);
 
 	pr_info("%s: Kernel text start VA(%#lx), PA(%#lx)\n",
 			__func__, ktext_start_va, ktext_start_pa);
