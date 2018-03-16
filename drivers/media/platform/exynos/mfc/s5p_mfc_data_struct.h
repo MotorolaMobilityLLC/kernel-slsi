@@ -337,6 +337,7 @@ struct s5p_mfc_debugfs {
 	struct dentry *otf_dump;
 	struct dentry *perf_measure_option;
 	struct dentry *sfr_dump;
+	struct dentry *debug_mode;
 };
 
 /**
@@ -667,6 +668,7 @@ extern struct s5p_mfc_dump_ops mfc_dump_ops;
 struct s5p_mfc_dump_ops {
 	void (*dump_regs)(struct s5p_mfc_dev *dev);
 	void (*dump_and_stop_always)(struct s5p_mfc_dev *dev);
+	void (*dump_and_stop_debug_mode)(struct s5p_mfc_dev *dev);
 };
 
 /**
@@ -723,6 +725,7 @@ struct s5p_mfc_dev {
 
 	struct s5p_mfc_hwlock hwlock;
 
+	atomic_t sched_wait_cnt;
 	atomic_t watchdog_tick_running;
 	atomic_t watchdog_tick_cnt;
 	atomic_t watchdog_run;

@@ -28,14 +28,6 @@
 			MFC_WRITEL(0, S5P_FIMV_RISC2HOST_INT);	\
 		} while (0)
 
-static inline int s5p_mfc_check_int_cmd(struct s5p_mfc_dev *dev)
-{
-	if (MFC_READL(S5P_FIMV_RISC2HOST_INT))
-		return MFC_READL(S5P_FIMV_RISC2HOST_CMD);
-	else
-		return 0;
-}
-
 static inline int s5p_mfc_stop_bus(struct s5p_mfc_dev *dev)
 {
 	unsigned int status;
@@ -118,5 +110,6 @@ int s5p_mfc_reset_mfc(struct s5p_mfc_dev *dev);
 void s5p_mfc_set_risc_base_addr(struct s5p_mfc_dev *dev,
 				enum mfc_buf_usage_type buf_type);
 void s5p_mfc_cmd_host2risc(struct s5p_mfc_dev *dev, int cmd);
+int s5p_mfc_check_risc2host(struct s5p_mfc_dev *dev);
 
 #endif /* __S5P_MFC_CAL_H */

@@ -37,11 +37,15 @@
 #define MFC_MAX_DRM_CTX		2
 
 /* Interrupt timeout */
-#define MFC_INT_TIMEOUT		5000
+#define MFC_INT_TIMEOUT		4000
 /* Interrupt short timeout */
 #define MFC_INT_SHORT_TIMEOUT	800
+/* hwlock timeout */
+#define MFC_HWLOCK_TIMEOUT	5000
 /* Busy wait timeout */
 #define MFC_BW_TIMEOUT		500
+/* Interrupt timeout count*/
+#define MFC_INT_TIMEOUT_CNT	2
 
 /* This value guarantees 299.4msec ~ 2.25sec according to MFC clock (668MHz ~ 89MHz)
  * releated with S5P_FIMV_DEC_TIMEOUT_VALUE */

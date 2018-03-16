@@ -166,7 +166,7 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
 
 		ret = wait_event_timeout(dev->hwlock_wq.wait_queue,
 			((dev->hwlock.transfer_owner == 1) && (dev->hwlock.dev == 1)),
-			msecs_to_jiffies(MFC_INT_TIMEOUT));
+			msecs_to_jiffies(MFC_HWLOCK_TIMEOUT));
 
 		MFC_TRACE_DEV_HWLOCK("get_hwlock_dev: before waiting\n");
 		MFC_TRACE_DEV_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
@@ -258,7 +258,7 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 
 		ret = wait_event_timeout(curr_ctx->hwlock_wq.wait_queue,
 			((dev->hwlock.transfer_owner == 1) && (test_bit(curr_ctx->num, &dev->hwlock.bits))),
-			msecs_to_jiffies(MFC_INT_TIMEOUT));
+			msecs_to_jiffies(MFC_HWLOCK_TIMEOUT));
 
 		MFC_TRACE_CTX_HWLOCK("get_hwlock_ctx: after waiting, ret:%d\n", ret);
 		MFC_TRACE_CTX_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",

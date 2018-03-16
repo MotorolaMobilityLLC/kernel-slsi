@@ -13,6 +13,7 @@
 #include <trace/events/mfc.h>
 
 #include "s5p_mfc_cal.h"
+#include "s5p_mfc_pm.h"
 
 /* Reset the device */
 int s5p_mfc_reset_mfc(struct s5p_mfc_dev *dev)
@@ -84,4 +85,17 @@ void s5p_mfc_cmd_host2risc(struct s5p_mfc_dev *dev, int cmd)
 	/* Issue the command */
 	MFC_WRITEL(cmd, S5P_FIMV_HOST2RISC_CMD);
 	MFC_WRITEL(0x1, S5P_FIMV_HOST2RISC_INT);
+}
+
+/* Check whether HW interrupt has occurred or not */
+int s5p_mfc_check_risc2host(struct s5p_mfc_dev *dev)
+{
+	if (s5p_mfc_pm_get_pwr_ref_cnt(dev) && s5p_mfc_pm_get_clk_ref_cnt(dev)) {
+		if (MFC_READL(S5P_FIMV_RISC2HOST_INT))
+			return MFC_READL(S5P_FIMV_RISC2HOST_CMD);
+		else
+			return 0;
+	}
+
+	return 0;
 }

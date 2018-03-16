@@ -275,10 +275,24 @@ static void mfc_dump_info_and_stop_hw(struct s5p_mfc_dev *dev)
 	BUG();
 }
 
+static void mfc_dump_info_and_stop_hw_debug(struct s5p_mfc_dev *dev)
+{
+	if (!debug_mode)
+		return;
+
+	MFC_TRACE_DEV("** mfc will stop!!!\n");
+	mfc_display_state(dev);
+	mfc_print_trace(dev);
+	mfc_save_logging_sfr(dev);
+	mfc_dump_regs(dev);
+	exynos_sysmmu_show_status(dev->device);
+	BUG();
+}
+
 void s5p_mfc_watchdog_worker(struct work_struct *work)
 {
 	struct s5p_mfc_dev *dev;
-	int cmd = 0;
+	int cmd;
 
 	dev = container_of(work, struct s5p_mfc_dev, watchdog_work);
 
@@ -292,16 +306,14 @@ void s5p_mfc_watchdog_worker(struct work_struct *work)
 		return;
 	}
 
-	/* Check whether HW interrupt has occured or not */
-	if (s5p_mfc_pm_get_pwr_ref_cnt(dev) && s5p_mfc_pm_get_clk_ref_cnt(dev))
-		cmd = s5p_mfc_check_int_cmd(dev);
+	cmd = s5p_mfc_check_risc2host(dev);
 	if (cmd) {
 		if (atomic_read(&dev->watchdog_tick_cnt) == (3 * WATCHDOG_TICK_CNT_TO_START_WATCHDOG)) {
 			mfc_err_dev("MFC driver waited for upward of %dsec\n",
-						3 * WATCHDOG_TICK_CNT_TO_START_WATCHDOG);
+					3 * WATCHDOG_TICK_CNT_TO_START_WATCHDOG);
 			dev->logging_data->cause |= (1 << MFC_CAUSE_NO_SCHEDULING);
 		} else {
-			mfc_err_dev("interrupt(%d) is occured, wait scheduling\n", cmd);
+			mfc_err_dev("interrupt(%d) is occurred, wait scheduling\n", cmd);
 			return;
 		}
 	} else {
@@ -322,4 +334,5 @@ void s5p_mfc_watchdog_worker(struct work_struct *work)
 struct s5p_mfc_dump_ops mfc_dump_ops = {
 	.dump_regs			= mfc_dump_regs,
 	.dump_and_stop_always		= mfc_dump_info_and_stop_hw,
+	.dump_and_stop_debug_mode	= mfc_dump_info_and_stop_hw_debug,
 };

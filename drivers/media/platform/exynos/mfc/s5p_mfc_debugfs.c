@@ -29,6 +29,8 @@ unsigned int nal_q_parallel_disable;
 unsigned int otf_dump;
 unsigned int perf_measure_option;
 unsigned int sfr_dump;
+/* It will be disable after driver is stabilized */
+unsigned int debug_mode = 1;
 
 static int mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -149,4 +151,6 @@ void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
 			0644, debugfs->root, &perf_measure_option);
 	debugfs->sfr_dump = debugfs_create_u32("sfr_dump",
 			0644, debugfs->root, &sfr_dump);
+	debugfs->debug_mode = debugfs_create_u32("debug_mode",
+			0644, debugfs->root, &debug_mode);
 }

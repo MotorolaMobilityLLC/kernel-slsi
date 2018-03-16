@@ -12,6 +12,7 @@
 
 #include "s5p_mfc_sync.h"
 
+#include "s5p_mfc_cal.h"
 #include "s5p_mfc_perf_measure.h"
 
 #include "s5p_mfc_queue.h"
@@ -56,8 +57,22 @@ int s5p_mfc_wait_for_done_dev(struct s5p_mfc_dev *dev, int command)
 	if (ret == 0) {
 		mfc_err_dev("Interrupt (dev->int_reason:%d, command:%d) timed out.\n",
 							dev->int_reason, command);
+		if (s5p_mfc_check_risc2host(dev)) {
+			ret = wait_event_timeout(dev->cmd_wq,
+					wait_condition(dev, command),
+					msecs_to_jiffies(MFC_INT_TIMEOUT * MFC_INT_TIMEOUT_CNT));
+			if (ret == 0) {
+				mfc_err_dev("Timeout: MFC driver waited for upward of %dsec\n",
+						3 * MFC_INT_TIMEOUT);
+			} else {
+				goto wait_done;
+			}
+		}
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		return 1;
 	}
+
+wait_done:
 	mfc_debug(2, "Finished waiting (dev->int_reason:%d, command: %d).\n",
 							dev->int_reason, command);
 	return 0;
@@ -71,6 +86,7 @@ int s5p_mfc_wait_for_done_dev(struct s5p_mfc_dev *dev, int command)
 */
 int s5p_mfc_wait_for_done_ctx(struct s5p_mfc_ctx *ctx, int command)
 {
+	struct s5p_mfc_dev *dev = ctx->dev;
 	int ret;
 	unsigned int timeout = MFC_INT_TIMEOUT;
 
@@ -83,15 +99,30 @@ int s5p_mfc_wait_for_done_ctx(struct s5p_mfc_ctx *ctx, int command)
 	if (ret == 0) {
 		mfc_err_ctx("Interrupt (ctx->int_reason:%d, command:%d) timed out.\n",
 							ctx->int_reason, command);
-		return 1;
-	} else if (ret > 0) {
-		if (is_err_cond(ctx)) {
-			mfc_err_ctx("Finished (ctx->int_reason:%d, command: %d).\n",
-					ctx->int_reason, command);
-			mfc_err_ctx("But error (ctx->int_err:%d).\n", ctx->int_err);
-			return -1;
+		if (s5p_mfc_check_risc2host(dev)) {
+			ret = wait_event_timeout(ctx->cmd_wq,
+					wait_condition(ctx, command),
+					msecs_to_jiffies(MFC_INT_TIMEOUT * MFC_INT_TIMEOUT_CNT));
+			if (ret == 0) {
+				mfc_err_dev("Timeout: MFC driver waited for upward of %dsec\n",
+						3 * MFC_INT_TIMEOUT);
+			} else {
+				goto wait_done;
+			}
 		}
+		call_dop(dev, dump_and_stop_debug_mode, dev);
+		return 1;
 	}
+
+wait_done:
+	if (is_err_cond(ctx)) {
+		mfc_err_ctx("Finished (ctx->int_reason:%d, command: %d).\n",
+				ctx->int_reason, command);
+		mfc_err_ctx("But error (ctx->int_err:%d).\n", ctx->int_err);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
+		return -1;
+	}
+
 	mfc_debug(2, "Finished waiting (ctx->int_reason:%d, command: %d).\n",
 							ctx->int_reason, command);
 	return 0;
