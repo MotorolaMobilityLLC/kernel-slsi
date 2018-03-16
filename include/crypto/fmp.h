@@ -245,9 +245,9 @@ struct fmp_request {
 	u32 ivsize;
 };
 
-#if defined(CONFIG_MMC_DW_EXYNOS_FMP) || defined(CONFIG_SCSI_UFS_EXYNOS_FMP)
 static inline void exynos_fmp_bypass(void *desc, bool cmdq_enabled)
 {
+#if defined(CONFIG_MMC_DW_EXYNOS_FMP) || defined(CONFIG_SCSI_UFS_EXYNOS_FMP)
 	if (cmdq_enabled) {
 		SET_CMDQ_FAS((struct fmp_table_setting *)desc, 0);
 		SET_CMDQ_DAS((struct fmp_table_setting *)desc, 0);
@@ -255,13 +255,14 @@ static inline void exynos_fmp_bypass(void *desc, bool cmdq_enabled)
 		SET_FAS((struct fmp_table_setting *)desc, 0);
 		SET_DAS((struct fmp_table_setting *)desc, 0);
 	}
-}
 #endif
+}
 
+int exynos_fmp_sec_config(int id);
 int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv);
 int exynos_fmp_clear(struct fmp_crypto_info *ci, void *priv);
 int exynos_fmp_setkey(struct fmp_crypto_info *ci,
-		char *in_key, u32 keylen, bool persistent);
+		u8 *in_key, u32 keylen, bool persistent);
 int exynos_fmp_clearkey(struct fmp_crypto_info *ci);
 void *exynos_fmp_init(struct platform_device *pdev);
 void exynos_fmp_exit(struct exynos_fmp *fmp);

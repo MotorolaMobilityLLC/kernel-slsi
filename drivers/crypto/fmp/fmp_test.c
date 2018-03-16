@@ -177,13 +177,17 @@ int fmp_cipher_run(struct exynos_fmp *fmp, struct fmp_test_data *fdata,
 		void *priv, struct fmp_crypto_info *ci)
 {
 	int ret = 0;
-	struct device *dev = fmp->dev;
+	struct device *dev;
 	static struct buffer_head *bh;
 	u32 org_algo_mode;
 	int op_flags;
 
-	if (!fmp || !fdata || !ci)
+	if (!fmp || !fdata || !ci) {
+		pr_err("%s: Invalid fmp struct: %p, %p, %p\n",
+			__func__, fmp, fdata, ci);
 		return -EINVAL;
+	}
+	dev = fmp->dev;
 
 	bh = __getblk(fdata->bdev, fdata->sector, FMP_BLK_SIZE);
 	if (!bh) {
@@ -297,8 +301,10 @@ void fmp_test_exit(struct fmp_test_data *fdata)
 {
 	fmode_t fmode = FMODE_WRITE | FMODE_READ;
 
-	if (!fdata)
+	if (!fdata) {
+		pr_err("%s: Invalid exynos fmp struct\n", __func__);
 		return;
+	}
 	if (fdata->bdev)
 		blkdev_put(fdata->bdev, fmode);
 	kzfree(fdata);

@@ -14,6 +14,7 @@ config EXYNOS_SMU
 config EXYNOS_FMP
 	tristate "Samsung EXYNOS FMP driver"
 	depends on CRYPTO_DISKCIPHER
+	select EXYNOS_SMU
 	help
 	  Say yes here to build support for FMP (Flash Memory Protector)
 	  to encrypt and decrypt userdata using inline H/W crypto module.

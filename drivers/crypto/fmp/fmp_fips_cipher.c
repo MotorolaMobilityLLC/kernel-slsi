@@ -73,8 +73,10 @@ int fmp_cipher_set_iv(struct fmp_test_data *fdata,
 	int ret = 0;
 	struct fmp_crypto_info *ci;
 
-	if (!fdata)
+	if (!fdata) {
+		pr_err("%s: Invalid fdata\n", __func__);
 		return -EINVAL;
+	}
 
 	ci = &fdata->ci;
 	if (iv_len != FMP_IV_SIZE_16) {

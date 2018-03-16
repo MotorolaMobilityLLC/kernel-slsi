@@ -41,9 +41,9 @@
 static inline void dump_ci(struct fmp_crypto_info *c)
 {
 	if (c) {
-		pr_info("%s: crypto:%p algo:%d enc:%d key_size:%d key:%p\n",
-			__func__, c, c->algo_mode, c->enc_mode,
-			c->key_size, c->key);
+		pr_info
+		    ("dump_ci: crypto:%p algo:%d enc:%d key_size:%d key:%p\n",
+		     c, c->algo_mode, c->enc_mode, c->key_size, c->key);
 		if (c->enc_mode == EXYNOS_FMP_FILE_ENC)
 			print_hex_dump(KERN_CONT, "key:",
 				       DUMP_PREFIX_OFFSET, 16, 1, c->key,
@@ -220,6 +220,7 @@ static int fmplib_set_disk_key(struct exynos_fmp *fmp, u8 *key, u32 key_size)
 {
 	int ret;
 
+	/* TODO: only set for host0 */
 	__flush_dcache_area(key, (size_t) FMP_MAX_KEY_SIZE);
 	ret =
 	    exynos_smc(SMC_CMD_FMP_DISK_KEY_STORED, 0, virt_to_phys(key),
@@ -432,7 +433,7 @@ int exynos_fmp_clear(struct fmp_crypto_info *ci, void *priv)
 	return 0;
 }
 
-int exynos_fmp_setkey(struct fmp_crypto_info *ci, char *in_key, u32 keylen,
+int exynos_fmp_setkey(struct fmp_crypto_info *ci, u8 *in_key, u32 keylen,
 		      bool persistent)
 {
 	struct exynos_fmp *fmp = ci->ctx;
@@ -546,6 +547,24 @@ err:
 	return ret;
 }
 #endif
+
+#define CFG_DESCTYPE_3 0x3
+int exynos_fmp_sec_config(int id)
+{
+	int ret;
+
+	if (id) {
+		pr_err("%s: fails to set set config for %d. only host0\n",
+			__func__, id);
+		return 0;
+	}
+
+	ret = exynos_smc(SMC_CMD_FMP_SECURITY, 0, id, CFG_DESCTYPE_3);
+	if (ret)
+		pr_err("%s: Fail smc call for FMP_SECURITY. ret(%d)\n",
+				__func__, ret);
+	return ret;
+}
 
 void *exynos_fmp_init(struct platform_device *pdev)
 {
