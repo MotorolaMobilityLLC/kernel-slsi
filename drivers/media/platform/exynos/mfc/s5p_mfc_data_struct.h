@@ -994,6 +994,7 @@ struct s5p_mfc_enc_params {
 	u32 i_frm_ctrl_mode;
 	u32 i_frm_ctrl;
 
+	u32 check_color_range;
 	u32 color_range;
 	u32 colour_primaries;
 	u32 transfer_characteristics;

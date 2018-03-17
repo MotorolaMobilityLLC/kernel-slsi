@@ -1582,6 +1582,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		p->ratio_intra = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_FULL_RANGE_FLAG:
+		p->check_color_range = 1;
 		p->color_range = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_COLOUR_PRIMARIES:
