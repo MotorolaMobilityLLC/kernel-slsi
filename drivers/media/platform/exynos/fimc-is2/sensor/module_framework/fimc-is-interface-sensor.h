@@ -45,6 +45,8 @@
 #define ACTUATOR_MAX_SOFT_LANDING_NUM	32 /* Actuator interface */
 #define ACTUATOR_MAX_FOCUS_POSITIONS	1024
 
+#define	INVALID_LASER_DISTANCE	0
+
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
 
@@ -100,8 +102,9 @@ enum itf_vc_stat_type {
 	VC_STAT_TYPE_TAIL_SUPER_PD,
 	VC_STAT_TYPE_TAIL_SUPER_PD_DIVIDE2,
 
-	/* Types for Sony PDAF */
-	VC_STAT_TYPE_TAIL_IMX = 200,
+	/*Types for IMX PDAF sensors */
+	VC_STAT_TYPE_TAIL_IMX_FLEXIBLE = 200,
+	VC_STAT_TYPE_TAIL_IMX_STATIC,
 
 	/* Types for PAF_STAT */
 	VC_STAT_TYPE_PAFSTAT_FLOATING = 300,
