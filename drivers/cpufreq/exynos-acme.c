@@ -16,7 +16,6 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/cpufreq.h>
-#include <linux/pm_qos.h>
 #include <linux/debug-snapshot.h>
 #include <linux/pm_opp.h>
 #include <linux/cpu_cooling.h>
@@ -24,7 +23,6 @@
 #include <linux/ems.h>
 
 #include <soc/samsung/cal-if.h>
-#include <soc/samsung/exynos-dm.h>
 #include <soc/samsung/ect_parser.h>
 #include <soc/samsung/exynos-cpuhp.h>
 #include <soc/samsung/exynos-cpupm.h>
@@ -36,6 +34,11 @@
  * list head of cpufreq domain
  */
 LIST_HEAD(domains);
+
+/*
+ * list head of units which have cpufreq policy dependancy
+ */
+LIST_HEAD(ready_list);
 
 /*********************************************************************
  *                          HELPER FUNCTION                          *
@@ -303,6 +306,17 @@ static int update_freq(struct exynos_cpufreq_domain *domain,
 }
 
 /*********************************************************************
+ *                   	EXYNOS CPUFREQ DRIVER API                    *
+ *********************************************************************/
+void exynos_cpufreq_ready_list_add(struct exynos_cpufreq_ready_block *rb)
+{
+	if (!rb)
+		return;
+
+	list_add(&rb->list, &ready_list);
+}
+
+/*********************************************************************
  *                   EXYNOS CPUFREQ DRIVER INTERFACE                 *
  *********************************************************************/
 static int exynos_cpufreq_driver_init(struct cpufreq_policy *policy)
@@ -485,6 +499,14 @@ static int exynos_cpufreq_resume(struct cpufreq_policy *policy)
 
 static void exynos_cpufreq_ready(struct cpufreq_policy *policy)
 {
+	struct exynos_cpufreq_ready_block *ready_block;
+
+	list_for_each_entry(ready_block, &ready_list, list) {
+		if (ready_block->update)
+			ready_block->update(policy);
+		if (ready_block->get_target)
+			ready_block->get_target(policy, exynos_cpufreq_target);
+	}
 }
 
 static int exynos_cpufreq_exit(struct cpufreq_policy *policy)

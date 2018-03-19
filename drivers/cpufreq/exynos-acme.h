@@ -8,9 +8,24 @@
  * Exynos ACME(A Cpufreq that Meets Every chipset) driver implementation
  */
 
+#include <linux/pm_qos.h>
+#include <soc/samsung/exynos-dm.h>
+
 struct exynos_cpufreq_dm {
 	struct list_head		list;
 	struct exynos_dm_constraint	c;
+};
+
+typedef int (*target_fn)(struct cpufreq_policy *policy,
+			        unsigned int target_freq,
+			        unsigned int relation);
+
+struct exynos_cpufreq_ready_block {
+	struct list_head		list;
+
+	/* callback function to update policy-dependant data */
+	int (*update)(struct cpufreq_policy *policy);
+	int (*get_target)(struct cpufreq_policy *policy, target_fn target);
 };
 
 struct exynos_cpufreq_domain {
@@ -73,3 +88,8 @@ struct exynos_cpufreq_domain {
  * two frequencies in nanoseconds
  */
 #define TRANSITION_LATENCY	5000000
+
+/*
+ * Exynos CPUFreq API
+ */
+extern void exynos_cpufreq_ready_list_add(struct exynos_cpufreq_ready_block *rb);
