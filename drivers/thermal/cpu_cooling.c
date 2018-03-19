@@ -700,7 +700,7 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	}
 
 	if (load_cpu) {
-		trace_thermal_power_cpu_get_power(policy->related_cpus, freq,
+		trace_thermal_power_cpu_get_power(tz->id, policy->related_cpus, freq,
 						  load_cpu, i, dynamic_power,
 						  static_power);
 
@@ -808,7 +808,7 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 	}
 
 	*state = get_level(cpufreq_cdev, target_freq);
-	trace_thermal_power_cpu_limit(policy->related_cpus, target_freq, *state,
+	trace_thermal_power_cpu_limit(tz->id, policy->related_cpus, target_freq, *state,
 				      power);
 	return 0;
 }
