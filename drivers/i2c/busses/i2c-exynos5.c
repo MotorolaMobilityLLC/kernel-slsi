@@ -190,12 +190,12 @@ static LIST_HEAD(drvdata_list);
  * Controller operating frequency, timing values for operation
  * are calculated against this frequency
  */
-#define HSI2C_STAND_TX_CLOCK	1000000
-#define HSI2C_HS_TX_CLOCK	2500000
-#define HSI2C_FS_TX_CLOCK	400000
-#define HSI2C_STAND_SPD	2
-#define HSI2C_HIGH_SPD		1
-#define HSI2C_FAST_SPD		0
+#define HSI2C_HS_TX_CLOCK			2500000
+#define HSI2C_FAST_PLUS_TX_CLOCK	1000000
+#define HSI2C_FS_TX_CLOCK			400000
+#define HSI2C_FAST_PLUS_SPD		2
+#define HSI2C_HIGH_SPD			1
+#define HSI2C_FAST_SPD			0
 
 #define HSI2C_POLLING 0
 #define HSI2C_INTERRUPT 1
@@ -389,8 +389,8 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 
 	ipclk = (unsigned int)clk_get_rate(i2c->rate_clk);
 
-	if (mode == HSI2C_STAND_SPD) {
-		op_clk = i2c->stand_clock;
+	if (mode == HSI2C_FAST_PLUS_SPD) {
+		op_clk = i2c->fs_plus_clock;
 
 		fs_div = ipclk / (op_clk * 16);
 		fs_div &= 0xFF;
@@ -407,8 +407,8 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS1) & ~0x00FF0000;
 		writel(utemp | (uTSTART_HD_FS << 16), i2c->regs + HSI2C_TIMING_FS1);
 
-		dev_info(i2c->dev, "%s IPCLK = %d OP_CLK = %d DIV = %d Timing FS1(ST) = 0x%X "
-				"TIMING FS2(ST) = 0x%X TIMING FS3(ST) = 0x%X\n",__func__, ipclk, op_clk, fs_div,
+		dev_info(i2c->dev, "%s IPCLK = %d OP_CLK = %d DIV = %d Timing FS1(FS+) = 0x%X "
+				"TIMING FS2(FS+) = 0x%X TIMING FS3(FS+) = 0x%X\n",__func__, ipclk, op_clk, fs_div,
 				readl(i2c->regs + HSI2C_TIMING_FS1), readl(i2c->regs + HSI2C_TIMING_FS2),
 				readl(i2c->regs + HSI2C_TIMING_FS3));
 	} else if (mode == HSI2C_HIGH_SPD) {
@@ -489,10 +489,10 @@ static int exynos5_hsi2c_clock_setup(struct exynos5_i2c *i2c)
 		}
 	}
 
-	/* Configure the Standard mode timing values */
-	if (i2c->speed_mode == HSI2C_STAND_SPD) {
-		if (exynos5_i2c_set_timing(i2c, HSI2C_STAND_SPD)) {
-			dev_err(i2c->dev, "HSI2C STANDARD Clock set up failed\n");
+	/* Configure the fast plus mode timing values */
+	if (i2c->speed_mode == HSI2C_FAST_PLUS_SPD) {
+		if (exynos5_i2c_set_timing(i2c, HSI2C_FAST_PLUS_SPD)) {
+			dev_err(i2c->dev, "HSI2C FAST PLUS Clock set up failed\n");
 			return -EINVAL;
 		}
 	}
@@ -1043,15 +1043,13 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "default-clk", &i2c->default_clk))
 		dev_err(i2c->dev, "Failed to get default clk info\n");
 
-	/* Mode of operation High/Fast/Standard Speed mode */
-	if (of_get_property(np, "samsung,stand-mode", NULL)) {
-		i2c->speed_mode = HSI2C_STAND_SPD;
-		i2c->fs_clock = HSI2C_FS_TX_CLOCK;
-		if (of_property_read_u32(np, "clock-frequency", &i2c->stand_clock))
-			i2c->stand_clock = HSI2C_STAND_TX_CLOCK;
+	/* Mode of operation High/Fast/Fast+ Speed mode */
+	if (of_get_property(np, "samsung,fast-plus-mode", NULL)) {
+		i2c->speed_mode = HSI2C_FAST_PLUS_SPD;
+		if (of_property_read_u32(np, "clock-frequency", &i2c->fs_plus_clock))
+			i2c->fs_plus_clock = HSI2C_FAST_PLUS_TX_CLOCK;
 	} else if (of_get_property(np, "samsung,hs-mode", NULL)) {
 		i2c->speed_mode = HSI2C_HIGH_SPD;
-		i2c->fs_clock = HSI2C_FS_TX_CLOCK;
 		if (of_property_read_u32(np, "clock-frequency", &i2c->hs_clock))
 			i2c->hs_clock = HSI2C_HS_TX_CLOCK;
 	} else {
