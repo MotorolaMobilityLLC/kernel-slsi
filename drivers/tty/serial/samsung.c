@@ -816,7 +816,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
  *
 */
 
-#define MAX_CLK_NAME_LENGTH 15
+#define MAX_CLK_NAME_LENGTH 20
 
 static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 			unsigned int req_baud, struct clk **best_clk,
@@ -1430,7 +1430,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	else
 		ourport->check_separated_clk = 0;
 
-	snprintf(clkname, sizeof(clkname), "gate_uart%d", ourport->port.line);
+	snprintf(clkname, sizeof(clkname), "ipclk_uart%d", ourport->port.line);
 	ourport->clk = devm_clk_get(&platdev->dev, clkname);
 	if (IS_ERR(ourport->clk)) {
 		pr_err("%s: Controller clock not found\n",
@@ -1439,7 +1439,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	}
 
 	if (ourport->check_separated_clk) {
-		snprintf(clkname, sizeof(clkname), "gate_pclk%d", ourport->port.line);
+		snprintf(clkname, sizeof(clkname), "gate_uart_clk%d", ourport->port.line);
 		ourport->separated_clk = devm_clk_get(&platdev->dev, clkname);
 		if (IS_ERR(ourport->separated_clk)) {
 			pr_err("%s: Controller clock not found\n",
