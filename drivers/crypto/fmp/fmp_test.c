@@ -116,7 +116,7 @@ struct fmp_test_data *fmp_test_init(struct exynos_fmp *fmp)
 {
 	int ret = 0;
 	struct fmp_test_data *data;
-	struct device *dev = fmp->dev;
+	struct device *dev;
 	struct inode *inode;
 	struct super_block *sb;
 	unsigned long blocksize;
@@ -124,13 +124,14 @@ struct fmp_test_data *fmp_test_init(struct exynos_fmp *fmp)
 	fmode_t fmode = FMODE_WRITE | FMODE_READ;
 
 	if (!fmp) {
-		dev_err(dev, "%s: Invalid exynos fmp struct\n", __func__);
+		pr_err("%s: Invalid exynos fmp struct\n", __func__);
 		return NULL;
 	}
 	data = kmalloc(sizeof(struct fmp_test_data), GFP_KERNEL);
 	if (!data)
 		return NULL;
 
+	dev = fmp->dev;
 	ret = get_fmp_host_type(dev, data);
 	if (ret) {
 		dev_err(dev, "%s: Fail to get host type. ret(%d)", __func__,
