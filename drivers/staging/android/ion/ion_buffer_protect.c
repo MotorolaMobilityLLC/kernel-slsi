@@ -189,12 +189,54 @@ void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
 	return protdesc;
 }
 
+void *ion_buffer_protect_multi(unsigned int protection_id, unsigned int count,
+			       unsigned int chunk_size, unsigned long *phys_arr,
+			       unsigned int protalign)
+{
+	struct ion_buffer_prot_info *protdesc;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		return NULL;
+
+	if (count == 1)
+		return ion_buffer_protect_single(protection_id, chunk_size,
+						 *phys_arr, protalign);
+
+	protdesc = kmalloc(sizeof(*protdesc), GFP_KERNEL);
+	if (!protdesc)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * The address pointed by phys_arr is stored to the protection metadata
+	 * after conversion to its physical address.
+	 */
+	kmemleak_ignore(phys_arr);
+
+	protdesc->chunk_count = count,
+	protdesc->flags = protection_id;
+	protdesc->chunk_size = chunk_size;
+	protdesc->bus_address = virt_to_phys(phys_arr);
+
+	ret = ion_secure_protect(protdesc, protalign);
+	if (ret) {
+		pr_err("%s: protection failure (id%u,len%u,count%u,align%#x\n",
+		       __func__, protection_id, chunk_size, count, protalign);
+		kfree(protdesc);
+		return ERR_PTR(ret);
+	}
+
+	return protdesc;
+}
+
 void ion_buffer_unprotect(void *priv)
 {
 	struct ion_buffer_prot_info *protdesc = priv;
 
 	if (priv) {
 		ion_secure_unprotect(protdesc);
+		if (protdesc->chunk_count > 1)
+			kfree(phys_to_virt(protdesc->bus_address));
 		kfree(protdesc);
 	}
 }

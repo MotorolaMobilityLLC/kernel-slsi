@@ -77,6 +77,9 @@ static inline int ion_secure_iova_pool_create(void)
 #ifdef CONFIG_ION_EXYNOS
 void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
 				unsigned long phys, unsigned int protalign);
+void *ion_buffer_protect_multi(unsigned int protection_id, unsigned int count,
+			       unsigned int chunk_size, unsigned long *phys_arr,
+			       unsigned int protalign);
 void ion_buffer_unprotect(void *priv);
 void exynos_ion_fixup(struct ion_device *idev);
 int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer);
@@ -92,6 +95,15 @@ static inline void *ion_buffer_protect_single(unsigned int protection_id,
 					      unsigned int size,
 					      unsigned long phys,
 					      unsigned int protalign)
+{
+	return NULL;
+}
+
+static inline void *ion_buffer_protect_multi(unsigned int protection_id,
+					     unsigned int count,
+					     unsigned int chunk_size,
+					     unsigned long *phys_arr,
+					     unsigned int protalign)
 {
 	return NULL;
 }

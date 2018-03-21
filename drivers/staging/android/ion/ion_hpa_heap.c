@@ -23,6 +23,7 @@
 #include <asm/cacheflush.h>
 
 #include "ion.h"
+#include "ion_exynos.h"
 
 #define ION_HPA_CHUNK_SIZE(heap)  (PAGE_SIZE << (heap)->order)
 #define ION_HPA_PAGE_COUNT(len, heap) \
@@ -56,8 +57,10 @@ static int ion_hpa_allocate(struct ion_heap *heap,
 	bool zero = !(flags & ION_FLAG_NOZEROED);
 	bool cacheflush = !(flags & ION_FLAG_CACHED) ||
 			  ((flags & ION_FLAG_SYNC_FORCE) != 0);
+	bool protected = hpa_heap->secure && (flags & ION_FLAG_PROTECTED);
 	size_t desc_size = sizeof(struct page *) * count;
 	struct page **pages;
+	unsigned long *phys;
 	struct sg_table *sgt;
 	struct scatterlist *sg;
 	int ret, i;
@@ -88,6 +91,17 @@ static int ion_hpa_allocate(struct ion_heap *heap,
 
 	sort(pages, count, sizeof(*pages), ion_hpa_compare_pages, NULL);
 
+	if (protected) {
+		cacheflush = true;
+		zero = false;
+	}
+
+	/*
+	 * convert a page descriptor into its corresponding physical address
+	 * in place to reduce memory allocation
+	 */
+	phys = (unsigned long *)pages;
+
 	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i) {
 		if (zero)
 			memset(page_address(pages[i]), 0,
@@ -97,13 +111,27 @@ static int ion_hpa_allocate(struct ion_heap *heap,
 					    ION_HPA_CHUNK_SIZE(hpa_heap));
 
 		sg_set_page(sg, pages[i], ION_HPA_CHUNK_SIZE(hpa_heap), 0);
+		phys[i] = page_to_phys(pages[i]);
 	}
 
-	kfree(pages);
+	if (protected) {
+		buffer->priv_virt = ion_buffer_protect_multi(
+					hpa_heap->protection_id,
+					ION_HPA_CHUNK_SIZE(hpa_heap),
+					(unsigned int)len, phys,
+					ION_HPA_CHUNK_SIZE(hpa_heap));
+		if (IS_ERR(buffer->priv_virt))
+			goto err_prot;
+	} else {
+		kfree(pages);
+	}
 
 	buffer->sg_table = sgt;
 
 	return 0;
+err_prot:
+	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
+		__free_pages(sg_page(sg), hpa_heap->order);
 err_pages:
 	sg_free_table(sgt);
 err_sg:
@@ -117,10 +145,14 @@ err_sgt:
 static void ion_hpa_free(struct ion_buffer *buffer)
 {
 	struct ion_hpa_heap *hpa_heap = to_hpa_heap(buffer->heap);
+	bool protected = hpa_heap->secure &&
+			 (buffer->flags & ION_FLAG_PROTECTED);
 	struct sg_table *sgt = buffer->sg_table;
 	struct scatterlist *sg;
 	int i;
 
+	if (protected)
+		ion_buffer_unprotect(buffer->priv_virt);
 	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
 		__free_pages(sg_page(sg), hpa_heap->order);
 	sg_free_table(sgt);
