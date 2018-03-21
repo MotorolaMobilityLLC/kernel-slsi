@@ -496,7 +496,9 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 	*power = 0;
 
 	dev = get_cpu_device(policy->cpu);
-	WARN_ON(!dev);
+
+	if (!dev)
+		return 0;
 
 	opp = dev_pm_opp_find_freq_exact(dev, freq_hz, true);
 	if (IS_ERR(opp)) {
@@ -788,6 +790,10 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 	num_cpus = cpumask_weight(&tempmask);
 
 	cpu = cpumask_any_and(policy->related_cpus, cpu_online_mask);
+
+	/* None of our cpus are online */
+	if (cpu >= nr_cpu_ids)
+		return -ENODEV;
 
 	cur_freq = cpufreq_quick_get(policy->cpu);
 	ret = get_static_power(cpufreq_cdev, tz, cur_freq, &static_power);
