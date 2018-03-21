@@ -911,6 +911,8 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	unsigned int ulcon;
 	unsigned int umcon;
 	unsigned int udivslot = 0;
+	unsigned int real_baud_rd, real_baud_ru = 0;
+	int calc_deviation_rd, calc_deviation_ru = 0;
 
 	/*
 	 * We don't support modem control lines.
@@ -937,6 +939,27 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 	if (ourport->info->has_divslot) {
 		unsigned int div = ourport->baudclk_rate / baud;
+
+		/*
+		 * Find udivslot of the lowest error rate
+		 *
+		 * udivslot cannot be round-up to 0 because quot is fixed
+		 */
+		if((div & 15) != 15) {
+			real_baud_rd = ourport->baudclk_rate / div;
+			real_baud_ru = ourport->baudclk_rate / (div + 1);
+
+			calc_deviation_rd = baud - real_baud_rd;
+			calc_deviation_ru = baud - real_baud_ru;
+
+			if(calc_deviation_rd < 0)
+				calc_deviation_rd = -calc_deviation_rd;
+			if(calc_deviation_ru < 0)
+				calc_deviation_ru = -calc_deviation_ru;
+
+			if(calc_deviation_rd > calc_deviation_ru)
+			  div = div + 1;
+		}
 
 		if (cfg->has_fracval) {
 			udivslot = (div & 15);
