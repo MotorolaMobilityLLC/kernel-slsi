@@ -26,7 +26,7 @@
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/exynos-dm.h>
 #include <soc/samsung/ect_parser.h>
-#include <soc/samsung/exynos-cpu_hotplug.h>
+#include <soc/samsung/exynos-cpuhp.h>
 #include <soc/samsung/exynos-cpupm.h>
 
 #include "exynos-acme.h"
