@@ -1549,7 +1549,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 
 	if (pdev->dev.of_node) {
-		ret = of_alias_get_id(pdev->dev.of_node, "spi");
+		ret = of_alias_get_id(pdev->dev.of_node, "gate_spi_clk");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
 				ret);
@@ -1617,15 +1617,14 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Setup clocks */
-	sdd->clk = devm_clk_get(&pdev->dev, "spi");
+	sdd->clk = devm_clk_get(&pdev->dev, "gate_spi_clk");
 	if (IS_ERR(sdd->clk)) {
 		dev_err(&pdev->dev, "Unable to acquire clock 'spi'\n");
 		ret = PTR_ERR(sdd->clk);
 		goto err0;
 	}
 
-	snprintf(clk_name, sizeof(clk_name), "spi_busclk%d", sci->src_clk_nr);
-	sdd->src_clk = devm_clk_get(&pdev->dev, clk_name);
+	sdd->src_clk = devm_clk_get(&pdev->dev, "ipclk_spi");
 	if (IS_ERR(sdd->src_clk)) {
 		dev_err(&pdev->dev,
 			"Unable to acquire clock '%s'\n", clk_name);
