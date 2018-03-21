@@ -107,10 +107,80 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 
 RESERVEDMEM_OF_DECLARE(ion, "exynos9820-ion", exynos_ion_reserved_mem_setup);
 
+static bool __init register_hpa_heap(struct device_node *np,
+				     unsigned int prot_id_map)
+{
+	struct ion_platform_heap pheap;
+	struct ion_heap *heap;
+	u32 align;
+
+	if (of_property_read_string(np, "ion,heapname", &pheap.name)) {
+		pr_err("%s: failed to read ion,heapname in '%s'\n",
+		       __func__, np->name);
+		return false;
+	}
+
+	pheap.secure = of_property_read_bool(np, "ion,secure");
+
+	if (pheap.secure) {
+		if (of_property_read_u32(np, "ion,protection_id", &pheap.id)) {
+			pr_err("%s: failed to read ion,protection_id in '%s'\n",
+			       __func__, np->name);
+			return false;
+		}
+
+		if (pheap.id > 32) {
+			pr_err("%s: too large protection id %d of '%s'\n",
+			       __func__, pheap.id, pheap.name);
+			return false;
+		}
+
+		if ((1 << pheap.id) & prot_id_map) {
+			pr_err("%s: protection_id %d in '%s' already exists\n",
+			       __func__, pheap.id, np->name);
+			return false;
+		}
+	}
+
+	if (!of_property_read_u32(np, "ion,alignment", &align))
+		pheap.align = align;
+	else
+		pheap.align = SZ_64K;
+
+	pheap.type = ION_HEAP_TYPE_HPA;
+	heap = ion_hpa_heap_create(&pheap);
+
+	if (IS_ERR(heap)) {
+		pr_err("%s: failed to register '%s' heap\n",
+		       __func__, pheap.name);
+		return false;
+	}
+
+	ion_device_add_heap(heap);
+	pr_info("ION: registered '%s' heap\n", pheap.name);
+
+	return pheap.secure;
+
+}
+
+static bool __init exynos_ion_register_hpa_heaps(unsigned int prot_id_map)
+{
+	struct device_node *np, *child;
+	bool secure = false;
+
+	for_each_node_by_name(np, "ion-hpa-heap")
+		for_each_child_of_node(np, child)
+			if (of_device_is_compatible(child, "exynos9820-ion"))
+				secure |= register_hpa_heap(child, prot_id_map);
+
+	return secure;
+}
+
 static int __init exynos_ion_register_heaps(void)
 {
 	unsigned int i;
 	bool secure = false;
+	unsigned int prot_id_map = 0;
 
 	for (i = 0; i < reserved_mem_count; i++) {
 		struct ion_platform_heap pheap;
@@ -123,6 +193,18 @@ static int __init exynos_ion_register_heaps(void)
 		pheap.align	  = ion_reserved_mem[i].alloc_align;
 		pheap.secure	  = ion_reserved_mem[i].secure;
 		pheap.untouchable = ion_reserved_mem[i].untouchable;
+
+		if (pheap.id > 32) {
+			pr_err("%s: too large protection id %d of '%s'\n",
+			       __func__, pheap.id, pheap.name);
+			continue;
+		}
+
+		if (pheap.secure && ((1 << pheap.id) & prot_id_map)) {
+			pr_err("%s: protection id %d of '%s' already exists\n",
+			       __func__, pheap.id, pheap.name);
+			continue;
+		}
 
 		if (ion_reserved_mem[i].cma) {
 			pheap.type = ION_HEAP_TYPE_DMA;
@@ -139,12 +221,16 @@ static int __init exynos_ion_register_heaps(void)
 			continue;
 		}
 
+		if (pheap.secure)
+			prot_id_map |= 1 << pheap.id;
+
 		ion_device_add_heap(heap);
 		pr_info("ION: registered '%s' heap\n", pheap.name);
 
-		if (pheap.secure)
-			secure = true;
+		secure |= pheap.secure;
 	}
+
+	secure |= exynos_ion_register_hpa_heaps(prot_id_map);
 
 	/*
 	 * ion_secure_iova_pool_create() should success. If it fails, it is

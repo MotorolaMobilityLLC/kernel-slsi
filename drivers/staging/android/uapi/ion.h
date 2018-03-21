@@ -42,6 +42,7 @@ enum ion_heap_type {
 			       * must be last so device specific heaps always
 			       * are at the end of this enum
 			       */
+	ION_HEAP_TYPE_HPA = ION_HEAP_TYPE_CUSTOM,
 };
 
 #define ION_NUM_HEAP_IDS		(sizeof(unsigned int) * 8)

@@ -59,6 +59,12 @@ extern struct ion_heap *ion_cma_heap_create(struct cma *cma,
 #define ion_cma_heap_create(cma, p) ERR_PTR(-ENODEV)
 #endif
 
+#if defined(CONFIG_ION_HPA_HEAP)
+extern struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *pheap);
+#else
+#define ion_hpa_heap_create(p) ERR_PTR(-ENODEV)
+#endif
+
 #if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) && defined(CONFIG_ION_EXYNOS)
 int __init ion_secure_iova_pool_create(void)
 #else

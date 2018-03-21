@@ -56,3 +56,11 @@ config ION_CMA_HEAP
 	  Choose this option to enable CMA heaps with Ion. This heap is backed
 	  by the Contiguous Memory Allocator (CMA). If your system has these
 	  regions, you should say Y here.
+
+config ION_HPA_HEAP
+	bool "Ion HPA heap support"
+	depends on ION && HPA
+	help
+	  Choose this option to enable HPA heaps with Ion. This heap is backed
+	  by the High-order Pages Allocator (HPA). If your system needs HPA for
+	  some reason, you should say Y here.
