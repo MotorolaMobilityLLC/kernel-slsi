@@ -1101,13 +1101,13 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 
 	i2c->dev = &pdev->dev;
-	i2c->clk = devm_clk_get(&pdev->dev, "gate_hsi2c");
+	i2c->clk = devm_clk_get(&pdev->dev, "gate_hsi2c_clk");
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		return -ENOENT;
 	}
 
-	i2c->rate_clk = devm_clk_get(&pdev->dev, "rate_hsi2c");
+	i2c->rate_clk = devm_clk_get(&pdev->dev, "ipclk_hsi2c");
 	if (IS_ERR(i2c->rate_clk)) {
 		dev_err(&pdev->dev, "cannot get rate clock\n");
 		return -ENOENT;
