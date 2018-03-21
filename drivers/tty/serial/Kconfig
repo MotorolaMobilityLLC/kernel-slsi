@@ -252,7 +252,7 @@ config SERIAL_SAMSUNG
 config SERIAL_SAMSUNG_UARTS_4
 	bool
 	depends on SERIAL_SAMSUNG
-	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
+	default n if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
@@ -260,7 +260,7 @@ config SERIAL_SAMSUNG_UARTS
 	int
 	depends on SERIAL_SAMSUNG
 	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
-	default 10
+	default 24
 	help
 	  Select the number of available UART ports for the Samsung S3C
 	  serial driver
