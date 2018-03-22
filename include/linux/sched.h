@@ -347,7 +347,6 @@ struct sched_avg {
 	unsigned long			util_avg;
 };
 
-#ifdef CONFIG_SCHED_EHMP
 #define NOT_ONTIME		1
 #define ONTIME_MIGRATING	2
 #define ONTIME			4
@@ -366,7 +365,6 @@ struct ontime_entity {
 	int flags;
 	int cpu;
 };
-#endif
 
 struct sched_statistics {
 #ifdef CONFIG_SCHEDSTATS
@@ -438,9 +436,7 @@ struct sched_entity {
 	 */
 	struct sched_avg		avg ____cacheline_aligned_in_smp;
 #endif
-#ifdef CONFIG_SCHED_EHMP
 	struct ontime_entity		ontime;
-#endif
 };
 
 #ifdef CONFIG_SCHED_WALT
