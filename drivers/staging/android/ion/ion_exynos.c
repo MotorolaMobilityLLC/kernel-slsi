@@ -46,15 +46,6 @@ bool ion_hwrender_dmabuf(struct dma_buf *dmabuf)
 	return !!(buffer->flags & ION_FLAG_MAY_HWRENDER);
 }
 
-struct ion_iovm_map {
-	struct list_head list;
-	struct device *dev;
-	struct iommu_domain *domain;
-	dma_addr_t iova;
-	atomic_t mapcnt;
-	int prop;
-};
-
 static struct ion_iovm_map *ion_buffer_iova_create(struct ion_buffer *buffer,
 						   struct device *dev,
 						   enum dma_data_direction dir,

@@ -46,6 +46,15 @@ struct ion_buffer_prot_info {
 	unsigned long bus_address;
 };
 
+struct ion_iovm_map {
+	struct list_head list;
+	struct device *dev;
+	struct iommu_domain *domain;
+	dma_addr_t iova;
+	atomic_t mapcnt;
+	int prop;
+};
+
 #ifdef CONFIG_ION_CARVEOUT_HEAP
 extern struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *);
 #else
@@ -90,6 +99,8 @@ void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      struct sg_table *table,
 			      enum dma_data_direction direction);
 
+void ion_debug_initialize(struct ion_device *idev);
+
 #else
 static inline void *ion_buffer_protect_single(unsigned int protection_id,
 					      unsigned int size,
@@ -125,6 +136,7 @@ static inline struct sg_table *ion_exynos_map_dma_buf(
 }
 
 #define ion_exynos_unmap_dma_buf(attachment, table, direction) do { } while (0)
+#define ion_debug_initialize(idev) do { } while (0)
 #endif
 
 extern const struct dma_buf_ops ion_dma_buf_ops;
