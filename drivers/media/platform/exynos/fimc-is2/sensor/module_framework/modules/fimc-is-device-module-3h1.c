@@ -129,6 +129,9 @@ static int sensor_module_3h1_power_setpin(struct device *dev,
 	struct device_node *dnode;
 	int gpio_none = 0, gpio_reset = 0;
 	int gpio_mclk = 0;
+	int gpio_ldos_en = 0;
+	u32 power_seq_id = 0;
+	int ret;
 
 	FIMC_BUG(!dev);
 
@@ -152,6 +155,23 @@ static int sensor_module_3h1_power_setpin(struct device *dev,
 		return -EINVAL;
 	}
 
+	ret = of_property_read_u32(dnode, "power_seq_id", &power_seq_id);
+	if (ret) {
+		dev_err(dev, "power_seq_id read is fail(%d)", ret);
+		power_seq_id = 0;
+	}
+
+	if (power_seq_id > 0) {
+		gpio_ldos_en = of_get_named_gpio(dnode, "gpio_ldos_en", 0);
+		if (!gpio_is_valid(gpio_ldos_en)) {
+			dev_err(dev, "%s: failed to get cam_ldo_en\n", __func__);
+			return -EINVAL;
+		} else {
+			gpio_request_one(gpio_ldos_en, GPIOF_OUT_INIT_LOW, "CAM_LDOS_OUTPUT");
+			gpio_free(gpio_ldos_en);
+		}
+	}
+
 	SET_PIN_INIT(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON);
 	SET_PIN_INIT(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF);
 
@@ -159,14 +179,19 @@ static int sensor_module_3h1_power_setpin(struct device *dev,
 	SET_PIN_INIT(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_OFF);
 
 	/********** FRONT CAMERA  - POWER ON **********/
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDAF_2.8V_VT", PIN_REGULATOR, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDA_2.8V_VT", PIN_REGULATOR, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 1, 0);
+	if (power_seq_id == 0) {
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDAF_2.8V_VT", PIN_REGULATOR, 1, 0);
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDA_2.8V_VT", PIN_REGULATOR, 1, 0);
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 1, 0);
 #ifdef CONFIG_SEC_FACTORY
-	SET_PIN_VOLTAGE(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDD_1.05V_VT", PIN_REGULATOR, 1, 1000, 1000000);
+		SET_PIN_VOLTAGE(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDD_1.05V_VT", PIN_REGULATOR, 1, 1000, 1000000);
 #else
-	SET_PIN_VOLTAGE(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDD_1.05V_VT", PIN_REGULATOR, 1, 1000, 1050000);
+		SET_PIN_VOLTAGE(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VDDD_1.05V_VT", PIN_REGULATOR, 1, 1000, 1050000);
 #endif
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_ldos_en, "gpio_ldos_en", PIN_OUTPUT, 1, 500);
+	}
+
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "on_i2c", PIN_I2C, 1, 10);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_reset, "rst_high", PIN_OUTPUT, 1, 0);
 	/* Mclock enable */
@@ -179,19 +204,29 @@ static int sensor_module_3h1_power_setpin(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 0, 1);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_reset, "rst_low", PIN_OUTPUT, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "off_i2c", PIN_I2C, 0, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDAF_2.8V_VT", PIN_REGULATOR, 0, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDD_1.05V_VT", PIN_REGULATOR, 0, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDA_2.8V_VT", PIN_REGULATOR, 0, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 0, 0);
+	if (power_seq_id == 0) {
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDAF_2.8V_VT", PIN_REGULATOR, 0, 0);
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDD_1.05V_VT", PIN_REGULATOR, 0, 0);
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDA_2.8V_VT", PIN_REGULATOR, 0, 0);
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 0, 0);
+	} else {
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_ldos_en, "gpio_ldos_en", PIN_OUTPUT, 0, 0);
+	}
 	dev_info(dev, "%s X v4\n", __func__);
 
 	/******************** READ_ROM - POWER ON ********************/
-	SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_ON, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 1, 0);
+	if (power_seq_id == 0)
+		SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_ON, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 1, 0);
+	else
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_ldos_en, "gpio_ldos_en", PIN_OUTPUT, 1, 500);
 	SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_ON, gpio_none, "on_i2c", PIN_I2C, 1, 10);
 
 	/******************** READ_ROM - POWER OFF ********************/
 	SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_OFF, gpio_none, "off_i2c", PIN_I2C, 0, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_OFF, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 0, 0);
+	if (power_seq_id == 0)
+		SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_OFF, gpio_none, "VDDIO_1.8V_VT", PIN_REGULATOR, 0, 0);
+	else
+		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_ldos_en, "gpio_ldos_en", PIN_OUTPUT, 0, 0);
 
 	return 0;
 }
