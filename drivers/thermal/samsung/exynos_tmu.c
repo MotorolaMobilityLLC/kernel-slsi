@@ -176,6 +176,8 @@
 #define EXYNOS_TMU_LPI_MODE_SHIFT		(10)
 #define EXYNOS_TMU_LPI_MODE_MASK		(1)
 
+#define EXYNOS_GPU_THERMAL_ZONE_ID		(2)
+
 #define TOTAL_SENSORS		16
 #define DEFAULT_BALANCE_OFFSET	20
 
@@ -1472,7 +1474,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_ENABLED);
 
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS
-	if (data->id == 2)
+	if (data->id == EXYNOS_GPU_THERMAL_ZONE_ID)
 		gpu_thermal_data = data;
 #endif
 
@@ -1669,7 +1671,7 @@ static ssize_t ipc_dump2_read(struct file *file, char __user *user_buf,
 	char buf[48];
 	ssize_t ret;
 
-	exynos_acpm_tmu_ipc_dump(2, data.dump);
+	exynos_acpm_tmu_ipc_dump(EXYNOS_GPU_THERMAL_ZONE_ID, data.dump);
 
 	ret = snprintf(buf, sizeof(buf), "%3d %3d %3d %3d %3d %3d %3d\n",
 			data.val[1], data.val[2], data.val[3],
