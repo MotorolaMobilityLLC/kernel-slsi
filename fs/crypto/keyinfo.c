@@ -168,6 +168,10 @@ static void put_crypt_info(struct fscrypt_info *ci)
 	if (!ci)
 		return;
 
+#if defined(CONFIG_CRYPTO_DISKCIPHER)
+	if (ci->ci_dtfm)
+		crypto_free_diskcipher(ci->ci_dtfm);
+#endif
 	crypto_free_skcipher(ci->ci_ctfm);
 	crypto_free_cipher(ci->ci_essiv_tfm);
 	kmem_cache_free(fscrypt_info_cachep, ci);
@@ -286,6 +290,9 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	crypt_info->ci_filename_mode = ctx.filenames_encryption_mode;
 	crypt_info->ci_ctfm = NULL;
 	crypt_info->ci_essiv_tfm = NULL;
+#if defined(CONFIG_CRYPTO_DISKCIPHER)
+	crypt_info->ci_dtfm = NULL;
+#endif
 	memcpy(crypt_info->ci_master_key, ctx.master_key_descriptor,
 				sizeof(crypt_info->ci_master_key));
 
@@ -316,6 +323,31 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	} else if (res) {
 		goto out;
 	}
+#if defined(CONFIG_CRYPTO_DISKCIPHER)
+	if (S_ISREG(inode->i_mode)) {
+		/* try discipher first */
+		crypt_info->ci_dtfm = crypto_alloc_diskcipher(cipher_str, 0, 0, 1);
+		if (crypt_info->ci_dtfm && !IS_ERR(crypt_info->ci_dtfm)) {
+			res = crypto_diskcipher_setkey(crypt_info->ci_dtfm,
+				raw_key, keysize, 0);
+			if (!res) {
+				if (cmpxchg(&inode->i_crypt_info, NULL, crypt_info) == NULL)
+					crypt_info = NULL;
+				pr_debug("%s: (inode %lu) uses diskcipher tfm\n",
+					__func__, inode->i_ino);
+				goto out;
+			} else {
+				pr_warn("%s: error %d fails to set diskciher key\n",
+					__func__, res);
+				crypto_free_diskcipher(crypt_info->ci_dtfm);
+			}
+		}
+		/* clear diskcipher. use skcipher */
+		pr_warn("%s: (inode %lu) fails to get diskcipher (%s, %d)\n",
+			 __func__, inode->i_ino, cipher_str, res);
+		crypt_info->ci_dtfm = NULL;
+	}
+#endif
 	ctfm = crypto_alloc_skcipher(cipher_str, 0, 0);
 	if (!ctfm || IS_ERR(ctfm)) {
 		res = ctfm ? PTR_ERR(ctfm) : -ENOMEM;

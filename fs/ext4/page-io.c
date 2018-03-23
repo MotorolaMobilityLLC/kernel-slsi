@@ -352,6 +352,8 @@ void ext4_io_submit(struct ext4_io_submit *io)
 		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
 				  REQ_SYNC : 0;
 		io->io_bio->bi_write_hint = io->io_end->inode->i_write_hint;
+		if (bio->bi_opf & REQ_CRYPT)
+			io_op_flags |= (REQ_CRYPT | REQ_AUX_PRIV);
 		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
 		submit_bio(io->io_bio);
 	}
@@ -399,6 +401,11 @@ submit_and_retry:
 		ret = io_submit_init_bio(io, bh);
 		if (ret)
 			return ret;
+#if defined(CONFIG_EXT4_FS_ENCRYPTION) && defined(CONFIG_CRYPTO_DISKCIPHER)
+		if (ext4_encrypted_inode(inode) &&
+			S_ISREG(inode->i_mode) && fscrypt_has_encryption_key(inode))
+			fscrypt_set_bio(inode, io->io_bio);
+#endif
 		io->io_bio->bi_write_hint = inode->i_write_hint;
 	}
 	ret = bio_add_page(io->io_bio, page, bh->b_size, bh_offset(bh));

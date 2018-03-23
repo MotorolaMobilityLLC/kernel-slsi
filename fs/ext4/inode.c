@@ -3823,8 +3823,11 @@ static ssize_t ext4_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t ret;
 	int rw = iov_iter_rw(iter);
 
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
+#if defined(CONFIG_EXT4_FS_ENCRYPTION) && !defined(CONFIG_CRYPTO_DISKCIPHER)
 	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode))
+		return 0;
+#elif defined(CONFIG_CRYPTO_DISKCIPHER)
+	if (ext4_encrypted_inode(inode) && !fscrypt_has_encryption_key(inode))
 		return 0;
 #endif
 
