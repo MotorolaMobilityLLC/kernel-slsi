@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/sync_file.h>
 
 #include <media/videobuf2-core.h>
 #include <media/v4l2-mc.h>
@@ -351,6 +352,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			vb->planes[plane].length = plane_sizes[plane];
 			vb->planes[plane].min_length = plane_sizes[plane];
 		}
+		vb->out_fence_fd = -1;
 		q->bufs[vb->index] = vb;
 
 		/* Allocate video buffer memory for the MMAP type */
@@ -926,10 +928,22 @@ static void vb2_process_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state
 	case VB2_BUF_STATE_QUEUED:
 		return;
 	case VB2_BUF_STATE_REQUEUEING:
+		/* Requeuing with explicit synchronization, spit warning */
+		WARN_ON_ONCE(vb->out_fence);
+
 		if (q->start_streaming_called)
 			__enqueue_in_driver(vb);
 		return;
 	default:
+		if (vb->out_fence) {
+			if (state == VB2_BUF_STATE_ERROR)
+				dma_fence_set_error(vb->out_fence, -EFAULT);
+			dma_fence_signal(vb->out_fence);
+			dma_fence_put(vb->out_fence);
+			vb->out_fence = NULL;
+			vb->out_fence_fd = -1;
+		}
+
 		/* Inform any processes that may be waiting for buffers */
 		wake_up(&q->done_wq);
 		break;
@@ -1474,6 +1488,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	list_add_tail(&vb->queued_entry, &q->queued_list);
 	q->queued_count++;
 	q->waiting_for_buffers = false;
+	q->queueing_started = 1;
 	vb->state = VB2_BUF_STATE_QUEUED;
 	vb->in_fence = in_fence;
 
@@ -1537,6 +1552,11 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	if (pb)
 		call_void_bufop(q, fill_user_buffer, vb, pb);
 
+	if (vb->out_fence) {
+		fd_install(vb->out_fence_fd, vb->sync_file->file);
+		vb->sync_file = NULL;
+	}
+
 	dprintk(2, "qbuf of buffer %d succeeded\n", vb->index);
 	return 0;
 
@@ -1544,6 +1564,16 @@ unlock:
 	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
 err:
+	if (vb->sync_file) {
+		put_unused_fd(vb->out_fence_fd);
+		vb->out_fence_fd = -1;
+
+		dma_fence_put(vb->out_fence);
+
+		fput(vb->sync_file->file);
+		vb->sync_file = NULL;
+	}
+
 	/* Fill buffer information for the userspace */
 	if (pb)
 		call_void_bufop(q, fill_user_buffer, vb, pb);
@@ -1793,6 +1823,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	q->start_streaming_called = 0;
 	q->queued_count = 0;
 	q->error = 0;
+	q->queueing_started = 0;
 
 	list_for_each_entry(vb, &q->queued_list, queued_entry) {
 		spin_lock_irqsave(&vb->fence_cb_lock, flags);
@@ -2136,6 +2167,7 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	spin_lock_init(&q->done_lock);
 	mutex_init(&q->mmap_lock);
 	init_waitqueue_head(&q->done_wq);
+	spin_lock_init(&q->out_fence_lock);
 
 	if (q->buf_struct_size == 0)
 		q->buf_struct_size = sizeof(struct vb2_buffer);
@@ -2680,6 +2712,62 @@ static int vb2_thread(void *data)
 	}
 	return 0;
 }
+
+static inline const char *vb2_fence_get_driver_name(struct dma_fence *fence)
+{
+	return "vb2_fence";
+}
+
+static inline const char *vb2_fence_get_timeline_name(struct dma_fence *fence)
+{
+	return "vb2_fence_timeline";
+}
+
+static inline bool vb2_fence_enable_signaling(struct dma_fence *fence)
+{
+	return true;
+}
+
+static const struct dma_fence_ops vb2_fence_ops = {
+	.get_driver_name = vb2_fence_get_driver_name,
+	.get_timeline_name = vb2_fence_get_timeline_name,
+	.enable_signaling = vb2_fence_enable_signaling,
+	.wait = dma_fence_default_wait,
+};
+
+int vb2_setup_out_fence(struct vb2_queue *q, unsigned int index)
+{
+	struct vb2_buffer *vb;
+
+	vb = q->bufs[index];
+
+	vb->out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+
+	if (call_qop(q, is_unordered, q) || !q->queueing_started)
+		q->out_fence_context = dma_fence_context_alloc(1);
+
+	vb->out_fence = kzalloc(sizeof(*vb->out_fence), GFP_KERNEL);
+	if (!vb->out_fence)
+		return -ENOMEM;
+
+	dma_fence_init(vb->out_fence, &vb2_fence_ops, &q->out_fence_lock,
+		       q->out_fence_context, 1);
+	if (!vb->out_fence) {
+		put_unused_fd(vb->out_fence_fd);
+		return -ENOMEM;
+	}
+
+	vb->sync_file = sync_file_create(vb->out_fence);
+	if (!vb->sync_file) {
+		put_unused_fd(vb->out_fence_fd);
+		dma_fence_put(vb->out_fence);
+		vb->out_fence = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vb2_setup_out_fence);
 
 /*
  * This function should not be used for anything else but the videobuf2-dvb
