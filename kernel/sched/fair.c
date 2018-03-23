@@ -40,6 +40,7 @@
 #include "sched.h"
 #include "tune.h"
 #include "walt.h"
+#include "ems/ems.h"
 
 /*
  * Targeted preemption latency for CPU-bound tasks:
@@ -7337,17 +7338,9 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 		eenv->max_cpu_count = EAS_CPU_BKP + 1;
 
 		/* Find a cpu with sufficient capacity */
-		if (sched_feat(EXYNOS_MS)) {
-			eenv->cpu[EAS_CPU_NXT].cpu_id = exynos_select_cpu(p,
-					&eenv->cpu[EAS_CPU_BKP].cpu_id,
-					boosted, prefer_idle);
-			if (ontime_of(p)->flags == ONTIME)
-				return eenv->cpu[EAS_CPU_NXT].cpu_id;
-		}
-		else
-			eenv->cpu[EAS_CPU_NXT].cpu_id = find_best_target(p,
-					&eenv->cpu[EAS_CPU_BKP].cpu_id,
-					boosted, prefer_idle);
+		eenv->cpu[EAS_CPU_NXT].cpu_id = find_best_target(p,
+				&eenv->cpu[EAS_CPU_BKP].cpu_id,
+				boosted, prefer_idle);
 
 		/* take note if no backup was found */
 		if (eenv->cpu[EAS_CPU_BKP].cpu_id < 0)
@@ -7452,6 +7445,13 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	int want_affine = 0;
 	int want_energy = 0;
 	int sync = wake_flags & WF_SYNC;
+	int target_cpu;
+
+	if (sched_feat(EXYNOS_MS)) {
+		target_cpu = exynos_wakeup_balance(p, sd_flag, sync);
+		if (target_cpu >= 0)
+			return target_cpu;
+	}
 
 	rcu_read_lock();
 
