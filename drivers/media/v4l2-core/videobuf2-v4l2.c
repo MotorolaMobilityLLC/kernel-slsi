@@ -960,6 +960,12 @@ void vb2_ops_wait_finish(struct vb2_queue *vq)
 }
 EXPORT_SYMBOL_GPL(vb2_ops_wait_finish);
 
+bool vb2_ops_set_unordered(struct vb2_queue *q)
+{
+	return true;
+}
+EXPORT_SYMBOL_GPL(vb2_ops_set_unordered);
+
 MODULE_DESCRIPTION("Driver helper framework for Video for Linux 2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");
 MODULE_LICENSE("GPL");

@@ -288,4 +288,14 @@ void vb2_ops_wait_prepare(struct vb2_queue *vq);
  */
 void vb2_ops_wait_finish(struct vb2_queue *vq);
 
+/**
+ * vb2_ops_set_unordered - helper function to mark queue as unordered
+ *
+ * @vq: pointer to &struct vb2_queue
+ *
+ * This helper just return true to notify that the driver can't deal with
+ * ordered queues.
+ */
+bool vb2_ops_set_unordered(struct vb2_queue *q);
+
 #endif /* _MEDIA_VIDEOBUF2_V4L2_H */
