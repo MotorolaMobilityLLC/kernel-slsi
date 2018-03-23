@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/exynos_iovmm.h>
 #include <asm/cacheflush.h>
+#include <linux/idr.h>
 
 #include "ion.h"
 #include "ion_exynos.h"
@@ -166,6 +167,10 @@ void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
 	     &iova, dev_name(attachment->dev));
 }
 
+#define MAX_BUFFER_IDS 2048
+static DEFINE_IDA(ion_buffer_ida);
+static int last_buffer_id;
+
 /*
  * exynos_ion_fixup - do something to ion_device for the Exynos extensions
  */
@@ -189,7 +194,22 @@ void exynos_ion_fixup(struct ion_device *idev)
 int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer)
 {
 	struct sg_table *table = buffer->sg_table;
-	int nents;
+	int nents, id;
+
+	id = ida_simple_get(&ion_buffer_ida, last_buffer_id,
+			    MAX_BUFFER_IDS, GFP_KERNEL);
+	if (id < 0)
+		id = ida_simple_get(&ion_buffer_ida, 0, MAX_BUFFER_IDS,
+				    GFP_KERNEL);
+
+	if (id < 0) {
+		id = MAX_BUFFER_IDS;
+		last_buffer_id = 0;
+	} else {
+		last_buffer_id = id;
+	}
+
+	buffer->id = id;
 
 	/* assign dma_addresses to scatter-gather list */
 	nents = dma_map_sg_attrs(idev->dev.this_device, table->sgl,
@@ -198,6 +218,8 @@ int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer)
 	if (nents < table->orig_nents) {
 		pr_err("%s: failed dma_map_sg(nents %d)=nents %d\n",
 		       __func__, table->orig_nents, nents);
+		if (id < MAX_BUFFER_IDS)
+			ida_simple_remove(&ion_buffer_ida, id);
 		return -ENOMEM;
 	}
 
@@ -219,6 +241,8 @@ void exynos_ion_free_fixup(struct ion_buffer *buffer)
 		kfree(iovm_map);
 	}
 
+	if (buffer->id < MAX_BUFFER_IDS)
+		ida_simple_remove(&ion_buffer_ida, buffer->id);
 }
 
 struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,

@@ -83,6 +83,7 @@ struct ion_buffer {
 	void *priv_virt;
 	struct mutex lock;
 	int kmap_cnt;
+	int id;
 	void *vaddr;
 	struct sg_table *sg_table;
 	struct list_head iovas;

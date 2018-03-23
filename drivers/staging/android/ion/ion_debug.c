@@ -29,8 +29,8 @@ static size_t ion_print_buffer(struct ion_buffer *buffer, bool alive,
 	struct ion_iovm_map *iovm;
 	int count;
 
-	count = scnprintf(logbuf, buflen, "%15s %#5lx %8zu : ",
-			  buffer->heap->name, buffer->flags,
+	count = scnprintf(logbuf, buflen, "[%4d] %15s %#5lx %8zu : ",
+			  buffer->id, buffer->heap->name, buffer->flags,
 			  buffer->size / SZ_1K);
 	buflen = max(0, buflen - count);
 	/*
@@ -65,7 +65,7 @@ static int ion_debug_buffers_show(struct seq_file *s, void *unused)
 	char logbuf[ION_MAX_LOGBUF];
 	size_t total = 0;
 
-	seq_printf(s, "%15s %5s %8s : %s\n",
+	seq_printf(s, "[  id] %15s %5s %8s : %s\n",
 		   "heap", "flags", "size(kb)", "iommu_mapped...");
 
 	mutex_lock(&idev->buffer_lock);
@@ -136,7 +136,7 @@ static int ion_oom_notifier_fn(struct notifier_block *nb,
 	char logbuf[ION_MAX_LOGBUF];
 	size_t total = 0;
 
-	pr_info("%15s %5s %8s : %s\n",
+	pr_info("[  id] %15s %5s %8s : %s\n",
 		"heap", "flags", "size(kb)", "iommu_mapped...");
 
 	mutex_lock(&idev->buffer_lock);
