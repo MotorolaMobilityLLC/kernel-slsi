@@ -15,7 +15,7 @@
 
 #include "../sched.h"
 #include "../tune.h"
-#include "./ems.h"
+#include "ems.h"
 
 /**********************************************************************
  * extern functions                                                   *
@@ -258,7 +258,6 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
 				(rq->cpu_capacity_orig * 100));
 }
 
-unsigned long global_boost(void);
 int exynos_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 					int src_cpu, int dst_cpu)
 {
@@ -278,7 +277,7 @@ int exynos_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 
 		/* This domain is top and dst_cpu is bigger than src_cpu*/
 		if (!lb_sd_parent(sd) && src_cap < dst_cap)
-			if (lbt_overutilized(src_cpu, level) || global_boost())
+			if (lbt_overutilized(src_cpu, level) || global_boosted())
 				return 1;
 	}
 
@@ -316,7 +315,7 @@ static int gb_qos_req_value(struct gb_qos_request *req)
 	return req->node.prio;
 }
 
-void gb_qos_update_request(struct gb_qos_request *req, u32 new_value)
+void __weak gb_qos_update_request(struct gb_qos_request *req, u32 new_value)
 {
 	unsigned long flags;
 
@@ -461,7 +460,7 @@ static int check_boost_trigger(struct task_struct *p, struct boost_trigger *bt)
 	}
 #endif
 
-	gb = global_boost();
+	gb = global_boosted();
 	if (gb) {
 		bt->trigger = BT_GLOBAL_BOOST;
 		bt->boost_val = gb;

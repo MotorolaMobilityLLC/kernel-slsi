@@ -13,6 +13,7 @@
 
 #include <linux/plist.h>
 #include <linux/sched/idle.h>
+#include <linux/sched/topology.h>
 
 #ifdef CONFIG_SCHED_TUNE
 enum stune_group {
