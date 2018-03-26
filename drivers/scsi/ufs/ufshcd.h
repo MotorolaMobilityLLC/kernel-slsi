@@ -337,7 +337,7 @@ struct ufs_hba_variant_ops {
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
 	void	(*dbg_register_dump)(struct ufs_hba *hba);
-	u8      (*get_unipro_result)(struct ufs_hba *hba, int num);
+	u8      (*get_unipro_result)(struct ufs_hba *hba, u32 num);
 	int	(*phy_initialization)(struct ufs_hba *);
 	int	(*crypto_engine_cfg)(struct ufs_hba *, struct ufshcd_lrb *,
 					struct scatterlist *, int, int);

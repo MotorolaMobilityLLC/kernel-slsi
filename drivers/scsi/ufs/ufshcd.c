@@ -2027,23 +2027,22 @@ ufshcd_wait_for_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
 {
 	int ret;
 	unsigned long flags;
-	int index;
-
-	if (uic_cmd->command == UIC_CMD_DME_LINK_STARTUP)
-		index = 0;
-	else if ((uic_cmd->command == UIC_CMD_DME_HIBER_ENTER))
-		index = 1;
-	else if ((uic_cmd->command == UIC_CMD_DME_HIBER_EXIT))
-		index = 2;
-	else
-		index = -1;
 
 	if (wait_for_completion_timeout(&uic_cmd->done,
 				msecs_to_jiffies(UIC_CMD_TIMEOUT))) {
-		if ((hba->quirks & UFSHCD_QUIRK_GET_GENERRCODE_DIRECT) && (index != -1))
-			ret = ufshcd_vops_get_unipro(hba, index);
-		else
-			ret = uic_cmd->argument2 & MASK_UIC_COMMAND_RESULT;
+		switch (uic_cmd->command) {
+		case UIC_CMD_DME_LINK_STARTUP:
+		case UIC_CMD_DME_HIBER_ENTER:
+		case UIC_CMD_DME_HIBER_EXIT:
+			if (hba->quirks & UFSHCD_QUIRK_GET_GENERRCODE_DIRECT)
+				ret = ufshcd_vops_get_unipro(hba, uic_cmd->command - UIC_CMD_DME_LINK_STARTUP);
+			else
+				ret = uic_cmd->argument2 & MASK_UIC_COMMAND_RESULT;
+			break;
+		default:
+				ret = uic_cmd->argument2 & MASK_UIC_COMMAND_RESULT;
+			break;
+		}
 	} else
 		ret = -ETIMEDOUT;
 

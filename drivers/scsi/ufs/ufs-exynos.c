@@ -965,7 +965,7 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	return 0;
 }
 
-static u8 exynos_ufs_get_unipro_direct(struct ufs_hba *hba, int num)
+static u8 exynos_ufs_get_unipro_direct(struct ufs_hba *hba, u32 num)
 {
 	u32 offset[] = {
 		UNIP_DME_LINKSTARTUP_CNF_RESULT,
