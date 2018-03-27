@@ -613,12 +613,22 @@ static int exynos_cpufreq_pm_qos_callback(struct notifier_block *nb,
 {
 	int pm_qos_class = *((int *)v);
 	struct exynos_cpufreq_domain *domain;
+	struct cpufreq_policy *policy;
+	struct cpumask mask;
 	int ret;
 
 	pr_debug("update PM QoS class %d to %ld kHz\n", pm_qos_class, val);
 
 	domain = find_domain_pm_qos_class(pm_qos_class);
 	if (!domain)
+		return NOTIFY_BAD;
+
+	cpumask_and(&mask, &domain->cpus, cpu_online_mask);
+	if (cpumask_empty(&mask))
+		return NOTIFY_BAD;
+
+	policy = cpufreq_cpu_get(cpumask_first(&mask));
+	if (!policy)
 		return NOTIFY_BAD;
 
 	update_dm_constraint(domain, NULL);
