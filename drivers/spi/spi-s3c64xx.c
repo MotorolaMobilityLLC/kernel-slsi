@@ -1549,7 +1549,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 
 	if (pdev->dev.of_node) {
-		ret = of_alias_get_id(pdev->dev.of_node, "gate_spi_clk");
+		ret = of_alias_get_id(pdev->dev.of_node, "spi");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
 				ret);
