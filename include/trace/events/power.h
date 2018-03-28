@@ -592,6 +592,214 @@ DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_remove_request,
 
 	TP_ARGS(name, type, new_value)
 );
+
+TRACE_EVENT(emc_cpu_load,
+
+	TP_PROTO(int cpu, int load, int max_load),
+
+	TP_ARGS(cpu, load, max_load),
+
+	TP_STRUCT__entry(
+		__field(int, cpu)
+		__field(int, load)
+		__field(int, max_load)
+	),
+
+	TP_fast_assign(
+		__entry->cpu = cpu;
+		__entry->load = load;
+		__entry->max_load = max_load;
+	),
+
+	TP_printk("cpu=%d load=%d, max_load=%d",
+		__entry->cpu, __entry->load, __entry->max_load)
+);
+
+TRACE_EVENT(emc_domain_load,
+
+	TP_PROTO(const char *domain, int load, int max_load),
+
+	TP_ARGS(domain, load, max_load),
+
+	TP_STRUCT__entry(
+		__string(domain, domain)
+		__field(int, load)
+		__field(int, max_load)
+	),
+
+	TP_fast_assign(
+		__assign_str(domain, domain);
+		__entry->load = load;
+		__entry->max_load = max_load;
+	),
+
+	TP_printk("domain:%s load_sum=%d, max_load_sum=%d",
+		__get_str(domain), __entry->load, __entry->max_load)
+);
+
+TRACE_EVENT(emc_domain_status,
+
+	TP_PROTO(const char *domain, unsigned int sys_heavy, unsigned int sys_busy,
+		unsigned int dom_imbal_heavy, unsigned int dom_heavy, unsigned int dom_busy),
+
+	TP_ARGS(domain, sys_heavy, sys_busy, dom_imbal_heavy, dom_heavy, dom_busy),
+
+	TP_STRUCT__entry(
+		__string(domain, domain)
+		__field(unsigned int, sys_heavy)
+		__field(unsigned int, sys_busy)
+		__field(unsigned int, dom_imbal_heavy)
+		__field(unsigned int, dom_heavy)
+		__field(unsigned int, dom_busy)
+	),
+
+	TP_fast_assign(
+		__assign_str(domain, domain);
+		__entry->sys_heavy = sys_heavy;
+		__entry->sys_busy = sys_busy;
+		__entry->dom_imbal_heavy = dom_imbal_heavy;
+		__entry->dom_heavy = dom_heavy;
+		__entry->dom_busy = dom_busy;
+	),
+
+	TP_printk("domain:%s s_heavy =%x, s_busy=%x, d_imbal_heavy=%x d_heavy=%x, d_busy=%x",
+			__get_str(domain), __entry->sys_heavy, __entry->sys_busy,
+			__entry->dom_imbal_heavy, __entry->dom_heavy, __entry->dom_busy)
+);
+
+TRACE_EVENT(emc_update_system_status,
+
+	TP_PROTO(unsigned int prev_heavy, unsigned int prev_busy,
+			unsigned int heavy, unsigned int busy),
+
+	TP_ARGS(prev_heavy, prev_busy, heavy, busy),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, prev_heavy)
+		__field(unsigned int, prev_busy)
+		__field(unsigned int, heavy)
+		__field(unsigned int, busy)
+	),
+
+	TP_fast_assign(
+		__entry->prev_heavy = prev_heavy;
+		__entry->prev_busy = prev_busy;
+		__entry->heavy = heavy;
+		__entry->busy = busy;
+	),
+
+	TP_printk("prev_heavy=%x, prev_busy=%x, heavy=%x busy=%x",
+			__entry->prev_heavy, __entry->prev_busy,
+			__entry->heavy, __entry->busy)
+);
+
+TRACE_EVENT(emc_select_mode,
+
+	TP_PROTO(const char *mode, int need_boost_cnt, int need_online_cnt),
+
+	TP_ARGS(mode, need_boost_cnt, need_online_cnt),
+
+	TP_STRUCT__entry(
+		__string(mode, mode)
+		__field(int, need_boost_cnt)
+		__field(int, need_online_cnt)
+	),
+
+	TP_fast_assign(
+		__assign_str(mode, mode);
+		__entry->need_boost_cnt = need_boost_cnt;
+		__entry->need_online_cnt = need_online_cnt;
+	),
+
+	TP_printk("mode:%s need_boost_cnt=%d, need_online_cnt=%d",
+		__get_str(mode), __entry->need_boost_cnt, __entry->need_online_cnt)
+);
+
+TRACE_EVENT(emc_domain_busy,
+
+	TP_PROTO(const char *domain, unsigned long load, int busy),
+
+	TP_ARGS(domain, load, busy),
+
+	TP_STRUCT__entry(
+		__string(domain, domain)
+		__field(unsigned long, load)
+		__field(int, busy)
+	),
+
+	TP_fast_assign(
+		__assign_str(domain, domain);
+		__entry->load = load;
+		__entry->busy = busy;
+	),
+
+	TP_printk("domain=%s, load=%ld, busy=%d",
+			__get_str(domain), __entry->load, __entry->busy)
+);
+
+TRACE_EVENT(emc_start_timer,
+
+	TP_PROTO(const char *mode, unsigned int change_latency),
+
+	TP_ARGS(mode, change_latency),
+
+	TP_STRUCT__entry(
+		__string(mode, mode)
+		__field(unsigned int, change_latency)
+	),
+
+	TP_fast_assign(
+		__assign_str(mode, mode);
+		__entry->change_latency = change_latency;
+	),
+
+	TP_printk("mode=%s, change_latency=%d",
+			__get_str(mode), __entry->change_latency)
+);
+
+TRACE_EVENT(emc_do_mode_change,
+
+	TP_PROTO(const char *prev_mode, const char *new_mode, unsigned int event),
+
+	TP_ARGS(prev_mode, new_mode, event),
+
+	TP_STRUCT__entry(
+		__string(prev_mode, prev_mode)
+		__string(new_mode, new_mode)
+		__field(unsigned int, event)
+	),
+
+	TP_fast_assign(
+		__assign_str(prev_mode, prev_mode);
+		__assign_str(new_mode, new_mode);
+		__entry->event = event;
+	),
+
+	TP_printk("mode: %s->%s (event 0x%x)", __get_str(prev_mode),
+					__get_str(new_mode), __entry->event)
+);
+
+TRACE_EVENT(emc_update_cpu_pwr,
+
+	TP_PROTO(unsigned int pre_cpu_mask, unsigned int cpu, unsigned int on),
+
+	TP_ARGS(pre_cpu_mask, cpu, on),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, pre_cpu_mask)
+		__field(unsigned int, cpu)
+		__field(unsigned int, on)
+	),
+
+	TP_fast_assign(
+		__entry->pre_cpu_mask = pre_cpu_mask;
+		__entry->cpu = cpu;
+		__entry->on = on;
+	),
+
+	TP_printk("pre_cpu_mask=%x, cpu=%u, on=%s", __entry->pre_cpu_mask,
+					__entry->cpu, __entry->on? "ON" : "OFF")
+);
 #endif /* _TRACE_POWER_H */
 
 /* This part must be outside protection */
