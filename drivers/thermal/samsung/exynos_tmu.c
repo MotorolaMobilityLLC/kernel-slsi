@@ -59,6 +59,7 @@
 #include "exynos_acpm_tmu.h"
 #include "soc/samsung/exynos-pmu.h"
 #endif
+#include <soc/samsung/exynos-cpuhp.h>
 
 /* Exynos generic registers */
 #define EXYNOS_TMU_REG_TRIMINFO7_0(p)	(((p) - 0) * 4)
@@ -1248,11 +1249,11 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	return 0;
 }
 
-struct pm_qos_request thermal_cpu_hotplug_request;
 static int exynos_throttle_cpu_hotplug(void *p, int temp)
 {
 	struct exynos_tmu_data *data = p;
 	int ret = 0;
+	struct cpumask mask;
 
 	temp = temp / MCELSIUS;
 
@@ -1262,8 +1263,7 @@ static int exynos_throttle_cpu_hotplug(void *p, int temp)
 			 * If current temperature is lower than low threshold,
 			 * call cluster1_cores_hotplug(false) for hotplugged out cpus.
 			 */
-			pm_qos_update_request(&thermal_cpu_hotplug_request,
-						NR_CPUS);
+			exynos_cpuhp_request("DTM", *cpu_possible_mask, 0);
 			is_cpu_hotplugged_out = false;
 		}
 	} else {
@@ -1273,9 +1273,8 @@ static int exynos_throttle_cpu_hotplug(void *p, int temp)
 			 * call cluster1_cores_hotplug(true) to hold temperature down.
 			 */
 			is_cpu_hotplugged_out = true;
-
-			pm_qos_update_request(&thermal_cpu_hotplug_request,
-						NR_HOTPLUG_CPUS);
+			cpumask_and(&mask, cpu_possible_mask, cpu_coregroup_mask(0));
+			exynos_cpuhp_request("DTM", mask, 0);
 		}
 	}
 
@@ -1650,12 +1649,13 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	 * requesting irq and calling exynos_tmu_control().
 	 */
 	if(data->hotplug_enable) {
-		pm_qos_add_request(&thermal_cpu_hotplug_request,
-					PM_QOS_CPU_ONLINE_MAX,
-					PM_QOS_CPU_ONLINE_MAX_DEFAULT_VALUE);
-		pm_qos_add_request(&thermal_cpu_limit_request,
-					PM_QOS_CLUSTER1_FREQ_MAX,
-					PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
+		exynos_cpuhp_register("DTM", *cpu_online_mask, 0);
+
+#if defined(CONFIG_SOC_EXYNOS9810)
+	pm_qos_add_request(&thermal_cpu_limit_request,
+				PM_QOS_CLUSTER1_FREQ_MAX,
+				PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
+#endif
 	}
 
 	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
