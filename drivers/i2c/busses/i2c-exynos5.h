@@ -41,6 +41,7 @@ struct exynos5_i2c {
 	unsigned int		fs_clock;
 	unsigned int		hs_clock;
 	unsigned int		fs_plus_clock;
+	unsigned int		stand_clock;
 
 	/* to set the source clock */
 	unsigned int		default_clk;
