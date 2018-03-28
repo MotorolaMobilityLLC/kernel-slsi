@@ -62,7 +62,7 @@ static int __init parse_core(struct device_node *core, int cluster_id, int clust
 					int coregroup_id, int coregroup_elvl, int core_id)
 {
 	int cpu;
-	int core_elvl = -1;
+	int core_elvl = 0;
 
 	cpu = get_cpu_for_node(core);
 	if (cpu < 0) {
@@ -74,15 +74,11 @@ static int __init parse_core(struct device_node *core, int cluster_id, int clust
 	cpu_topology[cpu].coregroup_id = coregroup_id;
 	cpu_topology[cpu].core_id = core_id;
 
-	if (!of_property_read_bool(core, "ignore-energy-costs")) {
-		core_elvl = 0;
+	if (coregroup_elvl != -1)
+		coregroup_elvl++;
 
-		if (coregroup_elvl != -1)
-			coregroup_elvl++;
-
-		if (cluster_elvl != -1)
-			cluster_elvl++;
-	}
+	if (cluster_elvl != -1)
+		cluster_elvl++;
 
 	cpu_energy_level[cpu].core = core_elvl;
 	cpu_energy_level[cpu].coregroup = coregroup_elvl;
@@ -98,15 +94,11 @@ static int __init parse_coregroup(struct device_node *coregroup, int cluster_id,
 	bool has_cores = false;
 	struct device_node *c;
 	int core_id;
-	int coregroup_elvl = -1;
+	int coregroup_elvl = 0;
 	int ret;
 
-	if (!of_property_read_bool(coregroup, "ignore-energy-costs")) {
-		coregroup_elvl = 0;
-
-		if (cluster_elvl != -1)
-			cluster_elvl++;
-	}
+	if (cluster_elvl != -1)
+		cluster_elvl++;
 
 	core_id = 0;
 	do {
@@ -135,11 +127,8 @@ static int __init parse_cluster(struct device_node *cluster, int cluster_id)
 	bool has_cores = false;
 	struct device_node *c;
 	int coregroup_id, core_id;
-	int cluster_elvl = -1;
+	int cluster_elvl = 0;
 	int ret;
-
-	if (!of_property_read_bool(cluster, "ignore-energy-costs"))
-		cluster_elvl = 0;
 
 	/* First check for child coregroup */
 	coregroup_id = 0;
