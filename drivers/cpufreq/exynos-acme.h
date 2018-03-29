@@ -63,6 +63,8 @@ struct exynos_cpufreq_domain {
 	/* list head of DVFS Manager constraints */
 	struct list_head		dm_list;
 
+	bool				need_awake;
+
 	struct thermal_cooling_device *cdev;
 };
 
