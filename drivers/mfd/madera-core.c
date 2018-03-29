@@ -453,6 +453,9 @@ static int madera_get_reset_gpio(struct madera *madera)
 			ret = 0;
 	}
 
+	/* Ensure period of reset asserted before we apply the supplies */
+	msleep(20);
+
 	if (ret == -EPROBE_DEFER)
 		return ret;
 
