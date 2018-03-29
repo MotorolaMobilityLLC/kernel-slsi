@@ -515,8 +515,6 @@ int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx)
 			debug->frame_cnt = 0;
 		/* print stream dump */
 		print_size = (strm_size * 2) + 64;
-		if (print_size > 512 && otf_dump == 1)
-			print_size = 512;
 
 		if (buf->vaddr)
 			print_hex_dump(KERN_ERR, "OTF dump: ",
