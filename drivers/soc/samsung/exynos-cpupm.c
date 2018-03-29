@@ -440,7 +440,7 @@ static void awake_cpus(const struct cpumask *cpus)
 	struct cpumask mask;
 
 	cpumask_and(&mask, cpus, cpu_online_mask);
-	smp_call_function_single(cpumask_any(&mask), do_nothing, NULL, 1);
+	smp_call_function_many(&mask, do_nothing, NULL, 1);
 }
 
 /*
