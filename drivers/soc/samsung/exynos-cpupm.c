@@ -437,10 +437,10 @@ static void do_nothing(void *unused)
 
 static void awake_cpus(const struct cpumask *cpus)
 {
-	struct cpumask mask;
+	int cpu;
 
-	cpumask_and(&mask, cpus, cpu_online_mask);
-	smp_call_function_many(&mask, do_nothing, NULL, 1);
+	for_each_cpu_and(cpu, cpus, cpu_online_mask)
+		smp_call_function_single(cpu, do_nothing, NULL, 1);
 }
 
 /*
