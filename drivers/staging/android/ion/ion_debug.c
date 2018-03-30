@@ -184,5 +184,6 @@ void ion_debug_initialize(struct ion_device *idev)
 	if (!buffer_file)
 		pr_err("%s: failed to create debugfs/ion/buffers\n", __func__);
 
+	ion_oom_notifier.idev = idev;
 	register_oom_notifier(&ion_oom_notifier.nb);
 }
