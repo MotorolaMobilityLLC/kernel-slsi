@@ -20,8 +20,7 @@
 #include <linux/miscdevice.h>
 #include <linux/types.h>
 #include <linux/dma-buf.h>
-#include <linux/ion.h>
-#include <linux/exynos_ion.h>
+#include <linux/ion_exynos.h>
 #include <linux/wait.h>
 #include <media/exynos_tsmux.h>
 
@@ -37,7 +36,6 @@ enum otf_buf_state {
 };
 
 struct tsmux_buffer_info {
-	struct ion_handle *handle;
 	struct dma_buf *dmabuf;
 	struct dma_buf_attachment *dmabuf_att;
 	dma_addr_t dma_addr;
@@ -59,7 +57,6 @@ struct tsmux_device {
 	int ctx_cur;
 
 	struct tsmux_context *ctx[TSMUX_MAX_CONTEXTS_NUM];
-	struct ion_client *tsmux_ion_client;
 };
 
 struct tsmux_context {

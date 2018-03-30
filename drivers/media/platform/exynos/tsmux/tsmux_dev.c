@@ -473,7 +473,6 @@ int tsmux_ioctl_m2m_unmap_buf(struct tsmux_context *ctx,
 {
 	int ret = 0;
 	struct tsmux_device *tsmux_dev;
-	struct ion_client *client;
 
 	print_tsmux(TSMUX_M2M, "%s++\n", __func__);
 
@@ -481,7 +480,6 @@ int tsmux_ioctl_m2m_unmap_buf(struct tsmux_context *ctx,
 		return -ENOMEM;
 
 	tsmux_dev = ctx->tsmux_dev;
-	client = tsmux_dev->tsmux_ion_client;
 
 	print_tsmux(TSMUX_M2M, "unmap m2m in_buf\n");
 
@@ -1416,9 +1414,7 @@ static int tsmux_probe(struct platform_device *pdev)
 
 	spin_lock_init(&tsmux_dev->device_spinlock);
 
-	tsmux_dev->tsmux_ion_client = exynos_ion_client_create("tsmux");
-	if (tsmux_dev->tsmux_ion_client == NULL)
-		print_tsmux(TSMUX_ERR, "exynos_ion_client_create failed\n");
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
 
 	tsmux_dev->ctx_cnt = 0;
 
@@ -1459,9 +1455,6 @@ static int tsmux_remove(struct platform_device *pdev)
 		return -EFAULT;
 
 	iovmm_deactivate(tsmux_dev->dev);
-
-	if (tsmux_dev->tsmux_ion_client)
-		ion_client_destroy(tsmux_dev->tsmux_ion_client);
 
 	free_irq(tsmux_dev->irq, tsmux_dev);
 	iounmap(tsmux_dev->regs_base);
