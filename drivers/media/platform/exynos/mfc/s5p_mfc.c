@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
 #include <linux/proc_fs.h>
 #include <video/videonode.h>
 #include <linux/of.h>
@@ -879,11 +880,13 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 	dev = (struct s5p_mfc_dev *)param;
 
 	/* OTF: If AxID is 1 in SYSMMU1 fault info, it is TS-MUX fault */
-	if (MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS) &&
+	if (dev->has_hwfc && dev->has_2sysmmu) {
+		if (MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS) &&
 				((MFC_MMU1_READL(MFC_MMU_FAULT_TRANS_INFO) &
-				 MFC_MMU_FAULT_TRANS_INFO_AXID_MASK) == 1)) {
+				  MFC_MMU_FAULT_TRANS_INFO_AXID_MASK) == 1)) {
 			mfc_err_dev("There is TS-MUX page fault. skip SFR dump.\n");
 			return 0;
+		}
 	}
 
 	if (MFC_MMU0_READL(MFC_MMU_INTERRUPT_STATUS)) {
@@ -893,15 +896,17 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 			dev->logging_data->cause |= (1 << MFC_CAUSE_0READ_PAGE_FAULT);
 		dev->logging_data->fault_status = MFC_MMU0_READL(MFC_MMU_INTERRUPT_STATUS);
 		dev->logging_data->fault_trans_info = MFC_MMU0_READL(MFC_MMU_FAULT_TRANS_INFO);
-	} else if (MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS)) {
-		if (MFC_MMU1_READL(MFC_MMU_FAULT_TRANS_INFO) & MFC_MMU_FAULT_TRANS_INFO_RW_MASK)
-			dev->logging_data->cause |= (1 << MFC_CAUSE_1WRITE_PAGE_FAULT);
-		else
-			dev->logging_data->cause |= (1 << MFC_CAUSE_1READ_PAGE_FAULT);
-		dev->logging_data->fault_status = MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS);
-		dev->logging_data->fault_trans_info = MFC_MMU1_READL(MFC_MMU_FAULT_TRANS_INFO);
-	} else {
-		mfc_err_dev("there isn't any fault interrupt of MFC\n");
+	}
+
+	if (dev->has_2sysmmu) {
+		if (MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS)) {
+			if (MFC_MMU1_READL(MFC_MMU_FAULT_TRANS_INFO) & MFC_MMU_FAULT_TRANS_INFO_RW_MASK)
+				dev->logging_data->cause |= (1 << MFC_CAUSE_1WRITE_PAGE_FAULT);
+			else
+				dev->logging_data->cause |= (1 << MFC_CAUSE_1READ_PAGE_FAULT);
+			dev->logging_data->fault_status = MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS);
+			dev->logging_data->fault_trans_info = MFC_MMU1_READL(MFC_MMU_FAULT_TRANS_INFO);
+		}
 	}
 	dev->logging_data->fault_addr = (unsigned int)addr;
 
@@ -984,6 +989,9 @@ static struct video_device *mfc_video_device_register(struct s5p_mfc_dev *dev,
 
 static int mfc_register_resource(struct platform_device *pdev, struct s5p_mfc_dev *dev)
 {
+	struct device_node *np = dev->device->of_node;
+	struct device_node *iommu;
+	struct device_node *hwfc;
 	struct resource *res;
 	int ret;
 
@@ -994,32 +1002,46 @@ static int mfc_register_resource(struct platform_device *pdev, struct s5p_mfc_de
 		dev_err(&pdev->dev, "failed to get memory region resource\n");
 		return -ENOENT;
 	}
-	dev->mfc_mem = request_mem_region(res->start, resource_size(res),
-					pdev->name);
+	dev->mfc_mem = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (dev->mfc_mem == NULL) {
 		dev_err(&pdev->dev, "failed to get memory region\n");
 		return -ENOENT;
 	}
-	dev->regs_base = ioremap(dev->mfc_mem->start,
-				resource_size(dev->mfc_mem));
+	dev->regs_base = ioremap(dev->mfc_mem->start, resource_size(dev->mfc_mem));
 	if (dev->regs_base == NULL) {
 		dev_err(&pdev->dev, "failed to ioremap address region\n");
 		goto err_ioremap;
 	}
-	dev->sysmmu0_base = ioremap(MFC_MMU0_BASE_ADDR, MFC_MMU_SIZE);
+
+	iommu = of_get_child_by_name(np, "iommu");
+	if (!iommu) {
+		dev_err(&pdev->dev, "failed to get iommu node\n");
+		goto err_ioremap_mmu0;
+	}
+
+	dev->sysmmu0_base = of_iomap(iommu, 0);
 	if (dev->sysmmu0_base == NULL) {
 		dev_err(&pdev->dev, "failed to ioremap sysmmu0 address region\n");
 		goto err_ioremap_mmu0;
 	}
-	dev->sysmmu1_base = ioremap(MFC_MMU1_BASE_ADDR, MFC_MMU_SIZE);
+
+	dev->sysmmu1_base = of_iomap(iommu, 1);
 	if (dev->sysmmu1_base == NULL) {
-		dev_err(&pdev->dev, "failed to ioremap sysmmu1 address region\n");
-		goto err_ioremap_mmu1;
+		pr_debug("there is only one MFC sysmmu\n");
+	} else {
+		dev->has_2sysmmu = 1;
 	}
-	dev->hwfc_base = ioremap(HWFC_BASE_ADDR, HWFC_SIZE);
-	if (dev->hwfc_base == NULL) {
-		dev_err(&pdev->dev, "failed to ioremap hwfc adddress region\n");
-		goto err_ioremap_hwfc;
+
+	hwfc = of_get_child_by_name(np, "hwfc");
+	if (hwfc) {
+		dev->hwfc_base = of_iomap(hwfc, 0);
+		if (dev->hwfc_base == NULL) {
+			dev->has_hwfc = 0;
+			dev_err(&pdev->dev, "failed to iomap hwfc address region\n");
+			goto err_res_hwfc;
+		} else {
+			dev->has_hwfc = 1;
+		}
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -1032,17 +1054,17 @@ static int mfc_register_resource(struct platform_device *pdev, struct s5p_mfc_de
 				IRQF_ONESHOT, pdev->name, dev);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to install irq (%d)\n", ret);
-		goto err_req_irq;
+		goto err_res_irq;
 	}
 
 	return 0;
 
-err_req_irq:
 err_res_irq:
-	iounmap(dev->hwfc_base);
-err_ioremap_hwfc:
-	iounmap(dev->sysmmu1_base);
-err_ioremap_mmu1:
+	if (dev->has_hwfc)
+		iounmap(dev->hwfc_base);
+err_res_hwfc:
+	if (dev->has_2sysmmu)
+		iounmap(dev->sysmmu1_base);
 	iounmap(dev->sysmmu0_base);
 err_ioremap_mmu0:
 	iounmap(dev->regs_base);
@@ -1256,8 +1278,10 @@ alloc_vdev_dec:
 err_v4l2_dev:
 	mutex_destroy(&dev->mfc_mutex);
 	free_irq(dev->irq, dev);
-	iounmap(dev->hwfc_base);
-	iounmap(dev->sysmmu1_base);
+	if (dev->has_hwfc)
+		iounmap(dev->hwfc_base);
+	if (dev->has_2sysmmu)
+		iounmap(dev->sysmmu1_base);
 	iounmap(dev->sysmmu0_base);
 	iounmap(dev->regs_base);
 	release_mem_region(dev->mfc_mem->start, resource_size(dev->mfc_mem));
@@ -1295,10 +1319,12 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	mfc_debug(2, "Will now deinit HW\n");
 	s5p_mfc_deinit_hw(dev);
 	free_irq(dev->irq, dev);
-	iounmap(dev->sysmmu1_base);
+	if (dev->has_hwfc)
+		iounmap(dev->hwfc_base);
+	if (dev->has_2sysmmu)
+		iounmap(dev->sysmmu1_base);
 	iounmap(dev->sysmmu0_base);
 	iounmap(dev->regs_base);
-	iounmap(dev->hwfc_base);
 	release_mem_region(dev->mfc_mem->start, resource_size(dev->mfc_mem));
 	s5p_mfc_pm_final(dev);
 	kfree(dev);

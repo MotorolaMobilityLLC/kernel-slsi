@@ -380,6 +380,7 @@ int s5p_mfc_otf_run_enc_init(struct s5p_mfc_ctx *ctx)
 
 int s5p_mfc_otf_run_enc_frame(struct s5p_mfc_ctx *ctx)
 {
+	struct s5p_mfc_dev *dev = ctx->dev;
 	struct _otf_handle *handle = ctx->otf_handle;
 	struct s5p_mfc_raw_info *raw;
 
@@ -395,6 +396,11 @@ int s5p_mfc_otf_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	if (!handle->otf_work_bit) {
 		mfc_err_ctx("OTF: Can't run OTF encoder, otf_work_bit: %d\n",
 				handle->otf_work_bit);
+		return -EINVAL;
+	}
+
+	if (!dev->has_hwfc) {
+		mfc_err_ctx("OTF: HWFC register didn't mapped\n");
 		return -EINVAL;
 	}
 

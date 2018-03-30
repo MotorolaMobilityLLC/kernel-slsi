@@ -710,10 +710,8 @@ struct s5p_mfc_dev {
 	wait_queue_head_t cmd_wq;
 	struct s5p_mfc_listable_wq hwlock_wq;
 
-	/*
-	struct clk *clock1;
-	struct clk *clock2;
-	*/
+	bool has_hwfc;
+	bool has_2sysmmu;
 
 	struct s5p_mfc_special_buf common_ctx_buf;
 	struct s5p_mfc_special_buf drm_common_ctx_buf;
