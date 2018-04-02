@@ -264,14 +264,19 @@ void s5p_mfc_dump_buffer_info(struct s5p_mfc_dev *dev, unsigned long addr)
 	}
 }
 
-static void mfc_dump_info_and_stop_hw(struct s5p_mfc_dev *dev)
+static void mfc_dump_info(struct s5p_mfc_dev *dev)
 {
-	MFC_TRACE_DEV("** mfc will stop!!!\n");
 	mfc_display_state(dev);
 	mfc_print_trace(dev);
 	mfc_save_logging_sfr(dev);
 	mfc_dump_regs(dev);
 	exynos_sysmmu_show_status(dev->device);
+}
+
+static void mfc_dump_info_and_stop_hw(struct s5p_mfc_dev *dev)
+{
+	MFC_TRACE_DEV("** mfc will stop!!!\n");
+	mfc_dump_info(dev);
 	BUG();
 }
 
@@ -281,11 +286,7 @@ static void mfc_dump_info_and_stop_hw_debug(struct s5p_mfc_dev *dev)
 		return;
 
 	MFC_TRACE_DEV("** mfc will stop!!!\n");
-	mfc_display_state(dev);
-	mfc_print_trace(dev);
-	mfc_save_logging_sfr(dev);
-	mfc_dump_regs(dev);
-	exynos_sysmmu_show_status(dev->device);
+	mfc_dump_info(dev);
 	BUG();
 }
 
@@ -333,6 +334,7 @@ void s5p_mfc_watchdog_worker(struct work_struct *work)
 
 struct s5p_mfc_dump_ops mfc_dump_ops = {
 	.dump_regs			= mfc_dump_regs,
+	.dump_info			= mfc_dump_info,
 	.dump_and_stop_always		= mfc_dump_info_and_stop_hw,
 	.dump_and_stop_debug_mode	= mfc_dump_info_and_stop_hw_debug,
 };

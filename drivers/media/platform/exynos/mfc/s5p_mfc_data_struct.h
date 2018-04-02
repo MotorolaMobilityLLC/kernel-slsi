@@ -667,6 +667,7 @@ struct s5p_mfc_perf {
 extern struct s5p_mfc_dump_ops mfc_dump_ops;
 struct s5p_mfc_dump_ops {
 	void (*dump_regs)(struct s5p_mfc_dev *dev);
+	void (*dump_info)(struct s5p_mfc_dev *dev);
 	void (*dump_and_stop_always)(struct s5p_mfc_dev *dev);
 	void (*dump_and_stop_debug_mode)(struct s5p_mfc_dev *dev);
 };

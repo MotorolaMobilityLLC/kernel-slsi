@@ -906,7 +906,7 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 	dev->logging_data->fault_addr = (unsigned int)addr;
 
 	s5p_mfc_dump_buffer_info(dev, addr);
-	call_dop(dev, dump_and_stop_always, dev);
+	call_dop(dev, dump_info, dev);
 
 	return 0;
 }
