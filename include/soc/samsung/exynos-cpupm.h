@@ -19,7 +19,6 @@ enum {
 
 extern void disable_power_mode(int cpu, int type);
 extern void enable_power_mode(int cpu, int type);
-extern int check_powerdown_state(int cpu, int type);
 
 #ifdef CONFIG_CPU_IDLE
 void exynos_update_ip_idle_status(int index, int idle);

@@ -422,25 +422,6 @@ struct exynos_cpupm {
 
 static DEFINE_PER_CPU(struct exynos_cpupm, cpupm);
 
-int check_powerdown_state(int cpu, int type)
-{
-	struct exynos_cpupm *pm;
-	struct power_mode *mode;
-	int pos;
-
-	pm = &per_cpu(cpupm, cpu);
-
-	for_each_mode(mode, pm->modes, pos) {
-		if (IS_NULL(mode))
-			break;
-
-		if (mode->type == type)
-			return check_state_powerdown(mode);
-	}
-
-	return 0;
-}
-
 /*
  * State of each cpu is managed by a structure declared by percpu, so there
  * is no need for protection for synchronization. However, when entering
@@ -474,8 +455,6 @@ void disable_power_mode(int cpu, int type)
 	struct power_mode *mode;
 	int pos;
 
-	spin_lock(&cpupm_lock);
-
 	pm = &per_cpu(cpupm, cpu);
 
 	for_each_mode(mode, pm->modes, pos) {
@@ -494,14 +473,10 @@ void disable_power_mode(int cpu, int type)
 			 * The first mode disable request wakes the cpus to
 			 * exit power mode
 			 */
-			if (atomic_inc_return(&mode->disable) == 1) {
-				spin_unlock(&cpupm_lock);
+			if (atomic_inc_return(&mode->disable) == 1)
 				awake_cpus(&mode->siblings);
-				return;
-			}
 		}
 	}
-	spin_unlock(&cpupm_lock);
 }
 
 void enable_power_mode(int cpu, int type)
@@ -510,7 +485,6 @@ void enable_power_mode(int cpu, int type)
 	struct power_mode *mode;
 	int pos;
 
-	spin_lock(&cpupm_lock);
 	pm = &per_cpu(cpupm, cpu);
 
 	for_each_mode(mode, pm->modes, pos) {
@@ -520,7 +494,6 @@ void enable_power_mode(int cpu, int type)
 		if (mode->type == type)
 			atomic_dec(&mode->disable);
 	}
-	spin_unlock(&cpupm_lock);
 }
 
 /* get sleep length of given cpu from tickless framework */

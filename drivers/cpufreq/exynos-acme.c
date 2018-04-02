@@ -144,15 +144,17 @@ static unsigned int get_freq(struct exynos_cpufreq_domain *domain)
 {
 	unsigned int freq;
 
-	if (domain->need_awake &&
-		check_powerdown_state(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER))
-		return domain->old;
+	if (domain->need_awake)
+		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	freq = (unsigned int)cal_dfs_get_rate(domain->cal_id);
 	if (!freq) {
 		/* On changing state, CAL returns 0 */
 		freq = domain->old;
 	}
+
+	if (domain->need_awake)
+		enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	return freq;
 }
