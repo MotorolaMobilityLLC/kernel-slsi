@@ -48,6 +48,7 @@ int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
 	ret = clk_enable(dev->pm.clock);
 	if (ret < 0) {
 		mfc_err_dev("clk_enable failed (%d)\n", ret);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		return ret;
 	}
 	dev->pm.clock_on_steps |= 0x1 << 1;
@@ -67,6 +68,7 @@ int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
 		dev->pm.clock_on_steps |= 0x1 << 3;
 		if (ret != DRMDRV_OK) {
 			mfc_err_dev("Protection Enable failed! ret(%u)\n", ret);
+			call_dop(dev, dump_and_stop_debug_mode, dev);
 			spin_unlock_irqrestore(&dev->pm.clklock, flags);
 			clk_disable(dev->pm.clock);
 			return -EACCES;
@@ -125,6 +127,7 @@ void s5p_mfc_pm_clock_off(struct s5p_mfc_dev *dev)
 					dev->id, SMC_PROTECTION_DISABLE);
 			if (ret != DRMDRV_OK) {
 				mfc_err_dev("Protection Disable failed! ret(%u)\n", ret);
+				call_dop(dev, dump_and_stop_debug_mode, dev);
 				spin_unlock_irqrestore(&dev->pm.clklock, flags);
 				clk_disable(dev->pm.clock);
 				return;
@@ -152,6 +155,7 @@ int s5p_mfc_pm_power_on(struct s5p_mfc_dev *dev)
 	ret = pm_runtime_get_sync(dev->pm.device);
 	if (ret < 0) {
 		mfc_err_dev("Failed to get power: ret(%d)\n", ret);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_power_on;
 	}
 
@@ -196,6 +200,7 @@ int s5p_mfc_pm_power_off(struct s5p_mfc_dev *dev)
 	ret = pm_runtime_put_sync(dev->pm.device);
 	if (ret < 0) {
 		mfc_err_dev("Failed to put power: ret(%d)\n", ret);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		return ret;
 	}
 

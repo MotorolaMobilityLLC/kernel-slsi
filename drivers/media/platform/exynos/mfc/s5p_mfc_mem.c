@@ -114,6 +114,7 @@ int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 	if (IS_ERR(special_buf->dma_buf)) {
 		mfc_err_ctx("Failed to allocate buffer (err %ld)\n",
 				PTR_ERR(special_buf->dma_buf));
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_ion_alloc;
 	}
 
@@ -121,6 +122,7 @@ int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 	if (IS_ERR(special_buf->attachment)) {
 		mfc_err_ctx("Failed to get dma_buf_attach (err %ld)\n",
 				PTR_ERR(special_buf->attachment));
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_attach;
 	}
 
@@ -129,6 +131,7 @@ int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 	if (IS_ERR(special_buf->sgt)) {
 		mfc_err_ctx("Failed to get sgt (err %ld)\n",
 				PTR_ERR(special_buf->sgt));
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_map;
 	}
 
@@ -137,6 +140,7 @@ int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 	if (IS_ERR_VALUE(special_buf->daddr)) {
 		mfc_err_ctx("Failed to allocate iova (err 0x%p)\n",
 				&special_buf->daddr);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_iovmm;
 	}
 
@@ -144,6 +148,7 @@ int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
 	if (IS_ERR(special_buf->vaddr)) {
 		mfc_err_ctx("Failed to get vaddr (err 0x%p)\n",
 				&special_buf->vaddr);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_vaddr;
 	}
 
@@ -222,6 +227,7 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 		if (IS_ERR(mfc_buf->dmabufs[i][plane])) {
 			mfc_err_ctx("Failed to get dma_buf (err %ld)",
 					PTR_ERR(mfc_buf->dmabufs[i][plane]));
+			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
 		}
 
@@ -229,6 +235,7 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 		if (IS_ERR(mfc_buf->attachments[i][plane])) {
 			mfc_err_ctx("Failed to get dma_buf_attach (err %ld)",
 					PTR_ERR(mfc_buf->attachments[i][plane]));
+			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
 		}
 
@@ -237,6 +244,7 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 		if (IS_ERR_VALUE(mfc_buf->addr[i][plane])) {
 			mfc_err_ctx("Failed to allocate iova (err %pa)",
 					&mfc_buf->addr[i][plane]);
+			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
 		}
 

@@ -1261,6 +1261,18 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
+static inline int is_err_condition(unsigned int err)
+{
+	if (err == S5P_FIMV_ERR_NO_AVAILABLE_DPB ||
+		err == S5P_FIMV_ERR_INSUFFICIENT_DPB_SIZE ||
+		err == S5P_FIMV_ERR_INSUFFICIENT_NUM_DPB ||
+		err == S5P_FIMV_ERR_INSUFFICIENT_MV_BUF_SIZE ||
+		err == S5P_FIMV_ERR_INSUFFICIENT_SCRATCH_BUF_SIZE)
+		return 1;
+
+	return 0;
+}
+
 irqreturn_t s5p_mfc_top_half_irq(int irq, void *priv)
 {
 	struct s5p_mfc_dev *dev = priv;
@@ -1524,6 +1536,7 @@ irqreturn_t s5p_mfc_irq(int irq, void *priv)
 
 	if (s5p_mfc_pm_get_pwr_ref_cnt(dev) == 0) {
 		mfc_err_dev("no mfc power on\n");
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto irq_end;
 	}
 
@@ -1544,6 +1557,9 @@ irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	if ((sfr_dump & MFC_DUMP_WARN_INT) &&
 			(err && (reason != S5P_FIMV_R2H_CMD_ERR_RET)))
 		call_dop(dev, dump_regs, dev);
+
+	if (is_err_condition(err))
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 
 #ifdef NAL_Q_ENABLE
 	if (dev->nal_q_handle) {

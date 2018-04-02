@@ -341,6 +341,7 @@ static int mfc_init_instance(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 				dev->drm_fw_buf.daddr, 0, 0);
 		if (ret != DRMDRV_OK) {
 			mfc_err_ctx("failed MFC DRM F/W prot(%#x)\n", ret);
+			call_dop(dev, dump_and_stop_debug_mode, dev);
 			dev->fw.drm_status = 0;
 		} else {
 			dev->fw.drm_status = 1;
@@ -410,8 +411,10 @@ err_context_alloc:
 		/* Request buffer unprotection for DRM F/W */
 		smc_ret = exynos_smc(SMC_DRM_PPMP_MFCFW_UNPROT,
 					dev->drm_fw_buf.daddr, 0, 0);
-		if (smc_ret != DRMDRV_OK)
+		if (smc_ret != DRMDRV_OK) {
 			mfc_err_ctx("failed MFC DRM F/W unprot(%#x)\n", smc_ret);
+			call_dop(dev, dump_and_stop_debug_mode, dev);
+		}
 	}
 #endif
 
@@ -720,6 +723,7 @@ static int s5p_mfc_release(struct file *file)
 					dev->drm_fw_buf.daddr, 0, 0);
 			if (ret != DRMDRV_OK) {
 				mfc_err_ctx("failed MFC DRM F/W unprot(%#x)\n", ret);
+				call_dop(dev, dump_and_stop_debug_mode, dev);
 				goto err_release;
 			}
 		}
