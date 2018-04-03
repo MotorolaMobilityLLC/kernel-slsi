@@ -125,9 +125,9 @@ err:
 static void ion_cma_free(struct ion_buffer *buffer)
 {
 	struct ion_cma_heap *cma_heap = to_cma_heap(buffer->heap);
-	unsigned long nr_pages = PAGE_ALIGN(buffer->size) >> PAGE_SHIFT;
 	bool protected = cma_heap->secure &&
 			 (buffer->flags & ION_FLAG_PROTECTED);
+	unsigned long nr_pages = PAGE_ALIGN(buffer->size) >> PAGE_SHIFT;
 
 	if (protected)
 		ion_buffer_unprotect(buffer->priv_virt);
