@@ -979,7 +979,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 			pgtable_flush(pent, pent + NUM_LV2ENTRIES);
 			pgtable_flush(sent, sent + 1);
 			SYSMMU_EVENT_LOG_IOMMU_ALLOCSLPD(IOMMU_PRIV_TO_LOG(domain),
-					iova & SECT_MASK);
+					iova & SECT_MASK, *sent);
 		} else {
 			/* Pre-allocated entry is not used, so free it. */
 			kmem_cache_free(lv2table_kmem_cache, pent);
@@ -1161,11 +1161,12 @@ unmap_flpd:
 			kmem_cache_free(lv2table_kmem_cache,
 					page_entry(sent, 0));
 			atomic_set(lv2entcnt, 0);
-			*sent = 0;
 
 			SYSMMU_EVENT_LOG_IOMMU_FREESLPD(
-					IOMMU_PRIV_TO_LOG(domain),
-					iova_from_sent(domain->pgtable, sent));
+				IOMMU_PRIV_TO_LOG(domain),
+				iova_from_sent(domain->pgtable, sent), *sent);
+
+			*sent = 0;
 		}
 		spin_unlock_irqrestore(&domain->pgtablelock, flags);
 	}
