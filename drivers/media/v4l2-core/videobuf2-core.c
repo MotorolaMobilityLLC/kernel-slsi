@@ -963,21 +963,6 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 		state = VB2_BUF_STATE_ERROR;
 
 	vb2_process_buffer_done(vb, state);
-
-	/*
-	 * Check if there is any buffer with error in the next position of the queue,
-	 * buffers whose in-fence signaled with error are not queued to the driver
-	 * and kept on the queue until the buffer before them is done, so to not
-	 * delivery buffers back to userspace in the wrong order. Here we process
-	 * any existing buffers with errors and wake up userspace.
-	 */
-	for (;;) {
-		vb = list_next_entry(vb, queued_entry);
-		if (!vb || vb->state != VB2_BUF_STATE_ERROR)
-			break;
-
-		vb2_process_buffer_done(vb, VB2_BUF_STATE_ERROR);
-        }
 }
 EXPORT_SYMBOL_GPL(vb2_buffer_done);
 
@@ -1261,9 +1246,14 @@ err:
 static void __enqueue_in_driver(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
+	unsigned long flags;
 
-	if (vb->in_fence && !dma_fence_is_signaled(vb->in_fence))
+	spin_lock_irqsave(&vb->fence_cb_lock, flags);
+	if (vb->in_fence && !dma_fence_is_signaled(vb->in_fence)) {
+		spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 		return;
+	}
+	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
 	vb->state = VB2_BUF_STATE_ACTIVE;
 	atomic_inc(&q->owned_by_drv_count);
@@ -1448,10 +1438,10 @@ static void vb2_qbuf_fence_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 		spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 		return;
 	}
+	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
 	if (q->start_streaming_called)
 		__enqueue_in_driver(vb);
-	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 }
 
 int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
@@ -1516,6 +1506,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 			goto unlock;
 		}
 	}
+	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
 	/*
 	 * If already streaming and there is no fence to wait on
@@ -1545,8 +1536,6 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 		if (ret)
 			goto unlock;
 	}
-
-	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
 	/* Fill buffer information for the userspace */
 	if (pb)

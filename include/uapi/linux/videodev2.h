@@ -927,11 +927,11 @@ struct v4l2_buffer {
 		__s32		fd;
 	} m;
 	__u32			length;
+	__u32			reserved2;
 	union {
 		__s32		fence_fd;
-		__u32		reserved2;
+		__u32		reserved;
 	};
-	__u32			reserved;
 };
 
 /*  Flags for 'flags' field */
