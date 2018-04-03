@@ -483,7 +483,7 @@ void disable_power_mode(int cpu, int type)
 			 * The first mode disable request wakes the cpus to
 			 * exit power mode
 			 */
-			if (atomic_inc_return(&mode->disable) == 1) {
+			if (atomic_inc_return(&mode->disable) > 0) {
 				spin_unlock(&cpupm_lock);
 				awake_cpus(&mode->siblings);
 				return;
