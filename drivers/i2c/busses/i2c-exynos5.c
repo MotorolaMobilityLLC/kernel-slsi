@@ -831,6 +831,8 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 		}
 	} else {
 		if (operation_mode == HSI2C_POLLING) {
+			unsigned long int_status;
+			unsigned long fifo_status;
 			timeout = jiffies + EXYNOS5_I2C_TIMEOUT;
 			while (time_before(jiffies, timeout) &&
 				(i2c->msg_ptr < i2c->msg->len)) {
@@ -840,24 +842,6 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 					writel(byte, i2c->regs + HSI2C_TX_DATA);
 				}
 			}
-		} else {
-			timeout = wait_for_completion_timeout
-				(&i2c->msg_complete, EXYNOS5_I2C_TIMEOUT);
-			disable_irq(i2c->irq);
-
-			if (timeout == 0) {
-				dump_i2c_register(i2c);
-				exynos5_i2c_reset(i2c);
-				dev_warn(i2c->dev, "tx timeout\n");
-				return ret;
-			}
-
-			timeout = jiffies + timeout;
-		}
-
-		if (operation_mode == HSI2C_POLLING) {
-			unsigned long int_status;
-			unsigned long fifo_status;
 			while (time_before(jiffies, timeout)) {
 				int_status = readl(i2c->regs + HSI2C_INT_STATUS);
 				fifo_status = readl(i2c->regs + HSI2C_FIFO_STATUS);
@@ -876,6 +860,18 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 				return ret;
 			}
 		} else {
+			timeout = wait_for_completion_timeout
+				(&i2c->msg_complete, EXYNOS5_I2C_TIMEOUT);
+			disable_irq(i2c->irq);
+
+			if (timeout == 0) {
+				dump_i2c_register(i2c);
+				exynos5_i2c_reset(i2c);
+				dev_warn(i2c->dev, "tx timeout\n");
+				return ret;
+			}
+
+			timeout = jiffies + timeout;
 			if (i2c->trans_done < 0) {
 				dev_err(i2c->dev, "ack was not received at write\n");
 				ret = i2c->trans_done;
