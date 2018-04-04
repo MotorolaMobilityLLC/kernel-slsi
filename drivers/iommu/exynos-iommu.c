@@ -1325,7 +1325,7 @@ void exynos_sysmmu_show_status(struct device *master)
 		}
 
 		dev_info(drvdata->sysmmu, "Dumping status.\n");
-		dump_sysmmu_status(drvdata);
+		dump_sysmmu_status(drvdata, 0);
 
 		spin_unlock_irqrestore(&drvdata->lock, flags);
 	}
