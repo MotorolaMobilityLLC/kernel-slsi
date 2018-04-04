@@ -702,7 +702,7 @@ static int sc_v4l2_querycap(struct file *file, void *fh,
 	cap->capabilities = V4L2_CAP_STREAMING |
 		V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
 	cap->capabilities |= V4L2_CAP_DEVICE_CAPS;
-	cap->device_caps = 0x0100 ;
+	cap->device_caps = V4L2_CAP_FENCES;
 
 	return 0;
 }
