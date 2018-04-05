@@ -58,6 +58,7 @@
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
 #include <asm/virt.h>
+#include <soc/samsung/exynos-sdm.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
@@ -841,6 +842,7 @@ static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 	local_irq_disable();
 
 	dbg_snapshot_save_context(regs);
+	exynos_sdm_flush_secdram();
 
 	while (1)
 		cpu_relax();

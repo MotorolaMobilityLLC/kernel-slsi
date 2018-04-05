@@ -51,3 +51,6 @@ obj-$(CONFIG_EXYNOS_SECURE_LOG)	+= exynos-seclog.o
 
 # HDCP
 obj-$(CONFIG_EXYNOS_HDCP2)  += exynos-hdcp/
+
+# SDM
+obj-$(CONFIG_EXYNOS_SDM) += exynos-sdm.o
