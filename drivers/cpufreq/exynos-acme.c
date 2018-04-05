@@ -21,6 +21,7 @@
 #include <linux/pm_opp.h>
 #include <linux/cpu_cooling.h>
 #include <linux/suspend.h>
+#include <linux/ems.h>
 
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/exynos-dm.h>
@@ -1227,6 +1228,9 @@ static __init int init_table(struct exynos_cpufreq_domain *domain)
 	}
 	domain->freq_table[index].driver_data = index;
 	domain->freq_table[index].frequency = CPUFREQ_TABLE_END;
+
+	init_sched_energy_table(&domain->cpus, domain->table_size, table, volt_table,
+				domain->max_freq, domain->min_freq);
 
 	kfree(volt_table);
 
