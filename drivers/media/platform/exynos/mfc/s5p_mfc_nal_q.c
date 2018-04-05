@@ -756,6 +756,8 @@ static int mfc_nal_q_run_in_buf_dec(struct s5p_mfc_ctx *ctx, DecoderInputStr *pI
 	for (i = 0; i < raw->num_planes; i++) {
 		pInStr->FrameSize[i] = raw->plane_size[i];
 		pInStr->FrameAddr[i] = dst_mb->addr[0][i];
+		if (ctx->is_10bit)
+			pInStr->Frame2BitSize[i] = raw->plane_size_2bits[i];
 	}
 	mfc_debug(2, "NAL Q: dst addr[0]: 0x%08llx\n",
 			dst_mb->addr[0][0]);
