@@ -136,4 +136,12 @@ config EXYNOS_KERNEL_PROTECTION
 	bool "Exynos Kernel Code Protection"
 	help
 	  Support Exynos Kernel Code Protection
+
+config EXYNOS_SDM
+	bool "Exynos Security Dump Manager Support"
+	depends on DEBUG_SNAPSHOT
+	default y
+	help
+	  Exynos Security Dump Manager
+
 endif
