@@ -83,7 +83,7 @@ static int hpa_killer(void)
 		if (!p)
 			continue;
 
-		if (!oom_skip_task(p, selected_adj)) {
+		if (oom_skip_task(p, selected_adj)) {
 			task_unlock(p);
 			continue;
 		}
