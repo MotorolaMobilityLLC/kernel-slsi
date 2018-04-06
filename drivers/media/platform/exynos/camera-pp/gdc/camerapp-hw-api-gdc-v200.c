@@ -207,8 +207,16 @@ void camerapp_hw_gdc_update_scale_parameters(void __iomem *base_addr, struct gdc
 
 	/* if GDC is scaled up : 128(default) = no scaling, 64 = 2 times scaling */
 	/* now is selected no scaling. => calcuration (128 * in / out) */
-	out_scaled_width = 128 * gdc_input_width / gdc_output_width;
-	out_scaled_height = 128 * gdc_input_width / gdc_output_width;
+	if (gdc_crop_width < gdc_output_width)	/* only for scale up */
+		out_scaled_width = 128 * gdc_input_width / gdc_output_width;
+	else									/* default value */
+		out_scaled_width = 128;
+
+	if (gdc_crop_height < gdc_output_height)
+		out_scaled_height = 128 * gdc_input_height / gdc_output_height;
+	else
+		out_scaled_height = 128;
+
 	camerapp_sfr_set_field(base_addr, &gdc_regs[GDC_R_GDC_OUT_SCALE],
 		&gdc_fields[GDC_F_GDC_OUT_SCALE_Y], out_scaled_height);
 	camerapp_sfr_set_field(base_addr, &gdc_regs[GDC_R_GDC_OUT_SCALE],
