@@ -2526,13 +2526,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 
 		lowest_rq = cpu_rq(cpu);
 
-#ifdef CONFIG_SCHED_USE_FLUID_RT
-		/*
-		 * Even though the lowest rq has a task of higher priority,
-		 * FluidRT can expel it (victim task) if it has small utilization,
-		 * or is not current task. Just keep trying.
-		 */
-#else
 		if (lowest_rq->rt.highest_prio.curr <= task->prio) {
 			/*
 			 * Target rq has tasks of equal or higher priority,
@@ -2542,7 +2535,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 			lowest_rq = NULL;
 			break;
 		}
-#endif
 
 		/* if the prio of this runqueue changed, try again */
 		if (double_lock_balance(rq, lowest_rq)) {
@@ -2564,11 +2556,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 			}
 		}
 
-#ifdef CONFIG_SCHED_USE_FLUID_RT
-		/* task is still rt task */
-		if (likely(rt_task(task)))
-			break;
-#else
 		/* If this rq is still suitable use it. */
 		if (lowest_rq->rt.highest_prio.curr > task->prio)
 			break;
@@ -2576,7 +2563,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 		/* try again */
 		double_unlock_balance(rq, lowest_rq);
 		lowest_rq = NULL;
-#endif
 	}
 
 	return lowest_rq;
