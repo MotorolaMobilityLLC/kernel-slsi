@@ -15,13 +15,6 @@
 bool schedtune_initialized = false;
 extern struct reciprocal_value schedtune_spc_rdiv;
 
-static int perf_threshold = 0;
-
-int schedtune_perf_threshold(void)
-{
-	return perf_threshold + 1;
-}
-
 struct group_balancer {
 	/* sum of task utilization in group */
 	unsigned long util;
@@ -1019,8 +1012,6 @@ schedtune_init(void)
 {
 	schedtune_spc_rdiv = reciprocal_value(100);
 	schedtune_init_cgroups();
-
-	perf_threshold = find_second_max_cap();
 
 	return 0;
 }

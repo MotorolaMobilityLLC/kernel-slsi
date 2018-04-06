@@ -5709,17 +5709,6 @@ static int group_idle_state(struct energy_env *eenv, int cpu_idx)
 	max_idle_state_idx = sg->sge->nr_idle_states - 2;
 	new_state = grp_util * max_idle_state_idx;
 
-	/*
-	 * after moving, previous cpu/cluster can be powered down,
-	 * so it should be consider it when idle power was calculated.
-	 */
-	if (sched_feat(EXYNOS_MS)) {
-		new_state = exynos_estimate_idle_state(cpu_idx, sched_group_span(sg),
-						max_idle_state_idx, sg->group_weight);
-		if (new_state)
-			return new_state;
-	}
-
 	if (grp_util <= 0) {
 		/* group will have no util, use lowest state */
 		new_state = max_idle_state_idx + 1;
