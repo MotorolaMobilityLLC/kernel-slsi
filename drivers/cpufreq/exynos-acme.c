@@ -1021,8 +1021,6 @@ static ssize_t show_cpufreq_max_limit(struct kobject *kobj,
 		first_domain()->min_freq >> (scale * SCALE_SIZE));
 }
 
-struct pm_qos_request cpu_online_max_qos_req;
-extern struct cpumask early_cpu_mask;
 static void enable_domain_cpus(struct exynos_cpufreq_domain *domain)
 {
 	struct cpumask mask;
@@ -1030,8 +1028,8 @@ static void enable_domain_cpus(struct exynos_cpufreq_domain *domain)
 	if (domain == first_domain())
 		return;
 
-	cpumask_or(&mask, &early_cpu_mask, &domain->cpus);
-	pm_qos_update_request(&cpu_online_max_qos_req, cpumask_weight(&mask));
+	cpumask_or(&mask, cpu_online_mask, &domain->cpus);
+	exynos_cpuhp_request("ACME", mask, 0);
 }
 
 static void disable_domain_cpus(struct exynos_cpufreq_domain *domain)
@@ -1041,8 +1039,8 @@ static void disable_domain_cpus(struct exynos_cpufreq_domain *domain)
 	if (domain == first_domain())
 		return;
 
-	cpumask_andnot(&mask, &early_cpu_mask, &domain->cpus);
-	pm_qos_update_request(&cpu_online_max_qos_req, cpumask_weight(&mask));
+	cpumask_andnot(&mask, cpu_online_mask, &domain->cpus);
+	exynos_cpuhp_request("ACME", mask, 0);
 }
 
 static ssize_t store_cpufreq_max_limit(struct kobject *kobj, struct attribute *attr,
@@ -1678,11 +1676,11 @@ static int __init exynos_cpufreq_init(void)
 
 	init_sysfs();
 
-	pm_qos_add_request(&cpu_online_max_qos_req, PM_QOS_CPU_ONLINE_MAX,
-					PM_QOS_CPU_ONLINE_MAX_DEFAULT_VALUE);
+	exynos_cpuhp_register("ACME", *cpu_possible_mask, 0);
 
 	cpufreq_register_notifier(&exynos_cpufreq_policy_notifier,
 					CPUFREQ_POLICY_NOTIFIER);
+
 	cpuhp_setup_state_nocalls(CPUHP_AP_EXYNOS_ACME,
 					"exynos:acme",
 					exynos_cpufreq_cpu_up_callback,
