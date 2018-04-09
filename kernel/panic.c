@@ -558,10 +558,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 	print_modules();
 
-	if (regs)
-		show_regs(regs);
-	else
-		dump_stack();
+	dump_stack();
 
 	print_oops_end_marker();
 
