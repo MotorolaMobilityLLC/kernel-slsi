@@ -1468,7 +1468,11 @@ static struct platform_driver s3c2410wdt_driver = {
 	},
 };
 
-module_platform_driver(s3c2410wdt_driver);
+int __init s3c2410wdt_init(void)
+{
+	return platform_driver_register(&s3c2410wdt_driver);
+}
+subsys_initcall(s3c2410wdt_init);
 
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, Dimitry Andric <dimitry.andric@tomtom.com>");
 MODULE_DESCRIPTION("S3C2410 Watchdog Device Driver");
