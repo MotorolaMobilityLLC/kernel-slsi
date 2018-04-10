@@ -20,7 +20,7 @@
 #include <linux/videodev2_exynos_camera.h>
 #include <linux/io.h>
 #include <linux/phy/phy.h>
-#include <soc/samsung/bcm.h>
+#include <soc/samsung/exynos-bcm_dbg.h>
 #include <linux/fs.h>
 
 #include "fimc-is-debug.h"
@@ -723,7 +723,7 @@ static void csi_err_print(struct fimc_is_device_csi *csi)
 				fimc_is_debug_event_count(FIMC_IS_EVENT_OVERFLOW_CSI);
 				err_str = GET_STR(CSIS_ERR_DMA_ERR_DMAFIFO_FULL);
 #if defined(OVERFLOW_PANIC_ENABLE_CSIS)
-				bcm_stop(NULL);
+				exynos_bcm_dbg_stop(CAMERA_DRIVER);
 
 				panic("[DMA%d][VC P%d, L%d] CSIS error!! %s",
 					csi->dma_subdev[vc]->dma_ch[csi->scm],
