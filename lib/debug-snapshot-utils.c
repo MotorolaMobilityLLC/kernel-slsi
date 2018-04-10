@@ -316,6 +316,10 @@ int dbg_snapshot_dump(void)
 		}
 	} else {
 		switch (read_cpuid_part_number()) {
+		case ARM_CPU_PART_CORTEX_A73:
+			asm ("mrs %0, S3_1_c15_c2_3\n" : "=r" (reg1));
+			pr_emerg("L2MERRSR: %016lx\n", reg1);
+			break;
 		case ARM_CPU_PART_CORTEX_A57:
 		case ARM_CPU_PART_CORTEX_A53:
 			asm ("mrs %0, S3_1_c15_c2_2\n\t"
