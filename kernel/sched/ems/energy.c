@@ -324,6 +324,7 @@ int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync
 	return select_eco_cpu(&eenv);
 }
 
+#ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL
 static void
 fill_power_table(struct energy_table *table, int table_size,
 			unsigned long *f_table, unsigned int *v_table,
@@ -403,6 +404,7 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	int cpu, i, mips, valid_table_size = 0;
 	int max_mips = 0;
 	unsigned long max_mips_freq = 0;
+	int last_state;
 
 	mips = per_cpu(energy_table, cpumask_any(cpus)).mips;
 	for_each_cpu(cpu, cpus) {
@@ -452,9 +454,9 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 			continue;
 
 		if (table->mips > max_mips) {
-			int last_state = table->nr_states - 1;
-
 			max_mips = table->mips;
+
+			last_state = table->nr_states - 1;
 			max_mips_freq = table->states[last_state].frequency;
 		}
 	}
@@ -466,12 +468,22 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	 * recalculated.
 	 */
 	for_each_possible_cpu(cpu) {
+		struct sched_domain *sd;
+
 		table = &per_cpu(energy_table, cpu);
 		if (!table->states)
 			continue;
 
 		fill_cap_table(table, max_mips, max_mips_freq);
 		show_energy_table(table, cpu);
+
+		last_state = table->nr_states - 1;
+		topology_set_cpu_scale(cpu, table->states[last_state].cap);
+
+		rcu_read_lock();
+		for_each_domain(cpu, sd)
+			update_group_capacity(sd, cpu);
+		rcu_read_unlock();
 	}
 }
 
@@ -515,3 +527,4 @@ static int __init init_sched_energy_data(void)
 	return 0;
 }
 pure_initcall(init_sched_energy_data);
+#endif	/* CONFIG_SIMPLIFIED_ENERGY_MODEL */

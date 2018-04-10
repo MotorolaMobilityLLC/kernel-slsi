@@ -304,6 +304,12 @@ static int cpu_flags(void)
 	return topology_cpu_flags();
 }
 
+#ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL
+#define use_simplified	1
+#else
+#define use_simplified	0
+#endif
+
 static inline
 const struct sched_group_energy * const cpu_core_energy(int cpu)
 {
@@ -311,6 +317,9 @@ const struct sched_group_energy * const cpu_core_energy(int cpu)
 	unsigned long capacity;
 	int max_cap_idx;
 	int level = cpu_energy_level[cpu].core;
+
+	if (use_simplified)
+		return NULL;
 
 	if (level < 0)
 		return NULL;
@@ -338,6 +347,9 @@ const struct sched_group_energy * const cpu_coregroup_energy(int cpu)
 	struct sched_group_energy *sge;
 	int level = cpu_energy_level[cpu].coregroup;
 
+	if (use_simplified)
+		return NULL;
+
 	if (level < 0)
 		return NULL;
 
@@ -355,6 +367,9 @@ const struct sched_group_energy * const cpu_cluster_energy(int cpu)
 {
 	struct sched_group_energy *sge;
 	int level = cpu_energy_level[cpu].cluster;
+
+	if (use_simplified)
+		return NULL;
 
 	if (level < 0)
 		return NULL;
