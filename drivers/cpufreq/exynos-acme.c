@@ -369,6 +369,7 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 			domain->id, domain->old, target_freq);
 
 	domain->old = target_freq;
+	arch_set_freq_scale(&domain->cpus, target_freq, policy->max);
 
 out:
 	mutex_unlock(&domain->lock);
@@ -665,6 +666,7 @@ static int exynos_cpufreq_policy_callback(struct notifier_block *nb,
 	switch (event) {
 	case CPUFREQ_NOTIFY:
 		update_dm_constraint(domain, policy);
+		arch_set_freq_scale(&domain->cpus, domain->old, policy->max);
 		break;
 	}
 
