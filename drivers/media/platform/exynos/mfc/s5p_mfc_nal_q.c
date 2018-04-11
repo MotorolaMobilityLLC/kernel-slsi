@@ -855,6 +855,11 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 			mfc_debug(2, "NAL Q: encoded[%d] addr: 0x%08llx\n", i,
 					enc_addr[i]);
 
+		if (enc_addr[0] == 0) {
+			mfc_debug(3, "NAL Q: no encoded addr by B frame\n");
+			return;
+		}
+
 		if (IS_BUFFER_BATCH_MODE(ctx)) {
 			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
 					&ctx->src_buf_queue, enc_addr[0]);
@@ -885,19 +890,24 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_typ
 		} else {
 			src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 					&ctx->src_buf_nal_queue, enc_addr[0]);
-			if (!src_mb) {
-				mfc_err_dev("NAL Q: no src buffers\n");
-				return;
+			if (src_mb) {
+				mfc_debug(3, "find src buf in src_queue\n");
+				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+			} else {
+				mfc_debug(3, "no src buf in src_queue\n");
+				ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+						&ctx->ref_buf_queue, enc_addr[0]);
+				if (ref_mb) {
+					mfc_debug(3, "find src buf in ref_queue\n");
+					vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+				} else {
+					mfc_err_dev("NAL Q: no src buffers\n");
+					return;
+				}
 			}
-
-			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-
-			ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-					&ctx->ref_buf_queue, enc_addr[0]);
-			if (ref_mb)
-				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
-	} else if (s5p_mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue, 0)) {
+	}
+	if (s5p_mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue, 0)) {
 		if (IS_BUFFER_BATCH_MODE(ctx))
 			return;
 

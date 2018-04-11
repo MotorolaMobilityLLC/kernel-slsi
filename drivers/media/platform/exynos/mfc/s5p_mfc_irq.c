@@ -815,6 +815,10 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 		for (i = 0; i < raw->num_planes; i++)
 			mfc_debug(2, "encoded[%d] addr: 0x%08llx\n",
 						i, enc_addr[i]);
+		if (enc_addr[0] == 0) {
+			mfc_debug(3, "no encoded addr by B frame\n");
+			return;
+		}
 
 		if (IS_BUFFER_BATCH_MODE(ctx)) {
 			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
@@ -854,22 +858,26 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 							&ctx->src_ctrls[index]) < 0)
 					mfc_err_ctx("failed in recover_buf_ctrls_val\n");
 
+				mfc_debug(3, "find src buf in src_queue\n");
 				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
 				/* encoder src buffer CFW UNPROT */
 				if (ctx->is_drm)
 					s5p_mfc_raw_unprotect(ctx, src_mb, index);
-			}
+			} else {
+				mfc_debug(3, "no src buf in src_queue\n");
+				ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+						&ctx->ref_buf_queue, enc_addr[0]);
+				if (ref_mb) {
+					vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
-			ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-					&ctx->ref_buf_queue, enc_addr[0]);
-			if (ref_mb) {
-				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-
-				/* encoder src buffer CFW UNPROT */
-				if (ctx->is_drm) {
-					index = ref_mb->vb.vb2_buf.index;
-					s5p_mfc_raw_unprotect(ctx, ref_mb, index);
+					/* encoder src buffer CFW UNPROT */
+					if (ctx->is_drm) {
+						index = ref_mb->vb.vb2_buf.index;
+						s5p_mfc_raw_unprotect(ctx, ref_mb, index);
+					}
+				} else {
+					mfc_err_ctx("couldn't find src buffer\n");
 				}
 			}
 		}
@@ -877,7 +885,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 		src_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
 				&ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
 		if (!src_mb) {
-			mfc_err_dev("no src buffers.\n");
+			mfc_err_ctx("no src buffers.\n");
 			return;
 		}
 
@@ -1010,14 +1018,9 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 	if (ctx->enc_res_change_re_input)
 		ctx->enc_res_change_re_input = 0;
 
-	if (s5p_mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0) &&
-		((ctx->state == MFCINST_RUNNING) ||
-		 (ctx->state == MFCINST_RUNNING_NO_OUTPUT) ||
-		 (ctx->state == MFCINST_RUNNING_BUF_FULL))) {
-
+	if (s5p_mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0)) {
 		s5p_mfc_move_first_buf_used(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, &ctx->src_buf_queue, MFC_QUEUE_ADD_BOTTOM);
-
 		/*
 		 * slice_type = 4 && strm_size = 0, skipped enable
 		 * should be considered
