@@ -175,6 +175,10 @@ static s64 profile_time;
 /* start time of profile */
 static ktime_t profile_start_time;
 
+/* idle ip */
+static int idle_ip_stats[4][32];
+extern char *idle_ip_names[4][32];
+
 static void clear_stats(struct cpuidle_stats *stats)
 {
 	if (!stats)
@@ -199,6 +203,8 @@ static void reset_profile(void)
 
 	for (i = 0; i < group_idle_state_count; i++)
 		clear_stats(&group_idle_state[i]->stats);
+
+	memset(idle_ip_stats, 0, sizeof(idle_ip_stats));
 }
 
 static void do_nothing(void *unused)
@@ -247,9 +253,6 @@ static void cpuidle_profile_stop(void)
 /************************************************************************
  *                               IDLE IP                                *
  ************************************************************************/
-static int idle_ip_stats[4][32];
-extern char *idle_ip_names[4][32];
-
 void cpuidle_profile_idle_ip(int index, unsigned int idle_ip)
 {
 	int i;
