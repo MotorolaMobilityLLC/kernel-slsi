@@ -319,7 +319,7 @@ int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync
 	 */
 	find_eco_target(&eenv);
 	if (eenv.best_cpu < 0 && eenv.backup_cpu < 0)
-		return prev_cpu;
+		return -1;
 
 	return select_eco_cpu(&eenv);
 }

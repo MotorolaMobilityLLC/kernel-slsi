@@ -58,6 +58,33 @@ TRACE_EVENT(ems_select_eco_cpu,
 );
 
 /*
+ * Tracepoint for proper cpu selection
+ */
+TRACE_EVENT(ems_select_proper_cpu,
+
+	TP_PROTO(struct task_struct *p, int best_cpu, unsigned long min_util),
+
+	TP_ARGS(p, best_cpu, min_util),
+
+	TP_STRUCT__entry(
+		__array(	char,		comm,	TASK_COMM_LEN	)
+		__field(	pid_t,		pid			)
+		__field(	int,		best_cpu		)
+		__field(	unsigned long,	min_util		)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid		= p->pid;
+		__entry->best_cpu	= best_cpu;
+		__entry->min_util	= min_util;
+	),
+
+	TP_printk("comm=%s pid=%d best_cpu=%d min_util=%lu",
+		  __entry->comm, __entry->pid, __entry->best_cpu, __entry->min_util)
+);
+
+/*
  * Tracepoint for wakeup balance
  */
 TRACE_EVENT(ems_wakeup_balance,

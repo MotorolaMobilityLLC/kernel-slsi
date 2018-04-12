@@ -106,9 +106,74 @@ int exynos_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries + 2);
 }
 
-static int select_proper_cpu(struct task_struct *p)
+static int select_proper_cpu(struct task_struct *p, int prev_cpu)
 {
-	return -1;
+	int cpu;
+	unsigned long best_min_util = ULONG_MAX;
+	int best_cpu = -1;
+
+	for_each_possible_cpu(cpu) {
+		int i;
+
+		/* visit each coregroup only once */
+		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
+			continue;
+
+		/* skip if task cannot be assigned to coregroup */
+		if (!cpumask_intersects(&p->cpus_allowed, cpu_coregroup_mask(cpu)))
+			continue;
+
+		for_each_cpu_and(i, tsk_cpus_allowed(p), cpu_coregroup_mask(cpu)) {
+			unsigned long capacity_orig = capacity_orig_of(i);
+			unsigned long wake_util, new_util;
+
+			wake_util = cpu_util_wake(i, p);
+			new_util = wake_util + task_util(p);
+
+			/* skip over-capacity cpu */
+			if (new_util > capacity_orig)
+				continue;
+
+			/*
+			 * According to the criteria determined by the LBT(Load
+			 * Balance trigger), the cpu that becomes overutilized
+			 * when the task is assigned is skipped.
+			 */
+			if (lbt_bring_overutilize(i, p))
+				continue;
+
+			/*
+			 * Best target) lowest utilization among lowest-cap cpu
+			 *
+			 * If the sequence reaches this function, the wakeup task
+			 * does not require performance and the prev cpu is over-
+			 * utilized, so it should do load balancing without
+			 * considering energy side. Therefore, it selects cpu
+			 * with smallest cpapacity and the least utilization among
+			 * cpu that fits the task.
+			 */
+			if (best_min_util < new_util)
+				continue;
+
+			best_min_util = new_util;
+			best_cpu = i;
+		}
+
+		/*
+		 * if it fails to find the best cpu in this coregroup, visit next
+		 * coregroup.
+		 */
+		if (cpu_selected(best_cpu))
+			break;
+	}
+
+	trace_ems_select_proper_cpu(p, best_cpu, best_min_util);
+
+	/*
+	 * if it fails to find the vest cpu, choosing any cpu is meaningless.
+	 * Return prev cpu.
+	 */
+	return cpu_selected(best_cpu) ? best_cpu : prev_cpu;
 }
 
 extern void sync_entity_load_avg(struct sched_entity *se);
@@ -220,7 +285,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	/*
 	 * Priority 7 : proper cpu
 	 */
-	target_cpu = select_proper_cpu(p);
+	target_cpu = select_proper_cpu(p, prev_cpu);
 	if (cpu_selected(target_cpu))
 		strcpy(state, "proper cpu");
 
