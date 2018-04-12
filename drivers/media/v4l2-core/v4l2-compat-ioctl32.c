@@ -386,7 +386,7 @@ struct v4l2_buffer32 {
 		__s32		fd;
 	} m;
 	__u32			length;
-	__s32			reserved2;
+	__u32			reserved2;
 	union {
 		__u32		fence_fd;
 		__u32		reserved;
@@ -610,7 +610,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer __user *kp,
 	    copy_in_user(&up->timecode, &kp->timecode, sizeof(kp->timecode)) ||
 	    assign_in_user(&up->sequence, &kp->sequence) ||
 	    assign_in_user(&up->fence_fd, &kp->fence_fd) ||
-	    assign_in_user(&up->reserved, &kp->reserved) ||
+	    assign_in_user(&up->reserved2, &kp->reserved2) ||
 	    get_user(length, &kp->length) ||
 	    put_user(length, &up->length))
 		return -EFAULT;
