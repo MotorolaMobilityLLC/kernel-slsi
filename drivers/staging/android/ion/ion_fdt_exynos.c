@@ -18,6 +18,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/cma.h>
+#include <linux/kmemleak.h>
 
 #include "ion.h"
 #include "ion_exynos.h"
@@ -91,6 +92,8 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 		}
 
 		ion_reserved_mem[reserved_mem_count].cma = cma;
+
+		kmemleak_ignore_phys(rmem->base);
 	}
 
 	ion_reserved_mem[reserved_mem_count].base = rmem->base;
