@@ -396,6 +396,15 @@ struct power_mode {
 	 * depending on system idle state
 	 */
 	bool		system_idle;
+
+	/*
+	 * kobject attribute for sysfs,
+	 * it supports for enabling or disabling this power mode
+	 */
+	struct kobj_attribute	attr;
+
+	/* user's request for enabling/disabling power mode */
+	bool		user_request;
 };
 
 /* Maximum number of power modes manageable per cpu */
@@ -685,6 +694,87 @@ void exynos_cpu_pm_exit(int cpu, int cancel)
 }
 
 /******************************************************************************
+ *                               sysfs interface                              *
+ ******************************************************************************/
+static ssize_t show_power_mode(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	struct power_mode *mode = container_of(attr, struct power_mode, attr);
+
+	return sprintf(buf, "%s\n",
+		atomic_read(&mode->disable) > 0 ? "disabled" : "enabled");
+}
+
+static ssize_t store_power_mode(struct kobject *kobj,
+			struct kobj_attribute *attr, const char *buf,
+			size_t count)
+{
+	unsigned int val;
+	int cpu, type;
+	struct power_mode *mode = container_of(attr, struct power_mode, attr);
+
+	if (!sscanf(buf, "%u", &val))
+		return -EINVAL;
+
+	cpu = cpumask_any(&mode->siblings);
+	type = mode->type;
+
+	val = !!val;
+	if (mode->user_request == val)
+		return count;
+
+	mode->user_request = val;
+	if (val)
+		enable_power_mode(cpu, type);
+	else
+		disable_power_mode(cpu, type);
+
+	return count;
+}
+
+/*
+ * attr_pool is used to create sysfs node at initialization time. Saving the
+ * initiailized attr to attr_pool, and it creates nodes of each attr at the
+ * time of sysfs creation. 10 is the appropriate value for the size of
+ * attr_pool.
+ */
+static struct attribute *attr_pool[10];
+
+static struct kobject *cpupm_kobj;
+static struct attribute_group attr_group;
+
+static void cpupm_sysfs_node_init(int attr_count)
+{
+	attr_group.attrs = kcalloc(attr_count + 1,
+			sizeof(struct attribute *), GFP_KERNEL);
+	if (!attr_group.attrs)
+		return;
+
+	memcpy(attr_group.attrs, attr_pool,
+		sizeof(struct attribute *) * attr_count);
+
+	cpupm_kobj = kobject_create_and_add("cpupm", power_kobj);
+	if (!cpupm_kobj)
+		goto out;
+
+	if (sysfs_create_group(cpupm_kobj, &attr_group))
+		goto out;
+
+	return;
+
+out:
+	kfree(attr_group.attrs);
+}
+
+#define cpupm_attr_init(_attr, _name, _index)				\
+	sysfs_attr_init(&_attr.attr);				\
+	_attr.attr.name	= _name;				\
+	_attr.attr.mode	= VERIFY_OCTAL_PERMISSIONS(0644);	\
+	_attr.show	= show_power_mode;			\
+	_attr.store	= store_power_mode;			\
+	attr_pool[_index] = &_attr.attr;
+
+/******************************************************************************
  *                                Initialization                              *
  ******************************************************************************/
 static void __init
@@ -708,7 +798,7 @@ static int __init cpu_power_mode_init(void)
 	struct device_node *dn = NULL;
 	struct power_mode *mode;
 	const char *buf;
-	int id = 0;
+	int id = 0, attr_count = 0;
 
 	while ((dn = of_find_node_by_type(dn, "cpupm"))) {
 		int cpu;
@@ -741,12 +831,31 @@ static int __init cpu_power_mode_init(void)
 
 		atomic_set(&mode->disable, 0);
 
+		/*
+		 * The users' request is set to enable since initialization state of
+		 * power mode is enabled.
+		 */
+		mode->user_request = true;
+
+		/*
+		 * Initialize attribute for sysfs.
+		 * The absence of entry allowed cpu is equivalent to this power
+		 * mode being disabled. In this case, no attribute is created.
+		 */
+		if (!cpumask_empty(&mode->entry_allowed)) {
+			cpupm_attr_init(mode->attr, mode->name, attr_count);
+			attr_count++;
+		}
+
 		/* Connect power mode to the cpus in the power domain */
 		for_each_cpu(cpu, &mode->siblings)
 			add_mode(per_cpu(cpupm, cpu).modes, mode);
 
 		cpuidle_profile_group_idle_register(mode->id, mode->name);
 	}
+
+	if (attr_count)
+		cpupm_sysfs_node_init(attr_count);
 
 	return 0;
 }
