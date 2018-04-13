@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/ion_exynos.h>
-#include <linux/dmabuf_container.h>
+#include <linux/dma-buf-container.h>
 #include <media/videobuf2-dma-sg.h>
 #include <asm/cacheflush.h>
 

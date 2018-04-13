@@ -204,6 +204,15 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 
 			buf->num_bufs_in_vb = s5p_mfc_bufcon_get_buf_count(dmabuf);
 			mfc_debug(3, "bufcon count:%d\n", buf->num_bufs_in_vb);
+			if (buf->num_bufs_in_vb == 0) {
+				mfc_err_ctx("bufcon count couldn't be zero\n");
+				s5p_mfc_mem_put_dmabuf(dmabuf);
+				return -ENOMEM;
+			}
+
+			if (buf->num_bufs_in_vb < 0)
+				buf->num_bufs_in_vb = 0;
+
 			if (!ctx->batch_mode && buf->num_bufs_in_vb > 0) {
 				ctx->batch_mode = 1;
 				mfc_debug(3, "buffer batch mode enabled\n");
