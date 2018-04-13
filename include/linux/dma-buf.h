@@ -408,6 +408,11 @@ void dma_buf_vunmap(struct dma_buf *, void *vaddr);
 
 #ifdef CONFIG_DMA_BUF_CONTAINER
 struct dma_buf *dma_buf_get_any(int fd);
+#else
+static inline struct dma_buf *dma_buf_get_any(int fd)
+{
+	return dma_buf_get(fd);
+}
 #endif
 
 
