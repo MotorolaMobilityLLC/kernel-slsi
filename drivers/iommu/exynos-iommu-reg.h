@@ -126,7 +126,7 @@ static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link,
 						phys_addr_t pgtable)
 {
 	sysmmu_pte_t *entry;
-	unsigned long vaddr = MMU_VADDR_FROM_SBB(sbb_vpn);
+	unsigned long vaddr = MMU_VADDR_FROM_SBB((unsigned long)sbb_vpn);
 	unsigned long paddr = MMU_PADDR_FROM_SBB((unsigned long)sbb_link);
 	unsigned long phys = 0;
 
