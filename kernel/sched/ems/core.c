@@ -32,37 +32,6 @@ int cpu_util_wake(int cpu, struct task_struct *p)
 	return (util >= capacity) ? capacity : util;
 }
 
-static inline int task_fits(struct task_struct *p, long capacity)
-{
-	return capacity * 1024 > task_util(p) * 1248;
-}
-
-struct sched_group *
-exynos_fit_idlest_group(struct sched_domain *sd, struct task_struct *p)
-{
-	struct sched_group *group = sd->groups;
-	struct sched_group *fit_group = NULL;
-	unsigned long fit_capacity = ULONG_MAX;
-
-	do {
-		int i;
-
-		/* Skip over this group if it has no CPUs allowed */
-		if (!cpumask_intersects(sched_group_span(group),
-					&p->cpus_allowed))
-			continue;
-
-		for_each_cpu(i, sched_group_span(group)) {
-			if (capacity_of(i) < fit_capacity && task_fits(p, capacity_of(i))) {
-				fit_capacity = capacity_of(i);
-				fit_group = group;
-			}
-		}
-	} while (group = group->next, group != sd->groups);
-
-	return fit_group;
-}
-
 static inline int
 check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
 {
