@@ -37,6 +37,8 @@
 
 #include <uapi/linux/dma-buf.h>
 
+#include "dma-buf-container.h"
+
 static inline int is_dma_buf_file(struct file *);
 
 struct dma_buf_list {
@@ -314,6 +316,11 @@ static long dma_buf_ioctl(struct file *file,
 			ret = dma_buf_begin_cpu_access(dmabuf, direction);
 
 		return ret;
+#ifdef CONFIG_COMPAT
+	case DMA_BUF_COMPAT_IOCTL_MERGE:
+#endif
+	case DMA_BUF_IOCTL_MERGE:
+		return dma_buf_merge_ioctl(dmabuf, cmd, arg);
 	default:
 		return -ENOTTY;
 	}
