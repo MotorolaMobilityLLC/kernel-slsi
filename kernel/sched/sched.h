@@ -1890,14 +1890,20 @@ static inline unsigned long cpu_util(int cpu)
 
 static inline unsigned long cpu_util_freq(int cpu)
 {
-	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
+	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
 	unsigned long capacity = capacity_orig_of(cpu);
+	unsigned long util = READ_ONCE(cfs_rq->avg.util_avg);
 
 #ifdef CONFIG_SCHED_WALT
 	if (!walt_disabled && sysctl_sched_use_walt_cpu_util) {
 		walt_util(util, cpu_rq(cpu)->prev_runnable_sum);
 	}
 #endif
+	if (sched_feat(UTIL_EST)) {
+		util = max_t(unsigned long, util,
+			     READ_ONCE(rq->cfs.avg.util_est.enqueued));
+	}
+
 	return (util >= capacity) ? capacity : util;
 }
 
