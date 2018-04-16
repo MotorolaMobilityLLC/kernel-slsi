@@ -92,6 +92,11 @@ SCHED_FEAT(WA_BIAS, true)
  */
 #ifdef CONFIG_DEFAULT_USE_ENERGY_AWARE
 SCHED_FEAT(ENERGY_AWARE, true)
+
+/*
+ * UtilEstimation. Use estimated CPU utilization.
+ */
+SCHED_FEAT(UTIL_EST, true)
 #else
 SCHED_FEAT(ENERGY_AWARE, false)
 #endif
