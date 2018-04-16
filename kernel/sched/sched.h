@@ -1901,11 +1901,14 @@ static inline unsigned long cpu_util_freq(int cpu)
 #endif
 	if (sched_feat(UTIL_EST)) {
 		util = max_t(unsigned long, util,
-			     READ_ONCE(rq->cfs.avg.util_est.enqueued));
+			     READ_ONCE(cfs_rq->avg.util_est.enqueued));
 	}
 
 	return (util >= capacity) ? capacity : util;
 }
+
+inline unsigned long _task_util_est(struct task_struct *p);
+inline unsigned long task_util_est(struct task_struct *p);
 
 #endif
 

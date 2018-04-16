@@ -819,6 +819,7 @@ void post_init_entity_util_avg(struct sched_entity *se)
 util_init_done:
 	if (entity_is_task(se)) {
 		struct task_struct *p = task_of(se);
+		struct sched_avg *sa = &se->avg;
 		if (p->sched_class != &fair_sched_class) {
 			/*
 			 * For !fair tasks do:
@@ -833,6 +834,9 @@ util_init_done:
 			se->avg.last_update_time = cfs_rq_clock_task(cfs_rq);
 			return;
 		}
+
+		sa->util_est.ewma = 0;
+		sa->util_est.enqueued = 0;
 	}
 
 	attach_entity_cfs_rq(se);
@@ -3117,8 +3121,12 @@ __update_load_avg_se(u64 now, int cpu, struct cfs_rq *cfs_rq, struct sched_entit
 {
 	if (___update_load_avg(now, cpu, &se->avg,
 				  se->on_rq * scale_load_down(se->load.weight),
-				  cfs_rq->curr == se, NULL, NULL)
+				  cfs_rq->curr == se, NULL, NULL)) {
 		cfs_se_util_change(&se->avg);
+		return 1;
+	}
+
+	return 0;
 }
 
 static int
@@ -3644,6 +3652,11 @@ static int idle_balance(struct rq *this_rq, struct rq_flags *rf);
 
 static inline unsigned long task_util(struct task_struct *p)
 {
+#ifdef CONFIG_SCHED_WALT
+	if (!walt_disabled && sysctl_sched_use_walt_task_util) {
+		return (p->ravg.demand / (walt_ravg_window >> SCHED_CAPACITY_SHIFT));
+	}
+#endif
 	return READ_ONCE(p->se.avg.util_avg);
 }
 
@@ -3736,7 +3749,7 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 	 */
 	ue.enqueued = (task_util(p) | UTIL_AVG_UNCHANGED);
 	last_ewma_diff = ue.enqueued - ue.ewma;
-	if (within_margin(last_ewma_diff, (SCHED_CAPACITY_SCALE / 100)))
+	if (within_margin(last_ewma_diff, capacity_orig_of(task_cpu(p)) / 100))
 		return;
 
 	/*
@@ -6948,16 +6961,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 	return select_idle_sibling_cstate_aware(p, prev, target);
 }
 
-static inline unsigned long task_util(struct task_struct *p)
-{
-#ifdef CONFIG_SCHED_WALT
-	if (!walt_disabled && sysctl_sched_use_walt_task_util) {
-		return (p->ravg.demand / (walt_ravg_window >> SCHED_CAPACITY_SHIFT));
-	}
-#endif
-	return p->se.avg.util_avg;
-}
-
 /*
  * cpu_util_wake: Compute cpu utilization with any contributions from
  * the waking task p removed.
@@ -7086,7 +7089,7 @@ int find_best_target(struct task_struct *p, int *backup_cpu,
 			 * accounting. However, the blocked utilization may be zero.
 			 */
 			wake_util = cpu_util_wake(i, p);
-			new_util = wake_util + task_util(p);
+			new_util = wake_util + task_util_est(p);
 
 			/*
 			 * Ensure minimum capacity to grant the required boost.
