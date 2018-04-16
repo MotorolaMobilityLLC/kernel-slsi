@@ -28,6 +28,7 @@
 #include <soc/samsung/ect_parser.h>
 #include <soc/samsung/exynos-cpuhp.h>
 #include <soc/samsung/exynos-cpupm.h>
+#include <soc/samsung/exynos-emc.h>
 
 #include "exynos-acme.h"
 
@@ -1148,19 +1149,6 @@ static void print_domain_info(struct exynos_cpufreq_domain *domain)
 	}
 }
 
-static __init void set_policy(struct exynos_cpufreq_domain *domain)
-{
-	struct cpufreq_policy *policy;
-	int max;
-
-	if (of_property_read_u32(domain->dn, "policy-max", &max))
-		return;
-
-	policy = cpufreq_cpu_get_raw(cpumask_first(&domain->cpus));
-	if (policy)
-		policy->max = max;
-}
-
 static __init void init_sysfs(void)
 {
 	if (sysfs_create_file(power_kobj, &cpufreq_table.attr))
@@ -1482,12 +1470,17 @@ static __init int init_domain(struct exynos_cpufreq_domain *domain,
 	 * tree and CAL. In case of min-freq, min frequency is selected
 	 * to bigger one.
 	 */
-#ifndef CONFIG_EXYNOS_MODE_CHANGER
 	if (!of_property_read_u32(dn, "max-freq", &val))
 		domain->max_freq = min(domain->max_freq, val);
-#endif
 	if (!of_property_read_u32(dn, "min-freq", &val))
 		domain->min_freq = max(domain->min_freq, val);
+
+#ifdef CONFIG_EXYNOS_MODE_CHANGER
+	/* If this domain has boost freq, change max */
+	val = emc_get_boost_freq(cpumask_first(&domain->cpus));
+	if (val)
+		domain->max_freq = val;
+#endif
 
 	/* Default QoS for user */
 	if (!of_property_read_u32(dn, "user-default-qos", &val))
@@ -1693,7 +1686,6 @@ static int __init exynos_cpufreq_init(void)
 	 * Update frequency as soon as domain is enabled.
 	 */
 	list_for_each_entry(domain, &domains, list) {
-		set_policy(domain);
 		enable_domain(domain);
 		set_boot_qos(domain);
 	}
