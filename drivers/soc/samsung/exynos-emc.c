@@ -212,6 +212,19 @@ check_real_freq:
 	return 1;
 }
 
+/*
+ * return highest boost frequency
+ */
+int emc_get_boost_freq(int cpu)
+{
+	struct emc_domain *domain = emc_get_boost_domain();
+
+	if (!cpumask_test_cpu(cpu, &domain->cpus))
+		return 0;
+
+	return list_last_entry(&emc.modes, struct emc_mode, list)->max_freq;
+}
+
 /**********************************************************************************/
 /*				   Update Load					  */
 /**********************************************************************************/

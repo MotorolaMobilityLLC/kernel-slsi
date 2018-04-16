@@ -15,9 +15,11 @@
 #ifdef CONFIG_EXYNOS_MODE_CHANGER
 void exynos_emc_update(int cpu);
 int exynos_emc_update_cpu_pwr(unsigned int cpu, bool on);
+int emc_get_boost_freq(int cpu);
 #else
 static inline void exynos_emc_update(int cpu) {};
 static inline int exynos_emc_update_cpu_pwr(unsigned int cpu, bool on) { return 0; };
+static inline int emc_get_boost_freq(int cpu) { return 0; };
 #endif
 
 #endif /* __EXYNOS_MODE_CHANGER_H */
