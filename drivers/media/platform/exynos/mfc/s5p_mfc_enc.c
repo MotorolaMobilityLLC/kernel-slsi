@@ -473,11 +473,75 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	mfc_info_ctx("fmt - w: %d, h: %d, stride: %d\n",
 			pix_fmt_mp->width, pix_fmt_mp->height, ctx->buf_stride);
 
+	/*
+	 * It should be keep till buffer size and stride was calculated.
+	 * And it can be changed to real encoding size, if user call the s_crop.
+	 */
+	ctx->crop_width = ctx->img_width;
+	ctx->crop_height = ctx->img_height;
 	s5p_mfc_enc_calc_src_size(ctx);
 
 	ctx->output_state = QUEUE_FREE;
 
 	mfc_debug_leave();
+	return 0;
+}
+
+static int vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+{
+	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+
+	mfc_debug_enter();
+
+	cr->c.left = ctx->crop_left;
+	cr->c.top = ctx->crop_top;
+	cr->c.width = ctx->crop_width;
+	cr->c.height = ctx->crop_height;
+
+	mfc_debug(3, "enc crop w: %d, h: %d, offset l: %d t: %d\n",
+			ctx->crop_width, ctx->crop_height, ctx->crop_left, ctx->crop_top);
+
+	mfc_debug_leave();
+
+	return 0;
+}
+
+static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *cr)
+{
+	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+
+	mfc_debug_enter();
+
+	if (cr->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_err_ctx("not supported type (It can only in the source)\n");
+		return -EINVAL;
+	}
+
+	if (cr->c.left < 0 || cr->c.top < 0) {
+		mfc_err_ctx("crop position is negative\n");
+		return -EINVAL;
+	}
+
+	if ((cr->c.height > ctx->img_height) || (cr->c.top > ctx->img_height) ||
+			(cr->c.width > ctx->img_width) || (cr->c.left > ctx->img_width) ||
+			(cr->c.left <= (ctx->img_width - cr->c.width)) ||
+			(cr->c.top <= (ctx->img_height - cr->c.height))) {
+		mfc_err_ctx("Out of crop range: (%d,%d,%d,%d) from %dx%d\n",
+				cr->c.left, cr->c.top, cr->c.width, cr->c.height,
+				ctx->img_width, ctx->img_height);
+		return -EINVAL;
+	}
+
+	ctx->crop_top = cr->c.top;
+	ctx->crop_left = cr->c.left;
+	ctx->crop_height = cr->c.height;
+	ctx->crop_width = cr->c.width;
+
+	mfc_debug(3, "enc original: %dx%d, crop: %dx%d, offset l: %d t: %d\n",
+			ctx->img_width, ctx->img_height,
+			ctx->crop_width, ctx->crop_height,
+			ctx->crop_left, ctx->crop_top);
+
 	return 0;
 }
 
@@ -1906,6 +1970,8 @@ static const struct v4l2_ioctl_ops s5p_mfc_enc_ioctl_ops = {
 	.vidioc_try_fmt_vid_out_mplane	= vidioc_try_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= vidioc_s_fmt_vid_cap_mplane,
 	.vidioc_s_fmt_vid_out_mplane	= vidioc_s_fmt_vid_out_mplane,
+	.vidioc_g_crop			= vidioc_g_crop,
+	.vidioc_s_crop			= vidioc_s_crop,
 	.vidioc_reqbufs			= vidioc_reqbufs,
 	.vidioc_querybuf		= vidioc_querybuf,
 	.vidioc_qbuf			= vidioc_qbuf,

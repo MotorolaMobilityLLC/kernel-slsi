@@ -284,17 +284,17 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 	enc = ctx->enc_priv;
 	enc->tmv_buffer_size = 0;
 
-	mb_width = WIDTH_MB(ctx->img_width);
-	mb_height = HEIGHT_MB(ctx->img_height);
+	mb_width = WIDTH_MB(ctx->crop_width);
+	mb_height = HEIGHT_MB(ctx->crop_height);
 
-	lcu_width = ENC_LCU_WIDTH(ctx->img_width);
-	lcu_height = ENC_LCU_HEIGHT(ctx->img_height);
+	lcu_width = ENC_LCU_WIDTH(ctx->crop_width);
+	lcu_height = ENC_LCU_HEIGHT(ctx->crop_height);
 
 	/* default recon buffer size, it can be changed in case of 422, 10bit */
 	enc->luma_dpb_size =
-		ALIGN(ENC_LUMA_DPB_SIZE(ctx->img_width, ctx->img_height), 64);
+		ALIGN(ENC_LUMA_DPB_SIZE(ctx->crop_width, ctx->crop_height), 64);
 	enc->chroma_dpb_size =
-		ALIGN(ENC_CHROMA_DPB_SIZE(ctx->img_width, ctx->img_height), 64);
+		ALIGN(ENC_CHROMA_DPB_SIZE(ctx->crop_width, ctx->crop_height), 64);
 	mfc_debug(2, "recon luma size: %zu chroma size: %zu\n",
 			enc->luma_dpb_size, enc->chroma_dpb_size);
 
@@ -337,9 +337,9 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 	case S5P_FIMV_CODEC_VP9_ENC:
 		if (ctx->is_10bit || ctx->is_422format) {
 			enc->luma_dpb_size =
-				ALIGN(ENC_VP9_LUMA_DPB_10B_SIZE(ctx->img_width, ctx->img_height), 64);
+				ALIGN(ENC_VP9_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			enc->chroma_dpb_size =
-				ALIGN(ENC_VP9_CHROMA_DPB_10B_SIZE(ctx->img_width, ctx->img_height), 64);
+				ALIGN(ENC_VP9_CHROMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			mfc_debug(2, "VP9 10bit recon luma size: %zu chroma size: %zu\n",
 					enc->luma_dpb_size, enc->chroma_dpb_size);
 		}
@@ -356,9 +356,9 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 	case S5P_FIMV_CODEC_BPG_ENC:
 		if (ctx->is_10bit || ctx->is_422format) {
 			enc->luma_dpb_size =
-				ALIGN(ENC_HEVC_LUMA_DPB_10B_SIZE(ctx->img_width, ctx->img_height), 64);
+				ALIGN(ENC_HEVC_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			enc->chroma_dpb_size =
-				ALIGN(ENC_HEVC_CHROMA_DPB_10B_SIZE(ctx->img_width, ctx->img_height), 64);
+				ALIGN(ENC_HEVC_CHROMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			mfc_debug(2, "HEVC 10bit or 422 recon luma size: %zu chroma size: %zu\n",
 					enc->luma_dpb_size, enc->chroma_dpb_size);
 		}

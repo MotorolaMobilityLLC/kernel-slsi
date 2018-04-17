@@ -1288,6 +1288,10 @@ struct s5p_mfc_ctx {
 
 	int img_width;
 	int img_height;
+	int crop_width;
+	int crop_height;
+	int crop_left;
+	int crop_top;
 	int dpb_count;
 	int buf_stride;
 

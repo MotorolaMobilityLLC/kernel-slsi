@@ -67,9 +67,10 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 			else
 				codec_name = ctx->dst_fmt->name;
 
-			seq_printf(s, "[CTX:%d] codec: %s(%s), width: %d, height: %d, state: %d\n",
+			seq_printf(s, "[CTX:%d] codec: %s(%s), width: %d, height: %d, crop: %d %d %d %d, state: %d\n",
 				ctx->num, ctx->type == MFCINST_DECODER ? "DEC" : "ENC", codec_name,
-				ctx->img_width, ctx->img_height, ctx->state);
+				ctx->img_width, ctx->img_height, ctx->crop_width, ctx->crop_height,
+				ctx->crop_left, ctx->crop_top, ctx->state);
 			seq_printf(s, "        queue(src: %d, dst: %d, src_nal: %d, dst_nal: %d, ref: %d)\n",
 				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
 				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),

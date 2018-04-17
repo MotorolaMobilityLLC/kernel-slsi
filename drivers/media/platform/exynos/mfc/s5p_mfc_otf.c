@@ -68,6 +68,8 @@ static int mfc_otf_set_buf_info(struct s5p_mfc_ctx *ctx)
 	ctx->raw_buf.num_planes = ctx->src_fmt->num_planes;
 	ctx->img_width = buf_info->width;
 	ctx->img_height = buf_info->height;
+	ctx->crop_width = buf_info->width;
+	ctx->crop_height = buf_info->height;
 	ctx->buf_stride = ALIGN(ctx->img_width, 16);
 
 	/* calculate source size */

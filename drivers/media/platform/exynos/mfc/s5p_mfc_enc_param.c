@@ -187,15 +187,15 @@ static void mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	mfc_set_default_params(ctx);
 
 	/* width */
-	MFC_WRITEL(ctx->img_width, S5P_FIMV_E_FRAME_WIDTH); /* 16 align */
+	MFC_WRITEL(ctx->crop_width, S5P_FIMV_E_CROPPED_FRAME_WIDTH);
 	/* height */
-	MFC_WRITEL(ctx->img_height, S5P_FIMV_E_FRAME_HEIGHT); /* 16 align */
-	/** cropped width */
-	MFC_WRITEL(ctx->img_width, S5P_FIMV_E_CROPPED_FRAME_WIDTH);
-	/** cropped height */
-	MFC_WRITEL(ctx->img_height, S5P_FIMV_E_CROPPED_FRAME_HEIGHT);
-	/** cropped offset */
-	MFC_WRITEL(0x0, S5P_FIMV_E_FRAME_CROP_OFFSET);
+	MFC_WRITEL(ctx->crop_height, S5P_FIMV_E_CROPPED_FRAME_HEIGHT);
+	/* cropped offset */
+	reg |= (ctx->crop_left & S5P_FIMV_E_FRAME_CROP_OFFSET_MASK)
+		<< S5P_FIMV_E_FRAME_CROP_OFFSET_LEFT;
+	reg |= (ctx->crop_top & S5P_FIMV_E_FRAME_CROP_OFFSET_MASK)
+		<< S5P_FIMV_E_FRAME_CROP_OFFSET_TOP;
+	MFC_WRITEL(reg, S5P_FIMV_E_FRAME_CROP_OFFSET);
 
 	/* multi-slice control */
 	/* multi-slice MB number or bit size */
@@ -207,7 +207,7 @@ static void mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 			(p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES)){
 		enc->slice_size.bits = p->slice_bit;
 	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW) {
-		enc->slice_size.mb = p->slice_mb_row * ((ctx->img_width + 15) / 16);
+		enc->slice_size.mb = p->slice_mb_row * ((ctx->crop_width + 15) / 16);
 	} else {
 		enc->slice_size.mb = 0;
 		enc->slice_size.bits = 0;
@@ -523,12 +523,9 @@ void s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 	reg |= ((p_264->vui_enable & 0x1) << 30);
 	MFC_WRITEL(reg, S5P_FIMV_E_H264_OPTIONS);
 
-	/** height */
-	if (p_264->interlace) {
-		MFC_WRITEL(ctx->img_height >> 1, S5P_FIMV_E_FRAME_HEIGHT); /* 32 align */
-		/** cropped height */
-		MFC_WRITEL(ctx->img_height >> 1, S5P_FIMV_E_CROPPED_FRAME_HEIGHT);
-	}
+	/* cropped height */
+	if (p_264->interlace)
+		MFC_WRITEL(ctx->crop_height >> 1, S5P_FIMV_E_CROPPED_FRAME_HEIGHT);
 
 	/* loopfilter alpha offset */
 	reg = MFC_READL(S5P_FIMV_E_H264_LF_ALPHA_OFFSET);
@@ -1163,7 +1160,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	}
 
 	/* UHD encoding case */
-	if ((ctx->img_width == 3840) && (ctx->img_height == 2160)) {
+	if (IS_UHD_RES(ctx)) {
 		p_hevc->level = 51;
 		p_hevc->tier_flag = 0;
 	/* this tier_flag can be changed */
