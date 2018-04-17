@@ -275,14 +275,14 @@ static inline unsigned long mfc_qos_get_mb_per_second(struct s5p_mfc_ctx *ctx)
 {
 	unsigned long mb_width, mb_height, fps, mb;
 
-	mb_width = (ctx->img_width + 15) / 16;
-	mb_height = (ctx->img_height + 15) / 16;
+	mb_width = (ctx->crop_width + 15) / 16;
+	mb_height = (ctx->crop_height + 15) / 16;
 	fps = ctx->framerate / 1000;
 
 	mb = mb_width * mb_height * fps;
 	mfc_debug(4, "QoS ctx[%d:%s] %d x %d @ %ld fps (mb: %ld)\n",
 			ctx->num, ctx->type == MFCINST_ENCODER ? "ENC" : "DEC",
-			ctx->img_width, ctx->img_height, fps, mb);
+			ctx->crop_width, ctx->crop_height, fps, mb);
 
 	return mfc_qos_get_weighted_mb(ctx, mb);
 }
@@ -314,8 +314,8 @@ static void mfc_qos_get_bw_per_second(struct s5p_mfc_ctx *ctx, struct bts_bw *mf
 	unsigned long mb_count_per_uhd_frame = MB_COUNT_PER_UHD_FRAME;
 	unsigned long max_fps_per_uhd_frame = MAX_FPS_PER_UHD_FRAME;
 
-	mb_width = (ctx->img_width + 15) / 16;
-	mb_height = (ctx->img_height + 15) / 16;
+	mb_width = (ctx->crop_width + 15) / 16;
+	mb_height = (ctx->crop_height + 15) / 16;
 	fps = ctx->framerate / 1000;
 
 	mb = mb_width * mb_height * fps;

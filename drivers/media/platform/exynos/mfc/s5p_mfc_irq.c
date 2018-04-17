@@ -1134,6 +1134,8 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 	if (ctx->src_fmt->fourcc != V4L2_PIX_FMT_FIMV1) {
 		ctx->img_width = s5p_mfc_get_img_width();
 		ctx->img_height = s5p_mfc_get_img_height();
+		ctx->crop_width = ctx->img_width;
+		ctx->crop_height = ctx->img_height;
 		mfc_info_ctx("width: %d, height: %d\n", ctx->img_width, ctx->img_height);
 	}
 

@@ -152,8 +152,8 @@
 
 /* UHD resoluition */
 #define MFC_UHD_RES		(3840 * 2160)
-#define IS_UHD_RES(ctx)		(((ctx)->img_width * (ctx)->img_height) == MFC_UHD_RES)
-#define OVER_UHD_ENC60(ctx)	((((ctx)->img_width * (ctx)->img_height) == MFC_UHD_RES) && \
+#define IS_UHD_RES(ctx)		(((ctx)->crop_width * (ctx)->crop_height) == MFC_UHD_RES)
+#define OVER_UHD_ENC60(ctx)	((((ctx)->crop_width * (ctx)->crop_height) == MFC_UHD_RES) && \
 				((ctx)->type == MFCINST_ENCODER) &&	\
 				((ctx)->framerate / 1000) >= 60)
 
