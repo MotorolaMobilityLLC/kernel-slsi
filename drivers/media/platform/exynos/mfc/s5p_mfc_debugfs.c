@@ -29,6 +29,8 @@ unsigned int nal_q_parallel_disable;
 unsigned int otf_dump;
 unsigned int perf_measure_option;
 unsigned int sfr_dump;
+unsigned int mmcache_dump;
+unsigned int mmcache_disable;
 /* It will be disable after driver is stabilized */
 unsigned int debug_mode = 1;
 
@@ -50,6 +52,9 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 	seq_printf(s, "[HWLOCK] bits: %#lx, dev: %#lx, owned_by_irq = %d, wl_count = %d\n",
 			dev->hwlock.bits, dev->hwlock.dev,
 			dev->hwlock.owned_by_irq, dev->hwlock.wl_count);
+	seq_printf(s, "[MMCACHE] %s(%s)\n",
+			dev->has_mmcache ? "supported" : "not supported",
+			dev->mmcache.is_on_status ? "enabled" : "disabled");
 	if (dev->nal_q_handle)
 		seq_printf(s, "[NAL-Q] state: %d\n", dev->nal_q_handle->nal_q_state);
 
@@ -151,6 +156,10 @@ void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
 			0644, debugfs->root, &perf_measure_option);
 	debugfs->sfr_dump = debugfs_create_u32("sfr_dump",
 			0644, debugfs->root, &sfr_dump);
+	debugfs->mmcache_dump = debugfs_create_u32("mmcache_dump",
+			0644, debugfs->root, &mmcache_dump);
+	debugfs->mmcache_disable = debugfs_create_u32("mmcache_disable",
+			0644, debugfs->root, &mmcache_disable);
 	debugfs->debug_mode = debugfs_create_u32("debug_mode",
 			0644, debugfs->root, &debug_mode);
 }

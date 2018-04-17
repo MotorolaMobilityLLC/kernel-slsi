@@ -5,3 +5,4 @@ s5p-mfc-y += s5p_mfc_pm.o s5p_mfc_inst.o s5p_mfc_cmd.o s5p_mfc_cal.o s5p_mfc_reg
 s5p-mfc-y += s5p_mfc_dec_ops.o s5p_mfc_enc_ops.o s5p_mfc_enc_param.o
 s5p-mfc-y += s5p_mfc_queue.o s5p_mfc_buf.o s5p_mfc_utils.o s5p_mfc_qos.o s5p_mfc_mem.o
 s5p-mfc-y += s5p_mfc_debugfs.o s5p_mfc_otf.o
+s5p-mfc-y += s5p_mfc_mmcache.o

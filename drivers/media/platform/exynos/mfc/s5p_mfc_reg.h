@@ -23,7 +23,10 @@
 #define MFC_MMU0_READL(offset)		readl(dev->sysmmu0_base + (offset))
 #define MFC_MMU1_READL(offset)		readl(dev->sysmmu1_base + (offset))
 
-#define MFC_WRITEL_HWFC(data, offset)	writel((data), dev->hwfc_base + (offset))
+#define HWFC_WRITEL(data, offset)	writel((data), dev->hwfc_base + (offset))
+
+#define MMCACHE_READL(offset)		readl(dev->mmcache.base + (offset))
+#define MMCACHE_WRITEL(data, offset)	writel((data), dev->mmcache.base + (offset))
 
 /* version */
 #define s5p_mfc_get_fimv_info()		((MFC_READL(S5P_FIMV_FW_VERSION)		\

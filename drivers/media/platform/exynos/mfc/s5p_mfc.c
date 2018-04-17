@@ -40,6 +40,7 @@
 #include "s5p_mfc_cal.h"
 #include "s5p_mfc_perf_measure.h"
 #include "s5p_mfc_reg.h"
+#include "s5p_mfc_mmcache.h"
 
 #include "s5p_mfc_qos.h"
 #include "s5p_mfc_queue.h"
@@ -384,6 +385,10 @@ static int mfc_init_instance(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 		mfc_err_ctx("Failed to init mfc h/w\n");
 		goto err_hw_init;
 	}
+
+	if (dev->has_mmcache && (dev->mmcache.is_on_status == 0))
+		s5p_mfc_mmcache_enable(dev);
+
 
 	s5p_mfc_release_hwlock_dev(dev);
 
@@ -743,6 +748,13 @@ static int s5p_mfc_release(struct file *file)
 
 	s5p_mfc_qos_off(ctx);
 
+	if (dev->has_mmcache && dev->mmcache.is_on_status) {
+		s5p_mfc_invalidate_mmcache(dev);
+
+		if (dev->num_inst == 0)
+			s5p_mfc_mmcache_disable(dev);
+	}
+
 	s5p_mfc_release_codec_buffers(ctx);
 	s5p_mfc_release_instance_context(ctx);
 
@@ -992,6 +1004,7 @@ static int mfc_register_resource(struct platform_device *pdev, struct s5p_mfc_de
 	struct device_node *np = dev->device->of_node;
 	struct device_node *iommu;
 	struct device_node *hwfc;
+	struct device_node *mmcache;
 	struct resource *res;
 	int ret;
 
@@ -1038,9 +1051,21 @@ static int mfc_register_resource(struct platform_device *pdev, struct s5p_mfc_de
 		if (dev->hwfc_base == NULL) {
 			dev->has_hwfc = 0;
 			dev_err(&pdev->dev, "failed to iomap hwfc address region\n");
-			goto err_res_hwfc;
+			goto err_ioremap_hwfc;
 		} else {
 			dev->has_hwfc = 1;
+		}
+	}
+
+	mmcache = of_get_child_by_name(np, "mmcache");
+	if (mmcache) {
+		dev->mmcache.base = of_iomap(mmcache, 0);
+		if (dev->mmcache.base == NULL) {
+			dev->has_mmcache = 0;
+			dev_err(&pdev->dev, "failed to iomap mmcache address region\n");
+			goto err_ioremap_mmcache;
+		} else {
+			dev->has_mmcache = 1;
 		}
 	}
 
@@ -1060,9 +1085,12 @@ static int mfc_register_resource(struct platform_device *pdev, struct s5p_mfc_de
 	return 0;
 
 err_res_irq:
+	if (dev->has_mmcache)
+		iounmap(dev->mmcache.base);
+err_ioremap_mmcache:
 	if (dev->has_hwfc)
 		iounmap(dev->hwfc_base);
-err_res_hwfc:
+err_ioremap_hwfc:
 	if (dev->has_2sysmmu)
 		iounmap(dev->sysmmu1_base);
 	iounmap(dev->sysmmu0_base);
@@ -1278,6 +1306,8 @@ alloc_vdev_dec:
 err_v4l2_dev:
 	mutex_destroy(&dev->mfc_mutex);
 	free_irq(dev->irq, dev);
+	if (dev->has_mmcache)
+		iounmap(dev->mmcache.base);
 	if (dev->has_hwfc)
 		iounmap(dev->hwfc_base);
 	if (dev->has_2sysmmu)
@@ -1319,6 +1349,8 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	mfc_debug(2, "Will now deinit HW\n");
 	s5p_mfc_deinit_hw(dev);
 	free_irq(dev->irq, dev);
+	if (dev->has_mmcache)
+		iounmap(dev->mmcache.base);
 	if (dev->has_hwfc)
 		iounmap(dev->hwfc_base);
 	if (dev->has_2sysmmu)

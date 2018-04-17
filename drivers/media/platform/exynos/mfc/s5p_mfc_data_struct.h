@@ -337,6 +337,8 @@ struct s5p_mfc_debugfs {
 	struct dentry *otf_dump;
 	struct dentry *perf_measure_option;
 	struct dentry *sfr_dump;
+	struct dentry *mmcache_dump;
+	struct dentry *mmcache_disable;
 	struct dentry *debug_mode;
 };
 
@@ -672,6 +674,11 @@ struct s5p_mfc_dump_ops {
 	void (*dump_and_stop_debug_mode)(struct s5p_mfc_dev *dev);
 };
 
+struct s5p_mfc_mmcache {
+	void __iomem *base;
+	int is_on_status;
+};
+
 /**
  * struct s5p_mfc_dev - The struct containing driver internal parameters.
  */
@@ -710,8 +717,9 @@ struct s5p_mfc_dev {
 	wait_queue_head_t cmd_wq;
 	struct s5p_mfc_listable_wq hwlock_wq;
 
-	bool has_hwfc;
 	bool has_2sysmmu;
+	bool has_hwfc;
+	bool has_mmcache;
 
 	struct s5p_mfc_special_buf common_ctx_buf;
 	struct s5p_mfc_special_buf drm_common_ctx_buf;
@@ -777,6 +785,8 @@ struct s5p_mfc_dev {
 	struct s5p_mfc_dump_ops *dump_ops;
 
 	struct s5p_mfc_perf perf;
+
+	struct s5p_mfc_mmcache mmcache;
 };
 
 /**

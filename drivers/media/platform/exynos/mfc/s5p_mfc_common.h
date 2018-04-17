@@ -44,6 +44,8 @@
 #define MFC_HWLOCK_TIMEOUT	5000
 /* Busy wait timeout */
 #define MFC_BW_TIMEOUT		500
+/* MMCache invalidation timeout */
+#define MMCACHE_INVAL_TIMEOUT	1000
 /* Interrupt timeout count*/
 #define MFC_INT_TIMEOUT_CNT	2
 

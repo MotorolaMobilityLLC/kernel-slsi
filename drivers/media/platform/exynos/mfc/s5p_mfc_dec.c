@@ -16,6 +16,7 @@
 #include "s5p_mfc_hwlock.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_sync.h"
+#include "s5p_mfc_mmcache.h"
 
 #include "s5p_mfc_qos.h"
 #include "s5p_mfc_queue.h"
@@ -626,6 +627,10 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		if (reqbufs->count == 0) {
 			mfc_debug(2, "Freeing buffers.\n");
 			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
+
+			if (dev->has_mmcache && dev->mmcache.is_on_status)
+				s5p_mfc_invalidate_mmcache(dev);
+
 			s5p_mfc_release_codec_buffers(ctx);
 			ctx->capture_state = QUEUE_FREE;
 			return ret;

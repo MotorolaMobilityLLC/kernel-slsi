@@ -78,7 +78,7 @@ void s5p_mfc_otf_set_hwfc_index(struct s5p_mfc_ctx *ctx, int job_id)
 	struct s5p_mfc_dev *dev = ctx->dev;
 
 	mfc_debug(2, "OTF: set hwfc index, %d\n", job_id);
-	MFC_WRITEL_HWFC(job_id, HWFC_ENCODING_IDX);
+	HWFC_WRITEL(job_id, HWFC_ENCODING_IDX);
 }
 
 /* Set decoding frame buffer */

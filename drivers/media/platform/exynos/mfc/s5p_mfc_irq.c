@@ -22,6 +22,7 @@
 #include "s5p_mfc_cal.h"
 #include "s5p_mfc_perf_measure.h"
 #include "s5p_mfc_reg.h"
+#include "s5p_mfc_mmcache.h"
 
 #include "s5p_mfc_qos.h"
 #include "s5p_mfc_queue.h"
@@ -746,6 +747,9 @@ static void mfc_enc_res_change(struct s5p_mfc_ctx *ctx)
 		mfc_debug(2, "Encoding Resolution Status : %d\n", reg);
 
 		if (reg == 2 || reg == 3) {
+			if (dev->has_mmcache && dev->mmcache.is_on_status)
+				s5p_mfc_invalidate_mmcache(dev);
+
 			s5p_mfc_release_codec_buffers(ctx);
 			/* for INIT_BUFFER cmd */
 			s5p_mfc_change_state(ctx, MFCINST_HEAD_PARSED);

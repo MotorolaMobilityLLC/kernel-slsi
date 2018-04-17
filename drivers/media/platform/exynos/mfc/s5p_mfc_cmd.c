@@ -16,6 +16,7 @@
 
 #include "s5p_mfc_cal.h"
 #include "s5p_mfc_reg.h"
+#include "s5p_mfc_mmcache.h"
 
 #include "s5p_mfc_utils.h"
 #include "s5p_mfc_buf.h"
@@ -225,6 +226,10 @@ int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx)
 	ret = s5p_mfc_set_dec_codec_buffers(ctx);
 	if (ret) {
 		mfc_info_ctx("isn't enough codec buffer size, re-alloc!\n");
+
+		if (dev->has_mmcache && dev->mmcache.is_on_status)
+			s5p_mfc_invalidate_mmcache(dev);
+
 		s5p_mfc_release_codec_buffers(ctx);
 		ret = s5p_mfc_alloc_codec_buffers(ctx);
 		if (ret) {
@@ -275,6 +280,10 @@ int s5p_mfc_cmd_enc_init_buffers(struct s5p_mfc_ctx *ctx)
 	ret = s5p_mfc_set_enc_codec_buffers(ctx);
 	if (ret) {
 		mfc_info_ctx("isn't enough codec buffer size, re-alloc!\n");
+
+		if (dev->has_mmcache && dev->mmcache.is_on_status)
+			s5p_mfc_invalidate_mmcache(dev);
+
 		s5p_mfc_release_codec_buffers(ctx);
 		ret = s5p_mfc_alloc_codec_buffers(ctx);
 		if (ret) {
