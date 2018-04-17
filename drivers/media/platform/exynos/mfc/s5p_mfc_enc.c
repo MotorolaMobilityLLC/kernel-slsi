@@ -463,10 +463,12 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	mfc_enc_check_format(ctx);
 
-	if ((ctx->state == MFCINST_RUNNING)
-		&& (((ctx->old_img_width != 0) && (ctx->old_img_width != ctx->img_width))
-		|| ((ctx->old_img_height != 0) && (ctx->old_img_height != ctx->img_height)))) {
-		ctx->enc_drc_flag = 1;
+	if (ctx->state == MFCINST_RUNNING) {
+		s5p_mfc_change_state(ctx, MFCINST_GOT_INST);
+		mfc_info_ctx("Enc resolution is changed\n");
+		if (((ctx->old_img_width != 0) && (ctx->old_img_width != ctx->img_width))
+				|| ((ctx->old_img_height != 0) && (ctx->old_img_height != ctx->img_height)))
+			ctx->enc_drc_flag = 1;
 	}
 
 	mfc_info_ctx("Enc input pixelformat : %s\n", ctx->src_fmt->name);

@@ -264,10 +264,11 @@ int s5p_mfc_cmd_enc_init_buffers(struct s5p_mfc_ctx *ctx)
 		return -EINVAL;
 	}
 
-	/* Header was generated now starting processing
+	/*
+	 * Header was generated now starting processing
 	 * First set the reference frame buffers
 	 */
-	if (!ctx->codec_buf.dma_buf) {
+	if (!ctx->codec_buffer_allocated) {
 		mfc_info_ctx("there isn't codec buffer, re-alloc!\n");
 		ret = s5p_mfc_alloc_codec_buffers(ctx);
 		if (ret) {

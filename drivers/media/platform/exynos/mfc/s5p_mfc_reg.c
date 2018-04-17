@@ -268,7 +268,7 @@ int s5p_mfc_set_enc_codec_buffers(struct s5p_mfc_ctx *ctx)
 	buf_addr1 += enc->tmv_buffer_size >> 1;
 	buf_size1 -= enc->tmv_buffer_size;
 
-	mfc_debug(2, "Buf1: 0x%p, buf_size1: %d (ref frames %d)\n",
+	mfc_debug(2, "Buf1 end: 0x%p, buf_size1: %d (ref frames %d)\n",
 			(void *)buf_addr1, buf_size1, ctx->dpb_count);
 	if (buf_size1 < 0) {
 		mfc_debug(2, "Not enough memory has been allocated.\n");

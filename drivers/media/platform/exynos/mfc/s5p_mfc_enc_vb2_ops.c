@@ -356,6 +356,29 @@ static void s5p_mfc_enc_stop_streaming(struct vb2_queue *q)
 			index++;
 		}
 	} else if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		if (ctx->state == MFCINST_FREE) {
+			mfc_debug(2, "already closed\n");
+		} else {
+			s5p_mfc_change_state(ctx, MFCINST_FINISHING);
+			s5p_mfc_set_bit(ctx->num, &dev->work_bits);
+
+			while (s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED)) {
+				ret = s5p_mfc_just_run(dev, ctx->num);
+				if (ret) {
+					mfc_err_ctx("Failed to run MFC.\n");
+					break;
+				}
+				if (s5p_mfc_wait_for_done_ctx(ctx, S5P_FIMV_R2H_CMD_FRAME_DONE_RET)) {
+					mfc_err_ctx("Waiting for LAST_SEQ timed out\n");
+					break;
+				}
+				if (ctx->state == MFCINST_RUNNING) {
+					mfc_debug(2, "all encoded buffers out\n");
+					break;
+				}
+			}
+		}
+
 		s5p_mfc_move_all_bufs(&ctx->buf_queue_lock, &ctx->src_buf_queue,
 				&ctx->ref_buf_queue, MFC_QUEUE_ADD_BOTTOM);
 		s5p_mfc_cleanup_enc_src_queue(ctx);
@@ -377,8 +400,6 @@ static void s5p_mfc_enc_stop_streaming(struct vb2_queue *q)
 	s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
 	s5p_mfc_release_hwlock_ctx(ctx);
 
-	if (s5p_mfc_enc_ctx_ready(ctx))
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
 	if (s5p_mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 }

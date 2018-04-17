@@ -304,17 +304,10 @@ int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 
 int s5p_mfc_run_enc_last_frames(struct s5p_mfc_ctx *ctx)
 {
-	struct s5p_mfc_buf *src_mb, *dst_mb;
+	struct s5p_mfc_buf *dst_mb;
 	struct s5p_mfc_raw_info *raw;
 
 	raw = &ctx->raw_buf;
-
-	/* Get the next source buffer */
-	src_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
-	if (!src_mb) {
-		mfc_debug(2, "no src buffers.\n");
-		return -EAGAIN;
-	}
 
 	dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
 	if (!dst_mb) {

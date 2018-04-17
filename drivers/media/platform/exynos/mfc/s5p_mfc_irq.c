@@ -808,8 +808,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 
 	raw = &ctx->raw_buf;
 
-	if (!ctx->enc_res_change_re_input && slice_type >= 0 &&
-			ctx->state != MFCINST_FINISHING) {
+	if (!ctx->enc_res_change_re_input && slice_type >= 0) {
 		if (ctx->state == MFCINST_RUNNING_NO_OUTPUT ||
 			ctx->state == MFCINST_RUNNING_BUF_FULL)
 			s5p_mfc_change_state(ctx, MFCINST_RUNNING);
@@ -885,21 +884,6 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 				}
 			}
 		}
-	} else if (ctx->state == MFCINST_FINISHING) {
-		src_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
-				&ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
-		if (!src_mb) {
-			mfc_err_ctx("no src buffers.\n");
-			return;
-		}
-
-		vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-
-		/* encoder src buffer CFW UNPROT */
-		if (ctx->is_drm) {
-			index = src_mb->vb.vb2_buf.index;
-			s5p_mfc_raw_unprotect(ctx, src_mb, index);
-		}
 	}
 }
 
@@ -910,8 +894,7 @@ static void mfc_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_type,
 	struct s5p_mfc_buf *dst_mb;
 	unsigned int index;
 
-	if (strm_size > 0 || ctx->state == MFCINST_FINISHING
-			  || ctx->state == MFCINST_RUNNING_BUF_FULL) {
+	if (strm_size > 0 || ctx->state == MFCINST_RUNNING_BUF_FULL) {
 		/* at least one more dest. buffers exist always  */
 		dst_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
 				&ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
@@ -954,12 +937,6 @@ static void mfc_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_type,
 		index = dst_mb->vb.vb2_buf.index;
 		if (call_cop(ctx, get_buf_ctrls_val, ctx, &ctx->dst_ctrls[index]) < 0)
 			mfc_err_ctx("failed in get_buf_ctrls_val\n");
-
-		if (strm_size == 0 && ctx->state == MFCINST_FINISHING)
-			call_cop(ctx, get_buf_update_val, ctx,
-				&ctx->dst_ctrls[index],
-				V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG,
-				enc->stored_tag);
 
 		vb2_buffer_done(&dst_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
@@ -1230,7 +1207,6 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 				p->codec.bpg.thumb_size,
 				p->codec.bpg.exif_size);
 	} else {
-		/* TODO: is there other case? */
 		if ((p->seq_hdr_mode == V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE) ||
 			(p->seq_hdr_mode == V4L2_MPEG_VIDEO_HEADER_MODE_AT_THE_READY)) {
 			dst_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
@@ -1249,7 +1225,6 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 
 				s5p_mfc_stream_unprotect(ctx, dst_mb, index);
 			}
-
 		}
 	}
 
@@ -1259,6 +1234,14 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 	/* If the ROI is enabled at SEQ_START, clear ROI_ENABLE bit */
 	s5p_mfc_clear_roi_enable(dev);
 
+	if (!ctx->codec_buffer_allocated) {
+		mfc_debug(2, "previous codec buffer is exist\n");
+
+		if (dev->has_mmcache && dev->mmcache.is_on_status)
+			s5p_mfc_invalidate_mmcache(dev);
+
+		s5p_mfc_release_codec_buffers(ctx);
+	}
 	ret = s5p_mfc_alloc_codec_buffers(ctx);
 	if (ret) {
 		mfc_err_ctx("Failed to allocate encoding buffers.\n");
@@ -1481,9 +1464,16 @@ static int mfc_irq_ctx(struct s5p_mfc_ctx *ctx, unsigned int reason, unsigned in
 	case S5P_FIMV_R2H_CMD_SLICE_DONE_RET:
 	case S5P_FIMV_R2H_CMD_FIELD_DONE_RET:
 	case S5P_FIMV_R2H_CMD_FRAME_DONE_RET:
-	case S5P_FIMV_R2H_CMD_COMPLETE_SEQ_RET:
 	case S5P_FIMV_R2H_CMD_ENC_BUFFER_FULL_RET:
 		return mfc_handle_done_frame(ctx, reason, err);
+	case S5P_FIMV_R2H_CMD_COMPLETE_SEQ_RET:
+		if (ctx->type == MFCINST_ENCODER) {
+			mfc_handle_stream(ctx);
+			s5p_mfc_change_state(ctx, MFCINST_RUNNING);
+		} else if (ctx->type == MFCINST_DECODER) {
+			return mfc_handle_done_frame(ctx, reason, err);
+		}
+		break;
 	case S5P_FIMV_R2H_CMD_SEQ_DONE_RET:
 		if (ctx->type == MFCINST_ENCODER) {
 			if (ctx->otf_handle) {

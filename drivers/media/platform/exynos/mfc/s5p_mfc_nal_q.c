@@ -1087,12 +1087,6 @@ static void mfc_nal_q_handle_stream(struct s5p_mfc_ctx *ctx, EncoderOutputStr *p
 			mfc_err_ctx("NAL Q: failed in get_buf_ctrls_val in nal q\n");
 
 		vb2_buffer_done(&dst_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-	} else if (strm_size == 0) {
-		dst_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock, &ctx->dst_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
-		if (!dst_mb)
-			mfc_err_dev("NAL Q: no dst buffers\n");
-		else
-			vb2_buffer_done(&dst_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	mfc_debug_leave();

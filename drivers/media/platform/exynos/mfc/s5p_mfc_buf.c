@@ -441,6 +441,7 @@ void s5p_mfc_release_codec_buffers(struct s5p_mfc_ctx *ctx)
 	}
 
 	s5p_mfc_mem_ion_free(dev, &ctx->codec_buf);
+	ctx->codec_buffer_allocated = 0;
 	mfc_debug(2, "Release the codec buffer\n");
 }
 
