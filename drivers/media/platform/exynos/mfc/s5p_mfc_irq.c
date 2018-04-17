@@ -900,7 +900,6 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_enc *enc = ctx->enc_priv;
-	struct s5p_mfc_raw_info *raw;
 	int slice_type;
 	unsigned int strm_size;
 	unsigned int pic_count;
@@ -920,8 +919,6 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 
 	/* set encoded frame type */
 	enc->frame_type = slice_type;
-	raw = &ctx->raw_buf;
-
 	ctx->sequence++;
 
 	if (enc->in_slice) {
@@ -943,6 +940,7 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 	if (s5p_mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0)) {
 		s5p_mfc_move_first_buf_used(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, &ctx->src_buf_queue, MFC_QUEUE_ADD_BOTTOM);
+
 		/*
 		 * slice_type = 4 && strm_size = 0, skipped enable
 		 * should be considered
