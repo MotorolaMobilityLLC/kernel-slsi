@@ -466,9 +466,6 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	if (ctx->state == MFCINST_RUNNING) {
 		s5p_mfc_change_state(ctx, MFCINST_GOT_INST);
 		mfc_info_ctx("Enc resolution is changed\n");
-		if (((ctx->old_img_width != 0) && (ctx->old_img_width != ctx->img_width))
-				|| ((ctx->old_img_height != 0) && (ctx->old_img_height != ctx->img_height)))
-			ctx->enc_drc_flag = 1;
 	}
 
 	mfc_info_ctx("Enc input pixelformat : %s\n", ctx->src_fmt->name);
@@ -773,12 +770,6 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	ret = -EINVAL;
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		s5p_mfc_qos_reset_last_framerate(ctx);
-
-		ctx->old_img_width = ctx->img_width;
-		ctx->old_img_height = ctx->img_height;
-
-		mfc_debug(2, "vidioc_streamoff ctx->old_img_width = %d\n", ctx->old_img_width);
-		mfc_debug(2, "vidioc_streamoff ctx->old_img_height = %d\n", ctx->old_img_height);
 
 		ret = vb2_streamoff(&ctx->vq_src, type);
 		if (!ret)

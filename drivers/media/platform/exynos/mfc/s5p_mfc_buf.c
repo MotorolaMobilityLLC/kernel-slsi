@@ -309,9 +309,6 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 			ctx->scratch_buf_size + enc->tmv_buffer_size +
 			(ctx->dpb_count * (enc->luma_dpb_size +
 			enc->chroma_dpb_size + enc->me_buffer_size));
-
-		ctx->scratch_buf_size = max(ctx->scratch_buf_size, ctx->min_scratch_buf_size);
-		ctx->min_scratch_buf_size = 0;
 		break;
 	case S5P_FIMV_CODEC_MPEG4_ENC:
 	case S5P_FIMV_CODEC_H263_ENC:

@@ -711,59 +711,6 @@ leave_handle_frame:
 	mfc_debug(2, "Assesing whether this context should be run again.\n");
 }
 
-/* Handle encoder resolution change */
-static void mfc_enc_res_change(struct s5p_mfc_ctx *ctx)
-{
-	struct s5p_mfc_dev *dev = ctx->dev;
-	unsigned int reg = 0;
-
-	/*
-	 * Right after the first NAL_START finished with the new resolution,
-	 * We need to reset the fields
-	 */
-	if (ctx->enc_res_change) {
-		/* clear resolution change bits */
-		s5p_mfc_clear_enc_res_change(dev);
-
-		ctx->enc_res_change_state = ctx->enc_res_change;
-		ctx->enc_res_change = 0;
-	}
-
-	if (ctx->enc_res_change_state == 1) { /* resolution swap */
-		ctx->enc_res_change_state = 0;
-	} else if (ctx->enc_res_change_state == 2) { /* resolution change */
-		reg = s5p_mfc_get_enc_nal_done_info();
-
-		/*
-		 * Encoding resolution status
-		 * 0: Normal encoding
-		 * 1: Resolution Change for B-frame
-		 *    (Encode with previous resolution)
-		 * 2: Resolution Change for B-frame
-		 *    (Last encoding with previous resolution)
-		 * 3: Resolution Change for only P-frame
-		 *    (No encode, as all frames with previous resolution are encoded)
-		 */
-		mfc_debug(2, "Encoding Resolution Status : %d\n", reg);
-
-		if (reg == 2 || reg == 3) {
-			if (dev->has_mmcache && dev->mmcache.is_on_status)
-				s5p_mfc_invalidate_mmcache(dev);
-
-			s5p_mfc_release_codec_buffers(ctx);
-			/* for INIT_BUFFER cmd */
-			s5p_mfc_change_state(ctx, MFCINST_HEAD_PARSED);
-
-			ctx->enc_res_change_state = 0;
-			ctx->min_scratch_buf_size = s5p_mfc_get_enc_scratch_size();
-			mfc_debug(2, "S5P_FIMV_E_MIN_SCRATCH_BUFFER_SIZE = 0x%x\n",
-					(unsigned int)ctx->min_scratch_buf_size);
-			if (reg == 3)
-				ctx->enc_res_change_re_input = 1;
-		}
-	}
-}
-
 static void mfc_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *src_mb)
 {
 	struct s5p_mfc_dev *dev;
@@ -808,7 +755,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
 
 	raw = &ctx->raw_buf;
 
-	if (!ctx->enc_res_change_re_input && slice_type >= 0) {
+	if (slice_type >= 0) {
 		if (ctx->state == MFCINST_RUNNING_NO_OUTPUT ||
 			ctx->state == MFCINST_RUNNING_BUF_FULL)
 			s5p_mfc_change_state(ctx, MFCINST_RUNNING);
@@ -971,9 +918,6 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 		return 0;
 	}
 
-	if (ctx->enc_res_change || ctx->enc_res_change_state)
-		mfc_enc_res_change(ctx);
-
 	/* set encoded frame type */
 	enc->frame_type = slice_type;
 	raw = &ctx->raw_buf;
@@ -995,9 +939,6 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 
 	if (IS_BUFFER_BATCH_MODE(ctx))
 		return 0;
-
-	if (ctx->enc_res_change_re_input)
-		ctx->enc_res_change_re_input = 0;
 
 	if (s5p_mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0)) {
 		s5p_mfc_move_first_buf_used(&ctx->buf_queue_lock,
