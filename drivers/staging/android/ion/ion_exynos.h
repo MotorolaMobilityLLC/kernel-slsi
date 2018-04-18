@@ -18,6 +18,8 @@
 #define _ION_EXYNOS_H_
 
 #include <linux/dma-direction.h>
+#include <linux/dma-buf.h>
+
 struct cma;
 struct dma_buf;
 struct ion_heap;
@@ -75,7 +77,7 @@ extern struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *pheap);
 #endif
 
 #if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) && defined(CONFIG_ION_EXYNOS)
-int __init ion_secure_iova_pool_create(void)
+int __init ion_secure_iova_pool_create(void);
 #else
 static inline int ion_secure_iova_pool_create(void)
 {

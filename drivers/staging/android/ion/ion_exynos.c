@@ -15,7 +15,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/dma-buf.h>
 #include <linux/exynos_iovmm.h>
 
 #include "ion.h"

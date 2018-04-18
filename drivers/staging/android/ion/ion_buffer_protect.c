@@ -15,6 +15,10 @@
  */
 
 #include <linux/slab.h>
+#include <linux/genalloc.h>
+#include <linux/smc.h>
+
+#include <asm/cacheflush.h>
 
 #include "ion_exynos.h"
 
@@ -25,6 +29,22 @@
 
 static struct gen_pool *secure_iova_pool;
 static DEFINE_SPINLOCK(siova_pool_lock);
+
+#define MAX_IOVA_ALIGNMENT      12
+
+static unsigned long find_first_fit_with_align(unsigned long *map,
+					       unsigned long size,
+					       unsigned long start,
+					       unsigned int nr, void *data,
+					       struct gen_pool *pool)
+{
+	unsigned long align = ((*(unsigned long *)data) >> PAGE_SHIFT);
+
+	if (align > (1 << MAX_IOVA_ALIGNMENT))
+		align = (1 << MAX_IOVA_ALIGNMENT);
+
+	return bitmap_find_next_zero_area(map, size, start, nr, (align - 1));
+}
 
 static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 				 unsigned int align)
@@ -92,16 +112,17 @@ static int ion_secure_protect(struct ion_buffer_prot_info *protdesc,
 {
 	unsigned long size = protdesc->chunk_count * protdesc->chunk_size;
 	unsigned long dma_addr = 0;
-	drmdrv_result_t drmret = DRMDRV_OK;
+	enum drmdrv_result_t drmret = DRMDRV_OK;
 	int ret;
 
-	ret = ion_secure_iova_alloc(&dma_addr, size, max(protalign, PAGE_SIZE));
+	ret = ion_secure_iova_alloc(&dma_addr, size,
+				    max_t(u32, protalign, PAGE_SIZE));
 	if (ret)
 		goto err_iova;
 
-	prot->dma_addr = (unsigned int)dma_addr;
+	protdesc->dma_addr = (unsigned int)dma_addr;
 
-	__flush_dcache_area(prot, sizeof(*protdesc));
+	__flush_dcache_area(protdesc, sizeof(*protdesc));
 	if (protdesc->chunk_count > 1)
 		__flush_dcache_area(phys_to_virt(protdesc->bus_address),
 				sizeof(unsigned long) * protdesc->chunk_count);
@@ -133,10 +154,10 @@ static int ion_secure_unprotect(struct ion_buffer_prot_info *protdesc)
 	 */
 	ret = exynos_smc(SMC_DRM_PPMP_UNPROT, virt_to_phys(protdesc), 0, 0);
 
-	ion_secure_iova_free(info->prot_desc.dma_addr, size);
+	ion_secure_iova_free(protdesc->dma_addr, size);
 
 	if (ret != DRMDRV_OK) {
-		pr_err("%s: UNPROT:%d(err=%d,va=%#lx,len=%#lx,cnt=%u,flg=%u)\n",
+		pr_err("%s: UNPROT:%d(err=%d,va=%#x,len=%#lx,cnt=%u,flg=%u)\n",
 		       __func__, SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
 		       size, protdesc->chunk_count, protdesc->flags);
 		return -EACCES;
