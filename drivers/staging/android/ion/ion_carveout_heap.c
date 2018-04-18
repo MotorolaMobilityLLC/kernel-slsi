@@ -106,8 +106,10 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 						(unsigned int)aligned_size,
 						paddr,
 						carveout_heap->alloc_align);
-		if (IS_ERR(buffer->priv_virt))
+		if (IS_ERR(buffer->priv_virt)) {
+			ret = PTR_ERR(buffer->priv_virt);
 			goto err_prot;
+		}
 	}
 
 	return 0;

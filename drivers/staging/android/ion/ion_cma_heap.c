@@ -102,8 +102,10 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 					(unsigned int)len,
 					page_to_phys(pages),
 					PAGE_SIZE << cma_heap->align_order);
-		if (IS_ERR(buffer->priv_virt))
+		if (IS_ERR(buffer->priv_virt)) {
+			ret = PTR_ERR(buffer->priv_virt);
 			goto err_prot;
+		}
 	}
 
 	return 0;

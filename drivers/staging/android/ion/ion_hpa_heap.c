@@ -120,8 +120,10 @@ static int ion_hpa_allocate(struct ion_heap *heap,
 					ION_HPA_CHUNK_SIZE(hpa_heap),
 					(unsigned int)len, phys,
 					ION_HPA_CHUNK_SIZE(hpa_heap));
-		if (IS_ERR(buffer->priv_virt))
+		if (IS_ERR(buffer->priv_virt)) {
+			ret = PTR_ERR(buffer->priv_virt);
 			goto err_prot;
+		}
 	} else {
 		kfree(pages);
 	}
