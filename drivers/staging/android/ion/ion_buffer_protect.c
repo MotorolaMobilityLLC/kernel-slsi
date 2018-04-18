@@ -137,7 +137,7 @@ static int ion_secure_protect(struct ion_buffer_prot_info *protdesc,
 err_smc:
 	ion_secure_iova_free(dma_addr, size);
 err_iova:
-	pr_err("%s: PROT:%d (err=%d,va=%#lx,len=%#lx,cnt=%u,flg=%u)\n",
+	pr_err("%s: PROT:%#x (err=%d,va=%#lx,len=%#lx,cnt=%u,flg=%u)\n",
 	       __func__, SMC_DRM_PPMP_PROT, drmret, dma_addr, size,
 	       protdesc->chunk_count, protdesc->flags);
 
@@ -241,7 +241,7 @@ void *ion_buffer_protect_multi(unsigned int protection_id, unsigned int count,
 
 	ret = ion_secure_protect(protdesc, protalign);
 	if (ret) {
-		pr_err("%s: protection failure (id%u,len%u,count%u,align%#x\n",
+		pr_err("%s: protection failure (id%u,chk%u,count%u,align%#x\n",
 		       __func__, protection_id, chunk_size, count, protalign);
 		kfree(protdesc);
 		return ERR_PTR(ret);
