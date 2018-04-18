@@ -116,9 +116,8 @@ static int ion_hpa_allocate(struct ion_heap *heap,
 
 	if (protected) {
 		buffer->priv_virt = ion_buffer_protect_multi(
-					hpa_heap->protection_id,
-					ION_HPA_CHUNK_SIZE(hpa_heap),
-					(unsigned int)len, phys,
+					hpa_heap->protection_id, count,
+					ION_HPA_CHUNK_SIZE(hpa_heap), phys,
 					ION_HPA_CHUNK_SIZE(hpa_heap));
 		if (IS_ERR(buffer->priv_virt)) {
 			ret = PTR_ERR(buffer->priv_virt);
