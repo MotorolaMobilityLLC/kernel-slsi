@@ -745,92 +745,102 @@ static void mfc_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p
 		dst_mb->vb.vb2_buf.timestamp = new_timestamp;
 }
 
-static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx, int slice_type)
+static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_raw_info *raw;
 	struct s5p_mfc_buf *ref_mb, *src_mb;
 	dma_addr_t enc_addr[3] = { 0, 0, 0 };
-	int i;
+	int i, found_in_src_queue = 0;
 	unsigned int index;
 
 	raw = &ctx->raw_buf;
 
-	if (slice_type >= 0) {
-		if (ctx->state == MFCINST_RUNNING_NO_OUTPUT ||
+	if (ctx->state == MFCINST_RUNNING_NO_OUTPUT ||
 			ctx->state == MFCINST_RUNNING_BUF_FULL)
-			s5p_mfc_change_state(ctx, MFCINST_RUNNING);
+		s5p_mfc_change_state(ctx, MFCINST_RUNNING);
 
-		s5p_mfc_get_enc_frame_buffer(ctx, &enc_addr[0], raw->num_planes);
+	s5p_mfc_get_enc_frame_buffer(ctx, &enc_addr[0], raw->num_planes);
+	if (enc_addr[0] == 0) {
+		mfc_debug(3, "no encoded src\n");
+		goto move_buf;
+	}
+	for (i = 0; i < raw->num_planes; i++)
+		mfc_debug(2, "encoded[%d] addr: 0x%08llx\n", i, enc_addr[i]);
 
-		for (i = 0; i < raw->num_planes; i++)
-			mfc_debug(2, "encoded[%d] addr: 0x%08llx\n",
-						i, enc_addr[i]);
-		if (enc_addr[0] == 0) {
-			mfc_debug(3, "no encoded addr by B frame\n");
-			return;
-		}
+	if (IS_BUFFER_BATCH_MODE(ctx)) {
+		src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
+				&ctx->src_buf_queue, enc_addr[0]);
+		if (src_mb) {
+			found_in_src_queue = 1;
+			src_mb->done_index++;
+			mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
 
-		if (IS_BUFFER_BATCH_MODE(ctx)) {
-			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
-					&ctx->src_buf_queue, enc_addr[0]);
-			if (src_mb) {
-				src_mb->done_index++;
-				mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
+			index = src_mb->vb.vb2_buf.index;
 
-				index = src_mb->vb.vb2_buf.index;
+			if (call_cop(ctx, recover_buf_ctrls_val, ctx,
+						&ctx->src_ctrls[index]) < 0)
+				mfc_err_ctx("failed in recover_buf_ctrls_val\n");
 
-				if (call_cop(ctx, recover_buf_ctrls_val, ctx,
-							&ctx->src_ctrls[index]) < 0)
-					mfc_err_ctx("failed in recover_buf_ctrls_val\n");
+			mfc_handle_stream_copy_timestamp(ctx, src_mb);
 
-				mfc_handle_stream_copy_timestamp(ctx, src_mb);
-
-				/* single buffer || last image in a buffer container */
-				if (!src_mb->num_bufs_in_vb || src_mb->done_index == src_mb->num_bufs_in_vb) {
-					src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-							&ctx->src_buf_queue, enc_addr[0]);
-					for (i = 0; i < raw->num_planes; i++)
-						s5p_mfc_bufcon_put_daddr(ctx, src_mb, i);
-					vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-				}
-
-				/* encoder src buffer CFW UNPROT */
-				if (ctx->is_drm)
-					s5p_mfc_raw_unprotect(ctx, src_mb, index);
-			}
-		} else {
-			/* normal single buffer */
-			src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-					&ctx->src_buf_queue, enc_addr[0]);
-			if (src_mb) {
-				index = src_mb->vb.vb2_buf.index;
-				if (call_cop(ctx, recover_buf_ctrls_val, ctx,
-							&ctx->src_ctrls[index]) < 0)
-					mfc_err_ctx("failed in recover_buf_ctrls_val\n");
-
-				mfc_debug(3, "find src buf in src_queue\n");
+			/* single buffer || last image in a buffer container */
+			if (!src_mb->num_bufs_in_vb || src_mb->done_index == src_mb->num_bufs_in_vb) {
+				src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+						&ctx->src_buf_queue, enc_addr[0]);
+				for (i = 0; i < raw->num_planes; i++)
+					s5p_mfc_bufcon_put_daddr(ctx, src_mb, i);
 				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+			}
+
+			/* encoder src buffer CFW UNPROT */
+			if (ctx->is_drm)
+				s5p_mfc_raw_unprotect(ctx, src_mb, index);
+		}
+	} else {
+		/* normal single buffer */
+		src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+				&ctx->src_buf_queue, enc_addr[0]);
+		if (src_mb) {
+			found_in_src_queue = 1;
+			index = src_mb->vb.vb2_buf.index;
+			if (call_cop(ctx, recover_buf_ctrls_val, ctx,
+						&ctx->src_ctrls[index]) < 0)
+				mfc_err_ctx("failed in recover_buf_ctrls_val\n");
+
+			mfc_debug(3, "find src buf in src_queue\n");
+			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+
+			/* encoder src buffer CFW UNPROT */
+			if (ctx->is_drm)
+				s5p_mfc_raw_unprotect(ctx, src_mb, index);
+		} else {
+			mfc_debug(3, "no src buf in src_queue\n");
+			ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
+					&ctx->ref_buf_queue, enc_addr[0]);
+			if (ref_mb) {
+				mfc_debug(3, "find src buf in ref_queue\n");
+				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
 				/* encoder src buffer CFW UNPROT */
-				if (ctx->is_drm)
-					s5p_mfc_raw_unprotect(ctx, src_mb, index);
-			} else {
-				mfc_debug(3, "no src buf in src_queue\n");
-				ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
-						&ctx->ref_buf_queue, enc_addr[0]);
-				if (ref_mb) {
-					vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-
-					/* encoder src buffer CFW UNPROT */
-					if (ctx->is_drm) {
-						index = ref_mb->vb.vb2_buf.index;
-						s5p_mfc_raw_unprotect(ctx, ref_mb, index);
-					}
-				} else {
-					mfc_err_ctx("couldn't find src buffer\n");
+				if (ctx->is_drm) {
+					index = ref_mb->vb.vb2_buf.index;
+					s5p_mfc_raw_unprotect(ctx, ref_mb, index);
 				}
+			} else {
+				mfc_err_ctx("couldn't find src buffer\n");
 			}
 		}
+	}
+
+move_buf:
+	/* move enqueued src buffer: src queue -> ref queue */
+	if (!found_in_src_queue && ctx->state != MFCINST_FINISHING) {
+		s5p_mfc_move_first_buf_used(&ctx->buf_queue_lock,
+				&ctx->ref_buf_queue, &ctx->src_buf_queue, MFC_QUEUE_ADD_BOTTOM);
+
+		mfc_debug(2, "enc src_buf_queue(%d) -> ref_buf_queue(%d)\n",
+				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
+				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->ref_buf_queue));
 	}
 }
 
@@ -841,58 +851,56 @@ static void mfc_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_type,
 	struct s5p_mfc_buf *dst_mb;
 	unsigned int index;
 
-	if (strm_size > 0 || ctx->state == MFCINST_RUNNING_BUF_FULL) {
-		/* at least one more dest. buffers exist always  */
-		dst_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
-				&ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
-		if (!dst_mb) {
-			mfc_err_dev("no dst buffers.\n");
-			return;
-		}
-
-		dst_mb->vb.flags &=
-			~(V4L2_BUF_FLAG_KEYFRAME |
-			  V4L2_BUF_FLAG_PFRAME |
-			  V4L2_BUF_FLAG_BFRAME);
-
-		switch (slice_type) {
-		case S5P_FIMV_E_SLICE_TYPE_I:
-			dst_mb->vb.flags |=
-				V4L2_BUF_FLAG_KEYFRAME;
-			break;
-		case S5P_FIMV_E_SLICE_TYPE_P:
-			dst_mb->vb.flags |=
-				V4L2_BUF_FLAG_PFRAME;
-			break;
-		case S5P_FIMV_E_SLICE_TYPE_B:
-			dst_mb->vb.flags |=
-				V4L2_BUF_FLAG_BFRAME;
-			break;
-		default:
-			dst_mb->vb.flags |=
-				V4L2_BUF_FLAG_KEYFRAME;
-			break;
-		}
-		mfc_debug(2, "Slice type : %d\n", dst_mb->vb.flags);
-
-		if (IS_BPG_ENC(ctx)) {
-			strm_size += enc->header_size;
-			mfc_debug(2, "bpg total stream size: %d\n", strm_size);
-		}
-		vb2_set_plane_payload(&dst_mb->vb.vb2_buf, 0, strm_size);
-
-		index = dst_mb->vb.vb2_buf.index;
-		if (call_cop(ctx, get_buf_ctrls_val, ctx, &ctx->dst_ctrls[index]) < 0)
-			mfc_err_ctx("failed in get_buf_ctrls_val\n");
-
-		vb2_buffer_done(&dst_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-
-		/* encoder dst buffer CFW UNPROT */
-		if (ctx->is_drm)
-			s5p_mfc_stream_unprotect(ctx, dst_mb, index);
-	} else if (strm_size == 0 && slice_type == S5P_FIMV_E_SLICE_TYPE_SKIPPED) {
-		/* TO-DO: skipped frame should be handled */
+	if (strm_size == 0) {
+		mfc_debug(3, "no encoded dst (reuse)\n");
+		return;
+	} else if (strm_size < 0) {
+		mfc_err_ctx("invalid stream size: %d\n", strm_size);
+		return;
 	}
+
+	/* at least one more dest. buffers exist always  */
+	dst_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
+			&ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
+	if (!dst_mb) {
+		mfc_err_ctx("no dst buffers.\n");
+		return;
+	}
+
+	dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
+				V4L2_BUF_FLAG_PFRAME |
+				V4L2_BUF_FLAG_BFRAME);
+	switch (slice_type) {
+	case S5P_FIMV_E_SLICE_TYPE_I:
+		dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
+		break;
+	case S5P_FIMV_E_SLICE_TYPE_P:
+		dst_mb->vb.flags |= V4L2_BUF_FLAG_PFRAME;
+		break;
+	case S5P_FIMV_E_SLICE_TYPE_B:
+		dst_mb->vb.flags |= V4L2_BUF_FLAG_BFRAME;
+		break;
+	default:
+		dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
+		break;
+	}
+	mfc_debug(2, "Slice type flag: %d\n", dst_mb->vb.flags);
+
+	if (IS_BPG_ENC(ctx)) {
+		strm_size += enc->header_size;
+		mfc_debug(2, "bpg total stream size: %d\n", strm_size);
+	}
+	vb2_set_plane_payload(&dst_mb->vb.vb2_buf, 0, strm_size);
+
+	index = dst_mb->vb.vb2_buf.index;
+	if (call_cop(ctx, get_buf_ctrls_val, ctx, &ctx->dst_ctrls[index]) < 0)
+		mfc_err_ctx("failed in get_buf_ctrls_val\n");
+
+	vb2_buffer_done(&dst_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+
+	/* encoder dst buffer CFW UNPROT */
+	if (ctx->is_drm)
+		s5p_mfc_stream_unprotect(ctx, dst_mb, index);
 }
 
 /* Handle frame encoding interrupt */
@@ -912,6 +920,7 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "encoded stream size: %d\n", strm_size);
 	mfc_debug(2, "display order: %d\n", pic_count);
 
+	/* buffer full handling */
 	if (enc->buf_full) {
 		s5p_mfc_change_state(ctx, MFCINST_ABORT_INST);
 		return 0;
@@ -929,30 +938,10 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 	}
 
 	/* handle source buffer */
-	mfc_handle_stream_input(ctx, slice_type);
+	mfc_handle_stream_input(ctx);
 
 	/* handle destination buffer */
 	mfc_handle_stream_output(ctx, slice_type, strm_size);
-
-	if (IS_BUFFER_BATCH_MODE(ctx))
-		return 0;
-
-	if (s5p_mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0)) {
-		s5p_mfc_move_first_buf_used(&ctx->buf_queue_lock,
-			&ctx->ref_buf_queue, &ctx->src_buf_queue, MFC_QUEUE_ADD_BOTTOM);
-
-		/*
-		 * slice_type = 4 && strm_size = 0, skipped enable
-		 * should be considered
-		 */
-		if ((slice_type == -1) && (strm_size == 0))
-			s5p_mfc_change_state(ctx, MFCINST_RUNNING_NO_OUTPUT);
-
-		mfc_debug(2, "slice_type: %d, ctx->state: %d\n", slice_type, ctx->state);
-		mfc_debug(2, "enc src count: %d, enc ref count: %d\n",
-			  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
-			  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->ref_buf_queue));
-	}
 
 	return 0;
 }
