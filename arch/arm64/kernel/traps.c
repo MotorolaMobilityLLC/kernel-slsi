@@ -740,6 +740,12 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
 	if (user_mode(regs))
 		return DBG_HOOK_ERROR;
 
+	/*
+	 * If recalling hardlockup core has been run before,
+	 * PC value must be replaced to real PC value.
+	 */
+	dbg_snapshot_hook_hardlockup_entry((void *)regs);
+
 	switch (report_bug(regs->pc, regs)) {
 	case BUG_TRAP_TYPE_BUG:
 		die("Oops - BUG", regs, 0);

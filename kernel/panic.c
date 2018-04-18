@@ -172,8 +172,10 @@ void panic(const char *fmt, ...)
 	this_cpu = raw_smp_processor_id();
 	old_cpu  = atomic_cmpxchg(&panic_cpu, PANIC_CPU_INVALID, this_cpu);
 
-	if (old_cpu != PANIC_CPU_INVALID)
+	if (old_cpu != PANIC_CPU_INVALID) {
+		dbg_snapshot_hook_hardlockup_exit();
 		panic_smp_self_stop();
+	}
 
 	console_verbose();
 	bust_spinlocks(1);
