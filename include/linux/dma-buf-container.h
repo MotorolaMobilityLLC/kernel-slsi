@@ -6,6 +6,8 @@
 
 int dmabuf_container_get_count(struct dma_buf *dmabuf);
 struct dma_buf *dmabuf_container_get_buffer(struct dma_buf *dmabuf, int index);
+int dmabuf_container_set_mask(struct dma_buf *dmabuf, u32 mask);
+int dmabuf_container_get_mask(struct dma_buf *dmabuf, u32 *mask);
 
 #else
 
@@ -18,6 +20,16 @@ static inline struct dma_buf *dmabuf_container_get_buffer(struct dma_buf *dbuf,
 							  int index)
 {
 	return NULL;
+}
+
+static inline int dmabuf_container_set_mask(struct dma_buf *dmabuf, u32 mask)
+{
+	return -EINVAL;
+}
+
+static inline int dmabuf_container_get_mask(struct dma_buf *dmabuf, u32 *mask)
+{
+	return -EINVAL;
 }
 
 #endif

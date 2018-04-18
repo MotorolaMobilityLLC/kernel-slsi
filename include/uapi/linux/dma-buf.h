@@ -51,5 +51,7 @@ struct dma_buf_merge {
 	__u32 reserved[2];
 };
 #define DMA_BUF_IOCTL_MERGE	_IOWR(DMA_BUF_BASE, 13, struct dma_buf_merge)
+#define DMA_BUF_IOCTL_CONTAINER_SET_MASK	_IOW(DMA_BUF_BASE, 14, __u32)
+#define DMA_BUF_IOCTL_CONTAINER_GET_MASK	_IOR(DMA_BUF_BASE, 14, __u32)
 
 #endif

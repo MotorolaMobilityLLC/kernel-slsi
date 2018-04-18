@@ -42,10 +42,23 @@ struct dma_buf;
 long dma_buf_merge_ioctl(struct dma_buf *dmabuf,
 			 unsigned int cmd, unsigned long arg);
 
+int dmabuf_container_set_mask_user(struct dma_buf *dmabuf, unsigned long arg);
+int dmabuf_container_get_mask_user(struct dma_buf *dmabuf, unsigned long arg);
 #else
 
 static inline long dma_buf_merge_ioctl(struct dma_buf *dmabuf,
 				       unsigned int cmd, unsigned long arg)
+{
+	return -ENOTTY;
+}
+
+static inline int dmabuf_container_set_mask_user(struct dma_buf *dmabuf,
+						 unsigned long arg)
+{
+	return -ENOTTY;
+}
+static inline int dmabuf_container_get_mask_user(struct dma_buf *dmabuf,
+						 unsigned long arg)
 {
 	return -ENOTTY;
 }

@@ -108,11 +108,14 @@ static int dmabuf_container_put_user_data(unsigned int cmd, void __user *arg,
  * struct dma_buf_container - container description
  * @table:	dummy sg_table for container
  * @count:	the number of the buffers
+ * @dmabuf_mask: bit-mask of dma-bufs in @dmabufs.
+ *               @dmabuf_mask is 0(unmasked) on creation of a dma-buf container.
  * @dmabufs:	dmabuf array representing each buffers
  */
 struct dma_buf_container {
 	struct sg_table	table;
 	int		count;
+	u32		dmabuf_mask;
 	struct dma_buf	*dmabufs[0];
 };
 
@@ -312,6 +315,71 @@ long dma_buf_merge_ioctl(struct dma_buf *dmabuf,
 
 	return 0;
 }
+
+int dmabuf_container_set_mask_user(struct dma_buf *dmabuf, unsigned long arg)
+{
+	u32 mask;
+
+	if (get_user(mask, (u32 __user *)arg)) {
+		pr_err("%s: failed to read mask from user\n", __func__);
+		return -EFAULT;
+	}
+
+	return dmabuf_container_set_mask(dmabuf, mask);
+}
+
+int dmabuf_container_get_mask_user(struct dma_buf *dmabuf, unsigned long arg)
+{
+	u32 mask;
+	int ret;
+
+	ret = dmabuf_container_get_mask(dmabuf, &mask);
+	if (ret < 0)
+		return ret;
+
+	if (put_user(mask, (u32 __user *)arg)) {
+		pr_err("%s: failed to write mask to user\n", __func__);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int dmabuf_container_set_mask(struct dma_buf *dmabuf, u32 mask)
+{
+	struct dma_buf_container *container;
+
+	if (!is_dmabuf_container(dmabuf)) {
+		pr_err("%s: given dmabuf is not dma-buf container\n", __func__);
+		return -EINVAL;
+	}
+
+	container = get_container(dmabuf);
+
+	if (mask & ~((1 << container->count) - 1)) {
+		pr_err("%s: invalid mask %#x for %u buffers\n",
+		       __func__, mask, container->count);
+		return -EINVAL;
+	}
+
+	get_container(dmabuf)->dmabuf_mask = mask;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dmabuf_container_set_mask);
+
+int dmabuf_container_get_mask(struct dma_buf *dmabuf, u32 *mask)
+{
+	if (!is_dmabuf_container(dmabuf)) {
+		pr_err("%s: given dmabuf is not dma-buf container\n", __func__);
+		return -EINVAL;
+	}
+
+	*mask = get_container(dmabuf)->dmabuf_mask;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dmabuf_container_get_mask);
 
 int dmabuf_container_get_count(struct dma_buf *dmabuf)
 {

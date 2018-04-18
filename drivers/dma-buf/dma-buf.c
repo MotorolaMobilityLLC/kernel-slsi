@@ -321,6 +321,10 @@ static long dma_buf_ioctl(struct file *file,
 #endif
 	case DMA_BUF_IOCTL_MERGE:
 		return dma_buf_merge_ioctl(dmabuf, cmd, arg);
+	case DMA_BUF_IOCTL_CONTAINER_SET_MASK:
+		return dmabuf_container_set_mask_user(dmabuf, arg);
+	case DMA_BUF_IOCTL_CONTAINER_GET_MASK:
+		return dmabuf_container_get_mask_user(dmabuf, arg);
 	default:
 		return -ENOTTY;
 	}
