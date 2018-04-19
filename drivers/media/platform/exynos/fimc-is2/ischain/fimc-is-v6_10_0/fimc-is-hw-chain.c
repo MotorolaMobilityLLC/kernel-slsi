@@ -296,10 +296,16 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	u32 csi_ch = 0;
 	u32 mux_set_val = MUX_SET_VAL_DEFAULT;
 	u32 mux_clr_val = MUX_CLR_VAL_DEFAULT;
+	unsigned long mux_backup_val = 0;
 
 	FIMC_BUG(!sensor_data);
 
-	sensor = sensor_data;
+	sensor = (struct fimc_is_device_sensor *)sensor_data;
+
+	ischain = sensor->ischain;
+	if (!ischain)
+		goto p_err;
+
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(sensor->subdev_csi);
 	if (!csi) {
 		merr("csi is null\n", sensor);
@@ -314,48 +320,53 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 		goto p_err;
 	}
 
-	/* CSIS to PDP MUX */
-	ischain = sensor->ischain;
-	if (ischain) {
-		paf_ch = (ischain->group_3aa.id == GROUP_ID_3AA1) ? 1 : 0;
+	mutex_lock(&ischain->resourcemgr->sysreg_lock);
 
-		switch (paf_ch) {
-		case 0:
-			mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-					&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], csi_ch);
-			mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-					&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], ((csi_ch == 0) ? 1 : 0));
-			break;
-		case 1:
-			mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-					&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], ((csi_ch == 0) ? 1 : 0));
-			mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-					&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], csi_ch);
-			break;
-		default:
-			merr("PDP channel is invalid(%d)", sensor, paf_ch);
-			ret = -ERANGE;
-			goto p_err;
-		}
-		minfo("CSI(%d) --> PAFSTAT(%d), mux(0x%08X)\n", sensor, csi_ch, paf_ch, mux_set_val);
+	/* read previous value */
+	exynos_smc_readsfr((TZPC_CAM + TZPC_DECPROT1STAT_OFFSET), &mux_backup_val);
+
+	/* CSIS to PDP MUX */
+	paf_ch = (ischain->group_3aa.id == GROUP_ID_3AA1) ? 1 : 0;
+
+	switch (paf_ch) {
+	case 0:
+		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], csi_ch);
+		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], ((csi_ch == 0) ? 2 : 0));
+		break;
+	case 1:
+		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], ((csi_ch == 0) ? 1 : 0));
+		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], csi_ch);
+		break;
+	default:
+		merr("PDP channel is invalid(%d)", sensor, paf_ch);
+		ret = -ERANGE;
+		goto p_err_lock;
+	}
+	minfo("CSI(%d) --> PAFSTAT(%d), mux(0x%08X), backup(0x%08lX)\n",
+		sensor, csi_ch, paf_ch, mux_set_val, mux_backup_val);
+
+	if (mux_backup_val != (unsigned long)mux_set_val) {
+		/* SMC call for PAFSTAT MUX */
+		ret = exynos_smc(SMC_CMD_REG, SMC_REG_ID_SFR_W(TZPC_CAM + TZPC_DECPROT1CLR_OFFSET), mux_clr_val, 0);
+		if (ret)
+			err("CAMIF mux clear is Error(%x)\n", ret);
+
+		ret = exynos_smc(SMC_CMD_REG, SMC_REG_ID_SFR_W(TZPC_CAM + TZPC_DECPROT1SET_OFFSET), mux_set_val, 0);
+		if (ret)
+			err("CAMIF mux set is Error(%x)\n", ret);
+
+		exynos_smc_readsfr((TZPC_CAM + TZPC_DECPROT1STAT_OFFSET), &value);
+		info_hw("CAMIF mux status(0x%x) is (0x%lx)\n", (TZPC_CAM + TZPC_DECPROT1STAT_OFFSET), value);
 	}
 
+p_err_lock:
+	mutex_unlock(&ischain->resourcemgr->sysreg_lock);
+
 p_err:
-	if (ret)
-		mux_set_val = MUX_SET_VAL_DEFAULT;
-
-	/* SMC call for PAFSTAT MUX */
-	ret = exynos_smc(SMC_CMD_REG, SMC_REG_ID_SFR_W(TZPC_CAM + TZPC_DECPROT1CLR_OFFSET), mux_clr_val, 0);
-	if (ret)
-		err("CAMIF mux clear is Error(%x)\n", ret);
-
-	ret = exynos_smc(SMC_CMD_REG, SMC_REG_ID_SFR_W(TZPC_CAM + TZPC_DECPROT1SET_OFFSET), mux_set_val, 0);
-	if (ret)
-		err("CAMIF mux set is Error(%x)\n", ret);
-
-	exynos_smc_readsfr((TZPC_CAM + TZPC_DECPROT1STAT_OFFSET), &value);
-	info_hw("CAMIF mux status(0x%x) is (0x%lx)\n", (TZPC_CAM + TZPC_DECPROT1STAT_OFFSET), value);
-
 	return ret;
 }
 
