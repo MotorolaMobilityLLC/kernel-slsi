@@ -49,7 +49,7 @@ static unsigned long find_first_fit_with_align(unsigned long *map,
 static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 				 unsigned int align)
 {
-	unsigned int out_addr;
+	unsigned long out_addr;
 
 	if (!secure_iova_pool) {
 		pr_err("%s: Secure IOVA pool is not created\n", __func__);
@@ -73,6 +73,8 @@ static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 		       gen_pool_size(secure_iova_pool));
 		return -ENOMEM;
 	}
+
+	*addr = out_addr;
 
 	return 0;
 }
