@@ -315,11 +315,6 @@ int s5p_mfc_enc_ctx_ready(struct s5p_mfc_ctx *ctx)
 		src_buf_queue_greater_than_0 && dst_buf_queue_greater_than_0)
 		return 1;
 
-	/* context is ready to encode a frame in case of B frame */
-	if (ctx->state == MFCINST_RUNNING_NO_OUTPUT &&
-		src_buf_queue_greater_than_0 && dst_buf_queue_greater_than_0)
-		return 1;
-
 	/* context is ready to encode a frame for NAL_ABORT command */
 	if (ctx->state == MFCINST_ABORT_INST &&
 		src_buf_queue_greater_than_0 && dst_buf_queue_greater_than_0)

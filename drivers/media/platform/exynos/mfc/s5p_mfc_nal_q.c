@@ -53,8 +53,7 @@ int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 				return 0;
 			}
 			/* NAL-Q can be enabled when all ctx are in running state */
-			if (temp_ctx->state != MFCINST_RUNNING &&
-					temp_ctx->state != MFCINST_RUNNING_NO_OUTPUT) {
+			if (temp_ctx->state != MFCINST_RUNNING) {
 				mfc_debug(2, "There is a ctx which is not in running state. "
 						"index: %d, state: %d\n", i, temp_ctx->state);
 				return 0;
@@ -908,10 +907,6 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, EncoderOutput
 
 	raw = &ctx->raw_buf;
 
-	if (ctx->state == MFCINST_RUNNING_NO_OUTPUT ||
-			ctx->state == MFCINST_RUNNING_BUF_FULL)
-		ctx->state = MFCINST_RUNNING;
-
 	mfc_nal_q_get_enc_frame_buffer(ctx, &enc_addr[0], raw->num_planes, pOutStr);
 	if (enc_addr[0] == 0) {
 		mfc_debug(3, "NAL Q: no encoded src\n");
@@ -1063,6 +1058,10 @@ static void mfc_nal_q_handle_stream(struct s5p_mfc_ctx *ctx, EncoderOutputStr *p
 	mfc_debug(2, "NAL Q: encoded slice type: %d\n", slice_type);
 	mfc_debug(2, "NAL Q: encoded stream size: %d\n", strm_size);
 	mfc_debug(2, "NAL Q: display order: %d\n", pic_count);
+
+	/* buffer full handling */
+	if (ctx->state == MFCINST_RUNNING_BUF_FULL)
+		ctx->state = MFCINST_RUNNING;
 
 	/* set encoded frame type */
 	enc->frame_type = slice_type;

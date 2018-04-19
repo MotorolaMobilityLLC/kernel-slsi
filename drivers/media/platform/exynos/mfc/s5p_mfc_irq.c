@@ -755,10 +755,6 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx)
 
 	raw = &ctx->raw_buf;
 
-	if (ctx->state == MFCINST_RUNNING_NO_OUTPUT ||
-			ctx->state == MFCINST_RUNNING_BUF_FULL)
-		s5p_mfc_change_state(ctx, MFCINST_RUNNING);
-
 	s5p_mfc_get_enc_frame_buffer(ctx, &enc_addr[0], raw->num_planes);
 	if (enc_addr[0] == 0) {
 		mfc_debug(3, "no encoded src\n");
@@ -925,6 +921,8 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 		s5p_mfc_change_state(ctx, MFCINST_ABORT_INST);
 		return 0;
 	}
+	if (ctx->state == MFCINST_RUNNING_BUF_FULL)
+		s5p_mfc_change_state(ctx, MFCINST_RUNNING);
 
 	/* set encoded frame type */
 	enc->frame_type = slice_type;
@@ -1378,8 +1376,7 @@ static int mfc_irq_ctx(struct s5p_mfc_ctx *ctx, unsigned int reason, unsigned in
 			break;
 		}
 		/* An error has occured */
-		if (ctx->state == MFCINST_RUNNING || ctx->state == MFCINST_ABORT ||
-				ctx->state == MFCINST_RUNNING_NO_OUTPUT) {
+		if (ctx->state == MFCINST_RUNNING || ctx->state == MFCINST_ABORT) {
 			if ((s5p_mfc_get_err(err) >= S5P_FIMV_ERR_WARNINGS_START) &&
 				(s5p_mfc_get_err(err) <= S5P_FIMV_ERR_WARNINGS_END))
 				mfc_handle_frame(ctx, reason, err);

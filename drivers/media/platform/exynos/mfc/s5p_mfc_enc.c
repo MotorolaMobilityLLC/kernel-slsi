@@ -849,10 +849,7 @@ static int mfc_enc_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		ctrl->value = enc->frame_type;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_CHECK_STATE:
-		if (ctx->state == MFCINST_RUNNING_NO_OUTPUT)
-			ctrl->value = MFCSTATE_ENC_NO_OUTPUT;
-		else
-			ctrl->value = MFCSTATE_PROCESSING;
+		ctrl->value = MFCSTATE_PROCESSING;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG:
 	case V4L2_CID_MPEG_MFC51_VIDEO_LUMA_ADDR:

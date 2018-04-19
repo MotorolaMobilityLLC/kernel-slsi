@@ -790,7 +790,6 @@ static int mfc_just_run_enc(struct s5p_mfc_ctx *ctx)
 			ret = s5p_mfc_run_enc_last_frames(ctx);
 			break;
 		case MFCINST_RUNNING:
-		case MFCINST_RUNNING_NO_OUTPUT:
 			if (ctx->otf_handle) {
 				ret = s5p_mfc_otf_run_enc_frame(ctx);
 				break;
