@@ -6,6 +6,7 @@
 #include "../pmucal_powermode.h"
 #include "../pmucal_cp.h"
 #include "../pmucal_gnss.h"
+#include "../pmucal_shub.h"
 
 #include "pmucal_cpu_exynos9610.h"
 #include "pmucal_local_exynos9610.h"
@@ -13,6 +14,7 @@
 #include "pmucal_system_exynos9610.h"
 #include "pmucal_cp_exynos9610.h"
 #include "pmucal_gnss_exynos9610.h"
+#include "pmucal_shub_exynos9610.h"
 
 #include "cmucal-node.c"
 #include "cmucal-qch.c"

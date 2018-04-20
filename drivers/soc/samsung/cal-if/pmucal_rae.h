@@ -18,6 +18,7 @@ extern int pmucal_rae_init(void);
 extern int pmucal_rae_handle_seq(struct pmucal_seq *seq, unsigned int seq_size);
 extern int pmucal_rae_handle_cp_seq(struct pmucal_seq *seq, unsigned int seq_size);
 extern int pmucal_rae_handle_gnss_seq(struct pmucal_seq *seq, unsigned int seq_size);
+extern int pmucal_rae_handle_shub_seq(struct pmucal_seq *seq, unsigned int seq_size);
 extern void pmucal_rae_save_seq(struct pmucal_seq *seq, unsigned int seq_size);
 extern int pmucal_rae_restore_seq(struct pmucal_seq *seq, unsigned int seq_size);
 extern int pmucal_rae_phy2virt(struct pmucal_seq *seq, unsigned int seq_size);

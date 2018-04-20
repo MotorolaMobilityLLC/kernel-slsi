@@ -16,6 +16,7 @@
 #include "pmucal_cpu.h"
 #include "pmucal_cp.h"
 #include "pmucal_gnss.h"
+#include "pmucal_shub.h"
 #include "pmucal_rae.h"
 #ifdef CONFIG_FLEXPMU
 #include "pmucal_powermode.h"
@@ -478,6 +479,13 @@ int __init cal_if_init(void *dev)
 	ret = pmucal_gnss_initialize();
 	if (ret < 0)
 		return ret;
+#endif
+
+#ifdef CONFIG_SHUB_PMUCAL
+	ret = pmucal_shub_initialize();
+	if (ret < 0)
+		return ret;
+
 #endif
 	exynos_acpm_set_device(dev);
 

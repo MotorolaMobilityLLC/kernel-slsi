@@ -77,6 +77,12 @@ config EXYNOS_MODE_CHANGER
 		Enable EXYNOS MODE CHANGER for Exynos SoC.
 		This module controls number of online cpu.
 
+config SHUB_PMUCAL
+	bool "Exynos PMU(for SHUB) Chip Abstraction Layer"
+	depends on CAL_IF
+	help
+	  Support SHUB_PMUCAL for Exynos SoC.
+
 config EXYNOS_PMU
 	bool "Exynos Power Management Unit Driver Support"
 	depends on ARCH_EXYNOS
