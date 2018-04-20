@@ -133,6 +133,17 @@ void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
 	struct ion_iovm_map *iovm_map;
 	struct iommu_domain *domain;
 
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) &&
+	    (buffer->flags & ION_FLAG_PROTECTED)) {
+		struct ion_buffer_prot_info *prot = buffer->priv_virt;
+
+		if (prot->dma_addr != iova)
+			WARN(1, "unmap invalid secure iova %pad for %#x\n",
+			     &iova, (int)prot->dma_addr);
+
+		return;
+	}
+
 	domain = get_domain_from_dev(attachment->dev);
 	if (!domain) {
 		dev_err(attachment->dev, "%s: no iommu domain\n", __func__);
@@ -148,7 +159,8 @@ void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
 		}
 	}
 
-	WARN(1, "iova %pad found for %s\n", &iova, dev_name(attachment->dev));
+	WARN(1, "iova %pad not found for %s\n",
+	     &iova, dev_name(attachment->dev));
 }
 
 /*
