@@ -1076,6 +1076,7 @@ int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr,
 
 	/* rsc mutex init */
 	mutex_init(&resourcemgr->rsc_lock);
+	mutex_init(&resourcemgr->sysreg_lock);
 
 	/* temperature monitor unit */
 	resourcemgr->tmu_notifier.notifier_call = fimc_is_tmu_notifier;

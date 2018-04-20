@@ -148,6 +148,8 @@ struct fimc_is_resourcemgr {
 
 	/* for critical section at get/put */
 	struct mutex				rsc_lock;
+	/* for sysreg setting */
+	struct mutex				sysreg_lock;
 };
 
 int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr, void *private_data, struct platform_device *pdev);
