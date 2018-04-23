@@ -976,7 +976,7 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		ctrl->value = s5p_mfc_qos_get_framerate(ctx);
 		break;
 	case V4L2_CID_MPEG_MFC_GET_VERSION_INFO:
-		ctrl->value = s5p_mfc_version(dev);
+		ctrl->value = dev->pdata->ip_ver;
 		break;
 	case V4L2_CID_MPEG_VIDEO_QOS_RATIO:
 		ctrl->value = ctx->qos_ratio;

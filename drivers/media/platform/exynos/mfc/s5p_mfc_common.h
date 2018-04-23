@@ -176,17 +176,17 @@
 #define	ENC_SET_COLOR_ASPECT		(1 << 9)
 #define	ENC_SET_HP_BITRATE_CONTROL	(1 << 10)
 
-#define MFC_VER_MAJOR(dev)	((s5p_mfc_version(dev) >> 8) & 0xFF)
-#define MFC_VER_MINOR(dev)	(s5p_mfc_version(dev) & 0xFF)
+#define MFC_VER_MAJOR(dev)	((dev->pdata->ip_ver >> 8) & 0xFF)
+#define MFC_VER_MINOR(dev)	(dev->pdata->ip_ver & 0xFF)
 
 /*
  * Version Description
  */
-#define IS_MFCV10X(dev)		((s5p_mfc_version(dev) == 0xA0) || \
-				(s5p_mfc_version(dev) == 0xA01))
-#define IS_MFCV11X(dev)		(s5p_mfc_version(dev) == 0x1100)
-#define IS_MFCV12X(dev)		(s5p_mfc_version(dev) == 0x1200)
-#define IS_MFCV13X(dev)		(s5p_mfc_version(dev) == 0x1300)
+#define IS_MFCV10X(dev)		((dev->pdata->ip_ver == 0xA0) || \
+				(dev->pdata->ip_ver == 0xA01))
+#define IS_MFCV11X(dev)		(dev->pdata->ip_ver == 0x1100)
+#define IS_MFCV12X(dev)		(dev->pdata->ip_ver == 0x1200)
+#define IS_MFCV13X(dev)		(dev->pdata->ip_ver == 0x1300)
 #define FROM_MFCV11X(dev)	(IS_MFCV11X(dev) || IS_MFCV12X(dev) || \
 					IS_MFCV13X(dev))
 #define FROM_MFCV10X(dev)	(IS_MFCV10X(dev) || FROM_MFCV11X(dev))
@@ -212,68 +212,4 @@
 					(dev->fw.date >= 0x171023))
 #define FW_HAS_HP_BITRATE_CONTROL(dev)	(FROM_MFCV11X(dev) &&		\
 					(dev->fw.date >= 0x180314))
-
-static inline unsigned int s5p_mfc_version(struct s5p_mfc_dev *dev)
-{
-	unsigned int version = 0;
-
-	switch (dev->pdata->ip_ver) {
-	case IP_VER_MFC_4P_0:
-	case IP_VER_MFC_4P_1:
-	case IP_VER_MFC_4P_2:
-		version = 0x51;
-		break;
-	case IP_VER_MFC_5G_0:
-		version = 0x61;
-		break;
-	case IP_VER_MFC_5G_1:
-	case IP_VER_MFC_5A_0:
-	case IP_VER_MFC_5A_1:
-		version = 0x65;
-		break;
-	case IP_VER_MFC_6A_0:
-	case IP_VER_MFC_6A_1:
-		version = 0x72;
-		break;
-	case IP_VER_MFC_6A_2:
-		version = 0x723;
-		break;
-	case IP_VER_MFC_7A_0:
-		version = 0x80;
-		break;
-	case IP_VER_MFC_8I_0:
-		version = 0x90;
-		break;
-	case IP_VER_MFC_6I_0:
-		version = 0x78;
-		break;
-	case IP_VER_MFC_8J_0:
-		version = 0xA0;
-		break;
-	case IP_VER_MFC_8J_1:
-		version = 0xA01;
-		break;
-	case IP_VER_MFC_8K_0:
-		version = 0x1100;
-		break;
-	case IP_VER_MFC_7K_0:
-		version = 0x1120;
-		break;
-	case IP_VER_MFC_9L_0:
-		version = 0x1200;
-		break;
-	case IP_VER_MFC_9R_0:
-		version = 0x1202;
-		break;
-	case IP_VER_MFC_9M_0:
-		version = 0x1021;
-		break;
-	case IP_VER_MFC_9M_1:
-		version = 0x1300;
-		break;
-	}
-
-	return version;
-}
-
 #endif /* __S5P_MFC_COMMON_H */

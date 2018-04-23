@@ -119,9 +119,9 @@ static int mfc_init_hw(struct s5p_mfc_dev *dev, enum mfc_buf_usage_type buf_type
 	dev->fw.date = s5p_mfc_get_fw_ver_all();
 	/* Check MFC version and F/W version */
 	fw_ver = s5p_mfc_get_mfc_version();
-	if (fw_ver != s5p_mfc_version(dev)) {
+	if (fw_ver != dev->pdata->ip_ver) {
 		mfc_err_dev("Invalid F/W version(0x%x) for MFC H/W(0x%x)\n",
-				fw_ver, s5p_mfc_version(dev));
+				fw_ver, dev->pdata->ip_ver);
 		ret = -EIO;
 		goto err_init_hw;
 	}

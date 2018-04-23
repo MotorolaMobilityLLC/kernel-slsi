@@ -51,33 +51,6 @@
 #define MAX_NUM_BUFCON_BUFS		32
 
 /*
- *  MFC version
- */
-enum mfc_ip_version {
-	IP_VER_MFC_4P_0,
-	IP_VER_MFC_4P_1,
-	IP_VER_MFC_4P_2,
-	IP_VER_MFC_5G_0,
-	IP_VER_MFC_5G_1,
-	IP_VER_MFC_5A_0,
-	IP_VER_MFC_5A_1,
-	IP_VER_MFC_6A_0,
-	IP_VER_MFC_6A_1,
-	IP_VER_MFC_6A_2,
-	IP_VER_MFC_7A_0,
-	IP_VER_MFC_8I_0,
-	IP_VER_MFC_6I_0,
-	IP_VER_MFC_8J_0,
-	IP_VER_MFC_8J_1,
-	IP_VER_MFC_8K_0,
-	IP_VER_MFC_7K_0,
-	IP_VER_MFC_9L_0,
-	IP_VER_MFC_9R_0,
-	IP_VER_MFC_9M_0,
-	IP_VER_MFC_9M_1,
-};
-
-/*
  *  MFC region id for smc
  */
 enum {
@@ -400,7 +373,7 @@ struct s5p_mfc_qos {
 #endif
 
 struct s5p_mfc_platdata {
-	enum mfc_ip_version ip_ver;
+	int ip_ver;
 	int clock_rate;
 	int min_rate;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
