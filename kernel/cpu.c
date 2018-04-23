@@ -849,6 +849,100 @@ static int cpuhp_down_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
 	}
 	return ret;
 }
+static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
+			   enum cpuhp_state target)
+{
+	struct cpuhp_cpu_state *st;
+	int prev_state, ret = 0;
+	int cpu;
+
+	if (num_online_cpus() == 1)
+		return -EBUSY;
+
+	for_each_cpu(cpu, &cpus)
+		if (!cpu_present(cpu))
+			return -EINVAL;
+
+	cpus_write_lock();
+
+	cpuhp_tasks_frozen = tasks_frozen;
+
+	cpumask_copy(&cpu_fastoff_mask, &cpus);
+	for_each_cpu(cpu, &cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		prev_state = cpuhp_set_state(st, target);
+	}
+
+	for_each_cpu(cpu, &cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		if (st->state <= CPUHP_TEARDOWN_CPU)
+			continue;
+
+		st->target = max((int)target, CPUHP_TEARDOWN_CPU);
+		ret = cpuhp_kick_ap_work(cpu);
+		/*
+		 * The AP side has done the error rollback already. Just
+		 * return the error code..
+		 */
+		if (ret)
+			goto out;
+
+		/*
+		 * We might have stopped still in the range of the AP hotplug
+		 * thread. Nothing to do anymore.
+		 */
+		if (st->state > CPUHP_TEARDOWN_CPU)
+			goto out;
+
+		st->target = target;
+	}
+
+	for_each_cpu(cpu, &cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		ret = cpuhp_down_callbacks(cpu, st, target);
+		if (ret && st->state > CPUHP_TEARDOWN_CPU && st->state < prev_state) {
+			cpuhp_reset_state(st, prev_state);
+			__cpuhp_kick_ap(st);
+		}
+	}
+
+out:
+	cpumask_clear(&cpu_fastoff_mask);
+	cpus_write_unlock();
+
+	/*
+	 * Do post unplug cleanup. This is still protected against
+	 * concurrent CPU hotplug via cpu_add_remove_lock.
+	 */
+	lockup_detector_cleanup();
+
+	return ret;
+}
+
+int cpus_down(struct cpumask cpus)
+{
+	int err, cpu;
+
+	cpu_maps_update_begin();
+
+	if (cpu_hotplug_disabled) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	for_each_cpu(cpu, &cpus)
+		if (!cpu_online(cpu)) {
+			cpumask_clear_cpu(cpu, &cpus);
+			pr_warn("cpus_down: cpu%d is not online\n", cpu);
+		}
+
+	err = _cpus_down(cpus, 0, CPUHP_OFFLINE);
+
+out:
+	cpu_maps_update_done();
+	return err;
+}
+EXPORT_SYMBOL_GPL(cpus_down);
 
 /* Requires cpu_add_remove_lock to be held */
 static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
@@ -1075,6 +1169,27 @@ int cpu_up(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(cpu_up);
 
+int cpus_up(struct cpumask cpus)
+{
+	int cpu, ret;
+
+	for_each_cpu(cpu, &cpus)
+		if (cpu_online(cpu)) {
+			cpumask_clear_cpu(cpu, &cpus);
+			pr_warn("cpus_up: cpu%d is already online\n", cpu);
+		}
+
+	cpumask_copy(&cpu_faston_mask, &cpus);
+
+	for_each_cpu(cpu, &cpus)
+		ret = do_cpu_up((unsigned int)cpu, CPUHP_ONLINE);
+
+	cpumask_clear(&cpu_faston_mask);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cpus_up);
+
 #ifdef CONFIG_PM_SLEEP_SMP
 static cpumask_var_t frozen_cpus;
 
@@ -1212,6 +1327,10 @@ cpu_hotplug_pm_callback(struct notifier_block *nb,
 }
 
 
+struct cpumask cpu_fastoff_mask;
+EXPORT_SYMBOL(cpu_fastoff_mask);
+struct cpumask cpu_faston_mask;
+EXPORT_SYMBOL(cpu_faston_mask);
 static int __init cpu_hotplug_pm_sync_init(void)
 {
 	/*
@@ -1220,6 +1339,9 @@ static int __init cpu_hotplug_pm_sync_init(void)
 	 * to disable cpu hotplug to avoid cpu hotplug race.
 	 */
 	pm_notifier(cpu_hotplug_pm_callback, 0);
+	cpumask_clear(&cpu_fastoff_mask);
+	cpumask_clear(&cpu_faston_mask);
+
 	return 0;
 }
 core_initcall(cpu_hotplug_pm_sync_init);
