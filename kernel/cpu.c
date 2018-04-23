@@ -1122,6 +1122,7 @@ int cpus_down(struct cpumask cpus)
 {
 	int err, cpu;
 
+	trace_cpus_down_enter(cpumask_first(&cpus));
 	cpu_maps_update_begin();
 
 	if (cpu_hotplug_disabled) {
@@ -1139,6 +1140,7 @@ int cpus_down(struct cpumask cpus)
 
 out:
 	cpu_maps_update_done();
+	trace_cpus_down_exit(cpumask_first(&cpus));
 	return err;
 }
 EXPORT_SYMBOL_GPL(cpus_down);
@@ -1456,6 +1458,7 @@ int cpus_up(struct cpumask cpus)
 {
 	int cpu, err = 0;
 
+	trace_cpus_up_enter(cpumask_first(&cpus));
 	for_each_cpu(cpu, &cpus)
 		if (cpu_online(cpu)) {
 			cpumask_clear_cpu(cpu, &cpus);
@@ -1478,6 +1481,7 @@ int cpus_up(struct cpumask cpus)
 	err = _cpus_up(cpus, 0, CPUHP_ONLINE);
 out:
 	cpu_maps_update_done();
+	trace_cpus_up_exit(cpumask_first(&cpus));
 
 	return err;
 }
