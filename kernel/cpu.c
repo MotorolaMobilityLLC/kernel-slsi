@@ -29,6 +29,7 @@
 #include <linux/relay.h>
 #include <linux/slab.h>
 #include <linux/percpu-rwsem.h>
+#include <linux/cpuset.h>
 
 #include <trace/events/power.h>
 #define CREATE_TRACE_POINTS
@@ -925,6 +926,14 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 		else
 			cpumask_set_cpu(cpu, &take_down_cpus);
 	}
+
+	for_each_cpu(cpu, &ap_work_cpus) {
+		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+		set_cpu_active(cpu, false);
+		st->state = CPUHP_AP_EXYNOS_IDLE_CTRL;
+	}
+
+	cpuset_update_active_cpus();
 
 	for_each_cpu(cpu, &ap_work_cpus) {
 		st = per_cpu_ptr(&cpuhp_state, cpu);
