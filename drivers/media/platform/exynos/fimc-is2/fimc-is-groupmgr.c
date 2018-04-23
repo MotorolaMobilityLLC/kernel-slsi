@@ -1252,6 +1252,10 @@ int fimc_is_groupmgr_init(struct fimc_is_groupmgr *groupmgr,
 				}
 				break;
 #endif
+			case GROUP_ID_PAF0:
+				break;
+			case GROUP_ID_PAF1:
+				break;
 			case GROUP_ID_3AA0:
 				if ((video->id >= FIMC_IS_VIDEO_31S_NUM) &&
 					(video->id <= FIMC_IS_VIDEO_31P_NUM)) {
@@ -2202,6 +2206,7 @@ void wait_subdev_flush_work(struct fimc_is_device_ischain *device,
 		wq_id = WORK_M5P_FDONE;
 		break;
 	case ENTRY_SENSOR:	/* Falls Through */
+	case ENTRY_PAF: 	/* Falls Through */
 	case ENTRY_3AA:		/* Falls Through */
 	case ENTRY_ISP:		/* Falls Through */
 	case ENTRY_DIS:		/* Falls Through */

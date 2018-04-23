@@ -1307,6 +1307,16 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 	fimc_is_vra_video_probe(core);
 #endif
 
+#ifdef SOC_PAF0
+	/* video entity - paf_rdma0 */
+	fimc_is_paf0s_video_probe(core);
+#endif
+
+#ifdef SOC_PAF1
+	/* video entity - paf_rdma1 */
+	fimc_is_paf1s_video_probe(core);
+#endif
+
 /* TODO: video probe is needed for DCP */
 
 	platform_set_drvdata(pdev, core);

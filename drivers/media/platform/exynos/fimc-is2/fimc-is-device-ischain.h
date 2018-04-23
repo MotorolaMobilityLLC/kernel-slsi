@@ -128,6 +128,8 @@ struct fimc_is_device_ischain {
 	struct fimc_is_pipe			pipe;
 #endif
 
+	struct fimc_is_group			group_paf;		/* for PAF RDMA */
+
 	struct fimc_is_group			group_3aa;
 	struct fimc_is_subdev			txc;
 	struct fimc_is_subdev			txp;
@@ -204,6 +206,23 @@ int fimc_is_ischain_stop_wrap(struct fimc_is_device_ischain *device,
 
 void fimc_is_ischain_version(enum fimc_is_bin_type type, const char *load_bin, u32 size);
 char* fimc_is_ischain_get_version(enum fimc_is_bin_type type);
+
+/* PAF_RDMA subdev */
+int fimc_is_ischain_paf_open(struct fimc_is_device_ischain *device,
+	struct fimc_is_video_ctx *vctx);
+int fimc_is_ischain_paf_close(struct fimc_is_device_ischain *device,
+	struct fimc_is_video_ctx *vctx);
+int fimc_is_ischain_paf_s_input(struct fimc_is_device_ischain *device,
+	u32 stream_type,
+	u32 module_id,
+	u32 video_id,
+	u32 input_type,
+	u32 stream_leader);
+int fimc_is_ischain_paf_buffer_queue(struct fimc_is_device_ischain *device,
+	struct fimc_is_queue *queue,
+	u32 index);
+int fimc_is_ischain_paf_buffer_finish(struct fimc_is_device_ischain *device,
+	u32 index);
 
 /* 3AA subdev */
 int fimc_is_ischain_3aa_open(struct fimc_is_device_ischain *device,
@@ -362,6 +381,7 @@ int fimc_is_ischain_buf_tag_64bit(struct fimc_is_device_ischain *device,
 	u32 height,
 	uint64_t target_addr[]);
 
+extern const struct fimc_is_queue_ops fimc_is_ischain_paf_ops;
 extern const struct fimc_is_queue_ops fimc_is_ischain_3aa_ops;
 extern const struct fimc_is_queue_ops fimc_is_ischain_isp_ops;
 extern const struct fimc_is_queue_ops fimc_is_ischain_dis_ops;

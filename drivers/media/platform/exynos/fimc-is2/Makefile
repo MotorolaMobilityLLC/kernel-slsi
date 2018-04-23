@@ -28,6 +28,7 @@ fimc-is-objs	:= fimc-is-core.o \
 		fimc-is-video-ssvc2.o \
 		fimc-is-video-ssvc3.o \
 		fimc-is-video-preprocessor.o \
+		fimc-is-video-pafrdma.o \
 		fimc-is-subdev-ctrl.o \
 		fimc-is-device-ischain.o \
 		fimc-is-device-preprocessor.o \
@@ -61,7 +62,6 @@ obj-$(CONFIG_EXYNOS_DEVICE_MIPI_CSIS_VER3) += fimc-is-device-csi_v3.o
 obj-$(CONFIG_EXYNOS_DEVICE_MIPI_CSIS_VER4) += fimc-is-device-csi_v4.o
 
 obj-$(CONFIG_EXYNOS_FIMC_BNS) += fimc-is-device-flite.o
-
 
 obj-$(CONFIG_VIDEO_EXYNOS_FIMC_IS2) += fimc-is.o
 obj-$(CONFIG_VIDEO_EXYNOS_FIMC_IS2) += sensor/

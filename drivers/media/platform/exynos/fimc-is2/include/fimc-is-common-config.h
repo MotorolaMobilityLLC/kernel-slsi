@@ -158,6 +158,7 @@ extern int debug_sensor;
 #endif
 
 #define GET_SSX_ID(video) (video->id - FIMC_IS_VIDEO_SS0_NUM)
+#define GET_PAFXS_ID(video) ((video->id < FIMC_IS_VIDEO_PAF1S_NUM) ? 0 : 1)
 #define GET_3XS_ID(video) ((video->id < FIMC_IS_VIDEO_31S_NUM) ? 0 : 1)
 #define GET_3XC_ID(video) ((video->id < FIMC_IS_VIDEO_31S_NUM) ? 0 : 1)
 #define GET_3XP_ID(video) ((video->id < FIMC_IS_VIDEO_31S_NUM) ? 0 : 1)
@@ -404,6 +405,11 @@ extern int debug_sensor;
 
 #define mdbgv_ssxvc3(fmt, this, args...) \
 	mdbg_common(debug_video, "[%d][SSXVC3:V]", fmt, ((struct fimc_is_device_sensor *)this->device)->instance, ##args)
+
+#define mdbgv_paf(fmt, this, args...) \
+	mdbg_common(debug_video, "[%d][PAF%dS:V]", fmt, \
+				((struct fimc_is_device_ischain *)this->device)->instance, \
+				GET_PAFXS_ID(this->video), ##args)
 
 /*
  * =================================================================================================

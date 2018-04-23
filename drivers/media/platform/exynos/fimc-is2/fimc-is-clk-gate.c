@@ -91,6 +91,10 @@ inline bool fimc_is_group_otf(struct fimc_is_device_ischain *device, int group_i
 	struct fimc_is_group *group;
 
 	switch (group_id) {
+	case GROUP_ID_PAF0:
+	case GROUP_ID_PAF1:
+		group = &device->group_paf;
+		break;
 	case GROUP_ID_3AA0:
 	case GROUP_ID_3AA1:
 		group = &device->group_3aa;

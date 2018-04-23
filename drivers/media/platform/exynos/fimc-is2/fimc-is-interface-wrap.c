@@ -145,8 +145,11 @@ int fimc_is_itf_open_wrap(struct fimc_is_device_ischain *device, u32 module_id,
 	for (hw_id = 0; hw_id < DEV_HW_END; hw_id++)
 		clear_bit(hw_id, &hardware->hw_map[instance]);
 
-	for (group_slot = GROUP_SLOT_3AA; group_slot < GROUP_SLOT_MAX; group_slot++) {
+	for (group_slot = GROUP_SLOT_PAF; group_slot < GROUP_SLOT_MAX; group_slot++) {
 		switch (group_slot) {
+		case GROUP_SLOT_PAF:
+			group = &device->group_paf;
+			break;
 		case GROUP_SLOT_3AA:
 			group = &device->group_3aa;
 			break;
@@ -247,7 +250,7 @@ int fimc_is_itf_close_wrap(struct fimc_is_device_ischain *device)
 	}
 #endif
 
-	for (group_slot = GROUP_SLOT_3AA; group_slot < GROUP_SLOT_MAX; group_slot++) {
+	for (group_slot = GROUP_SLOT_PAF; group_slot < GROUP_SLOT_MAX; group_slot++) {
 		group_id = path->group[group_slot];
 		dbg_hw(1, "itf_close_wrap: group[SLOT_%d]=[%x]\n", group_slot, group_id);
 		hw_maxnum = fimc_is_get_hw_list(group_id, hw_list);

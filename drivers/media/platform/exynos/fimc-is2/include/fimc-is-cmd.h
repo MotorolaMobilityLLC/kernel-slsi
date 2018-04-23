@@ -185,7 +185,7 @@ struct is_setfile_header_element {
 };
 
 #ifdef CONFIG_USE_SENSOR_GROUP
-#define MAX_ACTIVE_GROUP 7
+#define MAX_ACTIVE_GROUP 8
 #else
 #define MAX_ACTIVE_GROUP 6
 #endif

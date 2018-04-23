@@ -28,6 +28,7 @@
 #include "fimc-is-hw-vra.h"
 #include "fimc-is-hw-dcp.h"
 #include "fimc-is-hw-dm.h"
+#include "fimc-is-hw-paf-rdma.h"
 
 #define INTERNAL_SHOT_EXIST	(1)
 
@@ -191,6 +192,9 @@ static void prepare_sfr_dump(struct fimc_is_hardware *hardware)
 		hw_ip = &hardware->hw_ip[hw_slot];
 
 		if (hw_ip->id == DEV_HW_END || hw_ip->id == 0)
+		       continue;
+
+		if (hw_ip->id == DEV_HW_PAF0 || hw_ip->id == DEV_HW_PAF1)
 		       continue;
 
 		if (IS_ERR_OR_NULL(hw_ip->regs) ||
@@ -441,6 +445,12 @@ u32 get_group_id_from_hw_ip(u32 hw_id)
 	case DEV_HW_DCP:
 		group_id = GROUP_ID_DCP;
 		break;
+	case DEV_HW_PAF0:
+		group_id = GROUP_ID_PAF0;
+		break;
+	case DEV_HW_PAF1:
+		group_id = GROUP_ID_PAF1;
+		break;
 	default:
 		group_id = GROUP_ID_MAX;
 		err_hw("invalid hw_id(%d)", hw_id);
@@ -484,6 +494,12 @@ u32 get_hw_id_from_group(u32 group_id)
 		break;
 	case GROUP_ID_VRA0:
 		hw_id = DEV_HW_VRA;
+		break;
+	case GROUP_ID_PAF0:
+		hw_id = DEV_HW_PAF0;
+		break;
+	case GROUP_ID_PAF1:
+		hw_id = DEV_HW_PAF1;
 		break;
 	default:
 		hw_id = DEV_HW_END;
@@ -671,6 +687,34 @@ int fimc_is_hardware_probe(struct fimc_is_hardware *hardware,
 
 #ifdef HW_BUG_WA_NO_CONTOLL_PER_FRAME
 	sema_init(&hardware->smp_mcsc_hw_bug, 1);
+#endif
+
+#if defined(SOC_PAF0)
+	hw_id = DEV_HW_PAF0;
+	hw_slot = fimc_is_hw_slot_id(hw_id);
+	if (!valid_hw_slot_id(hw_slot)) {
+		err_hw("invalid slot (%d,%d)", hw_id, hw_slot);
+		return -EINVAL;
+	}
+	ret = fimc_is_hw_paf_probe(&(hardware->hw_ip[hw_slot]), itf, itfc, hw_id, "PAF0");
+	if (ret) {
+		err_hw("probe fail (%d,%d)", hw_id, hw_slot);
+		return ret;
+	}
+#endif
+
+#if defined(SOC_PAF1)
+	hw_id = DEV_HW_PAF1;
+	hw_slot = fimc_is_hw_slot_id(hw_id);
+	if (!valid_hw_slot_id(hw_slot)) {
+		err_hw("invalid slot (%d,%d)", hw_id, hw_slot);
+		return -EINVAL;
+	}
+	ret = fimc_is_hw_paf_probe(&(hardware->hw_ip[hw_slot]), itf, itfc, hw_id, "PAF1");
+	if (ret) {
+		err_hw("probe fail (%d,%d)", hw_id, hw_slot);
+		return ret;
+	}
 #endif
 
 #if defined(SOC_3AAISP)
@@ -1364,7 +1408,7 @@ int fimc_is_hardware_config_lock(struct fimc_is_hw_ip *hw_ip, u32 instance, u32 
 
 	hardware = hw_ip->hardware;
 
-	if (!test_bit(FIMC_IS_GROUP_OTF_INPUT, &hw_ip->group[instance]->state))
+	if (!test_bit(FIMC_IS_GROUP_OTF_INPUT, &hw_ip->group[instance]->head->state))
 		return ret;
 
 	msdbgs_hw(2, "[F:%d]C.L\n", instance, hw_ip, framenum);
@@ -2290,6 +2334,8 @@ int fimc_is_hardware_shot_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 		goto free_frame;
 
 	switch (head->id) {
+	case GROUP_ID_PAF0:
+	case GROUP_ID_PAF1:
 	case GROUP_ID_3AA0:
 	case GROUP_ID_3AA1:
 	case GROUP_ID_ISP0:

@@ -546,7 +546,6 @@ int fimc_is_lib_isp_object_create(struct fimc_is_hw_ip *hw_ip,
 {
 	int ret = 0;
 	u32 chain_id, input_type, obj_info = 0;
-	struct fimc_is_group *head;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!this);
@@ -571,11 +570,8 @@ int fimc_is_lib_isp_object_create(struct fimc_is_hw_ip *hw_ip,
 		break;
 	}
 
-	head = GET_HEAD_GROUP_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN, hw_ip->group[instance_id]);
-
-	FIMC_BUG(!head);
-
-	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &head->state))
+	/* input_type : use only in 3AA (guide by DDK) */
+	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &hw_ip->group[instance_id]->state))
 		input_type = 0; /* default */
 	else
 		input_type = 1;

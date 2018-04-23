@@ -66,6 +66,7 @@
 #include "fimc-is-device-preprocessor.h"
 #include "fimc-is-vender-specific.h"
 #include "exynos-fimc-is-module.h"
+#include "./sensor/module_framework/modules/fimc-is-device-module-base.h"
 
 #include "fimc-is-vender-specific.h"
 
@@ -98,6 +99,7 @@ extern struct pm_qos_request exynos_isp_qos_cpu_online_min;
 extern struct gb_qos_request gb_req;
 #endif
 
+extern const struct fimc_is_subdev_ops fimc_is_subdev_paf_ops;
 extern const struct fimc_is_subdev_ops fimc_is_subdev_3aa_ops;
 extern const struct fimc_is_subdev_ops fimc_is_subdev_3ac_ops;
 extern const struct fimc_is_subdev_ops fimc_is_subdev_3ap_ops;
@@ -123,6 +125,8 @@ extern const struct fimc_is_subdev_ops fimc_is_subdev_vra_ops;
 extern void *fd_vaddr;
 #endif
 
+static int fimc_is_ischain_paf_stop(void *qdevice,
+	struct fimc_is_queue *queue);
 static int fimc_is_ischain_3aa_stop(void *qdevice,
 	struct fimc_is_queue *queue);
 static int fimc_is_ischain_isp_stop(void *qdevice,
@@ -136,6 +140,8 @@ static int fimc_is_ischain_mcs_stop(void *qdevice,
 static int fimc_is_ischain_vra_stop(void *qdevice,
 	struct fimc_is_queue *queue);
 
+static int fimc_is_ischain_paf_shot(struct fimc_is_device_ischain *device,
+	struct fimc_is_frame *frame);
 static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,
 	struct fimc_is_frame *frame);
 static int fimc_is_ischain_isp_shot(struct fimc_is_device_ischain *device,
@@ -1331,6 +1337,9 @@ static u32 fimc_is_itf_g_group_info(struct fimc_is_device_ischain *device,
 	struct fimc_is_path_info *path)
 {
 	u32 group = 0;
+
+	if (path->group[GROUP_SLOT_PAF] != GROUP_ID_MAX)
+		group |= (GROUP_ID(path->group[GROUP_SLOT_PAF]) & GROUP_ID_PARM_MASK);
 
 	if (path->group[GROUP_SLOT_3AA] != GROUP_ID_MAX)
 		group |= (GROUP_ID(path->group[GROUP_SLOT_3AA]) & GROUP_ID_PARM_MASK);
@@ -3264,6 +3273,9 @@ int fimc_is_ischain_probe(struct fimc_is_device_ischain *device,
 	fimc_is_pipe_probe(&device->pipe);
 #endif
 
+	fimc_is_group_probe(groupmgr, &device->group_paf, NULL, device,
+		fimc_is_ischain_paf_shot,
+		GROUP_SLOT_PAF, ENTRY_PAF, "PXS", &fimc_is_subdev_paf_ops);
 	fimc_is_group_probe(groupmgr, &device->group_3aa, NULL, device,
 		fimc_is_ischain_3aa_shot,
 		GROUP_SLOT_3AA, ENTRY_3AA, "3XS", &fimc_is_subdev_3aa_ops);
@@ -4105,6 +4117,292 @@ int fimc_is_ischain_stop_wrap(struct fimc_is_device_ischain *device,
 p_err:
 	return ret;
 }
+
+int fimc_is_ischain_paf_open(struct fimc_is_device_ischain *device,
+	struct fimc_is_video_ctx *vctx)
+{
+	int ret = 0;
+	int ret_err = 0;
+	u32 group_id;
+	struct fimc_is_groupmgr *groupmgr;
+	struct fimc_is_group *group;
+
+	FIMC_BUG(!device);
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!GET_VIDEO(vctx));
+
+	groupmgr = device->groupmgr;
+	group = &device->group_paf;
+	group_id = GROUP_ID_PAF0 + GET_PAFXS_ID(GET_VIDEO(vctx));
+
+	ret = fimc_is_group_open(groupmgr,
+		group,
+		group_id,
+		vctx);
+	if (ret) {
+		merr("fimc_is_group_open is fail(%d)", device, ret);
+		goto err_group_open;
+	}
+
+	ret = fimc_is_ischain_open_wrap(device, false);
+	if (ret) {
+		merr("fimc_is_ischain_open_wrap is fail(%d)", device, ret);
+		goto err_ischain_open;
+	}
+
+	atomic_inc(&device->group_open_cnt);
+
+	return 0;
+
+err_ischain_open:
+	ret_err = fimc_is_group_close(groupmgr, group);
+	if (ret_err)
+		merr("fimc_is_group_close is fail(%d)", device, ret_err);
+err_group_open:
+	return ret;
+}
+
+int fimc_is_ischain_paf_close(struct fimc_is_device_ischain *device,
+	struct fimc_is_video_ctx *vctx)
+{
+	int ret = 0;
+	struct fimc_is_groupmgr *groupmgr;
+	struct fimc_is_group *group;
+	struct fimc_is_queue *queue;
+
+	FIMC_BUG(!device);
+
+	groupmgr = device->groupmgr;
+	group = &device->group_paf;
+	queue = GET_QUEUE(vctx);
+
+	/* for mediaserver dead */
+	if (test_bit(FIMC_IS_GROUP_START, &group->state)) {
+		mgwarn("sudden group close", device, group);
+		if (!test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state))
+			fimc_is_itf_sudden_stop_wrap(device, device->instance);
+		set_bit(FIMC_IS_GROUP_REQUEST_FSTOP, &group->state);
+		if (test_bit(FIMC_IS_HAL_DEBUG_SUDDEN_DEAD_DETECT, &sysfs_debug.hal_debug_mode)) {
+			msleep(sysfs_debug.hal_debug_delay);
+			panic("HAL sudden group close #1");
+		}
+	}
+
+	if (group->head && test_bit(FIMC_IS_GROUP_START, &group->head->state)) {
+		mgwarn("sudden group close", device, group);
+		if (!test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state))
+			fimc_is_itf_sudden_stop_wrap(device, device->instance);
+		set_bit(FIMC_IS_GROUP_REQUEST_FSTOP, &group->state);
+		if (test_bit(FIMC_IS_HAL_DEBUG_SUDDEN_DEAD_DETECT, &sysfs_debug.hal_debug_mode)) {
+			msleep(sysfs_debug.hal_debug_delay);
+			panic("HAL sudden group close #2");
+		}
+	}
+
+	ret = fimc_is_ischain_paf_stop(device, queue);
+	if (ret)
+		merr("fimc_is_ischain_paf_rdma_stop is fail", device);
+
+	ret = fimc_is_group_close(groupmgr, group);
+	if (ret)
+		merr("fimc_is_group_close is fail", device);
+
+	ret = fimc_is_ischain_close_wrap(device);
+	if (ret)
+		merr("fimc_is_ischain_close_wrap is fail(%d)", device, ret);
+
+	atomic_dec(&device->group_open_cnt);
+
+	return ret;
+}
+
+int fimc_is_ischain_paf_s_input(struct fimc_is_device_ischain *device,
+	u32 stream_type,
+	u32 module_id,
+	u32 video_id,
+	u32 input_type,
+	u32 stream_leader)
+{
+	int ret = 0;
+	struct fimc_is_group *group;
+	struct fimc_is_groupmgr *groupmgr;
+
+	FIMC_BUG(!device);
+	FIMC_BUG(!device->groupmgr);
+
+	groupmgr = device->groupmgr;
+	group = &device->group_paf;
+
+	mdbgd_ischain("%s()\n", device, __func__);
+
+	ret = fimc_is_group_init(groupmgr, group, input_type, video_id, stream_leader);
+	if (ret) {
+		merr("fimc_is_group_init is fail(%d)", device, ret);
+		goto p_err;
+	}
+
+	ret = fimc_is_ischain_init_wrap(device, stream_type, module_id);
+	if (ret) {
+		merr("fimc_is_ischain_init_wrap is fail(%d)", device, ret);
+		goto p_err;
+	}
+
+p_err:
+	return ret;
+}
+
+static int fimc_is_ischain_paf_start(void *qdevice,
+	struct fimc_is_queue *queue)
+{
+	int ret = 0;
+	struct fimc_is_device_ischain *device = qdevice;
+	struct fimc_is_groupmgr *groupmgr;
+	struct fimc_is_group *group;
+
+	FIMC_BUG(!device);
+
+	groupmgr = device->groupmgr;
+	group = &device->group_paf;
+
+	ret = fimc_is_group_start(groupmgr, group);
+	if (ret) {
+		merr("fimc_is_group_start is fail(%d)", device, ret);
+		goto p_err;
+	}
+
+	ret = fimc_is_ischain_start_wrap(device, group);
+	if (ret) {
+		merr("fimc_is_ischain_start_wrap is fail(%d)", device, ret);
+		goto p_err;
+	}
+
+p_err:
+	return ret;
+}
+
+static int fimc_is_ischain_paf_stop(void *qdevice,
+	struct fimc_is_queue *queue)
+{
+	int ret = 0;
+	struct fimc_is_device_ischain *device = qdevice;
+	struct fimc_is_groupmgr *groupmgr;
+	struct fimc_is_group *group;
+
+	FIMC_BUG(!device);
+
+	groupmgr = device->groupmgr;
+	group = &device->group_paf;
+
+	ret = fimc_is_group_stop(groupmgr, group);
+	if (ret) {
+		merr("fimc_is_group_stop is fail(%d)", device, ret);
+		goto p_err;
+	}
+
+	ret = fimc_is_ischain_stop_wrap(device, group);
+	if (ret) {
+		merr("fimc_is_ischain_stop_wrap is fail(%d)", device, ret);
+		goto p_err;
+	}
+
+p_err:
+	mginfo("%s(%d):%d\n", device, group,  __func__, atomic_read(&group->scount), ret);
+	return ret;
+}
+
+static int fimc_is_ischain_paf_reqbufs(void *qdevice,
+	struct fimc_is_queue *queue, u32 count)
+{
+	int ret = 0;
+	struct fimc_is_device_ischain *device = qdevice;
+	struct fimc_is_group *group;
+
+	FIMC_BUG(!device);
+
+	group = &device->group_paf;
+
+	if (!count) {
+		ret = fimc_is_itf_unmap(device, GROUP_ID(group->id));
+		if (ret)
+			merr("fimc_is_itf_unmap is fail(%d)", device, ret);
+	}
+
+	return ret;
+}
+
+static int fimc_is_ischain_paf_s_format(void *qdevice,
+	struct fimc_is_queue *queue)
+{
+	int ret = 0;
+	struct fimc_is_device_ischain *device = qdevice;
+	struct fimc_is_subdev *leader;
+
+	FIMC_BUG(!device);
+	FIMC_BUG(!queue);
+
+	leader = &device->group_paf.leader;
+
+	leader->input.width = queue->framecfg.width;
+	leader->input.height = queue->framecfg.height;
+
+	leader->input.crop.x = 0;
+	leader->input.crop.y = 0;
+	leader->input.crop.w = leader->input.width;
+	leader->input.crop.h = leader->input.height;
+
+	return ret;
+}
+
+int fimc_is_ischain_paf_buffer_queue(struct fimc_is_device_ischain *device,
+	struct fimc_is_queue *queue,
+	u32 index)
+{
+	int ret = 0;
+	struct fimc_is_groupmgr *groupmgr;
+	struct fimc_is_group *group;
+
+	FIMC_BUG(!device);
+	FIMC_BUG(!test_bit(FIMC_IS_ISCHAIN_OPEN, &device->state));
+
+	mdbgs_ischain(4, "%s\n", device, __func__);
+
+	groupmgr = device->groupmgr;
+	group = &device->group_paf;
+
+	ret = fimc_is_group_buffer_queue(groupmgr, group, queue, index);
+	if (ret)
+		merr("fimc_is_group_buffer_queue is fail(%d)", device, ret);
+
+	return ret;
+}
+
+int fimc_is_ischain_paf_buffer_finish(struct fimc_is_device_ischain *device,
+	u32 index)
+{
+	int ret = 0;
+	struct fimc_is_groupmgr *groupmgr;
+	struct fimc_is_group *group;
+
+	FIMC_BUG(!device);
+
+	mdbgs_ischain(4, "%s\n", device, __func__);
+
+	groupmgr = device->groupmgr;
+	group = &device->group_paf;
+
+	ret = fimc_is_group_buffer_finish(groupmgr, group, index);
+	if (ret)
+		merr("fimc_is_group_buffer_finish is fail(%d)", device, ret);
+
+	return ret;
+}
+
+const struct fimc_is_queue_ops fimc_is_ischain_paf_ops = {
+	.start_streaming	= fimc_is_ischain_paf_start,
+	.stop_streaming		= fimc_is_ischain_paf_stop,
+	.s_format		= fimc_is_ischain_paf_s_format,
+	.request_bufs		= fimc_is_ischain_paf_reqbufs
+};
 
 int fimc_is_ischain_3aa_open(struct fimc_is_device_ischain *device,
 	struct fimc_is_video_ctx *vctx)
@@ -5826,6 +6124,25 @@ const struct fimc_is_queue_ops fimc_is_ischain_vra_ops = {
 	.request_bufs		= fimc_is_ischain_vra_reqbufs
 };
 
+static int fimc_is_ischain_paf_group_tag(struct fimc_is_device_ischain *device,
+	struct fimc_is_frame *frame,
+	struct camera2_node *ldr_node)
+{
+	int ret = 0;
+	struct fimc_is_group *group;
+
+	group = &device->group_paf;
+
+	ret = CALL_SOPS(&group->leader, tag, device, frame, ldr_node);
+	if (ret) {
+		merr("fimc_is_ischain_paf_tag is fail(%d)", device, ret);
+		goto p_err;
+	}
+
+p_err:
+	return ret;
+}
+
 static int fimc_is_ischain_3aa_group_tag(struct fimc_is_device_ischain *device,
 	struct fimc_is_frame *frame,
 	struct camera2_node *ldr_node)
@@ -6465,6 +6782,214 @@ static void fimc_is_ischain_update_shot(struct fimc_is_device_ischain *device,
 		mrinfo("captureIntent update\n", device, frame);
 	}
 #endif
+}
+
+static int fimc_is_ischain_paf_shot(struct fimc_is_device_ischain *device,
+	struct fimc_is_frame *check_frame)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct fimc_is_group *group, *child, *vra;
+	struct fimc_is_framemgr *framemgr;
+	struct fimc_is_frame *frame;
+	struct camera2_node_group *node_group;
+	struct camera2_node ldr_node = {0, };
+	u32 setfile_save = 0;
+
+	FIMC_BUG(!device);
+	FIMC_BUG(!check_frame);
+
+	mdbgs_ischain(4, "%s()\n", device, __func__);
+
+	frame = NULL;
+	group = &device->group_paf;
+
+	framemgr = GET_HEAD_GROUP_FRAMEMGR(group);
+	if (!framemgr) {
+		merr("framemgr is NULL", device);
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	frame = peek_frame(framemgr, FS_REQUEST);
+
+	if (unlikely(!frame)) {
+		merr("frame is NULL", device);
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	if (unlikely(frame != check_frame)) {
+		merr("frame checking is fail(%p != %p)", device, frame, check_frame);
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	if (unlikely(!frame->shot)) {
+		merr("frame->shot is NULL", device);
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	if (unlikely(!test_bit(FRAME_MEM_MAPPED, &frame->mem_state))) {
+		fimc_is_itf_map(device, GROUP_ID(group->id), frame->dvaddr_shot, frame->shot_size);
+		set_bit(FRAME_MEM_MAPPED, &frame->mem_state);
+	}
+
+	frame->shot->ctl.vendor_entry.lowIndexParam = 0;
+	frame->shot->ctl.vendor_entry.highIndexParam = 0;
+	frame->shot->dm.vendor_entry.lowIndexParam = 0;
+	frame->shot->dm.vendor_entry.highIndexParam = 0;
+	node_group = &frame->shot_ext->node_group;
+
+	PROGRAM_COUNT(8);
+
+	if ((frame->shot_ext->setfile != device->setfile) &&
+		(group->id == get_ischain_leader_group(device)->id)) {
+			setfile_save = device->setfile;
+			device->setfile = frame->shot_ext->setfile;
+
+		mgrinfo(" setfile change at shot(%d -> %d)\n", device, group, frame,
+			setfile_save, device->setfile & FIMC_IS_SETFILE_MASK);
+
+		if (test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state)) {
+			ret = fimc_is_ischain_chg_setfile(device);
+			if (ret) {
+				merr("fimc_is_ischain_chg_setfile is fail", device);
+				device->setfile = setfile_save;
+				goto p_err;
+			}
+		}
+	}
+
+	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state)) {
+		enum aa_capture_intent captureIntent;
+		captureIntent = group->intent_ctl.captureIntent;
+
+		if (captureIntent != AA_CAPTURE_INTENT_CUSTOM) {
+			frame->shot->ctl.aa.captureIntent = captureIntent;
+			group->intent_ctl.captureIntent = AA_CAPTURE_INTENT_CUSTOM;
+			frame->shot->ctl.aa.vendor_captureCount = group->intent_ctl.vendor_captureCount;
+			group->intent_ctl.vendor_captureCount = 0;
+			if (group->intent_ctl.vendor_captureExposureTime > 0) {
+				frame->shot->ctl.aa.vendor_captureExposureTime = group->intent_ctl.vendor_captureExposureTime;
+				group->intent_ctl.vendor_captureExposureTime = 0;
+			}
+			minfo("frame count(%d), intent(%d), count(%d) captureExposureTime(%d)\n", device, frame->fcount,
+				frame->shot->ctl.aa.captureIntent, frame->shot->ctl.aa.vendor_captureCount,
+				frame->shot->ctl.aa.vendor_captureExposureTime);
+		}
+	}
+
+	/* fd information copy */
+#if !defined(ENABLE_SHARED_METADATA) && !defined(FAST_FDAE)
+	memcpy(&frame->shot->uctl.fdUd, &device->fdUd, sizeof(struct camera2_fd_uctl));
+#endif
+
+	PROGRAM_COUNT(9);
+
+	if (test_bit(FIMC_IS_SUBDEV_PARAM_ERR, &group->head->leader.state))
+		set_bit(FIMC_IS_SUBDEV_FORCE_SET, &group->head->leader.state);
+	else
+		clear_bit(FIMC_IS_SUBDEV_FORCE_SET, &group->head->leader.state);
+
+	child = group;
+	while (child) {
+		switch (child->slot) {
+		case GROUP_SLOT_PAF:
+			TRANS_CROP(ldr_node.input.cropRegion,
+				node_group->leader.input.cropRegion);
+
+			ret = fimc_is_ischain_paf_group_tag(device, frame, &ldr_node);
+			if (ret) {
+				merr("fimc_is_ischain_paf_group_tag is fail(%d)", device, ret);
+				goto p_err;
+			}
+			break;
+		case GROUP_SLOT_3AA:
+			TRANS_CROP(ldr_node.input.cropRegion,
+				node_group->leader.input.cropRegion);
+			if (child->junction->cid < CAPTURE_NODE_MAX) {
+				TRANS_CROP(ldr_node.output.cropRegion,
+					node_group->capture[child->junction->cid].output.cropRegion);
+			} else {
+				mgerr("capture id(%d) is invalid", group, group, child->junction->cid);
+			}
+
+			ret = fimc_is_ischain_3aa_group_tag(device, frame, &ldr_node);
+			if (ret) {
+				merr("fimc_is_ischain_3aa_group_tag is fail(%d)", device, ret);
+				goto p_err;
+			}
+			break;
+		case GROUP_SLOT_ISP:
+			TRANS_CROP(ldr_node.input.cropRegion,
+				ldr_node.output.cropRegion);
+			TRANS_CROP(ldr_node.output.cropRegion,
+				ldr_node.input.cropRegion);
+			ret = fimc_is_ischain_isp_group_tag(device, frame, &ldr_node);
+			if (ret) {
+				merr("fimc_is_ischain_isp_group_tag is fail(%d)", device, ret);
+				goto p_err;
+			}
+			break;
+		case GROUP_SLOT_DIS:
+			TRANS_CROP(ldr_node.input.cropRegion,
+				ldr_node.output.cropRegion);
+			TRANS_CROP(ldr_node.output.cropRegion,
+				ldr_node.input.cropRegion);
+			ret = fimc_is_ischain_dis_group_tag(device, frame, &ldr_node);
+			if (ret) {
+				merr("fimc_is_ischain_dis_group_tag is fail(%d)", device, ret);
+				goto p_err;
+			}
+			break;
+		case GROUP_SLOT_MCS:
+			TRANS_CROP(ldr_node.input.cropRegion,
+				ldr_node.output.cropRegion);
+			TRANS_CROP(ldr_node.output.cropRegion,
+				ldr_node.input.cropRegion);
+			ret = fimc_is_ischain_mcs_group_tag(device, frame, &ldr_node);
+			if (ret) {
+				merr("fimc_is_ischain_mcs_group_tag is fail(%d)", device, ret);
+				goto p_err;
+			}
+			break;
+		case GROUP_SLOT_VRA:
+			vra = &device->group_vra;
+			TRANS_CROP(ldr_node.input.cropRegion,
+				(u32 *)&vra->prev->junction->output.crop);
+			TRANS_CROP(ldr_node.output.cropRegion,
+				ldr_node.input.cropRegion);
+			ret = fimc_is_ischain_vra_group_tag(device, frame, &ldr_node);
+			if (ret) {
+				merr("fimc_is_ischain_vra_group_tag is fail(%d)", device, ret);
+				goto p_err;
+			}
+			break;
+		default:
+			merr("group slot is invalid(%d)", device, child->slot);
+			BUG();
+		}
+
+		child = child->child;
+	}
+
+	PROGRAM_COUNT(10);
+
+p_err:
+	fimc_is_ischain_update_shot(device, frame);
+
+	if (ret) {
+		mgrerr(" SKIP(%d) : %d\n", device, group, check_frame, check_frame->index, ret);
+	} else {
+		set_bit(group->leader.id, &frame->out_flag);
+		framemgr_e_barrier_irqs(framemgr, FMGR_IDX_25, flags);
+		trans_frame(framemgr, frame, FS_PROCESS);
+		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_25, flags);
+	}
+
+	return ret;
 }
 
 static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,

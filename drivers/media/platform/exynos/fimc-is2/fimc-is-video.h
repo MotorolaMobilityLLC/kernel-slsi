@@ -102,6 +102,7 @@
 #define VIDEO_SSXVC1_READY_BUFFERS		0
 #define VIDEO_SSXVC2_READY_BUFFERS		0
 #define VIDEO_SSXVC3_READY_BUFFERS		0
+#define VIDEO_PAFXS_READY_BUFFERS		0
 
 #define FIMC_IS_VIDEO_NAME(name)		("exynos-fimc-is-"name)
 #define FIMC_IS_VIDEO_SSX_NAME			FIMC_IS_VIDEO_NAME("ss")
@@ -128,6 +129,7 @@
 #define FIMC_IS_VIDEO_SSXVC1_NAME(id)		FIMC_IS_VIDEO_NAME("ss"#id"vc1")
 #define FIMC_IS_VIDEO_SSXVC2_NAME(id)		FIMC_IS_VIDEO_NAME("ss"#id"vc2")
 #define FIMC_IS_VIDEO_SSXVC3_NAME(id)		FIMC_IS_VIDEO_NAME("ss"#id"vc3")
+#define FIMC_IS_VIDEO_PAFXS_NAME(id)		FIMC_IS_VIDEO_NAME("p"#id"s")
 
 struct fimc_is_device_ischain;
 struct fimc_is_subdev;
@@ -212,6 +214,8 @@ enum fimc_is_video_dev_num {
 	FIMC_IS_VIDEO_SS5VC1_NUM,
 	FIMC_IS_VIDEO_SS5VC2_NUM,
 	FIMC_IS_VIDEO_SS5VC3_NUM,
+	FIMC_IS_VIDEO_PAF0S_NUM = 140,
+	FIMC_IS_VIDEO_PAF1S_NUM,
 	FIMC_IS_VIDEO_MAX_NUM
 };
 
@@ -462,6 +466,8 @@ extern int fimc_is_ssxvc0_video_probe(void *data);
 extern int fimc_is_ssxvc1_video_probe(void *data);
 extern int fimc_is_ssxvc2_video_probe(void *data);
 extern int fimc_is_ssxvc3_video_probe(void *data);
+extern int fimc_is_paf0s_video_probe(void *data);
+extern int fimc_is_paf1s_video_probe(void *data);
 
 #define GET_VIDEO(vctx) 		(vctx ? (vctx)->video : NULL)
 #define GET_QUEUE(vctx) 		(vctx ? &(vctx)->queue : NULL)

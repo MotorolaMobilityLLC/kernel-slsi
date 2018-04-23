@@ -81,6 +81,7 @@ enum fimc_is_subdev_id {
 	ENTRY_M4P,
 	ENTRY_M5P,
 	ENTRY_VRA,
+	ENTRY_PAF, /* PDP(PATSTAT) RDMA */
 	ENTRY_END
 };
 

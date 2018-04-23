@@ -1,4 +1,5 @@
 obj-$(CONFIG_USE_DIRECT_IS_CONTROL) += fimc-is-hw-control.o \
+		fimc-is-hw-paf-rdma.o \
 		fimc-is-hw-3aa.o \
 		fimc-is-hw-isp.o \
 		fimc-is-hw-tpu.o \

@@ -35,26 +35,29 @@
 #define GROUP_ID_MCS0		7
 #define GROUP_ID_MCS1		8
 #define GROUP_ID_VRA0		9
-#define GROUP_ID_SS0		10
-#define GROUP_ID_SS1		11
-#define GROUP_ID_SS2		12
-#define GROUP_ID_SS3		13
-#define GROUP_ID_SS4		14
-#define GROUP_ID_SS5		15
-#define GROUP_ID_MAX		16
+#define GROUP_ID_PAF0		10	/* PAF RDMA */
+#define GROUP_ID_PAF1		11	/* PAF RDMA */
+#define GROUP_ID_SS0		12
+#define GROUP_ID_SS1		13
+#define GROUP_ID_SS2		14
+#define GROUP_ID_SS3		15
+#define GROUP_ID_SS4		16
+#define GROUP_ID_SS5		17
+#define GROUP_ID_MAX		18
 #define GROUP_ID_PARM_MASK	((1 << (GROUP_ID_SS0)) - 1)
-#define GROUP_ID_SHIFT		(16)
-#define GROUP_ID_MASK		(0xFFFF)
+#define GROUP_ID_SHIFT		(18)
+#define GROUP_ID_MASK		(0x3FFFF)
 #define GROUP_ID(id)		(1 << (id))
 
 #define GROUP_SLOT_SENSOR	0
-#define GROUP_SLOT_3AA		1
-#define GROUP_SLOT_ISP		2
-#define GROUP_SLOT_DIS		3
-#define GROUP_SLOT_DCP		4
-#define GROUP_SLOT_MCS		5
-#define GROUP_SLOT_VRA		6
-#define GROUP_SLOT_MAX		7
+#define GROUP_SLOT_PAF		1
+#define GROUP_SLOT_3AA		2
+#define GROUP_SLOT_ISP		3
+#define GROUP_SLOT_DIS		4
+#define GROUP_SLOT_DCP		5
+#define GROUP_SLOT_MCS		6
+#define GROUP_SLOT_VRA		7
+#define GROUP_SLOT_MAX		8
 #else
 #define TRACE_GROUP
 #define GROUP_ID_3AA0		0

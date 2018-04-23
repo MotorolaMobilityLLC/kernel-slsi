@@ -59,6 +59,38 @@ int fimc_is_interface_ischain_probe(struct fimc_is_interface_ischain *this,
 	/* this->regs_mcuctl = fimc_is_hw_get_sysreg(core_regs); *//* deprecated */
 	this->minfo = &resourcemgr->minfo;
 
+#if defined(SOC_PAF0)
+	hw_id = DEV_HW_PAF0;
+	hw_slot = fimc_is_hw_slot_id(hw_id);
+	if (!valid_hw_slot_id(hw_slot)) {
+		err_itfc("invalid hw_slot (%d) ", hw_slot);
+		return -EINVAL;
+	}
+
+	this->itf_ip[hw_slot].hw_ip = &(hardware->hw_ip[hw_slot]);
+	ret = fimc_is_interface_paf_probe(this, hw_id, pdev);
+	if (ret) {
+		err_itfc("interface probe fail (%d,%d)", hw_id, hw_slot);
+		return -EINVAL;
+	}
+#endif
+
+#if defined(SOC_PAF1)
+	hw_id = DEV_HW_PAF1;
+	hw_slot = fimc_is_hw_slot_id(hw_id);
+	if (!valid_hw_slot_id(hw_slot)) {
+		err_itfc("invalid hw_slot (%d) ", hw_slot);
+		return -EINVAL;
+	}
+
+	this->itf_ip[hw_slot].hw_ip = &(hardware->hw_ip[hw_slot]);
+	ret = fimc_is_interface_paf_probe(this, hw_id, pdev);
+	if (ret) {
+		err_itfc("interface probe fail (%d,%d)", hw_id, hw_slot);
+		return -EINVAL;
+	}
+#endif
+
 #if defined(SOC_30S)
 	hw_id = DEV_HW_3AA0;
 	hw_slot = fimc_is_hw_slot_id(hw_id);
@@ -748,6 +780,51 @@ int fimc_is_interface_srdz_probe(struct fimc_is_interface_ischain *itfc,
 #endif
 
 	set_bit(IS_CHAIN_IF_STATE_INIT, &itf_srdz->state);
+
+	dbg_itfc("[ID:%2d] probe done\n", hw_id);
+
+	return ret;
+}
+
+int fimc_is_interface_paf_probe(struct fimc_is_interface_ischain *itfc,
+	int hw_id, struct platform_device *pdev)
+{
+	struct fimc_is_interface_hwip *itf_paf = NULL;
+	int ret = 0;
+	int hw_slot = -1;
+
+	FIMC_BUG(!itfc);
+	FIMC_BUG(!pdev);
+
+	hw_slot = fimc_is_hw_slot_id(hw_id);
+	if (!valid_hw_slot_id(hw_slot)) {
+		err_itfc("invalid hw_slot (%d) ", hw_slot);
+		return -EINVAL;
+	}
+
+	itf_paf = &itfc->itf_ip[hw_slot];
+	itf_paf->id = hw_id;
+	itf_paf->state = 0;
+
+	ret = fimc_is_hw_get_address(itf_paf, pdev, hw_id);
+	if (ret) {
+		err_itfc("[ID:%2d] hw_get_address failed (%d)", hw_id, ret);
+		return -EINVAL;
+	}
+
+	ret = fimc_is_hw_get_irq(itf_paf, pdev, hw_id);
+	if (ret) {
+		err_itfc("[ID:%2d] hw_get_irq failed (%d)", hw_id, ret);
+		return -EINVAL;
+	}
+
+	ret = fimc_is_hw_request_irq(itf_paf, hw_id);
+	if (ret) {
+		err_itfc("[ID:%2d] hw_request_irq failed (%d)", hw_id, ret);
+		return -EINVAL;
+	}
+
+	set_bit(IS_CHAIN_IF_STATE_INIT, &itf_paf->state);
 
 	dbg_itfc("[ID:%2d] probe done\n", hw_id);
 
@@ -2529,6 +2606,10 @@ static void wq_func_shot(struct work_struct *data)
 		status = msg->param2;
 
 		switch (group_id) {
+		case GROUP_ID(GROUP_ID_PAF0):
+		case GROUP_ID(GROUP_ID_PAF1):
+			group = &device->group_paf;
+			break;
 		case GROUP_ID(GROUP_ID_3AA0):
 		case GROUP_ID(GROUP_ID_3AA1):
 			group = &device->group_3aa;

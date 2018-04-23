@@ -333,6 +333,8 @@ struct fimc_is_core {
 	struct fimc_is_video			video_m4p;
 	struct fimc_is_video			video_m5p;
 	struct fimc_is_video			video_vra;
+	struct fimc_is_video			video_paf0s;
+	struct fimc_is_video			video_paf1s;
 
 	/* spi */
 	struct fimc_is_spi			spi0;

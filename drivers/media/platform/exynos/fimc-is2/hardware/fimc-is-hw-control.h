@@ -87,6 +87,8 @@ enum fimc_is_hardware_id {
 	DEV_HW_FD,
 	DEV_HW_VRA,	/* = 15 */
 	DEV_HW_DCP,
+	DEV_HW_PAF0,	/* PAF RDMA */
+	DEV_HW_PAF1,
 	DEV_HW_END
 };
 
