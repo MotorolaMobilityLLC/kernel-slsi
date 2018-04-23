@@ -18,12 +18,10 @@ extern int exynos_cpuhp_unregister(char *name, struct cpumask mask, int type);
 extern int exynos_cpuhp_register(char *name, struct cpumask mask, int type);
 extern int exynos_cpuhp_request(char *name, struct cpumask mask, int type);
 
-#ifdef EXYNOS_FAST_HP
-int cpus_up(struct cpumask *mask);
-int cpus_down(struct cpumask *mask);
-#else
-extern inline int cpus_up(struct cpumask *mask) { return 0; };
-extern inline int cpus_down(struct cpumask *mask) {return 0; };
-#endif
+extern int cpus_down(struct cpumask cpus);
+extern int cpus_up(struct cpumask cpus);
+/*
+extern inline int cpus_down(struct cpumask cpus) { return 0; };
+*/
 
 #endif /* __EXYNOS_CPU_HP_H */

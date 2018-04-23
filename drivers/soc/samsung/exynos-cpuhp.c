@@ -160,7 +160,7 @@ int exynos_cpuhp_register(char *name, struct cpumask mask, int type)
 	mutex_unlock(&cpuhp.lock);
 
 	/* applying new user's request */
-	return cpuhp_do(type);
+	return cpuhp_do(true);
 }
 
 /*
@@ -177,7 +177,7 @@ int exynos_cpuhp_request(char *name, struct cpumask mask, int type)
 	if (type == FAST_HP)
 		return cpuhp_do(true);
 
-	return cpuhp_do(false);
+	return cpuhp_do(true);
 }
 
 /**********************************************************************************/
@@ -269,7 +269,7 @@ static int cpuhp_cpu_up(struct cpumask enable_cpus, int fast_hp)
 		goto exit;
 
 	if (fast_hp && !cpumask_empty(&fast_cpus))
-		ret = cpus_up(&fast_cpus);
+		ret = cpus_up(fast_cpus);
 
 	return ret;
 exit:
@@ -293,7 +293,7 @@ static int cpuhp_cpu_down(struct cpumask disable_cpus, int fast_hp)
 	cpumask_and(&fast_cpus, &disable_cpus, &fast_cpus);
 	cpumask_andnot(&disable_cpus, &disable_cpus, &fast_cpus);
 	if (fast_hp && !cpumask_empty(&fast_cpus))
-		ret = cpus_down(&fast_cpus);
+		ret = cpus_down(fast_cpus);
 	if (ret)
 		goto exit;
 
@@ -339,7 +339,7 @@ static int cpuhp_do(int fast_hp)
 	online_cpus = cpuhp_get_online_cpus();
 
 	/* print cpu control information */
-	if (cpuhp.debug)
+//	if (cpuhp.debug)
 		cpuhp_print_debug_info(online_cpus, fast_hp);
 
 	/* if there is no mask change, skip */
@@ -374,7 +374,7 @@ static int cpuhp_control(bool enable)
 
 	if (enable) {
 		cpuhp_enable(true);
-		cpuhp_do(false);
+		cpuhp_do(true);
 	} else {
 		mutex_lock(&cpuhp.lock);
 
@@ -566,7 +566,7 @@ static int exynos_cpuhp_pm_notifier(struct notifier_block *notifier,
 
 	case PM_POST_SUSPEND:
 		cpuhp_suspend(false);
-		cpuhp_do(false);
+		cpuhp_do(true);
 		break;
 	}
 
