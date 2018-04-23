@@ -640,6 +640,52 @@ cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state, bool bringup,
 	return ret;
 }
 
+static int cpuhp_fast_kick_ap_work_pre(unsigned int cpu)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+	enum cpuhp_state prev_state = st->state;
+
+	cpuhp_lock_acquire(false);
+	cpuhp_lock_release(false);
+
+	cpuhp_lock_acquire(true);
+	cpuhp_lock_release(true);
+
+	trace_cpuhp_enter(cpu, st->target, prev_state,
+				cpuhp_fast_kick_ap_work_pre);
+
+	cpuhp_set_state(st, st->target);
+	if (!st->single && st->state == st->target)
+		return prev_state;
+
+	st->result = 0;
+	/*
+	 * Make sure the above stores are visible before should_run becomes
+	 * true. Paired with the mb() above in cpuhp_thread_fun()
+	 */
+	smp_mb();
+	st->should_run = true;
+	wake_up_process(st->thread);
+
+	return prev_state;
+}
+
+static int cpuhp_fast_kick_ap_work_post(unsigned int cpu,
+					enum cpuhp_state prev_state)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+	int ret;
+
+	wait_for_ap_thread(st, st->bringup);
+	if ((ret = st->result)) {
+		cpuhp_reset_state(st, prev_state);
+		__cpuhp_kick_ap(st);
+	}
+	trace_cpuhp_exit(cpu, st->state, prev_state, ret);
+
+	return ret;
+}
+
 static int cpuhp_kick_ap_work(unsigned int cpu)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
@@ -853,7 +899,10 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 			   enum cpuhp_state target)
 {
 	struct cpuhp_cpu_state *st;
-	int prev_state, ret = 0;
+	cpumask_t ap_work_cpus = CPU_MASK_NONE;
+	cpumask_t take_down_cpus = CPU_MASK_NONE;
+	int prev_state[8] = {0};
+	int ret = 0;
 	int cpu;
 
 	if (num_online_cpus() == 1)
@@ -870,43 +919,46 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 	cpumask_copy(&cpu_fastoff_mask, &cpus);
 	for_each_cpu(cpu, &cpus) {
 		st = per_cpu_ptr(&cpuhp_state, cpu);
-		prev_state = cpuhp_set_state(st, target);
+		prev_state[cpu] = cpuhp_set_state(st, target);
+		if (st->state > CPUHP_TEARDOWN_CPU)
+			cpumask_set_cpu(cpu, &ap_work_cpus);
+		else
+			cpumask_set_cpu(cpu, &take_down_cpus);
 	}
 
-	for_each_cpu(cpu, &cpus) {
+	for_each_cpu(cpu, &ap_work_cpus) {
 		st = per_cpu_ptr(&cpuhp_state, cpu);
-		if (st->state <= CPUHP_TEARDOWN_CPU)
-			continue;
+		set_cpu_active(cpu, false);
+		st->state = CPUHP_AP_EXYNOS_IDLE_CTRL;
+	}
 
+	cpuset_update_active_cpus();
+
+	for_each_cpu(cpu, &ap_work_cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
 		st->target = max((int)target, CPUHP_TEARDOWN_CPU);
-		ret = cpuhp_kick_ap_work(cpu);
-		/*
-		 * The AP side has done the error rollback already. Just
-		 * return the error code..
-		 */
-		if (ret)
-			goto out;
+		cpuhp_fast_kick_ap_work_pre(cpu);
+	}
 
+	for_each_cpu(cpu, &ap_work_cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		cpuhp_fast_kick_ap_work_post(cpu, prev_state[cpu]);
 		/*
 		 * We might have stopped still in the range of the AP hotplug
 		 * thread. Nothing to do anymore.
 		 */
-		if (st->state > CPUHP_TEARDOWN_CPU)
-			goto out;
-
 		st->target = target;
 	}
 
 	for_each_cpu(cpu, &cpus) {
 		st = per_cpu_ptr(&cpuhp_state, cpu);
 		ret = cpuhp_down_callbacks(cpu, st, target);
-		if (ret && st->state > CPUHP_TEARDOWN_CPU && st->state < prev_state) {
-			cpuhp_reset_state(st, prev_state);
+		if (ret && st->state > CPUHP_TEARDOWN_CPU && st->state < prev_state[cpu]) {
+			cpuhp_reset_state(st, prev_state[cpu]);
 			__cpuhp_kick_ap(st);
 		}
 	}
 
-out:
 	cpumask_clear(&cpu_fastoff_mask);
 	cpus_write_unlock();
 
