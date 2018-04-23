@@ -17,6 +17,7 @@ obj-$(CONFIG_FIMC_IS_V6_10_0) += fimc-is-subdev-mexc.o
 obj-$(CONFIG_FIMC_IS_V6_10_0) += fimc-is-subdev-mcs.o
 obj-$(CONFIG_FIMC_IS_V6_10_0) += fimc-is-subdev-mcsp.o
 obj-$(CONFIG_FIMC_IS_V6_10_0) += fimc-is-subdev-vra.o
+obj-$(CONFIG_FIMC_IS_V6_10_0) += fimc-is-subdev-paf.o
 ifeq ($(CONFIG_USE_SENSOR_GROUP),y)
 obj-$(CONFIG_FIMC_IS_V6_10_0) += fimc-is-subdev-sensor.o
 obj-$(CONFIG_FIMC_IS_V6_10_0) += fimc-is-subdev-sensor_vc0.o

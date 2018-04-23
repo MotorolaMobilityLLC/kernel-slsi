@@ -171,6 +171,12 @@ int fimc_is_hw_group_cfg(void *group_data)
 	}
 
 	switch (group->slot) {
+	case GROUP_SLOT_PAF:
+		fimc_is_hw_group_init(group);
+		group->subdev[ENTRY_PAF] = &device->group_paf.leader;
+
+		list_add_tail(&device->group_paf.leader.list, &group->subdev_list);
+		break;
 	case GROUP_SLOT_3AA:
 		fimc_is_hw_group_init(group);
 		group->subdev[ENTRY_3AA] = &device->group_3aa.leader;
@@ -266,6 +272,8 @@ int fimc_is_hw_group_open(void *group_data)
 	case GROUP_ID_SS4:
 	case GROUP_ID_SS5:
 #endif
+	case GROUP_ID_PAF0:
+	case GROUP_ID_PAF1:
 	case GROUP_ID_3AA0:
 	case GROUP_ID_3AA1:
 	case GROUP_ID_ISP0:
@@ -586,6 +594,18 @@ static irqreturn_t fimc_is_isr1_vra(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t fimc_is_isr1_paf0(int irq, void *data)
+{
+	fimc_is_isr1_host(data);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t fimc_is_isr1_paf1(int irq, void *data)
+{
+	fimc_is_isr1_host(data);
+	return IRQ_HANDLED;
+}
+
 inline int fimc_is_hw_slot_id(int hw_id)
 {
 	int slot_id = -1;
@@ -606,6 +626,12 @@ inline int fimc_is_hw_slot_id(int hw_id)
 	case DEV_HW_VRA:
 		slot_id = 4;
 		break;
+	case DEV_HW_PAF0:
+		slot_id = 5;
+		break;
+	case DEV_HW_PAF1:
+		slot_id = 6;
+		break;
 	default:
 		break;
 	}
@@ -623,6 +649,12 @@ int fimc_is_get_hw_list(int group_id, int *hw_list)
 		hw_list[i] = -1;
 
 	switch (group_id) {
+	case GROUP_ID_PAF0:
+		hw_list[hw_index] = DEV_HW_PAF0; hw_index++;
+		break;
+	case GROUP_ID_PAF1:
+		hw_list[hw_index] = DEV_HW_PAF1; hw_index++;
+		break;
 	case GROUP_ID_3AA0:
 		hw_list[hw_index] = DEV_HW_3AA0; hw_index++;
 		break;
@@ -720,6 +752,9 @@ static int fimc_is_hw_get_clk_gate(struct fimc_is_hw_ip *hw_ip, int hw_id)
 		clk_gate->refcnt[hw_ip->clk_gate_idx] = 0;
 
 		spin_lock_init(&clk_gate->slock);
+		break;
+	case DEV_HW_PAF0:
+	case DEV_HW_PAF1:
 		break;
 	default:
 		probe_err("hw_id(%d) is invalid", hw_id);
@@ -846,6 +881,72 @@ int fimc_is_hw_get_address(void *itfc_data, void *pdev_data, int hw_id)
 
 		info_itfc("[ID:%2d] VRA1 VA(0x%p)\n", hw_id, itf_hwip->hw_ip->regs_b);
 		break;
+	case DEV_HW_PAF0:
+		mem_res = platform_get_resource(pdev, IORESOURCE_MEM, IORESOURCE_PAF_RDMA);
+		if (!mem_res) {
+			dev_err(&pdev->dev, "Failed to get io memory region\n");
+			return -EINVAL;
+		}
+
+		itf_hwip->hw_ip->regs_start = mem_res->start;
+		itf_hwip->hw_ip->regs_end = mem_res->end;
+		itf_hwip->hw_ip->regs = ioremap_nocache(mem_res->start, resource_size(mem_res));
+		if (!itf_hwip->hw_ip->regs) {
+			dev_err(&pdev->dev, "Failed to remap io region\n");
+			return -EINVAL;
+		}
+
+		info_itfc("[ID:%2d] PAF0 RD VA(0x%p)\n", hw_id, itf_hwip->hw_ip->regs);
+
+		mem_res = platform_get_resource(pdev, IORESOURCE_MEM, IORESOURCE_PAF_CORE);
+		if (!mem_res) {
+			dev_err(&pdev->dev, "Failed to get io memory region\n");
+			return -EINVAL;
+		}
+
+		itf_hwip->hw_ip->regs_b_start = mem_res->start;
+		itf_hwip->hw_ip->regs_b_end = mem_res->end;
+		itf_hwip->hw_ip->regs_b = ioremap_nocache(mem_res->start, resource_size(mem_res));
+		if (!itf_hwip->hw_ip->regs_b) {
+			dev_err(&pdev->dev, "Failed to remap io region\n");
+			return -EINVAL;
+		}
+
+		info_itfc("[ID:%2d] PAF0 COMMON VA(0x%p)\n", hw_id, itf_hwip->hw_ip->regs_b);
+		break;
+	case DEV_HW_PAF1:
+		mem_res = platform_get_resource(pdev, IORESOURCE_MEM, IORESOURCE_PAF_RDMA);
+		if (!mem_res) {
+			dev_err(&pdev->dev, "Failed to get io memory region\n");
+			return -EINVAL;
+		}
+
+		itf_hwip->hw_ip->regs_start = mem_res->start;
+		itf_hwip->hw_ip->regs_end = mem_res->end;
+		itf_hwip->hw_ip->regs = ioremap_nocache(mem_res->start, resource_size(mem_res));
+		if (!itf_hwip->hw_ip->regs) {
+			dev_err(&pdev->dev, "Failed to remap io region\n");
+			return -EINVAL;
+		}
+
+		info_itfc("[ID:%2d] PAF1 RD VA(0x%p)\n", hw_id, itf_hwip->hw_ip->regs);
+
+		mem_res = platform_get_resource(pdev, IORESOURCE_MEM, IORESOURCE_PAF_CORE);
+		if (!mem_res) {
+			dev_err(&pdev->dev, "Failed to get io memory region\n");
+			return -EINVAL;
+		}
+
+		itf_hwip->hw_ip->regs_b_start = mem_res->start;
+		itf_hwip->hw_ip->regs_b_end = mem_res->end;
+		itf_hwip->hw_ip->regs_b = ioremap_nocache(mem_res->start, resource_size(mem_res));
+		if (!itf_hwip->hw_ip->regs_b) {
+			dev_err(&pdev->dev, "Failed to remap io region\n");
+			return -EINVAL;
+		}
+
+		info_itfc("[ID:%2d] PAF1 COMMON VA(0x%p)\n", hw_id, itf_hwip->hw_ip->regs_b);
+		break;
 	default:
 		probe_err("hw_id(%d) is invalid", hw_id);
 		return -EINVAL;
@@ -924,6 +1025,20 @@ int fimc_is_hw_get_irq(void *itfc_data, void *pdev_data, int hw_id)
 			return -EINVAL;
 		}
 		break;
+	case DEV_HW_PAF0:
+		itf_hwip->irq[INTR_HWIP1] = platform_get_irq(pdev, 8);
+		if (itf_hwip->irq[INTR_HWIP1] < 0) {
+			err("Failed to get irq PAF0\n");
+			return -EINVAL;
+		}
+		break;
+	case DEV_HW_PAF1:
+		itf_hwip->irq[INTR_HWIP1] = platform_get_irq(pdev, 9);
+		if (itf_hwip->irq[INTR_HWIP1] < 0) {
+			err("Failed to get irq PAF1\n");
+			return -EINVAL;
+		}
+		break;
 	default:
 		probe_err("hw_id(%d) is invalid", hw_id);
 		return -EINVAL;
@@ -986,6 +1101,12 @@ int fimc_is_hw_request_irq(void *itfc_data, int hw_id)
 		break;
 	case DEV_HW_VRA:
 		ret = __fimc_is_hw_request_irq(itf_hwip, "vra", INTR_HWIP2, fimc_is_isr1_vra); /* VRA CH1 */
+		break;
+	case DEV_HW_PAF0:
+		ret = __fimc_is_hw_request_irq(itf_hwip, "paf0", INTR_HWIP1, fimc_is_isr1_paf0);
+		break;
+	case DEV_HW_PAF1:
+		ret = __fimc_is_hw_request_irq(itf_hwip, "paf1", INTR_HWIP1, fimc_is_isr1_paf1);
 		break;
 	default:
 		probe_err("hw_id(%d) is invalid", hw_id);

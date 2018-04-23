@@ -79,7 +79,7 @@
 /* #define SOC_TPU0 */
 /* #define SOC_TPU1 */
 
-#define HW_SLOT_MAX            (5)
+#define HW_SLOT_MAX            (7)
 #define valid_hw_slot_id(slot_id) \
        (0 <= slot_id && slot_id < HW_SLOT_MAX)
 /* #define DISABLE_SETFILE */

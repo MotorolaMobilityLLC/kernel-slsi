@@ -99,6 +99,9 @@ enum is_param {
 	PARAM_DCP_OUTPUT_SLAVE_DS,
 	PARAM_DCP_INPIT_DISPARITY,
 	PARAM_DCP_OUTPUT_DISPARITY,
+	PARAM_PAF_CONTROL,
+	PARAM_PAF_DMA_INPUT,
+	PARAM_PAF_OTF_OUTPUT,
 	PARAM_END,
 };
 
@@ -1158,6 +1161,12 @@ struct tdnr_param {
 	struct param_dma_output		dma_output;
 };
 
+struct paf_rdma_param {
+	struct param_control		control;
+	struct param_dma_input		dma_input;	/* dma_input */
+	struct param_otf_output		otf_output;
+};
+
 struct param_mcs_input {
 	u32	otf_cmd; /* DISABLE or ENABLE */
 	u32	otf_format;
@@ -1250,6 +1259,7 @@ struct is_param_region {
 	struct mcs_param		mcs;
 	struct vra_param		vra;
 	struct dcp_param		dcp;
+	struct paf_rdma_param		paf;
 	struct mcs_param		srdz;	/* TODO */
 };
 
