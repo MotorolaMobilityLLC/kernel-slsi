@@ -600,7 +600,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	mfc_debug(2, "Allocating memory for firmware.\n");
 	trace_mfc_loadfw_start(dev->fw.size, firmware_size);
 
-	dev->fw_buf.buftype = MFCBUF_NORMAL_FW;
+	dev->fw_buf.buftype = MFCBUF_NORMAL;
 	dev->fw_buf.size = dev->fw.size;
 	if (s5p_mfc_mem_ion_alloc(dev, &dev->fw_buf)) {
 		mfc_err_dev("Allocating normal firmware buffer failed\n");
