@@ -914,8 +914,28 @@ static int __init exynos_cpupm_init(void)
 arch_initcall(exynos_cpupm_init);
 #endif
 
+static int cpuhp_cpupm_enable_idle(unsigned int cpu)
+{
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
+	cpuidle_enable_device(dev);
+
+	return 0;
+}
+static int cpuhp_cpupm_disable_idle(unsigned int cpu)
+{
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
+	cpuidle_disable_device(dev);
+
+	return 0;
+}
+
 static int __init exynos_cpupm_early_init(void)
 {
+	cpuhp_setup_state(CPUHP_AP_EXYNOS_IDLE_CTRL,
+				"AP_EXYNOS_IDLE_CTROL",
+				cpuhp_cpupm_enable_idle,
+				cpuhp_cpupm_disable_idle);
+
 	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_UP_POWER_CONTROL,
 				"AP_EXYNOS_CPU_UP_POWER_CONTROL",
 				cpuhp_cpupm_online, NULL);
