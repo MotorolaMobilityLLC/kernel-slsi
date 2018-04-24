@@ -852,6 +852,78 @@ static int take_cpu_down(void *_param)
 	return 0;
 }
 
+static int takedown_cpus(const struct cpumask *down_cpus)
+{
+	struct cpuhp_cpu_state *st;
+	int err, cpu;
+
+	/* Park the smpboot threads */
+	for_each_cpu(cpu, down_cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		trace_cpuhp_enter(cpu, st->target, st->state, NULL);
+
+		kthread_park(per_cpu_ptr(&cpuhp_state, cpu)->thread);
+		smpboot_park_threads(cpu);
+	}
+
+	/*
+	 * Prevent irq alloc/free while the dying cpu reorganizes the
+	 * interrupt affinities.
+	 */
+	irq_lock_sparse();
+
+	/*
+	 * So now all preempt/rcu users must observe !cpu_active().
+	 */
+	err = stop_machine_cpuslocked(take_cpu_down, NULL, down_cpus);
+	if (err) {
+		/* CPU refused to die */
+		irq_unlock_sparse();
+		for_each_cpu(cpu, down_cpus) {
+			st = per_cpu_ptr(&cpuhp_state, cpu);
+			st->target = st->state;
+
+			/* Unpark the hotplug thread so we can rollback there */
+			kthread_unpark(per_cpu_ptr(&cpuhp_state, cpu)->thread);
+		}
+		return err;
+	}
+
+	for_each_cpu(cpu, down_cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		BUG_ON(cpu_online(cpu));
+
+		/*
+		 * The CPUHP_AP_SCHED_MIGRATE_DYING callback will have removed all
+		 * runnable tasks from the cpu, there's only the idle task left now
+		 * that the migration thread is done doing the stop_machine thing.
+		 *
+		 * Wait for the stop thread to go away.
+		 */
+		wait_for_ap_thread(st, false);
+		BUG_ON(st->state != CPUHP_AP_IDLE_DEAD);
+	}
+
+
+	/* Interrupts are moved away from the dying cpu, reenable alloc/free */
+	irq_unlock_sparse();
+
+	for_each_cpu(cpu, down_cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+
+		hotplug_cpu__broadcast_tick_pull(cpu);
+		/* This actually kills the CPU. */
+		__cpu_die(cpu);
+		tick_cleanup_dead_cpu(cpu);
+		rcutree_migrate_callbacks(cpu);
+
+		trace_cpuhp_exit(cpu, st->state, st->state, st->result);
+	}
+
+	return 0;
+}
+
+
 static int takedown_cpu(unsigned int cpu)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
@@ -1010,7 +1082,17 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 		 * thread. Nothing to do anymore.
 		 */
 		st->target = target;
+		cpumask_set_cpu(cpu, &take_down_cpus);
 	}
+
+	/* Hotplug out of all cpu failed */
+	if (cpumask_empty(&take_down_cpus))
+		goto out;
+
+	ret = takedown_cpus(&take_down_cpus);
+	if (ret)
+		panic("%s: fauiled to takedown_cpus\n", __func__);
+
 
 	for_each_cpu(cpu, &cpus) {
 		st = per_cpu_ptr(&cpuhp_state, cpu);
@@ -1022,6 +1104,8 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 	}
 
 	cpumask_clear(&cpu_fastoff_mask);
+
+out:
 	cpus_write_unlock();
 
 	/*
