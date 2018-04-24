@@ -74,26 +74,9 @@ static DEFINE_PER_CPU(struct cpuhp_cpu_state, cpuhp_state) = {
 };
 
 #if defined(CONFIG_LOCKDEP) && defined(CONFIG_SMP)
-static struct lockdep_map cpuhp_state_up_map =
-	STATIC_LOCKDEP_MAP_INIT("cpuhp_state-up", &cpuhp_state_up_map);
-static struct lockdep_map cpuhp_state_down_map =
-	STATIC_LOCKDEP_MAP_INIT("cpuhp_state-down", &cpuhp_state_down_map);
-
-
-static void inline cpuhp_lock_acquire(bool bringup)
-{
-	lock_map_acquire(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
-}
-
-static void inline cpuhp_lock_release(bool bringup)
-{
-	lock_map_release(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
-}
-#else
-
-static void inline cpuhp_lock_acquire(bool bringup) { }
-static void inline cpuhp_lock_release(bool bringup) { }
-
+static struct lock_class_key cpuhp_state_key;
+static struct lockdep_map cpuhp_state_lock_map =
+	STATIC_LOCKDEP_MAP_INIT("cpuhp_state", &cpuhp_state_key);
 #endif
 
 /**
@@ -612,7 +595,7 @@ static void cpuhp_thread_fun(unsigned int cpu)
 	if (WARN_ON_ONCE(!st->should_run))
 		return;
 
-	cpuhp_lock_acquire(bringup);
+	lock_map_acquire(&cpuhp_state_lock_map);
 
 	if (st->single) {
 		state = st->cb_state;
@@ -663,7 +646,7 @@ static void cpuhp_thread_fun(unsigned int cpu)
 	}
 
 next:
-	cpuhp_lock_release(bringup);
+	lock_map_release(&cpuhp_state_lock_map);
 
 	if (!st->should_run)
 		complete_ap_thread(st, bringup);
@@ -680,11 +663,8 @@ cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state, bool bringup,
 	if (!cpu_online(cpu))
 		return 0;
 
-	cpuhp_lock_acquire(false);
-	cpuhp_lock_release(false);
-
-	cpuhp_lock_acquire(true);
-	cpuhp_lock_release(true);
+	lock_map_acquire(&cpuhp_state_lock_map);
+	lock_map_release(&cpuhp_state_lock_map);
 
 	/*
 	 * If we are up and running, use the hotplug thread. For early calls
@@ -726,11 +706,8 @@ static int cpuhp_fast_kick_ap_work_pre(unsigned int cpu)
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	enum cpuhp_state prev_state = st->state;
 
-	cpuhp_lock_acquire(false);
-	cpuhp_lock_release(false);
-
-	cpuhp_lock_acquire(true);
-	cpuhp_lock_release(true);
+	lock_map_acquire(&cpuhp_state_lock_map);
+	lock_map_release(&cpuhp_state_lock_map);
 
 	trace_cpuhp_enter(cpu, st->target, prev_state,
 				cpuhp_fast_kick_ap_work_pre);
@@ -773,11 +750,8 @@ static int cpuhp_kick_ap_work(unsigned int cpu)
 	enum cpuhp_state prev_state = st->state;
 	int ret;
 
-	cpuhp_lock_acquire(false);
-	cpuhp_lock_release(false);
-
-	cpuhp_lock_acquire(true);
-	cpuhp_lock_release(true);
+	lock_map_acquire(&cpuhp_state_lock_map);
+	lock_map_release(&cpuhp_state_lock_map);
 
 	trace_cpuhp_enter(cpu, st->target, prev_state, cpuhp_kick_ap_work);
 	ret = cpuhp_kick_ap(st, st->target);
@@ -994,7 +968,6 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 			return -EINVAL;
 
 	cpus_write_lock();
-
 	cpuhp_tasks_frozen = tasks_frozen;
 
 	cpumask_copy(&cpu_fastoff_mask, &cpus);
