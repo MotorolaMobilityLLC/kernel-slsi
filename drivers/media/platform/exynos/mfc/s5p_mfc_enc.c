@@ -767,6 +767,9 @@ static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
 	if (FW_HAS_HP_BITRATE_CONTROL(dev))
 		val |= ENC_SET_HP_BITRATE_CONTROL;
 
+	if (FW_HAS_ENC_STATIC_INFO(dev))
+		val |= ENC_SET_STATIC_INFO;
+
 	return val;
 }
 
@@ -1599,6 +1602,33 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_HIERARCHICAL_BITRATE_CTRL:
 		p->hier_bitrate_ctrl = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_STATIC_INFO_ENABLE:
+		p->static_info_enable = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_MAX_PIC_AVERAGE_LIGHT:
+		p->max_pic_average_light = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_MAX_CONTENT_LIGHT:
+		p->max_content_light = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_MAX_DISPLAY_LUMINANCE:
+		p->max_display_luminance = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_MIN_DISPLAY_LUMINANCE:
+		p->min_display_luminance = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_WHITE_POINT:
+		p->white_point = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_0:
+		p->display_primaries_0 = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_1:
+		p->display_primaries_1 = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_2:
+		p->display_primaries_2 = ctrl->value;
 		break;
 	default:
 		mfc_err_ctx("Invalid control: 0x%08x\n", ctrl->id);

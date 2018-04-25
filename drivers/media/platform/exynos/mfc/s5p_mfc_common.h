@@ -175,6 +175,7 @@
 #define	ENC_SET_RATIO_OF_INTRA		(1 << 8)
 #define	ENC_SET_COLOR_ASPECT		(1 << 9)
 #define	ENC_SET_HP_BITRATE_CONTROL	(1 << 10)
+#define	ENC_SET_STATIC_INFO		(1 << 11)
 
 #define MFC_VER_MAJOR(dev)	((dev->pdata->ip_ver >> 8) & 0xFF)
 #define MFC_VER_MINOR(dev)	(dev->pdata->ip_ver & 0xFF)
@@ -211,5 +212,7 @@
 #define FW_HAS_ENC_COLOR_ASPECT(dev)	(FROM_MFCV11X(dev) &&		\
 					(dev->fw.date >= 0x171023))
 #define FW_HAS_HP_BITRATE_CONTROL(dev)	(FROM_MFCV11X(dev) &&		\
+					(dev->fw.date >= 0x180314))
+#define FW_HAS_ENC_STATIC_INFO(dev)	(IS_MFCV13X(dev) &&		\
 					(dev->fw.date >= 0x180314))
 #endif /* __S5P_MFC_COMMON_H */
