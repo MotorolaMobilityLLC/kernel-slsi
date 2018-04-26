@@ -55,7 +55,7 @@ enum phy_infos {
 struct exynos_mipi_phy_cfg {
 	u16 major;
 	u16 minor;
-	u32 type;
+	u16 mode;
 	/* u32 max_speed */
 	int (*set)(void __iomem *regs, int option, u32 *info);
 };
@@ -394,19 +394,19 @@ static const struct exynos_mipi_phy_cfg phy_cfg_table[] = {
 	{
 		.major = 0x0501,
 		.minor = 0x0000,
-		.type = 0xD,
+		.mode = 0xD,
 		.set = __set_phy_cfg_0501_0000_dphy,
 	},
 	{
 		.major = 0x0502,
 		.minor = 0x0000,
-		.type = 0xD,
+		.mode = 0xD,
 		.set = __set_phy_cfg_0502_0000_dphy,
 	},
 	{
 		.major = 0x0502,
 		.minor = 0x0001,
-		.type = 0xD,
+		.mode = 0xD,
 		.set = __set_phy_cfg_0502_0001_dphy,
 	},
 	{ },
@@ -422,7 +422,7 @@ static int __set_phy_cfg(struct exynos_mipi_phy *state,
 	for (i = 0; i < ARRAY_SIZE(phy_cfg_table); i++) {
 		if ((cfg[VERSION] == MKVER(phy_cfg_table[i].major,
 					phy_cfg_table[i].minor))
-		    && (cfg[TYPE] == phy_cfg_table[i].type)) {
+		    && ((cfg[TYPE] >> 16) == phy_cfg_table[i].mode)) {
 			ret = phy_cfg_table[i].set(phy_desc->regs,
 					option, cfg);
 			break;
