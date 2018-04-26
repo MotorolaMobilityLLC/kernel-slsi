@@ -558,7 +558,7 @@ static ssize_t store_en_dvfs(struct device *dev,
 {
 #ifdef ENABLE_DVFS
 	struct fimc_is_core *core =
-		(struct fimc_is_core *)platform_get_drvdata(to_platform_device(dev));
+		(struct fimc_is_core *)dev_get_drvdata(dev);
 	struct fimc_is_resourcemgr *resourcemgr;
 	int i;
 
@@ -698,7 +698,7 @@ static ssize_t show_debug_state(struct device *dev, struct device_attribute *att
 				  char *buf)
 {
 	struct fimc_is_core *core =
-		(struct fimc_is_core *)platform_get_drvdata(to_platform_device(dev));
+		(struct fimc_is_core *)dev_get_drvdata(dev);
 	struct fimc_is_resourcemgr *resourcemgr;
 
 	FIMC_BUG(!core);
@@ -713,7 +713,7 @@ static ssize_t store_debug_state(struct device *dev,
 				 const char *buf, size_t count)
 {
 	struct fimc_is_core *core =
-		(struct fimc_is_core *)platform_get_drvdata(to_platform_device(dev));
+		(struct fimc_is_core *)dev_get_drvdata(dev);
 	struct fimc_is_resourcemgr *resourcemgr;
 
 	FIMC_BUG(!core);

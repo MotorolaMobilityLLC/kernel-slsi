@@ -2192,7 +2192,7 @@ int fimc_is_ischain_runtime_suspend(struct device *dev)
 {
 	int ret = 0;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct fimc_is_core *core = (struct fimc_is_core *)platform_get_drvdata(pdev);
+	struct fimc_is_core *core = (struct fimc_is_core *)dev_get_drvdata(dev);
 	struct fimc_is_mem *mem = &core->resourcemgr.mem;
 	struct exynos_platform_fimc_is *pdata;
 
@@ -2275,7 +2275,7 @@ int fimc_is_ischain_runtime_resume(struct device *dev)
 {
 	int ret = 0;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct fimc_is_core *core = (struct fimc_is_core *)platform_get_drvdata(pdev);
+	struct fimc_is_core *core = (struct fimc_is_core *)dev_get_drvdata(dev);
 	struct fimc_is_mem *mem = &core->resourcemgr.mem;
 	struct exynos_platform_fimc_is *pdata;
 
@@ -2393,7 +2393,7 @@ int fimc_is_ischain_power(struct fimc_is_device_ischain *device, int on)
 	FIMC_BUG(!device->interface);
 
 	dev = &device->pdev->dev;
-	core = (struct fimc_is_core *)platform_get_drvdata(device->pdev);
+	core = (struct fimc_is_core *)dev_get_drvdata(dev);
 	vender = &core->vender;
 	itf = device->interface;
 
@@ -2541,7 +2541,7 @@ int fimc_is_ischain_power(struct fimc_is_device_ischain *device, int on)
 	FIMC_BUG(!device->interface);
 
 	dev = &device->pdev->dev;
-	core = (struct fimc_is_core *)platform_get_drvdata(device->pdev);
+	core = (struct fimc_is_core *)dev_get_drvdata(dev);
 	vender = &core->vender;
 
 	if (on) {
