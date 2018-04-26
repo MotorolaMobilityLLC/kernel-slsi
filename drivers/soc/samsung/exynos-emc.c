@@ -12,6 +12,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/types.h>
 #include <linux/irq_work.h>
 #include <linux/kobject.h>
 #include <linux/cpufreq.h>
@@ -1365,6 +1366,7 @@ failure:
 
 static int __init emc_mode_change_func_init(void)
 {
+	struct sched_param param;
 	struct emc_mode *base_mode = emc_get_base_mode();
 
 	/* register cpu mode control */
@@ -1388,7 +1390,8 @@ static int __init emc_mode_change_func_init(void)
 		return -EINVAL;
 	}
 
-	set_user_nice(emc.task, MIN_NICE);
+	param.sched_priority = 20;
+	sched_setscheduler_nocheck(emc.task, SCHED_FIFO, &param);
 	set_cpus_allowed_ptr(emc.task, cpu_coregroup_mask(0));
 
 	wake_up_process(emc.task);
