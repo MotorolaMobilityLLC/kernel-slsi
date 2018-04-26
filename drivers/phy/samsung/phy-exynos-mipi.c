@@ -306,6 +306,7 @@ static int __set_phy_cfg_0502_0000_dphy(void __iomem *regs, int option, u32 *cfg
 	int i;
 	u32 settle_clk_sel = 1;
 	u32 skew_delay_sel = 0;
+	u32 type = cfg[TYPE] & 0xffff;
 
 	if (cfg[SPEED] >= PHY_REF_SPEED)
 		settle_clk_sel = 0;
@@ -335,7 +336,9 @@ static int __set_phy_cfg_0502_0000_dphy(void __iomem *regs, int option, u32 *cfg
 		writel(0x00000005, regs + 0x0110 + (i * 0x100)); /* SD_ANA_CON2 */
 		update_bits(regs + 0x0110 + (i * 0x100), 8, 2, skew_delay_sel); /* SD_ANA_CON2 */
 		writel(0x00000600, regs + 0x0114 + (i * 0x100)); /* SD_ANA_CON3 */
-		writel(0x00000040, regs + 0x0124 + (i * 0x100)); /* SD_ANA_CON7 */
+		/* DC Combo lane has below SFR (0/1/2) */
+		if ((type == 0xDC) && (i < 3))
+			writel(0x00000040, regs + 0x0124 + (i * 0x100)); /* SD_ANA_CON7 */
 		update_bits(regs + 0x0130 + (i * 0x100), 0, 8, cfg[SETTLE]); /* SD_TIME_CON0 */
 		update_bits(regs + 0x0130 + (i * 0x100), 8, 1, settle_clk_sel); /* SD_TIME_CON0 */
 		writel(0x00000003, regs + 0x0134 + (i * 0x100)); /* SD_TIME_CON1 */
@@ -380,7 +383,6 @@ static int __set_phy_cfg_0502_0001_dphy(void __iomem *regs, int option, u32 *cfg
 		writel(0x00000005, regs + 0x0010 + (i * 0x100)); /* SD_ANA_CON2 */
 		update_bits(regs + 0x0010 + (i * 0x100), 8, 2, skew_delay_sel); /* SD_ANA_CON2 */
 		writel(0x00000600, regs + 0x0014 + (i * 0x100)); /* SD_ANA_CON3 */
-		writel(0x00000040, regs + 0x0024 + (i * 0x100)); /* SD_ANA_CON7 */
 		update_bits(regs + 0x0030 + (i * 0x100), 0, 8, cfg[SETTLE]); /* SD_TIME_CON0 */
 		update_bits(regs + 0x0030 + (i * 0x100), 8, 1, settle_clk_sel); /* SD_TIME_CON0 */
 		writel(0x00000003, regs + 0x0034 + (i * 0x100)); /* SD_TIME_CON1 */
