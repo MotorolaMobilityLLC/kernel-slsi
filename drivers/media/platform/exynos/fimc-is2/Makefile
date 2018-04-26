@@ -20,9 +20,6 @@ fimc-is-objs	:= fimc-is-core.o \
 		fimc-is-video-mec.o \
 		fimc-is-video-dis.o \
 		fimc-is-video-disc.o \
-		fimc-is-video-dcp.o \
-		fimc-is-video-dcps.o \
-		fimc-is-video-dcpc.o \
 		fimc-is-video-mcs.o \
 		fimc-is-video-mcsp.o \
 		fimc-is-video-vra.o \
@@ -40,6 +37,10 @@ fimc-is-objs	:= fimc-is-core.o \
 		fimc-is-clk-gate.o \
 		fimc-is-binary.o \
 		fimc-is-i2c-config.o
+
+obj-$(CONFIG_DCP_V1_0) += fimc-is-video-dcp.o \
+			       fimc-is-video-dcps.o \
+			       fimc-is-video-dcpc.o
 
 ifeq ($(CONFIG_USE_DIRECT_IS_CONTROL),y)
 fimc-is-objs += fimc-is-interface-wrap.o
@@ -60,6 +61,7 @@ obj-$(CONFIG_EXYNOS_DEVICE_MIPI_CSIS_VER3) += fimc-is-device-csi_v3.o
 obj-$(CONFIG_EXYNOS_DEVICE_MIPI_CSIS_VER4) += fimc-is-device-csi_v4.o
 
 obj-$(CONFIG_EXYNOS_FIMC_BNS) += fimc-is-device-flite.o
+
 
 obj-$(CONFIG_VIDEO_EXYNOS_FIMC_IS2) += fimc-is.o
 obj-$(CONFIG_VIDEO_EXYNOS_FIMC_IS2) += sensor/
