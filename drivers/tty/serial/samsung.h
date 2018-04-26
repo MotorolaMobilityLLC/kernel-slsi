@@ -60,6 +60,7 @@ struct s3c24xx_uart_port {
 	unsigned int			tx_irq;
 
 	int				check_separated_clk;
+	unsigned int			src_clk_rate;
 	struct s3c24xx_uart_info	*info;
 	struct clk			*clk;
 	struct clk			*separated_clk;

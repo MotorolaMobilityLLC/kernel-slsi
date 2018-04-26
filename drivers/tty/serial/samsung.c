@@ -856,6 +856,7 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 	unsigned long rate;
 	unsigned int cnt, baud, quot, clk_sel, best_quot = 0;
 	int calc_deviation, deviation = (1 << 30) - 1;
+	int ret;
 
 	clk_sel = (ourport->cfg->clk_sel) ? ourport->cfg->clk_sel :
 			ourport->info->def_clk_sel;
@@ -864,6 +865,15 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 			continue;
 
 		rate = clk_get_rate(ourport->clk);
+
+		if (ourport->src_clk_rate && rate != ourport->src_clk_rate)
+		{
+			ret = clk_set_rate(ourport->clk, ourport->src_clk_rate);
+			if (ret < 0)
+				dev_err(&ourport->pdev->dev, "UART clk set failed\n");
+
+			rate = clk_get_rate(ourport->clk);
+		}
 
 		if (ourport->dbg_mode & UART_DBG_MODE)
 			printk(" - Clock rate : %ld\n", rate);
@@ -1463,6 +1473,11 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	else
 		ourport->check_separated_clk = 0;
 
+	if (of_property_read_u32(platdev->dev.of_node, "samsung,source-clock-rate", &ourport->src_clk_rate)){
+		dev_err(&platdev->dev, "Failed to get src-clk_rate\n");
+		ourport->src_clk_rate = 0;
+	}
+
 	snprintf(clkname, sizeof(clkname), "ipclk_uart%d", ourport->port.line);
 	ourport->clk = devm_clk_get(&platdev->dev, clkname);
 	if (IS_ERR(ourport->clk)) {
@@ -2021,6 +2036,7 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 	unsigned int ucon;
 	unsigned int ubrdiv;
 	unsigned long rate;
+	int ret;
 
 	ulcon  = rd_regl(port, S3C2410_ULCON);
 	ucon   = rd_regl(port, S3C2410_UCON);
@@ -2063,6 +2079,15 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 
 		/* now calculate the baud rate */
 		rate = clk_get_rate(ourport->clk);
+
+		if (ourport->src_clk_rate && rate != ourport->src_clk_rate)
+		{
+			ret = clk_set_rate(ourport->clk, ourport->src_clk_rate);
+			if (ret < 0)
+				dev_err(&ourport->pdev->dev, "UART clk set failed\n");
+
+			rate = clk_get_rate(ourport->clk);
+		}
 
 		*baud = rate / (16 * (ubrdiv + 1));
 		dbg("calculated baud %d\n", *baud);
