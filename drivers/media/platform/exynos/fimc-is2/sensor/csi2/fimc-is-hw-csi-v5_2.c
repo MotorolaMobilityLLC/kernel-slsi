@@ -979,8 +979,9 @@ int csi_hw_s_phy_set(struct phy *phy, u32 lanes, u32 mipi_speed,
 	int ret = 0;
 	unsigned int phy_cfg[MAX_PHY_CFG];
 
-	/* [0]: the version of PHY
-	 * [1]: the type of PHY (D: 0, C: 1)
+	/*
+	 * [0]: the version of PHY (major << 16 | minor)
+	 * [1]: the type of PHY (mode << 16 | type)
 	 * [2]: the number of lanes (zero-based)
 	 * [3]: the data rate
 	 * [4]: the settle value for the data rate
@@ -991,7 +992,12 @@ int csi_hw_s_phy_set(struct phy *phy, u32 lanes, u32 mipi_speed,
 	else
 		phy_cfg[0] |= 0x0000;
 
-	phy_cfg[1] = 0xD;
+	phy_cfg[1] = 0xD << 16;
+	if ((instance == CSI_ID_A) || (instance == CSI_ID_C))
+		phy_cfg[1] |= 0xDC;
+	else
+		phy_cfg[1] |= 0xD;
+
 	phy_cfg[2] = lanes;
 	phy_cfg[3] = mipi_speed;
 	phy_cfg[4] = settle;
