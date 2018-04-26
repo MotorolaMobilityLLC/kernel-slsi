@@ -648,7 +648,7 @@ static struct notifier_block emc_policy_nb = {
 
 static int emc_update_domain_const(struct emc_domain *domain)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(100);
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct cpumask mask;
 	int cpu;
 
@@ -666,7 +666,7 @@ static int emc_update_domain_const(struct emc_domain *domain)
 			panic("EMC: failed to update domain(cpu%d) constraints\n", cpu);
 			return -EBUSY;
 		}
-		msleep(10);
+		udelay(100);
 	}
 
 	/* update capacity for scheduler */
@@ -715,7 +715,7 @@ static int emc_update_cpu_pwr(unsigned int cpu, bool on)
 			panic("CPU%d %s power on!\n",
 					cpu, on? "already" : "not yet");
 
-		msleep(1);
+		udelay(100);
 	}
 
 	domain = emc_find_domain(cpu);
