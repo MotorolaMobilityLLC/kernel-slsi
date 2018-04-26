@@ -120,18 +120,31 @@ static const struct attribute_group topology_attr_group = {
 	.name = "topology"
 };
 
+static bool cpu_sys_init[NR_CPUS];
 /* Add/Remove cpu_topology interface for CPU device */
 static int topology_add_dev(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
+	int ret;
 
-	return sysfs_create_group(&dev->kobj, &topology_attr_group);
+	if (cpu_sys_init[cpu])
+		return 0;
+
+	ret = sysfs_create_group(&dev->kobj, &topology_attr_group);
+	if (!ret)
+		cpu_sys_init[cpu] = true;
+
+	return ret;
 }
 
 static int topology_remove_dev(unsigned int cpu)
 {
-	struct device *dev = get_cpu_device(cpu);
+	struct device *dev;
 
+	if (cpu_sys_init[cpu])
+		return 0;
+
+	dev = get_cpu_device(cpu);
 	sysfs_remove_group(&dev->kobj, &topology_attr_group);
 	return 0;
 }
