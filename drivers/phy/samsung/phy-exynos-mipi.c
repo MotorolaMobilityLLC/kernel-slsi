@@ -382,6 +382,8 @@ static int __set_phy_cfg_0502_0001_dphy(void __iomem *regs, int option, u32 *cfg
 		writel(0x00009000, regs + 0x000c + (i * 0x100)); /* SD_ANA_CON1 */
 		writel(0x00000005, regs + 0x0010 + (i * 0x100)); /* SD_ANA_CON2 */
 		update_bits(regs + 0x0010 + (i * 0x100), 8, 2, skew_delay_sel); /* SD_ANA_CON2 */
+		update_bits(regs + 0x0010 + (i * 0x100), 15, 1, 1); /* RESETN_CFG_SEL */
+		update_bits(regs + 0x0010 + (i * 0x100), 7, 1, 1); /* RXDDRCLKHS_SEL */
 		writel(0x00000600, regs + 0x0014 + (i * 0x100)); /* SD_ANA_CON3 */
 		update_bits(regs + 0x0030 + (i * 0x100), 0, 8, cfg[SETTLE]); /* SD_TIME_CON0 */
 		update_bits(regs + 0x0030 + (i * 0x100), 8, 1, settle_clk_sel); /* SD_TIME_CON0 */
