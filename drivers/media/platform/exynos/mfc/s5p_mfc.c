@@ -19,6 +19,7 @@
 #include <linux/smc.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/poll.h>
 
 #include "s5p_mfc_common.h"
 
@@ -811,16 +812,20 @@ static unsigned int s5p_mfc_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	unsigned long req_events = poll_requested_events(wait);
 	unsigned int ret = 0;
-	enum s5p_mfc_node_type node_type;
 
-	node_type = s5p_mfc_get_node_type(file);
+	mfc_debug_enter();
 
-	if (s5p_mfc_is_decoder_node(node_type))
+	if (req_events & (POLLOUT | POLLWRNORM)) {
+		mfc_debug(2, "wait source buffer\n");
 		ret = vb2_poll(&ctx->vq_src, file, wait);
-	else
+	} else if (req_events & (POLLIN | POLLRDNORM)) {
+		mfc_debug(2, "wait destination buffer\n");
 		ret = vb2_poll(&ctx->vq_dst, file, wait);
+	}
 
+	mfc_debug_leave();
 	return ret;
 }
 
