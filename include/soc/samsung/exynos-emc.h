@@ -16,10 +16,12 @@
 void exynos_emc_update(int cpu);
 int exynos_emc_update_cpu_pwr(unsigned int cpu, bool on);
 int emc_get_boost_freq(int cpu);
+void emc_check_available_freq(struct cpumask *cpus, unsigned int target_freq);
 #else
 static inline void exynos_emc_update(int cpu) {};
 static inline int exynos_emc_update_cpu_pwr(unsigned int cpu, bool on) { return 0; };
 static inline int emc_get_boost_freq(int cpu) { return 0; };
+static inline void emc_check_available_freq(struct cpumask *cpus, unsigned int target_freq) { return; };
 #endif
 
 #endif /* __EXYNOS_MODE_CHANGER_H */

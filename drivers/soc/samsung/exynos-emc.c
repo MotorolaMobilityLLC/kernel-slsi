@@ -174,6 +174,30 @@ exit:
 	return 0;
 }
 
+void emc_check_available_freq(struct cpumask *cpus, unsigned int target_freq)
+{
+	unsigned int max_freq;
+	struct emc_domain *domain = emc_get_boost_domain();
+	int cpu = cpumask_first(cpus);
+	struct cpumask online_mask;
+	struct emc_mode *mode;
+
+	cpumask_copy(&online_mask, cpu_online_mask);
+	mode = emc_find_mode(&online_mask);
+
+	if (!cpumask_equal(cpus, &domain->cpus))
+		return;
+
+	if (mode)
+		max_freq = mode->max_freq;
+	else
+		max_freq = emc_get_base_mode()->max_freq;
+
+	if (target_freq > max_freq)
+		panic("cpu%d target_freq(%d) is higher than max_freq(%d, mode %s)\n",
+						cpu, target_freq, max_freq, mode->name);
+}
+
 /* check policy->max constaints and real clock violation according to mask */
 int emc_verify_constraints(struct cpumask *mask)
 {
