@@ -2665,8 +2665,8 @@ static int sc_run_next_job(struct sc_dev *sc)
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
 
-	sc_hwset_init(sc);
 	sc_hwset_clk_request(sc, true);
+	sc_hwset_init(sc);
 
 	if (ctx->i_frame) {
 		set_bit(CTX_INT_FRAME, &ctx->flags);
