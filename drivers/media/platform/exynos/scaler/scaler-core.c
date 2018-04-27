@@ -1982,6 +1982,22 @@ static bool sc_configure_rotation_degree(struct sc_ctx *ctx, int degree)
 	return true;
 }
 
+static void sc_set_framerate(struct sc_ctx *ctx, int framerate)
+{
+	if (!ctx->sc_dev->qos_table)
+		return;
+
+	if (framerate == 0) {
+		sc_remove_devfreq(&ctx->pm_qos, ctx->sc_dev->qos_table);
+		ctx->framerate = 0;
+	} else if (framerate != ctx->framerate) {
+		ctx->framerate = framerate;
+		if (sc_get_pm_qos_level(ctx, ctx->framerate))
+			sc_request_devfreq(&ctx->pm_qos,
+					ctx->sc_dev->qos_table, ctx->pm_qos_lv);
+	}
+}
+
 static int sc_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc_ctx *ctx;
@@ -2038,18 +2054,7 @@ static int sc_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->dnoise_ft.strength = ctrl->val;
 		break;
 	case SC_CID_FRAMERATE:
-		if (!ctx->sc_dev->qos_table)
-			break;
-
-		if (ctrl->val == 0) {
-			sc_remove_devfreq(&ctx->pm_qos, ctx->sc_dev->qos_table);
-			ctx->framerate = 0;
-		} else if (ctrl->val != ctx->framerate) {
-			ctx->framerate = ctrl->val;
-			if (sc_get_pm_qos_level(ctx, ctx->framerate))
-				sc_request_devfreq(&ctx->pm_qos,
-					ctx->sc_dev->qos_table, ctx->pm_qos_lv);
-		}
+		sc_set_framerate(ctx, ctrl->val);
 		break;
 	}
 
@@ -2306,6 +2311,8 @@ static int sc_open(struct file *file)
 		ret = -EINVAL;
 		goto err_ctx;
 	}
+
+	ctx->pm_qos_lv = -1;
 
 	return 0;
 
@@ -3143,6 +3150,7 @@ static int sc_m2m1shot_init_context(struct m2m1shot_context *m21ctx)
 
 	m21ctx->priv = ctx;
 	ctx->m21_ctx = m21ctx;
+	ctx->pm_qos_lv = -1;
 
 	return 0;
 err_aclk:
@@ -3164,6 +3172,11 @@ static int sc_m2m1shot_free_context(struct m2m1shot_context *m21ctx)
 		clk_unprepare(ctx->sc_dev->pclk);
 	BUG_ON(!list_empty(&ctx->node));
 	destroy_intermediate_frame(ctx);
+	if (ctx->framerate) {
+		sc_remove_devfreq(&ctx->pm_qos, ctx->sc_dev->qos_table);
+		ctx->framerate = 0;
+	}
+
 	kfree(ctx);
 	return 0;
 }
@@ -3244,13 +3257,16 @@ static int sc_m2m1shot_prepare_format(struct m2m1shot_context *m21ctx,
 			bytes_used[i] *= frame->sc_fmt->bitperpixel[i];
 			bytes_used[i] /= 8;
 		}
+		frame->bytesused[i] = bytes_used[i];
 	}
 
 	if (ctx->sc_dev->variant->extra_buf && dir == DMA_TO_DEVICE) {
 		ext_size = sc_ext_buf_size(fmt->width);
 
-		for (i = 0; i < frame->sc_fmt->num_planes; i++)
+		for (i = 0; i < frame->sc_fmt->num_planes; i++) {
 			bytes_used[i] += (i == 0) ? ext_size : ext_size/2;
+			frame->bytesused[i] = bytes_used[i];
+		}
 	}
 
 	frame->width = fmt->width;
@@ -3444,6 +3460,9 @@ static int sc_m2m1shot_device_run(struct m2m1shot_context *m21ctx,
 
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
+
+	if (task->task.reserved[0])
+		sc_set_framerate(ctx, (int)task->task.reserved[0]);
 
 	sc_m2m1shot_get_bufaddr(sc, &task->dma_buf_out, s_frame);
 	sc_m2m1shot_get_bufaddr(sc, &task->dma_buf_cap, d_frame);
