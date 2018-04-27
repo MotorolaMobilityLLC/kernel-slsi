@@ -1592,26 +1592,26 @@ static int __init fimc_is_sensor_probe(struct platform_device *pdev)
 
 	/* DMA abstraction */
 	device->dma_abstract = device->pdata->dma_abstract;
-	device->ssvc0.dma_ch[0] = device->pdata->dma_ch[0];
-	device->ssvc1.dma_ch[0] = device->pdata->dma_ch[1];
-	device->ssvc2.dma_ch[0] = device->pdata->dma_ch[2];
-	device->ssvc3.dma_ch[0] = device->pdata->dma_ch[3];
+	device->ssvc0.dma_ch[SCM_WO_PAF_HW] = device->pdata->dma_ch[0];
+	device->ssvc1.dma_ch[SCM_WO_PAF_HW] = device->pdata->dma_ch[1];
+	device->ssvc2.dma_ch[SCM_WO_PAF_HW] = device->pdata->dma_ch[2];
+	device->ssvc3.dma_ch[SCM_WO_PAF_HW] = device->pdata->dma_ch[3];
 
-	device->ssvc0.dma_ch[1] = device->pdata->dma_ch[4];
-	device->ssvc1.dma_ch[1] = device->pdata->dma_ch[5];
-	device->ssvc2.dma_ch[1] = device->pdata->dma_ch[6];
-	device->ssvc3.dma_ch[1] = device->pdata->dma_ch[7];
+	device->ssvc0.dma_ch[SCM_W_PAF_HW] = device->pdata->dma_ch[4];
+	device->ssvc1.dma_ch[SCM_W_PAF_HW] = device->pdata->dma_ch[5];
+	device->ssvc2.dma_ch[SCM_W_PAF_HW] = device->pdata->dma_ch[6];
+	device->ssvc3.dma_ch[SCM_W_PAF_HW] = device->pdata->dma_ch[7];
 
 	/* VC abstraction */
-	device->ssvc0.vc_ch[0] = device->pdata->vc_ch[0];
-	device->ssvc1.vc_ch[0] = device->pdata->vc_ch[1];
-	device->ssvc2.vc_ch[0] = device->pdata->vc_ch[2];
-	device->ssvc3.vc_ch[0] = device->pdata->vc_ch[3];
+	device->ssvc0.vc_ch[SCM_WO_PAF_HW] = device->pdata->vc_ch[0];
+	device->ssvc1.vc_ch[SCM_WO_PAF_HW] = device->pdata->vc_ch[1];
+	device->ssvc2.vc_ch[SCM_WO_PAF_HW] = device->pdata->vc_ch[2];
+	device->ssvc3.vc_ch[SCM_WO_PAF_HW] = device->pdata->vc_ch[3];
 
-	device->ssvc0.vc_ch[1] = device->pdata->vc_ch[4];
-	device->ssvc1.vc_ch[1] = device->pdata->vc_ch[5];
-	device->ssvc2.vc_ch[1] = device->pdata->vc_ch[6];
-	device->ssvc3.vc_ch[1] = device->pdata->vc_ch[7];
+	device->ssvc0.vc_ch[SCM_W_PAF_HW] = device->pdata->vc_ch[4];
+	device->ssvc1.vc_ch[SCM_W_PAF_HW] = device->pdata->vc_ch[5];
+	device->ssvc2.vc_ch[SCM_W_PAF_HW] = device->pdata->vc_ch[6];
+	device->ssvc3.vc_ch[SCM_W_PAF_HW] = device->pdata->vc_ch[7];
 
 	set_bit(FIMC_IS_SENSOR_PROBE, &device->state);
 

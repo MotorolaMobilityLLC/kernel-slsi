@@ -104,6 +104,12 @@ struct fimc_is_subdev_ops {
 		struct camera2_node *node);
 };
 
+enum subdev_ch_mode {
+	SCM_WO_PAF_HW,
+	SCM_W_PAF_HW,
+	SCM_MAX,
+};
+
 struct fimc_is_subdev {
 	u32					id;
 	u32					vid; /* video id */
@@ -142,11 +148,11 @@ struct fimc_is_subdev {
 	/*
 	 * Parameter for DMA abstraction:
 	 * This value is physical DMA & VC.
-	 * [0]: Without PDP (Use this when none PD mode is enabled.)
-	 * [1]: With PDP (Use this when PD mode is enabled.)
+	 * [0]: Bypass PAF HW (Use this when none PD mode is enabled.)
+	 * [1]: Processing PAF HW (Use this when PD mode is enabled.)
 	 */
-	int					dma_ch[2];
-	int					vc_ch[2];
+	int					dma_ch[SCM_MAX];
+	int					vc_ch[SCM_MAX];
 };
 
 int fimc_is_sensor_subdev_open(struct fimc_is_device_sensor *device,
