@@ -852,6 +852,7 @@ static int take_cpu_down(void *_param)
 	return 0;
 }
 
+static int takedown_cpu(unsigned int cpu);
 static int takedown_cpus(const struct cpumask *down_cpus)
 {
 	struct cpuhp_cpu_state *st;
@@ -860,7 +861,7 @@ static int takedown_cpus(const struct cpumask *down_cpus)
 	/* Park the smpboot threads */
 	for_each_cpu(cpu, down_cpus) {
 		st = per_cpu_ptr(&cpuhp_state, cpu);
-		trace_cpuhp_enter(cpu, st->target, st->state, NULL);
+		trace_cpuhp_enter(cpu, st->target, st->state, takedown_cpu);
 
 		kthread_park(per_cpu_ptr(&cpuhp_state, cpu)->thread);
 		smpboot_park_threads(cpu);
@@ -1094,7 +1095,7 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 		panic("%s: fauiled to takedown_cpus\n", __func__);
 
 
-	for_each_cpu(cpu, &cpus) {
+	for_each_cpu(cpu, &take_down_cpus) {
 		st = per_cpu_ptr(&cpuhp_state, cpu);
 		ret = cpuhp_down_callbacks(cpu, st, target);
 		if (ret && st->state > CPUHP_TEARDOWN_CPU && st->state < prev_state[cpu]) {
@@ -1273,6 +1274,90 @@ void cpuhp_online_idle(enum cpuhp_state state)
 }
 
 /* Requires cpu_add_remove_lock to be held */
+static int __ref _cpus_up(struct cpumask cpus, int tasks_frozen,
+			enum cpuhp_state target)
+{
+	struct cpuhp_cpu_state *st;
+	cpumask_t ap_work_cpus = CPU_MASK_NONE;
+	cpumask_t bringup_cpus = CPU_MASK_NONE;
+	int prev_state[8] = {0};
+	struct task_struct *idle;
+	int cpu;
+	int ret = 0;
+
+	cpus_write_lock();
+
+	for_each_cpu(cpu, &cpus)
+		if (!cpu_present(cpu)) {
+			pr_warn("_cpus_up: cpu%d is not present\n", cpu);
+			cpumask_clear_cpu(cpu, &cpus);
+		}
+
+	cpumask_copy(&cpu_faston_mask, &cpus);
+
+	for_each_cpu(cpu, &cpu_faston_mask) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		/*
+		 * The caller of do_cpu_up might have raced with another
+		 * caller. Ignore it for now.
+		 */
+		if (st->state >= target)
+			continue;
+
+		if (st->state == CPUHP_OFFLINE) {
+			/* Let it fail before we try to bring the cpu up */
+			idle = idle_thread_get(cpu);
+			if (IS_ERR(idle)) {
+				ret = PTR_ERR(idle);
+				continue;
+			}
+		}
+
+		prev_state[cpu] = cpuhp_set_state(st, target);
+
+		if (st->state > CPUHP_BRINGUP_CPU)
+			cpumask_set_cpu(cpu, &ap_work_cpus);
+		else
+			cpumask_set_cpu(cpu, &bringup_cpus);
+
+	}
+
+	cpuhp_tasks_frozen = tasks_frozen;
+	/*
+	 * If the current CPU state is in the range of the AP hotplug thread,
+	 * then we need to kick the thread once more.
+	 */
+	for_each_cpu(cpu, &ap_work_cpus)
+		cpuhp_fast_kick_ap_work_pre(cpu);
+
+	for_each_cpu(cpu, &ap_work_cpus)
+		cpuhp_fast_kick_ap_work_post(cpu, prev_state[cpu]);
+
+	/* Hotplug out of all cpu failed */
+	if (cpumask_empty(&bringup_cpus))
+		goto out;
+
+	/*
+	 * Try to reach the target state. We max out on the BP at
+	 * CPUHP_BRINGUP_CPU. After that the AP hotplug thread is
+	 * responsible for bringing it up to the target state.
+	 */
+	target = min((int)target, CPUHP_BRINGUP_CPU);
+	for_each_cpu(cpu, &bringup_cpus) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		ret = cpuhp_up_callbacks(cpu, st, target);
+		if (ret)
+			panic("%s: fauiled to bringup_cpus\n", __func__);
+	}
+out:
+	cpumask_clear(&cpu_faston_mask);
+	cpus_write_unlock();
+
+	return ret;
+}
+
+
+/* Requires cpu_add_remove_lock to be held */
 static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
@@ -1369,7 +1454,7 @@ EXPORT_SYMBOL_GPL(cpu_up);
 
 int cpus_up(struct cpumask cpus)
 {
-	int cpu, ret;
+	int cpu, err = 0;
 
 	for_each_cpu(cpu, &cpus)
 		if (cpu_online(cpu)) {
@@ -1377,14 +1462,24 @@ int cpus_up(struct cpumask cpus)
 			pr_warn("cpus_up: cpu%d is already online\n", cpu);
 		}
 
-	cpumask_copy(&cpu_faston_mask, &cpus);
+	for_each_cpu(cpu, &cpus) {
+		err = try_online_node(cpu_to_node(cpu));
+		if (err)
+			return err;
+	}
 
-	for_each_cpu(cpu, &cpus)
-		ret = do_cpu_up((unsigned int)cpu, CPUHP_ONLINE);
+	cpu_maps_update_begin();
 
-	cpumask_clear(&cpu_faston_mask);
+	if (cpu_hotplug_disabled) {
+		err = -EBUSY;
+		goto out;
+	}
 
-	return ret;
+	err = _cpus_up(cpus, 0, CPUHP_ONLINE);
+out:
+	cpu_maps_update_done();
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(cpus_up);
 
