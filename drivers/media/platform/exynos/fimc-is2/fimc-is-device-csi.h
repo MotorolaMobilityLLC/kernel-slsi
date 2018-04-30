@@ -63,15 +63,15 @@ enum itf_vc_buf_data_type {
 struct fimc_is_device_csi {
 	/* channel information */
 	u32				instance;
-	u32				offset;
+	enum subdev_ch_mode		scm;
 	u32 __iomem			*base_reg;
-	u32 __iomem			*vc_reg[CSI_VIRTUAL_CH_MAX * 2];
-	u32 __iomem			*cmn_reg[CSI_VIRTUAL_CH_MAX * 2];
+	u32 __iomem			*vc_reg[SCM_MAX][CSI_VIRTUAL_CH_MAX];
+	u32 __iomem			*cmn_reg[SCM_MAX][CSI_VIRTUAL_CH_MAX];
 	u32 __iomem			*phy_reg;
 	resource_size_t			regs_start;
 	resource_size_t			regs_end;
 	int				irq;
-	int				vc_irq[CSI_VIRTUAL_CH_MAX * 2];
+	int				vc_irq[SCM_MAX][CSI_VIRTUAL_CH_MAX];
 	unsigned long			vc_irq_state;
 
 	/* csi common dma */

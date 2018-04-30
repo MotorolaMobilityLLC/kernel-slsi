@@ -961,8 +961,8 @@ int fimc_is_resource_dump(void)
 				csi_hw_dump(csi->base_reg);
 				csi_hw_phy_dump(csi->phy_reg, csi->instance);
 				for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
-					csi_hw_vcdma_dump(csi->vc_reg[vc + csi->offset]);
-					csi_hw_vcdma_cmn_dump(csi->cmn_reg[vc + csi->offset]);
+					csi_hw_vcdma_dump(csi->vc_reg[csi->scm][vc]);
+					csi_hw_vcdma_cmn_dump(csi->cmn_reg[csi->scm][vc]);
 				}
 				csi_hw_common_dma_dump(csi->csi_dma->base_reg);
 #if defined(ENABLE_PDP_STAT_DMA)

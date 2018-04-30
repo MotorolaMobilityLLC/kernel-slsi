@@ -123,8 +123,8 @@ static inline void csi_s_config_dma(struct fimc_is_device_csi *csi, struct fimc_
 			}
 		}
 
-		csi_hw_s_config_dma(csi->vc_reg[vc + csi->offset], vc, &framecfg, vci_config[vc].hwformat);
-		csi_hw_s_config_dma_cmn(csi->cmn_reg[vc + csi->offset], vc, vci_config[vc].hwformat);
+		csi_hw_s_config_dma(csi->vc_reg[csi->scm][vc], vc, &framecfg, vci_config[vc].hwformat);
+		csi_hw_s_config_dma_cmn(csi->cmn_reg[csi->scm][vc], vc, vci_config[vc].hwformat);
 	}
 }
 
@@ -132,24 +132,24 @@ static inline void csi_s_buf_addr(struct fimc_is_device_csi *csi, struct fimc_is
 {
 	FIMC_BUG_VOID(!frame);
 
-	csi_hw_s_dma_addr(csi->vc_reg[vc + csi->offset], vc, index, frame->dvaddr_buffer[0]);
+	csi_hw_s_dma_addr(csi->vc_reg[csi->scm][vc], vc, index, frame->dvaddr_buffer[0]);
 }
 
 static inline void csi_s_multibuf_addr(struct fimc_is_device_csi *csi, struct fimc_is_frame *frame, u32 index, u32 vc)
 {
 	FIMC_BUG_VOID(!frame);
 
-	csi_hw_s_multibuf_dma_addr(csi->vc_reg[vc + csi->offset], vc, index, frame->dvaddr_buffer[0]);
+	csi_hw_s_multibuf_dma_addr(csi->vc_reg[csi->scm][vc], vc, index, frame->dvaddr_buffer[0]);
 }
 
 static inline void csi_s_output_dma(struct fimc_is_device_csi *csi, u32 vc, bool enable)
 {
-	csi_hw_s_output_dma(csi->vc_reg[vc + csi->offset], vc, enable);
+	csi_hw_s_output_dma(csi->vc_reg[csi->scm][vc], vc, enable);
 }
 
 static inline void csi_s_frameptr(struct fimc_is_device_csi *csi, u32 vc, u32 number, bool clear)
 {
-	csi_hw_s_frameptr(csi->vc_reg[vc + csi->offset], vc, number, clear);
+	csi_hw_s_frameptr(csi->vc_reg[csi->scm][vc], vc, number, clear);
 }
 
 #ifdef SUPPORTED_EARLYBUF_DONE_SW
@@ -255,7 +255,7 @@ static void csis_disable_all_vc_dma_buf(struct fimc_is_device_csi *csi)
 		csi_s_output_dma(csi, vc, false);
 
 		/* print infomation DMA on/off */
-		cur_dma_enable = csi_hw_g_output_cur_dma_enable(csi->vc_reg[vc + csi->offset], vc);
+		cur_dma_enable = csi_hw_g_output_cur_dma_enable(csi->vc_reg[csi->scm][vc], vc);
 
 		framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
 		framemgr_e_barrier(framemgr, 0);
@@ -600,7 +600,7 @@ static void csi_dma_tag(struct v4l2_subdev *subdev,
 	} else {
 		/* get internal VC buffer for embedded data */
 		if (csi->sensor_cfg->output[vc].type == VC_EMBEDDED) {
-			u32 frameptr = csi_hw_g_frameptr(csi->vc_reg[vc + csi->offset], vc);
+			u32 frameptr = csi_hw_g_frameptr(csi->vc_reg[csi->scm][vc], vc);
 
 			if (frameptr < framemgr->num_frames) {
 				frame = &framemgr->frames[frameptr];
@@ -632,7 +632,7 @@ static void csi_err_check(struct fimc_is_device_csi *csi, u32 *err_id)
 
 	/* 2. If err occurs first in 1 frame, request DMA abort */
 	if (!err_flag)
-		csi_hw_s_control(csi->cmn_reg[0 + csi->offset], CSIS_CTRL_DMA_ABORT_REQ, true);
+		csi_hw_s_control(csi->cmn_reg[csi->scm][0], CSIS_CTRL_DMA_ABORT_REQ, true);
 
 	/* 3. Cumulative error */
 	for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++)
@@ -720,10 +720,9 @@ static void csi_err_print(struct fimc_is_device_csi *csi)
 				bcm_stop(NULL);
 
 				panic("[DMA%d][VC P%d, L%d] CSIS error!! %s",
-					csi->dma_subdev[vc]->dma_ch[csi->offset / CSI_VIRTUAL_CH_MAX],
-					csi->dma_subdev[vc]->vc_ch[csi->offset / CSI_VIRTUAL_CH_MAX], vc,
+					csi->dma_subdev[vc]->dma_ch[csi->scm],
+					csi->dma_subdev[vc]->vc_ch[csi->scm], vc,
 					err_str);
-
 #endif
 				break;
 			case CSIS_ERR_DMA_ERR_TRXFIFO_FULL:
@@ -753,8 +752,8 @@ static void csi_err_print(struct fimc_is_device_csi *csi)
 
 			/* Print error log */
 			merr("[DMA%d][VC P%d, L%d][F%d] Occurred the %s(ID %d)", csi,
-				csi->dma_subdev[vc]->dma_ch[csi->offset / CSI_VIRTUAL_CH_MAX],
-				csi->dma_subdev[vc]->vc_ch[csi->offset / CSI_VIRTUAL_CH_MAX], vc,
+				csi->dma_subdev[vc]->dma_ch[csi->scm],
+				csi->dma_subdev[vc]->vc_ch[csi->scm], vc,
 				atomic_read(&csi->fcount), err_str, err);
 
 			/* Check next bit */
@@ -805,8 +804,8 @@ static void csi_err_handle(struct fimc_is_device_csi *csi)
 		csi_hw_dump(csi->base_reg);
 		csi_hw_phy_dump(csi->phy_reg, csi->instance);
 		for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
-			csi_hw_vcdma_dump(csi->vc_reg[vc + csi->offset]);
-			csi_hw_vcdma_cmn_dump(csi->cmn_reg[vc + csi->offset]);
+			csi_hw_vcdma_dump(csi->vc_reg[csi->scm][vc]);
+			csi_hw_vcdma_cmn_dump(csi->cmn_reg[csi->scm][vc]);
 		}
 		csi_hw_common_dma_dump(csi->csi_dma->base_reg);
 #if defined(ENABLE_PDP_STAT_DMA)
@@ -1043,12 +1042,12 @@ static irqreturn_t fimc_is_isr_csi_dma(int irq, void *data)
 		irq_src.dma_end = 0;
 		irq_src.line_end = 0;
 		irq_src.err_flag = 0;
-		vc_phys = csi->dma_subdev[vc]->vc_ch[csi->offset / CSI_VIRTUAL_CH_MAX];
+		vc_phys = csi->dma_subdev[vc]->vc_ch[csi->scm];
 		if (vc_phys < 0) {
 			merr("[VC%d] vc_phys is invalid (%d)\n", csi, vc, vc_phys);
 			continue;
 		}
-		csi_hw_g_dma_irq_src_vc(csi->cmn_reg[vc + csi->offset], &irq_src, vc_phys, true);
+		csi_hw_g_dma_irq_src_vc(csi->cmn_reg[csi->scm][vc], &irq_src, vc_phys, true);
 
 		dma_err_id[vc] = irq_src.err_id[vc_phys];
 		dma_err_flag |= dma_err_id[vc];
@@ -1257,7 +1256,7 @@ static long csi_ioctl(struct v4l2_subdev *subdev, unsigned int cmd, void *arg)
 	switch (cmd) {
 	/* cancel the current and next dma setting */
 	case SENSOR_IOCTL_DMA_CANCEL:
-		csi_hw_s_control(csi->cmn_reg[0 + csi->offset], CSIS_CTRL_DMA_ABORT_REQ, true);
+		csi_hw_s_control(csi->cmn_reg[csi->scm][0], CSIS_CTRL_DMA_ABORT_REQ, true);
 		csi_s_output_dma(csi, CSI_VIRTUAL_CH_0, false);
 		csi_s_output_dma(csi, CSI_VIRTUAL_CH_1, false);
 		csi_s_output_dma(csi, CSI_VIRTUAL_CH_2, false);
@@ -1324,7 +1323,7 @@ static int csi_g_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 	case V4L2_CID_IS_G_VC2_FRAMEPTR:
 	case V4L2_CID_IS_G_VC3_FRAMEPTR:
 		vc = CSI_VIRTUAL_CH_1 + (ctrl->id - V4L2_CID_IS_G_VC1_FRAMEPTR);
-		ctrl->value = csi_hw_g_frameptr(csi->vc_reg[vc + csi->offset], vc);
+		ctrl->value = csi_hw_g_frameptr(csi->vc_reg[csi->scm][vc], vc);
 
 		break;
 	default:
@@ -1396,20 +1395,20 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 			if (!test_bit(FIMC_IS_SUBDEV_OPEN, &dma_subdev->state))
 				continue;
 
-			if (test_bit(csi->vc_irq[vc + csi->offset] % BITS_PER_LONG, &csi->vc_irq_state))
+			if (test_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state))
 				continue;
 
-			ret = request_irq(csi->vc_irq[vc + csi->offset],
+			ret = request_irq(csi->vc_irq[csi->scm][vc],
 				fimc_is_isr_csi_dma,
 				FIMC_IS_HW_IRQ_FLAG,
 				"csi-vcdma",
 				csi);
 			if (ret) {
-				merr("request_irq(IRQ_VCDMA %d) is fail(%d)", csi, csi->vc_irq[vc + csi->offset], ret);
+				merr("request_irq(IRQ_VCDMA %d) is fail(%d)", csi, csi->vc_irq[csi->scm][vc], ret);
 				goto p_err;
 			}
-			csi_hw_s_dma_irq_msk(csi->cmn_reg[vc + csi->offset], true);
-			set_bit(csi->vc_irq[vc + csi->offset] % BITS_PER_LONG, &csi->vc_irq_state);
+			csi_hw_s_dma_irq_msk(csi->cmn_reg[csi->scm][vc], true);
+			set_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state);
 		}
 	}
 
@@ -1553,8 +1552,8 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 		csi_hw_dump(base_reg);
 		csi_hw_phy_dump(csi->phy_reg, csi->instance);
 		for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
-			csi_hw_vcdma_dump(csi->vc_reg[vc + csi->offset]);
-			csi_hw_vcdma_cmn_dump(csi->cmn_reg[vc + csi->offset]);
+			csi_hw_vcdma_dump(csi->vc_reg[csi->scm][vc]);
+			csi_hw_vcdma_cmn_dump(csi->cmn_reg[csi->scm][vc]);
 		}
 		csi_hw_common_dma_dump(csi_dma->base_reg);
 #if defined(ENABLE_PDP_STAT_DMA)
@@ -1628,13 +1627,13 @@ static int csi_stream_off(struct v4l2_subdev *subdev,
 	free_irq(csi->irq, csi);
 
 	for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
-		if (!test_bit(csi->vc_irq[vc + csi->offset] % BITS_PER_LONG, &csi->vc_irq_state))
+		if (!test_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state))
 			continue;
 
-		csi_hw_s_dma_irq_msk(csi->cmn_reg[vc + csi->offset], false);
-		free_irq(csi->vc_irq[vc + csi->offset], csi);
+		csi_hw_s_dma_irq_msk(csi->cmn_reg[csi->scm][vc], false);
+		free_irq(csi->vc_irq[csi->scm][vc], csi);
 
-		clear_bit(csi->vc_irq[vc + csi->offset] % BITS_PER_LONG, &csi->vc_irq_state);
+		clear_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state);
 	}
 
 p_dma_skip:
@@ -1745,9 +1744,9 @@ static int csi_s_format(struct v4l2_subdev *subdev,
 
 	sensor_cfg = csi->sensor_cfg;
 	if (sensor_cfg->pd_mode == PD_NONE)
-		csi->offset = CSI_VIRTUAL_CH_0;
+		csi->scm = SCM_WO_PAF_HW;
 	else
-		csi->offset = CSI_VIRTUAL_CH_MAX;
+		csi->scm = SCM_W_PAF_HW;
 
 	/*
 	 * DMA HW doesn't have own reset register.
@@ -1802,7 +1801,7 @@ static int csi_s_buffer(struct v4l2_subdev *subdev, void *buf, unsigned int *siz
 		goto p_err;
 	}
 
-	if (csi_hw_g_output_dma_enable(csi->vc_reg[vc + csi->offset], vc)) {
+	if (csi_hw_g_output_dma_enable(csi->vc_reg[csi->scm][vc], vc)) {
 		err("[VC%d][F%d] already DMA enabled!!", vc, frame->fcount);
 		ret = -EINVAL;
 	} else {
@@ -1932,8 +1931,9 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 			goto err_get_resource;
 		}
 
-		csi->vc_reg[i] = devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
-		if (!csi->vc_reg[i]) {
+		csi->vc_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]
+			= devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+		if (!csi->vc_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]) {
 			probe_err("Failed to remap io region(CSIS VCDMA[%d])(%p)", i, csi->vc_reg[i]);
 			ret = -ENOMEM;
 			goto err_get_resource;
@@ -1946,8 +1946,9 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 			goto err_get_resource;
 		}
 
-		csi->cmn_reg[i] = devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
-		if (!csi->cmn_reg[i]) {
+		csi->cmn_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]
+			= devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+		if (!csi->cmn_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]) {
 			probe_err("Failed to remap io region(CSIS VCDMA CMN[%d])(%p)", i, csi->cmn_reg[i]);
 			ret = -ENOMEM;
 			goto err_get_resource;
@@ -1969,9 +1970,11 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 	/* Get DMA IRQ SPI number */
 	i = 0;
 	while (cnt_resource <  num_resource) {
-		csi->vc_irq[i] = platform_get_irq(pdev, cnt_resource++);
-		if (csi->vc_irq[i] < 0) {
-			probe_err("Failed to get vc%d DMA irq(%d)", i, csi->vc_irq[i]);
+		csi->vc_irq[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]
+			= platform_get_irq(pdev, cnt_resource++);
+		if (csi->vc_irq[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX] < 0) {
+			probe_err("Failed to get vc%d DMA irq(%d)", i,
+				csi->vc_irq[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]);
 			ret = -EBUSY;
 			goto err_get_irq;
 		}
