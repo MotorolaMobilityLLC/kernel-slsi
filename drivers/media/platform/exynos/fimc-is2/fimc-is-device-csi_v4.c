@@ -1921,6 +1921,8 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 		goto err_get_resource;
 	}
 
+	csi->num_of_scm = device->pdata->num_of_ch_mode;
+
 	/* VC DMA */
 	i = 0;
 	while (cnt_resource < num_resource) {
