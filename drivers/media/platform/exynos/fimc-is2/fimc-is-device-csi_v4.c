@@ -1748,6 +1748,12 @@ static int csi_s_format(struct v4l2_subdev *subdev,
 	else
 		csi->scm = SCM_W_PAF_HW;
 
+	if (csi->scm >= csi->num_of_scm) {
+		merr("invalid sub-device channel mode(%d/%d)", csi,
+				csi->scm, csi->num_of_scm);
+		return -EINVAL;
+	}
+
 	/*
 	 * DMA HW doesn't have own reset register.
 	 * So, all virtual ch dma should be disabled
