@@ -283,12 +283,12 @@ p_err:
 
 int fimc_is_sensor_parse_dt(struct platform_device *pdev)
 {
-	int ret = 0;
-	int i;
-	int elements;
+	int ret;
 	struct exynos_platform_fimc_is_sensor *pdata;
 	struct device_node *dnode;
 	struct device *dev;
+	int elems;
+	int i;
 
 	FIMC_BUG(!pdev);
 	FIMC_BUG(!pdev->dev.of_node);
@@ -311,58 +311,84 @@ int fimc_is_sensor_parse_dt(struct platform_device *pdev)
 	ret = of_property_read_u32(dnode, "id", &pdata->id);
 	if (ret) {
 		err("id read is fail(%d)", ret);
-		goto p_err;
+		goto err_read_id;
 	}
 
 	ret = of_property_read_u32(dnode, "scenario", &pdata->scenario);
 	if (ret) {
 		err("scenario read is fail(%d)", ret);
-		goto p_err;
+		goto err_read_scenario;
 	}
 
 	ret = of_property_read_u32(dnode, "csi_ch", &pdata->csi_ch);
 	if (ret) {
 		err("csi_ch read is fail(%d)", ret);
-		goto p_err;
+		goto err_read_csi_ch;
 	}
 
-	/* A invalid value is set as default for debugging */
-	for (i = 0; i < CSI_VIRTUAL_CH_MAX * 2; i++) {
-		pdata->dma_ch[i] = -1;
-		pdata->vc_ch[i] = -1;
-	}
-
-	elements = of_property_count_u32_elems(dnode, "dma_ch");
-	if (elements >= 0 ) {
-		ret = of_property_read_u32_array(dnode, "dma_ch", &pdata->dma_ch[0], elements);
-		if (ret) {
-			warn("dma_ch read is fail(%d)", ret);
-			pdata->dma_abstract = false;
-			ret = 0;
-		} else {
-			pdata->dma_abstract = true;
+	elems = of_property_count_u32_elems(dnode, "dma_ch");
+	if (elems >= CSI_VIRTUAL_CH_MAX) {
+		if (elems % CSI_VIRTUAL_CH_MAX) {
+			err("the length of DMA ch. is not a multiple of VC Max");
+			ret = -EINVAL;
+			goto err_read_dma_ch;
 		}
-	}
 
-	elements = of_property_count_u32_elems(dnode, "vc_ch");
-	if (elements >= 0 ) {
-		ret = of_property_read_u32_array(dnode, "vc_ch", &pdata->vc_ch[0], elements);
-		if (ret) {
-			warn("vc_ch read is fail(%d)", ret);
-			ret = 0;
+		if (elems != of_property_count_u32_elems(dnode, "vc_ch")) {
+			err("the length of DMA ch. does not match VC ch.");
+			ret = -EINVAL;
+			goto err_read_vc_ch;
+		}
+
+		pdata->dma_ch = kcalloc(elems, sizeof(*pdata->dma_ch), GFP_KERNEL);
+		if (!pdata->dma_ch) {
+			err("out of memory for DMA ch.");
+			ret = -EINVAL;
+			goto err_alloc_dma_ch;
+		}
+
+		pdata->vc_ch = kcalloc(elems, sizeof(*pdata->vc_ch), GFP_KERNEL);
+		if (!pdata->vc_ch) {
+			err("out of memory for VC ch.");
+			ret = -EINVAL;
+			goto err_alloc_vc_ch;
+		}
+
+		for (i = 0; i < elems; i++) {
+			pdata->dma_ch[i] = -1;
+			pdata->vc_ch[i] = -1;
+		}
+
+		if (!of_property_read_u32_array(dnode, "dma_ch", pdata->dma_ch,
+					elems)) {
+			if (!of_property_read_u32_array(dnode, "vc_ch",
+						pdata->vc_ch,
+						elems)) {
+				pdata->dma_abstract = true;
+				pdata->num_of_ch_mode = elems / CSI_VIRTUAL_CH_MAX;
+			} else {
+				warn("failed to read vc_ch\n");
+			}
+		} else {
+			warn("failed to read dma_ch\n");
+		}
+
+		if (!pdata->dma_abstract) {
+			kfree(pdata->vc_ch);
+			kfree(pdata->dma_ch);
 		}
 	}
 
 	ret = of_property_read_u32(dnode, "flite_ch", &pdata->flite_ch);
 	if (ret) {
 		err("flite_ch read is fail(%d)", ret);
-		goto p_err;
+		goto err_read_flite_ch;
 	}
 
 	ret = of_property_read_u32(dnode, "is_bns", &pdata->is_bns);
 	if (ret) {
 		err("is_bns read is fail(%d)", ret);
-		goto p_err;
+		goto err_read_is_bns;
 	}
 
 	if (of_property_read_bool(dnode, "use_ssvc0_internal"))
@@ -380,10 +406,23 @@ int fimc_is_sensor_parse_dt(struct platform_device *pdev)
 	pdev->id = pdata->id;
 	dev->platform_data = pdata;
 
-	return ret;
+	return 0;
 
-p_err:
+err_read_is_bns:
+err_read_flite_ch:
+	kfree(pdata->vc_ch);
+
+err_alloc_vc_ch:
+	kfree(pdata->dma_ch);
+
+err_alloc_dma_ch:
+err_read_vc_ch:
+err_read_dma_ch:
+err_read_csi_ch:
+err_read_scenario:
+err_read_id:
 	kfree(pdata);
+
 	return ret;
 }
 

@@ -314,8 +314,9 @@ struct exynos_platform_fimc_is_sensor {
 	u32 id;
 	u32 scenario;
 	u32 csi_ch;
-	int dma_ch[8];
-	int vc_ch[8];
+	int num_of_ch_mode;
+	int *dma_ch;
+	int *vc_ch;
 	bool dma_abstract;
 	u32 flite_ch;
 	u32 is_bns;
