@@ -516,7 +516,7 @@ static void fw_crc_work_func(struct work_struct *work)
 	r = do_fw_crc32_checks(mxman->fw, mxman->fw_image_size, &mxman->fwhdr, false);
 	if (r) {
 		SCSC_TAG_ERR(MXMAN, "do_fw_crc32_checks() failed r=%d\n", r);
-		mxman_fail(mxman, SCSC_PANIC_CODE_HOST << 15);
+		mxman_fail(mxman, SCSC_PANIC_CODE_HOST << 15, __func__);
 		return;
 	}
 	fw_crc_wq_start(mxman);
@@ -1071,6 +1071,8 @@ void mxman_show_last_panic(struct mxman *mxman)
 
 	print_panic_code(mxman->scsc_panic_code);
 
+	SCSC_TAG_INFO(MXMAN, "Reason: '%s'\n", mxman->failure_reason[0] ? mxman->failure_reason : "<null>");
+
 	if (disable_recovery_handling) {
 		/* Labour the point that a reboot is needed when autorecovery is disabled */
 		SCSC_TAG_INFO(MXMAN, "\n\n*** HANDSET REBOOT NEEDED TO RESTART WLAN AND BT ***\n\n");
@@ -1230,7 +1232,6 @@ static void mxman_failure_work(struct work_struct *work)
 		mxman->last_panic_time = local_clock();
 		process_panic_record(mxman);
 		SCSC_TAG_INFO(MXMAN, "Trying to schedule coredump\n");
-
 		SCSC_TAG_INFO(MXMAN, "scsc_release %d.%d.%d.%d\n",
 			SCSC_RELEASE_PRODUCT,
 			SCSC_RELEASE_ITERATION,
@@ -1431,6 +1432,7 @@ static int __mxman_open(struct mxman *mxman)
 	mutex_lock(&mxman->mxman_mutex);
 	if (mxman->scsc_panic_code) {
 		SCSC_TAG_INFO(MXMAN, "Previously recorded crash panic code: scsc_panic_code=0x%x\n", mxman->scsc_panic_code);
+		SCSC_TAG_INFO(MXMAN, "Reason: '%s'\n", mxman->failure_reason[0] ? mxman->failure_reason : "<null>");
 		print_panic_code(mxman->scsc_panic_code);
 	}
 	srvman = scsc_mx_get_srvman(mxman->mx);
@@ -1640,25 +1642,30 @@ void mxman_close(struct mxman *mxman)
 	}
 }
 
-void mxman_fail(struct mxman *mxman, u16 scsc_panic_code)
+void mxman_fail(struct mxman *mxman, u16 scsc_panic_code, const char *reason)
 {
+	SCSC_TAG_WARNING(MXMAN, "WLBT FW failure\n");
+
 	/* The STARTING state allows a crash during firmware boot to be handled */
 	if (mxman->mxman_state == MXMAN_STATE_STARTED || mxman->mxman_state == MXMAN_STATE_STARTING) {
 		mxman->mxman_next_state = MXMAN_STATE_FAILED;
 		mxman->scsc_panic_code = scsc_panic_code;
+		strlcpy(mxman->failure_reason, reason, sizeof(mxman->failure_reason));
 		failure_wq_start(mxman);
 	} else {
-		SCSC_TAG_WARNING(MXMAN, "Not in MXMAN_STATE_STARTED state, ignore\n");
+		SCSC_TAG_WARNING(MXMAN, "Not in MXMAN_STATE_STARTED state, ignore (state %d)\n", mxman->mxman_state);
 	}
 }
 
 void mxman_freeze(struct mxman *mxman)
 {
+	SCSC_TAG_WARNING(MXMAN, "WLBT FW frozen\n");
+
 	if (mxman->mxman_state == MXMAN_STATE_STARTED) {
 		mxman->mxman_next_state = MXMAN_STATE_FREEZED;
 		failure_wq_start(mxman);
 	} else {
-		SCSC_TAG_WARNING(MXMAN, "Not in MXMAN_STATE_STARTED state, ignore\n");
+		SCSC_TAG_WARNING(MXMAN, "Not in MXMAN_STATE_STARTED state, ignore (state %d)\n", mxman->mxman_state);
 	}
 }
 

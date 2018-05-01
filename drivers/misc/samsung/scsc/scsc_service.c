@@ -478,7 +478,7 @@ void scsc_mx_service_service_failed(struct scsc_service *service, const char *re
 
 	SCSC_TAG_INFO(MXMAN, "Reporting host panic code 0x%02x\n", host_panic_code);
 
-	mxman_fail(scsc_mx_get_mxman(mx), host_panic_code);
+	mxman_fail(scsc_mx_get_mxman(mx), host_panic_code, reason);
 }
 EXPORT_SYMBOL(scsc_mx_service_service_failed);
 

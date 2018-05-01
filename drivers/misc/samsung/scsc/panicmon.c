@@ -17,7 +17,7 @@ static void panicmon_isr(int irq, void *data)
 	SCSC_TAG_DEBUG(PANIC_MON, "panicmon=%p panicmon->mx=%p mxman=%p\n", panicmon, panicmon->mx, scsc_mx_get_mxman(panicmon->mx));
 	/* Avoid unused parameter error */
 	(void)irq;
-	mxman_fail(scsc_mx_get_mxman(panicmon->mx), SCSC_PANIC_CODE_FW << 15);
+	mxman_fail(scsc_mx_get_mxman(panicmon->mx), SCSC_PANIC_CODE_FW << 15, __func__);
 }
 
 

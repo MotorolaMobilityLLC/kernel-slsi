@@ -19,7 +19,7 @@ void mxman_init(struct mxman *mxman, struct scsc_mx *mx);
 void mxman_deinit(struct mxman *mxman);
 int mxman_open(struct mxman *mxman);
 void mxman_close(struct mxman *mxman);
-void mxman_fail(struct mxman *mxman, u16 scsc_panic_code);
+void mxman_fail(struct mxman *mxman, u16 scsc_panic_code, const char *reason);
 void mxman_freeze(struct mxman *mxman);
 int mxman_force_panic(struct mxman *mxman);
 int mxman_suspend(struct mxman *mxman);
@@ -38,6 +38,8 @@ enum mxman_state {
 	MXMAN_STATE_FAILED,
 	MXMAN_STATE_FREEZED,
 };
+
+#define SCSC_FAILURE_REASON_LEN 256
 
 struct mxman {
 	struct scsc_mx          *mx;
@@ -73,6 +75,7 @@ struct mxman {
 #ifdef CONFIG_SCSC_FM
 	u32			on_halt_ldos_on;
 #endif
+	char			failure_reason[SCSC_FAILURE_REASON_LEN]; /* previous failure reason */
 };
 
 void mxman_register_gdb_channel(struct scsc_mx *mx, mxmgmt_channel_handler handler, void *data);

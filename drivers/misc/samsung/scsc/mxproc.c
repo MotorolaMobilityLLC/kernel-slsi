@@ -114,7 +114,7 @@ static ssize_t mx_procfs_mx_fail_write(struct file *file, const char __user *use
 	OS_UNUSED_PARAMETER(ppos);
 
 	if (mxproc)
-		mxman_fail(mxproc->mxman, SCSC_PANIC_CODE_HOST << 15);
+		mxman_fail(mxproc->mxman, SCSC_PANIC_CODE_HOST << 15, __func__);
 	SCSC_TAG_DEBUG(MX_PROC, "OK\n");
 
 	return count;
