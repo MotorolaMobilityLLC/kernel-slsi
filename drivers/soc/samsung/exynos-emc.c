@@ -736,8 +736,8 @@ static int emc_update_cpu_pwr(unsigned int cpu, bool on)
 
 	while (exynos_cpu.power_state(cpu)) {
 		if (time_after(jiffies, timeout))
-			panic("CPU%d %s power on!\n",
-					cpu, on? "already" : "not yet");
+			panic("CPU%d %s power %s!\n",
+				cpu, on? "already" : "not yet", on? "on" : "off");
 
 		udelay(100);
 	}
