@@ -63,8 +63,6 @@ inline void csi_frame_start_inline(struct fimc_is_device_csi *csi)
 		v4l2_subdev_notify(*csi->subdev, CSI_NOTIFY_VSYNC, &vsync_cnt);
 	}
 
-	wake_up(&csi->wait_queue);
-
 	tasklet_schedule(&csi->tasklet_csis_str);
 }
 
@@ -2057,8 +2055,6 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 	csi->workqueue = alloc_workqueue("fimc-csi/[H/U]", WQ_HIGHPRI | WQ_UNBOUND, 0);
 	if (!csi->workqueue)
 		probe_warn("failed to alloc CSI own workqueue, will be use global one");
-
-	init_waitqueue_head(&csi->wait_queue);
 
 	v4l2_subdev_init(subdev_csi, &subdev_ops);
 	v4l2_set_subdevdata(subdev_csi, csi);

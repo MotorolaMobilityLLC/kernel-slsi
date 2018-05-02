@@ -881,8 +881,6 @@ static int fimc_is_sensor_stop(struct fimc_is_device_sensor *device)
 	int retry = 10;
 
 	struct v4l2_subdev *subdev_module;
-	struct fimc_is_device_csi *csi;
-	long timetowait;
 
 	FIMC_BUG(!device);
 
@@ -910,20 +908,6 @@ static int fimc_is_sensor_stop(struct fimc_is_device_sensor *device)
 
 	subdev_module = device->subdev_module;
 	if (subdev_module) {
-		csi = v4l2_get_subdevdata(device->subdev_csi);
-		if (!csi) {
-			merr("CSI is NULL", device);
-			return -EINVAL;
-		}
-
-		/* HACK: if sensor stop called at Vblank time,
-		 * wait for next vvalid time for prevent sensor malfunction
-		 */
-		timetowait = wait_event_timeout(csi->wait_queue,
-				atomic_read(&csi->vvalid), 30);
-		if (!timetowait)
-			mwarn("wait CSI VVALID timeout (%ld)", csi, timetowait);
-
 		ret = v4l2_subdev_call(subdev_module, video, s_stream, false);
 		if (ret)
 			merr("v4l2_subdev_call(s_stream) is fail(%d)", device, ret);

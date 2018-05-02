@@ -116,7 +116,6 @@ struct fimc_is_device_csi {
 
 	atomic_t			vvalid; /* set 1 while vvalid period */
 #endif
-	wait_queue_head_t               wait_queue;
 };
 
 struct fimc_is_device_csi_dma {
