@@ -147,6 +147,12 @@ static unsigned int get_freq(struct exynos_cpufreq_domain *domain)
 {
 	int wakeup_flag = 0;
 	unsigned int freq;
+	struct cpumask temp;
+
+	cpumask_and(&temp, &domain->cpus, cpu_active_mask);
+
+	if (cpumask_empty(&temp))
+		return domain->old;
 
 	if (domain->need_awake) {
 		if (likely(domain->old))
