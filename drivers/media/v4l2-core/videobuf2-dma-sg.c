@@ -19,6 +19,7 @@
 #include <linux/vmalloc.h>
 
 #include <linux/exynos_iovmm.h>
+#include <linux/ion_exynos.h>
 
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-memops.h>
@@ -581,12 +582,12 @@ static int vb2_dma_sg_map_dmabuf(void *mem_priv)
 		if (device_get_dma_attr(buf->dev) == DEV_DMA_COHERENT)
 			ioprot |= IOMMU_CACHE;
 
-		buf->iova = iovmm_map(buf->dev, sgt->sgl, 0, buf->size,
+		buf->iova = ion_iovmm_map(buf->db_attach, 0, buf->size,
 				      DMA_BIDIRECTIONAL, ioprot);
 		if (IS_ERR_VALUE(buf->iova)) {
 			dma_buf_unmap_attachment(buf->db_attach,
 						 sgt, buf->dma_dir);
-			pr_err("Error from iovmm_map()=%pad\n", &buf->iova);
+			pr_err("Error from ion_iovmm_map()=%pad\n", &buf->iova);
 			return (int)buf->iova;
 		}
 	}
@@ -629,7 +630,7 @@ static void vb2_dma_sg_detach_dmabuf(void *mem_priv)
 	if (WARN_ON(buf->dma_sgt))
 		vb2_dma_sg_unmap_dmabuf(buf);
 
-	iovmm_unmap(buf->dev, buf->iova);
+	ion_iovmm_unmap(buf->db_attach, buf->iova);
 
 	/* detach this attachment */
 	dma_buf_detach(buf->db_attach->dmabuf, buf->db_attach);
