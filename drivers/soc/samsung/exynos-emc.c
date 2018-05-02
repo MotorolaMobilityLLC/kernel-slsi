@@ -493,7 +493,7 @@ static void emc_set_mode(struct emc_mode *target_mode)
 
 	spin_lock_irqsave(&emc_lock, flags);
 	emc.event = emc.event | EMC_STATIC_MODE_CHANGE_STARTED;
-	emc.cur_mode = emc.req_mode = target_mode;
+	emc.req_mode = target_mode;
 	spin_unlock_irqrestore(&emc_lock, flags);
 
 	wake_up(&emc.wait_q);
@@ -1006,6 +1006,8 @@ static ssize_t store_user_mode(struct kobject *kobj,
 	/* Cancel or Disable user mode */
 	if (!val) {
 		emc.user_mode = NULL;
+		mode = emc_get_base_mode();
+		emc_set_mode(mode);
 		goto exit;
 	}
 
