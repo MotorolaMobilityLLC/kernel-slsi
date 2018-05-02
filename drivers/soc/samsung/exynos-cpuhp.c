@@ -236,14 +236,17 @@ static struct cpumask cpuhp_get_online_cpus(void)
 {
 	struct cpumask mask;
 	struct cpuhp_user *user;
+	char buf[10];
 
 	cpumask_setall(&mask);
 
 	list_for_each_entry(user, &cpuhp.users, list)
 		cpumask_and(&mask, &mask, &user->online_cpus);
 
-	if (cpumask_empty(&mask))
-		BUG_ON(1);
+	if (cpumask_empty(&mask) || !cpumask_test_cpu(0, &mask)) {
+		scnprintf(buf, sizeof(buf), "%*pbl", cpumask_pr_args(&mask));
+		panic("CPUHP: Online mask(%s) is wrong \n", buf);
+	}
 
 	return mask;
 }
@@ -427,7 +430,7 @@ static ssize_t store_##name##_online_cpu(struct kobject *kobj,			\
 	size_t count)								\
 {										\
 	cpumask_parse(buf, &cpuhp.sysfs_user.online_cpus);				\
-	cpuhp_do(cpuhp.sysfs_user.type);					\
+	cpuhp_do(true);					\
 										\
 	return count;								\
 }										\
