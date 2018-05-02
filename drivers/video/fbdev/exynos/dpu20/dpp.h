@@ -328,6 +328,7 @@ void dpp_dump(struct dpp_device *dpp);
 #define DPP_WB_WAIT_FOR_FRAMEDONE	_IOR('P', 3, u32)
 #define DPP_WAIT_IDLE			_IOR('P', 4, unsigned long)
 #define DPP_SET_RECOVERY_NUM		_IOR('P', 5, unsigned long)
+#define DPP_AFBC_ATTR_ENABLED		_IOR('P', 6, unsigned long)
 #define DPP_GET_PORT_NUM		_IOR('P', 7, unsigned long)
 #define DPP_GET_RESTRICTION		_IOR('P', 8, unsigned long)
 

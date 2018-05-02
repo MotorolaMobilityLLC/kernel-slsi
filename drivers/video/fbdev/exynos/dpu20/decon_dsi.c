@@ -72,10 +72,10 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 
 	if (ext_irq & DPU_TIME_OUT_INT_PEND) {
 		decon_err("%s: DECON%d timeout irq occurs\n", __func__, decon->id);
-#if defined(CONFIG_EXYNOS_AFBC_DEBUG)
+#if defined(DPU_DUMP_BUFFER_IRQ)
 		dpu_dump_afbc_info();
-		BUG();
 #endif
+		BUG();
 	}
 
 irq_end:

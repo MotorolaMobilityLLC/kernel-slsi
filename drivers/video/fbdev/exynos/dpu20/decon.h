@@ -728,9 +728,10 @@ struct decon_user_window {
 };
 
 struct dpu_afbc_info {
-	dma_addr_t dma_addr[2];
-	struct dma_buf *dma_buf[2];
-	bool is_afbc[2];
+	dma_addr_t dma_addr[MAX_DECON_WIN];
+	void *dma_v_addr[MAX_DECON_WIN];
+	struct dma_buf *dma_buf[MAX_DECON_WIN];
+	bool is_afbc[MAX_DECON_WIN];
 };
 
 struct decon_debug {
@@ -760,7 +761,7 @@ struct decon_debug {
 #else
 	struct dma_buf *dmabuf[MAX_DECON_WIN][MAX_PLANE_CNT];
 #endif
-	int prev_vgf_win_id[2];
+	int prev_vgf_win_id[MAX_DECON_WIN];
 };
 
 struct decon_update_regs {

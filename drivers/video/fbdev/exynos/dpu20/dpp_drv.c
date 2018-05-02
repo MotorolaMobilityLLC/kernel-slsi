@@ -427,6 +427,18 @@ static int dpp_check_limitation(struct dpp_device *dpp, struct dpp_params_info *
 	return 0;
 }
 
+static int dpp_afbc_enabled(struct dpp_device *dpp, int *afbc_enabled)
+{
+	int ret = 0;
+
+	if (test_bit(DPP_ATTR_AFBC, &dpp->attr))
+		*afbc_enabled = 1;
+	else
+		*afbc_enabled = 0;
+
+	return ret;
+}
+
 static int dpp_set_config(struct dpp_device *dpp)
 {
 	struct dpp_params_info params;
@@ -500,6 +512,7 @@ static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 	struct dpp_device *dpp = v4l2_get_subdevdata(sd);
 	bool reset = (bool)arg;
 	int ret = 0;
+	int *afbc_enabled;
 
 	switch (cmd) {
 	case DPP_WIN_CONFIG:
@@ -521,6 +534,11 @@ static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 
 	case DPP_WB_WAIT_FOR_FRAMEDONE:
 		ret = dpp_wb_wait_for_framedone(dpp);
+		break;
+
+	case DPP_AFBC_ATTR_ENABLED:
+		afbc_enabled = (int *)arg;
+		ret = dpp_afbc_enabled(dpp, afbc_enabled);
 		break;
 
 	case DPP_GET_PORT_NUM:

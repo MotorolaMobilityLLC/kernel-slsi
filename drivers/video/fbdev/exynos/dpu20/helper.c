@@ -574,7 +574,7 @@ void decon_set_protected_content(struct decon_device *decon,
 }
 #endif
 
-#if defined(CONFIG_EXYNOS_AFBC_DEBUG)
+#if defined(DPU_DUMP_BUFFER_IRQ)
 /* id : VGF0=0, VGF1=1 */
 static void dpu_dump_data_to_console(void *v_addr, int buf_size, int id)
 {
@@ -589,8 +589,8 @@ void dpu_dump_afbc_info(void)
 	int i, j;
 	struct decon_device *decon;
 	struct dpu_afbc_info *afbc_info;
-	void *v_addr[2];
-	int size[2];
+	void *v_addr[MAX_DECON_WIN];
+	int size[MAX_DECON_WIN];
 
 	for (i = 0; i < 3; i++) {
 		decon = get_decon_drvdata(i);
@@ -599,30 +599,28 @@ void dpu_dump_afbc_info(void)
 
 		afbc_info = &decon->d.prev_afbc_info;
 		decon_info("%s: previous AFBC channel information\n", __func__);
-		for (j = 0; j < 2; ++j) { /* VGF0(0), VGF1(1) */
+		for (j = 0; j < MAX_DECON_WIN; ++j) { /* all the dpp that has afbc */
 			if (!afbc_info->is_afbc[j])
 				continue;
 
 			v_addr[j] = dma_buf_vmap(afbc_info->dma_buf[j]);
 			size[j] = afbc_info->dma_buf[j]->size;
-			decon_info("\t[%s] Base(0x%p), KV(0x%p), size(%d)\n",
-					j ? "VGF1" : "VGF0",
-					(void *)afbc_info->dma_addr[j],
+			decon_info("\t[DMA%d] Base(0x%p), KV(0x%p), size(%d)\n",
+					j, (void *)afbc_info->dma_addr[j],
 					v_addr[j], size[j]);
 			dma_buf_vunmap(afbc_info->dma_buf[j], v_addr[j]);
 		}
 
 		afbc_info = &decon->d.cur_afbc_info;
 		decon_info("%s: current AFBC channel information\n", __func__);
-		for (j = 0; j < 2; ++j) { /* VGF0(0), VGF1(1) */
+		for (j = 0; j < MAX_DECON_WIN; ++j) { /* all the dpp that has afbc */
 			if (!afbc_info->is_afbc[j])
 				continue;
 
 			v_addr[j] = dma_buf_vmap(afbc_info->dma_buf[j]);
 			size[j] = afbc_info->dma_buf[j]->size;
-			decon_info("\t[%s] Base(0x%p), KV(0x%p), size(%d)\n",
-					j ? "VGF1" : "VGF0",
-					(void *)afbc_info->dma_addr[j],
+			decon_info("\t[DMA%d] Base(0x%p), KV(0x%p), size(%d)\n",
+					j, (void *)afbc_info->dma_addr[j],
 					v_addr[j], size[j]);
 			dma_buf_vunmap(afbc_info->dma_buf[j], v_addr[j]);
 		}
@@ -634,22 +632,17 @@ static int dpu_dump_buffer_data(struct dpp_device *dpp)
 	int i;
 	int id_idx = 0;
 	int dump_size = 128;
-	int decon_cnt;
 	struct decon_device *decon;
 	struct dpu_afbc_info *afbc_info;
-	void *v_addr;
-
-	decon_cnt = get_decon_drvdata(0)->dt.decon_cnt;
 
 	if (dpp->state == DPP_STATE_ON) {
 
-		for (i = 0; i < decon_cnt; i++) {
+		for (i = 0; i < MAX_DECON_CNT; i++) {
 			decon = get_decon_drvdata(i);
 			if (decon == NULL)
 				continue;
 
-			if (DPU_CH2DMA(dpp->id) == IDMA_GF)
-				id_idx = 1;
+			id_idx = dpp->id;
 
 			afbc_info = &decon->d.cur_afbc_info;
 			if (!afbc_info->is_afbc[id_idx])
@@ -660,16 +653,12 @@ static int dpu_dump_buffer_data(struct dpp_device *dpp)
 			else
 				dump_size = afbc_info->dma_buf[id_idx]->size / 16;
 
-			v_addr = dma_buf_vmap(afbc_info->dma_buf[id_idx]);
 			decon_info("Base(0x%p), KV(0x%p), size(%d)\n",
 				(void *)afbc_info->dma_addr[id_idx],
-				v_addr, dump_size);
+				afbc_info->dma_v_addr[id_idx], dump_size);
 
-			if (IS_ERR_OR_NULL(v_addr))
-				continue;
-
-			dpu_dump_data_to_console(v_addr, dump_size, dpp->id);
-			dma_buf_vunmap(afbc_info->dma_buf[id_idx], v_addr);
+			dpu_dump_data_to_console(afbc_info->dma_v_addr[id_idx],
+					dump_size, dpp->id);
 		}
 	}
 
@@ -699,7 +688,7 @@ int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 	for (i = 0; i < decon->dt.dpp_cnt; i++) {
 		if (test_bit(i, &decon->prev_used_dpp)) {
 			dpp = get_dpp_drvdata(i);
-#if defined(CONFIG_EXYNOS_AFBC_DEBUG)
+#if defined(DPU_DUMP_BUFFER_IRQ)
 			dpu_dump_buffer_data(dpp);
 #endif
 		}
