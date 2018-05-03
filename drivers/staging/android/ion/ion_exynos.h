@@ -71,9 +71,11 @@ extern struct ion_heap *ion_cma_heap_create(struct cma *cma,
 #endif
 
 #if defined(CONFIG_ION_HPA_HEAP)
-extern struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *pheap);
+extern struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *pheap,
+					    phys_addr_t except_areas[][2],
+					    int n_except_areas);
 #else
-#define ion_hpa_heap_create(p) ERR_PTR(-ENODEV)
+#define ion_hpa_heap_create(p, areas, n_areas) ERR_PTR(-ENODEV)
 #endif
 
 #if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) && defined(CONFIG_ION_EXYNOS)

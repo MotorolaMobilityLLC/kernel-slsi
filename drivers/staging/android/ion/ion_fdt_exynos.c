@@ -110,6 +110,11 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 
 RESERVEDMEM_OF_DECLARE(ion, "exynos9820-ion", exynos_ion_reserved_mem_setup);
 
+#define MAX_HPA_EXCEPTION_AREAS 4
+
+static int hpa_num_exception_areas;
+static phys_addr_t hpa_alloc_exceptions[MAX_HPA_EXCEPTION_AREAS][2];
+
 static bool __init register_hpa_heap(struct device_node *np,
 				     unsigned int prot_id_map)
 {
@@ -151,8 +156,8 @@ static bool __init register_hpa_heap(struct device_node *np,
 		pheap.align = SZ_64K;
 
 	pheap.type = ION_HEAP_TYPE_HPA;
-	heap = ion_hpa_heap_create(&pheap);
-
+	heap = ion_hpa_heap_create(&pheap, hpa_alloc_exceptions,
+				   hpa_num_exception_areas);
 	if (IS_ERR(heap)) {
 		pr_err("%s: failed to register '%s' heap\n",
 		       __func__, pheap.name);
@@ -171,10 +176,49 @@ static bool __init exynos_ion_register_hpa_heaps(unsigned int prot_id_map)
 	struct device_node *np, *child;
 	bool secure = false;
 
-	for_each_node_by_name(np, "ion-hpa-heap")
+	for_each_node_by_name(np, "ion-hpa-heap") {
+		const __be32 *range;
+		int len;
+
+		range = of_get_property(np, "ion,hpa_alloc_exception", &len);
+		if (range && (len > 0)) {
+			int n_addr = of_n_addr_cells(np);
+			int n_size = of_n_size_cells(np);
+			int n_area = len / (sizeof(*range) * (n_size + n_addr));
+			const void *prop;
+			phys_addr_t base, size;
+			int i;
+
+			/*
+			 * If 'ion-hpa-heap' node defines its own range properties,
+			 * override the range properties defined by its parent.
+			 */
+			prop = of_get_property(np, "#address-cells", NULL);
+			if (prop)
+				n_addr = be32_to_cpup(prop);
+
+			prop = of_get_property(np, "#size-cells", NULL);
+			if (prop)
+				n_size = be32_to_cpup(prop);
+
+			for (i = hpa_num_exception_areas;
+			     i < min(n_area, MAX_HPA_EXCEPTION_AREAS) ; i++) {
+				base = (phys_addr_t)of_read_number(range, n_addr);
+				range += n_addr;
+				size = (phys_addr_t)of_read_number(range, n_size);
+				range += n_size;
+
+				hpa_alloc_exceptions[i][0] = base;
+				hpa_alloc_exceptions[i][1] = base + size - 1;
+			}
+
+			hpa_num_exception_areas = i;
+		}
+
 		for_each_child_of_node(np, child)
 			if (of_device_is_compatible(child, "exynos9820-ion"))
 				secure |= register_hpa_heap(child, prot_id_map);
+	}
 
 	return secure;
 }
@@ -246,4 +290,4 @@ static int __init exynos_ion_register_heaps(void)
 
 	return 0;
 }
-device_initcall(exynos_ion_register_heaps);
+subsys_initcall(exynos_ion_register_heaps);

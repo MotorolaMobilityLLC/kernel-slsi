@@ -34,6 +34,8 @@ struct ion_hpa_heap {
 	struct ion_heap heap;
 	unsigned int order;
 	unsigned int protection_id;
+	phys_addr_t (*exception_areas)[2];
+	int exception_count;
 	bool secure;
 };
 
@@ -85,7 +87,9 @@ static int ion_hpa_allocate(struct ion_heap *heap,
 	if (ret)
 		goto err_sg;
 
-	ret = alloc_pages_highorder(hpa_heap->order, pages, count);
+	i = protected ? hpa_heap->exception_count : 0;
+	ret = alloc_pages_highorder_except(hpa_heap->order, pages, count,
+					   hpa_heap->exception_areas, i);
 	if (ret)
 		goto err_pages;
 
@@ -177,7 +181,9 @@ static struct ion_heap_ops ion_hpa_ops = {
 	.query_heap = hpa_heap_query,
 };
 
-struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *data)
+struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *data,
+				     phys_addr_t except_areas[][2],
+				     int n_except_areas)
 {
 	struct ion_hpa_heap *heap;
 
@@ -192,7 +198,8 @@ struct ion_heap *ion_hpa_heap_create(struct ion_platform_heap *data)
 	heap->order = get_order(data->align);
 	heap->protection_id = data->id;
 	heap->secure = data->secure;
-
+	heap->exception_areas = except_areas;
+	heap->exception_count = n_except_areas;
 
 	return &heap->heap;
 }
