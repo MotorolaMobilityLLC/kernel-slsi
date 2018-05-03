@@ -588,12 +588,22 @@ extern void init_cma_reserved_pageblock(struct page *page);
 #endif
 
 #ifdef CONFIG_HPA
-int alloc_pages_highorder(int order, struct page **pages, int nents);
+int alloc_pages_highorder_except(int order, struct page **pages, int nents,
+				 phys_addr_t exception_areas[][2],
+				 int nr_exception);
 #else
-static inline int alloc_pages_highorder(int order, struct page **pages, int nents)
+static inline int alloc_pages_highorder_except(int order,
+					       struct page **pages, int nents,
+					       phys_addr_t exception_areas[][2],
+					       int nr_exception)
 {
-	return 0;
+	return -ENOENT;
 }
 #endif
+static inline int alloc_pages_highorder(int order, struct page **pages,
+					int nents)
+{
+	return alloc_pages_highorder_except(order, pages, nents, NULL, 0);
+}
 
 #endif /* __LINUX_GFP_H */

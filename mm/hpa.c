@@ -142,14 +142,31 @@ static bool is_movable_chunk(unsigned long pfn, unsigned int order)
 	return true;
 }
 
+static int get_exception_of_page(phys_addr_t phys,
+				 phys_addr_t exception_areas[][2],
+				 int nr_exception)
+{
+	int i;
+
+	for (i = 0; i < nr_exception; i++)
+		if ((exception_areas[i][0] <= phys) &&
+		    (phys <= exception_areas[i][1]))
+			return i;
+	return -1;
+
+}
+
 static int alloc_freepages_range(struct zone *zone, unsigned int order,
-				 struct page **pages, int required)
+				 struct page **pages, int required,
+				 phys_addr_t exception_areas[][2],
+				 int nr_exception)
 
 {
 	unsigned int current_order;
 	unsigned int mt;
 	unsigned long wmark;
 	unsigned long flags;
+	LIST_HEAD(isolated);
 	struct free_area *area;
 	struct page *page;
 	int i;
@@ -177,6 +194,14 @@ static int alloc_freepages_range(struct zone *zone, unsigned int order,
 				page = list_entry(area->free_list[mt].next,
 							struct page, lru);
 				list_del(&page->lru);
+
+				if (get_exception_of_page(page_to_phys(page),
+							  exception_areas,
+							  nr_exception) >= 0) {
+					list_add_tail(&page->lru, &isolated);
+					continue;
+				}
+
 				__ClearPageBuddy(page);
 				set_page_private(page, 0);
 				set_pcppage_migratetype(page, mt);
@@ -196,6 +221,8 @@ static int alloc_freepages_range(struct zone *zone, unsigned int order,
 					page += 1 << order;
 				}
 			}
+
+			list_splice_init(&isolated, &area->free_list[mt]);
 		}
 	}
 
@@ -214,7 +241,29 @@ static void prep_highorder_pages(unsigned long base_pfn, int order)
 		set_page_count(pfn_to_page(pfn), 0);
 }
 
-int alloc_pages_highorder(int order, struct page **pages, int nents)
+/**
+ * alloc_pages_highorder_except() - allocate large order pages
+ * @order:           required page order
+ * @pages:           array to store allocated @order order pages
+ * @nents:           number of @order order pages
+ * @exception_areas: memory areas that should not include pages in @pages
+ * @nr_exception:    number of memory areas in @exception_areas
+ *
+ * Returns 0 on allocation success. -error otherwise.
+ *
+ * Allocates @nents pages of @order << PAGE_SHIFT number of consecutive pages
+ * and store the page descriptors of the allocated pages to @pages. Every page
+ * in @pages should also be aligned by @order << PAGE_SHIFT.
+ *
+ * If @nr_exception is larger than 0, alloc_page_highorder_except() does not
+ * allocate pages in the areas described in @exception_areas. @exception_areas
+ * is an array of array with two elements: The first element is the start
+ * address of an area and the last element is the end address. The end address
+ * is the last byte address in the area, that is "[start address] + [size] - 1".
+ */
+int alloc_pages_highorder_except(int order, struct page **pages, int nents,
+				 phys_addr_t exception_areas[][2],
+				 int nr_exception)
 {
 	struct zone *zone;
 	unsigned int nr_pages = 1 << order;
@@ -231,7 +280,8 @@ retry:
 			continue;
 
 		allocated = alloc_freepages_range(zone, order,
-					pages + nents - remained, remained);
+					pages + nents - remained, remained,
+					exception_areas, nr_exception);
 		remained -= allocated;
 
 		if (remained == 0)
@@ -263,6 +313,14 @@ retry:
 		if (is_migrate_cma_page(pfn_to_page(pfn))) {
 			/* nr_pages is added before next iteration */
 			pfn = ALIGN(pfn + 1, pageblock_nr_pages) - nr_pages;
+			continue;
+		}
+
+		ret = get_exception_of_page(pfn << PAGE_SHIFT,
+					    exception_areas, nr_exception);
+		if (ret >= 0) {
+			pfn = (exception_areas[ret][1] + 1) >> PAGE_SHIFT;
+			pfn -= nr_pages;
 			continue;
 		}
 
