@@ -131,7 +131,7 @@ static int __init exynos_chipid_probe(struct platform_device *pdev)
 	struct device_node *root;
 	int ret;
 
-	exynos_chipid_early_init(&pdev->dev);
+//	exynos_chipid_early_init(&pdev->dev);
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
@@ -152,11 +152,11 @@ static int __init exynos_chipid_probe(struct platform_device *pdev)
 
 	soc_dev_attr->soc_id = product_id_to_name(exynos_soc_info.product_id);
 
-	soc_dev = soc_device_register(soc_dev_attr);
+//	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev))
 		goto free_rev;
 
-	soc_device_to_device(soc_dev);
+//	soc_device_to_device(soc_dev);
 
 	dev_info(&pdev->dev, "Exynos: CPU[%s] CPU_REV[0x%x] Detected\n",
 			product_id_to_name(exynos_soc_info.product_id),
