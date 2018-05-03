@@ -14,7 +14,7 @@
 
 / {
 	model = "Samsung MAESTRO-ERD9610 board based on EXYNOS9610";
-	compatible = "samsung,exynos9610", "samsung,MAESTRO-ERD9610";
+	compatible = "samsung,exynos9610", "samsung,ERD9610";
 
 	memory@80000000 {
 		device_type = "memory";
