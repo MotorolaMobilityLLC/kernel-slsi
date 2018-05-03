@@ -24,6 +24,7 @@
 #define EXYNOS5440_SOC_ID	0xE5440000
 #define EXYNOS5800_SOC_ID	0xE5422000
 #define EXYNOS8890_SOC_ID	0xE8890000
+#define EXYNOS9610_SOC_ID	0xE9610000
 
 #define EXYNOS_SOC_MASK		0xFFFFF000
 
@@ -40,10 +41,29 @@
  * @soc_revision: revision of exynos SoC
  */
 
+struct exynos_chipid_variant {
+	int product_ver;
+	int unique_id_reg;
+	int rev_reg;
+	int main_rev_bit;
+	int sub_rev_bit;
+};
+
+/**
+ * Struct exynos_chipid_info
+ * @soc_product_id: product id allocated to exynos SoC
+ * @soc_revision: revision of exynos SoC
+ */
 struct exynos_chipid_info {
+	void __iomem *reg;
 	u32 product_id;
 	u32 revision;
+	u32 main_rev;
+	u32 sub_rev;
+	u32 lot_id;
+	char *lot_id2;
 	u64 unique_id;
+	struct exynos_chipid_variant *drv_data;
 };
 
 extern struct exynos_chipid_info exynos_soc_info;

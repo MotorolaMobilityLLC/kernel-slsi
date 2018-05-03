@@ -64,15 +64,30 @@ static const char * __init product_id_to_name(unsigned int product_id)
 	case EXYNOS5800_SOC_ID:
 		soc_name = "EXYNOS5800";
 		break;
+       case EXYNOS9610_SOC_ID:
+		soc_name = "EXYNOS9610";
+		break;
 	default:
 		soc_name = "UNKNOWN";
 	}
 	return soc_name;
 }
 
+static const struct exynos_chipid_variant drv_data_exynos9610 = {
+	.product_ver	= 1,
+	.unique_id_reg	= 0x04,
+	.rev_reg	= 0x10,
+	.main_rev_bit	= 20,
+	.sub_rev_bit	= 16,
+};
+
 static const struct of_device_id of_exynos_chipid_ids[] __initconst = {
 	{
 		.compatible	= "samsung,exynos4210-chipid",
+	},
+	{
+		.compatible	= "samsung,exynos9610-chipid",
+		.data		= &drv_data_exynos9610,
 	},
 	{},
 };
