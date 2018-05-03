@@ -302,10 +302,12 @@ static struct init_vclk exynos9610_clkout_vclks[] __initdata = {
 	VCLK(OSC_AUD, VCLK_CLKOUT0, "OSC_AUD", 0, 0, NULL),
 };
 
+#if 0
 static __initdata struct of_device_id ext_clk_match[] = {
 	{.compatible = "samsung,exynos9610-oscclk", .data = (void *)0},
 	{},
 };
+#endif
 
 void exynos9610_vclk_init(void)
 {
@@ -315,6 +317,7 @@ void exynos9610_vclk_init(void)
 /* register exynos9610 clocks */
 void __init exynos9610_clk_init(struct device_node *np)
 {
+#if 0
 	void __iomem *reg_base;
 	int ret;
 
@@ -369,7 +372,7 @@ void __init exynos9610_clk_init(struct device_node *np)
 	samsung_clk_of_add_provider(np, exynos9610_clk_provider);
 
 	late_time_init = exynos9610_vclk_init;
-
+#endif
 	pr_info("EXYNOS9610: Clock setup completed\n");
 }
 
