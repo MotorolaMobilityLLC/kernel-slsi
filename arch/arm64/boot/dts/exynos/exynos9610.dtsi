@@ -229,6 +229,6 @@
 		pinctrl-0 = <&uart0_bus>;
 		clocks = <&clock GATE_UART_QCH>, <&clock UART>;
 		clock-names = "gate_pclk0", "gate_uart0";
-		status = "disabled";
+		status = "okay";
 	};
 };

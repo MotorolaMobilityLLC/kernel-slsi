@@ -1750,7 +1750,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 			goto err;
 		}
 	}
-
+#if 0
 	ourport->clk	= clk_get(&platdev->dev, "uart");
 	if (IS_ERR(ourport->clk)) {
 		pr_err("%s: Controller clock not found\n",
@@ -1765,7 +1765,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		clk_put(ourport->clk);
 		goto err;
 	}
-
+#endif
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
 		wr_regl(port, S3C64XX_UINTM, 0xf);
@@ -2346,11 +2346,21 @@ static struct s3c24xx_serial_drv_data exynos5433_serial_drv_data = {
 	.fifosize = { 64, 256, 16, 256 },
 };
 
+static struct s3c24xx_serial_drv_data exynos_serial_drv_data = {
+	EXYNOS_COMMON_SERIAL_DRV_DATA,
+	.fifosize = { 0, },
+};
+
 #define EXYNOS4210_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos4210_serial_drv_data)
 #define EXYNOS5433_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos5433_serial_drv_data)
+#define EXYNOS4210_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos4210_serial_drv_data)
+#define EXYNOS_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos_serial_drv_data)
+
 #else
 #define EXYNOS4210_SERIAL_DRV_DATA (kernel_ulong_t)NULL
 #define EXYNOS5433_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#define EXYNOS4210_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#define EXYNOS_SERIAL_DRV_DATA (kernel_ulong_t)NULL
 #endif
 
 static const struct platform_device_id s3c24xx_serial_driver_ids[] = {
@@ -2375,6 +2385,9 @@ static const struct platform_device_id s3c24xx_serial_driver_ids[] = {
 	}, {
 		.name		= "exynos5433-uart",
 		.driver_data	= EXYNOS5433_SERIAL_DRV_DATA,
+	}, {
+		.name		= "exynos-uart",
+		.driver_data	= EXYNOS_SERIAL_DRV_DATA,
 	},
 	{ },
 };
@@ -2396,6 +2409,8 @@ static const struct of_device_id s3c24xx_uart_dt_match[] = {
 		.data = (void *)EXYNOS4210_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,exynos5433-uart",
 		.data = (void *)EXYNOS5433_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,exynos-uart",
+		.data = (void *)EXYNOS_SERIAL_DRV_DATA },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
