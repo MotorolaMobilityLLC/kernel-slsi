@@ -1,0 +1,45 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+#include "exynos9610.dtsi"
+
+/ {
+	model = "Samsung MAESTRO-ERD9610 board based on EXYNOS9610";
+	compatible = "samsung,exynos9610", "samsung,MAESTRO-ERD9610";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x80000000>;
+	};
+
+	memory@880000000 {
+		device_type = "memory";
+		reg = <0x00000008 0x80000000 0x80000000>;
+	};
+
+	chosen {
+		bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200n8 root=/dev/ram0 rw ramdisk=8192 initrd=0x84000000,8M init=/linuxrc clk_ignore_unused ess_setup=0x86000000";
+		linux,initrd-start = <0x84000000>;
+		linux,initrd-end = <0x841FFFFF>;
+	};
+
+	fixed-rate-clocks {
+		oscclk {
+			compatible = "samsung,exynos9610-oscclk";
+			clock-frequency = <26000000>;
+		};
+	};
+
+	serial_0: uart@13820000 {
+		status = "okay";
+	};
+};
