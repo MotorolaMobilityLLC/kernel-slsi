@@ -17,6 +17,10 @@
 
 int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev);
 
+void s5p_mfc_nal_q_clock_on(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void s5p_mfc_nal_q_clock_off(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void s5p_mfc_nal_q_cleanup_clock(struct s5p_mfc_dev *dev);
+
 nal_queue_handle *s5p_mfc_nal_q_create(struct s5p_mfc_dev *dev);
 int s5p_mfc_nal_q_destroy(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
 

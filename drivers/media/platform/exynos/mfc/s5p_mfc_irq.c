@@ -1336,14 +1336,18 @@ static inline int mfc_nal_q_irq(struct s5p_mfc_dev *dev,
 					&dev->work_bits);
 		s5p_mfc_clear_int_sfr();
 
+		if (!nal_q_handle->nal_q_exception)
+			s5p_mfc_nal_q_clock_off(dev, nal_q_handle);
+
 		ret = 0;
 		break;
 	case S5P_FIMV_R2H_CMD_COMPLETE_QUEUE_RET:
 		s5p_mfc_watchdog_stop_tick(dev);
-		s5p_mfc_nal_q_cleanup_queue(dev);
 		nal_q_handle->nal_q_state = NAL_Q_STATE_CREATED;
 		MFC_TRACE_DEV("** NAL Q state : %d\n", nal_q_handle->nal_q_state);
 		mfc_debug(2, "NAL Q: return to created state\n");
+		s5p_mfc_nal_q_cleanup_queue(dev);
+		s5p_mfc_nal_q_cleanup_clock(dev);
 		s5p_mfc_clear_int_sfr();
 		s5p_mfc_pm_clock_off(dev);
 		s5p_mfc_wake_up_dev(dev, reason, err);

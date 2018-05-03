@@ -125,6 +125,72 @@ int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 	return 1;
 }
 
+void s5p_mfc_nal_q_clock_on(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle)
+{
+	unsigned long flags;
+
+	mfc_debug_enter();
+
+	spin_lock_irqsave(&nal_q_handle->lock, flags);
+
+	mfc_debug(2, "NAL Q: continue_clock_on = %d, nal_q_clk_cnt = %d\n",
+			dev->continue_clock_on, nal_q_handle->nal_q_clk_cnt);
+
+	if (!dev->continue_clock_on && !nal_q_handle->nal_q_clk_cnt)
+		s5p_mfc_pm_clock_on(dev);
+
+	nal_q_handle->nal_q_clk_cnt++;
+	dev->continue_clock_on = false;
+
+	mfc_debug(2, "NAL Q: nal_q_clk_cnt = %d\n", nal_q_handle->nal_q_clk_cnt);
+
+	spin_unlock_irqrestore(&nal_q_handle->lock, flags);
+
+	mfc_debug_leave();
+}
+
+void s5p_mfc_nal_q_clock_off(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle)
+{
+	unsigned long flags;
+
+	mfc_debug_enter();
+
+	spin_lock_irqsave(&nal_q_handle->lock, flags);
+
+	mfc_debug(2, "NAL Q: nal_q_clk_cnt = %d\n", nal_q_handle->nal_q_clk_cnt);
+
+	if (!nal_q_handle->nal_q_clk_cnt) {
+		mfc_err_dev("NAL Q: nal_q_clk_cnt is already zero.\n");
+		return;
+	}
+
+	nal_q_handle->nal_q_clk_cnt--;
+
+	if (!nal_q_handle->nal_q_clk_cnt)
+		s5p_mfc_pm_clock_off(dev);
+
+	mfc_debug(2, "NAL Q: nal_q_clk_cnt = %d\n", nal_q_handle->nal_q_clk_cnt);
+
+	spin_unlock_irqrestore(&nal_q_handle->lock, flags);
+
+	mfc_debug_leave();
+}
+
+void s5p_mfc_nal_q_cleanup_clock(struct s5p_mfc_dev *dev)
+{
+	unsigned long flags;
+
+	mfc_debug_enter();
+
+	spin_lock_irqsave(&dev->nal_q_handle->lock, flags);
+
+	dev->nal_q_handle->nal_q_clk_cnt = 0;
+
+	spin_unlock_irqrestore(&dev->nal_q_handle->lock, flags);
+
+	mfc_debug_leave();
+}
+
 static int mfc_nal_q_find_ctx(struct s5p_mfc_dev *dev, EncoderOutputStr *pOutputStr)
 {
 	int i;
@@ -242,8 +308,8 @@ static int mfc_nal_q_destroy_out_q(struct s5p_mfc_dev *dev,
 }
 
 /*
-  * This function should be called after s5p_mfc_alloc_firmware() being called.
-  */
+ * This function should be called after s5p_mfc_alloc_firmware() being called.
+ */
 nal_queue_handle *s5p_mfc_nal_q_create(struct s5p_mfc_dev *dev)
 {
 	nal_queue_handle *nal_q_handle;
@@ -358,9 +424,6 @@ void s5p_mfc_nal_q_init(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle)
 		s5p_mfc_get_nal_q_info());
 
 	nal_q_handle->nal_q_exception = 0;
-	nal_q_handle->nal_q_state = NAL_Q_STATE_INITIALIZED;
-	MFC_TRACE_DEV("** NAL Q state : %d\n", nal_q_handle->nal_q_state);
-	mfc_debug(2, "NAL Q: initialized, state = %d\n", nal_q_handle->nal_q_state);
 
 	mfc_debug_leave();
 
@@ -383,7 +446,7 @@ void s5p_mfc_nal_q_start(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle
 		return;
 	}
 
-	if (nal_q_handle->nal_q_state != NAL_Q_STATE_INITIALIZED) {
+	if (nal_q_handle->nal_q_state != NAL_Q_STATE_CREATED) {
 		mfc_err_dev("NAL Q: State is wrong, state: %d\n", nal_q_handle->nal_q_state);
 		return;
 	}
@@ -472,6 +535,8 @@ void s5p_mfc_nal_q_stop_if_started(struct s5p_mfc_dev *dev)
 				nal_q_handle->nal_q_state);
 		return;
 	}
+
+	s5p_mfc_nal_q_clock_on(dev, nal_q_handle);
 
 	s5p_mfc_nal_q_stop(dev, nal_q_handle);
 	mfc_info_dev("NAL Q: stop NAL QUEUE during get hwlock\n");
@@ -1403,6 +1468,7 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 		dec->remained_size = src_mb->vb.vb2_buf.planes[0].bytesused
 			- dec->consumed;
 		dec->has_multiframe = 1;
+		dev->nal_q_handle->nal_q_exception = 1;
 
 		MFC_TRACE_CTX("** consumed:%ld, remained:%ld, addr:0x%08llx\n",
 			dec->consumed, dec->remained_size, dec->y_addr_for_pb);
@@ -1631,8 +1697,8 @@ int s5p_mfc_nal_q_handle_out_buf(struct s5p_mfc_dev *dev, EncoderOutputStr *pOut
 }
 
 /*
-  * This function should be called in NAL_Q_STATE_INITIALIZED or NAL_Q_STATE_STARTED state.
-  */
+ * This function should be called in NAL_Q_STATE_STARTED state.
+ */
 int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 	nal_queue_in_handle *nal_q_in_handle)
 {
@@ -1651,8 +1717,7 @@ int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ct
 		return -EINVAL;
 	}
 
-	if ((nal_q_in_handle->nal_q_handle->nal_q_state != NAL_Q_STATE_INITIALIZED)
-		&& (nal_q_in_handle->nal_q_handle->nal_q_state != NAL_Q_STATE_STARTED)) {
+	if (nal_q_in_handle->nal_q_handle->nal_q_state != NAL_Q_STATE_STARTED) {
 		mfc_err_dev("NAL Q: State is wrong, state: %d\n",
 				nal_q_in_handle->nal_q_handle->nal_q_state);
 		return -EINVAL;
@@ -1724,8 +1789,8 @@ int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ct
 }
 
 /*
-  * This function should be called in NAL_Q_STATE_STARTED state.
-  */
+ * This function should be called in NAL_Q_STATE_STARTED state.
+ */
 EncoderOutputStr *s5p_mfc_nal_q_dequeue_out_buf(struct s5p_mfc_dev *dev,
 	nal_queue_out_handle *nal_q_out_handle, unsigned int *reason)
 {

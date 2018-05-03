@@ -553,7 +553,6 @@ typedef struct __EncoderOutputStr {
  */
 typedef enum _nal_queue_state {
 	NAL_Q_STATE_CREATED = 0,
-	NAL_Q_STATE_INITIALIZED,
 	NAL_Q_STATE_STARTED, /* when s5p_mfc_nal_q_start() is called */
 	NAL_Q_STATE_STOPPED, /* when s5p_mfc_nal_q_stop() is called */
 } nal_queue_state;
@@ -592,6 +591,7 @@ typedef struct _nal_queue_handle {
 	nal_queue_in_handle *nal_q_in_handle;
 	nal_queue_out_handle *nal_q_out_handle;
 	nal_queue_state nal_q_state;
+	unsigned int nal_q_clk_cnt;
 	spinlock_t lock;
 	int nal_q_exception;
 } nal_queue_handle;

@@ -643,24 +643,16 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 		return ret;
 	}
 
-	if (nal_q_handle->nal_q_state != NAL_Q_STATE_STARTED
-			&& nal_q_handle->nal_q_state != NAL_Q_STATE_STOPPED) {
-		mfc_debug(2, "continue_clock_on = %d\n", dev->continue_clock_on);
-		if (!dev->continue_clock_on) {
-			s5p_mfc_pm_clock_on(dev);
-		} else {
-			dev->continue_clock_on = false;
-		}
-	}
-
 	switch (nal_q_handle->nal_q_state) {
 	case NAL_Q_STATE_CREATED:
-		s5p_mfc_nal_q_init(dev, nal_q_handle);
-	case NAL_Q_STATE_INITIALIZED:
 		if (s5p_mfc_nal_q_check_enable(dev) == 0) {
 			/* NAL START */
 			ret = 1;
 		} else {
+			s5p_mfc_nal_q_clock_on(dev, nal_q_handle);
+
+			s5p_mfc_nal_q_init(dev, nal_q_handle);
+
 			/* enable NAL QUEUE */
 			if (need_cache_flush)
 				s5p_mfc_cache_flush(dev, ctx->is_drm);
@@ -668,8 +660,10 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 			mfc_info_ctx("NAL Q: start NAL QUEUE\n");
 			s5p_mfc_nal_q_start(dev, nal_q_handle);
 
-			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle))
+			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
 				mfc_debug(2, "NAL Q: Failed to enqueue input data\n");
+				s5p_mfc_nal_q_clock_off(dev, nal_q_handle);
+			}
 
 			s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
 			if ((s5p_mfc_ctx_ready(ctx) && !ctx->clear_work_bit) ||
@@ -686,6 +680,8 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 		}
 		break;
 	case NAL_Q_STATE_STARTED:
+		s5p_mfc_nal_q_clock_on(dev, nal_q_handle);
+
 		if (s5p_mfc_nal_q_check_enable(dev) == 0 ||
 				nal_q_handle->nal_q_exception) {
 			/* disable NAL QUEUE */
@@ -697,14 +693,14 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 				dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_STOP_NAL_Q);
 				call_dop(dev, dump_and_stop_always, dev);
 	                }
-			nal_q_handle->nal_q_exception = 0;
 			ret = 1;
-			s5p_mfc_pm_clock_on(dev);
 			break;
 		} else {
 			/* NAL QUEUE */
-			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle))
+			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
 				mfc_debug(2, "NAL Q: Failed to enqueue input data\n");
+				s5p_mfc_nal_q_clock_off(dev, nal_q_handle);
+			}
 
 			s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
 
@@ -882,14 +878,13 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 			return ret;
 		}
 	}
-#else
+#endif
 	mfc_debug(2, "continue_clock_on = %d\n", dev->continue_clock_on);
 	if (!dev->continue_clock_on) {
 		s5p_mfc_pm_clock_on(dev);
 	} else {
 		dev->continue_clock_on = false;
 	}
-#endif
 
 	if (need_cache_flush)
 		s5p_mfc_cache_flush(dev, ctx->is_drm);
