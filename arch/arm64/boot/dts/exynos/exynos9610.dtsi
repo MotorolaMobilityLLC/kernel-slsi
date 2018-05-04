@@ -231,4 +231,14 @@
 		clock-names = "gate_pclk0", "gate_uart0";
 		status = "okay";
 	};
+
+	exynos-pmu {
+		compatible = "samsung,exynos-pmu";
+		samsung,syscon-phandle = <&pmu_system_controller>;
+	};
+
+	pmu_system_controller: system-controller@11860000 {
+		compatible = "samsung,exynos9610-pmu", "syscon";
+		reg = <0x0 0x11860000 0x10000>;
+	};
 };
