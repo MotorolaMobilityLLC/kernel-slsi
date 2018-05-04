@@ -420,7 +420,7 @@ static bool emc_has_boostable_cpu(void)
 
 static struct emc_mode* emc_select_mode(void)
 {
-	struct emc_mode *mode;
+	struct emc_mode *mode, *target_mode = NULL;
 	int need_online_cnt, need_boost_cnt;
 
 	/* if there is no boostable cpu, we don't need to booting */
@@ -442,12 +442,15 @@ static struct emc_mode* emc_select_mode(void)
 			continue;
 		if (need_online_cnt > cpumask_weight(&mode->cpus))
 			continue;
+		target_mode = mode;
 		break;
 	}
+	if (!target_mode)
+		target_mode = emc_get_base_mode();
 
-	trace_emc_select_mode(mode->name, need_boost_cnt, need_online_cnt);
+	trace_emc_select_mode(target_mode->name, need_boost_cnt, need_online_cnt);
 
-	return mode;
+	return target_mode;
 }
 
 /* return latest adaptive mode */
