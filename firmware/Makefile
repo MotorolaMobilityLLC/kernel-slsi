@@ -12,6 +12,15 @@ fwabs := $(addprefix $(srctree)/,$(filter-out /%,$(fwdir)))$(filter /%,$(fwdir))
 
 fw-external-y := $(subst $(quote),,$(CONFIG_EXTRA_FIRMWARE))
 
+quiet_cmd_ihex  = IHEX    $@
+      cmd_ihex  = $(OBJCOPY) -Iihex -Obinary $< $@
+
+quiet_cmd_ihex2fw  = IHEX2FW $@
+      cmd_ihex2fw  = $(objtree)/$(obj)/ihex2fw $< $@
+
+quiet_cmd_h16tofw  = H16TOFW $@
+      cmd_h16tofw  = $(objtree)/$(obj)/ihex2fw -w $< $@
+
 quiet_cmd_fwbin = MK_FW   $@
       cmd_fwbin = FWNAME="$(patsubst firmware/%.gen.S,%,$@)";		     \
 		  FWSTR="$(subst /,_,$(subst .,_,$(subst -,_,$(patsubst	     \
