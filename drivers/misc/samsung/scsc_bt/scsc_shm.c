@@ -942,13 +942,61 @@ static ssize_t scsc_bt_shm_h4_read_hci_evt(char __user *buf, size_t len)
 	return 0 == ret ? consumed : ret;
 }
 
+/**
+ * Start the acl data to userspace copy
+ *
+ * Acl processing should be stopped if either unable to read a complete packet
+ * or a complete packet is read and BlueZ is enabled
+ *
+ * @param[out]    ret      result of read operations written to here
+ * @param[in,out] consumed read bytes added to this
+ *
+ * @return true if ACL data processing should stop
+ */
+static bool scsc_bt_shm_h4_acl_start_copy(char __user *buf,
+	size_t len,
+	ssize_t *ret,
+	ssize_t *consumed)
+{
+	bt_service.read_operation = BT_READ_OP_ACL_DATA;
+	bt_service.read_index = bt_service.mailbox_acl_rx_read;
+	*ret = scsc_acl_read(&buf[*consumed], len - *consumed);
+	if (*ret <= 0)
+		return *ret < 0; /* Break the loop for errors */
+
+	/* Update our consumed information */
+	*consumed += *ret;
+	*ret = 0;
+
+	/* Stop processing if all the data could not be copied to userspace */
+	if (bt_service.read_operation != BT_READ_OP_NONE)
+		return true;
+
+	BSMHCP_INCREASE_INDEX(bt_service.mailbox_acl_rx_read, BSMHCP_TRANSFER_RING_ACL_SIZE);
+
+#ifdef CONFIG_SCSC_BT_BLUEZ
+	/* If BlueZ is enabled stop processing even after one complete packet */
+	return true;
+#else
+	return false;
+#endif
+}
+
 static ssize_t scsc_bt_shm_h4_read_acl_data(char __user *buf, size_t len)
 {
 	ssize_t ret = 0;
 	ssize_t consumed = 0;
 
-	while (BT_READ_OP_NONE == bt_service.read_operation && 0 == ret && !bt_service.acldata_paused && bt_service.mailbox_acl_rx_read != bt_service.mailbox_acl_rx_write) {
+	while (bt_service.read_operation == BT_READ_OP_NONE &&
+	       !bt_service.acldata_paused &&
+	       bt_service.mailbox_acl_rx_read != bt_service.mailbox_acl_rx_write) {
 		struct BSMHCP_TD_ACL_RX *td = &bt_service.bsmhcp_protocol->acl_rx_transfer_ring[bt_service.mailbox_acl_rx_read];
+
+		/* Bypass packet inspection and connection handling for data dump */
+		if (SCSC_BT_ACL_RAW == (td->hci_connection_handle & SCSC_BT_ACL_RAW_MASK)) {
+			if (scsc_bt_shm_h4_acl_start_copy(buf, len, &ret, &consumed))
+				break;
+		}
 
 		/* Sanity check of the HCI connection handle */
 		if (td->hci_connection_handle >= SCSC_BT_CONNECTION_INFO_MAX) {
@@ -974,23 +1022,8 @@ static ssize_t scsc_bt_shm_h4_read_acl_data(char __user *buf, size_t len)
 				/* Update the read pointer */
 				BSMHCP_INCREASE_INDEX(bt_service.mailbox_acl_rx_read, BSMHCP_TRANSFER_RING_ACL_SIZE);
 			} else {
-				/* Start a ACL data copy to userspace */
-				bt_service.read_operation = BT_READ_OP_ACL_DATA;
-				bt_service.read_index = bt_service.mailbox_acl_rx_read;
-				ret = scsc_acl_read(&buf[consumed], len - consumed);
-				if (ret > 0) {
-					/* Update our consumed information */
-					consumed += ret;
-					ret = 0;
-
-					/* Update the index if all the data could be copied to the userspace buffer otherwise stop processing the ACL data */
-					if (BT_READ_OP_NONE == bt_service.read_operation)
-						BSMHCP_INCREASE_INDEX(bt_service.mailbox_acl_rx_read, BSMHCP_TRANSFER_RING_ACL_SIZE);
-#ifndef CONFIG_SCSC_BT_BLUEZ
-					else
-#endif
-						break;
-				}
+				if (scsc_bt_shm_h4_acl_start_copy(buf, len, &ret, &consumed))
+					break;
 			}
 			/* If the connection state is inactive the HCI connection complete information hasn't yet arrived. Stop processing ACL data */
 		} else if (CONNECTION_NONE == bt_service.connection_handle_list[td->hci_connection_handle].state) {
