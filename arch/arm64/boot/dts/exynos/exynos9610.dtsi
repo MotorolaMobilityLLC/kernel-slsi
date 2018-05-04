@@ -131,6 +131,7 @@
 		compatible = "samsung,exynos9610-clock";
 		reg = <0x0 0x12100000 0x8000>;
 		#clock-cells = <1>;
+		acpm-ipc-channel = <0>;
 	};
 
 	mct@10040000 {
@@ -163,6 +164,37 @@
 					<10 &gic 0 244 0>,
 					<11 &gic 0 245 0>;
 		};
+	};
+
+	acpm {
+		compatible = "samsung,exynos-acpm";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		acpm-ipc-channel = <4>;
+		fvmap_offset = <0x6000>;
+		reg = <0x0 0x11820000 0x1000>;          /* TIMER_APM */
+		reg-names = "timer_apm";
+		peritimer-cnt = <0xFFFF>;
+	};
+
+	acpm_ipc {
+		compatible = "samsung,exynos-acpm-ipc";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		interrupts = <0 38 0>;                  /* AP2APM MAILBOX SPI NUM*/
+		reg = <0x0 0x11900000 0x1000>,          /* AP2APM MAILBOX */
+		    <0x0 0x2039000 0x15000>;        /* APM SRAM */
+		initdata-base = <0x6F00>;
+		num-timestamps = <32>;
+		debug-log-level = <0>;
+		logging-period = <500>;
+		dump-base = <0x203C000>;
+		dump-size = <0x12000>;                  /* 72KB */
+	};
+
+	acpm_dvfs {
+		compatible = "samsung,exynos-acpm-dvfs";
+		acpm-ipc-channel = <5>;
 	};
 
 	/* ALIVE */
