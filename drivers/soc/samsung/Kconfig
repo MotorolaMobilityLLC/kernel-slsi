@@ -45,9 +45,9 @@ config PMUCAL
 	Support PMUCAL for Exynos SoC.
 
 config EXYNOS_PMU
-	bool "Exynos PMU controller driver" if COMPILE_TEST
-	depends on ARCH_EXYNOS || ((ARM || ARM64) && COMPILE_TEST)
-	select EXYNOS_PMU_ARM_DRIVERS if ARM && ARCH_EXYNOS
+	bool "Exynos Power Management Unit Driver Support"
+	depends on ARCH_EXYNOS
+	select MFD_SYSCON
 
 config ECT
 	bool "Enable Exynos Characteristic Table File"
@@ -60,10 +60,6 @@ config ECT_DUMP
 	depends on ECT
 
 # There is no need to enable these drivers for ARMv8
-config EXYNOS_PMU_ARM_DRIVERS
-	bool "Exynos PMU ARMv7-specific driver extensions" if COMPILE_TEST
-	depends on EXYNOS_PMU
-
 config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST
 	depends on PM_GENERIC_DOMAINS || COMPILE_TEST
