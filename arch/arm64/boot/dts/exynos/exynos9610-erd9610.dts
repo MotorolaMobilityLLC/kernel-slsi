@@ -26,6 +26,11 @@
 		reg = <0x00000008 0x80000000 0x80000000>;
 	};
 
+	ect {
+		parameter_address = <0x90000000>;
+		parameter_size = <0x19000>;
+	};
+
 	chosen {
 		bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200n8 root=/dev/ram0 rw ramdisk=8192 initrd=0x84000000,8M init=/linuxrc clk_ignore_unused ess_setup=0x86000000";
 		linux,initrd-start = <0x84000000>;
