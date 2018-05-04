@@ -438,11 +438,6 @@ int s5p_mfc_otf_handle_seq(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	enc->header_size = s5p_mfc_get_enc_strm_size();
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
-	if (enc->header_size)
-		set_es_size(enc->header_size);
-#endif
-
 	ctx->dpb_count = s5p_mfc_get_enc_dpb_count();
 	ctx->scratch_buf_size = s5p_mfc_get_enc_scratch_size();
 	mfc_debug(2, "OTF: header size: %d, cpb_count: %d, scratch size: %zu\n",
@@ -485,10 +480,6 @@ int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx)
 	slice_type = s5p_mfc_get_enc_slice_type();
 	pic_count = s5p_mfc_get_enc_pic_count();
 	strm_size = s5p_mfc_get_enc_strm_size();
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
-	if (strm_size)
-		set_es_size(strm_size);
-#endif
 
 	mfc_debug(2, "OTF: encoded slice type: %d\n", slice_type);
 	mfc_debug(2, "OTF: encoded stream size: %d\n", strm_size);
