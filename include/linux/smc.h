@@ -26,6 +26,28 @@
 /* For setting memory for debug */
 #define SMC_CMD_SET_DEBUG_MEM		(-120)
 #define SMC_CMD_GET_LOCKUP_REASON	(-121)
+#define SMC_CMD_KERNEL_PANIC_NOTICE	(-122)
+#define SMC_CMD_SET_SEH_ADDRESS		(-123)
+
+/* For protecting kernel text area */
+#define SMC_CMD_PROTECT_KERNEL_TEXT	(-125)
+
+/* For Security Dump Manager */
+#define SMC_CMD_DUMP_SECURE_REGION	(-130)
+#define SMC_CMD_FLUSH_SECDRAM		(-131)
+
+/* For D-GPIO/D-TZPC */
+#define SMC_CMD_PREAPRE_PD_ONOFF	(0x82000410)
+
+/* For FMP/SMU Ctrl */
+#define SMC_CMD_FMP_SECURITY		(0xC2001810)
+#define SMC_CMD_FMP_DISK_KEY_STORED	(0xC2001820)
+#define SMC_CMD_FMP_DISK_KEY_SET	(0xC2001830)
+#define SMC_CMD_FMP_DISK_KEY_CLEAR	(0xC2001840)
+#define SMC_CMD_SMU			(0xC2001850)
+#define SMC_CMD_FMP_SMU_RESUME		(0xC2001860)
+#define SMC_CMD_FMP_SMU_DUMP		(0xC2001870)
+#define SMC_CMD_UFS_LOG			(0xC2001880)
 
 /* Command ID for smc */
 #define SMC_PROTECTION_SET		(0x82002010)
@@ -33,10 +55,17 @@
 #define SMC_DCPP_SUPPORT		(0x82002012)
 #define SMC_DRM_SECBUF_PROT		(0x82002020)
 #define SMC_DRM_SECBUF_UNPROT		(0x82002021)
+#define SMC_DRM_G2D_CMD_DATA		(0x8200202d)
 #define SMC_DRM_SECBUF_CFW_PROT		(0x82002030)
 #define SMC_DRM_SECBUF_CFW_UNPROT	(0x82002031)
+#define SMC_DRM_PPMP_PROT		(0x82002110)
+#define SMC_DRM_PPMP_UNPROT		(0x82002111)
+#define SMC_DRM_PPMP_MFCFW_PROT		(0x82002112)
+#define SMC_DRM_PPMP_MFCFW_UNPROT	(0x82002113)
 #define MC_FC_SET_CFW_PROT		(0x82002040)
+#define SMC_DRM_SEC_SMMU_INFO		(0x820020D0)
 #define MC_FC_DRM_SET_CFW_PROT		(0x10000000)
+#define SMC_SRPMB_WSM			(0x82003811)
 
 /* Deprecated */
 #define SMC_DRM_MAKE_PGTABLE		(0x81000003)
@@ -49,21 +78,18 @@
 #define SMC_PROTECTION_ENABLE		(1)
 #define SMC_PROTECTION_DISABLE		(0)
 
-/* For FMP Ctrl */
-#if defined(CONFIG_SOC_EXYNOS7420) || defined(CONFIG_SOC_EXYNOS8890)
-#define SMC_CMD_FMP			(0xC2001810)
-#define SMC_CMD_SMU			(0xC2001820)
-#define SMC_CMD_RESUME			(0xC2001830)
-#else
-#define SMC_CMD_FMP			(0x81000020)
-#endif
-
 /* For DTRNG Access */
 #ifdef CONFIG_EXYRNG_USE_CRYPTOMANAGER
 #define SMC_CMD_RANDOM			(0x82001012)
 #else
 #define SMC_CMD_RANDOM			(0x81000030)
 #endif
+
+/* For Secure log information */
+#define SMC_CMD_SEC_LOG_INFO		(0x82000610)
+
+/* For connectivity I/F */
+#define SMC_CMD_CONN_IF			(0x82000710)
 
 /* MACRO for SMC_CMD_REG */
 #define SMC_REG_CLASS_CP15		(0x0 << 30)
@@ -82,39 +108,11 @@
 #define SMC_POWERSTATE_IDLE		(0x1)
 #define SMC_POWERSTATE_SWITCH		(0x2)
 
+
 /*
- * For SMC_CMD_FMP
- * Defined from Exynos7420
+ * For SMC CMD for SRPMB
  */
-#define FMP_KEY_STORE			(0x0)
-#define FMP_KEY_SET			(0x1)
-#define FMP_KEY_RESUME			(0x2)
-#define FMP_FW_INTEGRITY		(0x3)
-#define FMP_FW_SELFTEST			(0x4)
-#define FMP_FW_SHA2_TEST		(0x5)
-#define FMP_FW_HMAC_SHA2_TEST		(0x6)
-#define FMP_KEY_CLEAR			(0x7)
-#define FMP_SECURITY			(0x8)
-
-#define FMP_DESC_OFF			(0x0)
-#define FMP_DESC_ON			(0x1)
-
-#define FMP_SMU_OFF			(0x0)
-#define FMP_SMU_ON			(0x1)
-
-#define FMP_SMU_INIT			(0x0)
-#define FMP_SMU_SET			(0x1)
-#define FMP_SMU_RESUME			(0x2)
-#define FMP_SMU_DUMP			(0x3)
-
-#if defined(CONFIG_SOC_EXYNOS7420)
-#define UFS_FMP				(0x15572000)
-#define EMMC0_FMP			(0x15741000)
-#elif defined(CONFIG_SOC_EXYNOS8890)
-#define UFS_FMP				(0x155A2000)
-#define EMMC0_FMP			(0x15561000)
-#define EMMC2_FMP			(0x15741000)
-#endif
+#define SMC_SRPMB_WSM			(0x82003811)
 
 /* For DTRNG Access */
 #define HWRNG_INIT			(0x0)
@@ -135,17 +133,23 @@
 #define PROT_G0				(3)
 #define PROT_G1				(4)
 #define PROT_VG0			(5)
-#define PROT_VG1			(6)
+#define PROT_GF				(6)
 #define PROT_G2				(7)
 #define PROT_G3				(8)
 #define PROT_VGR0			(9)
-#define PROT_VGR1			(10)
+#define PROT_VGRF			(10)
 #define PROT_WB1			(11)
 #define PROT_G3D			(12)
 #define PROT_JPEG			(13)
 #define PROT_G2D			(14)
 
 #ifndef __ASSEMBLY__
+/* secure SysMMU SFR access */
+enum sec_sysmmu_sfr_access_t {
+	SEC_SMMU_SFR_READ,
+	SEC_SMMU_SFR_WRITE,
+};
+
 /* Return value from DRM LDFW */
 enum drmdrv_result_t {
 	DRMDRV_OK				= 0x0000,

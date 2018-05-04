@@ -10,6 +10,40 @@ config EXYNOS_CHIPID
 	depends on ARCH_EXYNOS
 	select SOC_BUS
 
+config CAL_IF
+	bool "Exynos Chip Abstraction Layer Interface"
+	help
+	  Support CMU CAL for Exynos SoC.
+
+config CMUCAL
+	bool "Exynos CMU Chip Abstraction Layer"
+	depends on CAL_IF
+	default y
+	help
+	Support CMUCAL for Exynos SoC.
+
+config CMUCAL_DEBUG
+	bool "CMUCAL Debug Interface"
+	depends on CMUCAL
+
+config CMUCAL_QCH_IGNORE_SUPPORT
+	bool "CMUCAL QCH IGNORE Support"
+	depends on CMUCAL
+
+config ACPM_DVFS
+	bool "Exynos ACPM DVFS manager"
+	depends on CAL_IF && CMUCAL
+	default n
+	help
+	Support ACPM DVFS for Exynos SoC.
+
+config PMUCAL
+	bool "Exynos PMU Chip Abstraction Layer"
+	depends on CAL_IF
+	default y
+	help
+	Support PMUCAL for Exynos SoC.
+
 config EXYNOS_PMU
 	bool "Exynos PMU controller driver" if COMPILE_TEST
 	depends on ARCH_EXYNOS || ((ARM || ARM64) && COMPILE_TEST)
