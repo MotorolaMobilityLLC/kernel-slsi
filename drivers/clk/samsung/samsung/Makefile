@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: GPL-2.0
 #
 # Samsung Clock specific Makefile
 #
 
 obj-$(CONFIG_SOC_EXYNOS3250)	+= clk-exynos3250.o
 obj-$(CONFIG_ARCH_EXYNOS4)	+= clk-exynos4.o
+obj-$(CONFIG_SOC_EXYNOS4415)	+= clk-exynos4415.o
 obj-$(CONFIG_SOC_EXYNOS5250)	+= clk-exynos5250.o
 obj-$(CONFIG_SOC_EXYNOS5260)	+= clk-exynos5260.o
 obj-$(CONFIG_SOC_EXYNOS5410)	+= clk-exynos5410.o
@@ -13,11 +13,15 @@ obj-$(CONFIG_SOC_EXYNOS5440)	+= clk-exynos5440.o
 obj-$(CONFIG_EXYNOS_AUDSS_CLK_CON) += clk-exynos-audss.o
 ifeq ($(CONFIG_COMPOSITE_CLK_SAMSUNG), y)
 	obj-y				+= composite.o
+	obj-$(CONFIG_SOC_EXYNOS8890)	+= clk-exynos8890.o
+	obj-$(CONFIG_SOC_EXYNOS8895)	+= clk-exynos8895.o
+	obj-$(CONFIG_SOC_EXYNOS9810_EVT1)	+= clk-exynos9810.o
+	obj-$(CONFIG_SOC_EXYNOS9810_EVT0)	+= clk-exynos9810_evt0.o
 	obj-$(CONFIG_SOC_EXYNOS9610)	+= clk-exynos9610.o
 else
 	obj-$(CONFIG_COMMON_CLK)	+= clk.o clk-pll.o clk-cpu.o
-	obj-$(CONFIG_EXYNOS_ARM64_COMMON_CLK)	+= clk-exynos5433.o
-	obj-$(CONFIG_EXYNOS_ARM64_COMMON_CLK)	+= clk-exynos7.o
+obj-$(CONFIG_EXYNOS_ARM64_COMMON_CLK)	+= clk-exynos5433.o
+obj-$(CONFIG_EXYNOS_ARM64_COMMON_CLK)	+= clk-exynos7.o
 endif
 obj-$(CONFIG_ARCH_EXYNOS)	+= clk-exynos-clkout.o
 obj-$(CONFIG_S3C2410_COMMON_CLK)+= clk-s3c2410.o
