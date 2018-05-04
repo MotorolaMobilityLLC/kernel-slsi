@@ -1412,6 +1412,46 @@
 		reg = <0x0 0x13410000 0x1020>;
 	};
 
+	/* DMA */
+	amba {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "arm,amba-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		pdma0: pdma0@120C0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x0 0x120C0000 0x1000>;
+			interrupts = <0 294 0>;
+			clocks = <&clock GATE_PDMA_CORE_QCH>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+			#dma-multi-irq = <1>;
+			dma-arwrapper = <0x120C4400>,
+					<0x120C4420>,
+					<0x120C4440>,
+					<0x120C4460>,
+					<0x120C4480>,
+					<0x120C44A0>,
+					<0x120C44C0>,
+					<0x120C44E0>;
+			dma-awwrapper = <0x120C4404>,
+					<0x120C4424>,
+					<0x120C4444>,
+					<0x120C4464>,
+					<0x120C4484>,
+					<0x120C44A4>,
+					<0x120C44C4>,
+					<0x120C44E4>;
+			dma-instwrapper = <0x120C4500>;
+			dma-mask-bit = <36>;
+			coherent-mask-bit = <36>;
+		};
+	};
+
 	watchdog_cl0@10050000 {
 		compatible = "samsung,exynos7-wdt";
 		reg = <0x0 0x10050000 0x100>;
