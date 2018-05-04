@@ -298,13 +298,25 @@ static void cluster_disable(unsigned int cpu_id)
 /******************************************************************************
  *                               CPU HOTPLUG                                  *
  ******************************************************************************/
+/* cpumask for indecating last cpu of a cluster */
+struct cpumask cpuhp_last_cpu;
+
+bool exynos_cpuhp_last_cpu(unsigned int cpu)
+{
+	return cpumask_test_cpu(cpu, &cpuhp_last_cpu);
+}
+
 static int cpuhp_cpupm_online(unsigned int cpu)
 {
 	struct cpumask mask;
 
 	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
-	if (cpumask_weight(&mask) == 0)
+	if (cpumask_weight(&mask) == 0) {
 		cluster_enable(cpu);
+		/* clear cpus of this cluster from cpuhp_last_cpu */
+		cpumask_andnot(&cpuhp_last_cpu,
+			&cpuhp_last_cpu, cpu_coregroup_mask(cpu));
+	}
 
 	cpu_enable(cpu);
 
@@ -318,8 +330,11 @@ static int cpuhp_cpupm_offline(unsigned int cpu)
 	cpu_disable(cpu);
 
 	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
-	if (cpumask_weight(&mask) == 0)
+	if (cpumask_weight(&mask) == 0) {
+		/* set cpu cpuhp_last_cpu */
+		cpumask_set_cpu(cpu, &cpuhp_last_cpu);
 		cluster_disable(cpu);
+	}
 
 	return 0;
 }

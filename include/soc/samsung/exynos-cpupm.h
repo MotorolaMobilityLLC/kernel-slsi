@@ -17,6 +17,10 @@ enum {
 	POWERMODE_TYPE_SYSTEM,
 };
 
+extern void disable_power_mode(int cpu, int type);
+extern void enable_power_mode(int cpu, int type);
+extern bool exynos_cpuhp_last_cpu(unsigned int cpu);
+
 #ifdef CONFIG_CPU_IDLE
 void exynos_update_ip_idle_status(int index, int idle);
 int exynos_get_idle_ip_index(const char *name);
