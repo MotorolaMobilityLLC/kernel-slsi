@@ -25,6 +25,7 @@
 #define EXYNOS5800_SOC_ID	0xE5422000
 #define EXYNOS8890_SOC_ID	0xE8890000
 #define EXYNOS9610_SOC_ID	0xE9610000
+#define EXYNOS9810_SOC_ID	0xE9810000
 
 #define EXYNOS_SOC_MASK		0xFFFFF000
 
@@ -34,6 +35,9 @@
 
 #define UNIQUE_ID1			0x14
 #define UNIQUE_ID2			0x18
+
+#define EXYNOS_MAIN_REV_1       0x10
+#define EXYNOS_MAIN_REV_2       0x20
 
 /**
  * Struct exynos_chipid_info
