@@ -30,6 +30,8 @@ config CMUCAL_QCH_IGNORE_SUPPORT
 	bool "CMUCAL QCH IGNORE Support"
 	depends on CMUCAL
 
+source "drivers/soc/samsung/acpm/Kconfig"
+
 config ACPM_DVFS
 	bool "Exynos ACPM DVFS manager"
 	depends on CAL_IF && CMUCAL

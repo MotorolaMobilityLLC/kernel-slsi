@@ -11,3 +11,6 @@ obj-$(CONFIG_EXYNOS_PMU)	+= exynos-pmu.o
 obj-$(CONFIG_EXYNOS_PM_DOMAINS) += pm_domains.o
 
 obj-$(CONFIG_EXYNOS_CHIPID)	+= exynos-chipid.o
+
+# ACPM
+obj-$(CONFIG_EXYNOS_ACPM)       += acpm/
