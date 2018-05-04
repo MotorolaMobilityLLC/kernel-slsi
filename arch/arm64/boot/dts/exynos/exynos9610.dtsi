@@ -127,9 +127,9 @@
 		use-physical-timer;
 	};
 
-	clock: clock-controller@0x11800000 {
+	clock: clock-controller@0x12100000 {
 		compatible = "samsung,exynos9610-clock";
-		reg = <0x0 0x11800000 0x8000>;
+		reg = <0x0 0x12100000 0x8000>;
 		#clock-cells = <1>;
 	};
 
