@@ -2110,19 +2110,19 @@ err_alloc_csi:
 int fimc_is_csi_dma_probe(struct fimc_is_device_csi_dma *csi_dma, struct platform_device *pdev)
 {
 	int ret = 0;
-	struct resource *mem_res = NULL;
+	struct resource *res;
 
 	/* Get SFR base register */
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, IORESOURCE_CSIS_DMA);
-	if (!mem_res) {
-		probe_err("Failed to get CSIS_DMA io memory region(%p)", mem_res);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, IORESOURCE_CSIS_DMA);
+	if (!res) {
+		probe_err("Failed to get CSIS_DMA io memory region(%p)", res);
 		ret = -EBUSY;
 		goto err_get_resource_csis_dma;
 	}
 
-	csi_dma->regs_start = mem_res->start;
-	csi_dma->regs_end = mem_res->end;
-	csi_dma->base_reg =  devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+	csi_dma->regs_start = res->start;
+	csi_dma->regs_end = res->end;
+	csi_dma->base_reg =  devm_ioremap_nocache(&pdev->dev, res->start, resource_size(res));
 	if (!csi_dma->base_reg) {
 		probe_err("Failed to remap CSIS_DMA io region(%p)", csi_dma->base_reg);
 		ret = -ENOMEM;
@@ -2138,9 +2138,9 @@ int fimc_is_csi_dma_probe(struct fimc_is_device_csi_dma *csi_dma, struct platfor
 		goto err_get_resource_stat_dma;
 	}
 
-	csi_dma->regs_start = mem_res->start;
-	csi_dma->regs_end = mem_res->end;
-	csi_dma->base_reg_stat =  devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+	csi_dma->regs_start = res->start;
+	csi_dma->regs_end = res->end;
+	csi_dma->base_reg_stat =  devm_ioremap_nocache(&pdev->dev, res->start, resource_size(res));
 	if (!csi_dma->base_reg_stat) {
 		probe_err("Failed to remap STAT_DMA io region(%p)", csi_dma->base_reg_stat);
 		ret = -ENOMEM;
