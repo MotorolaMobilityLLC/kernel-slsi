@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/phy/phy.h>
 #include <soc/samsung/bcm.h>
+#include <linux/fs.h>
 
 #include "fimc-is-debug.h"
 #include "fimc-is-config.h"
@@ -1860,152 +1861,172 @@ static const struct v4l2_subdev_ops subdev_ops = {
 	.pad = &pad_ops
 };
 
+#define VC_DMA_START	0
+#define VC_DMA_SIZE	1
+#define CMN_DMA_START	2
+#define CMN_DMA_SIZE	3
+#define NUM_VC_DMA_RES	4
 int fimc_is_csi_probe(void *parent, u32 instance)
 {
-	int i = 0;
+	int vc, m;
 	int ret = 0;
 	struct v4l2_subdev *subdev_csi;
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_device_sensor *device = parent;
-	struct resource *mem_res;
-	struct platform_device *pdev;
 	struct fimc_is_core *core;
-	int num_resource;
-	int cnt_resource = 0;
+	struct resource *res;
+	struct platform_device *pdev;
+	struct device *dev;
+	struct device_node *dnode, *child;
+	u32 dma_res[CSI_VIRTUAL_CH_MAX * NUM_VC_DMA_RES];
+	char *irq_name;
+	int elems;
+	int cnt_of_ch_mode = 0;
 
 	FIMC_BUG(!device);
 
-	subdev_csi = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
-	if (!subdev_csi) {
-		merr("subdev_csi is NULL", device);
-		ret = -ENOMEM;
-		goto p_err;
-	}
-	device->subdev_csi = subdev_csi;
-	core = device->private_data;
-
-	csi = kzalloc(sizeof(struct fimc_is_device_csi), GFP_KERNEL);
-	if (!csi) {
-		merr("csi is NULL", device);
-		ret = -ENOMEM;
-		goto p_err_free1;
-	}
-
-	/* Get SFR base register */
 	pdev = device->pdev;
+	dev = &pdev->dev;
+	dnode = dev->of_node;
 
-	num_resource = of_property_count_elems_of_size(pdev->dev.of_node, "reg", sizeof(u32)) / 3;
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, cnt_resource++);
-	if (!mem_res) {
-		probe_err("Failed to get io memory region(%p)", mem_res);
-		ret = -EBUSY;
-		goto err_get_resource;
+	csi = devm_kzalloc(dev, sizeof(struct fimc_is_device_csi), GFP_KERNEL);
+	if (!csi) {
+		merr("failed to alloc memory for CSI device", device);
+		ret = -ENOMEM;
+		goto err_alloc_csi;
 	}
 
-	csi->regs_start = mem_res->start;
-	csi->regs_end = mem_res->end;
-	csi->base_reg = devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+	/* CSI */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csi");
+	if (!res) {
+		probe_err("failed to get memory resource for CSI");
+		ret = -ENODEV;
+		goto err_get_csi_res;
+	}
+
+	csi->regs_start = res->start;
+	csi->regs_end = res->end;
+	csi->base_reg = devm_ioremap_nocache(dev, res->start, resource_size(res));
 	if (!csi->base_reg) {
-		probe_err("Failed to remap io region(%p)", csi->base_reg);
+		probe_err("can't ioremap for CSI");
 		ret = -ENOMEM;
-		goto err_get_resource;
+		goto err_ioremap_csi;
+	}
+
+	csi->irq = platform_get_irq_byname(pdev, "csi");
+	if (csi->irq < 0) {
+		probe_err("failed to get IRQ resource for CSI: %d", csi->irq);
+		ret = csi->irq;
+		goto err_get_csi_irq;
 	}
 
 	/* PHY */
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, cnt_resource++);
-	if (!mem_res) {
-		probe_err("Failed to get io memory region(%p)", mem_res);
-		ret = -EBUSY;
-		goto err_get_resource;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
+	if (!res) {
+		probe_err("failed to get memory resource for PHY");
+		ret = -ENODEV;
+		goto err_get_phy_res;
 	}
 
-	csi->phy_reg = devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+	csi->phy_reg = devm_ioremap_nocache(dev, res->start, resource_size(res));
 	if (!csi->phy_reg) {
-		probe_err("Failed to remap phy io region(%p)", csi->phy_reg);
+		probe_err("can't ioremap for PHY");
 		ret = -ENOMEM;
-		goto err_get_resource;
+		goto err_ioremap_phy;
 	}
 
-	csi->num_of_scm = device->pdata->num_of_ch_mode;
-
-	/* VC DMA */
-	i = 0;
-	while (cnt_resource < num_resource) {
-		mem_res = platform_get_resource(pdev, IORESOURCE_MEM, cnt_resource++);
-		if (!mem_res) {
-			probe_err("Failed to get io memory region(CSIS VCDMA[%d])(%p)", i, mem_res);
-			ret = -EBUSY;
-			goto err_get_resource;
-		}
-
-		csi->vc_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]
-			= devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
-		if (!csi->vc_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]) {
-			probe_err("Failed to remap io region(CSIS VCDMA[%d])(%p)", i, csi->vc_reg[i]);
-			ret = -ENOMEM;
-			goto err_get_resource;
-		}
-
-		mem_res = platform_get_resource(pdev, IORESOURCE_MEM, cnt_resource++);
-		if (!mem_res) {
-			probe_err("Failed to get io memory region(CSIS VCDMA CMN[%d])(%p)", i, mem_res);
-			ret = -EBUSY;
-			goto err_get_resource;
-		}
-
-		csi->cmn_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]
-			= devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
-		if (!csi->cmn_reg[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]) {
-			probe_err("Failed to remap io region(CSIS VCDMA CMN[%d])(%p)", i, csi->cmn_reg[i]);
-			ret = -ENOMEM;
-			goto err_get_resource;
-		}
-		i++;
+	csi->phy = devm_phy_get(dev, "csis_dphy");
+	if (IS_ERR(csi->phy)) {
+		probe_err("failed to get PHY device for CSI");
+		ret = PTR_ERR(csi->phy);
+		goto err_get_phy_dev;
 	}
-
-	num_resource = of_property_count_elems_of_size(pdev->dev.of_node, "interrupts", sizeof(u32)) / 3;
-	cnt_resource = 0;
-
-	/* Get CORE IRQ SPI number */
-	csi->irq = platform_get_irq(pdev, cnt_resource++);
-	if (csi->irq < 0) {
-		probe_err("Failed to get csi_irq(%d)", csi->irq);
-		ret = -EBUSY;
-		goto err_get_irq;
-	}
-
-	/* Get DMA IRQ SPI number */
-	i = 0;
-	while (cnt_resource <  num_resource) {
-		csi->vc_irq[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]
-			= platform_get_irq(pdev, cnt_resource++);
-		if (csi->vc_irq[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX] < 0) {
-			probe_err("Failed to get vc%d DMA irq(%d)", i,
-				csi->vc_irq[i / CSI_VIRTUAL_CH_MAX][i % CSI_VIRTUAL_CH_MAX]);
-			ret = -EBUSY;
-			goto err_get_irq;
-		}
-		i++;
-	}
-
-	csi->phy = devm_phy_get(&pdev->dev, "csis_dphy");
-	if (IS_ERR(csi->phy))
-		return PTR_ERR(csi->phy);
 
 #if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	csi->extra_phy = devm_phy_get(&pdev->dev, "extra_csis_dphy");
+	csi->extra_phy = devm_phy_get(dev, "extra_csis_dphy");
 	if (IS_ERR(csi->extra_phy))
 		csi->extra_phy = NULL;
 #endif
 
-	/* pointer to me from device sensor */
+	irq_name = __getname();
+	if (unlikely(!irq_name)) {
+		ret = -ENOMEM;
+		goto err_alloc_irq_name;
+	}
+
+	/* sub-device channel mode */
+	for_each_child_of_node(dnode, child) {
+		elems = of_property_count_elems_of_size(child, "reg",
+					sizeof(u32) * NUM_VC_DMA_RES);
+		if (elems != CSI_VIRTUAL_CH_MAX) {
+			probe_err("insufficient VC DMA memory resources(%d)", elems);
+			ret = -EINVAL;
+			goto err_get_vc_dma_res;
+		}
+
+		ret = of_property_read_u32_array(child, "reg", dma_res,
+					CSI_VIRTUAL_CH_MAX * NUM_VC_DMA_RES);
+		if (ret) {
+			probe_err("failed to get VC DMA memory resources");
+			goto err_read_vc_dma_res;
+		}
+
+		for (vc = 0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
+			csi->vc_reg[cnt_of_ch_mode][vc] = devm_ioremap_nocache(dev,
+					dma_res[(vc * NUM_VC_DMA_RES) + VC_DMA_START],
+					dma_res[(vc * NUM_VC_DMA_RES) + VC_DMA_SIZE]);
+			if (!csi->vc_reg[cnt_of_ch_mode][vc]) {
+				probe_err("failed to ioremap VC[%d] DMA memory for mode: %d",
+						vc, cnt_of_ch_mode);
+				ret = -ENOMEM;
+				goto err_ioremap_vc_dma_mem;
+			}
+
+			csi->cmn_reg[cnt_of_ch_mode][vc] = devm_ioremap_nocache(dev,
+					dma_res[(vc * NUM_VC_DMA_RES) + CMN_DMA_START],
+					dma_res[(vc * NUM_VC_DMA_RES) + CMN_DMA_SIZE]);
+			if (!csi->cmn_reg[cnt_of_ch_mode][vc]) {
+				probe_err("failed to ioremap CMN[%d] DMA memory for mode: %d",
+						vc, cnt_of_ch_mode);
+				ret = -ENOMEM;
+				goto err_ioremap_cmn_dma_mem;
+			}
+
+			snprintf(irq_name, PATH_MAX, "mode%d_VC%d", cnt_of_ch_mode, vc);
+			csi->vc_irq[cnt_of_ch_mode][vc] = platform_get_irq_byname(pdev, irq_name);
+			if (csi->vc_irq[cnt_of_ch_mode][vc] < 0) {
+				probe_err("invalid VC[%d] DMA IRQ for mode: %d",
+						vc, cnt_of_ch_mode);
+				ret = -EINVAL;
+				goto err_get_dma_irq;
+
+			}
+		}
+
+		cnt_of_ch_mode++;
+	}
+
+	if ((device->dma_abstract) && (device->num_of_ch_mode > cnt_of_ch_mode)) {
+		probe_err("too many sensor ch. modes sensor: %d, csi: %d",
+				device->num_of_ch_mode, cnt_of_ch_mode);
+		ret = -EINVAL;
+		goto err_too_many_ch_modes;
+	}
+
+	subdev_csi = devm_kzalloc(dev, sizeof(struct v4l2_subdev), GFP_KERNEL);
+	if (!subdev_csi) {
+		merr("subdev_csi is NULL", device);
+		ret = -ENOMEM;
+		goto err_alloc_subdev_csi;
+	}
+
+	device->subdev_csi = subdev_csi;
+
 	csi->subdev = &device->subdev_csi;
+	core = device->private_data;
+	csi->csi_dma = &core->csi_dma;
 
 	csi->instance = instance;
-
-	/* Get common dma */
-	csi->csi_dma = &core->csi_dma;
 
 	/* default state setting */
 	clear_bit(CSIS_SET_MULTIBUF_VC1, &csi->state);
@@ -2014,8 +2035,8 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 	set_bit(CSIS_DMA_ENABLE, &csi->state);
 
 	/* init dma subdev slots */
-	for (i = CSI_VIRTUAL_CH_0; i < CSI_VIRTUAL_CH_MAX; i++)
-		csi->dma_subdev[i] = NULL;
+	for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++)
+		csi->dma_subdev[vc] = NULL;
 
 	csi->workqueue = alloc_workqueue("fimc-csi/[H/U]", WQ_HIGHPRI | WQ_UNBOUND, 0);
 	if (!csi->workqueue)
@@ -2033,22 +2054,56 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 		goto err_reg_v4l2_subdev;
 	}
 
-	info("[%d][FRT:D] %s(%d)\n", instance, __func__, ret);
+	info("[%d][CSI:D] %s(%d)\n", instance, __func__, ret);
 	return 0;
 
 err_reg_v4l2_subdev:
-err_get_irq:
-	iounmap(csi->base_reg);
-
-err_get_resource:
-	kfree(csi);
-
-p_err_free1:
-	kfree(subdev_csi);
+	devm_kfree(dev, subdev_csi);
 	device->subdev_csi = NULL;
 
-p_err:
-	err("[%d][FRT:D] %s(%d)\n", instance, __func__, ret);
+err_alloc_subdev_csi:
+err_too_many_ch_modes:
+err_get_dma_irq:
+	for (m = 0; m < SCM_MAX; m++)
+		for (vc = 0; vc < CSI_VIRTUAL_CH_MAX; vc++)
+			csi->vc_irq[m][vc] = -ENXIO;
+
+err_ioremap_cmn_dma_mem:
+err_ioremap_vc_dma_mem:
+	for (m = 0; m < SCM_MAX; m++) {
+		for (vc = 0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
+			if (csi->vc_reg[m][vc])
+				devm_iounmap(dev, csi->vc_reg[m][vc]);
+
+			if (csi->cmn_reg[m][vc])
+				devm_iounmap(dev, csi->cmn_reg[m][vc]);
+		}
+	}
+
+err_read_vc_dma_res:
+err_get_vc_dma_res:
+	__putname(irq_name);
+
+err_alloc_irq_name:
+#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
+	devm_phy_put(dev, csi->extra_phy);
+#endif
+	devm_phy_put(dev, csi->phy);
+
+err_get_phy_dev:
+	devm_iounmap(dev, csi->phy_reg);
+
+err_ioremap_phy:
+err_get_phy_res:
+err_get_csi_irq:
+	devm_iounmap(dev, csi->base_reg);
+
+err_ioremap_csi:
+err_get_csi_res:
+	devm_kfree(dev, csi);
+
+err_alloc_csi:
+	err("[%d][CSI:D] %s: %d", instance, __func__, ret);
 	return ret;
 }
 
