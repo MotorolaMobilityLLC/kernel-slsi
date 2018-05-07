@@ -420,6 +420,7 @@ struct fimc_is_device_sensor {
 	u32						sensor_width;
 	u32						sensor_height;
 
+	int						num_of_ch_mode;
 	bool						dma_abstract;
 	u32						use_standby;
 	u32						sstream;

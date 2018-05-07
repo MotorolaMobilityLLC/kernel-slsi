@@ -1594,8 +1594,10 @@ static int __init fimc_is_sensor_probe(struct platform_device *pdev)
 	/* DMA abstraction */
 	device->dma_abstract = device->pdata->dma_abstract;
 	if (device->dma_abstract) {
+		device->num_of_ch_mode = device->pdata->num_of_ch_mode;
+
 		for (scm = SCM_WO_PAF_HW;
-			(scm < device->pdata->num_of_ch_mode) && (scm < SCM_MAX); scm++) {
+			(scm < device->num_of_ch_mode) && (scm < SCM_MAX); scm++) {
 			/* DMA abstraction */
 			device->ssvc0.dma_ch[scm]
 				= device->pdata->dma_ch[(scm * CSI_VIRTUAL_CH_MAX) + CSI_VIRTUAL_CH_0];

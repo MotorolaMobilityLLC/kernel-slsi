@@ -1748,9 +1748,9 @@ static int csi_s_format(struct v4l2_subdev *subdev,
 	else
 		csi->scm = SCM_W_PAF_HW;
 
-	if (csi->scm >= csi->num_of_scm) {
+	if (csi->scm >= device->num_of_ch_mode) {
 		merr("invalid sub-device channel mode(%d/%d)", csi,
-				csi->scm, csi->num_of_scm);
+				csi->scm, device->num_of_ch_mode);
 		return -EINVAL;
 	}
 
