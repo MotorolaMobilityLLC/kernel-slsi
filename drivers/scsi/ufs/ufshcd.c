@@ -252,10 +252,12 @@ static int ufshcd_uic_hibern8_enter(struct ufs_hba *hba);
 static int ufshcd_link_hibern8_ctrl(struct ufs_hba *hba, bool en);
 static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba);
 static int ufshcd_host_reset_and_restore(struct ufs_hba *hba);
+#if defined(CONFIG_PM_DEVFREQ)
 static void ufshcd_resume_clkscaling(struct ufs_hba *hba);
 static void ufshcd_suspend_clkscaling(struct ufs_hba *hba);
 static void __ufshcd_suspend_clkscaling(struct ufs_hba *hba);
 static int ufshcd_scale_clks(struct ufs_hba *hba, bool scale_up);
+#endif
 static irqreturn_t ufshcd_intr(int irq, void *__hba);
 static int ufshcd_change_power_mode(struct ufs_hba *hba,
 			     struct ufs_pa_layer_attr *pwr_mode);
@@ -5915,7 +5917,9 @@ static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	tag = cmd->request->tag;
 
 	/* secure log */
+#ifdef CONFIG_EXYNOS_SMC_LOGGING
 	exynos_smc(SMC_CMD_UFS_LOG, 1, 0, hba->secure_log.paddr);
+#endif
 
 	/* Dump debugging information to system memory */
 	ufshcd_vops_dbg_register_dump(hba);
@@ -6010,7 +6014,9 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		return ufshcd_eh_host_reset_handler(cmd);
 
 	/* secure log */
+#ifdef CONFIG_EXYNOS_SMC_LOGGING
 	exynos_smc(SMC_CMD_UFS_LOG, 1, 0, hba->secure_log.paddr);
+#endif
 
 	if (cmd->cmnd[0] == READ_10 || cmd->cmnd[0] == WRITE_10) {
 		unsigned long lba = (unsigned long) ((cmd->cmnd[2] << 24) |
@@ -6188,8 +6194,10 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 	ufshcd_hba_stop(hba, false);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
+#if defined(CONFIG_PM_DEVFREQ)
 	/* scale up clocks to max frequency before full reinitialization */
 	ufshcd_scale_clks(hba, true);
+#endif
 
 	/* Establish the link again and restore the device */
 #ifdef CONFIG_SCSI_UFS_ASYNC_RELINK
@@ -6835,10 +6843,12 @@ retry:
 				sizeof(struct ufs_pa_layer_attr));
 			hba->clk_scaling.saved_pwr_info.is_valid = true;
 			if (!hba->devfreq) {
+#if defined(CONFIG_PM_DEVFREQ)
 				hba->devfreq = devm_devfreq_add_device(hba->dev,
 							&ufs_devfreq_profile,
 							"simple_ondemand",
 							NULL);
+#endif
 				if (IS_ERR(hba->devfreq)) {
 					ret = PTR_ERR(hba->devfreq);
 					dev_err(hba->dev, "Unable to register with devfreq %d\n",
@@ -7654,10 +7664,14 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 	if (hba->is_powered) {
 		ufshcd_variant_hba_exit(hba);
 		ufshcd_setup_vreg(hba, false);
+#if defined(CONFIG_PM_DEVFREQ)
 		ufshcd_suspend_clkscaling(hba);
+#endif
 		if (ufshcd_is_clkscaling_supported(hba)) {
+#if defined(CONFIG_PM_DEVFREQ)
 			if (hba->devfreq)
 				ufshcd_suspend_clkscaling(hba);
+#endif
 			destroy_workqueue(hba->clk_scaling.workq);
 		}
 		ufshcd_setup_clocks(hba, false);
@@ -7954,7 +7968,9 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	if (hba->clk_scaling.is_allowed) {
 		cancel_work_sync(&hba->clk_scaling.suspend_work);
 		cancel_work_sync(&hba->clk_scaling.resume_work);
+#if defined(CONFIG_PM_DEVFREQ)
 		ufshcd_suspend_clkscaling(hba);
+#endif
 	}
 
 	if (req_dev_pwr_mode == UFS_ACTIVE_PWR_MODE &&
@@ -8048,8 +8064,10 @@ disable_clks:
 	goto out;
 
 set_link_active:
+#if defined(CONFIG_PM_DEVFREQ)
 	if (hba->clk_scaling.is_allowed)
 		ufshcd_resume_clkscaling(hba);
+#endif
 
 	if (ufshcd_is_shutdown_pm(pm_op))
 		goto out;
@@ -8073,9 +8091,11 @@ set_dev_active:
 	if (!ufshcd_set_dev_pwr_mode(hba, UFS_ACTIVE_PWR_MODE))
 		ufshcd_disable_auto_bkops(hba);
 enable_gating:
+#if defined(CONFIG_PM_DEVFREQ)
 	if (hba->clk_scaling.is_allowed)
 		ufshcd_resume_clkscaling(hba);
 	hba->clk_gating.is_suspended = false;
+#endif
 	ufshcd_release(hba);
 out:
 	hba->pm_op_in_progress = 0;
@@ -8200,8 +8220,10 @@ vendor_suspend:
 	ufshcd_vops_suspend(hba, pm_op);
 disable_irq_and_vops_clks:
 	ufshcd_disable_irq(hba);
+#if defined(CONFIG_PM_DEVFREQ)
 	if (hba->clk_scaling.is_allowed)
 		ufshcd_suspend_clkscaling(hba);
+#endif
 
 	if (gating_allowed)
 		ufshcd_setup_clocks(hba, false);
