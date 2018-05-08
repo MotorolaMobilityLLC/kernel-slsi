@@ -96,6 +96,9 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 	u32 ret;
 
 	pafstat = data;
+	if (pafstat == NULL)
+		return IRQ_NONE;
+
 	irq_src = pafstat_hw_g_irq_src(pafstat->regs);
 	irq_mask = pafstat_hw_g_irq_mask(pafstat->regs);
 	status = (~irq_mask) & irq_src;
@@ -559,7 +562,7 @@ static int __init pafstat_probe(struct platform_device *pdev)
 	snprintf(irq_name, sizeof(irq_name), "pafstat%d", id);
 	ret = request_irq(pafstat->irq,
 			fimc_is_isr_pafstat,
-			FIMC_IS_HW_IRQ_FLAG,
+			FIMC_IS_HW_IRQ_FLAG | IRQF_SHARED,
 			irq_name,
 			pafstat);
 	if (ret) {
