@@ -1361,28 +1361,25 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 	if (test_bit(CSIS_START_STREAM, &csi->state)) {
 		merr("[CSI] already start", csi);
 		ret = -EINVAL;
-		goto p_err;
+		goto err_start_already;
 	}
 
 	sensor_cfg = csi->sensor_cfg;
 	if (!sensor_cfg) {
 		merr("[CSI] sensor cfg is null", csi);
 		ret = -EINVAL;
-		goto p_err;
+		goto err_invalid_sensor_cfg;
 	}
 
 	base_reg = csi->base_reg;
 
 	if (test_bit(CSIS_DMA_ENABLE, &csi->state)) {
 		/* Registeration of CSIS CORE IRQ */
-		ret = request_irq(csi->irq,
-				fimc_is_isr_csi,
-				FIMC_IS_HW_IRQ_FLAG,
-				"mipi-csi",
-				csi);
+		ret = request_irq(csi->irq, fimc_is_isr_csi,
+				FIMC_IS_HW_IRQ_FLAG, "CSI", csi);
 		if (ret) {
-			merr("request_irq(IRQ_MIPICSI %d) is fail(%d)", csi, csi->irq, ret);
-			goto p_err;
+			merr("failed to request IRQ for CSI(%d): %d", csi, csi->irq, ret);
+			goto err_req_csi_irq;
 		}
 		csi_hw_s_irq_msk(base_reg, true);
 
@@ -1399,14 +1396,12 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 			if (test_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state))
 				continue;
 
-			ret = request_irq(csi->vc_irq[csi->scm][vc],
-				fimc_is_isr_csi_dma,
-				FIMC_IS_HW_IRQ_FLAG,
-				"csi-vcdma",
-				csi);
+			ret = request_irq(csi->vc_irq[csi->scm][vc], fimc_is_isr_csi_dma,
+				FIMC_IS_HW_IRQ_FLAG, "CAMIF.DMA", csi);
 			if (ret) {
-				merr("request_irq(IRQ_VCDMA %d) is fail(%d)", csi, csi->vc_irq[csi->scm][vc], ret);
-				goto p_err;
+				merr("failed to request IRQ for DMA(%d) VC[%d] mode(%d): %d",
+					csi, csi->vc_irq[csi->scm][vc], vc, csi->scm, ret);
+				goto err_req_dma_irq;
 			}
 			csi_hw_s_dma_irq_msk(csi->cmn_reg[csi->scm][vc], true);
 			set_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state);
@@ -1416,7 +1411,7 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 	if (!device->cfg) {
 		merr("[CSI] cfg is NULL", csi);
 		ret = -EINVAL;
-		goto p_err;
+		goto err_invalid_device_cfg;
 	}
 
 	settle = device->cfg->settle;
@@ -1446,14 +1441,14 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 	ret = csi_hw_s_phy_config(csi->phy_reg, sensor_cfg->lanes, sensor_cfg->mipi_speed, settle, csi->instance);
 	if (ret) {
 		merr("[CSI] csi_hw_s_phy_config is fail", csi);
-		goto p_err;
+		goto err_config_phy;
 	}
 
 	/* PHY be configured in PHY driver */
 	ret = csi_hw_s_phy_set(csi->phy, sensor_cfg->lanes, sensor_cfg->mipi_speed, settle, csi->instance);
 	if (ret) {
 		merr("[CSI] csi_hw_s_phy_set is fail", csi);
-		goto p_err;
+		goto err_set_phy;
 	}
 
 	csi_hw_s_lane(base_reg, &csi->image, sensor_cfg->lanes, sensor_cfg->mipi_speed);
@@ -1537,7 +1532,7 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 	if (atomic_inc_return(&csi_dma->rcount) == 1) {
 		ret = get_dma(device, &dma_ch);
 		if (ret)
-			goto p_err;
+			goto err_get_dma;
 		/* FIXME: 10KB 10KB 5KB -> 36KB, 36KB, 8KB, 16KB */
 		csi_hw_s_dma_common_dynamic(csi_dma->base_reg, 10 * SZ_1K, dma_ch);
 #if defined(ENABLE_PDP_STAT_DMA)
@@ -1563,14 +1558,41 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 	}
 
 	set_bit(CSIS_START_STREAM, &csi->state);
-p_err:
+
+	return 0;
+
+err_get_dma:
+	atomic_dec(&csi_dma->rcount);
+	spin_unlock(&csi_dma->barrier);
+
+	for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++)
+		csi_s_output_dma(csi, vc, false);
+
+err_config_phy:
+err_set_phy:
+err_invalid_device_cfg:
+err_req_dma_irq:
+	for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
+		if (!test_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state))
+			continue;
+
+		clear_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state);
+		csi_hw_s_dma_irq_msk(csi->cmn_reg[csi->scm][vc], false);
+		free_irq(csi->vc_irq[csi->scm][vc], csi);
+	}
+
+	csi_hw_s_irq_msk(base_reg, false);
+	free_irq(csi->irq, csi);
+
+err_req_csi_irq:
+err_invalid_sensor_cfg:
+err_start_already:
 	return ret;
 }
 
 static int csi_stream_off(struct v4l2_subdev *subdev,
 	struct fimc_is_device_csi *csi)
 {
-	int ret = 0;
 	int vc;
 	u32 __iomem *base_reg;
 	struct fimc_is_device_sensor *device = v4l2_get_subdev_hostdata(subdev);
@@ -1581,8 +1603,7 @@ static int csi_stream_off(struct v4l2_subdev *subdev,
 
 	if (!test_bit(CSIS_START_STREAM, &csi->state)) {
 		merr("[CSI] already stop", csi);
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	base_reg = csi->base_reg;
@@ -1591,14 +1612,6 @@ static int csi_stream_off(struct v4l2_subdev *subdev,
 
 	csi_hw_reset(base_reg);
 
-	/*
-	 * DMA HW doesn't have own reset register.
-	 * So, all virtual ch dma should be disabled
-	 * because previous state is remained after stream on.
-	 */
-	for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++)
-		csi_s_output_dma(csi, vc, false);
-
 	spin_lock(&csi_dma->barrier);
 	atomic_dec(&csi_dma->rcount);
 	spin_unlock(&csi_dma->barrier);
@@ -1606,21 +1619,25 @@ static int csi_stream_off(struct v4l2_subdev *subdev,
 	if (!test_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->state))
 		tasklet_kill(&csi->tasklet_csis_line);
 
-	if (!test_bit(CSIS_DMA_ENABLE, &csi->state))
-		goto p_dma_skip;
+	if (test_bit(CSIS_DMA_ENABLE, &csi->state)) {
+		tasklet_kill(&csi->tasklet_csis_str);
+		tasklet_kill(&csi->tasklet_csis_end);
 
-	tasklet_kill(&csi->tasklet_csis_str);
-	tasklet_kill(&csi->tasklet_csis_end);
+		for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
+			/*
+			 * DMA HW doesn't have own reset register.
+			 * So, all virtual ch dma should be disabled
+			 * because previous state is remained after stream on.
+			 */
+			csi_s_output_dma(csi, vc, false);
 
-	for (vc = CSI_VIRTUAL_CH_0; vc < CSI_VIRTUAL_CH_MAX; vc++) {
-		if (csi->dma_subdev[vc]) {
-			ret = flush_work(&csi->wq_csis_dma[vc]);
-			if (ret)
-				minfo("[CSI] flush_work executed! vc(%d)\n", csi, vc);
+			if (csi->dma_subdev[vc])
+				if (flush_work(&csi->wq_csis_dma[vc]))
+					minfo("[CSI] flush_work executed! vc(%d)\n", csi, vc);
 		}
-	}
 
-	csis_flush_all_vc_buf_done(csi, VB2_BUF_STATE_ERROR);
+		csis_flush_all_vc_buf_done(csi, VB2_BUF_STATE_ERROR);
+	}
 
 	atomic_set(&csi->vvalid, 0);
 
@@ -1637,10 +1654,9 @@ static int csi_stream_off(struct v4l2_subdev *subdev,
 		clear_bit(csi->vc_irq[csi->scm][vc] % BITS_PER_LONG, &csi->vc_irq_state);
 	}
 
-p_dma_skip:
 	clear_bit(CSIS_START_STREAM, &csi->state);
-p_err:
-	return ret;
+
+	return 0;
 }
 
 static int csi_s_stream(struct v4l2_subdev *subdev, int enable)
