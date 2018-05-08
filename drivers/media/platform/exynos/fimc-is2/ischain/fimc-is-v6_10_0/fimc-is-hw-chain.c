@@ -1071,6 +1071,7 @@ int fimc_is_hw_get_irq(void *itfc_data, void *pdev_data, int hw_id)
 static inline int __fimc_is_hw_request_irq(struct fimc_is_interface_hwip *itf_hwip,
 	const char *name,
 	int isr_num,
+	unsigned int added_irq_flags,
 	irqreturn_t (*func)(int, void *))
 {
 	size_t name_len = 0;
@@ -1079,7 +1080,7 @@ static inline int __fimc_is_hw_request_irq(struct fimc_is_interface_hwip *itf_hw
 	name_len = sizeof(itf_hwip->irq_name[isr_num]);
 	snprintf(itf_hwip->irq_name[isr_num], name_len, "fimc%s-%d", name, isr_num);
 	ret = request_irq(itf_hwip->irq[isr_num], func,
-		FIMC_IS_HW_IRQ_FLAG,
+		FIMC_IS_HW_IRQ_FLAG | added_irq_flags,
 		itf_hwip->irq_name[isr_num],
 		itf_hwip);
 	if (ret) {
@@ -1104,28 +1105,29 @@ int fimc_is_hw_request_irq(void *itfc_data, int hw_id)
 
 	switch (hw_id) {
 	case DEV_HW_3AA0:
-		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa0", INTR_HWIP1, fimc_is_isr1_3aa0);
-		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa0", INTR_HWIP2, fimc_is_isr2_3aa0);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa0", INTR_HWIP1, IRQF_TRIGGER_NONE, fimc_is_isr1_3aa0);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa0", INTR_HWIP2, IRQF_TRIGGER_NONE, fimc_is_isr2_3aa0);
 		break;
 	case DEV_HW_3AA1:
-		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa1", INTR_HWIP1, fimc_is_isr1_3aa1);
-		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa1", INTR_HWIP2, fimc_is_isr2_3aa1);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa1", INTR_HWIP1, IRQF_TRIGGER_NONE, fimc_is_isr1_3aa1);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "3aa1", INTR_HWIP2, IRQF_TRIGGER_NONE, fimc_is_isr2_3aa1);
 		break;
 	case DEV_HW_ISP0:
-		ret = __fimc_is_hw_request_irq(itf_hwip, "isp0", INTR_HWIP1, fimc_is_isr1_isp);
-		ret = __fimc_is_hw_request_irq(itf_hwip, "isp0", INTR_HWIP2, fimc_is_isr2_isp);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "isp0", INTR_HWIP1, IRQF_TRIGGER_NONE, fimc_is_isr1_isp);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "isp0", INTR_HWIP2, IRQF_TRIGGER_NONE, fimc_is_isr2_isp);
 		break;
 	case DEV_HW_MCSC0:
-		ret = __fimc_is_hw_request_irq(itf_hwip, "mcs0", INTR_HWIP1, fimc_is_isr1_mcs);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "mcs0", INTR_HWIP1, IRQF_TRIGGER_NONE, fimc_is_isr1_mcs);
 		break;
 	case DEV_HW_VRA:
-		ret = __fimc_is_hw_request_irq(itf_hwip, "vra", INTR_HWIP2, fimc_is_isr1_vra); /* VRA CH1 */
+		/* VRA CH1 */
+		ret = __fimc_is_hw_request_irq(itf_hwip, "vra", INTR_HWIP2, IRQF_TRIGGER_NONE, fimc_is_isr1_vra);
 		break;
 	case DEV_HW_PAF0:
-		ret = __fimc_is_hw_request_irq(itf_hwip, "paf0", INTR_HWIP1, fimc_is_isr1_paf0);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "paf0", INTR_HWIP1, IRQF_SHARED, fimc_is_isr1_paf0);
 		break;
 	case DEV_HW_PAF1:
-		ret = __fimc_is_hw_request_irq(itf_hwip, "paf1", INTR_HWIP1, fimc_is_isr1_paf1);
+		ret = __fimc_is_hw_request_irq(itf_hwip, "paf1", INTR_HWIP1, IRQF_SHARED, fimc_is_isr1_paf1);
 		break;
 	default:
 		probe_err("hw_id(%d) is invalid", hw_id);
