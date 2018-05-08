@@ -706,6 +706,8 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 	pInStr->StreamBufferSize = (unsigned int)vb2_plane_size(&dst_mb->vb.vb2_buf, 0);
 	pInStr->StreamBufferSize = ALIGN(pInStr->StreamBufferSize, 512);
 
+	mfc_debug(2, "NAL Q: enc dst addr: 0x%x\n", pInStr->StreamBufferAddr);
+
 	index = src_mb->vb.vb2_buf.index;
 	if (call_cop(ctx, set_buf_ctrls_val_nal_q_enc, ctx, &ctx->src_ctrls[index], pInStr) < 0)
 		mfc_err_ctx("NAL Q: failed in set_buf_ctrals_val in nal q\n");
@@ -1574,23 +1576,25 @@ leave_handle_frame:
 	mfc_debug_leave();
 }
 
-void mfc_nal_q_handle_error(struct s5p_mfc_ctx *ctx, EncoderOutputStr *pOutStr)
+int mfc_nal_q_handle_error(struct s5p_mfc_ctx *ctx, EncoderOutputStr *pOutStr, int err)
 {
 	struct s5p_mfc_dev *dev;
 	struct s5p_mfc_dec *dec;
+	struct s5p_mfc_enc *enc;
 	struct s5p_mfc_buf *src_mb;
+	int stop_nal_q = 1;
 
 	mfc_debug_enter();
 
 	if (!ctx) {
 		mfc_err_dev("NAL Q: no mfc context to run\n");
-		return;
+		goto end;
 	}
 
 	dev = ctx->dev;
 	if (!dev) {
 		mfc_err_dev("NAL Q: no mfc device to run\n");
-		return;
+		goto end;
 	}
 
 	mfc_err_ctx("NAL Q: Interrupt Error: %d\n", pOutStr->ErrorCode);
@@ -1602,10 +1606,10 @@ void mfc_nal_q_handle_error(struct s5p_mfc_ctx *ctx, EncoderOutputStr *pOutStr)
 		dec = ctx->dec_priv;
 		if (!dec) {
 			mfc_err_dev("NAL Q: no mfc decoder to run\n");
-			return;
+			goto end;
 		}
-
-		src_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
+		src_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
+				&ctx->src_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
 
 		if (!src_mb) {
 			mfc_err_dev("NAL Q: no src buffers.\n");
@@ -1613,9 +1617,35 @@ void mfc_nal_q_handle_error(struct s5p_mfc_ctx *ctx, EncoderOutputStr *pOutStr)
 			dec->consumed = 0;
 			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		}
+	} else if (ctx->type == MFCINST_ENCODER) {
+		enc = ctx->enc_priv;
+		if (!enc) {
+			mfc_err_dev("NAL Q: no mfc encoder to run\n");
+			goto end;
+		}
+
+		/*
+		 * If the buffer full error occurs in NAL-Q mode,
+		 * one input buffer is returned and the NAL-Q mode continues.
+		 */
+		if (err == S5P_FIMV_ERR_BUFFER_FULL) {
+			src_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
+					&ctx->src_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
+
+			if (!src_mb)
+				mfc_err_dev("NAL Q: no src buffers.\n");
+			else
+				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+
+			dev->nal_q_handle->nal_q_exception = 0;
+			stop_nal_q = 0;
+		}
 	}
 
+end:
 	mfc_debug_leave();
+
+	return stop_nal_q;
 }
 
 int s5p_mfc_nal_q_handle_out_buf(struct s5p_mfc_dev *dev, EncoderOutputStr *pOutStr)
@@ -1649,8 +1679,8 @@ int s5p_mfc_nal_q_handle_out_buf(struct s5p_mfc_dev *dev, EncoderOutputStr *pOut
 
 	if (s5p_mfc_get_err(pOutStr->ErrorCode) &&
 			(s5p_mfc_get_err(pOutStr->ErrorCode) < S5P_FIMV_ERR_FRAME_CONCEAL)) {
-		mfc_nal_q_handle_error(ctx, pOutStr);
-		return 0;
+		if (mfc_nal_q_handle_error(ctx, pOutStr, s5p_mfc_get_err(pOutStr->ErrorCode)))
+			return 0;
 	}
 
 	if (ctx->type == MFCINST_ENCODER) {
