@@ -354,7 +354,7 @@ struct sysmmu_drvdata {
 	bool is_suspended;
 	bool hold_rpm_on_boot;
 	struct exynos_iommu_event_log log;
-	bool no_rpm_control;
+	int no_rpm_control;
 };
 
 struct exynos_vm_region {
