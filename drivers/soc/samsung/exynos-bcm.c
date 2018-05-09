@@ -17,10 +17,13 @@
 #include <linux/workqueue.h>
 #include <linux/clk.h>
 #include <asm/cacheflush.h>
+#ifdef CONFIG_EXYNOS_PD
 #include <soc/samsung/exynos-pd.h>
+#endif
 #include <linux/suspend.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/clock.h>
 
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/bcm.h>
@@ -149,6 +152,7 @@ static u64 get_time(void)
 	return sched_clock();
 }
 
+#ifdef CONFIG_EXYNOS_PD
 int bcm_pd_sync(struct bcm_info *bcm, bool on)
 {
 	int ret = 0;
@@ -173,6 +177,7 @@ int bcm_pd_sync(struct bcm_info *bcm, bool on)
 	return ret;
 }
 EXPORT_SYMBOL(bcm_pd_sync);
+#endif
 
 static enum hrtimer_restart monitor_fn(struct hrtimer *hrtimer)
 {
@@ -277,6 +282,7 @@ static void __iomem *bcm_ioremap(phys_addr_t phys_addr, size_t size)
 
 typedef struct fw_system_func*(*start_up_func_t)(void **func);
 
+#ifdef CONFIG_EXYNOS_PD
 static void pd_init(void)
 {
 	struct exynos_pm_domain *exypd = NULL;
@@ -316,6 +322,7 @@ static void pd_init(void)
 		}
 	}
 }
+#endif
 
 static int load_bcm_bin(struct work_struct *work)
 {
@@ -371,7 +378,9 @@ static int load_bcm_bin(struct work_struct *work)
 
 	spin_unlock_irqrestore(&bcm_lock, flags);
 	fw_func = ((start_up_func_t)lib_isp)((void **)&os_func);
+#ifdef CONFIG_EXYNOS_PD
 	pd_init();
+#endif
 
 err_vfs_read:
 	vfree((void *)buf);
@@ -382,6 +391,7 @@ err_fopen:
 	return ret;
 }
 
+#ifdef CONFIG_EXYNOS_PD
 static void pd_exit(void)
 {
 	struct bcm_info *bcm;
@@ -406,6 +416,7 @@ static void pd_exit(void)
 		}
 	}
 }
+#endif
 
 struct page_change_data {
 	pgprot_t set_mask;
@@ -472,7 +483,9 @@ static ssize_t store_load_bcm_fw(struct device *dev,
 
 	/* bcm stop and pd unprepare */
 	if (fw_func) {
+#ifdef CONFIG_EXYNOS_PD
 		pd_exit();
+#endif
 		spin_lock_irqsave(&bcm_lock, flags);
 		if (fw_func->fw_stop(0, NULL, NULL))
 			hrtimer_try_to_cancel(&bcm_hrtimer);
@@ -570,14 +583,18 @@ static ssize_t store_cmd_bcm_fw(struct device *dev,
 				bcm_start(NULL);
 			break;
 		default:
+#ifdef CONFIG_EXYNOS_PD
 			pd_exit();
+#endif
 			spin_lock_irqsave(&bcm_lock, flags);
 			if (fw_func->fw_stop(get_time(),
 					cal_dfs_cached_get_rate, NULL))
 				hrtimer_try_to_cancel(&bcm_hrtimer);
 			info_str = fw_func->fw_cmd(buf);
 			spin_unlock_irqrestore(&bcm_lock, flags);
+#ifdef CONFIG_EXYNOS_PD
 			pd_init();
+#endif
 			break;
 		}
 
