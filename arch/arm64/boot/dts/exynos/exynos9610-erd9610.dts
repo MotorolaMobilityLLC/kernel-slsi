@@ -70,4 +70,136 @@
 	serial_0: uart@13820000 {
 		status = "okay";
 	};
+
+	/* USI_0_SHUB */
+	usi_0_shub: usi@11013000 {
+		usi_v2_mode = "spi";
+		status = "okay";
+	};
+
+	/* USI_SHUB_0_I2C */
+	usi_0_shub_i2c: usi@11013004 {
+		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+		status = "disabled";
+	};
+
+	/* USI_0_CMGP */
+	usi_0_cmgp: usi@11C12000 {
+		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+		status = "disabled";
+	};
+
+	/* USI_0_CMGP_I2C */
+	usi_0_cmgp_i2c: usi@11C12004 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_1_CMGP */
+	usi_1_cmgp: usi@11C12010 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_1_CMGP_I2C */
+	usi_1_cmgp_i2c: usi@11C12014 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_2_CMGP */
+	usi_2_cmgp: usi@11C12020 {
+		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+		status = "disabled";
+	};
+
+	/* USI_2_CMGP_I2C */
+	usi_2_cmgp_i2c: usi@11C12024 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_3_CMGP */
+	usi_3_cmgp: usi@11C12030 {
+		usi_v2_mode = "spi";
+		status = "okay";
+	};
+
+	/* USI_3_CMGP_I2C */
+	usi_3_cmgp_i2c: usi@11C12034 {
+		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+		status = "disabled";
+	};
+
+	/* USI_4_CMGP */
+	usi_4_cmgp: usi@11C12040 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_4_CMGP_I2C */
+	usi_4_cmgp_i2c: usi@11C12044 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_PERI_UART */
+	usi_peri_uart: usi@10011010 {
+		usi_v2_mode = "uart";
+		status = "okay";
+	};
+
+	/* USI_PERI_CAMI2C_0 */
+	usi_peri_cami2c_0: usi@10011020 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_PERI_CAMI2C_1 */
+	usi_peri_cami2c_1: usi@10011024 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_PERI_CAMI2C_2 */
+	usi_peri_cami2c_2: usi@10011028 {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_PERI_CAMI2C_3 */
+	usi_peri_cami2c_3: usi@1001102C {
+		usi_v2_mode = "i2c";
+		status = "okay";
+	};
+
+	/* USI_PERI_SPI_0 */
+	usi_peri_spi_0: usi@10011030 {
+		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+		status = "disabled";
+	};
+
+	/* USI_PERI_SPI_1 */
+	usi_peri_spi_1: usi@10011034 {
+		usi_v2_mode = "spi";
+		status = "okay";
+	};
+
+	/* USI_PERI_USI_0 */
+	usi_peri_usi_0: usi@1001103C {
+		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+		status = "disabled";
+	};
+
+	/* USI_PERI_USI_0_I2C */
+	usi_peri_usi_0_i2c: usi@10011040 {
+		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+		status = "disabled";
+	};
+
+	/* USI_PERI_SPI_2 */
+	usi_peri_spi_2: usi@10011038 {
+		usi_v2_mode = "spi";
+		status = "okay";
+	};
 };
