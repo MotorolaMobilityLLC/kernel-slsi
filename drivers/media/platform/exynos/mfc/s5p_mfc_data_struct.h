@@ -24,6 +24,9 @@
 #include <soc/samsung/bts.h>
 #endif
 #include <linux/videodev2.h>
+#ifdef CONFIG_EXYNOS_ITMON
+#include <soc/samsung/exynos-itmon.h>
+#endif
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -643,6 +646,7 @@ extern struct s5p_mfc_dump_ops mfc_dump_ops;
 struct s5p_mfc_dump_ops {
 	void (*dump_regs)(struct s5p_mfc_dev *dev);
 	void (*dump_info)(struct s5p_mfc_dev *dev);
+	void (*dump_info_without_regs)(struct s5p_mfc_dev *dev);
 	void (*dump_and_stop_always)(struct s5p_mfc_dev *dev);
 	void (*dump_and_stop_debug_mode)(struct s5p_mfc_dev *dev);
 };
@@ -760,6 +764,11 @@ struct s5p_mfc_dev {
 	struct s5p_mfc_perf perf;
 
 	struct s5p_mfc_mmcache mmcache;
+
+#ifdef CONFIG_EXYNOS_ITMON
+	struct notifier_block itmon_nb;
+	int itmon_notified;
+#endif
 };
 
 /**

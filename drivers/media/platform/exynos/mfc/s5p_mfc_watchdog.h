@@ -15,7 +15,6 @@
 
 #include "s5p_mfc_common.h"
 
-void s5p_mfc_dump_buffer_info(struct s5p_mfc_dev *dev, unsigned long addr);
 void s5p_mfc_watchdog_worker(struct work_struct *work);
 
 #endif /* __S5P_MFC_WATCHDOG_H */

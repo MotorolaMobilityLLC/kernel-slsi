@@ -927,7 +927,6 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 	}
 	dev->logging_data->fault_addr = (unsigned int)addr;
 
-	s5p_mfc_dump_buffer_info(dev, addr);
 	call_dop(dev, dump_info, dev);
 
 	return 0;
@@ -1106,6 +1105,47 @@ err_ioremap:
 	return -ENOENT;
 }
 
+#ifdef CONFIG_EXYNOS_ITMON
+static int mfc_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data)
+{
+	struct s5p_mfc_dev *dev;
+	struct itmon_notifier *itmon_info = nb_data;
+	int is_mfc_itmon = 0, is_master = 0;
+
+	dev = container_of(nb, struct s5p_mfc_dev, itmon_nb);
+
+	if (IS_ERR_OR_NULL(itmon_info))
+		return NOTIFY_DONE;
+
+	/* print dump if it is an MFC ITMON error */
+	if ((strncmp("MFC", itmon_info->port, sizeof("MFC") - 1) == 0) &&
+			(strncmp("MFC", itmon_info->master, sizeof("MFC") - 1) == 0)) {
+		is_mfc_itmon = 1;
+		is_master = 1;
+	} else if (strncmp("MFC", itmon_info->dest, sizeof("MFC") - 1) == 0) {
+		is_mfc_itmon = 1;
+		is_master = 0;
+	}
+
+	if (is_mfc_itmon) {
+		pr_err("mfc_itmon_notifier: MFC +\n");
+		pr_err("MFC is %s.\n", is_master ? "master" : "dest");
+		if (!dev->itmon_notified) {
+			pr_err("dump MFC information.\n");
+			if (is_master || (!is_master && itmon_info->onoff))
+				call_dop(dev, dump_info, dev);
+			else
+				call_dop(dev, dump_info_without_regs, dev);
+		} else {
+			pr_err("MFC notifier has already been called. skip MFC information.\n");
+		}
+		pr_err("mfc_itmon_notifier: MFC -\n");
+		dev->itmon_notified = 1;
+	}
+	return NOTIFY_DONE;
+}
+#endif
+
 /* MFC probe function */
 static int s5p_mfc_probe(struct platform_device *pdev)
 {
@@ -1281,6 +1321,11 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_alloc_debug;
 	}
+
+#ifdef CONFIG_EXYNOS_ITMON
+	dev->itmon_nb.notifier_call = mfc_itmon_notifier;
+	itmon_notifier_chain_register(&dev->itmon_nb);
+#endif
 
 	s5p_mfc_init_debugfs(dev);
 
