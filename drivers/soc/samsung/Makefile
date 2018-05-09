@@ -14,7 +14,6 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-fsys0-tcxo.o
 
 obj-$(CONFIG_EXYNOS_PMU_ARM_DRIVERS)	+= exynos3250-pmu.o exynos4-pmu.o \
 					exynos5250-pmu.o exynos5420-pmu.o
-obj-$(CONFIG_EXYNOS_PM_DOMAINS) += pm_domains.o
 
 obj-$(CONFIG_EXYNOS_CHIPID)	+= exynos-chipid.o
 
@@ -29,3 +28,7 @@ obj-$(CONFIG_EXYNOS_REBOOT)     += exynos-reboot.o
 obj-$(CONFIG_EXYNOS_DEBUG)      += debug/
 # DVFS
 obj-$(CONFIG_EXYNOS_DVFS_MANAGER)	+= exynos-dm.o
+
+# PD
+obj-$(CONFIG_EXYNOS_PD)        += exynos-pd.o exynos-pd-dbg.o
+obj-$(CONFIG_EXYNOS_PM_DOMAINS) += pm_domains.o

@@ -104,4 +104,10 @@ config EXYNOS_DVFS_MANAGER
 	  Enable DVFS Manager for Exynos SoC.
 	  This module controls constraint between each DVFS domains.
 
+config EXYNOS_PD
+	bool "Exynos PM domain Support"
+		depends on ARCH_EXYNOS
+		depends on PM
+		select PM_GENERIC_DOMAINS
+
 endif

@@ -21,6 +21,7 @@
 #include <dt-bindings/ufs/ufs.h>
 #include "exynos9610-sysmmu.dtsi"
 #include <dt-bindings/soc/samsung/exynos9610-dm.h>
+#include "exynos9610-pm-domains.dtsi"
 
 / {
 	compatible = "samsung,armv8", "samsung,exynos9610";
