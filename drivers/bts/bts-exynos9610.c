@@ -1545,16 +1545,17 @@ static ssize_t exynos_dmc_timeout_write(struct file *file, const char __user *us
 	unsigned int timeout;
 	int nr_drex = ARRAY_SIZE(exynos_drex) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %x\n", &drex_ip, &scen, &qos, &timeout);
 	if (ret != 4) {
@@ -1627,16 +1628,17 @@ static ssize_t exynos_mo_write(struct file *file, const char __user *user_buf,
 	int ip, scen, rw, mo, ret;
 	int nr_ip = ARRAY_SIZE(exynos_bts) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %d\n", &ip, &scen, &rw, &mo);
 	if (ret != 4) {
@@ -1712,16 +1714,17 @@ static ssize_t exynos_max_mo_write(struct file *file, const char __user *user_bu
 	int ip, scen, rw, mo, ret;
 	int nr_ip = ARRAY_SIZE(exynos_bts) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %d\n", &ip, &scen, &rw, &mo);
 	if (ret != 4) {
@@ -1797,16 +1800,17 @@ static ssize_t exynos_full_mo_write(struct file *file, const char __user *user_b
 	int ip, scen, rw, mo, ret;
 	int nr_ip = ARRAY_SIZE(exynos_bts) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %d\n", &ip, &scen, &rw, &mo);
 	if (ret != 4) {
@@ -1880,16 +1884,17 @@ static ssize_t exynos_prio_write(struct file *file, const char __user *user_buf,
 	int ip, scen, prio, ret;
 	int nr_ip = ARRAY_SIZE(exynos_bts) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d\n", &ip, &scen, &prio);
 	if (ret != 3) {
@@ -1943,16 +1948,17 @@ static ssize_t exynos_scen_write(struct file *file, const char __user *user_buf,
 	char *buf;
 	int ret;
 	u32 scen, on;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%u %u", &scen, &on);
 	if (ret != 2) {
@@ -2015,16 +2021,17 @@ static ssize_t exynos_qmax_write(struct file *file, const char __user *user_buf,
 	char *buf;
 	unsigned int r0, r1, w0, w1;
 	int i, ret;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%u %u %u %u\n", &r0, &r1, &w0, &w1);
 	if (ret != 4) {
@@ -2092,16 +2099,17 @@ static ssize_t exynos_timeout_write(struct file *file, const char __user *user_b
 	int ip, scen, rw, timeout, ret;
 	int nr_ip = ARRAY_SIZE(exynos_bts) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %d\n", &ip, &scen, &rw, &timeout);
 	if (ret != 4) {
@@ -2176,16 +2184,17 @@ static ssize_t exynos_timeout_en_write(struct file *file, const char __user *use
 	int ip, scen, timeout_en, ret;
 	int nr_ip = ARRAY_SIZE(exynos_bts) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d\n", &ip, &scen, &timeout_en);
 	if (ret != 3) {
@@ -2260,16 +2269,17 @@ static ssize_t exynos_write_flush_write(struct file *file, const char __user *us
 	unsigned int config;
 	int nr_drex = ARRAY_SIZE(exynos_drex) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %x\n", &drex_ip, &scen, &set, &config);
 	if (ret != 4) {
@@ -2348,16 +2358,17 @@ static ssize_t exynos_vc_timer_th_write(struct file *file, const char __user *us
 	unsigned int threshold;
 	int nr_drex = ARRAY_SIZE(exynos_drex) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %x\n", &drex_ip, &scen, &qos, &threshold);
 	if (ret != 4) {
@@ -2441,16 +2452,17 @@ static ssize_t exynos_cutoff_con_write(struct file *file, const char __user *use
 	unsigned int control;
 	int nr_drex = ARRAY_SIZE(exynos_drex) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %x\n", &drex_ip, &scen, &control);
 	if (ret != 3) {
@@ -2523,16 +2535,17 @@ static ssize_t exynos_brb_cutoff_write(struct file *file, const char __user *use
 	unsigned int config;
 	int nr_drex = ARRAY_SIZE(exynos_drex) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %x\n", &drex_ip, &scen, &config);
 	if (ret != 3) {
@@ -2605,16 +2618,17 @@ static ssize_t exynos_rdbuf_cutoff_write(struct file *file, const char __user *u
 	unsigned int config;
 	int nr_drex = ARRAY_SIZE(exynos_drex) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %x\n", &drex_ip, &scen, &config);
 	if (ret != 3) {
@@ -2687,16 +2701,17 @@ static ssize_t exynos_rreq_thrt_con_write(struct file *file, const char __user *
 	unsigned int control;
 	int nr_drex_pf = ARRAY_SIZE(exynos_drex_pf) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %x\n", &drex_pf_ip, &scen, &control);
 	if (ret != 3) {
@@ -2769,16 +2784,17 @@ static ssize_t exynos_allow_mo_region_write(struct file *file, const char __user
 	unsigned int config;
 	int nr_drex_pf = ARRAY_SIZE(exynos_drex_pf) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %x\n", &drex_pf_ip, &scen, &config);
 	if (ret != 3) {
@@ -2857,16 +2873,17 @@ static ssize_t exynos_pf_qos_timer_write(struct file *file, const char __user *u
 	unsigned int timeout;
 	int nr_drex_pf = ARRAY_SIZE(exynos_drex_pf) - 1;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d %d %x\n", &drex_pf_ip, &scen, &qos, &timeout);
 	if (ret != 4) {
@@ -2924,16 +2941,17 @@ static ssize_t exynos_bts_scen_test_write(struct file *file, const char __user *
 	char *buf;
 	int scen, control, ret;
 	int nr_scen = ARRAY_SIZE(bts_scen) - 1;
+	ssize_t len;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	ret = copy_from_user(buf, user_buf, count);
-	if (ret < 0)
-		goto out;
+	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (len < 0)
+		return len;
 
-	buf[count] = '\0';
+	buf[len] = '\0';
 
 	ret = sscanf(buf, "%d %d\n", &scen, &control);
 	if (ret != 2) {
