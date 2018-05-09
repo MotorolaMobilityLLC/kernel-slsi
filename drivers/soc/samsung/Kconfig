@@ -10,6 +10,11 @@ config EXYNOS_CHIPID
 	depends on ARCH_EXYNOS
 	select SOC_BUS
 
+config EXYNOS_BCM
+	bool "EXYNOS_BCM driver support"
+	help
+	  Enable exynos_bcm driver support
+
 config CAL_IF
 	bool "Exynos Chip Abstraction Layer Interface"
 	help

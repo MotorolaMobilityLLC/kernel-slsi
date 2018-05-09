@@ -5,6 +5,7 @@ obj-$(CONFIG_ARCH_EXYNOS)       += exynos-smc.o
 obj-$(CONFIG_CAL_IF)		+= cal-if/
 
 obj-$(CONFIG_ECT)		+= ect_parser.o
+obj-$(CONFIG_EXYNOS_BCM)	+= exynos-bcm.o
 
 obj-$(CONFIG_EXYNOS_PMU)	+= exynos-pmu.o
 
