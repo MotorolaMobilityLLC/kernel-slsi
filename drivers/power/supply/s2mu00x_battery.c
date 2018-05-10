@@ -1430,6 +1430,16 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 			MUIC_NOTIFY_DEV_CHARGER);
 #endif
 
+#if !defined(CONFIG_MUIC_NOTIFIER) && !defined(CONFIG_IFCONN_NOTIFIER)
+	/* If notifier is not enabled, turn on charger always
+	 * limit input/charging current 500mA to protect device
+	 */
+	battery->cable_type = POWER_SUPPLY_TYPE_MAINS;
+	battery->pdata->charging_current[battery->cable_type].input_current_limit = 500;
+	battery->pdata->charging_current[battery->cable_type].fast_charging_current = 500;
+	set_bat_status_by_cable(battery);
+#endif
+
 	/* Kick off monitoring thread */
 	pr_info("%s: start battery monitoring work\n", __func__);
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 5*HZ);
