@@ -66,15 +66,53 @@ static inline unsigned int dump_tlb_entry_way_type(void __iomem *sfrbase,
 	return 0;
 }
 
+static inline void sysmmu_tlb_compare(phys_addr_t pgtable,
+				int idx_sub, u32 vpn, u32 ppn)
+{
+	sysmmu_pte_t *entry;
+	unsigned long vaddr = MMU_VADDR_FROM_TLB((unsigned long)vpn, idx_sub);
+	unsigned long paddr = MMU_PADDR_FROM_TLB((unsigned long)ppn);
+	unsigned long phys = 0;
+
+	if (!pgtable)
+		return;
+
+	entry = section_entry(phys_to_virt(pgtable), vaddr);
+
+	if (lv1ent_section(entry)) {
+		phys = section_phys(entry);
+	} else if (lv1ent_page(entry)) {
+		entry = page_entry(entry, vaddr);
+
+		if (lv2ent_large(entry))
+			phys = lpage_phys(entry);
+		else if (lv2ent_small(entry))
+			phys = spage_phys(entry);
+	} else {
+		pr_crit(">> Invalid address detected! entry: %#lx",
+						(unsigned long)*entry);
+		return;
+	}
+
+	if (paddr != phys) {
+		pr_crit(">> TLB mismatch detected!\n");
+		pr_crit("   TLB: %#010lx, PT entry: %#010lx\n", paddr, phys);
+	}
+}
+
 static inline unsigned int dump_tlb_entry_port_type(void __iomem *sfrbase,
-						int idx_way, int idx_set)
+		phys_addr_t pgtable, int idx_way, int idx_set, int idx_sub)
 {
 	if (MMU_TLB_ENTRY_VALID(__raw_readl(sfrbase + REG_CAPA1_TLB_ATTR))) {
+		u32 vpn, ppn, attr;
+
+		vpn = __raw_readl(sfrbase + REG_CAPA1_TLB_VPN);
+		ppn = __raw_readl(sfrbase + REG_CAPA1_TLB_PPN);
+		attr = __raw_readl(sfrbase + REG_CAPA1_TLB_ATTR);
+
 		pr_crit("[%02d][%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
-			idx_way, idx_set,
-			__raw_readl(sfrbase + REG_CAPA1_TLB_VPN),
-			__raw_readl(sfrbase + REG_CAPA1_TLB_PPN),
-			__raw_readl(sfrbase + REG_CAPA1_TLB_ATTR));
+			idx_way, idx_set, vpn, ppn, attr);
+		sysmmu_tlb_compare(pgtable, idx_sub, vpn, ppn);
 		return 1;
 	}
 	return 0;
@@ -183,7 +221,8 @@ static inline void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata,
 				for (k = 0; k < MMU_NUM_TLB_SUBLINE; k++) {
 					__raw_writel(MMU_CAPA1_SET_TLB_READ_ENTRY(t, j, i, k),
 							sfrbase + REG_CAPA1_TLB_READ);
-					cnt += dump_tlb_entry_port_type(sfrbase, i, j);
+					cnt += dump_tlb_entry_port_type(
+						sfrbase, pgtable, i, j, k);
 				}
 			}
 		}
