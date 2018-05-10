@@ -497,7 +497,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c0_bus>;
 		clocks = <&clock MUX_SHUB_USI00>, <&clock GATE_USI_SHUB00_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gph0 0 0x1>;
@@ -517,7 +517,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c1_bus>;
 		clocks = <&clock MUX_SHUB_I2C>, <&clock GATE_I2C_SHUB00_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gph0 2 0x1>;
@@ -537,7 +537,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c2_bus>;
 		clocks = <&clock CMGP00_USI>, <&clock GATE_USI_CMGP00_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm0 0 0x1>;
@@ -557,7 +557,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c3_bus>;
 		clocks = <&clock CMGP_I2C>, <&clock GATE_I2C_CMGP00_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm2 0 0x1>;
@@ -577,7 +577,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c4_bus>;
 		clocks = <&clock CMGP01_USI>, <&clock GATE_USI_CMGP01_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm4 0 0x1>;
@@ -597,7 +597,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c5_bus>;
 		clocks = <&clock CMGP_I2C>, <&clock GATE_I2C_CMGP01_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm6 0 0x1>;
@@ -617,7 +617,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c6_bus>;
 		clocks = <&clock CMGP02_USI>, <&clock GATE_USI_CMGP02_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm8 0 0x1>;
@@ -637,7 +637,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c7_bus>;
 		clocks = <&clock CMGP_I2C>, <&clock GATE_I2C_CMGP02_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm10 0 0x1>;
@@ -657,7 +657,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c8_bus>;
 		clocks = <&clock CMGP03_USI>, <&clock GATE_USI_CMGP03_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm12 0 0x1>;
@@ -677,7 +677,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c9_bus>;
 		clocks = <&clock CMGP_I2C>, <&clock GATE_I2C_CMGP03_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm14 0 0x1>;
@@ -697,7 +697,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c10_bus>;
 		clocks = <&clock CMGP04_USI>, <&clock GATE_USI_CMGP04_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm16 0 0x1>;
@@ -717,7 +717,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c11_bus>;
 		clocks = <&clock CMGP_I2C>, <&clock GATE_I2C_CMGP04_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpm18 0 0x1>;
@@ -737,7 +737,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c12_bus>;
 		clocks = <&clock I2C>, <&clock GATE_CAMI2C_0_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpc0 1 0x1>;
@@ -757,7 +757,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c13_bus>;
 		clocks = <&clock I2C>, <&clock GATE_CAMI2C_1_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpc0 3 0x1>;
@@ -777,7 +777,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c14_bus>;
 		clocks = <&clock I2C>, <&clock GATE_CAMI2C_2_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpc0 5 0x1>;
@@ -797,7 +797,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c15_bus>;
 		clocks = <&clock I2C>, <&clock GATE_CAMI2C_3_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpc0 7 0x1>;
@@ -817,7 +817,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c16_bus>;
 		clocks = <&clock USI_USI>, <&clock GATE_USI00_USI_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpc1 0 0x1>;
@@ -837,7 +837,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsi2c17_bus>;
 		clocks = <&clock USI_I2C>, <&clock GATE_USI00_I2C_QCH>;
-		clock-names = "rate_hsi2c", "gate_hsi2c";
+		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		samsung,scl-clk-stretching;
 		samsung,usi-i2c-v2;
 		gpio_scl= <&gpc1 2 0x1>;
@@ -860,7 +860,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_SHUB00_QCH>, <&clock MUX_SHUB_USI00>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi0_bus>;
 		status = "disabled";
@@ -881,7 +881,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP00_QCH>, <&clock CMGP00_USI>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi1_bus>;
 		status = "disabled";
@@ -902,7 +902,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP01_QCH>, <&clock CMGP01_USI>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_bus>;
 		status = "disabled";
@@ -923,7 +923,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP02_QCH>, <&clock CMGP02_USI>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi3_bus>;
 		status = "disabled";
@@ -944,7 +944,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP03_QCH>, <&clock CMGP03_USI>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi4_bus>;
 		status = "disabled";
@@ -965,7 +965,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP04_QCH>, <&clock CMGP04_USI>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi5_bus>;
 		status = "disabled";
@@ -986,7 +986,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_SPI_0_QCH>, <&clock SPI0>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi6_bus>;
 		status = "disabled";
@@ -1007,7 +1007,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_SPI_1_QCH>, <&clock SPI1>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi7_bus>;
 		status = "disabled";
@@ -1028,7 +1028,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI00_USI_QCH>, <&clock USI_USI>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi8_bus>;
 		status = "disabled";
@@ -1049,7 +1049,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_SPI_2_QCH>, <&clock SPI2>;
-		clock-names = "spi", "spi_busclk0";
+		clock-names = "gate_spi_clk", "ipclk_spi0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi9_bus>;
 		status = "disabled";
@@ -1066,7 +1066,7 @@
 		pinctrl-0 = <&uart0_bus>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_UART_QCH>, <&clock UART>;
-		clock-names = "gate_pclk0", "gate_uart0";
+		clock-names = "gate_uart_clk0", "ipclk_uart0";
 		status = "disabled";
 	};
 
@@ -1081,7 +1081,7 @@
 		pinctrl-0 = <&uart1_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_USI_SHUB00_QCH>, <&clock MUX_SHUB_USI00>;
-		clock-names = "gate_pclk1", "gate_uart1";
+		clock-names = "gate_uart_clk1", "ipclk_uart1";
 		status = "disabled";
 	};
 
@@ -1096,7 +1096,7 @@
 		pinctrl-0 = <&uart2_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_USI_CMGP00_QCH>, <&clock CMGP00_USI>;
-		clock-names = "gate_pclk2", "gate_uart2";
+		clock-names = "gate_uart_clk2", "ipclk_uart2";
 		status = "disabled";
 	};
 
@@ -1111,7 +1111,7 @@
 		pinctrl-0 = <&uart3_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_USI_CMGP01_QCH>, <&clock CMGP01_USI>;
-		clock-names = "gate_pclk3", "gate_uart3";
+		clock-names = "gate_uart_clk3", "ipclk_uart3";
 		status = "disabled";
 	};
 
@@ -1126,7 +1126,7 @@
 		pinctrl-0 = <&uart4_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_USI_CMGP02_QCH>, <&clock CMGP02_USI>;
-		clock-names = "gate_pclk4", "gate_uart4";
+		clock-names = "gate_uart_clk4", "ipclk_uart4";
 		status = "disabled";
 	};
 
@@ -1141,7 +1141,7 @@
 		pinctrl-0 = <&uart5_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_USI_CMGP03_QCH>, <&clock CMGP03_USI>;
-		clock-names = "gate_pclk5", "gate_uart5";
+		clock-names = "gate_uart_clk5", "ipclk_uart5";
 		status = "disabled";
 	};
 
@@ -1156,7 +1156,7 @@
 		pinctrl-0 = <&uart6_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_USI_CMGP04_QCH>, <&clock CMGP04_USI>;
-		clock-names = "gate_pclk6", "gate_uart6";
+		clock-names = "gate_uart_clk6", "ipclk_uart6";
 		status = "disabled";
 	};
 
@@ -1171,7 +1171,7 @@
 		pinctrl-0 = <&uart7_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
 		clocks = <&clock GATE_USI00_USI_QCH>, <&clock USI_USI>;
-		clock-names = "gate_pclk7", "gate_uart7";
+		clock-names = "gate_uart_clk7", "ipclk_uart7";
 		status = "disabled";
 	};
 
