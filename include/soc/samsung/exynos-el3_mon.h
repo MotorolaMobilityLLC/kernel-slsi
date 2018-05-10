@@ -29,7 +29,7 @@
 /* Connectivity sub system */
 #define EXYNOS_GNSS				(0)
 #define EXYNOS_WLBT				(1)
-
+#define EXYNOS_SHUB				(u64)(2)
 /* Target to set */
 #define EXYNOS_SET_CONN_TZPC			(0)
 
