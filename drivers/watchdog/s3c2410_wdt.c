@@ -434,53 +434,6 @@ static int s3c2410wdt_restart(struct watchdog_device *wdd, unsigned long action,
 	return 0;
 }
 
-inline void s3c2410wdt_reset_confirm(struct watchdog_device *wdd)
-{
-	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
-	unsigned int wtcon, wtdat, wtcnt, disable_reg, mask_reset_reg;
-	unsigned long total_time = 0;
-	int ret;
-
-	if (!wdt)
-		return;
-
-	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
-
-	dev_info(wdt->dev, "Current Little_cluster watchdog %sable, wtcon = %x\n",
-			(wtcon & S3C2410_WTCON_ENABLE) ? "en" : "dis", wtcon);
-
-	ret = regmap_read(wdt->pmureg, wdt->drv_data->mask_reset_reg, &mask_reset_reg);
-	if (ret) {
-		dev_err(wdt->dev, "Couldn't get MASK_WDT_RESET register\n");
-		return;
-	}
-
-	ret = regmap_read(wdt->pmureg, wdt->drv_data->disable_reg, &disable_reg);
-	if (ret) {
-		dev_err(wdt->dev, "Couldn't get DISABLE_WDT register\n");
-		return;
-	}
-
-	/*  Fake watchdog bits in both registers must be cleared. */
-	dev_info(wdt->dev, "DISABLE_WDT reg:  %x, MASK_WDT_RESET reg: %x\n", disable_reg, mask_reset_reg);
-
-	/* If watchdog is disabled, do not print wtcnt value. */
-	if (!(wtcon & S3C2410_WTCON_ENABLE))
-		return;
-
-	do {
-		/* It continues to print the wtcnt and wddat values
-		 * until watchdog reset is taken.
-		 */
-		wtdat = readl(wdt->reg_base + S3C2410_WTDAT);
-		wtcnt = readl(wdt->reg_base + S3C2410_WTCNT);
-		dev_info(wdt->dev, "%lu milliseconds, wtdat = %u, wtcnt = %u",
-				total_time, wtdat, wtcnt);
-		total_time += 500;
-		mdelay(500);
-	} while (total_time < (wdd->timeout * 1000));
-}
-
 #define OPTIONS (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE)
 
 static const struct watchdog_info s3c2410_wdt_ident = {
@@ -496,7 +449,6 @@ static const struct watchdog_ops s3c2410wdt_ops = {
 	.ping = s3c2410wdt_keepalive,
 	.set_timeout = s3c2410wdt_set_heartbeat,
 	.restart = s3c2410wdt_restart,
-	.reset_confirm = s3c2410wdt_reset_confirm,
 };
 
 static const struct watchdog_device s3c2410_wdd = {
@@ -706,7 +658,6 @@ inline int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt, int index)
 
 	return 0;
 }
-
 #endif
 
 #ifdef CONFIG_PM_SLEEP
