@@ -54,6 +54,7 @@ modules.builtin
 /vmlinuz
 /System.map
 /Module.markers
+/dss-reader
 
 #
 # RPM spec file (make rpm-pkg)

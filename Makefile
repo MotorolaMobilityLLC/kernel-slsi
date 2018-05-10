@@ -14,6 +14,7 @@ NAME = Petit Gorille
 # That's our default target when none is given on the command line
 PHONY := _all
 _all:
+	@lib/dss-reader-build.sh
 
 # o Do not use make's built-in rules and variables
 #   (this increases performance and avoids hard-to-debug behaviour);
