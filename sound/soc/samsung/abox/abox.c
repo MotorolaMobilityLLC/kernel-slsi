@@ -113,6 +113,7 @@ static void update_mask_value(void __iomem *sfr,
 #endif
 
 #define DEFAULT_CPU_GEAR_ID		(0xAB0CDEFA)
+#define BOOT_CPU_GEAR_ID		(0xB00DB00D)
 #define TEST_CPU_GEAR_ID		(DEFAULT_CPU_GEAR_ID + 1)
 #define DEFAULT_LIT_FREQ_ID		DEFAULT_CPU_GEAR_ID
 #define DEFAULT_BIG_FREQ_ID		DEFAULT_CPU_GEAR_ID
@@ -3211,6 +3212,7 @@ static void abox_check_cpu_gear(struct device *dev,
 		const void *id, unsigned int gear)
 {
 	struct device *dev_abox = &data->pdev->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 
 	if (id != (void *)ABOX_CPU_GEAR_BOOT)
 		return;
@@ -3223,6 +3225,7 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* new */
 			dev_dbg(dev, "%s(%p): new\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
+			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, true);
 		}
 	} else {
 		if ((old_gear >= ABOX_CPU_GEAR_MIN) &&
@@ -3230,11 +3233,13 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* on */
 			dev_dbg(dev, "%s(%p): on\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
+			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, true);
 		} else if ((old_gear < ABOX_CPU_GEAR_MIN) &&
 				(gear >= ABOX_CPU_GEAR_MIN)) {
 			/* off */
 			dev_dbg(dev, "%s(%p): off\n", __func__, id);
-			pm_relax(dev);
+			pm_relax(dev_abox);
+			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, false);
 		}
 	}
 }
