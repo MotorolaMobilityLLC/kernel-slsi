@@ -1392,4 +1392,15 @@
 		compatible = "samsung,exynos9610-sysreg-fsys", "syscon";
 		reg = <0x0 0x13410000 0x1020>;
 	};
+
+	watchdog_cl0@10050000 {
+		compatible = "samsung,exynos7-wdt";
+		reg = <0x0 0x10050000 0x100>;
+		interrupts = <0 232 0>;
+		clocks = <&clock OSCCLK>, <&clock GATE_WDT_CLUSTER0_QCH>;
+		clock-names = "rate_watchdog", "gate_watchdog";
+		timeout-sec = <30>;
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		index = <0>; /* if little cluster then index is 0*/
+	};
 };
