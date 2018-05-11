@@ -203,3 +203,79 @@
 		status = "okay";
 	};
 };
+
+&pinctrl_0 {
+	if_pmic_irq: if-pmic-irq {
+		samsung,pins = "gpa2-1";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
+	fuel_irq: fuel-irq {
+		samsung,pins = "gpa2-3";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+&i2c_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	s2mu004-fuelgauge@3B {
+		compatible = "samsung,s2mu004-fuelgauge";
+		reg = <0x3B>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fuel_irq>;
+		fuelgauge,fuel_int = <&gpa2 3 0>;
+		fuelgauge,fuel_alert_soc = <1>;
+		fuelgauge,capacity_max = <1000>;
+		fuelgauge,capacity_max_margin = <70>;
+		fuelgauge,capacity_min = <0>;
+		fuelgauge,capacity_calculation_type = <28>;
+		fuelgauge,type_str = "SDI";
+		fuelgauge,model_type = <1>;
+	};
+};
+
+&i2c_1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	s2mu004@3d {
+		compatible = "samsung,s2mu004mfd";
+		reg = <0x3d>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_irq>;
+		s2mu004,irq-gpio = <&gpa2 1 0>;
+		s2mu004,wakeup;
+	};
+
+	s2mu004-charger {
+		status = "okay";
+		battery,charger_name = "s2mu004-charger";
+		battery,chg_gpio_en = <0>;
+		battery,chg_polarity_en = <0>;
+		battery,chg_gpio_status = <0>;
+		battery,chg_polarity_status = <0>;
+		battery,chg_float_voltage = <4350>;
+		battery,chg_recharge_vcell = <4250>;
+		battery,chg_full_vcell = <4300>;
+		battery,full_check_type = <2>;
+		battery,full_check_type_2nd = <2>;
+		battery,input_current_limit = <
+			500 450 500 1200 500 1200 1200 1000 1000 1000
+			1000 500 500 1200 1000 500 450>;
+		battery,fast_charging_current =	<
+			500 450 500 1200 500 1200 1200 1000 1000 1000
+			1000 500 500 1200 1000 500 450>;
+		battery,full_check_current_1st = <
+			300 0 300 300 300 300 300 300 300 300
+			300 300 300 300 300 300 0>;
+		battery,full_check_current_2nd = <
+			100 0 100 100 100 100 100 100 100 100
+			100 100 100 100 100 100 0>;
+	};
+};
