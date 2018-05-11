@@ -16,7 +16,7 @@
 #include <linux/cpuidle_profiler.h>
 
 #include <soc/samsung/exynos-cpupm.h>
-#include <soc/samsung/exynos-powermode.h>
+//#include <soc/samsung/exynos-powermode.h>
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/exynos-pmu.h>
 
