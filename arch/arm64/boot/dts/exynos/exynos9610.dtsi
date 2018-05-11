@@ -1414,4 +1414,11 @@
 		clocks = <&clock GATE_ADC_CMGP_QCH_S0>;
 		clock-names = "gate_adcif";
 	};
+
+	rtc@11A20000 {
+		compatible = "samsung,exynos8-rtc";
+		reg = <0x0 0x11A20000 0x100>;
+		interrupts = <0 29 0>, <0 30 0>;
+		use-chub-only;
+	};
 };
