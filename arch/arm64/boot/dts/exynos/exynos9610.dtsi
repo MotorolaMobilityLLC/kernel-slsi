@@ -1421,4 +1421,14 @@
 		interrupts = <0 29 0>, <0 30 0>;
 		use-chub-only;
 	};
+
+	sec_pwm: pwm@13970000 {
+		compatible = "samsung,s3c6400-pwm";
+		reg = <0x0 0x13970000 0x1000>;
+		samsung,pwm-outputs = <0>, <1>, <2>, <3>, <4>;
+		#pwm-cells = <3>;
+		clocks = <&clock GATE_PWM_MOTOR_QCH>, <&clock OSCCLK>;
+		clock-names = "pwm_pclk", "pwm_sclk";
+		status = "ok";
+	};
 };
