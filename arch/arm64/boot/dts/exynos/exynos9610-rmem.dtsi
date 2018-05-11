@@ -29,23 +29,25 @@
                         reg = <0x0 0xE9400000 0x2800000>;
                 };
 
-		video_stream {
-			compatible = "exynos8890-ion,vstream";
-			ion,secure;
-			ion,reusable;
+		ion_video_stream {
+			compatible = "exynos9820-ion";
 			size = <0x4800000>;
 			alloc-ranges = <0x0 0x40000000 0xC0000000>;
 			alignment = <0x0 0x00400000>;
-			id = <3>;
-			compat-id = <25 31>;
+			ion,heapname = "vstream_heap";
+			ion,secure;
+			ion,reusable;
+			ion,protection_id = <3>;
+			ion,alignment = <0x10000>;
 		};
 
-		crypto {
-			compatible = "exynos8890-ion,crypto";
-			ion,reusable;
+		ion_crypto {
+			compatible = "exynos9820-ion";
 			size = <0x1800000>;
 			alignment = <0x0 0x00400000>;
-			id = <1>;
+			ion,heapname = "crypto_heap";
+			ion,reusable;
+			ion,alignment = <0x10000>;
 		};
 
 		modem_if {
