@@ -14,7 +14,7 @@
 #include <soc/samsung/acpm_mfd.h>
 #include <soc/samsung/acpm_ipc_ctrl.h>
 
-struct device_node *acpm_mfd_node = NULL;
+extern struct device_node *acpm_mfd_node;
 static DEFINE_MUTEX(acpm_mfd_lock);
 
 int exynos_acpm_read_reg(u16 type, u8 reg, u8 *dest)
