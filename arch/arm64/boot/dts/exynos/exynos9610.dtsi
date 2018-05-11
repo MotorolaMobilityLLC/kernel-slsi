@@ -1403,4 +1403,15 @@
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		index = <0>; /* if little cluster then index is 0*/
 	};
+
+	exynos_adc: adc@11C30000 {
+		compatible = "samsung,exynos-adc-v3";
+		reg = <0x0 0x11C30000 0x100>;
+		sysreg = <0x11C10000>;
+		interrupts = <0 271 0>;
+		#io-channel-cells = <1>;
+		io-channel-ranges;
+		clocks = <&clock GATE_ADC_CMGP_QCH_S0>;
+		clock-names = "gate_adcif";
+	};
 };
