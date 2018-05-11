@@ -2538,4 +2538,26 @@
 			};
 		};
 	};
+
+	cpupm {
+		#define POWERMODE_TYPE_CLUSTER	0
+		#define POWERMODE_TYPE_SYSTEM	1
+
+		cpd_cl0 {
+			device_type = "cpupm";
+			target-residency = <10000>;	/* us */
+			psci-index = <128>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			siblings = "0-3";
+		};
+
+		cpd_cl1 {
+			device_type = "cpupm";
+			target-residency = <3000>;	/* us */
+			psci-index = <128>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			siblings = "4-7";
+			entry-allowed = "4-7";
+		};
+	};
 };
