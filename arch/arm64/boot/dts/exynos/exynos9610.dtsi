@@ -2464,4 +2464,78 @@
 			qos_min_class = <5>;
 		};
 	};
+
+	cpufreq {
+		domain@0 {
+			device_type = "cpufreq-domain";
+			sibling-cpus = "0-3";
+			cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-type = <DM_CPU_CL0>;
+
+			min-freq = <403000>;
+
+			/* PM QoS Class ID */
+			pm_qos-min-class = <3>;
+			pm_qos-max-class = <4>;
+
+			dm-constraints {
+				mif-perf {
+					const-type = <CONSTRAINT_MIN>;
+					dm-type = <DM_MIF>;
+						/*  cpu     mif  */
+					table = < 1534000  845000
+						  1456000  845000
+						  1326000  845000
+						  1222000  676000
+						  1118000  676000
+						  1053000  676000
+						   910000  676000
+						   806000  546000
+						   702000  546000
+						   598000  419000
+						   403000  0
+						   >;
+				};
+			};
+		};
+
+		domain@1 {
+			device_type = "cpufreq-domain";
+			sibling-cpus = "4-7";
+			cal-id = <ACPM_DVFS_CPUCL1>;
+			dm-type = <DM_CPU_CL1>;
+
+			min-freq = <936000>;
+			max-freq = <2288000>;
+
+			/* PM QoS Class ID */
+			pm_qos-min-class = <5>;
+			pm_qos-max-class = <6>;
+
+			dm-constraints {
+				mif-perf {
+					const-type = <CONSTRAINT_MIN>;
+					dm-type = <DM_MIF>;
+						/*  cpu     mif  */
+					table = < 2392000 1794000
+						  2288000 1794000
+						  2184000 1794000
+						  2080000 1539000
+						  1976000 1539000
+						  1898000 1539000
+						  1768000 1352000
+						  1664000 1014000
+						  1508000 1014000
+						  1456000  845000
+						  1352000  845000
+						  1248000  676000
+						  1144000  676000
+						  1040000  546000
+						   936000  546000
+						   832000  546000
+						   728000  546000 >;
+				};
+			};
+		};
+	};
 };
