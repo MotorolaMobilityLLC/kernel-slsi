@@ -2447,4 +2447,21 @@
 		compatible = "exynos,reboot";
 		pmu_base = <0x11860000>;
 	};
+
+	schedutil_gov {
+		schedutil_domain0: domain@0 {
+			device_type = "schedutil-domain";
+			shared-cpus = "0-3";
+			enabled = <0>;          /* Disabled */
+			qos_min_class = <3>;
+		};
+
+		schedutil_domain1: domain@1 {
+			device_type = "schedutil-domain";
+			shared-cpus = "4-7";
+			enabled = <1>;          /* Enabled */
+			expired_time = <80>;    /* 80ms */
+			qos_min_class = <5>;
+		};
+	};
 };
