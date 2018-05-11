@@ -84,3 +84,4 @@ obj-$(CONFIG_AXP288_FUEL_GAUGE) += axp288_fuel_gauge.o
 obj-$(CONFIG_AXP288_CHARGER)	+= axp288_charger.o
 obj-$(CONFIG_FUELGAUGE_S2MU004) += s2mu004_fuelgauge.o
 obj-$(CONFIG_CHARGER_S2MU004)   += s2mu004_charger.o
+obj-$(CONFIG_BATTERY_S2MU00X)   += s2mu00x_battery.o

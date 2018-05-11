@@ -626,4 +626,10 @@ config CHARGER_S2MU004
       S2MU004 incluse pmic, led driver.
       You have to define MFD_S2MU004
 
+config BATTERY_S2MU00X
+    tristate "S2MU00x battery driver"
+	depends on (MFD_S2MU004) && I2C
+	help
+	  Say Y here to enable support for S2MU00x battery driver.
+
 endif # POWER_SUPPLY

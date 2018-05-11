@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "exynos9610.dtsi"
+#include "exynos9610_battery_data.dtsi"
 
 / {
 	model = "Samsung MAESTRO-ERD9610 board based on EXYNOS9610";
