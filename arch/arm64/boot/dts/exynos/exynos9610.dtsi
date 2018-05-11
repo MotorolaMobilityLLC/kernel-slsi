@@ -117,6 +117,7 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu1: cpu@101 {
@@ -124,24 +125,28 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
 		};
 		cpu2: cpu@102 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
+			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
 		};
 		cpu3: cpu@103 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
 		};
 		cpu4: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a73", "arm,armv8";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
+			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu5: cpu@1 {
@@ -149,18 +154,45 @@
 			compatible = "arm,cortex-a73", "arm,armv8";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
+			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
 		};
 		cpu6: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a73", "arm,armv8";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
+			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
 		};
 		cpu7: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a73", "arm,armv8";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
+			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
+		};
+
+		idle-states {
+			entry-method = "arm,psci";
+
+			BOOTCL_CPU_SLEEP: bootcl-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "exynos,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <35>;
+				exit-latency-us = <90>;
+				min-residency-us = <750>;
+				status = "okay";
+			};
+
+			NONBOOTCL_CPU_SLEEP: nobootcl-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "exynos,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <30>;
+				exit-latency-us = <75>;
+				min-residency-us = <2000>;
+				status = "okay";
+			};
 		};
 	};
 
