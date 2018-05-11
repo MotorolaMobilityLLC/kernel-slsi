@@ -165,8 +165,10 @@ struct trex_info {
 	unsigned int write;
 };
 
+#if 0
 static struct pm_qos_request exynos_mif_bts_qos;
 static struct pm_qos_request exynos_int_bts_qos;
+#endif
 static DEFINE_SPINLOCK(bts_lock);
 static DEFINE_MUTEX(media_mutex);
 
@@ -1410,8 +1412,10 @@ void bts_update_bw(enum bts_bw_type type, struct bts_bw bw)
 	mif_freq = total_bw * 100 / BUS_WIDTH / exynos_mif_util;
 	int_freq = int_bw * 100 / BUS_WIDTH / exynos_int_util;
 
+#if 0
 	pm_qos_update_request(&exynos_mif_bts_qos, mif_freq);
 	pm_qos_update_request(&exynos_int_bts_qos, int_freq);
+#endif
 
 	BTS_DBG("[BTS] BW(KB/s): type%i bw %up %ur %uw,\n",
 				type, bw.peak, bw.read, bw.write);
@@ -3327,8 +3331,10 @@ static int __init exynos_bts_init(void)
 
 	bts_initialize_domains();
 
+#if 0
 	pm_qos_add_request(&exynos_mif_bts_qos, PM_QOS_BUS_THROUGHPUT, 0);
 	pm_qos_add_request(&exynos_int_bts_qos, PM_QOS_DEVICE_THROUGHPUT, 0);
+#endif
 	register_syscore_ops(&exynos_bts_syscore_ops);
 
 	bts_debugfs();
