@@ -61,6 +61,14 @@ config ECT_DUMP
 	default n
 	depends on ECT
 
+config EXYNOS_RGT
+	bool "Exynos Regulator Debug Support"
+	depends on REGULATOR
+	depends on DEBUG_FS
+	depends on OF
+	help
+	  dummy device driver for debugging samsung PMIC
+
 # There is no need to enable these drivers for ARMv8
 config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST

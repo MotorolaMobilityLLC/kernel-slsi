@@ -19,3 +19,5 @@ obj-$(CONFIG_EXYNOS_CHIPID)	+= exynos-chipid.o
 
 # ACPM
 obj-$(CONFIG_EXYNOS_ACPM)       += acpm/
+
+obj-$(CONFIG_EXYNOS_RGT)        += exynos-rgt.o
