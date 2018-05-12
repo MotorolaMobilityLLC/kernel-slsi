@@ -16,6 +16,7 @@
 #include <dt-bindings/clock/exynos9610.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "exynos9610-pinctrl.dtsi"
+#include "exynos9610-display-lcd.dtsi"
 #include <dt-bindings/ufs/ufs.h>
 #include "exynos9610-sysmmu.dtsi"
 
@@ -90,6 +91,12 @@
 		uart5 = &serial_5;
 		uart6 = &serial_6;
 		uart7 = &serial_7;
+		dpp0 = &dpp_0;
+		dpp1 = &dpp_1;
+		dpp2 = &dpp_2;
+		dpp3 = &dpp_3;
+		dsim0 = &dsim_0;
+		decon0 = &decon_f;
 	};
 
 	chipid@10000000 {
@@ -1492,13 +1499,124 @@
 		status = "ok";
 	};
 
+	dpp_0: dpp@0x14884000 { /* GF */
+		compatible = "samsung,exynos9-dpp";
+		#pb-id-cells = <3>;
+		reg = <0x0 0x14884000 0x1000>, <0x0 0x14895000 0x1000>, <0x0 0x14880000 0x110>;
+		interrupts = <0 210 0>, <0 214 0>;
+		attr = <0x50087>; /* DPP/IDMA/HDR10/FLIP/BLOCK/AFBC */
+	};
+
+	dpp_1: dpp@0x14883000 { /* VG0 */
+		compatible = "samsung,exynos9-dpp";
+		#pb-id-cells = <3>;
+		reg = <0x0 0x14883000 0x1000>, <0x0 0x14896000 0x1000>;
+		interrupts = <0 211 0>, <0 215 0>;
+		attr = <0x500B6>; /* DPP/IDMA/HDR10/SCALE/CSC/FLIP/BLOCK */
+	};
+
+	dpp_2: dpp@0x14881000 { /* G0 */
+		compatible = "samsung,exynos9-dpp";
+		#pb-id-cells = <3>;
+		/* DPP, DPU_DMA, DPU_DMA_COMMON */
+		reg = <0x0 0x14881000 0x1000>, <0x0 0x14891000 0x1000>;
+		/* DPU_DMA IRQ, DPP IRQ */
+		interrupts = <0 208 0>, <0 212 0>;
+		attr = <0x50006>; /* DPP/IDMA/FLIP/BLOCK */
+	};
+
+	dpp_3: dpp@0x14882000 { /* G1 */
+		compatible = "samsung,exynos9-dpp";
+		#pb-id-cells = <3>;
+		reg = <0x0 0x14882000 0x1000>, <0x0 0x14892000 0x1000>;
+		interrupts = <0 209 0>, <0 213 0>;
+		attr = <0x50006>; /* DPP/IDMA/FLIP/BLOCK */
+	};
+
+	disp_ss: disp_ss@0x14810000 { /* SYSREG_DISPAUD */
+		compatible = "samsung,exynos9-disp_ss";
+		reg = <0x0 0x14811000 0x10>;
+	};
+
+	mipi_phy_dsim: phy_m4s4top_dsi0@0x11860000 {
+		compatible = "samsung,mipi-phy-m4s4-top";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x070C>;
+		/* PHY reset be controlled from DSIM */
+		/* reg = <0x0 0x14811008 0x4>; */
+		/* reset = <0 1>; */
+		/* init = <4 5>; */ /* PHY reset control path bit of SYSREG */
+		owner = <0>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	dsim_0: dsim@0x148E0000 {
+		compatible = "samsung,exynos9-dsim";
+		reg = <0x0 0x148E0000 0x100>;
+		interrupts = <0 204 0>;
+		iommus = <&sysmmu_dpu>;
+		phys = <&mipi_phy_dsim 0>;
+		phy-names = "dsim_dphy";
+
+		/* clock */
+		clock-names = "aclk";
+		clocks = <&clock UMUX_CLKCMU_DISPAUD_BUS>;
+
+	};
+
+	decon_f: decon_f@0x148B0000 {
+		compatible = "samsung,exynos9-decon"; /* exynos9810 */
+		#pb-id-cells = <4>;
+		reg = <0x0 0x148B0000 0x10000>;
+
+		/* interrupt num : FRAME_START, FRMAE_DONE, EXTRA, GPIO_PERIC1(EXT_INT_TE: GPD0[0]) */
+		interrupts = <0 199 0>,
+			     <0 200 0>,
+			     <0 203 0>,
+			     <0 266 0>;
+
+		/* pinctrl */
+		pinctrl-names = "hw_te_on", "hw_te_off";
+		pinctrl-0 = <&decon_f_te_on>;
+		pinctrl-1 = <&decon_f_te_off>;
+
+		max_win = <4>;
+		default_win = <0>;
+		default_idma = <2>;
+		psr_mode = <2>;         /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
+		trig_mode = <0>;        /* 0: hw trigger, 1: sw trigger */
+		dsi_mode = <0>;         /* 0: single dsi, 1: dual dsi */
+
+		/* 0: DSI, 1: eDP, 2:HDMI, 3: WB */
+		out_type = <0>;
+		/* 0: DSI0, 1: DSI1, 2: DSI2 */
+		out_idx = <0>;
+
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		/* EINT for TE */
+		gpios = <&gpc2 3 0xf>;
+		/* sw te pending register */
+		te_eint {
+			/* NWEINT_GPD0_PEND */
+			reg = <0x0 0x139B0a14 0x4>;
+		};
+
+		cam-stat {
+			/* ISPPRE_STATUS(0x1406404C), ISPHQ_STATUS(0x14064054), ISPLP_STATUS(0x1406405C) */
+			reg = <0x0 0x11864024 0x4>;
+		};
+	};
+
 	iommu-domain_dpu {
 		compatible = "samsung,exynos-iommu-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
 
-		domain-clients = <>;
+                domain-clients = <&dsim_0>;
 	};
 
 	iommu-domain_vipx {

@@ -15,6 +15,7 @@
 #include "exynos9610_battery_data.dtsi"
 #include "modem-ss360ap-sit-pdata.dtsi"
 #include "exynos9610-debug.dtsi"
+#include "exynos9610-display-lcd.dtsi"
 
 / {
 	model = "Samsung ERD9610 board based on EXYNOS9610";
@@ -63,6 +64,12 @@
 
 	serial_0: uart@13820000 {
 		status = "okay";
+	};
+
+	dsim_0: dsim@0x148E0000 {
+		lcd_info = <&s6e3fa0>;
+		/* reset */
+		gpios = <&gpg1 4 0x1>, <&gpg1 7 0x1>;
 	};
 
 	/* USI_0_SHUB */
