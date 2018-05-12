@@ -13,6 +13,7 @@
 #include "exynos9610-rmem.dtsi"
 #include "exynos9610.dtsi"
 #include "exynos9610_battery_data.dtsi"
+#include "modem-ss360ap-sit-pdata.dtsi"
 
 / {
 	model = "Samsung ERD9610 board based on EXYNOS9610";
