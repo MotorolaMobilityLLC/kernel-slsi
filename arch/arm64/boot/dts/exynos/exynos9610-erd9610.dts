@@ -10,22 +10,13 @@
  */
 
 /dts-v1/;
+#include "exynos9610-rmem.dtsi"
 #include "exynos9610.dtsi"
 #include "exynos9610_battery_data.dtsi"
 
 / {
-	model = "Samsung MAESTRO-ERD9610 board based on EXYNOS9610";
+	model = "Samsung ERD9610 board based on EXYNOS9610";
 	compatible = "samsung,exynos9610", "samsung,ERD9610";
-
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0x0 0x80000000 0x80000000>;
-	};
-
-	memory@880000000 {
-		device_type = "memory";
-		reg = <0x00000008 0x80000000 0x80000000>;
-	};
 
 	ect {
 		parameter_address = <0x90000000>;
