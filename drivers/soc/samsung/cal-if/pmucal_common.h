@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 #include <linux/delay.h>
 #endif
 

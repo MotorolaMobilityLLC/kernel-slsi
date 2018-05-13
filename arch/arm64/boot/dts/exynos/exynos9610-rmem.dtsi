@@ -10,7 +10,7 @@
  */
 
 #include "../../../../../include/generated/autoconf.h"
-#include <dt-bindings/soc/samsung/exynos-ss-table.h>
+#include <dt-bindings/soc/samsung/debug-snapshot-table.h>
 
 /memreserve/ 0xE0000000 0x1900000;
 / {
@@ -66,37 +66,35 @@
 			reg = <0x0 0xFD000000 0x80000>;
 		};
 
-		exynos_ss {
-			compatible = "exynos,exynos_ss";
-			reg = <0x0 ESS_START_ADDR ESS_TOTAL_SIZE>;
+		debug_snapshot {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			/* If this property exist, these are modified by bootloader. */
 			//bootloader;
 
 			header {
-				compatible = "exynos_ss,header";
-				reg = <0 ESS_HEADER_ADDR ESS_HEADER_SIZE>;
+				compatible = "dbg_snapshot,header";
+				reg = <0 DSS_HEADER_ADDR DSS_HEADER_SIZE>;
 			};
 			log_kernel {
-				compatible = "exynos_ss,log_kernel";
-				reg = <0 ESS_LOG_KERNEL_ADDR ESS_LOG_KERNEL_SIZE>;
+				compatible = "dbg_snapshot,log_kernel";
+				reg = <0 DSS_LOG_KERNEL_ADDR DSS_LOG_KERNEL_SIZE>;
 			};
 			log_platform {
-				compatible = "exynos_ss,log_platform";
-				reg = <0 ESS_LOG_PLATFORM_ADDR ESS_LOG_PLATFORM_SIZE>;
+				compatible = "dbg_snapshot,log_platform";
+				reg = <0 DSS_LOG_PLATFORM_ADDR DSS_LOG_PLATFORM_SIZE>;
 			};
 			log_sfr {
-				compatible = "exynos_ss,log_sfr";
-				reg = <0 ESS_LOG_SFR_ADDR ESS_LOG_SFR_SIZE>;
+				compatible = "dbg_snapshot,log_sfr";
+				reg = <0 DSS_LOG_SFR_ADDR DSS_LOG_SFR_SIZE>;
 			};
 			log_pstore {
-				compatible = "exynos_ss,log_pstore";
-				reg = <0 ESS_LOG_PSTORE_ADDR ESS_LOG_PSTORE_SIZE>;
+				compatible = "dbg_snapshot,log_pstore";
+				reg = <0 DSS_LOG_PSTORE_ADDR DSS_LOG_PSTORE_SIZE>;
 			};
 			log_kevents {
-				compatible = "exynos_ss,log_kevents";
-				reg = <0 ESS_LOG_KEVENTS_ADDR ESS_LOG_KEVENTS_SIZE>;
+				compatible = "dbg_snapshot,log_kevents";
+				reg = <0 DSS_LOG_KEVENTS_ADDR DSS_LOG_KEVENTS_SIZE>;
 			};
 		};
 

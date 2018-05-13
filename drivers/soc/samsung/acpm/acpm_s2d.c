@@ -17,7 +17,7 @@
 #include <soc/samsung/acpm_ipc_ctrl.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 
 
 #define EXYNOS_S2D_DBG_PREFIX	"EXYNOS-S2D-DBG: "
@@ -46,7 +46,7 @@ static int exynos_acpm_s2d_update_en(void)
 	config.cmd = cmd;
 	config.response = true;
 	config.indirection = false;
-	config.cmd[1] = exynos_ss_get_item_paddr("log_s2d");
+	config.cmd[1] = dbg_snapshot_get_item_paddr("log_s2d");
 	config.cmd[2] = s2d_en;
 
 	before = sched_clock();

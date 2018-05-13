@@ -17,7 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 #include <linux/soc/samsung/exynos-soc.h>
 #include <linux/sched/clock.h>
 

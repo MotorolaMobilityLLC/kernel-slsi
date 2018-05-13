@@ -22,3 +22,6 @@ obj-$(CONFIG_EXYNOS_CHIPID)	+= exynos-chipid.o
 obj-$(CONFIG_EXYNOS_ACPM)       += acpm/
 
 obj-$(CONFIG_EXYNOS_RGT)        += exynos-rgt.o
+
+# DEBUG
+obj-$(CONFIG_EXYNOS_DEBUG)      += debug/

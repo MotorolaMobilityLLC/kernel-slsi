@@ -1,0 +1,4 @@
+menuconfig EXYNOS_DEBUG
+        bool "Exynos Debug Features"
+        default y
+        depends on ARCH_EXYNOS

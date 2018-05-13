@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 #include <soc/samsung/ect_parser.h>
 #include <soc/samsung/cal-if.h>
 

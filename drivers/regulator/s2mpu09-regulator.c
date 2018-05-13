@@ -27,7 +27,7 @@
 #include <linux/mfd/samsung/s2mpu09-regulator.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 #include <linux/debugfs.h>
 
 static struct s2mpu09_info *static_info;

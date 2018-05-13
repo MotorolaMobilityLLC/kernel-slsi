@@ -79,4 +79,6 @@ config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST
 	depends on PM_GENERIC_DOMAINS || COMPILE_TEST
 
+source "drivers/soc/samsung/debug/Kconfig"
+
 endif

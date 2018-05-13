@@ -1166,9 +1166,9 @@ int exynos_ufs_init_dbg(struct ufs_hba *hba)
 		exynos_clki->freq = 0;
 		list_add_tail(&exynos_clki->list, &ufs->debug.misc.clk_list_head);
 	}
-#ifdef CONFIG_EXYNOS_SNAPSHOT
-	hba->secure_log.paddr = exynos_ss_get_spare_paddr(0);
-	hba->secure_log.vaddr = (u32 *)exynos_ss_get_spare_vaddr(0);
+#ifdef CONFIG_DEBUG_SNAPSHOT
+	hba->secure_log.paddr = dbg_snapshot_get_spare_paddr(0);
+	hba->secure_log.vaddr = (u32 *)dbg_snapshot_get_spare_vaddr(0);
 #endif
 
 	return 0;
