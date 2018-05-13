@@ -40,6 +40,7 @@
 #include <linux/of.h>
 #include <linux/irq_work.h>
 #include <linux/kexec.h>
+#include <linux/debug-snapshot.h>
 
 #include <asm/alternative.h>
 #include <asm/atomic.h>
@@ -833,11 +834,13 @@ void arch_irq_work_raise(void)
 /*
  * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
-static void ipi_cpu_stop(unsigned int cpu)
+static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 {
 	set_cpu_online(cpu, false);
 
 	local_irq_disable();
+
+	dbg_snapshot_save_context(regs);
 
 	while (1)
 		cpu_relax();
@@ -879,6 +882,8 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
 	}
 
+	dbg_snapshot_irq(ipinr, handle_IPI, irqs_disabled(), DSS_FLAG_IN);
+
 	switch (ipinr) {
 	case IPI_RESCHEDULE:
 		scheduler_ipi();
@@ -892,7 +897,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		ipi_cpu_stop(cpu);
+		ipi_cpu_stop(cpu, regs);
 		irq_exit();
 		break;
 
@@ -936,6 +941,9 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	if ((unsigned)ipinr < NR_IPI)
 		trace_ipi_exit_rcuidle(ipi_types[ipinr]);
+
+	dbg_snapshot_irq(ipinr, handle_IPI, irqs_disabled(), DSS_FLAG_OUT);
+
 	set_irq_regs(old_regs);
 }
 

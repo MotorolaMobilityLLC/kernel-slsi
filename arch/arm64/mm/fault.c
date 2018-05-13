@@ -32,6 +32,7 @@
 #include <linux/perf_event.h>
 #include <linux/preempt.h>
 #include <linux/hugetlb.h>
+#include <linux/debug-snapshot.h>
 
 #include <asm/bug.h>
 #include <asm/cmpxchg.h>

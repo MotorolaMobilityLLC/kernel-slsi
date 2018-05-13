@@ -1990,3 +1990,109 @@ config IO_STRICT_DEVMEM
 	  if the driver using a given range cannot be disabled.
 
 	  If in doubt, say Y.
+
+menuconfig DEBUG_SNAPSHOT
+	bool "Debug SnapShot Support"
+	default n
+
+config DEBUG_SNAPSHOT_CALLSTACK
+	int "shown callstack level"
+	depends on DEBUG_SNAPSHOT
+	range 1 4
+	default 4
+
+config DEBUG_SNAPSHOT_IRQ_EXIT
+	bool "Enable debugging of interrupt exit event by kevent"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_IRQ_EXIT_THRESHOLD
+	int "threshold of detection(microsecond)"
+	depends on DEBUG_SNAPSHOT_IRQ_EXIT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	range 0 1000000
+	default 0
+
+config DEBUG_SNAPSHOT_IRQ_DISABLED
+	bool "Enable debugging of interrupt disable event by kevent(EXPERIMENTAL)"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default n
+
+config DEBUG_SNAPSHOT_SPINLOCK
+	bool "Enable debugging of spinlock event by kevent(EXPERIMENTAL)"
+	depends on DEBUG_SNAPSHOT && DEBUG_SPINLOCK && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_CLK
+	bool "Enable debugging of clock event by kevent(EXPERIMENTAL)"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_PMU
+	bool "Enable debugging of pmu event by kevent(EXPERIMENTAL)"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_FREQ
+	bool "Enable debugging of frequence event by kevent(EXPERIMENTAL)"
+	depends on DEBUG_SNAPSHOT && PM_DEVFREQ && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_DM
+	bool "Enable debugging of dvfs manager event by kevent(EXPERIMENTAL)"
+	depends on DEBUG_SNAPSHOT && EXYNOS_DVFS_MANAGER && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_HRTIMER
+	bool "Enable debugging of hrtimer by kevent"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_REG
+	bool "Enable debugging of accessing register by kevent"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default n
+
+config DEBUG_SNAPSHOT_REGULATOR
+	bool "Enable debugging of regulator and pmic driver"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_ACPM
+	bool "Enable debugging of acpm framework"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_THERMAL
+	bool "Enable debugging of thermal driver"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE && EXYNOS_THERMAL
+	default y
+
+config DEBUG_SNAPSHOT_I2C
+	bool "Enable debugging of i2c driver"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_SPI
+	bool "Enable debugging of spi driver"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
+config DEBUG_SNAPSHOT_PANIC_REBOOT
+	bool "Enable forced reboot after panic for ramdump"
+	depends on DEBUG_SNAPSHOT
+	default y
+
+config DEBUG_SNAPSHOT_WATCHDOG_RESET
+	bool "Support watchdog reset when hardlockup detect"
+	depends on DEBUG_SNAPSHOT && DEBUG_SNAPSHOT_PANIC_REBOOT
+	default y
+
+config DEBUG_SNAPSHOT_CRASH_KEY
+	bool "Support Crash Key to artificial panic for debugging"
+	depends on DEBUG_SNAPSHOT && KEYBOARD_GPIO
+	default y
+
+config DEBUG_SNAPSHOT_MINIMIZED_MODE
+	bool "Support minimized feature configuration"
+	depends on DEBUG_SNAPSHOT
+	default n

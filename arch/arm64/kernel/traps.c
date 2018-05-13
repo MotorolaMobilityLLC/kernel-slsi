@@ -35,6 +35,7 @@
 #include <linux/sizes.h>
 #include <linux/syscalls.h>
 #include <linux/mm_types.h>
+#include <linux/debug-snapshot.h>
 
 #include <asm/atomic.h>
 #include <asm/bug.h>

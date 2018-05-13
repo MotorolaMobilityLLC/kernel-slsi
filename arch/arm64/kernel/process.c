@@ -47,6 +47,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/personality.h>
 #include <linux/notifier.h>
+#include <linux/debug-snapshot.h>
 #include <trace/events/power.h>
 #include <linux/percpu.h>
 
@@ -157,6 +158,8 @@ void machine_restart(char *cmd)
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_reboot(reboot_mode, NULL);
 
+	dbg_snapshot_post_reboot(cmd);
+
 	/* Now call the architecture specific reboot code. */
 	if (arm_pm_restart)
 		arm_pm_restart(reboot_mode, cmd);
@@ -247,6 +250,16 @@ void __show_regs(struct pt_regs *regs)
 		lr = regs->regs[30];
 		sp = regs->sp;
 		top_reg = 29;
+	}
+
+	if (!user_mode(regs)) {
+		dbg_snapshot_save_context(regs);
+		/*
+		*  If you want to see more kernel events after panic,
+		*  you should modify dbg_snapshot_set_enable's function 2nd parameter
+		*  to true.
+		*/
+		dbg_snapshot_set_enable("log_kevents", false);
 	}
 
 	show_regs_print_info(KERN_DEFAULT);

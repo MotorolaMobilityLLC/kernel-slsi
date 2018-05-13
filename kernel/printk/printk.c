@@ -586,7 +586,7 @@ static size_t print_process(const struct printk_log *msg, char *buf)
 #endif
 module_param_named(process, printk_process, bool, S_IRUGO | S_IWUSR);
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT
+#ifdef CONFIG_DEBUG_SNAPSHOT
 static size_t hook_size;
 static char hook_text[LOG_LINE_MAX + PREFIX_MAX];
 static void (*func_hook_logbuf)(const char *buf, size_t size);
@@ -710,7 +710,7 @@ static int log_store(int facility, int level,
 		msg->in_interrupt = in_interrupt() ? 1 : 0;
 	}
 #endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT
+#ifdef CONFIG_DEBUG_SNAPSHOT
 	if (func_hook_logbuf) {
 		hook_size = msg_print_text(msg,
 				true, hook_text, LOG_LINE_MAX + PREFIX_MAX);

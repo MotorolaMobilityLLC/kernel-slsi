@@ -26,6 +26,7 @@
 #include <linux/profile.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
+#include <linux/debug-snapshot.h>
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
@@ -3432,6 +3433,7 @@ static void __sched notrace __schedule(bool preempt)
 		rq_unlock_irq(rq, &rf);
 	}
 
+	dbg_snapshot_task(cpu, rq->curr);
 	balance_callback(rq);
 }
 

@@ -161,6 +161,16 @@ void dbg_snapshot_check_crash_key(unsigned int code, int value);
 #define dbg_snapshot_check_crash_key(a,b)	do { } while(0)
 #endif
 
+#ifdef CONFIG_S3C2410_WATCHDOG
+extern int s3c2410wdt_set_emergency_stop(int index);
+extern int s3c2410wdt_set_emergency_reset(unsigned int timeout, int index);
+extern int s3c2410wdt_keepalive_emergency(bool reset, int index);
+#else
+#define s3c2410wdt_set_emergency_stop(a) 	(-1)
+#define s3c2410wdt_set_emergency_reset(a, b)	do { } while(0)
+#define s3c2410wdt_keepalive_emergency(a, b)	do { } while(0)
+#endif
+
 #else
 #define dbg_snapshot_acpm(a,b,c)		do { } while(0)
 #define dbg_snapshot_task(a,b)		do { } while(0)

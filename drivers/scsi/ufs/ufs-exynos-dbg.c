@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/smc.h>
+#include <linux/debug-snapshot.h>
 
 #include "ufshcd.h"
 #include "unipro.h"

@@ -39,6 +39,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/soc/samsung/exynos-soc.h>
 #include <soc/samsung/exynos-pmu.h>
+#include <linux/debug-snapshot.h>
 
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
