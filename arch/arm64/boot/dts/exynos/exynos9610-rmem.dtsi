@@ -73,27 +73,27 @@
 			//bootloader;
 
 			header {
-				compatible = "dbg_snapshot,header";
+				compatible = "debug-snapshot,header";
 				reg = <0 DSS_HEADER_ADDR DSS_HEADER_SIZE>;
 			};
 			log_kernel {
-				compatible = "dbg_snapshot,log_kernel";
+				compatible = "debug-snapshot,log_kernel";
 				reg = <0 DSS_LOG_KERNEL_ADDR DSS_LOG_KERNEL_SIZE>;
 			};
 			log_platform {
-				compatible = "dbg_snapshot,log_platform";
+				compatible = "debug-snapshot,log_platform";
 				reg = <0 DSS_LOG_PLATFORM_ADDR DSS_LOG_PLATFORM_SIZE>;
 			};
 			log_sfr {
-				compatible = "dbg_snapshot,log_sfr";
+				compatible = "debug-snapshot,log_sfr";
 				reg = <0 DSS_LOG_SFR_ADDR DSS_LOG_SFR_SIZE>;
 			};
 			log_pstore {
-				compatible = "dbg_snapshot,log_pstore";
+				compatible = "debug-snapshot,log_pstore";
 				reg = <0 DSS_LOG_PSTORE_ADDR DSS_LOG_PSTORE_SIZE>;
 			};
 			log_kevents {
-				compatible = "dbg_snapshot,log_kevents";
+				compatible = "debug-snapshot,log_kevents";
 				reg = <0 DSS_LOG_KEVENTS_ADDR DSS_LOG_KEVENTS_SIZE>;
 			};
 		};
