@@ -449,7 +449,7 @@ int dbg_snapshot_save_context(void *v_regs)
 	} else
 		pr_emerg("debug-snapshot: skip context saved(CPU:%d)\n", cpu);
 
-	flush_cache_all();
+//	flush_cache_all();
 	raw_spin_unlock_irqrestore(&dss_desc.ctrl_lock, flags);
 
 	dss_soc_ops->soc_save_context_exit(NULL);

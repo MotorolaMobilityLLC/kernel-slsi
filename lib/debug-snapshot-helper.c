@@ -252,7 +252,7 @@ int dbg_snapshot_post_panic(void)
 		dbg_snapshot_dump_sfr();
 #endif
 		dbg_snapshot_save_context(NULL);
-		flush_cache_all();
+//		flush_cache_all();
 		dbg_snapshot_print_panic_report();
 
 		dss_soc_ops->soc_post_panic_exit(NULL);
@@ -321,7 +321,7 @@ int dbg_snapshot_post_reboot(char *cmd)
 	pr_emerg("debug-snapshot: normal reboot done\n");
 
 	dbg_snapshot_save_context(NULL);
-	flush_cache_all();
+//	flush_cache_all();
 
 	return 0;
 }
@@ -353,7 +353,7 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 #endif
 	dbg_snapshot_dump_task_info();
 	pr_emerg("linux_banner: %s\n", linux_banner);
-	flush_cache_all();
+//	flush_cache_all();
 	return 0;
 }
 
