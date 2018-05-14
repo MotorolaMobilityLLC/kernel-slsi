@@ -155,6 +155,7 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A53_ENERGY>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu1: cpu@101 {
@@ -163,6 +164,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A53_ENERGY>;
 		};
 		cpu2: cpu@102 {
 			device_type = "cpu";
@@ -170,6 +172,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A53_ENERGY>;
 		};
 		cpu3: cpu@103 {
 			device_type = "cpu";
@@ -177,6 +180,7 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			cpu-idle-states = <&BOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A53_ENERGY>;
 		};
 		cpu4: cpu@0 {
 			device_type = "cpu";
@@ -184,6 +188,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A73_ENERGY>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu5: cpu@1 {
@@ -192,6 +197,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A73_ENERGY>;
 		};
 		cpu6: cpu@2 {
 			device_type = "cpu";
@@ -199,6 +205,7 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A73_ENERGY>;
 		};
 		cpu7: cpu@3 {
 			device_type = "cpu";
@@ -206,6 +213,7 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			cpu-idle-states = <&NONBOOTCL_CPU_SLEEP>;
+			sched-energy-data = <&A73_ENERGY>;
 		};
 
 		idle-states {
@@ -229,6 +237,17 @@
 				exit-latency-us = <75>;
 				min-residency-us = <2000>;
 				status = "okay";
+			};
+		};
+
+		energy-data {
+			A53_ENERGY: a53-energy {
+				capacity-mips = <230>;
+				power-coefficient = <450>;
+			};
+			A73_ENERGY: a73-energy {
+				capacity-mips = <480>;
+				power-coefficient = <870>;
 			};
 		};
 	};
