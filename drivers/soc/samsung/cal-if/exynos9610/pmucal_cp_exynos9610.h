@@ -21,6 +21,7 @@ struct pmucal_seq cp_reset_assert[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_RESET_ISO_SYS_PWR_REG", 0x11860000, 0x1334, (0x1 << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_DUMP_PC_SYS_PWR_REG", 0x11860000, 0x1338, (0x1 << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__CP_RESET_SET", 0x11860000, 0x0030, (0x1 << 0), (0x1 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_DELAY, "DELAY", 0x11860000, 0, 0, 4000, 0, 0, 0, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WAIT, "CENTRAL_SEQ_CP_STATUS__STATES", 0x11860000, 0x0284, (0xff << 16), (0x80 << 16), 0x11860000, 0x0284, (0xff << 16), (0x80 << 16)),
 };
 struct pmucal_seq cp_reset_release[] = {
@@ -36,10 +37,14 @@ struct pmucal_seq cp_reset_release[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__CP_PWRON", 0x11860000, 0x0030, (0x1 << 18), (0x0 << 18), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_seq cp_enable_dump_pc_no_pg[] = {
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__MASK_TCXO_REQ", 0x11860000, 0x0030, (0x1 << 20), (0x1 << 20), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__MASK_PWR_REQ", 0x11860000, 0x0030, (0x1 << 18), (0x1 << 18), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS", 0x11860000, 0x0030, (0x1 << 17), (0x1 << 17), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_seq cp_disable_dump_pc_no_pg[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS", 0x11860000, 0x0030, (0x1 << 17), (0x0 << 17), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__MASK_TCXO_REQ", 0x11860000, 0x0030, (0x1 << 20), (0x0 << 20), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__MASK_PWR_REQ", 0x11860000, 0x0030, (0x1 << 18), (0x0 << 18), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_cp pmucal_cp_list = {
 		.init = cp_init,

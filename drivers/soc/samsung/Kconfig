@@ -55,6 +55,18 @@ config PMUCAL
 	help
 	Support PMUCAL for Exynos SoC.
 
+config CP_PMUCAL
+	bool "Exynos PMU(for CP) Chip Abstraction Layer"
+	depends on CAL_IF
+	help
+	  Support CP_PMUCAL for Exynos SoC.
+
+config GNSS_PMUCAL
+	bool "Exynos PMU(for GNSS) Chip Abstraction Layer"
+	depends on CAL_IF
+	help
+	  Support GNSS_PMUCAL for Exynos SoC.
+
 config EXYNOS_PMU
 	bool "Exynos Power Management Unit Driver Support"
 	depends on ARCH_EXYNOS

@@ -220,10 +220,14 @@ void pmucal_smc_read(struct pmucal_seq *seq, int update)
 	u32 cp_ctrl_low;
 	u32 cp_ctrl_high;
 
-	if (seq->offset == PMU_CP_CTRL_S_OFFSET)
+	if (seq->offset == PMU_CP_CTRL_S_OFFSET) {
 		reg = CP_CTRL_S;
-	else if (seq->offset == PMU_CP_CTRL_NS_OFFSET)
+	} else if (seq->offset == PMU_CP_CTRL_NS_OFFSET) {
 		reg = CP_CTRL_NS;
+	} else {
+		pr_err("%s%s: ERR! it is not CP_CTRL_S, CP_CTRL_NS: 0x%08x\n", PMUCAL_PREFIX, __func__, seq->offset);
+		return;
+	}
 
 	cp_ctrl = exynos_smc(SMC_ID, READ_CTRL, 0, reg);
 	if (!(cp_ctrl & 0xffff)) {
@@ -258,10 +262,14 @@ void pmucal_smc_write(struct pmucal_seq *seq)
 	u32 cp_ctrl_low;
 	u32 cp_ctrl_high;
 
-	if (seq->offset == PMU_CP_CTRL_S_OFFSET)
+	if (seq->offset == PMU_CP_CTRL_S_OFFSET) {
 		reg = CP_CTRL_S;
-	else if (seq->offset == PMU_CP_CTRL_NS_OFFSET)
+	} else if (seq->offset == PMU_CP_CTRL_NS_OFFSET) {
 		reg = CP_CTRL_NS;
+	} else {
+		pr_err("%s%s: ERR! it is not CP_CTRL_S, CP_CTRL_NS: 0x%08x\n", PMUCAL_PREFIX, __func__, seq->offset);
+		return;
+	}
 
 	if (seq->mask == U32_MAX) {
 		ret = exynos_smc(SMC_ID, WRITE_CTRL, seq->value, reg);
