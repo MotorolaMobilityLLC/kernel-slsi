@@ -138,6 +138,10 @@
 #define EXYNOS_TMU_REG_TRIM0			(0x3C)
 #define EXYNOS_TMU_T_TRIM0_SHIFT		(18)
 #define EXYNOS_TMU_T_TRIM0_MASK			(0xF)
+#define EXYNOS_TMU_T_VREF_TRIM_SHIFT		(14)
+#define EXYNOS_TMU_T_VREF_TRIM_MASK		(0xF)
+#define EXYNOS_TMU_T_VBE_I_TRIM_SHIFT		(10)
+#define EXYNOS_TMU_T_VBE_I_TRIM_MASK		(0xF)
 #define EXYNOS_TMU_BGRI_TRIM_SHIFT		(20)
 #define EXYNOS_TMU_BGRI_TRIM_MASK		(0xF)
 #define EXYNOS_TMU_VREF_TRIM_SHIFT		(12)
@@ -435,6 +439,101 @@ static int exynos9810_tmu_initialize(struct platform_device *pdev)
 	return 0;
 }
 
+static int exynos9610_tmu_initialize(struct platform_device *pdev)
+{
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct thermal_zone_device *tz = data->tzd;
+	struct exynos_tmu_platform_data *pdata = data->pdata;
+	unsigned int trim_info, temp_error1, temp_error2;
+	unsigned short cal_type;
+	unsigned int rising_threshold, falling_threshold;
+	unsigned int reg_off, bit_off;
+	enum thermal_trip_type type;
+	int temp, temp_hist, threshold_code;
+	int i, sensor, count = 0, interrupt_count;
+
+	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(0));
+	cal_type = (trim_info >> EXYNOS_TMU_CALIB_SEL_SHIFT) & EXYNOS_TMU_CALIB_SEL_MASK;
+
+	for (sensor = 0; sensor < TOTAL_SENSORS; sensor++) {
+
+		if (!(data->sensors & (1 << sensor)))
+			continue;
+
+		/* Read the sensor error value from TRIMINFOX */
+		trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(sensor));
+		temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
+		temp_error2 = (trim_info >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT) & EXYNOS_TMU_TEMP_MASK;
+
+		/* Save sensor id */
+		data->sensor_info[count].sensor_num = sensor;
+		dev_info(&pdev->dev, "Sensor number = %d\n", sensor);
+
+		/* Check thermal calibration type */
+		data->sensor_info[count].cal_type = cal_type;
+
+		/* Check temp_error1 value */
+		data->sensor_info[count].temp_error1 = temp_error1;
+		if (!data->sensor_info[count].temp_error1)
+			data->sensor_info[count].temp_error1 = pdata->efuse_value & EXYNOS_TMU_TEMP_MASK;
+
+		/* Check temp_error2 if calibration type is TYPE_TWO_POINT_TRIMMING */
+		if (data->sensor_info[count].cal_type == TYPE_TWO_POINT_TRIMMING) {
+			data->sensor_info[count].temp_error2 = temp_error2;
+
+			if (!data->sensor_info[count].temp_error2)
+				data->sensor_info[count].temp_error2 =
+					(pdata->efuse_value >> EXYNOS_TMU_TRIMINFO_85_P0_SHIFT) &
+					EXYNOS_TMU_TEMP_MASK;
+		}
+
+		interrupt_count = 0;
+		/* Write temperature code for rising and falling threshold */
+		for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
+			tz->ops->get_trip_type(tz, i, &type);
+
+			if (type == THERMAL_TRIP_PASSIVE)
+				continue;
+
+			reg_off = (interrupt_count / 2) * 4;
+			bit_off = ((interrupt_count + 1) % 2) * 16;
+
+			if (sensor == 0)
+				reg_off += EXYNOS_TMU_REG_THD_TEMP0;
+			else if (sensor < 8)
+				reg_off += EXYNOS_TMU_REG_THD_TEMP1 + (sensor - 1) * 0x20;
+			else
+				reg_off += EXYNOS_TMU_REG_THD_TEMP8 + (sensor - 8) * 0x20;
+
+			tz->ops->get_trip_temp(tz, i, &temp);
+			temp /= MCELSIUS;
+
+			tz->ops->get_trip_hyst(tz, i, &temp_hist);
+			temp_hist = temp - (temp_hist / MCELSIUS);
+
+			/* Set 9-bit temperature code for rising threshold levels */
+			threshold_code = temp_to_code_with_sensorinfo(data, temp, &data->sensor_info[count]);
+			rising_threshold = readl(data->base + reg_off);
+			rising_threshold &= ~(EXYNOS_TMU_TEMP_MASK << bit_off);
+			rising_threshold |= threshold_code << bit_off;
+			writel(rising_threshold, data->base + reg_off);
+
+			/* Set 9-bit temperature code for falling threshold levels */
+			threshold_code = temp_to_code_with_sensorinfo(data, temp_hist, &data->sensor_info[count]);
+			falling_threshold = readl(data->base + reg_off + 0x10);
+			falling_threshold &= ~(EXYNOS_TMU_TEMP_MASK << bit_off);
+			falling_threshold |= threshold_code << bit_off;
+			writel(falling_threshold, data->base + reg_off + 0x10);
+			interrupt_count++;
+		}
+		count++;
+	}
+
+	data->tmu_clear_irqs(data);
+
+	return 0;
+}
+
 static void tmu_core_enable(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
@@ -519,6 +618,81 @@ static void tmu_irqs_disable(struct platform_device *pdev)
 }
 
 static void exynos9810_tmu_control(struct platform_device *pdev, bool on)
+{
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	unsigned int trim, ctrl, con1, avgc;
+	unsigned int t_buf_vref_sel, t_buf_slope_sel, avg_mode;
+	unsigned int counter_value;
+
+	tmu_core_disable(pdev);
+	tmu_irqs_disable(pdev);
+
+	if (!on)
+		return;
+
+	trim = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(0));
+	t_buf_vref_sel = (trim >> EXYNOS_TMU_T_BUF_VREF_SEL_SHIFT)
+				& EXYNOS_TMU_T_BUF_VREF_SEL_MASK;
+
+	trim = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(1));
+	t_buf_slope_sel = (trim >> EXYNOS_TMU_T_BUF_SLOPE_SEL_SHIFT)
+				& EXYNOS_TMU_T_BUF_SLOPE_SEL_MASK;
+
+	trim = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(2));
+	avg_mode = (trim >> EXYNOS_TMU_AVG_CON_SHIFT) & EXYNOS_TMU_AVG_MODE_MASK;
+
+	/* set BUf_VREF_SEL, BUF_SLOPE_SEL */
+	ctrl = readl(data->base + EXYNOS_TMU_REG_CONTROL);
+	ctrl &= ~(EXYNOS_TMU_REF_VOLTAGE_MASK << EXYNOS_TMU_REF_VOLTAGE_SHIFT);
+	ctrl &= ~(EXYNOS_TMU_BUF_SLOPE_SEL_MASK << EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT);
+	ctrl |= t_buf_vref_sel << EXYNOS_TMU_REF_VOLTAGE_SHIFT;
+	ctrl |= t_buf_slope_sel << EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT;
+	writel(ctrl, data->base + EXYNOS_TMU_REG_CONTROL);
+
+	/* set NUM_PROBE, reset LPI_MODE_EN */
+	con1 = readl(data->base + EXYNOS_TMU_REG_CONTROL1);
+	con1 &= ~(EXYNOS_TMU_NUM_PROBE_MASK << EXYNOS_TMU_NUM_PROBE_SHIFT);
+	con1 &= ~(EXYNOS_TMU_LPI_MODE_MASK << EXYNOS_TMU_LPI_MODE_SHIFT);
+	con1 |= (data->num_probe << EXYNOS_TMU_NUM_PROBE_SHIFT);
+	writel(con1, data->base + EXYNOS_TMU_REG_CONTROL1);
+
+	/* set EN_DEM, AVG_MODE */
+	avgc = readl(data->base + EXYNOS_TMU_REG_AVG_CON);
+	avgc &= ~(EXYNOS_TMU_AVG_MODE_MASK);
+	avgc &= ~(EXYNOS_TMU_DEM_ENABLE << EXYNOS_TMU_DEM_SHIFT);
+	if (avg_mode) {
+		avgc |= avg_mode;
+		avgc |= (EXYNOS_TMU_DEM_ENABLE << EXYNOS_TMU_DEM_SHIFT);
+	}
+	writel(avgc, data->base + EXYNOS_TMU_REG_AVG_CON);
+
+	/* set COUNTER_VALUE */
+	counter_value = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
+	counter_value &= ~(EXYNOS_TMU_EN_TEMP_SEN_OFF_MASK << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT);
+	counter_value |= EXYNOS_TMU_TEM1051X_SENSE_VALUE << EXYNOS_TMU_EN_TEMP_SEN_OFF_SHIFT;
+	writel(counter_value, data->base + EXYNOS_TMU_REG_COUNTER_VALUE0);
+
+	counter_value = readl(data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
+	counter_value &= ~(EXYNOS_TMU_CLK_SENSE_ON_MASK << EXYNOS_TMU_CLK_SENSE_ON_SHIFT);
+	counter_value |= EXYNOS_TMU_TEM1051X_SENSE_VALUE << EXYNOS_TMU_CLK_SENSE_ON_SHIFT;
+	writel(counter_value, data->base + EXYNOS_TMU_REG_COUNTER_VALUE1);
+
+	/* set TRIM0 BGR_I/VREF/VBE_I */
+	/* write TRIM0 values read from TMU_TOP to each TMU_TOP and TMU_SUB */
+	ctrl = readl(data->base + EXYNOS_TMU_REG_TRIM0);
+	ctrl &= ~(EXYNOS_TMU_BGRI_TRIM_MASK << EXYNOS_TMU_BGRI_TRIM_SHIFT);
+	ctrl &= ~(EXYNOS_TMU_VREF_TRIM_MASK << EXYNOS_TMU_VREF_TRIM_SHIFT);
+	ctrl &= ~(EXYNOS_TMU_VBEI_TRIM_MASK << EXYNOS_TMU_VBEI_TRIM_SHIFT);
+	ctrl |= (t_bgri_trim << EXYNOS_TMU_BGRI_TRIM_SHIFT);
+	ctrl |= (t_vref_trim << EXYNOS_TMU_VREF_TRIM_SHIFT);
+	ctrl |= (t_vbei_trim << EXYNOS_TMU_VBEI_TRIM_SHIFT);
+	writel(ctrl, data->base + EXYNOS_TMU_REG_TRIM0);
+
+	tmu_irqs_enable(pdev);
+	tmu_core_enable(pdev);
+}
+
+static void exynos9610_tmu_control(struct platform_device *pdev, bool on)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim, ctrl, con1, avgc;
@@ -705,6 +879,28 @@ static void exynos9810_tmu_set_emulation(struct exynos_tmu_data *data,
 	writel(val, data->base + emul_con);
 }
 
+static void exynos9610_tmu_set_emulation(struct exynos_tmu_data *data,
+					 int temp)
+{
+	unsigned int val;
+	u32 emul_con;
+
+	emul_con = EXYNOS_TMU_REG_EMUL_CON;
+
+	val = readl(data->base + emul_con);
+
+	if (temp) {
+		temp /= MCELSIUS;
+		val &= ~(EXYNOS_EMUL_DATA_MASK << EXYNOS_EMUL_DATA_SHIFT);
+		val |= (temp_to_code_with_sensorinfo(data, temp, &data->sensor_info[0]) << EXYNOS_EMUL_DATA_SHIFT)
+			| EXYNOS_EMUL_ENABLE;
+	} else {
+		val &= ~EXYNOS_EMUL_ENABLE;
+	}
+
+	writel(val, data->base + emul_con);
+}
+
 static int exynos_tmu_set_emulation(void *drv_data, int temp)
 {
 	struct exynos_tmu_data *data = drv_data;
@@ -751,6 +947,17 @@ static int exynos9810_tmu_read(struct exynos_tmu_data *data)
 	return temp;
 }
 
+static int exynos9610_tmu_read(struct exynos_tmu_data *data)
+{
+	int temp = 0, stat = 0;
+
+#ifdef CONFIG_EXYNOS_ACPM_THERMAL
+	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp, &stat);
+#endif
+
+	return temp;
+}
+
 static void exynos_tmu_work(struct work_struct *work)
 {
 	struct exynos_tmu_data *data = container_of(work,
@@ -766,6 +973,27 @@ static void exynos_tmu_work(struct work_struct *work)
 }
 
 static void exynos9810_tmu_clear_irqs(struct exynos_tmu_data *data)
+{
+	unsigned int i, val_irq;
+	u32 pend_reg;
+
+	for (i = 0; i < TOTAL_SENSORS; i++) {
+		if (!(data->sensors & (1 << i)))
+			continue;
+
+		if (i < 5)
+			pend_reg = EXYNOS_TMU_REG_INTPEND0 + EXYNOS_TMU_REG_INTPEN_OFFSET * i;
+		else if (i < 8)
+			pend_reg = EXYNOS_TMU_REG_INTPEND5 + EXYNOS_TMU_REG_INTPEN_OFFSET * (i - 5);
+		else
+			pend_reg = EXYNOS_TMU_REG_INTPEND8 + EXYNOS_TMU_REG_INTPEN_OFFSET * (i - 8);
+
+		val_irq = readl(data->base + pend_reg);
+		writel(val_irq, data->base + pend_reg);
+	}
+}
+
+static void exynos9610_tmu_clear_irqs(struct exynos_tmu_data *data)
 {
 	unsigned int i, val_irq;
 	u32 pend_reg;
@@ -853,6 +1081,7 @@ static struct notifier_block exynos_tmu_pm_notifier = {
 
 static const struct of_device_id exynos_tmu_match[] = {
 	{ .compatible = "samsung,exynos9810-tmu", },
+	{ .compatible = "samsung,exynos9610-tmu", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, exynos_tmu_match);
@@ -861,6 +1090,8 @@ static int exynos_of_get_soc_type(struct device_node *np)
 {
 	if (of_device_is_compatible(np, "samsung,exynos9810-tmu"))
 		return SOC_ARCH_EXYNOS9810;
+	if (of_device_is_compatible(np, "samsung,exynos9610-tmu"))
+		return SOC_ARCH_EXYNOS9610;
 
 	return -EINVAL;
 }
@@ -991,6 +1222,14 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos9810_tmu_read;
 		data->tmu_set_emulation = exynos9810_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos9810_tmu_clear_irqs;
+		data->ntrip = 8;
+		break;
+	case SOC_ARCH_EXYNOS9610:
+		data->tmu_initialize = exynos9610_tmu_initialize;
+		data->tmu_control = exynos9610_tmu_control;
+		data->tmu_read = exynos9610_tmu_read;
+		data->tmu_set_emulation = exynos9610_tmu_set_emulation;
+		data->tmu_clear_irqs = exynos9610_tmu_clear_irqs;
 		data->ntrip = 8;
 		break;
 	default:
@@ -1436,6 +1675,15 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		t_vref_trim = (ctrl >> EXYNOS_TMU_T_TRIM0_SHIFT) & EXYNOS_TMU_T_TRIM0_MASK;
 		ctrl = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(5));
 		t_vbei_trim = (ctrl >> EXYNOS_TMU_T_TRIM0_SHIFT) & EXYNOS_TMU_T_TRIM0_MASK;
+	}
+#elif defined(CONFIG_SOC_EXYNOS9610)
+	if (data->id == 0) {
+		ctrl = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(3));
+		t_bgri_trim = (ctrl >> EXYNOS_TMU_T_TRIM0_SHIFT) & EXYNOS_TMU_T_TRIM0_MASK;
+		ctrl = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(3));
+		t_vref_trim = (ctrl >> EXYNOS_TMU_T_VREF_TRIM_SHIFT) & EXYNOS_TMU_T_VREF_TRIM_MASK;
+		ctrl = readl(data->base + EXYNOS_TMU_REG_TRIMINFO(3));
+		t_vbei_trim = (ctrl >> EXYNOS_TMU_T_VBE_I_TRIM_SHIFT) & EXYNOS_TMU_T_VBE_I_TRIM_MASK;
 	}
 #endif
 
