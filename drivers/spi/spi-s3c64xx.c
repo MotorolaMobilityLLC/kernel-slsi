@@ -158,6 +158,9 @@ static LIST_HEAD(drvdata_list);
 #define USI_HWACG_CLKREQ_ON		(1<<1)
 #define USI_HWACG_CLKSTOP_ON		(1<<2)
 
+/* MAX SIZE of COUNT_VALUE in PACKET_CNT_REG */
+#define S3C64XX_SPI_PACKET_CNT_MAX 0xffff
+
 /**
  * struct s3c64xx_spi_info - SPI Controller hardware info
  * @fifo_lvl_mask: Bit-mask for {TX|RX}_FIFO_LVL bits in SPI_STATUS register.
@@ -839,15 +842,10 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 
 #define XFER_DMAADDR_INVALID DMA_BIT_MASK(36)
 
-static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
+static int s3c64xx_spi_dma_initialize(struct s3c64xx_spi_driver_data *sdd,
 						struct spi_message *msg)
 {
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
-	struct device *dev = &sdd->pdev->dev;
 	struct spi_transfer *xfer;
-
-	if ((msg->is_dma_mapped) || (sci->dma_mode != DMA_MODE))
-		return 0;
 
 	/* First mark all xfer unmapped */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
@@ -855,66 +853,65 @@ static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
 		xfer->tx_dma = XFER_DMAADDR_INVALID;
 	}
 
-	/* Map until end or first fail */
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+	return 0;
+}
 
-		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
-			continue;
+static int s3c64xx_spi_map_one_msg(struct s3c64xx_spi_driver_data *sdd,
+						struct spi_message *msg, struct spi_transfer *xfer)
+{
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
+	struct device *dev = &sdd->pdev->dev;
 
-		if (xfer->tx_buf != NULL) {
-			xfer->tx_dma = dma_map_single(dev,
-					(void *)xfer->tx_buf, xfer->len,
-					DMA_TO_DEVICE);
-			if (dma_mapping_error(dev, xfer->tx_dma)) {
-				dev_err(dev, "dma_map_single Tx failed\n");
-				xfer->tx_dma = XFER_DMAADDR_INVALID;
-				return -ENOMEM;
-			}
+	if ((msg->is_dma_mapped) || (sci->dma_mode != DMA_MODE))
+		return 0;
+
+	if (xfer->tx_buf != NULL) {
+		xfer->tx_dma = dma_map_single(dev,
+				(void *)xfer->tx_buf, xfer->len,
+				DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, xfer->tx_dma)) {
+			dev_err(dev, "dma_map_single Tx failed\n");
+			xfer->tx_dma = XFER_DMAADDR_INVALID;
+			return -ENOMEM;
 		}
+	}
 
-		if (xfer->rx_buf != NULL) {
-			xfer->rx_dma = dma_map_single(dev, xfer->rx_buf,
-						xfer->len, DMA_FROM_DEVICE);
-			if (dma_mapping_error(dev, xfer->rx_dma)) {
-				dev_err(dev, "dma_map_single Rx failed\n");
-				dma_unmap_single(dev, xfer->tx_dma,
-						xfer->len, DMA_TO_DEVICE);
-				xfer->tx_dma = XFER_DMAADDR_INVALID;
-				xfer->rx_dma = XFER_DMAADDR_INVALID;
-				return -ENOMEM;
-			}
+	if (xfer->rx_buf != NULL) {
+		xfer->rx_dma = dma_map_single(dev, xfer->rx_buf,
+					xfer->len, DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, xfer->rx_dma)) {
+			dev_err(dev, "dma_map_single Rx failed\n");
+			dma_unmap_single(dev, xfer->tx_dma,
+					xfer->len, DMA_TO_DEVICE);
+			xfer->tx_dma = XFER_DMAADDR_INVALID;
+			xfer->rx_dma = XFER_DMAADDR_INVALID;
+			return -ENOMEM;
 		}
 	}
 
 	return 0;
 }
 
-static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_message *msg)
+static void s3c64xx_spi_unmap_one_msg(struct s3c64xx_spi_driver_data *sdd,
+						struct spi_message *msg, struct spi_transfer *xfer)
 {
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct device *dev = &sdd->pdev->dev;
-	struct spi_transfer *xfer;
 
 	if ((msg->is_dma_mapped) || (sci->dma_mode != DMA_MODE))
 		return;
 
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+	if (xfer->rx_buf != NULL
+			&& xfer->rx_dma != XFER_DMAADDR_INVALID)
+		dma_unmap_single(dev, xfer->rx_dma,
+					xfer->len, DMA_FROM_DEVICE);
 
-		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
-			continue;
-
-		if (xfer->rx_buf != NULL
-				&& xfer->rx_dma != XFER_DMAADDR_INVALID)
-			dma_unmap_single(dev, xfer->rx_dma,
-						xfer->len, DMA_FROM_DEVICE);
-
-		if (xfer->tx_buf != NULL
-				&& xfer->tx_dma != XFER_DMAADDR_INVALID)
-			dma_unmap_single(dev, xfer->tx_dma,
-						xfer->len, DMA_TO_DEVICE);
-	}
+	if (xfer->tx_buf != NULL
+			&& xfer->tx_dma != XFER_DMAADDR_INVALID)
+		dma_unmap_single(dev, xfer->tx_dma,
+					xfer->len, DMA_TO_DEVICE);
 }
+
 
 static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 					    struct spi_message *msg)
@@ -942,12 +939,8 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		s3c64xx_spi_config(sdd);
 	}
 
-	/* Map all the transfers if needed */
-	if (s3c64xx_spi_map_mssg(sdd, msg)) {
-		dev_err(&spi->dev,
-			"Xfer: Unable to map message buffers!\n");
-		status = -ENOMEM;
-		goto out;
+	if (!(msg->is_dma_mapped) && (sci->dma_mode == DMA_MODE)){
+		s3c64xx_spi_dma_initialize(sdd, msg);
 	}
 
 	/* Configure feedback delay */
@@ -991,6 +984,27 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 			if (xfer->len > fifo_lvl)
 				xfer->len = fifo_lvl;
 		} else {
+
+			/* backup original tx, rx buf ptr & xfer length */
+			origin_tx_buf = xfer->tx_buf;
+			origin_rx_buf = xfer->rx_buf;
+			origin_len = xfer->len;
+
+			target_len = xfer->len;
+			if (xfer->len > S3C64XX_SPI_PACKET_CNT_MAX * sdd->cur_bpw / 8)
+				xfer->len = S3C64XX_SPI_PACKET_CNT_MAX * sdd->cur_bpw / 8;
+		}
+try_transfer:
+		if (sci->dma_mode == DMA_MODE) {
+
+			/* Map the transfer if needed */
+			if (s3c64xx_spi_map_one_msg(sdd, msg, xfer)) {
+				dev_err(&spi->dev,
+					"Xfer: Unable to map message buffers!\n");
+				status = -ENOMEM;
+				goto out;
+			}
+
 		/* Polling method for xfers not bigger than FIFO capacity */
 			if (xfer->len <= fifo_lvl) {
 				use_dma = 0;
@@ -998,7 +1012,7 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 				use_dma = 1;
 			}
 		}
-try_transfer:
+
 		spin_lock_irqsave(&sdd->lock, flags);
 
 		/* Pending only which is to be done */
@@ -1083,6 +1097,30 @@ try_transfer:
 			xfer->tx_buf = origin_tx_buf;
 			xfer->rx_buf = origin_rx_buf;
 			xfer->len = origin_len;
+		} else {
+
+			s3c64xx_spi_unmap_one_msg(sdd, msg, xfer);
+
+			target_len -= xfer->len;
+
+			if (xfer->tx_buf != NULL)
+				xfer->tx_buf += xfer->len;
+
+			if (xfer->rx_buf != NULL)
+				xfer->rx_buf += xfer->len;
+
+			if (target_len > 0) {
+				if (target_len > S3C64XX_SPI_PACKET_CNT_MAX * sdd->cur_bpw / 8)
+					xfer->len = S3C64XX_SPI_PACKET_CNT_MAX * sdd->cur_bpw / 8;
+				else
+					xfer->len = target_len;
+				goto try_transfer;
+			}
+
+			/* restore original tx, rx buf_ptr & xfer length */
+			xfer->tx_buf = origin_tx_buf;
+			xfer->rx_buf = origin_rx_buf;
+			xfer->len = origin_len;
 		}
 	}
 
@@ -1091,8 +1129,6 @@ out:
 		disable_cs(sdd, spi);
 	else
 		sdd->tgl_spi = spi;
-
-	s3c64xx_spi_unmap_mssg(sdd, msg);
 
 	msg->status = status;
 
