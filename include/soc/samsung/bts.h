@@ -17,6 +17,7 @@
 
 enum bts_scen_type {
 	BS_DEFAULT,
+	BS_MIF_CHANGE,
 	BS_MFC_UHD,
 	BS_G3D_PERFORMANCE,
 	BS_DP_DEFAULT,
