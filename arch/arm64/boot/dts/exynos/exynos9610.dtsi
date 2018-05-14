@@ -1545,4 +1545,9 @@
 
 		domain-clients = <>;
 	};
+
+	reboot {
+		compatible = "exynos,reboot";
+		pmu_base = <0x11860000>;
+	};
 };
