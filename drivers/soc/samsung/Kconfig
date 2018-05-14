@@ -20,6 +20,10 @@ config CAL_IF
 	help
 	  Support CMU CAL for Exynos SoC.
 
+config EXYNOS_REBOOT
+	bool "Exynos Chip Reboot Driver Support"
+	depends on ARCH_EXYNOS
+
 config CMUCAL
 	bool "Exynos CMU Chip Abstraction Layer"
 	depends on CAL_IF
