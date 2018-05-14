@@ -2043,6 +2043,7 @@ int fimc_is_csi_dma_probe(struct fimc_is_device_csi_dma *csi_dma, struct platfor
 		goto err_get_base_csis_dma;
 	}
 
+#if defined(ENABLE_PDP_STAT_DMA)
 	mem_res = NULL;
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, IORESOURCE_STAT_DMA);
 	if (!mem_res) {
@@ -2059,6 +2060,7 @@ int fimc_is_csi_dma_probe(struct fimc_is_device_csi_dma *csi_dma, struct platfor
 		ret = -ENOMEM;
 		goto err_get_base_stat_dma;
 	}
+#endif
 
 	atomic_set(&csi_dma->rcount, 0);
 
@@ -2066,8 +2068,10 @@ int fimc_is_csi_dma_probe(struct fimc_is_device_csi_dma *csi_dma, struct platfor
 
 	return 0;
 
+#if defined(ENABLE_PDP_STAT_DMA)
 err_get_base_stat_dma:
 err_get_resource_stat_dma:
+#endif
 err_get_base_csis_dma:
 err_get_resource_csis_dma:
 	err("[CSI:D] %s(%d)\n", __func__, ret);
