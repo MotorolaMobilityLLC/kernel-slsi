@@ -112,6 +112,43 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
+		cpu-map {
+			cluster0 {
+				coregroup0 {
+					core0 {
+						cpu = <&cpu0>;
+					};
+					core1 {
+						cpu = <&cpu1>;
+					};
+					core2 {
+						cpu = <&cpu2>;
+					};
+					core3 {
+						cpu = <&cpu3>;
+					};
+				};
+			};
+
+			cluster1 {
+				coregroup0 {
+					core0 {
+						cpu = <&cpu4>;
+					};
+					core1 {
+						cpu = <&cpu5>;
+					};
+					core2 {
+						cpu = <&cpu6>;
+					};
+					core3 {
+						cpu = <&cpu7>;
+					};
+				};
+			};
+
+		};
+
 		cpu0: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
