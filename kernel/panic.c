@@ -140,6 +140,13 @@ void panic(const char *fmt, ...)
 	bool _crash_kexec_post_notifiers = crash_kexec_post_notifiers;
 
 	/*
+	* dbg_snapshot_early_panic is for supporting wapper functions
+	* to users need to run SoC specific function in NOT interrupt
+	* context
+	*/
+	dbg_snapshot_early_panic();
+
+	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
 	 * from deadlocking the first cpu that invokes the panic, since
 	 * there is nothing to prevent an interrupt handler (that runs
