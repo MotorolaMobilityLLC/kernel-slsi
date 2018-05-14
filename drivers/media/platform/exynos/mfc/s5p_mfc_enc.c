@@ -339,10 +339,17 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	mfc_info_ctx("Enc output codec(%d) : %s\n",
 			ctx->dst_fmt->codec_mode, ctx->dst_fmt->name);
 
-	if (ctx->otf_handle && ctx->dst_fmt->fourcc != V4L2_PIX_FMT_H264 &&
-			ctx->dst_fmt->fourcc != V4L2_PIX_FMT_HEVC) {
-		mfc_err_ctx("OTF: only H.264 and HEVC is supported\n");
-		return -EINVAL;
+	if (ctx->otf_handle) {
+		if (ctx->dst_fmt->fourcc != V4L2_PIX_FMT_H264 &&
+				ctx->dst_fmt->fourcc != V4L2_PIX_FMT_HEVC) {
+			mfc_err_ctx("OTF: only H.264 and HEVC is supported\n");
+			return -EINVAL;
+		}
+		if (s5p_mfc_otf_init(ctx)) {
+			mfc_err_ctx("OTF: otf_init failed\n");
+			s5p_mfc_otf_destroy(ctx);
+			return -EINVAL;
+		}
 	}
 
 	enc->dst_buf_size = pix_fmt_mp->plane_fmt[0].sizeimage;

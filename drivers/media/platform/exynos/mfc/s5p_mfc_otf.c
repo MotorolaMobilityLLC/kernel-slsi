@@ -261,7 +261,7 @@ static void mfc_otf_destroy_handle(struct s5p_mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-int s5p_mfc_otf_init(struct s5p_mfc_ctx *ctx)
+int s5p_mfc_otf_create(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev;
 	int i;
@@ -291,18 +291,54 @@ int s5p_mfc_otf_init(struct s5p_mfc_ctx *ctx)
 		return -EINVAL;
 	}
 
-	if (mfc_otf_init_hwfc_buf(ctx)) {
-		mfc_err_dev("OTF: HWFC init failed\n");
-		mfc_otf_destroy_handle(ctx);
-		return -EINVAL;
-	}
-
 	if (otf_dump) {
 		/* It is for debugging. Do not return error */
 		if (s5p_mfc_otf_alloc_stream_buf(ctx)) {
 			mfc_err_dev("OTF: stream buffer allocation failed\n");
 			s5p_mfc_otf_release_stream_buf(ctx);
 		}
+	}
+
+	mfc_debug(2, "OTF: otf_create is completed\n");
+
+	mfc_debug_leave();
+
+	return 0;
+}
+
+void s5p_mfc_otf_destroy(struct s5p_mfc_ctx *ctx)
+{
+	mfc_debug_enter();
+
+	if (!ctx) {
+		mfc_err_dev("OTF: no mfc context to run\n");
+		return;
+	}
+
+	s5p_mfc_otf_release_stream_buf(ctx);
+	mfc_otf_destroy_handle(ctx);
+	mfc_debug(2, "OTF: otf_destroy is completed\n");
+
+	mfc_debug_leave();
+}
+
+int s5p_mfc_otf_init(struct s5p_mfc_ctx *ctx)
+{
+	mfc_debug_enter();
+
+	if (!ctx) {
+		mfc_err_dev("OTF: no mfc context to run\n");
+		return -EINVAL;
+	}
+
+	if (!ctx->otf_handle) {
+		mfc_err_dev("OTF: otf_handle was not created\n");
+		return -EINVAL;
+	}
+
+	if (mfc_otf_init_hwfc_buf(ctx)) {
+		mfc_err_dev("OTF: HWFC init failed\n");
+		return -EINVAL;
 	}
 
 	mfc_debug(2, "OTF: otf_init is completed\n");
@@ -321,10 +357,7 @@ void s5p_mfc_otf_deinit(struct s5p_mfc_ctx *ctx)
 		return;
 	}
 
-	s5p_mfc_otf_release_stream_buf(ctx);
 	mfc_otf_deinit_hwfc_buf(ctx);
-	mfc_otf_destroy_handle(ctx);
-	s5p_mfc_qos_off(ctx);
 	mfc_debug(2, "OTF: deinit_otf is completed\n");
 
 	mfc_debug_leave();

@@ -568,10 +568,11 @@ static int s5p_mfc_open(struct file *file)
 	}
 
 #ifdef CONFIG_VIDEO_EXYNOS_REPEATER
-	if (s5p_mfc_is_encoder_otf_node(node))
-		ret = s5p_mfc_otf_init(ctx);
-	if (ret)
-		mfc_err_ctx("OTF: failed otf init\n");
+	if (s5p_mfc_is_encoder_otf_node(node)) {
+		ret = s5p_mfc_otf_create(ctx);
+		if (ret)
+			mfc_err_ctx("OTF: otf_create failed\n");
+	}
 #endif
 
 	s5p_mfc_perf_init(dev);
@@ -771,8 +772,10 @@ static int s5p_mfc_release(struct file *file)
 		mfc_deinit_enc_ctx(ctx);
 
 #ifdef CONFIG_VIDEO_EXYNOS_REPEATER
-	if (ctx->otf_handle)
+	if (ctx->otf_handle) {
 		s5p_mfc_otf_deinit(ctx);
+		s5p_mfc_otf_destroy(ctx);
+	}
 #endif
 
 	s5p_mfc_destroy_listable_wq_ctx(ctx);

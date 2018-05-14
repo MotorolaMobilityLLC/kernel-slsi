@@ -17,6 +17,8 @@
 
 extern struct s5p_mfc_dev *g_mfc_dev;
 
+int s5p_mfc_otf_create(struct s5p_mfc_ctx *ctx);
+void s5p_mfc_otf_destroy(struct s5p_mfc_ctx *ctx);
 int s5p_mfc_otf_init(struct s5p_mfc_ctx *ctx);
 void s5p_mfc_otf_deinit(struct s5p_mfc_ctx *ctx);
 int s5p_mfc_otf_ctx_ready(struct s5p_mfc_ctx *ctx);
