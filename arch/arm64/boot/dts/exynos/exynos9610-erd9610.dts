@@ -27,7 +27,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC0,115200n8 root=/dev/ram0 clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=samsungexynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80fa000000";
+		bootargs = "console=ttySAC0,115200n8 root=/dev/ram0 clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=samsungexynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80fa000000 pmic_info=0x3";
 		linux,initrd-start = <0x84000000>;
 		linux,initrd-end = <0x841FFFFF>;
 	};
@@ -224,6 +224,14 @@
 			samsung,pins = "gpg0-7";
 			samsung,pin-con-pdn = <3>;
 		};
+	};
+
+
+	ifconn {
+		status = "okay";
+		compatible = "samsung,ifconn";
+		ifconn,usbpd = "s2mm005";
+		ifconn,muic = "s2mu004-muic";
 	};
 
 	speedy@11a10000 {
@@ -913,6 +921,13 @@
 		pinctrl-0 = <&if_pmic_irq>;
 		s2mu004,irq-gpio = <&gpa2 1 0>;
 		s2mu004,wakeup;
+	};
+
+	muic {
+		status = "okay";
+		muic,uart_addr = "11850000.pinctrl";
+		muic,uart_rxd = "gpq0-3";
+		muic,uart_txd = "gpq0-4";
 	};
 
 	s2mu004-charger {

@@ -28,14 +28,14 @@
 #include <linux/alarmtimer.h>
 
 #if defined(CONFIG_MUIC_NOTIFIER)
-#include <linux/muic/muic_notifier.h>
+#include <linux/muic/s2mu004-muic-notifier.h>
 #include <linux/muic/muic.h>
 #endif /* CONFIG_MUIC_NOTIFIER */
 
 #if defined(CONFIG_IFCONN_NOTIFIER)
 #include <linux/ifconn/ifconn_notifier.h>
 #include <linux/ifconn/ifconn_manager.h>
-#include <linux/muic/muic_notifier.h>
+#include <linux/muic/s2mu004-muic-notifier.h>
 #include <linux/muic/muic.h>
 #endif
 
