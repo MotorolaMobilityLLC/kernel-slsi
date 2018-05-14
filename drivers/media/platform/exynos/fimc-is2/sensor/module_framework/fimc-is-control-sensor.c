@@ -357,8 +357,28 @@ int fimc_is_sensor_ctl_update_gains(struct fimc_is_device_sensor *device,
 		 * It sentents is commented temporary
 		 */
 		sensor_peri->cis.expecting_sensor_dm[dm_index[0]].sensitivity = adj_gain_setting->sensitivity;
+
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].analogGain = adj_gain_setting->long_again;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].digitalGain = adj_gain_setting->long_dgain;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].longAnalogGain = adj_gain_setting->long_again;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].longDigitalGain = adj_gain_setting->long_dgain;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].shortAnalogGain = adj_gain_setting->short_again;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].shortDigitalGain = adj_gain_setting->short_dgain;
 	} else {
 		sensor_peri->cis.expecting_sensor_dm[dm_index[0]].sensitivity = sensor_peri->cis.expecting_sensor_dm[dm_index[1]].sensitivity;
+
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].analogGain =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].analogGain;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].digitalGain =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].digitalGain;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].longAnalogGain =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].longAnalogGain;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].longDigitalGain =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].longDigitalGain;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].shortAnalogGain =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].shortAnalogGain;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].shortDigitalGain =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].shortDigitalGain;
 	}
 
 p_err:
@@ -405,8 +425,18 @@ int fimc_is_sensor_ctl_set_exposure(struct fimc_is_device_sensor *device,
 			sensor_peri->cis.cur_sensor_uctrl.shortExposureTime = 0;
 		}
 		sensor_peri->cis.expecting_sensor_dm[dm_index[0]].exposureTime = fimc_is_sensor_convert_us_to_ns(short_exposure);
+
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].longExposureTime =
+			fimc_is_sensor_convert_us_to_ns(long_exposure);
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].shortExposureTime =
+			fimc_is_sensor_convert_us_to_ns(short_exposure);
 	} else {
 		sensor_peri->cis.expecting_sensor_dm[dm_index[0]].exposureTime = sensor_peri->cis.expecting_sensor_dm[dm_index[1]].exposureTime;
+
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].longExposureTime =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].longExposureTime;
+		sensor_peri->cis.expecting_sensor_udm[dm_index[0]].shortExposureTime =
+			sensor_peri->cis.expecting_sensor_udm[dm_index[1]].shortExposureTime;
 	}
 
 p_err:
