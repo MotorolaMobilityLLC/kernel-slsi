@@ -20,6 +20,7 @@
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/ufs/ufs.h>
 #include "exynos9610-sysmmu.dtsi"
+#include <dt-bindings/soc/samsung/exynos9610-dm.h>
 
 / {
 	compatible = "samsung,armv8", "samsung,exynos9610";
@@ -1299,6 +1300,70 @@
 		clocks = <&clock GATE_I2C_6_QCH>, <&clock GATE_I2C_6_QCH>;
 		clock-names = "rate_i2c", "gate_i2c";
 		status = "disabled";
+	};
+
+	exynos_dm: exynos-dm@17000000 {
+		compatible = "samsung,exynos-dvfs-manager";
+		reg = <0x0 0x17000000 0x0>;
+		acpm-ipc-channel = <1>;
+		dm_domains {
+			cpufreq_cl0 {
+				dm-index = <DM_CPU_CL0>;
+				available = "true";
+				cal_id = <ACPM_DVFS_CPUCL0>;
+				dm_type_name = "dm_cpu_cl0";
+			};
+			cpufreq_cl1 {
+				dm-index = <DM_CPU_CL1>;
+				available = "true";
+				cal_id = <ACPM_DVFS_CPUCL1>;
+				dm_type_name = "dm_cpu_cl1";
+			};
+			devfreq_mif {
+				dm-index = <DM_MIF>;
+				available = "true";
+				policy_use = "true";
+				cal_id = <ACPM_DVFS_MIF>;
+				dm_type_name = "dm_mif";
+			};
+			devfreq_int {
+				dm-index = <DM_INT>;
+				available = "true";
+				policy_use = "true";
+				cal_id = <ACPM_DVFS_INT>;
+				dm_type_name = "dm_int";
+			};
+			devfreq_intcam {
+				dm-index = <DM_INTCAM>;
+				available = "true";
+				cal_id = <ACPM_DVFS_INTCAM>;
+				dm_type_name = "dm_intcam";
+			};
+			devfreq_cam {
+				dm-index = <DM_CAM>;
+				available = "true";
+				cal_id = <ACPM_DVFS_CAM>;
+				dm_type_name = "dm_cam";
+			};
+			devfreq_disp {
+				dm-index = <DM_DISP>;
+				available = "true";
+				cal_id = <ACPM_DVFS_DISP>;
+				dm_type_name = "dm_disp";
+			};
+			devfreq_aud {
+				dm-index = <DM_AUD>;
+				available = "true";
+				cal_id = <ACPM_DVFS_AUD>;
+				dm_type_name = "dm_aud";
+			};
+			dvfs_gpu {
+				dm-index = <DM_GPU>;
+				available = "false";
+				cal_id = <ACPM_DVFS_G3D>;
+				dm_type_name = "dm_gpu";
+			};
+		};
 	};
 
 	tmuctrl_0: BIG@10070000 {
