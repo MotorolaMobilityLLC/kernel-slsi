@@ -2314,6 +2314,7 @@ typedef struct camera2_fd_uctl camera2_fd_uctl_t;
 typedef struct camera2_fd_udm camera2_fd_udm_t;
 
 typedef struct camera2_sensor_uctl camera2_sensor_uctl_t;
+typedef struct camera2_sensor_udm camera2_sensor_udm_t;
 
 typedef struct camera2_aa_uctl camera2_aa_uctl_t;
 typedef struct camera2_aa_udm camera2_aa_udm_t;

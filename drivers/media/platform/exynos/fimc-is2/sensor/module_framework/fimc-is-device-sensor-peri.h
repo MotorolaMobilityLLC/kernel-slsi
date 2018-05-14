@@ -68,6 +68,7 @@ struct fimc_is_cis {
 
 	/* expected udm */
 	camera2_lens_udm_t		expecting_lens_udm[EXPECT_DM_NUM];
+	camera2_sensor_udm_t		expecting_sensor_udm[EXPECT_DM_NUM];
 
 	/* For sensor status dump */
 	struct work_struct		cis_status_dump_work;

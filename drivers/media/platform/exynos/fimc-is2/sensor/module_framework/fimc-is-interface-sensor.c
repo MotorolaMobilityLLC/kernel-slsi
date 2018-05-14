@@ -1790,11 +1790,25 @@ int update_sensor_dynamic_meta(struct fimc_is_sensor_interface *itf,
 	else
 		dm->sensor.rollingShutterSkew = sensor_peri->cis.cis_data->rolling_shutter_skew;
 
+	udm->sensor.analogGain = sensor_peri->cis.expecting_sensor_udm[index].analogGain;
+	udm->sensor.digitalGain = sensor_peri->cis.expecting_sensor_udm[index].digitalGain;
+	udm->sensor.longExposureTime = sensor_peri->cis.expecting_sensor_udm[index].longExposureTime;
+	udm->sensor.shortExposureTime = sensor_peri->cis.expecting_sensor_udm[index].shortExposureTime;
+	udm->sensor.longAnalogGain = sensor_peri->cis.expecting_sensor_udm[index].longAnalogGain;
+	udm->sensor.shortAnalogGain = sensor_peri->cis.expecting_sensor_udm[index].shortAnalogGain;
+	udm->sensor.longDigitalGain = sensor_peri->cis.expecting_sensor_udm[index].longDigitalGain;
+	udm->sensor.shortDigitalGain = sensor_peri->cis.expecting_sensor_udm[index].shortDigitalGain;
+
 	dbg_sensor(1, "[%s]: expo(%lld), duration(%lld), sensitivity(%d), rollingShutterSkew(%lld)\n",
 			__func__, dm->sensor.exposureTime,
 			dm->sensor.frameDuration,
 			dm->sensor.sensitivity,
 			dm->sensor.rollingShutterSkew);
+	dbg_sensor(1, "[%s]: udm expo[%lld, %lld], dgain[%d, %d] again[%d, %d]\n",
+			__func__,
+			udm->sensor.longExposureTime, udm->sensor.shortExposureTime,
+			udm->sensor.longDigitalGain, udm->sensor.shortDigitalGain,
+			udm->sensor.longAnalogGain, udm->sensor.shortAnalogGain);
 
 	return ret;
 }

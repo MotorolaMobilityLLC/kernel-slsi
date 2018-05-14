@@ -188,7 +188,8 @@ static void fimc_is_sensor_init_expecting_dm(struct fimc_is_device_sensor *devic
 	int i = 0;
 	u32 m_fcount;
 	u32 sensitivity;
-	u64 exposureTime;
+	u64 exposureTime, long_exposure, short_exposure;
+	u32 long_dgain, long_again, short_dgain, short_again;
 	struct fimc_is_sensor_ctl *module_ctl;
 	camera2_sensor_ctl_t *sensor_ctrl = NULL;
 	camera2_sensor_uctl_t *sensor_uctrl = NULL;
@@ -206,6 +207,12 @@ static void fimc_is_sensor_init_expecting_dm(struct fimc_is_device_sensor *devic
 
 	sensitivity = sensor_uctrl->sensitivity;
 	exposureTime = sensor_uctrl->exposureTime;
+	long_exposure = sensor_uctrl->longExposureTime;
+	short_exposure = sensor_uctrl->shortExposureTime;
+	long_dgain = sensor_uctrl->longDigitalGain;
+	long_again = sensor_uctrl->longAnalogGain;
+	short_dgain = sensor_uctrl->shortDigitalGain;
+	short_again = sensor_uctrl->shortAnalogGain;
 
 	if (module_ctl->valid_sensor_ctrl == true) {
 		if (sensor_ctrl->sensitivity)
@@ -218,6 +225,15 @@ static void fimc_is_sensor_init_expecting_dm(struct fimc_is_device_sensor *devic
 	for (i = m_fcount + 2; i < m_fcount + EXPECT_DM_NUM; i++) {
 		cis->expecting_sensor_dm[i % EXPECT_DM_NUM].sensitivity = sensitivity;
 		cis->expecting_sensor_dm[i % EXPECT_DM_NUM].exposureTime = exposureTime;
+
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].longExposureTime = long_exposure;
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].shortExposureTime = short_exposure;
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].digitalGain = long_dgain;
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].analogGain = long_dgain;
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].longDigitalGain = long_dgain;
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].longAnalogGain = long_dgain;
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].shortDigitalGain = short_dgain;
+		cis->expecting_sensor_udm[i % EXPECT_DM_NUM].shortAnalogGain = short_again;
 	}
 
 p_err:
@@ -1688,6 +1704,7 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 		}
 		memset(&sensor_peri->cis.cur_sensor_uctrl, 0, sizeof(camera2_sensor_uctl_t));
 		memset(&sensor_peri->cis.expecting_sensor_dm[0], 0, sizeof(camera2_sensor_dm_t) * EXPECT_DM_NUM);
+		memset(&sensor_peri->cis.expecting_sensor_udm[0], 0, sizeof(camera2_sensor_udm_t) * EXPECT_DM_NUM);
 		for (i = 0; i < CAM2P0_UCTL_LIST_SIZE; i++) {
 			memset(&sensor_peri->cis.sensor_ctls[i].cur_cam20_sensor_udctrl, 0, sizeof(camera2_sensor_uctl_t));
 			sensor_peri->cis.sensor_ctls[i].valid_sensor_ctrl = 0;
