@@ -1348,6 +1348,9 @@
 		#include "exynos9610-tmu-sensor-conf.dtsi"
 	};
 
+	fimc_is: dummy@1A000000 {
+	};
+
 	acpm_tmu {
 		acpm-ipc-channel = <7>;
 	};
