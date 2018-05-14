@@ -2580,6 +2580,28 @@
 		};
 	};
 
+	schedutil {
+		domain@0 {
+			device_type = "freqvar-tune";
+			shared-cpus = "0-3";
+
+			boost_table = < 0 >;
+			up_rate_limit_table = < 5 >;
+			down_rate_limit_table = < 5 >;
+			upscale_ratio_table = < 80 >;
+		};
+
+		domain@1 {
+			device_type = "freqvar-tune";
+			shared-cpus = "4-7";
+
+			boost_table = < 0 >;
+			up_rate_limit_table = < 5 >;
+			down_rate_limit_table = < 5 >;
+			upscale_ratio_table = < 80 >;
+		};
+	};
+
 	cpufreq {
 		domain@0 {
 			device_type = "cpufreq-domain";
