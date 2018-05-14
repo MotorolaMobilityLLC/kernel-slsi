@@ -736,6 +736,54 @@
 		interrupts = <0 40 0 >;
 	};
 
+	mailbox_gnss: mcu_ipc@11A00000 {
+		compatible = "samsung,exynos-shd-ipc-mailbox";
+		reg = <0x0 0x11A00000 0x180>;
+		mcu,name = "mcu_ipc_gnss";
+		mcu,id = <1>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_NONE>; /* INTREQ__MAILBOX_GNSS2AP */
+	};
+
+	gnss_pdata {
+		status = "okay";
+
+		compatible = "samsung,gnss_shdmem_if";
+		shmem,name = "KEPLER";
+		shmem,device_node_name = "gnss_ipc";
+
+		/* INTREQ__ALIVE_GNSS_ACTIVE, INTREQ__GNSS2AP_WDOG_RESET, INTREQ__GNSS2AP_WAKEUP, INTREQ__GNSS2AP */
+		interrupts = <GIC_SPI 27 IRQ_TYPE_NONE>, <GIC_SPI 81 IRQ_TYPE_NONE>, <GIC_SPI 80 IRQ_TYPE_NONE>, <GIC_SPI 79 IRQ_TYPE_NONE>;
+		interrupt-names = "ACTIVE", "WATCHDOG", "WAKEUP", "REQ_INIT";
+
+		memory-region = <&gnss_reserved>;
+		mbox_info = <&mailbox_gnss>;
+
+		mbx,int_ap2gnss_bcmd = <0>;
+		mbx,int_ap2gnss_req_fault_info = <1>;
+		mbx,int_ap2gnss_ipc_msg = <2>;
+		mbx,int_ap2gnss_ack_wake_set = <3>;
+		mbx,int_ap2gnss_ack_wake_clr = <4>;
+
+		mbx,irq_gnss2ap_bcmd = <0>;
+		mbx,irq_gnss2ap_rsp_fault_info = <1>;
+		mbx,irq_gnss2ap_ipc_msg = <2>;
+		mbx,irq_gnss2ap_req_wake_clr = <4>;
+
+		mbx,reg_bcmd_ctrl = <0>, <1>, <2>, <3>;
+
+		reg_rx_ipc_msg = <1 5>;
+		reg_tx_ipc_msg = <1 4>;
+		reg_rx_head = <1 3>;
+		reg_rx_tail = <1 2>;
+		reg_tx_head = <1 1>;
+		reg_tx_tail = <1 0>;
+		fault_info = <1 0x200000 0x180000>;
+
+		shmem,ipc_offset = <0x380000>;
+		shmem,ipc_size = <0x80000>;
+		shmem,ipc_reg_cnt = <32>;
+	};
+
 	gpio_keys {
 		status = "okay";
 		compatible = "gpio-keys";
