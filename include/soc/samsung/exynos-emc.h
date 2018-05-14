@@ -24,5 +24,7 @@ static inline int emc_get_boost_freq(int cpu) { return 0; };
 static inline void emc_check_available_freq(struct cpumask *cpus, unsigned int target_freq) { return; };
 #endif
 
+unsigned int exynos_cpufreq_get(unsigned int cpu);
+
 #endif /* __EXYNOS_MODE_CHANGER_H */
 

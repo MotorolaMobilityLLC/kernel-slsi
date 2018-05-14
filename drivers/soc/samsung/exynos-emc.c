@@ -22,6 +22,7 @@
 #include <soc/samsung/exynos-cpuhp.h>
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/exynos-pmu.h>
+#include <soc/samsung/exynos-emc.h>
 #include <dt-bindings/soc/samsung/exynos-emc.h>
 
 #include <trace/events/power.h>
@@ -203,13 +204,11 @@ int emc_verify_constraints(struct cpumask *mask)
 {
 	struct cpufreq_policy *policy;
 	struct emc_mode *mode;
-	struct cpumask temp;
-	int cpu;
+	unsigned int cpu;
 
 	/* find mode matched mask */
 	mode = emc_find_mode(mask);
-	cpumask_and(&temp, &mode->boost_cpus, cpu_online_mask);
-	cpu = cpumask_first(&temp);
+	cpu = cpumask_first(&mode->boost_cpus);
 
 	policy = cpufreq_cpu_get(cpu);
 	if (!policy) {
@@ -224,15 +223,13 @@ int emc_verify_constraints(struct cpumask *mask)
 				mode->name, mode->max_freq, policy->max);
 		return 0;
 	}
+	cpufreq_cpu_put(policy);
 
 check_real_freq:
 	/* check whether real cpu freq within max constraints or not */
-	if (cpufreq_get(cpu) >  mode->max_freq) {
-		panic("EMC(%s): real frequency is higher than max\n", __func__);
-		return 0;
-	}
-
-	cpufreq_cpu_put(policy);
+	if (exynos_cpufreq_get(cpu) > mode->max_freq)
+		panic("EMC(%s): real frequency(%d) is higher than max(%d)\n",
+			__func__, exynos_cpufreq_get(cpu), mode->max_freq);
 
 	return 1;
 }
