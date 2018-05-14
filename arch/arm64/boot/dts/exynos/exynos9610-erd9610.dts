@@ -728,6 +728,14 @@
 		compatible = "samsung,exynos-rgt";
 	};
 
+	mailbox_cp: mcu_ipc@11920000 {
+		compatible = "samsung,exynos-shd-ipc-mailbox";
+		reg = <0x0 0x11920000 0x180>;
+		mcu,name = "mcu_ipc_cp";
+		mcu,id = <0>;
+		interrupts = <0 40 0 >;
+	};
+
 	gpio_keys {
 		status = "okay";
 		compatible = "gpio-keys";

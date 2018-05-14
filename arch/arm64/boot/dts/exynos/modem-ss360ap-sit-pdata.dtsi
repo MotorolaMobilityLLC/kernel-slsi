@@ -1,5 +1,5 @@
 /*
- * SAMSUNG UNIVERSAL9810 board device tree source
+ * SAMSUNG Modem interface device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com
@@ -18,6 +18,8 @@
 		#define INTREQ__CP2AP_WAKEUP	75
 		interrupts = <0 INTREQ__CP2AP_WAKEUP 0>;
 
+		ap2cp_cfg_addr = <0x14000000>;	/* AP2CP_CFG */
+
 		/* common pdata */
 		mif,name = "ss360ap";
 		mif,modem_net = <0>;		/* UMTS_NETWORK */
@@ -27,7 +29,7 @@
 		mif,link_types = <0x80>;	/* LINKDEV_SHMEM */
 		mif,link_name = "shmem";
 		mif,link_attrs = <0x7C8>;	/* XMIT_BTDLR(0x400) | DUMP_ALIGNED (0x200) | BOOT_ALIGNED (0x100) | MEM_DUMP (0x80) | MEM_BOOT (0x40) | DPRAM_MAGIC (0x08) */
-		mif,num_iodevs = <16>;
+		mif,num_iodevs = <20>;
 
 		/* sim socket num */
 		mif,sim_socket_num = <2>;
@@ -241,6 +243,42 @@
 				iod,links = <0x80>;
 				iod,attrs = <0x02>;
 				iod,app = "CBD";
+			};
+			io_device_16 {
+				iod,name = "umts_rcs0";
+				iod,id = <91>;
+				iod,format = <0>;
+				iod,io_type = <0>;
+				iod,links = <0x80>;
+				iod,attrs = <0x82>;
+				iod,app = "RCS0";
+			};
+			io_device_17 {
+				iod,name = "umts_rcs1";
+				iod,id = <92>;
+				iod,format = <1>;
+				iod,io_type = <0>;
+				iod,links = <0x80>;
+				iod,attrs = <0x82>;
+				iod,app = "RCS1";
+			};
+			io_device_18 {
+				iod,name = "umts_wfc0";
+				iod,id = <93>;
+				iod,format = <0>;
+				iod,io_type = <0>;
+				iod,links = <0x80>;
+				iod,attrs = <0x82>;
+				iod,app = "WFC0";
+			};
+			io_device_19 {
+				iod,name = "umts_wfc1";
+				iod,id = <94>;
+				iod,format = <1>;
+				iod,io_type = <0>;
+				iod,links = <0x80>;
+				iod,attrs = <0x82>;
+				iod,app = "WFC1";
 			};
 		}; /* end of iodevs */
 	}; /* end of mif_pdata */
