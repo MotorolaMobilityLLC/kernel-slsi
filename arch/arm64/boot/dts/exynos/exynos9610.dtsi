@@ -250,6 +250,33 @@
 				power-coefficient = <870>;
 			};
 		};
+
+		ems {
+			/* Ontime Migration */
+			ontime {
+				/* between little and middle */
+				step0 {
+					up-threshold = <215>;
+					down-threshold = <170>;
+					min-residency-us = <8192>;
+				};
+			};
+
+			/* Load Balance Trigger */
+			#define DEFAULT_RATIO	80
+			lbt {
+				overutil-level0 {
+					cpus =	"0-3",
+						"4-7";
+					ratio =	<35>,
+						<50>;
+				};
+				overutil-level1 {
+					cpus =	"0-7";
+					ratio =	<DEFAULT_RATIO>;
+				};
+			};
+		};
 	};
 
 	psci {
