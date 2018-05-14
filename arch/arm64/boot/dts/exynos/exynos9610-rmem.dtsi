@@ -52,12 +52,7 @@
 
 		modem_if {
 			compatible = "exynos,modem_if";
-			reg = <0x0 0xF0000000 0x8600000>;
-		};
-
-		gnss_reserved: gnss_if {
-			compatible = "exynos,gnss_if";
-			reg = <0x0 0xF8600000 0x800000>;
+			reg = <0x0 0xF0000000 0x8A00000>;
 		};
 
 		chub_rmem: chub_rmem {
@@ -96,6 +91,11 @@
 				compatible = "debug-snapshot,log_kevents";
 				reg = <0 DSS_LOG_KEVENTS_ADDR DSS_LOG_KEVENTS_SIZE>;
 			};
+		};
+
+		gnss_reserved: gnss_if {
+			compatible = "exynos,gnss_if";
+			reg = <0x0 0xFA300000 0x800000>;
 		};
 
 		wifibt_if {
