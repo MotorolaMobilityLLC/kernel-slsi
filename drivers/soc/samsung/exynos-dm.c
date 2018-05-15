@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 #include "acpm/acpm.h"
 #include "acpm/acpm_ipc.h"
 
@@ -673,7 +673,7 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 	s32 time = 0, pre_time = 0;
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_DM
-	exynos_ss_dm((int)dm_type, min_freq, max_freq, pre_time, time);
+	dbg_snapshot_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 #endif
 	do_gettimeofday(&pre);
 	mutex_lock(&exynos_dm->lock);
@@ -723,7 +723,7 @@ out:
 		(after.tv_usec - before.tv_usec);
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_DM
-	exynos_ss_dm((int)dm_type, min_freq, max_freq, pre_time, time);
+	dbg_snapshot_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 #endif
 
 	return 0;
@@ -790,7 +790,7 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	s32 time = 0, pre_time = 0;
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_DM
-	exynos_ss_dm((int)dm_type, *target_freq, 1, pre_time, time);
+	dbg_snapshot_dm((int)dm_type, *target_freq, 1, pre_time, time);
 #endif
 	do_gettimeofday(&pre);
 	mutex_lock(&exynos_dm->lock);
@@ -854,7 +854,7 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 		(after.tv_usec - before.tv_usec);
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_DM
-	exynos_ss_dm((int)dm_type, *target_freq, 3, pre_time, time);
+	dbg_snapshot_dm((int)dm_type, *target_freq, 3, pre_time, time);
 #endif
 
 	return 0;
