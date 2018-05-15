@@ -370,7 +370,7 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 		}
 #ifdef CONFIG_EXYNOS_ACPM
 		if (of_property_read_string(child_np, "policy_use", &policy_use)) {
-			dev_info(dm->dev, "This doesn't need to send policy to ACPM\n");
+			dev_info(dm->dev, "[%s] This doesn't need to send policy to ACPM\n", child_np->name);
 		} else {
 			if (!strcmp(policy_use, "true"))
 				dm->dm_data[index].policy_use = true;
