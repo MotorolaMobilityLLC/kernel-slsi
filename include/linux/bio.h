@@ -123,12 +123,12 @@ static inline void *bio_data(struct bio *bio)
 	return NULL;
 }
 
-static inline bool bio_has_crypt(struct bio *bio)
+static inline void *bio_has_crypt(struct bio *bio)
 {
 	if (bio && (bio->bi_opf & REQ_CRYPT))
-		return true;
-	else
-		return false;
+		return bio->bi_aux_private;
+
+	return NULL;
 }
 
 /*
