@@ -97,7 +97,7 @@ struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *inode, gfp_t gfp_flags)
 	if (ci == NULL)
 		return ERR_PTR(-ENOKEY);
 
-	if (fscrypt_disk_encrypted(inode))
+	if (__fscrypt_disk_encrypted(inode))
 		return NULL;
 
 	/*
@@ -251,10 +251,12 @@ struct page *fscrypt_encrypt_page(const struct inode *inode,
 	struct page *ciphertext_page = page;
 	int err;
 
-	BUG_ON(len % FS_CRYPTO_BLOCK_SIZE != 0);
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DEBUG
+	if (__fscrypt_disk_encrypted(inode))
+		crypto_diskcipher_debug(FS_ENC_WARN, 0);
+#endif
 
-	if (fscrypt_disk_encrypted(inode))
-		return NULL;
+	BUG_ON(len % FS_CRYPTO_BLOCK_SIZE != 0);
 
 	if (inode->i_sb->s_cop->flags & FS_CFLG_OWN_PAGES) {
 		/* with inplace-encryption we just encrypt the page */
@@ -315,11 +317,13 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
 int fscrypt_decrypt_page(const struct inode *inode, struct page *page,
 			unsigned int len, unsigned int offs, u64 lblk_num)
 {
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DEBUG
+	if (__fscrypt_disk_encrypted(inode))
+		crypto_diskcipher_debug(FS_DEC_WARN, 0);
+#endif
 	if (!(inode->i_sb->s_cop->flags & FS_CFLG_OWN_PAGES))
 		BUG_ON(!PageLocked(page));
 
-	if (fscrypt_disk_encrypted(page->mapping->host))
-		return 0;
 	return fscrypt_do_page_crypto(inode, FS_DECRYPT, lblk_num, page, page,
 				      len, offs, GFP_NOFS);
 }

@@ -46,6 +46,7 @@
 #include <linux/bit_spinlock.h>
 #include <linux/pagevec.h>
 #include <trace/events/block.h>
+#include <linux/fscrypt.h> /* for CONFIG_CRYPTO_DISKCIPHER_DEBUG */
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
@@ -3141,6 +3142,7 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 		op_flags |= REQ_PRIO;
 	bio_set_op_attrs(bio, op, op_flags);
 
+	crypto_diskcipher_debug(BLK_BH, op_flags);
 	if (bio->bi_opf & REQ_AUX_PRIV)
 		bio->bi_aux_private = bh->b_private;
 	submit_bio(bio);

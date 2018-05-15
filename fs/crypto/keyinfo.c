@@ -170,7 +170,7 @@ static void put_crypt_info(struct fscrypt_info *ci)
 
 #if defined(CONFIG_CRYPTO_DISKCIPHER)
 	if (ci->ci_dtfm)
-		crypto_free_diskcipher(ci->ci_dtfm);
+		crypto_free_req_diskcipher(ci->ci_dtfm);
 #endif
 	crypto_free_skcipher(ci->ci_ctfm);
 	crypto_free_cipher(ci->ci_essiv_tfm);
@@ -333,8 +333,8 @@ int fscrypt_get_encryption_info(struct inode *inode)
 			if (!res) {
 				if (cmpxchg(&inode->i_crypt_info, NULL, crypt_info) == NULL)
 					crypt_info = NULL;
-				pr_debug("%s: (inode %lu) uses diskcipher tfm\n",
-					__func__, inode->i_ino);
+				pr_debug("%s: (inode %p:%lu, fscrypt:%p) uses diskcipher tfm\n",
+					__func__, inode, inode->i_ino, inode->i_crypt_info);
 				goto out;
 			} else {
 				pr_warn("%s: error %d fails to set diskciher key\n",
