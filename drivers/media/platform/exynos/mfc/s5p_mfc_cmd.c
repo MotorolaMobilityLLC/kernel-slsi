@@ -153,7 +153,7 @@ int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev;
 	struct s5p_mfc_dec *dec;
-	unsigned int reg = 0, pix_val, mem_type = 0;
+	unsigned int reg = 0, pix_val;
 	int ret;
 
 	if (!ctx) {
@@ -166,20 +166,25 @@ int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx)
 		mfc_err_ctx("no mfc device to run\n");
 		return -EINVAL;
 	}
-	/* Initializing decoding - parsing header */
-	/* Header was parsed now starting processing
-	 * First set the output frame buffers
-	 * s5p_mfc_alloc_dec_buffers(ctx); */
 
 	switch (ctx->dst_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV12N:
 	case V4L2_PIX_FMT_NV12MT_16X16:
 	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV12N_10B:
+	case V4L2_PIX_FMT_NV12M_S10B:
+	case V4L2_PIX_FMT_NV16M_S10B:
+	case V4L2_PIX_FMT_NV12M_P010:
+	case V4L2_PIX_FMT_NV16M_P210:
 		pix_val = 0;
 		break;
 	case V4L2_PIX_FMT_NV21M:
 	case V4L2_PIX_FMT_NV61M:
+	case V4L2_PIX_FMT_NV21M_S10B:
+	case V4L2_PIX_FMT_NV61M_S10B:
+	case V4L2_PIX_FMT_NV21M_P010:
+	case V4L2_PIX_FMT_NV61M_P210:
 		pix_val = 1;
 		break;
 	case V4L2_PIX_FMT_YVU420M:
@@ -189,38 +194,16 @@ int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx)
 	case V4L2_PIX_FMT_YUV420N:
 		pix_val = 3;
 		break;
-	/* 10bit */
-	case V4L2_PIX_FMT_NV12N_10B:
-	case V4L2_PIX_FMT_NV12M_S10B:
-	case V4L2_PIX_FMT_NV16M_S10B:
-		mem_type = 0;
-		pix_val = 0;
-		break;
-	case V4L2_PIX_FMT_NV12M_P010:
-	case V4L2_PIX_FMT_NV16M_P210:
-		mem_type = 1;
-		pix_val = 0;
-		break;
-	case V4L2_PIX_FMT_NV21M_S10B:
-	case V4L2_PIX_FMT_NV61M_S10B:
-		mem_type = 0;
-		pix_val = 1;
-		break;
-	case V4L2_PIX_FMT_NV21M_P010:
-	case V4L2_PIX_FMT_NV61M_P210:
-		mem_type = 1;
-		pix_val = 1;
-		break;
 	default:
 		pix_val = 0;
 		break;
 	}
-	reg = 0;
-	reg |= pix_val;
-	reg |= (mem_type << 4);
+	reg = MFC_READL(S5P_FIMV_PIXEL_FORMAT);
+	reg &= ~(0xF);
+	reg |= pix_val & 0xF;
 	MFC_WRITEL(reg, S5P_FIMV_PIXEL_FORMAT);
-	mfc_debug(2, "pixel format: %d, mem_type for 10bit: %d (reg: %#x)\n",
-			pix_val, mem_type, reg);
+	mfc_debug(2, "pixel format: %d, mem_type_10bit should be fixed on SEQ_START(reg: %#x)\n",
+			pix_val, reg);
 
 	s5p_mfc_clean_ctx_int_flags(ctx);
 	ret = s5p_mfc_set_dec_codec_buffers(ctx);

@@ -495,7 +495,7 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 void s5p_mfc_set_pixel_format(struct s5p_mfc_dev *dev, unsigned int format)
 {
 	unsigned int reg = 0;
-	unsigned int pix_val, mem_type = 0;
+	unsigned int pix_val, mem_type_10bit = 1;
 
 	switch (format) {
 	case V4L2_PIX_FMT_NV12M:
@@ -515,26 +515,24 @@ void s5p_mfc_set_pixel_format(struct s5p_mfc_dev *dev, unsigned int format)
 	case V4L2_PIX_FMT_YUV420N:
 		pix_val = 3;
 		break;
-	/* 10bit */
+	/* For 10bit direct set */
 	case V4L2_PIX_FMT_NV12N_10B:
 	case V4L2_PIX_FMT_NV12M_S10B:
 	case V4L2_PIX_FMT_NV16M_S10B:
-		mem_type = 0;
+		mem_type_10bit = 0;
 		pix_val = 0;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV16M_P210:
-		mem_type = 1;
 		pix_val = 0;
 		break;
 	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV61M_S10B:
-		mem_type = 0;
+		mem_type_10bit = 0;
 		pix_val = 1;
 		break;
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:
-		mem_type = 1;
 		pix_val = 1;
 		break;
 	default:
@@ -542,8 +540,8 @@ void s5p_mfc_set_pixel_format(struct s5p_mfc_dev *dev, unsigned int format)
 		break;
 	}
 	reg |= pix_val;
-	reg |= (mem_type << 4);
+	reg |= (mem_type_10bit << 4);
 	MFC_WRITEL(reg, S5P_FIMV_PIXEL_FORMAT);
-	mfc_debug(2, "pixel format: %d, mem_type for 10bit: %d (reg: %#x)\n",
-			pix_val, mem_type, reg);
+	mfc_debug(2, "pixel format: %d, mem_type_10bit for 10bit: %d (reg: %#x)\n",
+			pix_val, mem_type_10bit, reg);
 }

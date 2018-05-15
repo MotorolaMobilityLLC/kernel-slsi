@@ -188,7 +188,7 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 			case V4L2_PIX_FMT_NV16M:
 			case V4L2_PIX_FMT_NV16M_S10B:
 			case V4L2_PIX_FMT_NV16M_P210:
-				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[7];
+				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[9];
 				break;
 			case V4L2_PIX_FMT_NV21M:
 			case V4L2_PIX_FMT_NV61M:
@@ -197,7 +197,7 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[11];
 				break;
 			default:
-				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[7];
+				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[9];
 				break;
 			}
 		}
