@@ -17,7 +17,7 @@
 #include <linux/cpumask.h>
 #include <linux/cpufreq.h>
 #include <linux/pm_qos.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 #include <linux/pm_opp.h>
 #include <linux/cpu_cooling.h>
 #include <linux/suspend.h>
@@ -169,16 +169,16 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 	if (domain->need_awake)
 		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
-	exynos_ss_printk("ID %d: %d -> %d (%d)\n",
-		domain->id, domain->old, target_freq, ESS_FLAG_IN);
+	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n",
+		domain->id, domain->old, target_freq, DSS_FLAG_IN);
 
 	err = cal_dfs_set_rate(domain->cal_id, target_freq);
 	if (err < 0)
 		pr_err("failed to scale frequency of domain%d (%d -> %d)\n",
 			domain->id, domain->old, target_freq);
 
-	exynos_ss_printk("ID %d: %d -> %d (%d)\n",
-		domain->id, domain->old, target_freq, ESS_FLAG_OUT);
+	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n",
+		domain->id, domain->old, target_freq, DSS_FLAG_OUT);
 
 	if (domain->need_awake)
 		enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
@@ -235,7 +235,7 @@ static int scale(struct exynos_cpufreq_domain *domain,
 	};
 
 	cpufreq_freq_transition_begin(policy, &freqs);
-	exynos_ss_freq(domain->id, domain->old, target_freq, ESS_FLAG_IN);
+	dbg_snapshot_freq(domain->id, domain->old, target_freq, DSS_FLAG_IN);
 
 	ret = pre_scale();
 	if (ret)
@@ -252,8 +252,8 @@ static int scale(struct exynos_cpufreq_domain *domain,
 
 fail_scale:
 	/* In scaling failure case, logs -1 to exynos snapshot */
-	exynos_ss_freq(domain->id, domain->old, target_freq,
-					ret < 0 ? ret : ESS_FLAG_OUT);
+	dbg_snapshot_freq(domain->id, domain->old, target_freq,
+					ret < 0 ? ret : DSS_FLAG_OUT);
 	cpufreq_freq_transition_end(policy, &freqs, ret);
 
 	return ret;
