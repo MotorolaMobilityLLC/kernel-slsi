@@ -12,6 +12,7 @@
 #define FIMC_IS_HW_PAFRDMA_H
 
 #include "fimc-is-hw-control.h"
+#include "fimc-is-interface-ddk.h"
 #include "fimc-is-param.h"
 
 struct fimc_is_hw_paf {

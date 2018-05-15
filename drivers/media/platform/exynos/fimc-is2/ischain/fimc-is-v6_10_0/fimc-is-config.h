@@ -160,7 +160,7 @@
 #define MULTI_SHOT_TASKLET
 /* #define ENABLE_EARLY_SHOT */
 
-#if defined(USE_I2C_LOCK) && !defined(CONFIG_VENDER_PSV)
+#if defined(USE_I2C_LOCK)
 #define I2C_MUTEX_LOCK(lock)	mutex_lock(lock)
 #define I2C_MUTEX_UNLOCK(lock)	mutex_unlock(lock)
 #else

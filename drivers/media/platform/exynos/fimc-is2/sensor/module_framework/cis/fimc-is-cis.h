@@ -12,12 +12,8 @@
 #ifndef FIMC_IS_CIS_H
 #define FIMC_IS_CIS_H
 
-#ifdef CONFIG_VENDER_PSV
-#define CIS_TEST_PATTERN_MODE 2 /* PSV set only color-bar */
-#else
+/* if you need color-bar, change a below macro to 2 */
 #define CIS_TEST_PATTERN_MODE 0
-#endif
-
 #define CIS_STREAM_OFF_WAIT_TIME 2000	/* 2ms */
 #define CIS_STREAM_ON_WAIT_TIME 2000	/* 2ms */
 

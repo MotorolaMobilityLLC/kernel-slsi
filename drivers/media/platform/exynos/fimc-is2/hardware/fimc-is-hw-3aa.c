@@ -72,6 +72,7 @@ static int __nocfi fimc_is_hw_3aa_open(struct fimc_is_hw_ip *hw_ip, u32 instance
 err_chain_create:
 err_lib_func:
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 err_alloc:
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
@@ -141,6 +142,7 @@ static int fimc_is_hw_3aa_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 
 	fimc_is_lib_isp_chain_destroy(hw_ip, &hw_3aa->lib[instance], instance);
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
 
@@ -303,7 +305,8 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	fimc_is_hw_g_ctrl(hw_ip, hw_ip->id, HW_G_CTRL_FRM_DONE_WITH_DMA, (void *)&frame_done);
 	if ((!frame_done)
 		|| (!test_bit(ENTRY_3AC, &frame->out_flag) && !test_bit(ENTRY_3AP, &frame->out_flag)
-			&& !test_bit(ENTRY_3AF, &frame->out_flag) && !test_bit(ENTRY_3AG, &frame->out_flag)))
+			&& !test_bit(ENTRY_3AF, &frame->out_flag) && !test_bit(ENTRY_3AG, &frame->out_flag)
+			&& !test_bit(ENTRY_MEXC, &frame->out_flag)))
 		set_bit(hw_ip->id, &frame->core_flag);
 
 	FIMC_BUG(!hw_ip->priv_info);
@@ -365,7 +368,8 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	crop_y = param_set->otf_input.bayer_crop_offset_y;
 	if (param_set->dma_input.cmd != DMA_INPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->planes; i++) {
-			param_set->input_dva[i] = frame->dvaddr_buffer[i];
+			param_set->input_dva[i] =
+				(typeof(*param_set->input_dva))frame->dvaddr_buffer[i];
 			if (frame->dvaddr_buffer[i] == 0) {
 				msinfo_hw("[F:%d]dvaddr_buffer[%d] is zero\n",
 					frame->instance, hw_ip, frame->fcount, i);
@@ -610,13 +614,24 @@ static int fimc_is_hw_3aa_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_f
 	if (ret)
 		mserr_hw("get_meta fail", frame->instance, hw_ip);
 
+	if (frame->shot && frame->shot_ext) {
+		msdbg_hw(2, "get_meta[F:%d]: ni(%d,%d,%d) binning_r(%d,%d), crop_taa(%d,%d), bds(%d,%d)\n",
+			frame->instance, hw_ip, frame->fcount,
+			frame->shot->udm.ni.currentFrameNoiseIndex,
+			frame->shot->udm.ni.nextFrameNoiseIndex,
+			frame->shot->udm.ni.nextNextFrameNoiseIndex,
+			frame->shot_ext->binning_ratio_x, frame->shot_ext->binning_ratio_y,
+			frame->shot_ext->crop_taa_x, frame->shot_ext->crop_taa_y,
+			frame->shot_ext->bds_ratio_x, frame->shot_ext->bds_ratio_y);
+	}
+
 	return ret;
 }
 
 static int fimc_is_hw_3aa_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	u32 instance, enum ShotErrorType done_type)
 {
-	int wq_id_3xc, wq_id_3xp, wq_id_3xf, wq_id_3xg;
+	int wq_id_3xc, wq_id_3xp, wq_id_3xf, wq_id_3xg, wq_id_mexc;
 	int output_id;
 	int ret = 0;
 
@@ -629,12 +644,21 @@ static int fimc_is_hw_3aa_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 		wq_id_3xp = WORK_30P_FDONE;
 		wq_id_3xf = WORK_30F_FDONE;
 		wq_id_3xg = WORK_30G_FDONE;
+		wq_id_mexc = WORK_ME0C_FDONE;
 		break;
 	case DEV_HW_3AA1:
 		wq_id_3xc = WORK_31C_FDONE;
 		wq_id_3xp = WORK_31P_FDONE;
 		wq_id_3xf = WORK_31F_FDONE;
 		wq_id_3xg = WORK_31G_FDONE;
+		wq_id_mexc = WORK_ME1C_FDONE;
+		break;
+	case DEV_HW_VPP:
+		wq_id_3xc = WORK_MAX_MAP;
+		wq_id_3xp = WORK_32P_FDONE;
+		wq_id_3xf = WORK_MAX_MAP;
+		wq_id_3xg = WORK_MAX_MAP;
+		wq_id_mexc = WORK_MAX_MAP;
 		break;
 	default:
 		mserr_hw("[F:%d]invalid hw(%d)", instance, hw_ip, frame->fcount, hw_ip->id);
@@ -668,7 +692,7 @@ static int fimc_is_hw_3aa_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 
 	output_id = ENTRY_MEXC;
 	if (test_bit(output_id, &frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame, WORK_ME0C_FDONE,
+		ret = fimc_is_hardware_frame_done(hw_ip, frame, wq_id_mexc,
 				output_id, done_type, false);
 	}
 
@@ -691,12 +715,6 @@ static int fimc_is_hw_3aa_load_setfile(struct fimc_is_hw_ip *hw_ip, u32 instance
 	enum exynos_sensor_position sensor_position;
 
 	FIMC_BUG(!hw_ip);
-
-	/* skip */
-	if ((hw_ip->id == DEV_HW_3AA0) && test_bit(DEV_HW_3AA1, &hw_map))
-		return 0;
-	else if ((hw_ip->id == DEV_HW_3AA1) && test_bit(DEV_HW_3AA0, &hw_map))
-		return 0;
 
 	if (!test_bit_variables(hw_ip->id, &hw_map)) {
 		msdbg_hw(2, "%s: hw_map(0x%lx)\n", instance, hw_ip, __func__, hw_map);
@@ -753,12 +771,6 @@ static int fimc_is_hw_3aa_apply_setfile(struct fimc_is_hw_ip *hw_ip, u32 scenari
 	enum exynos_sensor_position sensor_position;
 
 	FIMC_BUG(!hw_ip);
-
-	/* skip */
-	if ((hw_ip->id == DEV_HW_3AA0) && test_bit(DEV_HW_3AA1, &hw_map))
-		return 0;
-	else if ((hw_ip->id == DEV_HW_3AA1) && test_bit(DEV_HW_3AA0, &hw_map))
-		return 0;
 
 	if (!test_bit_variables(hw_ip->id, &hw_map)) {
 		msdbg_hw(2, "%s: hw_map(0x%lx)\n", instance, hw_ip, __func__, hw_map);
@@ -818,12 +830,6 @@ static int fimc_is_hw_3aa_delete_setfile(struct fimc_is_hw_ip *hw_ip, u32 instan
 	enum exynos_sensor_position sensor_position;
 
 	FIMC_BUG(!hw_ip);
-
-	/* skip */
-	if ((hw_ip->id == DEV_HW_3AA0) && test_bit(DEV_HW_3AA1, &hw_map))
-		return 0;
-	else if ((hw_ip->id == DEV_HW_3AA1) && test_bit(DEV_HW_3AA0, &hw_map))
-		return 0;
 
 	if (!test_bit_variables(hw_ip->id, &hw_map)) {
 		msdbg_hw(2, "%s: hw_map(0x%lx)\n", instance, hw_ip, __func__, hw_map);

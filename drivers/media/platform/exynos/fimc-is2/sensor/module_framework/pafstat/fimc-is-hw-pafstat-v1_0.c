@@ -13,6 +13,8 @@
 #include "fimc-is-hw-pafstat.h"
 #include "fimc-is-hw-pafstat-v1_0.h"
 #include "fimc-is-device-sensor.h"
+#include "fimc-is-core.h"
+#include <linux/clk.h>
 
 u32 pafstat_hw_g_reg_cnt(void)
 {
@@ -144,13 +146,43 @@ void pafstat_hw_com_s_lic_mode(void __iomem *base_reg, u32 id,
 			&pafstat_fields[PAFSTAT_F_COM_LIC_BYPASS], 0); /* TODO */
 }
 
-void pafstat_hw_s_4ppc(void __iomem *base_reg, u32 mipi_speed)
+int pafstat_hw_s_4ppc(void __iomem *base_reg, u32 width, u32 height, u32 frame_rate,
+		u32 mipi_speed, u32 lanes, const char *conid)
 {
-	u32 pixel_mode = (mipi_speed > 2000 ? 1: 0); /* 0: 2PPC, 1: 4PPC */
+	struct clk *target;
+	u32 target_clk;
+	u32 need_clk_by_rate;
+	u32 need_clk_by_speed;
+	u32 pixel_mode;
 
-	info("[PAFSTAT] LIC_4PPC(%d)\n", pixel_mode);
+	target = clk_get(fimc_is_dev, conid);
+	if (IS_ERR_OR_NULL(target)) {
+		err("%s: can not get target: %s\n", __func__, conid);
+		return -ENODEV;
+	}
+
+	target_clk = clk_get_rate(target);
+	if (!target_clk) {
+		err("%s: clk value is zero: %s\n", __func__, conid);
+		return -ENODEV;
+	}
+
+	need_clk_by_rate = width * height * frame_rate;
+	need_clk_by_speed = mipi_speed * lanes / 10; /* TODO: only RAW10 format case */
+	info("need_clk (rate: %d)(speed: %d)\n", need_clk_by_rate, need_clk_by_speed);
+
+	/* 2ppc boundary check */
+	if (target_clk * 2 > need_clk_by_rate && target_clk * 2 > need_clk_by_speed) {
+		info("pafstat pixel mode is set 2ppc\n");
+		pixel_mode = 0; /* 2ppc mode */
+	} else {
+		info("pafste pixel mode is set 4ppc\n");
+		pixel_mode = 1; /* 4ppc mode */
+	}
 	fimc_is_hw_set_field(base_reg, &pafstat_regs[PAFSTAT_R_CTX_LIC_4PPC],
 			&pafstat_fields[PAFSTAT_F_CTX_LIC_4PPC], pixel_mode);
+
+	return 0;
 }
 
 void pafstat_hw_com_s_fro(void __iomem *base_reg, u32 fro_cnt)

@@ -304,6 +304,8 @@ struct fimc_is_core {
 	struct fimc_is_video			video_31p;
 	struct fimc_is_video			video_31f;
 	struct fimc_is_video			video_31g;
+	struct fimc_is_video			video_32s;
+	struct fimc_is_video			video_32p;
 	struct fimc_is_video			video_i0s;
 	struct fimc_is_video			video_i0c;
 	struct fimc_is_video			video_i0p;
@@ -311,6 +313,7 @@ struct fimc_is_core {
 	struct fimc_is_video			video_i1c;
 	struct fimc_is_video			video_i1p;
 	struct fimc_is_video			video_me0c;
+	struct fimc_is_video			video_me1c;
 	struct fimc_is_video			video_scc;
 	struct fimc_is_video			video_scp;
 	struct fimc_is_video			video_d0s;
@@ -354,6 +357,7 @@ struct fimc_is_core {
 
 	unsigned long                           sensor_map;
 	struct fimc_is_dual_info		dual_info;
+	struct mutex				ois_mode_lock;
 };
 
 struct fimc_is_device_sensor *fimc_is_get_sensor_device(struct fimc_is_core *core);

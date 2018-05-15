@@ -132,13 +132,11 @@ struct fimc_is_subdev {
 	struct list_head			list;
 
 	/* for internal use */
-	u32					pixelformat;
 	struct fimc_is_framemgr			internal_framemgr;
 	u32					buffer_num;
+	u32					bytes_per_pixel;
 	u32					vc_buffer_offset;
 	struct fimc_is_priv_buf			*pb_subdev[SUBDEV_INTERNAL_BUF_MAX];
-	dma_addr_t				dvaddr_subdev[SUBDEV_INTERNAL_BUF_MAX];
-	ulong					kvaddr_subdev[SUBDEV_INTERNAL_BUF_MAX];
 	char					data_type[15];
 
 	struct fimc_is_video_ctx		*vctx;
@@ -175,7 +173,6 @@ int fimc_is_subdev_open(struct fimc_is_subdev *subdev,
 	struct fimc_is_video_ctx *vctx,
 	void *ctl_data);
 int fimc_is_subdev_close(struct fimc_is_subdev *subdev);
-int fimc_is_subdev_reqbuf(struct fimc_is_subdev *subdev);
 int fimc_is_subdev_buffer_queue(struct fimc_is_subdev *subdev, struct vb2_buffer *vb);
 int fimc_is_subdev_buffer_finish(struct fimc_is_subdev *subdev, struct vb2_buffer *vb);
 

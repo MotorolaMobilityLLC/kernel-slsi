@@ -201,6 +201,7 @@ static int fimc_is_hw_mcsc_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 		return 0;
 
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 
 	clear_bit(HW_OPEN, &hw_ip->state);
 
