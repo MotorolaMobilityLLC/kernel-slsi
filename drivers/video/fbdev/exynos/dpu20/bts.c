@@ -60,7 +60,6 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 	/* store current bw for each channel */
 	decon->bts.ch_bw[id][BTS_DPU0] = ch_bw[BTS_DPU0];
 	decon->bts.ch_bw[id][BTS_DPU1] = ch_bw[BTS_DPU1];
-	decon->bts.ch_bw[id][BTS_DPU2] = ch_bw[BTS_DPU2];
 
 	switch (id) {
 	case 0:
@@ -69,8 +68,6 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 						+ decon->bts.ch_bw[2][BTS_DPU0];
 		ch_bw[BTS_DPU1] += decon->bts.ch_bw[1][BTS_DPU1]
 						+ decon->bts.ch_bw[2][BTS_DPU1];
-		ch_bw[BTS_DPU2] += decon->bts.ch_bw[1][BTS_DPU2]
-						+ decon->bts.ch_bw[2][BTS_DPU2];
 		break;
 	case 1:
 		/* sum with bw of other decons */
@@ -78,8 +75,6 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 						+ decon->bts.ch_bw[2][BTS_DPU0];
 		ch_bw[BTS_DPU1] += decon->bts.ch_bw[0][BTS_DPU1]
 						+ decon->bts.ch_bw[2][BTS_DPU1];
-		ch_bw[BTS_DPU2] += decon->bts.ch_bw[0][BTS_DPU2]
-						+ decon->bts.ch_bw[2][BTS_DPU2];
 		break;
 	case 2:
 		/* sum with bw of other decons */
@@ -87,8 +82,6 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 						+ decon->bts.ch_bw[1][BTS_DPU0];
 		ch_bw[BTS_DPU1] += decon->bts.ch_bw[0][BTS_DPU1]
 						+ decon->bts.ch_bw[1][BTS_DPU1];
-		ch_bw[BTS_DPU2] += decon->bts.ch_bw[0][BTS_DPU2]
-						+ decon->bts.ch_bw[1][BTS_DPU2];
 		break;
 	default:
 		decon_warn("[%s] undefined decon id(%d)!\n", __func__, id);
@@ -112,9 +105,8 @@ static void dpu_bts_find_max_disp_freq(struct decon_device *decon,
 
 	memset(disp_ch_bw, 0, sizeof(disp_ch_bw));
 
-	disp_ch_bw[BTS_DPU0] = decon->bts.bw[BTS_DPP4] + decon->bts.bw[BTS_DPP5];
-	disp_ch_bw[BTS_DPU1] = decon->bts.bw[BTS_DPP0] + decon->bts.bw[BTS_DPP2];
-	disp_ch_bw[BTS_DPU2] = decon->bts.bw[BTS_DPP1] + decon->bts.bw[BTS_DPP3];
+	disp_ch_bw[BTS_DPU0] = decon->bts.bw[BTS_DPP0] + decon->bts.bw[BTS_DPP1];
+	disp_ch_bw[BTS_DPU1] = decon->bts.bw[BTS_DPP2] + decon->bts.bw[BTS_DPP3];
 
 	/* must be considered other decon's bw */
 	dpu_bts_sum_all_decon_bw(decon, disp_ch_bw);
@@ -177,16 +169,12 @@ static void dpu_bts_share_bw_info(int id)
 				decon[id]->bts.ch_bw[id][BTS_DPU0];
 			decon[1]->bts.ch_bw[id][BTS_DPU1] =
 				decon[id]->bts.ch_bw[id][BTS_DPU1];
-			decon[1]->bts.ch_bw[id][BTS_DPU2] =
-				decon[id]->bts.ch_bw[id][BTS_DPU2];
 		}
 		if (decon[2] != NULL) {
 			decon[2]->bts.ch_bw[id][BTS_DPU0] =
 				decon[id]->bts.ch_bw[id][BTS_DPU0];
 			decon[2]->bts.ch_bw[id][BTS_DPU1] =
 				decon[id]->bts.ch_bw[id][BTS_DPU1];
-			decon[2]->bts.ch_bw[id][BTS_DPU2] =
-				decon[id]->bts.ch_bw[id][BTS_DPU2];
 		}
 		break;
 	case 1:
@@ -195,16 +183,12 @@ static void dpu_bts_share_bw_info(int id)
 				decon[id]->bts.ch_bw[id][BTS_DPU0];
 			decon[0]->bts.ch_bw[id][BTS_DPU1] =
 				decon[id]->bts.ch_bw[id][BTS_DPU1];
-			decon[0]->bts.ch_bw[id][BTS_DPU2] =
-				decon[id]->bts.ch_bw[id][BTS_DPU2];
 		}
 		if (decon[2] != NULL) {
 			decon[2]->bts.ch_bw[id][BTS_DPU0] =
 				decon[id]->bts.ch_bw[id][BTS_DPU0];
 			decon[2]->bts.ch_bw[id][BTS_DPU1] =
 				decon[id]->bts.ch_bw[id][BTS_DPU1];
-			decon[2]->bts.ch_bw[id][BTS_DPU2] =
-				decon[id]->bts.ch_bw[id][BTS_DPU2];
 		}
 		break;
 	case 2:
@@ -213,16 +197,12 @@ static void dpu_bts_share_bw_info(int id)
 				decon[id]->bts.ch_bw[id][BTS_DPU0];
 			decon[0]->bts.ch_bw[id][BTS_DPU1] =
 				decon[id]->bts.ch_bw[id][BTS_DPU1];
-			decon[0]->bts.ch_bw[id][BTS_DPU2] =
-				decon[id]->bts.ch_bw[id][BTS_DPU2];
 		}
 		if (decon[1] != NULL) {
 			decon[1]->bts.ch_bw[id][BTS_DPU0] =
 				decon[id]->bts.ch_bw[id][BTS_DPU0];
 			decon[1]->bts.ch_bw[id][BTS_DPU1] =
 				decon[id]->bts.ch_bw[id][BTS_DPU1];
-			decon[1]->bts.ch_bw[id][BTS_DPU2] =
-				decon[id]->bts.ch_bw[id][BTS_DPU2];
 		}
 		break;
 	default:
