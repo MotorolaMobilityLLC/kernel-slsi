@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * SFR access functions for Samsung EXYNOS SoC MIPI-DSI Master driver.
@@ -31,6 +31,12 @@
 #define DSIM_STABLE_VFP_VALUE		2
 #define TE_PROTECT_ON_TIME		158 /* 15.8ms*/
 #define TE_TIMEOUT_TIME			180 /* 18ms */
+
+const u32 DSIM_PHY_CHARIC_VAL[][9] = {
+	/* MPLL_CTRL1, MPLL_CTRL2, B_DPHY_CTRL2, B_DPHY_CTRL3, B_DPHY_CTRL_4,
+	   M_DPHY_CTRL1, M_DPHY_CTRL2, M_DPHY_CTRL3, M_DPHY_CTRL4*/
+	{0x0, 0x0, 0x800, 0x0, 0x40, 0x0, 0x0, 0x0, 0x0},
+};
 
 u32 DSIM_PHY_BIAS_CON_VAL[] = {
 	0x00000010,
@@ -80,207 +86,209 @@ const u32 dphy_timing[][10] = {
 	/* bps, clk_prepare, clk_zero, clk_post, clk_trail,
 	 * hs_prepare, hs_zero, hs_trail, lpx, hs_exit
 	 */
-	{2500, 12, 43, 11, 11, 11, 20, 10, 9 , 17,},
-	{2490, 12, 43, 11, 11, 11, 20, 10, 9 , 17,},
-	{2480, 12, 42, 11, 11, 11, 20, 10, 9 , 17,},
-	{2470, 11, 43, 11, 11, 11, 20, 10, 9 , 16,},
-	{2460, 11, 43, 11, 11, 11, 20, 10, 9 , 16,},
-	{2450, 11, 43, 11, 11, 11, 20, 10, 9 , 16,},
-	{2440, 11, 42, 11, 11, 11, 19, 10, 9 , 16,},
-	{2430, 11, 42, 11, 11, 11, 19, 10, 9 , 16,},
-	{2420, 11, 42, 11, 10, 11, 19, 10, 9 , 16,},
-	{2410, 11, 42, 11, 10, 11, 19, 10, 9 , 16,},
-	{2400, 11, 41, 10, 10, 11, 19, 10, 8 , 16,},
-	{2390, 11, 41, 10, 10, 11, 19, 10, 8 , 16,},
-	{2380, 11, 41, 10, 10, 11, 19, 9 , 8 , 16,},
-	{2370, 11, 41, 10, 10, 11, 18, 9 , 8 , 16,},
-	{2360, 11, 41, 10, 10, 11, 18, 9 , 8 , 16,},
-	{2350, 11, 40, 10, 10, 11, 18, 9 , 8 , 16,},
-	{2340, 11, 40, 10, 10, 11, 18, 9 , 8 , 16,},
-	{2330, 11, 40, 10, 10, 10, 19, 9 , 8 , 16,},
-	{2320, 11, 40, 10, 10, 10, 19, 9 , 8 , 15,},
-	{2310, 11, 39, 10, 10, 10, 19, 9 , 8 , 15,},
-	{2300, 11, 39, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2290, 11, 39, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2280, 11, 39, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2270, 10, 39, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2260, 10, 39, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2250, 10, 39, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2240, 10, 39, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2230, 10, 38, 10, 10, 10, 18, 9 , 8 , 15,},
-	{2220, 10, 38, 10, 10, 10, 17, 9 , 8 , 15,},
-	{2210, 10, 38, 10, 10, 10, 17, 9 , 8 , 15,},
-	{2200, 10, 38, 9 , 10, 10, 17, 9 , 8 , 15,},
-	{2190, 10, 38, 9 , 9 , 10, 17, 9 , 8 , 15,},
-	{2180, 10, 37, 9 , 9 , 10, 17, 9 , 8 , 14,},
-	{2170, 10, 37, 9 , 9 , 10, 17, 9 , 8 , 14,},
-	{2160, 10, 37, 9 , 9 , 10, 17, 9 , 8 , 14,},
-	{2150, 10, 37, 9 , 9 , 10, 16, 8 , 8 , 14,},
-	{2140, 10, 36, 9 , 9 , 10, 16, 8 , 8 , 14,},
-	{2130, 10, 36, 9 , 9 , 10, 16, 8 , 7 , 14,},
-	{2120, 10, 36, 9 , 9 , 9 , 17, 8 , 7 , 14,},
-	{2110, 10, 36, 9 , 9 , 9 , 17, 8 , 7 , 14,},
-	{2100, 10, 35, 9 , 9 , 9 , 17, 8 , 7 , 14,},
-	{2090, 10, 35, 9 , 9 , 9 , 17, 8 , 7 , 14,},
-	{2080, 9 , 36, 9 , 9 , 9 , 16, 8 , 7 , 14,},
-	{2070, 9 , 36, 9 , 9 , 9 , 16, 8 , 7 , 14,},
-	{2060, 9 , 35, 9 , 9 , 9 , 16, 8 , 7 , 14,},
-	{2050, 9 , 35, 9 , 9 , 9 , 16, 8 , 7 , 14,},
-	{2040, 9 , 35, 9 , 9 , 9 , 16, 8 , 7 , 14,},
-	{2030, 9 , 35, 9 , 9 , 9 , 16, 8 , 7 , 13,},
-	{2020, 9 , 35, 9 , 9 , 9 , 16, 8 , 7 , 13,},
-	{2010, 9 , 34, 9 , 9 , 9 , 15, 8 , 7 , 13,},
-	{2000, 9 , 34, 8 , 9 , 9 , 15, 8 , 7 , 13,},
-	{1990, 9 , 34, 8 , 9 , 9 , 15, 8 , 7 , 13,},
-	{1980, 9 , 34, 8 , 9 , 9 , 15, 8 , 7 , 13,},
-	{1970, 9 , 33, 8 , 9 , 9 , 15, 8 , 7 , 13,},
-	{1960, 9 , 33, 8 , 9 , 9 , 15, 8 , 7 , 13,},
-	{1950, 9 , 33, 8 , 8 , 9 , 15, 8 , 7 , 13,},
-	{1940, 9 , 33, 8 , 8 , 9 , 15, 8 , 7 , 13,},
-	{1930, 9 , 32, 8 , 8 , 9 , 14, 8 , 7 , 13,},
-	{1920, 9 , 32, 8 , 8 , 9 , 14, 8 , 7 , 13,},
-	{1910, 9 , 32, 8 , 8 , 8 , 15, 7 , 7 , 13,},
-	{1900, 9 , 32, 8 , 8 , 8 , 15, 7 , 7 , 13,},
-	{1890, 9 , 31, 8 , 8 , 8 , 15, 7 , 7 , 12,},
-	{1880, 8 , 32, 8 , 8 , 8 , 15, 7 , 7 , 12,},
-	{1870, 8 , 32, 8 , 8 , 8 , 15, 7 , 7 , 12,},
-	{1860, 8 , 32, 8 , 8 , 8 , 14, 7 , 6 , 12,},
-	{1850, 8 , 32, 8 , 8 , 8 , 14, 7 , 6 , 12,},
-	{1840, 8 , 31, 8 , 8 , 8 , 14, 7 , 6 , 12,},
-	{1830, 8 , 31, 8 , 8 , 8 , 14, 7 , 6 , 12,},
-	{1820, 8 , 31, 8 , 8 , 8 , 14, 7 , 6 , 12,},
-	{1810, 8 , 31, 8 , 8 , 8 , 14, 7 , 6 , 12,},
-	{1800, 8 , 30, 7 , 8 , 8 , 14, 7 , 6 , 12,},
-	{1790, 8 , 30, 7 , 8 , 8 , 13, 7 , 6 , 12,},
-	{1780, 8 , 30, 7 , 8 , 8 , 13, 7 , 6 , 12,},
-	{1770, 8 , 30, 7 , 8 , 8 , 13, 7 , 6 , 12,},
-	{1760, 8 , 29, 7 , 8 , 8 , 13, 7 , 6 , 12,},
-	{1750, 8 , 29, 7 , 8 , 8 , 13, 7 , 6 , 12,},
-	{1740, 8 , 29, 7 , 8 , 8 , 13, 7 , 6 , 11,},
-	{1730, 8 , 29, 7 , 8 , 8 , 13, 7 , 6 , 11,},
-	{1720, 8 , 29, 7 , 7 , 8 , 13, 7 , 6 , 11,},
-	{1710, 8 , 28, 7 , 7 , 8 , 12, 7 , 6 , 11,},
-	{1700, 8 , 28, 7 , 7 , 7 , 13, 7 , 6 , 11,},
-	{1690, 8 , 28, 7 , 7 , 7 , 13, 7 , 6 , 11,},
-	{1680, 7 , 29, 7 , 7 , 7 , 13, 6 , 6 , 11,},
-	{1670, 7 , 28, 7 , 7 , 7 , 13, 6 , 6 , 11,},
-	{1660, 7 , 28, 7 , 7 , 7 , 13, 6 , 6 , 11,},
-	{1650, 7 , 28, 7 , 7 , 7 , 13, 6 , 6 , 11,},
-	{1640, 7 , 28, 7 , 7 , 7 , 12, 6 , 6 , 11,},
-	{1630, 7 , 27, 7 , 7 , 7 , 12, 6 , 6 , 11,},
-	{1620, 7 , 27, 7 , 7 , 7 , 12, 6 , 6 , 11,},
-	{1610, 7 , 27, 7 , 7 , 7 , 12, 6 , 6 , 11,},
-	{1600, 7 , 27, 6 , 7 , 7 , 12, 6 , 5 , 10,},
-	{1590, 7 , 26, 6 , 7 , 7 , 12, 6 , 5 , 10,},
-	{1580, 7 , 26, 6 , 7 , 7 , 12, 6 , 5 , 10,},
-	{1570, 7 , 26, 6 , 7 , 7 , 11, 6 , 5 , 10,},
-	{1560, 7 , 26, 6 , 7 , 7 , 11, 6 , 5 , 10,},
-	{1550, 7 , 26, 6 , 7 , 7 , 11, 6 , 5 , 10,},
-	{1540, 7 , 25, 6 , 7 , 7 , 11, 6 , 5 , 10,},
-	{1530, 7 , 25, 6 , 7 , 7 , 11, 6 , 5 , 10,},
-	{1520, 7 , 25, 6 , 7 , 7 , 11, 6 , 5 , 10,},
-	{1510, 7 , 25, 6 , 7 , 7 , 11, 6 , 5 , 10,},
-	{1500, 7 , 24, 6 , 7 , 7 , 10, 6 , 5 , 10,},
-	{1490, 59, 25, 6 , 77, 59, 10, 70, 44, 9 ,},
-	{1480, 59, 24, 6 , 76, 58, 10, 70, 44, 9 ,},
-	{1470, 58, 24, 6 , 76, 58, 10, 69, 44, 9 ,},
-	{1460, 58, 24, 6 , 76, 58, 10, 69, 43, 9 ,},
-	{1450, 58, 24, 6 , 75, 57, 10, 68, 43, 9 ,},
-	{1440, 57, 24, 6 , 75, 57, 10, 68, 43, 9 ,},
-	{1430, 57, 23, 6 , 75, 56, 10, 68, 42, 8 ,},
-	{1420, 56, 23, 6 , 74, 56, 9 , 67, 42, 8 ,},
-	{1410, 56, 23, 6 , 74, 56, 9 , 67, 42, 8 ,},
-	{1400, 56, 23, 5 , 74, 55, 9 , 67, 41, 8 ,},
-	{1390, 55, 23, 5 , 73, 55, 9 , 66, 41, 8 ,},
-	{1380, 55, 23, 5 , 73, 54, 9 , 66, 41, 8 ,},
-	{1370, 54, 22, 5 , 72, 54, 9 , 66, 41, 8 ,},
-	{1360, 54, 22, 5 , 72, 54, 9 , 65, 40, 8 ,},
-	{1350, 54, 22, 5 , 72, 53, 9 , 65, 40, 8 ,},
-	{1340, 53, 22, 5 , 71, 53, 9 , 65, 40, 8 ,},
-	{1330, 53, 22, 5 , 71, 53, 9 , 64, 39, 8 ,},
-	{1320, 52, 22, 5 , 71, 52, 8 , 64, 39, 8 ,},
-	{1310, 52, 21, 5 , 70, 52, 8 , 64, 39, 8 ,},
-	{1300, 51, 21, 5 , 70, 51, 8 , 63, 38, 8 ,},
-	{1290, 51, 21, 5 , 70, 51, 8 , 63, 38, 7 ,},
-	{1280, 51, 21, 5 , 69, 51, 8 , 63, 38, 7 ,},
-	{1270, 50, 21, 5 , 69, 50, 8 , 62, 38, 7 ,},
-	{1260, 50, 20, 5 , 69, 50, 8 , 62, 37, 7 ,},
-	{1250, 49, 20, 5 , 68, 49, 8 , 62, 37, 7 ,},
-	{1240, 49, 20, 5 , 68, 49, 8 , 61, 37, 7 ,},
-	{1230, 49, 20, 5 , 68, 49, 8 , 61, 36, 7 ,},
-	{1220, 48, 20, 5 , 67, 48, 8 , 61, 36, 7 ,},
-	{1210, 48, 19, 5 , 67, 48, 7 , 60, 36, 7 ,},
-	{1200, 47, 19, 4 , 67, 48, 7 , 60, 35, 7 ,},
-	{1190, 47, 19, 4 , 66, 47, 7 , 60, 35, 7 ,},
-	{1180, 47, 19, 4 , 66, 47, 7 , 59, 35, 7 ,},
-	{1170, 46, 19, 4 , 66, 46, 7 , 59, 35, 7 ,},
-	{1160, 46, 18, 4 , 65, 46, 7 , 59, 34, 7 ,},
-	{1150, 45, 18, 4 , 65, 46, 7 , 58, 34, 7 ,},
-	{1140, 45, 18, 4 , 65, 45, 7 , 58, 34, 6 ,},
-	{1130, 45, 18, 4 , 64, 45, 7 , 58, 33, 6 ,},
-	{1120, 44, 18, 4 , 64, 44, 7 , 57, 33, 6 ,},
-	{1110, 44, 18, 4 , 64, 44, 7 , 57, 33, 6 ,},
-	{1100, 43, 17, 4 , 63, 44, 6 , 57, 32, 6 ,},
-	{1090, 43, 17, 4 , 63, 43, 6 , 56, 32, 6 ,},
-	{1080, 43, 17, 4 , 63, 43, 6 , 56, 32, 6 ,},
-	{1070, 42, 17, 4 , 62, 43, 6 , 56, 32, 6 ,},
-	{1060, 42, 17, 4 , 62, 42, 6 , 55, 31, 6 ,},
-	{1050, 41, 17, 4 , 62, 42, 6 , 55, 31, 6 ,},
-	{1040, 41, 16, 4 , 61, 41, 6 , 54, 31, 6 ,},
-	{1030, 41, 16, 4 , 61, 41, 6 , 54, 30, 6 ,},
-	{1020, 40, 16, 4 , 61, 41, 6 , 54, 30, 6 ,},
-	{1010, 40, 16, 4 , 60, 40, 6 , 53, 30, 6 ,},
-	{1000, 39, 16, 3 , 60, 40, 6 , 53, 29, 5 ,},
-	{990 , 39, 15, 3 , 60, 39, 6 , 53, 29, 5 ,},
-	{980 , 39, 15, 3 , 59, 39, 5 , 52, 29, 5 ,},
-	{970 , 38, 15, 3 , 59, 39, 5 , 52, 29, 5 ,},
-	{960 , 38, 15, 3 , 59, 38, 5 , 52, 28, 5 ,},
-	{950 , 37, 15, 3 , 58, 38, 5 , 51, 28, 5 ,},
-	{940 , 37, 14, 3 , 58, 38, 5 , 51, 28, 5 ,},
-	{930 , 37, 14, 3 , 57, 37, 5 , 51, 27, 5 ,},
-	{920 , 36, 14, 3 , 57, 37, 5 , 50, 27, 5 ,},
-	{910 , 36, 14, 3 , 57, 36, 5 , 50, 27, 5 ,},
-	{900 , 35, 14, 3 , 56, 36, 5 , 50, 26, 5 ,},
-	{890 , 35, 14, 3 , 56, 36, 5 , 49, 26, 5 ,},
-	{880 , 35, 13, 3 , 56, 35, 5 , 49, 26, 5 ,},
-	{870 , 34, 13, 3 , 55, 35, 4 , 49, 26, 5 ,},
-	{860 , 34, 13, 3 , 55, 35, 4 , 48, 25, 5 ,},
-	{850 , 33, 13, 3 , 55, 34, 4 , 48, 25, 4 ,},
-	{840 , 33, 13, 3 , 54, 34, 4 , 48, 25, 4 ,},
-	{830 , 33, 12, 3 , 54, 33, 4 , 47, 24, 4 ,},
-	{820 , 32, 12, 3 , 54, 33, 4 , 47, 24, 4 ,},
-	{810 , 32, 12, 3 , 53, 33, 4 , 47, 24, 4 ,},
-	{800 , 31, 12, 2 , 53, 32, 4 , 46, 23, 4 ,},
-	{790 , 31, 12, 2 , 53, 32, 4 , 46, 23, 4 ,},
-	{780 , 30, 12, 2 , 52, 31, 4 , 46, 23, 4 ,},
-	{770 , 30, 11, 2 , 52, 31, 4 , 45, 23, 4 ,},
-	{760 , 30, 11, 2 , 52, 31, 3 , 45, 22, 4 ,},
-	{750 , 29, 11, 2 , 51, 30, 3 , 45, 22, 4 ,},
-	{740 , 29, 11, 2 , 51, 30, 3 , 44, 22, 4 ,},
-	{730 , 28, 11, 2 , 51, 30, 3 , 44, 21, 4 ,},
-	{720 , 28, 10, 2 , 50, 29, 3 , 44, 21, 4 ,},
-	{710 , 28, 10, 2 , 50, 29, 3 , 43, 21, 4 ,},
-	{700 , 27, 10, 2 , 50, 28, 3 , 43, 20, 3 ,},
-	{690 , 27, 10, 2 , 49, 28, 3 , 43, 20, 3 ,},
-	{680 , 26, 10, 2 , 49, 28, 3 , 42, 20, 3 ,},
-	{670 , 26, 10, 2 , 49, 27, 3 , 42, 20, 3 ,},
-	{660 , 26, 9 , 2 , 48, 27, 3 , 42, 19, 3 ,},
-	{650 , 25, 9 , 2 , 48, 26, 3 , 41, 19, 3 ,},
-	{640 , 25, 9 , 2 , 48, 26, 2 , 41, 19, 3 ,},
-	{630 , 24, 9 , 2 , 47, 26, 2 , 40, 18, 3 ,},
-	{620 , 24, 9 , 2 , 47, 25, 2 , 40, 18, 3 ,},
-	{610 , 24, 8 , 2 , 47, 25, 2 , 40, 18, 3 ,},
-	{600 , 23, 8 , 1 , 46, 25, 2 , 39, 17, 3 ,},
-	{590 , 23, 8 , 1 , 46, 24, 2 , 39, 17, 3 ,},
-	{580 , 22, 8 , 1 , 46, 24, 2 , 39, 17, 3 ,},
-	{570 , 22, 8 , 1 , 45, 23, 2 , 38, 17, 3 ,},
-	{560 , 22, 7 , 1 , 45, 23, 2 , 38, 16, 2 ,},
-	{550 , 21, 7 , 1 , 45, 23, 2 , 38, 16, 2 ,},
-	{540 , 21, 7 , 1 , 44, 22, 2 , 37, 16, 2 ,},
-	{530 , 20, 7 , 1 , 44, 22, 1 , 37, 15, 2 ,},
-	{520 , 20, 7 , 1 , 43, 21, 1 , 37, 15, 2 ,},
-	{510 , 20, 6 , 1 , 43, 21, 1 , 36, 15, 2 ,},
-	{500 , 19, 6 , 1 , 43, 21, 1 , 36, 14, 2 ,},
+	{2500, 25, 43, 14, 20, 24, 19, 24, 18, 16},
+	{2490, 25, 43, 14, 20, 24, 19, 24, 18, 16},
+	{2480, 24, 43, 14, 20, 24, 19, 24, 18, 16},
+	{2470, 24, 43, 13, 20, 24, 18, 24, 18, 15},
+	{2460, 24, 42, 13, 20, 24, 18, 24, 18, 15},
+	{2450, 24, 42, 13, 20, 24, 18, 24, 18, 15},
+	{2440, 24, 42, 13, 20, 23, 18, 24, 18, 15},
+	{2430, 24, 42, 13, 20, 23, 18, 24, 18, 15},
+	{2420, 24, 41, 13, 20, 23, 18, 24, 18, 15},
+	{2410, 24, 41, 13, 20, 23, 18, 24, 18, 15},
+	{2400, 24, 41, 13, 20, 23, 18, 24, 17, 15},
+	{2390, 23, 41, 13, 19, 23, 18, 23, 17, 15},
+	{2380, 23, 41, 13, 19, 23, 18, 23, 17, 15},
+	{2370, 23, 41, 13, 19, 23, 18, 23, 17, 15},
+	{2360, 23, 41, 13, 19, 23, 18, 23, 17, 15},
+	{2350, 23, 40, 13, 19, 23, 18, 23, 17, 15},
+	{2340, 23, 40, 13, 19, 22, 18, 23, 17, 15},
+	{2330, 23, 40, 13, 19, 22, 17, 23, 17, 15},
+	{2320, 23, 40, 13, 19, 22, 17, 23, 17, 14},
+	{2310, 23, 39, 13, 19, 22, 17, 23, 17, 14},
+	{2300, 23, 39, 13, 19, 22, 17, 23, 17, 14},
+	{2290, 22, 39, 13, 19, 22, 17, 23, 17, 14},
+	{2280, 22, 39, 13, 18, 22, 17, 22, 17, 14},
+	{2270, 22, 39, 13, 18, 22, 17, 22, 17, 14},
+	{2260, 22, 39, 13, 18, 22, 17, 22, 16, 14},
+	{2250, 22, 39, 13, 18, 22, 17, 22, 16, 14},
+	{2240, 22, 38, 12, 18, 21, 17, 22, 16, 14},
+	{2230, 22, 38, 12, 18, 21, 17, 22, 16, 14},
+	{2220, 22, 38, 12, 18, 21, 16, 22, 16, 14},
+	{2210, 22, 38, 12, 18, 21, 16, 22, 16, 14},
+	{2200, 22, 38, 12, 18, 21, 16, 22, 16, 14},
+	{2190, 21, 38, 12, 18, 21, 16, 22, 16, 14},
+	{2180, 21, 37, 12, 18, 21, 16, 22, 16, 13},
+	{2170, 21, 37, 12, 18, 21, 16, 22, 16, 13},
+	{2160, 21, 37, 12, 17, 21, 16, 21, 16, 13},
+	{2150, 21, 37, 12, 17, 21, 16, 21, 16, 13},
+	{2140, 21, 36, 12, 17, 20, 16, 21, 16, 13},
+	{2130, 21, 36, 12, 17, 20, 16, 21, 15, 13},
+	{2120, 21, 36, 12, 17, 20, 16, 21, 15, 13},
+	{2110, 21, 36, 12, 17, 20, 15, 21, 15, 13},
+	{2100, 21, 36, 12, 17, 20, 15, 21, 15, 13},
+	{2090, 20, 36, 12, 17, 20, 15, 21, 15, 13},
+	{2080, 20, 36, 12, 17, 20, 15, 21, 15, 13},
+	{2070, 20, 35, 12, 17, 20, 15, 21, 15, 13},
+	{2060, 20, 35, 12, 17, 20, 15, 21, 15, 13},
+	{2050, 20, 35, 12, 16, 20, 15, 20, 15, 13},
+	{2040, 20, 35, 12, 16, 20, 15, 20, 15, 13},
+	{2030, 20, 34, 12, 16, 19, 15, 20, 15, 12},
+	{2020, 20, 34, 12, 16, 19, 15, 20, 15, 12},
+	{2010, 20, 34, 11, 16, 19, 15, 20, 15, 12},
+	{2000, 20, 34, 11, 16, 19, 14, 20, 14, 12},
+	{1990, 19, 34, 11, 16, 19, 14, 20, 14, 12},
+	{1980, 19, 34, 11, 16, 19, 14, 20, 14, 12},
+	{1970, 19, 33, 11, 16, 19, 14, 20, 14, 12},
+	{1960, 19, 33, 11, 16, 19, 14, 20, 14, 12},
+	{1950, 19, 33, 11, 16, 19, 14, 20, 14, 12},
+	{1940, 19, 33, 11, 15, 19, 14, 19, 14, 12},
+	{1930, 19, 33, 11, 15, 18, 14, 19, 14, 12},
+	{1920, 19, 32, 11, 15, 18, 14, 19, 14, 12},
+	{1910, 19, 32, 11, 15, 18, 14, 19, 14, 12},
+	{1900, 18, 32, 11, 15, 18, 14, 19, 14, 12},
+	{1890, 18, 32, 11, 15, 18, 14, 19, 14, 11},
+	{1880, 18, 32, 11, 15, 18, 13, 19, 14, 11},
+	{1870, 18, 32, 11, 15, 18, 13, 19, 14, 11},
+	{1860, 18, 31, 11, 15, 18, 13, 19, 13, 11},
+	{1850, 18, 31, 11, 15, 18, 13, 19, 13, 11},
+	{1840, 18, 31, 11, 15, 18, 13, 19, 13, 11},
+	{1830, 18, 31, 11, 14, 17, 13, 18, 13, 11},
+	{1820, 18, 30, 11, 14, 17, 13, 18, 13, 11},
+	{1810, 18, 30, 11, 14, 17, 13, 18, 13, 11},
+	{1800, 17, 30, 11, 14, 17, 13, 18, 13, 11},
+	{1790, 17, 30, 11, 14, 17, 13, 18, 13, 11},
+	{1780, 17, 30, 10, 14, 17, 13, 18, 13, 11},
+	{1770, 17, 30, 10, 14, 17, 12, 18, 13, 11},
+	{1760, 17, 30, 10, 14, 17, 12, 18, 13, 11},
+	{1750, 17, 29, 10, 14, 17, 12, 18, 13, 11},
+	{1740, 17, 29, 10, 14, 17, 12, 18, 13, 10},
+	{1730, 17, 29, 10, 14, 16, 12, 18, 12, 10},
+	{1720, 17, 29, 10, 14, 16, 12, 18, 12, 10},
+	{1710, 17, 29, 10, 13, 16, 12, 17, 12, 10},
+	{1700, 16, 29, 10, 13, 16, 12, 17, 12, 10},
+	{1690, 16, 28, 10, 13, 16, 12, 17, 12, 10},
+	{1680, 16, 28, 10, 13, 16, 12, 17, 12, 10},
+	{1670, 16, 28, 10, 13, 16, 12, 17, 12, 10},
+	{1660, 16, 28, 10, 13, 16, 11, 17, 12, 10},
+	{1650, 16, 28, 10, 13, 16, 11, 17, 12, 10},
+	{1640, 16, 27, 10, 13, 16, 11, 17, 12, 10},
+	{1630, 16, 27, 10, 13, 16, 11, 17, 12, 10},
+	{1620, 16, 27, 10, 13, 15, 11, 17, 12, 10},
+	{1610, 16, 27, 10, 13, 15, 11, 17, 12, 10},
+	{1600, 15, 27, 10, 12, 15, 11, 16, 11, 9},
+	{1590, 15, 27, 10, 12, 15, 11, 16, 11, 9},
+	{1580, 15, 26, 10, 12, 15, 11, 16, 11, 9},
+	{1570, 15, 26, 10, 12, 15, 11, 16, 11, 9},
+	{1560, 15, 26, 10, 12, 15, 11, 16, 11, 9},
+	{1550, 15, 26, 9, 12, 15, 10, 16, 11, 9},
+	{1540, 15, 25, 9, 12, 15, 10, 16, 11, 9},
+	{1530, 15, 25, 9, 12, 15, 10, 16, 11, 9},
+	{1520, 15, 25, 9, 12, 14, 10, 16, 11, 9},
+	{1510, 14, 25, 9, 12, 14, 10, 16, 11, 9},
+	{1500, 14, 25, 9, 12, 14, 10, 16, 11, 9},
+	{1490, 14, 25, 9, 11, 14, 10, 15, 11, 9},
+	{1480, 14, 25, 9, 11, 14, 10, 15, 11, 9},
+	{1470, 14, 24, 9, 11, 14, 10, 15, 11, 9},
+	{1460, 14, 24, 9, 11, 14, 10, 15, 10, 9},
+	{1450, 14, 24, 9, 11, 14, 10, 15, 10, 8},
+	{1440, 14, 24, 9, 11, 14, 10, 15, 10, 8},
+	{1430, 14, 23, 9, 11, 14, 10, 15, 10, 8},
+	{1420, 14, 23, 9, 11, 13, 10, 15, 10, 8},
+	{1410, 13, 23, 9, 11, 13, 9, 15, 10, 8},
+	{1400, 13, 23, 9, 11, 13, 9, 15, 10, 8},
+	{1390, 13, 23, 9, 11, 13, 9, 15, 10, 8},
+	{1380, 13, 23, 9, 10, 13, 9, 14, 10, 8},
+	{1370, 13, 23, 9, 10, 13, 9, 14, 10, 8},
+	{1360, 13, 22, 9, 10, 13, 9, 14, 10, 8},
+	{1350, 13, 22, 9, 10, 13, 9, 14, 10, 8},
+	{1340, 13, 22, 9, 10, 13, 9, 14, 10, 8},
+	{1330, 13, 22, 9, 10, 13, 9, 14, 9, 8},
+	{1320, 13, 22, 8, 10, 12, 9, 14, 9, 8},
+	{1310, 12, 22, 8, 10, 12, 9, 14, 9, 8},
+	{1300, 12, 21, 8, 10, 12, 8, 14, 9, 7},
+	{1290, 12, 21, 8, 10, 12, 8, 14, 9, 7},
+	{1280, 12, 21, 8, 10, 12, 8, 14, 9, 7},
+	{1270, 12, 21, 8, 10, 12, 8, 14, 9, 7},
+	{1260, 12, 20, 8, 9, 12, 8, 13, 9, 7},
+	{1250, 12, 20, 8, 9, 12, 8, 13, 9, 7},
+	{1240, 12, 20, 8, 9, 12, 8, 13, 9, 7},
+	{1230, 12, 20, 8, 9, 12, 8, 13, 9, 7},
+	{1220, 12, 20, 8, 9, 12, 8, 13, 9, 7},
+	{1210, 11, 20, 8, 9, 11, 8, 13, 9, 7},
+	{1200, 11, 20, 8, 9, 11, 8, 13, 8, 7},
+	{1190, 11, 19, 8, 9, 11, 7, 13, 8, 7},
+	{1180, 11, 19, 8, 9, 11, 7, 13, 8, 7},
+	{1170, 11, 19, 8, 9, 11, 7, 13, 8, 7},
+	{1160, 11, 19, 8, 9, 11, 7, 13, 8, 6},
+	{1150, 11, 18, 8, 8, 11, 7, 12, 8, 6},
+	{1140, 11, 18, 8, 8, 11, 7, 12, 8, 6},
+	{1130, 11, 18, 8, 8, 11, 7, 12, 8, 6},
+	{1120, 10, 18, 8, 8, 11, 7, 12, 8, 6},
+	{1110, 10, 18, 8, 8, 10, 7, 12, 8, 6},
+	{1100, 10, 18, 8, 8, 10, 7, 12, 8, 6},
+	{1090, 10, 17, 7, 8, 10, 7, 12, 8, 6},
+	{1080, 10, 17, 7, 8, 10, 6, 12, 8, 6},
+	{1070, 10, 17, 7, 8, 10, 6, 12, 8, 6},
+	{1060, 10, 17, 7, 8, 10, 6, 12, 7, 6},
+	{1050, 10, 17, 7, 8, 10, 6, 12, 7, 6},
+	{1040, 10, 16, 7, 7, 10, 6, 11, 7, 6},
+	{1030, 10, 16, 7, 7, 10, 6, 11, 7, 6},
+	{1020, 9, 16, 7, 7, 10, 6, 11, 7, 6},
+	{1010, 9, 16, 7, 7, 9, 6, 11, 7, 5},
+	{1000, 9, 16, 7, 7, 9, 6, 11, 7, 5},
+	{990, 9, 16, 7, 7, 9, 6, 11, 7, 5},
+	{980, 9, 15, 7, 7, 9, 6, 11, 7, 5},
+	{970, 9, 15, 7, 7, 9, 5, 11, 7, 5},
+	{960, 9, 15, 7, 7, 9, 5, 11, 7, 5},
+	{950, 9, 15, 7, 7, 9, 5, 11, 7, 5},
+	{940, 9, 14, 7, 7, 9, 5, 11, 7, 5},
+	{930, 9, 14, 7, 7, 9, 5, 11, 6, 5},
+	{920, 8, 14, 7, 6, 9, 5, 10, 6, 5},
+	{910, 8, 14, 7, 6, 8, 5, 10, 6, 5},
+	{900, 8, 14, 7, 6, 8, 5, 10, 6, 5},
+	{890, 8, 14, 7, 6, 8, 5, 10, 6, 5},
+	{880, 8, 14, 7, 6, 8, 5, 10, 6, 5},
+	{870, 8, 13, 6, 6, 8, 5, 10, 6, 4},
+	{860, 8, 13, 6, 6, 8, 4, 10, 6, 4},
+	{850, 8, 13, 6, 6, 8, 4, 10, 6, 4},
+	{840, 8, 13, 6, 6, 8, 4, 10, 6, 4},
+	{830, 8, 13, 6, 6, 8, 4, 10, 6, 4},
+	{820, 7, 13, 6, 6, 8, 4, 10, 6, 4},
+	{810, 7, 12, 6, 5, 8, 4, 9, 6, 4},
+	{800, 7, 12, 6, 5, 7, 4, 9, 5, 4},
+	{790, 7, 12, 6, 5, 7, 4, 9, 5, 4},
+	{780, 7, 12, 6, 5, 7, 4, 9, 5, 4},
+	{770, 7, 12, 6, 5, 7, 4, 9, 5, 4},
+	{760, 7, 11, 6, 5, 7, 4, 9, 5, 4},
+	{750, 7, 11, 6, 5, 7, 3, 9, 5, 4},
+	{740, 7, 11, 6, 5, 7, 3, 9, 5, 4},
+	{730, 6, 11, 6, 5, 7, 3, 9, 5, 4},
+	{720, 6, 11, 6, 5, 7, 3, 9, 5, 3},
+	{710, 6, 11, 6, 5, 7, 3, 9, 5, 3},
+	{700, 6, 10, 6, 4, 6, 3, 8, 5, 3},
+	{690, 6, 10, 6, 4, 6, 3, 8, 5, 3},
+	{680, 6, 10, 6, 4, 6, 3, 8, 5, 3},
+	{670, 6, 10, 6, 4, 6, 3, 8, 5, 3},
+	{660, 6, 9, 6, 4, 6, 3, 8, 4, 3},
+	{650, 6, 9, 6, 4, 6, 3, 8, 4, 3},
+	{640, 6, 9, 5, 4, 6, 2, 8, 4, 3},
+	{630, 5, 9, 5, 4, 6, 2, 8, 4, 3},
+	{620, 5, 9, 5, 4, 6, 2, 8, 4, 3},
+	{610, 5, 9, 5, 4, 6, 2, 8, 4, 3},
+	{600, 5, 9, 5, 4, 5, 2, 8, 4, 3},
+	{590, 5, 8, 5, 3, 5, 2, 7, 4, 3},
+	{580, 5, 8, 5, 3, 5, 2, 7, 4, 2},
+	{570, 5, 8, 5, 3, 5, 2, 7, 4, 2},
+	{560, 5, 8, 5, 3, 5, 2, 7, 4, 2},
+	{550, 5, 7, 5, 3, 5, 2, 7, 4, 2},
+	{540, 5, 7, 5, 3, 5, 2, 7, 4, 2},
+	{530, 4, 7, 5, 3, 5, 1, 7, 3, 2},
+	{520, 4, 7, 5, 3, 5, 1, 7, 3, 2},
+	{510, 4, 7, 5, 3, 5, 1, 7, 3, 2},
+	{500, 4, 7, 5, 3, 5, 1, 7, 3, 2},
+	{490, 4, 6, 5, 3, 4, 1, 7, 3, 2},
+	{480, 4, 6, 5, 3, 4, 1, 7, 3, 2},
 };
 
 const u32 b_dphyctl[14] = {
@@ -290,6 +298,56 @@ const u32 b_dphyctl[14] = {
 };
 
 /***************************** DPHY CAL functions *******************************/
+void dsim_reg_set_m_pll_ctrl1(u32 id, u32 m_pll_ctrl1)
+{
+	dsim_write(id, DSIM_PLL_CTRL1, m_pll_ctrl1);
+}
+
+void dsim_reg_set_m_pll_ctrl2(u32 id, u32 m_pll_ctrl2)
+{
+	dsim_write(id, DSIM_PLL_CTRL2, m_pll_ctrl2);
+}
+
+void dsim_reg_set_b_dphy_ctrl1(u32 id, u32 b_dphy_ctrl1)
+{
+	dsim_write(id, DSIM_PHYCTRL_B1, b_dphy_ctrl1);
+}
+
+void dsim_reg_set_b_dphy_ctrl2(u32 id, u32 b_dphy_ctrl2)
+{
+	dsim_write(id, DSIM_PHYCTRL_B2, b_dphy_ctrl2);
+}
+
+void dsim_reg_set_b_dphy_ctrl3(u32 id, u32 b_dphy_ctrl3)
+{
+	dsim_write(id, DSIM_PHYCTRL_B3, b_dphy_ctrl3);
+}
+
+void dsim_reg_set_b_dphy_ctrl4(u32 id, u32 b_dphy_ctrl4)
+{
+	dsim_write(id, DSIM_PHYCTRL_B4, b_dphy_ctrl4);
+}
+
+void dsim_reg_set_m_dphy_ctrl1(u32 id, u32 m_dphy_ctrl1)
+{
+	dsim_write(id, DSIM_PHYCTRL_M1, m_dphy_ctrl1);
+}
+
+void dsim_reg_set_m_dphy_ctrl2(u32 id, u32 m_dphy_ctrl2)
+{
+	dsim_write(id, DSIM_PHYCTRL_M2, m_dphy_ctrl2);
+}
+
+void dsim_reg_set_m_dphy_ctrl3(u32 id, u32 m_dphy_ctrl3)
+{
+	dsim_write(id, DSIM_PHYCTRL_M3, m_dphy_ctrl3);
+}
+
+void dsim_reg_set_m_dphy_ctrl4(u32 id, u32 m_dphy_ctrl4)
+{
+	dsim_write(id, DSIM_PHYCTRL_M4, m_dphy_ctrl4);
+}
+
 #if defined(CONFIG_EXYNOS_DSIM_DITHER)
 static void dsim_reg_set_dphy_dither_en(u32 id, u32 en)
 {
@@ -330,23 +388,11 @@ static void dsim_reg_set_dphy_loop_test(u32 id)
 	dsim_phy_write_mask(id, 0x077c, 0x2, (0xffff << 0));
 }
 #endif
-
-static void dsim_reg_set_dphy_wclk_buf_sft(u32 id, u32 cnt)
-{
-	u32 val = DSIM_PHY_WCLK_BUF_SFT_CNT(cnt);
-
-	dsim_phy_write_mask(id, DSIM_PHY_PLL_CON6, val, DSIM_PHY_WCLK_BUF_SFT_CNT_MASK);
-}
-
+#if 0
 /* DPHY setting */
-static void dsim_reg_set_pll_freq(u32 id, u32 p, u32 m, u32 s, u32 k)
+static void dsim_reg_set_pll_freq(u32 id, u32 p, u32 m, u32 s)
 {
 	u32 val, mask;
-
-	/* K value */
-	val = DSIM_PHY_PMS_K(k);
-	mask = DSIM_PHY_PMS_K_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_PLL_CON1, val, mask);
 
 	/* P value */
 	val = DSIM_PHY_PMS_P(p);
@@ -363,105 +409,36 @@ static void dsim_reg_set_pll_freq(u32 id, u32 p, u32 m, u32 s, u32 k)
 	mask = DSIM_PHY_PMS_S_MASK;
 	dsim_phy_write_mask(id, DSIM_PHY_PLL_CON0, val, mask);
 }
-
-static void dsim_reg_set_dphy_timing_values(u32 id,
-			struct dphy_timing_value *t, u32 hsmode)
+#else
+void dsim_reg_set_pll_freq(u32 id, u32 p, u32 m, u32 s)
 {
-	u32 val, mask;
-	u32 hs_en, skewcal_en;
-	u32 i;
+	u32 val = (p & 0x3f) << 13 | (m & 0x3ff) << 3 | (s & 0x7) << 0;
 
-	/* HS mode setting */
-	if (hsmode) {
-		/* under 1500Mbps : don't need SKEWCAL enable */
-		hs_en = DSIM_PHY_HSTX_CLK_SEL;
-		skewcal_en = 0;
-	} else {
-		/* above 1500Mbps : need SKEWCAL enable */
-		hs_en = 0;
-		skewcal_en = 1;
-	}
+	dsim_write_mask(id, DSIM_PLLCTRL, val, DSIM_PLLCTRL_PMS_MASK);
+}
+#endif
 
-	/* clock lane setting */
-	val = DSIM_PHY_ULPS_EXIT(t->b_dphyctl);
-	mask = DSIM_PHY_ULPS_EXIT_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON4, val, mask);
+void dsim_reg_set_dphy_timing_values(u32 id, struct dphy_timing_value *t)
+{
+	u32 val;
 
-	val = hs_en;
-	mask = DSIM_PHY_HSTX_CLK_SEL;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON0, val, mask);
+	val = DSIM_PHY_TIMING_M_TLPX_CTL(t->lpx) |
+			DSIM_PHY_TIMING_M_THSEXIT_CTL(t->hs_exit);
+	dsim_write(id, DSIM_PHY_TIMING, val);
 
-	/* skew cal implementation : disable */
-	val = skewcal_en;
-	mask = DSIM_PHY_SKEWCAL_EN;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_DESKEW_CON0, val, mask);
-	/* add 'run|init_run|wait_run time' if skewcal is enabled */
+	val = DSIM_PHY_TIMING1_M_TCLKPRPR_CTL(t->clk_prepare) |
+		DSIM_PHY_TIMING1_M_TCLKZERO_CTL(t->clk_zero) |
+		DSIM_PHY_TIMING1_M_TCLKPOST_CTL(t->clk_post) |
+		DSIM_PHY_TIMING1_M_TCLKTRAIL_CTL(t->clk_trail);
+	dsim_write(id, DSIM_PHY_TIMING1, val);
 
-	val = DSIM_PHY_TLPX(t->lpx);
-	mask = DSIM_PHY_TLPX_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON0, val, mask);
+	val = DSIM_PHY_TIMING2_M_THSPRPR_CTL(t->hs_prepare) |
+		DSIM_PHY_TIMING2_M_THSZERO_CTL(t->hs_zero) |
+		DSIM_PHY_TIMING2_M_THSTRAIL_CTL(t->hs_trail);
+	dsim_write(id, DSIM_PHY_TIMING2, val);
 
-	val = DSIM_PHY_TCLK_PREPARE(t->clk_prepare);
-	mask = DSIM_PHY_TCLK_PREPARE_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON1, val, mask);
-
-	val = DSIM_PHY_TCLK_ZERO(t->clk_zero);
-	mask = DSIM_PHY_TCLK_ZERO_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON1, val, mask);
-
-	val = DSIM_PHY_THS_EXIT(t->hs_exit);
-	mask = DSIM_PHY_THS_EXIT_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON2, val, mask);
-
-	val = DSIM_PHY_TCLK_TRAIL(t->clk_trail);
-	mask = DSIM_PHY_TCLK_TRAIL_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON2, val, mask);
-
-	val = DSIM_PHY_TCLK_POST(t->clk_post);
-	mask = DSIM_PHY_TCLK_POST_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_MC_TIME_CON3, val, mask);
-
-	/* add other clock lane setting if necessary */
-
-	/* data lane setting : D0 ~ D3 */
-	for (i = 0; i < 4; i++) {
-		val = DSIM_PHY_ULPS_EXIT(t->b_dphyctl);
-		mask = DSIM_PHY_ULPS_EXIT_MASK;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON4(i), val, mask);
-
-		val = hs_en;
-		mask = DSIM_PHY_HSTX_CLK_SEL;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON0(i), val, mask);
-
-		/* skew cal implementation later */
-		val = DSIM_PHY_THS_PREPARE(t->hs_prepare);
-		mask = DSIM_PHY_THS_PREPARE_MASK;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON1(i), val, mask);
-
-		val = DSIM_PHY_TLPX(t->lpx) | DSIM_PHY_TLP_EXIT_SKEW(0)
-			| DSIM_PHY_TLP_ENTRY_SKEW(0);
-		mask = DSIM_PHY_TLPX_MASK | DSIM_PHY_TLP_EXIT_SKEW_MASK
-			| DSIM_PHY_TLP_ENTRY_SKEW_MASK;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON0(i), val, mask);
-
-		val = DSIM_PHY_THS_EXIT(t->hs_exit);
-		mask = DSIM_PHY_THS_EXIT_MASK;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON2(i), val, mask);
-
-		val = DSIM_PHY_THS_ZERO(t->hs_zero);
-		mask = DSIM_PHY_THS_ZERO_MASK;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON1(i), val, mask);
-
-		val = DSIM_PHY_THS_TRAIL(t->hs_trail);
-		mask = DSIM_PHY_THS_TRAIL_MASK;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON2(i), val, mask);
-
-		val = DSIM_PHY_TTA_GET(3) | DSIM_PHY_TTA_GO(0);
-		mask = DSIM_PHY_TTA_GET_MASK | DSIM_PHY_TTA_GO_MASK;
-		dsim_phy_write_mask(id, DSIM_PHY_MD_TIME_CON3(i), val, mask);
-
-		/* add other clock lane setting if necessary */
-	}
+	val = DSIM_PHYCTRL_B1_B_DPHYCTL(t->b_dphyctl);
+	dsim_reg_set_b_dphy_ctrl1(id, val);
 }
 
 #if defined(CONFIG_EXYNOS_DSIM_DITHER)
@@ -520,16 +497,7 @@ static void dsim_reg_set_dphy_param_dither(u32 id, struct stdphy_pms *dphy_pms)
 	dsim_phy_write_mask(id, DSIM_PHY_PLL_CON4, val, mask);
 }
 #endif
-
-/* BIAS Block Control Register */
-static void dsim_reg_set_bias_con(u32 id, u32 *blk_ctl)
-{
-	u32 i;
-
-	for (i = 0; i < 5; i++)
-		dsim_phy_extra_write(id, DSIM_PHY_BIAS_CON(i), blk_ctl[i]);
-}
-
+#if 0
 /* PLL Control Register */
 static void dsim_reg_set_pll_con(u32 id, u32 *blk_ctl)
 {
@@ -538,49 +506,7 @@ static void dsim_reg_set_pll_con(u32 id, u32 *blk_ctl)
 	for (i = 0; i < 8; i++)
 		dsim_phy_write(id, DSIM_PHY_PLL_CON(i), blk_ctl[i]);
 }
-
-/* Master Clock Lane General Control Register */
-static void dsim_reg_set_mc_gnr_con(u32 id, u32 *blk_ctl)
-{
-	u32 i;
-
-	for (i = 0; i < 2; i++)
-		dsim_phy_write(id, DSIM_PHY_MC_GNR_CON(i), blk_ctl[i]);
-}
-
-/* Master Clock Lane Analog Block Control Register */
-static void dsim_reg_set_mc_ana_con(u32 id, u32 *blk_ctl)
-{
-	u32 i;
-
-	for (i = 0; i < 2; i++)
-		dsim_phy_write(id, DSIM_PHY_MC_ANA_CON(i), blk_ctl[i]);
-}
-
-/* Master Data Lane General Control Register */
-static void dsim_reg_set_md_gnr_con(u32 id, u32 *blk_ctl)
-{
-	u32 i;
-
-	for (i = 0; i < MAX_DSIM_DATALANE_CNT; i++) {
-		dsim_phy_write(id, DSIM_PHY_MD_GNR_CON0(i), blk_ctl[0]);
-		dsim_phy_write(id, DSIM_PHY_MD_GNR_CON1(i), blk_ctl[1]);
-	}
-}
-
-/* Master Data Lane Analog Block Control Register */
-static void dsim_reg_set_md_ana_con(u32 id, u32 *blk_ctl)
-{
-	u32 i;
-
-	for (i = 0; i < MAX_DSIM_DATALANE_CNT; i++) {
-		dsim_phy_write(id, DSIM_PHY_MD_ANA_CON0(i), blk_ctl[0]);
-		dsim_phy_write(id, DSIM_PHY_MD_ANA_CON1(i), blk_ctl[1]);
-		dsim_phy_write(id, DSIM_PHY_MD_ANA_CON2(i), blk_ctl[2]);
-		dsim_phy_write(id, DSIM_PHY_MD_ANA_CON3(i), blk_ctl[3]);
-	}
-}
-
+#endif
 #ifdef DPDN_INV_SWAP
 void dsim_reg_set_inv_dpdn(u32 id, u32 inv_clk, u32 inv_data[4])
 {
@@ -626,7 +552,6 @@ static void dsim_reg_sw_reset(u32 id)
 		dsim_err("%s is timeout.\n", __func__);
 }
 
-#if 0
 /* this function may be used for later use */
 static void dsim_reg_dphy_resetn(u32 id, u32 en)
 {
@@ -634,7 +559,6 @@ static void dsim_reg_dphy_resetn(u32 id, u32 en)
 
 	dsim_write_mask(id, DSIM_SWRST, val, DSIM_DPHY_RST); /* reset high */
 }
-#endif
 
 static void dsim_reg_set_num_of_lane(u32 id, u32 lane)
 {
@@ -650,7 +574,7 @@ static void dsim_reg_enable_lane(u32 id, u32 lane, u32 en)
 
 	dsim_write_mask(id, DSIM_CONFIG, val, DSIM_CONFIG_LANES_EN(lane));
 }
-
+#if 0
 /*
  * lane_id : 0 = MC, 1 = MD0, 2 = MD1, 3 = MD2, 4 = MD3
  */
@@ -733,30 +657,28 @@ static int dsim_reg_enable_lane_phy(u32 id, u32 lane, u32 en)
 	} else
 		return 0;
 }
-
-static void dsim_reg_pll_stable_time(u32 id, u32 lock_cnt)
+#endif
+static void dsim_reg_pll_stable_time(u32 id)
 {
-	u32 val, mask;
-
-	val = DSIM_PHY_PLL_LOCK_CNT(lock_cnt);
-	mask = DSIM_PHY_PLL_LOCK_CNT_MASK;
-	dsim_phy_write_mask(id, DSIM_PHY_PLL_CON7, val, mask);
+	dsim_write(id, DSIM_PLLTMR, DSIM_PLL_STABLE_TIME);
 }
 
 static void dsim_reg_set_pll(u32 id, u32 en)
 {
 	u32 val = en ? ~0 : 0;
-
+#if 0
 	dsim_phy_write_mask(id, DSIM_PHY_PLL_CON0, val, DSIM_PHY_PLL_EN_MASK);
+#else
+	dsim_write_mask(id, DSIM_PLLCTRL, val, DSIM_PLLCTRL_PLL_EN);
+#endif
 }
 
 static u32 dsim_reg_is_pll_stable(u32 id)
 {
-	u32 val, pll_lock;
+	u32 val;
 
-	val = dsim_phy_read(id, DSIM_PHY_PLL_STAT0);
-	pll_lock = DSIM_PHY_PLL_LOCK_GET(val);
-	if (pll_lock)
+	val = dsim_read(id, DSIM_LINK_STATUS3);
+	if (val & DSIM_LINK_STATUS3_PLL_STABLE)
 		return 1;
 
 	return 0;
@@ -782,6 +704,7 @@ static int dsim_reg_enable_pll(u32 id, u32 en)
 		}
 	} else {
 		dsim_reg_set_pll(id, 0);
+#if 0
 		while (1) {
 			cnt--;
 			if (!dsim_reg_is_pll_stable(id))
@@ -790,6 +713,7 @@ static int dsim_reg_enable_pll(u32 id, u32 en)
 				return -EBUSY;
 			udelay(10);
 		}
+#endif
 	}
 
 	return 0;
@@ -1558,33 +1482,26 @@ static int dsim_reg_wait_exit_ulps_state(u32 id)
 static int dsim_reg_get_dphy_timing(u32 hs_clk, u32 esc_clk,
 		struct dphy_timing_value *t)
 {
-	int i;
+	int val;
 
-	i = ARRAY_SIZE(dphy_timing) - 1;
+	val  = (dphy_timing[0][0] - hs_clk) / 10;
 
-	for (; i >= 0; i--) {
-		if (dphy_timing[i][0] < hs_clk) {
-			continue;
-		} else {
-			t->bps = hs_clk;
-			t->clk_prepare = dphy_timing[i][1];
-			t->clk_zero = dphy_timing[i][2];
-			t->clk_post = dphy_timing[i][3];
-			t->clk_trail = dphy_timing[i][4];
-			t->hs_prepare = dphy_timing[i][5];
-			t->hs_zero = dphy_timing[i][6];
-			t->hs_trail = dphy_timing[i][7];
-			t->lpx = dphy_timing[i][8];
-			t->hs_exit = dphy_timing[i][9];
-			break;
-		}
-	}
-
-	if (i < 0) {
+	if (val > ((sizeof(dphy_timing) / sizeof(dphy_timing[0])) - 1)) {
 		dsim_err("%u Mhz hs clock can't find proper dphy timing values\n",
 				hs_clk);
 		return -EINVAL;
 	}
+
+	t->bps = hs_clk;
+	t->clk_prepare = dphy_timing[val][1];
+	t->clk_zero = dphy_timing[val][2];
+	t->clk_post = dphy_timing[val][3];
+	t->clk_trail = dphy_timing[val][4];
+	t->hs_prepare = dphy_timing[val][5];
+	t->hs_zero = dphy_timing[val][6];
+	t->hs_trail = dphy_timing[val][7];
+	t->lpx = dphy_timing[val][8];
+	t->hs_exit = dphy_timing[val][9];
 
 	dsim_dbg("%s: bps(%u) clk_prepare(%u) clk_zero(%u) clk_post(%u)\n",
 			__func__, t->bps, t->clk_prepare, t->clk_zero,
@@ -1770,7 +1687,6 @@ static int dsim_reg_set_clocks(u32 id, struct dsim_clks *clks,
 		pll.p = dphy_pms->p;
 		pll.m = dphy_pms->m;
 		pll.s = dphy_pms->s;
-		pll.k = dphy_pms->k;
 
 		/* get word clock */
 		/* clks ->hs_clk is from DT */
@@ -1791,73 +1707,42 @@ static int dsim_reg_set_clocks(u32 id, struct dsim_clks *clks,
 		clks->esc_clk = clks->word_clk / esc_div;
 		dsim_dbg("escape clock divider is 0x%x\n", esc_div);
 		dsim_dbg("escape clock is %u MHz\n", clks->esc_clk);
-
-		/* set BIAS ctrl : default value */
-		dsim_reg_set_bias_con(id, DSIM_PHY_BIAS_CON_VAL);
-
+#if 0
 		/* set PLL ctrl : default value */
 		dsim_reg_set_pll_con(id, DSIM_PHY_PLL_CON_VAL);
-
+#endif
 		if (clks->hs_clk < 1500)
 			hsmode = 1;
 
 		dsim_reg_set_esc_clk_prescaler(id, 1, esc_div);
 		/* get DPHY timing values using hs clock and escape clock */
 		dsim_reg_get_dphy_timing(clks->hs_clk, clks->esc_clk, &t);
-		dsim_reg_set_dphy_timing_values(id, &t, hsmode);
+		dsim_reg_set_dphy_timing_values(id, &t);
 #if defined(CONFIG_EXYNOS_DSIM_DITHER)
 		/* check dither sequence */
 		dsim_reg_set_dphy_param_dither(id, dphy_pms);
 		dsim_reg_set_dphy_dither_en(id, 1);
 #endif
+		dsim_reg_set_m_pll_ctrl1(id, DSIM_PHY_CHARIC_VAL[id][M_PLL_CTRL1]);
+		dsim_reg_set_m_pll_ctrl2(id, DSIM_PHY_CHARIC_VAL[id][M_PLL_CTRL2]);
+		dsim_reg_set_b_dphy_ctrl2(id, DSIM_PHY_CHARIC_VAL[id][B_DPHY_CTRL2]);
+		dsim_reg_set_b_dphy_ctrl3(id, DSIM_PHY_CHARIC_VAL[id][B_DPHY_CTRL3]);
+		dsim_reg_set_b_dphy_ctrl4(id, DSIM_PHY_CHARIC_VAL[id][B_DPHY_CTRL4]);
+		dsim_reg_set_m_dphy_ctrl1(id, DSIM_PHY_CHARIC_VAL[id][M_DPHY_CTRL1]);
+		dsim_reg_set_m_dphy_ctrl2(id, DSIM_PHY_CHARIC_VAL[id][M_DPHY_CTRL2]);
+		dsim_reg_set_m_dphy_ctrl3(id, DSIM_PHY_CHARIC_VAL[id][M_DPHY_CTRL3]);
+		dsim_reg_set_m_dphy_ctrl4(id, DSIM_PHY_CHARIC_VAL[id][M_DPHY_CTRL4]);
 
-		/* set clock lane General Control Register control */
-		dsim_reg_set_mc_gnr_con(id, DSIM_PHY_MC_GNR_CON_VAL);
+		dsim_reg_set_pll_freq(id, pll.p, pll.m, pll.s);
+		/* set PLL's lock time */
+		dsim_reg_pll_stable_time(id);
 
-		/* set clock lane Analog Block Control Register control */
-		dsim_reg_set_mc_ana_con(id, DSIM_PHY_MC_ANA_CON_VAL);
-
-#ifdef DPDN_INV_SWAP
-		dsim_reg_set_dpdn_swap(id, 1);
-#endif
-
-		/* set data lane General Control Register control */
-		dsim_reg_set_md_gnr_con(id, DSIM_PHY_MD_GNR_CON_VAL);
-
-#ifdef DPDN_INV_SWAP
-		inv_data[0] = 0;
-		inv_data[1] = 1;
-		inv_data[2] = 1;
-		inv_data[3] = 0;
-		dsim_reg_set_inv_dpdn(id, 0, inv_data);
-#endif
-
-		/* set data lane Analog Block Control Register control */
-		dsim_reg_set_md_ana_con(id, DSIM_PHY_MD_ANA_CON_VAL);
-
-		/* set PMSK on PHY */
-		dsim_reg_set_pll_freq(id, pll.p, pll.m, pll.s, pll.k);
-
-		/*set wclk buf sft cnt */
-		dsim_reg_set_dphy_wclk_buf_sft(id, 3);
-
-		/* set PLL's lock time (lock_cnt) */
-		/* It depends on project guide */
-		dsim_reg_pll_stable_time(id, 0x1450);
-
-#ifdef DPHY_LOOP
-		dsim_reg_set_dphy_loop_test(id);
-#endif
 		/* enable PLL */
 		ret = dsim_reg_enable_pll(id, 1);
 	} else {
-		/* check disable PHY timing */
-		/* TBD */
+		dsim_reg_set_m_pll_ctrl1(id, 0x0);
+		dsim_reg_set_m_pll_ctrl2(id, 0x0);
 		dsim_reg_set_esc_clk_prescaler(id, 0, 0xff);
-#if defined(CONFIG_EXYNOS_DSIM_DITHER)
-		/* check dither sequence */
-		dsim_reg_set_dphy_dither_en(id, 0);
-#endif
 		dsim_reg_enable_pll(id, 0);
 	}
 
@@ -1868,10 +1753,11 @@ static int dsim_reg_set_lanes(u32 id, u32 lanes, u32 en)
 {
 	/* LINK lanes */
 	dsim_reg_enable_lane(id, lanes, en);
+	udelay(400);
 
 	return 0;
 }
-
+#if 0
 static int dsim_reg_set_lanes_dphy(u32 id, u32 lanes, u32 en)
 {
 	/* PHY lanes */
@@ -1880,7 +1766,7 @@ static int dsim_reg_set_lanes_dphy(u32 id, u32 lanes, u32 en)
 
 	return 0;
 }
-
+#endif
 static u32 dsim_reg_is_noncont_clk_enabled(u32 id)
 {
 	int ret;
@@ -2043,6 +1929,19 @@ static int dsim_reg_set_ulps_by_ddi(u32 id, u32 ddi_type, u32 lanes, u32 en)
 }
 
 /******************** EXPORTED DSIM CAL APIs ********************/
+void dpu_sysreg_set_dphy(struct dsim_device *dsim, void __iomem *sysreg)
+{
+	u32 val;
+
+	val = SEL_RESET_DPHY_MASK(dsim->id);
+	writel(val, sysreg + DISP_DPU_MIPI_PHY_CON);
+}
+
+void dsim_reg_dphy_reset(u32 id)
+{
+	dsim_write_mask(id, DSIM_SWRST, 0, DSIM_DPHY_RST); /* reset low */
+	dsim_write_mask(id, DSIM_SWRST, ~0, DSIM_DPHY_RST); /* reset release */
+}
 
 void dpu_sysreg_select_dphy_rst_control(void __iomem *sysreg, u32 dsim_id, u32 sel)
 {
@@ -2083,6 +1982,7 @@ void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
 #if !defined(CONFIG_EXYNOS_LCD_ON_UBOOT)
 	struct dsim_device *dsim = get_dsim_drvdata(id);
 #endif
+
 	if (dsim->state == DSIM_STATE_INIT) {
 		if (dsim_reg_get_link_clock(dsim->id)) {
 			dsim_info("dsim%d is already enabled in bootloader\n", dsim->id);
@@ -2106,7 +2006,8 @@ void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
 	dsim_reg_enable_word_clock(id, 1);
 
 	/* Enable DPHY reset : DPHY reset start */
-	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 0);
+//	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 0);
+	dsim_reg_dphy_resetn(dsim->id, 0);
 
 #if defined(CONFIG_EXYNOS_LCD_ON_UBOOT)
 	/* TODO: This code will be implemented as uboot style */
@@ -2118,9 +2019,9 @@ void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
 
 	dsim_reg_set_clocks(id, clks, &lcd_info->dphy_pms, 1);
 
-	dsim_reg_set_lanes_dphy(id, lanes, 1);
-	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 1); /* Release DPHY reset */
-
+	//dsim_reg_set_lanes_dphy(id, lanes, 1);
+//	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 1); /* Release DPHY reset */
+	dsim_reg_dphy_resetn(dsim->id, 1);
 	dsim_reg_sw_reset(id);
 	dsim_reg_set_lanes(id, lanes, 1);
 
@@ -2150,8 +2051,9 @@ void dsim_reg_start(u32 id)
 int dsim_reg_stop(u32 id, u32 lanes)
 {
 	int err = 0;
+#if 0
 	u32 is_vm;
-
+#endif
 	struct dsim_device *dsim = get_dsim_drvdata(id);
 
 	dsim_reg_clear_int(id, 0xffffffff);
@@ -2161,20 +2063,20 @@ int dsim_reg_stop(u32 id, u32 lanes)
 	/* first disable HS clock */
 	if (dsim_reg_set_hs_clock(id, 0) < 0)
 		dsim_err("The CLK lane doesn't be switched to LP mode\n");
-
+#if 0
 	/* 0. wait the IDLE status */
 	is_vm = dsim_reg_get_display_mode(id);
 	err = dsim_reg_wait_idle_status(id, is_vm);
 	if (err < 0)
 		dsim_err("DSIM status is not IDLE!\n");
-
+#endif
 	/* 1. clock selection : OSC */
 	dsim_reg_set_link_clock(id, 0);
 
 	/* 2. master resetn */
 	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 0);
 	/* 3. disable lane */
-	dsim_reg_set_lanes_dphy(id, lanes, 0);
+	//dsim_reg_set_lanes_dphy(id, lanes, 0);
 	/* 4. turn off WORDCLK and ESCCLK */
 	dsim_reg_set_esc_clk_on_lane(id, 0, lanes);
 	dsim_reg_set_esc_clk_en(id, 0);
@@ -2236,7 +2138,7 @@ int dsim_reg_stop_and_enter_ulps(u32 id, u32 ddi_type, u32 lanes)
 	dsim_reg_set_link_clock(id, 0);
 	/* 3.3 off DPHY */
 	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 0);
-	dsim_reg_set_lanes_dphy(id, lanes, 0);
+	//dsim_reg_set_lanes_dphy(id, lanes, 0);
 	dsim_reg_set_clocks(id, NULL, NULL, 0);
 	/* 3.4 sw reset */
 	dsim_reg_sw_reset(id);

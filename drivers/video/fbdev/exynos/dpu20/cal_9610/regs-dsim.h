@@ -342,9 +342,79 @@
 /* PLL control register */
 #define DSIM_PLLCTRL					(0xa0)
 #define DSIM_PLLCTRL_PLL_EN				(1 << 23)
+#define DSIM_PLLCTRL_PMS_MASK				(0x7ffff << 0)
 
 /* PLL timer register */
 #define DSIM_PLLTMR					(0xac)
+
+/* M_PLL CTR1 register*/
+#define DSIM_PLL_CTRL1					(0xa4)
+#define DSIM_PLL_CTRL1_M_PLL_CTRL1			(0xffffffff << 0)
+
+/* M_PLL CTR1 register*/
+#define DSIM_PLL_CTRL2					(0xa8)
+#define DSIM_PLL_CTRL2_M_PLL_CTRL2			(0xffffffff << 0)
+
+/* PLL timer register */
+#define DSIM_PLLTMR					(0xac)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_B1					(0xb0)
+#define DSIM_PHYCTRL_B1_B_DPHYCTL(_x)			((_x) << 0)
+#define DSIM_PHYCTRL_B1_B_DPHYCTL_MASK			(0x3ff << 0)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_B2					(0xb4)
+#define DSIM_PHYCTRL_B2_B_DPHY_CTRL2			(0xffffffff << 0)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_B3					(0xb8)
+#define DSIM_PHYCTRL_B3_B_DPHY_CTRL3			(0xffffffff << 0)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_B4					(0xbc)
+#define DSIM_PHYCTRL_B4_B_DPHY_CTRL4			(0xffffffff << 0)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_M1					(0xc0)
+#define DSIM_PHYCTRL_M1_M_DPHY_CTRL1			(0xffffffff << 0)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_M2					(0xc4)
+#define DSIM_PHYCTRL_M2_M_DPHY_CTRL2			(0xffffffff << 0)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_M3					(0xc8)
+#define DSIM_PHYCTRL_M3_M_DPHY_CTRL3			(0xffffffff << 0)
+
+/* D-PHY Master & Slave Analog block characteristics control register */
+#define DSIM_PHYCTRL_M4					(0xcc)
+#define DSIM_PHYCTRL_M4_M_DPHY_CTRL4			(0xffffffff << 0)
+
+/* D-PHY Master global operating timing register */
+#define DSIM_PHY_TIMING					(0xd0)
+#define DSIM_PHY_TIMING_M_TLPX_CTL(_x)			((_x) << 8)
+#define DSIM_PHY_TIMING_M_TLPX_CTL_MASK			(0xff << 8)
+#define DSIM_PHY_TIMING_M_THSEXIT_CTL(_x)		((_x) << 0)
+#define DSIM_PHY_TIMING_M_THSEXIT_CTL_MASK		(0xff << 0)
+
+#define DSIM_PHY_TIMING1				(0xd4)
+#define DSIM_PHY_TIMING1_M_TCLKPRPR_CTL(_x)		((_x) << 24)
+#define DSIM_PHY_TIMING1_M_TCLKPRPR_CTL_MASK		(0xff << 24)
+#define DSIM_PHY_TIMING1_M_TCLKZERO_CTL(_x)		((_x) << 16)
+#define DSIM_PHY_TIMING1_M_TCLKZERO_CTL_MASK		(0xff << 16)
+#define DSIM_PHY_TIMING1_M_TCLKPOST_CTL(_x)		((_x) << 8)
+#define DSIM_PHY_TIMING1_M_TCLKPOST_CTL_MASK		(0xff << 8)
+#define DSIM_PHY_TIMING1_M_TCLKTRAIL_CTL(_x)		((_x) << 0)
+#define DSIM_PHY_TIMING1_M_TCLKTRAIL_CTL_MASK		(0xff << 0)
+
+#define DSIM_PHY_TIMING2				(0xd8)
+#define DSIM_PHY_TIMING2_M_THSPRPR_CTL(_x)		((_x) << 16)
+#define DSIM_PHY_TIMING2_M_THSPRPR_CTL_MASK		(0xff << 16)
+#define DSIM_PHY_TIMING2_M_THSZERO_CTL(_x)		((_x) << 8)
+#define DSIM_PHY_TIMING2_M_THSZERO_CTL_MASK		(0xff << 8)
+#define DSIM_PHY_TIMING2_M_THSTRAIL_CTL(_x)		((_x) << 0)
+#define DSIM_PHY_TIMING2_M_THSTRAIL_CTL_MASK		(0xff << 0)
 
 /* IF CRC registers */
 #define DSIM_IF_CRC_CTRL0				(0xdc)
