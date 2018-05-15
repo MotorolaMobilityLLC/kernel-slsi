@@ -16,34 +16,47 @@
 #include <linux/crypto.h>
 #include <crypto/algapi.h>
 #include <crypto/diskcipher.h>
+#include <linux/delay.h>
 
 #include "internal.h"
 
-#ifdef EANBLE_DISKCIPHER_DEBUG
+
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DEBUG
 #include <crypto/fmp.h>
 #include <linux/mm_types.h>
+#include <linux/fs.h>
+#include <linux/fscrypt.h>
 
 #define DUMP_MAX 20
-
-enum diskcipher_api {
-	DISKC_API_ALLOC, DISKC_API_FREE, DISKC_API_SET,
-	DISKC_API_GET, DISKC_API_CRYPT, DISKC_API_CLEAR, DISKC_API_MAX,
-};
 
 struct dump_err {
 	struct page *page;
 	struct bio bio;
 	struct fmp_crypto_info ci;
-	enum diskcipher_api api;
+	enum diskcipher_dbg api;
 };
 
 struct diskc_debug_info {
 	struct dump_err dump[DUMP_MAX];
 	int err;
-	u32 cnt[DISKC_API_MAX][2];
+	int cnt[DISKC_USER_MAX][2];
 };
 
 static struct diskc_debug_info diskc_dbg;
+
+void crypto_diskcipher_debug(enum diskcipher_dbg api, int bi_opf)
+{
+	int idx = 0;
+	struct diskc_debug_info *dbg = &diskc_dbg;
+
+	if (api <= DISKC_API_MAX)
+		dbg->cnt[api][bi_opf]++;
+	else {
+		if (bi_opf & REQ_CRYPT)
+			idx = 1;
+		dbg->cnt[api][idx]++;
+	}
+}
 
 static void print_err(void)
 {
@@ -80,7 +93,7 @@ static void print_err(void)
 	}
 }
 
-static void dump_err(struct crypto_diskcipher *ci, enum diskcipher_api api,
+static void dump_err(struct crypto_diskcipher *ci, enum diskcipher_dbg api,
 	      struct bio *bio, struct page *page)
 {
 	struct diskc_debug_info *dbg = &diskc_dbg;
@@ -101,67 +114,60 @@ static void dump_err(struct crypto_diskcipher *ci, enum diskcipher_api api,
 	dbg->err++;
 }
 
-static inline void disckipher_log(enum diskcipher_api api, int ret,
-			       struct crypto_diskcipher *ci)
-{
-	struct diskc_debug_info *dbg = &diskc_dbg;
-
-	dbg->cnt[api][0]++;
-	if (ret) {
-		dbg->cnt[api][1]++;
-		if (ci)
-			dump_err(ci, api, NULL, NULL);
-	}
-}
-
 static void disckipher_log_show(struct seq_file *m)
 {
 	int i;
-	char name[DISKC_API_MAX][8]
-	    = {"alloc", "free", "set", "get", "crypt", "clear"};
 	struct diskc_debug_info *dbg = &diskc_dbg;
+	char name[DISKC_USER_MAX][20]
+		= {"alloc", "free", "freereq", "setkey", "set", "get",
+		"crypt", "clear", "null", "page-io", "readpage", "dio",
+		"blk_write", "zeropage", "bufferhead",
+		"dmcrypt", "merge", "diskc_check_err", "fs_dec_warn",
+		"fs_enc_warn", "diskc_merge_dio", "diskc_freereq_warn",
+		"diskc_freewq_warn", "disk_crypt_warn"};
 
-	for (i = 0; i < DISKC_API_MAX; i++)
-		seq_printf(m, "%s\t: %6u(err:%u)\n",
-			name[i], dbg->cnt[i][0], dbg->cnt[i][1]);
+	for (i = 0; i < DISKC_USER_MAX; i++)
+		if (dbg->cnt[i][0] || dbg->cnt[i][1])
+			seq_printf(m, "%s\t: %6u(err:%u)\n",
+				name[i], dbg->cnt[i][0], dbg->cnt[i][1]);
 
 	if (dbg->err)
 		print_err();
 }
 
 /* check diskcipher for FBE */
-void crypto_diskcipher_check(struct bio *bio, struct page *page)
+#define DISKC_FS_ENCRYPT_DEBUG
+void crypto_diskcipher_check(struct bio *bio)
 {
-#ifdef FBE_DEBUG
+#ifdef DISKC_FS_ENCRYPT_DEBUG
 	int ret = 0;
 	struct crypto_diskcipher *ci = NULL;
+	struct inode *inode = NULL;
+	struct page *page = bio->bi_io_vec[0].bv_page;
 
 	if (page && !PageAnon(page) && bio)
 		if (page->mapping)
 			if (page->mapping->host)
 				if (page->mapping->host->i_crypt_info) {
-					ci = page->mapping->host->i_crypt_info->ci_dtfm;
+					inode = page->mapping->host;
+					ci = fscrypt_get_diskcipher(page->mapping->host);
 					if (ci && (bio->bi_aux_private != ci)
 					    && (!(bio->bi_flags & REQ_OP_DISCARD))) {
 						dump_err(ci, DISKC_API_GET, bio, page);
 						ret = 1;
+						crypto_diskcipher_debug(DISKC_CHECK_ERR, 0);
+					}
+					if (!inode->i_crypt_info || !ci) {
+						ret = 1;
+						crypto_diskcipher_debug(DISKC_CHECK_ERR, 1);
 					}
 				}
-	disckipher_log(DISKC_API_GET, ret, ci);
+	crypto_diskcipher_debug(DISKC_API_GET, ret);
 #endif
 }
 #else
-enum diskcipher_api {
-	DISKC_API_ALLOC, DISKC_API_FREE, DISKC_API_SET,
-	DISKC_API_GET, DISKC_API_CRYPT, DISKC_API_CLEAR, DISKC_API_MAX,
-};
-
 #define disckipher_log_show(a) do { } while (0)
-#define disckipher_log(a, b, c) do { } while (0)
 #endif
-
-#define DISKC_NAME "-disk"
-#define DISKC_NAME_SIZE (5)
 
 struct crypto_diskcipher *crypto_diskcipher_get(struct bio *bio)
 {
@@ -176,15 +182,21 @@ struct crypto_diskcipher *crypto_diskcipher_get(struct bio *bio)
 }
 
 void crypto_diskcipher_set(struct bio *bio,
-			   struct crypto_diskcipher *diskcipher)
+			   struct crypto_diskcipher *tfm)
 {
-	if (bio && diskcipher) {
+	if (bio && tfm) {
 		bio->bi_opf |= (REQ_CRYPT | REQ_AUX_PRIV);
-		bio->bi_aux_private = diskcipher;
+		bio->bi_aux_private = tfm;
 	}
-	disckipher_log(DISKC_API_SET, 0, NULL);
+	crypto_diskcipher_debug(DISKC_API_SET, 0);
 }
 
+/* debug freerq */
+enum diskc_status {
+	DISKC_ST_INIT,
+	DISKC_ST_FREE_REQ,
+	DISKC_ST_FREE,
+};
 int crypto_diskcipher_setkey(struct crypto_diskcipher *tfm, const char *in_key,
 			     unsigned int key_len, bool persistent)
 {
@@ -195,6 +207,8 @@ int crypto_diskcipher_setkey(struct crypto_diskcipher *tfm, const char *in_key,
 		pr_err("%s: doesn't exist cra", __func__);
 		return -EINVAL;
 	}
+
+	crypto_diskcipher_debug(DISKC_API_SETKEY, 0);
 	return cra->setkey(base, in_key, key_len, persistent);
 }
 
@@ -215,6 +229,7 @@ int crypto_diskcipher_set_crypt(struct crypto_diskcipher *tfm, void *req)
 	int ret = 0;
 	struct crypto_tfm *base = crypto_diskcipher_tfm(tfm);
 	struct diskcipher_alg *cra = crypto_diskcipher_alg(base->__crt_alg);
+	struct diskcipher_freectrl *fctrl = &cra->freectrl;
 
 	if (!cra) {
 		pr_err("%s: doesn't exist cra", __func__);
@@ -222,12 +237,24 @@ int crypto_diskcipher_set_crypt(struct crypto_diskcipher *tfm, void *req)
 		goto out;
 	}
 
+	if (atomic_read(&tfm->status) == DISKC_ST_FREE) {
+		pr_err("%s: tfm is free\n", __func__);
+		crypto_diskcipher_debug(DISKC_CRYPT_WARN, 0);
+		return -EINVAL;
+	}
+
 	ret = cra->crypt(base, req);
+
+	if (!list_empty(&fctrl->freelist)) {
+		if (!atomic_read(&fctrl->freewq_active)) {
+			atomic_set(&fctrl->freewq_active, 1);
+			schedule_delayed_work(&fctrl->freewq, 0);
+		}
+	}
 out:
 	if (ret)
 		pr_err("%s fails ret:%d, cra:%p\n", __func__, ret, cra);
-	pr_debug("%s done\n", __func__);
-	disckipher_log(DISKC_API_CRYPT, ret, tfm);
+	crypto_diskcipher_debug(DISKC_API_CRYPT, ret);
 	return ret;
 }
 
@@ -248,8 +275,7 @@ int crypto_diskcipher_clear_crypt(struct crypto_diskcipher *tfm, void *req)
 		pr_err("%s fails", __func__);
 
 out:
-	pr_debug("%s done\n", __func__);
-	disckipher_log(DISKC_API_CLEAR, ret, tfm);
+	crypto_diskcipher_debug(DISKC_API_CLEAR, ret);
 	return ret;
 }
 
@@ -275,14 +301,71 @@ int diskcipher_do_crypt(struct crypto_diskcipher *tfm,
 		pr_err("%s fails ret:%d", __func__, ret);
 
 out:
-	pr_debug("%s done\n", __func__);
 	return ret;
 }
 #endif
 
-static int crypto_diskcipher_init_tfm(struct crypto_tfm *tfm)
+static int crypto_diskcipher_init_tfm(struct crypto_tfm *base)
 {
+	struct crypto_diskcipher *tfm = __crypto_diskcipher_cast(base);
+
+	tfm->req_jiffies = 0;
+	atomic_set(&tfm->status, DISKC_ST_INIT);
 	return 0;
+}
+
+static void free_workq_func(struct work_struct *work)
+{
+	struct diskcipher_alg *cra =
+		container_of(work, struct diskcipher_alg, freectrl.freewq.work);
+	struct diskcipher_freectrl *fctrl = &cra->freectrl;
+	struct crypto_diskcipher *_tfm, *tmp;
+	unsigned long cur_jiffies = jiffies;
+	struct list_head poss_free_list;
+	unsigned long flags;
+
+	INIT_LIST_HEAD(&poss_free_list);
+
+	/* pickup freelist */
+	spin_lock_irqsave(&fctrl->freelist_lock, flags);
+	list_for_each_entry_safe(_tfm, tmp, &fctrl->freelist, node) {
+		if (jiffies_to_msecs(cur_jiffies - _tfm->req_jiffies) > fctrl->max_io_ms)
+			list_move_tail(&_tfm->node, &poss_free_list);
+	}
+	spin_unlock_irqrestore(&fctrl->freelist_lock, flags);
+
+	list_for_each_entry_safe(_tfm, tmp, &poss_free_list, node) {
+		if (atomic_read (&_tfm->status) != DISKC_ST_FREE_REQ)
+			crypto_diskcipher_debug(DISKC_FREE_WQ_WARN, 0);
+		crypto_free_diskcipher(_tfm);
+	}
+
+	if (!list_empty(&fctrl->freelist))
+		schedule_delayed_work(&fctrl->freewq, msecs_to_jiffies(fctrl->max_io_ms));
+	else
+		atomic_set(&fctrl->freewq_active, 0);
+}
+
+void crypto_free_req_diskcipher(struct crypto_diskcipher *tfm)
+{
+	struct crypto_tfm *base = crypto_diskcipher_tfm(tfm);
+	struct diskcipher_alg *cra = crypto_diskcipher_alg(base->__crt_alg);
+	struct diskcipher_freectrl *fctrl = &cra->freectrl;
+	unsigned long flags;
+
+	if (atomic_read(&tfm->status) != DISKC_ST_INIT) {
+		crypto_diskcipher_debug(DISKC_FREE_REQ_WARN, 0);
+		pr_warn("%s: already submit status:%d\n", __func__, atomic_read(&tfm->status));
+		return;
+	}
+
+	atomic_set(&tfm->status, DISKC_ST_FREE_REQ);
+	INIT_LIST_HEAD(&tfm->node);
+	tfm->req_jiffies = jiffies;
+	spin_lock_irqsave(&fctrl->freelist_lock, flags);
+	list_move_tail(&tfm->node, &fctrl->freelist);
+	spin_unlock_irqrestore(&fctrl->freelist_lock, flags);
+	crypto_diskcipher_debug(DISKC_API_FREEREQ, 0);
 }
 
 unsigned int crypto_diskcipher_extsize(struct crypto_alg *alg)
@@ -309,10 +392,13 @@ static const struct crypto_type crypto_diskcipher_type = {
 	.tfmsize = offsetof(struct crypto_diskcipher, base),
 };
 
+#define DISKC_NAME "-disk"
+#define DISKC_NAME_SIZE (5)
+#define DISKCIPHER_MAX_IO_MS (1000)
 struct crypto_diskcipher *crypto_alloc_diskcipher(const char *alg_name,
 			u32 type, u32 mask, bool force)
 {
-	disckipher_log(DISKC_API_ALLOC, 0, NULL);
+	crypto_diskcipher_debug(DISKC_API_ALLOC, 0);
 	if (force) {
 		if (strlen(alg_name) + DISKC_NAME_SIZE < CRYPTO_MAX_ALG_NAME) {
 			char diskc_name[CRYPTO_MAX_ALG_NAME];
@@ -325,20 +411,26 @@ struct crypto_diskcipher *crypto_alloc_diskcipher(const char *alg_name,
 	} else {
 		return crypto_alloc_tfm(alg_name, &crypto_diskcipher_type, type, mask);
 	}
-
 	return NULL;
 }
 
 void crypto_free_diskcipher(struct crypto_diskcipher *tfm)
 {
-	disckipher_log(DISKC_API_FREE, 0, NULL);
+	crypto_diskcipher_debug(DISKC_API_FREE, 0);
+	atomic_set(&tfm->status, DISKC_ST_FREE);
 	crypto_destroy_tfm(tfm, crypto_diskcipher_tfm(tfm));
 }
 
 int crypto_register_diskcipher(struct diskcipher_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
+	struct diskcipher_freectrl *fctrl = &alg->freectrl;
 
+	INIT_LIST_HEAD(&fctrl->freelist);
+	INIT_DELAYED_WORK(&fctrl->freewq, free_workq_func);
+	spin_lock_init(&fctrl->freelist_lock);
+	if (!fctrl->max_io_ms)
+		fctrl->max_io_ms = DISKCIPHER_MAX_IO_MS;
 	base->cra_type = &crypto_diskcipher_type;
 	base->cra_flags = CRYPTO_ALG_TYPE_DISKCIPHER;
 	return crypto_register_alg(base);

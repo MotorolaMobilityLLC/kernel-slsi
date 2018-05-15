@@ -18,6 +18,10 @@ struct diskcipher_alg;
 struct crypto_diskcipher {
 	u32 algo;
 	unsigned int ivsize;
+	/* for crypto_free_req_diskcipher */
+	unsigned long req_jiffies;
+	struct list_head node;
+	atomic_t status;
 	struct crypto_tfm base;
 };
 
@@ -44,6 +48,15 @@ struct diskcipher_test_request {
  * And pass the crypto information to disk host device via bio.
  * Crypt operation executes on inline crypto on disk host device.
  */
+
+struct diskcipher_freectrl {
+	spinlock_t freelist_lock;
+	struct list_head freelist;
+	struct delayed_work freewq;
+	atomic_t freewq_active;
+	u32 max_io_ms;
+};
+
 struct diskcipher_alg {
 	int (*setkey)(struct crypto_tfm *tfm, const char *key, u32 keylen,
 		       bool persistent);
@@ -55,6 +68,7 @@ struct diskcipher_alg {
 		struct diskcipher_test_request *req);
 #endif
 	struct crypto_alg base;
+	struct diskcipher_freectrl freectrl;
 };
 
 static inline unsigned int crypto_diskcipher_ivsize(struct crypto_diskcipher *tfm)
@@ -109,6 +123,7 @@ struct crypto_diskcipher *crypto_alloc_diskcipher(const char *alg_name,
  * @tfm: cipher handle to be freed
  */
 void crypto_free_diskcipher(struct crypto_diskcipher *tfm);
+void crypto_free_req_diskcipher(struct crypto_diskcipher *tfm);
 
 /**
  * crypto_diskcipher_get() - get diskcipher from bio
@@ -207,16 +222,31 @@ static inline void diskcipher_request_set_crypt(
 	req->enc = enc;
 }
 #endif
-#define EANBLE_DISKCIPHER_DEBUG
-#ifdef EANBLE_DISKCIPHER_DEBUG
-void crypto_diskcipher_check(struct bio *bio, struct page *page);
+
+enum diskcipher_dbg {
+	DISKC_API_ALLOC, DISKC_API_FREE, DISKC_API_FREEREQ, DISKC_API_SETKEY,
+	DISKC_API_SET, DISKC_API_GET, DISKC_API_CRYPT, DISKC_API_CLEAR,
+	DISKC_API_MAX, FS_PAGEIO, FS_READP, FS_DIO, FS_BLOCK_WRITE,
+	FS_ZEROPAGE, BLK_BH, DMCRYPT, DISKC_MERGE, DISKC_CHECK_ERR,
+	FS_DEC_WARN, FS_ENC_WARN, DISKC_MERGE_DIO, DISKC_FREE_REQ_WARN,
+	DISKC_FREE_WQ_WARN, DISKC_CRYPT_WARN, DISKC_USER_MAX
+};
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DEBUG
+void crypto_diskcipher_debug(enum diskcipher_dbg dbg, int idx);
+void crypto_diskcipher_check(struct bio *bio);
+#else
+#define crypto_diskcipher_check(a) ((void)0)
+#define crypto_diskcipher_debug(a, b) ((void)0)
 #endif
 #else
-#define crypto_alloc_diskcipher(a, b, c, d) ((void *)NULL)
+#define crypto_alloc_diskcipher(a, b, c, d) ((void *)-EINVAL)
 #define crypto_free_diskcipher(a) ((void)0)
+#define crypto_free_req_diskcipher(a) ((void)0)
 #define crypto_diskcipher_get(a) ((void *)NULL)
 #define crypto_diskcipher_set(a, b) ((void)0)
 #define crypto_diskcipher_clearkey(a) ((void)0)
 #define crypto_diskcipher_setkey(a, b, c, d) (-1)
+#define crypto_diskcipher_check(a) ((void)0)
+#define crypto_diskcipher_debug(a, b) ((void)0)
 #endif
 #endif /* _DISKCIPHER_H_ */
