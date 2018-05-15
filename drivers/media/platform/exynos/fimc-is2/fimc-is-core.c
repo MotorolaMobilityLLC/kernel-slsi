@@ -107,6 +107,8 @@ int debug_time_queue;
 module_param(debug_time_queue, int, 0644);
 int debug_time_shot;
 module_param(debug_time_shot, int, 0644);
+int debug_pdp;
+module_param(debug_pdp, int, 0644);
 
 struct fimc_is_device_sensor *fimc_is_get_sensor_device(struct fimc_is_core *core)
 {
@@ -236,9 +238,9 @@ void fimc_is_print_frame_dva(struct fimc_is_subdev *subdev)
 	if (test_bit(FIMC_IS_SUBDEV_START, &subdev->state) && framemgr) {
 		for (j = 0; j < framemgr->num_frames; ++j) {
 			for (k = 0; k < framemgr->frames[j].planes; k++) {
-				msinfo(" BUF[%d][%d] = 0x%08X(0x%lX)\n",
+				msinfo(" BUF[%d][%d] %pad = (0x%lX)\n",
 					subdev, subdev, j, k,
-					framemgr->frames[j].dvaddr_buffer[k],
+					&framemgr->frames[j].dvaddr_buffer[k],
 					framemgr->frames[j].mem_state);
 
 				shot = framemgr->frames[j].shot;
@@ -281,8 +283,8 @@ static void __fimc_is_fault_handler(struct device *dev)
 
 				for (j = 0; j < framemgr->num_frames; ++j) {
 					for (k = 0; k < framemgr->frames[j].planes; k++) {
-						pr_err("[SS%d] BUF[%d][%d] = 0x%08X(0x%lX)\n", i, j, k,
-							framemgr->frames[j].dvaddr_buffer[k],
+						pr_err("[SS%d] BUF[%d][%d] = %pad(0x%lX)\n", i, j, k,
+							&framemgr->frames[j].dvaddr_buffer[k],
 							framemgr->frames[j].mem_state);
 					}
 				}
@@ -1220,6 +1222,16 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 	fimc_is_31g_video_probe(core);
 #endif
 
+#ifdef SOC_32S
+	/* video entity - 3a2 */
+	fimc_is_32s_video_probe(core);
+#endif
+
+#ifdef SOC_32P
+	/* video entity - 3a2 preview */
+	fimc_is_32p_video_probe(core);
+#endif
+
 #ifdef SOC_I0S
 	/* video entity - isp0 */
 	fimc_is_i0s_video_probe(core);
@@ -1253,6 +1265,11 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 #ifdef SOC_ME0C
 	/* video entity - me out */
 	fimc_is_me0c_video_probe(core);
+#endif
+
+#ifdef SOC_ME1C
+	/* video entity - me out */
+	fimc_is_me1c_video_probe(core);
 #endif
 
 #if defined(SOC_DIS) || defined(SOC_D0S)
@@ -1402,6 +1419,8 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 		mutex_init(&core->i2c_lock[channel]);
 	}
 #endif
+
+	mutex_init(&core->ois_mode_lock);
 
 	/* set sysfs for debuging */
 	sysfs_debug.en_clk_gate = 0;

@@ -3974,12 +3974,12 @@ void fimc_is_scaler_set_ds_gamma_table_enable(void __iomem *base_addr, u32 ds_ga
  */
 
 /* LFRO : Less Fast Read Out */
-void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 lfro_enable, u32 lfro_total_fnum)
+void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 hw_id, u32 lfro_enable, u32 lfro_total_fnum)
 {
 	/* not supported */
 }
 
-u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr)
+u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr, u32 hw_id)
 {
 	/* not supported */
 	return 0;

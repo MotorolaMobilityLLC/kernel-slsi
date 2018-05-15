@@ -227,10 +227,12 @@ int csi_hw_s_config_dma(u32 __iomem *base_reg, u32 vc, struct fimc_is_image *ima
 	}
 
 	if (cfg->format->pixelformat == V4L2_PIX_FMT_SBGGR10 ||
-		cfg->format->pixelformat == V4L2_PIX_FMT_SBGGR12)
+		cfg->format->pixelformat == V4L2_PIX_FMT_SBGGR12 ||
+		cfg->format->pixelformat == V4L2_PIX_FMT_PRIV_MAGIC)
 #else
 	if (image->format.pixelformat == V4L2_PIX_FMT_SBGGR10 ||
-		image->format.pixelformat == V4L2_PIX_FMT_SBGGR12)
+		image->format.pixelformat == V4L2_PIX_FMT_SBGGR12 ||
+		image->format.pixelformat == V4L2_PIX_FMT_PRIV_MAGIC)
 #endif
 		dma_pack12 = CSIS_REG_DMA_PACK12;
 	else

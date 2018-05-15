@@ -23,20 +23,26 @@ struct fimc_is_vb2_buf;
 struct fimc_is_vb2_buf_ops {
 	ulong (*plane_kvaddr)(struct fimc_is_vb2_buf *vbuf, u32 plane);
 	dma_addr_t (*plane_dvaddr)(struct fimc_is_vb2_buf *vbuf, u32 plane);
-	dma_addr_t (*bufcon_map)(struct fimc_is_vb2_buf *vbuf, struct device *dev, int idx, struct dma_buf *dmabuf);
-	void (*bufcon_unmap)(struct fimc_is_vb2_buf *vbuf, int idx);
+	long (*dbufcon_prepare)(struct fimc_is_vb2_buf *vbuf, u32 num_planes, struct device *dev);
+	void (*dbufcon_finish)(struct fimc_is_vb2_buf *vbuf);
+	long (*dbufcon_map)(struct fimc_is_vb2_buf *vbuf);
+	void (*dbufcon_unmap)(struct fimc_is_vb2_buf *vbuf);
 };
 
 struct fimc_is_vb2_buf {
 	struct vb2_v4l2_buffer		vb;
+	unsigned int			num_merged_dbufs;
+	struct dma_buf			*dbuf[FIMC_IS_MAX_PLANES];
+	struct dma_buf_attachment	*atch[FIMC_IS_MAX_PLANES];
+	struct sg_table			*sgt[FIMC_IS_MAX_PLANES];
+
+#ifdef CONFIG_DMA_BUF_CONTAINER
 	ulong				kva[FIMC_IS_MAX_PLANES];
 	dma_addr_t			dva[FIMC_IS_MAX_PLANES];
-
-	/* buffer container operation */
-	struct dma_buf_attachment		*attachment[FIMC_IS_MAX_PLANES];
-	struct sg_table				*sgt[FIMC_IS_MAX_PLANES];
-	struct dma_buf				*bufs[FIMC_IS_MAX_PLANES];
-
+#else
+	ulong				kva[VIDEO_MAX_PLANES];
+	dma_addr_t			dva[VIDEO_MAX_PLANES];
+#endif
 	const struct fimc_is_vb2_buf_ops *ops;
 };
 
@@ -66,8 +72,8 @@ struct fimc_is_priv_buf {
 	struct dma_buf_attachment		*attachment;
 	enum dma_data_direction			direction;
 	void					*kva;
-	dma_addr_t 		iova;
-	struct sg_table			*sgt;
+	dma_addr_t				iova;
+	struct sg_table				*sgt;
 };
 
 #define vb_to_fimc_is_vb2_buf(x)				\

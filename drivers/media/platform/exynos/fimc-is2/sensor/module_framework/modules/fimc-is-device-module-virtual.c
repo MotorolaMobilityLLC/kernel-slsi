@@ -111,6 +111,13 @@ static const struct v4l2_subdev_core_ops core_ops = {
 	.ioctl = sensor_virtual_module_ioctl,
 };
 
+
+static int sensor_virtual_s_routing(struct v4l2_subdev *sd,
+		u32 input, u32 output, u32 config) {
+
+	return 0;
+}
+
 static int sensor_virtual_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	int ret = 0;
@@ -277,6 +284,7 @@ int sensor_virtual_g_max_dgain(struct v4l2_subdev *subdev)
 }
 
 static const struct v4l2_subdev_video_ops video_ops = {
+	.s_routing = sensor_virtual_s_routing,
 	.s_stream = sensor_virtual_s_stream,
 	.s_parm = sensor_virtual_s_param
 };

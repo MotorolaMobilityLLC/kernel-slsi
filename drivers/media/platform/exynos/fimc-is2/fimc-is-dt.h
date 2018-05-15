@@ -60,5 +60,4 @@ int fimc_is_sensor_module_parse_dt(struct platform_device *pdev,
 int fimc_is_module_parse_dt(struct device *dev,
 	fimc_is_moudle_callback callback);
 int fimc_is_spi_parse_dt(struct fimc_is_spi *spi);
-int fimc_is_power_setpin(struct device *dev, int position, int sensor_id);
 #endif

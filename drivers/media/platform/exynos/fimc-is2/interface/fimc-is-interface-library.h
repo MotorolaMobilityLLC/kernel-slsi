@@ -331,6 +331,4 @@ void fimc_is_load_ctrl_unlock(void);
 void fimc_is_load_ctrl_lock(void);
 void fimc_is_load_ctrl_init(void);
 int fimc_is_set_fw_names(char *fw_name, char *rta_fw_name);
-int fimc_is_register_general_interrupt(struct general_intr_handler info);
-
 #endif
