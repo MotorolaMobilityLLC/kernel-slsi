@@ -37,7 +37,8 @@ struct fimc_is_device_ischain;
 #define CSIS_NOTIFY_FEND		4
 #define CSIS_NOTIFY_DMA_END		5
 #define CSIS_NOTIFY_DMA_END_VC_EMBEDDED	6
-#define CSIS_NOTIFY_LINE		7
+#define CSIS_NOTIFY_DMA_END_VC_MIPISTAT	7
+#define CSIS_NOTIFY_LINE		8
 
 #define SENSOR_MAX_ENUM			4 /* 4 modules(2 rear, 2 front) for same csis */
 #define ACTUATOR_MAX_ENUM		3
@@ -213,7 +214,8 @@ enum fimc_is_ex_mode {
 	EX_NONE = 0,
 	EX_DRAMTEST = 1,
 	EX_LIVEFOCUS = 2,
-	EX_DUALFPS = 3,
+	EX_DUALFPS_960 = 3,
+	EX_DUALFPS_480 = 4,
 };
 
 struct fimc_is_sensor_cfg {
@@ -232,11 +234,12 @@ struct fimc_is_sensor_cfg {
 };
 
 
-struct fimc_is_sensor_vc_max_size {
+struct fimc_is_sensor_vc_extra_info {
 	int stat_type;
-	u32 width;
-	u32 height;
-	u32 element_size;
+	int sensor_mode;
+	u32 max_width;
+	u32 max_height;
+	u32 max_element;
 };
 
 struct fimc_is_sensor_ops {
@@ -282,8 +285,7 @@ struct fimc_is_module_enum {
 	u32						bitwidth;
 	u32						cfgs;
 	struct fimc_is_sensor_cfg			*cfg;
-	struct fimc_is_sensor_vc_max_size		vc_max_size[VC_BUF_DATA_TYPE_MAX];
-	u32						vc_max_buf;
+	struct fimc_is_sensor_vc_extra_info		vc_extra_info[VC_BUF_DATA_TYPE_MAX];
 	u32						vc_buffer_offset[CSI_VIRTUAL_CH_MAX];
 	struct i2c_client				*client;
 	struct sensor_open_extended			ext;
@@ -411,6 +413,8 @@ struct fimc_is_device_sensor {
 	struct fimc_is_flash				*flash;
 	struct v4l2_subdev				*subdev_ois;
 	struct fimc_is_ois				*ois;
+	struct v4l2_subdev				*subdev_mcu;
+	struct fimc_is_mcu				*mcu;
 	struct v4l2_subdev				*subdev_aperture;
 	struct fimc_is_aperture				*aperture;
 	void						*private_data;

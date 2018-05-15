@@ -23,6 +23,4 @@ struct fimc_is_hw_tpu {
 
 int fimc_is_hw_tpu_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface *itf,
 	struct fimc_is_interface_ischain *itfc, int id, const char *name);
-void fimc_is_hw_tpu_update_param(struct tpu_param *param,
-	struct tpu_param_set *param_set, u32 lindex, u32 hindex);
 #endif

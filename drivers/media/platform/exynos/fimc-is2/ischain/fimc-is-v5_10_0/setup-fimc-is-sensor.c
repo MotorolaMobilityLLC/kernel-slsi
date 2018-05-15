@@ -98,19 +98,6 @@ int exynos7880_fimc_is_sensor_iclk_on(struct device *dev,
 		goto p_err;
 	}
 
-#if defined(CONFIG_VENDER_PSV)
-	/* ISP */
-	fimc_is_enable(dev, "gate_isp_sysmmu");
-	fimc_is_enable(dev, "gate_isp_ppmu");
-	fimc_is_enable(dev, "gate_isp_bts");
-	fimc_is_enable(dev, "gate_isp_cam");
-	fimc_is_enable(dev, "gate_isp_isp");
-	fimc_is_enable(dev, "gate_isp_vra");
-	fimc_is_enable(dev, "pxmxdx_isp_isp");
-	fimc_is_enable(dev, "pxmxdx_isp_cam");
-	fimc_is_enable(dev, "pxmxdx_isp_vra");
-#endif
-
 p_err:
 	return ret;
 }
@@ -123,19 +110,6 @@ int exynos7880_fimc_is_sensor_iclk_off(struct device *dev,
 
 	/* CSI */
 	exynos7880_fimc_is_csi_gate(dev, channel, true);
-
-#if defined(CONFIG_VENDER_PSV)
-	/* ISP */
-	fimc_is_disable(dev, "gate_isp_sysmmu");
-	fimc_is_disable(dev, "gate_isp_ppmu");
-	fimc_is_disable(dev, "gate_isp_bts");
-	fimc_is_disable(dev, "gate_isp_cam");
-	fimc_is_disable(dev, "gate_isp_isp");
-	fimc_is_disable(dev, "gate_isp_vra");
-	fimc_is_disable(dev, "pxmxdx_isp_isp");
-	fimc_is_disable(dev, "pxmxdx_isp_cam");
-	fimc_is_disable(dev, "pxmxdx_isp_vra");
-#endif
 
 	return ret;
 }

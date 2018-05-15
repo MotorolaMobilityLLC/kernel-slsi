@@ -1052,6 +1052,7 @@ int fimc_is_timer_disable(void *timer)
 #define IRQ_ID_TPU0(x)		(x - (INTR_ID_BASE_OFFSET * 4))
 #define IRQ_ID_TPU1(x)		(x - (INTR_ID_BASE_OFFSET * 5))
 #define IRQ_ID_DCP(x)		(x - (INTR_ID_BASE_OFFSET * 6))
+#define IRQ_ID_VPP(x)		(x - (INTR_ID_BASE_OFFSET * 7))
 #define valid_3aaisp_intr_index(intr_index) \
 	(0 <= intr_index && intr_index < INTR_HWIP_MAX)
 
@@ -1083,6 +1084,9 @@ int fimc_is_register_interrupt(struct hwip_intr_handler info)
 		break;
 	case ID_DCP:
 		intr_index = IRQ_ID_DCP(info.id);
+		break;
+	case ID_VPP:
+		intr_index = IRQ_ID_VPP(info.id);
 		break;
 	default:
 		err_lib("invalid chaind_id(%d)", info.chain_id);
@@ -1145,6 +1149,9 @@ int fimc_is_unregister_interrupt(u32 intr_id, u32 chain_id)
 	case ID_DCP:
 		intr_index = IRQ_ID_DCP(intr_id);
 		break;
+	case ID_VPP:
+		intr_index = IRQ_ID_VPP(intr_id);
+		break;
 	default:
 		err_lib("invalid chaind_id(%d)", chain_id);
 		return 0;
@@ -1185,7 +1192,7 @@ static irqreturn_t  fimc_is_general_interrupt_isr (int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int fimc_is_register_general_interrupt(struct general_intr_handler info)
+static int fimc_is_register_general_interrupt(struct general_intr_handler info)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 	int ret = 0;
@@ -1225,7 +1232,7 @@ int fimc_is_register_general_interrupt(struct general_intr_handler info)
 	return ret;
 }
 
-int fimc_is_unregister_general_interrupt(struct general_intr_handler info)
+static int fimc_is_unregister_general_interrupt(struct general_intr_handler info)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
@@ -1459,6 +1466,9 @@ ulong get_reg_addr(u32 id)
 		break;
 	case ID_DCP:
 		hw_id = DEV_HW_DCP;
+		break;
+	case ID_VPP:
+		hw_id = DEV_HW_VPP;
 		break;
 	default:
 		warn_lib("get_reg_addr: invalid id(%d)\n", id);

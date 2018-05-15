@@ -67,6 +67,7 @@ static const struct v4l2_subdev_core_ops core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops video_ops = {
+	.s_routing = sensor_module_s_routing,
 	.s_stream = sensor_module_s_stream,
 	.s_mbus_fmt = sensor_module_s_format,
 };

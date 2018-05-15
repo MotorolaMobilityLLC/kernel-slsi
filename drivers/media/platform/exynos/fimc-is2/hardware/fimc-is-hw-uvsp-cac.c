@@ -59,7 +59,7 @@ struct ref_ni hw_mcsc_find_ni_idx_for_cac(struct fimc_is_hw_ip *hw_ip,
 			hw_ip, GET_LNR_INTRPL(11, 20, 1, 10, 3));
 
 	sdbg_hw(2, "[CAC] find_ni_idx: cur_ni(%d), ni[%d, %d], idx[%d, %d]\n", hw_ip,
-		cac->ni_vals[ret_idx.min], cac->ni_vals[ret_idx.max],
+		cur_ni, cac->ni_vals[ret_idx.min], cac->ni_vals[ret_idx.max],
 		ret_idx.min, ret_idx.max);
 
 	return ret_idx;
@@ -146,14 +146,14 @@ int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap;
 	struct hw_mcsc_setfile *setfile;
-	enum exynos_sensor_position sensor_position;
-	u32 ni, backup_in;
-
 #if defined(USE_UVSP_CAC)
 	struct cac_setfile_contents *cac;
 #endif
-	BUG_ON(!hw_ip);
-	BUG_ON(!hw_ip->priv_info);
+	enum exynos_sensor_position sensor_position;
+	u32 ni, backup_in;
+	bool cac_en = true;
+
+	FIMC_BUG(!hw_ip->priv_info);
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 	cap = GET_MCSC_HW_CAP(hw_ip);
@@ -161,15 +161,15 @@ int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
 	if (cap->cac != MCSC_CAP_SUPPORT)
 		return ret;
 
-#ifdef LHM_ENABLE_EVT0
-	return ret;
-#endif
-
 	backup_in = hw_mcsc->cac_in;
 	if (hw_ip->hardware->video_mode)
-		hw_mcsc->cac_in = DEV_HW_MCSC0;
+		hw_mcsc->cac_in = MCSC_CAC_IN_VIDEO_MODE;
 	else
-		hw_mcsc->cac_in = DEV_HW_MCSC1;
+		hw_mcsc->cac_in = MCSC_CAC_IN_CAPTURE_MODE;
+
+	/* The force means that sysfs control has higher priority than scenario. */
+	fimc_is_hw_mcsc_get_force_block_control(hw_ip, SUBBLK_IP_CAC, cap->max_cac,
+		&hw_mcsc->cac_in, &cac_en);
 
 	if (backup_in != hw_mcsc->cac_in)
 		sdbg_hw(0, "cac input_source changed %d-> %d\n", hw_ip,
@@ -180,6 +180,12 @@ int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
 	if (hw_mcsc->cac_in != hw_ip->id)
 		return ret;
 
+	if (cac_en == false) {
+		fimc_is_scaler_set_cac_enable(hw_ip->regs, cac_en);
+		sinfo_hw("CAC off forcely\n", hw_ip);
+		return ret;
+	}
+
 	sensor_position = hw_ip->hardware->sensor_position[instance];
 	setfile = hw_mcsc->cur_setfile[sensor_position];
 
@@ -187,20 +193,20 @@ int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
 #ifdef FIXED_TDNR_NOISE_INDEX
 	ni = FIXED_TDNR_NOISE_INDEX_VALUE;
 #else
-	ni = frame->noise_idx;
+	ni = hw_mcsc->ni_udm[frame->fcount % NI_BACKUP_MAX].currentFrameNoiseIndex;
 #endif
-	if (hw_mcsc->cur_ni == ni)
+	if (hw_mcsc->cur_ni[SUBBLK_CAC] == ni)
 		goto exit;
 
 #if defined(USE_UVSP_CAC)
 	cac = &setfile->cac;
 	hw_mcsc_calc_cac_param_by_ni(hw_ip, cac, ni);
 #endif
+	msdbg_hw(2, "[CAC][F:%d]: ni(%d)\n",
+		instance, hw_ip, frame->fcount, ni);
 
-	sdbg_hw(2, "[CAC][F:%d]: ni(%d)\n",
-		hw_ip, __func__, frame->fcount, ni);
 exit:
-	hw_mcsc->cur_ni = ni;
+	hw_mcsc->cur_ni[SUBBLK_CAC] = ni;
 
 	return 0;
 }
@@ -225,6 +231,9 @@ struct ref_ni hw_mcsc_find_ni_idx_for_uvsp(struct fimc_is_hw_ip *hw_ip,
 		ni_idx_range.min = MULTIPLIED_10(uvsp->ni_vals[ni_idx]);
 		ni_idx_range.max = MULTIPLIED_10(uvsp->ni_vals[ni_idx + 1]);
 
+		sdbg_hw(2, "[UVSP] search: cur_ni(%d), ni[%d, %d], idx[%d, %d]\n", hw_ip,
+			cur_ni, uvsp->ni_vals[ni_idx], uvsp->ni_vals[ni_idx + 1],
+			ni_idx, ni_idx + 1);
 		if (ni_idx_range.min < cur_ni && cur_ni < ni_idx_range.max) {
 			ret_idx.min = ni_idx;
 			ret_idx.max = ni_idx + 1;
@@ -241,7 +250,7 @@ struct ref_ni hw_mcsc_find_ni_idx_for_uvsp(struct fimc_is_hw_ip *hw_ip,
 	}
 
 	sdbg_hw(2, "[UVSP] find_ni_idx: cur_ni(%d), ni[%d, %d], idx[%d, %d]\n", hw_ip,
-		uvsp->ni_vals[ret_idx.min], uvsp->ni_vals[ret_idx.max],
+		cur_ni, uvsp->ni_vals[ret_idx.min], uvsp->ni_vals[ret_idx.max],
 		ret_idx.min, ret_idx.max);
 
 	return ret_idx;
@@ -470,19 +479,19 @@ void hw_mcsc_calc_uvsp_radial_ctrl(struct fimc_is_hw_ip *hw_ip,
 	lsc_center_y = cal_info->data[1];
 	uvsp_ctrl->biquad_a = cal_info->data[2];
 	uvsp_ctrl->biquad_b = cal_info->data[3];
-	sdbg_hw(2, "[UVSP][F:%d]: lsc_center_x,y(%d,%d), uvsp_ctrl->biquad_a,b(%d,%d)\n",
-		hw_ip, __func__, frame->fcount, lsc_center_x, lsc_center_y,
+	msdbg_hw(2, "[UVSP][F:%d]: lsc_center_x,y(%d,%d), uvsp_ctrl->biquad_a,b(%d,%d)\n",
+		instance, hw_ip, frame->fcount, lsc_center_x, lsc_center_y,
 		uvsp_ctrl->biquad_a, uvsp_ctrl->biquad_b);
 
 	shot_ext = frame->shot_ext;
 	if (!frame->shot_ext) {
-		sdbg_hw(2, "___carrotsm:[F:%d] shot_ext(NULL)\n", hw_ip, __func__);
+		sdbg_hw(2, "[F:%d] shot_ext(NULL)\n", hw_ip, frame->fcount);
 		fimc_is_scaler_set_uvsp_enable(hw_ip->regs, hw_ip->id, 0);
 		return;
 	}
 
-	sdbg_hw(2, "[UVSP][F:%d]: shot >> binning_r(%d,%d), crop_taa(%d,%d), bds(%d,%d)\n",
-		hw_ip, __func__, frame->fcount,
+	msdbg_hw(2, "[UVSP][F:%d]: shot >> binning_r(%d,%d), crop_taa(%d,%d), bds(%d,%d)\n",
+		instance, hw_ip, frame->fcount,
 		shot_ext->binning_ratio_x, shot_ext->binning_ratio_y,
 		shot_ext->crop_taa_x, shot_ext->crop_taa_y,
 		shot_ext->bds_ratio_x, shot_ext->bds_ratio_y);
@@ -497,8 +506,8 @@ void hw_mcsc_calc_uvsp_radial_ctrl(struct fimc_is_hw_ip *hw_ip,
 	uvsp_ctrl->radial_center_y = (u32)((lsc_center_y - shot_ext->crop_taa_y) / shot_ext->bds_ratio_y);
 
 	fimc_is_scaler_set_uvsp_radial_ctrl(hw_ip->regs, hw_ip->id, uvsp_ctrl);
-	sdbg_hw(2, "[UVSP][F:%d]: uvsp_ctrl >> binning(%d,%d), r_center(%d,%d), biquad(%d,%d)\n",
-		hw_ip, __func__, frame->fcount, uvsp_ctrl->binning_x, uvsp_ctrl->binning_y,
+	msdbg_hw(2, "[UVSP][F:%d]: uvsp_ctrl >> binning(%d,%d), r_center(%d,%d), biquad(%d,%d)\n",
+		instance, hw_ip, frame->fcount, uvsp_ctrl->binning_x, uvsp_ctrl->binning_y,
 		uvsp_ctrl->radial_center_x, uvsp_ctrl->radial_center_y,
 		uvsp_ctrl->biquad_a, uvsp_ctrl->biquad_b);
 }
@@ -516,6 +525,9 @@ int fimc_is_hw_mcsc_update_uvsp_register(struct fimc_is_hw_ip *hw_ip,
 	struct cal_info *cal_info;
 	enum exynos_sensor_position sensor_position;
 	u32 ni;
+	bool uvsp_en = true;
+
+	FIMC_BUG(!hw_ip->priv_info);
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 	cap = GET_MCSC_HW_CAP(hw_ip);
@@ -530,28 +542,35 @@ int fimc_is_hw_mcsc_update_uvsp_register(struct fimc_is_hw_ip *hw_ip,
 	sdbg_hw(10, "TEST: get_lnr_intprl(11, 20, 1, 1, 3) = %d\n",
 			hw_ip, GET_LNR_INTRPL(11, 20, 1, 1, 3));
 
-#ifdef LHM_ENABLE_EVT0
-	return ret;
-#endif
 	/* calculate cac parameters */
 #ifdef FIXED_TDNR_NOISE_INDEX
 	ni = FIXED_TDNR_NOISE_INDEX_VALUE;
 #else
-	ni = frame->noise_idx;
+	ni = hw_mcsc->ni_udm[frame->fcount % NI_BACKUP_MAX].currentFrameNoiseIndex;
 #endif
-	if (hw_mcsc->cur_ni == ni)
+	if (hw_mcsc->cur_ni[SUBBLK_UVSP] == ni)
 		goto exit;
+
+	/* The force means that sysfs control has higher priority than scenario. */
+	fimc_is_hw_mcsc_get_force_block_control(hw_ip, SUBBLK_IP_UVSP, cap->max_uvsp,
+		NULL, &uvsp_en);
+
+	if (uvsp_en == false) {
+		fimc_is_scaler_set_uvsp_enable(hw_ip->regs, hw_ip->id, uvsp_en);
+		sinfo_hw("UVSP off forcely\n", hw_ip);
+		return ret;
+	}
 
 	hw_mcsc_calc_uvsp_radial_ctrl(hw_ip, hw_mcsc, frame, cal_info, instance);
 #if defined(USE_UVSP_CAC)
 	uvsp = &setfile->uvsp;
 	hw_mcsc_calc_uvsp_param_by_ni(hw_ip, uvsp, ni);
 #endif
-	sdbg_hw(2, "[UVSP][F:%d]: ni(%d)\n",
-		hw_ip, __func__, frame->fcount, ni);
+	msdbg_hw(2, "[UVSP][F:%d]: ni(%d)\n",
+		instance, hw_ip, frame->fcount, ni);
 
 exit:
-	hw_mcsc->cur_ni = ni;
+	hw_mcsc->cur_ni[SUBBLK_UVSP] = ni;
 
 	return 0;
 }

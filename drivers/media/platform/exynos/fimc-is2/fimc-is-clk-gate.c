@@ -51,28 +51,6 @@ int fimc_is_clk_gate_lock_set(struct fimc_is_core *core, u32 instance, u32 is_st
 	return 0;
 }
 
-#if 0
-/* This function may be used when clk_enable api will be faster than now */
-int fimc_is_clk_gate_reg_set(struct fimc_is_core *core,
-		bool is_on, const char* gate_str, u32 clk_gate_id,
-		struct exynos_fimc_is_clk_gate_info *gate_info)
-{
-	struct platform_device *pdev = core->pdev;
-	if (is_on) {
-		if (gate_info->clk_on(pdev, gate_str) < 0) {
-			pr_err("%s: could not enable %s\n", __func__, gate_str);
-			return -EINVAL;
-		}
-	} else {
-		if (gate_info->clk_off(pdev, gate_str) < 0) {
-			pr_err("%s: could not disable %s\n", __func__, gate_str);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-#endif
-
 int fimc_is_wrap_clk_gate_set(struct fimc_is_core *core,
 			int msk_group_id, bool is_on)
 {

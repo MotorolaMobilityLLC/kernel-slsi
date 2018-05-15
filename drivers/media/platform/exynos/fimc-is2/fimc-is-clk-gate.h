@@ -21,9 +21,6 @@
 
 int fimc_is_clk_gate_init(struct fimc_is_core *core);
 int fimc_is_clk_gate_lock_set(struct fimc_is_core *core, u32 instance, u32 is_start);
-int fimc_is_clk_gate_reg_set(struct fimc_is_core *core,
-		bool is_on, const char* gate_str, u32 clk_gate_id,
-		struct exynos_fimc_is_clk_gate_info *gate_info);
 /* For several groups */
 int fimc_is_wrap_clk_gate_set(struct fimc_is_core *core,
 			int msk_group_id, bool is_on);

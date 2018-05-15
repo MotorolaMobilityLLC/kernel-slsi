@@ -80,7 +80,8 @@ int pafstat_hw_s_sensor_mode(void __iomem *base_reg, u32 pd_mode);
 void pafstat_hw_com_s_lic_mode(void __iomem *base_reg, u32 id,
 	enum pafstat_lic_mode lic_mode, enum pafstat_input_path input);
 void pafstat_hw_com_s_fro(void __iomem *base_reg, u32 fro_cnt);
-void pafstat_hw_s_4ppc(void __iomem *base_reg, u32 mipi_speed);
+int pafstat_hw_s_4ppc(void __iomem *base_reg, u32 width, u32 height, u32 frame_rate,
+	u32 mipi_speed, u32 lanes, const char *conid);
 void pafstat_hw_s_img_size(void __iomem *base_reg, u32 width, u32 height);
 void pafstat_hw_s_pd_size(void __iomem *base_reg, u32 width, u32 height);
 void pafstat_hw_s_input_path(void __iomem *base_reg, enum pafstat_input_path input);

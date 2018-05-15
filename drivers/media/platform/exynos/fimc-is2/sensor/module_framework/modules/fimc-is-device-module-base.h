@@ -27,7 +27,8 @@ int sensor_module_s_ext_ctrls(struct v4l2_subdev *subdev, struct v4l2_ext_contro
 int sensor_module_log_status(struct v4l2_subdev *subdev);
 
 /* Video ops */
-int sensor_module_s_stream(struct v4l2_subdev *subdev, int enable);
+int sensor_module_s_routing(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
+int sensor_module_s_stream(struct v4l2_subdev *sd, int enable);
 int sensor_module_s_param(struct v4l2_subdev *subdev, struct v4l2_streamparm *param);
 int sensor_module_s_format(struct v4l2_subdev *subdev,
 	struct v4l2_subdev_pad_config *cfg,

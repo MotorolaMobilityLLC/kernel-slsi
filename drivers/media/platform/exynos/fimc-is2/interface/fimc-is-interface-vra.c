@@ -845,7 +845,7 @@ int __nocfi fimc_is_lib_vra_new_frame(struct fimc_is_lib_vra *lib_vra,
 {
 	enum api_vra_type status = VRA_NO_ERROR;
 	unsigned char *input_dma_buf_kva = NULL;
-	ulong input_dma_buf_dva;
+	dma_addr_t input_dma_buf_dva;
 
 	if (unlikely(!lib_vra)) {
 		err_lib("lib_vra is NULL");
@@ -857,7 +857,7 @@ int __nocfi fimc_is_lib_vra_new_frame(struct fimc_is_lib_vra *lib_vra,
 	fimc_is_dva_vra((ulong)lib_vra->test_input_buffer, (u32 *)&input_dma_buf_dva);
 #else
 	input_dma_buf_kva = buffer_kva;
-	input_dma_buf_dva = (ulong)buffer_dva;
+	input_dma_buf_dva = (dma_addr_t)buffer_dva;
 #endif
 
 	status = CALL_VRAOP(lib_vra, on_new_frame,
