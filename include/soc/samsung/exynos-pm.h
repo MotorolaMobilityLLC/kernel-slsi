@@ -76,18 +76,4 @@ static inline void acpm_get_inform(void)
 	return;
 }
 #endif
-#ifdef CONFIG_EXYNOS_FLEXPMU_DBG
-extern int acpm_get_mifdn_count(void);
-extern int acpm_get_mif_request(void);
-#else
-static inline int acpm_get_mif_request(void)
-{
-	return 0;
-}
-
-static inline int acpm_get_mifdn_count(void)
-{
-	return 0;
-}
-#endif
 #endif /* __EXYNOS_PM_H */
