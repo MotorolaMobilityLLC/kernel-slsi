@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Header file for Exynos9820 DECON CAL
+ * Header file for Exynos9610 DECON CAL
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,28 +16,19 @@
 
 #define CEIL(x)			((x-(u32)(x) > 0 ? (u32)(x+1) : (u32)(x)))
 
-#define CHIP_VER		(9820)
+#define CHIP_VER		(9610)
 #define MAX_DECON_CNT		3
-#define MAX_DECON_WIN		6
-#define MAX_DPP_SUBDEV		7
+#define MAX_DECON_WIN		4
+#define MAX_DPP_SUBDEV		5
 
 enum decon_idma_type {
-	IDMA_G0 = 0,
-	IDMA_G1,
+	IDMA_GF = 0, /* GF in case of Exynos9610 */
 	IDMA_VG0,
-	IDMA_VG1,
-	IDMA_VGF0,
-	IDMA_VGF1, /* VGRF in case of Exynos9810 */
+	IDMA_G0,
+	IDMA_G1,
 	ODMA_WB,
 	MAX_DECON_DMA_TYPE,
 };
-
-#define IDMA_GF0	IDMA_G0
-#define IDMA_GF1	IDMA_G1
-#define IDMA_VG		IDMA_VG0
-#define IDMA_VGF	IDMA_VG1
-#define IDMA_VGS	IDMA_VGF0
-#define IDMA_VGRFS	IDMA_VGF1
 
 enum decon_fifo_mode {
 	DECON_FIFO_00K = 0,
@@ -94,8 +85,7 @@ enum decon_data_path {
 
 enum decon_scaler_path {
 	SCALERPATH_OFF	= 0x0,
-	SCALERPATH_VGF	= 0x1,
-	SCALERPATH_VGRF	= 0x2,
+	SCALERPATH_VG0	= 0x1,
 };
 
 enum decon_path_cfg {

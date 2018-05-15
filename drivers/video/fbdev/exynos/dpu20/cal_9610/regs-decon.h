@@ -1,9 +1,9 @@
 /*
- * linux/drivers/video/fbdev/exynos/dpu_9810/regs_decon.h
+ * linux/drivers/video/fbdev/exynos/dpu20/cal_9610/regs_decon.h
  *
  * Register definition file for Samsung DECON driver
  *
- * Copyright (c) 2014 Samsung Electronics
+ * Copyright (c) 2018 Samsung Electronics
  * SeungBeom park<sb1.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -129,8 +129,6 @@
 #define TIME_OUT_VALUE				0x0048
 
 #define INTERRUPT_PENDING			0x004C
-#define DPU_DQE_DIMMING_END_INT_PEND		(1 << 21)
-#define DPU_DQE_DIMMING_START_INT_PEND		(1 << 20)
 #define DPU_FRAME_DONE_INT_PEND			(1 << 13)
 #define DPU_FRAME_START_INT_PEND		(1 << 12)
 #define DPU_EXTRA_INT_PEND			(1 << 4)
@@ -141,7 +139,6 @@
 
 #define SHADOW_REG_UPDATE_REQ			0x0060
 #define SHADOW_REG_UPDATE_REQ_GLOBAL		(1 << 31)
-#define SHADOW_REG_UPDATE_REQ_DQE		(1 << 28)
 #define SHADOW_REG_UPDATE_REQ_WIN(_win)		(1 << (_win))
 #define SHADOW_REG_UPDATE_REQ_FOR_DECON		(0x3f)
 

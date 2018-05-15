@@ -1,6 +1,6 @@
-/* linux/drivers/video/exynos/fbdev/dpu_9810/dpp_regs.c
+/* linux/drivers/video/exynos/fbdev/dpu20/cal_9610/dpp_regs.c
  *
- * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Samsung EXYNOS9 SoC series Display Pre Processor driver
@@ -660,26 +660,86 @@ static void wb_mux_reg_set_uv_offset(u32 id, u32 off_x, u32 off_y)
 			WB_UV_OFFSET_Y_MASK | WB_UV_OFFSET_X_MASK);
 }
 
+void dma_reg_set_in_base_addr(u32 id, u32 addr_y, u32 addr_c)
+{
+	dma_write(id, IDMA_IN_BASE_ADDR_Y, addr_y);
+	dma_write(id, IDMA_IN_BASE_ADDR_C, addr_c);
+}
+
+void dma_reg_set_in_2b_base_addr(u32 id, u32 addr_y, u32 addr_c)
+{
+	dma_write(id, IDMA_IN_BASE_ADDR_Y2, addr_y);
+	dma_write(id, IDMA_IN_BASE_ADDR_C2, addr_c);
+}
+
+void dpp_reg_set_buf_1p_addr(u32 id, struct dpp_params_info *p)
+{
+	/* For AFBC stream, BASE_ADDR_C must be same with BASE_ADDR_Y */
+	dma_reg_set_in_base_addr(id, p->addr[0], p->addr[0]);
+}
+
+void dpp_reg_set_buf_2p_addr(u32 id, struct dpp_params_info *p)
+{
+	dma_reg_set_in_base_addr(id, p->addr[0], p->addr[1]);
+}
+
+void dpp_reg_set_buf_4p_addr(u32 id, struct dpp_params_info *p)
+{
+	dma_reg_set_in_base_addr(id, p->addr[0], p->addr[1]);
+	dma_reg_set_in_2b_base_addr(id, p->addr[2], p->addr[3]);
+}
+
+void dma_reg_set_luma_2bit_stride(u32 id, u32 stride)
+{
+	u32 val, mask;
+
+	val = IDMA_LUMA_2B_STRIDE(stride);
+	mask = IDMA_LUMA_2B_STRIDE_MASK;
+	dma_write_mask(id, IDMA_2BIT_STRIDE, val, mask);
+}
+
+void dma_reg_set_chroma_2bit_stride(u32 id, u32 stride)
+{
+	u32 val, mask;
+
+	val = IDMA_CHROMA_2B_STRIDE(stride);
+	mask = IDMA_CHROMA_2B_STRIDE_MASK;
+	dma_write_mask(id, IDMA_2BIT_STRIDE, val, mask);
+}
+
+void dpp_reg_set_buf_addr(u32 id, struct dpp_params_info *p)
+{
+	if (p->is_4p) {
+		dpp_reg_set_buf_4p_addr(id, p);
+		dma_reg_set_luma_2bit_stride(id, p->y_2b_strd);
+		dma_reg_set_chroma_2bit_stride(id, p->c_2b_strd);
+	} else {
+		if (p->is_comp) {
+			dpp_reg_set_buf_1p_addr(id, p);
+		} else {
+			dpp_reg_set_buf_2p_addr(id, p);
+		}
+	}
+	dpp_dbg("dpp id : %d, 1st-plane : 0x%p, 2nd-plane : 0x%p ",
+		id, (void *)p->addr[0], (void *)p->addr[1]);
+	dpp_dbg("3rd-plane : 0x%p, 4th-plane : 0x%p\n",
+		(void *)p->addr[2], (void *)p->addr[3]);
+
+}
+
 /********** IDMA and ODMA combination CAL functions **********/
+#if 0
 static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
 {
+	dpp_info("%s, %d dpp[%d] attr[%lu]\n", __func__, __LINE__, id, attr);
 	if (test_bit(DPP_ATTR_IDMA, &attr)) {
+	dpp_info("%s, %d dpp[%d] attr[%lu]\n", __func__, __LINE__, id, attr);
 		dma_write(id, IDMA_IN_BASE_ADDR_Y, p->addr[0]);
 		if (p->is_comp)
-			dma_write(id, IDMA_IN_BASE_ADDR_C, p->addr[0]);
+			dma_write(id, IDMA_IN_BASE_ADDR_Y, p->addr[0]);
 		else
-			dma_write(id, IDMA_IN_BASE_ADDR_C, p->addr[1]);
-		if (p->is_4p) {
-			dma_write(id, IDMA_IN_BASE_ADDR_Y2, p->addr[2]);
-			dma_write(id, IDMA_IN_BASE_ADDR_C2, p->addr[3]);
-			dma_write_mask(id, IDMA_2BIT_STRIDE,
-					IDMA_LUMA_2B_STRIDE(p->y_2b_strd),
-					IDMA_LUMA_2B_STRIDE_MASK);
-			dma_write_mask(id, IDMA_2BIT_STRIDE,
-					IDMA_CHROMA_2B_STRIDE(p->c_2b_strd),
-					IDMA_CHROMA_2B_STRIDE_MASK);
-		}
+			dma_write(id, IDMA_IN_BASE_ADDR_Y, p->addr[1]);
 	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
 		dma_write(id, ODMA_IN_BASE_ADDR_Y, p->addr[0]);
 		dma_write(id, ODMA_IN_BASE_ADDR_C, p->addr[1]);
@@ -688,7 +748,7 @@ static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 			(void *)p->addr[0], (void *)p->addr[1],
 			(void *)p->addr[2], (void *)p->addr[3]);
 }
-
+#endif
 /********** IDMA, ODMA, DPP and WB MUX combination CAL functions **********/
 static void dma_dpp_reg_set_coordinates(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
@@ -822,36 +882,6 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 	case DECON_PIXEL_FORMAT_NV21M_S10B:
 		fmt = IDMA_IMG_FORMAT_YUV420_8P2;
 		fmt_type = DPP_IMG_FORMAT_YUV420_8P2;
-		is_yuv = 1;
-		break;
-	case DECON_PIXEL_FORMAT_NV16:
-		fmt = IDMA_IMG_FORMAT_YVU422_2P;
-		fmt_type = DPP_IMG_FORMAT_YUV422_8P;
-		is_yuv = 1;
-		break;
-	case DECON_PIXEL_FORMAT_NV61:
-		fmt = IDMA_IMG_FORMAT_YUV422_2P;
-		fmt_type = DPP_IMG_FORMAT_YUV422_8P;
-		is_yuv = 1;
-		break;
-	case DECON_PIXEL_FORMAT_NV16M_P210:
-		fmt = IDMA_IMG_FORMAT_YUV422_P210;
-		fmt_type = DPP_IMG_FORMAT_YUV422_P210;
-		is_yuv = 1;
-		break;
-	case DECON_PIXEL_FORMAT_NV61M_P210:
-		fmt = IDMA_IMG_FORMAT_YVU422_P210;
-		fmt_type = DPP_IMG_FORMAT_YUV422_P210;
-		is_yuv = 1;
-		break;
-	case DECON_PIXEL_FORMAT_NV16M_S10B:
-		fmt = IDMA_IMG_FORMAT_YUV422_8P2;
-		fmt_type = DPP_IMG_FORMAT_YUV422_8P2;
-		is_yuv = 1;
-		break;
-	case DECON_PIXEL_FORMAT_NV61M_S10B:
-		fmt = IDMA_IMG_FORMAT_YVU422_8P2;
-		fmt_type = DPP_IMG_FORMAT_YUV422_8P2;
 		is_yuv = 1;
 		break;
 	default:
@@ -1043,7 +1073,8 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		idma_reg_set_rotation(id, p->rot);
 
 	/* configure base address of IDMA and ODMA */
-	dma_reg_set_base_addr(id, p, attr);
+	dpp_reg_set_buf_addr(id, p);
+//	dma_reg_set_base_addr(id, p, attr);
 
 	if (test_bit(DPP_ATTR_BLOCK, &attr))
 		idma_reg_set_block_mode(id, p->is_block, p->block.x, p->block.y,

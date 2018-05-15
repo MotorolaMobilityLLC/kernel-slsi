@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Header file for Exynos9820 DPP CAL
+ * Header file for Exynos9610 DPP CAL
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,7 +14,7 @@
 
 #include "../decon.h"
 
-#define MAX_DPP_CNT		6
+#define MAX_DPP_CNT		4
 
 #define SRC_SIZE_MULTIPLE	1
 #define SRC_WIDTH_MIN		16

@@ -1,7 +1,7 @@
 /*
- * linux/drivers/video/fbdev/exynos/dpu_9810/decon_reg.c
+ * linux/drivers/video/fbdev/exynos/dpu20/cal_9610/decon_reg.c
  *
- * Copyright 2013-2017 Samsung Electronics
+ * Copyright 2018 Samsung Electronics
  *	  SeungBeom Park <sb1.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1434,7 +1434,7 @@ static void decon_reg_init_probe(u32 id, u32 dsi_idx, struct decon_param *p)
 
 	decon_reg_set_clkgate_mode(id, 0);
 
-	decon_reg_set_sram_share(id, DECON_FIFO_04K);
+	decon_reg_set_sram_share(id, DECON_FIFO_08K);
 
 	decon_reg_set_operation_mode(id, psr->psr_mode);
 
@@ -1751,7 +1751,7 @@ int decon_reg_init(u32 id, u32 dsi_idx, struct decon_param *p)
 		decon_reg_set_te_qactive_pll_mode(id, 1);
 
 	if (id == 0)
-		decon_reg_set_sram_share(id, DECON_FIFO_04K);
+		decon_reg_set_sram_share(id, DECON_FIFO_08K);
 	else if (id == 2)
 		decon_reg_set_sram_share(id, DECON_FIFO_12K);
 
@@ -2125,22 +2125,16 @@ u32 DPU_DMA2CH(u32 dma)
 	u32 ch_id;
 
 	switch (dma) {
-	case IDMA_GF0:
-		ch_id = 0;
-		break;
-	case IDMA_GF1:
+	case IDMA_G0:
 		ch_id = 2;
 		break;
-	case IDMA_VG:
-		ch_id = 4;
-		break;
-	case IDMA_VGF:
+	case IDMA_G1:
 		ch_id = 3;
 		break;
-	case IDMA_VGS:
-		ch_id = 5;
+	case IDMA_GF:
+		ch_id = 0;
 		break;
-	case IDMA_VGRFS:
+	case IDMA_VG0:
 		ch_id = 1;
 		break;
 	default:
@@ -2156,23 +2150,17 @@ u32 DPU_CH2DMA(u32 ch)
 	u32 dma;
 
 	switch (ch) {
-	case 0:
-		dma = IDMA_GF0;
-		break;
-	case 1:
-		dma = IDMA_VGRFS;
-		break;
 	case 2:
-		dma = IDMA_GF1;
+		dma = IDMA_G0;
 		break;
 	case 3:
-		dma = IDMA_VGF;
+		dma = IDMA_G1;
 		break;
-	case 4:
-		dma = IDMA_VG;
+	case 0:
+		dma = IDMA_GF;
 		break;
-	case 5:
-		dma = IDMA_VGS;
+	case 1:
+		dma = IDMA_VG0;
 		break;
 	default:
 		decon_warn("channal(%d) is invalid\n", ch);

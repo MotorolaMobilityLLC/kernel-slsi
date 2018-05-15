@@ -1,4 +1,4 @@
-/* linux/drivers/video/fbdev/dpu20/cal_9820/regs-dpp.h
+/* linux/drivers/video/fbdev/dpu20/cal_9610/regs-dpp.h
  *
  * Copyright (c) 2018 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -14,15 +14,8 @@
 #define DPP_REGS_H_
 
 /*
- * DPU_DMA SFR base address : 0x19070000
- * - GLOBAL     : 0x19070000
- * - IDMA GF0   : 0x19071000
- * - IDMA GF1   : 0x19072000
- * - IDMA VG    : 0x19073000
- * - IDMA VGS   : 0x19074000
- * - IDMA VGF   : 0x19075000
- * - IDMA VGRFS : 0x19076000
- * - ODMA       : 0x19077000
+ * 1 - DMA.base
+ *  : 0x1488_0000
  */
 #define DPU_DMA_VERSION				0x0000
 
@@ -40,7 +33,7 @@
 #define DMA_SFR_CGEN(_v)			((_v) << 31)
 #define DMA_SFR_CGEN_MASK			(1 << 31)
 #define DMA_INT_CGEN(_v)			((_v) << 0)
-/* [9820] bit range is changed [28:0] -> [30:0] */
+/* [9610] bit range is changed [28:0] -> [30:0] */
 #define DMA_INT_CGEN_MASK			(0x7FFFFFFF << 0)
 
 #define DPU_DMA_TEST_PATTERN0_3			0x0020
@@ -52,7 +45,7 @@
 #define DPU_DMA_TEST_PATTERN1_1			0x0038
 #define DPU_DMA_TEST_PATTERN1_0			0x003C
 
-/* [9820] add AFBC QoS value */
+/* [9610] add AFBC QoS value */
 #define DPU_DMA_AFBC_QOS			0x0060
 #define FBC_L5_PAYLOAD_QOS(_v)			((_v) << 28)
 #define FBC_L5_PAYLOAD_QOS_MASK			(0xF << 28)
@@ -117,9 +110,6 @@
 #define INSTANT_OFF_NOT_PENDING			(0)
 
 #define IDMA_IRQ				0x0004
-/* [9820] AFBC_CONFLICT_IRQ is added */
-#define IDMA_AFBC_CONFLICT_IRQ			(1 << 25)
-/* [9820] MO_CONFLICT_IRQ -> VR_CONFLICT_IRQ */
 #define IDMA_VR_CONFLICT_IRQ			(1 << 24)
 #define IDMA_AFBC_TIMEOUT_IRQ			(1 << 23)
 #define IDMA_RECOVERY_START_IRQ			(1 << 22)
@@ -128,10 +118,7 @@
 #define IDMA_READ_SLAVE_ERROR			(1 << 19)
 #define IDMA_STATUS_DEADLOCK_IRQ		(1 << 17)
 #define IDMA_STATUS_FRAMEDONE_IRQ		(1 << 16)
-#define IDMA_ALL_IRQ_CLEAR			(0x3FB << 16)
-/* [9820] AFBC_CONFLICT_IRQ_MASK is added */
-#define IDMA_AFBC_CONFLICT_MASK			(1 << 10)
-/* [9820] MO_CONFLICT_IRQ_MASK -> VR_CONFLICT_IRQ_MASK */
+#define IDMA_ALL_IRQ_CLEAR			(0x1FB << 16)
 #define IDMA_VR_CONFLICT_MASK			(1 << 9)
 #define IDMA_AFBC_TIMEOUT_MASK			(1 << 8)
 #define IDMA_RECOVERY_START_MASK		(1 << 7)
@@ -140,7 +127,7 @@
 #define IDMA_READ_SLAVE_ERROR_MASK		(1 << 4)
 #define IDMA_IRQ_DEADLOCK_MASK			(1 << 2)
 #define IDMA_IRQ_FRAMEDONE_MASK			(1 << 1)
-#define IDMA_ALL_IRQ_MASK			(0x3FB << 1)
+#define IDMA_ALL_IRQ_MASK			(0x1FB << 1)
 #define IDMA_IRQ_ENABLE				(1 << 0)
 
 #define IDMA_IN_CON				0x0008
@@ -171,13 +158,7 @@
 #define IDMA_IMG_FORMAT_YVU420_8P2		(27)
 #define IDMA_IMG_FORMAT_YUV420_P010		(29)
 #define IDMA_IMG_FORMAT_YVU420_P010		(28)
-/* [9820] Below IDMA formats are added */
-#define IDMA_IMG_FORMAT_YVU422_2P		(56)
-#define IDMA_IMG_FORMAT_YUV422_2P		(57)
-#define IDMA_IMG_FORMAT_YVU422_8P2		(58)
-#define IDMA_IMG_FORMAT_YUV422_8P2		(59)
-#define IDMA_IMG_FORMAT_YVU422_P210		(60)
-#define IDMA_IMG_FORMAT_YUV422_P210		(61)
+
 #define IDMA_ROTATION(_v)			((_v) << 8)
 #define IDMA_ROTATION_MASK			(7 << 8)
 #define IDMA_ROTATION_X_FLIP			(1 << 8)
@@ -288,7 +269,7 @@
  */
 #define ODMA_ENABLE				0x0000
 #define ODMA_SRSET				(1 << 24)
-/* [9820] removed ? */
+/* [9610] removed ? */
 //#define ODMA_SFR_CLOCK_GATE_EN		(1 << 10)
 //#define ODMA_SRAM_CLOCK_GATE_EN		(1 << 9)
 //#define ODMA_ALL_CLOCK_GATE_EN_MASK		(0x3 << 9)
@@ -391,7 +372,7 @@
 #define ODMA_DYNAMIC_GATING_EN		0x0354
 #define ODMA_DG_EN(_n, _v)			((_v) << (_n))
 #define ODMA_DG_EN_MASK(_n)			(1 << (_n))
-#define ODMA_DG_EN_ALL				(0x7FF << 0) /* 9820 */
+#define ODMA_DG_EN_ALL				(0x7FF << 0) /* 9610 */
 
 #define ODMA_CHAN_CONTROL			0x0360
 #define ODMA_CHAN_DATA				0x0364
@@ -448,7 +429,7 @@
 #define DPU_WB_DYNAMIC_GATING_EN		0x0A54
 #define WB_DG_EN(_n, _v)			((_v) << (_n))
 #define WB_DG_EN_MASK(_n)			(1 << (_n))
-#define WB_DG_EN_ALL				(0xF << 0) /* 9820 */
+#define WB_DG_EN_ALL				(0xF << 0) /* 9610 */
 
 #define DPU_WB_CFG_ERR_STATE			0x0D08
 #define WB_CFG_ERR_GET(_v)			(((_v) >> 0) & 0xF)
@@ -458,17 +439,10 @@
 #define WB_CFG_ERR_MIN_SIZE			(1 << 0)
 
 /*
- * DPP SFR base address : 0x19020000
- * - DPP GF0 : 0x19021000
- * - DPP GF1 : 0x19022000
- * - DPP VG : 0x19023000
- * - DPP VGF : 0x19024000
- * - DPP VGS : 0x19025000
- * - DPP VGRFS : 0x19026000
+ * DPP SFR base address : 0x14890000
  */
 #define DPP_ENABLE				0x0000
 #define DPP_SRSET				(1 << 24)
-#define DPP_HDR_SEL				(1 << 11)
 #define DPP_SFR_CLOCK_GATE_EN			(1 << 10)
 #define DPP_SRAM_CLOCK_GATE_EN			(1 << 9)
 #define DPP_INT_CLOCK_GATE_EN			(1 << 8)
@@ -506,10 +480,6 @@
 #define DPP_IMG_FORMAT_YUV420_8P		(2 << 0)
 #define DPP_IMG_FORMAT_YUV420_P010		(3 << 0)
 #define DPP_IMG_FORMAT_YUV420_8P2		(4 << 0)
-/* [9820] 3 kinds of YUV422 formats are added to DPP format */
-#define DPP_IMG_FORMAT_YUV422_8P		(5 << 0)
-#define DPP_IMG_FORMAT_YUV422_P210		(6 << 0)
-#define DPP_IMG_FORMAT_YUV422_8P2		(7 << 0)
 #define DPP_IMG_SIZE				0x0018
 #define DPP_IMG_HEIGHT(_v)			((_v) << 16)
 #define DPP_IMG_HEIGHT_MASK			(0x1FFF << 16)
