@@ -1664,6 +1664,18 @@
 		domain-clients = <>;
 	};
 
+
+	/* G3D */
+	mali: mali@11500000 {
+		compatible = "arm,mali";
+		reg = <0x0 0x11500000 0x5000>;
+		interrupts = <0 66 0>, <0 67 0>, <0 65 0>;
+		interrupt-names = "JOB", "MMU", "GPU";
+		g3d_cmu_cal_id = <ACPM_DVFS_G3D>;
+		/*samsung,power-domain = <&pd_g3d>;*/
+		#cooling-cells = <2>; /* min followed by max */
+	};
+
 	reboot {
 		compatible = "exynos,reboot";
 		pmu_base = <0x11860000>;
