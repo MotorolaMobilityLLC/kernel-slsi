@@ -136,9 +136,7 @@ int exynos_ufs_fmp_cfg(struct ufs_hba *hba,
 			return 0;
 		}
 #endif
-#ifdef FS_ENCRYPTION_DEBUG
-		crypto_diskcipher_check_fscrypt(bio, sg_page(sg));
-#endif
+		crypto_diskcipher_check(bio);
 		if (crypto_diskcipher_set_crypt(dtfm, &req)) {
 			pr_warn("%s: fails to set crypt\n", __func__);
 			return -EINVAL;
