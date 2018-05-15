@@ -19,12 +19,12 @@
 
 static u32  rear_sensor_id;
 static u32  front_sensor_id;
-static u32  rear_second_sensor_id;
+static u32  rear2_sensor_id;
 #ifdef CONFIG_SECURE_CAMERA_USE
 static u32  secure_sensor_id;
 #endif
-static u32  front_second_sensor_id;
-static u32  rear_third_sensor_id;
+static u32  front2_sensor_id;
+static u32  rear3_sensor_id;
 static u32  ois_sensor_index;
 static u32  aperture_sensor_index;
 
@@ -59,12 +59,12 @@ int fimc_is_vender_probe(struct fimc_is_vender *vender)
 
 	priv->rear_sensor_id = rear_sensor_id;
 	priv->front_sensor_id = front_sensor_id;
-	priv->rear_second_sensor_id = rear_second_sensor_id;
+	priv->rear2_sensor_id = rear2_sensor_id;
 #ifdef CONFIG_SECURE_CAMERA_USE
 	priv->secure_sensor_id = secure_sensor_id;
 #endif
-	priv->front_second_sensor_id = front_second_sensor_id;
-	priv->rear_third_sensor_id = rear_third_sensor_id;
+	priv->front2_sensor_id = front2_sensor_id;
+	priv->rear3_sensor_id = rear3_sensor_id;
 	priv->ois_sensor_index = ois_sensor_index;
 	priv->aperture_sensor_index = aperture_sensor_index;
 
@@ -85,22 +85,22 @@ int fimc_is_vender_dt(struct device_node *np)
 	if (ret)
 		probe_err("front_sensor_id read is fail(%d)", ret);
 
-	ret = of_property_read_u32(np, "rear_second_sensor_id", &rear_second_sensor_id);
+	ret = of_property_read_u32(np, "rear2_sensor_id", &rear2_sensor_id);
 	if (ret)
-		probe_err("rear_second_sensor_id read is fail(%d)", ret);
+		probe_err("rear2_sensor_id read is fail(%d)", ret);
 
 #ifdef CONFIG_SECURE_CAMERA_USE
 	ret = of_property_read_u32(np, "secure_sensor_id", &secure_sensor_id);
 	if (ret)
 		probe_err("secure_sensor_id read is fail(%d)", ret);
 #endif
-	ret = of_property_read_u32(np, "front_second_sensor_id", &front_second_sensor_id);
+	ret = of_property_read_u32(np, "front2_sensor_id", &front2_sensor_id);
 	if (ret)
-		probe_err("front_second_sensor_id read is fail(%d)", ret);
+		probe_err("front2_sensor_id read is fail(%d)", ret);
 
-	ret = of_property_read_u32(np, "rear_third_sensor_id", &rear_third_sensor_id);
+	ret = of_property_read_u32(np, "rear3_sensor_id", &rear3_sensor_id);
 	if (ret)
-		probe_err("rear_third_sensor_id read is fail(%d)", ret);
+		probe_err("rear3_sensor_id read is fail(%d)", ret);
 
 	ret = of_property_read_u32(np, "ois_sensor_index", &ois_sensor_index);
 	if (ret)

@@ -567,6 +567,7 @@
 	vc_ch = <0 1 2 3 0 1 2 3>;
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
+	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	/* use_ssvc1_internal; */
 	/* use_ssvc2_internal; */
 	status = "okay";
@@ -580,6 +581,7 @@
 	vc_ch = <0 1 2 3 0 1 2 3>;
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
+	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	status = "okay";
 };
 
@@ -591,6 +593,7 @@
 	vc_ch = <0 1 2 3>;
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
+	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	status = "okay";
 };
 
@@ -602,5 +605,6 @@
 	vc_ch = <0 1 2 3>;
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
+	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	status = "okay";
 };

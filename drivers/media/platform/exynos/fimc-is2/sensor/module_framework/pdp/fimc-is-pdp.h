@@ -15,8 +15,10 @@
 #include "fimc-is-device-sensor.h"
 #include "fimc-is-interface-sensor.h"
 
+extern int debug_pdp;
+
 #define dbg_pdp(level, fmt, args...) \
-	dbg_common(((debug_pdp) >= (level)) && (debug_pdp < 3), "[PDP]", fmt, ##args)
+	dbg_common(((debug_pdp) >= (level)), "[PDP]", fmt, ##args)
 
 #define MAX_NUM_OF_PDP 2
 

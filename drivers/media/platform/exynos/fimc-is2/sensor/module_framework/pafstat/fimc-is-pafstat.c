@@ -21,10 +21,10 @@
 #include "fimc-is-hw-pafstat.h"
 #include "fimc-is-interface-library.h"
 
-static struct fimc_is_paf pafstat_device[MAX_NUM_OF_PAFSTAT];
+static struct fimc_is_pafstat pafstat_device[MAX_NUM_OF_PAFSTAT];
 atomic_t	g_pafstat_rsccount;
 
-static void prepare_pafstat_sfr_dump(struct fimc_is_paf *pafstat)
+static void prepare_pafstat_sfr_dump(struct fimc_is_pafstat *pafstat)
 {
 	int reg_size = 0;
 
@@ -61,7 +61,7 @@ static void prepare_pafstat_sfr_dump(struct fimc_is_paf *pafstat)
 				reg_size, pafstat->regs_b_start, pafstat->regs_b_end);
 }
 
-void pafstat_sfr_dump(struct fimc_is_paf *pafstat)
+void pafstat_sfr_dump(struct fimc_is_pafstat *pafstat)
 {
 	int reg_size = 0;
 
@@ -90,7 +90,7 @@ void pafstat_sfr_dump(struct fimc_is_paf *pafstat)
 
 static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 {
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 	u32 irq_src, irq_mask, status;
 	bool err_intr_flag = false;
 	u32 ret;
@@ -192,9 +192,15 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int pafstat_set_num_buffers(struct v4l2_subdev *subdev, u32 num_buffers, u32 mipi_speed)
+int pafstat_set_num_buffers(struct v4l2_subdev *subdev, u32 num_buffers, struct fimc_is_sensor_cfg *cfg)
 {
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
+	int ret = 0;
+
+	if (!cfg) {
+		err("sensor cfg is null\n");
+		return -EINVAL;
+	}
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -204,17 +210,22 @@ int pafstat_set_num_buffers(struct v4l2_subdev *subdev, u32 num_buffers, u32 mip
 
 	pafstat->fro_cnt = (num_buffers > 8 ? 7 : num_buffers - 1);
 	pafstat_hw_com_s_fro(pafstat->regs_com, pafstat->fro_cnt);
-	pafstat_hw_s_4ppc(pafstat->regs, mipi_speed);
+	ret = pafstat_hw_s_4ppc(pafstat->regs, cfg->width, cfg->height, cfg->framerate, cfg->mipi_speed,
+		cfg->lanes, "UMUX_CLKCMU_CAM_BUS");
+	if (ret) {
+		err("pafstat ppc setting fail\n");
+		return -EINVAL;
+	}
 
 	info("[PAFSTAT:%d] fro_cnt(%d,%d)\n", pafstat->id, pafstat->fro_cnt, num_buffers);
 
-	return 0;
+	return ret;
 }
 
 int pafstat_hw_set_regs(struct v4l2_subdev *subdev,
-		struct pafstat_setting_t *regs, u32 regs_cnt)
+		struct paf_setting_t *regs, u32 regs_cnt)
 {
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -222,30 +233,32 @@ int pafstat_hw_set_regs(struct v4l2_subdev *subdev,
 		return -ENODEV;
 	}
 
-	memcpy(pafstat->regs_set, regs, regs_cnt * sizeof(struct pafstat_setting_t));
+	memcpy(pafstat->regs_set, regs, regs_cnt * sizeof(struct paf_setting_t));
 	pafstat->regs_max = regs_cnt;
 	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_UNAPPLIED);
 
 	return 0;
 }
 
-u32 pafstat_hw_get_ready(struct v4l2_subdev *subdev)
+int pafstat_hw_get_ready(struct v4l2_subdev *subdev, u32 *ready)
 {
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
 		err("A subdev data of PAFSTAT is null");
-		return 0;
+		return -ENODEV;
 	}
 
-	return (u32)atomic_read(&pafstat->sfr_state);
+	*ready = (u32)atomic_read(&pafstat->sfr_state);
+
+	return 0;
 }
 
 int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 {
 	int ret = 0;
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 	struct fimc_is_device_sensor_peri *sensor_peri = module->private_data;
 	u32 version = 0;
 
@@ -262,8 +275,8 @@ int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 	}
 
 	pafstat = &pafstat_device[pafstat_ch];
-	sensor_peri->paf = pafstat;
-	sensor_peri->subdev_paf = pafstat->subdev;
+	sensor_peri->pafstat = pafstat;
+	sensor_peri->subdev_pafstat = pafstat->subdev;
 	v4l2_set_subdev_hostdata(pafstat->subdev, module);
 
 	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_UNAPPLIED);
@@ -297,7 +310,7 @@ int pafstat_unregister(struct fimc_is_module_enum *module)
 {
 	int ret = 0;
 	struct fimc_is_device_sensor_peri *sensor_peri = module->private_data;
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 	long timetowait;
 
 	if (!test_bit(FIMC_IS_SENSOR_PAFSTAT_AVAILABLE, &sensor_peri->peri_state)) {
@@ -306,15 +319,15 @@ int pafstat_unregister(struct fimc_is_module_enum *module)
 		goto p_err;
 	}
 
-	pafstat = v4l2_get_subdevdata(sensor_peri->subdev_paf);
+	pafstat = v4l2_get_subdevdata(sensor_peri->subdev_pafstat);
 	if (!pafstat) {
 		err("A subdev data of PAFSTAT is null");
 		ret = -ENODEV;
 		goto p_err;
 	}
 
-	sensor_peri->paf = NULL;
-	sensor_peri->subdev_paf = NULL;
+	sensor_peri->pafstat = NULL;
+	sensor_peri->subdev_pafstat = NULL;
 	pafstat_hw_s_enable(pafstat->regs, 0);
 
 	timetowait = wait_event_timeout(pafstat->wait_queue,
@@ -345,7 +358,7 @@ static int pafstat_s_stream(struct v4l2_subdev *subdev, int pd_mode)
 {
 	int irq_state = 0;
 	int enable = 0;
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 	struct fimc_is_device_sensor_peri *sensor_peri;
 	struct fimc_is_module_enum *module;
 	cis_shared_data *cis_data = NULL;
@@ -400,7 +413,7 @@ static int pafstat_s_format(struct v4l2_subdev *subdev,
 {
 	int ret = 0;
 	size_t width, height;
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 	struct fimc_is_module_enum *module;
 	struct fimc_is_device_sensor *sensor = NULL;
 
@@ -447,7 +460,7 @@ p_err:
 int fimc_is_pafstat_reset_recovery(struct v4l2_subdev *subdev, u32 reset_mode, int pd_mode)
 {
 	int ret = 0;
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -485,7 +498,7 @@ static const struct v4l2_subdev_ops subdev_ops = {
 	.pad = &pad_ops
 };
 
-struct fimc_is_paf_ops pafstat_ops = {
+struct fimc_is_pafstat_ops pafstat_ops = {
 	.set_param = pafstat_hw_set_regs,
 	.get_ready = pafstat_hw_get_ready,
 	.set_num_buffers = pafstat_set_num_buffers,
@@ -496,7 +509,7 @@ static int __init pafstat_probe(struct platform_device *pdev)
 	int ret = 0;
 	int id = -1;
 	struct resource *mem_res;
-	struct fimc_is_paf *pafstat;
+	struct fimc_is_pafstat *pafstat;
 	struct device_node *dnode;
 	struct device *dev;
 	u32 reg_cnt = 0;
@@ -581,7 +594,7 @@ static int __init pafstat_probe(struct platform_device *pdev)
 
 	snprintf(pafstat->name, FIMC_IS_STR_LEN, "PAFSTAT%d", pafstat->id);
 	reg_cnt = pafstat_hw_g_reg_cnt();
-	pafstat->regs_set = devm_kzalloc(&pdev->dev, reg_cnt * sizeof(struct pafstat_setting_t), GFP_KERNEL);
+	pafstat->regs_set = devm_kzalloc(&pdev->dev, reg_cnt * sizeof(struct paf_setting_t), GFP_KERNEL);
 	if (!pafstat->regs_set) {
 		probe_err("pafstat->reg_set NULL");
 		ret = -ENOMEM;
@@ -593,7 +606,7 @@ static int __init pafstat_probe(struct platform_device *pdev)
 	v4l2_set_subdevdata(pafstat->subdev, pafstat);
 	snprintf(pafstat->subdev->name, V4L2_SUBDEV_NAME_SIZE, "pafstat-subdev.%d", pafstat->id);
 
-	pafstat->paf_ops = &pafstat_ops;
+	pafstat->pafstat_ops = &pafstat_ops;
 
 	prepare_pafstat_sfr_dump(pafstat);
 	atomic_set(&g_pafstat_rsccount, 0);

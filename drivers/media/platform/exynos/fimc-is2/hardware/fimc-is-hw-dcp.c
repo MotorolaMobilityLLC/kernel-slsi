@@ -75,6 +75,7 @@ static int fimc_is_hw_dcp_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 err_chain_create:
 err_lib_func:
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 err_alloc:
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
@@ -128,7 +129,7 @@ static int fimc_is_hw_dcp_deinit(struct fimc_is_hw_ip *hw_ip, u32 instance)
 	return ret;
 }
 
-int fimc_is_hw_dcp_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
+static int fimc_is_hw_dcp_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 {
 	int ret = 0;
 	struct fimc_is_hw_dcp *hw_dcp;
@@ -143,6 +144,7 @@ int fimc_is_hw_dcp_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 
 	fimc_is_lib_isp_chain_destroy(hw_ip, &hw_dcp->lib[instance], instance);
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
 
@@ -151,7 +153,7 @@ int fimc_is_hw_dcp_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 	return ret;
 }
 
-int fimc_is_hw_dcp_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong hw_map)
+static int fimc_is_hw_dcp_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong hw_map)
 {
 	int ret = 0;
 
@@ -170,7 +172,7 @@ int fimc_is_hw_dcp_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong hw_ma
 	return ret;
 }
 
-int fimc_is_hw_dcp_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong hw_map)
+static int fimc_is_hw_dcp_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong hw_map)
 {
 	int ret = 0;
 	long timetowait;
@@ -264,7 +266,67 @@ static void fimc_is_hw_dcp_check_param(struct dcp_param *param,
 	}
 }
 
-int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
+static void fimc_is_hw_dcp_update_param(struct dcp_param *param,
+	struct dcp_param_set *param_set, u32 lindex, u32 hindex, u32 instance)
+{
+	param_set->instance_id = instance;
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_CONTROL))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_CONTROL))) {
+		memcpy(&param_set->control, &param->control,
+			sizeof(struct param_control));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_INPUT_MASTER))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_INPUT_MASTER))) {
+		memcpy(&param_set->dma_input_m, &param->dma_input_m,
+			sizeof(struct param_dma_input));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_INPUT_SLAVE))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_INPUT_SLAVE))) {
+		memcpy(&param_set->dma_input_s, &param->dma_input_s,
+			sizeof(struct param_dma_input));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_MASTER))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_MASTER))) {
+		memcpy(&param_set->dma_output_m, &param->dma_output_m,
+			sizeof(struct param_dma_output));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_SLAVE))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_SLAVE))) {
+		memcpy(&param_set->dma_output_s, &param->dma_output_s,
+			sizeof(struct param_dma_output));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_MASTER_DS))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_MASTER_DS))) {
+		memcpy(&param_set->dma_output_m_ds, &param->dma_output_m_ds,
+			sizeof(struct param_dma_output));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_SLAVE_DS))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_SLAVE_DS))) {
+		memcpy(&param_set->dma_output_s_ds, &param->dma_output_s_ds,
+			sizeof(struct param_dma_output));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_INPIT_DISPARITY))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_INPIT_DISPARITY))) {
+		memcpy(&param_set->dma_input_disparity, &param->dma_input_disparity,
+			sizeof(struct param_dma_output));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_DISPARITY))
+		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_DISPARITY))) {
+		memcpy(&param_set->dma_output_disparity, &param->dma_output_disparity,
+			sizeof(struct param_dma_output));
+	}
+}
+
+static int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	ulong hw_map)
 {
 	int ret = 0;
@@ -328,7 +390,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 	if (param_set->dma_input_m.cmd == DMA_INPUT_COMMAND_ENABLE) {
 		for (i = 0; i < plane; i++) {
 			param_set->input_dva[DCP_DMA_IN_GDC_MASTER][i] =
-				frame->dvaddr_buffer[i];
+				(typeof(**param_set->input_dva))frame->dvaddr_buffer[i];
 			if (param_set->input_dva[DCP_DMA_IN_GDC_MASTER][i] == 0) {
 				mserr_hw("[F:%d]DCP_DMA_IN_GDC_MASTER plane[%d] dva is zero",
 					frame->instance, hw_ip, frame->fcount, i);
@@ -448,7 +510,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 	return ret;
 }
 
-int fimc_is_hw_dcp_set_param(struct fimc_is_hw_ip *hw_ip, struct is_region *region,
+static int fimc_is_hw_dcp_set_param(struct fimc_is_hw_ip *hw_ip, struct is_region *region,
 	u32 lindex, u32 hindex, u32 instance, ulong hw_map)
 {
 	int ret = 0;
@@ -483,67 +545,7 @@ int fimc_is_hw_dcp_set_param(struct fimc_is_hw_ip *hw_ip, struct is_region *regi
 	return ret;
 }
 
-void fimc_is_hw_dcp_update_param(struct dcp_param *param,
-	struct dcp_param_set *param_set, u32 lindex, u32 hindex, u32 instance)
-{
-	param_set->instance_id = instance;
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_CONTROL))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_CONTROL))) {
-		memcpy(&param_set->control, &param->control,
-			sizeof(struct param_control));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_INPUT_MASTER))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_INPUT_MASTER))) {
-		memcpy(&param_set->dma_input_m, &param->dma_input_m,
-			sizeof(struct param_dma_input));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_INPUT_SLAVE))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_INPUT_SLAVE))) {
-		memcpy(&param_set->dma_input_s, &param->dma_input_s,
-			sizeof(struct param_dma_input));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_MASTER))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_MASTER))) {
-		memcpy(&param_set->dma_output_m, &param->dma_output_m,
-			sizeof(struct param_dma_output));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_SLAVE))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_SLAVE))) {
-		memcpy(&param_set->dma_output_s, &param->dma_output_s,
-			sizeof(struct param_dma_output));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_MASTER_DS))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_MASTER_DS))) {
-		memcpy(&param_set->dma_output_m_ds, &param->dma_output_m_ds,
-			sizeof(struct param_dma_output));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_SLAVE_DS))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_SLAVE_DS))) {
-		memcpy(&param_set->dma_output_s_ds, &param->dma_output_s_ds,
-			sizeof(struct param_dma_output));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_INPIT_DISPARITY))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_INPIT_DISPARITY))) {
-		memcpy(&param_set->dma_input_disparity, &param->dma_input_disparity,
-			sizeof(struct param_dma_output));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_DCP_OUTPUT_DISPARITY))
-		|| (hindex & HIGHBIT_OF(PARAM_DCP_OUTPUT_DISPARITY))) {
-		memcpy(&param_set->dma_output_disparity, &param->dma_output_disparity,
-			sizeof(struct param_dma_output));
-	}
-}
-
-int fimc_is_hw_dcp_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
+static int fimc_is_hw_dcp_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	ulong hw_map)
 {
 	int ret = 0;
@@ -565,7 +567,7 @@ int fimc_is_hw_dcp_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *f
 	return ret;
 }
 
-int fimc_is_hw_dcp_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
+static int fimc_is_hw_dcp_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	u32 instance, enum ShotErrorType done_type)
 {
 	int ret = 0;
@@ -614,7 +616,7 @@ int fimc_is_hw_dcp_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	return ret;
 }
 
-int fimc_is_hw_dcp_load_setfile(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong hw_map)
+static int fimc_is_hw_dcp_load_setfile(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong hw_map)
 {
 	int ret = 0;
 
@@ -631,7 +633,7 @@ int fimc_is_hw_dcp_load_setfile(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong
 	return ret;
 }
 
-int fimc_is_hw_dcp_apply_setfile(struct fimc_is_hw_ip *hw_ip, u32 scenario,
+static int fimc_is_hw_dcp_apply_setfile(struct fimc_is_hw_ip *hw_ip, u32 scenario,
 	u32 instance, ulong hw_map)
 {
 	u32 setfile_index = 0;
@@ -666,7 +668,7 @@ int fimc_is_hw_dcp_apply_setfile(struct fimc_is_hw_ip *hw_ip, u32 scenario,
 	return ret;
 }
 
-int fimc_is_hw_dcp_delete_setfile(struct fimc_is_hw_ip *hw_ip, u32 instance,
+static int fimc_is_hw_dcp_delete_setfile(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	ulong hw_map)
 {
 	int ret = 0;
@@ -687,7 +689,7 @@ int fimc_is_hw_dcp_delete_setfile(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	return ret;
 }
 
-void fimc_is_hw_dcp_size_dump(struct fimc_is_hw_ip *hw_ip)
+static void fimc_is_hw_dcp_size_dump(struct fimc_is_hw_ip *hw_ip)
 {
 	return;
 }

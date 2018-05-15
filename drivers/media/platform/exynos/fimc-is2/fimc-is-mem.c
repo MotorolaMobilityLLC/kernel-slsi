@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-buf-container.h>
 #include <linux/ion_exynos.h>
 #include <asm/cacheflush.h>
 
@@ -46,82 +47,219 @@
 
 #if defined(CONFIG_VIDEOBUF2_DMA_SG)
 /* fimc-is vb2 buffer operations */
-static inline ulong fimc_is_vb2_ion_plane_kvaddr(
+static inline ulong is_vb2_dma_sg_plane_kvaddr(
 		struct fimc_is_vb2_buf *vbuf, u32 plane)
 
 {
 	return (ulong)vb2_plane_vaddr(&vbuf->vb.vb2_buf, plane);
 }
 
-static dma_addr_t fimc_is_vb2_ion_plane_dvaddr(
+static inline dma_addr_t is_vb2_dma_sg_plane_dvaddr(
 		struct fimc_is_vb2_buf *vbuf, u32 plane)
 
 {
-	return (ulong)vb2_dma_sg_plane_dma_addr(&vbuf->vb.vb2_buf, plane);
+	return vb2_dma_sg_plane_dma_addr(&vbuf->vb.vb2_buf, plane);
 }
 
-static dma_addr_t fimc_is_bufcon_map(struct fimc_is_vb2_buf *vbuf,
-	struct device *dev,
-	int idx,
-	struct dma_buf *dmabuf)
+#ifdef CONFIG_DMA_BUF_CONTAINER
+static long is_dbufcon_prepare(struct fimc_is_vb2_buf *vbuf,
+		u32 num_planes, struct device *dev)
 {
-	int ret = 0;
+	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
+	struct dma_buf *dbufcon;
+	int count;
+	int p, b, i;
+	long ret;
 
-	vbuf->bufs[idx] = dmabuf;
+	for (p = 0; p < num_planes; p++) {
+		dbufcon = dma_buf_get(vb->planes[p].m.fd);
+		if (IS_ERR_OR_NULL(dbufcon)) {
+			err("failed to get dmabuf of fd: %d, plane: %d",
+				vb->planes[p].m.fd, p);
+			ret = -EINVAL;
+			goto err_get_dbufcon;
+		}
 
-	vbuf->attachment[idx] = dma_buf_attach(dmabuf, dev);
-	if (IS_ERR(vbuf->attachment[idx])) {
-		ret = PTR_ERR(vbuf->attachment[idx]);
-		pr_err("%s: Failed to dma_buf_attach %d\n", __func__, idx);
-		goto err_attach;
+		count = dmabuf_container_get_count(dbufcon);
+		if (count < 0) {
+			ret = 0;
+			goto err_get_count;
+		} else if (count == 0) {
+			err("empty dmabuf-container of fd: %d", vb->planes[p].m.fd);
+			ret = -EINVAL;
+			goto err_empty_dbufcon;
+		}
+
+		/* FIMC_IS_MAX_PLANES includes a meta-plane */
+		if ((count * num_planes) >= FIMC_IS_MAX_PLANES) {
+			err("out of range plane. count: %d, planes: %d >= supported: %d",
+					count, num_planes, FIMC_IS_MAX_PLANES);
+			ret = -EINVAL;
+			goto err_too_many_planes;
+
+		}
+
+		/* change the order of each plane by the order of buffer */
+		for (b = 0, i = p; b < count; b++, i = (b * num_planes) + p) {
+			vbuf->dbuf[i] = dmabuf_container_get_buffer(dbufcon, b);
+			if (IS_ERR_OR_NULL(vbuf->dbuf[i])) {
+				err("failed to get dmabuf-container's dmabuf: %d", b);
+				ret = -EINVAL;
+				goto err_get_dbuf;
+			}
+
+			vbuf->atch[i] = dma_buf_attach(vbuf->dbuf[i], dev);
+			if (IS_ERR(vbuf->atch[i])) {
+				err("failed to attach dmabuf: %d", b);
+				ret = PTR_ERR(vbuf->atch[i]);
+				goto err_attach_dbuf;
+			}
+
+			vbuf->sgt[i] = dma_buf_map_attachment(vbuf->atch[i],
+							DMA_BIDIRECTIONAL);
+			if (IS_ERR(vbuf->sgt[i])) {
+				err("failed to get dmabuf's sgt: %d", b);
+				ret = PTR_ERR(vbuf->sgt[i]);
+				goto err_get_sgt;
+			}
+		}
+
+		dma_buf_put(dbufcon);
 	}
 
-	vbuf->sgt[idx] = dma_buf_map_attachment(vbuf->attachment[idx], DMA_BIDIRECTIONAL);
-	if (IS_ERR(vbuf->sgt[idx])) {
-		ret = PTR_ERR(vbuf->sgt[idx]);
-		pr_err("%s: Failed to dma_buf_map_attachment %d\n", __func__, idx);
-		goto err_map_dmabuf;
+	vbuf->num_merged_dbufs = count * num_planes;
+
+	return 0;
+
+err_get_sgt:
+	dma_buf_detach(vbuf->dbuf[i], vbuf->atch[i]);
+	vbuf->sgt[i] = NULL;
+
+err_attach_dbuf:
+	dma_buf_put(vbuf->dbuf[i]);
+	vbuf->atch[i] = NULL;
+	vbuf->dbuf[i] = NULL;
+
+err_get_dbuf:
+	while (b-- > 0) {
+		i = (b * num_planes) + p;
+		dma_buf_unmap_attachment(vbuf->atch[i], vbuf->sgt[i],
+				DMA_BIDIRECTIONAL);
+		dma_buf_detach(vbuf->dbuf[i], vbuf->atch[i]);
+		dma_buf_put(vbuf->dbuf[i]);
+		vbuf->sgt[i] = NULL;
+		vbuf->atch[i] = NULL;
+		vbuf->dbuf[i] = NULL;
 	}
 
-	vbuf->dva[idx] = ion_iovmm_map(vbuf->attachment[idx], 0, 0, DMA_BIDIRECTIONAL, 0);
-	if (IS_ERR_VALUE(vbuf->dva[idx])) {
-		pr_err("%s: Failed to ion_iovmm_map %d\n", __func__, idx);
-		ret = -ENOMEM;
-		goto err_ion_map_io;
+err_too_many_planes:
+err_empty_dbufcon:
+err_get_count:
+	dma_buf_put(dbufcon);
+
+err_get_dbufcon:
+	vbuf->num_merged_dbufs = 0;
+
+	while (p-- > 0) {
+		dbufcon = dma_buf_get(vb->planes[p].m.fd);
+		count = dmabuf_container_get_count(dbufcon);
+		dma_buf_put(dbufcon);
+
+		for (b = 0, i = p; b < count; b++, i = (b * num_planes) + p) {
+			dma_buf_unmap_attachment(vbuf->atch[i], vbuf->sgt[i],
+					DMA_BIDIRECTIONAL);
+			dma_buf_detach(vbuf->dbuf[i], vbuf->atch[i]);
+			dma_buf_put(vbuf->dbuf[i]);
+			vbuf->sgt[i] = NULL;
+			vbuf->atch[i] = NULL;
+			vbuf->dbuf[i] = NULL;
+		}
 	}
 
-	return vbuf->dva[idx];
+	return ret;
+}
 
-err_ion_map_io:
-	dma_buf_unmap_attachment(vbuf->attachment[idx], vbuf->sgt[idx], DMA_BIDIRECTIONAL);
-err_map_dmabuf:
-	dma_buf_detach(dmabuf, vbuf->attachment[idx]);
-err_attach:
-	vbuf->bufs[idx] = NULL;
+static void is_dbufcon_finish(struct fimc_is_vb2_buf *vbuf)
+{
+	int i;
 
+	for (i = 0; i < vbuf->num_merged_dbufs; i++) {
+		dma_buf_unmap_attachment(vbuf->atch[i], vbuf->sgt[i],
+				DMA_BIDIRECTIONAL);
+		dma_buf_detach(vbuf->dbuf[i], vbuf->atch[i]);
+		dma_buf_put(vbuf->dbuf[i]);
+		vbuf->sgt[i] = NULL;
+		vbuf->atch[i] = NULL;
+		vbuf->dbuf[i] = NULL;
+	}
+
+	vbuf->num_merged_dbufs = 0;
+}
+
+static long is_dbufcon_map(struct fimc_is_vb2_buf *vbuf)
+{
+	int i;
+	long ret;
+
+	for (i = 0; i < vbuf->num_merged_dbufs; i++) {
+		vbuf->dva[i] = ion_iovmm_map(vbuf->atch[i], 0, 0,
+				DMA_BIDIRECTIONAL, 0);
+		if (IS_ERR_VALUE(vbuf->dva[i])) {
+			err("failed to map dmabuf: %d", i);
+			ret = vbuf->dva[i];
+			goto err_map_dbuf;
+		}
+	}
+
+	return 0;
+
+err_map_dbuf:
+	vbuf->dva[i] = 0;
+
+	while (i-- > 0) {
+		ion_iovmm_unmap(vbuf->atch[i], vbuf->dva[i]);
+		vbuf->dva[i] = 0;
+	}
+
+	return ret;
+}
+
+static void is_dbufcon_unmap(struct fimc_is_vb2_buf *vbuf)
+{
+	int i;
+
+	for (i = 0; i < vbuf->num_merged_dbufs; i++) {
+		ion_iovmm_unmap(vbuf->atch[i], vbuf->dva[i]);
+		vbuf->dva[i] = 0;
+	}
+}
+#else
+static long is_dbufcon_prepare(struct fimc_is_vb2_buf *vbuf,
+		u32 num_planes, struct device *dev)
+{
+	return 0;
+}
+static void is_dbufcon_finish(struct fimc_is_vb2_buf *vbuf)
+{
+}
+
+static long is_dbufcon_map(struct fimc_is_vb2_buf *vbuf)
+{
 	return 0;
 }
 
-static void fimc_is_bufcon_unmap(struct fimc_is_vb2_buf *vbuf,
-	int idx)
+static void is_dbufcon_unmap(struct fimc_is_vb2_buf *vbuf)
 {
-	if (!vbuf->bufs[idx])
-		return;
-
-	ion_iovmm_unmap(vbuf->attachment[idx], vbuf->dva[idx]);
-	vbuf->dva[idx] = 0;
-
-	dma_buf_unmap_attachment(vbuf->attachment[idx], vbuf->sgt[idx], DMA_BIDIRECTIONAL);
-	dma_buf_detach(vbuf->bufs[idx], vbuf->attachment[idx]);
-
-	vbuf->bufs[idx] = NULL;
 }
+#endif
 
-const struct fimc_is_vb2_buf_ops fimc_is_vb2_buf_ops_ion = {
-	.plane_kvaddr	= fimc_is_vb2_ion_plane_kvaddr,
-	.plane_dvaddr	= fimc_is_vb2_ion_plane_dvaddr,
-	.bufcon_map	= fimc_is_bufcon_map,
-	.bufcon_unmap	= fimc_is_bufcon_unmap,
+const struct fimc_is_vb2_buf_ops is_vb2_buf_ops_dma_sg = {
+	.plane_kvaddr		= is_vb2_dma_sg_plane_kvaddr,
+	.plane_dvaddr		= is_vb2_dma_sg_plane_dvaddr,
+	.dbufcon_prepare	= is_dbufcon_prepare,
+	.dbufcon_finish		= is_dbufcon_finish,
+	.dbufcon_map		= is_dbufcon_map,
+	.dbufcon_unmap		= is_dbufcon_unmap,
 };
 
 /* fimc-is private buffer operations */
@@ -369,6 +507,7 @@ static phys_addr_t fimc_is_km_phaddr(struct fimc_is_priv_buf *pbuf)
 
 	return pa;
 }
+
 const struct fimc_is_priv_buf_ops fimc_is_priv_buf_ops_km = {
 	.free			= fimc_is_km_free,
 	.kvaddr			= fimc_is_km_kvaddr,
@@ -407,7 +546,7 @@ int fimc_is_mem_init(struct fimc_is_mem *mem, struct platform_device *pdev)
 #if defined(CONFIG_VIDEOBUF2_DMA_SG)
 	mem->fimc_is_mem_ops = &fimc_is_mem_ops_ion;
 	mem->vb2_mem_ops = &vb2_dma_sg_memops;
-	mem->fimc_is_vb2_buf_ops = &fimc_is_vb2_buf_ops_ion;
+	mem->fimc_is_vb2_buf_ops = &is_vb2_buf_ops_dma_sg;
 	mem->kmalloc = &fimc_is_kmalloc;
 #endif
 
