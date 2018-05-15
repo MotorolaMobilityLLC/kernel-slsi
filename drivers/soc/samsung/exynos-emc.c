@@ -514,16 +514,20 @@ static void emc_request_mode_change(struct emc_mode *target_mode)
 
 static void emc_irq_work(struct irq_work *irq_work)
 {
+	/*
+	 * If req_mode is changed before mode change latency,
+	 * cancel requesting mode change
+	 */
 	if (hrtimer_active(&emc.timer))
 		hrtimer_cancel(&emc.timer);
 
-	/*
-	 * In order to change state, same mode should be remained
-	 * at least chamge_ms time
-	 */
+	/* if req_mode and cur_mode is same, skip the mode change */
+	if (emc.req_mode == emc.cur_mode)
+		return;
+
 	trace_emc_start_timer(emc.req_mode->name, emc.req_mode->change_latency);
 
-	/* It tries to change mode only if it keeps same mode as change_latency */
+	/* emc change applying req_mode after keeps same mode as change_latency */
 	hrtimer_start(&emc.timer,
 		ms_to_ktime(emc.req_mode->change_latency),
 		HRTIMER_MODE_REL);
