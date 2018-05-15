@@ -52,12 +52,15 @@ enum exynos_sensor_position {
 	SENSOR_POSITION_REAR	= SP_REAR,
 	SENSOR_POSITION_FRONT	= SP_FRONT,
 	SENSOR_POSITION_REAR2	= SP_REAR2,
-	SENSOR_POSITION_SECURE	= SP_SECURE,
 	SENSOR_POSITION_FRONT2	= SP_FRONT2,
 	SENSOR_POSITION_REAR3	= SP_REAR3,
-#ifdef CONFIG_VENDER_PSV
+	SENSOR_POSITION_FRONT3	= SP_FRONT3,
+	SENSOR_POSITION_REAR4	= SP_REAR4,
+	SENSOR_POSITION_FRONT4	= SP_FRONT4,
+	SENSOR_POSITION_REAR_TOF	= SP_REAR_TOF,
+	SENSOR_POSITION_FRONT_TOF	= SP_FRONT_TOF,
+	SENSOR_POSITION_SECURE	= SP_SECURE,
 	SENSOR_POSITION_VIRTUAL	= SP_VIRTUAL,
-#endif
 	SENSOR_POSITION_END
 };
 
@@ -100,6 +103,11 @@ enum exynos_sensor_id {
 	SENSOR_NAME_S5K4H5YC_FF		 = 34,
 	SENSOR_NAME_S5K2L7		 = 35,
 	SENSOR_NAME_SAK2L3		 = 36,
+	SENSOR_NAME_SAK2L4		 = 37,
+	SENSOR_NAME_S5K3J1		 = 38,
+	SENSOR_NAME_S5K4HA               = 39,
+	SENSOR_NAME_S5K5E9		 = 41,
+	SENSOR_NAME_S5K3P9				 = 40,
 	SENSOR_NAME_S5K3P8SP		 = 44,
 	SENSOR_NAME_S5K2P7SX		 = 45,
 	SENSOR_NAME_S5KRPB		 = 46,
@@ -123,6 +131,7 @@ enum exynos_sensor_id {
 	SENSOR_NAME_IMX333		 = 112,
 	SENSOR_NAME_IMX241		 = 113,
 	SENSOR_NAME_IMX345		 = 114,
+	SENSOR_NAME_IMX576		 = 115,
 
 	/* 201~255: Other vendor sensors */
 	SENSOR_NAME_SR261		 = 201,
@@ -167,6 +176,8 @@ enum actuator_name {
 	ACTUATOR_NAME_AK737X = 18,
 	ACTUATOR_NAME_DW9780	= 19,
 	ACTUATOR_NAME_LC898217	= 20,
+	ACTUATOR_NAME_ZC569 = 21,
+	ACTUATOR_NAME_DW9823	= 22,
 	ACTUATOR_NAME_END,
 	ACTUATOR_NAME_NOTHING	= 100,
 };
@@ -209,6 +220,12 @@ enum ois_name {
 	OIS_NAME_RUMBA_S6	= 2,
 	OIS_NAME_END,
 	OIS_NAME_NOTHING	= 100,
+};
+
+enum mcu_name {
+	MCU_NAME_STM32	= 1,
+	MCU_NAME_END,
+	MCU_NAME_NOTHING	= 100,
 };
 
 enum aperture_name {
@@ -299,12 +316,13 @@ struct sensor_open_extended {
 	struct sensor_protocol2 preprocessor_con;
 	struct sensor_protocol1 ois_con;
 	struct sensor_protocol1 aperture_con;
+	struct sensor_protocol1 mcu_con;
 	u32 mclk;
 	u32 mipi_lane_num;
 	u32 mipi_speed;
 	/* Use sensor retention mode */
 	u32 use_retention_mode;
-	struct sensor_protocol1 reserved[4];
+	struct sensor_protocol1 reserved[3];
 };
 
 struct exynos_platform_fimc_is_sensor {
@@ -324,6 +342,7 @@ struct exynos_platform_fimc_is_sensor {
 	u32 flite_ch;
 	u32 is_bns;
 	unsigned long internal_state;
+	u32 csi_mux;
 };
 
 int exynos_fimc_is_sensor_iclk_cfg(struct device *dev,

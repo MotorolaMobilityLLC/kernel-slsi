@@ -390,38 +390,6 @@ p_err:
 	return ret;
 }
 
-int fimc_is_gframe_cancel(struct fimc_is_groupmgr *groupmgr,
-	struct fimc_is_group *group, u32 target_fcount)
-{
-	int ret = -EINVAL;
-	struct fimc_is_group_framemgr *gframemgr;
-	struct fimc_is_group_frame *gframe, *temp;
-	ulong flags;
-
-	FIMC_BUG(!groupmgr);
-	FIMC_BUG(!group);
-	FIMC_BUG(group->instance >= FIMC_IS_STREAM_COUNT);
-
-	gframemgr = &groupmgr->gframemgr[group->instance];
-
-	spin_lock_irqsave(&gframemgr->gframe_slock, flags);
-
-	list_for_each_entry_safe(gframe, temp, &group->gframe_head, list) {
-		if (gframe->fcount == target_fcount) {
-			list_del(&gframe->list);
-			group->gframe_cnt--;
-			mwarn("gframe%d is cancelled", group, target_fcount);
-			fimc_is_gframe_s_free(gframemgr, gframe);
-			ret = 0;
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(&gframemgr->gframe_slock, flags);
-
-	return ret;
-}
-
 void * fimc_is_gframe_rewind(struct fimc_is_groupmgr *groupmgr,
 	struct fimc_is_group *group, u32 target_fcount)
 {
@@ -778,19 +746,19 @@ static void fimc_is_group_debug_aa_done(struct fimc_is_group *group,
 		return;
 
 #ifdef DEBUG_FLASH
-	if (ldr_frame->shot->dm.flash.firingStable != group->flash.firingStable) {
-		group->flash.firingStable = ldr_frame->shot->dm.flash.firingStable;
-		info("flash stable : %d(%d)\n", group->flash.firingStable, ldr_frame->fcount);
+	if (ldr_frame->shot->dm.flash.vendor_firingStable != group->flash.vendor_firingStable) {
+		group->flash.vendor_firingStable = ldr_frame->shot->dm.flash.vendor_firingStable;
+		info("flash stable : %d(%d)\n", group->flash.vendor_firingStable, ldr_frame->fcount);
 	}
 
-	if (ldr_frame->shot->dm.flash.flashReady!= group->flash.flashReady) {
-		group->flash.flashReady = ldr_frame->shot->dm.flash.flashReady;
-		info("flash ready : %d(%d)\n", group->flash.flashReady, ldr_frame->fcount);
+	if (ldr_frame->shot->dm.flash.vendor_flashReady!= group->flash.vendor_flashReady) {
+		group->flash.vendor_flashReady = ldr_frame->shot->dm.flash.vendor_flashReady;
+		info("flash ready : %d(%d)\n", group->flash.vendor_flashReady, ldr_frame->fcount);
 	}
 
-	if (ldr_frame->shot->dm.flash.flashOffReady!= group->flash.flashOffReady) {
-		group->flash.flashOffReady = ldr_frame->shot->dm.flash.flashOffReady;
-		info("flash off : %d(%d)\n", group->flash.flashOffReady, ldr_frame->fcount);
+	if (ldr_frame->shot->dm.flash.vendor_flashOffReady!= group->flash.vendor_flashOffReady) {
+		group->flash.vendor_flashOffReady = ldr_frame->shot->dm.flash.vendor_flashOffReady;
+		info("flash off : %d(%d)\n", group->flash.vendor_flashOffReady, ldr_frame->fcount);
 	}
 #endif
 }
@@ -2014,7 +1982,7 @@ static void set_group_shots(struct fimc_is_group *group,
 		group->skip_shots = group->asyn_shots;
 	}
 #else
-	if (ex_mode == EX_DUALFPS || framerate > 240) {
+	if (ex_mode == EX_DUALFPS_960 || ex_mode == EX_DUALFPS_480 || framerate > 240) {
 		group->asyn_shots = MIN_OF_ASYNC_SHOTS + 1;
 		group->sync_shots = MIN_OF_SYNC_SHOTS;
 	} else {
@@ -2170,7 +2138,10 @@ void wait_subdev_flush_work(struct fimc_is_device_ischain *device,
 		wq_id = (group->id == GROUP_ID_ISP0) ? WORK_I0P_FDONE: WORK_I1P_FDONE;
 		break;
 	case ENTRY_MEXC:
-		wq_id = WORK_ME0C_FDONE;
+		if (group->id == GROUP_ID_3AA0 || group->id == GROUP_ID_ISP0)
+			wq_id = WORK_ME0C_FDONE;
+		else
+			wq_id = WORK_ME1C_FDONE;
 		break;
 	case ENTRY_DC1S:
 		wq_id = WORK_DC1S_FDONE;
@@ -2263,7 +2234,7 @@ int fimc_is_group_stop(struct fimc_is_groupmgr *groupmgr,
 	if (!test_bit(FIMC_IS_GROUP_START, &group->state) &&
 		!test_bit(FIMC_IS_GROUP_START, &group->head->state)) {
 		mwarn("already group stop", group);
-		goto p_err;
+		return -EPERM;
 	}
 
 	/* force stop set if only HEAD group OTF input */

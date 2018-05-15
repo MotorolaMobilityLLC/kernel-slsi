@@ -64,6 +64,7 @@ enum taaisp_chain_id {
 	ID_TPU_0 = 4,
 	ID_TPU_1 = 5,
 	ID_DCP	 = 6,
+	ID_VPP	 = 7,	/* ID_3AA_2 */
 	ID_3AAISP_MAX
 };
 
@@ -101,6 +102,11 @@ enum hwip_interrupt_map {
 #define MCSC_DNR_USE_INTERNAL_BUF	(true)
 #define MCSC_DNR_OUTPUT_INDEX		(0)
 #define MCSC_DNR_USE_TUNING		(true)
+#define MCSC_SETFILE_VERSION		(0x14027431)
+#define MCSC_DJAG_IN_VIDEO_MODE		(DEV_HW_MCSC0)
+#define MCSC_DJAG_IN_CAPTURE_MODE	(DEV_HW_MCSC1)
+#define MCSC_CAC_IN_VIDEO_MODE		(DEV_HW_MCSC0)
+#define MCSC_CAC_IN_CAPTURE_MODE	(DEV_HW_MCSC1)
 
 enum mc_scaler_interrupt_map {
 	INTR_MC_SCALER_FRAME_END		= 0,

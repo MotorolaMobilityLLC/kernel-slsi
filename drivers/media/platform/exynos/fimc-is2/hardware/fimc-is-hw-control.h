@@ -73,19 +73,20 @@ enum v_enum {
 enum fimc_is_hardware_id {
 	DEV_HW_3AA0	= 1,
 	DEV_HW_3AA1,
+	DEV_HW_VPP,	/* 3AA2 */
 	DEV_HW_ISP0,
 	DEV_HW_ISP1,
-	DEV_HW_DRC,	/* = 5 */
+	DEV_HW_DRC,
 	DEV_HW_SCC,
 	DEV_HW_DIS,
 	DEV_HW_3DNR,
 	DEV_HW_TPU0,
-	DEV_HW_TPU1,	/* = 10 */
+	DEV_HW_TPU1,
 	DEV_HW_SCP,
 	DEV_HW_MCSC0,
 	DEV_HW_MCSC1,
 	DEV_HW_FD,
-	DEV_HW_VRA,	/* = 15 */
+	DEV_HW_VRA,
 	DEV_HW_DCP,
 	DEV_HW_PAF0,	/* PAF RDMA */
 	DEV_HW_PAF1,
@@ -321,6 +322,9 @@ struct fimc_is_hw_ip {
 	struct kthread_worker			mshot_worker;
 	struct kthread_work 			mshot_work;
 #endif
+
+	/* currently used for subblock inside MCSC */
+	u32					subblk_ctrl;
 };
 
 #define CALL_HW_OPS(hw, op, args...)	\

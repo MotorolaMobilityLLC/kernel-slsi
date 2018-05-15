@@ -533,6 +533,7 @@ void fimc_is_sensor_setting_mode_change(struct fimc_is_device_sensor_peri *senso
 void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 {
 	int ret = 0;
+	u32 frame_duration = 0;
 	struct fimc_is_flash *flash;
 	struct fimc_is_flash_data *flash_data;
 	struct fimc_is_device_sensor *device;
@@ -593,6 +594,10 @@ void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 	step = flash->flash_ae.main_fls_strm_on_off_step;
 
 	if (sensor_peri->sensor_interface.cis_mode == ITF_CIS_SMIA) {
+		CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis,
+		    flash->flash_ae.expo[step], &frame_duration);
+		fimc_is_sensor_peri_s_frame_duration(device, frame_duration);
+
 		fimc_is_sensor_peri_s_analog_gain(device, flash->flash_ae.again[step], flash->flash_ae.again[step]);
 		fimc_is_sensor_peri_s_digital_gain(device, flash->flash_ae.dgain[step], flash->flash_ae.dgain[step]);
 		fimc_is_sensor_peri_s_exposure_time(device, flash->flash_ae.expo[step], flash->flash_ae.expo[step]);
@@ -613,6 +618,10 @@ void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 			flash->flash_ae.again[step], flash->flash_ae.again[step],
 			flash->flash_ae.dgain[step], flash->flash_ae.dgain[step]);
 	} else {
+		CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis,
+			MAX(flash->flash_ae.long_expo[step], flash->flash_ae.short_expo[step]), &frame_duration);
+		fimc_is_sensor_peri_s_frame_duration(device, frame_duration);
+
 		fimc_is_sensor_peri_s_analog_gain(device, flash->flash_ae.long_again[step], flash->flash_ae.short_again[step]);
 		fimc_is_sensor_peri_s_digital_gain(device, flash->flash_ae.long_dgain[step], flash->flash_ae.short_dgain[step]);
 		fimc_is_sensor_peri_s_exposure_time(device, flash->flash_ae.long_expo[step], flash->flash_ae.short_expo[step]);
@@ -773,51 +782,57 @@ void fimc_is_sensor_flash_expire_work(struct work_struct *data)
 	}
 }
 
-void fimc_is_sensor_aperture_set_start_work_step1(struct work_struct *data)
+void fimc_is_sensor_ois_set_init_work(struct work_struct *data)
 {
 	int ret = 0;
-	struct fimc_is_aperture *aperture;
+	struct fimc_is_ois *ois;
 	struct fimc_is_device_sensor_peri *sensor_peri;
 
 	WARN_ON(!data);
 
-	aperture = container_of(data, struct fimc_is_aperture, aperture_set_start_work_step1);
-	WARN_ON(!aperture);
+	ois = container_of(data, struct fimc_is_ois, ois_set_init_work);
+	WARN_ON(!ois);
 
-	sensor_peri = aperture->sensor_peri;
+	sensor_peri = ois->sensor_peri;
 
-	if (sensor_peri->subdev_ois) {
-		ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois,
-			OPTICAL_STABILIZATION_MODE_CENTERING);
-		if (ret < 0)
-			err("v4l2_subdev_call(ois_set_mode) is fail(%d)", ret);
-	}
-	usleep_range(10000, 11000);
-
-	ret = CALL_APERTUREOPS(sensor_peri->aperture, set_aperture_start_value_step1, sensor_peri->subdev_aperture,
-		sensor_peri->aperture->start_value);
+	ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois,
+		OPTICAL_STABILIZATION_MODE_CENTERING);
 	if (ret < 0)
-		err("[%s] aperture set fail\n", __func__);
-	usleep_range(10000, 11000);
+		err("v4l2_subdev_call(ois_set_mode) is fail(%d)", ret);
+
+	msleep(40);
+
+	ois->initial_centering_mode = true;
 }
 
-void fimc_is_sensor_aperture_set_start_work_step2(struct work_struct *data)
+void fimc_is_sensor_aperture_set_start_work(struct work_struct *data)
 {
 	int ret = 0;
 	struct fimc_is_aperture *aperture;
 	struct fimc_is_device_sensor_peri *sensor_peri;
+	struct fimc_is_device_sensor *device;
+	struct fimc_is_core *core;
 
 	WARN_ON(!data);
 
-	aperture = container_of(data, struct fimc_is_aperture, aperture_set_start_work_step2);
+	aperture = container_of(data, struct fimc_is_aperture, aperture_set_start_work);
 	WARN_ON(!aperture);
 
 	sensor_peri = aperture->sensor_peri;
 
-	ret = CALL_APERTUREOPS(sensor_peri->aperture, set_aperture_start_value_step2, sensor_peri->subdev_aperture,
-		sensor_peri->aperture->start_value);
+	device = v4l2_get_subdev_hostdata(sensor_peri->subdev_mcu);
+	WARN_ON(!device);
+
+	core = (struct fimc_is_core *)device->private_data;
+
+	mutex_lock(&core->ois_mode_lock);
+
+	ret = CALL_APERTUREOPS(sensor_peri->mcu->aperture, set_aperture_value, sensor_peri->subdev_mcu,
+		sensor_peri->mcu->aperture->start_value);
 	if (ret < 0)
 		err("[%s] aperture set fail\n", __func__);
+
+	mutex_unlock(&core->ois_mode_lock);
 }
 
 void fimc_is_sensor_aperture_set_work(struct work_struct *data)
@@ -836,14 +851,17 @@ void fimc_is_sensor_aperture_set_work(struct work_struct *data)
 	sensor_peri = aperture->sensor_peri;
 	WARN_ON(!sensor_peri->subdev_cis);
 
-	device = v4l2_get_subdev_hostdata(sensor_peri->subdev_cis);
+	device = v4l2_get_subdev_hostdata(sensor_peri->subdev_mcu);
 	WARN_ON(!device);
 
-	mutex_lock(&aperture->control_lock);
+	info("[%s] start\n", __func__);
+
+	//mutex_lock(&aperture->control_lock);
 
 	if (device->sstream)
 		need_stream_off = true;
 
+#if 0 // need to check
 	/* Sensor stream off */
 	if (need_stream_off) {
 		mutex_lock(&sensor_peri->cis.control_lock);
@@ -856,38 +874,25 @@ void fimc_is_sensor_aperture_set_work(struct work_struct *data)
 			err("[%s] wait stream off fail\n", __func__);
 		mutex_unlock(&sensor_peri->cis.control_lock);
 	}
-
-	if (sensor_peri->subdev_ois) {
-		ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois,
-			OPTICAL_STABILIZATION_MODE_CENTERING);
-		if (ret < 0)
-			err("v4l2_subdev_call(ois_set_mode) is fail(%d)", ret);
-	}
-	usleep_range(10000, 11000);
-
-	ret = CALL_APERTUREOPS(sensor_peri->aperture, set_aperture_value, sensor_peri->subdev_aperture,
-		sensor_peri->aperture->new_value);
+#endif
+	ret = CALL_APERTUREOPS(sensor_peri->mcu->aperture, set_aperture_value, sensor_peri->subdev_mcu,
+		sensor_peri->mcu->aperture->new_value);
 	if (ret < 0)
 		err("[%s] aperture set fail\n", __func__);
 
-	if (sensor_peri->subdev_ois) {
-		ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois, sensor_peri->ois->ois_mode);
-		if (ret < 0)
-			err("v4l2_subdev_call(ois_mode_change, mode:%d) is fail(%d)", sensor_peri->ois->ois_mode, ret);
-	}
-
-	msleep(30);
-
+#if 0 // need to check
 	/* Sensor stream on */
-	if (need_stream_off) {
+	if (need_stream_off && device->sstream) {
 		mutex_lock(&sensor_peri->cis.control_lock);
 		ret = CALL_CISOPS(&sensor_peri->cis, cis_stream_on, sensor_peri->subdev_cis);
 		if (ret < 0)
-			err("[%s] stream off fail\n", __func__);
+			err("[%s] stream on fail\n", __func__);
 		mutex_unlock(&sensor_peri->cis.control_lock);
 	}
+#endif
+	//mutex_unlock(&aperture->control_lock);
 
-	mutex_unlock(&aperture->control_lock);
+	info("[%s] end\n", __func__);
 }
 
 int fimc_is_sensor_flash_fire(struct fimc_is_device_sensor_peri *device,
@@ -1453,10 +1458,9 @@ void fimc_is_sensor_peri_init_work(struct fimc_is_device_sensor_peri *sensor_per
 	/* Init to LTE mode work */
 	INIT_WORK(&sensor_peri->cis.long_term_mode_work, fimc_is_sensor_long_term_mode_set_work);
 
-	if (sensor_peri->aperture) {
-		INIT_WORK(&sensor_peri->aperture->aperture_set_start_work_step1, fimc_is_sensor_aperture_set_start_work_step1);
-		INIT_WORK(&sensor_peri->aperture->aperture_set_start_work_step2, fimc_is_sensor_aperture_set_start_work_step2);
-		INIT_WORK(&sensor_peri->aperture->aperture_set_work, fimc_is_sensor_aperture_set_work);
+	if (sensor_peri->mcu && sensor_peri->mcu->aperture) {
+		INIT_WORK(&sensor_peri->mcu->aperture->aperture_set_start_work, fimc_is_sensor_aperture_set_start_work);
+		INIT_WORK(&sensor_peri->mcu->aperture->aperture_set_work, fimc_is_sensor_aperture_set_work);
 	}
 }
 
@@ -1516,8 +1520,8 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 	FIMC_BUG(!cis);
 	FIMC_BUG(!cis->cis_data);
 
-	if (sensor_peri->aperture)
-		mutex_lock(&sensor_peri->aperture->control_lock);
+	//if (sensor_peri->aperture)
+		//mutex_lock(&sensor_peri->aperture->control_lock);
 
 	subdev_preprocessor = sensor_peri->subdev_preprocessor;
 	if (subdev_preprocessor) {
@@ -1544,15 +1548,31 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			fimc_is_sensor_ois_start((struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module));
 #endif
 
+		/* For dual camera project to  reduce power consumption of ois */
+#ifndef CONFIG_CAMERA_USE_MCU
+#ifdef CAMERA_REAR2_OIS
+		if (sensor_peri->mcu && sensor_peri->mcu->ois) {
+			ret = CALL_OISOPS(sensor_peri->mcu->ois, ois_set_power_mode, sensor_peri->subdev_mcu);
+			if (ret < 0)
+				err("v4l2_subdev_call(ois_set_power_mode) is fail(%d)", ret);
+		}
+#endif
+#endif
 		/* set aperture as start value */
-		if (sensor_peri->aperture && (sensor_peri->aperture->start_value != sensor_peri->aperture->cur_value)) {
-			schedule_work(&sensor_peri->aperture->aperture_set_start_work_step1);
+		if (sensor_peri->mcu && sensor_peri->mcu->aperture
+			&& (sensor_peri->mcu->aperture->start_value != sensor_peri->mcu->aperture->cur_value)) {
+#ifndef CONFIG_CAMERA_USE_MCU
+			flush_work(&sensor_peri->ois->ois_set_init_work);
+#endif
+			schedule_work(&sensor_peri->mcu->aperture->aperture_set_start_work);
 		} else {
-			if (sensor_peri->subdev_ois) {
-				ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois,
-					sensor_peri->ois->ois_mode);
+			if (sensor_peri->mcu && sensor_peri->mcu->ois) {
+				mutex_lock(&core->ois_mode_lock);
+				ret = CALL_OISOPS(sensor_peri->mcu->ois, ois_set_mode, sensor_peri->subdev_mcu,
+					sensor_peri->mcu->ois->ois_mode);
 				if (ret < 0)
 					err("v4l2_subdev_call(ois_set_mode) is fail(%d)", ret);
+				mutex_unlock(&core->ois_mode_lock);
 			}
 		}
 
@@ -1565,7 +1585,6 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			}
 		}
 #endif
-
 		/* stream on sequence */
 		if (cis->need_mode_change == false && cis->use_initial_ae == false) {
 			/* only first time after camera on */
@@ -1609,9 +1628,11 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			}
 		}
 
-		if (sensor_peri->aperture && (sensor_peri->aperture->start_value != sensor_peri->aperture->cur_value)) {
-			flush_work(&sensor_peri->aperture->aperture_set_start_work_step1);
-			schedule_work(&sensor_peri->aperture->aperture_set_start_work_step2);
+		if (sensor_peri->mcu) {
+			if (sensor_peri->mcu->aperture
+				&& (sensor_peri->mcu->aperture->start_value != sensor_peri->mcu->aperture->cur_value)) {
+				flush_work(&sensor_peri->mcu->aperture->aperture_set_start_work);
+			}
 		}
 
 		ret = CALL_CISOPS(cis, cis_stream_on, subdev_cis);
@@ -1631,17 +1652,14 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			ret = CALL_CISOPS(cis, cis_wait_streamoff, subdev_cis);
 		mutex_unlock(&cis->control_lock);
 
-		/* just for auto dual camera mode to reduce power consumption */
-		if (sensor_peri->aperture)
-			flush_work(&sensor_peri->aperture->aperture_set_start_work_step2);
-
 #ifdef USE_OIS_SLEEP_MODE
 		if (sensor_peri->ois)
 			fimc_is_sensor_ois_stop((struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module));
 #endif
 
 #ifdef USE_AF_SLEEP_MODE
-		if (sensor_peri->actuator && sensor_peri->actuator->actuator_ops) {
+		if (sensor_peri->actuator && sensor_peri->actuator->actuator_ops
+			&& (dual_info->mode != FIMC_IS_DUAL_MODE_NOTHING)) {
 			ret = CALL_ACTUATOROPS(sensor_peri->actuator, set_active, sensor_peri->subdev_actuator, 0);
 			if (ret) {
 				err("[SEN:%d] actuator set sleep fail\n", module->sensor_id);
@@ -1673,6 +1691,8 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 		for (i = 0; i < CAM2P0_UCTL_LIST_SIZE; i++) {
 			memset(&sensor_peri->cis.sensor_ctls[i].cur_cam20_sensor_udctrl, 0, sizeof(camera2_sensor_uctl_t));
 			sensor_peri->cis.sensor_ctls[i].valid_sensor_ctrl = 0;
+			memset(&sensor_peri->cis.sensor_ctls[i].cur_cam20_flash_udctrl, 0, sizeof(camera2_flash_uctl_t));
+			sensor_peri->cis.sensor_ctls[i].valid_flash_udctrl = false;
 		}
 	}
 	if (ret < 0) {
@@ -1687,8 +1707,8 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 #endif
 
 p_err:
-	if (sensor_peri->aperture)
-		mutex_unlock(&sensor_peri->aperture->control_lock);
+	//if (sensor_peri->aperture)
+		//mutex_unlock(&sensor_peri->aperture->control_lock);
 
 	return ret;
 }

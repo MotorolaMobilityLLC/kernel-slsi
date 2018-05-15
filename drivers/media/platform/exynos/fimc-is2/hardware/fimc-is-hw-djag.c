@@ -108,6 +108,11 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 	u32 scale_index = MCSC_DJAG_PRESCALE_INDEX_1, backup_in;
 	enum exynos_sensor_position sensor_position;
 	int output_id = 0;
+#if defined(USE_YUV_RANGE_BY_ISP)
+	u32 yuv = 0;
+#endif
+	u32 white = 1023, black = 0;
+	bool djag_en = true;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!hw_ip->priv_info);
@@ -120,9 +125,13 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 
 	backup_in = hw_mcsc->djag_in;
 	if (hw_ip->hardware->video_mode)
-		hw_mcsc->djag_in = DEV_HW_MCSC0;
+		hw_mcsc->djag_in = MCSC_DJAG_IN_VIDEO_MODE;
 	else
-		hw_mcsc->djag_in = DEV_HW_MCSC1;
+		hw_mcsc->djag_in = MCSC_DJAG_IN_CAPTURE_MODE;
+
+	/* The force means that sysfs control has higher priority than scenario. */
+	fimc_is_hw_mcsc_get_force_block_control(hw_ip, SUBBLK_IP_DJAG, cap->max_djag,
+		&hw_mcsc->djag_in, &djag_en);
 
 	if (backup_in != hw_mcsc->djag_in)
 		sdbg_hw(0, "djag input_source changed %d-> %d\n", hw_ip,
@@ -139,6 +148,12 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 	if (hw_mcsc->djag_in != hw_ip->id)
 		return ret;
 
+	if (djag_en == false) {
+		fimc_is_scaler_set_djag_enable(hw_ip->regs, djag_en);
+		sinfo_hw("DJAG off forcely\n", hw_ip);
+		return ret;
+	}
+
 	sensor_position = hw_ip->hardware->sensor_position[instance];
 	djag_tuneset = &init_djag_cfgs;
 
@@ -152,6 +167,12 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 				out_width = param->output[output_id].width;
 				out_height = param->output[output_id].height;
 			}
+#if defined(USE_YUV_RANGE_BY_ISP)
+			if (yuv != param->output[output_id].yuv_range)
+				sdbg_hw(2, "[OUT:%d] yuv: %s -> %s\n", hw_ip, output_id,
+					yuv ? "N" : "W", param->output[output_id].yuv_range ? "N" : "W");
+			yuv = param->output[output_id].yuv_range;
+#endif
 		}
 	}
 
@@ -204,7 +225,16 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 #endif
 #endif
 	fimc_is_scaler_set_djag_tunning_param(hw_ip->regs, djag_tuneset);
-	fimc_is_scaler_set_djag_wb_thres(hw_ip->regs, djag_wb);
+#if defined(USE_YUV_RANGE_BY_ISP)
+	if (yuv == SCALER_OUTPUT_YUV_RANGE_FULL) {
+		white = 1023;
+		black = 0;
+	} else {
+		white = 940;
+		black = 64;
+	}
+#endif
+	fimc_is_scaler_set_djag_dither_wb(hw_ip->regs, djag_wb, white, black);
 
 	fimc_is_scaler_set_djag_enable(hw_ip->regs, 1);
 

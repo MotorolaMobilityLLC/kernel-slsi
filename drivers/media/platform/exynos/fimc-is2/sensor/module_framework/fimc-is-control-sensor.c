@@ -465,9 +465,11 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 	cis_data = sensor_peri->cis.cis_data;
 	FIMC_BUG_VOID(!cis_data);
 
-	if (sensor_peri->subdev_aperture && sensor_peri->aperture->step == APERTURE_STEP_PREPARE) {
-		sensor_peri->aperture->step = APERTURE_STEP_MOVING;
-		schedule_work(&sensor_peri->aperture->aperture_set_work);
+	if (sensor_peri->mcu && sensor_peri->mcu->aperture) {
+		if (sensor_peri->mcu->aperture->step == APERTURE_STEP_PREPARE) {
+			sensor_peri->mcu->aperture->step = APERTURE_STEP_MOVING;
+			schedule_work(&sensor_peri->mcu->aperture->aperture_set_work);
+		}
 	}
 
 	if ((module_ctl->valid_sensor_ctrl == true) ||
@@ -577,21 +579,19 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 	}
 
 	/* Warning! Aperture mode should be set before setting ois mode */
-	if (!sensor_peri->subdev_aperture || (sensor_peri->aperture->step == APERTURE_STEP_STATIONARY)) {
-		if (sensor_peri->subdev_ois) {
-			ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois, sensor_peri->ois->ois_mode);
-			if (ret < 0) {
-				err("[SEN:%d] v4l2_subdev_call(ois_mode_change, mode:%d) is fail(%d)",
-							module->sensor_id, sensor_peri->ois->ois_mode, ret);
-				goto p_err;
-			}
+	if (sensor_peri->mcu && sensor_peri->mcu->ois) {
+		ret = CALL_OISOPS(sensor_peri->mcu->ois, ois_set_mode, sensor_peri->subdev_mcu, sensor_peri->mcu->ois->ois_mode);
+		if (ret < 0) {
+			err("[SEN:%d] v4l2_subdev_call(ois_mode_change, mode:%d) is fail(%d)",
+				module->sensor_id, sensor_peri->mcu->ois->ois_mode, ret);
+			goto p_err;
+		}
 
-			ret = CALL_OISOPS(sensor_peri->ois, ois_set_coef, sensor_peri->subdev_ois, sensor_peri->ois->coef);
-			if (ret < 0) {
-				err("[SEN:%d] v4l2_subdev_call(ois_set_coef, coef:%d) is fail(%d)",
-							module->sensor_id, sensor_peri->ois->coef, ret);
-				goto p_err;
-			}
+		ret = CALL_OISOPS(sensor_peri->mcu->ois, ois_set_coef, sensor_peri->subdev_mcu, sensor_peri->mcu->ois->coef);
+		if (ret < 0) {
+			err("[SEN:%d] v4l2_subdev_call(ois_set_coef, coef:%d) is fail(%d)",
+				module->sensor_id, sensor_peri->mcu->ois->coef, ret);
+			goto p_err;
 		}
 	}
 

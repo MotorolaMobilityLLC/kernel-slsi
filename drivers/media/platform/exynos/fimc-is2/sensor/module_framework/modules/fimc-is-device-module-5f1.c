@@ -413,6 +413,12 @@ static const struct v4l2_subdev_core_ops core_ops = {
 	.log_status = sensor_module_log_status,
 };
 
+static int sensor_5f1_s_routing(struct v4l2_subdev *sd,
+		u32 input, u32 output, u32 config) {
+
+	return 0;
+}
+
 #define VSYNC_TIMEOUT_IN_NSEC	(300 * NSEC_PER_MSEC) /* msec */
 static int sensor_5f1_s_stream(struct v4l2_subdev *subdev, int enable)
 {
@@ -508,6 +514,7 @@ static int sensor_5f1_s_format(struct v4l2_subdev *subdev,
 }
 
 static const struct v4l2_subdev_video_ops video_ops = {
+	.s_routing = sensor_5f1_s_routing,
 	.s_stream = sensor_5f1_s_stream,
 	.s_parm = sensor_5f1_s_param
 };
@@ -585,6 +592,9 @@ int sensor_5f1_stream_off(struct v4l2_subdev *subdev)
 		err("fimc_is_sensor_write8 is fail(%d)", ret);
 		goto p_err;
 	}
+
+	/* add 1 frame delay for stream off */
+	usleep_range(40000, 40000);
 
 p_err:
 	return ret;

@@ -119,8 +119,12 @@ static inline void csi_s_config_dma(struct fimc_is_device_csi *csi, struct fimc_
 			continue;
 
 		if (test_bit(FIMC_IS_SUBDEV_INTERNAL_USE, &dma_subdev->state)) {
+			if ((csi->sensor_cfg->output[vc].type == VC_NOTHING) ||
+				(csi->sensor_cfg->output[vc].type == VC_PRIVATE))
+				continue;
+
 			/* set from internal subdev setting */
-			fmt.pixelformat = dma_subdev->pixelformat;
+			fmt.pixelformat = V4L2_PIX_FMT_PRIV_MAGIC;
 			framecfg.format = &fmt;
 			framecfg.width = dma_subdev->output.width;
 		} else {
@@ -143,14 +147,16 @@ static inline void csi_s_buf_addr(struct fimc_is_device_csi *csi, struct fimc_is
 {
 	FIMC_BUG_VOID(!frame);
 
-	csi_hw_s_dma_addr(csi->vc_reg[csi->scm][vc], vc, index, frame->dvaddr_buffer[0]);
+	csi_hw_s_dma_addr(csi->vc_reg[csi->scm][vc], vc, index,
+				(u32)frame->dvaddr_buffer[0]);
 }
 
 static inline void csi_s_multibuf_addr(struct fimc_is_device_csi *csi, struct fimc_is_frame *frame, u32 index, u32 vc)
 {
 	FIMC_BUG_VOID(!frame);
 
-	csi_hw_s_multibuf_dma_addr(csi->vc_reg[csi->scm][vc], vc, index, frame->dvaddr_buffer[0]);
+	csi_hw_s_multibuf_dma_addr(csi->vc_reg[csi->scm][vc], vc, index,
+				(u32)frame->dvaddr_buffer[0]);
 }
 
 static inline void csi_s_output_dma(struct fimc_is_device_csi *csi, u32 vc, bool enable)
@@ -221,7 +227,8 @@ static void csis_s_vc_dma_multibuf(struct fimc_is_device_csi *csi)
 		if (!dma_subdev
 			|| (!test_bit(FIMC_IS_SUBDEV_INTERNAL_USE, &dma_subdev->state))
 			|| (!test_bit(FIMC_IS_SUBDEV_START, &dma_subdev->state))
-			|| (csi->sensor_cfg->output[vc].type == VC_NOTHING))
+			|| (csi->sensor_cfg->output[vc].type == VC_NOTHING)
+			|| (csi->sensor_cfg->output[vc].type == VC_PRIVATE))
 			continue;
 
 		framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
@@ -361,7 +368,8 @@ static void csis_flush_vc_multibuf(struct fimc_is_device_csi *csi, u32 vc)
 	if (!subdev
 		|| !test_bit(FIMC_IS_SUBDEV_START, &subdev->state)
 		|| !test_bit(FIMC_IS_SUBDEV_INTERNAL_USE, &subdev->state)
-		|| (csi->sensor_cfg->output[vc].type == VC_NOTHING))
+		|| (csi->sensor_cfg->output[vc].type == VC_NOTHING)
+		|| (csi->sensor_cfg->output[vc].type == VC_PRIVATE))
 		return;
 
 	framemgr = GET_SUBDEV_FRAMEMGR(subdev);
@@ -625,6 +633,20 @@ static void csi_dma_tag(struct v4l2_subdev *subdev,
 			}
 
 			data_type = CSIS_NOTIFY_DMA_END_VC_EMBEDDED;
+
+			mdbgd_front("%s, %s[%d] = %d\n", csi, __func__, "VC_EMBEDDED",
+							frameptr, frame->fcount);
+
+		} else if (csi->sensor_cfg->output[vc].type == VC_MIPISTAT) {
+			u32 frameptr = csi_hw_g_frameptr(csi->vc_reg[csi->scm][vc], vc);
+
+			frameptr = frameptr % framemgr->num_frames;
+			frame = &framemgr->frames[frameptr];
+
+			data_type = CSIS_NOTIFY_DMA_END_VC_MIPISTAT;
+
+			mdbgd_front("%s, %s[%d] = %d\n", csi, __func__, "VC_MIPISTAT",
+							frameptr, frame->fcount);
 		} else {
 			return;
 		}
@@ -1552,7 +1574,7 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 		ret = get_dma(device, &dma_ch);
 		if (ret)
 			goto err_get_dma;
-		/* FIXME: 10KB 10KB 5KB -> 36KB, 36KB, 8KB, 16KB */
+		/* SRAM0: 10KB  SRAM1: 10KB */
 		csi_hw_s_dma_common_dynamic(csi_dma->base_reg, 10 * SZ_1K, dma_ch);
 #if defined(ENABLE_PDP_STAT_DMA)
 		csi_hw_s_dma_common_dynamic(csi_dma->base_reg_stat, 5 * SZ_1K, dma_ch);

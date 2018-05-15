@@ -166,6 +166,7 @@ enum fimc_is_video_dev_num {
 	FIMC_IS_VIDEO_I1C_NUM,
 	FIMC_IS_VIDEO_I1P_NUM,
 	FIMC_IS_VIDEO_ME0C_NUM = 48,
+	FIMC_IS_VIDEO_ME1C_NUM = 49,
 	FIMC_IS_VIDEO_DCP0S_NUM = 50,	/* Master */
 	FIMC_IS_VIDEO_DCP0C_NUM,	/* Master Main Capture */
 	FIMC_IS_VIDEO_DCP1S_NUM,	/* Slave */
@@ -216,6 +217,8 @@ enum fimc_is_video_dev_num {
 	FIMC_IS_VIDEO_SS5VC3_NUM,
 	FIMC_IS_VIDEO_PAF0S_NUM = 140,
 	FIMC_IS_VIDEO_PAF1S_NUM,
+	FIMC_IS_VIDEO_32S_NUM = 150,
+	FIMC_IS_VIDEO_32P_NUM,
 	FIMC_IS_VIDEO_MAX_NUM
 };
 
@@ -247,6 +250,7 @@ struct fimc_is_frame_cfg {
 	ulong				flip;
 	u32				width;
 	u32				height;
+	u32				hw_pixeltype;
 	u32				size[FIMC_IS_MAX_PLANES];
 	u32				bytesperline[FIMC_IS_MAX_PLANES];
 };
@@ -282,7 +286,7 @@ struct fimc_is_queue {
 	u32				buf_maxcount;
 	u32				buf_rdycount;
 	u32				buf_refcount;
-	ulong				buf_dva[FIMC_IS_MAX_BUFS][FIMC_IS_MAX_PLANES];
+	dma_addr_t			buf_dva[FIMC_IS_MAX_BUFS][FIMC_IS_MAX_PLANES];
 	ulong				buf_kva[FIMC_IS_MAX_BUFS][FIMC_IS_MAX_PLANES];
 
 	/* for debugging */
@@ -355,8 +359,8 @@ int fimc_is_queue_setup(struct fimc_is_queue *queue,
 	struct device *alloc_devs[]);
 int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	struct vb2_buffer *vb);
-int fimc_is_buffer_init(struct vb2_buffer *vb);
-int fimc_is_queue_prepare(struct vb2_buffer *vb);
+int fimc_is_queue_buffer_init(struct vb2_buffer *vb);
+int fimc_is_queue_buffer_prepare(struct vb2_buffer *vb);
 void fimc_is_queue_wait_prepare(struct vb2_queue *vbq);
 void fimc_is_queue_wait_finish(struct vb2_queue *vbq);
 int fimc_is_queue_start_streaming(struct fimc_is_queue *queue,
@@ -432,6 +436,8 @@ extern int fimc_is_31c_video_probe(void *data);
 extern int fimc_is_31p_video_probe(void *data);
 extern int fimc_is_31f_video_probe(void *data);
 extern int fimc_is_31g_video_probe(void *data);
+extern int fimc_is_32s_video_probe(void *data);
+extern int fimc_is_32p_video_probe(void *data);
 extern int fimc_is_i0s_video_probe(void *data);
 extern int fimc_is_i0c_video_probe(void *data);
 extern int fimc_is_i0p_video_probe(void *data);
@@ -439,6 +445,7 @@ extern int fimc_is_i1s_video_probe(void *data);
 extern int fimc_is_i1c_video_probe(void *data);
 extern int fimc_is_i1p_video_probe(void *data);
 extern int fimc_is_me0c_video_probe(void *data);
+extern int fimc_is_me1c_video_probe(void *data);
 extern int fimc_is_d0s_video_probe(void *data);
 extern int fimc_is_d0c_video_probe(void *data);
 extern int fimc_is_d1s_video_probe(void *data);
