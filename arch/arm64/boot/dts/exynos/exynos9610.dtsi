@@ -93,7 +93,7 @@
 	};
 
 	chipid@10000000 {
-		compatible = "samsung,exynos9610-chipid";
+		compatible = "samsung,exynos9-chipid";
 		reg = <0x0 0x10000000 0x100>;
 	};
 
