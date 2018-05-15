@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/cpu_cooling.h>
-#include <linux/exynos-ss.h>
+#include <linux/debug-snapshot.h>
 
 #include <trace/events/thermal.h>
 
@@ -183,7 +183,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 
 		if (policy->max > clipped_freq) {
 			cpufreq_verify_within_limits(policy, 0, clipped_freq);
-			exynos_ss_thermal(NULL, 0, cpufreq_cdev->cdev->type, clipped_freq);
+			dbg_snapshot_thermal(NULL, 0, cpufreq_cdev->cdev->type, clipped_freq);
 		}
 		break;
 	}
