@@ -45,6 +45,7 @@ static int fimc_is_ischain_3ap_start(struct fimc_is_device_ischain *device,
 	struct param_dma_output *dma_output;
 	struct fimc_is_module_enum *module;
 	u32 hw_format, hw_bitwidth;
+	bool paf_rdma_enable = false;
 
 	FIMC_BUG(!queue);
 	FIMC_BUG(!queue->framecfg.format);
@@ -53,6 +54,9 @@ static int fimc_is_ischain_3ap_start(struct fimc_is_device_ischain *device,
 
 	hw_format = queue->framecfg.format->hw_format;
 	hw_bitwidth = queue->framecfg.format->hw_bitwidth; /* memory width per pixel */
+
+	if (group->head->id == GROUP_ID_PAF0 || group->head->id == GROUP_ID_PAF1)
+		paf_rdma_enable = 1;
 
 	ret = fimc_is_sensor_g_module(device->sensor, &module);
 	if (ret) {
@@ -71,7 +75,7 @@ static int fimc_is_ischain_3ap_start(struct fimc_is_device_ischain *device,
 		goto p_err;
 	}
 
-	if (otcrop->x || otcrop->y) {
+	if ((otcrop->x || otcrop->y) && (!paf_rdma_enable)) {
 		mwarn("crop pos(%d, %d) is ignored", device, otcrop->x, otcrop->y);
 		otcrop->x = 0;
 		otcrop->y = 0;
@@ -90,7 +94,7 @@ static int fimc_is_ischain_3ap_start(struct fimc_is_device_ischain *device,
 	dma_output->bitwidth = hw_bitwidth;
 	dma_output->msb = MSB_OF_3AA_DMA_OUT;
 #ifdef USE_3AA_CROP_AFTER_BDS
-	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state)) {
+	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state) && (!paf_rdma_enable)) {
 		dma_output->width = otcrop->w;
 		dma_output->height = otcrop->h;
 		dma_output->crop_enable = 0;
@@ -132,10 +136,14 @@ static int fimc_is_ischain_3ap_stop(struct fimc_is_device_ischain *device,
 	int ret = 0;
 	struct fimc_is_group *group;
 	struct param_dma_output *dma_output;
+	bool paf_rdma_enable = false;
 
 	mdbgd_ischain("%s\n", device, __func__);
 
 	group = &device->group_3aa;
+
+	if (group->head->id == GROUP_ID_PAF0 || group->head->id == GROUP_ID_PAF1)
+		paf_rdma_enable = 1;
 
 	if ((otcrop->w > taa_param->otf_input.bayer_crop_width) ||
 		(otcrop->h > taa_param->otf_input.bayer_crop_height)) {
@@ -148,7 +156,7 @@ static int fimc_is_ischain_3ap_stop(struct fimc_is_device_ischain *device,
 		goto p_err;
 	}
 
-	if (otcrop->x || otcrop->y) {
+	if ((otcrop->x || otcrop->y) && (!paf_rdma_enable)) {
 		mwarn("crop pos(%d, %d) is ignored", device, otcrop->x, otcrop->y);
 		otcrop->x = 0;
 		otcrop->y = 0;
@@ -157,7 +165,7 @@ static int fimc_is_ischain_3ap_stop(struct fimc_is_device_ischain *device,
 	dma_output = fimc_is_itf_g_param(device, frame, subdev->param_dma_ot);
 	dma_output->cmd = DMA_OUTPUT_COMMAND_DISABLE;
 #ifdef USE_3AA_CROP_AFTER_BDS
-	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state)) {
+	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state) && (!paf_rdma_enable)) {
 		dma_output->width = otcrop->w;
 		dma_output->height = otcrop->h;
 		dma_output->crop_enable = 0;

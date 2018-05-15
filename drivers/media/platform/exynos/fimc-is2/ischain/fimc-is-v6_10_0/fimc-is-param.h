@@ -157,8 +157,8 @@ enum otf_input_order {
 };
 
 enum otf_input_path {
-	OTF_INPUT_SERIAL_PATH = 0,
-	OTF_INPUT_PARAL_PATH = 1
+	OTF_INPUT_SENSOR_PATH = 0,
+	OTF_INPUT_PAF_RDMA_PATH = 1
 };
 
 enum otf_intput_error {
@@ -767,7 +767,8 @@ struct param_otf_input {
 	u32	bayer_crop_offset_y;
 	u32	bayer_crop_width; /* BCrop1 output width without considering ISP margin = BDS input width */
 	u32	bayer_crop_height;  /* BCrop1 output height without considering ISP margin = BDS input height */
-	u32	reserved[PARAMETER_MAX_MEMBER-11];
+	u32	source;		/* 0 : sensor, 1: paf rdma */
+	u32	reserved[PARAMETER_MAX_MEMBER-12];
 	u32	err;
 };
 

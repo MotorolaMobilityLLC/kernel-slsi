@@ -98,6 +98,8 @@ static int fimc_is_ischain_3aa_cfg(struct fimc_is_subdev *leader,
 	 */
 
 	otf_input = fimc_is_itf_g_param(device, frame, PARAM_3AA_OTF_INPUT);
+	if (group->head->id == GROUP_ID_PAF0 || group->head->id == GROUP_ID_PAF1)
+		otf_input->source = OTF_INPUT_PAF_RDMA_PATH;
 	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state)) {
 		otf_input->cmd = OTF_INPUT_COMMAND_ENABLE;
 		otf_input->width = fimc_is_sensor_g_bns_width(device->sensor);
@@ -156,7 +158,7 @@ static int fimc_is_ischain_3aa_cfg(struct fimc_is_subdev *leader,
 	else
 		otf_output->cmd = OTF_OUTPUT_COMMAND_DISABLE;
 #ifdef USE_3AA_CROP_AFTER_BDS
-	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state)) {
+	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state) && (otf_input->source != OTF_INPUT_PAF_RDMA_PATH)) {
 		otf_output->width = otcrop->w;
 		otf_output->height = otcrop->h;
 		otf_output->crop_enable = 0;
