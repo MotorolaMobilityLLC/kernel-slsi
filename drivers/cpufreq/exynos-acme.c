@@ -466,24 +466,10 @@ static int exynos_cpufreq_resume(struct cpufreq_policy *policy)
 
 static void exynos_cpufreq_ready(struct cpufreq_policy *policy)
 {
-	struct exynos_cpufreq_domain *domain = find_domain(policy->cpu);
-
-	domain->cdev = exynos_cpufreq_cooling_register(domain->dn, policy);
-	if (IS_ERR(domain->cdev)) {
-		pr_err("running cpufreq without cooling device: %ld\n",
-				PTR_ERR(domain->cdev));
-
-		domain->cdev = NULL;
-	}
 }
 
 static int exynos_cpufreq_exit(struct cpufreq_policy *policy)
 {
-	struct exynos_cpufreq_domain *domain = find_domain(policy->cpu);
-
-	if (domain->cdev)
-		cpufreq_cooling_unregister(domain->cdev);
-
 	return 0;
 }
 
@@ -1686,7 +1672,12 @@ static int __init exynos_cpufreq_init(void)
 	 * Update frequency as soon as domain is enabled.
 	 */
 	list_for_each_entry(domain, &domains, list) {
+		struct cpufreq_policy *policy;
 		enable_domain(domain);
+		policy = cpufreq_cpu_get_raw(cpumask_first(&domain->cpus));
+		if (policy)
+			exynos_cpufreq_cooling_register(domain->dn, policy);
+
 		set_boot_qos(domain);
 	}
 
