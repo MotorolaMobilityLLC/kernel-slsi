@@ -94,8 +94,10 @@ struct emc {
 	struct hrtimer		timer;
 	wait_queue_head_t	wait_q;
 
-	/* memeber for max freq control */
+	/* member for max freq control */
 	struct cpumask		pre_cpu_mask;
+	struct cpumask		pwr_cpu_mask;
+	unsigned long		max_freq;
 
 	/* member for sysfs */
 	struct kobject		kobj;
@@ -104,6 +106,7 @@ struct emc {
 } emc;
 
 static DEFINE_SPINLOCK(emc_lock);
+static DEFINE_MUTEX(emc_const_lock);
 DEFINE_RAW_SPINLOCK(emc_load_lock);
 /**********************************************************************************/
 /*				   Helper					  */
@@ -199,16 +202,15 @@ void emc_check_available_freq(struct cpumask *cpus, unsigned int target_freq)
 						cpu, target_freq, max_freq, mode->name);
 }
 
-/* check policy->max constaints and real clock violation according to mask */
-int emc_verify_constraints(struct cpumask *mask)
+/* check policy->max constaints and real clock violation */
+int emc_verify_constraints(void)
 {
 	struct cpufreq_policy *policy;
-	struct emc_mode *mode;
+	struct emc_domain *domain;
 	unsigned int cpu;
 
-	/* find mode matched mask */
-	mode = emc_find_mode(mask);
-	cpu = cpumask_first(&mode->boost_cpus);
+	domain = emc_get_boost_domain();
+	cpu = cpumask_first(&domain->cpus);
 
 	policy = cpufreq_cpu_get(cpu);
 	if (!policy) {
@@ -217,19 +219,19 @@ int emc_verify_constraints(struct cpumask *mask)
 	}
 
 	/* check policy max */
-	if (policy->max > mode->max_freq) {
+	if (policy->max > emc.max_freq) {
 		cpufreq_cpu_put(policy);
-		pr_warn("EMC: max constraints not yet applyied(%s(%d) < cur_max%d)\n",
-				mode->name, mode->max_freq, policy->max);
+		pr_warn("EMC: max constraints is not yet applyied(emc_max(%d) < cur_max(%d)\n",
+				emc.max_freq, policy->max);
 		return 0;
 	}
 	cpufreq_cpu_put(policy);
 
 check_real_freq:
 	/* check whether real cpu freq within max constraints or not */
-	if (exynos_cpufreq_get(cpu) > mode->max_freq)
+	if (exynos_cpufreq_get(cpu) > emc.max_freq)
 		panic("EMC(%s): real frequency(%d) is higher than max(%d)\n",
-			__func__, exynos_cpufreq_get(cpu), mode->max_freq);
+			__func__, exynos_cpufreq_get(cpu), emc.max_freq);
 
 	return 1;
 }
@@ -627,53 +629,6 @@ void exynos_emc_update(int cpu)
 /**********************************************************************************/
 /*			      Max Frequency Control				  */
 /**********************************************************************************/
-static unsigned long emc_get_maxfreq(struct cpumask *mask)
-{
-	struct emc_mode *mode;
-
-	if (!emc.enabled || emc.blocked > 0)
-		return emc_get_base_mode()->max_freq;
-
-	mode = emc_find_mode(mask);
-
-	return mode->max_freq;
-}
-
-static int cpufreq_policy_notifier(struct notifier_block *nb,
-				    unsigned long event, void *data)
-{
-	struct cpufreq_policy *policy = data;
-	unsigned long max_freq;
-	struct emc_domain *domain = emc_find_domain(policy->cpu);
-
-	if (!(domain->role & BOOSTER))
-		return 0;
-
-	switch (event) {
-	case CPUFREQ_ADJUST:
-	/* It updates max frequency of policy */
-		max_freq = emc_get_maxfreq(&emc.pre_cpu_mask);
-
-		if (policy->max != max_freq)
-			cpufreq_verify_within_limits(policy, 0, max_freq);
-
-		break;
-	case CPUFREQ_NOTIFY:
-	/* It updates boostable flag */
-		if (policy->max < emc_get_base_mode()->max_freq)
-			emc.boostable = false;
-		else
-			emc.boostable = true;
-		break;
-	}
-
-	return 0;
-}
-/* Notifier for cpufreq policy change */
-static struct notifier_block emc_policy_nb = {
-	.notifier_call = cpufreq_policy_notifier,
-};
-
 static int emc_update_domain_const(struct emc_domain *domain)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
@@ -688,7 +643,7 @@ static int emc_update_domain_const(struct emc_domain *domain)
 
 	/* if max constraints is not changed util 50ms, cancel cpu_up */
 	cpufreq_update_policy(cpu);
-	while (!emc_verify_constraints(&emc.pre_cpu_mask)) {
+	while (!emc_verify_constraints()) {
 		cpufreq_update_policy(cpu);
 		if (time_after(jiffies, timeout)) {
 			panic("EMC: failed to update domain(cpu%d) constraints\n", cpu);
@@ -720,6 +675,67 @@ int emc_update_constraints(void)
 	return ret;
 }
 
+static void emc_set_const(struct cpumask *mask)
+{
+	struct emc_mode *mode;
+
+	mutex_lock(&emc_const_lock);
+
+	mode = emc_find_mode(mask);
+
+	if (mode->max_freq == emc.max_freq)
+		goto skip_update_const;
+
+	emc.max_freq = mode->max_freq;
+	emc_update_constraints();
+
+skip_update_const:
+	mutex_unlock(&emc_const_lock);
+}
+
+static unsigned long emc_get_const(void)
+{
+	if (!emc.enabled || emc.blocked > 0)
+		return emc_get_base_mode()->max_freq;
+
+	return emc.max_freq;
+}
+
+static int cpufreq_policy_notifier(struct notifier_block *nb,
+				    unsigned long event, void *data)
+{
+	struct cpufreq_policy *policy = data;
+	unsigned long max_freq;
+	struct emc_domain *domain = emc_find_domain(policy->cpu);
+
+	if (!(domain->role & BOOSTER))
+		return 0;
+
+	switch (event) {
+	case CPUFREQ_ADJUST:
+	/* It updates max frequency of policy */
+		max_freq = emc_get_const();
+
+		if (policy->max != max_freq)
+			cpufreq_verify_within_limits(policy, 0, max_freq);
+
+		break;
+	case CPUFREQ_NOTIFY:
+	/* It updates boostable flag */
+		if (policy->max < emc_get_base_mode()->max_freq)
+			emc.boostable = false;
+		else
+			emc.boostable = true;
+		break;
+	}
+
+	return 0;
+}
+/* Notifier for cpufreq policy change */
+static struct notifier_block emc_policy_nb = {
+	.notifier_call = cpufreq_policy_notifier,
+};
+
 /*
  * emc_update_cpu_pwr controls constraints acording
  * to mode matched cpu power status to be changed.
@@ -730,14 +746,12 @@ int emc_update_constraints(void)
  */
 static int emc_update_cpu_pwr(unsigned int cpu, bool on)
 {
-	struct emc_domain *domain;
 	unsigned long timeout = jiffies + msecs_to_jiffies(100);
 
 	/*
 	 * check acutal cpu power. this function shuouled be call
 	 * before power on or after power off
 	 */
-
 	while (exynos_cpu.power_state(cpu)) {
 		if (time_after(jiffies, timeout))
 			panic("CPU%d %s power %s!\n",
@@ -746,29 +760,43 @@ static int emc_update_cpu_pwr(unsigned int cpu, bool on)
 		udelay(100);
 	}
 
-	domain = emc_find_domain(cpu);
-	if (!domain)
-		return 0;
-
-	if (on) {
-		if (cpumask_test_cpu(cpu, &emc.pre_cpu_mask))
-			pr_warn("EMC: CPU%d was already ON\n", cpu);
-		cpumask_set_cpu(cpu, &emc.pre_cpu_mask);
-	} else {
-		if (!cpumask_test_cpu(cpu, &emc.pre_cpu_mask))
-			pr_warn("EMC: CPU%d was already OFF\n", cpu);
-		cpumask_clear_cpu(cpu, &emc.pre_cpu_mask);
-	}
-
-	/* if domain of cpu is not related boosting, skip constraints control */
-	if (domain->role == NOTHING)
-		return 0;
+	if (on)
+		cpumask_set_cpu(cpu, &emc.pwr_cpu_mask);
+	else
+		cpumask_clear_cpu(cpu, &emc.pwr_cpu_mask);
 
 	trace_emc_update_cpu_pwr(
-		*(unsigned int *)cpumask_bits(&emc.pre_cpu_mask), cpu, on);
+		*(unsigned int *)cpumask_bits(&emc.pwr_cpu_mask), cpu, on);
 
-	if (emc_update_constraints())
-		return -1;
+	emc_set_const(&emc.pwr_cpu_mask);
+
+	return 0;
+}
+
+static int emc_pre_update_constraints(void)
+{
+	emc_set_const(&emc.pre_cpu_mask);
+
+	return 0;
+}
+
+static int emc_update_pre_mask(unsigned int cpu, bool on)
+{
+	struct cpumask temp;
+	struct emc_domain *domain = emc_get_boost_domain();
+
+	if (on)
+		cpumask_set_cpu(cpu, &emc.pre_cpu_mask);
+	else
+		cpumask_clear_cpu(cpu, &emc.pre_cpu_mask);
+
+	/*
+	 * If all cpus of boost cluster will be power down,
+	 * change constraints before cpufreq is not working
+	 */
+	cpumask_and(&temp, &emc.pre_cpu_mask, &domain->cpus);
+	if (cpumask_empty(&temp))
+		emc_pre_update_constraints();
 
 	return 0;
 }
@@ -787,12 +815,22 @@ static int emc_cpu_on_callback(unsigned int cpu)
 
 	return 0;
 }
+int emc_cpu_pre_on_callback(unsigned int cpu)
+{
+	emc_update_pre_mask(cpu, false);
+	return 0;
+}
 
 static int emc_cpu_off_callback(unsigned int cpu)
 {
 	if (emc_update_cpu_pwr(cpu, false))
 		return -EINVAL;
 
+	return 0;
+}
+int emc_cpu_pre_off_callback(unsigned int cpu)
+{
+	emc_update_pre_mask(cpu, false);
 	return 0;
 }
 
@@ -1191,9 +1229,9 @@ static int emc_pm_suspend_notifier(struct notifier_block *notifier,
 
 	/* disable frequency boosting */
 	emc.blocked++;
-	emc_update_constraints();
+	emc_set_const(&mode->cpus);
 
-	if (!emc_verify_constraints(&mode->cpus))
+	if (!emc_verify_constraints())
 		BUG_ON(1);
 
 	return NOTIFY_OK;
@@ -1207,7 +1245,6 @@ static int emc_pm_resume_notifier(struct notifier_block *notifier,
 
 	/* restore frequency boosting */
 	emc.blocked--;
-	emc_update_constraints();
 
 	return NOTIFY_OK;
 }
@@ -1508,9 +1545,16 @@ static int __init emc_max_freq_control_init(void)
 
 	/* Initial pre_cpu_mask should be sync-up cpu_online_mask */
 	cpumask_copy(&emc.pre_cpu_mask, cpu_online_mask);
+	cpumask_copy(&emc.pwr_cpu_mask, cpu_online_mask);
 
-	cpuhp_setup_state_nocalls(CPUHP_EXYNOS_BOOST_CTRL, "exynos_boost_ctrl",
-			emc_cpu_on_callback, emc_cpu_off_callback);
+	cpuhp_setup_state_nocalls(CPUHP_EXYNOS_BOOST_CTRL_POST,
+					"exynos_boost_ctrl_post",
+					emc_cpu_on_callback,
+					emc_cpu_off_callback);
+	cpuhp_setup_state_nocalls(CPUHP_EXYNOS_BOOST_CTRL_PRE,
+					"exynos_boost_ctrl_pre",
+					emc_cpu_pre_on_callback,
+					emc_cpu_pre_off_callback);
 
 	return 0;
 }
@@ -1550,6 +1594,7 @@ static int __init emc_init(void)
 		return 0;
 	}
 	emc.boostable = true;
+	emc.max_freq = emc_get_base_mode()->max_freq;
 
 	/* init sysfs */
 	if (emc_sysfs_init())
