@@ -79,12 +79,10 @@ enum mailbox_event {
 	MAILBOX_EVT_ERASE_SHARED,
 	MAILBOX_EVT_ENABLE_IRQ,
 	MAILBOX_EVT_DISABLE_IRQ,
-	MAILBOX_EVT_SHUTDOWN,
 	MAILBOX_EVT_INIT_IPC,
 	MAILBOX_EVT_CHUB_ALIVE,
-	MAILBOX_EVT_CORE_RESET,
-	MAILBOX_EVT_SYSTEM_RESET,
-	MAILBOX_EVT_RESET = MAILBOX_EVT_CORE_RESET,
+	MAILBOX_EVT_SHUTDOWN,
+	MAILBOX_EVT_RESET,
 	MAILBOX_EVT_MAX,
 };
 
@@ -163,6 +161,7 @@ struct contexthub_ipc_info {
 	int err_cnt[CHUB_ERR_MAX];
 	int utc_run;
 	int powermode;
+	int block_reset;
 	bool os_load;
 	char os_name[MAX_FILE_LEN];
 #ifdef CONFIG_CONTEXTHUB_DEBUG
@@ -265,7 +264,7 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc,
 				uint8_t *rx, int max_length, int timeout);
 int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 				uint8_t *tx, int length, int timeout);
-
+int contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc);
 int contexthub_poweron(struct contexthub_ipc_info *data);
 int contexthub_download_image(struct contexthub_ipc_info *data, int bl);
 int contexthub_download_kernel(struct contexthub_ipc_info *dev);
@@ -273,7 +272,13 @@ int contexthub_download_bl(struct contexthub_ipc_info *data);
 int contexthub_reset(struct contexthub_ipc_info *data);
 int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 
+#ifdef CONFIG_CONTEXTHUB_POWERMODE
 int contexthub_is_run(struct contexthub_ipc_info *ipc);
 int contexthub_request(struct contexthub_ipc_info *ipc);
 void contexthub_release(struct contexthub_ipc_info *ipc);
+#else
+#define contexthub_is_run(a) (1)
+#define contexthub_request(a) (0)
+#define contexthub_release(a)
+#endif
 #endif

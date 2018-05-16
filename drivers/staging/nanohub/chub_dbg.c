@@ -473,7 +473,6 @@ static ssize_t chub_wakeup_store(struct device *dev,
 	long event;
 	int ret;
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
-
 	ret = kstrtol(&buf[0], 10, &event);
 	if (ret)
 		return ret;

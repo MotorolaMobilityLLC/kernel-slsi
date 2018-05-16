@@ -407,7 +407,6 @@ static ssize_t chub_log_flush_save(struct device *dev,
 	long event;
 	int err;
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
-
 	err = kstrtol(&buf[0], 10, &event);
 	if (!err) {
 		if (!auto_log_flush_ms) {
