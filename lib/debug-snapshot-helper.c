@@ -156,7 +156,7 @@ unsigned int dbg_snapshot_get_item_size(char* name)
 {
 	unsigned long i;
 
-	for (i = 0; i < dss_desc.log_enable_cnt; i++) {
+	for (i = 0; i < dss_desc.log_cnt; i++) {
 		if (!strncmp(dss_items[i].name, name, strlen(name)))
 			return dss_items[i].entry.size;
 	}
@@ -168,7 +168,7 @@ unsigned long dbg_snapshot_get_item_vaddr(char *name)
 {
 	unsigned long i;
 
-	for (i = 0; i < dss_desc.log_enable_cnt; i++) {
+	for (i = 0; i < dss_desc.log_cnt; i++) {
 		if (!strncmp(dss_items[i].name, name, strlen(name)))
 			return dss_items[i].entry.vaddr;
 	}
@@ -179,7 +179,7 @@ unsigned int dbg_snapshot_get_item_paddr(char* name)
 {
 	unsigned long i;
 
-	for (i = 0; i < dss_desc.log_enable_cnt; i++) {
+	for (i = 0; i < dss_desc.log_cnt; i++) {
 		if (!strncmp(dss_items[i].name, name, strlen(name)))
 			return dss_items[i].entry.paddr;
 	}

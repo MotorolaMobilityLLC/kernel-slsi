@@ -55,7 +55,7 @@ static ssize_t dss_enable_show(struct kobject *kobj,
 	ssize_t n = 0;
 
 	/*  item  */
-	for (i = 0; i < dss_desc.log_enable_cnt; i++) {
+	for (i = 0; i < dss_desc.log_cnt; i++) {
 		item = &dss_items[i];
 		n += scnprintf(buf + n, 24, "%-12s : %sable\n",
 			item->name, item->entry.enabled ? "en" : "dis");

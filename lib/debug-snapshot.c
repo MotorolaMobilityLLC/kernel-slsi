@@ -382,7 +382,7 @@ static int __init dbg_snapshot_remap(void)
 			dss_items[i].curr_ptr = (unsigned char *)dss_items[i].entry.vaddr;
 		}
 	}
-	dss_desc.log_enable_cnt = enabled_count;
+	dss_desc.log_cnt = ARRAY_SIZE(dss_items);
 	return enabled_count;
 }
 

@@ -164,7 +164,7 @@ struct dbg_snapshot_desc {
 	unsigned int log_sfr_num;
 	unsigned int log_pstore_num;
 	unsigned int log_etm_num;
-	unsigned int log_enable_cnt;
+	unsigned int log_cnt;
 
 	unsigned int callstack;
 	unsigned long hardlockup_core_mask;
