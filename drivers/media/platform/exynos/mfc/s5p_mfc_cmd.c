@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_cmd_v6.c
+ * drivers/media/platform/exynos/mfc/s5p_mfc_cmd.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -24,7 +24,7 @@
 int s5p_mfc_cmd_sys_init(struct s5p_mfc_dev *dev,
 					enum mfc_buf_usage_type buf_type)
 {
-	struct s5p_mfc_buf_size_v6 *buf_size;
+	struct s5p_mfc_ctx_buf_size *buf_size;
 	struct s5p_mfc_special_buf *ctx_buf;
 
 	mfc_debug_enter();
@@ -36,7 +36,7 @@ int s5p_mfc_cmd_sys_init(struct s5p_mfc_dev *dev,
 
 	s5p_mfc_clean_dev_int_flags(dev);
 
-	buf_size = dev->variant->buf_size->buf;
+	buf_size = dev->variant->buf_size->ctx_buf;
 	ctx_buf = &dev->common_ctx_buf;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	if (buf_type == MFCBUF_DRM)

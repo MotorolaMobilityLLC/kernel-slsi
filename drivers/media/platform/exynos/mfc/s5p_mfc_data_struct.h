@@ -261,11 +261,7 @@ struct s5p_mfc_fw {
 	int		drm_status;
 };
 
-struct s5p_mfc_buf_align {
-	unsigned int mfc_base_align;
-};
-
-struct s5p_mfc_buf_size_v6 {
+struct s5p_mfc_ctx_buf_size {
 	size_t dev_ctx;
 	size_t h264_dec_ctx;
 	size_t other_dec_ctx;
@@ -279,12 +275,11 @@ struct s5p_mfc_buf_size_v6 {
 struct s5p_mfc_buf_size {
 	size_t firmware_code;
 	unsigned int cpb_buf;
-	void *buf;
+	void *ctx_buf;
 };
 
 struct s5p_mfc_variant {
 	struct s5p_mfc_buf_size *buf_size;
-	struct s5p_mfc_buf_align *buf_align;
 	int	num_entities;
 };
 

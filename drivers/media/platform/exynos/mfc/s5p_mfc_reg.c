@@ -28,7 +28,7 @@ void s5p_mfc_dbg_disable(struct s5p_mfc_dev *dev)
 
 void s5p_mfc_dbg_set_addr(struct s5p_mfc_dev *dev)
 {
-	struct s5p_mfc_buf_size_v6 *buf_size = dev->variant->buf_size->buf;
+	struct s5p_mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
 
 	memset((void *)dev->dbg_info_buf.vaddr, 0, buf_size->dbg_info_buf);
 

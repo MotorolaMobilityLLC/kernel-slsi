@@ -107,7 +107,7 @@ void s5p_mfc_release_common_context(struct s5p_mfc_dev *dev)
 int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_buf_size_v6 *buf_size;
+	struct s5p_mfc_ctx_buf_size *buf_size;
 
 	mfc_debug_enter();
 	if (!ctx) {
@@ -119,7 +119,7 @@ int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
 		mfc_err_dev("no mfc device to run\n");
 		return -EINVAL;
 	}
-	buf_size = dev->variant->buf_size->buf;
+	buf_size = dev->variant->buf_size->ctx_buf;
 
 	switch (ctx->codec_mode) {
 	case S5P_FIMV_CODEC_H264_DEC:
@@ -445,7 +445,7 @@ void s5p_mfc_release_codec_buffers(struct s5p_mfc_ctx *ctx)
 /* Allocation buffer of debug infor memory for FW debugging */
 int s5p_mfc_alloc_dbg_info_buffer(struct s5p_mfc_dev *dev)
 {
-	struct s5p_mfc_buf_size_v6 *buf_size = dev->variant->buf_size->buf;
+	struct s5p_mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
 
 	mfc_debug(2, "Allocate a debug-info buffer.\n");
 
@@ -484,7 +484,7 @@ int s5p_mfc_release_dbg_info_buffer(struct s5p_mfc_dev *dev)
 static int mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_special_buf *roi_buf)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_buf_size_v6 *buf_size = dev->variant->buf_size->buf;
+	struct s5p_mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
 
 	roi_buf->buftype = MFCBUF_NORMAL;
 	roi_buf->size = buf_size->shared_buf;
@@ -576,9 +576,8 @@ void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx)
 /* Allocate firmware */
 int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 {
-	unsigned int base_align;
 	size_t firmware_size;
-	struct s5p_mfc_buf_size_v6 *buf_size;
+	struct s5p_mfc_ctx_buf_size *buf_size;
 
 	mfc_debug_enter();
 
@@ -587,8 +586,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		return -EINVAL;
 	}
 
-	buf_size = dev->variant->buf_size->buf;
-	base_align = dev->variant->buf_align->mfc_base_align;
+	buf_size = dev->variant->buf_size->ctx_buf;
 	firmware_size = dev->variant->buf_size->firmware_code;
 	dev->fw.size = firmware_size + buf_size->dev_ctx;
 

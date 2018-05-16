@@ -1514,7 +1514,7 @@ static const struct dev_pm_ops s5p_mfc_pm_ops = {
 	)
 };
 
-struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {
+struct s5p_mfc_ctx_buf_size mfc_ctx_buf_size = {
 	.dev_ctx	= PAGE_ALIGN(0x7800),	/*  30KB */
 	.h264_dec_ctx	= PAGE_ALIGN(0x200000),	/* 1.6MB */
 	.other_dec_ctx	= PAGE_ALIGN(0x7800),	/*  30KB */
@@ -1525,27 +1525,21 @@ struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {
 	.dbg_info_buf	= PAGE_ALIGN(0x1000),	/* 4KB for DEBUG INFO */
 };
 
-struct s5p_mfc_buf_size buf_size_v6 = {
+struct s5p_mfc_buf_size mfc_buf_size = {
 	.firmware_code	= PAGE_ALIGN(0x100000),	/* 1MB */
 	.cpb_buf	= PAGE_ALIGN(0x300000),	/* 3MB */
-	.buf		= &mfc_buf_size_v6,
+	.ctx_buf	= &mfc_ctx_buf_size,
 };
 
-struct s5p_mfc_buf_align mfc_buf_align_v6 = {
-	.mfc_base_align = 0,
-};
-
-
-static struct s5p_mfc_variant mfc_drvdata_v6 = {
-	.buf_size = &buf_size_v6,
-	.buf_align = &mfc_buf_align_v6,
+static struct s5p_mfc_variant mfc_drvdata = {
+	.buf_size = &mfc_buf_size,
 	.num_entities = 2,
 };
 
 static const struct of_device_id exynos_mfc_match[] = {
 	{
-		.compatible = "samsung,mfc-v6",
-		.data = &mfc_drvdata_v6,
+		.compatible = "samsung,exynos-mfc",
+		.data = &mfc_drvdata,
 	},
 	{},
 };
