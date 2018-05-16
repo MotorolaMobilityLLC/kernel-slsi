@@ -1185,3 +1185,8 @@
 			100 100 100 100 100 100 0>;
 	};
 };
+
+&fmp_0 {
+	exynos,block-type = "sda";
+	exynos,fips-block_offset = <5>;
+};

@@ -95,6 +95,7 @@
 		uart5 = &serial_5;
 		uart6 = &serial_6;
 		uart7 = &serial_7;
+		fmp0 = &fmp_0;
 		dpp0 = &dpp_0;
 		dpp1 = &dpp_1;
 		dpp2 = &dpp_2;
@@ -2193,6 +2194,10 @@
 				};
 			};
 		};
+	};
+
+	fmp_0: fmp {
+		compatible = "samsung,exynos-fmp";
 	};
 
 	ufs: ufs@0x13520000 {
