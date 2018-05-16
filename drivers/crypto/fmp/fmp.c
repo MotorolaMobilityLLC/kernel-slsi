@@ -289,8 +289,17 @@ int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 	}
 
 	if (unlikely(in_fmp_fips_err())) {
+#if defined(CONFIG_NODE_FOR_SELFTEST_FAIL)
 		pr_err("%s: Fail to work fmp config due to fips in error.\n",
 			__func__);
+#else
+		if (in_fmp_fips_init())
+			pr_err("%s: Fail to work fmp config due to fips in init.\n",
+				__func__);
+		else
+			panic("%s: Fail to work fmp config due to fips in error\n",
+				__func__);
+#endif
 		return -EINVAL;
 	}
 

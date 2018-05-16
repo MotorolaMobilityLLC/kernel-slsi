@@ -45,6 +45,13 @@ bool in_fmp_fips_err(void)
 	return false;
 }
 
+bool in_fmp_fips_init(void)
+{
+	if (fmp_fips_state == FMP_FIPS_INIT_STATE)
+		return true;
+	return false;
+}
+
 static void set_fmp_fips_state(uint32_t val)
 {
 	fmp_fips_state = val;

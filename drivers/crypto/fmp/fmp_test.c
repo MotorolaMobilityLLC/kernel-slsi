@@ -39,11 +39,6 @@ static dev_t find_devt_for_test(struct exynos_fmp *fmp,
 
 	memset(size_list, 0, sizeof(size_list));
 	memset(devt_list, 0, sizeof(devt_list));
-	if (!data || !data->block_type) {
-		dev_err(dev, "Invalid fmp test data\n");
-		return (dev_t) 0;
-	}
-
 	do {
 		for (i = 1; i < MAX_SCAN_PART; i++) {
 			devt_scan = blk_lookup_devt(data->block_type, i);
