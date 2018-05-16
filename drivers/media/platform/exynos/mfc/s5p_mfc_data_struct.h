@@ -372,8 +372,6 @@ struct s5p_mfc_qos {
 
 struct s5p_mfc_platdata {
 	int ip_ver;
-	int clock_rate;
-	int min_rate;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	int num_qos_steps;
 	int max_qos_steps;
