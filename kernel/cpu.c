@@ -30,6 +30,8 @@
 #include <linux/slab.h>
 #include <linux/cpuset.h>
 
+#include <soc/samsung/exynos-emc.h>
+
 #include <trace/events/power.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpuhp.h>
@@ -1055,6 +1057,7 @@ static int __ref _cpus_down(struct cpumask cpus, int tasks_frozen,
 
 	for_each_cpu(cpu, &ap_work_cpus) {
 		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+		emc_cpu_pre_off_callback(cpu);
 		set_cpu_active(cpu, false);
 		st->state = CPUHP_AP_EXYNOS_IDLE_CTRL;
 	}
