@@ -426,16 +426,6 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 	return DM_CALL(domain->dm_type, &freq);
 }
 
-static unsigned int exynos_cpufreq_get(unsigned int cpu)
-{
-	struct exynos_cpufreq_domain *domain = find_domain(cpu);
-
-	if (!domain)
-		return 0;
-
-	return get_freq(domain);
-}
-
 static int __exynos_cpufreq_suspend(struct exynos_cpufreq_domain *domain)
 {
 	unsigned int freq;
@@ -526,6 +516,7 @@ static struct notifier_block exynos_cpufreq_pm = {
 	.notifier_call = exynos_cpufreq_pm_notifier,
 };
 
+unsigned int exynos_cpufreq_get(unsigned int cpu);
 static struct cpufreq_driver exynos_driver = {
 	.name		= "exynos_cpufreq",
 	.flags		= CPUFREQ_STICKY | CPUFREQ_HAVE_GOVERNOR_PER_POLICY,
@@ -765,16 +756,14 @@ unsigned int exynos_cpufreq_get_max_freq(struct cpumask *mask)
 }
 EXPORT_SYMBOL(exynos_cpufreq_get_max_freq);
 
-bool exynos_cpufreq_allow_change_max(unsigned int cpu, unsigned long max)
+unsigned int exynos_cpufreq_get(unsigned int cpu)
 {
 	struct exynos_cpufreq_domain *domain = find_domain(cpu);
-	bool allow;
 
-	mutex_lock(&domain->lock);
-	allow = domain->old <= max;
-	mutex_unlock(&domain->lock);
+	if (!domain)
+		return 0;
 
-	return allow;
+	return get_freq(domain);
 }
 
 /*********************************************************************
