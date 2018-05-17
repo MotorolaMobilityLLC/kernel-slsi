@@ -659,7 +659,7 @@ static void wb_mux_reg_set_uv_offset(u32 id, u32 off_x, u32 off_y)
 			WB_UV_OFFSET_Y(off_y) | WB_UV_OFFSET_X(off_x),
 			WB_UV_OFFSET_Y_MASK | WB_UV_OFFSET_X_MASK);
 }
-
+#if 0
 void dma_reg_set_in_base_addr(u32 id, u32 addr_y, u32 addr_c)
 {
 	dma_write(id, IDMA_IN_BASE_ADDR_Y, addr_y);
@@ -726,20 +726,27 @@ void dpp_reg_set_buf_addr(u32 id, struct dpp_params_info *p)
 		(void *)p->addr[2], (void *)p->addr[3]);
 
 }
-
+#endif
 /********** IDMA and ODMA combination CAL functions **********/
-#if 0
 static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
 {
-	dpp_info("%s, %d dpp[%d] attr[%lu]\n", __func__, __LINE__, id, attr);
 	if (test_bit(DPP_ATTR_IDMA, &attr)) {
-	dpp_info("%s, %d dpp[%d] attr[%lu]\n", __func__, __LINE__, id, attr);
 		dma_write(id, IDMA_IN_BASE_ADDR_Y, p->addr[0]);
 		if (p->is_comp)
-			dma_write(id, IDMA_IN_BASE_ADDR_Y, p->addr[0]);
+			dma_write(id, IDMA_IN_BASE_ADDR_C, p->addr[0]);
 		else
-			dma_write(id, IDMA_IN_BASE_ADDR_Y, p->addr[1]);
+			dma_write(id, IDMA_IN_BASE_ADDR_C, p->addr[1]);
+		if (p->is_4p) {
+			dma_write(id, IDMA_IN_BASE_ADDR_Y2, p->addr[2]);
+			dma_write(id, IDMA_IN_BASE_ADDR_C2, p->addr[3]);
+			dma_write_mask(id, IDMA_2BIT_STRIDE,
+					IDMA_LUMA_2B_STRIDE(p->y_2b_strd),
+					IDMA_LUMA_2B_STRIDE_MASK);
+			dma_write_mask(id, IDMA_2BIT_STRIDE,
+					IDMA_CHROMA_2B_STRIDE(p->c_2b_strd),
+					IDMA_CHROMA_2B_STRIDE_MASK);
+		}
 	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
 		dma_write(id, ODMA_IN_BASE_ADDR_Y, p->addr[0]);
 		dma_write(id, ODMA_IN_BASE_ADDR_C, p->addr[1]);
@@ -748,7 +755,7 @@ static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 			(void *)p->addr[0], (void *)p->addr[1],
 			(void *)p->addr[2], (void *)p->addr[3]);
 }
-#endif
+
 /********** IDMA, ODMA, DPP and WB MUX combination CAL functions **********/
 static void dma_dpp_reg_set_coordinates(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
@@ -1073,8 +1080,7 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		idma_reg_set_rotation(id, p->rot);
 
 	/* configure base address of IDMA and ODMA */
-	dpp_reg_set_buf_addr(id, p);
-//	dma_reg_set_base_addr(id, p, attr);
+	dma_reg_set_base_addr(id, p, attr);
 
 	if (test_bit(DPP_ATTR_BLOCK, &attr))
 		idma_reg_set_block_mode(id, p->is_block, p->block.x, p->block.y,
