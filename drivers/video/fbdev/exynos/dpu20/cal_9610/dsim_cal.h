@@ -23,6 +23,11 @@ struct dsim_clks {
 	u32 word_clk;
 };
 
+enum dsim_ppi {
+	DSIM_1BYTEPPI,
+	DSIM_2BYTEPPI,
+};
+
 /*************** DSIM CAL APIs exposed to DSIM driver ***************/
 /* DPHY system register control */
 void dpu_sysreg_select_dphy_rst_control(void __iomem *sysreg, u32 dsim_id, u32 sel);
