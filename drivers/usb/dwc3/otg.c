@@ -520,6 +520,18 @@ dwc3_otg_show_b_sess(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", fsm->b_sess_vld);
 }
 
+struct dwc3 *g_dwc3;
+void b_sess_control(int val)
+{
+	struct dwc3	*dwc = g_dwc3;
+	struct otg_fsm	*fsm = &dwc->dotg->fsm;
+
+	fsm->b_sess_vld = !!val;
+
+	dwc3_otg_run_sm(fsm);
+}
+EXPORT_SYMBOL_GPL(b_sess_control);
+
 static ssize_t
 dwc3_otg_store_b_sess(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
@@ -661,6 +673,8 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	struct dwc3_otg *dotg;
 	struct dwc3_ext_otg_ops *ops = NULL;
 	int ret = 0;
+
+	g_dwc3 = dwc;
 
 	dev_info(dwc->dev, "%s\n", __func__);
 
