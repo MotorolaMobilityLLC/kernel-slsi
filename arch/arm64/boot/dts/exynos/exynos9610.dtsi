@@ -32,7 +32,7 @@
 		pinctrl2 = &pinctrl_2;
 		pinctrl3 = &pinctrl_3;
 		pinctrl4 = &pinctrl_4;
-//		pinctrl5 = &pinctrl_5;
+		pinctrl5 = &pinctrl_5;
 		usi0 = &usi_0_shub;
 		usi1 = &usi_0_shub_i2c;
 		usi2 = &usi_0_cmgp;
@@ -327,14 +327,12 @@
 		interrupts = <0 266 0>;
 	};
 
-#if 0
 	/* SHUB */
 	pinctrl_5: pinctrl@11080000{
 		compatible = "samsung,exynos9610-pinctrl";
 		reg = <0x0 0x11080000 0x1000>;
 		interrupts = <0 116 0>;
 	};
-#endif
 
 	/* USI_SHUB_0 */
 	usi_0_shub: usi@11013000 {
