@@ -1221,12 +1221,13 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 /**
  * samsung_pinctrl_suspend - save pinctrl state for suspend
  *
  * Save data for all banks handled by this device.
  */
-static int __maybe_unused samsung_pinctrl_suspend(struct device *dev)
+static int samsung_pinctrl_suspend(struct device *dev)
 {
 	struct samsung_pinctrl_drv_data *drvdata = dev_get_drvdata(dev);
 	int i;
@@ -1289,7 +1290,7 @@ static int __maybe_unused samsung_pinctrl_suspend(struct device *dev)
  * We don't bother doing anything complicated to avoid glitching lines since
  * we're called before pad retention is turned off.
  */
-static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
+static int samsung_pinctrl_resume(struct device *dev)
 {
 	struct samsung_pinctrl_drv_data *drvdata = dev_get_drvdata(dev);
 	int i;
@@ -1337,6 +1338,7 @@ static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct of_device_id samsung_pinctrl_dt_match[] = {
 #ifdef CONFIG_PINCTRL_EXYNOS_ARM
