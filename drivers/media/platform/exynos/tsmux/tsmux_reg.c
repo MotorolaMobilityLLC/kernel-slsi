@@ -28,6 +28,8 @@
 #define TSMUX_PKT_CTRL_SW_RESET_MASK		(0x80000000)
 #define TSMUX_PKT_CTRL_PSI_EN_SHIFT		(28)
 #define TSMUX_PKT_CTRL_PSI_EN_MASK		(0x10000000)
+#define TSMUX_PKT_CTRL_TSP_CONTINUITY_CNT_INIT_SHIFT	(27)
+#define TSMUX_PKT_CTRL_TSP_CONTINUITY_CNT_INIT_MASK		(0x8000000)
 #define TSMUX_PKT_CTRL_RTP_SIZE_SHIFT		(11)
 #define TSMUX_PKT_CTRL_RTP_SIZE_MASK		(0x07FFF800)
 #define TSMUX_PKT_CTRL_RTP_SEQ_OVER_SHIFT	(10)
@@ -376,6 +378,7 @@ void tsmux_set_pkt_ctrl(struct tsmux_device *tsmux_dev,
 	struct tsmux_pkt_ctrl *pkt_ctrl)
 {
 	u32 pkt_ctrl_reg;
+	int32_t tsp_continuity_cnt_init = 1;
 
 	print_tsmux(TSMUX_SFR, "%s++\n", __func__);
 
@@ -390,6 +393,12 @@ void tsmux_set_pkt_ctrl(struct tsmux_device *tsmux_dev,
 	pkt_ctrl_reg |= TSMUX_PKT_CTRL_PSI_EN_MASK &
 		(pkt_ctrl->psi_en << TSMUX_PKT_CTRL_PSI_EN_SHIFT);
 	print_tsmux(TSMUX_SFR, "PKT_CTRL_PSI_EN %d\n", pkt_ctrl->psi_en);
+	print_tsmux(TSMUX_SFR, "pkt_ctrl_reg 0x%x\n", pkt_ctrl_reg);
+
+	pkt_ctrl_reg &= ~(TSMUX_PKT_CTRL_TSP_CONTINUITY_CNT_INIT_MASK);
+	pkt_ctrl_reg |= TSMUX_PKT_CTRL_TSP_CONTINUITY_CNT_INIT_MASK &
+		(tsp_continuity_cnt_init << TSMUX_PKT_CTRL_TSP_CONTINUITY_CNT_INIT_SHIFT);
+	print_tsmux(TSMUX_SFR, "PKT_CTRL_TSP_CONTINUITY_CNT_INIT %d\n", tsp_continuity_cnt_init);
 	print_tsmux(TSMUX_SFR, "pkt_ctrl_reg 0x%x\n", pkt_ctrl_reg);
 
 	pkt_ctrl_reg &= ~(TSMUX_PKT_CTRL_RTP_SIZE_MASK);
