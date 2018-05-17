@@ -31,8 +31,6 @@ unsigned int perf_measure_option;
 unsigned int sfr_dump;
 unsigned int mmcache_dump;
 unsigned int mmcache_disable;
-/* It will be disable after driver is stabilized */
-unsigned int debug_mode = 1;
 
 static int mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -161,6 +159,4 @@ void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
 			0644, debugfs->root, &mmcache_dump);
 	debugfs->mmcache_disable = debugfs_create_u32("mmcache_disable",
 			0644, debugfs->root, &mmcache_disable);
-	debugfs->debug_mode = debugfs_create_u32("debug_mode",
-			0644, debugfs->root, &debug_mode);
 }

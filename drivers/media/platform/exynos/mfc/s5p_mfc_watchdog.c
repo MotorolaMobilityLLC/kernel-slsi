@@ -289,7 +289,7 @@ static void mfc_dump_info_and_stop_hw(struct s5p_mfc_dev *dev)
 
 static void mfc_dump_info_and_stop_hw_debug(struct s5p_mfc_dev *dev)
 {
-	if (!debug_mode)
+	if (!dev->pdata->debug_mode)
 		return;
 
 	MFC_TRACE_DEV("** mfc will stop!!!\n");

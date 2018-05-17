@@ -310,7 +310,6 @@ struct s5p_mfc_debugfs {
 	struct dentry *sfr_dump;
 	struct dentry *mmcache_dump;
 	struct dentry *mmcache_disable;
-	struct dentry *debug_mode;
 };
 
 /**
@@ -372,6 +371,7 @@ struct s5p_mfc_qos {
 
 struct s5p_mfc_platdata {
 	int ip_ver;
+	int debug_mode;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	int num_qos_steps;
 	int max_qos_steps;
