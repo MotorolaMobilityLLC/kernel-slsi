@@ -345,13 +345,11 @@ int init_wsm(struct device *dev)
 			goto out_srpmb_init_fail;
 		}
 
-#ifdef CONFIG_EXYNOS_SMC_LOGGING
 		ret = exynos_smc(SMC_SRPMB_WSM, rpmb_ctx->phy_addr, hwirq, 0);
 		if (ret) {
 			dev_err(&sr_pdev->dev, "wsm smc init failed: %x\n", ret);
 			goto out_srpmb_unregister_pm;
 		}
-#endif
 
 		wakeup_source_init(&rpmb_ctx->wakesrc, "srpmb");
 		spin_lock_init(&rpmb_ctx->lock);
