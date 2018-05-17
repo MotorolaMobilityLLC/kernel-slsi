@@ -432,7 +432,7 @@ static struct samsung_pin_bank_data exynos9610_pin_banks0[] = {
 	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x020, "gpa0", 0x00, 0x00),
 	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x040, "gpa1", 0x04, 0x08),
 	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x060, "gpa2", 0x08, 0x10),
-	EXYNOS8_PIN_BANK_EINTW(bank_type_7, 8, 0x080, "gpq0", 0x0c),
+	EXYNOS8_PIN_BANK_EINTN(bank_type_7, 5, 0x080, "gpq0"),
 };
 
 /* pin banks of exynos9610 pin-controller 1 (CMGP) */
@@ -516,6 +516,7 @@ const struct samsung_pin_ctrl exynos9610_pin_ctrl[] = {
 		.pin_banks	= exynos9610_pin_banks1,
 		.nr_banks	= ARRAY_SIZE(exynos9610_pin_banks1),
 		.eint_gpio_init = exynos_eint_gpio_init,
+		.eint_wkup_init = exynos_eint_wkup_init,
 		.suspend	= exynos_pinctrl_suspend,
 		.resume		= exynos_pinctrl_resume,
 	}, {
