@@ -1101,6 +1101,12 @@
 		};
 	};
 
+	/* Secure RPMB */
+	ufs-srpmb {
+		compatible = "samsung,ufs-srpmb";
+		interrupts = <0 460 0>;
+	};
+
 };
 
 &pinctrl_0 {
