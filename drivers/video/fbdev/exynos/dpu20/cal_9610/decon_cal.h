@@ -22,10 +22,10 @@
 #define MAX_DPP_SUBDEV		5
 
 enum decon_idma_type {
-	IDMA_GF = 0, /* GF in case of Exynos9610 */
-	IDMA_VG0,
-	IDMA_G0,
+	IDMA_G0 = 0,
 	IDMA_G1,
+	IDMA_GF, /* GF in case of Exynos9610 */
+	IDMA_VG0,
 	ODMA_WB,
 	MAX_DECON_DMA_TYPE,
 };

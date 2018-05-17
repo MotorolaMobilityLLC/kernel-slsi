@@ -659,74 +659,7 @@ static void wb_mux_reg_set_uv_offset(u32 id, u32 off_x, u32 off_y)
 			WB_UV_OFFSET_Y(off_y) | WB_UV_OFFSET_X(off_x),
 			WB_UV_OFFSET_Y_MASK | WB_UV_OFFSET_X_MASK);
 }
-#if 0
-void dma_reg_set_in_base_addr(u32 id, u32 addr_y, u32 addr_c)
-{
-	dma_write(id, IDMA_IN_BASE_ADDR_Y, addr_y);
-	dma_write(id, IDMA_IN_BASE_ADDR_C, addr_c);
-}
 
-void dma_reg_set_in_2b_base_addr(u32 id, u32 addr_y, u32 addr_c)
-{
-	dma_write(id, IDMA_IN_BASE_ADDR_Y2, addr_y);
-	dma_write(id, IDMA_IN_BASE_ADDR_C2, addr_c);
-}
-
-void dpp_reg_set_buf_1p_addr(u32 id, struct dpp_params_info *p)
-{
-	/* For AFBC stream, BASE_ADDR_C must be same with BASE_ADDR_Y */
-	dma_reg_set_in_base_addr(id, p->addr[0], p->addr[0]);
-}
-
-void dpp_reg_set_buf_2p_addr(u32 id, struct dpp_params_info *p)
-{
-	dma_reg_set_in_base_addr(id, p->addr[0], p->addr[1]);
-}
-
-void dpp_reg_set_buf_4p_addr(u32 id, struct dpp_params_info *p)
-{
-	dma_reg_set_in_base_addr(id, p->addr[0], p->addr[1]);
-	dma_reg_set_in_2b_base_addr(id, p->addr[2], p->addr[3]);
-}
-
-void dma_reg_set_luma_2bit_stride(u32 id, u32 stride)
-{
-	u32 val, mask;
-
-	val = IDMA_LUMA_2B_STRIDE(stride);
-	mask = IDMA_LUMA_2B_STRIDE_MASK;
-	dma_write_mask(id, IDMA_2BIT_STRIDE, val, mask);
-}
-
-void dma_reg_set_chroma_2bit_stride(u32 id, u32 stride)
-{
-	u32 val, mask;
-
-	val = IDMA_CHROMA_2B_STRIDE(stride);
-	mask = IDMA_CHROMA_2B_STRIDE_MASK;
-	dma_write_mask(id, IDMA_2BIT_STRIDE, val, mask);
-}
-
-void dpp_reg_set_buf_addr(u32 id, struct dpp_params_info *p)
-{
-	if (p->is_4p) {
-		dpp_reg_set_buf_4p_addr(id, p);
-		dma_reg_set_luma_2bit_stride(id, p->y_2b_strd);
-		dma_reg_set_chroma_2bit_stride(id, p->c_2b_strd);
-	} else {
-		if (p->is_comp) {
-			dpp_reg_set_buf_1p_addr(id, p);
-		} else {
-			dpp_reg_set_buf_2p_addr(id, p);
-		}
-	}
-	dpp_dbg("dpp id : %d, 1st-plane : 0x%p, 2nd-plane : 0x%p ",
-		id, (void *)p->addr[0], (void *)p->addr[1]);
-	dpp_dbg("3rd-plane : 0x%p, 4th-plane : 0x%p\n",
-		(void *)p->addr[2], (void *)p->addr[3]);
-
-}
-#endif
 /********** IDMA and ODMA combination CAL functions **********/
 static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
