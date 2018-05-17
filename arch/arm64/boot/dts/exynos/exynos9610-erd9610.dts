@@ -778,7 +778,7 @@
 
 	pinctrl@11850000 {
 		attn_irq: attn-irq {
-			samsung,pins = "gpp1-0";
+			samsung,pins = "gpa2-4";
 			samsung,pin-function = <0xf>;
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
