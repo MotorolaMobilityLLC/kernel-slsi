@@ -211,6 +211,12 @@ struct usb_function {
 	void			(*free_func)(struct usb_function *f);
 	struct module		*mod;
 
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+	/* Optional function for vendor specific processing */
+	int			(*ctrlrequest)(struct usb_function *,
+					const struct usb_ctrlrequest *);
+#endif
+
 	/* runtime state management */
 	int			(*set_alt)(struct usb_function *,
 					unsigned interface, unsigned alt);

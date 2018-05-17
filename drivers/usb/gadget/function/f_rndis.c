@@ -926,7 +926,7 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = rndis_free_inst;
-	opts->net = gether_setup_default();
+	opts->net = gether_setup_name_default("rndis");
 	if (IS_ERR(opts->net)) {
 		struct net_device *net = opts->net;
 		kfree(opts);
@@ -971,6 +971,10 @@ static void rndis_free(struct usb_function *f)
 static void rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_rndis		*rndis = func_to_rndis(f);
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+	struct f_rndis_opts	*opts;
+	struct usb_composite_dev *cdev = f->config->cdev;
+#endif
 
 	kfree(f->os_desc_table);
 	f->os_desc_n = 0;
@@ -978,6 +982,27 @@ static void rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	kfree(rndis->notify_req->buf);
 	usb_ep_free_request(rndis->notify, rndis->notify_req);
+
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+	opts = container_of(f->fi, struct f_rndis_opts, func_inst);
+	if (!opts->borrowed_net) {
+		if (opts->bound)
+			gether_cleanup(netdev_priv(opts->net));
+		else
+			free_netdev(opts->net);
+	}
+
+	opts->net = gether_setup_name_default("rndis");
+	if (IS_ERR(opts->net)) {
+		ERROR(cdev, "%s: failed to setup ethernet\n", f->name);
+		return;
+	}
+
+	gether_get_host_addr_u8(opts->net, rndis->ethaddr);
+	rndis->port.ioport = netdev_priv(opts->net);
+
+	opts->bound = false;
+#endif
 }
 
 static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
