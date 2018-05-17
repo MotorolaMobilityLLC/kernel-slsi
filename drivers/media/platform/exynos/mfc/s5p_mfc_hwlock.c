@@ -200,11 +200,10 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
 		mutex_unlock(&dev->hwlock_wq.wait_mutex);
 	}
 
-#ifdef NAL_Q_ENABLE
 	/* Stop NAL-Q after getting hwlock */
 	if (dev->nal_q_handle)
 		s5p_mfc_nal_q_stop_if_started(dev);
-#endif
+
 	return 0;
 }
 
@@ -293,11 +292,10 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 		mutex_unlock(&curr_ctx->hwlock_wq.wait_mutex);
 	}
 
-#ifdef NAL_Q_ENABLE
 	/* Stop NAL-Q after getting hwlock */
 	if (dev->nal_q_handle)
 		s5p_mfc_nal_q_stop_if_started(dev);
-#endif
+
 	return 0;
 }
 
@@ -624,7 +622,6 @@ void s5p_mfc_cache_flush(struct s5p_mfc_dev *dev, int is_drm)
 	s5p_mfc_pm_clock_on_with_base(dev, (is_drm ? MFCBUF_DRM : MFCBUF_NORMAL));
 }
 
-#ifdef NAL_Q_ENABLE
 /*
  * Return value description
  *  0: NAL-Q is handled successfully
@@ -725,7 +722,6 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 
 	return ret;
 }
-#endif
 
 static int mfc_just_run_dec(struct s5p_mfc_ctx *ctx)
 {
@@ -864,7 +860,6 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 
 	mfc_debug(2, "need_cache_flush = %d, is_drm = %d\n", need_cache_flush, ctx->is_drm);
 
-#ifdef NAL_Q_ENABLE
 	if (dev->nal_q_handle) {
 		ret = mfc_nal_q_just_run(ctx, need_cache_flush);
 		if (ret == 0) {
@@ -877,7 +872,7 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 			return ret;
 		}
 	}
-#endif
+
 	mfc_debug(2, "continue_clock_on = %d\n", dev->continue_clock_on);
 	if (!dev->continue_clock_on) {
 		s5p_mfc_pm_clock_on(dev);

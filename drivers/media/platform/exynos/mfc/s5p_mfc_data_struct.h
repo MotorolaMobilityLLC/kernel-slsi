@@ -372,6 +372,7 @@ struct s5p_mfc_qos {
 struct s5p_mfc_platdata {
 	int ip_ver;
 	int debug_mode;
+	int nal_q;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	int num_qos_steps;
 	int max_qos_steps;
@@ -381,8 +382,6 @@ struct s5p_mfc_platdata {
 };
 
 /************************ NAL_Q data structure ************************/
-#define NAL_Q_ENABLE 1
-
 #define NAL_Q_IN_ENTRY_SIZE		256
 #define NAL_Q_OUT_ENTRY_SIZE		256
 

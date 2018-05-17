@@ -393,11 +393,11 @@ static int mfc_init_instance(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_release_hwlock_dev(dev);
 
-#ifdef NAL_Q_ENABLE
-	dev->nal_q_handle = s5p_mfc_nal_q_create(dev);
-	if (dev->nal_q_handle == NULL)
-		mfc_err_dev("NAL Q: Can't create nal q\n");
-#endif
+	if (dev->pdata->nal_q) {
+		dev->nal_q_handle = s5p_mfc_nal_q_create(dev);
+		if (dev->nal_q_handle == NULL)
+			mfc_err_dev("NAL Q: Can't create nal q\n");
+	}
 
 	return ret;
 
@@ -737,7 +737,6 @@ static int s5p_mfc_release(struct file *file)
 		}
 #endif
 
-#ifdef NAL_Q_ENABLE
 		if (dev->nal_q_handle) {
 			ret = s5p_mfc_nal_q_destroy(dev, dev->nal_q_handle);
 			if (ret) {
@@ -745,7 +744,6 @@ static int s5p_mfc_release(struct file *file)
 				goto err_release;
 			}
 		}
-#endif
 	}
 
 	s5p_mfc_qos_off(ctx);
@@ -796,12 +794,10 @@ static int s5p_mfc_release(struct file *file)
 	mutex_unlock(&dev->mfc_mutex);
 	return ret;
 
-#if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) || defined(NAL_Q_ENABLE)
 err_release:
 	s5p_mfc_release_hwlock_ctx(ctx);
 	mutex_unlock(&dev->mfc_mutex);
 	return ret;
-#endif
 
 err_release_try:
 	s5p_mfc_release_hwlock_ctx(ctx);
@@ -948,6 +944,7 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 
 	of_property_read_u32(np, "ip_ver", &pdata->ip_ver);
 	of_property_read_u32(np, "debug_mode", &pdata->debug_mode);
+	of_property_read_u32(np, "nal_q", &pdata->nal_q);
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	of_property_read_u32(np, "num_qos_steps", &pdata->num_qos_steps);
 	of_property_read_u32(np, "max_qos_steps", &pdata->max_qos_steps);

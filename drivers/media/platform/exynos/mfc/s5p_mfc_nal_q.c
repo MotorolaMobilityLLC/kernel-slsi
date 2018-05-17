@@ -24,7 +24,6 @@
 #include "s5p_mfc_buf.h"
 #include "s5p_mfc_mem.h"
 
-#ifdef NAL_Q_ENABLE
 #define CBR_I_LIMIT_MAX			5
 int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 {
@@ -1973,5 +1972,4 @@ void s5p_mfc_nal_q_flush_DecoderOutputStr(struct s5p_mfc_dev *dev, DecoderOutput
 	MFC_WRITEL(pStr->PictureTagBot, S5P_FIMV_D_RET_PICTURE_TAG_BOT);		// 0xF678
 	MFC_WRITEL(pStr->PictureTimeBot, S5P_FIMV_D_RET_PICTURE_TIME_BOT);		// 0xF680
 }
-#endif
 #endif

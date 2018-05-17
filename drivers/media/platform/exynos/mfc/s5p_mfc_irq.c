@@ -1215,7 +1215,6 @@ irqreturn_t s5p_mfc_top_half_irq(int irq, void *priv)
 	return IRQ_WAKE_THREAD;
 }
 
-#ifdef NAL_Q_ENABLE
 /*
  * Return value description
  *  0: NAL-Q is handled successfully
@@ -1286,7 +1285,6 @@ static inline int mfc_nal_q_irq(struct s5p_mfc_dev *dev,
 
 	return ret;
 }
-#endif
 
 static inline int mfc_handle_done_frame(struct s5p_mfc_ctx *ctx,
 				unsigned int reason, unsigned int err)
@@ -1489,7 +1487,6 @@ irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	if (is_err_condition(err))
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 
-#ifdef NAL_Q_ENABLE
 	if (dev->nal_q_handle) {
 		ret = mfc_nal_q_irq(dev, reason, err);
 		if (ret == 0) {
@@ -1503,7 +1500,6 @@ irqreturn_t s5p_mfc_irq(int irq, void *priv)
 			goto irq_end;
 		}
 	}
-#endif
 
 	ret = mfc_irq_dev(dev, reason, err);
 	if (!ret)
