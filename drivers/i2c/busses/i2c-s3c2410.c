@@ -847,7 +847,6 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	int retry;
 	int ret;
 
-	pm_runtime_get_sync(&adap->dev);
 #ifdef CONFIG_ARCH_EXYNOS_PM
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
 #endif
@@ -868,7 +867,6 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 #ifdef CONFIG_ARCH_EXYNOS_PM
 			exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
-			pm_runtime_put(&adap->dev);
 			return ret;
 		}
 
@@ -881,7 +879,6 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 #ifdef CONFIG_ARCH_EXYNOS_PM
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
-	pm_runtime_put(&adap->dev);
 	return -EREMOTEIO;
 }
 
@@ -1300,7 +1297,6 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pm_runtime_enable(&i2c->adap.dev);
 
 #ifdef CONFIG_CPU_IDLE
 	list_add_tail(&i2c->node, &drvdata_list);
@@ -1321,7 +1317,6 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 
 	clk_unprepare(i2c->clk);
 
-	pm_runtime_disable(&i2c->adap.dev);
 	pm_runtime_disable(&pdev->dev);
 
 	i2c_del_adapter(&i2c->adap);
