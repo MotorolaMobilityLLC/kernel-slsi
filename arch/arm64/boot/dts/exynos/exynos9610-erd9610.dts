@@ -872,6 +872,230 @@
 			synaptics,regulator_avdd = "vdd_ldo41";
 		};
 	};
+
+	usb@13200000 {
+		status = "okay";
+		dwc3 {
+			dr_mode = "otg";
+			maximum-speed = "super-speed";
+		};
+	};
+
+	usbdrd_phy:phy@131D0000 {
+		status = "okay";
+
+		hs_tune_param = <&usb_hs_tune>;
+	};
+
+	usbdrd3_phy:phy@131F0000 {
+		status = "okay";
+
+		hs_tune_param = <&usb3_hs_tune>;
+		ss_tune_param = <&usb3_ss_tune>;
+	};
+
+	usb_hs_tune:hs_tune {
+		hs_tune_cnt = <12>;
+
+		/* value = <device host> */
+		hs_tune1 {
+			tune_name = "tx_vref";
+			tune_value = <0xf 0xf>;
+		};
+
+		hs_tune2 {
+			tune_name = "tx_pre_emp";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune3 {
+			tune_name = "tx_pre_emp_plus";
+			tune_value = <0x0 0x0>;
+		};
+
+		hs_tune4 {
+			tune_name = "tx_res";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune5 {
+			tune_name = "tx_rise";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune6 {
+			tune_name = "tx_hsxv";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune7 {
+			tune_name = "tx_fsls";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune8 {
+			tune_name = "rx_sqrx";
+			tune_value = <0x7 0x7>;
+		};
+
+		hs_tune9 {
+			tune_name = "compdis";
+			tune_value = <0x7 0x7>;
+		};
+
+		hs_tune10 {
+			tune_name = "otg";
+			tune_value = <0x2 0x2>;
+		};
+
+		hs_tune11 {
+		/* true : 1, false: 0 */
+		/* <enable_user_imp user_imp_value> */
+			tune_name = "enable_user_imp";
+			tune_value = <0x0 0x0>;
+		};
+
+		hs_tune12 {
+		/* PHY clk : 1 , FREE clk : 0 */
+			tune_name = "is_phyclock";
+			tune_value = <0x1 0x1>;
+		};
+	};
+
+	usb3_ss_tune:ss_tune {
+		ss_tune_cnt = <15>;
+
+		/* value = <device host> */
+		ss_tune1 {
+			tune_name = "tx0_term_offset";
+			tune_value = <0x0 0x0>;
+		};
+
+		ss_tune2 {
+			tune_name = "pcs_tx_swing_full";
+			tune_value = <0x7f 0x7f>;
+		};
+
+		ss_tune3 {
+			tune_name = "pcs_tx_deemph_6db";
+			tune_value = <0x1c 0x1c>;
+		};
+
+		ss_tune4 {
+			tune_name = "pcs_tx_deemph_3p5db";
+			tune_value = <0x1c 0x1c>;
+		};
+
+		ss_tune5 {
+			tune_name = "tx_vboost_lvl_sstx";
+			tune_value = <0x7 0x7>;
+		};
+
+		ss_tune6 {
+			tune_name = "tx_vboost_lvl";
+			tune_value = <0x4 0x4>;
+		};
+
+		ss_tune7 {
+			tune_name = "los_level";
+			tune_value = <0x9 0x9>;
+		};
+
+		ss_tune8 {
+			tune_name = "los_bias";
+			tune_value = <0x5 0x5>;
+		};
+
+		ss_tune9 {
+			tune_name = "pcs_rx_los_mask_val";
+			tune_value = <0x104 0x104>;
+		};
+
+		ss_tune10 {
+			tune_name = "tx_eye_height_cntl_en";
+			tune_value = <0x1 0x1>;
+		};
+
+		ss_tune11 {
+			tune_name = "pipe_tx_deemph_update_delay";
+			tune_value = <0x2 0x2>;
+		};
+
+		ss_tune12 {
+			tune_name = "pcs_tx_swing_full_sstx";
+			tune_value = <0x7f 0x7f>;
+		};
+		ss_tune13 {
+			tune_name = "rx_eq_fix_val";
+			tune_value = <0x2 0x2>;
+		};
+
+		ss_tune14 {
+			tune_name = "rx_decode_mode";
+			tune_value = <0x1 0x1>;
+		};
+
+		ss_tune15 {
+			tune_name = "decrese_ss_tx_imp";
+			tune_value = <0x1 0x1>;
+		};
+	};
+
+	usb3_hs_tune:hs_tune {
+		hs_tune_cnt = <10>;
+
+		/* value = <device host> */
+		hs_tune1 {
+			tune_name = "tx_pre_emp";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune2 {
+			tune_name = "tx_pre_emp_plus";
+			tune_value = <0x0 0x0>;
+		};
+
+		hs_tune3 {
+			tune_name = "tx_vref";
+			tune_value = <0x7 0x7>;
+		};
+
+		hs_tune4 {
+			tune_name = "rx_sqrx";
+			tune_value = <0x7 0x7>;
+		};
+
+		hs_tune5 {
+			tune_name = "tx_rise";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune6 {
+			tune_name = "compdis";
+			tune_value = <0x7 0x7>;
+		};
+
+		hs_tune7 {
+			tune_name = "tx_hsxv";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune8 {
+			tune_name = "tx_fsls";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune9 {
+			tune_name = "tx_res";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune10 {
+			tune_name = "utim_clk";
+			tune_value = <0x1 0x1>;
+		};
+	};
+
 };
 
 &pinctrl_0 {
