@@ -2845,4 +2845,10 @@
 		compatible = "samsung,exynos-seclog";
 		interrupts = <0 455 0>;
 	};
+
+	/* tbase */
+	tee {
+		compatible = "samsung,exynos-tee";
+		interrupts = <0 454 0>;
+	};
 };
