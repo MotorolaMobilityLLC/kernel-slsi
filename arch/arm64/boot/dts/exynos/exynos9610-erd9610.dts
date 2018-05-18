@@ -1113,6 +1113,496 @@
 		interrupts = <0 460 0>;
 	};
 
+	V_SYS: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_SYS";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	pinctrl@11850000 {
+		amp_irq: amp-irq {
+			samsung,pins ="gpa0-2";
+			samsung,pin-function = <0xf>;
+			samsung,pin-pud = <0>;
+		};
+	};
+
+	pinctrl@139B0000 {
+		amp_reset: amp-reset {
+			samsung,pins ="gpg3-3";
+			samsung,pin-pud = <0>;
+			samsung,pin-con-pdn =<3>;
+			samsung,pin-pud-pdn = <0>;
+		};
+	};
+
+	i2c_3: i2c@13860000 {
+		status = "okay";
+		cs35l35_left: cs35l35@40 {
+			#sound-dai-cells = <1>;
+			compatible = "cirrus,cs35l35";
+			reg = <0x40>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&amp_irq &amp_reset>;
+
+			interrupt-parent = <&gpa0>;
+			interrupts = <2 0 0>;
+
+			reset-gpios = <&gpg3 3 0>;
+
+			VA-supply = <&l42_reg>;
+			VP-supply = <&V_SYS>;
+			cirrus,audio-channel = <0x0>;
+			cirrus,boost-ctl-millivolt = <7300>;
+			cirrus,sp-drv-strength = <0x1>;
+			cirrus,sp-drv-unused = <0x0>;
+			cirrus,boost-ind-nanohenry = <1000>;
+
+			cirrus,monitor-signal-format {
+				cirrus,imon = /bits/ 8 <0x03 0x04 0x00 0x06>;
+				cirrus,vmon = /bits/ 8 <0x03 0x00 0x00>;
+				cirrus,vpmon = /bits/ 8 <0x00 0x00 0x00>;
+				cirrus,vbstmon = /bits/ 8 <0x00 0x00 0x00>;
+				cirrus,vpbrstat = /bits/ 8 <0x00 0x00 0x00>;
+				cirrus,zerofill = /bits/ 8 <0x00 0x00 0x00>;
+			};
+		};
+	};
+
+	pinctrl@139B0000 {
+		codec_reset: codec-reset {
+			samsung,pins ="gpg3-2";
+			samsung,pin-pud = <0>;
+			samsung,pin-con-pdn =<3>;
+			samsung,pin-pud-pdn = <0>;
+		};
+	};
+
+	spi_9: spi@13940000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi9_bus &spi9_cs_func>;
+		status = "okay";
+		cs47l35: cs47l35@0 {
+			compatible = "cirrus,cs47l35";
+			reg = <0x0>;
+
+			spi-max-frequency = <11000000>;
+
+			interrupts = <6 0 0>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&gpa0>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			#sound-dai-cells = <1>;
+
+			AVDD-supply = <&l42_reg>;
+			DBVDD1-supply = <&l42_reg>;
+			DBVDD2-supply = <&l42_reg>;
+			CPVDD1-supply = <&l42_reg>;
+			CPVDD2-supply = <&l44_reg>;
+			DCVDD-supply = <&l44_reg>;
+			SPKVDD-supply = <&V_SYS>;
+
+			reset-gpios = <&gpg3 2 0>;
+
+			cirrus,dmic-ref = <0 0 0>;
+			cirrus,inmode = <
+				0 0 0 0 /* IN1 */
+				0 0 0 0 /* IN2 */
+			>;
+
+			cirrus,gpsw = <3 0>;
+
+			pinctrl-names = "probe", "active";
+			pinctrl-0 = <&codec_reset>;
+			pinctrl-1 = <&codec_reset &cs47l35_defaults>;
+
+			madera_pinctrl: madera-pinctrl {
+				compatible = "cirrus,madera-pinctrl";
+				cs47l35_defaults: cs47l35-gpio-defaults {
+					aif1 {
+						groups = "aif1";
+						function = "aif1";
+						bias-bus-hold;
+					};
+
+					aif2 {
+						groups = "aif2";
+						function = "aif2";
+						bias-bus-hold;
+					};
+
+					aif3 {
+						groups = "aif3";
+						function = "aif3";
+						bias-bus-hold;
+					};
+
+					gpio6 { /* Amp Clock */
+						groups = "gpio6";
+						function = "opclk";
+						bias-pull-up;
+						output-low;
+					};
+
+					gpio5 { /* Mic Polarity Flip */
+						groups = "gpio5";
+						function = "io";
+					};
+				};
+			};
+
+			micvdd {
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+			};
+
+			MICBIAS1 {
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				cirrus,ext-cap = <1>;
+			};
+			MICBIAS1A {
+				regulator-active-discharge = <1>;
+			};
+			MICBIAS1B {
+				regulator-active-discharge = <1>;
+			};
+
+			MICBIAS2 {
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				cirrus,ext-cap = <1>;
+			};
+			MICBIAS2B {
+				regulator-active-discharge = <1>;
+			};
+
+			cirrus,accdet {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				acc@1 {
+					reg = <1>;
+
+					cirrus,micd-configs = <
+						0 0 3 0 0
+					>;
+					cirrus,micd-bias-start-time = <8>;
+					cirrus,micd-rate = <6>;
+					cirrus,micd-pol-gpios = <&cs47l35 4 0>;
+					cirrus,micd-detect-debounce-ms = <500>;
+					cirrus,jd-use-jd2;
+					cirrus,micd-clamp-mode = <0x8>;
+				};
+			};
+
+			controller-data {
+				samsung,spi-feedback-delay = <1>;
+				samsung,spi-chip-select-mode = <0>;
+			};
+		};
+	};
+
+	dummy_audio_codec: audio_codec_dummy {
+		status = "okay";
+		compatible = "snd-soc-dummy";
+	};
+
+	dummy_audio_cpu: audio_cpu_dummy {
+		compatible = "samsung,dummy-cpu";
+		status = "okay";
+	};
+
+	sound {
+		status = "okay";
+		compatible = "samsung,exynos9610-madera";
+
+		clock-names = "xclkout";
+		clocks = <&clock OSC_AUD>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&xclkout0>;
+
+		cirrus,sysclk = <1 4 98304000>;
+		cirrus,dspclk = <8 4 147456000>;
+		cirrus,fll1-refclk = <1 0 26000000 98304000>;
+
+		cirrus,opclk = <3 0 12288000>;
+
+		samsung,routing =
+			"HEADSETMIC", "MICBIAS2B",
+			"MICBIAS2A", "MICBIAS2B",
+			"IN1BL", "HEADSETMIC",
+			"DMIC1", "MICBIAS1A",
+			"IN1AL", "DMIC1",
+			"DMIC2", "MICBIAS1B",
+			"IN2L", "DMIC2",
+			"RECEIVER", "EPOUTN",
+			"RECEIVER", "EPOUTP",
+			"HEADPHONE", "HPOUTL",
+			"HEADPHONE", "HPOUTR",
+			"AIF2 Playback", "OPCLK",
+			"AIF2 Capture", "OPCLK",
+			"VOUTPUT", "ABOX UAIF0 Playback",
+			"SPEAKER", "Left SPK",
+			"VOUTPUTCALL", "ABOX UAIF2 Playback",
+			"ABOX UAIF2 Capture", "VINPUTCALL";
+
+		samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_2
+			&abox_uaif_4 &abox_dsif &abox_spdy &cs35l35_left>;
+		samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX",
+			"ABOX", "ABOX", "ABOX", "Left";
+		samsung,aux = <&abox_effect>;
+
+		rdma@0 {
+			cpu {
+				sound-dai = <&abox 0>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_0>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@1 {
+			cpu {
+				sound-dai = <&abox 1>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_1>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@2 {
+			cpu {
+				sound-dai = <&abox 2>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_2>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@3 {
+			cpu {
+				sound-dai = <&abox 3>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_3>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@4 {
+			cpu {
+				sound-dai = <&abox 4>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_4>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@5 {
+			cpu {
+				sound-dai = <&abox 5>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_5>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@6 {
+			cpu {
+				sound-dai = <&abox 6>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_6>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@7 {
+			cpu {
+				sound-dai = <&abox 7>;
+			};
+			platform {
+				sound-dai = <&abox_rdma_7>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		wdma@0 {
+			cpu {
+				sound-dai = <&abox 8>;
+			};
+			platform {
+				sound-dai = <&abox_wdma_0>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		wdma@1 {
+			cpu {
+				sound-dai = <&abox 9>;
+			};
+			platform {
+				sound-dai = <&abox_wdma_1>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		wdma@2 {
+			cpu {
+				sound-dai = <&abox 10>;
+			};
+			platform {
+				sound-dai = <&abox_wdma_2>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		wdma@3 {
+			cpu {
+				sound-dai = <&abox 11>;
+			};
+			platform {
+				sound-dai = <&abox_wdma_3>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		wdma@4 {
+			cpu {
+				sound-dai = <&abox 12>;
+			};
+			platform {
+				sound-dai = <&abox_wdma_4>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+/** ToDo: enable dp_audio link after enabling DP Audio
+ *		dp_audio@0 {
+ *			cpu {
+ *				sound-dai = <&dummy_audio_cpu>;
+ *			};
+ *			codec {
+ *				sound-dai = <&dummy_audio_codec>;
+ *			};
+ *		};
+ */
+		uaif@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&abox_uaif_0>;
+			};
+			codec {
+				sound-dai = <&cs47l35 0>;
+			};
+		};
+		uaif@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&abox_uaif_1>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		uaif@2 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&abox_uaif_2>;
+			};
+			codec {
+				sound-dai = <&cs47l35 2>;
+			};
+		};
+		uaif@4 {
+			format = "i2s";
+			bitclock-master;
+			frame-master;
+			cpu {
+				sound-dai = <&abox_uaif_4>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		dsif@0 {
+			format = "pdm";
+			cpu {
+				sound-dai = <&abox_dsif>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		spdy@0 {
+			cpu {
+				sound-dai = <&abox_spdy>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		sifs0@0 {
+			cpu {
+				sound-dai = <&abox 13>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		sifs1@0 {
+			cpu {
+				sound-dai = <&abox 14>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		sifs2@0 {
+			cpu {
+				sound-dai = <&abox 15>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		codec-left-amp@0 {
+			format = "i2s";
+
+			cpu {
+				sound-dai = <&cs47l35 1>;
+			};
+			codec {
+				sound-dai = <&cs35l35_left 0>;
+			};
+		};
+
+	};
 };
 
 &pinctrl_0 {
