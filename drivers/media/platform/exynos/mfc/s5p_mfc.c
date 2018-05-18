@@ -949,6 +949,9 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 	of_property_read_u32(np, "num_qos_steps", &pdata->num_qos_steps);
 	of_property_read_u32(np, "max_qos_steps", &pdata->max_qos_steps);
 	of_property_read_u32(np, "max_mb", &pdata->max_mb);
+	of_property_read_u32(np, "mfc_freq_control", &pdata->mfc_freq_control);
+	of_property_read_u32(np, "mo_control", &pdata->mo_control);
+	of_property_read_u32(np, "bw_control", &pdata->bw_control);
 
 	pdata->qos_table = devm_kzalloc(mfc->device,
 			sizeof(struct s5p_mfc_qos) * pdata->max_qos_steps, GFP_KERNEL);
@@ -1294,6 +1297,8 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	atomic_set(&dev->qos_req_cur, 0);
 
+	mfc_info_dev("QoS control: mfc_freq(%d), mo(%d), bw(%d)\n",
+			dev->pdata->mfc_freq_control, dev->pdata->mo_control, dev->pdata->bw_control);
 	for (i = 0; i < dev->pdata->num_qos_steps; i++) {
 		mfc_info_dev("QoS table[%d] mfc: %d, int : %d, mif : %d\n",
 				i,

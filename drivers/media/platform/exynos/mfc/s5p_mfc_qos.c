@@ -33,13 +33,10 @@ static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 
 	switch (opr_type) {
 	case MFC_QOS_ADD:
-		MFC_TRACE_CTX("++ QOS add[%d] (mfc: %d, int:%d, mif:%d)\n",
-			idx, qos_table[idx].freq_mfc,
-			qos_table[idx].freq_int, qos_table[idx].freq_mif);
-
-		pm_qos_add_request(&dev->qos_req_mfc,
-				PM_QOS_MFC_THROUGHPUT,
-				qos_table[idx].freq_mfc);
+		if (pdata->mfc_freq_control)
+			pm_qos_add_request(&dev->qos_req_mfc,
+					PM_QOS_MFC_THROUGHPUT,
+					qos_table[idx].freq_mfc);
 		pm_qos_add_request(&dev->qos_req_int,
 				PM_QOS_DEVICE_THROUGHPUT,
 				qos_table[idx].freq_int);
@@ -57,28 +54,31 @@ static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 #endif
 
 #ifdef CONFIG_EXYNOS_BTS
-		bts_update_scen(BS_MFC_UHD_ENC60, qos_table[idx].mo_uhd_enc60_value);
-		bts_update_scen(BS_MFC_UHD_10BIT, qos_table[idx].mo_10bit_value);
-		bts_update_scen(BS_MFC_UHD, qos_table[idx].mo_value);
+		if (pdata->mo_control) {
+			bts_update_scen(BS_MFC_UHD_ENC60, qos_table[idx].mo_uhd_enc60_value);
+			bts_update_scen(BS_MFC_UHD_10BIT, qos_table[idx].mo_10bit_value);
+			bts_update_scen(BS_MFC_UHD, qos_table[idx].mo_value);
+			MFC_TRACE_CTX("BTS(MO) update - uhd:%d, uhd_10bit:%d, uhd_enc60:%d\n",
+					qos_table[idx].mo_value, qos_table[idx].mo_10bit_value,
+					qos_table[idx].mo_uhd_enc60_value);
+			mfc_debug(2, "[QoS] BTS(MO) update - uhd:%d, uhd_10bit:%d, uhd_enc60:%d\n",
+					qos_table[idx].mo_value, qos_table[idx].mo_10bit_value,
+					qos_table[idx].mo_uhd_enc60_value);
+		}
 #endif
 
 		atomic_set(&dev->qos_req_cur, idx + 1);
-		MFC_TRACE_CTX("-- QOS add[%d] (mfc: %d, int:%d, mif:%d, mo:%d, mo10:%d, moenc:%d)\n",
-				idx, qos_table[idx].freq_mfc, qos_table[idx].freq_int,
-				qos_table[idx].freq_mif, qos_table[idx].mo_value,
-				qos_table[idx].mo_10bit_value, qos_table[idx].mo_uhd_enc60_value);
-		mfc_debug(2, "QOS add[%d] (mfc: %d, int:%d, mif:%d, mo:%d, mo10:%d, moenc:%d)\n",
-				idx, qos_table[idx].freq_mfc, qos_table[idx].freq_int,
-				qos_table[idx].freq_mif, qos_table[idx].mo_value,
-				qos_table[idx].mo_10bit_value, qos_table[idx].mo_uhd_enc60_value);
+		MFC_TRACE_CTX("QoS add[%d] - mfc:%d(%s), int:%d, mif:%d\n",
+				idx, qos_table[idx].freq_mfc, pdata->mfc_freq_control ? "used" : "un-used",
+				qos_table[idx].freq_int, qos_table[idx].freq_mif);
+		mfc_debug(2, "[QoS] QoS add[%d] - mfc:%d(%s), int:%d, mif:%d\n",
+				idx, qos_table[idx].freq_mfc, pdata->mfc_freq_control ? "used" : "un-used",
+				 qos_table[idx].freq_int, qos_table[idx].freq_mif);
 		break;
 	case MFC_QOS_UPDATE:
-		MFC_TRACE_CTX("++ QOS update[%d] (mfc: %d, int:%d, mif:%d)\n",
-				idx, qos_table[idx].freq_mfc,
-				qos_table[idx].freq_int, qos_table[idx].freq_mif);
-
-		pm_qos_update_request(&dev->qos_req_mfc,
-				qos_table[idx].freq_mfc);
+		if (pdata->mfc_freq_control)
+			pm_qos_update_request(&dev->qos_req_mfc,
+					qos_table[idx].freq_mfc);
 		pm_qos_update_request(&dev->qos_req_int,
 				qos_table[idx].freq_int);
 		pm_qos_update_request(&dev->qos_req_mif,
@@ -92,25 +92,30 @@ static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 #endif
 
 #ifdef CONFIG_EXYNOS_BTS
-		bts_update_scen(BS_MFC_UHD_ENC60, qos_table[idx].mo_uhd_enc60_value);
-		bts_update_scen(BS_MFC_UHD_10BIT, qos_table[idx].mo_10bit_value);
-		bts_update_scen(BS_MFC_UHD, qos_table[idx].mo_value);
+		if (pdata->mo_control) {
+			bts_update_scen(BS_MFC_UHD_ENC60, qos_table[idx].mo_uhd_enc60_value);
+			bts_update_scen(BS_MFC_UHD_10BIT, qos_table[idx].mo_10bit_value);
+			bts_update_scen(BS_MFC_UHD, qos_table[idx].mo_value);
+			MFC_TRACE_CTX("BTS(MO) update - uhd:%d, uhd_10bit:%d, uhd_enc60:%d\n",
+					qos_table[idx].mo_value, qos_table[idx].mo_10bit_value,
+					qos_table[idx].mo_uhd_enc60_value);
+			mfc_debug(2, "[QoS] BTS(MO) update - uhd:%d, uhd_10bit:%d, uhd_enc60:%d\n",
+					qos_table[idx].mo_value, qos_table[idx].mo_10bit_value,
+					qos_table[idx].mo_uhd_enc60_value);
+		}
 #endif
 
 		atomic_set(&dev->qos_req_cur, idx + 1);
-		MFC_TRACE_CTX("-- QOS update[%d] (mfc: %d, int:%d, mif:%d, mo:%d, mo10:%d, moenc:%d)\n",
-				idx, qos_table[idx].freq_mfc, qos_table[idx].freq_int,
-				qos_table[idx].freq_mif, qos_table[idx].mo_value,
-				qos_table[idx].mo_10bit_value, qos_table[idx].mo_uhd_enc60_value);
-		mfc_debug(2, "QOS update[%d] (mfc: %d, int:%d, mif:%d, mo:%d, mo10:%d, moenc:%d)\n",
-				idx, qos_table[idx].freq_mfc, qos_table[idx].freq_int,
-				qos_table[idx].freq_mif, qos_table[idx].mo_value,
-				qos_table[idx].mo_10bit_value, qos_table[idx].mo_uhd_enc60_value);
+		MFC_TRACE_CTX("QoS update[%d] - mfc:%d(%s), int:%d, mif:%d\n",
+				idx, qos_table[idx].freq_mfc, pdata->mfc_freq_control ? "used" : "un-used",
+				qos_table[idx].freq_int, qos_table[idx].freq_mif);
+		mfc_debug(2, "[QoS] QoS update[%d] - mfc:%d(%s), int:%d, mif:%d\n",
+				idx, qos_table[idx].freq_mfc, pdata->mfc_freq_control ? "used" : "un-used",
+				qos_table[idx].freq_int, qos_table[idx].freq_mif);
 		break;
 	case MFC_QOS_REMOVE:
-		MFC_TRACE_CTX("++ QOS remove\n");
-
-		pm_qos_remove_request(&dev->qos_req_mfc);
+		if (pdata->mfc_freq_control)
+			pm_qos_remove_request(&dev->qos_req_mfc);
 		pm_qos_remove_request(&dev->qos_req_int);
 		pm_qos_remove_request(&dev->qos_req_mif);
 
@@ -120,31 +125,33 @@ static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 #endif
 
 #ifdef CONFIG_EXYNOS_BTS
-		bts_update_scen(BS_MFC_UHD_ENC60, 0);
-		bts_update_scen(BS_MFC_UHD_10BIT, 0);
-		bts_update_scen(BS_MFC_UHD, 0);
+		if (pdata->mo_control) {
+			bts_update_scen(BS_MFC_UHD_ENC60, 0);
+			bts_update_scen(BS_MFC_UHD_10BIT, 0);
+			bts_update_scen(BS_MFC_UHD, 0);
+		}
 
-		dev->mfc_bw.peak = 0;
-		dev->mfc_bw.read = 0;
-		dev->mfc_bw.write = 0;
-		bts_update_bw(BTS_BW_MFC, dev->mfc_bw);
+		if (pdata->bw_control) {
+			dev->mfc_bw.peak = 0;
+			dev->mfc_bw.read = 0;
+			dev->mfc_bw.write = 0;
+			bts_update_bw(BTS_BW_MFC, dev->mfc_bw);
+		}
 #endif
 
 		atomic_set(&dev->qos_req_cur, 0);
-		MFC_TRACE_CTX("-- QOS remove\n");
-		mfc_debug(2, "QoS remove\n");
+		MFC_TRACE_CTX("QoS remove\n");
+		mfc_debug(2, "[QoS] QoS remove\n");
 		break;
 	case MFC_QOS_BW:
 #ifdef CONFIG_EXYNOS_BTS
-		MFC_TRACE_CTX("++ QOS BW (peak: %d, read: %d, write: %d)\n",
-				dev->mfc_bw.peak, dev->mfc_bw.read, dev->mfc_bw.write);
-
-		bts_update_bw(BTS_BW_MFC, dev->mfc_bw);
-
-		MFC_TRACE_CTX("-- QOS BW (peak: %d, read: %d, write: %d)\n",
-				dev->mfc_bw.peak, dev->mfc_bw.read, dev->mfc_bw.write);
-		mfc_debug(2, "QoS BW, (peak: %d, read: %d, write: %d)\n",
-				dev->mfc_bw.peak, dev->mfc_bw.read, dev->mfc_bw.write);
+		if (pdata->bw_control) {
+			bts_update_bw(BTS_BW_MFC, dev->mfc_bw);
+			MFC_TRACE_CTX("BTS(BW) update (peak: %d, read: %d, write: %d)\n",
+					dev->mfc_bw.peak, dev->mfc_bw.read, dev->mfc_bw.write);
+			mfc_debug(2, "[QoS] BTS(BW) update (peak: %d, read: %d, write: %d)\n",
+					dev->mfc_bw.peak, dev->mfc_bw.read, dev->mfc_bw.write);
+		}
 #endif
 		break;
 	default:
@@ -158,7 +165,6 @@ static void mfc_qos_set(struct s5p_mfc_ctx *ctx, struct bts_bw *mfc_bw, int i)
 #else
 static void mfc_qos_set(struct s5p_mfc_ctx *ctx, int i)
 #endif
-
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_platdata *pdata = dev->pdata;

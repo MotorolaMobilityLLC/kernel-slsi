@@ -377,6 +377,9 @@ struct s5p_mfc_platdata {
 	int num_qos_steps;
 	int max_qos_steps;
 	int max_mb;
+	int mfc_freq_control;
+	int mo_control;
+	int bw_control;
 	struct s5p_mfc_qos *qos_table;
 #endif
 };
