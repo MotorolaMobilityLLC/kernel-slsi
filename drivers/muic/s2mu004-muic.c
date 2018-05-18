@@ -1138,11 +1138,15 @@ static int s2mu004_muic_reg_init(struct s2mu004_muic_data *muic_data)
 	if (ret < 0)
 		pr_err("failed to write ctrl(%d)\n", ret);
 
+	data = s2mu004_i2c_read_byte(i2c, S2MU004_REG_MUIC_SW_CTRL);
+	pr_info("%s init path(0x%x)\n", __func__, data);
+	if (data)
+		s2mu004_muic_set_com_sw(muic_data, MANSW_OPEN);
+
 	/*
 	 * These registers represents the RID ADC LDO voltage control.
 	 * Low / High LDO initialized to 3V, 2.7V each.
 	 */
-
 #ifdef CONFIG_MUIC_S2MU004_RID
 	s2mu004_muic_control_rid_adc(muic_data, S2MU004_ENABLE);
 
