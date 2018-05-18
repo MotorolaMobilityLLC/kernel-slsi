@@ -788,9 +788,6 @@ static int __init pm_init(void)
 	if (error)
 		return error;
 	pm_print_times_init();
-
-	pm_wake_lock("temp_wake_lock");
-
 	return pm_autosleep_init();
 }
 
