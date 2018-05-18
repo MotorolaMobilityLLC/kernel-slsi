@@ -873,6 +873,11 @@
 		};
 	};
 
+	usb_notifier {
+		compatible = "samsung,usb-notifier";
+		udc = <&udc>;
+	};
+
 	usb@13200000 {
 		status = "okay";
 		dwc3 {
