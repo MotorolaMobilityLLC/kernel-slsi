@@ -112,6 +112,7 @@ int register_exynos_dm_freq_scaler(int dm_type,
 int unregister_exynos_dm_freq_scaler(int dm_type);
 int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq);
 int DM_CALL(int dm_type, unsigned long *target_freq);
+int policy_update_with_DM_CALL(int dm_type, u32 min_freq, u32 max_freq, unsigned long *target_freq);
 #else
 static inline
 int exynos_dm_data_init(int dm_type, void *data,
@@ -149,6 +150,11 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 }
 static inline
 int DM_CALL(int dm_type, unsigned long *target_freq)
+{
+	return 0;
+}
+static inline
+int policy_update_with_DM_CALL(int dm_type, u32 min_freq, u32 max_freq, unsigned long *target_freq)
 {
 	return 0;
 }

@@ -661,7 +661,7 @@ static bool max_flag = false;
 
 #define POLICY_REQ	4
 
-int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
+static int __policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 {
 	struct exynos_dm_data *dm;
 	struct timeval pre, before, after;
@@ -676,7 +676,6 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 	dbg_snapshot_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 #endif
 	do_gettimeofday(&pre);
-	mutex_lock(&exynos_dm->lock);
 	do_gettimeofday(&before);
 
 	min_freq = min(min_freq, max_freq);
@@ -715,7 +714,6 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 
 out:
 	do_gettimeofday(&after);
-	mutex_unlock(&exynos_dm->lock);
 
 	pre_time = (before.tv_sec - pre.tv_sec) * USEC_PER_SEC +
 		(before.tv_usec - pre.tv_usec);
@@ -779,7 +777,7 @@ static int constraint_checker_max(struct list_head *head, u32 freq)
 /*
  * DM CALL
  */
-int DM_CALL(int dm_type, unsigned long *target_freq)
+static int __DM_CALL(int dm_type, unsigned long *target_freq)
 {
 	struct exynos_dm_data *dm;
 	int i;
@@ -793,7 +791,6 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	dbg_snapshot_dm((int)dm_type, *target_freq, 1, pre_time, time);
 #endif
 	do_gettimeofday(&pre);
-	mutex_lock(&exynos_dm->lock);
 	do_gettimeofday(&before);
 
 	dm = &exynos_dm->dm_data[dm_type];
@@ -811,7 +808,6 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	ret = dm_data_updater(dm_type);
 	if (ret) {
 		pr_err("Failed to update DM DATA!\n");
-		mutex_unlock(&exynos_dm->lock);
 		return -EAGAIN;
 	}
 
@@ -846,7 +842,6 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	}
 
 	do_gettimeofday(&after);
-	mutex_unlock(&exynos_dm->lock);
 
 	pre_time = (before.tv_sec - pre.tv_sec) * USEC_PER_SEC +
 		(before.tv_usec - pre.tv_usec);
@@ -904,6 +899,41 @@ static int dm_data_updater(int dm_type)
 	update_min_max_freq(dm, min_freq, max_freq);
 
 	return 0;
+}
+
+
+int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
+{
+	int ret = 0;
+
+	mutex_lock(&exynos_dm->lock);
+	ret = __policy_update_call_to_DM(dm_type, min_freq, max_freq);
+	mutex_unlock(&exynos_dm->lock);
+
+	return ret;
+}
+
+int DM_CALL(int dm_type, unsigned long *target_freq)
+{
+	int ret = 0;
+
+	mutex_lock(&exynos_dm->lock);
+	ret = __DM_CALL(dm_type, target_freq);
+	mutex_unlock(&exynos_dm->lock);
+
+	return ret;
+}
+
+int policy_update_with_DM_CALL(int dm_type, u32 min_freq, u32 max_freq, unsigned long *target_freq)
+{
+	int ret = 0;
+
+	mutex_lock(&exynos_dm->lock);
+	__policy_update_call_to_DM(dm_type, min_freq, max_freq);
+	ret = __DM_CALL(dm_type, target_freq);
+	mutex_unlock(&exynos_dm->lock);
+
+	return ret;
 }
 
 static int constraint_data_updater(int dm_type, int cnt)
