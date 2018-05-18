@@ -817,6 +817,9 @@ static int exynos_usbdrd_fill_hstune_param(struct exynos_usbdrd_phy *phy_drd,
 	dev_info(dev, "%s hs tune cnt = %d\n", __func__, res[0]);
 
 	hs_tune_param = devm_kzalloc(dev, size*res[0], GFP_KERNEL);
+	if (hs_tune_param == NULL)
+		return -ENOMEM;
+
 	phy_drd->usbphy_info.tune_param = hs_tune_param;
 
 	for_each_child_of_node(node, child) {
@@ -863,6 +866,9 @@ static int exynos_usbdrd_fill_sstune_param(struct exynos_usbdrd_phy *phy_drd,
 	dev_info(dev, "%s ss tune cnt = %d\n", __func__, res[0]);
 
 	ss_tune_param = devm_kzalloc(dev, size*res[0], GFP_KERNEL);
+	if (ss_tune_param == NULL)
+		return -ENOMEM;
+
 	phy_drd->usbphy_sub_info.tune_param = ss_tune_param;
 	for_each_child_of_node(node, child) {
 		ret = of_property_read_string(child, "tune_name", &name);
