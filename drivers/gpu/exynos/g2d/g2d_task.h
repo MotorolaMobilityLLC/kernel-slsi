@@ -94,7 +94,7 @@ struct g2d_task {
 	struct kref		starter;
 	struct timer_list	timer;
 
-	struct g2d_layer	source[G2D_MAX_IMAGES];
+	struct g2d_layer	*source;
 	struct g2d_layer	target;
 	unsigned int		num_source;
 
