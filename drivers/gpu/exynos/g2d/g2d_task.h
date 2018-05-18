@@ -27,6 +27,7 @@
 #include "g2d_format.h"
 
 #define G2D_MAX_IMAGES		16
+#define G2D_MAX_IMAGES_HALF	8
 #define G2D_MAX_JOBS		16
 #define G2D_CMD_LIST_SIZE	8192
 
