@@ -1589,7 +1589,7 @@ static int decon_set_dpp_config(struct decon_device *decon,
 }
 
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)
-static void decon_save_vgf_connected_win_id(struct decon_device *decon,
+static void decon_save_afbc_enabled_win_id(struct decon_device *decon,
 		struct decon_reg_data *regs)
 {
 	int i;
@@ -1597,22 +1597,28 @@ static void decon_save_vgf_connected_win_id(struct decon_device *decon,
 	int afbc_enabled;
 
 	for (i = 0; i < decon->dt.max_win; ++i)
-		decon->d.prev_vgf_win_id[i] = -1;
+		decon->d.prev_afbc_win_id[i] = -1;
 
 	for (i = 0; i < decon->dt.max_win; ++i) {
 		if (regs->dpp_config[i].state == DECON_WIN_STATE_BUFFER) {
-			sd = decon->dpp_sd[DPU_DMA2CH(regs->dpp_config[i].idma_type)];
+			sd = decon->dpp_sd[DPU_DMA2CH(
+					regs->dpp_config[i].idma_type)];
 			afbc_enabled = 0;
 			v4l2_subdev_call(sd, core, ioctl,
 					DPP_AFBC_ATTR_ENABLED, &afbc_enabled);
+			/* if afbc enabled, DMA2CH <-> win_id mapping */
 			if (regs->dpp_config[i].compression && afbc_enabled)
-				decon->d.prev_vgf_win_id[DPU_DMA2CH(regs->dpp_config[i].idma_type)] = i;
+				decon->d.prev_afbc_win_id[DPU_DMA2CH(
+					regs->dpp_config[i].idma_type)] = i;
 			else
-				decon->d.prev_vgf_win_id[DPU_DMA2CH(regs->dpp_config[i].idma_type)] = -1;
+				decon->d.prev_afbc_win_id[DPU_DMA2CH(
+					regs->dpp_config[i].idma_type)] = -1;
 
-			decon_dbg("%s:%d win(%d), dma(%d), afbc(%d), save(%d)\n", __func__, __LINE__,
-					i, regs->dpp_config[i].idma_type, afbc_enabled,
-					decon->d.prev_vgf_win_id[DPU_DMA2CH(regs->dpp_config[i].idma_type)]);
+			decon_dbg("%s:%d win(%d), dma(%d),\
+				afbc(%d), save(%d)\n", __func__, __LINE__,
+				i, regs->dpp_config[i].idma_type, afbc_enabled,
+				decon->d.prev_afbc_win_id[DPU_DMA2CH(
+					regs->dpp_config[i].idma_type)]);
 		}
 	}
 }
@@ -1627,29 +1633,34 @@ static void decon_dump_afbc_handle(struct decon_device *decon,
 
 	decon_info("%s +\n", __func__);
 
-	for (i = 0; i < decon->dt.max_win; i++) {
-		if (decon->d.prev_vgf_win_id[i] != -1
+	for (i = 0; i < (MAX_DPP_SUBDEV - 1); i++) {
+		/* check each channel whether they were prev-enabled */
+		if (decon->d.prev_afbc_win_id[i] != -1
 				&& test_bit(i, &decon->prev_used_dpp)) {
-			win_id = decon->d.prev_vgf_win_id[i];
+			win_id = decon->d.prev_afbc_win_id[i];
 
 #if defined(CONFIG_SUPPORT_LEGACY_ION)
-			decon->d.handle[win_id][0] = dma_bufs[win_id][0].ion_handle;
+			decon->d.handle[win_id][0] =
+				dma_bufs[win_id][0].ion_handle;
 			decon_info("DMA%d(WIN%d): handle=0x%p\n",
-				i, win_id, decon->d.handle[win_id][0]);
+				DPU_CH2DMA(i), win_id, decon->d.handle[win_id][0]);
 
 			v_addr = ion_map_kernel(decon->ion_client,
 					dma_bufs[win_id][0].ion_handle);
 			if (IS_ERR_OR_NULL(v_addr)) {
-				decon_err("%s: failed to map afbc buffer\n", __func__);
+				decon_err("%s: failed to map afbc buffer\n",
+						__func__);
 				return;
 			}
 #else
-			decon->d.dmabuf[win_id][0] = dma_bufs[win_id][0].dma_buf;
+			decon->d.dmabuf[win_id][0] =
+				dma_bufs[win_id][0].dma_buf;
 			decon_info("DMA%d(WIN%d): dmabuf=0x%p\n",
-				i, win_id, decon->d.dmabuf[win_id][0]);
+				DPU_CH2DMA(i), win_id, decon->d.dmabuf[win_id][0]);
 			v_addr = dma_buf_vmap(dma_bufs[win_id][0].dma_buf);
 			if (IS_ERR_OR_NULL(v_addr)) {
-				decon_err("%s: failed to map afbc buffer\n", __func__);
+				decon_err("%s: failed to map afbc buffer\n",
+						__func__);
 				return;
 			}
 #endif
@@ -1991,10 +2002,10 @@ err_hdr:
 }
 
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)
-static void decon_update_vgf_info(struct decon_device *decon,
+static void decon_update_afbc_info(struct decon_device *decon,
 		struct decon_reg_data *regs, bool cur)
 {
-	int i;
+	int i, ch;
 	struct dpu_afbc_info *afbc_info;
 
 	decon_dbg("%s +\n", __func__);
@@ -2010,21 +2021,19 @@ static void decon_update_vgf_info(struct decon_device *decon,
 		if (!regs->dpp_config[i].compression)
 			continue;
 
-		if (test_bit(i, &decon->cur_using_dpp)) {
-			afbc_info->is_afbc[i] = true;
-
+		ch = DPU_DMA2CH(regs->dpp_config[i].idma_type);
+		if (test_bit(ch, &decon->cur_using_dpp)) {
 			if (regs->dma_buf_data[i][0].dma_buf == NULL)
 				continue;
 
-			afbc_info->dma_addr[i] =
+			afbc_info->is_afbc[ch] = true;
+
+			afbc_info->dma_addr[ch] =
 				regs->dma_buf_data[i][0].dma_addr;
-			afbc_info->dma_buf[i] =
+			afbc_info->dma_buf[ch] =
 				regs->dma_buf_data[i][0].dma_buf;
-#if defined(DPU_DUMP_BUFFER_IRQ)
-			afbc_info->dma_v_addr[i] =
-				dma_buf_vmap(afbc_info->dma_buf[i]);
-			dma_buf_vunmap(afbc_info->dma_buf[i], afbc_info->dma_v_addr[i]);
-#endif
+			afbc_info->sg_table[ch] =
+				regs->dma_buf_data[i][0].sg_table;
 		}
 	}
 
@@ -2063,7 +2072,7 @@ static void decon_update_regs(struct decon_device *decon,
 	decon_check_used_dpp(decon, regs);
 
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)
-	decon_update_vgf_info(decon, regs, true);
+	decon_update_afbc_info(decon, regs, true);
 #endif
 
 	decon_update_hdr_info(decon, regs);
@@ -2144,8 +2153,8 @@ end:
 	DPU_EVENT_LOG(DPU_EVT_FENCE_RELEASE, &decon->sd, ktime_set(0, 0));
 
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)
-	decon_save_vgf_connected_win_id(decon, regs);
-	decon_update_vgf_info(decon, regs, false);
+	decon_save_afbc_enabled_win_id(decon, regs);
+	decon_update_afbc_info(decon, regs, false);
 #endif
 
 #if defined(CONFIG_EXYNOS_BTS)

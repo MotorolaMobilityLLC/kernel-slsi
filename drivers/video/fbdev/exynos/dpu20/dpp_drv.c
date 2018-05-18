@@ -751,13 +751,10 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 					ktime_set(0, 0));
 			val = (u32)dpp->dpp_config->config.dpp_parm.comp_src;
 			dpp->d.recovery_cnt++;
-#if 0 /* TODO: This will be implemented */
-			dpp_info("dma%d recovery start(0x%x).. [src=%s], cnt[%d %d]\n",
+			dpp_info("dma%d recovery start(0x%x).. [src=%s], cnt[%d]\n",
 					dpp->id, irqs,
 					val == DPP_COMP_SRC_G2D ? "G2D" : "GPU",
-					get_dpp_drvdata(DPU_DMA2CH(IDMA_VGF0))->d.recovery_cnt,
-					get_dpp_drvdata(DPU_DMA2CH(IDMA_VGF1))->d.recovery_cnt);
-#endif
+					dpp->d.recovery_cnt);
 			goto irq_end;
 		}
 		if ((irqs & IDMA_AFBC_TIMEOUT_IRQ) ||

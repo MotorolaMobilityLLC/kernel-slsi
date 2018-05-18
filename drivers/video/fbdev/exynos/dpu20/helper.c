@@ -591,15 +591,18 @@ void dpu_dump_afbc_info(void)
 	struct dpu_afbc_info *afbc_info;
 	void *v_addr[MAX_DECON_WIN];
 	int size[MAX_DECON_WIN];
+	int decon_cnt;
 
-	for (i = 0; i < 3; i++) {
+	decon_cnt = get_decon_drvdata(0)->dt.decon_cnt;
+
+	for (i = 0; i < decon_cnt; i++) {
 		decon = get_decon_drvdata(i);
 		if (decon == NULL)
 			continue;
 
 		afbc_info = &decon->d.prev_afbc_info;
 		decon_info("%s: previous AFBC channel information\n", __func__);
-		for (j = 0; j < MAX_DECON_WIN; ++j) { /* all the dpp that has afbc */
+		for (j = 0; j < decon->dt.max_win; ++j) { /* all the dpp that has afbc */
 			if (!afbc_info->is_afbc[j])
 				continue;
 
@@ -613,7 +616,7 @@ void dpu_dump_afbc_info(void)
 
 		afbc_info = &decon->d.cur_afbc_info;
 		decon_info("%s: current AFBC channel information\n", __func__);
-		for (j = 0; j < MAX_DECON_WIN; ++j) { /* all the dpp that has afbc */
+		for (j = 0; j < decon->dt.max_win; ++j) { /* all the dpp that has afbc */
 			if (!afbc_info->is_afbc[j])
 				continue;
 
@@ -632,12 +635,15 @@ static int dpu_dump_buffer_data(struct dpp_device *dpp)
 	int i;
 	int id_idx = 0;
 	int dump_size = 128;
+	int decon_cnt;
 	struct decon_device *decon;
 	struct dpu_afbc_info *afbc_info;
 
+	decon_cnt = get_decon_drvdata(0)->dt.decon_cnt;
+
 	if (dpp->state == DPP_STATE_ON) {
 
-		for (i = 0; i < MAX_DECON_CNT; i++) {
+		for (i = 0; i < decon_cnt; i++) {
 			decon = get_decon_drvdata(i);
 			if (decon == NULL)
 				continue;
