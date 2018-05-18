@@ -197,14 +197,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 
 static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 {
-	int ret;
 	struct tlb_props *tlb_props = &data->tlb_props;
-
-	ret = pm_runtime_get_sync(data->sysmmu);
-	if (ret < 0) {
-		dev_err(data->sysmmu, "Failed to runtime pm get(%d)\n", ret);
-		return ret;
-	}
 
 	data->version = __sysmmu_get_hw_version(data);
 
@@ -216,8 +209,6 @@ static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 		tlb_props->flags |= TLB_TYPE_WAY;
 	else if (__sysmmu_get_capa_type(data) == 0)
 		tlb_props->flags |= TLB_TYPE_PORT;
-
-	pm_runtime_put(data->sysmmu);
 
 	return 0;
 }
@@ -1474,7 +1465,7 @@ err_reg_driver:
 	kmem_cache_destroy(lv2table_kmem_cache);
 	return ret;
 }
-core_initcall(exynos_iommu_init);
+subsys_initcall_sync(exynos_iommu_init);
 
 IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu", NULL);
 

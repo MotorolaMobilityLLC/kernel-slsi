@@ -32,6 +32,7 @@
 		sysmmu,tlb_property =
 			<(SYSMMU_PORT_NO_PREFETCH_READ(0x0) | SYSMMU_BL8) SYSMMU_NOID>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_vipx2>;
 	};
 
 	sysmmu_vipx2: sysmmu@10E50000 {
@@ -48,6 +49,7 @@
 		sysmmu,tlb_property =
 			<(SYSMMU_PORT_NO_PREFETCH_READ(0x0) | SYSMMU_BL8) SYSMMU_NOID>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_vipx2>;
 	};
 
 	sysmmu_mfc0: sysmmu@12C70000 {
@@ -64,6 +66,7 @@
 		sysmmu,tlb_property =
 			<(SYSMMU_PORT_NO_PREFETCH_READ(0x0) | SYSMMU_BL8) SYSMMU_NOID>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_mfc>;
 	};
 
 	sysmmu_mfc1: sysmmu@12C90000 {
@@ -81,6 +84,7 @@
 			<(SYSMMU_PORT_NO_PREFETCH_READ(0x0)      | SYSMMU_BL8) SYSMMU_NOID>,
 			<(SYSMMU_PORT_NO_PREFETCH_READWRITE(0x1) | SYSMMU_BL2) SYSMMU_ID_MASK(0x1, 0x1)>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_mfc>;
 	};
 
 	sysmmu_g2d: sysmmu@12E70000 {
@@ -99,6 +103,7 @@
 			<(SYSMMU_PORT_NO_PREFETCH_READ(0x1)         | SYSMMU_BL32) SYSMMU_ID_MASK(0x1, 0x3)>,
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_READ(0x1) | SYSMMU_BL8)  SYSMMU_ID_MASK(0x2, 0x3)>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_g2d>;
 	};
 
 	sysmmu_cam: sysmmu@14550000 {
@@ -148,6 +153,7 @@
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_WRITE(0x1) | SYSMMU_BL1) SYSMMU_ID_MASK(0x19, 0x1F)>,
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_WRITE(0x1) | SYSMMU_BL1) SYSMMU_ID_MASK(0x1B, 0x1F)>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_cam>;
 	};
 
 	sysmmu_isp0: sysmmu@14740000 {
@@ -179,6 +185,7 @@
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_WRITE(0x1) | SYSMMU_BL32) SYSMMU_ID_MASK(0x2, 0x7)>,
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_WRITE(0x1) | SYSMMU_BL32) SYSMMU_ID_MASK(0x6, 0x7)>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_isp>;
 	};
 
 	sysmmu_isp1: sysmmu@14770000 {
@@ -230,6 +237,7 @@
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_WRITE(0x1) | SYSMMU_BL1) SYSMMU_ID_MASK(0x21, 0x3F)>,
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_WRITE(0x1) | SYSMMU_BL1) SYSMMU_ID_MASK(0x22, 0x3F)>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_isp>;
 	};
 
 	sysmmu_dpu: sysmmu@14820000 {
@@ -254,6 +262,7 @@
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_READ(0x1) | SYSMMU_BL1) SYSMMU_ID_MASK(0x16, 0x1F)>,
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_READ(0x1) | SYSMMU_BL1) SYSMMU_ID_MASK(0x17, 0x1F)>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_dispaud>;
 	};
 
 	sysmmu_abox: sysmmu@14920000 {
@@ -269,5 +278,6 @@
 		sysmmu,tlb_property =
 			<(SYSMMU_PORT_NO_PREFETCH_READ(0x0) | SYSMMU_BL1) SYSMMU_NOID>;
 		#iommu-cells = <0>;
+		samsung,power-domain = <&pd_dispaud>;
 	};
 };
