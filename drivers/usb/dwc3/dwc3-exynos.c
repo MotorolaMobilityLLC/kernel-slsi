@@ -34,7 +34,7 @@
 #include <linux/io.h>
 #include <linux/usb/otg-fsm.h>
 
-#ifdef CONFIG_CPU_IDLE
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 #include <soc/samsung/exynos-cpupm.h>
 #endif
 
@@ -425,7 +425,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	exynos->dev = dev;
 
-#ifdef CONFIG_CPU_IDLE
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos->idle_ip_index = exynos_get_idle_ip_index(dev_name(dev));
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
 #endif
@@ -544,7 +544,7 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 
 	dwc3_exynos_clk_disable(exynos);
 
-#ifdef CONFIG_CPU_IDLE
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	/* inform what USB state is idle to IDLE_IP */
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 1);
 #endif
@@ -559,7 +559,7 @@ static int dwc3_exynos_runtime_resume(struct device *dev)
 
 	dev_info(dev, "%s\n", __func__);
 
-#ifdef CONFIG_CPU_IDLE
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	/* inform what USB state is not idle to IDLE_IP */
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
 #endif
