@@ -2256,7 +2256,7 @@
 		interrupts = <0 66 0>, <0 67 0>, <0 65 0>;
 		interrupt-names = "JOB", "MMU", "GPU";
 		g3d_cmu_cal_id = <ACPM_DVFS_G3D>;
-		/*samsung,power-domain = <&pd_g3d>;*/
+		samsung,power-domain = <&pd_g3d>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 
