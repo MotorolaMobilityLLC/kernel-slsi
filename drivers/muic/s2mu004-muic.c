@@ -1067,7 +1067,6 @@ int s2mu004_muic_refresh_adc(struct s2mu004_muic_data *muic_data)
 }
 #endif
 
-extern void b_sess_control(int val);
 int s2mu004_muic_get_vbus_state(struct s2mu004_muic_data *muic_data)
 {
 	struct i2c_client *i2c = muic_data->i2c;
@@ -1077,11 +1076,6 @@ int s2mu004_muic_get_vbus_state(struct s2mu004_muic_data *muic_data)
 	reg_val = s2mu004_i2c_read_byte(i2c, S2MU004_REG_MUIC_DEVICE_APPLE);
 	vbus = !!(reg_val & DEV_TYPE_APPLE_VBUS_WAKEUP);
 	pr_info("%s vbus : (%d)\n", __func__, vbus);
-
-	if (vbus == 1)
-		b_sess_control(1);
-	else
-		b_sess_control(0);
 
 	return vbus;
 }
