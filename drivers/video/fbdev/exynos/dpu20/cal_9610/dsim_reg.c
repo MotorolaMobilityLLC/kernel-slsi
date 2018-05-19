@@ -1711,20 +1711,23 @@ static int dsim_reg_set_ulps_by_ddi(u32 id, u32 ddi_type, u32 lanes, u32 en)
 
 void dpu_sysreg_select_dphy_rst_control(void __iomem *sysreg, u32 dsim_id, u32 sel)
 {
-#if 1
-	u32 phy_num = dsim_id ? 0 : 1;
+	u32 phy_num = dsim_id ? 1 : 0;
 	u32 old = readl(sysreg + DISP_DPU_MIPI_PHY_CON);
-	u32 val = sel ? ~0 : 0;
+	u32 val = sel ? 0 : ~0;
 	u32 mask = SEL_RESET_DPHY_MASK(phy_num);
 
 	val = (val & mask) | (old & ~mask);
 	writel(val, sysreg + DISP_DPU_MIPI_PHY_CON);
-#else
-	u32 val;
+}
 
-	val = SEL_RESET_DPHY_MASK(dsim_id);
+void dpu_sysreg_dphy_reset(void __iomem *sysreg, u32 dsim_id, u32 rst)
+{
+	u32 old = readl(sysreg + DISP_DPU_MIPI_PHY_CON);
+	u32 val = rst ? ~0 : 0;
+	u32 mask = dsim_id ? M_RESETN_M4S4_MODULE_MASK : M_RESETN_M4S4_TOP_MASK;
+
+	val = (val & mask) | (old & ~mask);
 	writel(val, sysreg + DISP_DPU_MIPI_PHY_CON);
-#endif
 }
 
 void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
@@ -1742,14 +1745,16 @@ void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
 	/* choose OSC_CLK */
 	dsim_reg_set_link_clock(id, 0);
 	/* Enable DPHY reset : DPHY reset start */
-	dsim_reg_dphy_resetn(dsim->id, 0);
+	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 0);
 
 	dsim_reg_sw_reset(id);
 
 	dsim_reg_set_clocks(id, clks, &lcd_info->dphy_pms, 1);
 
 	dsim_reg_set_lanes(id, dsim->data_lane, 1);
-	dsim_reg_dphy_resetn(dsim->id, 1); /* Release DPHY reset */
+
+	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 1); /* Release DPHY reset */
+
 	dsim_reg_set_link_clock(id, 1);	/* Selection to word clock */
 	dsim_reg_set_esc_clk_on_lane(id, 1, dsim->data_lane);
 	dsim_reg_enable_word_clock(id, 1);
