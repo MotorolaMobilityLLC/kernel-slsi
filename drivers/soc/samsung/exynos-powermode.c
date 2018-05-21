@@ -33,7 +33,7 @@ static struct exynos_powermode_info *pm_info;
 /******************************************************************************
  *                              System power mode                             *
  ******************************************************************************/
-#define PMU_EINT_WAKEUP_MASK	0x60C
+#define PMU_EINT_WAKEUP_MASK	0x650
 static void exynos_set_wakeupmask(enum sys_powerdown mode)
 {
 	int i;
