@@ -43,5 +43,5 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-topology.o
 obj-$(CONFIG_ARCH_EXYNOS)      += exynos-cpupm.o
 
 #PM
-#obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-powermode.o
-#obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-pm.o
+obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-powermode.o
+obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-pm.o

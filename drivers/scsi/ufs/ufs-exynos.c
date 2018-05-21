@@ -22,6 +22,7 @@
 #include "ufs-exynos-fmp.h"
 #include "ufs-exynos-smu.h"
 #include <soc/samsung/exynos-fsys0-tcxo.h>
+#include <soc/samsung/exynos-cpupm.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/soc/samsung/exynos-soc.h>

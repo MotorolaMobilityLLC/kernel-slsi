@@ -41,6 +41,7 @@ enum exynos_pm_event {
 #define EXYNOS_PM_PREFIX	"EXYNOS-PM:"
 
 int register_usb_is_connect(bool (*func)(void));
+bool is_test_cp_call_set(void);
 
 #ifdef CONFIG_CPU_IDLE
 int exynos_pm_register_notifier(struct notifier_block *nb);
@@ -75,5 +76,14 @@ static inline void acpm_get_inform(void)
 {
 	return;
 }
+#endif
+#ifdef CONFIG_EXYNOS_FLEXPMU_DBG
+extern int acpm_get_mif_request(void);
+#else
+static inline int acpm_get_mif_request(void)
+{
+	return 0;
+}
+
 #endif
 #endif /* __EXYNOS_PM_H */
