@@ -19,6 +19,9 @@ extern void exynos_prepare_cp_call(void);
 extern void exynos_wakeup_cp_call(bool early_wakeup);
 extern int exynos_rtc_wakeup(void);
 
+extern int exynos_system_idle_enter(void);
+extern void exynos_system_idle_exit(int cancel);
+
 /**
  * external driver APIs
  */

@@ -33,6 +33,26 @@ static struct exynos_powermode_info *pm_info;
 /******************************************************************************
  *                              System power mode                             *
  ******************************************************************************/
+int exynos_system_idle_enter(void)
+{
+	int ret;
+
+	ret = exynos_prepare_sys_powerdown(SYS_SICD);
+	if (ret)
+		return ret;
+
+	exynos_pm_notify(SICD_ENTER);
+
+	return 0;
+}
+
+void exynos_system_idle_exit(int cancel)
+{
+	exynos_pm_notify(SICD_EXIT);
+
+	exynos_wakeup_sys_powerdown(SYS_SICD, cancel);
+}
+
 #define PMU_EINT_WAKEUP_MASK	0x650
 static void exynos_set_wakeupmask(enum sys_powerdown mode)
 {
@@ -54,20 +74,9 @@ int exynos_prepare_sys_powerdown(enum sys_powerdown mode)
 	exynos_set_wakeupmask(mode);
 
 	ret = cal_pm_enter(mode);
-	if (ret) {
+	if (ret)
 		pr_err("CAL Fail to set powermode\n");
-		goto out;
-	}
 
-	switch (mode) {
-	case SYS_SICD:
-		exynos_pm_notify(SICD_ENTER);
-		break;
-	default:
-		break;
-	}
-
-out:
 	return ret;
 }
 
@@ -77,14 +86,6 @@ void exynos_wakeup_sys_powerdown(enum sys_powerdown mode, bool early_wakeup)
 		cal_pm_earlywakeup(mode);
 	else
 		cal_pm_exit(mode);
-
-	switch (mode) {
-	case SYS_SICD:
-		exynos_pm_notify(SICD_EXIT);
-		break;
-	default:
-		break;
-	}
 }
 
 /******************************************************************************
