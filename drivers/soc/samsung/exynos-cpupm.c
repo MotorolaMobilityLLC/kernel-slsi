@@ -21,6 +21,14 @@
 #include <soc/samsung/exynos-pmu.h>
 
 #ifdef CONFIG_CPU_IDLE
+/*
+ * State of each cpu is managed by a structure declared by percpu, so there
+ * is no need for protection for synchronization. However, when entering
+ * the power mode, it is necessary to set the critical section to check the
+ * state of cpus in the power domain, cpupm_lock is used for it.
+ */
+static spinlock_t cpupm_lock;
+
 /******************************************************************************
  *                                  IDLE_IP                                   *
  ******************************************************************************/
@@ -299,11 +307,11 @@ static void cluster_disable(unsigned int cpu_id)
  *                               CPU HOTPLUG                                  *
  ******************************************************************************/
 /* cpumask for indecating last cpu of a cluster */
-struct cpumask cpuhp_last_cpu;
+struct cpumask cpuhp_last_mask;
 
 bool exynos_cpuhp_last_cpu(unsigned int cpu)
 {
-	return cpumask_test_cpu(cpu, &cpuhp_last_cpu);
+	return cpumask_test_cpu(cpu, &cpuhp_last_mask);
 }
 
 static int cpuhp_cpupm_online(unsigned int cpu)
@@ -313,9 +321,9 @@ static int cpuhp_cpupm_online(unsigned int cpu)
 	cpumask_and(&mask, cpu_cluster_mask(cpu), cpu_online_mask);
 	if (cpumask_weight(&mask) == 0) {
 		cluster_enable(cpu);
-		/* clear cpus of this cluster from cpuhp_last_cpu */
-		cpumask_andnot(&cpuhp_last_cpu,
-			&cpuhp_last_cpu, cpu_coregroup_mask(cpu));
+		/* clear cpus of this cluster from cpuhp_last_mask */
+		cpumask_andnot(&cpuhp_last_mask,
+			&cpuhp_last_mask, cpu_cluster_mask(cpu));
 	}
 
 	cpu_enable(cpu);
@@ -325,16 +333,19 @@ static int cpuhp_cpupm_online(unsigned int cpu)
 
 static int cpuhp_cpupm_offline(unsigned int cpu)
 {
-	struct cpumask mask;
+	struct cpumask online_mask, last_mask;
 
 	cpu_disable(cpu);
 
-	cpumask_and(&mask, cpu_cluster_mask(cpu), cpu_online_mask);
-	if ((cpumask_weight(&mask) == 0) && cpuhp_last_fastcpu(cpu)) {
-		/* set cpu cpuhp_last_cpu */
-		cpumask_set_cpu(cpu, &cpuhp_last_cpu);
+	spin_lock(&cpupm_lock);
+	cpumask_and(&online_mask, cpu_cluster_mask(cpu), cpu_online_mask);
+	cpumask_and(&last_mask, cpu_cluster_mask(cpu), &cpuhp_last_mask);
+	if ((cpumask_weight(&online_mask) == 0) && cpumask_empty(&last_mask)) {
+		/* set cpu cpuhp_last_mask */
+		cpumask_set_cpu(cpu, &cpuhp_last_mask);
 		cluster_disable(cpu);
 	}
+	spin_unlock(&cpupm_lock);
 
 	return 0;
 }
@@ -450,14 +461,6 @@ struct exynos_cpupm {
 };
 
 static DEFINE_PER_CPU(struct exynos_cpupm, cpupm);
-
-/*
- * State of each cpu is managed by a structure declared by percpu, so there
- * is no need for protection for synchronization. However, when entering
- * the power mode, it is necessary to set the critical section to check the
- * state of cpus in the power domain, cpupm_lock is used for it.
- */
-static spinlock_t cpupm_lock;
 
 /* Nop function to awake cpus */
 static void do_nothing(void *unused)
