@@ -92,11 +92,6 @@
 		samsung,power-domain = <&pd_isp>;
 	};
 
-	dbgdev-pd-vipx1 {
-		compatible = "samsung,exynos-pd-dbg";
-		samsung,power-domain = <&pd_vipx1>;
-	};
-
 	dbgdev-pd-vipx2 {
 		compatible = "samsung,exynos-pd-dbg";
 		samsung,power-domain = <&pd_vipx2>;
