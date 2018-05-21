@@ -413,6 +413,8 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 	struct exynos_cpufreq_domain *domain = find_domain(policy->cpu);
 	unsigned long freq;
 	unsigned int index;
+	unsigned int policy_min, policy_max;
+	unsigned int pm_qos_min, pm_qos_max;
 
 	if (!domain)
 		return -EINVAL;
@@ -436,7 +438,15 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 	}
 	mutex_unlock(&domain->lock);
 
-	return DM_CALL(domain->dm_type, &freq);
+	policy_min = policy->min;
+	policy_max = policy->max;
+
+	pm_qos_min = pm_qos_request(domain->pm_qos_min_class);
+	pm_qos_max = pm_qos_request(domain->pm_qos_max_class);
+
+	freq = (unsigned long)target_freq;
+	return policy_update_with_DM_CALL(domain->dm_type, max(policy_min, pm_qos_min),
+				min(policy_max, pm_qos_max), &freq);
 }
 
 static int __exynos_cpufreq_suspend(struct exynos_cpufreq_domain *domain)
@@ -554,36 +564,6 @@ static struct cpufreq_driver exynos_driver = {
 /*********************************************************************
  *                      SUPPORT for DVFS MANAGER                     *
  *********************************************************************/
-static void update_dm_constraint(struct exynos_cpufreq_domain *domain,
-					struct cpufreq_policy *new_policy)
-{
-	struct cpufreq_policy *policy;
-	unsigned int policy_min, policy_max;
-	unsigned int pm_qos_min, pm_qos_max;
-
-	if (new_policy) {
-		policy_min = new_policy->min;
-		policy_max = new_policy->max;
-	} else {
-		struct cpumask mask;
-		cpumask_and(&mask, &domain->cpus, cpu_online_mask);
-		if (cpumask_empty(&mask))
-			return;
-		policy = cpufreq_cpu_get(cpumask_first(&mask));
-		if (!policy)
-			return;
-
-		policy_min = policy->min;
-		policy_max = policy->max;
-		cpufreq_cpu_put(policy);
-	}
-
-	pm_qos_min = pm_qos_request(domain->pm_qos_min_class);
-	pm_qos_max = pm_qos_request(domain->pm_qos_max_class);
-
-	policy_update_call_to_DM(domain->dm_type, max(policy_min, pm_qos_min),
-						  min(policy_max, pm_qos_max));
-}
 
 static int dm_scaler(int dm_type, void *devdata, unsigned int target_freq,
 						unsigned int relation)
@@ -664,8 +644,6 @@ static int exynos_cpufreq_pm_qos_callback(struct notifier_block *nb,
 	if (!policy)
 		return NOTIFY_BAD;
 
-	update_dm_constraint(domain, NULL);
-
 	ret = need_update_freq(domain, pm_qos_class, val);
 	if (ret < 0)
 		return NOTIFY_BAD;
@@ -692,7 +670,6 @@ static int exynos_cpufreq_policy_callback(struct notifier_block *nb,
 
 	switch (event) {
 	case CPUFREQ_NOTIFY:
-		update_dm_constraint(domain, policy);
 		arch_set_freq_scale(&domain->cpus, domain->old, policy->max);
 		break;
 	}
