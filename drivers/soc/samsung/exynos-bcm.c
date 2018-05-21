@@ -13,7 +13,6 @@
 #include <linux/syscalls.h>
 #include <linux/fcntl.h>
 #include <linux/file.h>
-#include <linux/exynos_ion.h>
 #include <linux/workqueue.h>
 #include <linux/clk.h>
 #include <asm/cacheflush.h>
