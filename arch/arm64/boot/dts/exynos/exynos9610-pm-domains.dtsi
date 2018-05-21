@@ -37,7 +37,7 @@
 		reg = <0x0 0x118640e0 0x20>;
 		cal_id = <0xB1380002>;
 		need_smc = <0x10C10204>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	pd_vipx2: pd-vipx2@118640e0 {
@@ -45,7 +45,7 @@
 		reg = <0x0 0x118640e0 0x20>;
 		cal_id = <0xB1380003>;
 		need_smc = <0x10e10204>;
-		status = "disabled";
+		status = "okay";
 		parent = <&pd_vipx1>;
 	};
 
