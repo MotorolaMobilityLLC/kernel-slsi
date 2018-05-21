@@ -1626,22 +1626,6 @@ cpu_hotplug_pm_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-bool cpuhp_last_fastcpu(unsigned int cpu)
-{
-	struct cpumask mask;
-	int do_last_cpu;
-
-	if (!cpumask_test_cpu(cpu, &cpu_fastoff_mask))
-		return true;
-
-	cpumask_and(&mask, cpu_cluster_mask(cpu), &cpu_fastoff_mask);
-	do_last_cpu = cpumask_first(&mask);
-	if (do_last_cpu == cpu)
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(cpuhp_last_fastcpu);
 
 struct cpumask cpu_fastoff_mask;
 EXPORT_SYMBOL(cpu_fastoff_mask);
