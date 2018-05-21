@@ -105,6 +105,12 @@ config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST
 	depends on PM_GENERIC_DOMAINS || COMPILE_TEST
 
+config EXYNOS_CONTENT_PATH_PROTECTION
+	bool "Exynos Content Path Protection"
+	default y
+	help
+	  Enable content path protection of EXYNOS.
+
 source "drivers/soc/samsung/debug/Kconfig"
 config EXYNOS_DVFS_MANAGER
 	bool "Exynos DVFS Manager"
