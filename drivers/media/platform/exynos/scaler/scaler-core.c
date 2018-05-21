@@ -250,7 +250,8 @@ static const struct sc_fmt sc_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 contiguous Y/CbCr 10-bit",
 		.pixelformat	= V4L2_PIX_FMT_NV12N_10B,
-		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P |
+					SCALER_CFG_10BIT_S10,
 		.bitperpixel	= { 15 },
 		.num_planes	= 1,
 		.num_comp	= 2,
