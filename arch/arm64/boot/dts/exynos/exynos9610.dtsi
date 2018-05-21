@@ -102,6 +102,7 @@
 		dpp3 = &dpp_3;
 		dsim0 = &dsim_0;
 		decon0 = &decon_f;
+		scaler0 = &scaler_0;
 	};
 
 	chipid@10000000 {
@@ -2708,7 +2709,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		domain-clients = <&fimg2d>;
+		domain-clients = <&fimg2d>, <&scaler_0>;
 	};
 
 	fimg2d: g2d@12E40000 {
@@ -2735,6 +2736,15 @@
 				100000 100000
 				>;
 		dma-coherent;
+	};
+
+	scaler_0: scaler@12E60000 {
+		  compatible = "samsung,exynos5-scaler";
+		  reg = <0x0 0x12E60000 0x3000>;
+		  interrupts = <0 164 0>;
+		  clocks = <&clock GATE_MSCL_QCH>;
+		  clock-names = "gate";
+		  iommus = <&sysmmu_g2d>;
 	};
 
 	/* G3D */
