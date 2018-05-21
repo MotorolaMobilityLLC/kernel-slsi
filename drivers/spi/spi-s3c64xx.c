@@ -28,7 +28,6 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <soc/samsung/exynos-powermode.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
@@ -36,6 +35,7 @@
 
 #ifdef CONFIG_CPU_IDLE
 #include <soc/samsung/exynos-pm.h>
+#include <soc/samsung/exynos-cpupm.h>
 #endif
 
 #include "../pinctrl/core.h"

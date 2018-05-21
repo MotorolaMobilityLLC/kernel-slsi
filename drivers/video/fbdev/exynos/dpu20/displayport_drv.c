@@ -29,7 +29,7 @@
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-dv-timings.h>
 #if defined(CONFIG_CPU_IDLE)
-#include <soc/samsung/exynos-powermode.h>
+#include <soc/samsung/exynos-cpupm.h>
 #endif
 #if defined(CONFIG_SND_SOC_SAMSUNG_DISPLAYPORT)
 #include <sound/samsung/dp_ado.h>

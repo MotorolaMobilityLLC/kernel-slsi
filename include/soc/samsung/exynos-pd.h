@@ -31,7 +31,7 @@
 #include <linux/mfd/samsung/core.h>
 #include <soc/samsung/bcm.h>
 
-#include <soc/samsung/exynos-powermode.h>
+#include <soc/samsung/exynos-cpupm.h>
 #include <soc/samsung/exynos-devfreq.h>
 #include <dt-bindings/power/exynos-power.h>
 

@@ -30,10 +30,10 @@
 #include "../../pinctrl/core.h"
 #include "i2c-exynos5.h"
 
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
-#include <soc/samsung/exynos-powermode.h>
-#endif
 #ifdef CONFIG_CPU_IDLE
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
+#include <soc/samsung/exynos-cpupm.h>
+#endif
 #include <soc/samsung/exynos-pm.h>
 #endif
 
