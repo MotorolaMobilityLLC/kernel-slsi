@@ -797,6 +797,9 @@ static int __DM_CALL(int dm_type, unsigned long *target_freq)
 	old_min_freq = dm->min_freq;
 	dm->gov_min_freq = (u32)(*target_freq);
 
+	if (dm->gov_min_freq > dm->policy_max_freq)
+		dm->gov_min_freq = dm->policy_max_freq;
+
 	for (i = 0; i < exynos_dm->domain_count; i++)
 		(&exynos_dm->dm_data[i])->constraint_checked = 0;
 
