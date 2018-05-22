@@ -48,3 +48,6 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-pm.o
 
 # Exynos Secure Log
 obj-$(CONFIG_EXYNOS_SECURE_LOG)	+= exynos-seclog.o
+
+# HDCP
+obj-$(CONFIG_EXYNOS_HDCP2)  += exynos-hdcp/
