@@ -74,7 +74,9 @@ static int check_idle_ip(int reg_index)
 		 *--------------------------- (XOR)
 		 *            0 0 0 0 0 1 0 0
 		 */
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		cpuidle_profile_idle_ip(reg_index, ((val & ~mask) ^ ~mask));
+#endif
 	}
 
 	return ret;
@@ -606,14 +608,18 @@ static int try_to_enter_power_mode(int cpu, struct power_mode *mode)
 	dbg_snapshot_cpuidle(mode->name, 0, 0, DSS_FLAG_IN);
 	set_state_powerdown(mode);
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	cpuidle_profile_group_idle_enter(mode->id);
+#endif
 
 	return 1;
 }
 
 static void exit_mode(int cpu, struct power_mode *mode, int cancel)
 {
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	cpuidle_profile_group_idle_exit(mode->id, cancel);
+#endif
 
 	/*
 	 * Configure settings to exit power mode. This is executed by the
@@ -851,7 +857,9 @@ static int __init cpu_power_mode_init(void)
 		for_each_cpu(cpu, &mode->siblings)
 			add_mode(per_cpu(cpupm, cpu).modes, mode);
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		cpuidle_profile_group_idle_register(mode->id, mode->name);
+#endif
 	}
 
 	if (attr_count)
