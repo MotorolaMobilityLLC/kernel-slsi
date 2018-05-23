@@ -8,8 +8,8 @@
  * Device Tree binding constants for Exynos9810
 */
 
-#ifndef _DT_BINDINGS_EXYNOS_9820_H
-#define _DT_BINDINGS_EXYNOS_9820_H
+#ifndef _DT_BINDINGS_EXYNOS_9610_H
+#define _DT_BINDINGS_EXYNOS_9610_H
 
 /* NUMBER FOR DVFS MANAGER */
 #define DM_CPU_CL0	0
@@ -17,13 +17,10 @@
 #define DM_MIF		2
 #define DM_INT		3
 #define DM_INTCAM	4
-#define DM_FSYS0	5
-#define DM_CAM		6
-#define DM_DISP		7
-#define DM_AUD		8
-#define DM_IVA		9
-#define DM_SCORE	10
-#define DM_GPU		11
+#define DM_CAM		5
+#define DM_DISP		6
+#define DM_AUD		7
+#define DM_GPU		8
 
 /* CONSTRAINT TYPE */
 #define CONSTRAINT_MIN	0
