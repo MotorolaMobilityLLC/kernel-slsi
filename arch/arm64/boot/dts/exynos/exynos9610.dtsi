@@ -2708,9 +2708,34 @@
 		#size-cells = <1>;
 		ranges;
 
-		domain-clients = <>;
+		domain-clients = <&fimg2d>;
 	};
 
+	fimg2d: g2d@12E40000 {
+		compatible = "samsung,exynos9610-g2d";
+		reg = <0x0 0x12E40000 0x9000>;
+		interrupts = <0 165 0>;
+		clock-names = "gate";
+		clocks = <&clock GATE_G2D_QCH>;
+		iommus = <&sysmmu_g2d>;
+		hw_ppc =
+			/* sc_up none x1 x1/4 x1/9 x1/16 */
+			<1700 1550 1100 1800 2550 3500 /* rgb32 non-rotated */
+			1650 1350 1000 1500 2600 3250 /* rgb32 rotated */
+			1500 1450 1300 1700 2550 5950 /* yuv2p non-rotated */
+			1600 1000 950 1650 2600 3500 /* yuv2p rotated */
+			1200 950 950 1350 1550 2050 /* 8+2 non-rotated */
+			1250 450 450 1100 1450 1850 /* 8+2 rotated */
+			1900>; /* colorfill */
+
+		g2d_dvfs_table = <667000 667000
+				533000 533000
+				400000 400000
+				200000 200000
+				100000 100000
+				>;
+		dma-coherent;
+	};
 
 	/* G3D */
 	mali: mali@11500000 {
