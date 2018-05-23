@@ -52,7 +52,7 @@ extern int s2m_get_dvs_is_on(void);
 #define LOCAL_PWR_CFG				(0xF << 0)
 
 #ifdef CONFIG_MALI_DVFS
-#define CPU_MAX PM_QOS_CLUSTER1_FREQ_MAX_DEFAULT_VALUE
+#define CPU_MAX PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE
 #else
 #define CPU_MAX -1
 #endif
