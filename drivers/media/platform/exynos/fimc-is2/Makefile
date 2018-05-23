@@ -90,5 +90,6 @@ subdir-ccflags-$(CONFIG_FIMC_IS_V5_10_0) += -Idrivers/media/platform/exynos/fimc
 subdir-ccflags-$(CONFIG_FIMC_IS_V5_15_0) += -Idrivers/media/platform/exynos/fimc-is2/ischain/fimc-is-v5_15_0
 subdir-ccflags-$(CONFIG_FIMC_IS_V5_2_0) += -Idrivers/media/platform/exynos/fimc-is2/ischain/fimc-is-v5_2_0
 subdir-ccflags-$(CONFIG_FIMC_IS_V6_0_0) += -Idrivers/media/platform/exynos/fimc-is2/ischain/fimc-is-v6_0_0
+subdir-ccflags-$(CONFIG_FIMC_IS_V6_10_0) += -Idrivers/media/platform/exynos/fimc-is2/ischain/fimc-is-v6_10_0
 
 subdir-ccflags-$(CONFIG_VENDER_DEFAULT) += -Idrivers/media/platform/exynos/fimc-is2/vendor/default
