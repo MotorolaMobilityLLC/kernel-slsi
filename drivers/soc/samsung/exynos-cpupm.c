@@ -301,7 +301,7 @@ static int cpuhp_cpupm_online(unsigned int cpu)
 
 	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
 	if (cpumask_weight(&mask) == 0)
-		cluster_enable(cpu);
+		cluster_enable(cpu_topology[cpu].cluster_id);
 
 	cpu_enable(cpu);
 
@@ -316,7 +316,7 @@ static int cpuhp_cpupm_offline(unsigned int cpu)
 
 	cpumask_and(&mask, cpu_coregroup_mask(cpu), cpu_online_mask);
 	if (cpumask_weight(&mask) == 0)
-		cluster_disable(cpu);
+		cluster_disable(cpu_topology[cpu].cluster_id);
 
 	return 0;
 }
