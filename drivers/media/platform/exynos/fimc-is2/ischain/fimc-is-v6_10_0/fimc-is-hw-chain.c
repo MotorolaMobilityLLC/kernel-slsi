@@ -1268,3 +1268,46 @@ exit:
 	return ret;
 }
 #endif
+
+unsigned int get_dma(struct fimc_is_device_sensor *device, u32 *dma_ch)
+{
+	struct fimc_is_core *core;
+	u32 open_sensor_count = 0;
+	u32 position;
+	int i;
+	int ret = 0;
+
+	*dma_ch = 0;
+	core = device->private_data;
+	for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
+		if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state))) {
+			open_sensor_count++;
+			position = device->position;
+			switch (position) {
+			case SENSOR_POSITION_REAR:
+				*dma_ch |= 1 << 0;
+				*dma_ch |= 1 << 4;
+				break;
+			case SENSOR_POSITION_FRONT:
+				*dma_ch |= 1 << 1;
+				break;
+			case SENSOR_POSITION_REAR2:
+				*dma_ch |= 1 << 2;
+				break;
+			case SENSOR_POSITION_SECURE:
+				*dma_ch |= 1 << 3;
+				break;
+			default:
+				err("invalid sensor(%d)", position);
+				ret = -EINVAL;
+				goto p_err;
+			}
+		}
+	}
+	if (open_sensor_count != 1 && open_sensor_count != 2) {
+		err("invalid open sensor limit(%d)", open_sensor_count);
+		ret = -EINVAL;
+	}
+p_err:
+	return ret;
+}
