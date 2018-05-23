@@ -1084,6 +1084,8 @@ struct taa_param {
 	struct param_otf_output		otf_output;	/* not use */
 	struct param_dma_output		vdma4_output;	/* Before BDS */
 	struct param_dma_output		vdma2_output;	/* After BDS */
+	struct param_dma_output		efd_output;		/* Early FD */
+	struct param_dma_output		mrg_output;		/* mrg_out*/
 	struct param_dma_output		ddma_output;	/* not use */
 };
 

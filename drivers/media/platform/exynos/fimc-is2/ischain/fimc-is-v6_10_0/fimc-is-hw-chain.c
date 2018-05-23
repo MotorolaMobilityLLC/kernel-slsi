@@ -96,6 +96,8 @@ const struct fimc_is_subdev_ops fimc_is_subdev_dxc_ops;
 const struct fimc_is_subdev_ops fimc_is_subdev_dcp_ops;
 const struct fimc_is_subdev_ops fimc_is_subdev_dcxs_ops;
 const struct fimc_is_subdev_ops fimc_is_subdev_dcxc_ops;
+const struct fimc_is_subdev_ops fimc_is_subdev_3af_ops;
+const struct fimc_is_subdev_ops fimc_is_subdev_3ag_ops;
 
 struct fimc_is_clk_gate clk_gate_3aa0;
 struct fimc_is_clk_gate clk_gate_3aa1;
