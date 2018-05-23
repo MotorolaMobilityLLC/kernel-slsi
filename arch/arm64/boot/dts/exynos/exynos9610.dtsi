@@ -1612,7 +1612,7 @@
 			devfreq_type = <DEVFREQ_CAM>;
 			devfreq_domain_name = "dvfs_cam";
 			pm_qos_class = <19>; /* PM_QOS_CAM_THROUGHPUT */
-			pm_qos_class_max = <24>; /* PM_QOS_CAM_THROUGHPUT_MAX */
+			pm_qos_class_max = <21>; /* PM_QOS_CAM_THROUGHPUT_MAX */
 			ess_flag = <ESS_FLAG_ISP>;
 			dm-index = <DM_CAM>;
 
@@ -1640,7 +1640,7 @@
 			devfreq_type = <DEVFREQ_AUD>;
 			devfreq_domain_name = "dvfs_aud";
 			pm_qos_class = <20>; /* PM_QOS_AUD_THROUGHPUT */
-			pm_qos_class_max = <25>; /* PM_QOS_AUD_THROUGHPUT_MAX */
+			pm_qos_class_max = <22>; /* PM_QOS_AUD_THROUGHPUT_MAX */
 			ess_flag = <ESS_FLAG_AUD>;
 			dm-index = <DM_AUD>;
 
