@@ -164,6 +164,8 @@ struct fimc_is_device_ischain;
 
 enum fimc_is_sensor_subdev_ioctl {
 	SENSOR_IOCTL_DMA_CANCEL,
+	SENSOR_IOCTL_PATTERN_ENABLE,
+	SENSOR_IOCTL_PATTERN_DISABLE,
 };
 
 #if defined(CONFIG_SECURE_CAMERA_USE)

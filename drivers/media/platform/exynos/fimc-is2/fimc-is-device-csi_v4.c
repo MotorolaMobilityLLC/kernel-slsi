@@ -1263,6 +1263,40 @@ static long csi_ioctl(struct v4l2_subdev *subdev, unsigned int cmd, void *arg)
 		csi_s_output_dma(csi, CSI_VIRTUAL_CH_2, false);
 		csi_s_output_dma(csi, CSI_VIRTUAL_CH_3, false);
 		break;
+	case SENSOR_IOCTL_PATTERN_ENABLE:
+		{
+			struct fimc_is_device_csi_dma *csi_dma = csi->csi_dma;
+			struct fimc_is_sensor_cfg *sensor_cfg;
+			u32 clk = 533000000; /* Unit: Hz, This is just for debugging. So, value is fixed */
+			u32 fps;
+
+			sensor_cfg = csi->sensor_cfg;
+			if (!sensor_cfg) {
+				merr("[CSI] sensor cfg is null", csi);
+				ret = -EINVAL;
+				goto p_err;
+			}
+
+			fps = sysfs_debug.pattern_fps > 0 ?
+				sysfs_debug.pattern_fps : sensor_cfg->framerate;
+
+			ret = csi_hw_s_dma_common_pattern_enable(csi_dma->base_reg,
+				sensor_cfg->input[CSI_VIRTUAL_CH_0].width,
+				sensor_cfg->input[CSI_VIRTUAL_CH_0].height,
+				fps, clk);
+			if (ret) {
+				merr("[CSI] csi_hw_s_dma_common_pattern is fail(%d)\n", csi, ret);
+				goto p_err;
+			}
+		}
+		break;
+	case SENSOR_IOCTL_PATTERN_DISABLE:
+		{
+			struct fimc_is_device_csi_dma *csi_dma = csi->csi_dma;
+
+			csi_hw_s_dma_common_pattern_disable(csi_dma->base_reg);
+		}
+		break;
 	default:
 		break;
 	}
@@ -1509,20 +1543,6 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 #if defined(ENABLE_PDP_STAT_DMA)
 		csi_hw_s_dma_common_dynamic(csi_dma->base_reg_stat, 5 * SZ_1K, dma_ch);
 #endif
-		if (sysfs_debug.pattern_en) {
-			u32 clk = 533000000; /* Hz, This is just for debugging. So, value is fixed */
-
-			ret = csi_hw_s_dma_common_pattern(csi_dma->base_reg,
-				sensor_cfg->input[CSI_VIRTUAL_CH_0].width,
-				sensor_cfg->input[CSI_VIRTUAL_CH_0].height,
-				sysfs_debug.pattern_fps,
-				clk);
-			if (ret) {
-				merr("[CSI] csi_hw_s_dma_common_pattern is fail(%d)\n", csi, ret);
-				spin_unlock(&csi_dma->barrier);
-				goto p_err;
-			}
-		}
 	}
 	spin_unlock(&csi_dma->barrier);
 
