@@ -390,9 +390,9 @@
 		num-eint = <24>;
 		num-gic = <16>;
 		suspend_mode_idx = <8>;		/* SYS_SLEEP */
-		suspend_psci_idx = <133>;	/* PSCI_SYSTEM_SLEEP */
+		suspend_psci_idx = <1024>;	/* PSCI_SYSTEM_SLEEP */
 		cp_call_mode_idx = <10>;	/* SYS_SLEEP_AUD_ON */
-		cp_call_psci_idx = <133>;	/* PSCI_SYSTEM_SLEEP */
+		cp_call_psci_idx = <1024>;	/* PSCI_SYSTEM_SLEEP */
 		usbl2_suspend_available = <1>;
 		usbl2_suspend_mode_idx = <12>;	/* SYS_SLEEP_USB_ON */
 		extra_wakeup_stat = <0x60c>;
