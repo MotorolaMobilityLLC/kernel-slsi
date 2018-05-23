@@ -14,18 +14,16 @@
 /* NUMBER FOR DVFS MANAGER */
 #define DM_CPU_CL0	0
 #define DM_CPU_CL1	1
-#define DM_CPU_CL2	2
-#define DM_MIF		3
-#define DM_INT		4
-#define DM_INTCAM	5
+#define DM_MIF		2
+#define DM_INT		3
+#define DM_INTCAM	4
+#define DM_FSYS0	5
 #define DM_CAM		6
-#define DM_IVA		7
-#define DM_SCORE	8
-#define DM_DISP		9
-#define DM_AUD		10
-#define DM_MFC		11
-#define DM_NPU		12
-#define DM_GPU		13
+#define DM_DISP		7
+#define DM_AUD		8
+#define DM_IVA		9
+#define DM_SCORE	10
+#define DM_GPU		11
 
 /* CONSTRAINT TYPE */
 #define CONSTRAINT_MIN	0

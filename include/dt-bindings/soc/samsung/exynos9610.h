@@ -17,9 +17,12 @@
 #define DM_MIF		2
 #define DM_INT		3
 #define DM_INTCAM	4
+#define DM_FSYS0	5
 #define DM_CAM		6
 #define DM_DISP		7
 #define DM_AUD		8
+#define DM_IVA		9
+#define DM_SCORE	10
 #define DM_GPU		11
 
 /* CONSTRAINT TYPE */
