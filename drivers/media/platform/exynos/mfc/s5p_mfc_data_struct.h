@@ -373,6 +373,12 @@ struct s5p_mfc_platdata {
 	int ip_ver;
 	int debug_mode;
 	int nal_q;
+	int skype;
+	int black_bar;
+	int color_aspect_dec;
+	int static_info_dec;
+	int color_aspect_enc;
+	int static_info_enc;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	int num_qos_steps;
 	int max_qos_steps;

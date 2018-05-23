@@ -945,6 +945,12 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 	of_property_read_u32(np, "ip_ver", &pdata->ip_ver);
 	of_property_read_u32(np, "debug_mode", &pdata->debug_mode);
 	of_property_read_u32(np, "nal_q", &pdata->nal_q);
+	of_property_read_u32(np, "skype", &pdata->skype);
+	of_property_read_u32(np, "black_bar", &pdata->black_bar);
+	of_property_read_u32(np, "color_aspect_dec", &pdata->color_aspect_dec);
+	of_property_read_u32(np, "static_info_dec", &pdata->static_info_dec);
+	of_property_read_u32(np, "color_aspect_enc", &pdata->color_aspect_enc);
+	of_property_read_u32(np, "static_info_enc", &pdata->static_info_enc);
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	of_property_read_u32(np, "num_qos_steps", &pdata->num_qos_steps);
 	of_property_read_u32(np, "max_qos_steps", &pdata->max_qos_steps);

@@ -378,7 +378,7 @@ static void mfc_dec_src_stop_streaming(struct s5p_mfc_ctx *ctx)
 	while (1) {
 		csd = s5p_mfc_peek_buf_csd(&ctx->buf_queue_lock, &ctx->src_buf_queue);
 
-		if (FW_HAS_SPECIAL_PARSING(dev) && (csd == 1)) {
+		if (csd == 1) {
 			s5p_mfc_clean_ctx_int_flags(ctx);
 			if (need_to_special_parsing(ctx)) {
 				s5p_mfc_change_state(ctx, MFCINST_SPECIAL_PARSING);

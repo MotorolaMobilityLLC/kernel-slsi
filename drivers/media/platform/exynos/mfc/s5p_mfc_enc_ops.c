@@ -1164,8 +1164,7 @@ static void mfc_enc_set_buf_ctrls_exception(struct s5p_mfc_ctx *ctx,
 		p->config_qp = buf_ctrl->val;
 
 	/* set the ROI buffer DVA */
-	if ((buf_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) &&
-			FW_HAS_ROI_CONTROL(dev)) {
+	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
 		MFC_WRITEL(enc->roi_buf[buf_ctrl->old_val2].daddr,
 				S5P_FIMV_E_ROI_BUFFER_ADDR);
 		mfc_debug(3, "ROI: buffer[%d] addr %#llx, QP val: %#x\n",

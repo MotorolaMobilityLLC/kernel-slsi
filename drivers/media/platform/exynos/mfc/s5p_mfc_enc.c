@@ -79,12 +79,6 @@ static int mfc_enc_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *
 		return -ERANGE;
 	}
 
-	if (!FW_HAS_ROI_CONTROL(dev) && ctrl->id == \
-			V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
-		mfc_err_ctx("Not support feature(0x%x) for F/W\n", ctrl->id);
-		return -ERANGE;
-	}
-
 	return 0;
 }
 
@@ -366,14 +360,13 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	ctx->capture_state = QUEUE_FREE;
 
-	if (FW_HAS_ROI_CONTROL(dev)) {
-		ret = s5p_mfc_alloc_enc_roi_buffer(ctx);
-		if (ret) {
-			mfc_err_ctx("Failed to allocate ROI buffers.\n");
-			s5p_mfc_release_instance_context(ctx);
-			return -ENOMEM;
-		}
+	ret = s5p_mfc_alloc_enc_roi_buffer(ctx);
+	if (ret) {
+		mfc_err_ctx("Failed to allocate ROI buffers.\n");
+		s5p_mfc_release_instance_context(ctx);
+		return -ENOMEM;
 	}
+
 	MFC_TRACE_CTX_HWLOCK("**ENC s_fmt\n");
 
 	ret = s5p_mfc_get_hwlock_ctx(ctx);
@@ -812,26 +805,21 @@ static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
 	val |= ENC_SET_SPARE_SIZE;
 	val |= ENC_SET_TEMP_SVC_CH;
 
-	if (FW_SUPPORT_SKYPE(dev))
+	if (dev->pdata->skype)
 		val |= ENC_SET_SKYPE_FLAG;
 
-	if (FW_HAS_ROI_CONTROL(dev))
-		val |= ENC_SET_ROI_CONTROL;
-
+	val |= ENC_SET_ROI_CONTROL;
 	val |= ENC_SET_QP_BOUND_PB;
 	val |= ENC_SET_FIXED_SLICE;
 	val |= ENC_SET_PVC_MODE;
+	val |= ENC_SET_RATIO_OF_INTRA;
 
-	if (FW_HAS_RATIO_INTRA_CTRL(dev))
-		val |= ENC_SET_RATIO_OF_INTRA;
-
-	if (FW_HAS_ENC_COLOR_ASPECT(dev))
+	if (dev->pdata->color_aspect_enc)
 		val |= ENC_SET_COLOR_ASPECT;
 
-	if (FW_HAS_HP_BITRATE_CONTROL(dev))
-		val |= ENC_SET_HP_BITRATE_CONTROL;
+	val |= ENC_SET_HP_BITRATE_CONTROL;
 
-	if (FW_HAS_ENC_STATIC_INFO(dev))
+	if (dev->pdata->static_info_enc)
 		val |= ENC_SET_STATIC_INFO;
 
 	return val;

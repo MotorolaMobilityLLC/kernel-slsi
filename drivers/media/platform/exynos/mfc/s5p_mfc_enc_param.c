@@ -641,7 +641,7 @@ void s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 		MFC_WRITEL(reg, S5P_FIMV_E_H264_FRAME_PACKING_SEI_INFO);
 	}
 
-	if (FW_HAS_ENC_COLOR_ASPECT(dev) && p->check_color_range) {
+	if (dev->pdata->color_aspect_enc && p->check_color_range) {
 		reg = MFC_READL(S5P_FIMV_E_VIDEO_SIGNAL_TYPE);
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		reg |= 0x1 << 31;
@@ -1118,7 +1118,7 @@ void s5p_mfc_set_enc_params_vp9(struct s5p_mfc_ctx *ctx)
 	reg |= p_vp9->rc_min_qp_p & 0xFF;
 	MFC_WRITEL(reg, S5P_FIMV_E_RC_QP_BOUND_PB);
 
-	if (FW_HAS_ENC_COLOR_ASPECT(dev) && p->check_color_range) {
+	if (dev->pdata->color_aspect_enc && p->check_color_range) {
 		reg = MFC_READL(S5P_FIMV_E_VIDEO_SIGNAL_TYPE);
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		reg |= 0x1 << 31;
@@ -1363,7 +1363,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	MFC_WRITEL(reg, S5P_FIMV_E_RC_ROI_CTRL);
 	mfc_debug(3, "ROI: HEVC ROI enable\n");
 
-	if (FW_HAS_ENC_COLOR_ASPECT(dev) && p->check_color_range) {
+	if (dev->pdata->color_aspect_enc && p->check_color_range) {
 		reg = MFC_READL(S5P_FIMV_E_VIDEO_SIGNAL_TYPE);
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		reg |= 0x1 << 31;
@@ -1394,7 +1394,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 		MFC_WRITEL(0, S5P_FIMV_E_VIDEO_SIGNAL_TYPE);
 	}
 
-	if (FW_HAS_ENC_STATIC_INFO(dev) && p->static_info_enable && ctx->is_10bit) {
+	if (dev->pdata->static_info_enc && p->static_info_enable && ctx->is_10bit) {
 		reg = MFC_READL(S5P_FIMV_E_HEVC_OPTIONS_2);
 		/* HDR_STATIC_INFO_ENABLE */
 		reg |= p->static_info_enable;

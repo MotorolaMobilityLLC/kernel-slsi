@@ -148,8 +148,7 @@ int s5p_mfc_init_decode(struct s5p_mfc_ctx *ctx)
 		reg |= (0x1 << S5P_FIMV_D_DEC_OPT_DISCARD_RCV_HEADER_SHIFT);
 
 	/* conceal control to specific color */
-	if (FW_HAS_CONCEAL_CONTROL(dev))
-		reg |= (0x4 << S5P_FIMV_D_DEC_OPT_CONCEAL_CONTROL_SHIFT);
+	reg |= (0x4 << S5P_FIMV_D_DEC_OPT_CONCEAL_CONTROL_SHIFT);
 
 	/* Disable parallel processing if nal_q_parallel_disable was set */
 	if (nal_q_parallel_disable)
@@ -163,8 +162,7 @@ int s5p_mfc_init_decode(struct s5p_mfc_ctx *ctx)
 
 	MFC_WRITEL(reg, S5P_FIMV_D_DEC_OPTIONS);
 
-	if (FW_HAS_CONCEAL_CONTROL(dev))
-		MFC_WRITEL(MFC_CONCEAL_COLOR, S5P_FIMV_D_FORCE_PIXEL_VAL);
+	MFC_WRITEL(MFC_CONCEAL_COLOR, S5P_FIMV_D_FORCE_PIXEL_VAL);
 
 	if (IS_FIMV1_DEC(ctx)) {
 		mfc_debug(2, "Setting FIMV1 resolution to %dx%d\n",
@@ -179,7 +177,7 @@ int s5p_mfc_init_decode(struct s5p_mfc_ctx *ctx)
 	/* Enable realloc interface if SEI is enabled */
 	if (dec->sei_parse)
 		reg |= (0x1 << S5P_FIMV_D_SEI_ENABLE_NEED_INIT_BUFFER_SHIFT);
-	if (FW_HAS_SEI_INFO_FOR_HDR(dev)) {
+	if (dev->pdata->static_info_dec) {
 		reg |= (0x1 << S5P_FIMV_D_SEI_ENABLE_CONTENT_LIGHT_SHIFT);
 		reg |= (0x1 << S5P_FIMV_D_SEI_ENABLE_MASTERING_DISPLAY_SHIFT);
 	}

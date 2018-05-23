@@ -224,17 +224,17 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 	unsigned int is_content_light = 0, is_display_colour = 0;
 	unsigned int i, index;
 
-	if (FW_HAS_VIDEO_SIGNAL_TYPE(dev)) {
+	if (dev->pdata->color_aspect_dec) {
 		is_video_signal_type = s5p_mfc_get_video_signal_type();
 		is_colour_description = s5p_mfc_get_colour_description();
 	}
 
-	if (FW_HAS_SEI_INFO_FOR_HDR(dev)) {
+	if (dev->pdata->static_info_dec) {
 		is_content_light = s5p_mfc_get_sei_avail_content_light();
 		is_display_colour = s5p_mfc_get_sei_avail_mastering_display();
 	}
 
-	if (FW_HAS_BLACK_BAR_DETECT(dev) && dec->detect_black_bar)
+	if (dev->pdata->black_bar && dec->detect_black_bar)
 		mfc_handle_black_bar_info(dev, ctx);
 	else
 		dec->black_bar_updated = 0;
@@ -284,7 +284,7 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 			}
 		}
 
-		if (IS_VP9_DEC(ctx) && FW_HAS_VP9_HDR(dev)) {
+		if (IS_VP9_DEC(ctx) && dev->pdata->color_aspect_dec) {
 			if (dec->color_space != S5P_FIMV_D_COLOR_UNKNOWN) {
 				ref_mb->vb.reserved2 |= (1 << 3);
 				mfc_debug(2, "color space parsed\n");

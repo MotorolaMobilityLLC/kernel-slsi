@@ -63,8 +63,7 @@ static inline void s5p_mfc_risc_on(struct s5p_mfc_dev *dev)
 	s5p_mfc_clean_dev_int_flags(dev);
 
 	MFC_WRITEL(0x1, S5P_FIMV_RISC_ON);
-	if (FW_HAS_HWACG(dev))
-		MFC_WRITEL(0x0, S5P_FIMV_MFC_OFF);
+	MFC_WRITEL(0x0, S5P_FIMV_MFC_OFF);
 	mfc_debug(1, "RISC_ON\n");
 	MFC_TRACE_DEV(">> RISC ON\n");
 }
@@ -93,11 +92,9 @@ static inline void s5p_mfc_risc_off(struct s5p_mfc_dev *dev)
 
 static inline void s5p_mfc_mfc_off(struct s5p_mfc_dev *dev)
 {
-	if (FW_HAS_HWACG(dev)) {
-		mfc_info_dev("MFC h/w state: %d\n",
-				MFC_READL(S5P_FIMV_MFC_STATE) & 0x7);
-		MFC_WRITEL(0x1, S5P_FIMV_MFC_OFF);
-	}
+	mfc_info_dev("MFC h/w state: %d\n",
+			MFC_READL(S5P_FIMV_MFC_STATE) & 0x7);
+	MFC_WRITEL(0x1, S5P_FIMV_MFC_OFF);
 }
 
 static inline void s5p_mfc_enable_all_clocks(struct s5p_mfc_dev *dev)

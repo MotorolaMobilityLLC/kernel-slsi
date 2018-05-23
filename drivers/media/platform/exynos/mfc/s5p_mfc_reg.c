@@ -459,7 +459,7 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 	mfc_debug(2, "Dst addr [%d] = 0x%08llx\n", dst_index, dst_mb->addr[0][0]);
 
 	/* for debugging about black bar detection */
-	if (FW_HAS_BLACK_BAR_DETECT(dev) && dec->detect_black_bar) {
+	if (dev->pdata->black_bar && dec->detect_black_bar) {
 		for (i = 0; i < raw->num_planes; i++) {
 			dec->frame_vaddr[i][dec->frame_cnt] = vb2_plane_vaddr(&dst_mb->vb.vb2_buf, i);
 			dec->frame_daddr[i][dec->frame_cnt] = dst_mb->addr[0][i];

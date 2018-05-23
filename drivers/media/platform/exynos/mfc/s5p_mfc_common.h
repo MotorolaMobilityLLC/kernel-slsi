@@ -180,39 +180,4 @@
 #define MFC_VER_MAJOR(dev)	((dev->pdata->ip_ver >> 8) & 0xFF)
 #define MFC_VER_MINOR(dev)	(dev->pdata->ip_ver & 0xFF)
 
-/*
- * Version Description
- */
-#define IS_MFCV10X(dev)		((dev->pdata->ip_ver == 0xA0) || \
-				(dev->pdata->ip_ver == 0xA01))
-#define IS_MFCV11X(dev)		(dev->pdata->ip_ver == 0x1100)
-#define IS_MFCV12X(dev)		(dev->pdata->ip_ver == 0x1200)
-#define IS_MFCV13X(dev)		(dev->pdata->ip_ver == 0x1300)
-#define FROM_MFCV11X(dev)	(IS_MFCV11X(dev) || IS_MFCV12X(dev) || \
-					IS_MFCV13X(dev))
-#define FROM_MFCV10X(dev)	(IS_MFCV10X(dev) || FROM_MFCV11X(dev))
-
-/* supported feature macros by F/W version */
-#define FW_HAS_CONCEAL_CONTROL(dev)	(FROM_MFCV10X(dev))
-#define FW_HAS_ROI_CONTROL(dev)		(FROM_MFCV10X(dev))
-#define FW_HAS_HWACG(dev)		(FROM_MFCV10X(dev))
-#define FW_HAS_SPECIAL_PARSING(dev)	(FROM_MFCV10X(dev))
-#define FW_SUPPORT_SKYPE(dev)		(FROM_MFCV10X(dev) &&		\
-					(dev->fw.date >= 0x150901))
-#define FW_HAS_VIDEO_SIGNAL_TYPE(dev)	(FROM_MFCV10X(dev) &&		\
-					(dev->fw.date >= 0x151223))
-#define FW_HAS_SEI_INFO_FOR_HDR(dev)	(FROM_MFCV10X(dev) &&		\
-					(dev->fw.date >= 0x160415))
-#define FW_HAS_BLACK_BAR_DETECT(dev)	(FROM_MFCV11X(dev) &&		\
-					(dev->fw.date >= 0x161017))
-#define FW_HAS_VP9_HDR(dev)		(IS_MFCV12X(dev) &&		\
-					(dev->fw.date >= 0x171023))
-#define FW_HAS_RATIO_INTRA_CTRL(dev)	(FROM_MFCV11X(dev) &&		\
-					(dev->fw.date >= 0x171113))
-#define FW_HAS_ENC_COLOR_ASPECT(dev)	(FROM_MFCV11X(dev) &&		\
-					(dev->fw.date >= 0x171023))
-#define FW_HAS_HP_BITRATE_CONTROL(dev)	(FROM_MFCV11X(dev) &&		\
-					(dev->fw.date >= 0x180314))
-#define FW_HAS_ENC_STATIC_INFO(dev)	(IS_MFCV13X(dev) &&		\
-					(dev->fw.date >= 0x180314))
 #endif /* __S5P_MFC_COMMON_H */
