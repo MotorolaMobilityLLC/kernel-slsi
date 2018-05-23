@@ -1643,7 +1643,6 @@
 			pm_qos_class_max = <25>; /* PM_QOS_AUD_THROUGHPUT_MAX */
 			ess_flag = <ESS_FLAG_AUD>;
 			dm-index = <DM_AUD>;
-			pd_name = "pd-aud";
 
 			/* Delay time */
 			use_delay_time = "false";
@@ -1660,6 +1659,9 @@
 
 			bts_update = "false";
 			dfs_id = <ACPM_DVFS_AUD>;
+
+			samsung,power-domain = <&pd_dispaud>;
+			pd_name = "pd-dispaud";
 		};
 	};
 
