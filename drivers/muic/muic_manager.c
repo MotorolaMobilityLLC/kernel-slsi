@@ -379,6 +379,7 @@ static bool muic_manager_is_valid_rid_open(struct muic_interface_t *muic_if, int
 #ifdef CONFIG_IFCONN_NOTIFIER
 static int muic_manager_handle_ccic_attach(struct muic_interface_t *muic_if, void *data)
 {
+	struct ccic_desc_t *ccic = muic_if->ccic;
 #ifdef CONFIG_IFCONN_NOTIFIER
 	struct ifconn_notifier_template *pnoti =
 	    (struct ifconn_notifier_template *)data;
@@ -393,6 +394,7 @@ static int muic_manager_handle_ccic_attach(struct muic_interface_t *muic_if, voi
 	/* Attached */
 	if (pnoti->event == IFCONN_NOTIFY_EVENT_ATTACH) {
 		pr_info("%s: Attach\n", __func__);
+		ccic->ccic_evt_attached = MUIC_CCIC_NOTI_ATTACH;
 	} else {
 		muic_manager_handle_ccic_detach(muic_if);
 	}
@@ -578,7 +580,6 @@ static int muic_manager_handle_ccic_rid(struct muic_interface_t *muic_if, void *
 	case CCIC_RID_523K:
 	case CCIC_RID_619K:
 		vbus = muic_manager_get_vbus(muic_if);
-		muic_if->set_jig_state(muic_if->muic_data, true);
 		muic_manager_handle_ccic_factory_jig(muic_if, rid, vbus);
 		break;
 	case CCIC_RID_OPEN:
@@ -598,7 +599,6 @@ static int muic_manager_handle_ccic_rid(struct muic_interface_t *muic_if, void *
 			/* RID OPEN + No VBUS = Assume detach */
 			muic_manager_handle_ccic_detach(muic_if);
 		}
-		muic_if->set_jig_state(muic_if->muic_data, false);
 		break;
 	default:
 		pr_err("%s:Undefined RID\n", __func__);
@@ -726,7 +726,7 @@ static int muic_manager_handle_notification(struct notifier_block *nb,
 
 	if (pnoti->id == attach) {
 		pr_info("%s: NOTIFY_ID_ATTACH: %s\n", __func__,
-			pnoti->sub1 ? "Attached" : "Detached");
+			pnoti->attach ? "Attached" : "Detached");
 		muic_manager_handle_ccic_attach(muic_if, data);
 	} else if (pnoti->id == rid) {
 		pr_info("%s: NOTIFY_ID_RID\n", __func__);
