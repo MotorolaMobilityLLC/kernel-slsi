@@ -839,10 +839,11 @@ static DEFINE_RAW_SPINLOCK(stop_lock);
  */
 static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 {
+	pr_crit("CPU%u: stopping\n", cpu);
+
 	if (system_state == SYSTEM_BOOTING ||
 	    system_state == SYSTEM_RUNNING) {
 		raw_spin_lock(&stop_lock);
-		pr_crit("CPU%u: stopping\n", cpu);
 		dump_stack();
 		raw_spin_unlock(&stop_lock);
 	}
@@ -971,6 +972,15 @@ void tick_broadcast(const struct cpumask *mask)
 }
 #endif
 
+static const char *system_state_show[SYSTEM_END] = {
+	"SYSTEM_BOOTING",
+	"SYSTEM_SCHEDULING",
+	"SYSTEM_RUNNING",
+	"SYSTEM_HALT",
+	"SYSTEM_POWER_OFF",
+	"SYSTEM_RESTART",
+};
+
 void smp_send_stop(void)
 {
 	unsigned long timeout;
@@ -981,8 +991,8 @@ void smp_send_stop(void)
 		cpumask_copy(&mask, cpu_online_mask);
 		cpumask_clear_cpu(smp_processor_id(), &mask);
 
-		if (system_state <= SYSTEM_RUNNING)
-			pr_crit("SMP: stopping secondary CPUs\n");
+		pr_crit("SMP: stopping secondary CPUs : %s\n",
+				system_state_show[system_state]);
 		smp_cross_call(&mask, IPI_CPU_STOP);
 	}
 
