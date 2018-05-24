@@ -229,7 +229,6 @@ int crypto_diskcipher_set_crypt(struct crypto_diskcipher *tfm, void *req)
 	int ret = 0;
 	struct crypto_tfm *base = crypto_diskcipher_tfm(tfm);
 	struct diskcipher_alg *cra = crypto_diskcipher_alg(base->__crt_alg);
-	struct diskcipher_freectrl *fctrl = &cra->freectrl;
 
 	if (!cra) {
 		pr_err("%s: doesn't exist cra", __func__);
@@ -245,12 +244,14 @@ int crypto_diskcipher_set_crypt(struct crypto_diskcipher *tfm, void *req)
 
 	ret = cra->crypt(base, req);
 
-	if (!list_empty(&fctrl->freelist)) {
-		if (!atomic_read(&fctrl->freewq_active)) {
-			atomic_set(&fctrl->freewq_active, 1);
-			schedule_delayed_work(&fctrl->freewq, 0);
+#ifdef USE_FREE_REQ
+	if (!list_empty(&cra->freectrl.freelist)) {
+		if (!atomic_read(&cra->freectrl.freewq_active)) {
+			atomic_set(&cra->freectrl.freewq_active, 1);
+			schedule_delayed_work(&cra->freectrl.freewq, 0);
 		}
 	}
+#endif
 out:
 	if (ret)
 		pr_err("%s fails ret:%d, cra:%p\n", __func__, ret, cra);
@@ -309,11 +310,11 @@ static int crypto_diskcipher_init_tfm(struct crypto_tfm *base)
 {
 	struct crypto_diskcipher *tfm = __crypto_diskcipher_cast(base);
 
-	tfm->req_jiffies = 0;
 	atomic_set(&tfm->status, DISKC_ST_INIT);
 	return 0;
 }
 
+#ifdef USE_FREE_REQ
 static void free_workq_func(struct work_struct *work)
 {
 	struct diskcipher_alg *cra =
@@ -345,9 +346,11 @@ static void free_workq_func(struct work_struct *work)
 	else
 		atomic_set(&fctrl->freewq_active, 0);
 }
+#endif
 
 void crypto_free_req_diskcipher(struct crypto_diskcipher *tfm)
 {
+#ifdef USE_FREE_REQ
 	struct crypto_tfm *base = crypto_diskcipher_tfm(tfm);
 	struct diskcipher_alg *cra = crypto_diskcipher_alg(base->__crt_alg);
 	struct diskcipher_freectrl *fctrl = &cra->freectrl;
@@ -366,6 +369,9 @@ void crypto_free_req_diskcipher(struct crypto_diskcipher *tfm)
 	list_move_tail(&tfm->node, &fctrl->freelist);
 	spin_unlock_irqrestore(&fctrl->freelist_lock, flags);
 	crypto_diskcipher_debug(DISKC_API_FREEREQ, 0);
+#else
+	crypto_free_diskcipher(tfm);
+#endif
 }
 
 unsigned int crypto_diskcipher_extsize(struct crypto_alg *alg)
@@ -424,6 +430,8 @@ void crypto_free_diskcipher(struct crypto_diskcipher *tfm)
 int crypto_register_diskcipher(struct diskcipher_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
+
+#ifdef USE_FREE_REQ
 	struct diskcipher_freectrl *fctrl = &alg->freectrl;
 
 	INIT_LIST_HEAD(&fctrl->freelist);
@@ -431,6 +439,7 @@ int crypto_register_diskcipher(struct diskcipher_alg *alg)
 	spin_lock_init(&fctrl->freelist_lock);
 	if (!fctrl->max_io_ms)
 		fctrl->max_io_ms = DISKCIPHER_MAX_IO_MS;
+#endif
 	base->cra_type = &crypto_diskcipher_type;
 	base->cra_flags = CRYPTO_ALG_TYPE_DISKCIPHER;
 	return crypto_register_alg(base);

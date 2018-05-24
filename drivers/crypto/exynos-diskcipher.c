@@ -133,7 +133,9 @@ static int exynos_fmp_probe(struct platform_device *pdev)
 		alg->clearkey = fmp_clearkey;
 		alg->crypt = fmp_crypt;
 		alg->clear = fmp_clear;
+#ifdef USE_FREE_REQ
 		alg->freectrl.max_io_ms = 3000;
+#endif
 #ifndef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 		alg->do_crypt = fmp_do_test_crypt;
 #endif
