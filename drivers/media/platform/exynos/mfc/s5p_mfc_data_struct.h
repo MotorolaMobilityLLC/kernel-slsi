@@ -372,6 +372,9 @@ struct s5p_mfc_qos {
 struct s5p_mfc_platdata {
 	int ip_ver;
 	int debug_mode;
+	int share_sysmmu;
+	int axid_mask;
+	int mfc_fault_num;
 	int nal_q;
 	int skype;
 	int black_bar;

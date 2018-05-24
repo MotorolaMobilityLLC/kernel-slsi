@@ -905,6 +905,15 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 		}
 	}
 
+	/* If sysmmu is used with other IPs, it should be checked whether it's an MFC fault */
+	if (dev->pdata->share_sysmmu) {
+		if ((MFC_MMU0_READL(MFC_MMU_FAULT_TRANS_INFO) & dev->pdata->axid_mask)
+				!= dev->pdata->mfc_fault_num) {
+			mfc_err_dev("This is not a MFC page fault\n");
+			return 0;
+		}
+	}
+
 	if (MFC_MMU0_READL(MFC_MMU_INTERRUPT_STATUS)) {
 		if (MFC_MMU0_READL(MFC_MMU_FAULT_TRANS_INFO) & MFC_MMU_FAULT_TRANS_INFO_RW_MASK)
 			dev->logging_data->cause |= (1 << MFC_CAUSE_0WRITE_PAGE_FAULT);
@@ -944,6 +953,9 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 
 	of_property_read_u32(np, "ip_ver", &pdata->ip_ver);
 	of_property_read_u32(np, "debug_mode", &pdata->debug_mode);
+	of_property_read_u32(np, "share_sysmmu", &pdata->share_sysmmu);
+	of_property_read_u32(np, "axid_mask", &pdata->axid_mask);
+	of_property_read_u32(np, "mfc_fault_num", &pdata->mfc_fault_num);
 	of_property_read_u32(np, "nal_q", &pdata->nal_q);
 	of_property_read_u32(np, "skype", &pdata->skype);
 	of_property_read_u32(np, "black_bar", &pdata->black_bar);
