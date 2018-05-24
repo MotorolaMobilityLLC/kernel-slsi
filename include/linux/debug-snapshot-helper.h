@@ -31,6 +31,11 @@ struct dbg_snapshot_helper_ops {
 	void (*soc_save_context_entry)(void *);
 	void (*soc_save_context_exit)(void *);
 
+	void (*soc_save_core)(void *);
+	void (*soc_save_context)(void *);
+	void (*soc_save_system)(void *);
+	void (*soc_dump_info)(void *);
+
 	void (*soc_start_watchdog)(void *);
 	void (*soc_expire_watchdog)(void *);
 	void (*soc_stop_watchdog)(void *);
@@ -42,4 +47,44 @@ struct dbg_snapshot_helper_ops {
 
 extern void dbg_snapshot_register_soc_ops(struct dbg_snapshot_helper_ops *ops);
 extern bool dbg_snapshot_is_scratch(void);
+
+#ifdef CONFIG_ARM64
+struct dbg_snapshot_mmu_reg {
+	long SCTLR_EL1;
+	long TTBR0_EL1;
+	long TTBR1_EL1;
+	long TCR_EL1;
+	long ESR_EL1;
+	long FAR_EL1;
+	long CONTEXTIDR_EL1;
+	long TPIDR_EL0;
+	long TPIDRRO_EL0;
+	long TPIDR_EL1;
+	long MAIR_EL1;
+	long ELR_EL1;
+	long SP_EL0;
+};
+
+#else
+struct dbg_snapshot_mmu_reg {
+	int SCTLR;
+	int TTBR0;
+	int TTBR1;
+	int TTBCR;
+	int DACR;
+	int DFSR;
+	int DFAR;
+	int IFSR;
+	int IFAR;
+	int DAFSR;
+	int IAFSR;
+	int PMRRR;
+	int NMRRR;
+	int FCSEPID;
+	int CONTEXT;
+	int URWTPID;
+	int UROTPID;
+	int POTPIDR;
+};
+#endif
 #endif

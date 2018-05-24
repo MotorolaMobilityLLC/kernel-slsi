@@ -46,10 +46,15 @@ static struct dbg_snapshot_helper_ops dss_soc_dummy_ops = {
 	.soc_early_panic		= dbg_snapshot_soc_dummy_func,
 	.soc_prepare_panic_entry 	= dbg_snapshot_soc_dummy_func,
 	.soc_prepare_panic_exit 	= dbg_snapshot_soc_dummy_func,
-	.soc_save_context_entry 	= dbg_snapshot_soc_dummy_func,
-	.soc_save_context_exit		= dbg_snapshot_soc_dummy_func,
 	.soc_post_panic_entry 		= dbg_snapshot_soc_dummy_func,
 	.soc_post_panic_exit 		= dbg_snapshot_soc_dummy_func,
+	.soc_post_reboot_entry 		= dbg_snapshot_soc_dummy_func,
+	.soc_post_reboot_exit 		= dbg_snapshot_soc_dummy_func,
+	.soc_save_context_entry 	= dbg_snapshot_soc_dummy_func,
+	.soc_save_context_exit		= dbg_snapshot_soc_dummy_func,
+	.soc_save_core			= dbg_snapshot_soc_dummy_func,
+	.soc_save_system		= dbg_snapshot_soc_dummy_func,
+	.soc_dump_info			= dbg_snapshot_soc_dummy_func,
 	.soc_start_watchdog 		= dbg_snapshot_soc_dummy_func,
 	.soc_expire_watchdog 		= dbg_snapshot_soc_dummy_func,
 	.soc_stop_watchdog 		= dbg_snapshot_soc_dummy_func,
@@ -244,8 +249,6 @@ EXPORT_SYMBOL(dbg_snapshot_prepare_panic);
 int dbg_snapshot_post_panic(void)
 {
 	if (dss_base.enabled) {
-		dss_soc_ops->soc_post_panic_entry(NULL);
-
 		dbg_snapshot_recall_hardlockup_core();
 #ifdef CONFIG_DEBUG_SNAPSHOT_PMU
 		dbg_snapshot_dump_sfr();
@@ -254,28 +257,23 @@ int dbg_snapshot_post_panic(void)
 
 		dbg_snapshot_print_panic_report();
 
-		dss_soc_ops->soc_post_panic_exit(NULL);
+		dss_soc_ops->soc_post_panic_entry(NULL);
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_PANIC_REBOOT
 		if (!dss_desc.no_wdt_dev) {
 #ifdef CONFIG_DEBUG_SNAPSHOT_WATCHDOG_RESET
 			if (dss_desc.hardlockup_detected || num_online_cpus() > 1) {
 				/* for stall cpu */
-				while(1)
-					wfi();
+				dbg_snapshot_spin_func();
 			}
 #endif
 		}
 #endif
 	}
-#ifdef CONFIG_DEBUG_SNAPSHOT_PANIC_REBOOT
-	arm_pm_restart(0, "panic");
-#endif
-	goto loop;
+	dss_soc_ops->soc_post_panic_exit(NULL);
+
 	/* for stall cpu when not enabling panic reboot */
-loop:
-	while(1)
-		wfi();
+	dbg_snapshot_spin_func();
 
 	/* Never run this function */
 	pr_emerg("debug-snapshot: %s DO NOT RUN this function (CPU:%d)\n",

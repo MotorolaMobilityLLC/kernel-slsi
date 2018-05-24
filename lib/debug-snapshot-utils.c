@@ -178,196 +178,13 @@ void dbg_snapshot_save_system(void *unused)
 		return;
 
 	mmu_reg = per_cpu(dss_mmu_reg, raw_smp_processor_id());
-#ifdef CONFIG_ARM64
-	asm("mrs x1, SCTLR_EL1\n\t"		/* SCTLR_EL1 */
-		"str x1, [%0]\n\t"
-		"mrs x1, TTBR0_EL1\n\t"		/* TTBR0_EL1 */
-		"str x1, [%0,#8]\n\t"
-		"mrs x1, TTBR1_EL1\n\t"		/* TTBR1_EL1 */
-		"str x1, [%0,#16]\n\t"
-		"mrs x1, TCR_EL1\n\t"		/* TCR_EL1 */
-		"str x1, [%0,#24]\n\t"
-		"mrs x1, ESR_EL1\n\t"		/* ESR_EL1 */
-		"str x1, [%0,#32]\n\t"
-		"mrs x1, FAR_EL1\n\t"		/* FAR_EL1 */
-		"str x1, [%0,#40]\n\t"
-		/* Don't populate AFSR0_EL1 and AFSR1_EL1 */
-		"mrs x1, CONTEXTIDR_EL1\n\t"	/* CONTEXTIDR_EL1 */
-		"str x1, [%0,#48]\n\t"
-		"mrs x1, TPIDR_EL0\n\t"		/* TPIDR_EL0 */
-		"str x1, [%0,#56]\n\t"
-		"mrs x1, TPIDRRO_EL0\n\t"		/* TPIDRRO_EL0 */
-		"str x1, [%0,#64]\n\t"
-		"mrs x1, TPIDR_EL1\n\t"		/* TPIDR_EL1 */
-		"str x1, [%0,#72]\n\t"
-		"mrs x1, MAIR_EL1\n\t"		/* MAIR_EL1 */
-		"str x1, [%0,#80]\n\t"
-		"mrs x1, ELR_EL1\n\t"		/* ELR_EL1 */
-		"str x1, [%0, #88]\n\t"
-		"mrs x1, SP_EL0\n\t"		/* SP_EL0 */
-		"str x1, [%0, #96]\n\t" :	/* output */
-		: "r"(mmu_reg)			/* input */
-		: "%x1", "memory"			/* clobbered register */
-	);
-#else
-	asm("mrc    p15, 0, r1, c1, c0, 0\n\t"	/* SCTLR */
-	    "str r1, [%0]\n\t"
-	    "mrc    p15, 0, r1, c2, c0, 0\n\t"	/* TTBR0 */
-	    "str r1, [%0,#4]\n\t"
-	    "mrc    p15, 0, r1, c2, c0,1\n\t"	/* TTBR1 */
-	    "str r1, [%0,#8]\n\t"
-	    "mrc    p15, 0, r1, c2, c0,2\n\t"	/* TTBCR */
-	    "str r1, [%0,#12]\n\t"
-	    "mrc    p15, 0, r1, c3, c0,0\n\t"	/* DACR */
-	    "str r1, [%0,#16]\n\t"
-	    "mrc    p15, 0, r1, c5, c0,0\n\t"	/* DFSR */
-	    "str r1, [%0,#20]\n\t"
-	    "mrc    p15, 0, r1, c6, c0,0\n\t"	/* DFAR */
-	    "str r1, [%0,#24]\n\t"
-	    "mrc    p15, 0, r1, c5, c0,1\n\t"	/* IFSR */
-	    "str r1, [%0,#28]\n\t"
-	    "mrc    p15, 0, r1, c6, c0,2\n\t"	/* IFAR */
-	    "str r1, [%0,#32]\n\t"
-	    /* Don't populate DAFSR and RAFSR */
-	    "mrc    p15, 0, r1, c10, c2,0\n\t"	/* PMRRR */
-	    "str r1, [%0,#44]\n\t"
-	    "mrc    p15, 0, r1, c10, c2,1\n\t"	/* NMRRR */
-	    "str r1, [%0,#48]\n\t"
-	    "mrc    p15, 0, r1, c13, c0,0\n\t"	/* FCSEPID */
-	    "str r1, [%0,#52]\n\t"
-	    "mrc    p15, 0, r1, c13, c0,1\n\t"	/* CONTEXT */
-	    "str r1, [%0,#56]\n\t"
-	    "mrc    p15, 0, r1, c13, c0,2\n\t"	/* URWTPID */
-	    "str r1, [%0,#60]\n\t"
-	    "mrc    p15, 0, r1, c13, c0,3\n\t"	/* UROTPID */
-	    "str r1, [%0,#64]\n\t"
-	    "mrc    p15, 0, r1, c13, c0,4\n\t"	/* POTPIDR */
-	    "str r1, [%0,#68]\n\t" :		/* output */
-	    : "r"(mmu_reg)			/* input */
-	    : "%r1", "memory"			/* clobbered register */
-	);
-#endif
+
+	dss_soc_ops->soc_save_system((void *)mmu_reg);
 }
 
 int dbg_snapshot_dump(void)
 {
-	/*
-	 *  Output CPU Memory Error syndrome Register
-	 *  CPUMERRSR, L2MERRSR
-	 */
-#ifdef CONFIG_ARM64
-	unsigned long reg1, reg2, reg3;
-
-	if (read_cpuid_implementor() == ARM_CPU_IMP_SEC) {
-		switch (read_cpuid_part_number()) {
-		case ARM_CPU_PART_MONGOOSE:
-		case ARM_CPU_PART_MEERKAT:
-			asm ("mrs %0, S3_1_c15_c2_0\n\t"
-					"mrs %1, S3_1_c15_c2_4\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("FEMERR0SR: %016lx, FEMERR1SR: %016lx\n", reg1, reg2);
-			asm ("mrs %0, S3_1_c15_c2_1\n\t"
-					"mrs %1, S3_1_c15_c2_5\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("LSMERR0SR: %016lx, LSMERR1SR: %016lx\n", reg1, reg2);
-			asm ("mrs %0, S3_1_c15_c2_2\n\t"
-					"mrs %1, S3_1_c15_c2_6\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("TBWMERR0SR: %016lx, TBWMERR1SR: %016lx\n", reg1, reg2);
-			asm ("mrs %0, S3_1_c15_c2_3\n\t"
-					"mrs %1, S3_1_c15_c2_7\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("L2MERR0SR: %016lx, L2MERR1SR: %016lx\n", reg1, reg2);
-
-			/* L3 MERR */
-			asm ("msr S3_1_c15_c7_1, %0\n\t"
-					"isb\n"
-					:: "r" (0));
-			asm ("mrs %0, S3_1_c15_c3_0\n\t"
-					"mrs %1, S3_1_c15_c3_4\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("BANK0 L3MERR0SR: %016lx, L3MERR1SR: %016lx\n", reg1, reg2);
-			asm ("msr S3_1_c15_c7_1, %0\n\t"
-					"isb\n"
-					:: "r" (1));
-			asm ("mrs %0, S3_1_c15_c3_0\n\t"
-					"mrs %1, S3_1_c15_c3_4\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("BANK1 L3MERR0SR: %016lx, L3MERR1SR: %016lx\n", reg1, reg2);
-			asm ("msr S3_1_c15_c7_1, %0\n\t"
-					"isb\n"
-					:: "r" (2));
-			asm ("mrs %0, S3_1_c15_c3_0\n\t"
-					"mrs %1, S3_1_c15_c3_4\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("BANK2 L3MERR0SR: %016lx, L3MERR1SR: %016lx\n", reg1, reg2);
-			asm ("msr S3_1_c15_c7_1, %0\n\t"
-					"isb\n"
-					:: "r" (3));
-			asm ("mrs %0, S3_1_c15_c3_0\n\t"
-					"mrs %1, S3_1_c15_c3_4\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("BANK3 L3MERR0SR: %016lx, L3MERR1SR: %016lx\n", reg1, reg2);
-
-			break;
-		default:
-			break;
-		}
-	} else {
-		switch (read_cpuid_part_number()) {
-		case ARM_CPU_PART_CORTEX_A73:
-			asm ("mrs %0, S3_1_c15_c2_3\n" : "=r" (reg1));
-			pr_emerg("L2MERRSR: %016lx\n", reg1);
-			break;
-		case ARM_CPU_PART_CORTEX_A57:
-		case ARM_CPU_PART_CORTEX_A53:
-			asm ("mrs %0, S3_1_c15_c2_2\n\t"
-					"mrs %1, S3_1_c15_c2_3\n"
-					: "=r" (reg1), "=r" (reg2));
-			pr_emerg("CPUMERRSR: %016lx, L2MERRSR: %016lx\n", reg1, reg2);
-			break;
-		case ARM_CPU_PART_ANANKE:
-			asm ("HINT #16");
-			asm ("mrs %0, S3_0_c12_c1_1\n" : "=r" (reg1)); /* read DISR_EL1 */
-			pr_emerg("DISR_EL1: %016lx\n", reg1);
-
-			asm ("msr S3_0_c5_c3_1, %0\n"  :: "r" (0)); /* set 1st ERRSELR_EL1 */
-
-			asm ("mrs %0, S3_0_c5_c4_2\n"
-					"mrs %1, S3_0_c5_c4_3\n"
-					"mrs %2, S3_0_c5_c5_0\n"
-					: "=r" (reg1), "=r" (reg2), "=r" (reg3));
-			pr_emerg("1st : ERXSTATUS_EL1: %016lx, ERXADDR_EL1: %016lx, "
-					"ERXMISC0_EL1: %016lx\n", reg1, reg2, reg3);
-
-			asm ("msr S3_0_c5_c3_1, %0\n"  :: "r" (1)); /* set 2nd ERRSELR_EL1 */
-
-			asm ("mrs %0, S3_0_c5_c4_2\n"
-					"mrs %1, S3_0_c5_c4_3\n"
-					"mrs %2, S3_0_c5_c5_0\n"
-					: "=r" (reg1), "=r" (reg2), "=r" (reg3));
-			pr_emerg("2nd : ERXSTATUS_EL1: %016lx, ERXADDR_EL1: %016lx, "
-					"ERXMISC0_EL1: %016lx\n", reg1, reg2, reg3);
-
-			break;
-		default:
-			break;
-		}
-	}
-#else
-	unsigned long reg0;
-	asm ("mrc p15, 0, %0, c0, c0, 0\n": "=r" (reg0));
-	if (((reg0 >> 4) & 0xFFF) == 0xC0F) {
-		/*  Only Cortex-A15 */
-		unsigned long reg1, reg2, reg3;
-		asm ("mrrc p15, 0, %0, %1, c15\n\t"
-			"mrrc p15, 1, %2, %3, c15\n"
-			: "=r" (reg0), "=r" (reg1),
-			"=r" (reg2), "=r" (reg3));
-		pr_emerg("CPUMERRSR: %08lx_%08lx, L2MERRSR: %08lx_%08lx\n",
-				reg1, reg0, reg3, reg2);
-	}
-#endif
+	dss_soc_ops->soc_dump_info(NULL);
 	return 0;
 }
 EXPORT_SYMBOL(dbg_snapshot_dump);
@@ -381,46 +198,10 @@ int dbg_snapshot_save_core(void *v_regs)
 	if(!dbg_snapshot_get_enable("header"))
 		return 0;
 
-	if (!regs) {
-		asm("str x0, [%0, #0]\n\t"
-		    "mov x0, %0\n\t"
-		    "str x1, [x0, #8]\n\t"
-		    "str x2, [x0, #16]\n\t"
-		    "str x3, [x0, #24]\n\t"
-		    "str x4, [x0, #32]\n\t"
-		    "str x5, [x0, #40]\n\t"
-		    "str x6, [x0, #48]\n\t"
-		    "str x7, [x0, #56]\n\t"
-		    "str x8, [x0, #64]\n\t"
-		    "str x9, [x0, #72]\n\t"
-		    "str x10, [x0, #80]\n\t"
-		    "str x11, [x0, #88]\n\t"
-		    "str x12, [x0, #96]\n\t"
-		    "str x13, [x0, #104]\n\t"
-		    "str x14, [x0, #112]\n\t"
-		    "str x15, [x0, #120]\n\t"
-		    "str x16, [x0, #128]\n\t"
-		    "str x17, [x0, #136]\n\t"
-		    "str x18, [x0, #144]\n\t"
-		    "str x19, [x0, #152]\n\t"
-		    "str x20, [x0, #160]\n\t"
-		    "str x21, [x0, #168]\n\t"
-		    "str x22, [x0, #176]\n\t"
-		    "str x23, [x0, #184]\n\t"
-		    "str x24, [x0, #192]\n\t"
-		    "str x25, [x0, #200]\n\t"
-		    "str x26, [x0, #208]\n\t"
-		    "str x27, [x0, #216]\n\t"
-		    "str x28, [x0, #224]\n\t"
-		    "str x29, [x0, #232]\n\t"
-		    "str x30, [x0, #240]\n\t" :
-		    : "r"(core_reg));
-		core_reg->sp = core_reg->regs[29];
-		core_reg->pc =
-			(unsigned long)(core_reg->regs[30] - sizeof(unsigned int));
-	} else {
+	if (!regs)
+		dss_soc_ops->soc_save_core((void *)core_reg);
+	else
 		memcpy(core_reg, regs, sizeof(struct user_pt_regs));
-	}
 
 	pr_emerg("debug-snapshot: core register saved(CPU:%d)\n",
 						smp_processor_id());
