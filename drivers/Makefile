@@ -187,4 +187,7 @@ obj-$(CONFIG_TEE)		+= tee/
 obj-$(CONFIG_MULTIPLEXER)	+= mux/
 
 obj-$(CONFIG_EXYNOS_BTS)	+= bts/
+
 obj-$(CONFIG_TRUSTONIC_TEE)     += gud/
+
+obj-$(CONFIG_USBPD_CORE)		+= ccic/

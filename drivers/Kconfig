@@ -215,4 +215,6 @@ source "drivers/mux/Kconfig"
 source "drivers/bts/Kconfig"
 
 source "drivers/gud/Kconfig"
+
+source "drivers/ccic/Kconfig"
 endmenu
