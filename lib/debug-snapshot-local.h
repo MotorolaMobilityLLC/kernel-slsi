@@ -17,7 +17,6 @@
 #define DEBUG_SNAPSHOT_LOCAL_H
 #include <linux/clk-provider.h>
 #include <linux/debug-snapshot.h>
-#include <linux/debug-snapshot-soc.h>
 #include <linux/debug-snapshot-helper.h>
 
 extern void dbg_snapshot_log_idx_init(void);
@@ -81,6 +80,12 @@ extern struct dbg_snapshot_helper_ops *dss_soc_ops;
 /* S5P_VA_SS_BASE + 0xC00 -- 0xFFF is reserved */
 #define DSS_OFFSET_PANIC_STRING		(0xC00)
 #define DSS_OFFSET_SPARE_BASE		(DSS_HEADER_TOTAL_SZ)
+
+/* SoC Specific define, This will be removed */
+#define DSS_REG_MCT_ADDR	(0)
+#define DSS_REG_MCT_SIZE	(0)
+#define DSS_REG_UART_ADDR	(0)
+#define DSS_REG_UART_SIZE	(0)
 
 typedef int (*dss_initcall_t)(const struct device_node *);
 

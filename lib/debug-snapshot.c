@@ -28,6 +28,12 @@
 
 #include "debug-snapshot-local.h"
 
+/* To Support Samsung SoC */
+#include <dt-bindings/soc/samsung/debug-snapshot-table.h>
+#ifdef CONFIG_DEBUG_SNAPSHOT_PMU
+#include <soc/samsung/cal-if.h>
+#endif
+
 extern void register_hook_logbuf(void (*)(const char *, size_t));
 extern void register_hook_logger(void (*)(const char *, const char *, size_t));
 
@@ -37,6 +43,10 @@ struct dbg_snapshot_interface {
 };
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_PMU
+struct dbg_snapshot_ops {
+        int (*pd_status)(unsigned int id);
+};
+
 struct dbg_snapshot_ops dss_ops = {
 	.pd_status = cal_pd_status,
 };
