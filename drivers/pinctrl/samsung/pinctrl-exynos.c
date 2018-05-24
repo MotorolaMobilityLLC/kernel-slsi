@@ -331,7 +331,7 @@ int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 					0, dev_name(dev), d);
 	if (ret) {
 		dev_err(dev, "irq request failed\n");
-		return -ENXIO;
+		return ret;
 	}
 
 	bank = d->pin_banks;
