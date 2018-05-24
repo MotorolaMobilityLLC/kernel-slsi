@@ -43,6 +43,7 @@
 #define MFC_SFR_LOGGING_COUNT_SET1	4
 #define MFC_SFR_LOGGING_COUNT_SET2	23
 #define MFC_LOGGING_DATA_SIZE		256
+#define MFC_MAX_DEFAULT_PARAM		100
 
 #define HWFC_MAX_BUF			10
 #define OTF_MAX_BUF			30
@@ -370,25 +371,28 @@ struct s5p_mfc_qos {
 #endif
 
 struct s5p_mfc_platdata {
-	int ip_ver;
-	int debug_mode;
-	int share_sysmmu;
-	int axid_mask;
-	int mfc_fault_num;
-	int nal_q;
-	int skype;
-	int black_bar;
-	int color_aspect_dec;
-	int static_info_dec;
-	int color_aspect_enc;
-	int static_info_enc;
+	unsigned int ip_ver;
+	unsigned int debug_mode;
+	unsigned int share_sysmmu;
+	unsigned int axid_mask;
+	unsigned int mfc_fault_num;
+	unsigned int nal_q;
+	unsigned int skype;
+	unsigned int black_bar;
+	unsigned int color_aspect_dec;
+	unsigned int static_info_dec;
+	unsigned int color_aspect_enc;
+	unsigned int static_info_enc;
+	unsigned int enc_param_num;
+	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];
+	unsigned int enc_param_val[MFC_MAX_DEFAULT_PARAM];
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-	int num_qos_steps;
-	int max_qos_steps;
-	int max_mb;
-	int mfc_freq_control;
-	int mo_control;
-	int bw_control;
+	unsigned int num_qos_steps;
+	unsigned int max_qos_steps;
+	unsigned int max_mb;
+	unsigned int mfc_freq_control;
+	unsigned int mo_control;
+	unsigned int bw_control;
 	struct s5p_mfc_qos *qos_table;
 #endif
 };

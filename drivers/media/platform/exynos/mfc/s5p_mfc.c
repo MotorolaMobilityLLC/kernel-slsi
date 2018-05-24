@@ -963,6 +963,13 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 	of_property_read_u32(np, "static_info_dec", &pdata->static_info_dec);
 	of_property_read_u32(np, "color_aspect_enc", &pdata->color_aspect_enc);
 	of_property_read_u32(np, "static_info_enc", &pdata->static_info_enc);
+	of_property_read_u32(np, "enc_param_num", &pdata->enc_param_num);
+	if (pdata->enc_param_num) {
+		of_property_read_u32_array(np, "enc_param_addr",
+				&pdata->enc_param_addr[0], pdata->enc_param_num);
+		of_property_read_u32_array(np, "enc_param_val",
+				&pdata->enc_param_val[0], pdata->enc_param_num);
+	}
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	of_property_read_u32(np, "num_qos_steps", &pdata->num_qos_steps);
 	of_property_read_u32(np, "max_qos_steps", &pdata->max_qos_steps);

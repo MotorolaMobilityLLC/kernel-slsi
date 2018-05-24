@@ -92,81 +92,26 @@ static void mfc_set_gop_size(struct s5p_mfc_ctx *ctx, int ctrl_mode)
 static void mfc_set_default_params(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
+	int i;
 
-	/* Default setting for quality */
-	/* Common Registers */
-	MFC_WRITEL(0x0, S5P_FIMV_E_ENC_OPTIONS);
-	MFC_WRITEL(0x0, S5P_FIMV_E_FIXED_PICTURE_QP);
-	MFC_WRITEL(0x100, S5P_FIMV_E_MV_HOR_RANGE);
-	MFC_WRITEL(0x100, S5P_FIMV_E_MV_VER_RANGE);
-	MFC_WRITEL(0x0, S5P_FIMV_E_IR_SIZE);
-	MFC_WRITEL(0x0, S5P_FIMV_E_AIR_THRESHOLD);
-	MFC_WRITEL(0x1E, S5P_FIMV_E_GOP_CONFIG); /* I frame period: 30 */
-	MFC_WRITEL(0x0, S5P_FIMV_E_GOP_CONFIG2);
-	MFC_WRITEL(0x0, S5P_FIMV_E_MSLICE_MODE);
+	mfc_debug(2, "Set default param -  enc_param_num: %d\n", dev->pdata->enc_param_num);
+	for (i = 0; i < dev->pdata->enc_param_num; i++) {
+		if (i >= MFC_MAX_DEFAULT_PARAM) {
+			mfc_err_dev("enc_param_num(%d) is over max number(%d)\n",
+					dev->pdata->enc_param_num, MFC_MAX_DEFAULT_PARAM);
+			break;
+		}
+		MFC_WRITEL(dev->pdata->enc_param_val[i], dev->pdata->enc_param_addr[i]);
+		mfc_debug(2, "Set default param[%d] - addr:0x%x, val:0x%x\n",
+				i, dev->pdata->enc_param_addr[i], dev->pdata->enc_param_val[i]);
+	}
+}
 
-	/* Hierarchical Coding */
-	MFC_WRITEL(0x8, S5P_FIMV_E_NUM_T_LAYER);
+static void mfc_init_regs(struct s5p_mfc_ctx *ctx)
+{
+	struct s5p_mfc_dev *dev = ctx->dev;
 
-	/* Rate Control */
-	MFC_WRITEL(0x4000, S5P_FIMV_E_RC_CONFIG);
-	MFC_WRITEL(0x0, S5P_FIMV_E_RC_QP_BOUND);
-	MFC_WRITEL(0x0, S5P_FIMV_E_RC_QP_BOUND_PB);
-	MFC_WRITEL(0x12, S5P_FIMV_E_RC_MODE);
-	MFC_WRITEL(0x1E0001, S5P_FIMV_E_RC_FRAME_RATE); /* framerate: 30 fps */
-	MFC_WRITEL(0xF4240, S5P_FIMV_E_RC_BIT_RATE); /* bitrate: 1000000 */
-	MFC_WRITEL(0x3FD00, S5P_FIMV_E_RC_ROI_CTRL);
-	MFC_WRITEL(0x0, S5P_FIMV_E_VBV_BUFFER_SIZE);
-	MFC_WRITEL(0x0, S5P_FIMV_E_VBV_INIT_DELAY);
-	MFC_WRITEL(0x0, S5P_FIMV_E_BIT_COUNT_ENABLE);
-	MFC_WRITEL(0x2710, S5P_FIMV_E_MAX_BIT_COUNT); /* max bit count: 10000 */
-	MFC_WRITEL(0x3E8, S5P_FIMV_E_MIN_BIT_COUNT); /* min bit count: 1000 */
-	/*
-	 * If the high quality mode is used, the performance falls by half
-	 * If the high quality mode is used, NAL-Q is not supported
-	 */
-	MFC_WRITEL(0x0, S5P_FIMV_E_HIGH_QUALITY_MODE);
-	MFC_WRITEL(0x0, S5P_FIMV_E_WEIGHT_FOR_WEIGHTED_PREDICTION);
-
-	/* HEVC */
-	MFC_WRITEL(0x8050F215, S5P_FIMV_E_HEVC_OPTIONS);
-	MFC_WRITEL(0x0, S5P_FIMV_E_HEVC_REFRESH_PERIOD);
-	MFC_WRITEL(0x0, S5P_FIMV_E_HEVC_CHROMA_QP_OFFSET);
-	MFC_WRITEL(0x0, S5P_FIMV_E_HEVC_LF_BETA_OFFSET_DIV2);
-	MFC_WRITEL(0x0, S5P_FIMV_E_HEVC_LF_TC_OFFSET_DIV2);
-	MFC_WRITEL(0x0, S5P_FIMV_E_SAO_WEIGHT0);
-	MFC_WRITEL(0x0, S5P_FIMV_E_SAO_WEIGHT1);
-
-	/* H.264 */
-	MFC_WRITEL(0x3011, S5P_FIMV_E_H264_OPTIONS);
-	MFC_WRITEL(0x0, S5P_FIMV_E_H264_OPTIONS_2);
-	MFC_WRITEL(0x0, S5P_FIMV_E_H264_LF_ALPHA_OFFSET);
-	MFC_WRITEL(0x0, S5P_FIMV_E_H264_LF_BETA_OFFSET);
-	MFC_WRITEL(0x0, S5P_FIMV_E_H264_REFRESH_PERIOD);
-	MFC_WRITEL(0x0, S5P_FIMV_E_H264_CHROMA_QP_OFFSET);
-
-	/* VP8 */
-	MFC_WRITEL(0x0, S5P_FIMV_E_VP8_OPTION);
-	MFC_WRITEL(0x0, S5P_FIMV_E_VP8_GOLDEN_FRAME_OPTION);
-
-	/* VP9 */
-	MFC_WRITEL(0x2D, S5P_FIMV_E_VP9_OPTION);
-	MFC_WRITEL(0xA00, S5P_FIMV_E_VP9_FILTER_OPTION);
-	MFC_WRITEL(0x3C, S5P_FIMV_E_VP9_GOLDEN_FRAME_OPTION);
-
-	/* BPG */
-	MFC_WRITEL(0x961, S5P_FIMV_E_BPG_OPTIONS);
-	MFC_WRITEL(0x6FA00, S5P_FIMV_E_BPG_EXT_CTB_QP_CTRL);
-	MFC_WRITEL(0x0, S5P_FIMV_E_BPG_CHROMA_QP_OFFSET);
-
-	/* MVC */
-	MFC_WRITEL(0x1D, S5P_FIMV_E_MVC_FRAME_QP_VIEW1); /* QP: 29 */
-	MFC_WRITEL(0xF4240, S5P_FIMV_E_MVC_RC_BIT_RATE_VIEW1); /* bitrate: 1000000 */
-	MFC_WRITEL(0x33003300, S5P_FIMV_E_MVC_RC_QBOUND_VIEW1); /* max I, P QP: 51 */
-	MFC_WRITEL(0x2, S5P_FIMV_E_MVC_RC_MODE_VIEW1);
-	MFC_WRITEL(0x1, S5P_FIMV_E_MVC_INTER_VIEW_PREDICTION_ON);
-
-	/* Additional initialization: NAL start only */
+	/* Register initialization */
 	MFC_WRITEL(0x0, S5P_FIMV_E_FRAME_INSERTION);
 	MFC_WRITEL(0x0, S5P_FIMV_E_ROI_BUFFER_ADDR);
 	MFC_WRITEL(0x0, S5P_FIMV_E_PARAM_CHANGE);
@@ -184,6 +129,7 @@ static void mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
+	mfc_init_regs(ctx);
 	mfc_set_default_params(ctx);
 
 	/* width */
@@ -220,25 +166,27 @@ static void mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 
 	reg = MFC_READL(S5P_FIMV_E_ENC_OPTIONS);
 	/* frame skip mode */
-	reg |= (p->frame_skip_mode & S5P_FIMV_E_ENC_OPT_FRAME_SKIP_EN_MASK);
+	reg &= ~(0x3);
+	reg |= (p->frame_skip_mode & 0x3);
 	/* seq header ctrl */
-	reg |= ((p->seq_hdr_mode & S5P_FIMV_E_ENC_OPT_SEQ_HEADER_CONTROL_MASK)
-			<< S5P_FIMV_E_ENC_OPT_SEQ_HEADER_CONTROL_SHIFT);
-	/* enable seq header generation */
-	reg &= ~(0x1 << S5P_FIMV_E_ENC_OPT_DISABLE_SEQ_HEADER_SHIFT);
-	/* disable seq header generation */
+	reg &= ~(0x1 << 2);
+	reg |= ((p->seq_hdr_mode & 0x1) << 2);
+	/* cyclic intra refresh */
+	reg &= ~(0x1 << 4);
+	if (p->intra_refresh_mb)
+		reg |= (0x1 << 4);
+	/* disable seq header generation if OTF mode */
+	reg &= ~(0x1 << 6);
 	if (ctx->otf_handle) {
-		reg |= (0x1 << S5P_FIMV_E_ENC_OPT_DISABLE_SEQ_HEADER_SHIFT);
+		reg |= (0x1 << 6);
 		mfc_debug(2, "OTF: SEQ_HEADER_GENERATION is disabled\n");
 	}
-	/* cyclic intra refresh */
-	if (p->intra_refresh_mb)
-		reg |= (0x1 << S5P_FIMV_E_ENC_OPT_IR_MODE_SHIFT);
 	/* 'NON_REFERENCE_STORE_ENABLE' for debugging */
-	reg &= ~(0x1 << S5P_FIMV_E_ENC_OPT_NON_REFERENCE_EN_SHIFT);
+	reg &= ~(0x1 << 9);
 	/* Disable parallel processing if nal_q_parallel_disable was set */
+	reg &= ~(0x1 << 18);
 	if (nal_q_parallel_disable)
-		reg |= 0x1 << S5P_FIMV_E_ENC_OPT_PARALLEL_DISABLE_SHIFT;
+		reg |= (0x1 << 18);
 	MFC_WRITEL(reg, S5P_FIMV_E_ENC_OPTIONS);
 
 	s5p_mfc_set_pixel_format(dev, ctx->src_fmt->fourcc);
@@ -274,13 +222,12 @@ static void mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	MFC_WRITEL(reg, S5P_FIMV_E_RC_CONFIG);
 
 	/* bit rate */
-	if (p->rc_bitrate)
-		MFC_WRITEL(p->rc_bitrate, S5P_FIMV_E_RC_BIT_RATE);
+	MFC_WRITEL(p->rc_bitrate, S5P_FIMV_E_RC_BIT_RATE);
 
+
+	reg = MFC_READL(S5P_FIMV_E_RC_MODE);
+	reg &= ~(0x3 | (0x3 << 4) | (0xFF << 8));
 	if (p->rc_frame) {
-		reg = MFC_READL(S5P_FIMV_E_RC_MODE);
-		reg &= ~(0x3);
-
 		if (p->rc_reaction_coeff <= CBR_I_LIMIT_MAX) {
 			reg |= S5P_FIMV_E_RC_CBR_I_LIMIT;
 			/*
@@ -288,32 +235,26 @@ static void mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 			 * is controled when only CBR_I_LIMIT mode.
 			 * And CBR_I_LIMIT mode is valid for H.264, HEVC codec
 			 */
-			if (p->ratio_intra) {
-				reg &= ~(0xFF << 8);
-				reg |= ((p->ratio_intra & 0xff) << 8);
-			}
+			if (p->ratio_intra)
+				reg |= ((p->ratio_intra & 0xFF) << 8);
 		} else if (p->rc_reaction_coeff <= CBR_FIX_MAX) {
 			reg |= S5P_FIMV_E_RC_CBR_FIX;
 		} else {
 			reg |= S5P_FIMV_E_RC_VBR;
 		}
 
-		if (p->rc_mb) {
-			reg &= ~(0x3 << 4);
+		if (p->rc_mb)
 			reg |= ((p->rc_pvc & 0x3) << 4);
-		}
-
-		MFC_WRITEL(reg, S5P_FIMV_E_RC_MODE);
 	}
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_MODE);
 
 	/* extended encoder ctrl */
 	/** vbv buffer size */
-	if (p->frame_skip_mode == V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT) {
-		reg = MFC_READL(S5P_FIMV_E_VBV_BUFFER_SIZE);
-		reg &= ~(0xFF);
+	reg = MFC_READL(S5P_FIMV_E_VBV_BUFFER_SIZE);
+	reg &= ~(0xFF);
+	if (p->frame_skip_mode == V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT)
 		reg |= p->vbv_buf_size & 0xFF;
-		MFC_WRITEL(reg, S5P_FIMV_E_VBV_BUFFER_SIZE);
-	}
+	MFC_WRITEL(reg, S5P_FIMV_E_VBV_BUFFER_SIZE);
 
 	mfc_debug_leave();
 }
@@ -350,6 +291,7 @@ static void mfc_set_temporal_svc_h264(struct s5p_mfc_ctx *ctx, struct s5p_mfc_h2
 		reg |= 0x1 << 7;
 		reg |= (p->num_hier_max_layer & 0x7) << 4;
 	} else {
+		reg &= ~(0x1 << 7);
 		reg |= 0x7 << 4;
 	}
 	reg &= ~(0x1 << 8);
@@ -544,6 +486,7 @@ void s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 	/** frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_264->rc_frame_qp & 0xFF);
+	reg &= ~(0x1 << 11);
 	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp)
 		reg |= (0x1 << 11);
 	MFC_WRITEL(reg, S5P_FIMV_E_RC_CONFIG);
@@ -551,14 +494,12 @@ void s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 	/* frame rate */
 	/* Fix value for H.264, H.263 in the driver */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	if (p->rc_frame) {
-		reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
-		reg &= ~(0xFFFF << 16);
-		reg |= p_264->rc_framerate << 16;
-		reg &= ~(0xFFFF);
-		reg |= p->rc_frame_delta & 0xFFFF;
-		MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
-	}
+	reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
+	reg &= ~(0xFFFF << 16);
+	reg |= p_264->rc_framerate << 16;
+	reg &= ~(0xFFFF);
+	reg |= p->rc_frame_delta & 0xFFFF;
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
 
 	/* max & min value of QP for I frame */
 	reg = MFC_READL(S5P_FIMV_E_RC_QP_BOUND);
@@ -615,12 +556,11 @@ void s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 		}
 	}
 	/* intra picture period for H.264 open GOP, value */
-	if (p_264->open_gop) {
-		reg = MFC_READL(S5P_FIMV_E_H264_REFRESH_PERIOD);
-		reg &= ~(0xFFFF);
+	reg = MFC_READL(S5P_FIMV_E_H264_REFRESH_PERIOD);
+	reg &= ~(0xFFFF);
+	if (p_264->open_gop)
 		reg |= (p_264->open_gop_size & 0xFFFF);
-		MFC_WRITEL(reg, S5P_FIMV_E_H264_REFRESH_PERIOD);
-	}
+	MFC_WRITEL(reg, S5P_FIMV_E_H264_REFRESH_PERIOD);
 
 	/* Temporal SVC */
 	mfc_set_temporal_svc_h264(ctx, p_264);
@@ -718,17 +658,13 @@ void s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 	MFC_WRITEL(reg, S5P_FIMV_E_FIXED_PICTURE_QP);
 
 	/* frame rate */
-	if (p->rc_frame) {
-		p->rc_frame_delta = p_mpeg4->vop_frm_delta;
-		reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
-		reg &= ~(0xFFFF << 16);
-		reg |= (p_mpeg4->vop_time_res << 16);
-		reg &= ~(0xFFFF);
-		reg |= (p_mpeg4->vop_frm_delta & 0xFFFF);
-		MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
-	} else {
-		p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	}
+	p->rc_frame_delta = p_mpeg4->vop_frm_delta;
+	reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
+	reg &= ~(0xFFFF << 16);
+	reg |= (p_mpeg4->vop_time_res << 16);
+	reg &= ~(0xFFFF);
+	reg |= (p_mpeg4->vop_frm_delta & 0xFFFF);
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
 
 	/* rate control config. */
 	reg = MFC_READL(S5P_FIMV_E_RC_CONFIG);
@@ -800,14 +736,12 @@ void s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx)
 	/* frame rate */
 	/* Fix value for H.264, H.263 in the driver */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	if (p->rc_frame) {
-		reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
-		reg &= ~(0xFFFF << 16);
-		reg |= (p_mpeg4->rc_framerate << 16);
-		reg &= ~(0xFFFF);
-		reg |= (p->rc_frame_delta & 0xFFFF);
-		MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
-	}
+	reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
+	reg &= ~(0xFFFF << 16);
+	reg |= (p_mpeg4->rc_framerate << 16);
+	reg &= ~(0xFFFF);
+	reg |= (p->rc_frame_delta & 0xFFFF);
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
 
 	/* rate control config. */
 	reg = MFC_READL(S5P_FIMV_E_RC_CONFIG);
@@ -936,14 +870,12 @@ void s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 
 	/* frame rate */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	if (p->rc_frame) {
-		reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
-		reg &= ~(0xFFFF << 16);
-		reg |= (p_vp8->rc_framerate << 16);
-		reg &= ~(0xFFFF);
-		reg |= (p->rc_frame_delta & 0xFFFF);
-		MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
-	}
+	reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
+	reg &= ~(0xFFFF << 16);
+	reg |= (p_vp8->rc_framerate << 16);
+	reg &= ~(0xFFFF);
+	reg |= (p->rc_frame_delta & 0xFFFF);
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
 
 	/* rate control config. */
 	reg = MFC_READL(S5P_FIMV_E_RC_CONFIG);
@@ -1082,14 +1014,12 @@ void s5p_mfc_set_enc_params_vp9(struct s5p_mfc_ctx *ctx)
 
 	/* frame rate */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	if (p->rc_frame) {
-		reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
-		reg &= ~(0xFFFF << 16);
-		reg |= (p_vp9->rc_framerate << 16);
-		reg &= ~(0xFFFF);
-		reg |= (p->rc_frame_delta & 0xFFFF);
-		MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
-	}
+	reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
+	reg &= ~(0xFFFF << 16);
+	reg |= (p_vp9->rc_framerate << 16);
+	reg &= ~(0xFFFF);
+	reg |= (p->rc_frame_delta & 0xFFFF);
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
 
 	/* rate control config. */
 	reg = MFC_READL(S5P_FIMV_E_RC_CONFIG);
@@ -1256,6 +1186,8 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	reg |= (p_hevc->refreshperiod & 0xFFFF);
 	MFC_WRITEL(reg, S5P_FIMV_E_HEVC_REFRESH_PERIOD);
 	/* loop filter setting */
+	MFC_WRITEL(0, S5P_FIMV_E_HEVC_LF_BETA_OFFSET_DIV2);
+	MFC_WRITEL(0, S5P_FIMV_E_HEVC_LF_TC_OFFSET_DIV2);
 	if (!p_hevc->loopfilter_disable) {
 		MFC_WRITEL(p_hevc->lf_beta_offset_div2, S5P_FIMV_E_HEVC_LF_BETA_OFFSET_DIV2);
 		MFC_WRITEL(p_hevc->lf_tc_offset_div2, S5P_FIMV_E_HEVC_LF_TC_OFFSET_DIV2);
@@ -1280,6 +1212,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 		reg |= 0x1 << 7;
 		reg |= (p->num_hier_max_layer & 0x7) << 4;
 	} else {
+		reg &= ~(0x1 << 7);
 		reg |= 0x7 << 4;
 	}
 	reg &= ~(0x1 << 8);
@@ -1310,14 +1243,12 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 
 	/* frame rate */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	if (p->rc_frame) {
-		reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
-		reg &= ~(0xFFFF << 16);
-		reg |= (p_hevc->rc_framerate << 16);
-		reg &= ~(0xFFFF);
-		reg |= (p->rc_frame_delta & 0xFFFF);
-		MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
-	}
+	reg = MFC_READL(S5P_FIMV_E_RC_FRAME_RATE);
+	reg &= ~(0xFFFF << 16);
+	reg |= (p_hevc->rc_framerate << 16);
+	reg &= ~(0xFFFF);
+	reg |= (p->rc_frame_delta & 0xFFFF);
+	MFC_WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE);
 
 	/* max & min value of QP for I frame */
 	reg = MFC_READL(S5P_FIMV_E_RC_QP_BOUND);
