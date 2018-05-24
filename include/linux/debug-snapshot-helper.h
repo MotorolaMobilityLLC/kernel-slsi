@@ -25,6 +25,9 @@ struct dbg_snapshot_helper_ops {
 	void (*soc_post_panic_entry)(void *);
 	void (*soc_post_panic_exit)(void *);
 
+	void (*soc_post_reboot_entry)(void *);
+	void (*soc_post_reboot_exit)(void *);
+
 	void (*soc_save_context_entry)(void *);
 	void (*soc_save_context_exit)(void *);
 

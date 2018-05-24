@@ -74,6 +74,17 @@ static void exynos_post_panic_exit(void *val)
 
 }
 
+static void exynos_post_reboot_entry(void *val)
+{
+	/* TODO: Something */
+
+}
+
+static void exynos_post_reboot_exit(void *val)
+{
+	flush_cache_all();
+}
+
 static void exynos_save_context_entry(void *val)
 {
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
@@ -127,6 +138,8 @@ struct dbg_snapshot_helper_ops exynos_debug_ops = {
 	.soc_prepare_panic_exit	= exynos_prepare_panic_exit,
 	.soc_post_panic_entry	= exynos_post_panic_entry,
 	.soc_post_panic_exit	= exynos_post_panic_exit,
+	.soc_post_reboot_entry	= exynos_post_reboot_entry,
+	.soc_post_reboot_exit	= exynos_post_reboot_exit,
 	.soc_save_context_entry	= exynos_save_context_entry,
 	.soc_save_context_exit	= exynos_save_context_exit,
 	.soc_start_watchdog	= exynos_start_watchdog,
