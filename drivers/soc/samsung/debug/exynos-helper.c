@@ -24,6 +24,8 @@
 #include <soc/samsung/exynos-pmu.h>
 #include <soc/samsung/exynos-sdm.h>
 
+#include <asm/cacheflush.h>
+
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 #include <asm/core_regs.h>
 #endif
@@ -63,6 +65,8 @@ static void exynos_post_panic_entry(void *val)
 
 static void exynos_post_panic_exit(void *val)
 {
+	flush_cache_all();
+
 #ifdef CONFIG_EXYNOS_SDM
 	if (dbg_snapshot_is_scratch())
 		exynos_sdm_dump_secure_region();
@@ -79,7 +83,7 @@ static void exynos_save_context_entry(void *val)
 
 static void exynos_save_context_exit(void *val)
 {
-	/* TODO: Something */
+	flush_cache_all();
 }
 
 static void exynos_start_watchdog(void *val)
