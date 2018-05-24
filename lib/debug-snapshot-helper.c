@@ -307,11 +307,6 @@ int dbg_snapshot_post_reboot(char *cmd)
 
 	dss_soc_ops->soc_post_reboot_entry(NULL);
 
-	/* clear DSS_SIGN_PANIC when normal reboot */
-	for_each_possible_cpu(cpu) {
-		dbg_snapshot_set_core_panic_stat(DSS_SIGN_RESET, cpu);
-	}
-
 	dbg_snapshot_report_reason(DSS_SIGN_NORMAL_REBOOT);
 
 	if (!cmd)
@@ -322,6 +317,11 @@ int dbg_snapshot_post_reboot(char *cmd)
 	pr_emerg("debug-snapshot: normal reboot done\n");
 
 	dbg_snapshot_save_context(NULL);
+
+	/* clear DSS_SIGN_PANIC when normal reboot */
+	for_each_possible_cpu(cpu) {
+		dbg_snapshot_set_core_panic_stat(DSS_SIGN_RESET, cpu);
+	}
 
 	dss_soc_ops->soc_post_reboot_exit(NULL);
 
