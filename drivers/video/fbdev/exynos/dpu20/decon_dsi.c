@@ -657,6 +657,7 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct decon_win_config config;
 	int ret = 0;
 	struct decon_mode_info psr;
+	int dpp_id = DPU_DMA2CH(decon->dt.dft_idma);
 
 	if (decon->dt.out_type != DECON_OUT_DSI) {
 		decon_warn("%s: decon%d unspported on out_type(%d)\n",
@@ -671,7 +672,7 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		return 0;
 	}
 
-	decon_dbg("%s: [%d %d %d %d %d %d]\n", __func__,
+	decon_info("%s: [%d %d %d %d %d %d]\n", __func__,
 			var->xoffset, var->yoffset,
 			var->xres, var->yres,
 			var->xres_virtual, var->yres_virtual);
@@ -719,14 +720,14 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	 */
 	memcpy(&info->var, var, sizeof(struct fb_var_screeninfo));
 
-	set_bit(decon->dt.dft_idma, &decon->cur_using_dpp);
-	set_bit(decon->dt.dft_idma, &decon->prev_used_dpp);
-	sd = decon->dpp_sd[decon->dt.dft_idma];
+	set_bit(dpp_id, &decon->cur_using_dpp);
+	set_bit(dpp_id, &decon->prev_used_dpp);
+	sd = decon->dpp_sd[dpp_id];
 	if (v4l2_subdev_call(sd, core, ioctl, DPP_WIN_CONFIG, &config)) {
 		decon_err("%s: Failed to config DPP-%d\n", __func__, win->dpp_id);
 		decon_reg_win_enable_and_update(decon->id, decon->dt.dft_win, false);
-		clear_bit(decon->dt.dft_idma, &decon->cur_using_dpp);
-		set_bit(decon->dt.dft_idma, &decon->dpp_err_stat);
+		clear_bit(dpp_id, &decon->cur_using_dpp);
+		set_bit(dpp_id, &decon->dpp_err_stat);
 		goto err;
 	}
 
