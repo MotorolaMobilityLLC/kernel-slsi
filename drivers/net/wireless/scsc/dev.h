@@ -90,6 +90,8 @@ static inline void ethr_ii_to_subframe_msdu(struct sk_buff *skb)
 	memset(msduh.oui, 0x0, 3);
 	msduh.type = ehdr->h_proto;
 	(void)skb_push(skb, sizeof(struct msduhdr) - sizeof(struct ethhdr));
+	/* update SKB mac_header to point to start of MSDU header */
+	skb->mac_header -= (sizeof(struct msduhdr) - sizeof(struct ethhdr));
 	memcpy(skb->data, &msduh, sizeof(struct msduhdr));
 }
 
