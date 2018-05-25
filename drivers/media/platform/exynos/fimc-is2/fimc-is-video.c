@@ -29,7 +29,7 @@
 #include <linux/syscalls.h>
 #include <linux/videodev2_exynos_media.h>
 #include <linux/dma-buf.h>
-#include <linux/dmabuf_container.h>
+#include <linux/dma-buf-container.h>
 
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
@@ -944,6 +944,22 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 
 		/* get the buffer count in the dmabuf_container */
 		batch_size = dmabuf_container_get_count(dmabuf);
+		if (batch_size == 0) {
+			/*
+			 * FIXME: exiting this function here causes leak of
+			 * dma-bufs. This also applies to the above return
+			 * statement and all 'goto exit' statements below.
+			 * Please fix this by the right person in charge.
+			 */
+			err("%s Empty dmabuf-container of fd %d\n", __func__,
+			    vb->planes[i].m.fd);
+			dma_buf_put(dmabuf);
+			return (u32)-ENOMEM;
+		}
+
+		if (batch_size < 0)
+			batch_size = 0;
+
 		if (batch_size > 0) {
 			/* traverse and check the buffers in dmabuf_container */
 			for (buf_i = 0; buf_i < batch_size; buf_i++) {
