@@ -1096,7 +1096,7 @@ static int decon_find_biggest_block_rect(struct decon_device *decon,
 			continue;
 
 		/* If top window has plane alpha, blocking mode not appliable */
-		if ((config->plane_alpha < 255) && (config->plane_alpha > 0))
+		if ((config->plane_alpha < 255) && (config->plane_alpha >= 0))
 			continue;
 
 		if (is_decon_opaque_format(config->format)) {
