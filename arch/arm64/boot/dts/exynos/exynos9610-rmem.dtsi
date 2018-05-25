@@ -13,7 +13,6 @@
 #include <dt-bindings/soc/samsung/debug-snapshot-table.h>
 #include <dt-bindings/soc/samsung/exynos9610-seclog.h>
 
-/memreserve/ 0xE0000000 0x1900000;
 / {
 	ion-hpa-heap {
 		ion_video_fw {
