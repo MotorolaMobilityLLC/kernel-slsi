@@ -234,10 +234,6 @@ struct binder_transaction_log_entry {
 	uint32_t return_error;
 	uint32_t return_error_param;
 	const char *context_name;
-	const char *from_proc_name;
-	const char *from_thread_name;
-	const char *to_proc_name;
-	const char *to_thread_name;
 };
 struct binder_transaction_log {
 	atomic_t cur;
@@ -3009,8 +3005,6 @@ static void binder_transaction(struct binder_proc *proc,
 	e->data_size = tr->data_size;
 	e->offsets_size = tr->offsets_size;
 	e->context_name = proc->context->name;
-	e->from_proc_name = proc->tsk->comm;
-	e->from_thread_name = thread->task->comm;
 
 	if (reply) {
 		binder_inner_proc_lock(proc);
@@ -3171,10 +3165,8 @@ static void binder_transaction(struct binder_proc *proc,
 	}
 	if (target_thread) {
 		e->to_thread = target_thread->pid;
-		e->to_thread_name = target_thread->task->comm;
 	}
 	e->to_proc = target_proc->pid;
-	e->to_proc_name = target_proc->tsk->comm;
 
 	/* TODO: reuse incoming transaction for reply */
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
@@ -5859,12 +5851,10 @@ static void print_binder_transaction_log_entry(struct seq_file *m,
 	 */
 	smp_rmb();
 	seq_printf(m,
-		   "%d: %s from %d:%d(%s:%s) to %d:%d(%s:%s) context %s node %d handle %d size %d:%d ret %d/%d l=%d",
+		   "%d: %s from %d:%d to %d:%d context %s node %d handle %d size %d:%d ret %d/%d l=%d",
 		   e->debug_id, (e->call_type == 2) ? "reply" :
-		   ((e->call_type == 1) ? "async" : "call "),
-		   e->from_proc, e->from_thread, e->from_proc_name, e->from_thread_name,
-		   e->to_proc, e->to_thread, e->to_proc_name, e->to_thread_name,
-		   e->context_name,
+		   ((e->call_type == 1) ? "async" : "call "), e->from_proc,
+		   e->from_thread, e->to_proc, e->to_thread, e->context_name,
 		   e->to_node, e->target_handle, e->data_size, e->offsets_size,
 		   e->return_error, e->return_error_param,
 		   e->return_error_line);
