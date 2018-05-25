@@ -628,7 +628,7 @@
 	/* USI_SHUB_0_I2C */
 	usi_0_shub_i2c: usi@11013004 {
 		compatible = "samsung,exynos-usi-v2";
-		reg = <0x0 0x11013018 0x4>;
+		reg = <0x0 0x11013004 0x4>;
 		/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
 		status = "disabled";
 	};
@@ -1159,16 +1159,11 @@
 		reg = <0x0 0x110C0000 0x100>;
 		samsung,spi-fifosize = <64>;
 		interrupts = <0 112 0>;
-/*
-		dma-mode;
-		dmas = <&pdma0 25 &pdma0 24>;
-*/
-		dma-names = "tx", "rx";
 		swap-mode;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_SHUB00_QCH>, <&clock MUX_SHUB_USI00>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi0_bus>;
 		status = "disabled";
@@ -1180,16 +1175,11 @@
 		reg = <0x0 0x11D00000 0x100>;
 		samsung,spi-fifosize = <64>;
 		interrupts = <0 311 0>;
-/*
-		dma-mode;
-		dmas = <&pdma0 25 &pdma0 24>;
-*/
-		dma-names = "tx", "rx";
 		swap-mode;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP00_QCH>, <&clock CMGP00_USI>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi1_bus>;
 		status = "disabled";
@@ -1201,16 +1191,11 @@
 		reg = <0x0 0x11D20000 0x100>;
 		samsung,spi-fifosize = <64>;
 		interrupts = <0 312 0>;
-/*
-		dma-mode;
-		dmas = <&pdma0 25 &pdma0 24>;
-*/
-		dma-names = "tx", "rx";
 		swap-mode;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP01_QCH>, <&clock CMGP01_USI>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_bus>;
 		status = "disabled";
@@ -1222,16 +1207,11 @@
 		reg = <0x0 0x11D40000 0x100>;
 		samsung,spi-fifosize = <64>;
 		interrupts = <0 313 0>;
-/*
-		dma-mode;
-		dmas = <&pdma0 25 &pdma0 24>;
-*/
-		dma-names = "tx", "rx";
 		swap-mode;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP02_QCH>, <&clock CMGP02_USI>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi3_bus>;
 		status = "disabled";
@@ -1243,16 +1223,11 @@
 		reg = <0x0 0x11D60000 0x100>;
 		samsung,spi-fifosize = <64>;
 		interrupts = <0 314 0>;
-/*
-		dma-mode;
-		dmas = <&pdma0 25 &pdma0 24>;
-*/
-		dma-names = "tx", "rx";
 		swap-mode;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP03_QCH>, <&clock CMGP03_USI>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi4_bus>;
 		status = "disabled";
@@ -1264,16 +1239,11 @@
 		reg = <0x0 0x11D80000 0x100>;
 		samsung,spi-fifosize = <64>;
 		interrupts = <0 315 0>;
-/*
-		dma-mode;
-		dmas = <&pdma0 25 &pdma0 24>;
-*/
-		dma-names = "tx", "rx";
 		swap-mode;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI_CMGP04_QCH>, <&clock CMGP04_USI>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi5_bus>;
 		status = "disabled";
@@ -1294,7 +1264,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_SPI_0_QCH>, <&clock SPI0>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi6_bus>;
 		status = "disabled";
@@ -1315,7 +1285,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_SPI_1_QCH>, <&clock SPI1>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi7_bus>;
 		status = "disabled";
@@ -1336,7 +1306,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_USI00_USI_QCH>, <&clock USI_USI>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi8_bus>;
 		status = "disabled";
@@ -1357,7 +1327,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock GATE_SPI_2_QCH>, <&clock SPI2>;
-		clock-names = "gate_spi_clk", "ipclk_spi0";
+		clock-names = "gate_spi_clk", "ipclk_spi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi9_bus>;
 		status = "disabled";
