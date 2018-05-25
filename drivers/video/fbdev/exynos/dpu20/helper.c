@@ -475,8 +475,6 @@ void __iomem *dpu_get_sysreg_addr(void)
 		return NULL;
 	}
 
-	decon_dbg("%s: default sysreg value(0x%x)\n", __func__, readl(regs));
-
 	return regs;
 }
 
