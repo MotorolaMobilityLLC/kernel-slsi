@@ -528,13 +528,6 @@ static void dsim_reg_sw_reset(u32 id)
 		dsim_err("%s is timeout.\n", __func__);
 }
 
-void dpu_sysreg_dphy_resetn(struct dsim_device *dsim, void __iomem *sysreg, int en)
-{
-	u32 val = en ? 0x1 : 0x0;
-
-	writel(val, sysreg + DISP_DPU_MIPI_PHY_CON);
-}
-
 void dsim_reg_dphy_reset(u32 id)
 {
 	dsim_write_mask(id, DSIM_SWRST, 0, DSIM_DPHY_RST); /* reset low */
@@ -1718,7 +1711,20 @@ static int dsim_reg_set_ulps_by_ddi(u32 id, u32 ddi_type, u32 lanes, u32 en)
 
 void dpu_sysreg_select_dphy_rst_control(void __iomem *sysreg, u32 dsim_id, u32 sel)
 {
-	return;
+#if 1
+	u32 phy_num = dsim_id ? 0 : 1;
+	u32 old = readl(sysreg + DISP_DPU_MIPI_PHY_CON);
+	u32 val = sel ? ~0 : 0;
+	u32 mask = SEL_RESET_DPHY_MASK(phy_num);
+
+	val = (val & mask) | (old & ~mask);
+	writel(val, sysreg + DISP_DPU_MIPI_PHY_CON);
+#else
+	u32 val;
+
+	val = SEL_RESET_DPHY_MASK(dsim_id);
+	writel(val, sysreg + DISP_DPU_MIPI_PHY_CON);
+#endif
 }
 
 void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
@@ -1736,19 +1742,14 @@ void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
 	/* choose OSC_CLK */
 	dsim_reg_set_link_clock(id, 0);
 	/* Enable DPHY reset : DPHY reset start */
-
-	dsim_info("sysreg_dphy1 %08x", readl(dsim->res.ss_regs + DISP_DPU_MIPI_PHY_CON));
-	dpu_sysreg_dphy_resetn(dsim, dsim->res.ss_regs, 0);
-	dsim_info("sysreg_dphy2 %08x", readl(dsim->res.ss_regs + DISP_DPU_MIPI_PHY_CON));
+	dsim_reg_dphy_resetn(dsim->id, 0);
 
 	dsim_reg_sw_reset(id);
 
 	dsim_reg_set_clocks(id, clks, &lcd_info->dphy_pms, 1);
 
 	dsim_reg_set_lanes(id, dsim->data_lane, 1);
-	dsim_info("sysreg_dphy3 %08x", readl(dsim->res.ss_regs + DISP_DPU_MIPI_PHY_CON));
-	dpu_sysreg_dphy_resetn(dsim, dsim->res.ss_regs, 1);
-	dsim_info("sysreg_dphy4 %08x", readl(dsim->res.ss_regs + DISP_DPU_MIPI_PHY_CON));
+	dsim_reg_dphy_resetn(dsim->id, 1); /* Release DPHY reset */
 	dsim_reg_set_link_clock(id, 1);	/* Selection to word clock */
 	dsim_reg_set_esc_clk_on_lane(id, 1, dsim->data_lane);
 	dsim_reg_enable_word_clock(id, 1);
