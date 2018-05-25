@@ -180,4 +180,6 @@
 #define MFC_VER_MAJOR(dev)	((dev->pdata->ip_ver >> 8) & 0xFF)
 #define MFC_VER_MINOR(dev)	(dev->pdata->ip_ver & 0xFF)
 
+#define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw.date >= (f).version))
+
 #endif /* __S5P_MFC_COMMON_H */

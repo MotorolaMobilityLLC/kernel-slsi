@@ -50,9 +50,20 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 	seq_printf(s, "[HWLOCK] bits: %#lx, dev: %#lx, owned_by_irq = %d, wl_count = %d\n",
 			dev->hwlock.bits, dev->hwlock.dev,
 			dev->hwlock.owned_by_irq, dev->hwlock.wl_count);
+	seq_printf(s, "[DEBUG MODE] %s\n", dev->pdata->debug_mode ? "enabled" : "disabled");
 	seq_printf(s, "[MMCACHE] %s(%s)\n",
 			dev->has_mmcache ? "supported" : "not supported",
 			dev->mmcache.is_on_status ? "enabled" : "disabled");
+	seq_printf(s, "[FEATURES] nal_q: %d(0x%x), skype: %d(0x%x), black_bar: %d(0x%x)\n",
+			dev->pdata->nal_q.support, dev->pdata->nal_q.version,
+			dev->pdata->skype.support, dev->pdata->skype.version,
+			dev->pdata->black_bar.support, dev->pdata->black_bar.version);
+	seq_printf(s, "           color_aspect_dec: %d(0x%x), enc: %d(0x%x)\n",
+			dev->pdata->color_aspect_dec.support, dev->pdata->color_aspect_dec.version,
+			dev->pdata->color_aspect_enc.support, dev->pdata->color_aspect_enc.version);
+	seq_printf(s, "           static_info_dec: %d(0x%x), enc: %d(0x%x)\n",
+			dev->pdata->static_info_dec.support, dev->pdata->static_info_dec.version,
+			dev->pdata->static_info_enc.support, dev->pdata->static_info_enc.version);
 	if (dev->nal_q_handle)
 		seq_printf(s, "[NAL-Q] state: %d\n", dev->nal_q_handle->nal_q_state);
 

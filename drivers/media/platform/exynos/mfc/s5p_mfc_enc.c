@@ -805,7 +805,7 @@ static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
 	val |= ENC_SET_SPARE_SIZE;
 	val |= ENC_SET_TEMP_SVC_CH;
 
-	if (dev->pdata->skype)
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->skype))
 		val |= ENC_SET_SKYPE_FLAG;
 
 	val |= ENC_SET_ROI_CONTROL;
@@ -814,12 +814,12 @@ static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
 	val |= ENC_SET_PVC_MODE;
 	val |= ENC_SET_RATIO_OF_INTRA;
 
-	if (dev->pdata->color_aspect_enc)
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
 		val |= ENC_SET_COLOR_ASPECT;
 
 	val |= ENC_SET_HP_BITRATE_CONTROL;
 
-	if (dev->pdata->static_info_enc)
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_enc))
 		val |= ENC_SET_STATIC_INFO;
 
 	return val;

@@ -1231,7 +1231,7 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 	unsigned int disp_err;
 	int i, index;
 
-	if (dev->pdata->color_aspect_dec) {
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 		is_video_signal_type = ((pOutStr->VideoSignalType
 					>> S5P_FIMV_D_VIDEO_SIGNAL_TYPE_FLAG_SHIFT)
 					& S5P_FIMV_D_VIDEO_SIGNAL_TYPE_FLAG_MASK);
@@ -1240,7 +1240,7 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 					& S5P_FIMV_D_COLOUR_DESCRIPTION_FLAG_MASK);
 	}
 
-	if (dev->pdata->static_info_dec) {
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_dec)) {
 		is_content_light = ((pOutStr->SeiAvail >> S5P_FIMV_D_SEI_AVAIL_CONTENT_LIGHT_SHIFT)
 					& S5P_FIMV_D_SEI_AVAIL_CONTENT_LIGHT_MASK);
 		is_display_colour = ((pOutStr->SeiAvail >> S5P_FIMV_D_SEI_AVAIL_MASTERING_DISPLAY_SHIFT)
@@ -1288,7 +1288,7 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 			}
 		}
 
-		if (IS_VP9_DEC(ctx) && dev->pdata->color_aspect_dec) {
+		if (IS_VP9_DEC(ctx) && MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 			if (dec->color_space != S5P_FIMV_D_COLOR_UNKNOWN) {
 				ref_mb->vb.reserved2 |= (1 << 3);
 				mfc_debug(2, "NAL Q: color space parsed\n");

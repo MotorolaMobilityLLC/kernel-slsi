@@ -370,23 +370,34 @@ struct s5p_mfc_qos {
 };
 #endif
 
+struct s5p_mfc_feature {
+	unsigned int support;
+	unsigned int version;
+};
+
 struct s5p_mfc_platdata {
+	/* MFC version */
 	unsigned int ip_ver;
+	/* Debug mode */
 	unsigned int debug_mode;
+	/* Sysmmu check */
 	unsigned int share_sysmmu;
 	unsigned int axid_mask;
 	unsigned int mfc_fault_num;
-	unsigned int nal_q;
-	unsigned int skype;
-	unsigned int black_bar;
-	unsigned int color_aspect_dec;
-	unsigned int static_info_dec;
-	unsigned int color_aspect_enc;
-	unsigned int static_info_enc;
+	/* Features */
+	struct s5p_mfc_feature nal_q;
+	struct s5p_mfc_feature skype;
+	struct s5p_mfc_feature black_bar;
+	struct s5p_mfc_feature color_aspect_dec;
+	struct s5p_mfc_feature static_info_dec;
+	struct s5p_mfc_feature color_aspect_enc;
+	struct s5p_mfc_feature static_info_enc;
+	/* Encoder default parameter */
 	unsigned int enc_param_num;
 	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];
 	unsigned int enc_param_val[MFC_MAX_DEFAULT_PARAM];
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+	/* QoS */
 	unsigned int num_qos_steps;
 	unsigned int max_qos_steps;
 	unsigned int max_mb;

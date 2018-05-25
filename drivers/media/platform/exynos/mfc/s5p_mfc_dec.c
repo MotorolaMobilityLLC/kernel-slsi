@@ -880,7 +880,7 @@ static int mfc_dec_ext_info(struct s5p_mfc_ctx *ctx)
 	int val = 0;
 
 	val |= DEC_SET_DYNAMIC_DPB;
-	if (dev->pdata->skype)
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->skype))
 		val |= DEC_SET_SKYPE_FLAG;
 
 	return val;

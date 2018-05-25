@@ -393,7 +393,7 @@ static int mfc_init_instance(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_release_hwlock_dev(dev);
 
-	if (dev->pdata->nal_q) {
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->nal_q)) {
 		dev->nal_q_handle = s5p_mfc_nal_q_create(dev);
 		if (dev->nal_q_handle == NULL)
 			mfc_err_dev("NAL Q: Can't create nal q\n");
@@ -951,26 +951,37 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 	if (!np)
 		return;
 
+	/* MFC version */
 	of_property_read_u32(np, "ip_ver", &pdata->ip_ver);
+
+	/* Debug mode */
 	of_property_read_u32(np, "debug_mode", &pdata->debug_mode);
+
+	/* Sysmmu check */
 	of_property_read_u32(np, "share_sysmmu", &pdata->share_sysmmu);
 	of_property_read_u32(np, "axid_mask", &pdata->axid_mask);
 	of_property_read_u32(np, "mfc_fault_num", &pdata->mfc_fault_num);
-	of_property_read_u32(np, "nal_q", &pdata->nal_q);
-	of_property_read_u32(np, "skype", &pdata->skype);
-	of_property_read_u32(np, "black_bar", &pdata->black_bar);
-	of_property_read_u32(np, "color_aspect_dec", &pdata->color_aspect_dec);
-	of_property_read_u32(np, "static_info_dec", &pdata->static_info_dec);
-	of_property_read_u32(np, "color_aspect_enc", &pdata->color_aspect_enc);
-	of_property_read_u32(np, "static_info_enc", &pdata->static_info_enc);
+
+	/* Features */
+	of_property_read_u32_array(np, "nal_q", &pdata->nal_q.support, 2);
+	of_property_read_u32_array(np, "skype", &pdata->skype.support, 2);
+	of_property_read_u32_array(np, "black_bar", &pdata->black_bar.support, 2);
+	of_property_read_u32_array(np, "color_aspect_dec", &pdata->color_aspect_dec.support, 2);
+	of_property_read_u32_array(np, "static_info_dec", &pdata->static_info_dec.support, 2);
+	of_property_read_u32_array(np, "color_aspect_enc", &pdata->color_aspect_enc.support, 2);
+	of_property_read_u32_array(np, "static_info_enc", &pdata->static_info_enc.support, 2);
+
+	/* Encoder default parameter */
 	of_property_read_u32(np, "enc_param_num", &pdata->enc_param_num);
 	if (pdata->enc_param_num) {
 		of_property_read_u32_array(np, "enc_param_addr",
-				&pdata->enc_param_addr[0], pdata->enc_param_num);
+				pdata->enc_param_addr, pdata->enc_param_num);
 		of_property_read_u32_array(np, "enc_param_val",
-				&pdata->enc_param_val[0], pdata->enc_param_num);
+				pdata->enc_param_val, pdata->enc_param_num);
 	}
+
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+	/* QoS */
 	of_property_read_u32(np, "num_qos_steps", &pdata->num_qos_steps);
 	of_property_read_u32(np, "max_qos_steps", &pdata->max_qos_steps);
 	of_property_read_u32(np, "max_mb", &pdata->max_mb);
