@@ -104,6 +104,16 @@ extern struct ieee80211_sta_vht_cap       slsi_vht_cap;
 #define SLSI_DEFAULT_UNIFI_PEER_RSSI                         1
 #define SLSI_DEFAULT_UNIFI_PEER_TX_DATA_RATE          0
 
+#define SLSI_CHECK_TYPE(sdev, recv_type, exp_type) \
+	do { \
+		int var1 = recv_type; \
+		int var2 = exp_type; \
+		if (var1 != var2) { \
+			SLSI_WARN(sdev, "Type mismatched, expected type: %d and received type %d ", var2, var1); \
+		} \
+	} while (0)
+
+
 struct slsi_mlme_pattern_desc {
 	u8 offset;
 	u8 mask_length;

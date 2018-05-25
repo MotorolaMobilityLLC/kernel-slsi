@@ -64,15 +64,6 @@ static int slsi_5ghz_all_channels[] = {5180, 5200, 5220, 5240, 5260, 5280, 5300,
 				       5745, 5765, 5785, 5805, 5825 };
 #endif
 
-#define SLSI_CHECK_TYPE(sdev, recv_type, exp_type) \
-	do { \
-		int var1 = recv_type; \
-		int var2 = exp_type; \
-		if (var1 != var2) { \
-			SLSI_WARN(sdev, "expected type: %d and received type %d ", var2, var1); \
-		} \
-	} while (0)
-
 void slsi_purge_scan_results_locked(struct netdev_vif *ndev_vif, u16 scan_id)
 {
 	struct slsi_scan_result *scan_result;
@@ -926,12 +917,12 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		}
 
 		if (values[mib_index].type != SLSI_MIB_TYPE_NONE) {    /* CHIP_VERSION */
-			WARN_ON(values[mib_index].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_UINT);
 			sdev->chip_info_mib.chip_version = values[mib_index].u.uintValue;
 		}
 
 		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) {    /* SUPPORTED_CHANNELS */
-			WARN_ON(values[mib_index].type != SLSI_MIB_TYPE_OCTET);
+			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_OCTET);
 			if (values[mib_index].type == SLSI_MIB_TYPE_OCTET) {
 				sdev->band_5g_supported = 0;
 				memset(sdev->supported_2g_channels, 0, sizeof(sdev->supported_2g_channels));
@@ -1000,7 +991,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 			SLSI_WARN(sdev, "Error reading 2g 40mhz enabled mib\n");
 
 		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) {    /* HARDWARE_PLATFORM */
-			WARN_ON(values[mib_index].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_UINT);
 			sdev->plat_info_mib.plat_build = values[mib_index].u.uintValue;
 		} else {
 			SLSI_WARN(sdev, "Error reading Hardware platform\n");
@@ -1149,27 +1140,27 @@ int slsi_mib_get_gscan_cap(struct slsi_dev *sdev, struct slsi_nl_gscan_capabilit
 		}
 
 		if (values[0].type != SLSI_MIB_TYPE_NONE) {
-			WARN_ON(values[0].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[0].type, SLSI_MIB_TYPE_UINT);
 			cap->max_scan_buckets = values[0].u.uintValue;
 		}
 
 		if (values[1].type != SLSI_MIB_TYPE_NONE) {
-			WARN_ON(values[1].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[1].type, SLSI_MIB_TYPE_UINT);
 			cap->max_rssi_sample_size = values[1].u.uintValue;
 		}
 
 		if (values[2].type != SLSI_MIB_TYPE_NONE) {
-			WARN_ON(values[2].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[2].type, SLSI_MIB_TYPE_UINT);
 			cap->max_hotlist_aps = values[2].u.uintValue;
 		}
 
 		if (values[3].type != SLSI_MIB_TYPE_NONE) {
-			WARN_ON(values[3].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[3].type, SLSI_MIB_TYPE_UINT);
 			cap->max_significant_wifi_change_aps = values[3].u.uintValue;
 		}
 
 		if (values[4].type != SLSI_MIB_TYPE_NONE) {
-			WARN_ON(values[4].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[4].type, SLSI_MIB_TYPE_UINT);
 			cap->max_bssid_history_entries = values[4].u.uintValue;
 		}
 
@@ -1965,22 +1956,22 @@ static int slsi_fill_last_disconnected_sta_info(struct slsi_dev *sdev, struct ne
 		return -EINVAL;
 	}
 	if (values[0].type != SLSI_MIB_TYPE_NONE) {   /* LAST_PEER_BANDWIDTH */
-		WARN_ON(values[0].type != SLSI_MIB_TYPE_INT);
+		SLSI_CHECK_TYPE(sdev, values[0].type, SLSI_MIB_TYPE_INT);
 		ndev_vif->ap.last_disconnected_sta.bandwidth = values[0].u.intValue;
 	}
 
 	if (values[1].type != SLSI_MIB_TYPE_NONE) {     /*LAST_PEER_NSS*/
-		WARN_ON(values[1].type != SLSI_MIB_TYPE_INT);
+		SLSI_CHECK_TYPE(sdev, values[1].type, SLSI_MIB_TYPE_INT);
 		ndev_vif->ap.last_disconnected_sta.antenna_mode = values[1].u.intValue;
 	}
 
 	if (values[2].type != SLSI_MIB_TYPE_NONE) {    /* LAST_PEER_RSSI*/
-		WARN_ON(values[2].type != SLSI_MIB_TYPE_INT);
+		SLSI_CHECK_TYPE(sdev, values[2].type, SLSI_MIB_TYPE_INT);
 		ndev_vif->ap.last_disconnected_sta.rssi = values[2].u.intValue;
 	}
 
 	if (values[3].type != SLSI_MIB_TYPE_NONE) {    /* LAST_PEER_TX_DATA_RATE */
-		WARN_ON(values[3].type != SLSI_MIB_TYPE_UINT);
+		SLSI_CHECK_TYPE(sdev, values[3].type, SLSI_MIB_TYPE_UINT);
 		fw_tx_rate = values[3].u.uintValue;
 		slsi_fw_tx_rate_calc(fw_tx_rate, NULL,
 				     (unsigned long *)&ndev_vif->ap.last_disconnected_sta.tx_data_rate);

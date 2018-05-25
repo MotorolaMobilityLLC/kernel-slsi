@@ -2511,8 +2511,8 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
 
-	if (WARN_ON(!peer)) {
-		SLSI_NET_DBG1(dev, SLSI_MLME, "Peer Not available\n");
+	if (!peer) {
+		SLSI_WARN(sdev, "Peer Not available\n");
 		return -EINVAL;
 	}
 
@@ -2552,7 +2552,7 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 		}
 
 		if (values[0].type != SLSI_MIB_TYPE_NONE) {
-			WARN_ON(values[0].type != SLSI_MIB_TYPE_UINT);
+			SLSI_CHECK_TYPE(sdev, values[0].type, SLSI_MIB_TYPE_UINT);
 			slsi_fw_tx_rate_calc((u16)values[0].u.uintValue, &peer->sinfo.txrate, NULL);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 			peer->sinfo.filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
@@ -2564,7 +2564,7 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 		}
 
 		if (values[1].type != SLSI_MIB_TYPE_NONE) {
-			WARN_ON(values[1].type != SLSI_MIB_TYPE_INT);
+			SLSI_CHECK_TYPE(sdev, values[1].type, SLSI_MIB_TYPE_INT);
 			if (values[1].u.intValue >= 0)
 				peer->sinfo.signal = -1;
 			else

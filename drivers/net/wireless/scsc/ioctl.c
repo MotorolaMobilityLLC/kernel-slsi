@@ -147,9 +147,6 @@ static ssize_t slsi_set_suspend_mode(struct net_device *dev, char *command)
 	previous_suspend_mode = sdev->device_config.user_suspend_mode;
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 
-	SLSI_DBG3(sdev, SLSI_CFG80211, "user_suspend_mode:%d, previous_suspend_mode:%d\n",
-		  user_suspend_mode, previous_suspend_mode);
-
 	if (user_suspend_mode != previous_suspend_mode) {
 		SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
 		for (vif = 1; vif <= CONFIG_SCSC_WLAN_MAX_INTERFACES; vif++) {
@@ -207,8 +204,6 @@ static ssize_t slsi_set_p2p_oppps(struct net_device *dev, char *command, int buf
 	int               readbyte = 0;
 	int               result = 0;
 
-	SLSI_NET_DBG2(dev, SLSI_CFG80211, "Function entry\n");
-
 	p2p_oppps_param = command + strlen(CMD_P2PSETPS) + 1;
 	ndev_vif = netdev_priv(dev);
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
@@ -244,15 +239,12 @@ static ssize_t slsi_set_p2p_oppps(struct net_device *dev, char *command, int buf
 		goto exit;
 	}
 
-	if (opp_ps == 0) {
-		SLSI_DBG1(sdev, SLSI_CFG80211, "p2p opp_ps = %d\n", opp_ps);
+	if (opp_ps == 0)
 		result = slsi_mlme_set_ctwindow(sdev, dev, opp_ps);
-	} else if (ct_param < (unsigned int)ndev_vif->ap.beacon_interval) {
-		SLSI_DBG1(sdev, SLSI_CFG80211, "p2p ct window = %d\n", ct_param);
+	else if (ct_param < (unsigned int)ndev_vif->ap.beacon_interval)
 		result = slsi_mlme_set_ctwindow(sdev, dev, ct_param);
-	} else {
+	else
 		SLSI_DBG1(sdev, SLSI_CFG80211, "p2p ct window = %d is out of range for beacon interval(%d)\n", ct_param, ndev_vif->ap.beacon_interval);
-	}
 exit:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
@@ -270,8 +262,6 @@ static ssize_t slsi_p2p_set_noa_params(struct net_device *dev, char *command, in
 	unsigned int         noa_count;
 	unsigned int         duration;
 	unsigned int         interval;
-
-	SLSI_NET_DBG4(dev, SLSI_NETDEV, "Function entry\n");
 
 	noa_params = command + strlen(CMD_P2PSETNOA) + 1;
 	ndev_vif = netdev_priv(dev);
@@ -308,9 +298,6 @@ static ssize_t slsi_p2p_set_noa_params(struct net_device *dev, char *command, in
 	}
 
 	/* Skip start time */
-
-	SLSI_DBG1(sdev, SLSI_CFG80211, "p2p noa_params (count,interval,duration)= (%d,%d,%d)\n",
-		  noa_count, interval, duration);
 	result = slsi_mlme_set_p2p_noa(sdev, dev, noa_count, interval, duration);
 
 exit:
@@ -359,8 +346,6 @@ static ssize_t slsi_p2p_ecsa(struct net_device *dev, char *command)
 		goto exit;
 	}
 	offset = offset + readbyte + 1;
-	SLSI_DBG1(sdev, SLSI_CFG80211, "p2p ecsa_params (channel and bandwidth)= (%d,%d)\n", channel, bandwidth);
-
 	band = (channel <= 14) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 	center_freq = ieee80211_channel_to_frequency(channel, band);
 	SLSI_DBG1(sdev, SLSI_CFG80211, "p2p ecsa_params (center_freq)= (%d)\n", center_freq);
@@ -370,7 +355,6 @@ static ssize_t slsi_p2p_ecsa(struct net_device *dev, char *command)
 #ifndef SSB_4963_FIXED
 	/* Default HT40 configuration */
 	if (sdev->band_5g_supported) {
-		SLSI_DBG1(sdev, SLSI_CFG80211, "p2p ecsa_params Default HT40\n");
 		if (bandwidth == 80) {
 			chandef.width = NL80211_CHAN_WIDTH_40;
 			bandwidth = 40;
@@ -381,11 +365,9 @@ static ssize_t slsi_p2p_ecsa(struct net_device *dev, char *command)
 		}
 	}
 #endif
-	SLSI_DBG1(sdev, SLSI_CFG80211, "p2p ecsa_params chan_type = %d\n", chan_type);
 	if (channel == 165 && bandwidth != 20) {
 		bandwidth = 20;
 		chan_type = NL80211_CHAN_HT20;
-		SLSI_DBG3(sdev, SLSI_CFG80211, "downgrade bandwidth [from:%d to:20] on chan 165\n", bandwidth);
 	}
 	cfg80211_chandef_create(&chandef, chandef.chan, chan_type);
 	chan_info = slsi_get_chann_info(sdev, &chandef);
@@ -482,13 +464,11 @@ static ssize_t slsi_set_ap_p2p_wps_ie(struct net_device *dev, char *command, int
 	}
 	offset = offset + readbyte + 1;
 	params_len = params_len - offset;
-	SLSI_NET_DBG2(dev, SLSI_NETDEV, "command = %s, frametype=%d, iftype = %d, total buf_len=%d, params_len=%d\n", command, frametype, iftype, buf_len, params_len);
 
 	/* check the net device interface type */
 	if (iftype == IF_TYPE_P2P_DEVICE) {
 		u8                *probe_resp_ie = NULL; /* params+offset; */
 
-		SLSI_NET_DBG2(dev, SLSI_NETDEV,  "P2P device case");
 		if (frametype != FRAME_TYPE_PROBE_RESPONSE) {
 			SLSI_NET_ERR(dev, "Wrong frame type received\n");
 			goto exit;
@@ -501,20 +481,14 @@ static ssize_t slsi_set_ap_p2p_wps_ie(struct net_device *dev, char *command, int
 
 		memcpy(probe_resp_ie, params+offset, params_len);
 
-		SLSI_NET_DBG2(dev, SLSI_NETDEV, "P2P Device: probe_resp_ie is NOT NULL\n");
 		return slsi_p2p_dev_probe_rsp_ie(sdev, dev, probe_resp_ie, params_len);
 	} else if (iftype == IF_TYPE_P2P_INTERFACE) {
-		SLSI_NET_DBG2(dev, SLSI_NETDEV,  "P2P GO case");
-		if (frametype == FRAME_TYPE_BEACON) {
-			SLSI_DBG1(sdev, SLSI_MLME, "P2P GO beacon IEs update\n");
+		if (frametype == FRAME_TYPE_BEACON)
 			return slsi_p2p_go_vendor_ies_write(sdev, dev, params+offset, params_len, FAPI_PURPOSE_BEACON);
-		} else if (frametype == FRAME_TYPE_PROBE_RESPONSE) {
-			SLSI_DBG1(sdev, SLSI_MLME, "P2P GO proberesp IEs update\n");
+		else if (frametype == FRAME_TYPE_PROBE_RESPONSE)
 			return slsi_p2p_go_vendor_ies_write(sdev, dev, params+offset, params_len, FAPI_PURPOSE_PROBE_RESPONSE);
-		} else if (frametype == FRAME_TYPE_ASSOC_RESPONSE) {
-			SLSI_DBG1(sdev, SLSI_MLME, "P2P GO Association Response IEs update\n");
+		else if (frametype == FRAME_TYPE_ASSOC_RESPONSE)
 			return slsi_p2p_go_vendor_ies_write(sdev, dev, params+offset, params_len, FAPI_PURPOSE_ASSOCIATION_RESPONSE);
-		}
 	}
 exit:
 	return result;
@@ -550,8 +524,6 @@ static int slsi_p2p_lo_start(struct net_device *dev, char *command)
 		ret = -EINVAL;
 		goto exit;
 	}
-
-	SLSI_NET_DBG2(dev, SLSI_CFG80211, "Start Listen Offloading\n");
 
 	lo_params = command + strlen(CMD_P2PLOSTART) + 1;
 	readbyte = slsi_str_to_int(&lo_params[offset], &channel);
@@ -648,8 +620,6 @@ static int slsi_p2p_lo_stop(struct net_device *dev)
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
-	SLSI_NET_DBG2(dev, SLSI_CFG80211, "Stop Listen Offloading\n");
-
 	WARN_ON((!ndev_vif->unsync.listen_offload) || (ndev_vif->sdev->p2p_state != P2P_LISTENING));
 
 	ndev_vif->unsync.listen_offload = false;
@@ -685,8 +655,10 @@ static ssize_t slsi_create_interface(struct net_device *dev, char *intf_name)
 	struct netdev_vif *ndev_swlan_vif;
 
 	swlan_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
-	if (WARN_ON(swlan_dev))
+	if (swlan_dev) {
+		SLSI_NET_ERR(dev, "swlan already created\n");
 		return -EINVAL;
+	}
 
 	swlan_dev = slsi_new_interface_create(sdev->wiphy, intf_name, NL80211_IFTYPE_AP, NULL);
 	if (swlan_dev) {
@@ -694,10 +666,10 @@ static ssize_t slsi_create_interface(struct net_device *dev, char *intf_name)
 		SLSI_MUTEX_LOCK(ndev_swlan_vif->vif_mutex);
 		ndev_swlan_vif->wifi_sharing = true;
 		SLSI_MUTEX_UNLOCK(ndev_swlan_vif->vif_mutex);
-		SLSI_DBG1_NODEV(SLSI_MLME, "Interface %s created successfully\n", intf_name);
 		return 0;
 	}
 
+	SLSI_NET_ERR(dev, "Failed to create interface %s\n", intf_name);
 	return -EINVAL;
 }
 
@@ -721,8 +693,6 @@ static ssize_t slsi_delete_interface(struct net_device *dev, char *intf_name)
 		slsi_stop_net_dev(sdev, dev);
 	slsi_netif_remove_rtlnl_locked(sdev, dev);
 
-	SLSI_DBG1_NODEV(SLSI_MLME, "Interface %s deleted successfully\n", intf_name);
-
 	return 0;
 }
 
@@ -736,7 +706,6 @@ static ssize_t slsi_set_indoor_channels(struct net_device *dev, char *arg)
 	int ret;
 
 	readbyte = slsi_str_to_int(&arg[offset], &res);
-	SLSI_DBG1_NODEV(SLSI_MLME, "SET_INDOOR_CHANNELS : %s\n", arg);
 
 	ret = slsi_set_mib_wifi_sharing_5ghz_channel(sdev, SLSI_PSID_UNIFI_WI_FI_SHARING5_GHZ_CHANNEL,
 						     res, offset, readbyte, arg);
@@ -808,7 +777,6 @@ static ssize_t slsi_roam_scan_trigger_write(struct net_device *dev, char *comman
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
 
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_RSSI_ROAM_SCAN_TRIGGER, mib_value);
 }
@@ -834,7 +802,6 @@ static ssize_t slsi_roam_delta_trigger_write(struct net_device *dev, char *comma
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
 
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_DELTA_TRIGGER, mib_value);
 }
@@ -861,8 +828,6 @@ static ssize_t slsi_cached_channel_scan_period_write(struct net_device *dev, cha
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
-
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_CACHED_CHANNEL_SCAN_PERIOD, mib_value * 1000000);
 }
 
@@ -889,7 +854,6 @@ static ssize_t slsi_full_roam_scan_period_write(struct net_device *dev, char *co
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
 
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_FULL_ROAM_SCAN_PERIOD, mib_value * 1000000);
 }
@@ -917,7 +881,6 @@ static ssize_t slsi_roam_scan_max_active_channel_time_write(struct net_device *d
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
 
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_SCAN_MAX_ACTIVE_CHANNEL_TIME, mib_value);
 }
@@ -945,8 +908,6 @@ static ssize_t slsi_roam_scan_probe_interval_write(struct net_device *dev, char 
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
-
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_SCAN_NPROBE, mib_value);
 }
 
@@ -978,7 +939,6 @@ static ssize_t slsi_roam_mode_write(struct net_device *dev, char *command, int b
 	}
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
 
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_MODE, mib_value);
 }
@@ -1015,7 +975,6 @@ static int slsi_roam_offload_ap_list(struct net_device *dev, char *command, int 
 	 *     each mac address id 17 bytes and every mac address is separated by ','
 	 */
 	buf_pos = slsi_str_to_int(command, &ap_count);
-	SLSI_DBG1_NODEV(SLSI_MLME, "ap_count: %d\n", ap_count);
 	if (ap_count < ROAMOFFLAPLIST_MIN || ap_count > ROAMOFFLAPLIST_MAX) {
 		SLSI_ERR(sdev, "ap_count: %d\n", ap_count);
 		return -EINVAL;
@@ -1057,8 +1016,6 @@ static ssize_t slsi_roam_scan_band_write(struct net_device *dev, char *command, 
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
-
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_SCAN_BAND, mib_value);
 }
 
@@ -1147,7 +1104,6 @@ static ssize_t slsi_roam_scan_home_time_write(struct net_device *dev, char *comm
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
 
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_SCAN_HOME_TIME, mib_value);
 }
@@ -1175,8 +1131,6 @@ static ssize_t slsi_roam_scan_home_away_time_write(struct net_device *dev, char 
 	int               mib_value = 0;
 
 	slsi_str_to_int(command, &mib_value);
-	SLSI_DBG1_NODEV(SLSI_MLME, "Setting to: %d", mib_value);
-
 	return slsi_set_mib_roam(sdev, NULL, SLSI_PSID_UNIFI_ROAM_SCAN_HOME_AWAY_TIME, mib_value);
 }
 
@@ -1370,7 +1324,6 @@ static ssize_t slsi_auto_chan_read(struct net_device *dev, char *command, int bu
 
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
 	ap_auto_chan = sdev->device_config.ap_auto_chan;
-	SLSI_INFO(sdev, "Auto channel selected: %d\n", ap_auto_chan);
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 
 	result = snprintf(command, buf_len, "%d\n", ap_auto_chan);
@@ -1398,7 +1351,6 @@ static ssize_t slsi_auto_chan_write(struct net_device *dev, char *command, int b
 		return -EINVAL;
 	}
 
-	SLSI_DBG3(sdev, SLSI_CFG80211, "n_channels:%d\n", n_channels);
 	if (n_channels > SLSI_NO_OF_SCAN_CHANLS_FOR_AUTO_CHAN_MAX) {
 		SLSI_ERR(sdev, "channel count:%d > SLSI_NO_OF_SCAN_CHANLS_FOR_AUTO_CHAN_MAX:%d\n", n_channels, SLSI_NO_OF_SCAN_CHANLS_FOR_AUTO_CHAN_MAX);
 		return -EINVAL;
@@ -1409,8 +1361,6 @@ static ssize_t slsi_auto_chan_write(struct net_device *dev, char *command, int b
 		n_channels = 14;
 	else if (n_channels == 2)
 		n_channels = 9;
-	SLSI_DBG3(sdev, SLSI_INIT_DEINIT, "Number of channels to scan = %d", n_channels);
-
 	count_channels = 0;
 	for (chan = 1; chan <= n_channels; chan++) {
 		int center_freq;
@@ -1422,7 +1372,6 @@ static ssize_t slsi_auto_chan_write(struct net_device *dev, char *command, int b
 		else
 			count_channels++;
 
-		SLSI_DBG3(sdev, SLSI_INIT_DEINIT, "channels[%d]:%d\n", count_channels, chan);
 	}
 
 	SLSI_DBG3(sdev, SLSI_INIT_DEINIT, "Number of channels for autchannel selection= %d", count_channels);
@@ -1467,14 +1416,11 @@ static ssize_t slsi_reassoc_write(struct net_device *dev, char *command, int buf
 	command[17] = '\0';
 
 	slsi_machexstring_to_macarray(command, bssid);
-	SLSI_DBG1_NODEV(SLSI_MLME, "ROAM BSSID '%pM'\n", bssid);
 
 	if (!slsi_str_to_int(&command[18], &channel)) {
 		SLSI_ERR(sdev, "Invalid channel string: '%s'\n", &command[18]);
 		return -EINVAL;
 	}
-
-	SLSI_DBG1_NODEV(SLSI_MLME, "ROAM to channel '%d'\n", channel);
 
 	if (channel > 14)
 		band = NL80211_BAND_5GHZ;
@@ -1524,8 +1470,6 @@ static ssize_t slsi_send_action_frame(struct net_device *dev, char *command, int
 	slsi_machexstring_to_macarray(command, bssid);
 
 	command[17] = ' ';
-	SLSI_DBG1_NODEV(SLSI_MLME, "BSSID '%pM'\n", bssid);
-
 	pos = strchr(command, ' ');
 	if (pos == NULL)
 		return -EINVAL;
@@ -1540,8 +1484,6 @@ static ssize_t slsi_send_action_frame(struct net_device *dev, char *command, int
 	if (channel > 14)
 		band = NL80211_BAND_5GHZ;
 	freq = (u16)ieee80211_channel_to_frequency(channel, band);
-
-	SLSI_DBG1_NODEV(SLSI_MLME, "freq %d\n", freq);
 
 	pos = strchr(pos, ' ');
 	if (pos == NULL)
@@ -1615,8 +1557,6 @@ static ssize_t slsi_setting_max_sta_write(struct net_device *dev, int sta_number
 	struct slsi_dev      *sdev = ndev_vif->sdev;
 	struct slsi_mib_data mib_data = { 0, NULL };
 	int                  result = 0;
-
-	SLSI_INFO(sdev, "Setting max_num_sta to %d\n", sta_number);
 
 	if (sta_number > 10 || sta_number < 1)
 		return -EINVAL;
@@ -1771,8 +1711,6 @@ static int slsi_tdls_channel_switch(struct net_device *dev, char *command, int b
 		chan_info = 20; /* Hardcoded to 20MHz as cert tests use BSS with 20MHz */
 	}
 
-	SLSI_NET_DBG2(dev, SLSI_TDLS, "ch_switch(%d) mac[%pM] freq(%d) chan_info(0x%02x)\n", is_ch_switch, peer_mac, center_freq, chan_info);
-
 	peer = slsi_get_peer_from_mac(sdev, dev, peer_mac);
 
 	if (!peer || !slsi_is_tdls_peer(dev, peer)) {
@@ -1797,8 +1735,6 @@ int slsi_set_tx_power_calling(struct net_device *dev, char *command, int buf_len
 	u8                   host_state;
 
 	(void)slsi_str_to_int(command, &mode);
-	SLSI_DBG1(sdev, SLSI_MLME, "Mode:%d\n", mode);
-
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
 	host_state = sdev->device_config.host_state;
 
@@ -2023,8 +1959,6 @@ int slsi_set_fcc_channel(struct net_device *dev, char *cmd, int cmd_len)
 	u8                   host_state;
 
 	max_power_ena = (cmd[0]  == '0');
-	SLSI_DBG3(sdev, SLSI_NETDEV, "max_power_ena :%d\n", max_power_ena);
-
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
 	host_state = sdev->device_config.host_state;
 
@@ -2055,8 +1989,6 @@ int slsi_fake_mac_write(struct net_device *dev, char *cmd)
 		enable = 1;
 	else
 		enable = 0;
-
-	SLSI_DBG3(sdev, SLSI_NETDEV, "FAKE MAC :%d\n", enable);
 
 	status = slsi_mib_encode_bool(&mib_data, SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION, enable, 0);
 	if (status != SLSI_MIB_STATUS_SUCCESS) {
@@ -2224,6 +2156,8 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		goto exit;
 	}
 	command[priv_cmd.total_len] = '\0';
+
+	SLSI_NET_DBG3(dev, SLSI_CFG80211, "command: %.*s, total_len in priv_cmd = %d\n", priv_cmd.total_len, command, priv_cmd.total_len);
 
 	if (strncasecmp(command, CMD_SETSUSPENDMODE, strlen(CMD_SETSUSPENDMODE)) == 0) {
 		ret = slsi_set_suspend_mode(dev, command);
@@ -2452,7 +2386,6 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			(strncasecmp(command, CMD_SETCCXMODE, strlen(CMD_SETCCXMODE)) == 0) ||
 			(strncasecmp(command, CMD_SETDFSSCANMODE, strlen(CMD_SETDFSSCANMODE)) == 0) ||
 			(strncasecmp(command, CMD_SETSINGLEANT, strlen(CMD_SETSINGLEANT)) == 0)) {
-		SLSI_NET_DBG3(dev, SLSI_CFG80211, "known command %s - no handler\n", command);
 		ret  = -ENOTSUPP;
 #ifndef SLSI_TEST_DEV
 	} else if (strncasecmp(command, CMD_DRIVERDEBUGDUMP, strlen(CMD_DRIVERDEBUGDUMP)) == 0) {
@@ -2462,7 +2395,6 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #endif
 #endif
 	} else {
-		SLSI_NET_ERR(dev, "Not Supported : %.*s\n", priv_cmd.total_len, command);
 		ret  = -ENOTSUPP;
 	}
 	if (strncasecmp(command, CMD_SETROAMBAND, strlen(CMD_SETROAMBAND)) != 0 && strncasecmp(command, CMD_SETBAND, strlen(CMD_SETBAND)) != 0 && copy_to_user(priv_cmd.buf, command, priv_cmd.total_len)) {
