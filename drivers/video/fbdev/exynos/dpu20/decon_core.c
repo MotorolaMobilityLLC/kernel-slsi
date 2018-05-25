@@ -3529,6 +3529,7 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	struct decon_mode_info psr;
 	struct dsim_device *dsim;
 	struct dsim_device *dsim1;
+	int dpp_id = DPU_DMA2CH(decon->dt.dft_idma);
 
 	if (decon->id || (decon->dt.out_type != DECON_OUT_DSI) ||
 			IS_ENABLED(CONFIG_EXYNOS_VIRTUAL_DISPLAY)) {
@@ -3568,14 +3569,14 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	win_regs.whole_h = fbinfo->var.yres_virtual;
 	win_regs.offset_x = fbinfo->var.xoffset;
 	win_regs.offset_y = fbinfo->var.yoffset;
-	win_regs.type = DPU_CH2DMA(decon->dt.dft_idma);
+	win_regs.type = decon->dt.dft_idma;
 	decon_dbg("pixel_count(%d), whole_w(%d), whole_h(%d), x(%d), y(%d)\n",
 			win_regs.pixel_count, win_regs.whole_w,
 			win_regs.whole_h, win_regs.offset_x,
 			win_regs.offset_y);
 
-	set_bit(decon->dt.dft_idma, &decon->cur_using_dpp);
-	set_bit(decon->dt.dft_idma, &decon->prev_used_dpp);
+	set_bit(dpp_id, &decon->cur_using_dpp);
+	set_bit(dpp_id, &decon->prev_used_dpp);
 	memset(&config, 0, sizeof(struct decon_win_config));
 	config.dpp_parm.addr[0] = fbinfo->fix.smem_start;
 	config.format = DECON_PIXEL_FORMAT_BGRA_8888;
@@ -3587,12 +3588,11 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	config.dst.h = config.src.h;
 	config.dst.f_w = config.src.f_w;
 	config.dst.f_h = config.src.f_h;
-	sd = decon->dpp_sd[decon->dt.dft_idma];
+	sd = decon->dpp_sd[dpp_id];
 	if (v4l2_subdev_call(sd, core, ioctl, DPP_WIN_CONFIG, &config)) {
-		decon_err("Failed to config DPP-%d\n",
-				decon->dt.dft_idma);
-		clear_bit(decon->dt.dft_idma, &decon->cur_using_dpp);
-		set_bit(decon->dt.dft_idma, &decon->dpp_err_stat);
+		decon_err("Failed to config DPP-%d\n", dpp_id);
+		clear_bit(dpp_id, &decon->cur_using_dpp);
+		set_bit(dpp_id, &decon->dpp_err_stat);
 	}
 
 	decon_reg_set_window_control(decon->id, decon->dt.dft_win,
