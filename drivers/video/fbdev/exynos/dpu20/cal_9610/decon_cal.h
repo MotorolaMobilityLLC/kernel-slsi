@@ -261,6 +261,7 @@ void decon_reg_win_enable_and_update(u32 id, u32 win_idx, u32 en);
 void decon_reg_set_window_control(u32 id, int win_idx,
 		struct decon_window_regs *regs, u32 winmap_en);
 void decon_reg_update_req_window_mask(u32 id, u32 win_idx);
+void decon_reg_update_req_window(u32 id, u32 win_idx);
 
 /* DECON shadow update and trigger control */
 void decon_reg_set_trigger(u32 id, struct decon_mode_info *psr,
