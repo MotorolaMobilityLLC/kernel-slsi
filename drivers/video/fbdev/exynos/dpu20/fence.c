@@ -16,6 +16,9 @@
 
 #include "decon.h"
 
+#define ACQ_FENCE_LEN 40
+char acq_fence_log[ACQ_FENCE_LEN];
+
 #if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 /* sync fence related functions */
 void decon_create_timeline(struct decon_device *decon, char *name)
@@ -284,12 +287,14 @@ int decon_create_fence(struct decon_device *decon, struct sync_file **sync_file)
 
 void decon_wait_fence(struct dma_fence *fence)
 {
-	int err = dma_fence_wait_timeout(fence, false, 900);
-	if (err >= 0)
-		return;
+	int err = 0;
 
+	snprintf(acq_fence_log, ACQ_FENCE_LEN, "%p:%s",
+			fence, fence->ops->get_driver_name(fence));
+
+	err = dma_fence_wait_timeout(fence, false, 900);
 	if (err < 0)
-		decon_warn("error waiting on acquire fence: %d\n", err);
+		decon_warn("%s: error waiting on acquire fence: %d\n", acq_fence_log, err);
 }
 
 void decon_signal_fence(struct dma_fence *fence)
