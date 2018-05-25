@@ -731,6 +731,8 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		goto err;
 	}
 
+	decon_reg_update_req_window(decon->id, win->idx);
+
 	decon_set_par(info);
 
 	decon_reg_start(decon->id, &psr);
