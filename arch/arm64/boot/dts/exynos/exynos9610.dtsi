@@ -2403,7 +2403,9 @@
 	dpp_0: dpp@0x14884000 { /* GF */
 		compatible = "samsung,exynos9-dpp";
 		#pb-id-cells = <3>;
+		/* DPP, DPU_DMA, DPU_DMA_COMMON */
 		reg = <0x0 0x14884000 0x1000>, <0x0 0x14895000 0x1000>, <0x0 0x14880000 0x110>;
+		/* DPU_DMA IRQ, DPP IRQ */
 		interrupts = <0 210 0>, <0 214 0>;
 		attr = <0x50087>; /* DPP/IDMA/HDR10/FLIP/BLOCK/AFBC */
 	};
@@ -2419,9 +2421,7 @@
 	dpp_2: dpp@0x14881000 { /* G0 */
 		compatible = "samsung,exynos9-dpp";
 		#pb-id-cells = <3>;
-		/* DPP, DPU_DMA, DPU_DMA_COMMON */
 		reg = <0x0 0x14881000 0x1000>, <0x0 0x14891000 0x1000>;
-		/* DPU_DMA IRQ, DPP IRQ */
 		interrupts = <0 208 0>, <0 212 0>;
 		attr = <0x50006>; /* DPP/IDMA/FLIP/BLOCK */
 	};
@@ -2462,7 +2462,6 @@
 		/* clock */
 		clock-names = "aclk";
 		clocks = <&clock UMUX_CLKCMU_DISPAUD_BUS>;
-
 	};
 
 	decon_f: decon_f@0x148B0000 {
@@ -2483,7 +2482,7 @@
 
 		max_win = <4>;
 		default_win = <0>;
-		default_idma = <2>;
+		default_idma = <0>;
 		psr_mode = <2>;         /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 		trig_mode = <0>;        /* 0: hw trigger, 1: sw trigger */
 		dsi_mode = <0>;         /* 0: single dsi, 1: dual dsi */
@@ -2492,6 +2491,9 @@
 		out_type = <0>;
 		/* 0: DSI0, 1: DSI1, 2: DSI2 */
 		out_idx = <0>;
+
+		/* power domain */
+		pd_name = "pd-dispaud";
 
 		#address-cells = <2>;
 		#size-cells = <1>;
