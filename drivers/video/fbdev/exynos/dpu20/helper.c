@@ -694,3 +694,16 @@ int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 
 	return 0;
 }
+
+#if defined(CONFIG_EXYNOS_PD)
+int dpu_pm_domain_check_status(struct exynos_pm_domain *pm_domain)
+{
+	if (!pm_domain || !pm_domain->check_status)
+		return 0;
+
+	if (pm_domain->check_status(pm_domain))
+		return 1;
+	else
+		return 0;
+}
+#endif

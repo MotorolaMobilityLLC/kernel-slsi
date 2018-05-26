@@ -31,6 +31,9 @@
 #if defined(CONFIG_EXYNOS_ITMON)
 #include <soc/samsung/exynos-itmon.h>
 #endif
+#if defined(CONFIG_EXYNOS_PD)
+#include <soc/samsung/exynos-pd.h>
+#endif
 #if defined(CONFIG_SUPPORT_LEGACY_ION)
 #include <linux/exynos_ion.h>
 #include <linux/ion.h>
@@ -683,6 +686,7 @@ struct decon_dt_info {
 	int max_win;
 	int dft_win;
 	int dft_idma;
+	const char *pd_name;
 };
 
 struct decon_win {
@@ -897,6 +901,9 @@ struct decon_device {
 #if defined(CONFIG_EXYNOS_ITMON)
 	struct notifier_block itmon_nb;
 	bool notified;
+#endif
+#if defined(CONFIG_EXYNOS_PD)
+	struct exynos_pm_domain *pm_domain;
 #endif
 	unsigned long prev_hdr_bits;
 	struct exynos_hdr_static_info prev_hdr_info;
@@ -1257,7 +1264,9 @@ void dpu_init_cursor_mode(struct decon_device *decon);
 
 int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 	struct device *dev, unsigned long iova, int flags, void *token);
-
+#if defined(CONFIG_EXYNOS_PD)
+int dpu_pm_domain_check_status(struct exynos_pm_domain *pm_domain);
+#endif
 int decon_set_out_sd_state(struct decon_device *decon, enum decon_state state);
 
 /* IOCTL commands */

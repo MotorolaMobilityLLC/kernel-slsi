@@ -777,6 +777,19 @@ static int _decon_disable(struct decon_device *decon, enum decon_state state)
 	}
 
 	decon->state = state;
+
+#if defined(CONFIG_EXYNOS_PD)
+	if (decon->pm_domain) {
+		if (dpu_pm_domain_check_status(decon->pm_domain)) {
+			decon_info("decon%d %s still on\n", decon->id,
+				decon->dt.pd_name);
+			/* TODO : saimple dma/decon logging in cal code */
+		} else
+			decon_info("decon%d %s off\n", decon->id,
+				decon->dt.pd_name);
+	}
+#endif
+
 err:
 	return ret;
 }
@@ -3378,6 +3391,15 @@ static void decon_parse_dt(struct decon_device *decon)
 				decon_info("Failed to get CAM0-STAT Reg\n");
 		}
 	}
+#if defined(CONFIG_EXYNOS_PD)
+	if (of_property_read_string(dev->of_node, "pd_name", &decon->dt.pd_name)) {
+		decon_info("no power domain\n");
+		decon->pm_domain = NULL;
+	} else {
+		decon_info("power domain: %s\n", decon->dt.pd_name);
+		decon->pm_domain = exynos_pd_lookup_name(decon->dt.pd_name);
+	}
+#endif
 }
 
 static int decon_init_resources(struct decon_device *decon,
