@@ -197,7 +197,7 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 			}
 		}
 
-		for (i = 0; i < ctx->src_fmt->num_planes; i++) {
+		for (i = 0; i < ctx->src_fmt->mem_planes; i++) {
 			dmabuf = s5p_mfc_mem_get_dmabuf(vb->planes[i].m.fd);
 			if (!dmabuf)
 				return -ENOMEM;
