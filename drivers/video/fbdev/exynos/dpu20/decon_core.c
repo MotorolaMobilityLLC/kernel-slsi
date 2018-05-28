@@ -567,7 +567,6 @@ static int _decon_enable(struct decon_device *decon, enum decon_state state)
 			 * DECON2(for DISPLAYPORT) start in winconfig
 			 */
 			decon_reg_start(decon->id, &psr);
-			decon_reg_update_req_and_unmask(decon->id, &psr);
 		}
 	}
 
@@ -1746,9 +1745,6 @@ static int __decon_update_regs(struct decon_device *decon, struct decon_reg_data
 		decon_warn("decon SHADOW_UPDATE_TIMEOUT\n");
 		return -ETIMEDOUT;
 	}
-
-	if (psr.trig_mode == DECON_HW_TRIG)
-		decon_reg_set_trigger(decon->id, &psr, DECON_TRIG_DISABLE);
 
 	/* TODO: check and wait until the required IDMA is free */
 	decon_reg_chmap_validate(decon, regs);
