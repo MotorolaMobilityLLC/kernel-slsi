@@ -119,6 +119,9 @@ struct dbg_snapshot_log_idx {
 #ifdef CONFIG_DEBUG_SNAPSHOT_SPI
 	atomic_t spi_log_idx;
 #endif
+#ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
+	atomic_t binder_log_idx;
+#endif
 #ifndef CONFIG_DEBUG_SNAPSHOT_MINIMIZED_MODE
 	atomic_t clockevent_log_idx[DSS_NR_CPUS];
 	atomic_t printkl_log_idx;
@@ -218,6 +221,9 @@ void __init dbg_snapshot_log_idx_init(void)
 #endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_SPI
 	atomic_set(&(dss_idx.spi_log_idx), -1);
+#endif
+#ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
+	atomic_set(&(dss_idx.binder_log_idx), -1);
 #endif
 	atomic_set(&(dss_idx.suspend_log_idx), -1);
 
@@ -1236,6 +1242,46 @@ void dbg_snapshot_spi(struct spi_controller *ctlr, struct spi_message *cur_msg, 
 		dss_log->spi[i].ctlr = ctlr;
 		dss_log->spi[i].cur_msg = cur_msg;
 		dss_log->spi[i].en = en;
+	}
+}
+#endif
+
+#ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
+void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
+			 struct trace_binder_transaction *transaction,
+			 struct trace_binder_transaction_error *error)
+{
+	struct dbg_snapshot_item *item = &dss_items[dss_desc.kevents_num];
+	int cpu;
+	unsigned long i;
+
+	if (unlikely(!dss_base.enabled || !item->entry.enabled))
+		return;
+	if (base == NULL)
+		return;
+
+	cpu = raw_smp_processor_id();
+	i = atomic_inc_return(&dss_idx.binder_log_idx) &
+				(ARRAY_SIZE(dss_log->binder) - 1);
+
+	dss_log->binder[i].time = cpu_clock(cpu);
+	dss_log->binder[i].cpu = cpu;
+	dss_log->binder[i].base = *base;
+
+	if (transaction) {
+		dss_log->binder[i].transaction = *transaction;
+	} else {
+		dss_log->binder[i].transaction.to_node_id = 0;
+		dss_log->binder[i].transaction.reply = 0;
+		dss_log->binder[i].transaction.flags = 0;
+		dss_log->binder[i].transaction.code = 0;
+	}
+	if (error) {
+		dss_log->binder[i].error = *error;
+	} else {
+		dss_log->binder[i].error.return_error = 0;
+		dss_log->binder[i].error.return_error_param = 0;
+		dss_log->binder[i].error.return_error_line = 0;
 	}
 }
 #endif

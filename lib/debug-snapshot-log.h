@@ -4,6 +4,10 @@
 
 #include <generated/autoconf.h>
 
+#ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
+#include <linux/debug-snapshot-binder.h>
+#endif
+
 #ifdef DSS_ANALYZER
 
 #define TASK_COMM_LEN 16
@@ -313,6 +317,15 @@ struct dbg_snapshot_log {
 #endif
 		int en;
 	} spi[DSS_LOG_MAX_NUM];
+#endif
+#ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
+	struct __binder_log {
+		unsigned long long time;
+		int cpu;
+		struct trace_binder_transaction_base base;
+		struct trace_binder_transaction transaction;
+		struct trace_binder_transaction_error error;
+	} binder[DSS_API_MAX_NUM << 2];
 #endif
 
 #ifndef CONFIG_DEBUG_SNAPSHOT_MINIMIZED_MODE

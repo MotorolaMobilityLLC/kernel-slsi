@@ -2087,6 +2087,11 @@ config DEBUG_SNAPSHOT_SPI
 	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
 	default y
 
+config DEBUG_SNAPSHOT_BINDER
+	bool "Enable debugging of binder driver"
+	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	default y
+
 config DEBUG_SNAPSHOT_PANIC_REBOOT
 	bool "Enable forced reboot after panic for ramdump"
 	depends on DEBUG_SNAPSHOT

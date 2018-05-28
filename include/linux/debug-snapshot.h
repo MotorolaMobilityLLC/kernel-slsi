@@ -17,6 +17,7 @@
 #ifdef CONFIG_DEBUG_SNAPSHOT
 #include <asm/ptrace.h>
 #include <linux/bug.h>
+#include "debug-snapshot-binder.h"
 
 /* mandatory */
 extern void dbg_snapshot_task(int cpu, void *v_task);
@@ -171,6 +172,14 @@ extern int s3c2410wdt_keepalive_emergency(bool reset, int index);
 #define s3c2410wdt_keepalive_emergency(a, b)	do { } while(0)
 #endif
 
+#ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
+extern void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
+				struct trace_binder_transaction *transaction,
+				struct trace_binder_transaction_error *error);
+#else
+#define dbg_snapshot_binder(a,b,c)	do { } while(0)
+#endif
+
 #else
 #define dbg_snapshot_acpm(a,b,c)		do { } while(0)
 #define dbg_snapshot_task(a,b)		do { } while(0)
@@ -216,6 +225,8 @@ extern int s3c2410wdt_keepalive_emergency(bool reset, int index);
 #define dbg_snapshot_get_last_pc_paddr()	do { } while(0)
 #define dbg_snapshot_hook_hardlockup_entry(a) do { } while(0)
 #define dbg_snapshot_hook_hardlockup_exit() do { } while(0)
+#define dbg_snapshot_binder(a,b,c)	do { } while(0)
+
 
 static inline unsigned int dbg_snapshot_get_item_size(char *name)
 {
