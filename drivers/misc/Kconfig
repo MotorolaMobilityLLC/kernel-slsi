@@ -542,4 +542,5 @@ source "drivers/misc/cxl/Kconfig"
 source "drivers/misc/mcu_ipc/Kconfig"
 source "drivers/misc/modem_if/Kconfig"
 source "drivers/misc/gnss_if/Kconfig"
+source "drivers/misc/samsung/Kconfig"
 endmenu
