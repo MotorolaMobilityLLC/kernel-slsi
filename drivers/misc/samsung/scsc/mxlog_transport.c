@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <scsc/scsc_logring.h>
 #include "scsc_mif_abs.h"
 #include "mifintrbit.h"
