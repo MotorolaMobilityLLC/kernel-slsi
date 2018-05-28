@@ -67,6 +67,7 @@ int soc_has_big(void)
 #define SWRESET				(0x0400)
 #define RESET_SEQUENCER_CONFIGURATION	(0x0500)
 #define PS_HOLD_CONTROL			(0x330C)
+#define EXYNOS_PMU_SYSIP_DAT0			(0x0810)
 
 /* defines for BIG reset */
 #define PEND_BIG				(1 << 0)
@@ -199,6 +200,13 @@ void big_reset_control(int en)
 #define INFORM_RAMDUMP		0xd
 #define INFORM_RECOVERY		0xf
 
+#define REBOOT_MODE_NORMAL		0x00
+#define REBOOT_MODE_CHARGE		0x0A
+/* Reboot into fastboot mode */
+#define REBOOT_MODE_FASTBOOT		0xFC
+/* Reboot into recovery */
+#define REBOOT_MODE_RECOVERY		0xFF
+
 #if !defined(CONFIG_SEC_REBOOT)
 #ifdef CONFIG_OF
 static void exynos_power_off(void)
@@ -260,20 +268,26 @@ static void exynos_power_off(void)
 
 static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 {
-	u32 restart_inform, soc_id, revision;
+	u32 soc_id, revision;
+	void __iomem *addr;
 
 	if (!exynos_pmu_base)
 		return;
 #ifdef CONFIG_EXYNOS_ACPM
 	exynos_acpm_reboot();
 #endif
-	restart_inform = INFORM_NONE;
+	printk("[%s] reboot cmd: %s\n", __func__, cmd);
 
+	addr = exynos_pmu_base + EXYNOS_PMU_SYSIP_DAT0;
 	if (cmd) {
-		if (!strcmp((char *)cmd, "recovery"))
-			restart_inform = INFORM_RECOVERY;
-		else if(!strcmp((char *)cmd, "ramdump"))
-			restart_inform = INFORM_RAMDUMP;
+		if (!strcmp((char *)cmd, "charge")) {
+			__raw_writel(REBOOT_MODE_CHARGE, addr);
+		} else if (!strcmp(cmd, "bootloader") || !strcmp(cmd, "bl") ||
+				!strcmp((char *)cmd, "fastboot") || !strcmp(cmd, "fb")) {
+			__raw_writel(REBOOT_MODE_FASTBOOT, addr);
+		} else if (!strcmp(cmd, "recovery")) {
+			__raw_writel(REBOOT_MODE_RECOVERY, addr);
+		}
 	}
 
 	/* Check by each SoC */
