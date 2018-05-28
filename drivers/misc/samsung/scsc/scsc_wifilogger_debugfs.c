@@ -3,6 +3,7 @@
  *   Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved.
  *
  ******************************************************************************/
+#include <linux/uaccess.h>
 #include "scsc_wifilogger_debugfs.h"
 #include "scsc_wifilogger_ring_pktfate.h"
 
