@@ -2709,7 +2709,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		domain-clients = <&fimg2d>, <&scaler_0>;
+		domain-clients = <&fimg2d>, <&scaler_0>, <&smfc>;
 	};
 
 	fimg2d: g2d@12E40000 {
@@ -2745,6 +2745,18 @@
 		  clocks = <&clock GATE_MSCL_QCH>;
 		  clock-names = "gate";
 		  iommus = <&sysmmu_g2d>;
+	};
+
+	smfc: smfc@12E30000 {
+		compatible = "samsung,exynos7870-jpeg";
+		dma-coherent;
+		reg = <0x0 0x12E30000 0x1000>;
+		interrupts = <0 163 0>;
+		clocks = <&clock GATE_JPEG_QCH>;
+		clock-names = "gate";
+		iommus = <&sysmmu_g2d>;
+		smfc,int_qos_minlock = <534000>;
+		samsung,power-domain = <&pd_g2d>;
 	};
 
 	/* G3D */
