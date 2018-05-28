@@ -1078,7 +1078,15 @@ u32 odma_reg_get_irq_and_clear(u32 id)
 	return val;
 }
 
-#if 0
+static void dma_reg_com_dump(void)
+{
+	struct dpp_device *dpp = get_dpp_drvdata(0);
+
+	dpp_info("\n=== DMA COMMON SFR DUMP ===\n");
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			dpp->res.dma_com_regs, 0x100, false);
+}
+
 static void dpp_reg_dump_ch_data(int id, enum dpp_reg_area reg_area,
 		u32 sel[], u32 cnt)
 {
@@ -1120,12 +1128,10 @@ static void dpp_reg_dump_ch_data(int id, enum dpp_reg_area reg_area,
 	}
 	dpp_info("%s\n", linebuf);
 }
-static bool checked;
-#endif
 
+static bool checked;
 void dma_reg_dump_com_debug_regs(int id)
 {
-#if 0 /* TODO: This will be implemented */
 	u32 sel[12] = {0x0000, 0x0100, 0x0200, 0x0204, 0x0205, 0x0300, 0x4000,
 		0x4001, 0x4005, 0x8000, 0x8001, 0x8005};
 
@@ -1133,16 +1139,15 @@ void dma_reg_dump_com_debug_regs(int id)
 	if (checked)
 		return;
 
+	dma_reg_com_dump();
 	dpp_info("-< DMA COMMON DEBUG SFR >-\n");
 	dpp_reg_dump_ch_data(id, REG_AREA_DMA_COM, sel, 12);
 
 	checked = true;
-#endif
 }
 
 void dma_reg_dump_debug_regs(int id)
 {
-#if 0 /* TODO: This will be implemented */
 	u32 sel_g[11] = {
 		0x0000, 0x0001, 0x0002, 0x0004, 0x000A, 0x000B, 0x0400, 0x0401,
 		0x0402, 0x0405, 0x0406
@@ -1158,11 +1163,6 @@ void dma_reg_dump_debug_regs(int id)
 		0x5100, 0x5101, 0x5104, 0x5105, 0x5200, 0x5202, 0x5204, 0x5205,
 		0x5300, 0x5302, 0x5303, 0x5306
 	};
-	u32 sel_r[22] = {
-		0x6100, 0x6101, 0x6102, 0x6103, 0x6104, 0x6105, 0x6200, 0x6201,
-		0x6202, 0x6203, 0x6204, 0x6205, 0x6300, 0x6301, 0x6302, 0x6306,
-		0x6307, 0x6400, 0x6401, 0x6402, 0x6406, 0x6407
-	};
 	u32 sel_com[4] = {
 		0x7000, 0x7001, 0x7002, 0x7003
 	};
@@ -1174,61 +1174,44 @@ void dma_reg_dump_debug_regs(int id)
 		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_g, 11);
 		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_com, 4);
 		break;
+	case IDMA_GF:
+		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_g, 11);
+		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_f, 12);
+		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_com, 4);
+		break;
 	case IDMA_VG0:
-	case IDMA_VG1:
 		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_g, 11);
 		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_v, 39);
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_com, 4);
-		break;
-	case IDMA_VGF0:
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_g, 11);
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_v, 39);
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_f, 12);
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_com, 4);
-		break;
-	case IDMA_VGF1:
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_g, 11);
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_v, 39);
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_f, 12);
-		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_r, 22);
 		dpp_reg_dump_ch_data(id, REG_AREA_DMA, sel_com, 4);
 		break;
 	default:
 		dpp_err("DPP%d is wrong ID\n", id);
 		return;
 	}
-#endif
 }
 
 void dpp_reg_dump_debug_regs(int id)
 {
-#if 0 /* TODO: This will be implemented */
 	u32 sel_g[3] = {0x0000, 0x0100, 0x0101};
 	u32 sel_vg[19] = {0x0000, 0x0100, 0x0101, 0x0200, 0x0201, 0x0202,
 		0x0203, 0x0204, 0x0205, 0x0206, 0x0207, 0x0208, 0x0300, 0x0301,
 		0x0302, 0x0303, 0x0304, 0x0400, 0x0401};
-	u32 sel_vgf[37] = {0x0000, 0x0100, 0x0101, 0x0200, 0x0201, 0x0210,
-		0x0211, 0x0220, 0x0221, 0x0230, 0x0231, 0x0240, 0x0241, 0x0250,
-		0x0251, 0x0300, 0x0301, 0x0302, 0x0303, 0x0304, 0x0305, 0x0306,
-		0x0307, 0x0308, 0x0400, 0x0401, 0x0402, 0x0403, 0x0404, 0x0500,
-		0x0501, 0x0502, 0x0503, 0x0504, 0x0505, 0x0600, 0x0601};
 	u32 cnt;
 	u32 *sel = NULL;
+
 	switch (DPU_CH2DMA(id)) {
 	case IDMA_G0:
 	case IDMA_G1:
 		sel = sel_g;
 		cnt = 3;
 		break;
+	case IDMA_GF:
+		sel = sel_g;
+		cnt = 3;
+		break;
 	case IDMA_VG0:
-	case IDMA_VG1:
 		sel = sel_vg;
 		cnt = 19;
-		break;
-	case IDMA_VGF0:
-	case IDMA_VGF1:
-		sel = sel_vgf;
-		cnt = 37;
 		break;
 	default:
 		dpp_err("DPP%d is wrong ID\n", id);
@@ -1238,5 +1221,4 @@ void dpp_reg_dump_debug_regs(int id)
 	dpp_write(id, 0x0C00, 0x1);
 	dpp_info("-< DPP%d DEBUG SFR >-\n", id);
 	dpp_reg_dump_ch_data(id, REG_AREA_DPP, sel, cnt);
-#endif
 }
