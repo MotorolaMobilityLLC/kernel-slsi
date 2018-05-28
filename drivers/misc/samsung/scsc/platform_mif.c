@@ -13,9 +13,11 @@
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/pm_qos.h>
 #include <linux/platform_device.h>
 #include <linux/moduleparam.h>
 #include <linux/iommu.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #ifndef CONFIG_SOC_EXYNOS7570
 #include <linux/smc.h>
