@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/device.h>
+#include <linux/sched/clock.h>
 
 /* NOTE_CREATING_TAGS: when adding a tag here REMEMBER to add it also
  * where required, taking care to maintain the same ordering.
