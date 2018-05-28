@@ -23,6 +23,7 @@
 #include <dt-bindings/soc/samsung/exynos9610-dm.h>
 #include "exynos9610-pm-domains.dtsi"
 #include <dt-bindings/soc/samsung/exynos9610-devfreq.h>
+#include "exynos9610-mfc.dtsi"
 
 / {
 	compatible = "samsung,armv8", "samsung,exynos9610";
@@ -103,6 +104,7 @@
 		dsim0 = &dsim_0;
 		decon0 = &decon_f;
 		scaler0 = &scaler_0;
+		mfc0 = &mfc_0;
 	};
 
 	chipid@10000000 {
@@ -2702,7 +2704,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		domain-clients = <>;
+		domain-clients = <&mfc_0>;
 	};
 
 	iommu-domain_g2dmscljpeg {
