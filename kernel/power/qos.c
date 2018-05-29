@@ -436,6 +436,32 @@ static struct pm_qos_object fsys0_throughput_max_pm_qos = {
 };
 #endif
 
+static BLOCKING_NOTIFIER_HEAD(mfc_throughput_notifier);
+static struct pm_qos_constraints mfc_tput_constraints = {
+	.list = PLIST_HEAD_INIT(mfc_tput_constraints.list),
+	.target_value = PM_QOS_MFC_THROUGHPUT_DEFAULT_VALUE,
+	.default_value = PM_QOS_MFC_THROUGHPUT_DEFAULT_VALUE,
+	.type = PM_QOS_MAX,
+	.notifiers = &mfc_throughput_notifier,
+};
+static struct pm_qos_object mfc_throughput_pm_qos = {
+	.constraints = &mfc_tput_constraints,
+	.name = "mfc_throughput",
+};
+
+static BLOCKING_NOTIFIER_HEAD(mfc_throughput_max_notifier);
+static struct pm_qos_constraints mfc_tput_max_constraints = {
+	.list = PLIST_HEAD_INIT(mfc_tput_max_constraints.list),
+	.target_value = PM_QOS_MFC_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_MFC_THROUGHPUT_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &mfc_throughput_max_notifier,
+};
+static struct pm_qos_object mfc_throughput_max_pm_qos = {
+	.constraints = &mfc_tput_max_constraints,
+	.name = "mfc_throughput_max",
+};
+
 static struct pm_qos_object *pm_qos_array[] = {
 	&null_pm_qos,
 	&cpu_dma_pm_qos,
@@ -470,6 +496,8 @@ static struct pm_qos_object *pm_qos_array[] = {
 	&score_throughput_max_pm_qos,
 	&fsys0_throughput_max_pm_qos,
 #endif
+	&mfc_throughput_pm_qos,
+	&mfc_throughput_max_pm_qos,
 };
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
