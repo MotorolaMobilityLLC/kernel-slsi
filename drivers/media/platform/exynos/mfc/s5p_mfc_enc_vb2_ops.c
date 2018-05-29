@@ -160,8 +160,8 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 	struct s5p_mfc_raw_info *raw;
 	unsigned int index = vb->index;
 	struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
-	struct dma_buf *dmabuf;
-	int i;
+	struct dma_buf *dmabuf[MFC_MAX_PLANES];
+	int i, mem_get_count = 0;
 
 	mfc_debug_enter();
 
@@ -198,16 +198,18 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 		}
 
 		for (i = 0; i < ctx->src_fmt->mem_planes; i++) {
-			dmabuf = s5p_mfc_mem_get_dmabuf(vb->planes[i].m.fd);
-			if (!dmabuf)
-				return -ENOMEM;
+			dmabuf[i] = dma_buf_get(vb->planes[i].m.fd);
+			if (IS_ERR(dmabuf[i])) {
+				mfc_err_ctx("failed to get bufcon dmabuf\n");
+				goto err_mem_put;
+			}
 
-			buf->num_bufs_in_vb = s5p_mfc_bufcon_get_buf_count(dmabuf);
+			mem_get_count++;
+			buf->num_bufs_in_vb = s5p_mfc_bufcon_get_buf_count(dmabuf[i]);
 			mfc_debug(3, "bufcon count:%d\n", buf->num_bufs_in_vb);
 			if (buf->num_bufs_in_vb == 0) {
 				mfc_err_ctx("bufcon count couldn't be zero\n");
-				s5p_mfc_mem_put_dmabuf(dmabuf);
-				return -ENOMEM;
+				goto err_mem_put;
 			}
 
 			if (buf->num_bufs_in_vb < 0)
@@ -224,19 +226,18 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 				ctx->framerate = buf->num_bufs_in_vb * ENC_DEFAULT_CAM_CAPTURE_FPS;
 				mfc_debug(3, "framerate: %ld\n", ctx->framerate);
 
-				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf, i);
+				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf[i], i);
 				if (count != buf->num_bufs_in_vb) {
-					s5p_mfc_mem_put_dmabuf(dmabuf);
 					mfc_err_ctx("invalid buffer count %d != num_bufs_in_vb %d\n",
 							count, buf->num_bufs_in_vb);
-					return -EFAULT;
+					goto err_mem_put;
 				}
 
-				s5p_mfc_mem_put_dmabuf(dmabuf);
+				dma_buf_put(dmabuf[i]);
 			} else {
 				dma_addr_t start_raw;
 
-				s5p_mfc_mem_put_dmabuf(dmabuf);
+				dma_buf_put(dmabuf[i]);
 				start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
 				if (start_raw == 0) {
 					mfc_err_ctx("Plane mem not allocated.\n");
@@ -269,8 +270,13 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 	}
 
 	mfc_debug_leave();
-
 	return 0;
+
+err_mem_put:
+	for (i = 0; i < mem_get_count; i++)
+		dma_buf_put(dmabuf[i]);
+
+	return -ENOMEM;
 }
 
 static void s5p_mfc_enc_buf_finish(struct vb2_buffer *vb)

@@ -30,21 +30,6 @@ static inline dma_addr_t s5p_mfc_mem_get_daddr_vb(
 	return addr;
 }
 
-static inline struct dma_buf *s5p_mfc_mem_get_dmabuf(int fd)
-{
-	struct dma_buf *dmabuf = NULL;
-
-	dmabuf = dma_buf_get(fd);
-	WARN_ON(dmabuf == NULL);
-
-	return dmabuf;
-}
-
-static inline void s5p_mfc_mem_put_dmabuf(struct dma_buf *dmabuf)
-{
-	dma_buf_put(dmabuf);
-}
-
 static inline int s5p_mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
 {
 	return dmabuf_container_get_count(dmabuf);
