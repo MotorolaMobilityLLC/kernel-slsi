@@ -968,6 +968,43 @@ static bool slsi_decode_l3_frame(u8 *frame, u16 frame_length, char *result, size
 	return true;
 }
 
+static bool slsi_decode_amsdu_subframe(u8 *frame, u16 frame_length, char *result, size_t result_length)
+{
+	int slen;
+
+	/* Only decode Management Frames at Level 1 */
+	if (slsi_debug_summary_frame == 1)
+		return false;
+
+	/* Only decode high important frames e.g. EAPOL, ARP, DHCP at Level 2 */
+	if (slsi_debug_summary_frame == 2) {
+		struct msduhdr *msdu_hdr = (struct msduhdr *)frame;
+		u16           eth_type = be16_to_cpu(msdu_hdr->type);
+
+		switch (eth_type) {
+		case ETH_P_IP:
+			/* slsi_is_dhcp_packet() decodes the frame as Ethernet frame so
+			 * pass a offset (difference between MSDU header and ethernet header)
+			 * to frames so it reads at the right offset
+			 */
+			if (slsi_is_dhcp_packet(frame + 8) == SLSI_TX_IS_NOT_DHCP)
+				return false;
+			break;
+		/* Fall through; process EAPOL, WAPI and ARP frames */
+		case ETH_P_PAE:
+		case ETH_P_WAI:
+		case ETH_P_ARP:
+			break;
+		default:
+			/* return for all other frames */
+			return false;
+		}
+	}
+	slen = snprintf(result, result_length, "eth");
+	slsi_decode_proto_data(frame + 20, frame_length - 20, result + slen, result_length - slen);
+	return true;
+}
+
 static inline bool slsi_debug_frame_ratelimited(void)
 {
 	static DEFINE_RATELIMIT_STATE(_rs, (5 * HZ), 200);
@@ -1055,6 +1092,15 @@ void slsi_debug_frame(struct slsi_dev *sdev, struct net_device *dev, struct sk_b
 		dst = ehdr->h_dest;
 		src = ehdr->h_source;
 		print = slsi_decode_l3_frame(frame, len, frame_info, sizeof(frame_info));
+		break;
+	}
+	case FAPI_DATAUNITDESCRIPTOR_AMSDU_SUBFRAME:
+	{
+		struct ethhdr *ehdr = (struct ethhdr *)frame;
+
+		dst = ehdr->h_dest;
+		src = ehdr->h_source;
+		print = slsi_decode_amsdu_subframe(frame, len, frame_info, sizeof(frame_info));
 		break;
 	}
 	default:
