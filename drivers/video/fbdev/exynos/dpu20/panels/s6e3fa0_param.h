@@ -102,6 +102,11 @@ static const unsigned char SEQ_GAMMA_UPDATE[] = {
 	0x03, 0x00
 };
 
+static const unsigned char SEQ_B_CTRL_ON[] = {
+	0x53,
+	0x20,
+};
+
 static const unsigned char SEQ_SLEEP_OUT[] = {
 	0x11,
 };

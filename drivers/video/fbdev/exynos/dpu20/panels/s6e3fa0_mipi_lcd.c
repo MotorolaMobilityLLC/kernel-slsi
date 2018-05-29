@@ -29,6 +29,9 @@
 #define DEFAULT_BRIGHTNESS	170
 #define CMD_SIZE		34
 
+unsigned char set_brightness[2] = {0x51, 0x7F};
+int backlightlevel_log;
+
 static int s6e3fa0_get_brightness(struct backlight_device *bd)
 {
 	return bd->props.brightness;
@@ -42,89 +45,116 @@ static int get_backlight_level(int brightness)
 	case 0:
 		backlightlevel = 0;
 		break;
-	case 1 ... 29:
-		backlightlevel = 0;
-		break;
-	case 30 ... 34:
-		backlightlevel = 1;
-		break;
-	case 35 ... 39:
-		backlightlevel = 2;
-		break;
-	case 40 ... 44:
-		backlightlevel = 3;
-		break;
-	case 45 ... 49:
-		backlightlevel = 4;
-		break;
-	case 50 ... 54:
-		backlightlevel = 5;
-		break;
-	case 55 ... 64:
-		backlightlevel = 6;
-		break;
-	case 65 ... 74:
-		backlightlevel = 7;
-		break;
-	case 75 ... 83:
-		backlightlevel = 8;
-		break;
-	case 84 ... 93:
-		backlightlevel = 9;
-		break;
-	case 94 ... 103:
+	case 1 ... 10:
 		backlightlevel = 10;
 		break;
-	case 104 ... 113:
-		backlightlevel = 11;
+	case 11 ... 15:
+		backlightlevel = 55;
 		break;
-	case 114 ... 122:
-		backlightlevel = 12;
+	case 16 ... 20:
+		backlightlevel = 95;
 		break;
-	case 123 ... 132:
-		backlightlevel = 13;
+	case 21 ... 25:
+		backlightlevel = 125;
 		break;
-	case 133 ... 142:
-		backlightlevel = 14;
+	case 26 ... 30:
+		backlightlevel = 160;
 		break;
-	case 143 ... 152:
-		backlightlevel = 15;
+	case 31 ... 35:
+		backlightlevel = 165;
 		break;
-	case 153 ... 162:
-		backlightlevel = 16;
+	case 36 ... 40:
+		backlightlevel = 165;
 		break;
-	case 163 ... 171:
-		backlightlevel = 17;
+	case 41 ... 45:
+		backlightlevel = 170;
 		break;
-	case 172 ... 181:
-		backlightlevel = 18;
+	case 46 ... 50:
+		backlightlevel = 170;
 		break;
-	case 182 ... 191:
-		backlightlevel = 19;
+	case 51 ... 55:
+		backlightlevel = 175;
 		break;
-	case 192 ... 201:
-		backlightlevel = 20;
+	case 56 ... 60:
+		backlightlevel = 175;
 		break;
-	case 202 ... 210:
-		backlightlevel = 21;
+	case 61 ... 65:
+		backlightlevel = 180;
 		break;
-	case 211 ... 220:
-		backlightlevel = 22;
+	case 66 ... 70:
+		backlightlevel = 180;
 		break;
-	case 221 ... 230:
-		backlightlevel = 23;
+	case 71 ... 75:
+		backlightlevel = 185;
 		break;
-	case 231 ... 240:
-		backlightlevel = 24;
+	case 76 ... 80:
+		backlightlevel = 185;
 		break;
-	case 241 ... 250:
-		backlightlevel = 25;
+	case 81 ... 85:
+		backlightlevel = 190;
 		break;
-	case 251 ... 255:
-		backlightlevel = 26;
+	case 86 ... 90:
+		backlightlevel = 190;
+		break;
+	case 91 ... 95:
+		backlightlevel = 195;
+		break;
+	case 96 ... 100:
+		backlightlevel = 195;
+		break;
+	case 101 ... 105:
+		backlightlevel = 200;
+		break;
+	case 106 ... 110:
+		backlightlevel = 210;
+		break;
+	case 111 ... 115:
+		backlightlevel = 225;
+		break;
+	case 116 ... 120:
+		backlightlevel = 230;
+		break;
+	case 121 ... 125:
+		backlightlevel = 230;
+		break;
+	case 126 ... 130:
+		backlightlevel = 235;
+		break;
+	case 131 ... 135:
+		backlightlevel = 235;
+		break;
+	case 136 ... 140:
+		backlightlevel = 240;
+		break;
+	case 141 ... 145:
+		backlightlevel = 240;
+		break;
+	case 146 ... 150:
+		backlightlevel = 245;
+		break;
+	case 151 ... 155:
+		backlightlevel = 245;
+		break;
+	case 156 ... 160:
+		backlightlevel = 250;
+		break;
+	case 161 ... 165:
+		backlightlevel = 253;
+		break;
+	case 166 ... 170:
+		backlightlevel = 253;
+		break;
+	case 171 ... 175:
+		backlightlevel = 254;
+		break;
+	case 176 ... 180:
+		backlightlevel = 254;
+		break;
+	case 181 ... 255:
+		backlightlevel = 255;
 		break;
 	default:
-		backlightlevel = 12;
+		backlightlevel = 127;
 		break;
 	}
 
@@ -135,53 +165,25 @@ static int update_brightness(struct dsim_device *dsim, int brightness)
 {
 	int backlightlevel;
 
-	/* unused line */
 	backlightlevel = get_backlight_level(brightness);
-#if 0
-	int real_br = brightness / 2;
-	int id = dsim->id;
-	unsigned char gamma_control[CMD_SIZE];
-	unsigned char gamma_update[3];
 
-	memcpy(gamma_control, SEQ_GAMMA_CONTROL_SET_300CD, CMD_SIZE);
-	memcpy(gamma_update, SEQ_GAMMA_UPDATE, 3);
+	set_brightness[1] = backlightlevel;
 
-	/*
-	 * In order to change brightness to be set to one of values in the
-	 * gamma_control parameter. Brightness value(real_br) from 0 to 255.
-	 * This value is controlled by the control bar.
-	 */
+	if (backlightlevel_log != backlightlevel)
+		pr_info("brightness: %d -> %d\n", brightness, backlightlevel);
 
-	if (brightness < 70)
-		real_br = 35;
+	backlightlevel_log = backlightlevel;
 
-	gamma_control[1] = 0;
-	gamma_control[3] = 0;
-	gamma_control[5] = 0;
+	if (brightness >= 0) {
+		/* DO update brightness using dsim_wr_data */
+		dsim_wr_data(0, MIPI_DSI_DCS_LONG_WRITE,
+				(unsigned long)set_brightness, 2);
+	} else {
+		/* DO update brightness using dsim_wr_data */
+		/* backlight_off ??? */
+		return -EINVAL;
+	}
 
-	gamma_control[2] = real_br * 2;
-	gamma_control[4] = real_br * 2;
-	gamma_control[6] = real_br * 2;
-
-	gamma_control[28] = real_br;
-	gamma_control[29] = real_br;
-	gamma_control[30] = real_br;
-
-	/* It updates the changed brightness value to ddi */
-	gamma_update[1] = 0x01;
-
-	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)gamma_control,
-				ARRAY_SIZE(gamma_control)) < 0)
-		dsim_err("fail to send gamma_control command.\n");
-
-	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_GAMMA_UPDATE,
-				ARRAY_SIZE(SEQ_GAMMA_UPDATE)) < 0)
-		dsim_err("fail to send SEQ_GAMMA_UPDATE command.\n");
-
-	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)gamma_update,
-				ARRAY_SIZE(gamma_update)) < 0)
-		dsim_err("fail to send gamma_update command.\n");
-#endif
 	return 0;
 }
 
@@ -189,12 +191,8 @@ static int s6e3fa0_set_brightness(struct backlight_device *bd)
 {
 	struct dsim_device *dsim;
 	int brightness = bd->props.brightness;
-#if 0
-	struct v4l2_subdev *sd;
 
-	sd = dev_get_drvdata(bd->dev.parent);
-	dsim = container_of(sd, struct dsim_device, sd);
-#endif
+	dsim = get_dsim_drvdata(0);
 
 	if (brightness < MIN_BRIGHTNESS || brightness > MAX_BRIGHTNESS) {
 		printk(KERN_ALERT "Brightness should be in the range of 0 ~ 255\n");
@@ -212,7 +210,7 @@ static const struct backlight_ops s6e3fa0_backlight_ops = {
 
 static int s6e3fa0_probe(struct dsim_device *dsim)
 {
-	dsim->bd = backlight_device_register("panel", dsim->dev,
+	dsim->bd = backlight_device_register("backlight_0", dsim->dev,
 		NULL, &s6e3fa0_backlight_ops, NULL);
 	if (IS_ERR(dsim->bd))
 		printk(KERN_ALERT "failed to register backlight device!\n");

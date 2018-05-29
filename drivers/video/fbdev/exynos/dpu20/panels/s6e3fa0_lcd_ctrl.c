@@ -157,6 +157,11 @@ void lcd_init(int id, struct decon_lcd *lcd)
 		dsim_err("fail to send SEQ_TEST_KEY_ON_C0 command.\n");
 	mdelay(12);
 
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_B_CTRL_ON,
+				ARRAY_SIZE(SEQ_B_CTRL_ON)) < 0)
+		dsim_err("fail to send SEQ_B_CTRL_ON command.\n");
+	mdelay(12);
+
 	if (lcd->mode == DECON_MIPI_COMMAND_MODE) {
 		if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE, SEQ_TE_ON[0], 0) < 0)
 			dsim_err("fail to send SEQ_TE_ON command.\n");
