@@ -87,7 +87,7 @@ static struct nla_policy policies_build_type[] = {
 /**
  * Actual message type definition.
  */
-struct genl_ops scsc_ops[] = {
+const struct genl_ops scsc_ops[] = {
 	{
 		.cmd = EVENT_SCSC,
 		.flags = 0,
@@ -106,19 +106,25 @@ struct genl_ops scsc_ops[] = {
 
 /* The netlink family */
 static struct genl_family scsc_nlfamily = {
-	.id = GENL_ID_GENERATE, /* Don't bother with a hardcoded ID */
+	.id = 0, /* Don't bother with a hardcoded ID */
 	.name = "scsc_nl_family",     /* Have users key off the name instead */
 	.hdrsize = 0,           /* No private header */
 	.version = 1,
 	.maxattr = __ATTR_MAX,
+	.module = THIS_MODULE,
+	.ops    = scsc_ops,
+	.n_ops  = ARRAY_SIZE(scsc_ops),
+	.mcgrps = scsc_mcgrp,
+	.n_mcgrps = ARRAY_SIZE(scsc_mcgrp),
 };
 
 int scsc_wlbtd_init(void)
 {
 	int r = 0;
 	/* register the family so that wlbtd can bind */
-	r = genl_register_family_with_ops_groups(&scsc_nlfamily, scsc_ops,
-						scsc_mcgrp);
+	/*r = genl_register_family_with_ops_groups(&scsc_nlfamily, scsc_ops,
+	      scsc_mcgrp); */
+	r = genl_register_family(&scsc_nlfamily);
 	if (r) {
 		SCSC_TAG_ERR(WLBTD, "Failed to register family. (%d)\n", r);
 		return -1;
