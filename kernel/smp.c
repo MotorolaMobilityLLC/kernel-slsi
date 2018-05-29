@@ -238,6 +238,10 @@ static void flush_smp_call_function_queue(bool warn_cpu_offline)
 		smp_call_func_t func = csd->func;
 		void *info = csd->info;
 
+		/* This should be called by handle_IPI in smp.c */
+		if (warn_cpu_offline)
+			dbg_snapshot_irq(1, func, NULL, DSS_FLAG_IN);
+
 		/* Do we wait until *after* callback? */
 		if (csd->flags & CSD_FLAG_SYNCHRONOUS) {
 			func(info);

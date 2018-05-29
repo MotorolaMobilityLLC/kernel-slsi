@@ -2000,6 +2000,11 @@ menuconfig DEBUG_SNAPSHOT
 	bool "Debug SnapShot Support"
 	default n
 
+config DEBUG_SNAPSHOT_LINUX_BUILD
+	bool
+	depends on DEBUG_SNAPSHOT
+	default y
+
 config DEBUG_SNAPSHOT_CALLSTACK
 	int "shown callstack level"
 	depends on DEBUG_SNAPSHOT

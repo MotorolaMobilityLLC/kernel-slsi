@@ -23,7 +23,7 @@ extern void dbg_snapshot_task(int cpu, void *v_task);
 extern void dbg_snapshot_work(void *worker, void *v_task, void *fn, int en);
 extern void dbg_snapshot_cpuidle(char *modes, unsigned state, int diff, int en);
 extern void dbg_snapshot_suspend(void *fn, void *dev, int en);
-extern void dbg_snapshot_irq(int irq, void *fn, unsigned int val, int en);
+extern void dbg_snapshot_irq(int irq, void *fn, void *val, int en);
 extern int dbg_snapshot_try_enable(const char *name, unsigned long long duration);
 extern int dbg_snapshot_set_enable(const char *name, int en);
 extern int dbg_snapshot_get_enable(const char *name);
@@ -242,6 +242,7 @@ static inline void dbg_snapshot_spin_func(void) {do {wfi();} while(1);}
 
 /**
  * dsslog_flag - added log information supported.
+ * @DSS_FLAG_REQ: Generally, marking starting request something
  * @DSS_FLAG_IN: Generally, marking into the function
  * @DSS_FLAG_ON: Generally, marking the status not in, not out
  * @DSS_FLAG_OUT: Generally, marking come out the function
@@ -250,13 +251,14 @@ static inline void dbg_snapshot_spin_func(void) {do {wfi();} while(1);}
  * @DSS_FLAG_SOFTIRQ_TASKLET: Marking to pass the tasklet function
  */
 enum dsslog_flag {
-	DSS_FLAG_IN = 1,
-	DSS_FLAG_ON = 2,
-	DSS_FLAG_OUT = 3,
-	DSS_FLAG_SOFTIRQ = 10000,
-	DSS_FLAG_SOFTIRQ_HI_TASKLET = 10100,
-	DSS_FLAG_SOFTIRQ_TASKLET = 10200,
-	DSS_FLAG_CALL_TIMER_FN = 20000
+	DSS_FLAG_REQ			= 0,
+	DSS_FLAG_IN			= 1,
+	DSS_FLAG_ON			= 2,
+	DSS_FLAG_OUT			= 3,
+	DSS_FLAG_SOFTIRQ		= 10000,
+	DSS_FLAG_SOFTIRQ_HI_TASKLET	= 10100,
+	DSS_FLAG_SOFTIRQ_TASKLET	= 10200,
+	DSS_FLAG_CALL_TIMER_FN		= 20000
 };
 
 enum dsslog_freq_flag {

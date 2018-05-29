@@ -368,7 +368,7 @@ bool dbg_snapshot_dumper_one(void *v_dumper, char *line, size_t size, size_t *le
 	case DSS_FLAG_IRQ:
 	{
 		char irq_fn[KSYM_NAME_LEN];
-		int en, irq, preempt, val;
+		int en, irq;
 
 		array_size = ARRAY_SIZE(dss_log->irq[0]) - 1;
 		if (!dumper->active) {
@@ -381,15 +381,11 @@ bool dbg_snapshot_dumper_one(void *v_dumper, char *line, size_t size, size_t *le
 
 		lookup_symbol_name((unsigned long)dss_log->irq[cpu][idx].fn, irq_fn);
 		irq = dss_log->irq[cpu][idx].irq;
-		preempt = dss_log->irq[cpu][idx].preempt;
-		val = dss_log->irq[cpu][idx].val;
 		en = dss_log->irq[cpu][idx].en;
 
-		*len = snprintf(line, size, "[%8lu.%09lu][%04d:CPU%u] irq:%6d,  irq_fn:%32s,  "
-					    "preempt:%6d,  val:%6d,  %3s\n",
+		*len = snprintf(line, size, "[%8lu.%09lu][%04d:CPU%u] irq:%6d,  irq_fn:%32s,  %3s\n",
 						(unsigned long)ts, rem_nsec / NSEC_PER_USEC, idx, cpu,
-						irq, irq_fn, preempt, val,
-						en == DSS_FLAG_IN ? "IN" : "OUT");
+						irq, irq_fn, en == DSS_FLAG_IN ? "IN" : "OUT");
 		break;
 	}
 #ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
@@ -641,7 +637,7 @@ void dbg_snapshot_task(int cpu, void *v_task)
 				    (ARRAY_SIZE(dss_log->task[0]) - 1);
 
 		dss_log->task[cpu][i].time = cpu_clock(cpu);
-		dss_log->task[cpu][i].sp = (unsigned long) current_stack_pointer;
+		dss_log->task[cpu][i].sp = (unsigned long)current_stack_pointer;
 		dss_log->task[cpu][i].task = (struct task_struct *)v_task;
 		strncpy(dss_log->task[cpu][i].task_comm,
 			dss_log->task[cpu][i].task->comm,
@@ -870,7 +866,7 @@ void dbg_snapshot_thermal(void *data, unsigned int temp, char *name, unsigned in
 }
 #endif
 
-void dbg_snapshot_irq(int irq, void *fn, unsigned int val, int en)
+void dbg_snapshot_irq(int irq, void *fn, void *val, int en)
 {
 	struct dbg_snapshot_item *item = &dss_items[dss_desc.kevents_num];
 	unsigned long flags;
@@ -896,8 +892,7 @@ void dbg_snapshot_irq(int irq, void *fn, unsigned int val, int en)
 		dss_log->irq[cpu][i].sp = (unsigned long) current_stack_pointer;
 		dss_log->irq[cpu][i].irq = irq;
 		dss_log->irq[cpu][i].fn = (void *)fn;
-		dss_log->irq[cpu][i].preempt = preempt_count();
-		dss_log->irq[cpu][i].val = val;
+		dss_log->irq[cpu][i].action = (struct irqaction *)val;
 		dss_log->irq[cpu][i].en = en;
 	}
 	pure_arch_local_irq_restore(flags);

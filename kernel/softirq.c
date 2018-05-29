@@ -282,9 +282,9 @@ restart:
 		kstat_incr_softirqs_this_cpu(vec_nr);
 
 		trace_softirq_entry(vec_nr);
-		dbg_snapshot_irq(DSS_FLAG_SOFTIRQ, h->action, irqs_disabled(), DSS_FLAG_IN);
+		dbg_snapshot_irq(DSS_FLAG_SOFTIRQ, h->action, NULL, DSS_FLAG_IN);
 		h->action(h);
-		dbg_snapshot_irq(DSS_FLAG_SOFTIRQ, h->action, irqs_disabled(), DSS_FLAG_OUT);
+		dbg_snapshot_irq(DSS_FLAG_SOFTIRQ, h->action, NULL, DSS_FLAG_OUT);
 		trace_softirq_exit(vec_nr);
 		if (unlikely(prev_count != preempt_count())) {
 			pr_err("huh, entered softirq %u %s %p with preempt_count %08x, exited with %08x?\n",
@@ -510,10 +510,10 @@ static __latent_entropy void tasklet_action(struct softirq_action *a)
 							&t->state))
 					BUG();
 				dbg_snapshot_irq(DSS_FLAG_SOFTIRQ_TASKLET,
-						t->func, irqs_disabled(), DSS_FLAG_IN);
+						t->func, NULL, DSS_FLAG_IN);
 				t->func(t->data);
 				dbg_snapshot_irq(DSS_FLAG_SOFTIRQ_TASKLET,
-						t->func, irqs_disabled(), DSS_FLAG_OUT);
+						t->func, NULL, DSS_FLAG_OUT);
 				tasklet_unlock(t);
 				continue;
 			}
@@ -550,10 +550,10 @@ static __latent_entropy void tasklet_hi_action(struct softirq_action *a)
 							&t->state))
 					BUG();
 				dbg_snapshot_irq(DSS_FLAG_SOFTIRQ_HI_TASKLET,
-						t->func, irqs_disabled(), DSS_FLAG_IN);
+						t->func, NULL, DSS_FLAG_IN);
 				t->func(t->data);
 				dbg_snapshot_irq(DSS_FLAG_SOFTIRQ_HI_TASKLET,
-						t->func, irqs_disabled(), DSS_FLAG_OUT);
+						t->func, NULL, DSS_FLAG_OUT);
 				tasklet_unlock(t);
 				continue;
 			}
