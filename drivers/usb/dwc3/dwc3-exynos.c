@@ -30,6 +30,9 @@
 #include <linux/of_platform.h>
 #include <linux/regulator/consumer.h>
 #include <linux/workqueue.h>
+#if defined(CONFIG_TYPEC)
+#include <linux/usb/typec.h>
+#endif
 
 #include <linux/io.h>
 #include <linux/usb/otg-fsm.h>
@@ -45,6 +48,16 @@ struct dwc3_exynos_rsw {
 	struct work_struct	work;
 };
 
+#if defined(CONFIG_TYPEC)
+struct intf_typec {
+	/* struct mutex lock; */ /* device lock */
+	struct device *dev;
+	struct typec_port *port;
+	struct typec_capability cap;
+	struct typec_partner *partner;
+};
+#endif
+
 struct dwc3_exynos {
 	struct platform_device	*usb2_phy;
 	struct platform_device	*usb3_phy;
@@ -58,6 +71,9 @@ struct dwc3_exynos {
 	int			idle_ip_index;
 
 	struct dwc3_exynos_rsw	rsw;
+#if defined(CONFIG_TYPEC)
+	struct intf_typec	*typec;
+#endif
 };
 
 void dwc3_otg_run_sm(struct otg_fsm *fsm);
@@ -407,8 +423,10 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	struct dwc3_exynos	*exynos;
 	struct device		*dev = &pdev->dev;
 	struct device_node	*node = dev->of_node;
-
 	int			ret;
+#if defined(CONFIG_TYPEC)
+	struct intf_typec	*typec;
+#endif
 
 	pr_info("%s: +++\n", __func__);
 	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
@@ -491,6 +509,28 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		goto populate_err;
 	}
 
+#if defined(CONFIG_TYPEC)
+	typec = devm_kzalloc(dev, sizeof(*typec), GFP_KERNEL);
+	if (!typec)
+		return -ENOMEM;
+
+	/* mutex_init(&md05->lock); */
+	typec->dev = dev;
+
+	typec->cap.type = TYPEC_PORT_DRP;
+	typec->cap.revision = USB_TYPEC_REV_1_1;
+	typec->cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+
+	typec->port = typec_register_port(dev, &typec->cap);
+	if (!typec->port)
+		return -ENODEV;
+
+	typec_set_data_role(typec->port, TYPEC_DEVICE);
+	typec_set_pwr_role(typec->port, TYPEC_SINK);
+	typec_set_pwr_opmode(typec->port, TYPEC_PWR_MODE_USB);
+	exynos->typec = typec;
+#endif
+
 	pr_info("%s: ---\n", __func__);
 	return 0;
 
@@ -531,6 +571,11 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 		regulator_disable(exynos->vdd33);
 	if (exynos->vdd10)
 		regulator_disable(exynos->vdd10);
+
+#if defined(CONFIG_TYPEC)
+	typec_unregister_partner(exynos->typec->partner);
+	typec_unregister_port(exynos->typec->port);
+#endif
 
 	return 0;
 }
