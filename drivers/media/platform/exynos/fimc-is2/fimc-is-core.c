@@ -603,6 +603,8 @@ static ssize_t store_pattern_en(struct device *dev,
 {
 	int ret = 0;
 	unsigned long cmd;
+	struct fimc_is_core *core =
+		(struct fimc_is_core *)platform_get_drvdata(to_platform_device(dev));
 
 	ret = kstrtoul(buf, 0, &cmd);
 	if (ret)
@@ -611,7 +613,10 @@ static ssize_t store_pattern_en(struct device *dev,
 	switch (cmd) {
 	case 0:
 	case 1:
-		sysfs_debug.pattern_en = cmd;
+		if (atomic_read(&core->rsccount))
+			pr_warn("%s: patter generator cannot be enabled while camera is running.\n", __func__);
+		else
+			sysfs_debug.pattern_en = cmd;
 		break;
 	default:
 		pr_warn("%s: invalid paramter (%lu)\n", __func__, cmd);
