@@ -1683,7 +1683,9 @@ void mxman_init(struct mxman *mxman, struct scsc_mx *mx)
 #endif
 	fw_crc_wq_init(mxman);
 	failure_wq_init(mxman);
+#ifdef CONFIG_SCSC_WLBTD
 	wlbtd_wq_init(mxman);
+#endif
 	mutex_init(&mxman->mxman_mutex);
 	init_completion(&mxman->recovery_completion);
 	wake_lock_init(&mxman->recovery_wake_lock, WAKE_LOCK_SUSPEND, "mxman_recovery");
@@ -1703,7 +1705,9 @@ void mxman_deinit(struct mxman *mxman)
 	mxproc_remove_info_proc_dir(&mxman->mxproc);
 	fw_crc_wq_deinit(mxman);
 	failure_wq_deinit(mxman);
+#ifdef CONFIG_SCSC_WLBTD
 	wlbtd_wq_deinit(mxman);
+#endif
 	wake_lock_destroy(&mxman->recovery_wake_lock);
 	mutex_destroy(&mxman->mxman_mutex);
 }
