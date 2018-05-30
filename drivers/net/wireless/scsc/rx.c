@@ -521,7 +521,7 @@ void slsi_scan_complete(struct slsi_dev *sdev, struct net_device *dev, u16 scan_
 	}
 
 	if (scan_id == SLSI_SCAN_SCHED_ID)
-		cfg80211_sched_scan_results(sdev->wiphy);
+		cfg80211_sched_scan_results(sdev->wiphy, 0);
 	SLSI_MUTEX_UNLOCK(ndev_vif->scan_result_mutex);
 }
 
@@ -822,7 +822,7 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
 	enum ieee80211_privacy bss_privacy;
 #endif
-
+	struct cfg80211_roam_info roam_info = {};
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_roamed_ind(vif:%d) Roaming to %pM\n",
@@ -921,6 +921,16 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 		WARN_ON(assoc_rsp_ie_len && !assoc_rsp_ie);
 
 		SLSI_NET_DBG3(dev, SLSI_MLME, "cfg80211_roamed()\n");
+
+		/* TODO: add proper parameters */
+		/*roam_info.channel	= */
+		/*roam_info.bssid		= */
+		roam_info.req_ie	= assoc_ie;
+		roam_info.req_ie_len	= assoc_ie_len;
+		roam_info.resp_ie	= assoc_rsp_ie;
+		roam_info.resp_ie_len	= assoc_rsp_ie_len;
+		cfg80211_roamed(dev, &roam_info, GFP_KERNEL);
+#if 0
 		cfg80211_roamed(dev,
 				ndev_vif->sta.sta_bss->channel,
 				peer->address,
@@ -929,6 +939,7 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 				assoc_rsp_ie,
 				assoc_rsp_ie_len,
 				GFP_KERNEL);
+#endif
 #ifdef CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD
 		if (slsi_send_roam_vendor_event(sdev, peer->address, assoc_ie, assoc_ie_len,
 						assoc_rsp_ie, assoc_rsp_ie_len, !temporal_keys_required) != 0) {
@@ -1920,7 +1931,7 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 
 		ndev_vif->stats.rx_packets++;
 		ndev_vif->stats.rx_bytes += skb->len;
-		dev->last_rx = jiffies;
+		/* dev->last_rx = jiffies; */
 
 		skb->protocol = eth_type_trans(skb, dev);
 		slsi_dbg_untrack_skb(skb);
