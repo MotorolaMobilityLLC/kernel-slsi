@@ -24,16 +24,14 @@ static uint keep_alive_period = SLSI_P2PGO_KEEP_ALIVE_PERIOD_SEC;
 module_param(keep_alive_period, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(keep_alive_period, "default is 10 seconds");
 
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 struct wireless_dev *slsi_add_virtual_intf(struct wiphy        *wiphy,
 					   const char          *name,
 					   unsigned char       name_assign_type,
 					   enum nl80211_iftype type,
 					   struct vif_params   *params)
 {
-#if 0
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
 struct wireless_dev *slsi_add_virtual_intf(struct wiphy        *wiphy,
 					   const char          *name,
 					   unsigned char       name_assign_type,
@@ -41,14 +39,13 @@ struct wireless_dev *slsi_add_virtual_intf(struct wiphy        *wiphy,
 					   u32                 *flags,
 					   struct vif_params   *params)
 {
-#else
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 struct wireless_dev *slsi_add_virtual_intf(struct wiphy        *wiphy,
 					   const char          *name,
 					   enum nl80211_iftype type,
 					   u32                 *flags,
 					   struct vif_params   *params)
 {
-#endif
 #else
 struct net_device *slsi_add_ virtual_intf(struct wiphy        *wiphy,
 					 char                *name,
@@ -56,12 +53,14 @@ struct net_device *slsi_add_ virtual_intf(struct wiphy        *wiphy,
 					 u32                 *flags,
 					 struct vif_params   *params)
 {
-#endif  /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9)) */
 #endif
+
 	struct net_device *dev = NULL;
 	struct netdev_vif *ndev_vif = NULL;
 
-     /*	SLSI_UNUSED_PARAMETER(flags); */
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 11, 0))
+	SLSI_UNUSED_PARAMETER(flags);
+#endif
 	SLSI_NET_DBG1(dev, SLSI_CFG80211, "Intf name:%d, type:%d, macaddr:%pM\n", name, type, params->macaddr);
 	dev = slsi_new_interface_create(wiphy, name, type, params);
 	if (!dev)
@@ -100,16 +99,27 @@ int slsi_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 int slsi_change_virtual_intf(struct wiphy *wiphy,
 			     struct net_device *dev,
-			     enum nl80211_iftype type, 
-			     /* u32 *flags, */
+			     enum nl80211_iftype type,
 			     struct vif_params *params)
 {
+#else
+int slsi_change_virtual_intf(struct wiphy *wiphy,
+			     struct net_device *dev,
+			     enum nl80211_iftype type,
+			     u32 *flags,
+			     struct vif_params *params)
+{
+#endif
+
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	int               r = 0;
 
-	/* SLSI_UNUSED_PARAMETER(flags); */
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 11, 0))
+	SLSI_UNUSED_PARAMETER(flags);
+#endif
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
@@ -661,8 +671,13 @@ exit:
 	return r;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 int slsi_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev, u64 reqid)
 {
+#else
+int slsi_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
+{
+#endif
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev   *sdev = SDEV_FROM_WIPHY(wiphy);
 	int               r = 0;
@@ -3186,8 +3201,11 @@ struct slsi_dev                           *slsi_cfg80211_new(struct device *dev)
 	wiphy->max_scan_ssids = 10;
 	wiphy->max_scan_ie_len = 2048;
 
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 11, 0))
 	/* Scheduled scanning support */
-	/* wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN; */
+	wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+#endif
+
 	/* Match the maximum number of SSIDs that could be requested from wpa_supplicant */
 	wiphy->max_sched_scan_ssids = 16;
 

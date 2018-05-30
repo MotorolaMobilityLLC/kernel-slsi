@@ -627,7 +627,11 @@ void slsi_scan_cleanup(struct slsi_dev *sdev, struct net_device *dev)
 #endif
 
 		if (ndev_vif->scan[i].sched_req && i == SLSI_SCAN_SCHED_ID)
-			cfg80211_sched_scan_stopped(sdev->wiphy, 0);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
+			cfg80211_sched_scan_stopped(sdev->wiphy, SLSI_SCAN_SCHED_ID);
+#else
+			cfg80211_sched_scan_stopped(sdev->wiphy);
+#endif
 
 		ndev_vif->scan[i].scan_req = NULL;
 		ndev_vif->scan[i].sched_req = NULL;
