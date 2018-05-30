@@ -636,7 +636,7 @@ int slsi_sched_scan_start(struct wiphy                       *wiphy,
 	if (r != 0) {
 		if (r > 0) {
 			SLSI_NET_DBG2(dev, SLSI_CFG80211, "Nothing to be done\n");
-			cfg80211_sched_scan_stopped(wiphy);
+			cfg80211_sched_scan_stopped(wiphy, 0);
 			r = 0;
 		} else {
 			SLSI_NET_DBG2(dev, SLSI_CFG80211, "add_scan error: %d\n", r);
