@@ -79,6 +79,7 @@ struct dbg_snapshot_log {
 		void *task;
 #endif
 		char task_comm[TASK_COMM_LEN];
+		int pid;
 	} task[DSS_NR_CPUS][DSS_LOG_MAX_NUM];
 
 	struct __work_log {
@@ -204,6 +205,7 @@ struct dbg_snapshot_log {
 	struct __freq_log {
 		unsigned long long time;
 		int cpu;
+		int type;
 		char *freq_name;
 		unsigned long old_freq;
 		unsigned long target_freq;

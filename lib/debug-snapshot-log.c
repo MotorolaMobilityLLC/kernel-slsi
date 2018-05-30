@@ -639,6 +639,7 @@ void dbg_snapshot_task(int cpu, void *v_task)
 		dss_log->task[cpu][i].time = cpu_clock(cpu);
 		dss_log->task[cpu][i].sp = (unsigned long)current_stack_pointer;
 		dss_log->task[cpu][i].task = (struct task_struct *)v_task;
+		dss_log->task[cpu][i].pid = (int)((struct task_struct *)v_task)->pid;
 		strncpy(dss_log->task[cpu][i].task_comm,
 			dss_log->task[cpu][i].task->comm,
 			TASK_COMM_LEN - 1);
@@ -1096,6 +1097,7 @@ void dbg_snapshot_freq(int type, unsigned long old_freq, unsigned long target_fr
 		dss_log->freq[i].time = cpu_clock(cpu);
 		dss_log->freq[i].cpu = cpu;
 		dss_log->freq[i].freq_name = dss_freq_name[type];
+		dss_log->freq[i].type = type;
 		dss_log->freq[i].old_freq = old_freq;
 		dss_log->freq[i].target_freq = target_freq;
 		dss_log->freq[i].en = en;
