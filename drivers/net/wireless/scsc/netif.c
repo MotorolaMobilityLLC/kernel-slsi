@@ -822,7 +822,7 @@ static netdev_tx_t slsi_net_hw_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
-	known_users = atomic_read(&skb->users);
+	known_users = refcount_read(&skb->users);
 #endif
 
 #ifndef CONFIG_ARM
@@ -884,7 +884,7 @@ evaluate:
 		} else {
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 			WARN_ON(known_users &&
-				atomic_read(&skb->users) != known_users);
+				refcount_read(&skb->users) != known_users);
 #endif
 			if (original_skb)
 				slsi_kfree_skb(original_skb);
