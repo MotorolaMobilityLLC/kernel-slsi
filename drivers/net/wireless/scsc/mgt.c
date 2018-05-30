@@ -627,7 +627,7 @@ void slsi_scan_cleanup(struct slsi_dev *sdev, struct net_device *dev)
 #endif
 
 		if (ndev_vif->scan[i].sched_req && i == SLSI_SCAN_SCHED_ID)
-			cfg80211_sched_scan_stopped(sdev->wiphy);
+			cfg80211_sched_scan_stopped(sdev->wiphy, 0);
 
 		ndev_vif->scan[i].scan_req = NULL;
 		ndev_vif->scan[i].sched_req = NULL;
