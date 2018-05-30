@@ -194,6 +194,47 @@ int cal_dll_apm_enable(void)
 	return 0;
 }
 
+int cal_dll_set_rate(unsigned int rate)
+{
+	u32 timeout = 0;
+	u32 n_dco = 0;
+
+	if (!dll_apm_base || !sysreg_apm_base)
+		return -EINVAL;
+
+	n_dco = (rate / (2 * 32768)) - 1;
+
+	/* DLL_APM_N_DCO settings */
+	__raw_writel(n_dco, dll_apm_base + 0x4);
+
+	/* Wait for DLL lock */
+	while (1) {
+		if (__raw_readl(sysreg_apm_base + 0x0444) & 0x1)
+			break;
+		timeout++;
+		usleep_range(10, 11);
+		if (timeout > 1000) {
+			pr_err("%s, timed out during dll locking\n", __func__);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
+unsigned int cal_dll_get_rate(void)
+{
+	u32 n_dco = 0, rate = 0;
+
+	if (!dll_apm_base)
+		return -EINVAL;
+
+	n_dco = __raw_readl(dll_apm_base + 0x4) & 0x3fff;
+	rate = (n_dco + 1) * (2 * 32768);
+
+	return rate;
+}
+
 int cal_dll_apm_disable(void)
 {
 	u32 reg = 0;
