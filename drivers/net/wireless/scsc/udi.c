@@ -1096,8 +1096,8 @@ static void slsi_cdev_destroy(struct slsi_dev *sdev)
 
 	kobj = &pdev->cdev.kobj;
 	kref = &kobj->kref;
-	while (atomic_read(&kref->refcount) > 1) {
-		SLSI_WARN(sdev, "UDI client File op release not completed yet! (count=%d)\n", atomic_read(&kref->refcount));
+	while (refcount_read(&kref->refcount) > 1) {
+		SLSI_WARN(sdev, "UDI client File op release not completed yet! (count=%d)\n", refcount_read(&kref->refcount));
 		msleep(50);
 	}
 
