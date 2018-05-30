@@ -1096,11 +1096,17 @@ static void slsi_cdev_destroy(struct slsi_dev *sdev)
 
 	kobj = &pdev->cdev.kobj;
 	kref = &kobj->kref;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
 	while (refcount_read(&kref->refcount) > 1) {
 		SLSI_WARN(sdev, "UDI client File op release not completed yet! (count=%d)\n", refcount_read(&kref->refcount));
 		msleep(50);
 	}
-
+#else
+	while (atomic_read(&kref->refcount) > 1) {
+		SLSI_WARN(sdev, "UDI client File op release not completed yet! (count=%d)\n", atomic_read(&kref->refcount));
+		msleep(50);
+	}
+#endif
 	device_destroy(class, pdev->cdev.dev);
 	cdev_del(&pdev->cdev);
 	sdev->uf_cdev = NULL;

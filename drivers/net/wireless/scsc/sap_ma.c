@@ -177,7 +177,6 @@ static int slsi_rx_amsdu_deaggregate(struct net_device *dev, struct sk_buff *skb
 		ndev_vif->stats.rx_bytes += subframe->len;
 		ndev_vif->stats.rx_packets++;
 
-		/* dev->last_rx = jiffies; */
 		SCSC_HIP4_SAMPLER_TCP_DECODE(ndev_vif->sdev, dev, skb->data, true);
 		subframe->protocol = eth_type_trans(subframe, dev);
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
@@ -344,7 +343,6 @@ static int slsi_rx_data_process_skb(struct slsi_dev *sdev, struct net_device *de
 
 	ndev_vif->stats.rx_packets++;
 	ndev_vif->stats.rx_bytes += (*skb)->len;
-	/* dev->last_rx = jiffies; */
 	ndev_vif->rx_packets[trafic_q]++;
 
 	/* Intra BSS */

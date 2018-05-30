@@ -822,7 +822,11 @@ static netdev_tx_t slsi_net_hw_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
 	known_users = refcount_read(&skb->users);
+#else
+	known_users = atomic_read(&skb->users);
+#endif
 #endif
 
 #ifndef CONFIG_ARM
@@ -883,8 +887,11 @@ evaluate:
 			r = NETDEV_TX_BUSY;
 		} else {
 #ifdef CONFIG_SCSC_WLAN_DEBUG
-			WARN_ON(known_users &&
-				refcount_read(&skb->users) != known_users);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+			WARN_ON(known_users && refcount_read(&skb->users) != known_users);
+#else
+			WARN_ON(known_users && atomic_read(&skb->users) != known_users);
+#endif
 #endif
 			if (original_skb)
 				slsi_kfree_skb(original_skb);
@@ -1028,7 +1035,11 @@ static void slsi_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->netdev_ops = &slsi_netdev_ops;
-	dev->priv_destructor = free_netdev;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 9))
+	dev->needs_free_netdev = true;
+#else
+        dev->destructor = free_netdev;
+#endif	
 }
 
 static int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
