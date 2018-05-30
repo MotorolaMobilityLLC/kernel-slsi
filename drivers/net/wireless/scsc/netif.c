@@ -1,4 +1,4 @@
-/*****************************************************************************
+/*
  *
  * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
  *
@@ -1028,7 +1028,7 @@ static void slsi_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->netdev_ops = &slsi_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->priv_destructor = free_netdev;
 }
 
 static int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
