@@ -4020,7 +4020,7 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 #ifdef CONFIG_SCSC_WLAN_SINGLE_ANTENNA
 		if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
 			*channel_switched_flag = 1;
-			settings->chandef.chan = __ieee80211_get_channel(wiphy, sta_frequency);
+			settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 			settings->chandef.center_freq1 = sta_frequency;
 		}
 #else
@@ -4029,12 +4029,12 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 		    !(slsi_check_if_channel_restricted_already(sdev,
 		    ieee80211_frequency_to_channel(settings->chandef.chan->center_freq))) &&
 		    slsi_if_valid_wifi_sharing_channel(sdev, settings->chandef.chan->center_freq)) {
-			settings->chandef.chan = __ieee80211_get_channel(wiphy, settings->chandef.chan->center_freq);
+			settings->chandef.chan = ieee80211_get_channel(wiphy, settings->chandef.chan->center_freq);
 			settings->chandef.center_freq1 = settings->chandef.chan->center_freq;
 		} else {
 			if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
 				*channel_switched_flag = 1;
-				settings->chandef.chan = __ieee80211_get_channel(wiphy, sta_frequency);
+				settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 				settings->chandef.center_freq1 = sta_frequency;
 			}
 		}
@@ -4046,7 +4046,7 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 #ifdef CONFIG_SCSC_WLAN_SINGLE_ANTENNA
 		if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
 			*channel_switched_flag = 1;
-			settings->chandef.chan = __ieee80211_get_channel(wiphy, sta_frequency);
+			settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 			settings->chandef.center_freq1 = sta_frequency;
 		}
 		/* Single antenna end */
@@ -4058,11 +4058,11 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 			    slsi_if_valid_wifi_sharing_channel(sdev, sta_frequency)) {
 				if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
 					*channel_switched_flag = 1;
-					settings->chandef.chan = __ieee80211_get_channel(wiphy, sta_frequency);
+					settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 				}
 			} else {
 				*channel_switched_flag = 1;
-				settings->chandef.chan = __ieee80211_get_channel(wiphy, SLSI_2G_CHANNEL_ONE);
+				settings->chandef.chan = ieee80211_get_channel(wiphy, SLSI_2G_CHANNEL_ONE);
 				settings->chandef.center_freq1 = SLSI_2G_CHANNEL_ONE;
 			}
 		}
