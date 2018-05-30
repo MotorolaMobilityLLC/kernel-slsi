@@ -154,8 +154,8 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	spin_release(&lock->dep_map, 1, _RET_IP_);
-	do_raw_spin_unlock(lock);
 	dbg_snapshot_spinlock(lock, 3);
+	do_raw_spin_unlock(lock);
 	preempt_enable();
 }
 
