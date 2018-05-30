@@ -2029,11 +2029,15 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (ndev_vif->chandef->width <= NL80211_CHAN_WIDTH_20) {
 		/* Enable LDPC, SGI20 and SGI40 for both SoftAP & P2PGO if firmware supports */
 		if (cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, settings->beacon.tail, settings->beacon.tail_len)) {
-			u8 enforce_ht_cap = sdev->fw_ht_cap[0] & (IEEE80211_HT_CAP_LDPC_CODING |
+			u8 enforce_ht_cap1 = sdev->fw_ht_cap[0] & (IEEE80211_HT_CAP_LDPC_CODING |
 								  IEEE80211_HT_CAP_SGI_20 |
 								  IEEE80211_HT_CAP_SGI_40);
+			u8 enforce_ht_cap2 = sdev->fw_ht_cap[1] & (IEEE80211_HT_CAP_RX_STBC >> 8);
+
 			slsi_modify_ies(dev, WLAN_EID_HT_CAPABILITY, (u8 *)settings->beacon.tail,
-					settings->beacon.tail_len, 2, enforce_ht_cap);
+					settings->beacon.tail_len, 2, enforce_ht_cap1);
+			slsi_modify_ies(dev, WLAN_EID_HT_CAPABILITY, (u8 *)settings->beacon.tail,
+					settings->beacon.tail_len, 3, enforce_ht_cap2);
 		}
 	} else if (cfg80211_chandef_valid(ndev_vif->chandef)) {
 		u8 *ht_operation_ie;
@@ -2066,12 +2070,16 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		 */
 		if (cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, settings->beacon.tail,
 				     settings->beacon.tail_len)) {
-			u8 enforce_ht_cap = sdev->fw_ht_cap[0] & (IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+			u8 enforce_ht_cap1 = sdev->fw_ht_cap[0] & (IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 								  IEEE80211_HT_CAP_SGI_20 |
 								  IEEE80211_HT_CAP_SGI_40 |
 								  IEEE80211_HT_CAP_LDPC_CODING);
+			u8 enforce_ht_cap2 = sdev->fw_ht_cap[1] & (IEEE80211_HT_CAP_RX_STBC >> 8);
+
 			slsi_modify_ies(dev, WLAN_EID_HT_CAPABILITY, (u8 *)settings->beacon.tail,
-					settings->beacon.tail_len, 2, enforce_ht_cap);
+					settings->beacon.tail_len, 2, enforce_ht_cap1);
+			slsi_modify_ies(dev, WLAN_EID_HT_CAPABILITY, (u8 *)settings->beacon.tail,
+					settings->beacon.tail_len, 3, enforce_ht_cap2);
 		}
 	}
 #endif
