@@ -27,24 +27,34 @@ int main(int argc, char *argv[])
 	printf("log = {}\n");
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
-			printf("log[%.9f] = { 'type' : 'sched', 'cpu' : %d, 'comm' : '%s'}\n",
-					p->task[i][j].time/1.0e9, i, p->task[i][j].task_comm);
+			printf("log[%.9f] = { 'type' : 'sched', 'cpu' : %d, 'comm' : '%s', 'pid' : %d}\n",
+					p->task[i][j].time/1.0e9,
+					i,
+					p->task[i][j].task_comm,
+					p->task[i][j].pid);
 			if (p->task[i][j].time == 0)
 				break;
 		}
 	}
 
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
-		printf("log[%.9f] = {  'type' : 'freq', 'cpu' : %d, 'freq' : %lu }\n",
-				p->freq[i].time/1.0e9, p->freq[i].cpu, p->freq[i].target_freq);
+		printf("log[%.9f] = {  'type' : 'freq', 'cluster' : %d, 'freq' : %lu }\n",
+				p->freq[i].time/1.0e9,
+				p->freq[i].type,
+				p->freq[i].target_freq);
 		if (p->freq[i].time == 0)
 			break;
 	}
 
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
-			printf("log[%.9f] = { 'type' : 'irq', 'cpu' : %d, 'num' : '%d'}\n",
-					p->irq[i][j].time/1.0e9, i, p->irq[i][j].irq);
+			printf("log[%.9f] = { 'type' : 'irq', 'cpu' : %d, 'num' : %d,"
+					"'en' : %d, 'func' : '%p'}\n",
+					p->irq[i][j].time/1.0e9,
+					i,
+					p->irq[i][j].irq,
+					p->irq[i][j].en,
+					p->irq[i][j].fn);
 			if (p->irq[i][j].time == 0)
 				break;
 		}
@@ -52,8 +62,10 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
-			printf("log[%.9f] = { 'type' : 'cpuidle', 'cpu' : %d, 'state' : '%d'}\n",
-					p->cpuidle[i][j].time/1.0e9, i, p->cpuidle[i][j].state);
+			printf("log[%.9f] = { 'type' : 'cpuidle', 'cpu' : %d, 'state' : %d}\n",
+					p->cpuidle[i][j].time/1.0e9,
+					i,
+					p->cpuidle[i][j].state);
 			if (p->cpuidle[i][j].time == 0)
 				break;
 		}
