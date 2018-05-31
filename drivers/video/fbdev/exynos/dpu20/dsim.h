@@ -232,6 +232,7 @@ struct dsim_device {
 
 	int total_underrun_cnt;
 	struct backlight_device *bd;
+	int idle_ip_index;
 };
 
 struct dsim_lcd_driver {

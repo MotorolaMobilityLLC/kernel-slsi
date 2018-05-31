@@ -371,7 +371,7 @@
 				  "pd-g3d",			/* [46] pd-g3d  */
 				  "pd-dispaud",			/* [47] pd-dispaud  */
 				  "pd-mfc",			/* [48] pd-mfc   */
-				  "148b0000.decon_f";		/* [49] decon_f */
+				  "148e0000.dsim";		/* [49] dsim_0 */
 
 			fix-idle-ip = "acpm_dvfs";
 			fix-idle-ip-index = <96>;
