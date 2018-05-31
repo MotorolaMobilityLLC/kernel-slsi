@@ -130,6 +130,7 @@ struct fimc_is_device_csi_dma {
 	spinlock_t			barrier;
 };
 
+void csi_frame_start_inline(struct fimc_is_device_csi *csi);
 int __must_check fimc_is_csi_dma_probe(struct fimc_is_device_csi_dma *csi_dma, struct platform_device *pdev);
 
 int __must_check fimc_is_csi_probe(void *parent, u32 instance);

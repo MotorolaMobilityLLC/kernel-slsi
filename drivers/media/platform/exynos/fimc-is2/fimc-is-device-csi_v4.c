@@ -48,7 +48,7 @@ static enum hrtimer_restart csis_early_buf_done(struct hrtimer *timer)
 }
 #endif
 
-static inline void csi_frame_start_inline(struct fimc_is_device_csi *csi)
+inline void csi_frame_start_inline(struct fimc_is_device_csi *csi)
 {
 	/* frame start interrupt */
 	csi->sw_checker = EXPECT_FRAME_END;
