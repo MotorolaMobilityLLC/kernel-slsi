@@ -41,22 +41,6 @@ struct fpsimd_state {
 	unsigned int cpu;
 };
 
-struct fpsimd_kernel_state {
-	__uint128_t vregs[32];
-	u32 fpsr;
-	u32 fpcr;
-	/*
-	 * indicate the depth of using FP/SIMD registers in kernel mode.
-	 * above kernel state should be preserved at first time
-	 * before FP/SIMD registers be used by other tasks
-	 * and the state should be restored before they be used by own.
-	 *
-	 * a kernel thread which uses FP/SIMD registers have to
-	 * set this depth and it could utilize for a tasks executes
-	 * some NEON instructions without preemption disable.
-	 */
-	atomic_t depth;
-};
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
@@ -86,12 +70,6 @@ extern void fpsimd_flush_task_state(struct task_struct *target);
 /* For use by EFI runtime services calls only */
 extern void __efi_fpsimd_begin(void);
 extern void __efi_fpsimd_end(void);
-
-void fpsimd_set_task_using(struct task_struct *t);
-void fpsimd_clr_task_using(struct task_struct *t);
-
-void fpsimd_get(void);
-void fpsimd_put(void);
 
 #endif
 
