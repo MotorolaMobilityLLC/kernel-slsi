@@ -225,7 +225,7 @@ struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct ion_buffer *buffer = attachment->dmabuf->priv;
 
-	if (ion_buffer_cached(buffer))
+	if (ion_buffer_cached(buffer) && direction != DMA_NONE)
 		dma_sync_sg_for_device(attachment->dev, buffer->sg_table->sgl,
 				       buffer->sg_table->nents, direction);
 
@@ -238,7 +238,7 @@ void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct ion_buffer *buffer = attachment->dmabuf->priv;
 
-	if (ion_buffer_cached(buffer))
+	if (ion_buffer_cached(buffer) && direction != DMA_NONE)
 		dma_sync_sg_for_cpu(attachment->dev, table->sgl,
 				    table->nents, direction);
 }
