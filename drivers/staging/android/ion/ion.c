@@ -368,23 +368,12 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 		mutex_unlock(&buffer->lock);
 	}
 
-	if (!ion_buffer_cached(buffer))
-		return 0;
-
 	mutex_lock(&dmabuf->lock);
-	if (IS_ENABLED(CONFIG_ION_EXYNOS)) {
-		if (!list_empty(&dmabuf->attachments))
-			dma_sync_sg_for_cpu(buffer->dev->dev.this_device,
-					    buffer->sg_table->sgl,
-					    buffer->sg_table->orig_nents,
-					    direction);
-	} else {
-		list_for_each_entry(att, &dmabuf->attachments, node) {
-			struct sg_table *table = att->priv;
+	list_for_each_entry(att, &dmabuf->attachments, node) {
+		struct sg_table *table = att->priv;
 
-			dma_sync_sg_for_cpu(att->dev, table->sgl, table->nents,
-					    direction);
-		}
+		dma_sync_sg_for_cpu(att->dev, table->sgl, table->nents,
+				    direction);
 	}
 	mutex_unlock(&dmabuf->lock);
 
@@ -403,23 +392,12 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 		mutex_unlock(&buffer->lock);
 	}
 
-	if (!ion_buffer_cached(buffer))
-		return 0;
-
 	mutex_lock(&dmabuf->lock);
-	if (IS_ENABLED(CONFIG_ION_EXYNOS)) {
-		if (!list_empty(&dmabuf->attachments))
-			dma_sync_sg_for_device(buffer->dev->dev.this_device,
-					       buffer->sg_table->sgl,
-					       buffer->sg_table->orig_nents,
-					       direction);
-	} else {
-		list_for_each_entry(att, &dmabuf->attachments, node) {
-			struct sg_table *table = att->priv;
+	list_for_each_entry(att, &dmabuf->attachments, node) {
+		struct sg_table *table = att->priv;
 
-			dma_sync_sg_for_device(att->dev, table->sgl,
-					       table->nents, direction);
-		}
+		dma_sync_sg_for_device(att->dev, table->sgl, table->nents,
+				       direction);
 	}
 	mutex_unlock(&dmabuf->lock);
 
