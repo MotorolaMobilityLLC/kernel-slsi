@@ -156,7 +156,7 @@ static void _ion_buffer_destroy(struct ion_buffer *buffer)
 		ion_buffer_destroy(buffer);
 }
 
-static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
+void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 {
 	void *vaddr;
 
@@ -178,7 +178,7 @@ static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 	return vaddr;
 }
 
-static void ion_buffer_kmap_put(struct ion_buffer *buffer)
+void ion_buffer_kmap_put(struct ion_buffer *buffer)
 {
 	buffer->kmap_cnt--;
 	if (!buffer->kmap_cnt) {
@@ -352,6 +352,7 @@ static void ion_dma_buf_vunmap(struct dma_buf *dmabuf, void *ptr)
 	}
 }
 
+#ifndef CONFIG_ION_EXYNOS
 static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 					enum dma_data_direction direction)
 {
@@ -403,21 +404,24 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 
 	return 0;
 }
+#endif
 
 const struct dma_buf_ops ion_dma_buf_ops = {
 #ifdef CONFIG_ION_EXYNOS
 	.map_dma_buf = ion_exynos_map_dma_buf,
 	.unmap_dma_buf = ion_exynos_unmap_dma_buf,
+	.begin_cpu_access = ion_exynos_dma_buf_begin_cpu_access,
+	.end_cpu_access = ion_exynos_dma_buf_end_cpu_access,
 #else
 	.attach = ion_dma_buf_attach,
 	.detach = ion_dma_buf_detatch,
 	.map_dma_buf = ion_map_dma_buf,
 	.unmap_dma_buf = ion_unmap_dma_buf,
+	.begin_cpu_access = ion_dma_buf_begin_cpu_access,
+	.end_cpu_access = ion_dma_buf_end_cpu_access,
 #endif
 	.mmap = ion_mmap,
 	.release = ion_dma_buf_release,
-	.begin_cpu_access = ion_dma_buf_begin_cpu_access,
-	.end_cpu_access = ion_dma_buf_end_cpu_access,
 	.map_atomic = ion_dma_buf_kmap,
 	.unmap_atomic = ion_dma_buf_kunmap,
 	.map = ion_dma_buf_kmap,

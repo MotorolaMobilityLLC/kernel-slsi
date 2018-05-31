@@ -102,7 +102,10 @@ struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
 void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      struct sg_table *table,
 			      enum dma_data_direction direction);
-
+int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+					enum dma_data_direction direction);
+int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+				      enum dma_data_direction direction);
 void ion_debug_initialize(struct ion_device *idev);
 
 #else
@@ -140,6 +143,21 @@ static inline struct sg_table *ion_exynos_map_dma_buf(
 }
 
 #define ion_exynos_unmap_dma_buf(attachment, table, direction) do { } while (0)
+
+static inline int ion_exynos_dma_buf_begin_cpu_access(
+					struct dma_buf *dmabuf,
+					enum dma_data_direction direction)
+{
+	return 0;
+}
+
+static inline int ion_exynos_dma_buf_end_cpu_access(
+					struct dma_buf *dmabuf,
+					enum dma_data_direction direction)
+{
+	return 0;
+}
+
 #define ion_debug_initialize(idev) do { } while (0)
 #endif
 

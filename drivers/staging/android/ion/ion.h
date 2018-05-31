@@ -365,4 +365,7 @@ int ion_query_heaps(struct ion_heap_query *query);
 void ion_contig_heap_show_buffers(struct ion_heap *heap,
 				  phys_addr_t base, size_t pool_size);
 
+void *ion_buffer_kmap_get(struct ion_buffer *buffer);
+void ion_buffer_kmap_put(struct ion_buffer *buffer);
+
 #endif /* _ION_H */

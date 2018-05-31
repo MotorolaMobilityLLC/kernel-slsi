@@ -16,6 +16,7 @@
 
 #include <linux/slab.h>
 #include <linux/exynos_iovmm.h>
+#include <asm/cacheflush.h>
 
 #include "ion.h"
 #include "ion_exynos.h"
@@ -241,4 +242,79 @@ void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	if (ion_buffer_cached(buffer) && direction != DMA_NONE)
 		dma_sync_sg_for_cpu(attachment->dev, table->sgl,
 				    table->nents, direction);
+}
+
+static void exynos_flush_sg(struct device *dev,
+			    struct scatterlist *sgl, int nelems)
+{
+	struct scatterlist *sg;
+	int i;
+	void *virt;
+
+	for_each_sg(sgl, sg, nelems, i) {
+		virt = phys_to_virt(dma_to_phys(dev, sg->dma_address));
+
+		__dma_flush_area(virt, nelems);
+	}
+}
+
+int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+					enum dma_data_direction direction)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	void *vaddr;
+
+	if (buffer->heap->ops->map_kernel) {
+		mutex_lock(&buffer->lock);
+		vaddr = ion_buffer_kmap_get(buffer);
+		mutex_unlock(&buffer->lock);
+	}
+
+	if (!ion_buffer_cached(buffer))
+		return 0;
+
+	mutex_lock(&buffer->lock);
+	if (direction == DMA_BIDIRECTIONAL) {
+		exynos_flush_sg(buffer->dev->dev.this_device,
+				buffer->sg_table->sgl,
+				buffer->sg_table->orig_nents);
+	} else {
+		dma_sync_sg_for_cpu(buffer->dev->dev.this_device,
+				    buffer->sg_table->sgl,
+				    buffer->sg_table->orig_nents,
+				    direction);
+	}
+	mutex_unlock(&buffer->lock);
+
+	return 0;
+}
+
+int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+				      enum dma_data_direction direction)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+
+	if (buffer->heap->ops->map_kernel) {
+		mutex_lock(&buffer->lock);
+		ion_buffer_kmap_put(buffer);
+		mutex_unlock(&buffer->lock);
+	}
+
+	if (!ion_buffer_cached(buffer))
+		return 0;
+
+	mutex_lock(&buffer->lock);
+	if (direction == DMA_BIDIRECTIONAL) {
+		exynos_flush_sg(buffer->dev->dev.this_device,
+				buffer->sg_table->sgl,
+				buffer->sg_table->orig_nents);
+	} else {
+		dma_sync_sg_for_device(buffer->dev->dev.this_device,
+				       buffer->sg_table->sgl,
+				       buffer->sg_table->orig_nents,
+				       direction);
+	}
+	mutex_unlock(&buffer->lock);
+
+	return 0;
 }
