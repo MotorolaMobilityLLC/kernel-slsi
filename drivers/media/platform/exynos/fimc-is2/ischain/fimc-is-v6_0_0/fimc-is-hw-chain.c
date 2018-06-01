@@ -32,7 +32,6 @@
 #include "fimc-is-device-sensor.h"
 #include "fimc-is-device-csi.h"
 #include "fimc-is-device-ischain.h"
-#include "fimc-is-fpsimd.h"
 
 #include "../../interface/fimc-is-interface-ischain.h"
 #include "../../hardware/fimc-is-hw-control.h"
@@ -355,12 +354,12 @@ void __iomem *reg_cip2_clk;
 
 void fimc_is_enter_lib_isr(void)
 {
-	fimc_is_kernel_neon_begin();
+	kernel_neon_begin();
 }
 
 void fimc_is_exit_lib_isr(void)
 {
-	fimc_is_kernel_neon_end();
+	kernel_neon_end();
 }
 
 void fimc_is_hw_group_init(struct fimc_is_group *group)
