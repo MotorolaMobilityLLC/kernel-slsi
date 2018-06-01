@@ -23,15 +23,15 @@
 
 #include "debug.h"
 
-static bool hip4_qos_enable;
+static bool hip4_qos_enable = true;
 module_param(hip4_qos_enable, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(hip4_qos_enable, "enable HIP4 PM QoS. (default: N)");
+MODULE_PARM_DESC(hip4_qos_enable, "enable HIP4 PM QoS. (default: Y)");
 
-static int hip4_qos_max_tput_in_mbps;
+static int hip4_qos_max_tput_in_mbps = 300;
 module_param(hip4_qos_max_tput_in_mbps, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(hip4_qos_max_tput_in_mbps, "throughput (in Mbps) to apply Max PM QoS");
 
-static int hip4_qos_med_tput_in_mbps;
+static int hip4_qos_med_tput_in_mbps = 150;
 module_param(hip4_qos_med_tput_in_mbps, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(hip4_qos_med_tput_in_mbps, "throughput (in Mbps) to apply Median PM QoS");
 
