@@ -64,3 +64,8 @@ config ION_HPA_HEAP
 	  Choose this option to enable HPA heaps with Ion. This heap is backed
 	  by the High-order Pages Allocator (HPA). If your system needs HPA for
 	  some reason, you should say Y here.
+
+config ION_DEBUG_EVENT_RECORD
+	bool "Ion event debug support"
+	default y
+	depends on ION_EXYNOS
