@@ -153,6 +153,7 @@ void fpsimd_thread_switch(struct task_struct *next)
 	if (atomic_read(&nxt_kst->depth)) {
 		fpsimd_load_state((struct fpsimd_state *)nxt_kst);
 		this_cpu_write(fpsimd_last_state, (struct fpsimd_state *)nxt_kst);
+		nxt_kst->cpu = smp_processor_id();
 	}
 
 	if (next->mm) {

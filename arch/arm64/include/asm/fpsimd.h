@@ -45,6 +45,7 @@ struct fpsimd_kernel_state {
 	__uint128_t vregs[32];
 	u32 fpsr;
 	u32 fpcr;
+	unsigned int cpu;
 	/*
 	 * indicate the depth of using FP/SIMD registers in kernel mode.
 	 * above kernel state should be preserved at first time
