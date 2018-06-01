@@ -198,7 +198,7 @@ void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
 
 	protdesc->chunk_count = 1,
 	protdesc->flags = protection_id;
-	protdesc->chunk_size = size;
+	protdesc->chunk_size = ALIGN(size, protalign);
 	protdesc->bus_address = phys;
 
 	ret = ion_secure_protect(protdesc, protalign);
