@@ -20,6 +20,140 @@
 
 #include "ion.h"
 #include "ion_exynos.h"
+#include "ion_debug.h"
+
+#define ION_MAX_EVENT_LOG	1024
+#define ION_EVENT_CLAMP_ID(id) ((id) & (ION_MAX_EVENT_LOG - 1))
+
+static atomic_t eventid;
+
+static char * const ion_event_name[] = {
+	"alloc",
+	"free",
+	"mmap",
+	"kmap",
+	"map_dma_buf",
+	"unmap_dma_buf",
+	"begin_cpu_access",
+	"end_cpu_access",
+	"iovmm_map",
+};
+
+static struct ion_event {
+	struct ion_heap *heap;
+	unsigned long data;
+	ktime_t begin;
+	ktime_t done;
+	size_t size;
+	enum ion_event_type type;
+	int buffer_id;
+} eventlog[ION_MAX_EVENT_LOG];
+
+static void ion_buffer_dump_flags(struct seq_file *s, unsigned long flags)
+{
+	if (flags & ION_FLAG_CACHED)
+		seq_puts(s, "cached");
+	else
+		seq_puts(s, "noncached");
+
+	if (flags & ION_FLAG_NOZEROED)
+		seq_puts(s, "|nozeroed");
+
+	if (flags & ION_FLAG_PROTECTED)
+		seq_puts(s, "|protected");
+
+	if (flags & ION_FLAG_MAY_HWRENDER)
+		seq_puts(s, "|may_hwrender");
+}
+
+#ifdef CONFIG_ION_DEBUG_EVENT_RECORD
+void ion_event_record(enum ion_event_type type,
+		      struct ion_buffer *buffer, ktime_t begin)
+{
+	int idx = ION_EVENT_CLAMP_ID(atomic_inc_return(&eventid));
+	struct ion_event *event = &eventlog[idx];
+
+	event->buffer_id = buffer->id;
+	event->type = type;
+	event->begin = begin;
+	event->done = ktime_get();
+	event->heap = buffer->heap;
+	event->size = buffer->size;
+	event->data = (type == ION_EVENT_TYPE_FREE) ?
+		buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE :
+		buffer->flags;
+}
+#endif
+
+inline bool ion_debug_event_show_single(struct seq_file *s,
+				struct ion_event *event)
+{
+	struct timeval tv = ktime_to_timeval(event->begin);
+	long elapsed = ktime_us_delta(event->done, event->begin);
+
+	if (elapsed == 0)
+		return false;
+
+	seq_printf(s, "[%06ld.%06ld] ", tv.tv_sec, tv.tv_usec);
+	seq_printf(s, "%17s %18s %10d %13zd %10ld",
+		   ion_event_name[event->type], event->heap->name,
+		   event->buffer_id, event->size / SZ_1K, elapsed);
+
+	if (elapsed > 100 * USEC_PER_MSEC)
+		seq_puts(s, " *");
+
+	switch (event->type) {
+	case ION_EVENT_TYPE_ALLOC:
+		seq_puts(s, "  ");
+		ion_buffer_dump_flags(s, event->data);
+		break;
+	case ION_EVENT_TYPE_FREE:
+		if (event->data)
+			seq_puts(s, " shrinker");
+		break;
+	default:
+		break;
+	}
+
+	seq_puts(s, "\n");
+
+	return true;
+}
+
+static int ion_debug_event_show(struct seq_file *s, void *unused)
+{
+	int i;
+	int idx = ION_EVENT_CLAMP_ID(atomic_read(&eventid) + 1);
+
+	seq_printf(s, "%15s %17s %18s %10s %13s %10s %24s\n",
+		   "timestamp", "type", "heap", "buffer_id", "size (kb)",
+		   "time (us)", "remarks");
+	seq_puts(s, "-------------------------------------------");
+	seq_puts(s, "-------------------------------------------");
+	seq_puts(s, "-----------------------------------------\n");
+
+	for (i = idx; i < ION_MAX_EVENT_LOG; i++)
+		if (!ion_debug_event_show_single(s, &eventlog[i]))
+			break;
+
+	for (i = 0; i < idx; i++)
+		if (!ion_debug_event_show_single(s, &eventlog[i]))
+			break;
+
+	return 0;
+}
+
+static int ion_debug_event_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ion_debug_event_show, inode->i_private);
+}
+
+static const struct file_operations debug_event_fops = {
+	.open = ion_debug_event_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
 #define ION_MAX_LOGBUF 128
 
@@ -191,13 +325,20 @@ static struct ion_oom_notifier_struct ion_oom_notifier = {
 
 void ion_debug_initialize(struct ion_device *idev)
 {
-	struct dentry *buffer_file;
+	struct dentry *buffer_file, *event_file;
 
 	buffer_file = debugfs_create_file("buffers", 0444, idev->debug_root,
 					  idev, &debug_buffers_fops);
 	if (!buffer_file)
 		perrfn("failed to create debugfs/ion/buffers");
 
+	event_file = debugfs_create_file("event", 0444, idev->debug_root,
+					 idev, &debug_event_fops);
+	if (!event_file)
+		pr_err("%s: failed to create debugfs/ion/event\n", __func__);
+
 	ion_oom_notifier.idev = idev;
 	register_oom_notifier(&ion_oom_notifier.nb);
+
+	atomic_set(&eventid, -1);
 }

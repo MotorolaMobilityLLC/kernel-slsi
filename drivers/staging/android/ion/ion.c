@@ -40,6 +40,7 @@
 
 #include "ion.h"
 #include "ion_exynos.h"
+#include "ion_debug.h"
 
 static struct ion_device *internal_dev;
 static int heap_id;
@@ -134,6 +135,8 @@ err2:
 
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
+	ion_event_begin();
+
 	exynos_ion_free_fixup(buffer);
 	if (buffer->kmap_cnt > 0) {
 		pr_warn_once("%s: buffer still mapped in the kernel\n",
@@ -141,6 +144,9 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	}
 	buffer->heap->ops->free(buffer);
+
+	ion_event_end(ION_EVENT_TYPE_FREE, buffer);
+
 	kfree(buffer);
 }
 
@@ -163,6 +169,8 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 {
 	void *vaddr;
 
+	ion_event_begin();
+
 	if (buffer->kmap_cnt) {
 		buffer->kmap_cnt++;
 		return buffer->vaddr;
@@ -178,6 +186,9 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 	}
 	buffer->vaddr = vaddr;
 	buffer->kmap_cnt++;
+
+	ion_event_end(ION_EVENT_TYPE_KMAP, buffer);
+
 	return vaddr;
 }
 
@@ -279,6 +290,8 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	struct ion_buffer *buffer = dmabuf->priv;
 	int ret = 0;
 
+	ion_event_begin();
+
 	if (!buffer->heap->ops->map_user) {
 		perrfn("this heap does not define a method for mapping to userspace");
 		return -EINVAL;
@@ -304,6 +317,8 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 
 	if (ret)
 		perrfn("failure mapping buffer to userspace");
+
+	ion_event_end(ION_EVENT_TYPE_MMAP, buffer);
 
 	return ret;
 }
@@ -441,6 +456,8 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 	char expname[ION_EXPNAME_LEN];
 	struct dma_buf *dmabuf;
 
+	ion_event_begin();
+
 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
 		 len, heap_id_mask, flags);
 	/*
@@ -489,6 +506,8 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 		perrfn("failed to export dmabuf (err %ld)", -PTR_ERR(dmabuf));
 		_ion_buffer_destroy(buffer);
 	}
+
+	ion_event_end(ION_EVENT_TYPE_ALLOC, buffer);
 
 	return dmabuf;
 }

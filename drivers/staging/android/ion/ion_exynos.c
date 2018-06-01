@@ -21,6 +21,7 @@
 
 #include "ion.h"
 #include "ion_exynos.h"
+#include "ion_debug.h"
 
 struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 				 size_t len, unsigned int flags)
@@ -85,6 +86,8 @@ dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
 	struct ion_iovm_map *iovm_map;
 	struct iommu_domain *domain;
 
+	ion_event_begin();
+
 	BUG_ON(attachment->dmabuf->ops != &ion_dma_buf_ops);
 
 	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) &&
@@ -125,6 +128,8 @@ dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
 	list_add_tail(&iovm_map->list, &buffer->iovas);
 
 	mutex_unlock(&buffer->lock);
+
+	ion_event_end(ION_EVENT_TYPE_IOVMM_MAP, buffer);
 
 	return iovm_map->iova;
 }
@@ -249,9 +254,14 @@ struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct ion_buffer *buffer = attachment->dmabuf->priv;
 
-	if (ion_buffer_cached(buffer) && direction != DMA_NONE)
+	if (ion_buffer_cached(buffer) && direction != DMA_NONE) {
+		ion_event_begin();
+
 		dma_sync_sg_for_device(attachment->dev, buffer->sg_table->sgl,
 				       buffer->sg_table->nents, direction);
+
+		ion_event_end(ION_EVENT_TYPE_MAP_DMA_BUF, buffer);
+	}
 
 	return buffer->sg_table;
 }
@@ -262,9 +272,14 @@ void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct ion_buffer *buffer = attachment->dmabuf->priv;
 
-	if (ion_buffer_cached(buffer) && direction != DMA_NONE)
+	if (ion_buffer_cached(buffer) && direction != DMA_NONE) {
+		ion_event_begin();
+
 		dma_sync_sg_for_cpu(attachment->dev, table->sgl,
 				    table->nents, direction);
+
+		ion_event_end(ION_EVENT_TYPE_UNMAP_DMA_BUF, buffer);
+	}
 }
 
 static void exynos_flush_sg(struct device *dev,
@@ -286,6 +301,8 @@ int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 	void *vaddr;
+
+	ion_event_begin();
 
 	if (buffer->heap->ops->map_kernel) {
 		mutex_lock(&buffer->lock);
@@ -309,6 +326,8 @@ int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	}
 	mutex_unlock(&buffer->lock);
 
+	ion_event_end(ION_EVENT_TYPE_BEGIN_CPU_ACCESS, buffer);
+
 	return 0;
 }
 
@@ -316,6 +335,8 @@ int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 				      enum dma_data_direction direction)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
+
+	ion_event_begin();
 
 	if (buffer->heap->ops->map_kernel) {
 		mutex_lock(&buffer->lock);
@@ -338,6 +359,8 @@ int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 				       direction);
 	}
 	mutex_unlock(&buffer->lock);
+
+	ion_event_end(ION_EVENT_TYPE_END_CPU_ACCESS, buffer);
 
 	return 0;
 }
