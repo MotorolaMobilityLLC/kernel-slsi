@@ -268,7 +268,8 @@ int csi_hw_dma_common_reset(void);
 int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, u32 dma_ch);
 int csi_hw_s_dma_common(u32 __iomem *base_reg);
 #endif
-int csi_hw_s_dma_common_pattern(u32 __iomem *base_reg, u32 width, u32 height, u32 fps, u32 clk);
+int csi_hw_s_dma_common_pattern_enable(u32 __iomem *base_reg, u32 width, u32 height, u32 fps, u32 clk);
+void csi_hw_s_dma_common_pattern_disable(u32 __iomem *base_reg);
 
 int csi_hw_s_dma_irq_msk(u32 __iomem *base_reg, bool on);
 int csi_hw_g_dma_irq_src(u32 __iomem *base_reg, struct csis_irq_src *src, bool clear);

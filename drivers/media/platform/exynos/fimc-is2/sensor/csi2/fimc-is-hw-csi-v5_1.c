@@ -781,7 +781,7 @@ int csi_hw_s_dma_common(u32 __iomem *base_reg)
 int csi_hw_s_dma_common(u32 __iomem *base_reg) { return 0; }
 #endif
 
-int csi_hw_s_dma_common_pattern(u32 __iomem *base_reg,
+int csi_hw_s_dma_common_pattern_enable(u32 __iomem *base_reg,
 	u32 width, u32 height, u32 fps, u32 clk)
 {
 	u32 val;
@@ -843,6 +843,12 @@ int csi_hw_s_dma_common_pattern(u32 __iomem *base_reg,
 		width, height, fps, clk, vvalid, vblank);
 
 	return 0;
+}
+
+void csi_hw_s_dma_common_pattern_disable(u32 __iomem *base_reg)
+{
+	fimc_is_hw_set_field(base_reg, &csi_dma_regs[CSIS_DMA_R_TEST_PATTERN_ENABLE],
+		&csi_dma_fields[CSIS_DMA_F_TESTPATTERN], 0);
 }
 
 int csi_hw_enable(u32 __iomem *base_reg)
