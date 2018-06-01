@@ -2367,6 +2367,23 @@ exit:
 	trans_frame(framemgr, frame, FS_HW_FREE);
 	framemgr_x_barrier_common(framemgr, 0, flags);
 	atomic_set(&frame->shot_done_flag, 0);
+
+	/* Force flush the old H/W frames with DONE state */
+	framemgr_e_barrier_common(framemgr, 0, flags);
+	if (framemgr->queued_count[FS_HW_WAIT_DONE] > 0) {
+		u32 fcount = frame->fcount;
+
+		frame = peek_frame(framemgr, FS_HW_WAIT_DONE);
+		while (frame && frame->fcount < fcount) {
+			msinfo_hw("[F%d]force flush\n",
+					frame->instance, hw_ip, frame->fcount);
+			trans_frame(framemgr, frame, FS_HW_FREE);
+			atomic_set(&frame->shot_done_flag, 0);
+			frame = peek_frame(framemgr, FS_HW_WAIT_DONE);
+		}
+	}
+	framemgr_x_barrier_common(framemgr, 0, flags);
+
 	if (framemgr->queued_count[FS_HW_FREE] > 10)
 		atomic_set(&hw_ip->hardware->bug_count, 0);
 
