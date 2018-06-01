@@ -310,25 +310,37 @@ static void translate_temporal_factor(struct temporal_ni_dep_config *temporal_cf
 	temporal_cfg->uv_offset =
 		interpolated_factor.temporal_motion_detection_luma_off ? 255 : 0;
 
-	/* value = 16 * (1 - source / 256) */
+	/* value = 16 * (1 - source / 256)
+	 *       = 2^4 - source / 2^4
+	 *       = (2^8 - source) / 2^4
+	 */
 	temp_val = (1 << (8 + INTERPOLATE_SHIFT))
 		- (ulong)interpolated_factor.temporal_weight_luma_power_base;
 	temporal_cfg->temporal_weight_coeff_y1 = (u32)(temp_val >> (4 + INTERPOLATE_SHIFT));
-	/* value = 16 * (1 - (source1 / 256) * (source2 / 256)) */
-	temp_val = interpolated_factor.temporal_weight_luma_power_base *
-			interpolated_factor.temporal_weight_luma_power_gamma;
-	temporal_cfg->temporal_weight_coeff_y2 = 16 -
-			(u32)(temp_val >> (12 + INTERPOLATE_SHIFT * 2));
 
-	/* value = 16 * (1 - source / 256) */
+	/* value = 16 * (1 - (source1 / 256) * (source2 / 256))
+	 *       = 2^4 - ((source1 * source2) / 2^12)
+	 *       = (2^16 - source1 * source2) / 2^12
+	 */
+	temp_val = RESTORE_SHIFT_VALUE(interpolated_factor.temporal_weight_luma_power_base) *
+			RESTORE_SHIFT_VALUE(interpolated_factor.temporal_weight_luma_power_gamma);
+	temporal_cfg->temporal_weight_coeff_y2 = ((1 << 16) - temp_val) >> 12;
+
+	/* value = 16 * (1 - source / 256)
+	 *       = 2^4 - source / 2^4
+	 *       = (2^8 - source) / 2^4
+	 */
 	temp_val = (1 << (8 + INTERPOLATE_SHIFT))
 		- (ulong)interpolated_factor.temporal_weight_chroma_power_base;
 	temporal_cfg->temporal_weight_coeff_uv1 = (u32)(temp_val >> (4 + INTERPOLATE_SHIFT));
-	/* value = 16 * (1 - (source1 / 256) * (source2 / 256)) */
-	temp_val = interpolated_factor.temporal_weight_chroma_power_base *
-			interpolated_factor.temporal_weight_chroma_power_gamma;
-	temporal_cfg->temporal_weight_coeff_uv2 = 16 -
-			(u32)(temp_val >> (12 + INTERPOLATE_SHIFT * 2));
+
+	/* value = 16 * (1 - (source1 / 256) * (source2 / 256))
+	 *       = 2^4 - ((source1 * source2) / 2^12)
+	 *       = (2^16 - source1 * source2) / 2^12
+	 */
+	temp_val = RESTORE_SHIFT_VALUE(interpolated_factor.temporal_weight_chroma_power_base) *
+			RESTORE_SHIFT_VALUE(interpolated_factor.temporal_weight_chroma_power_gamma);
+	temporal_cfg->temporal_weight_coeff_uv2 = ((1 << 16) - temp_val) >> 12;
 }
 
 static void translate_regional_factor(struct regional_ni_dep_config *regional_cfg,
@@ -348,7 +360,10 @@ static void translate_spatial_factor(struct spatial_ni_dep_config *spatial_cfg,
 {
 	ulong temp_val = 0;
 
-	/* value = 16 * (1 - source / 256) */
+	/* value = 16 * (1 - source / 256)
+	 *       = 2^4 - source / 2^4
+	 *       = (2^8 - source) / 2^4
+	 */
 	temp_val = (1 << (8 + INTERPOLATE_SHIFT))
 		- (ulong)interpolated_factor.spatial_power;
 	spatial_cfg->spatial_gain = (u32)(temp_val >> (4 + INTERPOLATE_SHIFT));
@@ -720,35 +735,25 @@ static void reconfigure_ni_depended_tuneset(tdnr_setfile_contents *tdnr_tuneset,
 	struct ni_dep_factors top_ni_factor =
 		tdnr_tuneset->ni_dep_factors[top_ni_index];
 
-	if (bottom_ni_index == top_ni_index) {
-	/* if actual NI == ref NI,
-	 * use reference NI factor
-	 */
-		interpolated_factor = bottom_ni_factor;
-	} else {
-	/* if BOTTOM NI < actual NI < TOP NI,
-	 * value is get by linear interpolation
-	 */
-		interpolate_temporal_factor(&interpolated_factor,
-				noise_index,
-				bottom_ni_factor,
-				top_ni_factor);
+	interpolate_temporal_factor(&interpolated_factor,
+			noise_index,
+			bottom_ni_factor,
+			top_ni_factor);
 
-		interpolate_regional_factor(&interpolated_factor,
-				noise_index,
-				bottom_ni_factor,
-				top_ni_factor);
+	interpolate_regional_factor(&interpolated_factor,
+			noise_index,
+			bottom_ni_factor,
+			top_ni_factor);
 
-		interpolate_spatial_factor(&interpolated_factor,
-				noise_index,
-				bottom_ni_factor,
-				top_ni_factor);
+	interpolate_spatial_factor(&interpolated_factor,
+			noise_index,
+			bottom_ni_factor,
+			top_ni_factor);
 
-		interpolate_yuv_table_factor(&interpolated_factor,
-				noise_index,
-				bottom_ni_factor,
-				top_ni_factor);
-	}
+	interpolate_yuv_table_factor(&interpolated_factor,
+			noise_index,
+			bottom_ni_factor,
+			top_ni_factor);
 
 	/* re_configure interpolated NI depended factor to SFR configurations */
 	translate_temporal_factor(&tdnr_cfgs->temporal_dep_cfg, interpolated_factor);
