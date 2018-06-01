@@ -187,7 +187,7 @@ struct scsc_mif_abs {
 
 #ifdef CONFIG_SCSC_SMAPPER
 /* SMAPPER */
-	int  (*mif_smapper_get_mapping)(struct scsc_mif_abs *interface, u8 *phy_map);
+	int  (*mif_smapper_get_mapping)(struct scsc_mif_abs *interface, u8 *phy_map, u16 *align);
 	int  (*mif_smapper_get_bank_info)(struct scsc_mif_abs *interface, u8 bank, struct scsc_mif_smapper_info *bank_info);
 	int  (*mif_smapper_write_sram)(struct scsc_mif_abs *interface, u8 bank, u8 num_entries, u8 first_entry, dma_addr_t *addr);
 	void (*mif_smapper_configure)(struct scsc_mif_abs *interface, u32 granularity);

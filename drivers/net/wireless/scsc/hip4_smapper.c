@@ -38,6 +38,7 @@ static int hip4_smapper_alloc_bank(struct slsi_dev *sdev, struct hip4_priv *priv
 	for (i = 0; i < bank->entries; i++)
 		bank->skbuff[i] = NULL;
 
+	bank->align = scsc_service_get_alignment(sdev->service);
 	bank->in_use = true;
 
 	return 0;
@@ -70,6 +71,15 @@ static int hip4_smapper_allocate_skb_buffers(struct slsi_dev *sdev, struct hip4_
 				SLSI_DBG4_NODEV(SLSI_SMAPPER, "Error mapping SKB: 0x%p at bank %d entry %d\n", skb, bank->bank, i);
 				slsi_kfree_skb(skb);
 				return err;
+			}
+
+			/* Check alignment */
+			if (!IS_ALIGNED(bank->skbuff_dma[i], bank->align)) {
+				SLSI_DBG4_NODEV(SLSI_SMAPPER, "Phys address: 0x%x not %d aligned. Unmap memory and return error\n", bank->skbuff_dma[i], bank->align);
+				dma_unmap_single(sdev->dev, bank->skbuff_dma[i], bank->entry_size, DMA_FROM_DEVICE);
+				slsi_kfree_skb(skb);
+				bank->skbuff_dma[i] = 0;
+				return -ENOMEM;
 			}
 			bank->skbuff[i] = skb;
 		}

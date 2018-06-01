@@ -887,6 +887,13 @@ int scsc_service_force_panic(struct scsc_service *service)
 EXPORT_SYMBOL(scsc_service_force_panic);
 
 #ifdef CONFIG_SCSC_SMAPPER
+u16 scsc_service_get_alignment(struct scsc_service *service)
+{
+	struct scsc_mx *mx = service->mx;
+
+	return mifsmapper_get_alignment(scsc_mx_get_smapper(mx));
+}
+
 int scsc_service_mifsmapper_alloc_bank(struct scsc_service *service, bool large_bank, u32 entry_size, u16 *entries)
 {
 	struct scsc_mx *mx = service->mx;

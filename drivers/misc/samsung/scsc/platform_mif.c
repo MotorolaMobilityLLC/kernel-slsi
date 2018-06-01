@@ -228,8 +228,11 @@ inline u32 platform_mif_reg_read_smapper(struct platform_mif *platform, u16 offs
 	return readl(platform->smapper_base + offset);
 }
 
+#define PLATFORM_MIF_SHIFT_SMAPPER_ADDR		11 /* From 36 bits addres to 25 bits */
+#define PLATFORM_MIF_SHIFT_SMAPPER_END		4  /* End address aligment */
+
 /* Platform is responsible to give the phys mapping of the SMAPPER maps */
-static int platform_mif_smapper_get_mapping(struct scsc_mif_abs *interface, u8 *phy_map)
+static int platform_mif_smapper_get_mapping(struct scsc_mif_abs *interface, u8 *phy_map, u16 *align)
 {
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
 	u8 i;
@@ -245,6 +248,9 @@ static int platform_mif_smapper_get_mapping(struct scsc_mif_abs *interface, u8 *
 		else
 			phy_map[i] = SCSC_MIF_ABS_SMALL_BANK;
 	}
+
+	if (align)
+		*align = 1 << PLATFORM_MIF_SHIFT_SMAPPER_ADDR;
 
 	return 0;
 }
@@ -280,9 +286,6 @@ static u8 platform_mif_smapper_granularity_to_bits(u32 granularity)
 		return 6;
 	return 7;
 }
-
-#define PLATFORM_MIF_SHIFT_SMAPPER_ADDR		11 /* From 36 bits addres to 25 bits */
-#define PLATFORM_MIF_SHIFT_SMAPPER_END		4  /* From 36 bits addres to 25 bits */
 
 static u32 platform_mif_smapper_get_bank_base_address(struct scsc_mif_abs *interface, u8 bank)
 {

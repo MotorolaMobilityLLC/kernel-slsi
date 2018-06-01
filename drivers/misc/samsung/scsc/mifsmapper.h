@@ -13,6 +13,7 @@ struct scsc_mif_abs;
 struct mutex;
 
 int mifsmapper_init(struct mifsmapper *smapper, struct scsc_mif_abs *mif);
+u16 mifsmapper_get_alignment(struct mifsmapper *smapper);
 int mifsmapper_alloc_bank(struct mifsmapper *smapper, bool large_bank, u32 entry_size, u16 *entries);
 int mifsmapper_free_bank(struct mifsmapper *smapper, u8 bank);
 int mifsmapper_get_entries(struct mifsmapper *smapper, u8 bank, u8 num_entries, u8 *entr);
@@ -48,5 +49,6 @@ struct mifsmapper {
 	unsigned long *bank_bm_small;
 	u32 num_large_banks;
 	u32 num_small_banks;
+	u16 align;
 };
 #endif

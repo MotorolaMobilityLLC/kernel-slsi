@@ -83,6 +83,7 @@ struct hip4_smapper_bank {
 	struct sk_buff          **skbuff;
 	dma_addr_t		*skbuff_dma;
 	struct hip4_smapper_control_entry *entry;
+	u16 align;
 };
 
 int hip4_smapper_init(struct slsi_dev *sdev, struct slsi_hip4 *hip);

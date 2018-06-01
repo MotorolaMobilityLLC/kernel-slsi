@@ -219,6 +219,8 @@ int scsc_service_mifsmapper_free_entries(struct scsc_service *service, u8 bank, 
 /* Program SRAM entry */
 int scsc_service_mifsmapper_write_sram(struct scsc_service *service, u8 bank, u8 num_entries, u8 first_entry, dma_addr_t *addr);
 u32 scsc_service_mifsmapper_get_bank_base_address(struct scsc_service *service, u8 bank);
+/* Get SMAPPER aligment */
+u16 scsc_service_get_alignment(struct scsc_service *service);
 #endif
 
 int scsc_service_pm_qos_add_request(struct scsc_service *service, enum scsc_qos_config config);

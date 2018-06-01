@@ -49,7 +49,7 @@ int mifsmapper_init(struct mifsmapper *smapper, struct scsc_mif_abs *mif)
 
 	spin_lock_init(&smapper->lock);
 	/* Get physical mapping of the banks */
-	if (mif->mif_smapper_get_mapping(mif, phy_map)) {
+	if (mif->mif_smapper_get_mapping(mif, phy_map, &smapper->align)) {
 		SCSC_TAG_ERR(MIF, "SMAPPER is not present\n");
 		return -EINVAL;
 	}
@@ -98,6 +98,11 @@ int mifsmapper_init(struct mifsmapper *smapper, struct scsc_mif_abs *mif)
 	}
 
 	return 0;
+}
+
+u16 mifsmapper_get_alignment(struct mifsmapper *smapper)
+{
+	return smapper->align;
 }
 
 int mifsmapper_alloc_bank(struct mifsmapper *smapper, bool large_bank, u32 entry_size, u16 *entries)
