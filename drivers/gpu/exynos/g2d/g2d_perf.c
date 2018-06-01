@@ -243,8 +243,6 @@ void g2d_set_performance(struct g2d_context *ctx,
 	struct g2d_device *g2d_dev = ctx->g2d_dev;
 	int i;
 
-	return;
-
 	if (data->num_frame > G2D_PERF_MAX_FRAMES)
 		return;
 
