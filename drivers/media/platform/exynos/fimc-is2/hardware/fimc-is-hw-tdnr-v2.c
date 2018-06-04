@@ -276,7 +276,8 @@ static int fimc_is_hw_mcsc_cfg_tdnr_wdma(struct fimc_is_hw_ip *hw_ip,
 	fimc_is_scaler_set_tdnr_wdma_size(hw_ip->regs,
 			TDNR_IMAGE, wdma_width, wdma_height);
 
-	img_y_stride = ALIGN(wdma_width, 2);
+	/* TDNR DMA stride = image size * 2 */
+	img_y_stride = wdma_width * 2;
 	fimc_is_scaler_set_tdnr_wdma_stride(hw_ip->regs,
 			TDNR_IMAGE, img_y_stride, 0);
 
