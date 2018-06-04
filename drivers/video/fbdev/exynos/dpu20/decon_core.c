@@ -3026,7 +3026,9 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 {
 	struct decon_lcd *lcd_info = decon->lcd_info;
 	struct fb_info *fbi = win->fbinfo;
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	struct displayport_device *displayport;
+#endif
 	struct dsim_device *dsim;
 	struct device *dev;
 	unsigned int real_size, virt_size, size;
@@ -3095,8 +3097,10 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 	win->plane_cnt = 1;
 
 	if (decon->dt.out_type == DECON_OUT_DP) {
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 		displayport = v4l2_get_subdevdata(decon->out_sd[0]);
 		dev = displayport->dev;
+#endif
 	} else { /* DSI case */
 		dsim = v4l2_get_subdevdata(decon->out_sd[0]);
 		dev = dsim->dev;
@@ -3353,7 +3357,7 @@ static void decon_parse_dt(struct decon_device *decon)
 		decon->bts.ppc = 2UL;
 	}
 
-	decon_info("PPC(%d)\n", decon->bts.ppc);
+	decon_info("PPC(%llu)\n", decon->bts.ppc);
 
 	if (decon->dt.out_type == DECON_OUT_DSI) {
 		ret = of_property_read_u32_index(dev->of_node, "out_idx", 0,
