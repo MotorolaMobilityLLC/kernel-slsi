@@ -2730,7 +2730,6 @@
 		clock-names = "gate";
 		iommus = <&sysmmu_g2d>;
 		smfc,int_qos_minlock = <534000>;
-		samsung,power-domain = <&pd_g2d>;
 	};
 
 	/* G3D */
