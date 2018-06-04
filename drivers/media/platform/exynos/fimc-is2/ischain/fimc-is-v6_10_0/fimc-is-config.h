@@ -53,6 +53,8 @@
 #define SOC_SSVC2
 #define SOC_SSVC3
 /* #define SOC_DCP *//* TODO */
+#define SOC_PAF0	/* PAF_RDMA0 */
+#define SOC_PAF1	/* PAF_RDMA1 */
 
 /* Post Processing Configruation */
 /* #define ENABLE_DRC */
