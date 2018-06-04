@@ -2380,6 +2380,7 @@
 		/* DPU_DMA IRQ, DPP IRQ */
 		interrupts = <0 210 0>, <0 214 0>;
 		attr = <0x50087>; /* DPP/IDMA/HDR10/FLIP/BLOCK/AFBC */
+		port = <0>; /* AXI port number */
 	};
 
 	dpp_1: dpp@0x14883000 { /* VG0 */
@@ -2388,6 +2389,7 @@
 		reg = <0x0 0x14883000 0x1000>, <0x0 0x14896000 0x1000>;
 		interrupts = <0 211 0>, <0 215 0>;
 		attr = <0x500B6>; /* DPP/IDMA/HDR10/SCALE/CSC/FLIP/BLOCK */
+		port = <0>; /* AXI port number */
 	};
 
 	dpp_2: dpp@0x14881000 { /* G0 */
@@ -2396,6 +2398,7 @@
 		reg = <0x0 0x14881000 0x1000>, <0x0 0x14891000 0x1000>;
 		interrupts = <0 208 0>, <0 212 0>;
 		attr = <0x50006>; /* DPP/IDMA/FLIP/BLOCK */
+		port = <0>; /* AXI port number */
 	};
 
 	dpp_3: dpp@0x14882000 { /* G1 */
@@ -2404,6 +2407,7 @@
 		reg = <0x0 0x14882000 0x1000>, <0x0 0x14892000 0x1000>;
 		interrupts = <0 209 0>, <0 213 0>;
 		attr = <0x50006>; /* DPP/IDMA/FLIP/BLOCK */
+		port = <0>; /* AXI port number */
 	};
 
 	disp_ss: disp_ss@0x14810000 { /* SYSREG_DISPAUD */
@@ -2466,6 +2470,9 @@
 
 		/* power domain */
 		pd_name = "pd-dispaud";
+
+		/* pixel per clock */
+		ppc = <1>;
 
 		#address-cells = <2>;
 		#size-cells = <1>;
