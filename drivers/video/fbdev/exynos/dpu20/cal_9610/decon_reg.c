@@ -2212,9 +2212,4 @@ int decon_check_supported_formats(enum decon_pixel_format format)
 
 	return -EINVAL;
 }
-#if defined(CONFIG_EXYNOS9610_BTS)
-void decon_init_bts_info(struct decon_bts_bw bw[])
-{
 
-}
-#endif
