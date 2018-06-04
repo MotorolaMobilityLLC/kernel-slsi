@@ -10,6 +10,7 @@
  */
 
 #include "decon.h"
+#include "dpp.h"
 
 #include <soc/samsung/bts.h>
 #include <media/v4l2-subdev.h>
@@ -21,7 +22,6 @@
 #endif
 
 #define DISP_FACTOR		100UL
-#define PPC			2UL
 #define LCD_REFRESH_RATE	63UL
 #define MULTI_FACTOR 		(1UL << 10)
 
@@ -39,9 +39,9 @@ u64 dpu_bts_calc_aclk_disp(struct decon_device *decon,
 
 	/* case for using dsc encoder 1ea at decon0 or decon1 */
 	if ((decon->id != 2) && (decon->lcd_info->dsc_cnt == 1))
-		ppc = PPC / 2UL;
+		ppc = ((decon->bts.ppc / 2UL) >= 1UL) ? (decon->bts.ppc / 2UL) : 1UL;
 	else
-		ppc = PPC;
+		ppc = decon->bts.ppc;
 
 	aclk_disp = resol_clock * s_ratio_h * s_ratio_v * DISP_FACTOR  / 100UL
 		/ ppc * (MULTI_FACTOR * (u64)dst->w / (u64)decon->lcd_info->xres)
@@ -55,37 +55,22 @@ u64 dpu_bts_calc_aclk_disp(struct decon_device *decon,
 
 static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 {
-	int id = decon->id;
+	int i, j;
 
-	/* store current bw for each channel */
-	decon->bts.ch_bw[id][BTS_DPU0] = ch_bw[BTS_DPU0];
-	decon->bts.ch_bw[id][BTS_DPU1] = ch_bw[BTS_DPU1];
+	if (decon->id < 0 || decon->id >= MAX_DECON_CNT) {
+		decon_warn("[%s] undefined decon id(%d)!\n", __func__, decon->id);
+		return;
+	}
 
-	switch (id) {
-	case 0:
-		/* sum with bw of other decons */
-		ch_bw[BTS_DPU0] += decon->bts.ch_bw[1][BTS_DPU0]
-						+ decon->bts.ch_bw[2][BTS_DPU0];
-		ch_bw[BTS_DPU1] += decon->bts.ch_bw[1][BTS_DPU1]
-						+ decon->bts.ch_bw[2][BTS_DPU1];
-		break;
-	case 1:
-		/* sum with bw of other decons */
-		ch_bw[BTS_DPU0] += decon->bts.ch_bw[0][BTS_DPU0]
-						+ decon->bts.ch_bw[2][BTS_DPU0];
-		ch_bw[BTS_DPU1] += decon->bts.ch_bw[0][BTS_DPU1]
-						+ decon->bts.ch_bw[2][BTS_DPU1];
-		break;
-	case 2:
-		/* sum with bw of other decons */
-		ch_bw[BTS_DPU0] += decon->bts.ch_bw[0][BTS_DPU0]
-						+ decon->bts.ch_bw[1][BTS_DPU0];
-		ch_bw[BTS_DPU1] += decon->bts.ch_bw[0][BTS_DPU1]
-						+ decon->bts.ch_bw[1][BTS_DPU1];
-		break;
-	default:
-		decon_warn("[%s] undefined decon id(%d)!\n", __func__, id);
-		break;
+	for (i = 0; i < BTS_DPU_MAX; ++i)
+		decon->bts.ch_bw[decon->id][i] = ch_bw[i];
+
+	for (i = 0; i < MAX_DECON_CNT; ++i) {
+		if (decon->id == i)
+			continue;
+
+		for (j = 0; j < BTS_DPU_MAX; ++j)
+			ch_bw[j] += decon->bts.ch_bw[i][j];
 	}
 }
 
@@ -158,57 +143,18 @@ static void dpu_bts_find_max_disp_freq(struct decon_device *decon,
 
 static void dpu_bts_share_bw_info(int id)
 {
-	int i;
+	int i, j;
 	struct decon_device *decon[3];
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < MAX_DECON_CNT; i++)
 		decon[i] = get_decon_drvdata(i);
 
-	switch (id) {
-	case 0:
-		if (decon[1] != NULL) {
-			decon[1]->bts.ch_bw[id][BTS_DPU0] =
-				decon[id]->bts.ch_bw[id][BTS_DPU0];
-			decon[1]->bts.ch_bw[id][BTS_DPU1] =
-				decon[id]->bts.ch_bw[id][BTS_DPU1];
-		}
-		if (decon[2] != NULL) {
-			decon[2]->bts.ch_bw[id][BTS_DPU0] =
-				decon[id]->bts.ch_bw[id][BTS_DPU0];
-			decon[2]->bts.ch_bw[id][BTS_DPU1] =
-				decon[id]->bts.ch_bw[id][BTS_DPU1];
-		}
-		break;
-	case 1:
-		if (decon[0] != NULL) {
-			decon[0]->bts.ch_bw[id][BTS_DPU0] =
-				decon[id]->bts.ch_bw[id][BTS_DPU0];
-			decon[0]->bts.ch_bw[id][BTS_DPU1] =
-				decon[id]->bts.ch_bw[id][BTS_DPU1];
-		}
-		if (decon[2] != NULL) {
-			decon[2]->bts.ch_bw[id][BTS_DPU0] =
-				decon[id]->bts.ch_bw[id][BTS_DPU0];
-			decon[2]->bts.ch_bw[id][BTS_DPU1] =
-				decon[id]->bts.ch_bw[id][BTS_DPU1];
-		}
-		break;
-	case 2:
-		if (decon[0] != NULL) {
-			decon[0]->bts.ch_bw[id][BTS_DPU0] =
-				decon[id]->bts.ch_bw[id][BTS_DPU0];
-			decon[0]->bts.ch_bw[id][BTS_DPU1] =
-				decon[id]->bts.ch_bw[id][BTS_DPU1];
-		}
-		if (decon[1] != NULL) {
-			decon[1]->bts.ch_bw[id][BTS_DPU0] =
-				decon[id]->bts.ch_bw[id][BTS_DPU0];
-			decon[1]->bts.ch_bw[id][BTS_DPU1] =
-				decon[id]->bts.ch_bw[id][BTS_DPU1];
-		}
-		break;
-	default:
-		break;
+	for (i = 0; i < MAX_DECON_CNT; ++i) {
+		if (id == i || decon[i] == NULL)
+			continue;
+
+		for (j = 0; j < BTS_DPU_MAX; ++j)
+			decon[i]->bts.ch_bw[id][j] = decon[id]->bts.ch_bw[id][j];
 	}
 }
 
@@ -453,6 +399,7 @@ void dpu_bts_init(struct decon_device *decon)
 {
 	int comp_ratio;
 	int i;
+	struct v4l2_subdev *sd = NULL;
 
 	DPU_DEBUG_BTS("%s +\n", __func__);
 
@@ -505,9 +452,13 @@ void dpu_bts_init(struct decon_device *decon)
 	pm_qos_add_request(&decon->bts.disp_qos, PM_QOS_DISPLAY_THROUGHPUT, 0);
 	decon->bts.scen_updated = 0;
 
-	decon_init_bts_info(decon->bts.bw);
-	for (i = 0; i < BTS_DPP_MAX; ++i)
-		DPU_INFO_BTS("IDMA_TYPE(%d) -> BTS CH(%d)\n", i, decon->bts.bw[i].ch_num);
+	for (i = 0; i < BTS_DPP_MAX; ++i) {
+		sd = decon->dpp_sd[DPU_DMA2CH(i)];
+		v4l2_subdev_call(sd, core, ioctl, DPP_GET_PORT_NUM,
+				&decon->bts.bw[i].ch_num);
+		DPU_INFO_BTS("IDMA_TYPE(%d) CH(%d) Port(%d)\n", i,
+				DPU_DMA2CH(i), decon->bts.bw[i].ch_num);
+	}
 
 	decon->bts.enabled = true;
 

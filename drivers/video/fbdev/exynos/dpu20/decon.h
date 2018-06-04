@@ -806,6 +806,7 @@ struct decon_bts {
 	u32 prev_total_bw;
 	u32 max_disp_freq;
 	u32 prev_max_disp_freq;
+	u64 ppc;
 #if defined(CONFIG_EXYNOS9610_BTS)
 	struct decon_bts_bw bw[BTS_DPP_MAX];
 

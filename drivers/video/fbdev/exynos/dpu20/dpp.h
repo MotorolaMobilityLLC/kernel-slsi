@@ -148,6 +148,7 @@ struct dpp_config {
 
 struct dpp_device {
 	int id;
+	int port;
 	unsigned long attr;
 	enum dpp_state state;
 	struct device *dev;
@@ -282,5 +283,6 @@ void dpp_dump(struct dpp_device *dpp);
 #define DPP_WB_WAIT_FOR_FRAMEDONE	_IOR('P', 3, u32)
 #define DPP_WAIT_IDLE			_IOR('P', 4, unsigned long)
 #define DPP_SET_RECOVERY_NUM		_IOR('P', 5, unsigned long)
+#define DPP_GET_PORT_NUM		_IOR('P', 7, unsigned long)
 
 #endif /* __SAMSUNG_DPP_H__ */
