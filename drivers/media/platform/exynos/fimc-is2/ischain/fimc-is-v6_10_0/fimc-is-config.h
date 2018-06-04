@@ -136,7 +136,7 @@
 /* #define ENABLE_3AA_DMA_CROP */
 
 /* use bcrop1 to support DNG capture for pure bayer reporcessing */
-/* #define USE_3AA_CROP_AFTER_BDS */
+#define USE_3AA_CROP_AFTER_BDS
 
 /* #define ENABLE_ULTRA_FAST_SHOT */
 #define ENABLE_HWFC
