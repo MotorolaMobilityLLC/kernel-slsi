@@ -95,7 +95,7 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 static void dpu_bts_find_max_disp_freq(struct decon_device *decon,
 		struct decon_reg_data *regs)
 {
-	int i, idx;
+	int i, j, idx;
 	u32 disp_ch_bw[BTS_DPU_MAX];
 	u32 max_disp_ch_bw;
 	u32 disp_op_freq = 0, freq = 0;
@@ -105,8 +105,10 @@ static void dpu_bts_find_max_disp_freq(struct decon_device *decon,
 
 	memset(disp_ch_bw, 0, sizeof(disp_ch_bw));
 
-	disp_ch_bw[BTS_DPU0] = decon->bts.bw[BTS_DPP0] + decon->bts.bw[BTS_DPP1];
-	disp_ch_bw[BTS_DPU1] = decon->bts.bw[BTS_DPP2] + decon->bts.bw[BTS_DPP3];
+	for (i = 0; i < BTS_DPP_MAX; ++i)
+		for (j = 0; j < BTS_DPU_MAX; ++j)
+			if (decon->bts.bw[i].ch_num == j)
+				disp_ch_bw[j] += decon->bts.bw[i].val;
 
 	/* must be considered other decon's bw */
 	dpu_bts_sum_all_decon_bw(decon, disp_ch_bw);
@@ -260,10 +262,10 @@ void dpu_bts_calc_bw(struct decon_device *decon, struct decon_reg_data *regs)
 	memcpy(&decon->bts.bts_info, &bts_info, sizeof(struct bts_decon_info));
 
 	for (i = 0; i < BTS_DPP_MAX; ++i) {
-		decon->bts.bw[i] = bts_info.dpp[i].bw;
-		if (decon->bts.bw[i])
+		decon->bts.bw[i].val = bts_info.dpp[i].bw;
+		if (decon->bts.bw[i].val)
 			DPU_DEBUG_BTS("\tDPP%d bandwidth = %d\n",
-					i, decon->bts.bw[i]);
+					i, decon->bts.bw[i].val);
 	}
 
 	DPU_DEBUG_BTS("\tDECON%d total bandwidth = %d\n", decon->id,
@@ -502,6 +504,10 @@ void dpu_bts_init(struct decon_device *decon)
 	pm_qos_add_request(&decon->bts.int_qos, PM_QOS_DEVICE_THROUGHPUT, 0);
 	pm_qos_add_request(&decon->bts.disp_qos, PM_QOS_DISPLAY_THROUGHPUT, 0);
 	decon->bts.scen_updated = 0;
+
+	decon_init_bts_info(decon->bts.bw);
+	for (i = 0; i < BTS_DPP_MAX; ++i)
+		DPU_INFO_BTS("IDMA_TYPE(%d) -> BTS CH(%d)\n", i, decon->bts.bw[i].ch_num);
 
 	decon->bts.enabled = true;
 

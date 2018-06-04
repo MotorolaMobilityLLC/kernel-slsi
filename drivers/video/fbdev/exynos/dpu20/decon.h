@@ -807,7 +807,8 @@ struct decon_bts {
 	u32 max_disp_freq;
 	u32 prev_max_disp_freq;
 #if defined(CONFIG_EXYNOS9610_BTS)
-	u32 bw[BTS_DPP_MAX];
+	struct decon_bts_bw bw[BTS_DPP_MAX];
+
 	/* each decon must know other decon's BW to get overall BW */
 	u32 ch_bw[3][BTS_DPU_MAX];
 	enum bts_bw_type type;
