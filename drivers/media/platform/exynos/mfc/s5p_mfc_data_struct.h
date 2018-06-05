@@ -417,8 +417,9 @@ struct s5p_mfc_platdata {
 #define NAL_Q_OUT_DEC_STR_SIZE		248
 #define NAL_Q_OUT_ENC_STR_SIZE		64
 
-#define NAL_Q_IN_QUEUE_SIZE		16 /* 256*16 = 4096 bytes */
-#define NAL_Q_OUT_QUEUE_SIZE		16 /* 256*16 = 4096 bytes */
+/* 256*128(max instance 32 * slot 4) = 32 kbytes */
+#define NAL_Q_IN_QUEUE_SIZE		128
+#define NAL_Q_OUT_QUEUE_SIZE		128
 
 typedef struct __DecoderInputStr {
 	int StartCode; /* = 0xAAAAAAAA; Decoder input structure marker */
