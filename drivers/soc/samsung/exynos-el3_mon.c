@@ -154,6 +154,10 @@ static void exynos_smart_exception_handler(unsigned int id,
 
 		if ((offset > 0x0 && offset < (PAGE_SIZE * 2))
 				&& !(offset % 0x8) && (smc_debug_mem)) {
+
+			/* Invalidate smc_debug_mem for cache coherency */
+			__inval_dcache_area(smc_debug_mem, PAGE_SIZE * 2);
+
 			tmp = (unsigned long)smc_debug_mem;
 			tmp += (unsigned long)offset;
 			ptr = (unsigned long *)tmp;
