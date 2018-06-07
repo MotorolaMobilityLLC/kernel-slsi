@@ -123,20 +123,31 @@ static int fimc_is_hw_mcsc_check_tdnr_mode_pre(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 	u32 lindex, hindex;
+#ifdef MCSC_DNR_USE_TUNING
+	enum exynos_sensor_position sensor_position;
+	tdnr_setfile_contents *tdnr_tuneset;
+#endif
+	bool setfile_tdnr_enable = true;
 
 	BUG_ON(!hw_ip->priv_info);
 	BUG_ON(!tpu_param);
 	BUG_ON(!cap);
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
-
 	/* bypass setting at below case
 	 * 1. dnr_bypass parameter is true
 	 * 2. internal shot
+	 * 3. mcsc setfile "tdnr_enable" is "0"
 	 */
+#ifdef MCSC_DNR_USE_TUNING
+	sensor_position = hw_ip->hardware->sensor_position[atomic_read(&hw_ip->instance)];
+	tdnr_tuneset = &hw_mcsc->applied_setfile[sensor_position]->tdnr_contents;
+	setfile_tdnr_enable = tdnr_tuneset->tdnr_enable;
+#endif
 
 	if ((tpu_param->config.tdnr_bypass == true)
-		|| (frame->type == SHOT_TYPE_INTERNAL)) {
+		|| (frame->type == SHOT_TYPE_INTERNAL)
+		|| setfile_tdnr_enable == false) {
 		tdnr_mode = TDNR_MODE_BYPASS;
 	} else {
 		lindex = frame->shot->ctl.vendor_entry.lowIndexParam;
