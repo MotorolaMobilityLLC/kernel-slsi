@@ -405,7 +405,7 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	}
 
 	if (param_set->dma_output_efd.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
-		for (i = 0; i < frame->planes; i++) {
+		for (i = 0; i < param->efd_output.plane; i++) {
 			param_set->output_dva_efd[i] = frame->shot->uctl.scalerUd.efdTargetAddress[i];
 			if (frame->shot->uctl.scalerUd.efdTargetAddress[i] == 0) {
 				msinfo_hw("[F:%d]efdTargetAddress[%d] is zero\n",
