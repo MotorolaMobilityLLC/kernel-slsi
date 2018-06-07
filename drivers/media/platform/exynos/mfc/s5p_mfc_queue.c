@@ -674,6 +674,18 @@ void s5p_mfc_handle_released_info(struct s5p_mfc_ctx *ctx,
 	}
 	refBuf = &dec->ref_info[index];
 
+	if (dec->dec_only_release_flag) {
+		for (t = 0; t < MFC_MAX_DPBS; t++) {
+			if (dec->dec_only_release_flag & (1 << t)) {
+				mfc_debug(2, "Release FD[%d] = %03d (already released in dec only)\n",
+						t, dec->assigned_fd[t]);
+				refBuf->dpb[ncount].fd[0] = dec->assigned_fd[t];
+				ncount++;
+				dec->dec_only_release_flag &= ~(1 << t);
+			}
+		}
+	}
+
 	if (released_flag) {
 		for (t = 0; t < MFC_MAX_DPBS; t++) {
 			if (released_flag & (1 << t)) {

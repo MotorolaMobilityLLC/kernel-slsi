@@ -1229,6 +1229,7 @@ struct s5p_mfc_dec {
 	int is_dpb_full;
 
 	unsigned int err_reuse_flag;
+	unsigned int dec_only_release_flag;
 
 	/* for debugging about black bar detection */
 	void *frame_vaddr[3][30];

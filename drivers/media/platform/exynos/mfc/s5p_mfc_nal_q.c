@@ -1116,7 +1116,10 @@ static void mfc_nal_q_handle_reuse_buffer(struct s5p_mfc_ctx *ctx, DecoderOutput
 				released_flag &= ~(1 << i);
 
 	/* Not reused buffer should be released when there is a display frame */
-	dec->dynamic_used |= released_flag;
+	dec->dec_only_release_flag |= released_flag;
+	for (i = 0; i < MFC_MAX_DPBS; i++)
+		if (released_flag & (1 << i))
+			clear_bit(i, &dec->available_dpb);
 }
 
 static void mfc_nal_q_handle_ref_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
