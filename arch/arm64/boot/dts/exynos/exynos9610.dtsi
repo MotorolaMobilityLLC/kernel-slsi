@@ -106,6 +106,7 @@
 		decon0 = &decon_f;
 		scaler0 = &scaler_0;
 		mfc0 = &mfc_0;
+		mshc2 = &dwmmc_2;
 	};
 
 	chipid@10000000 {
@@ -3147,6 +3148,18 @@
 				};
 			};
 		};
+	};
+
+	dwmmc_2: dwmmc2@13550000 {
+		compatible = "samsung,exynos-dw-mshc";
+		reg = <0x0 0x13550000 0x2000>;
+		reg-names = "dw_mmc";
+		interrupts = <0 147 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&clock MMC_CARD>;
+		clock-names = "ciu";
+		status = "disabled";
 	};
 
 	/* Secure log */
