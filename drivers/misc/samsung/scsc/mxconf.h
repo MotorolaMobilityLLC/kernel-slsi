@@ -48,20 +48,20 @@
 /**
  * Maxwell Circular Packet Buffer Configuration.
  */
-__packed struct mxcbufconf {
+struct mxcbufconf {
 	scsc_mifram_ref buffer_loc;      /**< Location of allocated buffer in DRAM */
 	uint32_t        num_packets;     /**< Total number of packets that can be stored in the buffer */
 	uint32_t        packet_size;     /**< Size of each individual packet within the buffer */
 	scsc_mifram_ref read_index_loc;  /**< Location of 32bit read index in DRAM or Mailbox */
 	scsc_mifram_ref write_index_loc; /**< Location of 32bit write index */
-};
+} __packed;
 
 /**
  * Maxwell Management Simplex Stream Configuration
  *
  * A circular buffer plus a pair of R/W signaling bits.
  */
-__packed struct mxstreamconf {
+struct mxstreamconf {
 	/** Circular Packet Buffer configuration */
 	struct mxcbufconf buf_conf;
 
@@ -70,40 +70,40 @@ __packed struct mxstreamconf {
 
 	/** Allocated MIF Interrupt Write Bit Index */
 	uint8_t           write_bit_idx;
-};
+} __packed;
 
 /**
  * Maxwell Management Transport Configuration
  *
  * A pair of simplex streams.
  */
-__packed struct mxtransconf {
+struct mxtransconf {
 	struct mxstreamconf to_ap_stream_conf;
 	struct mxstreamconf from_ap_stream_conf;
-};
+} __packed;
 
 /**
  * Maxwell Infrastructure Configuration Version
  */
-__packed struct mxconfversion {
+struct mxconfversion {
 	uint16_t major;
 	uint16_t minor;
-};
+} __packed;
 
 /**
   * Mxlog Event Buffer Configuration.
   *
   * A circular buffer. Size must be a multiple of 2.
   */
-__packed struct mxlogconf
+struct mxlogconf
 {
 	struct mxstreamconf stream_conf;
-};
+} __packed;
 
 /**
  * Maxwell Infrastructure Configuration
  */
-__packed struct mxconf {
+struct mxconf {
 	/**
 	 * Config Magic Number
 	 *
@@ -136,6 +136,6 @@ __packed struct mxconf {
 	*/
 	struct mxlogconf mxlogconf;
 
-};
+} __packed;
 
 #endif /* MXCONF_H__ */
