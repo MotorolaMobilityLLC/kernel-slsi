@@ -22,6 +22,7 @@ clang \
 -fno-omit-frame-pointer \
 -fno-optimize-sibling-calls \
 -g \
+-static \
 -fno-strict-overflow \
 -fno-merge-all-constants \
 -fno-stack-check \
