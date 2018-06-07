@@ -3001,7 +3001,7 @@
 	};
 
 	smfc: smfc@12E30000 {
-		compatible = "samsung,exynos7870-jpeg";
+		compatible = "samsung,exynos8890-jpeg";
 		dma-coherent;
 		reg = <0x0 0x12E30000 0x1000>;
 		interrupts = <0 163 0>;
