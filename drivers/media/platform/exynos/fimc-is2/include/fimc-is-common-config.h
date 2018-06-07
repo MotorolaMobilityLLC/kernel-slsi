@@ -52,7 +52,7 @@
 #define ENABLE_DYNAMIC_MEM
 
 #if defined(CONFIG_PM_DEVFREQ)
-#undef ENABLE_DVFS
+#define ENABLE_DVFS
 #define START_DVFS_LEVEL FIMC_IS_SN_MAX
 #endif /* CONFIG_PM_DEVFREQ */
 
