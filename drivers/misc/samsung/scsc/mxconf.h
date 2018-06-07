@@ -24,6 +24,13 @@
 
 /* Uses */
 
+/* It appears that due to the previous syntax "__packed struct foo" used in this
+ * header, the structures here don't actually get packed. Clang warns that
+ * that syntax is ignored. But correcting it causes a misalignment with FW.
+ * The __MXPACKED macro is used to stop packing the structures in this
+ * header until we've investigated further.
+ */
+#define __MXPACKED /* TODO: HACK - don't actually pack! */
 
 /* Definitions */
 
@@ -54,7 +61,7 @@ struct mxcbufconf {
 	uint32_t        packet_size;     /**< Size of each individual packet within the buffer */
 	scsc_mifram_ref read_index_loc;  /**< Location of 32bit read index in DRAM or Mailbox */
 	scsc_mifram_ref write_index_loc; /**< Location of 32bit write index */
-} __packed;
+} __MXPACKED;
 
 /**
  * Maxwell Management Simplex Stream Configuration
@@ -70,7 +77,7 @@ struct mxstreamconf {
 
 	/** Allocated MIF Interrupt Write Bit Index */
 	uint8_t           write_bit_idx;
-} __packed;
+} __MXPACKED;
 
 /**
  * Maxwell Management Transport Configuration
@@ -80,7 +87,7 @@ struct mxstreamconf {
 struct mxtransconf {
 	struct mxstreamconf to_ap_stream_conf;
 	struct mxstreamconf from_ap_stream_conf;
-} __packed;
+} __MXPACKED;
 
 /**
  * Maxwell Infrastructure Configuration Version
@@ -88,7 +95,7 @@ struct mxtransconf {
 struct mxconfversion {
 	uint16_t major;
 	uint16_t minor;
-} __packed;
+} __MXPACKED;
 
 /**
   * Mxlog Event Buffer Configuration.
@@ -98,7 +105,7 @@ struct mxconfversion {
 struct mxlogconf
 {
 	struct mxstreamconf stream_conf;
-} __packed;
+} __MXPACKED;
 
 /**
  * Maxwell Infrastructure Configuration
@@ -136,6 +143,6 @@ struct mxconf {
 	*/
 	struct mxlogconf mxlogconf;
 
-} __packed;
+} __MXPACKED;
 
 #endif /* MXCONF_H__ */
