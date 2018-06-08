@@ -1853,8 +1853,9 @@ struct camera2_uctl {
 	enum camera_op_mode             opMode;
 	struct camera2_is_hw_lls_uctl	hwlls_mode;
 	uint32_t			statsRoi[4];
-	enum aa_cameratype		masterCam;
-	uint32_t			reserved[10];
+	enum aa_cameraMode		cameraMode;
+	enum aa_sensorPlace		masterCam;
+	uint32_t			reserved[9];
 };
 
 struct camera2_udm {
@@ -1882,8 +1883,11 @@ struct camera2_udm {
 	struct camera2_drc_udm      drc;
 	struct camera2_rgbGamma_udm rgbGamma;
 	struct camera2_ccm_udm      ccm;
+	enum aa_cameraMode		cameraMode;
+	enum aa_sensorPlace		masterCam;
+	enum aa_fallback		fallback;
 	uint32_t			frame_id;
-	uint32_t			reserved[9];
+	uint32_t			reserved[6];
 };
 
 struct camera2_shot {
