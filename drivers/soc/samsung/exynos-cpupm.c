@@ -508,8 +508,12 @@ void enable_power_mode(int cpu, int type)
 		if (IS_NULL(mode))
 			break;
 
-		if (mode->type == type)
+		if (mode->type == type) {
 			atomic_dec(&mode->disable);
+			spin_unlock(&cpupm_lock);
+			awake_cpus(&mode->siblings);
+			return;
+		}
 	}
 	spin_unlock(&cpupm_lock);
 }

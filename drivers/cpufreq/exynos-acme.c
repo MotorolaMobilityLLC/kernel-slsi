@@ -134,6 +134,7 @@ static unsigned int index_to_freq(struct cpufreq_frequency_table *table,
 	return table[index].frequency;
 }
 
+
 /*********************************************************************
  *                         FREQUENCY SCALING                         *
  *********************************************************************/
@@ -144,10 +145,16 @@ static unsigned int index_to_freq(struct cpufreq_frequency_table *table,
  */
 static unsigned int get_freq(struct exynos_cpufreq_domain *domain)
 {
+	int wakeup_flag = 0;
 	unsigned int freq;
 
-	if (domain->need_awake)
+	if (domain->need_awake) {
+		if (likely(domain->old))
+			return domain->old;
+
+		wakeup_flag = 1;
 		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
+	}
 
 	freq = (unsigned int)cal_dfs_get_rate(domain->cal_id);
 	if (!freq) {
@@ -155,7 +162,7 @@ static unsigned int get_freq(struct exynos_cpufreq_domain *domain)
 		freq = domain->old;
 	}
 
-	if (domain->need_awake)
+	if (unlikely(wakeup_flag))
 		enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	return freq;
@@ -166,22 +173,22 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 {
 	int err;
 
-	if (domain->need_awake)
-		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
-
 	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n",
 		domain->id, domain->old, target_freq, DSS_FLAG_IN);
+
+	if (domain->need_awake)
+		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	err = cal_dfs_set_rate(domain->cal_id, target_freq);
 	if (err < 0)
 		pr_err("failed to scale frequency of domain%d (%d -> %d)\n",
 			domain->id, domain->old, target_freq);
 
-	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n",
-		domain->id, domain->old, target_freq, DSS_FLAG_OUT);
-
 	if (domain->need_awake)
 		enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
+
+	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n",
+		domain->id, domain->old, target_freq, DSS_FLAG_OUT);
 
 	return err;
 }
