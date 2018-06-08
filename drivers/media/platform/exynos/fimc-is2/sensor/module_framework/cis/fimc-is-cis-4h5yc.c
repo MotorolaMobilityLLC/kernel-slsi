@@ -57,7 +57,7 @@ static void sensor_4h5yc_cis_data_calculation(const struct sensor_pll_info *pll_
 	u32 pll_voc_a = 0, vt_pix_clk_hz = 0;
 	u32 frame_rate = 0, max_fps = 0, frame_valid_us = 0;
 
-	FIMC_BUG(!pll_info);
+	FIMC_BUG_VOID(!pll_info);
 
 	/* 1. mipi data rate calculation (Mbps/Lane) */
 	/* ToDo: using output Pixel Clock Divider Value */
@@ -1639,15 +1639,13 @@ int sensor_4h5yc_cis_compensate_gain_for_extremely_br(struct v4l2_subdev *subdev
 	ratio = ((expo << 8) / integration_time);
 
 	if (pre_coarse_int <= 15) {
-			compensated_again = (*again * (pre_ratio)) >> 8;
-
-		if (compensated_again < cis_data->min_analog_gain[1]) {
+		compensated_again = (*again * (pre_ratio)) >> 8;
+		if (compensated_again < cis_data->min_analog_gain[1])
 			*again = cis_data->min_analog_gain[1];
-		} else if (*again >= cis_data->max_analog_gain[1]) {
+		else if (*again >= cis_data->max_analog_gain[1])
 			*dgain = (*dgain * (pre_ratio));
-		} else {
+		else
 			*again = compensated_again;
-		}
 
 		dbg_sensor(1, "[%s] exp(%d), again(%d), dgain(%d), coarse_int(%d),"
 			KERN_CONT "compensated_again(%d), integration_time : (%d)\n",
@@ -1765,12 +1763,10 @@ static int cis_4h5yc_probe(struct i2c_client *client,
 
 	if (of_property_read_bool(dnode, "sensor_f_number")) {
 		ret = of_property_read_u32(dnode, "sensor_f_number", &cis->aperture_num);
-		if (ret) {
-			warn("f-number read is fail(%d)",ret);
-		}
-	} else {
+		if (ret)
+			warn("f-number read is fail(%d)", ret);
+	} else
 		cis->aperture_num = F2_2;
-	}
 
 	probe_info("%s f-number %d\n", __func__, cis->aperture_num);
 
