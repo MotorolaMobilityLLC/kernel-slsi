@@ -243,24 +243,24 @@ static int fimc_is_hw_vra_ch1_handle_interrupt(u32 id, void *context)
 				atomic_set(&hw_ip->status.Vvalid, V_BLANK);
 				fimc_is_hw_vra_save_debug_info(hw_ip, lib_vra, DEBUG_POINT_FRAME_END);
 #ifdef ENABLE_REPROCESSING_FD
-				if (instance != 0) {
-					set_bit(instance, &lib_vra->done_vra_hw_intr);
+				set_bit(instance, &lib_vra->done_vra_hw_intr);
 
-					spin_lock(&lib_vra->reprocess_fd_lock);
-					if (test_bit(instance, &lib_vra->done_vra_hw_intr)
-						&& test_bit(instance, &lib_vra->done_vra_callback_out_ready)) {
-						clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
-						clear_bit(instance, &lib_vra->done_vra_hw_intr);
-						spin_unlock(&lib_vra->reprocess_fd_lock);
+				spin_lock(&lib_vra->reprocess_fd_lock);
+				if (test_bit(instance, &lib_vra->done_vra_hw_intr)
+					&& test_bit(instance, &lib_vra->done_vra_callback_out_ready)) {
+					clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
+					clear_bit(instance, &lib_vra->done_vra_hw_intr);
+					spin_unlock(&lib_vra->reprocess_fd_lock);
 
-						fimc_is_hardware_frame_done(hw_ip, NULL, -1,
-							FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
-					} else
-						spin_unlock(&lib_vra->reprocess_fd_lock);
-				} else
-#endif
 					fimc_is_hardware_frame_done(hw_ip, NULL, -1,
 						FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
+				} else {
+					spin_unlock(&lib_vra->reprocess_fd_lock);
+				}
+#else
+				fimc_is_hardware_frame_done(hw_ip, NULL, -1,
+					FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
+#endif
 				wake_up(&hw_ip->status.wait_queue);
 
 				hw_ip->mframe = NULL;

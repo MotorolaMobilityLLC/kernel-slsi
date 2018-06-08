@@ -117,19 +117,18 @@ static void fimc_is_lib_vra_callback_final_output_ready(u32 instance,
 #endif
 
 #ifdef ENABLE_REPROCESSING_FD
-	if (instance != 0) {
-		spin_lock_irqsave(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
-		set_bit(instance, &lib_vra->done_vra_callback_out_ready);
+	spin_lock_irqsave(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
+	set_bit(instance, &lib_vra->done_vra_callback_out_ready);
 
-		if (test_bit(instance, &lib_vra->done_vra_hw_intr)
-			&& test_bit(instance, &lib_vra->done_vra_callback_out_ready)) {
-			clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
-			clear_bit(instance, &lib_vra->done_vra_hw_intr);
-			spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
-			fimc_is_hardware_frame_done(lib_vra->hw_ip, NULL, -1,
-				FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
-		} else
-			spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
+	if (test_bit(instance, &lib_vra->done_vra_hw_intr)
+		&& test_bit(instance, &lib_vra->done_vra_callback_out_ready)) {
+		clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
+		clear_bit(instance, &lib_vra->done_vra_hw_intr);
+		spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
+		fimc_is_hardware_frame_done(lib_vra->hw_ip, NULL, -1,
+			FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
+	} else {
+		spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
 	}
 #endif
 }
@@ -198,22 +197,6 @@ static void fimc_is_lib_vra_callback_post_detect_ready(u32 instance,
 				faces_ptr[i].extra.rot, faces_ptr[i].extra.mirror_x,
 				faces_ptr[i].extra.hw_rot_and_mirror);
 	}
-#ifdef ENABLE_REPROCESSING_FD
-	if (instance != 0) {
-		spin_lock_irqsave(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
-		set_bit(instance, &lib_vra->done_vra_callback_out_ready);
-
-		if (test_bit(instance, &lib_vra->done_vra_hw_intr)
-			&& test_bit(instance, &lib_vra->done_vra_callback_out_ready)) {
-			clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
-			clear_bit(instance, &lib_vra->done_vra_hw_intr);
-			spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
-			fimc_is_hardware_frame_done(lib_vra->hw_ip, NULL, -1,
-				FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
-		} else
-			spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
-	}
-#endif
 }
 
 int fimc_is_lib_vra_set_post_detect_output(struct fimc_is_lib_vra *lib_vra,
