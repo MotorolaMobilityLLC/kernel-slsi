@@ -457,7 +457,6 @@ static int sensor_zc533_actuator_probe(struct i2c_client *client,
 	struct v4l2_subdev *subdev_actuator = NULL;
 	struct fimc_is_actuator *actuator = NULL;
 	struct fimc_is_device_sensor *device = NULL;
-	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
 	u32 sensor_id = 0;
 	struct device *dev;
 	struct device_node *dnode;
@@ -481,8 +480,6 @@ static int sensor_zc533_actuator_probe(struct i2c_client *client,
 		goto p_err;
 	}
 
-	probe_info("%s sensor_id %d\n", __func__, sensor_id);
-
 	device = &core->sensor[sensor_id];
 	if (!test_bit(FIMC_IS_SENSOR_PROBE, &device->state)) {
 		err("sensor device is not yet probed");
@@ -490,15 +487,9 @@ static int sensor_zc533_actuator_probe(struct i2c_client *client,
 		goto p_err;
 	}
 
-	sensor_peri = find_peri_by_act_id(device, ACTUATOR_NAME_ZC533);
-	if (!sensor_peri) {
-		probe_info("sensor peri is net yet probed");
-		return -EPROBE_DEFER;
-	}
-
-	actuator = &sensor_peri->actuator;
+	actuator = kzalloc(sizeof(struct fimc_is_actuator), GFP_KERNEL);
 	if (!actuator) {
-		err("acuator is NULL");
+		err("actuator is NULL");
 		ret = -ENOMEM;
 		goto p_err;
 	}
@@ -509,7 +500,6 @@ static int sensor_zc533_actuator_probe(struct i2c_client *client,
 		ret = -ENOMEM;
 		goto p_err;
 	}
-	sensor_peri->subdev_actuator = subdev_actuator;
 
 	/* This name must is match to sensor_open_extended actuator name */
 	actuator->id = ACTUATOR_NAME_ZC533;
@@ -520,12 +510,16 @@ static int sensor_zc533_actuator_probe(struct i2c_client *client,
 	actuator->max_position = ZC533_POS_MAX_SIZE;
 	actuator->pos_size_bit = ZC533_POS_SIZE_BIT;
 	actuator->pos_direction = ZC533_POS_DIRECTION;
+	actuator->i2c_lock = NULL;
+	actuator->need_softlanding = 0;
+	actuator->actuator_ops = NULL;
+
+	device->subdev_actuator[sensor_id] = subdev_actuator;
+	device->actuator[sensor_id] = actuator;
 
 	v4l2_i2c_subdev_init(subdev_actuator, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_actuator, actuator);
 	v4l2_set_subdev_hostdata(subdev_actuator, device);
-
-	set_bit(FIMC_IS_SENSOR_ACTUATOR_AVAILABLE, &sensor_peri->peri_state);
 
 	snprintf(subdev_actuator->name, V4L2_SUBDEV_NAME_SIZE, "actuator-subdev.%d", actuator->id);
 p_err:
