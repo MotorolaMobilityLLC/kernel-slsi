@@ -358,7 +358,7 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 	 * priority of policy is higher.
 	 */
 	index = cpufreq_frequency_table_target(policy, target_freq, relation);
-	if (ret) {
+	if (index < 0) {
 		pr_err("target frequency(%d) out of range\n", target_freq);
 		goto out;
 	}
@@ -391,6 +391,7 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 {
 	struct exynos_cpufreq_domain *domain = find_domain(policy->cpu);
 	unsigned long freq;
+	unsigned int index;
 
 	if (!domain)
 		return -EINVAL;
@@ -400,7 +401,20 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 	if (list_empty(&domain->dm_list))
 		return __exynos_cpufreq_target(policy, target_freq, relation);
 
-	freq = (unsigned long)target_freq;
+	index = cpufreq_frequency_table_target(policy, target_freq, relation);
+	if (index < 0) {
+		pr_err("target frequency(%d) out of range\n", target_freq);
+	}
+
+	mutex_lock(&domain->lock);
+
+	freq = (unsigned long)index_to_freq(domain->freq_table, index);
+	if (domain->old == freq) {
+		mutex_unlock(&domain->lock);
+		return 0;
+	}
+	mutex_unlock(&domain->lock);
+
 	return DM_CALL(domain->dm_type, &freq);
 }
 
