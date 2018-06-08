@@ -170,7 +170,7 @@ static int slsi_dev_inet6addr_changed(struct notifier_block *nb, unsigned long d
 }
 #endif
 
-static void slsi_regd_init(struct slsi_dev *sdev)
+void slsi_regd_init(struct slsi_dev *sdev)
 {
 	struct ieee80211_regdomain *slsi_world_regdom_custom = sdev->device_config.domain_info.regdomain;
 	struct ieee80211_reg_rule  reg_rules[] = {

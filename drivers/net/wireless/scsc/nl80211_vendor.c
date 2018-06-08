@@ -2582,8 +2582,8 @@ static void slsi_lls_iface_stat_fill(struct slsi_dev *sdev,
 
 	iface_stat->iface = NULL;
 	iface_stat->info.mode = SLSI_LLS_INTERFACE_UNKNOWN;
-	iface_stat->info.country_str[0] = sdev->device_config.domain_info.alpha2[0];
-	iface_stat->info.country_str[1] = sdev->device_config.domain_info.alpha2[1];
+	iface_stat->info.country_str[0] = sdev->device_config.domain_info.regdomain->alpha2[0];
+	iface_stat->info.country_str[1] = sdev->device_config.domain_info.regdomain->alpha2[1];
 	iface_stat->info.country_str[2] = ' '; /* 3rd char of our country code is ASCII<space> */
 
 	for (i = 0; i < SLSI_LLS_AC_MAX; i++)

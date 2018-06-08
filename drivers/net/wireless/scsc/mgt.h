@@ -424,12 +424,15 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_ap_prepare_add_info_ies(struct netdev_vif *ndev_vif, const u8 *ies, size_t ies_len);
 int slsi_set_mib_roam(struct slsi_dev *dev, struct net_device *ndev, u16 psid, int value);
 int slsi_set_mib_rssi_boost(struct slsi_dev *sdev, struct net_device *dev, u16 psid, int index, int boost);
+void slsi_modify_ies_on_channel_switch(struct net_device *dev, struct cfg80211_ap_settings *settings,
+				       u8 *ds_params_ie, u8 *ht_operation_ie, struct ieee80211_mgmt  *mgmt,
+				       u16 beacon_ie_head_len);
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 bool slsi_if_valid_wifi_sharing_channel(struct slsi_dev *sdev, int freq);
 void slsi_extract_valid_wifi_sharing_channels(struct slsi_dev *sdev);
 void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device *dev,
 					 struct cfg80211_ap_settings *settings, struct slsi_dev *sdev,
-					 int *channel_switched_flag);
+					 int *wifi_sharing_channel_switched);
 int slsi_set_mib_wifi_sharing_5ghz_channel(struct slsi_dev *sdev, u16 psid, int value,
 					   int offset, int readbyte, char *arg);
 int slsi_get_byte_position(int bit);

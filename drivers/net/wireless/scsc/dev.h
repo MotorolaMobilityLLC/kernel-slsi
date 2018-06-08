@@ -725,7 +725,7 @@ struct netdev_vif {
 };
 
 struct slsi_802_11d_reg_domain {
-	u8                         alpha2[3];
+	int                        no_indoor_freq;
 	u8                         *countrylist;
 	struct ieee80211_regdomain *regdomain;
 	int                        country_len;
@@ -1082,6 +1082,7 @@ bool slsi_dev_epno_supported(void);
 bool slsi_dev_vo_vi_block_ack(void);
 int slsi_dev_get_scan_result_count(void);
 bool slsi_dev_llslogs_supported(void);
+void slsi_regd_init(struct slsi_dev *sdev);
 
 static inline u16 slsi_tx_host_tag(struct slsi_dev *sdev, enum slsi_traffic_q tq)
 {

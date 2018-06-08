@@ -387,7 +387,7 @@ int slsi_start(struct slsi_dev *sdev)
 		goto err_hip_started;
 
 	/* unifiDefaultCountry != world_domain */
-	if (!(sdev->device_config.domain_info.alpha2[0] == '0' && sdev->device_config.domain_info.alpha2[1] == '0'))
+	if (!(alpha2[0] == '0' && alpha2[1] == '0'))
 		if (memcmp(sdev->device_config.domain_info.regdomain->alpha2, alpha2, 2) != 0) {
 			memcpy(sdev->device_config.domain_info.regdomain->alpha2, alpha2, 2);
 
@@ -507,6 +507,8 @@ static void slsi_stop_chip(struct slsi_dev *sdev)
 	if (sdev->netdev_up_count)
 		return;
 
+	slsi_reset_channel_flags(sdev);
+	slsi_regd_init(sdev);
 	sdev->device_state = SLSI_DEVICE_STATE_STOPPING;
 
 	slsi_sm_wlan_service_stop(sdev);
@@ -3803,6 +3805,7 @@ static void slsi_reg_mib_to_regd(struct slsi_mib_data *mib, struct slsi_802_11d_
 	u16 freq;
 	u8 byte_val;
 	struct ieee80211_reg_rule *reg_rule;
+	int freq_found = 0;
 
 	domain_info->regdomain->alpha2[0] = *(u8 *)(&mib->data[i]);
 	i++;
@@ -3837,7 +3840,12 @@ static void slsi_reg_mib_to_regd(struct slsi_mib_data *mib, struct slsi_802_11d_
 
 		/* Flags 1 byte */
 		reg_rule->flags = slsi_remap_reg_rule_flags(*(u8 *)(&mib->data[i + 6]));
-
+		if (!freq_found)
+			if (((reg_rule->freq_range.start_freq_khz / 1000000) == 5) &&
+			    !(reg_rule->flags & NL80211_RRF_NO_OUTDOOR)) {
+				domain_info->no_indoor_freq = (reg_rule->freq_range.start_freq_khz / 1000) + 10;
+				freq_found = 1;
+			}
 		i += 7;
 
 		num_rules++; /* Num of reg rules */
@@ -3969,6 +3977,21 @@ int slsi_set_mib_rssi_boost(struct slsi_dev *sdev, struct net_device *dev, u16 p
 	return error;
 }
 
+void slsi_modify_ies_on_channel_switch(struct net_device *dev, struct cfg80211_ap_settings *settings,
+				       u8 *ds_params_ie, u8 *ht_operation_ie, struct ieee80211_mgmt  *mgmt,
+				       u16 beacon_ie_head_len)
+{
+	ds_params_ie = (u8 *)cfg80211_find_ie(WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable, beacon_ie_head_len);
+	slsi_modify_ies(dev, WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable,
+			beacon_ie_head_len, 2, ieee80211_frequency_to_channel(settings->chandef.chan->center_freq));
+
+	ht_operation_ie = (u8 *)cfg80211_find_ie(WLAN_EID_HT_OPERATION, settings->beacon.tail,
+						 settings->beacon.tail_len);
+	slsi_modify_ies(dev, WLAN_EID_HT_OPERATION, (u8 *)settings->beacon.tail,
+			settings->beacon.tail_len, 2,
+			ieee80211_frequency_to_channel(settings->chandef.chan->center_freq));
+}
+
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 void slsi_extract_valid_wifi_sharing_channels(struct slsi_dev *sdev)
 {
@@ -4010,7 +4033,7 @@ bool slsi_if_valid_wifi_sharing_channel(struct slsi_dev *sdev, int freq)
 
 void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device *dev,
 					 struct cfg80211_ap_settings *settings,
-					 struct slsi_dev *sdev, int *channel_switched_flag)
+					 struct slsi_dev *sdev, int *wifi_sharing_channel_switched)
 {
 	struct net_device *sta_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
 	struct netdev_vif *ndev_sta_vif  = netdev_priv(sta_dev);
@@ -4023,7 +4046,7 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 		/*if single antenna*/
 #ifdef CONFIG_SCSC_WLAN_SINGLE_ANTENNA
 		if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
-			*channel_switched_flag = 1;
+			*wifi_sharing_channel_switched = 1;
 			settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 			settings->chandef.center_freq1 = sta_frequency;
 		}
@@ -4037,7 +4060,7 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 			settings->chandef.center_freq1 = settings->chandef.chan->center_freq;
 		} else {
 			if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
-				*channel_switched_flag = 1;
+				*wifi_sharing_channel_switched = 1;
 				settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 				settings->chandef.center_freq1 = sta_frequency;
 			}
@@ -4049,7 +4072,7 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 		/* For single antenna */
 #ifdef CONFIG_SCSC_WLAN_SINGLE_ANTENNA
 		if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
-			*channel_switched_flag = 1;
+			*wifi_sharing_channel_switched = 1;
 			settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 			settings->chandef.center_freq1 = sta_frequency;
 		}
@@ -4061,11 +4084,11 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 			      ieee80211_frequency_to_channel(sta_frequency))) &&
 			    slsi_if_valid_wifi_sharing_channel(sdev, sta_frequency)) {
 				if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
-					*channel_switched_flag = 1;
+					*wifi_sharing_channel_switched = 1;
 					settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
 				}
 			} else {
-				*channel_switched_flag = 1;
+				*wifi_sharing_channel_switched = 1;
 				settings->chandef.chan = ieee80211_get_channel(wiphy, SLSI_2G_CHANNEL_ONE);
 				settings->chandef.center_freq1 = SLSI_2G_CHANNEL_ONE;
 			}

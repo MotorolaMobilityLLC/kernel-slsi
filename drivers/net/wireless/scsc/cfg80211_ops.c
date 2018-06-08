@@ -1874,13 +1874,15 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	bool              append_vht_ies = false;
 	const u8             *ie;
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
-	int channel_switched_flag = 0;
+	int wifi_sharing_channel_switched = 0;
 	u8 *ds_params_ie = NULL;
 	struct ieee80211_mgmt  *mgmt;
 	u16                    beacon_ie_head_len;
 	u8 *ht_operation_ie;
 	struct netdev_vif *ndev_sta_vif;
 #endif
+	struct ieee80211_channel  *channel = NULL;
+	int indoor_channel = 0;
 
 	SLSI_MUTEX_LOCK(sdev->start_stop_mutex);
 	if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
@@ -1903,11 +1905,20 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		if ((ndev_sta_vif->activated) && (ndev_sta_vif->vif_type == FAPI_VIFTYPE_STATION) &&
 		    (ndev_sta_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTING ||
 		     ndev_sta_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED)) {
-			slsi_select_wifi_sharing_ap_channel(wiphy, dev, settings, sdev, &channel_switched_flag);
+			slsi_select_wifi_sharing_ap_channel(wiphy, dev, settings, sdev, &wifi_sharing_channel_switched);
 		}
 		SLSI_MUTEX_UNLOCK(ndev_sta_vif->vif_mutex);
 	}
 #endif
+
+	channel =  ieee80211_get_channel(sdev->wiphy, settings->chandef.chan->center_freq);
+	if ((channel->flags) & (IEEE80211_CHAN_INDOOR_ONLY)) {
+		settings->chandef.chan = ieee80211_get_channel(wiphy,
+								 sdev->device_config.domain_info.no_indoor_freq);
+		settings->chandef.center_freq1 = sdev->device_config.domain_info.no_indoor_freq;
+		indoor_channel = 1;
+	}
+
 	r = slsi_ap_start_validate(dev, sdev, settings);
 	if (r != 0)
 		goto exit_with_vif_mutex;
@@ -1967,7 +1978,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			ndev_vif->chandef->center_freq1 = ieee80211_channel_to_frequency(155, NL80211_BAND_5GHZ);
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 		/* In wifi sharing case, AP can start on STA channel even though it is DFS channel*/
-		if (channel_switched_flag == 1) {
+		if (wifi_sharing_channel_switched == 1) {
 			if ((oper_chan >= 52) && (oper_chan <= 64))
 				ndev_vif->chandef->center_freq1 = ieee80211_channel_to_frequency(58,
 												 NL80211_BAND_5GHZ);
@@ -2004,7 +2015,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			}
 
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
-		if (channel_switched_flag == 1) {
+		if (wifi_sharing_channel_switched == 1) {
 			for (ch = 0; ch < ARRAY_SIZE(bw_40_minus_dfs_channels); ch++)
 				if (oper_chan == bw_40_minus_dfs_channels[ch]) {
 					ndev_vif->chandef->center_freq1 =  ndev_vif->chandef->chan->center_freq - 10;
@@ -2084,19 +2095,12 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 #endif
 
+if ((indoor_channel == 1)
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
-if (channel_switched_flag == 1) {
-	ds_params_ie = (u8 *)cfg80211_find_ie(WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable, beacon_ie_head_len);
-	slsi_modify_ies(dev, WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable,
-			beacon_ie_head_len, 2, ieee80211_frequency_to_channel(settings->chandef.chan->center_freq));
-
-	ht_operation_ie = (u8 *)cfg80211_find_ie(WLAN_EID_HT_OPERATION, settings->beacon.tail,
-						 settings->beacon.tail_len);
-	slsi_modify_ies(dev, WLAN_EID_HT_OPERATION, (u8 *)settings->beacon.tail,
-			settings->beacon.tail_len, 2,
-			ieee80211_frequency_to_channel(settings->chandef.chan->center_freq));
-}
+|| (wifi_sharing_channel_switched == 1)
 #endif
+)
+	slsi_modify_ies_on_channel_switch(dev, settings, ds_params_ie, ht_operation_ie, mgmt, beacon_ie_head_len);
 
 	ndev_vif->vif_type = FAPI_VIFTYPE_AP;
 
@@ -2180,12 +2184,17 @@ if (channel_switched_flag == 1) {
 
 	r = slsi_mlme_start(sdev, dev, dev->dev_addr, settings, wpa_ie_pos, wmm_ie_pos, append_vht_ies);
 
+	if ((indoor_channel == 1)
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+	    || (wifi_sharing_channel_switched == 1)
+#endif
+	)
+		cfg80211_ch_switch_notify(dev, &settings->chandef);
+
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 	if (r == 0)
 		SLSI_NET_DBG1(dev, SLSI_CFG80211, "Soft Ap started on frequency: %d\n",
 			      settings->chandef.chan->center_freq);
-	if (channel_switched_flag == 1)
-		cfg80211_ch_switch_notify(dev, &settings->chandef);
 	if (SLSI_IS_INTERFACE_WIFI_SHARING_AP(ndev_vif))
 		ndev_vif->chan = settings->chandef.chan;
 #endif
