@@ -566,6 +566,9 @@ static int s5p_mfc_open(struct file *file)
 		ret = mfc_init_instance(dev, ctx);
 		if (ret)
 			goto err_init_inst;
+
+		if (perf_boost_mode)
+			s5p_mfc_perf_boost_enable(dev);
 	}
 
 #ifdef CONFIG_VIDEO_EXYNOS_REPEATER
@@ -712,6 +715,10 @@ static int s5p_mfc_release(struct file *file)
 
 	if (dev->num_inst == 0) {
 		s5p_mfc_deinit_hw(dev);
+
+		if (perf_boost_mode)
+			s5p_mfc_perf_boost_disable(dev);
+
 		del_timer_sync(&dev->watchdog_timer);
 
 		flush_workqueue(dev->butler_wq);
@@ -878,8 +885,6 @@ static int mfc_parse_mfc_qos_platdata(struct device_node *np, char *node_name,
 	of_property_read_u32(np_qos, "freq_mfc", &qosdata->freq_mfc);
 	of_property_read_u32(np_qos, "freq_int", &qosdata->freq_int);
 	of_property_read_u32(np_qos, "freq_mif", &qosdata->freq_mif);
-	of_property_read_u32(np_qos, "freq_cpu", &qosdata->freq_cpu);
-	of_property_read_u32(np_qos, "freq_kfc", &qosdata->freq_kfc);
 	of_property_read_u32(np_qos, "mo_value", &qosdata->mo_value);
 	of_property_read_u32(np_qos, "mo_10bit_value", &qosdata->mo_10bit_value);
 	of_property_read_u32(np_qos, "mo_uhd_enc60_value", &qosdata->mo_uhd_enc60_value);
@@ -945,6 +950,7 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 {
 	struct s5p_mfc_platdata	*pdata = mfc->pdata;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+	struct device_node *np_qos;
 	char node_name[50];
 	int i;
 #endif
@@ -1000,6 +1006,21 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 		snprintf(node_name, sizeof(node_name), "mfc_qos_variant_%d", i);
 		mfc_parse_mfc_qos_platdata(np, node_name, &pdata->qos_table[i]);
 	}
+
+	/* performance boost mode */
+	pdata->qos_boost_table = devm_kzalloc(mfc->device,
+			sizeof(struct s5p_mfc_qos_boost), GFP_KERNEL);
+	np_qos = of_find_node_by_name(np, "mfc_perf_boost_table");
+	if (!np_qos) {
+		pr_err("%s: could not find mfc_perf_boost_table node\n", node_name);
+		return;
+	}
+	of_property_read_u32(np_qos, "num_cluster", &pdata->qos_boost_table->num_cluster);
+	of_property_read_u32(np_qos, "freq_mfc", &pdata->qos_boost_table->freq_mfc);
+	of_property_read_u32(np_qos, "freq_int", &pdata->qos_boost_table->freq_int);
+	of_property_read_u32(np_qos, "freq_mif", &pdata->qos_boost_table->freq_mif);
+	of_property_read_u32_array(np_qos, "freq_cluster", &pdata->qos_boost_table->freq_cluster[0],
+			pdata->qos_boost_table->num_cluster);
 #endif
 }
 

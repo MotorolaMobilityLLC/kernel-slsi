@@ -31,6 +31,7 @@ unsigned int perf_measure_option;
 unsigned int sfr_dump;
 unsigned int mmcache_dump;
 unsigned int mmcache_disable;
+unsigned int perf_boost_mode;
 
 static int mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -54,6 +55,7 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 	seq_printf(s, "[MMCACHE] %s(%s)\n",
 			dev->has_mmcache ? "supported" : "not supported",
 			dev->mmcache.is_on_status ? "enabled" : "disabled");
+	seq_printf(s, "[PERF BOOST] %s\n", perf_boost_mode ? "enabled" : "disabled");
 	seq_printf(s, "[FEATURES] nal_q: %d(0x%x), skype: %d(0x%x), black_bar: %d(0x%x)\n",
 			dev->pdata->nal_q.support, dev->pdata->nal_q.version,
 			dev->pdata->skype.support, dev->pdata->skype.version,
@@ -106,6 +108,12 @@ static int mfc_debug_info_show(struct seq_file *s, void *unused)
 	seq_puts(s, "32  (1 << 5): enc NAL_START\n");
 	seq_puts(s, "64  (1 << 6): ERR interrupt\n");
 	seq_puts(s, "128 (1 << 7): WARN interrupt\n");
+
+	seq_puts(s, "-----Performance boost options (bit setting)\n");
+	seq_puts(s, "ex) echo 7 > /d/mfc/perf_boost_mode (max freq)\n");
+	seq_puts(s, "1   (1 << 0): DVFS (INT/MFC/MIF)\n");
+	seq_puts(s, "2   (1 << 1): MO value\n");
+	seq_puts(s, "4   (1 << 2): CPU frequency\n");
 
 	return 0;
 }
@@ -170,4 +178,6 @@ void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
 			0644, debugfs->root, &mmcache_dump);
 	debugfs->mmcache_disable = debugfs_create_u32("mmcache_disable",
 			0644, debugfs->root, &mmcache_disable);
+	debugfs->perf_boost_mode = debugfs_create_u32("perf_boost_mode",
+			0644, debugfs->root, &perf_boost_mode);
 }

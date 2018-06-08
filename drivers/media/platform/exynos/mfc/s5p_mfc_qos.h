@@ -36,11 +36,15 @@
 #define MFC_QOS_WEIGHT_NUM_OF_TILE	75
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+void s5p_mfc_perf_boost_enable(struct s5p_mfc_dev *dev);
+void s5p_mfc_perf_boost_disable(struct s5p_mfc_dev *dev);
 void s5p_mfc_qos_on(struct s5p_mfc_ctx *ctx);
 void s5p_mfc_qos_off(struct s5p_mfc_ctx *ctx);
 #else
-#define s5p_mfc_qos_on(ctx)	do {} while (0)
-#define s5p_mfc_qos_off(ctx)	do {} while (0)
+#define s5p_mfc_perf_boost_enable(dev)	do {} while (0)
+#define s5p_mfc_perf_boost_disable(dev)	do {} while (0)
+#define s5p_mfc_qos_on(ctx)		do {} while (0)
+#define s5p_mfc_qos_off(ctx)		do {} while (0)
 #endif
 
 void s5p_mfc_qos_update_framerate(struct s5p_mfc_ctx *ctx);

@@ -25,6 +25,80 @@ enum {
 	MFC_QOS_BW,
 };
 
+enum {
+	MFC_PERF_BOOST_DVFS	= (1 << 0),
+	MFC_PERF_BOOST_MO	= (1 << 1),
+	MFC_PERF_BOOST_CPU	= (1 << 2),
+};
+
+void s5p_mfc_perf_boost_enable(struct s5p_mfc_dev *dev)
+{
+	struct s5p_mfc_platdata *pdata = dev->pdata;
+	struct s5p_mfc_qos_boost *qos_boost_table = pdata->qos_boost_table;
+	int i;
+
+	if (perf_boost_mode & MFC_PERF_BOOST_DVFS) {
+		if (pdata->mfc_freq_control)
+			pm_qos_add_request(&dev->qos_req_mfc, PM_QOS_MFC_THROUGHPUT,
+					qos_boost_table->freq_mfc);
+		pm_qos_add_request(&dev->qos_req_int, PM_QOS_DEVICE_THROUGHPUT,
+				qos_boost_table->freq_int);
+		pm_qos_add_request(&dev->qos_req_mif, PM_QOS_BUS_THROUGHPUT,
+				qos_boost_table->freq_mif);
+		mfc_debug(3, "[QoS][perf_boost] DVFS mfc: %d, int:%d, mif:%d\n",
+				qos_boost_table->freq_mfc, qos_boost_table->freq_int,
+				qos_boost_table->freq_mif);
+	}
+
+#ifdef CONFIG_EXYNOS_BTS
+	if (perf_boost_mode & MFC_PERF_BOOST_MO) {
+		if (pdata->mo_control) {
+			bts_update_scen(BS_MFC_UHD_10BIT, 1);
+			mfc_debug(3, "[QoS][perf_boost] BTS(MO): UHD_10BIT\n");
+		}
+	}
+#endif
+
+	if (perf_boost_mode & MFC_PERF_BOOST_CPU) {
+		for (i = 0; i < qos_boost_table->num_cluster; i++) {
+			pm_qos_add_request(&dev->qos_req_cluster[i], PM_QOS_CLUSTER0_FREQ_MIN + (i * 2),
+					qos_boost_table->freq_cluster[i]);
+			mfc_debug(3, "[QoS][perf_boost] CPU cluster[%d]: %d\n",
+					i, qos_boost_table->freq_cluster[i]);
+		}
+	}
+}
+
+void s5p_mfc_perf_boost_disable(struct s5p_mfc_dev *dev)
+{
+	struct s5p_mfc_platdata *pdata = dev->pdata;
+	int i;
+
+	if (perf_boost_mode & MFC_PERF_BOOST_DVFS) {
+		if (pdata->mfc_freq_control)
+			pm_qos_remove_request(&dev->qos_req_mfc);
+		pm_qos_remove_request(&dev->qos_req_int);
+		pm_qos_remove_request(&dev->qos_req_mif);
+		mfc_debug(3, "[QoS][perf_boost] DVFS off\n");
+	}
+
+#ifdef CONFIG_EXYNOS_BTS
+	if (perf_boost_mode & MFC_PERF_BOOST_MO) {
+		if (pdata->mo_control) {
+			bts_update_scen(BS_MFC_UHD_10BIT, 0);
+			mfc_debug(3, "[QoS][perf_boost] BTS(MO) off\n");
+		}
+	}
+#endif
+
+	if (perf_boost_mode & MFC_PERF_BOOST_CPU) {
+		for (i = 0; i < pdata->qos_boost_table->num_cluster; i++) {
+			pm_qos_remove_request(&dev->qos_req_cluster[i]);
+			mfc_debug(3, "[QoS][perf_boost] CPU cluster[%d] off\n", i);
+		}
+	}
+}
+
 static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
@@ -43,15 +117,6 @@ static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 		pm_qos_add_request(&dev->qos_req_mif,
 				PM_QOS_BUS_THROUGHPUT,
 				qos_table[idx].freq_mif);
-
-#ifdef CONFIG_ARM_EXYNOS_MP_CPUFREQ
-		pm_qos_add_request(&dev->qos_req_cluster1,
-				PM_QOS_CLUSTER1_FREQ_MIN,
-				qos_table[idx].freq_cpu);
-		pm_qos_add_request(&dev->qos_req_cluster0,
-				PM_QOS_CLUSTER0_FREQ_MIN,
-				qos_table[idx].freq_kfc);
-#endif
 
 #ifdef CONFIG_EXYNOS_BTS
 		if (pdata->mo_control) {
@@ -84,13 +149,6 @@ static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 		pm_qos_update_request(&dev->qos_req_mif,
 				qos_table[idx].freq_mif);
 
-#ifdef CONFIG_ARM_EXYNOS_MP_CPUFREQ
-		pm_qos_update_request(&dev->qos_req_cluster1,
-				qos_table[idx].freq_cpu);
-		pm_qos_update_request(&dev->qos_req_cluster0,
-				qos_table[idx].freq_kfc);
-#endif
-
 #ifdef CONFIG_EXYNOS_BTS
 		if (pdata->mo_control) {
 			bts_update_scen(BS_MFC_UHD_ENC60, qos_table[idx].mo_uhd_enc60_value);
@@ -118,11 +176,6 @@ static void mfc_qos_operate(struct s5p_mfc_ctx *ctx, int opr_type, int idx)
 			pm_qos_remove_request(&dev->qos_req_mfc);
 		pm_qos_remove_request(&dev->qos_req_int);
 		pm_qos_remove_request(&dev->qos_req_mif);
-
-#ifdef CONFIG_ARM_EXYNOS_MP_CPUFREQ
-		pm_qos_remove_request(&dev->qos_req_cluster1);
-		pm_qos_remove_request(&dev->qos_req_cluster0);
-#endif
 
 #ifdef CONFIG_EXYNOS_BTS
 		if (pdata->mo_control) {
@@ -425,6 +478,11 @@ void s5p_mfc_qos_on(struct s5p_mfc_ctx *ctx)
 	struct bts_bw mfc_bw, mfc_bw_ctx;
 #endif
 
+	if (perf_boost_mode) {
+		mfc_info_ctx("[QoS][perf_boost] skip control\n");
+		return;
+	}
+
 	list_for_each_entry(qos_ctx, &dev->qos_queue, qos_list)
 		if (qos_ctx == ctx)
 			found = 1;
@@ -493,6 +551,11 @@ void s5p_mfc_qos_off(struct s5p_mfc_ctx *ctx)
 #ifdef CONFIG_EXYNOS_BTS
 	struct bts_bw mfc_bw, mfc_bw_ctx;
 #endif
+
+	if (perf_boost_mode) {
+		mfc_info_ctx("[QoS][perf_boost] skip control\n");
+		return;
+	}
 
 	if (list_empty(&dev->qos_queue)) {
 		if (atomic_read(&dev->qos_req_cur) != 0) {

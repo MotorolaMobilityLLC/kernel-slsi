@@ -156,6 +156,8 @@ static void mfc_display_state(struct s5p_mfc_dev *dev)
 			dev->hwlock.bits, dev->hwlock.dev,
 			dev->curr_ctx, dev->curr_ctx_is_drm,
 			dev->preempt_ctx, s5p_mfc_get_bits(&dev->work_bits));
+	pr_err("options debug_level:%d, debug_mode:%d, mmcache:%d, perf_boost:%d\n",
+			debug_level, dev->pdata->debug_mode, dev->mmcache.is_on_status, perf_boost_mode);
 	pr_err("NAL-Q state:%d, exception:%d, in_exe_cnt: %d, out_exe_cnt: %d\n",
 			nal_q_handle->nal_q_state, nal_q_handle->nal_q_exception,
 			nal_q_handle->nal_q_in_handle->in_exe_count,

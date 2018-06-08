@@ -53,6 +53,7 @@
 
 #define MAX_NUM_IMAGES_IN_VB		8
 #define MAX_NUM_BUFCON_BUFS		32
+#define MAX_NUM_CLUSTER			3
 
 /*
  *  MFC region id for smc
@@ -311,6 +312,7 @@ struct s5p_mfc_debugfs {
 	struct dentry *sfr_dump;
 	struct dentry *mmcache_dump;
 	struct dentry *mmcache_disable;
+	struct dentry *perf_boost_mode;
 };
 
 /**
@@ -361,12 +363,18 @@ struct s5p_mfc_qos {
 	unsigned int freq_mfc;
 	unsigned int freq_int;
 	unsigned int freq_mif;
-	unsigned int freq_cpu;
-	unsigned int freq_kfc;
 	unsigned int mo_value;
 	unsigned int mo_10bit_value;
 	unsigned int mo_uhd_enc60_value;
 	unsigned int time_fw;
+};
+
+struct s5p_mfc_qos_boost {
+	unsigned int num_cluster;
+	unsigned int freq_mfc;
+	unsigned int freq_int;
+	unsigned int freq_mif;
+	unsigned int freq_cluster[MAX_NUM_CLUSTER];
 };
 #endif
 
@@ -407,6 +415,7 @@ struct s5p_mfc_platdata {
 	unsigned int mo_control;
 	unsigned int bw_control;
 	struct s5p_mfc_qos *qos_table;
+	struct s5p_mfc_qos_boost *qos_boost_table;
 #endif
 };
 
@@ -754,10 +763,7 @@ struct s5p_mfc_dev {
 	struct pm_qos_request qos_req_mfc;
 	struct pm_qos_request qos_req_int;
 	struct pm_qos_request qos_req_mif;
-#ifdef CONFIG_ARM_EXYNOS_MP_CPUFREQ
-	struct pm_qos_request qos_req_cluster1;
-	struct pm_qos_request qos_req_cluster0;
-#endif
+	struct pm_qos_request qos_req_cluster[MAX_NUM_CLUSTER];
 	int qos_has_enc_ctx;
 #endif
 	int id;
