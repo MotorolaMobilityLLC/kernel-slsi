@@ -144,6 +144,7 @@ static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
 
 static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 {
+	struct s5p_mfc_dev *dev = ctx->dev;
 	u32 org_fmt = ctx->dst_fmt->fourcc;
 
 	if (ctx->is_10bit && ctx->is_422format) {
@@ -187,7 +188,10 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 			case V4L2_PIX_FMT_NV16M:
 			case V4L2_PIX_FMT_NV16M_S10B:
 			case V4L2_PIX_FMT_NV16M_P210:
-				ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
+				if (dev->pdata->P010_decoding)
+					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
+				else
+					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_S10B);
 				break;
 			case V4L2_PIX_FMT_NV21M:
 			case V4L2_PIX_FMT_NV61M:
@@ -196,7 +200,10 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 				ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV21M_S10B);
 				break;
 			default:
-				ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
+				if (dev->pdata->P010_decoding)
+					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
+				else
+					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_S10B);
 				break;
 			}
 		}

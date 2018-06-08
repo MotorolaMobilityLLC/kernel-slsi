@@ -495,7 +495,10 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 void s5p_mfc_set_pixel_format(struct s5p_mfc_dev *dev, unsigned int format)
 {
 	unsigned int reg = 0;
-	unsigned int pix_val, mem_type_10bit = 1;
+	unsigned int pix_val, mem_type_10bit = 0;
+
+	if (dev->pdata->P010_decoding)
+		mem_type_10bit = 1;
 
 	switch (format) {
 	case V4L2_PIX_FMT_NV12M:
@@ -524,6 +527,7 @@ void s5p_mfc_set_pixel_format(struct s5p_mfc_dev *dev, unsigned int format)
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV16M_P210:
+		mem_type_10bit = 1;
 		pix_val = 0;
 		break;
 	case V4L2_PIX_FMT_NV21M_S10B:
@@ -533,6 +537,7 @@ void s5p_mfc_set_pixel_format(struct s5p_mfc_dev *dev, unsigned int format)
 		break;
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:
+		mem_type_10bit = 1;
 		pix_val = 1;
 		break;
 	default:

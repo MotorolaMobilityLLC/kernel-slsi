@@ -392,6 +392,8 @@ struct s5p_mfc_platdata {
 	struct s5p_mfc_feature static_info_dec;
 	struct s5p_mfc_feature color_aspect_enc;
 	struct s5p_mfc_feature static_info_enc;
+	/* Default 10bit format for decoding */
+	unsigned int P010_decoding;
 	/* Encoder default parameter */
 	unsigned int enc_param_num;
 	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];

@@ -57,7 +57,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 		.mem_planes = 1,
 	},
 	{
-		.name = "4:2:0 2 Planes Y/CbCr 10bit",
+		.name = "4:2:0 2 Planes Y/CbCr 8+2 10bit",
 		.fourcc = V4L2_PIX_FMT_NV12M_S10B,
 		.codec_mode = MFC_FORMATS_NO_CODEC,
 		.type = MFC_FMT_RAW,
@@ -89,7 +89,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 		.mem_planes = 2,
 	},
 	{
-		.name = "4:2:0 2 Planes Y/CrCb 10bit",
+		.name = "4:2:0 2 Planes Y/CrCb 8+2 10bit",
 		.fourcc = V4L2_PIX_FMT_NV21M_S10B,
 		.codec_mode = MFC_FORMATS_NO_CODEC,
 		.type = MFC_FMT_RAW,
@@ -113,7 +113,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 		.mem_planes = 2,
 	},
 	{
-		.name = "4:2:2 2 Planes Y/CbCr 10bit",
+		.name = "4:2:2 2 Planes Y/CbCr 8+2 10bit",
 		.fourcc = V4L2_PIX_FMT_NV16M_S10B,
 		.codec_mode = MFC_FORMATS_NO_CODEC,
 		.type = MFC_FMT_RAW,
@@ -137,7 +137,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 		.mem_planes = 2,
 	},
 	{
-		.name = "4:2:2 2 Planes Y/CrCb 10bit",
+		.name = "4:2:2 2 Planes Y/CrCb 8+2 10bit",
 		.fourcc = V4L2_PIX_FMT_NV61M_S10B,
 		.codec_mode = MFC_FORMATS_NO_CODEC,
 		.type = MFC_FMT_RAW,
