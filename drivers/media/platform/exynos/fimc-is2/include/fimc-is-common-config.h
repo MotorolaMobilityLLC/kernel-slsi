@@ -18,7 +18,7 @@
  * =================================================================================================
  */
 #define FIMC_IS_SENSOR_COUNT	5
-#define FIMC_IS_STREAM_COUNT	4
+#define FIMC_IS_STREAM_COUNT	8
 #define FIMC_IS_STR_LEN		10
 
 #define FIMC_IS_MAX_PRIO	(MAX_RT_PRIO)
