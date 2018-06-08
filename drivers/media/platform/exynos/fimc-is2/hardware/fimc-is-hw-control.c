@@ -3010,6 +3010,12 @@ int fimc_is_hardware_load_setfile(struct fimc_is_hardware *hardware, ulong addr,
 
 			if (!test_bit(hw_ip->id, &hardware->hw_map[instance])) {
 				msdbg_hw(1, "skip parsing at not mapped hw_ip", instance, hw_ip);
+				if (hw_slot) {
+					unsigned long base = header.num_setfile_base;
+					size_t blk_size = sizeof(u32);
+
+					setfile_table_idx = (u32)*(ulong *)(base + (ip * blk_size));
+				}
 				continue;
 			}
 
