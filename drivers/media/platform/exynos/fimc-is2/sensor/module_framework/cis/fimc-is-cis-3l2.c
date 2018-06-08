@@ -59,7 +59,7 @@ static void sensor_3l2_cis_data_calculation(const struct sensor_pll_info *pll_in
 	u32 pll_voc_a = 0, vt_pix_clk_hz = 0;
 	u32 frame_rate = 0, max_fps = 0, frame_valid_us = 0;
 
-	FIMC_BUG(!pll_info);
+	FIMC_BUG_VOID(!pll_info);
 
 	/* 1. mipi data rate calculation (Mbps/Lane) */
 	/* ToDo: using output Pixel Clock Divider Value */
