@@ -41,22 +41,6 @@ struct s5p_mfc_fmt dec_formats[] = {
 		.mem_planes = 3,
 	},
 	{
-		.name = "4:2:0 2 Planes 16x16 Tiles",
-		.fourcc = V4L2_PIX_FMT_NV12MT_16X16,
-		.codec_mode = MFC_FORMATS_NO_CODEC,
-		.type = MFC_FMT_RAW,
-		.num_planes = 2,
-		.mem_planes = 2,
-	},
-	{
-		.name = "4:2:0 2 Planes 64x32 Tiles",
-		.fourcc = V4L2_PIX_FMT_NV12MT,
-		.codec_mode = MFC_FORMATS_NO_CODEC,
-		.type = MFC_FMT_RAW,
-		.num_planes = 2,
-		.mem_planes = 2,
-	},
-	{
 		.name = "4:2:0 2 Planes Y/CbCr",
 		.fourcc = V4L2_PIX_FMT_NV12M,
 		.codec_mode = MFC_FORMATS_NO_CODEC,

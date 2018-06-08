@@ -27,13 +27,12 @@
 #define MAX_FRAME_SIZE		(2*1024*1024)
 
 /* Find selected format description */
-static struct s5p_mfc_fmt *mfc_dec_find_format(struct v4l2_format *f, unsigned int t)
+static struct s5p_mfc_fmt *mfc_dec_find_format(unsigned int pixelformat)
 {
 	unsigned long i;
 
 	for (i = 0; i < NUM_FORMATS; i++) {
-		if (dec_formats[i].fourcc == f->fmt.pix_mp.pixelformat &&
-		    dec_formats[i].type == t)
+		if (dec_formats[i].fourcc == pixelformat)
 			return (struct s5p_mfc_fmt *)&dec_formats[i];
 	}
 
@@ -159,23 +158,23 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M:
 		case V4L2_PIX_FMT_NV12M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[14];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M_S10B);
 			break;
 		case V4L2_PIX_FMT_NV21M:
 		case V4L2_PIX_FMT_NV61M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[17];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV61M_S10B);
 			break;
 		default:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[14];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M_S10B);
 			break;
 		}
 		ctx->raw_buf.num_planes = 2;
 	} else if (ctx->is_10bit && !ctx->is_422format) {
 		if (ctx->dst_fmt->mem_planes == 1) {
 			/* YUV420 only supports the single plane */
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[8];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12N_10B);
 		} else {
 			switch (org_fmt) {
 			case V4L2_PIX_FMT_NV12M_S10B:
@@ -188,16 +187,16 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 			case V4L2_PIX_FMT_NV16M:
 			case V4L2_PIX_FMT_NV16M_S10B:
 			case V4L2_PIX_FMT_NV16M_P210:
-				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[9];
+				ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
 				break;
 			case V4L2_PIX_FMT_NV21M:
 			case V4L2_PIX_FMT_NV61M:
 			case V4L2_PIX_FMT_NV61M_S10B:
 			case V4L2_PIX_FMT_NV61M_P210:
-				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[11];
+				ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV21M_S10B);
 				break;
 			default:
-				ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[9];
+				ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
 				break;
 			}
 		}
@@ -213,17 +212,17 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
 		case V4L2_PIX_FMT_NV16M_P210:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[13];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M);
 			break;
 		case V4L2_PIX_FMT_NV21M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV61M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
 		case V4L2_PIX_FMT_NV61M_P210:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[16];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV61M);
 			break;
 		default:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[13];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M);
 			break;
 		}
 		ctx->raw_buf.num_planes = 2;
@@ -235,14 +234,14 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
 		case V4L2_PIX_FMT_NV16M_P210:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[5];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M);
 			break;
 		case V4L2_PIX_FMT_NV61M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV61M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
 		case V4L2_PIX_FMT_NV61M_P210:
-			ctx->dst_fmt = (struct s5p_mfc_fmt *)&dec_formats[10];
+			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV21M);
 			break;
 		default:
 			/* It is right format */
@@ -374,25 +373,15 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	}
 	mfc_debug(2, "Type is %d\n", f->type);
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		fmt = mfc_dec_find_format(f, MFC_FMT_DEC);
+		fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
 		if (!fmt) {
 			mfc_err_dev("Unsupported format for source.\n");
 			return -EINVAL;
 		}
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		fmt = mfc_dec_find_format(f, MFC_FMT_RAW);
-
+		fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
 		if (!fmt) {
 			mfc_err_dev("Unsupported format for destination.\n");
-			return -EINVAL;
-		}
-
-		if (fmt->fourcc == V4L2_PIX_FMT_NV12MT) {
-			mfc_err_dev("Not supported format: NV12MT\n");
-			return -EINVAL;
-		}
-		else if(fmt->fourcc == V4L2_PIX_FMT_NV12MT_16X16) {
-			mfc_err_dev("Not supported format: NV12MT_16X16\n");
 			return -EINVAL;
 		}
 	}
@@ -424,7 +413,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	ctx->dst_fmt = mfc_dec_find_format(f, MFC_FMT_RAW);
+	ctx->dst_fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
 	if (!ctx->dst_fmt) {
 		mfc_err_ctx("Unsupported format for destination.\n");
 		return -EINVAL;
@@ -499,7 +488,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	ctx->src_fmt = mfc_dec_find_format(f, MFC_FMT_DEC);
+	ctx->src_fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
 	ctx->codec_mode = ctx->src_fmt->codec_mode;
 	mfc_info_ctx("Dec input codec(%d): %s\n",
 			ctx->codec_mode, ctx->src_fmt->name);

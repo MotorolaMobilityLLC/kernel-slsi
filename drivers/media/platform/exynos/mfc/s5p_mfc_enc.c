@@ -24,13 +24,12 @@
 #include "s5p_mfc_buf.h"
 #include "s5p_mfc_mem.h"
 
-static struct s5p_mfc_fmt *mfc_enc_find_format(struct v4l2_format *f, unsigned int t)
+static struct s5p_mfc_fmt *mfc_enc_find_format(unsigned int pixelformat)
 {
 	unsigned long i;
 
 	for (i = 0; i < NUM_FORMATS; i++) {
-		if (enc_formats[i].fourcc == f->fmt.pix_mp.pixelformat &&
-		    enc_formats[i].type == t)
+		if (enc_formats[i].fourcc == pixelformat)
 			return (struct s5p_mfc_fmt *)&enc_formats[i];
 	}
 
@@ -234,7 +233,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		fmt = mfc_enc_find_format(f, MFC_FMT_ENC);
+		fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
 		if (!fmt) {
 			mfc_err_dev("failed to try capture format\n");
 			return -EINVAL;
@@ -248,7 +247,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		pix_fmt_mp->plane_fmt[0].bytesperline =
 			pix_fmt_mp->plane_fmt[0].sizeimage;
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		fmt = mfc_enc_find_format(f, MFC_FMT_RAW);
+		fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
 		if (!fmt) {
 			mfc_err_dev("failed to try output format\n");
 			return -EINVAL;
@@ -321,7 +320,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	fmt = mfc_enc_find_format(f, MFC_FMT_ENC);
+	fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
 	if (!fmt) {
 		mfc_err_ctx("failed to set capture format\n");
 		return -EINVAL;
@@ -435,16 +434,9 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		return 0;
 	}
 
-	fmt = mfc_enc_find_format(f, MFC_FMT_RAW);
+	fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
 	if (!fmt) {
 		mfc_err_ctx("failed to set output format\n");
-		return -EINVAL;
-	}
-	if (fmt->fourcc == V4L2_PIX_FMT_NV12MT) {
-		mfc_err_ctx("Not supported format: NV12MT\n");
-		return -EINVAL;
-	} else if (fmt->fourcc == V4L2_PIX_FMT_NV12MT_16X16) {
-		mfc_err_ctx("Not supported format: NV12MT_16X16\n");
 		return -EINVAL;
 	}
 
