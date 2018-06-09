@@ -411,7 +411,7 @@ void dpu_bts_init(struct decon_device *decon)
 
 	decon->bts.enabled = false;
 
-	if (!IS_ENABLED(CONFIG_EXYNOS9610_BTS)) {
+	if (!IS_ENABLED(CONFIG_EXYNOS_BTS)) {
 		DPU_ERR_BTS("decon%d bts feature is disabled\n", decon->id);
 		return;
 	}

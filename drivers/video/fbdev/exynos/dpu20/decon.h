@@ -25,7 +25,7 @@
 #include <linux/platform_device.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-core.h>
-#if defined(CONFIG_EXYNOS9610_BTS)
+#if defined(CONFIG_EXYNOS_BTS)
 #include <soc/samsung/bts.h>
 #endif
 #if defined(CONFIG_EXYNOS_ITMON)
@@ -817,7 +817,7 @@ struct decon_bts {
 	u32 max_disp_freq;
 	u32 prev_max_disp_freq;
 	u64 ppc;
-#if defined(CONFIG_EXYNOS9610_BTS)
+#if defined(CONFIG_EXYNOS_BTS)
 	struct decon_bts_bw bw[BTS_DPP_MAX];
 
 	/* each decon must know other decon's BW to get overall BW */

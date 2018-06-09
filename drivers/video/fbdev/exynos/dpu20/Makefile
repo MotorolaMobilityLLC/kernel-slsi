@@ -13,6 +13,6 @@ obj-$(CONFIG_EXYNOS_DISPLAYPORT) += displayport.o
 displayport-y += displayport_drv.o displayport_edid.o displayport_hdcp13.o ./cal_9610/displayport_reg.o
 obj-$(CONFIG_SOC_EXYNOS9610) += ./cal_9610/dsim_reg.o ./cal_9610/dpp_reg.o ./cal_9610/decon_reg.o
 obj-$(CONFIG_EXYNOS_DPU20) += decon.o
-obj-$(CONFIG_EXYNOS9610_BTS) += bts.o
+obj-$(CONFIG_EXYNOS_BTS) += bts.o
 decon-y += decon_core.o decon_dsi.o decon_wb.o helper.o win_update.o cursor.o fence.o event_log.o
 obj-y += panels/
