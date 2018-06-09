@@ -2257,3 +2257,15 @@ void __decon_dump(u32 id, void __iomem *regs, void __iomem *base_regs, bool dsc_
 	}
 }
 
+/* Ramen (9610) chip dependent HW limitation
+ *	: returns 0 if no error
+ *	: otherwise returns -EPERM for HW-wise not permitted
+ */
+int decon_check_global_limitation(struct decon_device *decon,
+		struct decon_win_config *config)
+{
+	int ret = 0;
+
+	return ret;
+}
+

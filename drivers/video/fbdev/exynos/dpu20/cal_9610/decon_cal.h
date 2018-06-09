@@ -299,6 +299,12 @@ void decon_reg_set_start_crc(u32 id, u32 en);
 void decon_reg_set_select_crc_bits(u32 id, u32 bit_sel);
 void decon_reg_get_crc_data(u32 id, u32 *w0_data, u32 *w1_data);
 
+/* DPU hw limitation check */
+struct decon_device;
+struct decon_win_config;
+int decon_check_global_limitation(struct decon_device *decon,
+		struct decon_win_config *config);
+
 /* TODO: this will be removed later */
 void decon_reg_update_req_global(u32 id);
 /*********************************************************************/
