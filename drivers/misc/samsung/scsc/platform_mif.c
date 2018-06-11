@@ -1243,14 +1243,13 @@ static int platform_mif_pmu_reset(struct scsc_mif_abs *interface, u8 rst_case)
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "rst_case %d\n", rst_case);
 
 	/* Revert power control ownership to AP, as WLBT is going down (S9.6.6). */
-        ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-                                 MASK_PWR_REQ, MASK_PWR_REQ);
-        if (ret < 0) {
-                SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                        "Failed to update WLBT_CTRL_NS[MASK_PWR_REQ]: %d\n", ret);
-                return ret;
-        }
-
+	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
+				 MASK_PWR_REQ, MASK_PWR_REQ);
+	if (ret < 0) {
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+			"Failed to update WLBT_CTRL_NS[MASK_PWR_REQ]: %d\n", ret);
+		return ret;
+	}
 
 	/* reset sequence as per excite implementation for Leman */
 	ret = regmap_update_bits(platform->pmureg, CENTRAL_SEQ_WLBT_CONFIGURATION,
