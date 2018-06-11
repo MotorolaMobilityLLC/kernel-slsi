@@ -3291,7 +3291,7 @@ void fimc_is_scaler_set_tdnr_tuneset_yuvtable(void __iomem *base_addr, struct yu
 	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_TDNR_U_X_SLOPE_2],
 			config.u_std_slope[ARR4_VAL3]);
 	reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_TDNR_U_X_SLOPE_3],
-			config.u_std_slope[ARR4_VAL3]);
+			config.u_std_slope[ARR4_VAL4]);
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_TDNR_U_STD_SLOPE_1], reg_value);
 
 
