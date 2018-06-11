@@ -14,6 +14,7 @@
 #include "fimc-is-hw-control.h"
 #include "fimc-is-hw-tdnr.h"
 #include "fimc-is-hw-djag.h"
+#include "fimc-is-hw-uvsp-cac.h"
 #include "fimc-is-interface-library.h"
 #include "fimc-is-param.h"
 
@@ -86,6 +87,23 @@ struct scaler_setfile_contents {
 	u32 c_gain11;
 };
 
+struct scaler_coef_cfg {
+	u32 ratio_x8_8;		/* x8/8, Ratio <= 1048576 (~8:8) */
+	u32 ratio_x7_8;		/* x7/8, 1048576 < Ratio <= 1198373 (~7/8) */
+	u32 ratio_x6_8;		/* x6/8, 1198373 < Ratio <= 1398101 (~6/8) */
+	u32 ratio_x5_8;		/* x5/8, 1398101 < Ratio <= 1677722 (~5/8) */
+	u32 ratio_x4_8;		/* x4/8, 1677722 < Ratio <= 2097152 (~4/8) */
+	u32 ratio_x3_8;		/* x3/8, 2097152 < Ratio <= 2796203 (~3/8) */
+	u32 ratio_x2_8;		/* x2/8, 2796203 < Ratio <= 4194304 (~2/8) */
+};
+
+struct scaler_bchs_clamp_cfg {
+	u32 y_max;
+	u32 y_min;
+	u32 c_max;
+	u32 c_min;
+};
+
 struct hw_api_scaler_setfile {
 	u32 setfile_version;
 
@@ -105,6 +123,13 @@ struct hw_api_scaler_setfile {
 	 * 3 : Scaling ratio = x2.1~
 	 */
 	struct djag_setfile_contents	djag[MAX_SCALINGRATIOINDEX_DEPENDED_CONFIGS];
+#endif
+#if (MCSC_USE_TUNING_PARAM_VER >= 0x14027432)
+	struct scaler_bchs_clamp_cfg	sc_bchs[2];	/* 0: YUV_FULL, 1: YUV_NARROW */
+	struct scaler_coef_cfg		sc_coef;
+	struct djag_wb_thres_cfg	djag_wb[MAX_SCALINGRATIOINDEX_DEPENDED_CONFIGS];
+	struct cac_setfile_contents	cac;
+	struct uvsp_setfile_contents	uvsp;
 #endif
 };
 

@@ -73,4 +73,7 @@ struct djag_setfile_contents {
 	struct djag_cp_config cp_cfg;
 };
 
+struct djag_wb_thres_cfg {
+	u32 dither_wb_thres;
+};
 #endif
