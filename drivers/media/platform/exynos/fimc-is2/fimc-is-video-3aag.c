@@ -341,7 +341,7 @@ static int fimc_is_3xg_video_reqbufs(struct file *file, void *priv,
 	mdbgv_3xg("%s(buffers : %d)\n", vctx, __func__, buf->count);
 
 	device = GET_DEVICE(vctx);
-	subdev = &device->txc;
+	subdev = &device->txg;
 	leader = subdev->leader;
 	if (leader && test_bit(FIMC_IS_SUBDEV_START, &leader->state)) {
 		err("leader%d still running, subdev%d req is not applied", leader->id, subdev->id);
@@ -688,7 +688,7 @@ static void fimc_is_3xg_buffer_queue(struct vb2_buffer *vb)
 
 	device = GET_DEVICE(vctx);
 	queue = GET_QUEUE(vctx);
-	subdev = &device->txc;
+	subdev = &device->txg;
 
 	ret = fimc_is_queue_buffer_queue(queue, vb);
 	if (ret) {
@@ -716,7 +716,7 @@ static void fimc_is_3xg_buffer_finish(struct vb2_buffer *vb)
 	mvdbgs(3, "%s(%d)\n", vctx, &vctx->queue, __func__, vb->index);
 
 	device = GET_DEVICE(vctx);
-	subdev = &device->txc;
+	subdev = &device->txg;
 
 	fimc_is_queue_buffer_finish(vb);
 
