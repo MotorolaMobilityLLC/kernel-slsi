@@ -47,6 +47,7 @@ struct emc_mode {
 	const char		*name;
 	struct cpumask		cpus;
 	struct cpumask		boost_cpus;
+	unsigned int		ldsum_thr;
 	unsigned int		cal_id;
 	unsigned int		max_freq;
 	unsigned int		change_latency;
@@ -82,11 +83,13 @@ struct emc {
 	struct list_head	domains;
 	struct list_head	modes;
 
-	struct emc_mode	*cur_mode;	/* current mode */
-	struct emc_mode	*req_mode;	/* requested mode */
-	struct emc_mode	*user_mode;	/* user requesting mode */
+	struct emc_mode		*cur_mode;	/* current mode */
+	struct emc_mode		*req_mode;	/* requested mode */
+	struct emc_mode		*user_mode;	/* user requesting mode */
 	struct cpumask		heavy_cpus;	/* cpus need to boost */
 	struct cpumask		busy_cpus;	/* cpus need to online */
+	/* loadsum of boostable and trigger domain */
+	unsigned int		ldsum;
 
 	/* member for mode change */
 	struct task_struct	*task;
@@ -285,53 +288,42 @@ static int emc_update_load(void)
 /* update domains's cpus status whether busy or idle */
 static int emc_update_domain_status(struct emc_domain *domain)
 {
-	struct cpumask online_cpus, imbal_heavy_cpus;
 	struct cpumask heavy_cpus, busy_cpus, idle_cpus;
 	int cpu;
 
-	cpumask_clear(&online_cpus);
-	cpumask_clear(&imbal_heavy_cpus);
 	cpumask_clear(&heavy_cpus);
 	cpumask_clear(&busy_cpus);
 	cpumask_clear(&idle_cpus);
+	emc.ldsum = 0;
 
 	/*
 	 * Takes offline core like idle core
 	 * IDLE_CPU	   : util_avg < domain->cpu_idle_thr
 	 * BUSY_CPU        : domain->cpu_idle_thr <= util_avg < domain->cpu_heavy_thr
 	 * HEAVY_CPU	   : util_avg >= domain->cpu_heavy_thr
-	 * IMBAL_HEAVY_CPU : If there is heavy_cpu and idle_cpu in a sams domain,
-	 *		     heavy_cpu is treated as imbalance_heavy_cpu
 	 */
-	cpumask_and(&online_cpus, &domain->cpus, cpu_online_mask);
-	for_each_cpu(cpu, &online_cpus) {
+	for_each_cpu_and(cpu, &domain->cpus, cpu_online_mask) {
 		struct rq *rq = cpu_rq(cpu);
 		struct sched_avg *sa = &rq->cfs.avg;
 
 		if (sa->util_avg >= domain->cpu_heavy_thr) {
 			cpumask_set_cpu(cpu, &heavy_cpus);
 			cpumask_set_cpu(cpu, &busy_cpus);
-		} else if (sa->util_avg >= domain->cpu_idle_thr)
+			emc.ldsum += sa->util_avg;
+		} else if (sa->util_avg >= domain->cpu_idle_thr) {
 			cpumask_set_cpu(cpu, &busy_cpus);
-		else
+			emc.ldsum += sa->util_avg;
+		} else
 			cpumask_set_cpu(cpu, &idle_cpus);
-
 	}
 
-	/*
-	 * if domains has only one cpu or heavy_cpus with idle_cpus,
-	 * heavy_cpus is treated as imbalance_heavy_ cpus
-	 */
-	if (cpumask_weight(&idle_cpus) || cpumask_weight(&online_cpus) == 1)
-		cpumask_copy(&imbal_heavy_cpus, &heavy_cpus);
-
 	/* domain cpus status updated system cpus mask */
-	cpumask_or(&emc.heavy_cpus, &emc.heavy_cpus, &imbal_heavy_cpus);
+	cpumask_or(&emc.heavy_cpus, &emc.heavy_cpus, &heavy_cpus);
 	cpumask_or(&emc.busy_cpus, &emc.busy_cpus, &busy_cpus);
 
-	trace_emc_domain_status(domain->name, *(unsigned int *)cpumask_bits(&emc.heavy_cpus),
+	trace_emc_domain_status(domain->name,
+			*(unsigned int *)cpumask_bits(&emc.heavy_cpus),
 			*(unsigned int *)cpumask_bits(&emc.busy_cpus),
-			*(unsigned int *)cpumask_bits(&imbal_heavy_cpus),
 			*(unsigned int *)cpumask_bits(&heavy_cpus),
 			*(unsigned int *)cpumask_bits(&busy_cpus));
 
@@ -395,7 +387,7 @@ static bool emc_system_busy(void)
 		if (cpumask_empty(&mask))
 			continue;
 
-		if (!emc_domain_busy(domain)) {
+		if (domain->busy_ratio && !emc_domain_busy(domain)) {
 			trace_emc_domain_busy(domain->name, domain->load, false);
 			return false;
 		}
@@ -420,34 +412,36 @@ static bool emc_has_boostable_cpu(void)
 static struct emc_mode* emc_select_mode(void)
 {
 	struct emc_mode *mode, *target_mode = NULL;
-	int need_online_cnt, need_boost_cnt;
+	int need_online_cnt;
 
 	/* if there is no boostable cpu, we don't need to booting */
 	if (!emc_has_boostable_cpu())
 		return emc_get_base_mode();
 
 	/*
-	 * need_boost_cnt: number of cpus that need boosting
 	 * need_online_cnt: number of cpus that need online
 	 */
-	need_boost_cnt = cpumask_weight(&emc.heavy_cpus);
 	need_online_cnt = cpumask_weight(&emc.busy_cpus);
 
 	/* In reverse order to find the most boostable mode */
 	list_for_each_entry_reverse(mode, &emc.modes, list) {
 		if (!mode->enabled)
 			continue;
-		if (need_boost_cnt > cpumask_weight(&mode->boost_cpus))
-			continue;
-		if (need_online_cnt > cpumask_weight(&mode->cpus))
+		/* if ldsum_thr is 0, it means ldsum is disabled */
+		if (!mode->ldsum_thr && emc.ldsum <= mode->ldsum_thr) {
+			target_mode = mode;
+			break;
+		}
+		if (need_online_cnt > cpumask_weight(&mode->boost_cpus))
 			continue;
 		target_mode = mode;
 		break;
 	}
+
 	if (!target_mode)
 		target_mode = emc_get_base_mode();
 
-	trace_emc_select_mode(target_mode->name, need_boost_cnt, need_online_cnt);
+	trace_emc_select_mode(target_mode->name, need_online_cnt);
 
 	return target_mode;
 }
@@ -455,14 +449,6 @@ static struct emc_mode* emc_select_mode(void)
 /* return latest adaptive mode */
 static struct emc_mode* emc_get_mode(bool updated)
 {
-	/* if user set user_mode, always return user mode */
-	if (emc.user_mode)
-		return emc.user_mode;
-
-	/* if current system is not boostable, always uses base_mode */
-	if (!emc.boostable)
-		return emc_get_base_mode();
-
 	/*
 	 * if system is busy overall, return base mode.
 	 * becuase system is busy, maybe base mode will be
@@ -610,6 +596,18 @@ void exynos_emc_update(int cpu)
 	if (!raw_spin_trylock_irqsave(&emc_load_lock, flags))
 		return;
 
+	/* if user set user_mode, always return user mode */
+	if (unlikely(emc.user_mode)) {
+		target_mode = emc.user_mode;
+		goto skip_load_check;
+	}
+
+	/* if current system is not boostable, always uses base_mode */
+	if (!emc.boostable) {
+		target_mode = emc_get_base_mode();
+		goto skip_load_check;
+	}
+
 	/* update sched_load */
 	emc_update_load();
 
@@ -619,6 +617,7 @@ void exynos_emc_update(int cpu)
 	/* get mode */
 	target_mode = emc_get_mode(updated);
 
+skip_load_check:
 	/* request mode */
 	if (emc.req_mode != target_mode)
 		emc_request_mode_change(target_mode);
@@ -932,9 +931,11 @@ emc_domain_show(busy_ratio, busy_ratio);
 
 emc_mode_store(max_freq, max_freq);
 emc_mode_store(change_latency, change_latency);
+emc_mode_store(ldsum_thr, ldsum_thr);
 emc_mode_store(mode_enabled, enabled);
 emc_mode_show(max_freq, max_freq);
 emc_mode_show(change_latency, change_latency);
+emc_mode_show(ldsum_thr, ldsum_thr);
 emc_mode_show(mode_enabled, enabled);
 
 static int emc_set_enable(bool enable);
@@ -1162,6 +1163,7 @@ emc_attr_rw(busy_ratio);
 emc_attr_ro(mode_name);
 emc_attr_rw(max_freq);
 emc_attr_rw(change_latency);
+emc_attr_rw(ldsum_thr);
 emc_attr_rw(mode_enabled);
 
 static struct attribute *emc_attrs[] = {
@@ -1184,6 +1186,7 @@ static struct attribute *emc_mode_attrs[] = {
 	&mode_name.attr,
 	&max_freq.attr,
 	&change_latency.attr,
+	&ldsum_thr.attr,
 	&mode_enabled.attr,
 	NULL
 };
@@ -1277,6 +1280,7 @@ static void emc_print_inform(void)
 		scnprintf(buf, sizeof(buf), "%*pbl",
 				cpumask_pr_args(&mode->boost_cpus));
 		pr_info("mode%d boost_cpus: %s\n", i, buf);
+		pr_info("mode%d ldsum_thr: %u\n", mode->ldsum_thr);
 		pr_info("mode%d cal-id: %u\n", i, mode->cal_id);
 		pr_info("mode%d max_freq: %u\n", i, mode->max_freq);
 		pr_info("mode%d change_latency: %u\n", i, mode->change_latency);
@@ -1333,6 +1337,9 @@ static int __init emc_parse_mode(struct device_node *dn)
 
 	if(of_property_read_u32(dn, "change_latency", &mode->change_latency))
 		goto free;
+
+	if(of_property_read_u32(dn, "ldsum_thr", &mode->ldsum_thr))
+		mode->ldsum_thr = 0;
 
 	if (of_property_read_u32(dn, "enabled", &mode->enabled))
 		goto free;

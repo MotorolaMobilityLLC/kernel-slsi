@@ -640,15 +640,14 @@ TRACE_EVENT(emc_domain_load,
 TRACE_EVENT(emc_domain_status,
 
 	TP_PROTO(const char *domain, unsigned int sys_heavy, unsigned int sys_busy,
-		unsigned int dom_imbal_heavy, unsigned int dom_heavy, unsigned int dom_busy),
+			unsigned int dom_heavy, unsigned int dom_busy),
 
-	TP_ARGS(domain, sys_heavy, sys_busy, dom_imbal_heavy, dom_heavy, dom_busy),
+	TP_ARGS(domain, sys_heavy, sys_busy, dom_heavy, dom_busy),
 
 	TP_STRUCT__entry(
 		__string(domain, domain)
 		__field(unsigned int, sys_heavy)
 		__field(unsigned int, sys_busy)
-		__field(unsigned int, dom_imbal_heavy)
 		__field(unsigned int, dom_heavy)
 		__field(unsigned int, dom_busy)
 	),
@@ -657,14 +656,13 @@ TRACE_EVENT(emc_domain_status,
 		__assign_str(domain, domain);
 		__entry->sys_heavy = sys_heavy;
 		__entry->sys_busy = sys_busy;
-		__entry->dom_imbal_heavy = dom_imbal_heavy;
 		__entry->dom_heavy = dom_heavy;
 		__entry->dom_busy = dom_busy;
 	),
 
-	TP_printk("domain:%s s_heavy =%x, s_busy=%x, d_imbal_heavy=%x d_heavy=%x, d_busy=%x",
+	TP_printk("domain:%s s_heavy =%x, s_busy=%x, d_heavy=%x, d_busy=%x",
 			__get_str(domain), __entry->sys_heavy, __entry->sys_busy,
-			__entry->dom_imbal_heavy, __entry->dom_heavy, __entry->dom_busy)
+			__entry->dom_heavy, __entry->dom_busy)
 );
 
 TRACE_EVENT(emc_update_system_status,
@@ -695,24 +693,22 @@ TRACE_EVENT(emc_update_system_status,
 
 TRACE_EVENT(emc_select_mode,
 
-	TP_PROTO(const char *mode, int need_boost_cnt, int need_online_cnt),
+	TP_PROTO(const char *mode, int need_online_cnt),
 
-	TP_ARGS(mode, need_boost_cnt, need_online_cnt),
+	TP_ARGS(mode, need_online_cnt),
 
 	TP_STRUCT__entry(
 		__string(mode, mode)
-		__field(int, need_boost_cnt)
 		__field(int, need_online_cnt)
 	),
 
 	TP_fast_assign(
 		__assign_str(mode, mode);
-		__entry->need_boost_cnt = need_boost_cnt;
 		__entry->need_online_cnt = need_online_cnt;
 	),
 
-	TP_printk("mode:%s need_boost_cnt=%d, need_online_cnt=%d",
-		__get_str(mode), __entry->need_boost_cnt, __entry->need_online_cnt)
+	TP_printk("mode:%s need_online_cnt=%d",
+		__get_str(mode), __entry->need_online_cnt)
 );
 
 TRACE_EVENT(emc_domain_busy,
