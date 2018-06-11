@@ -125,7 +125,7 @@ static int fimc_is_hw_mcsc_check_tdnr_mode_pre(struct fimc_is_hw_ip *hw_ip,
 	u32 lindex, hindex;
 #ifdef MCSC_DNR_USE_TUNING
 	enum exynos_sensor_position sensor_position;
-	tdnr_setfile_contents *tdnr_tuneset;
+	struct tdnr_setfile_contents *tdnr_tuneset;
 #endif
 	bool setfile_tdnr_enable = true;
 
@@ -733,7 +733,7 @@ static void interpolate_yuv_table_factor(struct ni_dep_factors *interpolated_fac
 			diff_ni_actual_to_bottom);
 }
 
-static void reconfigure_ni_depended_tuneset(tdnr_setfile_contents *tdnr_tuneset,
+static void reconfigure_ni_depended_tuneset(struct tdnr_setfile_contents *tdnr_tuneset,
 	struct tdnr_configs *tdnr_cfgs,
 	u32 noise_index,
 	u32 bottom_ni_index,
@@ -783,7 +783,7 @@ static int fimc_is_hw_mcsc_cfg_tdnr_tuning_param(struct fimc_is_hw_ip *hw_ip,
 	int ret = 0;
 	int ni_idx, arr_idx;
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
-	tdnr_setfile_contents *tdnr_tuneset;
+	struct tdnr_setfile_contents *tdnr_tuneset;
 	struct tdnr_configs tdnr_cfgs;
 	u32 max_ref_ni = 0, min_ref_ni = 0;
 	u32 bottom_ni_index = 0, top_ni_index = 0;

@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef FIMC_IS_SUBDEV_MCSC_H
-#define FIMC_IS_SUBDEV_MCSC_H
+#ifndef FIMC_IS_HW_MCSC_H
+#define FIMC_IS_HW_MCSC_H
 
 #include "fimc-is-hw-control.h"
 #include "fimc-is-interface-library.h"
@@ -232,7 +232,7 @@ struct ni_dep_factors {
 	struct yuv_table_config	yuv_tables;
 };
 
-typedef struct {
+struct scaler_setfile_contents {
 	/* Brightness/Contrast control param */
 	u32 y_offset;
 	u32 y_gain;
@@ -242,9 +242,9 @@ typedef struct {
 	u32 c_gain01;
 	u32 c_gain10;
 	u32 c_gain11;
-} scaler_setfile_contents;
+};
 
-typedef struct {
+struct tdnr_setfile_contents {
 	bool	tdnr_enable;
 	u32	num_of_noiseindexes;
 	u32	compression_binary_error_thr;
@@ -256,7 +256,7 @@ typedef struct {
 	struct regional_ni_indep_config		regional_indep_cfg;
 	struct spatial_ni_indep_config		spatial_indep_cfg;
 	struct ni_dep_factors			ni_dep_factors[MAX_NOISEINDEX_DEPENDED_CONFIGS];
-} tdnr_setfile_contents;
+};
 
 struct tdnr_configs {
 	struct general_config			general_cfg;
@@ -340,9 +340,9 @@ struct hw_api_scaler_setfile {
 	 * 0 : SCALER_OUTPUT_YUV_RANGE_FULL
 	 * 1 : SCALER_OUTPUT_YUV_RANGE_NARROW
 	 */
-	scaler_setfile_contents contents[2];
+	struct scaler_setfile_contents contents[2];
 #ifdef MCSC_DNR_USE_TUNING
-	tdnr_setfile_contents tdnr_contents;
+	struct tdnr_setfile_contents tdnr_contents;
 #endif
 #ifdef MCSC_USE_DEJAG_TUNING_PARAM
 	/* Setfile tuning parameters for DJAG (Lhotse)
@@ -396,7 +396,7 @@ struct fimc_is_hw_mcsc {
 	bool	rep_flag[FIMC_IS_STREAM_COUNT];
 	int	yuv_range;
 	u32	instance;
-	ulong	out_en;
+	ulong	out_en;		/* This flag save whether the capture video node of MCSC is opened or not. */
 	ulong	blk_set_ctrl[FIMC_IS_STREAM_COUNT];
 	u32	prev_hwfc_output_ids;
 
