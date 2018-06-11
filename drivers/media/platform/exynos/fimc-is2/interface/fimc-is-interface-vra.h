@@ -122,10 +122,12 @@ struct fimc_is_lib_vra_interface_funcs {
 	enum api_vra_type (*frame_work_abort)(void *fr_obj_ptr,
 			vra_boolean reset_tr_data_base);
 	enum api_vra_type (*frame_work_terminate)(void *fr_obj_ptr);
-#ifdef ENABLE_HYBRID_FD
+	/* The set_post_detect_output is added with the ENABLE_HYBRID_FD.
+	 * This function was deprecated after including CNN hardware in VRA block.
+	 * But, we keep this interface function for backward compatibility
+	 */
 	enum api_vra_type (*set_post_detect_output)(void *sen_obj_ptr,
 			vra_boolean post_detect_output);
-#endif
 #ifdef ENABLE_VRA_CHANGE_SETFILE_PARSING
 	int (*copy_tune_set)(void *sen_obj_ptr, vra_uint32 instance_id, struct lib_vra_tune_set *set);
 	int (*apply_tune_set)(void *sen_obj_ptr, vra_uint32 instance_id, vra_uint32 index);

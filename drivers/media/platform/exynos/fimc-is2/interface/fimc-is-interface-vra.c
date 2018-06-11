@@ -220,8 +220,8 @@ int fimc_is_lib_vra_set_post_detect_output(struct fimc_is_lib_vra *lib_vra,
 
 	return 0;
 }
-
 #endif
+
 static void fimc_is_lib_vra_callback_end_input(u32 instance,
 		u32 frame_index, unsigned char *base_address)
 {
@@ -480,6 +480,8 @@ int fimc_is_lib_vra_alloc_memory(struct fimc_is_lib_vra *lib_vra, ulong dma_addr
 	alloc_info->max_tr_res_frames = 5;
 #if defined(ENABLE_HYBRID_FD)
 	alloc_info->max_hybrid_faces = MAX_HYBRID_FACES;
+#else
+	alloc_info->max_hybrid_faces = 0;
 #endif
 
 	status = CALL_VRAOP(lib_vra, ex_get_memory_sizes,
@@ -613,6 +615,10 @@ int fimc_is_lib_vra_init_frame_work(struct fimc_is_lib_vra *lib_vra,
 	callbacks->frw_invoke_hybrid_pr_ptr	= NULL;
 	callbacks->frw_abort_hybrid_pr_ptr	= NULL;
 	callbacks->sen_post_detect_ready_ptr	= fimc_is_lib_vra_callback_post_detect_ready;
+#else
+	callbacks->frw_invoke_hybrid_pr_ptr	= NULL;
+	callbacks->frw_abort_hybrid_pr_ptr	= NULL;
+	callbacks->sen_post_detect_ready_ptr	= NULL;
 #endif
 
 	lib_vra->fr_work_init.hw_clock_freq_mhz = 533; /* Not used */
@@ -926,7 +932,9 @@ int fimc_is_lib_vra_stop_instance(struct fimc_is_lib_vra *lib_vra, u32 instance)
 	}
 
 	lib_vra->all_face_num[instance] = 0;
+#ifdef ENABLE_HYBRID_FD
 	lib_vra->pdt_all_face_num[instance] = 0;
+#endif
 	lib_vra->af_all_face_num[instance] = 0;
 	clear_bit(VRA_INST_APPLY_TUNE_SET, &lib_vra->inst_state[instance]);
 
@@ -959,7 +967,9 @@ int fimc_is_lib_vra_stop(struct fimc_is_lib_vra *lib_vra)
 
 	for (i = 0; i < VRA_TOTAL_SENSORS; i++) {
 		lib_vra->all_face_num[i] = 0;
+#ifdef ENABLE_HYBRID_FD
 		lib_vra->pdt_all_face_num[i] = 0;
+#endif
 		lib_vra->af_all_face_num[i] = 0;
 		clear_bit(VRA_INST_APPLY_TUNE_SET, &lib_vra->inst_state[i]);
 	}
