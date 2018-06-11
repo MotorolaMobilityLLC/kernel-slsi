@@ -211,28 +211,28 @@ struct fimc_is_lib_vra {
 	bool					image_load;
 #endif
 #ifdef ENABLE_REPROCESSING_FD
-	struct fimc_is_hw_ip	*hw_ip;
+	struct fimc_is_hw_ip		*hw_ip;
 	unsigned long			done_vra_callback_out_ready;
 	unsigned long			done_vra_hw_intr;
-	spinlock_t				reprocess_fd_lock;
-	ulong					reprocess_fd_flag;
+	spinlock_t			reprocess_fd_lock;
+	ulong				reprocess_fd_flag;
 #endif
 #ifdef ENABLE_VRA_CHANGE_SETFILE_PARSING
 	ulong				tune_count;
 #endif
 #ifdef ENABLE_HYBRID_FD
 	unsigned int			post_detection_enable[VRA_TOTAL_SENSORS];
-	u32					pdt_all_face_num[VRA_TOTAL_SENSORS];
-	struct api_vra_out_list_info		pdt_out_list_info[VRA_TOTAL_SENSORS];
-	struct api_vra_pdt_out_face		pdt_out_faces[VRA_TOTAL_SENSORS][MAX_FACE_COUNT];
+	u32				pdt_all_face_num[VRA_TOTAL_SENSORS];
+	struct api_vra_out_list_info	pdt_out_list_info[VRA_TOTAL_SENSORS];
+	struct api_vra_pdt_out_face	pdt_out_faces[VRA_TOTAL_SENSORS][MAX_FACE_COUNT];
 #endif
 
 	/* Fast FDAE & FDAF */
-	u32					af_all_face_num[VRA_TOTAL_SENSORS];
-	struct api_vra_out_list_info		af_out_list_info[VRA_TOTAL_SENSORS];
-	struct api_vra_face_base_str		af_face_base[VRA_TOTAL_SENSORS][MAX_FACE_COUNT];
-	spinlock_t				af_fd_slock[VRA_TOTAL_SENSORS];
-	spinlock_t				ae_fd_slock[VRA_TOTAL_SENSORS];
+	u32				af_all_face_num[VRA_TOTAL_SENSORS];
+	struct api_vra_out_list_info	af_out_list_info[VRA_TOTAL_SENSORS];
+	struct api_vra_face_base_str	af_face_base[VRA_TOTAL_SENSORS][MAX_FACE_COUNT];
+	spinlock_t			af_fd_slock[VRA_TOTAL_SENSORS];
+	spinlock_t			ae_fd_slock[VRA_TOTAL_SENSORS];
 
 };
 
