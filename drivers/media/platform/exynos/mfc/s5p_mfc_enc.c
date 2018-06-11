@@ -49,7 +49,6 @@ static struct v4l2_queryctrl *mfc_enc_get_ctrl(int id)
 
 static int mfc_enc_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
 	struct v4l2_queryctrl *c;
 
 	c = mfc_enc_get_ctrl(ctrl->id);
