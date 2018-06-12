@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/debug-snapshot.h>
+#include <linux/cpuhotplug.h>
 #include <soc/samsung/tmu.h>
 #include <soc/samsung/ect_parser.h>
 #ifdef CONFIG_EXYNOS_MCINFO
@@ -1088,6 +1089,22 @@ static struct notifier_block exynos_tmu_pm_notifier = {
 };
 #endif
 
+static int exynos_tmu_boost_callback(unsigned int cpu)
+{
+	struct thermal_zone_device *tz;
+	struct exynos_tmu_data *devnode;
+
+	list_for_each_entry(devnode, &dtm_dev_list, node) {
+		if (devnode->id == 0) {
+			tz = devnode->tzd;
+			thermal_zone_device_update(tz, THERMAL_DEVICE_POWER_CAPABILITY_CHANGED);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static const struct of_device_id exynos_tmu_match[] = {
 	{ .compatible = "samsung,exynos9810-tmu", },
 	{ .compatible = "samsung,exynos9610-tmu", },
@@ -1719,12 +1736,15 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	num_of_devices++;
 	mutex_unlock(&data->lock);
 
-	if (list_is_singular(&dtm_dev_list))
+	if (list_is_singular(&dtm_dev_list)) {
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 		exynos_acpm_tmu_set_init(&cap);
 #else
 		register_pm_notifier(&exynos_tmu_pm_notifier);
 #endif
+		cpuhp_setup_state_nocalls(CPUHP_EXYNOS_BOOST_CTRL_POST, "dtm_boost_cb",
+				exynos_tmu_boost_callback, exynos_tmu_boost_callback);
+	}
 
 	if (!IS_ERR(data->tzd))
 		data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_ENABLED);
