@@ -122,7 +122,7 @@ static int select_proper_cpu(struct task_struct *p, int prev_cpu)
 	unsigned long best_min_util = ULONG_MAX;
 	int best_cpu = -1;
 
-	for_each_possible_cpu(cpu) {
+	for_each_cpu(cpu, cpu_active_mask) {
 		int i;
 
 		/* visit each coregroup only once */
