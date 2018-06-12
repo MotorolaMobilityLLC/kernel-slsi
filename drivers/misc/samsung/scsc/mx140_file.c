@@ -118,6 +118,10 @@ static bool use_new_fw_structure = true;
 module_param(use_new_fw_structure, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(use_new_fw_structure, "deprecated");
 
+static char *cfg_platform = "default";
+module_param(cfg_platform, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(cfg_platform, "HCF config subdirectory");
+
 /* Reads a configuration file into memory (f/w profile specific) */
 static int __mx140_file_request_conf(struct scsc_mx *mx,
 		const struct firmware **conf,
@@ -150,7 +154,15 @@ int mx140_file_request_conf(struct scsc_mx *mx, const struct firmware **conf, co
 {
 	int r;
 
-	/* First search in generic location. This is an override.
+	/* First, if the config subdirectory has been overriden by cfg_platform
+	 * module parameter, search only in that location.
+	 */
+	if (strcmp(cfg_platform, "default")) {
+		SCSC_TAG_INFO(MX_FILE, "module param cfg_platform = %s\n", cfg_platform);
+		return __mx140_file_request_conf(mx, conf, cfg_platform, config_rel_path);
+	}
+
+	/* Search in generic location. This is an override.
 	 * e.g. /etc/wifi/mx140/conf/wlan/wlan.hcf
 	 */
 	r = __mx140_file_request_conf(mx, conf, "", config_rel_path);
