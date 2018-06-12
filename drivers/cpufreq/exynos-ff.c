@@ -36,6 +36,7 @@ static bool policy_need_filter(struct cpufreq_policy *policy)
 	return cpumask_intersects(policy->cpus, &eff_driver->cpus);
 }
 
+#ifdef PSTATE_EXYNOS_HAFM_TB
 static bool check_filtering(unsigned int target_freq, unsigned int flag)
 {
 	unsigned int cur_freq;
@@ -64,6 +65,7 @@ static bool check_boost_freq_throttled(struct cpufreq_policy *policy)
 	return (policy->cur > eff_driver->boost_threshold) &&
 		(policy->cur > policy->max);
 }
+#endif
 
 /*********************************************************************
  *                       EXTERNAL REFERENCE APIs                     *
@@ -87,6 +89,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (policy_need_filter(policy)) {
 		mutex_lock(&eff_driver->lock);
 
+#ifdef PSTATE_EXYNOS_HAFM_TB
 		if (check_filtering(target_freq, flag))
 			goto out;
 
@@ -104,6 +107,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 		 */
 		if (!hwi_dvfs_req && target_freq > eff_driver->boost_threshold)
 			target_freq = eff_driver->boost_threshold;
+#endif
 	}
 
 	/*
@@ -130,6 +134,7 @@ out:
 
 void cpufreq_policy_apply_limits(struct cpufreq_policy *policy)
 {
+#ifdef PSTATE_EXYNOS_HAFM_TB
 	if (policy_need_filter(policy)) {
 		if (check_boost_freq_throttled(policy)) {
 			pr_debug("exynos-ff: wait for boost freq throttling completion\n");
@@ -143,6 +148,7 @@ void cpufreq_policy_apply_limits(struct cpufreq_policy *policy)
 			return;
 		}
 	}
+#endif
 
 	if (policy->max < policy->cur)
 		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
