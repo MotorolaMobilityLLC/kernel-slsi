@@ -2418,6 +2418,8 @@ int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse)
 {
 	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_if_cb *ifcb = xfrm_if_get_cb();
+	struct xfrm_if *xi;
 	int err;
 
 	if (unlikely(afinfo == NULL))
