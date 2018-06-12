@@ -730,8 +730,8 @@ static int exynos_ufs_pre_setup_clocks(struct ufs_hba *hba, bool on)
 		/* HWAGC disable */
 		exynos_ufs_set_hwacg_control(ufs, false);
 	} else {
-		//pm_qos_update_request(&ufs->pm_qos_int, 0);
-//		pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
+		pm_qos_update_request(&ufs->pm_qos_int, 0);
+		pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
 
 		/*
 		 * BG/SQ off
@@ -754,8 +754,8 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on)
 		 */
 		ret = ufs_pre_h8_exit(ufs);
 
-		//pm_qos_update_request(&ufs->pm_qos_int, ufs->pm_qos_int_value);
-//		pm_qos_update_request(&ufs->pm_qos_fsys0, ufs->pm_qos_fsys0_value);
+		pm_qos_update_request(&ufs->pm_qos_int, ufs->pm_qos_int_value);
+		pm_qos_update_request(&ufs->pm_qos_fsys0, ufs->pm_qos_fsys0_value);
 
 	} else {
 		/*
@@ -924,8 +924,8 @@ static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 
-	//pm_qos_update_request(&ufs->pm_qos_int, 0);
-//	pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
+	pm_qos_update_request(&ufs->pm_qos_int, 0);
+	pm_qos_update_request(&ufs->pm_qos_fsys0, 0);
 
 	exynos_ufs_dev_reset_ctrl(ufs, false);
 
@@ -1301,8 +1301,8 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	dev->platform_data = ufs;
 	dev->dma_mask = &exynos_ufs_dma_mask;
 
-//	pm_qos_add_request(&ufs->pm_qos_int, PM_QOS_DEVICE_THROUGHPUT, 0);
-//	pm_qos_add_request(&ufs->pm_qos_fsys0, PM_QOS_FSYS0_THROUGHPUT, 0);
+	pm_qos_add_request(&ufs->pm_qos_int, PM_QOS_DEVICE_THROUGHPUT, 0);
+	pm_qos_add_request(&ufs->pm_qos_fsys0, PM_QOS_BUS_THROUGHPUT, 0);
 	if (ufs->tcxo_ex_ctrl)
 		spin_lock_init(&fsys0_tcxo_lock);
 
@@ -1317,8 +1317,8 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 
 	ufshcd_pltfrm_exit(pdev);
 
-//	pm_qos_remove_request(&ufs->pm_qos_fsys0);
-//	pm_qos_remove_request(&ufs->pm_qos_int);
+	pm_qos_remove_request(&ufs->pm_qos_fsys0);
+	pm_qos_remove_request(&ufs->pm_qos_int);
 
 	ufs->misc_flags = EXYNOS_UFS_MISC_TOGGLE_LOG;
 
