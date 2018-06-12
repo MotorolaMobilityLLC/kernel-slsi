@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
- * EXYNOS - HIU(Hardware Intervention Unit) support
+ * HAFM-TB(AFM with HIU TB) support
  * Auther : PARK CHOONGHOON (choong.park@samsung.com)
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -359,24 +359,10 @@ int exynos_hiu_get_max_freq(void)
 /****************************************************************/
 static void exynos_hiu_work(struct work_struct *work)
 {
-	int cpu;
 	unsigned int boost_freq, level;
 	struct cpufreq_policy *policy;
 	struct hiu_stats *stats = data->stats;
-	struct cpumask mask;
-
-	cpumask_and(&mask, &data->cpus, cpu_online_mask);
-	if (cpumask_empty(&mask)) {
-		pr_debug("exynos-hiu: all cores in big cluster off\n");
-		goto done;
-	}
-
-	/* Test current cpu is in data->cpus */
-	cpu = smp_processor_id();
-	if (!cpumask_test_cpu(cpu, &mask)) {
-		pr_debug("exynos-hiu: work task is moved to cpu%d\n", cpu);
-		goto done;
-	}
+	struct cpumask *mask;
 
 	level = hiu_get_act_dvfs();
 	boost_freq = stats->freq_table[level - data->level_offset];
@@ -391,7 +377,7 @@ static void exynos_hiu_work(struct work_struct *work)
 	if (boost_freq < data->boost_threshold)
 		goto done;
 
-	policy = cpufreq_cpu_get(cpumask_first(&mask));
+	policy = cpufreq_cpu_get(cpumask_first(cpu_coregroup_mask(0)));
 	if (!policy) {
 		pr_debug("Failed to get CPUFreq policy in HIU work\n");
 		goto done;
@@ -449,7 +435,7 @@ poll:
 	}
 
 	if (hiu_need_hw_request()) {
-		schedule_work_on(data->cpu, &data->work);
+		schedule_work_on(cpumask_first(cpu_coregroup_mask(0)), &data->work);
 		clear_hiu_sr1_irq_pending();
 		mutex_unlock(&data->lock);
 
@@ -609,10 +595,55 @@ hiu_enable_store(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
+static ssize_t
+hiu_boosted_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	unsigned int boosted = hiu_read_reg(HIUTBCTL, BOOSTED_MASK, BOOSTED_SHIFT);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", boosted);
+}
+
+static ssize_t
+hiu_boost_threshold_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", data->boost_threshold);
+}
+
+static ssize_t
+hiu_dvfs_limit_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	unsigned int dvfs_limit = hiu_read_reg(HIUTOPCTL2, LIMITDVFS_MASK, LIMITDVFS_SHIFT);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", dvfs_limit);
+}
+
+static ssize_t
+hiu_dvfs_limit_store(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	unsigned int input;
+
+	if (kstrtos32(buf, 10, &input))
+		return -EINVAL;
+
+	hiu_update_reg(HIUTOPCTL2, LIMITDVFS_MASK, LIMITDVFS_SHIFT, input);
+
+	return count;
+}
+
 static DEVICE_ATTR(enabled, 0644, hiu_enable_show, hiu_enable_store);
+static DEVICE_ATTR(boosted, 0444, hiu_boosted_show, NULL);
+static DEVICE_ATTR(boost_threshold, 0444, hiu_boost_threshold_show, NULL);
+static DEVICE_ATTR(dvfs_limit, 0644, hiu_dvfs_limit_show, hiu_dvfs_limit_store);
 
 static struct attribute *exynos_hiu_attrs[] = {
 	&dev_attr_enabled.attr,
+	&dev_attr_boosted.attr,
+	&dev_attr_boost_threshold.attr,
+	&dev_attr_dvfs_limit.attr,
 	NULL,
 };
 
