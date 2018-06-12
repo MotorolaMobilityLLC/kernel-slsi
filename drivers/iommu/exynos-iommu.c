@@ -463,6 +463,9 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 	if (of_property_read_bool(sysmmu->of_node, "sysmmu,no-suspend"))
 		dev_pm_syscore_device(sysmmu, true);
 
+	if (of_property_read_bool(sysmmu->of_node, "sysmmu,hold-rpm-on-boot"))
+		drvdata->hold_rpm_on_boot = true;
+
 	if (IS_TLB_WAY_TYPE(drvdata)) {
 		ret = sysmmu_parse_tlb_way_dt(sysmmu, drvdata);
 		if (ret)
@@ -567,6 +570,9 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
+	if (data->hold_rpm_on_boot)
+		pm_runtime_get_sync(dev);
+
 	dev_info(data->sysmmu, "is probed. Version %d.%d.%d\n",
 			MMU_MAJ_VER(data->version),
 			MMU_MIN_VER(data->version),
@@ -668,6 +674,10 @@ static int sysmmu_enable_from_master(struct device *master,
 				__sysmmu_disable(drvdata);
 			}
 			break;
+		}
+		if (drvdata->hold_rpm_on_boot) {
+			pm_runtime_put(drvdata->sysmmu);
+			drvdata->hold_rpm_on_boot = false;
 		}
 	}
 	spin_unlock_irqrestore(&owner->lock, flags);
