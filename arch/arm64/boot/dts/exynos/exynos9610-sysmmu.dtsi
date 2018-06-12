@@ -249,6 +249,7 @@
 		clock-names = "aclk";
 		clocks = <&clock GATE_SMMU_DPU_QCH>;
 		port-name = "DPU";
+		sysmmu,hold-rpm-on-boot;
 		sysmmu,secure-irq;
 		sysmmu,secure_base = <0x14830000>;
 		sysmmu,tlb_property =
