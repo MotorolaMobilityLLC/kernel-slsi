@@ -2912,9 +2912,12 @@
 
 	iommu-domain_dpu {
 		compatible = "samsung,exynos-iommu-bus";
-		#address-cells = <2>;
-		#size-cells = <1>;
+		#dma-address-cells = <1>;
+		#dma-size-cells = <1>;
 		ranges;
+
+		/* start address, size */
+		dma-window = <0x10000000 0xEFFF0000>;
 
                 domain-clients = <&dsim_0>;
 	};
