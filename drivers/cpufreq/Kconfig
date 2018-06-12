@@ -352,5 +352,33 @@ config QORIQ_CPUFREQ
 	  This adds the CPUFreq driver support for Freescale QorIQ SoCs
 	  which are capable of changing the CPU's frequency dynamically.
 
+comment "P-state Boost Solutions"
+
+choice PSTATE
+	prompt "P-state Boost Solution"
+	default PSTATE_DISABLE
+	help
+	  Default status of P-state boost is disable.
+
+config PSTATE_DISABLE
+	bool "disable"
+	help
+	  This option sets P-state boost solution as disable.
+	  If in doubt, set this config.
+
+config PSTATE_EXYNOS_HAFM
+	bool "Exynos HAFM"
+	help
+	  This option sets P-state boost solution as HAFM.
+	  The config makes HIU just deliver frequency level and power budget
+	  given from CPUFreq driver and register set.
+
+config PSTATE_EXYNOS_HAFM_TB
+	bool "Exynos HAFM-TB"
+	help
+	  This option sets P-state boost solution as HAFM-TB.
+
+endchoice
+
 endif
 endmenu

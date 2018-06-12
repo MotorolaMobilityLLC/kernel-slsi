@@ -66,3 +66,7 @@ obj-$(CONFIG_ARCH_EXYNOS)       += secmem.o
 
 # HIU
 obj-$(CONFIG_EXYNOS_HIU)	+= exynos-hiu.o
+
+# HAFM & HAFM-TB
+obj-$(CONFIG_PSTATE_EXYNOS_HAFM)	+= exynos-hafm.o
+obj-$(CONFIG_PSTATE_EXYNOS_HAFM_TB)	+= exynos-hafm-tb.o
