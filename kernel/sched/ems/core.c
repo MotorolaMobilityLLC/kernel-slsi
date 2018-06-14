@@ -147,14 +147,6 @@ static int select_proper_cpu(struct task_struct *p, int prev_cpu)
 				continue;
 
 			/*
-			 * According to the criteria determined by the LBT(Load
-			 * Balance trigger), the cpu that becomes overutilized
-			 * when the task is assigned is skipped.
-			 */
-			if (lbt_bring_overutilize(i, p))
-				continue;
-
-			/*
 			 * Best target) lowest utilization among lowest-cap cpu
 			 *
 			 * If the sequence reaches this function, the wakeup task
