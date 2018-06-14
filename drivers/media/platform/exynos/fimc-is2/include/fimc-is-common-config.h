@@ -123,7 +123,6 @@ extern int debug_sensor;
 #define FIXED_DGAIN_VALUE (150 * 6)
 #define FIXED_TDNR_NOISE_INDEX_VALUE (0)
 /* #define DBG_CSIISR */
-/* #define DBG_IMAGE_KMAPPING */
 /* #define DBG_DRAW_DIGIT */
 /* #define DBG_IMAGE_DUMP */
 /* #define DBG_META_DUMP */
