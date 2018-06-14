@@ -90,8 +90,6 @@
 				freq_mfc = <100000>;
 				freq_int = <100000>;
 				freq_mif = <419000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <0>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <0>;
@@ -102,8 +100,6 @@
 				freq_mfc = <200000>;
 				freq_int = <200000>;
 				freq_mif = <546000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <0>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <0>;
@@ -114,8 +110,6 @@
 				freq_mfc = <400000>;
 				freq_int = <400000>;
 				freq_mif = <845000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <0>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <0>;
@@ -126,8 +120,6 @@
 				freq_mfc = <533000>;
 				freq_int = <533000>;
 				freq_mif = <1014000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <0>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <0>;
@@ -138,8 +130,6 @@
 				freq_mfc = <533000>;
 				freq_int = <533000>;
 				freq_mif = <1539000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <0>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <0>;
@@ -150,8 +140,6 @@
 				freq_mfc = <666000>;
 				freq_int = <667000>;
 				freq_mif = <1794000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <1>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <0>;
@@ -162,8 +150,6 @@
 				freq_mfc = <666000>;
 				freq_int = <667000>;
 				freq_mif = <2093000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <1>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <0>;
@@ -174,8 +160,6 @@
 				freq_mfc = <666000>;
 				freq_int = <667000>;
 				freq_mif = <2093000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <0>;
 				mo_10bit_value = <1>;
 				mo_uhd_enc60_value = <0>;
@@ -187,14 +171,21 @@
 				freq_mfc = <533000>;
 				freq_int = <533000>;
 				freq_mif = <1539000>;
-				freq_cpu = <0>;
-				freq_kfc = <0>;
 				mo_value = <0>;
 				mo_10bit_value = <0>;
 				mo_uhd_enc60_value = <1>;
 				time_fw = <184>;
 			};
 
+		};
+
+		/* QoS table for performance boost mode */
+		mfc_perf_boost_table {
+			num_cluster = <2>;
+			freq_cluster = <1534000 2288000>;
+			freq_mfc = <666000>;
+			freq_int = <667000>;
+			freq_mif = <2093000>;
 		};
 	};
 };
