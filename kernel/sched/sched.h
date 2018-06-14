@@ -1907,8 +1907,8 @@ static inline unsigned long cpu_util_freq(int cpu)
 	return (util >= capacity) ? capacity : util;
 }
 
-inline unsigned long _task_util_est(struct task_struct *p);
-inline unsigned long task_util_est(struct task_struct *p);
+unsigned long _task_util_est(struct task_struct *p);
+unsigned long task_util_est(struct task_struct *p);
 
 #endif
 
