@@ -50,6 +50,7 @@ struct mxman {
 	char                    *fw;
 	u32                     fw_image_size;
 	struct completion       mm_msg_start_ind_completion;
+	struct completion       mm_msg_halt_rsp_completion;
 	struct fwhdr            fwhdr;
 	struct mxconf           *mxconf;
 	enum mxman_state        mxman_state;

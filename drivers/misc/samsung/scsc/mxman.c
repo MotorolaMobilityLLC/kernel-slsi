@@ -77,6 +77,8 @@ static struct work_struct	wlbtd_work;
 #define SCSC_R4_V2_MINOR_52 52
 #define SCSC_R4_V2_MINOR_53 53
 
+#define MM_HALT_RSP_TIMEOUT_MS 1000
+
 static char panic_record_dump[PANIC_RECORD_DUMP_BUFFER_SZ];
 static BLOCKING_NOTIFIER_HEAD(firmware_chain);
 
@@ -109,10 +111,6 @@ MODULE_PARM_DESC(mm_completion_timeout_ms, "Timeout wait_for_mm_msg_start_ind (m
 static bool skip_mbox0_check;
 module_param(skip_mbox0_check, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(skip_mbox0_check, "Allow skipping firmware mbox0 signature check");
-
-static uint mif_access_max_time_ms = 100;
-module_param(mif_access_max_time_ms, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(mif_access_max_time_ms, "Timeout send_mm_msg_stop_blocking (ms) - default 100");
 
 static uint firmware_startup_flags;
 module_param(firmware_startup_flags, uint, S_IRUGO | S_IWUSR);
@@ -208,7 +206,8 @@ enum {
 	MM_FORCE_PANIC = 2,
 	MM_HOST_SUSPEND = 3,
 	MM_HOST_RESUME = 4,
-	MM_FW_CONFIG = 5
+	MM_FW_CONFIG = 5,
+	MM_HALT_RSP = 6,
 } ma_msg;
 
 /**
@@ -264,23 +263,35 @@ static int _mx_exec(char *prog, int wait_exec) __attribute__((unused));
 #else
 static int _mx_exec(char *prog, int wait_exec);
 #endif
-static int wait_for_mm_msg_start_ind(struct mxman *mxman)
+static int wait_for_mm_msg(struct mxman *mxman, struct completion *mm_msg_completion, ulong timeout_ms)
 {
 	int r;
 
-	if (0 == mm_completion_timeout_ms) {
+	(void)mxman; /* unused */
+
+	if (timeout_ms == 0) {
 		/* Zero implies infinite wait */
-		r = wait_for_completion_interruptible(&mxman->mm_msg_start_ind_completion);
+		r = wait_for_completion_interruptible(mm_msg_completion);
 		/* r = -ERESTARTSYS if interrupted, 0 if completed */
 		return r;
 	}
-	r = wait_for_completion_timeout(&mxman->mm_msg_start_ind_completion, msecs_to_jiffies(mm_completion_timeout_ms));
+	r = wait_for_completion_timeout(mm_msg_completion, msecs_to_jiffies(timeout_ms));
 	if (r == 0) {
 		SCSC_TAG_ERR(MXMAN, "timeout\n");
 		return -ETIMEDOUT;
 	}
 
 	return 0;
+}
+
+static int wait_for_mm_msg_start_ind(struct mxman *mxman)
+{
+	return wait_for_mm_msg(mxman, &mxman->mm_msg_start_ind_completion, mm_completion_timeout_ms);
+}
+
+static int wait_for_mm_msg_halt_rsp(struct mxman *mxman)
+{
+	return wait_for_mm_msg(mxman, &mxman->mm_msg_halt_rsp_completion, MM_HALT_RSP_TIMEOUT_MS);
 }
 
 #ifndef CONFIG_SCSC_WLBTD
@@ -318,6 +329,7 @@ static int coredump_helper(void)
 
 static int send_mm_msg_stop_blocking(struct mxman *mxman)
 {
+	int r;
 #ifdef CONFIG_SCSC_FM
 	struct ma_msg_packet message = { .ma_msg = MM_HALT_REQ,
 			.arg = mxman->on_halt_ldos_on };
@@ -325,7 +337,13 @@ static int send_mm_msg_stop_blocking(struct mxman *mxman)
 	struct ma_msg_packet message = { .ma_msg = MM_HALT_REQ };
 #endif
 	mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxman->mx), MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT, &message, sizeof(message));
-	msleep(mif_access_max_time_ms);
+
+	r = wait_for_mm_msg_halt_rsp(mxman);
+	if (r) {
+		SCSC_TAG_ERR(MXMAN, "wait_for_MM_HALT_RSP() failed: r=%d\n", r);
+		return r;
+	}
+
 
 	return 0;
 }
@@ -436,6 +454,10 @@ static void mxman_message_handler(const void *message, void *data)
 		mxman_print_versions(mxman);
 		atomic_inc(&mxman->boot_count);
 		complete(&mxman->mm_msg_start_ind_completion);
+		break;
+	case MM_HALT_RSP:
+		complete(&mxman->mm_msg_halt_rsp_completion);
+		SCSC_TAG_INFO(MXMAN, "Received MM_HALT_RSP message from the firmware");
 		break;
 	default:
 		/* HERE: Unknown message, raise fault */
@@ -882,6 +904,7 @@ static int mxman_start(struct mxman *mxman)
 	}
 	mbox_init(mxman, fwhdr->firmware_entry_point);
 	init_completion(&mxman->mm_msg_start_ind_completion);
+	init_completion(&mxman->mm_msg_halt_rsp_completion);
 	mxmgmt_transport_register_channel_handler(scsc_mx_get_mxmgmt_transport(mxman->mx), MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT,
 						  &mxman_message_handler, mxman);
 
