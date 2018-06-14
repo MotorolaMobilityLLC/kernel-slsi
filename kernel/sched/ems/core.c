@@ -12,6 +12,7 @@
 
 #include "ems.h"
 #include "../sched.h"
+#include "../tune.h"
 
 unsigned long task_util(struct task_struct *p)
 {
@@ -139,6 +140,7 @@ static int select_proper_cpu(struct task_struct *p, int prev_cpu)
 
 			wake_util = cpu_util_wake(i, p);
 			new_util = wake_util + task_util_est(p);
+			new_util = max(new_util, boosted_task_util(p));
 
 			/* skip over-capacity cpu */
 			if (new_util > capacity_orig)

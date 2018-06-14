@@ -6351,7 +6351,7 @@ static inline unsigned long task_util(struct task_struct *p);
 #ifdef CONFIG_SCHED_TUNE
 struct reciprocal_value schedtune_spc_rdiv;
 
-static long
+long
 schedtune_margin(unsigned long signal, long boost)
 {
 	long long margin = 0;
