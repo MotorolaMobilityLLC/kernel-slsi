@@ -407,6 +407,16 @@ out:
 	return ret;
 }
 
+static unsigned int exynos_cpufreq_get(unsigned int cpu)
+{
+	struct exynos_cpufreq_domain *domain = find_domain(cpu);
+
+	if (!domain)
+		return 0;
+
+	return get_freq(domain);
+}
+
 static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 					unsigned int target_freq,
 					unsigned int relation)
@@ -538,7 +548,6 @@ static struct notifier_block exynos_cpufreq_pm = {
 	.notifier_call = exynos_cpufreq_pm_notifier,
 };
 
-unsigned int exynos_cpufreq_get(unsigned int cpu);
 static struct cpufreq_driver exynos_driver = {
 	.name		= "exynos_cpufreq",
 	.flags		= CPUFREQ_STICKY | CPUFREQ_HAVE_GOVERNOR_PER_POLICY,
@@ -778,15 +787,23 @@ unsigned int exynos_cpufreq_get_max_freq(struct cpumask *mask)
 }
 EXPORT_SYMBOL(exynos_cpufreq_get_max_freq);
 
-unsigned int exynos_cpufreq_get(unsigned int cpu)
+unsigned int exynos_cpufreq_get_locked(unsigned int cpu)
 {
 	struct exynos_cpufreq_domain *domain = find_domain(cpu);
 
 	if (!domain)
 		return 0;
 
+	/*
+	 * It is accompanied by a lock job to prevent
+	 * reading frequency during frequency change
+	 */
+	mutex_lock(&domain->lock);
+	mutex_unlock(&domain->lock);
+
 	return get_freq(domain);
 }
+EXPORT_SYMBOL(exynos_cpufreq_get_locked);
 
 /*********************************************************************
  *                          SYSFS INTERFACES                         *
