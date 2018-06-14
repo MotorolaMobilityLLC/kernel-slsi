@@ -26,7 +26,7 @@ static inline void emc_check_available_freq(struct cpumask *cpus, unsigned int t
 static inline int emc_cpu_pre_off_callback(unsigned int cpu) { return 0; };
 #endif
 
-unsigned int exynos_cpufreq_get(unsigned int cpu);
+unsigned int exynos_cpufreq_get_locked(unsigned int cpu);
 
 #endif /* __EXYNOS_MODE_CHANGER_H */
 

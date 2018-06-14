@@ -210,7 +210,7 @@ int emc_verify_constraints(void)
 {
 	struct cpufreq_policy *policy;
 	struct emc_domain *domain;
-	unsigned int cpu;
+	unsigned int cpu, cur_freq;
 
 	domain = emc_get_boost_domain();
 	cpu = cpumask_first(&domain->cpus);
@@ -224,7 +224,7 @@ int emc_verify_constraints(void)
 	/* check policy max */
 	if (policy->max > emc.max_freq) {
 		cpufreq_cpu_put(policy);
-		pr_warn("EMC: max constraints is not yet applyied(emc_max(%d) < cur_max(%d)\n",
+		pr_warn("EMC: constraints isn't yet applyied(emc_max(%lu) < cur_max(%d)\n",
 				emc.max_freq, policy->max);
 		return 0;
 	}
@@ -232,9 +232,12 @@ int emc_verify_constraints(void)
 
 check_real_freq:
 	/* check whether real cpu freq within max constraints or not */
-	if (exynos_cpufreq_get(cpu) > emc.max_freq)
-		panic("EMC(%s): real frequency(%d) is higher than max(%d)\n",
-			__func__, exynos_cpufreq_get(cpu), emc.max_freq);
+	cur_freq = exynos_cpufreq_get_locked(cpu);
+	if (cur_freq > emc.max_freq) {
+		pr_warn("EMC(%s: cur freq(%d) is higher than max(%lu), retring...\n",
+			__func__, cur_freq, emc.max_freq);
+		return 0;
+	}
 
 	return 1;
 }
@@ -816,7 +819,7 @@ static int emc_cpu_on_callback(unsigned int cpu)
 }
 int emc_cpu_pre_on_callback(unsigned int cpu)
 {
-	emc_update_pre_mask(cpu, false);
+	emc_update_pre_mask(cpu, true);
 	return 0;
 }
 
@@ -1280,7 +1283,7 @@ static void emc_print_inform(void)
 		scnprintf(buf, sizeof(buf), "%*pbl",
 				cpumask_pr_args(&mode->boost_cpus));
 		pr_info("mode%d boost_cpus: %s\n", i, buf);
-		pr_info("mode%d ldsum_thr: %u\n", mode->ldsum_thr);
+		pr_info("mode%d ldsum_thr: %u\n", i, mode->ldsum_thr);
 		pr_info("mode%d cal-id: %u\n", i, mode->cal_id);
 		pr_info("mode%d max_freq: %u\n", i, mode->max_freq);
 		pr_info("mode%d change_latency: %u\n", i, mode->change_latency);
