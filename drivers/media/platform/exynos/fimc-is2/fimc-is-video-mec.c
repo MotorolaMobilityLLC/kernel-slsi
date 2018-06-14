@@ -693,26 +693,9 @@ static void fimc_is_mexc_buffer_finish(struct vb2_buffer *vb)
 	}
 }
 
-static int fimc_is_mexc_buffer_init(struct vb2_buffer *vb)
-{
-	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
-	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
-	struct fimc_is_video_ctx *vctx = vb->vb2_queue->drv_priv;
-	unsigned int plane;
-
-	vbuf->ops = vctx->fimc_is_vb2_buf_ops;
-
-	for (plane = 0; plane < vb->num_planes; ++plane) {
-		vbuf->kva[plane] = vbuf->ops->plane_kvaddr(vbuf, plane);
-		vbuf->dva[plane] = vbuf->ops->plane_dvaddr(vbuf, plane);
-	}
-
-	return 0;
-}
-
 const struct vb2_ops fimc_is_mexc_qops = {
 	.queue_setup		= fimc_is_mexc_queue_setup,
-	.buf_init		= fimc_is_mexc_buffer_init,
+	.buf_init		= fimc_is_buffer_init,
 	.buf_prepare		= fimc_is_mexc_buffer_prepare,
 	.buf_queue		= fimc_is_mexc_buffer_queue,
 	.buf_finish		= fimc_is_mexc_buffer_finish,
