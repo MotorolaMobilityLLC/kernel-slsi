@@ -720,10 +720,16 @@ struct netdev_vif {
 	bool wifi_sharing;
 #endif
 	/* traffic monitor */
-	u32 num_bytes_tx;
-	u32 num_bytes_rx;
+	ktime_t last_timer_time;
+	u32 report_time;
+	u32 num_bytes_tx_per_timer;
+	u32 num_bytes_rx_per_timer;
+	u32 num_bytes_tx_per_sec;
+	u32 num_bytes_rx_per_sec;
 	u32 throughput_tx;
 	u32 throughput_rx;
+	u32 throughput_tx_bps;
+	u32 throughput_rx_bps;
 };
 
 struct slsi_802_11d_reg_domain {

@@ -87,10 +87,35 @@ static void traffic_mon_timer(unsigned long data)
 			ndev_vif = netdev_priv(dev);
 
 			if (ndev_vif) {
-				ndev_vif->throughput_tx = (ndev_vif->num_bytes_tx * 8 / SLSI_TRAFFIC_MON_TIMER_PERIOD) * 1000;
-				ndev_vif->throughput_rx = (ndev_vif->num_bytes_rx * 8 / SLSI_TRAFFIC_MON_TIMER_PERIOD) * 1000;
-				ndev_vif->num_bytes_tx = 0;
-				ndev_vif->num_bytes_rx = 0;
+				u32 time_in_ms = 0;
+
+				/* the Timer is jiffies based so resolution is not High and it may
+				 * be off by a few ms. So to accurately measure the throughput find
+				 * the time diff between last timer and this one
+				 */
+				time_in_ms = ktime_to_ms(ktime_sub(ktime_get(), ndev_vif->last_timer_time));
+
+				/* the Timer may be any value but it still needs to calculate the
+				 * throughput over a period of 1 second
+				 */
+				ndev_vif->num_bytes_rx_per_sec += ndev_vif->num_bytes_rx_per_timer;
+				ndev_vif->num_bytes_tx_per_sec += ndev_vif->num_bytes_tx_per_timer;
+				ndev_vif->report_time += time_in_ms;
+				if (ndev_vif->report_time >= 1000) {
+					ndev_vif->throughput_rx_bps = (ndev_vif->num_bytes_rx_per_sec * 8 / ndev_vif->report_time) * 1000;
+					ndev_vif->throughput_tx_bps = (ndev_vif->num_bytes_tx_per_sec * 8 / ndev_vif->report_time) * 1000;
+					ndev_vif->num_bytes_rx_per_sec = 0;
+					ndev_vif->num_bytes_tx_per_sec = 0;
+					ndev_vif->report_time = 0;
+				}
+
+				/* throughput per timer interval is measured but extrapolated to 1 sec */
+				ndev_vif->throughput_tx = (ndev_vif->num_bytes_tx_per_timer * 8 / time_in_ms) * 1000;
+				ndev_vif->throughput_rx = (ndev_vif->num_bytes_rx_per_timer * 8 / time_in_ms) * 1000;
+
+				ndev_vif->num_bytes_tx_per_timer = 0;
+				ndev_vif->num_bytes_rx_per_timer = 0;
+				ndev_vif->last_timer_time = ktime_get();
 				tput_tx += ndev_vif->throughput_tx;
 				tput_rx += ndev_vif->throughput_rx;
 			}
@@ -109,7 +134,16 @@ inline void slsi_traffic_mon_event_rx(struct slsi_dev *sdev, struct net_device *
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 
-	ndev_vif->num_bytes_rx += skb->len;
+	/* Apply a correction to length to exclude IP and transport header.
+	 * Can either peek into packets to derive the exact payload size
+	 * or apply a rough correction to roughly calculate the throughput.
+	 * rough correction  is applied with a number inbetween IP header (20 bytes) +
+	 * UDP header (8 bytes) or TCP header (can be 20 bytes to 60 bytes) i.e. 40
+	 */
+	if (skb->len >= 40)
+		ndev_vif->num_bytes_rx_per_timer += (skb->len - 40);
+	else
+		ndev_vif->num_bytes_rx_per_timer += skb->len;
 }
 
 inline void slsi_traffic_mon_event_tx(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
@@ -117,7 +151,10 @@ inline void slsi_traffic_mon_event_tx(struct slsi_dev *sdev, struct net_device *
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_skb_cb *cb = slsi_skb_cb_get(skb);
 
-	ndev_vif->num_bytes_tx += (skb->len - cb->sig_length);
+	if ((skb->len - cb->sig_length) >= 40)
+		ndev_vif->num_bytes_tx_per_timer += ((skb->len - 40) - cb->sig_length);
+	else
+		ndev_vif->num_bytes_tx_per_timer += (skb->len - cb->sig_length);
 }
 
 u8 slsi_traffic_mon_is_running(struct slsi_dev *sdev)
@@ -181,8 +218,14 @@ int slsi_traffic_mon_client_register(
 				if (ndev_vif) {
 					ndev_vif->throughput_tx = 0;
 					ndev_vif->throughput_rx = 0;
-					ndev_vif->num_bytes_tx = 0;
-					ndev_vif->num_bytes_rx = 0;
+					ndev_vif->num_bytes_tx_per_timer = 0;
+					ndev_vif->num_bytes_rx_per_timer = 0;
+					ndev_vif->last_timer_time = ktime_get();
+					ndev_vif->num_bytes_rx_per_sec = 0;
+					ndev_vif->num_bytes_tx_per_sec = 0;
+					ndev_vif->throughput_rx_bps = 0;
+					ndev_vif->throughput_tx_bps = 0;
+					ndev_vif->report_time = 0;
 				}
 			}
 		}
@@ -222,8 +265,13 @@ void slsi_traffic_mon_client_unregister(struct slsi_dev *sdev, void *client_ctx)
 				if (ndev_vif) {
 					ndev_vif->throughput_tx = 0;
 					ndev_vif->throughput_rx = 0;
-					ndev_vif->num_bytes_tx = 0;
-					ndev_vif->num_bytes_rx = 0;
+					ndev_vif->num_bytes_tx_per_timer = 0;
+					ndev_vif->num_bytes_rx_per_timer = 0;
+					ndev_vif->num_bytes_rx_per_sec = 0;
+					ndev_vif->num_bytes_tx_per_sec = 0;
+					ndev_vif->throughput_rx_bps = 0;
+					ndev_vif->throughput_tx_bps = 0;
+					ndev_vif->report_time = 0;
 				}
 			}
 		}

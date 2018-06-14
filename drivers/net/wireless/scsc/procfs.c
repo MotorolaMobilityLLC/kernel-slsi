@@ -731,19 +731,19 @@ static ssize_t slsi_procfs_tput_read(struct file *file,  char __user *user_buf, 
 		if (dev) {
 			ndev_vif = netdev_priv(dev);
 			pos += scnprintf(buf + pos, bufsz - pos, "%s:\t", dev->name);
-			if (ndev_vif->throughput_tx < 1000)
-				pos += scnprintf(buf + pos, bufsz - pos, "TX:%u bps\t", ndev_vif->throughput_tx);
-			else if ((ndev_vif->throughput_tx >= 1000) && (ndev_vif->throughput_tx < (1000 * 1000)))
-				pos += scnprintf(buf + pos, bufsz - pos, "TX:%u Kbps\t", (ndev_vif->throughput_tx / 1000));
+			if (ndev_vif->throughput_tx_bps < 1000)
+				pos += scnprintf(buf + pos, bufsz - pos, "TX:%u bps\t", ndev_vif->throughput_tx_bps);
+			else if ((ndev_vif->throughput_tx_bps >= 1000) && (ndev_vif->throughput_tx_bps < (1000 * 1000)))
+				pos += scnprintf(buf + pos, bufsz - pos, "TX:%u Kbps\t", (ndev_vif->throughput_tx_bps / 1000));
 			else
-				pos += scnprintf(buf + pos, bufsz - pos, "TX:%u Mbps\t", (ndev_vif->throughput_tx / (1000 * 1000)));
+				pos += scnprintf(buf + pos, bufsz - pos, "TX:%u Mbps\t", (ndev_vif->throughput_tx_bps / (1000 * 1000)));
 
-			if (ndev_vif->throughput_rx < 1000)
-				pos += scnprintf(buf + pos, bufsz - pos, "RX:%u bps\n", ndev_vif->throughput_rx);
-			else if ((ndev_vif->throughput_rx >= 1000) && (ndev_vif->throughput_rx < (1000 * 1000)))
-				pos += scnprintf(buf + pos, bufsz - pos, "RX:%u Kbps\n", (ndev_vif->throughput_rx / 1000));
+			if (ndev_vif->throughput_rx_bps < 1000)
+				pos += scnprintf(buf + pos, bufsz - pos, "RX:%u bps\n", ndev_vif->throughput_rx_bps);
+			else if ((ndev_vif->throughput_rx_bps >= 1000) && (ndev_vif->throughput_rx_bps < (1000 * 1000)))
+				pos += scnprintf(buf + pos, bufsz - pos, "RX:%u Kbps\n", (ndev_vif->throughput_rx_bps / 1000));
 			else
-				pos += scnprintf(buf + pos, bufsz - pos, "RX:%u Mbps\n", (ndev_vif->throughput_rx / (1000 * 1000)));
+				pos += scnprintf(buf + pos, bufsz - pos, "RX:%u Mbps\n", (ndev_vif->throughput_rx_bps / (1000 * 1000)));
 		}
 	}
 	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
