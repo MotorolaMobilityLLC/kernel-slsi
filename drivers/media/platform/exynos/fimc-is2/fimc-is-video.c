@@ -918,9 +918,7 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	int meta_planes = 1;
 	struct fimc_is_ion_ctx *ctx;
 	dma_addr_t dva;
-#ifdef DBG_IMAGE_KMAPPING
 	ulong kva;
-#endif
 
 	index = vb->index;
 	image_planes = vb->num_planes - meta_planes; /* last plane is maeta plane */
@@ -980,7 +978,6 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 				}
 				queue->buf_dva[index][buf_k] = dva;
 
-#ifdef DBG_IMAGE_KMAPPING
 				ret = dma_buf_begin_cpu_access(bufs[buf_k], DMA_TO_DEVICE);
 				if (ret) {
 					pr_err("%s: Failed to prepare CPU access of fd %d\n", __func__, vb->planes[i].m.fd);
@@ -988,14 +985,12 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 				}
 				kva = (ulong)dma_buf_vmap(bufs[buf_k]);
 				queue->buf_kva[index][buf_k] = kva;
-#endif
+
 				dma_buf_put(bufs[buf_k]);
 			}
 		} else {
 			queue->buf_dva[index][i] = vbuf->ops->plane_dvaddr(vbuf, i);
-#ifdef DBG_IMAGE_KMAPPING
 			queue->buf_kva[index][i] = vbuf->ops->plane_kvaddr(vbuf, i);
-#endif
 		}
 
 		dma_buf_put(dmabuf);
@@ -1069,9 +1064,8 @@ set_info:
 
 	for (i = 0; i < frame->planes; i++) {
 		frame->dvaddr_buffer[i] = (u32)queue->buf_dva[index][i];
-#ifdef DBG_IMAGE_KMAPPING
 		frame->kvaddr_buffer[i] = queue->buf_kva[index][i];
-#endif
+
 		if(vbuf->kva[i] != 0)
 			frame->kvaddr_buffer[i] = vbuf->kva[i];
 #ifdef PRINT_BUFADDR
