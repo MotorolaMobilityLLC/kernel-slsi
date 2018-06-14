@@ -279,6 +279,16 @@ void fpsimd_put(void)
 
 	BUG_ON(atomic_dec_return(
 		&current->thread.fpsimd_kernel_state.depth) < 0);
+
+	preempt_disable();
+	if (current->mm && test_thread_flag(TIF_FOREIGN_FPSTATE)
+		&& atomic_read(&current->thread.fpsimd_kernel_state.depth) == 0) {
+		fpsimd_load_state(&current->thread.fpsimd_state);
+		this_cpu_write(fpsimd_last_state, &current->thread.fpsimd_state);
+		current->thread.fpsimd_state.cpu = smp_processor_id();
+		clear_thread_flag(TIF_FOREIGN_FPSTATE);
+	}
+	preempt_enable();
 }
 
 #ifdef CONFIG_KERNEL_MODE_NEON
