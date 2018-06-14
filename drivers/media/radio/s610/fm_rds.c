@@ -493,7 +493,7 @@ void fm_rds_update_error_status(struct s610_radio *radio, u16 errors)
 #endif
 			} else {
 				/*remove data*/
-				fm_rds_write_data_remove(radio, fm_rds_get_state(radio));
+				fm_rds_write_data_remove(radio, (fm_rds_rm_align_enum)fm_rds_get_state(radio));
 			}
 			fm_rds_change_state(radio, RDS_STATE_INIT);
 #endif	/*USE_RDS_HW_DECODER*/
