@@ -13,7 +13,7 @@
 #include "ems.h"
 #include "../sched.h"
 
-int task_util(struct task_struct *p)
+unsigned long task_util(struct task_struct *p)
 {
 	if (rt_task(p))
 		return p->rt.avg.util_avg;
