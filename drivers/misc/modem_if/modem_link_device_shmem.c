@@ -582,7 +582,7 @@ static void msg_rx_work(struct work_struct *ws)
 	struct link_device *ld;
 	struct io_device *iod;
 	struct sk_buff *skb;
-	int i, ret;
+	int i;
 	int queue_len;
 
 	shmd = container_of(ws, struct shmem_link_device, msg_rx_dwork.work);
@@ -597,14 +597,7 @@ static void msg_rx_work(struct work_struct *ws)
 			if (!skb)
 				break;
 
-			ret = iod->recv_skb(iod, ld, skb);
-			if (unlikely(ret < 0)) {
-				struct modem_ctl *mc = ld->mc;
-
-				mif_err_limited("%s: %s<-%s: %s->recv_skb fail (%d)\n",
-					ld->name, iod->name, mc->name, iod->name, ret);
-				dev_kfree_skb_any(skb);
-			}
+			iod->recv_skb(iod, ld, skb);
 		}
 	}
 }

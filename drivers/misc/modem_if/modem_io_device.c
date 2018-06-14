@@ -612,11 +612,20 @@ static int rx_frame_padding(struct io_device *iod, struct link_device *ld,
 static int rx_frame_done(struct io_device *iod, struct link_device *ld,
 		struct sk_buff *skb)
 {
+	int err = 0;
+
 	/* Cut off the padding of the current frame */
 	skb_trim(skb, exynos_get_frame_len(skb->data));
 	mif_debug("%s->%s: frame length = %d\n", ld->name, iod->name, skb->len);
 
-	return rx_demux(ld, skb);
+	err = rx_demux(ld, skb);
+	if(err < 0) {
+		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail"
+			"(err %d)\n", ld->name, iod->name, err);
+		rx_drain(skb);
+	}
+
+	return err;
 }
 
 static int recv_frame_from_buff(struct io_device *iod, struct link_device *ld,
@@ -782,6 +791,8 @@ static int io_dev_recv_data_from_link_dev(struct io_device *iod,
 static int io_dev_recv_skb_from_link_dev(struct io_device *iod,
 		struct link_device *ld, struct sk_buff *skb)
 {
+	int err = 0;
+
 	if (iod->waketime)
 		wake_lock_timeout(&iod->wakelock, iod->waketime);
 
@@ -789,19 +800,35 @@ static int io_dev_recv_skb_from_link_dev(struct io_device *iod,
 	skb_trim(skb, exynos_get_frame_len(skb->data));
 	mif_debug("%s->%s: frame length = %d\n", ld->name, iod->name, skb->len);
 
-	return rx_demux(ld, skb);
+	err = rx_demux(ld, skb);
+	if(err < 0) {
+		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail"
+			"(err %d)\n", ld->name, iod->name, err);
+		rx_drain(skb);
+	}
+
+	return err;
 }
 
 /* called from link device when a packet arrives fo this io device */
 static int io_dev_recv_skb_single_from_link_dev(struct io_device *iod,
 				struct link_device *ld, struct sk_buff *skb)
 {
+	int err = 0;
+
 	iodev_lock_wlock(iod);
 
 	if (skbpriv(skb)->lnk_hdr && ld->aligned)
 		skb_trim(skb, exynos_get_frame_len(skb->data));
 
-	return rx_demux(ld, skb);
+	err = rx_demux(ld, skb);
+	if(err < 0) {
+		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail"
+			"(err %d)\n", ld->name, iod->name, err);
+		rx_drain(skb);
+	}
+
+	return err;
 }
 /* inform the IO device that the modem is now online or offline or
  * crashing or whatever...
