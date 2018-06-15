@@ -319,6 +319,14 @@ int exynos_hiu_get_max_freq(void)
 	return data->clipped_freq;
 }
 
+unsigned int exynos_pstate_get_boost_freq(int cpu)
+{
+	if (!cpumask_test_cpu(cpu, &data->cpus))
+		return 0;
+
+	return data->boost_max;
+}
+
 /****************************************************************/
 /*			HIU SR1 WRITE HANDLER			*/
 /****************************************************************/
@@ -367,7 +375,6 @@ static int exynos_hiu_update_data(struct cpufreq_policy *policy)
 	if (!cpumask_test_cpu(data->cpu, policy->cpus))
 		return 0;
 
-	data->boost_max = policy->user_policy.max;
 	data->clipped_freq = data->boost_max;
 	hiu_stats_create_table(policy);
 
@@ -474,6 +481,7 @@ static int hiu_dt_parsing(struct device_node *dn)
 	ret |= of_property_read_u32(dn, "operation-mode", &data->operation_mode);
 	ret |= of_property_read_u32(dn, "boot-freq", &data->cur_freq);
 	ret |= of_property_read_u32(dn, "boost-threshold", &data->boost_threshold);
+	ret |= of_property_read_u32(dn, "boost-max", &data->boost_max);
 	ret |= of_property_read_u32(dn, "sw-pbl", &data->sw_pbl);
 	ret |= of_property_read_string(dn, "sibling-cpus", &buf);
 	if (ret)
