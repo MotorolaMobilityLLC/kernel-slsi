@@ -88,7 +88,7 @@ int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 					return 0;
 				}
 				if (dec->is_interlaced) {
-					mfc_debug(2, "There is a interlaced stream\n");
+					mfc_debug(2, "[INTERLACE] There is a interlaced stream\n");
 					return 0;
 				}
 				if (dec->detect_black_bar) {
@@ -1537,10 +1537,10 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 		goto leave_handle_frame;
 	}
 	if (is_interlaced) {
-		mfc_debug(2, "NAL Q: Progressive -> Interlaced\n");
+		mfc_debug(2, "NAL Q:[INTERLACE] Progressive -> Interlaced\n");
 		dec->is_interlaced = is_interlaced;
 		dev->nal_q_handle->nal_q_exception = 1;
-		mfc_info_ctx("NAL Q: nal_q_exception is set (interlaced)\n");
+		mfc_info_ctx("NAL Q:[INTERLACE] nal_q_exception is set\n");
 		goto leave_handle_frame;
 	}
 

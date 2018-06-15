@@ -96,7 +96,7 @@ static unsigned int mfc_handle_frame_field(struct s5p_mfc_ctx *ctx)
 		field = V4L2_FIELD_NONE;
 	}
 
-	mfc_debug(2, "is_interlace : %d interlace_type : %d, is_mbaff: %d, field: 0x%#x\n",
+	mfc_debug(2, "[INTERLACE] is_interlace: %d (type : %d), is_mbaff: %d, field: 0x%#x\n",
 			is_interlace, interlace_type, is_mbaff, field);
 
 	return field;
@@ -1087,7 +1087,7 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 		is_mbaff = s5p_mfc_is_mbaff_picture();
 		if (is_interlace || is_mbaff)
 			dec->is_interlaced = 1;
-		mfc_debug(3, "interlace: %d, mbaff: %d\n", is_interlace, is_mbaff);
+		mfc_debug(2, "[INTERLACE] interlace: %d, mbaff: %d\n", is_interlace, is_mbaff);
 	}
 
 	if (IS_H264_DEC(ctx) || IS_H264_MVC_DEC(ctx) || IS_HEVC_DEC(ctx)) {
