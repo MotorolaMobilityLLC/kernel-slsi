@@ -41,7 +41,7 @@ int fimc_is_me0c_video_probe(void *data)
 	struct fimc_is_core *core;
 	struct fimc_is_video *video;
 
-	BUG_ON(!data);
+	FIMC_BUG(!data);
 
 	core = (struct fimc_is_core *)data;
 	video = &core->video_me0c;
@@ -157,10 +157,10 @@ static int fimc_is_mexc_video_close(struct file *file)
 	struct fimc_is_video *video;
 	struct fimc_is_device_ischain *device;
 
-	BUG_ON(!file);
-	BUG_ON(!vctx);
-	BUG_ON(!GET_VIDEO(vctx));
-	BUG_ON(!GET_DEVICE(vctx));
+	FIMC_BUG(!file);
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!GET_VIDEO(vctx));
+	FIMC_BUG(!GET_DEVICE(vctx));
 
 	video = GET_VIDEO(vctx);
 	device = GET_DEVICE(vctx);
@@ -250,8 +250,8 @@ static int fimc_is_mexc_video_set_format_mplane(struct file *file, void *fh,
 	int ret = 0;
 	struct fimc_is_video_ctx *vctx = file->private_data;
 
-	BUG_ON(!vctx);
-	BUG_ON(!format);
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!format);
 
 	mdbgv_mexc("%s\n", vctx, __func__);
 
@@ -301,9 +301,9 @@ static int fimc_is_mexc_video_reqbufs(struct file *file, void *priv,
 	struct fimc_is_device_ischain *device;
 	struct fimc_is_subdev *leader, *subdev;
 
-	BUG_ON(!vctx);
-	BUG_ON(!GET_DEVICE(vctx));
-	BUG_ON(!GET_VIDEO(vctx));
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!GET_DEVICE(vctx));
+	FIMC_BUG(!GET_VIDEO(vctx));
 
 	mdbgv_mexc("%s(buffers : %d)\n", vctx, __func__, buf->count);
 
@@ -381,11 +381,11 @@ static int fimc_is_mexc_video_prepare(struct file *file, void *priv,
 	struct fimc_is_framemgr *framemgr;
 	struct fimc_is_frame *frame;
 
-	BUG_ON(!buf);
-	BUG_ON(!vctx);
-	BUG_ON(!GET_FRAMEMGR(vctx));
-	BUG_ON(!GET_DEVICE(vctx));
-	BUG_ON(!GET_VIDEO(vctx));
+	FIMC_BUG(!buf);
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!GET_FRAMEMGR(vctx));
+	FIMC_BUG(!GET_DEVICE(vctx));
+	FIMC_BUG(!GET_VIDEO(vctx));
 
 	device = GET_DEVICE(vctx);
 	framemgr = GET_FRAMEMGR(vctx);
@@ -452,7 +452,7 @@ static int fimc_is_mexc_video_s_input(struct file *file, void *priv,
 	int ret = 0;
 	struct fimc_is_video_ctx *vctx = file->private_data;
 
-	BUG_ON(!vctx);
+	FIMC_BUG(!vctx);
 
 	ret = fimc_is_video_s_input(file, vctx);
 	if (ret) {
@@ -471,8 +471,8 @@ static int fimc_is_mexc_video_g_ctrl(struct file *file, void *priv,
 	struct fimc_is_video_ctx *vctx = file->private_data;
 	struct fimc_is_framemgr *framemgr;
 
-	BUG_ON(!vctx);
-	BUG_ON(!ctrl);
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!ctrl);
 
 	mdbgv_mexc("%s\n", vctx, __func__);
 
@@ -503,8 +503,8 @@ static int fimc_is_mexc_video_s_ctrl(struct file *file, void *priv,
 	int ret = 0;
 	struct fimc_is_video_ctx *vctx = file->private_data;
 
-	BUG_ON(!vctx);
-	BUG_ON(!ctrl);
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!ctrl);
 
 	mdbgv_mexc("%s\n", vctx, __func__);
 
@@ -557,8 +557,8 @@ static int fimc_is_mexc_queue_setup(struct vb2_queue *vbq,
 	struct fimc_is_video *video;
 	struct fimc_is_queue *queue;
 
-	BUG_ON(!vctx);
-	BUG_ON(!vctx->video);
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!vctx->video);
 
 	mdbgv_mexc("%s\n", vctx, __func__);
 
@@ -599,8 +599,8 @@ static int fimc_is_mexc_start_streaming(struct vb2_queue *vbq,
 	struct fimc_is_queue *queue;
 	struct fimc_is_device_ischain *device;
 
-	BUG_ON(!vctx);
-	BUG_ON(!GET_DEVICE(vctx));
+	FIMC_BUG(!vctx);
+	FIMC_BUG(!GET_DEVICE(vctx));
 
 	mdbgv_mexc("%s\n", vctx, __func__);
 
@@ -624,8 +624,8 @@ static void fimc_is_mexc_stop_streaming(struct vb2_queue *vbq)
 	struct fimc_is_queue *queue;
 	struct fimc_is_device_ischain *device;
 
-	BUG_ON(!vctx);
-	BUG_ON(!GET_DEVICE(vctx));
+	FIMC_BUG_VOID(!vctx);
+	FIMC_BUG_VOID(!GET_DEVICE(vctx));
 
 	mdbgv_mexc("%s\n", vctx, __func__);
 
@@ -647,8 +647,8 @@ static void fimc_is_mexc_buffer_queue(struct vb2_buffer *vb)
 	struct fimc_is_device_ischain *device;
 	struct fimc_is_subdev *subdev;
 
-	BUG_ON(!vctx);
-	BUG_ON(!GET_DEVICE(vctx));
+	FIMC_BUG_VOID(!vctx);
+	FIMC_BUG_VOID(!GET_DEVICE(vctx));
 
 	mvdbgs(3, "%s(%d)\n", vctx, &vctx->queue, __func__, vb->index);
 
@@ -676,8 +676,8 @@ static void fimc_is_mexc_buffer_finish(struct vb2_buffer *vb)
 	struct fimc_is_device_ischain *device;
 	struct fimc_is_subdev *subdev;
 
-	BUG_ON(!vctx);
-	BUG_ON(!GET_DEVICE(vctx));
+	FIMC_BUG_VOID(!vctx);
+	FIMC_BUG_VOID(!GET_DEVICE(vctx));
 
 	mvdbgs(3, "%s(%d)\n", vctx, &vctx->queue, __func__, vb->index);
 
