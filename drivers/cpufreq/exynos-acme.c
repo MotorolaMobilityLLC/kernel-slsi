@@ -805,6 +805,12 @@ unsigned int exynos_cpufreq_get_locked(unsigned int cpu)
 }
 EXPORT_SYMBOL(exynos_cpufreq_get_locked);
 
+unsigned int __weak exynos_pstate_get_boost_freq(int cpu)
+{
+	return 0;
+}
+EXPORT_SYMBOL(exynos_pstate_get_boost_freq);
+
 /*********************************************************************
  *                          SYSFS INTERFACES                         *
  *********************************************************************/
@@ -1518,12 +1524,10 @@ static __init int init_domain(struct exynos_cpufreq_domain *domain,
 	if (!of_property_read_u32(dn, "min-freq", &val))
 		domain->min_freq = max(domain->min_freq, val);
 
-#ifdef CONFIG_EXYNOS_PSTATE_MODE_CHANGER
 	/* If this domain has boost freq, change max */
-	val = emc_get_boost_freq(cpumask_first(&domain->cpus));
-	if (val)
+	val = exynos_pstate_get_boost_freq(cpumask_first(&domain->cpus));
+	if (val > domain->max_freq)
 		domain->max_freq = val;
-#endif
 
 	/* Default QoS for user */
 	if (!of_property_read_u32(dn, "user-default-qos", &val))

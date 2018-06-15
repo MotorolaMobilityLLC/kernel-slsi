@@ -93,3 +93,4 @@ struct exynos_cpufreq_domain {
  * Exynos CPUFreq API
  */
 extern void exynos_cpufreq_ready_list_add(struct exynos_cpufreq_ready_block *rb);
+extern unsigned int exynos_pstate_get_boost_freq(int cpu);
