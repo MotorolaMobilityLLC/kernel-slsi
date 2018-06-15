@@ -332,7 +332,7 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 			enc->chroma_dpb_size + enc->me_buffer_size));
 		break;
 	case S5P_FIMV_CODEC_VP9_ENC:
-		if (ctx->is_10bit || ctx->is_422format) {
+		if (ctx->is_10bit || ctx->is_422) {
 			enc->luma_dpb_size =
 				ALIGN(ENC_VP9_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			enc->chroma_dpb_size =
@@ -351,7 +351,7 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 		break;
 	case S5P_FIMV_CODEC_HEVC_ENC:
 	case S5P_FIMV_CODEC_BPG_ENC:
-		if (ctx->is_10bit || ctx->is_422format) {
+		if (ctx->is_10bit || ctx->is_422) {
 			enc->luma_dpb_size =
 				ALIGN(ENC_HEVC_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			enc->chroma_dpb_size =

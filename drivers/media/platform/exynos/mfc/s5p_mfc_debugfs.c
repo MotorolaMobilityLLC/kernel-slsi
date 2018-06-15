@@ -66,6 +66,10 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 	seq_printf(s, "           static_info_dec: %d(0x%x), enc: %d(0x%x)\n",
 			dev->pdata->static_info_dec.support, dev->pdata->static_info_dec.version,
 			dev->pdata->static_info_enc.support, dev->pdata->static_info_enc.version);
+	seq_printf(s, "[FORMATS] 10bit: %s, 422: %s, RGB: %s\n",
+			dev->pdata->support_10bit ? "supported" : "not supported",
+			dev->pdata->support_422 ? "supported" : "not supported",
+			dev->pdata->support_rgb ? "supported" : "not supported");
 	if (dev->nal_q_handle)
 		seq_printf(s, "[NAL-Q] state: %d\n", dev->nal_q_handle->nal_q_state);
 

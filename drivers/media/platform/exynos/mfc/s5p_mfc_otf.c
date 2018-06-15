@@ -34,15 +34,14 @@
 #include "s5p_mfc_buf.h"
 #include "s5p_mfc_mem.h"
 
-static struct s5p_mfc_fmt *mfc_enc_hwfc_find_format(unsigned int format, unsigned int t)
+static struct s5p_mfc_fmt *mfc_enc_hwfc_find_format(unsigned int pixelformat)
 {
 	unsigned long i;
 
 	mfc_debug_enter();
 
 	for (i = 0; i < NUM_FORMATS; i++) {
-		if (enc_hwfc_formats[i].fourcc == format &&
-				enc_hwfc_formats[i].type == t)
+		if (enc_hwfc_formats[i].fourcc == pixelformat)
 			return (struct s5p_mfc_fmt *)&enc_hwfc_formats[i];
 	}
 
@@ -58,7 +57,7 @@ static int mfc_otf_set_buf_info(struct s5p_mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
-	ctx->src_fmt = mfc_enc_hwfc_find_format(buf_info->pixel_format, MFC_FMT_RAW);
+	ctx->src_fmt = mfc_enc_hwfc_find_format(buf_info->pixel_format);
 	if (!ctx->src_fmt) {
 		mfc_err_ctx("OTF: failed to set source format\n");
 		return -EINVAL;

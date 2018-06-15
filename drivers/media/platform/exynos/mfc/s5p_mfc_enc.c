@@ -24,16 +24,34 @@
 #include "s5p_mfc_buf.h"
 #include "s5p_mfc_mem.h"
 
-static struct s5p_mfc_fmt *mfc_enc_find_format(unsigned int pixelformat)
+static struct s5p_mfc_fmt *mfc_enc_find_format(struct s5p_mfc_ctx *ctx,
+		unsigned int pixelformat)
 {
+	struct s5p_mfc_dev *dev = ctx->dev;
+	struct s5p_mfc_fmt *fmt = NULL;
 	unsigned long i;
 
 	for (i = 0; i < NUM_FORMATS; i++) {
-		if (enc_formats[i].fourcc == pixelformat)
-			return (struct s5p_mfc_fmt *)&enc_formats[i];
+		if (enc_formats[i].fourcc == pixelformat) {
+			fmt = (struct s5p_mfc_fmt *)&enc_formats[i];
+			break;
+		}
 	}
 
-	return NULL;
+	if (!dev->pdata->support_10bit && (fmt->type & MFC_FMT_10BIT)) {
+		mfc_err_ctx("10bit is not supported\n");
+		fmt = NULL;
+	}
+	if (!dev->pdata->support_422 && (fmt->type & MFC_FMT_422)) {
+		mfc_err_ctx("422 is not supported\n");
+		fmt = NULL;
+	}
+	if (!dev->pdata->support_rgb && (fmt->type & MFC_FMT_RGB)) {
+		mfc_err_ctx("RGB is not supported\n");
+		fmt = NULL;
+	}
+
+	return fmt;
 }
 
 static struct v4l2_queryctrl *mfc_enc_get_ctrl(int id)
@@ -127,20 +145,20 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static int mfc_enc_enum_fmt(struct v4l2_fmtdesc *f, bool mplane, bool out)
+static int mfc_enc_enum_fmt(struct s5p_mfc_dev *dev, struct v4l2_fmtdesc *f,
+		unsigned int type)
 {
 	struct s5p_mfc_fmt *fmt;
-	unsigned long i;
-	int j = 0;
+	unsigned long i, j = 0;
 
 	for (i = 0; i < NUM_FORMATS; ++i) {
-		if (mplane && enc_formats[i].mem_planes == 1)
+		if (!(enc_formats[i].type & type))
 			continue;
-		else if (!mplane && enc_formats[i].mem_planes > 1)
+		if (!dev->pdata->support_10bit && (enc_formats[i].type & MFC_FMT_10BIT))
 			continue;
-		if (out && enc_formats[i].type != MFC_FMT_RAW)
+		if (!dev->pdata->support_422 && (enc_formats[i].type & MFC_FMT_422))
 			continue;
-		else if (!out && enc_formats[i].type != MFC_FMT_ENC)
+		if (!dev->pdata->support_rgb && (enc_formats[i].type & MFC_FMT_RGB))
 			continue;
 
 		if (j == f->index) {
@@ -158,28 +176,20 @@ static int mfc_enc_enum_fmt(struct v4l2_fmtdesc *f, bool mplane, bool out)
 	return -EINVAL;
 }
 
-static int vidioc_enum_fmt_vid_cap(struct file *file, void *pirv,
-				   struct v4l2_fmtdesc *f)
-{
-	return mfc_enc_enum_fmt(f, false, false);
-}
-
 static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
-					  struct v4l2_fmtdesc *f)
+		struct v4l2_fmtdesc *f)
 {
-	return mfc_enc_enum_fmt(f, true, false);
-}
+	struct s5p_mfc_dev *dev = video_drvdata(file);
 
-static int vidioc_enum_fmt_vid_out(struct file *file, void *prov,
-				   struct v4l2_fmtdesc *f)
-{
-	return mfc_enc_enum_fmt(f, false, true);
+	return mfc_enc_enum_fmt(dev, f, MFC_FMT_STREAM);
 }
 
 static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
-					  struct v4l2_fmtdesc *f)
+		struct v4l2_fmtdesc *f)
 {
-	return mfc_enc_enum_fmt(f, true, true);
+	struct s5p_mfc_dev *dev = video_drvdata(file);
+
+	return mfc_enc_enum_fmt(dev, f, MFC_FMT_FRAME);
 }
 
 static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
@@ -229,37 +239,14 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
+	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct s5p_mfc_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
-	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
-		if (!fmt) {
-			mfc_err_dev("failed to try capture format\n");
-			return -EINVAL;
-		}
-
-		if (pix_fmt_mp->plane_fmt[0].sizeimage == 0) {
-			mfc_err_dev("must be set encoding dst size\n");
-			return -EINVAL;
-		}
-
-		pix_fmt_mp->plane_fmt[0].bytesperline =
-			pix_fmt_mp->plane_fmt[0].sizeimage;
-	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
-		if (!fmt) {
-			mfc_err_dev("failed to try output format\n");
-			return -EINVAL;
-		}
-
-		if (fmt->mem_planes != pix_fmt_mp->num_planes) {
-			mfc_err_dev("plane number is different (%d != %d)\n",
-				fmt->mem_planes, pix_fmt_mp->num_planes);
-			return -EINVAL;
-		}
-	} else {
-		mfc_err_dev("invalid buf type (%d)\n", f->type);
+	fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
+	if (!fmt) {
+		mfc_err_dev("Unsupported format for %s\n",
+				V4L2_TYPE_IS_OUTPUT(f->type) ? "source" : "destination");
 		return -EINVAL;
 	}
 
@@ -275,13 +262,13 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	case V4L2_PIX_FMT_NV61M_P210:
 		mfc_debug(2, "is 422 and 10bit format\n");
 		ctx->is_10bit = 1;
-		ctx->is_422format = 1;
+		ctx->is_422 = 1;
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
 		mfc_debug(2, "is 422 format\n");
 		ctx->is_10bit = 0;
-		ctx->is_422format = 1;
+		ctx->is_422 = 1;
 		break;
 	case V4L2_PIX_FMT_NV12M_S10B:
 	case V4L2_PIX_FMT_NV12M_P010:
@@ -289,14 +276,14 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	case V4L2_PIX_FMT_NV21M_P010:
 		mfc_debug(2, "is 10bit format\n");
 		ctx->is_10bit = 1;
-		ctx->is_422format = 0;
+		ctx->is_422 = 0;
 		break;
 	default:
 		ctx->is_10bit = 0;
-		ctx->is_422format = 0;
+		ctx->is_422 = 0;
 		break;
 	}
-	mfc_debug(2, "10bit: %d, 422: %d\n", ctx->is_10bit, ctx->is_422format);
+	mfc_debug(2, "10bit: %d, 422: %d\n", ctx->is_10bit, ctx->is_422);
 }
 
 static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
@@ -305,28 +292,22 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct s5p_mfc_enc *enc = ctx->enc_priv;
-	struct s5p_mfc_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	int ret = 0;
 
 	mfc_debug_enter();
-
-	ret = vidioc_try_fmt(file, priv, f);
-	if (ret)
-		return ret;
 
 	if (ctx->vq_dst.streaming) {
 		mfc_err_ctx("dst queue busy\n");
 		return -EBUSY;
 	}
 
-	fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
-	if (!fmt) {
-		mfc_err_ctx("failed to set capture format\n");
+	ctx->dst_fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
+	if (!ctx->dst_fmt) {
+		mfc_err_ctx("Unsupported format for destination.\n");
 		return -EINVAL;
 	}
 
-	ctx->dst_fmt = fmt;
 	ctx->codec_mode = ctx->dst_fmt->codec_mode;
 	mfc_info_ctx("Enc output codec(%d) : %s\n",
 			ctx->dst_fmt->codec_mode, ctx->dst_fmt->name);
@@ -414,15 +395,9 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
-	int ret = 0;
 
 	mfc_debug_enter();
-
-	ret = vidioc_try_fmt(file, priv, f);
-	if (ret)
-		return ret;
 
 	if (ctx->vq_src.streaming) {
 		mfc_err_ctx("src queue busy\n");
@@ -434,19 +409,18 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		return 0;
 	}
 
-	fmt = mfc_enc_find_format(f->fmt.pix_mp.pixelformat);
-	if (!fmt) {
-		mfc_err_ctx("failed to set output format\n");
+	ctx->src_fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
+	if (!ctx->src_fmt) {
+		mfc_err_ctx("Unsupported format for source.\n");
 		return -EINVAL;
 	}
 
-	if (fmt->mem_planes != pix_fmt_mp->num_planes) {
+	if (ctx->src_fmt->mem_planes != pix_fmt_mp->num_planes) {
 		mfc_err_ctx("plane number is different (%d != %d)\n",
-				fmt->mem_planes, pix_fmt_mp->num_planes);
+				ctx->src_fmt->mem_planes, pix_fmt_mp->num_planes);
 		return -EINVAL;
 	}
 
-	ctx->src_fmt = fmt;
 	ctx->raw_buf.num_planes = ctx->src_fmt->num_planes;
 	ctx->img_width = pix_fmt_mp->width;
 	ctx->img_height = pix_fmt_mp->height;
@@ -1936,9 +1910,7 @@ static int vidioc_try_ext_ctrls(struct file *file, void *priv,
 
 static const struct v4l2_ioctl_ops s5p_mfc_enc_ioctl_ops = {
 	.vidioc_querycap		= vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt_vid_cap,
 	.vidioc_enum_fmt_vid_cap_mplane	= vidioc_enum_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_out	= vidioc_enum_fmt_vid_out,
 	.vidioc_enum_fmt_vid_out_mplane	= vidioc_enum_fmt_vid_out_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= vidioc_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane	= vidioc_g_fmt,

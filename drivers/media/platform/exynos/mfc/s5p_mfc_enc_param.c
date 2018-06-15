@@ -940,7 +940,7 @@ void s5p_mfc_set_enc_params_vp9(struct s5p_mfc_ctx *ctx)
 	MFC_WRITEL(reg, S5P_FIMV_E_PICTURE_PROFILE);
 
 	/* for only information about wrong setting */
-	if (ctx->is_422format) {
+	if (ctx->is_422) {
 		if ((p_vp9->vp9_version != S5P_FIMV_E_PROFILE_VP9_PROFILE1) &&
 			(p_vp9->vp9_version != S5P_FIMV_E_PROFILE_VP9_PROFILE3)) {
 			mfc_err_ctx("4:2:2 format is not matched with profile(%d)\n",
@@ -1114,7 +1114,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	MFC_WRITEL(reg, S5P_FIMV_E_PICTURE_PROFILE);
 
 	/* for only information about wrong setting */
-	if (ctx->is_422format) {
+	if (ctx->is_422) {
 		if ((p_hevc->profile != S5P_FIMV_E_PROFILE_HEVC_MAIN_422_10_INTRA) &&
 			(p_hevc->profile != S5P_FIMV_E_PROFILE_HEVC_MAIN_422_10)) {
 			mfc_err_ctx("4:2:2 format is not matched with profile(%d)\n",
@@ -1390,7 +1390,7 @@ void s5p_mfc_set_enc_params_bpg(struct s5p_mfc_ctx *ctx)
 		reg |= (0x2 << 17);
 		reg |= (0x2 << 20);
 		/* fixed profile */
-		if (ctx->is_422format)
+		if (ctx->is_422)
 			reg |= 0x1;
 	}
 	MFC_WRITEL(reg, S5P_FIMV_E_PICTURE_PROFILE);

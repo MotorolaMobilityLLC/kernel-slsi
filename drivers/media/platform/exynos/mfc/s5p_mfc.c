@@ -981,6 +981,11 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 	/* Default 10bit format for decoding */
 	of_property_read_u32(np, "P010_decoding", &pdata->P010_decoding);
 
+	/* Formats */
+	of_property_read_u32(np, "support_10bit", &pdata->support_10bit);
+	of_property_read_u32(np, "support_422", &pdata->support_422);
+	of_property_read_u32(np, "support_rgb", &pdata->support_rgb);
+
 	/* Encoder default parameter */
 	of_property_read_u32(np, "enc_param_num", &pdata->enc_param_num);
 	if (pdata->enc_param_num) {

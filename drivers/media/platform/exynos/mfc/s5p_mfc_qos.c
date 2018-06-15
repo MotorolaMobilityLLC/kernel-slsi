@@ -277,7 +277,7 @@ static inline unsigned long mfc_qos_get_weighted_mb(struct s5p_mfc_ctx *ctx,
 		} else {
 			if (ctx->is_10bit)
 				weight = (weight * 100) / MFC_QOS_WEIGHT_10BIT;
-			else if (ctx->is_422format)
+			else if (ctx->is_422)
 				weight = (weight * 100) / MFC_QOS_WEIGHT_422_10INTRA;
 		}
 		break;
@@ -323,7 +323,7 @@ static inline unsigned long mfc_qos_get_weighted_mb(struct s5p_mfc_ctx *ctx,
 	mfc_debug(3, "QoS weight: %d.%03d, codec: %d, num planes: %d, "
 			"10bit: %d, 422format: %d (mb: %ld)\n",
 			weight / 1000, weight % 1000, ctx->codec_mode,
-			num_planes, ctx->is_10bit, ctx->is_422format,
+			num_planes, ctx->is_10bit, ctx->is_422,
 			weighted_mb);
 
 

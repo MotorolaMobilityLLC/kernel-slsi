@@ -27,16 +27,30 @@
 #define MAX_FRAME_SIZE		(2*1024*1024)
 
 /* Find selected format description */
-static struct s5p_mfc_fmt *mfc_dec_find_format(unsigned int pixelformat)
+static struct s5p_mfc_fmt *mfc_dec_find_format(struct s5p_mfc_ctx *ctx,
+		unsigned int pixelformat)
 {
+	struct s5p_mfc_dev *dev = ctx->dev;
+	struct s5p_mfc_fmt *fmt = NULL;
 	unsigned long i;
 
 	for (i = 0; i < NUM_FORMATS; i++) {
-		if (dec_formats[i].fourcc == pixelformat)
-			return (struct s5p_mfc_fmt *)&dec_formats[i];
+		if (dec_formats[i].fourcc == pixelformat) {
+			fmt = (struct s5p_mfc_fmt *)&dec_formats[i];
+			break;
+		}
 	}
 
-	return NULL;
+	if (!dev->pdata->support_10bit && (fmt->type & MFC_FMT_10BIT)) {
+		mfc_err_ctx("10bit is not supported\n");
+		fmt = NULL;
+	}
+	if (!dev->pdata->support_422 && (fmt->type & MFC_FMT_422)) {
+		mfc_err_ctx("422 is not supported\n");
+		fmt = NULL;
+	}
+
+	return fmt;
 }
 
 static struct v4l2_queryctrl *mfc_dec_get_ctrl(int id)
@@ -88,58 +102,49 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-/* Enumerate format */
-static int mfc_dec_enum_fmt(struct v4l2_fmtdesc *f, bool mplane, bool out)
+static int mfc_dec_enum_fmt(struct s5p_mfc_dev *dev, struct v4l2_fmtdesc *f,
+		unsigned int type)
 {
 	struct s5p_mfc_fmt *fmt;
 	unsigned long i, j = 0;
 
 	for (i = 0; i < NUM_FORMATS; ++i) {
-		if (mplane && dec_formats[i].mem_planes == 1)
+		if (!(dec_formats[i].type & type))
 			continue;
-		else if (!mplane && dec_formats[i].mem_planes > 1)
+		if (!dev->pdata->support_10bit && (dec_formats[i].type & MFC_FMT_10BIT))
 			continue;
-		if (out && dec_formats[i].type != MFC_FMT_DEC)
-			continue;
-		else if (!out && dec_formats[i].type != MFC_FMT_RAW)
+		if (!dev->pdata->support_422 && (dec_formats[i].type & MFC_FMT_422))
 			continue;
 
-		if (j == f->index)
-			break;
+		if (j == f->index) {
+			fmt = &dec_formats[i];
+			strlcpy(f->description, fmt->name,
+				sizeof(f->description));
+			f->pixelformat = fmt->fourcc;
+
+			return 0;
+		}
+
 		++j;
 	}
-	if (i == NUM_FORMATS)
-		return -EINVAL;
 
-	fmt = &dec_formats[i];
-	strlcpy(f->description, fmt->name, sizeof(f->description));
-	f->pixelformat = fmt->fourcc;
-
-	return 0;
-}
-
-static int vidioc_enum_fmt_vid_cap(struct file *file, void *pirv,
-							struct v4l2_fmtdesc *f)
-{
-	return mfc_dec_enum_fmt(f, false, false);
+	return -EINVAL;
 }
 
 static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
-							struct v4l2_fmtdesc *f)
+		struct v4l2_fmtdesc *f)
 {
-	return mfc_dec_enum_fmt(f, true, false);
-}
+	struct s5p_mfc_dev *dev = video_drvdata(file);
 
-static int vidioc_enum_fmt_vid_out(struct file *file, void *prov,
-							struct v4l2_fmtdesc *f)
-{
-	return mfc_dec_enum_fmt(f, false, true);
+	return mfc_dec_enum_fmt(dev, f, MFC_FMT_FRAME);
 }
 
 static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
-							struct v4l2_fmtdesc *f)
+		struct v4l2_fmtdesc *f)
 {
-	return mfc_dec_enum_fmt(f, true, true);
+	struct s5p_mfc_dev *dev = video_drvdata(file);
+
+	return mfc_dec_enum_fmt(dev, f, MFC_FMT_STREAM);
 }
 
 static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
@@ -147,7 +152,7 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	u32 org_fmt = ctx->dst_fmt->fourcc;
 
-	if (ctx->is_10bit && ctx->is_422format) {
+	if (ctx->is_10bit && ctx->is_422) {
 		switch (org_fmt) {
 		case V4L2_PIX_FMT_NV16M_S10B:
 		case V4L2_PIX_FMT_NV61M_S10B:
@@ -159,23 +164,23 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M:
 		case V4L2_PIX_FMT_NV12M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M_S10B);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
 			break;
 		case V4L2_PIX_FMT_NV21M:
 		case V4L2_PIX_FMT_NV61M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV61M_S10B);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M_S10B);
 			break;
 		default:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M_S10B);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
 			break;
 		}
 		ctx->raw_buf.num_planes = 2;
-	} else if (ctx->is_10bit && !ctx->is_422format) {
+	} else if (ctx->is_10bit && !ctx->is_422) {
 		if (ctx->dst_fmt->mem_planes == 1) {
 			/* YUV420 only supports the single plane */
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12N_10B);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12N_10B);
 		} else {
 			switch (org_fmt) {
 			case V4L2_PIX_FMT_NV12M_S10B:
@@ -189,26 +194,26 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 			case V4L2_PIX_FMT_NV16M_S10B:
 			case V4L2_PIX_FMT_NV16M_P210:
 				if (dev->pdata->P010_decoding)
-					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
+					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
 				else
-					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_S10B);
+					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
 				break;
 			case V4L2_PIX_FMT_NV21M:
 			case V4L2_PIX_FMT_NV61M:
 			case V4L2_PIX_FMT_NV61M_S10B:
 			case V4L2_PIX_FMT_NV61M_P210:
-				ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV21M_S10B);
+				ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M_S10B);
 				break;
 			default:
 				if (dev->pdata->P010_decoding)
-					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_P010);
+					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
 				else
-					ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M_S10B);
+					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
 				break;
 			}
 		}
 		ctx->raw_buf.num_planes = 2;
-	} else if (!ctx->is_10bit && ctx->is_422format) {
+	} else if (!ctx->is_10bit && ctx->is_422) {
 		switch (org_fmt) {
 		case V4L2_PIX_FMT_NV16M:
 		case V4L2_PIX_FMT_NV61M:
@@ -219,17 +224,17 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
 		case V4L2_PIX_FMT_NV16M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
 			break;
 		case V4L2_PIX_FMT_NV21M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV61M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
 		case V4L2_PIX_FMT_NV61M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV61M);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M);
 			break;
 		default:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV16M);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
 			break;
 		}
 		ctx->raw_buf.num_planes = 2;
@@ -241,14 +246,14 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
 		case V4L2_PIX_FMT_NV16M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV12M);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M);
 			break;
 		case V4L2_PIX_FMT_NV61M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV61M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
 		case V4L2_PIX_FMT_NV61M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(V4L2_PIX_FMT_NV21M);
+			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M);
 			break;
 		default:
 			/* It is right format */
@@ -266,7 +271,7 @@ static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 {
 	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct s5p_mfc_dec *dec;
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
+	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	struct s5p_mfc_raw_info *raw;
 	int i;
 
@@ -305,28 +310,28 @@ static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 		   rectangle. */
 		s5p_mfc_dec_calc_dpb_size(ctx);
 
-		pix_mp->width = ctx->img_width;
-		pix_mp->height = ctx->img_height;
-		pix_mp->num_planes = ctx->dst_fmt->mem_planes;
+		pix_fmt_mp->width = ctx->img_width;
+		pix_fmt_mp->height = ctx->img_height;
+		pix_fmt_mp->num_planes = ctx->dst_fmt->mem_planes;
 
 		if (dec->is_interlaced)
-			pix_mp->field = V4L2_FIELD_INTERLACED;
+			pix_fmt_mp->field = V4L2_FIELD_INTERLACED;
 		else
-			pix_mp->field = V4L2_FIELD_NONE;
+			pix_fmt_mp->field = V4L2_FIELD_NONE;
 
 		/* Set pixelformat to the format in which MFC
 		   outputs the decoded frame */
-		pix_mp->pixelformat = ctx->dst_fmt->fourcc;
+		pix_fmt_mp->pixelformat = ctx->dst_fmt->fourcc;
 		for (i = 0; i < ctx->dst_fmt->mem_planes; i++) {
-			pix_mp->plane_fmt[i].bytesperline = raw->stride[i];
+			pix_fmt_mp->plane_fmt[i].bytesperline = raw->stride[i];
 			if (ctx->dst_fmt->mem_planes == 1) {
-				pix_mp->plane_fmt[i].sizeimage = raw->total_plane_size;
+				pix_fmt_mp->plane_fmt[i].sizeimage = raw->total_plane_size;
 			} else {
 				if (ctx->is_10bit)
-					pix_mp->plane_fmt[i].sizeimage = raw->plane_size[i]
+					pix_fmt_mp->plane_fmt[i].sizeimage = raw->plane_size[i]
 						+ raw->plane_size_2bits[i];
 				else
-					pix_mp->plane_fmt[i].sizeimage = raw->plane_size[i];
+					pix_fmt_mp->plane_fmt[i].sizeimage = raw->plane_size[i];
 			}
 		}
 	}
@@ -341,7 +346,7 @@ static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
 {
 	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct s5p_mfc_dec *dec;
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
+	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	mfc_debug_enter();
 
@@ -355,13 +360,13 @@ static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
 	/* This is run on OUTPUT
 	   The buffer contains compressed image
 	   so width and height have no meaning */
-	pix_mp->width = 0;
-	pix_mp->height = 0;
-	pix_mp->field = V4L2_FIELD_NONE;
-	pix_mp->plane_fmt[0].bytesperline = dec->src_buf_size;
-	pix_mp->plane_fmt[0].sizeimage = dec->src_buf_size;
-	pix_mp->pixelformat = ctx->src_fmt->fourcc;
-	pix_mp->num_planes = ctx->src_fmt->mem_planes;
+	pix_fmt_mp->width = 0;
+	pix_fmt_mp->height = 0;
+	pix_fmt_mp->field = V4L2_FIELD_NONE;
+	pix_fmt_mp->plane_fmt[0].bytesperline = dec->src_buf_size;
+	pix_fmt_mp->plane_fmt[0].sizeimage = dec->src_buf_size;
+	pix_fmt_mp->pixelformat = ctx->src_fmt->fourcc;
+	pix_fmt_mp->num_planes = ctx->src_fmt->mem_planes;
 
 	mfc_debug_leave();
 
@@ -371,26 +376,15 @@ static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
 /* Try format */
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
+	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct s5p_mfc_fmt *fmt;
+	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
+	fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
+	if (!fmt) {
+		mfc_err_dev("Unsupported format for %s\n",
+				V4L2_TYPE_IS_OUTPUT(f->type) ? "source" : "destination");
 		return -EINVAL;
-	}
-	mfc_debug(2, "Type is %d\n", f->type);
-	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
-		if (!fmt) {
-			mfc_err_dev("Unsupported format for source.\n");
-			return -EINVAL;
-		}
-	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
-		if (!fmt) {
-			mfc_err_dev("Unsupported format for destination.\n");
-			return -EINVAL;
-		}
 	}
 
 	return 0;
@@ -400,27 +394,17 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	int ret = 0;
+	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	if (ctx->vq_dst.streaming) {
 		mfc_err_ctx("queue busy\n");
 		return -EBUSY;
 	}
 
-	ret = vidioc_try_fmt(file, priv, f);
-	if (ret)
-		return ret;
-
-	ctx->dst_fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
+	ctx->dst_fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->dst_fmt) {
 		mfc_err_ctx("Unsupported format for destination.\n");
 		return -EINVAL;
@@ -469,49 +453,42 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec;
+	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	int ret = 0;
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	if (ctx->vq_src.streaming) {
 		mfc_err_ctx("queue busy\n");
 		return -EBUSY;
 	}
 
-	ret = vidioc_try_fmt(file, priv, f);
-	if (ret)
-		return ret;
+	ctx->src_fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
+	if (!ctx->src_fmt) {
+		mfc_err_ctx("Unsupported format for source.\n");
+		return -EINVAL;
+	}
 
-	ctx->src_fmt = mfc_dec_find_format(f->fmt.pix_mp.pixelformat);
 	ctx->codec_mode = ctx->src_fmt->codec_mode;
 	mfc_info_ctx("Dec input codec(%d): %s\n",
 			ctx->codec_mode, ctx->src_fmt->name);
-	ctx->pix_format = pix_mp->pixelformat;
-	if ((pix_mp->width > 0) && (pix_mp->height > 0)) {
-		ctx->img_height = pix_mp->height;
-		ctx->img_width = pix_mp->width;
+
+	ctx->pix_format = pix_fmt_mp->pixelformat;
+	if ((pix_fmt_mp->width > 0) && (pix_fmt_mp->height > 0)) {
+		ctx->img_height = pix_fmt_mp->height;
+		ctx->img_width = pix_fmt_mp->width;
 	}
+
 	/* As this buffer will contain compressed data, the size is set
 	 * to the maximum size. */
-	if (pix_mp->plane_fmt[0].sizeimage)
-		dec->src_buf_size = pix_mp->plane_fmt[0].sizeimage;
+	if (pix_fmt_mp->plane_fmt[0].sizeimage)
+		dec->src_buf_size = pix_fmt_mp->plane_fmt[0].sizeimage;
 	else
 		dec->src_buf_size = MAX_FRAME_SIZE;
-	mfc_debug(2, "sizeimage: %d\n", pix_mp->plane_fmt[0].sizeimage);
-	pix_mp->plane_fmt[0].bytesperline = 0;
+	mfc_debug(2, "sizeimage: %d\n", pix_fmt_mp->plane_fmt[0].sizeimage);
+	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
+
 	MFC_TRACE_CTX_HWLOCK("**DEC s_fmt\n");
 	ret = s5p_mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
@@ -1237,9 +1214,7 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 /* v4l2_ioctl_ops */
 static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_querycap		= vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt_vid_cap,
 	.vidioc_enum_fmt_vid_cap_mplane	= vidioc_enum_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_out	= vidioc_enum_fmt_vid_out,
 	.vidioc_enum_fmt_vid_out_mplane	= vidioc_enum_fmt_vid_out_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= vidioc_g_fmt_vid_cap_mplane,
 	.vidioc_g_fmt_vid_out_mplane	= vidioc_g_fmt_vid_out_mplane,

@@ -402,6 +402,10 @@ struct s5p_mfc_platdata {
 	struct s5p_mfc_feature static_info_enc;
 	/* Default 10bit format for decoding */
 	unsigned int P010_decoding;
+	/* Formats */
+	unsigned int support_10bit;
+	unsigned int support_422;
+	unsigned int support_rgb;
 	/* Encoder default parameter */
 	unsigned int enc_param_num;
 	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];
@@ -1372,7 +1376,7 @@ struct s5p_mfc_ctx {
 
 	/* Profile infomation */
 	int is_10bit;
-	int is_422format;
+	int is_422;
 
 	/* for DRM */
 	int is_drm;

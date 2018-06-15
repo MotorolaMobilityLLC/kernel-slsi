@@ -97,9 +97,11 @@
 #define	MFC_CTRL_TYPE_SRC	(MFC_CTRL_TYPE_SET | MFC_CTRL_TYPE_GET_SRC)
 #define	MFC_CTRL_TYPE_DST	(MFC_CTRL_TYPE_GET_DST)
 
-#define MFC_FMT_DEC	0
-#define MFC_FMT_ENC	1
-#define MFC_FMT_RAW	2
+#define MFC_FMT_STREAM		(1 << 0)
+#define MFC_FMT_FRAME		(1 << 1)
+#define MFC_FMT_10BIT		(1 << 2)
+#define MFC_FMT_422		(1 << 3)
+#define MFC_FMT_RGB		(1 << 4)
 
 /* node check */
 #define IS_DEC_NODE(n)		((n == EXYNOS_VIDEONODE_MFC_DEC) ||	\

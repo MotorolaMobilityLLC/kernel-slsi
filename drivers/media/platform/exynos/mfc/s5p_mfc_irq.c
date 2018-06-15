@@ -1057,7 +1057,7 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_dec_store_crop_info(ctx);
 	dec->mv_count = s5p_mfc_get_mv_count();
-	if (CODEC_10BIT(ctx)) {
+	if (CODEC_10BIT(ctx) && dev->pdata->support_10bit) {
 		if (s5p_mfc_get_luma_bit_depth_minus8() ||
 			s5p_mfc_get_chroma_bit_depth_minus8() ||
 			s5p_mfc_get_profile() == S5P_FIMV_D_PROFILE_HEVC_MAIN_10) {
@@ -1068,9 +1068,9 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 					s5p_mfc_get_chroma_bit_depth_minus8() + 8);
 		}
 	}
-	if (CODEC_422FORMAT(ctx)) {
+	if (CODEC_422FORMAT(ctx) && dev->pdata->support_422) {
 		if (s5p_mfc_get_chroma_format() == S5P_FIMV_D_CHROMA_422) {
-			ctx->is_422format = 1;
+			ctx->is_422 = 1;
 			mfc_info_ctx("422 chroma format\n");
 		}
 	}
