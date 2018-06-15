@@ -228,7 +228,7 @@ int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	reg &= ~(0x1 << S5P_FIMV_D_NAL_START_OPT_BLACK_BAR_SHIFT);
 	reg |= ((dec->detect_black_bar & 0x1) << S5P_FIMV_D_NAL_START_OPT_BLACK_BAR_SHIFT);
 	MFC_WRITEL(reg, S5P_FIMV_D_NAL_START_OPTIONS);
-	mfc_debug(3, "black bar detect set: %#x\n", reg);
+	mfc_debug(3, "[BLACKBAR] black bar detect set: %#x\n", reg);
 
 	MFC_WRITEL(dec->dynamic_set, S5P_FIMV_D_DYNAMIC_DPB_FLAG_LOWER);
 	MFC_WRITEL(0x0, S5P_FIMV_D_DYNAMIC_DPB_FLAG_UPPER);

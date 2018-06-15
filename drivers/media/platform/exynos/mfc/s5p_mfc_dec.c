@@ -1146,7 +1146,7 @@ static int vidioc_g_crop(struct file *file, void *priv,
 		cr->c.top = dec->black_bar.top;
 		cr->c.width = dec->black_bar.width;
 		cr->c.height = dec->black_bar.height;
-		mfc_debug(2, "black bar info: l=%d t=%d w=%d h=%d\n",
+		mfc_debug(2, "[BLACKBAR] Cropping info: l=%d t=%d w=%d h=%d\n",
 				dec->black_bar.left,
 				dec->black_bar.top,
 				dec->black_bar.width,

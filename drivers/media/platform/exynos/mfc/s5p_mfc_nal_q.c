@@ -92,7 +92,7 @@ int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 					return 0;
 				}
 				if (dec->detect_black_bar) {
-					mfc_debug(2, "black bar detection is enabled\n");
+					mfc_debug(2, "[BLACKBAR] black bar detection is enabled\n");
 					return 0;
 				}
 			/* NAL-Q doesn't support fixed byte(slice mode), CBR_VT(rc mode) */

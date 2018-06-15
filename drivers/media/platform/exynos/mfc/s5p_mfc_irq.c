@@ -36,7 +36,7 @@ static void mfc_handle_black_bar_info(struct s5p_mfc_dev *dev, struct s5p_mfc_ct
 	struct s5p_mfc_dec *dec = ctx->dec_priv;
 
 	black_bar_info = s5p_mfc_get_black_bar_detection();
-	mfc_debug(3, "black bar type: %#x\n", black_bar_info);
+	mfc_debug(3, "[BLACKBAR] type: %#x\n", black_bar_info);
 
 	if (black_bar_info == S5P_FIMV_DISP_STATUS_BLACK_BAR) {
 		new_black_bar.left = s5p_mfc_get_black_bar_pos_x();
@@ -54,7 +54,7 @@ static void mfc_handle_black_bar_info(struct s5p_mfc_dev *dev, struct s5p_mfc_ct
 		new_black_bar.width = ctx->img_width;
 		new_black_bar.height = ctx->img_height;
 	} else {
-		mfc_err_ctx("Not supported black bar type: %#x\n", black_bar_info);
+		mfc_err_ctx("[BLACKBAR] Not supported type: %#x\n", black_bar_info);
 		dec->black_bar_updated = 0;
 		return;
 	}
@@ -63,7 +63,7 @@ static void mfc_handle_black_bar_info(struct s5p_mfc_dev *dev, struct s5p_mfc_ct
 			(new_black_bar.top == dec->black_bar.top) &&
 			(new_black_bar.width == dec->black_bar.width) &&
 			(new_black_bar.height == dec->black_bar.height)) {
-		mfc_debug(3, "black bar info was not changed\n");
+		mfc_debug(4, "[BLACKBAR] information was not changed\n");
 		dec->black_bar_updated = 0;
 		return;
 	}
@@ -300,7 +300,7 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 
 		if (dec->black_bar_updated) {
 			ref_mb->vb.reserved2 |= (1 << 5);
-			mfc_debug(3, "black bar detected\n");
+			mfc_debug(3, "[BLACKBAR] black bar detected\n");
 		}
 
 		if (ctx->src_fmt->mem_planes == 1) {
