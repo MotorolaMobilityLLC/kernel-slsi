@@ -619,9 +619,9 @@ static int rx_frame_done(struct io_device *iod, struct link_device *ld,
 	mif_debug("%s->%s: frame length = %d\n", ld->name, iod->name, skb->len);
 
 	err = rx_demux(ld, skb);
-	if(err < 0) {
-		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail"
-			"(err %d)\n", ld->name, iod->name, err);
+	if (err < 0) {
+		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail(err %d)\n",
+				ld->name, iod->name, err);
 		rx_drain(skb);
 	}
 
@@ -801,9 +801,9 @@ static int io_dev_recv_skb_from_link_dev(struct io_device *iod,
 	mif_debug("%s->%s: frame length = %d\n", ld->name, iod->name, skb->len);
 
 	err = rx_demux(ld, skb);
-	if(err < 0) {
-		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail"
-			"(err %d)\n", ld->name, iod->name, err);
+	if (err < 0) {
+		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail(err %d)\n",
+				ld->name, iod->name, err);
 		rx_drain(skb);
 	}
 
@@ -822,9 +822,9 @@ static int io_dev_recv_skb_single_from_link_dev(struct io_device *iod,
 		skb_trim(skb, exynos_get_frame_len(skb->data));
 
 	err = rx_demux(ld, skb);
-	if(err < 0) {
-		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail"
-			"(err %d)\n", ld->name, iod->name, err);
+	if (err < 0) {
+		mif_err_limited("%s->%s: ERR! recv_frame_from_skb fail(err %d)\n",
+				ld->name, iod->name, err);
 		rx_drain(skb);
 	}
 
