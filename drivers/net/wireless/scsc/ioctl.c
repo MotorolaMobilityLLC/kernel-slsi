@@ -384,7 +384,7 @@ static ssize_t slsi_p2p_ecsa(struct net_device *dev, char *command)
 	SLSI_DBG1(sdev, SLSI_CFG80211, "p2p ecsa_params chan_type = %d\n", chan_type);
 	if (channel == 165 && bandwidth != 20) {
 		bandwidth = 20;
-		chan_type = NL80211_CHAN_WIDTH_20;
+		chan_type = NL80211_CHAN_HT20;
 		SLSI_DBG3(sdev, SLSI_CFG80211, "downgrade bandwidth [from:%d to:20] on chan 165\n", bandwidth);
 	}
 	cfg80211_chandef_create(&chandef, chandef.chan, chan_type);
