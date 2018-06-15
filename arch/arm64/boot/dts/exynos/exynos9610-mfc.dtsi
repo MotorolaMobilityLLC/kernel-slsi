@@ -50,6 +50,11 @@
 		/* Default 10bit format for decoding (1: P010, 0: 8+2) */
 		P010_decoding = <0>;
 
+		/* Formats */
+		support_10bit = <1>;
+		support_422 = <1>;
+		support_rgb = <0>;
+
 		/* Encoder default parameter: max number is 100 */
 		enc_param_num = <25>;
 		enc_param_addr = <0xF7B4 0xF7B8 0xF7B0 0xF798 0xFA2C
