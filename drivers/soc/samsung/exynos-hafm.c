@@ -49,7 +49,15 @@ static unsigned int hiu_get_freq_level(unsigned int freq)
 
 static unsigned int hiu_get_power_budget(unsigned int freq)
 {
-	return data->sw_pbl;
+	if (unlikely(!data->pb_delivered)) {
+		data->pb_delivered = true;
+		return data->sw_pbl;
+	}
+
+	if (freq >= data->boost_threshold)
+		return 0;
+	else
+		return data->sw_pbl;
 }
 
 static void hiu_update_reg(int offset, int mask, int shift, unsigned int val)
@@ -558,6 +566,7 @@ static int exynos_hiu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	data->base = ioremap(GCU_BASE, SZ_4K);
+	data->pb_delivered = false;
 
 	ret = hiu_dt_parsing(dn);
 	if (ret) {

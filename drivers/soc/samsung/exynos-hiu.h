@@ -127,7 +127,7 @@ struct exynos_hiu_data {
 	bool			pc_enabled;
 	bool			tb_enabled;
 	bool			hwidvfs_done;
-	bool			boosting_activated;
+	bool			pb_delivered;
 
 	int			operation_mode;
 
