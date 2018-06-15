@@ -126,8 +126,11 @@ int slsi_check_rf_test_mode(void)
 		return -ENOENT; /* -2 */
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+	kernel_read(fp, &power_val, 1, &fp->f_pos);
+#else
 	kernel_read(fp, fp->f_pos, &power_val, 1);
-
+#endif
 	/* if power_val is 0, it means rf_test mode by rf. */
 	if (power_val == '0') {
 		pr_err("*#rf# is enabled.\n");
