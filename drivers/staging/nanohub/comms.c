@@ -23,6 +23,10 @@
 #include "main.h"
 #include "comms.h"
 
+#if defined(CONFIG_NANOHUB_MAILBOX)
+#include "chub.h"
+#endif
+
 #define READ_ACK_TIMEOUT_MS	10
 #define READ_MSG_TIMEOUT_MS	70
 
@@ -88,6 +92,38 @@ static struct nanohub_packet_pad *packet_alloc(int flags)
 	return (struct nanohub_packet_pad *)packet;
 }
 
+#ifdef PACKET_LOW_DEBUG
+enum comms_action {
+	ca_tx,
+	ca_rx_ack,
+	ca_rx,
+};
+
+#define GET_ACT_STRING(act)	\
+	((act) == ca_tx ? 'W' : ((act) == ca_rx_ack ? 'A' : 'R'))
+
+/* This function is from hostIntfGetFooter function on nanohub kernel. */
+static inline struct nanohub_packet_crc *get_footer(struct nanohub_packet *packet)
+{
+	return (void *)(packet + sizeof(*packet) + packet->len);
+}
+
+static inline void packet_disassemble(void *buf, int ret, enum comms_action act)
+{
+	struct nanohub_packet *packet = (struct nanohub_packet *)buf;
+	struct nanohub_packet_crc *footer = get_footer(packet);
+
+	DEBUG_PRINT(KERN_DEBUG,
+		"%c-PACKET(ret:%d):buf:%p,sync:0x%x,seq:0x%x,reason:0x%x,len:%d,crc:0x%x\n",
+		GET_ACT_STRING(act), ret, (unsigned long)buf,
+		(unsigned int)packet->sync,	(unsigned int)packet->seq,
+		(unsigned int)packet->reason, (unsigned int)packet->len,
+		(unsigned int)footer->crc);
+}
+#else
+#define packet_disassemble(a, b, c) do {} while (0)
+#endif
+
 static int packet_create(struct nanohub_packet *packet, uint32_t seq,
 			 uint32_t reason, uint8_t len, const uint8_t *data,
 			 bool user)
@@ -118,6 +154,7 @@ static int packet_create(struct nanohub_packet *packet, uint32_t seq,
 	} else {
 		ret = ERROR_NACK;
 	}
+	packet_disassemble(packet, ret, ca_tx);
 
 	return ret;
 }
@@ -166,6 +203,7 @@ static int read_ack(struct nanohub_data *data, struct nanohub_packet *response,
 		ret =
 		    data->comms.read(data, (uint8_t *) response, max_size,
 				     timeout);
+		packet_disassemble(response, ret, ca_rx_ack);
 
 		if (ret == 0) {
 			pr_debug("nanohub: read_ack: %d: empty packet\n", i);
@@ -212,6 +250,7 @@ static int read_msg(struct nanohub_data *data, struct nanohub_packet *response,
 		ret =
 		    data->comms.read(data, (uint8_t *) response, max_size,
 				     timeout);
+		packet_disassemble(response, ret, ca_rx);
 
 		if (ret == 0) {
 			pr_debug("nanohub: read_msg: %d: empty packet\n", i);
@@ -265,6 +304,11 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 		} else {
 			int i;
 			uint8_t *b = (uint8_t *) response;
+
+#ifdef CONFIG_NANOHUB_MAILBOX /* remove invalid error check */
+			if ((response->reason == CMD_COMMS_READ) || (response->reason == CMD_COMMS_WRITE))
+				return ret;
+#endif
 			for (i = 0; i < ret; i += 25)
 				pr_debug(
 				    "nanohub: %d: %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",

@@ -9,7 +9,13 @@ struct nanohub_flash_bank {
 	size_t length;
 };
 
+#define MAX_FILE_LEN (32)
+
 struct nanohub_platform_data {
+#ifdef CONFIG_NANOHUB_MAILBOX
+	void *mailbox_client;
+	int irq;
+#else
 	u32 wakeup_gpio;
 	u32 nreset_gpio;
 	u32 boot0_gpio;
@@ -21,6 +27,7 @@ struct nanohub_platform_data {
 	struct nanohub_flash_bank *flash_banks;
 	u32 num_shared_flash_banks;
 	struct nanohub_flash_bank *shared_flash_banks;
+#endif
 };
 
 #endif /* __LINUX_PLATFORM_DATA_NANOHUB_H */

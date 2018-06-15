@@ -2,7 +2,9 @@
 # Makefile for nanohub
 #
 
+ccflags-$(CONFIG_CONTEXTHUB_DEBUG) := -DDEBUG
 obj-$(CONFIG_NANOHUB) += nanohub.o
-nanohub-y := main.o bl.o comms.o
-nanohub-$(CONFIG_NANOHUB_SPI) += spi.o
-nanohub-$(CONFIG_NANOHUB_I2C) += i2c.o
+nanohub-$(CONFIG_CHRE_SENSORHUB_HAL) := main.o comms.o
+nanohub-$(CONFIG_NANOHUB_SPI) += spi.o bl.o
+nanohub-$(CONFIG_NANOHUB_I2C) += i2c.o bl.o
+nanohub-$(CONFIG_NANOHUB_MAILBOX) += chub.o chub_ipc.o chub_log.o chub_dbg.o

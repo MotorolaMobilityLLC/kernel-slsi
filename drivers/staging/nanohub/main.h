@@ -25,6 +25,7 @@
 
 #include "comms.h"
 #include "bl.h"
+#include "chub.h"
 
 #define NANOHUB_NAME "nanohub"
 
@@ -60,8 +61,12 @@ struct nanohub_data {
 	struct nanohub_io io[ID_NANOHUB_MAX];
 
 	struct nanohub_comms comms;
+#ifdef CONFIG_NANOHUB_MAILBOX
+	struct nanohub_platform_data *pdata;
+#else
 	struct nanohub_bl bl;
 	const struct nanohub_platform_data *pdata;
+#endif
 	int irq1;
 	int irq2;
 
@@ -107,6 +112,47 @@ enum {
 	LOCK_MODE_SUSPEND_RESUME,
 };
 
+#ifndef CONFIG_NANOHUB_MAILBOX
+#define wait_event_interruptible_timeout_locked(q, cond, tmo)		\
+({									\
+	long __ret = (tmo);						\
+	DEFINE_WAIT(__wait);						\
+	if (!(cond)) {							\
+		for (;;) {						\
+			__wait.flags &= ~WQ_FLAG_EXCLUSIVE;		\
+			if (list_empty(&__wait.entry))			\
+				__add_wait_queue_entry_tail(&(q), &__wait);	\
+			set_current_state(TASK_INTERRUPTIBLE);		\
+			if ((cond))					\
+				break;					\
+			if (signal_pending(current)) {			\
+				__ret = -ERESTARTSYS;			\
+				break;					\
+			}						\
+			spin_unlock(&(q).lock);				\
+			__ret = schedule_timeout(__ret);		\
+			spin_lock(&(q).lock);				\
+			if (!__ret) {					\
+				if ((cond))				\
+					__ret = 1;			\
+				break;					\
+			}						\
+		}							\
+		__set_current_state(TASK_RUNNING);			\
+		if (!list_empty(&__wait.entry))				\
+			list_del_init(&__wait.entry);			\
+		else if (__ret == -ERESTARTSYS &&			\
+			 /*reimplementation of wait_abort_exclusive() */\
+			 waitqueue_active(&(q)))			\
+			__wake_up_locked_key(&(q), TASK_INTERRUPTIBLE,	\
+			NULL);						\
+	} else {							\
+		__ret = 1;						\
+	}								\
+	__ret;								\
+})
+#endif
+
 int request_wakeup_ex(struct nanohub_data *data, long timeout,
 		      int key, int lock_mode);
 void release_wakeup_ex(struct nanohub_data *data, int key, int lock_mode);
@@ -117,7 +163,9 @@ int nanohub_reset(struct nanohub_data *data);
 int nanohub_remove(struct iio_dev *iio_dev);
 int nanohub_suspend(struct iio_dev *iio_dev);
 int nanohub_resume(struct iio_dev *iio_dev);
+void nanohub_handle_irq1(struct nanohub_data *data);
 
+#ifdef CONFIG_EXT_CHUB
 static inline int nanohub_irq1_fired(struct nanohub_data *data)
 {
 	const struct nanohub_platform_data *pdata = data->pdata;
@@ -131,6 +179,19 @@ static inline int nanohub_irq2_fired(struct nanohub_data *data)
 
 	return data->irq2 && !gpio_get_value(pdata->irq2_gpio);
 }
+#else
+static inline int nanohub_irq1_fired(struct nanohub_data *data)
+{
+	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
+
+	return !atomic_read(&ipc->irq1_apInt);
+}
+
+static inline int nanohub_irq2_fired(struct nanohub_data *data)
+{
+	return 0;
+}
+#endif
 
 static inline int request_wakeup_timeout(struct nanohub_data *data, int timeout)
 {

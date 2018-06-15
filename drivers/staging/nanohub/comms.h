@@ -15,6 +15,8 @@
 #ifndef _NANOHUB_COMMS_H
 #define _NANOHUB_COMMS_H
 
+#include <linux/semaphore.h>
+
 struct __attribute__ ((__packed__)) nanohub_packet {
 	uint8_t sync;
 	uint32_t seq;
@@ -54,6 +56,10 @@ struct nanohub_comms {
 	uint8_t *tx_buffer;
 	uint8_t *rx_buffer;
 };
+
+#define NANOHUB_PACKET_SIZE(len) (sizeof(struct nanohub_packet) + (len) + sizeof(struct nanohub_packet_crc))
+#define NANOHUB_PACKET_PAYLOAD_MAX 255
+#define NANOHUB_PACKET_SIZE_MAX NANOHUB_PACKET_SIZE(NANOHUB_PACKET_PAYLOAD_MAX)
 
 int nanohub_comms_kernel_download(struct nanohub_data *, const uint8_t *,
 				  size_t);

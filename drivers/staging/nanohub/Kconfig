@@ -1,6 +1,7 @@
 config NANOHUB
 	tristate "Nanohub"
 	default N
+	select IIO
 	help
 	  Enable support for the nanohub sensorhub driver.
 
@@ -12,7 +13,7 @@ if NANOHUB
 
 config NANOHUB_SPI
 	bool "Nanohub SPI"
-	default Y
+	default N
 	help
 	  Enable nanohub SPI support.
 
@@ -29,5 +30,27 @@ config NANOHUB_I2C
 	  Either this or NANOHUB_SPI should be selected.
 
 	  If in doubt, say N here.
+
+config NANOHUB_MAILBOX
+	bool "Nanohub Mailbox"
+	default Y
+	help
+	  Enable nanohub Mailbox support.
+
+	  Either this or NANOHUB_MAILBOX should be selected.
+
+	  If in doubt, say N here.
+
+config CHRE_SENSORHUB_HAL
+	bool "CHRE sensor Hal support"
+	default Y
+	help
+	  Enable chre sensorhub hal support.
+
+config CONTEXTHUB_DEBUG
+	bool "Nanohub debug"
+	default N
+	help
+	  Eanble nanohub device debug message
 
 endif # NANOHUB
