@@ -1003,6 +1003,9 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	}
 
 	frame = &framemgr->frames[index];
+	frame->num_buffers = batch_size;
+	frame->planes = image_planes * batch_size;
+	spare = image_planes * batch_size;
 
 	/* meta plane */
 	queue->buf_box[index][spare] = vbuf->ops->plane_cookie(vbuf, image_planes);
@@ -1067,10 +1070,6 @@ set_info:
 		ret = -EINVAL;
 		goto exit;
 	}
-
-	frame->num_buffers = batch_size;
-	frame->planes = image_planes * batch_size;
-	spare = image_planes * batch_size;
 
 	for (i = 0; i < frame->planes; i++) {
 		frame->dvaddr_buffer[i] = (u32)queue->buf_dva[index][i];
