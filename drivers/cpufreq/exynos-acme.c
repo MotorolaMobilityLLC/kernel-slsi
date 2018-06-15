@@ -306,17 +306,6 @@ static int update_freq(struct exynos_cpufreq_domain *domain,
 }
 
 /*********************************************************************
- *                   	EXYNOS CPUFREQ DRIVER API                    *
- *********************************************************************/
-void exynos_cpufreq_ready_list_add(struct exynos_cpufreq_ready_block *rb)
-{
-	if (!rb)
-		return;
-
-	list_add(&rb->list, &ready_list);
-}
-
-/*********************************************************************
  *                   EXYNOS CPUFREQ DRIVER INTERFACE                 *
  *********************************************************************/
 static int exynos_cpufreq_driver_init(struct cpufreq_policy *policy)
@@ -804,6 +793,15 @@ unsigned int exynos_cpufreq_get_locked(unsigned int cpu)
 	return get_freq(domain);
 }
 EXPORT_SYMBOL(exynos_cpufreq_get_locked);
+
+void exynos_cpufreq_ready_list_add(struct exynos_cpufreq_ready_block *rb)
+{
+	if (!rb)
+		return;
+
+	list_add(&rb->list, &ready_list);
+}
+EXPORT_SYMBOL(exynos_cpufreq_ready_list_add);
 
 unsigned int __weak exynos_pstate_get_boost_freq(int cpu)
 {
