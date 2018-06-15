@@ -341,7 +341,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	ret = s5p_mfc_alloc_enc_roi_buffer(ctx);
 	if (ret) {
-		mfc_err_ctx("Failed to allocate ROI buffers.\n");
+		mfc_err_ctx("[ROI] Failed to allocate ROI buffers\n");
 		s5p_mfc_release_instance_context(ctx);
 		return -ENOMEM;
 	}

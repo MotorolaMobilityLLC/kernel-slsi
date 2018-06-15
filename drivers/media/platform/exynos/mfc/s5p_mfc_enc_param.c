@@ -1292,7 +1292,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	reg &= ~(0x1);
 	reg |= (p->roi_enable);
 	MFC_WRITEL(reg, S5P_FIMV_E_RC_ROI_CTRL);
-	mfc_debug(3, "ROI: HEVC ROI enable\n");
+	mfc_debug(3, "[ROI] HEVC ROI enable\n");
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
 		reg = MFC_READL(S5P_FIMV_E_VIDEO_SIGNAL_TYPE);

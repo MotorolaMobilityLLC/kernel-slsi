@@ -928,14 +928,14 @@ static int s5p_mfc_enc_to_buf_ctrls(struct s5p_mfc_ctx *ctx, struct list_head *h
 						reg |= (enc->roi_info[index].lower_qp << 8);
 						reg &= ~(0xFFFF << 16);
 						reg |= (enc->roi_info[index].upper_qp << 16);
-						mfc_debug(3, "ROI: [%d] en %d, "\
+						mfc_debug(3, "[ROI] buffer[%d] en %d, "\
 								"QP lower %d upper %d reg %#x\n",
 								index, enc->roi_info[index].enable,
 								enc->roi_info[index].lower_qp,
 								enc->roi_info[index].upper_qp,
 								reg);
 					} else {
-						mfc_debug(3, "ROI: [%d] not enabled\n", index);
+						mfc_debug(3, "[ROI] buffer[%d] is not enabled\n", index);
 					}
 					buf_ctrl->val = reg;
 					buf_ctrl->old_val2 = index;
@@ -1167,7 +1167,7 @@ static void mfc_enc_set_buf_ctrls_exception(struct s5p_mfc_ctx *ctx,
 	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
 		MFC_WRITEL(enc->roi_buf[buf_ctrl->old_val2].daddr,
 				S5P_FIMV_E_ROI_BUFFER_ADDR);
-		mfc_debug(3, "ROI: buffer[%d] addr %#llx, QP val: %#x\n",
+		mfc_debug(3, "[ROI] buffer[%d] addr %#llx, QP val: %#x\n",
 				buf_ctrl->old_val2,
 				enc->roi_buf[buf_ctrl->old_val2].daddr,
 				buf_ctrl->val);
@@ -1458,7 +1458,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 			pInStr->RcRoiCtrl |=
 				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
 			pInStr->RoiBufferAddr = enc->roi_buf[buf_ctrl->old_val2].daddr;
-			mfc_debug(3, "NAL-Q: ROI: buffer[%d] addr %#llx, QP val: %#x\n",
+			mfc_debug(3, "NAL-Q:[ROI] buffer[%d] addr %#llx, QP val: %#x\n",
 					buf_ctrl->old_val2,
 					enc->roi_buf[buf_ctrl->old_val2].daddr,
 					buf_ctrl->val);

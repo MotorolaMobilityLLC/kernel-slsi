@@ -489,10 +489,10 @@ static int mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_spec
 	roi_buf->buftype = MFCBUF_NORMAL;
 	roi_buf->size = buf_size->shared_buf;
 	if (s5p_mfc_mem_ion_alloc(dev, roi_buf)) {
-		mfc_err_ctx("Allocating ROI buffer failed\n");
+		mfc_err_ctx("[ROI] Allocating ROI buffer failed\n");
 		return -ENOMEM;
 	}
-	mfc_debug(2, "roi_buf.daddr = 0x%08llx, vaddr = 0x%p\n",
+	mfc_debug(2, "[ROI] roi_buf.daddr = 0x%08llx, vaddr = 0x%p\n",
 			roi_buf->daddr, roi_buf->vaddr);
 
 	memset(roi_buf->vaddr, 0, buf_size->shared_buf);
@@ -508,7 +508,7 @@ int s5p_mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx)
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++) {
 		if (mfc_alloc_enc_roi_buffer(ctx, &enc->roi_buf[i]) < 0) {
-			mfc_err_dev("Remapping shared mem buffer failed.\n");
+			mfc_err_dev("[ROI] Allocating remapping buffer[%d] failed\n", i);
 			return -ENOMEM;
 		}
 	}
