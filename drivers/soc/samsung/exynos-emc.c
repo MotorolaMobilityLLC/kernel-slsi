@@ -960,32 +960,37 @@ static ssize_t store_enabled(struct kobject *kobj,
 	return ret ? ret : count;
 }
 
-static void __emc_set_enable(void)
-{
-	struct emc_mode *base_mode = emc_get_base_mode();
-
-	exynos_cpuhp_request("EMC", base_mode->cpus, emc.ctrl_type);
-	emc.cur_mode = emc.req_mode = base_mode;
-	emc.event = 0;
-
-	if (emc.task)
-		kthread_unpark(emc.task);
-
-	pr_info("EMC: Start hotplug governor\n");
-}
-
 static void __emc_set_disable(void)
 {
 	struct emc_mode *base_mode = emc_get_base_mode();
 
-	if (emc.task)
-		kthread_park(emc.task);
-
-	exynos_cpuhp_request("EMC", base_mode->cpus, emc.ctrl_type);
+	spin_lock(&emc_lock);
+	emc.enabled = false;
+	emc.user_mode = 0;
 	emc.cur_mode = emc.req_mode = base_mode;
 	emc.event = 0;
+	smp_wmb();
+	spin_unlock(&emc_lock);
+
+	exynos_cpuhp_request("EMC",
+		base_mode->cpus, emc.ctrl_type);
 
 	pr_info("EMC: Stop hotplug governor\n");
+}
+
+static void __emc_set_enable(void)
+{
+	struct emc_mode *base_mode = emc_get_base_mode();
+
+	spin_lock(&emc_lock);
+	emc.user_mode = 0;
+	emc.cur_mode = emc.req_mode = base_mode;
+	emc.event = 0;
+	emc.enabled = true;
+	smp_wmb();
+	spin_unlock(&emc_lock);
+
+	pr_info("EMC: Start hotplug governor\n");
 }
 
 static int emc_set_enable(bool enable)
@@ -1011,8 +1016,6 @@ static int emc_set_enable(bool enable)
 			goto skip;
 		}
 
-	emc.enabled = enable;
-	smp_wmb();
 	spin_unlock(&emc_lock);
 
 	if (start)
