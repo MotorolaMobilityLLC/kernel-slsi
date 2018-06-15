@@ -657,7 +657,7 @@ int fimc_is_debug_dma_dump(struct fimc_is_queue *queue, u32 index, u32 vid, u32 
 
 			if (!i) {
 				/* first plane for image */
-				flags = O_TRUNC | O_CREAT | O_WRONLY | O_APPEND;
+				flags = O_TRUNC | O_CREAT | O_EXCL | O_WRONLY | O_APPEND;
 				total_size += bin.size;
 			} else {
 				/* after first plane for image */
@@ -690,7 +690,7 @@ int fimc_is_debug_dma_dump(struct fimc_is_queue *queue, u32 index, u32 vid, u32 
 		bin.size = queue->framecfg.size[buf->num_planes - 1];
 
 		/* last plane for meta */
-		flags = O_TRUNC | O_CREAT | O_WRONLY;
+		flags = O_TRUNC | O_CREAT | O_EXCL | O_WRONLY;
 		total_size = bin.size;
 
 		ret = put_filesystem_binary(filename, &bin, flags);

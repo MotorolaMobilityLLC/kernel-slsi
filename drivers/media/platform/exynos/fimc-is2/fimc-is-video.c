@@ -1720,6 +1720,13 @@ int fimc_is_video_dqbuf(struct fimc_is_video_ctx *vctx,
 
 	queue->buf_dqe++;
 
+#ifdef DBG_IMAGE_DUMP
+	fimc_is_debug_dma_dump(queue, buf->index, video->id, DBG_DMA_DUMP_IMAGE);
+#endif
+#ifdef DBG_META_DUMP
+	fimc_is_debug_dma_dump(queue, buf->index, video->id, DBG_DMA_DUMP_META);
+#endif
+
 	ret = vb2_dqbuf(queue->vbq, buf, blocking);
 	if (ret) {
 		mverr("vb2_dqbuf is fail(%d)", vctx,  video, ret);
@@ -1730,13 +1737,6 @@ int fimc_is_video_dqbuf(struct fimc_is_video_ctx *vctx,
 		}
 		goto p_err;
 	}
-
-#ifdef DBG_IMAGE_DUMP
-	fimc_is_debug_dma_dump(queue, buf->index, video->id, DBG_DMA_DUMP_IMAGE);
-#endif
-#ifdef DBG_META_DUMP
-	fimc_is_debug_dma_dump(queue, buf->index, video->id, DBG_DMA_DUMP_META);
-#endif
 
 p_err:
 	TIME_QUEUE(TMQ_DQ);
