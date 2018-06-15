@@ -1017,7 +1017,7 @@ static void mfc_parse_dt(struct device_node *np, struct s5p_mfc_dev *mfc)
 			sizeof(struct s5p_mfc_qos_boost), GFP_KERNEL);
 	np_qos = of_find_node_by_name(np, "mfc_perf_boost_table");
 	if (!np_qos) {
-		pr_err("%s: could not find mfc_perf_boost_table node\n", node_name);
+		pr_err("%s:[QoS] could not find mfc_perf_boost_table node\n", node_name);
 		return;
 	}
 	of_property_read_u32(np_qos, "num_cluster", &pdata->qos_boost_table->num_cluster);
@@ -1366,10 +1366,10 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	atomic_set(&dev->qos_req_cur, 0);
 
-	mfc_info_dev("QoS control: mfc_freq(%d), mo(%d), bw(%d)\n",
+	mfc_info_dev("[QoS] control: mfc_freq(%d), mo(%d), bw(%d)\n",
 			dev->pdata->mfc_freq_control, dev->pdata->mo_control, dev->pdata->bw_control);
 	for (i = 0; i < dev->pdata->num_qos_steps; i++) {
-		mfc_info_dev("QoS table[%d] mfc: %d, int : %d, mif : %d\n",
+		mfc_info_dev("[QoS] table[%d] mfc: %d, int : %d, mif : %d\n",
 				i,
 				dev->pdata->qos_table[i].freq_mfc,
 				dev->pdata->qos_table[i].freq_int,

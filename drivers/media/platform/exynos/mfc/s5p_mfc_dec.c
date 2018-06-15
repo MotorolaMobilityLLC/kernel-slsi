@@ -1080,7 +1080,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		break;
 	case V4L2_CID_MPEG_VIDEO_QOS_RATIO:
 		ctx->qos_ratio = ctrl->value;
-		mfc_info_ctx("set %d qos_ratio.\n", ctrl->value);
+		mfc_info_ctx("[QoS] set %d qos_ratio\n", ctrl->value);
 		break;
 	case V4L2_CID_MPEG_MFC_SET_DYNAMIC_DPB_MODE:
 		dec->is_dynamic_dpb = ctrl->value;

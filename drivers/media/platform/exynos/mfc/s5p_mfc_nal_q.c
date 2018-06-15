@@ -873,24 +873,26 @@ static void mfc_nal_q_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, stru
 	u64 new_timestamp;
 
 	if (!ctx) {
-		mfc_err_dev("NAL Q: no mfc context to run\n");
+		mfc_err_dev("NAL Q:[TS] no mfc context to run\n");
 		return;
 	}
 
 	dev = ctx->dev;
 	if (!dev) {
-		mfc_err_dev("NAL Q: no device to run\n");
+		mfc_err_dev("NAL Q:[TS] no device to run\n");
 		return;
 	}
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
 	interval = NSEC_PER_SEC / (ENC_DEFAULT_CAM_VIDEO_FPS / 1000);
-	mfc_debug(3, "NAL Q: %dfps, start timestamp: %lld, base interval: %lld\n",
-			(ENC_DEFAULT_CAM_VIDEO_FPS / 1000), start_timestamp, interval);
+	if (debug_ts == 1)
+		mfc_info_ctx("NAL Q:[TS] %dfps, start timestamp: %lld, base interval: %lld\n",
+				(ENC_DEFAULT_CAM_VIDEO_FPS / 1000), start_timestamp, interval);
 
 	new_timestamp = start_timestamp + (interval * src_mb->done_index);
-	mfc_debug(3, "NAL Q: new timestamp: %lld, interval: %lld\n",
-			new_timestamp, interval * src_mb->done_index);
+	if (debug_ts == 1)
+		mfc_info_ctx("NAL Q:[TS] new timestamp: %lld, interval: %lld\n",
+				new_timestamp, interval * src_mb->done_index);
 
 	/* Get the destination buffer */
 	dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
@@ -1164,7 +1166,7 @@ static void mfc_nal_q_handle_frame_copy_timestamp(struct s5p_mfc_ctx *ctx, Decod
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
+		mfc_err_dev("[TS] no mfc context to run\n");
 		return;
 	}
 

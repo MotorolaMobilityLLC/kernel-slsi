@@ -693,7 +693,8 @@ int s5p_mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 
 #ifdef CONFIG_VIDEO_EXYNOS_TSMUX
 	packet_param.time_stamp = param->time_stamp;
-	mfc_debug(2, "OTF: timestamp: %llu\n", param->time_stamp);
+	if (debug_ts == 1)
+		mfc_info_ctx("OTF:[TS] timestamp: %llu\n", param->time_stamp);
 	if (packetize(&packet_param)) {
 		mfc_err_dev("OTF: packetize failed\n");
 		return -HWFC_ERR_TSMUX;

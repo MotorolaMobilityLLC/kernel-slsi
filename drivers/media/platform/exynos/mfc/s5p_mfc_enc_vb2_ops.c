@@ -438,9 +438,9 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
 
-		mfc_debug(7, "framerate: %ld, timestamp: %lld\n",
-				ctx->framerate, buf->vb.vb2_buf.timestamp);
-		mfc_debug(7, "qos ratio: %d\n", ctx->qos_ratio);
+		if (debug_ts == 1)
+			mfc_info_ctx("[TS] framerate: %ld, timestamp: %lld\n",
+					ctx->framerate, buf->vb.vb2_buf.timestamp);
 
 		s5p_mfc_qos_update_last_framerate(ctx, buf->vb.vb2_buf.timestamp);
 		s5p_mfc_qos_update_framerate(ctx);
