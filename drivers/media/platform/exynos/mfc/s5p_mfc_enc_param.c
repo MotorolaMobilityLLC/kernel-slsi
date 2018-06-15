@@ -297,7 +297,7 @@ static void mfc_set_temporal_svc_h264(struct s5p_mfc_ctx *ctx, struct s5p_mfc_h2
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
 	MFC_WRITEL(reg, S5P_FIMV_E_NUM_T_LAYER);
-	mfc_debug(3, "Temporal SVC: hier_qp_enable %d, enable_ltr %d, "
+	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, enable_ltr %d, "
 		"num_hier_layer %d, max_layer %d, hier_ref_type %d, NUM_T_LAYER 0x%x\n",
 		p_264->hier_qp_enable, p_264->enable_ltr, p_264->num_hier_layer,
 		p->num_hier_max_layer, p_264->hier_ref_type, reg);
@@ -308,7 +308,7 @@ static void mfc_set_temporal_svc_h264(struct s5p_mfc_ctx *ctx, struct s5p_mfc_h2
 		/* If hier_bitrate_ctrl is set to 1, this is meaningless */
 		MFC_WRITEL(p_264->hier_bit_layer[i],
 				S5P_FIMV_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
-		mfc_debug(3, "Temporal SVC: layer[%d] QP: %#x, bitrate: %d(FW ctrl: %d)\n",
+		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %d(FW ctrl: %d)\n",
 					i, p_264->hier_qp_layer[i],
 					p_264->hier_bit_layer[i], p->hier_bitrate_ctrl);
 	}
@@ -323,7 +323,7 @@ static void mfc_set_temporal_svc_h264(struct s5p_mfc_ctx *ctx, struct s5p_mfc_h2
 		}
 		MFC_WRITEL(reg, S5P_FIMV_E_H264_HD_SVC_EXTENSION_0);
 		MFC_WRITEL(reg2, S5P_FIMV_E_H264_HD_SVC_EXTENSION_1);
-		mfc_debug(3, "Temporal SVC: priority EXTENSION0: %#x, EXTENSION1: %#x\n",
+		mfc_debug(3, "[HIERARCHICAL] priority EXTENSION0: %#x, EXTENSION1: %#x\n",
 							reg, reg2);
 	}
 }
@@ -838,7 +838,7 @@ void s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
 	MFC_WRITEL(reg, S5P_FIMV_E_NUM_T_LAYER);
-	mfc_debug(3, "Temporal SVC: hier_qp_enable %d, num_hier_layer %d, NUM_T_LAYER 0x%x\n",
+	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, num_hier_layer %d, NUM_T_LAYER 0x%x\n",
 			p_vp8->hier_qp_enable, p_vp8->num_hier_layer, reg);
 
 	/* QP & Bitrate for each layer */
@@ -848,7 +848,7 @@ void s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 		/* If hier_bitrate_ctrl is set to 1, this is meaningless */
 		MFC_WRITEL(p_vp8->hier_bit_layer[i],
 				S5P_FIMV_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
-		mfc_debug(3, "Temporal SVC: layer[%d] QP: %#x, bitrate: %#x(FW ctrl: %d)\n",
+		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %#x(FW ctrl: %d)\n",
 					i, p_vp8->hier_qp_layer[i],
 					p_vp8->hier_bit_layer[i], p->hier_bitrate_ctrl);
 	}
@@ -987,7 +987,7 @@ void s5p_mfc_set_enc_params_vp9(struct s5p_mfc_ctx *ctx)
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
 	MFC_WRITEL(reg, S5P_FIMV_E_NUM_T_LAYER);
-	mfc_debug(3, "Temporal SVC: hier_qp_enable %d, num_hier_layer %d, NUM_T_LAYER 0x%x\n",
+	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, num_hier_layer %d, NUM_T_LAYER 0x%x\n",
 			p_vp9->hier_qp_enable, p_vp9->num_hier_layer, reg);
 
 	/* QP & Bitrate for each layer */
@@ -997,7 +997,7 @@ void s5p_mfc_set_enc_params_vp9(struct s5p_mfc_ctx *ctx)
 		/* If hier_bitrate_ctrl is set to 1, this is meaningless */
 		MFC_WRITEL(p_vp9->hier_bit_layer[i],
 				S5P_FIMV_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
-		mfc_debug(3, "Temporal SVC: layer[%d] QP: %#x, bitrate: %#x (FW ctrl: %d)\n",
+		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %#x (FW ctrl: %d)\n",
 					i, p_vp9->hier_qp_layer[i],
 					p_vp9->hier_bit_layer[i], p->hier_bitrate_ctrl);
 	}
@@ -1218,7 +1218,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
 	MFC_WRITEL(reg, S5P_FIMV_E_NUM_T_LAYER);
-	mfc_debug(2, "Temporal SVC: hier_qp_enable %d, enable_ltr %d, "
+	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, enable_ltr %d, "
 		"num_hier_layer %d, max_layer %d, hier_ref_type %d, NUM_T_LAYER 0x%x\n",
 		p_hevc->hier_qp_enable, p_hevc->enable_ltr, p_hevc->num_hier_layer,
 		p->num_hier_max_layer, p_hevc->hier_ref_type, reg);
@@ -1229,7 +1229,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 			S5P_FIMV_E_HIERARCHICAL_QP_LAYER0 + i * 4);
 		MFC_WRITEL(p_hevc->hier_bit_layer[i],
 			S5P_FIMV_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
-		mfc_debug(3, "Temporal SVC: layer[%d] QP: %#x, bitrate: %d(FW ctrl: %d)\n",
+		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %d(FW ctrl: %d)\n",
 					i, p_hevc->hier_qp_layer[i],
 					p_hevc->hier_bit_layer[i], p->hier_bitrate_ctrl);
 	}

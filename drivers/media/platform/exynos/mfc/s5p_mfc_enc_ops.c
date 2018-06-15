@@ -1021,7 +1021,7 @@ static void mfc_enc_set_buf_ctrls_temporal_svc(struct s5p_mfc_ctx *ctx,
 			value = MFC_READL(buf_ctrl->flag_addr);
 			value &= ~(1 << 10);
 			MFC_WRITEL(value, buf_ctrl->flag_addr);
-			mfc_err_ctx("Temporal SVC: layer count is invalid : %d\n",
+			mfc_err_ctx("[HIERARCHICAL] layer count is invalid : %d\n",
 					temporal_LC.temporal_layer_count);
 			return;
 		}
@@ -1039,7 +1039,7 @@ static void mfc_enc_set_buf_ctrls_temporal_svc(struct s5p_mfc_ctx *ctx,
 			value &= ~(1 << 2);
 		MFC_WRITEL(value, buf_ctrl->flag_addr);
 
-		mfc_debug(3, "Temporal SVC: layer count %d, E_PARAM_CHANGE %#x\n",
+		mfc_debug(3, "[HIERARCHICAL] layer count %d, E_PARAM_CHANGE %#x\n",
 				temporal_LC.temporal_layer_count & 0x7, value);
 
 		value = MFC_READL(S5P_FIMV_E_NUM_T_LAYER);
@@ -1049,9 +1049,9 @@ static void mfc_enc_set_buf_ctrls_temporal_svc(struct s5p_mfc_ctx *ctx,
 		value &= ~(0x1 << 8);
 		value |= (p->hier_bitrate_ctrl & 0x1) << 8;
 		MFC_WRITEL(value, S5P_FIMV_E_NUM_T_LAYER);
-		mfc_debug(3, "Temporal SVC: E_NUM_T_LAYER %#x\n", value);
+		mfc_debug(3, "[HIERARCHICAL] E_NUM_T_LAYER %#x\n", value);
 		for (i = 0; i < (temporal_LC.temporal_layer_count & 0x7); i++) {
-			mfc_debug(3, "Temporal SVC: layer bitrate[%d] %d (FW ctrl: %d)\n",
+			mfc_debug(3, "[HIERARCHICAL] layer bitrate[%d] %d (FW ctrl: %d)\n",
 					i, temporal_LC.temporal_layer_bitrate[i], p->hier_bitrate_ctrl);
 			MFC_WRITEL(temporal_LC.temporal_layer_bitrate[i],
 					buf_ctrl->addr + i * 4);
@@ -1070,13 +1070,13 @@ static void mfc_enc_set_buf_ctrls_temporal_svc(struct s5p_mfc_ctx *ctx,
 			}
 			MFC_WRITEL(value, S5P_FIMV_E_H264_HD_SVC_EXTENSION_0);
 			MFC_WRITEL(value2, S5P_FIMV_E_H264_HD_SVC_EXTENSION_1);
-			mfc_debug(3, "Temporal SVC: EXTENSION0 %#x, EXTENSION1 %#x\n",
+			mfc_debug(3, "[HIERARCHICAL] EXTENSION0 %#x, EXTENSION1 %#x\n",
 					value, value2);
 
 			value = MFC_READL(buf_ctrl->flag_addr);
 			value |= (1 << 12);
 			MFC_WRITEL(value, buf_ctrl->flag_addr);
-			mfc_debug(3, "Temporal SVC: E_PARAM_CHANGE %#x\n", value);
+			mfc_debug(3, "[HIERARCHICAL] E_PARAM_CHANGE %#x\n", value);
 		}
 
 	}
@@ -1098,7 +1098,7 @@ static void mfc_enc_set_buf_ctrls_temporal_svc(struct s5p_mfc_ctx *ctx,
 		MFC_WRITEL(value, S5P_FIMV_E_H264_HD_SVC_EXTENSION_0);
 		MFC_WRITEL(value2, S5P_FIMV_E_H264_HD_SVC_EXTENSION_1);
 		p->codec.h264.base_priority = buf_ctrl->val;
-		mfc_debug(3, "Temporal SVC: EXTENSION0 %#x, EXTENSION1 %#x\n",
+		mfc_debug(3, "[HIERARCHICAL] EXTENSION0 %#x, EXTENSION1 %#x\n",
 				value, value2);
 	}
 }
@@ -1354,7 +1354,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 				((temporal_LC.temporal_layer_count > 3) && IS_VP8_ENC(ctx)) ||
 				((temporal_LC.temporal_layer_count > 3) && IS_VP9_ENC(ctx))) {
 				/* claer NUM_T_LAYER_CHANGE */
-				mfc_err_ctx("Temporal SVC: layer count(%d) is invalid\n",
+				mfc_err_ctx("[HIERARCHICAL] layer count(%d) is invalid\n",
 						temporal_LC.temporal_layer_count);
 				return 0;
 			}
@@ -1374,7 +1374,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 				pInStr->ParamChange |= (1 << 10);
 			else
 				pInStr->ParamChange &= ~(1 << 10);
-			mfc_debug(3, "Temporal SVC layer count %d\n",
+			mfc_debug(3, "[HIERARCHICAL] layer count %d\n",
 					temporal_LC.temporal_layer_count & 0x7);
 
 			pInStr->NumTLayer &= ~(0x7);
@@ -1382,7 +1382,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 			pInStr->NumTLayer &= ~(0x1 << 8);
 			pInStr->NumTLayer |= (p->hier_bitrate_ctrl & 0x1) << 8;
 			for (i = 0; i < (temporal_LC.temporal_layer_count & 0x7); i++) {
-				mfc_debug(3, "Temporal SVC: layer bitrate[%d] %d (FW ctrl: %d)\n",
+				mfc_debug(3, "[HIERARCHICAL] layer bitrate[%d] %d (FW ctrl: %d)\n",
 					i, temporal_LC.temporal_layer_bitrate[i], p->hier_bitrate_ctrl);
 				pInStr->HierarchicalBitRateLayer[i] =
 					temporal_LC.temporal_layer_bitrate[i];
@@ -1398,7 +1398,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 						pInStr->H264HDSvcExtension1 |=
 							((p->codec.h264.base_priority & 0x3f) + i) << (6 * (i - 5));
 				}
-				mfc_debug(3, "NAL-Q: Temporal SVC: EXTENSION0 %#x, EXTENSION1 %#x\n",
+				mfc_debug(3, "NAL-Q:[HIERARCHICAL] EXTENSION0 %#x, EXTENSION1 %#x\n",
 						pInStr->H264HDSvcExtension0, pInStr->H264HDSvcExtension1);
 
 				pInStr->ParamChange |= (1 << 12);
