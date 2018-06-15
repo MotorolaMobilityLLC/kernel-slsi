@@ -1047,13 +1047,14 @@ int fimc_is_hardware_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame 
 
 	FIMC_BUG(!hw_ip);
 
-	if ((output_id != FIMC_IS_HW_CORE_END)
-		&& (done_type == IS_SHOT_SUCCESS)
-		&& (test_bit(hw_ip->id, &frame->core_flag))) {
+	if (((output_id != FIMC_IS_HW_CORE_END) && (done_type == IS_SHOT_SUCCESS)
+			&& (test_bit(hw_ip->id, &frame->core_flag)))
+		|| (done_type != IS_SHOT_SUCCESS)) {
 		/* FIMC-IS v3.x only
 		 * There is a chance that the DMA done interrupt occurred before
 		 * the core done interrupt. So we skip to call the get_meta function.
 		 */
+		/* There is no need to call get_meta function in case of NDONE */
 		msdbg_hw(1, "%s: skip to get_meta [F:%d][B:0x%lx][C:0x%lx][O:0x%lx]\n",
 			instance, hw_ip, __func__, frame->fcount,
 			frame->bak_flag, frame->core_flag, frame->out_flag);
