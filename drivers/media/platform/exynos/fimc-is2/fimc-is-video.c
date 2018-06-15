@@ -1075,8 +1075,6 @@ set_info:
 		frame->dvaddr_buffer[i] = (u32)queue->buf_dva[index][i];
 		frame->kvaddr_buffer[i] = queue->buf_kva[index][i];
 
-		if(vbuf->kva[i] != 0)
-			frame->kvaddr_buffer[i] = vbuf->kva[i];
 #ifdef PRINT_BUFADDR
 		mvinfo("%s %d.%d %08X\n", vctx, video, framemgr->name, index, i, frame->dvaddr_buffer[i]);
 #endif
