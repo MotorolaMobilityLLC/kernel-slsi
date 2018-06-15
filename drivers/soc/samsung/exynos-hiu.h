@@ -155,7 +155,7 @@ struct exynos_hiu_data {
 	struct hiu_stats *	stats;
 };
 
-#if defined(CONFIG_PSTATE_EXYNOS_HAFM) || defined(CONFIG_PSTATE_EXYNOS_HAFM_TB)
+#if defined(CONFIG_EXYNOS_PSTATE_HAFM) || defined(CONFIG_EXYNOS_PSTATE_HAFM_TB)
 extern int exynos_hiu_set_freq(unsigned int id, unsigned int req_freq);
 extern int exynos_hiu_get_freq(unsigned int id);
 extern int exynos_hiu_get_max_freq(void);

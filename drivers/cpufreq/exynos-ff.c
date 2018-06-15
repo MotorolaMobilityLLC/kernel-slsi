@@ -36,7 +36,7 @@ static bool policy_need_filter(struct cpufreq_policy *policy)
 	return cpumask_intersects(policy->cpus, &eff_driver->cpus);
 }
 
-#ifdef CONFIG_PSTATE_EXYNOS_HAFM_TB
+#ifdef CONFIG_EXYNOS_PSTATE_HAFM_TB
 static bool check_filtering(unsigned int target_freq, unsigned int flag)
 {
 	unsigned int cur_freq;
@@ -89,7 +89,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (policy_need_filter(policy)) {
 		mutex_lock(&eff_driver->lock);
 
-#ifdef CONFIG_PSTATE_EXYNOS_HAFM_TB
+#ifdef CONFIG_EXYNOS_PSTATE_HAFM_TB
 		if (check_filtering(target_freq, flag))
 			goto out;
 
@@ -134,7 +134,7 @@ out:
 
 void cpufreq_policy_apply_limits(struct cpufreq_policy *policy)
 {
-#ifdef CONFIG_PSTATE_EXYNOS_HAFM_TB
+#ifdef CONFIG_EXYNOS_PSTATE_HAFM_TB
 	if (policy_need_filter(policy)) {
 		if (check_boost_freq_throttled(policy)) {
 			pr_debug("exynos-ff: wait for boost freq throttling completion\n");

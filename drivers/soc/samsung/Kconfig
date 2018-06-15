@@ -67,16 +67,6 @@ config GNSS_PMUCAL
 	help
 	  Support GNSS_PMUCAL for Exynos SoC.
 
-config EXYNOS_MODE_CHANGER
-	bool "Exynos Mode Changer"
-	default n
-	depends on ARCH_EXYNOS
-	depends on CPU_FREQ
-	depends on HOTPLUG_CPU
-	help
-		Enable EXYNOS MODE CHANGER for Exynos SoC.
-		This module controls number of online cpu.
-
 config SHUB_PMUCAL
 	bool "Exynos PMU(for SHUB) Chip Abstraction Layer"
 	depends on CAL_IF

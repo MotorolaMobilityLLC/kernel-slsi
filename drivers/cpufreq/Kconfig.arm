@@ -304,7 +304,7 @@ config ARM_EXYNOS_ACME
 
 config ARM_EXYNOS_FF
 	bool "SAMSUNG EXYNOS FF(Frequency Filter) driver"
-	depends on ARCH_EXYNOS && (PSTATE_EXYNOS_HAFM || PSTATE_EXYNOS_HAFM_TB)
+	depends on ARCH_EXYNOS && (EXYNOS_PSTATE_HAFM || EXYNOS_PSTATE_HAFM_TB)
 	default y
 	  help
 	  This adds the CPUFreq driver for exynos chipsets which needs

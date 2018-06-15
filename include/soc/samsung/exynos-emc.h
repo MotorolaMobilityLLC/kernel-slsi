@@ -9,10 +9,10 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __EXYNOS_MODE_CHANGER_H
-#define __EXYNOS_MODE_CHANGER_H __FILE__
+#ifndef __EXYNOS_PSTATE_MODE_CHANGER_H
+#define __EXYNOS_PSTATE_MODE_CHANGER_H __FILE__
 
-#ifdef CONFIG_EXYNOS_MODE_CHANGER
+#ifdef CONFIG_EXYNOS_PSTATE_MODE_CHANGER
 void exynos_emc_update(int cpu);
 int exynos_emc_update_cpu_pwr(unsigned int cpu, bool on);
 int emc_get_boost_freq(int cpu);
@@ -28,5 +28,5 @@ static inline int emc_cpu_pre_off_callback(unsigned int cpu) { return 0; };
 
 unsigned int exynos_cpufreq_get_locked(unsigned int cpu);
 
-#endif /* __EXYNOS_MODE_CHANGER_H */
+#endif /* __EXYNOS_PSTATE_MODE_CHANGER_H */
 

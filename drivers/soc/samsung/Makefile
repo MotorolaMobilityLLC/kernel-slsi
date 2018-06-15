@@ -34,7 +34,7 @@ obj-$(CONFIG_EXYNOS_PD)        += exynos-pd.o exynos-pd-dbg.o
 obj-$(CONFIG_EXYNOS_PM_DOMAINS) += pm_domains.o
 #CPUHOTPLUG
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-cpuhp.o
-obj-$(CONFIG_EXYNOS_MODE_CHANGER)	+= exynos-emc.o
+obj-$(CONFIG_EXYNOS_PSTATE_MODE_CHANGER)	+= exynos-emc.o
 
 # CPU Topology
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-topology.o
@@ -68,5 +68,5 @@ obj-$(CONFIG_ARCH_EXYNOS)       += secmem.o
 obj-$(CONFIG_EXYNOS_HIU)	+= exynos-hiu.o
 
 # HAFM & HAFM-TB
-obj-$(CONFIG_PSTATE_EXYNOS_HAFM)	+= exynos-hafm.o
-obj-$(CONFIG_PSTATE_EXYNOS_HAFM_TB)	+= exynos-hafm-tb.o
+obj-$(CONFIG_EXYNOS_PSTATE_HAFM)	+= exynos-hafm.o
+obj-$(CONFIG_EXYNOS_PSTATE_HAFM_TB)	+= exynos-hafm-tb.o
