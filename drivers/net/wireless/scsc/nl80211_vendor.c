@@ -2831,7 +2831,7 @@ static int slsi_lls_get_stats(struct wiphy *wiphy, struct wireless_dev *wdev, co
 		return -EOPNOTSUPP;
 	}
 
-	if(!sdev) {
+	if (!sdev) {
 		SLSI_ERR(sdev, "sdev is Null\n");
 		return -EINVAL;
 	}
