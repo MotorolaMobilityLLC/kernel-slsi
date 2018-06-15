@@ -684,6 +684,8 @@ static void fimc_is_mexc_buffer_finish(struct vb2_buffer *vb)
 	device = GET_DEVICE(vctx);
 	subdev = &device->mexc;
 
+	fimc_is_queue_buffer_finish(vb);
+
 	ret = fimc_is_subdev_buffer_finish(subdev, vb);
 	if (ret) {
 		merr("fimc_is_subdev_buffer_finish is fail(%d)", device, ret);
