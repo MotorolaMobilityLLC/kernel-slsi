@@ -26,6 +26,7 @@
 #include <dt-bindings/soc/samsung/exynos-emc.h>
 
 #include <trace/events/power.h>
+#include "../../cpufreq/exynos-acme.h"
 #include "../../../kernel/sched/sched.h"
 
 #define DEFAULT_BOOT_ENABLE_MS (40000)		/* 40 s */
@@ -245,7 +246,7 @@ check_real_freq:
 /*
  * return highest boost frequency
  */
-int emc_get_boost_freq(int cpu)
+unsigned int exynos_pstate_get_boost_freq(int cpu)
 {
 	struct emc_domain *domain = emc_get_boost_domain();
 
