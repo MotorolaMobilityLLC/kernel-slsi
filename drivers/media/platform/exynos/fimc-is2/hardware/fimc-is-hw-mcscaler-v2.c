@@ -830,15 +830,10 @@ config:
 
 	ret_internal = fimc_is_hw_mcsc_update_dsvra_register(hw_ip, head, mcs_param, instance, frame->shot);
 	ret_internal = fimc_is_hw_mcsc_update_tdnr_register(hw_ip, frame, param, start_flag);
-
-	/* setting for YSUM */
-	if (cap->ysum == MCSC_CAP_SUPPORT) {
-		ret_internal = fimc_is_hw_mcsc_update_ysum_register(hw_ip, head, mcs_param, instance,
-			frame->shot ? frame->shot->uctl.scalerUd.mcsc_sub_blk_port[INTERFACE_TYPE_YSUM] : MCSC_PORT_NONE);
-		if (ret_internal) {
-			msdbg_hw(2, "ysum cfg is failed\n", instance, hw_ip);
-			fimc_is_scaler_set_ysum_enable(hw_ip->regs, false);
-		}
+	ret_internal = fimc_is_hw_mcsc_update_ysum_register(hw_ip, head, mcs_param, instance, frame->shot);
+	if (ret_internal) {
+		msdbg_hw(2, "ysum cfg is failed\n", instance, hw_ip);
+		fimc_is_scaler_set_ysum_enable(hw_ip->regs, false);
 	}
 
 	/* for set shadow register write start
@@ -2490,13 +2485,14 @@ int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 
 int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,
-	u32 instance, enum mcsc_port ysumport)
+	u32 instance, struct camera2_shot *shot)
 {
 	int ret = 0;
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
 	struct fimc_is_hw_mcsc_cap *cap;
 	u32 width, height;
 	u32 start_x = 0, start_y = 0;
+	enum mcsc_port ysumport;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!hw_ip->priv_info);
@@ -2504,6 +2500,11 @@ int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 	cap = GET_MCSC_HW_CAP(hw_ip);
+
+	if (cap->ysum != MCSC_CAP_SUPPORT)
+		return ret;
+
+	ysumport = shot ? shot->uctl.scalerUd.mcsc_sub_blk_port[INTERFACE_TYPE_YSUM] : MCSC_PORT_NONE;
 
 	if (ysumport == MCSC_PORT_NONE)
 		return -EINVAL;
@@ -2536,8 +2537,8 @@ int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 		goto no_setting_ysum;
 		break;
 	}
-	fimc_is_scaler_set_ysum_image_size(hw_ip->regs, width, height, start_x, start_y);
 
+	fimc_is_scaler_set_ysum_image_size(hw_ip->regs, width, height, start_x, start_y);
 	fimc_is_scaler_set_ysum_input_sourece_enable(hw_ip->regs, ysumport, true);
 
 	if (!test_bit(FIMC_IS_GROUP_OTF_INPUT, &head->state))

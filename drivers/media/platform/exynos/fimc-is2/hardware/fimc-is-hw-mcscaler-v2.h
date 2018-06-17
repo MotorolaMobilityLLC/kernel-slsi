@@ -236,7 +236,7 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 		u32 instance);
 int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,
-	u32 instance, enum mcsc_port ysumport);
+	u32 instance, struct camera2_shot *shot);
 
 int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,
