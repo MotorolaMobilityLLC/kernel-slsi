@@ -829,10 +829,7 @@ config:
 	fimc_is_scaler_set_lfro_mode_enable(hw_ip->regs, hardware->hw_fro_en, frame->num_buffers);
 
 	ret_internal = fimc_is_hw_mcsc_update_dsvra_register(hw_ip, head, mcs_param, instance, frame->shot);
-
-	/* setting for TDNR */
-	if (cap->tdnr == MCSC_CAP_SUPPORT)
-		ret = fimc_is_hw_mcsc_update_tdnr_register(hw_ip, frame, param, start_flag);
+	ret_internal = fimc_is_hw_mcsc_update_tdnr_register(hw_ip, frame, param, start_flag);
 
 	/* setting for YSUM */
 	if (cap->ysum == MCSC_CAP_SUPPORT) {

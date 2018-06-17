@@ -919,6 +919,9 @@ int fimc_is_hw_mcsc_update_tdnr_register(struct fimc_is_hw_ip *hw_ip,
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 	cap = GET_MCSC_HW_CAP(hw_ip);
 
+	if (cap->tdnr != MCSC_CAP_SUPPORT)
+		return ret;
+
 	head = hw_ip->group[frame->instance]->head;
 
 	tdnr_mode = fimc_is_hw_mcsc_check_tdnr_mode_pre(hw_ip, head,
