@@ -104,7 +104,7 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 	u32 out_width = 0, out_height = 0;
 	const struct djag_setfile_contents *djag_tuneset;
 	u32 hratio, vratio, min_ratio;
-	u32 scale_index = MCSC_DJAG_PRESCALE_INDEX_1;
+	u32 scale_index = MCSC_DJAG_PRESCALE_INDEX_1, backup_in;
 	enum exynos_sensor_position sensor_position;
 	int output_id = 0;
 
@@ -116,6 +116,28 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 		return ret;
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
+
+	backup_in = hw_mcsc->djag_input_source;
+	if (hw_ip->hardware->video_mode)
+		hw_mcsc->djag_input_source = DEV_HW_MCSC0;
+	else
+		hw_mcsc->djag_input_source = DEV_HW_MCSC1;
+
+	if (backup_in != hw_mcsc->djag_input_source)
+		sdbg_hw(0, "djag input_source changed %d-> %d\n", hw_ip,
+			backup_in - DEV_HW_MCSC0, hw_mcsc->djag_input_source - DEV_HW_MCSC0);
+
+#ifdef ENABLE_DJAG_IN_MCSC
+	param->input.djag_out_width = 0;
+	param->input.djag_out_height = 0;
+#endif
+
+	fimc_is_scaler_set_djag_input_source(hw_ip->regs,
+			hw_mcsc->djag_input_source - DEV_HW_MCSC0);
+
+	if (hw_mcsc->djag_input_source != hw_ip->id)
+		return ret;
+
 	sensor_position = hw_ip->hardware->sensor_position[instance];
 	djag_tuneset = &init_djag_cfgs;
 
@@ -159,8 +181,10 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 	else
 		scale_index = MCSC_DJAG_PRESCALE_INDEX_4;
 
+#ifdef ENABLE_DJAG_IN_MCSC
 	param->input.djag_out_width = out_width;
 	param->input.djag_out_height = out_height;
+#endif
 
 	sdbg_hw(2, "djag scale up (%dx%d) -> (%dx%d)\n", hw_ip,
 		in_width, in_height, out_width, out_height);

@@ -791,11 +791,6 @@ static int fimc_is_hw_mcsc_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	lindex = frame->shot->ctl.vendor_entry.lowIndexParam;
 	hindex = frame->shot->ctl.vendor_entry.highIndexParam;
 
-	if (hardware->video_mode)
-		hw_mcsc->djag_input_source = DEV_HW_MCSC0;
-	else
-		hw_mcsc->djag_input_source = DEV_HW_MCSC1;
-
 	hw_mcsc->back_param = param;
 	hw_mcsc->back_lindex = lindex;
 	hw_mcsc->back_hindex = hindex;
@@ -980,16 +975,7 @@ int fimc_is_hw_mcsc_update_param(struct fimc_is_hw_ip *hw_ip,
 		ret = fimc_is_hw_mcsc_dma_input(hw_ip, &param->input, instance);
 	}
 
-	if (cap->djag == MCSC_CAP_SUPPORT) {
-		fimc_is_scaler_set_djag_input_source(hw_ip->regs,
-			hw_mcsc->djag_input_source - DEV_HW_MCSC0);
-
-		param->input.djag_out_width = 0;
-		param->input.djag_out_height = 0;
-
-		if (hw_mcsc->djag_input_source == hw_ip->id)
-			fimc_is_hw_mcsc_update_djag_register(hw_ip, param, instance);	/* for DZoom */
-	}
+	fimc_is_hw_mcsc_update_djag_register(hw_ip, param, instance);	/* for DZoom */
 
 	for (i = MCSC_OUTPUT0; i < cap->max_output; i++) {
 		if (control_cmd || (lindex & LOWBIT_OF((i + PARAM_MCS_OUTPUT0)))
