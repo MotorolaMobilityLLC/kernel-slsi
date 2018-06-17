@@ -685,10 +685,6 @@ int fimc_is_hardware_probe(struct fimc_is_hardware *hardware,
 
 	}
 
-#ifdef HW_BUG_WA_NO_CONTOLL_PER_FRAME
-	sema_init(&hardware->smp_mcsc_hw_bug, 1);
-#endif
-
 #if defined(SOC_PAF0)
 	hw_id = DEV_HW_PAF0;
 	hw_slot = fimc_is_hw_slot_id(hw_id);

@@ -18,9 +18,6 @@
 spinlock_t	shared_output_slock;
 static ulong hw_mcsc_out_configured = 0xFFFF;
 #define HW_MCSC_OUT_CLEARED_ALL (MCSC_OUTPUT_MAX)
-#ifdef HW_BUG_WA_NO_CONTOLL_PER_FRAME
-static bool flag_mcsc_hw_bug_lock;
-#endif
 
 static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
 static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
@@ -794,15 +791,6 @@ static int fimc_is_hw_mcsc_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	lindex = frame->shot->ctl.vendor_entry.lowIndexParam;
 	hindex = frame->shot->ctl.vendor_entry.highIndexParam;
 
-#ifdef HW_BUG_WA_NO_CONTOLL_PER_FRAME
-	/* S/W WA for Lhotse MCSC EVT0 HW BUG*/
-	ret = down_interruptible(&hardware->smp_mcsc_hw_bug);
-	if (ret)
-		mserr_hw("smp_mcsc_hw_bug fail", instance, hw_ip);
-	else
-		flag_mcsc_hw_bug_lock = true;
-#endif
-
 	if (hardware->video_mode)
 		hw_mcsc->djag_input_source = DEV_HW_MCSC0;
 	else
@@ -1275,9 +1263,6 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	u32 index;
 	int instance = atomic_read(&hw_ip->instance);
 	bool flag_get_meta = true;
-#ifdef HW_BUG_WA_NO_CONTOLL_PER_FRAME
-	struct fimc_is_hardware *hardware;
-#endif
 	ulong flags = 0;
 
 	FIMC_BUG_VOID(!hw_ip->priv_info);
@@ -1291,18 +1276,6 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	if (test_and_clear_bit(YSUM_SET_DONE, &hw_mcsc->blk_set_ctrl[instance])) {
 		fimc_is_scaler_set_ysum_enable(hw_ip->regs, false);
 	}
-
-#ifdef HW_BUG_WA_NO_CONTOLL_PER_FRAME
-	hardware = hw_ip->hardware;
-
-	if (flag_mcsc_hw_bug_lock) {
-		flag_mcsc_hw_bug_lock = false;
-		msdbg_hw(2, "mcsc_status = %x, %x\n", instance, hw_ip,
-			fimc_is_scaler_get_idle_status(hw_ip->regs, DEV_HW_MCSC0),
-			fimc_is_scaler_get_idle_status(hw_ip->regs, DEV_HW_MCSC1));
-		up(&hardware->smp_mcsc_hw_bug);
-	}
-#endif
 
 	switch (done_type) {
 	case IS_SHOT_SUCCESS:

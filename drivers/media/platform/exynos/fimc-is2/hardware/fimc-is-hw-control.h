@@ -360,9 +360,6 @@ struct fimc_is_hardware {
 	atomic_t			bug_count;
 	atomic_t			log_count;
 
-#ifdef HW_BUG_WA_NO_CONTOLL_PER_FRAME
-	struct semaphore		smp_mcsc_hw_bug;
-#endif
 	bool				video_mode;
 	/* fast read out in hardware */
 	bool				hw_fro_en;
