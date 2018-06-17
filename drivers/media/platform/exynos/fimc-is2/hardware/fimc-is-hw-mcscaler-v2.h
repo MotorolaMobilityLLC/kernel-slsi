@@ -172,13 +172,13 @@ struct fimc_is_hw_mcsc {
 	struct tdnr_configs	tdnr_cfgs;
 
 	/* for Djag */
-	u32 djag_input_source;
-	struct djag_setfile_contents djag_tunecfg;
+	u32			djag_input_source;
+	struct djag_setfile_contents	djag_tunecfg;
 
 	/* for full otf overflow recovery */
-	struct is_param_region  *back_param;
-	u32                     back_lindex;
-	u32                     back_hindex;
+	struct is_param_region	*back_param;
+	u32			back_lindex;
+	u32			back_hindex;
 };
 
 int fimc_is_hw_mcsc_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface *itf,
