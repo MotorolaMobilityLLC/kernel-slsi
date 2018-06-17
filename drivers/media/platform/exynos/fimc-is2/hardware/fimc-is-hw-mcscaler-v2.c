@@ -631,16 +631,48 @@ static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_
 	return ret;
 }
 
+static u32 *hw_mcsc_get_target_addr(u32 out_id, struct fimc_is_frame *frame)
+{
+	u32 *addr = NULL;
+
+	switch (out_id) {
+	case MCSC_OUTPUT0:
+		addr = frame->shot->uctl.scalerUd.sc0TargetAddress;
+		break;
+	case MCSC_OUTPUT1:
+		addr = frame->shot->uctl.scalerUd.sc1TargetAddress;
+		break;
+	case MCSC_OUTPUT2:
+		addr = frame->shot->uctl.scalerUd.sc2TargetAddress;
+		break;
+	case MCSC_OUTPUT3:
+		addr = frame->shot->uctl.scalerUd.sc3TargetAddress;
+		break;
+	case MCSC_OUTPUT4:
+		addr = frame->shot->uctl.scalerUd.sc4TargetAddress;
+		break;
+	case MCSC_OUTPUT5:
+		addr = frame->shot->uctl.scalerUd.sc5TargetAddress;
+		break;
+	default:
+		err_hw("[F:%d] invalid output id(%d)\n", frame->fcount, out_id);
+		addr = frame->shot->uctl.scalerUd.sc0TargetAddress;
+		break;
+	}
+
+	return addr;
+}
+
 static void fimc_is_hw_mcsc_wdma_cfg_fro(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame)
 {
 	int i;
 	struct mcs_param *param;
-	u32 wdma_addr[MCSC_OUTPUT_MAX][4] = {{0} };
+	u32 wdma_addr[MCSC_OUTPUT_MAX][4] = {{0} }, *wdma_base;
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	u32 plane;
 	ulong flag;
-	u32 buf_idx;
+	u32 buf_idx, out_id;
 
 	BUG_ON(!cap);
 	BUG_ON(!hw_ip->priv_info);
@@ -652,46 +684,13 @@ static void fimc_is_hw_mcsc_wdma_cfg_fro(struct fimc_is_hw_ip *hw_ip, struct fim
 		goto skip_addr;
 
 	for (buf_idx = 0; buf_idx < frame->num_buffers; buf_idx++) {
-		plane = param->output[MCSC_OUTPUT0].plane;
-		for (i = 0; i < plane; i++) {
-			wdma_addr[MCSC_OUTPUT0][i] =
-				frame->shot->uctl.scalerUd.sc0TargetAddress[plane * buf_idx + i];
-			dbg_hw(2, "M0P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT0][i]);
-		}
-
-		plane = param->output[MCSC_OUTPUT1].plane;
-		for (i = 0; i < plane; i++) {
-			wdma_addr[MCSC_OUTPUT1][i] =
-				frame->shot->uctl.scalerUd.sc1TargetAddress[plane * buf_idx + i];
-			dbg_hw(2, "M1P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT1][i]);
-		}
-
-		plane = param->output[MCSC_OUTPUT2].plane;
-		for (i = 0; i < plane; i++) {
-			wdma_addr[MCSC_OUTPUT2][i] =
-				frame->shot->uctl.scalerUd.sc2TargetAddress[plane * buf_idx + i];
-			dbg_hw(2, "M2P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT2][i]);
-		}
-
-		plane = param->output[MCSC_OUTPUT3].plane;
-		for (i = 0; i < plane; i++) {
-			wdma_addr[MCSC_OUTPUT3][i] =
-				frame->shot->uctl.scalerUd.sc3TargetAddress[plane * buf_idx + i];
-			dbg_hw(2, "M3P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT3][i]);
-		}
-
-		plane = param->output[MCSC_OUTPUT4].plane;
-		for (i = 0; i < plane; i++) {
-			wdma_addr[MCSC_OUTPUT4][i] =
-				frame->shot->uctl.scalerUd.sc4TargetAddress[plane * buf_idx + i];
-			dbg_hw(2, "M4P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT4][i]);
-		}
-
-		plane = param->output[MCSC_OUTPUT5].plane;
-		for (i = 0; i < plane; i++) {
-			wdma_addr[MCSC_OUTPUT5][i] =
-				frame->shot->uctl.scalerUd.sc5TargetAddress[plane * buf_idx + i];
-			dbg_hw(2, "M5P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT5][i]);
+		for (out_id = MCSC_OUTPUT0; out_id <= MCSC_OUTPUT5; out_id++) {
+			plane = param->output[out_id].plane;
+			for (i = 0; i < plane; i++) {
+				wdma_base = hw_mcsc_get_target_addr(out_id, frame);
+				wdma_addr[out_id][i] = wdma_base[plane * buf_idx + i];
+				dbg_hw(2, "M%dP(P:%d)(A:0x%X)\n", out_id, i, wdma_addr[out_id][i]);
+			}
 		}
 
 		/* DMA out */
@@ -1013,13 +1012,8 @@ config:
 	}
 
 	/* WDMA cfg */
-	if (hardware->hw_fro_en) {
-		fimc_is_hw_mcsc_wdma_cfg_fro(hw_ip, frame);
-		fimc_is_scaler_set_lfro_mode_enable(hw_ip->regs, true, frame->num_buffers);
-	} else {
-		fimc_is_hw_mcsc_wdma_cfg(hw_ip, frame);
-		fimc_is_scaler_set_lfro_mode_enable(hw_ip->regs, false, frame->num_buffers);
-	}
+	fimc_is_hw_mcsc_wdma_cfg_fro(hw_ip, frame);
+	fimc_is_scaler_set_lfro_mode_enable(hw_ip->regs, hardware->hw_fro_en, frame->num_buffers);
 
 	/* setting for DS */
 	if (cap->ds_vra == MCSC_CAP_SUPPORT) {
