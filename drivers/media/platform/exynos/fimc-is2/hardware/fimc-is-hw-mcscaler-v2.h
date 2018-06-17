@@ -228,6 +228,9 @@ int fimc_is_hw_mcsc_update_tdnr_register(struct fimc_is_hw_ip *hw_ip,
 int fimc_is_hw_mcsc_recovery_tdnr_register(struct fimc_is_hw_ip *hw_ip,
 		struct is_param_region *param, u32 instance);
 
+
+void fimc_is_hw_mcsc_adjust_size_with_djag(struct fimc_is_hw_ip *hw_ip, struct param_mcs_input *input,
+	struct fimc_is_hw_mcsc_cap *cap, u32 *x, u32 *y, u32 *width, u32 *height);
 int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 		struct mcs_param *param,
 		u32 instance);

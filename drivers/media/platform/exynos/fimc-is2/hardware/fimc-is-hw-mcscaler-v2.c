@@ -26,47 +26,6 @@ static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_
 static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
 static void fimc_is_hw_mcsc_size_dump(struct fimc_is_hw_ip *hw_ip);
 
-static const struct djag_setfile_contents init_djag_cfgs = {
-	.xfilter_dejagging_coeff_cfg = {
-		.xfilter_dejagging_weight0 = 3,
-		.xfilter_dejagging_weight1 = 4,
-		.xfilter_hf_boost_weight = 4,
-		.center_hf_boost_weight = 2,
-		.diagonal_hf_boost_weight = 3,
-		.center_weighted_mean_weight = 3,
-	},
-	.thres_1x5_matching_cfg = {
-		.thres_1x5_matching_sad = 128,
-		.thres_1x5_abshf = 512,
-	},
-	.thres_shooting_detect_cfg = {
-		.thres_shooting_llcrr = 255,
-		.thres_shooting_lcr = 255,
-		.thres_shooting_neighbor = 255,
-		.thres_shooting_uucdd = 80,
-		.thres_shooting_ucd = 80,
-		.min_max_weight = 2,
-	},
-	.lfsr_seed_cfg = {
-		.lfsr_seed_0 = 44257,
-		.lfsr_seed_1 = 4671,
-		.lfsr_seed_2 = 47792,
-	},
-	.dither_cfg = {
-		.dither_value = {0, 0, 1, 2, 3, 4, 6, 7, 8},
-		.sat_ctrl = 5,
-		.dither_sat_thres = 1000,
-		.dither_thres = 5,
-	},
-	.cp_cfg = {
-		.cp_hf_thres = 40,
-		.cp_arbi_max_cov_offset = 0,
-		.cp_arbi_max_cov_shift = 6,
-		.cp_arbi_denom = 7,
-		.cp_arbi_mode = 1,
-	},
-};
-
 static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 {
 	struct fimc_is_hardware *hardware;
@@ -1033,7 +992,6 @@ int fimc_is_hw_mcsc_update_param(struct fimc_is_hw_ip *hw_ip,
 		ret = fimc_is_hw_mcsc_dma_input(hw_ip, &param->input, instance);
 	}
 
-#ifdef ENABLE_DJAG_IN_MCSC
 	if (cap->djag == MCSC_CAP_SUPPORT) {
 		fimc_is_scaler_set_djag_input_source(hw_ip->regs,
 			hw_mcsc->djag_input_source - DEV_HW_MCSC0);
@@ -1044,7 +1002,6 @@ int fimc_is_hw_mcsc_update_param(struct fimc_is_hw_ip *hw_ip,
 		if (hw_mcsc->djag_input_source == hw_ip->id)
 			fimc_is_hw_mcsc_update_djag_register(hw_ip, param, instance);	/* for DZoom */
 	}
-#endif
 
 	for (i = MCSC_OUTPUT0; i < cap->max_output; i++) {
 		if (control_cmd || (lindex & LOWBIT_OF((i + PARAM_MCS_OUTPUT0)))
@@ -1636,33 +1593,7 @@ int fimc_is_hw_mcsc_poly_phase(struct fimc_is_hw_ip *hw_ip, struct param_mcs_inp
 	src_width = output->crop_width;
 	src_height = output->crop_height;
 
-#ifdef ENABLE_DJAG_IN_MCSC
-	if (input->djag_out_width) {
-		/* re-sizing crop size for DJAG output image to poly-phase scaler */
-		src_pos_x = ALIGN(CONVRES(src_pos_x, input->width, input->djag_out_width), 2);
-		src_pos_y = ALIGN(CONVRES(src_pos_y, input->height, input->djag_out_height), 2);
-		src_width = ALIGN(CONVRES(src_width, input->width, input->djag_out_width), 2);
-		src_height = ALIGN(CONVRES(src_height, input->height, input->djag_out_height), 2);
-
-		if (src_pos_x + src_width > input->djag_out_width) {
-			warn_hw("%s: Out of input_crop width (djag_out_w: %d < (%d + %d))",
-				__func__, input->djag_out_width, src_pos_x, src_width);
-			src_pos_x = 0;
-			src_width = input->djag_out_width;
-		}
-
-		if (src_pos_y + src_height > input->djag_out_height) {
-			warn_hw("%s: Out of input_crop height (djag_out_h: %d < (%d + %d))",
-				__func__, input->djag_out_height, src_pos_y, src_height);
-			src_pos_y = 0;
-			src_height = input->djag_out_height;
-		}
-
-		sdbg_hw(2, "crop size changed (%d, %d, %d, %d) -> (%d, %d, %d, %d) by DJAG\n", hw_ip,
-			output->crop_offset_x, output->crop_offset_y, output->crop_width, output->crop_height,
-			src_pos_x, src_pos_y, src_width, src_height);
-	}
-#endif
+	fimc_is_hw_mcsc_adjust_size_with_djag(hw_ip, input, cap, &src_pos_x, &src_pos_y, &src_width, &src_height);
 
 	out_width = output->width;
 	out_height = output->height;
@@ -2509,94 +2440,6 @@ int fimc_is_hw_mcsc_check_format(enum mcsc_io_type type, u32 format, u32 bit_wid
 		break;
 	}
 
-	return ret;
-}
-
-int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
-		struct mcs_param *param,
-		u32 instance)
-{
-	int ret = 0;
-#ifdef ENABLE_DJAG_IN_MCSC
-	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
-	struct fimc_is_hw_mcsc_cap *cap;
-	u32 in_width, in_height;
-	u32 out_width = 0, out_height = 0;
-	const struct djag_setfile_contents *djag_tuneset;
-	u32 hratio, vratio, min_ratio;
-	u32 scale_index = MCSC_DJAG_PRESCALE_INDEX_1;
-	enum exynos_sensor_position sensor_position;
-	int output_id = 0;
-
-	FIMC_BUG(!hw_ip);
-	FIMC_BUG(!hw_ip->priv_info);
-	FIMC_BUG(!param);
-
-	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
-	cap = GET_MCSC_HW_CAP(hw_ip);
-	sensor_position = hw_ip->hardware->sensor_position[instance];
-	djag_tuneset = &init_djag_cfgs;
-
-	in_width = param->input.width;
-	in_height = param->input.height;
-
-	/* select compare output_port : select max output size */
-	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++) {
-		if (test_bit(output_id, &hw_mcsc->out_en)) {
-			if (out_width <= param->output[output_id].width) {
-				out_width = param->output[output_id].width;
-				out_height = param->output[output_id].height;
-			}
-		}
-	}
-
-	if (param->input.width > out_width) {
-		sdbg_hw(2, "DJAG is not applied still.(input : %d > output : %d)\n", hw_ip,
-				param->input.width,
-				out_width);
-		fimc_is_scaler_set_djag_enable(hw_ip->regs, 0);
-		return ret;
-	}
-
-	/* check scale ratio if over 2.5 times */
-	if (out_width * 10 > in_width * 25)
-		out_width = round_down(in_width * 25 / 10, 2);
-
-	if (out_height * 10 > in_height * 25)
-		out_height = round_down(in_height * 25 / 10, 2);
-
-	hratio = GET_DJAG_ZOOM_RATIO(in_width, out_width);
-	vratio = GET_DJAG_ZOOM_RATIO(in_height, out_height);
-	min_ratio = min(hratio, vratio);
-	if (min_ratio >= GET_DJAG_ZOOM_RATIO(10, 10)) /* Zoom Ratio = 1.0 */
-		scale_index = MCSC_DJAG_PRESCALE_INDEX_1;
-	else if (min_ratio >= GET_DJAG_ZOOM_RATIO(10, 14)) /* Zoom Ratio = 1.4 */
-		scale_index = MCSC_DJAG_PRESCALE_INDEX_2;
-	else if (min_ratio >= GET_DJAG_ZOOM_RATIO(10, 20)) /* Zoom Ratio = 2.0 */
-		scale_index = MCSC_DJAG_PRESCALE_INDEX_3;
-	else
-		scale_index = MCSC_DJAG_PRESCALE_INDEX_4;
-
-	param->input.djag_out_width = out_width;
-	param->input.djag_out_height = out_height;
-
-	sdbg_hw(2, "djag scale up (%dx%d) -> (%dx%d)\n", hw_ip,
-		in_width, in_height, out_width, out_height);
-
-	/* djag image size setting */
-	fimc_is_scaler_set_djag_src_size(hw_ip->regs, in_width, in_height);
-	fimc_is_scaler_set_djag_dst_size(hw_ip->regs, out_width, out_height);
-	fimc_is_scaler_set_djag_scaling_ratio(hw_ip->regs, hratio, vratio);
-	fimc_is_scaler_set_djag_init_phase_offset(hw_ip->regs, 0, 0);
-	fimc_is_scaler_set_djag_round_mode(hw_ip->regs, 1);
-
-#ifdef MCSC_USE_DEJAG_TUNING_PARAM
-	djag_tuneset = &hw_mcsc->applied_setfile[sensor_position]->djag_contents[scale_index];
-#endif
-	fimc_is_scaler_set_djag_tunning_param(hw_ip->regs, djag_tuneset);
-
-	fimc_is_scaler_set_djag_enable(hw_ip->regs, 1);
-#endif
 	return ret;
 }
 

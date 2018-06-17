@@ -9,6 +9,7 @@ obj-$(CONFIG_USE_DIRECT_IS_CONTROL) += fimc-is-hw-control.o \
 obj-$(CONFIG_CAMERA_FIMC_SCALER_USE) += fimc-is-hw-scp.o
 obj-$(CONFIG_CAMERA_MC_SCALER_VER1_USE) += fimc-is-hw-mcscaler-v1.o
 obj-$(CONFIG_CAMERA_MC_SCALER_VER2_USE) += fimc-is-hw-mcscaler-v2.o
+obj-$(CONFIG_CAMERA_MC_SCALER_VER2_USE) += fimc-is-hw-djag.o
 ifeq ($(CONFIG_CAMERA_MC_SCALER_VER2_USE),y)
 obj-$(CONFIG_CAMERA_TDNR_VER1_USE) += fimc-is-hw-tdnr-v1.o
 obj-$(CONFIG_CAMERA_TDNR_VER2_USE) += fimc-is-hw-tdnr-v2.o
