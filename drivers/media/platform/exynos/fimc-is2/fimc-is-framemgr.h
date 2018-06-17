@@ -198,7 +198,6 @@ struct fimc_is_frame {
 	struct camera2_shot_ext	*shot_ext;
 	ulong			kvaddr_shot;
 	u32			dvaddr_shot;
-	ulong			cookie_shot;
 	size_t			shot_size;
 
 	/* stream use */
