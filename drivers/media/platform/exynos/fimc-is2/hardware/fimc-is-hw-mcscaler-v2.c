@@ -24,7 +24,6 @@ static bool flag_mcsc_hw_bug_lock;
 
 static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
 static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
-static void fimc_is_hw_mcsc_wdma_cfg_fro(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
 static void fimc_is_hw_mcsc_size_dump(struct fimc_is_hw_ip *hw_ip);
 
 static const struct djag_setfile_contents init_djag_cfgs = {
@@ -663,7 +662,7 @@ static u32 *hw_mcsc_get_target_addr(u32 out_id, struct fimc_is_frame *frame)
 	return addr;
 }
 
-static void fimc_is_hw_mcsc_wdma_cfg_fro(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame)
+static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame)
 {
 	int i;
 	struct mcs_param *param;
@@ -749,134 +748,6 @@ skip_addr:
 			|| (wdma_addr[i][0] == 0)
 			|| (frame->type == SHOT_TYPE_INTERNAL)) {
 
-			u32 wdma_enable = 0;
-
-			wdma_enable = fimc_is_scaler_get_dma_out_enable(hw_ip->regs, i);
-			spin_lock_irqsave(&shared_output_slock, flag);
-			if (wdma_enable && (cap->enable_shared_output == false || !test_bit(i, &hw_mcsc_out_configured))) {
-				fimc_is_scaler_set_dma_out_enable(hw_ip->regs, i, false);
-				fimc_is_scaler_clear_wdma_addr(hw_ip->regs, i);
-				msdbg_hw(2, "[OUT:%d]shot: dma_out disabled\n",
-						frame->instance, hw_ip, i);
-
-				if (i == MCSC_OUTPUT_DS) {
-					fimc_is_scaler_set_ds_enable(hw_ip->regs, false);
-					msdbg_hw(2, "DS off\n", frame->instance, hw_ip);
-				}
-			}
-			spin_unlock_irqrestore(&shared_output_slock, flag);
-			msdbg_hw(2, "[OUT:%d]mcsc_wdma_cfg:wmda_enable(%d)[F:%d][T:%d][cmd:%d][addr:0x%x]\n",
-				frame->instance, hw_ip, i, wdma_enable, frame->fcount, frame->type,
-				param->output[i].dma_cmd, wdma_addr[i][0]);
-		}
-	}
-}
-
-static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame)
-{
-	int i;
-	struct mcs_param *param;
-	u32 wdma_addr[MCSC_OUTPUT_MAX][4] = {{0}};
-	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
-	struct fimc_is_hw_mcsc *hw_mcsc;
-	u32 plane;
-	ulong flag;
-
-	FIMC_BUG_VOID(!cap);
-	FIMC_BUG_VOID(!hw_ip->priv_info);
-
-	param = &hw_ip->region[frame->instance]->parameter.mcs;
-	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
-
-	if (frame->type == SHOT_TYPE_INTERNAL)
-		goto skip_addr;
-
-	plane = param->output[MCSC_OUTPUT0].plane;
-	for (i = 0; i < plane; i++) {
-		wdma_addr[MCSC_OUTPUT0][i] =
-			frame->shot->uctl.scalerUd.sc0TargetAddress[plane * frame->cur_buf_index + i];
-		dbg_hw(2, "M0P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT0][i]);
-	}
-
-	plane = param->output[MCSC_OUTPUT1].plane;
-	for (i = 0; i < plane; i++) {
-		wdma_addr[MCSC_OUTPUT1][i] =
-			frame->shot->uctl.scalerUd.sc1TargetAddress[plane * frame->cur_buf_index + i];
-		dbg_hw(2, "M1P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT1][i]);
-	}
-
-	plane = param->output[MCSC_OUTPUT2].plane;
-	for (i = 0; i < plane; i++) {
-		wdma_addr[MCSC_OUTPUT2][i] =
-			frame->shot->uctl.scalerUd.sc2TargetAddress[plane * frame->cur_buf_index + i];
-		dbg_hw(2, "M2P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT2][i]);
-	}
-
-	plane = param->output[MCSC_OUTPUT3].plane;
-	for (i = 0; i < plane; i++) {
-		wdma_addr[MCSC_OUTPUT3][i] =
-			frame->shot->uctl.scalerUd.sc3TargetAddress[plane * frame->cur_buf_index + i];
-		dbg_hw(2, "M3P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT3][i]);
-	}
-
-	plane = param->output[MCSC_OUTPUT4].plane;
-	for (i = 0; i < plane; i++) {
-		wdma_addr[MCSC_OUTPUT4][i] =
-			frame->shot->uctl.scalerUd.sc4TargetAddress[plane * frame->cur_buf_index + i];
-		dbg_hw(2, "M4P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT4][i]);
-	}
-
-	plane = param->output[MCSC_OUTPUT5].plane;
-	for (i = 0; i < plane; i++) {
-		wdma_addr[MCSC_OUTPUT5][i] =
-			frame->shot->uctl.scalerUd.sc5TargetAddress[plane * frame->cur_buf_index + i];
-		dbg_hw(2, "M5P(P:%d)(A:0x%X)\n", i, wdma_addr[MCSC_OUTPUT5][i]);
-	}
-skip_addr:
-
-	/* DMA out */
-	for (i = MCSC_OUTPUT0; i < cap->max_output; i++) {
-		if ((cap->out_dma[i] != MCSC_CAP_SUPPORT) || !test_bit(i, &hw_mcsc->out_en))
-			continue;
-
-		msdbg_hw(2, "[F:%d]wdma_cfg [T:%d][addr%d: %x]\n", frame->instance, hw_ip,
-			frame->fcount, frame->type, i, wdma_addr[i][0]);
-
-		if (param->output[i].dma_cmd != DMA_OUTPUT_COMMAND_DISABLE
-			&& wdma_addr[i][0] != 0
-			&& frame->type != SHOT_TYPE_INTERNAL) {
-
-			spin_lock_irqsave(&shared_output_slock, flag);
-			if (cap->enable_shared_output && test_bit(i, &hw_mcsc_out_configured)
-				&& frame->type != SHOT_TYPE_MULTI) {
-				mswarn_hw("[OUT:%d]DMA_OUTPUT in running state[F:%d]",
-					frame->instance, hw_ip, i, frame->fcount);
-				spin_unlock_irqrestore(&shared_output_slock, flag);
-				return;
-			}
-			set_bit(i, &hw_mcsc_out_configured);
-			spin_unlock_irqrestore(&shared_output_slock, flag);
-
-			msdbg_hw(2, "[OUT:%d]dma_out enabled\n", frame->instance, hw_ip, i);
-			if (i != MCSC_OUTPUT_DS)
-				fimc_is_scaler_set_dma_out_enable(hw_ip->regs, i, true);
-
-			/* use only one buffer (per-frame) */
-			fimc_is_scaler_set_wdma_frame_seq(hw_ip->regs, i,
-				0x1 << USE_DMA_BUFFER_INDEX);
-			/* 8+2 (10bit) format : It's not considered multi-buffer shot */
-			if (param->output[i].plane == DMA_OUTPUT_PLANE_4) {
-				/* addr_2bit_y, addr_2bit_uv */
-				fimc_is_scaler_set_wdma_addr(hw_ip->regs, i,
-					wdma_addr[i][0], wdma_addr[i][1], 0, USE_DMA_BUFFER_INDEX);
-				fimc_is_scaler_set_wdma_2bit_addr(hw_ip->regs, i,
-					wdma_addr[i][2], wdma_addr[i][3], USE_DMA_BUFFER_INDEX);
-			} else {
-				fimc_is_scaler_set_wdma_addr(hw_ip->regs, i,
-					wdma_addr[i][0], wdma_addr[i][1], wdma_addr[i][2],
-					USE_DMA_BUFFER_INDEX);
-			}
-		} else {
 			u32 wdma_enable = 0;
 
 			wdma_enable = fimc_is_scaler_get_dma_out_enable(hw_ip->regs, i);
@@ -1012,7 +883,7 @@ config:
 	}
 
 	/* WDMA cfg */
-	fimc_is_hw_mcsc_wdma_cfg_fro(hw_ip, frame);
+	fimc_is_hw_mcsc_wdma_cfg(hw_ip, frame);
 	fimc_is_scaler_set_lfro_mode_enable(hw_ip->regs, hardware->hw_fro_en, frame->num_buffers);
 
 	/* setting for DS */
