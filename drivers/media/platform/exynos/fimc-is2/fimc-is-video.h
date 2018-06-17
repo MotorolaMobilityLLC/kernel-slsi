@@ -284,7 +284,6 @@ struct fimc_is_queue {
 	u32				buf_refcount;
 	ulong				buf_dva[FIMC_IS_MAX_BUFS][FIMC_IS_MAX_PLANES];
 	ulong				buf_kva[FIMC_IS_MAX_BUFS][FIMC_IS_MAX_PLANES];
-	ulong				buf_box[FIMC_IS_MAX_BUFS][FIMC_IS_MAX_PLANES];
 
 	/* for debugging */
 	u32				buf_req;

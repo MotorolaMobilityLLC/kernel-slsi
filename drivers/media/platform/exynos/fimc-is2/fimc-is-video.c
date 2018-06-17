@@ -931,8 +931,6 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 
 	/* plane address is updated for checking everytime */
 	for (i = 0; i < image_planes; i++) {
-		queue->buf_box[index][i] = vbuf->ops->plane_cookie(vbuf, i);
-
 		/* get dmabuf_container */
 		dmabuf = dma_buf_get(vb->planes[i].m.fd);
 		if (IS_ERR_OR_NULL(dmabuf)) {
@@ -1008,7 +1006,6 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	spare = image_planes * batch_size;
 
 	/* meta plane */
-	queue->buf_box[index][spare] = vbuf->ops->plane_cookie(vbuf, image_planes);
 	queue->buf_kva[index][spare] = vbuf->ops->plane_kvaddr(vbuf, image_planes);
 	if (!queue->buf_kva[index][spare]) {
 		mverr("plane_kvaddr is fail(%s)", vctx, video, framemgr->name);
@@ -1020,7 +1017,6 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 		ext_size = sizeof(struct camera2_shot_ext) - sizeof(struct camera2_shot);
 
 		frame->kvaddr_shot = queue->buf_kva[index][spare] + ext_size;
-		frame->cookie_shot = queue->buf_box[index][spare];
 		frame->shot = (struct camera2_shot *)frame->kvaddr_shot;
 		frame->shot_ext = (struct camera2_shot_ext *)queue->buf_kva[index][spare];
 		frame->shot_size = queue->framecfg.size[spare] - ext_size;
