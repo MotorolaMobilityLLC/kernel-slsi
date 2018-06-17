@@ -53,12 +53,6 @@ static inline ulong fimc_is_vb2_ion_plane_kvaddr(
 	return (ulong)vb2_plane_vaddr(&vbuf->vb.vb2_buf, plane);
 }
 
-static inline ulong fimc_is_vb2_ion_plane_cookie(
-		struct fimc_is_vb2_buf *vbuf, u32 plane)
-{
-	return (ulong)vb2_plane_cookie(&vbuf->vb.vb2_buf, plane);
-}
-
 static dma_addr_t fimc_is_vb2_ion_plane_dvaddr(
 		struct fimc_is_vb2_buf *vbuf, u32 plane)
 
@@ -125,7 +119,6 @@ static void fimc_is_bufcon_unmap(struct fimc_is_vb2_buf *vbuf,
 
 const struct fimc_is_vb2_buf_ops fimc_is_vb2_buf_ops_ion = {
 	.plane_kvaddr	= fimc_is_vb2_ion_plane_kvaddr,
-	.plane_cookie	= fimc_is_vb2_ion_plane_cookie,
 	.plane_dvaddr	= fimc_is_vb2_ion_plane_dvaddr,
 	.bufcon_map	= fimc_is_bufcon_map,
 	.bufcon_unmap	= fimc_is_bufcon_unmap,

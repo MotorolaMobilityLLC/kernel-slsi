@@ -22,7 +22,6 @@
 struct fimc_is_vb2_buf;
 struct fimc_is_vb2_buf_ops {
 	ulong (*plane_kvaddr)(struct fimc_is_vb2_buf *vbuf, u32 plane);
-	ulong (*plane_cookie)(struct fimc_is_vb2_buf *vbuf, u32 plane);
 	dma_addr_t (*plane_dvaddr)(struct fimc_is_vb2_buf *vbuf, u32 plane);
 	dma_addr_t (*bufcon_map)(struct fimc_is_vb2_buf *vbuf, struct device *dev, int idx, struct dma_buf *dmabuf);
 	void (*bufcon_unmap)(struct fimc_is_vb2_buf *vbuf, int idx);
