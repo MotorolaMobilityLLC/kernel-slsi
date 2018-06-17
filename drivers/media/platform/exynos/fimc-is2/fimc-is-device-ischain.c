@@ -833,24 +833,12 @@ static void fimc_is_ischain_region_flush(struct fimc_is_device_ischain *device)
 
 void fimc_is_ischain_meta_flush(struct fimc_is_frame *frame)
 {
-#ifdef ENABLE_CACHE
-	CALL_BUFOP((void *)frame->cookie_shot, sync_for_device,
-		(void *)frame->cookie_shot,
-		0,
-		frame->shot_size,
-		DMA_TO_DEVICE);
-#endif
+
 }
 
 void fimc_is_ischain_meta_invalid(struct fimc_is_frame *frame)
 {
-#ifdef ENABLE_CACHE
-	CALL_BUFOP((void *)frame->cookie_shot, sync_for_cpu,
-		(void *)frame->cookie_shot,
-		0,
-		frame->shot_size,
-		DMA_FROM_DEVICE);
-#endif
+
 }
 
 void fimc_is_ischain_version(enum fimc_is_bin_type type, const char *load_bin, u32 size)

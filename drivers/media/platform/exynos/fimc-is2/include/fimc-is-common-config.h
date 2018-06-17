@@ -31,7 +31,6 @@
 /* #define FW_SUSPEND_RESUME */
 #define ENABLE_CLOCK_GATE
 #define HAS_FW_CLOCK_GATE
-/* #define ENABLE_CACHE */
 #define ENABLE_FULL_BYPASS
 #define ENABLE_ONE_SLOT
 
