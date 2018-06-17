@@ -240,7 +240,7 @@ int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 
 int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,
-	u32 instance, enum mcsc_port dsvra_inport);
+	u32 instance, struct camera2_shot *shot);
 void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 lfro_enable, u32 lfro_total_fnum);
 u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr);
 

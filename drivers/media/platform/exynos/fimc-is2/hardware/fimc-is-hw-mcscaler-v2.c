@@ -828,11 +828,7 @@ config:
 	fimc_is_hw_mcsc_wdma_cfg(hw_ip, frame);
 	fimc_is_scaler_set_lfro_mode_enable(hw_ip->regs, hardware->hw_fro_en, frame->num_buffers);
 
-	/* setting for DS */
-	if (cap->ds_vra == MCSC_CAP_SUPPORT) {
-		ret_internal = fimc_is_hw_mcsc_update_dsvra_register(hw_ip, head, mcs_param, instance,
-			frame->shot ? frame->shot->uctl.scalerUd.mcsc_sub_blk_port[INTERFACE_TYPE_DS] : MCSC_PORT_NONE);
-	}
+	ret_internal = fimc_is_hw_mcsc_update_dsvra_register(hw_ip, head, mcs_param, instance, frame->shot);
 
 	/* setting for TDNR */
 	if (cap->tdnr == MCSC_CAP_SUPPORT)
@@ -2404,29 +2400,34 @@ int fimc_is_hw_mcsc_check_format(enum mcsc_io_type type, u32 format, u32 bit_wid
 
 int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,
-	u32 instance, enum mcsc_port dsvra_inport)
+	u32 instance, struct camera2_shot *shot)
 {
 	int ret = 0;
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
-	struct fimc_is_hw_mcsc_cap *cap;
+	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 	u32 img_width, img_height;
 	u32 src_width, src_height, src_x_pos, src_y_pos;
 	u32 out_width, out_height;
 	u32 hratio, vratio;
 	ulong temp_width, temp_height;
+	enum mcsc_port dsvra_inport;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!hw_ip->priv_info);
 	FIMC_BUG(!mcs_param);
 
-	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
-	cap = GET_MCSC_HW_CAP(hw_ip);
+	if (cap->ds_vra != MCSC_CAP_SUPPORT)
+		return ret;
 
 	if (!test_bit(MCSC_OUTPUT_DS, &hw_mcsc_out_configured))
 		return -EINVAL;
 
+	dsvra_inport = shot ? shot->uctl.scalerUd.mcsc_sub_blk_port[INTERFACE_TYPE_DS] : MCSC_PORT_NONE;
+
 	if (dsvra_inport == MCSC_PORT_NONE)
 		return -EINVAL;
+
+	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
 	/* DS input image size */
 	img_width = mcs_param->output[dsvra_inport].width;
@@ -2441,28 +2442,27 @@ int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 	out_width = mcs_param->output[MCSC_OUTPUT_DS].width;
 	out_height = mcs_param->output[MCSC_OUTPUT_DS].height;
 
-	if (src_width != 0 && src_height != 0) {
-		if ((int)src_x_pos < 0 || (int)src_y_pos < 0)
-			panic("%s: wrong DS crop position (x:%d, y:%d)",
-				__func__, src_x_pos, src_y_pos);
-
-		if (src_width + src_x_pos > img_width) {
-			warn_hw("%s: Out of crop width region of DS (%d < (%d + %d))",
-				__func__, img_width, src_width, src_x_pos);
-			src_x_pos = 0;
-			src_width = img_width;
-		}
-
-		if (src_height + src_y_pos > img_height) {
-			warn_hw("%s: Out of crop height region of DS (%d < (%d + %d))",
-				__func__, img_height, src_height, src_y_pos);
-			src_y_pos = 0;
-			src_height = img_height;
-		}
-	} else {
+	if (src_width == 0 || src_height == 0) {
 		src_x_pos = 0;
 		src_y_pos = 0;
 		src_width = img_width;
+		src_height = img_height;
+	}
+
+	if ((int)src_x_pos < 0 || (int)src_y_pos < 0)
+		panic("%s: wrong DS crop position (x:%d, y:%d)", __func__, src_x_pos, src_y_pos);
+
+	if (src_width + src_x_pos > img_width) {
+		warn_hw("%s: Out of crop width region of DS (%d < (%d + %d))",
+			__func__, img_width, src_width, src_x_pos);
+		src_x_pos = 0;
+		src_width = img_width;
+	}
+
+	if (src_height + src_y_pos > img_height) {
+		warn_hw("%s: Out of crop height region of DS (%d < (%d + %d))",
+			__func__, img_height, src_height, src_y_pos);
+		src_y_pos = 0;
 		src_height = img_height;
 	}
 
