@@ -1232,10 +1232,10 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	int done_type)
 {
 	int ret = 0;
-	bool fdone_flag = false;
 	struct fimc_is_framemgr *framemgr;
+	struct fimc_is_frame *hw_frame;
 	struct fimc_is_hw_mcsc *hw_mcsc;
-	u32 index;
+	u32 index, dbg_pt = DEBUG_POINT_FRAME_END;
 	int instance = atomic_read(&hw_ip->instance);
 	bool flag_get_meta = true;
 	ulong flags = 0;
@@ -1255,9 +1255,9 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	case IS_SHOT_SUCCESS:
 		framemgr = hw_ip->framemgr;
 		framemgr_e_barrier_common(framemgr, 0, flags);
-		frame = peek_frame(framemgr, FS_HW_WAIT_DONE);
+		hw_frame = peek_frame(framemgr, FS_HW_WAIT_DONE);
 		framemgr_x_barrier_common(framemgr, 0, flags);
-		if (frame == NULL) {
+		if (hw_frame == NULL) {
 			mserr_hw("[F:%d] frame(null) @FS_HW_WAIT_DONE!!", instance,
 				hw_ip, atomic_read(&hw_ip->fcount));
 			framemgr_e_barrier_common(framemgr, 0, flags);
@@ -1276,6 +1276,7 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 				hw_ip, atomic_read(&hw_ip->fcount), done_type);
 			return;
 		}
+		hw_frame = frame;
 		break;
 	default:
 		mserr_hw("[F:%d] invalid done type(%d)\n", instance, hw_ip,
@@ -1284,70 +1285,66 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	}
 
 	msdbgs_hw(2, "frame done[F:%d][O:0x%lx]\n", instance, hw_ip,
-		frame->fcount, frame->out_flag);
+		hw_frame->fcount, hw_frame->out_flag);
 
-	if (test_bit(ENTRY_M0P, &frame->out_flag)) {
+	if (test_bit(ENTRY_M0P, &hw_frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
 			WORK_M0P_FDONE, ENTRY_M0P, done_type, flag_get_meta);
-		fdone_flag = true;
 		flag_get_meta = false;
+		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
 		clear_bit(MCSC_OUTPUT0, &hw_mcsc_out_configured);
 	}
 
-	if (test_bit(ENTRY_M1P, &frame->out_flag)) {
+	if (test_bit(ENTRY_M1P, &hw_frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
 			WORK_M1P_FDONE, ENTRY_M1P, done_type, flag_get_meta);
-		fdone_flag = true;
 		flag_get_meta = false;
+		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
 		clear_bit(MCSC_OUTPUT1, &hw_mcsc_out_configured);
 	}
 
-	if (test_bit(ENTRY_M2P, &frame->out_flag)) {
+	if (test_bit(ENTRY_M2P, &hw_frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
 			WORK_M2P_FDONE, ENTRY_M2P, done_type, flag_get_meta);
-		fdone_flag = true;
 		flag_get_meta = false;
+		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
 		clear_bit(MCSC_OUTPUT2, &hw_mcsc_out_configured);
 	}
 
-	if (test_bit(ENTRY_M3P, &frame->out_flag)) {
+	if (test_bit(ENTRY_M3P, &hw_frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
 			WORK_M3P_FDONE, ENTRY_M3P, done_type, flag_get_meta);
-		fdone_flag = true;
 		flag_get_meta = false;
+		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
 		clear_bit(MCSC_OUTPUT3, &hw_mcsc_out_configured);
 	}
 
-	if (test_bit(ENTRY_M4P, &frame->out_flag)) {
+	if (test_bit(ENTRY_M4P, &hw_frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
 			WORK_M4P_FDONE, ENTRY_M4P, done_type, flag_get_meta);
-		fdone_flag = true;
 		flag_get_meta = false;
+		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
 		clear_bit(MCSC_OUTPUT4, &hw_mcsc_out_configured);
 	}
 
-	if (test_bit(ENTRY_M5P, &frame->out_flag)) {
+	if (test_bit(ENTRY_M5P, &hw_frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
 			WORK_M5P_FDONE, ENTRY_M5P, done_type, flag_get_meta);
-		fdone_flag = true;
 		flag_get_meta = false;
+		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
 		clear_bit(MCSC_OUTPUT5, &hw_mcsc_out_configured);
 	}
 
-	if (fdone_flag) {
-		index = hw_ip->debug_index[1];
-		hw_ip->debug_info[index].cpuid[DEBUG_POINT_FRAME_DMA_END] = raw_smp_processor_id();
-		hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_DMA_END] = cpu_clock(raw_smp_processor_id());
-		atomic_inc(&hw_ip->count.dma);
-	} else {
-		index = hw_ip->debug_index[1];
-		hw_ip->debug_info[index].cpuid[DEBUG_POINT_FRAME_END] = raw_smp_processor_id();
-		hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_END] = cpu_clock(raw_smp_processor_id());
+	index = hw_ip->debug_index[1];
+	hw_ip->debug_info[index].cpuid[dbg_pt] = raw_smp_processor_id();
+	hw_ip->debug_info[index].time[dbg_pt] = cpu_clock(raw_smp_processor_id());
 
-		if (done_type == IS_SHOT_SUCCESS)
-			fimc_is_hardware_frame_done(hw_ip, NULL, -1, FIMC_IS_HW_CORE_END,
-					IS_SHOT_SUCCESS, flag_get_meta);
-	}
+	if (!flag_get_meta)
+		atomic_inc(&hw_ip->count.dma);
+
+	if (flag_get_meta && done_type == IS_SHOT_SUCCESS)
+		fimc_is_hardware_frame_done(hw_ip, NULL, -1, FIMC_IS_HW_CORE_END,
+				IS_SHOT_SUCCESS, flag_get_meta);
 
 	return;
 }
