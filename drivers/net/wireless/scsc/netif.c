@@ -51,7 +51,7 @@
 #define CS0		0x00
 
 #ifndef CONFIG_ARM
-static bool tcp_ack_suppression_disable;
+static bool tcp_ack_suppression_disable = true;
 module_param(tcp_ack_suppression_disable, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tcp_ack_suppression_disable, "Disable TCP ack suppression feature");
 
