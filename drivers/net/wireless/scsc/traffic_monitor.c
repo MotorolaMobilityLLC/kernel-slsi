@@ -43,13 +43,15 @@ static inline void traffic_mon_invoke_client_callback(struct slsi_dev *sdev, u32
 						traffic_client->traffic_mon_client_cb(traffic_client->client_ctx, TRAFFIC_MON_CLIENT_STATE_HIGH, tput_tx, tput_rx);
 					}
 			} else if ((traffic_client->mid_tput) && ((tput_tx + tput_rx) > traffic_client->mid_tput)) {
-				if (traffic_client->state != TRAFFIC_MON_CLIENT_STATE_MID &&
-				   (traffic_client->hysteresis++ > SLSI_TRAFFIC_MON_HYSTERESIS_HIGH)) {
-					SLSI_DBG1(sdev, SLSI_HIP, "notify traffic event (tput:%u, state:%u --> MID)\n", (tput_tx + tput_rx), traffic_client->state);
-					traffic_client->hysteresis = 0;
-					traffic_client->state = TRAFFIC_MON_CLIENT_STATE_MID;
-					if (traffic_client->traffic_mon_client_cb)
-						traffic_client->traffic_mon_client_cb(traffic_client->client_ctx, TRAFFIC_MON_CLIENT_STATE_MID, tput_tx, tput_rx);
+				if (traffic_client->state != TRAFFIC_MON_CLIENT_STATE_MID) {
+					if ((traffic_client->state == TRAFFIC_MON_CLIENT_STATE_LOW && (traffic_client->hysteresis++ > SLSI_TRAFFIC_MON_HYSTERESIS_HIGH)) ||
+						(traffic_client->state == TRAFFIC_MON_CLIENT_STATE_HIGH && (traffic_client->hysteresis++ > SLSI_TRAFFIC_MON_HYSTERESIS_LOW))) {
+						SLSI_DBG1(sdev, SLSI_HIP, "notify traffic event (tput:%u, state:%u --> MID)\n", (tput_tx + tput_rx), traffic_client->state);
+						traffic_client->hysteresis = 0;
+						traffic_client->state = TRAFFIC_MON_CLIENT_STATE_MID;
+						if (traffic_client->traffic_mon_client_cb)
+							traffic_client->traffic_mon_client_cb(traffic_client->client_ctx, TRAFFIC_MON_CLIENT_STATE_MID, tput_tx, tput_rx);
+					}
 				}
 			} else if (traffic_client->state != TRAFFIC_MON_CLIENT_STATE_LOW &&
 					(traffic_client->hysteresis++ > SLSI_TRAFFIC_MON_HYSTERESIS_LOW)) {
