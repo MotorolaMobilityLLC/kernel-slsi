@@ -608,7 +608,7 @@ const struct sensor_pll_info sensor_4h5yc_pllinfo_B_3280x2458_30fps = {
 
 	0x06, /* secnd_pre_pll_clk_div	(0x030D) */
 	0xA6, /* secnd_pll_multiplier	(0x030F) */
-	0x09B6, /* frame_length_lines	(0x0341) */
+	0x09B2, /* frame_length_lines	(0x0341) */
 	0x0EAA, /* line_length_pck	(0x0343) */
 };
 
@@ -623,7 +623,7 @@ const struct sensor_pll_info sensor_4h5yc_pllinfo_B_3280x1846_30fps = {
 
 	0x06, /* secnd_pre_pll_clk_div	(0x030D) */
 	0x8C, /* secnd_pll_multiplier	(0x030F) */
-	0x0950, /* frame_length_lines	(0x0341) */
+	0x084F, /* frame_length_lines	(0x0341) */
 	0x111C, /* line_length_pck	(0x0343) */
 };
 
@@ -653,7 +653,7 @@ const struct sensor_pll_info sensor_4h5yc_pllinfo_B_816x460_120fps = {
 
 	0x06, /* secnd_pre_pll_clk_div	(0x030D) */
 	0xA6, /* secnd_pll_multiplier	(0x030F) */
-	0x0285, /* frame_length_lines	(0x0341) */
+	0x0277, /* frame_length_lines	(0x0341) */
 	0x0E68, /* line_length_pck	(0x0343) */
 };
 
