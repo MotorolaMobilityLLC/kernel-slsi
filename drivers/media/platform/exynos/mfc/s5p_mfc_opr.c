@@ -131,7 +131,7 @@ int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 	/* Try to use the non-referenced DPB on dst-queue */
 	dst_mb = s5p_mfc_search_for_dpb(ctx, dec->dynamic_used);
 	if (!dst_mb) {
-		mfc_debug(2, "no dst buffers.\n");
+		mfc_debug(2, "[DPB] couldn't find dst buffers\n");
 		return -EAGAIN;
 	}
 
@@ -202,7 +202,7 @@ int s5p_mfc_run_dec_last_frames(struct s5p_mfc_ctx *ctx)
 	/* Try to use the non-referenced DPB on dst-queue */
 	dst_mb = s5p_mfc_search_for_dpb(ctx, dec->dynamic_used);
 	if (!dst_mb) {
-		mfc_debug(2, "no dst buffers.\n");
+		mfc_debug(2, "[DPB] couldn't find dst buffers\n");
 		return -EAGAIN;
 	}
 

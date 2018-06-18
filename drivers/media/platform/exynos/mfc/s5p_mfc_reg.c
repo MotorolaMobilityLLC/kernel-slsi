@@ -455,8 +455,7 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 	dst_index = dst_mb->vb.vb2_buf.index;
 	set_bit(dst_index, &dec->available_dpb);
 	dec->dynamic_set = 1 << dst_index;
-	mfc_debug(2, "ADDING Flag after: 0x%lx\n", dec->available_dpb);
-	mfc_debug(2, "Dst addr [%d] = 0x%08llx\n", dst_index, dst_mb->addr[0][0]);
+	mfc_debug(2, "[DPB] ADDING Flag after: 0x%lx\n", dec->available_dpb);
 
 	/* for debugging about black bar detection */
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->black_bar) && dec->detect_black_bar) {
@@ -483,6 +482,8 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 		if (ctx->is_10bit)
 			MFC_WRITEL(raw->plane_size_2bits[i],
 					S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_SIZE + (i * 4));
+		mfc_debug(2, "[DPB] Dst buf[%d] plane[%d] addr 0x%08llx\n",
+				dst_index, i, dst_mb->addr[0][i]);
 	}
 
 	MFC_TRACE_CTX("Set dst[%d] fd: %d, %#llx / avail %#lx used %#x\n",

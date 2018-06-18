@@ -194,21 +194,20 @@ static void mfc_handle_frame_output_move(struct s5p_mfc_ctx *ctx,
 	ref_mb = s5p_mfc_find_move_buf(&ctx->buf_queue_lock,
 			&ctx->dst_buf_queue, &ctx->ref_buf_queue, dspl_y_addr, released_flag);
 	if (ref_mb) {
-		mfc_debug(2, "Listing: %d\n", ref_mb->vb.vb2_buf.index);
-		/* Check if this is the buffer we're looking for */
-		mfc_debug(2, "Found 0x%08llx, looking for 0x%08llx\n",
-				ref_mb->addr[0][0], dspl_y_addr);
-
 		index = ref_mb->vb.vb2_buf.index;
+
+		/* Check if this is the buffer we're looking for */
+		mfc_debug(2, "[DPB] Found buf[%d] 0x%08llx, looking for disp addr 0x%08llx\n",
+				index, ref_mb->addr[0][0], dspl_y_addr);
 
 		if (released_flag & (1 << index)) {
 			dec->available_dpb &= ~(1 << index);
 			released_flag &= ~(1 << index);
-			mfc_debug(2, "Corrupted frame(%d), it will be re-used(release)\n",
+			mfc_debug(2, "[DPB] Corrupted frame(%d), it will be re-used(release)\n",
 					s5p_mfc_get_warn(s5p_mfc_get_int_err()));
 		} else {
 			dec->err_reuse_flag |= 1 << index;
-			mfc_debug(2, "Corrupted frame(%d), it will be re-used(not released)\n",
+			mfc_debug(2, "[DPB] Corrupted frame(%d), it will be re-used(not released)\n",
 					s5p_mfc_get_warn(s5p_mfc_get_int_err()));
 		}
 		dec->dynamic_used |= released_flag;
@@ -255,12 +254,10 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 	ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, dspl_y_addr);
 	if (ref_mb) {
-		mfc_debug(2, "Listing: %d\n", ref_mb->vb.vb2_buf.index);
-		/* Check if this is the buffer we're looking for */
-		mfc_debug(2, "Found 0x%08llx, looking for 0x%08llx\n",
-				ref_mb->addr[0][0], dspl_y_addr);
-
 		index = ref_mb->vb.vb2_buf.index;
+		/* Check if this is the buffer we're looking for */
+		mfc_debug(2, "[DPB] Found buf[%d] 0x%08llx, looking for disp addr 0x%08llx\n",
+				index, ref_mb->addr[0][0], dspl_y_addr);
 
 		ref_mb->vb.sequence = ctx->sequence;
 		ref_mb->vb.field = mfc_handle_frame_field(ctx);
@@ -415,8 +412,8 @@ static void mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 	dec->dynamic_used = s5p_mfc_get_dec_used_flag();
 	released_flag = prev_flag & (~dec->dynamic_used);
 
-	mfc_debug(2, "Used flag = %08x, Released Buffer = %08x\n",
-			dec->dynamic_used, released_flag);
+	mfc_debug(2, "[DPB] Used flag: old = %08x, new = %08x, Released buffer = %08x\n",
+			prev_flag, dec->dynamic_used, released_flag);
 
 	/* decoder dst buffer CFW UNPROT */
 	s5p_mfc_unprotect_released_dpb(ctx, released_flag);
@@ -480,21 +477,24 @@ static void mfc_handle_ref_frame(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_dec *dec = ctx->dec_priv;
 	struct s5p_mfc_buf *dst_mb;
-	dma_addr_t dec_addr;
+	dma_addr_t dec_addr, disp_addr;
 
 	dec_addr = (dma_addr_t)s5p_mfc_get_dec_y_addr();
+	disp_addr = (dma_addr_t)s5p_mfc_get_disp_y_addr();
+	mfc_debug(2, "[DPB] dec addr: 0x%08llx, disp addr: 0x%08llx\n",
+			dec_addr, disp_addr);
 
 	/* Try to search decoded address in whole dst queue */
 	dst_mb = s5p_mfc_find_move_buf_used(&ctx->buf_queue_lock,
 			&ctx->ref_buf_queue, &ctx->dst_buf_queue, dec_addr);
 	if (dst_mb) {
-		mfc_debug(2, "Found in dst queue = 0x%08llx, buf = 0x%08llx\n",
+		mfc_debug(2, "[DPB] Found in dst queue = 0x%08llx, buf = 0x%08llx\n",
 				dec_addr, dst_mb->addr[0][0]);
 
 		if (!(dec->dynamic_set & s5p_mfc_get_dec_used_flag()))
 			dec->dynamic_used |= dec->dynamic_set;
 	} else {
-		mfc_debug(2, "Can't find buffer for addr = 0x%08llx\n", dec_addr);
+		mfc_debug(2, "[DPB] Can't find buffer for addr = 0x%08llx\n", dec_addr);
 	}
 }
 
@@ -616,7 +616,7 @@ static void mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	mfc_debug(4, "[HDR] SEI display primaries: 0x%08x, 0x%08x, 0x%08x\n",
 			s5p_mfc_get_sei_mastering3(), s5p_mfc_get_sei_mastering4(),
 			s5p_mfc_get_sei_mastering5());
-	mfc_debug(2, "Used flag: old = %08x, new = %08x\n",
+	mfc_debug(2, "[DPB] Used flag: old = %08x, new = %08x\n",
 				dec->dynamic_used, s5p_mfc_get_dec_used_flag());
 
 	if (ctx->state == MFCINST_RES_CHANGE_INIT)

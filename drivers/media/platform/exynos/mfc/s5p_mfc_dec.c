@@ -762,7 +762,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		for (ncount = 0; ncount < MFC_MAX_DPBS; ncount++) {
 			if (srcBuf->dpb[ncount].fd[0] == MFC_INFO_INIT_FD)
 				break;
-			mfc_debug(2, "DQ index[%d] Released FD = %d\n",
+			mfc_debug(2, "[DPB] DQ index[%d] Released FD = %d\n",
 					buf->index, srcBuf->dpb[ncount].fd[0]);
 		}
 
@@ -1076,7 +1076,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		ctx->wait_state = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_MFC_SET_DUAL_DPB_MODE:
-		mfc_err_dev("not supported CID: 0x%x\n",ctrl->id);
+		mfc_err_dev("[DPB] not supported CID: 0x%x\n",ctrl->id);
 		break;
 	case V4L2_CID_MPEG_VIDEO_QOS_RATIO:
 		ctx->qos_ratio = ctrl->value;
@@ -1085,7 +1085,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_MPEG_MFC_SET_DYNAMIC_DPB_MODE:
 		dec->is_dynamic_dpb = ctrl->value;
 		if (dec->is_dynamic_dpb == 0)
-			mfc_err_dev("is_dynamic_dpb is 0. it has to be enabled.\n");
+			mfc_err_dev("[DPB] is_dynamic_dpb is 0. it has to be enabled.\n");
 		break;
 	case V4L2_CID_MPEG_MFC_SET_USER_SHARED_HANDLE:
 		if (dec->sh_handle.fd == -1) {

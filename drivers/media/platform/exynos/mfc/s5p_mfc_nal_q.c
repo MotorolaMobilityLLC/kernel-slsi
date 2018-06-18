@@ -84,7 +84,7 @@ int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 					return 0;
 				}
 				if (dec->is_dpb_full) {
-					mfc_debug(2, "All buffers are referenced\n");
+					mfc_debug(2, "[DPB] All buffers are referenced\n");
 					return 0;
 				}
 				if (dec->is_interlaced) {
@@ -772,7 +772,7 @@ static int mfc_nal_q_run_in_buf_dec(struct s5p_mfc_ctx *ctx, DecoderInputStr *pI
 	/* Try to use the non-referenced DPB on dst-queue */
 	dst_mb = s5p_mfc_search_move_dpb_nal_q(ctx, dec->dynamic_used);
 	if (!dst_mb) {
-		mfc_debug(2, "NAL Q: no dst buffers.\n");
+		mfc_debug(2, "NAL Q:[DPB] couldn't find dst buffers\n");
 		return -EAGAIN;
 	}
 
@@ -821,9 +821,9 @@ static int mfc_nal_q_run_in_buf_dec(struct s5p_mfc_ctx *ctx, DecoderInputStr *pI
 		pInStr->FrameAddr[i] = dst_mb->addr[0][i];
 		if (ctx->is_10bit)
 			pInStr->Frame2BitSize[i] = raw->plane_size_2bits[i];
+		mfc_debug(2, "NAL Q:[DPB] Dst buf[%d] plane[%d] addr 0x%08llx\n",
+				dst_index, i, dst_mb->addr[0][i]);
 	}
-	mfc_debug(2, "NAL Q: dst addr[0]: 0x%08llx\n",
-			dst_mb->addr[0][0]);
 
 	pInStr->ScratchBufAddr = ctx->codec_buf.daddr;
 	pInStr->ScratchBufSize = ctx->scratch_buf_size;
@@ -1092,12 +1092,12 @@ static void mfc_nal_q_handle_reuse_buffer(struct s5p_mfc_ctx *ctx, DecoderOutput
 	/* reuse not used buf: dst_buf_nal_queue -> dst_queue */
 	disp_addr = pOutStr->DisplayAddr[0];
 	if (disp_addr) {
-		mfc_debug(2, "NAL Q: decoding only but there is disp addr: 0x%llx\n", disp_addr);
+		mfc_debug(2, "NAL Q:[DPB] decoding only but there is disp addr: 0x%llx\n", disp_addr);
 		dst_mb = s5p_mfc_get_move_buf_addr(&ctx->buf_queue_lock,
 				&ctx->dst_buf_queue, &ctx->dst_buf_nal_queue,
 				disp_addr);
 		if (dst_mb) {
-			mfc_debug(2, "NAL Q: buf[%d] will reused. addr: 0x%08llx\n",
+			mfc_debug(2, "NAL Q:[DPB] buf[%d] will reused. addr: 0x%08llx\n",
 					dst_mb->vb.vb2_buf.index, disp_addr);
 			dst_mb->used = 0;
 			clear_bit(dst_mb->vb.vb2_buf.index, &dec->available_dpb);
@@ -1135,14 +1135,14 @@ static void mfc_nal_q_handle_ref_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr
 
 	dec_addr = pOutStr->DecodedAddr[0];
 	disp_addr = pOutStr->DisplayAddr[0];
-	mfc_debug(2, "NAL Q: dec addr: 0x%08llx, disp addr: 0x%08llx\n",
+	mfc_debug(2, "NAL Q:[DPB] dec addr: 0x%08llx, disp addr: 0x%08llx\n",
 			dec_addr, disp_addr);
 
 	dst_mb = s5p_mfc_find_move_buf_used(&ctx->buf_queue_lock,
 		&ctx->ref_buf_queue, &ctx->dst_buf_nal_queue, dec_addr);
 	if (dst_mb) {
 		buf_addr = dst_mb->addr[0][0];
-		mfc_debug(2, "NAL Q: Found in dst queue, "
+		mfc_debug(2, "NAL Q:[DPB] Found in dst queue, "
 				"dec addr: 0x%08llx, buf addr: 0x%08llx, used: %d\n",
 				dec_addr, buf_addr, dst_mb->used);
 
@@ -1150,7 +1150,7 @@ static void mfc_nal_q_handle_ref_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr
 		if (!((1 << index) & pOutStr->UsedDpbFlagLower))
 			dec->dynamic_used |= 1 << index;
 	} else {
-		mfc_debug(2, "NAL Q: Can't find buffer for addr: 0x%08llx\n", dec_addr);
+		mfc_debug(2, "NAL Q:[DPB] Can't find buffer for addr: 0x%08llx\n", dec_addr);
 	}
 
 	mfc_debug_leave();
@@ -1200,21 +1200,20 @@ static void mfc_nal_q_handle_frame_output_move(struct s5p_mfc_ctx *ctx,
 	dst_mb = s5p_mfc_find_move_buf(&ctx->buf_queue_lock,
 			&ctx->dst_buf_queue, &ctx->ref_buf_queue, dspl_y_addr, released_flag);
 	if (dst_mb) {
-		mfc_debug(2, "NAL Q: find display buf, index: %d\n", dst_mb->vb.vb2_buf.index);
-		/* Check if this is the buffer we're looking for */
-		mfc_debug(2, "NAL Q: buf addr: 0x%08llx, disp addr: 0x%08llx\n",
-				dst_mb->addr[0][0], dspl_y_addr);
-
 		index = dst_mb->vb.vb2_buf.index;
+
+		/* Check if this is the buffer we're looking for */
+		mfc_debug(2, "NAL Q:[DPB] Found buf[%d] 0x%08llx, looking for disp addr 0x%08llx\n",
+				index, dst_mb->addr[0][0], dspl_y_addr);
 
 		if (released_flag & (1 << index)) {
 			dec->available_dpb &= ~(1 << index);
 			released_flag &= ~(1 << index);
-			mfc_debug(2, "NAL Q: Corrupted frame(%d), it will be re-used(release)\n",
+			mfc_debug(2, "NAL Q:[DPB] Corrupted frame(%d), it will be re-used(release)\n",
 					s5p_mfc_get_warn(s5p_mfc_get_int_err()));
 		} else {
 			dec->err_reuse_flag |= 1 << index;
-			mfc_debug(2, "NAL Q: Corrupted frame(%d), it will be re-used(not released)\n",
+			mfc_debug(2, "NAL Q:[DPB] Corrupted frame(%d), it will be re-used(not released)\n",
 					s5p_mfc_get_warn(s5p_mfc_get_int_err()));
 		}
 		dec->dynamic_used |= released_flag;
@@ -1262,12 +1261,11 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 
 	ref_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock, &ctx->ref_buf_queue, dspl_y_addr);
 	if (ref_mb) {
-		mfc_debug(2, "NAL Q: find display buf, index: %d\n", ref_mb->vb.vb2_buf.index);
-		/* Check if this is the buffer we're looking for */
-		mfc_debug(2, "NAL Q: buf addr: 0x%08llx, disp addr: 0x%08llx\n",
-				ref_mb->addr[0][0], dspl_y_addr);
-
 		index = ref_mb->vb.vb2_buf.index;
+
+		/* Check if this is the buffer we're looking for */
+		mfc_debug(2, "NAL Q:[DPB] Found buf[%d] 0x%08llx, looking for disp addr 0x%08llx\n",
+				index, ref_mb->addr[0][0], dspl_y_addr);
 
 		ref_mb->vb.sequence = ctx->sequence;
 
@@ -1398,8 +1396,8 @@ static void mfc_nal_q_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err
 	dec->dynamic_used = pOutStr->UsedDpbFlagLower;
 	released_flag = prev_flag & (~dec->dynamic_used);
 
-	mfc_debug(2, "NAL Q: Used flag = %08x, Released Buffer = %08x\n",
-			dec->dynamic_used, released_flag);
+	mfc_debug(2, "NAL Q:[DPB] Used flag: old = %08x, new = %08x, Released buffer = %08x\n",
+			prev_flag, dec->dynamic_used, released_flag);
 
 	if ((IS_VC1_RCV_DEC(ctx) &&
 			(disp_err == S5P_FIMV_ERR_SYNC_POINT_NOT_RECEIVED)) ||
@@ -1508,7 +1506,7 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 
 	mfc_debug(2, "NAL Q: Frame Status: %x\n", dst_frame_status);
 	mfc_debug(4, "NAL Q:[HDR] SEI available status: %x\n", sei_avail_status);
-	mfc_debug(2, "NAL Q: Used flag: old = %08x, new = %08x\n",
+	mfc_debug(2, "NAL Q:[DPB] Used flag: old = %08x, new = %08x\n",
 				dec->dynamic_used, pOutStr->UsedDpbFlagLower);
 
 	if (ctx->state == MFCINST_RES_CHANGE_INIT) {
@@ -1573,7 +1571,7 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 	if (dst_frame_status != S5P_FIMV_DEC_STATUS_DISPLAY_ONLY)
 		mfc_nal_q_handle_frame_input(ctx, err, pOutStr);
 	else
-		mfc_debug(2, "NAL Q: can't support display only in NAL-Q, is_dpb_full: %d\n",
+		mfc_debug(2, "NAL Q:[DPB] can't support display only in NAL-Q, is_dpb_full: %d\n",
 				dec->is_dpb_full);
 
 leave_handle_frame:
