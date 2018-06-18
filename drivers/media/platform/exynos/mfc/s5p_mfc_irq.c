@@ -1064,7 +1064,7 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 			s5p_mfc_get_chroma_bit_depth_minus8() ||
 			s5p_mfc_get_profile() == S5P_FIMV_D_PROFILE_HEVC_MAIN_10) {
 			ctx->is_10bit = 1;
-			mfc_info_ctx("10bit contents, profile: %d, depth: %d/%d\n",
+			mfc_info_ctx("[10BIT] 10bit contents, profile: %d, depth: %d/%d\n",
 					s5p_mfc_get_profile(),
 					s5p_mfc_get_luma_bit_depth_minus8() + 8,
 					s5p_mfc_get_chroma_bit_depth_minus8() + 8);

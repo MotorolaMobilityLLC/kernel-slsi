@@ -950,7 +950,7 @@ void s5p_mfc_set_enc_params_vp9(struct s5p_mfc_ctx *ctx)
 	if (ctx->is_10bit) {
 		if ((p_vp9->vp9_version != S5P_FIMV_E_PROFILE_VP9_PROFILE2) &&
 			(p_vp9->vp9_version != S5P_FIMV_E_PROFILE_VP9_PROFILE3)) {
-			mfc_err_ctx("10bit format is not matched with profile(%d)\n",
+			mfc_err_ctx("[10BIT] format is not matched with profile(%d)\n",
 					p_vp9->vp9_version);
 		}
 	}
@@ -1125,7 +1125,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 		if ((p_hevc->profile != S5P_FIMV_E_PROFILE_HEVC_MAIN_422_10_INTRA) &&
 			(p_hevc->profile != S5P_FIMV_E_PROFILE_HEVC_MAIN_10) &&
 			(p_hevc->profile != S5P_FIMV_E_PROFILE_HEVC_MAIN_422_10)) {
-			mfc_err_ctx("10bit format is not matched with profile(%d)\n",
+			mfc_err_ctx("[10BIT] format is not matched with profile(%d)\n",
 					p_hevc->profile);
 		}
 	}

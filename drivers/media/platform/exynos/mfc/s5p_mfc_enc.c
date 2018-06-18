@@ -260,7 +260,7 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	case V4L2_PIX_FMT_NV61M_S10B:
 	case V4L2_PIX_FMT_NV16M_P210:
 	case V4L2_PIX_FMT_NV61M_P210:
-		mfc_debug(2, "is 422 and 10bit format\n");
+		mfc_debug(2, "[10BIT] is 422 and 10bit format\n");
 		ctx->is_10bit = 1;
 		ctx->is_422 = 1;
 		break;
@@ -274,7 +274,7 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV21M_P010:
-		mfc_debug(2, "is 10bit format\n");
+		mfc_debug(2, "[10BIT] is 10bit format\n");
 		ctx->is_10bit = 1;
 		ctx->is_422 = 0;
 		break;

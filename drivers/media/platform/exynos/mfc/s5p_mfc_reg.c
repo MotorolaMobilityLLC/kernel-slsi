@@ -192,7 +192,7 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 		for (i = 0; i < ctx->raw_buf.num_planes; i++) {
 			MFC_WRITEL(raw->stride_2bits[i], S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_STRIDE_SIZE + (i * 4));
 			MFC_WRITEL(raw->plane_size_2bits[i], S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_SIZE + (i * 4));
-			mfc_debug(2, "# HEVC 10bit : 2bits plane%d.size = %d, stride = %d\n", i,
+			mfc_debug(2, "[10BIT] : 2bits plane%d.size = %d, stride = %d\n", i,
 				ctx->raw_buf.plane_size_2bits[i], ctx->raw_buf.stride_2bits[i]);
 		}
 	}

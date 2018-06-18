@@ -294,7 +294,7 @@ void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
 	if (ctx->is_10bit) {
 		for (i = 0; i < raw->num_planes; i++) {
 			raw->total_plane_size += raw->plane_size_2bits[i];
-			mfc_debug(2, "Plane[%d] 2bit size = %d, stride = %d\n",
+			mfc_debug(2, "[10BIT] Plane[%d] 2bit size = %d, stride = %d\n",
 					i, raw->plane_size_2bits[i],
 					raw->stride_2bits[i]);
 		}
@@ -396,7 +396,7 @@ void s5p_mfc_enc_calc_src_size(struct s5p_mfc_ctx *ctx)
 	if (ctx->is_10bit) {
 		for (i = 0; i < raw->num_planes; i++) {
 			raw->total_plane_size += raw->plane_size_2bits[i];
-			mfc_debug(2, "Plane[%d] 2bit size = %d, stride = %d\n",
+			mfc_debug(2, "[10BIT] Plane[%d] 2bit size = %d, stride = %d\n",
 					i, raw->plane_size_2bits[i],
 					raw->stride_2bits[i]);
 		}

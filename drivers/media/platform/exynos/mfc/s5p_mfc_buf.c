@@ -337,7 +337,7 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 				ALIGN(ENC_VP9_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			enc->chroma_dpb_size =
 				ALIGN(ENC_VP9_CHROMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
-			mfc_debug(2, "VP9 10bit recon luma size: %zu chroma size: %zu\n",
+			mfc_debug(2, "[10BIT] VP9 10bit or 422 recon luma size: %zu chroma size: %zu\n",
 					enc->luma_dpb_size, enc->chroma_dpb_size);
 		}
 		enc->me_buffer_size =
@@ -356,7 +356,7 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 				ALIGN(ENC_HEVC_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
 			enc->chroma_dpb_size =
 				ALIGN(ENC_HEVC_CHROMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
-			mfc_debug(2, "HEVC 10bit or 422 recon luma size: %zu chroma size: %zu\n",
+			mfc_debug(2, "[10BIT] HEVC 10bit or 422 recon luma size: %zu chroma size: %zu\n",
 					enc->luma_dpb_size, enc->chroma_dpb_size);
 		}
 		enc->me_buffer_size =
