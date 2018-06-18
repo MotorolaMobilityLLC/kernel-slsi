@@ -430,7 +430,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	if (ctx->state == MFCINST_RUNNING) {
 		s5p_mfc_change_state(ctx, MFCINST_GOT_INST);
-		mfc_info_ctx("Enc resolution is changed\n");
+		mfc_info_ctx("[DRC] Enc resolution is changed\n");
 	}
 
 	mfc_info_ctx("Enc input pixelformat : %s\n", ctx->src_fmt->name);

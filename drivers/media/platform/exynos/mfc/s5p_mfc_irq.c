@@ -623,15 +623,15 @@ static void mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		s5p_mfc_change_state(ctx, MFCINST_RES_CHANGE_FLUSH);
 
 	if (res_change) {
-		mfc_debug(2, "Resolution change set to %d\n", res_change);
+		mfc_debug(2, "[DRC] Resolution change set to %d\n", res_change);
 		s5p_mfc_change_state(ctx, MFCINST_RES_CHANGE_INIT);
 		ctx->wait_state = WAIT_DECODING;
-		mfc_debug(2, "Decoding waiting! : %d\n", ctx->wait_state);
+		mfc_debug(7, "[DRC] Decoding waiting! : %d\n", ctx->wait_state);
 		return;
 	}
 
 	if (need_dpb_change || need_scratch_change)
-		mfc_debug(2, "Interframe resolution change is not supported\n");
+		mfc_debug(2, "[DRC] Interframe resolution change is not supported\n");
 
 	if (s5p_mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0) &&
 		s5p_mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->dst_buf_queue, 0)) {
@@ -656,7 +656,7 @@ static void mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		if (ctx->state == MFCINST_RES_CHANGE_FLUSH) {
 			struct mfc_timestamp *temp_ts = NULL;
 
-			mfc_debug(2, "Last frame received after resolution change.\n");
+			mfc_debug(2, "[DRC] Last frame received after resolution change.\n");
 			mfc_handle_frame_all_extracted(ctx);
 			s5p_mfc_change_state(ctx, MFCINST_RES_CHANGE_END);
 			/* If there is no display frame after resolution change,
@@ -1175,7 +1175,7 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_clear_roi_enable(dev);
 
 	if (!ctx->codec_buffer_allocated) {
-		mfc_debug(2, "previous codec buffer is exist\n");
+		mfc_debug(2, "[DRC] previous codec buffer is exist\n");
 
 		if (dev->has_mmcache && dev->mmcache.is_on_status)
 			s5p_mfc_invalidate_mmcache(dev);

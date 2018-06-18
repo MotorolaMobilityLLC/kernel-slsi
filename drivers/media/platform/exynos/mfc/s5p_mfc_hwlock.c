@@ -761,9 +761,9 @@ static int mfc_just_run_dec(struct s5p_mfc_ctx *ctx)
 		ret = s5p_mfc_run_dec_last_frames(ctx);
 		break;
 	case MFCINST_RES_CHANGE_END:
-		mfc_debug(2, "Finished remaining frames after resolution change.\n");
+		mfc_debug(2, "[DRC] Finished remaining frames after resolution change\n");
 		ctx->capture_state = QUEUE_FREE;
-		mfc_debug(2, "Will re-init the codec.\n");
+		mfc_debug(2, "[DRC] Will re-init the codec\n");
 		ret = s5p_mfc_run_dec_init(ctx);
 		break;
 	case MFCINST_DPB_FLUSHING:

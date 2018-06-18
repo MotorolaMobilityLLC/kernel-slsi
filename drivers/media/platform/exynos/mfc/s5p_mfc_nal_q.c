@@ -1512,15 +1512,15 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 				dec->dynamic_used, pOutStr->UsedDpbFlagLower);
 
 	if (ctx->state == MFCINST_RES_CHANGE_INIT) {
-		mfc_debug(2, "NAL Q: return until NAL-Q stopped in try_run\n");
+		mfc_debug(2, "NAL Q:[DRC] return until NAL-Q stopped in try_run\n");
 		goto leave_handle_frame;
 	}
 	if (res_change) {
-		mfc_debug(2, "NAL Q: Resolution change set to %d\n", res_change);
+		mfc_debug(2, "NAL Q:[DRC] Resolution change set to %d\n", res_change);
 		s5p_mfc_change_state(ctx, MFCINST_RES_CHANGE_INIT);
 		ctx->wait_state = WAIT_DECODING;
 		dev->nal_q_handle->nal_q_exception = 1;
-		mfc_info_ctx("NAL Q: nal_q_exception is set (res change)\n");
+		mfc_info_ctx("NAL Q:[DRC] nal_q_exception is set (res change)\n");
 		goto leave_handle_frame;
 	}
 	if (need_empty_dpb) {
@@ -1531,9 +1531,9 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 		goto leave_handle_frame;
 	}
 	if (need_dpb_change || need_scratch_change) {
-		mfc_debug(2, "NAL Q: Interframe resolution change is not supported\n");
+		mfc_debug(2, "NAL Q:[DRC] Interframe resolution change is not supported\n");
 		dev->nal_q_handle->nal_q_exception = 1;
-		mfc_info_ctx("NAL Q: nal_q_exception is set (interframe res change)\n");
+		mfc_info_ctx("NAL Q:[DRC] nal_q_exception is set (interframe res change)\n");
 		goto leave_handle_frame;
 	}
 	if (is_interlaced) {
