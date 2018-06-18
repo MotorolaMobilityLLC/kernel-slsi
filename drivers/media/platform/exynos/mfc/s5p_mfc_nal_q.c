@@ -1276,30 +1276,30 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 
 		if (is_content_light) {
 			ref_mb->vb.reserved2 |= (1 << 0);
-			mfc_debug(2, "NAL Q: content light level parsed\n");
+			mfc_debug(2, "NAL Q:[HDR] content light level parsed\n");
 		}
 		if (is_display_colour) {
 			ref_mb->vb.reserved2 |= (1 << 1);
-			mfc_debug(2, "NAL Q: mastering display colour parsed\n");
+			mfc_debug(2, "NAL Q:[HDR] mastering display colour parsed\n");
 		}
 		if (is_video_signal_type) {
 			ref_mb->vb.reserved2 |= (1 << 4);
-			mfc_debug(2, "NAL Q: video signal type parsed\n");
+			mfc_debug(2, "NAL Q:[HDR] video signal type parsed\n");
 			if (is_colour_description) {
 				ref_mb->vb.reserved2 |= (1 << 2);
-				mfc_debug(2, "NAL Q: matrix coefficients parsed\n");
+				mfc_debug(2, "NAL Q:[HDR] matrix coefficients parsed\n");
 				ref_mb->vb.reserved2 |= (1 << 3);
-				mfc_debug(2, "NAL Q: colour description parsed\n");
+				mfc_debug(2, "NAL Q:[HDR] colour description parsed\n");
 			}
 		}
 
 		if (IS_VP9_DEC(ctx) && MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 			if (dec->color_space != S5P_FIMV_D_COLOR_UNKNOWN) {
 				ref_mb->vb.reserved2 |= (1 << 3);
-				mfc_debug(2, "NAL Q: color space parsed\n");
+				mfc_debug(2, "NAL Q:[HDR] color space parsed\n");
 			}
 			ref_mb->vb.reserved2 |= (1 << 4);
-			mfc_debug(2, "NAL Q: color range parsed\n");
+			mfc_debug(2, "NAL Q:[HDR] color range parsed\n");
 		}
 
 		for (i = 0; i < raw->num_planes; i++)
@@ -1507,7 +1507,7 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 				& S5P_FIMV_DEC_STATUS_DECODED_STATUS_MASK;
 
 	mfc_debug(2, "NAL Q: Frame Status: %x\n", dst_frame_status);
-	mfc_debug(2, "NAL Q: SEI available status: %x\n", sei_avail_status);
+	mfc_debug(4, "NAL Q:[HDR] SEI available status: %x\n", sei_avail_status);
 	mfc_debug(2, "NAL Q: Used flag: old = %08x, new = %08x\n",
 				dec->dynamic_used, pOutStr->UsedDpbFlagLower);
 
