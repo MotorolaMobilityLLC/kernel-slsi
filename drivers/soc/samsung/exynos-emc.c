@@ -87,6 +87,7 @@ struct emc {
 	struct emc_mode		*cur_mode;	/* current mode */
 	struct emc_mode		*req_mode;	/* requested mode */
 	struct emc_mode		*user_mode;	/* user requesting mode */
+	unsigned int		in_progress;
 	struct cpumask		heavy_cpus;	/* cpus need to boost */
 	struct cpumask		busy_cpus;	/* cpus need to online */
 	/* loadsum of boostable and trigger domain */
@@ -566,6 +567,7 @@ static int emc_do_mode_change(void *data)
 			break;
 
 		spin_lock_irqsave(&emc_lock, flags);
+		emc.in_progress = 1;
 		event = emc_clear_event();
 
 		trace_emc_do_mode_change(emc.cur_mode->name,
@@ -577,8 +579,9 @@ static int emc_do_mode_change(void *data)
 		/* request mode change */
 		exynos_cpuhp_request("EMC", emc.cur_mode->cpus, emc.ctrl_type);
 
-		pr_info("EMC_MODE: %s (cpus%d)\n", emc.cur_mode->name,
-					cpumask_weight(&emc.cur_mode->cpus));
+		dbg_snapshot_printk("EMC: mode change finished %s (cpus%d)\n",
+			emc.cur_mode->name, cpumask_weight(&emc.cur_mode->cpus));
+		emc.in_progress = 0;
 	}
 
 	return 0;

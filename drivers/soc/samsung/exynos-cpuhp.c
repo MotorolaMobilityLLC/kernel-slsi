@@ -15,6 +15,7 @@
 #include <linux/kthread.h>
 #include <linux/pm_qos.h>
 #include <linux/suspend.h>
+#include <linux/debug-snapshot.h>
 
 #include <soc/samsung/exynos-cpuhp.h>
 
@@ -316,7 +317,11 @@ static void cpuhp_print_debug_info(struct cpumask online_cpus, int fast_hp)
 
 	scnprintf(pre_buf, sizeof(pre_buf), "%*pbl", cpumask_pr_args(&cpuhp.online_cpus));
 	scnprintf(new_buf, sizeof(new_buf), "%*pbl", cpumask_pr_args(&online_cpus));
-	pr_info("%s: %s -> %s fast_hp=%d\n", __func__, pre_buf, new_buf, fast_hp);
+	dbg_snapshot_printk("%s: %s -> %s fast_hp=%d\n", __func__, pre_buf, new_buf, fast_hp);
+
+	/* print cpu control information */
+	if (cpuhp.debug)
+		pr_info("%s: %s -> %s fast_hp=%d\n", __func__, pre_buf, new_buf, fast_hp);
 }
 
 /*
@@ -340,10 +345,7 @@ static int cpuhp_do(int fast_hp)
 	}
 
 	online_cpus = cpuhp_get_online_cpus();
-
-	/* print cpu control information */
-//	if (cpuhp.debug)
-		cpuhp_print_debug_info(online_cpus, fast_hp);
+	cpuhp_print_debug_info(online_cpus, fast_hp);
 
 	/* if there is no mask change, skip */
 	if (cpumask_equal(&cpuhp.online_cpus, &online_cpus))
