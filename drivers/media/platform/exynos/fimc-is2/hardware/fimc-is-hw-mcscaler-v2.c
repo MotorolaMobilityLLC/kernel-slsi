@@ -330,7 +330,6 @@ static int fimc_is_hw_mcsc_init(struct fimc_is_hw_ip *hw_ip, u32 instance,
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 	hw_mcsc->rep_flag[instance] = flag;
-	clear_bit(ALL_BLOCK_SET_DONE, &hw_mcsc->blk_set_ctrl[instance]);
 
 	cap = GET_MCSC_HW_CAP(hw_ip);
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++) {
@@ -389,6 +388,8 @@ static int fimc_is_hw_mcsc_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 	frame_manager_close(hw_ip->framemgr_late);
 
 	clear_bit(HW_OPEN, &hw_ip->state);
+	clear_bit(HW_MCS_YSUM_CFG, &hw_ip->state);
+	clear_bit(HW_MCS_DS_CFG, &hw_ip->state);
 
 	return ret;
 }
@@ -1243,13 +1244,12 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
-	if (test_and_clear_bit(DSVRA_SET_DONE, &hw_mcsc->blk_set_ctrl[instance])) {
+	if (test_and_clear_bit(HW_MCS_DS_CFG, &hw_ip->state)) {
 		fimc_is_scaler_set_dma_out_enable(hw_ip->regs, MCSC_OUTPUT_DS, false);
 		fimc_is_scaler_set_ds_enable(hw_ip->regs, false);
 	}
-	if (test_and_clear_bit(YSUM_SET_DONE, &hw_mcsc->blk_set_ctrl[instance])) {
+	if (test_and_clear_bit(HW_MCS_YSUM_CFG, &hw_ip->state))
 		fimc_is_scaler_set_ysum_enable(hw_ip->regs, false);
-	}
 
 	switch (done_type) {
 	case IS_SHOT_SUCCESS:
@@ -2476,7 +2476,7 @@ int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 	fimc_is_scaler_set_dma_out_enable(hw_ip->regs, MCSC_OUTPUT_DS, true);
 
 	if (!test_bit(FIMC_IS_GROUP_OTF_INPUT, &head->state))
-		set_bit(DSVRA_SET_DONE, &hw_mcsc->blk_set_ctrl[instance]);
+		set_bit(HW_MCS_DS_CFG, &hw_ip->state);
 
 	msdbg_hw(2, "%s: dsvra_inport(%d) configured\n", instance, hw_ip, __func__, dsvra_inport);
 
@@ -2542,7 +2542,7 @@ int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 	fimc_is_scaler_set_ysum_input_sourece_enable(hw_ip->regs, ysumport, true);
 
 	if (!test_bit(FIMC_IS_GROUP_OTF_INPUT, &head->state))
-		set_bit(YSUM_SET_DONE, &hw_mcsc->blk_set_ctrl[instance]);
+		set_bit(HW_MCS_YSUM_CFG, &hw_ip->state);
 
 	msdbg_hw(2, "%s: ysum_port(%d) configured\n", instance, hw_ip, __func__, ysumport);
 
@@ -2726,6 +2726,9 @@ int fimc_is_hw_mcsc_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface 
 	clear_bit(HW_CONFIG, &hw_ip->state);
 	clear_bit(HW_RUN, &hw_ip->state);
 	clear_bit(HW_TUNESET, &hw_ip->state);
+	clear_bit(HW_MCS_YSUM_CFG, &hw_ip->state);
+	clear_bit(HW_MCS_DS_CFG, &hw_ip->state);
+
 	spin_lock_init(&shared_output_slock);
 
 	sinfo_hw("probe done\n", hw_ip);

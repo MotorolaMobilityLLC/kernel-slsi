@@ -121,6 +121,8 @@ enum fimc_is_hw_state {
 	HW_RUN,
 	HW_TUNESET,
 	HW_VRA_CH1_START,
+	HW_MCS_YSUM_CFG,
+	HW_MCS_DS_CFG,
 	HW_OVERFLOW_RECOVERY,
 	HW_END
 };

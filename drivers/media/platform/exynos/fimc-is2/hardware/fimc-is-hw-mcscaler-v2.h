@@ -74,14 +74,6 @@ enum yic_mode {
 	TDNR_YIC_DISABLE,
 };
 
-enum mcsc_block_set_ctrl {
-	TDNR_SET_DONE = 0,
-	DJAG_SET_DONE,
-	YSUM_SET_DONE,
-	DSVRA_SET_DONE,
-	ALL_BLOCK_SET_DONE = 0xFF,
-};
-
 struct scaler_setfile_contents {
 	/* Brightness/Contrast control param */
 	u32 y_offset;
@@ -158,7 +150,6 @@ struct fimc_is_hw_mcsc {
 	int	yuv_range;
 	u32	instance;
 	ulong	out_en;		/* This flag save whether the capture video node of MCSC is opened or not. */
-	ulong	blk_set_ctrl[FIMC_IS_STREAM_COUNT];
 	u32	prev_hwfc_output_ids;
 
 	/* for tdnr use */
