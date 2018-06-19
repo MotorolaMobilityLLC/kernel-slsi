@@ -71,8 +71,6 @@ static void __dsim_dump(struct dsim_device *dsim)
 	dsim_reg_enable_shadow_read(dsim->id, 0);
 	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
 			dsim->res.regs, 0xFC, false);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dsim->res.regs + 0x200, 0x4, false);
 
 	dsim_reg_enable_shadow_read(dsim->id, 1);
 }
