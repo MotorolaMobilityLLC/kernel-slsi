@@ -32,8 +32,6 @@ void s5p_mfc_dbg_set_addr(struct s5p_mfc_dev *dev)
 
 	memset((void *)dev->dbg_info_buf.vaddr, 0, buf_size->dbg_info_buf);
 
-	mfc_debug(2, "MFC debug info set addr(0x%08llx), size(0x%08lx)\n",
-			dev->dbg_info_buf.daddr, buf_size->dbg_info_buf);
 	MFC_WRITEL(dev->dbg_info_buf.daddr, S5P_FIMV_DBG_BUFFER_ADDR);
 	MFC_WRITEL(buf_size->dbg_info_buf, S5P_FIMV_DBG_BUFFER_SIZE);
 }
@@ -88,8 +86,8 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dec *dec;
 	unsigned int i;
 	size_t frame_size_mv;
-	dma_addr_t buf_addr1;
-	int buf_size1;
+	dma_addr_t buf_addr;
+	int buf_size;
 	int align_gap;
 	struct s5p_mfc_raw_info *raw;
 	unsigned int reg = 0;
@@ -112,12 +110,12 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 	}
 
 	raw = &ctx->raw_buf;
-	buf_addr1 = ctx->codec_buf.daddr;
-	buf_size1 = ctx->codec_buf.size;
+	buf_addr = ctx->codec_buf.daddr;
+	buf_size = ctx->codec_buf.size;
 
-	mfc_debug(2, "Buf1: 0x%p (%d)\n", (void *)buf_addr1, buf_size1);
-	mfc_debug(2, "Total DPB COUNT: %d\n", dec->total_dpb_count);
-	mfc_debug(2, "Setting display delay to %d\n", dec->display_delay);
+	mfc_debug(2, "[MEMINFO] codec buf 0x%llx size: %d\n", buf_addr, buf_size);
+	mfc_debug(2, "Total DPB COUNT: %d, display delay: %d\n",
+			dec->total_dpb_count, dec->display_delay);
 
 	MFC_WRITEL(dec->total_dpb_count, S5P_FIMV_D_NUM_DPB);
 	mfc_debug(2, "raw->num_planes %d\n", raw->num_planes);
@@ -126,31 +124,31 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 		MFC_WRITEL(raw->plane_size[i], S5P_FIMV_D_FIRST_PLANE_DPB_SIZE + (i * 4));
 	}
 
-	MFC_WRITEL(buf_addr1, S5P_FIMV_D_SCRATCH_BUFFER_ADDR);
+	MFC_WRITEL(buf_addr, S5P_FIMV_D_SCRATCH_BUFFER_ADDR);
 	MFC_WRITEL(ctx->scratch_buf_size, S5P_FIMV_D_SCRATCH_BUFFER_SIZE);
-	buf_addr1 += ctx->scratch_buf_size;
-	buf_size1 -= ctx->scratch_buf_size;
+	buf_addr += ctx->scratch_buf_size;
+	buf_size -= ctx->scratch_buf_size;
 
 	if (IS_H264_DEC(ctx) || IS_H264_MVC_DEC(ctx) || IS_HEVC_DEC(ctx) || IS_BPG_DEC(ctx))
 		MFC_WRITEL(ctx->mv_size, S5P_FIMV_D_MV_BUFFER_SIZE);
 
 	if (IS_VP9_DEC(ctx)){
-		MFC_WRITEL(buf_addr1, S5P_FIMV_D_STATIC_BUFFER_ADDR);
+		MFC_WRITEL(buf_addr, S5P_FIMV_D_STATIC_BUFFER_ADDR);
 		MFC_WRITEL(DEC_STATIC_BUFFER_SIZE, S5P_FIMV_D_STATIC_BUFFER_SIZE);
-		buf_addr1 += DEC_STATIC_BUFFER_SIZE;
-		buf_size1 -= DEC_STATIC_BUFFER_SIZE;
+		buf_addr += DEC_STATIC_BUFFER_SIZE;
+		buf_size -= DEC_STATIC_BUFFER_SIZE;
 	}
 
 	if (IS_MPEG4_DEC(ctx) && dec->loop_filter_mpeg4) {
 		mfc_debug(2, "Add DPB for loop filter of MPEG4\n");
 		for (i = 0; i < NUM_MPEG4_LF_BUF; i++) {
-			MFC_WRITEL(buf_addr1, S5P_FIMV_D_POST_FILTER_LUMA_DPB0 + (4 * i));
-			buf_addr1 += ctx->loopfilter_luma_size;
-			buf_size1 -= ctx->loopfilter_luma_size;
+			MFC_WRITEL(buf_addr, S5P_FIMV_D_POST_FILTER_LUMA_DPB0 + (4 * i));
+			buf_addr += ctx->loopfilter_luma_size;
+			buf_size -= ctx->loopfilter_luma_size;
 
-			MFC_WRITEL(buf_addr1, S5P_FIMV_D_POST_FILTER_CHROMA_DPB0 + (4 * i));
-			buf_addr1 += ctx->loopfilter_chroma_size;
-			buf_size1 -= ctx->loopfilter_chroma_size;
+			MFC_WRITEL(buf_addr, S5P_FIMV_D_POST_FILTER_CHROMA_DPB0 + (4 * i));
+			buf_addr += ctx->loopfilter_chroma_size;
+			buf_size -= ctx->loopfilter_chroma_size;
 		}
 		reg |= ((dec->loop_filter_mpeg4 & S5P_FIMV_D_INIT_BUF_OPT_LF_CTRL_MASK)
 				<< S5P_FIMV_D_INIT_BUF_OPT_LF_CTRL_SHIFT);
@@ -174,12 +172,6 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 
 	MFC_WRITEL(reg, S5P_FIMV_D_INIT_BUFFER_OPTIONS);
 
-	frame_size_mv = ctx->mv_size;
-	mfc_debug(2, "Frame size: %d, %d, %d, mv: %ld, scratch: %ld\n",
-			raw->plane_size[0], raw->plane_size[1],
-			raw->plane_size[2], frame_size_mv,
-			ctx->scratch_buf_size);
-
 	/* set decoder stride size */
 	for (i = 0; i < ctx->raw_buf.num_planes; i++) {
 		MFC_WRITEL(ctx->raw_buf.stride[i],
@@ -197,30 +189,28 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 		}
 	}
 
+	frame_size_mv = ctx->mv_size;
 	MFC_WRITEL(dec->mv_count, S5P_FIMV_D_NUM_MV);
 	if (IS_H264_DEC(ctx) || IS_H264_MVC_DEC(ctx) || IS_HEVC_DEC(ctx) || IS_BPG_DEC(ctx)) {
 		for (i = 0; i < dec->mv_count; i++) {
 			/* To test alignment */
-			align_gap = buf_addr1;
-			buf_addr1 = ALIGN(buf_addr1, 16);
-			align_gap = buf_addr1 - align_gap;
-			buf_size1 -= align_gap;
+			align_gap = buf_addr;
+			buf_addr = ALIGN(buf_addr, 16);
+			align_gap = buf_addr - align_gap;
+			buf_size -= align_gap;
 
-			mfc_debug(2, "\tBuf1: 0x%p, size: %d\n", (void *)buf_addr1, buf_size1);
-			MFC_WRITEL(buf_addr1, S5P_FIMV_D_MV_BUFFER0 + i * 4);
-			buf_addr1 += frame_size_mv;
-			buf_size1 -= frame_size_mv;
+			MFC_WRITEL(buf_addr, S5P_FIMV_D_MV_BUFFER0 + i * 4);
+			buf_addr += frame_size_mv;
+			buf_size -= frame_size_mv;
 		}
 	}
 
-	mfc_debug(2, "Buf1: 0x%p, buf_size1: %d (frames %d)\n",
-			(void *)buf_addr1, buf_size1, dec->total_dpb_count);
-	if (buf_size1 < 0) {
-		mfc_debug(2, "Not enough memory has been allocated.\n");
+	mfc_debug(2, "[MEMINFO] codec buf 0x%llx, remained size: %d\n", buf_addr, buf_size);
+	if (buf_size < 0) {
+		mfc_debug(2, "[MEMINFO] Not enough memory has been allocated\n");
 		return -ENOMEM;
 	}
 
-	mfc_debug(2, "After setting buffers.\n");
 	return 0;
 }
 
@@ -229,49 +219,49 @@ int s5p_mfc_set_enc_codec_buffers(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_enc *enc = ctx->enc_priv;
-	dma_addr_t buf_addr1;
-	int buf_size1;
+	dma_addr_t buf_addr;
+	int buf_size;
 	int i;
 
 	mfc_debug_enter();
 
-	buf_addr1 = ctx->codec_buf.daddr;
-	buf_size1 = ctx->codec_buf.size;
+	buf_addr = ctx->codec_buf.daddr;
+	buf_size = ctx->codec_buf.size;
 
-	mfc_debug(2, "Buf1: 0x%p (%d)\n", (void *)buf_addr1, buf_size1);
+	mfc_debug(2, "[MEMINFO] codec buf 0x%llx, size: %d\n", buf_addr, buf_size);
+	mfc_debug(2, "DPB COUNT: %d\n", ctx->dpb_count);
 
-	MFC_WRITEL(buf_addr1, S5P_FIMV_E_SCRATCH_BUFFER_ADDR);
+	MFC_WRITEL(buf_addr, S5P_FIMV_E_SCRATCH_BUFFER_ADDR);
 	MFC_WRITEL(ctx->scratch_buf_size, S5P_FIMV_E_SCRATCH_BUFFER_SIZE);
-	buf_addr1 += ctx->scratch_buf_size;
-	buf_size1 -= ctx->scratch_buf_size;
+	buf_addr += ctx->scratch_buf_size;
+	buf_size -= ctx->scratch_buf_size;
 
 	/* start address of per buffer is aligned */
 	for (i = 0; i < ctx->dpb_count; i++) {
-		MFC_WRITEL(buf_addr1, S5P_FIMV_E_LUMA_DPB + (4 * i));
-		buf_addr1 += enc->luma_dpb_size;
-		buf_size1 -= enc->luma_dpb_size;
+		MFC_WRITEL(buf_addr, S5P_FIMV_E_LUMA_DPB + (4 * i));
+		buf_addr += enc->luma_dpb_size;
+		buf_size -= enc->luma_dpb_size;
 	}
 	for (i = 0; i < ctx->dpb_count; i++) {
-		MFC_WRITEL(buf_addr1, S5P_FIMV_E_CHROMA_DPB + (4 * i));
-		buf_addr1 += enc->chroma_dpb_size;
-		buf_size1 -= enc->chroma_dpb_size;
+		MFC_WRITEL(buf_addr, S5P_FIMV_E_CHROMA_DPB + (4 * i));
+		buf_addr += enc->chroma_dpb_size;
+		buf_size -= enc->chroma_dpb_size;
 	}
 	for (i = 0; i < ctx->dpb_count; i++) {
-		MFC_WRITEL(buf_addr1, S5P_FIMV_E_ME_BUFFER + (4 * i));
-		buf_addr1 += enc->me_buffer_size;
-		buf_size1 -= enc->me_buffer_size;
+		MFC_WRITEL(buf_addr, S5P_FIMV_E_ME_BUFFER + (4 * i));
+		buf_addr += enc->me_buffer_size;
+		buf_size -= enc->me_buffer_size;
 	}
 
-	MFC_WRITEL(buf_addr1, S5P_FIMV_E_TMV_BUFFER0);
-	buf_addr1 += enc->tmv_buffer_size >> 1;
-	MFC_WRITEL(buf_addr1, S5P_FIMV_E_TMV_BUFFER1);
-	buf_addr1 += enc->tmv_buffer_size >> 1;
-	buf_size1 -= enc->tmv_buffer_size;
+	MFC_WRITEL(buf_addr, S5P_FIMV_E_TMV_BUFFER0);
+	buf_addr += enc->tmv_buffer_size >> 1;
+	MFC_WRITEL(buf_addr, S5P_FIMV_E_TMV_BUFFER1);
+	buf_addr += enc->tmv_buffer_size >> 1;
+	buf_size -= enc->tmv_buffer_size;
 
-	mfc_debug(2, "Buf1 end: 0x%p, buf_size1: %d (ref frames %d)\n",
-			(void *)buf_addr1, buf_size1, ctx->dpb_count);
-	if (buf_size1 < 0) {
-		mfc_debug(2, "Not enough memory has been allocated.\n");
+	mfc_debug(2, "[MEMINFO] codec buf 0x%llx, remained size: %d\n", buf_addr, buf_size);
+	if (buf_size < 0) {
+		mfc_debug(2, "[MEMINFO] Not enough memory has been allocated\n");
 		return -ENOMEM;
 	}
 

@@ -1092,6 +1092,9 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			dec->sh_handle.fd = ctrl->value;
 			if (s5p_mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle))
 				return -EINVAL;
+			else
+				mfc_debug(2, "[MEMINFO][DPB] shared handle fd: %d, vaddr: 0x%p\n",
+						dec->sh_handle.fd, dec->sh_handle.vaddr);
 		}
 		break;
 	case V4L2_CID_MPEG_MFC_SET_BUF_PROCESS_TYPE:

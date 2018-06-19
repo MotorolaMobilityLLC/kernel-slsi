@@ -1743,6 +1743,10 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 						if (s5p_mfc_mem_get_user_shared_handle(ctx,
 									&enc->sh_handle_svc))
 							return -EINVAL;
+						else
+							mfc_debug(2, "[MEMINFO][HIERARCHICAL] shared handle fd: %d, vaddr: 0x%p\n",
+									enc->sh_handle_svc.fd,
+									enc->sh_handle_svc.vaddr);
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH &&
 						p->i_frm_ctrl_mode) {
@@ -1763,6 +1767,10 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 						if (s5p_mfc_mem_get_user_shared_handle(ctx,
 									&enc->sh_handle_roi))
 							return -EINVAL;
+						else
+							mfc_debug(2, "[MEMINFO][ROI] shared handle fd: %d, vaddr: 0x%p\n",
+									enc->sh_handle_roi.fd,
+									enc->sh_handle_roi.vaddr);
 					}
 					index = enc->roi_index;
 					memcpy(&enc->roi_info[index],

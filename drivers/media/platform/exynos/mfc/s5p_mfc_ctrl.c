@@ -108,7 +108,7 @@ static int mfc_init_hw(struct s5p_mfc_dev *dev, enum mfc_buf_usage_type buf_type
 	if (dev->fw.fimv_info != 'D' && dev->fw.fimv_info != 'E')
 		dev->fw.fimv_info = 'N';
 
-	mfc_info_dev("MFC v%x.%x, F/W: %02xyy, %02xmm, %02xdd (%c)\n",
+	mfc_info_dev("[F/W] MFC v%x.%x, %02xyy %02xmm %02xdd (%c)\n",
 		 MFC_VER_MAJOR(dev),
 		 MFC_VER_MINOR(dev),
 		 s5p_mfc_get_fw_ver_year(),

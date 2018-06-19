@@ -52,9 +52,6 @@ int s5p_mfc_mem_get_user_shared_handle(struct s5p_mfc_ctx *ctx,
 		goto map_kernel_fail;
 	}
 
-	mfc_debug(2, "User Handle: fd = %d, virtual addr = 0x%p\n",
-				handle->fd, handle->vaddr);
-
 	return 0;
 
 map_kernel_fail:

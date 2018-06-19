@@ -54,9 +54,9 @@ void s5p_mfc_set_risc_base_addr(struct s5p_mfc_dev *dev,
 		fw_buf = &dev->drm_fw_buf;
 
 	MFC_WRITEL(fw_buf->daddr, S5P_FIMV_RISC_BASE_ADDRESS);
-	mfc_debug(2, "%s F/W Base Address : %08llx\n",
+	mfc_debug(2, "[MEMINFO][F/W] %s Base Address : %#x\n",
 			buf_type == MFCBUF_DRM ? "DRM" : "NORMAL", fw_buf->daddr);
-	MFC_TRACE_DEV("%s F/W Base Address : %08llx\n",
+	MFC_TRACE_DEV("%s F/W Base Address : %#x\n",
 			buf_type == MFCBUF_DRM ? "DRM" : "NORMAL", fw_buf->daddr);
 }
 

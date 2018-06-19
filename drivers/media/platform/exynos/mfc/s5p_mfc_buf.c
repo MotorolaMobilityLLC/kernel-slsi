@@ -170,7 +170,7 @@ int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
 		return -ENOMEM;
 	}
 
-	mfc_debug(2, "Instance buf alloc, ctx: %d, size: %ld, addr: 0x%08llx\n",
+	mfc_debug(2, "[MEMINFO] Instance buf ctx[%d] size: %ld, daddr: 0x%08llx\n",
 			ctx->num, ctx->instance_ctx_buf.size, ctx->instance_ctx_buf.daddr);
 
 	return 0;
@@ -194,7 +194,7 @@ void s5p_mfc_release_instance_context(struct s5p_mfc_ctx *ctx)
 	}
 
 	s5p_mfc_mem_ion_free(dev, &ctx->instance_ctx_buf);
-	mfc_debug(2, "Release the instance ctx buffer\n");
+	mfc_debug(2, "[MEMINFO] Release the instance buffer ctx[%d]\n", ctx->num);
 
 	mfc_debug_leave();
 }
@@ -268,11 +268,12 @@ static void mfc_calc_dec_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 		break;
 	}
 
-	for (i = 0; i < ctx->raw_buf.num_planes; i++)
-		mfc_debug(2, "Plane[%d] size:%d\n",
-				i, ctx->raw_buf.plane_size[i]);
-	mfc_debug(2, "MV size: %zu, Totals bufs: %d\n",
-			ctx->mv_size, dec->total_dpb_count);
+	mfc_debug(2, "[MEMINFO] scratch: %zu, MV: %zu x count %d\n",
+			ctx->scratch_buf_size, ctx->mv_size, dec->mv_count);
+	if (dec->loop_filter_mpeg4)
+		mfc_debug(2, "[MEMINFO] (loopfilter luma: %zu, chroma: %zu) x count %d\n",
+				ctx->loopfilter_luma_size, ctx->loopfilter_chroma_size,
+				NUM_MPEG4_LF_BUF);
 }
 
 static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
@@ -295,8 +296,6 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 		ALIGN(ENC_LUMA_DPB_SIZE(ctx->crop_width, ctx->crop_height), 64);
 	enc->chroma_dpb_size =
 		ALIGN(ENC_CHROMA_DPB_SIZE(ctx->crop_width, ctx->crop_height), 64);
-	mfc_debug(2, "recon luma size: %zu chroma size: %zu\n",
-			enc->luma_dpb_size, enc->chroma_dpb_size);
 
 	/* Codecs have different memory requirements */
 	switch (ctx->codec_mode) {
@@ -373,6 +372,11 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 		mfc_err_ctx("invalid codec type: %d\n", ctx->codec_mode);
 		break;
 	}
+
+	mfc_debug(2, "[MEMINFO] scratch: %zu, TMV: %zu, (recon luma: %zu, chroma: %zu, me: %zu) x count %d\n",
+			ctx->scratch_buf_size, enc->tmv_buffer_size,
+			enc->luma_dpb_size, enc->chroma_dpb_size, enc->me_buffer_size,
+			ctx->dpb_count);
 }
 
 /* Allocate codec buffers */
@@ -415,7 +419,7 @@ int s5p_mfc_alloc_codec_buffers(struct s5p_mfc_ctx *ctx)
 		ctx->codec_buffer_allocated = 1;
 	}
 
-	mfc_debug(2, "Codec buf alloc, ctx: %d, size: %ld, addr: 0x%08llx\n",
+	mfc_debug(2, "[MEMINFO] Codec buf ctx[%d] size: %ld, addr: 0x%08llx\n",
 			ctx->num, ctx->codec_buf.size, ctx->codec_buf.daddr);
 
 	return 0;
@@ -439,7 +443,7 @@ void s5p_mfc_release_codec_buffers(struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_mem_ion_free(dev, &ctx->codec_buf);
 	ctx->codec_buffer_allocated = 0;
-	mfc_debug(2, "Release the codec buffer\n");
+	mfc_debug(2, "[MEMINFO] Release the codec buffer ctx[%d]\n", ctx->num);
 }
 
 /* Allocation buffer of debug infor memory for FW debugging */
@@ -455,8 +459,8 @@ int s5p_mfc_alloc_dbg_info_buffer(struct s5p_mfc_dev *dev)
 		mfc_err_dev("Allocating debug info buffer failed\n");
 		return -ENOMEM;
 	}
-	mfc_debug(2, "dev->dbg_info_buf.daddr = 0x%08llx, vaddr = 0x%p\n",
-			dev->dbg_info_buf.daddr, dev->dbg_info_buf.vaddr);
+	mfc_debug(2, "[MEMINFO] debug info buf size: %ld, daddr: 0x%08llx, vaddr: 0x%p\n",
+			dev->dbg_info_buf.size, dev->dbg_info_buf.daddr, dev->dbg_info_buf.vaddr);
 
 	return 0;
 }
@@ -475,7 +479,7 @@ int s5p_mfc_release_dbg_info_buffer(struct s5p_mfc_dev *dev)
 	}
 
 	s5p_mfc_mem_ion_free(dev, &dev->dbg_info_buf);
-	mfc_debug(2, "Release the debug-info buffer\n");
+	mfc_debug(2, "[MEMINFO] Release the debug info buffer\n");
 
 	return 0;
 }
@@ -492,8 +496,8 @@ static int mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_spec
 		mfc_err_ctx("[ROI] Allocating ROI buffer failed\n");
 		return -ENOMEM;
 	}
-	mfc_debug(2, "[ROI] roi_buf.daddr = 0x%08llx, vaddr = 0x%p\n",
-			roi_buf->daddr, roi_buf->vaddr);
+	mfc_debug(2, "[MEMINFO][ROI] roi buf ctx[%d] size: %ld, daddr: 0x%08llx, vaddr: 0x%p\n",
+			ctx->num, roi_buf->size, roi_buf->daddr, roi_buf->vaddr);
 
 	memset(roi_buf->vaddr, 0, buf_size->shared_buf);
 
@@ -525,6 +529,8 @@ void s5p_mfc_release_enc_roi_buffer(struct s5p_mfc_ctx *ctx)
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++)
 		if (enc->roi_buf[i].dma_buf)
 			s5p_mfc_mem_ion_free(ctx->dev, &enc->roi_buf[i]);
+
+	mfc_debug(2, "[MEMINFO][ROI] Release the ROI buffer\n");
 }
 
 int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
@@ -546,6 +552,8 @@ int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
 			mfc_err_ctx("OTF: Allocating stream buffer failed\n");
 			return -EINVAL;
 		}
+		mfc_debug(2, "OTF:[MEMINFO] OTF stream buf[%d] size: %ld, daddr: 0x%08llx, vaddr: 0x%p\n",
+				i, buf->size, buf->daddr, buf->vaddr);
 		memset(buf->vaddr, 0, raw->total_plane_size);
 	}
 
@@ -570,6 +578,7 @@ void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx)
 			s5p_mfc_mem_ion_free(dev, buf);
 	}
 
+	mfc_debug(2, "OTF:[MEMINFO] Release the OTF stream buffer\n");
 	mfc_debug_leave();
 }
 
@@ -582,7 +591,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	mfc_debug_enter();
 
 	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
+		mfc_err_dev("[F/W] no mfc device to run\n");
 		return -EINVAL;
 	}
 
@@ -593,17 +602,17 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	if (dev->fw_buf.dma_buf)
 		return 0;
 
-	mfc_debug(2, "Allocating memory for firmware.\n");
+	mfc_debug(4, "[F/W] Allocating memory for firmware\n");
 	trace_mfc_loadfw_start(dev->fw.size, firmware_size);
 
 	dev->fw_buf.buftype = MFCBUF_NORMAL;
 	dev->fw_buf.size = dev->fw.size;
 	if (s5p_mfc_mem_ion_alloc(dev, &dev->fw_buf)) {
-		mfc_err_dev("Allocating normal firmware buffer failed\n");
+		mfc_err_dev("[F/W] Allocating normal firmware buffer failed\n");
 		return -ENOMEM;
 	}
 
-	mfc_debug(2, "FW normal: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
+	mfc_debug(2, "[MEMINFO][F/W] FW normal: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
 			dev->fw_buf.daddr, dev->fw_buf.vaddr,
 			dev->fw_buf.size);
 
@@ -611,11 +620,11 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	dev->drm_fw_buf.buftype = MFCBUF_DRM_FW;
 	dev->drm_fw_buf.size = dev->fw.size;
 	if (s5p_mfc_mem_ion_alloc(dev, &dev->drm_fw_buf)) {
-		mfc_err_dev("Allocating DRM firmware buffer failed\n");
+		mfc_err_dev("[F/W] Allocating DRM firmware buffer failed\n");
 		return -ENOMEM;
 	}
 
-	mfc_debug(2, "FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
+	mfc_debug(2, "[MEMINFO][F/W] FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
 			dev->drm_fw_buf.daddr, dev->drm_fw_buf.vaddr,
 			dev->drm_fw_buf.size);
 #endif
@@ -633,7 +642,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	int err;
 
 	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
+		mfc_err_dev("[F/W] no mfc device to run\n");
 		return -EINVAL;
 	}
 
@@ -642,25 +651,26 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	/* Firmare has to be present as a separate file or compiled
 	 * into kernel. */
 	mfc_debug_enter();
-	mfc_debug(2, "Requesting fw\n");
+	mfc_debug(4, "[F/W] Requesting F/W\n");
 	err = request_firmware((const struct firmware **)&fw_blob,
 					MFC_FW_NAME, dev->v4l2_dev.dev);
 
 	if (err != 0) {
-		mfc_err_dev("Firmware is not present in the /lib/firmware directory nor compiled in kernel.\n");
+		mfc_err_dev("[F/W] Couldn't find the F/W invalid path\n");
 		return -EINVAL;
 	}
 
-	mfc_debug(2, "Ret of request_firmware: %d Size: %zu\n", err, fw_blob->size);
+	mfc_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n", fw_blob->size);
 
 	if (fw_blob->size > firmware_size) {
-		mfc_err_dev("MFC firmware is too big to be loaded.\n");
+		mfc_err_dev("[MEMINFO][F/W] MFC firmware(%zu) is too big to be loaded in memory(%zu)\n",
+				fw_blob->size, firmware_size);
 		release_firmware(fw_blob);
 		return -ENOMEM;
 	}
 
 	if (dev->fw_buf.dma_buf == NULL || dev->fw_buf.daddr == 0) {
-		mfc_err_dev("MFC firmware is not allocated or was not mapped correctly.\n");
+		mfc_err_dev("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
 		release_firmware(fw_blob);
 		return -EINVAL;
 	}
@@ -668,7 +678,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	memcpy(dev->fw_buf.vaddr, fw_blob->data, fw_blob->size);
 	if (dev->drm_fw_buf.vaddr) {
 		memcpy(dev->drm_fw_buf.vaddr, fw_blob->data, fw_blob->size);
-		mfc_debug(2, "copy firmware to secure region\n");
+		mfc_debug(4, "[F/W] copy firmware to secure region\n");
 	}
 	release_firmware(fw_blob);
 	trace_mfc_loadfw_end(dev->fw.size, firmware_size);
@@ -682,12 +692,12 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
 	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
+		mfc_err_dev("[F/W] no mfc device to run\n");
 		return -EINVAL;
 	}
 
 	if (!dev->fw_buf.dma_buf) {
-		mfc_err_dev("firmware memory is already freed\n");
+		mfc_err_dev("[F/W] firmware memory is already freed\n");
 		return -EINVAL;
 	}
 
