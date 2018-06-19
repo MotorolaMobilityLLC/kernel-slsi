@@ -306,7 +306,7 @@ int fimc_is_dvfs_sel_dynamic(struct fimc_is_device_ischain *device, struct fimc_
 		}
 	}
 
-	if (!test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state))
+	if (!test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state) || group->id == GROUP_ID_VRA0)
 		return -EAGAIN;
 
 	position = fimc_is_sensor_g_position(device->sensor);
