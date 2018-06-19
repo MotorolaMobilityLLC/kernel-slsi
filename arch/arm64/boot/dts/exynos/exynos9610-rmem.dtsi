@@ -88,6 +88,11 @@
 			reg = <0x0 0xF0000000 0x8A00000>;
 		};
 
+		fb_rmem: bootloader_fb {
+			compatible = "exynos,fb_rmem";
+			reg = <0x0 0xfa800000 0x3000000>;
+		};
+
 		chub_rmem: chub_rmem {
 			compatible = "exynos,chub_rmem";
 			/* To dump SHUB SRAM out upon shub firmware crash */
