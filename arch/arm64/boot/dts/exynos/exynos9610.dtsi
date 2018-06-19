@@ -3178,6 +3178,7 @@
 		baaw,baaw-p-apm-chub = <0x40300 0x40800 0x11900>;
 		/* none, pass, os.checked.bin, Exynos9610.bin */
 		os-type = "os.checked.bin";
+		reset-mode = "block";
 		clocks =
 			/* SHUB */
 			<&clock UMUX_CLKCMU_SHUB_BUS>,
