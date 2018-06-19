@@ -1866,6 +1866,7 @@ static void decon_release_old_bufs(struct decon_device *decon,
 		int *plane_cnt)
 {
 	int i, j;
+	struct dsim_device *dsim;
 
 	for (i = 0; i < decon->dt.max_win; i++) {
 		for (j = 0; j < plane_cnt[i]; ++j)
@@ -1873,6 +1874,16 @@ static void decon_release_old_bufs(struct decon_device *decon,
 				decon_free_dma_buf(decon, &regs->dma_buf_data[i][j]);
 			else
 				decon_free_dma_buf(decon, &dma_bufs[i][j]);
+	}
+
+	if (decon->dt.out_type == DECON_OUT_DSI) {
+		if (decon->lcd_info->mode == DECON_VIDEO_MODE) {
+			dsim = v4l2_get_subdevdata(decon->out_sd[0]);
+			if (dsim->fb_reservation) {
+				v4l2_subdev_call(decon->out_sd[0], core, ioctl,
+						DSIM_IOC_FREE_FB_RES, NULL);
+			}
+		}
 	}
 
 	if (decon->dt.out_type == DECON_OUT_WB) {

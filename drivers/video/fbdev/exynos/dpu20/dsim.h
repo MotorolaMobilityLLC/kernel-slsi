@@ -233,6 +233,12 @@ struct dsim_device {
 	int total_underrun_cnt;
 	struct backlight_device *bd;
 	int idle_ip_index;
+
+	/* true  - fb reserved     */
+	/* false - fb not reserved */
+	bool fb_reservation;
+	phys_addr_t phys_addr;
+	phys_addr_t phys_size;
 };
 
 struct dsim_lcd_driver {
@@ -388,6 +394,7 @@ static inline bool IS_DSIM_OFF_STATE(struct dsim_device *dsim)
 #define DSIM_IOC_DUMP			_IOW('D', 8, u32)
 #define DSIM_IOC_GET_WCLK		_IOW('D', 9, u32)
 #define DSIM_IOC_SET_CONFIG		_IOW('D', 10, u32)
+#define DSIM_IOC_FREE_FB_RES		_IOW('D', 11, u32)
 #define DSIM_IOC_DOZE			_IOW('D', 20, u32)
 #define DSIM_IOC_DOZE_SUSPEND		_IOW('D', 21, u32)
 
