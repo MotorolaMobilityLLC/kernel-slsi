@@ -1550,13 +1550,6 @@ static int dsim_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	ret = iovmm_activate(dev);
-	if (ret) {
-		dsim_err("failed to activate iovmm\n");
-		goto err_dt;
-	}
-	iovmm_set_fault_handler(dev, dpu_sysmmu_fault_handler, NULL);
-
 	ret = dsim_get_data_lanes(dsim);
 	if (ret)
 		goto err_dt;
@@ -1567,6 +1560,13 @@ static int dsim_probe(struct platform_device *pdev)
 
 	dsim->state = DSIM_STATE_INIT;
 	dsim_enable(dsim);
+
+	ret = iovmm_activate(dev);
+	if (ret) {
+		dsim_err("failed to activate iovmm\n");
+		goto err_dt;
+	}
+	iovmm_set_fault_handler(dev, dpu_sysmmu_fault_handler, NULL);
 
 	/* TODO: If you want to enable DSIM BIST mode. you must turn on LCD here */
 #if !defined(BRINGUP_DSIM_BIST)
