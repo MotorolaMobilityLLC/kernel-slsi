@@ -536,11 +536,8 @@ extern int debug_sensor;
 #define dbg_tasklet(fmt, args...)	\
 	dbg_common(debug_irq, "[FBNS]", fmt, ##args)
 
-#define dbg_csiisr(fmt, args...)	\
-	dbg_common(debug_irq, "[CSI]", fmt, ##args)
-
-#define dbg_pafstatisr(fmt, args...)	\
-	dbg_common(debug_irq, "[PAFSTAT]", fmt, ##args)
+#define dbg_isr(fmt, object, args...)		\
+	dbg_common(debug_irq, "[%s]", fmt, object->name, ##args)
 
 #if defined(CONFIG_USE_DIRECT_IS_CONTROL)
 #define dbg_hw(level, fmt, args...) \
