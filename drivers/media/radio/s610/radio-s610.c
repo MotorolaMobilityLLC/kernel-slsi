@@ -45,7 +45,7 @@
 #include "fm_low_struc.h"
 #include "radio-s610.h"
 
-//#include "../../../../sound/soc/samsung/abox/abox.h"
+#include "../../../../sound/soc/samsung/abox/abox.h"
 
 static int radio_region;
 module_param(radio_region, int, 0);
@@ -1521,8 +1521,8 @@ static int s610_radio_fops_open(struct file *file)
 				goto err_open;
 			}
 
-//			abox_request_cpu_gear_sync(radio->a_dev,
-//				dev_get_drvdata(radio->a_dev), radio->dev, ABOX_CPU_GEAR_MAX);
+			abox_request_cpu_gear_sync(radio->a_dev,
+				dev_get_drvdata(radio->a_dev), radio->dev, ABOX_CPU_GEAR_MAX);
 		}
 #endif /* USE_AUDIO_PM */
 
@@ -1648,8 +1648,8 @@ static int s610_radio_fops_release(struct file *file)
 		pm_runtime_put_sync(radio->dev);
 #ifdef USE_AUDIO_PM
 		if (radio->a_dev) {
-//			abox_request_cpu_gear_sync(radio->a_dev,
-//				dev_get_drvdata(radio->a_dev), radio->dev, ABOX_CPU_GEAR_MIN);
+			abox_request_cpu_gear_sync(radio->a_dev,
+				dev_get_drvdata(radio->a_dev), radio->dev, ABOX_CPU_GEAR_MIN);
 
 			pm_runtime_put_sync(radio->a_dev);
 		}
