@@ -3323,7 +3323,7 @@
 		without_elna = <1>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		samsung,power-domain = <&pd_dispaud>;
-		status = "disabled";
+		status = "ok";
 	};
 
 	fimc_is: fimc_is@144B0000 {
