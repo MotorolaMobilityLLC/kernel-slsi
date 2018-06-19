@@ -499,7 +499,6 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 	if (tsk->state == TASK_RUNNING
 			|| tsk->state == TASK_UNINTERRUPTIBLE
 			|| tsk->mm == NULL) {
-		print_worker_info(KERN_INFO, tsk);
 		show_stack(tsk, NULL);
 		pr_info("\n");
 	}
