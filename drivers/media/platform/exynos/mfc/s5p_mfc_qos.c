@@ -518,7 +518,10 @@ void s5p_mfc_qos_on(struct s5p_mfc_ctx *ctx)
 		fw_time = qos_table[i].time_fw;
 		sw_time = (MFC_DRV_TIME + fw_time);
 
-		total_mb = ((1000000 * hw_mb) / (1000000 - (total_fps * sw_time)));
+		if ((total_fps * sw_time) >= 1000000)
+			total_mb = pdata->max_mb;
+		else
+			total_mb = ((1000000 * hw_mb) / (1000000 - (total_fps * sw_time)));
 
 		mfc_debug(4, "[QoS] table[%d] fw_time: %dus, hw_mb: %ld, "
 				"sw_time: %d, total_fps: %ld, total_mb: %ld\n",
@@ -598,7 +601,11 @@ void s5p_mfc_qos_off(struct s5p_mfc_ctx *ctx)
 		fw_time = qos_table[i].time_fw;
 		sw_time = (MFC_DRV_TIME + fw_time);
 
-		total_mb = ((1000000 * hw_mb) / (1000000 - (total_fps * sw_time)));
+		if ((total_fps * sw_time) >= 1000000)
+			total_mb = pdata->max_mb;
+		else
+			total_mb = ((1000000 * hw_mb) / (1000000 - (total_fps * sw_time)));
+
 		mfc_debug(4, "[QoS] table[%d] fw_time: %dus, hw_mb: %ld, "
 				"sw_time: %d, total_fps: %ld, total_mb: %ld\n",
 				i, fw_time, hw_mb, sw_time, total_fps, total_mb);
