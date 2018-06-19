@@ -39,6 +39,11 @@ void fimc_is_hw_vra_save_debug_info(struct fimc_is_hw_ip *hw_ip,
 		index = hw_ip->debug_index[1];
 		hw_ip->debug_info[index].cpuid[DEBUG_POINT_FRAME_END] = raw_smp_processor_id();
 		hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_END] = local_clock();
+
+		dbg_isr("[F:%d][S-E] %05llu us\n", hw_ip, hw_fcount,
+			(hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_END] -
+			hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_START]) / 1000);
+
 		if (!atomic_read(&hardware->streaming[hardware->sensor_position[instance]]))
 			msinfo_hw("[F:%d]F.E\n", instance, hw_ip, hw_fcount);
 
