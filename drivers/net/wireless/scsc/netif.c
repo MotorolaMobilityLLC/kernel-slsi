@@ -1745,11 +1745,6 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 		ndev_vif->last_tcp_ack = tcp_ack;
 	}
 
-#if 0
-	/* TCP socket diagnostics */
-	if (tcp_ack->tcp_sk)
-		tcp_get_info(tcp_ack->tcp_sk, &tcp_ack->tcp_sock_info);
-#endif
 	/* If it is a DUP Ack, send straight away without flushing the cache. */
 	if (be32_to_cpu(tcp_hdr(skb)->ack_seq) < tcp_ack->ack_seq) {
 		/* check for wrap-around */
@@ -1764,7 +1759,7 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 	/* Has data, forward straight away. */
 	if (be16_to_cpu(ip_hdr(skb)->tot_len) > ((ip_hdr(skb)->ihl * 4) + (tcp_hdr(skb)->doff * 4))) {
 		SCSC_HIP4_SAMPLER_TCP_DATA(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, be32_to_cpu(tcp_hdr(skb)->seq));
-		/* SCSC_HIP4_SAMPLER_TCP_CWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, tcp_ack->tcp_sock_info.tcpi_snd_cwnd); */
+		SCSC_HIP4_SAMPLER_TCP_CWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, tcp_ack->tcp_sk ? tcp_sk(tcp_ack->tcp_sk)->snd_cwnd : 0);
 		SCSC_HIP4_SAMPLER_TCP_SEND_BUF(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, sysctl_tcp_wmem[2]);
 		ndev_vif->tcp_ack_stats.tack_hasdata++;
 		forward_now = 1;

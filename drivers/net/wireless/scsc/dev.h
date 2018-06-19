@@ -598,9 +598,8 @@ struct slsi_tcp_ack_s {
 	u32		last_ack_seq;
 	u64		num_bytes;
 
-	/* TCP socket information */
+	/* corresponding socket to get stats (e.g. congestion window) */
 	struct sock *tcp_sk;
-	struct tcp_info tcp_sock_info;
 
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 	u8 stream_id;
