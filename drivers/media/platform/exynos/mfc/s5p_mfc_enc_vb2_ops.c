@@ -365,9 +365,7 @@ static void s5p_mfc_enc_stop_streaming(struct vb2_queue *q)
 			index++;
 		}
 	} else if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		if (ctx->state == MFCINST_FREE) {
-			mfc_debug(2, "already closed\n");
-		} else {
+		if (ctx->state == MFCINST_RUNNING) {
 			s5p_mfc_change_state(ctx, MFCINST_FINISHING);
 			s5p_mfc_set_bit(ctx->num, &dev->work_bits);
 
