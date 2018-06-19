@@ -71,7 +71,7 @@ void dbg_snapshot_hook_hardlockup_entry(void *v_regs)
 		int ret;
 		unsigned long last_pc;
 		struct pt_regs *regs;
-		unsigned long timeout = USEC_PER_SEC * 3;
+		unsigned long timeout = USEC_PER_SEC * 2;
 
 		do {
 			/*
@@ -93,8 +93,9 @@ void dbg_snapshot_hook_hardlockup_entry(void *v_regs)
 
 		/* Then, we expect bug() function works well */
 		pr_emerg("\n--------------------------------------------------------------------------\n"
-			"      Debugging Information for Hardlockup core - CPU %d"
-			"\n--------------------------------------------------------------------------\n\n", cpu);
+			"      Debugging Information for Hardlockup core - CPU(%d), Mask:(0x%x)"
+			"\n--------------------------------------------------------------------------\n\n",
+			cpu, dss_desc.hardlockup_core_mask);
 	}
 }
 
@@ -103,8 +104,7 @@ void dbg_snapshot_hook_hardlockup_exit(void)
 	int cpu = raw_smp_processor_id();
 
 	if (!dss_base.enabled ||
-		!dss_desc.hardlockup_core_mask ||
-		!dss_desc.allcorelockup_detected) {
+		!dss_desc.hardlockup_core_mask) {
 		return;
 	}
 
