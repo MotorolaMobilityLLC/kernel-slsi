@@ -33,7 +33,7 @@
 #include <sound/pcm_params.h>
 #include <sound/samsung/abox.h>
 #include <sound/samsung/vts.h>
-//#include <linux/exynos_iovmm.h>
+#include <linux/exynos_iovmm.h>
 
 #include <soc/samsung/exynos-pmu.h>
 #include <soc/samsung/exynos-itmon.h>
@@ -5626,15 +5626,14 @@ void abox_poweroff(void)
 
 	abox_disable(dev);
 
-	//exynos_sysmmu_control(dev, false);
+	exynos_sysmmu_control(dev, false);
 }
 
 static int abox_runtime_suspend(struct device *dev)
 {
 	dev_dbg(dev, "%s\n", __func__);
 
-	//p_abox_data->enabled = false;
-	abox_disable(dev);
+	p_abox_data->enabled = false;
 
 	return 0;
 }
@@ -5643,7 +5642,7 @@ static int abox_runtime_resume(struct device *dev)
 {
 	dev_dbg(dev, "%s\n", __func__);
 
-	//exynos_sysmmu_control(dev, true);
+	exynos_sysmmu_control(dev, true);
 
 	return abox_enable(dev);
 }

@@ -274,6 +274,7 @@
 		clock-names = "aclk";
 		clocks = <&clock GATE_SMMU_ABOX_QCH>;
 		port-name = "ABox";
+		sysmmu,hold-rpm-on-boot;
 		sysmmu,no-suspend;
 		sysmmu,no-rpm-control;
 		sysmmu,tlb_property =
