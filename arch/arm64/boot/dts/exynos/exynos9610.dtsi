@@ -2709,13 +2709,13 @@
 			magic_offset = <0x600000>;
 			reg = <0x0 0x0 0x0>;
 		};
-		/*
-			*abox_bt: abox_bt@0 {
-			*compatible = "samsung,abox-bt";
-			*reg = <0x0 0x0 0x0>, <0x0 0x119D0000 0x1000>;
-			*reg-names = "sfr", "mailbox";
-			*};
-		*/
+
+		abox_bt: abox_bt@0 {
+			compatible = "samsung,abox-bt";
+			reg = <0x0 0x0 0x0>, <0x0 0x119D0000 0x1000>;
+			reg-names = "sfr", "mailbox";
+		};
+
 		ext_bin_0: ext_bin@0 {
 			status = "enabled";
 			samsung,name = "dsm.bin";

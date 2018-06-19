@@ -1416,7 +1416,7 @@
 			&abox_uaif_4 &abox_dsif &abox_spdy &cs35l35_left>;
 		samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX",
 			"ABOX", "ABOX", "ABOX", "Left";
-		samsung,aux = <&abox_effect>;
+		samsung,aux = <&abox_effect &abox_bt>;
 
 		rdma@0 {
 			cpu {
