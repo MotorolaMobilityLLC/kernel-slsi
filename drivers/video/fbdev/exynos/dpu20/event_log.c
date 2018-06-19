@@ -252,6 +252,10 @@ void DPU_EVENT_LOG(dpu_event_t type, struct v4l2_subdev *sd, ktime_t time)
 	case DPU_EVT_ENTER_ULPS:
 	case DPU_EVT_EXIT_ULPS:
 	case DPU_EVT_DSIM_SHUTDOWN:
+	case DPU_EVT_DSIM_PL_FIFO_EMPTY:
+	case DPU_EVT_DSIM_PH_FIFO_EMPTY:
+	case DPU_EVT_DSIM_VT_STATUS:
+	case DPU_EVT_DSIM_UNDER_RUN:
 		dpu_event_log_dsim(type, sd, time);
 		break;
 	case DPU_EVT_DPP_FRAMEDONE:

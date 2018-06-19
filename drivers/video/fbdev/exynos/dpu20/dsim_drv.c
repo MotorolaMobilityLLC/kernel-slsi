@@ -473,8 +473,11 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 	if (int_src & DSIM_INTSRC_SFR_PH_FIFO_EMPTY) {
 		del_timer(&dsim->cmd_timer);
 		complete(&dsim->ph_wr_comp);
+		DPU_EVENT_LOG(DPU_EVT_DSIM_PH_FIFO_EMPTY, &dsim->sd, ktime_set(0, 0));
 		dsim_dbg("dsim%d PH_FIFO_EMPTY irq occurs\n", dsim->id);
 	}
+	if (int_src & DSIM_INTSRC_SFR_PL_FIFO_EMPTY)
+		DPU_EVENT_LOG(DPU_EVT_DSIM_PL_FIFO_EMPTY, &dsim->sd, ktime_set(0, 0));
 	if (int_src & DSIM_INTSRC_RX_DATA_DONE)
 		complete(&dsim->rd_comp);
 	if (int_src & DSIM_INTSRC_FRAME_DONE)
@@ -484,9 +487,12 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 
 	if (int_src & DSIM_INTSRC_UNDER_RUN) {
 		dsim->total_underrun_cnt++;
+		DPU_EVENT_LOG(DPU_EVT_DSIM_UNDER_RUN, &dsim->sd, ktime_set(0, 0));
 		dsim_info("dsim%d underrun irq occurs(%d)\n", dsim->id,
 				dsim->total_underrun_cnt);
 		dsim_underrun_info(dsim);
+		if (dsim->lcd_info.mode == DECON_VIDEO_MODE)
+			__dsim_dump(dsim);
 	}
 	if (int_src & DSIM_INTSRC_VT_STATUS) {
 		dsim_dbg("dsim%d vt_status(vsync) irq occurs\n", dsim->id);
