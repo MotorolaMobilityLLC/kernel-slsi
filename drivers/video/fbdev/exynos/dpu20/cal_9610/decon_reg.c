@@ -1761,16 +1761,13 @@ int decon_reg_init(u32 id, u32 dsi_idx, struct decon_param *p)
 
 	decon_reg_set_scaled_image_size(id, psr->dsi_mode, lcd_info);
 
-	if (id == 2) {
-		/* Set a TRIG mode */
-		/* This code is for only DECON 2 s/w trigger mode */
-		decon_reg_configure_trigger(id, psr->trig_mode);
-		decon_reg_configure_lcd(id, p);
-	} else {
-		decon_reg_configure_lcd(id, p);
-		if (psr->psr_mode == DECON_MIPI_COMMAND_MODE)
-			decon_reg_set_trigger(id, psr, DECON_TRIG_DISABLE);
-	}
+	/* Set a TRIG mode */
+	decon_reg_configure_trigger(id, psr->trig_mode);
+
+	decon_reg_configure_lcd(id, p);
+
+	if (psr->psr_mode == DECON_MIPI_COMMAND_MODE)
+		decon_reg_set_trigger(id, psr, DECON_TRIG_DISABLE);
 
 	/* FIXME: DECON_T dedicated to PRE_WB */
 	if (p->psr.out_type == DECON_OUT_WB)

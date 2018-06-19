@@ -12,16 +12,12 @@
 #include "../dsim.h"
 #include "regs-decon.h"
 
-/* dsim version */
-#define DSIM_VER_EVT0			0x02020000
-#define DSIM_VER_EVT1			0x02030000
-
 /* These definitions are need to guide from AP team */
 #define DSIM_STOP_STATE_CNT		0xA
 #define DSIM_BTA_TIMEOUT		0xff
 #define DSIM_LP_RX_TIMEOUT		0xffff
 #define DSIM_MULTI_PACKET_CNT		0xffff
-#define DSIM_PLL_STABLE_TIME		0x682A
+#define DSIM_PLL_STABLE_TIME		0x13880
 #define DSIM_FIFOCTRL_THRESHOLD		0x1 /* 1 ~ 32 */
 
 /* If below values depend on panel. These values wil be move to panel file.
@@ -505,7 +501,7 @@ static void dsim_reg_set_dpdn_swap(u32 id, u32 clk_swap)
 /******************* DSIM CAL functions *************************/
 void dsim_reg_set_ppi(u32 id, enum dsim_ppi ppi)
 {
-	u32 val = (ppi == DSIM_2BYTEPPI) ? ~0 : 0;
+	u32 val = (ppi == DSIM_1BYTEPPI) ? ~0 : 0;
 	u32 mask = DSIM_CSIS_LB_1BYTEPPI_MODE;
 
 	dsim_write_mask(id, DSIM_CSIS_LB, val, mask);
@@ -1430,7 +1426,7 @@ static void dsim_reg_set_config(u32 id, struct decon_lcd *lcd_info,
 		dsim_reg_set_vstatus_int(id, DSIM_VSYNC);
 	}
 
-	dsim_reg_set_ppi(id, DSIM_1BYTEPPI);
+	dsim_reg_set_ppi(id, DSIM_2BYTEPPI);
 	/* dsim_reg_enable_shadow_read(id, 1); */
 	/* dsim_reg_enable_shadow(id, 1); */
 
@@ -1483,6 +1479,7 @@ static int dsim_reg_set_clocks(u32 id, struct dsim_clks *clks,
 		pll.s = dphy_pms->s;
 
 		/* get word clock */
+		dsim_dbg("hs clock is %u MHz\n", clks->hs_clk);
 		/* clks ->hs_clk is from DT */
 		clks->word_clk = clks->hs_clk / 16;
 		dsim_dbg("word clock is %u MHz\n", clks->word_clk);
