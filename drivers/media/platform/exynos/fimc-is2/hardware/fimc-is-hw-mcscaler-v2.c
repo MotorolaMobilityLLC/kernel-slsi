@@ -107,6 +107,9 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 			hw_ip->cur_e_int++;
 		if (hw_ip->cur_e_int >= hw_ip->num_buffers) {
 			fimc_is_hw_mcsc_frame_done(hw_ip, NULL, IS_SHOT_SUCCESS);
+			dbg_isr("[F:%d][S-E] %05llu us\n", hw_ip, hw_fcount,
+				(hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_END] -
+				hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_START]) / 1000);
 
 			if (!atomic_read(&hardware->streaming[hardware->sensor_position[instance]]))
 				sinfo_hw("[F:%d]F.E\n", hw_ip, hw_fcount);
