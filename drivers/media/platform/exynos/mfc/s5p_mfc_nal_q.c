@@ -917,7 +917,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, EncoderOutput
 	}
 
 	for (i = 0; i < raw->num_planes; i++)
-		mfc_debug(2, "NAL Q: encoded[%d] addr: 0x%08llx\n", i, enc_addr[i]);
+		mfc_debug(2, "NAL Q:[FRAME] encoded[%d] addr: 0x%08llx\n", i, enc_addr[i]);
 
 	if (IS_BUFFER_BATCH_MODE(ctx)) {
 		src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
@@ -1128,23 +1128,18 @@ static void mfc_nal_q_handle_ref_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr
 {
 	struct s5p_mfc_dec *dec = ctx->dec_priv;
 	struct s5p_mfc_buf *dst_mb;
-	dma_addr_t dec_addr, buf_addr, disp_addr;
+	dma_addr_t dec_addr;
 	int index = 0;
 
 	mfc_debug_enter();
 
 	dec_addr = pOutStr->DecodedAddr[0];
-	disp_addr = pOutStr->DisplayAddr[0];
-	mfc_debug(2, "NAL Q:[DPB] dec addr: 0x%08llx, disp addr: 0x%08llx\n",
-			dec_addr, disp_addr);
 
 	dst_mb = s5p_mfc_find_move_buf_used(&ctx->buf_queue_lock,
 		&ctx->ref_buf_queue, &ctx->dst_buf_nal_queue, dec_addr);
 	if (dst_mb) {
-		buf_addr = dst_mb->addr[0][0];
-		mfc_debug(2, "NAL Q:[DPB] Found in dst queue, "
-				"dec addr: 0x%08llx, buf addr: 0x%08llx, used: %d\n",
-				dec_addr, buf_addr, dst_mb->used);
+		mfc_debug(2, "NAL Q:[DPB] Found in dst queue = 0x%08llx, buf = 0x%08llx\n",
+				dec_addr, dst_mb->addr[0][0]);
 
 		index = dst_mb->vb.vb2_buf.index;
 		if (!((1 << index) & pOutStr->UsedDpbFlagLower))
@@ -1375,8 +1370,6 @@ static void mfc_nal_q_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err
 	frame_type = pOutStr->DisplayFrameType & S5P_FIMV_DISPLAY_FRAME_MASK;
 	disp_err = s5p_mfc_get_warn(pOutStr->ErrorCode);
 
-	mfc_debug(2, "NAL_Q: frame_type in nal q : %d\n", frame_type);
-
 	ctx->sequence++;
 
 	dspl_y_addr = pOutStr->DisplayAddr[0];
@@ -1385,6 +1378,8 @@ static void mfc_nal_q_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err
 		dspl_y_addr = pOutStr->DecodedAddr[0];
 		frame_type = pOutStr->DecodedFrameType & S5P_FIMV_DECODED_FRAME_MASK;
 	}
+
+	mfc_debug(2, "NAL Q:[FRAME] frame type: %d\n", frame_type);
 
 	/* If frame is same as previous then skip and do not dequeue */
 	if (frame_type == S5P_FIMV_DISPLAY_FRAME_NOT_CODED) {
@@ -1504,10 +1499,18 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 		dst_frame_status = pOutStr->DecodedStatus
 				& S5P_FIMV_DEC_STATUS_DECODED_STATUS_MASK;
 
-	mfc_debug(2, "NAL Q: Frame Status: %x\n", dst_frame_status);
+	mfc_debug(2, "NAL Q:[FRAME] frame status: %d\n", dst_frame_status);
+	mfc_debug(2, "NAL Q:[FRAME] display status: %d, type: %d, yaddr: %#x\n",
+			pOutStr->DisplayStatus & S5P_FIMV_DISP_STATUS_DISPLAY_STATUS_MASK,
+			pOutStr->DisplayFrameType & S5P_FIMV_DISPLAY_FRAME_MASK,
+			pOutStr->DisplayAddr[0]);
+	mfc_debug(2, "NAL Q:[FRAME] decoded status: %d, type: %d, yaddr: %#x\n",
+			pOutStr->DecodedStatus & S5P_FIMV_DEC_STATUS_DECODED_STATUS_MASK,
+			pOutStr->DecodedFrameType & S5P_FIMV_DECODED_FRAME_MASK,
+			pOutStr->DecodedAddr[0]);
 	mfc_debug(4, "NAL Q:[HDR] SEI available status: %x\n", sei_avail_status);
 	mfc_debug(2, "NAL Q:[DPB] Used flag: old = %08x, new = %08x\n",
-				dec->dynamic_used, pOutStr->UsedDpbFlagLower);
+			dec->dynamic_used, pOutStr->UsedDpbFlagLower);
 
 	if (ctx->state == MFCINST_RES_CHANGE_INIT) {
 		mfc_debug(2, "NAL Q:[DRC] return until NAL-Q stopped in try_run\n");

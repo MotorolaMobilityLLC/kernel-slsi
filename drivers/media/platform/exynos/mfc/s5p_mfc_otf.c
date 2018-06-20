@@ -63,6 +63,10 @@ static int mfc_otf_set_buf_info(struct s5p_mfc_ctx *ctx)
 		return -EINVAL;
 	}
 
+	mfc_debug(2, "OTF:[FRAME] resolution w: %d, h: %d, format: %s, bufcnt: %d\n",
+			buf_info->width, buf_info->height,
+			ctx->src_fmt->name, buf_info->buffer_count);
+
 	/* set source information */
 	ctx->raw_buf.num_planes = ctx->src_fmt->num_planes;
 	ctx->img_width = buf_info->width;
@@ -186,9 +190,6 @@ static int mfc_otf_init_hwfc_buf(struct s5p_mfc_ctx *ctx)
 	}
 #endif
 	mfc_debug(2, "OTF: recieved buffer information\n");
-	mfc_debug(2, "OTF: w(%d), h(%d), format(0x%x), bufcnt(%d)\n",
-			buf_info->width, buf_info->height,
-			buf_info->pixel_format,	buf_info->buffer_count);
 
 	/* set buffer information to ctx, and calculate buffer size */
 	if (mfc_otf_set_buf_info(ctx)) {

@@ -45,8 +45,8 @@ void s5p_mfc_otf_set_frame_addr(struct s5p_mfc_ctx *ctx, int num_planes)
 	int i;
 
 	for (i = 0; i < num_planes; i++) {
-		mfc_debug(2, "OTF: set frame buffer[i], 0x%08llx)\n",
-				buf_addr->otf_daddr[index][i]);
+		mfc_debug(2, "OTF:[FRAME] set frame buffer[%d], 0x%08llx)\n",
+				i, buf_addr->otf_daddr[index][i]);
 		MFC_WRITEL(buf_addr->otf_daddr[index][i],
 				S5P_FIMV_E_SOURCE_FIRST_ADDR + (i * 4));
 	}
@@ -117,13 +117,23 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "Total DPB COUNT: %d, display delay: %d\n",
 			dec->total_dpb_count, dec->display_delay);
 
+	/* set decoder DPB size, stride */
 	MFC_WRITEL(dec->total_dpb_count, S5P_FIMV_D_NUM_DPB);
-	mfc_debug(2, "raw->num_planes %d\n", raw->num_planes);
 	for (i = 0; i < raw->num_planes; i++) {
-		mfc_debug(2, "raw->plane_size[%d]= %d\n", i, raw->plane_size[i]);
+		mfc_debug(2, "[FRAME] buf[%d] size: %d, stride: %d\n",
+				i, raw->plane_size[i], raw->stride[i]);
 		MFC_WRITEL(raw->plane_size[i], S5P_FIMV_D_FIRST_PLANE_DPB_SIZE + (i * 4));
+		MFC_WRITEL(ctx->raw_buf.stride[i],
+				S5P_FIMV_D_FIRST_PLANE_DPB_STRIDE_SIZE + (i * 4));
+		if (ctx->is_10bit) {
+			MFC_WRITEL(raw->stride_2bits[i], S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_STRIDE_SIZE + (i * 4));
+			MFC_WRITEL(raw->plane_size_2bits[i], S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_SIZE + (i * 4));
+			mfc_debug(2, "[FRAME][10BIT] 2bits buf[%d] size: %d, stride: %d\n",
+					i, raw->plane_size_2bits[i], raw->stride_2bits[i]);
+		}
 	}
 
+	/* set codec buffers */
 	MFC_WRITEL(buf_addr, S5P_FIMV_D_SCRATCH_BUFFER_ADDR);
 	MFC_WRITEL(ctx->scratch_buf_size, S5P_FIMV_D_SCRATCH_BUFFER_SIZE);
 	buf_addr += ctx->scratch_buf_size;
@@ -171,23 +181,6 @@ int s5p_mfc_set_dec_codec_buffers(struct s5p_mfc_ctx *ctx)
 	}
 
 	MFC_WRITEL(reg, S5P_FIMV_D_INIT_BUFFER_OPTIONS);
-
-	/* set decoder stride size */
-	for (i = 0; i < ctx->raw_buf.num_planes; i++) {
-		MFC_WRITEL(ctx->raw_buf.stride[i],
-			S5P_FIMV_D_FIRST_PLANE_DPB_STRIDE_SIZE + (i * 4));
-		mfc_debug(2, "# plane%d.size = %d, stride = %d\n", i,
-			ctx->raw_buf.plane_size[i], ctx->raw_buf.stride[i]);
-	}
-
-	if (ctx->is_10bit) {
-		for (i = 0; i < ctx->raw_buf.num_planes; i++) {
-			MFC_WRITEL(raw->stride_2bits[i], S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_STRIDE_SIZE + (i * 4));
-			MFC_WRITEL(raw->plane_size_2bits[i], S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_SIZE + (i * 4));
-			mfc_debug(2, "[10BIT] : 2bits plane%d.size = %d, stride = %d\n", i,
-				ctx->raw_buf.plane_size_2bits[i], ctx->raw_buf.stride_2bits[i]);
-		}
-	}
 
 	frame_size_mv = ctx->mv_size;
 	MFC_WRITEL(dec->mv_count, S5P_FIMV_D_NUM_MV);
@@ -538,6 +531,6 @@ void s5p_mfc_set_pixel_format(struct s5p_mfc_dev *dev, unsigned int format)
 	reg |= pix_val;
 	reg |= (mem_type_10bit << 4);
 	MFC_WRITEL(reg, S5P_FIMV_PIXEL_FORMAT);
-	mfc_debug(2, "pixel format: %d, mem_type_10bit for 10bit: %d (reg: %#x)\n",
+	mfc_debug(2, "[FRAME] pixel format: %d, mem_type_10bit for 10bit: %d (reg: %#x)\n",
 			pix_val, mem_type_10bit, reg);
 }

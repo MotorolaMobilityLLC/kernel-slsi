@@ -202,7 +202,7 @@ int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx)
 	reg &= ~(0xF);
 	reg |= pix_val & 0xF;
 	MFC_WRITEL(reg, S5P_FIMV_PIXEL_FORMAT);
-	mfc_debug(2, "pixel format: %d, mem_type_10bit should be fixed on SEQ_START(reg: %#x)\n",
+	mfc_debug(2, "[FRAME] pixel format: %d, mem_type_10bit should be fixed on SEQ_START(reg: %#x)\n",
 			pix_val, reg);
 
 	s5p_mfc_clean_ctx_int_flags(ctx);

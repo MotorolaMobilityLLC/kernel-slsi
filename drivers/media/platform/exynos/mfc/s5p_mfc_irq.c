@@ -387,8 +387,6 @@ static void mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 	frame_type = s5p_mfc_get_disp_frame_type();
 	mvc_view_id = s5p_mfc_get_mvc_disp_view_id();
 
-	mfc_debug(2, "frame_type : %d\n", frame_type);
-
 	if (IS_H264_MVC_DEC(ctx)) {
 		if (mvc_view_id == 0)
 			ctx->sequence++;
@@ -402,6 +400,8 @@ static void mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 		dspl_y_addr = (dma_addr_t)s5p_mfc_get_dec_y_addr();
 		frame_type = s5p_mfc_get_dec_frame_type();
 	}
+
+	mfc_debug(2, "[FRAME] frame type: %d\n", frame_type);
 
 	/* If frame is same as previous then skip and do not dequeue */
 	if (frame_type == S5P_FIMV_DISPLAY_FRAME_NOT_CODED)
@@ -477,12 +477,9 @@ static void mfc_handle_ref_frame(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_dec *dec = ctx->dec_priv;
 	struct s5p_mfc_buf *dst_mb;
-	dma_addr_t dec_addr, disp_addr;
+	dma_addr_t dec_addr;
 
 	dec_addr = (dma_addr_t)s5p_mfc_get_dec_y_addr();
-	disp_addr = (dma_addr_t)s5p_mfc_get_disp_y_addr();
-	mfc_debug(2, "[DPB] dec addr: 0x%08llx, disp addr: 0x%08llx\n",
-			dec_addr, disp_addr);
 
 	/* Try to search decoded address in whole dst queue */
 	dst_mb = s5p_mfc_find_move_buf_used(&ctx->buf_queue_lock,
@@ -607,7 +604,14 @@ static void mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	if (dec->immediate_display == 1)
 		dst_frame_status = s5p_mfc_get_dec_status();
 
-	mfc_debug(2, "Frame Status: %x\n", dst_frame_status);
+	mfc_debug(2, "[FRAME] frame status: %d\n", dst_frame_status);
+	mfc_debug(2, "[FRAME] display status: %d, type: %d, yaddr: %#x\n",
+			s5p_mfc_get_disp_status(), s5p_mfc_get_disp_frame_type(),
+			s5p_mfc_get_disp_y_addr());
+	mfc_debug(2, "[FRAME] decoded status: %d, type: %d, yaddr: %#x\n",
+			s5p_mfc_get_dec_status(), s5p_mfc_get_dec_frame_type(),
+			s5p_mfc_get_dec_y_addr());
+
 	mfc_debug(4, "[HDR] SEI available status: 0x%08x\n", s5p_mfc_get_sei_avail());
 	mfc_debug(4, "[HDR] SEI content light: 0x%08x\n", s5p_mfc_get_sei_content_light());
 	mfc_debug(4, "[HDR] SEI luminance: 0x%08x, 0x%08x white point: 0x%08x\n",
@@ -771,7 +775,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx)
 		goto move_buf;
 	}
 	for (i = 0; i < raw->num_planes; i++)
-		mfc_debug(2, "encoded[%d] addr: 0x%08llx\n", i, enc_addr[i]);
+		mfc_debug(2, "[FRAME] encoded[%d] addr: 0x%08llx\n", i, enc_addr[i]);
 
 	if (IS_BUFFER_BATCH_MODE(ctx)) {
 		src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,

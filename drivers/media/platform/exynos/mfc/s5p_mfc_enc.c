@@ -39,15 +39,15 @@ static struct s5p_mfc_fmt *mfc_enc_find_format(struct s5p_mfc_ctx *ctx,
 	}
 
 	if (!dev->pdata->support_10bit && (fmt->type & MFC_FMT_10BIT)) {
-		mfc_err_ctx("10bit is not supported\n");
+		mfc_err_ctx("[FRAME] 10bit is not supported\n");
 		fmt = NULL;
 	}
 	if (!dev->pdata->support_422 && (fmt->type & MFC_FMT_422)) {
-		mfc_err_ctx("422 is not supported\n");
+		mfc_err_ctx("[FRAME] 422 is not supported\n");
 		fmt = NULL;
 	}
 	if (!dev->pdata->support_rgb && (fmt->type & MFC_FMT_RGB)) {
-		mfc_err_ctx("RGB is not supported\n");
+		mfc_err_ctx("[FRAME] RGB is not supported\n");
 		fmt = NULL;
 	}
 
@@ -202,9 +202,8 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	mfc_debug_enter();
 
-	mfc_debug(2, "f->type = %d ctx->state = %d\n", f->type, ctx->state);
-
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		mfc_debug(4, "enc dst g_fmt\n");
 		/* This is run on output (encoder dest) */
 		pix_fmt_mp->width = 0;
 		pix_fmt_mp->height = 0;
@@ -215,6 +214,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		pix_fmt_mp->plane_fmt[0].bytesperline = enc->dst_buf_size;
 		pix_fmt_mp->plane_fmt[0].sizeimage = enc->dst_buf_size;
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src g_fmt\n");
 		/* This is run on capture (encoder src) */
 		raw = &ctx->raw_buf;
 
@@ -260,13 +260,13 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	case V4L2_PIX_FMT_NV61M_S10B:
 	case V4L2_PIX_FMT_NV16M_P210:
 	case V4L2_PIX_FMT_NV61M_P210:
-		mfc_debug(2, "[10BIT] is 422 and 10bit format\n");
+		mfc_debug(2, "[FRAME][10BIT] is 422 and 10bit format\n");
 		ctx->is_10bit = 1;
 		ctx->is_422 = 1;
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
-		mfc_debug(2, "is 422 format\n");
+		mfc_debug(2, "[FRAME] is 422 format\n");
 		ctx->is_10bit = 0;
 		ctx->is_422 = 1;
 		break;
@@ -274,7 +274,7 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV21M_P010:
-		mfc_debug(2, "[10BIT] is 10bit format\n");
+		mfc_debug(2, "[FRAME][10BIT] is 10bit format\n");
 		ctx->is_10bit = 1;
 		ctx->is_422 = 0;
 		break;
@@ -283,7 +283,7 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 		ctx->is_422 = 0;
 		break;
 	}
-	mfc_debug(2, "10bit: %d, 422: %d\n", ctx->is_10bit, ctx->is_422);
+	mfc_debug(2, "[FRAME] 10bit: %d, 422: %d\n", ctx->is_10bit, ctx->is_422);
 }
 
 static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
@@ -416,7 +416,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	}
 
 	if (ctx->src_fmt->mem_planes != pix_fmt_mp->num_planes) {
-		mfc_err_ctx("plane number is different (%d != %d)\n",
+		mfc_err_ctx("[FRAME] enc src plane number is different (%d != %d)\n",
 				ctx->src_fmt->mem_planes, pix_fmt_mp->num_planes);
 		return -EINVAL;
 	}
@@ -433,8 +433,8 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		mfc_info_ctx("[DRC] Enc resolution is changed\n");
 	}
 
-	mfc_info_ctx("Enc input pixelformat : %s\n", ctx->src_fmt->name);
-	mfc_info_ctx("fmt - w: %d, h: %d, stride: %d\n",
+	mfc_info_ctx("[FRAME] enc src pixelformat : %s\n", ctx->src_fmt->name);
+	mfc_info_ctx("[FRAME] resolution w: %d, h: %d, stride: %d\n",
 			pix_fmt_mp->width, pix_fmt_mp->height, ctx->buf_stride);
 
 	/*
@@ -462,7 +462,7 @@ static int vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 	cr->c.width = ctx->crop_width;
 	cr->c.height = ctx->crop_height;
 
-	mfc_debug(3, "enc crop w: %d, h: %d, offset l: %d t: %d\n",
+	mfc_debug(2, "[FRAME] enc crop w: %d, h: %d, offset l: %d t: %d\n",
 			ctx->crop_width, ctx->crop_height, ctx->crop_left, ctx->crop_top);
 
 	mfc_debug_leave();
@@ -482,7 +482,7 @@ static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *
 	}
 
 	if (cr->c.left < 0 || cr->c.top < 0) {
-		mfc_err_ctx("crop position is negative\n");
+		mfc_err_ctx("[FRAME] crop position is negative\n");
 		return -EINVAL;
 	}
 
@@ -490,7 +490,7 @@ static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *
 			(cr->c.width > ctx->img_width) || (cr->c.left > ctx->img_width) ||
 			(cr->c.left <= (ctx->img_width - cr->c.width)) ||
 			(cr->c.top <= (ctx->img_height - cr->c.height))) {
-		mfc_err_ctx("Out of crop range: (%d,%d,%d,%d) from %dx%d\n",
+		mfc_err_ctx("[FRAME] Out of crop range: (%d,%d,%d,%d) from %dx%d\n",
 				cr->c.left, cr->c.top, cr->c.width, cr->c.height,
 				ctx->img_width, ctx->img_height);
 		return -EINVAL;
@@ -501,7 +501,7 @@ static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *
 	ctx->crop_height = cr->c.height;
 	ctx->crop_width = cr->c.width;
 
-	mfc_debug(3, "enc original: %dx%d, crop: %dx%d, offset l: %d t: %d\n",
+	mfc_debug(3, "[FRAME] enc original: %dx%d, crop: %dx%d, offset l: %d t: %d\n",
 			ctx->img_width, ctx->img_height,
 			ctx->crop_width, ctx->crop_height,
 			ctx->crop_left, ctx->crop_top);
@@ -517,8 +517,6 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 	mfc_debug_enter();
 
-	mfc_debug(2, "type: %d\n", reqbufs->memory);
-
 	if (reqbufs->memory == V4L2_MEMORY_MMAP) {
 		mfc_err_ctx("Not supported memory type (%d).\n", reqbufs->memory);
 		return -EINVAL;
@@ -530,8 +528,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	}
 
 	if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		mfc_debug(4, "enc dst reqbuf(%d)\n", reqbufs->count);
 		if (reqbufs->count == 0) {
-			mfc_debug(2, "Freeing buffers.\n");
 			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
 			ctx->capture_state = QUEUE_FREE;
 			return ret;
@@ -550,8 +548,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 		ctx->capture_state = QUEUE_BUFS_REQUESTED;
 	} else if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src reqbuf(%d)\n", reqbufs->count);
 		if (reqbufs->count == 0) {
-			mfc_debug(2, "Freeing buffers.\n");
 			ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
 			ctx->output_state = QUEUE_FREE;
 			return ret;
@@ -592,14 +590,15 @@ static int vidioc_querybuf(struct file *file, void *priv,
 		return 0;
 	}
 
-	mfc_debug(2, "state: %d, buf->type: %d\n", ctx->state, buf->type);
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		mfc_debug(4, "enc dst querybuf, state: %d\n", ctx->state);
 		ret = vb2_querybuf(&ctx->vq_dst, buf);
 		if (ret != 0) {
 			mfc_err_dev("enc dst: error in vb2_querybuf()\n");
 			return ret;
 		}
 	} else if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src querybuf, state: %d\n", ctx->state);
 		ret = vb2_querybuf(&ctx->vq_src, buf);
 		if (ret != 0) {
 			mfc_err_dev("enc src: error in vb2_querybuf()\n");
@@ -628,7 +627,6 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return 0;
 	}
 
-	mfc_debug(2, "Enqueued buf: %d (type = %d)\n", buf->index, buf->type);
 	if (ctx->state == MFCINST_ERROR) {
 		mfc_err_ctx("Call on QBUF after unrecoverable error.\n");
 		return -EIO;
@@ -640,19 +638,21 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	}
 
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src buf[%d] Q\n", buf->index);
 		for (i = 0; i < ctx->src_fmt->num_planes; i++) {
 			if (!buf->m.planes[i].bytesused) {
-				mfc_debug(2, "Src input[%d] size zero, "
+				mfc_debug(2, "[FRAME] enc src[%d] size zero, "
 						"changed to buf size %d\n",
 						i, buf->m.planes[i].length);
 				buf->m.planes[i].bytesused = buf->m.planes[i].length;
 			} else {
-				mfc_debug(2, "Src input[%d] size %d\n",
+				mfc_debug(2, "[FRAME] enc src[%d] size %d\n",
 						i, buf->m.planes[i].bytesused);
 			}
 		}
 		ret = vb2_qbuf(&ctx->vq_src, buf);
 	} else {
+		mfc_debug(4, "enc dst buf[%d] Q\n", buf->index);
 		ret = vb2_qbuf(&ctx->vq_dst, buf);
 	}
 
@@ -673,16 +673,17 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return 0;
 	}
 
-	mfc_debug(2, "Addr: 0x%p 0x%p 0x%p Type: %d\n", &ctx->vq_src, buf, buf->m.planes,
-								buf->type);
 	if (ctx->state == MFCINST_ERROR) {
 		mfc_err_ctx("Call on DQBUF after unrecoverable error.\n");
 		return -EIO;
 	}
-	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src buf[%d] DQ\n", buf->index);
 		ret = vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
-	else
+	} else {
+		mfc_debug(4, "enc dst buf[%d] DQ\n", buf->index);
 		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
+	}
 	mfc_debug_leave();
 	return ret;
 }
@@ -702,14 +703,17 @@ static int vidioc_streamon(struct file *file, void *priv,
 	}
 
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src streamon\n");
 		ret = vb2_streamon(&ctx->vq_src, type);
 
 		if (!ret) {
 			s5p_mfc_qos_on(ctx);
 		}
 	} else {
+		mfc_debug(4, "enc dst streamon\n");
 		ret = vb2_streamon(&ctx->vq_dst, type);
 	}
+
 	mfc_debug(2, "src: %d, dst: %d, state = %d, dpb_count = %d\n",
 		  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
 		  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
@@ -734,16 +738,17 @@ static int vidioc_streamoff(struct file *file, void *priv,
 
 	ret = -EINVAL;
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src streamoff\n");
 		s5p_mfc_qos_reset_last_framerate(ctx);
 
 		ret = vb2_streamoff(&ctx->vq_src, type);
 		if (!ret)
 			s5p_mfc_qos_off(ctx);
 	} else {
+		mfc_debug(4, "enc dst streamoff\n");
 		ret = vb2_streamoff(&ctx->vq_dst, type);
 	}
 
-	mfc_debug(2, "streamoff\n");
 	mfc_debug_leave();
 
 	return ret;

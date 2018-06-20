@@ -53,6 +53,7 @@ static int s5p_mfc_enc_queue_setup(struct vb2_queue *vq,
 	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		mfc_debug(4, "enc dst\n");
 		if (ctx->dst_fmt)
 			*plane_count = ctx->dst_fmt->mem_planes;
 		else
@@ -66,6 +67,7 @@ static int s5p_mfc_enc_queue_setup(struct vb2_queue *vq,
 		psize[0] = enc->dst_buf_size;
 		alloc_devs[0] = dev->device;
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_debug(4, "enc src\n");
 		raw = &ctx->raw_buf;
 
 		if (ctx->src_fmt)
@@ -92,9 +94,10 @@ static int s5p_mfc_enc_queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 	}
 
-	mfc_debug(2, "buf_count: %d, plane_count: %d\n", *buf_count, *plane_count);
+	mfc_debug(2, "buf_count: %d, plane_count: %d, type: %#x\n",
+			*buf_count, *plane_count, vq->type);
 	for (i = 0; i < *plane_count; i++)
-		mfc_debug(2, "plane[%d] size=%d\n", i, psize[i]);
+		mfc_debug(2, "plane[%d] size: %d\n", i, psize[i]);
 
 	mfc_debug_leave();
 
@@ -162,6 +165,7 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 	struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
 	struct dma_buf *dmabuf[MFC_MAX_PLANES];
 	int i, mem_get_count = 0;
+	size_t buf_size;
 
 	mfc_debug_enter();
 
@@ -178,20 +182,22 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		raw = &ctx->raw_buf;
 		if (ctx->src_fmt->mem_planes == 1) {
-			mfc_debug(2, "Plane size = %lu, src size:%d\n",
-					vb2_plane_size(vb, 0),
-					raw->total_plane_size);
-			if (vb2_plane_size(vb, 0) < raw->total_plane_size) {
-				mfc_err_ctx("Output plane is too small\n");
+			buf_size = vb2_plane_size(vb, 0);
+			mfc_debug(2, "[FRAME] single plane vb size: %lu, calc size: %d\n",
+					buf_size, raw->total_plane_size);
+			if (buf_size < raw->total_plane_size) {
+				mfc_err_ctx("[FRAME] single plane size(%d) is smaller than (%d)\n",
+						buf_size, raw->total_plane_size);
 				return -EINVAL;
 			}
 		} else {
 			for (i = 0; i < ctx->src_fmt->mem_planes; i++) {
-				mfc_debug(2, "plane[%d] size: %lu, src[%d] size: %d\n",
-						i, vb2_plane_size(vb, i),
-						i, raw->plane_size[i]);
-				if (vb2_plane_size(vb, i) < raw->plane_size[i]) {
-					mfc_err_ctx("Output plane[%d] is too smalli\n", i);
+				buf_size = vb2_plane_size(vb, i);
+				mfc_debug(2, "[FRAME] plane[%d] vb size: %lu, calc size: %d\n",
+						i, buf_size, raw->plane_size[i]);
+				if (buf_size < raw->plane_size[i]) {
+					mfc_err_ctx("[FRAME] plane[%d] size(%d) is smaller than (%d)\n",
+							i, buf_size, raw->plane_size[i]);
 					return -EINVAL;
 				}
 			}
@@ -423,6 +429,7 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 	struct s5p_mfc_ctx *ctx = vq->drv_priv;
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
+	int i;
 
 	mfc_debug_enter();
 
@@ -430,12 +437,15 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 	buf->done_index = 0;
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		mfc_debug(2, "dst queue: 0x%p\n", &ctx->dst_buf_queue);
-		mfc_debug(2, "Adding to dst vb: 0x%p, addr: %08llx\n", vb, buf->addr[0][0]);
+		mfc_debug(2, "Adding to dst index[%d] 0x%08llx\n",
+				vb->index, buf->addr[0][0]);
 
 		/* Mark destination as available for use by MFC */
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, buf);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		for (i = 0; i < ctx->src_fmt->mem_planes; i++)
+			mfc_debug(2, "[FRAME] Adding to src index[%d] plane[%d] 0x%08llx\n",
+					vb->index, i, buf->addr[0][i]);
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
 
 		if (debug_ts == 1)

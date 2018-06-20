@@ -280,7 +280,7 @@ void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
 
 	for (i = 0; i < raw->num_planes; i++) {
 		if (raw->plane_size[i] < ctx->min_dpb_size[i]) {
-			mfc_info_dev("plane[%d] size is changed %d -> %d\n",
+			mfc_info_dev("[FRAME] plane[%d] size is changed %d -> %d\n",
 					i, raw->plane_size[i], ctx->min_dpb_size[i]);
 			raw->plane_size[i] = ctx->min_dpb_size[i];
 		}
@@ -288,18 +288,18 @@ void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
 
 	for (i = 0; i < raw->num_planes; i++) {
 		raw->total_plane_size += raw->plane_size[i];
-		mfc_debug(2, "Plane[%d] size = %d, stride = %d\n",
+		mfc_debug(2, "[FRAME] Plane[%d] size = %d, stride = %d\n",
 			i, raw->plane_size[i], raw->stride[i]);
 	}
 	if (ctx->is_10bit) {
 		for (i = 0; i < raw->num_planes; i++) {
 			raw->total_plane_size += raw->plane_size_2bits[i];
-			mfc_debug(2, "[10BIT] Plane[%d] 2bit size = %d, stride = %d\n",
+			mfc_debug(2, "[FRAME][10BIT] Plane[%d] 2bit size = %d, stride = %d\n",
 					i, raw->plane_size_2bits[i],
 					raw->stride_2bits[i]);
 		}
 	}
-	mfc_debug(2, "total plane size: %d\n", raw->total_plane_size);
+	mfc_debug(2, "[FRAME] total plane size: %d\n", raw->total_plane_size);
 
 	if (IS_H264_DEC(ctx) || IS_H264_MVC_DEC(ctx)) {
 		ctx->mv_size = DEC_MV_SIZE_MB(ctx->img_width, ctx->img_height);
@@ -390,18 +390,19 @@ void s5p_mfc_enc_calc_src_size(struct s5p_mfc_ctx *ctx)
 
 	for (i = 0; i < raw->num_planes; i++) {
 		raw->total_plane_size += raw->plane_size[i];
-		mfc_debug(2, "Plane[%d] size = %d, stride = %d\n",
+		mfc_debug(2, "[FRAME] Plane[%d] size = %d, stride = %d\n",
 			i, raw->plane_size[i], raw->stride[i]);
 	}
 	if (ctx->is_10bit) {
 		for (i = 0; i < raw->num_planes; i++) {
 			raw->total_plane_size += raw->plane_size_2bits[i];
-			mfc_debug(2, "[10BIT] Plane[%d] 2bit size = %d, stride = %d\n",
+			mfc_debug(2, "[FRAME][10BIT] Plane[%d] 2bit size = %d, stride = %d\n",
 					i, raw->plane_size_2bits[i],
 					raw->stride_2bits[i]);
 		}
 	}
-	mfc_debug(2, "total plane size: %d\n", raw->total_plane_size);
+
+	mfc_debug(2, "[FRAME] total plane size: %d\n", raw->total_plane_size);
 }
 
 void s5p_mfc_cleanup_assigned_dpb(struct s5p_mfc_ctx *ctx)
