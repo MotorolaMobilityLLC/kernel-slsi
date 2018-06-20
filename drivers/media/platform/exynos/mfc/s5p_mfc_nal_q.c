@@ -80,7 +80,7 @@ int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 					return 0;
 				}
 				if ((dec->has_multiframe && CODEC_MULTIFRAME(temp_ctx)) || dec->consumed) {
-					mfc_debug(2, "There is a multi frame or consumed header.\n");
+					mfc_debug(2, "[MULTIFRAME] There is a multi frame or consumed header\n");
 					return 0;
 				}
 				if (dec->is_dpb_full) {
@@ -1439,7 +1439,7 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 
 	/* Check multi-frame */
 	consumed = pOutStr->DecodedNalSize;
-	src_mb = s5p_mfc_get_del_if_consumed(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue,
+	src_mb = s5p_mfc_get_del_if_consumed(ctx, &ctx->src_buf_nal_queue,
 			consumed, STUFF_BYTE, err, &deleted);
 	if (!src_mb) {
 		mfc_err_dev("no src buffers.\n");
@@ -1452,7 +1452,7 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 
 	if (!deleted) {
 		/* Run MFC again on the same buffer */
-		mfc_debug(2, "NAL Q: Running again the same buffer.\n");
+		mfc_debug(2, "NAL Q:[MULTIFRAME] Running again the same buffer.\n");
 
 		if (CODEC_MULTIFRAME(ctx))
 			dec->y_addr_for_pb = (dma_addr_t)pOutStr->DecodedAddr[0];
@@ -1539,10 +1539,10 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 		goto leave_handle_frame;
 	}
 	if (need_empty_dpb) {
-		mfc_debug(2, "NAL Q: There is multi-frame. consumed:%ld\n", dec->consumed);
+		mfc_debug(2, "NAL Q:[MULTIFRAME] There is multi-frame. consumed:%ld\n", dec->consumed);
 		dec->has_multiframe = 1;
 		dev->nal_q_handle->nal_q_exception = 1;
-		mfc_info_ctx("NAL Q: nal_q_exception is set (multi-frame)\n");
+		mfc_info_ctx("NAL Q:[MULTIFRAME] nal_q_exception is set\n");
 		goto leave_handle_frame;
 	}
 	if (need_dpb_change || need_scratch_change) {

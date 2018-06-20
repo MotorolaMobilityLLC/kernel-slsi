@@ -111,7 +111,7 @@ struct s5p_mfc_buf *s5p_mfc_get_buf(spinlock_t *plock, struct s5p_mfc_buf_queue 
 		enum s5p_mfc_queue_used_type used);
 struct s5p_mfc_buf *s5p_mfc_get_del_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
 		enum s5p_mfc_queue_used_type used);
-struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf_queue *queue,
 		unsigned long consumed, unsigned int min_bytes, int err, int *deleted);
 struct s5p_mfc_buf *s5p_mfc_get_move_buf(spinlock_t *plock,
 		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,

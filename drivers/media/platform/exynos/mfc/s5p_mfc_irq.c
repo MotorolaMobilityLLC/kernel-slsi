@@ -543,8 +543,8 @@ static void mfc_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int err)
 	}
 
 	/* Get the source buffer */
-	src_mb = s5p_mfc_get_del_if_consumed(&ctx->buf_queue_lock, &ctx->src_buf_queue,
-			consumed, STUFF_BYTE, err, &deleted);
+	src_mb = s5p_mfc_get_del_if_consumed(ctx, &ctx->src_buf_queue,
+			s5p_mfc_get_consumed_stream(), STUFF_BYTE, err, &deleted);
 	if (!src_mb) {
 		mfc_err_dev("no src buffers.\n");
 		return;
@@ -556,7 +556,7 @@ static void mfc_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int err)
 
 	if (!deleted) {
 		/* Run MFC again on the same buffer */
-		mfc_debug(2, "Running again the same buffer.\n");
+		mfc_debug(2, "[MULTIFRAME] Running again the same buffer\n");
 
 		if (CODEC_MULTIFRAME(ctx))
 			dec->y_addr_for_pb = (dma_addr_t)s5p_mfc_get_dec_y_addr();

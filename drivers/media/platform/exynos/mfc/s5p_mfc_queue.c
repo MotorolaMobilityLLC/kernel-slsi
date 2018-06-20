@@ -114,29 +114,32 @@ struct s5p_mfc_buf *s5p_mfc_get_del_buf(spinlock_t *plock, struct s5p_mfc_buf_qu
 	return mfc_buf;
 }
 
-struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf_queue *queue,
 		unsigned long consumed, unsigned int min_bytes, int error, int *deleted)
 {
 	unsigned long flags;
 	struct s5p_mfc_buf *mfc_buf = NULL;
-	unsigned int remained;
+	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	unsigned long remained;
 
-	spin_lock_irqsave(plock, flags);
+	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
 	if (list_empty(&queue->head)) {
 		mfc_debug(2, "queue is empty\n");
-		spin_unlock_irqrestore(plock, flags);
+		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 		return NULL;
 	}
 
 	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
 
-	mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-	mfc_debug(2, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
+	mfc_debug(4, "First plane address: 0x%08llx\n", mfc_buf->addr[0][0]);
 
-	remained = (unsigned int)(mfc_buf->vb.vb2_buf.planes[0].bytesused - consumed);
+	if (dec->remained_size)
+		remained = dec->remained_size - consumed;
+	else
+		remained = mfc_buf->vb.vb2_buf.planes[0].bytesused - consumed;
 
-	mfc_debug(2, "Packed PB test. Total Size: %d, consumed: %ld, remained: %d\n",
+	mfc_debug(2, "[MULTIFRAME] Total Size: %d, consumed: %ld, remained: %ld\n",
 		mfc_buf->vb.vb2_buf.planes[0].bytesused, consumed, remained);
 
 	if ((consumed > 0) && (remained > min_bytes) && (error == 0) &&
@@ -150,7 +153,7 @@ struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(spinlock_t *plock, struct s5p_mf
 		*deleted = 1;
 	}
 
-	spin_unlock_irqrestore(plock, flags);
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 	return mfc_buf;
 }
 
