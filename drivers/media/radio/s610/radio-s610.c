@@ -2034,8 +2034,6 @@ static int s610_radio_probe(struct platform_device *pdev)
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-	pm_runtime_get_sync(dev);
-
 	spin_lock_init(&radio->slock);
 	spin_lock_init(&radio->rds_lock);
 
@@ -2262,11 +2260,6 @@ static int s610_radio_probe(struct platform_device *pdev)
 #endif	/*ENABLE_IF_WORK_QUEUE*/
 #endif	/* RDS_POLLING_ENABLE */
 
-#ifdef USE_AUDIO_PM
-	if (radio->a_dev)
-		pm_runtime_get_sync(radio->a_dev);
-#endif /* USE_AUDIO_PM */
-
 	/* all aux pll off for WIFI/BT */
 	radio->rfchip_ver = S620_REV_0;
 
@@ -2392,13 +2385,6 @@ skip_vol_sel:
 		radio->rssi_adjust= 0;
 	dev_info(radio->dev, "rssi adjust: %d\n", radio->rssi_adjust);
 
-#ifdef USE_AUDIO_PM
-	if (radio->a_dev)
-		pm_runtime_put_sync(radio->a_dev);
-#endif /* USE_AUDIO_PM */
-
-	pm_runtime_put_sync(dev);
-
 	wake_lock_init(&radio->wakelock, WAKE_LOCK_SUSPEND, "fm_wake");
 	wake_lock_init(&radio->rdswakelock, WAKE_LOCK_SUSPEND, "fm_rdswake");
 
@@ -2481,13 +2467,6 @@ static int fm_radio_clk_enable(struct s610_radio *radio)
 		ret = -EIO;
 	}
 
-	if (clk_get_rate(radio->clk_pll) <= AUD_PLL_RATE_HZ_BYPASS) {
-		ret = clk_set_rate(radio->clk_pll, AUD_PLL_RATE_HZ_FOR_48000);
-		if (IS_ERR_VALUE(ret))
-			dev_info(radio->dev, "setting pll clock to 0 is failed: %lu\n", ret);
-		dev_info(radio->dev, "pll clock: %lu\n", clk_get_rate(radio->clk_pll));
-	}
-
 	dev_info(radio->dev, "FM clock: %lu\n", clk_get_rate(radio->clk));
 
 	return ret;
@@ -2544,8 +2523,6 @@ static int fm_radio_suspend(struct device *dev)
 
 	fm_radio_clk_disable(radio);
 
-	pm_runtime_put_sync(radio->dev);
-
 	return 0;
 }
 
@@ -2555,12 +2532,6 @@ static int fm_radio_resume(struct device *dev)
 	int ret = 0;
 
 	FUNC_ENTRY(radio);
-
-	ret = pm_runtime_get_sync(radio->dev);
-	if (ret < 0) {
-		dev_err(dev, "get_sync failed with err %d\n", ret);
-		return ret;
-	}
 
 	ret = fm_radio_clk_enable(radio);
 	if (ret) {
