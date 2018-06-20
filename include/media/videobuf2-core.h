@@ -271,7 +271,10 @@ struct vb2_buffer {
 
 	struct dma_fence	*in_fence;
 	struct dma_fence_cb	fence_cb;
+	struct work_struct	qbuf_work;
 	spinlock_t              fence_cb_lock;
+
+	struct timer_list	fence_timer;
 
 	int			out_fence_fd;
 	struct dma_fence	*out_fence;

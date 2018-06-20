@@ -188,6 +188,7 @@ module_param(debug, int, 0644);
 
 static void __vb2_queue_cancel(struct vb2_queue *q);
 static void __enqueue_in_driver(struct vb2_buffer *vb);
+static void __qbuf_work(struct work_struct *work);
 
 /**
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
@@ -351,6 +352,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 		vb->index = q->num_buffers + buffer;
 		vb->type = q->type;
 		vb->memory = memory;
+		INIT_WORK(&vb->qbuf_work, __qbuf_work);
 		spin_lock_init(&vb->fence_cb_lock);
 		for (plane = 0; plane < num_planes; ++plane) {
 			vb->planes[plane].length = plane_sizes[plane];
@@ -1416,13 +1418,30 @@ static int vb2_start_streaming(struct vb2_queue *q)
 	return ret;
 }
 
+static void __qbuf_work(struct work_struct *work)
+{
+	struct vb2_buffer *vb;
+	struct vb2_queue *q;
+	unsigned long flags;
+
+	vb = container_of(work, struct vb2_buffer, qbuf_work);
+	q = vb->vb2_queue;
+
+	if (q->start_streaming_called)
+		__enqueue_in_driver(vb);
+}
+
 static void vb2_qbuf_fence_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 {
 	struct vb2_buffer *vb = container_of(cb, struct vb2_buffer, fence_cb);
-	struct vb2_queue *q = vb->vb2_queue;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vb->fence_cb_lock, flags);
+	del_timer(&vb->fence_timer);
+	if (!vb->in_fence) {
+		spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
+		return;
+	}
 	/*
 	 * If the fence signals with an error we mark the buffer as such
 	 * and avoid using it by setting it to VB2_BUF_STATE_ERROR and
@@ -1444,8 +1463,48 @@ static void vb2_qbuf_fence_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 	}
 	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
-	if (q->start_streaming_called)
-		__enqueue_in_driver(vb);
+	schedule_work(&vb->qbuf_work);
+}
+
+#define VB2_FENCE_TIMEOUT		(1000)
+static void vb2_fence_timeout_handler(unsigned long arg)
+{
+	struct vb2_buffer *vb = (struct vb2_buffer *)arg;
+	struct vb2_queue *q = vb->vb2_queue;
+	struct dma_fence *fence;
+	unsigned long flags;
+	char name[32];
+
+	pr_err("%s: fence callback is not called during %d ms\n",
+					__func__, VB2_FENCE_TIMEOUT);
+	spin_lock_irqsave(&vb->fence_cb_lock, flags);
+	if (!vb->in_fence) {
+		spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
+		return;
+	}
+
+	fence = vb->in_fence;
+	if (fence) {
+		strlcpy(name, fence->ops->get_driver_name(fence),
+				sizeof(name));
+		pr_err("%s: vb2 in-fence: %s #%d (%s), error: %d\n",
+				__func__, name, fence->seqno,
+				dma_fence_is_signaled(fence) ?
+				"signaled" : "active", fence->error);
+
+		dma_fence_remove_callback(vb->in_fence, &vb->fence_cb);
+		dma_fence_put(fence);
+		vb->in_fence = NULL;
+		vb->state = VB2_BUF_STATE_ERROR;
+	}
+
+	fence = vb->out_fence;
+	if (fence)
+		pr_err("%s: vb2 out-fence: #%d\n", __func__, fence->seqno);
+
+	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
+
+	schedule_work(&vb->qbuf_work);
 }
 
 int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
@@ -1508,6 +1567,11 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 			vb->in_fence = NULL;
 		} else if (ret) {
 			goto unlock;
+		} else {
+			setup_timer(&vb->fence_timer,
+				vb2_fence_timeout_handler, (unsigned long)vb);
+			mod_timer(&vb->fence_timer,
+				jiffies + msecs_to_jiffies(VB2_FENCE_TIMEOUT));
 		}
 	}
 	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
