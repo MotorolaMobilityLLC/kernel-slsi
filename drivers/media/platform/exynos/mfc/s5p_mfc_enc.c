@@ -69,8 +69,10 @@ static int mfc_enc_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *
 	struct v4l2_queryctrl *c;
 
 	c = mfc_enc_get_ctrl(ctrl->id);
-	if (!c)
+	if (!c) {
+		mfc_err_ctx("[CTRLS] not supported control id (%#x)\n", ctrl->id);
 		return -EINVAL;
+	}
 
 	if (ctrl->id == V4L2_CID_MPEG_VIDEO_GOP_SIZE
 	    && ctrl->value > c->maximum) {
@@ -82,7 +84,8 @@ static int mfc_enc_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *
 	if (ctrl->id == V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER) {
 		if ((ctrl->value & ~(1 << 16)) < c->minimum || (ctrl->value & ~(1 << 16)) > c->maximum
 		    || (c->step != 0 && (ctrl->value & ~(1 << 16)) % c->step != 0)) {
-			mfc_err_ctx("Invalid control value for %#x (%#x)\n", ctrl->id, ctrl->value);
+			mfc_err_ctx("[CTRLS][HIERARCHICAL] Invalid control value for %#x (%#x)\n",
+					ctrl->id, ctrl->value);
 			return -ERANGE;
 		} else {
 			return 0;
@@ -91,7 +94,8 @@ static int mfc_enc_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *
 
 	if (ctrl->value < c->minimum || ctrl->value > c->maximum
 	    || (c->step != 0 && ctrl->value % c->step != 0)) {
-		mfc_err_ctx("Invalid control value for %#x (%#x)\n", ctrl->id, ctrl->value);
+		mfc_err_ctx("[CTRLS] Invalid control value for %#x (%#x)\n",
+				ctrl->id, ctrl->value);
 		return -ERANGE;
 	}
 
@@ -761,8 +765,11 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	struct v4l2_queryctrl *c;
 
 	c = mfc_enc_get_ctrl(qc->id);
-	if (!c)
+	if (!c) {
+		mfc_err_dev("[CTRLS] not supported control id (%#x)\n", qc->id);
 		return -EINVAL;
+	}
+
 	*qc = *c;
 	return 0;
 }
@@ -791,6 +798,8 @@ static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_enc))
 		val |= ENC_SET_STATIC_INFO;
+
+	mfc_debug(5, "[CTRLS] ext info val: %#x\n", val);
 
 	return val;
 }
@@ -829,7 +838,7 @@ static int mfc_enc_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 					ctx_ctrl->has_new = 0;
 					ctrl->value = ctx_ctrl->val;
 				} else {
-					mfc_debug(8, "Control value "\
+					mfc_debug(5, "[CTRLS] Control value "\
 							"is not up to date: "\
 							"0x%08x\n", ctrl->id);
 					return -EINVAL;
@@ -868,6 +877,8 @@ static int mfc_enc_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		ret = -EINVAL;
 		break;
 	}
+
+	mfc_debug(5, "[CTRLS] get id: %#x, value: %d\n", ctrl->id, ctrl->value);
 
 	return ret;
 }
@@ -1666,6 +1677,8 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 	int found = 0;
 	int index = 0;
 
+	mfc_debug(5, "[CTRLS] id: %#x, value: %d\n", ctrl->id, ctrl->value);
+
 	switch (ctrl->id) {
 	case V4L2_CID_CACHEABLE:
 		mfc_debug(5, "it is supported only V4L2_MEMORY_MMAP\n");
@@ -1849,7 +1862,8 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 			break;
 		}
 
-		mfc_debug(2, "[%d] id: 0x%08x, value: %d\n", i, ext_ctrl->id, ext_ctrl->value);
+		mfc_debug(5, "[CTRLS][%d] id: %#x, value: %d\n",
+				i, ext_ctrl->id, ext_ctrl->value);
 	}
 
 	return ret;
@@ -1885,7 +1899,8 @@ static int vidioc_s_ext_ctrls(struct file *file, void *priv,
 			break;
 		}
 
-		mfc_debug(2, "[%d] id: 0x%08x, value: %d\n", i, ext_ctrl->id, ext_ctrl->value);
+		mfc_debug(5, "[CTRLS][%d] id: %#x, value: %d\n",
+				i, ext_ctrl->id, ext_ctrl->value);
 	}
 
 	return ret;

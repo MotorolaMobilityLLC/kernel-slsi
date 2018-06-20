@@ -70,12 +70,14 @@ static int mfc_dec_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *
 	struct v4l2_queryctrl *c;
 
 	c = mfc_dec_get_ctrl(ctrl->id);
-	if (!c)
+	if (!c) {
+		mfc_err_ctx("[CTRLS] not supported control id (%#x)\n", ctrl->id);
 		return -EINVAL;
+	}
 
 	if (ctrl->value < c->minimum || ctrl->value > c->maximum
 		|| (c->step != 0 && ctrl->value % c->step != 0)) {
-		mfc_err_ctx("Invalid control value (%#x)\n", ctrl->value);
+		mfc_err_ctx("[CTRLS] Invalid control value (%#x)\n", ctrl->value);
 		return -ERANGE;
 	}
 
@@ -848,8 +850,11 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	struct v4l2_queryctrl *c;
 
 	c = mfc_dec_get_ctrl(qc->id);
-	if (!c)
+	if (!c) {
+		mfc_err_dev("[CTRLS] not supported control id (%#x)\n", qc->id);
 		return -EINVAL;
+	}
+
 	*qc = *c;
 	return 0;
 }
@@ -863,6 +868,8 @@ static int mfc_dec_ext_info(struct s5p_mfc_ctx *ctx)
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->skype))
 		val |= DEC_SET_SKYPE_FLAG;
 
+	mfc_debug(5, "[CTRLS] ext info val: %#x\n", val);
+
 	return val;
 }
 
@@ -874,7 +881,6 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
 	int found = 0;
 
-	mfc_debug_enter();
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
 		return -EINVAL;
@@ -983,7 +989,7 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 					ctx_ctrl->has_new = 0;
 					ctrl->value = ctx_ctrl->val;
 				} else {
-					mfc_debug(8, "Control value "\
+					mfc_debug(5, "[CTRLS] Control value "\
 							"is not up to date: "\
 							"0x%08x\n", ctrl->id);
 					return -EINVAL;
@@ -1001,7 +1007,7 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		break;
 	}
 
-	mfc_debug_leave();
+	mfc_debug(5, "[CTRLS] get id: %#x, value: %d\n", ctrl->id, ctrl->value);
 
 	return 0;
 }
@@ -1047,6 +1053,8 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	ret = mfc_dec_check_ctrl_val(ctx, ctrl);
 	if (ret)
 		return ret;
+
+	mfc_debug(5, "[CTRLS] set id: %#x, value: %d\n", ctrl->id, ctrl->value);
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:
@@ -1215,7 +1223,8 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 			break;
 		}
 
-		mfc_debug(2, "[%d] id: 0x%08x, value: %d\n", i, ext_ctrl->id, ext_ctrl->value);
+		mfc_debug(5, "[CTRLS][%d] id: %#x, value: %d\n",
+				i, ext_ctrl->id, ext_ctrl->value);
 	}
 
 	return ret;

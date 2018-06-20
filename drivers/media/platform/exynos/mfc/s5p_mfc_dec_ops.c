@@ -351,11 +351,6 @@ static int s5p_mfc_dec_cleanup_ctx_ctrls(struct s5p_mfc_ctx *ctx)
 	while (!list_empty(&ctx->ctrls)) {
 		ctx_ctrl = list_entry((&ctx->ctrls)->next,
 				      struct s5p_mfc_ctx_ctrl, list);
-
-		mfc_debug(7, "Cleanup context control "\
-				"id: 0x%08x, type: %d\n",
-				ctx_ctrl->id, ctx_ctrl->type);
-
 		list_del(&ctx_ctrl->list);
 		kfree(ctx_ctrl);
 	}
@@ -392,9 +387,6 @@ static int s5p_mfc_dec_init_ctx_ctrls(struct s5p_mfc_ctx *ctx)
 		ctx_ctrl->val = 0;
 
 		list_add_tail(&ctx_ctrl->list, &ctx->ctrls);
-
-		mfc_debug(7, "Add context control id: 0x%08x, type : %d\n",
-				ctx_ctrl->id, ctx_ctrl->type);
 	}
 
 	return 0;
@@ -407,11 +399,6 @@ static void mfc_dec_remove_buf_ctrls(struct list_head *head)
 	while (!list_empty(head)) {
 		buf_ctrl = list_entry(head->next,
 				struct s5p_mfc_buf_ctrl, list);
-
-		mfc_debug(7, "Cleanup buffer control "\
-				"id: 0x%08x, type: %d\n",
-				buf_ctrl->id, buf_ctrl->type);
-
 		list_del(&buf_ctrl->list);
 		kfree(buf_ctrl);
 	}
@@ -424,10 +411,6 @@ static void s5p_mfc_dec_reset_buf_ctrls(struct list_head *head)
 	struct s5p_mfc_buf_ctrl *buf_ctrl;
 
 	list_for_each_entry(buf_ctrl, head, list) {
-		mfc_debug(8, "Reset buffer control value "\
-				"id: 0x%08x, type: %d\n",
-				buf_ctrl->id, buf_ctrl->type);
-
 		buf_ctrl->has_new = 0;
 		buf_ctrl->val = 0;
 		buf_ctrl->old_val = 0;
@@ -450,9 +433,6 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 
 	if (type & MFC_CTRL_TYPE_SRC) {
 		if (test_bit(index, &ctx->src_ctrls_avail)) {
-			mfc_debug(7, "Source per-buffer control is already "\
-					"initialized [%d]\n", index);
-
 			s5p_mfc_dec_reset_buf_ctrls(&ctx->src_ctrls[index]);
 
 			return 0;
@@ -461,9 +441,6 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 		head = &ctx->src_ctrls[index];
 	} else if (type & MFC_CTRL_TYPE_DST) {
 		if (test_bit(index, &ctx->dst_ctrls_avail)) {
-			mfc_debug(7, "Dest. per-buffer control is already "\
-					"initialized [%d]\n", index);
-
 			s5p_mfc_dec_reset_buf_ctrls(&ctx->dst_ctrls[index]);
 
 			return 0;
@@ -519,9 +496,6 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 		buf_ctrl->flag_shft = mfc_ctrl_list[i].flag_shft;
 
 		list_add_tail(&buf_ctrl->list, head);
-
-		mfc_debug(7, "Add buffer control id: 0x%08x, type : %d\n",\
-				buf_ctrl->id, buf_ctrl->type);
 	}
 
 	s5p_mfc_dec_reset_buf_ctrls(head);
@@ -546,16 +520,12 @@ static int s5p_mfc_dec_cleanup_buf_ctrls(struct s5p_mfc_ctx *ctx,
 
 	if (type & MFC_CTRL_TYPE_SRC) {
 		if (!(test_and_clear_bit(index, &ctx->src_ctrls_avail))) {
-			mfc_debug(7, "Source per-buffer control is "\
-					"not available [%d]\n", index);
 			return 0;
 		}
 
 		head = &ctx->src_ctrls[index];
 	} else if (type & MFC_CTRL_TYPE_DST) {
 		if (!(test_and_clear_bit(index, &ctx->dst_ctrls_avail))) {
-			mfc_debug(7, "Dest. per-buffer Control is "\
-					"not available [%d]\n", index);
 			return 0;
 		}
 
@@ -595,13 +565,6 @@ static int s5p_mfc_dec_to_buf_ctrls(struct s5p_mfc_ctx *ctx, struct list_head *h
 		}
 	}
 
-	list_for_each_entry(buf_ctrl, head, list) {
-		if (buf_ctrl->has_new)
-			mfc_debug(8, "Updated buffer control "\
-					"id: 0x%08x val: %d\n",
-					buf_ctrl->id, buf_ctrl->val);
-	}
-
 	return 0;
 }
 
@@ -619,25 +582,12 @@ static int s5p_mfc_dec_to_ctx_ctrls(struct s5p_mfc_ctx *ctx, struct list_head *h
 				continue;
 
 			if (ctx_ctrl->id == buf_ctrl->id) {
-				if (ctx_ctrl->has_new)
-					mfc_debug(8,
-					"Overwrite context control "\
-					"value id: 0x%08x, val: %d\n",
-						ctx_ctrl->id, ctx_ctrl->val);
-
 				ctx_ctrl->has_new = 1;
 				ctx_ctrl->val = buf_ctrl->val;
 
 				buf_ctrl->has_new = 0;
 			}
 		}
-	}
-
-	list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
-		if (ctx_ctrl->has_new)
-			mfc_debug(8, "Updated context control "\
-					"id: 0x%08x val: %d\n",
-					ctx_ctrl->id, ctx_ctrl->val);
 	}
 
 	return 0;
@@ -679,8 +629,7 @@ static int s5p_mfc_dec_set_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct list_he
 		if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG)
 			dec->stored_tag = buf_ctrl->val;
 
-		mfc_debug(8, "Set buffer control "\
-				"id: 0x%08x val: %d\n",
+		mfc_debug(6, "[CTRLS] Set buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -710,8 +659,8 @@ static int s5p_mfc_dec_get_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct list_he
 			else if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_COLOUR_PRIMARIES)
 				buf_ctrl->val = dec->color_space;
 		}
-		mfc_debug(8, "Get buffer control "\
-				"id: 0x%08x val: %d\n",
+
+		mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -744,7 +693,7 @@ static int s5p_mfc_dec_set_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
 		buf_ctrl->has_new = 0;
 		buf_ctrl->updated = 1;
 
-		mfc_debug(3, "NAL Q: dec_set_buf_ctrls, ctrl id: 0x%x, val: %d\n",
+		mfc_debug(6, "NAL Q:[CTRLS] Set buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -852,7 +801,7 @@ static int s5p_mfc_dec_get_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
 				buf_ctrl->val = dec->color_space;
 		}
 
-		mfc_debug(3, "NAL Q: dec_get_buf_ctrls, ctrl id: 0x%x, val: %d\n",
+		mfc_debug(6, "NAL Q:[CTRLS] Get buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -886,9 +835,7 @@ static int s5p_mfc_dec_recover_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct lis
 		}
 
 		buf_ctrl->updated = 0;
-
-		mfc_debug(8, "Recover buffer control "\
-				"id: 0x%08x old val: %d\n",
+		mfc_debug(6, "[CTRLS] Recover buffer control id: 0x%08x, old val: %d\n",
 				buf_ctrl->id, buf_ctrl->old_val);
 	}
 
@@ -903,7 +850,7 @@ static int s5p_mfc_dec_get_buf_update_val(struct s5p_mfc_ctx *ctx,
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (buf_ctrl->id == id) {
 			buf_ctrl->val = value;
-			mfc_debug(5, "++id: 0x%08x val: %d\n",
+			mfc_debug(6, "[CTRLS] Update buffer control id: 0x%08x, val: %d\n",
 					buf_ctrl->id, buf_ctrl->val);
 			break;
 		}
@@ -924,7 +871,7 @@ static int s5p_mfc_dec_recover_buf_ctrls_nal_q(struct s5p_mfc_ctx *ctx,
 
 		buf_ctrl->has_new = 1;
 		buf_ctrl->updated = 0;
-		mfc_debug(5, "recover has_new, id: 0x%08x val: %d\n",
+		mfc_debug(6, "NAL Q:[CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
