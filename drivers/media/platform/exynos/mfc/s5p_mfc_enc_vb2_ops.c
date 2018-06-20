@@ -170,11 +170,13 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 	mfc_debug_enter();
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		mfc_debug(2, "plane size: %lu, dst size: %u\n",
-			vb2_plane_size(vb, 0), enc->dst_buf_size);
+		buf_size = vb2_plane_size(vb, 0);
+		mfc_debug(2, "[STREAM] vb size: %lu, calc size: %u\n",
+			buf_size, enc->dst_buf_size);
 
-		if (vb2_plane_size(vb, 0) < enc->dst_buf_size) {
-			mfc_err_ctx("plane size is too small for capture\n");
+		if (buf_size < enc->dst_buf_size) {
+			mfc_err_ctx("[STREAM] size(%d) is smaller than (%d)\n",
+					buf_size, enc->dst_buf_size);
 			return -EINVAL;
 		}
 
@@ -437,7 +439,7 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 	buf->done_index = 0;
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		mfc_debug(2, "Adding to dst index[%d] 0x%08llx\n",
+		mfc_debug(2, "[STREAM] Adding to dst index[%d] 0x%08llx\n",
 				vb->index, buf->addr[0][0]);
 
 		/* Mark destination as available for use by MFC */

@@ -65,7 +65,7 @@ void s5p_mfc_otf_set_stream_size(struct s5p_mfc_ctx *ctx, unsigned int size)
 	if (otf_dump && !ctx->is_drm) {
 		buf = &debug->stream_buf[debug->frame_cnt];
 		mfc_debug(2, "OTF: set stream addr for debugging\n");
-		mfc_debug(2, "OTF: buf[%d] daddr: 0x%08llx\n",
+		mfc_debug(2, "OTF:[STREAM] buf[%d] daddr: 0x%08llx\n",
 				debug->frame_cnt, buf->daddr);
 		MFC_WRITEL(buf->daddr, S5P_FIMV_E_STREAM_BUFFER_ADDR);
 	}

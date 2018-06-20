@@ -1033,7 +1033,7 @@ static void mfc_nal_q_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_ty
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
 		break;
 	}
-	mfc_debug(2, "NAL Q: Slice type flag: %d\n", dst_mb->vb.flags);
+	mfc_debug(2, "NAL Q:[STREAM] Slice type flag: %d\n", dst_mb->vb.flags);
 
 	vb2_set_plane_payload(&dst_mb->vb.vb2_buf, 0, strm_size);
 
@@ -1058,9 +1058,8 @@ static void mfc_nal_q_handle_stream(struct s5p_mfc_ctx *ctx, EncoderOutputStr *p
 	strm_size = pOutStr->StreamSize;
 	pic_count = pOutStr->EncCnt;
 
-	mfc_debug(2, "NAL Q: encoded slice type: %d\n", slice_type);
-	mfc_debug(2, "NAL Q: encoded stream size: %d\n", strm_size);
-	mfc_debug(2, "NAL Q: display order: %d\n", pic_count);
+	mfc_debug(2, "NAL Q:[STREAM] encoded slice type: %d, size: %d, display order: %d\n",
+			slice_type, strm_size, pic_count);
 
 	/* buffer full handling */
 	if (ctx->state == MFCINST_RUNNING_BUF_FULL)

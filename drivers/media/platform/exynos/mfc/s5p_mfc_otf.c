@@ -473,8 +473,11 @@ int s5p_mfc_otf_handle_seq(struct s5p_mfc_ctx *ctx)
 	enc->header_size = s5p_mfc_get_enc_strm_size();
 	ctx->dpb_count = s5p_mfc_get_enc_dpb_count();
 	ctx->scratch_buf_size = s5p_mfc_get_enc_scratch_size();
-	mfc_debug(2, "OTF: header size: %d, cpb_count: %d, scratch size: %zu\n",
-			enc->header_size, ctx->dpb_count, ctx->scratch_buf_size);
+	mfc_debug(2, "OTF:[STREAM] encoded slice type: %d, header size: %d, display order: %d\n",
+			s5p_mfc_get_enc_slice_type(), enc->header_size,
+			s5p_mfc_get_enc_pic_count());
+	mfc_debug(2, "OTF: cpb_count: %d, scratch size: %zu\n",
+			ctx->dpb_count, ctx->scratch_buf_size);
 
 	s5p_mfc_change_state(ctx, MFCINST_HEAD_PARSED);
 
@@ -514,9 +517,8 @@ int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx)
 	pic_count = s5p_mfc_get_enc_pic_count();
 	strm_size = s5p_mfc_get_enc_strm_size();
 
-	mfc_debug(2, "OTF: encoded slice type: %d\n", slice_type);
-	mfc_debug(2, "OTF: encoded stream size: %d\n", strm_size);
-	mfc_debug(2, "OTF: display order: %d\n", pic_count);
+	mfc_debug(2, "OTF:[STREAM] encoded slice type: %d, size: %d, display order: %d\n",
+			slice_type, strm_size, pic_count);
 
 	/* set encoded frame type */
 	enc->frame_type = slice_type;

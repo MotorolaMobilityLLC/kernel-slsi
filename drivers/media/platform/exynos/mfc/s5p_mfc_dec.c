@@ -474,7 +474,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	}
 
 	ctx->codec_mode = ctx->src_fmt->codec_mode;
-	mfc_info_ctx("Dec input codec(%d): %s\n",
+	mfc_info_ctx("[STREAM] Dec src codec(%d): %s\n",
 			ctx->codec_mode, ctx->src_fmt->name);
 
 	ctx->pix_format = pix_fmt_mp->pixelformat;
@@ -489,7 +489,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		dec->src_buf_size = pix_fmt_mp->plane_fmt[0].sizeimage;
 	else
 		dec->src_buf_size = MAX_FRAME_SIZE;
-	mfc_debug(2, "sizeimage: %d\n", pix_fmt_mp->plane_fmt[0].sizeimage);
+	mfc_debug(2, "[STREAM] sizeimage: %d\n", pix_fmt_mp->plane_fmt[0].sizeimage);
 	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 
 	MFC_TRACE_CTX_HWLOCK("**DEC s_fmt\n");

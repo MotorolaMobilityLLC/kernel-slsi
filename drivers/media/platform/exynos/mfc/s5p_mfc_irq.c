@@ -894,7 +894,7 @@ static void mfc_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_type,
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
 		break;
 	}
-	mfc_debug(2, "Slice type flag: %d\n", dst_mb->vb.flags);
+	mfc_debug(2, "[STREAM] Slice type flag: %d\n", dst_mb->vb.flags);
 
 	if (IS_BPG_ENC(ctx)) {
 		strm_size += enc->header_size;
@@ -926,9 +926,8 @@ static int mfc_handle_stream(struct s5p_mfc_ctx *ctx)
 	strm_size = s5p_mfc_get_enc_strm_size();
 	pic_count = s5p_mfc_get_enc_pic_count();
 
-	mfc_debug(2, "encoded slice type: %d\n", slice_type);
-	mfc_debug(2, "encoded stream size: %d\n", strm_size);
-	mfc_debug(2, "display order: %d\n", pic_count);
+	mfc_debug(2, "[STREAM] encoded slice type: %d, size: %d, display order: %d\n",
+			slice_type, strm_size, pic_count);
 
 	/* buffer full handling */
 	if (enc->buf_full) {
@@ -1053,7 +1052,7 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 		ctx->img_height = s5p_mfc_get_img_height();
 		ctx->crop_width = ctx->img_width;
 		ctx->crop_height = ctx->img_height;
-		mfc_info_ctx("width: %d, height: %d\n", ctx->img_width, ctx->img_height);
+		mfc_info_ctx("[STREAM] resolution w: %d, h: %d\n", ctx->img_width, ctx->img_height);
 	}
 
 	ctx->dpb_count = s5p_mfc_get_dpb_count();
@@ -1068,7 +1067,7 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 			s5p_mfc_get_chroma_bit_depth_minus8() ||
 			s5p_mfc_get_profile() == S5P_FIMV_D_PROFILE_HEVC_MAIN_10) {
 			ctx->is_10bit = 1;
-			mfc_info_ctx("[10BIT] 10bit contents, profile: %d, depth: %d/%d\n",
+			mfc_info_ctx("[STREAM][10BIT] 10bit contents, profile: %d, depth: %d/%d\n",
 					s5p_mfc_get_profile(),
 					s5p_mfc_get_luma_bit_depth_minus8() + 8,
 					s5p_mfc_get_chroma_bit_depth_minus8() + 8);
@@ -1077,7 +1076,7 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 	if (CODEC_422FORMAT(ctx) && dev->pdata->support_422) {
 		if (s5p_mfc_get_chroma_format() == S5P_FIMV_D_CHROMA_422) {
 			ctx->is_422 = 1;
-			mfc_info_ctx("422 chroma format\n");
+			mfc_info_ctx("[STREAM] 422 chroma format\n");
 		}
 	}
 
@@ -1098,15 +1097,14 @@ static int mfc_handle_seq_dec(struct s5p_mfc_ctx *ctx)
 		struct s5p_mfc_buf *src_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
 		if (src_mb) {
 			dec->consumed += s5p_mfc_get_consumed_stream();
-			mfc_debug(2, "Check consumed size of header. ");
-			mfc_debug(2, "total size : %d, consumed : %lu\n",
+			mfc_debug(2, "[STREAM] header total size : %d, consumed : %lu\n",
 					src_mb->vb.vb2_buf.planes[0].bytesused, dec->consumed);
 			if ((dec->consumed > 0) &&
 					(src_mb->vb.vb2_buf.planes[0].bytesused > dec->consumed)) {
 				dec->remained_size = src_mb->vb.vb2_buf.planes[0].bytesused -
 					dec->consumed;
-				mfc_debug(2, "there is remained bytes after header parsing\n");
-				mfc_debug(2, "remained_size: %lu\n", dec->remained_size);
+				mfc_debug(2, "[STREAM] there is remained bytes(%lu) after header parsing\n",
+						dec->remained_size);
 			} else {
 				dec->consumed = 0;
 				dec->remained_size = 0;
@@ -1134,7 +1132,9 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 	int ret;
 
 	enc->header_size = s5p_mfc_get_enc_strm_size();
-	mfc_debug(2, "seq header size: %d\n", enc->header_size);
+	mfc_debug(2, "[STREAM] encoded slice type: %d, header size: %d, display order: %d\n",
+			s5p_mfc_get_enc_slice_type(), enc->header_size,
+			s5p_mfc_get_enc_pic_count());
 
 	if (IS_BPG_ENC(ctx)) {
 		dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);

@@ -267,11 +267,13 @@ static int s5p_mfc_dec_buf_prepare(struct vb2_buffer *vb)
 			}
 		}
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(2, "Plane size: %lu, dec->src_buf_size: %u\n",
-				vb2_plane_size(vb, 0), dec->src_buf_size);
+		buf_size = vb2_plane_size(vb, 0);
+		mfc_debug(2, "[STREAM] vb size: %lu, calc size: %d\n",
+				buf_size, dec->src_buf_size);
 
-		if (vb2_plane_size(vb, 0) < dec->src_buf_size) {
-			mfc_err_ctx("Plane buffer (OUTPUT) is too small.\n");
+		if (buf_size < dec->src_buf_size) {
+			mfc_err_ctx("[STREAM] size(%d) is smaller than (%d)\n",
+					buf_size, dec->src_buf_size);
 			return -EINVAL;
 		}
 
@@ -579,7 +581,7 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(2, "Adding to src index[%d] 0x%08llx\n",
+		mfc_debug(2, "[STREAM] Adding to src index[%d] 0x%08llx\n",
 				vb->index, buf->addr[0][0]);
 		if (dec->dst_memtype == V4L2_MEMORY_DMABUF &&
 				ctx->state < MFCINST_HEAD_PARSED && !ctx->is_drm)

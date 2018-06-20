@@ -309,8 +309,8 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	}
 
 	ctx->codec_mode = ctx->dst_fmt->codec_mode;
-	mfc_info_ctx("Enc output codec(%d) : %s\n",
-			ctx->dst_fmt->codec_mode, ctx->dst_fmt->name);
+	mfc_info_ctx("[STREAM] Enc dst codec(%d) : %s\n",
+			ctx->codec_mode, ctx->dst_fmt->name);
 
 	if (ctx->otf_handle) {
 		if (ctx->dst_fmt->fourcc != V4L2_PIX_FMT_H264 &&
