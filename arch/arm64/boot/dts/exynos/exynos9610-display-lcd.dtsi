@@ -217,9 +217,9 @@
 		timing,refresh = <60>;
 		timing,h-porch = <20 20 20>;
 		timing,v-porch = <2 20 2>;
-		timing,dsi-hs-clk = <550>;
+		timing,dsi-hs-clk = <1100>;
 		/* TODO : pms value to be set */
-		timing,pmsk = <1 169 3 0>;
+		timing,pmsk = <4 677 2 0>;
 		timing,dsi-escape-clk = <20>;
 		mic_en = <0>;		/* 0: Disable, 1: Enable */
 		mic_ratio = <0>;	/* 0: 1/2 mic, 1: 1/3 mic */
