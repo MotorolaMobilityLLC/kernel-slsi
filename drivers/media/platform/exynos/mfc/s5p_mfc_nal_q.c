@@ -651,10 +651,11 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 			}
 		}
 
+		index = src_mb->vb.vb2_buf.index;
 		for (i = 0; i < raw->num_planes; i++) {
 			src_addr[i] = src_mb->addr[src_mb->next_index][i];
-			mfc_debug(2, "NAL Q: enc batch buf[%d] src[%d] addr: 0x%08llx\n",
-					src_mb->next_index, i, src_addr[i]);
+			mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] set src index:%d, batch[%d], addr[%d]: 0x%08llx\n",
+					ctx->num, index, src_mb->next_index, i, src_addr[i]);
 		}
 		src_mb->next_index++;
 	} else {
@@ -667,10 +668,11 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 			return -EAGAIN;
 		}
 
+		index = src_mb->vb.vb2_buf.index;
 		for (i = 0; i < raw->num_planes; i++) {
 			src_addr[i] = src_mb->addr[0][i];
-			mfc_debug(2, "NAL Q: enc src[%d] addr: 0x%08llx\n",
-					i, src_addr[i]);
+			mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] set src index:%d, addr[%d]: 0x%08llx\n",
+					ctx->num, index, i, src_addr[i]);
 		}
 	}
 
@@ -682,15 +684,21 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 		addr_2bit[0] = src_addr[0] + NV12N_Y_SIZE(ctx->img_width, ctx->img_height);
 		addr_2bit[1] = src_addr[1] + NV12N_CBCR_SIZE(ctx->img_width, ctx->img_height);
 
-		for (i = 0; i < raw->num_planes; i++)
+		for (i = 0; i < raw->num_planes; i++) {
 			pInStr->Frame2bitAddr[i] = addr_2bit[i];
+			mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] set src 2bit addr[%d]: 0x%08llx\n",
+					ctx->num, index, i, addr_2bit[i]);
+		}
 	} else if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV16M_S10B ||
 		ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV61M_S10B) {
 		addr_2bit[0] = src_addr[0] + NV16M_Y_SIZE(ctx->img_width, ctx->img_height);
 		addr_2bit[1] = src_addr[1] + NV16M_CBCR_SIZE(ctx->img_width, ctx->img_height);
 
-		for (i = 0; i < raw->num_planes; i++)
+		for (i = 0; i < raw->num_planes; i++) {
 			pInStr->Frame2bitAddr[i] = addr_2bit[i];
+			mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] set src 2bit addr[%d]: 0x%08llx\n",
+					ctx->num, index, i, addr_2bit[i]);
+		}
 	}
 
 	/* move dst_queue -> dst_queue_nal_q */
@@ -705,12 +713,11 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 	pInStr->StreamBufferSize = (unsigned int)vb2_plane_size(&dst_mb->vb.vb2_buf, 0);
 	pInStr->StreamBufferSize = ALIGN(pInStr->StreamBufferSize, 512);
 
-	mfc_debug(2, "NAL Q: enc dst addr: 0x%x\n", pInStr->StreamBufferAddr);
-
-	index = src_mb->vb.vb2_buf.index;
 	if (call_cop(ctx, set_buf_ctrls_val_nal_q_enc, ctx, &ctx->src_ctrls[index], pInStr) < 0)
 		mfc_err_ctx("NAL Q: failed in set_buf_ctrals_val in nal q\n");
 
+	mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] set dst index: %d, addr: 0x%08llx\n",
+			ctx->num, dst_mb->vb.vb2_buf.index, pInStr->StreamBufferAddr);
 	mfc_debug(2, "NAL Q: input queue, src_buf_queue -> src_buf_nal_queue, index:%d\n",
 			src_mb->vb.vb2_buf.index);
 	mfc_debug(2, "NAL Q: input queue, dst_buf_queue -> dst_buf_nal_queue, index:%d\n",
@@ -786,10 +793,10 @@ static int mfc_nal_q_run_in_buf_dec(struct s5p_mfc_ctx *ctx, DecoderInputStr *pI
 	}
 
 	/* src buffer setting */
+	src_index = src_mb->vb.vb2_buf.index;
 	buf_addr = src_mb->addr[0][0];
 	strm_size = src_mb->vb.vb2_buf.planes[0].bytesused;
 	cpb_buf_size = ALIGN(dec->src_buf_size, STREAM_BUF_ALIGN);
-	mfc_debug(2, "NAL Q: Src addr: 0x%08llx, size: %d\n", buf_addr, strm_size);
 
 	if (strm_size > set_strm_size_max(cpb_buf_size)) {
 		mfc_info_ctx("NAL Q: Decrease strm_size : %u -> %u, gap : %d\n",
@@ -797,6 +804,11 @@ static int mfc_nal_q_run_in_buf_dec(struct s5p_mfc_ctx *ctx, DecoderInputStr *pI
 		strm_size = set_strm_size_max(cpb_buf_size);
 		src_mb->vb.vb2_buf.planes[0].bytesused = strm_size;
 	}
+
+	mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] set src index: %d, addr: 0x%08llx\n",
+			ctx->num, src_index, buf_addr);
+	mfc_debug(2, "NAL Q:[STREAM] strm_size: %#lx(%d), buf_size: %u\n",
+			strm_size, strm_size, cpb_buf_size);
 
 	if (strm_size == 0)
 		mfc_info_ctx("stream size is 0\n");
@@ -807,9 +819,7 @@ static int mfc_nal_q_run_in_buf_dec(struct s5p_mfc_ctx *ctx, DecoderInputStr *pI
 	pInStr->CpbBufferOffset = 0;
 
 	MFC_TRACE_CTX("Set src[%d] fd: %d, %#llx\n",
-			src_mb->vb.vb2_buf.index,
-			src_mb->vb.vb2_buf.planes[0].m.fd,
-			buf_addr);
+			src_index, src_mb->vb.vb2_buf.planes[0].m.fd, buf_addr);
 
 	/* dst buffer setting */
 	dst_index = dst_mb->vb.vb2_buf.index;
@@ -821,14 +831,13 @@ static int mfc_nal_q_run_in_buf_dec(struct s5p_mfc_ctx *ctx, DecoderInputStr *pI
 		pInStr->FrameAddr[i] = dst_mb->addr[0][i];
 		if (ctx->is_10bit)
 			pInStr->Frame2BitSize[i] = raw->plane_size_2bits[i];
-		mfc_debug(2, "NAL Q:[DPB] Dst buf[%d] plane[%d] addr 0x%08llx\n",
-				dst_index, i, dst_mb->addr[0][i]);
+		mfc_debug(2, "NAL Q:[BUFINFO][DPB] ctx[%d] set dst index: %d, addr[%d]: 0x%08llx\n",
+				ctx->num, dst_index, i, dst_mb->addr[0][i]);
 	}
 
 	pInStr->ScratchBufAddr = ctx->codec_buf.daddr;
 	pInStr->ScratchBufSize = ctx->scratch_buf_size;
 
-	src_index = src_mb->vb.vb2_buf.index;
 	if (call_cop(ctx, set_buf_ctrls_val_nal_q_dec, ctx,
 				&ctx->src_ctrls[src_index], pInStr) < 0)
 		mfc_err_ctx("NAL Q: failed in set_buf_ctrls_val\n");
@@ -860,8 +869,8 @@ static void mfc_nal_q_get_enc_frame_buffer(struct s5p_mfc_ctx *ctx,
 	enc_recon_y_addr = pOutStr->ReconLumaDpbAddr;
 	enc_recon_c_addr = pOutStr->ReconChromaDpbAddr;
 
-	mfc_debug(2, "NAL Q: recon y addr: 0x%08lx\n", enc_recon_y_addr);
-	mfc_debug(2, "NAL Q: recon c addr: 0x%08lx\n", enc_recon_c_addr);
+	mfc_debug(2, "NAL Q:[MEMINFO] recon y: 0x%08lx c: 0x%08lx\n",
+			enc_recon_y_addr, enc_recon_c_addr);
 }
 
 static void mfc_nal_q_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *src_mb)
@@ -917,7 +926,8 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, EncoderOutput
 	}
 
 	for (i = 0; i < raw->num_planes; i++)
-		mfc_debug(2, "NAL Q:[FRAME] encoded[%d] addr: 0x%08llx\n", i, enc_addr[i]);
+		mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] get src addr[%d]: 0x%08llx\n",
+				ctx->num, i, enc_addr[i]);
 
 	if (IS_BUFFER_BATCH_MODE(ctx)) {
 		src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
@@ -1014,6 +1024,9 @@ static void mfc_nal_q_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_ty
 		mfc_err_dev("NAL Q: no dst buffers\n");
 		return;
 	}
+
+	mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] get dst addr: 0x%08llx\n",
+			ctx->num, dst_mb->addr[0][0]);
 
 	dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 				V4L2_BUF_FLAG_PFRAME |
@@ -1258,8 +1271,8 @@ static void mfc_nal_q_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 		index = ref_mb->vb.vb2_buf.index;
 
 		/* Check if this is the buffer we're looking for */
-		mfc_debug(2, "NAL Q:[DPB] Found buf[%d] 0x%08llx, looking for disp addr 0x%08llx\n",
-				index, ref_mb->addr[0][0], dspl_y_addr);
+		mfc_debug(2, "NAL Q:[BUFINFO][DPB] ctx[%d] get dst index: %d, addr[0]: 0x%08llx\n",
+				ctx->num, index, ref_mb->addr[0][0]);
 
 		ref_mb->vb.sequence = ctx->sequence;
 
@@ -1433,6 +1446,10 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 		return;
 	}
 
+	index = src_mb->vb.vb2_buf.index;
+	mfc_debug(2, "NAL Q:[BUFINFO] ctx[%d] get src index: %d, addr: 0x%08llx\n",
+			ctx->num, index, src_mb->addr[0][0]);
+
 	if (!deleted) {
 		/* Run MFC again on the same buffer */
 		mfc_debug(2, "NAL Q: Running again the same buffer.\n");
@@ -1452,12 +1469,10 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 		return;
 	}
 
-	index = src_mb->vb.vb2_buf.index;
 	if (call_cop(ctx, get_buf_ctrls_val_nal_q_dec, ctx,
 				&ctx->src_ctrls[index], pOutStr) < 0)
 		mfc_err_ctx("NAL Q: failed in get_buf_ctrls_val\n");
 
-	mfc_debug(2, "NAL Q: MFC needs next buffer.\n");
 	dec->consumed = 0;
 	dec->remained_size = 0;
 

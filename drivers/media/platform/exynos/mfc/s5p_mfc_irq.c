@@ -256,8 +256,8 @@ static void mfc_handle_frame_output_del(struct s5p_mfc_ctx *ctx,
 	if (ref_mb) {
 		index = ref_mb->vb.vb2_buf.index;
 		/* Check if this is the buffer we're looking for */
-		mfc_debug(2, "[DPB] Found buf[%d] 0x%08llx, looking for disp addr 0x%08llx\n",
-				index, ref_mb->addr[0][0], dspl_y_addr);
+		mfc_debug(2, "[BUFINFO][DPB] ctx[%d] get dst index: %d, addr[0]: 0x%08llx\n",
+				ctx->num, index, ref_mb->addr[0][0]);
 
 		ref_mb->vb.sequence = ctx->sequence;
 		ref_mb->vb.field = mfc_handle_frame_field(ctx);
@@ -550,6 +550,10 @@ static void mfc_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int err)
 		return;
 	}
 
+	index = src_mb->vb.vb2_buf.index;
+	mfc_debug(2, "[BUFINFO] ctx[%d] get src index: %d, addr: 0x%08llx\n",
+			ctx->num, index, src_mb->addr[0][0]);
+
 	if (!deleted) {
 		/* Run MFC again on the same buffer */
 		mfc_debug(2, "Running again the same buffer.\n");
@@ -568,11 +572,9 @@ static void mfc_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int err)
 		return;
 	}
 
-	index = src_mb->vb.vb2_buf.index;
 	if (call_cop(ctx, recover_buf_ctrls_val, ctx, &ctx->src_ctrls[index]) < 0)
 		mfc_err_ctx("failed in recover_buf_ctrls_val\n");
 
-	mfc_debug(2, "MFC needs next buffer.\n");
 	dec->consumed = 0;
 	dec->remained_size = 0;
 
@@ -775,7 +777,8 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx)
 		goto move_buf;
 	}
 	for (i = 0; i < raw->num_planes; i++)
-		mfc_debug(2, "[FRAME] encoded[%d] addr: 0x%08llx\n", i, enc_addr[i]);
+		mfc_debug(2, "[BUFINFO] ctx[%d] get src addr[%d]: 0x%08llx\n",
+				ctx->num, i, enc_addr[i]);
 
 	if (IS_BUFFER_BATCH_MODE(ctx)) {
 		src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
@@ -876,6 +879,9 @@ static void mfc_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_type,
 		mfc_err_ctx("no dst buffers.\n");
 		return;
 	}
+
+	mfc_debug(2, "[BUFINFO] ctx[%d] get dst addr: 0x%08llx\n",
+			ctx->num, dst_mb->addr[0][0]);
 
 	dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 				V4L2_BUF_FLAG_PFRAME |

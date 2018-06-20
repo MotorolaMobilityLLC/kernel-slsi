@@ -27,9 +27,6 @@ void s5p_mfc_add_tail_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
 
 	spin_lock_irqsave(plock, flags);
 
-	mfc_debug(2, "queue address: 0x%p\n", queue);
-	mfc_debug(2, "mfc_buf: 0x%p\n", mfc_buf);
-
 	mfc_buf->used = 0;
 	list_add_tail(&mfc_buf->list, &queue->head);
 	queue->count++;

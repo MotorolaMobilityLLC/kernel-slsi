@@ -581,8 +581,8 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(2, "[STREAM] Adding to src index[%d] 0x%08llx\n",
-				vb->index, buf->addr[0][0]);
+		mfc_debug(2, "[BUFINFO] ctx[%d] add src index:%d, addr: 0x%08llx\n",
+				ctx->num, vb->index, buf->addr[0][0]);
 		if (dec->dst_memtype == V4L2_MEMORY_DMABUF &&
 				ctx->state < MFCINST_HEAD_PARSED && !ctx->is_drm)
 			stream_vir = vb2_plane_vaddr(vb, 0);
@@ -595,8 +595,8 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 				vb->index, vb->planes[0].m.fd, buf->addr[0][0]);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		for (i = 0; i < ctx->dst_fmt->mem_planes; i++)
-			mfc_debug(2, "[FRAME] Adding to dst index[%d] plane[%d] 0x%08llx\n",
-					vb->index, i, buf->addr[0][i]);
+			mfc_debug(2, "[BUFINFO] ctx[%d] add dst index: %d, addr[%d]: 0x%08llx\n",
+					ctx->num, vb->index, i, buf->addr[0][i]);
 		s5p_mfc_store_dpb(ctx, vb);
 
 		if ((dec->dst_memtype == V4L2_MEMORY_USERPTR || dec->dst_memtype == V4L2_MEMORY_DMABUF) &&

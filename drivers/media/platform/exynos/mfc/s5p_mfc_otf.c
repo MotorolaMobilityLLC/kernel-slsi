@@ -528,8 +528,8 @@ int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx)
 		s5p_mfc_get_enc_frame_buffer(ctx, &enc_addr[0], raw->num_planes);
 
 		for (i = 0; i < raw->num_planes; i++)
-			mfc_debug(2, "OTF: encoded[%d] addr: 0x%08llx\n",
-						i, enc_addr[i]);
+			mfc_debug(2, "OTF:[BUFINFO] ctx[%d] get src addr[%d]: 0x%08llx\n",
+					ctx->num, i, enc_addr[i]);
 		if (enc_addr[0] !=  buf_addr->otf_daddr[handle->otf_buf_index][0]) {
 			mfc_err_ctx("OTF: address is not matched. 0x%08llx != 0x%08llx\n",
 					enc_addr[0], buf_addr->otf_daddr[handle->otf_buf_index][0]);

@@ -439,15 +439,15 @@ static void s5p_mfc_enc_buf_queue(struct vb2_buffer *vb)
 	buf->done_index = 0;
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		mfc_debug(2, "[STREAM] Adding to dst index[%d] 0x%08llx\n",
-				vb->index, buf->addr[0][0]);
+		mfc_debug(2, "[BUFINFO] ctx[%d] add dst index: %d, addr: 0x%08llx\n",
+				ctx->num, vb->index, buf->addr[0][0]);
 
 		/* Mark destination as available for use by MFC */
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, buf);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		for (i = 0; i < ctx->src_fmt->mem_planes; i++)
-			mfc_debug(2, "[FRAME] Adding to src index[%d] plane[%d] 0x%08llx\n",
-					vb->index, i, buf->addr[0][i]);
+			mfc_debug(2, "[BUFINFO] ctx[%d] add src index: %d, addr[%d]: 0x%08llx\n",
+					ctx->num, vb->index, i, buf->addr[0][i]);
 		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
 
 		if (debug_ts == 1)

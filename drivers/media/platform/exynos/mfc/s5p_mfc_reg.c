@@ -271,6 +271,7 @@ int s5p_mfc_set_dec_stream_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *m
 	struct s5p_mfc_dec *dec;
 	unsigned int cpb_buf_size;
 	dma_addr_t addr;
+	int index = -1;
 
 	mfc_debug_enter();
 	if (!ctx) {
@@ -291,6 +292,7 @@ int s5p_mfc_set_dec_stream_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *m
 	cpb_buf_size = ALIGN(dec->src_buf_size, STREAM_BUF_ALIGN);
 
 	if (mfc_buf) {
+		index = mfc_buf->vb.vb2_buf.index;
 		addr = mfc_buf->addr[0][0];
 		if (strm_size > set_strm_size_max(cpb_buf_size)) {
 			mfc_info_ctx("Decrease strm_size because of %d align: %u -> %u\n",
@@ -302,9 +304,10 @@ int s5p_mfc_set_dec_stream_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *m
 		addr = 0;
 	}
 
-	mfc_debug(2, "inst_no: %d, buf_addr: 0x%08llx\n", ctx->inst_no, addr);
-	mfc_debug(2, "strm_size: %u cpb_buf_size: %u offset: %u\n",
-			strm_size, cpb_buf_size, start_num_byte);
+	mfc_debug(2, "[BUFINFO] ctx[%d] set src index: %d, addr: 0x%08llx\n",
+			ctx->num, index, addr);
+	mfc_debug(2, "[STREAM] strm_size: %#lx(%d), buf_size: %u, offset: %u\n",
+			strm_size, strm_size, cpb_buf_size, start_num_byte);
 
 	if (strm_size == 0)
 		mfc_info_ctx("stream size is 0\n");
@@ -316,9 +319,7 @@ int s5p_mfc_set_dec_stream_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *m
 
 	if (mfc_buf)
 		MFC_TRACE_CTX("Set src[%d] fd: %d, %#llx\n",
-				mfc_buf->vb.vb2_buf.index,
-				mfc_buf->vb.vb2_buf.planes[0].m.fd,
-				addr);
+				index, mfc_buf->vb.vb2_buf.planes[0].m.fd, addr);
 
 	mfc_debug_leave();
 	return 0;
@@ -330,24 +331,26 @@ void s5p_mfc_set_enc_frame_buffer(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_dev *dev = ctx->dev;
 	dma_addr_t addr[3] = { 0, 0, 0 };
 	dma_addr_t addr_2bit[2] = { 0, 0 };
-	int i;
+	int index, i;
 
 	if (!mfc_buf) {
 		mfc_debug(3, "enc zero buffer set\n");
 		goto buffer_set;
 	}
 
+	index = mfc_buf->vb.vb2_buf.index;
 	if (mfc_buf->num_bufs_in_vb > 0) {
 		for (i = 0; i < num_planes; i++) {
 			addr[i] = mfc_buf->addr[mfc_buf->next_index][i];
-			mfc_debug(2, "enc batch buf[%d] src[%d] addr: 0x%08llx\n",
-					mfc_buf->next_index, i, addr[i]);
+			mfc_debug(2, "[BUFINFO] ctx[%d] set src index:%d, batch[%d], addr[%d]: 0x%08llx\n",
+					ctx->num, index, mfc_buf->next_index, i, addr[i]);
 		}
 		mfc_buf->next_index++;
 	} else {
 		for (i = 0; i < num_planes; i++) {
 			addr[i] = mfc_buf->addr[0][i];
-			mfc_debug(2, "enc src[%d] addr: 0x%08llx\n", i, addr[i]);
+			mfc_debug(2, "[BUFINFO] ctx[%d] set src index:%d, addr[%d]: 0x%08llx\n",
+					ctx->num, index, i, addr[i]);
 		}
 	}
 
@@ -360,15 +363,21 @@ buffer_set:
 		addr_2bit[0] = addr[0] + NV12N_10B_Y_8B_SIZE(ctx->img_width, ctx->img_height);
 		addr_2bit[1] = addr[1] + NV12N_10B_CBCR_8B_SIZE(ctx->img_width, ctx->img_height);
 
-		for (i = 0; i < num_planes; i++)
+		for (i = 0; i < num_planes; i++) {
 			MFC_WRITEL(addr_2bit[i], S5P_FIMV_E_SOURCE_FIRST_2BIT_ADDR + (i * 4));
+			mfc_debug(2, "[BUFINFO][10BIT] ctx[%d] set src 2bit addr[%d]: 0x%08llx\n",
+					ctx->num, i, addr_2bit[i]);
+		}
 	} else if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV16M_S10B ||
 		ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV61M_S10B) {
 		addr_2bit[0] = addr[0] + NV16M_Y_SIZE(ctx->img_width, ctx->img_height);
 		addr_2bit[1] = addr[1] + NV16M_CBCR_SIZE(ctx->img_width, ctx->img_height);
 
-		for (i = 0; i < num_planes; i++)
+		for (i = 0; i < num_planes; i++) {
 			MFC_WRITEL(addr_2bit[i], S5P_FIMV_E_SOURCE_FIRST_2BIT_ADDR + (i * 4));
+			mfc_debug(2, "[BUFINFO][10BIT] ctx[%d] set src 2bit addr[%d]: 0x%08llx\n",
+					ctx->num, i, addr_2bit[i]);
+		}
 	}
 }
 
@@ -378,8 +387,9 @@ int s5p_mfc_set_enc_stream_buffer(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	dma_addr_t addr;
-	unsigned int size, offset;
+	unsigned int size, offset, index;
 
+	index = mfc_buf->vb.vb2_buf.index;
 	addr = mfc_buf->addr[0][0];
 	offset = mfc_buf->vb.vb2_buf.planes[0].data_offset;
 	size = (unsigned int)vb2_plane_size(&mfc_buf->vb.vb2_buf, 0);
@@ -389,8 +399,9 @@ int s5p_mfc_set_enc_stream_buffer(struct s5p_mfc_ctx *ctx,
 	MFC_WRITEL(size, S5P_FIMV_E_STREAM_BUFFER_SIZE);
 	MFC_WRITEL(offset, S5P_FIMV_E_STREAM_BUFFER_OFFSET);
 
-	mfc_debug(2, "stream buf addr: 0x%08llx, size: 0x%08x(%d), offset: %d\n",
-				addr, size, size, offset);
+	mfc_debug(2, "[BUFINFO] ctx[%d] set dst index: %d, addr: 0x%08llx\n",
+			ctx->num, index, addr);
+	mfc_debug(2, "[STREAM] buf_size: %u, offset: %d\n", size, offset);
 
 	return 0;
 }
@@ -410,8 +421,8 @@ void s5p_mfc_get_enc_frame_buffer(struct s5p_mfc_ctx *ctx,
 	enc_recon_y_addr = MFC_READL(S5P_FIMV_E_RECON_LUMA_DPB_ADDR);
 	enc_recon_c_addr = MFC_READL(S5P_FIMV_E_RECON_CHROMA_DPB_ADDR);
 
-	mfc_debug(2, "recon y addr: 0x%08lx\n", enc_recon_y_addr);
-	mfc_debug(2, "recon c addr: 0x%08lx\n", enc_recon_c_addr);
+	mfc_debug(2, "[MEMINFO] recon y: 0x%08lx c: 0x%08lx\n",
+			enc_recon_y_addr, enc_recon_c_addr);
 }
 
 void s5p_mfc_set_enc_stride(struct s5p_mfc_ctx *ctx)
@@ -422,8 +433,8 @@ void s5p_mfc_set_enc_stride(struct s5p_mfc_ctx *ctx)
 	for (i = 0; i < ctx->raw_buf.num_planes; i++) {
 		MFC_WRITEL(ctx->raw_buf.stride[i],
 				S5P_FIMV_E_SOURCE_FIRST_STRIDE + (i * 4));
-		mfc_debug(2, "enc src[%d] stride: 0x%08lx\n",
-				i, (unsigned long)ctx->raw_buf.stride[i]);
+		mfc_debug(2, "[FRAME] enc src plane[%d] stride: %d\n",
+				i, ctx->raw_buf.stride[i]);
 	}
 }
 
@@ -465,8 +476,8 @@ int s5p_mfc_set_dynamic_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 		if (ctx->is_10bit)
 			MFC_WRITEL(raw->plane_size_2bits[i],
 					S5P_FIMV_D_FIRST_PLANE_2BIT_DPB_SIZE + (i * 4));
-		mfc_debug(2, "[DPB] Dst buf[%d] plane[%d] addr 0x%08llx\n",
-				dst_index, i, dst_mb->addr[0][i]);
+		mfc_debug(2, "[BUFINFO][DPB] ctx[%d] set dst index: %d, addr[%d]: 0x%08llx\n",
+				ctx->num, dst_index, i, dst_mb->addr[0][i]);
 	}
 
 	MFC_TRACE_CTX("Set dst[%d] fd: %d, %#llx / avail %#lx used %#x\n",
