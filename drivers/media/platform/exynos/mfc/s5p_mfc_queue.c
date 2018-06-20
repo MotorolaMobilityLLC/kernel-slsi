@@ -908,7 +908,7 @@ struct s5p_mfc_buf *s5p_mfc_search_move_dpb_nal_q(struct s5p_mfc_ctx *ctx, unsig
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
-	mfc_debug(2, "NAL Q:[DPB] Try to find non-referenced DPB. dynamic_used: 0x%x\n", dynamic_used);
+	mfc_debug(2, "[NALQ][DPB] Try to find non-referenced DPB. dynamic_used: 0x%x\n", dynamic_used);
 	list_for_each_entry(mfc_buf, &ctx->dst_buf_queue.head, list) {
 		if ((dynamic_used & (1 << mfc_buf->vb.vb2_buf.index)) == 0) {
 			mfc_buf->used = 1;
@@ -927,7 +927,7 @@ struct s5p_mfc_buf *s5p_mfc_search_move_dpb_nal_q(struct s5p_mfc_ctx *ctx, unsig
 	mfc_buf = mfc_check_full_refered_dpb(ctx);
 
 	if (mfc_buf) {
-		mfc_debug(2, "NAL Q:[DPB] DPB is full. stop NAL-Q if started\n");
+		mfc_debug(2, "[NALQ][DPB] DPB is full. stop NAL-Q if started\n");
 		dec->is_dpb_full = 1;
 	}
 
@@ -990,7 +990,7 @@ void s5p_mfc_cleanup_nal_queue(struct s5p_mfc_ctx *ctx)
 
 		/* If it is not buffer batch mode, index is always zero */
 		if (src_mb->next_index > src_mb->done_index) {
-			mfc_debug(2, "NAL Q: batch buf next index[%d] recover to %d\n",
+			mfc_debug(2, "[NALQ] batch buf next index[%d] recover to %d\n",
 					src_mb->next_index, src_mb->done_index);
 			src_mb->next_index = src_mb->done_index;
 		}
@@ -1001,7 +1001,7 @@ void s5p_mfc_cleanup_nal_queue(struct s5p_mfc_ctx *ctx)
 		list_add(&src_mb->list, &ctx->src_buf_queue.head);
 		ctx->src_buf_queue.count++;
 
-		mfc_debug(2, "NAL Q: cleanup, src_buf_nal_queue -> src_buf_queue, index:%d\n",
+		mfc_debug(2, "[NALQ] cleanup, src_buf_nal_queue -> src_buf_queue, index:%d\n",
 				src_mb->vb.vb2_buf.index);
 	}
 
@@ -1017,7 +1017,7 @@ void s5p_mfc_cleanup_nal_queue(struct s5p_mfc_ctx *ctx)
 		list_add(&dst_mb->list, &ctx->dst_buf_queue.head);
 		ctx->dst_buf_queue.count++;
 
-		mfc_debug(2, "NAL Q: cleanup, dst_buf_nal_queue -> dst_buf_queue, index:%d\n",
+		mfc_debug(2, "[NALQ] cleanup, dst_buf_nal_queue -> dst_buf_queue, index:%d\n",
 				dst_mb->vb.vb2_buf.index);
 	}
 

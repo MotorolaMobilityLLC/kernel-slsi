@@ -1307,7 +1307,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 				((temporal_LC.temporal_layer_count > 3) && IS_VP8_ENC(ctx)) ||
 				((temporal_LC.temporal_layer_count > 3) && IS_VP9_ENC(ctx))) {
 				/* claer NUM_T_LAYER_CHANGE */
-				mfc_err_ctx("[HIERARCHICAL] layer count(%d) is invalid\n",
+				mfc_err_ctx("[NALQ][HIERARCHICAL] layer count(%d) is invalid\n",
 						temporal_LC.temporal_layer_count);
 				return 0;
 			}
@@ -1327,7 +1327,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 				pInStr->ParamChange |= (1 << 10);
 			else
 				pInStr->ParamChange &= ~(1 << 10);
-			mfc_debug(3, "[HIERARCHICAL] layer count %d\n",
+			mfc_debug(3, "[NALQ][HIERARCHICAL] layer count %d\n",
 					temporal_LC.temporal_layer_count & 0x7);
 
 			pInStr->NumTLayer &= ~(0x7);
@@ -1335,7 +1335,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 			pInStr->NumTLayer &= ~(0x1 << 8);
 			pInStr->NumTLayer |= (p->hier_bitrate_ctrl & 0x1) << 8;
 			for (i = 0; i < (temporal_LC.temporal_layer_count & 0x7); i++) {
-				mfc_debug(3, "[HIERARCHICAL] layer bitrate[%d] %d (FW ctrl: %d)\n",
+				mfc_debug(3, "[NALQ][HIERARCHICAL] layer bitrate[%d] %d (FW ctrl: %d)\n",
 					i, temporal_LC.temporal_layer_bitrate[i], p->hier_bitrate_ctrl);
 				pInStr->HierarchicalBitRateLayer[i] =
 					temporal_LC.temporal_layer_bitrate[i];
@@ -1351,7 +1351,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 						pInStr->H264HDSvcExtension1 |=
 							((p->codec.h264.base_priority & 0x3f) + i) << (6 * (i - 5));
 				}
-				mfc_debug(3, "NAL-Q:[HIERARCHICAL] EXTENSION0 %#x, EXTENSION1 %#x\n",
+				mfc_debug(3, "[NALQ][HIERARCHICAL] EXTENSION0 %#x, EXTENSION1 %#x\n",
 						pInStr->H264HDSvcExtension0, pInStr->H264HDSvcExtension1);
 
 				pInStr->ParamChange |= (1 << 12);
@@ -1411,7 +1411,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 			pInStr->RcRoiCtrl |=
 				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
 			pInStr->RoiBufferAddr = enc->roi_buf[buf_ctrl->old_val2].daddr;
-			mfc_debug(3, "NAL-Q:[ROI] buffer[%d] addr %#llx, QP val: %#x\n",
+			mfc_debug(3, "[NALQ][ROI] buffer[%d] addr %#llx, QP val: %#x\n",
 					buf_ctrl->old_val2,
 					enc->roi_buf[buf_ctrl->old_val2].daddr,
 					buf_ctrl->val);
@@ -1429,7 +1429,7 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 			break;
 		/* If new dynamic controls are added, insert here */
 		default:
-			mfc_info_ctx("NAL Q: can't find control, id: 0x%x\n",
+			mfc_info_ctx("[NALQ] can't find control, id: 0x%x\n",
 					buf_ctrl->id);
 		}
 
@@ -1439,14 +1439,14 @@ static int s5p_mfc_enc_set_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 		buf_ctrl->has_new = 0;
 		buf_ctrl->updated = 1;
 
-		mfc_debug(6, "NAL Q:[CTRLS] Set buffer control id: 0x%08x, val: %d\n",
+		mfc_debug(6, "[NALQ][CTRLS] Set buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
 	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp) {
 		pInStr->FixedPictureQp &= ~(0xFF000000);
 		pInStr->FixedPictureQp |= (p->config_qp & 0xFF) << 24;
-		mfc_debug(6, "NAL Q:[CTRLS] Dynamic QP changed %#x\n",
+		mfc_debug(6, "[NALQ][CTRLS] Dynamic QP changed %#x\n",
 				pInStr->FixedPictureQp);
 	}
 
@@ -1482,7 +1482,7 @@ static int s5p_mfc_enc_get_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 			break;
 		/* If new dynamic controls are added, insert here */
 		default:
-			mfc_info_ctx("NAL Q: can't find control, id: 0x%x\n",
+			mfc_info_ctx("[NALQ] can't find control, id: 0x%x\n",
 					buf_ctrl->id);
 		}
 		value = (value >> buf_ctrl->shft) & buf_ctrl->mask;
@@ -1490,7 +1490,7 @@ static int s5p_mfc_enc_get_buf_ctrls_val_nal_q_enc(struct s5p_mfc_ctx *ctx,
 		buf_ctrl->val = value;
 		buf_ctrl->has_new = 1;
 
-		mfc_debug(6, "NAL Q:[CTRLS] Get buffer control id: 0x%08x, val: %d\n",
+		mfc_debug(6, "[NALQ][CTRLS] Get buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -1597,7 +1597,7 @@ static int s5p_mfc_enc_recover_buf_ctrls_nal_q(struct s5p_mfc_ctx *ctx,
 		buf_ctrl->has_new = 1;
 		buf_ctrl->updated = 0;
 
-		mfc_debug(6, "NAL Q:[CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
+		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 

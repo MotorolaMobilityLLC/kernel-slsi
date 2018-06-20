@@ -654,11 +654,11 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 			if (need_cache_flush)
 				s5p_mfc_cache_flush(dev, ctx->is_drm);
 
-			mfc_info_ctx("NAL Q: start NAL QUEUE\n");
+			mfc_info_ctx("[NALQ] start NAL QUEUE\n");
 			s5p_mfc_nal_q_start(dev, nal_q_handle);
 
 			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
-				mfc_debug(2, "NAL Q: Failed to enqueue input data\n");
+				mfc_debug(2, "[NALQ] Failed to enqueue input data\n");
 				s5p_mfc_nal_q_clock_off(dev, nal_q_handle);
 			}
 
@@ -683,10 +683,10 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 				nal_q_handle->nal_q_exception) {
 			/* disable NAL QUEUE */
 			s5p_mfc_nal_q_stop(dev, nal_q_handle);
-			mfc_info_ctx("NAL Q: stop NAL QUEUE\n");
+			mfc_info_ctx("[NALQ] stop NAL QUEUE\n");
 			if (s5p_mfc_wait_for_done_dev(dev,
 					S5P_FIMV_R2H_CMD_COMPLETE_QUEUE_RET)) {
-				mfc_err_dev("NAL Q: Failed to stop queue.\n");
+				mfc_err_dev("[NALQ] Failed to stop queue.\n");
 				dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_STOP_NAL_Q);
 				call_dop(dev, dump_and_stop_always, dev);
 	                }
@@ -695,7 +695,7 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 		} else {
 			/* NAL QUEUE */
 			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
-				mfc_debug(2, "NAL Q: Failed to enqueue input data\n");
+				mfc_debug(2, "[NALQ] Failed to enqueue input data\n");
 				s5p_mfc_nal_q_clock_off(dev, nal_q_handle);
 			}
 
@@ -714,7 +714,7 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 		}
 		break;
 	default:
-		mfc_info_ctx("NAL Q: can't try command, nal_q_state : %d\n",
+		mfc_info_ctx("[NALQ] can't try command, nal_q_state : %d\n",
 				nal_q_handle->nal_q_state);
 		ret = -1;
 		break;

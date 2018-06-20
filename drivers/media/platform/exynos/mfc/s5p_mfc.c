@@ -397,7 +397,7 @@ static int mfc_init_instance(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->nal_q)) {
 		dev->nal_q_handle = s5p_mfc_nal_q_create(dev);
 		if (dev->nal_q_handle == NULL)
-			mfc_err_dev("NAL Q: Can't create nal q\n");
+			mfc_err_dev("[NALQ] Can't create nal q\n");
 	}
 
 	return ret;

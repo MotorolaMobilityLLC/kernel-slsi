@@ -1260,9 +1260,9 @@ static inline int mfc_nal_q_irq(struct s5p_mfc_dev *dev,
 			nal_q_handle->nal_q_out_handle, &errcode);
 		if (pOutStr) {
 			if (s5p_mfc_nal_q_handle_out_buf(dev, pOutStr))
-				mfc_err_dev("NAL Q: Failed to handle out buf\n");
+				mfc_err_dev("[NALQ] Failed to handle out buf\n");
 		} else {
-			mfc_err_dev("NAL Q: pOutStr is NULL\n");
+			mfc_err_dev("[NALQ] pOutStr is NULL\n");
 		}
 
 		if (nal_q_handle->nal_q_exception)
@@ -1279,7 +1279,7 @@ static inline int mfc_nal_q_irq(struct s5p_mfc_dev *dev,
 		s5p_mfc_watchdog_stop_tick(dev);
 		nal_q_handle->nal_q_state = NAL_Q_STATE_CREATED;
 		MFC_TRACE_DEV("** NAL Q state : %d\n", nal_q_handle->nal_q_state);
-		mfc_debug(2, "NAL Q: return to created state\n");
+		mfc_debug(2, "[NALQ] return to created state\n");
 		s5p_mfc_nal_q_cleanup_queue(dev);
 		s5p_mfc_nal_q_cleanup_clock(dev);
 		s5p_mfc_clear_int_sfr();
@@ -1291,7 +1291,7 @@ static inline int mfc_nal_q_irq(struct s5p_mfc_dev *dev,
 	default:
 		if (nal_q_handle->nal_q_state == NAL_Q_STATE_STARTED ||
 			nal_q_handle->nal_q_state == NAL_Q_STATE_STOPPED) {
-			mfc_err_dev("NAL Q: Should not be here! state: %d, int reason : %d\n",
+			mfc_err_dev("[NALQ] Should not be here! state: %d, int reason : %d\n",
 				nal_q_handle->nal_q_state, reason);
 			s5p_mfc_clear_int_sfr();
 
@@ -1514,13 +1514,13 @@ irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	if (dev->nal_q_handle) {
 		ret = mfc_nal_q_irq(dev, reason, err);
 		if (ret == 0) {
-			mfc_debug(2, "NAL_Q command was handled\n");
+			mfc_debug(2, "[NALQ] command was handled\n");
 			goto irq_end;
 		} else if (ret == 1){
 			/* Path through */
 			mfc_debug(2, "NAL_START command will be handled\n");
 		} else {
-			mfc_debug(2, "Error.\n");
+			mfc_debug(2, "[NALQ] command handling Error\n");
 			goto irq_end;
 		}
 	}

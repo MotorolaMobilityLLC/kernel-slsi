@@ -687,13 +687,13 @@ static int s5p_mfc_dec_set_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
 			break;
 		/* If new dynamic controls are added, insert here */
 		default:
-			mfc_info_ctx("NAL Q: can't find control, id: 0x%x\n",
+			mfc_info_ctx("[NALQ] can't find control, id: 0x%x\n",
 					buf_ctrl->id);
 		}
 		buf_ctrl->has_new = 0;
 		buf_ctrl->updated = 1;
 
-		mfc_debug(6, "NAL Q:[CTRLS] Set buffer control id: 0x%08x, val: %d\n",
+		mfc_debug(6, "[NALQ][CTRLS] Set buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -786,7 +786,7 @@ static int s5p_mfc_dec_get_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
 			break;
 			/* If new dynamic controls are added, insert here */
 		default:
-			mfc_info_ctx("NAL Q: can't find control, id: 0x%x\n",
+			mfc_info_ctx("[NALQ] can't find control, id: 0x%x\n",
 					buf_ctrl->id);
 		}
 		value = (value >> buf_ctrl->shft) & buf_ctrl->mask;
@@ -801,7 +801,7 @@ static int s5p_mfc_dec_get_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
 				buf_ctrl->val = dec->color_space;
 		}
 
-		mfc_debug(6, "NAL Q:[CTRLS] Get buffer control id: 0x%08x, val: %d\n",
+		mfc_debug(6, "[NALQ][CTRLS] Get buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -871,7 +871,7 @@ static int s5p_mfc_dec_recover_buf_ctrls_nal_q(struct s5p_mfc_ctx *ctx,
 
 		buf_ctrl->has_new = 1;
 		buf_ctrl->updated = 0;
-		mfc_debug(6, "NAL Q:[CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
+		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
