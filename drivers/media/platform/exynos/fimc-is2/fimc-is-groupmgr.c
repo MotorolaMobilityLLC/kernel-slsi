@@ -707,7 +707,7 @@ static void fimc_is_group_s_leader(struct fimc_is_group *group,
 	list_for_each_entry(subdev, &group->subdev_list, list) {
 		if (leader->vctx && subdev->vctx &&
 			(leader->vctx->refcount < subdev->vctx->refcount)) {
-			mgwarn("Invalide subdev instance (%s(%u) < %s(%u))",
+			mgwarn("Invalid subdev instance (%s(%u) < %s(%u))",
 				group, group,
 				leader->name, leader->vctx->refcount,
 				subdev->name, subdev->vctx->refcount);
