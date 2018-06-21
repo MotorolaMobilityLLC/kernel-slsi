@@ -38,8 +38,9 @@ int main(int argc, char *argv[])
 	}
 
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
-		printf("log[%.9f] = {  'type' : 'freq', 'cluster' : %d, 'freq' : %lu }\n",
+		printf("log[%.9f] = {  'type' : 'freq', 'cpu' : %d, 'cluster' : %d, 'freq' : %lu }\n",
 				p->freq[i].time/1.0e9,
+				p->freq[i].cpu,
 				p->freq[i].type,
 				p->freq[i].target_freq);
 		if (p->freq[i].time == 0)
