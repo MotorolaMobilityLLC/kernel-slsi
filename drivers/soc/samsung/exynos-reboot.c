@@ -160,12 +160,17 @@ void big_reset_control(int en)
 			exynos_pmu_update(CPU_RESET_DISABLE_FROM_WDTRESET,
 					DFD_RESET_PEND, 0);
 
+		/* The reset disable of BIG core and BIG cluster in Exynos9610(Artemis)
+		 * should be skipped because of cache flush in dump gpr situation
+		 */
+		/*
 		for (val = 0; val < big_cpu_cnt; val++)
 			exynos_pmu_update(BIG_CPU0_RESET + (val * PMU_CPU_OFFSET),
 					DFD_DISABLE_RESET, DFD_DISABLE_RESET);
 
 		exynos_pmu_update(BIG_NONCPU_ETC_RESET, DFD_BIG_NONCPU_ETC_RESET,
 					DFD_BIG_NONCPU_ETC_RESET);
+		*/
 	} else {
 		/* reset enable for BIG */
 		for (val = 0; val < big_cpu_cnt; val++)
