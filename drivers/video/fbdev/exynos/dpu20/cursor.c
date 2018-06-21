@@ -73,7 +73,7 @@ static int decon_set_cursor_dpp_config(struct decon_device *decon,
 		decon_err("failed to config (WIN%d : DPP%d)\n",
 						i, win->dpp_id);
 		regs->win_regs[i].wincon &= (~WIN_EN_F(i));
-		decon_reg_win_enable_and_update(decon->id, i, false);
+		decon_reg_set_win_enable(decon->id, i, false);
 		if (regs->num_of_window != 0)
 			regs->num_of_window--;
 
@@ -231,6 +231,8 @@ int decon_set_cursor_win_config(struct decon_device *decon, int x, int y)
 	decon_reg_set_window_control(decon->id, regs->cursor_win,
 				&regs->win_regs[regs->cursor_win],
 				regs->win_regs[regs->cursor_win].winmap_state);
+
+	decon_reg_all_win_shadow_update_req(decon->id);
 
 	if (psr.trig_mode == DECON_HW_TRIG)
 		decon_reg_set_trigger(decon->id, &psr, DECON_TRIG_ENABLE);

@@ -372,6 +372,7 @@ static void decon_set_black_window(struct decon_device *decon)
 			win_regs.offset_y);
 	decon_reg_set_window_control(decon->id, decon->dt.dft_win,
 			&win_regs, true);
+	decon_reg_all_win_shadow_update_req(decon->id);
 }
 
 int decon_tui_protection(bool tui_en)
@@ -402,7 +403,8 @@ int decon_tui_protection(bool tui_en)
 		/* after stopping decon, we can now update registers
 		 * without considering per frame condition (8895) */
 		for (win_idx = 0; win_idx < decon->dt.max_win; win_idx++)
-			decon_reg_win_enable_and_update(decon->id, win_idx, false);
+			decon_reg_set_win_enable(decon->id, win_idx, false);
+		decon_reg_all_win_shadow_update_req(decon->id);
 		decon_reg_update_req_global(decon->id);
 		decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
 
@@ -1595,7 +1597,7 @@ static int decon_set_dpp_config(struct decon_device *decon,
 			decon_err("failed to config (WIN%d : DPP%d)\n",
 					i, win->dpp_id);
 			regs->win_regs[i].wincon &= (~WIN_EN_F(i));
-			decon_reg_win_enable_and_update(decon->id, i, false);
+			decon_reg_set_win_enable(decon->id, i, false);
 			if (regs->num_of_window != 0)
 				regs->num_of_window--;
 			clear_bit(win->dpp_id, &decon->cur_using_dpp);
@@ -1792,6 +1794,7 @@ static int __decon_update_regs(struct decon_device *decon, struct decon_reg_data
 	decon_set_protected_content(decon, regs);
 #endif
 
+	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_to_psr_info(decon, &psr);
 	if (decon_reg_start(decon->id, &psr) < 0) {
 		decon_up_list_saved();
@@ -3638,6 +3641,7 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	decon_reg_set_window_control(decon->id, decon->dt.dft_win,
 			&win_regs, is_colormap);
 
+	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_to_psr_info(decon, &psr);
 
 	/* TODO:

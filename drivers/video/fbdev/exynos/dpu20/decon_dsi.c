@@ -512,6 +512,7 @@ int decon_set_par(struct fb_info *info)
 	win_regs.offset_y = var->yoffset;
 	win_regs.type = decon->dt.dft_idma;
 	decon_reg_set_window_control(decon->id, win_no, &win_regs, false);
+	decon_reg_all_win_shadow_update_req(decon->id);
 
 	decon_hiber_unblock(decon);
 	return 0;
