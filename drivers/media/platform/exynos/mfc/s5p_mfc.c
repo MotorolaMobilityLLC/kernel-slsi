@@ -337,7 +337,7 @@ static int mfc_init_instance(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	trace_mfc_dcpp_start(ctx->num, 1, dev->fw.drm_status);
 	if (!dev->drm_fw_buf.daddr) {
-		mfc_err_ctx("DRM F/W buffer is not allocated.\n");
+		mfc_err_ctx("DRM F/W buffer is not allocated\n");
 		dev->fw.drm_status = 0;
 	} else {
 		/* Request buffer protection for DRM F/W */
@@ -364,7 +364,7 @@ static int mfc_init_instance(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	MFC_TRACE_DEV_HWLOCK("**open\n");
 	ret = s5p_mfc_get_hwlock_dev(dev);
 	if (ret < 0) {
-		mfc_err_dev("Failed to get hwlock.\n");
+		mfc_err_dev("Failed to get hwlock\n");
 		mfc_err_dev("dev.hwlock.dev = 0x%lx, bits = 0x%lx, owned_by_irq = %d, wl_count = %d, transfer_owner = %d\n",
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
@@ -465,7 +465,7 @@ static int s5p_mfc_open(struct file *file)
 	/* Allocate memory for context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		mfc_err_dev("Not enough memory.\n");
+		mfc_err_dev("Not enough memory\n");
 		ret = -ENOMEM;
 		goto err_ctx_alloc;
 	}
@@ -508,7 +508,7 @@ static int s5p_mfc_open(struct file *file)
 	while (dev->ctx[ctx->num]) {
 		ctx->num++;
 		if (ctx->num >= MFC_NUM_CONTEXTS) {
-			mfc_err_dev("Too many open contexts.\n");
+			mfc_err_dev("Too many open contexts\n");
 			ret = -EBUSY;
 			goto err_ctx_num;
 		}
@@ -638,7 +638,7 @@ static int mfc_wait_close_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 
 	/* To issue the command 'CLOSE_INSTANCE' */
 	if (s5p_mfc_just_run(dev, ctx->num)) {
-		mfc_err_ctx("Failed to run MFC.\n");
+		mfc_err_ctx("Failed to run MFC\n");
 		return -EIO;
 	}
 
@@ -682,14 +682,14 @@ static int s5p_mfc_release(struct file *file)
 	/* If a H/W operation is in progress, wait for it complete */
 	if (need_to_wait_nal_abort(ctx)) {
 		if (s5p_mfc_wait_for_done_ctx(ctx, S5P_FIMV_R2H_CMD_NAL_ABORT_RET)) {
-			mfc_err_ctx("Failed to wait nal abort.\n");
+			mfc_err_ctx("Failed to wait nal abort\n");
 			s5p_mfc_cleanup_work_bit_and_try_run(ctx);
 		}
 	}
 	MFC_TRACE_CTX_HWLOCK("**release\n");
 	ret = s5p_mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
-		mfc_err_dev("Failed to get hwlock.\n");
+		mfc_err_dev("Failed to get hwlock\n");
 		mutex_unlock(&dev->mfc_mutex);
 		return -EBUSY;
 	}
@@ -846,10 +846,10 @@ static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 	mfc_debug_enter();
 
 	if (offset < DST_QUEUE_OFF_BASE) {
-		mfc_debug(2, "mmaping source.\n");
+		mfc_debug(2, "mmaping source\n");
 		ret = vb2_mmap(&ctx->vq_src, vma);
 	} else {		/* capture */
-		mfc_debug(2, "mmaping destination.\n");
+		mfc_debug(2, "mmaping destination\n");
 		vma->vm_pgoff -= (DST_QUEUE_OFF_BASE >> PAGE_SHIFT);
 		ret = vb2_mmap(&ctx->vq_dst, vma);
 	}
@@ -906,7 +906,7 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 		if (MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS) &&
 				((MFC_MMU1_READL(MFC_MMU_FAULT_TRANS_INFO) &
 				  MFC_MMU_FAULT_TRANS_INFO_AXID_MASK) == 1)) {
-			mfc_err_dev("There is TS-MUX page fault. skip SFR dump.\n");
+			mfc_err_dev("There is TS-MUX page fault. skip SFR dump\n");
 			return 0;
 		}
 	}
@@ -1200,15 +1200,15 @@ static int mfc_itmon_notifier(struct notifier_block *nb, unsigned long action, v
 
 	if (is_mfc_itmon) {
 		pr_err("mfc_itmon_notifier: MFC +\n");
-		pr_err("MFC is %s.\n", is_master ? "master" : "dest");
+		pr_err("MFC is %s\n", is_master ? "master" : "dest");
 		if (!dev->itmon_notified) {
-			pr_err("dump MFC information.\n");
+			pr_err("dump MFC information\n");
 			if (is_master || (!is_master && itmon_info->onoff))
 				call_dop(dev, dump_info, dev);
 			else
 				call_dop(dev, dump_info_without_regs, dev);
 		} else {
-			pr_err("MFC notifier has already been called. skip MFC information.\n");
+			pr_err("MFC notifier has already been called. skip MFC information\n");
 		}
 		pr_err("mfc_itmon_notifier: MFC -\n");
 		dev->itmon_notified = 1;
@@ -1229,7 +1229,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s()\n", __func__);
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct s5p_mfc_dev), GFP_KERNEL);
 	if (!dev) {
-		dev_err(&pdev->dev, "Not enough memory for MFC device.\n");
+		dev_err(&pdev->dev, "Not enough memory for MFC device\n");
 		return -ENOMEM;
 	}
 
@@ -1503,7 +1503,7 @@ static void s5p_mfc_shutdown(struct platform_device *pdev)
 
 	ret = s5p_mfc_get_hwlock_dev(dev);
 	if (ret < 0)
-		mfc_err_dev("Failed to get hwlock.\n");
+		mfc_err_dev("Failed to get hwlock\n");
 
 	if (!dev->shutdown) {
 		s5p_mfc_risc_off(dev);

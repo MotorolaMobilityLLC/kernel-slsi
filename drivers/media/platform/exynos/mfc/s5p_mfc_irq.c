@@ -450,13 +450,13 @@ static void mfc_handle_frame_error(struct s5p_mfc_ctx *ctx,
 	src_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
 
 	if (!src_mb) {
-		mfc_err_dev("no src buffers.\n");
+		mfc_err_dev("no src buffers\n");
 	} else {
 		index = src_mb->vb.vb2_buf.index;
 		if (call_cop(ctx, recover_buf_ctrls_val, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_err_ctx("failed in recover_buf_ctrls_val\n");
 
-		mfc_debug(2, "MFC needs next buffer.\n");
+		mfc_debug(2, "MFC needs next buffer\n");
 		dec->consumed = 0;
 
 		if (call_cop(ctx, get_buf_ctrls_val, ctx, &ctx->src_ctrls[index]) < 0)
@@ -469,7 +469,7 @@ static void mfc_handle_frame_error(struct s5p_mfc_ctx *ctx,
 		vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
-	mfc_debug(2, "Assesing whether this context should be run again.\n");
+	mfc_debug(2, "Assesing whether this context should be run again\n");
 }
 
 static void mfc_handle_ref_frame(struct s5p_mfc_ctx *ctx)
@@ -538,7 +538,7 @@ static void mfc_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int err)
 		 * For non-paired field, the same buffer need to be
 		 * resubmitted and the consumed stream will be 0
 		 */
-		mfc_debug(2, "Not paired field. Running again the same buffer.\n");
+		mfc_debug(2, "Not paired field. Running again the same buffer\n");
 		return;
 	}
 
@@ -546,7 +546,7 @@ static void mfc_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int err)
 	src_mb = s5p_mfc_get_del_if_consumed(ctx, &ctx->src_buf_queue,
 			s5p_mfc_get_consumed_stream(), STUFF_BYTE, err, &deleted);
 	if (!src_mb) {
-		mfc_err_dev("no src buffers.\n");
+		mfc_err_dev("no src buffers\n");
 		return;
 	}
 
@@ -647,8 +647,8 @@ static void mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 
 	if (IS_H264_DEC(ctx) && sei_avail_frame_pack &&
 		dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_ONLY) {
-		mfc_debug(2, "Frame packing SEI exists for a frame.\n");
-		mfc_debug(2, "Reallocate DPBs and issue init_buffer.\n");
+		mfc_debug(2, "Frame packing SEI exists for a frame\n");
+		mfc_debug(2, "Reallocate DPBs and issue init_buffer\n");
 		ctx->is_dpb_realloc = 1;
 		s5p_mfc_change_state(ctx, MFCINST_HEAD_PARSED);
 		ctx->capture_state = QUEUE_FREE;
@@ -662,7 +662,7 @@ static void mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		if (ctx->state == MFCINST_RES_CHANGE_FLUSH) {
 			struct mfc_timestamp *temp_ts = NULL;
 
-			mfc_debug(2, "[DRC] Last frame received after resolution change.\n");
+			mfc_debug(2, "[DRC] Last frame received after resolution change\n");
 			mfc_handle_frame_all_extracted(ctx);
 			s5p_mfc_change_state(ctx, MFCINST_RES_CHANGE_END);
 			/* If there is no display frame after resolution change,
@@ -715,14 +715,14 @@ static void mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	if (s5p_mfc_dec_status_display(dst_frame_status))
 		mfc_handle_frame_new(ctx, err);
 	else
-		mfc_debug(2, "No frame decode.\n");
+		mfc_debug(2, "No frame decode\n");
 
 	/* Mark source buffer as complete */
 	if (dst_frame_status != S5P_FIMV_DEC_STATUS_DISPLAY_ONLY)
 		mfc_handle_frame_input(ctx, err);
 
 leave_handle_frame:
-	mfc_debug(2, "Assesing whether this context should be run again.\n");
+	mfc_debug(2, "Assesing whether this context should be run again\n");
 }
 
 static void mfc_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *src_mb)
@@ -876,7 +876,7 @@ static void mfc_handle_stream_output(struct s5p_mfc_ctx *ctx, int slice_type,
 	dst_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
 			&ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
 	if (!dst_mb) {
-		mfc_err_ctx("no dst buffers.\n");
+		mfc_err_ctx("no dst buffers\n");
 		return;
 	}
 
@@ -1035,7 +1035,7 @@ static inline void mfc_handle_error(struct s5p_mfc_ctx *ctx,
 		s5p_mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_queue);
 		break;
 	default:
-		mfc_err_ctx("Encountered an error interrupt which had not been handled.\n");
+		mfc_err_ctx("Encountered an error interrupt which had not been handled\n");
 		mfc_err_ctx("ctx->state = %d, ctx->inst_no = %d\n",
 						ctx->state, ctx->inst_no);
 		break;
@@ -1145,7 +1145,7 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 	if (IS_BPG_ENC(ctx)) {
 		dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
 		if (!dst_mb) {
-			mfc_err_dev("no dst buffers.\n");
+			mfc_err_dev("no dst buffers\n");
 			return -EAGAIN;
 		}
 
@@ -1162,7 +1162,7 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 			dst_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock,
 					&ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
 			if (!dst_mb) {
-				mfc_err_dev("no dst buffers.\n");
+				mfc_err_dev("no dst buffers\n");
 				return -EAGAIN;
 			}
 
@@ -1194,7 +1194,7 @@ static int mfc_handle_seq_enc(struct s5p_mfc_ctx *ctx)
 	}
 	ret = s5p_mfc_alloc_codec_buffers(ctx);
 	if (ret) {
-		mfc_err_ctx("Failed to allocate encoding buffers.\n");
+		mfc_err_ctx("Failed to allocate encoding buffers\n");
 		return ret;
 	}
 

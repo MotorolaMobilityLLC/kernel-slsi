@@ -391,7 +391,7 @@ int s5p_mfc_otf_ctx_ready(struct s5p_mfc_ctx *ctx)
 
 	if (ctx->state == MFCINST_RUNNING && handle->otf_work_bit)
 		return 1;
-	mfc_debug(2, "[OTF] ctx is not ready.\n");
+	mfc_debug(2, "[OTF] ctx is not ready\n");
 
 	mfc_debug_leave();
 
@@ -482,7 +482,7 @@ int s5p_mfc_otf_handle_seq(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_change_state(ctx, MFCINST_HEAD_PARSED);
 
 	if (s5p_mfc_alloc_codec_buffers(ctx)) {
-		mfc_err_ctx("[OTF] Failed to allocate encoding buffers.\n");
+		mfc_err_ctx("[OTF] Failed to allocate encoding buffers\n");
 		return -EINVAL;
 	}
 
@@ -626,7 +626,7 @@ void s5p_mfc_otf_handle_error(struct s5p_mfc_ctx *ctx,
 #endif
 		break;
 	default:
-		mfc_err_ctx("Encountered an error interrupt which had not been handled.\n");
+		mfc_err_ctx("Encountered an error interrupt which had not been handled\n");
 		mfc_err_ctx("ctx->state = %d, ctx->inst_no = %d\n",
 						ctx->state, ctx->inst_no);
 		break;

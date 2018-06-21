@@ -411,7 +411,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	ctx->dst_fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->dst_fmt) {
-		mfc_err_ctx("Unsupported format for destination.\n");
+		mfc_err_ctx("Unsupported format for destination\n");
 		return -EINVAL;
 	}
 	ctx->raw_buf.num_planes = ctx->dst_fmt->num_planes;
@@ -431,7 +431,7 @@ static int mfc_force_close_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx
 	s5p_mfc_set_bit(ctx->num, &dev->work_bits);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 	if (s5p_mfc_just_run(dev, ctx->num)) {
-		mfc_err_ctx("Failed to run MFC.\n");
+		mfc_err_ctx("Failed to run MFC\n");
 		s5p_mfc_release_hwlock_ctx(ctx);
 		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
 		return -EIO;
@@ -471,7 +471,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	ctx->src_fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->src_fmt) {
-		mfc_err_ctx("Unsupported format for source.\n");
+		mfc_err_ctx("Unsupported format for source\n");
 		return -EINVAL;
 	}
 
@@ -497,7 +497,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	MFC_TRACE_CTX_HWLOCK("**DEC s_fmt\n");
 	ret = s5p_mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
-		mfc_err_ctx("Failed to get hwlock.\n");
+		mfc_err_ctx("Failed to get hwlock\n");
 		return -EBUSY;
 	}
 
@@ -510,7 +510,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	ret = s5p_mfc_alloc_instance_context(ctx);
 	if (ret) {
-		mfc_err_ctx("Failed to allocate dec instance[%d] buffers.\n",
+		mfc_err_ctx("Failed to allocate dec instance[%d] buffers\n",
 				ctx->num);
 		s5p_mfc_release_hwlock_ctx(ctx);
 		return -ENOMEM;
@@ -519,7 +519,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	s5p_mfc_set_bit(ctx->num, &dev->work_bits);
 	ret = s5p_mfc_just_run(dev, ctx->num);
 	if (ret) {
-		mfc_err_ctx("Failed to run MFC.\n");
+		mfc_err_ctx("Failed to run MFC\n");
 		s5p_mfc_release_hwlock_ctx(ctx);
 		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
 		s5p_mfc_release_instance_context(ctx);
@@ -571,7 +571,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	}
 
 	if (reqbufs->memory == V4L2_MEMORY_MMAP) {
-		mfc_err_ctx("Not supported memory type (%d).\n", reqbufs->memory);
+		mfc_err_ctx("Not supported memory type (%d)\n", reqbufs->memory);
 		return -EINVAL;
 	}
 
@@ -588,13 +588,13 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 			/* Decoding */
 			if (ctx->output_state != QUEUE_FREE) {
-				mfc_err_ctx("Bufs have already been requested.\n");
+				mfc_err_ctx("Bufs have already been requested\n");
 				return -EINVAL;
 			}
 
 			ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
 			if (ret) {
-				mfc_err_ctx("vb2_reqbufs on output failed.\n");
+				mfc_err_ctx("vb2_reqbufs on src failed\n");
 				return ret;
 			}
 
@@ -616,18 +616,18 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		dec->dst_memtype = reqbufs->memory;
 
 		if (ctx->capture_state != QUEUE_FREE) {
-			mfc_err_ctx("Bufs have already been requested.\n");
+			mfc_err_ctx("Bufs have already been requested\n");
 			return -EINVAL;
 		}
 
 		ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
 		if (ret) {
-			mfc_err_ctx("vb2_reqbufs on capture failed.\n");
+			mfc_err_ctx("vb2_reqbufs on capture failed\n");
 			return ret;
 		}
 
 		if (reqbufs->count < ctx->dpb_count) {
-			mfc_err_ctx("Not enough buffers allocated.\n");
+			mfc_err_ctx("Not enough buffers allocated\n");
 			reqbufs->count = 0;
 			vb2_reqbufs(&ctx->vq_dst, reqbufs);
 			return -ENOMEM;
@@ -637,7 +637,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 		ret = s5p_mfc_alloc_codec_buffers(ctx);
 		if (ret) {
-			mfc_err_ctx("Failed to allocate decoding buffers.\n");
+			mfc_err_ctx("Failed to allocate decoding buffers\n");
 			reqbufs->count = 0;
 			vb2_reqbufs(&ctx->vq_dst, reqbufs);
 			return -ENOMEM;
@@ -698,7 +698,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	mfc_debug_enter();
 
 	if (ctx->state == MFCINST_ERROR) {
-		mfc_err_ctx("Call on QBUF after unrecoverable error.\n");
+		mfc_err_ctx("Call on QBUF after unrecoverable error\n");
 		return -EIO;
 	}
 
@@ -721,10 +721,10 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 
 		if (!buf->m.planes[0].bytesused) {
 			buf->m.planes[0].bytesused = buf->m.planes[0].length;
-			mfc_debug(2, "Src input size zero, changed to buf size %d\n",
+			mfc_debug(2, "Src size zero, changed to buf size %d\n",
 					buf->m.planes[0].bytesused);
 		} else {
-			mfc_debug(2, "Src input size = %d\n", buf->m.planes[0].bytesused);
+			mfc_debug(2, "Src size = %d\n", buf->m.planes[0].bytesused);
 		}
 		ret = vb2_qbuf(&ctx->vq_src, buf);
 	} else {
@@ -748,7 +748,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	mfc_debug_enter();
 
 	if (ctx->state == MFCINST_ERROR) {
-		mfc_err_ctx("Call on DQBUF after unrecoverable error.\n");
+		mfc_err_ctx("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
@@ -912,7 +912,7 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 			ctrl->value = ctx->dpb_count;
 			break;
 		} else if (ctx->state != MFCINST_INIT) {
-			mfc_err_ctx("Decoding not initialised.\n");
+			mfc_err_ctx("Decoding not initialised\n");
 			return -EINVAL;
 		}
 
@@ -927,7 +927,7 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		    ctx->state < MFCINST_ABORT) {
 			ctrl->value = ctx->dpb_count;
 		} else {
-			mfc_err_ctx("Decoding not initialised.\n");
+			mfc_err_ctx("Decoding not initialised\n");
 			return -EINVAL;
 		}
 		break;
@@ -1100,7 +1100,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_MPEG_MFC_SET_DYNAMIC_DPB_MODE:
 		dec->is_dynamic_dpb = ctrl->value;
 		if (dec->is_dynamic_dpb == 0)
-			mfc_err_dev("[DPB] is_dynamic_dpb is 0. it has to be enabled.\n");
+			mfc_err_dev("[DPB] is_dynamic_dpb is 0. it has to be enabled\n");
 		break;
 	case V4L2_CID_MPEG_MFC_SET_USER_SHARED_HANDLE:
 		if (dec->sh_handle.fd == -1) {

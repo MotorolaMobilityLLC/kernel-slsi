@@ -308,7 +308,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	ctx->dst_fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->dst_fmt) {
-		mfc_err_ctx("Unsupported format for destination.\n");
+		mfc_err_ctx("Unsupported format for destination\n");
 		return -EINVAL;
 	}
 
@@ -334,7 +334,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	ret = s5p_mfc_alloc_instance_context(ctx);
 	if (ret) {
-		mfc_err_ctx("Failed to allocate enc instance[%d] buffers.\n",
+		mfc_err_ctx("Failed to allocate enc instance[%d] buffers\n",
 				ctx->num);
 		return -ENOMEM;
 	}
@@ -354,7 +354,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	ret = s5p_mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
-		mfc_err_dev("Failed to get hwlock.\n");
+		mfc_err_dev("Failed to get hwlock\n");
 		s5p_mfc_release_instance_context(ctx);
 		s5p_mfc_release_enc_roi_buffer(ctx);
 		return -EBUSY;
@@ -363,7 +363,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	s5p_mfc_set_bit(ctx->num, &dev->work_bits);
 	ret = s5p_mfc_just_run(dev, ctx->num);
 	if (ret) {
-		mfc_err_ctx("Failed to run MFC.\n");
+		mfc_err_ctx("Failed to run MFC\n");
 		s5p_mfc_release_hwlock_ctx(ctx);
 		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
 		s5p_mfc_release_instance_context(ctx);
@@ -415,7 +415,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	ctx->src_fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->src_fmt) {
-		mfc_err_ctx("Unsupported format for source.\n");
+		mfc_err_ctx("Unsupported format for source\n");
 		return -EINVAL;
 	}
 
@@ -522,7 +522,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	mfc_debug_enter();
 
 	if (reqbufs->memory == V4L2_MEMORY_MMAP) {
-		mfc_err_ctx("Not supported memory type (%d).\n", reqbufs->memory);
+		mfc_err_ctx("Not supported memory type (%d)\n", reqbufs->memory);
 		return -EINVAL;
 	}
 
@@ -632,7 +632,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	}
 
 	if (ctx->state == MFCINST_ERROR) {
-		mfc_err_ctx("Call on QBUF after unrecoverable error.\n");
+		mfc_err_ctx("Call on QBUF after unrecoverable error\n");
 		return -EIO;
 	}
 
@@ -678,7 +678,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	}
 
 	if (ctx->state == MFCINST_ERROR) {
-		mfc_err_ctx("Call on DQBUF after unrecoverable error.\n");
+		mfc_err_ctx("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {

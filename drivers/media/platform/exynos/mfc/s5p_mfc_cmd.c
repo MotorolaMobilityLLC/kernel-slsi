@@ -216,12 +216,12 @@ int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx)
 		s5p_mfc_release_codec_buffers(ctx);
 		ret = s5p_mfc_alloc_codec_buffers(ctx);
 		if (ret) {
-			mfc_err_ctx("Failed to allocate decoding buffers.\n");
+			mfc_err_ctx("Failed to allocate decoding buffers\n");
 			return ret;
 		}
 		ret = s5p_mfc_set_dec_codec_buffers(ctx);
 		if (ret) {
-			mfc_err_ctx("Failed to alloc frame mem.\n");
+			mfc_err_ctx("Failed to alloc frame mem\n");
 			return ret;
 		}
 	}
@@ -255,7 +255,7 @@ int s5p_mfc_cmd_enc_init_buffers(struct s5p_mfc_ctx *ctx)
 		mfc_info_ctx("there isn't codec buffer, re-alloc!\n");
 		ret = s5p_mfc_alloc_codec_buffers(ctx);
 		if (ret) {
-			mfc_err_ctx("Failed to allocate encoding buffers.\n");
+			mfc_err_ctx("Failed to allocate encoding buffers\n");
 			return ret;
 		}
 	}
@@ -271,12 +271,12 @@ int s5p_mfc_cmd_enc_init_buffers(struct s5p_mfc_ctx *ctx)
 		s5p_mfc_release_codec_buffers(ctx);
 		ret = s5p_mfc_alloc_codec_buffers(ctx);
 		if (ret) {
-			mfc_err_ctx("Failed to allocate encoding buffers.\n");
+			mfc_err_ctx("Failed to allocate encoding buffers\n");
 			return ret;
 		}
 		ret = s5p_mfc_set_enc_codec_buffers(ctx);
 		if (ret) {
-			mfc_err_ctx("Failed to set enc codec buffers.\n");
+			mfc_err_ctx("Failed to set enc codec buffers\n");
 			return ret;
 		}
 	}

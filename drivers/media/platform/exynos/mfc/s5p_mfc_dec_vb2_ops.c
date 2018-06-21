@@ -214,7 +214,7 @@ static int s5p_mfc_dec_buf_init(struct vb2_buffer *vb)
 					vb->index) < 0)
 			mfc_err_ctx("failed in init_buf_ctrls\n");
 	} else {
-		mfc_err_ctx("s5p_mfc_dec_buf_init: unknown queue type.\n");
+		mfc_err_ctx("s5p_mfc_dec_buf_init: unknown queue type\n");
 		return -EINVAL;
 	}
 
@@ -325,7 +325,7 @@ static void s5p_mfc_dec_buf_cleanup(struct vb2_buffer *vb)
 					MFC_CTRL_TYPE_SRC, index) < 0)
 			mfc_err_ctx("failed in cleanup_buf_ctrls\n");
 	} else {
-		mfc_err_ctx("s5p_mfc_dec_buf_cleanup: unknown queue type.\n");
+		mfc_err_ctx("s5p_mfc_dec_buf_cleanup: unknown queue type\n");
 	}
 
 	mfc_debug_leave();
@@ -402,7 +402,7 @@ static void mfc_dec_src_stop_streaming(struct s5p_mfc_ctx *ctx)
 
 				ret = s5p_mfc_just_run(dev, ctx->num);
 				if (ret) {
-					mfc_err_ctx("Failed to run MFC.\n");
+					mfc_err_ctx("Failed to run MFC\n");
 				} else {
 					if (s5p_mfc_wait_for_done_ctx(ctx, condition))
 						mfc_err_ctx("special parsing time out\n");
@@ -506,7 +506,7 @@ static void s5p_mfc_dec_stop_streaming(struct vb2_queue *q)
 	/* If a H/W operation is in progress, wait for it complete */
 	ret = s5p_mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
-		mfc_err_ctx("Failed to get hwlock.\n");
+		mfc_err_ctx("Failed to get hwlock\n");
 		return;
 	}
 
@@ -526,7 +526,7 @@ static void s5p_mfc_dec_stop_streaming(struct vb2_queue *q)
 		mfc_info_ctx("try to DPB flush\n");
 		ret = s5p_mfc_just_run(dev, ctx->num);
 		if (ret) {
-			mfc_err_ctx("Failed to run MFC.\n");
+			mfc_err_ctx("Failed to run MFC\n");
 			s5p_mfc_release_hwlock_ctx(ctx);
 			s5p_mfc_cleanup_work_bit_and_try_run(ctx);
 			return;

@@ -152,7 +152,7 @@ void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
 
 	debugfs->root = debugfs_create_dir("mfc", NULL);
 	if (!debugfs->root) {
-		mfc_err_dev("debugfs: failed to create root derectory.\n");
+		mfc_err_dev("debugfs: failed to create root derectory\n");
 		return;
 	}
 

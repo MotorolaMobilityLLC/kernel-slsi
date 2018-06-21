@@ -248,7 +248,7 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 				dma_buf_put(dmabuf[i]);
 				start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
 				if (start_raw == 0) {
-					mfc_err_ctx("Plane mem not allocated.\n");
+					mfc_err_ctx("Plane mem not allocated\n");
 					return -ENOMEM;
 				}
 				if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV12N) {
@@ -320,7 +320,7 @@ static void s5p_mfc_enc_buf_cleanup(struct vb2_buffer *vb)
 					MFC_CTRL_TYPE_SRC, index) < 0)
 			mfc_err_ctx("failed in cleanup_buf_ctrls\n");
 	} else {
-		mfc_err_ctx("s5p_mfc_enc_buf_cleanup: unknown queue type.\n");
+		mfc_err_ctx("s5p_mfc_enc_buf_cleanup: unknown queue type\n");
 	}
 
 	mfc_debug_leave();
@@ -364,7 +364,7 @@ static void s5p_mfc_enc_stop_streaming(struct vb2_queue *q)
 	MFC_TRACE_CTX_HWLOCK("**ENC streamoff(type:%d)\n", q->type);
 	ret = s5p_mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
-		mfc_err_ctx("Failed to get hwlock.\n");
+		mfc_err_ctx("Failed to get hwlock\n");
 		return;
 	}
 
@@ -386,7 +386,7 @@ static void s5p_mfc_enc_stop_streaming(struct vb2_queue *q)
 			while (s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED)) {
 				ret = s5p_mfc_just_run(dev, ctx->num);
 				if (ret) {
-					mfc_err_ctx("Failed to run MFC.\n");
+					mfc_err_ctx("Failed to run MFC\n");
 					break;
 				}
 				if (s5p_mfc_wait_for_done_ctx(ctx, S5P_FIMV_R2H_CMD_FRAME_DONE_RET)) {

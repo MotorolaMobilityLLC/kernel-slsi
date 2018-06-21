@@ -150,7 +150,7 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
 	mfc_print_hwlock(dev);
 
 	if (dev->shutdown) {
-		mfc_info_dev("Couldn't lock HW. Shutdown was called.\n");
+		mfc_info_dev("Couldn't lock HW. Shutdown was called\n");
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 		mutex_unlock(&dev->hwlock_wq.wait_mutex);
 		return -EINVAL;
@@ -162,7 +162,7 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
 
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-		mfc_debug(2, "Waiting for hwlock to be released.\n");
+		mfc_debug(2, "Waiting for hwlock to be released\n");
 
 		ret = wait_event_timeout(dev->hwlock_wq.wait_queue,
 			((dev->hwlock.transfer_owner == 1) && (dev->hwlock.dev == 1)),
@@ -236,7 +236,7 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 	mfc_print_hwlock(dev);
 
 	if (dev->shutdown) {
-		mfc_info_dev("Couldn't lock HW. Shutdown was called.\n");
+		mfc_info_dev("Couldn't lock HW. Shutdown was called\n");
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 		mutex_unlock(&curr_ctx->hwlock_wq.wait_mutex);
 		return -EINVAL;
@@ -253,7 +253,7 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
-		mfc_debug(2, "Waiting for hwlock to be released.\n");
+		mfc_debug(2, "Waiting for hwlock to be released\n");
 
 		ret = wait_event_timeout(curr_ctx->hwlock_wq.wait_queue,
 			((dev->hwlock.transfer_owner == 1) && (test_bit(curr_ctx->num, &dev->hwlock.bits))),
@@ -323,13 +323,13 @@ int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev)
 	dev->hwlock.owned_by_irq = 0;
 
 	if (dev->shutdown) {
-		mfc_debug(2, "Couldn't wakeup module. Shutdown was called.\n");
+		mfc_debug(2, "Couldn't wakeup module. Shutdown was called\n");
 		ret = 0;
 	} else if (list_empty(&dev->hwlock.waiting_list)) {
-		mfc_debug(2, "No waiting module.\n");
+		mfc_debug(2, "No waiting module\n");
 		ret = 0;
 	} else {
-		mfc_debug(2, "There is a waiting module.\n");
+		mfc_debug(2, "There is a waiting module\n");
 		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct s5p_mfc_listable_wq, list);
 		list_del(&listable_wq->list);
 		dev->hwlock.wl_count--;
@@ -344,7 +344,7 @@ int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev)
 
 		dev->hwlock.transfer_owner = 1;
 
-		MFC_TRACE_DEV_HWLOCK("release_hwlock_dev: wakeup.\n");
+		MFC_TRACE_DEV_HWLOCK("release_hwlock_dev: wakeup\n");
 		MFC_TRACE_DEV_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
@@ -388,13 +388,13 @@ static int mfc_release_hwlock_ctx_protected(struct s5p_mfc_ctx *curr_ctx)
 	dev->hwlock.owned_by_irq = 0;
 
 	if (dev->shutdown) {
-		mfc_debug(2, "Couldn't wakeup module. Shutdown was called.\n");
+		mfc_debug(2, "Couldn't wakeup module. Shutdown was called\n");
 		ret = 0;
 	} else if (list_empty(&dev->hwlock.waiting_list)) {
-		mfc_debug(2, "No waiting module.\n");
+		mfc_debug(2, "No waiting module\n");
 		ret = 0;
 	} else {
-		mfc_debug(2, "There is a waiting module.\n");
+		mfc_debug(2, "There is a waiting module\n");
 		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct s5p_mfc_listable_wq, list);
 		list_del(&listable_wq->list);
 		dev->hwlock.wl_count--;
@@ -409,7 +409,7 @@ static int mfc_release_hwlock_ctx_protected(struct s5p_mfc_ctx *curr_ctx)
 
 		dev->hwlock.transfer_owner = 1;
 
-		MFC_TRACE_CTX_HWLOCK("release_hwlock_ctx: wakeup.\n");
+		MFC_TRACE_CTX_HWLOCK("release_hwlock_ctx: wakeup\n");
 		MFC_TRACE_CTX_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
@@ -506,19 +506,19 @@ static int mfc_try_to_get_new_ctx_protected(struct s5p_mfc_dev *dev)
 	}
 
 	if (dev->shutdown) {
-		mfc_info_dev("Couldn't lock HW. Shutdown was called.\n");
+		mfc_info_dev("Couldn't lock HW. Shutdown was called\n");
 		return -EINVAL;
 	}
 
 	if (dev->sleep) {
-		mfc_info_dev("Couldn't lock HW. Sleep was called.\n");
+		mfc_info_dev("Couldn't lock HW. Sleep was called\n");
 		return -EINVAL;
 	}
 
 	/* Check whether hardware is not running */
 	if ((dev->hwlock.bits != 0) || (dev->hwlock.dev != 0)) {
 		/* This is perfectly ok, the scheduled ctx should wait */
-		mfc_debug(2, "Couldn't lock HW.\n");
+		mfc_debug(2, "Couldn't lock HW\n");
 		return -1;
 	}
 
@@ -528,7 +528,7 @@ static int mfc_try_to_get_new_ctx_protected(struct s5p_mfc_dev *dev)
 		/* This is perfectly ok, the scheduled ctx should wait
 		 * No contexts to run
 		 */
-		mfc_debug(2, "No ctx is scheduled to be run.\n");
+		mfc_debug(2, "No ctx is scheduled to be run\n");
 		ret = -1;
 		return ret;
 	}
@@ -568,7 +568,7 @@ void s5p_mfc_try_run(struct s5p_mfc_dev *dev)
 
 	new_ctx_index = mfc_try_to_get_new_ctx_protected(dev);
 	if (new_ctx_index < 0) {
-		mfc_debug(2, "Failed to get new context to run.\n");
+		mfc_debug(2, "Failed to get new context to run\n");
 		mfc_print_hwlock(dev);
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 		return;
@@ -686,7 +686,7 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 			mfc_info_ctx("[NALQ] stop NAL QUEUE\n");
 			if (s5p_mfc_wait_for_done_dev(dev,
 					S5P_FIMV_R2H_CMD_COMPLETE_QUEUE_RET)) {
-				mfc_err_dev("[NALQ] Failed to stop queue.\n");
+				mfc_err_dev("[NALQ] Failed to stop queue\n");
 				dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_STOP_NAL_Q);
 				call_dop(dev, dump_and_stop_always, dev);
 	                }

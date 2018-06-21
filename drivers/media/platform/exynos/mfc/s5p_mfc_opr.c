@@ -40,11 +40,11 @@ int s5p_mfc_run_dec_init(struct s5p_mfc_ctx *ctx)
 	/* Get the next source buffer */
 	src_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
 	if (!src_mb) {
-		mfc_err_dev("no src buffers.\n");
+		mfc_err_dev("no src buffers\n");
 		return -EAGAIN;
 	}
 
-	mfc_debug(2, "Preparing to init decoding.\n");
+	mfc_debug(2, "Preparing to init decoding\n");
 	mfc_debug(2, "Header size: %d, (offset: %lu)\n",
 		src_mb->vb.vb2_buf.planes[0].bytesused, dec->consumed);
 
@@ -108,7 +108,7 @@ int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 	/* Get the next source buffer */
 	src_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_SET_USED);
 	if (!src_mb) {
-		mfc_debug(2, "no src buffers.\n");
+		mfc_debug(2, "no src buffers\n");
 		return -EAGAIN;
 	}
 
@@ -182,7 +182,7 @@ int s5p_mfc_run_dec_last_frames(struct s5p_mfc_ctx *ctx)
 
 	/* Frames are being decoded */
 	if (!src_mb) {
-		mfc_debug(2, "no src buffers.\n");
+		mfc_debug(2, "no src buffers\n");
 		s5p_mfc_set_dec_stream_buffer(ctx, 0, 0, 0);
 	} else {
 		if (dec->consumed) {
@@ -221,7 +221,7 @@ int s5p_mfc_run_enc_init(struct s5p_mfc_ctx *ctx)
 
 	dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
 	if (!dst_mb) {
-		mfc_debug(2, "no dst buffers.\n");
+		mfc_debug(2, "no dst buffers\n");
 		return -EAGAIN;
 	}
 
@@ -255,7 +255,7 @@ int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	/* Get the next source buffer */
 	src_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_SET_USED);
 	if (!src_mb) {
-		mfc_debug(2, "no src buffers.\n");
+		mfc_debug(2, "no src buffers\n");
 		return -EAGAIN;
 	}
 
@@ -277,7 +277,7 @@ int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 
 	dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
 	if (!dst_mb) {
-		mfc_debug(2, "no dst buffers.\n");
+		mfc_debug(2, "no dst buffers\n");
 		return -EAGAIN;
 	}
 
@@ -311,7 +311,7 @@ int s5p_mfc_run_enc_last_frames(struct s5p_mfc_ctx *ctx)
 
 	dst_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
 	if (!dst_mb) {
-		mfc_debug(2, "no dst buffers.\n");
+		mfc_debug(2, "no dst buffers\n");
 		return -EAGAIN;
 	}
 

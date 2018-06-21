@@ -846,7 +846,7 @@ struct s5p_mfc_buf *mfc_check_full_refered_dpb(struct s5p_mfc_ctx *ctx)
 			mfc_err_ctx("[DPB] dst_buf_queue is empty\n");
 			return NULL;
 		}
-		mfc_debug(3, "[DPB] We should use this buffer.\n");
+		mfc_debug(3, "[DPB] We should use this buffer\n");
 		mfc_buf = list_entry(ctx->dst_buf_queue.head.next,
 				struct s5p_mfc_buf, list);
 	} else if ((ctx->dst_buf_queue.count == 0)
@@ -855,7 +855,7 @@ struct s5p_mfc_buf *mfc_check_full_refered_dpb(struct s5p_mfc_ctx *ctx)
 			mfc_err_ctx("[DPB] ref_buf_queue is empty\n");
 			return NULL;
 		}
-		mfc_debug(3, "[DPB] All buffers are referenced.\n");
+		mfc_debug(3, "[DPB] All buffers are referenced\n");
 		mfc_buf = list_entry(ctx->ref_buf_queue.head.next,
 				struct s5p_mfc_buf, list);
 	} else {

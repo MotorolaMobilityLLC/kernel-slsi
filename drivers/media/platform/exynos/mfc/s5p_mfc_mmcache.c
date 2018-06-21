@@ -219,7 +219,7 @@ void s5p_mfc_invalidate_mmcache(struct s5p_mfc_dev *dev)
 			break;
 		}
 		if (time_after(jiffies, timeout)) {
-			mfc_err_dev("[MMCACHE] Timeout while invalidation.\n");
+			mfc_err_dev("[MMCACHE] Timeout while invalidation\n");
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			break;
 		}

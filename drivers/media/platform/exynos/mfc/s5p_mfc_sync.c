@@ -55,7 +55,7 @@ int s5p_mfc_wait_for_done_dev(struct s5p_mfc_dev *dev, int command)
 			wait_condition(dev, command),
 			msecs_to_jiffies(MFC_INT_TIMEOUT));
 	if (ret == 0) {
-		mfc_err_dev("Interrupt (dev->int_reason:%d, command:%d) timed out.\n",
+		mfc_err_dev("Interrupt (dev->int_reason:%d, command:%d) timed out\n",
 							dev->int_reason, command);
 		if (s5p_mfc_check_risc2host(dev)) {
 			ret = wait_event_timeout(dev->cmd_wq,
@@ -73,7 +73,7 @@ int s5p_mfc_wait_for_done_dev(struct s5p_mfc_dev *dev, int command)
 	}
 
 wait_done:
-	mfc_debug(2, "Finished waiting (dev->int_reason:%d, command: %d).\n",
+	mfc_debug(2, "Finished waiting (dev->int_reason:%d, command: %d)\n",
 							dev->int_reason, command);
 	return 0;
 }
@@ -97,7 +97,7 @@ int s5p_mfc_wait_for_done_ctx(struct s5p_mfc_ctx *ctx, int command)
 			wait_condition(ctx, command),
 			msecs_to_jiffies(timeout));
 	if (ret == 0) {
-		mfc_err_ctx("Interrupt (ctx->int_reason:%d, command:%d) timed out.\n",
+		mfc_err_ctx("Interrupt (ctx->int_reason:%d, command:%d) timed out\n",
 							ctx->int_reason, command);
 		if (s5p_mfc_check_risc2host(dev)) {
 			ret = wait_event_timeout(ctx->cmd_wq,
@@ -116,14 +116,14 @@ int s5p_mfc_wait_for_done_ctx(struct s5p_mfc_ctx *ctx, int command)
 
 wait_done:
 	if (is_err_cond(ctx)) {
-		mfc_err_ctx("Finished (ctx->int_reason:%d, command: %d).\n",
+		mfc_err_ctx("Finished (ctx->int_reason:%d, command: %d)\n",
 				ctx->int_reason, command);
-		mfc_err_ctx("But error (ctx->int_err:%d).\n", ctx->int_err);
+		mfc_err_ctx("But error (ctx->int_err:%d)\n", ctx->int_err);
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 		return -1;
 	}
 
-	mfc_debug(2, "Finished waiting (ctx->int_reason:%d, command: %d).\n",
+	mfc_debug(2, "Finished waiting (ctx->int_reason:%d, command: %d)\n",
 							ctx->int_reason, command);
 	return 0;
 }
@@ -264,7 +264,7 @@ int s5p_mfc_dec_ctx_ready(struct s5p_mfc_ctx *ctx)
 		return 1;
 
 	s5p_mfc_perf_cancel_drv_margin(dev);
-	mfc_debug(2, "ctx is not ready.\n");
+	mfc_debug(2, "ctx is not ready\n");
 
 	return 0;
 }
@@ -326,7 +326,7 @@ int s5p_mfc_enc_ctx_ready(struct s5p_mfc_ctx *ctx)
 		return 1;
 
 	s5p_mfc_perf_cancel_drv_margin(dev);
-	mfc_debug(2, "ctx is not ready.\n");
+	mfc_debug(2, "ctx is not ready\n");
 
 	return 0;
 }

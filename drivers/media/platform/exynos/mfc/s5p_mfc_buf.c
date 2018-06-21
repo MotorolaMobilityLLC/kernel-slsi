@@ -451,7 +451,7 @@ int s5p_mfc_alloc_dbg_info_buffer(struct s5p_mfc_dev *dev)
 {
 	struct s5p_mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
 
-	mfc_debug(2, "Allocate a debug-info buffer.\n");
+	mfc_debug(2, "Allocate a debug-info buffer\n");
 
 	dev->dbg_info_buf.buftype = MFCBUF_NORMAL;
 	dev->dbg_info_buf.size = buf_size->dbg_info_buf;

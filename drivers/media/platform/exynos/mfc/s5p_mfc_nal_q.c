@@ -64,7 +64,7 @@ int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev)
 			}
 			/* NAL-Q doesn't support OTF mode */
 			if (temp_ctx->otf_handle) {
-				mfc_debug(2, "There is a OTF node.\n");
+				mfc_debug(2, "There is a OTF node\n");
 				return 0;
 			}
 			/* NAL-Q doesn't support BPG */
@@ -158,7 +158,7 @@ void s5p_mfc_nal_q_clock_off(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_ha
 	mfc_debug(2, "[NALQ] nal_q_clk_cnt = %d\n", nal_q_handle->nal_q_clk_cnt);
 
 	if (!nal_q_handle->nal_q_clk_cnt) {
-		mfc_err_dev("[NALQ] nal_q_clk_cnt is already zero.\n");
+		mfc_err_dev("[NALQ] nal_q_clk_cnt is already zero\n");
 		return;
 	}
 
@@ -1185,7 +1185,7 @@ static void mfc_nal_q_handle_frame_copy_timestamp(struct s5p_mfc_ctx *ctx, Decod
 	/* Get the next source buffer */
 	src_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
 	if (!src_mb) {
-		mfc_err_dev("[NALQ] no src buffers.\n");
+		mfc_err_dev("[NALQ] no src buffers\n");
 		return;
 	}
 
@@ -1442,7 +1442,7 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 	src_mb = s5p_mfc_get_del_if_consumed(ctx, &ctx->src_buf_nal_queue,
 			consumed, STUFF_BYTE, err, &deleted);
 	if (!src_mb) {
-		mfc_err_dev("[NALQ] no src buffers.\n");
+		mfc_err_dev("[NALQ] no src buffers\n");
 		return;
 	}
 
@@ -1452,7 +1452,7 @@ static void mfc_nal_q_handle_frame_input(struct s5p_mfc_ctx *ctx, unsigned int e
 
 	if (!deleted) {
 		/* Run MFC again on the same buffer */
-		mfc_debug(2, "[NALQ][MULTIFRAME] Running again the same buffer.\n");
+		mfc_debug(2, "[NALQ][MULTIFRAME] Running again the same buffer\n");
 
 		if (CODEC_MULTIFRAME(ctx))
 			dec->y_addr_for_pb = (dma_addr_t)pOutStr->DecodedAddr[0];
@@ -1582,7 +1582,7 @@ void mfc_nal_q_handle_frame(struct s5p_mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 	if (s5p_mfc_dec_status_display(dst_frame_status))
 		mfc_nal_q_handle_frame_new(ctx, err, pOutStr);
 	else
-		mfc_debug(2, "[NALQ] No display frame.\n");
+		mfc_debug(2, "[NALQ] No display frame\n");
 
 	/* Mark source buffer as complete */
 	if (dst_frame_status != S5P_FIMV_DEC_STATUS_DISPLAY_ONLY)
@@ -1631,7 +1631,7 @@ int mfc_nal_q_handle_error(struct s5p_mfc_ctx *ctx, EncoderOutputStr *pOutStr, i
 				&ctx->src_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
 
 		if (!src_mb) {
-			mfc_err_dev("[NALQ] no src buffers.\n");
+			mfc_err_dev("[NALQ] no src buffers\n");
 		} else {
 			dec->consumed = 0;
 			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
@@ -1652,7 +1652,7 @@ int mfc_nal_q_handle_error(struct s5p_mfc_ctx *ctx, EncoderOutputStr *pOutStr, i
 					&ctx->src_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
 
 			if (!src_mb)
-				mfc_err_dev("[NALQ] no src buffers.\n");
+				mfc_err_dev("[NALQ] no src buffers\n");
 			else
 				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 

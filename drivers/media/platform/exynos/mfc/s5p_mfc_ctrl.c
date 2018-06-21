@@ -60,7 +60,7 @@ static int mfc_init_hw(struct s5p_mfc_dev *dev, enum mfc_buf_usage_type buf_type
 
 	ret = s5p_mfc_reset_mfc(dev);
 	if (ret) {
-		mfc_err_dev("Failed to reset MFC - timeout.\n");
+		mfc_err_dev("Failed to reset MFC - timeout\n");
 		goto err_init_hw;
 	}
 	mfc_debug(2, "Done MFC reset...\n");
@@ -71,7 +71,7 @@ static int mfc_init_hw(struct s5p_mfc_dev *dev, enum mfc_buf_usage_type buf_type
 	/* 2. Release reset signal to the RISC */
 	s5p_mfc_risc_on(dev);
 
-	mfc_debug(2, "Will now wait for completion of firmware transfer.\n");
+	mfc_debug(2, "Will now wait for completion of firmware transfer\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_FW_STATUS_RET)) {
 		mfc_err_dev("Failed to RISC_ON\n");
 		s5p_mfc_clean_dev_int_flags(dev);
@@ -82,7 +82,7 @@ static int mfc_init_hw(struct s5p_mfc_dev *dev, enum mfc_buf_usage_type buf_type
 	/* 3. Initialize firmware */
 	ret = s5p_mfc_cmd_sys_init(dev, buf_type);
 	if (ret) {
-		mfc_err_dev("Failed to send command to MFC - timeout.\n");
+		mfc_err_dev("Failed to send command to MFC - timeout\n");
 		goto err_init_hw;
 	}
 
@@ -95,11 +95,10 @@ static int mfc_init_hw(struct s5p_mfc_dev *dev, enum mfc_buf_usage_type buf_type
 	}
 
 	dev->int_condition = 0;
-	if (dev->int_err != 0 || dev->int_reason !=
-						S5P_FIMV_R2H_CMD_SYS_INIT_RET) {
+	if (dev->int_err != 0 || dev->int_reason != S5P_FIMV_R2H_CMD_SYS_INIT_RET) {
 		/* Failure. */
-		mfc_err_dev("Failed to init firmware - error: %d"
-				" int: %d.\n", dev->int_err, dev->int_reason);
+		mfc_err_dev("Failed to init firmware - error: %d, int: %d\n",
+				dev->int_err, dev->int_reason);
 		ret = -EIO;
 		goto err_init_hw;
 	}
@@ -237,7 +236,7 @@ int s5p_mfc_sleep(struct s5p_mfc_dev *dev)
 	MFC_TRACE_DEV_HWLOCK("**sleep (ctx:%d)\n", ctx->num);
 	ret = s5p_mfc_get_hwlock_dev(dev);
 	if (ret < 0) {
-		mfc_err_dev("Failed to get hwlock.\n");
+		mfc_err_dev("Failed to get hwlock\n");
 		mfc_err_dev("dev.hwlock.dev = 0x%lx, bits = 0x%lx, owned_by_irq = %d, wl_count = %d, transfer_owner = %d\n",
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
@@ -263,11 +262,10 @@ int s5p_mfc_sleep(struct s5p_mfc_dev *dev)
 	}
 
 	dev->int_condition = 0;
-	if (dev->int_err != 0 || dev->int_reason !=
-						S5P_FIMV_R2H_CMD_SLEEP_RET) {
+	if (dev->int_err != 0 || dev->int_reason != S5P_FIMV_R2H_CMD_SLEEP_RET) {
 		/* Failure. */
-		mfc_err_dev("Failed to sleep - error: %d"
-				" int: %d.\n", dev->int_err, dev->int_reason);
+		mfc_err_dev("Failed to sleep - error: %d, int: %d\n",
+				dev->int_err, dev->int_reason);
 		ret = -EIO;
 		goto err_mfc_sleep;
 	}
@@ -299,7 +297,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	MFC_TRACE_DEV_HWLOCK("**wakeup\n");
 	ret = s5p_mfc_get_hwlock_dev(dev);
 	if (ret < 0) {
-		mfc_err_dev("Failed to get hwlock.\n");
+		mfc_err_dev("Failed to get hwlock\n");
 		mfc_err_dev("dev.hwlock.dev = 0x%lx, bits = 0x%lx, owned_by_irq = %d, wl_count = %d, transfer_owner = %d\n",
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
@@ -315,7 +313,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 
 	ret = s5p_mfc_reset_mfc(dev);
 	if (ret) {
-		mfc_err_dev("Failed to reset MFC - timeout.\n");
+		mfc_err_dev("Failed to reset MFC - timeout\n");
 		goto err_mfc_wakeup;
 	}
 	mfc_debug(2, "Done MFC reset...\n");
@@ -330,7 +328,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	/* 2. Release reset signal to the RISC */
 	s5p_mfc_risc_on(dev);
 
-	mfc_debug(2, "Will now wait for completion of firmware transfer.\n");
+	mfc_debug(2, "Will now wait for completion of firmware transfer\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_FW_STATUS_RET)) {
 		mfc_err_dev("Failed to RISC_ON\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_RISC_ON);
@@ -341,7 +339,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	mfc_debug(2, "Ok, now will write a command to wakeup the system\n");
 	s5p_mfc_cmd_wakeup(dev);
 
-	mfc_debug(2, "Will now wait for completion of firmware wake up.\n");
+	mfc_debug(2, "Will now wait for completion of firmware wake up\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_WAKEUP_RET)) {
 		mfc_err_dev("Failed to WAKEUP\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_WAKEUP);
@@ -350,11 +348,10 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	}
 
 	dev->int_condition = 0;
-	if (dev->int_err != 0 || dev->int_reason !=
-						S5P_FIMV_R2H_CMD_WAKEUP_RET) {
+	if (dev->int_err != 0 || dev->int_reason != S5P_FIMV_R2H_CMD_WAKEUP_RET) {
 		/* Failure. */
-		mfc_err_dev("Failed to wakeup - error: %d"
-				" int: %d.\n", dev->int_err, dev->int_reason);
+		mfc_err_dev("Failed to wakeup - error: %d, int: %d\n",
+				dev->int_err, dev->int_reason);
 		ret = -EIO;
 		goto err_mfc_wakeup;
 	}

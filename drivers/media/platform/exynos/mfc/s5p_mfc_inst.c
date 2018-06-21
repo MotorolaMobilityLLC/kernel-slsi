@@ -48,7 +48,7 @@ int s5p_mfc_open_inst(struct s5p_mfc_ctx *ctx)
 
 	ret = s5p_mfc_cmd_open_inst(ctx);
 	if (ret) {
-		mfc_err_ctx("Failed to create a new instance.\n");
+		mfc_err_ctx("Failed to create a new instance\n");
 		s5p_mfc_change_state(ctx, MFCINST_ERROR);
 	}
 
@@ -69,7 +69,7 @@ int s5p_mfc_close_inst(struct s5p_mfc_ctx *ctx)
 
 	ret = s5p_mfc_cmd_close_inst(ctx);
 	if (ret) {
-		mfc_err_ctx("Failed to return an instance.\n");
+		mfc_err_ctx("Failed to return an instance\n");
 		s5p_mfc_change_state(ctx, MFCINST_ERROR);
 	}
 
@@ -257,7 +257,7 @@ int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 		break;
 	}
 
-	mfc_debug(2, "Decoding a usual frame.\n");
+	mfc_debug(2, "Decoding a usual frame\n");
 	return 0;
 }
 
@@ -282,7 +282,7 @@ int s5p_mfc_init_encode(struct s5p_mfc_ctx *ctx)
 	else if (IS_BPG_ENC(ctx))
 		s5p_mfc_set_enc_params_bpg(ctx);
 	else {
-		mfc_err_ctx("Unknown codec for encoding (%x).\n",
+		mfc_err_ctx("Unknown codec for encoding (%x)\n",
 			ctx->codec_mode);
 		return -EINVAL;
 	}
