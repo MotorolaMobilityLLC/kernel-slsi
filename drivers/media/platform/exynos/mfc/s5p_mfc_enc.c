@@ -290,6 +290,94 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "[FRAME] 10bit: %d, 422: %d\n", ctx->is_10bit, ctx->is_422);
 }
 
+static int mfc_enc_check_resolution(struct s5p_mfc_ctx *ctx)
+{
+	int max_width = 0, max_height = 0, min_width = 0, min_height = 0, swap_check = 0;
+
+	/* Check max resolution */
+	switch (ctx->codec_mode) {
+	case S5P_FIMV_CODEC_HEVC_ENC:
+		if (ctx->is_422) {
+			max_width = 65536;
+			max_height = 8192;
+			swap_check = 1;
+		} else {
+			max_width = 8192;
+			max_height = 8192;
+		}
+		break;
+	case S5P_FIMV_CODEC_BPG_ENC:
+		max_width = 65536;
+		max_height = 8192;
+		swap_check = 1;
+		break;
+	case S5P_FIMV_CODEC_H264_ENC:
+	case S5P_FIMV_CODEC_VP8_ENC:
+		max_width = 8192;
+		max_height = 8192;
+		break;
+	case S5P_FIMV_CODEC_VP9_ENC:
+		max_width = 4096;
+		max_height = 8192;
+		break;
+	case S5P_FIMV_CODEC_MPEG4_ENC:
+		max_width = 2048;
+		max_height = 2048;
+		break;
+	case S5P_FIMV_CODEC_H263_ENC:
+		max_width = 2048;
+		max_height = 1152;
+		break;
+	default:
+		mfc_err_ctx("Not supported codec(%d)\n", ctx->codec_mode);
+		return -EINVAL;
+	}
+
+	if (swap_check) {
+		if (!((ctx->crop_width < max_width && ctx->crop_height < max_height) ||
+				(ctx->crop_width < max_height && ctx->crop_height < max_width))) {
+			mfc_err_ctx("Resolution is too big(%dx%d > %dxi%d or %dx%d\n",
+					ctx->crop_width, ctx->crop_height, max_width, max_height,
+					max_height, max_width);
+			return -EINVAL;
+		}
+	} else {
+		if (ctx->crop_width > max_width || ctx->crop_height > max_height) {
+			mfc_err_ctx("Resolution is too big(%dx%d > %dx%d)\n",
+					ctx->crop_width, ctx->crop_height, max_width, max_height);
+			return -EINVAL;
+		}
+	}
+
+	/* Check min resolution */
+	switch (ctx->codec_mode) {
+	case S5P_FIMV_CODEC_HEVC_ENC:
+	case S5P_FIMV_CODEC_BPG_ENC:
+	case S5P_FIMV_CODEC_VP9_ENC:
+		min_width = 64;
+		min_height = 64;
+		break;
+	case S5P_FIMV_CODEC_H264_ENC:
+	case S5P_FIMV_CODEC_VP8_ENC:
+	case S5P_FIMV_CODEC_MPEG4_ENC:
+	case S5P_FIMV_CODEC_H263_ENC:
+		min_width = 32;
+		min_height = 32;
+		break;
+	default:
+		mfc_err_ctx("Not supported codec(%d)\n", ctx->codec_mode);
+		return -EINVAL;
+	}
+
+	if (ctx->crop_width < min_width || ctx->crop_height < min_height) {
+		mfc_err_ctx("Resolution is too small(%dx%d < %dx%d)\n",
+				ctx->crop_width, ctx->crop_height, min_width, min_height);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
@@ -315,6 +403,11 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	ctx->codec_mode = ctx->dst_fmt->codec_mode;
 	mfc_info_ctx("[STREAM] Enc dst codec(%d) : %s\n",
 			ctx->codec_mode, ctx->dst_fmt->name);
+
+	if (mfc_enc_check_resolution(ctx)) {
+		mfc_err_ctx("Unsupported resolution\n");
+		return -EINVAL;
+	}
 
 	if (ctx->otf_handle) {
 		if (ctx->dst_fmt->fourcc != V4L2_PIX_FMT_H264 &&
