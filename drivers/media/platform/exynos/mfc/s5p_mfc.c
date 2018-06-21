@@ -575,7 +575,7 @@ static int s5p_mfc_open(struct file *file)
 	if (s5p_mfc_is_encoder_otf_node(node)) {
 		ret = s5p_mfc_otf_create(ctx);
 		if (ret)
-			mfc_err_ctx("OTF: otf_create failed\n");
+			mfc_err_ctx("[OTF] otf_create failed\n");
 	}
 #endif
 
@@ -901,7 +901,7 @@ int s5p_mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *devi
 
 	dev = (struct s5p_mfc_dev *)param;
 
-	/* OTF: If AxID is 1 in SYSMMU1 fault info, it is TS-MUX fault */
+	/* [OTF] If AxID is 1 in SYSMMU1 fault info, it is TS-MUX fault */
 	if (dev->has_hwfc && dev->has_2sysmmu) {
 		if (MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS) &&
 				((MFC_MMU1_READL(MFC_MMU_FAULT_TRANS_INFO) &

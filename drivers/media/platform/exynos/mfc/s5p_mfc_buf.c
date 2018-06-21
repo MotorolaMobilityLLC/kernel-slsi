@@ -549,10 +549,10 @@ int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
 		buf->buftype = MFCBUF_NORMAL;
 		buf->size = raw->total_plane_size;
 		if (s5p_mfc_mem_ion_alloc(dev, buf)) {
-			mfc_err_ctx("OTF: Allocating stream buffer failed\n");
+			mfc_err_ctx("[OTF] Allocating stream buffer failed\n");
 			return -EINVAL;
 		}
-		mfc_debug(2, "OTF:[MEMINFO] OTF stream buf[%d] size: %ld, daddr: 0x%08llx, vaddr: 0x%p\n",
+		mfc_debug(2, "[OTF][MEMINFO] OTF stream buf[%d] size: %ld, daddr: 0x%08llx, vaddr: 0x%p\n",
 				i, buf->size, buf->daddr, buf->vaddr);
 		memset(buf->vaddr, 0, raw->total_plane_size);
 	}
@@ -578,7 +578,7 @@ void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx)
 			s5p_mfc_mem_ion_free(dev, buf);
 	}
 
-	mfc_debug(2, "OTF:[MEMINFO] Release the OTF stream buffer\n");
+	mfc_debug(2, "[OTF][MEMINFO] Release the OTF stream buffer\n");
 	mfc_debug_leave();
 }
 

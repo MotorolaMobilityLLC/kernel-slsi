@@ -59,11 +59,11 @@ static int mfc_otf_set_buf_info(struct s5p_mfc_ctx *ctx)
 
 	ctx->src_fmt = mfc_enc_hwfc_find_format(buf_info->pixel_format);
 	if (!ctx->src_fmt) {
-		mfc_err_ctx("OTF: failed to set source format\n");
+		mfc_err_ctx("[OTF] failed to set source format\n");
 		return -EINVAL;
 	}
 
-	mfc_debug(2, "OTF:[FRAME] resolution w: %d, h: %d, format: %s, bufcnt: %d\n",
+	mfc_debug(2, "[OTF][FRAME] resolution w: %d, h: %d, format: %s, bufcnt: %d\n",
 			buf_info->width, buf_info->height,
 			ctx->src_fmt->name, buf_info->buffer_count);
 
@@ -94,13 +94,13 @@ static int mfc_otf_map_buf(struct s5p_mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
-	mfc_debug(2, "OTF: buffer count: %d\n", buf_info->buffer_count);
+	mfc_debug(2, "[OTF] buffer count: %d\n", buf_info->buffer_count);
 	/* map buffers */
 	for (i = 0; i < buf_info->buffer_count; i++) {
-		mfc_debug(2, "OTF: dma_buf: 0x%p\n", buf_info->bufs[i]);
+		mfc_debug(2, "[OTF] dma_buf: 0x%p\n", buf_info->bufs[i]);
 		buf_addr->otf_buf_attach[i] = dma_buf_attach(buf_info->bufs[i], dev->device);
 		if (IS_ERR(buf_addr->otf_buf_attach[i])) {
-			mfc_err_ctx("OTF: Failed to get attachment (err %ld)",
+			mfc_err_ctx("[OTF] Failed to get attachment (err %ld)",
 				PTR_ERR(buf_addr->otf_buf_attach[i]));
 			buf_addr->otf_buf_attach[i] = 0;
 			return -EINVAL;
@@ -108,7 +108,7 @@ static int mfc_otf_map_buf(struct s5p_mfc_ctx *ctx)
 		buf_addr->otf_daddr[i][0] = ion_iovmm_map(buf_addr->otf_buf_attach[i], 0,
 				raw->total_plane_size, DMA_BIDIRECTIONAL, 0);
 		if (IS_ERR_VALUE(buf_addr->otf_daddr[i][0])) {
-			mfc_err_ctx("OTF: Failed to get daddr (0x%08llx)",
+			mfc_err_ctx("[OTF] Failed to get daddr (0x%08llx)",
 					buf_addr->otf_daddr[i][0]);
 			buf_addr->otf_daddr[i][0] = 0;
 			return -EINVAL;
@@ -117,10 +117,10 @@ static int mfc_otf_map_buf(struct s5p_mfc_ctx *ctx)
 			buf_addr->otf_daddr[i][1] = NV12N_CBCR_BASE(buf_addr->otf_daddr[i][0],
 					ctx->img_width, ctx->img_height);
 		} else {
-			mfc_err_ctx("OTF: not supported format(0x%x)\n", ctx->src_fmt->fourcc);
+			mfc_err_ctx("[OTF] not supported format(0x%x)\n", ctx->src_fmt->fourcc);
 			return -EINVAL;
 		}
-		mfc_debug(2, "OTF: index: %d, addr[0]: 0x%08llx, addr[1]: 0x%08llx\n",
+		mfc_debug(2, "[OTF] index: %d, addr[0]: 0x%08llx, addr[1]: 0x%08llx\n",
 				i, buf_addr->otf_daddr[i][0], buf_addr->otf_daddr[i][1]);
 	}
 
@@ -185,26 +185,26 @@ static int mfc_otf_init_hwfc_buf(struct s5p_mfc_ctx *ctx)
 	shared_buf_info = (struct shared_buffer_info *)buf_info;
 	/* request buffers */
 	if (hwfc_request_buffer(shared_buf_info, 1)) {
-		mfc_err_dev("OTF: request_buffer failed\n");
+		mfc_err_dev("[OTF] request_buffer failed\n");
 		return -EINVAL;
 	}
 #endif
-	mfc_debug(2, "OTF: recieved buffer information\n");
+	mfc_debug(2, "[OTF] recieved buffer information\n");
 
 	/* set buffer information to ctx, and calculate buffer size */
 	if (mfc_otf_set_buf_info(ctx)) {
-		mfc_err_ctx("OTF: failed to set buffer information\n");
+		mfc_err_ctx("[OTF] failed to set buffer information\n");
 		mfc_otf_put_buf(ctx);
 		return -EINVAL;
 	}
 
 	if (mfc_otf_map_buf(ctx)) {
-		mfc_err_ctx("OTF: failed to map buffers\n");
+		mfc_err_ctx("[OTF] failed to map buffers\n");
 		mfc_otf_unmap_buf(ctx);
 		mfc_otf_put_buf(ctx);
 		return -EINVAL;
 	}
-	mfc_debug(2, "OTF: HWFC buffer initialized\n");
+	mfc_debug(2, "[OTF] HWFC buffer initialized\n");
 
 	mfc_debug_leave();
 
@@ -217,7 +217,7 @@ static void mfc_otf_deinit_hwfc_buf(struct s5p_mfc_ctx *ctx)
 
 	mfc_otf_unmap_buf(ctx);
 	mfc_otf_put_buf(ctx);
-	mfc_debug(2, "OTF: HWFC buffer de-initialized\n");
+	mfc_debug(2, "[OTF] HWFC buffer de-initialized\n");
 
 	mfc_debug_leave();
 }
@@ -229,16 +229,16 @@ static int mfc_otf_create_handle(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("OTF: no mfc context to run\n");
+		mfc_err_dev("[OTF] no mfc context to run\n");
 		return -EINVAL;
 	}
 
 	ctx->otf_handle = kzalloc(sizeof(*otf_handle), GFP_KERNEL);
 	if (!ctx->otf_handle) {
-		mfc_err_dev("OTF: no otf_handle\n");
+		mfc_err_dev("[OTF] no otf_handle\n");
 		return -EINVAL;
 	}
-	mfc_debug(2, "OTF: otf_handle created\n");
+	mfc_debug(2, "[OTF] otf_handle created\n");
 
 	mfc_debug_leave();
 
@@ -250,13 +250,13 @@ static void mfc_otf_destroy_handle(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("OTF: no mfc context to run\n");
+		mfc_err_dev("[OTF] no mfc context to run\n");
 		return;
 	}
 
 	kfree(ctx->otf_handle);
 	ctx->otf_handle = NULL;
-	mfc_debug(2, "OTF: otf_handle destroyed\n");
+	mfc_debug(2, "[OTF] otf_handle destroyed\n");
 
 	mfc_debug_leave();
 }
@@ -269,37 +269,37 @@ int s5p_mfc_otf_create(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("OTF: no mfc context to run\n");
+		mfc_err_dev("[OTF] no mfc context to run\n");
 		return -EINVAL;
 	}
 
 	dev = ctx->dev;
 	if (!dev) {
-		mfc_err_dev("OTF: no mfc device to run\n");
+		mfc_err_dev("[OTF] no mfc device to run\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
 		if (dev->ctx[i] && dev->ctx[i]->otf_handle) {
-			mfc_err_dev("OTF: otf_handle is already created, ctx: %d\n", i);
+			mfc_err_dev("[OTF] otf_handle is already created, ctx: %d\n", i);
 			return -EINVAL;
 		}
 	}
 
 	if (mfc_otf_create_handle(ctx)) {
-		mfc_err_dev("OTF: otf_handle is not created\n");
+		mfc_err_dev("[OTF] otf_handle is not created\n");
 		return -EINVAL;
 	}
 
 	if (otf_dump) {
 		/* It is for debugging. Do not return error */
 		if (s5p_mfc_otf_alloc_stream_buf(ctx)) {
-			mfc_err_dev("OTF: stream buffer allocation failed\n");
+			mfc_err_dev("[OTF] stream buffer allocation failed\n");
 			s5p_mfc_otf_release_stream_buf(ctx);
 		}
 	}
 
-	mfc_debug(2, "OTF: otf_create is completed\n");
+	mfc_debug(2, "[OTF] otf_create is completed\n");
 
 	mfc_debug_leave();
 
@@ -311,13 +311,13 @@ void s5p_mfc_otf_destroy(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("OTF: no mfc context to run\n");
+		mfc_err_dev("[OTF] no mfc context to run\n");
 		return;
 	}
 
 	s5p_mfc_otf_release_stream_buf(ctx);
 	mfc_otf_destroy_handle(ctx);
-	mfc_debug(2, "OTF: otf_destroy is completed\n");
+	mfc_debug(2, "[OTF] otf_destroy is completed\n");
 
 	mfc_debug_leave();
 }
@@ -327,21 +327,21 @@ int s5p_mfc_otf_init(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("OTF: no mfc context to run\n");
+		mfc_err_dev("[OTF] no mfc context to run\n");
 		return -EINVAL;
 	}
 
 	if (!ctx->otf_handle) {
-		mfc_err_dev("OTF: otf_handle was not created\n");
+		mfc_err_dev("[OTF] otf_handle was not created\n");
 		return -EINVAL;
 	}
 
 	if (mfc_otf_init_hwfc_buf(ctx)) {
-		mfc_err_dev("OTF: HWFC init failed\n");
+		mfc_err_dev("[OTF] HWFC init failed\n");
 		return -EINVAL;
 	}
 
-	mfc_debug(2, "OTF: otf_init is completed\n");
+	mfc_debug(2, "[OTF] otf_init is completed\n");
 
 	mfc_debug_leave();
 
@@ -353,12 +353,12 @@ void s5p_mfc_otf_deinit(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("OTF: no mfc context to run\n");
+		mfc_err_dev("[OTF] no mfc context to run\n");
 		return;
 	}
 
 	mfc_otf_deinit_hwfc_buf(ctx);
-	mfc_debug(2, "OTF: deinit_otf is completed\n");
+	mfc_debug(2, "[OTF] deinit_otf is completed\n");
 
 	mfc_debug_leave();
 }
@@ -375,7 +375,7 @@ int s5p_mfc_otf_ctx_ready(struct s5p_mfc_ctx *ctx)
 
 	handle = ctx->otf_handle;
 
-	mfc_debug(1, "OTF: [c:%d] state = %d, otf_work_bit = %d\n",
+	mfc_debug(1, "[OTF] [c:%d] state = %d, otf_work_bit = %d\n",
 			ctx->num, ctx->state, handle->otf_work_bit);
 	/* If shutdown is called, do not try any cmd */
 	if (dev->shutdown)
@@ -391,7 +391,7 @@ int s5p_mfc_otf_ctx_ready(struct s5p_mfc_ctx *ctx)
 
 	if (ctx->state == MFCINST_RUNNING && handle->otf_work_bit)
 		return 1;
-	mfc_debug(2, "OTF: ctx is not ready.\n");
+	mfc_debug(2, "[OTF] ctx is not ready.\n");
 
 	mfc_debug_leave();
 
@@ -424,18 +424,18 @@ int s5p_mfc_otf_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	raw = &ctx->raw_buf;
 
 	if (!handle) {
-		mfc_err_ctx("OTF: There is no otf_handle, handle: 0x%p\n", handle);
+		mfc_err_ctx("[OTF] There is no otf_handle, handle: 0x%p\n", handle);
 		return -EINVAL;
 	}
 
 	if (!handle->otf_work_bit) {
-		mfc_err_ctx("OTF: Can't run OTF encoder, otf_work_bit: %d\n",
+		mfc_err_ctx("[OTF] Can't run OTF encoder, otf_work_bit: %d\n",
 				handle->otf_work_bit);
 		return -EINVAL;
 	}
 
 	if (!dev->has_hwfc) {
-		mfc_err_ctx("OTF: HWFC register didn't mapped\n");
+		mfc_err_ctx("[OTF] HWFC register didn't mapped\n");
 		return -EINVAL;
 	}
 
@@ -448,7 +448,7 @@ int s5p_mfc_otf_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	if (call_cop(ctx, to_buf_ctrls, ctx, &ctx->src_ctrls[handle->otf_buf_index]) < 0)
 		mfc_err_ctx("failed in to_buf_ctrls\n");
 	if (call_cop(ctx, set_buf_ctrls_val, ctx, &ctx->src_ctrls[handle->otf_buf_index]) < 0)
-		mfc_err_ctx("OTF: failed in set_buf_ctrls_val\n");
+		mfc_err_ctx("[OTF] failed in set_buf_ctrls_val\n");
 
 	/* Change timestamp usec -> nsec */
 	s5p_mfc_qos_update_last_framerate(ctx, handle->otf_time_stamp * 1000);
@@ -473,16 +473,16 @@ int s5p_mfc_otf_handle_seq(struct s5p_mfc_ctx *ctx)
 	enc->header_size = s5p_mfc_get_enc_strm_size();
 	ctx->dpb_count = s5p_mfc_get_enc_dpb_count();
 	ctx->scratch_buf_size = s5p_mfc_get_enc_scratch_size();
-	mfc_debug(2, "OTF:[STREAM] encoded slice type: %d, header size: %d, display order: %d\n",
+	mfc_debug(2, "[OTF][STREAM] encoded slice type: %d, header size: %d, display order: %d\n",
 			s5p_mfc_get_enc_slice_type(), enc->header_size,
 			s5p_mfc_get_enc_pic_count());
-	mfc_debug(2, "OTF: cpb_count: %d, scratch size: %zu\n",
+	mfc_debug(2, "[OTF] cpb_count: %d, scratch size: %zu\n",
 			ctx->dpb_count, ctx->scratch_buf_size);
 
 	s5p_mfc_change_state(ctx, MFCINST_HEAD_PARSED);
 
 	if (s5p_mfc_alloc_codec_buffers(ctx)) {
-		mfc_err_ctx("OTF: Failed to allocate encoding buffers.\n");
+		mfc_err_ctx("[OTF] Failed to allocate encoding buffers.\n");
 		return -EINVAL;
 	}
 
@@ -517,7 +517,7 @@ int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx)
 	pic_count = s5p_mfc_get_enc_pic_count();
 	strm_size = s5p_mfc_get_enc_strm_size();
 
-	mfc_debug(2, "OTF:[STREAM] encoded slice type: %d, size: %d, display order: %d\n",
+	mfc_debug(2, "[OTF][STREAM] encoded slice type: %d, size: %d, display order: %d\n",
 			slice_type, strm_size, pic_count);
 
 	/* set encoded frame type */
@@ -528,15 +528,15 @@ int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx)
 		s5p_mfc_get_enc_frame_buffer(ctx, &enc_addr[0], raw->num_planes);
 
 		for (i = 0; i < raw->num_planes; i++)
-			mfc_debug(2, "OTF:[BUFINFO] ctx[%d] get src addr[%d]: 0x%08llx\n",
+			mfc_debug(2, "[OTF][BUFINFO] ctx[%d] get src addr[%d]: 0x%08llx\n",
 					ctx->num, i, enc_addr[i]);
 		if (enc_addr[0] !=  buf_addr->otf_daddr[handle->otf_buf_index][0]) {
-			mfc_err_ctx("OTF: address is not matched. 0x%08llx != 0x%08llx\n",
+			mfc_err_ctx("[OTF] address is not matched. 0x%08llx != 0x%08llx\n",
 					enc_addr[0], buf_addr->otf_daddr[handle->otf_buf_index][0]);
 			enc_ret = -HWFC_ERR_MFC;
 		}
 	} else {
-		mfc_err_ctx("OTF: stream size is zero\n");
+		mfc_err_ctx("[OTF] stream size is zero\n");
 		enc_ret = -HWFC_ERR_MFC;
 	}
 
@@ -557,10 +557,10 @@ int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx)
 
 	if (call_cop(ctx, recover_buf_ctrls_val, ctx,
 				&ctx->src_ctrls[handle->otf_buf_index]) < 0)
-		mfc_err_ctx("OTF: failed in recover_buf_ctrls_val\n");
+		mfc_err_ctx("[OTF] failed in recover_buf_ctrls_val\n");
 	if (call_cop(ctx, cleanup_buf_ctrls, ctx,
 				MFC_CTRL_TYPE_SRC, handle->otf_buf_index) < 0)
-		mfc_err_ctx("OTF: failed in cleanup_buf_ctrls\n");
+		mfc_err_ctx("[OTF] failed in cleanup_buf_ctrls\n");
 
 	handle->otf_work_bit = 0;
 	handle->otf_buf_index = 0;
@@ -584,7 +584,7 @@ void s5p_mfc_otf_handle_error(struct s5p_mfc_ctx *ctx,
 
 	mfc_debug_enter();
 
-	mfc_err_ctx("OTF: Interrupt Error: display: %d, decoded: %d\n",
+	mfc_err_ctx("[OTF] Interrupt Error: display: %d, decoded: %d\n",
 			s5p_mfc_get_warn(err), s5p_mfc_get_err(err));
 	err = s5p_mfc_get_err(err);
 
@@ -594,19 +594,19 @@ void s5p_mfc_otf_handle_error(struct s5p_mfc_ctx *ctx,
 	case MFCINST_INIT:
 	case MFCINST_RETURN_INST:
 	case MFCINST_HEAD_PARSED:
-		mfc_err_ctx("OTF: error happened during init/de-init\n");
+		mfc_err_ctx("[OTF] error happened during init/de-init\n");
 		break;
 	case MFCINST_RUNNING:
 		if (err == S5P_FIMV_ERR_MFC_TIMEOUT) {
-			mfc_err_ctx("OTF: MFC TIMEOUT. go to error state\n");
+			mfc_err_ctx("[OTF] MFC TIMEOUT. go to error state\n");
 			s5p_mfc_change_state(ctx, MFCINST_ERROR);
 			enc_ret = -HWFC_ERR_MFC_TIMEOUT;
 		} else if (err == S5P_FIMV_ERR_TS_MUX_TIMEOUT ||
 				err == S5P_FIMV_ERR_G2D_TIMEOUT) {
-			mfc_err_ctx("OTF: TS-MUX or G2D TIMEOUT. skip this frame\n");
+			mfc_err_ctx("[OTF] TS-MUX or G2D TIMEOUT. skip this frame\n");
 			enc_ret = -HWFC_ERR_MFC_TIMEOUT;
 		} else {
-			mfc_err_ctx("OTF: MFC ERROR. skip this frame\n");
+			mfc_err_ctx("[OTF] MFC ERROR. skip this frame\n");
 			enc_ret = -HWFC_ERR_MFC;
 		}
 
@@ -616,10 +616,10 @@ void s5p_mfc_otf_handle_error(struct s5p_mfc_ctx *ctx,
 
 		if (call_cop(ctx, recover_buf_ctrls_val, ctx,
 					&ctx->src_ctrls[handle->otf_buf_index]) < 0)
-			mfc_err_ctx("OTF: failed in recover_buf_ctrls_val\n");
+			mfc_err_ctx("[OTF] failed in recover_buf_ctrls_val\n");
 		if (call_cop(ctx, cleanup_buf_ctrls, ctx,
 					MFC_CTRL_TYPE_SRC, handle->otf_buf_index) < 0)
-			mfc_err_ctx("OTF: failed in cleanup_buf_ctrls\n");
+			mfc_err_ctx("[OTF] failed in cleanup_buf_ctrls\n");
 
 #ifdef CONFIG_VIDEO_EXYNOS_REPEATER
 		hwfc_encoding_done(enc_ret);
@@ -644,15 +644,15 @@ int mfc_hwfc_check_run(struct s5p_mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (!handle) {
-		mfc_err_ctx("OTF: there is no handle for OTF\n");
+		mfc_err_ctx("[OTF] there is no handle for OTF\n");
 		return -EINVAL;
 	}
 	if (handle->otf_work_bit) {
-		mfc_err_ctx("OTF: OTF is already working\n");
+		mfc_err_ctx("[OTF] OTF is already working\n");
 		return -EINVAL;
 	}
 	if (ctx->state != MFCINST_RUNNING) {
-		mfc_err_ctx("OTF: mfc is not running state\n");
+		mfc_err_ctx("[OTF] mfc is not running state\n");
 		return -EINVAL;
 	}
 
@@ -685,21 +685,21 @@ int s5p_mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 	}
 
 	if (!ctx) {
-		mfc_err_dev("OTF: there is no context to run\n");
+		mfc_err_dev("[OTF] there is no context to run\n");
 		return -HWFC_ERR_MFC_NOT_PREPARED;
 	}
 
 	if (mfc_hwfc_check_run(ctx)) {
-		mfc_err_dev("OTF: mfc is not prepared\n");
+		mfc_err_dev("[OTF] mfc is not prepared\n");
 		return -HWFC_ERR_MFC_NOT_PREPARED;
 	}
 
 #ifdef CONFIG_VIDEO_EXYNOS_TSMUX
 	packet_param.time_stamp = param->time_stamp;
 	if (debug_ts == 1)
-		mfc_info_ctx("OTF:[TS] timestamp: %llu\n", param->time_stamp);
+		mfc_info_ctx("[OTF][TS] timestamp: %llu\n", param->time_stamp);
 	if (packetize(&packet_param)) {
-		mfc_err_dev("OTF: packetize failed\n");
+		mfc_err_dev("[OTF] packetize failed\n");
 		return -HWFC_ERR_TSMUX;
 	}
 #endif

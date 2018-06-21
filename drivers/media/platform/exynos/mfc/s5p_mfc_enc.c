@@ -319,11 +319,11 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if (ctx->otf_handle) {
 		if (ctx->dst_fmt->fourcc != V4L2_PIX_FMT_H264 &&
 				ctx->dst_fmt->fourcc != V4L2_PIX_FMT_HEVC) {
-			mfc_err_ctx("OTF: only H.264 and HEVC is supported\n");
+			mfc_err_ctx("[OTF] only H.264 and HEVC is supported\n");
 			return -EINVAL;
 		}
 		if (s5p_mfc_otf_init(ctx)) {
-			mfc_err_ctx("OTF: otf_init failed\n");
+			mfc_err_ctx("[OTF] otf_init failed\n");
 			s5p_mfc_otf_destroy(ctx);
 			return -EINVAL;
 		}
@@ -409,7 +409,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	}
 
 	if (ctx->otf_handle) {
-		mfc_info_ctx("OTF: skip source s_fmt\n");
+		mfc_info_ctx("[OTF] skip source s_fmt\n");
 		return 0;
 	}
 
@@ -527,7 +527,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	}
 
 	if (ctx->otf_handle) {
-		mfc_info_ctx("OTF: skip reqbufs\n");
+		mfc_info_ctx("[OTF] skip reqbufs\n");
 		return 0;
 	}
 
@@ -590,7 +590,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	mfc_debug_enter();
 
 	if (ctx->otf_handle) {
-		mfc_info_ctx("OTF: skip source querybuf\n");
+		mfc_info_ctx("[OTF] skip source querybuf\n");
 		return 0;
 	}
 
@@ -627,7 +627,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	mfc_debug_enter();
 
 	if (ctx->otf_handle) {
-		mfc_info_ctx("OTF: skip qbuf\n");
+		mfc_info_ctx("[OTF] skip qbuf\n");
 		return 0;
 	}
 
@@ -673,7 +673,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	mfc_debug_enter();
 
 	if (ctx->otf_handle) {
-		mfc_info_ctx("OTF: skip dqbuf\n");
+		mfc_info_ctx("[OTF] skip dqbuf\n");
 		return 0;
 	}
 
@@ -702,7 +702,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 	mfc_debug_enter();
 
 	if (ctx->otf_handle) {
-		mfc_info_ctx("OTF: skip streamon\n");
+		mfc_info_ctx("[OTF] skip streamon\n");
 		return 0;
 	}
 
@@ -736,7 +736,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	mfc_debug_enter();
 
 	if (ctx->otf_handle) {
-		mfc_info_ctx("OTF: skip streamoff\n");
+		mfc_info_ctx("[OTF] skip streamoff\n");
 		return 0;
 	}
 

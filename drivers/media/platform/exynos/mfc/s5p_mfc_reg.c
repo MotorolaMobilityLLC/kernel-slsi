@@ -45,7 +45,7 @@ void s5p_mfc_otf_set_frame_addr(struct s5p_mfc_ctx *ctx, int num_planes)
 	int i;
 
 	for (i = 0; i < num_planes; i++) {
-		mfc_debug(2, "OTF:[FRAME] set frame buffer[%d], 0x%08llx)\n",
+		mfc_debug(2, "[OTF][FRAME] set frame buffer[%d], 0x%08llx)\n",
 				i, buf_addr->otf_daddr[index][i]);
 		MFC_WRITEL(buf_addr->otf_daddr[index][i],
 				S5P_FIMV_E_SOURCE_FIRST_ADDR + (i * 4));
@@ -59,13 +59,13 @@ void s5p_mfc_otf_set_stream_size(struct s5p_mfc_ctx *ctx, unsigned int size)
 	struct _otf_debug *debug = &handle->otf_debug;
 	struct s5p_mfc_special_buf *buf;
 
-	mfc_debug(2, "OTF: set stream buffer full size, %u\n", size);
+	mfc_debug(2, "[OTF] set stream buffer full size, %u\n", size);
 	MFC_WRITEL(size, S5P_FIMV_E_STREAM_BUFFER_SIZE);
 
 	if (otf_dump && !ctx->is_drm) {
 		buf = &debug->stream_buf[debug->frame_cnt];
-		mfc_debug(2, "OTF: set stream addr for debugging\n");
-		mfc_debug(2, "OTF:[STREAM] buf[%d] daddr: 0x%08llx\n",
+		mfc_debug(2, "[OTF] set stream addr for debugging\n");
+		mfc_debug(2, "[OTF][STREAM] buf[%d] daddr: 0x%08llx\n",
 				debug->frame_cnt, buf->daddr);
 		MFC_WRITEL(buf->daddr, S5P_FIMV_E_STREAM_BUFFER_ADDR);
 	}
@@ -75,7 +75,7 @@ void s5p_mfc_otf_set_hwfc_index(struct s5p_mfc_ctx *ctx, int job_id)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 
-	mfc_debug(2, "OTF: set hwfc index, %d\n", job_id);
+	mfc_debug(2, "[OTF] set hwfc index, %d\n", job_id);
 	HWFC_WRITEL(job_id, HWFC_ENCODING_IDX);
 }
 

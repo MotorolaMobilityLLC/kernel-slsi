@@ -179,7 +179,7 @@ static void mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	reg &= ~(0x1 << 6);
 	if (ctx->otf_handle) {
 		reg |= (0x1 << 6);
-		mfc_debug(2, "OTF: SEQ_HEADER_GENERATION is disabled\n");
+		mfc_debug(2, "[OTF] SEQ_HEADER_GENERATION is disabled\n");
 	}
 	/* 'NON_REFERENCE_STORE_ENABLE' for debugging */
 	reg &= ~(0x1 << 9);
@@ -458,7 +458,7 @@ void s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 	/* enable sps pps control in OTF scenario */
 	if (ctx->otf_handle) {
 		reg |= (0x1 << 29);
-		mfc_debug(2, "OTF: SPS_PPS_CONTROL enabled\n");
+		mfc_debug(2, "[OTF] SPS_PPS_CONTROL enabled\n");
 	}
 	/* VUI parameter disable */
 	reg &= ~(0x1 << 30);
@@ -1172,7 +1172,7 @@ void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	/* enable sps pps control in OTF scenario */
 	if (ctx->otf_handle) {
 		reg |= (0x1 << 26);
-		mfc_debug(2, "OTF: SPS_PPS_CONTROL enabled\n");
+		mfc_debug(2, "[OTF] SPS_PPS_CONTROL enabled\n");
 	}
 	/* Weighted Prediction enable */
 	reg &= ~(0x1 << 28);
