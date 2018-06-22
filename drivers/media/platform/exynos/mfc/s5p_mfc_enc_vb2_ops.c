@@ -234,7 +234,7 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 					goto err_mem_put;
 				}
 
-				ctx->framerate = buf->num_bufs_in_vb * ENC_DEFAULT_CAM_CAPTURE_FPS;
+				ctx->framerate = buf->num_valid_bufs * ENC_DEFAULT_CAM_CAPTURE_FPS;
 				mfc_debug(3, "framerate: %ld\n", ctx->framerate);
 
 				dma_buf_put(bufcon_dmabuf[i]);

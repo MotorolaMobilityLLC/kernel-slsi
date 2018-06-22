@@ -641,7 +641,7 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 
 		/* last image in a buffer container */
 		/* move src_queue -> src_queue_nal_q */
-		if (src_mb->next_index == (src_mb->num_bufs_in_vb - 1)) {
+		if (src_mb->next_index == (src_mb->num_valid_bufs - 1)) {
 			src_mb = s5p_mfc_get_move_buf(&ctx->buf_queue_lock,
 					&ctx->src_buf_nal_queue, &ctx->src_buf_queue,
 					MFC_BUF_SET_USED, MFC_QUEUE_ADD_BOTTOM);
@@ -949,7 +949,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, EncoderOutput
 				mfc_debug(4, "[NALQ] batch buf done_index: %d\n", src_mb->done_index);
 
 				/* last image in a buffer container */
-				if (src_mb->done_index == src_mb->num_bufs_in_vb) {
+				if (src_mb->done_index == src_mb->num_valid_bufs) {
 					src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 							&ctx->src_buf_nal_queue, enc_addr[0]);
 					for (i = 0; i < raw->num_planes; i++)

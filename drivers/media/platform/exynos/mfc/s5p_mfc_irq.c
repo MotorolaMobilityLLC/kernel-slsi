@@ -797,7 +797,7 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx)
 				mfc_err_ctx("failed in recover_buf_ctrls_val\n");
 
 			/* single buffer || last image in a buffer container */
-			if (!src_mb->num_bufs_in_vb || src_mb->done_index == src_mb->num_bufs_in_vb) {
+			if (!src_mb->num_valid_bufs || src_mb->done_index == src_mb->num_valid_bufs) {
 				src_mb = s5p_mfc_find_del_buf(&ctx->buf_queue_lock,
 						&ctx->src_buf_queue, enc_addr[0]);
 				for (i = 0; i < raw->num_planes; i++)

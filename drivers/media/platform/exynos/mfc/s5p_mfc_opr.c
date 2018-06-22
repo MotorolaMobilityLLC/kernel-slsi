@@ -259,9 +259,9 @@ int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 		return -EAGAIN;
 	}
 
-	if (src_mb->num_bufs_in_vb > 0) {
+	if (src_mb->num_valid_bufs > 0) {
 		/* last image in a buffer container */
-		if (src_mb->next_index == (src_mb->num_bufs_in_vb - 1))
+		if (src_mb->next_index == (src_mb->num_valid_bufs - 1))
 			last_frame = mfc_check_last_frame(ctx, src_mb);
 	} else {
 		last_frame = mfc_check_last_frame(ctx, src_mb);

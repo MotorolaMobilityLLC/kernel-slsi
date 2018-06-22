@@ -195,7 +195,7 @@ void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_b
 {
 	int i;
 
-	for (i = 0; i < mfc_buf->num_bufs_in_vb; i++) {
+	for (i = 0; i < mfc_buf->num_valid_bufs; i++) {
 		if (mfc_buf->addr[i][plane]) {
 			mfc_debug(4, "put batch buf addr[%d][%d]: 0x%08llx\n",
 					i, plane, mfc_buf->addr[i][plane]);
@@ -263,8 +263,8 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 		j++;
 	}
 
-	mfc_buf->num_bufs_in_vb = j;
-	mfc_debug(3, "batch buffer has %d buffers\n", mfc_buf->num_bufs_in_vb);
+	mfc_buf->num_valid_bufs = j;
+	mfc_debug(3, "batch buffer has %d buffers\n", mfc_buf->num_valid_bufs);
 
 	return 0;
 
