@@ -212,6 +212,7 @@ struct s5p_mfc_buf {
 	int next_index;
 	int done_index;
 	int used;
+	int num_bufs_in_batch;
 	int num_bufs_in_vb;
 	unsigned char *vir_addr;
 };

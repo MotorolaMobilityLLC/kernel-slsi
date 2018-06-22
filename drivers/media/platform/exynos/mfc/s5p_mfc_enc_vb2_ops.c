@@ -163,7 +163,7 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 	struct s5p_mfc_raw_info *raw;
 	unsigned int index = vb->index;
 	struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
-	struct dma_buf *dmabuf[MFC_MAX_PLANES];
+	struct dma_buf *bufcon_dmabuf[MFC_MAX_PLANES];
 	int i, mem_get_count = 0;
 	size_t buf_size;
 
@@ -206,46 +206,42 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 		}
 
 		for (i = 0; i < ctx->src_fmt->mem_planes; i++) {
-			dmabuf[i] = dma_buf_get(vb->planes[i].m.fd);
-			if (IS_ERR(dmabuf[i])) {
+			bufcon_dmabuf[i] = dma_buf_get(vb->planes[i].m.fd);
+			if (IS_ERR(bufcon_dmabuf[i])) {
 				mfc_err_ctx("failed to get bufcon dmabuf\n");
 				goto err_mem_put;
 			}
 
 			mem_get_count++;
-			buf->num_bufs_in_vb = s5p_mfc_bufcon_get_buf_count(dmabuf[i]);
-			mfc_debug(3, "bufcon count:%d\n", buf->num_bufs_in_vb);
-			if (buf->num_bufs_in_vb == 0) {
+			buf->num_bufs_in_batch = s5p_mfc_bufcon_get_buf_count(bufcon_dmabuf[i]);
+			mfc_debug(3, "bufcon count:%d\n", buf->num_bufs_in_batch);
+			if (buf->num_bufs_in_batch == 0) {
 				mfc_err_ctx("bufcon count couldn't be zero\n");
 				goto err_mem_put;
 			}
 
-			if (buf->num_bufs_in_vb < 0)
-				buf->num_bufs_in_vb = 0;
+			if (buf->num_bufs_in_batch < 0)
+				buf->num_bufs_in_batch = 0;
 
-			if (!ctx->batch_mode && buf->num_bufs_in_vb > 0) {
+			if (!ctx->batch_mode && buf->num_bufs_in_batch > 0) {
 				ctx->batch_mode = 1;
-				mfc_debug(3, "buffer batch mode enabled\n");
+				mfc_debug(3, "buffer batch mode enable\n");
 			}
 
-			if (buf->num_bufs_in_vb > 0) {
-				int count = 0;
+			if (buf->num_bufs_in_batch > 0) {
+				if (s5p_mfc_bufcon_get_daddr(ctx, buf, bufcon_dmabuf[i], i)) {
+					mfc_err_ctx("failed to get daddr[%d] in buffer container\n", i);
+					goto err_mem_put;
+				}
 
 				ctx->framerate = buf->num_bufs_in_vb * ENC_DEFAULT_CAM_CAPTURE_FPS;
 				mfc_debug(3, "framerate: %ld\n", ctx->framerate);
 
-				count = s5p_mfc_bufcon_get_daddr(ctx, buf, dmabuf[i], i);
-				if (count != buf->num_bufs_in_vb) {
-					mfc_err_ctx("invalid buffer count %d != num_bufs_in_vb %d\n",
-							count, buf->num_bufs_in_vb);
-					goto err_mem_put;
-				}
-
-				dma_buf_put(dmabuf[i]);
+				dma_buf_put(bufcon_dmabuf[i]);
 			} else {
 				dma_addr_t start_raw;
 
-				dma_buf_put(dmabuf[i]);
+				dma_buf_put(bufcon_dmabuf[i]);
 				start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
 				if (start_raw == 0) {
 					mfc_err_ctx("Plane mem not allocated\n");
@@ -282,7 +278,7 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 
 err_mem_put:
 	for (i = 0; i < mem_get_count; i++)
-		dma_buf_put(dmabuf[i]);
+		dma_buf_put(bufcon_dmabuf[i]);
 
 	return -ENOMEM;
 }

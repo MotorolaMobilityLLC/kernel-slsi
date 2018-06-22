@@ -576,6 +576,7 @@ static void mfc_cleanup_batch_queue(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf_
 
 	INIT_LIST_HEAD(&queue->head);
 	queue->count = 0;
+	ctx->batch_mode = 0;
 
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
