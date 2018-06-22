@@ -29,9 +29,7 @@
 #include <linux/debugfs.h>
 
 #include <linux/mfd/samsung/core.h>
-#if defined(CONFIG_EXYNOS_BCM)
-#include <soc/samsung/bcm.h>
-#elif defined(CONFIG_EXYNOS_BCM_DBG)
+#if defined(CONFIG_EXYNOS_BCM_DBG)
 #include <soc/samsung/exynos-bcm_dbg.h>
 #endif
 
@@ -69,9 +67,7 @@ struct exynos_pm_domain {
 	int devfreq_index;
 	struct mutex access_lock;
 	int idle_ip_index;
-#if defined(CONFIG_EXYNOS_BCM)
-	struct bcm_info *bcm;
-#elif defined(CONFIG_EXYNOS_BCM_DBG)
+#if defined(CONFIG_EXYNOS_BCM_DBG)
 	struct exynos_bcm_pd_info *bcm;
 #endif
 	bool power_down_skipped;

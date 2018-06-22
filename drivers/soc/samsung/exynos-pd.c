@@ -73,13 +73,6 @@ static void exynos_pd_power_on_pre(struct exynos_pm_domain *pd)
 
 static void exynos_pd_power_on_post(struct exynos_pm_domain *pd)
 {
-	if (cal_pd_status(pd->cal_pdid)) {
-		if (pd->bcm)
-#if defined(CONFIG_EXYNOS_BCM)
-			bcm_pd_sync(pd->bcm, true);
-#elif defined(CONFIG_EXYNOS_BCM_DBG)
-			exynos_bcm_dbg_pd_sync(pd->bcm, true);
-#endif
 }
 
 static void exynos_pd_power_off_pre(struct exynos_pm_domain *pd)
@@ -89,14 +82,6 @@ static void exynos_pd_power_off_pre(struct exynos_pm_domain *pd)
 		exynos_g3d_power_down_noti_apm();
 	}
 #endif /* CONFIG_EXYNOS_CL_DVFS_G3D */
-	if (cal_pd_status(pd->cal_pdid)) {
-		if (pd->bcm)
-#if defined(CONFIG_EXYNOS_BCM)
-			bcm_pd_sync(pd->bcm, false);
-#elif defined(CONFIG_EXYNOS_BCM_DBG)
-			exynos_bcm_dbg_pd_sync(pd->bcm, false);
-#endif
-
 	if (!strcmp(pd->name, "pd-dispaud"))
 		abox_poweroff();
 }
