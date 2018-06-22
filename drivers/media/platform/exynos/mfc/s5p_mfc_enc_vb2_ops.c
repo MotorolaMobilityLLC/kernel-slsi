@@ -214,9 +214,9 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 
 			mem_get_count++;
 			buf->num_bufs_in_batch = s5p_mfc_bufcon_get_buf_count(bufcon_dmabuf[i]);
-			mfc_debug(3, "bufcon count:%d\n", buf->num_bufs_in_batch);
+			mfc_debug(3, "[BUFCON] num bufs in batch: %d\n", buf->num_bufs_in_batch);
 			if (buf->num_bufs_in_batch == 0) {
-				mfc_err_ctx("bufcon count couldn't be zero\n");
+				mfc_err_ctx("[BUFCON] bufs count couldn't be zero\n");
 				goto err_mem_put;
 			}
 
@@ -225,17 +225,17 @@ static int s5p_mfc_enc_buf_prepare(struct vb2_buffer *vb)
 
 			if (!ctx->batch_mode && buf->num_bufs_in_batch > 0) {
 				ctx->batch_mode = 1;
-				mfc_debug(3, "buffer batch mode enable\n");
+				mfc_debug(2, "[BUFCON] buffer batch mode enable\n");
 			}
 
 			if (buf->num_bufs_in_batch > 0) {
 				if (s5p_mfc_bufcon_get_daddr(ctx, buf, bufcon_dmabuf[i], i)) {
-					mfc_err_ctx("failed to get daddr[%d] in buffer container\n", i);
+					mfc_err_ctx("[BUFCON] failed to get daddr[%d] in buffer container\n", i);
 					goto err_mem_put;
 				}
 
 				ctx->framerate = buf->num_valid_bufs * ENC_DEFAULT_CAM_CAPTURE_FPS;
-				mfc_debug(3, "framerate: %ld\n", ctx->framerate);
+				mfc_debug(3, "[BUFCON] framerate: %ld\n", ctx->framerate);
 
 				dma_buf_put(bufcon_dmabuf[i]);
 			} else {

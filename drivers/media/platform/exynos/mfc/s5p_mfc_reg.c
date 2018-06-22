@@ -342,7 +342,7 @@ void s5p_mfc_set_enc_frame_buffer(struct s5p_mfc_ctx *ctx,
 	if (mfc_buf->num_valid_bufs > 0) {
 		for (i = 0; i < num_planes; i++) {
 			addr[i] = mfc_buf->addr[mfc_buf->next_index][i];
-			mfc_debug(2, "[BUFINFO] ctx[%d] set src index:%d, batch[%d], addr[%d]: 0x%08llx\n",
+			mfc_debug(2, "[BUFCON][BUFINFO] ctx[%d] set src index:%d, batch[%d], addr[%d]: 0x%08llx\n",
 					ctx->num, index, mfc_buf->next_index, i, addr[i]);
 		}
 		mfc_buf->next_index++;

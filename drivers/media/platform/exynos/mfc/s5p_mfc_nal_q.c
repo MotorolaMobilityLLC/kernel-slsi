@@ -635,7 +635,7 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 	if (IS_BUFFER_BATCH_MODE(ctx)) {
 		src_mb = s5p_mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_SET_USED);
 		if (!src_mb) {
-			mfc_err_dev("[NALQ] no src buffers\n");
+			mfc_err_dev("[NALQ][BUFCON] no src buffers\n");
 			return -EAGAIN;
 		}
 
@@ -646,7 +646,7 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 					&ctx->src_buf_nal_queue, &ctx->src_buf_queue,
 					MFC_BUF_SET_USED, MFC_QUEUE_ADD_BOTTOM);
 			if (!src_mb) {
-				mfc_err_dev("[NALQ] no src buffers\n");
+				mfc_err_dev("[NALQ][BUFCON] no src buffers\n");
 				return -EAGAIN;
 			}
 		}
@@ -654,7 +654,7 @@ static int mfc_nal_q_run_in_buf_enc(struct s5p_mfc_ctx *ctx, EncoderInputStr *pI
 		index = src_mb->vb.vb2_buf.index;
 		for (i = 0; i < raw->num_planes; i++) {
 			src_addr[i] = src_mb->addr[src_mb->next_index][i];
-			mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set src index:%d, batch[%d], addr[%d]: 0x%08llx\n",
+			mfc_debug(2, "[NALQ][BUFCON][BUFINFO] ctx[%d] set src index:%d, batch[%d], addr[%d]: 0x%08llx\n",
 					ctx->num, index, src_mb->next_index, i, src_addr[i]);
 		}
 		src_mb->next_index++;
@@ -884,25 +884,25 @@ static void mfc_nal_q_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, stru
 	u64 new_timestamp;
 
 	if (!ctx) {
-		mfc_err_dev("[NALQ][TS] no mfc context to run\n");
+		mfc_err_dev("[NALQ][BUFCON][TS] no mfc context to run\n");
 		return;
 	}
 
 	dev = ctx->dev;
 	if (!dev) {
-		mfc_err_dev("[NALQ][TS] no device to run\n");
+		mfc_err_dev("[NALQ][BUFCON][TS] no device to run\n");
 		return;
 	}
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
 	interval = NSEC_PER_SEC / p->rc_framerate;
 	if (debug_ts == 1)
-		mfc_info_ctx("[NALQ][TS] %dfps, start timestamp: %lld, base interval: %d\n",
+		mfc_info_ctx("[NALQ][BUFCON][TS] %dfps, start timestamp: %lld, base interval: %d\n",
 				p->rc_framerate, start_timestamp, interval);
 
 	new_timestamp = start_timestamp + (interval * src_mb->done_index);
 	if (debug_ts == 1)
-		mfc_info_ctx("[NALQ][TS] new timestamp: %lld, interval: %d\n",
+		mfc_info_ctx("[NALQ][BUFCON][TS] new timestamp: %lld, interval: %d\n",
 				new_timestamp, interval * src_mb->done_index);
 
 	/* Get the destination buffer */
@@ -939,7 +939,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, EncoderOutput
 
 			mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
 			src_mb->done_index++;
-			mfc_debug(4, "[NALQ] batch buf done_index: %d\n", src_mb->done_index);
+			mfc_debug(4, "[NALQ][BUFCON] batch buf done_index: %d\n", src_mb->done_index);
 		} else {
 			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
 					&ctx->src_buf_nal_queue, enc_addr[0]);
@@ -948,7 +948,7 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, EncoderOutput
 
 				mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
 				src_mb->done_index++;
-				mfc_debug(4, "[NALQ] batch buf done_index: %d\n", src_mb->done_index);
+				mfc_debug(4, "[NALQ][BUFCON] batch buf done_index: %d\n", src_mb->done_index);
 
 				/* last image in a buffer container */
 				if (src_mb->done_index == src_mb->num_valid_bufs) {

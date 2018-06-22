@@ -197,7 +197,7 @@ void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_b
 
 	for (i = 0; i < mfc_buf->num_valid_bufs; i++) {
 		if (mfc_buf->addr[i][plane]) {
-			mfc_debug(4, "put batch buf addr[%d][%d]: 0x%08llx\n",
+			mfc_debug(4, "[BUFCON] put batch buf addr[%d][%d]: 0x%08llx\n",
 					i, plane, mfc_buf->addr[i][plane]);
 			ion_iovmm_unmap(mfc_buf->attachments[i][plane], mfc_buf->addr[i][plane]);
 		}
@@ -221,21 +221,21 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 	u32 mask;
 
 	if (dmabuf_container_get_mask(bufcon_dmabuf, &mask)) {
-		mfc_err_ctx("it is not buffer container\n");
+		mfc_err_ctx("[BUFCON] it is not buffer container\n");
 		return -1;
 	} else {
-		mfc_debug(3, "bufcon mask info %#x\n", mask);
+		mfc_debug(3, "[BUFCON] bufcon mask info %#x\n", mask);
 	}
 
 	for (i = 0; i < mfc_buf->num_bufs_in_batch; i++) {
 		if ((mask & (1 << i)) == 0) {
-			mfc_debug(3, "unmasked buf[%d]\n", i);
+			mfc_debug(4, "[BUFCON] unmasked buf[%d]\n", i);
 			continue;
 		}
 
 		mfc_buf->dmabufs[j][plane] = dmabuf_container_get_buffer(bufcon_dmabuf, i);
 		if (IS_ERR(mfc_buf->dmabufs[i][plane])) {
-			mfc_err_ctx("Failed to get dma_buf (err %ld)",
+			mfc_err_ctx("[BUFCON] Failed to get dma_buf (err %ld)",
 					PTR_ERR(mfc_buf->dmabufs[i][plane]));
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
@@ -243,7 +243,7 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 
 		mfc_buf->attachments[j][plane] = dma_buf_attach(mfc_buf->dmabufs[i][plane], dev->device);
 		if (IS_ERR(mfc_buf->attachments[i][plane])) {
-			mfc_err_ctx("Failed to get dma_buf_attach (err %ld)",
+			mfc_err_ctx("[BUFCON] Failed to get dma_buf_attach (err %ld)",
 					PTR_ERR(mfc_buf->attachments[i][plane]));
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
@@ -252,19 +252,19 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 		mfc_buf->addr[j][plane] = ion_iovmm_map(mfc_buf->attachments[i][plane], 0,
 				raw->plane_size[plane], DMA_BIDIRECTIONAL, 0);
 		if (IS_ERR_VALUE(mfc_buf->addr[i][plane])) {
-			mfc_err_ctx("Failed to allocate iova (err %pa)",
+			mfc_err_ctx("[BUFCON] Failed to allocate iova (err %pa)",
 					&mfc_buf->addr[i][plane]);
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
 		}
 
-		mfc_debug(4, "get batch buf addr[%d][%d]: 0x%08llx, size: %d\n",
+		mfc_debug(4, "[BUFCON] get batch buf addr[%d][%d]: 0x%08llx, size: %d\n",
 				j, plane, mfc_buf->addr[j][plane], raw->plane_size[plane]);
 		j++;
 	}
 
 	mfc_buf->num_valid_bufs = j;
-	mfc_debug(3, "batch buffer has %d buffers\n", mfc_buf->num_valid_bufs);
+	mfc_debug(3, "[BUFCON] batch buffer has %d buffers\n", mfc_buf->num_valid_bufs);
 
 	return 0;
 

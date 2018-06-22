@@ -561,7 +561,6 @@ void s5p_mfc_try_run(struct s5p_mfc_dev *dev)
 		mfc_err_dev("no mfc device to run\n");
 		return;
 	}
-	mfc_debug(2, "Try run dev: 0x%p\n", dev);
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 	mfc_print_hwlock(dev);

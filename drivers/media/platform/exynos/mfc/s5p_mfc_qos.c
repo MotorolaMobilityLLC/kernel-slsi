@@ -740,7 +740,7 @@ static unsigned long mfc_qos_get_fps_by_timestamp(struct s5p_mfc_ctx *ctx, struc
 
 	if (IS_BUFFER_BATCH_MODE(ctx)) {
 		if (debug_ts == 1)
-			mfc_info_ctx("[TS] Keep framerate if buffer batch mode is used, %ldfps\n",
+			mfc_info_ctx("[BUFCON][TS] Keep framerate if buffer batch mode is used, %ldfps\n",
 					ctx->framerate);
 		return ctx->framerate;
 	}
