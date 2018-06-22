@@ -47,5 +47,5 @@ static const struct genl_multicast_group scsc_mcgrp[] = {
 
 int scsc_wlbtd_init(void);
 int scsc_wlbtd_deinit(void);
-int coredump_wlbtd(const char *script_path);
+int call_wlbtd(const char *script_path);
 int scsc_wlbtd_get_and_print_build_type(void);

@@ -202,7 +202,7 @@ error:
 	return -1;
 }
 
-int coredump_wlbtd(const char *script_path)
+int call_wlbtd(const char *script_path)
 {
 	struct sk_buff *skb;
 	void *msg;
@@ -292,7 +292,7 @@ error:
 
 	return -1;
 }
-EXPORT_SYMBOL(coredump_wlbtd);
+EXPORT_SYMBOL(call_wlbtd);
 
 int scsc_wlbtd_deinit(void)
 {

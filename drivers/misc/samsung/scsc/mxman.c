@@ -1309,10 +1309,10 @@ static void mxman_failure_work(struct work_struct *work)
 					slsi_kic_system_events_coredump_in_progress,
 					GFP_KERNEL);
 #ifdef CONFIG_SCSC_WLBTD
-				/* we can safely call coredump_wlbtd as we are
+				/* we can safely call call_wlbtd as we are
 				 * in workqueue context
 				 */
-				r = coredump_wlbtd(SCSC_SCRIPT_MOREDUMP);
+				r = call_wlbtd(SCSC_SCRIPT_MOREDUMP);
 #else
 				r = coredump_helper();
 #endif
@@ -1418,7 +1418,7 @@ static void print_mailboxes(struct mxman *mxman)
 static void wlbtd_work_func(struct work_struct *work)
 {
 	/* require sleep-able workqueue to run successfully */
-	coredump_wlbtd(SCSC_SCRIPT_LOGGER_DUMP);
+	call_wlbtd(SCSC_SCRIPT_LOGGER_DUMP);
 }
 
 static void wlbtd_wq_init(struct mxman *mx)
