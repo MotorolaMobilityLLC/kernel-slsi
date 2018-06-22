@@ -44,10 +44,12 @@
 enum { CHUB_ON, CHUB_OFF };
 enum { C2A_ON, C2A_OFF };
 
-#ifdef CONFIG_CONTEXTHUB_POWERMODE
 /* host interface functions */
 int contexthub_is_run(struct contexthub_ipc_info *ipc)
 {
+	if (!ipc->powermode)
+		return 1;
+
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	return nanohub_irq1_fired(ipc->data);
 #else
@@ -58,6 +60,9 @@ int contexthub_is_run(struct contexthub_ipc_info *ipc)
 /* request contexthub to host driver */
 int contexthub_request(struct contexthub_ipc_info *ipc)
 {
+	if (!ipc->powermode)
+		return 0;
+
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	return request_wakeup_timeout(ipc->data, WAIT_TIMEOUT_MS);
 #else
@@ -68,11 +73,13 @@ int contexthub_request(struct contexthub_ipc_info *ipc)
 /* rlease contexthub to host driver */
 void contexthub_release(struct contexthub_ipc_info *ipc)
 {
+	if (!ipc->powermode)
+		return;
+
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	release_wakeup(ipc->data);
 #endif
 }
-#endif
 
 static inline void contexthub_notify_host(struct contexthub_ipc_info *ipc)
 {
@@ -176,10 +183,6 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 #endif
 	chub_dbg_init(chub_dev);
 
-	/* chub err init */
-	for (i = 0; i < CHUB_ERR_MAX; i++)
-		chub->err_cnt[i] = 0;
-
 	dev_info(chub_dev,
 		 "IPC map information\n\tinfo(base:%p size:%zu)\n\tipc(base:%p size:%zu)\n\tlogbuf(base:%p size:%d)\n",
 		 chub, sizeof(struct contexthub_ipc_info),
@@ -187,30 +190,6 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 		 ipc_get_base(IPC_REG_LOG), chub->ipc_map->logbuf.size);
 
 	return 0;
-}
-
-static void chub_dump_and_reset(struct contexthub_ipc_info *ipc,
-				enum CHUB_ERR_TYPE err)
-{
-	int ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
-	int hang;
-
-	if (ret)
-		dev_dbg(ipc->dev, "%s: fails to dump\n", __func__);
-
-	chub_dbg_dump_hw(ipc, err);
-
-	if (err != CHUB_ERR_CHUB_NO_RESPONSE) {
-		hang = contexthub_lowlevel_alive(ipc);
-		if (!hang) {
-#ifdef DEBUG_IMAGE
-			chub_dbg_check_and_download_image(ipc);
-#endif
-		}
-	}
-
-	/* reset chub */
-	contexthub_reset(ipc);
 }
 
 #ifdef PACKET_LOW_DEBUG
@@ -398,6 +377,21 @@ static void check_rtc_time(void)
 	ap_t = rtc_tm_to_time64(&ap_tm);
 }
 
+/* simple alive check function */
+static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
+{
+	int val;
+
+	ipc->chub_alive_lock.flag = 0;
+	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
+	val = wait_event_timeout(ipc->chub_alive_lock.event,
+				 ipc->chub_alive_lock.flag,
+				 msecs_to_jiffies(WAIT_TIMEOUT_MS));
+
+	return ipc->chub_alive_lock.flag;
+}
+
+
 static int contexthub_wait_alive(struct contexthub_ipc_info *ipc)
 {
 	int trycnt = 0;
@@ -424,6 +418,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	u32 val;
 	int trycnt = 0;
 	int ret = 0;
+	int i;
 
 	/* clear ipc value */
 	ipc_init();
@@ -431,6 +426,10 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	atomic_set(&ipc->wakeup_chub, CHUB_OFF);
 	atomic_set(&ipc->irq1_apInt, C2A_OFF);
 	atomic_set(&ipc->read_lock.cnt, 0x0);
+
+	/* chub err init */
+	for (i = 0; i < CHUB_ERR_MAX; i++)
+		ipc->err_cnt[i] = 0;
 
 	ipc->read_lock.flag = 0;
 #ifndef USE_IPC_BUF
@@ -476,7 +475,8 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 						REG_CHUB_RESET_CHUB_CONFIGURATION);
 				msleep(WAIT_TIMEOUT_MS);
 				if (++trycnt > WAIT_TRY_CNT) {
-					dev_warn(ipc->dev, "chub cpu status is not set correctly\n");
+					dev_warn(ipc->dev,
+						"chub cpu status is not set correctly\n");
 					break;
 				}
 			} while ((val & 0x1) == 0x0);
@@ -637,13 +637,8 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 		atomic_set(&ipc->chub_status, CHUB_ST_SHUTDOWN);
 		break;
 	case MAILBOX_EVT_CHUB_ALIVE:
-		ipc->chub_alive_lock.flag = 0;
-		ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
-		val = wait_event_timeout(ipc->chub_alive_lock.event,
-					 ipc->chub_alive_lock.flag,
-					 msecs_to_jiffies(WAIT_TIMEOUT_MS));
-
-		if (ipc->chub_alive_lock.flag) {
+		val = contexthub_lowlevel_alive(ipc);
+		if (val) {
 			atomic_set(&ipc->chub_status, CHUB_ST_RUN);
 			dev_info(ipc->dev, "chub is alive");
 		} else {
@@ -680,22 +675,6 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 	}
 
 	return ret;
-}
-
-	/* simple alive check function */
-
-int contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
-{
-	int val;
-
-	ipc->chub_alive_lock.flag = 0;
-
-	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
-	val = wait_event_timeout(ipc->chub_alive_lock.event,
-				 ipc->chub_alive_lock.flag,
-				 msecs_to_jiffies(WAIT_TIMEOUT_MS));
-
-	return !(ipc->chub_alive_lock.flag);
 }
 
 int contexthub_poweron(struct contexthub_ipc_info *ipc)
@@ -746,6 +725,7 @@ int contexthub_reset(struct contexthub_ipc_info *ipc)
 	int ret;
 
 	/* TODO: add wait lock */
+	dev_info(ipc->dev, "%s\n", __func__);
 	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_SHUTDOWN);
 	if (ret) {
 		pr_err("%s: shutdonw fails, ret:%d\n", __func__, ret);
@@ -857,33 +837,37 @@ static void handle_debug_work_func(struct work_struct *work)
 	struct contexthub_ipc_info *ipc =
 	    container_of(work, struct contexthub_ipc_info, debug_work);
 	enum ipc_debug_event event = ipc_read_debug_event(AP);
-	int i;
 	enum CHUB_ERR_TYPE fw_err = 0;
+	bool need_reset = 0;
+	bool alive = contexthub_lowlevel_alive(ipc);
+	int err = 0;
+	int ret;
+	int i;
 
-	dev_info(ipc->dev,
-		"%s is run with nanohub driver %d, fw %d error\n", __func__,
-		ipc->chub_err, event);
+	dev_info(ipc->dev, "%s: fw_err:%d, alive:%d\n",
+		__func__, event, alive);
 
-	/* do slient reset */
+	if (!alive || ipc->err_cnt[CHUB_ERR_NANOHUB_WDT]) {
+		need_reset = 1;
+		err = CHUB_ERR_NANOHUB_WDT;
+		goto do_reset;
+	}
+
 	for (i = 0; i < CHUB_ERR_MAX; i++) {
+		if (ipc->err_cnt[i])
+			dev_info(ipc->dev, "%s: err%d-%d\n",
+				__func__, i, ipc->err_cnt[i]);
+		/* if error is bigger than MAX_ERR_CNT, should be reset */
 		if (ipc->err_cnt[i] > MAX_ERR_CNT) {
-			pr_info("%s: reset chub due to irq trigger error:%d\n",
-					__func__, i);
-			chub_dump_and_reset(ipc, i);
-			return;
+			err = i;
+			need_reset = 1;
 		}
 	}
 
+	if (need_reset)
+		goto do_reset;
+
 	log_flush(ipc->fw_log);
-
-	/* chub driver error */
-	if (ipc->chub_err) {
-		log_dump_all(ipc->chub_err);
-		chub_dbg_dump_hw(ipc, ipc->chub_err);
-		ipc->chub_err = 0;
-		return;
-	}
-
 	/* chub fw error */
 	switch (event) {
 	case IPC_DEBUG_CHUB_FULL_LOG:
@@ -894,24 +878,46 @@ static void handle_debug_work_func(struct work_struct *work)
 		break;
 	case IPC_DEBUG_CHUB_FAULT:
 		dev_warn(ipc->dev, "Contexthub notified fault\n");
-		fw_err = CHUB_ERR_NANOHUB_FAULT;
+		err = CHUB_ERR_NANOHUB_FAULT;
 		break;
 	case IPC_DEBUG_CHUB_ASSERT:
 		dev_warn(ipc->dev, "Contexthub notified assert\n");
-		fw_err = CHUB_ERR_NANOHUB_ASSERT;
+		err = CHUB_ERR_NANOHUB_ASSERT;
 		break;
 	case IPC_DEBUG_CHUB_ERROR:
 		dev_warn(ipc->dev, "Contexthub notified error\n");
-		fw_err = CHUB_ERR_NANOHUB_ERROR;
+		err = CHUB_ERR_NANOHUB_ERROR;
 		break;
 	default:
 		break;
 	}
 
-	if (fw_err) {
+	if (event)	/* clear dbg event */
+		ipc_write_debug_event(AP, 0);
+	if (err)
 		ipc->err_cnt[fw_err]++;
-		contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
-		log_dump_all(fw_err);
+
+do_reset:
+	dev_info(ipc->dev, "%s: reset chub due to irq trigger error:%d\n",
+		__func__, err);
+	/* req to chub fw dump */
+	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
+	/* dump log into file */
+	log_dump_all(err);
+	/* dump hw & sram into file */
+	chub_dbg_dump_hw(ipc, err);
+	if (need_reset) {
+		ret = contexthub_reset(ipc);
+		if (ret)
+			dev_warn(ipc->dev, "%s: fails to reset %d.\n",
+				__func__, ret);
+		else {
+			/* TODO: recovery */
+			dev_info(ipc->dev, "%s: chub reset! should be recovery\n",
+				__func__);
+			if (CHUB_ERR_NANOHUB_WDT == CHUB_ERR_NANOHUB_WDT)
+				enable_irq(ipc->irq_wdt);
+		}
 	}
 }
 
@@ -1016,9 +1022,8 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 	}
 
 	if (err) {
-		ipc->chub_err = err;
 		pr_err("inval irq err(%d):start_irqnum:%d,evt(%p):%d,irq_hw:%d,status_reg:0x%x(0x%x,0x%x)\n",
-		       ipc->chub_err, start_index, cur_evt, evt, irq_num,
+		       err, start_index, cur_evt, evt, irq_num,
 		       status, ipc_hw_read_int_status_reg(AP),
 		       ipc_hw_read_int_gen_reg(AP));
 		ipc->err_cnt[err]++;
@@ -1032,7 +1037,10 @@ static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 {
 	struct contexthub_ipc_info *ipc = data;
 
-	dev_info(ipc->dev, "context generated WDT timeout.\n");
+	dev_info(ipc->dev, "%s calledn", __func__);
+	ipc->err_cnt[CHUB_ERR_NANOHUB_WDT]++;
+	disable_irq_nosync(ipc->irq_wdt);
+	schedule_work(&ipc->debug_work);
 
 	return IRQ_HANDLED;
 }
@@ -1140,30 +1148,31 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 		chub->block_reset = 0;
 
 	/* get mailbox interrupt */
-	irq = irq_of_parse_and_map(node, 0);
-	if (irq < 0) {
+	chub->irq_mailbox = irq_of_parse_and_map(node, 0);
+	if (chub->irq_mailbox < 0) {
 		dev_err(dev, "failed to get irq:%d\n", irq);
 		return -EINVAL;
 	}
 
 	/* request irq handler */
-	ret = devm_request_irq(dev, irq, contexthub_irq_handler,
+	ret = devm_request_irq(dev, chub->irq_mailbox, contexthub_irq_handler,
 			       0, dev_name(dev), chub);
 	if (ret) {
-		dev_err(dev, "failed to request irq:%d, ret:%d\n", irq, ret);
+		dev_err(dev, "failed to request irq:%d, ret:%d\n",
+			chub->irq_mailbox, ret);
 		return ret;
 	}
 
 	/* get wdt interrupt optionally */
-	irq = irq_of_parse_and_map(node, 1);
-	if (irq > 0) {
+	chub->irq_wdt = irq_of_parse_and_map(node, 1);
+	if (chub->irq_wdt > 0) {
 		/* request irq handler */
-		ret = devm_request_irq(dev, irq,
+		ret = devm_request_irq(dev, chub->irq_wdt,
 				       contexthub_irq_wdt_handler, 0,
 				       dev_name(dev), chub);
 		if (ret) {
 			dev_err(dev, "failed to request wdt irq:%d, ret:%d\n",
-				irq, ret);
+				chub->irq_wdt, ret);
 			return ret;
 		}
 	} else {
@@ -1351,8 +1360,7 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 #endif
 
 	atomic_set(&chub->chub_status, CHUB_ST_NO_POWER);
-	chub->chub_err = 0;
-	chub->powermode = INIT_CHUB_VAL;
+	chub->powermode = 0; /* updated by fw bl */
 	chub->dev = &pdev->dev;
 	platform_set_drvdata(pdev, chub);
 	contexthub_config_init(chub);

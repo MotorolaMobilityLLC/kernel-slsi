@@ -182,6 +182,7 @@ enum ipc_debug_event {
 	IPC_DEBUG_UTC_CHECK_STATUS,
 	IPC_DEBUG_UTC_CHECK_CPU_UTIL,
 	IPC_DEBUG_UTC_HEAP_DEBUG,
+	IPC_DEBUG_UTC_HANG,
 	IPC_DEBUG_UTC_IPC_TEST_START,
 	IPC_DEBUG_UTC_IPC_TEST_END,
 	IPC_DEBUG_UTC_MAX,
@@ -327,8 +328,8 @@ struct ipc_log_content {
 
 struct ipc_logbuf {
 	u32 token;
-	u32 eq;			/* write owner chub */
-	u32 dq;			/* read onwer ap */
+	u32 eq;	/* write owner chub (index_writer) */
+	u32 dq;	/* read onwer ap (index_reader) */
 	u32 size;
 	char buf[0];
 };

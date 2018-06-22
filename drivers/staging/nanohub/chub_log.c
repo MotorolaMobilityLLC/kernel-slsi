@@ -44,7 +44,6 @@ static void log_memcpy(struct log_buffer_info *info,
 	size_t left_size = SIZE_OF_BUFFER - kernel_buffer->index;
 
 	dev_dbg(info->dev, "%s(%zu)\n", __func__, size);
-
 	if (size > SIZE_OF_BUFFER) {
 		dev_warn(info->dev,
 			 "flush size (%zu, %zu) is bigger than kernel buffer size (%d)",
@@ -52,7 +51,7 @@ static void log_memcpy(struct log_buffer_info *info,
 		size = SIZE_OF_BUFFER;
 	}
 
-	if (log_auto_save)
+	if (log_auto_save && !info->filp)
 		info->filp = filp_open(info->save_file_name, O_RDWR | O_APPEND | O_CREAT, S_IRWUG);
 
 	if (left_size < size) {
@@ -65,7 +64,6 @@ static void log_memcpy(struct log_buffer_info *info,
 			vfs_write(info->filp, kernel_buffer->buffer + kernel_buffer->index, left_size, &info->filp->f_pos);
 			vfs_fsync(info->filp, 0);
 		}
-
 		src += left_size;
 		size -= left_size;
 
@@ -133,7 +131,6 @@ static void log_flush_all(void)
 			pr_warn("%s: chub isn't run\n", __func__);
 			return;
 		}
-
 	    log_flush(info);
 	}
 }
@@ -251,22 +248,21 @@ static struct dentry *chub_dbg_get_root_dir(void)
 	return dbg_root_dir;
 }
 
-void chub_log_auto_save_open(struct log_buffer_info *info)
+static void chub_log_auto_save_open(struct log_buffer_info *info)
 {
 	mm_segment_t old_fs = get_fs();
 
 	set_fs(KERNEL_DS);
 
-	if (info->filp) {
-		/* close previous */
+	/* close previous */
+	if (info->filp)
 		filp_close(info->filp, NULL);
-	}
 
 	info->filp =
 	    filp_open(info->save_file_name, O_RDWR | O_TRUNC | O_CREAT,
 		      S_IRWUG);
 
-	dev_dbg(info->dev, "created\n");
+	dev_dbg(info->dev, "%s created\n", info->save_file_name);
 
 	if (IS_ERR(info->filp))
 		dev_warn(info->dev, "%s: saving log fail\n", __func__);
@@ -283,7 +279,6 @@ static void chub_log_auto_save_ctrl(struct log_buffer_info *info, u32 event)
 			 (u32)(sched_clock() / NSEC_PER_SEC));
 
 		chub_log_auto_save_open(info);
-
 		log_auto_save = 1;
 	} else {
 		log_auto_save = 0;
@@ -306,20 +301,23 @@ static ssize_t chub_log_save_save(struct device *dev,
 	long event;
 	int err;
 
+	/* auto log_save */
 	err = kstrtol(&buf[0], 10, &event);
 
 	if (!err) {
 		struct log_buffer_info *info;
 
 		list_for_each_entry(info, &log_list_head, list)
-			if (info->support_log_save)
+			if (info->support_log_save) /* sram can support it */
 				chub_log_auto_save_ctrl(info, event);
 
+		/* set log_flush to save log */
 		if (!auto_log_flush_ms) {
 			log_schedule_flush_all();
 			auto_log_flush_ms = DEFAULT_FLUSH_MS;
+			dev_dbg(dev, "%s: set log_flush time(% dms) for log_save\n",
+				auto_log_flush_ms);
 		}
-
 		return count;
 	} else {
 		return 0;
@@ -335,54 +333,63 @@ static void log_dump(struct log_buffer_info *info, int err)
 	mm_segment_t old_fs;
 	char save_file_name[32];
 	struct LOG_BUFFER *buffer = info->log_buffer;
-	u32 index = buffer->index_writer;
+	u32 wrap_index = buffer->index_writer;
 
 	snprintf(save_file_name, sizeof(save_file_name),
 		 "/data/nano-%02d-%02d-%06u.log", info->id, err,
 		 (u32)(sched_clock() / NSEC_PER_SEC));
 
+	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
 	filp = filp_open(save_file_name, O_RDWR | O_TRUNC | O_CREAT, S_IRWUG);
-
-	old_fs = get_fs();
+	if (IS_ERR(filp)) {
+		dev_warn(info->dev, "%s: fails filp:%p\n", __func__, filp);
+		goto out;
+	}
 
 	if (info->sram_log_buffer) {
 		int i;
 		int size;
 		bool wrap = false;
 		char tmp_buffer[TMP_BUFFER_SIZE];
-		u32 start_index = index;
+		u32 start_index = wrap_index;
+		int bottom = 0;
 
-		for (i = 0; i < buffer->size / TMP_BUFFER_SIZE + 1;
+		/* dump sram-log buffer to fs (eq ~ eq + logbuf_size) */
+		dev_dbg(info->dev, "%s: logbuf:%p, eq:%d, dq:%d, size:%d, loop:%d\n", __func__,
+			(void *)buffer, wrap_index,	buffer->index_reader, buffer->size,
+			(buffer->size / TMP_BUFFER_SIZE) + 1);
+		for (i = 0; i < (buffer->size / TMP_BUFFER_SIZE) + 1;
 		     i++, start_index += TMP_BUFFER_SIZE) {
 			if (start_index + TMP_BUFFER_SIZE > buffer->size) {
 				size = buffer->size - start_index;
 				wrap = true;
-			} else if (index - start_index < TMP_BUFFER_SIZE) {
-				size = index - start_index;
+				bottom = 1;
+			} else if (bottom && (wrap_index - start_index < TMP_BUFFER_SIZE))	{
+				size = wrap_index - start_index;
 			} else {
 				size = TMP_BUFFER_SIZE;
 			}
-
-			memcpy(tmp_buffer, buffer->buffer + start_index, size);
+			memcpy_fromio(tmp_buffer, buffer->buffer + start_index, size);
 			vfs_write(filp, tmp_buffer, size, &filp->f_pos);
-
 			if (wrap) {
 				wrap = false;
 				start_index = 0;
 			}
 		}
 	} else {
-		vfs_write(filp, buffer->buffer + index, buffer->size - index,
+		vfs_write(filp, buffer->buffer + wrap_index, buffer->size - wrap_index,
 			  &filp->f_pos);
-		vfs_write(filp, buffer->buffer, index, &filp->f_pos);
+		vfs_write(filp, buffer->buffer, wrap_index, &filp->f_pos);
 	}
-
-	dev_info(info->dev, "%s is created\n", save_file_name);
+	dev_dbg(info->dev, "%s is created\n", save_file_name);
 
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
+
+out:
+	set_fs(old_fs);
 }
 
 void log_dump_all(int err)
@@ -418,6 +425,7 @@ static ssize_t chub_log_flush_save(struct device *dev,
 				pr_err("%s: fails to flush log\n", __func__);
 			}
 		}
+		/* update log_flush time */
 		auto_log_flush_ms = event * 1000;
 
 		return count;
@@ -437,8 +445,11 @@ static ssize_t chub_dump_log_save(struct device *dev,
 }
 
 static struct device_attribute attributes[] = {
+	/* enable auto-save with flush_log */
 	__ATTR(save_log, 0664, chub_log_save_show, chub_log_save_save),
+	/* flush sram-logbuf to dram */
 	__ATTR(flush_log, 0664, chub_log_flush_show, chub_log_flush_save),
+	/* dump sram-logbuf to file */
 	__ATTR(dump_log, 0220, NULL, chub_dump_log_save)
 };
 

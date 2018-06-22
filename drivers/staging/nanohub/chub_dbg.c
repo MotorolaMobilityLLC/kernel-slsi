@@ -25,6 +25,7 @@
 #define AREA_NAME_MAX (8)
 /* it's align ramdump side to prevent override */
 #define SRAM_ALIGN (1024)
+#define S_IRWUG (0660)
 
 struct map_info {
 	char name[AREA_NAME_MAX];
@@ -78,7 +79,7 @@ static u32 get_dbg_dump_size(void)
 };
 
 #ifdef	CONFIG_CONTEXTHUB_DEBUG
-static void chub_dbg_write_file(struct device *dev)
+static void chub_dbg_write_file(struct device *dev, char *name, void *buf, int size)
 {
 	struct file *filp;
 	char file_name[32];
@@ -86,48 +87,24 @@ static void chub_dbg_write_file(struct device *dev)
 	struct dbg_dump *p_dump = p_dbg_dump;
 	u32 sec = p_dump->time / NSEC_PER_SEC;
 
-	snprintf(file_name, sizeof(file_name), "/data/nano-%02u-%06u.dump",
-		 p_dump->reason, sec);
+	snprintf(file_name, sizeof(file_name), "/data/nano-%02u-%06u-%s.dump",
+		 p_dump->reason, sec, name);
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	filp = filp_open(file_name, O_RDWR | O_TRUNC | O_CREAT, 0660);
-
-	dev_dbg(dev, "%s is created with %d size\n", file_name,
-		get_dbg_dump_size());
-
+	filp = filp_open(file_name, O_RDWR | O_TRUNC | O_CREAT, S_IRWUG);
 	if (IS_ERR(filp)) {
-		dev_warn(dev, "%s: saving log fail\n", __func__);
+		dev_warn(dev, "%s: open file fail\n", __func__);
 		goto out;
 	}
 
-	vfs_write(filp, (void *)p_dbg_dump, sizeof(struct dbg_dump),
-		  &filp->f_pos);
+	vfs_write(filp, buf, size,  &filp->f_pos);
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
-
-	snprintf(file_name, sizeof(file_name), "/data/nano-%02u-%06u-sram.dump",
-		 p_dump->reason, sec);
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	filp = filp_open(file_name, O_RDWR | O_TRUNC | O_CREAT, 0660);
 
 	dev_dbg(dev, "%s is created with %d size\n", file_name,
 		get_dbg_dump_size());
-
-	if (IS_ERR(filp)) {
-		dev_warn(dev, "%s: saving log fail\n", __func__);
-		goto out;
-	}
-
-	vfs_write(filp, &p_dbg_dump->sram[p_dbg_dump->sram_start],
-		  ipc_get_chub_mem_size(), &filp->f_pos);
-	vfs_fsync(filp, 0);
-	filp_close(filp, NULL);
-
 out:
 	set_fs(old_fs);
 }
@@ -150,17 +127,23 @@ void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, int reason)
 
 		/* dump GPR */
 		chub_dbg_dump_gpr(ipc);
-
-		/* dump SRAM */
+		/* dump SRAM to reserved DRAM */
 		memcpy_fromio(&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			      ipc_get_base(IPC_REG_DUMP),
 			      ipc_get_chub_mem_size());
 
-		dev_dbg(ipc->dev, "contexthub dump is done\n");
-
-		chub_dbg_write_file(ipc->dev);
+		/* write file */
+		dev_dbg(ipc->dev,
+			"%s: write file: sram:%p, dram:%p(off:%d), size:%d\n",
+			__func__, ipc_get_base(IPC_REG_DUMP),
+			&p_dbg_dump->sram[p_dbg_dump->sram_start],
+			p_dbg_dump->sram_start, ipc_get_chub_mem_size());
+		chub_dbg_write_file(ipc->dev, "dram",
+			p_dbg_dump, sizeof(struct dbg_dump));
+		chub_dbg_write_file(ipc->dev, "sram",
+			&p_dbg_dump->sram[p_dbg_dump->sram_start],
+			ipc_get_chub_mem_size());
 	}
-
 	contexthub_release(ipc);
 }
 
@@ -293,6 +276,7 @@ char chub_utc_name[][SIZE_UTC_NAME] = {
 	[IPC_DEBUG_UTC_CHECK_STATUS] = "stack",
 	[IPC_DEBUG_UTC_CHECK_CPU_UTIL] = "utilization",
 	[IPC_DEBUG_UTC_HEAP_DEBUG] = "heap",
+	[IPC_DEBUG_UTC_HANG] = "hang",
 	[IPC_DEBUG_NANOHUB_CHUB_ALIVE] = "alive",
 };
 

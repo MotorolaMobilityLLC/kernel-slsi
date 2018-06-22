@@ -111,6 +111,7 @@ struct chub_alive {
 };
 
 enum CHUB_ERR_TYPE {
+	CHUB_ERR_NONE,
 	CHUB_ERR_EVTQ_EMTPY, /* ap error */
 	CHUB_ERR_READ_FAIL,
 	CHUB_ERR_WRITE_FAIL,
@@ -119,6 +120,7 @@ enum CHUB_ERR_TYPE {
 	CHUB_ERR_NANOHUB_FAULT, /* chub error */
 	CHUB_ERR_NANOHUB_ASSERT,
 	CHUB_ERR_NANOHUB_ERROR,
+	CHUB_ERR_NANOHUB_WDT,
 	CHUB_ERR_MAX,
 };
 
@@ -154,10 +156,11 @@ struct contexthub_ipc_info {
 	struct log_buffer_info *dd_log;
 	struct LOG_BUFFER *dd_log_buffer;
 	unsigned long clkrate;
-	enum CHUB_ERR_TYPE chub_err;
 	atomic_t chub_status;
 	atomic_t irq1_apInt;
 	atomic_t wakeup_chub;
+	int irq_mailbox;
+	int irq_wdt;
 	int err_cnt[CHUB_ERR_MAX];
 	int utc_run;
 	int powermode;
@@ -264,7 +267,6 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc,
 				uint8_t *rx, int max_length, int timeout);
 int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 				uint8_t *tx, int length, int timeout);
-int contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc);
 int contexthub_poweron(struct contexthub_ipc_info *data);
 int contexthub_download_image(struct contexthub_ipc_info *data, int bl);
 int contexthub_download_kernel(struct contexthub_ipc_info *dev);
@@ -272,13 +274,7 @@ int contexthub_download_bl(struct contexthub_ipc_info *data);
 int contexthub_reset(struct contexthub_ipc_info *data);
 int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 
-#ifdef CONFIG_CONTEXTHUB_POWERMODE
 int contexthub_is_run(struct contexthub_ipc_info *ipc);
 int contexthub_request(struct contexthub_ipc_info *ipc);
 void contexthub_release(struct contexthub_ipc_info *ipc);
-#else
-#define contexthub_is_run(a) (1)
-#define contexthub_request(a) (0)
-#define contexthub_release(a)
-#endif
 #endif
