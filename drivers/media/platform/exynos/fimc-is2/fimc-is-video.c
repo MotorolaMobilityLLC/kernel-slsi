@@ -1050,7 +1050,7 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 			if (video->resourcemgr->hal_version == IS_HAL_VER_3_2) {
 				frame->kvaddr_buffer[i] = queue->buf_kva[index][i];
 			} else {
-				mverr("kvaddr buffer[%d][%d] is changed(%08X != %08lX)", vctx, video, index, i,
+				mverr("kvaddr buffer[%d][%d] is changed(%08lX != %08lX)", vctx, video, index, i,
 					frame->kvaddr_buffer[i], queue->buf_kva[index][i]);
 				ret = -EINVAL;
 				goto exit;
