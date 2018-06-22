@@ -1059,7 +1059,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		p->rc_mb = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_H264_RC_FRAME_RATE:
-		p->codec.h264.rc_framerate = ctrl->value;
+		p->rc_framerate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP:
 		p->codec.h264.rc_frame_qp = ctrl->value;
@@ -1270,7 +1270,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		p->codec.mpeg4.vop_frm_delta = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_H263_RC_FRAME_RATE:
-		p->codec.mpeg4.rc_framerate = ctrl->value;
+		p->rc_framerate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP:
 		p->codec.mpeg4.rc_frame_qp = ctrl->value;
@@ -1294,7 +1294,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		p->codec.vp8.vp8_version = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_MFC70_VIDEO_VP8_RC_FRAME_RATE:
-		p->codec.vp8.rc_framerate = ctrl->value;
+		p->rc_framerate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_VP8_MIN_QP:
 		p->codec.vp8.rc_min_qp = ctrl->value;
@@ -1366,7 +1366,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		p->codec.vp9.vp9_version = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_VP9_RC_FRAME_RATE:
-		p->codec.vp9.rc_framerate = ctrl->value;
+		p->rc_framerate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_VP9_MIN_QP:
 		p->codec.vp9.rc_min_qp = ctrl->value;
@@ -1436,7 +1436,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		p->codec.hevc.rc_b_frame_qp = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_MFC90_VIDEO_HEVC_RC_FRAME_RATE:
-		p->codec.hevc.rc_framerate = ctrl->value;
+		p->rc_framerate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP:
 		p->codec.hevc.rc_min_qp = ctrl->value;

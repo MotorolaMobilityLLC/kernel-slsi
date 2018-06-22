@@ -816,7 +816,6 @@ struct s5p_mfc_h264_enc_params {
 	s8 loop_filter_beta;
 	enum v4l2_mpeg_video_h264_entropy_mode entropy_mode;
 	u8 _8x8_transform;
-	u32 rc_framerate;
 	u8 rc_frame_qp;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
@@ -874,7 +873,6 @@ struct s5p_mfc_mpeg4_enc_params {
 	u16 vop_frm_delta;
 	u8 rc_b_frame_qp;
 	/* Common for MPEG4, H263 */
-	u32 rc_framerate;
 	u8 rc_frame_qp;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
@@ -890,7 +888,6 @@ struct s5p_mfc_mpeg4_enc_params {
  */
 struct s5p_mfc_vp9_enc_params {
 	/* VP9 Only */
-	u32 rc_framerate;
 	u8 vp9_version;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
@@ -914,7 +911,6 @@ struct s5p_mfc_vp9_enc_params {
  */
 struct s5p_mfc_vp8_enc_params {
 	/* VP8 Only */
-	u32 rc_framerate;
 	u8 vp8_version;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
@@ -942,7 +938,6 @@ struct s5p_mfc_hevc_enc_params {
 	u8 level;
 	u8 tier_flag;
 	/* HEVC Only */
-	u32 rc_framerate;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
 	u8 rc_min_qp_p;
@@ -1017,6 +1012,7 @@ struct s5p_mfc_enc_params {
 	u8 pad_cr;
 	u8 rc_frame;
 	u32 rc_bitrate;
+	u32 rc_framerate;
 	u16 rc_reaction_coeff;
 	u32 config_qp;
 	u32 dynamic_qp;

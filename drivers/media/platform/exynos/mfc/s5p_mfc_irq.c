@@ -728,8 +728,10 @@ leave_handle_frame:
 static void mfc_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *src_mb)
 {
 	struct s5p_mfc_dev *dev;
+	struct s5p_mfc_enc *enc = ctx->enc_priv;
+	struct s5p_mfc_enc_params *p = &enc->params;
 	struct s5p_mfc_buf *dst_mb;
-	u64 interval;
+	u32 interval;
 	u64 start_timestamp;
 	u64 new_timestamp;
 
@@ -745,14 +747,14 @@ static void mfc_handle_stream_copy_timestamp(struct s5p_mfc_ctx *ctx, struct s5p
 	}
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
-	interval = NSEC_PER_SEC / (ENC_DEFAULT_CAM_VIDEO_FPS / 1000);
+	interval = NSEC_PER_SEC / p->rc_framerate;
 	if (debug_ts == 1)
-		mfc_info_ctx("[TS] %dfps, start timestamp: %lld, base interval: %lld\n",
-				(ENC_DEFAULT_CAM_VIDEO_FPS / 1000), start_timestamp, interval);
+		mfc_info_ctx("[TS] %dfps, start timestamp: %lld, base interval: %d\n",
+				p->rc_framerate, start_timestamp, interval);
 
 	new_timestamp = start_timestamp + (interval * src_mb->done_index);
 	if (debug_ts == 1)
-		mfc_info_ctx("[TS] new timestamp: %lld, interval: %lld\n",
+		mfc_info_ctx("[TS] new timestamp: %lld, interval: %d\n",
 				new_timestamp, interval * src_mb->done_index);
 
 	/* Get the destination buffer */
