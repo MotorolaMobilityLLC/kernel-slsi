@@ -785,6 +785,8 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx)
 				&ctx->src_buf_queue, enc_addr[0]);
 		if (src_mb) {
 			found_in_src_queue = 1;
+
+			mfc_handle_stream_copy_timestamp(ctx, src_mb);
 			src_mb->done_index++;
 			mfc_debug(4, "batch buf done_index: %d\n", src_mb->done_index);
 
@@ -793,8 +795,6 @@ static void mfc_handle_stream_input(struct s5p_mfc_ctx *ctx)
 			if (call_cop(ctx, recover_buf_ctrls_val, ctx,
 						&ctx->src_ctrls[index]) < 0)
 				mfc_err_ctx("failed in recover_buf_ctrls_val\n");
-
-			mfc_handle_stream_copy_timestamp(ctx, src_mb);
 
 			/* single buffer || last image in a buffer container */
 			if (!src_mb->num_bufs_in_vb || src_mb->done_index == src_mb->num_bufs_in_vb) {

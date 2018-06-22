@@ -934,19 +934,19 @@ static void mfc_nal_q_handle_stream_input(struct s5p_mfc_ctx *ctx, EncoderOutput
 				&ctx->src_buf_queue, enc_addr[0]);
 		if (src_mb) {
 			found_in_src_queue = 1;
-			src_mb->done_index++;
-			mfc_debug(4, "[NALQ] batch buf done_index: %d\n", src_mb->done_index);
 
 			mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
+			src_mb->done_index++;
+			mfc_debug(4, "[NALQ] batch buf done_index: %d\n", src_mb->done_index);
 		} else {
 			src_mb = s5p_mfc_find_first_buf(&ctx->buf_queue_lock,
 					&ctx->src_buf_nal_queue, enc_addr[0]);
 			if (src_mb) {
 				found_in_src_queue = 1;
-				src_mb->done_index++;
-				mfc_debug(4, "[NALQ] batch buf done_index: %d\n", src_mb->done_index);
 
 				mfc_nal_q_handle_stream_copy_timestamp(ctx, src_mb);
+				src_mb->done_index++;
+				mfc_debug(4, "[NALQ] batch buf done_index: %d\n", src_mb->done_index);
 
 				/* last image in a buffer container */
 				if (src_mb->done_index == src_mb->num_bufs_in_vb) {
