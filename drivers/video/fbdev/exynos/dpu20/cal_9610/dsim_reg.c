@@ -770,7 +770,7 @@ static void dsim_reg_set_porch(u32 id, struct decon_lcd *lcd)
 		dsim_reg_set_vbp(id, lcd->vbp);
 		dsim_reg_set_vfp(id, lcd->vfp);
 		dsim_reg_set_stable_vfp(id, DSIM_STABLE_VFP_VALUE);
-		dsim_reg_set_cmdallow(id, DSIM_CMD_ALLOW_VALUE);
+		dsim_reg_set_cmdallow(id, lcd->vfp - DSIM_STABLE_VFP_VALUE - 3);
 		dsim_reg_set_hbp(id, lcd->hbp);
 		dsim_reg_set_hfp(id, lcd->hfp);
 		dsim_reg_set_vsa(id, lcd->vsa);
@@ -1399,7 +1399,7 @@ static void dsim_reg_set_config(u32 id, struct decon_lcd *lcd_info,
 		dsim_reg_disable_hse(id, 0);
 		dsim_reg_set_burst_mode(id, 1);
 		dsim_reg_set_sync_inform(id, 0);
-		dsim_reg_enable_clocklane(id, 0);
+		dsim_reg_enable_clocklane(id, 1);
 	}
 
 	if (lcd_info->dsc_enabled) {
