@@ -137,10 +137,6 @@ void lcd_init(int id, struct decon_lcd *lcd)
 	mdelay(20);
 
 	if (lcd->mode == DECON_VIDEO_MODE) {
-		if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE, SEQ_DISPLAY_ON[0], 0) < 0)
-			dsim_err("fail to send SEQ_DISPLAY_ON command.\n");
-		mdelay(120);
-
 		if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM, SEQ_TEST_KEY_ON_F2[0],
 					SEQ_TEST_KEY_ON_F2[1]) < 0)
 			dsim_err("fail to send SEQ_TEST_KEY_ON_F2 command.\n");
@@ -167,6 +163,9 @@ void lcd_init(int id, struct decon_lcd *lcd)
 			dsim_err("fail to send SEQ_TE_ON command.\n");
 		mdelay(12);
 	}
+
+	if (lcd->mode == DECON_VIDEO_MODE)
+		mdelay(120);
 }
 
 void lcd_enable(int id)
