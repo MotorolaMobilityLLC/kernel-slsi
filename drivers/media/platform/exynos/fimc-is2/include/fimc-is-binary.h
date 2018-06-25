@@ -77,8 +77,11 @@
 #define DEBUGCTL_OFFSET			(DEBUG_REGION_OFFSET + DEBUG_REGION_SIZE)
 #else /* #ifdef ENABLE_IS_CORE */
 /* static reserved memory for libraries */
+#define CDH_SIZE		SZ_128K		/* CDH : Camera Debug Helper */
+
 #define LIB_OFFSET		(VMALLOC_START + 0xF6000000 - 0x8000000)
-#define LIB_START		(LIB_OFFSET + 0x04000000)
+#define __LIB_START		(LIB_OFFSET + 0x04000000 - CDH_SIZE)
+#define LIB_START		(__LIB_START + CDH_SIZE)
 
 #define VRA_LIB_ADDR		(LIB_START)
 #define VRA_LIB_SIZE		(SZ_512K + SZ_256K)
@@ -90,9 +93,9 @@
 #define RTA_LIB_SIZE		(SZ_2M + SZ_2M)
 
 #ifdef USE_RTA_BINARY
-#define LIB_SIZE		(VRA_LIB_SIZE + DDK_LIB_SIZE +  RTA_LIB_SIZE)
+#define LIB_SIZE		(VRA_LIB_SIZE + DDK_LIB_SIZE +  RTA_LIB_SIZE + CDH_SIZE)
 #else
-#define LIB_SIZE		(VRA_LIB_SIZE + DDK_LIB_SIZE)
+#define LIB_SIZE		(VRA_LIB_SIZE + DDK_LIB_SIZE + CDH_SIZE)
 #endif
 
 #define HEAP_START		(LIB_START + SZ_16M)

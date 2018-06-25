@@ -2229,8 +2229,8 @@ int fimc_is_load_ddk_bin(int loadType)
 			bin_type,
 			was_loaded_by(&bin) ? "built-in" : "user-provided");
 		if (bin.size <= bin_size) {
-			memcpy((void *)lib_addr, bin.data, bin.size);
-			__flush_dcache_area((void *)lib_addr, bin.size);
+			memcpy((void *)lib_addr, bin.data + CDH_SIZE, bin.size - CDH_SIZE);
+			__flush_dcache_area((void *)lib_addr, bin.size - CDH_SIZE);
 #if defined(CONFIG_TIMA_RKP)
 			if (!(gPtr_lib_support.binary_code_load_flg & BINARY_LOAD_DDK_DONE)) {
 				flush_cache_all();
@@ -2257,18 +2257,18 @@ int fimc_is_load_ddk_bin(int loadType)
 				bin_type,
 				was_loaded_by(&bin) ? "built-in" : "user-provided");
 			memcpy((void *)lib_addr + CAMERA_BINARY_VRA_DATA_OFFSET,
-				bin.data + CAMERA_BINARY_VRA_DATA_OFFSET,
-				CAMERA_BINARY_VRA_DATA_SIZE);
+				bin.data + CAMERA_BINARY_VRA_DATA_OFFSET + CDH_SIZE,
+				CAMERA_BINARY_VRA_DATA_SIZE - CDH_SIZE);
 			__flush_dcache_area((void *)lib_addr + CAMERA_BINARY_VRA_DATA_OFFSET,
-								CAMERA_BINARY_VRA_DATA_SIZE);
+								CAMERA_BINARY_VRA_DATA_SIZE - CDH_SIZE);
 			info_lib("binary info[%s] - type: D, from: %s\n",
 				bin_type,
 				was_loaded_by(&bin) ? "built-in" : "user-provided");
 			memcpy((void *)lib_addr + CAMERA_BINARY_DDK_DATA_OFFSET,
-				bin.data + CAMERA_BINARY_DDK_DATA_OFFSET,
-				(bin.size - CAMERA_BINARY_DDK_DATA_OFFSET));
+				bin.data + CAMERA_BINARY_DDK_DATA_OFFSET + CDH_SIZE,
+				(bin.size - CAMERA_BINARY_DDK_DATA_OFFSET - CDH_SIZE));
 			__flush_dcache_area((void *)lib_addr + CAMERA_BINARY_DDK_DATA_OFFSET,
-								bin.size - CAMERA_BINARY_DDK_DATA_OFFSET);
+								bin.size - CAMERA_BINARY_DDK_DATA_OFFSET - CDH_SIZE);
 		} else {
 			err_lib("DDK bin size is bigger than memory area. %zd[%zd]",
 				bin.size, bin_size);
@@ -2277,7 +2277,7 @@ int fimc_is_load_ddk_bin(int loadType)
 		}
 	}
 
-	fimc_is_ischain_version(FIMC_IS_BIN_DDK_LIBRARY, bin.data, bin.size);
+	fimc_is_ischain_version(FIMC_IS_BIN_DDK_LIBRARY, bin.data + CDH_SIZE, bin.size - CDH_SIZE);
 	release_binary(&bin);
 
 #if !defined(CONFIG_TIMA_RKP)
