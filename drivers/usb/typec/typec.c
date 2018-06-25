@@ -432,7 +432,14 @@ static ssize_t accessory_mode_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct typec_partner *p = to_typec_partner(dev);
+	struct typec_partner *p;
+
+	p = to_typec_partner(dev);
+
+	if (p->accessory > TYPEC_MAX_ACCESSORY) {
+		pr_err("%s Invalid accessory number...", __func__);
+		return sprintf(buf, "%s\n", typec_accessory_modes[0]);
+	}
 
 	return sprintf(buf, "%s\n", typec_accessory_modes[p->accessory]);
 }
