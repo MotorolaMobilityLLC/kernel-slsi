@@ -176,7 +176,7 @@ static struct dss_reg_list dss_reg_exlist[] = {
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_FREQ
 static char *dss_freq_name[] = {
-	"LIT", "MID", "BIG", "INT", "MIF", "ISP", "DISP", "INTCAM", "AUD", "IVA", "SCORE", "FSYS0", "MFC", "NPU",
+	"LITTLE", "BIG", "INT", "MIF", "ISP", "DISP", "INTCAM", "AUD", "IVA", "SCORE", "FSYS0",
 };
 #endif
 

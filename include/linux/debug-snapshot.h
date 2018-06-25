@@ -261,7 +261,6 @@ enum dsslog_flag {
 
 enum dsslog_freq_flag {
 	DSS_FLAG_LIT = 0,
-	DSS_FLAG_MID,
 	DSS_FLAG_BIG,
 	DSS_FLAG_INT,
 	DSS_FLAG_MIF,
@@ -272,8 +271,6 @@ enum dsslog_freq_flag {
 	DSS_FLAG_IVA,
 	DSS_FLAG_SCORE,
 	DSS_FLAG_FSYS0,
-	DSS_FLAG_MFC,
-	DSS_FLAG_NPU,
 	DSS_FLAG_END
 };
 #endif
