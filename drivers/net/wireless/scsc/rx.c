@@ -772,6 +772,7 @@ enum slsi_wlan_vendor_attr_roam_auth {
 	SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_KEY_REPLAY_CTR,
 	SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_PTK_KCK,
 	SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_PTK_KEK,
+	SLSI_WLAN_VENDOR_ATTR_ROAM_BEACON_IE,
 	/* keep last */
 	SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST,
 	SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_MAX =
@@ -782,6 +783,7 @@ int slsi_send_roam_vendor_event(struct slsi_dev *sdev,
 				const u8 *bssid,
 				const u8 *req_ie, size_t req_ie_len,
 				const u8 *resp_ie, size_t resp_ie_len,
+				const u8 *beacon_ie, size_t beacon_ie_len,
 				bool authorized)
 {
 	int                                    length = ETH_ALEN + 32 + req_ie_len + resp_ie_len;
@@ -805,7 +807,8 @@ int slsi_send_roam_vendor_event(struct slsi_dev *sdev,
 	if (nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_BSSID, ETH_ALEN, bssid) ||
 	    nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_AUTHORIZED, 1, &authorized) ||
 	   (req_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_REQ_IE, req_ie_len, req_ie)) ||
-	   (resp_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_RESP_IE, resp_ie_len, resp_ie))) {
+	   (resp_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_RESP_IE, resp_ie_len, resp_ie)) ||
+	   (beacon_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_BEACON_IE, beacon_ie_len, beacon_ie))) {
 		SLSI_ERR_NODEV("Failed nla_put 1\n");
 		slsi_kfree_skb(skb);
 		return -EINVAL;
@@ -953,7 +956,9 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 #endif
 #ifdef CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD
 		if (slsi_send_roam_vendor_event(sdev, peer->address, assoc_ie, assoc_ie_len,
-						assoc_rsp_ie, assoc_rsp_ie_len, !temporal_keys_required) != 0) {
+						assoc_rsp_ie, assoc_rsp_ie_len,
+						ndev_vif->sta.sta_bss->ies->data, ndev_vif->sta.sta_bss->ies->len,
+						!temporal_keys_required) != 0) {
 			SLSI_NET_ERR(dev, "Could not send Roam vendor event up");
 		}
 #endif
