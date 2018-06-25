@@ -91,6 +91,17 @@ int main(int argc, char *argv[])
 			break;
 	}
 #endif
+#ifdef CONFIG_DEBUG_SNAPSHOT_ACPM
+	for (i = 0; i < DSS_LOG_MAX_NUM; i++)
+	{
+		printf("log[%.9f] = {  'type' : 'acpmlog', 'log' : '%s', 'value' : %d }\n",
+				p->acpm[i].acpm_time/1.0e9,
+				p->acpm[i].log,
+				p->acpm[i].data);
+		if (p->acpm[i].time == 0)
+			break;
+	}
+#endif
 	return 0;
 }
 
