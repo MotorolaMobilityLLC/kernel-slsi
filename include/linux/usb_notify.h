@@ -127,6 +127,9 @@ struct otg_notify {
 	int pre_peri_delay_us;
 	int sec_whitelist_enable;
 	int speed;
+#if defined(CONFIG_IFCONN_NOTIFIER)
+	int charger_detect;
+#endif
 	const char *muic_name;
 	int (*pre_gpio)(int gpio, int use);
 	int (*post_gpio)(int gpio, int use);

@@ -414,6 +414,16 @@ static int muic_usb_handle_notification(struct notifier_block *nb,
 		__func__, action, attached_dev);
 
 	switch (attached_dev) {
+#if defined(CONFIG_IFCONN_NOTIFIER)
+	case ATTACHED_DEV_TA_MUIC:
+		if (action == IFCONN_NOTIFY_ID_DETACH)
+			send_otg_notify(o_notify, NOTIFY_EVENT_CHARGER, 0);
+		else if (action == IFCONN_NOTIFY_ID_ATTACH)
+			send_otg_notify(o_notify, NOTIFY_EVENT_CHARGER, 1);
+		else
+			pr_err("%s - ACTION Error!\n", __func__);
+		break;
+#endif
 	case ATTACHED_DEV_USB_MUIC:
 	case ATTACHED_DEV_CDP_MUIC:
 	case ATTACHED_DEV_UNOFFICIAL_ID_USB_MUIC:
@@ -853,6 +863,9 @@ static struct otg_notify dwc_lsi_notify = {
 	.vbus_drive	= otg_accessory_power,
 	.set_host = exynos_set_host,
 	.set_peripheral	= exynos_set_peripheral,
+#if defined(CONFIG_IFCONN_NOTIFIER)
+	.charger_detect = 0,
+#endif
 	.vbus_detect_gpio = -1,
 	.is_wakelock = 0,
 	.booting_delay_sec = 10,
