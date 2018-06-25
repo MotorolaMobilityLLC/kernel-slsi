@@ -634,7 +634,7 @@ void __init *samlog_debugfs_init(const char *root_name, void *rb)
 	if (!di->statfile)
 		goto no_statfile;
 
-	di->samwritefile = debugfs_create_file(SCSC_SAMWRITE_FNAME, 0222,
+	di->samwritefile = debugfs_create_file(SCSC_SAMWRITE_FNAME, 0220,
 					       di->bufdir, NULL,
 					       &samwrite_fops);
 	if (!di->samwritefile)
