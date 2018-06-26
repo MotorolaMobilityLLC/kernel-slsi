@@ -341,6 +341,8 @@ static int sh333ap_on(struct modem_ctl *mc)
 
 	spin_lock_irqsave(&mc->ap_status_lock, flags);
 	mbox_update_value(MCU_CP, mc->mbx_ap_status, 1,
+		mc->sbi_pda_active_mask, mc->sbi_pda_active_pos);
+	mbox_update_value(MCU_CP, mc->mbx_ap_status, 1,
 		mc->sbi_ap_status_mask, mc->sbi_ap_status_pos);
 	spin_unlock_irqrestore(&mc->ap_status_lock, flags);
 
