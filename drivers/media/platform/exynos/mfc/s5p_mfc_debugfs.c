@@ -70,6 +70,7 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 			dev->pdata->support_10bit ? "supported" : "not supported",
 			dev->pdata->support_422 ? "supported" : "not supported",
 			dev->pdata->support_rgb ? "supported" : "not supported");
+	seq_printf(s, "[LOWMEM] is_low_mem: %d\n", IS_LOW_MEM);
 	if (dev->nal_q_handle)
 		seq_printf(s, "[NAL-Q] state: %d\n", dev->nal_q_handle->nal_q_state);
 
