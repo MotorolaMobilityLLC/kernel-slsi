@@ -48,6 +48,21 @@ void mfc_set_slice_mode(struct mfc_ctx *ctx)
 	}
 }
 
+void mfc_set_aso_slice_order_h264(struct mfc_ctx *ctx)
+{
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	struct mfc_h264_enc_params *p_264 = &p->codec.h264;
+	int i;
+
+	if (p_264->aso_enable) {
+		for (i = 0; i < 8; i++)
+			MFC_WRITEL(p_264->aso_slice_order[i],
+				MFC_REG_E_H264_ASO_SLICE_ORDER_0 + i * 4);
+	}
+}
+
 static void __mfc_set_gop_size(struct mfc_ctx *ctx, int ctrl_mode)
 {
 	struct mfc_dev *dev = ctx->dev;
@@ -1394,4 +1409,37 @@ void mfc_set_enc_params_bpg(struct mfc_ctx *ctx)
 			reg |= 0x1;
 	}
 	MFC_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
+}
+
+int mfc_set_enc_params(struct mfc_ctx *ctx)
+{
+	struct mfc_dev *dev = ctx->dev;
+
+	if (IS_H264_ENC(ctx))
+		mfc_set_enc_params_h264(ctx);
+	else if (IS_MPEG4_ENC(ctx))
+		mfc_set_enc_params_mpeg4(ctx);
+	else if (IS_H263_ENC(ctx))
+		mfc_set_enc_params_h263(ctx);
+	else if (IS_VP8_ENC(ctx))
+		mfc_set_enc_params_vp8(ctx);
+	else if (IS_VP9_ENC(ctx))
+		mfc_set_enc_params_vp9(ctx);
+	else if (IS_HEVC_ENC(ctx))
+		mfc_set_enc_params_hevc(ctx);
+	else if (IS_BPG_ENC(ctx))
+		mfc_set_enc_params_bpg(ctx);
+	else {
+		mfc_err_ctx("Unknown codec for encoding (%x)\n",
+			ctx->codec_mode);
+		return -EINVAL;
+	}
+
+	mfc_debug(5, "RC) Bitrate: %d / framerate: %#x / config %#x / mode %#x\n",
+			MFC_READL(MFC_REG_E_RC_BIT_RATE),
+			MFC_READL(MFC_REG_E_RC_FRAME_RATE),
+			MFC_READL(MFC_REG_E_RC_CONFIG),
+			MFC_READL(MFC_REG_E_RC_MODE));
+
+	return 0;
 }

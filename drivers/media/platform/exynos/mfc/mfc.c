@@ -36,7 +36,6 @@
 #include "mfc_opr.h"
 #include "mfc_sync.h"
 
-#include "mfc_inst.h"
 #include "mfc_pm.h"
 #include "mfc_perf_measure.h"
 #include "mfc_reg_api.h"

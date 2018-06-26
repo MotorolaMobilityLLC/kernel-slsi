@@ -16,12 +16,7 @@
 #include "mfc_common.h"
 
 void mfc_set_slice_mode(struct mfc_ctx *ctx);
-void mfc_set_enc_params_h264(struct mfc_ctx *ctx);
-void mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx);
-void mfc_set_enc_params_h263(struct mfc_ctx *ctx);
-void mfc_set_enc_params_vp8(struct mfc_ctx *ctx);
-void mfc_set_enc_params_vp9(struct mfc_ctx *ctx);
-void mfc_set_enc_params_hevc(struct mfc_ctx *ctx);
-void mfc_set_enc_params_bpg(struct mfc_ctx *ctx);
+void mfc_set_aso_slice_order_h264(struct mfc_ctx *ctx);
+int mfc_set_enc_params(struct mfc_ctx *ctx);
 
 #endif /* __MFC_ENC_PARAM_H */

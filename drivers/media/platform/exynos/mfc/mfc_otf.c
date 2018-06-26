@@ -23,7 +23,6 @@
 
 #include "mfc_sync.h"
 
-#include "mfc_inst.h"
 #include "mfc_pm.h"
 #include "mfc_cmd.h"
 #include "mfc_reg_api.h"
@@ -406,7 +405,7 @@ int mfc_otf_run_enc_init(struct mfc_ctx *ctx)
 
 	mfc_set_enc_stride(ctx);
 	mfc_clean_ctx_int_flags(ctx);
-	ret = mfc_init_encode(ctx);
+	ret = mfc_cmd_init_encode(ctx);
 
 	mfc_debug_leave();
 
@@ -456,7 +455,7 @@ int mfc_otf_run_enc_frame(struct mfc_ctx *ctx)
 
 	/* Set stream buffer size to handle buffer full */
 	mfc_clean_ctx_int_flags(ctx);
-	mfc_encode_one_frame(ctx, 0);
+	mfc_cmd_enc_one_frame(ctx, 0);
 
 	mfc_debug_leave();
 

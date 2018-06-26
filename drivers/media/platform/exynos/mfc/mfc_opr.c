@@ -12,8 +12,9 @@
 
 #include "mfc_opr.h"
 
-#include "mfc_inst.h"
+#include "mfc_cmd.h"
 #include "mfc_reg_api.h"
+#include "mfc_enc_param.h"
 
 #include "mfc_queue.h"
 #include "mfc_utils.h"
@@ -64,7 +65,7 @@ int mfc_run_dec_init(struct mfc_ctx *ctx)
 
 	mfc_debug(2, "Header addr: 0x%08llx\n", src_mb->addr[0][0]);
 	mfc_clean_ctx_int_flags(ctx);
-	mfc_init_decode(ctx);
+	mfc_cmd_init_decode(ctx);
 
 	return 0;
 }
@@ -144,7 +145,7 @@ int mfc_run_dec_frame(struct mfc_ctx *ctx)
 	mfc_clean_ctx_int_flags(ctx);
 
 	last_frame = __mfc_check_last_frame(ctx, src_mb);
-	mfc_decode_one_frame(ctx, last_frame);
+	mfc_cmd_dec_one_frame(ctx, last_frame);
 
 	return 0;
 }
@@ -209,7 +210,7 @@ int mfc_run_dec_last_frames(struct mfc_ctx *ctx)
 	mfc_set_dynamic_dpb(ctx, dst_mb);
 
 	mfc_clean_ctx_int_flags(ctx);
-	mfc_decode_one_frame(ctx, 1);
+	mfc_cmd_dec_one_frame(ctx, 1);
 
 	return 0;
 }
@@ -238,7 +239,7 @@ int mfc_run_enc_init(struct mfc_ctx *ctx)
 	mfc_debug(2, "Header addr: 0x%08llx\n", dst_mb->addr[0][0]);
 	mfc_clean_ctx_int_flags(ctx);
 
-	ret = mfc_init_encode(ctx);
+	ret = mfc_cmd_init_encode(ctx);
 	return ret;
 }
 
@@ -299,7 +300,12 @@ int mfc_run_enc_frame(struct mfc_ctx *ctx)
 		mfc_err_ctx("failed in set_buf_ctrls_val\n");
 
 	mfc_clean_ctx_int_flags(ctx);
-	mfc_encode_one_frame(ctx, last_frame);
+
+	if (IS_H264_ENC(ctx))
+		mfc_set_aso_slice_order_h264(ctx);
+	mfc_set_slice_mode(ctx);
+
+	mfc_cmd_enc_one_frame(ctx, last_frame);
 
 	return 0;
 }
@@ -330,7 +336,7 @@ int mfc_run_enc_last_frames(struct mfc_ctx *ctx)
 	mfc_set_enc_stream_buffer(ctx, dst_mb);
 
 	mfc_clean_ctx_int_flags(ctx);
-	mfc_encode_one_frame(ctx, 1);
+	mfc_cmd_enc_one_frame(ctx, 1);
 
 	return 0;
 }

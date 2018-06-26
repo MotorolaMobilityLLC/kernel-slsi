@@ -17,7 +17,6 @@
 #include "mfc_opr.h"
 #include "mfc_sync.h"
 
-#include "mfc_inst.h"
 #include "mfc_pm.h"
 #include "mfc_cmd.h"
 #include "mfc_reg_api.h"
@@ -735,10 +734,10 @@ static int __mfc_just_run_dec(struct mfc_ctx *ctx)
 		ret = mfc_run_dec_frame(ctx);
 		break;
 	case MFCINST_INIT:
-		ret = mfc_open_inst(ctx);
+		ret = mfc_cmd_open_inst(ctx);
 		break;
 	case MFCINST_RETURN_INST:
-		ret = mfc_close_inst(ctx);
+		ret = mfc_cmd_close_inst(ctx);
 		break;
 	case MFCINST_GOT_INST:
 	case MFCINST_SPECIAL_PARSING:
@@ -792,10 +791,10 @@ static int __mfc_just_run_enc(struct mfc_ctx *ctx)
 			ret = mfc_run_enc_frame(ctx);
 			break;
 		case MFCINST_INIT:
-			ret = mfc_open_inst(ctx);
+			ret = mfc_cmd_open_inst(ctx);
 			break;
 		case MFCINST_RETURN_INST:
-			ret = mfc_close_inst(ctx);
+			ret = mfc_cmd_close_inst(ctx);
 			break;
 		case MFCINST_GOT_INST:
 			if (ctx->otf_handle) {
@@ -808,7 +807,7 @@ static int __mfc_just_run_enc(struct mfc_ctx *ctx)
 			ret = mfc_cmd_enc_init_buffers(ctx);
 			break;
 		case MFCINST_ABORT_INST:
-			ret = mfc_abort_inst(ctx);
+			ret = mfc_cmd_abort_inst(ctx);
 			break;
 		default:
 			mfc_info_ctx("can't try command(encoder just_run), state : %d\n", ctx->state);
