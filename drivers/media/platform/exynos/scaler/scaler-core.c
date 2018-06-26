@@ -1878,6 +1878,7 @@ static void sc_vb2_buf_queue(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *v4l2_buf = to_vb2_v4l2_buffer(vb);
 
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, v4l2_buf);
+	v4l2_m2m_try_schedule(ctx->m2m_ctx);
 }
 
 static void sc_vb2_buf_cleanup(struct vb2_buffer *vb)
