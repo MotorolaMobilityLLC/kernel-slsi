@@ -28,7 +28,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ram root=/dev/ram0 clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=samsungexynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80f9fe0000 pmic_info=0x3";
+		bootargs = "console=ram skip_initramfs rootwait ro init=/init root=/dev/sda2 clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=samsungexynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80f9fe0000 pmic_info=0x3";
 		linux,initrd-start = <0x84000000>;
 		linux,initrd-end = <0x841FFFFF>;
 	};
@@ -45,13 +45,6 @@
 			compatible = "android,firmware";
 			fstab {
 				compatible = "android,fstab";
-				system {
-					compatible = "android,system";
-					dev = "/dev/block/platform/13520000.ufs/by-name/system";
-					type = "ext4";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-				};
 				vendor {
 					compatible = "android,vendor";
 					dev = "/dev/block/platform/13520000.ufs/by-name/vendor";
