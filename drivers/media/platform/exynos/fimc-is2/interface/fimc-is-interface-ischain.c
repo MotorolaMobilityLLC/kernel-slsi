@@ -2909,7 +2909,7 @@ static void interface_timer(unsigned long data)
 		}
 	}
 
-	for (i = 0; i < FIMC_IS_STREAM_COUNT; ++i) {
+	for (i = 0; i < FIMC_IS_SENSOR_COUNT; ++i) {
 		sensor = &core->sensor[i];
 
 		if (!test_bit(FIMC_IS_SENSOR_BACK_START, &sensor->state))

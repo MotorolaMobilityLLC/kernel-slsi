@@ -521,7 +521,7 @@ int fimc_is_hw_ischain_cfg(void *ischain_data)
 	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(sensor->subdev_csi);
 
 	/* checked single/dual camera */
-	for (i = 0; i < FIMC_IS_STREAM_COUNT; i++)
+	for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++)
 		if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state)))
 			sensor_cnt++;
 
