@@ -154,10 +154,10 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 		}
 	}
 
-	if (param->input.width > out_width) {
-		sdbg_hw(2, "DJAG is not applied still.(input : %d > output : %d)\n", hw_ip,
-				param->input.width,
-				out_width);
+	if (param->input.width > out_width || param->input.height > out_height) {
+		sdbg_hw(2, "DJAG is not applied still.(input : %dx%d > output : %dx%d)\n", hw_ip,
+				param->input.width, param->input.height,
+				out_width, out_height);
 		fimc_is_scaler_set_djag_enable(hw_ip->regs, 0);
 		return ret;
 	}
