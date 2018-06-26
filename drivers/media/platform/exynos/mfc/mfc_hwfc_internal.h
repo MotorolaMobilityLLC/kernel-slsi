@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_hwfc_internal.h
+ * drivers/media/platform/exynos/mfc/mfc_hwfc_internal.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -24,7 +24,7 @@
  * 2       4       6       8       0
  * |B......BG......GR......RA......A|
  */
-struct s5p_mfc_fmt enc_hwfc_formats[] = {
+struct mfc_fmt enc_hwfc_formats[] = {
 	{
 		.name = "4:2:0 2 Planes Y/CbCr single",
 		.fourcc = V4L2_PIX_FMT_NV12N,
@@ -36,7 +36,7 @@ struct s5p_mfc_fmt enc_hwfc_formats[] = {
 	{
 		.name = "H264 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H264,
-		.codec_mode = S5P_FIMV_CODEC_H264_ENC,
+		.codec_mode = MFC_REG_CODEC_H264_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -44,7 +44,7 @@ struct s5p_mfc_fmt enc_hwfc_formats[] = {
 	{
 		.name = "HEVC Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_HEVC,
-		.codec_mode = S5P_FIMV_CODEC_HEVC_ENC,
+		.codec_mode = MFC_REG_CODEC_HEVC_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,

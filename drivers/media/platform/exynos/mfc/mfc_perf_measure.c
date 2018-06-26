@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_perf_measure.c
+ * drivers/media/platform/exynos/mfc/mfc_perf_measure.c
  *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -14,12 +14,12 @@
 
 #ifndef PERF_MEASURE
 
-void s5p_mfc_perf_register(struct s5p_mfc_dev *dev) {}
-void mfc_measure_init(void) {}
-void mfc_measure_on(struct s5p_mfc_dev *dev) {}
-void mfc_measure_off(struct s5p_mfc_dev *dev) {}
-void mfc_measure_store(struct s5p_mfc_dev *dev, int diff) {}
-void s5p_mfc_perf_print(void) {}
+void mfc_perf_register(struct mfc_dev *dev) {}
+void __mfc_measure_init(void) {}
+void __mfc_measure_on(struct mfc_dev *dev) {}
+void __mfc_measure_off(struct mfc_dev *dev) {}
+void __mfc_measure_store(struct mfc_dev *dev, int diff) {}
+void mfc_perf_print(void) {}
 
 #else
 

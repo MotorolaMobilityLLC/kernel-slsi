@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_enc.c
+ * drivers/media/platform/exynos/mfc/mfc_enc.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -24,16 +24,16 @@
 #include "mfc_buf.h"
 #include "mfc_mem.h"
 
-static struct s5p_mfc_fmt *mfc_enc_find_format(struct s5p_mfc_ctx *ctx,
+static struct mfc_fmt *__mfc_enc_find_format(struct mfc_ctx *ctx,
 		unsigned int pixelformat)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_fmt *fmt = NULL;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_fmt *fmt = NULL;
 	unsigned long i;
 
 	for (i = 0; i < NUM_FORMATS; i++) {
 		if (enc_formats[i].fourcc == pixelformat) {
-			fmt = (struct s5p_mfc_fmt *)&enc_formats[i];
+			fmt = (struct mfc_fmt *)&enc_formats[i];
 			break;
 		}
 	}
@@ -54,7 +54,7 @@ static struct s5p_mfc_fmt *mfc_enc_find_format(struct s5p_mfc_ctx *ctx,
 	return fmt;
 }
 
-static struct v4l2_queryctrl *mfc_enc_get_ctrl(int id)
+static struct v4l2_queryctrl *__mfc_enc_get_ctrl(int id)
 {
 	unsigned long i;
 
@@ -64,11 +64,11 @@ static struct v4l2_queryctrl *mfc_enc_get_ctrl(int id)
 	return NULL;
 }
 
-static int mfc_enc_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_enc_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
 	struct v4l2_queryctrl *c;
 
-	c = mfc_enc_get_ctrl(ctrl->id);
+	c = __mfc_enc_get_ctrl(ctrl->id);
 	if (!c) {
 		mfc_err_ctx("[CTRLS] not supported control id (%#x)\n", ctrl->id);
 		return -EINVAL;
@@ -102,25 +102,25 @@ static int mfc_enc_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *
 	return 0;
 }
 
-static inline int mfc_enc_h264_profile(struct s5p_mfc_ctx *ctx, int profile)
+static inline int __mfc_enc_h264_profile(struct mfc_ctx *ctx, int profile)
 {
 	int ret = 0;
 
 	switch (profile) {
 	case V4L2_MPEG_VIDEO_H264_PROFILE_MAIN:
-		ret = S5P_FIMV_E_PROFILE_H264_MAIN;
+		ret = MFC_REG_E_PROFILE_H264_MAIN;
 		break;
 	case V4L2_MPEG_VIDEO_H264_PROFILE_HIGH:
-		ret = S5P_FIMV_E_PROFILE_H264_HIGH;
+		ret = MFC_REG_E_PROFILE_H264_HIGH;
 		break;
 	case V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE:
-		ret = S5P_FIMV_E_PROFILE_H264_BASELINE;
+		ret = MFC_REG_E_PROFILE_H264_BASELINE;
 		break;
 	case V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE:
-		ret = S5P_FIMV_E_PROFILE_H264_CONSTRAINED_BASELINE;
+		ret = MFC_REG_E_PROFILE_H264_CONSTRAINED_BASELINE;
 		break;
 	case V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_HIGH:
-		ret = S5P_FIMV_E_PROFILE_H264_CONSTRAINED_HIGH;
+		ret = MFC_REG_E_PROFILE_H264_CONSTRAINED_HIGH;
 		break;
 	default:
 		ret = -EINVAL;
@@ -149,10 +149,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static int mfc_enc_enum_fmt(struct s5p_mfc_dev *dev, struct v4l2_fmtdesc *f,
+static int __mfc_enc_enum_fmt(struct mfc_dev *dev, struct v4l2_fmtdesc *f,
 		unsigned int type)
 {
-	struct s5p_mfc_fmt *fmt;
+	struct mfc_fmt *fmt;
 	unsigned long i, j = 0;
 
 	for (i = 0; i < NUM_FORMATS; ++i) {
@@ -183,25 +183,25 @@ static int mfc_enc_enum_fmt(struct s5p_mfc_dev *dev, struct v4l2_fmtdesc *f,
 static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
 		struct v4l2_fmtdesc *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
+	struct mfc_dev *dev = video_drvdata(file);
 
-	return mfc_enc_enum_fmt(dev, f, MFC_FMT_STREAM);
+	return __mfc_enc_enum_fmt(dev, f, MFC_FMT_STREAM);
 }
 
 static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
 		struct v4l2_fmtdesc *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
+	struct mfc_dev *dev = video_drvdata(file);
 
-	return mfc_enc_enum_fmt(dev, f, MFC_FMT_FRAME);
+	return __mfc_enc_enum_fmt(dev, f, MFC_FMT_FRAME);
 }
 
 static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_enc *enc = ctx->enc_priv;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
-	struct s5p_mfc_raw_info *raw;
+	struct mfc_raw_info *raw;
 	int i;
 
 	mfc_debug_enter();
@@ -243,11 +243,11 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_fmt *fmt;
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
-	fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
+	fmt = __mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!fmt) {
 		mfc_err_dev("Unsupported format for %s\n",
 				V4L2_TYPE_IS_OUTPUT(f->type) ? "source" : "destination");
@@ -257,7 +257,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	return 0;
 }
 
-static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
+static void __mfc_enc_check_format(struct mfc_ctx *ctx)
 {
 	switch (ctx->src_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV16M_S10B:
@@ -290,13 +290,13 @@ static void mfc_enc_check_format(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "[FRAME] 10bit: %d, 422: %d\n", ctx->is_10bit, ctx->is_422);
 }
 
-static int mfc_enc_check_resolution(struct s5p_mfc_ctx *ctx)
+static int __mfc_enc_check_resolution(struct mfc_ctx *ctx)
 {
 	int max_width = 0, max_height = 0, min_width = 0, min_height = 0, swap_check = 0;
 
 	/* Check max resolution */
 	switch (ctx->codec_mode) {
-	case S5P_FIMV_CODEC_HEVC_ENC:
+	case MFC_REG_CODEC_HEVC_ENC:
 		if (ctx->is_422) {
 			max_width = 65536;
 			max_height = 8192;
@@ -306,25 +306,25 @@ static int mfc_enc_check_resolution(struct s5p_mfc_ctx *ctx)
 			max_height = 8192;
 		}
 		break;
-	case S5P_FIMV_CODEC_BPG_ENC:
+	case MFC_REG_CODEC_BPG_ENC:
 		max_width = 65536;
 		max_height = 8192;
 		swap_check = 1;
 		break;
-	case S5P_FIMV_CODEC_H264_ENC:
-	case S5P_FIMV_CODEC_VP8_ENC:
+	case MFC_REG_CODEC_H264_ENC:
+	case MFC_REG_CODEC_VP8_ENC:
 		max_width = 8192;
 		max_height = 8192;
 		break;
-	case S5P_FIMV_CODEC_VP9_ENC:
+	case MFC_REG_CODEC_VP9_ENC:
 		max_width = 4096;
 		max_height = 8192;
 		break;
-	case S5P_FIMV_CODEC_MPEG4_ENC:
+	case MFC_REG_CODEC_MPEG4_ENC:
 		max_width = 2048;
 		max_height = 2048;
 		break;
-	case S5P_FIMV_CODEC_H263_ENC:
+	case MFC_REG_CODEC_H263_ENC:
 		max_width = 2048;
 		max_height = 1152;
 		break;
@@ -351,16 +351,16 @@ static int mfc_enc_check_resolution(struct s5p_mfc_ctx *ctx)
 
 	/* Check min resolution */
 	switch (ctx->codec_mode) {
-	case S5P_FIMV_CODEC_HEVC_ENC:
-	case S5P_FIMV_CODEC_BPG_ENC:
-	case S5P_FIMV_CODEC_VP9_ENC:
+	case MFC_REG_CODEC_HEVC_ENC:
+	case MFC_REG_CODEC_BPG_ENC:
+	case MFC_REG_CODEC_VP9_ENC:
 		min_width = 64;
 		min_height = 64;
 		break;
-	case S5P_FIMV_CODEC_H264_ENC:
-	case S5P_FIMV_CODEC_VP8_ENC:
-	case S5P_FIMV_CODEC_MPEG4_ENC:
-	case S5P_FIMV_CODEC_H263_ENC:
+	case MFC_REG_CODEC_H264_ENC:
+	case MFC_REG_CODEC_VP8_ENC:
+	case MFC_REG_CODEC_MPEG4_ENC:
+	case MFC_REG_CODEC_H263_ENC:
 		min_width = 32;
 		min_height = 32;
 		break;
@@ -381,9 +381,9 @@ static int mfc_enc_check_resolution(struct s5p_mfc_ctx *ctx)
 static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
+	struct mfc_dev *dev = video_drvdata(file);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_enc *enc = ctx->enc_priv;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	int ret = 0;
 
@@ -394,7 +394,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	ctx->dst_fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
+	ctx->dst_fmt = __mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->dst_fmt) {
 		mfc_err_ctx("Unsupported format for destination\n");
 		return -EINVAL;
@@ -404,7 +404,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	mfc_info_ctx("[STREAM] Enc dst codec(%d) : %s\n",
 			ctx->codec_mode, ctx->dst_fmt->name);
 
-	if (mfc_enc_check_resolution(ctx)) {
+	if (__mfc_enc_check_resolution(ctx)) {
 		mfc_err_ctx("Unsupported resolution\n");
 		return -EINVAL;
 	}
@@ -415,9 +415,9 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 			mfc_err_ctx("[OTF] only H.264 and HEVC is supported\n");
 			return -EINVAL;
 		}
-		if (s5p_mfc_otf_init(ctx)) {
+		if (mfc_otf_init(ctx)) {
 			mfc_err_ctx("[OTF] otf_init failed\n");
-			s5p_mfc_otf_destroy(ctx);
+			mfc_otf_destroy(ctx);
 			return -EINVAL;
 		}
 	}
@@ -425,63 +425,63 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	enc->dst_buf_size = pix_fmt_mp->plane_fmt[0].sizeimage;
 	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 
-	ret = s5p_mfc_alloc_instance_context(ctx);
+	ret = mfc_alloc_instance_context(ctx);
 	if (ret) {
 		mfc_err_ctx("Failed to allocate enc instance[%d] buffers\n",
 				ctx->num);
 		return -ENOMEM;
 	}
 
-	s5p_mfc_change_state(ctx, MFCINST_INIT);
+	mfc_change_state(ctx, MFCINST_INIT);
 
 	ctx->capture_state = QUEUE_FREE;
 
-	ret = s5p_mfc_alloc_enc_roi_buffer(ctx);
+	ret = mfc_alloc_enc_roi_buffer(ctx);
 	if (ret) {
 		mfc_err_ctx("[ROI] Failed to allocate ROI buffers\n");
-		s5p_mfc_release_instance_context(ctx);
+		mfc_release_instance_context(ctx);
 		return -ENOMEM;
 	}
 
 	MFC_TRACE_CTX_HWLOCK("**ENC s_fmt\n");
 
-	ret = s5p_mfc_get_hwlock_ctx(ctx);
+	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
 		mfc_err_dev("Failed to get hwlock\n");
-		s5p_mfc_release_instance_context(ctx);
-		s5p_mfc_release_enc_roi_buffer(ctx);
+		mfc_release_instance_context(ctx);
+		mfc_release_enc_roi_buffer(ctx);
 		return -EBUSY;
 	}
 
-	s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-	ret = s5p_mfc_just_run(dev, ctx->num);
+	mfc_set_bit(ctx->num, &dev->work_bits);
+	ret = mfc_just_run(dev, ctx->num);
 	if (ret) {
 		mfc_err_ctx("Failed to run MFC\n");
-		s5p_mfc_release_hwlock_ctx(ctx);
-		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
-		s5p_mfc_release_instance_context(ctx);
-		s5p_mfc_release_enc_roi_buffer(ctx);
+		mfc_release_hwlock_ctx(ctx);
+		mfc_cleanup_work_bit_and_try_run(ctx);
+		mfc_release_instance_context(ctx);
+		mfc_release_enc_roi_buffer(ctx);
 		return -EIO;
 	}
 
-	if (s5p_mfc_wait_for_done_ctx(ctx,
-				S5P_FIMV_R2H_CMD_OPEN_INSTANCE_RET)) {
+	if (mfc_wait_for_done_ctx(ctx,
+				MFC_REG_R2H_CMD_OPEN_INSTANCE_RET)) {
 		mfc_err_ctx("time out during open instance\n");
-		s5p_mfc_release_hwlock_ctx(ctx);
-		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
-		s5p_mfc_release_instance_context(ctx);
-		s5p_mfc_release_enc_roi_buffer(ctx);
+		mfc_release_hwlock_ctx(ctx);
+		mfc_cleanup_work_bit_and_try_run(ctx);
+		mfc_release_instance_context(ctx);
+		mfc_release_enc_roi_buffer(ctx);
 		return -EIO;
 	}
-	s5p_mfc_release_hwlock_ctx(ctx);
+	mfc_release_hwlock_ctx(ctx);
 
 	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
 
-	if (s5p_mfc_enc_ctx_ready(ctx))
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-	if (ctx->otf_handle && s5p_mfc_otf_ctx_ready(ctx))
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-	if (s5p_mfc_is_work_to_do(dev))
+	if (mfc_enc_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
+	if (ctx->otf_handle && mfc_otf_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
+	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 
 	mfc_debug_leave();
@@ -491,7 +491,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	mfc_debug_enter();
@@ -506,7 +506,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		return 0;
 	}
 
-	ctx->src_fmt = mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
+	ctx->src_fmt = __mfc_enc_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->src_fmt) {
 		mfc_err_ctx("Unsupported format for source\n");
 		return -EINVAL;
@@ -523,10 +523,10 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	ctx->img_height = pix_fmt_mp->height;
 	ctx->buf_stride = pix_fmt_mp->plane_fmt[0].bytesperline;
 
-	mfc_enc_check_format(ctx);
+	__mfc_enc_check_format(ctx);
 
 	if (ctx->state == MFCINST_RUNNING) {
-		s5p_mfc_change_state(ctx, MFCINST_GOT_INST);
+		mfc_change_state(ctx, MFCINST_GOT_INST);
 		mfc_info_ctx("[DRC] Enc resolution is changed\n");
 	}
 
@@ -540,7 +540,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	 */
 	ctx->crop_width = ctx->img_width;
 	ctx->crop_height = ctx->img_height;
-	s5p_mfc_enc_calc_src_size(ctx);
+	mfc_enc_calc_src_size(ctx);
 
 	ctx->output_state = QUEUE_FREE;
 
@@ -550,7 +550,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 static int vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 
 	mfc_debug_enter();
 
@@ -569,7 +569,7 @@ static int vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 
 static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *cr)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 
 	mfc_debug_enter();
 
@@ -609,7 +609,7 @@ static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *
 static int vidioc_reqbufs(struct file *file, void *priv,
 					  struct v4l2_requestbuffers *reqbufs)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = 0;
 
 	mfc_debug_enter();
@@ -677,7 +677,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 static int vidioc_querybuf(struct file *file, void *priv,
 						   struct v4l2_buffer *buf)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = 0;
 
 	mfc_debug_enter();
@@ -714,7 +714,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 /* Queue a buffer */
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int i, ret = -EINVAL;
 
 	mfc_debug_enter();
@@ -760,7 +760,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 /* Dequeue a buffer */
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret;
 
 	mfc_debug_enter();
@@ -789,7 +789,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = -EINVAL;
 
 	mfc_debug_enter();
@@ -804,7 +804,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 		ret = vb2_streamon(&ctx->vq_src, type);
 
 		if (!ret) {
-			s5p_mfc_qos_on(ctx);
+			mfc_qos_on(ctx);
 		}
 	} else {
 		mfc_debug(4, "enc dst streamon\n");
@@ -812,8 +812,8 @@ static int vidioc_streamon(struct file *file, void *priv,
 	}
 
 	mfc_debug(2, "src: %d, dst: %d, state = %d, dpb_count = %d\n",
-		  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
-		  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
+		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
+		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
 		  ctx->state, ctx->dpb_count);
 	mfc_debug_leave();
 	return ret;
@@ -823,7 +823,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 static int vidioc_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret;
 
 	mfc_debug_enter();
@@ -836,11 +836,11 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	ret = -EINVAL;
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(4, "enc src streamoff\n");
-		s5p_mfc_qos_reset_last_framerate(ctx);
+		mfc_qos_reset_last_framerate(ctx);
 
 		ret = vb2_streamoff(&ctx->vq_src, type);
 		if (!ret)
-			s5p_mfc_qos_off(ctx);
+			mfc_qos_off(ctx);
 	} else {
 		mfc_debug(4, "enc dst streamoff\n");
 		ret = vb2_streamoff(&ctx->vq_dst, type);
@@ -857,7 +857,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 {
 	struct v4l2_queryctrl *c;
 
-	c = mfc_enc_get_ctrl(qc->id);
+	c = __mfc_enc_get_ctrl(qc->id);
 	if (!c) {
 		mfc_err_dev("[CTRLS] not supported control id (%#x)\n", qc->id);
 		return -EINVAL;
@@ -867,9 +867,9 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
+static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 	int val = 0;
 
 	val |= ENC_SET_SPARE_SIZE;
@@ -897,11 +897,11 @@ static int mfc_enc_ext_info(struct s5p_mfc_ctx *ctx)
 	return val;
 }
 
-static int mfc_enc_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_ctx_ctrl *ctx_ctrl;
 	int ret = 0;
 	int found = 0;
 
@@ -960,7 +960,7 @@ static int mfc_enc_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		ctrl->value = ctx->qos_ratio;
 		break;
 	case V4L2_CID_MPEG_MFC_GET_EXT_INFO:
-		ctrl->value = mfc_enc_ext_info(ctx);
+		ctrl->value = __mfc_enc_ext_info(ctx);
 		break;
 	case V4L2_CID_MPEG_VIDEO_BPG_HEADER_SIZE:
 		ctrl->value = enc->header_size;
@@ -979,17 +979,17 @@ static int mfc_enc_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 static int vidioc_g_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = 0;
 
 	mfc_debug_enter();
-	ret = mfc_enc_get_ctrl_val(ctx, ctrl);
+	ret = __mfc_enc_get_ctrl_val(ctx, ctrl);
 	mfc_debug_leave();
 
 	return ret;
 }
 
-static inline int mfc_enc_h264_level(enum v4l2_mpeg_video_h264_level lvl)
+static inline int __mfc_enc_h264_level(enum v4l2_mpeg_video_h264_level lvl)
 {
 	static unsigned int t[V4L2_MPEG_VIDEO_H264_LEVEL_5_1 + 1] = {
 		/* V4L2_MPEG_VIDEO_H264_LEVEL_1_0   */ 10,
@@ -1012,7 +1012,7 @@ static inline int mfc_enc_h264_level(enum v4l2_mpeg_video_h264_level lvl)
 	return t[lvl];
 }
 
-static inline int mfc_enc_mpeg4_level(enum v4l2_mpeg_video_mpeg4_level lvl)
+static inline int __mfc_enc_mpeg4_level(enum v4l2_mpeg_video_mpeg4_level lvl)
 {
 	static unsigned int t[V4L2_MPEG_VIDEO_MPEG4_LEVEL_6 + 1] = {
 		/* V4L2_MPEG_VIDEO_MPEG4_LEVEL_0	     */ 0,
@@ -1028,7 +1028,7 @@ static inline int mfc_enc_mpeg4_level(enum v4l2_mpeg_video_mpeg4_level lvl)
 	return t[lvl];
 }
 
-static inline int mfc_enc_vui_sar_idc(enum v4l2_mpeg_video_h264_vui_sar_idc sar)
+static inline int __mfc_enc_vui_sar_idc(enum v4l2_mpeg_video_h264_vui_sar_idc sar)
 {
 	static unsigned int t[V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED + 1] = {
 		/* V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_UNSPECIFIED     */ 0,
@@ -1053,10 +1053,10 @@ static inline int mfc_enc_vui_sar_idc(enum v4l2_mpeg_video_h264_vui_sar_idc sar)
 	return t[sar];
 }
 
-static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
-	struct s5p_mfc_enc_params *p = &enc->params;
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
 	int ret = 0;
 
 	switch (ctrl->id) {
@@ -1119,11 +1119,11 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
 		p->codec.h264.profile =
-		mfc_enc_h264_profile(ctx, (enum v4l2_mpeg_video_h264_profile)(ctrl->value));
+		__mfc_enc_h264_profile(ctx, (enum v4l2_mpeg_video_h264_profile)(ctrl->value));
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
 		p->codec.h264.level =
-		mfc_enc_h264_level((enum v4l2_mpeg_video_h264_level)(ctrl->value));
+		__mfc_enc_h264_level((enum v4l2_mpeg_video_h264_level)(ctrl->value));
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_H264_INTERLACE:
 		p->codec.h264.interlace = ctrl->value;
@@ -1198,7 +1198,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
 		p->codec.h264.ar_vui_idc =
-		mfc_enc_vui_sar_idc((enum v4l2_mpeg_video_h264_vui_sar_idc)(ctrl->value));
+		__mfc_enc_vui_sar_idc((enum v4l2_mpeg_video_h264_vui_sar_idc)(ctrl->value));
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_WIDTH:
 		p->codec.h264.ext_sar_width = ctrl->value;
@@ -1312,11 +1312,11 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		switch ((enum v4l2_mpeg_video_mpeg4_profile)(ctrl->value)) {
 		case V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE:
 			p->codec.mpeg4.profile =
-				S5P_FIMV_E_PROFILE_MPEG4_SIMPLE;
+				MFC_REG_E_PROFILE_MPEG4_SIMPLE;
 			break;
 		case V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE:
 			p->codec.mpeg4.profile =
-			S5P_FIMV_E_PROFILE_MPEG4_ADVANCED_SIMPLE;
+			MFC_REG_E_PROFILE_MPEG4_ADVANCED_SIMPLE;
 			break;
 		default:
 			ret = -EINVAL;
@@ -1324,7 +1324,7 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
 		p->codec.mpeg4.level =
-		mfc_enc_mpeg4_level((enum v4l2_mpeg_video_mpeg4_level)(ctrl->value));
+		__mfc_enc_mpeg4_level((enum v4l2_mpeg_video_mpeg4_level)(ctrl->value));
 		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP:
 		p->codec.mpeg4.rc_frame_qp = ctrl->value;
@@ -1761,11 +1761,11 @@ static int mfc_enc_set_param(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
 	return ret;
 }
 
-static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
-	struct s5p_mfc_enc_params *p = &enc->params;
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	struct mfc_ctx_ctrl *ctx_ctrl;
 	int ret = 0;
 	int found = 0;
 	int index = 0;
@@ -1851,7 +1851,7 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 					V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH)) &&
 					(enc->sh_handle_svc.fd == -1)) {
 						enc->sh_handle_svc.fd = ctrl->value;
-						if (s5p_mfc_mem_get_user_shared_handle(ctx,
+						if (mfc_mem_get_user_shared_handle(ctx,
 									&enc->sh_handle_svc))
 							return -EINVAL;
 						else
@@ -1869,13 +1869,13 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 					}
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_LEVEL)
-					ctx_ctrl->val = mfc_enc_h264_level((enum v4l2_mpeg_video_h264_level)(ctrl->value));
+					ctx_ctrl->val = __mfc_enc_h264_level((enum v4l2_mpeg_video_h264_level)(ctrl->value));
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_PROFILE)
-					ctx_ctrl->val = mfc_enc_h264_profile(ctx, (enum v4l2_mpeg_video_h264_profile)(ctrl->value));
+					ctx_ctrl->val = __mfc_enc_h264_profile(ctx, (enum v4l2_mpeg_video_h264_profile)(ctrl->value));
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
 					if (enc->sh_handle_roi.fd == -1) {
 						enc->sh_handle_roi.fd = ctrl->value;
-						if (s5p_mfc_mem_get_user_shared_handle(ctx,
+						if (mfc_mem_get_user_shared_handle(ctx,
 									&enc->sh_handle_roi))
 							return -EINVAL;
 						else
@@ -1904,7 +1904,7 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		}
 		break;
 	default:
-		ret = mfc_enc_set_param(ctx, ctrl);
+		ret = __mfc_enc_set_param(ctx, ctrl);
 		break;
 	}
 
@@ -1914,16 +1914,16 @@ static int mfc_enc_set_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 static int vidioc_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = 0;
 
 	mfc_debug_enter();
 
-	ret = mfc_enc_check_ctrl_val(ctx, ctrl);
+	ret = __mfc_enc_check_ctrl_val(ctx, ctrl);
 	if (ret != 0)
 		return ret;
 
-	ret = mfc_enc_set_ctrl_val(ctx, ctrl);
+	ret = __mfc_enc_set_ctrl_val(ctx, ctrl);
 
 	mfc_debug_leave();
 
@@ -1933,7 +1933,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 			      struct v4l2_ext_controls *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct v4l2_ext_control *ext_ctrl;
 	struct v4l2_control ctrl;
 	int i;
@@ -1947,7 +1947,7 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 
 		ctrl.id = ext_ctrl->id;
 
-		ret = mfc_enc_get_ctrl_val(ctx, &ctrl);
+		ret = __mfc_enc_get_ctrl_val(ctx, &ctrl);
 		if (ret == 0) {
 			ext_ctrl->value = ctrl.value;
 		} else {
@@ -1965,7 +1965,7 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 static int vidioc_s_ext_ctrls(struct file *file, void *priv,
 				struct v4l2_ext_controls *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct v4l2_ext_control *ext_ctrl;
 	struct v4l2_control ctrl;
 	int i;
@@ -1980,13 +1980,13 @@ static int vidioc_s_ext_ctrls(struct file *file, void *priv,
 		ctrl.id = ext_ctrl->id;
 		ctrl.value = ext_ctrl->value;
 
-		ret = mfc_enc_check_ctrl_val(ctx, &ctrl);
+		ret = __mfc_enc_check_ctrl_val(ctx, &ctrl);
 		if (ret != 0) {
 			f->error_idx = i;
 			break;
 		}
 
-		ret = mfc_enc_set_param(ctx, &ctrl);
+		ret = __mfc_enc_set_param(ctx, &ctrl);
 		if (ret != 0) {
 			f->error_idx = i;
 			break;
@@ -2002,7 +2002,7 @@ static int vidioc_s_ext_ctrls(struct file *file, void *priv,
 static int vidioc_try_ext_ctrls(struct file *file, void *priv,
 				struct v4l2_ext_controls *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct v4l2_ext_control *ext_ctrl;
 	struct v4l2_control ctrl;
 	int i;
@@ -2017,7 +2017,7 @@ static int vidioc_try_ext_ctrls(struct file *file, void *priv,
 		ctrl.id = ext_ctrl->id;
 		ctrl.value = ext_ctrl->value;
 
-		ret = mfc_enc_check_ctrl_val(ctx, &ctrl);
+		ret = __mfc_enc_check_ctrl_val(ctx, &ctrl);
 		if (ret != 0) {
 			f->error_idx = i;
 			break;
@@ -2029,7 +2029,7 @@ static int vidioc_try_ext_ctrls(struct file *file, void *priv,
 	return ret;
 }
 
-static const struct v4l2_ioctl_ops s5p_mfc_enc_ioctl_ops = {
+static const struct v4l2_ioctl_ops mfc_enc_ioctl_ops = {
 	.vidioc_querycap		= vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap_mplane	= vidioc_enum_fmt_vid_cap_mplane,
 	.vidioc_enum_fmt_vid_out_mplane	= vidioc_enum_fmt_vid_out_mplane,
@@ -2055,7 +2055,7 @@ static const struct v4l2_ioctl_ops s5p_mfc_enc_ioctl_ops = {
 	.vidioc_try_ext_ctrls		= vidioc_try_ext_ctrls,
 };
 
-const struct v4l2_ioctl_ops *s5p_mfc_get_enc_v4l2_ioctl_ops(void)
+const struct v4l2_ioctl_ops *mfc_get_enc_v4l2_ioctl_ops(void)
 {
-	return &s5p_mfc_enc_ioctl_ops;
+	return &mfc_enc_ioctl_ops;
 }

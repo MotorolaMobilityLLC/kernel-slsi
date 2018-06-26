@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_perf_measure.h
+ * drivers/media/platform/exynos/mfc/mfc_perf_measure.h
  *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -17,27 +17,27 @@
 
 #include "mfc_reg.h"
 
-void s5p_mfc_perf_register(struct s5p_mfc_dev *dev);
-void mfc_measure_init(void);
-void mfc_measure_on(struct s5p_mfc_dev *dev);
-void mfc_measure_off(struct s5p_mfc_dev *dev);
-void mfc_measure_store(struct s5p_mfc_dev *dev, int diff);
-void s5p_mfc_perf_print(void);
+void mfc_perf_register(struct mfc_dev *dev);
+void __mfc_measure_init(void);
+void __mfc_measure_on(struct mfc_dev *dev);
+void __mfc_measure_off(struct mfc_dev *dev);
+void __mfc_measure_store(struct mfc_dev *dev, int diff);
+void mfc_perf_print(void);
 
 //#define PERF_MEASURE
 
 #ifndef PERF_MEASURE
 
-static inline void s5p_mfc_perf_init(struct s5p_mfc_dev *dev) {}
-static inline void s5p_mfc_perf_cancel_drv_margin(struct s5p_mfc_dev *dev) {}
-static inline void s5p_mfc_perf_measure_on(struct s5p_mfc_dev *dev) {}
-static inline void s5p_mfc_perf_measure_off(struct s5p_mfc_dev *dev) {}
+static inline void mfc_perf_init(struct mfc_dev *dev) {}
+static inline void mfc_perf_cancel_drv_margin(struct mfc_dev *dev) {}
+static inline void mfc_perf_measure_on(struct mfc_dev *dev) {}
+static inline void mfc_perf_measure_off(struct mfc_dev *dev) {}
 
 #else
 
 extern unsigned int perf_measure_option;
 
-static inline void s5p_mfc_perf_init(struct s5p_mfc_dev *dev)
+static inline void mfc_perf_init(struct mfc_dev *dev)
 {
 	dev->perf.new_start = 0;
 	dev->perf.count = 0;
@@ -48,12 +48,12 @@ static inline void s5p_mfc_perf_init(struct s5p_mfc_dev *dev)
 	mfc_info_dev("MFC frequency : %ld\n", clk_get_rate(dev->pm.clock));
 }
 
-static inline void s5p_mfc_perf_cancel_drv_margin(struct s5p_mfc_dev *dev)
+static inline void mfc_perf_cancel_drv_margin(struct mfc_dev *dev)
 {
 	dev->perf.drv_margin = 0;
 }
 
-static inline void s5p_mfc_perf_measure_on(struct s5p_mfc_dev *dev)
+static inline void mfc_perf_measure_on(struct mfc_dev *dev)
 {
 	int diff;
 
@@ -76,7 +76,7 @@ static inline void s5p_mfc_perf_measure_on(struct s5p_mfc_dev *dev)
 	dev->perf.count++;
 }
 
-static inline void s5p_mfc_perf_measure_off(struct s5p_mfc_dev *dev)
+static inline void mfc_perf_measure_off(struct mfc_dev *dev)
 {
 	unsigned int diff;
 
@@ -91,7 +91,7 @@ static inline void s5p_mfc_perf_measure_off(struct s5p_mfc_dev *dev)
 		mfc_measure_store(dev, diff);
 
 		mfc_debug(3, "uDECtype :%d, uENCtype :%d, codectype :%d\n",
-			s5p_mfc_get_dec_frame_type(), s5p_mfc_get_enc_slice_type(), MFC_READL(S5P_FIMV_CODEC_TYPE));
+			mfc_get_dec_frame_type(), mfc_get_enc_slice_type(), MFC_READL(MFC_REG_CODEC_TYPE));
 
 		dev->perf.drv_margin = 1;
 

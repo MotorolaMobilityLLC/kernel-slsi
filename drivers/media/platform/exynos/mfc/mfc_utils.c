@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_utils.c
+ * drivers/media/platform/exynos/mfc/mfc_utils.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -14,7 +14,7 @@
 
 #include "mfc_utils.h"
 
-int s5p_mfc_check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
+int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb)
 {
 	if (!fmt)
 		return -EINVAL;
@@ -28,23 +28,23 @@ int s5p_mfc_check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 	return 0;
 }
 
-int mfc_stream_buf_prot(struct s5p_mfc_ctx *ctx,
-				struct s5p_mfc_buf *buf, bool en)
+int __mfc_stream_buf_prot(struct mfc_ctx *ctx,
+				struct mfc_buf *buf, bool en)
 {
 	return 0;
 }
 
-int mfc_raw_buf_prot(struct s5p_mfc_ctx *ctx,
-				struct s5p_mfc_buf *buf, bool en)
+int __mfc_raw_buf_prot(struct mfc_ctx *ctx,
+				struct mfc_buf *buf, bool en)
 {
 	return 0;
 }
 
-void s5p_mfc_raw_protect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_raw_protect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index)
 {
 	if (!test_bit(index, &ctx->raw_protect_flag)) {
-		if (mfc_raw_buf_prot(ctx, mfc_buf, true)) {
+		if (__mfc_raw_buf_prot(ctx, mfc_buf, true)) {
 			mfc_err_ctx("failed to CFW_PROT\n");
 		} else {
 			set_bit(index, &ctx->raw_protect_flag);
@@ -54,11 +54,11 @@ void s5p_mfc_raw_protect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
 	}
 }
 
-void s5p_mfc_raw_unprotect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_raw_unprotect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index)
 {
 	if (test_bit(index, &ctx->raw_protect_flag)) {
-		if (mfc_raw_buf_prot(ctx, mfc_buf, false)) {
+		if (__mfc_raw_buf_prot(ctx, mfc_buf, false)) {
 			mfc_err_ctx("failed to CFW_UNPROT\n");
 		} else {
 			clear_bit(index, &ctx->raw_protect_flag);
@@ -68,11 +68,11 @@ void s5p_mfc_raw_unprotect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
 	}
 }
 
-void s5p_mfc_stream_protect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_stream_protect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index)
 {
 	if (!test_bit(index, &ctx->stream_protect_flag)) {
-		if (mfc_stream_buf_prot(ctx, mfc_buf, true)) {
+		if (__mfc_stream_buf_prot(ctx, mfc_buf, true)) {
 			mfc_err_ctx("failed to CFW_PROT\n");
 		} else {
 			set_bit(index, &ctx->stream_protect_flag);
@@ -82,11 +82,11 @@ void s5p_mfc_stream_protect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf
 	}
 }
 
-void s5p_mfc_stream_unprotect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_stream_unprotect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index)
 {
 	if (test_bit(index, &ctx->stream_protect_flag)) {
-		if (mfc_stream_buf_prot(ctx, mfc_buf, false)) {
+		if (__mfc_stream_buf_prot(ctx, mfc_buf, false)) {
 			mfc_err_ctx("failed to CFW_UNPROT\n");
 		} else {
 			clear_bit(index, &ctx->stream_protect_flag);
@@ -96,7 +96,7 @@ void s5p_mfc_stream_unprotect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_b
 	}
 }
 
-static int mfc_calc_plane(int width, int height, int is_tiled)
+static int __mfc_calc_plane(int width, int height, int is_tiled)
 {
 	int mbX, mbY;
 
@@ -110,10 +110,10 @@ static int mfc_calc_plane(int width, int height, int is_tiled)
 	return (mbX * 16) * (mbY * 16);
 }
 
-static void mfc_set_linear_stride_size(struct s5p_mfc_ctx *ctx,
-				struct s5p_mfc_fmt *fmt)
+static void __mfc_set_linear_stride_size(struct mfc_ctx *ctx,
+				struct mfc_fmt *fmt)
 {
-	struct s5p_mfc_raw_info *raw;
+	struct mfc_raw_info *raw;
 	int i;
 
 	raw = &ctx->raw_buf;
@@ -190,11 +190,11 @@ static void mfc_set_linear_stride_size(struct s5p_mfc_ctx *ctx,
 	}
 }
 
-void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
+void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_raw_info *raw;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
+	struct mfc_raw_info *raw;
 	int i;
 	int extra = MFC_LINEAR_BUF_SIZE;
 
@@ -224,19 +224,19 @@ void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
 		break;
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
-		raw->plane_size[0] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
-		raw->plane_size[1] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) / 2 + extra;
+		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
+		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) / 2 + extra;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV21M_P010:
-		raw->plane_size[0] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
-		raw->plane_size[1] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
+		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
+		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
 		break;
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YVU420M:
-		raw->plane_size[0] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
-		raw->plane_size[1] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) / 2 + extra;
-		raw->plane_size[2] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) / 2 + extra;
+		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
+		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) / 2 + extra;
+		raw->plane_size[2] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) / 2 + extra;
 		break;
 	case V4L2_PIX_FMT_NV16M_S10B:
 	case V4L2_PIX_FMT_NV61M_S10B:
@@ -247,13 +247,13 @@ void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
-		raw->plane_size[0] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
-		raw->plane_size[1] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
+		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
+		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
 		break;
 	case V4L2_PIX_FMT_NV16M_P210:
 	case V4L2_PIX_FMT_NV61M_P210:
-		raw->plane_size[0] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
-		raw->plane_size[1] = mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
+		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
+		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
 		break;
 	/* non-contiguous single fd format */
 	case V4L2_PIX_FMT_NV12N_10B:
@@ -276,7 +276,7 @@ void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
 		break;
 	}
 
-	mfc_set_linear_stride_size(ctx, ctx->dst_fmt);
+	__mfc_set_linear_stride_size(ctx, ctx->dst_fmt);
 
 	for (i = 0; i < raw->num_planes; i++) {
 		if (raw->plane_size[i] < ctx->min_dpb_size[i]) {
@@ -312,10 +312,10 @@ void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx)
 	}
 }
 
-void s5p_mfc_enc_calc_src_size(struct s5p_mfc_ctx *ctx)
+void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_raw_info *raw;
+	struct mfc_dev *dev;
+	struct mfc_raw_info *raw;
 	unsigned int mb_width, mb_height, default_size;
 	int i, extra;
 
@@ -386,7 +386,7 @@ void s5p_mfc_enc_calc_src_size(struct s5p_mfc_ctx *ctx)
 		break;
 	}
 
-	mfc_set_linear_stride_size(ctx, ctx->src_fmt);
+	__mfc_set_linear_stride_size(ctx, ctx->src_fmt);
 
 	for (i = 0; i < raw->num_planes; i++) {
 		raw->total_plane_size += raw->plane_size[i];
@@ -405,10 +405,10 @@ void s5p_mfc_enc_calc_src_size(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "[FRAME] total plane size: %d\n", raw->total_plane_size);
 }
 
-void s5p_mfc_cleanup_assigned_dpb(struct s5p_mfc_ctx *ctx)
+void mfc_cleanup_assigned_dpb(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_buf *dst_mb;
+	struct mfc_dec *dec;
+	struct mfc_buf *dst_mb;
 	int i;
 
 	if (!ctx) {
@@ -428,16 +428,16 @@ void s5p_mfc_cleanup_assigned_dpb(struct s5p_mfc_ctx *ctx)
 		for (i = 0; i < MFC_MAX_DPBS; i++) {
 			dst_mb = dec->assigned_dpb[i];
 
-			s5p_mfc_raw_unprotect(ctx, dst_mb, i);
+			mfc_raw_unprotect(ctx, dst_mb, i);
 		}
-		s5p_mfc_clear_assigned_dpb(ctx);
+		mfc_clear_assigned_dpb(ctx);
 	}
 }
 
-void s5p_mfc_unprotect_released_dpb(struct s5p_mfc_ctx *ctx, unsigned int released_flag)
+void mfc_unprotect_released_dpb(struct mfc_ctx *ctx, unsigned int released_flag)
 {
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_buf *dst_mb;
+	struct mfc_dec *dec;
+	struct mfc_buf *dst_mb;
 	int i;
 
 	if (!ctx) {
@@ -455,16 +455,16 @@ void s5p_mfc_unprotect_released_dpb(struct s5p_mfc_ctx *ctx, unsigned int releas
 		for (i = 0; i < MFC_MAX_DPBS; i++) {
 			if (released_flag & (1 << i)) {
 				dst_mb = dec->assigned_dpb[i];
-				s5p_mfc_raw_unprotect(ctx, dst_mb, i);
+				mfc_raw_unprotect(ctx, dst_mb, i);
 			}
 		}
 	}
 
 }
 
-void s5p_mfc_protect_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
+void mfc_protect_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_mb)
 {
-	struct s5p_mfc_dec *dec;
+	struct mfc_dec *dec;
 	int dst_index;
 
 	if (!ctx) {
@@ -482,13 +482,13 @@ void s5p_mfc_protect_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb)
 
 	if (ctx->is_drm) {
 		dec->assigned_dpb[dst_index] = dst_mb;
-		s5p_mfc_raw_protect(ctx, dst_mb, dst_index);
+		mfc_raw_protect(ctx, dst_mb, dst_index);
 	}
 }
 
-void s5p_mfc_watchdog_tick(unsigned long arg)
+void mfc_watchdog_tick(unsigned long arg)
 {
-	struct s5p_mfc_dev *dev = (struct s5p_mfc_dev *)arg;
+	struct mfc_dev *dev = (struct mfc_dev *)arg;
 
 	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
@@ -518,7 +518,7 @@ void s5p_mfc_watchdog_tick(unsigned long arg)
 	add_timer(&dev->watchdog_timer);
 }
 
-void s5p_mfc_watchdog_start_tick(struct s5p_mfc_dev *dev)
+void mfc_watchdog_start_tick(struct mfc_dev *dev)
 {
 	if (atomic_read(&dev->watchdog_tick_running)) {
 		mfc_debug(2, "watchdog timer was already started!\n");
@@ -531,7 +531,7 @@ void s5p_mfc_watchdog_start_tick(struct s5p_mfc_dev *dev)
 	atomic_set(&dev->watchdog_tick_cnt, 0);
 }
 
-void s5p_mfc_watchdog_stop_tick(struct s5p_mfc_dev *dev)
+void mfc_watchdog_stop_tick(struct mfc_dev *dev)
 {
 	if (atomic_read(&dev->watchdog_tick_running)) {
 		mfc_debug(2, "watchdog timer is now stopped!\n");
@@ -544,7 +544,7 @@ void s5p_mfc_watchdog_stop_tick(struct s5p_mfc_dev *dev)
 	atomic_set(&dev->watchdog_tick_cnt, 0);
 }
 
-void s5p_mfc_watchdog_reset_tick(struct s5p_mfc_dev *dev)
+void mfc_watchdog_reset_tick(struct mfc_dev *dev)
 {
 	mfc_debug(2, "watchdog timer reset!\n");
 

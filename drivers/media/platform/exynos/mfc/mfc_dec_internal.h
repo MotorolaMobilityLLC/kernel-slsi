@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_dec_internal.h
+ * drivers/media/platform/exynos/mfc/mfc_dec_internal.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,7 +15,7 @@
 
 #include "mfc_common.h"
 
-struct s5p_mfc_fmt dec_formats[] = {
+struct mfc_fmt dec_formats[] = {
 	{
 		.name = "4:2:0 3 Planes Y/Cb/Cr",
 		.fourcc = V4L2_PIX_FMT_YUV420M,
@@ -155,7 +155,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "H264 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H264,
-		.codec_mode = S5P_FIMV_CODEC_H264_DEC,
+		.codec_mode = MFC_REG_CODEC_H264_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -163,7 +163,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "H264/MVC Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H264_MVC,
-		.codec_mode = S5P_FIMV_CODEC_H264_MVC_DEC,
+		.codec_mode = MFC_REG_CODEC_H264_MVC_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -171,7 +171,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "H263 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H263,
-		.codec_mode = S5P_FIMV_CODEC_H263_DEC,
+		.codec_mode = MFC_REG_CODEC_H263_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -179,7 +179,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "MPEG1 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_MPEG1,
-		.codec_mode = S5P_FIMV_CODEC_MPEG2_DEC,
+		.codec_mode = MFC_REG_CODEC_MPEG2_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -187,7 +187,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "MPEG2 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_MPEG2,
-		.codec_mode = S5P_FIMV_CODEC_MPEG2_DEC,
+		.codec_mode = MFC_REG_CODEC_MPEG2_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -195,7 +195,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "MPEG4 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_MPEG4,
-		.codec_mode = S5P_FIMV_CODEC_MPEG4_DEC,
+		.codec_mode = MFC_REG_CODEC_MPEG4_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -203,7 +203,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "FIMV Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_FIMV,
-		.codec_mode = S5P_FIMV_CODEC_MPEG4_DEC,
+		.codec_mode = MFC_REG_CODEC_MPEG4_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -211,7 +211,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "FIMV1 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_FIMV1,
-		.codec_mode = S5P_FIMV_CODEC_FIMV1_DEC,
+		.codec_mode = MFC_REG_CODEC_FIMV1_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -219,7 +219,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "FIMV2 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_FIMV2,
-		.codec_mode = S5P_FIMV_CODEC_FIMV2_DEC,
+		.codec_mode = MFC_REG_CODEC_FIMV2_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -227,7 +227,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "FIMV3 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_FIMV3,
-		.codec_mode = S5P_FIMV_CODEC_FIMV3_DEC,
+		.codec_mode = MFC_REG_CODEC_FIMV3_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -235,7 +235,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "FIMV4 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_FIMV4,
-		.codec_mode = S5P_FIMV_CODEC_FIMV4_DEC,
+		.codec_mode = MFC_REG_CODEC_FIMV4_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -243,7 +243,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "XviD Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_XVID,
-		.codec_mode = S5P_FIMV_CODEC_MPEG4_DEC,
+		.codec_mode = MFC_REG_CODEC_MPEG4_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -251,7 +251,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "VC1 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_VC1_ANNEX_G,
-		.codec_mode = S5P_FIMV_CODEC_VC1_DEC,
+		.codec_mode = MFC_REG_CODEC_VC1_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -259,7 +259,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "VC1 RCV Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_VC1_ANNEX_L,
-		.codec_mode = S5P_FIMV_CODEC_VC1_RCV_DEC,
+		.codec_mode = MFC_REG_CODEC_VC1_RCV_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -267,7 +267,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "VP8 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_VP8,
-		.codec_mode = S5P_FIMV_CODEC_VP8_DEC,
+		.codec_mode = MFC_REG_CODEC_VP8_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -275,7 +275,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "VP9 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_VP9,
-		.codec_mode = S5P_FIMV_CODEC_VP9_DEC,
+		.codec_mode = MFC_REG_CODEC_VP9_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -283,7 +283,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "HEVC Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_HEVC,
-		.codec_mode = S5P_FIMV_CODEC_HEVC_DEC,
+		.codec_mode = MFC_REG_CODEC_HEVC_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -291,7 +291,7 @@ struct s5p_mfc_fmt dec_formats[] = {
 	{
 		.name = "BPG Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_BPG,
-		.codec_mode = S5P_FIMV_CODEC_BPG_DEC,
+		.codec_mode = MFC_REG_CODEC_BPG_DEC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,

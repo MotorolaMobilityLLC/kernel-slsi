@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_cmd.h
+ * drivers/media/platform/exynos/mfc/mfc_cmd.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,15 +15,15 @@
 
 #include "mfc_common.h"
 
-int s5p_mfc_cmd_sys_init(struct s5p_mfc_dev *dev,
+int mfc_cmd_sys_init(struct mfc_dev *dev,
 				enum mfc_buf_usage_type buf_type);
-void s5p_mfc_cmd_sleep(struct s5p_mfc_dev *dev);
-void s5p_mfc_cmd_wakeup(struct s5p_mfc_dev *dev);
-int s5p_mfc_cmd_open_inst(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_cmd_close_inst(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_cmd_dpb_flush(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_cmd_cache_flush(struct s5p_mfc_dev *dev);
-int s5p_mfc_cmd_dec_init_buffers(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_cmd_enc_init_buffers(struct s5p_mfc_ctx *ctx);
+void mfc_cmd_sleep(struct mfc_dev *dev);
+void mfc_cmd_wakeup(struct mfc_dev *dev);
+int mfc_cmd_open_inst(struct mfc_ctx *ctx);
+int mfc_cmd_close_inst(struct mfc_ctx *ctx);
+int mfc_cmd_dpb_flush(struct mfc_ctx *ctx);
+int mfc_cmd_cache_flush(struct mfc_dev *dev);
+int mfc_cmd_dec_init_buffers(struct mfc_ctx *ctx);
+int mfc_cmd_enc_init_buffers(struct mfc_ctx *ctx);
 
 #endif /* __MFC_CMD_H */

@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_mem.h
+ * drivers/media/platform/exynos/mfc/mfc_mem.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -19,7 +19,7 @@
 *  while mmaping */
 #define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
 
-static inline dma_addr_t s5p_mfc_mem_get_daddr_vb(
+static inline dma_addr_t mfc_mem_get_daddr_vb(
 	struct vb2_buffer *vb, unsigned int n)
 {
 	dma_addr_t addr = 0;
@@ -30,32 +30,32 @@ static inline dma_addr_t s5p_mfc_mem_get_daddr_vb(
 	return addr;
 }
 
-static inline int s5p_mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
+static inline int mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
 {
 	return dmabuf_container_get_count(dmabuf);
 }
 
-struct vb2_mem_ops *s5p_mfc_mem_ops(void);
+struct vb2_mem_ops *mfc_mem_ops(void);
 
-void s5p_mfc_mem_set_cacheable(bool cacheable);
-void s5p_mfc_mem_clean(struct s5p_mfc_dev *dev,
-			struct s5p_mfc_special_buf *specail_buf,
+void mfc_mem_set_cacheable(bool cacheable);
+void mfc_mem_clean(struct mfc_dev *dev,
+			struct mfc_special_buf *specail_buf,
 			off_t offset, size_t size);
-void s5p_mfc_mem_invalidate(struct s5p_mfc_dev *dev,
-			struct s5p_mfc_special_buf *specail_buf,
+void mfc_mem_invalidate(struct mfc_dev *dev,
+			struct mfc_special_buf *specail_buf,
 			off_t offset, size_t size);
 
-int s5p_mfc_mem_get_user_shared_handle(struct s5p_mfc_ctx *ctx,
+int mfc_mem_get_user_shared_handle(struct mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle);
-void s5p_mfc_mem_cleanup_user_shared_handle(struct s5p_mfc_ctx *ctx,
+void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle);
 
-int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
-		struct s5p_mfc_special_buf *special_buf);
-void s5p_mfc_mem_ion_free(struct s5p_mfc_dev *dev,
-		struct s5p_mfc_special_buf *special_buf);
+int mfc_mem_ion_alloc(struct mfc_dev *dev,
+		struct mfc_special_buf *special_buf);
+void mfc_mem_ion_free(struct mfc_dev *dev,
+		struct mfc_special_buf *special_buf);
 
-void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf, int plane);
-int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_bufcon_put_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf, int plane);
+int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					struct dma_buf *bufcon_dmabuf, int plane);
 #endif /* __MFC_MEM_H */

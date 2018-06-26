@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_watchdog.c
+ * drivers/media/platform/exynos/mfc/mfc_watchdog.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -26,10 +26,10 @@
 #include "mfc_utils.h"
 
 #define MFC_SFR_AREA_COUNT	21
-static void mfc_dump_regs(struct s5p_mfc_dev *dev)
+static void __mfc_dump_regs(struct mfc_dev *dev)
 {
 	int i;
-	struct s5p_mfc_ctx_buf_size *buf_size = NULL;
+	struct mfc_ctx_buf_size *buf_size = NULL;
 	int addr[MFC_SFR_AREA_COUNT][2] = {
 		{ 0x0, 0x80 },
 		{ 0x1000, 0xCD0 },
@@ -57,7 +57,7 @@ static void mfc_dump_regs(struct s5p_mfc_dev *dev)
 	pr_err("-----------dumping MFC registers (SFR base = 0x%p, dev = 0x%p)\n",
 				dev->regs_base, dev);
 
-	s5p_mfc_enable_all_clocks(dev);
+	mfc_enable_all_clocks(dev);
 
 	for (i = 0; i < MFC_SFR_AREA_COUNT; i++) {
 		printk("[%04X .. %04X]\n", addr[i][0], addr[i][0] + addr[i][1]);
@@ -75,11 +75,11 @@ static void mfc_dump_regs(struct s5p_mfc_dev *dev)
 	}
 }
 
-const u32 s5p_mfc_logging_sfr_set1[MFC_SFR_LOGGING_COUNT_SET1] = {
+const u32 mfc_logging_sfr_set1[MFC_SFR_LOGGING_COUNT_SET1] = {
 	0x1000, 0x1004, 0x100C, 0x1010
 };
 
-const u32 s5p_mfc_logging_sfr_set2[MFC_SFR_LOGGING_COUNT_SET2] = {
+const u32 mfc_logging_sfr_set2[MFC_SFR_LOGGING_COUNT_SET2] = {
 	0x0070, 0x10B4, 0x2020, 0x2028,
 	0x204C, 0x20B4, 0x3000, 0x3004,
 	0x3010, 0x301C, 0x3110, 0x5A54,
@@ -88,7 +88,7 @@ const u32 s5p_mfc_logging_sfr_set2[MFC_SFR_LOGGING_COUNT_SET2] = {
 	0x7114, 0xF088, 0xFFD0
 };
 
-int mfc_change_hex_to_ascii(u32 hex, u32 byte, char *ascii, int idx)
+int __mfc_change_hex_to_ascii(u32 hex, u32 byte, char *ascii, int idx)
 {
 	int i;
 	char tmp;
@@ -114,7 +114,7 @@ int mfc_change_hex_to_ascii(u32 hex, u32 byte, char *ascii, int idx)
 	return ++idx;
 }
 
-static void mfc_save_logging_sfr(struct s5p_mfc_dev *dev)
+static void __mfc_save_logging_sfr(struct mfc_dev *dev)
 {
 	char *errorinfo;
 	int i, idx = 0;
@@ -122,18 +122,18 @@ static void mfc_save_logging_sfr(struct s5p_mfc_dev *dev)
 	pr_err("-----------logging MFC error info-----------\n");
 	errorinfo = dev->logging_data->errorinfo;
 	for (i = 0; i < MFC_SFR_LOGGING_COUNT_SET1; i++)
-		dev->logging_data->SFRs_set1[i] = MFC_READL(s5p_mfc_logging_sfr_set1[i]);
+		dev->logging_data->SFRs_set1[i] = MFC_READL(mfc_logging_sfr_set1[i]);
 	for (i = 0; i < MFC_SFR_LOGGING_COUNT_SET2; i++)
-		dev->logging_data->SFRs_set2[i] = MFC_READL(s5p_mfc_logging_sfr_set2[i]);
+		dev->logging_data->SFRs_set2[i] = MFC_READL(mfc_logging_sfr_set2[i]);
 
-	idx = mfc_change_hex_to_ascii(dev->logging_data->cause, 8, errorinfo, idx);
-	idx = mfc_change_hex_to_ascii(dev->logging_data->fault_status, 2, errorinfo, idx);
-	idx = mfc_change_hex_to_ascii(dev->logging_data->fault_trans_info, 8, errorinfo, idx);
-	idx = mfc_change_hex_to_ascii(dev->logging_data->fault_addr, 8, errorinfo, idx);
+	idx = __mfc_change_hex_to_ascii(dev->logging_data->cause, 8, errorinfo, idx);
+	idx = __mfc_change_hex_to_ascii(dev->logging_data->fault_status, 2, errorinfo, idx);
+	idx = __mfc_change_hex_to_ascii(dev->logging_data->fault_trans_info, 8, errorinfo, idx);
+	idx = __mfc_change_hex_to_ascii(dev->logging_data->fault_addr, 8, errorinfo, idx);
 	for (i = 0; i < MFC_SFR_LOGGING_COUNT_SET1; i++)
-		idx = mfc_change_hex_to_ascii(dev->logging_data->SFRs_set1[i], 2, errorinfo, idx);
+		idx = __mfc_change_hex_to_ascii(dev->logging_data->SFRs_set1[i], 2, errorinfo, idx);
 	for (i = 0; i < MFC_SFR_LOGGING_COUNT_SET2; i++)
-		idx = mfc_change_hex_to_ascii(dev->logging_data->SFRs_set2[i], 8, errorinfo, idx);
+		idx = __mfc_change_hex_to_ascii(dev->logging_data->SFRs_set2[i], 8, errorinfo, idx);
 
 	pr_err("%s\n", errorinfo);
 
@@ -142,20 +142,20 @@ static void mfc_save_logging_sfr(struct s5p_mfc_dev *dev)
 #endif
 }
 
-static void mfc_display_state(struct s5p_mfc_dev *dev)
+static void __mfc_display_state(struct mfc_dev *dev)
 {
 	nal_queue_handle *nal_q_handle = dev->nal_q_handle;
 	int i;
 
 	pr_err("-----------dumping MFC device info-----------\n");
 	pr_err("power:%d, clock:%d, num_inst:%d, num_drm_inst:%d, fw_status:%d\n",
-			s5p_mfc_pm_get_pwr_ref_cnt(dev), s5p_mfc_pm_get_clk_ref_cnt(dev),
+			mfc_pm_get_pwr_ref_cnt(dev), mfc_pm_get_clk_ref_cnt(dev),
 			dev->num_inst, dev->num_drm_inst, dev->fw.status);
 	pr_err("hwlock bits:%#lx / dev:%#lx, curr_ctx:%d (is_drm:%d),"
 			" preempt_ctx:%d, work_bits:%#lx\n",
 			dev->hwlock.bits, dev->hwlock.dev,
 			dev->curr_ctx, dev->curr_ctx_is_drm,
-			dev->preempt_ctx, s5p_mfc_get_bits(&dev->work_bits));
+			dev->preempt_ctx, mfc_get_bits(&dev->work_bits));
 	pr_err("options debug_level:%d, debug_mode:%d, mmcache:%d, perf_boost:%d\n",
 			debug_level, dev->pdata->debug_mode, dev->mmcache.is_on_status, perf_boost_mode);
 	pr_err("NAL-Q state:%d, exception:%d, in_exe_cnt: %d, out_exe_cnt: %d\n",
@@ -170,16 +170,16 @@ static void mfc_display_state(struct s5p_mfc_dev *dev)
 				dev->ctx[i]->num,
 				dev->ctx[i]->type == MFCINST_DECODER ? "DEC" : "ENC",
 				dev->ctx[i]->codec_mode, dev->ctx[i]->state,
-				s5p_mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_queue),
-				s5p_mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_queue),
-				s5p_mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->ref_buf_queue),
-				s5p_mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_nal_queue),
-				s5p_mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_nal_queue),
+				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_queue),
+				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_queue),
+				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->ref_buf_queue),
+				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_nal_queue),
+				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_nal_queue),
 				dev->ctx[i]->int_condition, dev->ctx[i]->int_reason,
 				dev->ctx[i]->int_err);
 }
 
-static void mfc_print_trace(struct s5p_mfc_dev *dev)
+static void __mfc_print_trace(struct mfc_dev *dev)
 {
 	int i, cnt, trace_cnt;
 
@@ -193,9 +193,9 @@ static void mfc_print_trace(struct s5p_mfc_dev *dev)
 	}
 }
 
-void mfc_dump_buffer_info(struct s5p_mfc_dev *dev)
+void __mfc_dump_buffer_info(struct mfc_dev *dev)
 {
-	struct s5p_mfc_ctx *ctx;
+	struct mfc_ctx *ctx;
 
 	ctx = dev->ctx[dev->curr_ctx];
 	if (ctx) {
@@ -210,56 +210,56 @@ void mfc_dump_buffer_info(struct s5p_mfc_dev *dev)
 				ctx->codec_buf.daddr + ctx->codec_buf.size);
 		if (ctx->type == MFCINST_DECODER) {
 			pr_err("Decoder CPB:%#x++%#x, scratch:%#x++%#x, static(vp9):%#x++%#x\n",
-					MFC_READL(S5P_FIMV_D_CPB_BUFFER_ADDR),
-					MFC_READL(S5P_FIMV_D_CPB_BUFFER_SIZE),
-					MFC_READL(S5P_FIMV_D_SCRATCH_BUFFER_ADDR),
-					MFC_READL(S5P_FIMV_D_SCRATCH_BUFFER_SIZE),
-					MFC_READL(S5P_FIMV_D_STATIC_BUFFER_ADDR),
-					MFC_READL(S5P_FIMV_D_STATIC_BUFFER_SIZE));
+					MFC_READL(MFC_REG_D_CPB_BUFFER_ADDR),
+					MFC_READL(MFC_REG_D_CPB_BUFFER_SIZE),
+					MFC_READL(MFC_REG_D_SCRATCH_BUFFER_ADDR),
+					MFC_READL(MFC_REG_D_SCRATCH_BUFFER_SIZE),
+					MFC_READL(MFC_REG_D_STATIC_BUFFER_ADDR),
+					MFC_READL(MFC_REG_D_STATIC_BUFFER_SIZE));
 			pr_err("DPB [0]plane:++%#x, [1]plane:++%#x, [2]plane:++%#x, MV buffer:++%#lx\n",
 					ctx->raw_buf.plane_size[0],
 					ctx->raw_buf.plane_size[1],
 					ctx->raw_buf.plane_size[2],
 					ctx->mv_size);
 			print_hex_dump(KERN_ERR, "[0] plane ", DUMP_PREFIX_ADDRESS, 32, 4,
-					dev->regs_base + S5P_FIMV_D_FIRST_PLANE_DPB0,
+					dev->regs_base + MFC_REG_D_FIRST_PLANE_DPB0,
 					0x100, false);
 			print_hex_dump(KERN_ERR, "[1] plane ", DUMP_PREFIX_ADDRESS, 32, 4,
-					dev->regs_base + S5P_FIMV_D_SECOND_PLANE_DPB0,
+					dev->regs_base + MFC_REG_D_SECOND_PLANE_DPB0,
 					0x100, false);
 			if (ctx->dst_fmt->num_planes == 3)
 				print_hex_dump(KERN_ERR, "[2] plane ", DUMP_PREFIX_ADDRESS, 32, 4,
-						dev->regs_base + S5P_FIMV_D_THIRD_PLANE_DPB0,
+						dev->regs_base + MFC_REG_D_THIRD_PLANE_DPB0,
 						0x100, false);
 			print_hex_dump(KERN_ERR, "MV buffer ", DUMP_PREFIX_ADDRESS, 32, 4,
-					dev->regs_base + S5P_FIMV_D_MV_BUFFER0,
+					dev->regs_base + MFC_REG_D_MV_BUFFER0,
 					0x100, false);
 		} else if (ctx->type == MFCINST_ENCODER) {
 			pr_err("Encoder SRC %dplane, [0]:%#x++%#x, [1]:%#x++%#x, [2]:%#x++%#x\n",
 					ctx->src_fmt->num_planes,
-					MFC_READL(S5P_FIMV_E_SOURCE_FIRST_ADDR),
+					MFC_READL(MFC_REG_E_SOURCE_FIRST_ADDR),
 					ctx->raw_buf.plane_size[0],
-					MFC_READL(S5P_FIMV_E_SOURCE_SECOND_ADDR),
+					MFC_READL(MFC_REG_E_SOURCE_SECOND_ADDR),
 					ctx->raw_buf.plane_size[1],
-					MFC_READL(S5P_FIMV_E_SOURCE_THIRD_ADDR),
+					MFC_READL(MFC_REG_E_SOURCE_THIRD_ADDR),
 					ctx->raw_buf.plane_size[2]);
 			pr_err("DST:%#x++%#x, scratch:%#x++%#x\n",
-					MFC_READL(S5P_FIMV_E_STREAM_BUFFER_ADDR),
-					MFC_READL(S5P_FIMV_E_STREAM_BUFFER_SIZE),
-					MFC_READL(S5P_FIMV_E_SCRATCH_BUFFER_ADDR),
-					MFC_READL(S5P_FIMV_E_SCRATCH_BUFFER_SIZE));
+					MFC_READL(MFC_REG_E_STREAM_BUFFER_ADDR),
+					MFC_READL(MFC_REG_E_STREAM_BUFFER_SIZE),
+					MFC_READL(MFC_REG_E_SCRATCH_BUFFER_ADDR),
+					MFC_READL(MFC_REG_E_SCRATCH_BUFFER_SIZE));
 			pr_err("DPB [0] plane:++%#lx, [1] plane:++%#lx, ME buffer:++%#lx\n",
 					ctx->enc_priv->luma_dpb_size,
 					ctx->enc_priv->chroma_dpb_size,
 					ctx->enc_priv->me_buffer_size);
 			print_hex_dump(KERN_ERR, "[0] plane ", DUMP_PREFIX_ADDRESS, 32, 4,
-					dev->regs_base + S5P_FIMV_E_LUMA_DPB,
+					dev->regs_base + MFC_REG_E_LUMA_DPB,
 					0x44, false);
 			print_hex_dump(KERN_ERR, "[1] plane ", DUMP_PREFIX_ADDRESS, 32, 4,
-					dev->regs_base + S5P_FIMV_E_CHROMA_DPB,
+					dev->regs_base + MFC_REG_E_CHROMA_DPB,
 					0x44, false);
 			print_hex_dump(KERN_ERR, "ME buffer ", DUMP_PREFIX_ADDRESS, 32, 4,
-					dev->regs_base + S5P_FIMV_E_ME_BUFFER,
+					dev->regs_base + MFC_REG_E_ME_BUFFER,
 					0x44, false);
 		} else {
 			pr_err("invalid MFC instnace type(%d)\n", ctx->type);
@@ -267,44 +267,44 @@ void mfc_dump_buffer_info(struct s5p_mfc_dev *dev)
 	}
 }
 
-static void mfc_dump_info_without_regs(struct s5p_mfc_dev *dev)
+static void __mfc_dump_info_without_regs(struct mfc_dev *dev)
 {
-	mfc_display_state(dev);
-	mfc_print_trace(dev);
+	__mfc_display_state(dev);
+	__mfc_print_trace(dev);
 }
 
-static void mfc_dump_info(struct s5p_mfc_dev *dev)
+static void __mfc_dump_info(struct mfc_dev *dev)
 {
-	mfc_dump_info_without_regs(dev);
-	mfc_save_logging_sfr(dev);
-	mfc_dump_buffer_info(dev);
-	mfc_dump_regs(dev);
+	__mfc_dump_info_without_regs(dev);
+	__mfc_save_logging_sfr(dev);
+	__mfc_dump_buffer_info(dev);
+	__mfc_dump_regs(dev);
 	exynos_sysmmu_show_status(dev->device);
 }
 
-static void mfc_dump_info_and_stop_hw(struct s5p_mfc_dev *dev)
+static void __mfc_dump_info_and_stop_hw(struct mfc_dev *dev)
 {
 	MFC_TRACE_DEV("** mfc will stop!!!\n");
-	mfc_dump_info(dev);
+	__mfc_dump_info(dev);
 	BUG();
 }
 
-static void mfc_dump_info_and_stop_hw_debug(struct s5p_mfc_dev *dev)
+static void __mfc_dump_info_and_stop_hw_debug(struct mfc_dev *dev)
 {
 	if (!dev->pdata->debug_mode)
 		return;
 
 	MFC_TRACE_DEV("** mfc will stop!!!\n");
-	mfc_dump_info(dev);
+	__mfc_dump_info(dev);
 	BUG();
 }
 
-void s5p_mfc_watchdog_worker(struct work_struct *work)
+void mfc_watchdog_worker(struct work_struct *work)
 {
-	struct s5p_mfc_dev *dev;
+	struct mfc_dev *dev;
 	int cmd;
 
-	dev = container_of(work, struct s5p_mfc_dev, watchdog_work);
+	dev = container_of(work, struct mfc_dev, watchdog_work);
 
 	if (atomic_read(&dev->watchdog_run)) {
 		mfc_err_dev("watchdog already running???\n");
@@ -316,7 +316,7 @@ void s5p_mfc_watchdog_worker(struct work_struct *work)
 		return;
 	}
 
-	cmd = s5p_mfc_check_risc2host(dev);
+	cmd = mfc_check_risc2host(dev);
 	if (cmd) {
 		if (atomic_read(&dev->watchdog_tick_cnt) == (3 * WATCHDOG_TICK_CNT_TO_START_WATCHDOG)) {
 			mfc_err_dev("MFC driver waited for upward of %dsec\n",
@@ -338,13 +338,13 @@ void s5p_mfc_watchdog_worker(struct work_struct *work)
 	atomic_set(&dev->watchdog_tick_cnt, 0);
 
 	/* Stop after dumping information */
-	mfc_dump_info_and_stop_hw(dev);
+	__mfc_dump_info_and_stop_hw(dev);
 }
 
-struct s5p_mfc_dump_ops mfc_dump_ops = {
-	.dump_regs			= mfc_dump_regs,
-	.dump_info			= mfc_dump_info,
-	.dump_info_without_regs		= mfc_dump_info_without_regs,
-	.dump_and_stop_always		= mfc_dump_info_and_stop_hw,
-	.dump_and_stop_debug_mode	= mfc_dump_info_and_stop_hw_debug,
+struct mfc_dump_ops mfc_dump_ops = {
+	.dump_regs			= __mfc_dump_regs,
+	.dump_info			= __mfc_dump_info,
+	.dump_info_without_regs		= __mfc_dump_info_without_regs,
+	.dump_and_stop_always		= __mfc_dump_info_and_stop_hw,
+	.dump_and_stop_debug_mode	= __mfc_dump_info_and_stop_hw_debug,
 };

@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_mmcache.c
+ * drivers/media/platform/exynos/mfc/mfc_mmcache.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -35,7 +35,7 @@ static const unsigned char mmcache_SFR_0x0040[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static void mmcache_print_config(struct s5p_mfc_dev *dev)
+static void mmcache_print_config(struct mfc_dev *dev)
 {
 	void __iomem *addr;
 	unsigned int size;
@@ -58,7 +58,7 @@ static void mmcache_print_config(struct s5p_mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-static void mmcache_set_config(struct s5p_mfc_dev *dev)
+static void mmcache_set_config(struct mfc_dev *dev)
 {
 	unsigned int data, i, size;
 	const unsigned int *sfr_dump;
@@ -86,7 +86,7 @@ static void mmcache_set_config(struct s5p_mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-static void mmcache_reset_config(struct s5p_mfc_dev *dev)
+static void mmcache_reset_config(struct mfc_dev *dev)
 {
 	void __iomem *addr;
 	unsigned int data;
@@ -109,7 +109,7 @@ static void mmcache_reset_config(struct s5p_mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-static void mmcache_update_master_grp(struct s5p_mfc_dev *dev)
+static void mmcache_update_master_grp(struct mfc_dev *dev)
 {
 	void __iomem *addr;
 	unsigned int data;
@@ -132,7 +132,7 @@ static void mmcache_update_master_grp(struct s5p_mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-static void mmcache_enable_clock_gating(struct s5p_mfc_dev *dev)
+static void mmcache_enable_clock_gating(struct mfc_dev *dev)
 {
 	void __iomem *addr;
 	unsigned int data;
@@ -155,7 +155,7 @@ static void mmcache_enable_clock_gating(struct s5p_mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-void s5p_mfc_mmcache_enable(struct s5p_mfc_dev *dev)
+void mfc_mmcache_enable(struct mfc_dev *dev)
 {
 	mfc_debug_enter();
 
@@ -174,7 +174,7 @@ void s5p_mfc_mmcache_enable(struct s5p_mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-void s5p_mfc_mmcache_disable(struct s5p_mfc_dev *dev)
+void mfc_mmcache_disable(struct mfc_dev *dev)
 {
 	mfc_debug_enter();
 
@@ -188,7 +188,7 @@ void s5p_mfc_mmcache_disable(struct s5p_mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-void s5p_mfc_invalidate_mmcache(struct s5p_mfc_dev *dev)
+void mfc_invalidate_mmcache(struct mfc_dev *dev)
 {
 	void __iomem *addr;
 	unsigned int data;

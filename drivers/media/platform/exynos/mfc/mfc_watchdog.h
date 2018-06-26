@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_watchdog.h
+ * drivers/media/platform/exynos/mfc/mfc_watchdog.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *              http://www.samsung.com/
@@ -15,6 +15,6 @@
 
 #include "mfc_common.h"
 
-void s5p_mfc_watchdog_worker(struct work_struct *work);
+void mfc_watchdog_worker(struct work_struct *work);
 
 #endif /* __MFC_WATCHDOG_H */

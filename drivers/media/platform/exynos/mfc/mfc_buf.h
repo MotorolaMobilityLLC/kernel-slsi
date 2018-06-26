@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_buf.h
+ * drivers/media/platform/exynos/mfc/mfc_buf.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -16,26 +16,26 @@
 #include "mfc_common.h"
 
 /* Memory allocation */
-int s5p_mfc_alloc_common_context(struct s5p_mfc_dev *dev);
-void s5p_mfc_release_common_context(struct s5p_mfc_dev *dev);
+int mfc_alloc_common_context(struct mfc_dev *dev);
+void mfc_release_common_context(struct mfc_dev *dev);
 
-int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_release_instance_context(struct s5p_mfc_ctx *ctx);
+int mfc_alloc_instance_context(struct mfc_ctx *ctx);
+void mfc_release_instance_context(struct mfc_ctx *ctx);
 
-int s5p_mfc_alloc_codec_buffers(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_release_codec_buffers(struct s5p_mfc_ctx *ctx);
+int mfc_alloc_codec_buffers(struct mfc_ctx *ctx);
+void mfc_release_codec_buffers(struct mfc_ctx *ctx);
 
-int s5p_mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_release_enc_roi_buffer(struct s5p_mfc_ctx *ctx);
+int mfc_alloc_enc_roi_buffer(struct mfc_ctx *ctx);
+void mfc_release_enc_roi_buffer(struct mfc_ctx *ctx);
 
-int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx);
+int mfc_otf_alloc_stream_buf(struct mfc_ctx *ctx);
+void mfc_otf_release_stream_buf(struct mfc_ctx *ctx);
 
-int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev);
-int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev);
-int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev);
+int mfc_alloc_firmware(struct mfc_dev *dev);
+int mfc_load_firmware(struct mfc_dev *dev);
+int mfc_release_firmware(struct mfc_dev *dev);
 
-int s5p_mfc_alloc_dbg_info_buffer(struct s5p_mfc_dev *dev);
-int s5p_mfc_release_dbg_info_buffer(struct s5p_mfc_dev *dev);
+int mfc_alloc_dbg_info_buffer(struct mfc_dev *dev);
+int mfc_release_dbg_info_buffer(struct mfc_dev *dev);
 
 #endif /* __MFC_BUF_H */

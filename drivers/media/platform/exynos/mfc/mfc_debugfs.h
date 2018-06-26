@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_debugfs.h
+ * drivers/media/platform/exynos/mfc/mfc_debugfs.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,6 +15,6 @@
 
 #include "mfc_common.h"
 
-void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev);
+void mfc_init_debugfs(struct mfc_dev *dev);
 
 #endif /* __MFC_DEBUGFS_H */

@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_utils.h
+ * drivers/media/platform/exynos/mfc/mfc_utils.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,32 +15,32 @@
 
 #include "mfc_common.h"
 
-static inline void s5p_mfc_clean_dev_int_flags(struct s5p_mfc_dev *dev)
+static inline void mfc_clean_dev_int_flags(struct mfc_dev *dev)
 {
 	dev->int_condition = 0;
 	dev->int_reason = 0;
 	dev->int_err = 0;
 }
 
-static inline void s5p_mfc_clean_ctx_int_flags(struct s5p_mfc_ctx *ctx)
+static inline void mfc_clean_ctx_int_flags(struct mfc_ctx *ctx)
 {
 	ctx->int_condition = 0;
 	ctx->int_reason = 0;
 	ctx->int_err = 0;
 }
 
-static inline void s5p_mfc_change_state(struct s5p_mfc_ctx *ctx, enum s5p_mfc_inst_state state)
+static inline void mfc_change_state(struct mfc_ctx *ctx, enum mfc_inst_state state)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 
 	MFC_TRACE_CTX("** state : %d\n", state);
 	ctx->state = state;
 }
 
-static inline enum s5p_mfc_node_type s5p_mfc_get_node_type(struct file *file)
+static inline enum mfc_node_type mfc_get_node_type(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
-	enum s5p_mfc_node_type node_type;
+	enum mfc_node_type node_type;
 
 	if (!vdev) {
 		mfc_err_dev("failed to get video_device\n");
@@ -76,7 +76,7 @@ static inline enum s5p_mfc_node_type s5p_mfc_get_node_type(struct file *file)
 	return node_type;
 }
 
-static inline int s5p_mfc_is_decoder_node(enum s5p_mfc_node_type node)
+static inline int mfc_is_decoder_node(enum mfc_node_type node)
 {
 	if (node == MFCNODE_DECODER || node == MFCNODE_DECODER_DRM)
 		return 1;
@@ -84,7 +84,7 @@ static inline int s5p_mfc_is_decoder_node(enum s5p_mfc_node_type node)
 	return 0;
 }
 
-static inline int s5p_mfc_is_drm_node(enum s5p_mfc_node_type node)
+static inline int mfc_is_drm_node(enum mfc_node_type node)
 {
 	if (node == MFCNODE_DECODER_DRM || node == MFCNODE_ENCODER_DRM ||
 			node == MFCNODE_ENCODER_OTF_DRM)
@@ -93,7 +93,7 @@ static inline int s5p_mfc_is_drm_node(enum s5p_mfc_node_type node)
 	return 0;
 }
 
-static inline int s5p_mfc_is_encoder_otf_node(enum s5p_mfc_node_type node)
+static inline int mfc_is_encoder_otf_node(enum mfc_node_type node)
 {
 	if (node == MFCNODE_ENCODER_OTF || node == MFCNODE_ENCODER_OTF_DRM)
 		return 1;
@@ -101,23 +101,23 @@ static inline int s5p_mfc_is_encoder_otf_node(enum s5p_mfc_node_type node)
 	return 0;
 }
 
-int s5p_mfc_check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb);
+int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb);
 
-void s5p_mfc_raw_protect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_raw_protect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index);
-void s5p_mfc_raw_unprotect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_raw_unprotect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index);
-void s5p_mfc_stream_protect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_stream_protect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index);
-void s5p_mfc_stream_unprotect(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+void mfc_stream_unprotect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					int index);
 
-void s5p_mfc_dec_calc_dpb_size(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_enc_calc_src_size(struct s5p_mfc_ctx *ctx);
+void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx);
+void mfc_enc_calc_src_size(struct mfc_ctx *ctx);
 
-static inline void s5p_mfc_cleanup_assigned_fd(struct s5p_mfc_ctx *ctx)
+static inline void mfc_cleanup_assigned_fd(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dec *dec;
+	struct mfc_dec *dec;
 	int i;
 
 	dec = ctx->dec_priv;
@@ -126,9 +126,9 @@ static inline void s5p_mfc_cleanup_assigned_fd(struct s5p_mfc_ctx *ctx)
 		dec->assigned_fd[i] = MFC_INFO_INIT_FD;
 }
 
-static inline void s5p_mfc_clear_assigned_dpb(struct s5p_mfc_ctx *ctx)
+static inline void mfc_clear_assigned_dpb(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dec *dec;
+	struct mfc_dec *dec;
 	int i;
 
 	if (!ctx) {
@@ -146,35 +146,35 @@ static inline void s5p_mfc_clear_assigned_dpb(struct s5p_mfc_ctx *ctx)
 		dec->assigned_dpb[i] = NULL;
 }
 
-static inline int s5p_mfc_dec_status_decoding(unsigned int dst_frame_status)
+static inline int mfc_dec_status_decoding(unsigned int dst_frame_status)
 {
-	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY ||
-	    dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_ONLY)
+	if (dst_frame_status == MFC_REG_DEC_STATUS_DECODING_DISPLAY ||
+	    dst_frame_status == MFC_REG_DEC_STATUS_DECODING_ONLY)
 		return 1;
 	return 0;
 }
 
-static inline int s5p_mfc_dec_status_display(unsigned int dst_frame_status)
+static inline int mfc_dec_status_display(unsigned int dst_frame_status)
 {
-	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DISPLAY_ONLY ||
-	    dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY)
+	if (dst_frame_status == MFC_REG_DEC_STATUS_DISPLAY_ONLY ||
+	    dst_frame_status == MFC_REG_DEC_STATUS_DECODING_DISPLAY)
 		return 1;
 
 	return 0;
 }
 
-void s5p_mfc_cleanup_assigned_dpb(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_unprotect_released_dpb(struct s5p_mfc_ctx *ctx, unsigned int released_flag);
-void s5p_mfc_protect_dpb(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *dst_mb);
+void mfc_cleanup_assigned_dpb(struct mfc_ctx *ctx);
+void mfc_unprotect_released_dpb(struct mfc_ctx *ctx, unsigned int released_flag);
+void mfc_protect_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_mb);
 
 /* Watchdog interval */
 #define WATCHDOG_TICK_INTERVAL   1000
 /* After how many executions watchdog should assume lock up */
 #define WATCHDOG_TICK_CNT_TO_START_WATCHDOG        5
 
-void s5p_mfc_watchdog_tick(unsigned long arg);
-void s5p_mfc_watchdog_start_tick(struct s5p_mfc_dev *dev);
-void s5p_mfc_watchdog_stop_tick(struct s5p_mfc_dev *dev);
-void s5p_mfc_watchdog_reset_tick(struct s5p_mfc_dev *dev);
+void mfc_watchdog_tick(unsigned long arg);
+void mfc_watchdog_start_tick(struct mfc_dev *dev);
+void mfc_watchdog_stop_tick(struct mfc_dev *dev);
+void mfc_watchdog_reset_tick(struct mfc_dev *dev);
 
 #endif /* __MFC_UTILS_H */

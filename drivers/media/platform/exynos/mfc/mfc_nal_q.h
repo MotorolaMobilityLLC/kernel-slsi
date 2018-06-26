@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_nal_q.h
+ * drivers/media/platform/exynos/mfc/mfc_nal_q.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,25 +15,25 @@
 
 #include "mfc_common.h"
 
-int s5p_mfc_nal_q_check_enable(struct s5p_mfc_dev *dev);
+int mfc_nal_q_check_enable(struct mfc_dev *dev);
 
-void s5p_mfc_nal_q_clock_on(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
-void s5p_mfc_nal_q_clock_off(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
-void s5p_mfc_nal_q_cleanup_clock(struct s5p_mfc_dev *dev);
+void mfc_nal_q_clock_on(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void mfc_nal_q_clock_off(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void mfc_nal_q_cleanup_clock(struct mfc_dev *dev);
 
-nal_queue_handle *s5p_mfc_nal_q_create(struct s5p_mfc_dev *dev);
-int s5p_mfc_nal_q_destroy(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
+nal_queue_handle *mfc_nal_q_create(struct mfc_dev *dev);
+int mfc_nal_q_destroy(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
 
-void s5p_mfc_nal_q_init(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
-void s5p_mfc_nal_q_start(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
-void s5p_mfc_nal_q_stop(struct s5p_mfc_dev *dev, nal_queue_handle *nal_q_handle);
-void s5p_mfc_nal_q_stop_if_started(struct s5p_mfc_dev *dev);
-void s5p_mfc_nal_q_cleanup_queue(struct s5p_mfc_dev *dev);
+void mfc_nal_q_init(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void mfc_nal_q_start(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void mfc_nal_q_stop(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void mfc_nal_q_stop_if_started(struct mfc_dev *dev);
+void mfc_nal_q_cleanup_queue(struct mfc_dev *dev);
 
-int s5p_mfc_nal_q_handle_out_buf(struct s5p_mfc_dev *dev, EncoderOutputStr *pOutStr);
-int s5p_mfc_nal_q_enqueue_in_buf(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
+int mfc_nal_q_handle_out_buf(struct mfc_dev *dev, EncoderOutputStr *pOutStr);
+int mfc_nal_q_enqueue_in_buf(struct mfc_dev *dev, struct mfc_ctx *ctx,
 			nal_queue_in_handle *nal_q_in_handle);
-EncoderOutputStr *s5p_mfc_nal_q_dequeue_out_buf(struct s5p_mfc_dev *dev,
+EncoderOutputStr *mfc_nal_q_dequeue_out_buf(struct mfc_dev *dev,
 			nal_queue_out_handle *nal_q_out_handle, unsigned int *reason);
 
 #endif /* __MFC_NAL_Q_H  */

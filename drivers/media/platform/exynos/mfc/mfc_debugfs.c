@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_debug.c
+ * drivers/media/platform/exynos/mfc/mfc_debug.c
  *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -33,10 +33,10 @@ unsigned int mmcache_dump;
 unsigned int mmcache_disable;
 unsigned int perf_boost_mode;
 
-static int mfc_info_show(struct seq_file *s, void *unused)
+static int __mfc_info_show(struct seq_file *s, void *unused)
 {
-	struct s5p_mfc_dev *dev = s->private;
-	struct s5p_mfc_ctx *ctx = NULL;
+	struct mfc_dev *dev = s->private;
+	struct mfc_ctx *ctx = NULL;
 	int i;
 	char *codec_name = NULL;
 
@@ -45,7 +45,7 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 		 MFC_VER_MAJOR(dev), MFC_VER_MINOR(dev), dev->fw.date,
 		 dev->fw.fimv_info, MFC_DRIVER_INFO);
 	seq_printf(s, "[PM] power: %d, clock: %d\n",
-			s5p_mfc_pm_get_pwr_ref_cnt(dev), s5p_mfc_pm_get_clk_ref_cnt(dev));
+			mfc_pm_get_pwr_ref_cnt(dev), mfc_pm_get_clk_ref_cnt(dev));
 	seq_printf(s, "[CTX] num_inst: %d, num_drm_inst: %d, curr_ctx: %d(is_drm: %d)\n",
 			dev->num_inst, dev->num_drm_inst, dev->curr_ctx, dev->curr_ctx_is_drm);
 	seq_printf(s, "[HWLOCK] bits: %#lx, dev: %#lx, owned_by_irq = %d, wl_count = %d\n",
@@ -88,18 +88,18 @@ static int mfc_info_show(struct seq_file *s, void *unused)
 				ctx->img_width, ctx->img_height, ctx->crop_width, ctx->crop_height,
 				ctx->crop_left, ctx->crop_top, ctx->state);
 			seq_printf(s, "        queue(src: %d, dst: %d, src_nal: %d, dst_nal: %d, ref: %d)\n",
-				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
-				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
-				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue),
-				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_nal_queue),
-				s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->ref_buf_queue));
+				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
+				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
+				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue),
+				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_nal_queue),
+				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->ref_buf_queue));
 		}
 	}
 
 	return 0;
 }
 
-static int mfc_debug_info_show(struct seq_file *s, void *unused)
+static int __mfc_debug_info_show(struct seq_file *s, void *unused)
 {
 	seq_puts(s, ">> MFC debug information\n");
 
@@ -123,33 +123,33 @@ static int mfc_debug_info_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mfc_info_open(struct inode *inode, struct file *file)
+static int __mfc_info_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, mfc_info_show, inode->i_private);
+	return single_open(file, __mfc_info_show, inode->i_private);
 }
 
-static int mfc_debug_info_open(struct inode *inode, struct file *file)
+static int __mfc_debug_info_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, mfc_debug_info_show, inode->i_private);
+	return single_open(file, __mfc_debug_info_show, inode->i_private);
 }
 
 static const struct file_operations mfc_info_fops = {
-	.open = mfc_info_open,
+	.open = __mfc_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static const struct file_operations debug_info_fops = {
-	.open = mfc_debug_info_open,
+	.open = __mfc_debug_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-void s5p_mfc_init_debugfs(struct s5p_mfc_dev *dev)
+void mfc_init_debugfs(struct mfc_dev *dev)
 {
-	struct s5p_mfc_debugfs *debugfs = &dev->debugfs;
+	struct mfc_debugfs *debugfs = &dev->debugfs;
 
 	debugfs->root = debugfs_create_dir("mfc", NULL);
 	if (!debugfs->root) {

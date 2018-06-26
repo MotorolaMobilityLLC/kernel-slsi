@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_inst.h
+ * drivers/media/platform/exynos/mfc/mfc_inst.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,14 +15,14 @@
 
 #include "mfc_common.h"
 
-int s5p_mfc_open_inst(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_close_inst(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_abort_inst(struct s5p_mfc_ctx *ctx);
+int mfc_open_inst(struct mfc_ctx *ctx);
+int mfc_close_inst(struct mfc_ctx *ctx);
+int mfc_abort_inst(struct mfc_ctx *ctx);
 
-int s5p_mfc_init_decode(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame);
+int mfc_init_decode(struct mfc_ctx *ctx);
+int mfc_decode_one_frame(struct mfc_ctx *ctx, int last_frame);
 
-int s5p_mfc_init_encode(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_encode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame);
+int mfc_init_encode(struct mfc_ctx *ctx);
+int mfc_encode_one_frame(struct mfc_ctx *ctx, int last_frame);
 
 #endif /* __MFC_INST_H  */

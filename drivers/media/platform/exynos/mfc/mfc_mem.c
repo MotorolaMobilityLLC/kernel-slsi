@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_mem.c
+ * drivers/media/platform/exynos/mfc/mfc_mem.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -12,28 +12,28 @@
 
 #include "mfc_mem.h"
 
-struct vb2_mem_ops *s5p_mfc_mem_ops(void)
+struct vb2_mem_ops *mfc_mem_ops(void)
 {
 	return (struct vb2_mem_ops *)&vb2_dma_sg_memops;
 }
 
-void s5p_mfc_mem_clean(struct s5p_mfc_dev *dev,
-			struct s5p_mfc_special_buf *special_buf,
+void mfc_mem_clean(struct mfc_dev *dev,
+			struct mfc_special_buf *special_buf,
 			off_t offset, size_t size)
 {
 	__dma_map_area(special_buf->vaddr + offset, size, DMA_TO_DEVICE);
 	return;
 }
 
-void s5p_mfc_mem_invalidate(struct s5p_mfc_dev *dev,
-			struct s5p_mfc_special_buf *special_buf,
+void mfc_mem_invalidate(struct mfc_dev *dev,
+			struct mfc_special_buf *special_buf,
 			off_t offset, size_t size)
 {
 	__dma_map_area(special_buf->vaddr + offset, size, DMA_FROM_DEVICE);
 	return;
 }
 
-int s5p_mfc_mem_get_user_shared_handle(struct s5p_mfc_ctx *ctx,
+int mfc_mem_get_user_shared_handle(struct mfc_ctx *ctx,
 	struct mfc_user_shared_handle *handle)
 {
 	int ret = 0;
@@ -64,7 +64,7 @@ import_dma_fail:
 	return ret;
 }
 
-void s5p_mfc_mem_cleanup_user_shared_handle(struct s5p_mfc_ctx *ctx,
+void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle)
 {
 	if (handle->vaddr)
@@ -77,10 +77,10 @@ void s5p_mfc_mem_cleanup_user_shared_handle(struct s5p_mfc_ctx *ctx,
 	handle->fd = -1;
 }
 
-int s5p_mfc_mem_ion_alloc(struct s5p_mfc_dev *dev,
-		struct s5p_mfc_special_buf *special_buf)
+int mfc_mem_ion_alloc(struct mfc_dev *dev,
+		struct mfc_special_buf *special_buf)
 {
-	struct s5p_mfc_ctx *ctx = dev->ctx[dev->curr_ctx];
+	struct mfc_ctx *ctx = dev->ctx[dev->curr_ctx];
 	int flag;
 	const char *heapname;
 
@@ -169,8 +169,8 @@ err_ion_alloc:
 	return -ENOMEM;
 }
 
-void s5p_mfc_mem_ion_free(struct s5p_mfc_dev *dev,
-		struct s5p_mfc_special_buf *special_buf)
+void mfc_mem_ion_free(struct mfc_dev *dev,
+		struct mfc_special_buf *special_buf)
 {
 	if (special_buf->vaddr)
 		dma_buf_vunmap(special_buf->dma_buf, special_buf->vaddr);
@@ -191,7 +191,7 @@ void s5p_mfc_mem_ion_free(struct s5p_mfc_dev *dev,
 	special_buf->vaddr = NULL;
 }
 
-void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf, int plane)
+void mfc_bufcon_put_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf, int plane)
 {
 	int i;
 
@@ -212,11 +212,11 @@ void s5p_mfc_bufcon_put_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_b
 	}
 }
 
-int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_buf,
+int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					struct dma_buf *bufcon_dmabuf, int plane)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_raw_info *raw = &ctx->raw_buf;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_raw_info *raw = &ctx->raw_buf;
 	int i, j = 0;
 	u32 mask;
 
@@ -269,6 +269,6 @@ int s5p_mfc_bufcon_get_daddr(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf *mfc_bu
 	return 0;
 
 err_get_daddr:
-	s5p_mfc_bufcon_put_daddr(ctx, mfc_buf, plane);
+	mfc_bufcon_put_daddr(ctx, mfc_buf, plane);
 	return -1;
 }

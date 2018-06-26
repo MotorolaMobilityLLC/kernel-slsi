@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_qos.h
+ * drivers/media/platform/exynos/mfc/mfc_qos.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -35,21 +35,21 @@
 #define MFC_QOS_WEIGHT_NUM_OF_TILE	75
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-void s5p_mfc_perf_boost_enable(struct s5p_mfc_dev *dev);
-void s5p_mfc_perf_boost_disable(struct s5p_mfc_dev *dev);
-void s5p_mfc_qos_on(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_qos_off(struct s5p_mfc_ctx *ctx);
+void mfc_perf_boost_enable(struct mfc_dev *dev);
+void mfc_perf_boost_disable(struct mfc_dev *dev);
+void mfc_qos_on(struct mfc_ctx *ctx);
+void mfc_qos_off(struct mfc_ctx *ctx);
 #else
-#define s5p_mfc_perf_boost_enable(dev)	do {} while (0)
-#define s5p_mfc_perf_boost_disable(dev)	do {} while (0)
-#define s5p_mfc_qos_on(ctx)		do {} while (0)
-#define s5p_mfc_qos_off(ctx)		do {} while (0)
+#define mfc_perf_boost_enable(dev)	do {} while (0)
+#define mfc_perf_boost_disable(dev)	do {} while (0)
+#define mfc_qos_on(ctx)		do {} while (0)
+#define mfc_qos_off(ctx)		do {} while (0)
 #endif
 
-void s5p_mfc_qos_update_framerate(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_qos_update_last_framerate(struct s5p_mfc_ctx *ctx, u64 timestamp);
+void mfc_qos_update_framerate(struct mfc_ctx *ctx);
+void mfc_qos_update_last_framerate(struct mfc_ctx *ctx, u64 timestamp);
 
-static inline void s5p_mfc_qos_reset_framerate(struct s5p_mfc_ctx *ctx)
+static inline void mfc_qos_reset_framerate(struct mfc_ctx *ctx)
 {
 	if (ctx->type == MFCINST_DECODER)
 		ctx->framerate = DEC_DEFAULT_FPS;
@@ -57,17 +57,17 @@ static inline void s5p_mfc_qos_reset_framerate(struct s5p_mfc_ctx *ctx)
 		ctx->framerate = ENC_DEFAULT_FPS;
 }
 
-static inline void s5p_mfc_qos_reset_last_framerate(struct s5p_mfc_ctx *ctx)
+static inline void mfc_qos_reset_last_framerate(struct mfc_ctx *ctx)
 {
 	ctx->last_framerate = 0;
 }
 
-static inline void s5p_mfc_qos_set_framerate(struct s5p_mfc_ctx *ctx, int rate)
+static inline void mfc_qos_set_framerate(struct mfc_ctx *ctx, int rate)
 {
 	ctx->framerate = rate;
 }
 
-static inline int s5p_mfc_qos_get_framerate(struct s5p_mfc_ctx *ctx)
+static inline int mfc_qos_get_framerate(struct mfc_ctx *ctx)
 {
 	return ctx->framerate;
 }

@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_pm.c
+ * drivers/media/platform/exynos/mfc/mfc_pm.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -19,7 +19,7 @@
 #include "mfc_cal.h"
 #include "mfc_reg.h"
 
-void s5p_mfc_pm_init(struct s5p_mfc_dev *dev)
+void mfc_pm_init(struct mfc_dev *dev)
 {
 	spin_lock_init(&dev->pm.clklock);
 	atomic_set(&dev->pm.pwr_ref, 0);
@@ -31,12 +31,12 @@ void s5p_mfc_pm_init(struct s5p_mfc_dev *dev)
 	pm_runtime_enable(dev->pm.device);
 }
 
-void s5p_mfc_pm_final(struct s5p_mfc_dev *dev)
+void mfc_pm_final(struct mfc_dev *dev)
 {
 	pm_runtime_disable(dev->pm.device);
 }
 
-int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
+int mfc_pm_clock_on(struct mfc_dev *dev)
 {
 	int ret = 0;
 	int state;
@@ -54,7 +54,7 @@ int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
 	dev->pm.clock_on_steps |= 0x1 << 1;
 
 	if (dev->pm.base_type != MFCBUF_INVALID)
-		s5p_mfc_set_risc_base_addr(dev, dev->pm.base_type);
+		mfc_set_risc_base_addr(dev, dev->pm.base_type);
 
 	dev->pm.clock_on_steps |= 0x1 << 2;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
@@ -89,18 +89,18 @@ int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev)
 }
 
 /* Use only in functions that first instance is guaranteed, like mfc_init_hw() */
-int s5p_mfc_pm_clock_on_with_base(struct s5p_mfc_dev *dev,
+int mfc_pm_clock_on_with_base(struct mfc_dev *dev,
 				enum mfc_buf_usage_type buf_type)
 {
 	int ret;
 	dev->pm.base_type = buf_type;
-	ret = s5p_mfc_pm_clock_on(dev);
+	ret = mfc_pm_clock_on(dev);
 	dev->pm.base_type = MFCBUF_INVALID;
 
 	return ret;
 }
 
-void s5p_mfc_pm_clock_off(struct s5p_mfc_dev *dev)
+void mfc_pm_clock_off(struct mfc_dev *dev)
 {
 	int state;
 
@@ -147,7 +147,7 @@ void s5p_mfc_pm_clock_off(struct s5p_mfc_dev *dev)
 	MFC_TRACE_DEV("** clock_off end: ref state(%d)\n", state);
 }
 
-int s5p_mfc_pm_power_on(struct s5p_mfc_dev *dev)
+int mfc_pm_power_on(struct mfc_dev *dev)
 {
 	int ret;
 
@@ -188,7 +188,7 @@ err_power_on:
 	return ret;
 }
 
-int s5p_mfc_pm_power_off(struct s5p_mfc_dev *dev)
+int mfc_pm_power_off(struct mfc_dev *dev)
 {
 	int ret;
 

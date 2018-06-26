@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_ctrl.h
+ * drivers/media/platform/exynos/mfc/mfc_ctrl.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,10 +15,10 @@
 
 #include "mfc_common.h"
 
-int s5p_mfc_init_hw(struct s5p_mfc_dev *dev);
-void s5p_mfc_deinit_hw(struct s5p_mfc_dev *dev);
+int mfc_init_hw(struct mfc_dev *dev);
+void mfc_deinit_hw(struct mfc_dev *dev);
 
-int s5p_mfc_sleep(struct s5p_mfc_dev *dev);
-int s5p_mfc_wakeup(struct s5p_mfc_dev *dev);
+int mfc_sleep(struct mfc_dev *dev);
+int mfc_wakeup(struct mfc_dev *dev);
 
 #endif /* __MFC_CTRL_H */

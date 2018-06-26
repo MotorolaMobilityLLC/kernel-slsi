@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_enc_param.h
+ * drivers/media/platform/exynos/mfc/mfc_enc_param.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,13 +15,13 @@
 
 #include "mfc_common.h"
 
-void s5p_mfc_set_slice_mode(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_set_enc_params_vp9(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_set_enc_params_bpg(struct s5p_mfc_ctx *ctx);
+void mfc_set_slice_mode(struct mfc_ctx *ctx);
+void mfc_set_enc_params_h264(struct mfc_ctx *ctx);
+void mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx);
+void mfc_set_enc_params_h263(struct mfc_ctx *ctx);
+void mfc_set_enc_params_vp8(struct mfc_ctx *ctx);
+void mfc_set_enc_params_vp9(struct mfc_ctx *ctx);
+void mfc_set_enc_params_hevc(struct mfc_ctx *ctx);
+void mfc_set_enc_params_bpg(struct mfc_ctx *ctx);
 
 #endif /* __MFC_ENC_PARAM_H */

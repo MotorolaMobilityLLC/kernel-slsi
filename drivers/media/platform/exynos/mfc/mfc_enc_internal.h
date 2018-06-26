@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_enc_internal.h
+ * drivers/media/platform/exynos/mfc/mfc_enc_internal.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -24,7 +24,7 @@
  * 2       4       6       8       0
  * |B......BG......GR......RA......A|
  */
-struct s5p_mfc_fmt enc_formats[] = {
+struct mfc_fmt enc_formats[] = {
 	{
 		.name = "4:2:0 3 Planes Y/Cb/Cr",
 		.fourcc = V4L2_PIX_FMT_YUV420M,
@@ -196,7 +196,7 @@ struct s5p_mfc_fmt enc_formats[] = {
 	{
 		.name = "H264 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H264,
-		.codec_mode = S5P_FIMV_CODEC_H264_ENC,
+		.codec_mode = MFC_REG_CODEC_H264_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -204,7 +204,7 @@ struct s5p_mfc_fmt enc_formats[] = {
 	{
 		.name = "MPEG4 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_MPEG4,
-		.codec_mode = S5P_FIMV_CODEC_MPEG4_ENC,
+		.codec_mode = MFC_REG_CODEC_MPEG4_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -212,7 +212,7 @@ struct s5p_mfc_fmt enc_formats[] = {
 	{
 		.name = "H263 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H263,
-		.codec_mode = S5P_FIMV_CODEC_H263_ENC,
+		.codec_mode = MFC_REG_CODEC_H263_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -220,7 +220,7 @@ struct s5p_mfc_fmt enc_formats[] = {
 	{
 		.name = "VP8 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_VP8,
-		.codec_mode = S5P_FIMV_CODEC_VP8_ENC,
+		.codec_mode = MFC_REG_CODEC_VP8_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -228,7 +228,7 @@ struct s5p_mfc_fmt enc_formats[] = {
 	{
 		.name = "VP9 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_VP9,
-		.codec_mode = S5P_FIMV_CODEC_VP9_ENC,
+		.codec_mode = MFC_REG_CODEC_VP9_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -236,7 +236,7 @@ struct s5p_mfc_fmt enc_formats[] = {
 	{
 		.name = "HEVC Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_HEVC,
-		.codec_mode = S5P_FIMV_CODEC_HEVC_ENC,
+		.codec_mode = MFC_REG_CODEC_HEVC_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,
@@ -244,7 +244,7 @@ struct s5p_mfc_fmt enc_formats[] = {
 	{
 		.name = "BPG Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_BPG,
-		.codec_mode = S5P_FIMV_CODEC_BPG_ENC,
+		.codec_mode = MFC_REG_CODEC_BPG_ENC,
 		.type = MFC_FMT_STREAM,
 		.num_planes = 1,
 		.mem_planes = 1,

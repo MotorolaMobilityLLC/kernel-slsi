@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_dec_vb2_ops.c
+ * drivers/media/platform/exynos/mfc/mfc_dec_vb2_ops.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -22,14 +22,14 @@
 #include "mfc_buf.h"
 #include "mfc_mem.h"
 
-static int s5p_mfc_dec_queue_setup(struct vb2_queue *vq,
+static int mfc_dec_queue_setup(struct vb2_queue *vq,
 				unsigned int *buf_count, unsigned int *plane_count,
 				unsigned int psize[], struct device *alloc_devs[])
 {
-	struct s5p_mfc_ctx *ctx;
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_raw_info *raw;
+	struct mfc_ctx *ctx;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
+	struct mfc_raw_info *raw;
 	int i;
 
 	mfc_debug_enter();
@@ -109,10 +109,10 @@ static int s5p_mfc_dec_queue_setup(struct vb2_queue *vq,
 	return 0;
 }
 
-static void s5p_mfc_dec_unlock(struct vb2_queue *q)
+static void mfc_dec_unlock(struct vb2_queue *q)
 {
-	struct s5p_mfc_ctx *ctx = q->drv_priv;
-	struct s5p_mfc_dev *dev;
+	struct mfc_ctx *ctx = q->drv_priv;
+	struct mfc_dev *dev;
 
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -127,10 +127,10 @@ static void s5p_mfc_dec_unlock(struct vb2_queue *q)
 	mutex_unlock(&dev->mfc_mutex);
 }
 
-static void s5p_mfc_dec_lock(struct vb2_queue *q)
+static void mfc_dec_lock(struct vb2_queue *q)
 {
-	struct s5p_mfc_ctx *ctx = q->drv_priv;
-	struct s5p_mfc_dev *dev;
+	struct mfc_ctx *ctx = q->drv_priv;
+	struct mfc_dev *dev;
 
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -145,13 +145,13 @@ static void s5p_mfc_dec_lock(struct vb2_queue *q)
 	mutex_lock(&dev->mfc_mutex);
 }
 
-static int s5p_mfc_dec_buf_init(struct vb2_buffer *vb)
+static int mfc_dec_buf_init(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct s5p_mfc_ctx *ctx = vq->drv_priv;
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
+	struct mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
+	struct mfc_buf *buf = vb_to_mfc_buf(vb);
 	dma_addr_t start_raw;
 	int i, ret;
 
@@ -172,11 +172,11 @@ static int s5p_mfc_dec_buf_init(struct vb2_buffer *vb)
 	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		ret = s5p_mfc_check_vb_with_fmt(ctx->dst_fmt, vb);
+		ret = mfc_check_vb_with_fmt(ctx->dst_fmt, vb);
 		if (ret < 0)
 			return ret;
 
-		start_raw = s5p_mfc_mem_get_daddr_vb(vb, 0);
+		start_raw = mfc_mem_get_daddr_vb(vb, 0);
 		if (ctx->dst_fmt->fourcc == V4L2_PIX_FMT_NV12N) {
 			buf->addr[0][0] = start_raw;
 			buf->addr[0][1] = NV12N_CBCR_BASE(start_raw,
@@ -197,24 +197,24 @@ static int s5p_mfc_dec_buf_init(struct vb2_buffer *vb)
 							ctx->img_height);
 		} else {
 			for (i = 0; i < ctx->dst_fmt->mem_planes; i++)
-				buf->addr[0][i] = s5p_mfc_mem_get_daddr_vb(vb, i);
+				buf->addr[0][i] = mfc_mem_get_daddr_vb(vb, i);
 		}
 
 		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_DST,
 					vb->index) < 0)
 			mfc_err_ctx("failed in init_buf_ctrls\n");
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		ret = s5p_mfc_check_vb_with_fmt(ctx->src_fmt, vb);
+		ret = mfc_check_vb_with_fmt(ctx->src_fmt, vb);
 		if (ret < 0)
 			return ret;
 
-		buf->addr[0][0] = s5p_mfc_mem_get_daddr_vb(vb, 0);
+		buf->addr[0][0] = mfc_mem_get_daddr_vb(vb, 0);
 
 		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_SRC,
 					vb->index) < 0)
 			mfc_err_ctx("failed in init_buf_ctrls\n");
 	} else {
-		mfc_err_ctx("s5p_mfc_dec_buf_init: unknown queue type\n");
+		mfc_err_ctx("mfc_dec_buf_init: unknown queue type\n");
 		return -EINVAL;
 	}
 
@@ -223,12 +223,12 @@ static int s5p_mfc_dec_buf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int s5p_mfc_dec_buf_prepare(struct vb2_buffer *vb)
+static int mfc_dec_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct s5p_mfc_ctx *ctx = vq->drv_priv;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_raw_info *raw;
+	struct mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_dec *dec;
+	struct mfc_raw_info *raw;
 	unsigned int index = vb->index;
 	size_t buf_size;
 	int i;
@@ -284,10 +284,10 @@ static int s5p_mfc_dec_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static void s5p_mfc_dec_buf_finish(struct vb2_buffer *vb)
+static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct s5p_mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_ctx *ctx = vq->drv_priv;
 	unsigned int index = vb->index;
 
 	if (!ctx) {
@@ -304,10 +304,10 @@ static void s5p_mfc_dec_buf_finish(struct vb2_buffer *vb)
 	}
 }
 
-static void s5p_mfc_dec_buf_cleanup(struct vb2_buffer *vb)
+static void mfc_dec_buf_cleanup(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct s5p_mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_ctx *ctx = vq->drv_priv;
 	unsigned int index = vb->index;
 
 	mfc_debug_enter();
@@ -325,16 +325,16 @@ static void s5p_mfc_dec_buf_cleanup(struct vb2_buffer *vb)
 					MFC_CTRL_TYPE_SRC, index) < 0)
 			mfc_err_ctx("failed in cleanup_buf_ctrls\n");
 	} else {
-		mfc_err_ctx("s5p_mfc_dec_buf_cleanup: unknown queue type\n");
+		mfc_err_ctx("mfc_dec_buf_cleanup: unknown queue type\n");
 	}
 
 	mfc_debug_leave();
 }
 
-static int s5p_mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
+static int mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 {
-	struct s5p_mfc_ctx *ctx = q->drv_priv;
-	struct s5p_mfc_dev *dev;
+	struct mfc_ctx *ctx = q->drv_priv;
+	struct mfc_dev *dev;
 
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -348,23 +348,23 @@ static int s5p_mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 	}
 
 	if (ctx->state == MFCINST_FINISHING)
-		s5p_mfc_change_state(ctx, MFCINST_RUNNING);
+		mfc_change_state(ctx, MFCINST_RUNNING);
 
 	/* If context is ready then dev = work->data;schedule it to run */
-	if (s5p_mfc_dec_ctx_ready(ctx)) {
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
+	if (mfc_dec_ctx_ready(ctx)) {
+		mfc_set_bit(ctx->num, &dev->work_bits);
 	}
 
-	s5p_mfc_try_run(dev);
+	mfc_try_run(dev);
 
 	return 0;
 }
 
-static void mfc_dec_src_stop_streaming(struct s5p_mfc_ctx *ctx)
+static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_buf *src_mb;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
+	struct mfc_buf *src_mb;
 	int index, csd, condition = 0;
 	int ret = 0;
 
@@ -381,43 +381,43 @@ static void mfc_dec_src_stop_streaming(struct s5p_mfc_ctx *ctx)
 	}
 
 	while (1) {
-		csd = s5p_mfc_peek_buf_csd(&ctx->buf_queue_lock, &ctx->src_buf_queue);
+		csd = mfc_peek_buf_csd(&ctx->buf_queue_lock, &ctx->src_buf_queue);
 
 		if (csd == 1) {
-			s5p_mfc_clean_ctx_int_flags(ctx);
+			mfc_clean_ctx_int_flags(ctx);
 			if (need_to_special_parsing(ctx)) {
-				s5p_mfc_change_state(ctx, MFCINST_SPECIAL_PARSING);
-				condition = S5P_FIMV_R2H_CMD_SEQ_DONE_RET;
+				mfc_change_state(ctx, MFCINST_SPECIAL_PARSING);
+				condition = MFC_REG_R2H_CMD_SEQ_DONE_RET;
 				mfc_info_ctx("try to special parsing! (before NAL_START)\n");
 			} else if (need_to_special_parsing_nal(ctx)) {
-				s5p_mfc_change_state(ctx, MFCINST_SPECIAL_PARSING_NAL);
-				condition = S5P_FIMV_R2H_CMD_FRAME_DONE_RET;
+				mfc_change_state(ctx, MFCINST_SPECIAL_PARSING_NAL);
+				condition = MFC_REG_R2H_CMD_FRAME_DONE_RET;
 				mfc_info_ctx("try to special parsing! (after NAL_START)\n");
 			} else {
 				mfc_info_ctx("can't parsing CSD!, state = %d\n", ctx->state);
 			}
 
 			if (condition) {
-				s5p_mfc_set_bit(ctx->num, &dev->work_bits);
+				mfc_set_bit(ctx->num, &dev->work_bits);
 
-				ret = s5p_mfc_just_run(dev, ctx->num);
+				ret = mfc_just_run(dev, ctx->num);
 				if (ret) {
 					mfc_err_ctx("Failed to run MFC\n");
 				} else {
-					if (s5p_mfc_wait_for_done_ctx(ctx, condition))
+					if (mfc_wait_for_done_ctx(ctx, condition))
 						mfc_err_ctx("special parsing time out\n");
 				}
 			}
 		}
 
-		src_mb = s5p_mfc_get_del_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
+		src_mb = mfc_get_del_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, MFC_BUF_NO_TOUCH_USED);
 		if (!src_mb)
 			break;
 
 		index = src_mb->vb.vb2_buf.index;
 
 		if (ctx->is_drm)
-			s5p_mfc_stream_unprotect(ctx, src_mb, index);
+			mfc_stream_unprotect(ctx, src_mb, index);
 		vb2_set_plane_payload(&src_mb->vb.vb2_buf, 0, 0);
 		vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
@@ -426,7 +426,7 @@ static void mfc_dec_src_stop_streaming(struct s5p_mfc_ctx *ctx)
 	dec->remained_size = 0;
 	ctx->check_dump = 0;
 
-	s5p_mfc_init_queue(&ctx->src_buf_queue);
+	mfc_init_queue(&ctx->src_buf_queue);
 
 	index = 0;
 	while (index < MFC_MAX_BUFFERS) {
@@ -438,9 +438,9 @@ static void mfc_dec_src_stop_streaming(struct s5p_mfc_ctx *ctx)
 	}
 }
 
-static void mfc_dec_dst_stop_streaming(struct s5p_mfc_ctx *ctx)
+static void __mfc_dec_dst_stop_streaming(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dec *dec;
+	struct mfc_dec *dec;
 	int index = 0;
 
 	dec = ctx->dec_priv;
@@ -449,21 +449,21 @@ static void mfc_dec_dst_stop_streaming(struct s5p_mfc_ctx *ctx)
 		return;
 	}
 
-	s5p_mfc_cleanup_assigned_fd(ctx);
-	s5p_mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->ref_buf_queue);
+	mfc_cleanup_assigned_fd(ctx);
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->ref_buf_queue);
 
 	dec->dynamic_used = 0;
 	dec->err_reuse_flag = 0;
 	dec->dec_only_release_flag = 0;
 
-	s5p_mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
 
 	ctx->is_dpb_realloc = 0;
 	dec->available_dpb = 0;
 
 	dec->y_addr_for_pb = 0;
 
-	s5p_mfc_cleanup_assigned_dpb(ctx);
+	mfc_cleanup_assigned_dpb(ctx);
 
 	while (index < MFC_MAX_BUFFERS) {
 		index = find_next_bit(&ctx->dst_ctrls_avail,
@@ -480,10 +480,10 @@ static void mfc_dec_dst_stop_streaming(struct s5p_mfc_ctx *ctx)
 	}
 }
 
-static void s5p_mfc_dec_stop_streaming(struct vb2_queue *q)
+static void mfc_dec_stop_streaming(struct vb2_queue *q)
 {
-	struct s5p_mfc_ctx *ctx = q->drv_priv;
-	struct s5p_mfc_dev *dev;
+	struct mfc_ctx *ctx = q->drv_priv;
+	struct mfc_dev *dev;
 	int ret = 0;
 	int prev_state;
 
@@ -504,61 +504,61 @@ static void s5p_mfc_dec_stop_streaming(struct vb2_queue *q)
 
 	MFC_TRACE_CTX_HWLOCK("**DEC streamoff(type:%d)\n", q->type);
 	/* If a H/W operation is in progress, wait for it complete */
-	ret = s5p_mfc_get_hwlock_ctx(ctx);
+	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
 		mfc_err_ctx("Failed to get hwlock\n");
 		return;
 	}
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		mfc_dec_dst_stop_streaming(ctx);
+		__mfc_dec_dst_stop_streaming(ctx);
 	else if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-		mfc_dec_src_stop_streaming(ctx);
+		__mfc_dec_src_stop_streaming(ctx);
 
 	if (ctx->state == MFCINST_FINISHING)
-		s5p_mfc_change_state(ctx, MFCINST_RUNNING);
+		mfc_change_state(ctx, MFCINST_RUNNING);
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE && need_to_dpb_flush(ctx)) {
 		prev_state = ctx->state;
-		s5p_mfc_change_state(ctx, MFCINST_DPB_FLUSHING);
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-		s5p_mfc_clean_ctx_int_flags(ctx);
+		mfc_change_state(ctx, MFCINST_DPB_FLUSHING);
+		mfc_set_bit(ctx->num, &dev->work_bits);
+		mfc_clean_ctx_int_flags(ctx);
 		mfc_info_ctx("try to DPB flush\n");
-		ret = s5p_mfc_just_run(dev, ctx->num);
+		ret = mfc_just_run(dev, ctx->num);
 		if (ret) {
 			mfc_err_ctx("Failed to run MFC\n");
-			s5p_mfc_release_hwlock_ctx(ctx);
-			s5p_mfc_cleanup_work_bit_and_try_run(ctx);
+			mfc_release_hwlock_ctx(ctx);
+			mfc_cleanup_work_bit_and_try_run(ctx);
 			return;
 		}
 
-		if (s5p_mfc_wait_for_done_ctx(ctx, S5P_FIMV_R2H_CMD_DPB_FLUSH_RET)) {
+		if (mfc_wait_for_done_ctx(ctx, MFC_REG_R2H_CMD_DPB_FLUSH_RET)) {
 			mfc_err_ctx("time out during DPB flush\n");
 			dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_DPB_FLUSH);
 			call_dop(dev, dump_and_stop_always, dev);
 		}
 
-		s5p_mfc_change_state(ctx, prev_state);
+		mfc_change_state(ctx, prev_state);
 	}
 
 	mfc_debug(2, "buffer cleanup & flush is done in stop_streaming, type : %d\n", q->type);
 
-	s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
-	s5p_mfc_release_hwlock_ctx(ctx);
+	mfc_clear_bit(ctx->num, &dev->work_bits);
+	mfc_release_hwlock_ctx(ctx);
 
-	if (s5p_mfc_dec_ctx_ready(ctx))
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-	if (s5p_mfc_is_work_to_do(dev))
+	if (mfc_dec_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
+	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 }
 
-static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
+static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct s5p_mfc_ctx *ctx = vq->drv_priv;
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_buf *buf = vb_to_mfc_buf(vb);
+	struct mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
+	struct mfc_buf *buf = vb_to_mfc_buf(vb);
 	int i;
 	unsigned char *stream_vir = NULL;
 
@@ -589,7 +589,7 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 
 		buf->vir_addr = stream_vir;
 
-		s5p_mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
+		mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
 
 		MFC_TRACE_CTX("Q src[%d] fd: %d, %#llx\n",
 				vb->index, vb->planes[0].m.fd, buf->addr[0][0]);
@@ -597,10 +597,10 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 		for (i = 0; i < ctx->dst_fmt->mem_planes; i++)
 			mfc_debug(2, "[BUFINFO] ctx[%d] add dst index: %d, addr[%d]: 0x%08llx\n",
 					ctx->num, vb->index, i, buf->addr[0][i]);
-		s5p_mfc_store_dpb(ctx, vb);
+		mfc_store_dpb(ctx, vb);
 
 		if ((dec->dst_memtype == V4L2_MEMORY_USERPTR || dec->dst_memtype == V4L2_MEMORY_DMABUF) &&
-				s5p_mfc_is_queue_count_same(&ctx->buf_queue_lock,
+				mfc_is_queue_count_same(&ctx->buf_queue_lock,
 					&ctx->dst_buf_queue, dec->total_dpb_count))
 			ctx->capture_state = QUEUE_BUFS_MMAPED;
 
@@ -611,23 +611,23 @@ static void s5p_mfc_dec_buf_queue(struct vb2_buffer *vb)
 		mfc_err_ctx("Unsupported buffer type (%d)\n", vq->type);
 	}
 
-	if (s5p_mfc_dec_ctx_ready(ctx)) {
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-		s5p_mfc_try_run(dev);
+	if (mfc_dec_ctx_ready(ctx)) {
+		mfc_set_bit(ctx->num, &dev->work_bits);
+		mfc_try_run(dev);
 	}
 
 	mfc_debug_leave();
 }
 
-struct vb2_ops s5p_mfc_dec_qops = {
-	.queue_setup		= s5p_mfc_dec_queue_setup,
-	.wait_prepare		= s5p_mfc_dec_unlock,
-	.wait_finish		= s5p_mfc_dec_lock,
-	.buf_init		= s5p_mfc_dec_buf_init,
-	.buf_prepare		= s5p_mfc_dec_buf_prepare,
-	.buf_finish		= s5p_mfc_dec_buf_finish,
-	.buf_cleanup		= s5p_mfc_dec_buf_cleanup,
-	.start_streaming	= s5p_mfc_dec_start_streaming,
-	.stop_streaming		= s5p_mfc_dec_stop_streaming,
-	.buf_queue		= s5p_mfc_dec_buf_queue,
+struct vb2_ops mfc_dec_qops = {
+	.queue_setup		= mfc_dec_queue_setup,
+	.wait_prepare		= mfc_dec_unlock,
+	.wait_finish		= mfc_dec_lock,
+	.buf_init		= mfc_dec_buf_init,
+	.buf_prepare		= mfc_dec_buf_prepare,
+	.buf_finish		= mfc_dec_buf_finish,
+	.buf_cleanup		= mfc_dec_buf_cleanup,
+	.start_streaming	= mfc_dec_start_streaming,
+	.stop_streaming		= mfc_dec_stop_streaming,
+	.buf_queue		= mfc_dec_buf_queue,
 };

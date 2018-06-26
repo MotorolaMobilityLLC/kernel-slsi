@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_hwlock.c
+ * drivers/media/platform/exynos/mfc/mfc_hwlock.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -26,14 +26,14 @@
 #include "mfc_queue.h"
 #include "mfc_utils.h"
 
-static inline void mfc_print_hwlock(struct s5p_mfc_dev *dev)
+static inline void __mfc_print_hwlock(struct mfc_dev *dev)
 {
 	mfc_debug(2, "dev.hwlock.dev = 0x%lx, bits = 0x%lx, owned_by_irq = %d, wl_count = %d, transfer_owner = %d\n",
 		dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 		dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 }
 
-void s5p_mfc_init_hwlock(struct s5p_mfc_dev *dev)
+void mfc_init_hwlock(struct mfc_dev *dev)
 {
 	unsigned long flags;
 
@@ -55,9 +55,9 @@ void s5p_mfc_init_hwlock(struct s5p_mfc_dev *dev)
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 }
 
-static int mfc_remove_listable_wq_dev(struct s5p_mfc_dev *dev)
+static int __mfc_remove_listable_wq_dev(struct mfc_dev *dev)
 {
-	struct s5p_mfc_listable_wq *listable_wq;
+	struct mfc_listable_wq *listable_wq;
 	unsigned long flags;
 	int ret = -1;
 
@@ -67,7 +67,7 @@ static int mfc_remove_listable_wq_dev(struct s5p_mfc_dev *dev)
 	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 
 	list_for_each_entry(listable_wq, &dev->hwlock.waiting_list, list) {
 		if (!listable_wq->dev)
@@ -82,16 +82,16 @@ static int mfc_remove_listable_wq_dev(struct s5p_mfc_dev *dev)
 		break;
 	}
 
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
 	return ret;
 }
 
-static int mfc_remove_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
+static int __mfc_remove_listable_wq_ctx(struct mfc_ctx *curr_ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_listable_wq *listable_wq;
+	struct mfc_dev *dev;
+	struct mfc_listable_wq *listable_wq;
 	unsigned long flags;
 	int ret = -1;
 
@@ -107,7 +107,7 @@ static int mfc_remove_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
 	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 
 	list_for_each_entry(listable_wq, &dev->hwlock.waiting_list, list) {
 		if (!listable_wq->ctx)
@@ -123,7 +123,7 @@ static int mfc_remove_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
 		}
 	}
 
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
 	return ret;
@@ -134,7 +134,7 @@ static int mfc_remove_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
  *    0: succeeded to get hwlock
  * -EIO: failed to get hwlock (time out)
  */
-int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
+int mfc_get_hwlock_dev(struct mfc_dev *dev)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -147,7 +147,7 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
 	mutex_lock(&dev->hwlock_wq.wait_mutex);
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 
 	if (dev->shutdown) {
 		mfc_info_dev("Couldn't lock HW. Shutdown was called\n");
@@ -174,15 +174,15 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		dev->hwlock.transfer_owner = 0;
-		mfc_remove_listable_wq_dev(dev);
+		__mfc_remove_listable_wq_dev(dev);
 		if (ret == 0) {
 			mfc_err_dev("Woken up but timed out\n");
-			mfc_print_hwlock(dev);
+			__mfc_print_hwlock(dev);
 			mutex_unlock(&dev->hwlock_wq.wait_mutex);
 			return -EIO;
 		} else {
 			mfc_debug(2, "Woken up and got hwlock\n");
-			mfc_print_hwlock(dev);
+			__mfc_print_hwlock(dev);
 			mutex_unlock(&dev->hwlock_wq.wait_mutex);
 		}
 	} else {
@@ -195,14 +195,14 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
-		mfc_print_hwlock(dev);
+		__mfc_print_hwlock(dev);
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 		mutex_unlock(&dev->hwlock_wq.wait_mutex);
 	}
 
 	/* Stop NAL-Q after getting hwlock */
 	if (dev->nal_q_handle)
-		s5p_mfc_nal_q_stop_if_started(dev);
+		mfc_nal_q_stop_if_started(dev);
 
 	return 0;
 }
@@ -212,10 +212,10 @@ int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev)
  *    0: succeeded to get hwlock
  * -EIO: failed to get hwlock (time out)
  */
-int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
+int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_ctx *ctx = curr_ctx;
+	struct mfc_dev *dev;
+	struct mfc_ctx *ctx = curr_ctx;
 	int ret = 0;
 	unsigned long flags;
 
@@ -233,7 +233,7 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 	mutex_lock(&curr_ctx->hwlock_wq.wait_mutex);
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 
 	if (dev->shutdown) {
 		mfc_info_dev("Couldn't lock HW. Shutdown was called\n");
@@ -265,15 +265,15 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		dev->hwlock.transfer_owner = 0;
-		mfc_remove_listable_wq_ctx(curr_ctx);
+		__mfc_remove_listable_wq_ctx(curr_ctx);
 		if (ret == 0) {
 			mfc_err_dev("Woken up but timed out\n");
-			mfc_print_hwlock(dev);
+			__mfc_print_hwlock(dev);
 			mutex_unlock(&curr_ctx->hwlock_wq.wait_mutex);
 			return -EIO;
 		} else {
 			mfc_debug(2, "Woken up and got hwlock\n");
-			mfc_print_hwlock(dev);
+			__mfc_print_hwlock(dev);
 			mutex_unlock(&curr_ctx->hwlock_wq.wait_mutex);
 		}
 	} else {
@@ -287,14 +287,14 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
-		mfc_print_hwlock(dev);
+		__mfc_print_hwlock(dev);
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 		mutex_unlock(&curr_ctx->hwlock_wq.wait_mutex);
 	}
 
 	/* Stop NAL-Q after getting hwlock */
 	if (dev->nal_q_handle)
-		s5p_mfc_nal_q_stop_if_started(dev);
+		mfc_nal_q_stop_if_started(dev);
 
 	return 0;
 }
@@ -305,9 +305,9 @@ int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
  *  1: succeeded to release hwlock, hwlock is captured by another module
  * -1: error since device is waiting again.
  */
-int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev)
+int mfc_release_hwlock_dev(struct mfc_dev *dev)
 {
-	struct s5p_mfc_listable_wq *listable_wq;
+	struct mfc_listable_wq *listable_wq;
 	unsigned long flags;
 	int ret = -1;
 
@@ -317,7 +317,7 @@ int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev)
 	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 
 	dev->hwlock.dev = 0;
 	dev->hwlock.owned_by_irq = 0;
@@ -330,7 +330,7 @@ int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev)
 		ret = 0;
 	} else {
 		mfc_debug(2, "There is a waiting module\n");
-		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct s5p_mfc_listable_wq, list);
+		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct mfc_listable_wq, list);
 		list_del(&listable_wq->list);
 		dev->hwlock.wl_count--;
 
@@ -353,7 +353,7 @@ int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev)
 		ret = 1;
 	}
 
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 	return ret;
 }
@@ -365,11 +365,11 @@ int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev)
  * 0: succeeded to release hwlock
  * 1: succeeded to release hwlock, hwlock is captured by another module
  */
-static int mfc_release_hwlock_ctx_protected(struct s5p_mfc_ctx *curr_ctx)
+static int __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_ctx *ctx = curr_ctx;
-	struct s5p_mfc_listable_wq *listable_wq;
+	struct mfc_dev *dev;
+	struct mfc_ctx *ctx = curr_ctx;
+	struct mfc_listable_wq *listable_wq;
 	int ret = -1;
 
 	if (!curr_ctx) {
@@ -383,7 +383,7 @@ static int mfc_release_hwlock_ctx_protected(struct s5p_mfc_ctx *curr_ctx)
 		return -EINVAL;
 	}
 
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 	clear_bit(curr_ctx->num, &dev->hwlock.bits);
 	dev->hwlock.owned_by_irq = 0;
 
@@ -395,7 +395,7 @@ static int mfc_release_hwlock_ctx_protected(struct s5p_mfc_ctx *curr_ctx)
 		ret = 0;
 	} else {
 		mfc_debug(2, "There is a waiting module\n");
-		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct s5p_mfc_listable_wq, list);
+		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct mfc_listable_wq, list);
 		list_del(&listable_wq->list);
 		dev->hwlock.wl_count--;
 
@@ -418,7 +418,7 @@ static int mfc_release_hwlock_ctx_protected(struct s5p_mfc_ctx *curr_ctx)
 		ret = 1;
 	}
 
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 	return ret;
 }
 
@@ -427,9 +427,9 @@ static int mfc_release_hwlock_ctx_protected(struct s5p_mfc_ctx *curr_ctx)
  * 0: succeeded to release hwlock
  * 1: succeeded to release hwlock, hwlock is captured by another module
  */
-int s5p_mfc_release_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
+int mfc_release_hwlock_ctx(struct mfc_ctx *curr_ctx)
 {
-	struct s5p_mfc_dev *dev;
+	struct mfc_dev *dev;
 	unsigned long flags;
 	int ret = -1;
 
@@ -445,12 +445,12 @@ int s5p_mfc_release_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx)
 	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	ret = mfc_release_hwlock_ctx_protected(curr_ctx);
+	ret = __mfc_release_hwlock_ctx_protected(curr_ctx);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 	return ret;
 }
 
-static inline int mfc_yield_hwlock(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *curr_ctx)
+static inline int __mfc_yield_hwlock(struct mfc_dev *dev, struct mfc_ctx *curr_ctx)
 {
 	unsigned long flags;
 
@@ -466,12 +466,12 @@ static inline int mfc_yield_hwlock(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 
-	mfc_release_hwlock_ctx_protected(curr_ctx);
+	__mfc_release_hwlock_ctx_protected(curr_ctx);
 
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
 	/* Trigger again if other instance's work is waiting */
-	if (s5p_mfc_is_work_to_do(dev))
+	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 
 	return 0;
@@ -480,7 +480,7 @@ static inline int mfc_yield_hwlock(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *
 /*
  * Should be called with hwlock.lock
  */
-static inline void mfc_transfer_hwlock_ctx_protected(struct s5p_mfc_dev *dev, int curr_ctx_index)
+static inline void __mfc_transfer_hwlock_ctx_protected(struct mfc_dev *dev, int curr_ctx_index)
 {
 	dev->hwlock.dev = 0;
 	dev->hwlock.bits = 0;
@@ -494,11 +494,11 @@ static inline void mfc_transfer_hwlock_ctx_protected(struct s5p_mfc_dev *dev, in
  *   >=0: succeeded to get hwlock_bit for the context, index of new context
  *   -1, -EINVAL: failed to get hwlock_bit for a context
  */
-static int mfc_try_to_get_new_ctx_protected(struct s5p_mfc_dev *dev)
+static int __mfc_try_to_get_new_ctx_protected(struct mfc_dev *dev)
 {
 	int ret = 0;
 	int index;
-	struct s5p_mfc_ctx *new_ctx;
+	struct mfc_ctx *new_ctx;
 
 	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
@@ -523,7 +523,7 @@ static int mfc_try_to_get_new_ctx_protected(struct s5p_mfc_dev *dev)
 	}
 
 	/* Choose the context to run */
-	index = s5p_mfc_get_new_ctx(dev);
+	index = mfc_get_new_ctx(dev);
 	if (index < 0) {
 		/* This is perfectly ok, the scheduled ctx should wait
 		 * No contexts to run
@@ -551,7 +551,7 @@ static int mfc_try_to_get_new_ctx_protected(struct s5p_mfc_dev *dev)
  *
  * Try to run an operation on hardware
  */
-void s5p_mfc_try_run(struct s5p_mfc_dev *dev)
+void mfc_try_run(struct mfc_dev *dev)
 {
 	int new_ctx_index;
 	int ret;
@@ -563,33 +563,33 @@ void s5p_mfc_try_run(struct s5p_mfc_dev *dev)
 	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 
-	new_ctx_index = mfc_try_to_get_new_ctx_protected(dev);
+	new_ctx_index = __mfc_try_to_get_new_ctx_protected(dev);
 	if (new_ctx_index < 0) {
 		mfc_debug(2, "Failed to get new context to run\n");
-		mfc_print_hwlock(dev);
+		__mfc_print_hwlock(dev);
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 		return;
 	}
 
 	dev->hwlock.owned_by_irq = 1;
 
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-	ret = s5p_mfc_just_run(dev, new_ctx_index);
+	ret = mfc_just_run(dev, new_ctx_index);
 	if (ret)
-		mfc_yield_hwlock(dev, dev->ctx[new_ctx_index]);
+		__mfc_yield_hwlock(dev, dev->ctx[new_ctx_index]);
 }
 
 /*
  * Should be called without hwlock holding
  *
  */
-void s5p_mfc_cleanup_work_bit_and_try_run(struct s5p_mfc_ctx *curr_ctx)
+void mfc_cleanup_work_bit_and_try_run(struct mfc_ctx *curr_ctx)
 {
-	struct s5p_mfc_dev *dev;
+	struct mfc_dev *dev;
 
 	if (!curr_ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -602,23 +602,23 @@ void s5p_mfc_cleanup_work_bit_and_try_run(struct s5p_mfc_ctx *curr_ctx)
 		return;
 	}
 
-	s5p_mfc_clear_bit(curr_ctx->num, &dev->work_bits);
+	mfc_clear_bit(curr_ctx->num, &dev->work_bits);
 
-	s5p_mfc_try_run(dev);
+	mfc_try_run(dev);
 }
 
-void s5p_mfc_cache_flush(struct s5p_mfc_dev *dev, int is_drm)
+void mfc_cache_flush(struct mfc_dev *dev, int is_drm)
 {
-	s5p_mfc_cmd_cache_flush(dev);
-	if (s5p_mfc_wait_for_done_dev(dev, S5P_FIMV_R2H_CMD_CACHE_FLUSH_RET)) {
+	mfc_cmd_cache_flush(dev);
+	if (mfc_wait_for_done_dev(dev, MFC_REG_R2H_CMD_CACHE_FLUSH_RET)) {
 		mfc_err_dev("Failed to CACHE_FLUSH\n");
 		dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_CHACHE_FLUSH);
 		call_dop(dev, dump_and_stop_always, dev);
 	}
 
-	s5p_mfc_pm_clock_off(dev);
+	mfc_pm_clock_off(dev);
 	dev->curr_ctx_is_drm = is_drm;
-	s5p_mfc_pm_clock_on_with_base(dev, (is_drm ? MFCBUF_DRM : MFCBUF_NORMAL));
+	mfc_pm_clock_on_with_base(dev, (is_drm ? MFCBUF_DRM : MFCBUF_NORMAL));
 }
 
 /*
@@ -627,9 +627,9 @@ void s5p_mfc_cache_flush(struct s5p_mfc_dev *dev, int is_drm)
  *  1: NAL_START command should be handled
  * -1: Error
 */
-static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
+static int __mfc_nal_q_just_run(struct mfc_ctx *ctx, int need_cache_flush)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 	unsigned int ret = -1;
 
 	nal_queue_handle *nal_q_handle = dev->nal_q_handle;
@@ -641,50 +641,50 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 
 	switch (nal_q_handle->nal_q_state) {
 	case NAL_Q_STATE_CREATED:
-		if (s5p_mfc_nal_q_check_enable(dev) == 0) {
+		if (mfc_nal_q_check_enable(dev) == 0) {
 			/* NAL START */
 			ret = 1;
 		} else {
-			s5p_mfc_nal_q_clock_on(dev, nal_q_handle);
+			mfc_nal_q_clock_on(dev, nal_q_handle);
 
-			s5p_mfc_nal_q_init(dev, nal_q_handle);
+			mfc_nal_q_init(dev, nal_q_handle);
 
 			/* enable NAL QUEUE */
 			if (need_cache_flush)
-				s5p_mfc_cache_flush(dev, ctx->is_drm);
+				mfc_cache_flush(dev, ctx->is_drm);
 
 			mfc_info_ctx("[NALQ] start NAL QUEUE\n");
-			s5p_mfc_nal_q_start(dev, nal_q_handle);
+			mfc_nal_q_start(dev, nal_q_handle);
 
-			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
+			if (mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
 				mfc_debug(2, "[NALQ] Failed to enqueue input data\n");
-				s5p_mfc_nal_q_clock_off(dev, nal_q_handle);
+				mfc_nal_q_clock_off(dev, nal_q_handle);
 			}
 
-			s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
-			if ((s5p_mfc_ctx_ready(ctx) && !ctx->clear_work_bit) ||
+			mfc_clear_bit(ctx->num, &dev->work_bits);
+			if ((mfc_ctx_ready(ctx) && !ctx->clear_work_bit) ||
 					nal_q_handle->nal_q_exception)
-				s5p_mfc_set_bit(ctx->num, &dev->work_bits);
+				mfc_set_bit(ctx->num, &dev->work_bits);
 			ctx->clear_work_bit = 0;
 
-			s5p_mfc_release_hwlock_ctx(ctx);
+			mfc_release_hwlock_ctx(ctx);
 
-			if (s5p_mfc_is_work_to_do(dev))
+			if (mfc_is_work_to_do(dev))
 				queue_work(dev->butler_wq, &dev->butler_work);
 
 			ret = 0;
 		}
 		break;
 	case NAL_Q_STATE_STARTED:
-		s5p_mfc_nal_q_clock_on(dev, nal_q_handle);
+		mfc_nal_q_clock_on(dev, nal_q_handle);
 
-		if (s5p_mfc_nal_q_check_enable(dev) == 0 ||
+		if (mfc_nal_q_check_enable(dev) == 0 ||
 				nal_q_handle->nal_q_exception) {
 			/* disable NAL QUEUE */
-			s5p_mfc_nal_q_stop(dev, nal_q_handle);
+			mfc_nal_q_stop(dev, nal_q_handle);
 			mfc_info_ctx("[NALQ] stop NAL QUEUE\n");
-			if (s5p_mfc_wait_for_done_dev(dev,
-					S5P_FIMV_R2H_CMD_COMPLETE_QUEUE_RET)) {
+			if (mfc_wait_for_done_dev(dev,
+					MFC_REG_R2H_CMD_COMPLETE_QUEUE_RET)) {
 				mfc_err_dev("[NALQ] Failed to stop queue\n");
 				dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_STOP_NAL_Q);
 				call_dop(dev, dump_and_stop_always, dev);
@@ -693,21 +693,21 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 			break;
 		} else {
 			/* NAL QUEUE */
-			if (s5p_mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
+			if (mfc_nal_q_enqueue_in_buf(dev, ctx, nal_q_handle->nal_q_in_handle)) {
 				mfc_debug(2, "[NALQ] Failed to enqueue input data\n");
-				s5p_mfc_nal_q_clock_off(dev, nal_q_handle);
+				mfc_nal_q_clock_off(dev, nal_q_handle);
 			}
 
-			s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
+			mfc_clear_bit(ctx->num, &dev->work_bits);
 
-			if ((s5p_mfc_ctx_ready(ctx) && !ctx->clear_work_bit) ||
+			if ((mfc_ctx_ready(ctx) && !ctx->clear_work_bit) ||
 					nal_q_handle->nal_q_exception)
-				s5p_mfc_set_bit(ctx->num, &dev->work_bits);
+				mfc_set_bit(ctx->num, &dev->work_bits);
 			ctx->clear_work_bit = 0;
 
-			s5p_mfc_release_hwlock_ctx(ctx);
+			mfc_release_hwlock_ctx(ctx);
 
-			if (s5p_mfc_is_work_to_do(dev))
+			if (mfc_is_work_to_do(dev))
 				queue_work(dev->butler_wq, &dev->butler_work);
 			ret = 0;
 		}
@@ -722,27 +722,27 @@ static int mfc_nal_q_just_run(struct s5p_mfc_ctx *ctx, int need_cache_flush)
 	return ret;
 }
 
-static int mfc_just_run_dec(struct s5p_mfc_ctx *ctx)
+static int __mfc_just_run_dec(struct mfc_ctx *ctx)
 {
 	int ret = 0;
 
 	switch (ctx->state) {
 	case MFCINST_FINISHING:
-		ret = s5p_mfc_run_dec_last_frames(ctx);
+		ret = mfc_run_dec_last_frames(ctx);
 		break;
 	case MFCINST_RUNNING:
 	case MFCINST_SPECIAL_PARSING_NAL:
-		ret = s5p_mfc_run_dec_frame(ctx);
+		ret = mfc_run_dec_frame(ctx);
 		break;
 	case MFCINST_INIT:
-		ret = s5p_mfc_open_inst(ctx);
+		ret = mfc_open_inst(ctx);
 		break;
 	case MFCINST_RETURN_INST:
-		ret = s5p_mfc_close_inst(ctx);
+		ret = mfc_close_inst(ctx);
 		break;
 	case MFCINST_GOT_INST:
 	case MFCINST_SPECIAL_PARSING:
-		ret = s5p_mfc_run_dec_init(ctx);
+		ret = mfc_run_dec_init(ctx);
 		break;
 	case MFCINST_HEAD_PARSED:
 		if (ctx->codec_buffer_allocated == 0) {
@@ -751,22 +751,22 @@ static int mfc_just_run_dec(struct s5p_mfc_ctx *ctx)
 			ret = -EAGAIN;
 			break;
 		}
-		ret = s5p_mfc_cmd_dec_init_buffers(ctx);
+		ret = mfc_cmd_dec_init_buffers(ctx);
 		break;
 	case MFCINST_RES_CHANGE_INIT:
-		ret = s5p_mfc_run_dec_last_frames(ctx);
+		ret = mfc_run_dec_last_frames(ctx);
 		break;
 	case MFCINST_RES_CHANGE_FLUSH:
-		ret = s5p_mfc_run_dec_last_frames(ctx);
+		ret = mfc_run_dec_last_frames(ctx);
 		break;
 	case MFCINST_RES_CHANGE_END:
 		mfc_debug(2, "[DRC] Finished remaining frames after resolution change\n");
 		ctx->capture_state = QUEUE_FREE;
 		mfc_debug(2, "[DRC] Will re-init the codec\n");
-		ret = s5p_mfc_run_dec_init(ctx);
+		ret = mfc_run_dec_init(ctx);
 		break;
 	case MFCINST_DPB_FLUSHING:
-		ret = s5p_mfc_cmd_dpb_flush(ctx);
+		ret = mfc_cmd_dpb_flush(ctx);
 		break;
 	default:
 		mfc_info_ctx("can't try command(decoder just_run), state : %d\n", ctx->state);
@@ -776,39 +776,39 @@ static int mfc_just_run_dec(struct s5p_mfc_ctx *ctx)
 	return ret;
 }
 
-static int mfc_just_run_enc(struct s5p_mfc_ctx *ctx)
+static int __mfc_just_run_enc(struct mfc_ctx *ctx)
 {
 	int ret = 0;
 
 	switch (ctx->state) {
 		case MFCINST_FINISHING:
-			ret = s5p_mfc_run_enc_last_frames(ctx);
+			ret = mfc_run_enc_last_frames(ctx);
 			break;
 		case MFCINST_RUNNING:
 			if (ctx->otf_handle) {
-				ret = s5p_mfc_otf_run_enc_frame(ctx);
+				ret = mfc_otf_run_enc_frame(ctx);
 				break;
 			}
-			ret = s5p_mfc_run_enc_frame(ctx);
+			ret = mfc_run_enc_frame(ctx);
 			break;
 		case MFCINST_INIT:
-			ret = s5p_mfc_open_inst(ctx);
+			ret = mfc_open_inst(ctx);
 			break;
 		case MFCINST_RETURN_INST:
-			ret = s5p_mfc_close_inst(ctx);
+			ret = mfc_close_inst(ctx);
 			break;
 		case MFCINST_GOT_INST:
 			if (ctx->otf_handle) {
-				ret = s5p_mfc_otf_run_enc_init(ctx);
+				ret = mfc_otf_run_enc_init(ctx);
 				break;
 			}
-			ret = s5p_mfc_run_enc_init(ctx);
+			ret = mfc_run_enc_init(ctx);
 			break;
 		case MFCINST_HEAD_PARSED:
-			ret = s5p_mfc_cmd_enc_init_buffers(ctx);
+			ret = mfc_cmd_enc_init_buffers(ctx);
 			break;
 		case MFCINST_ABORT_INST:
-			ret = s5p_mfc_abort_inst(ctx);
+			ret = mfc_abort_inst(ctx);
 			break;
 		default:
 			mfc_info_ctx("can't try command(encoder just_run), state : %d\n", ctx->state);
@@ -819,9 +819,9 @@ static int mfc_just_run_enc(struct s5p_mfc_ctx *ctx)
 }
 
 /* Run an operation on hardware */
-int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
+int mfc_just_run(struct mfc_dev *dev, int new_ctx_index)
 {
-	struct s5p_mfc_ctx *ctx;
+	struct mfc_ctx *ctx;
 	unsigned int ret = 0;
 	int need_cache_flush = 0;
 
@@ -837,15 +837,15 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 	}
 
 	if (ctx->state == MFCINST_RUNNING)
-		s5p_mfc_clean_ctx_int_flags(ctx);
+		mfc_clean_ctx_int_flags(ctx);
 
 	mfc_debug(2, "New context: %d\n", new_ctx_index);
 	dev->curr_ctx = ctx->num;
 
 	/* Got context to run in ctx */
 	mfc_debug(2, "src: %d, dst: %d, state: %d, dpb_count = %d\n",
-		s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
-		s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
+		mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
+		mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
 		ctx->state, ctx->dpb_count);
 	mfc_debug(2, "ctx->state = %d\n", ctx->state);
 	/* Last frame has already been sent to MFC
@@ -860,7 +860,7 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 	mfc_debug(2, "need_cache_flush = %d, is_drm = %d\n", need_cache_flush, ctx->is_drm);
 
 	if (dev->nal_q_handle) {
-		ret = mfc_nal_q_just_run(ctx, need_cache_flush);
+		ret = __mfc_nal_q_just_run(ctx, need_cache_flush);
 		if (ret == 0) {
 			mfc_debug(2, "NAL_Q was handled\n");
 			return ret;
@@ -874,18 +874,18 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 
 	mfc_debug(2, "continue_clock_on = %d\n", dev->continue_clock_on);
 	if (!dev->continue_clock_on) {
-		s5p_mfc_pm_clock_on(dev);
+		mfc_pm_clock_on(dev);
 	} else {
 		dev->continue_clock_on = false;
 	}
 
 	if (need_cache_flush)
-		s5p_mfc_cache_flush(dev, ctx->is_drm);
+		mfc_cache_flush(dev, ctx->is_drm);
 
 	if (ctx->type == MFCINST_DECODER) {
-		ret = mfc_just_run_dec(ctx);
+		ret = __mfc_just_run_dec(ctx);
 	} else if (ctx->type == MFCINST_ENCODER) {
-		ret = mfc_just_run_enc(ctx);
+		ret = __mfc_just_run_enc(ctx);
 	} else {
 		mfc_err_ctx("invalid context type: %d\n", ctx->type);
 		ret = -EAGAIN;
@@ -894,18 +894,18 @@ int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index)
 	if (ret) {
 		/* Check again the ctx condition and clear work bits
 		 * if ctx is not available. */
-		if (s5p_mfc_ctx_ready(ctx) == 0 || ctx->clear_work_bit) {
-			s5p_mfc_clear_bit(ctx->num, &dev->work_bits);
+		if (mfc_ctx_ready(ctx) == 0 || ctx->clear_work_bit) {
+			mfc_clear_bit(ctx->num, &dev->work_bits);
 			ctx->clear_work_bit = 0;
 		}
 
-		s5p_mfc_pm_clock_off(dev);
+		mfc_pm_clock_off(dev);
 	}
 
 	return ret;
 }
 
-void s5p_mfc_hwlock_handler_irq(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *curr_ctx,
+void mfc_hwlock_handler_irq(struct mfc_dev *dev, struct mfc_ctx *curr_ctx,
 		unsigned int reason, unsigned int err)
 {
 	int new_ctx_index;
@@ -923,51 +923,51 @@ void s5p_mfc_hwlock_handler_irq(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *cur
 	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 
 	if (dev->hwlock.owned_by_irq) {
 		if (dev->preempt_ctx > MFC_NO_INSTANCE_SET) {
 			mfc_debug(2, "There is a preempt_ctx\n");
 			dev->continue_clock_on = true;
-			s5p_mfc_wake_up_ctx(curr_ctx, reason, err);
+			mfc_wake_up_ctx(curr_ctx, reason, err);
 			new_ctx_index = dev->preempt_ctx;
 			mfc_debug(2, "preempt_ctx is : %d\n", new_ctx_index);
 
 			spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-			ret = s5p_mfc_just_run(dev, new_ctx_index);
+			ret = mfc_just_run(dev, new_ctx_index);
 			if (ret) {
 				dev->continue_clock_on = false;
-				mfc_yield_hwlock(dev, dev->ctx[new_ctx_index]);
+				__mfc_yield_hwlock(dev, dev->ctx[new_ctx_index]);
 			}
 		} else if (!list_empty(&dev->hwlock.waiting_list)) {
 			mfc_debug(2, "There is a waiting module for hwlock\n");
 			dev->continue_clock_on = false;
-			s5p_mfc_pm_clock_off(dev);
+			mfc_pm_clock_off(dev);
 
 			spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-			s5p_mfc_release_hwlock_ctx(curr_ctx);
-			s5p_mfc_wake_up_ctx(curr_ctx, reason, err);
+			mfc_release_hwlock_ctx(curr_ctx);
+			mfc_wake_up_ctx(curr_ctx, reason, err);
 			queue_work(dev->butler_wq, &dev->butler_work);
 		} else {
 			mfc_debug(2, "No preempt_ctx and no waiting module\n");
-			new_ctx_index = s5p_mfc_get_new_ctx(dev);
+			new_ctx_index = mfc_get_new_ctx(dev);
 			if (new_ctx_index < 0) {
 				mfc_debug(2, "No ctx to run\n");
 				/* No contexts to run */
 				dev->continue_clock_on = false;
-				s5p_mfc_pm_clock_off(dev);
+				mfc_pm_clock_off(dev);
 
 				spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-				s5p_mfc_release_hwlock_ctx(curr_ctx);
-				s5p_mfc_wake_up_ctx(curr_ctx, reason, err);
+				mfc_release_hwlock_ctx(curr_ctx);
+				mfc_wake_up_ctx(curr_ctx, reason, err);
 				queue_work(dev->butler_wq, &dev->butler_work);
 			} else {
 				mfc_debug(2, "There is a ctx to run\n");
 				dev->continue_clock_on = true;
-				s5p_mfc_wake_up_ctx(curr_ctx, reason, err);
+				mfc_wake_up_ctx(curr_ctx, reason, err);
 
 				/* If cache flush command is needed or there is OTF handle, handler should stop */
 				if ((dev->curr_ctx_is_drm != dev->ctx[new_ctx_index]->is_drm) ||
@@ -978,18 +978,18 @@ void s5p_mfc_hwlock_handler_irq(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *cur
 
 					spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-					s5p_mfc_release_hwlock_ctx(curr_ctx);
+					mfc_release_hwlock_ctx(curr_ctx);
 					queue_work(dev->butler_wq, &dev->butler_work);
 				} else {
 					mfc_debug(2, "Work to do successively (next ctx: %d)\n", new_ctx_index);
-					mfc_transfer_hwlock_ctx_protected(dev, new_ctx_index);
+					__mfc_transfer_hwlock_ctx_protected(dev, new_ctx_index);
 
 					spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-					ret = s5p_mfc_just_run(dev, new_ctx_index);
+					ret = mfc_just_run(dev, new_ctx_index);
 					if (ret) {
 						dev->continue_clock_on = false;
-						mfc_yield_hwlock(dev, dev->ctx[new_ctx_index]);
+						__mfc_yield_hwlock(dev, dev->ctx[new_ctx_index]);
 					}
 				}
 			}
@@ -997,11 +997,11 @@ void s5p_mfc_hwlock_handler_irq(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *cur
 	} else {
 		mfc_debug(2, "hwlock is NOT owned by irq\n");
 		dev->continue_clock_on = false;
-		s5p_mfc_pm_clock_off(dev);
-		s5p_mfc_wake_up_ctx(curr_ctx, reason, err);
+		mfc_pm_clock_off(dev);
+		mfc_wake_up_ctx(curr_ctx, reason, err);
 		queue_work(dev->butler_wq, &dev->butler_work);
 
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 	}
-	mfc_print_hwlock(dev);
+	__mfc_print_hwlock(dev);
 }

@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_pm.h
+ * drivers/media/platform/exynos/mfc/mfc_pm.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,24 +15,24 @@
 
 #include "mfc_common.h"
 
-static inline int s5p_mfc_pm_get_pwr_ref_cnt(struct s5p_mfc_dev *dev)
+static inline int mfc_pm_get_pwr_ref_cnt(struct mfc_dev *dev)
 {
 	return atomic_read(&dev->pm.pwr_ref);
 }
 
-static inline int s5p_mfc_pm_get_clk_ref_cnt(struct s5p_mfc_dev *dev)
+static inline int mfc_pm_get_clk_ref_cnt(struct mfc_dev *dev)
 {
 	return atomic_read(&dev->clk_ref);
 }
 
-void s5p_mfc_pm_init(struct s5p_mfc_dev *dev);
-void s5p_mfc_pm_final(struct s5p_mfc_dev *dev);
+void mfc_pm_init(struct mfc_dev *dev);
+void mfc_pm_final(struct mfc_dev *dev);
 
-int s5p_mfc_pm_clock_on(struct s5p_mfc_dev *dev);
-int s5p_mfc_pm_clock_on_with_base(struct s5p_mfc_dev *dev,
+int mfc_pm_clock_on(struct mfc_dev *dev);
+int mfc_pm_clock_on_with_base(struct mfc_dev *dev,
 			enum mfc_buf_usage_type buf_type);
-void s5p_mfc_pm_clock_off(struct s5p_mfc_dev *dev);
-int s5p_mfc_pm_power_on(struct s5p_mfc_dev *dev);
-int s5p_mfc_pm_power_off(struct s5p_mfc_dev *dev);
+void mfc_pm_clock_off(struct mfc_dev *dev);
+int mfc_pm_power_on(struct mfc_dev *dev);
+int mfc_pm_power_off(struct mfc_dev *dev);
 
 #endif /* __MFC_PM_H */

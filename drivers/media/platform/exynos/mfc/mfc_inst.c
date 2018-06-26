@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_inst.c
+ * drivers/media/platform/exynos/mfc/mfc_inst.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -20,17 +20,17 @@
 
 #include "mfc_utils.h"
 
-int s5p_mfc_open_inst(struct s5p_mfc_ctx *ctx)
+int mfc_open_inst(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 	unsigned int reg;
 	int ret;
 
 	/* Preparing decoding - getting instance number */
 	mfc_debug(2, "Getting instance number\n");
-	s5p_mfc_clean_ctx_int_flags(ctx);
+	mfc_clean_ctx_int_flags(ctx);
 
-	reg = MFC_READL(S5P_FIMV_CODEC_CONTROL);
+	reg = MFC_READL(MFC_REG_CODEC_CONTROL);
 	/* Clear OTF_CONTROL[2:1] & OTF_DEBUG[3] */
 	reg &= ~(0x7 << 1);
 	if (ctx->otf_handle) {
@@ -43,42 +43,42 @@ int s5p_mfc_open_inst(struct s5p_mfc_ctx *ctx)
 			mfc_info_ctx("Debugging mode enabled\n");
 		}
 	}
-	MFC_WRITEL(reg, S5P_FIMV_CODEC_CONTROL);
+	MFC_WRITEL(reg, MFC_REG_CODEC_CONTROL);
 
 
-	ret = s5p_mfc_cmd_open_inst(ctx);
+	ret = mfc_cmd_open_inst(ctx);
 	if (ret) {
 		mfc_err_ctx("Failed to create a new instance\n");
-		s5p_mfc_change_state(ctx, MFCINST_ERROR);
+		mfc_change_state(ctx, MFCINST_ERROR);
 	}
 
 	return ret;
 }
 
-int s5p_mfc_close_inst(struct s5p_mfc_ctx *ctx)
+int mfc_close_inst(struct mfc_ctx *ctx)
 {
 	int ret = -EINVAL;
 
 	/* Closing decoding instance  */
 	mfc_debug(2, "Returning instance number\n");
-	s5p_mfc_clean_ctx_int_flags(ctx);
+	mfc_clean_ctx_int_flags(ctx);
 	if (ctx->state == MFCINST_FREE) {
 		mfc_err_ctx("ctx already free status\n");
 		return ret;
 	}
 
-	ret = s5p_mfc_cmd_close_inst(ctx);
+	ret = mfc_cmd_close_inst(ctx);
 	if (ret) {
 		mfc_err_ctx("Failed to return an instance\n");
-		s5p_mfc_change_state(ctx, MFCINST_ERROR);
+		mfc_change_state(ctx, MFCINST_ERROR);
 	}
 
 	return ret;
 }
 
-int s5p_mfc_abort_inst(struct s5p_mfc_ctx *ctx)
+int mfc_abort_inst(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
+	struct mfc_dev *dev;
 
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -91,19 +91,19 @@ int s5p_mfc_abort_inst(struct s5p_mfc_ctx *ctx)
 		return -EINVAL;
 	}
 
-	s5p_mfc_clean_ctx_int_flags(ctx);
+	mfc_clean_ctx_int_flags(ctx);
 
-	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
-	s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_NAL_ABORT);
+	MFC_WRITEL(ctx->inst_no, MFC_REG_INSTANCE_ID);
+	mfc_cmd_host2risc(dev, MFC_REG_H2R_CMD_NAL_ABORT);
 
 	return 0;
 }
 
 /* Initialize decoding */
-int s5p_mfc_init_decode(struct s5p_mfc_ctx *ctx)
+int mfc_init_decode(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
 	unsigned int reg = 0;
 	int fmo_aso_ctrl = 0;
 
@@ -124,84 +124,84 @@ int s5p_mfc_init_decode(struct s5p_mfc_ctx *ctx)
 		mfc_err_dev("no mfc decoder to run\n");
 		return -EINVAL;
 	}
-	mfc_debug(2, "InstNo: %d/%d\n", ctx->inst_no, S5P_FIMV_H2R_CMD_SEQ_HEADER);
-	mfc_debug(2, "BUFs: %08x\n", MFC_READL(S5P_FIMV_D_CPB_BUFFER_ADDR));
+	mfc_debug(2, "InstNo: %d/%d\n", ctx->inst_no, MFC_REG_H2R_CMD_SEQ_HEADER);
+	mfc_debug(2, "BUFs: %08x\n", MFC_READL(MFC_REG_D_CPB_BUFFER_ADDR));
 
 	/* When user sets desplay_delay to 0,
 	 * It works as "display_delay enable" and delay set to 0.
 	 * If user wants display_delay disable, It should be
 	 * set to negative value. */
 	if (dec->display_delay >= 0) {
-		reg |= (0x1 << S5P_FIMV_D_DEC_OPT_DISPLAY_DELAY_EN_SHIFT);
-		MFC_WRITEL(dec->display_delay, S5P_FIMV_D_DISPLAY_DELAY);
+		reg |= (0x1 << MFC_REG_D_DEC_OPT_DISPLAY_DELAY_EN_SHIFT);
+		MFC_WRITEL(dec->display_delay, MFC_REG_D_DISPLAY_DELAY);
 	}
 
 	/* FMO_ASO_CTRL - 0: Enable, 1: Disable */
-	reg |= ((fmo_aso_ctrl & S5P_FIMV_D_DEC_OPT_FMO_ASO_CTRL_MASK)
-			<< S5P_FIMV_D_DEC_OPT_FMO_ASO_CTRL_SHIFT);
+	reg |= ((fmo_aso_ctrl & MFC_REG_D_DEC_OPT_FMO_ASO_CTRL_MASK)
+			<< MFC_REG_D_DEC_OPT_FMO_ASO_CTRL_SHIFT);
 
-	reg |= ((dec->idr_decoding & S5P_FIMV_D_DEC_OPT_IDR_DECODING_MASK)
-			<< S5P_FIMV_D_DEC_OPT_IDR_DECODING_SHIFT);
+	reg |= ((dec->idr_decoding & MFC_REG_D_DEC_OPT_IDR_DECODING_MASK)
+			<< MFC_REG_D_DEC_OPT_IDR_DECODING_SHIFT);
 
 	/* VC1 RCV: Discard to parse additional header as default */
 	if (IS_VC1_RCV_DEC(ctx))
-		reg |= (0x1 << S5P_FIMV_D_DEC_OPT_DISCARD_RCV_HEADER_SHIFT);
+		reg |= (0x1 << MFC_REG_D_DEC_OPT_DISCARD_RCV_HEADER_SHIFT);
 
 	/* conceal control to specific color */
-	reg |= (0x4 << S5P_FIMV_D_DEC_OPT_CONCEAL_CONTROL_SHIFT);
+	reg |= (0x4 << MFC_REG_D_DEC_OPT_CONCEAL_CONTROL_SHIFT);
 
 	/* Disable parallel processing if nal_q_parallel_disable was set */
 	if (nal_q_parallel_disable)
-		reg |= (0x2 << S5P_FIMV_D_DEC_OPT_PARALLEL_DISABLE_SHIFT);
+		reg |= (0x2 << MFC_REG_D_DEC_OPT_PARALLEL_DISABLE_SHIFT);
 
 	/* Realloc buffer for resolution decrease case in NAL QUEUE mode */
-	reg |= (0x1 << S5P_FIMV_D_DEC_OPT_REALLOC_CONTROL_SHIFT);
+	reg |= (0x1 << MFC_REG_D_DEC_OPT_REALLOC_CONTROL_SHIFT);
 
 	/* Parsing all including PPS */
-	reg |= (0x1 << S5P_FIMV_D_DEC_OPT_SPECIAL_PARSING_SHIFT);
+	reg |= (0x1 << MFC_REG_D_DEC_OPT_SPECIAL_PARSING_SHIFT);
 
-	MFC_WRITEL(reg, S5P_FIMV_D_DEC_OPTIONS);
+	MFC_WRITEL(reg, MFC_REG_D_DEC_OPTIONS);
 
-	MFC_WRITEL(MFC_CONCEAL_COLOR, S5P_FIMV_D_FORCE_PIXEL_VAL);
+	MFC_WRITEL(MFC_CONCEAL_COLOR, MFC_REG_D_FORCE_PIXEL_VAL);
 
 	if (IS_FIMV1_DEC(ctx)) {
 		mfc_debug(2, "Setting FIMV1 resolution to %dx%d\n",
 					ctx->img_width, ctx->img_height);
-		MFC_WRITEL(ctx->img_width, S5P_FIMV_D_SET_FRAME_WIDTH);
-		MFC_WRITEL(ctx->img_height, S5P_FIMV_D_SET_FRAME_HEIGHT);
+		MFC_WRITEL(ctx->img_width, MFC_REG_D_SET_FRAME_WIDTH);
+		MFC_WRITEL(ctx->img_height, MFC_REG_D_SET_FRAME_HEIGHT);
 	}
 
-	s5p_mfc_set_pixel_format(dev, ctx->dst_fmt->fourcc);
+	mfc_set_pixel_format(dev, ctx->dst_fmt->fourcc);
 
 	reg = 0;
 	/* Enable realloc interface if SEI is enabled */
 	if (dec->sei_parse)
-		reg |= (0x1 << S5P_FIMV_D_SEI_ENABLE_NEED_INIT_BUFFER_SHIFT);
+		reg |= (0x1 << MFC_REG_D_SEI_ENABLE_NEED_INIT_BUFFER_SHIFT);
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_dec)) {
-		reg |= (0x1 << S5P_FIMV_D_SEI_ENABLE_CONTENT_LIGHT_SHIFT);
-		reg |= (0x1 << S5P_FIMV_D_SEI_ENABLE_MASTERING_DISPLAY_SHIFT);
+		reg |= (0x1 << MFC_REG_D_SEI_ENABLE_CONTENT_LIGHT_SHIFT);
+		reg |= (0x1 << MFC_REG_D_SEI_ENABLE_MASTERING_DISPLAY_SHIFT);
 	}
-	reg |= (0x1 << S5P_FIMV_D_SEI_ENABLE_RECOVERY_PARSING_SHIFT);
+	reg |= (0x1 << MFC_REG_D_SEI_ENABLE_RECOVERY_PARSING_SHIFT);
 
-	MFC_WRITEL(reg, S5P_FIMV_D_SEI_ENABLE);
-	mfc_debug(2, "SEI enable was set, 0x%x\n", MFC_READL(S5P_FIMV_D_SEI_ENABLE));
+	MFC_WRITEL(reg, MFC_REG_D_SEI_ENABLE);
+	mfc_debug(2, "SEI enable was set, 0x%x\n", MFC_READL(MFC_REG_D_SEI_ENABLE));
 
-	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+	MFC_WRITEL(ctx->inst_no, MFC_REG_INSTANCE_ID);
 
 	if (sfr_dump & MFC_DUMP_DEC_SEQ_START)
 		call_dop(dev, dump_regs, dev);
 
-	s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_SEQ_HEADER);
+	mfc_cmd_host2risc(dev, MFC_REG_H2R_CMD_SEQ_HEADER);
 
 	mfc_debug_leave();
 	return 0;
 }
 
 /* Decode a single frame */
-int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
+int mfc_decode_one_frame(struct mfc_ctx *ctx, int last_frame)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
 	u32 reg = 0;
 
 	if (!ctx) {
@@ -224,20 +224,20 @@ int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	mfc_debug(2, "Dynamic:0x%08x, Available:0x%lx\n",
 			dec->dynamic_set, dec->available_dpb);
 
-	reg = MFC_READL(S5P_FIMV_D_NAL_START_OPTIONS);
-	reg &= ~(0x1 << S5P_FIMV_D_NAL_START_OPT_BLACK_BAR_SHIFT);
-	reg |= ((dec->detect_black_bar & 0x1) << S5P_FIMV_D_NAL_START_OPT_BLACK_BAR_SHIFT);
-	MFC_WRITEL(reg, S5P_FIMV_D_NAL_START_OPTIONS);
+	reg = MFC_READL(MFC_REG_D_NAL_START_OPTIONS);
+	reg &= ~(0x1 << MFC_REG_D_NAL_START_OPT_BLACK_BAR_SHIFT);
+	reg |= ((dec->detect_black_bar & 0x1) << MFC_REG_D_NAL_START_OPT_BLACK_BAR_SHIFT);
+	MFC_WRITEL(reg, MFC_REG_D_NAL_START_OPTIONS);
 	mfc_debug(3, "[BLACKBAR] black bar detect set: %#x\n", reg);
 
-	MFC_WRITEL(dec->dynamic_set, S5P_FIMV_D_DYNAMIC_DPB_FLAG_LOWER);
-	MFC_WRITEL(0x0, S5P_FIMV_D_DYNAMIC_DPB_FLAG_UPPER);
-	MFC_WRITEL(dec->available_dpb, S5P_FIMV_D_AVAILABLE_DPB_FLAG_LOWER);
-	MFC_WRITEL(0x0, S5P_FIMV_D_AVAILABLE_DPB_FLAG_UPPER);
-	MFC_WRITEL(dec->slice_enable, S5P_FIMV_D_SLICE_IF_ENABLE);
-	MFC_WRITEL(MFC_TIMEOUT_VALUE, S5P_FIMV_DEC_TIMEOUT_VALUE);
+	MFC_WRITEL(dec->dynamic_set, MFC_REG_D_DYNAMIC_DPB_FLAG_LOWER);
+	MFC_WRITEL(0x0, MFC_REG_D_DYNAMIC_DPB_FLAG_UPPER);
+	MFC_WRITEL(dec->available_dpb, MFC_REG_D_AVAILABLE_DPB_FLAG_LOWER);
+	MFC_WRITEL(0x0, MFC_REG_D_AVAILABLE_DPB_FLAG_UPPER);
+	MFC_WRITEL(dec->slice_enable, MFC_REG_D_SLICE_IF_ENABLE);
+	MFC_WRITEL(MFC_TIMEOUT_VALUE, MFC_REG_DEC_TIMEOUT_VALUE);
 
-	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+	MFC_WRITEL(ctx->inst_no, MFC_REG_INSTANCE_ID);
 
 	if ((sfr_dump & MFC_DUMP_DEC_NAL_START) && !ctx->check_dump) {
 		call_dop(dev, dump_regs, dev);
@@ -248,12 +248,12 @@ int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	 * is the last frame or not. */
 	switch (last_frame) {
 	case 0:
-		s5p_mfc_perf_measure_on(dev);
+		mfc_perf_measure_on(dev);
 
-		s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_NAL_START);
+		mfc_cmd_host2risc(dev, MFC_REG_H2R_CMD_NAL_START);
 		break;
 	case 1:
-		s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_LAST_FRAME);
+		mfc_cmd_host2risc(dev, MFC_REG_H2R_CMD_LAST_FRAME);
 		break;
 	}
 
@@ -261,26 +261,26 @@ int s5p_mfc_decode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	return 0;
 }
 
-int s5p_mfc_init_encode(struct s5p_mfc_ctx *ctx)
+int mfc_init_encode(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 
 	mfc_debug(2, "++\n");
 
 	if (IS_H264_ENC(ctx))
-		s5p_mfc_set_enc_params_h264(ctx);
+		mfc_set_enc_params_h264(ctx);
 	else if (IS_MPEG4_ENC(ctx))
-		s5p_mfc_set_enc_params_mpeg4(ctx);
+		mfc_set_enc_params_mpeg4(ctx);
 	else if (IS_H263_ENC(ctx))
-		s5p_mfc_set_enc_params_h263(ctx);
+		mfc_set_enc_params_h263(ctx);
 	else if (IS_VP8_ENC(ctx))
-		s5p_mfc_set_enc_params_vp8(ctx);
+		mfc_set_enc_params_vp8(ctx);
 	else if (IS_VP9_ENC(ctx))
-		s5p_mfc_set_enc_params_vp9(ctx);
+		mfc_set_enc_params_vp9(ctx);
 	else if (IS_HEVC_ENC(ctx))
-		s5p_mfc_set_enc_params_hevc(ctx);
+		mfc_set_enc_params_hevc(ctx);
 	else if (IS_BPG_ENC(ctx))
-		s5p_mfc_set_enc_params_bpg(ctx);
+		mfc_set_enc_params_bpg(ctx);
 	else {
 		mfc_err_ctx("Unknown codec for encoding (%x)\n",
 			ctx->codec_mode);
@@ -288,52 +288,52 @@ int s5p_mfc_init_encode(struct s5p_mfc_ctx *ctx)
 	}
 
 	mfc_debug(5, "RC) Bitrate: %d / framerate: %#x / config %#x / mode %#x\n",
-			MFC_READL(S5P_FIMV_E_RC_BIT_RATE),
-			MFC_READL(S5P_FIMV_E_RC_FRAME_RATE),
-			MFC_READL(S5P_FIMV_E_RC_CONFIG),
-			MFC_READL(S5P_FIMV_E_RC_MODE));
+			MFC_READL(MFC_REG_E_RC_BIT_RATE),
+			MFC_READL(MFC_REG_E_RC_FRAME_RATE),
+			MFC_READL(MFC_REG_E_RC_CONFIG),
+			MFC_READL(MFC_REG_E_RC_MODE));
 
-	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+	MFC_WRITEL(ctx->inst_no, MFC_REG_INSTANCE_ID);
 
 	if (sfr_dump & MFC_DUMP_ENC_SEQ_START)
 		call_dop(dev, dump_regs, dev);
 
-	s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_SEQ_HEADER);
+	mfc_cmd_host2risc(dev, MFC_REG_H2R_CMD_SEQ_HEADER);
 
 	mfc_debug(2, "--\n");
 
 	return 0;
 }
 
-static int mfc_h264_set_aso_slice_order(struct s5p_mfc_ctx *ctx)
+static int mfc_h264_set_aso_slice_order(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
-	struct s5p_mfc_enc_params *p = &enc->params;
-	struct s5p_mfc_h264_enc_params *p_264 = &p->codec.h264;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	struct mfc_h264_enc_params *p_264 = &p->codec.h264;
 	int i;
 
 	if (p_264->aso_enable) {
 		for (i = 0; i < 8; i++)
 			MFC_WRITEL(p_264->aso_slice_order[i],
-				S5P_FIMV_E_H264_ASO_SLICE_ORDER_0 + i * 4);
+				MFC_REG_E_H264_ASO_SLICE_ORDER_0 + i * 4);
 	}
 	return 0;
 }
 
 /* Encode a single frame */
-int s5p_mfc_encode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
+int mfc_encode_one_frame(struct mfc_ctx *ctx, int last_frame)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 
 	mfc_debug(2, "++\n");
 
 	if (IS_H264_ENC(ctx))
 		mfc_h264_set_aso_slice_order(ctx);
 
-	s5p_mfc_set_slice_mode(ctx);
+	mfc_set_slice_mode(ctx);
 
-	MFC_WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID);
+	MFC_WRITEL(ctx->inst_no, MFC_REG_INSTANCE_ID);
 
 	if ((sfr_dump & MFC_DUMP_ENC_NAL_START) && !ctx->check_dump) {
 		call_dop(dev, dump_regs, dev);
@@ -344,12 +344,12 @@ int s5p_mfc_encode_one_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 	 * is the last frame or not. */
 	switch (last_frame) {
 	case 0:
-		s5p_mfc_perf_measure_on(dev);
+		mfc_perf_measure_on(dev);
 
-		s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_NAL_START);
+		mfc_cmd_host2risc(dev, MFC_REG_H2R_CMD_NAL_START);
 		break;
 	case 1:
-		s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_LAST_FRAME);
+		mfc_cmd_host2risc(dev, MFC_REG_H2R_CMD_LAST_FRAME);
 		break;
 	}
 

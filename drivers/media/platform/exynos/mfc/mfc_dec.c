@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_dec.c
+ * drivers/media/platform/exynos/mfc/mfc_dec.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -27,16 +27,16 @@
 #define MAX_FRAME_SIZE		(2*1024*1024)
 
 /* Find selected format description */
-static struct s5p_mfc_fmt *mfc_dec_find_format(struct s5p_mfc_ctx *ctx,
+static struct mfc_fmt *__mfc_dec_find_format(struct mfc_ctx *ctx,
 		unsigned int pixelformat)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_fmt *fmt = NULL;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_fmt *fmt = NULL;
 	unsigned long i;
 
 	for (i = 0; i < NUM_FORMATS; i++) {
 		if (dec_formats[i].fourcc == pixelformat) {
-			fmt = (struct s5p_mfc_fmt *)&dec_formats[i];
+			fmt = (struct mfc_fmt *)&dec_formats[i];
 			break;
 		}
 	}
@@ -53,7 +53,7 @@ static struct s5p_mfc_fmt *mfc_dec_find_format(struct s5p_mfc_ctx *ctx,
 	return fmt;
 }
 
-static struct v4l2_queryctrl *mfc_dec_get_ctrl(int id)
+static struct v4l2_queryctrl *__mfc_dec_get_ctrl(int id)
 {
 	unsigned long i;
 
@@ -65,11 +65,11 @@ static struct v4l2_queryctrl *mfc_dec_get_ctrl(int id)
 }
 
 /* Check whether a ctrl value if correct */
-static int mfc_dec_check_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_dec_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
 	struct v4l2_queryctrl *c;
 
-	c = mfc_dec_get_ctrl(ctrl->id);
+	c = __mfc_dec_get_ctrl(ctrl->id);
 	if (!c) {
 		mfc_err_ctx("[CTRLS] not supported control id (%#x)\n", ctrl->id);
 		return -EINVAL;
@@ -104,10 +104,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static int mfc_dec_enum_fmt(struct s5p_mfc_dev *dev, struct v4l2_fmtdesc *f,
+static int __mfc_dec_enum_fmt(struct mfc_dev *dev, struct v4l2_fmtdesc *f,
 		unsigned int type)
 {
-	struct s5p_mfc_fmt *fmt;
+	struct mfc_fmt *fmt;
 	unsigned long i, j = 0;
 
 	for (i = 0; i < NUM_FORMATS; ++i) {
@@ -136,22 +136,22 @@ static int mfc_dec_enum_fmt(struct s5p_mfc_dev *dev, struct v4l2_fmtdesc *f,
 static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
 		struct v4l2_fmtdesc *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
+	struct mfc_dev *dev = video_drvdata(file);
 
-	return mfc_dec_enum_fmt(dev, f, MFC_FMT_FRAME);
+	return __mfc_dec_enum_fmt(dev, f, MFC_FMT_FRAME);
 }
 
 static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
 		struct v4l2_fmtdesc *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
+	struct mfc_dev *dev = video_drvdata(file);
 
-	return mfc_dec_enum_fmt(dev, f, MFC_FMT_STREAM);
+	return __mfc_dec_enum_fmt(dev, f, MFC_FMT_STREAM);
 }
 
-static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
+static void __mfc_dec_change_format(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 	u32 org_fmt = ctx->dst_fmt->fourcc;
 
 	if (ctx->is_10bit && ctx->is_422) {
@@ -166,23 +166,23 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M:
 		case V4L2_PIX_FMT_NV12M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
 			break;
 		case V4L2_PIX_FMT_NV21M:
 		case V4L2_PIX_FMT_NV61M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M_S10B);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M_S10B);
 			break;
 		default:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
 			break;
 		}
 		ctx->raw_buf.num_planes = 2;
 	} else if (ctx->is_10bit && !ctx->is_422) {
 		if (ctx->dst_fmt->mem_planes == 1) {
 			/* YUV420 only supports the single plane */
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12N_10B);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12N_10B);
 		} else {
 			switch (org_fmt) {
 			case V4L2_PIX_FMT_NV12M_S10B:
@@ -196,21 +196,21 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 			case V4L2_PIX_FMT_NV16M_S10B:
 			case V4L2_PIX_FMT_NV16M_P210:
 				if (dev->pdata->P010_decoding)
-					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
+					ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
 				else
-					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
+					ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
 				break;
 			case V4L2_PIX_FMT_NV21M:
 			case V4L2_PIX_FMT_NV61M:
 			case V4L2_PIX_FMT_NV61M_S10B:
 			case V4L2_PIX_FMT_NV61M_P210:
-				ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M_S10B);
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M_S10B);
 				break;
 			default:
 				if (dev->pdata->P010_decoding)
-					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
+					ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
 				else
-					ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
+					ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
 				break;
 			}
 		}
@@ -226,17 +226,17 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
 		case V4L2_PIX_FMT_NV16M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
 			break;
 		case V4L2_PIX_FMT_NV21M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV61M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
 		case V4L2_PIX_FMT_NV61M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M);
 			break;
 		default:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
 			break;
 		}
 		ctx->raw_buf.num_planes = 2;
@@ -248,14 +248,14 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 		case V4L2_PIX_FMT_NV16M_S10B:
 		case V4L2_PIX_FMT_NV12M_P010:
 		case V4L2_PIX_FMT_NV16M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M);
 			break;
 		case V4L2_PIX_FMT_NV61M:
 		case V4L2_PIX_FMT_NV21M_S10B:
 		case V4L2_PIX_FMT_NV61M_S10B:
 		case V4L2_PIX_FMT_NV21M_P010:
 		case V4L2_PIX_FMT_NV61M_P210:
-			ctx->dst_fmt = mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M);
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M);
 			break;
 		default:
 			/* It is right format */
@@ -271,10 +271,10 @@ static void mfc_dec_change_format(struct s5p_mfc_ctx *ctx)
 static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec;
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dec *dec;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
-	struct s5p_mfc_raw_info *raw;
+	struct mfc_raw_info *raw;
 	int i;
 
 	mfc_debug_enter();
@@ -292,8 +292,8 @@ static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 	    ctx->state == MFCINST_RES_CHANGE_END) {
 		/* If the MFC is parsing the header,
 		 * so wait until it is finished */
-		if (s5p_mfc_wait_for_done_ctx(ctx,
-				S5P_FIMV_R2H_CMD_SEQ_DONE_RET)) {
+		if (mfc_wait_for_done_ctx(ctx,
+				MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
 				mfc_err_dev("header parsing failed\n");
 				return -EAGAIN;
 		}
@@ -305,14 +305,14 @@ static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 		/* only NV16(61) format is supported for 422 format */
 		/* only 2 plane is supported for 10bit */
-		mfc_dec_change_format(ctx);
+		__mfc_dec_change_format(ctx);
 
 		raw = &ctx->raw_buf;
 		/* Width and height are set to the dimensions
 		   of the movie, the buffer is bigger and
 		   further processing stages should crop to this
 		   rectangle. */
-		s5p_mfc_dec_calc_dpb_size(ctx);
+		mfc_dec_calc_dpb_size(ctx);
 
 		if (IS_LOW_MEM) {
 			unsigned int dpb_size;
@@ -367,8 +367,8 @@ static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec;
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dec *dec;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	mfc_debug_enter();
@@ -400,11 +400,11 @@ static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
 /* Try format */
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_fmt *fmt;
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
-	fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
+	fmt = __mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!fmt) {
 		mfc_err_dev("Unsupported format for %s\n",
 				V4L2_TYPE_IS_OUTPUT(f->type) ? "source" : "destination");
@@ -418,7 +418,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	mfc_debug_enter();
@@ -428,7 +428,7 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	ctx->dst_fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
+	ctx->dst_fmt = __mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->dst_fmt) {
 		mfc_err_ctx("Unsupported format for destination\n");
 		return -EINVAL;
@@ -441,33 +441,33 @@ static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	return 0;
 }
 
-static int mfc_force_close_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
+static int __mfc_force_close_inst(struct mfc_dev *dev, struct mfc_ctx *ctx)
 {
 	if (ctx->inst_no == MFC_NO_INSTANCE_SET)
 		return 0;
 
-	s5p_mfc_change_state(ctx, MFCINST_RETURN_INST);
-	s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-	s5p_mfc_clean_ctx_int_flags(ctx);
-	if (s5p_mfc_just_run(dev, ctx->num)) {
+	mfc_change_state(ctx, MFCINST_RETURN_INST);
+	mfc_set_bit(ctx->num, &dev->work_bits);
+	mfc_clean_ctx_int_flags(ctx);
+	if (mfc_just_run(dev, ctx->num)) {
 		mfc_err_ctx("Failed to run MFC\n");
-		s5p_mfc_release_hwlock_ctx(ctx);
-		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
+		mfc_release_hwlock_ctx(ctx);
+		mfc_cleanup_work_bit_and_try_run(ctx);
 		return -EIO;
 	}
 
 	/* Wait until instance is returned or timeout occured */
-	if (s5p_mfc_wait_for_done_ctx(ctx,
-				S5P_FIMV_R2H_CMD_CLOSE_INSTANCE_RET)) {
+	if (mfc_wait_for_done_ctx(ctx,
+				MFC_REG_R2H_CMD_CLOSE_INSTANCE_RET)) {
 		mfc_err_ctx("Waiting for CLOSE_INSTANCE timed out\n");
-		s5p_mfc_release_hwlock_ctx(ctx);
-		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
+		mfc_release_hwlock_ctx(ctx);
+		mfc_cleanup_work_bit_and_try_run(ctx);
 		return -EIO;
 	}
 
 	/* Free resources */
-	s5p_mfc_release_instance_context(ctx);
-	s5p_mfc_change_state(ctx, MFCINST_INIT);
+	mfc_release_instance_context(ctx);
+	mfc_change_state(ctx, MFCINST_INIT);
 
 	return 0;
 }
@@ -475,9 +475,9 @@ static int mfc_force_close_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx
 static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct mfc_dev *dev = video_drvdata(file);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	int ret = 0;
 
@@ -488,7 +488,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	ctx->src_fmt = mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
+	ctx->src_fmt = __mfc_dec_find_format(ctx, pix_fmt_mp->pixelformat);
 	if (!ctx->src_fmt) {
 		mfc_err_ctx("Unsupported format for source\n");
 		return -EINVAL;
@@ -514,52 +514,52 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 
 	MFC_TRACE_CTX_HWLOCK("**DEC s_fmt\n");
-	ret = s5p_mfc_get_hwlock_ctx(ctx);
+	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
 		mfc_err_ctx("Failed to get hwlock\n");
 		return -EBUSY;
 	}
 
 	/* In case of calling s_fmt twice or more */
-	ret = mfc_force_close_inst(dev, ctx);
+	ret = __mfc_force_close_inst(dev, ctx);
 	if (ret) {
 		mfc_err_ctx("Failed to close already opening instance\n");
 		return -EIO;
 	}
 
-	ret = s5p_mfc_alloc_instance_context(ctx);
+	ret = mfc_alloc_instance_context(ctx);
 	if (ret) {
 		mfc_err_ctx("Failed to allocate dec instance[%d] buffers\n",
 				ctx->num);
-		s5p_mfc_release_hwlock_ctx(ctx);
+		mfc_release_hwlock_ctx(ctx);
 		return -ENOMEM;
 	}
 
-	s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-	ret = s5p_mfc_just_run(dev, ctx->num);
+	mfc_set_bit(ctx->num, &dev->work_bits);
+	ret = mfc_just_run(dev, ctx->num);
 	if (ret) {
 		mfc_err_ctx("Failed to run MFC\n");
-		s5p_mfc_release_hwlock_ctx(ctx);
-		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
-		s5p_mfc_release_instance_context(ctx);
+		mfc_release_hwlock_ctx(ctx);
+		mfc_cleanup_work_bit_and_try_run(ctx);
+		mfc_release_instance_context(ctx);
 		return -EIO;
 	}
 
-	if (s5p_mfc_wait_for_done_ctx(ctx,
-			S5P_FIMV_R2H_CMD_OPEN_INSTANCE_RET)) {
-		s5p_mfc_release_hwlock_ctx(ctx);
-		s5p_mfc_cleanup_work_bit_and_try_run(ctx);
-		s5p_mfc_release_instance_context(ctx);
+	if (mfc_wait_for_done_ctx(ctx,
+			MFC_REG_R2H_CMD_OPEN_INSTANCE_RET)) {
+		mfc_release_hwlock_ctx(ctx);
+		mfc_cleanup_work_bit_and_try_run(ctx);
+		mfc_release_instance_context(ctx);
 		return -EIO;
 	}
 
-	s5p_mfc_release_hwlock_ctx(ctx);
+	mfc_release_hwlock_ctx(ctx);
 
 	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
 
-	if (s5p_mfc_dec_ctx_ready(ctx))
-		s5p_mfc_set_bit(ctx->num, &dev->work_bits);
-	if (s5p_mfc_is_work_to_do(dev))
+	if (mfc_dec_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
+	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 
 	mfc_debug_leave();
@@ -571,9 +571,9 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 static int vidioc_reqbufs(struct file *file, void *priv,
 		struct v4l2_requestbuffers *reqbufs)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec;
+	struct mfc_dev *dev = video_drvdata(file);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dec *dec;
 	int ret = 0;
 
 	mfc_debug_enter();
@@ -625,9 +625,9 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
 
 			if (dev->has_mmcache && dev->mmcache.is_on_status)
-				s5p_mfc_invalidate_mmcache(dev);
+				mfc_invalidate_mmcache(dev);
 
-			s5p_mfc_release_codec_buffers(ctx);
+			mfc_release_codec_buffers(ctx);
 			ctx->capture_state = QUEUE_FREE;
 			return ret;
 		}
@@ -654,7 +654,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 		dec->total_dpb_count = reqbufs->count;
 
-		ret = s5p_mfc_alloc_codec_buffers(ctx);
+		ret = mfc_alloc_codec_buffers(ctx);
 		if (ret) {
 			mfc_err_ctx("Failed to allocate decoding buffers\n");
 			reqbufs->count = 0;
@@ -664,10 +664,10 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 		ctx->capture_state = QUEUE_BUFS_REQUESTED;
 
-		if (s5p_mfc_dec_ctx_ready(ctx))
-			s5p_mfc_set_bit(ctx->num, &dev->work_bits);
+		if (mfc_dec_ctx_ready(ctx))
+			mfc_set_bit(ctx->num, &dev->work_bits);
 
-		s5p_mfc_try_run(dev);
+		mfc_try_run(dev);
 	}
 
 	mfc_debug_leave();
@@ -679,7 +679,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 static int vidioc_querybuf(struct file *file, void *priv,
 						   struct v4l2_buffer *buf)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret;
 
 	mfc_debug_enter();
@@ -711,7 +711,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 /* Queue a buffer */
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = -EINVAL;
 
 	mfc_debug_enter();
@@ -736,7 +736,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 			return -EIO;
 		}
 
-		s5p_mfc_qos_update_framerate(ctx);
+		mfc_qos_update_framerate(ctx);
 
 		if (!buf->m.planes[0].bytesused) {
 			buf->m.planes[0].bytesused = buf->m.planes[0].length;
@@ -758,8 +758,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 /* Dequeue a buffer */
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct dec_dpb_ref_info *dstBuf, *srcBuf;
 	int ret;
 	int ncount = 0;
@@ -806,7 +806,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = -EINVAL;
 
 	mfc_debug_enter();
@@ -819,14 +819,14 @@ static int vidioc_streamon(struct file *file, void *priv,
 		ret = vb2_streamon(&ctx->vq_dst, type);
 
 		if (!ret)
-			s5p_mfc_qos_on(ctx);
+			mfc_qos_on(ctx);
 	} else {
 		mfc_err_ctx("unknown v4l2 buffer type\n");
 	}
 
 	mfc_debug(2, "src: %d, dst: %d,  state = %d, dpb_count = %d\n",
-		  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
-		  s5p_mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
+		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
+		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
 		  ctx->state, ctx->dpb_count);
 
 	mfc_debug_leave();
@@ -838,21 +838,21 @@ static int vidioc_streamon(struct file *file, void *priv,
 static int vidioc_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = -EINVAL;
 
 	mfc_debug_enter();
 
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(4, "dec src streamoff\n");
-		s5p_mfc_qos_reset_last_framerate(ctx);
+		mfc_qos_reset_last_framerate(ctx);
 
 		ret = vb2_streamoff(&ctx->vq_src, type);
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		mfc_debug(4, "dec dst streamoff\n");
 		ret = vb2_streamoff(&ctx->vq_dst, type);
 		if (!ret)
-			s5p_mfc_qos_off(ctx);
+			mfc_qos_off(ctx);
 	} else {
 		mfc_err_ctx("unknown v4l2 buffer type\n");
 	}
@@ -868,7 +868,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 {
 	struct v4l2_queryctrl *c;
 
-	c = mfc_dec_get_ctrl(qc->id);
+	c = __mfc_dec_get_ctrl(qc->id);
 	if (!c) {
 		mfc_err_dev("[CTRLS] not supported control id (%#x)\n", qc->id);
 		return -EINVAL;
@@ -878,9 +878,9 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int mfc_dec_ext_info(struct s5p_mfc_ctx *ctx)
+static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 	int val = 0;
 
 	val |= DEC_SET_DYNAMIC_DPB;
@@ -893,11 +893,11 @@ static int mfc_dec_ext_info(struct s5p_mfc_ctx *ctx)
 }
 
 /* Get ctrl */
-static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_dev *dev;
+	struct mfc_dec *dec;
+	struct mfc_ctx_ctrl *ctx_ctrl;
 	int found = 0;
 
 	if (!ctx) {
@@ -936,9 +936,9 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		}
 
 		/* Should wait for the header to be parsed */
-		if (s5p_mfc_wait_for_done_ctx(ctx,
-				S5P_FIMV_R2H_CMD_SEQ_DONE_RET)) {
-			s5p_mfc_cleanup_work_bit_and_try_run(ctx);
+		if (mfc_wait_for_done_ctx(ctx,
+				MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
+			mfc_cleanup_work_bit_and_try_run(ctx);
 			return -EIO;
 		}
 
@@ -978,7 +978,7 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		ctrl->value = dec->idr_decoding;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE:
-		ctrl->value = s5p_mfc_qos_get_framerate(ctx);
+		ctrl->value = mfc_qos_get_framerate(ctx);
 		break;
 	case V4L2_CID_MPEG_MFC_GET_VERSION_INFO:
 		ctrl->value = dev->pdata->ip_ver;
@@ -990,7 +990,7 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 		ctrl->value = dec->is_dynamic_dpb;
 		break;
 	case V4L2_CID_MPEG_MFC_GET_EXT_INFO:
-		ctrl->value = mfc_dec_ext_info(ctx);
+		ctrl->value = __mfc_dec_ext_info(ctx);
 		break;
 	case V4L2_CID_MPEG_MFC_GET_10BIT_INFO:
 		ctrl->value = ctx->is_10bit;
@@ -1035,11 +1035,11 @@ static int mfc_dec_get_ctrl_val(struct s5p_mfc_ctx *ctx, struct v4l2_control *ct
 static int vidioc_g_ctrl(struct file *file, void *priv,
 			struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = 0;
 
 	mfc_debug_enter();
-	ret = mfc_dec_get_ctrl_val(ctx, ctrl);
+	ret = __mfc_dec_get_ctrl_val(ctx, ctrl);
 	mfc_debug_leave();
 
 	return ret;
@@ -1049,10 +1049,10 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
-	struct s5p_mfc_dev *dev = video_drvdata(file);
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_dev *dev = video_drvdata(file);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dec *dec;
+	struct mfc_ctx_ctrl *ctx_ctrl;
 	int ret = 0;
 	int found = 0;
 
@@ -1069,7 +1069,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	ret = mfc_dec_check_ctrl_val(ctx, ctrl);
+	ret = __mfc_dec_check_ctrl_val(ctx, ctrl);
 	if (ret)
 		return ret;
 
@@ -1124,7 +1124,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_MPEG_MFC_SET_USER_SHARED_HANDLE:
 		if (dec->sh_handle.fd == -1) {
 			dec->sh_handle.fd = ctrl->value;
-			if (s5p_mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle))
+			if (mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle))
 				return -EINVAL;
 			else
 				mfc_debug(2, "[MEMINFO][DPB] shared handle fd: %d, vaddr: 0x%p\n",
@@ -1167,8 +1167,8 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 static int vidioc_g_crop(struct file *file, void *priv,
 		struct v4l2_crop *cr)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dec *dec = ctx->dec_priv;
 
 	mfc_debug_enter();
 
@@ -1220,7 +1220,7 @@ static int vidioc_g_crop(struct file *file, void *priv,
 static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 			struct v4l2_ext_controls *f)
 {
-	struct s5p_mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct v4l2_ext_control *ext_ctrl;
 	struct v4l2_control ctrl;
 	int i;
@@ -1234,7 +1234,7 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 
 		ctrl.id = ext_ctrl->id;
 
-		ret = mfc_dec_get_ctrl_val(ctx, &ctrl);
+		ret = __mfc_dec_get_ctrl_val(ctx, &ctrl);
 		if (ret == 0) {
 			ext_ctrl->value = ctrl.value;
 		} else {
@@ -1250,7 +1250,7 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 }
 
 /* v4l2_ioctl_ops */
-static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
+static const struct v4l2_ioctl_ops mfc_dec_ioctl_ops = {
 	.vidioc_querycap		= vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap_mplane	= vidioc_enum_fmt_vid_cap_mplane,
 	.vidioc_enum_fmt_vid_out_mplane	= vidioc_enum_fmt_vid_out_mplane,
@@ -1273,7 +1273,7 @@ static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_g_ext_ctrls		= vidioc_g_ext_ctrls,
 };
 
-const struct v4l2_ioctl_ops *s5p_mfc_get_dec_v4l2_ioctl_ops(void)
+const struct v4l2_ioctl_ops *mfc_get_dec_v4l2_ioctl_ops(void)
 {
-	return &s5p_mfc_dec_ioctl_ops;
+	return &mfc_dec_ioctl_ops;
 }

@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_common.h
+ * drivers/media/platform/exynos/mfc/mfc_common.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -50,7 +50,7 @@
 #define MFC_INT_TIMEOUT_CNT	2
 
 /* This value guarantees 299.4msec ~ 2.25sec according to MFC clock (668MHz ~ 89MHz)
- * releated with S5P_FIMV_DEC_TIMEOUT_VALUE */
+ * releated with MFC_REG_DEC_TIMEOUT_VALUE */
 #define MFC_TIMEOUT_VALUE	200000000
 
 #define NUM_MPEG4_LF_BUF	2
@@ -77,10 +77,10 @@
 #define MFC_CONCEAL_COLOR	0x8020000
 
 #define vb_to_mfc_buf(x)		\
-	container_of(x, struct s5p_mfc_buf, vb.vb2_buf)
+	container_of(x, struct mfc_buf, vb.vb2_buf)
 
 #define fh_to_mfc_ctx(x)		\
-	container_of(x, struct s5p_mfc_ctx, fh)
+	container_of(x, struct mfc_ctx, fh)
 
 #define call_bop(b, op, args...)	\
 	(b->op ? b->op(args) : 0)
@@ -112,28 +112,28 @@
 				(n == EXYNOS_VIDEONODE_MFC_ENC_OTF_DRM))
 
 /* Decoder codec mode check */
-#define IS_H264_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_H264_DEC)
-#define IS_H264_MVC_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_H264_MVC_DEC)
-#define IS_MPEG4_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_MPEG4_DEC)
-#define IS_FIMV1_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_FIMV1_DEC)
-#define IS_FIMV2_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_FIMV2_DEC)
-#define IS_FIMV3_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_FIMV3_DEC)
-#define IS_FIMV4_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_FIMV4_DEC)
-#define IS_VC1_DEC(ctx)		((ctx)->codec_mode == S5P_FIMV_CODEC_VC1_DEC)
-#define IS_VC1_RCV_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_VC1_RCV_DEC)
-#define IS_MPEG2_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_MPEG2_DEC)
-#define IS_HEVC_DEC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_HEVC_DEC)
-#define IS_VP9_DEC(ctx)		((ctx)->codec_mode == S5P_FIMV_CODEC_VP9_DEC)
-#define IS_BPG_DEC(ctx)		((ctx)->codec_mode == S5P_FIMV_CODEC_BPG_DEC)
+#define IS_H264_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_H264_DEC)
+#define IS_H264_MVC_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_H264_MVC_DEC)
+#define IS_MPEG4_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_MPEG4_DEC)
+#define IS_FIMV1_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_FIMV1_DEC)
+#define IS_FIMV2_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_FIMV2_DEC)
+#define IS_FIMV3_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_FIMV3_DEC)
+#define IS_FIMV4_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_FIMV4_DEC)
+#define IS_VC1_DEC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_VC1_DEC)
+#define IS_VC1_RCV_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_VC1_RCV_DEC)
+#define IS_MPEG2_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_MPEG2_DEC)
+#define IS_HEVC_DEC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_HEVC_DEC)
+#define IS_VP9_DEC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_VP9_DEC)
+#define IS_BPG_DEC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_BPG_DEC)
 
 /* Encoder codec mode check */
-#define IS_H264_ENC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_H264_ENC)
-#define IS_MPEG4_ENC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_MPEG4_ENC)
-#define IS_H263_ENC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_H263_ENC)
-#define IS_VP8_ENC(ctx)		((ctx)->codec_mode == S5P_FIMV_CODEC_VP8_ENC)
-#define IS_HEVC_ENC(ctx)	((ctx)->codec_mode == S5P_FIMV_CODEC_HEVC_ENC)
-#define IS_VP9_ENC(ctx)		((ctx)->codec_mode == S5P_FIMV_CODEC_VP9_ENC)
-#define IS_BPG_ENC(ctx)		((ctx)->codec_mode == S5P_FIMV_CODEC_BPG_ENC)
+#define IS_H264_ENC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_H264_ENC)
+#define IS_MPEG4_ENC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_MPEG4_ENC)
+#define IS_H263_ENC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_H263_ENC)
+#define IS_VP8_ENC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_VP8_ENC)
+#define IS_HEVC_ENC(ctx)	((ctx)->codec_mode == MFC_REG_CODEC_HEVC_ENC)
+#define IS_VP9_ENC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_VP9_ENC)
+#define IS_BPG_ENC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_BPG_ENC)
 
 #define CODEC_NOT_CODED(ctx)	(IS_MPEG4_DEC(ctx) || IS_VC1_DEC(ctx) || IS_VC1_RCV_DEC(ctx))
 #define CODEC_INTERLACED(ctx)	(IS_H264_DEC(ctx) || IS_H264_MVC_DEC(ctx) ||	\

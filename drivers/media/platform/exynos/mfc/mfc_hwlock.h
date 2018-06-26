@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_hwlock.h
+ * drivers/media/platform/exynos/mfc/mfc_hwlock.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,7 +15,7 @@
 
 #include "mfc_common.h"
 
-static inline void s5p_mfc_init_listable_wq_dev(struct s5p_mfc_dev *dev)
+static inline void mfc_init_listable_wq_dev(struct mfc_dev *dev)
 {
 	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
@@ -29,7 +29,7 @@ static inline void s5p_mfc_init_listable_wq_dev(struct s5p_mfc_dev *dev)
 	dev->hwlock_wq.dev = dev;
 }
 
-static inline void s5p_mfc_init_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
+static inline void mfc_init_listable_wq_ctx(struct mfc_ctx *curr_ctx)
 {
 	if (!curr_ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -43,7 +43,7 @@ static inline void s5p_mfc_init_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
 	curr_ctx->hwlock_wq.dev = NULL;
 }
 
-static inline void s5p_mfc_destroy_listable_wq_dev(struct s5p_mfc_dev *dev)
+static inline void mfc_destroy_listable_wq_dev(struct mfc_dev *dev)
 {
 	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
@@ -53,7 +53,7 @@ static inline void s5p_mfc_destroy_listable_wq_dev(struct s5p_mfc_dev *dev)
 	mutex_destroy(&dev->hwlock_wq.wait_mutex);
 }
 
-static inline void s5p_mfc_destroy_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
+static inline void mfc_destroy_listable_wq_ctx(struct mfc_ctx *curr_ctx)
 {
 	if (!curr_ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -63,21 +63,21 @@ static inline void s5p_mfc_destroy_listable_wq_ctx(struct s5p_mfc_ctx *curr_ctx)
 	mutex_destroy(&curr_ctx->hwlock_wq.wait_mutex);
 }
 
-void s5p_mfc_init_hwlock(struct s5p_mfc_dev *dev);
+void mfc_init_hwlock(struct mfc_dev *dev);
 
-int s5p_mfc_get_hwlock_dev(struct s5p_mfc_dev *dev);
-int s5p_mfc_get_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx);
+int mfc_get_hwlock_dev(struct mfc_dev *dev);
+int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx);
 
-int s5p_mfc_release_hwlock_dev(struct s5p_mfc_dev *dev);
-int s5p_mfc_release_hwlock_ctx(struct s5p_mfc_ctx *curr_ctx);
+int mfc_release_hwlock_dev(struct mfc_dev *dev);
+int mfc_release_hwlock_ctx(struct mfc_ctx *curr_ctx);
 
-void s5p_mfc_cache_flush(struct s5p_mfc_dev *dev, int is_drm);
+void mfc_cache_flush(struct mfc_dev *dev, int is_drm);
 
-void s5p_mfc_try_run(struct s5p_mfc_dev *dev);
-void s5p_mfc_cleanup_work_bit_and_try_run(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_just_run(struct s5p_mfc_dev *dev, int new_ctx_index);
+void mfc_try_run(struct mfc_dev *dev);
+void mfc_cleanup_work_bit_and_try_run(struct mfc_ctx *ctx);
+int mfc_just_run(struct mfc_dev *dev, int new_ctx_index);
 
-void s5p_mfc_hwlock_handler_irq(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
+void mfc_hwlock_handler_irq(struct mfc_dev *dev, struct mfc_ctx *ctx,
 		unsigned int reason, unsigned int err);
 
 #endif /* __MFC_HWLOCK_H */

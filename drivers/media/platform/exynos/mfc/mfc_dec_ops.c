@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_dec_ops.c
+ * drivers/media/platform/exynos/mfc/mfc_dec_ops.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -16,13 +16,13 @@
 
 #define NUM_CTRL_CFGS ARRAY_SIZE(mfc_ctrl_list)
 
-struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
+struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 	{
 		.type = MFC_CTRL_TYPE_SET,
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_PICTURE_TAG,
+		.addr = MFC_REG_D_PICTURE_TAG,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -34,7 +34,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_RET_PICTURE_TAG_TOP,
+		.addr = MFC_REG_D_RET_PICTURE_TAG_TOP,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -46,7 +46,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_DISPLAY_STATUS,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_DISPLAY_STATUS,
+		.addr = MFC_REG_D_DISPLAY_STATUS,
 		.mask = 0x7,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -59,7 +59,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_CRC_DATA_LUMA,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_DISPLAY_FIRST_PLANE_CRC,
+		.addr = MFC_REG_D_DISPLAY_FIRST_PLANE_CRC,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -71,7 +71,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_CRC_DATA_CHROMA,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_DISPLAY_SECOND_PLANE_CRC,
+		.addr = MFC_REG_D_DISPLAY_SECOND_PLANE_CRC,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -83,7 +83,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_CRC_DATA_CHROMA1,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_DISPLAY_THIRD_PLANE_CRC,
+		.addr = MFC_REG_D_DISPLAY_THIRD_PLANE_CRC,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -95,7 +95,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_CRC_DATA_2BIT_LUMA,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_DISPLAY_FIRST_PLANE_2BIT_CRC,
+		.addr = MFC_REG_D_DISPLAY_FIRST_PLANE_2BIT_CRC,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -107,7 +107,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_CRC_DATA_2BIT_CHROMA,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_DISPLAY_SECOND_PLANE_2BIT_CRC,
+		.addr = MFC_REG_D_DISPLAY_SECOND_PLANE_2BIT_CRC,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -119,7 +119,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_CRC_GENERATED,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_DISPLAY_STATUS,
+		.addr = MFC_REG_D_DISPLAY_STATUS,
 		.mask = 0x1,
 		.shft = 6,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -131,7 +131,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_SEI_FP_AVAIL,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_SEI_AVAIL,
+		.addr = MFC_REG_D_SEI_AVAIL,
 		.mask = 0x1,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -143,7 +143,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_SEI_FP_ARRGMENT_ID,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_FRAME_PACK_ARRGMENT_ID,
+		.addr = MFC_REG_D_FRAME_PACK_ARRGMENT_ID,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -155,7 +155,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_SEI_FP_INFO,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_FRAME_PACK_SEI_INFO,
+		.addr = MFC_REG_D_FRAME_PACK_SEI_INFO,
 		.mask = 0x3FFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -167,7 +167,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_SEI_FP_GRID_POS,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_FRAME_PACK_GRID_POS,
+		.addr = MFC_REG_D_FRAME_PACK_GRID_POS,
 		.mask = 0xFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -179,7 +179,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_MVC_VIEW_ID,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_MVC_VIEW_ID,
+		.addr = MFC_REG_D_MVC_VIEW_ID,
 		.mask = 0xFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -191,7 +191,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_MAX_PIC_AVERAGE_LIGHT,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_CONTENT_LIGHT_LEVEL_INFO_SEI,
+		.addr = MFC_REG_D_CONTENT_LIGHT_LEVEL_INFO_SEI,
 		.mask = 0xFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -203,7 +203,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_MAX_CONTENT_LIGHT,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_CONTENT_LIGHT_LEVEL_INFO_SEI,
+		.addr = MFC_REG_D_CONTENT_LIGHT_LEVEL_INFO_SEI,
 		.mask = 0xFFFF,
 		.shft = 16,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -215,7 +215,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_MAX_DISPLAY_LUMINANCE,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_0,
+		.addr = MFC_REG_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_0,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -227,7 +227,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_MIN_DISPLAY_LUMINANCE,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_1,
+		.addr = MFC_REG_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_1,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -239,7 +239,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_MATRIX_COEFFICIENTS,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_VIDEO_SIGNAL_TYPE,
+		.addr = MFC_REG_D_VIDEO_SIGNAL_TYPE,
 		.mask = 0xFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -251,7 +251,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_FORMAT,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_VIDEO_SIGNAL_TYPE,
+		.addr = MFC_REG_D_VIDEO_SIGNAL_TYPE,
 		.mask = 0x7,
 		.shft = 26,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -263,7 +263,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_FULL_RANGE_FLAG,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_VIDEO_SIGNAL_TYPE,
+		.addr = MFC_REG_D_VIDEO_SIGNAL_TYPE,
 		.mask = 0x1,
 		.shft = 25,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -275,7 +275,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_COLOUR_PRIMARIES,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_VIDEO_SIGNAL_TYPE,
+		.addr = MFC_REG_D_VIDEO_SIGNAL_TYPE,
 		.mask = 0xFF,
 		.shft = 16,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -287,7 +287,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_TRANSFER_CHARACTERISTICS,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_VIDEO_SIGNAL_TYPE,
+		.addr = MFC_REG_D_VIDEO_SIGNAL_TYPE,
 		.mask = 0xFF,
 		.shft = 8,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -299,7 +299,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_WHITE_POINT,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_2,
+		.addr = MFC_REG_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_2,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -311,7 +311,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_0,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_3,
+		.addr = MFC_REG_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_3,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -323,7 +323,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_1,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_4,
+		.addr = MFC_REG_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_4,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -335,7 +335,7 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.id = V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_2,
 		.is_volatile = 0,
 		.mode = MFC_CTRL_MODE_SFR,
-		.addr = S5P_FIMV_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_5,
+		.addr = MFC_REG_D_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_5,
 		.mask = 0xFFFFFFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_NONE,
@@ -344,13 +344,13 @@ struct s5p_mfc_ctrl_cfg mfc_ctrl_list[] = {
 	},
 };
 
-static int s5p_mfc_dec_cleanup_ctx_ctrls(struct s5p_mfc_ctx *ctx)
+static int mfc_dec_cleanup_ctx_ctrls(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_ctx_ctrl *ctx_ctrl;
 
 	while (!list_empty(&ctx->ctrls)) {
 		ctx_ctrl = list_entry((&ctx->ctrls)->next,
-				      struct s5p_mfc_ctx_ctrl, list);
+				      struct mfc_ctx_ctrl, list);
 		list_del(&ctx_ctrl->list);
 		kfree(ctx_ctrl);
 	}
@@ -360,22 +360,22 @@ static int s5p_mfc_dec_cleanup_ctx_ctrls(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
-static int s5p_mfc_dec_init_ctx_ctrls(struct s5p_mfc_ctx *ctx)
+static int mfc_dec_init_ctx_ctrls(struct mfc_ctx *ctx)
 {
 	unsigned long i;
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_ctx_ctrl *ctx_ctrl;
 
 	INIT_LIST_HEAD(&ctx->ctrls);
 
 	for (i = 0; i < NUM_CTRL_CFGS; i++) {
-		ctx_ctrl = kzalloc(sizeof(struct s5p_mfc_ctx_ctrl), GFP_KERNEL);
+		ctx_ctrl = kzalloc(sizeof(struct mfc_ctx_ctrl), GFP_KERNEL);
 		if (ctx_ctrl == NULL) {
 			mfc_err_dev("Failed to allocate context control "\
 					"id: 0x%08x, type: %d\n",
 					mfc_ctrl_list[i].id,
 					mfc_ctrl_list[i].type);
 
-			s5p_mfc_dec_cleanup_ctx_ctrls(ctx);
+			mfc_dec_cleanup_ctx_ctrls(ctx);
 
 			return -ENOMEM;
 		}
@@ -392,13 +392,13 @@ static int s5p_mfc_dec_init_ctx_ctrls(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
-static void mfc_dec_remove_buf_ctrls(struct list_head *head)
+static void __mfc_dec_remove_buf_ctrls(struct list_head *head)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_buf_ctrl *buf_ctrl;
 
 	while (!list_empty(head)) {
 		buf_ctrl = list_entry(head->next,
-				struct s5p_mfc_buf_ctrl, list);
+				struct mfc_buf_ctrl, list);
 		list_del(&buf_ctrl->list);
 		kfree(buf_ctrl);
 	}
@@ -406,9 +406,9 @@ static void mfc_dec_remove_buf_ctrls(struct list_head *head)
 	INIT_LIST_HEAD(head);
 }
 
-static void s5p_mfc_dec_reset_buf_ctrls(struct list_head *head)
+static void mfc_dec_reset_buf_ctrls(struct list_head *head)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_buf_ctrl *buf_ctrl;
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		buf_ctrl->has_new = 0;
@@ -418,12 +418,12 @@ static void s5p_mfc_dec_reset_buf_ctrls(struct list_head *head)
 	}
 }
 
-static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
-	enum s5p_mfc_ctrl_type type, unsigned int index)
+static int mfc_dec_init_buf_ctrls(struct mfc_ctx *ctx,
+	enum mfc_ctrl_type type, unsigned int index)
 {
 	unsigned long i;
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_buf_ctrl *buf_ctrl;
 	struct list_head *head;
 
 	if (index >= MFC_MAX_BUFFERS) {
@@ -433,7 +433,7 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 
 	if (type & MFC_CTRL_TYPE_SRC) {
 		if (test_bit(index, &ctx->src_ctrls_avail)) {
-			s5p_mfc_dec_reset_buf_ctrls(&ctx->src_ctrls[index]);
+			mfc_dec_reset_buf_ctrls(&ctx->src_ctrls[index]);
 
 			return 0;
 		}
@@ -441,7 +441,7 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 		head = &ctx->src_ctrls[index];
 	} else if (type & MFC_CTRL_TYPE_DST) {
 		if (test_bit(index, &ctx->dst_ctrls_avail)) {
-			s5p_mfc_dec_reset_buf_ctrls(&ctx->dst_ctrls[index]);
+			mfc_dec_reset_buf_ctrls(&ctx->dst_ctrls[index]);
 
 			return 0;
 		}
@@ -471,14 +471,14 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 			continue;
 		}
 
-		buf_ctrl = kzalloc(sizeof(struct s5p_mfc_buf_ctrl), GFP_KERNEL);
+		buf_ctrl = kzalloc(sizeof(struct mfc_buf_ctrl), GFP_KERNEL);
 		if (buf_ctrl == NULL) {
 			mfc_err_dev("Failed to allocate buffer control "\
 					"id: 0x%08x, type: %d\n",
 					mfc_ctrl_list[i].id,
 					mfc_ctrl_list[i].type);
 
-			mfc_dec_remove_buf_ctrls(head);
+			__mfc_dec_remove_buf_ctrls(head);
 
 			return -ENOMEM;
 		}
@@ -498,7 +498,7 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 		list_add_tail(&buf_ctrl->list, head);
 	}
 
-	s5p_mfc_dec_reset_buf_ctrls(head);
+	mfc_dec_reset_buf_ctrls(head);
 
 	if (type & MFC_CTRL_TYPE_SRC)
 		set_bit(index, &ctx->src_ctrls_avail);
@@ -508,8 +508,8 @@ static int s5p_mfc_dec_init_buf_ctrls(struct s5p_mfc_ctx *ctx,
 	return 0;
 }
 
-static int s5p_mfc_dec_cleanup_buf_ctrls(struct s5p_mfc_ctx *ctx,
-	enum s5p_mfc_ctrl_type type, unsigned int index)
+static int mfc_dec_cleanup_buf_ctrls(struct mfc_ctx *ctx,
+	enum mfc_ctrl_type type, unsigned int index)
 {
 	struct list_head *head;
 
@@ -535,15 +535,15 @@ static int s5p_mfc_dec_cleanup_buf_ctrls(struct s5p_mfc_ctx *ctx,
 		return -EINVAL;
 	}
 
-	mfc_dec_remove_buf_ctrls(head);
+	__mfc_dec_remove_buf_ctrls(head);
 
 	return 0;
 }
 
-static int s5p_mfc_dec_to_buf_ctrls(struct s5p_mfc_ctx *ctx, struct list_head *head)
+static int mfc_dec_to_buf_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 {
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_buf_ctrl *buf_ctrl;
 
 	list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
 		if (!(ctx_ctrl->type & MFC_CTRL_TYPE_SET) || !ctx_ctrl->has_new)
@@ -568,10 +568,10 @@ static int s5p_mfc_dec_to_buf_ctrls(struct s5p_mfc_ctx *ctx, struct list_head *h
 	return 0;
 }
 
-static int s5p_mfc_dec_to_ctx_ctrls(struct s5p_mfc_ctx *ctx, struct list_head *head)
+static int mfc_dec_to_ctx_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 {
-	struct s5p_mfc_ctx_ctrl *ctx_ctrl;
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_ctx_ctrl *ctx_ctrl;
+	struct mfc_buf_ctrl *buf_ctrl;
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_GET) || !buf_ctrl->has_new)
@@ -593,11 +593,11 @@ static int s5p_mfc_dec_to_ctx_ctrls(struct s5p_mfc_ctx *ctx, struct list_head *h
 	return 0;
 }
 
-static int s5p_mfc_dec_set_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct list_head *head)
+static int mfc_dec_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_buf_ctrl *buf_ctrl;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_dev *dev = ctx->dev;
 	unsigned int value = 0;
 
 	list_for_each_entry(buf_ctrl, head, list) {
@@ -636,11 +636,11 @@ static int s5p_mfc_dec_set_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct list_he
 	return 0;
 }
 
-static int s5p_mfc_dec_get_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct list_head *head)
+static int mfc_dec_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
-	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf_ctrl *buf_ctrl;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned int value = 0;
 
 	list_for_each_entry(buf_ctrl, head, list) {
@@ -667,11 +667,11 @@ static int s5p_mfc_dec_get_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct list_he
 	return 0;
 }
 
-static int s5p_mfc_dec_set_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
+static int mfc_dec_set_buf_ctrls_val_nal_q_dec(struct mfc_ctx *ctx,
 			struct list_head *head, DecoderInputStr *pInStr)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf_ctrl *buf_ctrl;
+	struct mfc_dec *dec = ctx->dec_priv;
 
 	mfc_debug_enter();
 
@@ -702,11 +702,11 @@ static int s5p_mfc_dec_set_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
 	return 0;
 }
 
-static int s5p_mfc_dec_get_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
+static int mfc_dec_get_buf_ctrls_val_nal_q_dec(struct mfc_ctx *ctx,
 			struct list_head *head, DecoderOutputStr *pOutStr)
 {
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf_ctrl *buf_ctrl;
 	unsigned int value = 0;
 
 	mfc_debug_enter();
@@ -810,10 +810,10 @@ static int s5p_mfc_dec_get_buf_ctrls_val_nal_q_dec(struct s5p_mfc_ctx *ctx,
 	return 0;
 }
 
-static int s5p_mfc_dec_recover_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct list_head *head)
+static int mfc_dec_recover_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_buf_ctrl *buf_ctrl;
+	struct mfc_dev *dev = ctx->dev;
 	unsigned int value = 0;
 
 	list_for_each_entry(buf_ctrl, head, list) {
@@ -842,10 +842,10 @@ static int s5p_mfc_dec_recover_buf_ctrls_val(struct s5p_mfc_ctx *ctx, struct lis
 	return 0;
 }
 
-static int s5p_mfc_dec_get_buf_update_val(struct s5p_mfc_ctx *ctx,
+static int mfc_dec_get_buf_update_val(struct mfc_ctx *ctx,
 			struct list_head *head, unsigned int id, int value)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_buf_ctrl *buf_ctrl;
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (buf_ctrl->id == id) {
@@ -859,10 +859,10 @@ static int s5p_mfc_dec_get_buf_update_val(struct s5p_mfc_ctx *ctx,
 	return 0;
 }
 
-static int s5p_mfc_dec_recover_buf_ctrls_nal_q(struct s5p_mfc_ctx *ctx,
+static int mfc_dec_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
 		struct list_head *head)
 {
-	struct s5p_mfc_buf_ctrl *buf_ctrl;
+	struct mfc_buf_ctrl *buf_ctrl;
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET)
@@ -878,19 +878,19 @@ static int s5p_mfc_dec_recover_buf_ctrls_nal_q(struct s5p_mfc_ctx *ctx,
 	return 0;
 }
 
-struct s5p_mfc_ctrls_ops decoder_ctrls_ops = {
-	.init_ctx_ctrls			= s5p_mfc_dec_init_ctx_ctrls,
-	.cleanup_ctx_ctrls		= s5p_mfc_dec_cleanup_ctx_ctrls,
-	.init_buf_ctrls			= s5p_mfc_dec_init_buf_ctrls,
-	.reset_buf_ctrls		= s5p_mfc_dec_reset_buf_ctrls,
-	.cleanup_buf_ctrls		= s5p_mfc_dec_cleanup_buf_ctrls,
-	.to_buf_ctrls			= s5p_mfc_dec_to_buf_ctrls,
-	.to_ctx_ctrls			= s5p_mfc_dec_to_ctx_ctrls,
-	.set_buf_ctrls_val		= s5p_mfc_dec_set_buf_ctrls_val,
-	.get_buf_ctrls_val		= s5p_mfc_dec_get_buf_ctrls_val,
-	.set_buf_ctrls_val_nal_q_dec	= s5p_mfc_dec_set_buf_ctrls_val_nal_q_dec,
-	.get_buf_ctrls_val_nal_q_dec	= s5p_mfc_dec_get_buf_ctrls_val_nal_q_dec,
-	.recover_buf_ctrls_val		= s5p_mfc_dec_recover_buf_ctrls_val,
-	.get_buf_update_val		= s5p_mfc_dec_get_buf_update_val,
-	.recover_buf_ctrls_nal_q	= s5p_mfc_dec_recover_buf_ctrls_nal_q,
+struct mfc_ctrls_ops decoder_ctrls_ops = {
+	.init_ctx_ctrls			= mfc_dec_init_ctx_ctrls,
+	.cleanup_ctx_ctrls		= mfc_dec_cleanup_ctx_ctrls,
+	.init_buf_ctrls			= mfc_dec_init_buf_ctrls,
+	.reset_buf_ctrls		= mfc_dec_reset_buf_ctrls,
+	.cleanup_buf_ctrls		= mfc_dec_cleanup_buf_ctrls,
+	.to_buf_ctrls			= mfc_dec_to_buf_ctrls,
+	.to_ctx_ctrls			= mfc_dec_to_ctx_ctrls,
+	.set_buf_ctrls_val		= mfc_dec_set_buf_ctrls_val,
+	.get_buf_ctrls_val		= mfc_dec_get_buf_ctrls_val,
+	.set_buf_ctrls_val_nal_q_dec	= mfc_dec_set_buf_ctrls_val_nal_q_dec,
+	.get_buf_ctrls_val_nal_q_dec	= mfc_dec_get_buf_ctrls_val_nal_q_dec,
+	.recover_buf_ctrls_val		= mfc_dec_recover_buf_ctrls_val,
+	.get_buf_update_val		= mfc_dec_get_buf_update_val,
+	.recover_buf_ctrls_nal_q	= mfc_dec_recover_buf_ctrls_nal_q,
 };

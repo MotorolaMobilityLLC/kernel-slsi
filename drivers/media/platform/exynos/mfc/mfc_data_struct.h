@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_data_struct.h
+ * drivers/media/platform/exynos/mfc/mfc_data_struct.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -69,9 +69,9 @@ enum {
 };
 
 /**
- * enum s5p_mfc_inst_type - The type of an MFC device node.
+ * enum mfc_inst_type - The type of an MFC device node.
  */
-enum s5p_mfc_node_type {
+enum mfc_node_type {
 	MFCNODE_INVALID = -1,
 	MFCNODE_DECODER = 0,
 	MFCNODE_ENCODER = 1,
@@ -82,18 +82,18 @@ enum s5p_mfc_node_type {
 };
 
 /**
- * enum s5p_mfc_inst_type - The type of an MFC instance.
+ * enum mfc_inst_type - The type of an MFC instance.
  */
-enum s5p_mfc_inst_type {
+enum mfc_inst_type {
 	MFCINST_INVALID = 0,
 	MFCINST_DECODER = 1,
 	MFCINST_ENCODER = 2,
 };
 
 /**
- * enum s5p_mfc_inst_state - The state of an MFC instance.
+ * enum mfc_inst_state - The state of an MFC instance.
  */
-enum s5p_mfc_inst_state {
+enum mfc_inst_state {
 	MFCINST_FREE = 0,
 	MFCINST_INIT = 100,
 	MFCINST_GOT_INST,
@@ -115,9 +115,9 @@ enum s5p_mfc_inst_state {
 };
 
 /**
- * enum s5p_mfc_queue_state - The state of buffer queue.
+ * enum mfc_queue_state - The state of buffer queue.
  */
-enum s5p_mfc_queue_state {
+enum mfc_queue_state {
 	QUEUE_FREE = 0,
 	QUEUE_BUFS_REQUESTED,
 	QUEUE_BUFS_QUERIED,
@@ -131,9 +131,9 @@ enum mfc_dec_wait_state {
 };
 
 /**
- * enum s5p_mfc_check_state - The state for user notification
+ * enum mfc_check_state - The state for user notification
  */
-enum s5p_mfc_check_state {
+enum mfc_check_state {
 	MFCSTATE_PROCESSING = 0,
 	MFCSTATE_DEC_RES_DETECT,
 	MFCSTATE_DEC_TERMINATING,
@@ -158,21 +158,21 @@ enum mfc_buf_process_type {
 	MFCBUFPROC_ANBSHARE_NV12L	= (1 << 4),
 };
 
-enum s5p_mfc_ctrl_type {
+enum mfc_ctrl_type {
 	MFC_CTRL_TYPE_GET_SRC	= 0x1,
 	MFC_CTRL_TYPE_GET_DST	= 0x2,
 	MFC_CTRL_TYPE_SET	= 0x4,
 };
 
-enum s5p_mfc_ctrl_mode {
+enum mfc_ctrl_mode {
 	MFC_CTRL_MODE_NONE	= 0x0,
 	MFC_CTRL_MODE_SFR	= 0x1,
 	MFC_CTRL_MODE_CST	= 0x2,
 };
 
-struct s5p_mfc_ctx;
+struct mfc_ctx;
 
-enum s5p_mfc_debug_cause {
+enum mfc_debug_cause {
 	MFC_CAUSE_0WRITE_PAGE_FAULT		= 0,
 	MFC_CAUSE_0READ_PAGE_FAULT		= 1,
 	MFC_CAUSE_1WRITE_PAGE_FAULT		= 2,
@@ -189,7 +189,7 @@ enum s5p_mfc_debug_cause {
 	MFC_CAUSE_FAIL_CHACHE_FLUSH		= 13,
 };
 
-struct s5p_mfc_debug {
+struct mfc_debug {
 	u32	cause;
 	u8	fault_status;
 	u32	fault_trans_info;
@@ -200,10 +200,10 @@ struct s5p_mfc_debug {
 };
 
 /**
- * struct s5p_mfc_buf - MFC buffer
+ * struct mfc_buf - MFC buffer
  *
  */
-struct s5p_mfc_buf {
+struct mfc_buf {
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 	dma_addr_t addr[MAX_NUM_IMAGES_IN_VB][MFC_MAX_PLANES];
@@ -217,17 +217,17 @@ struct s5p_mfc_buf {
 	unsigned char *vir_addr;
 };
 
-struct s5p_mfc_buf_queue {
+struct mfc_buf_queue {
 	struct list_head head;
 	unsigned int count;
 };
 
-struct s5p_mfc_bits {
+struct mfc_bits {
 	unsigned long bits;
 	spinlock_t lock;
 };
 
-struct s5p_mfc_hwlock {
+struct mfc_hwlock {
 	struct list_head waiting_list;
 	unsigned int wl_count;
 	unsigned long bits;
@@ -237,15 +237,15 @@ struct s5p_mfc_hwlock {
 	spinlock_t lock;
 };
 
-struct s5p_mfc_listable_wq {
+struct mfc_listable_wq {
 	struct list_head list;
 	wait_queue_head_t wait_queue;
 	struct mutex wait_mutex;
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_ctx *ctx;
+	struct mfc_dev *dev;
+	struct mfc_ctx *ctx;
 };
 
-struct s5p_mfc_pm {
+struct mfc_pm {
 	struct clk	*clock;
 	atomic_t	pwr_ref;
 	struct device	*device;
@@ -256,7 +256,7 @@ struct s5p_mfc_pm {
 	enum mfc_buf_usage_type base_type;
 };
 
-struct s5p_mfc_fw {
+struct mfc_fw {
 	int		date;
 	int		fimv_info;
 	size_t		size;
@@ -264,7 +264,7 @@ struct s5p_mfc_fw {
 	int		drm_status;
 };
 
-struct s5p_mfc_ctx_buf_size {
+struct mfc_ctx_buf_size {
 	size_t dev_ctx;
 	size_t h264_dec_ctx;
 	size_t other_dec_ctx;
@@ -275,14 +275,14 @@ struct s5p_mfc_ctx_buf_size {
 	size_t dbg_info_buf;
 };
 
-struct s5p_mfc_buf_size {
+struct mfc_buf_size {
 	size_t firmware_code;
 	unsigned int cpb_buf;
 	void *ctx_buf;
 };
 
-struct s5p_mfc_variant {
-	struct s5p_mfc_buf_size *buf_size;
+struct mfc_variant {
+	struct mfc_buf_size *buf_size;
 	int	num_entities;
 };
 
@@ -298,7 +298,7 @@ enum mfc_sfr_dump_type {
 	MFC_DUMP_WARN_INT		= (1 << 7),
 };
 
-struct s5p_mfc_debugfs {
+struct mfc_debugfs {
 	struct dentry *root;
 	struct dentry *mfc_info;
 	struct dentry *debug_info;
@@ -317,13 +317,13 @@ struct s5p_mfc_debugfs {
 };
 
 /**
- * struct s5p_mfc_special_buf - represents internal used buffer
+ * struct mfc_special_buf - represents internal used buffer
  * @daddr:		device virtual address
  * @virt:		kernel virtual address, only valid when the
  *			buffer accessed by driver
  */
-struct s5p_mfc_special_buf {
-	enum mfc_buf_usage_type		buftype;
+struct mfc_special_buf {
+	enum mfc_buf_usage_type	buftype;
 	struct dma_buf			*dma_buf;
 	struct dma_buf_attachment	*attachment;
 	struct sg_table			*sgt;
@@ -339,7 +339,7 @@ struct mfc_qos_bw_data {
 	unsigned long	write;
 };
 
-struct s5p_mfc_qos_bw {
+struct mfc_qos_bw {
 	struct mfc_qos_bw_data h264_dec_uhd_bw;
 	struct mfc_qos_bw_data hevc_dec_uhd_bw;
 	struct mfc_qos_bw_data hevc_dec_uhd_10bit_bw;
@@ -359,7 +359,7 @@ struct s5p_mfc_qos_bw {
  * Total MB count can be calculated by
  *	(MB of width) * (MB of height) * fps
  */
-struct s5p_mfc_qos {
+struct mfc_qos {
 	unsigned int threshold_mb;
 	unsigned int freq_mfc;
 	unsigned int freq_int;
@@ -370,7 +370,7 @@ struct s5p_mfc_qos {
 	unsigned int time_fw;
 };
 
-struct s5p_mfc_qos_boost {
+struct mfc_qos_boost {
 	unsigned int num_cluster;
 	unsigned int freq_mfc;
 	unsigned int freq_int;
@@ -379,12 +379,12 @@ struct s5p_mfc_qos_boost {
 };
 #endif
 
-struct s5p_mfc_feature {
+struct mfc_feature {
 	unsigned int support;
 	unsigned int version;
 };
 
-struct s5p_mfc_platdata {
+struct mfc_platdata {
 	/* MFC version */
 	unsigned int ip_ver;
 	/* Debug mode */
@@ -394,13 +394,13 @@ struct s5p_mfc_platdata {
 	unsigned int axid_mask;
 	unsigned int mfc_fault_num;
 	/* Features */
-	struct s5p_mfc_feature nal_q;
-	struct s5p_mfc_feature skype;
-	struct s5p_mfc_feature black_bar;
-	struct s5p_mfc_feature color_aspect_dec;
-	struct s5p_mfc_feature static_info_dec;
-	struct s5p_mfc_feature color_aspect_enc;
-	struct s5p_mfc_feature static_info_enc;
+	struct mfc_feature nal_q;
+	struct mfc_feature skype;
+	struct mfc_feature black_bar;
+	struct mfc_feature color_aspect_dec;
+	struct mfc_feature static_info_dec;
+	struct mfc_feature color_aspect_enc;
+	struct mfc_feature static_info_enc;
 	/* Default 10bit format for decoding */
 	unsigned int P010_decoding;
 	/* Formats */
@@ -419,8 +419,8 @@ struct s5p_mfc_platdata {
 	unsigned int mfc_freq_control;
 	unsigned int mo_control;
 	unsigned int bw_control;
-	struct s5p_mfc_qos *qos_table;
-	struct s5p_mfc_qos_boost *qos_boost_table;
+	struct mfc_qos *qos_table;
+	struct mfc_qos_boost *qos_boost_table;
 #endif
 };
 
@@ -592,8 +592,8 @@ typedef struct __EncoderOutputStr {
  */
 typedef enum _nal_queue_state {
 	NAL_Q_STATE_CREATED = 0,
-	NAL_Q_STATE_STARTED, /* when s5p_mfc_nal_q_start() is called */
-	NAL_Q_STATE_STOPPED, /* when s5p_mfc_nal_q_stop() is called */
+	NAL_Q_STATE_STARTED, /* when mfc_nal_q_start() is called */
+	NAL_Q_STATE_STOPPED, /* when mfc_nal_q_stop() is called */
 } nal_queue_state;
 
 typedef struct _nal_in_queue {
@@ -613,14 +613,14 @@ typedef struct _nal_out_queue {
 struct _nal_queue_handle;
 typedef struct _nal_queue_in_handle {
 	struct _nal_queue_handle *nal_q_handle;
-	struct s5p_mfc_special_buf in_buf;
+	struct mfc_special_buf in_buf;
 	unsigned int in_exe_count;
 	nal_in_queue *nal_q_in_addr;
 } nal_queue_in_handle;
 
 typedef struct _nal_queue_out_handle {
 	struct _nal_queue_handle *nal_q_handle;
-	struct s5p_mfc_special_buf out_buf;
+	struct mfc_special_buf out_buf;
 	unsigned int out_exe_count;
 	nal_out_queue *nal_q_out_addr;
 	int nal_q_ctx;
@@ -650,7 +650,7 @@ struct _otf_buf_info {
 };
 
 struct _otf_debug {
-	struct s5p_mfc_special_buf stream_buf[OTF_MAX_BUF];
+	struct mfc_special_buf stream_buf[OTF_MAX_BUF];
 	unsigned int stream_size[OTF_MAX_BUF];
 	unsigned char frame_cnt;
 };
@@ -666,7 +666,7 @@ struct _otf_handle {
 };
 /********************************************************************/
 
-struct s5p_mfc_perf {
+struct mfc_perf {
 	void __iomem *regs_base0;
 	void __iomem *regs_base1;
 
@@ -678,24 +678,24 @@ struct s5p_mfc_perf {
 	int drv_margin;
 };
 
-extern struct s5p_mfc_dump_ops mfc_dump_ops;
-struct s5p_mfc_dump_ops {
-	void (*dump_regs)(struct s5p_mfc_dev *dev);
-	void (*dump_info)(struct s5p_mfc_dev *dev);
-	void (*dump_info_without_regs)(struct s5p_mfc_dev *dev);
-	void (*dump_and_stop_always)(struct s5p_mfc_dev *dev);
-	void (*dump_and_stop_debug_mode)(struct s5p_mfc_dev *dev);
+extern struct mfc_dump_ops mfc_dump_ops;
+struct mfc_dump_ops {
+	void (*dump_regs)(struct mfc_dev *dev);
+	void (*dump_info)(struct mfc_dev *dev);
+	void (*dump_info_without_regs)(struct mfc_dev *dev);
+	void (*dump_and_stop_always)(struct mfc_dev *dev);
+	void (*dump_and_stop_debug_mode)(struct mfc_dev *dev);
 };
 
-struct s5p_mfc_mmcache {
+struct mfc_mmcache {
 	void __iomem *base;
 	int is_on_status;
 };
 
 /**
- * struct s5p_mfc_dev - The struct containing driver internal parameters.
+ * struct mfc_dev - The struct containing driver internal parameters.
  */
-struct s5p_mfc_dev {
+struct mfc_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	*vfd_dec;
 	struct video_device	*vfd_enc;
@@ -713,11 +713,11 @@ struct s5p_mfc_dev {
 	int			irq;
 	struct resource		*mfc_mem;
 
-	struct s5p_mfc_pm	pm;
-	struct s5p_mfc_fw	fw;
-	struct s5p_mfc_variant	*variant;
-	struct s5p_mfc_platdata	*pdata;
-	struct s5p_mfc_debug	*logging_data;
+	struct mfc_pm	pm;
+	struct mfc_fw	fw;
+	struct mfc_variant	*variant;
+	struct mfc_platdata	*pdata;
+	struct mfc_debug	*logging_data;
 
 	int num_inst;
 
@@ -728,22 +728,22 @@ struct s5p_mfc_dev {
 	unsigned int int_err;
 
 	wait_queue_head_t cmd_wq;
-	struct s5p_mfc_listable_wq hwlock_wq;
+	struct mfc_listable_wq hwlock_wq;
 
 	bool has_2sysmmu;
 	bool has_hwfc;
 	bool has_mmcache;
 
-	struct s5p_mfc_special_buf common_ctx_buf;
-	struct s5p_mfc_special_buf drm_common_ctx_buf;
+	struct mfc_special_buf common_ctx_buf;
+	struct mfc_special_buf drm_common_ctx_buf;
 
-	struct s5p_mfc_ctx *ctx[MFC_NUM_CONTEXTS];
+	struct mfc_ctx *ctx[MFC_NUM_CONTEXTS];
 	int curr_ctx;
 	int preempt_ctx;
 
-	struct s5p_mfc_bits work_bits;
+	struct mfc_bits work_bits;
 
-	struct s5p_mfc_hwlock hwlock;
+	struct mfc_hwlock hwlock;
 
 	atomic_t sched_wait_cnt;
 	atomic_t watchdog_tick_running;
@@ -756,8 +756,8 @@ struct s5p_mfc_dev {
 	/* for DRM */
 	int curr_ctx_is_drm;
 	int num_drm_inst;
-	struct s5p_mfc_special_buf fw_buf;
-	struct s5p_mfc_special_buf drm_fw_buf;
+	struct mfc_special_buf fw_buf;
+	struct mfc_special_buf drm_fw_buf;
 
 	struct workqueue_struct *butler_wq;
 	struct work_struct butler_work;
@@ -785,18 +785,18 @@ struct s5p_mfc_dev {
 
 	nal_queue_handle *nal_q_handle;
 
-	struct s5p_mfc_special_buf dbg_info_buf;
+	struct mfc_special_buf dbg_info_buf;
 
 #ifdef CONFIG_EXYNOS_BTS
 	struct bts_bw mfc_bw;
 #endif
 
-	struct s5p_mfc_debugfs debugfs;
-	struct s5p_mfc_dump_ops *dump_ops;
+	struct mfc_debugfs debugfs;
+	struct mfc_dump_ops *dump_ops;
 
-	struct s5p_mfc_perf perf;
+	struct mfc_perf perf;
 
-	struct s5p_mfc_mmcache mmcache;
+	struct mfc_mmcache mmcache;
 
 #ifdef CONFIG_EXYNOS_ITMON
 	struct notifier_block itmon_nb;
@@ -807,7 +807,7 @@ struct s5p_mfc_dev {
 /**
  *
  */
-struct s5p_mfc_h264_enc_params {
+struct mfc_h264_enc_params {
 	enum v4l2_mpeg_video_h264_profile profile;
 	u8 level;
 	u8 interlace;
@@ -864,7 +864,7 @@ struct s5p_mfc_h264_enc_params {
 /**
  *
  */
-struct s5p_mfc_mpeg4_enc_params {
+struct mfc_mpeg4_enc_params {
 	/* MPEG4 Only */
 	enum v4l2_mpeg_video_mpeg4_profile profile;
 	u8 level;
@@ -886,7 +886,7 @@ struct s5p_mfc_mpeg4_enc_params {
 /**
  *
  */
-struct s5p_mfc_vp9_enc_params {
+struct mfc_vp9_enc_params {
 	/* VP9 Only */
 	u8 vp9_version;
 	u8 rc_min_qp;
@@ -909,7 +909,7 @@ struct s5p_mfc_vp9_enc_params {
 /**
  *
  */
-struct s5p_mfc_vp8_enc_params {
+struct mfc_vp8_enc_params {
 	/* VP8 Only */
 	u8 vp8_version;
 	u8 rc_min_qp;
@@ -933,7 +933,7 @@ struct s5p_mfc_vp8_enc_params {
 /**
  *
  */
-struct s5p_mfc_hevc_enc_params {
+struct mfc_hevc_enc_params {
 	u8 profile;
 	u8 level;
 	u8 tier_flag;
@@ -988,7 +988,7 @@ struct s5p_mfc_hevc_enc_params {
 /**
  *
  */
-struct s5p_mfc_bpg_enc_params {
+struct mfc_bpg_enc_params {
 	u32 thumb_size;
 	u32 exif_size;
 };
@@ -996,7 +996,7 @@ struct s5p_mfc_bpg_enc_params {
 /**
  *
  */
-struct s5p_mfc_enc_params {
+struct mfc_enc_params {
 	u16 width;
 	u16 height;
 
@@ -1055,28 +1055,28 @@ struct s5p_mfc_enc_params {
 	u32 display_primaries_2;
 
 	union {
-		struct s5p_mfc_h264_enc_params h264;
-		struct s5p_mfc_mpeg4_enc_params mpeg4;
-		struct s5p_mfc_vp8_enc_params vp8;
-		struct s5p_mfc_vp9_enc_params vp9;
-		struct s5p_mfc_hevc_enc_params hevc;
-		struct s5p_mfc_bpg_enc_params bpg;
+		struct mfc_h264_enc_params h264;
+		struct mfc_mpeg4_enc_params mpeg4;
+		struct mfc_vp8_enc_params vp8;
+		struct mfc_vp9_enc_params vp9;
+		struct mfc_hevc_enc_params hevc;
+		struct mfc_bpg_enc_params bpg;
 	} codec;
 };
 
-struct s5p_mfc_ctx_ctrl {
+struct mfc_ctx_ctrl {
 	struct list_head list;
-	enum s5p_mfc_ctrl_type type;
+	enum mfc_ctrl_type type;
 	unsigned int id;
 	unsigned int addr;
 	int has_new;
 	int val;
 };
 
-struct s5p_mfc_buf_ctrl {
+struct mfc_buf_ctrl {
 	struct list_head list;
 	unsigned int id;
-	enum s5p_mfc_ctrl_type type;
+	enum mfc_ctrl_type type;
 	int has_new;
 	int val;
 	unsigned int old_val;		/* only for MFC_CTRL_TYPE_SET */
@@ -1090,14 +1090,14 @@ struct s5p_mfc_buf_ctrl {
 	unsigned int flag_mode;		/* only for MFC_CTRL_TYPE_SET */
 	unsigned int flag_addr;		/* only for MFC_CTRL_TYPE_SET */
 	unsigned int flag_shft;		/* only for MFC_CTRL_TYPE_SET */
-	int (*read_cst) (struct s5p_mfc_ctx *ctx,
-			struct s5p_mfc_buf_ctrl *buf_ctrl);
-	void (*write_cst) (struct s5p_mfc_ctx *ctx,
-			struct s5p_mfc_buf_ctrl *buf_ctrl);
+	int (*read_cst) (struct mfc_ctx *ctx,
+			struct mfc_buf_ctrl *buf_ctrl);
+	void (*write_cst) (struct mfc_ctx *ctx,
+			struct mfc_buf_ctrl *buf_ctrl);
 };
 
-struct s5p_mfc_ctrl_cfg {
-	enum s5p_mfc_ctrl_type type;
+struct mfc_ctrl_cfg {
+	enum mfc_ctrl_type type;
 	unsigned int id;
 	unsigned int is_volatile;	/* only for MFC_CTRL_TYPE_SET */
 	unsigned int mode;
@@ -1107,41 +1107,41 @@ struct s5p_mfc_ctrl_cfg {
 	unsigned int flag_mode;		/* only for MFC_CTRL_TYPE_SET */
 	unsigned int flag_addr;		/* only for MFC_CTRL_TYPE_SET */
 	unsigned int flag_shft;		/* only for MFC_CTRL_TYPE_SET */
-	int (*read_cst) (struct s5p_mfc_ctx *ctx,
-			struct s5p_mfc_buf_ctrl *buf_ctrl);
-	void (*write_cst) (struct s5p_mfc_ctx *ctx,
-			struct s5p_mfc_buf_ctrl *buf_ctrl);
+	int (*read_cst) (struct mfc_ctx *ctx,
+			struct mfc_buf_ctrl *buf_ctrl);
+	void (*write_cst) (struct mfc_ctx *ctx,
+			struct mfc_buf_ctrl *buf_ctrl);
 };
 
 /* per buffer contol */
-struct s5p_mfc_ctrls_ops {
+struct mfc_ctrls_ops {
 	/* controls per buffer */
-	int (*init_ctx_ctrls) (struct s5p_mfc_ctx *ctx);
-	int (*cleanup_ctx_ctrls) (struct s5p_mfc_ctx *ctx);
-	int (*init_buf_ctrls) (struct s5p_mfc_ctx *ctx,
-			enum s5p_mfc_ctrl_type type, unsigned int index);
+	int (*init_ctx_ctrls) (struct mfc_ctx *ctx);
+	int (*cleanup_ctx_ctrls) (struct mfc_ctx *ctx);
+	int (*init_buf_ctrls) (struct mfc_ctx *ctx,
+			enum mfc_ctrl_type type, unsigned int index);
 	void (*reset_buf_ctrls) (struct list_head *head);
-	int (*cleanup_buf_ctrls) (struct s5p_mfc_ctx *ctx,
-			enum s5p_mfc_ctrl_type type, unsigned int index);
-	int (*to_buf_ctrls) (struct s5p_mfc_ctx *ctx, struct list_head *head);
-	int (*to_ctx_ctrls) (struct s5p_mfc_ctx *ctx, struct list_head *head);
-	int (*set_buf_ctrls_val) (struct s5p_mfc_ctx *ctx,
+	int (*cleanup_buf_ctrls) (struct mfc_ctx *ctx,
+			enum mfc_ctrl_type type, unsigned int index);
+	int (*to_buf_ctrls) (struct mfc_ctx *ctx, struct list_head *head);
+	int (*to_ctx_ctrls) (struct mfc_ctx *ctx, struct list_head *head);
+	int (*set_buf_ctrls_val) (struct mfc_ctx *ctx,
 			struct list_head *head);
-	int (*get_buf_ctrls_val) (struct s5p_mfc_ctx *ctx,
+	int (*get_buf_ctrls_val) (struct mfc_ctx *ctx,
 			struct list_head *head);
-	int (*recover_buf_ctrls_val) (struct s5p_mfc_ctx *ctx,
+	int (*recover_buf_ctrls_val) (struct mfc_ctx *ctx,
 			struct list_head *head);
-	int (*get_buf_update_val) (struct s5p_mfc_ctx *ctx,
+	int (*get_buf_update_val) (struct mfc_ctx *ctx,
 			struct list_head *head, unsigned int id, int value);
-	int (*set_buf_ctrls_val_nal_q_dec) (struct s5p_mfc_ctx *ctx,
+	int (*set_buf_ctrls_val_nal_q_dec) (struct mfc_ctx *ctx,
 			struct list_head *head, DecoderInputStr *pInStr);
-	int (*get_buf_ctrls_val_nal_q_dec) (struct s5p_mfc_ctx *ctx,
+	int (*get_buf_ctrls_val_nal_q_dec) (struct mfc_ctx *ctx,
 			struct list_head *head, DecoderOutputStr *pOutStr);
-	int (*set_buf_ctrls_val_nal_q_enc) (struct s5p_mfc_ctx *ctx,
+	int (*set_buf_ctrls_val_nal_q_enc) (struct mfc_ctx *ctx,
 			struct list_head *head, EncoderInputStr *pInStr);
-	int (*get_buf_ctrls_val_nal_q_enc) (struct s5p_mfc_ctx *ctx,
+	int (*get_buf_ctrls_val_nal_q_enc) (struct mfc_ctx *ctx,
 			struct list_head *head, EncoderOutputStr *pOutStr);
-	int (*recover_buf_ctrls_nal_q) (struct s5p_mfc_ctx *ctx,
+	int (*recover_buf_ctrls_nal_q) (struct mfc_ctx *ctx,
 			struct list_head *head);
 };
 
@@ -1173,7 +1173,7 @@ struct mfc_user_shared_handle {
 	void *vaddr;
 };
 
-struct s5p_mfc_raw_info {
+struct mfc_raw_info {
 	int num_planes;
 	int stride[3];
 	int plane_size[3];
@@ -1189,7 +1189,7 @@ struct mfc_timestamp {
 	int interval;
 };
 
-struct s5p_mfc_dec {
+struct mfc_dec {
 	int total_dpb_count;
 
 	unsigned int src_buf_size;
@@ -1232,7 +1232,7 @@ struct s5p_mfc_dec {
 	struct dec_dpb_ref_info *ref_info;
 	int assigned_fd[MFC_MAX_DPBS];
 	struct mfc_user_shared_handle sh_handle;
-	struct s5p_mfc_buf *assigned_dpb[MFC_MAX_DPBS];
+	struct mfc_buf *assigned_dpb[MFC_MAX_DPBS];
 
 	int has_multiframe;
 	int is_dpb_full;
@@ -1254,8 +1254,8 @@ struct s5p_mfc_dec {
 	unsigned int color_space;
 };
 
-struct s5p_mfc_enc {
-	struct s5p_mfc_enc_params params;
+struct mfc_enc {
+	struct mfc_enc_params params;
 
 	unsigned int dst_buf_size;
 	unsigned int header_size;
@@ -1280,11 +1280,11 @@ struct s5p_mfc_enc {
 	struct mfc_user_shared_handle sh_handle_svc;
 	struct mfc_user_shared_handle sh_handle_roi;
 	int roi_index;
-	struct s5p_mfc_special_buf roi_buf[MFC_MAX_EXTRA_BUF];
+	struct mfc_special_buf roi_buf[MFC_MAX_EXTRA_BUF];
 	struct mfc_enc_roi_info roi_info[MFC_MAX_EXTRA_BUF];
 };
 
-struct s5p_mfc_fmt {
+struct mfc_fmt {
 	char *name;
 	u32 fourcc;
 	u32 codec_mode;
@@ -1294,10 +1294,10 @@ struct s5p_mfc_fmt {
 };
 
 /**
- * struct s5p_mfc_ctx - This struct contains the instance context
+ * struct mfc_ctx - This struct contains the instance context
  */
-struct s5p_mfc_ctx {
-	struct s5p_mfc_dev *dev;
+struct mfc_ctx {
+	struct mfc_dev *dev;
 	struct v4l2_fh fh;
 	int num;
 
@@ -1306,23 +1306,23 @@ struct s5p_mfc_ctx {
 	unsigned int int_err;
 
 	wait_queue_head_t cmd_wq;
-	struct s5p_mfc_listable_wq hwlock_wq;
+	struct mfc_listable_wq hwlock_wq;
 
-	struct s5p_mfc_fmt *src_fmt;
-	struct s5p_mfc_fmt *dst_fmt;
+	struct mfc_fmt *src_fmt;
+	struct mfc_fmt *dst_fmt;
 
 	struct vb2_queue vq_src;
 	struct vb2_queue vq_dst;
 
-	struct s5p_mfc_buf_queue src_buf_queue;
-	struct s5p_mfc_buf_queue dst_buf_queue;
-	struct s5p_mfc_buf_queue src_buf_nal_queue;
-	struct s5p_mfc_buf_queue dst_buf_nal_queue;
-	struct s5p_mfc_buf_queue ref_buf_queue;
+	struct mfc_buf_queue src_buf_queue;
+	struct mfc_buf_queue dst_buf_queue;
+	struct mfc_buf_queue src_buf_nal_queue;
+	struct mfc_buf_queue dst_buf_nal_queue;
+	struct mfc_buf_queue ref_buf_queue;
 	spinlock_t buf_queue_lock;
 
-	enum s5p_mfc_inst_type type;
-	enum s5p_mfc_inst_state state;
+	enum mfc_inst_type type;
+	enum mfc_inst_state state;
 	int inst_no;
 
 	int img_width;
@@ -1336,14 +1336,14 @@ struct s5p_mfc_ctx {
 
 	int min_dpb_size[3];
 
-	struct s5p_mfc_raw_info raw_buf;
+	struct mfc_raw_info raw_buf;
 	size_t mv_size;
 
-	struct s5p_mfc_special_buf codec_buf;
+	struct mfc_special_buf codec_buf;
 	int codec_buffer_allocated;
 
-	enum s5p_mfc_queue_state capture_state;
-	enum s5p_mfc_queue_state output_state;
+	enum mfc_queue_state capture_state;
+	enum mfc_queue_state output_state;
 
 	struct list_head ctrls;
 
@@ -1360,12 +1360,12 @@ struct s5p_mfc_ctx {
 	__u32 pix_format;
 
 	/* Extra Buffers */
-	struct s5p_mfc_special_buf instance_ctx_buf;
+	struct mfc_special_buf instance_ctx_buf;
 
-	struct s5p_mfc_dec *dec_priv;
-	struct s5p_mfc_enc *enc_priv;
+	struct mfc_dec *dec_priv;
+	struct mfc_enc *enc_priv;
 
-	struct s5p_mfc_ctrls_ops *c_ops;
+	struct mfc_ctrls_ops *c_ops;
 
 	size_t scratch_buf_size;
 	size_t loopfilter_luma_size;

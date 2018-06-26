@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_buf.c
+ * drivers/media/platform/exynos/mfc/mfc_buf.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -18,10 +18,10 @@
 
 #include "mfc_mem.h"
 
-static int mfc_alloc_common_context(struct s5p_mfc_dev *dev,
+static int __mfc_alloc_common_context(struct mfc_dev *dev,
 					enum mfc_buf_usage_type buf_type)
 {
-	struct s5p_mfc_special_buf *ctx_buf;
+	struct mfc_special_buf *ctx_buf;
 	int firmware_size;
 	unsigned long fw_daddr;
 
@@ -53,16 +53,16 @@ static int mfc_alloc_common_context(struct s5p_mfc_dev *dev,
 }
 
 /* Wrapper : allocate context buffers for SYS_INIT */
-int s5p_mfc_alloc_common_context(struct s5p_mfc_dev *dev)
+int mfc_alloc_common_context(struct mfc_dev *dev)
 {
 	int ret = 0;
 
-	ret = mfc_alloc_common_context(dev, MFCBUF_NORMAL);
+	ret = __mfc_alloc_common_context(dev, MFCBUF_NORMAL);
 	if (ret)
 		return ret;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	if (dev->fw.drm_status) {
-		ret = mfc_alloc_common_context(dev, MFCBUF_DRM);
+		ret = __mfc_alloc_common_context(dev, MFCBUF_DRM);
 		if (ret)
 			return ret;
 	}
@@ -72,10 +72,10 @@ int s5p_mfc_alloc_common_context(struct s5p_mfc_dev *dev)
 }
 
 /* Release context buffers for SYS_INIT */
-static void mfc_release_common_context(struct s5p_mfc_dev *dev,
+static void __mfc_release_common_context(struct mfc_dev *dev,
 					enum mfc_buf_usage_type buf_type)
 {
-	struct s5p_mfc_special_buf *ctx_buf;
+	struct mfc_special_buf *ctx_buf;
 
 	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
@@ -94,20 +94,20 @@ static void mfc_release_common_context(struct s5p_mfc_dev *dev,
 }
 
 /* Release context buffers for SYS_INIT */
-void s5p_mfc_release_common_context(struct s5p_mfc_dev *dev)
+void mfc_release_common_context(struct mfc_dev *dev)
 {
-	mfc_release_common_context(dev, MFCBUF_NORMAL);
+	__mfc_release_common_context(dev, MFCBUF_NORMAL);
 
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-	mfc_release_common_context(dev, MFCBUF_DRM);
+	__mfc_release_common_context(dev, MFCBUF_DRM);
 #endif
 }
 
 /* Allocate memory for instance data buffer */
-int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
+int mfc_alloc_instance_context(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
-	struct s5p_mfc_ctx_buf_size *buf_size;
+	struct mfc_dev *dev;
+	struct mfc_ctx_buf_size *buf_size;
 
 	mfc_debug_enter();
 	if (!ctx) {
@@ -122,36 +122,36 @@ int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
 	buf_size = dev->variant->buf_size->ctx_buf;
 
 	switch (ctx->codec_mode) {
-	case S5P_FIMV_CODEC_H264_DEC:
-	case S5P_FIMV_CODEC_H264_MVC_DEC:
-	case S5P_FIMV_CODEC_HEVC_DEC:
-	case S5P_FIMV_CODEC_BPG_DEC:
+	case MFC_REG_CODEC_H264_DEC:
+	case MFC_REG_CODEC_H264_MVC_DEC:
+	case MFC_REG_CODEC_HEVC_DEC:
+	case MFC_REG_CODEC_BPG_DEC:
 		ctx->instance_ctx_buf.size = buf_size->h264_dec_ctx;
 		break;
-	case S5P_FIMV_CODEC_MPEG4_DEC:
-	case S5P_FIMV_CODEC_H263_DEC:
-	case S5P_FIMV_CODEC_VC1_RCV_DEC:
-	case S5P_FIMV_CODEC_VC1_DEC:
-	case S5P_FIMV_CODEC_MPEG2_DEC:
-	case S5P_FIMV_CODEC_VP8_DEC:
-	case S5P_FIMV_CODEC_VP9_DEC:
-	case S5P_FIMV_CODEC_FIMV1_DEC:
-	case S5P_FIMV_CODEC_FIMV2_DEC:
-	case S5P_FIMV_CODEC_FIMV3_DEC:
-	case S5P_FIMV_CODEC_FIMV4_DEC:
+	case MFC_REG_CODEC_MPEG4_DEC:
+	case MFC_REG_CODEC_H263_DEC:
+	case MFC_REG_CODEC_VC1_RCV_DEC:
+	case MFC_REG_CODEC_VC1_DEC:
+	case MFC_REG_CODEC_MPEG2_DEC:
+	case MFC_REG_CODEC_VP8_DEC:
+	case MFC_REG_CODEC_VP9_DEC:
+	case MFC_REG_CODEC_FIMV1_DEC:
+	case MFC_REG_CODEC_FIMV2_DEC:
+	case MFC_REG_CODEC_FIMV3_DEC:
+	case MFC_REG_CODEC_FIMV4_DEC:
 		ctx->instance_ctx_buf.size = buf_size->other_dec_ctx;
 		break;
-	case S5P_FIMV_CODEC_H264_ENC:
+	case MFC_REG_CODEC_H264_ENC:
 		ctx->instance_ctx_buf.size = buf_size->h264_enc_ctx;
 		break;
-	case S5P_FIMV_CODEC_HEVC_ENC:
-	case S5P_FIMV_CODEC_BPG_ENC:
+	case MFC_REG_CODEC_HEVC_ENC:
+	case MFC_REG_CODEC_BPG_ENC:
 		ctx->instance_ctx_buf.size = buf_size->hevc_enc_ctx;
 		break;
-	case S5P_FIMV_CODEC_MPEG4_ENC:
-	case S5P_FIMV_CODEC_H263_ENC:
-	case S5P_FIMV_CODEC_VP8_ENC:
-	case S5P_FIMV_CODEC_VP9_ENC:
+	case MFC_REG_CODEC_MPEG4_ENC:
+	case MFC_REG_CODEC_H263_ENC:
+	case MFC_REG_CODEC_VP8_ENC:
+	case MFC_REG_CODEC_VP9_ENC:
 		ctx->instance_ctx_buf.size = buf_size->other_enc_ctx;
 		break;
 	default:
@@ -165,7 +165,7 @@ int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
 	else
 		ctx->instance_ctx_buf.buftype = MFCBUF_NORMAL;
 
-	if (s5p_mfc_mem_ion_alloc(dev, &ctx->instance_ctx_buf)) {
+	if (mfc_mem_ion_alloc(dev, &ctx->instance_ctx_buf)) {
 		mfc_err_ctx("Allocating context buffer failed\n");
 		return -ENOMEM;
 	}
@@ -177,9 +177,9 @@ int s5p_mfc_alloc_instance_context(struct s5p_mfc_ctx *ctx)
 }
 
 /* Release instance buffer */
-void s5p_mfc_release_instance_context(struct s5p_mfc_ctx *ctx)
+void mfc_release_instance_context(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
+	struct mfc_dev *dev;
 
 	mfc_debug_enter();
 	if (!ctx) {
@@ -193,33 +193,33 @@ void s5p_mfc_release_instance_context(struct s5p_mfc_ctx *ctx)
 		return;
 	}
 
-	s5p_mfc_mem_ion_free(dev, &ctx->instance_ctx_buf);
+	mfc_mem_ion_free(dev, &ctx->instance_ctx_buf);
 	mfc_debug(2, "[MEMINFO] Release the instance buffer ctx[%d]\n", ctx->num);
 
 	mfc_debug_leave();
 }
 
-static void mfc_calc_dec_codec_buffer_size(struct s5p_mfc_ctx *ctx)
+static void __mfc_calc_dec_codec_buffer_size(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dec *dec;
+	struct mfc_dec *dec;
 	int i;
 
 	dec = ctx->dec_priv;
 
 	/* Codecs have different memory requirements */
 	switch (ctx->codec_mode) {
-	case S5P_FIMV_CODEC_H264_DEC:
-	case S5P_FIMV_CODEC_H264_MVC_DEC:
+	case MFC_REG_CODEC_H264_DEC:
+	case MFC_REG_CODEC_H264_MVC_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		ctx->codec_buf.size =
 			ctx->scratch_buf_size +
 			(dec->mv_count * ctx->mv_size);
 		break;
-	case S5P_FIMV_CODEC_MPEG4_DEC:
-	case S5P_FIMV_CODEC_FIMV1_DEC:
-	case S5P_FIMV_CODEC_FIMV2_DEC:
-	case S5P_FIMV_CODEC_FIMV3_DEC:
-	case S5P_FIMV_CODEC_FIMV4_DEC:
+	case MFC_REG_CODEC_MPEG4_DEC:
+	case MFC_REG_CODEC_FIMV1_DEC:
+	case MFC_REG_CODEC_FIMV2_DEC:
+	case MFC_REG_CODEC_FIMV3_DEC:
+	case MFC_REG_CODEC_FIMV4_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		if (dec->loop_filter_mpeg4) {
 			ctx->loopfilter_luma_size = ALIGN(ctx->raw_buf.plane_size[0], 256);
@@ -232,31 +232,31 @@ static void mfc_calc_dec_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 			ctx->codec_buf.size = ctx->scratch_buf_size;
 		}
 		break;
-	case S5P_FIMV_CODEC_VC1_RCV_DEC:
-	case S5P_FIMV_CODEC_VC1_DEC:
+	case MFC_REG_CODEC_VC1_RCV_DEC:
+	case MFC_REG_CODEC_VC1_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		ctx->codec_buf.size = ctx->scratch_buf_size;
 		break;
-	case S5P_FIMV_CODEC_MPEG2_DEC:
+	case MFC_REG_CODEC_MPEG2_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		ctx->codec_buf.size = ctx->scratch_buf_size;
 		break;
-	case S5P_FIMV_CODEC_H263_DEC:
+	case MFC_REG_CODEC_H263_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		ctx->codec_buf.size = ctx->scratch_buf_size;
 		break;
-	case S5P_FIMV_CODEC_VP8_DEC:
+	case MFC_REG_CODEC_VP8_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		ctx->codec_buf.size = ctx->scratch_buf_size;
 		break;
-	case S5P_FIMV_CODEC_VP9_DEC:
+	case MFC_REG_CODEC_VP9_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		ctx->codec_buf.size =
 			ctx->scratch_buf_size +
 			DEC_STATIC_BUFFER_SIZE;
 		break;
-	case S5P_FIMV_CODEC_HEVC_DEC:
-	case S5P_FIMV_CODEC_BPG_DEC:
+	case MFC_REG_CODEC_HEVC_DEC:
+	case MFC_REG_CODEC_BPG_DEC:
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size, 256);
 		ctx->codec_buf.size =
 			ctx->scratch_buf_size +
@@ -276,9 +276,9 @@ static void mfc_calc_dec_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 				NUM_MPEG4_LF_BUF);
 }
 
-static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
+static void __mfc_calc_enc_codec_buffer_size(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_enc *enc;
+	struct mfc_enc *enc;
 	unsigned int mb_width, mb_height;
 	unsigned int lcu_width = 0, lcu_height = 0;
 
@@ -299,7 +299,7 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 
 	/* Codecs have different memory requirements */
 	switch (ctx->codec_mode) {
-	case S5P_FIMV_CODEC_H264_ENC:
+	case MFC_REG_CODEC_H264_ENC:
 		enc->me_buffer_size =
 			ALIGN(ENC_V100_H264_ME_SIZE(mb_width, mb_height), 256);
 
@@ -309,8 +309,8 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 			(ctx->dpb_count * (enc->luma_dpb_size +
 			enc->chroma_dpb_size + enc->me_buffer_size));
 		break;
-	case S5P_FIMV_CODEC_MPEG4_ENC:
-	case S5P_FIMV_CODEC_H263_ENC:
+	case MFC_REG_CODEC_MPEG4_ENC:
+	case MFC_REG_CODEC_H263_ENC:
 		enc->me_buffer_size =
 			ALIGN(ENC_V100_MPEG4_ME_SIZE(mb_width, mb_height), 256);
 
@@ -320,7 +320,7 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 			(ctx->dpb_count * (enc->luma_dpb_size +
 			enc->chroma_dpb_size + enc->me_buffer_size));
 		break;
-	case S5P_FIMV_CODEC_VP8_ENC:
+	case MFC_REG_CODEC_VP8_ENC:
 		enc->me_buffer_size =
 			ALIGN(ENC_V100_VP8_ME_SIZE(mb_width, mb_height), 256);
 
@@ -330,7 +330,7 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 			(ctx->dpb_count * (enc->luma_dpb_size +
 			enc->chroma_dpb_size + enc->me_buffer_size));
 		break;
-	case S5P_FIMV_CODEC_VP9_ENC:
+	case MFC_REG_CODEC_VP9_ENC:
 		if (ctx->is_10bit || ctx->is_422) {
 			enc->luma_dpb_size =
 				ALIGN(ENC_VP9_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
@@ -348,8 +348,8 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 			(ctx->dpb_count * (enc->luma_dpb_size +
 					   enc->chroma_dpb_size + enc->me_buffer_size));
 		break;
-	case S5P_FIMV_CODEC_HEVC_ENC:
-	case S5P_FIMV_CODEC_BPG_ENC:
+	case MFC_REG_CODEC_HEVC_ENC:
+	case MFC_REG_CODEC_BPG_ENC:
 		if (ctx->is_10bit || ctx->is_422) {
 			enc->luma_dpb_size =
 				ALIGN(ENC_HEVC_LUMA_DPB_10B_SIZE(ctx->crop_width, ctx->crop_height), 64);
@@ -380,9 +380,9 @@ static void mfc_calc_enc_codec_buffer_size(struct s5p_mfc_ctx *ctx)
 }
 
 /* Allocate codec buffers */
-int s5p_mfc_alloc_codec_buffers(struct s5p_mfc_ctx *ctx)
+int mfc_alloc_codec_buffers(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
+	struct mfc_dev *dev;
 
 	mfc_debug_enter();
 	if (!ctx) {
@@ -396,9 +396,9 @@ int s5p_mfc_alloc_codec_buffers(struct s5p_mfc_ctx *ctx)
 	}
 
 	if (ctx->type == MFCINST_DECODER) {
-		mfc_calc_dec_codec_buffer_size(ctx);
+		__mfc_calc_dec_codec_buffer_size(ctx);
 	} else if (ctx->type == MFCINST_ENCODER) {
-		mfc_calc_enc_codec_buffer_size(ctx);
+		__mfc_calc_enc_codec_buffer_size(ctx);
 	} else {
 		mfc_err_ctx("invalid type: %d\n", ctx->type);
 		return -EINVAL;
@@ -410,12 +410,12 @@ int s5p_mfc_alloc_codec_buffers(struct s5p_mfc_ctx *ctx)
 		ctx->codec_buf.buftype = MFCBUF_NORMAL;
 
 	if (ctx->codec_buf.size > 0) {
-		if (s5p_mfc_mem_ion_alloc(dev, &ctx->codec_buf)) {
+		if (mfc_mem_ion_alloc(dev, &ctx->codec_buf)) {
 			mfc_err_ctx("Allocating codec buffer failed\n");
 			return -ENOMEM;
 		}
 		ctx->codec_buffer_allocated = 1;
-	} else if (ctx->codec_mode == S5P_FIMV_CODEC_MPEG2_DEC) {
+	} else if (ctx->codec_mode == MFC_REG_CODEC_MPEG2_DEC) {
 		ctx->codec_buffer_allocated = 1;
 	}
 
@@ -426,9 +426,9 @@ int s5p_mfc_alloc_codec_buffers(struct s5p_mfc_ctx *ctx)
 }
 
 /* Release buffers allocated for codec */
-void s5p_mfc_release_codec_buffers(struct s5p_mfc_ctx *ctx)
+void mfc_release_codec_buffers(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev;
+	struct mfc_dev *dev;
 
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -441,21 +441,21 @@ void s5p_mfc_release_codec_buffers(struct s5p_mfc_ctx *ctx)
 		return;
 	}
 
-	s5p_mfc_mem_ion_free(dev, &ctx->codec_buf);
+	mfc_mem_ion_free(dev, &ctx->codec_buf);
 	ctx->codec_buffer_allocated = 0;
 	mfc_debug(2, "[MEMINFO] Release the codec buffer ctx[%d]\n", ctx->num);
 }
 
 /* Allocation buffer of debug infor memory for FW debugging */
-int s5p_mfc_alloc_dbg_info_buffer(struct s5p_mfc_dev *dev)
+int mfc_alloc_dbg_info_buffer(struct mfc_dev *dev)
 {
-	struct s5p_mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
+	struct mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
 
 	mfc_debug(2, "Allocate a debug-info buffer\n");
 
 	dev->dbg_info_buf.buftype = MFCBUF_NORMAL;
 	dev->dbg_info_buf.size = buf_size->dbg_info_buf;
-	if (s5p_mfc_mem_ion_alloc(dev, &dev->dbg_info_buf)) {
+	if (mfc_mem_ion_alloc(dev, &dev->dbg_info_buf)) {
 		mfc_err_dev("Allocating debug info buffer failed\n");
 		return -ENOMEM;
 	}
@@ -466,7 +466,7 @@ int s5p_mfc_alloc_dbg_info_buffer(struct s5p_mfc_dev *dev)
 }
 
 /* Release buffer of debug infor memory for FW debugging */
-int s5p_mfc_release_dbg_info_buffer(struct s5p_mfc_dev *dev)
+int mfc_release_dbg_info_buffer(struct mfc_dev *dev)
 {
 	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
@@ -478,21 +478,21 @@ int s5p_mfc_release_dbg_info_buffer(struct s5p_mfc_dev *dev)
 		return 0;
 	}
 
-	s5p_mfc_mem_ion_free(dev, &dev->dbg_info_buf);
+	mfc_mem_ion_free(dev, &dev->dbg_info_buf);
 	mfc_debug(2, "[MEMINFO] Release the debug info buffer\n");
 
 	return 0;
 }
 
 /* Allocation buffer of ROI macroblock information */
-static int mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_special_buf *roi_buf)
+static int __mfc_alloc_enc_roi_buffer(struct mfc_ctx *ctx, struct mfc_special_buf *roi_buf)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_ctx_buf_size *buf_size = dev->variant->buf_size->ctx_buf;
 
 	roi_buf->buftype = MFCBUF_NORMAL;
 	roi_buf->size = buf_size->shared_buf;
-	if (s5p_mfc_mem_ion_alloc(dev, roi_buf)) {
+	if (mfc_mem_ion_alloc(dev, roi_buf)) {
 		mfc_err_ctx("[ROI] Allocating ROI buffer failed\n");
 		return -ENOMEM;
 	}
@@ -505,13 +505,13 @@ static int mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx, struct s5p_mfc_spec
 }
 
 /* Wrapper : allocation ROI buffers */
-int s5p_mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx)
+int mfc_alloc_enc_roi_buffer(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc *enc = ctx->enc_priv;
 	int i;
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++) {
-		if (mfc_alloc_enc_roi_buffer(ctx, &enc->roi_buf[i]) < 0) {
+		if (__mfc_alloc_enc_roi_buffer(ctx, &enc->roi_buf[i]) < 0) {
 			mfc_err_dev("[ROI] Allocating remapping buffer[%d] failed\n", i);
 			return -ENOMEM;
 		}
@@ -521,25 +521,25 @@ int s5p_mfc_alloc_enc_roi_buffer(struct s5p_mfc_ctx *ctx)
 }
 
 /* Release buffer of ROI macroblock information */
-void s5p_mfc_release_enc_roi_buffer(struct s5p_mfc_ctx *ctx)
+void mfc_release_enc_roi_buffer(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc *enc = ctx->enc_priv;
 	int i;
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++)
 		if (enc->roi_buf[i].dma_buf)
-			s5p_mfc_mem_ion_free(ctx->dev, &enc->roi_buf[i]);
+			mfc_mem_ion_free(ctx->dev, &enc->roi_buf[i]);
 
 	mfc_debug(2, "[MEMINFO][ROI] Release the ROI buffer\n");
 }
 
-int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
+int mfc_otf_alloc_stream_buf(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct _otf_handle *handle = ctx->otf_handle;
 	struct _otf_debug *debug = &handle->otf_debug;
-	struct s5p_mfc_special_buf *buf;
-	struct s5p_mfc_raw_info *raw = &ctx->raw_buf;
+	struct mfc_special_buf *buf;
+	struct mfc_raw_info *raw = &ctx->raw_buf;
 	int i;
 
 	mfc_debug_enter();
@@ -548,7 +548,7 @@ int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
 		buf = &debug->stream_buf[i];
 		buf->buftype = MFCBUF_NORMAL;
 		buf->size = raw->total_plane_size;
-		if (s5p_mfc_mem_ion_alloc(dev, buf)) {
+		if (mfc_mem_ion_alloc(dev, buf)) {
 			mfc_err_ctx("[OTF] Allocating stream buffer failed\n");
 			return -EINVAL;
 		}
@@ -562,12 +562,12 @@ int s5p_mfc_otf_alloc_stream_buf(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
-void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx)
+void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct _otf_handle *handle = ctx->otf_handle;
 	struct _otf_debug *debug = &handle->otf_debug;
-	struct s5p_mfc_special_buf *buf;
+	struct mfc_special_buf *buf;
 	int i;
 
 	mfc_debug_enter();
@@ -575,7 +575,7 @@ void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx)
 	for (i = 0; i < OTF_MAX_BUF; i++) {
 		buf = &debug->stream_buf[i];
 		if (buf->dma_buf)
-			s5p_mfc_mem_ion_free(dev, buf);
+			mfc_mem_ion_free(dev, buf);
 	}
 
 	mfc_debug(2, "[OTF][MEMINFO] Release the OTF stream buffer\n");
@@ -583,10 +583,10 @@ void s5p_mfc_otf_release_stream_buf(struct s5p_mfc_ctx *ctx)
 }
 
 /* Allocate firmware */
-int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
+int mfc_alloc_firmware(struct mfc_dev *dev)
 {
 	size_t firmware_size;
-	struct s5p_mfc_ctx_buf_size *buf_size;
+	struct mfc_ctx_buf_size *buf_size;
 
 	mfc_debug_enter();
 
@@ -607,7 +607,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 
 	dev->fw_buf.buftype = MFCBUF_NORMAL;
 	dev->fw_buf.size = dev->fw.size;
-	if (s5p_mfc_mem_ion_alloc(dev, &dev->fw_buf)) {
+	if (mfc_mem_ion_alloc(dev, &dev->fw_buf)) {
 		mfc_err_dev("[F/W] Allocating normal firmware buffer failed\n");
 		return -ENOMEM;
 	}
@@ -619,7 +619,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	dev->drm_fw_buf.buftype = MFCBUF_DRM_FW;
 	dev->drm_fw_buf.size = dev->fw.size;
-	if (s5p_mfc_mem_ion_alloc(dev, &dev->drm_fw_buf)) {
+	if (mfc_mem_ion_alloc(dev, &dev->drm_fw_buf)) {
 		mfc_err_dev("[F/W] Allocating DRM firmware buffer failed\n");
 		return -ENOMEM;
 	}
@@ -635,7 +635,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 }
 
 /* Load firmware to MFC */
-int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
+int mfc_load_firmware(struct mfc_dev *dev)
 {
 	struct firmware *fw_blob;
 	size_t firmware_size;
@@ -687,7 +687,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 }
 
 /* Release firmware memory */
-int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
+int mfc_release_firmware(struct mfc_dev *dev)
 {
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
@@ -702,10 +702,10 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 	}
 
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-	s5p_mfc_mem_ion_free(dev, &dev->drm_fw_buf);
+	mfc_mem_ion_free(dev, &dev->drm_fw_buf);
 #endif
 
-	s5p_mfc_mem_ion_free(dev, &dev->fw_buf);
+	mfc_mem_ion_free(dev, &dev->fw_buf);
 
 	return 0;
 }

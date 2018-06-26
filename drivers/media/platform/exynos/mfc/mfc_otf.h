@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_otf.h
+ * drivers/media/platform/exynos/mfc/mfc_otf.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,17 +15,17 @@
 
 #include "mfc_common.h"
 
-extern struct s5p_mfc_dev *g_mfc_dev;
+extern struct mfc_dev *g_mfc_dev;
 
-int s5p_mfc_otf_create(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_otf_destroy(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_otf_init(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_otf_deinit(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_otf_ctx_ready(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_otf_run_enc_init(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_otf_run_enc_frame(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_otf_handle_seq(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_otf_handle_stream(struct s5p_mfc_ctx *ctx);
-void s5p_mfc_otf_handle_error(struct s5p_mfc_ctx *ctx, unsigned int reason, unsigned int err);
+int mfc_otf_create(struct mfc_ctx *ctx);
+void mfc_otf_destroy(struct mfc_ctx *ctx);
+int mfc_otf_init(struct mfc_ctx *ctx);
+void mfc_otf_deinit(struct mfc_ctx *ctx);
+int mfc_otf_ctx_ready(struct mfc_ctx *ctx);
+int mfc_otf_run_enc_init(struct mfc_ctx *ctx);
+int mfc_otf_run_enc_frame(struct mfc_ctx *ctx);
+int mfc_otf_handle_seq(struct mfc_ctx *ctx);
+int mfc_otf_handle_stream(struct mfc_ctx *ctx);
+void mfc_otf_handle_error(struct mfc_ctx *ctx, unsigned int reason, unsigned int err);
 
 #endif /* __MFC_OTF_H  */

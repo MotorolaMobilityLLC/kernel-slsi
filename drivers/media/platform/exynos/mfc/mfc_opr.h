@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_opr.h
+ * drivers/media/platform/exynos/mfc/mfc_opr.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,11 +15,11 @@
 
 #include "mfc_common.h"
 
-int s5p_mfc_run_dec_init(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_run_dec_last_frames(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_run_enc_init(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx);
-int s5p_mfc_run_enc_last_frames(struct s5p_mfc_ctx *ctx);
+int mfc_run_dec_init(struct mfc_ctx *ctx);
+int mfc_run_dec_frame(struct mfc_ctx *ctx);
+int mfc_run_dec_last_frames(struct mfc_ctx *ctx);
+int mfc_run_enc_init(struct mfc_ctx *ctx);
+int mfc_run_enc_frame(struct mfc_ctx *ctx);
+int mfc_run_enc_last_frames(struct mfc_ctx *ctx);
 
 #endif /* __MFC_OPR_H */

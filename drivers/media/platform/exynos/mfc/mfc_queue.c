@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/s5p_mfc_queue.c
+ * drivers/media/platform/exynos/mfc/mfc_queue.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -15,8 +15,8 @@
 #include "mfc_utils.h"
 #include "mfc_mem.h"
 
-void s5p_mfc_add_tail_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		struct s5p_mfc_buf *mfc_buf)
+void mfc_add_tail_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
+		struct mfc_buf *mfc_buf)
 {
 	unsigned long flags;
 
@@ -34,11 +34,11 @@ void s5p_mfc_add_tail_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
 	spin_unlock_irqrestore(plock, flags);
 }
 
-int s5p_mfc_peek_buf_csd(spinlock_t *plock, struct s5p_mfc_buf_queue *queue)
+int mfc_peek_buf_csd(spinlock_t *plock, struct mfc_buf_queue *queue)
 {
 	unsigned long flags;
 	int csd = -1;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
@@ -48,7 +48,7 @@ int s5p_mfc_peek_buf_csd(spinlock_t *plock, struct s5p_mfc_buf_queue *queue)
 		return csd;
 	}
 
-	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
 	csd = mfc_buf->vb.reserved2 & FLAG_CSD ? 1 : 0;
 
@@ -58,11 +58,11 @@ int s5p_mfc_peek_buf_csd(spinlock_t *plock, struct s5p_mfc_buf_queue *queue)
 	return csd;
 }
 
-struct s5p_mfc_buf *s5p_mfc_get_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		enum s5p_mfc_queue_used_type used)
+struct mfc_buf *mfc_get_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
+		enum mfc_queue_used_type used)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
@@ -72,7 +72,7 @@ struct s5p_mfc_buf *s5p_mfc_get_buf(spinlock_t *plock, struct s5p_mfc_buf_queue 
 		return NULL;
 	}
 
-	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
 	if ((used == MFC_BUF_RESET_USED) || (used == MFC_BUF_SET_USED))
 		mfc_buf->used = used;
@@ -83,11 +83,11 @@ struct s5p_mfc_buf *s5p_mfc_get_buf(spinlock_t *plock, struct s5p_mfc_buf_queue 
 	return mfc_buf;
 }
 
-struct s5p_mfc_buf *s5p_mfc_get_del_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
-		enum s5p_mfc_queue_used_type used)
+struct mfc_buf *mfc_get_del_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
+		enum mfc_queue_used_type used)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
@@ -97,7 +97,7 @@ struct s5p_mfc_buf *s5p_mfc_get_del_buf(spinlock_t *plock, struct s5p_mfc_buf_qu
 		return NULL;
 	}
 
-	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
 	if ((used == MFC_BUF_RESET_USED) || (used == MFC_BUF_SET_USED))
 		mfc_buf->used = used;
@@ -111,12 +111,12 @@ struct s5p_mfc_buf *s5p_mfc_get_del_buf(spinlock_t *plock, struct s5p_mfc_buf_qu
 	return mfc_buf;
 }
 
-struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf_queue *queue,
+struct mfc_buf *mfc_get_del_if_consumed(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
 		unsigned long consumed, unsigned int min_bytes, int error, int *deleted)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf *mfc_buf = NULL;
+	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned long remained;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
@@ -127,7 +127,7 @@ struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(struct s5p_mfc_ctx *ctx, struct 
 		return NULL;
 	}
 
-	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
 	mfc_debug(2, "addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
@@ -154,12 +154,12 @@ struct s5p_mfc_buf *s5p_mfc_get_del_if_consumed(struct s5p_mfc_ctx *ctx, struct 
 	return mfc_buf;
 }
 
-struct s5p_mfc_buf *s5p_mfc_get_move_buf(spinlock_t *plock,
-		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,
-		enum s5p_mfc_queue_used_type used, enum s5p_mfc_queue_top_type top)
+struct mfc_buf *mfc_get_move_buf(spinlock_t *plock,
+		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
+		enum mfc_queue_used_type used, enum mfc_queue_top_type top)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
@@ -169,7 +169,7 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf(spinlock_t *plock,
 		return NULL;
 	}
 
-	mfc_buf = list_entry(from_queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(from_queue->head.next, struct mfc_buf, list);
 
 	if ((used == MFC_BUF_RESET_USED) || (used == MFC_BUF_SET_USED))
 		mfc_buf->used = used;
@@ -190,11 +190,11 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf(spinlock_t *plock,
 	return mfc_buf;
 }
 
-struct s5p_mfc_buf *s5p_mfc_get_move_buf_used(spinlock_t *plock,
-		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue)
+struct mfc_buf *mfc_get_move_buf_used(spinlock_t *plock,
+		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
@@ -204,7 +204,7 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_used(spinlock_t *plock,
 		return NULL;
 	}
 
-	mfc_buf = list_entry(from_queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(from_queue->head.next, struct mfc_buf, list);
 
 	if (mfc_buf->used) {
 		mfc_debug(2, "addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
@@ -223,12 +223,12 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_used(spinlock_t *plock,
 	}
 }
 
-struct s5p_mfc_buf *s5p_mfc_get_move_buf_addr(spinlock_t *plock,
-		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,
+struct mfc_buf *mfc_get_move_buf_addr(spinlock_t *plock,
+		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
 		dma_addr_t addr)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
@@ -238,7 +238,7 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_addr(spinlock_t *plock,
 		return NULL;
 	}
 
-	mfc_buf = list_entry(from_queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(from_queue->head.next, struct mfc_buf, list);
 
 	if (mfc_buf->addr[0][0] == addr) {
 		mfc_debug(2, "[DPB] addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
@@ -257,11 +257,11 @@ struct s5p_mfc_buf *s5p_mfc_get_move_buf_addr(spinlock_t *plock,
 	}
 }
 
-struct s5p_mfc_buf *s5p_mfc_find_first_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct mfc_buf *mfc_find_first_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
 		dma_addr_t addr)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	dma_addr_t mb_addr;
 	int i;
 
@@ -274,7 +274,7 @@ struct s5p_mfc_buf *s5p_mfc_find_first_buf(spinlock_t *plock, struct s5p_mfc_buf
 	}
 
 	mfc_debug(4, "Looking for this address: 0x%08llx\n", addr);
-	mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 	if (mfc_buf->num_valid_bufs > 0) {
 		for (i = 0; i < mfc_buf->num_valid_bufs; i++) {
 			mb_addr = mfc_buf->addr[i][0];
@@ -298,11 +298,11 @@ struct s5p_mfc_buf *s5p_mfc_find_first_buf(spinlock_t *plock, struct s5p_mfc_buf
 	return NULL;
 }
 
-struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct mfc_buf *mfc_find_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
 		dma_addr_t addr)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	dma_addr_t mb_addr;
 	int i;
 
@@ -334,11 +334,11 @@ struct s5p_mfc_buf *s5p_mfc_find_buf(spinlock_t *plock, struct s5p_mfc_buf_queue
 	return NULL;
 }
 
-struct s5p_mfc_buf *s5p_mfc_find_del_buf(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct mfc_buf *mfc_find_del_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
 		dma_addr_t addr)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	dma_addr_t mb_addr;
 	int found = 0, i;
 
@@ -382,12 +382,12 @@ struct s5p_mfc_buf *s5p_mfc_find_del_buf(spinlock_t *plock, struct s5p_mfc_buf_q
 	}
 }
 
-struct s5p_mfc_buf *s5p_mfc_find_move_buf(spinlock_t *plock,
-		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,
+struct mfc_buf *mfc_find_move_buf(spinlock_t *plock,
+		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
 		dma_addr_t addr, unsigned int released_flag)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	dma_addr_t mb_addr;
 	int found = 0;
 
@@ -421,12 +421,12 @@ struct s5p_mfc_buf *s5p_mfc_find_move_buf(spinlock_t *plock,
 	}
 }
 
-struct s5p_mfc_buf *s5p_mfc_find_move_buf_used(spinlock_t *plock,
-		struct s5p_mfc_buf_queue *to_queue, struct s5p_mfc_buf_queue *from_queue,
+struct mfc_buf *mfc_find_move_buf_used(spinlock_t *plock,
+		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
 		dma_addr_t addr)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	dma_addr_t mb_addr;
 	int found = 0;
 
@@ -459,11 +459,11 @@ struct s5p_mfc_buf *s5p_mfc_find_move_buf_used(spinlock_t *plock,
 	}
 }
 
-void s5p_mfc_move_first_buf_used(spinlock_t *plock, struct s5p_mfc_buf_queue *to_queue,
-		struct s5p_mfc_buf_queue *from_queue, enum s5p_mfc_queue_top_type top)
+void mfc_move_first_buf_used(spinlock_t *plock, struct mfc_buf_queue *to_queue,
+		struct mfc_buf_queue *from_queue, enum mfc_queue_top_type top)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
@@ -472,7 +472,7 @@ void s5p_mfc_move_first_buf_used(spinlock_t *plock, struct s5p_mfc_buf_queue *to
 		spin_unlock_irqrestore(plock, flags);
 		return;
 	}
-	mfc_buf = list_entry(from_queue->head.next, struct s5p_mfc_buf, list);
+	mfc_buf = list_entry(from_queue->head.next, struct mfc_buf, list);
 
 	if (mfc_buf->used) {
 		list_del(&mfc_buf->list);
@@ -489,17 +489,17 @@ void s5p_mfc_move_first_buf_used(spinlock_t *plock, struct s5p_mfc_buf_queue *to
 	spin_unlock_irqrestore(plock, flags);
 }
 
-void s5p_mfc_move_all_bufs(spinlock_t *plock, struct s5p_mfc_buf_queue *to_queue,
-		struct s5p_mfc_buf_queue *from_queue, enum s5p_mfc_queue_top_type top)
+void mfc_move_all_bufs(spinlock_t *plock, struct mfc_buf_queue *to_queue,
+		struct mfc_buf_queue *from_queue, enum mfc_queue_top_type top)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(plock, flags);
 
 	if (top == MFC_QUEUE_ADD_TOP) {
 		while (!list_empty(&from_queue->head)) {
-			mfc_buf = list_entry(from_queue->head.prev, struct s5p_mfc_buf, list);
+			mfc_buf = list_entry(from_queue->head.prev, struct mfc_buf, list);
 
 			list_del(&mfc_buf->list);
 			from_queue->count--;
@@ -509,7 +509,7 @@ void s5p_mfc_move_all_bufs(spinlock_t *plock, struct s5p_mfc_buf_queue *to_queue
 		}
 	} else {
 		while (!list_empty(&from_queue->head)) {
-			mfc_buf = list_entry(from_queue->head.next, struct s5p_mfc_buf, list);
+			mfc_buf = list_entry(from_queue->head.next, struct mfc_buf, list);
 
 			list_del(&mfc_buf->list);
 			from_queue->count--;
@@ -525,16 +525,16 @@ void s5p_mfc_move_all_bufs(spinlock_t *plock, struct s5p_mfc_buf_queue *to_queue
 	spin_unlock_irqrestore(plock, flags);
 }
 
-void s5p_mfc_cleanup_queue(spinlock_t *plock, struct s5p_mfc_buf_queue *queue)
+void mfc_cleanup_queue(spinlock_t *plock, struct mfc_buf_queue *queue)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	int i;
 
 	spin_lock_irqsave(plock, flags);
 
 	while (!list_empty(&queue->head)) {
-		mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+		mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
 		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++)
 			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
@@ -549,19 +549,19 @@ void s5p_mfc_cleanup_queue(spinlock_t *plock, struct s5p_mfc_buf_queue *queue)
 	spin_unlock_irqrestore(plock, flags);
 }
 
-static void mfc_cleanup_batch_queue(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf_queue *queue)
+static void __mfc_cleanup_batch_queue(struct mfc_ctx *ctx, struct mfc_buf_queue *queue)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	int i;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
 	while (!list_empty(&queue->head)) {
-		mfc_buf = list_entry(queue->head.next, struct s5p_mfc_buf, list);
+		mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
 		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++) {
-			s5p_mfc_bufcon_put_daddr(ctx, mfc_buf, i);
+			mfc_bufcon_put_daddr(ctx, mfc_buf, i);
 			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
 		}
 		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
@@ -576,11 +576,11 @@ static void mfc_cleanup_batch_queue(struct s5p_mfc_ctx *ctx, struct s5p_mfc_buf_
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-struct s5p_mfc_buf *mfc_find_buf_index(spinlock_t *plock, struct s5p_mfc_buf_queue *queue,
+struct mfc_buf *__mfc_find_buf_index(spinlock_t *plock, struct mfc_buf_queue *queue,
 		int index)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	int buf_index;
 
 	spin_lock_irqsave(plock, flags);
@@ -604,13 +604,13 @@ struct s5p_mfc_buf *mfc_find_buf_index(spinlock_t *plock, struct s5p_mfc_buf_que
  * Check released and enqueued buffers. (dst queue)
  * Check and move reuse buffers. (ref -> dst queue)
  */
-static void mfc_check_ref_frame(spinlock_t *plock, struct s5p_mfc_buf_queue *dst_queue,
-		struct s5p_mfc_buf_queue *ref_queue,
-		struct s5p_mfc_ctx *ctx, int ref_index)
+static void __mfc_check_ref_frame(spinlock_t *plock, struct mfc_buf_queue *dst_queue,
+		struct mfc_buf_queue *ref_queue,
+		struct mfc_ctx *ctx, int ref_index)
 {
 	unsigned long flags;
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
-	struct s5p_mfc_buf *ref_mb, *tmp_mb;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf *ref_mb, *tmp_mb;
 	int index;
 	int found = 0;
 
@@ -655,10 +655,10 @@ static void mfc_check_ref_frame(spinlock_t *plock, struct s5p_mfc_buf_queue *dst
 }
 
 /* Process the released reference information */
-void s5p_mfc_handle_released_info(struct s5p_mfc_ctx *ctx,
+void mfc_handle_released_info(struct mfc_ctx *ctx,
 		unsigned int released_flag, int index)
 {
-	struct s5p_mfc_dec *dec;
+	struct mfc_dec *dec;
 	struct dec_dpb_ref_info *refBuf;
 	int t, ncount = 0;
 
@@ -690,7 +690,7 @@ void s5p_mfc_handle_released_info(struct s5p_mfc_ctx *ctx,
 							t, dec->assigned_fd[t]);
 					dec->err_reuse_flag &= ~(1 << t);
 				} else if ((t != index) &&
-						mfc_find_buf_index(&ctx->buf_queue_lock, &ctx->ref_buf_queue, t)) {
+						__mfc_find_buf_index(&ctx->buf_queue_lock, &ctx->ref_buf_queue, t)) {
 					/* decoding only frame: do not update released info */
 					mfc_debug(2, "[DPB] Released, but reuse(decoding only). FD[%d] = %03d\n",
 							t, dec->assigned_fd[t]);
@@ -702,7 +702,7 @@ void s5p_mfc_handle_released_info(struct s5p_mfc_ctx *ctx,
 					ncount++;
 				}
 				dec->assigned_fd[t] = MFC_INFO_INIT_FD;
-				mfc_check_ref_frame(&ctx->buf_queue_lock, &ctx->dst_buf_queue,
+				__mfc_check_ref_frame(&ctx->buf_queue_lock, &ctx->dst_buf_queue,
 						&ctx->ref_buf_queue, ctx, t);
 			}
 		}
@@ -712,12 +712,12 @@ void s5p_mfc_handle_released_info(struct s5p_mfc_ctx *ctx,
 		refBuf->dpb[ncount].fd[0] = MFC_INFO_INIT_FD;
 }
 
-struct s5p_mfc_buf *s5p_mfc_move_reuse_buffer(struct s5p_mfc_ctx *ctx, int release_index)
+struct mfc_buf *mfc_move_reuse_buffer(struct mfc_ctx *ctx, int release_index)
 {
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
-	struct s5p_mfc_buf_queue *dst_queue = &ctx->dst_buf_queue;
-	struct s5p_mfc_buf_queue *ref_queue = &ctx->ref_buf_queue;
-	struct s5p_mfc_buf *ref_mb, *tmp_mb;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf_queue *dst_queue = &ctx->dst_buf_queue;
+	struct mfc_buf_queue *ref_queue = &ctx->ref_buf_queue;
+	struct mfc_buf *ref_mb, *tmp_mb;
 	spinlock_t *plock = &ctx->buf_queue_lock;
 	unsigned long flags;
 	int index;
@@ -727,7 +727,7 @@ struct s5p_mfc_buf *s5p_mfc_move_reuse_buffer(struct s5p_mfc_ctx *ctx, int relea
 	list_for_each_entry_safe(ref_mb, tmp_mb, &ref_queue->head, list) {
 		index = ref_mb->vb.vb2_buf.index;
 		if (index == release_index) {
-			s5p_mfc_raw_unprotect(ctx, ref_mb, index);
+			mfc_raw_unprotect(ctx, ref_mb, index);
 
 			ref_mb->used = 0;
 
@@ -749,10 +749,10 @@ struct s5p_mfc_buf *s5p_mfc_move_reuse_buffer(struct s5p_mfc_ctx *ctx, int relea
 	return NULL;
 }
 
-void s5p_mfc_cleanup_enc_src_queue(struct s5p_mfc_ctx *ctx)
+void mfc_cleanup_enc_src_queue(struct mfc_ctx *ctx)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *src_mb, *tmp_mb;
+	struct mfc_buf *src_mb, *tmp_mb;
 	int i;
 
 	if (ctx->is_drm && ctx->raw_protect_flag) {
@@ -764,10 +764,10 @@ void s5p_mfc_cleanup_enc_src_queue(struct s5p_mfc_ctx *ctx)
 		list_for_each_entry_safe(src_mb, tmp_mb, &ctx->src_buf_queue.head, list) {
 			i = src_mb->vb.vb2_buf.index;
 
-			s5p_mfc_raw_unprotect(ctx, src_mb, i);
+			mfc_raw_unprotect(ctx, src_mb, i);
 
 			for (i = 0; i < src_mb->vb.vb2_buf.num_planes; i++) {
-				s5p_mfc_bufcon_put_daddr(ctx, src_mb, i);
+				mfc_bufcon_put_daddr(ctx, src_mb, i);
 				vb2_set_plane_payload(&src_mb->vb.vb2_buf, i, 0);
 			}
 
@@ -782,17 +782,17 @@ void s5p_mfc_cleanup_enc_src_queue(struct s5p_mfc_ctx *ctx)
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 	} else {
 		if (IS_BUFFER_BATCH_MODE(ctx))
-			mfc_cleanup_batch_queue(ctx, &ctx->src_buf_queue);
+			__mfc_cleanup_batch_queue(ctx, &ctx->src_buf_queue);
 		else
-			s5p_mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_queue);
+			mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_queue);
 	}
 }
 
 
-void s5p_mfc_cleanup_enc_dst_queue(struct s5p_mfc_ctx *ctx)
+void mfc_cleanup_enc_dst_queue(struct mfc_ctx *ctx)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *dst_mb, *tmp_mb;
+	struct mfc_buf *dst_mb, *tmp_mb;
 	int i;
 
 	if (ctx->is_drm && ctx->stream_protect_flag) {
@@ -804,7 +804,7 @@ void s5p_mfc_cleanup_enc_dst_queue(struct s5p_mfc_ctx *ctx)
 		list_for_each_entry_safe(dst_mb, tmp_mb, &ctx->dst_buf_queue.head, list) {
 			i = dst_mb->vb.vb2_buf.index;
 
-			s5p_mfc_stream_unprotect(ctx, dst_mb, i);
+			mfc_stream_unprotect(ctx, dst_mb, i);
 
 			for (i = 0; i < dst_mb->vb.vb2_buf.num_planes; i++)
 				vb2_set_plane_payload(&dst_mb->vb.vb2_buf, i, 0);
@@ -818,15 +818,15 @@ void s5p_mfc_cleanup_enc_dst_queue(struct s5p_mfc_ctx *ctx)
 
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 	} else {
-		s5p_mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
+		mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
 	}
 }
 
 /* Check all buffers are referenced or not */
-struct s5p_mfc_buf *mfc_check_full_refered_dpb(struct s5p_mfc_ctx *ctx)
+struct mfc_buf *__mfc_check_full_refered_dpb(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dec *dec = NULL;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_dec *dec = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 	int sum_dpb;
 
 	dec = ctx->dec_priv;
@@ -844,7 +844,7 @@ struct s5p_mfc_buf *mfc_check_full_refered_dpb(struct s5p_mfc_ctx *ctx)
 		}
 		mfc_debug(3, "[DPB] We should use this buffer\n");
 		mfc_buf = list_entry(ctx->dst_buf_queue.head.next,
-				struct s5p_mfc_buf, list);
+				struct mfc_buf, list);
 	} else if ((ctx->dst_buf_queue.count == 0)
 			&& ((ctx->ref_buf_queue.count) == (ctx->dpb_count + 5))) {
 		if (list_empty(&ctx->ref_buf_queue.head)) {
@@ -853,7 +853,7 @@ struct s5p_mfc_buf *mfc_check_full_refered_dpb(struct s5p_mfc_ctx *ctx)
 		}
 		mfc_debug(3, "[DPB] All buffers are referenced\n");
 		mfc_buf = list_entry(ctx->ref_buf_queue.head.next,
-				struct s5p_mfc_buf, list);
+				struct mfc_buf, list);
 	} else {
 		mfc_debug(3, "[DPB] waiting for dst buffer, ref = %d, dst = %d\n",
 				ctx->ref_buf_queue.count, ctx->dst_buf_queue.count);
@@ -867,10 +867,10 @@ struct s5p_mfc_buf *mfc_check_full_refered_dpb(struct s5p_mfc_ctx *ctx)
 }
 
 /* Try to search non-referenced DPB on dst-queue */
-struct s5p_mfc_buf *s5p_mfc_search_for_dpb(struct s5p_mfc_ctx *ctx, unsigned int dynamic_used)
+struct mfc_buf *mfc_search_for_dpb(struct mfc_ctx *ctx, unsigned int dynamic_used)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
@@ -883,18 +883,18 @@ struct s5p_mfc_buf *s5p_mfc_search_for_dpb(struct s5p_mfc_ctx *ctx, unsigned int
 		}
 	}
 
-	mfc_buf = mfc_check_full_refered_dpb(ctx);
+	mfc_buf = __mfc_check_full_refered_dpb(ctx);
 
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 
 	return mfc_buf;
 }
 
-struct s5p_mfc_buf *s5p_mfc_search_move_dpb_nal_q(struct s5p_mfc_ctx *ctx, unsigned int dynamic_used)
+struct mfc_buf *mfc_search_move_dpb_nal_q(struct mfc_ctx *ctx, unsigned int dynamic_used)
 {
 	unsigned long flags;
-	struct s5p_mfc_buf *mfc_buf = NULL;
-	struct s5p_mfc_dec *dec = NULL;
+	struct mfc_buf *mfc_buf = NULL;
+	struct mfc_dec *dec = NULL;
 
 	dec = ctx->dec_priv;
 	if (!dec) {
@@ -920,7 +920,7 @@ struct s5p_mfc_buf *s5p_mfc_search_move_dpb_nal_q(struct s5p_mfc_ctx *ctx, unsig
 		}
 	}
 
-	mfc_buf = mfc_check_full_refered_dpb(ctx);
+	mfc_buf = __mfc_check_full_refered_dpb(ctx);
 
 	if (mfc_buf) {
 		mfc_debug(2, "[NALQ][DPB] DPB is full. stop NAL-Q if started\n");
@@ -933,11 +933,11 @@ struct s5p_mfc_buf *s5p_mfc_search_move_dpb_nal_q(struct s5p_mfc_ctx *ctx, unsig
 }
 
 /* Add dst buffer in dst_buf_queue */
-void s5p_mfc_store_dpb(struct s5p_mfc_ctx *ctx, struct vb2_buffer *vb)
+void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 {
 	unsigned long flags;
-	struct s5p_mfc_dec *dec;
-	struct s5p_mfc_buf *mfc_buf;
+	struct mfc_dec *dec;
+	struct mfc_buf *mfc_buf;
 	int index;
 
 	if (!ctx) {
@@ -967,17 +967,17 @@ void s5p_mfc_store_dpb(struct s5p_mfc_ctx *ctx, struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-void s5p_mfc_cleanup_nal_queue(struct s5p_mfc_ctx *ctx)
+void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_dec *dec = ctx->dec_priv;
-	struct s5p_mfc_buf *src_mb, *dst_mb;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf *src_mb, *dst_mb;
 	unsigned long flags;
 	unsigned int index;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
 	while (!list_empty(&ctx->src_buf_nal_queue.head)) {
-		src_mb = list_entry(ctx->src_buf_nal_queue.head.prev, struct s5p_mfc_buf, list);
+		src_mb = list_entry(ctx->src_buf_nal_queue.head.prev, struct mfc_buf, list);
 
 		index = src_mb->vb.vb2_buf.index;
 		call_cop(ctx, recover_buf_ctrls_nal_q, ctx, &ctx->src_ctrls[index]);
@@ -1002,7 +1002,7 @@ void s5p_mfc_cleanup_nal_queue(struct s5p_mfc_ctx *ctx)
 	}
 
 	while (!list_empty(&ctx->dst_buf_nal_queue.head)) {
-		dst_mb = list_entry(ctx->dst_buf_nal_queue.head.prev, struct s5p_mfc_buf, list);
+		dst_mb = list_entry(ctx->dst_buf_nal_queue.head.prev, struct mfc_buf, list);
 
 		dst_mb->used = 0;
 		if (ctx->type == MFCINST_DECODER)
@@ -1020,10 +1020,10 @@ void s5p_mfc_cleanup_nal_queue(struct s5p_mfc_ctx *ctx)
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-int s5p_mfc_is_last_frame(struct s5p_mfc_ctx *ctx)
+int mfc_is_last_frame(struct mfc_ctx *ctx)
 {
-	struct s5p_mfc_buf *src_mb;
-	struct s5p_mfc_dev *dev;
+	struct mfc_buf *src_mb;
+	struct mfc_dev *dev;
 	unsigned long flags;
 
 	mfc_debug_enter();
@@ -1047,7 +1047,7 @@ int s5p_mfc_is_last_frame(struct s5p_mfc_ctx *ctx)
 		return -EINVAL;
 	}
 
-	src_mb = list_entry(ctx->src_buf_queue.head.next, struct s5p_mfc_buf, list);
+	src_mb = list_entry(ctx->src_buf_queue.head.next, struct mfc_buf, list);
 
 	mfc_debug(4, "addr[0]: 0x%08llx\n", src_mb->addr[0][0]);
 
