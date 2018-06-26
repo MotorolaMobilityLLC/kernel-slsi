@@ -10,8 +10,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _S5P_MFC_HWFC_H
-#define _S5P_MFC_HWFC_H
+#ifndef _MFC_HWFC_H
+#define _MFC_HWFC_H
 
 #include <linux/types.h>
 
@@ -31,19 +31,19 @@ struct encoding_param {
 };
 
 /*
- * s5p_mfc_hwfc_encode - Request encoding
+ * mfc_hwfc_encode - Request encoding
  * @encoding_param : parameters for encoding
  *
  * repeater calls it to start encoding
  *
  */
 #ifdef CONFIG_VIDEO_EXYNOS_MFC
-int s5p_mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param);
+int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param);
 #else
-static inline int s5p_mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
+static inline int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 {
 	return -HWFC_ERR_MFC_NOT_ENABLED;
 }
 #endif
 
-#endif /* _S5P_MFC_HWFC_H */
+#endif /* _MFC_HWFC_H */

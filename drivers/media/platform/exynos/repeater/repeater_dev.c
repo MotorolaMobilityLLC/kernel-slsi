@@ -186,10 +186,10 @@ int hwfc_set_valid_buffer(int buf_idx, int capture_idx)
 		if (ret == 0) {
 			ctx->enc_param.time_stamp = cur_timestamp;
 			set_encoding_start(shr_bufs, buf_idx);
-			ret = s5p_mfc_hwfc_encode(buf_idx, capture_idx, &ctx->enc_param);
+			ret = mfc_hwfc_encode(buf_idx, capture_idx, &ctx->enc_param);
 			if (ret != HWFC_ERR_NONE) {
 				print_repeater_debug(RPT_ERROR,
-					"s5p_mfc_hwfc_encode failed %d\n", ret);
+					"mfc_hwfc_encode failed %d\n", ret);
 				ret = set_encoding_done(shr_bufs);
 			}
 		}
@@ -322,10 +322,10 @@ void encoding_work_handler(struct work_struct *work)
 		ctx->buf_idx_dump = buf_idx;
 		wake_up_interruptible(&ctx->wait_queue_dump);
 		set_encoding_start(shr_bufs, buf_idx);
-		ret = s5p_mfc_hwfc_encode(buf_idx, buf_idx, &ctx->enc_param);
+		ret = mfc_hwfc_encode(buf_idx, buf_idx, &ctx->enc_param);
 		if (ret != HWFC_ERR_NONE) {
 			print_repeater_debug(RPT_ERROR,
-				"s5p_mfc_hwfc_encode failed %d\n", ret);
+				"mfc_hwfc_encode failed %d\n", ret);
 			ret = set_encoding_done(shr_bufs);
 		}
 	}

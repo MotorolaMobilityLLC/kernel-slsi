@@ -23,7 +23,7 @@
 #include <linux/timer.h>
 
 #include <media/exynos_repeater.h>
-#include <media/s5p_mfc_hwfc.h>
+#include <media/mfc_hwfc.h>
 
 #include "repeater.h"
 #include "repeater_buf.h"

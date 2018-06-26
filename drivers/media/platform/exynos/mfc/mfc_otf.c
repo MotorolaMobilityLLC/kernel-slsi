@@ -16,7 +16,7 @@
 #ifdef CONFIG_VIDEO_EXYNOS_TSMUX
 #include <media/exynos_tsmux.h>
 #endif
-#include <media/s5p_mfc_hwfc.h>
+#include <media/mfc_hwfc.h>
 
 #include "mfc_otf.h"
 #include "mfc_hwfc_internal.h"
@@ -661,7 +661,7 @@ int __mfc_hwfc_check_run(struct mfc_ctx *ctx)
 	return 0;
 }
 
-int s5p_mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
+int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 {
 	struct mfc_dev *dev = g_mfc_dev;
 	struct _otf_handle *handle;
