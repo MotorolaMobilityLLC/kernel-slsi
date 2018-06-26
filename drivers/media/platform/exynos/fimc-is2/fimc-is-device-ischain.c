@@ -879,8 +879,8 @@ void fimc_is_ischain_version(enum fimc_is_bin_type type, const char *load_bin, u
 		}
 		break;
 	case FIMC_IS_BIN_DDK_LIBRARY:
-		if (size > FIMC_IS_VERSION_OFFSET) {
-			memcpy(ddk_version_str, &load_bin[size - FIMC_IS_VERSION_OFFSET],
+		if (size > DDK_VERSION_OFFSET) {
+			memcpy(ddk_version_str, &load_bin[size - DDK_VERSION_OFFSET],
 				FIMC_IS_VERSION_BIN_SIZE);
 			ddk_version_str[FIMC_IS_VERSION_BIN_SIZE] = '\0';
 			info("DDK version : %s\n", ddk_version_str);
@@ -889,8 +889,8 @@ void fimc_is_ischain_version(enum fimc_is_bin_type type, const char *load_bin, u
 		}
 		break;
 	case FIMC_IS_BIN_RTA_LIBRARY:
-		if (size > FIMC_IS_VERSION_OFFSET) {
-			memcpy(rta_version_str, &load_bin[size - FIMC_IS_VERSION_OFFSET],
+		if (size > RTA_VERSION_OFFSET) {
+			memcpy(rta_version_str, &load_bin[size - RTA_VERSION_OFFSET],
 				FIMC_IS_VERSION_BIN_SIZE);
 			rta_version_str[FIMC_IS_VERSION_BIN_SIZE] = '\0';
 			info("RTA version : %s\n", rta_version_str);
