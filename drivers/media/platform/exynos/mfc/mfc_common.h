@@ -22,7 +22,7 @@
 #include <media/videobuf2-dma-sg.h>
 #include <asm/cacheflush.h>
 
-#include "mfc_regs_v10.h"
+#include "mfc_regs.h"
 #include "mfc_macros.h"
 #include "mfc_debug.h"
 #include "exynos_mfc_media.h"

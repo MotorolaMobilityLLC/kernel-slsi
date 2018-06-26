@@ -12,7 +12,7 @@
 
 #include "mfc_common.h"
 
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 static int __mfc_enc_ctrl_read_cst(struct mfc_ctx *ctx,
 		struct mfc_buf_ctrl *buf_ctrl)

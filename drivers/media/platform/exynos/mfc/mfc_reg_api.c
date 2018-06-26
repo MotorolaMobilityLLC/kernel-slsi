@@ -12,7 +12,7 @@
 
 #include <linux/delay.h>
 
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 void mfc_dbg_enable(struct mfc_dev *dev)
 {

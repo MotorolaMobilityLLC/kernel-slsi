@@ -23,9 +23,9 @@
 
 #include "mfc_common.h"
 
-#include "mfc_irq.h"
-#include "mfc_dec.h"
-#include "mfc_enc.h"
+#include "mfc_isr.h"
+#include "mfc_dec_v4l2.h"
+#include "mfc_enc_v4l2.h"
 
 #include "mfc_ctrl.h"
 #include "mfc_hwlock.h"
@@ -38,9 +38,9 @@
 
 #include "mfc_inst.h"
 #include "mfc_pm.h"
-#include "mfc_cal.h"
 #include "mfc_perf_measure.h"
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
+#include "mfc_hw_reg_api.h"
 #include "mfc_mmcache.h"
 
 #include "mfc_qos.h"

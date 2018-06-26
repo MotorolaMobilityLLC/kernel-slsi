@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/mfc_enc.h
+ * drivers/media/platform/exynos/mfc/mfc_dec_v4l2.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,11 +10,11 @@
  * (at your option) any later version.
  */
 
-#ifndef __MFC_ENC_H
-#define __MFC_ENC_H __FILE__
+#ifndef __MFC_DEC_V4L2_H
+#define __MFC_DEC_V4L2_H __FILE__
 
 #include "mfc_common.h"
 
-const struct v4l2_ioctl_ops *mfc_get_enc_v4l2_ioctl_ops(void);
+const struct v4l2_ioctl_ops *mfc_get_dec_v4l2_ioctl_ops(void);
 
-#endif /* __MFC_ENC_H */
+#endif /* __MFC_DEC_V4L2_H */

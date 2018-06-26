@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/mfc_cal.h
+ * drivers/media/platform/exynos/mfc/mfc_hw_reg_api.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,15 +10,14 @@
  * (at your option) any later version.
  */
 
-#ifndef __MFC_CAL_H
-#define __MFC_CAL_H __FILE__
+#ifndef __MFC_HW_REG_API_H
+#define __MFC_HW_REG_API_H __FILE__
 
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 #include "mfc_common.h"
 
 #include "mfc_utils.h"
-
 
 #define mfc_get_int_reason()	(MFC_READL(MFC_REG_RISC2HOST_CMD)		\
 						& MFC_REG_RISC2HOST_CMD_MASK)
@@ -109,4 +108,4 @@ void mfc_set_risc_base_addr(struct mfc_dev *dev,
 void mfc_cmd_host2risc(struct mfc_dev *dev, int cmd);
 int mfc_check_risc2host(struct mfc_dev *dev);
 
-#endif /* __MFC_CAL_H */
+#endif /* __MFC_HW_REG_API_H */

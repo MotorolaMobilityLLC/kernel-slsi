@@ -13,7 +13,7 @@
 #include "mfc_opr.h"
 
 #include "mfc_inst.h"
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 #include "mfc_queue.h"
 #include "mfc_utils.h"

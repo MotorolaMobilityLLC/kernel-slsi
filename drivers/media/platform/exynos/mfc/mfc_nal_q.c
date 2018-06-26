@@ -15,8 +15,8 @@
 #include "mfc_sync.h"
 
 #include "mfc_pm.h"
-#include "mfc_cal.h"
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
+#include "mfc_hw_reg_api.h"
 
 #include "mfc_qos.h"
 #include "mfc_queue.h"

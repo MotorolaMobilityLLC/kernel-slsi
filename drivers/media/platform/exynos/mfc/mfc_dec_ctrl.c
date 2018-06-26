@@ -12,7 +12,7 @@
 
 #include  "mfc_common.h"
 
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 #define NUM_CTRL_CFGS ARRAY_SIZE(mfc_ctrl_list)
 

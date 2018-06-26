@@ -14,8 +14,8 @@
 
 #include "mfc_cmd.h"
 
-#include "mfc_cal.h"
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
+#include "mfc_hw_reg_api.h"
 #include "mfc_mmcache.h"
 
 #include "mfc_utils.h"

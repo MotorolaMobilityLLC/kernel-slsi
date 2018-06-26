@@ -12,7 +12,7 @@
 
 #include <trace/events/mfc.h>
 
-#include "mfc_cal.h"
+#include "mfc_hw_reg_api.h"
 #include "mfc_pm.h"
 
 /* Reset the device */

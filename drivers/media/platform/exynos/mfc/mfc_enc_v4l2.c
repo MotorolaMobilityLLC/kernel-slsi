@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/mfc_enc.c
+ * drivers/media/platform/exynos/mfc/mfc_enc_v4l2.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,7 +10,7 @@
  * (at your option) any later version.
  */
 
-#include "mfc_enc.h"
+#include "mfc_enc_v4l2.h"
 #include "mfc_enc_internal.h"
 
 #include "mfc_hwlock.h"

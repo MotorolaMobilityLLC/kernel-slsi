@@ -26,7 +26,7 @@
 #include "mfc_inst.h"
 #include "mfc_pm.h"
 #include "mfc_cmd.h"
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 #include "mfc_qos.h"
 #include "mfc_queue.h"

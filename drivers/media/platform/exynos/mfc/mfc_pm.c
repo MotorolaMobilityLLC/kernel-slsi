@@ -16,8 +16,8 @@
 
 #include "mfc_pm.h"
 
-#include "mfc_cal.h"
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
+#include "mfc_hw_reg_api.h"
 
 void mfc_pm_init(struct mfc_dev *dev)
 {

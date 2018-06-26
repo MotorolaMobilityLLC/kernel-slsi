@@ -12,7 +12,7 @@
 
 #include "mfc_sync.h"
 
-#include "mfc_cal.h"
+#include "mfc_hw_reg_api.h"
 #include "mfc_perf_measure.h"
 
 #include "mfc_queue.h"

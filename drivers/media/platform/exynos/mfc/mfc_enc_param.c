@@ -12,7 +12,7 @@
 
 #include "mfc_enc_param.h"
 
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 /* Definition */
 #define FRAME_DELTA_DEFAULT		1

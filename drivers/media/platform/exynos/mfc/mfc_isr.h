@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/mfc_irq.h
+ * drivers/media/platform/exynos/mfc/mfc_isr.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,8 +10,8 @@
  * (at your option) any later version.
  */
 
-#ifndef __MFC_IRQ_H
-#define __MFC_IRQ_H __FILE__
+#ifndef __MFC_ISR_H
+#define __MFC_ISR_H __FILE__
 
 #include <linux/interrupt.h>
 
@@ -29,4 +29,4 @@ static inline void mfc_handle_force_change_status(struct mfc_ctx *ctx)
 		mfc_change_state(ctx, MFCINST_RUNNING);
 }
 
-#endif /* __MFC_IRQ_H */
+#endif /* __MFC_ISR_H */

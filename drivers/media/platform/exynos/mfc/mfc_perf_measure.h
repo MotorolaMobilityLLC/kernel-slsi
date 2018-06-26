@@ -15,7 +15,7 @@
 
 #include <linux/clk.h>
 
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
 
 void mfc_perf_register(struct mfc_dev *dev);
 void __mfc_measure_init(void);

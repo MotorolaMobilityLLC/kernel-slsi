@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/mfc_irq.c
+ * drivers/media/platform/exynos/mfc/mfc_isr.c
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,7 +10,7 @@
  * (at your option) any later version.
  */
 
-#include "mfc_irq.h"
+#include "mfc_isr.h"
 
 #include "mfc_hwlock.h"
 #include "mfc_nal_q.h"
@@ -19,9 +19,9 @@
 #include "mfc_sync.h"
 
 #include "mfc_pm.h"
-#include "mfc_cal.h"
 #include "mfc_perf_measure.h"
-#include "mfc_reg.h"
+#include "mfc_reg_api.h"
+#include "mfc_hw_reg_api.h"
 #include "mfc_mmcache.h"
 
 #include "mfc_qos.h"

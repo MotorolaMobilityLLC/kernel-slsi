@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/regs-mfc-v10.h
+ * drivers/media/platform/exynos/mfc/mfc_regs.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,8 +10,8 @@
  * (at your option) any later version.
  */
 
-#ifndef __REGS_MFC_V10_H
-#define __REGS_MFC_V10_H __FILE__
+#ifndef __MFC_REGS_H
+#define __MFC_REGS_H __FILE__
 
 #define MFC_MMU_INTERRUPT_STATUS				0x0060
 #define MFC_MMU_FAULT_TRANS_INFO				0x0078
@@ -740,4 +740,4 @@
 #define MFC_REG_E_SLICE_TYPE_SKIPPED			4
 
 
-#endif /* __REGS_MFC_V10_H */
+#endif /* __MFC_REGS_H */

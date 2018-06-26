@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/mfc_reg.h
+ * drivers/media/platform/exynos/mfc/mfc_reg_api.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,8 +10,8 @@
  * (at your option) any later version.
  */
 
-#ifndef __MFC_REG_H
-#define __MFC_REG_H __FILE__
+#ifndef __MFC_REG_API_H
+#define __MFC_REG_API_H __FILE__
 
 #include "mfc_common.h"
 
@@ -268,4 +268,4 @@ int mfc_set_dynamic_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_vb);
 
 void mfc_set_pixel_format(struct mfc_dev *dev, unsigned int format);
 
-#endif /* __MFC_REG_H */
+#endif /* __MFC_REG_API_H */
