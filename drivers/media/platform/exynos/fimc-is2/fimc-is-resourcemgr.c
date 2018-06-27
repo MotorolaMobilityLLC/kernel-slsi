@@ -49,6 +49,10 @@
 #include <linux/debug-snapshot.h>
 #endif
 
+#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
+#include <soc/samsung/exynos-bcm_dbg.h>
+#endif
+
 #include "fimc-is-resourcemgr.h"
 #include "fimc-is-hw.h"
 #include "fimc-is-debug.h"
@@ -1334,6 +1338,10 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			goto p_err;
 		}
 #endif
+#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
+		exynos_bcm_dbg_start();
+		dbgd_resource("exynos bcm debug was started\n");
+#endif
 	}
 
 	if (atomic_read(&resource->rsccount) == 0) {
@@ -1634,6 +1642,10 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 	if (atomic_read(&core->rsccount) == 1) {
 		u32 current_min, current_max;
 
+#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
+		exynos_bcm_dbg_stop(CAMERA_DRIVER);
+		dbgd_resource("exynos bcm debug was stopped\n");
+#endif
 #ifdef ENABLE_DYNAMIC_MEM
 		ret = fimc_is_resourcemgr_deinit_dynamic_mem(resourcemgr);
 		if (ret)
