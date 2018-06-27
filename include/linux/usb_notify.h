@@ -129,6 +129,7 @@ struct otg_notify {
 	int speed;
 #if defined(CONFIG_IFCONN_NOTIFIER)
 	int charger_detect;
+	int usb_noti_done;
 #endif
 	const char *muic_name;
 	int (*pre_gpio)(int gpio, int use);

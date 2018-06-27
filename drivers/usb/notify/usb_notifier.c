@@ -821,6 +821,18 @@ static int exynos_set_peripheral(bool enable)
 	return 0;
 }
 
+#if defined(CONFIG_IFCONN_NOTIFIER)
+static int exynos_set_charger(bool enable)
+{
+	if (enable) {
+		pr_info("%s - revert usb notification\n", __func__);
+		check_usb_vbus_state(0);
+	}
+
+	return 0;
+}
+#endif
+
 #if defined(CONFIG_BATTERY_SAMSUNG_V2)
 static int usb_blocked_chg_control(int set)
 {
@@ -864,7 +876,9 @@ static struct otg_notify dwc_lsi_notify = {
 	.set_host = exynos_set_host,
 	.set_peripheral	= exynos_set_peripheral,
 #if defined(CONFIG_IFCONN_NOTIFIER)
+	.set_charger = exynos_set_charger,
 	.charger_detect = 0,
+	.usb_noti_done = 0,
 #endif
 	.vbus_detect_gpio = -1,
 	.is_wakelock = 0,

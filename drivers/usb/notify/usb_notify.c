@@ -684,8 +684,10 @@ static void otg_notify_state(struct otg_notify *n,
 					n->pre_peri_delay_us * 1000);
 #if defined(CONFIG_IFCONN_NOTIFIER)
 			pr_info("Charger status in usb detect = %d\n", n->charger_detect);
-			if (n->set_peripheral && n->charger_detect == 0)
+			if (n->set_peripheral && n->charger_detect == 0) {
 				n->set_peripheral(true);
+				n->usb_noti_done = 1;
+			}
 #else
 			if (n->set_peripheral)
 				n->set_peripheral(true);
@@ -801,14 +803,20 @@ static void otg_notify_state(struct otg_notify *n,
 		}
 		break;
 	case NOTIFY_EVENT_CHARGER:
-		if (n->set_charger)
-			n->set_charger(enable);
 #if defined(CONFIG_IFCONN_NOTIFIER)
 		pr_info("%s charger detect = %d\n", __func__, enable);
-		if (enable)
+		if (enable) {
 			n->charger_detect = 1;
-		else
+			if (n->usb_noti_done) {
+				n->set_charger(enable);
+				n->usb_noti_done = 0;
+			}
+		} else {
 			n->charger_detect = 0;
+		}
+#else
+		if (n->set_charger)
+			n->set_charger(enable);
 #endif
 		break;
 	case NOTIFY_EVENT_MMDOCK:
