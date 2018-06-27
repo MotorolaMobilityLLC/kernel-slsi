@@ -271,12 +271,15 @@ int slsi_start_monitor_mode(struct slsi_dev *sdev, struct net_device *dev)
 	}
 
 	/* set the link type for the device; it depends on the format of
-	 * packet the firmware is going to Pass to Host. When the firmware
-	 * adds PTAP header to MA data units, then the link type shall
-	 * change to reflect that.
-	 * i.e. dev->type = ARPHRD_IEEE80211_RADIOTAP;
+	 * packet the firmware is going to Pass to Host.
+	 *
+	 * If the firmware passes MA data in 802.11 frame format, then
+	 * dev->type = ARPHRD_IEEE80211;
+	 *
+	 * If the firmware adds Radio TAP header to MA data,
+	 * dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	 */
-	dev->type = ARPHRD_IEEE80211;
+	dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	ndev_vif->activated = true;
 	return 0;
 }
