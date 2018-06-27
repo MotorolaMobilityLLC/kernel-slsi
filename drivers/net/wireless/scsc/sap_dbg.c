@@ -47,7 +47,7 @@ static void slsi_rx_debug(struct slsi_dev *sdev, struct net_device *dev, struct 
 
 	switch (id) {
 	case DEBUG_FAULT_IND:
-		SLSI_WARN(sdev, "FAULT_IND: |cpu %s|id 0x%04X|arg 0x%08X|count %d|timestamp %10u|\n",
+		SLSI_WARN(sdev, "WF_FW_INFO: |cpu %s|id 0x%04X|arg 0x%08X|count %d|timestamp %10u|\n",
 			  ((fapi_get_u16(skb, u.debug_fault_ind.cpu) == 0x8000) ? "MAC" :
 			   (fapi_get_u16(skb, u.debug_fault_ind.cpu) == 0x4000) ? "PHY" : "???"),
 			  fapi_get_u16(skb, u.debug_fault_ind.faultid),
