@@ -532,6 +532,10 @@ static int xhci_plat_remove(struct platform_device *dev)
 	}
 	xhci_dbg(xhci, "%s: waited %dmsec", __func__, timeout);
 
+	dev_info(&dev->dev, "WAKE UNLOCK\n");
+	wake_unlock(xhci->wakelock);
+	wake_lock_destroy(xhci->wakelock);
+
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
 	usb_remove_hcd(xhci->shared_hcd);
@@ -552,10 +556,6 @@ static int xhci_plat_remove(struct platform_device *dev)
 	if (!IS_ERR(clk))
 		clk_disable_unprepare(clk);
 	usb_put_hcd(hcd);
-
-	dev_info(&dev->dev, "WAKE UNLOCK\n");
-	wake_unlock(xhci->wakelock);
-	wake_lock_destroy(xhci->wakelock);
 
 	pm_runtime_set_suspended(&dev->dev);
 	pm_runtime_disable(&dev->dev);
