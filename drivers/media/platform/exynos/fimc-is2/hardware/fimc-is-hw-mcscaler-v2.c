@@ -208,8 +208,9 @@ void fimc_is_hw_mcsc_hw_info(struct fimc_is_hw_ip *hw_ip, struct fimc_is_hw_mcsc
 		return;
 
 	sinfo_hw("==== h/w info(ver:0x%X) ====\n", hw_ip, cap->hw_ver);
-	info_hw("[IN] out:%d, in(otf:%d/dma:%d), hwfc:%d, tdnr:%d, djag:%d, ds_vra:%d, ysum:%d\n",
-		cap->max_output, cap->in_otf, cap->in_dma, cap->hwfc, cap->tdnr, cap->djag, cap->ds_vra, cap->ysum);
+	sinfo_hw("[IN] out:%d, in(otf:%d/dma:%d), hwfc:%d, tdnr:%d, djag:%d, ds_vra:%d, ysum:%d\n", hw_ip,
+		cap->max_output, cap->in_otf, cap->in_dma, cap->hwfc,
+		cap->tdnr, cap->djag, cap->ds_vra, cap->ysum);
 	for (i = MCSC_OUTPUT0; i < cap->max_output; i++)
 		info_hw("[OUT%d] out(otf/dma):%d/%d, hwfc:%d\n", i,
 			cap->out_otf[i], cap->out_dma[i], cap->out_hwfc[i]);
