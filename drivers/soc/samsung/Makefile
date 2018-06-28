@@ -5,7 +5,6 @@ obj-$(CONFIG_ARCH_EXYNOS)       += exynos-smc.o
 obj-$(CONFIG_CAL_IF)		+= cal-if/
 
 obj-$(CONFIG_ECT)		+= ect_parser.o
-obj-$(CONFIG_EXYNOS_BCM)	+= exynos-bcm.o
 
 obj-$(CONFIG_EXYNOS_PMU)	+= exynos-pmu.o
 
@@ -14,6 +13,8 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-fsys0-tcxo.o
 
 obj-$(CONFIG_EXYNOS_PMU_ARM_DRIVERS)	+= exynos3250-pmu.o exynos4-pmu.o \
 					exynos5250-pmu.o exynos5420-pmu.o
+obj-$(CONFIG_EXYNOS_BCM_DBG)    += exynos-bcm_dbg.o exynos-bcm_dbg-dt.o
+obj-$(CONFIG_EXYNOS_BCM_DBG_DUMP)       += exynos-bcm_dbg-dump.o
 
 obj-$(CONFIG_EXYNOS_CHIPID)	+= exynos-chipid.o
 

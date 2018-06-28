@@ -10,6 +10,27 @@ config EXYNOS_CHIPID
 	depends on ARCH_EXYNOS
 	select SOC_BUS
 
+config EXYNOS_BCM_DBG
+	bool "EXYNOS_BCM_DBG driver support"
+	default y
+	help
+	  Enable exynos-bcm_dbg driver support
+
+config EXYNOS_BCM_DBG_GNR
+	bool "EXYNOS_BCM_DBG general interface support"
+	depends on !EXYNOS_ADV_TRACER
+	default y
+	help
+	  Enable exynos-bcm_dbg general interface support.
+	  The general interface is not used ADV-tracer IPC interface.
+
+config EXYNOS_BCM_DBG_DUMP
+	bool "EXYNOS_BCM_DBG dump support"
+	depends on EXYNOS_BCM_DBG
+	default y if EXYNOS_BCM_DBG
+	help
+	  Enable exynos-bcm_dbg dump support
+
 config EXYNOS_BCM
 	bool "EXYNOS_BCM driver support"
 	help
