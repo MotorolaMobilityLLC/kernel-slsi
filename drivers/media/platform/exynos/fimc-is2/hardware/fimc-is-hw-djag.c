@@ -117,15 +117,15 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
-	backup_in = hw_mcsc->djag_input_source;
+	backup_in = hw_mcsc->djag_in;
 	if (hw_ip->hardware->video_mode)
-		hw_mcsc->djag_input_source = DEV_HW_MCSC0;
+		hw_mcsc->djag_in = DEV_HW_MCSC0;
 	else
-		hw_mcsc->djag_input_source = DEV_HW_MCSC1;
+		hw_mcsc->djag_in = DEV_HW_MCSC1;
 
-	if (backup_in != hw_mcsc->djag_input_source)
+	if (backup_in != hw_mcsc->djag_in)
 		sdbg_hw(0, "djag input_source changed %d-> %d\n", hw_ip,
-			backup_in - DEV_HW_MCSC0, hw_mcsc->djag_input_source - DEV_HW_MCSC0);
+			backup_in - DEV_HW_MCSC0, hw_mcsc->djag_in - DEV_HW_MCSC0);
 
 #ifdef ENABLE_DJAG_IN_MCSC
 	param->input.djag_out_width = 0;
@@ -133,9 +133,9 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 #endif
 
 	fimc_is_scaler_set_djag_input_source(hw_ip->regs,
-			hw_mcsc->djag_input_source - DEV_HW_MCSC0);
+			hw_mcsc->djag_in - DEV_HW_MCSC0);
 
-	if (hw_mcsc->djag_input_source != hw_ip->id)
+	if (hw_mcsc->djag_in != hw_ip->id)
 		return ret;
 
 	sensor_position = hw_ip->hardware->sensor_position[instance];
@@ -197,7 +197,7 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 	fimc_is_scaler_set_djag_round_mode(hw_ip->regs, 1);
 
 #ifdef MCSC_USE_DEJAG_TUNING_PARAM
-	djag_tuneset = &hw_mcsc->applied_setfile[sensor_position]->djag_contents[scale_index];
+	djag_tuneset = &hw_mcsc->applied_setfile[sensor_position]->djag[scale_index];
 #endif
 	fimc_is_scaler_set_djag_tunning_param(hw_ip->regs, djag_tuneset);
 

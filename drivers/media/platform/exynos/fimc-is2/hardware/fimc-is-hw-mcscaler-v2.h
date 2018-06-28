@@ -104,7 +104,7 @@ struct hw_api_scaler_setfile {
 	 * 2 : Scaling ratio = x1.5~x2.0
 	 * 3 : Scaling ratio = x2.1~
 	 */
-	struct djag_setfile_contents djag_contents[MAX_SCALINGRATIOINDEX_DEPENDED_CONFIGS];
+	struct djag_setfile_contents	djag[MAX_SCALINGRATIOINDEX_DEPENDED_CONFIGS];
 #endif
 };
 
@@ -163,8 +163,8 @@ struct fimc_is_hw_mcsc {
 	struct tdnr_configs	tdnr_cfgs;
 
 	/* for Djag */
-	u32			djag_input_source;
-	struct djag_setfile_contents	djag_tunecfg;
+	u32			djag_in;
+	struct djag_setfile_contents    djag_tunecfg;
 
 	/* for full otf overflow recovery */
 	struct is_param_region	*back_param;
