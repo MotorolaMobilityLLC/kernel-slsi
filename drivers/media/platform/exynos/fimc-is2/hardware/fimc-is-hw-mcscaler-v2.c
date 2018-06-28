@@ -285,7 +285,7 @@ static int fimc_is_hw_mcsc_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	get_mcsc_hw_ip(hardware, &hw_ip0, &hw_ip1);
 
 	for (i = 0; i < SENSOR_POSITION_END; i++) {
-		hw_mcsc->applied_setfile[i] = NULL;
+		hw_mcsc->cur_setfile[i] = NULL;
 	}
 
 	if (cap->enable_shared_output) {
@@ -1092,7 +1092,7 @@ static int fimc_is_hw_mcsc_load_setfile(struct fimc_is_hw_ip *hw_ip, u32 instanc
 {
 	int ret = 0;
 	struct fimc_is_hw_ip_setfile *setfile;
-	struct hw_api_scaler_setfile *setfile_addr;
+	struct hw_mcsc_setfile *setfile_addr;
 	enum exynos_sensor_position sensor_position;
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
 	int setfile_index = 0;
@@ -1129,15 +1129,15 @@ static int fimc_is_hw_mcsc_load_setfile(struct fimc_is_hw_ip *hw_ip, u32 instanc
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
-	if (setfile->table[0].size != sizeof(struct hw_api_scaler_setfile))
+	if (setfile->table[0].size != sizeof(struct hw_mcsc_setfile))
 		mswarn_hw("tuneset size(%x) is not matched to setfile structure size(%lx)",
 			instance, hw_ip, setfile->table[0].size,
-			sizeof(struct hw_api_scaler_setfile));
+			sizeof(struct hw_mcsc_setfile));
 
 	/* copy MCSC setfile set */
-	setfile_addr = (struct hw_api_scaler_setfile *)setfile->table[0].addr;
+	setfile_addr = (struct hw_mcsc_setfile *)setfile->table[0].addr;
 	memcpy(hw_mcsc->setfile[sensor_position], setfile_addr,
-		sizeof(struct hw_api_scaler_setfile) * setfile->using_count);
+		sizeof(struct hw_mcsc_setfile) * setfile->using_count);
 
 	/* check each setfile Magic numbers */
 	for (setfile_index = 0; setfile_index < setfile->using_count; setfile_index++) {
@@ -1196,7 +1196,7 @@ static int fimc_is_hw_mcsc_apply_setfile(struct fimc_is_hw_ip *hw_ip, u32 scenar
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
-	hw_mcsc->applied_setfile[sensor_position] =
+	hw_mcsc->cur_setfile[sensor_position] =
 		&hw_mcsc->setfile[sensor_position][setfile_index];
 
 	msinfo_hw("setfile (%d) scenario (%d)\n", instance, hw_ip,
@@ -2009,12 +2009,12 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 	u32 output_id, u32 instance)
 {
 	int ret = 0;
-	int yuv_range = 0;
+	int yuv = 0;
 	u32 input_id = 0;
 	bool config = true;
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
 #if !defined(USE_YUV_RANGE_BY_ISP)
-	struct scaler_setfile_contents contents;
+	struct	hw_mcsc_setfile *setfile;
 #endif
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 
@@ -2037,35 +2037,36 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 		return ret;
 	}
 
-	yuv_range = output->yuv_range;
-	hw_mcsc->yuv_range = yuv_range; /* save for ISP */
+	yuv = output->yuv_range;
+	hw_mcsc->yuv_range = yuv; /* save for ISP */
 
 	fimc_is_scaler_set_bchs_enable(hw_ip->regs, output_id, 1);
 #if !defined(USE_YUV_RANGE_BY_ISP)
 	if (test_bit(HW_TUNESET, &hw_ip->state)) {
 		/* set yuv range config value by scaler_param yuv_range mode */
 		sensor_position = hw_ip->hardware->sensor_position[instance];
-		contents = hw_mcsc->applied_setfile[sensor_position]->contents[yuv_range];
+		setfile = hw_mcsc->cur_setfile[sensor_position]
+
 		fimc_is_scaler_set_b_c(hw_ip->regs, output_id,
-			contents.y_offset, contents.y_gain);
+			setfile->sc_base[yuv].y_offset, setfile->sc_base[yuv].y_gain);
 		fimc_is_scaler_set_h_s(hw_ip->regs, output_id,
-			contents.c_gain00, contents.c_gain01,
-			contents.c_gain10, contents.c_gain11);
+			setfile->sc_base[yuv].c_gain00, setfile->sc_base[yuv].c_gain01,
+			setfile->sc_base[yuv].c_gain10, setfile->sc_base[yuv].c_gain11);
 		msdbg_hw(2, "set YUV range(%d) by setfile parameter\n",
-			instance, hw_ip, yuv_range);
-		msdbg_hw(2, "[OUT:%d]output_yuv_setting: yuv_range(%d), cmd(O:%d,D:%d)\n",
-			instance, hw_ip, output_id, yuv_range, output->otf_cmd, output->dma_cmd);
+			instance, hw_ip, yuv);
+		msdbg_hw(2, "[OUT:%d]output_yuv_setting: yuv(%d), cmd(O:%d,D:%d)\n",
+			instance, hw_ip, output_id, yuv, output->otf_cmd, output->dma_cmd);
 		dbg_hw(2, "[Y:offset(%d),gain(%d)][C:gain00(%d),01(%d),10(%d),11(%d)]\n",
-			contents.y_offset, contents.y_gain,
-			contents.c_gain00, contents.c_gain01,
-			contents.c_gain10, contents.c_gain11);
+			setfile->sc_base[yuv].y_offset, setfile->sc_base[yuv].y_gain,
+			setfile->sc_base[yuv].c_gain00, setfile->sc_base[yuv].c_gain01,
+			setfile->sc_base[yuv].c_gain10, setfile->sc_base[yuv].c_gain11);
 	} else {
-		fimc_is_hw_bchs_range(hw_ip->regs, output_id, yuv_range);
+		fimc_is_hw_bchs_range(hw_ip->regs, output_id, yuv);
 		msdbg_hw(2, "YUV range set default settings\n", instance, hw_ip);
 	}
 #else
-	fimc_is_hw_bchs_range(hw_ip->regs, output_id, yuv_range);
-	fimc_is_hw_bchs_clamp(hw_ip->regs, output_id, yuv_range);
+	fimc_is_hw_bchs_range(hw_ip->regs, output_id, yuv);
+	fimc_is_hw_bchs_clamp(hw_ip->regs, output_id, yuv);
 #endif
 	return ret;
 }

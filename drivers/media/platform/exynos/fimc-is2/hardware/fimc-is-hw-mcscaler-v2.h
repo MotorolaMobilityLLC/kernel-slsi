@@ -104,14 +104,14 @@ struct scaler_bchs_clamp_cfg {
 	u32 c_min;
 };
 
-struct hw_api_scaler_setfile {
+struct hw_mcsc_setfile {
 	u32 setfile_version;
 
 	/* contents for Full/Narrow mode
 	 * 0 : SCALER_OUTPUT_YUV_RANGE_FULL
 	 * 1 : SCALER_OUTPUT_YUV_RANGE_NARROW
 	 */
-	struct scaler_setfile_contents	contents[2];
+	struct scaler_setfile_contents	sc_base[2];
 #ifdef MCSC_DNR_USE_TUNING
 	struct tdnr_setfile_contents	tdnr_contents;
 #endif
@@ -164,8 +164,8 @@ struct fimc_is_hw_mcsc_cap {
 };
 
 struct fimc_is_hw_mcsc {
-	struct	hw_api_scaler_setfile setfile[SENSOR_POSITION_END][FIMC_IS_MAX_SETFILE];
-	struct	hw_api_scaler_setfile *applied_setfile[SENSOR_POSITION_END];
+	struct	hw_mcsc_setfile setfile[SENSOR_POSITION_END][FIMC_IS_MAX_SETFILE];
+	struct	hw_mcsc_setfile *cur_setfile[SENSOR_POSITION_END];
 	struct	fimc_is_hw_mcsc_cap cap;
 
 	u32	in_img_format;
