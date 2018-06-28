@@ -16,16 +16,11 @@
 #include "mfc_pm.h"
 
 /* Reset the device */
-int mfc_reset_mfc(struct mfc_dev *dev)
+void mfc_reset_mfc(struct mfc_dev *dev)
 {
 	int i;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	/* Zero Initialization of MFC registers */
 	MFC_WRITEL(0, MFC_REG_RISC2HOST_CMD);
@@ -39,8 +34,6 @@ int mfc_reset_mfc(struct mfc_dev *dev)
 	MFC_WRITEL(0, MFC_REG_MFC_RESET);
 
 	mfc_debug_leave();
-
-	return 0;
 }
 
 void mfc_set_risc_base_addr(struct mfc_dev *dev,

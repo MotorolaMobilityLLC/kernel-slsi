@@ -27,13 +27,12 @@
 #include "mfc_dec_v4l2.h"
 #include "mfc_enc_v4l2.h"
 
-#include "mfc_ctrl.h"
+#include "mfc_run.h"
 #include "mfc_hwlock.h"
 #include "mfc_nal_q.h"
 #include "mfc_otf.h"
 #include "mfc_watchdog.h"
 #include "mfc_debugfs.h"
-#include "mfc_opr.h"
 #include "mfc_sync.h"
 
 #include "mfc_pm.h"
@@ -381,7 +380,7 @@ static int __mfc_init_instance(struct mfc_dev *dev, struct mfc_ctx *ctx)
 	dev->preempt_ctx = MFC_NO_INSTANCE_SET;
 	dev->curr_ctx_is_drm = ctx->is_drm;
 
-	ret = mfc_init_hw(dev);
+	ret = mfc_run_init_hw(dev);
 	if (ret) {
 		mfc_err_ctx("Failed to init mfc h/w\n");
 		goto err_hw_init;
@@ -713,7 +712,7 @@ static int mfc_release(struct file *file)
 	dev->num_inst--;
 
 	if (dev->num_inst == 0) {
-		mfc_deinit_hw(dev);
+		mfc_run_deinit_hw(dev);
 
 		if (perf_boost_mode)
 			mfc_perf_boost_disable(dev);
@@ -1469,7 +1468,7 @@ static int mfc_remove(struct platform_device *pdev)
 	mfc_destroy_listable_wq_dev(dev);
 	iovmm_deactivate(&pdev->dev);
 	mfc_debug(2, "Will now deinit HW\n");
-	mfc_deinit_hw(dev);
+	mfc_run_deinit_hw(dev);
 	free_irq(dev->irq, dev);
 	if (dev->has_mmcache)
 		iounmap(dev->mmcache.base);
@@ -1515,38 +1514,62 @@ static void mfc_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int mfc_suspend(struct device *dev)
+static int mfc_suspend(struct device *device)
 {
-	struct mfc_dev *m_dev = platform_get_drvdata(to_platform_device(dev));
+	struct mfc_dev *dev = platform_get_drvdata(to_platform_device(device));
 	int ret;
 
-	if (!m_dev) {
+	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
 		return -EINVAL;
 	}
 
-	if (m_dev->num_inst == 0)
+	if (dev->num_inst == 0)
 		return 0;
 
-	ret = mfc_sleep(m_dev);
+	MFC_TRACE_DEV_HWLOCK("**sleep\n");
+	ret = mfc_get_hwlock_dev(dev);
+	if (ret < 0) {
+		mfc_err_dev("Failed to get hwlock\n");
+		mfc_err_dev("dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
+				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
+				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
+		return -EBUSY;
+	}
+
+	ret = mfc_run_sleep(dev);
+	if (ret == 0)
+		mfc_release_hwlock_dev(dev);
 
 	return ret;
 }
 
-static int mfc_resume(struct device *dev)
+static int mfc_resume(struct device *device)
 {
-	struct mfc_dev *m_dev = platform_get_drvdata(to_platform_device(dev));
+	struct mfc_dev *dev = platform_get_drvdata(to_platform_device(device));
 	int ret;
 
-	if (!m_dev) {
+	if (!dev) {
 		mfc_err_dev("no mfc device to run\n");
 		return -EINVAL;
 	}
 
-	if (m_dev->num_inst == 0)
+	if (dev->num_inst == 0)
 		return 0;
 
-	ret = mfc_wakeup(m_dev);
+	MFC_TRACE_DEV_HWLOCK("**wakeup\n");
+	ret = mfc_get_hwlock_dev(dev);
+	if (ret < 0) {
+		mfc_err_dev("Failed to get hwlock\n");
+		mfc_err_dev("dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
+				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
+				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
+		return -EBUSY;
+	}
+
+	ret = mfc_run_wakeup(dev);
+	if (ret == 0)
+		mfc_release_hwlock_dev(dev);
 
 	return ret;
 }

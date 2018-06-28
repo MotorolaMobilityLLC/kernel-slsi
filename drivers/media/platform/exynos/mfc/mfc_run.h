@@ -1,5 +1,5 @@
 /*
- * drivers/media/platform/exynos/mfc/mfc_opr.h
+ * drivers/media/platform/exynos/mfc/mfc_run.h
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,16 +10,23 @@
  * (at your option) any later version.
  */
 
-#ifndef __MFC_OPR_H
-#define __MFC_OPR_H __FILE__
+#ifndef __MFC_RUN_H
+#define __MFC_RUN_H __FILE__
 
 #include "mfc_common.h"
+
+int mfc_run_init_hw(struct mfc_dev *dev);
+void mfc_run_deinit_hw(struct mfc_dev *dev);
+
+int mfc_run_sleep(struct mfc_dev *dev);
+int mfc_run_wakeup(struct mfc_dev *dev);
 
 int mfc_run_dec_init(struct mfc_ctx *ctx);
 int mfc_run_dec_frame(struct mfc_ctx *ctx);
 int mfc_run_dec_last_frames(struct mfc_ctx *ctx);
+
 int mfc_run_enc_init(struct mfc_ctx *ctx);
 int mfc_run_enc_frame(struct mfc_ctx *ctx);
 int mfc_run_enc_last_frames(struct mfc_ctx *ctx);
 
-#endif /* __MFC_OPR_H */
+#endif /* __MFC_RUN_H */

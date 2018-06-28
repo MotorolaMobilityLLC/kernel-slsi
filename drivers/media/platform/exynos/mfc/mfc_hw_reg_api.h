@@ -102,7 +102,7 @@ static inline void mfc_enable_all_clocks(struct mfc_dev *dev)
 	MFC_WRITEL(0xFFFFFFFF, MFC_REG_MFC_FW_CLOCK);
 }
 
-int mfc_reset_mfc(struct mfc_dev *dev);
+void mfc_reset_mfc(struct mfc_dev *dev);
 void mfc_set_risc_base_addr(struct mfc_dev *dev,
 				enum mfc_buf_usage_type buf_type);
 void mfc_cmd_host2risc(struct mfc_dev *dev, int cmd);

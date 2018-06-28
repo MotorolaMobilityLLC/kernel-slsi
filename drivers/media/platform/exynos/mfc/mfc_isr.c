@@ -15,7 +15,6 @@
 #include "mfc_hwlock.h"
 #include "mfc_nal_q.h"
 #include "mfc_otf.h"
-#include "mfc_opr.h"
 #include "mfc_sync.h"
 
 #include "mfc_pm.h"
