@@ -870,8 +870,8 @@ static void sc_hwset_src_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 	writel(caddr_2bit, sc->regs + SCALER_SRC_2BIT_C_BASE);
 
 	cfg &= ~(SCALER_SRC_2BIT_CSPAN_MASK | SCALER_SRC_2BIT_YSPAN_MASK);
-	cfg |= frame->width;
-	cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
+	cfg |= ALIGN(frame->width, 16);
+	cfg |= (ALIGN(frame->width, 16) << frame->sc_fmt->cspan) << 16;
 	writel(cfg, sc->regs + SCALER_SRC_2BIT_SPAN);
 }
 
@@ -905,8 +905,8 @@ static void sc_hwset_dst_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 	writel(caddr_2bit, sc->regs + SCALER_DST_2BIT_C_BASE);
 
 	cfg &= ~(SCALER_DST_2BIT_CSPAN_MASK | SCALER_DST_2BIT_YSPAN_MASK);
-	cfg |= frame->width;
-	cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
+	cfg |= ALIGN(frame->width, 16);
+	cfg |= (ALIGN(frame->width, 16) << frame->sc_fmt->cspan) << 16;
 	writel(cfg, sc->regs + SCALER_DST_2BIT_SPAN);
 }
 
