@@ -54,7 +54,7 @@ inline void csi_frame_start_inline(struct fimc_is_device_csi *csi)
 	/* frame start interrupt */
 	csi->sw_checker = EXPECT_FRAME_END;
 	atomic_inc(&csi->fcount);
-	dbg_csiisr("<%d %d ", csi->instance,
+	dbg_isr("<%d %d ", csi, csi->instance,
 			atomic_read(&csi->fcount));
 	atomic_inc(&csi->vvalid);
 	{
@@ -68,7 +68,7 @@ inline void csi_frame_start_inline(struct fimc_is_device_csi *csi)
 
 static inline void csi_frame_line_inline(struct fimc_is_device_csi *csi)
 {
-	dbg_csiisr("-%d %d-", csi->instance,
+	dbg_isr("-%d %d-", csi, csi->instance,
 			atomic_read(&csi->fcount));
 	/* frame line interrupt */
 	tasklet_schedule(&csi->tasklet_csis_line);
@@ -76,7 +76,7 @@ static inline void csi_frame_line_inline(struct fimc_is_device_csi *csi)
 
 static inline void csi_frame_end_inline(struct fimc_is_device_csi *csi)
 {
-	dbg_csiisr("%d %d>", csi->instance,
+	dbg_isr("%d %d>", csi, csi->instance,
 			atomic_read(&csi->fcount));
 	/* frame end interrupt */
 	csi->sw_checker = EXPECT_FRAME_START;
@@ -1055,7 +1055,7 @@ static irqreturn_t fimc_is_isr_csi_dma(int irq, void *data)
 			dma_frame_end |= 1 << vc;
 	}
 
-	dbg_csiisr("DE %d %X\n", csi->instance, dma_frame_end);
+	dbg_isr("DE %d %X\n", csi, csi->instance, dma_frame_end);
 
 	/* DMA End */
 	if (dma_frame_end) {
@@ -2041,6 +2041,7 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 	csi->csi_dma = &core->csi_dma;
 
 	csi->instance = instance;
+	snprintf(csi->name, FIMC_IS_STR_LEN, "CSI%d", csi->instance);
 
 	/* default state setting */
 	clear_bit(CSIS_SET_MULTIBUF_VC1, &csi->state);
