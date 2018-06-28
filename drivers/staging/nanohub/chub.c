@@ -724,8 +724,16 @@ int contexthub_reset(struct contexthub_ipc_info *ipc)
 {
 	int ret;
 
-	/* TODO: add wait lock */
 	dev_info(ipc->dev, "%s\n", __func__);
+#if 0
+	spin_lock(&ipc->reset_lock);
+	if (atomic_read(&ipc->chub_status) == CHUB_ST_RUN) {
+		spin_unlock(&ipc->reset_lock);
+		pr_err("%s: chub already reset. run: %d\n",
+			__func__, atomic_read(&ipc->chub_status));
+		return 0;
+	}
+#endif
 	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_SHUTDOWN);
 	if (ret) {
 		pr_err("%s: shutdonw fails, ret:%d\n", __func__, ret);
@@ -747,7 +755,9 @@ int contexthub_reset(struct contexthub_ipc_info *ipc)
 	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_RESET);
 	if (ret)
 		pr_err("%s: reset fails, ret:%d\n", __func__, ret);
-
+#if 0
+	spin_unlock(&ipc->reset_lock);
+#endif
 	return ret;
 }
 
@@ -767,7 +777,6 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, int bl)
 		dev_info(ipc->dev, "%s: bootloader(size:0x%x) on %lx\n",
 			 __func__, (int)entry->size,
 			 (unsigned long)ipc_get_base(IPC_REG_BL));
-
 		release_firmware(entry);
 	} else {
 		ret = request_firmware(&entry, ipc->os_name, ipc->dev);
@@ -777,11 +786,10 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, int bl)
 			return ret;
 		}
 		memcpy(ipc_get_base(IPC_REG_OS), entry->data, entry->size);
-		release_firmware(entry);
-
 		dev_info(ipc->dev, "%s: %s(size:0x%x) on %lx\n", __func__,
 			 ipc->os_name, (int)entry->size,
 			 (unsigned long)ipc_get_base(IPC_REG_OS));
+		release_firmware(entry);
 	}
 
 	return 0;
@@ -817,6 +825,7 @@ static void handle_utc_work_func(struct work_struct *work)
 	    container_of(work, struct contexthub_ipc_info, utc_work);
 	int trycnt = 0;
 
+#if 0
 	while (ipc->utc_run) {
 		msleep(20000);
 		ipc_write_val(AP, sched_clock());
@@ -825,6 +834,7 @@ static void handle_utc_work_func(struct work_struct *work)
 		if (!(++trycnt % 10))
 			log_flush(ipc->fw_log);
 	};
+#endif
 
 	dev_dbg(ipc->dev, "%s is done with %d try\n", __func__, trycnt);
 }
@@ -867,7 +877,6 @@ static void handle_debug_work_func(struct work_struct *work)
 	if (need_reset)
 		goto do_reset;
 
-	log_flush(ipc->fw_log);
 	/* chub fw error */
 	switch (event) {
 	case IPC_DEBUG_CHUB_FULL_LOG:
@@ -898,12 +907,9 @@ static void handle_debug_work_func(struct work_struct *work)
 		ipc->err_cnt[fw_err]++;
 
 do_reset:
-	dev_info(ipc->dev, "%s: reset chub due to irq trigger error:%d\n",
-		__func__, err);
-	/* req to chub fw dump */
-	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
-	/* dump log into file */
-	log_dump_all(err);
+	dev_info(ipc->dev, "%s: error:%d, alive:%d\n",
+		__func__, err, alive);
+
 	/* dump hw & sram into file */
 	chub_dbg_dump_hw(ipc, err);
 	if (need_reset) {
@@ -916,8 +922,12 @@ do_reset:
 			dev_info(ipc->dev, "%s: chub reset! should be recovery\n",
 				__func__);
 			if (CHUB_ERR_NANOHUB_WDT == CHUB_ERR_NANOHUB_WDT)
-				enable_irq(ipc->irq_wdt);
+				if (ipc->irq_wdt)
+					enable_irq(ipc->irq_wdt);
 		}
+	} else {
+		/* dump log into file: DO NOT logbuf dueto sram corruption */
+		log_dump_all(err);
 	}
 }
 
@@ -1033,6 +1043,7 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef WDT_ENABLE
 static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 {
 	struct contexthub_ipc_info *ipc = data;
@@ -1044,6 +1055,7 @@ static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 static int contexthub_get_cmgp_clocks(struct device *dev)
 {
@@ -1163,6 +1175,7 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 		return ret;
 	}
 
+#ifdef WDT_ENABLE
 	/* get wdt interrupt optionally */
 	chub->irq_wdt = irq_of_parse_and_map(node, 1);
 	if (chub->irq_wdt > 0) {
@@ -1178,6 +1191,7 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 	} else {
 		dev_info(dev, "don't use wdt irq:%d\n", irq);
 	}
+#endif
 
 	/* get MAILBOX SFR */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mailbox");
@@ -1372,6 +1386,7 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 				 attributes[i].attr.name);
 	}
 
+	spin_lock_init(&chub->reset_lock);
 	init_waitqueue_head(&chub->read_lock.event);
 	init_waitqueue_head(&chub->chub_alive_lock.event);
 	INIT_WORK(&chub->debug_work, handle_debug_work_func);

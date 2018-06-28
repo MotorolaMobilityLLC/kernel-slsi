@@ -117,6 +117,10 @@ enum CHUB_ERR_TYPE {
 	CHUB_ERR_WRITE_FAIL,
 	CHUB_ERR_EVTQ_NO_HW_TRIGGER,
 	CHUB_ERR_CHUB_NO_RESPONSE,
+	CHUB_ERR_COMMS_NACK,
+	CHUB_ERR_COMMS_BUSY,
+	CHUB_ERR_COMMS_UNKNOWN,
+	CHUB_ERR_COMMS,
 	CHUB_ERR_NANOHUB_FAULT, /* chub error */
 	CHUB_ERR_NANOHUB_ASSERT,
 	CHUB_ERR_NANOHUB_ERROR,
@@ -159,6 +163,7 @@ struct contexthub_ipc_info {
 	atomic_t chub_status;
 	atomic_t irq1_apInt;
 	atomic_t wakeup_chub;
+	spinlock_t reset_lock;
 	int irq_mailbox;
 	int irq_wdt;
 	int err_cnt[CHUB_ERR_MAX];

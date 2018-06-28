@@ -108,8 +108,6 @@ static void chub_dbg_write_file(struct device *dev, char *name, void *buf, int s
 out:
 	set_fs(old_fs);
 }
-#else
-#define chub_dbg_write_file(a) do { } while (0)
 #endif
 
 void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, int reason)
@@ -132,6 +130,7 @@ void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, int reason)
 			      ipc_get_base(IPC_REG_DUMP),
 			      ipc_get_chub_mem_size());
 
+#ifdef	CONFIG_CONTEXTHUB_DEBUG
 		/* write file */
 		dev_dbg(ipc->dev,
 			"%s: write file: sram:%p, dram:%p(off:%d), size:%d\n",
@@ -143,6 +142,7 @@ void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, int reason)
 		chub_dbg_write_file(ipc->dev, "sram",
 			&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			ipc_get_chub_mem_size());
+#endif
 	}
 	contexthub_release(ipc);
 }
@@ -405,6 +405,7 @@ static ssize_t chub_get_dump_status_store(struct device *dev,
 		return 0;
 	}
 
+	chub_dbg_dump_status(ipc);
 	contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
 
 	contexthub_release(ipc);

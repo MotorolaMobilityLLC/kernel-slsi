@@ -285,6 +285,28 @@ static int read_msg(struct nanohub_data *data, struct nanohub_packet *response,
 	return ret;
 }
 
+#ifdef CONFIG_NANOHUB_MAILBOX /* remove invalid error check */
+static inline void contexthub_update_result(struct nanohub_data *data, int err)
+{
+	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
+
+	if (!err)
+		ipc->err_cnt[CHUB_ERR_COMMS] = 0;
+	else {
+		ipc->err_cnt[CHUB_ERR_COMMS]++;
+
+		if (err == ERROR_NACK)
+			ipc->err_cnt[CHUB_ERR_COMMS_NACK]++;
+		else if (err == ERROR_BUSY)
+			ipc->err_cnt[CHUB_ERR_COMMS_BUSY]++;
+		else
+			ipc->err_cnt[CHUB_ERR_COMMS_BUSY]++;
+	}
+}
+#else
+#define contexthub_update_err_cnt(a, b) do { } while (0)
+#endif
+
 static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 		     uint32_t seq)
 {
@@ -323,6 +345,8 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 				ret = ERROR_NACK;
 			else if (response->reason == CMD_COMMS_BUSY)
 				ret = ERROR_BUSY;
+			else
+				pr_warn("nanohub: invalid reason %d\n", __func__, response->reason);
 		}
 
 		if (response->seq != seq)
@@ -343,6 +367,8 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 				    b[i + 24]);
 		}
 		ret = ERROR_NACK;
+		pr_warn("nanohub: invalid seq %d\n", __func__,
+			response->reason);
 	}
 
 	return ret;
@@ -378,6 +404,7 @@ static int nanohub_comms_tx_rx(struct nanohub_data *data,
 		ret = ERROR_NACK;
 	}
 
+	contexthub_update_result(data, ret);
 	return ret;
 }
 

@@ -252,8 +252,8 @@ inline void ipc_copy_bytes(u8 *dst, u8 *src, int size)
 static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 {
 	struct ipc_buf *ipc_data;
-	int eq;
-	int dq;
+	u32 eq;
+	u32 dq;
 	int useful = 0;
 	u8 size_lower;
 	u8 size_upper;
@@ -276,6 +276,14 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 	ipc_data = ipc_get_base(reg);
 	eq = ipc_data->eq;
 	dq = ipc_data->dq;
+
+	/* check index due to sram corruption */
+	if ((eq > IPC_DATA_SIZE) || (dq > IPC_DATA_SIZE) ||
+		(ipc_data->full > 1) || (ipc_data->empty > 1)) {
+		CSP_PRINTF_ERROR("%s: invalid index:%d, %d, %d, %d\n",
+			__func__, eq, dq, ipc_data->full, ipc_data->empty);
+		return -1;
+	}
 
 #ifdef USE_IPC_BUF_LOG
 	CSP_PRINTF_INFO("%s: dir:%s(w:%d, r:%d, cnt:%d), e:%d d:%d, empty:%d, full:%d, ipc_data:%p, len:%d\n",
