@@ -274,6 +274,7 @@ struct fimc_is_paf {
 	struct pafstat_setting_t	*regs_set;
 	struct fimc_is_paf_ops		*paf_ops;
 	struct v4l2_subdev		*subdev; /* connected module subdevice */
+	char				name[FIMC_IS_STR_LEN];
 };
 
 struct fimc_is_device_sensor_peri {

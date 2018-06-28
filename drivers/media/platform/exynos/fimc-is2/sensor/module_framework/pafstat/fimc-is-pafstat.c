@@ -134,7 +134,7 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 		pafstat_hw_s_ready(base_reg, 1);
 
 		atomic_inc(&pafstat->fs);
-		dbg_pafstatisr("[%d][F:%d] F.S (0x%x)", pafstat->id, atomic_read(&pafstat->fs), status);
+		dbg_isr("[%d][F:%d] F.S (0x%x)", pafstat, pafstat->id, atomic_read(&pafstat->fs), status);
 		atomic_add(pafstat->fro_cnt, &pafstat->fs);
 	}
 
@@ -144,19 +144,19 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 
 	if (status & (1 << PAFSTAT_INT_BAYER_FRAME_END)) {
 		atomic_inc(&pafstat->fe_img);
-		dbg_pafstatisr("[%d][F:%d] F.E, img (0x%x)", pafstat->id, atomic_read(&pafstat->fe_img), status);
+		dbg_isr("[%d][F:%d] F.E, img (0x%x)", pafstat, pafstat->id, atomic_read(&pafstat->fe_img), status);
 		atomic_add(pafstat->fro_cnt, &pafstat->fe_img);
 	}
 
 	if (status & (1 << PAFSTAT_INT_STAT_FRAME_END)) {
 		atomic_inc(&pafstat->fe_stat);
-		dbg_pafstatisr("[%d][F:%d] F.E, stat (0x%x)", pafstat->id, atomic_read(&pafstat->fe_stat), status);
+		dbg_isr("[%d][F:%d] F.E, stat (0x%x)", pafstat, pafstat->id, atomic_read(&pafstat->fe_stat), status);
 		atomic_add(pafstat->fro_cnt, &pafstat->fe_stat);
 	}
 
 	if (status & (1 << PAFSTAT_INT_TOTAL_FRAME_END)) {
 		atomic_inc(&pafstat->fe);
-		dbg_pafstatisr("[%d][F:%d] F.E (0x%x)", pafstat->id, atomic_read(&pafstat->fe), status);
+		dbg_isr("[%d][F:%d] F.E (0x%x)", pafstat, pafstat->id, atomic_read(&pafstat->fe), status);
 		atomic_add(pafstat->fro_cnt, &pafstat->fe);
 		pafstat_hw_s_timeout_cnt_clear(pafstat->regs);
 		atomic_set(&pafstat->Vvalid, V_BLANK);
@@ -579,6 +579,7 @@ static int __init pafstat_probe(struct platform_device *pdev)
 		goto err_subdev_alloc;
 	}
 
+	snprintf(pafstat->name, FIMC_IS_STR_LEN, "PAFSTAT%d", pafstat->id);
 	reg_cnt = pafstat_hw_g_reg_cnt();
 	pafstat->regs_set = devm_kzalloc(&pdev->dev, reg_cnt * sizeof(struct pafstat_setting_t), GFP_KERNEL);
 	if (!pafstat->regs_set) {
