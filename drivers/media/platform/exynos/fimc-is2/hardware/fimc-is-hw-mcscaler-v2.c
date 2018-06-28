@@ -15,9 +15,9 @@
 #include "fimc-is-err.h"
 #include <linux/videodev2_exynos_media.h>
 
-spinlock_t	shared_output_slock;
-static ulong hw_mcsc_out_configured = 0xFFFF;
-#define HW_MCSC_OUT_CLEARED_ALL (MCSC_OUTPUT_MAX)
+spinlock_t	mcsc_out_slock;
+static ulong	mcsc_out_st = 0xFFFF;	/* To check shared output state */
+#define MCSC_RST_CHK (MCSC_OUTPUT_MAX)
 
 static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
 static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
@@ -303,10 +303,10 @@ static int fimc_is_hw_mcsc_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 
 	/* initialize of shared values between MCSC0 and MCSC1 */
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++)
-		set_bit(output_id, &hw_mcsc_out_configured);
-	clear_bit(HW_MCSC_OUT_CLEARED_ALL, &hw_mcsc_out_configured);
+		set_bit(output_id, &mcsc_out_st);
+	clear_bit(MCSC_RST_CHK, &mcsc_out_st);
 
-	msinfo_hw("mcsc_open: done, (0x%lx)\n", instance, hw_ip, hw_mcsc_out_configured);
+	msinfo_hw("mcsc_open: done, (0x%lx)\n", instance, hw_ip, mcsc_out_st);
 
 	return 0;
 
@@ -417,31 +417,31 @@ static int fimc_is_hw_mcsc_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulo
 	if (test_bit(HW_RUN, &hw_ip->state))
 		return ret;
 
-	msdbg_hw(2, "enable: start, (0x%lx)\n", instance, hw_ip, hw_mcsc_out_configured);
+	msdbg_hw(2, "enable: start, (0x%lx)\n", instance, hw_ip, mcsc_out_st);
 
 	mcs_param = &hw_ip->region[instance]->parameter.mcs;
 
-	spin_lock_irqsave(&shared_output_slock, flag);
+	spin_lock_irqsave(&mcsc_out_slock, flag);
 	ret = fimc_is_hw_mcsc_reset(hw_ip);
 	if (ret != 0) {
 		mserr_hw("MCSC sw reset fail", instance, hw_ip);
-		spin_unlock_irqrestore(&shared_output_slock, flag);
+		spin_unlock_irqrestore(&mcsc_out_slock, flag);
 		return -ENODEV;
 	}
 
 	ret = fimc_is_hw_mcsc_clear_interrupt(hw_ip);
 	if (ret != 0) {
 		mserr_hw("MCSC sw reset fail", instance, hw_ip);
-		spin_unlock_irqrestore(&shared_output_slock, flag);
+		spin_unlock_irqrestore(&mcsc_out_slock, flag);
 		return -ENODEV;
 	}
 
-	msdbg_hw(2, "enable: done, (0x%lx)\n", instance, hw_ip, hw_mcsc_out_configured);
+	msdbg_hw(2, "enable: done, (0x%lx)\n", instance, hw_ip, mcsc_out_st);
 
 	fimc_is_hw_mcsc_tdnr_init(hw_ip, mcs_param, instance);
 
 	set_bit(HW_RUN, &hw_ip->state);
-	spin_unlock_irqrestore(&shared_output_slock, flag);
+	spin_unlock_irqrestore(&mcsc_out_slock, flag);
 
 	return ret;
 }
@@ -517,7 +517,7 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++) {
 		input_id = fimc_is_scaler_get_scaler_path(hw_ip->regs, hw_ip->id, output_id);
 		config = (input_id == hw_ip->id ? true: false);
-		if (cap->enable_shared_output == false || !test_bit(output_id, &hw_mcsc_out_configured)) {
+		if (cap->enable_shared_output == false || !test_bit(output_id, &mcsc_out_st)) {
 			msinfo_hw("[OUT:%d]hw_mcsc_disable: clear_wdma_addr\n", instance, hw_ip, output_id);
 			fimc_is_scaler_clear_wdma_addr(hw_ip->regs, output_id);
 		}
@@ -539,10 +539,10 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	}
 
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++)
-		set_bit(output_id, &hw_mcsc_out_configured);
-	clear_bit(HW_MCSC_OUT_CLEARED_ALL, &hw_mcsc_out_configured);
+		set_bit(output_id, &mcsc_out_st);
+	clear_bit(MCSC_RST_CHK, &mcsc_out_st);
 
-	msinfo_hw("mcsc_disable: done, (0x%lx)\n", instance, hw_ip, hw_mcsc_out_configured);
+	msinfo_hw("mcsc_disable: done, (0x%lx)\n", instance, hw_ip, mcsc_out_st);
 
 	return ret;
 }
@@ -664,16 +664,16 @@ static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is
 				&& wdma_addr[i][0] != 0
 				&& frame->type != SHOT_TYPE_INTERNAL) {
 
-				spin_lock_irqsave(&shared_output_slock, flag);
-				if (cap->enable_shared_output && test_bit(i, &hw_mcsc_out_configured)
+				spin_lock_irqsave(&mcsc_out_slock, flag);
+				if (cap->enable_shared_output && test_bit(i, &mcsc_out_st)
 					&& frame->type != SHOT_TYPE_MULTI) {
 					mswarn_hw("[OUT:%d]DMA_OUTPUT in running state[F:%d]",
 						frame->instance, hw_ip, i, frame->fcount);
-					spin_unlock_irqrestore(&shared_output_slock, flag);
+					spin_unlock_irqrestore(&mcsc_out_slock, flag);
 					return;
 				}
-				set_bit(i, &hw_mcsc_out_configured);
-				spin_unlock_irqrestore(&shared_output_slock, flag);
+				set_bit(i, &mcsc_out_st);
+				spin_unlock_irqrestore(&mcsc_out_slock, flag);
 
 				msdbg_hw(2, "[OUT:%d]dma_out enabled\n", frame->instance, hw_ip, i);
 				if (i != MCSC_OUTPUT_DS)
@@ -711,8 +711,8 @@ skip_addr:
 			u32 wdma_enable = 0;
 
 			wdma_enable = fimc_is_scaler_get_dma_out_enable(hw_ip->regs, i);
-			spin_lock_irqsave(&shared_output_slock, flag);
-			if (wdma_enable && (cap->enable_shared_output == false || !test_bit(i, &hw_mcsc_out_configured))) {
+			spin_lock_irqsave(&mcsc_out_slock, flag);
+			if (wdma_enable && (cap->enable_shared_output == false || !test_bit(i, &mcsc_out_st))) {
 				fimc_is_scaler_set_dma_out_enable(hw_ip->regs, i, false);
 				fimc_is_scaler_clear_wdma_addr(hw_ip->regs, i);
 				msdbg_hw(2, "[OUT:%d]shot: dma_out disabled\n",
@@ -723,7 +723,7 @@ skip_addr:
 					msdbg_hw(2, "DS off\n", frame->instance, hw_ip);
 				}
 			}
-			spin_unlock_irqrestore(&shared_output_slock, flag);
+			spin_unlock_irqrestore(&mcsc_out_slock, flag);
 			msdbg_hw(2, "[OUT:%d]mcsc_wdma_cfg:wmda_enable(%d)[F:%d][T:%d][cmd:%d][addr:0x%x]\n",
 				frame->instance, hw_ip, i, wdma_enable, frame->fcount, frame->type,
 				param->output[i].dma_cmd, wdma_addr[i][0]);
@@ -799,12 +799,12 @@ static int fimc_is_hw_mcsc_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	hw_mcsc->back_lindex = lindex;
 	hw_mcsc->back_hindex = hindex;
 
-	spin_lock_irqsave(&shared_output_slock, flag);
+	spin_lock_irqsave(&mcsc_out_slock, flag);
 
 	fimc_is_hw_mcsc_update_param(hw_ip, mcs_param,
 		lindex, hindex, instance);
 
-	spin_unlock_irqrestore(&shared_output_slock, flag);
+	spin_unlock_irqrestore(&mcsc_out_slock, flag);
 
 	msdbg_hw(2, "[F:%d]shot [T:%d]\n", instance, hw_ip, frame->fcount, frame->type);
 
@@ -854,10 +854,10 @@ config:
 			fimc_is_scaler_rdma_start(hw_ip->regs, hw_ip->id);
 	}
 
-	msdbg_hw(2, "shot: hw_mcsc_out_configured[0x%lx]\n", instance, hw_ip,
-		hw_mcsc_out_configured);
+	msdbg_hw(2, "shot: mcsc_out_st[0x%lx]\n", instance, hw_ip,
+		mcsc_out_st);
 
-	clear_bit(HW_MCSC_OUT_CLEARED_ALL, &hw_mcsc_out_configured);
+	clear_bit(MCSC_RST_CHK, &mcsc_out_st);
 	set_bit(HW_CONFIG, &hw_ip->state);
 
 	return ret;
@@ -962,7 +962,7 @@ int fimc_is_hw_mcsc_update_param(struct fimc_is_hw_ip *hw_ip,
 
 	if (control_cmd || (lindex & LOWBIT_OF(PARAM_MCS_INPUT))
 		|| (hindex & HIGHBIT_OF(PARAM_MCS_INPUT))
-		|| (test_bit(HW_MCSC_OUT_CLEARED_ALL, &hw_mcsc_out_configured))) {
+		|| (test_bit(MCSC_RST_CHK, &mcsc_out_st))) {
 		ret = fimc_is_hw_mcsc_otf_input(hw_ip, &param->input, instance);
 		ret = fimc_is_hw_mcsc_dma_input(hw_ip, &param->input, instance);
 	}
@@ -972,7 +972,7 @@ int fimc_is_hw_mcsc_update_param(struct fimc_is_hw_ip *hw_ip,
 	for (i = MCSC_OUTPUT0; i < cap->max_output; i++) {
 		if (control_cmd || (lindex & LOWBIT_OF((i + PARAM_MCS_OUTPUT0)))
 				|| (hindex & HIGHBIT_OF((i + PARAM_MCS_OUTPUT0)))
-				|| (test_bit(HW_MCSC_OUT_CLEARED_ALL, &hw_mcsc_out_configured))) {
+				|| (test_bit(MCSC_RST_CHK, &mcsc_out_st))) {
 			ret = fimc_is_hw_mcsc_update_register(hw_ip, param, i, instance);
 			fimc_is_scaler_set_wdma_pri(hw_ip->regs, i, param->output[i].plane);	/* FIXME: */
 
@@ -1046,7 +1046,7 @@ int fimc_is_hw_mcsc_reset(struct fimc_is_hw_ip *hw_ip)
 	}
 
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++) {
-		if (cap->enable_shared_output == false || test_bit(output_id, &hw_mcsc_out_configured)) {
+		if (cap->enable_shared_output == false || test_bit(output_id, &mcsc_out_st)) {
 			sinfo_hw("[OUT:%d]set output clear\n", hw_ip, output_id);
 			fimc_is_scaler_set_poly_scaler_enable(hw_ip->regs, hw_ip->id, output_id, 0);
 			fimc_is_scaler_set_post_scaler_enable(hw_ip->regs, output_id, 0);
@@ -1056,7 +1056,7 @@ int fimc_is_hw_mcsc_reset(struct fimc_is_hw_ip *hw_ip)
 			fimc_is_scaler_set_wdma_pri(hw_ip->regs, output_id, 0);	/* FIXME: */
 			fimc_is_scaler_set_wdma_axi_pri(hw_ip->regs);		/* FIXME: */
 			fimc_is_scaler_set_wdma_sram_base(hw_ip->regs, output_id);
-			clear_bit(output_id, &hw_mcsc_out_configured);
+			clear_bit(output_id, &mcsc_out_st);
 		}
 	}
 	fimc_is_scaler_set_wdma_sram_base(hw_ip->regs, MCSC_OUTPUT_SSB);	/* FIXME: */
@@ -1065,7 +1065,7 @@ int fimc_is_hw_mcsc_reset(struct fimc_is_hw_ip *hw_ip)
 	if (cap->tdnr == MCSC_CAP_SUPPORT)
 		fimc_is_scaler_set_tdnr_wdma_sram_base(hw_ip->regs, TDNR_WEIGHT);
 
-	set_bit(HW_MCSC_OUT_CLEARED_ALL, &hw_mcsc_out_configured);
+	set_bit(MCSC_RST_CHK, &mcsc_out_st);
 
 	if (cap->in_otf == MCSC_CAP_SUPPORT) {
 		if (hw_ip0)
@@ -1295,7 +1295,7 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 			WORK_M0P_FDONE, ENTRY_M0P, done_type, flag_get_meta);
 		flag_get_meta = false;
 		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT0, &hw_mcsc_out_configured);
+		clear_bit(MCSC_OUTPUT0, &mcsc_out_st);
 	}
 
 	if (test_bit(ENTRY_M1P, &hw_frame->out_flag)) {
@@ -1303,7 +1303,7 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 			WORK_M1P_FDONE, ENTRY_M1P, done_type, flag_get_meta);
 		flag_get_meta = false;
 		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT1, &hw_mcsc_out_configured);
+		clear_bit(MCSC_OUTPUT1, &mcsc_out_st);
 	}
 
 	if (test_bit(ENTRY_M2P, &hw_frame->out_flag)) {
@@ -1311,7 +1311,7 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 			WORK_M2P_FDONE, ENTRY_M2P, done_type, flag_get_meta);
 		flag_get_meta = false;
 		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT2, &hw_mcsc_out_configured);
+		clear_bit(MCSC_OUTPUT2, &mcsc_out_st);
 	}
 
 	if (test_bit(ENTRY_M3P, &hw_frame->out_flag)) {
@@ -1319,7 +1319,7 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 			WORK_M3P_FDONE, ENTRY_M3P, done_type, flag_get_meta);
 		flag_get_meta = false;
 		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT3, &hw_mcsc_out_configured);
+		clear_bit(MCSC_OUTPUT3, &mcsc_out_st);
 	}
 
 	if (test_bit(ENTRY_M4P, &hw_frame->out_flag)) {
@@ -1327,7 +1327,7 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 			WORK_M4P_FDONE, ENTRY_M4P, done_type, flag_get_meta);
 		flag_get_meta = false;
 		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT4, &hw_mcsc_out_configured);
+		clear_bit(MCSC_OUTPUT4, &mcsc_out_st);
 	}
 
 	if (test_bit(ENTRY_M5P, &hw_frame->out_flag)) {
@@ -1335,7 +1335,7 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 			WORK_M5P_FDONE, ENTRY_M5P, done_type, flag_get_meta);
 		flag_get_meta = false;
 		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT5, &hw_mcsc_out_configured);
+		clear_bit(MCSC_OUTPUT5, &mcsc_out_st);
 	}
 
 	index = hw_ip->debug_index[1];
@@ -1528,7 +1528,7 @@ int fimc_is_hw_mcsc_poly_phase(struct fimc_is_hw_ip *hw_ip, struct param_mcs_inp
 	if (output->otf_cmd == OTF_OUTPUT_COMMAND_DISABLE
 		&& output->dma_cmd == DMA_OUTPUT_COMMAND_DISABLE) {
 		if (cap->enable_shared_output == false
-			|| (config && !test_bit(output_id, &hw_mcsc_out_configured)))
+			|| (config && !test_bit(output_id, &mcsc_out_st)))
 			fimc_is_scaler_set_poly_scaler_enable(hw_ip->regs, hw_ip->id, output_id, 0);
 		return ret;
 	}
@@ -1657,7 +1657,7 @@ int fimc_is_hw_mcsc_post_chain(struct fimc_is_hw_ip *hw_ip, struct param_mcs_inp
 	if (output->otf_cmd == OTF_OUTPUT_COMMAND_DISABLE
 		&& output->dma_cmd == DMA_OUTPUT_COMMAND_DISABLE) {
 		if (cap->enable_shared_output == false
-			|| (config && !test_bit(output_id, &hw_mcsc_out_configured)))
+			|| (config && !test_bit(output_id, &mcsc_out_st)))
 			fimc_is_scaler_set_post_scaler_enable(hw_ip->regs, output_id, 0);
 		return ret;
 	}
@@ -1748,7 +1748,7 @@ int fimc_is_hw_mcsc_otf_output(struct fimc_is_hw_ip *hw_ip, struct param_mcs_out
 
 	if (output->otf_cmd == OTF_OUTPUT_COMMAND_DISABLE) {
 		if (cap->enable_shared_output == false
-			|| (config && !test_bit(output_id, &hw_mcsc_out_configured)))
+			|| (config && !test_bit(output_id, &mcsc_out_st)))
 			fimc_is_scaler_set_otf_out_enable(hw_ip->regs, output_id, false);
 		return ret;
 	}
@@ -1811,7 +1811,7 @@ int fimc_is_hw_mcsc_dma_output(struct fimc_is_hw_ip *hw_ip, struct param_mcs_out
 
 	if (output->dma_cmd == DMA_OUTPUT_COMMAND_DISABLE) {
 		if (cap->enable_shared_output == false
-			|| (config && !test_bit(output_id, &hw_mcsc_out_configured)))
+			|| (config && !test_bit(output_id, &mcsc_out_st)))
 			fimc_is_scaler_set_dma_out_enable(hw_ip->regs, output_id, false);
 		return ret;
 	}
@@ -2037,7 +2037,7 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 
 	if (output->dma_cmd == DMA_OUTPUT_COMMAND_DISABLE) {
 		if (cap->enable_shared_output == false
-			|| (config && !test_bit(output_id, &hw_mcsc_out_configured)))
+			|| (config && !test_bit(output_id, &mcsc_out_st)))
 			fimc_is_scaler_set_bchs_enable(hw_ip->regs, output_id, 0);
 		return ret;
 	}
@@ -2411,7 +2411,7 @@ int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 	if (cap->ds_vra != MCSC_CAP_SUPPORT)
 		return ret;
 
-	if (!test_bit(MCSC_OUTPUT_DS, &hw_mcsc_out_configured))
+	if (!test_bit(MCSC_OUTPUT_DS, &mcsc_out_st))
 		return -EINVAL;
 
 	dsvra_inport = shot ? shot->uctl.scalerUd.mcsc_sub_blk_port[INTERFACE_TYPE_DS] : MCSC_PORT_NONE;
@@ -2729,7 +2729,7 @@ int fimc_is_hw_mcsc_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface 
 	clear_bit(HW_MCS_YSUM_CFG, &hw_ip->state);
 	clear_bit(HW_MCS_DS_CFG, &hw_ip->state);
 
-	spin_lock_init(&shared_output_slock);
+	spin_lock_init(&mcsc_out_slock);
 
 	sinfo_hw("probe done\n", hw_ip);
 
