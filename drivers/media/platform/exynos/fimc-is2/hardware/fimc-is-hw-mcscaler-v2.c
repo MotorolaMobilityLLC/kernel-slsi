@@ -28,14 +28,10 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 	struct fimc_is_hardware *hardware;
 	struct fimc_is_hw_ip *hw_ip = NULL;
 	struct fimc_is_group *head;
-	u32 status, intr_mask, intr_status;
-	bool err_intr_flag = false;
-	int ret = 0;
-	u32 hl = 0, vl = 0;
-	u32 instance;
-	u32 hw_fcount, index;
 	struct mcs_param *param;
-	bool flag_clk_gate = false;
+	u32 status, mask, instance, hw_fcount, index, hl = 0, vl = 0;
+	bool f_err = false, f_clk_gate = false;
+	int ret = 0;
 
 	hw_ip = (struct fimc_is_hw_ip *)context;
 	hardware = hw_ip->hardware;
@@ -44,20 +40,20 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 	param = &hw_ip->region[instance]->parameter.mcs;
 
 	if (!test_bit(HW_OPEN, &hw_ip->state)) {
-		err_hw("[ID:%d][MCSC] invalid interrupt", hw_ip->id);
+		mserr_hw("invalid interrupt", instance, hw_ip);
 		return 0;
 	}
 
 	if (test_bit(HW_OVERFLOW_RECOVERY, &hardware->hw_recovery_flag)) {
-		err_hw("[ID:%d][MCSC] During recovery : invalid interrupt", hw_ip->id);
+		mserr_hw("During recovery : invalid interrupt", instance, hw_ip);
 		return 0;
 	}
 
 	fimc_is_scaler_get_input_status(hw_ip->regs, hw_ip->id, &hl, &vl);
 	/* read interrupt status register (sc_intr_status) */
-	intr_mask = fimc_is_scaler_get_intr_mask(hw_ip->regs, hw_ip->id);
-	intr_status = fimc_is_scaler_get_intr_status(hw_ip->regs, hw_ip->id);
-	status = (~intr_mask) & intr_status;
+	mask = fimc_is_scaler_get_intr_mask(hw_ip->regs, hw_ip->id);
+	status = fimc_is_scaler_get_intr_status(hw_ip->regs, hw_ip->id);
+	status = (~mask) & status;
 
 	fimc_is_scaler_clear_intr_src(hw_ip->regs, hw_ip->id, status);
 
@@ -68,32 +64,32 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 
 	if (status & (1 << INTR_MC_SCALER_OVERFLOW)) {
 		mserr_hw("Overflow!! (0x%x)", instance, hw_ip, status);
-		err_intr_flag = true;
+		f_err = true;
 	}
 
 	if (status & (1 << INTR_MC_SCALER_OUTSTALL)) {
 		mserr_hw("Output Block BLOCKING!! (0x%x)", instance, hw_ip, status);
-		err_intr_flag = true;
+		f_err = true;
 	}
 
 	if (status & (1 << INTR_MC_SCALER_INPUT_VERTICAL_UNF)) {
 		mserr_hw("Input OTF Vertical Underflow!! (0x%x)", instance, hw_ip, status);
-		err_intr_flag = true;
+		f_err = true;
 	}
 
 	if (status & (1 << INTR_MC_SCALER_INPUT_VERTICAL_OVF)) {
 		mserr_hw("Input OTF Vertical Overflow!! (0x%x)", instance, hw_ip, status);
-		err_intr_flag = true;
+		f_err = true;
 	}
 
 	if (status & (1 << INTR_MC_SCALER_INPUT_HORIZONTAL_UNF)) {
 		mserr_hw("Input OTF Horizontal Underflow!! (0x%x)", instance, hw_ip, status);
-		err_intr_flag = true;
+		f_err = true;
 	}
 
 	if (status & (1 << INTR_MC_SCALER_INPUT_HORIZONTAL_OVF)) {
 		mserr_hw("Input OTF Horizontal Overflow!! (0x%x)", instance, hw_ip, status);
-		err_intr_flag = true;
+		f_err = true;
 	}
 
 	if (status & (1 << INTR_MC_SCALER_WDMA_FINISH))
@@ -105,6 +101,7 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 			hw_ip->cur_e_int += hw_ip->num_buffers;
 		else
 			hw_ip->cur_e_int++;
+
 		if (hw_ip->cur_e_int >= hw_ip->num_buffers) {
 			fimc_is_hw_mcsc_frame_done(hw_ip, NULL, IS_SHOT_SUCCESS);
 			dbg_isr("[F:%d][S-E] %05llu us\n", hw_ip, hw_fcount,
@@ -123,7 +120,7 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 			}
 
 			wake_up(&hw_ip->status.wait_queue);
-			flag_clk_gate = true;
+			f_clk_gate = true;
 			hw_ip->mframe = NULL;
 		}
 	}
@@ -190,16 +187,16 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 	}
 
 	/* for handle chip dependant intr */
-	err_intr_flag |= fimc_is_scaler_handle_extended_intr(status);
+	f_err |= fimc_is_scaler_handle_extended_intr(status);
 
-	if (err_intr_flag) {
+	if (f_err) {
 		msinfo_hw("[F:%d] Ocurred error interrupt (%d,%d) status(0x%x)\n",
 			instance, hw_ip, hw_fcount, hl, vl, status);
 		fimc_is_scaler_dump(hw_ip->regs);
 		fimc_is_hardware_size_dump(hw_ip);
 	}
 
-	if (flag_clk_gate)
+	if (f_clk_gate)
 		CALL_HW_OPS(hw_ip, clk_gate, instance, false, false);
 
 p_err:
