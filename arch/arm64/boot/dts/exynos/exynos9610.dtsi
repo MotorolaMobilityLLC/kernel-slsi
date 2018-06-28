@@ -559,6 +559,13 @@
 		acpm-ipc-channel = <5>;
 	};
 
+	ITMON@0 {
+		compatible = "samsung,exynos-itmon";
+		interrupts = <0 306 0>,  /* TREX_D_CORE */
+			     <0 320 0>,  /* TREX_D_NRT */
+			     <0 307 0>;  /* TREX_P_CORE */
+	};
+
 	/* ALIVE */
 	pinctrl_0: pinctrl@11850000 {
 		compatible = "samsung,exynos9610-pinctrl";

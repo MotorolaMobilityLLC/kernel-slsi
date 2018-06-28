@@ -2,3 +2,11 @@ menuconfig EXYNOS_DEBUG
         bool "Exynos Debug Features"
         default y
         depends on ARCH_EXYNOS
+
+if EXYNOS_DEBUG
+
+config EXYNOS_ITMON
+        bool "Exynos IPs Traffic Monitor"
+        default y
+        depends on ARCH_EXYNOS
+endif
