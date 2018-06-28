@@ -1921,6 +1921,22 @@ static int _mx_exec(char *prog, int wait_exec)
 	return result;
 }
 
+#if defined(CONFIG_SCSC_PRINTK) && !defined(CONFIG_SCSC_WLBTD)
+static int __stat(const char *file)
+{
+	struct kstat stat;
+	mm_segment_t fs;
+	int r;
+
+	fs = get_fs();
+	set_fs(get_ds());
+	r = vfs_stat(file, &stat);
+	set_fs(fs);
+
+	return r;
+}
+#endif
+
 int mx140_log_dump(void)
 {
 #ifdef CONFIG_SCSC_PRINTK
@@ -1934,6 +1950,15 @@ int mx140_log_dump(void)
 	if (r) {
 		SCSC_TAG_ERR(MXMAN, "mx_logger_dump.sh path error\n");
 	} else {
+		/*
+		 * Test presence of script before invoking, to suppress
+		 * unnecessary error message if not installed.
+		 */
+		r = __stat(mxlbin);
+		if (r) {
+			SCSC_TAG_DEBUG(MXMAN, "%s not installed\n", mxlbin);
+			return r;
+		}
 		SCSC_TAG_INFO(MXMAN, "Invoking mx_logger_dump.sh UHM\n");
 		r = _mx_exec(mxlbin, UMH_WAIT_EXEC);
 		if (r)
