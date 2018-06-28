@@ -36,7 +36,7 @@
 //#include <linux/exynos_iovmm.h>
 
 #include <soc/samsung/exynos-pmu.h>
-//#include <soc/samsung/exynos-itmon.h>
+#include <soc/samsung/exynos-itmon.h>
 #include "../../../../drivers/iommu/exynos-iommu.h"
 
 #include "abox_util.h"
