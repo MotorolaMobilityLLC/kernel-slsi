@@ -369,22 +369,11 @@ static int fimc_is_hw_mcsc_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 {
 	int ret = 0;
 	u32 output_id;
-	struct fimc_is_hw_mcsc *hw_mcsc;
-	struct fimc_is_hw_mcsc_cap *cap;
 
 	FIMC_BUG(!hw_ip);
 
 	if (!test_bit(HW_OPEN, &hw_ip->state))
 		return 0;
-
-	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
-	cap = GET_MCSC_HW_CAP(hw_ip);
-
-	/* clear out_en bit */
-	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++) {
-		if (test_bit(output_id, &hw_mcsc->out_en))
-			clear_bit(output_id, &hw_mcsc->out_en);
-	}
 
 	vfree(hw_ip->priv_info);
 	frame_manager_close(hw_ip->framemgr);
