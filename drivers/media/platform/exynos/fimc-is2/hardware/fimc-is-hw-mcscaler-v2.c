@@ -155,17 +155,14 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 			if (hw_ip->mframe) {
 				struct fimc_is_frame *mframe = hw_ip->mframe;
 				mframe->cur_buf_index = hw_ip->cur_s_int;
-				/* WDMA cfg */
+
 				fimc_is_hw_mcsc_wdma_cfg(hw_ip, mframe);
 
-				/* RDMA cfg */
-				if (param->input.dma_cmd == DMA_INPUT_COMMAND_ENABLE) {
-					ret = fimc_is_hw_mcsc_rdma_cfg(hw_ip, mframe);
-					if (ret) {
-						mserr_hw("[F:%d]mcsc rdma_cfg failed\n",
-							mframe->instance, hw_ip, mframe->fcount);
-						return ret;
-					}
+				ret = fimc_is_hw_mcsc_rdma_cfg(hw_ip, mframe);
+				if (ret) {
+					mserr_hw("[F:%d]mcsc rdma_cfg failed\n",
+						mframe->instance, hw_ip, mframe->fcount);
+					return ret;
 				}
 			} else {
 				serr_hw("mframe is null(s:%d, e:%d, t:%d)", hw_ip,
