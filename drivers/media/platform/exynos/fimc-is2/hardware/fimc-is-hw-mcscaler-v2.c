@@ -329,6 +329,7 @@ err_query_cap:
 err_alloc:
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
+
 	return ret;
 }
 
