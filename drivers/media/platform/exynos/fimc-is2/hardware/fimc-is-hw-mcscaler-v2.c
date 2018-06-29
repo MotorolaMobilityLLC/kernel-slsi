@@ -463,6 +463,7 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_ip *hw_ip_ = NULL;
+	struct mcs_param *mcs_param;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!cap);
@@ -527,17 +528,8 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	fimc_is_scaler_clear_shadow_ctrl(hw_ip->regs, hw_ip->id);
 
 	/* disable TDNR */
-	if (cap->tdnr == MCSC_CAP_SUPPORT) {
-		fimc_is_scaler_set_tdnr_mode_select(hw_ip->regs, TDNR_MODE_BYPASS);
-
-		fimc_is_scaler_clear_tdnr_rdma_addr(hw_ip->regs, TDNR_IMAGE);
-		fimc_is_scaler_clear_tdnr_rdma_addr(hw_ip->regs, TDNR_WEIGHT);
-
-		fimc_is_scaler_set_tdnr_wdma_enable(hw_ip->regs, TDNR_WEIGHT, false);
-		fimc_is_scaler_clear_tdnr_wdma_addr(hw_ip->regs, TDNR_WEIGHT);
-
-		hw_mcsc->cur_tdnr_mode = TDNR_MODE_BYPASS;
-	}
+	mcs_param = &hw_ip->region[instance]->parameter.mcs;
+	fimc_is_hw_mcsc_tdnr_deinit(hw_ip, mcs_param, instance);
 
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++)
 		set_bit(output_id, &mcsc_out_st);

@@ -237,6 +237,8 @@ u32 fimc_is_scaler_get_idle_status(void __iomem *base_addr, u32 hw_id);
 
 void fimc_is_hw_mcsc_tdnr_init(struct fimc_is_hw_ip *hw_ip,
 	struct mcs_param *mcs_param, u32 instance);
+void fimc_is_hw_mcsc_tdnr_deinit(struct fimc_is_hw_ip *hw_ip,
+	struct mcs_param *mcs_param, u32 instance);
 int fimc_is_hw_mcsc_update_tdnr_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_frame *frame,
 	struct is_param_region *param,

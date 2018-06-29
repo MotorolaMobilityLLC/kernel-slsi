@@ -85,14 +85,18 @@ static const struct tdnr_configs init_tdnr_cfgs = {
 void fimc_is_hw_mcsc_tdnr_init(struct fimc_is_hw_ip *hw_ip,
 	struct mcs_param *mcs_param, u32 instance)
 {
-#ifdef ENABLE_DNR_IN_MCSC
 	struct fimc_is_hw_mcsc *hw_mcsc;
+	struct fimc_is_hw_mcsc_cap *cap;
 
 	BUG_ON(!hw_ip->priv_info);
 	BUG_ON(!mcs_param);
 
-	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
+	cap = GET_MCSC_HW_CAP(hw_ip);
+	if (cap->tdnr != MCSC_CAP_SUPPORT)
+		return;
 
+	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
+#ifdef ENABLE_DNR_IN_MCSC
 	hw_mcsc->tdnr_first = MCSC_DNR_USE_FIRST;
 	hw_mcsc->tdnr_output = MCSC_DNR_OUTPUT_INDEX;
 	hw_mcsc->tdnr_internal_buf = MCSC_DNR_USE_INTERNAL_BUF;
@@ -110,6 +114,32 @@ void fimc_is_hw_mcsc_tdnr_init(struct fimc_is_hw_ip *hw_ip,
 
 	memcpy(&hw_mcsc->tdnr_cfgs, &init_tdnr_cfgs, sizeof(struct tdnr_configs));
 #endif
+}
+
+void fimc_is_hw_mcsc_tdnr_deinit(struct fimc_is_hw_ip *hw_ip,
+	struct mcs_param *mcs_param, u32 instance)
+{
+	struct fimc_is_hw_mcsc *hw_mcsc;
+	struct fimc_is_hw_mcsc_cap *cap;
+
+	BUG_ON(!hw_ip->priv_info);
+	BUG_ON(!mcs_param);
+
+	cap = GET_MCSC_HW_CAP(hw_ip);
+	if (cap->tdnr != MCSC_CAP_SUPPORT)
+		return;
+
+	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
+
+	fimc_is_scaler_set_tdnr_mode_select(hw_ip->regs, TDNR_MODE_BYPASS);
+
+	fimc_is_scaler_clear_tdnr_rdma_addr(hw_ip->regs, TDNR_IMAGE);
+	fimc_is_scaler_clear_tdnr_rdma_addr(hw_ip->regs, TDNR_WEIGHT);
+
+	fimc_is_scaler_set_tdnr_wdma_enable(hw_ip->regs, TDNR_WEIGHT, false);
+	fimc_is_scaler_clear_tdnr_wdma_addr(hw_ip->regs, TDNR_WEIGHT);
+
+	hw_mcsc->cur_tdnr_mode = TDNR_MODE_BYPASS;
 }
 
 static int fimc_is_hw_mcsc_check_tdnr_mode_pre(struct fimc_is_hw_ip *hw_ip,
