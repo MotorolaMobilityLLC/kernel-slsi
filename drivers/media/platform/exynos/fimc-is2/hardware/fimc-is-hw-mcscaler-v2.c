@@ -263,11 +263,10 @@ int check_sc_core_running(struct fimc_is_hw_ip *hw_ip, struct fimc_is_hw_mcsc_ca
 static int fimc_is_hw_mcsc_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	struct fimc_is_group *group)
 {
-	int ret = 0;
+	int ret = 0, i;
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap;
 	u32 output_id;
-	int i;
 
 	FIMC_BUG(!hw_ip);
 
