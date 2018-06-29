@@ -393,24 +393,12 @@ struct mfc_platdata {
 	unsigned int share_sysmmu;
 	unsigned int axid_mask;
 	unsigned int mfc_fault_num;
-	/* Features */
-	struct mfc_feature nal_q;
-	struct mfc_feature skype;
-	struct mfc_feature black_bar;
-	struct mfc_feature color_aspect_dec;
-	struct mfc_feature static_info_dec;
-	struct mfc_feature color_aspect_enc;
-	struct mfc_feature static_info_enc;
 	/* Default 10bit format for decoding */
 	unsigned int P010_decoding;
 	/* Formats */
 	unsigned int support_10bit;
 	unsigned int support_422;
 	unsigned int support_rgb;
-	/* Encoder default parameter */
-	unsigned int enc_param_num;
-	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];
-	unsigned int enc_param_val[MFC_MAX_DEFAULT_PARAM];
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	/* QoS */
 	unsigned int num_qos_steps;
@@ -422,6 +410,25 @@ struct mfc_platdata {
 	struct mfc_qos *qos_table;
 	struct mfc_qos_boost *qos_boost_table;
 #endif
+	/* Features */
+	struct mfc_feature nal_q;
+	struct mfc_feature skype;
+	struct mfc_feature black_bar;
+	struct mfc_feature color_aspect_dec;
+	struct mfc_feature static_info_dec;
+	struct mfc_feature color_aspect_enc;
+	struct mfc_feature static_info_enc;
+
+	/*
+	 * new variables should be added above
+	 * ============ boundary line ============
+	 * The following variables are excluded from the MFC log dumps
+	 */
+
+	/* Encoder default parameter */
+	unsigned int enc_param_num;
+	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];
+	unsigned int enc_param_val[MFC_MAX_DEFAULT_PARAM];
 };
 
 /************************ NAL_Q data structure ************************/
@@ -811,11 +818,13 @@ struct mfc_h264_enc_params {
 	enum v4l2_mpeg_video_h264_profile profile;
 	u8 level;
 	u8 interlace;
-	enum v4l2_mpeg_video_h264_loop_filter_mode loop_filter_mode;
+	u16 open_gop_size;
+	u8 open_gop;
+	u8 _8x8_transform;
 	s8 loop_filter_alpha;
 	s8 loop_filter_beta;
+	enum v4l2_mpeg_video_h264_loop_filter_mode loop_filter_mode;
 	enum v4l2_mpeg_video_h264_entropy_mode entropy_mode;
-	u8 _8x8_transform;
 	u8 rc_frame_qp;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
@@ -830,19 +839,24 @@ struct mfc_h264_enc_params {
 	u8 rc_p_frame_qp;
 	u8 rc_b_frame_qp;
 	u8 ar_vui;
+	u8 sei_gen_enable;
+	u8 sei_fp_curr_frame_0;
+
 	enum v4l2_mpeg_video_h264_vui_sar_idc ar_vui_idc;
 	u16 ext_sar_width;
 	u16 ext_sar_height;
-	u8 open_gop;
-	u16 open_gop_size;
-	u8 hier_qp_enable;
+
 	enum v4l2_mpeg_video_h264_hierarchical_coding_type hier_qp_type;
+	u32 hier_bit_layer[7];
+	u8 hier_qp_layer[7];
+	u8 hier_qp_enable;
 	u8 num_hier_layer;
 	u8 hier_ref_type;
-	u8 hier_qp_layer[7];
-	u32 hier_bit_layer[7];
-	u8 sei_gen_enable;
-	u8 sei_fp_curr_frame_0;
+	u8 enable_ltr;
+	u8 num_of_ltr;
+	u32 set_priority;
+	u32 base_priority;
+
 	enum v4l2_mpeg_video_h264_sei_fp_arrangement_type sei_fp_arrangement_type;
 	u32 fmo_enable;
 	u32 fmo_slice_map_type;
@@ -854,10 +868,6 @@ struct mfc_h264_enc_params {
 	u32 aso_slice_order[8];
 
 	u32 prepend_sps_pps_to_idr;
-	u8 enable_ltr;
-	u8 num_of_ltr;
-	u32 set_priority;
-	u32 base_priority;
 	u32 vui_enable;
 };
 
@@ -869,8 +879,6 @@ struct mfc_mpeg4_enc_params {
 	enum v4l2_mpeg_video_mpeg4_profile profile;
 	u8 level;
 	u8 quarter_pixel;
-	u16 vop_time_res;
-	u16 vop_frm_delta;
 	u8 rc_b_frame_qp;
 	/* Common for MPEG4, H263 */
 	u8 rc_frame_qp;
@@ -881,6 +889,8 @@ struct mfc_mpeg4_enc_params {
 	u8 rc_min_qp_b;
 	u8 rc_max_qp_b;
 	u8 rc_p_frame_qp;
+	u16 vop_time_res;
+	u16 vop_frm_delta;
 };
 
 /**
@@ -889,21 +899,21 @@ struct mfc_mpeg4_enc_params {
 struct mfc_vp9_enc_params {
 	/* VP9 Only */
 	u8 vp9_version;
+	u8 profile;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
 	u8 rc_min_qp_p;
 	u8 rc_max_qp_p;
 	u8 rc_frame_qp;
 	u8 rc_p_frame_qp;
-	u8 vp9_goldenframesel;
 	u16 vp9_gfrefreshperiod;
+	u8 vp9_goldenframesel;
 	u8 hier_qp_enable;
+	u8 num_hier_layer;
 	u8 hier_qp_layer[3];
 	u32 hier_bit_layer[3];
-	u8 num_hier_layer;
 	u8 max_partition_depth;
 	u8 intra_pu_split_disable;
-	u8 profile;
 };
 
 /**
@@ -921,13 +931,13 @@ struct mfc_vp8_enc_params {
 	u8 vp8_numberofpartitions;
 	u8 vp8_filterlevel;
 	u8 vp8_filtersharpness;
-	u8 vp8_goldenframesel;
 	u16 vp8_gfrefreshperiod;
+	u8 vp8_goldenframesel;
+	u8 intra_4x4mode_disable;
+	u8 num_hier_layer;
 	u8 hier_qp_enable;
 	u8 hier_qp_layer[3];
 	u32 hier_bit_layer[3];
-	u8 intra_4x4mode_disable;
-	u8 num_hier_layer;
 };
 
 /**
@@ -964,13 +974,13 @@ struct mfc_hevc_enc_params {
 	u8 const_intra_period_enable;
 	u8 lossless_cu_enable;
 	u8 wavefront_enable;
+	enum v4l2_mpeg_video_hevc_hierarchical_coding_type hier_qp_type;
 	u8 enable_ltr;
 	u8 hier_qp_enable;
-	enum v4l2_mpeg_video_hevc_hierarchical_coding_type hier_qp_type;
 	u8 hier_ref_type;
 	u8 num_hier_layer;
-	u8 hier_qp_layer[7];
 	u32 hier_bit_layer[7];
+	u8 hier_qp_layer[7];
 	u8 general_pb_enable;
 	u8 temporal_id_enable;
 	u8 strong_intra_smooth;
@@ -997,46 +1007,45 @@ struct mfc_bpg_enc_params {
  *
  */
 struct mfc_enc_params {
-	u16 width;
-	u16 height;
-
-	u32 gop_size;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
 	u32 slice_mb;
 	u32 slice_bit;
 	u32 slice_mb_row;
+
+	u32 gop_size;
 	u32 intra_refresh_mb;
+	u32 i_frm_ctrl_mode;
+	u32 i_frm_ctrl;
+
 	u8 pad;
 	u8 pad_luma;
 	u8 pad_cb;
 	u8 pad_cr;
+
+	u8 fixed_target_bit;
+	u8 rc_mb;		/* H.264: MFCv5, MPEG4/H.263: MFCv6 */
+	u8 rc_pvc;
 	u8 rc_frame;
 	u32 rc_bitrate;
 	u32 rc_framerate;
 	u16 rc_reaction_coeff;
+	u16 rc_frame_delta;	/* MFC6.1 Only */
+
 	u32 config_qp;
 	u32 dynamic_qp;
+
 	u8 frame_tag;
 	u8 ratio_intra;
-
 	u8 num_b_frame;		/* H.264, HEVC, MPEG4 */
 	u8 num_refs_for_p;	/* H.264, HEVC, VP8, VP9 */
-	u8 rc_mb;		/* H.264: MFCv5, MPEG4/H.263: MFCv6 */
-	u8 rc_pvc;
-	u16 vbv_buf_size;
 	enum v4l2_mpeg_video_header_mode seq_hdr_mode;
 	enum v4l2_mpeg_mfc51_video_frame_skip_mode frame_skip_mode;
-	u8 fixed_target_bit;
+	u16 vbv_buf_size;
 	u8 num_hier_max_layer;
 	u8 hier_bitrate_ctrl;
 	u8 weighted_enable;
 	u8 roi_enable;
 	u8 ivf_header_disable;	/* VP8, VP9 */
-
-	u16 rc_frame_delta;	/* MFC6.1 Only */
-
-	u32 i_frm_ctrl_mode;
-	u32 i_frm_ctrl;
 
 	u32 check_color_range;
 	u32 color_range;
@@ -1202,6 +1211,7 @@ struct mfc_dec {
 	int idr_decoding;
 	int is_interlaced;
 	int is_dts_mode;
+	int stored_tag;
 
 	int crc_enable;
 	int crc_luma0;
@@ -1211,11 +1221,10 @@ struct mfc_dec {
 
 	unsigned long consumed;
 	unsigned long remained_size;
+	dma_addr_t y_addr_for_pb;
 
 	enum v4l2_memory dst_memtype;
 	int sei_parse;
-	int stored_tag;
-	dma_addr_t y_addr_for_pb;
 
 	int cr_left, cr_right, cr_top, cr_bot;
 
@@ -1225,6 +1234,7 @@ struct mfc_dec {
 
 	/* For dynamic DPB */
 	int is_dynamic_dpb;
+	int is_dpb_full;
 	unsigned long available_dpb;
 	unsigned int dynamic_set;
 	unsigned int dynamic_used;
@@ -1232,13 +1242,25 @@ struct mfc_dec {
 	struct dec_dpb_ref_info *ref_info;
 	int assigned_fd[MFC_MAX_DPBS];
 	struct mfc_user_shared_handle sh_handle;
-	struct mfc_buf *assigned_dpb[MFC_MAX_DPBS];
 
 	int has_multiframe;
-	int is_dpb_full;
 
 	unsigned int err_reuse_flag;
 	unsigned int dec_only_release_flag;
+
+	unsigned int num_of_tile_over_4;
+
+	unsigned int color_range;
+	unsigned int color_space;
+
+	/*
+	 * new variables should be added above
+	 * ============ boundary line ============
+	 * The following variables are excluded from the MFC log dumps
+	 */
+
+	/* for DRM ASP */
+	struct mfc_buf *assigned_dpb[MFC_MAX_DPBS];
 
 	/* for debugging about black bar detection */
 	void *frame_vaddr[3][30];
@@ -1247,16 +1269,9 @@ struct mfc_dec {
 	int fd[3][30];
 	unsigned int frame_size[3][30];
 	unsigned char frame_cnt;
-
-	unsigned int num_of_tile_over_4;
-
-	unsigned int color_range;
-	unsigned int color_space;
 };
 
 struct mfc_enc {
-	struct mfc_enc_params params;
-
 	unsigned int dst_buf_size;
 	unsigned int header_size;
 
@@ -1282,6 +1297,13 @@ struct mfc_enc {
 	int roi_index;
 	struct mfc_special_buf roi_buf[MFC_MAX_EXTRA_BUF];
 	struct mfc_enc_roi_info roi_info[MFC_MAX_EXTRA_BUF];
+
+	/*
+	 * new variables should be added above
+	 * ============ boundary line ============
+	 * The following variables are excluded from the MFC log dumps
+	 */
+	struct mfc_enc_params params;
 };
 
 struct mfc_fmt {
@@ -1298,21 +1320,17 @@ struct mfc_fmt {
  */
 struct mfc_ctx {
 	struct mfc_dev *dev;
-	struct v4l2_fh fh;
-	int num;
+	struct mfc_dec *dec_priv;
+	struct mfc_enc *enc_priv;
+	struct _otf_handle *otf_handle;
 
+	int num;
 	int int_condition;
 	int int_reason;
 	unsigned int int_err;
 
-	wait_queue_head_t cmd_wq;
-	struct mfc_listable_wq hwlock_wq;
-
 	struct mfc_fmt *src_fmt;
 	struct mfc_fmt *dst_fmt;
-
-	struct vb2_queue vq_src;
-	struct vb2_queue vq_dst;
 
 	struct mfc_buf_queue src_buf_queue;
 	struct mfc_buf_queue dst_buf_queue;
@@ -1337,18 +1355,9 @@ struct mfc_ctx {
 	int min_dpb_size[3];
 
 	struct mfc_raw_info raw_buf;
-	size_t mv_size;
-
-	struct mfc_special_buf codec_buf;
-	int codec_buffer_allocated;
 
 	enum mfc_queue_state capture_state;
 	enum mfc_queue_state output_state;
-
-	struct list_head ctrls;
-
-	struct list_head src_ctrls[MFC_MAX_BUFFERS];
-	struct list_head dst_ctrls[MFC_MAX_BUFFERS];
 
 	unsigned long src_ctrls_avail;
 	unsigned long dst_ctrls_avail;
@@ -1360,13 +1369,11 @@ struct mfc_ctx {
 	__u32 pix_format;
 
 	/* Extra Buffers */
+	int codec_buffer_allocated;
+	struct mfc_special_buf codec_buf;
 	struct mfc_special_buf instance_ctx_buf;
 
-	struct mfc_dec *dec_priv;
-	struct mfc_enc *enc_priv;
-
-	struct mfc_ctrls_ops *c_ops;
-
+	size_t mv_size;
 	size_t scratch_buf_size;
 	size_t loopfilter_luma_size;
 	size_t loopfilter_chroma_size;
@@ -1382,13 +1389,14 @@ struct mfc_ctx {
 	enum mfc_dec_wait_state wait_state;
 	int clear_work_bit;
 
+	unsigned long framerate;
+	unsigned long last_framerate;
+	unsigned int qos_ratio;
+
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	int qos_req_step;
 	struct list_head qos_list;
 #endif
-	unsigned int qos_ratio;
-	unsigned long framerate;
-	unsigned long last_framerate;
 
 	struct mfc_timestamp ts_array[MFC_TIME_INDEX];
 	struct list_head ts_list;
@@ -1399,10 +1407,30 @@ struct mfc_ctx {
 
 	unsigned long raw_protect_flag;
 	unsigned long stream_protect_flag;
-	struct _otf_handle *otf_handle;
 
 	int batch_mode;
 	bool check_dump;
+
+	/*
+	 * new variables should be added above
+	 * ============ boundary line ============
+	 * The following variables are excluded from the MFC log dumps
+	 */
+
+	/* external structure */
+	struct vb2_queue vq_src;
+	struct vb2_queue vq_dst;
+	struct v4l2_fh fh;
+
+	/* per buffer controls */
+	struct mfc_ctrls_ops *c_ops;
+	struct list_head ctrls;
+	struct list_head src_ctrls[MFC_MAX_BUFFERS];
+	struct list_head dst_ctrls[MFC_MAX_BUFFERS];
+
+	/* wait queue */
+	wait_queue_head_t cmd_wq;
+	struct mfc_listable_wq hwlock_wq;
 };
 
 #endif /* __MFC_DATA_STRUCT_H */
