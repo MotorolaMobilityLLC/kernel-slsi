@@ -19,7 +19,8 @@ spinlock_t	mcsc_out_slock;
 static ulong	mcsc_out_st = 0xFFFF;	/* To check shared output state */
 #define MCSC_RST_CHK (MCSC_OUTPUT_MAX)
 
-static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
+static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
+	struct param_mcs_input *input);
 static void fimc_is_hw_mcsc_wdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame);
 static void fimc_is_hw_mcsc_size_dump(struct fimc_is_hw_ip *hw_ip);
 
@@ -158,7 +159,7 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 
 				fimc_is_hw_mcsc_wdma_cfg(hw_ip, mframe);
 
-				ret = fimc_is_hw_mcsc_rdma_cfg(hw_ip, mframe);
+				ret = fimc_is_hw_mcsc_rdma_cfg(hw_ip, mframe, &param->input);
 				if (ret) {
 					mserr_hw("[F:%d]mcsc rdma_cfg failed\n",
 						mframe->instance, hw_ip, mframe->fcount);
@@ -533,17 +534,21 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	return ret;
 }
 
-static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame)
+static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
+	struct param_mcs_input *input)
 {
-	int ret = 0;
-	int i;
-	u32 rdma_addr[4] = {0};
-	struct mcs_param *param;
-	u32 plane;
+	int ret = 0, i;
+	u32 rdma_addr[4] = {0}, plane;
+	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 
-	param = &hw_ip->region[frame->instance]->parameter.mcs;
+	/* can't support this function */
+	if (cap->in_dma != MCSC_CAP_SUPPORT)
+		return ret;
 
-	plane = param->input.plane;
+	if (input->dma_cmd == DMA_INPUT_COMMAND_DISABLE)
+		return ret;
+
+	plane = input->plane;
 	for (i = 0; i < plane; i++)
 		rdma_addr[i] = frame->dvaddr_buffer[plane * frame->cur_buf_index + i];
 
@@ -551,8 +556,7 @@ static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_
 	msdbg_hw(2, "[F:%d]rdma_cfg [addr: %x]\n",
 		frame->instance, hw_ip, frame->fcount, rdma_addr[0]);
 
-	if ((rdma_addr[0] == 0)
-		&& (param->input.dma_cmd == DMA_INPUT_COMMAND_ENABLE)) {
+	if (!rdma_addr[0]) {
 		mserr_hw("Wrong rdma_addr(%x)\n", frame->instance, hw_ip, rdma_addr[0]);
 		fimc_is_scaler_clear_rdma_addr(hw_ip->regs);
 		ret = -EINVAL;
@@ -562,7 +566,7 @@ static int fimc_is_hw_mcsc_rdma_cfg(struct fimc_is_hw_ip *hw_ip, struct fimc_is_
 	/* use only one buffer (per-frame) */
 	fimc_is_scaler_set_rdma_frame_seq(hw_ip->regs, 0x1 << USE_DMA_BUFFER_INDEX);
 
-	if (param->input.plane == DMA_INPUT_PLANE_4) {
+	if (input->plane == DMA_INPUT_PLANE_4) {
 		/* 8+2(10bit) format */
 		fimc_is_scaler_set_rdma_addr(hw_ip->regs,
 			rdma_addr[0], rdma_addr[1], 0, USE_DMA_BUFFER_INDEX);
@@ -804,14 +808,11 @@ config:
 		hw_ip->mframe = frame;
 
 	/* RDMA cfg */
-	if (mcs_param->input.dma_cmd == DMA_INPUT_COMMAND_ENABLE
-		&& cap->in_dma == MCSC_CAP_SUPPORT) {
-		ret = fimc_is_hw_mcsc_rdma_cfg(hw_ip, frame);
-		if (ret) {
-			mserr_hw("[F:%d]mcsc rdma_cfg failed\n",
+	ret = fimc_is_hw_mcsc_rdma_cfg(hw_ip, frame, &mcs_param->input);
+	if (ret) {
+		mserr_hw("[F:%d]mcsc rdma_cfg failed\n",
 				instance, hw_ip, frame->fcount);
-			return ret;
-		}
+		return ret;
 	}
 
 	/* WDMA cfg */
