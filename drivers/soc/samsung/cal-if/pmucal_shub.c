@@ -66,6 +66,7 @@ int pmucal_shub_reset_assert(void)
 		return ret;
 	}
 
+	pr_info("%s done\n", __func__);
 	return 0;
 }
 
@@ -92,6 +93,8 @@ int pmucal_shub_reset_release_config(void)
 				PMUCAL_PREFIX, __func__);
 		return ret;
 	}
+
+	pr_info("%s doing\n", __func__);
 	return 0;
 }
 int pmucal_shub_reset_release(void)
@@ -112,6 +115,7 @@ int pmucal_shub_reset_release(void)
 		return ret;
 	}
 
+	pr_info("%s done\n", __func__);
 	return 0;
 
 }
