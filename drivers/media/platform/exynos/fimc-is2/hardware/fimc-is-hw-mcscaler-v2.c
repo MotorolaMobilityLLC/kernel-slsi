@@ -458,9 +458,7 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	int ret = 0;
 	u32 input_id, output_id;
 	long timetowait;
-	bool config = true;
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
-	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_ip *hw_ip_ = NULL;
 	struct mcs_param *mcs_param;
 
@@ -476,8 +474,6 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 
 	msinfo_hw("mcsc_disable: Vvalid(%d)\n", instance, hw_ip,
 		atomic_read(&hw_ip->status.Vvalid));
-
-	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
 	if (test_bit(HW_RUN, &hw_ip->state)) {
 		timetowait = wait_event_timeout(hw_ip->status.wait_queue,
@@ -517,7 +513,6 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++) {
 		input_id = fimc_is_scaler_get_scaler_path(hw_ip->regs, hw_ip->id, output_id);
-		config = (input_id == hw_ip->id ? true: false);
 		if (cap->enable_shared_output == false || !test_bit(output_id, &mcsc_out_st)) {
 			msinfo_hw("[OUT:%d]hw_mcsc_disable: clear_wdma_addr\n", instance, hw_ip, output_id);
 			fimc_is_scaler_clear_wdma_addr(hw_ip->regs, output_id);
