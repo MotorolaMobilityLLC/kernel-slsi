@@ -93,9 +93,9 @@ struct hw_api_scaler_setfile {
 	 * 0 : SCALER_OUTPUT_YUV_RANGE_FULL
 	 * 1 : SCALER_OUTPUT_YUV_RANGE_NARROW
 	 */
-	struct scaler_setfile_contents contents[2];
+	struct scaler_setfile_contents	contents[2];
 #ifdef MCSC_DNR_USE_TUNING
-	struct tdnr_setfile_contents tdnr_contents;
+	struct tdnr_setfile_contents	tdnr_contents;
 #endif
 #ifdef MCSC_USE_DEJAG_TUNING_PARAM
 	/* Setfile tuning parameters for DJAG (Lhotse)
@@ -151,6 +151,8 @@ struct fimc_is_hw_mcsc {
 	u32	instance;
 	ulong	out_en;		/* This flag save whether the capture video node of MCSC is opened or not. */
 	u32	prev_hwfc_output_ids;
+	/* noise_index also needs to use in TDNR, CAC, DJAG */
+	u32			cur_noise_index;
 
 	/* for tdnr use */
 	enum mcsc_output_index	tdnr_output;
@@ -159,7 +161,6 @@ struct fimc_is_hw_mcsc {
 	dma_addr_t		dvaddr_tdnr[2];
 	enum tdnr_mode		cur_tdnr_mode;
 	enum yic_mode		yic_en;
-	u32			cur_noise_index;
 	struct tdnr_configs	tdnr_cfgs;
 
 	/* for Djag */
