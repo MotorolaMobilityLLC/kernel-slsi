@@ -218,17 +218,46 @@ void fimc_is_hw_mcsc_hw_info(struct fimc_is_hw_ip *hw_ip, struct fimc_is_hw_mcsc
 	sinfo_hw("========================\n", hw_ip);
 }
 
-void get_mcsc_hw_ip(struct fimc_is_hardware *hardware, struct fimc_is_hw_ip **hw_ip0, struct fimc_is_hw_ip **hw_ip1)
+struct fimc_is_hw_ip *get_mcsc_hw_ip(struct fimc_is_hw_ip *hw_ip)
 {
 	int hw_slot = -1;
+	u32 hw_id;
 
-	hw_slot = fimc_is_hw_slot_id(DEV_HW_MCSC0);
-	if (valid_hw_slot_id(hw_slot))
-		*hw_ip0 = &hardware->hw_ip[hw_slot];
+	switch (hw_ip->id) {
+	case DEV_HW_MCSC0:
+		hw_id = DEV_HW_MCSC1;
+		break;
+	case DEV_HW_MCSC1:
+		hw_id = DEV_HW_MCSC0;
+		break;
+	default:
+		serr_hw("Invalid hw_ip->id\n", hw_ip);
+		return NULL;
+	}
 
-	hw_slot = fimc_is_hw_slot_id(DEV_HW_MCSC1);
+	hw_slot = fimc_is_hw_slot_id(hw_id);
 	if (valid_hw_slot_id(hw_slot))
-		*hw_ip1 = &hardware->hw_ip[hw_slot];
+		return &hw_ip->hardware->hw_ip[hw_slot];
+
+	return NULL;
+}
+
+int check_sc_core_running(struct fimc_is_hw_ip *hw_ip, struct fimc_is_hw_mcsc_cap *cap)
+{
+	struct fimc_is_hw_ip *hw_ip_ = NULL;
+	u32 ret = 0;
+
+	hw_ip_ = get_mcsc_hw_ip(hw_ip);
+
+	if (cap->enable_shared_output) {
+		if (hw_ip && test_bit(HW_RUN, &hw_ip->state))
+			ret = hw_ip->id;
+
+		if (hw_ip_ && test_bit(HW_RUN, &hw_ip_->state))
+			ret = hw_ip_->id;
+	}
+
+	return ret;
 }
 
 static int fimc_is_hw_mcsc_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
@@ -237,8 +266,6 @@ static int fimc_is_hw_mcsc_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	int ret = 0;
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap;
-	struct fimc_is_hardware *hardware;
-	struct fimc_is_hw_ip *hw_ip0 = NULL, *hw_ip1 = NULL;
 	u32 output_id;
 	int i;
 
@@ -281,20 +308,12 @@ static int fimc_is_hw_mcsc_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	msdbg_hw(2, "open: [G:0x%x], framemgr[%s]", instance, hw_ip,
 		GROUP_ID(group->id), hw_ip->framemgr->name);
 
-	hardware = hw_ip->hardware;
-	get_mcsc_hw_ip(hardware, &hw_ip0, &hw_ip1);
-
 	for (i = 0; i < SENSOR_POSITION_END; i++) {
 		hw_mcsc->cur_setfile[i] = NULL;
 	}
 
-	if (cap->enable_shared_output) {
-		if (hw_ip0 && test_bit(HW_RUN, &hw_ip0->state))
-			return 0;
-
-		if (hw_ip1 && test_bit(HW_RUN, &hw_ip1->state))
-			return 0;
-	}
+	if (check_sc_core_running(hw_ip, cap))
+		return 0;
 
 	/* initialize of shared values between MCSC0 and MCSC1 */
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++)
@@ -443,8 +462,7 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	bool config = true;
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 	struct fimc_is_hw_mcsc *hw_mcsc;
-	struct fimc_is_hardware *hardware;
-	struct fimc_is_hw_ip *hw_ip0 = NULL, *hw_ip1 = NULL;
+	struct fimc_is_hw_ip *hw_ip_ = NULL;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!cap);
@@ -481,23 +499,17 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	} else {
 		msdbg_hw(2, "already disabled\n", instance, hw_ip);
 	}
-
 	hw_ip->mframe = NULL;
-	hardware = hw_ip->hardware;
-	get_mcsc_hw_ip(hardware, &hw_ip0, &hw_ip1);
 
-	if (hw_ip0 && test_bit(HW_RUN, &hw_ip0->state))
+	if (check_sc_core_running(hw_ip, cap))
 		return 0;
 
-	if (hw_ip1 && test_bit(HW_RUN, &hw_ip1->state))
-		return 0;
+	if (hw_ip)
+		fimc_is_scaler_stop(hw_ip->regs, hw_ip->id);
 
-
-	if (hw_ip0)
-		fimc_is_scaler_stop(hw_ip0->regs, hw_ip0->id);
-
-	if (hw_ip1)
-		fimc_is_scaler_stop(hw_ip1->regs, hw_ip1->id);
+	hw_ip_ = get_mcsc_hw_ip(hw_ip);
+	if (hw_ip_)
+		fimc_is_scaler_stop(hw_ip_->regs, hw_ip_->id);
 
 	/* disable MCSC */
 	if (cap->in_dma == MCSC_CAP_SUPPORT)
@@ -991,47 +1003,39 @@ int fimc_is_hw_mcsc_reset(struct fimc_is_hw_ip *hw_ip)
 	u32 output_id;
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
-	struct fimc_is_hardware *hardware;
-	struct fimc_is_hw_ip *hw_ip0 = NULL, *hw_ip1 = NULL;
+	struct fimc_is_hw_ip *hw_ip_ = NULL;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!cap);
 
-	hardware = hw_ip->hardware;
-	get_mcsc_hw_ip(hardware, &hw_ip0, &hw_ip1);
-
-	if (cap->enable_shared_output) {
-		if (hw_ip0 && test_bit(HW_RUN, &hw_ip0->state))
-			return 0;
-
-		if (hw_ip1 && test_bit(HW_RUN, &hw_ip1->state))
-			return 0;
-	}
+	if (check_sc_core_running(hw_ip, cap))
+		return 0;
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
-	if (hw_ip0) {
-		sinfo_hw("hw_mcsc_reset: out_en[0x%lx]\n", hw_ip0, hw_mcsc->out_en);
-		ret = fimc_is_scaler_sw_reset(hw_ip0->regs, hw_ip0->id, 0, 0);
+	if (hw_ip) {
+		sinfo_hw("hw_mcsc_reset: out_en[0x%lx]\n", hw_ip, hw_mcsc->out_en);
+		ret = fimc_is_scaler_sw_reset(hw_ip->regs, hw_ip->id, 0, 0);
 		if (ret != 0) {
-			serr_hw("sw reset fail", hw_ip0);
+			serr_hw("sw reset fail", hw_ip);
 			return -ENODEV;
 		}
 
 		/* shadow ctrl register clear */
-		fimc_is_scaler_clear_shadow_ctrl(hw_ip0->regs, hw_ip0->id);
+		fimc_is_scaler_clear_shadow_ctrl(hw_ip->regs, hw_ip->id);
 	}
 
-	if (hw_ip1) {
-		sinfo_hw("hw_mcsc_reset: out_en[0x%lx]\n", hw_ip1, hw_mcsc->out_en);
-		ret = fimc_is_scaler_sw_reset(hw_ip1->regs, hw_ip1->id, 0, 0);
+	hw_ip_ = get_mcsc_hw_ip(hw_ip);
+	if (hw_ip_) {
+		sinfo_hw("hw_mcsc_reset: out_en[0x%lx]\n", hw_ip_, hw_mcsc->out_en);
+		ret = fimc_is_scaler_sw_reset(hw_ip_->regs, hw_ip_->id, 0, 0);
 		if (ret != 0) {
-			serr_hw("sw reset fail", hw_ip1);
+			serr_hw("sw reset fail", hw_ip_);
 			return -ENODEV;
 		}
 
 		/* shadow ctrl register clear */
-		fimc_is_scaler_clear_shadow_ctrl(hw_ip1->regs, hw_ip1->id);
+		fimc_is_scaler_clear_shadow_ctrl(hw_ip_->regs, hw_ip_->id);
 	}
 
 	for (output_id = MCSC_OUTPUT0; output_id < cap->max_output; output_id++) {
@@ -1057,11 +1061,11 @@ int fimc_is_hw_mcsc_reset(struct fimc_is_hw_ip *hw_ip)
 	set_bit(MCSC_RST_CHK, &mcsc_out_st);
 
 	if (cap->in_otf == MCSC_CAP_SUPPORT) {
-		if (hw_ip0)
-			fimc_is_scaler_set_stop_req_post_en_ctrl(hw_ip0->regs, hw_ip0->id, 0);
+		if (hw_ip)
+			fimc_is_scaler_set_stop_req_post_en_ctrl(hw_ip->regs, hw_ip->id, 0);
 
-		if (hw_ip1)
-			fimc_is_scaler_set_stop_req_post_en_ctrl(hw_ip1->regs, hw_ip1->id, 0);
+		if (hw_ip_)
+			fimc_is_scaler_set_stop_req_post_en_ctrl(hw_ip_->regs, hw_ip_->id, 0);
 	}
 
 	return ret;
