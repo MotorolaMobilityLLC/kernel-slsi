@@ -631,7 +631,7 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 		mfc_debug(2, "[DRC] Resolution change set to %d\n", res_change);
 		mfc_change_state(ctx, MFCINST_RES_CHANGE_INIT);
 		ctx->wait_state = WAIT_DECODING;
-		mfc_debug(7, "[DRC] Decoding waiting! : %d\n", ctx->wait_state);
+		mfc_debug(2, "[DRC] Decoding waiting! : %d\n", ctx->wait_state);
 		return;
 	}
 

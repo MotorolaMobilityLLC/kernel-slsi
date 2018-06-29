@@ -1049,7 +1049,7 @@ int mfc_is_last_frame(struct mfc_ctx *ctx)
 
 	src_mb = list_entry(ctx->src_buf_queue.head.next, struct mfc_buf, list);
 
-	mfc_debug(4, "addr[0]: 0x%08llx\n", src_mb->addr[0][0]);
+	mfc_debug(2, "[BUFINFO] addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	if (src_mb->vb.reserved2 & FLAG_LAST_FRAME) {
 		mfc_debug(2, "last frame!\n");

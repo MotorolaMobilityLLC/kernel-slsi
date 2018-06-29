@@ -62,7 +62,7 @@ int mfc_wait_for_done_dev(struct mfc_dev *dev, int command)
 					wait_condition(dev, command),
 					msecs_to_jiffies(MFC_INT_TIMEOUT * MFC_INT_TIMEOUT_CNT));
 			if (ret == 0) {
-				mfc_err_dev("Timeout: MFC driver waited for upward of %dsec\n",
+				mfc_err_dev("Timeout: MFC driver waited for upward of %dmsec\n",
 						3 * MFC_INT_TIMEOUT);
 			} else {
 				goto wait_done;
@@ -104,7 +104,7 @@ int mfc_wait_for_done_ctx(struct mfc_ctx *ctx, int command)
 					wait_condition(ctx, command),
 					msecs_to_jiffies(MFC_INT_TIMEOUT * MFC_INT_TIMEOUT_CNT));
 			if (ret == 0) {
-				mfc_err_dev("Timeout: MFC driver waited for upward of %dsec\n",
+				mfc_err_dev("Timeout: MFC driver waited for upward of %dmsec\n",
 						3 * MFC_INT_TIMEOUT);
 			} else {
 				goto wait_done;

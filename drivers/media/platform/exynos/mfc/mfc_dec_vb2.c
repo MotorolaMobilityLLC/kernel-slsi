@@ -591,6 +591,10 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 
 		mfc_add_tail_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue, buf);
 
+		if (debug_ts == 1)
+			mfc_info_ctx("[TS] framerate: %ld, timestamp: %lld\n",
+					ctx->framerate, buf->vb.vb2_buf.timestamp);
+
 		MFC_TRACE_CTX("Q src[%d] fd: %d, %#llx\n",
 				vb->index, vb->planes[0].m.fd, buf->addr[0][0]);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {

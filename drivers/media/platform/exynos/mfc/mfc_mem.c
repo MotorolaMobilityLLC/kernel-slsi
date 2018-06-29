@@ -223,9 +223,8 @@ int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 	if (dmabuf_container_get_mask(bufcon_dmabuf, &mask)) {
 		mfc_err_ctx("[BUFCON] it is not buffer container\n");
 		return -1;
-	} else {
-		mfc_debug(3, "[BUFCON] bufcon mask info %#x\n", mask);
 	}
+	mfc_debug(3, "[BUFCON] bufcon mask info %#x\n", mask);
 
 	for (i = 0; i < mfc_buf->num_bufs_in_batch; i++) {
 		if ((mask & (1 << i)) == 0) {

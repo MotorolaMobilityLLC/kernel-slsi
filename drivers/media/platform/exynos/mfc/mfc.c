@@ -1015,7 +1015,7 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 			sizeof(struct mfc_qos_boost), GFP_KERNEL);
 	np_qos = of_find_node_by_name(np, "mfc_perf_boost_table");
 	if (!np_qos) {
-		pr_err("%s:[QoS] could not find mfc_perf_boost_table node\n", node_name);
+		pr_err("%s:[QoS][BOOST] could not find mfc_perf_boost_table node\n", node_name);
 		return;
 	}
 	of_property_read_u32(np_qos, "num_cluster", &pdata->qos_boost_table->num_cluster);

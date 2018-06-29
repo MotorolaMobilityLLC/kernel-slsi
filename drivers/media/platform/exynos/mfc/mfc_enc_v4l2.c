@@ -931,8 +931,8 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 					ctx_ctrl->has_new = 0;
 					ctrl->value = ctx_ctrl->val;
 				} else {
-					mfc_debug(5, "[CTRLS] Control value "\
-							"is not up to date: "\
+					mfc_debug(5, "[CTRLS] Control value "
+							"is not up to date: "
 							"0x%08x\n", ctrl->id);
 					return -EINVAL;
 				}
@@ -1841,23 +1841,23 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 					ctx_ctrl->val &= ~(0xFFFF);
 					ctx_ctrl->val |= p->rc_frame_delta & 0xFFFF;
 				}
-				if (((ctx_ctrl->id == \
+				if ((ctx_ctrl->id == \
 					V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER_CH) ||
 					(ctx_ctrl->id == \
 					V4L2_CID_MPEG_VIDEO_VP8_HIERARCHICAL_CODING_LAYER_CH) ||
 					(ctx_ctrl->id == \
 					V4L2_CID_MPEG_VIDEO_VP9_HIERARCHICAL_CODING_LAYER_CH) ||
 					(ctx_ctrl->id == \
-					V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH)) &&
-					(enc->sh_handle_svc.fd == -1)) {
+					V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH)) {
+					if (enc->sh_handle_svc.fd == -1) {
 						enc->sh_handle_svc.fd = ctrl->value;
 						if (mfc_mem_get_user_shared_handle(ctx,
 									&enc->sh_handle_svc))
 							return -EINVAL;
-						else
-							mfc_debug(2, "[MEMINFO][HIERARCHICAL] shared handle fd: %d, vaddr: 0x%p\n",
-									enc->sh_handle_svc.fd,
-									enc->sh_handle_svc.vaddr);
+						mfc_debug(2, "[MEMINFO][HIERARCHICAL] shared handle fd: %d, vaddr: 0x%p\n",
+								enc->sh_handle_svc.fd,
+								enc->sh_handle_svc.vaddr);
+					}
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH &&
 						p->i_frm_ctrl_mode) {
@@ -1878,10 +1878,9 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 						if (mfc_mem_get_user_shared_handle(ctx,
 									&enc->sh_handle_roi))
 							return -EINVAL;
-						else
-							mfc_debug(2, "[MEMINFO][ROI] shared handle fd: %d, vaddr: 0x%p\n",
-									enc->sh_handle_roi.fd,
-									enc->sh_handle_roi.vaddr);
+						mfc_debug(2, "[MEMINFO][ROI] shared handle fd: %d, vaddr: 0x%p\n",
+								enc->sh_handle_roi.fd,
+								enc->sh_handle_roi.vaddr);
 					}
 					index = enc->roi_index;
 					memcpy(&enc->roi_info[index],

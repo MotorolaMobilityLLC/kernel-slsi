@@ -330,7 +330,7 @@ int mfc_run_dec_init(struct mfc_ctx *ctx)
 	}
 
 	mfc_debug(2, "Preparing to init decoding\n");
-	mfc_debug(2, "Header size: %d, (offset: %lu)\n",
+	mfc_debug(2, "[STREAM] Header size: %d, (offset: %lu)\n",
 		src_mb->vb.vb2_buf.planes[0].bytesused, dec->consumed);
 
 	if (dec->consumed) {
@@ -347,7 +347,7 @@ int mfc_run_dec_init(struct mfc_ctx *ctx)
 			0, src_mb->vb.vb2_buf.planes[0].bytesused);
 	}
 
-	mfc_debug(2, "Header addr: 0x%08llx\n", src_mb->addr[0][0]);
+	mfc_debug(2, "[BUFINFO] Header addr: 0x%08llx\n", src_mb->addr[0][0]);
 	mfc_clean_ctx_int_flags(ctx);
 	mfc_cmd_init_decode(ctx);
 
@@ -492,7 +492,7 @@ int mfc_run_enc_init(struct mfc_ctx *ctx)
 
 	mfc_set_enc_stride(ctx);
 
-	mfc_debug(2, "Header addr: 0x%08llx\n", dst_mb->addr[0][0]);
+	mfc_debug(2, "[BUFINFO] Header addr: 0x%08llx\n", dst_mb->addr[0][0]);
 	mfc_clean_ctx_int_flags(ctx);
 
 	ret = mfc_cmd_init_encode(ctx);

@@ -741,7 +741,7 @@ static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct 
 	if (debug_ts == 1) {
 		/* Debug info */
 		mfc_info_ctx("===================[TS]===================\n");
-		mfc_info_ctx("[TS] New timestamp = %ld.%06ld, count = %d \n",
+		mfc_info_ctx("[TS] New timestamp = %ld.%06ld, count = %d\n",
 			time->tv_sec, time->tv_usec, ctx->ts_count);
 	}
 
@@ -792,9 +792,6 @@ static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct 
 					temp_ts->timestamp.tv_usec);
 			index++;
 		}
-		mfc_info_ctx("[TS] Min interval = %d, It is %ld fps\n",
-				min_interval, max_framerate);
-	} else if (debug_ts == 2) {
 		mfc_info_ctx("[TS] Min interval = %d, It is %ld fps\n",
 				min_interval, max_framerate);
 	}

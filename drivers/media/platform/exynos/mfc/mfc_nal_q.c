@@ -1175,7 +1175,7 @@ static void __mfc_nal_q_handle_frame_copy_timestamp(struct mfc_ctx *ctx, Decoder
 	mfc_debug_enter();
 
 	if (!ctx) {
-		mfc_err_dev("[TS] no mfc context to run\n");
+		mfc_err_dev("[NALQ][TS] no mfc context to run\n");
 		return;
 	}
 
@@ -1187,7 +1187,7 @@ static void __mfc_nal_q_handle_frame_copy_timestamp(struct mfc_ctx *ctx, Decoder
 	/* Get the next source buffer */
 	src_mb = mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue, MFC_BUF_NO_TOUCH_USED);
 	if (!src_mb) {
-		mfc_err_dev("[NALQ] no src buffers\n");
+		mfc_err_dev("[NALQ][TS] no src buffers\n");
 		return;
 	}
 

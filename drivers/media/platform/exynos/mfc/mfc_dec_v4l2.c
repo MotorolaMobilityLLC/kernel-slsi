@@ -1008,8 +1008,8 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 					ctx_ctrl->has_new = 0;
 					ctrl->value = ctx_ctrl->val;
 				} else {
-					mfc_debug(5, "[CTRLS] Control value "\
-							"is not up to date: "\
+					mfc_debug(5, "[CTRLS] Control value "
+							"is not up to date: "
 							"0x%08x\n", ctrl->id);
 					return -EINVAL;
 				}
@@ -1110,7 +1110,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		ctx->wait_state = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_MFC_SET_DUAL_DPB_MODE:
-		mfc_err_dev("[DPB] not supported CID: 0x%x\n",ctrl->id);
+		mfc_err_dev("[DPB] not supported CID: 0x%x\n", ctrl->id);
 		break;
 	case V4L2_CID_MPEG_VIDEO_QOS_RATIO:
 		ctx->qos_ratio = ctrl->value;
@@ -1126,9 +1126,8 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			dec->sh_handle.fd = ctrl->value;
 			if (mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle))
 				return -EINVAL;
-			else
-				mfc_debug(2, "[MEMINFO][DPB] shared handle fd: %d, vaddr: 0x%p\n",
-						dec->sh_handle.fd, dec->sh_handle.vaddr);
+			mfc_debug(2, "[MEMINFO][DPB] shared handle fd: %d, vaddr: 0x%p\n",
+					dec->sh_handle.fd, dec->sh_handle.vaddr);
 		}
 		break;
 	case V4L2_CID_MPEG_MFC_SET_BUF_PROCESS_TYPE:
@@ -1196,7 +1195,7 @@ static int vidioc_g_crop(struct file *file, void *priv,
 			cr->c.top = dec->cr_top;
 			cr->c.width = ctx->img_width - dec->cr_left - dec->cr_right;
 			cr->c.height = ctx->img_height - dec->cr_top - dec->cr_bot;
-			mfc_debug(2, "[FRAME] Cropping info: l=%d t=%d " \
+			mfc_debug(2, "[FRAME] Cropping info: l=%d t=%d "
 					"w=%d h=%d (r=%d b=%d fw=%d fh=%d)\n",
 					dec->cr_left, dec->cr_top,
 					cr->c.width, cr->c.height,

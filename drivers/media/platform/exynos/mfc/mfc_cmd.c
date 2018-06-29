@@ -87,11 +87,11 @@ int mfc_cmd_open_inst(struct mfc_ctx *ctx)
 	if (ctx->otf_handle) {
 		/* Set OTF_CONTROL[2:1], 0: Non-OTF, 1: OTF+HWFC, 2: OTF only */
 		reg |= (0x1 << 1);
-		mfc_info_ctx("HWFC + OTF enabled\n");
+		mfc_info_ctx("[OTF] HWFC + OTF enabled\n");
 		if (otf_dump && !ctx->is_drm) {
 			/* Set OTF_DEBUG[3] for OTF path dump */
 			reg |= (0x1 << 3);
-			mfc_info_ctx("Debugging mode enabled\n");
+			mfc_info_ctx("[OTF] Debugging mode enabled\n");
 		}
 	}
 	MFC_WRITEL(reg, MFC_REG_CODEC_CONTROL);
@@ -366,7 +366,7 @@ int mfc_cmd_init_decode(struct mfc_ctx *ctx)
 	reg |= (0x1 << MFC_REG_D_SEI_ENABLE_RECOVERY_PARSING_SHIFT);
 
 	MFC_WRITEL(reg, MFC_REG_D_SEI_ENABLE);
-	mfc_debug(2, "SEI enable was set, 0x%x\n", MFC_READL(MFC_REG_D_SEI_ENABLE));
+	mfc_debug(2, "[HDR] SEI enable was set, 0x%x\n", MFC_READL(MFC_REG_D_SEI_ENABLE));
 
 	MFC_WRITEL(ctx->inst_no, MFC_REG_INSTANCE_ID);
 
@@ -386,7 +386,7 @@ int mfc_cmd_dec_one_frame(struct mfc_ctx *ctx, int last_frame)
 	struct mfc_dec *dec = ctx->dec_priv;
 	u32 reg = 0;
 
-	mfc_debug(2, "Dynamic:0x%08x, Available:0x%lx\n",
+	mfc_debug(2, "[DPB] Dynamic:0x%08x, Available:0x%lx\n",
 			dec->dynamic_set, dec->available_dpb);
 
 	reg = MFC_READL(MFC_REG_D_NAL_START_OPTIONS);

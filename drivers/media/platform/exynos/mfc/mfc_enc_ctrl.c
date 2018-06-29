@@ -707,7 +707,7 @@ static int mfc_enc_init_ctx_ctrls(struct mfc_ctx *ctx)
 	for (i = 0; i < NUM_CTRL_CFGS; i++) {
 		ctx_ctrl = kzalloc(sizeof(struct mfc_ctx_ctrl), GFP_KERNEL);
 		if (ctx_ctrl == NULL) {
-			mfc_err_dev("Failed to allocate context control "\
+			mfc_err_dev("Failed to allocate context control "
 					"id: 0x%08x, type: %d\n",
 					mfc_ctrl_list[i].id,
 					mfc_ctrl_list[i].type);
@@ -795,7 +795,7 @@ static int mfc_enc_init_buf_ctrls(struct mfc_ctx *ctx,
 
 		buf_ctrl = kzalloc(sizeof(struct mfc_buf_ctrl), GFP_KERNEL);
 		if (buf_ctrl == NULL) {
-			mfc_err_dev("Failed to allocate buffer control "\
+			mfc_err_dev("Failed to allocate buffer control "
 					"id: 0x%08x, type: %d\n",
 					mfc_ctrl_list[i].id,
 					mfc_ctrl_list[i].type);
@@ -898,7 +898,7 @@ static int mfc_enc_to_buf_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 						reg |= (enc->roi_info[index].lower_qp << 8);
 						reg &= ~(0xFFFF << 16);
 						reg |= (enc->roi_info[index].upper_qp << 16);
-						mfc_debug(3, "[ROI] buffer[%d] en %d, "\
+						mfc_debug(3, "[ROI] buffer[%d] en %d, "
 								"QP lower %d upper %d reg %#x\n",
 								index, enc->roi_info[index].enable,
 								enc->roi_info[index].lower_qp,
@@ -934,7 +934,7 @@ static int mfc_enc_to_ctx_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 			if (ctx_ctrl->id == buf_ctrl->id) {
 				if (ctx_ctrl->has_new)
 					mfc_debug(8,
-					"Overwrite context control "\
+					"Overwrite context control "
 					"value id: 0x%08x, val: %d\n",
 						ctx_ctrl->id, ctx_ctrl->val);
 
