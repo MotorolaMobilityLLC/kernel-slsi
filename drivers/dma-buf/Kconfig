@@ -47,4 +47,9 @@ config DMA_BUF_CONTAINER_TEST
 	  Test driver for dma-buf container to verify the elements in the
 	  dma-buf container are the same as the given list of dma-buf objects.
 
+config DMABUF_TRACE
+	bool "dma-buf trace support"
+	default y
+	depends on DMA_SHARED_BUFFER
+
 endmenu
