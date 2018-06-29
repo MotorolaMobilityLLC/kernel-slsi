@@ -387,7 +387,6 @@ static int fimc_is_hw_mcsc_deinit(struct fimc_is_hw_ip *hw_ip, u32 instance)
 static int fimc_is_hw_mcsc_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 {
 	int ret = 0;
-	u32 output_id;
 
 	FIMC_BUG(!hw_ip);
 
