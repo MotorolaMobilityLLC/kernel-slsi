@@ -165,7 +165,6 @@ struct fimc_is_hw_mcsc {
 
 	/* for Djag */
 	u32			djag_in;
-	struct djag_setfile_contents    djag_tunecfg;
 
 	/* for full otf overflow recovery */
 	struct is_param_region	*back_param;
