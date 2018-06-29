@@ -27,24 +27,24 @@ void mfc_set_slice_mode(struct mfc_ctx *ctx)
 
 	/* multi-slice control */
 	if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES)
-		MFC_WRITEL((enc->slice_mode + 0x4), MFC_REG_E_MSLICE_MODE);
+		MFC_RAW_WRITEL((enc->slice_mode + 0x4), MFC_REG_E_MSLICE_MODE);
 	else if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW)
-		MFC_WRITEL((enc->slice_mode - 0x2), MFC_REG_E_MSLICE_MODE);
+		MFC_RAW_WRITEL((enc->slice_mode - 0x2), MFC_REG_E_MSLICE_MODE);
 	else if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES)
-		MFC_WRITEL((enc->slice_mode + 0x3), MFC_REG_E_MSLICE_MODE);
+		MFC_RAW_WRITEL((enc->slice_mode + 0x3), MFC_REG_E_MSLICE_MODE);
 	else
-		MFC_WRITEL(enc->slice_mode, MFC_REG_E_MSLICE_MODE);
+		MFC_RAW_WRITEL(enc->slice_mode, MFC_REG_E_MSLICE_MODE);
 
 	/* multi-slice MB number or bit size */
 	if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) ||
 			(enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW)) {
-		MFC_WRITEL(enc->slice_size.mb, MFC_REG_E_MSLICE_SIZE_MB);
+		MFC_RAW_WRITEL(enc->slice_size.mb, MFC_REG_E_MSLICE_SIZE_MB);
 	} else if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) ||
 			(enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES)){
-		MFC_WRITEL(enc->slice_size.bits, MFC_REG_E_MSLICE_SIZE_BITS);
+		MFC_RAW_WRITEL(enc->slice_size.bits, MFC_REG_E_MSLICE_SIZE_BITS);
 	} else {
-		MFC_WRITEL(0x0, MFC_REG_E_MSLICE_SIZE_MB);
-		MFC_WRITEL(0x0, MFC_REG_E_MSLICE_SIZE_BITS);
+		MFC_RAW_WRITEL(0x0, MFC_REG_E_MSLICE_SIZE_MB);
+		MFC_RAW_WRITEL(0x0, MFC_REG_E_MSLICE_SIZE_BITS);
 	}
 }
 
@@ -58,7 +58,7 @@ void mfc_set_aso_slice_order_h264(struct mfc_ctx *ctx)
 
 	if (p_264->aso_enable) {
 		for (i = 0; i < 8; i++)
-			MFC_WRITEL(p_264->aso_slice_order[i],
+			MFC_RAW_WRITEL(p_264->aso_slice_order[i],
 				MFC_REG_E_H264_ASO_SLICE_ORDER_0 + i * 4);
 	}
 }
@@ -88,7 +88,7 @@ static void __mfc_set_gop_size(struct mfc_ctx *ctx, int ctrl_mode)
 			p->num_b_frame, p->i_frm_ctrl_mode);
 
 	/* pictype : IDR period, number of B */
-	reg = MFC_READL(MFC_REG_E_GOP_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_GOP_CONFIG);
 	reg &= ~(0xFFFF);
 	reg |= p->i_frm_ctrl & 0xFFFF;
 	reg &= ~(0x1 << 19);
@@ -96,12 +96,12 @@ static void __mfc_set_gop_size(struct mfc_ctx *ctx, int ctrl_mode)
 	reg &= ~(0x3 << 16);
 	/* if B frame is used, the performance falls by half */
 	reg |= (p->num_b_frame << 16);
-	MFC_WRITEL(reg, MFC_REG_E_GOP_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_GOP_CONFIG);
 
-	reg = MFC_READL(MFC_REG_E_GOP_CONFIG2);
+	reg = MFC_RAW_READL(MFC_REG_E_GOP_CONFIG2);
 	reg &= ~(0x3FFF);
 	reg |= (p->i_frm_ctrl >> 16) & 0x3FFF;
-	MFC_WRITEL(reg, MFC_REG_E_GOP_CONFIG2);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_GOP_CONFIG2);
 }
 
 static void __mfc_set_default_params(struct mfc_ctx *ctx)
@@ -116,7 +116,7 @@ static void __mfc_set_default_params(struct mfc_ctx *ctx)
 					dev->pdata->enc_param_num, MFC_MAX_DEFAULT_PARAM);
 			break;
 		}
-		MFC_WRITEL(dev->pdata->enc_param_val[i], dev->pdata->enc_param_addr[i]);
+		MFC_RAW_WRITEL(dev->pdata->enc_param_val[i], dev->pdata->enc_param_addr[i]);
 		mfc_debug(2, "Set default param[%d] - addr:0x%x, val:0x%x\n",
 				i, dev->pdata->enc_param_addr[i], dev->pdata->enc_param_val[i]);
 	}
@@ -127,12 +127,12 @@ static void __mfc_init_regs(struct mfc_ctx *ctx)
 	struct mfc_dev *dev = ctx->dev;
 
 	/* Register initialization */
-	MFC_WRITEL(0x0, MFC_REG_E_FRAME_INSERTION);
-	MFC_WRITEL(0x0, MFC_REG_E_ROI_BUFFER_ADDR);
-	MFC_WRITEL(0x0, MFC_REG_E_PARAM_CHANGE);
-	MFC_WRITEL(0x0, MFC_REG_E_PICTURE_TAG);
-	MFC_WRITEL(0x0, MFC_REG_E_METADATA_BUFFER_ADDR);
-	MFC_WRITEL(0x0, MFC_REG_E_METADATA_BUFFER_SIZE);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_FRAME_INSERTION);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_ROI_BUFFER_ADDR);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_PARAM_CHANGE);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_PICTURE_TAG);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_METADATA_BUFFER_ADDR);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_METADATA_BUFFER_SIZE);
 }
 
 static void __mfc_set_enc_params(struct mfc_ctx *ctx)
@@ -148,15 +148,15 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 	__mfc_set_default_params(ctx);
 
 	/* width */
-	MFC_WRITEL(ctx->crop_width, MFC_REG_E_CROPPED_FRAME_WIDTH);
+	MFC_RAW_WRITEL(ctx->crop_width, MFC_REG_E_CROPPED_FRAME_WIDTH);
 	/* height */
-	MFC_WRITEL(ctx->crop_height, MFC_REG_E_CROPPED_FRAME_HEIGHT);
+	MFC_RAW_WRITEL(ctx->crop_height, MFC_REG_E_CROPPED_FRAME_HEIGHT);
 	/* cropped offset */
 	reg |= (ctx->crop_left & MFC_REG_E_FRAME_CROP_OFFSET_MASK)
 		<< MFC_REG_E_FRAME_CROP_OFFSET_LEFT;
 	reg |= (ctx->crop_top & MFC_REG_E_FRAME_CROP_OFFSET_MASK)
 		<< MFC_REG_E_FRAME_CROP_OFFSET_TOP;
-	MFC_WRITEL(reg, MFC_REG_E_FRAME_CROP_OFFSET);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_FRAME_CROP_OFFSET);
 
 	/* multi-slice control */
 	/* multi-slice MB number or bit size */
@@ -177,9 +177,9 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 	mfc_set_slice_mode(ctx);
 
 	/* cyclic intra refresh */
-	MFC_WRITEL(p->intra_refresh_mb, MFC_REG_E_IR_SIZE);
+	MFC_RAW_WRITEL(p->intra_refresh_mb, MFC_REG_E_IR_SIZE);
 
-	reg = MFC_READL(MFC_REG_E_ENC_OPTIONS);
+	reg = MFC_RAW_READL(MFC_REG_E_ENC_OPTIONS);
 	/* frame skip mode */
 	reg &= ~(0x3);
 	reg |= (p->frame_skip_mode & 0x3);
@@ -202,12 +202,12 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 	reg &= ~(0x1 << 18);
 	if (nal_q_parallel_disable)
 		reg |= (0x1 << 18);
-	MFC_WRITEL(reg, MFC_REG_E_ENC_OPTIONS);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_ENC_OPTIONS);
 
 	mfc_set_pixel_format(dev, ctx->src_fmt->fourcc);
 
 	/* padding control & value */
-	MFC_WRITEL(0x0, MFC_REG_E_PADDING_CTRL);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_PADDING_CTRL);
 	if (p->pad) {
 		reg = 0;
 		/** enable */
@@ -221,11 +221,11 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 		/** y value */
 		reg &= ~(0xFF);
 		reg |= (p->pad_luma);
-		MFC_WRITEL(reg, MFC_REG_E_PADDING_CTRL);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_PADDING_CTRL);
 	}
 
 	/* rate control config. */
-	reg = MFC_READL(MFC_REG_E_RC_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/* macroblock level rate control */
 	reg &= ~(0x1 << 8);
 	reg |= ((p->rc_mb & 0x1) << 8);
@@ -234,13 +234,13 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 	reg |= ((p->rc_frame & 0x1) << 9);
 	/* 'DROP_CONTROL_ENABLE', disable */
 	reg &= ~(0x1 << 10);
-	MFC_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
 	/* bit rate */
-	MFC_WRITEL(p->rc_bitrate, MFC_REG_E_RC_BIT_RATE);
+	MFC_RAW_WRITEL(p->rc_bitrate, MFC_REG_E_RC_BIT_RATE);
 
 
-	reg = MFC_READL(MFC_REG_E_RC_MODE);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_MODE);
 	reg &= ~(0x3 | (0x3 << 4) | (0xFF << 8));
 	if (p->rc_frame) {
 		if (p->rc_reaction_coeff <= CBR_I_LIMIT_MAX) {
@@ -261,15 +261,15 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 		if (p->rc_mb)
 			reg |= ((p->rc_pvc & 0x3) << 4);
 	}
-	MFC_WRITEL(reg, MFC_REG_E_RC_MODE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_MODE);
 
 	/* extended encoder ctrl */
 	/** vbv buffer size */
-	reg = MFC_READL(MFC_REG_E_VBV_BUFFER_SIZE);
+	reg = MFC_RAW_READL(MFC_REG_E_VBV_BUFFER_SIZE);
 	reg &= ~(0xFF);
 	if (p->frame_skip_mode == V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT)
 		reg |= p->vbv_buf_size & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_VBV_BUFFER_SIZE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_VBV_BUFFER_SIZE);
 
 	mfc_debug_leave();
 }
@@ -282,7 +282,7 @@ static void __mfc_set_temporal_svc_h264(struct mfc_ctx *ctx, struct mfc_h264_enc
 	unsigned int reg = 0, reg2 = 0;
 	int i;
 
-	reg = MFC_READL(MFC_REG_E_H264_OPTIONS_2);
+	reg = MFC_RAW_READL(MFC_REG_E_H264_OPTIONS_2);
 	/* pic_order_cnt_type = 0 for backward compatibilities */
 	reg &= ~(0x3);
 	/* Enable LTR */
@@ -293,10 +293,10 @@ static void __mfc_set_temporal_svc_h264(struct mfc_ctx *ctx, struct mfc_h264_enc
 	reg &= ~(0x3 << 7);
 	if (p_264->num_of_ltr > 2)
 		reg |= (((p_264->num_of_ltr - 2) & 0x3) << 7);
-	MFC_WRITEL(reg, MFC_REG_E_H264_OPTIONS_2);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_H264_OPTIONS_2);
 
 	/* Temporal SVC - qp type, layer number */
-	reg = MFC_READL(MFC_REG_E_NUM_T_LAYER);
+	reg = MFC_RAW_READL(MFC_REG_E_NUM_T_LAYER);
 	reg &= ~(0x1 << 3);
 	reg |= (p_264->hier_qp_type & 0x1) << 3;
 	reg &= ~(0x7);
@@ -311,17 +311,17 @@ static void __mfc_set_temporal_svc_h264(struct mfc_ctx *ctx, struct mfc_h264_enc
 	}
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
-	MFC_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
 	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, enable_ltr %d, "
 		"num_hier_layer %d, max_layer %d, hier_ref_type %d, NUM_T_LAYER 0x%x\n",
 		p_264->hier_qp_enable, p_264->enable_ltr, p_264->num_hier_layer,
 		p->num_hier_max_layer, p_264->hier_ref_type, reg);
 	/* QP & Bitrate for each layer */
 	for (i = 0; i < 7; i++) {
-		MFC_WRITEL(p_264->hier_qp_layer[i],
+		MFC_RAW_WRITEL(p_264->hier_qp_layer[i],
 				MFC_REG_E_HIERARCHICAL_QP_LAYER0 + i * 4);
 		/* If hier_bitrate_ctrl is set to 1, this is meaningless */
-		MFC_WRITEL(p_264->hier_bit_layer[i],
+		MFC_RAW_WRITEL(p_264->hier_bit_layer[i],
 				MFC_REG_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
 		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %d(FW ctrl: %d)\n",
 					i, p_264->hier_qp_layer[i],
@@ -336,8 +336,8 @@ static void __mfc_set_temporal_svc_h264(struct mfc_ctx *ctx, struct mfc_h264_enc
 			else
 				reg2 |= ((p_264->base_priority & 0x3F) + i) << (6 * (i - 5));
 		}
-		MFC_WRITEL(reg, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
-		MFC_WRITEL(reg2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
+		MFC_RAW_WRITEL(reg2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
 		mfc_debug(3, "[HIERARCHICAL] priority EXTENSION0: %#x, EXTENSION1: %#x\n",
 							reg, reg2);
 	}
@@ -354,7 +354,7 @@ static void __mfc_set_fmo_slice_map_h264(struct mfc_ctx *ctx, struct mfc_h264_en
 			if (p_264->fmo_slice_num_grp > 4)
 				p_264->fmo_slice_num_grp = 4;
 			for (i = 0; i < (p_264->fmo_slice_num_grp & 0xF); i++)
-				MFC_WRITEL(p_264->fmo_run_length[i] - 1,
+				MFC_RAW_WRITEL(p_264->fmo_run_length[i] - 1,
 				MFC_REG_E_H264_FMO_RUN_LENGTH_MINUS1_0 + i*4);
 			break;
 		case V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_SCATTERED_SLICES:
@@ -365,10 +365,10 @@ static void __mfc_set_fmo_slice_map_h264(struct mfc_ctx *ctx, struct mfc_h264_en
 		case V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_WIPE_SCAN:
 			if (p_264->fmo_slice_num_grp > 2)
 				p_264->fmo_slice_num_grp = 2;
-			MFC_WRITEL(p_264->fmo_sg_dir & 0x1,
+			MFC_RAW_WRITEL(p_264->fmo_sg_dir & 0x1,
 				MFC_REG_E_H264_FMO_SLICE_GRP_CHANGE_DIR);
 			/* the valid range is 0 ~ number of macroblocks -1 */
-			MFC_WRITEL(p_264->fmo_sg_rate, MFC_REG_E_H264_FMO_SLICE_GRP_CHANGE_RATE_MINUS1);
+			MFC_RAW_WRITEL(p_264->fmo_sg_rate, MFC_REG_E_H264_FMO_SLICE_GRP_CHANGE_RATE_MINUS1);
 			break;
 		default:
 			mfc_err_ctx("Unsupported map type for FMO: %d\n",
@@ -378,10 +378,10 @@ static void __mfc_set_fmo_slice_map_h264(struct mfc_ctx *ctx, struct mfc_h264_en
 			break;
 		}
 
-		MFC_WRITEL(p_264->fmo_slice_map_type, MFC_REG_E_H264_FMO_SLICE_GRP_MAP_TYPE);
-		MFC_WRITEL(p_264->fmo_slice_num_grp - 1, MFC_REG_E_H264_FMO_NUM_SLICE_GRP_MINUS1);
+		MFC_RAW_WRITEL(p_264->fmo_slice_map_type, MFC_REG_E_H264_FMO_SLICE_GRP_MAP_TYPE);
+		MFC_RAW_WRITEL(p_264->fmo_slice_num_grp - 1, MFC_REG_E_H264_FMO_NUM_SLICE_GRP_MINUS1);
 	} else {
-		MFC_WRITEL(0, MFC_REG_E_H264_FMO_NUM_SLICE_GRP_MINUS1);
+		MFC_RAW_WRITEL(0, MFC_REG_E_H264_FMO_NUM_SLICE_GRP_MINUS1);
 	}
 }
 
@@ -425,9 +425,9 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 	/** profile - 0 ~ 3 */
 	reg &= ~(0x3F);
 	reg |= p_264->profile;
-	MFC_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
 
-	reg = MFC_READL(MFC_REG_E_H264_OPTIONS);
+	reg = MFC_RAW_READL(MFC_REG_E_H264_OPTIONS);
 	/* entropy coding mode */
 	reg &= ~(0x1);
 	reg |= (p_264->entropy_mode & 0x1);
@@ -478,56 +478,56 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 	/* VUI parameter disable */
 	reg &= ~(0x1 << 30);
 	reg |= ((p_264->vui_enable & 0x1) << 30);
-	MFC_WRITEL(reg, MFC_REG_E_H264_OPTIONS);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_H264_OPTIONS);
 
 	/* cropped height */
 	if (p_264->interlace)
-		MFC_WRITEL(ctx->crop_height >> 1, MFC_REG_E_CROPPED_FRAME_HEIGHT);
+		MFC_RAW_WRITEL(ctx->crop_height >> 1, MFC_REG_E_CROPPED_FRAME_HEIGHT);
 
 	/* loopfilter alpha offset */
-	reg = MFC_READL(MFC_REG_E_H264_LF_ALPHA_OFFSET);
+	reg = MFC_RAW_READL(MFC_REG_E_H264_LF_ALPHA_OFFSET);
 	reg &= ~(0x1F);
 	reg |= (p_264->loop_filter_alpha & 0x1F);
-	MFC_WRITEL(reg, MFC_REG_E_H264_LF_ALPHA_OFFSET);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_H264_LF_ALPHA_OFFSET);
 
 	/* loopfilter beta offset */
-	reg = MFC_READL(MFC_REG_E_H264_LF_BETA_OFFSET);
+	reg = MFC_RAW_READL(MFC_REG_E_H264_LF_BETA_OFFSET);
 	reg &= ~(0x1F);
 	reg |= (p_264->loop_filter_beta & 0x1F);
-	MFC_WRITEL(reg, MFC_REG_E_H264_LF_BETA_OFFSET);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_H264_LF_BETA_OFFSET);
 
 	/* rate control config. */
-	reg = MFC_READL(MFC_REG_E_RC_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/** frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_264->rc_frame_qp & 0xFF);
 	reg &= ~(0x1 << 11);
 	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp)
 		reg |= (0x1 << 11);
-	MFC_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
 	/* frame rate */
 	/* Fix value for H.264, H.263 in the driver */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
 	reg &= ~(0xFFFF << 16);
 	reg |= (p->rc_framerate << 16);
 	reg &= ~(0xFFFF);
 	reg |= p->rc_frame_delta & 0xFFFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* max & min value of QP for I frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
 	/** max I frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_264->rc_max_qp & 0xFF) << 8);
 	/** min I frame QP */
 	reg &= ~(0xFF);
 	reg |= p_264->rc_min_qp & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
 
 	/* max & min value of QP for P/B frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND_PB);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND_PB);
 	/** max B frame QP */
 	reg &= ~(0xFF << 24);
 	reg |= ((p_264->rc_max_qp_b & 0xFF) << 24);
@@ -540,9 +540,9 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 	/** min P frame QP */
 	reg &= ~(0xFF);
 	reg |= p_264->rc_min_qp_p & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
-	reg = MFC_READL(MFC_REG_E_FIXED_PICTURE_QP);
+	reg = MFC_RAW_READL(MFC_REG_E_FIXED_PICTURE_QP);
 	reg &= ~(0xFF << 24);
 	reg |= ((p->config_qp & 0xFF) << 24);
 	reg &= ~(0xFF << 16);
@@ -551,31 +551,31 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 	reg |= ((p_264->rc_p_frame_qp & 0xFF) << 8);
 	reg &= ~(0xFF);
 	reg |= (p_264->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
 
-	MFC_WRITEL(0x0, MFC_REG_E_ASPECT_RATIO);
-	MFC_WRITEL(0x0, MFC_REG_E_EXTENDED_SAR);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_ASPECT_RATIO);
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_EXTENDED_SAR);
 	if (p_264->ar_vui) {
 		/* aspect ration IDC */
 		reg = 0;
 		reg &= ~(0xff);
 		reg |= p_264->ar_vui_idc;
-		MFC_WRITEL(reg, MFC_REG_E_ASPECT_RATIO);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_ASPECT_RATIO);
 		if (p_264->ar_vui_idc == 0xFF) {
 			/* sample  AR info. */
 			reg = 0;
 			reg &= ~(0xffffffff);
 			reg |= p_264->ext_sar_width << 16;
 			reg |= p_264->ext_sar_height;
-			MFC_WRITEL(reg, MFC_REG_E_EXTENDED_SAR);
+			MFC_RAW_WRITEL(reg, MFC_REG_E_EXTENDED_SAR);
 		}
 	}
 	/* intra picture period for H.264 open GOP, value */
-	reg = MFC_READL(MFC_REG_E_H264_REFRESH_PERIOD);
+	reg = MFC_RAW_READL(MFC_REG_E_H264_REFRESH_PERIOD);
 	reg &= ~(0xFFFF);
 	if (p_264->open_gop)
 		reg |= (p_264->open_gop_size & 0xFFFF);
-	MFC_WRITEL(reg, MFC_REG_E_H264_REFRESH_PERIOD);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_H264_REFRESH_PERIOD);
 
 	/* Temporal SVC */
 	__mfc_set_temporal_svc_h264(ctx, p_264);
@@ -583,9 +583,9 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 	/* set frame pack sei generation */
 	if (p_264->sei_gen_enable) {
 		/* frame packing enable */
-		reg = MFC_READL(MFC_REG_E_H264_OPTIONS);
+		reg = MFC_RAW_READL(MFC_REG_E_H264_OPTIONS);
 		reg |= (1 << 25);
-		MFC_WRITEL(reg, MFC_REG_E_H264_OPTIONS);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_H264_OPTIONS);
 
 		/* set current frame0 flag & arrangement type */
 		reg = 0;
@@ -593,11 +593,11 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 		reg |= ((p_264->sei_fp_curr_frame_0 & 0x1) << 2);
 		/** arrangement type */
 		reg |= (p_264->sei_fp_arrangement_type - 3) & 0x3;
-		MFC_WRITEL(reg, MFC_REG_E_H264_FRAME_PACKING_SEI_INFO);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_H264_FRAME_PACKING_SEI_INFO);
 	}
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
-		reg = MFC_READL(MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		reg = MFC_RAW_READL(MFC_REG_E_VIDEO_SIGNAL_TYPE);
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		reg |= 0x1 << 31;
 		/* COLOR_RANGE */
@@ -619,12 +619,12 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 		} else {
 			reg &= ~(0x1 << 24);
 		}
-		MFC_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
 		mfc_debug(2, "[HDR] H264 ENC Color aspect: range(%s), pri(%d), trans(%d), mat(%d)\n",
 				p->color_range ? "Full" : "Limited", p->colour_primaries,
 				p->transfer_characteristics, p->matrix_coefficients);
 	} else {
-		MFC_WRITEL(0, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		MFC_RAW_WRITEL(0, MFC_REG_E_VIDEO_SIGNAL_TYPE);
 	}
 
 	__mfc_set_fmo_slice_map_h264(ctx, p_264);
@@ -655,13 +655,13 @@ void mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
 	/** profile - 0 ~ 1 */
 	reg &= ~(0x3F);
 	reg |= p_mpeg4->profile;
-	MFC_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
 
 	/* quarter_pixel */
-	/* MFC_WRITEL(p_mpeg4->quarter_pixel, MFC_REG_ENC_MPEG4_QUART_PXL); */
+	/* MFC_RAW_WRITEL(p_mpeg4->quarter_pixel, MFC_REG_ENC_MPEG4_QUART_PXL); */
 
 	/* qp */
-	reg = MFC_READL(MFC_REG_E_FIXED_PICTURE_QP);
+	reg = MFC_RAW_READL(MFC_REG_E_FIXED_PICTURE_QP);
 	reg &= ~(0xFF << 24);
 	reg |= ((p->config_qp & 0xFF) << 24);
 	reg &= ~(0xFF << 16);
@@ -670,36 +670,36 @@ void mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
 	reg |= ((p_mpeg4->rc_p_frame_qp & 0xFF) << 8);
 	reg &= ~(0xFF);
 	reg |= (p_mpeg4->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
 
 	/* frame rate */
 	p->rc_frame_delta = p_mpeg4->vop_frm_delta;
-	reg = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
 	reg &= ~(0xFFFF << 16);
 	reg |= (p_mpeg4->vop_time_res << 16);
 	reg &= ~(0xFFFF);
 	reg |= (p_mpeg4->vop_frm_delta & 0xFFFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* rate control config. */
-	reg = MFC_READL(MFC_REG_E_RC_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/** frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_mpeg4->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
 	/* max & min value of QP for I frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
 	/** max I frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_mpeg4->rc_max_qp & 0xFF) << 8);
 	/** min I frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_mpeg4->rc_min_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
 
 	/* max & min value of QP for P/B frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND_PB);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND_PB);
 	/** max B frame QP */
 	reg &= ~(0xFF << 24);
 	reg |= ((p_mpeg4->rc_max_qp_b & 0xFF) << 24);
@@ -712,11 +712,11 @@ void mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
 	/** min P frame QP */
 	reg &= ~(0xFF);
 	reg |= p_mpeg4->rc_min_qp_p & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
 	/* initialize for '0' only setting*/
-	MFC_WRITEL(0x0, MFC_REG_E_MPEG4_OPTIONS); /* SEQ_start only */
-	MFC_WRITEL(0x0, MFC_REG_E_MPEG4_HEC_PERIOD); /* SEQ_start only */
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_MPEG4_OPTIONS); /* SEQ_start only */
+	MFC_RAW_WRITEL(0x0, MFC_REG_E_MPEG4_HEC_PERIOD); /* SEQ_start only */
 
 	mfc_debug_leave();
 }
@@ -739,51 +739,51 @@ void mfc_set_enc_params_h263(struct mfc_ctx *ctx)
 	/* profile & level: supports only baseline profile Level 70 */
 
 	/* qp */
-	reg = MFC_READL(MFC_REG_E_FIXED_PICTURE_QP);
+	reg = MFC_RAW_READL(MFC_REG_E_FIXED_PICTURE_QP);
 	reg &= ~(0xFF << 24);
 	reg |= ((p->config_qp & 0xFF) << 24);
 	reg &= ~(0xFF << 8);
 	reg |= ((p_mpeg4->rc_p_frame_qp & 0xFF) << 8);
 	reg &= ~(0xFF);
 	reg |= (p_mpeg4->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
 
 	/* frame rate */
 	/* Fix value for H.264, H.263 in the driver */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
 	reg &= ~(0xFFFF << 16);
 	reg |= (p->rc_framerate << 16);
 	reg &= ~(0xFFFF);
 	reg |= (p->rc_frame_delta & 0xFFFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* rate control config. */
-	reg = MFC_READL(MFC_REG_E_RC_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/** frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_mpeg4->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
 	/* max & min value of QP for I frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
 	/** max I frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_mpeg4->rc_max_qp & 0xFF) << 8);
 	/** min I frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_mpeg4->rc_min_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
 
 	/* max & min value of QP for P/B frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND_PB);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND_PB);
 	/** max P frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_mpeg4->rc_max_qp_p & 0xFF) << 8);
 	/** min P frame QP */
 	reg &= ~(0xFF);
 	reg |= p_mpeg4->rc_min_qp_p & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
 	mfc_debug_leave();
 }
@@ -812,9 +812,9 @@ void mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
 	/* profile*/
 	reg = 0;
 	reg |= (p_vp8->vp8_version) ;
-	MFC_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
 
-	reg = MFC_READL(MFC_REG_E_VP8_OPTION);
+	reg = MFC_RAW_READL(MFC_REG_E_VP8_OPTION);
 	/* if num_refs_for_p is 2, the performance falls by half */
 	reg &= ~(0x1);
 	reg |= (p->num_refs_for_p - 1) & 0x1;
@@ -835,33 +835,33 @@ void mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
 	/* Disable IVF header */
 	reg &= ~(0x1 << 12);
 	reg |= ((p->ivf_header_disable & 0x1) << 12);
-	MFC_WRITEL(reg, MFC_REG_E_VP8_OPTION);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_VP8_OPTION);
 
-	reg = MFC_READL(MFC_REG_E_VP8_GOLDEN_FRAME_OPTION);
+	reg = MFC_RAW_READL(MFC_REG_E_VP8_GOLDEN_FRAME_OPTION);
 	reg &= ~(0x1);
 	reg |= (p_vp8->vp8_goldenframesel & 0x1);
 	reg &= ~(0xFFFF << 1);
 	reg |= (p_vp8->vp8_gfrefreshperiod & 0xFFFF) << 1;
-	MFC_WRITEL(reg, MFC_REG_E_VP8_GOLDEN_FRAME_OPTION);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_VP8_GOLDEN_FRAME_OPTION);
 
 	/* Temporal SVC - layer number */
-	reg = MFC_READL(MFC_REG_E_NUM_T_LAYER);
+	reg = MFC_RAW_READL(MFC_REG_E_NUM_T_LAYER);
 	reg &= ~(0x7);
 	reg |= p_vp8->num_hier_layer & 0x3;
 	reg &= ~(0x7 << 4);
 	reg |= 0x3 << 4;
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
-	MFC_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
 	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, num_hier_layer %d, NUM_T_LAYER 0x%x\n",
 			p_vp8->hier_qp_enable, p_vp8->num_hier_layer, reg);
 
 	/* QP & Bitrate for each layer */
 	for (i = 0; i < 3; i++) {
-		MFC_WRITEL(p_vp8->hier_qp_layer[i],
+		MFC_RAW_WRITEL(p_vp8->hier_qp_layer[i],
 				MFC_REG_E_HIERARCHICAL_QP_LAYER0 + i * 4);
 		/* If hier_bitrate_ctrl is set to 1, this is meaningless */
-		MFC_WRITEL(p_vp8->hier_bit_layer[i],
+		MFC_RAW_WRITEL(p_vp8->hier_bit_layer[i],
 				MFC_REG_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
 		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %#x(FW ctrl: %d)\n",
 					i, p_vp8->hier_qp_layer[i],
@@ -871,53 +871,53 @@ void mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
 	reg = 0;
 	reg |= (p_vp8->vp8_filtersharpness & 0x7);
 	reg |= (p_vp8->vp8_filterlevel & 0x3f) << 8;
-	MFC_WRITEL(reg, MFC_REG_E_VP8_FILTER_OPTION);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_VP8_FILTER_OPTION);
 
 	/* qp */
-	reg = MFC_READL(MFC_REG_E_FIXED_PICTURE_QP);
+	reg = MFC_RAW_READL(MFC_REG_E_FIXED_PICTURE_QP);
 	reg &= ~(0xFF << 24);
 	reg |= ((p->config_qp & 0xFF) << 24);
 	reg &= ~(0xFF << 8);
 	reg |= ((p_vp8->rc_p_frame_qp & 0xFF) << 8);
 	reg &= ~(0xFF);
 	reg |= (p_vp8->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
 
 	/* frame rate */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
 	reg &= ~(0xFFFF << 16);
 	reg |= (p->rc_framerate << 16);
 	reg &= ~(0xFFFF);
 	reg |= (p->rc_frame_delta & 0xFFFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* rate control config. */
-	reg = MFC_READL(MFC_REG_E_RC_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/** frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_vp8->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
 	/* max & min value of QP for I frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
 	/** max I frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_vp8->rc_max_qp & 0xFF) << 8);
 	/** min I frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_vp8->rc_min_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
 
 	/* max & min value of QP for P/B frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND_PB);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND_PB);
 	/** max P frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_vp8->rc_max_qp_p & 0xFF) << 8);
 	/** min P frame QP */
 	reg &= ~(0xFF);
 	reg |= p_vp8->rc_min_qp_p & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
 	mfc_debug_leave();
 }
@@ -952,7 +952,7 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 		reg |= (0x2 << 17);
 		reg |= (0x2 << 20);
 	}
-	MFC_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
 
 	/* for only information about wrong setting */
 	if (ctx->is_422) {
@@ -970,7 +970,7 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 		}
 	}
 
-	reg = MFC_READL(MFC_REG_E_VP9_OPTION);
+	reg = MFC_RAW_READL(MFC_REG_E_VP9_OPTION);
 	/* if num_refs_for_p is 2, the performance falls by half */
 	reg &= ~(0x1);
 	reg |= (p->num_refs_for_p - 1) & 0x1;
@@ -984,33 +984,33 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 	/* Disable IVF header */
 	reg &= ~(0x1 << 12);
 	reg |= ((p->ivf_header_disable & 0x1) << 12);
-	MFC_WRITEL(reg, MFC_REG_E_VP9_OPTION);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_VP9_OPTION);
 
-	reg = MFC_READL(MFC_REG_E_VP9_GOLDEN_FRAME_OPTION);
+	reg = MFC_RAW_READL(MFC_REG_E_VP9_GOLDEN_FRAME_OPTION);
 	reg &= ~(0x1);
 	reg |= (p_vp9->vp9_goldenframesel & 0x1);
 	reg &= ~(0xFFFF << 1);
 	reg |= (p_vp9->vp9_gfrefreshperiod & 0xFFFF) << 1;
-	MFC_WRITEL(reg, MFC_REG_E_VP9_GOLDEN_FRAME_OPTION);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_VP9_GOLDEN_FRAME_OPTION);
 
 	/* Temporal SVC - layer number */
-	reg = MFC_READL(MFC_REG_E_NUM_T_LAYER);
+	reg = MFC_RAW_READL(MFC_REG_E_NUM_T_LAYER);
 	reg &= ~(0x7);
 	reg |= p_vp9->num_hier_layer & 0x3;
 	reg &= ~(0x7 << 4);
 	reg |= 0x3 << 4;
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
-	MFC_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
 	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, num_hier_layer %d, NUM_T_LAYER 0x%x\n",
 			p_vp9->hier_qp_enable, p_vp9->num_hier_layer, reg);
 
 	/* QP & Bitrate for each layer */
 	for (i = 0; i < 3; i++) {
-		MFC_WRITEL(p_vp9->hier_qp_layer[i],
+		MFC_RAW_WRITEL(p_vp9->hier_qp_layer[i],
 				MFC_REG_E_HIERARCHICAL_QP_LAYER0 + i * 4);
 		/* If hier_bitrate_ctrl is set to 1, this is meaningless */
-		MFC_WRITEL(p_vp9->hier_bit_layer[i],
+		MFC_RAW_WRITEL(p_vp9->hier_bit_layer[i],
 				MFC_REG_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
 		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %#x (FW ctrl: %d)\n",
 					i, p_vp9->hier_qp_layer[i],
@@ -1018,53 +1018,53 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 	}
 
 	/* qp */
-	reg = MFC_READL(MFC_REG_E_FIXED_PICTURE_QP);
+	reg = MFC_RAW_READL(MFC_REG_E_FIXED_PICTURE_QP);
 	reg &= ~(0xFF << 24);
 	reg |= ((p->config_qp & 0xFF) << 24);
 	reg &= ~(0xFF << 8);
 	reg |= ((p_vp9->rc_p_frame_qp & 0xFF) << 8);
 	reg &= ~(0xFF);
 	reg |= (p_vp9->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
 
 	/* frame rate */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
 	reg &= ~(0xFFFF << 16);
 	reg |= (p->rc_framerate << 16);
 	reg &= ~(0xFFFF);
 	reg |= (p->rc_frame_delta & 0xFFFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* rate control config. */
-	reg = MFC_READL(MFC_REG_E_RC_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/** frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_vp9->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
 	/* max & min value of QP for I frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
 	/** max I frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_vp9->rc_max_qp & 0xFF) << 8);
 	/** min I frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_vp9->rc_min_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
 
 	/* max & min value of QP for P/B frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND_PB);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND_PB);
 	/** max P frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_vp9->rc_max_qp_p & 0xFF) << 8);
 	/** min P frame QP */
 	reg &= ~(0xFF);
 	reg |= p_vp9->rc_min_qp_p & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
-		reg = MFC_READL(MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		reg = MFC_RAW_READL(MFC_REG_E_VIDEO_SIGNAL_TYPE);
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		reg |= 0x1 << 31;
 		/* COLOR_SPACE: VP9 uses colour_primaries interface for color space */
@@ -1073,11 +1073,11 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 		/* COLOR_RANGE */
 		reg &= ~(0x1 << 25);
 		reg |= p->color_range << 25;
-		MFC_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
 		mfc_debug(2, "[HDR] VP9 ENC Color aspect: range(%s), space(%d)\n",
 				p->color_range ? "Full" : "Limited", p->colour_primaries);
 	} else {
-		MFC_WRITEL(0, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		MFC_RAW_WRITEL(0, MFC_REG_E_VIDEO_SIGNAL_TYPE);
 	}
 
 	mfc_debug_leave();
@@ -1126,7 +1126,7 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 		reg |= (0x2 << 17);
 		reg |= (0x2 << 20);
 	}
-	MFC_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
 
 	/* for only information about wrong setting */
 	if (ctx->is_422) {
@@ -1146,7 +1146,7 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	}
 
 	/* max partition depth */
-	reg = MFC_READL(MFC_REG_E_HEVC_OPTIONS);
+	reg = MFC_RAW_READL(MFC_REG_E_HEVC_OPTIONS);
 	reg &= ~(0x3);
 	reg |= (p_hevc->max_partition_depth & 0x1);
 	/* if num_refs_for_p is 2, the performance falls by half */
@@ -1194,18 +1194,18 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	reg |= ((p->weighted_enable & 0x1) << 28);
 	/* 30bit is 32x32 transform. If it is enabled, the performance falls by half */
 	reg &= ~(0x1 << 30);
-	MFC_WRITEL(reg, MFC_REG_E_HEVC_OPTIONS);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_HEVC_OPTIONS);
 	/* refresh period */
-	reg = MFC_READL(MFC_REG_E_HEVC_REFRESH_PERIOD);
+	reg = MFC_RAW_READL(MFC_REG_E_HEVC_REFRESH_PERIOD);
 	reg &= ~(0xFFFF);
 	reg |= (p_hevc->refreshperiod & 0xFFFF);
-	MFC_WRITEL(reg, MFC_REG_E_HEVC_REFRESH_PERIOD);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_HEVC_REFRESH_PERIOD);
 	/* loop filter setting */
-	MFC_WRITEL(0, MFC_REG_E_HEVC_LF_BETA_OFFSET_DIV2);
-	MFC_WRITEL(0, MFC_REG_E_HEVC_LF_TC_OFFSET_DIV2);
+	MFC_RAW_WRITEL(0, MFC_REG_E_HEVC_LF_BETA_OFFSET_DIV2);
+	MFC_RAW_WRITEL(0, MFC_REG_E_HEVC_LF_TC_OFFSET_DIV2);
 	if (!p_hevc->loopfilter_disable) {
-		MFC_WRITEL(p_hevc->lf_beta_offset_div2, MFC_REG_E_HEVC_LF_BETA_OFFSET_DIV2);
-		MFC_WRITEL(p_hevc->lf_tc_offset_div2, MFC_REG_E_HEVC_LF_TC_OFFSET_DIV2);
+		MFC_RAW_WRITEL(p_hevc->lf_beta_offset_div2, MFC_REG_E_HEVC_LF_BETA_OFFSET_DIV2);
+		MFC_RAW_WRITEL(p_hevc->lf_tc_offset_div2, MFC_REG_E_HEVC_LF_TC_OFFSET_DIV2);
 	}
 	/* long term reference */
 	if (p_hevc->enable_ltr) {
@@ -1213,11 +1213,11 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 		reg |= (p_hevc->store_ref & 0x3);
 		reg &= ~(0x3 << 2);
 		reg |= (p_hevc->user_ref & 0x3) << 2;
-		MFC_WRITEL(reg, MFC_REG_E_HEVC_NAL_CONTROL);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_HEVC_NAL_CONTROL);
 	}
 
 	/* Temporal SVC - qp type, layer number */
-	reg = MFC_READL(MFC_REG_E_NUM_T_LAYER);
+	reg = MFC_RAW_READL(MFC_REG_E_NUM_T_LAYER);
 	reg &= ~(0x1 << 3);
 	reg |= (p_hevc->hier_qp_type & 0x1) << 3;
 	reg &= ~(0x7);
@@ -1232,7 +1232,7 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	}
 	reg &= ~(0x1 << 8);
 	reg |= (p->hier_bitrate_ctrl & 0x1) << 8;
-	MFC_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_NUM_T_LAYER);
 	mfc_debug(3, "[HIERARCHICAL] hier_qp_enable %d, enable_ltr %d, "
 		"num_hier_layer %d, max_layer %d, hier_ref_type %d, NUM_T_LAYER 0x%x\n",
 		p_hevc->hier_qp_enable, p_hevc->enable_ltr, p_hevc->num_hier_layer,
@@ -1240,9 +1240,9 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 
 	/* QP & Bitrate for each layer */
 	for (i = 0; i < 7; i++) {
-		MFC_WRITEL(p_hevc->hier_qp_layer[i],
+		MFC_RAW_WRITEL(p_hevc->hier_qp_layer[i],
 			MFC_REG_E_HIERARCHICAL_QP_LAYER0 + i * 4);
-		MFC_WRITEL(p_hevc->hier_bit_layer[i],
+		MFC_RAW_WRITEL(p_hevc->hier_bit_layer[i],
 			MFC_REG_E_HIERARCHICAL_BIT_RATE_LAYER0 + i * 4);
 		mfc_debug(3, "[HIERARCHICAL] layer[%d] QP: %#x, bitrate: %d(FW ctrl: %d)\n",
 					i, p_hevc->hier_qp_layer[i],
@@ -1250,33 +1250,33 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	}
 
 	/* rate control config. */
-	reg = MFC_READL(MFC_REG_E_RC_CONFIG);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/** frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_hevc->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
 	/* frame rate */
 	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
 	reg &= ~(0xFFFF << 16);
 	reg |= (p->rc_framerate << 16);
 	reg &= ~(0xFFFF);
 	reg |= (p->rc_frame_delta & 0xFFFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* max & min value of QP for I frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
 	/** max I frame QP */
 	reg &= ~(0xFF << 8);
 	reg |= ((p_hevc->rc_max_qp & 0xFF) << 8);
 	/** min I frame QP */
 	reg &= ~(0xFF);
 	reg |= (p_hevc->rc_min_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND);
 
 	/* max & min value of QP for P/B frame */
-	reg = MFC_READL(MFC_REG_E_RC_QP_BOUND_PB);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND_PB);
 	/** max B frame QP */
 	reg &= ~(0xFF << 24);
 	reg |= ((p_hevc->rc_max_qp_b & 0xFF) << 24);
@@ -1289,9 +1289,9 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	/** min P frame QP */
 	reg &= ~(0xFF);
 	reg |= p_hevc->rc_min_qp_p & 0xFF;
-	MFC_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
-	reg = MFC_READL(MFC_REG_E_FIXED_PICTURE_QP);
+	reg = MFC_RAW_READL(MFC_REG_E_FIXED_PICTURE_QP);
 	reg &= ~(0xFF << 24);
 	reg |= ((p->config_qp & 0xFF) << 24);
 	reg &= ~(0xFF << 16);
@@ -1300,17 +1300,17 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	reg |= ((p_hevc->rc_p_frame_qp & 0xFF) << 8);
 	reg &= ~(0xFF);
 	reg |= (p_hevc->rc_frame_qp & 0xFF);
-	MFC_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
 
 	/* ROI enable: it must set on SEQ_START only for HEVC encoder */
-	reg = MFC_READL(MFC_REG_E_RC_ROI_CTRL);
+	reg = MFC_RAW_READL(MFC_REG_E_RC_ROI_CTRL);
 	reg &= ~(0x1);
 	reg |= (p->roi_enable);
-	MFC_WRITEL(reg, MFC_REG_E_RC_ROI_CTRL);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_ROI_CTRL);
 	mfc_debug(3, "[ROI] HEVC ROI enable\n");
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
-		reg = MFC_READL(MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		reg = MFC_RAW_READL(MFC_REG_E_VIDEO_SIGNAL_TYPE);
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		reg |= 0x1 << 31;
 		/* COLOR_RANGE */
@@ -1332,36 +1332,36 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 		} else {
 			reg &= ~(0x1 << 24);
 		}
-		MFC_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
 		mfc_debug(2, "[HDR] HEVC ENC Color aspect: range(%s), pri(%d), trans(%d), mat(%d)\n",
 				p->color_range ? "Full" : "Limited", p->colour_primaries,
 				p->transfer_characteristics, p->matrix_coefficients);
 	} else {
-		MFC_WRITEL(0, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+		MFC_RAW_WRITEL(0, MFC_REG_E_VIDEO_SIGNAL_TYPE);
 	}
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_enc) &&
 			p->static_info_enable && ctx->is_10bit) {
-		reg = MFC_READL(MFC_REG_E_HEVC_OPTIONS_2);
+		reg = MFC_RAW_READL(MFC_REG_E_HEVC_OPTIONS_2);
 		/* HDR_STATIC_INFO_ENABLE */
 		reg |= p->static_info_enable;
-		MFC_WRITEL(reg, MFC_REG_E_HEVC_OPTIONS_2);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_HEVC_OPTIONS_2);
 		/* MAX_PIC_AVERAGE_LIGHT & MAX_CONTENT_LIGHT */
 		reg = p->max_pic_average_light;
 		reg |= (p->max_content_light << 16);
-		MFC_WRITEL(reg, MFC_REG_E_CONTENT_LIGHT_LEVEL_INFO_SEI);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_CONTENT_LIGHT_LEVEL_INFO_SEI);
 		/* MAX_DISPLAY_LUMINANCE */
-		MFC_WRITEL(p->max_display_luminance, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_0);
+		MFC_RAW_WRITEL(p->max_display_luminance, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_0);
 		/* MIN DISPLAY LUMINANCE */
-		MFC_WRITEL(p->min_display_luminance, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_1);
+		MFC_RAW_WRITEL(p->min_display_luminance, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_1);
 		/* WHITE_POINT */
-		MFC_WRITEL(p->white_point, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_2);
+		MFC_RAW_WRITEL(p->white_point, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_2);
 		/* DISPLAY PRIMARIES_0 */
-		MFC_WRITEL(p->display_primaries_0, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_3);
+		MFC_RAW_WRITEL(p->display_primaries_0, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_3);
 		/* DISPLAY PRIMARIES_1 */
-		MFC_WRITEL(p->display_primaries_1, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_4);
+		MFC_RAW_WRITEL(p->display_primaries_1, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_4);
 		/* DISPLAY PRIMARIES_2 */
-		MFC_WRITEL(p->display_primaries_2, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_5);
+		MFC_RAW_WRITEL(p->display_primaries_2, MFC_REG_E_MASTERING_DISPLAY_COLOUR_VOLUME_SEI_5);
 
 		mfc_debug(2, "[HDR] HEVC ENC static info: enable(%d), max_pic(0x%x), max_content(0x%x)\n",
 				p->static_info_enable, p->max_pic_average_light, p->max_content_light);
@@ -1370,10 +1370,10 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 		mfc_debug(2, "[HDR] disp_pri_0(0x%x), disp_pri_1(0x%x), disp_pri_2(0x%x)\n",
 				p->display_primaries_0, p->display_primaries_1, p->display_primaries_2);
 	} else {
-		reg = MFC_READL(MFC_REG_E_HEVC_OPTIONS_2);
+		reg = MFC_RAW_READL(MFC_REG_E_HEVC_OPTIONS_2);
 		/* HDR_STATIC_INFO_ENABLE */
 		reg &=  ~(0x1);
-		MFC_WRITEL(reg, MFC_REG_E_HEVC_OPTIONS_2);
+		MFC_RAW_WRITEL(reg, MFC_REG_E_HEVC_OPTIONS_2);
 	}
 
 	mfc_debug_leave();
@@ -1391,7 +1391,7 @@ void mfc_set_enc_params_bpg(struct mfc_ctx *ctx)
 
 	/* extension tag */
 	reg = p_bpg->thumb_size + p_bpg->exif_size;
-	MFC_WRITEL(reg, MFC_REG_E_BPG_EXTENSION_DATA_SIZE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_BPG_EXTENSION_DATA_SIZE);
 	mfc_debug(3, "main image extension size %d (thumbnail: %d, exif: %d)\n",
 			reg, p_bpg->thumb_size, p_bpg->exif_size);
 
@@ -1408,7 +1408,7 @@ void mfc_set_enc_params_bpg(struct mfc_ctx *ctx)
 		if (ctx->is_422)
 			reg |= 0x1;
 	}
-	MFC_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
 }
 
 int mfc_set_enc_params(struct mfc_ctx *ctx)
@@ -1436,10 +1436,10 @@ int mfc_set_enc_params(struct mfc_ctx *ctx)
 	}
 
 	mfc_debug(5, "RC) Bitrate: %d / framerate: %#x / config %#x / mode %#x\n",
-			MFC_READL(MFC_REG_E_RC_BIT_RATE),
-			MFC_READL(MFC_REG_E_RC_FRAME_RATE),
-			MFC_READL(MFC_REG_E_RC_CONFIG),
-			MFC_READL(MFC_REG_E_RC_MODE));
+			MFC_RAW_READL(MFC_REG_E_RC_BIT_RATE),
+			MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE),
+			MFC_RAW_READL(MFC_REG_E_RC_CONFIG),
+			MFC_RAW_READL(MFC_REG_E_RC_MODE));
 
 	return 0;
 }

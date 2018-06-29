@@ -20,6 +20,9 @@
 #define MFC_READL(offset)		readl(dev->regs_base + (offset))
 #define MFC_WRITEL(data, offset)	writel((data), dev->regs_base + (offset))
 
+#define MFC_RAW_READL(offset)		__raw_readl(dev->regs_base + (offset))
+#define MFC_RAW_WRITEL(data, offset)	__raw_writel((data), dev->regs_base + (offset))
+
 #define MFC_MMU0_READL(offset)		readl(dev->sysmmu0_base + (offset))
 #define MFC_MMU1_READL(offset)		readl(dev->sysmmu1_base + (offset))
 
