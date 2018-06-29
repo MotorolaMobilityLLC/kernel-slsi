@@ -360,6 +360,11 @@ static int fimc_is_hw_mcsc_init(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	return ret;
 }
 
+static int fimc_is_hw_mcsc_deinit(struct fimc_is_hw_ip *hw_ip, u32 instance)
+{
+	return 0;
+}
+
 static int fimc_is_hw_mcsc_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 {
 	int ret = 0;
@@ -2669,6 +2674,7 @@ int fimc_is_hw_mcsc_restore(struct fimc_is_hw_ip *hw_ip, u32 instance)
 const struct fimc_is_hw_ip_ops fimc_is_hw_mcsc_ops = {
 	.open			= fimc_is_hw_mcsc_open,
 	.init			= fimc_is_hw_mcsc_init,
+	.deinit			= fimc_is_hw_mcsc_deinit,
 	.close			= fimc_is_hw_mcsc_close,
 	.enable			= fimc_is_hw_mcsc_enable,
 	.disable		= fimc_is_hw_mcsc_disable,
