@@ -426,8 +426,6 @@ static int fimc_is_hw_mcsc_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulo
 
 	msdbg_hw(2, "enable: start, (0x%lx)\n", instance, hw_ip, mcsc_out_st);
 
-	mcs_param = &hw_ip->region[instance]->parameter.mcs;
-
 	spin_lock_irqsave(&mcsc_out_slock, flag);
 	ret = fimc_is_hw_mcsc_reset(hw_ip);
 	if (ret != 0) {
@@ -445,6 +443,7 @@ static int fimc_is_hw_mcsc_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulo
 
 	msdbg_hw(2, "enable: done, (0x%lx)\n", instance, hw_ip, mcsc_out_st);
 
+	mcs_param = &hw_ip->region[instance]->parameter.mcs;
 	fimc_is_hw_mcsc_tdnr_init(hw_ip, mcs_param, instance);
 
 	set_bit(HW_RUN, &hw_ip->state);
