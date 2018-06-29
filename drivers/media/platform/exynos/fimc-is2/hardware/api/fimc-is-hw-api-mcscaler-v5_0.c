@@ -2753,359 +2753,137 @@ void fimc_is_scaler_set_rdma_2bit_addr(void __iomem *base_addr,
 	}
 }
 
-static void fimc_is_scaler_set_wdma0_addr(void __iomem *base_addr,
-	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
+u32 g_addr[8] = {0, };
+u32 *get_wdma_addr_arr(u32 output_id)
 {
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_0], y_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_1], cb_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_2], cr_addr);
+	switch (output_id) {
+	case MCSC_OUTPUT0:
+		g_addr[0] = MCSC_R_WDMA0_BASE_ADDR_0;
+		g_addr[1] = MCSC_R_WDMA0_BASE_ADDR_0_IDX1;
+		g_addr[2] = MCSC_R_WDMA0_BASE_ADDR_0_IDX2;
+		g_addr[3] = MCSC_R_WDMA0_BASE_ADDR_0_IDX3;
+		g_addr[4] = MCSC_R_WDMA0_BASE_ADDR_0_IDX4;
+		g_addr[5] = MCSC_R_WDMA0_BASE_ADDR_0_IDX5;
+		g_addr[6] = MCSC_R_WDMA0_BASE_ADDR_0_IDX6;
+		g_addr[7] = MCSC_R_WDMA0_BASE_ADDR_0_IDX7;
+		break;
+	case MCSC_OUTPUT1:
+		g_addr[0] = MCSC_R_WDMA1_BASE_ADDR_0;
+		g_addr[1] = MCSC_R_WDMA1_BASE_ADDR_0_IDX1;
+		g_addr[2] = MCSC_R_WDMA1_BASE_ADDR_0_IDX2;
+		g_addr[3] = MCSC_R_WDMA1_BASE_ADDR_0_IDX3;
+		g_addr[4] = MCSC_R_WDMA1_BASE_ADDR_0_IDX4;
+		g_addr[5] = MCSC_R_WDMA1_BASE_ADDR_0_IDX5;
+		g_addr[6] = MCSC_R_WDMA1_BASE_ADDR_0_IDX6;
+		g_addr[7] = MCSC_R_WDMA1_BASE_ADDR_0_IDX7;
+		break;
+	case MCSC_OUTPUT2:
+		g_addr[0] = MCSC_R_WDMA2_BASE_ADDR_0;
+		g_addr[1] = MCSC_R_WDMA2_BASE_ADDR_0_IDX1;
+		g_addr[2] = MCSC_R_WDMA2_BASE_ADDR_0_IDX2;
+		g_addr[3] = MCSC_R_WDMA2_BASE_ADDR_0_IDX3;
+		g_addr[4] = MCSC_R_WDMA2_BASE_ADDR_0_IDX4;
+		g_addr[5] = MCSC_R_WDMA2_BASE_ADDR_0_IDX5;
+		g_addr[6] = MCSC_R_WDMA2_BASE_ADDR_0_IDX6;
+		g_addr[7] = MCSC_R_WDMA2_BASE_ADDR_0_IDX7;
+		break;
+	case MCSC_OUTPUT3:
+		g_addr[0] = MCSC_R_WDMA3_BASE_ADDR_0;
+		g_addr[1] = MCSC_R_WDMA3_BASE_ADDR_0_IDX1;
+		g_addr[2] = MCSC_R_WDMA3_BASE_ADDR_0_IDX2;
+		g_addr[3] = MCSC_R_WDMA3_BASE_ADDR_0_IDX3;
+		g_addr[4] = MCSC_R_WDMA3_BASE_ADDR_0_IDX4;
+		g_addr[5] = MCSC_R_WDMA3_BASE_ADDR_0_IDX5;
+		g_addr[6] = MCSC_R_WDMA3_BASE_ADDR_0_IDX6;
+		g_addr[7] = MCSC_R_WDMA3_BASE_ADDR_0_IDX7;
+		break;
+	case MCSC_OUTPUT4:
+		g_addr[0] = MCSC_R_WDMA4_BASE_ADDR_0;
+		g_addr[1] = MCSC_R_WDMA4_BASE_ADDR_0_IDX1;
+		g_addr[2] = MCSC_R_WDMA4_BASE_ADDR_0_IDX2;
+		g_addr[3] = MCSC_R_WDMA4_BASE_ADDR_0_IDX3;
+		g_addr[4] = MCSC_R_WDMA4_BASE_ADDR_0_IDX4;
+		g_addr[5] = MCSC_R_WDMA4_BASE_ADDR_0_IDX5;
+		g_addr[6] = MCSC_R_WDMA4_BASE_ADDR_0_IDX6;
+		g_addr[7] = MCSC_R_WDMA4_BASE_ADDR_0_IDX7;
+		break;
+	case MCSC_OUTPUT_DS:
+		g_addr[0] = MCSC_R_WDMADS_BASE_ADDR_0;
+		g_addr[1] = MCSC_R_WDMADS_BASE_ADDR_0_IDX1;
+		g_addr[2] = MCSC_R_WDMADS_BASE_ADDR_0_IDX2;
+		g_addr[3] = MCSC_R_WDMADS_BASE_ADDR_0_IDX3;
+		g_addr[4] = MCSC_R_WDMADS_BASE_ADDR_0_IDX4;
+		g_addr[5] = MCSC_R_WDMADS_BASE_ADDR_0_IDX5;
+		g_addr[6] = MCSC_R_WDMADS_BASE_ADDR_0_IDX6;
+		g_addr[7] = MCSC_R_WDMADS_BASE_ADDR_0_IDX7;
 		break;
 	default:
-		/* only index 0 support */
+		g_addr[0] = 0;
 		break;
 	}
-}
 
-static void fimc_is_scaler_set_wdma0_2bit_addr(void __iomem *base_addr,
-	u32 y_2bit_addr, u32 cbcr_2bit_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_2BIT_0], y_2bit_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_2BIT_1], cbcr_2bit_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdma1_addr(void __iomem *base_addr,
-	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_0], y_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_1], cb_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_2], cr_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdma1_2bit_addr(void __iomem *base_addr,
-	u32 y_2bit_addr, u32 cbcr_2bit_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_2BIT_0], y_2bit_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_2BIT_1], cbcr_2bit_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdma2_addr(void __iomem *base_addr,
-	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_0], y_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_1], cb_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_2], cr_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdma2_2bit_addr(void __iomem *base_addr,
-	u32 y_2bit_addr, u32 cbcr_2bit_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_2BIT_0], y_2bit_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_2BIT_1], cbcr_2bit_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-
-static void fimc_is_scaler_set_wdma3_addr(void __iomem *base_addr,
-	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_0], y_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_1], cb_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_2], cr_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdma3_2bit_addr(void __iomem *base_addr,
-	u32 y_2bit_addr, u32 cbcr_2bit_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_2BIT_0], y_2bit_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_2BIT_1], cbcr_2bit_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdma4_addr(void __iomem *base_addr,
-	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_0], y_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_1], cb_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_2], cr_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdma4_2bit_addr(void __iomem *base_addr,
-	u32 y_2bit_addr, u32 cbcr_2bit_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_2BIT_0], y_2bit_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_2BIT_1], cbcr_2bit_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_set_wdmads_addr(void __iomem *base_addr,
-	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMADS_BASE_ADDR_0], y_addr);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMADS_BASE_ADDR_1], cb_addr);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
+	return g_addr;
 }
 
 void fimc_is_scaler_set_wdma_addr(void __iomem *base_addr, u32 output_id,
 	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
 {
-	switch (output_id) {
-	case MCSC_OUTPUT0:
-		fimc_is_scaler_set_wdma0_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT1:
-		fimc_is_scaler_set_wdma1_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT2:
-		fimc_is_scaler_set_wdma2_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT3:
-		fimc_is_scaler_set_wdma3_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT4:
-		fimc_is_scaler_set_wdma4_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT_DS:
-		fimc_is_scaler_set_wdmads_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	default:
-		break;
-	}
+	u32 *addr;
+
+	addr = get_wdma_addr_arr(output_id);
+	if (!addr[0])
+		return;
+
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[buf_index]], y_addr);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[buf_index] + 1], cb_addr);
+
+	/* WDMADS can support 2plane format */
+	if (output_id == MCSC_OUTPUT_DS)
+		return;
+
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[buf_index] + 2], cr_addr);
 }
 
 void fimc_is_scaler_set_wdma_2bit_addr(void __iomem *base_addr, u32 output_id,
 	u32 y_2bit_addr, u32 cbcr_2bit_addr, int buf_index)
 {
-	switch (output_id) {
-	case MCSC_OUTPUT0:
-		fimc_is_scaler_set_wdma0_2bit_addr(base_addr, y_2bit_addr, cbcr_2bit_addr, buf_index);
-		break;
-	case MCSC_OUTPUT1:
-		fimc_is_scaler_set_wdma1_2bit_addr(base_addr, y_2bit_addr, cbcr_2bit_addr, buf_index);
-		break;
-	case MCSC_OUTPUT2:
-		fimc_is_scaler_set_wdma2_2bit_addr(base_addr, y_2bit_addr, cbcr_2bit_addr, buf_index);
-		break;
-	case MCSC_OUTPUT3:
-		fimc_is_scaler_set_wdma3_2bit_addr(base_addr, y_2bit_addr, cbcr_2bit_addr, buf_index);
-		break;
-	case MCSC_OUTPUT4:
-		fimc_is_scaler_set_wdma4_2bit_addr(base_addr, y_2bit_addr, cbcr_2bit_addr, buf_index);
-		break;
-	default:
-		break;
-	}
-}
+	u32 *addr;
 
-static void fimc_is_scaler_get_wdmads_addr(void __iomem *base_addr,
-	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		*y_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMADS_BASE_ADDR_0]);
-		*cb_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMADS_BASE_ADDR_1]);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
+	/* WDMADS can not support 10bit format */
+	if (output_id == MCSC_OUTPUT_DS)
+		return;
 
-static void fimc_is_scaler_get_wdma0_addr(void __iomem *base_addr,
-	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		*y_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_0]);
-		*cb_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_1]);
-		*cr_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_2]);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
+	addr = get_wdma_addr_arr(output_id);
+	if (!addr[0])
+		return;
 
-static void fimc_is_scaler_get_wdma1_addr(void __iomem *base_addr,
-	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		*y_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_0]);
-		*cb_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_1]);
-		*cr_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_2]);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_get_wdma2_addr(void __iomem *base_addr,
-	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		*y_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_0]);
-		*cb_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_1]);
-		*cr_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_2]);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_get_wdma3_addr(void __iomem *base_addr,
-	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		*y_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_0]);
-		*cb_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_1]);
-		*cr_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_2]);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
-}
-
-static void fimc_is_scaler_get_wdma4_addr(void __iomem *base_addr,
-	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
-{
-	/* DMA Y, Cb and Cr address setting for matched index regs */
-	switch (buf_index) {
-	case 0:
-		*y_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_0]);
-		*cb_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_1]);
-		*cr_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_2]);
-		break;
-	default:
-		/* only index 0 support */
-		break;
-	}
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[buf_index] + 3], y_2bit_addr);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[buf_index] + 4], cbcr_2bit_addr);
 }
 
 void fimc_is_scaler_get_wdma_addr(void __iomem *base_addr, u32 output_id,
 	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
 {
-	switch (output_id) {
-	case MCSC_OUTPUT0:
-		fimc_is_scaler_get_wdma0_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT1:
-		fimc_is_scaler_get_wdma1_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT2:
-		fimc_is_scaler_get_wdma2_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT3:
-		fimc_is_scaler_get_wdma3_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT4:
-		fimc_is_scaler_get_wdma4_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	case MCSC_OUTPUT_DS:
-		fimc_is_scaler_get_wdmads_addr(base_addr, y_addr, cb_addr, cr_addr, buf_index);
-		break;
-	default:
-		break;
-	}
+	u32 *addr;
+
+	addr = get_wdma_addr_arr(output_id);
+	if (!addr[0])
+		return;
+
+	*y_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[addr[buf_index]]);
+	*cb_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[addr[buf_index] + 1]);
+
+	/* WDMADS can support 2plane format */
+	if (output_id == MCSC_OUTPUT_DS)
+		return;
+
+	*cr_addr = fimc_is_hw_get_reg(base_addr, &mcsc_regs[addr[buf_index] + 2]);
 }
 
 void fimc_is_scaler_clear_rdma_addr(void __iomem *base_addr)
 {
-	/* DMA Y address clear */
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_RDMAOTF_BASE_ADDR_0], 0x0);
-
-	/* DMA CB address clear */
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_RDMAOTF_BASE_ADDR_1], 0x0);
-
-	/* DMA CR address clear */
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_RDMAOTF_BASE_ADDR_2], 0x0);
 
 	/* DMA 2bit Y, CR address clear */
@@ -3115,87 +2893,24 @@ void fimc_is_scaler_clear_rdma_addr(void __iomem *base_addr)
 
 void fimc_is_scaler_clear_wdma_addr(void __iomem *base_addr, u32 output_id)
 {
-	switch (output_id) {
-	case MCSC_OUTPUT0:
-		/* DMA Y address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_0], 0x0);
+	u32 *addr;
 
-		/* DMA CB address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_1], 0x0);
+	addr = get_wdma_addr_arr(output_id);
+	if (!addr[0])
+		return;
 
-		/* DMA CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_2], 0x0);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[0]], 0x0);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[0] + 1], 0x0);
 
-		/* DMA 2bit Y, CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_2BIT_0], 0x0);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA0_BASE_ADDR_2BIT_1], 0x0);
-		break;
-	case MCSC_OUTPUT1:
-		/* DMA Y address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_0], 0x0);
+	/* WDMADS can not support 10bit format */
+	if (output_id == MCSC_OUTPUT_DS)
+		return;
 
-		/* DMA CB address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_1], 0x0);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[0] + 2], 0x0);
 
-		/* DMA CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_2], 0x0);
-
-		/* DMA 2bit Y, CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_2BIT_0], 0x0);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA1_BASE_ADDR_2BIT_1], 0x0);
-		break;
-	case MCSC_OUTPUT2:
-		/* DMA Y address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_0], 0x0);
-
-		/* DMA CB address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_1], 0x0);
-
-		/* DMA CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_2], 0x0);
-
-		/* DMA 2bit Y, CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_2BIT_0], 0x0);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA2_BASE_ADDR_2BIT_1], 0x0);
-		break;
-	case MCSC_OUTPUT3:
-		/* DMA Y address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_0], 0x0);
-
-		/* DMA CB address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_1], 0x0);
-
-		/* DMA CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_2], 0x0);
-
-		/* DMA 2bit Y, CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_2BIT_0], 0x0);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA3_BASE_ADDR_2BIT_1], 0x0);
-		break;
-	case MCSC_OUTPUT4:
-		/* DMA Y address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_0], 0x0);
-
-		/* DMA CB address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_1], 0x0);
-
-		/* DMA CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_2], 0x0);
-
-		/* DMA 2bit Y, CR address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_2BIT_0], 0x0);
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMA4_BASE_ADDR_2BIT_1], 0x0);
-		break;
-	case MCSC_OUTPUT_DS:
-		/* DMA Y address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMADS_BASE_ADDR_0], 0x0);
-
-		/* DMA CBCr address clear */
-		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_WDMADS_BASE_ADDR_1], 0x0);
-		break;
-	default:
-		break;
-	}
+	/* DMA 2bit Y, CR address clear */
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[0] + 3], 0x0);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[addr[0] + 4], 0x0);
 }
 
 /* for tdnr : Not supported in makalu */
