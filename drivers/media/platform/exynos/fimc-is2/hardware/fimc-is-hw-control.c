@@ -2317,7 +2317,7 @@ int fimc_is_hardware_shot_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 		frame_manager_print_info_queues(framemgr);
 		print_all_hw_frame_count(hw_ip->hardware);
 		framemgr_x_barrier_common(framemgr, 0, flags);
-		FIMC_BUG(!frame);
+		FIMC_BUG(1);
 	}
 
 	head = GET_HEAD_GROUP_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN,
