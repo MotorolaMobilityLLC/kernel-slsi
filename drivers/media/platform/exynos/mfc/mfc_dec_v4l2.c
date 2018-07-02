@@ -85,7 +85,7 @@ static int __mfc_dec_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ct
 }
 
 /* Query capabilities of the device */
-static int vidioc_querycap(struct file *file, void *priv,
+static int mfc_dec_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
 	strncpy(cap->driver, "MFC", sizeof(cap->driver) - 1);
@@ -133,7 +133,7 @@ static int __mfc_dec_enum_fmt(struct mfc_dev *dev, struct v4l2_fmtdesc *f,
 	return -EINVAL;
 }
 
-static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
+static int mfc_dec_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
 		struct v4l2_fmtdesc *f)
 {
 	struct mfc_dev *dev = video_drvdata(file);
@@ -141,7 +141,7 @@ static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
 	return __mfc_dec_enum_fmt(dev, f, MFC_FMT_FRAME);
 }
 
-static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
+static int mfc_dec_enum_fmt_vid_out_mplane(struct file *file, void *prov,
 		struct v4l2_fmtdesc *f)
 {
 	struct mfc_dev *dev = video_drvdata(file);
@@ -268,7 +268,7 @@ static void __mfc_dec_change_format(struct mfc_ctx *ctx)
 }
 
 /* Get format */
-static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
+static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -364,7 +364,7 @@ static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
+static int mfc_dec_g_fmt_vid_out_mplane(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -398,7 +398,7 @@ static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
 }
 
 /* Try format */
-static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
+static int mfc_dec_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_fmt *fmt;
@@ -415,7 +415,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 }
 
 /* Set format */
-static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
+static int mfc_dec_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -472,7 +472,7 @@ static int __mfc_force_close_inst(struct mfc_dev *dev, struct mfc_ctx *ctx)
 	return 0;
 }
 
-static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
+static int mfc_dec_s_fmt_vid_out_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
 	struct mfc_dev *dev = video_drvdata(file);
@@ -568,7 +568,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 }
 
 /* Reqeust buffers */
-static int vidioc_reqbufs(struct file *file, void *priv,
+static int mfc_dec_reqbufs(struct file *file, void *priv,
 		struct v4l2_requestbuffers *reqbufs)
 {
 	struct mfc_dev *dev = video_drvdata(file);
@@ -676,7 +676,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 }
 
 /* Query buffer */
-static int vidioc_querybuf(struct file *file, void *priv,
+static int mfc_dec_querybuf(struct file *file, void *priv,
 						   struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -709,7 +709,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 }
 
 /* Queue a buffer */
-static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
+static int mfc_dec_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	int ret = -EINVAL;
@@ -756,7 +756,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 }
 
 /* Dequeue a buffer */
-static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
+static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dec *dec = ctx->dec_priv;
@@ -803,7 +803,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 }
 
 /* Stream on */
-static int vidioc_streamon(struct file *file, void *priv,
+static int mfc_dec_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -835,7 +835,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 }
 
 /* Stream off, which equals to a pause */
-static int vidioc_streamoff(struct file *file, void *priv,
+static int mfc_dec_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -863,7 +863,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 }
 
 /* Query a ctrl */
-static int vidioc_queryctrl(struct file *file, void *priv,
+static int mfc_dec_queryctrl(struct file *file, void *priv,
 			    struct v4l2_queryctrl *qc)
 {
 	struct v4l2_queryctrl *c;
@@ -1032,7 +1032,7 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 }
 
 /* Get a ctrl */
-static int vidioc_g_ctrl(struct file *file, void *priv,
+static int mfc_dec_g_ctrl(struct file *file, void *priv,
 			struct v4l2_control *ctrl)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -1046,7 +1046,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 }
 
 /* Set a ctrl */
-static int vidioc_s_ctrl(struct file *file, void *priv,
+static int mfc_dec_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
 	struct mfc_dev *dev = video_drvdata(file);
@@ -1163,7 +1163,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 }
 
 /* Get cropping information */
-static int vidioc_g_crop(struct file *file, void *priv,
+static int mfc_dec_g_crop(struct file *file, void *priv,
 		struct v4l2_crop *cr)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -1216,7 +1216,7 @@ static int vidioc_g_crop(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_ext_ctrls(struct file *file, void *priv,
+static int mfc_dec_g_ext_ctrls(struct file *file, void *priv,
 			struct v4l2_ext_controls *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -1250,26 +1250,26 @@ static int vidioc_g_ext_ctrls(struct file *file, void *priv,
 
 /* v4l2_ioctl_ops */
 static const struct v4l2_ioctl_ops mfc_dec_ioctl_ops = {
-	.vidioc_querycap		= vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane	= vidioc_enum_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_out_mplane	= vidioc_enum_fmt_vid_out_mplane,
-	.vidioc_g_fmt_vid_cap_mplane	= vidioc_g_fmt_vid_cap_mplane,
-	.vidioc_g_fmt_vid_out_mplane	= vidioc_g_fmt_vid_out_mplane,
-	.vidioc_try_fmt_vid_cap_mplane	= vidioc_try_fmt,
-	.vidioc_try_fmt_vid_out_mplane	= vidioc_try_fmt,
-	.vidioc_s_fmt_vid_cap_mplane	= vidioc_s_fmt_vid_cap_mplane,
-	.vidioc_s_fmt_vid_out_mplane	= vidioc_s_fmt_vid_out_mplane,
-	.vidioc_reqbufs			= vidioc_reqbufs,
-	.vidioc_querybuf		= vidioc_querybuf,
-	.vidioc_qbuf			= vidioc_qbuf,
-	.vidioc_dqbuf			= vidioc_dqbuf,
-	.vidioc_streamon		= vidioc_streamon,
-	.vidioc_streamoff		= vidioc_streamoff,
-	.vidioc_queryctrl		= vidioc_queryctrl,
-	.vidioc_g_ctrl			= vidioc_g_ctrl,
-	.vidioc_s_ctrl			= vidioc_s_ctrl,
-	.vidioc_g_crop			= vidioc_g_crop,
-	.vidioc_g_ext_ctrls		= vidioc_g_ext_ctrls,
+	.vidioc_querycap		= mfc_dec_querycap,
+	.vidioc_enum_fmt_vid_cap_mplane	= mfc_dec_enum_fmt_vid_cap_mplane,
+	.vidioc_enum_fmt_vid_out_mplane	= mfc_dec_enum_fmt_vid_out_mplane,
+	.vidioc_g_fmt_vid_cap_mplane	= mfc_dec_g_fmt_vid_cap_mplane,
+	.vidioc_g_fmt_vid_out_mplane	= mfc_dec_g_fmt_vid_out_mplane,
+	.vidioc_try_fmt_vid_cap_mplane	= mfc_dec_try_fmt,
+	.vidioc_try_fmt_vid_out_mplane	= mfc_dec_try_fmt,
+	.vidioc_s_fmt_vid_cap_mplane	= mfc_dec_s_fmt_vid_cap_mplane,
+	.vidioc_s_fmt_vid_out_mplane	= mfc_dec_s_fmt_vid_out_mplane,
+	.vidioc_reqbufs			= mfc_dec_reqbufs,
+	.vidioc_querybuf		= mfc_dec_querybuf,
+	.vidioc_qbuf			= mfc_dec_qbuf,
+	.vidioc_dqbuf			= mfc_dec_dqbuf,
+	.vidioc_streamon		= mfc_dec_streamon,
+	.vidioc_streamoff		= mfc_dec_streamoff,
+	.vidioc_queryctrl		= mfc_dec_queryctrl,
+	.vidioc_g_ctrl			= mfc_dec_g_ctrl,
+	.vidioc_s_ctrl			= mfc_dec_s_ctrl,
+	.vidioc_g_crop			= mfc_dec_g_crop,
+	.vidioc_g_ext_ctrls		= mfc_dec_g_ext_ctrls,
 };
 
 const struct v4l2_ioctl_ops *mfc_get_dec_v4l2_ioctl_ops(void)
