@@ -110,21 +110,25 @@ struct chub_alive {
 	wait_queue_head_t event;
 };
 
-enum CHUB_ERR_TYPE {
+enum chub_err_type {
 	CHUB_ERR_NONE,
 	CHUB_ERR_EVTQ_EMTPY, /* ap error */
 	CHUB_ERR_READ_FAIL,
 	CHUB_ERR_WRITE_FAIL,
 	CHUB_ERR_EVTQ_NO_HW_TRIGGER,
 	CHUB_ERR_CHUB_NO_RESPONSE,
-	CHUB_ERR_COMMS_NACK,
-	CHUB_ERR_COMMS_BUSY,
-	CHUB_ERR_COMMS_UNKNOWN,
-	CHUB_ERR_COMMS,
+	CHUB_ERR_ITMON,
+	CHUB_ERR_NANOHUB,
+	CHUB_ERR_CHUB_MAX,
 	CHUB_ERR_NANOHUB_FAULT, /* chub error */
 	CHUB_ERR_NANOHUB_ASSERT,
 	CHUB_ERR_NANOHUB_ERROR,
 	CHUB_ERR_NANOHUB_WDT,
+	CHUB_ERR_COMMS_NACK,
+	CHUB_ERR_COMMS_BUSY,
+	CHUB_ERR_COMMS_UNKNOWN,
+	CHUB_ERR_COMMS,
+	CHUB_ERR_COMMS_MAX,
 	CHUB_ERR_MAX,
 };
 
@@ -161,17 +165,19 @@ struct contexthub_ipc_info {
 	struct LOG_BUFFER *dd_log_buffer;
 	unsigned long clkrate;
 	atomic_t chub_status;
+	atomic_t in_reset;
 	atomic_t irq1_apInt;
 	atomic_t wakeup_chub;
-	spinlock_t reset_lock;
 	int irq_mailbox;
 	int irq_wdt;
 	int err_cnt[CHUB_ERR_MAX];
+	u32 active_err;
 	int utc_run;
 	int powermode;
 	int block_reset;
 	bool os_load;
 	char os_name[MAX_FILE_LEN];
+	struct notifier_block itmon_nb;
 #ifdef CONFIG_CONTEXTHUB_DEBUG
 	struct work_struct utc_work;
 #endif

@@ -300,7 +300,8 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 		else if (eq < dq)
 			useful = dq - eq;
 		else if (ipc_data->full) {
-			CSP_PRINTF_ERROR("%s is full\n", __func__);
+			CSP_PRINTF_ERROR("%s is full(eq:%d, dq:%d, f:%d, e:%d)\n",
+				__func__, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return -1;
 		} else {
 			useful = IPC_DATA_SIZE;
@@ -313,8 +314,8 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 		/* check length */
 		if (length + sizeof(u16) > useful) {
 			CSP_PRINTF_ERROR
-				("%s: no buffer. len:%d, remain:%d, eq:%d, dq:%d\n",
-				 __func__, length, useful, eq, dq);
+				("%s: no buffer. len:%d, remain:%d eq:%d, dq:%d (eq:%d, dq:%d, f:%d, e:%d)\n",
+				 __func__, length, useful, eq, dq, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return -1;
 		}
 
@@ -366,7 +367,8 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 		else if (eq < dq)
 			useful = (IPC_DATA_SIZE - dq) + eq;
 		else if (ipc_data->empty) {
-			CSP_PRINTF_ERROR("%s is empty\n", __func__);
+			CSP_PRINTF_ERROR("%s is empty (eq:%d, dq:%d, f:%d, e:%d)\n",
+				__func__, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return 0;
 		} else {
 			useful = IPC_DATA_SIZE;
@@ -395,8 +397,9 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 #endif
 
 		if (useful < sizeof(u16) + size_to_read) {
-			CSP_PRINTF_ERROR("%s: no enought read size: useful:%d, read_to_size:%d,%d\n",
-				__func__, useful, size_to_read, sizeof(u16));
+			CSP_PRINTF_ERROR("%s: no enough read size: useful:%d, read_to_size:%d,%d (eq:%d, dq:%d, f:%d, e:%d)\n",
+				__func__, useful, size_to_read, sizeof(u16),
+				ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return 0;
 		}
 

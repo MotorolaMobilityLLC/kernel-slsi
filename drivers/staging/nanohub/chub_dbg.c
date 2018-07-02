@@ -47,18 +47,38 @@ struct dbg_dump {
 static struct dbg_dump *p_dbg_dump;
 static struct reserved_mem *chub_rmem;
 
-void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
+void chub_dbg_print_hw(struct contexthub_ipc_info *ipc)
 {
-	int ret = contexthub_request(ipc);
-
-	if (ret) {
-		pr_err("%s: fails to contexthub_request\n", __func__);
-		return;
-	}
-
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
+
+		dev_info(ipc->dev, "%s: err:%d, time:%lld\n",
+			__func__, p_dump->reason, p_dump->time);
+
+		for (i = 0; i <= GPR_PC_INDEX; i++)
+			pr_info("gpr: R%d: 0x%x\n", i, p_dump->gpr[i]);
+
+		print_hex_dump(KERN_CONT, "dram:",
+			DUMP_PREFIX_OFFSET, 16, 1, p_dbg_dump, sizeof(struct dbg_dump), false);
+#if 0
+		print_hex_dump(KERN_CONT, "sram:",
+			DUMP_PREFIX_OFFSET, 16, 1, &p_dbg_dump->sram[p_dbg_dump->sram_start],
+			ipc_get_chub_mem_size(), false);
+#endif
+	}
+}
+
+void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
+{
+	if (p_dbg_dump) {
+		int i;
+		struct dbg_dump *p_dump = p_dbg_dump;
+
+		if (contexthub_request(ipc)) {
+			pr_err("%s: fails to contexthub_request\n", __func__);
+			return;
+		}
 
 		IPC_HW_WRITE_DUMPGPR_CTRL(ipc->chub_dumpgrp, 0x1);
 		/* dump GPR */
@@ -68,9 +88,9 @@ void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 				  i * 4);
 		p_dump->gpr[GPR_PC_INDEX] =
 		    readl(ipc->chub_dumpgrp + REG_CHUB_DUMPGPR_PCR);
-	}
 
-	contexthub_release(ipc);
+		contexthub_release(ipc);
+	}
 }
 
 static u32 get_dbg_dump_size(void)
@@ -110,41 +130,57 @@ out:
 }
 #endif
 
-void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, int reason)
+/* dump hw into dram (chub reserved mem) */
+void chub_dbg_dump_ram(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
 {
-	int ret = contexthub_request(ipc);
-
-	if (ret) {
-		pr_err("%s: fails to contexthub_request\n", __func__);
-		return;
-	}
-
 	if (p_dbg_dump) {
+		if (contexthub_request(ipc)) {
+			pr_err("%s: fails to contexthub_request\n", __func__);
+			return;
+		}
+
 		p_dbg_dump->time = sched_clock();
 		p_dbg_dump->reason = reason;
 
-		/* dump GPR */
-		chub_dbg_dump_gpr(ipc);
 		/* dump SRAM to reserved DRAM */
 		memcpy_fromio(&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			      ipc_get_base(IPC_REG_DUMP),
 			      ipc_get_chub_mem_size());
 
+		contexthub_release(ipc);
+	}
+}
+
+void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
+{
+	dev_info(ipc->dev, "%s: reason:%d\n", __func__, reason);
+	chub_dbg_dump_gpr(ipc);
+	chub_dbg_dump_ram(ipc, reason);
+
+	if (p_dbg_dump) {
 #ifdef	CONFIG_CONTEXTHUB_DEBUG
+		if (contexthub_request(ipc)) {
+			pr_err("%s: fails to contexthub_request\n", __func__);
+			return;
+		}
+
 		/* write file */
-		dev_dbg(ipc->dev,
+		dev_info(ipc->dev,
 			"%s: write file: sram:%p, dram:%p(off:%d), size:%d\n",
 			__func__, ipc_get_base(IPC_REG_DUMP),
 			&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			p_dbg_dump->sram_start, ipc_get_chub_mem_size());
+
 		chub_dbg_write_file(ipc->dev, "dram",
 			p_dbg_dump, sizeof(struct dbg_dump));
+
 		chub_dbg_write_file(ipc->dev, "sram",
 			&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			ipc_get_chub_mem_size());
+
+		contexthub_release(ipc);
 #endif
 	}
-	contexthub_release(ipc);
 }
 
 void chub_dbg_check_and_download_image(struct contexthub_ipc_info *ipc)
@@ -277,10 +313,25 @@ char chub_utc_name[][SIZE_UTC_NAME] = {
 	[IPC_DEBUG_UTC_CHECK_CPU_UTIL] = "utilization",
 	[IPC_DEBUG_UTC_HEAP_DEBUG] = "heap",
 	[IPC_DEBUG_UTC_HANG] = "hang",
-	[IPC_DEBUG_NANOHUB_CHUB_ALIVE] = "alive",
 };
 
-static ssize_t chub_utc_show(struct device *kobj,
+
+static ssize_t chub_alive_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	int index = 0;
+	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+	int ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_CHUB_ALIVE);
+
+	if (!ret)
+		index += sprintf(buf, "chub alive\n");
+	else
+		index += sprintf(buf, "chub isn't alive\n");
+
+	return index;
+}
+
+static ssize_t chub_utc_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	int i;
@@ -305,19 +356,12 @@ static ssize_t chub_utc_store(struct device *dev,
 
 	err = kstrtol(&buf[0], 10, &event);
 	if (!err) {
-		if (event == IPC_DEBUG_NANOHUB_CHUB_ALIVE)
-			event = MAILBOX_EVT_CHUB_ALIVE;
-
-		if (event != MAILBOX_EVT_CHUB_ALIVE) {
-			err = contexthub_request(ipc);
-			if (err)
-				pr_err("%s: fails to request contexthub. ret:%d\n", __func__, err);
-		}
+		err = contexthub_request(ipc);
+		if (err)
+			pr_err("%s: fails to request contexthub. ret:%d\n", __func__, err);
 
 		contexthub_ipc_write_event(ipc, event);
-		if (event != MAILBOX_EVT_CHUB_ALIVE)
-			contexthub_release(ipc);
-
+		contexthub_release(ipc);
 		return count;
 	} else {
 		return 0;
@@ -476,6 +520,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(dump_hw, 0220, NULL, chub_set_dump_hw_store),
 	__ATTR(utc, 0664, chub_utc_show, chub_utc_store),
 	__ATTR(ipc_test, 0220, NULL, chub_ipc_store),
+	__ATTR(alive, 0440, chub_alive_show, NULL),
 	__ATTR(wakeup, 0220, NULL, chub_wakeup_store),
 };
 
