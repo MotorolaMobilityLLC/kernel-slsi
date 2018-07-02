@@ -65,7 +65,7 @@
 		max_qos_steps = <9>;
 		max_mb = <4624565>;
 		mfc_freq_control = <0>;
-		mo_control = <0>;
+		mo_control = <1>;
 		bw_control = <1>;
 
 		/* Sub nodes for sysmmu, hwfc and mmcache */
