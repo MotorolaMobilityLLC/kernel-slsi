@@ -849,8 +849,8 @@ static void __mfc_handle_stream_input(struct mfc_ctx *ctx)
 move_buf:
 	/* move enqueued src buffer: src queue -> ref queue */
 	if (!found_in_src_queue && ctx->state != MFCINST_FINISHING) {
-		mfc_move_first_buf_used(&ctx->buf_queue_lock,
-				&ctx->ref_buf_queue, &ctx->src_buf_queue, MFC_QUEUE_ADD_BOTTOM);
+		mfc_get_move_buf_used(&ctx->buf_queue_lock,
+				&ctx->ref_buf_queue, &ctx->src_buf_queue);
 
 		mfc_debug(2, "enc src_buf_queue(%d) -> ref_buf_queue(%d)\n",
 				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),

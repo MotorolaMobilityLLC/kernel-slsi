@@ -133,8 +133,6 @@ struct mfc_buf *mfc_find_move_buf_used(spinlock_t *plock,
 		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
 		dma_addr_t addr);
 
-void mfc_move_first_buf_used(spinlock_t *plock, struct mfc_buf_queue *to_queue,
-		struct mfc_buf_queue *from_queue, enum mfc_queue_top_type top);
 void mfc_move_all_bufs(spinlock_t *plock, struct mfc_buf_queue *to_queue,
 		struct mfc_buf_queue *from_queue, enum mfc_queue_top_type top);
 

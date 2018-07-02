@@ -435,36 +435,6 @@ struct mfc_buf *mfc_find_move_buf_used(spinlock_t *plock,
 	}
 }
 
-void mfc_move_first_buf_used(spinlock_t *plock, struct mfc_buf_queue *to_queue,
-		struct mfc_buf_queue *from_queue, enum mfc_queue_top_type top)
-{
-	unsigned long flags;
-	struct mfc_buf *mfc_buf = NULL;
-
-	spin_lock_irqsave(plock, flags);
-
-	if (list_empty(&from_queue->head)) {
-		mfc_err_dev("from_queue is empty\n");
-		spin_unlock_irqrestore(plock, flags);
-		return;
-	}
-	mfc_buf = list_entry(from_queue->head.next, struct mfc_buf, list);
-
-	if (mfc_buf->used) {
-		list_del(&mfc_buf->list);
-		from_queue->count--;
-
-		if (top == MFC_QUEUE_ADD_TOP)
-			list_add(&mfc_buf->list, &to_queue->head);
-		else
-			list_add_tail(&mfc_buf->list, &to_queue->head);
-
-		to_queue->count++;
-	}
-
-	spin_unlock_irqrestore(plock, flags);
-}
-
 void mfc_move_all_bufs(spinlock_t *plock, struct mfc_buf_queue *to_queue,
 		struct mfc_buf_queue *from_queue, enum mfc_queue_top_type top)
 {
