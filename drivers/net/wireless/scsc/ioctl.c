@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2017 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -383,9 +383,10 @@ exit:
 	return result;
 }
 
-static ssize_t slsi_p2p_go_vendor_ies_write(struct slsi_dev *sdev, struct net_device *dev, u8 *ie, size_t ie_len, u16 purpose)
+static ssize_t slsi_ap_vendor_ies_write(struct slsi_dev *sdev, struct net_device *dev, u8 *ie,
+					size_t ie_len, u16 purpose)
 {
-	u8                *go_vendor_ie = NULL;
+	u8                *vendor_ie = NULL;
 	int               result = 0;
 	struct netdev_vif *ndev_vif;
 
@@ -396,32 +397,32 @@ static ssize_t slsi_p2p_go_vendor_ies_write(struct slsi_dev *sdev, struct net_de
 	 * same which comes before adding GO VIF
 	 */
 	if (!ndev_vif->activated) {
-		SLSI_DBG1(sdev, SLSI_CFG80211, "P2P GO vif not activated\n");
+		SLSI_DBG1(sdev, SLSI_CFG80211, "vif not activated\n");
 		result = 0;
 		goto exit;
 	}
-	if (ndev_vif->iftype != NL80211_IFTYPE_P2P_GO) {
-		SLSI_ERR(sdev, "No P2P interface present\n");
+	if (!(ndev_vif->iftype == NL80211_IFTYPE_P2P_GO || ndev_vif->iftype == NL80211_IFTYPE_AP)) {
+		SLSI_ERR(sdev, "Not AP or P2P interface. interfaceType:%d\n", ndev_vif->iftype);
 		result = -EINVAL;
 		goto exit;
 	}
 
-	go_vendor_ie = kmalloc(ie_len, GFP_KERNEL);
-	if (go_vendor_ie == NULL) {
+	vendor_ie = kmalloc(ie_len, GFP_KERNEL);
+	if (!vendor_ie) {
 		SLSI_ERR(sdev, "kmalloc failed\n");
 		result = -ENOMEM;
 		goto exit;
-		}
-	memcpy(go_vendor_ie, ie, ie_len);
+	}
+	memcpy(vendor_ie, ie, ie_len);
 
 	slsi_clear_cached_ies(&ndev_vif->ap.add_info_ies, &ndev_vif->ap.add_info_ies_len);
-	result = slsi_ap_prepare_add_info_ies(ndev_vif, go_vendor_ie, ie_len);
+	result = slsi_ap_prepare_add_info_ies(ndev_vif, vendor_ie, ie_len);
 
 	if (result == 0)
 		result = slsi_mlme_add_info_elements(sdev, dev, purpose, ndev_vif->ap.add_info_ies, ndev_vif->ap.add_info_ies_len);
 
 	slsi_clear_cached_ies(&ndev_vif->ap.add_info_ies, &ndev_vif->ap.add_info_ies_len);
-	kfree(go_vendor_ie);
+	kfree(vendor_ie);
 
 exit:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
@@ -438,7 +439,7 @@ static ssize_t slsi_set_ap_p2p_wps_ie(struct net_device *dev, char *command, int
 	enum if_type {
 		IF_TYPE_NONE,
 		IF_TYPE_P2P_DEVICE,
-		IF_TYPE_P2P_INTERFACE
+		IF_TYPE_AP_P2P
 	} iftype = IF_TYPE_NONE;
 	enum frame_type {
 		FRAME_TYPE_NONE,
@@ -465,6 +466,10 @@ static ssize_t slsi_set_ap_p2p_wps_ie(struct net_device *dev, char *command, int
 	offset = offset + readbyte + 1;
 	params_len = params_len - offset;
 
+	SLSI_NET_DBG2(dev, SLSI_NETDEV,
+		      "command=%s, frametype=%d, iftype=%d, total buf_len=%d, params_len=%d\n",
+		      command, frametype, iftype, buf_len, params_len);
+
 	/* check the net device interface type */
 	if (iftype == IF_TYPE_P2P_DEVICE) {
 		u8                *probe_resp_ie = NULL; /* params+offset; */
@@ -482,13 +487,15 @@ static ssize_t slsi_set_ap_p2p_wps_ie(struct net_device *dev, char *command, int
 		memcpy(probe_resp_ie, params+offset, params_len);
 
 		return slsi_p2p_dev_probe_rsp_ie(sdev, dev, probe_resp_ie, params_len);
-	} else if (iftype == IF_TYPE_P2P_INTERFACE) {
+	} else if (iftype == IF_TYPE_AP_P2P) {
 		if (frametype == FRAME_TYPE_BEACON)
-			return slsi_p2p_go_vendor_ies_write(sdev, dev, params+offset, params_len, FAPI_PURPOSE_BEACON);
+			return slsi_ap_vendor_ies_write(sdev, dev, params + offset, params_len, FAPI_PURPOSE_BEACON);
 		else if (frametype == FRAME_TYPE_PROBE_RESPONSE)
-			return slsi_p2p_go_vendor_ies_write(sdev, dev, params+offset, params_len, FAPI_PURPOSE_PROBE_RESPONSE);
+			return slsi_ap_vendor_ies_write(sdev, dev, params + offset, params_len,
+							FAPI_PURPOSE_PROBE_RESPONSE);
 		else if (frametype == FRAME_TYPE_ASSOC_RESPONSE)
-			return slsi_p2p_go_vendor_ies_write(sdev, dev, params+offset, params_len, FAPI_PURPOSE_ASSOCIATION_RESPONSE);
+			return slsi_ap_vendor_ies_write(sdev, dev, params + offset, params_len,
+							FAPI_PURPOSE_ASSOCIATION_RESPONSE);
 	}
 exit:
 	return result;
