@@ -3360,7 +3360,6 @@
 			<&clock GATE_ABOX_QCH_FM>,
 			<&clock DOUT_CLK_AUD_FM>;  /* mux_aud_fm, qch_fm, clk_aud_fm */
 		clock-names = "mux_aud_fm", "qch_fm", "clk_aud_fm";
-		without_elna = <1>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		samsung,power-domain = <&pd_dispaud>;
 		status = "ok";
