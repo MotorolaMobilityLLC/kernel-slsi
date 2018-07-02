@@ -1221,6 +1221,42 @@ static int fimc_is_hw_mcsc_delete_setfile(struct fimc_is_hw_ip *hw_ip, u32 insta
 	return 0;
 }
 
+int hw_mcsc_chk_frame_done(struct fimc_is_hw_ip *hw_ip,
+	u32 out_id, u32 *wq_id, u32 *out_f_id)
+{
+	switch (out_id) {
+	case MCSC_OUTPUT0:
+		*wq_id = WORK_M0P_FDONE;
+		*out_f_id = ENTRY_M0P;
+		break;
+	case MCSC_OUTPUT1:
+		*wq_id = WORK_M1P_FDONE;
+		*out_f_id = ENTRY_M1P;
+		break;
+	case MCSC_OUTPUT2:
+		*wq_id = WORK_M2P_FDONE;
+		*out_f_id = ENTRY_M2P;
+		break;
+	case MCSC_OUTPUT3:
+		*wq_id = WORK_M3P_FDONE;
+		*out_f_id = ENTRY_M3P;
+		break;
+	case MCSC_OUTPUT4:
+		*wq_id = WORK_M4P_FDONE;
+		*out_f_id = ENTRY_M4P;
+		break;
+	case MCSC_OUTPUT5:
+		*wq_id = WORK_M5P_FDONE;
+		*out_f_id = ENTRY_M5P;
+		break;
+	default:
+		swarn_hw("invalid output_id(%d)\n", hw_ip, out_id);
+		return -1;
+	}
+
+	return 0;
+}
+
 void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	int done_type)
 {
@@ -1228,12 +1264,15 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	struct fimc_is_framemgr *framemgr;
 	struct fimc_is_frame *hw_frame;
 	struct fimc_is_hw_mcsc *hw_mcsc;
-	u32 index, dbg_pt = DEBUG_POINT_FRAME_END;
+	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
+	u32 index, dbg_pt = DEBUG_POINT_FRAME_END, out_id;
+	u32 wq_id = WORK_MAX_MAP, out_f_id = ENTRY_END;
 	int instance = atomic_read(&hw_ip->instance);
 	bool flag_get_meta = true;
 	ulong flags = 0;
 
 	FIMC_BUG_VOID(!hw_ip->priv_info);
+	FIMC_BUG_VOID(!cap);
 
 	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
 
@@ -1280,52 +1319,18 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	msdbgs_hw(2, "frame done[F:%d][O:0x%lx]\n", instance, hw_ip,
 		hw_frame->fcount, hw_frame->out_flag);
 
-	if (test_bit(ENTRY_M0P, &hw_frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_M0P_FDONE, ENTRY_M0P, done_type, flag_get_meta);
-		flag_get_meta = false;
-		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT0, &mcsc_out_st);
-	}
+	for (out_id = MCSC_OUTPUT0; out_id < cap->max_output; out_id++) {
+		ret = hw_mcsc_chk_frame_done(hw_ip, out_id, &wq_id, &out_f_id);
+		if (ret)
+			continue;
 
-	if (test_bit(ENTRY_M1P, &hw_frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_M1P_FDONE, ENTRY_M1P, done_type, flag_get_meta);
-		flag_get_meta = false;
-		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT1, &mcsc_out_st);
-	}
-
-	if (test_bit(ENTRY_M2P, &hw_frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_M2P_FDONE, ENTRY_M2P, done_type, flag_get_meta);
-		flag_get_meta = false;
-		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT2, &mcsc_out_st);
-	}
-
-	if (test_bit(ENTRY_M3P, &hw_frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_M3P_FDONE, ENTRY_M3P, done_type, flag_get_meta);
-		flag_get_meta = false;
-		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT3, &mcsc_out_st);
-	}
-
-	if (test_bit(ENTRY_M4P, &hw_frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_M4P_FDONE, ENTRY_M4P, done_type, flag_get_meta);
-		flag_get_meta = false;
-		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT4, &mcsc_out_st);
-	}
-
-	if (test_bit(ENTRY_M5P, &hw_frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_M5P_FDONE, ENTRY_M5P, done_type, flag_get_meta);
-		flag_get_meta = false;
-		dbg_pt = DEBUG_POINT_FRAME_DMA_END;
-		clear_bit(MCSC_OUTPUT5, &mcsc_out_st);
+		if (test_bit(out_f_id, &hw_frame->out_flag)) {
+			ret = fimc_is_hardware_frame_done(hw_ip, frame,
+					wq_id, out_f_id, done_type, flag_get_meta);
+			clear_bit(out_id, &mcsc_out_st);
+			flag_get_meta = false;
+			dbg_pt = DEBUG_POINT_FRAME_DMA_END;
+		}
 	}
 
 	index = hw_ip->debug_index[1];
