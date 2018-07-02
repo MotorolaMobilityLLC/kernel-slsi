@@ -891,42 +891,35 @@ static void itmon_report_tracedata(struct itmon_dev *itmon,
 		/*
 		 * In DECERR case, the follow information was already filled in M_NODE.
 		 */
-		if (group->bus_type == BUS_PERI) {
-			traceinfo->dest = node->name;
-			val = axid & (BIT(0) | BIT(1));
-			if (val == FROM_CP) {
-				master = (struct itmon_masterinfo *)
-						itmon_get_masterinfo(itmon, CP_COMMON_STR,
-						axid >> 2);
-				if (!traceinfo->port)
-					traceinfo->port = CP_COMMON_STR;
-				if (master)
-					traceinfo->master = master->master_name;
+		port = (struct itmon_rpathinfo *) itmon_get_rpathinfo(itmon, axid, node->name);
 
-			} else if (val == FROM_CPU) {
-				if (!traceinfo->port)
-					traceinfo->port = CP_COMMON_STR;
-			} else if (val == FROM_PERI) {
-				if (!traceinfo->port)
-					traceinfo->port = "refer other node information";
-			}
-		} else {
-			/* If it has traceinfo->port, keep previous information */
-			port = (struct itmon_rpathinfo *) itmon_get_rpathinfo(itmon, axid, node->name);
-			if (port) {
-				traceinfo->port = port->port_name;
-				master = (struct itmon_masterinfo *)
-						itmon_get_masterinfo(itmon, traceinfo->port,
-							axid >> port->shift_bits);
-				if (master)
-					traceinfo->master = master->master_name;
-			} else {
-				if (!traceinfo->port)
-					traceinfo->port = "Unknown";
-				if (!traceinfo->master)
-					traceinfo->master = "Unknown";
+		if (port) {
+			struct itmon_nodeinfo *m_node, *next_m_node;
+			struct itmon_tracedata *m_tracedata;
+			unsigned int m_axid;
+
+			traceinfo->port = port->port_name;
+			list_for_each_entry_safe(m_node, next_m_node,
+					&pdata->tracelist[trans_type], list) {
+				if (m_node && m_node->name && port->port_name && m_node->type == M_NODE &&
+					strncmp(m_node->name, port->port_name,
+						strlen(port->port_name)) == 0) {
+					m_tracedata = &m_node->tracedata;
+					m_axid = BIT_AXID(m_tracedata->int_info);
+					master = (struct itmon_masterinfo *)
+						itmon_get_masterinfo(itmon, traceinfo->port, m_axid);
+					if (master) {
+						traceinfo->master = master->master_name;
+						break;
+					}
+				}
 			}
 		}
+		if (!traceinfo->port)
+			traceinfo->port = "Unknown";
+		if (!traceinfo->master)
+			traceinfo->master = "Unknown";
+
 		traceinfo->target_addr =
 			(((unsigned long)node->tracedata.ext_info_1
 			& GENMASK(3, 0)) << 32ULL);
