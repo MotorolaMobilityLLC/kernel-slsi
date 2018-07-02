@@ -80,7 +80,7 @@ static bool sensor_2l3_cis_is_wdr_mode_on(cis_shared_data *cis_data)
 	if (!fimc_is_vender_wdr_mode_on(cis_data))
 		return false;
 
-	if (mode < 0 || mode >= SENSOR_2L3_MODE_MAX) {
+	if (mode >= SENSOR_2L3_MODE_MAX) {
 		err("invalid mode(%d)!!", mode);
 		return false;
 	}
