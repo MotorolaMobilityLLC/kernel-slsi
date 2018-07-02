@@ -92,6 +92,16 @@ void log_flush(struct log_buffer_info *info)
 	struct log_kernel_buffer *kernel_buffer = &info->kernel_buffer;
 	unsigned int index_writer = buffer->index_writer;
 
+	/* check logbuf index dueto sram corruption */
+	if ((buffer->index_reader >= ipc_get_offset(IPC_REG_LOG))
+		|| (buffer->index_writer >= ipc_get_offset(IPC_REG_LOG))) {
+		dev_err(info->dev, "%s(%d): offset is corrupted. index_writer=%u, index_reader=%u, size=%u-%u\n",
+			__func__, info->id, buffer->index_writer, buffer->index_reader, buffer->size,
+			ipc_get_offset(IPC_REG_LOG));
+
+		return;
+	}
+
 	if (buffer->index_reader == index_writer)
 		return;
 
@@ -334,6 +344,15 @@ static void log_dump(struct log_buffer_info *info, int err)
 	char save_file_name[32];
 	struct LOG_BUFFER *buffer = info->log_buffer;
 	u32 wrap_index = buffer->index_writer;
+
+	/* check logbuf index dueto sram corruption */
+	if ((buffer->index_reader >= ipc_get_offset(IPC_REG_LOG))
+		|| (buffer->index_writer >= ipc_get_offset(IPC_REG_LOG))) {
+		dev_err(info->dev, "%s(%d): offset is corrupted. index_writer=%u, index_reader=%u, size=%u-%u\n",
+			__func__, info->id, buffer->index_writer, buffer->index_reader, buffer->size,
+			ipc_get_offset(IPC_REG_LOG));
+		return;
+	}
 
 	snprintf(save_file_name, sizeof(save_file_name),
 		 "/data/nano-%02d-%02d-%06u.log", info->id, err,

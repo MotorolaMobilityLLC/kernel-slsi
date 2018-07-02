@@ -345,8 +345,6 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 				ret = ERROR_NACK;
 			else if (response->reason == CMD_COMMS_BUSY)
 				ret = ERROR_BUSY;
-			else
-				pr_warn("nanohub: invalid reason %d\n", __func__, response->reason);
 		}
 
 		if (response->seq != seq)
@@ -367,8 +365,6 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 				    b[i + 24]);
 		}
 		ret = ERROR_NACK;
-		pr_warn("nanohub: invalid seq %d\n", __func__,
-			response->reason);
 	}
 
 	return ret;
@@ -379,6 +375,12 @@ static int nanohub_comms_tx_rx(struct nanohub_data *data,
 			       uint32_t seq, uint8_t *rx, size_t rx_len)
 {
 	int ret;
+	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
+
+	if (atomic_read(&ipc->in_reset)) {
+		dev_err(ipc->dev, "%s: chub reset in-progress\n", __func__);
+		return ERROR_BUSY;
+	}
 
 	ret = data->comms.write(data, (uint8_t *)&pad->packet, packet_size,
 				data->comms.timeout_write);
@@ -419,6 +421,13 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 	uint32_t seq;
 	struct timespec ts;
 	s64 boottime;
+	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
+
+	if (atomic_read(&ipc->in_reset)) {
+		packet_free(pad);
+		dev_err(ipc->dev, "%s: chub reset in-progress\n", __func__);
+		return ERROR_BUSY;
+	}
 
 	if (pad == NULL)
 		return ERROR_NACK;
