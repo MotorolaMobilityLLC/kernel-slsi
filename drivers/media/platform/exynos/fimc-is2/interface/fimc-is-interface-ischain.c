@@ -3066,6 +3066,8 @@ int fimc_is_interface_open(struct fimc_is_interface *this)
 		this->processing[i] = IS_IF_PROCESSING_INIT;
 		atomic_set(&this->shot_check[i], 0);
 		atomic_set(&this->shot_timeout[i], 0);
+	}
+	for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
 		atomic_set(&this->sensor_check[i], 0);
 		atomic_set(&this->sensor_timeout[i], 0);
 	}
