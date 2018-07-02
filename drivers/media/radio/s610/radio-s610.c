@@ -2518,26 +2518,14 @@ static int fm_radio_suspend(struct device *dev)
 
 	FUNC_ENTRY(radio);
 
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	fm_radio_clk_disable(radio);
-
 	return 0;
 }
 
 static int fm_radio_resume(struct device *dev)
 {
 	struct s610_radio *radio = dev_get_drvdata(dev);
-	int ret = 0;
 
 	FUNC_ENTRY(radio);
-
-	ret = fm_radio_clk_enable(radio);
-	if (ret) {
-		dev_err(dev, "%s: clk_enable failed\n", __func__);
-		return ret;
-	}
 
 	return 0;
 }
