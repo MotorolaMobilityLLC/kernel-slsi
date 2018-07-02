@@ -101,6 +101,24 @@ static inline int mfc_is_encoder_otf_node(enum mfc_node_type node)
 	return 0;
 }
 
+static inline void mfc_clear_vb_flag(struct mfc_buf *mfc_buf)
+{
+	mfc_buf->vb.reserved2 = 0;
+}
+
+static inline void mfc_set_vb_flag(struct mfc_buf *mfc_buf, enum mfc_vb_flag f)
+{
+	mfc_buf->vb.reserved2 |= (1 << f);
+}
+
+static inline int mfc_check_vb_flag(struct mfc_buf *mfc_buf, enum mfc_vb_flag f)
+{
+	if (mfc_buf->vb.reserved2 & f)
+		return 1;
+
+	return 0;
+}
+
 int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb);
 
 void mfc_raw_protect(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,

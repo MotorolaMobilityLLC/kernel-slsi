@@ -380,7 +380,7 @@ static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 	}
 
 	while (1) {
-		csd = mfc_peek_buf_csd(&ctx->buf_queue_lock, &ctx->src_buf_queue);
+		csd = mfc_check_buf_vb_flag(ctx, MFC_FLAG_CSD);
 
 		if (csd == 1) {
 			mfc_clean_ctx_int_flags(ctx);

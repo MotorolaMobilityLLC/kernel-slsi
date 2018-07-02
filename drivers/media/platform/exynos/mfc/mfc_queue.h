@@ -105,8 +105,6 @@ static inline void mfc_delete_queue(struct mfc_buf_queue *queue)
 void mfc_add_tail_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
 		struct mfc_buf *mfc_buf);
 
-int mfc_peek_buf_csd(spinlock_t *plock, struct mfc_buf_queue *queue);
-
 struct mfc_buf *mfc_get_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
 		enum mfc_queue_used_type used);
 struct mfc_buf *mfc_get_del_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
@@ -155,6 +153,7 @@ struct mfc_buf *mfc_search_move_dpb_nal_q(struct mfc_ctx *ctx, unsigned int dyna
 void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb);
 
 void mfc_cleanup_nal_queue(struct mfc_ctx *ctx);
-int mfc_is_last_frame(struct mfc_ctx *ctx);
+
+int mfc_check_buf_vb_flag(struct mfc_ctx *ctx, enum mfc_vb_flag f);
 
 #endif /* __MFC_QUEUE_H */

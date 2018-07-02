@@ -170,6 +170,18 @@ enum mfc_ctrl_mode {
 	MFC_CTRL_MODE_CST	= 0x2,
 };
 
+enum mfc_vb_flag {
+	MFC_FLAG_HDR_CONTENT_LIGHT	= 0,
+	MFC_FLAG_HDR_DISPLAY_COLOUR	= 1,
+	MFC_FLAG_HDR_MAXTIX_COEFF	= 2,
+	MFC_FLAG_HDR_COLOUR_DESC	= 3,
+	MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE	= 4,
+	MFC_FLAG_BLACKBAR_DETECT	= 5,
+	MFC_FLAG_CSD			= 29,
+	MFC_FLAG_EMPTY_DATA		= 30,
+	MFC_FLAG_LAST_FRAME		= 31,
+};
+
 struct mfc_ctx;
 
 enum mfc_debug_cause {

@@ -125,7 +125,7 @@ static void __mfc_handle_frame_all_extracted(struct mfc_ctx *ctx)
 
 		dst_mb->vb.sequence = (ctx->sequence++);
 		dst_mb->vb.field = __mfc_handle_frame_field(ctx);
-		dst_mb->vb.reserved2 = 0;
+		mfc_clear_vb_flag(dst_mb);
 
 		clear_bit(dst_mb->vb.vb2_buf.index, &dec->available_dpb);
 
@@ -262,40 +262,40 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx,
 		ref_mb->vb.field = __mfc_handle_frame_field(ctx);
 
 		/* Set reserved2 bits in order to inform SEI information */
-		ref_mb->vb.reserved2 = 0;
+		mfc_clear_vb_flag(ref_mb);
 
 		if (is_content_light) {
-			ref_mb->vb.reserved2 |= (1 << 0);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_CONTENT_LIGHT);
 			mfc_debug(2, "[HDR] content light level parsed\n");
 		}
 
 		if (is_display_colour) {
-			ref_mb->vb.reserved2 |= (1 << 1);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_DISPLAY_COLOUR);
 			mfc_debug(2, "[HDR] mastering display colour parsed\n");
 		}
 
 		if (is_video_signal_type) {
-			ref_mb->vb.reserved2 |= (1 << 4);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[HDR] video signal type parsed\n");
 			if (is_colour_description) {
-				ref_mb->vb.reserved2 |= (1 << 2);
+				mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_MAXTIX_COEFF);
 				mfc_debug(2, "[HDR] matrix coefficients parsed\n");
-				ref_mb->vb.reserved2 |= (1 << 3);
+				mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[HDR] colour description parsed\n");
 			}
 		}
 
 		if (IS_VP9_DEC(ctx) && MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 			if (dec->color_space != MFC_REG_D_COLOR_UNKNOWN) {
-				ref_mb->vb.reserved2 |= (1 << 3);
+				mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[HDR] color space parsed\n");
 			}
-			ref_mb->vb.reserved2 |= (1 << 4);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[HDR] color range parsed\n");
 		}
 
 		if (dec->black_bar_updated) {
-			ref_mb->vb.reserved2 |= (1 << 5);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_BLACKBAR_DETECT);
 			mfc_debug(3, "[BLACKBAR] black bar detected\n");
 		}
 

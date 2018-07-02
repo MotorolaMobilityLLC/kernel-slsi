@@ -58,7 +58,7 @@ int mfc_nal_q_check_enable(struct mfc_dev *dev)
 				return 0;
 			}
 			/* NAL-Q can't use the command about last frame */
-			if (mfc_is_last_frame(temp_ctx) == 1) {
+			if (mfc_check_buf_vb_flag(temp_ctx, MFC_FLAG_LAST_FRAME) == 1) {
 				mfc_debug(2, "There is a last frame. index: %d\n", i);
 				return 0;
 			}
@@ -1279,33 +1279,33 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 		ref_mb->vb.sequence = ctx->sequence;
 
 		/* Set reserved2 bits in order to inform SEI information */
-		ref_mb->vb.reserved2 = 0;
+		mfc_clear_vb_flag(ref_mb);
 
 		if (is_content_light) {
-			ref_mb->vb.reserved2 |= (1 << 0);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_CONTENT_LIGHT);
 			mfc_debug(2, "[NALQ][HDR] content light level parsed\n");
 		}
 		if (is_display_colour) {
-			ref_mb->vb.reserved2 |= (1 << 1);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_DISPLAY_COLOUR);
 			mfc_debug(2, "[NALQ][HDR] mastering display colour parsed\n");
 		}
 		if (is_video_signal_type) {
-			ref_mb->vb.reserved2 |= (1 << 4);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[NALQ][HDR] video signal type parsed\n");
 			if (is_colour_description) {
-				ref_mb->vb.reserved2 |= (1 << 2);
+				mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_MAXTIX_COEFF);
 				mfc_debug(2, "[NALQ][HDR] matrix coefficients parsed\n");
-				ref_mb->vb.reserved2 |= (1 << 3);
+				mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[NALQ][HDR] colour description parsed\n");
 			}
 		}
 
 		if (IS_VP9_DEC(ctx) && MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 			if (dec->color_space != MFC_REG_D_COLOR_UNKNOWN) {
-				ref_mb->vb.reserved2 |= (1 << 3);
+				mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[NALQ][HDR] color space parsed\n");
 			}
-			ref_mb->vb.reserved2 |= (1 << 4);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[NALQ][HDR] color range parsed\n");
 		}
 

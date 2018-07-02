@@ -34,30 +34,6 @@ void mfc_add_tail_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
 	spin_unlock_irqrestore(plock, flags);
 }
 
-int mfc_peek_buf_csd(spinlock_t *plock, struct mfc_buf_queue *queue)
-{
-	unsigned long flags;
-	int csd = -1;
-	struct mfc_buf *mfc_buf = NULL;
-
-	spin_lock_irqsave(plock, flags);
-
-	if (list_empty(&queue->head)) {
-		mfc_debug(2, "queue is empty\n");
-		spin_unlock_irqrestore(plock, flags);
-		return csd;
-	}
-
-	mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
-
-	csd = mfc_buf->vb.reserved2 & FLAG_CSD ? 1 : 0;
-
-	mfc_debug(2, "addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
-
-	spin_unlock_irqrestore(plock, flags);
-	return csd;
-}
-
 struct mfc_buf *mfc_get_buf(spinlock_t *plock, struct mfc_buf_queue *queue,
 		enum mfc_queue_used_type used)
 {
@@ -1020,24 +996,10 @@ void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-int mfc_is_last_frame(struct mfc_ctx *ctx)
+int mfc_check_buf_vb_flag(struct mfc_ctx *ctx, enum mfc_vb_flag f)
 {
-	struct mfc_buf *src_mb;
-	struct mfc_dev *dev;
 	unsigned long flags;
-
-	mfc_debug_enter();
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
+	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
@@ -1047,20 +1009,18 @@ int mfc_is_last_frame(struct mfc_ctx *ctx)
 		return -EINVAL;
 	}
 
-	src_mb = list_entry(ctx->src_buf_queue.head.next, struct mfc_buf, list);
+	mfc_buf = list_entry(ctx->src_buf_queue.head.next, struct mfc_buf, list);
 
 	mfc_debug(2, "[BUFINFO] addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
-	if (src_mb->vb.reserved2 & FLAG_LAST_FRAME) {
-		mfc_debug(2, "last frame!\n");
+	if (mfc_check_vb_flag(mfc_buf, f)) {
+		mfc_debug(2, "find flag %ld\n", f);
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 		return 1;
 	}
 
-	mfc_debug(4, "not last frame!\n");
+	mfc_debug(4, "no flag %ld\n", f);
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
-
-	mfc_debug_leave();
 
 	return 0;
 }
