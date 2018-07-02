@@ -206,7 +206,7 @@ int mfc_get_new_ctx(struct mfc_dev *dev)
 }
 
 /* Check whether a context should be run on hardware */
-int mfc_dec_ctx_ready(struct mfc_ctx *ctx)
+static int __mfc_dec_ctx_ready(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	int src_buf_queue_greater_than_0 = 0;
@@ -269,7 +269,7 @@ int mfc_dec_ctx_ready(struct mfc_ctx *ctx)
 	return 0;
 }
 
-int mfc_enc_ctx_ready(struct mfc_ctx *ctx)
+static int __mfc_enc_ctx_ready(struct mfc_ctx *ctx)
 {
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_dev *dev = ctx->dev;
@@ -334,9 +334,9 @@ int mfc_enc_ctx_ready(struct mfc_ctx *ctx)
 int mfc_ctx_ready(struct mfc_ctx *ctx)
 {
 	if (ctx->type == MFCINST_DECODER)
-		return mfc_dec_ctx_ready(ctx);
+		return __mfc_dec_ctx_ready(ctx);
 	else if (ctx->type == MFCINST_ENCODER)
-		return mfc_enc_ctx_ready(ctx);
+		return __mfc_enc_ctx_ready(ctx);
 
 	return 0;
 }

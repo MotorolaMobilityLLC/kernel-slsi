@@ -44,10 +44,7 @@ void mfc_wake_up_ctx(struct mfc_ctx *ctx, unsigned int reason,
 		unsigned int err);
 
 int mfc_get_new_ctx(struct mfc_dev *dev);
-int mfc_dec_ctx_ready(struct mfc_ctx *ctx);
-int mfc_enc_ctx_ready(struct mfc_ctx *ctx);
 int mfc_ctx_ready(struct mfc_ctx *ctx);
-
 
 static inline void mfc_set_bit(int num, struct mfc_bits *data)
 {

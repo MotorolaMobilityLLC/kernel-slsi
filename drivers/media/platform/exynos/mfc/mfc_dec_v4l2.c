@@ -557,7 +557,7 @@ static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
 
-	if (mfc_dec_ctx_ready(ctx))
+	if (mfc_ctx_ready(ctx))
 		mfc_set_bit(ctx->num, &dev->work_bits);
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
@@ -664,7 +664,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 		ctx->capture_state = QUEUE_BUFS_REQUESTED;
 
-		if (mfc_dec_ctx_ready(ctx))
+		if (mfc_ctx_ready(ctx))
 			mfc_set_bit(ctx->num, &dev->work_bits);
 
 		mfc_try_run(dev);
