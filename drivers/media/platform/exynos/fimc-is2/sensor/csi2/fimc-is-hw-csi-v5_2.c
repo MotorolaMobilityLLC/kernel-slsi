@@ -563,7 +563,7 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	/* CSIS_DMA_F_DMA_SRAM1_SPLIT : internal SRAM1 is 10KB (640 * 16 bytes) */
 	/* CSIS_DMA_F_DMA_SRAM0_SPLIT : internal SRAM0 is 10KB (640 * 16 bytes) */
 	/* This register can be set between 0 to 640 */
-	max = size / 16;
+	max = (u32)(size / 16);
 	sram0_split = max / 2;
 	sram1_split = max / 2;
 
