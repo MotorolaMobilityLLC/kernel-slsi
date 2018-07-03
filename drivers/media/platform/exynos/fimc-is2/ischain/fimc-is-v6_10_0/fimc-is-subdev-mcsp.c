@@ -275,10 +275,10 @@ static int fimc_is_ischain_mxp_start(struct fimc_is_device_ischain *device,
 		} else {
 			mdbg_pframe("pixelformat is not found(%c%c%c%c)\n",
 				device, subdev, frame,
-				(char)((tmp_format->pixelformat >> 0) & 0xFF),
-				(char)((tmp_format->pixelformat >> 8) & 0xFF),
-				(char)((tmp_format->pixelformat >> 16) & 0xFF),
-				(char)((tmp_format->pixelformat >> 24) & 0xFF));
+				(char)((node->pixelformat >> 0) & 0xFF),
+				(char)((node->pixelformat >> 8) & 0xFF),
+				(char)((node->pixelformat >> 16) & 0xFF),
+				(char)((node->pixelformat >> 24) & 0xFF));
 		}
 	}
 
