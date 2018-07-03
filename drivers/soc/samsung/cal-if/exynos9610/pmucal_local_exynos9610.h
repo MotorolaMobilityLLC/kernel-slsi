@@ -390,6 +390,8 @@ struct pmucal_seq dispaud_save[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "IDMA_GF_DYNAMIC_GATING_EN", 0x14880000, 0x4058, (0x7ffffff << 0), (0x7FFFFFF << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "MEMCLK", 0x14810000, 0x0108, (0xffffffff << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "BUS_COMPONENT_DRCG_EN", 0x14810000, 0x0104, (0xffffffff << 0), (0xFFFFFFFF << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_READ, "PPMU_DPU_PPC_PMNC", 0x14850000, 0x4, 0xffffffff, 0, 0x11860000, 0x4004, (0xf << 0), (0xF << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_READ, "PPMU_DPU_CHEVGEN_MO_INFO", 0x14850000, 0x240, 0xffffffff, 0, 0x11860000, 0x4004, (0xf << 0), (0xF << 0)),
 };
 
 struct pmucal_seq dispaud_off[] = {
