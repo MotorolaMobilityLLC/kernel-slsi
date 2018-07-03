@@ -3228,6 +3228,9 @@ p_err_ignore:
 		if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state))
 			break;
 
+		if (!test_bit(FIMC_IS_GROUP_OPEN, &child->state))
+			break;
+
 		gtask_child = &groupmgr->gtask[child->id];
 		if (try_gdown[child->id])
 			up(&gtask_child->smp_resource);
