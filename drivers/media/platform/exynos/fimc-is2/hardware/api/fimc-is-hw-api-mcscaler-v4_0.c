@@ -3845,6 +3845,11 @@ void fimc_is_scaler_set_djag_tunning_param(void __iomem *base_addr, const struct
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DJAG_CP_ARBI], reg_value);
 }
 
+void fimc_is_scaler_set_djag_wb_thres(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb)
+{
+	/* not supported */
+}
+
 /* for CAC */
 void fimc_is_scaler_set_cac_enable(void __iomem *base_addr, u32 en)
 {
