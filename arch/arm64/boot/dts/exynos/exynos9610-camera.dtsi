@@ -136,26 +136,12 @@
 		/* REAR/CSIS0 */
 		compatible = "samsung,exynos5-fimc-is-sensor";
 		#pb-id-cells = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
 		reg = <0x0 0x14400000 0x700>, /* MIPI-CSI0 */
-			<0x0 0x14400700 0x100>, /* PHY: TOP_M4S4S4 */
-
-			<0x0 0x14450000 0x100>, /* VC0 DMA0 */
-			<0x0 0x14450400 0x100>, /* VC0 DMA0 COMMON */
-			<0x0 0x14450100 0x100>, /* VC1 DMA0 */
-			<0x0 0x14450400 0x100>, /* VC1 DMA0 COMMON */
-			<0x0 0x14450200 0x100>, /* VC2 DMA0 */
-			<0x0 0x14450400 0x100>, /* VC2 DMA0 COMMON */
-			<0x0 0x14450300 0x100>, /* VC3 DMA0 */
-			<0x0 0x14450400 0x100>, /* VC3 DMA0 COMMON */
-
-			<0x0 0x14450000 0x100>, /* VC0 DMA0 */
-			<0x0 0x14450400 0x100>, /* VC0 DMA0 COMMON */
-			<0x0 0x14460100 0x100>, /* VC1 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC1 DMA1 COMMON */
-			<0x0 0x14460200 0x100>, /* VC2 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC2 DMA1 COMMON */
-			<0x0 0x14460300 0x100>, /* VC3 DMA1 */
-			<0x0 0x14460400 0x100>; /* VC3 DMA1 COMMON */
+			<0x0 0x14400700 0x100>; /* PHY: TOP_M4S4S4 */
+		reg-names = "csi", "phy";
 		interrupts = <0 325 0>, /* MIPI-CSI0 */
 			<0 331 0>, /* VC0 DMA0 */
 			<0 331 0>, /* VC1 DMA0 */
@@ -166,6 +152,9 @@
 			<0 332 0>, /* VC1 DMA1 */
 			<0 332 0>, /* VC2 DMA1 */
 			<0 332 0>; /* VC3 DMA1 */
+		interrupt-names = "csi",
+			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3",
+			"mode1_VC0", "mode1_VC1","mode1_VC2","mode1_VC3";
 		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m4s4s4 0>;
 		phy-names = "csis_dphy";
@@ -198,42 +187,55 @@
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS2",
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS3";
 		iommus = <&sysmmu_cam>;
+
+		/* without PAF HW */
+		sensor0_ch_mode0: sensor0-ch-mode0 {
+			reg = <0x14450000 0x100>, /* VC0 DMA0 */
+				<0x14450400 0x100>, /* VC0 DMA0 COMMON */
+				<0x14450100 0x100>, /* VC1 DMA0 */
+				<0x14450400 0x100>, /* VC1 DMA0 COMMON */
+				<0x14450200 0x100>, /* VC2 DMA0 */
+				<0x14450400 0x100>, /* VC2 DMA0 COMMON */
+				<0x14450300 0x100>, /* VC3 DMA0 */
+				<0x14450400 0x100>; /* VC3 DMA0 COMMON */
+		};
+
+		/* with PAF HW */
+		sensor0_ch_mode1: sensor0-ch-mode1 {
+			reg = <0x14450000 0x100>, /* VC0 DMA0 */
+				<0x14450400 0x100>, /* VC0 DMA0 COMMON */
+				<0x14460100 0x100>, /* VC1 DMA1 */
+				<0x14460400 0x100>, /* VC1 DMA1 COMMON */
+				<0x14460200 0x100>, /* VC2 DMA1 */
+				<0x14460400 0x100>, /* VC2 DMA1 COMMON */
+				<0x14460300 0x100>, /* VC3 DMA1 */
+				<0x14460400 0x100>; /* VC3 DMA1 COMMON */
+		};
 	};
 
 	fimc_is_sensor1: fimc_is_sensor@14410000 {
 		/* FRONT/CSIS1 */
 		compatible = "samsung,exynos5-fimc-is-sensor";
 		#pb-id-cells = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
 		reg = <0x0 0x14410000 0x700>, /* MIPI-CSI0 */
-			<0x0 0x14410700 0x100>, /* PHY: TOP_M2S4S4S2 */
-
-			<0x0 0x14460000 0x100>, /* VC0 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC0 DMA1 COMMON */
-			<0x0 0x14460100 0x100>, /* VC1 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC1 DMA1 COMMON */
-			<0x0 0x14460200 0x100>, /* VC2 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC2 DMA1 COMMON */
-			<0x0 0x14460300 0x100>, /* VC3 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC3 DMA1 COMMON */
-
-			<0x0 0x14460000 0x100>, /* VC1 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC1 DMA1 COMMON */
-			<0x0 0x14460100 0x100>, /* VC2 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC2 DMA1 COMMON */
-			<0x0 0x14460200 0x100>, /* VC1 DMA1 */
-			<0x0 0x14460400 0x100>, /* VC1 DMA1 COMMON */
-			<0x0 0x14460300 0x100>, /* VC3 DMA1 */
-			<0x0 0x14460400 0x100>; /* VC3 DMA1 COMMON */
+			<0x0 0x14410700 0x100>; /* PHY: TOP_M2S4S4S2 */
+		reg-names = "csi", "phy";
 		interrupts = <0 326 0>, /* MIPI-CSI1 */
 			<0 332 0>, /* VC0 DMA1 */
 			<0 332 0>, /* VC1 DMA1 */
 			<0 332 0>, /* VC2 DMA1 */
 			<0 332 0>, /* VC3 DMA1 */
 
-			<0 332 0>, /* VC1 DMA2 */
-			<0 332 0>, /* VC2 DMA1 */
+			<0 332 0>, /* VC0 DMA1 */
 			<0 332 0>, /* VC1 DMA1 */
+			<0 332 0>, /* VC2 DMA1 */
 			<0 332 0>; /* VC3 DMA1 */
+		interrupt-names = "csi",
+			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3",
+			"mode1_VC0", "mode1_VC1","mode1_VC2","mode1_VC3";
 		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m2s4s4s2 0>;
 		phy-names = "csis_dphy";
@@ -266,28 +268,49 @@
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS2",
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS3";
 		iommus = <&sysmmu_cam>;
+
+		/* without PAF HW */
+		sensor1_ch_mode0: sensor1-ch-mode0 {
+			reg = <0x14460000 0x100>, /* VC0 DMA1 */
+				<0x14460400 0x100>, /* VC0 DMA1 COMMON */
+				<0x14460100 0x100>, /* VC1 DMA1 */
+				<0x14460400 0x100>, /* VC1 DMA1 COMMON */
+				<0x14460200 0x100>, /* VC2 DMA1 */
+				<0x14460400 0x100>, /* VC2 DMA1 COMMON */
+				<0x14460300 0x100>, /* VC3 DMA1 */
+				<0x14460400 0x100>; /* VC3 DMA1 COMMON */
+		};
+
+		/* with PAF HW */
+		sensor1_ch_mode1: sensor1-ch-mode1 {
+			reg = <0x14460000 0x100>, /* VC0 DMA1 */
+				<0x14460400 0x100>, /* VC0 DMA1 COMMON */
+				<0x14460100 0x100>, /* VC1 DMA1 */
+				<0x14460400 0x100>, /* VC1 DMA1 COMMON */
+				<0x14460200 0x100>, /* VC2 DMA1 */
+				<0x14460400 0x100>, /* VC2 DMA1 COMMON */
+				<0x14460300 0x100>, /* VC3 DMA1 */
+				<0x14460400 0x100>; /* VC3 DMA1 COMMON */
+		};
 	};
 
 	fimc_is_sensor2: fimc_is_sensor@14420000 {
 		/* REAR2/CSIS2 */
 		compatible = "samsung,exynos5-fimc-is-sensor";
 		#pb-id-cells = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
 		reg = <0x0 0x14420000 0x700>, /* MIPI-CSI0 */
-			<0x0 0x14420700 0x100>, /* PHY: TOP_M4S4S4_2nd */
-
-			<0x0 0x14470000 0x100>, /* VC0 DMA2 */
-			<0x0 0x14470400 0x100>, /* VC0 DMA2 COMMON */
-			<0x0 0x14470100 0x100>, /* VC1 DMA2 */
-			<0x0 0x14470400 0x100>, /* VC1 DMA2 COMMON */
-			<0x0 0x14470200 0x100>, /* VC2 DMA2 */
-			<0x0 0x14470400 0x100>, /* VC2 DMA2 COMMON */
-			<0x0 0x14470300 0x100>, /* VC3 DMA2 */
-			<0x0 0x14470400 0x100>; /* VC3 DMA2 COMMON */
+			<0x0 0x14420700 0x100>; /* PHY: TOP_M4S4S4_2nd */
+		reg-names = "csi", "phy";
 		interrupts = <0 327 0>, /* MIPI-CSI2 */
 			<0 333 0>, /* VC0 DMA2 */
 			<0 333 0>, /* VC1 DMA2 */
 			<0 333 0>, /* VC2 DMA2 */
 			<0 333 0>; /* VC3 DMA2 */
+		interrupt-names = "csi",
+			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3";
 		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m4s4s4 1>;
 		phy-names = "csis_dphy";
@@ -320,28 +343,37 @@
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS2",
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS3";
 		iommus = <&sysmmu_cam>;
+
+		/* without PAF HW */
+		sensor2_ch_mode0: sensor2-ch-mode0 {
+			reg = <0x14470000 0x100>, /* VC0 DMA2 */
+				<0x14470400 0x100>, /* VC0 DMA2 COMMON */
+				<0x14470100 0x100>, /* VC1 DMA2 */
+				<0x14470400 0x100>, /* VC1 DMA2 COMMON */
+				<0x14470200 0x100>, /* VC2 DMA2 */
+				<0x14470400 0x100>, /* VC2 DMA2 COMMON */
+				<0x14470300 0x100>, /* VC3 DMA2 */
+				<0x14470400 0x100>; /* VC3 DMA2 COMMON */
+		};
 	};
 
 	fimc_is_sensor3: fimc_is_sensor@14430000 {
 		/* IRIS/CSIS3 */
 		compatible = "samsung,exynos5-fimc-is-sensor";
 		#pb-id-cells = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
 		reg = <0x0 0x14430000 0x0700>, /* MIPI-CSI0 */
-			<0x0 0x14430700 0x100>, /* PHY: TOP_M2S4S4S2 */
-
-			<0x0 0x14480000 0x100>, /* VC0 DMA3 */
-			<0x0 0x14480400 0x100>, /* VC0 DMA3 COMMON */
-			<0x0 0x14480100 0x100>, /* VC1 DMA3 */
-			<0x0 0x14480400 0x100>, /* VC1 DMA3 COMMON */
-			<0x0 0x14480200 0x100>, /* VC2 DMA3 */
-			<0x0 0x14480400 0x100>, /* VC2 DMA3 COMMON */
-			<0x0 0x14480300 0x100>, /* VC3 DMA3 */
-			<0x0 0x14480400 0x100>; /* VC3 DMA3 COMMON */
+			<0x0 0x14430700 0x100>; /* PHY: TOP_M2S4S4S2 */
+		reg-names = "csi", "phy";
 		interrupts = <0 328 0>, /* MIPI-CSI3 */
 			<0 334 0>, /* VC0 DMA3 */
 			<0 334 0>, /* VC1 DMA3 */
 			<0 334 0>, /* VC2 DMA3 */
 			<0 334 0>; /* VC3 DMA3 */
+		interrupt-names = "csi",
+			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3";
 		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m2s4s4s2 2>;
 		phy-names = "csis_dphy";
@@ -374,6 +406,18 @@
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS2",
 			"GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS3";
 		iommus = <&sysmmu_cam>;
+
+		/* without PAF HW */
+		sensor3_ch_mode0: sensor3-ch-mode0 {
+			reg = <0x14480000 0x100>, /* VC0 DMA3 */
+				<0x14480400 0x100>, /* VC0 DMA3 COMMON */
+				<0x14480100 0x100>, /* VC1 DMA3 */
+				<0x14480400 0x100>, /* VC1 DMA3 COMMON */
+				<0x14480200 0x100>, /* VC2 DMA3 */
+				<0x14480400 0x100>, /* VC2 DMA3 COMMON */
+				<0x14480300 0x100>, /* VC3 DMA3 */
+				<0x14480400 0x100>; /* VC3 DMA3 COMMON */
+		};
 	};
 
 	fimc_is_pafstat0: fimc_is_pafstat@14440000 {
