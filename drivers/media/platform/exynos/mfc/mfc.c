@@ -352,9 +352,7 @@ static int __mfc_init_instance(struct mfc_dev *dev, struct mfc_ctx *ctx)
 #endif
 	trace_mfc_dcpp_end(ctx->num, 1, dev->fw.drm_status);
 
-	ret = mfc_alloc_common_context(dev);
-	if (ret)
-		goto err_context_alloc;
+	mfc_alloc_common_context(dev);
 
 	if (dbg_enable)
 		mfc_alloc_dbg_info_buffer(dev);
@@ -409,7 +407,6 @@ err_pwr_enable:
 err_hw_lock:
 	mfc_release_common_context(dev);
 
-err_context_alloc:
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	if (dev->fw.drm_status) {
 		int smc_ret = 0;

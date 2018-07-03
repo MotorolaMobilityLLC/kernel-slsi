@@ -18,7 +18,7 @@
 
 #include "mfc_mem.h"
 
-static int __mfc_alloc_common_context(struct mfc_dev *dev,
+static void __mfc_alloc_common_context(struct mfc_dev *dev,
 					enum mfc_buf_usage_type buf_type)
 {
 	struct mfc_special_buf *ctx_buf;
@@ -26,10 +26,6 @@ static int __mfc_alloc_common_context(struct mfc_dev *dev,
 	unsigned long fw_daddr;
 
 	mfc_debug_enter();
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	ctx_buf = &dev->common_ctx_buf;
 	fw_daddr = dev->fw_buf.daddr;
@@ -48,27 +44,17 @@ static int __mfc_alloc_common_context(struct mfc_dev *dev,
 	ctx_buf->daddr = fw_daddr + firmware_size;
 
 	mfc_debug_leave();
-
-	return 0;
 }
 
 /* Wrapper : allocate context buffers for SYS_INIT */
-int mfc_alloc_common_context(struct mfc_dev *dev)
+void mfc_alloc_common_context(struct mfc_dev *dev)
 {
-	int ret = 0;
+	__mfc_alloc_common_context(dev, MFCBUF_NORMAL);
 
-	ret = __mfc_alloc_common_context(dev, MFCBUF_NORMAL);
-	if (ret)
-		return ret;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-	if (dev->fw.drm_status) {
-		ret = __mfc_alloc_common_context(dev, MFCBUF_DRM);
-		if (ret)
-			return ret;
-	}
+	if (dev->fw.drm_status)
+		__mfc_alloc_common_context(dev, MFCBUF_DRM);
 #endif
-
-	return ret;
 }
 
 /* Release context buffers for SYS_INIT */
@@ -76,11 +62,6 @@ static void __mfc_release_common_context(struct mfc_dev *dev,
 					enum mfc_buf_usage_type buf_type)
 {
 	struct mfc_special_buf *ctx_buf;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
 
 	ctx_buf = &dev->common_ctx_buf;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
@@ -106,19 +87,11 @@ void mfc_release_common_context(struct mfc_dev *dev)
 /* Allocate memory for instance data buffer */
 int mfc_alloc_instance_context(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_ctx_buf_size *buf_size;
 
 	mfc_debug_enter();
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
+
 	buf_size = dev->variant->buf_size->ctx_buf;
 
 	switch (ctx->codec_mode) {
@@ -179,19 +152,9 @@ int mfc_alloc_instance_context(struct mfc_ctx *ctx)
 /* Release instance buffer */
 void mfc_release_instance_context(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 
 	mfc_debug_enter();
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
 
 	mfc_mem_ion_free(dev, &ctx->instance_ctx_buf);
 	mfc_debug(2, "[MEMINFO] Release the instance buffer ctx[%d]\n", ctx->num);
@@ -382,18 +345,9 @@ static void __mfc_enc_calc_codec_buffer_size(struct mfc_ctx *ctx)
 /* Allocate codec buffers */
 int mfc_alloc_codec_buffers(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 
 	mfc_debug_enter();
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	if (ctx->type == MFCINST_DECODER) {
 		__mfc_dec_calc_codec_buffer_size(ctx);
@@ -428,18 +382,7 @@ int mfc_alloc_codec_buffers(struct mfc_ctx *ctx)
 /* Release buffers allocated for codec */
 void mfc_release_codec_buffers(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
+	struct mfc_dev *dev = ctx->dev;
 
 	mfc_mem_ion_free(dev, &ctx->codec_buf);
 	ctx->codec_buffer_allocated = 0;
@@ -466,22 +409,13 @@ int mfc_alloc_dbg_info_buffer(struct mfc_dev *dev)
 }
 
 /* Release buffer of debug infor memory for FW debugging */
-int mfc_release_dbg_info_buffer(struct mfc_dev *dev)
+void mfc_release_dbg_info_buffer(struct mfc_dev *dev)
 {
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-
-	if (!dev->dbg_info_buf.dma_buf) {
+	if (!dev->dbg_info_buf.dma_buf)
 		mfc_debug(2, "debug info buffer is already freed\n");
-		return 0;
-	}
 
 	mfc_mem_ion_free(dev, &dev->dbg_info_buf);
 	mfc_debug(2, "[MEMINFO] Release the debug info buffer\n");
-
-	return 0;
 }
 
 /* Allocation buffer of ROI macroblock information */
@@ -590,11 +524,6 @@ int mfc_alloc_firmware(struct mfc_dev *dev)
 
 	mfc_debug_enter();
 
-	if (!dev) {
-		mfc_err_dev("[F/W] no mfc device to run\n");
-		return -EINVAL;
-	}
-
 	buf_size = dev->variant->buf_size->ctx_buf;
 	firmware_size = dev->variant->buf_size->firmware_code;
 	dev->fw.size = firmware_size + buf_size->dev_ctx;
@@ -641,11 +570,6 @@ int mfc_load_firmware(struct mfc_dev *dev)
 	size_t firmware_size;
 	int err;
 
-	if (!dev) {
-		mfc_err_dev("[F/W] no mfc device to run\n");
-		return -EINVAL;
-	}
-
 	firmware_size = dev->variant->buf_size->firmware_code;
 
 	/* Firmare has to be present as a separate file or compiled
@@ -691,11 +615,6 @@ int mfc_release_firmware(struct mfc_dev *dev)
 {
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
-	if (!dev) {
-		mfc_err_dev("[F/W] no mfc device to run\n");
-		return -EINVAL;
-	}
-
 	if (!dev->fw_buf.dma_buf) {
 		mfc_err_dev("[F/W] firmware memory is already freed\n");
 		return -EINVAL;

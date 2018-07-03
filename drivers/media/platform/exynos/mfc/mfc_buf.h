@@ -16,7 +16,7 @@
 #include "mfc_common.h"
 
 /* Memory allocation */
-int mfc_alloc_common_context(struct mfc_dev *dev);
+void mfc_alloc_common_context(struct mfc_dev *dev);
 void mfc_release_common_context(struct mfc_dev *dev);
 
 int mfc_alloc_instance_context(struct mfc_ctx *ctx);
@@ -36,6 +36,6 @@ int mfc_load_firmware(struct mfc_dev *dev);
 int mfc_release_firmware(struct mfc_dev *dev);
 
 int mfc_alloc_dbg_info_buffer(struct mfc_dev *dev);
-int mfc_release_dbg_info_buffer(struct mfc_dev *dev);
+void mfc_release_dbg_info_buffer(struct mfc_dev *dev);
 
 #endif /* __MFC_BUF_H */
