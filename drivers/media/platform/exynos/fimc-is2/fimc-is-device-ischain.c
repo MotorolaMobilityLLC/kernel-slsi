@@ -1031,7 +1031,7 @@ out:
 		}
 		set_fs(old_fs);
 	} else {
-		if (!IS_ERR_OR_NULL(fw_blob))
+		if (fw_blob)
 			release_firmware(fw_blob);
 	}
 	if (ret)
@@ -1139,7 +1139,7 @@ err:
 		}
 		set_fs(old_fs);
 	} else {
-		if (!IS_ERR_OR_NULL(fw_blob))
+		if (fw_blob)
 			release_firmware(fw_blob);
 	}
 
@@ -1267,7 +1267,7 @@ out:
 		}
 		set_fs(old_fs);
 	} else {
-		if (!IS_ERR_OR_NULL(fw_blob))
+		if (fw_blob)
 			release_firmware(fw_blob);
 	}
 
