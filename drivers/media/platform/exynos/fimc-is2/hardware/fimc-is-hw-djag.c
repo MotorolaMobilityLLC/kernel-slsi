@@ -103,6 +103,7 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 	u32 in_width, in_height;
 	u32 out_width = 0, out_height = 0;
 	const struct djag_setfile_contents *djag_tuneset;
+	struct djag_wb_thres_cfg *djag_wb = NULL;
 	u32 hratio, vratio, min_ratio;
 	u32 scale_index = MCSC_DJAG_PRESCALE_INDEX_1, backup_in;
 	enum exynos_sensor_position sensor_position;
@@ -198,8 +199,12 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 
 #ifdef MCSC_USE_DEJAG_TUNING_PARAM
 	djag_tuneset = &hw_mcsc->cur_setfile[sensor_position]->djag[scale_index];
+#if defined(USE_UVSP_CAC)
+	djag_wb = &hw_mcsc->cur_setfile[sensor_position]->djag_wb[scale_index];
+#endif
 #endif
 	fimc_is_scaler_set_djag_tunning_param(hw_ip->regs, djag_tuneset);
+	fimc_is_scaler_set_djag_wb_thres(hw_ip->regs, djag_wb);
 
 	fimc_is_scaler_set_djag_enable(hw_ip->regs, 1);
 
