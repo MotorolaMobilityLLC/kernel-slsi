@@ -21,7 +21,7 @@
 
 #define mfc_get_int_reason()	(MFC_READL(MFC_REG_RISC2HOST_CMD)		\
 						& MFC_REG_RISC2HOST_CMD_MASK)
-#define mfc_clear_int_sfr()				\
+#define mfc_clear_int()				\
 		do {							\
 			MFC_WRITEL(0, MFC_REG_RISC2HOST_CMD);	\
 			MFC_WRITEL(0, MFC_REG_RISC2HOST_INT);	\

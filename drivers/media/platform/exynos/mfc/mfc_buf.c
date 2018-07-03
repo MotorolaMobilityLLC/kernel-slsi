@@ -199,7 +199,7 @@ void mfc_release_instance_context(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-static void __mfc_calc_dec_codec_buffer_size(struct mfc_ctx *ctx)
+static void __mfc_dec_calc_codec_buffer_size(struct mfc_ctx *ctx)
 {
 	struct mfc_dec *dec;
 	int i;
@@ -276,7 +276,7 @@ static void __mfc_calc_dec_codec_buffer_size(struct mfc_ctx *ctx)
 				NUM_MPEG4_LF_BUF);
 }
 
-static void __mfc_calc_enc_codec_buffer_size(struct mfc_ctx *ctx)
+static void __mfc_enc_calc_codec_buffer_size(struct mfc_ctx *ctx)
 {
 	struct mfc_enc *enc;
 	unsigned int mb_width, mb_height;
@@ -396,9 +396,9 @@ int mfc_alloc_codec_buffers(struct mfc_ctx *ctx)
 	}
 
 	if (ctx->type == MFCINST_DECODER) {
-		__mfc_calc_dec_codec_buffer_size(ctx);
+		__mfc_dec_calc_codec_buffer_size(ctx);
 	} else if (ctx->type == MFCINST_ENCODER) {
-		__mfc_calc_enc_codec_buffer_size(ctx);
+		__mfc_enc_calc_codec_buffer_size(ctx);
 	} else {
 		mfc_err_ctx("invalid type: %d\n", ctx->type);
 		return -EINVAL;

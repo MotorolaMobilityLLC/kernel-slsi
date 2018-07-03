@@ -1209,7 +1209,7 @@ static int mfc_enc_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 	return 0;
 }
 
-static int mfc_enc_set_buf_ctrls_val_nal_q_enc(struct mfc_ctx *ctx,
+static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			struct list_head *head, EncoderInputStr *pInStr)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
@@ -1455,7 +1455,7 @@ static int mfc_enc_set_buf_ctrls_val_nal_q_enc(struct mfc_ctx *ctx,
 	return 0;
 }
 
-static int mfc_enc_get_buf_ctrls_val_nal_q_enc(struct mfc_ctx *ctx,
+static int mfc_enc_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			struct list_head *head, EncoderOutputStr *pOutStr)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
@@ -1616,7 +1616,7 @@ struct mfc_ctrls_ops encoder_ctrls_ops = {
 	.get_buf_ctrls_val		= mfc_enc_get_buf_ctrls_val,
 	.recover_buf_ctrls_val		= mfc_enc_recover_buf_ctrls_val,
 	.get_buf_update_val		= mfc_enc_get_buf_update_val,
-	.set_buf_ctrls_val_nal_q_enc	= mfc_enc_set_buf_ctrls_val_nal_q_enc,
-	.get_buf_ctrls_val_nal_q_enc	= mfc_enc_get_buf_ctrls_val_nal_q_enc,
+	.set_buf_ctrls_val_nal_q_enc	= mfc_enc_set_buf_ctrls_val_nal_q,
+	.get_buf_ctrls_val_nal_q_enc	= mfc_enc_get_buf_ctrls_val_nal_q,
 	.recover_buf_ctrls_nal_q	= mfc_enc_recover_buf_ctrls_nal_q,
 };

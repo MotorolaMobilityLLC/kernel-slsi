@@ -1067,7 +1067,7 @@ static int __mfc_handle_seq_dec(struct mfc_ctx *ctx)
 	for (i = 0; i < ctx->dst_fmt->num_planes; i++)
 		ctx->min_dpb_size[i] = mfc_get_min_dpb_size(i);
 
-	mfc_dec_store_crop_info(ctx);
+	mfc_dec_get_crop_info(ctx);
 	dec->mv_count = mfc_get_mv_count();
 	if (CODEC_10BIT(ctx) && dev->pdata->support_10bit) {
 		if (mfc_get_luma_bit_depth_minus8() ||
@@ -1204,7 +1204,7 @@ static int __mfc_handle_seq_enc(struct mfc_ctx *ctx)
 	return 0;
 }
 
-static inline int is_err_condition(unsigned int err)
+static inline int __mfc_is_err_condition(unsigned int err)
 {
 	if (err == MFC_REG_ERR_NO_AVAILABLE_DPB ||
 		err == MFC_REG_ERR_INSUFFICIENT_DPB_SIZE ||
@@ -1269,7 +1269,7 @@ static inline int __mfc_nal_q_irq(struct mfc_dev *dev,
 		if (nal_q_handle->nal_q_exception)
 			mfc_set_bit(nal_q_handle->nal_q_out_handle->nal_q_ctx,
 					&dev->work_bits);
-		mfc_clear_int_sfr();
+		mfc_clear_int();
 
 		if (!nal_q_handle->nal_q_exception)
 			mfc_nal_q_clock_off(dev, nal_q_handle);
@@ -1283,7 +1283,7 @@ static inline int __mfc_nal_q_irq(struct mfc_dev *dev,
 		mfc_debug(2, "[NALQ] return to created state\n");
 		mfc_nal_q_cleanup_queue(dev);
 		mfc_nal_q_cleanup_clock(dev);
-		mfc_clear_int_sfr();
+		mfc_clear_int();
 		mfc_pm_clock_off(dev);
 		mfc_wake_up_dev(dev, reason, err);
 
@@ -1294,7 +1294,7 @@ static inline int __mfc_nal_q_irq(struct mfc_dev *dev,
 			nal_q_handle->nal_q_state == NAL_Q_STATE_STOPPED) {
 			mfc_err_dev("[NALQ] Should not be here! state: %d, int reason : %d\n",
 				nal_q_handle->nal_q_state, reason);
-			mfc_clear_int_sfr();
+			mfc_clear_int();
 
 			ret = -1;
 		} else {
@@ -1319,7 +1319,7 @@ static inline int __mfc_handle_done_frame(struct mfc_ctx *ctx,
 
 	if (ctx->type == MFCINST_DECODER) {
 		if (ctx->state == MFCINST_SPECIAL_PARSING_NAL) {
-			mfc_clear_int_sfr();
+			mfc_clear_int();
 			mfc_pm_clock_off(dev);
 			mfc_clear_bit(ctx->num, &dev->work_bits);
 			mfc_change_state(ctx, MFCINST_RUNNING);
@@ -1380,7 +1380,7 @@ static int __mfc_irq_dev(struct mfc_dev *dev, unsigned int reason, unsigned int 
 	case MFC_REG_R2H_CMD_FW_STATUS_RET:
 	case MFC_REG_R2H_CMD_SLEEP_RET:
 	case MFC_REG_R2H_CMD_WAKEUP_RET:
-		mfc_clear_int_sfr();
+		mfc_clear_int();
 		mfc_wake_up_dev(dev, reason, err);
 		return 0;
 	}
@@ -1509,7 +1509,7 @@ irqreturn_t mfc_irq(int irq, void *priv)
 			(err && (reason != MFC_REG_R2H_CMD_ERR_RET)))
 		call_dop(dev, dump_regs, dev);
 
-	if (is_err_condition(err))
+	if (__mfc_is_err_condition(err))
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 
 	if (dev->nal_q_handle) {
@@ -1533,7 +1533,7 @@ irqreturn_t mfc_irq(int irq, void *priv)
 	ctx = dev->ctx[dev->curr_ctx];
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
-		mfc_clear_int_sfr();
+		mfc_clear_int();
 		mfc_pm_clock_off(dev);
 		goto irq_end;
 	}
@@ -1543,7 +1543,7 @@ irqreturn_t mfc_irq(int irq, void *priv)
 		goto irq_end;
 
 	/* clean-up interrupt */
-	mfc_clear_int_sfr();
+	mfc_clear_int();
 
 	if ((ctx->state != MFCINST_RES_CHANGE_INIT) && (mfc_ctx_ready(ctx) == 0))
 		mfc_clear_bit(ctx->num, &dev->work_bits);

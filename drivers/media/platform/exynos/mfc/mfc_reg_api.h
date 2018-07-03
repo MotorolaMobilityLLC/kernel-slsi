@@ -205,7 +205,7 @@ static inline void mfc_update_nal_queue_input_count(struct mfc_dev *dev,
 	MFC_WRITEL(input_count, MFC_REG_NAL_QUEUE_INPUT_COUNT);
 }
 
-static inline void mfc_dec_store_crop_info(struct mfc_ctx *ctx)
+static inline void mfc_dec_get_crop_info(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec = ctx->dec_priv;

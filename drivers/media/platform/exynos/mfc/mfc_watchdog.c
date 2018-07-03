@@ -142,7 +142,7 @@ static void __mfc_save_logging_sfr(struct mfc_dev *dev)
 #endif
 }
 
-static void __mfc_display_state(struct mfc_dev *dev)
+static void __mfc_dump_state(struct mfc_dev *dev)
 {
 	nal_queue_handle *nal_q_handle = dev->nal_q_handle;
 	int i;
@@ -179,7 +179,7 @@ static void __mfc_display_state(struct mfc_dev *dev)
 				dev->ctx[i]->int_err);
 }
 
-static void __mfc_print_trace(struct mfc_dev *dev)
+static void __mfc_dump_trace(struct mfc_dev *dev)
 {
 	int i, cnt, trace_cnt;
 
@@ -269,8 +269,8 @@ void __mfc_dump_buffer_info(struct mfc_dev *dev)
 
 static void __mfc_dump_info_without_regs(struct mfc_dev *dev)
 {
-	__mfc_display_state(dev);
-	__mfc_print_trace(dev);
+	__mfc_dump_state(dev);
+	__mfc_dump_trace(dev);
 }
 
 static void __mfc_dump_info(struct mfc_dev *dev)

@@ -392,7 +392,7 @@ static int mfc_dec_init_ctx_ctrls(struct mfc_ctx *ctx)
 	return 0;
 }
 
-static void __mfc_dec_remove_buf_ctrls(struct list_head *head)
+static void __mfc_dec_cleanup_buf_ctrls(struct list_head *head)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
 
@@ -478,7 +478,7 @@ static int mfc_dec_init_buf_ctrls(struct mfc_ctx *ctx,
 					mfc_ctrl_list[i].id,
 					mfc_ctrl_list[i].type);
 
-			__mfc_dec_remove_buf_ctrls(head);
+			__mfc_dec_cleanup_buf_ctrls(head);
 
 			return -ENOMEM;
 		}
@@ -535,7 +535,7 @@ static int mfc_dec_cleanup_buf_ctrls(struct mfc_ctx *ctx,
 		return -EINVAL;
 	}
 
-	__mfc_dec_remove_buf_ctrls(head);
+	__mfc_dec_cleanup_buf_ctrls(head);
 
 	return 0;
 }
@@ -667,7 +667,7 @@ static int mfc_dec_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 	return 0;
 }
 
-static int mfc_dec_set_buf_ctrls_val_nal_q_dec(struct mfc_ctx *ctx,
+static int mfc_dec_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			struct list_head *head, DecoderInputStr *pInStr)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
@@ -702,7 +702,7 @@ static int mfc_dec_set_buf_ctrls_val_nal_q_dec(struct mfc_ctx *ctx,
 	return 0;
 }
 
-static int mfc_dec_get_buf_ctrls_val_nal_q_dec(struct mfc_ctx *ctx,
+static int mfc_dec_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			struct list_head *head, DecoderOutputStr *pOutStr)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
@@ -888,8 +888,8 @@ struct mfc_ctrls_ops decoder_ctrls_ops = {
 	.to_ctx_ctrls			= mfc_dec_to_ctx_ctrls,
 	.set_buf_ctrls_val		= mfc_dec_set_buf_ctrls_val,
 	.get_buf_ctrls_val		= mfc_dec_get_buf_ctrls_val,
-	.set_buf_ctrls_val_nal_q_dec	= mfc_dec_set_buf_ctrls_val_nal_q_dec,
-	.get_buf_ctrls_val_nal_q_dec	= mfc_dec_get_buf_ctrls_val_nal_q_dec,
+	.set_buf_ctrls_val_nal_q_dec	= mfc_dec_set_buf_ctrls_val_nal_q,
+	.get_buf_ctrls_val_nal_q_dec	= mfc_dec_get_buf_ctrls_val_nal_q,
 	.recover_buf_ctrls_val		= mfc_dec_recover_buf_ctrls_val,
 	.get_buf_update_val		= mfc_dec_get_buf_update_val,
 	.recover_buf_ctrls_nal_q	= mfc_dec_recover_buf_ctrls_nal_q,

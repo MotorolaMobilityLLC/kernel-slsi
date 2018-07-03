@@ -33,7 +33,7 @@
 #include "mfc_buf.h"
 #include "mfc_mem.h"
 
-static struct mfc_fmt *__mfc_enc_hwfc_find_format(unsigned int pixelformat)
+static struct mfc_fmt *__mfc_otf_find_hwfc_format(unsigned int pixelformat)
 {
 	unsigned long i;
 
@@ -56,7 +56,7 @@ static int __mfc_otf_set_buf_info(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
-	ctx->src_fmt = __mfc_enc_hwfc_find_format(buf_info->pixel_format);
+	ctx->src_fmt = __mfc_otf_find_hwfc_format(buf_info->pixel_format);
 	if (!ctx->src_fmt) {
 		mfc_err_ctx("[OTF] failed to set source format\n");
 		return -EINVAL;
