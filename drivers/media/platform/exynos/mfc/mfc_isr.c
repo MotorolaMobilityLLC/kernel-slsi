@@ -726,24 +726,13 @@ leave_handle_frame:
 
 static void __mfc_handle_stream_copy_timestamp(struct mfc_ctx *ctx, struct mfc_buf *src_mb)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_buf *dst_mb;
 	u32 interval;
 	u64 start_timestamp;
 	u64 new_timestamp;
-
-	if (!ctx) {
-		mfc_err_dev("[BUFCON][TS] no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("[BUFCON][TS] no device to run\n");
-		return;
-	}
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
 	interval = NSEC_PER_SEC / p->rc_framerate;

@@ -132,11 +132,6 @@ wait_done:
 void mfc_wake_up_dev(struct mfc_dev *dev, unsigned int reason,
 		unsigned int err)
 {
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
-
 	dev->int_condition = 1;
 	dev->int_reason = reason;
 	dev->int_err = err;
@@ -147,11 +142,6 @@ void mfc_wake_up_dev(struct mfc_dev *dev, unsigned int reason,
 void mfc_wake_up_ctx(struct mfc_ctx *ctx, unsigned int reason,
 		unsigned int err)
 {
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
 	ctx->int_condition = 1;
 	ctx->int_reason = reason;
 	ctx->int_err = err;
@@ -164,11 +154,6 @@ int mfc_get_new_ctx(struct mfc_dev *dev)
 	int new_ctx_index = 0;
 	int cnt = 0;
 	int i;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dev->work_bits.lock, wflags);
 

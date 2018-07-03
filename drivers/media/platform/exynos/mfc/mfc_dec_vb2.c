@@ -26,34 +26,13 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 				unsigned int *buf_count, unsigned int *plane_count,
 				unsigned int psize[], struct device *alloc_devs[])
 {
-	struct mfc_ctx *ctx;
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_raw_info *raw;
 	int i;
 
 	mfc_debug_enter();
-
-	if (!vq) {
-		mfc_err_dev("no vb2_queue info\n");
-		return -EINVAL;
-	}
-
-	ctx = vq->drv_priv;
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	raw = &ctx->raw_buf;
 
@@ -112,17 +91,7 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 static void mfc_dec_unlock(struct vb2_queue *q)
 {
 	struct mfc_ctx *ctx = q->drv_priv;
-	struct mfc_dev *dev;
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
+	struct mfc_dev *dev = ctx->dev;
 
 	mutex_unlock(&dev->mfc_mutex);
 }
@@ -130,17 +99,7 @@ static void mfc_dec_unlock(struct vb2_queue *q)
 static void mfc_dec_lock(struct vb2_queue *q)
 {
 	struct mfc_ctx *ctx = q->drv_priv;
-	struct mfc_dev *dev;
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
+	struct mfc_dev *dev = ctx->dev;
 
 	mutex_lock(&dev->mfc_mutex);
 }
@@ -149,27 +108,13 @@ static int mfc_dec_buf_init(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct mfc_ctx *ctx = vq->drv_priv;
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *buf = vb_to_mfc_buf(vb);
 	dma_addr_t start_raw;
 	int i, ret;
 
 	mfc_debug_enter();
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		ret = mfc_check_vb_with_fmt(ctx->dst_fmt, vb);
@@ -227,21 +172,12 @@ static int mfc_dec_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct mfc_ctx *ctx = vq->drv_priv;
-	struct mfc_dec *dec;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_raw_info *raw;
 	unsigned int index = vb->index;
 	size_t buf_size;
 	int i;
 
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		raw = &ctx->raw_buf;
 		/* check the size per plane */
@@ -290,11 +226,6 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 	struct mfc_ctx *ctx = vq->drv_priv;
 	unsigned int index = vb->index;
 
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->dst_ctrls[index]) < 0)
 			mfc_err_ctx("failed in to_ctx_ctrls\n");
@@ -311,10 +242,6 @@ static void mfc_dec_buf_cleanup(struct vb2_buffer *vb)
 	unsigned int index = vb->index;
 
 	mfc_debug_enter();
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (call_cop(ctx, cleanup_buf_ctrls, ctx,
@@ -334,18 +261,7 @@ static void mfc_dec_buf_cleanup(struct vb2_buffer *vb)
 static int mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct mfc_ctx *ctx = q->drv_priv;
-	struct mfc_dev *dev;
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
+	struct mfc_dev *dev = ctx->dev;
 
 	if (ctx->state == MFCINST_FINISHING)
 		mfc_change_state(ctx, MFCINST_RUNNING);
@@ -361,23 +277,11 @@ static int mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 
 static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *src_mb;
 	int index, csd, condition = 0;
 	int ret = 0;
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return;
-	}
 
 	while (1) {
 		csd = mfc_check_buf_vb_flag(ctx, MFC_FLAG_CSD);
@@ -439,14 +343,8 @@ static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 
 static void __mfc_dec_dst_stop_streaming(struct mfc_ctx *ctx)
 {
-	struct mfc_dec *dec;
+	struct mfc_dec *dec = ctx->dec_priv;
 	int index = 0;
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return;
-	}
 
 	mfc_cleanup_assigned_fd(ctx);
 	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->ref_buf_queue);
@@ -482,20 +380,9 @@ static void __mfc_dec_dst_stop_streaming(struct mfc_ctx *ctx)
 static void mfc_dec_stop_streaming(struct vb2_queue *q)
 {
 	struct mfc_ctx *ctx = q->drv_priv;
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	int ret = 0;
 	int prev_state;
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
 
 	mfc_info_ctx("dec stop_streaming is called, hwlock : %d, type : %d\n",
 				test_bit(ctx->num, &dev->hwlock.bits), q->type);
@@ -555,29 +442,13 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct mfc_ctx *ctx = vq->drv_priv;
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *buf = vb_to_mfc_buf(vb);
 	int i;
 	unsigned char *stream_vir = NULL;
 
 	mfc_debug_enter();
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return;
-	}
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(2, "[BUFINFO] ctx[%d] add src index:%d, addr: 0x%08llx\n",

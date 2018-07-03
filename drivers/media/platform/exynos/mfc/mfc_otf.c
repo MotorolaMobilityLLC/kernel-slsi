@@ -262,21 +262,8 @@ static void __mfc_otf_destroy_handle(struct mfc_ctx *ctx)
 
 int mfc_otf_create(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	int i;
-
-	mfc_debug_enter();
-
-	if (!ctx) {
-		mfc_err_dev("[OTF] no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("[OTF] no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
 		if (dev->ctx[i] && dev->ctx[i]->otf_handle) {

@@ -35,11 +35,6 @@ int mfc_nal_q_check_enable(struct mfc_dev *dev)
 
 	mfc_debug_enter();
 
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-
 	if (nal_q_disable)
 		return 0;
 
@@ -193,11 +188,6 @@ static int __mfc_nal_q_find_ctx(struct mfc_dev *dev, EncoderOutputStr *pOutputSt
 {
 	int i;
 
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return -EINVAL;
-	}
-
 	for(i = 0; i < MFC_NUM_CONTEXTS; i++) {
 		if (dev->ctx[i] && dev->ctx[i]->inst_no == pOutputStr->InstanceId)
 			return i;
@@ -211,11 +201,6 @@ static nal_queue_in_handle* __mfc_nal_q_create_in_q(struct mfc_dev *dev,
 	nal_queue_in_handle *nal_q_in_handle;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return NULL;
-	}
 
 	nal_q_in_handle = kzalloc(sizeof(*nal_q_in_handle), GFP_KERNEL);
 	if (!nal_q_in_handle) {
@@ -244,11 +229,6 @@ static nal_queue_out_handle* __mfc_nal_q_create_out_q(struct mfc_dev *dev,
 	nal_queue_out_handle *nal_q_out_handle;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return NULL;
-	}
 
 	nal_q_out_handle = kzalloc(sizeof(*nal_q_out_handle), GFP_KERNEL);
 	if (!nal_q_out_handle) {
@@ -314,11 +294,6 @@ nal_queue_handle *mfc_nal_q_create(struct mfc_dev *dev)
 
 	mfc_debug_enter();
 
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return NULL;
-	}
-
 	nal_q_handle = kzalloc(sizeof(*nal_q_handle), GFP_KERNEL);
 	if (!nal_q_handle) {
 		mfc_err_dev("[NALQ] no nal_q_handle\n");
@@ -357,11 +332,6 @@ int mfc_nal_q_destroy(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 
 	mfc_debug_enter();
 
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return -EINVAL;
-	}
-
 	if (!nal_q_handle) {
 		mfc_err_dev("[NALQ] there isn't nal_q_handle\n");
 		return -EINVAL;
@@ -390,11 +360,6 @@ int mfc_nal_q_destroy(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 void mfc_nal_q_init(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 {
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return;
-	}
 
 	if (!nal_q_handle) {
 		mfc_err_dev("[NALQ] There is no nal_q_handle\n");
@@ -433,11 +398,6 @@ void mfc_nal_q_start(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 	dma_addr_t addr;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return;
-	}
 
 	if (!nal_q_handle) {
 		mfc_err_dev("[NALQ] There is no nal_q_handle\n");
@@ -483,11 +443,6 @@ void mfc_nal_q_stop(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 {
 	mfc_debug_enter();
 
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return;
-	}
-
 	if (!nal_q_handle) {
 		mfc_err_dev("[NALQ] There is no nal_q_handle\n");
 		return;
@@ -516,11 +471,6 @@ void mfc_nal_q_stop_if_started(struct mfc_dev *dev)
 	nal_queue_handle *nal_q_handle;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return;
-	}
 
 	nal_q_handle = dev->nal_q_handle;
 	if (!nal_q_handle) {
@@ -555,11 +505,6 @@ void mfc_nal_q_cleanup_queue(struct mfc_dev *dev)
 	int i;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return;
-	}
 
 	for(i = 0; i < MFC_NUM_CONTEXTS; i++) {
 		ctx = dev->ctx[i];
@@ -607,7 +552,7 @@ static void __mfc_nal_q_set_slice_mode(struct mfc_ctx *ctx, EncoderInputStr *pIn
 
 static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInStr)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf *src_mb, *dst_mb;
 	struct mfc_raw_info *raw = NULL;
 	dma_addr_t src_addr[3] = {0, 0, 0};
@@ -615,16 +560,6 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 	unsigned int index, i;
 
 	mfc_debug_enter();
-
-	if (!ctx) {
-		mfc_err_dev("[NALQ] no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	pInStr->StartCode = 0xBBBBBBBB;
 	pInStr->CommandId = mfc_get_nal_q_input_count();
@@ -732,9 +667,9 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 
 static int __mfc_nal_q_run_in_buf_dec(struct mfc_ctx *ctx, DecoderInputStr *pInStr)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf *src_mb, *dst_mb;
-	struct mfc_dec *dec;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_raw_info *raw = &ctx->raw_buf;
 	dma_addr_t buf_addr;
 	unsigned int strm_size;
@@ -743,21 +678,6 @@ static int __mfc_nal_q_run_in_buf_dec(struct mfc_ctx *ctx, DecoderInputStr *pInS
 	int i;
 
 	mfc_debug_enter();
-
-	if (!ctx) {
-		mfc_err_dev("[NALQ] no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return -EINVAL;
-	}
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("[NALQ] no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	if (mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->dst_buf_queue, 0) &&
 			mfc_is_queue_count_smaller(&ctx->buf_queue_lock,
@@ -875,24 +795,13 @@ static void __mfc_nal_q_get_enc_frame_buffer(struct mfc_ctx *ctx,
 
 static void __mfc_nal_q_handle_stream_copy_timestamp(struct mfc_ctx *ctx, struct mfc_buf *src_mb)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_buf *dst_mb;
 	u32 interval;
 	u64 start_timestamp;
 	u64 new_timestamp;
-
-	if (!ctx) {
-		mfc_err_dev("[NALQ][BUFCON][TS] no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("[NALQ][BUFCON][TS] no device to run\n");
-		return;
-	}
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
 	interval = NSEC_PER_SEC / p->rc_framerate;
@@ -1167,20 +1076,12 @@ static void __mfc_nal_q_handle_ref_frame(struct mfc_ctx *ctx, DecoderOutputStr *
 
 static void __mfc_nal_q_handle_frame_copy_timestamp(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 {
-	struct mfc_dec *dec;
-	struct mfc_dev *dev;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf *ref_mb, *src_mb;
 	dma_addr_t dec_y_addr;
 
 	mfc_debug_enter();
-
-	if (!ctx) {
-		mfc_err_dev("[NALQ][TS] no mfc context to run\n");
-		return;
-	}
-
-	dec = ctx->dec_priv;
-	dev = ctx->dev;
 
 	dec_y_addr = pOutStr->DecodedAddr[0];
 
@@ -1599,24 +1500,13 @@ leave_handle_frame:
 
 int __mfc_nal_q_handle_error(struct mfc_ctx *ctx, EncoderOutputStr *pOutStr, int err)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec;
 	struct mfc_enc *enc;
 	struct mfc_buf *src_mb;
 	int stop_nal_q = 1;
 
 	mfc_debug_enter();
-
-	if (!ctx) {
-		mfc_err_dev("[NALQ] no mfc context to run\n");
-		goto end;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		goto end;
-	}
 
 	mfc_err_ctx("[NALQ] Interrupt Error: %d\n", pOutStr->ErrorCode);
 
@@ -1677,11 +1567,6 @@ int mfc_nal_q_handle_out_buf(struct mfc_dev *dev, EncoderOutputStr *pOutStr)
 	int ctx_num;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("[NALQ] no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	ctx_num = dev->nal_q_handle->nal_q_out_handle->nal_q_ctx;
 	if (ctx_num < 0) {

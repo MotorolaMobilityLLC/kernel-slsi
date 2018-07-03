@@ -192,22 +192,14 @@ static void __mfc_set_linear_stride_size(struct mfc_ctx *ctx,
 
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_raw_info *raw;
 	int i;
 	int extra = MFC_LINEAR_BUF_SIZE;
 
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
 	raw = &ctx->raw_buf;
 	raw->total_plane_size = 0;
-
-	dec = ctx->dec_priv;
 
 	for (i = 0; i < raw->num_planes; i++) {
 		raw->plane_size[i] = 0;
@@ -314,17 +306,11 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 
 void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_raw_info *raw;
 	unsigned int mb_width, mb_height, default_size;
 	int i, extra;
 
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
-	dev = ctx->dev;
 	raw = &ctx->raw_buf;
 	raw->total_plane_size = 0;
 	mb_width = WIDTH_MB(ctx->img_width);
@@ -489,11 +475,6 @@ void mfc_protect_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_mb)
 void mfc_watchdog_tick(unsigned long arg)
 {
 	struct mfc_dev *dev = (struct mfc_dev *)arg;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
 
 	mfc_debug(5, "watchdog is ticking!\n");
 

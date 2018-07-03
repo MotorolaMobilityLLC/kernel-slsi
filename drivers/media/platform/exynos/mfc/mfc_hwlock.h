@@ -68,8 +68,8 @@ void mfc_init_hwlock(struct mfc_dev *dev);
 int mfc_get_hwlock_dev(struct mfc_dev *dev);
 int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx);
 
-int mfc_release_hwlock_dev(struct mfc_dev *dev);
-int mfc_release_hwlock_ctx(struct mfc_ctx *curr_ctx);
+void mfc_release_hwlock_dev(struct mfc_dev *dev);
+void mfc_release_hwlock_ctx(struct mfc_ctx *curr_ctx);
 
 void mfc_cache_flush(struct mfc_dev *dev, int is_drm);
 

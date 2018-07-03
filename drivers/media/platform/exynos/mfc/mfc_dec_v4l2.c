@@ -272,18 +272,12 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct mfc_dec *dec;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	struct mfc_raw_info *raw;
 	int i;
 
 	mfc_debug_enter();
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	mfc_debug(2, "dec dst g_fmt, state: %d\n", ctx->state);
 
@@ -368,16 +362,10 @@ static int mfc_dec_g_fmt_vid_out_mplane(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct mfc_dec *dec;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	mfc_debug_enter();
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	mfc_debug(4, "dec src g_fmt, state: %d\n", ctx->state);
 
@@ -573,21 +561,11 @@ static int mfc_dec_reqbufs(struct file *file, void *priv,
 {
 	struct mfc_dev *dev = video_drvdata(file);
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct mfc_dec *dec;
+	struct mfc_dec *dec = ctx->dec_priv;
+
 	int ret = 0;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	if (reqbufs->memory == V4L2_MEMORY_MMAP) {
 		mfc_err_ctx("Not supported memory type (%d)\n", reqbufs->memory);
@@ -895,25 +873,10 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 /* Get ctrl */
 static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_ctx_ctrl *ctx_ctrl;
 	int found = 0;
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:
@@ -1051,23 +1014,12 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 {
 	struct mfc_dev *dev = video_drvdata(file);
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct mfc_dec *dec;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_ctx_ctrl *ctx_ctrl;
 	int ret = 0;
 	int found = 0;
 
 	mfc_debug_enter();
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	ret = __mfc_dec_check_ctrl_val(ctx, ctrl);
 	if (ret)

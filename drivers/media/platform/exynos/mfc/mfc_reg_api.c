@@ -82,8 +82,8 @@ void mfc_otf_set_hwfc_index(struct mfc_ctx *ctx, int job_id)
 /* Set decoding frame buffer */
 int mfc_set_dec_codec_buffers(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned int i;
 	size_t frame_size_mv;
 	dma_addr_t buf_addr;
@@ -91,23 +91,6 @@ int mfc_set_dec_codec_buffers(struct mfc_ctx *ctx)
 	int align_gap;
 	struct mfc_raw_info *raw;
 	unsigned int reg = 0;
-
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	raw = &ctx->raw_buf;
 	buf_addr = ctx->codec_buf.daddr;
@@ -267,27 +250,13 @@ int mfc_set_enc_codec_buffers(struct mfc_ctx *ctx)
 int mfc_set_dec_stream_buffer(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 		  unsigned int start_num_byte, unsigned int strm_size)
 {
-	struct mfc_dev *dev;
-	struct mfc_dec *dec;
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned int cpb_buf_size;
 	dma_addr_t addr;
 	int index = -1;
 
 	mfc_debug_enter();
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-	dec = ctx->dec_priv;
-	if (!dec) {
-		mfc_err_dev("no mfc decoder to run\n");
-		return -EINVAL;
-	}
 
 	cpb_buf_size = ALIGN(dec->src_buf_size, STREAM_BUF_ALIGN);
 

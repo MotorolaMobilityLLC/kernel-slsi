@@ -27,19 +27,13 @@ static int mfc_enc_queue_setup(struct vb2_queue *vq,
 				unsigned int *buf_count, unsigned int *plane_count,
 				unsigned int psize[], struct device *alloc_devs[])
 {
-	struct mfc_dev *dev;
 	struct mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_raw_info *raw;
 	int i;
 
 	mfc_debug_enter();
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	if (ctx->state != MFCINST_GOT_INST &&
 	    vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {

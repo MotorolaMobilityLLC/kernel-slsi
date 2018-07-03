@@ -36,11 +36,6 @@ void mfc_init_hwlock(struct mfc_dev *dev)
 {
 	unsigned long flags;
 
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
-
 	spin_lock_init(&dev->hwlock.lock);
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 
@@ -54,16 +49,10 @@ void mfc_init_hwlock(struct mfc_dev *dev)
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 }
 
-static int __mfc_remove_listable_wq_dev(struct mfc_dev *dev)
+static void __mfc_remove_listable_wq_dev(struct mfc_dev *dev)
 {
 	struct mfc_listable_wq *listable_wq;
 	unsigned long flags;
-	int ret = -1;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 	__mfc_print_hwlock(dev);
@@ -77,33 +66,18 @@ static int __mfc_remove_listable_wq_dev(struct mfc_dev *dev)
 		list_del(&listable_wq->list);
 		dev->hwlock.wl_count--;
 
-		ret = 0;
 		break;
 	}
 
 	__mfc_print_hwlock(dev);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
-
-	return ret;
 }
 
-static int __mfc_remove_listable_wq_ctx(struct mfc_ctx *curr_ctx)
+static void __mfc_remove_listable_wq_ctx(struct mfc_ctx *curr_ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = curr_ctx->dev;
 	struct mfc_listable_wq *listable_wq;
 	unsigned long flags;
-	int ret = -1;
-
-	if (!curr_ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = curr_ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 	__mfc_print_hwlock(dev);
@@ -117,15 +91,12 @@ static int __mfc_remove_listable_wq_ctx(struct mfc_ctx *curr_ctx)
 
 			list_del(&listable_wq->list);
 			dev->hwlock.wl_count--;
-			ret = 0;
 			break;
 		}
 	}
 
 	__mfc_print_hwlock(dev);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
-
-	return ret;
 }
 
 /*
@@ -137,11 +108,6 @@ int mfc_get_hwlock_dev(struct mfc_dev *dev)
 {
 	int ret = 0;
 	unsigned long flags;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	mutex_lock(&dev->hwlock_wq.wait_mutex);
 
@@ -213,21 +179,10 @@ int mfc_get_hwlock_dev(struct mfc_dev *dev)
  */
 int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx)
 {
-	struct mfc_dev *dev;
 	struct mfc_ctx *ctx = curr_ctx;
+	struct mfc_dev *dev = curr_ctx->dev;
 	int ret = 0;
 	unsigned long flags;
-
-	if (!curr_ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = curr_ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	mutex_lock(&curr_ctx->hwlock_wq.wait_mutex);
 
@@ -304,16 +259,10 @@ int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx)
  *  1: succeeded to release hwlock, hwlock is captured by another module
  * -1: error since device is waiting again.
  */
-int mfc_release_hwlock_dev(struct mfc_dev *dev)
+void mfc_release_hwlock_dev(struct mfc_dev *dev)
 {
 	struct mfc_listable_wq *listable_wq;
 	unsigned long flags;
-	int ret = -1;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 	__mfc_print_hwlock(dev);
@@ -323,10 +272,8 @@ int mfc_release_hwlock_dev(struct mfc_dev *dev)
 
 	if (dev->shutdown) {
 		mfc_debug(2, "Couldn't wakeup module. Shutdown was called\n");
-		ret = 0;
 	} else if (list_empty(&dev->hwlock.waiting_list)) {
 		mfc_debug(2, "No waiting module\n");
-		ret = 0;
 	} else {
 		mfc_debug(2, "There is a waiting module\n");
 		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct mfc_listable_wq, list);
@@ -349,12 +296,10 @@ int mfc_release_hwlock_dev(struct mfc_dev *dev)
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		wake_up(&listable_wq->wait_queue);
-		ret = 1;
 	}
 
 	__mfc_print_hwlock(dev);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
-	return ret;
 }
 
 /*
@@ -364,23 +309,11 @@ int mfc_release_hwlock_dev(struct mfc_dev *dev)
  * 0: succeeded to release hwlock
  * 1: succeeded to release hwlock, hwlock is captured by another module
  */
-static int __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
+static void __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = curr_ctx->dev;
 	struct mfc_ctx *ctx = curr_ctx;
 	struct mfc_listable_wq *listable_wq;
-	int ret = -1;
-
-	if (!curr_ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = curr_ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	__mfc_print_hwlock(dev);
 	clear_bit(curr_ctx->num, &dev->hwlock.bits);
@@ -388,10 +321,8 @@ static int __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
 
 	if (dev->shutdown) {
 		mfc_debug(2, "Couldn't wakeup module. Shutdown was called\n");
-		ret = 0;
 	} else if (list_empty(&dev->hwlock.waiting_list)) {
 		mfc_debug(2, "No waiting module\n");
-		ret = 0;
 	} else {
 		mfc_debug(2, "There is a waiting module\n");
 		listable_wq = list_entry(dev->hwlock.waiting_list.next, struct mfc_listable_wq, list);
@@ -414,11 +345,9 @@ static int __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		wake_up(&listable_wq->wait_queue);
-		ret = 1;
 	}
 
 	__mfc_print_hwlock(dev);
-	return ret;
 }
 
 /*
@@ -426,42 +355,19 @@ static int __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
  * 0: succeeded to release hwlock
  * 1: succeeded to release hwlock, hwlock is captured by another module
  */
-int mfc_release_hwlock_ctx(struct mfc_ctx *curr_ctx)
+void mfc_release_hwlock_ctx(struct mfc_ctx *curr_ctx)
 {
-	struct mfc_dev *dev;
+	struct mfc_dev *dev = curr_ctx->dev;
 	unsigned long flags;
-	int ret = -1;
-
-	if (!curr_ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	dev = curr_ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
-	ret = __mfc_release_hwlock_ctx_protected(curr_ctx);
+	__mfc_release_hwlock_ctx_protected(curr_ctx);
 	spin_unlock_irqrestore(&dev->hwlock.lock, flags);
-	return ret;
 }
 
-static inline int __mfc_yield_hwlock(struct mfc_dev *dev, struct mfc_ctx *curr_ctx)
+static inline void __mfc_yield_hwlock(struct mfc_dev *dev, struct mfc_ctx *curr_ctx)
 {
 	unsigned long flags;
-
-	if (!curr_ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 
@@ -472,8 +378,6 @@ static inline int __mfc_yield_hwlock(struct mfc_dev *dev, struct mfc_ctx *curr_c
 	/* Trigger again if other instance's work is waiting */
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
-
-	return 0;
 }
 
 /*
@@ -498,11 +402,6 @@ static int __mfc_try_to_get_new_ctx_protected(struct mfc_dev *dev)
 	int ret = 0;
 	int index;
 	struct mfc_ctx *new_ctx;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	if (dev->shutdown) {
 		mfc_info_dev("Couldn't lock HW. Shutdown was called\n");
@@ -556,11 +455,6 @@ void mfc_try_run(struct mfc_dev *dev)
 	int ret;
 	unsigned long flags;
 
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
-
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 	__mfc_print_hwlock(dev);
 
@@ -588,18 +482,7 @@ void mfc_try_run(struct mfc_dev *dev)
  */
 void mfc_cleanup_work_bit_and_try_run(struct mfc_ctx *curr_ctx)
 {
-	struct mfc_dev *dev;
-
-	if (!curr_ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
-
-	dev = curr_ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
+	struct mfc_dev *dev = curr_ctx->dev;
 
 	mfc_clear_bit(curr_ctx->num, &dev->work_bits);
 
@@ -824,11 +707,6 @@ int mfc_just_run(struct mfc_dev *dev, int new_ctx_index)
 	unsigned int ret = 0;
 	int need_cache_flush = 0;
 
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
-
 	ctx = dev->ctx[new_ctx_index];
 	if (!ctx) {
 		mfc_err_dev("no mfc context to run\n");
@@ -910,16 +788,6 @@ void mfc_hwlock_handler_irq(struct mfc_dev *dev, struct mfc_ctx *curr_ctx,
 	int new_ctx_index;
 	unsigned long flags;
 	int ret;
-
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return;
-	}
-
-	if (!curr_ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return;
-	}
 
 	spin_lock_irqsave(&dev->hwlock.lock, flags);
 	__mfc_print_hwlock(dev);
