@@ -2830,10 +2830,6 @@ int fimc_is_ischain_buf_tag(struct fimc_is_device_ischain *device,
 				target_addr[j + 3] = target_addr[j + 1] + NV16M_CBCR_SIZE(width, height);	/* UV_2BIT_ADDR */
 			}
 			break;
-		case V4L2_PIX_FMT_Y12:	/* Only for ME */
-			for (i = 0; i < frame->planes; i++)
-				target_addr[i] = frame->kvaddr_buffer[i];
-			break;
 		default:
 			for (i = 0; i < frame->planes; i++)
 				target_addr[i] = frame->dvaddr_buffer[i];
