@@ -460,6 +460,10 @@ struct fimc_is_device_sensor {
 	bool					use_otp_cal;
 	u32					cal_status[CAMERA_CRC_INDEX_MAX];
 	u8					otp_cal_buf[SENSOR_OTP_PAGE][SENSOR_OTP_PAGE_SIZE];
+
+#ifdef ENABLE_REMOSAIC_CAPTURE
+	struct fimc_is_frame				*mode_chg_frame;
+#endif
 };
 
 int fimc_is_sensor_open(struct fimc_is_device_sensor *device,
