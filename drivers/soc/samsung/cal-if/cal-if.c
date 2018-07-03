@@ -18,6 +18,9 @@
 #include "pmucal_gnss.h"
 #include "pmucal_shub.h"
 #include "pmucal_rae.h"
+#ifdef CONFIG_EXYNOS_BCM_DBG
+#include <soc/samsung/exynos-bcm_dbg.h>
+#endif
 #ifdef CONFIG_FLEXPMU
 #include "pmucal_powermode.h"
 
@@ -171,16 +174,28 @@ unsigned int cal_dfs_get_resume_freq(unsigned int id)
 int cal_pd_control(unsigned int id, int on)
 {
 	unsigned int index;
+	int ret;
 
 	if ((id & 0xFFFF0000) != BLKPWR_MAGIC)
 		return -1;
 
 	index = id & 0x0000FFFF;
 
-	if (on)
-		return pmucal_local_enable(index);
-	else
-		return pmucal_local_disable(index);
+	if (on) {
+		ret = pmucal_local_enable(index);
+#if defined(CONFIG_EXYNOS_BCM_DBG)
+		if (cal_pd_status(id))
+			exynos_bcm_dbg_pd_sync(id, true);
+#endif
+	} else {
+#if defined(CONFIG_EXYNOS_BCM_DBG)
+		if (cal_pd_status(id))
+			exynos_bcm_dbg_pd_sync(id, false);
+#endif
+		ret = pmucal_local_disable(index);
+	}
+
+	return ret;
 }
 
 int cal_pd_status(unsigned int id)
