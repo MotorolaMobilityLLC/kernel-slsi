@@ -471,57 +471,6 @@ void mfc_move_all_bufs(spinlock_t *plock, struct mfc_buf_queue *to_queue,
 	spin_unlock_irqrestore(plock, flags);
 }
 
-void mfc_cleanup_queue(spinlock_t *plock, struct mfc_buf_queue *queue)
-{
-	unsigned long flags;
-	struct mfc_buf *mfc_buf = NULL;
-	int i;
-
-	spin_lock_irqsave(plock, flags);
-
-	while (!list_empty(&queue->head)) {
-		mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
-
-		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++)
-			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
-		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-		list_del(&mfc_buf->list);
-		queue->count--;
-	}
-
-	INIT_LIST_HEAD(&queue->head);
-	queue->count = 0;
-
-	spin_unlock_irqrestore(plock, flags);
-}
-
-static void __mfc_cleanup_batch_queue(struct mfc_ctx *ctx, struct mfc_buf_queue *queue)
-{
-	unsigned long flags;
-	struct mfc_buf *mfc_buf = NULL;
-	int i;
-
-	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
-
-	while (!list_empty(&queue->head)) {
-		mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
-
-		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++) {
-			mfc_bufcon_put_daddr(ctx, mfc_buf, i);
-			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
-		}
-		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-		list_del(&mfc_buf->list);
-		queue->count--;
-	}
-
-	INIT_LIST_HEAD(&queue->head);
-	queue->count = 0;
-	ctx->batch_mode = 0;
-
-	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
-}
-
 struct mfc_buf *__mfc_find_buf_index(spinlock_t *plock, struct mfc_buf_queue *queue,
 		int index)
 {
@@ -695,77 +644,95 @@ struct mfc_buf *mfc_move_reuse_buffer(struct mfc_ctx *ctx, int release_index)
 	return NULL;
 }
 
+void mfc_cleanup_queue(spinlock_t *plock, struct mfc_buf_queue *queue)
+{
+	unsigned long flags;
+	struct mfc_buf *mfc_buf = NULL;
+	int i;
+
+	spin_lock_irqsave(plock, flags);
+
+	while (!list_empty(&queue->head)) {
+		mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
+
+		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++)
+			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
+
+		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		list_del(&mfc_buf->list);
+		queue->count--;
+	}
+
+	INIT_LIST_HEAD(&queue->head);
+	queue->count = 0;
+
+	spin_unlock_irqrestore(plock, flags);
+}
+
 void mfc_cleanup_enc_src_queue(struct mfc_ctx *ctx)
 {
 	unsigned long flags;
-	struct mfc_buf *src_mb, *tmp_mb;
-	int i;
+	struct mfc_buf *mfc_buf = NULL;
+	struct mfc_buf_queue *queue = &ctx->src_buf_queue;
+	int i, index;
 
-	if (ctx->is_drm && ctx->raw_protect_flag) {
-		spin_lock_irqsave(&ctx->buf_queue_lock, flags);
+	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
-		mfc_debug(2, "raw_protect_flag(%#lx) will be released\n",
-				ctx->raw_protect_flag);
+	while (!list_empty(&queue->head)) {
+		mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
-		list_for_each_entry_safe(src_mb, tmp_mb, &ctx->src_buf_queue.head, list) {
-			i = src_mb->vb.vb2_buf.index;
-
-			mfc_raw_unprotect(ctx, src_mb, i);
-
-			for (i = 0; i < src_mb->vb.vb2_buf.num_planes; i++) {
-				mfc_bufcon_put_daddr(ctx, src_mb, i);
-				vb2_set_plane_payload(&src_mb->vb.vb2_buf, i, 0);
-			}
-
-			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-			list_del(&src_mb->list);
-			ctx->src_buf_queue.count--;
+		if (ctx->is_drm && ctx->raw_protect_flag) {
+			index = mfc_buf->vb.vb2_buf.index;
+			mfc_raw_unprotect(ctx, mfc_buf, index);
 		}
 
-		INIT_LIST_HEAD(&ctx->src_buf_queue.head);
-		ctx->src_buf_queue.count = 0;
+		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++) {
+			if (IS_BUFFER_BATCH_MODE(ctx))
+				mfc_bufcon_put_daddr(ctx, mfc_buf, i);
+			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
+		}
 
-		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
-	} else {
-		if (IS_BUFFER_BATCH_MODE(ctx))
-			__mfc_cleanup_batch_queue(ctx, &ctx->src_buf_queue);
-		else
-			mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_queue);
+		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		list_del(&mfc_buf->list);
+		queue->count--;
 	}
-}
 
+	INIT_LIST_HEAD(&queue->head);
+	queue->count = 0;
+	ctx->batch_mode = 0;
+
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+}
 
 void mfc_cleanup_enc_dst_queue(struct mfc_ctx *ctx)
 {
 	unsigned long flags;
-	struct mfc_buf *dst_mb, *tmp_mb;
-	int i;
+	struct mfc_buf *mfc_buf = NULL;
+	struct mfc_buf_queue *queue = &ctx->dst_buf_queue;
+	int i, index;
 
-	if (ctx->is_drm && ctx->stream_protect_flag) {
-		spin_lock_irqsave(&ctx->buf_queue_lock, flags);
+	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
-		mfc_debug(2, "stream_protect_flag(%#lx) will be released\n",
-				ctx->stream_protect_flag);
+	while (!list_empty(&queue->head)) {
+		mfc_buf = list_entry(queue->head.next, struct mfc_buf, list);
 
-		list_for_each_entry_safe(dst_mb, tmp_mb, &ctx->dst_buf_queue.head, list) {
-			i = dst_mb->vb.vb2_buf.index;
-
-			mfc_stream_unprotect(ctx, dst_mb, i);
-
-			for (i = 0; i < dst_mb->vb.vb2_buf.num_planes; i++)
-				vb2_set_plane_payload(&dst_mb->vb.vb2_buf, i, 0);
-			vb2_buffer_done(&dst_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-			list_del(&dst_mb->list);
-			ctx->dst_buf_queue.count--;
+		if (ctx->is_drm && ctx->stream_protect_flag) {
+			index = mfc_buf->vb.vb2_buf.index;
+			mfc_stream_unprotect(ctx, mfc_buf, index);
 		}
 
-		INIT_LIST_HEAD(&ctx->dst_buf_queue.head);
-		ctx->dst_buf_queue.count = 0;
+		for (i = 0; i < mfc_buf->vb.vb2_buf.num_planes; i++)
+			vb2_set_plane_payload(&mfc_buf->vb.vb2_buf, i, 0);
 
-		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
-	} else {
-		mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
+		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		list_del(&mfc_buf->list);
+		queue->count--;
 	}
+
+	INIT_LIST_HEAD(&queue->head);
+	queue->count = 0;
+
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
 /* Check all buffers are referenced or not */
