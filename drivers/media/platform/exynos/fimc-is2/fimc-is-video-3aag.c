@@ -400,8 +400,7 @@ static int fimc_is_3xg_video_dqbuf(struct file *file, void *priv,
 	if (ret)
 		merr("dqbuf is fail(%d)", vctx, ret);
 
-	if (!buf)
-		mvdbgs(3, "%s(index: %d)\n", vctx, &vctx->queue, __func__, buf->index);
+	mvdbgs(3, "%s(index: %d)\n", vctx, &vctx->queue, __func__, buf->index);
 
 	return ret;
 }
