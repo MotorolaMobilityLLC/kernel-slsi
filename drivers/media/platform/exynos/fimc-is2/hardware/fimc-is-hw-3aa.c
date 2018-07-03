@@ -158,6 +158,9 @@ int fimc_is_hw_3aa_mode_change(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong 
 	struct fimc_is_frame *frame = NULL;
 	struct fimc_is_framemgr *framemgr;
 	struct camera2_shot *shot = NULL;
+#ifdef ENABLE_REMOSAIC_CAPTURE
+	struct fimc_is_device_sensor *sensor;
+#endif
 
 	if (!test_bit_variables(hw_ip->id, &hw_map))
 		return 0;
@@ -184,6 +187,15 @@ int fimc_is_hw_3aa_mode_change(struct fimc_is_hw_ip *hw_ip, u32 instance, ulong 
 		} else {
 			mswarn_hw("enable (frame:NULL)(%d)", instance, hw_ip,
 				framemgr->queued_count[FS_HW_CONFIGURE]);
+#ifdef ENABLE_REMOSAIC_CAPTURE
+			sensor = hw_ip->group[instance]->device->sensor;
+			if (sensor && sensor->mode_chg_frame) {
+				frame = sensor->mode_chg_frame;
+				shot = frame->shot;
+				msinfo_hw("[F:%d]mode_chg_frame used for REMOSAIC\n",
+					instance, hw_ip, frame->fcount);
+			}
+#endif
 		}
 
 		FIMC_BUG(!hw_ip->priv_info);

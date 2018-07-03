@@ -2965,6 +2965,17 @@ int fimc_is_group_shot(struct fimc_is_groupmgr *groupmgr,
 	}
 
 	if (device->sensor && !test_bit(FIMC_IS_SENSOR_FRONT_START, &device->sensor->state)) {
+#ifdef ENABLE_REMOSAIC_CAPTURE
+		if (frame->shot->ctl.aa.sceneMode == AA_SCENE_MODE_REMOSAIC) {
+			clear_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->sensor->state);
+			device->sensor->mode_chg_frame = frame;
+		} else {
+			if (group->child)
+				set_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->sensor->state);
+
+			device->sensor->mode_chg_frame = NULL;
+		}
+#endif
 		/*
 		 * this statement is execued only at initial.
 		 * automatic increase the frame count of sensor
