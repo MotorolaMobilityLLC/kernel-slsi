@@ -930,7 +930,9 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 	}
 
 	decon_hiber_block_exit(decon);
-
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	mutex_lock(&decon->esd.lock);
+#endif
 	switch (blank_mode) {
 	case FB_BLANK_POWERDOWN:
 	case FB_BLANK_NORMAL:
@@ -948,6 +950,10 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 			decon_err("failed to enable decon\n");
 			goto blank_exit;
 		}
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+		if (decon->esd.thread)
+			wake_up_process(decon->esd.thread);
+#endif
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
@@ -956,6 +962,9 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 	}
 
 blank_exit:
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	mutex_unlock(&decon->esd.lock);
+#endif
 	decon_hiber_unblock(decon);
 	decon_info("%s -\n", __func__);
 	return ret;
@@ -996,6 +1005,11 @@ int decon_wait_for_vsync(struct decon_device *decon, u32 timeout)
 	int ret;
 
 	decon_to_psr_info(decon, &psr);
+
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	if (decon_is_bypass(decon))
+		return 0;
+#endif
 
 	if (psr.trig_mode != DECON_HW_TRIG)
 		return 0;
@@ -2125,6 +2139,10 @@ static void decon_update_regs(struct decon_device *decon,
 
 		decon_wait_for_vstatus(decon, 50);
 		if (decon_reg_wait_update_done_timeout(decon->id, SHADOW_UPDATE_TIMEOUT) < 0) {
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+			if (decon_is_bypass(decon))
+				goto end;
+#endif
 			decon_up_list_saved();
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)
 			decon_dump_afbc_handle(decon, old_dma_bufs);
@@ -2165,6 +2183,94 @@ end:
 	decon_dpp_stop(decon, false);
 }
 
+/*
+ * this function is made for refresh last decon_reg_data that is stored
+ * in update_handler. it will be called after recovery subdev.
+ * TODO : combine decon_update_regs and decon_update_last_regs
+ */
+int decon_update_last_regs(struct decon_device *decon,
+		struct decon_reg_data *regs)
+{
+	int ret = 0;
+	struct decon_mode_info psr;
+
+	decon_info("%s +\n", __func__);
+
+	decon_exit_hiber(decon);
+
+	decon_check_used_dpp(decon, regs);
+
+#if defined(CONFIG_EXYNOS_AFBC_DEBUG)
+	decon_update_vgf_info(decon, regs, true);
+#endif
+
+	decon_update_hdr_info(decon, regs);
+
+#if defined(CONFIG_EXYNOS_BTS)
+	/* add calc and update bw : cur > prev */
+	decon->bts.ops->bts_calc_bw(decon, regs);
+	decon->bts.ops->bts_update_bw(decon, regs, 0);
+#endif
+
+	DPU_EVENT_LOG_WINCON(&decon->sd, regs);
+
+	decon_to_psr_info(decon, &psr);
+	if (regs->num_of_window) {
+		if (__decon_update_regs(decon, regs) < 0) {
+#if defined(CONFIG_EXYNOS_AFBC_DEBUG)
+			decon_dump_afbc_handle(decon, old_dma_bufs);
+#endif
+			decon_dump(decon);
+			BUG();
+		}
+		if (!regs->num_of_window) {
+			__decon_update_clear(decon, regs);
+			decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
+			goto end;
+		}
+	} else {
+		__decon_update_clear(decon, regs);
+		decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
+		goto end;
+	}
+
+	decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
+
+	if (decon->cursor.unmask)
+		decon_set_cursor_unmask(decon, false);
+
+	decon_wait_for_vstatus(decon, 50);
+	if (decon_reg_wait_update_done_timeout(decon->id, SHADOW_UPDATE_TIMEOUT) < 0) {
+		decon_err("%s shadow update timeout\n", __func__);
+		ret = -ETIMEDOUT;
+		goto end;
+	}
+
+	decon_info("%s ...\n", __func__);
+
+	if (!decon->low_persistence)
+		decon_reg_set_trigger(decon->id, &psr, DECON_TRIG_DISABLE);
+
+end:
+	DPU_EVENT_LOG(DPU_EVT_FENCE_RELEASE, &decon->sd, ktime_set(0, 0));
+
+#if defined(CONFIG_EXYNOS_AFBC_DEBUG)
+	decon_save_vgf_connected_win_id(decon, regs);
+	decon_update_vgf_info(decon, regs, false);
+#endif
+
+#if defined(CONFIG_EXYNOS_BTS)
+	/* add update bw : cur < prev */
+	decon->bts.ops->bts_update_bw(decon, regs, 1);
+#endif
+
+	decon_dpp_stop(decon, false);
+
+	decon_info("%s -\n", __func__);
+
+	return ret;
+}
+
 static void decon_update_regs_handler(struct kthread_work *work)
 {
 	struct decon_update_regs *up =
@@ -2189,6 +2295,9 @@ static void decon_update_regs_handler(struct kthread_work *work)
 
 		decon_set_cursor_reset(decon, data);
 		decon_update_regs(decon, data);
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+		memcpy(&decon->last_regs, data, sizeof(struct decon_reg_data));
+#endif
 		decon_hiber_unblock(decon);
 		if (!decon->up_list_saved) {
 			list_del(&data->list);
@@ -2336,8 +2445,19 @@ static int decon_set_win_config(struct decon_device *decon,
 	mutex_lock(&decon->lock);
 
 	if (IS_DECON_OFF_STATE(decon) ||
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+		decon_is_bypass(decon) ||
+#endif
 		decon->state == DECON_STATE_TUI ||
 		IS_ENABLED(CONFIG_EXYNOS_VIRTUAL_DISPLAY)) {
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+		decon_warn("decon-%d skip win_config(state:%s, bypass:%s)\n",
+				decon->id, decon_state_names[decon->state],
+				decon_is_bypass(decon) ? "on" : "off");
+#else
+		decon_warn("decon-%d skip win_config(state:%s)\n",
+				decon->id, decon_state_names[decon->state]);
+#endif
 		win_data->retire_fence = decon_create_fence(decon, &sync_file);
 		if (win_data->retire_fence < 0)
 			goto err;
@@ -3670,6 +3790,9 @@ static int decon_probe(struct platform_device *pdev)
 	mutex_init(&decon->pm_lock);
 	mutex_init(&decon->up.lock);
 	mutex_init(&decon->cursor.lock);
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	mutex_init(&decon->esd.lock);
+#endif
 
 	decon_enter_shutdown_reset(decon);
 
@@ -3746,14 +3869,28 @@ static int decon_probe(struct platform_device *pdev)
 	itmon_notifier_chain_register(&decon->itmon_nb);
 #endif
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	decon_set_bypass(decon, false);
+#endif
+
 	ret = decon_initial_display(decon, false);
 	if (ret)
 		goto err_display;
+
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	ret = decon_create_esd_thread(decon);
+	if (ret)
+		goto err_esd;
+#endif
 
 	decon_info("decon%d registered successfully", decon->id);
 
 	return 0;
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+err_esd:
+	decon_destroy_esd_thread(decon);
+#endif
 err_display:
 	decon_destroy_update_thread(decon);
 err_win:
@@ -3802,6 +3939,9 @@ static void decon_shutdown(struct platform_device *pdev)
 	struct decon_device *decon = platform_get_drvdata(pdev);
 	struct fb_info *fbinfo = decon->win[decon->dt.dft_win]->fbinfo;
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	mutex_lock(&decon->esd.lock);
+#endif
 	decon_enter_shutdown(decon);
 
 	if (!lock_fb_info(fbinfo)) {
@@ -3820,6 +3960,9 @@ static void decon_shutdown(struct platform_device *pdev)
 	unlock_fb_info(fbinfo);
 
 	decon_info("%s -\n", __func__);
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	mutex_unlock(&decon->esd.lock);
+#endif
 	return;
 }
 

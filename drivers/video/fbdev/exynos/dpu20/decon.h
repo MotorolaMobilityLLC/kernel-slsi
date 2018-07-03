@@ -783,6 +783,15 @@ struct decon_vsync {
 	struct task_struct *thread;
 };
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+struct decon_esd {
+#define PWR_STATE_RECHECK_TIME	5
+#define ESD_SLEEP_TIME		4
+	struct mutex lock;
+	struct task_struct *thread;
+};
+#endif
+
 struct decon_hiber {
 	struct mutex lock;
 	struct task_struct *thread;
@@ -875,6 +884,9 @@ struct decon_device {
 	struct mutex lock;
 	struct mutex pm_lock;
 	spinlock_t slock;
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	struct decon_esd esd;
+#endif
 
 #if defined(CONFIG_SUPPORT_LEGACY_ION)
 	struct ion_client *ion_client;
@@ -935,6 +947,10 @@ struct decon_device {
 
 	bool mres_enabled;
 	bool low_persistence;
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	atomic_t bypass;
+	struct decon_reg_data last_regs;
+#endif
 };
 
 static inline struct decon_device *get_decon_drvdata(u32 id)
@@ -1037,6 +1053,8 @@ int decon_get_pinctrl(struct decon_device *decon);
 int decon_register_ext_irq(struct decon_device *decon);
 int decon_create_vsync_thread(struct decon_device *decon);
 void decon_destroy_vsync_thread(struct decon_device *decon);
+int decon_create_esd_thread(struct decon_device *decon);
+void decon_destroy_esd_thread(struct decon_device *decon);
 int decon_create_psr_info(struct decon_device *decon);
 void decon_destroy_psr_info(struct decon_device *decon);
 
@@ -1193,6 +1211,30 @@ static inline void decon_enter_shutdown_reset(struct decon_device *decon)
 	atomic_set(&decon->is_shutdown, 0);
 }
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+static inline void decon_set_bypass(struct decon_device *decon, bool on)
+{
+	atomic_set(&decon->bypass, !!on);
+}
+
+static inline void decon_bypass_on(struct decon_device *decon)
+{
+	atomic_inc(&decon->bypass);
+}
+
+static inline void decon_bypass_off(struct decon_device *decon)
+{
+	atomic_dec(&decon->bypass);
+}
+
+static inline bool decon_is_bypass(struct decon_device *decon)
+{
+	return atomic_read(&decon->bypass);
+}
+#endif
+
+int decon_update_pwr_state(struct decon_device *decon, u32 mode);
+
 enum disp_pwr_mode {
 	DISP_PWR_OFF = 0,
 	DISP_PWR_DOZE,
@@ -1292,6 +1334,8 @@ int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 int dpu_pm_domain_check_status(struct exynos_pm_domain *pm_domain);
 #endif
 int decon_set_out_sd_state(struct decon_device *decon, enum decon_state state);
+int decon_update_last_regs(struct decon_device *decon,
+		struct decon_reg_data *regs);
 
 /* IOCTL commands */
 #define S3CFB_SET_VSYNC_INT		_IOW('F', 206, __u32)

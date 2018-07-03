@@ -380,6 +380,179 @@ void decon_destroy_vsync_thread(struct decon_device *decon)
 		kthread_stop(decon->vsync.thread);
 }
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+#define ESD_RECOVERY_RETRY_CNT	5
+static int decon_handle_esd(struct decon_device *decon)
+{
+	struct dsim_device *dsim;
+	int ret = 0;
+	int retry = 0;
+	int status = 0;
+
+	decon_info("%s +\n", __func__);
+
+	if (decon == NULL) {
+		decon_warn("%s invalid param\n", __func__);
+		return -EINVAL;
+	}
+
+	decon_bypass_on(decon);
+	dsim = container_of(decon->out_sd[0], struct dsim_device, sd);
+	dsim->esd_recovering = true;
+
+	while (++retry <= ESD_RECOVERY_RETRY_CNT) {
+		decon_warn("%s try recovery(%d times)\n",
+				__func__, retry);
+		ret = decon_update_pwr_state(decon, DISP_PWR_OFF);
+		if (ret < 0) {
+			decon_err("%s decon-%d failed to set subdev OFF state\n",
+					__func__, decon->id);
+			continue;
+		}
+
+		ret = decon_update_pwr_state(decon, DISP_PWR_NORMAL);
+		if (ret < 0) {
+			decon_err("%s decon-%d failed to set subdev ON state\n",
+					__func__, decon->id);
+			continue;
+		}
+
+#if defined(READ_ESD_SOLUTION_TEST)
+		status = DSIM_ESD_OK;
+#else
+		status = call_panel_ops(dsim, read_state, dsim);
+#endif
+		if (status != DSIM_ESD_OK) {
+			decon_err("%s failed to recover subdev(status %d)\n",
+					__func__, status);
+			continue;
+		}
+
+		DPU_FULL_RECT(&decon->last_regs.up_region, decon->lcd_info);
+		decon->last_regs.need_update = true;
+		ret = decon_update_last_regs(decon, &decon->last_regs);
+		if (ret < 0) {
+			decon_err("%s failed to update last image(ret %d)\n",
+					__func__, ret);
+			continue;
+		}
+		decon_info("%s recovery successfully(retry %d times)\n",
+				__func__, retry);
+		break;
+	}
+
+	if (retry > ESD_RECOVERY_RETRY_CNT) {
+		decon_err("DECON:ERR:%s:failed to recover(retry %d times)\n",
+				__func__, ESD_RECOVERY_RETRY_CNT);
+		decon_dump(decon);
+		if (decon->dt.out_type == DECON_OUT_DSI)
+			v4l2_subdev_call(decon->out_sd[0], core, ioctl,
+					DSIM_IOC_DUMP, NULL);
+		BUG();
+	}
+
+	dsim->esd_recovering = false;
+	decon_bypass_off(decon);
+	decon_info("%s -\n", __func__);
+
+	return ret;
+}
+
+static void decon_esd_process(int esd, struct decon_device *decon)
+{
+	int ret;
+
+	switch (esd) {
+	case DSIM_ESD_CHECK_ERROR:
+		decon_err("%s, It is not ESD, \
+			but DDI is abnormal state(%d)\n", __func__, esd);
+		break;
+	case DSIM_ESD_OK:
+		decon_info("%s, DDI has normal state(%d)\n", __func__, esd);
+		break;
+	case DSIM_ESD_ERROR:
+		decon_err("%s, ESD is detected(%d)\n", __func__, esd);
+		ret = decon_handle_esd(decon);
+		if (ret)
+			decon_err("%s, failed to recover ESD\n", __func__);
+		break;
+	default:
+		decon_err("%s, Not supported value(%d)\n", __func__, esd);
+		break;
+	}
+}
+
+static int decon_esd_thread(void *data)
+{
+	struct decon_device *decon = data;
+	struct dsim_device *dsim = NULL;
+	int esd = 0;
+
+	while (!kthread_should_stop()) {
+		/* Loop for ESD detection */
+		if (decon->state == DECON_STATE_OFF) {
+			/* go to sleep when decon is not ready */
+			decon_info("%s, Sleep \n", __func__);
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule();
+			set_current_state(TASK_RUNNING);
+			continue;
+		}
+
+		decon_hiber_block_exit(decon);
+		if (decon->state == DECON_STATE_ON) {
+			mutex_lock(&decon->esd.lock);
+
+			dsim = container_of(decon->out_sd[0],
+					struct dsim_device, sd);
+
+			decon_info("%s, Try to check ESD\n", __func__);
+
+			esd = call_panel_ops(dsim, read_state, dsim);
+			decon_esd_process(esd, decon);
+
+			mutex_unlock(&decon->esd.lock);
+		}
+		decon_hiber_unblock(decon);
+		/* sleep ESD_SLEEP_TIME second when decon is not state on
+		 * and after read DDI state
+		 */
+		decon_info("%s, Sleep %d second\n", __func__, ESD_SLEEP_TIME);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(ESD_SLEEP_TIME * HZ);
+	}
+	/* when if kthread_should_stop() return true */
+	return 0;
+}
+
+int decon_create_esd_thread(struct decon_device *decon)
+{
+	int ret = 0;
+	char name[16];
+
+	if (decon->dt.out_type != DECON_OUT_DSI) {
+		decon_info("esd thread is only needed for DSI path\n");
+		return 0;
+	}
+
+	sprintf(name, "decon%d-esd", decon->id);
+	decon->esd.thread = kthread_run(decon_esd_thread, decon, name);
+	if (IS_ERR_OR_NULL(decon->esd.thread)) {
+		decon_err("failed to run esd thread\n");
+		decon->esd.thread = NULL;
+		ret = PTR_ERR(decon->esd.thread);
+	}
+
+	return ret;
+}
+
+void decon_destroy_esd_thread(struct decon_device *decon)
+{
+	if (decon->esd.thread)
+		kthread_stop(decon->esd.thread);
+}
+#endif /* CONFIG_EXYNOS_READ_ESD_SOLUTION */
+
 /*
  * Variable Descriptions
  *   dsc_en : comp_mode (0=No Comp, 1=DSC, 2=MIC, 3=LEGO)

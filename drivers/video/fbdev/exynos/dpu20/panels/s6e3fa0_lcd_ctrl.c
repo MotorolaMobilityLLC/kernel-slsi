@@ -176,7 +176,26 @@ void lcd_enable(int id)
 
 void lcd_disable(int id)
 {
-	/* This function needs to implement */
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_DISPLAY_OFF,
+				ARRAY_SIZE(SEQ_DISPLAY_OFF)) < 0)
+		dsim_err("fail to send SEQ_DISPLAY_OFF command.\n");
+	mdelay(20);
+}
+
+void lcd_sleepin(int id)
+{
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_SLEEP_IN,
+				ARRAY_SIZE(SEQ_SLEEP_IN)) < 0)
+		dsim_err("fail to send SEQ_SLEEP_IN command.\n");
+	mdelay(120);
+}
+
+void lcd_sleepout(int id)
+{
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE, SEQ_SLEEP_OUT[0], 0) < 0)
+		dsim_err("fail to send SEQ_SLEEP_OUT command.\n");
+	mdelay(120);
+
 }
 
 /*

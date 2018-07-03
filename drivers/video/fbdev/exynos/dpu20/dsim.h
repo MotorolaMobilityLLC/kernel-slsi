@@ -241,6 +241,11 @@ struct dsim_device {
 	bool fb_reservation;
 	phys_addr_t phys_addr;
 	phys_addr_t phys_size;
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+//#define READ_ESD_SOLUTION_TEST
+	int esd_test;
+	bool esd_recovering;
+#endif
 };
 
 struct dsim_lcd_driver {
@@ -252,6 +257,9 @@ struct dsim_lcd_driver {
 	int (*mres)(struct dsim_device *dsim, int mres_idx);
 	int (*doze)(struct dsim_device *dsim);
 	int (*doze_suspend)(struct dsim_device *dsim);
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	int (*read_state)(struct dsim_device *dsim);
+#endif
 };
 
 int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1);
@@ -401,5 +409,11 @@ static inline bool IS_DSIM_OFF_STATE(struct dsim_device *dsim)
 #define DSIM_IOC_FREE_FB_RES		_IOW('D', 11, u32)
 #define DSIM_IOC_DOZE			_IOW('D', 20, u32)
 #define DSIM_IOC_DOZE_SUSPEND		_IOW('D', 21, u32)
+
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+#define DSIM_ESD_OK			0
+#define DSIM_ESD_ERROR			1
+#define DSIM_ESD_CHECK_ERROR		2
+#endif
 
 #endif /* __SAMSUNG_DSIM_H__ */

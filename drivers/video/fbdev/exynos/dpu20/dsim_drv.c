@@ -1141,6 +1141,36 @@ static void dsim_init_subdev(struct dsim_device *dsim)
 	v4l2_set_subdevdata(sd, dsim);
 }
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION) && defined(READ_ESD_SOLUTION_TEST)
+static ssize_t dsim_esd_test_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long cmd;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &cmd);
+	if (ret)
+		return ret;
+
+	dsim->esd_test = cmd;
+
+	return count;
+}
+static DEVICE_ATTR(esd_test, 0644, NULL, dsim_esd_test_store);
+
+int dsim_create_esd_test_sysfs(struct dsim_device *dsim)
+{
+	int ret = 0;
+
+	ret = device_create_file(dsim->dev, &dev_attr_esd_test);
+	if (ret)
+		dsim_err("failed to create command read & write sysfs\n");
+
+	return ret;
+}
+#endif
+
 static int dsim_cmd_sysfs_write(struct dsim_device *dsim, bool on)
 {
 	int ret = 0;
@@ -1657,6 +1687,13 @@ static int dsim_probe(struct platform_device *pdev)
 
 	dsim_clocks_info(dsim);
 	dsim_create_cmd_rw_sysfs(dsim);
+
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	dsim->esd_recovering = false;
+#if defined(READ_ESD_SOLUTION_TEST)
+	dsim_create_esd_test_sysfs(dsim);
+#endif
+#endif
 
 #ifdef DPHY_LOOP
 	dsim_reg_set_dphy_loop_back_test(dsim->id);

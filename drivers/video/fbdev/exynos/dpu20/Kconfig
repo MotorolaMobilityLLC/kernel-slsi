@@ -60,6 +60,13 @@ config EXYNOS_VIRTUAL_DISPLAY
 	help
 	  If this menu is enabled, you can boot up board without LCD.
 
+config EXYNOS_READ_ESD_SOLUTION
+	bool "Support ESD solution using read DDI power state"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  If this menu is enabled, you can detect ESD of panel.
+
 config EXYNOS_LOW_PERSISTENCE
 	bool "Support Low Persistence Mode"
         depends on EXYNOS_DPU20
