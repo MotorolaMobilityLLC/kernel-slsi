@@ -224,8 +224,8 @@ struct fimc_is_sysfs_debug {
 	unsigned int en_dvfs;
 	unsigned int en_clk_gate;
 	unsigned int clk_gate_mode;
-	unsigned long pattern_en;
-	unsigned long pattern_fps;
+	unsigned int pattern_en;
+	unsigned int pattern_fps;
 	unsigned long hal_debug_mode;
 	unsigned int hal_debug_delay;
 };

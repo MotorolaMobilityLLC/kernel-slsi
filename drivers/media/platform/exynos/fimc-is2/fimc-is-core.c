@@ -594,7 +594,7 @@ static ssize_t store_en_dvfs(struct device *dev,
 static ssize_t show_pattern_en(struct device *dev, struct device_attribute *attr,
 				  char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%lu\n", sysfs_debug.pattern_en);
+	return snprintf(buf, PAGE_SIZE, "%u\n", sysfs_debug.pattern_en);
 }
 
 static ssize_t store_pattern_en(struct device *dev,
@@ -602,11 +602,11 @@ static ssize_t store_pattern_en(struct device *dev,
 				 const char *buf, size_t count)
 {
 	int ret = 0;
-	unsigned long cmd;
+	unsigned int cmd;
 	struct fimc_is_core *core =
 		(struct fimc_is_core *)platform_get_drvdata(to_platform_device(dev));
 
-	ret = kstrtoul(buf, 0, &cmd);
+	ret = kstrtouint(buf, 0, &cmd);
 	if (ret)
 		return ret;
 
@@ -629,7 +629,7 @@ static ssize_t store_pattern_en(struct device *dev,
 static ssize_t show_pattern_fps(struct device *dev, struct device_attribute *attr,
 				  char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%lu\n", sysfs_debug.pattern_fps);
+	return snprintf(buf, PAGE_SIZE, "%u\n", sysfs_debug.pattern_fps);
 }
 
 static ssize_t store_pattern_fps(struct device *dev,
@@ -637,9 +637,9 @@ static ssize_t store_pattern_fps(struct device *dev,
 				 const char *buf, size_t count)
 {
 	int ret = 0;
-	unsigned long cmd;
+	unsigned int cmd;
 
-	ret = kstrtoul(buf, 0, &cmd);
+	ret = kstrtouint(buf, 0, &cmd);
 	if (ret)
 		return ret;
 
