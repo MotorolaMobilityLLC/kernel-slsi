@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef FIMC_IS_HW_UVSP_H
-#define FIMC_IS_HW_UVSP_H
+#ifndef FIMC_IS_HW_UVSP_CAC_H
+#define FIMC_IS_HW_UVSP_CAC_H
 
 #define CAC_MAX_NI_DEPENDED_CFG     (9)
 struct cac_map_thr_cfg {

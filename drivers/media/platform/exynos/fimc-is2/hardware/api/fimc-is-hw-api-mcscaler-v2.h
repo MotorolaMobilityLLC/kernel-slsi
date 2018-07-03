@@ -226,6 +226,11 @@ void fimc_is_scaler_set_djag_init_phase_offset(void __iomem *base_addr, u32 h_of
 void fimc_is_scaler_set_djag_round_mode(void __iomem *base_addr, u32 round_enable);
 void fimc_is_scaler_set_djag_tunning_param(void __iomem *base_addr, const struct djag_setfile_contents *djag_tune);
 
+/* cac */
+void fimc_is_scaler_set_cac_enable(void __iomem *base_addr, u32 en);
+void fimc_is_scaler_set_cac_input_source(void __iomem *base_addr, u32 in);
+void fimc_is_scaler_set_cac_map_crt_thr(void __iomem *base_addr, struct cac_cfg_by_ni *cfg);
+
 /* ysum */
 void fimc_is_scaler_set_ysum_input_sourece_enable(void __iomem *base_addr, u32 output_id, bool ysum_enable);
 void fimc_is_scaler_set_ysum_enable(void __iomem *base_addr, bool ysum_enable);

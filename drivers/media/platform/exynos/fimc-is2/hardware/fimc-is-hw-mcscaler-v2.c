@@ -832,6 +832,7 @@ config:
 
 	ret_internal = fimc_is_hw_mcsc_update_dsvra_register(hw_ip, head, mcs_param, instance, frame->shot);
 	ret_internal = fimc_is_hw_mcsc_update_tdnr_register(hw_ip, frame, param, start_flag);
+	ret_internal = fimc_is_hw_mcsc_update_cac_register(hw_ip, frame, instance);
 	ret_internal = fimc_is_hw_mcsc_update_ysum_register(hw_ip, head, mcs_param, instance, frame->shot);
 	if (ret_internal) {
 		msdbg_hw(2, "ysum cfg is failed\n", instance, hw_ip);

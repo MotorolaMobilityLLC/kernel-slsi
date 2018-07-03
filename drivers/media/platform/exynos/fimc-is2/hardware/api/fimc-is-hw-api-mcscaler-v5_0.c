@@ -3499,6 +3499,50 @@ void fimc_is_scaler_set_djag_tunning_param(void __iomem *base_addr, const struct
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DJAG_CP_ARBI], reg_val);
 }
 
+/* for CAC */
+void fimc_is_scaler_set_cac_enable(void __iomem *base_addr, u32 en)
+{
+	u32 reg_val = 0;
+
+	reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_CAC_CTRL]);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_ENABLE], en);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_CAC_CTRL], reg_val);
+}
+
+void fimc_is_scaler_set_cac_input_source(void __iomem *base_addr, u32 in)
+{
+	u32 reg_val = 0;
+
+	reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_CAC_CTRL]);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_INPUT_SEL], in);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_CAC_CTRL], reg_val);
+}
+
+void fimc_is_scaler_set_cac_map_crt_thr(void __iomem *base_addr, struct cac_cfg_by_ni *cfg)
+{
+	u32 reg_val = 0;
+
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_MAP_SPOT_THR_L],
+			cfg->map_thr_cfg.map_spot_thr_l);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_MAP_SPOT_THR_H],
+			cfg->map_thr_cfg.map_spot_thr_h);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_MAP_SPOT_THR],
+			cfg->map_thr_cfg.map_spot_thr);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_MAP_SPOT_NR_STRENGTH],
+			cfg->map_thr_cfg.map_spot_nr_strength);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_CAC_MAP_THR], reg_val);
+
+
+	reg_val = 0;
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_CRT_COLOR_THR_L_DOT],
+			cfg->crt_thr_cfg.crt_color_thr_l_dot);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_CRT_COLOR_THR_L_LINE],
+			cfg->crt_thr_cfg.crt_color_thr_l_line);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_CAC_CRT_COLOR_THR_H],
+			cfg->crt_thr_cfg.crt_color_thr_h);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_CAC_CRT_THR], reg_val);
+}
+
 /* DS */
 void fimc_is_scaler_set_ds_enable(void __iomem *base_addr, u32 ds_enable)
 {

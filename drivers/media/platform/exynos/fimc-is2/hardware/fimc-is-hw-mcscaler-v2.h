@@ -116,7 +116,7 @@ struct hw_mcsc_setfile {
 	 */
 	struct djag_setfile_contents	djag[MAX_SCALINGRATIOINDEX_DEPENDED_CONFIGS];
 #endif
-#if (MCSC_USE_TUNING_PARAM_VER >= 0x14027432)
+#if defined(USE_UVSP_CAC)
 	struct scaler_bchs_clamp_cfg	sc_bchs[2];	/* 0: YUV_FULL, 1: YUV_NARROW */
 	struct scaler_coef_cfg		sc_coef;
 	struct djag_wb_thres_cfg	djag_wb[MAX_SCALINGRATIOINDEX_DEPENDED_CONFIGS];
@@ -151,6 +151,7 @@ struct fimc_is_hw_mcsc_cap {
 	bool 			enable_shared_output;
 	enum mcsc_cap_enum	tdnr;
 	enum mcsc_cap_enum	djag;
+	enum mcsc_cap_enum	cac;
 	enum mcsc_cap_enum	ysum;
 	enum mcsc_cap_enum	ds_vra;
 };
@@ -179,6 +180,9 @@ struct fimc_is_hw_mcsc {
 	enum tdnr_mode		cur_tdnr_mode;
 	enum yic_mode		yic_en;
 	struct tdnr_configs	tdnr_cfgs;
+
+	/* for CAC*/
+	u32			cac_in;
 
 	/* for Djag */
 	u32			djag_in;
@@ -244,6 +248,8 @@ void fimc_is_hw_mcsc_adjust_size_with_djag(struct fimc_is_hw_ip *hw_ip, struct p
 int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 		struct mcs_param *param,
 		u32 instance);
+int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
+	struct fimc_is_frame *frame, u32 instance);
 int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,
 	u32 instance, struct camera2_shot *shot);
