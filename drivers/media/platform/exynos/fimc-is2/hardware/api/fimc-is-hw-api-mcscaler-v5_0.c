@@ -3499,6 +3499,18 @@ void fimc_is_scaler_set_djag_tunning_param(void __iomem *base_addr, const struct
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DJAG_CP_ARBI], reg_val);
 }
 
+void fimc_is_scaler_set_djag_wb_thres(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb)
+{
+	u32 reg_val = 0;
+
+	if (!djag_wb)
+		return;
+
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_DJAG_DITHER_WB_THRES],
+		djag_wb->dither_wb_thres);
+	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DJAG_DITHER_THRES], reg_val);
+}
+
 /* for CAC */
 void fimc_is_scaler_set_cac_enable(void __iomem *base_addr, u32 en)
 {
