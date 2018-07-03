@@ -15,6 +15,15 @@
 
 #include "mfc_common.h"
 
+/* bit operation */
+#define mfc_clear_bits(reg, mask, shift)	(reg &= ~(mask << shift))
+#define mfc_set_bits(reg, mask, shift, value)	(reg |= (value & mask) << shift)
+#define mfc_clear_set_bits(reg, mask, shift, value)	\
+	do {						\
+		reg &= ~(mask << shift);		\
+		reg |= (value & mask) << shift;		\
+	} while (0)
+
 static inline void mfc_clean_dev_int_flags(struct mfc_dev *dev)
 {
 	dev->int_condition = 0;
