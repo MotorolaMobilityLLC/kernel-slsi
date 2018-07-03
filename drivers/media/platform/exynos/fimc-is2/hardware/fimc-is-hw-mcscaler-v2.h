@@ -177,7 +177,7 @@ struct fimc_is_hw_mcsc {
 	ulong	out_en;		/* This flag save whether the capture video node of MCSC is opened or not. */
 	u32	prev_hwfc_output_ids;
 	/* noise_index also needs to use in TDNR, CAC, DJAG */
-	u32			cur_noise_index;
+	u32			cur_ni;
 
 	/* for tdnr use */
 	enum mcsc_output_index	tdnr_output;

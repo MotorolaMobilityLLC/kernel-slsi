@@ -857,7 +857,7 @@ static int fimc_is_hw_mcsc_cfg_tdnr_tuning_param(struct fimc_is_hw_ip *hw_ip,
 	noise_index = frame->noise_idx; /* get applying NI from frame */
 #endif
 
-	if (!start_flag && hw_mcsc->cur_noise_index == noise_index)
+	if (!start_flag && hw_mcsc->cur_ni == noise_index)
 		goto exit;
 
 	/* find ref NI arry index for re-configure NI depended settings */
@@ -921,7 +921,7 @@ config:
 		tdnr_cfgs.spatial_dep_cfg, tdnr_cfgs.spatial_indep_cfg);
 
 exit:
-	hw_mcsc->cur_noise_index = noise_index;
+	hw_mcsc->cur_ni = noise_index;
 
 	return ret;
 }
