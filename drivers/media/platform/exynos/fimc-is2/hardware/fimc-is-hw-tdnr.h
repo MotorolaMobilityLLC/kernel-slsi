@@ -15,6 +15,13 @@
 
 /* DDK delivered NI to multiply 10 */
 #define MULTIPLIED_NI(value)		(10 * (value))
+#define INTERPOLATE_SHIFT			(12)
+#define INTERPOLATE_NUMERATOR(Y1, Y2, diff_x_x1) \
+	((((Y2) - (Y1)) * (diff_x_x1)) << INTERPOLATE_SHIFT)
+#define GET_LINEAR_INTERPOLATE_VALUE(Y1, Y2, diff_x2_x1, diff_x_x1)		\
+	(((INTERPOLATE_NUMERATOR((int)Y1, (int)Y2, diff_x_x1)) / (diff_x2_x1)) + \
+					(((int)(Y1) << INTERPOLATE_SHIFT)))
+#define RESTORE_SHIFT_VALUE(value) ((int)(value) >> INTERPOLATE_SHIFT)
 
 enum tdnr_mode {
 	TDNR_MODE_BYPASS = 0,

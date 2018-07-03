@@ -27,14 +27,6 @@
 	(output_id + ENTRY_M0P)
 #define GET_DJAG_ZOOM_RATIO(in, out) (u32)(((in * 1000 / out) << MCSC_PRECISION) / 1000)
 
-#define INTERPOLATE_SHIFT			(12)
-#define INTERPOLATE_NUMERATOR(Y1, Y2, diff_x_x1) \
-	((((Y2) - (Y1)) * (diff_x_x1)) << INTERPOLATE_SHIFT)
-#define GET_LINEAR_INTERPOLATE_VALUE(Y1, Y2, diff_x2_x1, diff_x_x1)		\
-	(((INTERPOLATE_NUMERATOR((int)Y1, (int)Y2, diff_x_x1)) / (diff_x2_x1)) + \
-					(((int)(Y1) << INTERPOLATE_SHIFT)))
-#define RESTORE_SHIFT_VALUE(value) ((int)(value) >> INTERPOLATE_SHIFT)
-
 enum mcsc_img_format {
 	MCSC_YUV422_1P_YUYV = 0,
 	MCSC_YUV422_1P_YVYU,
