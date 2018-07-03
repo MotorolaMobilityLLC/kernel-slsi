@@ -2067,6 +2067,8 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 		goto err_reg_v4l2_subdev;
 	}
 
+	__putname(irq_name);
+
 	info("[%d][CSI:D] %s(%d)\n", instance, __func__, ret);
 	return 0;
 
