@@ -930,8 +930,11 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 		SLSI_NET_DBG3(dev, SLSI_MLME, "cfg80211_roamed()\n");
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
+		/* cfg80211 does not require bss pointer in roam_info.
+		 * If bss pointer is given in roam_info, cfg80211 bss
+		 * data base goes bad and results in random panic.
+		 */
 		roam_info.channel = ndev_vif->sta.sta_bss->channel;
-		roam_info.bss = ndev_vif->sta.sta_bss;
 		roam_info.bssid = peer->address;
 		roam_info.req_ie = assoc_ie;
 		roam_info.req_ie_len = assoc_ie_len;
