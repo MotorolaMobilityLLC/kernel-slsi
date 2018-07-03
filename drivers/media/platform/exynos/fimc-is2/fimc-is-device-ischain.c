@@ -2124,6 +2124,7 @@ int fimc_is_itf_grp_shot(struct fimc_is_device_ischain *device,
 	unsigned long flags;
 	struct fimc_is_group *head;
 	struct fimc_is_framemgr *framemgr;
+	bool is_remosaic_preview = false;
 #endif
 	FIMC_BUG(!device);
 	FIMC_BUG(!group);
@@ -2155,8 +2156,15 @@ int fimc_is_itf_grp_shot(struct fimc_is_device_ischain *device,
 	mgrdbgs(1, " SHOT(%d)\n", device, group, frame, frame->index);
 
 #ifdef CONFIG_USE_SENSOR_GROUP
+
+#ifdef ENABLE_REMOSAIC_CAPTURE
+	if (!test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state)
+		&& (frame->shot->ctl.aa.sceneMode == AA_SCENE_MODE_REMOSAIC))
+		is_remosaic_preview = true;
+#endif
+
 	head = GET_HEAD_GROUP_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN, group);
-	if (head) {
+	if (head && !is_remosaic_preview) {
 		ret = fimc_is_itf_shot_wrap(device, group, frame);
 	} else {
 		framemgr = GET_HEAD_GROUP_FRAMEMGR(group);
