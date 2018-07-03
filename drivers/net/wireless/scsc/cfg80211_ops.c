@@ -878,9 +878,6 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 	/* Initial Roaming checks done - assign vif type */
 	ndev_vif->vif_type = FAPI_VIFTYPE_STATION;
 
-	/* Abort on-going scans (if any) */
-	slsi_abort_hw_scan(sdev, dev);
-
 	channel = sme->channel;
 	bssid = sme->bssid;
 	ndev_vif->sta.sta_bss = cfg80211_get_bss(wiphy,
