@@ -1629,10 +1629,6 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			bts_update_scen(BS_FHD_480_ENCODING, 0);
 #endif
 			break;
-		default:
-			err("[RSC] resource type(%d) is invalid", rsc_type);
-			BUG();
-			break;
 		}
 
 		fimc_is_vender_resource_put(&core->vender);
