@@ -138,10 +138,9 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 void dpp_constraints_params(struct dpp_size_constraints *vc,
 					struct dpp_img_format *vi);
 
-/* DPU DMA DEBUG */
-void dma_reg_dump_com_debug_regs(int id);
-void dma_reg_dump_debug_regs(int id);
-void dpp_reg_dump_debug_regs(int id);
+/* DPU_DMA, DPP DEBUG */
+void __dpp_dump(u32 id, void __iomem *regs, void __iomem *dma_regs,
+		unsigned long attr);
 
 /* DPU_DMA and DPP interrupt handler */
 u32 dpp_reg_get_irq_and_clear(u32 id);

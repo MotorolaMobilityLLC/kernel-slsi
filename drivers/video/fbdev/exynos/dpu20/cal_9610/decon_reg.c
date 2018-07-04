@@ -2219,3 +2219,41 @@ int decon_check_supported_formats(enum decon_pixel_format format)
 	return -EINVAL;
 }
 
+/* base_regs means DECON0's SFR base address */
+void __decon_dump(u32 id, void __iomem *regs, void __iomem *base_regs, bool dsc_en)
+{
+	decon_info("\n=== DECON%d SFR DUMP ===\n", id);
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			regs, 0x620, false);
+
+	decon_info("\n=== DECON%d SHADOW SFR DUMP ===\n", id);
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			regs + SHADOW_OFFSET, 0x304, false);
+
+	decon_info("\n=== DECON0 WINDOW SFR DUMP ===\n");
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			base_regs + 0x1000, 0x340, false);
+
+	decon_info("\n=== DECON0 WINDOW SHADOW SFR DUMP ===\n");
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			base_regs + SHADOW_OFFSET + 0x1000, 0x220, false);
+
+	if (dsc_en) {
+		decon_info("\n=== DECON0 DSC0 SFR DUMP ===\n");
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+				base_regs + 0x4000, 0x80, false);
+
+		decon_info("\n=== DECON0 DSC1 SFR DUMP ===\n");
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+				base_regs + 0x5000, 0x80, false);
+
+		decon_info("\n=== DECON0 DSC0 SHADOW SFR DUMP ===\n");
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+				base_regs + SHADOW_OFFSET + 0x4000, 0x80, false);
+
+		decon_info("\n=== DECON0 DSC1 SHADOW SFR DUMP ===\n");
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+				base_regs + SHADOW_OFFSET + 0x5000, 0x80, false);
+	}
+}
+

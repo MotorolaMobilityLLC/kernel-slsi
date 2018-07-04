@@ -2029,3 +2029,14 @@ void dsim_reg_set_cmd_transfer_mode(u32 id, u32 lp)
 
 	dsim_write_mask(id, DSIM_ESCMODE, val, DSIM_ESCMODE_CMD_LPDT);
 }
+
+void __dsim_dump(u32 id, struct dsim_regs *regs)
+{
+	/* change to updated register read mode (meaning: SHADOW in DECON) */
+	dsim_info("=== DSIM %d LINK SFR DUMP ===\n", id);
+	dsim_reg_enable_shadow_read(id, 0);
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			regs->regs, 0xFC, false);
+
+	dsim_reg_enable_shadow_read(id, 1);
+}

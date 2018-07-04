@@ -290,6 +290,9 @@ void decon_reg_release_resource(u32 id, struct decon_mode_info *psr);
 void decon_reg_config_wb_size(u32 id, struct decon_lcd *lcd_info,
 		struct decon_param *param);
 
+/* DECON SFR dump */
+void __decon_dump(u32 id, void __iomem *regs, void __iomem *base_regs, bool dsc_en);
+
 /* DECON interrupt control */
 void decon_reg_set_int(u32 id, struct decon_mode_info *psr, u32 en);
 int decon_reg_get_interrupt_and_clear(u32 id, u32 *ext_irq);

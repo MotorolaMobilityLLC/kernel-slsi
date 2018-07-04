@@ -28,6 +28,13 @@ enum dsim_ppi {
 	DSIM_2BYTEPPI,
 };
 
+struct dsim_regs {
+	void __iomem *regs;
+	void __iomem *ss_regs;
+	void __iomem *phy_regs;
+	void __iomem *phy_regs_ex;
+};
+
 /*************** DSIM CAL APIs exposed to DSIM driver ***************/
 /* DPHY system register control */
 void dpu_sysreg_select_dphy_rst_control(void __iomem *sysreg, u32 dsim_id, u32 sel);
@@ -67,4 +74,8 @@ void dsim_reg_set_mres(u32 id, struct decon_lcd *lcd_info);
 void dsim_reg_set_bist(u32 id, u32 en);
 
 void dsim_reg_set_cmd_transfer_mode(u32 id, u32 lp);
+
+/* DSIM SFR dump */
+void __dsim_dump(u32 id, struct dsim_regs *regs);
+
 #endif /* __SAMSUNG_DSIM_CAL_H__ */
