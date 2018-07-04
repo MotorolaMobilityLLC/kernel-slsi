@@ -721,7 +721,11 @@ static int nanohub_hw_reset(struct nanohub_data *data)
 		nanohub_wakeup_unlock(data);
 	}
 #elif defined(CONFIG_NANOHUB_MAILBOX)
+#ifdef CHUB_RESET_ENABLE
 	ret = contexthub_reset(data->pdata->mailbox_client);
+#else
+	ret = -EINVAL;
+#endif
 #endif
 	return ret;
 }
@@ -1376,6 +1380,11 @@ static int nanohub_kthread(void *arg)
 	static const struct sched_param param = {
 		.sched_priority = (MAX_USER_RT_PRIO/2)-1,
 	};
+#ifdef CONFIG_NANOHUB_MAILBOX
+#ifndef CHUB_RESET_ENABLE
+	struct contexthub_ipc_info *ipc;
+#endif
+#endif
 
 	data->kthread_err_cnt = 0;
 	sched_setscheduler(current, SCHED_FIFO, &param);
@@ -1405,6 +1414,15 @@ static int nanohub_kthread(void *arg)
 			}
 			msleep_interruptible(WAKEUP_TIMEOUT_MS);
 			nanohub_set_state(data, ST_RUNNING);
+#ifdef CONFIG_NANOHUB_MAILBOX
+#ifndef CHUB_RESET_ENABLE
+			if (ret) {
+				dev_warn(data->io[ID_NANOHUB_SENSOR].dev,
+					"%s fails. nanohub isn't running\n", __func__);
+				return 0;
+			}
+#endif
+#endif
 			break;
 		case ST_RUNNING:
 			break;

@@ -92,6 +92,7 @@ enum chub_status {
 	CHUB_ST_RUN,
 	CHUB_ST_SHUTDOWN,
 	CHUB_ST_NO_RESPONSE,
+	CHUB_ST_HANG,
 };
 
 struct read_wait {
