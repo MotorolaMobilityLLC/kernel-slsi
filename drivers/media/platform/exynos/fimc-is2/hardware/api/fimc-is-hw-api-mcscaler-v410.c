@@ -849,10 +849,8 @@ void fimc_is_scaler_set_poly_scaler_v_coef(void __iomem *base_addr, u32 output_i
 	}
 }
 
-void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr,
-	u32 output_id,
-	u32 hratio,
-	u32 vratio,
+void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr, u32 output_id,
+	u32 hratio, u32 vratio, struct scaler_coef_cfg *sc_coef,
 	enum exynos_sensor_position sensor_position)
 {
 	u32 h_coef = 0;
@@ -1142,7 +1140,8 @@ void fimc_is_scaler_set_post_scaler_h_v_coef(void __iomem *base_addr, u32 output
 	}
 }
 
-void fimc_is_scaler_set_post_scaler_coef(void __iomem *base_addr, u32 output_id, u32 hratio, u32 vratio)
+void fimc_is_scaler_set_post_scaler_coef(void __iomem *base_addr, u32 output_id,
+	u32 hratio, u32 vratio, struct scaler_coef_cfg *sc_coef)
 {
 	u32 h_coef = 0;
 	u32 v_coef = 0;
