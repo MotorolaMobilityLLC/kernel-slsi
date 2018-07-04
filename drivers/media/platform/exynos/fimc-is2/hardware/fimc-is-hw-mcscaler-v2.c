@@ -2106,7 +2106,7 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 	if (test_bit(HW_TUNESET, &hw_ip->state)) {
 		/* set yuv range config value by scaler_param yuv_range mode */
 		sensor_position = hw_ip->hardware->sensor_position[instance];
-		setfile = hw_mcsc->cur_setfile[sensor_position]
+		setfile = hw_mcsc->cur_setfile[sensor_position];
 
 		fimc_is_scaler_set_b_c(hw_ip->regs, output_id,
 			setfile->sc_base[yuv].y_offset, setfile->sc_base[yuv].y_gain);
