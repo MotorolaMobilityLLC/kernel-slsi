@@ -2387,6 +2387,25 @@
 		interrupts = <0 210 0>, <0 214 0>;
 		attr = <0x50087>; /* DPP/IDMA/HDR10/FLIP/BLOCK/AFBC */
 		port = <0>; /* AXI port number */
+
+		/* HW restriction */
+		src_f_w = <16 65534 1>;
+		src_f_h = <16 8190 1>;
+		src_w = <16 4096 1>;
+		src_h = <16 4096 1>;
+		src_xy_align = <1 1>;
+
+		dst_f_w = <16 8190 1>;
+		dst_f_h = <16 8190 1>;
+		dst_w = <16 4096 1>;
+		dst_h = <16 4096 1>;
+		dst_xy_align = <1 1>;
+
+		blk_w = <4 4096 1>;
+		blk_h = <1 4096 1>;
+		blk_xy_align = <1 1>;
+
+		src_h_rot_max = <2160>;
 	};
 
 	dpp_1: dpp@0x14883000 { /* VG0 */
@@ -2481,6 +2500,12 @@
 
 		/* pixel per clock */
 		ppc = <2>;
+
+		chip_ver = <9610>;
+
+		dpp_cnt = <4>;
+		dsim_cnt = <2>;
+		decon_cnt = <3>;
 
 		#address-cells = <2>;
 		#size-cells = <1>;
