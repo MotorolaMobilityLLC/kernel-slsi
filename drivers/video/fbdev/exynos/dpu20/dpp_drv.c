@@ -24,58 +24,11 @@ int dpp_log_level = 6;
 
 struct dpp_device *dpp_drvdata[MAX_DPP_CNT];
 
-static void dma_dump_regs(struct dpp_device *dpp)
-{
-	dpp_info("\n=== DPU_DMA%d SFR DUMP ===\n", dpp->id);
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.dma_regs, 0x6C, false);
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.dma_regs + 0x100, 0x8, false);
-
-	dpp_info("=== DPU_DMA%d SHADOW SFR DUMP ===\n", dpp->id);
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.dma_regs + 0x800, 0x74, false);
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.dma_regs + 0x900, 0x8, false);
-}
-
-static void dpp_dump_regs(struct dpp_device *dpp)
-{
-	dpp_info("=== DPP%d SFR DUMP ===\n", dpp->id);
-
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.regs, 0x4C, false);
-	if (test_bit(DPP_ATTR_AFBC, &dpp->attr)) {
-		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				dpp->res.regs + 0x5B0, 0x10, false);
-	}
-	if (test_bit(DPP_ATTR_ROT, &dpp->attr)) {
-		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.regs + 0x600, 0x1E0, false);
-	}
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.regs + 0xA54, 0x4, false);
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.regs + 0xB00, 0x4C, false);
-	if (test_bit(DPP_ATTR_AFBC, &dpp->attr)) {
-		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				dpp->res.regs + 0xBB0, 0x10, false);
-	}
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dpp->res.regs + 0xD00, 0xC, false);
-}
-
 void dpp_dump(struct dpp_device *dpp)
 {
 	int acquired = console_trylock();
 
-	dma_reg_dump_com_debug_regs(dpp->id);
-
-	dma_dump_regs(dpp);
-	dma_reg_dump_debug_regs(dpp->id);
-
-	dpp_dump_regs(dpp);
-	dpp_reg_dump_debug_regs(dpp->id);
+	__dpp_dump(dpp->id, dpp->res.regs, dpp->res.dma_regs, dpp->attr);
 
 	if (acquired)
 		console_unlock();

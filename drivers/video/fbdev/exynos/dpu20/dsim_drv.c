@@ -64,21 +64,14 @@ static char *dsim_state_names[] = {
 static int dsim_runtime_suspend(struct device *dev);
 static int dsim_runtime_resume(struct device *dev);
 
-static void __dsim_dump(struct dsim_device *dsim)
-{
-	/* change to updated register read mode (meaning: SHADOW in DECON) */
-	dsim_info("=== DSIM %d LINK SFR DUMP ===\n", dsim->id);
-	dsim_reg_enable_shadow_read(dsim->id, 0);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			dsim->res.regs, 0xFC, false);
-
-	dsim_reg_enable_shadow_read(dsim->id, 1);
-}
-
 static void dsim_dump(struct dsim_device *dsim)
 {
+	struct dsim_regs regs;
+
 	dsim_info("=== DSIM SFR DUMP ===\n");
-	__dsim_dump(dsim);
+
+	dsim_to_regs_param(dsim, &regs);
+	__dsim_dump(dsim->id, &regs);
 
 	/* Show panel status */
 	call_panel_ops(dsim, dump, dsim);
@@ -135,6 +128,7 @@ static void dsim_long_data_wr(struct dsim_device *dsim, unsigned long d0, u32 d1
 static int dsim_wait_for_cmd_fifo_empty(struct dsim_device *dsim, bool must_wait)
 {
 	int ret = 0;
+	struct dsim_regs regs;
 
 	if (!must_wait) {
 		/* timer is running, but already command is transferred */
@@ -159,7 +153,8 @@ static int dsim_wait_for_cmd_fifo_empty(struct dsim_device *dsim, bool must_wait
 
 	if (IS_DSIM_ON_STATE(dsim) && (ret == -ETIMEDOUT)) {
 		dsim_err("%s have timed out\n", __func__);
-		__dsim_dump(dsim);
+		dsim_to_regs_param(dsim, &regs);
+		__dsim_dump(dsim->id, &regs);
 	}
 	return ret;
 }
@@ -279,6 +274,7 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 	int i, j, ret = 0;
 	u32 rx_fifo_depth = DSIM_RX_FIFO_MAX_DEPTH;
 	struct decon_device *decon = get_decon_drvdata(0);
+	struct dsim_regs regs;
 
 	decon_hiber_block_exit(decon);
 
@@ -315,7 +311,8 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 		case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
 			ret = dsim_reg_rx_err_handler(dsim->id, rx_fifo);
 			if (ret < 0) {
-				__dsim_dump(dsim);
+				dsim_to_regs_param(dsim, &regs);
+				__dsim_dump(dsim->id, &regs);
 				goto exit;
 			}
 			break;
@@ -351,7 +348,8 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 			break;
 		default:
 			dsim_err("Packet format is invaild.\n");
-			__dsim_dump(dsim);
+			dsim_to_regs_param(dsim, &regs);
+			__dsim_dump(dsim->id, &regs);
 			ret = -EBUSY;
 			goto exit;
 		}
@@ -360,7 +358,8 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 	ret = rx_size;
 	if (!rx_fifo_depth) {
 		dsim_err("Check DPHY values about HS clk.\n");
-		__dsim_dump(dsim);
+		dsim_to_regs_param(dsim, &regs);
+		__dsim_dump(dsim->id, &regs);
 		ret = -EBUSY;
 	}
 exit:
@@ -374,6 +373,7 @@ static void dsim_cmd_fail_detector(unsigned long arg)
 {
 	struct dsim_device *dsim = (struct dsim_device *)arg;
 	struct decon_device *decon = get_decon_drvdata(0);
+	struct dsim_regs regs;
 
 	decon_hiber_block(decon);
 
@@ -392,7 +392,8 @@ static void dsim_cmd_fail_detector(unsigned long arg)
 		goto exit;
 	}
 
-	__dsim_dump(dsim);
+	dsim_to_regs_param(dsim, &regs);
+	__dsim_dump(dsim->id, &regs);
 
 exit:
 	decon_hiber_unblock(decon);
@@ -452,6 +453,7 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 	unsigned int int_src;
 	struct dsim_device *dsim = dev_id;
 	struct decon_device *decon = get_decon_drvdata(0);
+	struct dsim_regs regs;
 #ifdef CONFIG_EXYNOS_PD
 	int active;
 #endif
@@ -489,8 +491,10 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 		dsim_info("dsim%d underrun irq occurs(%d)\n", dsim->id,
 				dsim->total_underrun_cnt);
 		dsim_underrun_info(dsim);
-		if (dsim->lcd_info.mode == DECON_VIDEO_MODE)
-			__dsim_dump(dsim);
+		if (dsim->lcd_info.mode == DECON_VIDEO_MODE) {
+			dsim_to_regs_param(dsim, &regs);
+			__dsim_dump(dsim->id, &regs);
+		}
 	}
 	if (int_src & DSIM_INTSRC_VT_STATUS) {
 		dsim_dbg("dsim%d vt_status(vsync) irq occurs\n", dsim->id);
@@ -805,6 +809,8 @@ out:
 
 static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 {
+	struct dsim_regs regs;
+
 	if (IS_DSIM_OFF_STATE(dsim)) {
 		dsim_warn("%s dsim already off(%s)\n",
 				__func__, dsim_state_names[dsim->state]);
@@ -822,8 +828,10 @@ static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 	dsim->state = state;
 	mutex_unlock(&dsim->cmd_lock);
 
-	if (dsim_reg_stop(dsim->id, dsim->data_lane) < 0)
-		__dsim_dump(dsim);
+	if (dsim_reg_stop(dsim->id, dsim->data_lane) < 0) {
+		dsim_to_regs_param(dsim, &regs);
+		__dsim_dump(dsim->id, &regs);
+	}
 	disable_irq(dsim->res.irq);
 
 	/* HACK */
@@ -1476,6 +1484,36 @@ static int dsim_init_resources(struct dsim_device *dsim, struct platform_device 
 	if (!dsim->res.regs) {
 		dsim_err("failed to remap DSIM SFR region\n");
 		return -EINVAL;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		dsim_info("no 2nd mem resource\n");
+		dsim->res.phy_regs = NULL;
+	} else {
+		dsim_info("dphy res: start(0x%x), end(0x%x)\n",
+				(u32)res->start, (u32)res->end);
+
+		dsim->res.phy_regs = devm_ioremap_resource(dsim->dev, res);
+		if (!dsim->res.phy_regs) {
+			dsim_err("failed to remap DSIM DPHY SFR region\n");
+			return -EINVAL;
+		}
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (!res) {
+		dsim_info("no extra dphy resource\n");
+		dsim->res.phy_regs_ex = NULL;
+	} else {
+		dsim_info("dphy_extra res: start(0x%x), end(0x%x)\n",
+				(u32)res->start, (u32)res->end);
+
+		dsim->res.phy_regs_ex = devm_ioremap_resource(dsim->dev, res);
+		if (!dsim->res.phy_regs_ex) {
+			dsim_err("failed to remap DSIM DPHY(EXTRA) SFR region\n");
+			return -EINVAL;
+		}
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

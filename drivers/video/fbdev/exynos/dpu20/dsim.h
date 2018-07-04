@@ -259,6 +259,8 @@ int dsim_wait_for_cmd_done(struct dsim_device *dsim);
 int dsim_reset_panel(struct dsim_device *dsim);
 int dsim_set_panel_power(struct dsim_device *dsim, bool on);
 
+void dsim_to_regs_param(struct dsim_device *dsim, struct dsim_regs *regs);
+
 static inline struct dsim_device *get_dsim_drvdata(u32 id)
 {
 	return dsim_drvdata[id];

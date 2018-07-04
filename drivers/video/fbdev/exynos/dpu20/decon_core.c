@@ -144,40 +144,10 @@ static void decon_up_list_saved(void)
 	}
 }
 
-static void __decon_dump(bool en_dsc)
-{
-	struct decon_device *decon = get_decon_drvdata(0);
-
-	decon_info("\n=== DECON0 WINDOW SFR DUMP ===\n");
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			decon->res.regs + 0x1000, 0x340, false);
-
-	decon_info("\n=== DECON0 WINDOW SHADOW SFR DUMP ===\n");
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			decon->res.regs + SHADOW_OFFSET + 0x1000, 0x220, false);
-
-	if (decon->lcd_info->dsc_enabled && en_dsc) {
-		decon_info("\n=== DECON0 DSC0 SFR DUMP ===\n");
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				decon->res.regs + 0x4000, 0x80, false);
-
-		decon_info("\n=== DECON0 DSC1 SFR DUMP ===\n");
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				decon->res.regs + 0x5000, 0x80, false);
-
-		decon_info("\n=== DECON0 DSC0 SHADOW SFR DUMP ===\n");
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				decon->res.regs + SHADOW_OFFSET + 0x4000, 0x80, false);
-
-		decon_info("\n=== DECON0 DSC1 SHADOW SFR DUMP ===\n");
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				decon->res.regs + SHADOW_OFFSET + 0x5000, 0x80, false);
-	}
-}
-
 void decon_dump(struct decon_device *decon)
 {
 	int acquired = console_trylock();
+	void __iomem *base_regs = get_decon_drvdata(0)->res.regs;
 
 	if (IS_DECON_OFF_STATE(decon)) {
 		decon_info("%s: DECON%d is disabled, state(%d)\n",
@@ -185,29 +155,8 @@ void decon_dump(struct decon_device *decon)
 		return;
 	}
 
-	decon_info("\n=== DECON%d SFR DUMP ===\n", decon->id);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			decon->res.regs, 0x620, false);
-
-	decon_info("\n=== DECON%d SHADOW SFR DUMP ===\n", decon->id);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			decon->res.regs + SHADOW_OFFSET, 0x304, false);
-
-	switch (decon->id) {
-	case 0:
-		__decon_dump(1);
-		break;
-	case 1:
-		if (decon->dt.out_type != DECON_OUT_WB)
-			__decon_dump(0);
-		else
-			__decon_dump(1);
-		break;
-	case 2:
-	default:
-		__decon_dump(0);
-		break;
-	}
+	__decon_dump(decon->id, decon->res.regs, base_regs,
+			decon->lcd_info->dsc_enabled);
 
 	if (decon->dt.out_type == DECON_OUT_DSI)
 		v4l2_subdev_call(decon->out_sd[0], core, ioctl,
