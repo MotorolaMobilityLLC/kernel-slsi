@@ -29,6 +29,10 @@
 #include <asm/smp_plat.h>
 #include <asm/core_regs.h>
 
+#ifdef CONFIG_EXYNOS_BCM_DBG
+#include <soc/samsung/exynos-bcm_dbg.h>
+#endif
+
 #if defined(CONFIG_SEC_SIPC_MODEM_IF)
 #include <soc/samsung/exynos-modem-ctrl.h>
 #endif
@@ -41,6 +45,7 @@ extern void (*arm_pm_restart)(char str, const char *cmd);
 
 static void exynos_early_panic(void *val)
 {
+	exynos_bcm_dbg_stop(PANIC_HANDLE);
 }
 
 static void exynos_prepare_panic_entry(void *val)
