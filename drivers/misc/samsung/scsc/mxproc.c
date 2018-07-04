@@ -474,8 +474,8 @@ static ssize_t mx_procfs_mx_release_read(struct file *file, char __user *user_bu
 
 	memset(buf, '\0', sizeof(buf));
 
-	bytes = snprintf(buf, sizeof(buf), "Release: %d.%d.%d (f/w: %s)\n",
-		SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE,
+	bytes = snprintf(buf, sizeof(buf), "Release: %d.%d.%d.%d (f/w: %s)\n",
+		SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT,
 		build_id ? build_id : "unknown");
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_get_and_print_build_type();

@@ -367,8 +367,8 @@ static void write_m_test_fw_version_file(struct mxman *mxman)
 		SCSC_TAG_INFO(MXMAN, "%s doesn't exist.\n", filepath);
 		return;
 	}
-	snprintf(buf, sizeof(buf), "drv_ver: %d.%d.%d N (f/w: %s)\n",
-		 SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE,
+	snprintf(buf, sizeof(buf), "drv_ver: %d.%d.%d.%d N (f/w: %s)\n",
+		 SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT,
 		 build_id ? build_id : "unknown");
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_get_and_print_build_type();
@@ -428,8 +428,8 @@ static void mxman_print_versions(struct mxman *mxman)
 
 	SCSC_TAG_INFO(MXMAN, "%s", buf);
 	SCSC_TAG_INFO(MXMAN, "WLBT FW: %s\n", mxman->fw_build_id);
-	SCSC_TAG_INFO(MXMAN, "WLBT Driver: %d.%d.%d\n",
-		SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE);
+	SCSC_TAG_INFO(MXMAN, "WLBT Driver: %d.%d.%d.%d\n",
+		SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT);
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_get_and_print_build_type();
 #endif
@@ -1267,10 +1267,11 @@ static void mxman_failure_work(struct work_struct *work)
 		process_panic_record(mxman);
 		SCSC_TAG_INFO(MXMAN, "Trying to schedule coredump\n");
 
-		SCSC_TAG_INFO(MXMAN, "scsc_release %d.%d.%d\n",
+		SCSC_TAG_INFO(MXMAN, "scsc_release %d.%d.%d.%d\n",
 			SCSC_RELEASE_PRODUCT,
 			SCSC_RELEASE_ITERATION,
-			SCSC_RELEASE_CANDIDATE);
+			SCSC_RELEASE_CANDIDATE,
+			SCSC_RELEASE_POINT);
 #ifdef CONFIG_SCSC_WLBTD
 		scsc_wlbtd_get_and_print_build_type();
 #endif
@@ -1996,8 +1997,8 @@ EXPORT_SYMBOL(mxman_get_fw_version);
 
 void mxman_get_driver_version(char *version, size_t ver_sz)
 {
-	snprintf(version, ver_sz - 1, "drv_ver: %d.%d.%d",
-		 SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE);
+	snprintf(version, ver_sz - 1, "drv_ver: %d.%d.%d.%d",
+		 SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT);
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_get_and_print_build_type();
 #endif
