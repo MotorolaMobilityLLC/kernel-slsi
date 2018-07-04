@@ -1985,44 +1985,85 @@ int fimc_is_hw_mcsc_hwfc_output(struct fimc_is_hw_ip *hw_ip, struct param_mcs_ou
 	return ret;
 }
 
-void fimc_is_hw_bchs_range(void __iomem *base_addr, u32 output_id, int yuv_range)
+void fimc_is_hw_bchs_range(void __iomem *base_addr, u32 output_id, int yuv)
 {
+	u32 y_ofs, y_gain, c_gain00, c_gain01, c_gain10, c_gain11;
+
 #ifdef ENABLE_10BIT_MCSC
-	if (yuv_range == SCALER_OUTPUT_YUV_RANGE_FULL) {
+	if (yuv == SCALER_OUTPUT_YUV_RANGE_FULL) {
 		/* Y range - [0:1024], U/V range - [0:1024] */
-		fimc_is_scaler_set_b_c(base_addr, output_id, 0, 1024);
-		fimc_is_scaler_set_h_s(base_addr, output_id, 1024, 0, 0, 1024);
-	} else {	/* YUV_RANGE_NARROW */
+		y_ofs = 0;
+		y_gain = 1024;
+		c_gain00 = 1024;
+		c_gain01 = 0;
+		c_gain10 = 0;
+		c_gain11 = 1024;
+	} else {
+		/* YUV_RANGE_NARROW */
 		/* Y range - [64:940], U/V range - [64:960] */
-		fimc_is_scaler_set_b_c(base_addr, output_id, 0, 1024);
-		fimc_is_scaler_set_h_s(base_addr, output_id, 1024, 0, 0, 1024);
+		y_ofs = 0;
+		y_gain = 1024;
+		c_gain00 = 1024;
+		c_gain01 = 0;
+		c_gain10 = 0;
+		c_gain11 = 1024;
 	}
 #else
-	if (yuv_range == SCALER_OUTPUT_YUV_RANGE_FULL) {
+	if (yuv == SCALER_OUTPUT_YUV_RANGE_FULL) {
 		/* Y range - [0:255], U/V range - [0:255] */
-		fimc_is_scaler_set_b_c(base_addr, output_id, 0, 256);
-		fimc_is_scaler_set_h_s(base_addr, output_id, 256, 0, 0, 256);
-	} else {	/* YUV_RANGE_NARROW */
+		y_ofs = 0;
+		y_gain = 256;
+		c_gain00 = 256;
+		c_gain01 = 0;
+		c_gain10 = 0;
+		c_gain11 = 256;
+	} else {
+		/* YUV_RANGE_NARROW */
 		/* Y range - [16:235], U/V range - [16:239] */
-		fimc_is_scaler_set_b_c(base_addr, output_id, 16, 220);
-		fimc_is_scaler_set_h_s(base_addr, output_id, 224, 0, 0, 224);
+		y_ofs = 16;
+		y_gain = 220;
+		c_gain00 = 224;
+		c_gain01 = 0;
+		c_gain10 = 0;
+		c_gain11 = 224;
 	}
 #endif
+	fimc_is_scaler_set_b_c(base_addr, output_id, y_ofs, y_gain);
+	fimc_is_scaler_set_h_s(base_addr, output_id, c_gain00, c_gain01, c_gain10, c_gain11);
 }
 
-void fimc_is_hw_bchs_clamp(void __iomem *base_addr, u32 output_id, int yuv_range)
+void fimc_is_hw_bchs_clamp(void __iomem *base_addr, u32 output_id, int yuv)
 {
+	u32 y_max, y_min, c_max, c_min;
+
 #ifdef ENABLE_10BIT_MCSC
-	if (yuv_range == SCALER_OUTPUT_YUV_RANGE_FULL)
-		fimc_is_scaler_set_bchs_clamp(base_addr, output_id, 1023, 0, 1023, 0);
-	else	/* YUV_RANGE_NARROW */
-		fimc_is_scaler_set_bchs_clamp(base_addr, output_id, 940, 64, 960, 64);
+	if (yuv == SCALER_OUTPUT_YUV_RANGE_FULL) {
+		y_max = 1023;
+		y_min = 0;
+		c_max = 1023;
+		c_min = 0;
+	} else {
+		/* YUV_RANGE_NARROW */
+		y_max = 940;
+		y_min = 64;
+		c_max = 960;
+		c_min = 64;
+	}
 #else
-	if (yuv_range == SCALER_OUTPUT_YUV_RANGE_FULL)
-		fimc_is_scaler_set_bchs_clamp(base_addr, output_id, 255, 0, 255, 0);
-	else	/* YUV_RANGE_NARROW */
-		fimc_is_scaler_set_bchs_clamp(base_addr, output_id, 235, 16, 240, 16);
+	if (yuv == SCALER_OUTPUT_YUV_RANGE_FULL) {
+		y_max = 255;
+		y_min = 0;
+		c_max = 255;
+		c_min = 0;
+	} else {
+		/* YUV_RANGE_NARROW */
+		y_max = 235;
+		y_min = 16;
+		c_max = 240;
+		c_min = 16;
+	}
 #endif
+	fimc_is_scaler_set_bchs_clamp(base_addr, output_id, y_max, y_min, c_max, c_min);
 }
 
 int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mcs_output *output,
@@ -2034,7 +2075,7 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 	bool config = true;
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
 #if !defined(USE_YUV_RANGE_BY_ISP)
-	struct	hw_mcsc_setfile *setfile;
+	struct hw_mcsc_setfile *setfile;
 #endif
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 
