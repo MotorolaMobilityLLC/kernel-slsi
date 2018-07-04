@@ -14,8 +14,6 @@
 
 #include "../panels/decon_lcd.h"
 
-#define MAX_DSIM_CNT		2
-
 struct dsim_clks {
 	u32 hs_clk;
 	u32 esc_clk;

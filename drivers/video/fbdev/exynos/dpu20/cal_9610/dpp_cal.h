@@ -14,47 +14,6 @@
 
 #include "../decon.h"
 
-#define MAX_DPP_CNT		4
-
-#define SRC_SIZE_MULTIPLE	1
-#define SRC_WIDTH_MIN		16
-#define SRC_WIDTH_MAX		65534
-#define SRC_HEIGHT_MIN		16
-#define SRC_HEIGHT_MAX		8190
-#define IMG_SIZE_MULTIPLE	1
-#define IMG_WIDTH_MIN		16
-#define IMG_WIDTH_MAX		4096
-#define IMG_HEIGHT_MIN		16
-#define IMG_HEIGHT_MAX		4096
-#define IMG_ROT_HEIGHT_MAX	2160
-#define SRC_OFFSET_MULTIPLE	1
-
-#define SCALED_WIDTH_MIN	16
-#define SCALED_WIDTH_MAX	4096
-#define SCALED_HEIGHT_MIN	16
-#define SCALED_HEIGHT_MAX	4096
-#define SCALED_SIZE_MULTIPLE	1
-#define SCALED_SIZE_MULTIPLE	1
-
-#define BLK_WIDTH_MIN		4
-#define BLK_WIDTH_MAX		4096
-#define BLK_HEIGHT_MIN		1
-#define BLK_HEIGHT_MAX		4096
-#define BLK_SIZE_MULTIPLE	1
-#define BLK_SIZE_MULTIPLE	1
-
-#define DST_SIZE_MULTIPLE	1
-#define DST_SIZE_WIDTH_MIN	16
-#define DST_SIZE_WIDTH_MAX	8190
-#define DST_SIZE_HEIGHT_MIN	16
-#define DST_SIZE_HEIGHT_MAX	8190
-#define DST_OFFSET_MULTIPLE	1
-#define DST_IMG_MULTIPLE	1
-#define DST_IMG_WIDTH_MIN	16
-#define DST_IMG_WIDTH_MAX	4096
-#define DST_IMG_HEIGHT_MIN	16
-#define DST_IMG_HEIGHT_MAX	4096
-
 struct dpp_params_info {
 	struct decon_frame src;
 	struct decon_frame dst;
@@ -130,13 +89,15 @@ struct dpp_img_format {
 	u32 wb;
 };
 
+struct dpp_restriction;
+
 /* DPP CAL APIs exposed to DPP driver */
 void dpp_reg_init(u32 id, const unsigned long attr);
 int dpp_reg_deinit(u32 id, bool reset, const unsigned long attr);
 void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		const unsigned long attr);
 void dpp_constraints_params(struct dpp_size_constraints *vc,
-					struct dpp_img_format *vi);
+		struct dpp_img_format *vi, struct dpp_restriction *res);
 
 /* DPU_DMA, DPP DEBUG */
 void __dpp_dump(u32 id, void __iomem *regs, void __iomem *dma_regs,

@@ -846,60 +846,60 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 
 /******************** EXPORTED DPP CAL APIs ********************/
 void dpp_constraints_params(struct dpp_size_constraints *vc,
-		struct dpp_img_format *vi)
+		struct dpp_img_format *vi, struct dpp_restriction *res)
 {
 	u32 sz_align = 1;
 
 	if (vi->yuv)
 		sz_align = 2;
 
-	vc->src_mul_w = SRC_SIZE_MULTIPLE * sz_align;
-	vc->src_mul_h = SRC_SIZE_MULTIPLE * sz_align;
-	vc->src_w_min = SRC_WIDTH_MIN * sz_align;
-	vc->src_w_max = SRC_WIDTH_MAX;
-	vc->src_h_min = SRC_HEIGHT_MIN;
-	vc->src_h_max = SRC_HEIGHT_MAX;
-	vc->img_mul_w = IMG_SIZE_MULTIPLE * sz_align;
-	vc->img_mul_h = IMG_SIZE_MULTIPLE * sz_align;
-	vc->img_w_min = IMG_WIDTH_MIN * sz_align;
-	vc->img_w_max = IMG_WIDTH_MAX;
-	vc->img_h_min = IMG_HEIGHT_MIN * sz_align;
+	vc->src_mul_w = res->src_f_w.align * sz_align;
+	vc->src_mul_h = res->src_f_h.align * sz_align;
+	vc->src_w_min = res->src_f_w.min * sz_align;
+	vc->src_w_max = res->src_f_w.max;
+	vc->src_h_min = res->src_f_h.min;
+	vc->src_h_max = res->src_f_h.max;
+	vc->img_mul_w = res->src_w.align * sz_align;
+	vc->img_mul_h = res->src_h.align * sz_align;
+	vc->img_w_min = res->src_w.min * sz_align;
+	vc->img_w_max = res->src_w.max;
+	vc->img_h_min = res->src_h.min * sz_align;
 	if (vi->rot > DPP_ROT_180)
-		vc->img_h_max = IMG_ROT_HEIGHT_MAX;
+		vc->img_h_max = res->src_h_rot_max;
 	else
-		vc->img_h_max = IMG_HEIGHT_MAX;
-	vc->src_mul_x = SRC_OFFSET_MULTIPLE * sz_align;
-	vc->src_mul_y = SRC_OFFSET_MULTIPLE * sz_align;
+		vc->img_h_max = res->src_h.max;
+	vc->src_mul_x = res->src_x_align * sz_align;
+	vc->src_mul_y = res->src_y_align * sz_align;
 
-	vc->sca_w_min = SCALED_WIDTH_MIN;
-	vc->sca_w_max = SCALED_WIDTH_MAX;
-	vc->sca_h_min = SCALED_HEIGHT_MIN;
-	vc->sca_h_max = SCALED_HEIGHT_MAX;
-	vc->sca_mul_w = SCALED_SIZE_MULTIPLE;
-	vc->sca_mul_h = SCALED_SIZE_MULTIPLE;
+	vc->sca_w_min = res->dst_w.min;
+	vc->sca_w_max = res->dst_w.max;
+	vc->sca_h_min = res->dst_h.min;
+	vc->sca_h_max = res->dst_h.max;
+	vc->sca_mul_w = res->dst_w.align;
+	vc->sca_mul_h = res->dst_h.align;
 
-	vc->blk_w_min = BLK_WIDTH_MIN;
-	vc->blk_w_max = BLK_WIDTH_MAX;
-	vc->blk_h_min = BLK_HEIGHT_MIN;
-	vc->blk_h_max = BLK_HEIGHT_MAX;
-	vc->blk_mul_w = BLK_SIZE_MULTIPLE;
-	vc->blk_mul_h = BLK_SIZE_MULTIPLE;
+	vc->blk_w_min = res->blk_w.min;
+	vc->blk_w_max = res->blk_w.max;
+	vc->blk_h_min = res->blk_h.min;
+	vc->blk_h_max = res->blk_h.max;
+	vc->blk_mul_w = res->blk_w.align;
+	vc->blk_mul_h = res->blk_h.align;
 
 	if (vi->wb) {
-		vc->src_mul_w = DST_SIZE_MULTIPLE * sz_align;
-		vc->src_mul_h = DST_SIZE_MULTIPLE * sz_align;
-		vc->src_w_min = DST_SIZE_WIDTH_MIN;
-		vc->src_w_max = DST_SIZE_WIDTH_MAX;
-		vc->src_h_min = DST_SIZE_HEIGHT_MIN;
-		vc->src_h_max = DST_SIZE_HEIGHT_MAX;
-		vc->img_mul_w = DST_IMG_MULTIPLE * sz_align;
-		vc->img_mul_h = DST_IMG_MULTIPLE * sz_align;
-		vc->img_w_min = DST_IMG_WIDTH_MIN;
-		vc->img_w_max = DST_IMG_WIDTH_MAX;
-		vc->img_h_min = DST_IMG_HEIGHT_MIN;
-		vc->img_h_max = DST_IMG_HEIGHT_MAX;
-		vc->src_mul_x = DST_OFFSET_MULTIPLE * sz_align;
-		vc->src_mul_y = DST_OFFSET_MULTIPLE * sz_align;
+		vc->src_mul_w = res->dst_f_w.align * sz_align;
+		vc->src_mul_h = res->dst_f_h.align * sz_align;
+		vc->src_w_min = res->dst_f_w.min;
+		vc->src_w_max = res->dst_f_w.max;
+		vc->src_h_min = res->dst_f_h.min;
+		vc->src_h_max = res->dst_f_h.max;
+		vc->img_mul_w = res->dst_w.align * sz_align;
+		vc->img_mul_h = res->dst_h.align * sz_align;
+		vc->img_w_min = res->dst_w.min;
+		vc->img_w_max = res->dst_w.max;
+		vc->img_h_min = res->dst_h.min;
+		vc->img_h_max = res->dst_h.max;
+		vc->src_mul_x = res->dst_x_align * sz_align;
+		vc->src_mul_y = res->dst_y_align * sz_align;
 	}
 }
 
