@@ -2076,6 +2076,7 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
 #if !defined(USE_YUV_RANGE_BY_ISP)
 	struct hw_mcsc_setfile *setfile;
+	enum exynos_sensor_position sensor_position;
 #endif
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 
