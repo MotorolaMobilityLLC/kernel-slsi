@@ -1504,6 +1504,8 @@ int fimc_is_hw_mcsc_poly_phase(struct fimc_is_hw_ip *hw_ip, struct param_mcs_inp
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
 	enum exynos_sensor_position sensor_position;
+	struct hw_mcsc_setfile *setfile;
+	struct scaler_coef_cfg *sc_coef;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!input);
@@ -1613,8 +1615,15 @@ int fimc_is_hw_mcsc_poly_phase(struct fimc_is_hw_ip *hw_ip, struct param_mcs_inp
 	vratio = (u32)((temp_height << MCSC_PRECISION) / poly_dst_height);
 
 	sensor_position = hw_ip->hardware->sensor_position[instance];
+	setfile = hw_mcsc->cur_setfile[sensor_position];
+#if defined(USE_UVSP_CAC)
+	sc_coef = &setfile->sc_coef;
+#else
+	sc_coef = NULL;
+#endif
 	fimc_is_scaler_set_poly_scaling_ratio(hw_ip->regs, output_id, hratio, vratio);
-	fimc_is_scaler_set_poly_scaler_coef(hw_ip->regs, output_id, hratio, vratio, sensor_position);
+	fimc_is_scaler_set_poly_scaler_coef(hw_ip->regs, output_id, hratio, vratio,
+		sc_coef, sensor_position);
 	fimc_is_scaler_set_poly_round_mode(hw_ip->regs, output_id, round_mode_en);
 
 	return ret;
@@ -1633,6 +1642,9 @@ int fimc_is_hw_mcsc_post_chain(struct fimc_is_hw_ip *hw_ip, struct param_mcs_inp
 	bool round_mode_en = true;
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
+	enum exynos_sensor_position sensor_position;
+	struct hw_mcsc_setfile *setfile;
+	struct scaler_coef_cfg *sc_coef;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!input);
@@ -1678,8 +1690,15 @@ int fimc_is_hw_mcsc_post_chain(struct fimc_is_hw_ip *hw_ip, struct param_mcs_inp
 	hratio = (u32)((temp_width  << MCSC_PRECISION) / dst_width);
 	vratio = (u32)((temp_height << MCSC_PRECISION) / dst_height);
 
+	sensor_position = hw_ip->hardware->sensor_position[instance];
+	setfile = hw_mcsc->cur_setfile[sensor_position];
+#if defined(USE_UVSP_CAC)
+	sc_coef = &setfile->sc_coef;
+#else
+	sc_coef = NULL;
+#endif
 	fimc_is_scaler_set_post_scaling_ratio(hw_ip->regs, output_id, hratio, vratio);
-	fimc_is_scaler_set_post_scaler_coef(hw_ip->regs, output_id, hratio, vratio);
+	fimc_is_scaler_set_post_scaler_coef(hw_ip->regs, output_id, hratio, vratio, sc_coef);
 	fimc_is_scaler_set_post_round_mode(hw_ip->regs, output_id, round_mode_en);
 
 	return ret;
