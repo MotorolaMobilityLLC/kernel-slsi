@@ -53,7 +53,9 @@
 #include "./panels/lcd_ctrl.h"
 #include "../../../../dma-buf/sync_debug.h"
 #include "dpp.h"
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 #include "displayport.h"
+#endif
 
 int decon_log_level = 6;
 module_param(decon_log_level, int, 0644);
@@ -1250,7 +1252,9 @@ static int decon_import_buffer(struct decon_device *decon, int idx,
 #endif
 	struct dma_buf *buf = NULL;
 	struct decon_dma_buf_data *dma_buf_data = NULL;
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	struct displayport_device *displayport;
+#endif
 	struct dsim_device *dsim;
 	struct device *dev;
 	int i;
@@ -1284,8 +1288,10 @@ static int decon_import_buffer(struct decon_device *decon, int idx,
 			return PTR_ERR(buf);
 		}
 		if (decon->dt.out_type == DECON_OUT_DP) {
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 			displayport = v4l2_get_subdevdata(decon->out_sd[0]);
 			dev = displayport->dev;
+#endif
 		} else { /* DSI case */
 			dsim = v4l2_get_subdevdata(decon->out_sd[0]);
 			dev = dsim->dev;
@@ -1716,6 +1722,10 @@ static int __decon_update_regs(struct decon_device *decon, struct decon_reg_data
 		return 0;
 	}
 
+#if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	decon_set_protected_content(decon, regs);
+#endif
+
 	for (i = 0; i < decon->dt.max_win; i++) {
 		if (regs->is_cursor_win[i]) {
 			dpu_cursor_win_update_config(decon, regs);
@@ -1741,10 +1751,6 @@ static int __decon_update_regs(struct decon_device *decon, struct decon_reg_data
 		decon_to_init_param(decon, &p);
 		decon_reg_config_wb_size(decon->id, decon->lcd_info, &p);
 	}
-
-#if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	decon_set_protected_content(decon, regs);
-#endif
 
 	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_to_psr_info(decon, &psr);
@@ -1852,7 +1858,10 @@ static int decon_set_hdr_info(struct decon_device *decon,
 		struct decon_reg_data *regs, int win_num, bool on)
 {
 	struct exynos_video_meta *video_meta;
-	int ret = 0, hdr_cmp = 0;
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
+	int ret = 0;
+#endif
+	int hdr_cmp = 0;
 	int meta_plane = 0;
 
 	if (!on) {
@@ -1860,12 +1869,13 @@ static int decon_set_hdr_info(struct decon_device *decon,
 
 		hdr_static_info.mid = -1;
 		decon->prev_hdr_info.mid = -1;
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 		ret = v4l2_subdev_call(decon->displayport_sd, core, ioctl,
 				DISPLAYPORT_IOC_SET_HDR_METADATA,
 				&hdr_static_info);
 		if (ret)
 			goto err_hdr_io;
-
+#endif
 		return 0;
 	}
 
@@ -1889,7 +1899,7 @@ static int decon_set_hdr_info(struct decon_device *decon,
 #endif
 
 	hdr_cmp = memcmp(&decon->prev_hdr_info,
-			&video_meta->data.dec.shdr_static_info,
+			&video_meta->shdr_static_info,
 			sizeof(struct exynos_hdr_static_info));
 
 	/* HDR metadata is same, so skip subdev call.
@@ -1901,22 +1911,24 @@ static int decon_set_hdr_info(struct decon_device *decon,
 #endif
 		return 0;
 	}
-
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	ret = v4l2_subdev_call(decon->displayport_sd, core, ioctl,
 			DISPLAYPORT_IOC_SET_HDR_METADATA,
-			&video_meta->data.dec.shdr_static_info);
+			&video_meta->shdr_static_info);
 	if (ret)
 		goto err_hdr_io;
-
+#endif
 	memcpy(&decon->prev_hdr_info,
-			&video_meta->data.dec.shdr_static_info,
+			&video_meta->shdr_static_info,
 			sizeof(struct exynos_hdr_static_info));
 #if !defined(CONFIG_SUPPORT_LEGACY_ION)
 	dma_buf_vunmap(regs->dma_buf_data[win_num][meta_plane].dma_buf, video_meta);
 #endif
 	return 0;
 
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 err_hdr_io:
+#endif
 	/* When the subdev call is failed,
 	 * current hdr_static_info is not copied to prev.
 	 */
@@ -2314,7 +2326,7 @@ static int decon_prepare_win_config(struct decon_device *decon,
 				&win_config[decon->dt.max_win], regs);
 	}
 
-	for (i = 0; i < decon->dt.dpp_cnt; i++) {
+	for (i = 0; i < (decon->dt.dpp_cnt + 1); i++) {
 		memcpy(&regs->dpp_config[i], &win_config[i],
 				sizeof(struct decon_win_config));
 		regs->dpp_config[i].format =
@@ -2961,6 +2973,8 @@ static int decon_register_subdevs(struct decon_device *decon)
 	else if (decon->dt.out_type == DECON_OUT_DP)
 		ret = decon_displayport_get_out_sd(decon);
 #endif
+	else
+		ret = -ENODEV;
 
 	return ret;
 }
@@ -3529,7 +3543,7 @@ static int decon_itmon_notifier(struct notifier_block *nb,
 static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 {
 	struct decon_param p;
-	struct fb_info *fbinfo = decon->win[decon->dt.dft_win]->fbinfo;
+	struct fb_info *fbinfo;
 	struct decon_window_regs win_regs;
 	struct decon_win_config config;
 	struct v4l2_subdev *sd = NULL;
@@ -3544,6 +3558,8 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 		decon_info("decon%d doesn't need to display\n", decon->id);
 		return 0;
 	}
+
+	fbinfo = decon->win[decon->dt.dft_win]->fbinfo;
 
 	pm_stay_awake(decon->dev);
 	dev_warn(decon->dev, "pm_stay_awake");

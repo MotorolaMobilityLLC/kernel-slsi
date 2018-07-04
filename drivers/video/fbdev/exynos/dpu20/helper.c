@@ -24,7 +24,9 @@
 #include "decon.h"
 #include "dsim.h"
 #include "dpp.h"
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 #include "displayport.h"
+#endif
 #include "./panels/lcd_ctrl.h"
 #include <video/mipi_display.h>
 
@@ -32,7 +34,9 @@ static int __dpu_match_dev(struct device *dev, void *data)
 {
 	struct dpp_device *dpp;
 	struct dsim_device *dsim;
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	struct displayport_device *displayport;
+#endif
 	struct decon_device *decon = (struct decon_device *)data;
 
 	decon_dbg("%s: drvname(%s)\n", __func__, dev->driver->name);
@@ -46,10 +50,12 @@ static int __dpu_match_dev(struct device *dev, void *data)
 		dsim = (struct dsim_device *)dev_get_drvdata(dev);
 		decon->dsim_sd[dsim->id] = &dsim->sd;
 		decon_dbg("dsim sd name(%s)\n", dsim->sd.name);
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	} else if (!strcmp(DISPLAYPORT_MODULE_NAME, dev->driver->name)) {
 		displayport = (struct displayport_device *)dev_get_drvdata(dev);
 		decon->displayport_sd = &displayport->sd;
 		decon_dbg("displayport sd name(%s)\n", displayport->sd.name);
+#endif
 	} else {
 		decon_err("failed to get driver name\n");
 	}
@@ -680,8 +686,10 @@ int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 
 	if (!strcmp(DSIM_MODULE_NAME, dev->driver->name)) {
 		decon = get_decon_drvdata(0);
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	} else if (!strcmp(DISPLAYPORT_MODULE_NAME, dev->driver->name)) {
 		decon = get_decon_drvdata(2);
+#endif
 	} else {
 		decon_err("unknown driver for dpu sysmmu falut handler(%s)\n",
 				dev->driver->name);

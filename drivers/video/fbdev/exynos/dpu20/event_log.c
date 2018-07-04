@@ -178,6 +178,9 @@ static inline void dpu_event_log_dpp
 		break;
 	case DPU_EVT_DPP_WINCON:
 		log->data.dpp.id = dpp->id;
+		log->data.dpp.comp = dpp->dpp_config->config.compression;
+		log->data.dpp.rot = dpp->dpp_config->config.dpp_parm.rot;
+		log->data.dpp.hdr_std = dpp->dpp_config->config.dpp_parm.hdr_std;
 		memcpy(&log->data.dpp.src, &dpp->dpp_config->config.src, sizeof(struct decon_frame));
 		memcpy(&log->data.dpp.dst, &dpp->dpp_config->config.dst, sizeof(struct decon_frame));
 		break;
@@ -597,10 +600,11 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 			break;
 		case DPU_EVT_DPP_WINCON:
 			seq_printf(s, "%20s  ", "DPP_WINCON");
-			seq_printf(s, "ID:%d, start= %d, done= %d\n",
+			seq_printf(s, "ID:%d, comp= %d, rot= %d, hdr= %d\n",
 					log->data.dpp.id,
-					log->data.dpp.start_cnt,
-					log->data.dpp.done_cnt);
+					log->data.dpp.comp,
+					log->data.dpp.rot,
+					log->data.dpp.hdr_std);
 			break;
 		case DPU_EVT_DPP_FRAMEDONE:
 			seq_printf(s, "%20s  ", "DPP_FRAMEDONE");

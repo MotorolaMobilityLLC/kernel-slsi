@@ -49,7 +49,9 @@
 
 #include "./panels/decon_lcd.h"
 #include "dsim.h"
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 #include "displayport.h"
+#endif
 #if defined(CONFIG_SUPPORT_LEGACY_FENCE)
 #include "../../../../dma-buf/sync_debug.h"
 #endif
@@ -80,8 +82,6 @@ extern struct decon_bts_ops decon_bts_control;
 #define MIN_BLK_MODE_HEIGHT	16
 #define VSYNC_TIMEOUT_MSEC	200
 #define DEFAULT_BPP		32
-#define MIN_WIN_BLOCK_WIDTH	8
-#define MIN_WIN_BLOCK_HEIGHT	1
 #define FD_TRY_CNT		3
 #define VALID_FD_VAL		3
 #define DECON_TRACE_BUF_SIZE	40
@@ -582,7 +582,9 @@ struct disp_log_dpp {
 	u32 id;
 	u32 start_cnt;
 	u32 done_cnt;
-	u32 comp_src;
+	u32 comp;
+	u32 rot;
+	u32 hdr_std;
 	struct decon_frame src;
 	struct decon_frame dst;
 };
@@ -1038,6 +1040,7 @@ int decon_wb_get_clocks(struct decon_device *decon);
 void decon_wb_set_clocks(struct decon_device *decon);
 int decon_wb_get_out_sd(struct decon_device *decon);
 
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 /* DECON to DISPLAYPORT interface functions */
 int decon_displayport_register_irq(struct decon_device *decon);
 void decon_displayport_free_irq(struct decon_device *decon);
@@ -1052,6 +1055,7 @@ int decon_displayport_get_config(struct decon_device *dex,
 		struct exynos_displayport_data *displayport_data);
 int decon_displayport_set_config(struct decon_device *dex,
 		struct exynos_displayport_data *displayport_data);
+#endif
 
 /* window update related function */
 #define DPU_FULL_RECT(r, lcd)			\

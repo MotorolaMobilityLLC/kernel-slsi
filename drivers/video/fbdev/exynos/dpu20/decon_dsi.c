@@ -400,6 +400,12 @@ static ssize_t decon_show_psr_info(struct device *dev,
 	char *p = buf;
 	struct lcd_mres_info *mres_info = &lcd_info->dt_lcd_mres;
 	int len;
+	struct v4l2_subdev *sd;
+	struct dpp_restriction res;
+	int sz_align = 1;
+
+	sd = decon->dpp_sd[0];
+	v4l2_subdev_call(sd, core, ioctl, DPP_GET_RESTRICTION, &res);
 
 	len = sprintf(p, "%d\n", decon->dt.psr_mode);
 	len += sprintf(p + len, "%d\n", mres_info->mres_number);
@@ -415,8 +421,8 @@ static ssize_t decon_show_psr_info(struct device *dev,
 			len += sprintf(p + len, "%d\n%d\n%d\n%d\n%d\n",
 				mres_info->res_info[i].width,
 				mres_info->res_info[i].height,
-				MIN_WIN_BLOCK_WIDTH,
-				MIN_WIN_BLOCK_HEIGHT,
+				(res.src_f_w.min * sz_align),
+				(res.src_f_h.min * sz_align),
 				mres_info->res_info[i].dsc_en);
 	}
 	return len;

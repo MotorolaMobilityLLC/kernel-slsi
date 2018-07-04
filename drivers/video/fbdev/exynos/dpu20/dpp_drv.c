@@ -94,6 +94,8 @@ static void dpp_get_params(struct dpp_device *dpp, struct dpp_params_info *p)
 	p->addr[3] = 0;
 	p->eq_mode = config->dpp_parm.eq_mode;
 	p->hdr = config->dpp_parm.hdr_std;
+	p->max_luminance = config->dpp_parm.max_luminance;
+	p->min_luminance = config->dpp_parm.min_luminance;
 	p->is_4p = false;
 	p->y_2b_strd = 0;
 	p->c_2b_strd = 0;

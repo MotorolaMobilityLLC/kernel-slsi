@@ -58,20 +58,18 @@ struct exynos_hdr_static_info {
 };
 
 struct exynos_video_dec_data {
-	struct exynos_hdr_static_info shdr_static_info;
-	struct exynos_color_aspects scolor_aspects;
 	int ninterlaced_type;
 };
 
 struct exynos_video_enc_data {
-	struct exynos_hdr_static_info shdr_static_info;
-	struct exynos_color_aspects scolor_aspects;
 	struct exynos_video_ysum_data sysum_data;
 };
 
 struct exynos_video_meta {
 	enum exynos_video_info_type etype;
-
+	/* common */
+	struct exynos_hdr_static_info	shdr_static_info;
+	struct exynos_color_aspects	scolor_aspects;
 	union {
 		struct exynos_video_dec_data dec;
 		struct exynos_video_enc_data enc;

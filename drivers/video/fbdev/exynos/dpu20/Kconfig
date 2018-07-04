@@ -51,7 +51,7 @@ config EXYNOS_AFBC_DEBUG
 config EXYNOS_MULTIRESOLUTION
 	bool "Support Multi Resolution LCD"
 	depends on EXYNOS_DPU20 && EXYNOS_WINDOW_UPDATE
-	default y
+	default n
 
 config EXYNOS_VIRTUAL_DISPLAY
 	bool "Support Virtual Display Mode"

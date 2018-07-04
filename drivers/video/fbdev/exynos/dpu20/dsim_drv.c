@@ -326,6 +326,7 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 			dsim_dbg("Short Packet was received from LCD module.\n");
 			for (i = 0; i <= cnt; i++)
 				buf[i] = (rx_fifo >> (8 + i * 8)) & 0xff;
+			rx_size = cnt;
 			break;
 		case MIPI_DSI_RX_DCS_LONG_READ_RESPONSE:
 		case MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE:
@@ -550,6 +551,11 @@ static int dsim_get_gpios(struct dsim_device *dsim)
 			res->lcd_power[1] = -1;
 			dsim_info("This board doesn't support 2nd LCD power GPIO");
 		}
+		res->lcd_power[2] = of_get_gpio(dev->of_node, 3);
+		if (res->lcd_power[2] < 0) {
+			res->lcd_power[2] = -1;
+			dsim_info("This board doesn't support 3rd LCD power GPIO");
+		}
 	}
 
 	dsim_info("%s -\n", __func__);
@@ -644,6 +650,16 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			gpio_free(res->lcd_power[1]);
 			usleep_range(10000, 11000);
 		}
+		if (res->lcd_power[2] > 0) {
+			ret = gpio_request_one(res->lcd_power[2],
+					GPIOF_OUT_INIT_HIGH, "lcd_power2");
+			if (ret < 0) {
+				dsim_err("failed 3rd LCD power on\n");
+				return -EINVAL;
+			}
+			gpio_free(res->lcd_power[2]);
+			usleep_range(10000, 11000);
+		}
 		if (res->regulator_1p8v > 0) {
 			ret = regulator_enable(res->regulator_1p8v);
 			if (ret) {
@@ -688,6 +704,16 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 				return -EINVAL;
 			}
 			gpio_free(res->lcd_power[1]);
+			usleep_range(5000, 6000);
+		}
+		if (res->lcd_power[2] > 0) {
+			ret = gpio_request_one(res->lcd_power[2],
+					GPIOF_OUT_INIT_LOW, "lcd_power2");
+			if (ret < 0) {
+				dsim_err("failed 3nd LCD power off\n");
+				return -EINVAL;
+			}
+			gpio_free(res->lcd_power[2]);
 			usleep_range(5000, 6000);
 		}
 		if (res->regulator_1p8v > 0) {
