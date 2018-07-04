@@ -92,6 +92,7 @@ extern struct dsim_lcd_driver s6e3ha6_mipi_lcd_driver;
 extern struct dsim_lcd_driver s6e3ha8_mipi_lcd_driver;
 extern struct dsim_lcd_driver s6e3aa2_mipi_lcd_driver;
 extern struct dsim_lcd_driver s6e3fa0_mipi_lcd_driver;
+extern struct dsim_lcd_driver s6e3fa7_mipi_lcd_driver;
 
 /* define video timer interrupt */
 enum {
