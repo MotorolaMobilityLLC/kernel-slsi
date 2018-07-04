@@ -108,7 +108,8 @@ void fimc_is_scaler_set_poly_scaling_ratio(void __iomem *base_addr, u32 output_i
 void fimc_is_scaler_set_h_init_phase_offset(void __iomem *base_addr, u32 output_id, u32 h_offset);
 void fimc_is_scaler_set_v_init_phase_offset(void __iomem *base_addr, u32 output_id, u32 v_offset);
 void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr, u32 output_id,
-	u32 hratio, u32 vratio, enum exynos_sensor_position sensor_position);
+	u32 hratio, u32 vratio, struct scaler_coef_cfg *sc_coef,
+	enum exynos_sensor_position sensor_position);
 void fimc_is_scaler_set_poly_round_mode(void __iomem *base_addr, u32 output_id, u32 mode);
 
 void fimc_is_scaler_set_post_scaler_enable(void __iomem *base_addr, u32 output_id, u32 enable);
@@ -117,7 +118,8 @@ void fimc_is_scaler_get_post_img_size(void __iomem *base_addr, u32 output_id, u3
 void fimc_is_scaler_set_post_dst_size(void __iomem *base_addr, u32 output_id, u32 width, u32 height);
 void fimc_is_scaler_get_post_dst_size(void __iomem *base_addr, u32 output_id, u32 *width, u32 *height);
 void fimc_is_scaler_set_post_scaling_ratio(void __iomem *base_addr, u32 output_id, u32 hratio, u32 vratio);
-void fimc_is_scaler_set_post_scaler_coef(void __iomem *base_addr, u32 output_id, u32 hratio, u32 vratio);
+void fimc_is_scaler_set_post_scaler_coef(void __iomem *base_addr, u32 output_id,
+	u32 hratio, u32 vratio, struct scaler_coef_cfg *sc_coef);
 void fimc_is_scaler_set_post_round_mode(void __iomem *base_addr, u32 output_id, u32 mode);
 
 void fimc_is_scaler_set_420_conversion(void __iomem *base_addr, u32 output_id, u32 conv420_weight, u32 conv420_en);

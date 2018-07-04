@@ -1261,13 +1261,38 @@ u32 get_scaler_coef_ver1(u32 ratio, bool adjust_coef)
 	return coef;
 }
 
+u32 get_scaler_coef_ver2(u32 ratio, struct scaler_coef_cfg *sc_coef)
+{
+	u32 coef;
+
+	if (ratio <= RATIO_X8_8)
+		coef = sc_coef->ratio_x8_8;
+	else if (ratio > RATIO_X8_8 && ratio <= RATIO_X7_8)
+		coef = sc_coef->ratio_x7_8;
+	else if (ratio > RATIO_X7_8 && ratio <= RATIO_X6_8)
+		coef = sc_coef->ratio_x6_8;
+	else if (ratio > RATIO_X6_8 && ratio <= RATIO_X5_8)
+		coef = sc_coef->ratio_x5_8;
+	else if (ratio > RATIO_X5_8 && ratio <= RATIO_X4_8)
+		coef = sc_coef->ratio_x4_8;
+	else if (ratio > RATIO_X4_8 && ratio <= RATIO_X3_8)
+		coef = sc_coef->ratio_x3_8;
+	else if (ratio > RATIO_X3_8 && ratio <= RATIO_X2_8)
+		coef = sc_coef->ratio_x2_8;
+	else
+		coef = sc_coef->ratio_x2_8;
+
+	return coef;
+}
+
 void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr, u32 output_id,
-	u32 hratio, u32 vratio,
+	u32 hratio, u32 vratio, struct scaler_coef_cfg *sc_coef,
 	enum exynos_sensor_position sensor_position)
 {
 	u32 h_coef = 0, v_coef = 0;
 	/* this value equals 0 - scale-down operation */
 	u32 h_phase_offset = 0, v_phase_offset = 0;
+#if defined(LHM_ENABLE_EVT0)
 	bool adjust_coef = false;
 
 	/* M/M dev team guided, x7/8 ~ x5/8 => x8/8 ~ x7/8
@@ -1279,6 +1304,12 @@ void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr, u32 output_id,
 
 	h_coef = get_scaler_coef_ver1(hratio, adjust_coef);
 	v_coef = get_scaler_coef_ver1(vratio, adjust_coef);
+#else
+	if (sc_coef) {
+		h_coef = get_scaler_coef_ver2(hratio, sc_coef);
+		v_coef = get_scaler_coef_ver2(vratio, sc_coef);
+	}
+#endif
 
 	/* scale up case */
 	if (hratio < RATIO_X8_8)
@@ -1588,14 +1619,22 @@ void fimc_is_scaler_set_post_scaler_h_v_coef(void __iomem *base_addr, u32 output
 	}
 }
 
-void fimc_is_scaler_set_post_scaler_coef(void __iomem *base_addr, u32 output_id, u32 hratio, u32 vratio)
+void fimc_is_scaler_set_post_scaler_coef(void __iomem *base_addr, u32 output_id,
+	u32 hratio, u32 vratio, struct scaler_coef_cfg *sc_coef)
 {
 	u32 h_coef = 0, v_coef = 0;
 	/* this value equals 0 - scale-down operation */
 	u32 h_phase_offset = 0, v_phase_offset = 0;
 
+#if defined(LHM_ENABLE_EVT0)
 	h_coef = get_scaler_coef_ver1(hratio, false);
 	v_coef = get_scaler_coef_ver1(vratio, false);
+#else
+	if (sc_coef) {
+		h_coef = get_scaler_coef_ver2(hratio, sc_coef);
+		v_coef = get_scaler_coef_ver2(vratio, sc_coef);
+	}
+#endif
 
 	/* scale up case */
 	if (hratio < RATIO_X8_8)
