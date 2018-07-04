@@ -41,6 +41,7 @@
 extern int dpp_log_level;
 
 #define DPP_MODULE_NAME		"exynos-dpp"
+#define MAX_DPP_CNT		7 /* + ODMA case */
 
 /* about 1msec @ ACLK=630MHz */
 #define INIT_RCV_NUM		630000
@@ -146,6 +147,52 @@ struct dpp_config {
 	unsigned long rcv_num;
 };
 
+struct dpp_size_range {
+	u32 min;
+	u32 max;
+	u32 align;
+};
+
+struct dpp_restriction {
+	struct dpp_size_range src_f_w;
+	struct dpp_size_range src_f_h;
+	struct dpp_size_range src_w;
+	struct dpp_size_range src_h;
+	u32 src_x_align;
+	u32 src_y_align;
+
+	struct dpp_size_range dst_f_w;
+	struct dpp_size_range dst_f_h;
+	struct dpp_size_range dst_w;
+	struct dpp_size_range dst_h;
+	u32 dst_x_align;
+	u32 dst_y_align;
+
+	struct dpp_size_range blk_w;
+	struct dpp_size_range blk_h;
+	u32 blk_x_align;
+	u32 blk_y_align;
+
+	u32 src_h_rot_max; /* limit of source img height in case of rotation */
+
+	u32 *format; /* supported format list for each DPP channel */
+	u32 reserved[8];
+};
+
+struct dpp_ch_restriction {
+	int id;
+	unsigned long attr;
+
+	struct dpp_restriction restriction;
+	u32 reserved[4];
+};
+
+struct dpp_restrictions_info {
+	u32 ver; /* version of dpp_restrictions_info structure */
+	struct dpp_ch_restriction dpp_ch[MAX_DPP_CNT];
+	u32 reserved[4];
+};
+
 struct dpp_device {
 	int id;
 	int port;
@@ -160,16 +207,14 @@ struct dpp_device {
 	spinlock_t slock;
 	spinlock_t dma_slock;
 	struct mutex lock;
+	struct dpp_restriction restriction;
 };
 
 extern struct dpp_device *dpp_drvdata[MAX_DPP_CNT];
 
 static inline struct dpp_device *get_dpp_drvdata(u32 id)
 {
-	if (id >= MAX_DPP_CNT)
-		return NULL;
-	else
-		return dpp_drvdata[id];
+	return dpp_drvdata[id];
 }
 
 static inline u32 dpp_read(u32 id, u32 reg_id)
@@ -284,5 +329,6 @@ void dpp_dump(struct dpp_device *dpp);
 #define DPP_WAIT_IDLE			_IOR('P', 4, unsigned long)
 #define DPP_SET_RECOVERY_NUM		_IOR('P', 5, unsigned long)
 #define DPP_GET_PORT_NUM		_IOR('P', 7, unsigned long)
+#define DPP_GET_RESTRICTION		_IOR('P', 8, unsigned long)
 
 #endif /* __SAMSUNG_DPP_H__ */

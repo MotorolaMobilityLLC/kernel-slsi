@@ -94,6 +94,8 @@ static void win_update_check_limitation(struct decon_device *decon,
 	struct decon_win_config *config;
 	struct decon_win_rect update;
 	struct decon_rect r;
+	struct v4l2_subdev *sd;
+	struct dpp_restriction res;
 	int i;
 	int sz_align = 1;
 	int adj_src_x = 0, adj_src_y = 0;
@@ -102,6 +104,7 @@ static void win_update_check_limitation(struct decon_device *decon,
 		config = &win_config[i];
 		if (config->state == DECON_WIN_STATE_DISABLED)
 			continue;
+
 
 		r.left = config->dst.x;
 		r.top = config->dst.y;
@@ -131,8 +134,11 @@ static void win_update_check_limitation(struct decon_device *decon,
 				goto change_full;
 		}
 
-		if (((r.right - r.left) < (SRC_WIDTH_MIN * sz_align)) ||
-				((r.bottom - r.top) < (SRC_HEIGHT_MIN * sz_align))) {
+		sd = decon->dpp_sd[0];
+		v4l2_subdev_call(sd, core, ioctl, DPP_GET_RESTRICTION, &res);
+
+		if (((r.right - r.left) < (res.src_f_w.min * sz_align)) ||
+				((r.bottom - r.top) < (res.src_f_h.min * sz_align))) {
 			goto change_full;
 		}
 

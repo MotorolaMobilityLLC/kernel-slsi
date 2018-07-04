@@ -109,7 +109,7 @@ static void decon_dump_using_dpp(struct decon_device *decon)
 {
 	int i;
 
-	for (i = 0; i < MAX_DPP_SUBDEV; i++) {
+	for (i = 0; i < decon->dt.dpp_cnt; i++) {
 		if (test_bit(i, &decon->prev_used_dpp)) {
 			struct v4l2_subdev *sd = NULL;
 			sd = decon->dpp_sd[i];
@@ -123,8 +123,11 @@ static void decon_up_list_saved(void)
 {
 	int i;
 	struct decon_device *decon;
+	int decon_cnt;
 
-	for (i = 0; i < MAX_DECON_CNT; i++) {
+	decon_cnt = get_decon_drvdata(0)->dt.decon_cnt;
+
+	for (i = 0; i < decon_cnt; i++) {
 		decon = get_decon_drvdata(i);
 		if (decon) {
 			if (!list_empty(&decon->up.list) || !list_empty(&decon->up.saved_list)) {
@@ -233,7 +236,7 @@ void decon_dpp_stop(struct decon_device *decon, bool do_reset)
 	bool rst = false;
 	struct v4l2_subdev *sd;
 
-	for (i = 0; i < MAX_DPP_SUBDEV; i++) {
+	for (i = 0; i < decon->dt.dpp_cnt; i++) {
 		if (test_bit(i, &decon->prev_used_dpp) &&
 				!test_bit(i, &decon->cur_using_dpp)) {
 			sd = decon->dpp_sd[i];
@@ -1053,7 +1056,7 @@ static int decon_find_biggest_block_rect(struct decon_device *decon,
 	r1.bottom = r1.top + config->dst.h - 1;
 
 	/* Find the biggest block region from overlays by the top windows */
-	for (j = win_no + 1; j < MAX_DECON_WIN; j++) {
+	for (j = win_no + 1; j < decon->dt.max_win; j++) {
 		config = &win_config[j];
 		if (config->state != DECON_WIN_STATE_BUFFER)
 			continue;
@@ -1557,7 +1560,7 @@ static int decon_set_dpp_config(struct decon_device *decon,
 
 	if (decon->dt.out_type == DECON_OUT_WB) {
 		sd = decon->dpp_sd[ODMA_WB];
-		memcpy(&dpp_config.config, &regs->dpp_config[MAX_DECON_WIN],
+		memcpy(&dpp_config.config, &regs->dpp_config[decon->dt.max_win],
 				sizeof(struct decon_win_config));
 		dpp_config.rcv_num = aclk_khz;
 		ret = v4l2_subdev_call(sd, core, ioctl, DPP_WIN_CONFIG,
@@ -1841,7 +1844,7 @@ static void decon_release_old_bufs(struct decon_device *decon,
 	if (decon->dt.out_type == DECON_OUT_WB) {
 		for (j = 0; j < plane_cnt[0]; ++j)
 			decon_free_dma_buf(decon,
-					&regs->dma_buf_data[MAX_DECON_WIN][j]);
+					&regs->dma_buf_data[decon->dt.max_win][j]);
 	}
 }
 
@@ -2301,12 +2304,12 @@ static int decon_prepare_win_config(struct decon_device *decon,
 	}
 
 	if (decon->dt.out_type == DECON_OUT_WB) {
-		regs->protection[MAX_DECON_WIN] = win_config[MAX_DECON_WIN].protection;
-		ret = decon_import_buffer(decon, MAX_DECON_WIN,
-				&win_config[MAX_DECON_WIN], regs);
+		regs->protection[decon->dt.max_win] = win_config[decon->dt.max_win].protection;
+		ret = decon_import_buffer(decon, decon->dt.max_win,
+				&win_config[decon->dt.max_win], regs);
 	}
 
-	for (i = 0; i < MAX_DPP_SUBDEV; i++) {
+	for (i = 0; i < decon->dt.dpp_cnt; i++) {
 		memcpy(&regs->dpp_config[i], &win_config[i],
 				sizeof(struct decon_win_config));
 		regs->dpp_config[i].format =
@@ -2586,7 +2589,7 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 
 		decon_info("HWC version %d.0 is operating\n", disp_info.ver);
 		disp_info.psr_mode = decon->dt.psr_mode;
-		disp_info.chip_ver = CHIP_VER;
+		disp_info.chip_ver = decon->dt.chip_ver;
 		disp_info.mres_info = *mres_info;
 
 		if (copy_to_user(argp_info,
@@ -2886,7 +2889,7 @@ static int decon_register_subdevs(struct decon_device *decon)
 		return ret;
 	}
 
-	for (i = 0;  i < MAX_DPP_SUBDEV; ++i)
+	for (i = 0;  i < MAX_DPP_CNT; ++i)
 		decon->dpp_sd[i] = NULL;
 	ret = dpu_get_sd_by_drvname(decon, DPP_MODULE_NAME);
 	if (ret)
@@ -2904,7 +2907,7 @@ static int decon_register_subdevs(struct decon_device *decon)
 #endif
 
 	if (!decon->id) {
-		for (i = 0; i < MAX_DPP_SUBDEV; i++) {
+		for (i = 0; i < decon->dt.dpp_cnt; i++) {
 			if (IS_ERR_OR_NULL(decon->dpp_sd[i]))
 				continue;
 			ret = v4l2_device_register_subdev(v4l2_dev,
@@ -2915,7 +2918,7 @@ static int decon_register_subdevs(struct decon_device *decon)
 			}
 		}
 
-		for (i = 0; i < MAX_DSIM_CNT; i++) {
+		for (i = 0; i < decon->dt.dsim_cnt; i++) {
 			if (decon->dsim_sd[i] == NULL || i == 1)
 				continue;
 
@@ -2960,13 +2963,13 @@ static void decon_unregister_subdevs(struct decon_device *decon)
 	int i;
 
 	if (!decon->id) {
-		for (i = 0; i < MAX_DPP_SUBDEV; i++) {
+		for (i = 0; i < decon->dt.dpp_cnt; i++) {
 			if (decon->dpp_sd[i] == NULL)
 				continue;
 			v4l2_device_unregister_subdev(decon->dpp_sd[i]);
 		}
 
-		for (i = 0; i < MAX_DSIM_CNT; i++) {
+		for (i = 0; i < decon->dt.dsim_cnt; i++) {
 			if (decon->dsim_sd[i] == NULL || i == 1)
 				continue;
 			v4l2_device_unregister_subdev(decon->dsim_sd[i]);
@@ -3299,11 +3302,9 @@ static void decon_parse_dt(struct decon_device *decon)
 	of_property_read_u32(dev->of_node, "psr_mode",
 			&decon->dt.psr_mode);
 	/* H/W trigger: 0, S/W trigger: 1 */
-	of_property_read_u32(dev->of_node, "trig_mode",
-			&decon->dt.trig_mode);
-	decon_info("decon-%s: max win%d, %s mode, %s trigger\n",
-			(decon->id == 0) ? "f" : ((decon->id == 1) ? "s" : "t"),
-			decon->dt.max_win,
+	of_property_read_u32(dev->of_node, "trig_mode", &decon->dt.trig_mode);
+	decon_info("decon%d: max win%d, %s mode, %s trigger\n",
+			decon->id, decon->dt.max_win,
 			decon->dt.psr_mode ? "command" : "video",
 			decon->dt.trig_mode ? "sw" : "hw");
 
@@ -3321,6 +3322,13 @@ static void decon_parse_dt(struct decon_device *decon)
 	}
 
 	decon_info("PPC(%llu)\n", decon->bts.ppc);
+
+	of_property_read_u32(dev->of_node, "chip_ver", &decon->dt.chip_ver);
+	of_property_read_u32(dev->of_node, "dpp_cnt", &decon->dt.dpp_cnt);
+	of_property_read_u32(dev->of_node, "dsim_cnt", &decon->dt.dsim_cnt);
+	of_property_read_u32(dev->of_node, "decon_cnt", &decon->dt.decon_cnt);
+	decon_info("chip_ver %d, dpp cnt %d, dsim cnt %d\n", decon->dt.chip_ver,
+			decon->dt.dpp_cnt, decon->dt.dsim_cnt);
 
 	if (decon->dt.out_type == DECON_OUT_DSI) {
 		ret = of_property_read_u32_index(dev->of_node, "out_idx", 0,

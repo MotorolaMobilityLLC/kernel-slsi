@@ -543,12 +543,16 @@ void decon_set_protected_content(struct decon_device *decon,
 	/* ODMA protection config (WB: writeback) */
 	if (decon->dt.out_type == DECON_OUT_WB)
 		if (regs)
-			cur_protect_bits |= (regs->protection[MAX_DECON_WIN] << ODMA_WB);
+			cur_protect_bits |= (regs->protection[decon->dt.max_win] << ODMA_WB);
 
 	if (decon->prev_protection_bitmask != cur_protect_bits) {
 
 		/* apply protection configs for each DMA */
-		for (dma_id = 0; dma_id < MAX_DPP_CNT; dma_id++) {
+		for (dma_id = 0; dma_id < decon->dt.max_win; dma_id++) {
+			/*
+			 * This loop should use max_win instead of dpp_cnt,
+			 * because dpp_cnt includes writeback case
+			 */
 			en = cur_protect_bits & (1 << dma_id);
 
 			change = (cur_protect_bits & (1 << dma_id)) ^
@@ -582,7 +586,7 @@ void dpu_dump_afbc_info(void)
 	void *v_addr[2];
 	int size[2];
 
-	for (i = 0; i < MAX_DECON_CNT; i++) {
+	for (i = 0; i < 3; i++) {
 		decon = get_decon_drvdata(i);
 		if (decon == NULL)
 			continue;
@@ -624,13 +628,16 @@ static int dpu_dump_buffer_data(struct dpp_device *dpp)
 	int i;
 	int id_idx = 0;
 	int dump_size = 128;
+	int decon_cnt;
 	struct decon_device *decon;
 	struct dpu_afbc_info *afbc_info;
 	void *v_addr;
 
+	decon_cnt = get_decon_drvdata(0)->dt.decon_cnt;
+
 	if (dpp->state == DPP_STATE_ON) {
 
-		for (i = 0; i < MAX_DECON_CNT; i++) {
+		for (i = 0; i < decon_cnt; i++) {
 			decon = get_decon_drvdata(i);
 			if (decon == NULL)
 				continue;
@@ -681,7 +688,7 @@ int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < MAX_DPP_SUBDEV; i++) {
+	for (i = 0; i < decon->dt.dpp_cnt; i++) {
 		if (test_bit(i, &decon->prev_used_dpp)) {
 			dpp = get_dpp_drvdata(i);
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)

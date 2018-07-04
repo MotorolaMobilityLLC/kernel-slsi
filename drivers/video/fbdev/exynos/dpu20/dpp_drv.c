@@ -79,6 +79,7 @@ static void dpp_get_params(struct dpp_device *dpp, struct dpp_params_info *p)
 {
 	u64 src_w, src_h, dst_w, dst_h;
 	struct decon_win_config *config = &dpp->dpp_config->config;
+	struct dpp_restriction *res = &dpp->restriction;
 
 	p->rcv_num = dpp->dpp_config->rcv_num;
 	memcpy(&p->src, &config->src, sizeof(struct decon_frame));
@@ -145,7 +146,7 @@ static void dpp_get_params(struct dpp_device *dpp, struct dpp_params_info *p)
 
 	if ((config->dpp_parm.rot != DPP_ROT_NORMAL) || (p->is_scale) ||
 		(p->format >= DECON_PIXEL_FORMAT_NV16) ||
-		(p->block.w < BLK_WIDTH_MIN) || (p->block.h < BLK_HEIGHT_MIN))
+		(p->block.w < res->blk_w.min) || (p->block.h < res->blk_h.min))
 		p->is_block = false;
 	else
 		p->is_block = true;
@@ -158,7 +159,7 @@ static int dpp_check_size(struct dpp_device *dpp, struct dpp_img_format *vi)
 	struct decon_frame *dst = &config->dst;
 	struct dpp_size_constraints vc;
 
-	dpp_constraints_params(&vc, vi);
+	dpp_constraints_params(&vc, vi, &dpp->restriction);
 
 	if ((!check_align(src->x, src->y, vc.src_mul_x, vc.src_mul_y)) ||
 	   (!check_align(src->f_w, src->f_h, vc.src_mul_w, vc.src_mul_h)) ||
@@ -524,6 +525,11 @@ static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		*(int *)arg = dpp->port;
 		break;
 
+	case DPP_GET_RESTRICTION:
+		memcpy((struct dpp_restriction *)arg, &dpp->restriction,
+				sizeof(struct dpp_restriction));
+		break;
+
 	default:
 		break;
 	}
@@ -550,14 +556,127 @@ static void dpp_init_subdev(struct dpp_device *dpp)
 	v4l2_set_subdevdata(sd, dpp);
 }
 
+static void dpp_parse_restriction(struct dpp_device *dpp, struct device_node *n)
+{
+	u32 range[3] = {0, };
+	u32 align[2] = {0, };
+
+	dpp_info("dpp restriction\n");
+	of_property_read_u32_array(n, "src_f_w", range, 3);
+	dpp->restriction.src_f_w.min = range[0];
+	dpp->restriction.src_f_w.max = range[1];
+	dpp->restriction.src_f_w.align = range[2];
+
+	of_property_read_u32_array(n, "src_f_h", range, 3);
+	dpp->restriction.src_f_h.min = range[0];
+	dpp->restriction.src_f_h.max = range[1];
+	dpp->restriction.src_f_h.align = range[2];
+
+	of_property_read_u32_array(n, "src_w", range, 3);
+	dpp->restriction.src_w.min = range[0];
+	dpp->restriction.src_w.max = range[1];
+	dpp->restriction.src_w.align = range[2];
+
+	of_property_read_u32_array(n, "src_h", range, 3);
+	dpp->restriction.src_h.min = range[0];
+	dpp->restriction.src_h.max = range[1];
+	dpp->restriction.src_h.align = range[2];
+
+	of_property_read_u32_array(n, "src_xy_align", align, 2);
+	dpp->restriction.src_x_align = align[0];
+	dpp->restriction.src_y_align = align[1];
+
+	of_property_read_u32_array(n, "dst_f_w", range, 3);
+	dpp->restriction.dst_f_w.min = range[0];
+	dpp->restriction.dst_f_w.max = range[1];
+	dpp->restriction.dst_f_w.align = range[2];
+
+	of_property_read_u32_array(n, "dst_f_h", range, 3);
+	dpp->restriction.dst_f_h.min = range[0];
+	dpp->restriction.dst_f_h.max = range[1];
+	dpp->restriction.dst_f_h.align = range[2];
+
+	of_property_read_u32_array(n, "dst_w", range, 3);
+	dpp->restriction.dst_w.min = range[0];
+	dpp->restriction.dst_w.max = range[1];
+	dpp->restriction.dst_w.align = range[2];
+
+	of_property_read_u32_array(n, "dst_h", range, 3);
+	dpp->restriction.dst_h.min = range[0];
+	dpp->restriction.dst_h.max = range[1];
+	dpp->restriction.dst_h.align = range[2];
+
+	of_property_read_u32_array(n, "dst_xy_align", align, 2);
+	dpp->restriction.dst_x_align = align[0];
+	dpp->restriction.dst_y_align = align[1];
+
+	of_property_read_u32_array(n, "blk_w", range, 3);
+	dpp->restriction.blk_w.min = range[0];
+	dpp->restriction.blk_w.max = range[1];
+	dpp->restriction.blk_w.align = range[2];
+
+	of_property_read_u32_array(n, "blk_h", range, 3);
+	dpp->restriction.blk_h.min = range[0];
+	dpp->restriction.blk_h.max = range[1];
+	dpp->restriction.blk_h.align = range[2];
+
+	of_property_read_u32_array(n, "blk_xy_align", align, 2);
+	dpp->restriction.blk_x_align = align[0];
+	dpp->restriction.blk_y_align = align[1];
+
+	if (of_property_read_u32(n, "src_h_rot_max",
+				&dpp->restriction.src_h_rot_max))
+		dpp->restriction.src_h_rot_max = dpp->restriction.src_h.max;
+}
+
+static void dpp_print_restriction(struct dpp_device *dpp)
+{
+	struct dpp_restriction *res = &dpp->restriction;
+
+	dpp_info("src_f_w[%d %d %d] src_f_h[%d %d %d]\n",
+			res->src_f_w.min, res->src_f_w.max, res->src_f_w.align,
+			res->src_f_h.min, res->src_f_h.max, res->src_f_h.align);
+	dpp_info("src_w[%d %d %d] src_h[%d %d %d] src_x_y_align[%d %d]\n",
+			res->src_w.min, res->src_w.max, res->src_w.align,
+			res->src_h.min, res->src_h.max, res->src_h.align,
+			res->src_x_align, res->src_y_align);
+
+	dpp_info("dst_f_w[%d %d %d] dst_f_h[%d %d %d]\n",
+			res->dst_f_w.min, res->dst_f_w.max, res->dst_f_w.align,
+			res->dst_f_h.min, res->dst_f_h.max, res->dst_f_h.align);
+	dpp_info("dst_w[%d %d %d] dst_h[%d %d %d] dst_x_y_align[%d %d]\n",
+			res->dst_w.min, res->dst_w.max, res->dst_w.align,
+			res->dst_h.min, res->dst_h.max, res->dst_h.align,
+			res->dst_x_align, res->dst_y_align);
+
+	dpp_info("blk_w[%d %d %d] blk_h[%d %d %d] blk_x_y_align[%d %d]\n",
+			res->blk_w.min, res->blk_w.max, res->blk_w.align,
+			res->blk_h.min, res->blk_h.max, res->blk_h.align,
+			res->blk_x_align, res->blk_y_align);
+
+	dpp_info("src_h_rot_max[%d]\n", res->src_h_rot_max);
+}
+
 static void dpp_parse_dt(struct dpp_device *dpp, struct device *dev)
 {
+	struct device_node *node = dev->of_node;
+	struct dpp_device *dpp0 = get_dpp_drvdata(0);
+
 	dpp->id = of_alias_get_id(dev->of_node, "dpp");
 	dpp_info("dpp(%d) probe start..\n", dpp->id);
-	of_property_read_u32(dev->of_node, "attr", (u32 *)&dpp->attr);
+	of_property_read_u32(node, "attr", (u32 *)&dpp->attr);
 	dpp_info("attributes = 0x%lx\n", dpp->attr);
-	of_property_read_u32(dev->of_node, "port", (u32 *)&dpp->port);
+	of_property_read_u32(node, "port", (u32 *)&dpp->port);
 	dpp_info("AXI port = %d\n", dpp->port);
+
+	if (dpp->id == 0) {
+		dpp_parse_restriction(dpp, node);
+		dpp_print_restriction(dpp);
+	} else {
+		memcpy(&dpp->restriction, &dpp0->restriction,
+				sizeof(struct dpp_restriction));
+		dpp_print_restriction(dpp);
+	}
 
 	dpp->dev = dev;
 }

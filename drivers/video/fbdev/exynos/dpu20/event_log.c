@@ -124,8 +124,11 @@ static int __get_decon_id_for_dpp(struct v4l2_subdev *sd)
 	struct dpp_device *dpp = v4l2_get_subdevdata(sd);
 	int idx;
 	int ret = 0;
+	int decon_cnt;
 
-	for (idx = 0; idx < MAX_DECON_CNT; idx++) {
+	decon_cnt = get_decon_drvdata(0)->dt.decon_cnt;
+
+	for (idx = 0; idx < decon_cnt; idx++) {
 		decon = get_decon_drvdata(idx);
 		if (!decon || IS_ERR_OR_NULL(decon->d.debug_event))
 			continue;
@@ -310,7 +313,7 @@ void DPU_EVENT_LOG_WINCON(struct v4l2_subdev *sd, struct decon_reg_data *regs)
 	log->time = ktime_get();
 	log->type = DPU_EVT_UPDATE_HANDLER;
 
-	for (win = 0; win < MAX_DECON_WIN; win++) {
+	for (win = 0; win < decon->dt.max_win; win++) {
 		if (regs->win_regs[win].wincon & WIN_EN_F(win)) {
 			memcpy(&log->data.reg.win_regs[win], &regs->win_regs[win],
 				sizeof(struct decon_window_regs));
@@ -393,7 +396,7 @@ void DPU_EVENT_LOG_CURSOR(struct v4l2_subdev *sd, struct decon_reg_data *regs)
 	log->time = ktime_get();
 	log->type = DPU_EVT_CURSOR_UPDATE;
 
-	for (win = 0; win < MAX_DECON_WIN; win++) {
+	for (win = 0; win < decon->dt.max_win; win++) {
 		if (regs->is_cursor_win[win] && regs->win_regs[win].wincon & WIN_EN_F(win)) {
 			memcpy(&log->data.reg.win_regs[win], &regs->win_regs[win],
 				sizeof(struct decon_window_regs));

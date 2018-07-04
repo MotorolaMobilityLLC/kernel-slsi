@@ -72,7 +72,7 @@ void decon_create_release_fences(struct decon_device *decon,
 {
 	int i = 0;
 
-	for (i = 0; i < MAX_DECON_WIN; i++) {
+	for (i = 0; i < decon->dt.max_win; i++) {
 		int state = win_data->config[i].state;
 		int rel_fence = -1;
 
@@ -201,7 +201,7 @@ void decon_create_release_fences(struct decon_device *decon,
 {
 	int i = 0;
 
-	for (i = 0; i < MAX_DECON_WIN; i++) {
+	for (i = 0; i < decon->dt.max_win; i++) {
 		int state = win_data->config[i].state;
 		int rel_fence = -1;
 
