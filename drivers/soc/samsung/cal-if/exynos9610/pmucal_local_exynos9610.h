@@ -193,7 +193,7 @@ struct pmucal_seq vipx2_save[] = {
 };
 
 struct pmucal_seq vipx2_off[] = {
-	PMUCAL_SEQ_DESC(PMUCAL_READ, "VIPX1_STATUS", 0x11860000, 0x40E4, (0xf << 0), (0xF << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_READ, "VIPX1_STATUS", 0x11860000, 0x40E4, (0xf << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 };
 
 struct pmucal_seq vipx2_status[] = {
