@@ -774,32 +774,27 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, int bl)
 {
 	const struct firmware *entry;
 	int ret;
+	enum ipc_region reg;
+	char *name;
 
 	if (bl) {
 		ret = request_firmware(&entry, "bl.unchecked.bin", ipc->dev);
-		if (ret) {
-			dev_err(ipc->dev, "%s, bl request_firmware failed\n",
-				__func__);
-			return ret;
-		}
-		memcpy(ipc_get_base(IPC_REG_BL), entry->data, entry->size);
-		dev_info(ipc->dev, "%s: bootloader(size:0x%x) on %lx\n",
-			 __func__, (int)entry->size,
-			 (unsigned long)ipc_get_base(IPC_REG_BL));
-		release_firmware(entry);
+		reg = IPC_REG_BL;
 	} else {
 		ret = request_firmware(&entry, ipc->os_name, ipc->dev);
-		if (ret) {
-			dev_err(ipc->dev, "%s, %s request_firmware failed\n",
-				__func__, ipc->os_name);
-			return ret;
-		}
-		memcpy(ipc_get_base(IPC_REG_OS), entry->data, entry->size);
-		dev_info(ipc->dev, "%s: %s(size:0x%x) on %lx\n", __func__,
-			 ipc->os_name, (int)entry->size,
-			 (unsigned long)ipc_get_base(IPC_REG_OS));
-		release_firmware(entry);
+		reg = IPC_REG_OS;
 	}
+
+	if (ret) {
+		dev_err(ipc->dev, "%s, bl(%d) request_firmware failed\n",
+			bl, __func__);
+		return ret;
+	}
+	memcpy(ipc_get_base(reg), entry->data, entry->size);
+	dev_info(ipc->dev, "%s: bl:%d, bin(size:0x%x) on %lx\n",
+		 __func__, bl, (int)entry->size,
+		 (unsigned long)ipc_get_base(reg));
+	release_firmware(entry);
 
 	return 0;
 }
@@ -942,6 +937,8 @@ do_reset:
 				if (ipc->irq_wdt)
 					enable_irq(ipc->irq_wdt);
 		}
+#else
+		atomic_set(&ipc->chub_status, CHUB_ST_HANG);
 #endif
 	} else {
 		/* dump log into file: DO NOT logbuf dueto sram corruption */
