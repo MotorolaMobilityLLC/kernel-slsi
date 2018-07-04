@@ -2032,7 +2032,8 @@ void fimc_is_hw_bchs_range(void __iomem *base_addr, u32 output_id, int yuv)
 	fimc_is_scaler_set_h_s(base_addr, output_id, c_gain00, c_gain01, c_gain10, c_gain11);
 }
 
-void fimc_is_hw_bchs_clamp(void __iomem *base_addr, u32 output_id, int yuv)
+void fimc_is_hw_bchs_clamp(void __iomem *base_addr, u32 output_id, int yuv,
+	struct scaler_bchs_clamp_cfg *sc_bchs)
 {
 	u32 y_max, y_min, c_max, c_min;
 
@@ -2063,7 +2064,12 @@ void fimc_is_hw_bchs_clamp(void __iomem *base_addr, u32 output_id, int yuv)
 		c_min = 16;
 	}
 #endif
-	fimc_is_scaler_set_bchs_clamp(base_addr, output_id, y_max, y_min, c_max, c_min);
+	if (sc_bchs)
+		fimc_is_scaler_set_bchs_clamp(base_addr, output_id,
+			sc_bchs->y_max, sc_bchs->y_min,
+			sc_bchs->c_max, sc_bchs->c_min);
+	else
+		fimc_is_scaler_set_bchs_clamp(base_addr, output_id, y_max, y_min, c_max, c_min);
 }
 
 int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mcs_output *output,
@@ -2074,11 +2080,10 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 	u32 input_id = 0;
 	bool config = true;
 	struct fimc_is_hw_mcsc *hw_mcsc = NULL;
-#if !defined(USE_YUV_RANGE_BY_ISP)
 	struct hw_mcsc_setfile *setfile;
 	enum exynos_sensor_position sensor_position;
-#endif
 	struct fimc_is_hw_mcsc_cap *cap = GET_MCSC_HW_CAP(hw_ip);
+	struct scaler_bchs_clamp_cfg *sc_bchs;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!output);
@@ -2102,13 +2107,18 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 	yuv = output->yuv_range;
 	hw_mcsc->yuv_range = yuv; /* save for ISP */
 
+	sensor_position = hw_ip->hardware->sensor_position[instance];
+	setfile = hw_mcsc->cur_setfile[sensor_position];
+#if defined(USE_UVSP_CAC)
+	sc_bchs = &setfile->sc_bchs[yuv];
+#else
+	sc_bchs = NULL;
+#endif
+
 	fimc_is_scaler_set_bchs_enable(hw_ip->regs, output_id, 1);
 #if !defined(USE_YUV_RANGE_BY_ISP)
 	if (test_bit(HW_TUNESET, &hw_ip->state)) {
 		/* set yuv range config value by scaler_param yuv_range mode */
-		sensor_position = hw_ip->hardware->sensor_position[instance];
-		setfile = hw_mcsc->cur_setfile[sensor_position];
-
 		fimc_is_scaler_set_b_c(hw_ip->regs, output_id,
 			setfile->sc_base[yuv].y_offset, setfile->sc_base[yuv].y_gain);
 		fimc_is_scaler_set_h_s(hw_ip->regs, output_id,
@@ -2128,7 +2138,7 @@ int fimc_is_hw_mcsc_output_yuvrange(struct fimc_is_hw_ip *hw_ip, struct param_mc
 	}
 #else
 	fimc_is_hw_bchs_range(hw_ip->regs, output_id, yuv);
-	fimc_is_hw_bchs_clamp(hw_ip->regs, output_id, yuv);
+	fimc_is_hw_bchs_clamp(hw_ip->regs, output_id, yuv, sc_bchs);
 #endif
 	return ret;
 }
