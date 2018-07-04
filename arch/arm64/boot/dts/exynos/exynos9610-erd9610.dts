@@ -1409,8 +1409,8 @@
 			"AIF2 Capture", "OPCLK",
 			"VOUTPUT", "ABOX UAIF0 Playback",
 			"SPEAKER", "Left SPK",
-			"VOUTPUTCALL", "ABOX UAIF2 Playback",
-			"ABOX UAIF2 Capture", "VINPUTCALL";
+			"VOUTPUTCALL", "ABOX SIFS0 Playback",
+			"ABOX SIFS0 Capture", "VINPUTCALL";
 
 		samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_2
 			&abox_uaif_4 &abox_dsif &abox_spdy &cs35l35_left>;
