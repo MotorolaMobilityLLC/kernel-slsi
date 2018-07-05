@@ -340,14 +340,14 @@ static void exynos_save_context_exit(void *val)
 
 static void exynos_start_watchdog(void *val)
 {
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
+#ifdef CONFIG_S3C2410_WATCHDOG
 	s3c2410wdt_keepalive_emergency(true, 0);
 #endif
 }
 
 static void exynos_expire_watchdog(void *val)
 {
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
+#ifdef CONFIG_S3C2410_WATCHDOG
 	s3c2410wdt_set_emergency_reset(100, 0);
 #endif
 }
@@ -359,7 +359,7 @@ static void exynos_stop_watchdog(void *val)
 
 static void exynos_kick_watchdog(void *val)
 {
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
+#ifdef CONFIG_S3C2410_WATCHDOG
 	s3c2410wdt_keepalive_emergency(false, 0);
 #endif
 }
