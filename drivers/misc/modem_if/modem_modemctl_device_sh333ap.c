@@ -562,6 +562,7 @@ static int sh333ap_dump_start(struct modem_ctl *mc)
 {
 	int err, ret;
 	struct link_device *ld = get_current_link(mc->bootd);
+	int cnt = 100;
 	unsigned long int flags;
 	mif_err("+++\n");
 
@@ -586,6 +587,16 @@ static int sh333ap_dump_start(struct modem_ctl *mc)
 		mif_info("AP2CP_CFG is ok:0x%08x\n", ret);
 	} else {
 		cal_cp_reset_release();
+	}
+
+	while (mbox_extract_value(MCU_CP, mc->mbx_cp_status,
+		mc->sbi_cp_status_mask, mc->sbi_cp_status_pos) == 0) {
+		if (--cnt > 0)
+			usleep_range(10000, 20000);
+		else {
+			mif_err("mbx_cp_status == 0, return -EACCES !!!!!!\n");
+			return -EFAULT;
+		}
 	}
 
 	spin_lock_irqsave(&mc->ap_status_lock, flags);
