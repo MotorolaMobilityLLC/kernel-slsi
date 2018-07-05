@@ -274,7 +274,11 @@ int sensor_2p6_cis_init(struct v4l2_subdev *subdev)
 	cis->cis_data->low_expo_start = 33000;
 	cis->need_mode_change = false;
 
-	sensor_2p6_cis_data_calculation(sensor_2p6_pllinfos[setfile_index], cis->cis_data);
+	if (cis->use_pdaf == true) {
+		sensor_2p6_cis_data_calculation(sensor_2p6_pdaf_pllinfos[setfile_index], cis->cis_data);
+	} else {
+		sensor_2p6_cis_data_calculation(sensor_2p6_pllinfos[setfile_index], cis->cis_data);
+	}
 
 	setinfo.return_value = 0;
 	CALL_CISOPS(cis, cis_get_min_exposure_time, subdev, &setinfo.return_value);
@@ -427,8 +431,27 @@ int sensor_2p6_cis_set_global_setting(struct v4l2_subdev *subdev)
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	BUG_ON(!cis);
 
+	/* ARM start */
+	ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
+	ret = fimc_is_sensor_write16(cis->client, 0x6010, 0x0001);
+	/* 3ms delay to operate sensor FW */
+	usleep_range(3000, 3000);
+
+	/* setfile global setting is at camera entrance */
+	if (cis->use_pdaf == true) {
+		ret = sensor_cis_set_registers(subdev, sensor_2p6_pdaf_global, sensor_2p6_pdaf_global_size);
+	} else {
+		ret = sensor_cis_set_registers(subdev, sensor_2p6_global, sensor_2p6_global_size);
+	}
+
+	if (ret < 0) {
+		err("sensor_2p6_set_registers fail!!");
+		goto p_err;
+	}
+
 	dbg_sensor(1, "[%s] global setting done\n", __func__);
 
+p_err:
 	return ret;
 }
 
@@ -466,6 +489,28 @@ int sensor_2p6_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 		}
 	}
 
+	/* In case of fastAE or high speed fps, forced to set pdaf off */
+	if (cis->use_pdaf == true) {
+		if (mode <= SENSOR_2P6_MODE_2304X1120_30) {
+			cis->cis_data->companion_data.paf_stat_enable = true;
+		} else {
+			cis->cis_data->companion_data.paf_stat_enable = false;
+		}
+		dbg_sensor(1, "[%s] mode(%d) paf_stat_enable(%d) \n",
+			__func__, mode, cis->cis_data->companion_data.paf_stat_enable);
+	}
+
+#if defined(USE_SENSOR_WDR)
+	/* In case of fastAE or high speed fps, forced to set wdr off */
+	if (mode <= SENSOR_2P6_MODE_4608X2240_30) {
+		cis->cis_data->companion_data.wdr_enable = true;
+	} else {
+		cis->cis_data->companion_data.wdr_enable = false;
+	}
+	dbg_sensor(1, "[%s] mode(%d) wdr_enable(%d) \n",
+		__func__, mode, cis->cis_data->companion_data.wdr_enable);
+#endif
+
 	if (cis->use_pdaf == true) {
 		sensor_2p6_cis_data_calculation(sensor_2p6_pdaf_pllinfos[mode], cis->cis_data);
 		ret = sensor_cis_set_registers(subdev, sensor_2p6_pdaf_setfiles[mode], sensor_2p6_pdaf_setfile_sizes[mode]);
@@ -480,31 +525,60 @@ int sensor_2p6_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	}
 
 	if (cis->use_pdaf == true) {
-#if defined(S5K2P6_PDAF_DISABLE)
-		/* TEMP : PDAF disable */
-		ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
-		ret = fimc_is_sensor_write8(cis->client, 0x3059, 0x00);
-		info("[%s] S5K2P6_PDAF_DISABLE\n", __func__);
-#endif
-
-#if defined(S5K2P6_TAIL_DISABLE)
-		/* TEMP : Tail mode disable */
-		ret = fimc_is_sensor_write16(cis->client, 0x6028, 0x2000);
-		ret = fimc_is_sensor_write16(cis->client, 0x602A, 0x19E0);
-		ret = fimc_is_sensor_write16(cis->client, 0x6F12, 0x0001);
-
-		ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
-		ret = fimc_is_sensor_write16(cis->client, 0x30E2, 0x0000);
-		info("[%s] S5K2P6_TAIL_DISABLE\n", __func__);
-#endif
-
 #if defined(S5K2P6_BPC_DISABLE)
-		/* TEMP : BPC disable */
-		ret = fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
-		ret = fimc_is_sensor_write8(cis->client, 0x0B0E, 0x00);
+		/* BPC disable */
+		ret = fimc_is_sensor_write16(cis->client, 0x6028, 0x4000);
+		if (ret < 0) {
+			err("2p6 sensor write fail !!!");
+			goto p_err;
+		}
+		ret = fimc_is_sensor_write16(cis->client, 0x0B0E, 0x0000);
+		if (ret < 0) {
+			err("2p6 sensor write fail !!!");
+			goto p_err;
+		}
 		info("[%s] S5K2P6_BPC_DISABLE\n", __func__);
 #endif
+
+		/* pdaf tail mode off */
+		if (cis->cis_data->companion_data.paf_stat_enable == false) {
+			info("[%s]: Set pdaf tail mode off (paf_stat_enable %d)\n",
+				__func__, cis->cis_data->companion_data.paf_stat_enable);
+
+			ret = fimc_is_sensor_write16(cis->client, 0x6028, 0x2000);
+			if (ret < 0) {
+				err("2p6 sensor write fail !!!");
+				goto p_err;
+			}
+			ret = fimc_is_sensor_write16(cis->client, 0x602A, 0x1BB0);
+			if (ret < 0) {
+				err("2p6 sensor write fail !!!");
+				goto p_err;
+			}
+			ret = fimc_is_sensor_write16(cis->client, 0x6F12, 0x0100);
+			if (ret < 0) {
+				err("2p6 sensor write fail !!!");
+				goto p_err;
+			}
+		}
 	}
+
+#if defined(USE_SENSOR_WDR)
+	if (cis->cis_data->companion_data.wdr_enable == false) {
+		info("[%s] S5K2P6_WDR_DISABLE\n", __func__);
+		ret = fimc_is_sensor_write16(cis->client, 0x6028, 0x4000);
+		if (ret < 0) {
+			err("2p6 sensor write fail !!!");
+			goto p_err;
+		}
+
+		ret = fimc_is_sensor_write16(cis->client, 0x0216, 0x0000);
+		if (ret < 0) {
+			err("2p6 sensor write fail !!!");
+			goto p_err;
+		}
+	}
+#endif
 
 	dbg_sensor(1, "[%s] mode changed(%d)\n", __func__, mode);
 
@@ -730,10 +804,34 @@ int sensor_2p6_cis_stream_on(struct v4l2_subdev *subdev)
 	}
 #endif
 
-	/* Sensor stream on */
 	ret = fimc_is_sensor_write16(client, 0x6028, 0x4000);
 	if (ret < 0)
 		err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x6028, 0x4000, ret);
+
+#if defined(USE_SENSOR_WDR)
+	/* WDR */
+	if (fimc_is_vender_wdr_mode_on(cis_data)) {
+		/* wdr on */
+		ret = fimc_is_sensor_write16(client, 0x0216, 0x0100);
+		if (ret < 0)
+			err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x0216, 0x0100, ret);
+		/* Apply seperating long and short dgain */
+		ret = fimc_is_sensor_write16(client, 0x31FA, 0x0001);
+		if (ret < 0)
+			err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x31FA, 0x0001, ret);
+	} else {
+		/* wdr off */
+		ret = fimc_is_sensor_write16(client, 0x0216, 0x0000);
+		if (ret < 0)
+			err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x0216, 0x0000, ret);
+		/* Apply common value long and short dgain */
+		ret = fimc_is_sensor_write16(client, 0x31FA, 0x0000);
+		if (ret < 0)
+			err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x31FA, 0x0000, ret);
+	}
+#endif
+
+	/* Sensor stream on */
 	ret = fimc_is_sensor_write16(client, 0x0100, 0x0100);
 	if (ret < 0)
 		err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x0100, 0x0100, ret);
@@ -890,10 +988,14 @@ int sensor_2p6_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param
 	if (ret < 0)
 		goto p_err;
 
+#if defined(USE_SENSOR_WDR)
 	/* Long exposure */
-	ret = fimc_is_sensor_write16(client, 0x021E, long_coarse_int);
-	if (ret < 0)
-		goto p_err;
+	if (fimc_is_vender_wdr_mode_on(cis_data)) {
+		ret = fimc_is_sensor_write16(client, 0x021E, long_coarse_int);
+		if (ret < 0)
+			goto p_err;
+	}
+#endif
 
 	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), vt_pic_clk_freq_mhz (%d),"
 		KERN_CONT "line_length_pck(%d), min_fine_int (%d)\n", cis->id, __func__,
@@ -1548,17 +1650,19 @@ int sensor_2p6_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param 
 		goto p_err;
 	}
 
-	dgains[0] = dgains[1] = dgains[2] = dgains[3] = short_gain;
 	/* Short digital gain */
-	ret = fimc_is_sensor_write16_array(client, 0x020E, dgains, 4);
+	dgains[0] = dgains[1] = dgains[2] = dgains[3] = short_gain;
+	ret = fimc_is_sensor_write16(client, 0x020E, short_gain);
 	if (ret < 0)
 		goto p_err;
 
 	/* Long digital gain */
-	dgains[0] = dgains[1] = dgains[2] = dgains[3] = long_gain;
-	ret = fimc_is_sensor_write16_array(client, 0x3062, dgains, 4);
-	if (ret < 0)
-		goto p_err;
+	if (fimc_is_vender_wdr_mode_on(cis_data)) {
+		dgains[0] = dgains[1] = dgains[2] = dgains[3] = long_gain;
+		ret = fimc_is_sensor_write16(client, 0x0C82, long_gain);
+		if (ret < 0)
+			goto p_err;
+	}
 
 #ifdef DEBUG_SENSOR_TIME
 	do_gettimeofday(&end);
@@ -1784,7 +1888,7 @@ int cis_2p6_probe(struct i2c_client *client,
 
 	sensor_peri = find_peri_by_cis_id(device, SENSOR_NAME_S5K2P6);
 	if (!sensor_peri) {
-		probe_info("sensor peri is net yet probed");
+		probe_info("sensor peri is not yet probed");
 		return -EPROBE_DEFER;
 	}
 

@@ -52,38 +52,42 @@ enum sensor_module_2p6_position {
 
 static struct fimc_is_sensor_cfg config_module_2p6[] = {
 	/* 4608x3456@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(4608, 3456, 30, 32, 0, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 1152, 864), 0, 0),
-	/* 4608x2592@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(4608, 2592, 30, 32, 1, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 1152, 656), 0, 0),
+	FIMC_IS_SENSOR_CFG_EXT(4608, 3456, 30, 32, 0, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 288, 1728), 0, 0),
+	/* 4608x2624@30fps */
+	FIMC_IS_SENSOR_CFG_EXT(4608, 2624, 30, 32, 1, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 288, 1312), 0, 0),
+	/* 4608x2240@30fps */
+	FIMC_IS_SENSOR_CFG_EXT(4608, 2240, 30, 32, 2, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 288, 1120), 0, 0),
 	/* 2304x1728@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(2304, 1728, 30, 32, 2, CSI_DATA_LANES_4, 1443, 0, 0, 0),
+	FIMC_IS_SENSOR_CFG_EXT(2304, 1728, 30, 32, 3, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1728), 0, 0),
 	/* 2304x1728@15fps */
-	FIMC_IS_SENSOR_CFG_EXT(2304, 1728, 15, 32, 3, CSI_DATA_LANES_4, 1443, 0, 0, 0),
-	/* 2304x1296@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(2304, 1296, 30, 32, 4, CSI_DATA_LANES_4, 1443, 0, 0, 0),
+	FIMC_IS_SENSOR_CFG_EXT(2304, 1728, 15, 32, 4, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1728), 0, 0),
+	/* 2304x1312@30fps */
+	FIMC_IS_SENSOR_CFG_EXT(2304, 1312, 30, 32, 5, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1312), 0, 0),
+	/* 2304x1120@30fps */
+	FIMC_IS_SENSOR_CFG_EXT(2304, 1120, 30, 32, 6, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1120), 0, 0),
 	/* 1152x864@120fps */
-	FIMC_IS_SENSOR_CFG_EXT(1152, 864, 120, 32, 5, CSI_DATA_LANES_4, 1443, 0, 0, 0),
-	/* 1152x648@120fps */
-	FIMC_IS_SENSOR_CFG_EXT(1152, 648, 120, 32, 6, CSI_DATA_LANES_4, 1443, 0, 0, 0),
+	FIMC_IS_SENSOR_CFG_EXT(1152, 864, 120, 32, 7, CSI_DATA_LANES_4, 1352, 0, 0, 0),
+	/* 1152x656@120fps */
+	FIMC_IS_SENSOR_CFG_EXT(1152, 656, 120, 32, 8, CSI_DATA_LANES_4, 1352, 0, 0, 0),
 };
 
 static struct fimc_is_vci vci_module_2p6[] = {
 	{
 		.pixelformat = V4L2_PIX_FMT_SBGGR10,
 		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
-			{1, HW_FORMAT_USER, VCI_DMA_INTERNAL},
+			{1, HW_FORMAT_RAW10, VCI_DMA_INTERNAL},
 			{2, 0, VCI_DMA_NORMAL},
 			{3, 0, VCI_DMA_NORMAL}}
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR12,
 		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
-			{1, HW_FORMAT_USER, VCI_DMA_INTERNAL},
+			{1, HW_FORMAT_RAW10, VCI_DMA_INTERNAL},
 			{2, 0, VCI_DMA_NORMAL},
 			{3, 0, VCI_DMA_NORMAL}}
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR16,
 		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
-			{1, HW_FORMAT_USER, VCI_DMA_INTERNAL},
+			{1, HW_FORMAT_RAW10, VCI_DMA_INTERNAL},
 			{2, 0, VCI_DMA_NORMAL},
 			{3, 0, VCI_DMA_NORMAL}}
 	}
@@ -273,18 +277,18 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 #endif
 
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_reset, "pdaf sen_rst high", PIN_OUTPUT, 1, 500);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 3000);
 
 	/* BACK CAEMRA - POWER OFF */
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin_none", PIN_NONE, 1, 500);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_reset, "pdaf sen_rst", PIN_OUTPUT, 0, 2000);
+
 	if (gpio_is_valid(gpio_cam_af_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_cam_af_en, "pdaf gpio_cam_af_en", PIN_OUTPUT, 0, 200);
 	} else {
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDD_CAM_AF_2P8", PIN_REGULATOR, 0, 200);
 	}
-
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin_none", PIN_NONE, 1, 500);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_reset, "pdaf sen_rst", PIN_OUTPUT, 0, 200);
 
 #if defined (CONFIG_OIS_USE)
 	if (gpio_is_valid(gpio_ois_reset)) {  /* OIS_RESET */
@@ -348,6 +352,8 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 #endif
 
 	/* READ_ROM - POWER OFF */
+	SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_OFF, gpio_none, "pin_none", PIN_NONE, 1, 500);
+
 #if defined(USE_AF_PWR_READ_EEPROM)
 	if (gpio_is_valid(gpio_cam_af_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_READ_ROM, GPIO_SCENARIO_OFF, gpio_cam_af_en, "pdaf gpio_cam_af_en", PIN_OUTPUT, 0, 10);
@@ -424,6 +430,7 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 	}
 #endif
 
+#if defined(CONFIG_CAMERA_JACKPOT)|| defined(CONFIG_CAMERA_JACKPOT_JPN)
 	/* VISION - POWER ON */
 	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_reset, "pdaf sen_rst low", PIN_OUTPUT, 0, 0);
 
@@ -454,18 +461,18 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 	}
 
 	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_reset, "pdaf sen_rst high", PIN_OUTPUT, 1, 500);
-	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 3000);
 
 	/* VISION - POWER OFF */
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "pin_none", PIN_NONE, 1, 500);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_reset, "pdaf sen_rst", PIN_OUTPUT, 0, 2000);
+
 	if (gpio_is_valid(gpio_cam_af_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_cam_af_en, "pdaf gpio_cam_af_en", PIN_OUTPUT, 0, 200);
 	} else {
 		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "VDD_CAM_AF_2P8", PIN_REGULATOR, 0, 200);
 	}
-
-	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "pin_none", PIN_NONE, 1, 500);
-	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_reset, "pdaf sen_rst", PIN_OUTPUT, 0, 200);
 
 	if (gpio_is_valid(gpio_cam_io_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_cam_io_en, "pdaf gpio_cam_io_en", PIN_OUTPUT, 0, 100);
@@ -486,7 +493,7 @@ static int sensor_module_2p6_power_setpin_with_af(struct device *dev,
 		SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_OFF, gpio_none, "VDDA_2.8V_CAM", PIN_REGULATOR, 0, 100);
 #endif
 	}
-
+#endif
 
 	dev_info(dev, "%s X v4\n", __func__);
 
@@ -691,8 +698,8 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	module->subdev = subdev_module;
 	module->device = pdata->id;
 	module->client = NULL;
-	module->active_width = 4608 + 16;
-	module->active_height = 3456 + 12;
+	module->active_width = 4608 + 0;
+	module->active_height = 3456 + 0;
 	module->margin_left = 0;
 	module->margin_right = 0;
 	module->margin_top = 0;
@@ -707,7 +714,11 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	module->vcis = ARRAY_SIZE(vci_module_2p6);
 	module->vci = vci_module_2p6;
 	module->sensor_maker = "SLSI";
-	module->sensor_name = "S5K2P6";
+	if (use_pdaf == true) {
+		module->sensor_name = "S5K2P6SX"; /* pdaf sensor */
+	} else {
+		module->sensor_name = "S5K2P6"; /* default */
+	}
 	if (pdata->position == SENSOR_MODULE_2P6_REAR) {
 		module->setfile_name = "setfile_2p6.bin";
 	} else if (pdata->position == SENSOR_MODULE_2P6_FRONT) {
@@ -716,8 +727,10 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	module->cfgs = ARRAY_SIZE(config_module_2p6);
 	module->cfg = config_module_2p6;
 	module->ops = NULL;
-	for (ch = 1; ch < CSI_VIRTUAL_CH_MAX; ch++)
+	for (ch = 1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
 		module->internal_vc[ch] = pdata->internal_vc[ch];
+		module->vc_buffer_offset[ch] = pdata->vc_buffer_offset[ch];
+	}
 	/* Sensor peri */
 	module->private_data = kzalloc(sizeof(struct fimc_is_device_sensor_peri), GFP_KERNEL);
 	if (!module->private_data) {
