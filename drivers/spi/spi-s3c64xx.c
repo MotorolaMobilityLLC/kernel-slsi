@@ -865,6 +865,9 @@ static int s3c64xx_spi_map_one_msg(struct s3c64xx_spi_driver_data *sdd,
 	if ((msg->is_dma_mapped) || (sci->dma_mode != DMA_MODE))
 		return 0;
 
+	if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
+		return 0;
+
 	if (xfer->tx_buf != NULL) {
 		xfer->tx_dma = dma_map_single(dev,
 				(void *)xfer->tx_buf, xfer->len,
@@ -899,6 +902,9 @@ static void s3c64xx_spi_unmap_one_msg(struct s3c64xx_spi_driver_data *sdd,
 	struct device *dev = &sdd->pdev->dev;
 
 	if ((msg->is_dma_mapped) || (sci->dma_mode != DMA_MODE))
+		return;
+
+	if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
 		return;
 
 	if (xfer->rx_buf != NULL
