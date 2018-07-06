@@ -211,3 +211,343 @@ int fimc_is_hw_mcsc_recovery_cac_register(struct fimc_is_hw_ip *hw_ip,
 
 	return ret;
 }
+
+struct ref_ni hw_mcsc_find_ni_idx_for_uvsp(struct fimc_is_hw_ip *hw_ip,
+	struct uvsp_setfile_contents *uvsp, u32 cur_ni)
+{
+	struct ref_ni ret_idx = {0, 0};
+	struct ref_ni ni_idx_range;
+	u32 ni_idx;
+
+	for (ni_idx = 0; ni_idx < uvsp->ni_max - 1; ni_idx++) {
+		ni_idx_range.min = MULTIPLIED_10(uvsp->ni_vals[ni_idx]);
+		ni_idx_range.max = MULTIPLIED_10(uvsp->ni_vals[ni_idx + 1]);
+
+		if (ni_idx_range.min < cur_ni && cur_ni < ni_idx_range.max) {
+			ret_idx.min = ni_idx;
+			ret_idx.max = ni_idx + 1;
+			break;
+		} else if (cur_ni == ni_idx_range.min) {
+			ret_idx.min = ni_idx;
+			ret_idx.max = ni_idx;
+			break;
+		} else if (cur_ni == ni_idx_range.max) {
+			ret_idx.min = ni_idx + 1;
+			ret_idx.max = ni_idx + 1;
+			break;
+		}
+	}
+
+	sdbg_hw(2, "[UVSP] find_ni_idx: cur_ni(%d), ni[%d, %d], idx[%d, %d]\n", hw_ip,
+		uvsp->ni_vals[ret_idx.min], uvsp->ni_vals[ret_idx.max],
+		ret_idx.min, ret_idx.max);
+
+	return ret_idx;
+}
+
+void hw_mcsc_calc_uvsp_r2y_coef_cfg(struct uvsp_cfg_by_ni *uvsp_cfg,
+	struct uvsp_cfg_by_ni *cfg_min, struct uvsp_cfg_by_ni *cfg_max,
+	struct ref_ni *ni_idx, u32 cur_ni)
+{
+	struct uvsp_r2y_coef_cfg *min, *max, *cfg;
+
+	min = &cfg_min->r2y_coef_cfg;
+	max = &cfg_max->r2y_coef_cfg;
+	cfg = &uvsp_cfg->r2y_coef_cfg;
+
+	cfg->r2y_coef_00 = GET_LNR_INTRPL(
+			min->r2y_coef_00, max->r2y_coef_00,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_01 = GET_LNR_INTRPL(
+			min->r2y_coef_01, max->r2y_coef_01,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_02 = GET_LNR_INTRPL(
+			min->r2y_coef_02, max->r2y_coef_02,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_10 = GET_LNR_INTRPL(
+			min->r2y_coef_10, max->r2y_coef_10,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_11 = GET_LNR_INTRPL(
+			min->r2y_coef_11, max->r2y_coef_11,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_12 = GET_LNR_INTRPL(
+			min->r2y_coef_12, max->r2y_coef_12,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_20 = GET_LNR_INTRPL(
+			min->r2y_coef_20, max->r2y_coef_20,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_21 = GET_LNR_INTRPL(
+			min->r2y_coef_21, max->r2y_coef_21,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_22 = GET_LNR_INTRPL(
+			min->r2y_coef_22, max->r2y_coef_22,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->r2y_coef_shift = GET_LNR_INTRPL(
+			min->r2y_coef_shift, max->r2y_coef_shift,
+			ni_idx->min, ni_idx->max, cur_ni);
+}
+
+void hw_mcsc_calc_uvsp_desat_cfg(struct uvsp_cfg_by_ni *uvsp_cfg,
+	struct uvsp_cfg_by_ni *cfg_min, struct uvsp_cfg_by_ni *cfg_max,
+	struct ref_ni *ni_idx, u32 cur_ni)
+{
+	struct uvsp_desat_cfg *min, *max, *cfg;
+
+	min = &cfg_min->desat_cfg;
+	max = &cfg_max->desat_cfg;
+	cfg = &uvsp_cfg->desat_cfg;
+
+	cfg->ctrl_en = GET_LNR_INTRPL(
+			min->ctrl_en, max->ctrl_en,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->ctrl_singleSide = GET_LNR_INTRPL(
+			min->ctrl_singleSide, max->ctrl_singleSide,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->ctrl_luma_offset = GET_LNR_INTRPL(
+			min->ctrl_luma_offset, max->ctrl_luma_offset,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->ctrl_gain_offset = GET_LNR_INTRPL(
+			min->ctrl_gain_offset, max->ctrl_gain_offset,
+			ni_idx->min, ni_idx->max, cur_ni);
+
+	cfg->y_shift = GET_LNR_INTRPL(
+			min->y_shift, max->y_shift,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->y_luma_max = GET_LNR_INTRPL(
+			min->y_luma_max, max->y_luma_max,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->u_low = GET_LNR_INTRPL(
+			min->u_low, max->u_low,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->u_high = GET_LNR_INTRPL(
+			min->u_high, max->u_high,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->v_low = GET_LNR_INTRPL(
+			min->v_low, max->v_low,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->v_high = GET_LNR_INTRPL(
+			min->v_high, max->v_high,
+			ni_idx->min, ni_idx->max, cur_ni);
+}
+
+void hw_mcsc_calc_uvsp_offset_cfg(struct uvsp_cfg_by_ni *uvsp_cfg,
+	struct uvsp_cfg_by_ni *cfg_min, struct uvsp_cfg_by_ni *cfg_max,
+	struct ref_ni *ni_idx, u32 cur_ni)
+{
+	struct uvsp_offset_cfg *min, *max, *cfg;
+
+	min = &cfg_min->offset_cfg;
+	max = &cfg_max->offset_cfg;
+	cfg = &uvsp_cfg->offset_cfg;
+
+	cfg->r = GET_LNR_INTRPL(
+			min->r, max->r,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->g = GET_LNR_INTRPL(
+			min->g, max->g,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->b = GET_LNR_INTRPL(
+			min->b, max->b,
+			ni_idx->min, ni_idx->max, cur_ni);
+}
+
+void hw_mcsc_calc_uvsp_pedestal_cfg(struct uvsp_cfg_by_ni *uvsp_cfg,
+	struct uvsp_cfg_by_ni *cfg_min, struct uvsp_cfg_by_ni *cfg_max,
+	struct ref_ni *ni_idx, u32 cur_ni)
+{
+	struct uvsp_pedestal_cfg *min, *max, *cfg;
+
+	min = &cfg_min->pedestal_cfg;
+	max = &cfg_max->pedestal_cfg;
+	cfg = &uvsp_cfg->pedestal_cfg;
+
+	cfg->r = GET_LNR_INTRPL(
+			min->r, max->r,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->g = GET_LNR_INTRPL(
+			min->g, max->g,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->b = GET_LNR_INTRPL(
+			min->b, max->b,
+			ni_idx->min, ni_idx->max, cur_ni);
+}
+
+void hw_mcsc_calc_uvsp_radial_cfg(struct uvsp_cfg_by_ni *uvsp_cfg,
+	struct uvsp_cfg_by_ni *cfg_min, struct uvsp_cfg_by_ni *cfg_max,
+	struct ref_ni *ni_idx, u32 cur_ni)
+{
+	struct uvsp_radial_cfg *min, *max, *cfg;
+
+	min = &cfg_min->radial_cfg;
+	max = &cfg_max->radial_cfg;
+	cfg = &uvsp_cfg->radial_cfg;
+
+	cfg->biquad_shift = GET_LNR_INTRPL(
+			min->biquad_shift, max->biquad_shift,
+			ni_idx->min, ni_idx->max, cur_ni);
+
+	cfg->random_en = GET_LNR_INTRPL(
+			min->random_en, max->random_en,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->random_power = GET_LNR_INTRPL(
+			min->random_power, max->random_power,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->refine_en = GET_LNR_INTRPL(
+			min->refine_en, max->refine_en,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->refine_luma_min = GET_LNR_INTRPL(
+			min->refine_luma_min, max->refine_luma_min,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->refine_denom = GET_LNR_INTRPL(
+			min->refine_denom, max->refine_denom,
+			ni_idx->min, ni_idx->max, cur_ni);
+
+	cfg->alpha_gain_add_en = GET_LNR_INTRPL(
+			min->alpha_gain_add_en, max->alpha_gain_add_en,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->alpha_green_en = GET_LNR_INTRPL(
+			min->alpha_green_en, max->alpha_green_en,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->alpha_r = GET_LNR_INTRPL(
+			min->alpha_r, max->alpha_r,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->alpha_g = GET_LNR_INTRPL(
+			min->alpha_g, max->alpha_g,
+			ni_idx->min, ni_idx->max, cur_ni);
+	cfg->alpha_b = GET_LNR_INTRPL(
+			min->alpha_b, max->alpha_b,
+			ni_idx->min, ni_idx->max, cur_ni);
+}
+
+void hw_mcsc_calc_uvsp_param_by_ni(struct fimc_is_hw_ip *hw_ip,
+	struct uvsp_setfile_contents *uvsp, u32 cur_ni)
+{
+	struct ref_ni ni_range, ni_idx;
+	struct uvsp_cfg_by_ni uvsp_cfg, cfg_max, cfg_min;
+
+	ni_range.min = MULTIPLIED_10(uvsp->ni_vals[0]);
+	ni_range.max = MULTIPLIED_10(uvsp->ni_vals[uvsp->ni_max - 1]);
+
+	if (cur_ni <= ni_range.min) {
+		sdbg_hw(2, "[UVSP] cur_ni(%d) <= ni_range.min(%d)\n", hw_ip, cur_ni, ni_range.min);
+		ni_idx.min = 0;
+		ni_idx.max = 0;
+	} else if (cur_ni >= ni_range.max) {
+		sdbg_hw(2, "[UVSP] cur_ni(%d) >= ni_range.max(%d)\n", hw_ip, cur_ni, ni_range.max);
+		ni_idx.min = uvsp->ni_max - 1;
+		ni_idx.max = uvsp->ni_max - 1;
+	} else {
+		ni_idx = hw_mcsc_find_ni_idx_for_uvsp(hw_ip, uvsp, cur_ni);
+	}
+
+	cfg_min = uvsp->cfgs[ni_idx.min];
+	cfg_max = uvsp->cfgs[ni_idx.max];
+	hw_mcsc_calc_uvsp_radial_cfg(&uvsp_cfg, &cfg_min, &cfg_max, &ni_idx, cur_ni);
+	hw_mcsc_calc_uvsp_pedestal_cfg(&uvsp_cfg, &cfg_min, &cfg_max, &ni_idx, cur_ni);
+	hw_mcsc_calc_uvsp_offset_cfg(&uvsp_cfg, &cfg_min, &cfg_max, &ni_idx, cur_ni);
+	hw_mcsc_calc_uvsp_desat_cfg(&uvsp_cfg, &cfg_min, &cfg_max, &ni_idx, cur_ni);
+	hw_mcsc_calc_uvsp_r2y_coef_cfg(&uvsp_cfg, &cfg_min, &cfg_max, &ni_idx, cur_ni);
+
+	fimc_is_scaler_set_uvsp_radial_cfg(hw_ip->regs, hw_ip->id, &uvsp_cfg.radial_cfg);
+	fimc_is_scaler_set_uvsp_pedestal_cfg(hw_ip->regs, hw_ip->id, &uvsp_cfg.pedestal_cfg);
+	fimc_is_scaler_set_uvsp_offset_cfg(hw_ip->regs, hw_ip->id, &uvsp_cfg.offset_cfg);
+	fimc_is_scaler_set_uvsp_r2y_coef_cfg(hw_ip->regs, hw_ip->id, &uvsp_cfg.r2y_coef_cfg);
+	fimc_is_scaler_set_uvsp_enable(hw_ip->regs, hw_ip->id, 1);
+}
+
+void hw_mcsc_calc_uvsp_radial_ctrl(struct fimc_is_hw_ip *hw_ip,
+	struct fimc_is_hw_mcsc *hw_mcsc, struct fimc_is_frame *frame,
+	struct cal_info *cal_info, u32 instance)
+{
+	struct uvsp_ctrl *uvsp_ctrl;
+	struct camera2_shot_ext *shot_ext;
+	u32 lsc_center_x, lsc_center_y;
+
+	lsc_center_x = cal_info->data[0];
+	lsc_center_y = cal_info->data[1];
+	uvsp_ctrl->biquad_a = cal_info->data[2];
+	uvsp_ctrl->biquad_b = cal_info->data[3];
+	sdbg_hw(2, "[UVSP][F:%d]: lsc_center_x,y(%d,%d), uvsp_ctrl->biquad_a,b(%d,%d)\n",
+		hw_ip, __func__, frame->fcount, lsc_center_x, lsc_center_y,
+		uvsp_ctrl->biquad_a, uvsp_ctrl->biquad_b);
+
+	shot_ext = frame->shot_ext;
+	if (!frame->shot_ext) {
+		sdbg_hw(2, "___carrotsm:[F:%d] shot_ext(NULL)\n", hw_ip, __func__);
+		fimc_is_scaler_set_uvsp_enable(hw_ip->regs, hw_ip->id, 0);
+		return;
+	}
+
+	sdbg_hw(2, "[UVSP][F:%d]: shot >> binning_r(%d,%d), crop_taa(%d,%d), bds(%d,%d)\n",
+		hw_ip, __func__, frame->fcount,
+		shot_ext->binning_ratio_x, shot_ext->binning_ratio_y,
+		shot_ext->crop_taa_x, shot_ext->crop_taa_y,
+		shot_ext->bds_ratio_x, shot_ext->bds_ratio_y);
+
+	uvsp_ctrl = &hw_mcsc->uvsp_ctrl;
+	uvsp_ctrl->binning_x = shot_ext->binning_ratio_x * shot_ext->bds_ratio_x * 1024;
+	uvsp_ctrl->binning_y = shot_ext->binning_ratio_y * shot_ext->bds_ratio_y * 1024;
+	if (shot_ext->bds_ratio_x && shot_ext->bds_ratio_y) {
+		shot_ext->bds_ratio_x = 1;
+		shot_ext->bds_ratio_y = 1;
+	}
+	uvsp_ctrl->radial_center_x = (u32)((lsc_center_x - shot_ext->crop_taa_x) / shot_ext->bds_ratio_x);
+	uvsp_ctrl->radial_center_y = (u32)((lsc_center_y - shot_ext->crop_taa_y) / shot_ext->bds_ratio_y);
+
+	fimc_is_scaler_set_uvsp_radial_ctrl(hw_ip->regs, hw_ip->id, uvsp_ctrl);
+	sdbg_hw(2, "[UVSP][F:%d]: uvsp_ctrl >> binning(%d,%d), r_center(%d,%d), biquad(%d,%d)\n",
+		hw_ip, __func__, frame->fcount, uvsp_ctrl->binning_x, uvsp_ctrl->binning_y,
+		uvsp_ctrl->radial_center_x, uvsp_ctrl->radial_center_y,
+		uvsp_ctrl->biquad_a, uvsp_ctrl->biquad_b);
+}
+
+int fimc_is_hw_mcsc_update_uvsp_register(struct fimc_is_hw_ip *hw_ip,
+	struct fimc_is_frame *frame, u32 instance)
+{
+	int ret = 0;
+	struct fimc_is_hw_mcsc *hw_mcsc;
+	struct fimc_is_hw_mcsc_cap *cap;
+	struct hw_mcsc_setfile *setfile;
+	struct uvsp_setfile_contents *uvsp;
+	struct cal_info *cal_info;
+	enum exynos_sensor_position sensor_position;
+	u32 ni;
+
+	hw_mcsc = (struct fimc_is_hw_mcsc *)hw_ip->priv_info;
+	cap = GET_MCSC_HW_CAP(hw_ip);
+
+	if (cap->uvsp != MCSC_CAP_SUPPORT)
+		return ret;
+
+	sensor_position = hw_ip->hardware->sensor_position[instance];
+	setfile = hw_mcsc->cur_setfile[sensor_position];
+	cal_info = &hw_ip->hardware->cal_info[sensor_position];
+
+	sdbg_hw(10, "TEST: get_lnr_intprl(11, 20, 1, 1, 3) = %d\n",
+			hw_ip, GET_LNR_INTRPL(11, 20, 1, 1, 3));
+
+#ifdef LHM_ENABLE_EVT0
+	return ret;
+#endif
+	/* calculate cac parameters */
+#ifdef FIXED_TDNR_NOISE_INDEX
+	ni = FIXED_TDNR_NOISE_INDEX_VALUE;
+#else
+	ni = frame->noise_idx;
+#endif
+	if (hw_mcsc->cur_ni == ni)
+		goto exit;
+
+	hw_mcsc_calc_uvsp_radial_ctrl(hw_ip, hw_mcsc, frame, cal_info, instance);
+#if defined(USE_UVSP_CAC)
+	uvsp = &setfile->uvsp;
+	hw_mcsc_calc_uvsp_param_by_ni(hw_ip, uvsp, ni);
+#endif
+	sdbg_hw(2, "[UVSP][F:%d]: ni(%d)\n",
+		hw_ip, __func__, frame->fcount, ni);
+
+exit:
+	hw_mcsc->cur_ni = ni;
+
+	return 0;
+}

@@ -36,7 +36,18 @@ struct cac_setfile_contents {
 	struct cac_cfg_by_ni	cfgs[CAC_MAX_NI_DEPENDED_CFG];
 };
 
-#define UVSP_MAX_NI_DEPENDED_CONFIGS     (6)
+#define UVSP_MAX_NI_DEPENDED_CONFIGS     (9)
+struct uvsp_ctrl {
+	u32	binning_x;
+	u32	binning_y;
+
+	u32	radial_center_x;
+	u32	radial_center_y;
+
+	u32	biquad_a;
+	u32	biquad_b;
+};
+
 struct uvsp_radial_cfg {
 	u32	biquad_shift;
 

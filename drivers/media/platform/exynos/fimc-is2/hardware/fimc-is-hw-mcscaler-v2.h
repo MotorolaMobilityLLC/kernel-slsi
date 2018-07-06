@@ -152,6 +152,7 @@ struct fimc_is_hw_mcsc_cap {
 	enum mcsc_cap_enum	tdnr;
 	enum mcsc_cap_enum	djag;
 	enum mcsc_cap_enum	cac;
+	enum mcsc_cap_enum	uvsp;
 	enum mcsc_cap_enum	ysum;
 	enum mcsc_cap_enum	ds_vra;
 };
@@ -180,6 +181,8 @@ struct fimc_is_hw_mcsc {
 	enum tdnr_mode		cur_tdnr_mode;
 	enum yic_mode		yic_en;
 	struct tdnr_configs	tdnr_cfgs;
+	/* for uvsp */
+	struct uvsp_ctrl	uvsp_ctrl;
 
 	/* for CAC*/
 	u32			cac_in;
@@ -249,6 +252,8 @@ int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
 		struct mcs_param *param,
 		u32 instance);
 int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
+	struct fimc_is_frame *frame, u32 instance);
+int fimc_is_hw_mcsc_update_uvsp_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_frame *frame, u32 instance);
 int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,

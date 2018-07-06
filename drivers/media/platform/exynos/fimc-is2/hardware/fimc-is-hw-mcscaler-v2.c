@@ -833,6 +833,7 @@ config:
 	ret_internal = fimc_is_hw_mcsc_update_dsvra_register(hw_ip, head, mcs_param, instance, frame->shot);
 	ret_internal = fimc_is_hw_mcsc_update_tdnr_register(hw_ip, frame, param, start_flag);
 	ret_internal = fimc_is_hw_mcsc_update_cac_register(hw_ip, frame, instance);
+	ret_internal = fimc_is_hw_mcsc_update_uvsp_register(hw_ip, frame, instance);
 	ret_internal = fimc_is_hw_mcsc_update_ysum_register(hw_ip, head, mcs_param, instance, frame->shot);
 	if (ret_internal) {
 		msdbg_hw(2, "ysum cfg is failed\n", instance, hw_ip);
@@ -1146,6 +1147,10 @@ static int fimc_is_hw_mcsc_load_setfile(struct fimc_is_hw_ip *hw_ip, u32 instanc
 			return -EINVAL;
 		}
 	}
+#if defined(USE_UVSP_CAC)
+	hw_mcsc->uvsp_ctrl.biquad_a = hw_ip->hardware->cal_info[sensor_position].data[2];
+	hw_mcsc->uvsp_ctrl.biquad_b = hw_ip->hardware->cal_info[sensor_position].data[3];
+#endif
 
 	set_bit(HW_TUNESET, &hw_ip->state);
 

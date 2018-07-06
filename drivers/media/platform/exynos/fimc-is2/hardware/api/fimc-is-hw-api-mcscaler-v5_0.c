@@ -3548,6 +3548,322 @@ void fimc_is_scaler_set_cac_map_crt_thr(void __iomem *base_addr, struct cac_cfg_
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_CAC_CRT_THR], reg_val);
 }
 
+/* for UVSP */
+void fimc_is_scaler_set_uvsp_enable(void __iomem *base_addr, u32 hw_id, u32 en)
+{
+	u32 reg_val = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_CTRL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_ENABLE], en);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_CTRL], reg_val);
+		break;
+	case DEV_HW_MCSC1:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_CTRL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_ENABLE], en);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_CTRL], reg_val);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+}
+
+void fimc_is_scaler_set_uvsp_radial_ctrl(void __iomem *base_addr, u32 hw_id, struct uvsp_ctrl *cfg)
+{
+	u32 reg_val = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_BINNING]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_BINNING_X],
+				cfg->binning_x);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_BINNING_Y],
+				cfg->binning_y);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_BINNING], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_CTRL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_EN], 1);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_CENTER_X],
+				cfg->radial_center_x);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_CENTER_Y],
+				cfg->radial_center_y);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_CTRL], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_BIQUAD_A]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_BIQUAD_A],
+				cfg->biquad_a);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_BIQUAD_B],
+				cfg->biquad_b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_BIQUAD_B], reg_val);
+		break;
+	case DEV_HW_MCSC1:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_BINNING]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_BINNING_X],
+				cfg->binning_x);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_BINNING_Y],
+				cfg->binning_y);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_BINNING], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_CTRL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_EN], 1);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_CENTER_X],
+				cfg->radial_center_x);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_CENTER_Y],
+				cfg->radial_center_y);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_CTRL], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_BIQUAD_A]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_BIQUAD_A],
+				cfg->biquad_a);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_BIQUAD_B],
+				cfg->biquad_b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_BIQUAD_B], reg_val);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+}
+
+void fimc_is_scaler_set_uvsp_radial_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_radial_cfg *cfg)
+{
+	u32 reg_val = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_BIQUAD_SHIFT],
+			cfg->biquad_shift);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_RANDOM]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_RANDOM_EN],
+				cfg->random_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_RANDOM_POWER],
+				cfg->random_power);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_RANDOM], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_REFINE]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_REFINE_EN],
+				cfg->refine_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_REFINE_LUMA_MIN],
+				cfg->refine_luma_min);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_REFINE_DENOM],
+				cfg->refine_denom);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_REFINE], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_ALPHA]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_ALPHA_GAIN_ADD_EN],
+				cfg->alpha_gain_add_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_ALPHA_GREEN_EN],
+				cfg->alpha_green_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_ALPHA_R],
+				cfg->alpha_r);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_ALPHA_G],
+				cfg->alpha_g);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_RADIAL_ALPHA_B],
+				cfg->alpha_b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RADIAL_ALPHA], reg_val);
+		break;
+	case DEV_HW_MCSC1:
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_BIQUAD_SHIFT],
+			cfg->biquad_shift);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_RANDOM]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_RANDOM_EN],
+				cfg->random_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_RANDOM_POWER],
+				cfg->random_power);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_RANDOM], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_REFINE]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_REFINE_EN],
+				cfg->refine_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_REFINE_LUMA_MIN],
+				cfg->refine_luma_min);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_REFINE_DENOM],
+				cfg->refine_denom);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_REFINE], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_ALPHA]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_ALPHA_GAIN_ADD_EN],
+				cfg->alpha_gain_add_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_ALPHA_GREEN_EN],
+				cfg->alpha_green_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_ALPHA_R],
+				cfg->alpha_r);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_ALPHA_G],
+				cfg->alpha_g);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_RADIAL_ALPHA_B],
+				cfg->alpha_b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RADIAL_ALPHA], reg_val);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+}
+
+void fimc_is_scaler_set_uvsp_pedestal_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_pedestal_cfg *cfg)
+{
+	u32 reg_val = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_PEDESTAL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_PEDESTAL_R], cfg->r);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_PEDESTAL_G], cfg->g);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_PEDESTAL_B], cfg->b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_PEDESTAL], reg_val);
+		break;
+	case DEV_HW_MCSC1:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_PEDESTAL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_PEDESTAL_R], cfg->r);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_PEDESTAL_G], cfg->g);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_PEDESTAL_B], cfg->b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_PEDESTAL], reg_val);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+}
+
+void fimc_is_scaler_set_uvsp_offset_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_offset_cfg *cfg)
+{
+	u32 reg_val = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_OFFSET]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_OFFSET_R], cfg->r);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_OFFSET_G], cfg->g);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_OFFSET_B], cfg->b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_OFFSET], reg_val);
+		break;
+	case DEV_HW_MCSC1:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_OFFSET]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_OFFSET_R], cfg->r);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_OFFSET_G], cfg->g);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_OFFSET_B], cfg->b);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_OFFSET], reg_val);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+}
+
+void fimc_is_scaler_set_uvsp_desat_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_desat_cfg *cfg)
+{
+	u32 reg_val = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_CTRL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_CTRL_EN],
+				cfg->ctrl_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_CTRL_SINGLESIDE],
+				cfg->ctrl_singleSide);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_CTRL_LUMA_OFFSET],
+				cfg->ctrl_luma_offset);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_CTRL_GAIN_OFFSET],
+				cfg->ctrl_gain_offset);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_CTRL], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_Y]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_Y_SHIFT],
+				cfg->y_shift);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_Y_LUMA_MAX],
+				cfg->y_luma_max);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_Y], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_U]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_U_LOW],
+				cfg->u_low);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_U_HIGH],
+				cfg->u_high);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_U], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_V]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_V_LOW],
+				cfg->v_low);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP0_DESAT_V_HIGH],
+				cfg->v_high);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_DESAT_V], reg_val);
+		break;
+	case DEV_HW_MCSC1:
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_CTRL]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_CTRL_EN],
+				cfg->ctrl_en);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_CTRL_SINGLESIDE],
+				cfg->ctrl_singleSide);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_CTRL_LUMA_OFFSET],
+				cfg->ctrl_luma_offset);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_CTRL_GAIN_OFFSET],
+				cfg->ctrl_gain_offset);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_CTRL], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_Y]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_Y_SHIFT],
+				cfg->y_shift);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_Y_LUMA_MAX],
+				cfg->y_luma_max);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_Y], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_U]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_U_LOW],
+				cfg->u_low);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_U_HIGH],
+				cfg->u_high);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_U], reg_val);
+
+		reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_V]);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_V_LOW],
+				cfg->v_low);
+		reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_UVSP1_DESAT_V_HIGH],
+				cfg->v_high);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_DESAT_V], reg_val);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+}
+
+void fimc_is_scaler_set_uvsp_r2y_coef_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_r2y_coef_cfg *cfg)
+{
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_00], cfg->r2y_coef_00);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_01], cfg->r2y_coef_01);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_02], cfg->r2y_coef_02);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_10], cfg->r2y_coef_10);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_11], cfg->r2y_coef_11);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_12], cfg->r2y_coef_12);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_20], cfg->r2y_coef_20);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_21], cfg->r2y_coef_21);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_22], cfg->r2y_coef_22);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP0_RGB2YUV_COEF_SHIFT], cfg->r2y_coef_shift);
+		break;
+	case DEV_HW_MCSC1:
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_00], cfg->r2y_coef_00);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_01], cfg->r2y_coef_01);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_02], cfg->r2y_coef_02);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_10], cfg->r2y_coef_10);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_11], cfg->r2y_coef_11);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_12], cfg->r2y_coef_12);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_20], cfg->r2y_coef_20);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_21], cfg->r2y_coef_21);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_22], cfg->r2y_coef_22);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_UVSP1_RGB2YUV_COEF_SHIFT], cfg->r2y_coef_shift);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+}
+
 /* DS */
 void fimc_is_scaler_set_ds_enable(void __iomem *base_addr, u32 ds_enable)
 {

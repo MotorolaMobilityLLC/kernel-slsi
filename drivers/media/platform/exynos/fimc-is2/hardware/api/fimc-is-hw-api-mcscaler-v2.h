@@ -233,6 +233,15 @@ void fimc_is_scaler_set_cac_enable(void __iomem *base_addr, u32 en);
 void fimc_is_scaler_set_cac_input_source(void __iomem *base_addr, u32 in);
 void fimc_is_scaler_set_cac_map_crt_thr(void __iomem *base_addr, struct cac_cfg_by_ni *cfg);
 
+/* uvsp */
+void fimc_is_scaler_set_uvsp_enable(void __iomem *base_addr, u32 hw_id, u32 en);
+void fimc_is_scaler_set_uvsp_radial_ctrl(void __iomem *base_addr, u32 hw_id, struct uvsp_ctrl *cfg);
+void fimc_is_scaler_set_uvsp_radial_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_radial_cfg *cfg);
+void fimc_is_scaler_set_uvsp_pedestal_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_pedestal_cfg *cfg);
+void fimc_is_scaler_set_uvsp_offset_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_offset_cfg *cfg);
+void fimc_is_scaler_set_uvsp_desat_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_desat_cfg *cfg);
+void fimc_is_scaler_set_uvsp_r2y_coef_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_r2y_coef_cfg *cfg);
+
 /* ysum */
 void fimc_is_scaler_set_ysum_input_sourece_enable(void __iomem *base_addr, u32 output_id, bool ysum_enable);
 void fimc_is_scaler_set_ysum_enable(void __iomem *base_addr, bool ysum_enable);
