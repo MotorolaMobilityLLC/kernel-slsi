@@ -11,7 +11,9 @@
 
 /dts-v1/;
 /plugin/;
+
 #include "exynos9610_battery_data.dtsi"
+#include <dt-bindings/clock/exynos9610.h>
 #include "modem-ss360ap-sit-pdata.dtsi"
 #include "exynos9610-display-lcd.dtsi"
 #include "exynos9610-erd9610-camera.dtsi"
@@ -587,7 +589,7 @@
 				reg = <0x0 0x11A00000 0x180>;
 				mcu,name = "mcu_ipc_gnss";
 				mcu,id = <1>;
-				interrupts = <GIC_SPI 43 IRQ_TYPE_NONE>; /* INTREQ__MAILBOX_GNSS2AP */
+				interrupts = <0 43 0>; /* INTREQ__MAILBOX_GNSS2AP */
 			};
 
 			gnss_pdata {
@@ -598,7 +600,7 @@
 				shmem,device_node_name = "gnss_ipc";
 
 				/* INTREQ__ALIVE_GNSS_ACTIVE, INTREQ__GNSS2AP_WDOG_RESET, INTREQ__GNSS2AP_WAKEUP, INTREQ__GNSS2AP */
-				interrupts = <GIC_SPI 27 IRQ_TYPE_NONE>, <GIC_SPI 81 IRQ_TYPE_NONE>, <GIC_SPI 80 IRQ_TYPE_NONE>, <GIC_SPI 79 IRQ_TYPE_NONE>;
+				interrupts = <0 27 0>, <0 81 0>, <0 80 0>, <0 79 0>;
 				interrupt-names = "ACTIVE", "WATCHDOG", "WAKEUP", "REQ_INIT";
 
 				memory-region = <&gnss_reserved>;
