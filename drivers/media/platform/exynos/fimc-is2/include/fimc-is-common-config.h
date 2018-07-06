@@ -17,7 +17,7 @@
  * CONFIG - GLOBAL OPTIONS
  * =================================================================================================
  */
-#define FIMC_IS_SENSOR_COUNT	5
+#define FIMC_IS_SENSOR_COUNT	6
 #define FIMC_IS_STREAM_COUNT	8
 #define FIMC_IS_STR_LEN		10
 
