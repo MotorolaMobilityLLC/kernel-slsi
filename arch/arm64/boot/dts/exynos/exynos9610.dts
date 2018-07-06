@@ -13,10 +13,12 @@
  * published by the Free Software Foundation.
  */
 
+/dts-v1/;
 #include <dt-bindings/clock/exynos9610.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "exynos9610-pinctrl.dtsi"
-#include "exynos9610-display-lcd.dtsi"
+#include "exynos9610-rmem.dtsi"
+#include "exynos9610-debug.dtsi"
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/ufs/ufs.h>
 #include "exynos9610-sysmmu.dtsi"
