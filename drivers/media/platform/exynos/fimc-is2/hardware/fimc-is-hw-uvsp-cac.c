@@ -195,6 +195,8 @@ int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
 	hw_mcsc_calc_cac_param_by_ni(hw_ip, cac, ni);
 #endif
 
+	sdbg_hw(2, "[CAC][F:%d]: ni(%d)\n",
+		hw_ip, __func__, frame->fcount, ni);
 exit:
 	hw_mcsc->cur_ni = ni;
 
