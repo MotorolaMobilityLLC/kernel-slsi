@@ -22,7 +22,7 @@
 #define RSHFT(a)		((int)((a) >> INTRPL_SHFT_VAL))
 #define NUMERATOR(Y1, Y2, DXn)			(((Y2) - (Y1)) * (DXn))
 #define CALC_LNR_INTRPL(Y1, Y2, X1, X2, X)	(LSHFT(NUMERATOR(Y1, Y2, SUB(X, X1))) / SUB(X2, X1) + LSHFT(Y1))
-#define GET_LNR_INTRPL(Y1, Y2, X1, X2, X)	RSHFT(CALC_LNR_INTRPL(Y1, Y2, X1, X2, X))
+#define GET_LNR_INTRPL(Y1, Y2, X1, X2, X)	RSHFT(SUB(X2, X1) ? CALC_LNR_INTRPL(Y1, Y2, X1, X2, X) : LSHFT(Y1))
 
 struct ref_ni {
 	u32 min;
