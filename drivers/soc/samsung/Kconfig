@@ -113,6 +113,10 @@ config ECT_DUMP
 	default n
 	depends on ECT
 
+config EXYNOS_SLEEP_GPIO
+	bool "Enable GPIO sleep function"
+	default n
+
 config EXYNOS_RGT
 	bool "Exynos Regulator Debug Support"
 	depends on REGULATOR
