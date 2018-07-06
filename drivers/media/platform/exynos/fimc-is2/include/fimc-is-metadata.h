@@ -2121,8 +2121,16 @@ struct camera2_shot_ext {
 	uint32_t			invalid;
 
 	struct hfd_meta			hfd;
+
+	uint16_t			binning_ratio_x;
+	uint16_t			binning_ratio_y;
+	uint32_t			crop_taa_x;
+	uint32_t			crop_taa_y;
+	uint32_t			bds_ratio_x;
+	uint32_t			bds_ratio_y;
+
 	/* reserved for future */
-	uint32_t			reserved[13];
+	uint32_t			reserved[8];
 
 	/**	\brief
 	  processing time debugging
