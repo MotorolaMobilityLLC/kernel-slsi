@@ -283,6 +283,7 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	struct is_region *region;
 	struct taa_param *param;
 	u32 lindex, hindex;
+	u32 input_w, input_h, crop_x, crop_y, output_w = 0, output_h = 0;
 	bool frame_done = false;
 
 	FIMC_BUG(!hw_ip);
@@ -357,6 +358,10 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 		lindex, hindex, frame->instance);
 
 	/* DMA settings */
+	input_w = param_set->otf_input.bayer_crop_width;
+	input_h = param_set->otf_input.bayer_crop_height;
+	crop_x = param_set->otf_input.bayer_crop_offset_x;
+	crop_y = param_set->otf_input.bayer_crop_offset_y;
 	if (param_set->dma_input.cmd != DMA_INPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->planes; i++) {
 			param_set->input_dva[i] = frame->dvaddr_buffer[i];
@@ -372,6 +377,10 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 					frame->instance, hw_ip, frame->fcount, i);
 			}
 		}
+		input_w = param_set->dma_input.bayer_crop_width;
+		input_h = param_set->dma_input.bayer_crop_height;
+		crop_x = param_set->dma_input.bayer_crop_offset_x;
+		crop_y = param_set->dma_input.bayer_crop_offset_y;
 	}
 
 	if (param_set->dma_output_before_bds.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
@@ -403,6 +412,8 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 			}
 #endif
 		}
+		output_w = param_set->dma_output_after_bds.width;
+		output_h = param_set->dma_output_after_bds.height;
 	}
 
 	if (param_set->dma_output_efd.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
@@ -424,6 +435,20 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 					frame->instance, hw_ip, frame->fcount, i);
 				param_set->dma_output_mrg.cmd = DMA_OUTPUT_COMMAND_DISABLE;
 			}
+		}
+	}
+
+	if (frame->shot_ext) {
+		frame->shot_ext->binning_ratio_x = (u16)param_set->sensor_config.sensor_binning_ratio_x;
+		frame->shot_ext->binning_ratio_y = (u16)param_set->sensor_config.sensor_binning_ratio_y;
+		frame->shot_ext->crop_taa_x = crop_x;
+		frame->shot_ext->crop_taa_y = crop_y;
+		if (output_w && output_h) {
+			frame->shot_ext->bds_ratio_x = (input_w / output_w);
+			frame->shot_ext->bds_ratio_y = (input_h / output_h);
+		} else {
+			frame->shot_ext->bds_ratio_x = 1;
+			frame->shot_ext->bds_ratio_y = 1;
 		}
 	}
 
@@ -784,6 +809,8 @@ static int fimc_is_hw_3aa_apply_setfile(struct fimc_is_hw_ip *hw_ip, u32 scenari
 	msinfo_hw("load cal data, position: %d, addr: 0x%lx \n", instance, hw_ip,
 				sensor_position, cal_addr);
 	ret = fimc_is_lib_isp_load_cal_data(&hw_3aa->lib[instance], instance, cal_addr);
+	ret = fimc_is_lib_isp_get_cal_data(&hw_3aa->lib[instance], instance,
+		&hw_ip->hardware->cal_info[sensor_position], CAL_TYPE_LSC_UVSP);
 
 	return ret;
 }

@@ -141,6 +141,26 @@ enum fimc_is_setfile_type {
 	SETFILE_MAX
 };
 
+enum cal_type {
+	CAL_TYPE_AF = 1,
+	CAL_TYPE_LSC_UVSP = 2,
+	CAL_TYPE_MAX
+};
+
+struct cal_info {
+	/* case CAL_TYPE_AF:
+	 * Not implemented yet
+	 */
+	/* case CLA_TYPE_LSC_UVSP
+	 * data[0]: lsc_center_x;
+	 * data[1]: lsc_center_y;
+	 * data[2]: lsc_radial_biquad_a;
+	 * data[3]: lsc_radial_biquad_b;
+	 * data[4] - data[15]: reserved
+	 */
+	u32 data[16];
+};
+
 struct hw_debug_info {
 	u32			fcount;
 	u32			cpuid[DEBUG_POINT_MAX];
@@ -358,6 +378,7 @@ struct fimc_is_hardware {
 	/* for access mcuctl regs */
 	void __iomem			*base_addr_mcuctl;
 
+	struct cal_info			cal_info[SENSOR_POSITION_END];
 	atomic_t			streaming[SENSOR_POSITION_END];
 	atomic_t			bug_count;
 	atomic_t			log_count;

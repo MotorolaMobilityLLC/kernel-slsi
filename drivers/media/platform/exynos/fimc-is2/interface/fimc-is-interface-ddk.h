@@ -185,10 +185,6 @@ struct lib_tune_set {
 	int decrypt_flag;
 };
 
-struct cal_info {
-	u32 data[16];
-};
-
 #define LIB_ISP_ADDR		(DDK_LIB_ADDR + LIB_ISP_OFFSET)
 enum lib_func_type {
 	LIB_FUNC_3AA = 1,
