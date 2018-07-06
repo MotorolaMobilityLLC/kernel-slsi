@@ -52,11 +52,7 @@ static u32 sensor_2p6_global_size;
 static const u32 **sensor_2p6_setfiles;
 static const u32 *sensor_2p6_setfile_sizes;
 static u32 sensor_2p6_max_setfile_num;
-#ifdef S5K2P6_USE_COMPACT_PLL_INFO
 static const struct sensor_pll_info_compact **sensor_2p6_pllinfos;
-#else
-static const struct sensor_pll_info **sensor_2p6_pllinfos;
-#endif
 
 /* variables of pdaf setting */
 static const u32 *sensor_2p6_pdaf_global;
@@ -64,13 +60,8 @@ static u32 sensor_2p6_pdaf_global_size;
 static const u32 **sensor_2p6_pdaf_setfiles;
 static const u32 *sensor_2p6_pdaf_setfile_sizes;
 static u32 sensor_2p6_pdaf_max_setfile_num;
-#ifdef S5K2P6_USE_COMPACT_PLL_INFO
 static const struct sensor_pll_info_compact **sensor_2p6_pdaf_pllinfos;
-#else
-static const struct sensor_pll_info **sensor_2p6_pdaf_pllinfos;
-#endif
 
-#ifdef S5K2P6_USE_COMPACT_PLL_INFO
 static void sensor_2p6_cis_data_calculation(const struct sensor_pll_info_compact *pll_info_compact, cis_shared_data *cis_data)
 {
 	u32 vt_pix_clk_hz = 0;
@@ -133,86 +124,6 @@ static void sensor_2p6_cis_data_calculation(const struct sensor_pll_info_compact
 	cis_data->max_fine_integration_time = SENSOR_2P6_FINE_INTEGRATION_TIME_MAX;
 	cis_data->min_coarse_integration_time = SENSOR_2P6_COARSE_INTEGRATION_TIME_MIN;
 }
-#else
-static void sensor_2p6_cis_data_calculation(const struct sensor_pll_info *pll_info, cis_shared_data *cis_data)
-{
-	u32 pll_voc_a = 0, vt_pix_clk_hz = 0;
-	u32 frame_rate = 0, max_fps = 0, frame_valid_us = 0;
-
-	BUG_ON(!pll_info);
-
-	/* 1. mipi data rate calculation (Mbps/Lane) */
-	/* ToDo: using output Pixel Clock Divider Value */
-	/* pll_voc_b = pll_info->ext_clk / pll_info->secnd_pre_pll_clk_div * pll_info->secnd_pll_multiplier * 2;
-	op_sys_clk_hz = pll_voc_b / pll_info->op_sys_clk_div;
-	if(gpsSensorExInfo) {
-		gpsSensorExInfo->uiMIPISpeedBps = op_sys_clk_hz;
-		gpsSensorExInfo->uiMCLK = sensorInfo.ext_clk;
-	} */
-
-	/* 2. pixel rate calculation (Mpps) */
-	pll_voc_a = pll_info->ext_clk / pll_info->pre_pll_clk_div * pll_info->pll_multiplier;
-	vt_pix_clk_hz = (pll_voc_a / pll_info->vt_pix_clk_div) * 4;
-
-	dbg_sensor(1, "ext_clock(%d) / pre_pll_clk_div(%d) * pll_multiplier(%d) = pll_voc_a(%d)\n",
-						pll_info->ext_clk, pll_info->pre_pll_clk_div,
-						pll_info->pll_multiplier, pll_voc_a);
-	dbg_sensor(1, "pll_voc_a(%d) / (vt_sys_clk_div(%d) * vt_pix_clk_div(%d)) = pixel clock (%d hz)\n",
-						pll_voc_a, pll_info->vt_sys_clk_div,
-						pll_info->vt_pix_clk_div, vt_pix_clk_hz);
-
-	/* 3. the time of processing one frame calculation (us) */
-	cis_data->min_frame_us_time = (pll_info->frame_length_lines * pll_info->line_length_pck
-					/ (vt_pix_clk_hz / (1000 * 1000)));
-	cis_data->cur_frame_us_time = cis_data->min_frame_us_time;
-
-	/* 4. FPS calculation */
-	frame_rate = vt_pix_clk_hz / (pll_info->frame_length_lines * pll_info->line_length_pck);
-	dbg_sensor(1, "frame_rate (%d) = vt_pix_clk_hz(%d) / "
-		KERN_CONT "(pll_info->frame_length_lines(%d) * pll_info->line_length_pck(%d))\n",
-		frame_rate, vt_pix_clk_hz, pll_info->frame_length_lines, pll_info->line_length_pck);
-
-	/* calculate max fps */
-	max_fps = (vt_pix_clk_hz * 10) / (pll_info->frame_length_lines * pll_info->line_length_pck);
-	max_fps = (max_fps % 10 >= 5 ? frame_rate + 1 : frame_rate);
-
-	cis_data->pclk = vt_pix_clk_hz;
-	cis_data->max_fps = max_fps;
-	cis_data->frame_length_lines = pll_info->frame_length_lines;
-	cis_data->line_length_pck = pll_info->line_length_pck;
-	cis_data->line_readOut_time = sensor_cis_do_div64((u64)cis_data->line_length_pck * (u64)(1000 * 1000 * 1000), cis_data->pclk);
-	cis_data->rolling_shutter_skew = (cis_data->cur_height - 1) * cis_data->line_readOut_time;
-	cis_data->stream_on = false;
-
-	/* Frame valid time calcuration */
-	frame_valid_us = sensor_cis_do_div64((u64)cis_data->cur_height * (u64)cis_data->line_length_pck * (u64)(1000 * 1000), cis_data->pclk);
-	cis_data->frame_valid_us_time = (int)frame_valid_us;
-
-	dbg_sensor(1, "%s\n", __func__);
-	dbg_sensor(1, "Sensor size(%d x %d) setting: SUCCESS!\n",
-					cis_data->cur_width, cis_data->cur_height);
-	dbg_sensor(1, "Frame Valid(us): %d\n", frame_valid_us);
-	dbg_sensor(1, "rolling_shutter_skew: %lld\n", cis_data->rolling_shutter_skew);
-
-	dbg_sensor(1, "Fps: %d, max fps(%d)\n", frame_rate, cis_data->max_fps);
-	dbg_sensor(1, "min_frame_time(%d us)\n", cis_data->min_frame_us_time);
-	dbg_sensor(1, "Pixel rate(Mbps): %d\n", cis_data->pclk / 1000000);
-	/* dbg_sensor(1, "Mbps/lane : %d Mbps\n", pll_voc_b / pll_info->op_sys_clk_div / 1000 / 1000); */
-
-	/* Frame period calculation */
-	cis_data->frame_time = (cis_data->line_readOut_time * cis_data->cur_height / 1000);
-	cis_data->rolling_shutter_skew = (cis_data->cur_height - 1) * cis_data->line_readOut_time;
-
-	dbg_sensor(1, "[%s] frame_time(%d), rolling_shutter_skew(%lld)\n", __func__,
-		cis_data->frame_time, cis_data->rolling_shutter_skew);
-
-	/* Constant values */
-	cis_data->min_fine_integration_time = SENSOR_2P6_FINE_INTEGRATION_TIME_MIN;
-	cis_data->max_fine_integration_time = SENSOR_2P6_FINE_INTEGRATION_TIME_MAX;
-	cis_data->min_coarse_integration_time = SENSOR_2P6_COARSE_INTEGRATION_TIME_MIN;
-	cis_data->max_margin_coarse_integration_time = SENSOR_2P6_COARSE_INTEGRATION_TIME_MAX_MARGIN;
-}
-#endif
 
 static int sensor_2p6_wait_stream_off_status(cis_shared_data *cis_data)
 {

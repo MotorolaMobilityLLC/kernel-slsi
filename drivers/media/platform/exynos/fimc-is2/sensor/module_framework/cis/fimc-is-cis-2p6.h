@@ -27,8 +27,6 @@
 
 #define USE_GROUP_PARAM_HOLD	(0)
 
-#define S5K2P6_USE_COMPACT_PLL_INFO
-
 typedef enum
 {
     SENSOR_2P6_MODE_4608X3456_30 = 0,
