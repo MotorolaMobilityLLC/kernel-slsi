@@ -1030,6 +1030,7 @@ struct slsi_dev {
 	bool                       dualband_concurrency;
 	u32                        softap_max_client;
 #endif
+	u32                        fw_dwell_time;
 	int                        lls_num_radio;
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING

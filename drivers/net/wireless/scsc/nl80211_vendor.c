@@ -1905,7 +1905,8 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 	ip_send_check(ip_hdr(skb));
 
 	host_tag = slsi_tx_mgmt_host_tag(sdev);
-	r = slsi_mlme_send_frame_data(sdev, net_dev, skb, host_tag, FAPI_MESSAGETYPE_PERIODIC_OFFLOAD, (period * 1000));
+	r = slsi_mlme_send_frame_data(sdev, net_dev, skb, FAPI_MESSAGETYPE_PERIODIC_OFFLOAD, host_tag,
+				      0, (period * 1000));
 	if (r == 0)
 		ndev_vif->sta.keepalive_host_tag[index - 1] = host_tag;
 

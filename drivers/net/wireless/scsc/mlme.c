@@ -2886,7 +2886,8 @@ int slsi_mlme_add_info_elements(struct slsi_dev *sdev, struct net_device *dev,  
 	return r;
 }
 
-int slsi_mlme_send_frame_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, u16 host_tag, u16 msg_type, u32 period)
+int slsi_mlme_send_frame_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, u16 msg_type,
+			      u16 host_tag, u32 dwell_time, u32 period)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	u16 len = skb->len;
@@ -2940,7 +2941,7 @@ int slsi_mlme_send_frame_data(struct slsi_dev *sdev, struct net_device *dev, str
 	fapi_set_u16(skb, u.mlme_send_frame_req.data_unit_descriptor, FAPI_DATAUNITDESCRIPTOR_IEEE802_3_FRAME);
 	fapi_set_u16(skb, u.mlme_send_frame_req.message_type, msg_type);
 	fapi_set_u16(skb, u.mlme_send_frame_req.channel_frequency, 0);
-	fapi_set_u32(skb, u.mlme_send_frame_req.dwell_time, 0);
+	fapi_set_u32(skb, u.mlme_send_frame_req.dwell_time, dwell_time);
 	fapi_set_u32(skb, u.mlme_send_frame_req.period, period);
 
 	SLSI_DBG2(sdev, SLSI_MLME, "mlme_send_frame_req(vif:%d, message_type:%d, host_tag:%d)\n", ndev_vif->ifnum, msg_type, host_tag);

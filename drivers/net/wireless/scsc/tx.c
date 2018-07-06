@@ -35,6 +35,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 	u16			msg_type = 0;
 	u16			proto = ntohs(skb->protocol);
 	int			ret = 0;
+	u32              dwell_time = sdev->fw_dwell_time;
 
 	slsi_spinlock_lock(&ndev_vif->peer_lock);
 	peer = slsi_get_peer_from_mac(sdev, dev, eth_hdr(skb)->h_dest);
@@ -64,14 +65,18 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 			    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)) {
 				SLSI_NET_DBG1(dev, SLSI_MLME, "message M4\n");
 				msg_type = FAPI_MESSAGETYPE_EAPOL_KEY_M4;
+				dwell_time = 0;
 			}
 		} else {
 			msg_type = FAPI_MESSAGETYPE_EAP_MESSAGE;
+			dwell_time = 0;
 		}
 	break;
 	case ETH_P_WAI:
 		SLSI_NET_DBG1(dev, SLSI_MLME, "WAI protocol frame\n");
 		msg_type = FAPI_MESSAGETYPE_WAI_MESSAGE;
+		if ((skb->data[17]) != 9) /*subtype 9 refers to unicast negotiation response*/
+			dwell_time = 0;
 	break;
 	default:
 		SLSI_NET_WARN(dev, "protocol NOT supported\n");
@@ -80,7 +85,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 	}
 
 	/* EAPOL/WAI frames are send via the MLME */
-	ret = slsi_mlme_send_frame_data(sdev, dev, skb, 0, msg_type, 0);
+	ret = slsi_mlme_send_frame_data(sdev, dev, skb, msg_type, 0, dwell_time, 0);
 	if (!ret) {
 		peer->sinfo.tx_packets++;
 		peer->sinfo.tx_bytes += skb->len;
@@ -109,6 +114,9 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	u16                 len = skb->len;
 	int                 ret = 0;
 	enum slsi_traffic_q tq;
+	u32 dwell_time = 0;
+	u8 *frame;
+	u32 arp_opcode;
 
 	if (slsi_is_test_mode_enabled()) {
 		/* This signals is in XML file because parts of the Firmware need the symbols defined by them
@@ -146,11 +154,20 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 			return slsi_tx_eapol(sdev, dev, skb);
 		case ETH_P_ARP:
 			SLSI_NET_DBG2(dev, SLSI_MLME, "transmit ARP frame from SLSI_NETIF_Q_PRIORITY\n");
-			return slsi_mlme_send_frame_data(sdev, dev, skb, 0, FAPI_MESSAGETYPE_ARP, 0);
+			frame = skb->data + sizeof(struct ethhdr);
+			arp_opcode = frame[6] << 8 | frame[7];
+			if ((arp_opcode == 1) &&
+			    memcmp(&frame[14], &frame[24], 4)) { /*opcode 1: ARP request(except gratuitous ARP)*/
+				dwell_time = sdev->fw_dwell_time;
+			}
+			return slsi_mlme_send_frame_data(sdev, dev, skb, FAPI_MESSAGETYPE_ARP, 0, dwell_time, 0);
 		case ETH_P_IP:
 			if (slsi_is_dhcp_packet(skb->data) != SLSI_TX_IS_NOT_DHCP) {
 				SLSI_NET_DBG2(dev, SLSI_MLME, "transmit DHCP packet from SLSI_NETIF_Q_PRIORITY\n");
-				return slsi_mlme_send_frame_data(sdev, dev, skb, 0, FAPI_MESSAGETYPE_DHCP, 0);
+				if (skb->data[42] == 1)  /*opcode 1 refers to DHCP discover/request*/
+					dwell_time = sdev->fw_dwell_time;
+				return slsi_mlme_send_frame_data(sdev, dev, skb, FAPI_MESSAGETYPE_DHCP, 0, dwell_time,
+								 0);
 			}
 			/* IP frame can have only DHCP packet in SLSI_NETIF_Q_PRIORITY */
 			SLSI_NET_ERR(dev, "Bad IP frame in SLSI_NETIF_Q_PRIORITY\n");

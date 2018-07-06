@@ -421,7 +421,9 @@ static int cac_send_addts(struct slsi_dev *sdev, int id, int ebw)
 		} while (0);
 	}
 
-	if (slsi_mlme_send_frame_mgmt(sdev, netdev, buf, (IEEE80211_HEADER_SIZE + req_len + ie_len), FAPI_DATAUNITDESCRIPTOR_IEEE802_11_FRAME, FAPI_MESSAGETYPE_IEEE80211_ACTION, host_tag, 0, 0, 0) != 0) {
+	if (slsi_mlme_send_frame_mgmt(sdev, netdev, buf, (IEEE80211_HEADER_SIZE + req_len + ie_len),
+				      FAPI_DATAUNITDESCRIPTOR_IEEE802_11_FRAME, FAPI_MESSAGETYPE_IEEE80211_ACTION,
+				      host_tag, 0, sdev->fw_dwell_time, 0) != 0) {
 		SLSI_ERR(sdev, "CAC-ADDTS: Failed to send ADDTS request\n");
 		r = -1;
 		goto exit_free_buf;

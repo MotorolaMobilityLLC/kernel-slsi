@@ -923,7 +923,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 	int chan_count = 0;
 	int index = 0;
 	int mib_index = 0;
-	static const struct slsi_mib_get_entry get_values[] = { { SLSI_PSID_UNIFI_CHIP_VERSION,            { 0, 0 } },
+	static const struct slsi_mib_get_entry get_values[] = {{ SLSI_PSID_UNIFI_CHIP_VERSION,            { 0, 0 } },
 							       { SLSI_PSID_UNIFI_SUPPORTED_CHANNELS,      { 0, 0 } },
 							       { SLSI_PSID_UNIFI_HT_ACTIVATED, {0, 0} },
 							       { SLSI_PSID_UNIFI_VHT_ACTIVATED, {0, 0} },
@@ -933,6 +933,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 							       { SLSI_PSID_UNIFI_HARDWARE_PLATFORM, {0, 0} },
 							       { SLSI_PSID_UNIFI_REG_DOM_VERSION, {0, 0} },
 							       { SLSI_PSID_UNIFI_NAN_ENABLED, {0, 0} },
+							       { SLSI_PSID_UNIFI_FORCED_SCHEDULE_DURATION, {0, 0} },
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 							       { SLSI_PSID_UNIFI_WI_FI_SHARING5_GHZ_CHANNEL, {0, 0} },
 #endif
@@ -940,7 +941,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 							       { SLSI_PSID_UNIFI_DUAL_BAND_CONCURRENCY, {0, 0} },
 							       { SLSI_PSID_UNIFI_MAX_CLIENT, {0, 0} }
 #endif
-																			};
+							      };/*Check the mibrsp.dataLength when a new mib is added*/
 
 	r = slsi_mib_encode_get_list(&mibreq, sizeof(get_values) / sizeof(struct slsi_mib_get_entry), get_values);
 	if (r != SLSI_MIB_STATUS_SUCCESS)
@@ -1053,6 +1054,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		} else {
 			SLSI_WARN(sdev, "Error reading Reg domain version\n");
 		}
+
 		/* NAN enabled? */
 		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) {
 			sdev->nan_enabled = values[mib_index].u.boolValue;
@@ -1060,6 +1062,14 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 			sdev->nan_enabled = false;
 			SLSI_WARN(sdev, "Error reading NAN enabled mib\n");
                 }
+
+		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) { /* UnifiForcedScheduleDuration */
+			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_UINT);
+			sdev->fw_dwell_time = values[mib_index].u.uintValue;
+		} else {
+			SLSI_WARN(sdev, "Error reading UnifiForcedScheduleDuration\n");
+		}
+
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 		if (values[++mib_index].type == SLSI_MIB_TYPE_OCTET) {  /* 5Ghz Allowed Channels */
 			if (values[mib_index].u.octetValue.dataLength >= 8) {
