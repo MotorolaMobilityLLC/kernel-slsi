@@ -523,8 +523,6 @@
 		compatible = "samsung,exynos-speedy";
 		reg = <0x0 0x11a10000 0x2000>;
 		interrupts = <0 37 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&speedy_bus>;
 		status = "disabled";

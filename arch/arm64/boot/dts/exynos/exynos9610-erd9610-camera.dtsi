@@ -12,9 +12,9 @@
 #include <dt-bindings/camera/fimc_is.h>
 
 / {
-//	fragment@camera {
-//		target-path = "/";
-//		__overlay__ {
+	fragment@camera {
+		target-path = "/";
+		__overlay__ {
 			fimc_is_flash_gpio: fimc-is-flash-gpio@0 {
 				compatible = "samsung,sensor-flash-gpio";
 				id = <0>;
@@ -122,8 +122,8 @@
 					/* DUMMY */
 				};
 			};
-//		}; /* end of __overlay__ */
-//	}; /* end of fragment */
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
 }; /* end of root */
 
 /***** reference symbol node *****/
@@ -378,7 +378,8 @@
 	clock-frequency = <400000>;
 	samsung,reset-before-trans;
 	samsung,polling-mode;
-
+	#address-cells = <1>;
+	#size-cells = <0>;
 	fimc-is-2p7sq@2d {
 		compatible = "samsung,exynos5-fimc-is-cis-2p7sq";
 		reg = <0x2d>; /* 1 bit right shift */
@@ -402,6 +403,8 @@
 	samsung,reset-before-trans;
 	samsung,polling-mode;
 
+	#address-cells = <1>;
+	#size-cells = <0>;
 	fimc-is-2t7sx@10 {
 		compatible = "samsung,exynos5-fimc-is-cis-2t7sx";
 		reg = <0x10>; /* 1 bit right shift */
@@ -424,6 +427,8 @@
 	clock-frequency = <400000>;
 	samsung,reset-before-trans;
 
+	#address-cells = <1>;
+	#size-cells = <0>;
 	fimc-is-6b2@35 {
 		compatible = "samsung,exynos5-fimc-is-cis-6b2";
 		reg = <0x35>; /* 1 bit right shift */
@@ -439,6 +444,8 @@
 	clock-frequency = <400000>;
 	samsung,reset-before-trans;
 
+	#address-cells = <1>;
+	#size-cells = <0>;
 	fimc-is-actuator@72 {
 		compatible = "samsung,exynos5-fimc-is-actuator-dw9780";
 		reg = <0x72>; /* 1 bit right shift */
