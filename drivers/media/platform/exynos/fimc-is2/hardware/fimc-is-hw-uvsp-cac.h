@@ -38,48 +38,48 @@ struct cac_setfile_contents {
 
 #define UVSP_MAX_NI_DEPENDED_CONFIGS     (6)
 struct uvsp_radial_cfg {
-	u32	radial_biquad_shift;
+	u32	biquad_shift;
 
-	bool	radial_random_en;
-	u32	radial_random_power;
-	bool	radial_refine_en;
-	u32	radial_refine_luma_min;
-	u32	radial_refine_denom;
+	bool	random_en;
+	u32	random_power;
+	bool	refine_en;
+	u32	refine_luma_min;
+	u32	refine_denom;
 
-	bool	radial_alpha_gain_add_en;
-	bool	radial_alpha_green_en;
-	u32	radial_alpha_r;
-	u32	radial_alpha_g;
-	u32	radial_alpha_b;
+	bool	alpha_gain_add_en;
+	bool	alpha_green_en;
+	u32	alpha_r;
+	u32	alpha_g;
+	u32	alpha_b;
 };
 
 struct uvsp_pedestal_cfg {
-	u32	pedestal_r;
-	u32	pedestal_g;
-	u32	pedestal_b;
+	u32	r;
+	u32	g;
+	u32	b;
 };
 
 struct uvsp_offset_cfg {
-	u32	ofs_r;
-	u32	ofs_g;
-	u32	ofs_b;
+	u32	r;
+	u32	g;
+	u32	b;
 };
 
 struct uvsp_desat_cfg {
-	bool	desat_ctrl_en;
-	bool	desat_ctrl_singleSide;
-	u32	desat_ctrl_luma_offset;
-	u32	desat_ctrl_gain_offset;
+	bool	ctrl_en;
+	bool	ctrl_singleSide;
+	u32	ctrl_luma_offset;
+	u32	ctrl_gain_offset;
 
-	u32	desat_y_shift;
-	u32	desat_y_luma_max;
-	u32	desat_u_low;
-	u32	desat_u_high;
-	u32	desat_v_low;
-	u32	desat_v_high;
+	u32	y_shift;
+	u32	y_luma_max;
+	u32	u_low;
+	u32	u_high;
+	u32	v_low;
+	u32	v_high;
 };
 
-struct uvsp_rgb2yuv_coef_cfg {
+struct uvsp_r2y_coef_cfg {
 	u32	r2y_coef_00;
 	u32	r2y_coef_01;
 	u32	r2y_coef_02;
@@ -97,7 +97,7 @@ struct uvsp_cfg_by_ni {
 	struct uvsp_pedestal_cfg	pedestal_cfg;
 	struct uvsp_offset_cfg		offset_cfg;
 	struct uvsp_desat_cfg		desat_cfg;
-	struct uvsp_rgb2yuv_coef_cfg	rgb2yuv_coef_cfg;
+	struct uvsp_r2y_coef_cfg	r2y_coef_cfg;
 };
 
 struct uvsp_setfile_contents {
