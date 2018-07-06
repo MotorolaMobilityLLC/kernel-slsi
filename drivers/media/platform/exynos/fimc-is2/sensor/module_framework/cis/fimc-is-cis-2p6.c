@@ -1866,26 +1866,26 @@ int cis_2p6_probe(struct i2c_client *client,
 			strcmp(setfile, "setA") == 0) {
 		probe_info("%s : setfile_A for Non-PDAF\n", __func__);
 		sensor_2p6_global = sensor_2p6_setfile_A_Global;
-		sensor_2p6_global_size = sizeof(sensor_2p6_setfile_A_Global) / sizeof(sensor_2p6_setfile_A_Global[0]);
+		sensor_2p6_global_size = ARRAY_SIZE(sensor_2p6_setfile_A_Global);
 		sensor_2p6_setfiles = sensor_2p6_setfiles_A;
 		sensor_2p6_setfile_sizes = sensor_2p6_setfile_A_sizes;
-		sensor_2p6_max_setfile_num = sizeof(sensor_2p6_setfiles_A) / sizeof(sensor_2p6_setfiles_A[0]);
+		sensor_2p6_max_setfile_num = ARRAY_SIZE(sensor_2p6_setfiles_A);
 		sensor_2p6_pllinfos = sensor_2p6_pllinfos_A;
 	} else if (strcmp(setfile, "setB") == 0) {
 		probe_info("%s setfile_B for PDAF\n", __func__);
 		sensor_2p6_pdaf_global = sensor_2p6_setfile_B_Global;
-		sensor_2p6_pdaf_global_size = sizeof(sensor_2p6_setfile_B_Global) / sizeof(sensor_2p6_setfile_B_Global[0]);
+		sensor_2p6_pdaf_global_size = ARRAY_SIZE(sensor_2p6_setfile_B_Global);
 		sensor_2p6_pdaf_setfiles = sensor_2p6_setfiles_B;
 		sensor_2p6_pdaf_setfile_sizes = sensor_2p6_setfile_B_sizes;
-		sensor_2p6_pdaf_max_setfile_num = sizeof(sensor_2p6_setfiles_B) / sizeof(sensor_2p6_setfiles_B[0]);
+		sensor_2p6_pdaf_max_setfile_num = ARRAY_SIZE(sensor_2p6_setfiles_B);
 		sensor_2p6_pdaf_pllinfos = sensor_2p6_pllinfos_B;
 	} else {
 		err("%s setfile index out of bound, take default (setfile_A)", __func__);
 		sensor_2p6_global = sensor_2p6_setfile_A_Global;
-		sensor_2p6_global_size = sizeof(sensor_2p6_setfile_A_Global) / sizeof(sensor_2p6_setfile_A_Global[0]);
+		sensor_2p6_global_size = ARRAY_SIZE(sensor_2p6_setfile_A_Global);
 		sensor_2p6_setfiles = sensor_2p6_setfiles_A;
 		sensor_2p6_setfile_sizes = sensor_2p6_setfile_A_sizes;
-		sensor_2p6_max_setfile_num = sizeof(sensor_2p6_setfiles_A) / sizeof(sensor_2p6_setfiles_A[0]);
+		sensor_2p6_max_setfile_num = ARRAY_SIZE(sensor_2p6_setfiles_A);
 		sensor_2p6_pllinfos = sensor_2p6_pllinfos_A;
 	}
 

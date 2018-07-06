@@ -500,15 +500,15 @@ static const u32 *sensor_2p6_setfiles_B[] = {
 
 static const u32 sensor_2p6_setfile_B_sizes[] = {
 	/* 16x12 margin */
-	sizeof(sensor_2p6_setfile_B_4608x3456_30fps) / sizeof(sensor_2p6_setfile_B_4608x3456_30fps[0]),
-	sizeof(sensor_2p6_setfile_B_4608x2624_30fps) / sizeof(sensor_2p6_setfile_B_4608x2624_30fps[0]),
-	sizeof(sensor_2p6_setfile_B_4608x2240_30fps) / sizeof(sensor_2p6_setfile_B_4608x2240_30fps[0]),
-	sizeof(sensor_2p6_setfile_B_2304x1728_30fps) / sizeof(sensor_2p6_setfile_B_2304x1728_30fps[0]),
-	sizeof(sensor_2p6_setfile_B_2304x1728_15fps) / sizeof(sensor_2p6_setfile_B_2304x1728_15fps[0]),
-	sizeof(sensor_2p6_setfile_B_2304x1312_30fps) / sizeof(sensor_2p6_setfile_B_2304x1312_30fps[0]),
-	sizeof(sensor_2p6_setfile_B_2304x1120_30fps) / sizeof(sensor_2p6_setfile_B_2304x1120_30fps[0]),
-	sizeof(sensor_2p6_setfile_B_1152x864_120fps) / sizeof(sensor_2p6_setfile_B_1152x864_120fps[0]),
-	sizeof(sensor_2p6_setfile_B_1152x656_120fps) / sizeof(sensor_2p6_setfile_B_1152x656_120fps[0]),
+	ARRAY_SIZE(sensor_2p6_setfile_B_4608x3456_30fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_4608x2624_30fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_4608x2240_30fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_2304x1728_30fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_2304x1728_15fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_2304x1312_30fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_2304x1120_30fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_1152x864_120fps),
+	ARRAY_SIZE(sensor_2p6_setfile_B_1152x656_120fps),
 };
 
 static const struct sensor_pll_info_compact *sensor_2p6_pllinfos_B[] =
