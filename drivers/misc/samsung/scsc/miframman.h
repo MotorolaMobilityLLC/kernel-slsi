@@ -19,7 +19,7 @@ void miframman_free(struct miframman *ram, void *mem);
 void miframman_deinit(struct miframman *ram);
 
 #define MIFRAMMAN_MAXMEM        (16 * 1024 * 1024)
-#define MIFRAMMAN_BLOCK_SIZE    (2 * 1024)
+#define MIFRAMMAN_BLOCK_SIZE    (64)
 
 #define MIFRAMMAN_NUM_BLOCKS    ((MIFRAMMAN_MAXMEM) / (MIFRAMMAN_BLOCK_SIZE))
 

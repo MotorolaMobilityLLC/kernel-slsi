@@ -17,6 +17,7 @@ void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool)
 {
 	mutex_init(&ram->lock);
 
+	SCSC_TAG_INFO(MIF, "MIFRAMMAN_BLOCK_SIZE = %d\n", MIFRAMMAN_BLOCK_SIZE);
 	ram->num_blocks = size_pool / MIFRAMMAN_BLOCK_SIZE;
 
 	if (ram->num_blocks == 0) {
