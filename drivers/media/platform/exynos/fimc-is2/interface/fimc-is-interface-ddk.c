@@ -925,6 +925,8 @@ int fimc_is_lib_isp_get_cal_data(struct fimc_is_lib_isp *this,
 		err_lib("apply_tune_set fail (%d)", ret);
 		return ret;
 	}
+	dbg_lib(3, "%s: data(%d,%d,%d,%d)\n",
+		__func__, data[0], data[1], data[2], data[3]);
 
 	return ret;
 }
