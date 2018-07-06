@@ -41,6 +41,9 @@
 #define SLSI_MIB_MAX_CLIENT (10)
 #define SLSI_REG_PARAM_START_INDEX (1)
 
+/* temp until it gets integrated into mib.h by Autogen */
+#define SLSI_PSID_UNIFI_REG_DOM_VERSION	8019
+
 static char *mib_file_t = "wlan_t.hcf";
 module_param(mib_file_t, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mib_file_t, "mib data filename");
@@ -210,6 +213,47 @@ static void slsi_print_platform_id(struct slsi_dev *sdev)
 	}
 	SLSI_INFO(sdev, "Platform ID loaded from %s: %s", path_name, (char *)e->data); /* .txt is \n terminated */
 	mx140_file_release_conf(sdev->maxwell_core, e);
+}
+
+
+static void write_wifi_version_info_file(struct slsi_dev *sdev)
+{
+	struct file *fp = NULL;
+	char *filepath = "/data/misc/conn/.wifiver.info";
+	char buf[256];
+	char build_id_fw[128];
+	char build_id_drv[64];
+
+	fp = filp_open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+	if (IS_ERR(fp)) {
+		SLSI_WARN(sdev, "version file wasn't found\n");
+		return;
+	} else if (!fp) {
+		SLSI_WARN(sdev, "%s doesn't exist.\n", filepath);
+		return;
+	}
+
+	mxman_get_fw_version(build_id_fw, 128);
+	mxman_get_driver_version(build_id_drv, 64);
+
+	/* WARNING:
+	 * Please do not change the format of the following string
+	 * as it can have fatal consequences.
+	 * The framework parser for the version may depend on this
+	 * exact formatting.
+	 */
+	snprintf(buf, sizeof(buf), "%s (f/w_ver: %s\nregDom_ver: %d.%d)\n",
+		build_id_drv,
+		build_id_fw,
+		((sdev->reg_dom_version >> 8) & 0xFF), (sdev->reg_dom_version & 0xFF));
+
+	kernel_write(fp, buf, strlen(buf), 0);
+
+	if (fp)
+		filp_close(fp, NULL);
+
+	SLSI_INFO(sdev, "Succeed to write firmware/host information to .wifiver.info\n");
 }
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
@@ -388,8 +432,10 @@ int slsi_start(struct slsi_dev *sdev)
 				wiphy_apply_custom_regulatory(sdev->wiphy, sdev->device_config.domain_info.regdomain);
 			}
 		}
-
 	/* Do nothing for unifiDefaultCountry == world_domain */
+
+	/* write .wifiver.info */
+	write_wifi_version_info_file(sdev);
 
 #ifdef CONFIG_SCSC_WLAN_AP_INFO_FILE
 	/* writing .softap.info in /data/misc/conn */
@@ -882,6 +928,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 							       { SLSI_PSID_UNIFI_VHT_CAPABILITIES, {0, 0} },
 							       { SLSI_PSID_UNIFI24_G40_MHZ_CHANNELS, {0, 0} },
 							       { SLSI_PSID_UNIFI_HARDWARE_PLATFORM, {0, 0} },
+							       { SLSI_PSID_UNIFI_REG_DOM_VERSION, {0, 0} },
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 							       { SLSI_PSID_UNIFI_WI_FI_SHARING5_GHZ_CHANNEL, {0, 0} },
 #endif
@@ -995,6 +1042,12 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 			sdev->plat_info_mib.plat_build = values[mib_index].u.uintValue;
 		} else {
 			SLSI_WARN(sdev, "Error reading Hardware platform\n");
+		}
+		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) {    /* REG_DOM_VERSION */
+			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_UINT);
+			sdev->reg_dom_version = values[mib_index].u.uintValue;
+		} else {
+			SLSI_WARN(sdev, "Error reading Reg domain version\n");
 		}
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 		if (values[++mib_index].type == SLSI_MIB_TYPE_OCTET) {  /* 5Ghz Allowed Channels */

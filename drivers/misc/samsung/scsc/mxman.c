@@ -348,39 +348,6 @@ static int send_mm_msg_stop_blocking(struct mxman *mxman)
 	return 0;
 }
 
-static void write_m_test_fw_version_file(struct mxman *mxman)
-{
-	struct file *fp = NULL;
-	char *filepath = "/data/misc/conn/.wifiver.info";
-	char buf[256];
-	char *build_id = 0;
-
-	if (mxman)
-		build_id = mxman->fw_build_id;
-
-	fp = filp_open(filepath, O_WRONLY|O_CREAT, 0644);
-
-	if (IS_ERR(fp)) {
-		SCSC_TAG_INFO(MXMAN, "version file wasn't found\n");
-		return;
-	} else if (fp == NULL) {
-		SCSC_TAG_INFO(MXMAN, "%s doesn't exist.\n", filepath);
-		return;
-	}
-	snprintf(buf, sizeof(buf), "drv_ver: %d.%d.%d.%d N (f/w: %s)\n",
-		 SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT,
-		 build_id ? build_id : "unknown");
-#ifdef CONFIG_SCSC_WLBTD
-	scsc_wlbtd_get_and_print_build_type();
-#endif
-	kernel_write(fp, buf, strlen(buf), 0);
-
-	if (fp)
-		filp_close(fp, NULL);
-
-	SCSC_TAG_INFO(MXMAN, "Succeed to write firmware/host information to .wifiver.info\n");
-}
-
 static char *chip_version(u32 rf_hw_ver)
 {
 	switch (rf_hw_ver & 0x00ff) {
@@ -433,9 +400,6 @@ static void mxman_print_versions(struct mxman *mxman)
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_get_and_print_build_type();
 #endif
-
-	/* write /data/.wifiver.info */
-	write_m_test_fw_version_file(mxman);
 }
 
 /** Receive handler for messages from the FW along the maxwell management transport */
