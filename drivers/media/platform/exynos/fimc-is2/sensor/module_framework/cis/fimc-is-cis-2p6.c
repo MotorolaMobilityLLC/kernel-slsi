@@ -403,23 +403,23 @@ int sensor_2p6_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	/* In case of fastAE or high speed fps, forced to set pdaf off */
 	if (cis->use_pdaf == true) {
 		if (mode <= SENSOR_2P6_MODE_2304X1120_30) {
-			cis->cis_data->companion_data.paf_stat_enable = true;
+			cis->cis_data->is_data.paf_stat_enable = true;
 		} else {
-			cis->cis_data->companion_data.paf_stat_enable = false;
+			cis->cis_data->is_data.paf_stat_enable = false;
 		}
 		dbg_sensor(1, "[%s] mode(%d) paf_stat_enable(%d) \n",
-			__func__, mode, cis->cis_data->companion_data.paf_stat_enable);
+			__func__, mode, cis->cis_data->is_data.paf_stat_enable);
 	}
 
 #if defined(USE_SENSOR_WDR)
 	/* In case of fastAE or high speed fps, forced to set wdr off */
 	if (mode <= SENSOR_2P6_MODE_4608X2240_30) {
-		cis->cis_data->companion_data.wdr_enable = true;
+		cis->cis_data->is_data.wdr_enable = true;
 	} else {
-		cis->cis_data->companion_data.wdr_enable = false;
+		cis->cis_data->is_data.wdr_enable = false;
 	}
 	dbg_sensor(1, "[%s] mode(%d) wdr_enable(%d) \n",
-		__func__, mode, cis->cis_data->companion_data.wdr_enable);
+		__func__, mode, cis->cis_data->is_data.wdr_enable);
 #endif
 
 	if (cis->use_pdaf == true) {
@@ -452,9 +452,9 @@ int sensor_2p6_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 #endif
 
 		/* pdaf tail mode off */
-		if (cis->cis_data->companion_data.paf_stat_enable == false) {
+		if (cis->cis_data->is_data.paf_stat_enable == false) {
 			info("[%s]: Set pdaf tail mode off (paf_stat_enable %d)\n",
-				__func__, cis->cis_data->companion_data.paf_stat_enable);
+				__func__, cis->cis_data->is_data.paf_stat_enable);
 
 			ret = fimc_is_sensor_write16(cis->client, 0x6028, 0x2000);
 			if (ret < 0) {
@@ -475,7 +475,7 @@ int sensor_2p6_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	}
 
 #if defined(USE_SENSOR_WDR)
-	if (cis->cis_data->companion_data.wdr_enable == false) {
+	if (cis->cis_data->is_data.wdr_enable == false) {
 		info("[%s] S5K2P6_WDR_DISABLE\n", __func__);
 		ret = fimc_is_sensor_write16(cis->client, 0x6028, 0x4000);
 		if (ret < 0) {

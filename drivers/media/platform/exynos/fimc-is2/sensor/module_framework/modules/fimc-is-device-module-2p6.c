@@ -51,46 +51,52 @@ enum sensor_module_2p6_position {
 };
 
 static struct fimc_is_sensor_cfg config_module_2p6[] = {
-	/* 4608x3456@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(4608, 3456, 30, 32, 0, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 288, 1728), 0, 0),
-	/* 4608x2624@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(4608, 2624, 30, 32, 1, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 288, 1312), 0, 0),
-	/* 4608x2240@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(4608, 2240, 30, 32, 2, CSI_DATA_LANES_4, 1443, SET_VC(VC_TAIL_MODE_PDAF, 288, 1120), 0, 0),
-	/* 2304x1728@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(2304, 1728, 30, 32, 3, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1728), 0, 0),
-	/* 2304x1728@15fps */
-	FIMC_IS_SENSOR_CFG_EXT(2304, 1728, 15, 32, 4, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1728), 0, 0),
-	/* 2304x1312@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(2304, 1312, 30, 32, 5, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1312), 0, 0),
-	/* 2304x1120@30fps */
-	FIMC_IS_SENSOR_CFG_EXT(2304, 1120, 30, 32, 6, CSI_DATA_LANES_4, 1352, SET_VC(VC_TAIL_MODE_PDAF, 288, 1120), 0, 0),
-	/* 1152x864@120fps */
-	FIMC_IS_SENSOR_CFG_EXT(1152, 864, 120, 32, 7, CSI_DATA_LANES_4, 1352, 0, 0, 0),
-	/* 1152x656@120fps */
-	FIMC_IS_SENSOR_CFG_EXT(1152, 656, 120, 32, 8, CSI_DATA_LANES_4, 1352, 0, 0, 0),
-};
-
-static struct fimc_is_vci vci_module_2p6[] = {
-	{
-		.pixelformat = V4L2_PIX_FMT_SBGGR10,
-		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
-			{1, HW_FORMAT_RAW10, VCI_DMA_INTERNAL},
-			{2, 0, VCI_DMA_NORMAL},
-			{3, 0, VCI_DMA_NORMAL}}
-	}, {
-		.pixelformat = V4L2_PIX_FMT_SBGGR12,
-		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
-			{1, HW_FORMAT_RAW10, VCI_DMA_INTERNAL},
-			{2, 0, VCI_DMA_NORMAL},
-			{3, 0, VCI_DMA_NORMAL}}
-	}, {
-		.pixelformat = V4L2_PIX_FMT_SBGGR16,
-		.config = {{0, HW_FORMAT_RAW10, VCI_DMA_NORMAL},
-			{1, HW_FORMAT_RAW10, VCI_DMA_INTERNAL},
-			{2, 0, VCI_DMA_NORMAL},
-			{3, 0, VCI_DMA_NORMAL}}
-	}
+	/* width, height, fps, settle, mode, lane, speed, interleave, pd_mode */
+	FIMC_IS_SENSOR_CFG(4608, 3456, 30, 0, 0, CSI_DATA_LANES_4, 1443, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 4608, 3456), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_RAW10, 288, 1728), VC_OUT(HW_FORMAT_RAW10, VC_TAILPDAF, 288, 1728),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(4608, 2624, 30, 0, 1, CSI_DATA_LANES_4, 1443, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 4608, 2624), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_RAW10, 288, 1312), VC_OUT(HW_FORMAT_RAW10, VC_TAILPDAF, 288, 1312),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(4608, 2240, 30, 0, 2, CSI_DATA_LANES_4, 1443, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 4608, 2240), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_RAW10, 288, 1120), VC_OUT(HW_FORMAT_RAW10, VC_TAILPDAF, 288, 1120),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(2304, 1728, 30, 0, 3, CSI_DATA_LANES_4, 1352, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 2304, 1728), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_RAW10, 288, 1728), VC_OUT(HW_FORMAT_RAW10, VC_TAILPDAF, 288, 1728),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(2304, 1728, 15, 0, 4, CSI_DATA_LANES_4, 1352, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 2304, 1728), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_UNKNOWN, 288, 1728), VC_OUT(HW_FORMAT_RAW10, VC_TAILPDAF, 288, 1728),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(2304, 1312, 30, 0, 5, CSI_DATA_LANES_4, 1352, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 2304, 1312), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_UNKNOWN, 288, 1312), VC_OUT(HW_FORMAT_RAW10, VC_TAILPDAF, 288, 1312),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(2304, 1120, 30, 0, 6, CSI_DATA_LANES_4, 1352, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 2304, 1120), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_RAW10, 288, 1120), VC_OUT(HW_FORMAT_RAW10, VC_TAILPDAF, 288, 1120),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(1152, 864, 120, 0, 7, CSI_DATA_LANES_4, 1352, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 1152, 864), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+	FIMC_IS_SENSOR_CFG(1152, 656, 120, 0, 8, CSI_DATA_LANES_4, 1352, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(0, HW_FORMAT_RAW10, 1152, 656), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
+		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
 };
 
 static const struct v4l2_subdev_core_ops core_ops = {
@@ -651,6 +657,7 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	struct exynos_platform_fimc_is_module *pdata;
 	struct device *dev;
 	struct device_node *af_np;
+	struct pinctrl_state *s;
 
 	BUG_ON(!fimc_is_dev);
 
@@ -708,11 +715,7 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	module->pixel_height = module->active_height;
 	module->max_framerate = 120;
 	module->position = pdata->position;
-	module->mode = CSI_MODE_VC_DT;
-	module->lanes = CSI_DATA_LANES_4;
 	module->bitwidth = 10;
-	module->vcis = ARRAY_SIZE(vci_module_2p6);
-	module->vci = vci_module_2p6;
 	module->sensor_maker = "SLSI";
 	if (use_pdaf == true) {
 		module->sensor_name = "S5K2P6SX"; /* pdaf sensor */
@@ -727,10 +730,8 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	module->cfgs = ARRAY_SIZE(config_module_2p6);
 	module->cfg = config_module_2p6;
 	module->ops = NULL;
-	for (ch = 1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
-		module->internal_vc[ch] = pdata->internal_vc[ch];
+	for (ch = 1; ch < CSI_VIRTUAL_CH_MAX; ch++)
 		module->vc_buffer_offset[ch] = pdata->vc_buffer_offset[ch];
-	}
 	/* Sensor peri */
 	module->private_data = kzalloc(sizeof(struct fimc_is_device_sensor_peri), GFP_KERNEL);
 	if (!module->private_data) {
@@ -742,7 +743,6 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	PERI_SET_MODULE(module);
 
 	ext = &module->ext;
-	ext->mipi_lane_num = module->lanes;
 
 	ext->sensor_con.product_name = module->sensor_id;
 	ext->sensor_con.peri_type = SE_I2C;
@@ -800,6 +800,13 @@ int sensor_module_2p6_probe(struct platform_device *pdev)
 	v4l2_set_subdevdata(subdev_module, module);
 	v4l2_set_subdev_hostdata(subdev_module, device);
 	snprintf(subdev_module->name, V4L2_SUBDEV_NAME_SIZE, "sensor-subdev.%d", module->sensor_id);
+
+	s = pinctrl_lookup_state(pdata->pinctrl, "release");
+
+	if (pinctrl_select_state(pdata->pinctrl, s) < 0) {
+		probe_err("pinctrl_select_state is fail\n");
+		goto p_err;
+	}
 
 	probe_info("%s done\n", __func__);
 
