@@ -1190,6 +1190,9 @@ static int sc_v4l2_s_crop(struct file *file, void *fh,
 			w_align, &rect.top, 0, frame->height - rect.height,
 			h_align, 0);
 
+	if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat))
+		rect.width = ALIGN(rect.width, 4);
+
 	if ((rect.height > frame->height) || (rect.top > frame->height) ||
 		(rect.width > frame->width) || (rect.left > frame->width)) {
 		v4l2_err(&ctx->sc_dev->m2m.v4l2_dev,
@@ -1553,6 +1556,9 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 
 	*h_ratio = SCALE_RATIO(src_width, crop.width);
 	*v_ratio = SCALE_RATIO(src_height, crop.height);
+
+	if (sc_fmt_is_s10bit_yuv(ctx->d_frame.sc_fmt->pixelformat))
+		crop.width = ALIGN(crop.width, 4);
 
 	if ((ctx->i_frame->frame.sc_fmt != ctx->d_frame.sc_fmt) ||
 		memcmp(&crop, &ctx->i_frame->frame.crop, sizeof(crop)) ||
@@ -3248,6 +3254,37 @@ static int sc_m2m1shot_prepare_format(struct m2m1shot_context *m21ctx,
 			"%s: crop region(%d,%d,%d,%d) is larger than image\n",
 			__func__, fmt->crop.left, fmt->crop.top,
 			fmt->crop.width, fmt->crop.height);
+		return -EINVAL;
+	}
+
+	if (frame->sc_fmt->h_shift) {
+		unsigned int halign = 1 << frame->sc_fmt->h_shift;
+
+		if (!IS_ALIGNED(fmt->width, halign) ||
+				!IS_ALIGNED(fmt->crop.width, halign)) {
+			dev_err(ctx->sc_dev->dev,
+				"span(%d) or width(%d) is not aligned as %d\n",
+				fmt->width, fmt->crop.width, halign);
+			return -EINVAL;
+		}
+	}
+
+	if (frame->sc_fmt->v_shift) {
+		unsigned int valign = (1 << frame->sc_fmt->v_shift);
+
+		if (!IS_ALIGNED(fmt->height, valign)) {
+			dev_err(ctx->sc_dev->dev,
+				"height(%d) is not aligned as %d\n",
+				fmt->height, valign);
+			return -EINVAL;
+		}
+	}
+
+	if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) &&
+			!IS_ALIGNED(fmt->crop.width, 4)) {
+		dev_err(ctx->sc_dev->dev,
+			"%s: crop.width(%d) is not aligned as 4\n",
+			__func__, fmt->crop.width);
 		return -EINVAL;
 	}
 
