@@ -475,6 +475,43 @@ void DPU_EVENT_LOG_APPLY_REGION(struct v4l2_subdev *sd,
 	log->data.winup.apl_region.h = apl_rect->bottom - apl_rect->top + 1;
 }
 
+void DPU_EVENT_LOG_FENCE(struct v4l2_subdev *sd,
+		struct decon_reg_data *regs, dpu_event_t type)
+{
+	struct decon_device *decon = container_of(sd, struct decon_device, sd);
+	int idx = atomic_inc_return(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
+	struct dpu_log *log = &decon->d.event_log[idx];
+	int win = 0;
+	struct dma_fence *fence = NULL;
+	static int fence_log_cnt;
+
+	log->time = ktime_get();
+	log->type = type;
+
+	if (++fence_log_cnt < (DPU_EVENT_LOG_MAX/2))
+		return;
+
+	--fence_log_cnt;
+
+#if !defined(CONFIG_SUPPORT_LEGACY_FENCE)
+	for (win = 0; win < decon->dt.max_win; win++) {
+		log->data.fence.acq_fence[win][0] = '\0';
+		fence = regs->dma_buf_data[win][0].fence;
+		if (fence) {
+			snprintf(&log->data.fence.acq_fence[win][0], ACQ_FENCE_LEN, "%p:%s",
+				fence, fence->ops->get_driver_name(fence));
+		}
+	}
+
+	log->data.fence.timeline_value = atomic_read(&decon->fence.timeline);
+	log->data.fence.timeline_max = atomic_read(&decon->fence.timeline);
+#else
+	log->data.fence.timeline_value = decon->timeline->value;
+	log->data.fence.timeline_max = decon->timeline_max;
+#endif
+}
+
+
 /* display logged events related with DECON */
 void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 {
@@ -585,6 +622,9 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 			break;
 		case DPU_EVT_TRIG_UNMASK:
 			seq_printf(s, "%20s  %20s", "TRIG_UNMASK", "-\n");
+			break;
+		case DPU_EVT_FENCE_ACQUIRE:
+			seq_printf(s, "%20s  %20s", "FENCE_ACQUIRE", "-\n");
 			break;
 		case DPU_EVT_FENCE_RELEASE:
 			seq_printf(s, "%20s  %20s", "FENCE_RELEASE", "-\n");

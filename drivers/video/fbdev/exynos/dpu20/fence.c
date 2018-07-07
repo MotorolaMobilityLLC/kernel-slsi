@@ -16,7 +16,6 @@
 
 #include "decon.h"
 
-#define ACQ_FENCE_LEN 40
 char acq_fence_log[ACQ_FENCE_LEN];
 
 #if defined(CONFIG_SUPPORT_LEGACY_FENCE)

@@ -493,6 +493,7 @@ typedef enum dpu_event_type {
 	DPU_EVT_DSIM_COMMAND,
 	DPU_EVT_TRIG_MASK,
 	DPU_EVT_TRIG_UNMASK,
+	DPU_EVT_FENCE_ACQUIRE,
 	DPU_EVT_FENCE_RELEASE,
 	DPU_EVT_DECON_FRAMEDONE_WAIT,
 	DPU_EVT_DECON_SHUTDOWN,
@@ -551,7 +552,9 @@ struct disp_log_cursor {
 };
 
 /* Related with Fence */
+#define ACQ_FENCE_LEN 40
 struct disp_log_fence {
+	char acq_fence[MAX_DECON_WIN][ACQ_FENCE_LEN];
 	u32 timeline_value;
 	int timeline_max;
 };
@@ -642,6 +645,8 @@ void DPU_EVENT_LOG_WINUP_FLAGS(struct v4l2_subdev *sd, bool need_update,
 		bool reconfigure);
 void DPU_EVENT_LOG_APPLY_REGION(struct v4l2_subdev *sd,
 		struct decon_rect *apl_rect);
+void DPU_EVENT_LOG_FENCE(struct v4l2_subdev *sd,
+		struct decon_reg_data *regs, dpu_event_t type);
 void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon);
 int decon_create_debugfs(struct decon_device *decon);
 void decon_destroy_debugfs(struct decon_device *decon);

@@ -2078,6 +2078,9 @@ static void decon_update_regs(struct decon_device *decon,
 	decon_acquire_old_bufs(decon, regs, old_dma_bufs, old_plane_cnt);
 
 	decon_systrace(decon, 'C', "decon_fence_wait", 1);
+
+	DPU_EVENT_LOG_FENCE(&decon->sd, regs, DPU_EVT_FENCE_ACQUIRE);
+
 	for (i = 0; i < decon->dt.max_win; i++) {
 		if (regs->dma_buf_data[i][0].fence)
 			decon_wait_fence(regs->dma_buf_data[i][0].fence);
