@@ -2188,6 +2188,7 @@ int decon_check_supported_formats(enum decon_pixel_format format)
 	case DECON_PIXEL_FORMAT_RGBX_8888:
 	case DECON_PIXEL_FORMAT_BGRX_8888:
 	case DECON_PIXEL_FORMAT_RGB_565:
+	case DECON_PIXEL_FORMAT_BGR_565:
 	case DECON_PIXEL_FORMAT_NV12:
 	case DECON_PIXEL_FORMAT_NV12M:
 	case DECON_PIXEL_FORMAT_NV21:

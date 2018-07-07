@@ -763,6 +763,13 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 			fmt = IDMA_IMG_FORMAT_RGB565;
 		fmt_type = DPP_IMG_FORMAT_ARGB8888;
 		break;
+	case DECON_PIXEL_FORMAT_BGR_565:
+		if (p->is_comp)
+			fmt = IDMA_IMG_FORMAT_RGB565;
+		else
+			fmt = IDMA_IMG_FORMAT_BGR565;
+		fmt_type = DPP_IMG_FORMAT_ARGB8888;
+		break;
 	/* TODO: add ARGB1555 & ARGB4444 */
 	case DECON_PIXEL_FORMAT_ARGB_2101010:
 		fmt = IDMA_IMG_FORMAT_ARGB2101010;

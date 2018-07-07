@@ -2032,6 +2032,9 @@ void dsim_reg_set_cmd_transfer_mode(u32 id, u32 lp)
 
 void __dsim_dump(u32 id, struct dsim_regs *regs)
 {
+	if (!regs->regs)
+		return;
+
 	/* change to updated register read mode (meaning: SHADOW in DECON) */
 	dsim_info("=== DSIM %d LINK SFR DUMP ===\n", id);
 	dsim_reg_enable_shadow_read(id, 0);
