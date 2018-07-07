@@ -2381,28 +2381,28 @@
 	dpp_0: dpp@0x14884000 { /* GF */
 		compatible = "samsung,exynos9-dpp";
 		#pb-id-cells = <3>;
-		/* DPP, DPU_DMA, DPU_DMA_COMMON */
+		/* DPU_DMA, DPP, DPU_DMA_COMMON */
 		reg = <0x0 0x14884000 0x1000>, <0x0 0x14895000 0x1000>, <0x0 0x14880000 0x110>;
 		/* DPU_DMA IRQ, DPP IRQ */
 		interrupts = <0 210 0>, <0 214 0>;
-		attr = <0x50087>; /* DPP/IDMA/HDR10/FLIP/BLOCK/AFBC */
+		attr = <0x50007>; /* DPP/IDMA/FLIP/BLOCK/AFBC */
 		port = <0>; /* AXI port number */
 
 		/* HW restriction */
 		src_f_w = <16 65534 1>;
 		src_f_h = <16 8190 1>;
-		src_w = <16 4096 1>;
-		src_h = <16 4096 1>;
+		src_w = <16 2560 1>;
+		src_h = <16 3040 1>;
 		src_xy_align = <1 1>;
 
 		dst_f_w = <16 8190 1>;
 		dst_f_h = <16 8190 1>;
-		dst_w = <16 4096 1>;
-		dst_h = <16 4096 1>;
+		dst_w = <16 2560 1>;
+		dst_h = <16 3040 1>;
 		dst_xy_align = <1 1>;
 
-		blk_w = <4 4096 1>;
-		blk_h = <1 4096 1>;
+		blk_w = <4 2560 1>;
+		blk_h = <1 3040 1>;
 		blk_xy_align = <1 1>;
 
 		src_h_rot_max = <2160>;
