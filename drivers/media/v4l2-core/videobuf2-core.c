@@ -1538,7 +1538,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	    __get_num_ready_buffers(q) >= q->min_buffers_needed) {
 		ret = vb2_start_streaming(q);
 		if (ret)
-			goto unlock;
+			goto err;
 	}
 
 	/* Fill buffer information for the userspace */
