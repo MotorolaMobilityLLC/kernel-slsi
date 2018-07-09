@@ -617,7 +617,7 @@ static int __mfc_just_run_dec(struct mfc_ctx *ctx)
 		ret = mfc_run_dec_frame(ctx);
 		break;
 	case MFCINST_INIT:
-		ret = mfc_cmd_open_inst(ctx);
+		mfc_cmd_open_inst(ctx);
 		break;
 	case MFCINST_RETURN_INST:
 		ret = mfc_cmd_close_inst(ctx);
@@ -648,7 +648,7 @@ static int __mfc_just_run_dec(struct mfc_ctx *ctx)
 		ret = mfc_run_dec_init(ctx);
 		break;
 	case MFCINST_DPB_FLUSHING:
-		ret = mfc_cmd_dpb_flush(ctx);
+		mfc_cmd_dpb_flush(ctx);
 		break;
 	default:
 		mfc_info_ctx("can't try command(decoder just_run), state : %d\n", ctx->state);
@@ -674,7 +674,7 @@ static int __mfc_just_run_enc(struct mfc_ctx *ctx)
 			ret = mfc_run_enc_frame(ctx);
 			break;
 		case MFCINST_INIT:
-			ret = mfc_cmd_open_inst(ctx);
+			mfc_cmd_open_inst(ctx);
 			break;
 		case MFCINST_RETURN_INST:
 			ret = mfc_cmd_close_inst(ctx);
@@ -690,7 +690,7 @@ static int __mfc_just_run_enc(struct mfc_ctx *ctx)
 			ret = mfc_cmd_enc_init_buffers(ctx);
 			break;
 		case MFCINST_ABORT_INST:
-			ret = mfc_cmd_abort_inst(ctx);
+			mfc_cmd_abort_inst(ctx);
 			break;
 		default:
 			mfc_info_ctx("can't try command(encoder just_run), state : %d\n", ctx->state);

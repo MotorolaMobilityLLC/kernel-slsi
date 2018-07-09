@@ -74,11 +74,7 @@ static int __mfc_init_hw(struct mfc_dev *dev, enum mfc_buf_usage_type buf_type)
 	}
 
 	/* 3. Initialize firmware */
-	ret = mfc_cmd_sys_init(dev, buf_type);
-	if (ret) {
-		mfc_err_dev("Failed to send command to MFC - timeout\n");
-		goto err_init_hw;
-	}
+	mfc_cmd_sys_init(dev, buf_type);
 
 	mfc_debug(2, "Ok, now will write a command to init the system\n");
 	if (mfc_wait_for_done_dev(dev, MFC_REG_R2H_CMD_SYS_INIT_RET)) {
@@ -349,7 +345,7 @@ int mfc_run_dec_init(struct mfc_ctx *ctx)
 
 	mfc_debug(2, "[BUFINFO] Header addr: 0x%08llx\n", src_mb->addr[0][0]);
 	mfc_clean_ctx_int_flags(ctx);
-	mfc_cmd_init_decode(ctx);
+	mfc_cmd_dec_seq_header(ctx);
 
 	return 0;
 }
@@ -495,7 +491,7 @@ int mfc_run_enc_init(struct mfc_ctx *ctx)
 	mfc_debug(2, "[BUFINFO] Header addr: 0x%08llx\n", dst_mb->addr[0][0]);
 	mfc_clean_ctx_int_flags(ctx);
 
-	ret = mfc_cmd_init_encode(ctx);
+	ret = mfc_cmd_enc_seq_header(ctx);
 	return ret;
 }
 

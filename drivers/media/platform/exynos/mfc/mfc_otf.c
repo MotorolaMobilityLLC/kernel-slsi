@@ -392,7 +392,7 @@ int mfc_otf_run_enc_init(struct mfc_ctx *ctx)
 
 	mfc_set_enc_stride(ctx);
 	mfc_clean_ctx_int_flags(ctx);
-	ret = mfc_cmd_init_encode(ctx);
+	ret = mfc_cmd_enc_seq_header(ctx);
 
 	mfc_debug_leave();
 
