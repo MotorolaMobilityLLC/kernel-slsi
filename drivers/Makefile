@@ -198,3 +198,4 @@ obj-$(CONFIG_USBPD_CORE)		+= ccic/
 
 obj-$(CONFIG_VISION_SUPPORT)    += vision/
 
+obj-$(CONFIG_USE_CCIC)		+= ccic/
