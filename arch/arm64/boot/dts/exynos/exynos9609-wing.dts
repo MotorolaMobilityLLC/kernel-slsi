@@ -1200,40 +1200,6 @@
 		};
 	};
 
-	i2c_3: i2c@13860000 {
-		status = "okay";
-		cs35l35_left: cs35l35@40 {
-			#sound-dai-cells = <1>;
-			compatible = "cirrus,cs35l35";
-			reg = <0x40>;
-
-			pinctrl-names = "default";
-			pinctrl-0 = <&amp_irq &amp_reset>;
-
-			interrupt-parent = <&gpa0>;
-			interrupts = <2 0 0>;
-
-			reset-gpios = <&gpg3 3 0>;
-
-			VA-supply = <&l42_reg>;
-			VP-supply = <&V_SYS>;
-			cirrus,audio-channel = <0x0>;
-			cirrus,boost-ctl-millivolt = <7300>;
-			cirrus,sp-drv-strength = <0x1>;
-			cirrus,sp-drv-unused = <0x0>;
-			cirrus,boost-ind-nanohenry = <1000>;
-
-			cirrus,monitor-signal-format {
-				cirrus,imon = /bits/ 8 <0x03 0x04 0x00 0x06>;
-				cirrus,vmon = /bits/ 8 <0x03 0x00 0x00>;
-				cirrus,vpmon = /bits/ 8 <0x00 0x00 0x00>;
-				cirrus,vbstmon = /bits/ 8 <0x00 0x00 0x00>;
-				cirrus,vpbrstat = /bits/ 8 <0x00 0x00 0x00>;
-				cirrus,zerofill = /bits/ 8 <0x00 0x00 0x00>;
-			};
-		};
-	};
-
 	pinctrl@139B0000 {
 		codec_reset: codec-reset {
 			samsung,pins ="gpg3-2";
