@@ -1502,8 +1502,6 @@ int fimc_is_itf_set_fwboot(struct fimc_is_device_ischain *device, u32 val)
 
 static void fimc_is_itf_param_init(struct is_region *region)
 {
-	memset(&region->parameter, 0x0, sizeof(struct is_param_region));
-
 	memcpy(&region->parameter.sensor, &init_sensor_param,
 		sizeof(struct sensor_param));
 	memcpy(&region->parameter.taa, &init_taa_param,
@@ -1524,10 +1522,6 @@ static void fimc_is_itf_param_init(struct is_region *region)
 #ifdef SOC_SCP
 	memcpy(&region->parameter.scalerp, &init_scp_param,
 		sizeof(struct scp_param));
-#endif
-#ifdef SOC_MCS
-	memcpy(&region->parameter.mcs, &init_mcs_param,
-		sizeof(struct mcs_param));
 #endif
 	memcpy(&region->parameter.vra, &init_vra_param,
 		sizeof(struct vra_param));
@@ -3425,9 +3419,12 @@ static int fimc_is_ischain_open(struct fimc_is_device_ischain *device)
 	device->dvaddr_shared	= minfo->dvaddr +
 				(u32)((ulong)&device->is_region->shared[0] - minfo->kvaddr);
 
+	memset(&device->is_region->parameter, 0x0, sizeof(struct is_param_region));
+
 #ifdef ENABLE_HYBRID_FD
 	spin_lock_init(&device->is_region->fdae_info.slock);
 #endif
+
 #ifdef SOC_DRC
 	fimc_is_subdev_open(&device->drc, NULL, (void *)&init_drc_param.control);
 #endif
