@@ -31,9 +31,7 @@ static struct ifconn_notifier pnoti[IFCONN_NOTIFY_MAX];
 
 void _ifconn_show_attr(struct ifconn_notifier_template *t)
 {
-	if (t == NULL)
-		return;
-
+	if (t == NULL) return;
 	pr_info("%s, src:%s, dest:%s, id:%d, event:%d, data:0x%p\n",
 		__func__, IFCONN_NOTI_DEV_Print[t->src], IFCONN_NOTI_DEV_Print[t->dest], t->id, t->event, t->data);
 }

@@ -115,7 +115,7 @@ typedef enum {
 } ifconn_notifier_event_t;
 
 typedef enum {
-	IFCONN_NOTIFY_DP_PIN_UNKNOWN = 0,
+	IFCONN_NOTIFY_DP_PIN_UNKNOWN =0,
 	IFCONN_NOTIFY_DP_PIN_A,
 	IFCONN_NOTIFY_DP_PIN_B,
 	IFCONN_NOTIFY_DP_PIN_C,
