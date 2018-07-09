@@ -142,20 +142,38 @@ static void __mfc_save_logging_sfr(struct mfc_dev *dev)
 #endif
 }
 
+static int __mfc_get_curr_ctx(struct mfc_dev *dev)
+{
+	nal_queue_handle *nal_q_handle = dev->nal_q_handle;
+	int index;
+
+	if (nal_q_handle) {
+		if (nal_q_handle->nal_q_state == NAL_Q_STATE_STARTED) {
+			index = nal_q_handle->nal_q_in_handle->in_exe_count % NAL_Q_IN_QUEUE_SIZE;
+			return nal_q_handle->nal_q_in_handle->nal_q_in_addr->entry[index].dec.InstanceId;
+		}
+	}
+
+	return dev->curr_ctx;
+}
+
 static void __mfc_dump_state(struct mfc_dev *dev)
 {
 	nal_queue_handle *nal_q_handle = dev->nal_q_handle;
-	int i;
+	int i, curr_ctx;
 
 	pr_err("-----------dumping MFC device info-----------\n");
-	pr_err("power:%d, clock:%d, num_inst:%d, num_drm_inst:%d, fw_status:%d\n",
+	pr_err("power:%d, clock:%d, continue_clock_on:%d, num_inst:%d, num_drm_inst:%d, fw_status:%d\n",
 			mfc_pm_get_pwr_ref_cnt(dev), mfc_pm_get_clk_ref_cnt(dev),
-			dev->num_inst, dev->num_drm_inst, dev->fw.status);
+			dev->continue_clock_on, dev->num_inst, dev->num_drm_inst, dev->fw.status);
 	pr_err("hwlock bits:%#lx / dev:%#lx, curr_ctx:%d (is_drm:%d),"
 			" preempt_ctx:%d, work_bits:%#lx\n",
 			dev->hwlock.bits, dev->hwlock.dev,
 			dev->curr_ctx, dev->curr_ctx_is_drm,
 			dev->preempt_ctx, mfc_get_bits(&dev->work_bits));
+	pr_err("has 2sysmmu:%d, has hwfc:%d, has mmcache:%d, shutdown:%d, sleep:%d, itmon_notified:%d\n",
+			dev->has_2sysmmu, dev->has_hwfc, dev->has_mmcache,
+			dev->shutdown, dev->sleep, dev->itmon_notified);
 	pr_err("options debug_level:%d, debug_mode:%d, mmcache:%d, perf_boost:%d\n",
 			debug_level, dev->pdata->debug_mode, dev->mmcache.is_on_status, perf_boost_mode);
 	pr_err("NAL-Q state:%d, exception:%d, in_exe_cnt: %d, out_exe_cnt: %d\n",
@@ -163,12 +181,13 @@ static void __mfc_dump_state(struct mfc_dev *dev)
 			nal_q_handle->nal_q_in_handle->in_exe_count,
 			nal_q_handle->nal_q_out_handle->out_exe_count);
 
+	curr_ctx = __mfc_get_curr_ctx(dev);
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++)
 		if (dev->ctx[i])
-			pr_err("MFC ctx[%d] %s(%d) state:%d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d)\n"
-				"     interrupt(cond:%d, type:%d, err:%d)\n",
+			pr_err("MFC ctx[%d] %s(%scodec_type:%d) state:%d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d), interrupt(cond:%d, type:%d, err:%d)\n",
 				dev->ctx[i]->num,
 				dev->ctx[i]->type == MFCINST_DECODER ? "DEC" : "ENC",
+				curr_ctx == i ? "curr_ctx! " : "",
 				dev->ctx[i]->codec_mode, dev->ctx[i]->state,
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_queue),
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_queue),
@@ -197,7 +216,7 @@ void __mfc_dump_buffer_info(struct mfc_dev *dev)
 {
 	struct mfc_ctx *ctx;
 
-	ctx = dev->ctx[dev->curr_ctx];
+	ctx = dev->ctx[__mfc_get_curr_ctx(dev)];
 	if (ctx) {
 		pr_err("-----------dumping MFC buffer info (fault at: %#x)\n",
 				dev->logging_data->fault_addr);
@@ -267,10 +286,58 @@ void __mfc_dump_buffer_info(struct mfc_dev *dev)
 	}
 }
 
+static void __mfc_dump_struct(struct mfc_dev *dev)
+{
+	struct mfc_ctx *ctx = NULL;
+	int i, size = 0;
+
+	pr_err("-----------dumping MFC struct info-----------\n");
+	ctx = dev->ctx[__mfc_get_curr_ctx(dev)];
+	if (!ctx) {
+		for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
+			if (dev->ctx[i]) {
+				ctx = dev->ctx[i];
+				break;
+			}
+		}
+
+		if (!ctx) {
+			pr_err("there is no ctx structure for dumpping\n");
+			return;
+		}
+		pr_err("curr ctx is changed %d -> %d\n", dev->curr_ctx, ctx->num);
+	}
+
+	/* mfc_platdata */
+	size = (unsigned long)&dev->pdata->enc_param_num - (unsigned long)dev->pdata;
+	print_hex_dump(KERN_ERR, "dump mfc_pdata: ", DUMP_PREFIX_ADDRESS,
+			32, 4, dev->pdata, size, false);
+
+	/* mfc_ctx */
+	size = (unsigned long)&ctx->fh - (unsigned long)ctx;
+	print_hex_dump(KERN_ERR, "dump mfc_ctx: ", DUMP_PREFIX_ADDRESS,
+			32, 4, ctx, size, false);
+
+	if (ctx->type == MFCINST_DECODER && ctx->dec_priv != NULL) {
+		/* mfc_dec */
+		size = (unsigned long)&ctx->dec_priv->assigned_dpb[0] - (unsigned long)ctx->dec_priv;
+		print_hex_dump(KERN_ERR, "dump mfc_dec: ", DUMP_PREFIX_ADDRESS,
+				32, 4, ctx->dec_priv, size, false);
+	} else if (ctx->type == MFCINST_ENCODER && ctx->enc_priv != NULL) {
+		/* mfc_enc */
+		size = (unsigned long)&ctx->enc_priv->params - (unsigned long)ctx->enc_priv;
+		print_hex_dump(KERN_ERR, "dump mfc_enc: ", DUMP_PREFIX_ADDRESS,
+				32, 4, ctx->enc_priv, size, false);
+		print_hex_dump(KERN_ERR, "dump mfc_enc_param: ", DUMP_PREFIX_ADDRESS,
+				32, 1, &ctx->enc_priv->params, sizeof(struct mfc_enc_params), false);
+	}
+}
+
 static void __mfc_dump_info_without_regs(struct mfc_dev *dev)
 {
 	__mfc_dump_state(dev);
 	__mfc_dump_trace(dev);
+	__mfc_dump_struct(dev);
 }
 
 static void __mfc_dump_info(struct mfc_dev *dev)
@@ -279,7 +346,9 @@ static void __mfc_dump_info(struct mfc_dev *dev)
 	__mfc_save_logging_sfr(dev);
 	__mfc_dump_buffer_info(dev);
 	__mfc_dump_regs(dev);
-	exynos_sysmmu_show_status(dev->device);
+	/* If there was fault addr, sysmmu info is already printed out */
+	if (!dev->logging_data->fault_addr)
+		exynos_sysmmu_show_status(dev->device);
 }
 
 static void __mfc_dump_info_and_stop_hw(struct mfc_dev *dev)

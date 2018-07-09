@@ -819,8 +819,8 @@ struct mfc_dev {
 
 #ifdef CONFIG_EXYNOS_ITMON
 	struct notifier_block itmon_nb;
-	int itmon_notified;
 #endif
+	int itmon_notified;
 };
 
 /**
@@ -1296,10 +1296,8 @@ struct mfc_enc {
 	size_t tmv_buffer_size;
 
 	unsigned int slice_mode;
-	union {
-		unsigned int mb;
-		unsigned int bits;
-	} slice_size;
+	unsigned int slice_size_mb;
+	unsigned int slice_size_bits;
 	unsigned int in_slice;
 	unsigned int buf_full;
 
@@ -1423,6 +1421,9 @@ struct mfc_ctx {
 	int batch_mode;
 	bool check_dump;
 
+	struct vb2_queue vq_src;
+	struct vb2_queue vq_dst;
+
 	/*
 	 * new variables should be added above
 	 * ============ boundary line ============
@@ -1430,8 +1431,6 @@ struct mfc_ctx {
 	 */
 
 	/* external structure */
-	struct vb2_queue vq_src;
-	struct vb2_queue vq_dst;
 	struct v4l2_fh fh;
 
 	/* per buffer controls */

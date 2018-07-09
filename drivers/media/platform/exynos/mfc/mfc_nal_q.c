@@ -540,10 +540,10 @@ static void __mfc_nal_q_set_slice_mode(struct mfc_ctx *ctx, EncoderInputStr *pIn
 	/* multi-slice MB number or bit size */
 	if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) ||
 			(enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW)) {
-		pInStr->MsliceSizeMb = enc->slice_size.mb;
+		pInStr->MsliceSizeMb = enc->slice_size_mb;
 	} else if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) ||
 			(enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES)){
-		pInStr->MsliceSizeBits = enc->slice_size.bits;
+		pInStr->MsliceSizeBits = enc->slice_size_bits;
 	} else {
 		pInStr->MsliceSizeMb = 0;
 		pInStr->MsliceSizeBits = 0;
@@ -1641,6 +1641,7 @@ int mfc_nal_q_enqueue_in_buf(struct mfc_dev *dev, struct mfc_ctx *ctx,
 
 	input_count = mfc_get_nal_q_input_count();
 	input_exe_count = mfc_get_nal_q_input_exe_count();
+	nal_q_in_handle->in_exe_count = input_exe_count;
 	input_diff = input_count - input_exe_count;
 
 	/*
