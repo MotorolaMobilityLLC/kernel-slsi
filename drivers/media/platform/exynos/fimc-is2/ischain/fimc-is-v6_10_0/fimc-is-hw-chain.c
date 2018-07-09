@@ -823,7 +823,7 @@ int fimc_is_hw_get_address(void *itfc_data, void *pdev_data, int hw_id)
 			return -EINVAL;
 		}
 
-		itf_hwip->hw_ip->regs_start = mem_res->start;
+		itf_hwip->hw_ip->regs_start = mem_res->start + LIC_3AA1_OFFSET_ADDR;
 		itf_hwip->hw_ip->regs_end = mem_res->end;
 		itf_hwip->hw_ip->regs = ioremap_nocache(mem_res->start, resource_size(mem_res)) + LIC_3AA1_OFFSET_ADDR;
 		if (!itf_hwip->hw_ip->regs) {
