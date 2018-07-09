@@ -219,12 +219,6 @@
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
 		};
-		usbpd_irq: usbpd-irq {
-			samsung,pins = "gpa1-1";
-			samsung,pin-function = <0xf>;
-			samsung,pin-pud = <3>;
-			samsung,pin-drv = <3>;
-		};
 	};
 
 	pinctrl@139B0000 {
@@ -240,7 +234,7 @@
 		status = "okay";
 		compatible = "samsung,ifconn";
 		ifconn,usbpd = "s2mm005";
-		ifconn,muic = "s2mu004-muic";
+		ifconn,muic = "s2mu106-muic";
 	};
 
 	speedy@11a10000 {
@@ -1950,14 +1944,21 @@
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
+
+	usbpd_irq: usbpd-irq {
+		samsung,pins = "gpa2-2";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <3>;
+	};
 };
 
 &i2c_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	s2mu004-fuelgauge@3B {
-		compatible = "samsung,s2mu004-fuelgauge";
+	s2mu106-fuelgauge@3B {
+		compatible = "samsung,s2mu106-fuelgauge";
 		reg = <0x3B>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fuel_irq>;
@@ -1970,19 +1971,49 @@
 		fuelgauge,type_str = "SDI";
 		fuelgauge,model_type = <1>;
 	};
+
+	usbpd-s2mu106@3C {
+		compatible = "sec-usbpd,i2c";
+		reg = <0x3C>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbpd_irq>;
+		usbpd,usbpd_int = <&gpa2 2 0>;
+		usb_sw_sel = <&gpg0 3 0>;
+	};
+
+	pdic-manager {
+		/* sink */
+		pdic,max_power = <5000>;
+		pdic,op_power = <2500>;
+		pdic,max_voltage = <6000>;
+		pdic,max_current = <2000>;
+		pdic,min_current = <500>;
+
+		pdic,giveback = <0>;
+		pdic,usb_com_capable = <1>;
+		pdic,no_usb_suspend = <1>;
+
+		/* source */
+		source,max_voltage = <5000>;
+		source,min_voltage = <4000>;
+		source,max_power = <2500>;
+
+		/* sink cap */
+		sink,capable_max_voltage = <9000>;
+	};
 };
 
 &i2c_1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	s2mu004@3d {
-		compatible = "samsung,s2mu004mfd";
+	s2mu106@3d {
+		compatible = "samsung,s2mu106mfd";
 		reg = <0x3d>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&if_pmic_irq>;
-		s2mu004,irq-gpio = <&gpa2 1 0>;
-		s2mu004,wakeup;
+		s2mu106,irq-gpio = <&gpa2 1 0>;
+		s2mu106,wakeup;
 	};
 
 	muic {
@@ -1992,9 +2023,9 @@
 		muic,uart_txd = "gpq0-4";
 	};
 
-	s2mu004-charger {
+	s2mu106-charger {
 		status = "okay";
-		battery,charger_name = "s2mu004-charger";
+		battery,charger_name = "s2mu106-charger";
 		battery,chg_gpio_en = <0>;
 		battery,chg_polarity_en = <0>;
 		battery,chg_gpio_status = <0>;
@@ -2022,39 +2053,4 @@
 &fmp_0 {
 	exynos,block-type = "sda";
 	exynos,fips-block_offset = <5>;
-};
-
-&hsi2c_3 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	status = "okay";
-	usbpd-s2mm005@33 {
-		compatible = "sec-s2mm005,i2c";
-		reg = <0x33>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usbpd_irq>;
-		interrupt-parent = <&gpa1>;
-		usbpd,usbpd_int = <&gpa1 1 0>;
-	};
-
-	usbpd-manager {
-		/* sink */
-		pdic,max_power = <5000>;
-		pdic,op_power = <2500>;
-		pdic,max_voltage = <9000>;
-		pdic,max_current = <2000>;
-		pdic,min_current = <500>;
-
-		pdic,giveback = <0>;
-		pdic,usb_com_capable = <1>;
-		pdic,no_usb_suspend = <1>;
-
-		/* source */
-		source,max_voltage = <5000>;
-		source,min_voltage = <4000>;
-		source,max_power = <2500>;
-
-		/* sink cap */
-		sink,capable_max_voltage = <9000>;
-	};
 };

@@ -80,8 +80,10 @@ static void s2mu106_src(struct i2c_client *i2c);
 static void s2mu106_snk(struct i2c_client *i2c);
 static void s2mu106_assert_rd(void *_data);
 static void s2mu106_assert_rp(void *_data);
+#if defined(CONFIG_DUAL_ROLE_USB_INTF)
 static int s2mu106_set_attach(struct s2mu106_usbpd_data *pdic_data, u8 mode);
 static int s2mu106_set_detach(struct s2mu106_usbpd_data *pdic_data, u8 mode);
+#endif
 static void s2mu106_usbpd_check_rid(struct s2mu106_usbpd_data *pdic_data);
 static int s2mu106_usbpd_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest);
 static int s2mu106_usbpd_write_reg(struct i2c_client *i2c, u8 reg, u8 value);
@@ -121,6 +123,7 @@ static void s2mu106_usbpd_test_read(struct s2mu106_usbpd_data *usbpd_data)
 			__func__, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
 }
 
+#if defined(CONFIG_DUAL_ROLE_USB_INTF)
 void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode)
 {
 	u8 data = 0;
@@ -151,6 +154,7 @@ void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode)
 skip:
 	mutex_unlock(&usbpd_data->lpm_mutex);
 }
+#endif
 
 void vbus_turn_on_ctrl(struct s2mu106_usbpd_data *usbpd_data, bool enable)
 {
