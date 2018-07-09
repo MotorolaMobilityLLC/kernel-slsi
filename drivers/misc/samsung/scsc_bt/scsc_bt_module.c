@@ -74,6 +74,9 @@ static int ant_service_start_count;
 #endif
 
 static u64 bluetooth_address;
+#ifdef CONFIG_ARCH_EXYNOS
+static char *bluetooth_address_fallback = "00:00:00:00:00:00";
+#endif
 static u32 bt_info_trigger;
 static u32 bt_info_interrupt;
 static u32 firmware_control;
@@ -92,6 +95,12 @@ static struct scsc_bt_audio bt_audio;
 module_param(bluetooth_address, ullong, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(bluetooth_address,
 		 "Bluetooth address");
+
+#ifdef CONFIG_ARCH_EXYNOS
+module_param(bluetooth_address_fallback, charp, 0444);
+MODULE_PARM_DESC(bluetooth_address_fallback,
+		 "Bluetooth address as proposed by the driver");
+#endif
 
 module_param(service_start_count, int, S_IRUGO);
 MODULE_PARM_DESC(service_start_count,
@@ -1978,6 +1987,16 @@ static int __init scsc_bt_module_init(void)
 
 	spin_lock_init(&bt_service.avdtp_detect.lock);
 	spin_lock_init(&bt_service.avdtp_detect.fw_write_lock);
+
+#ifdef CONFIG_ARCH_EXYNOS
+	sprintf(bluetooth_address_fallback, "%02X:%02X:%02X:%02X:%02X:%02X",
+	       (exynos_soc_info.unique_id & 0x000000FF0000) >> 16,
+	       (exynos_soc_info.unique_id & 0x00000000FF00) >> 8,
+	       (exynos_soc_info.unique_id & 0x0000000000FF) >> 0,
+	       (exynos_soc_info.unique_id & 0xFF0000000000) >> 40,
+	       (exynos_soc_info.unique_id & 0x00FF00000000) >> 32,
+	       (exynos_soc_info.unique_id & 0x0000FF000000) >> 24);
+#endif
 
 #ifdef CONFIG_SCSC_ANT
 	SCSC_TAG_DEBUG(BT_COMMON, "dev=%u class=%p\n",
