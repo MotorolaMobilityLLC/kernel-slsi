@@ -68,9 +68,9 @@
 	};
 
 	dsim_0: dsim@0x148E0000 {
-		lcd_info = <&s6e3fa0_vid>;
-		/* reset */
-		gpios = <&gpg1 4 0x1>, <&gpg1 7 0x1>;
+		lcd_info = <&nt36672a>;
+		/* reset, lcd_bias_enp, lcd_bias_enn, lcd_bl_en*/
+		gpios = <&gpg1 4 0x1>, <&gpg3 1 0x1>, <&gpg3 0 0x1>, <&gpg2 1 0x1>;
 	};
 
 	/* USI_0_SHUB */
