@@ -10,6 +10,10 @@
 static DEFINE_MUTEX(kic_lock);
 static struct slsi_kic_pdata *pdata;
 
+#define SLSI_MAX_NUM_KIC_OPS 7
+#define SLSI_MAX_NUM_MULTICAST_GROUP 1
+
+static struct genl_ops slsi_kic_ops[SLSI_MAX_NUM_KIC_OPS];
 
 static int slsi_kic_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			     struct genl_info *info)
@@ -38,9 +42,13 @@ static void slsi_kic_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 	/* Called AFTER the command cb - could do something here */
 }
 
+static const struct genl_multicast_group slsi_kic_general_system_mcgrp[SLSI_MAX_NUM_MULTICAST_GROUP] = {
+	{ .name = "general_system", },
+};
+
+
 /* The netlink family */
-static struct genl_family                slsi_kic_fam = {
-	.id = GENL_ID_GENERATE, /* Don't bother with a hardcoded ID */
+static struct genl_family slsi_kic_fam = {
 	.name = "slsi_kic",     /* Have users key off the name instead */
 	.hdrsize = 0,           /* No private header */
 	.version = 2,
@@ -48,12 +56,11 @@ static struct genl_family                slsi_kic_fam = {
 	.maxattr = SLSI_KIC_ATTR_MAX,
 	.pre_doit = slsi_kic_pre_doit,
 	.post_doit = slsi_kic_post_doit,
+	.ops = slsi_kic_ops,
+	.n_ops = SLSI_MAX_NUM_KIC_OPS,
+	.mcgrps = slsi_kic_general_system_mcgrp,
+	.n_mcgrps = SLSI_MAX_NUM_MULTICAST_GROUP,
 };
-
-static const struct genl_multicast_group slsi_kic_general_system_mcgrp[] = {
-	{ .name = "general_system", },
-};
-
 
 /**
  * Message building helpers
@@ -661,7 +668,7 @@ int slsi_kic_firmware_event_ind(uint16_t firmware_event_type, enum slsi_kic_tech
 EXPORT_SYMBOL(slsi_kic_firmware_event_ind);
 
 
-static const struct genl_ops slsi_kic_ops[] = {
+static struct genl_ops slsi_kic_ops[SLSI_MAX_NUM_KIC_OPS] = {
 	{
 		.cmd = SLSI_KIC_CMD_KIC_INTERFACE_VERSION_NUMBER_REQ,
 		.doit = slsi_kic_interface_version_number_req,
@@ -731,9 +738,8 @@ static int __init slsi_kic_init(void)
 	sema_init(&pdata->chip_details.proxy_service_list_mutex, 1);
 	pdata->state = idle;
 
-	err = genl_register_family_with_ops_groups(&slsi_kic_fam, slsi_kic_ops,
-						   slsi_kic_general_system_mcgrp);
-	if (err)
+	err = genl_register_family(&slsi_kic_fam);
+	if (err != 0)
 		goto err_out;
 
 	mutex_unlock(&kic_lock);
@@ -741,6 +747,7 @@ static int __init slsi_kic_init(void)
 	return 0;
 
 err_out:
+	genl_unregister_family(&slsi_kic_fam);
 	mutex_unlock(&kic_lock);
 	SCSC_TAG_ERR(KIC_COMMON, "%s Exit - err %d\n", __func__, err);
 	return err;
