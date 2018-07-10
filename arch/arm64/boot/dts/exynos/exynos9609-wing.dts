@@ -1013,6 +1013,20 @@
 			samsung,pin-con-pdn =<3>;
 			samsung,pin-pud-pdn = <0>;
 		};
+
+		vdd_on: vdd-on {
+			samsung,pins ="gpg3-4";
+			samsung,pin-function = <1>;
+			samsung,pin-val = <1>;
+			samsung,pin-pud = <3>;
+		};
+
+		vdd_off: vdd-off {
+			samsung,pins ="gpg3-4";
+			samsung,pin-function = <0>;
+			samsung,pin-val = <0>;
+			samsung,pin-pud = <1>;
+		};
 	};
 
 	pinctrl@139B0000 {

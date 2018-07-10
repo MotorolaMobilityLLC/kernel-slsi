@@ -28,6 +28,9 @@
 		reg = <0x62>;
 		status = "ok";
 
+		pinctrl-names = "on_state", "off_state";
+		pinctrl-0 = <&vdd_on>;
+		pinctrl-1 = <&vdd_off>;
 		novatek,reset-gpio = <&gpa1 3 0>;
 		novatek,irq-gpio = <&gpa2 4 0>;
 
