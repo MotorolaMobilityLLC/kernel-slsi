@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "nt36xxx.h"
 #include "nt36xxx_mp_ctrlram.h"
