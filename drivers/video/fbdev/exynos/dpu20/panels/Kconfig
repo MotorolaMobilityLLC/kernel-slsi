@@ -39,6 +39,11 @@ config EXYNOS_DECON_LCD_S6E3FA7
 	tristate "S6E3FA7 AMOLED FHD LCD driver(1080 x 2220)"
 	default n
 
+config EXYNOS_DECON_LCD_NT36672A
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "NT3667A TFT FHD+ LCD driver(1080 x 2246)"
+	default n
+
 config EXYNOS_DECON_LCD_EMUL_DISP
 	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
 	tristate "Virtual LCD driver for emulator(800 x 1280)"
