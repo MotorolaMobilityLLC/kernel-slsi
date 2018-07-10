@@ -912,7 +912,6 @@ do_reset:
 	/* dump hw & sram into file */
 	chub_dbg_dump_hw(ipc, err);
 	if (need_reset) {
-#ifdef CHUB_RESET_ENABLE
 		ret = contexthub_reset(ipc);
 		if (ret)
 			dev_warn(ipc->dev, "%s: fails to reset %d.\n",
@@ -925,9 +924,6 @@ do_reset:
 				if (ipc->irq_wdt)
 					enable_irq(ipc->irq_wdt);
 		}
-#else
-		atomic_set(&ipc->chub_status, CHUB_ST_HANG);
-#endif
 	} else {
 		/* dump log into file: DO NOT logbuf dueto sram corruption */
 		log_dump_all(err);
@@ -1047,7 +1043,7 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CHUB_RESET_ENABLE
+#ifdef WDT_ENABLE
 static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 {
 	struct contexthub_ipc_info *ipc = data;
@@ -1179,7 +1175,7 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 		return ret;
 	}
 
-#ifdef CHUB_RESET_ENABLE
+#ifdef WDT_ENABLE
 	/* get wdt interrupt optionally */
 	chub->irq_wdt = irq_of_parse_and_map(node, 1);
 	if (chub->irq_wdt > 0) {
