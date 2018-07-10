@@ -631,6 +631,10 @@ int dsim_reset_panel(struct dsim_device *dsim)
 	gpio_set_value(res->lcd_reset, 0);
 	usleep_range(5000, 6000);
 	gpio_set_value(res->lcd_reset, 1);
+	usleep_range(5000, 6000);
+	gpio_set_value(res->lcd_reset, 0);
+	usleep_range(5000, 6000);
+	gpio_set_value(res->lcd_reset, 1);
 
 	gpio_free(res->lcd_reset);
 
@@ -670,6 +674,7 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			gpio_free(res->lcd_power[1]);
 			usleep_range(10000, 11000);
 		}
+
 		if (res->lcd_power[2] > 0) {
 			ret = gpio_request_one(res->lcd_power[2],
 					GPIOF_OUT_INIT_HIGH, "lcd_power2");
@@ -680,6 +685,7 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			gpio_free(res->lcd_power[2]);
 			usleep_range(10000, 11000);
 		}
+
 		if (res->regulator_1p8v > 0) {
 			ret = regulator_enable(res->regulator_1p8v);
 			if (ret) {
@@ -726,6 +732,7 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			gpio_free(res->lcd_power[1]);
 			usleep_range(5000, 6000);
 		}
+
 		if (res->lcd_power[2] > 0) {
 			ret = gpio_request_one(res->lcd_power[2],
 					GPIOF_OUT_INIT_LOW, "lcd_power2");
@@ -736,6 +743,7 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			gpio_free(res->lcd_power[2]);
 			usleep_range(5000, 6000);
 		}
+
 		if (res->regulator_1p8v > 0) {
 			ret = regulator_disable(res->regulator_1p8v);
 			if (ret) {
