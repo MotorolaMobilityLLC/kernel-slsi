@@ -1978,7 +1978,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&usbpd_irq>;
 		usbpd,usbpd_int = <&gpa2 2 0>;
-		usb_sw_sel = <&gpg0 3 0>;
 	};
 
 	pdic-manager {
