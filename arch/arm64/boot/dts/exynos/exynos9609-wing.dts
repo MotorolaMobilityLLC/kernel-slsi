@@ -16,6 +16,7 @@
 #include "modem-ss360ap-sit-pdata.dtsi"
 #include "exynos9610-debug.dtsi"
 #include "exynos9610-display-lcd.dtsi"
+#include "novatek-nt36xxx-i2c.dtsi"
 
 / {
 	model = "Samsung Wing board based on EXYNOS9610";
@@ -918,25 +919,6 @@
 			samsung,pins = "gpa2-4";
 			samsung,pin-function = <0>;
 			samsung,pin-pud = <1>;
-		};
-	};
-
-	i2c_4:i2c@13870000 {
-		status = "okay";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		touchscreen@20 {
-			compatible = "synaptics,rmi4";
-			reg = <0x20>;
-			pinctrl-names = "on_state", "off_state";
-			pinctrl-0 = <&attn_irq>;
-			pinctrl-1 = <&attn_input>;
-			synaptics,irq_gpio = <&gpa2 4 0>;
-			synaptics,irq_type = <8200>;
-			synaptics,max_coords = <1440 2560>;     /* x y */
-			synaptics,num_lines = <29 16>;          /* rx tx */
-			synaptics,regulator_dvdd = "VDDD_1.8V_OIS";
-			synaptics,regulator_avdd = "vdd_ldo41";
 		};
 	};
 
