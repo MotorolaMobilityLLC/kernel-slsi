@@ -518,6 +518,8 @@ int tsmux_ioctl_m2m_run(struct tsmux_context *ctx)
 	int i = 0;
 	int dst_len;
 	int job_id;
+	int cur_rtp_seq_num;
+	int cur_ts_audio_cc;
 	uint8_t *psi_data = NULL;
 
 	print_tsmux(TSMUX_M2M, "%s++\n", __func__);
@@ -546,12 +548,6 @@ int tsmux_ioctl_m2m_run(struct tsmux_context *ctx)
 		m2m_job = &ctx->m2m_cmd_queue.m2m_job[i];
 		if (m2m_job->pes_hdr.pts39_16 != -1) {
 			tsmux_set_info(ctx, &m2m_job->swp_ctrl, &m2m_job->hex_ctrl);
-
-			print_tsmux(TSMUX_COMMON, "m2m job_queue, seq 0x%x, over %d, a_cc %.2x, psi_en %d\n",
-				ctx->rtp_ts_info.rtp_seq_number,
-				ctx->rtp_ts_info.rtp_seq_override,
-				ctx->rtp_ts_info.ts_audio_cc,
-				m2m_job->pkt_ctrl.psi_en);
 
 			if (m2m_job->pkt_ctrl.psi_en) {
 				/* PAT CC should be set by tsmux device driver */
@@ -583,10 +579,14 @@ int tsmux_ioctl_m2m_run(struct tsmux_context *ctx)
 				m2m_job->pkt_ctrl.rtp_seq_override = 1;
 				m2m_job->ts_hdr.continuity_counter = ctx->rtp_ts_info.ts_audio_cc;
 				ctx->rtp_ts_info.rtp_seq_override = 0;
+				print_tsmux(TSMUX_COMMON, "m2m job_queue, rtp seq 0x%x\n",
+					ctx->rtp_ts_info.rtp_seq_number);
+
 			} else {
 				m2m_job->pkt_ctrl.rtp_seq_override = 0;
 			}
 			m2m_job->ts_hdr.continuity_counter = ctx->rtp_ts_info.ts_audio_cc;
+			print_tsmux(TSMUX_COMMON, "m2m job_queue, a_cc %.2x\n", ctx->rtp_ts_info.ts_audio_cc);
 
 			tsmux_job_queue(ctx,
 				&m2m_job->pkt_ctrl,
@@ -604,6 +604,8 @@ int tsmux_ioctl_m2m_run(struct tsmux_context *ctx)
 	wait_event_interruptible_timeout(ctx->m2m_wait_queue,
 		is_m2m_job_done(ctx), usecs_to_jiffies(MAX_JOB_DONE_WAIT_TIME));
 
+	spin_lock_irqsave(&tsmux_dev->device_spinlock, flags);
+
 	for (i = 0; i < TSMUX_MAX_M2M_CMD_QUEUE_NUM; i++) {
 		m2m_job = &ctx->m2m_cmd_queue.m2m_job[i];
 		if (m2m_job->pes_hdr.pts39_16 != -1) {
@@ -614,21 +616,27 @@ int tsmux_ioctl_m2m_run(struct tsmux_context *ctx)
 			job_id = get_m2m_job_id(i);
 			dst_len = tsmux_get_dst_len(tsmux_dev, job_id);
 			m2m_job->out_buf.actual_size = dst_len;
-			ctx->rtp_ts_info.ts_audio_cc = increment_ts_continuity_counter(
-				ctx->rtp_ts_info.ts_audio_cc, dst_len,
-				m2m_job->pkt_ctrl.rtp_size, m2m_job->pkt_ctrl.psi_en);
-			ctx->rtp_ts_info.rtp_seq_number = increment_rtp_sequence_number(
-				ctx->rtp_ts_info.rtp_seq_number, dst_len,
-				m2m_job->pkt_ctrl.rtp_size);
-			print_tsmux(TSMUX_COMMON, "m2m job_done, seq 0x%x, over %d, a_cc 0x%x\n",
-				ctx->rtp_ts_info.rtp_seq_number,
-				ctx->rtp_ts_info.rtp_seq_override,
-				ctx->rtp_ts_info.ts_audio_cc);
 
+			cur_ts_audio_cc = ctx->rtp_ts_info.ts_audio_cc;
+			ctx->rtp_ts_info.ts_audio_cc = increment_ts_continuity_counter(
+				cur_ts_audio_cc, dst_len,
+				m2m_job->pkt_ctrl.rtp_size, m2m_job->pkt_ctrl.psi_en);
+
+			cur_rtp_seq_num = ctx->rtp_ts_info.rtp_seq_number;
+			ctx->rtp_ts_info.rtp_seq_number = increment_rtp_sequence_number(
+				cur_rtp_seq_num, dst_len,
+				m2m_job->pkt_ctrl.rtp_size);
+
+			print_tsmux(TSMUX_COMMON, "m2m job_done, cur seq 0x%x, next seq 0x%x\n",
+				cur_rtp_seq_num, ctx->rtp_ts_info.rtp_seq_number);
+			print_tsmux(TSMUX_COMMON, "m2m job_done, cur a_cc 0x%x, next a_cc 0x%x\n",
+				cur_ts_audio_cc, ctx->rtp_ts_info.ts_audio_cc);
 			print_tsmux(TSMUX_M2M, "m2m %d, dst_len_reg %d",
 				i, dst_len);
 		}
 	}
+
+	spin_unlock_irqrestore(&tsmux_dev->device_spinlock, flags);
 
 	print_tsmux(TSMUX_M2M, "%s--\n", __func__);
 
@@ -856,18 +864,19 @@ int packetize(struct packetizing_param *param)
 
 	tsmux_set_info(ctx, &config->swp_ctrl, &config->hex_ctrl);
 
-	print_tsmux(TSMUX_COMMON, "otf job_queue, seq 0x%x, over %d, v_cc 0x%x\n",
-		ctx->rtp_ts_info.rtp_seq_number, ctx->rtp_ts_info.rtp_seq_override,
-		ctx->rtp_ts_info.ts_video_cc);
 	if (ctx->rtp_ts_info.rtp_seq_override == 1) {
 		config->rtp_hdr.seq = ctx->rtp_ts_info.rtp_seq_number;
 		config->pkt_ctrl.rtp_seq_override = 1;
 		config->ts_hdr.continuity_counter = ctx->rtp_ts_info.ts_video_cc;
 		ctx->rtp_ts_info.rtp_seq_override = 0;
+		print_tsmux(TSMUX_COMMON, "otf job_queue, seq 0x%x\n",
+			ctx->rtp_ts_info.rtp_seq_number);
 	} else {
 		config->pkt_ctrl.rtp_seq_override = 0;
 	}
 	config->ts_hdr.continuity_counter = ctx->rtp_ts_info.ts_video_cc;
+	print_tsmux(TSMUX_COMMON, "otf job_queue, v_cc 0x%x\n",
+		ctx->rtp_ts_info.ts_video_cc);
 
 	ret = tsmux_job_queue(ctx,
 			&config->pkt_ctrl,
@@ -931,6 +940,8 @@ static bool tsmux_ioctl_otf_dq_buf(struct tsmux_context *ctx)
 	int out_size = 0;
 	int rtp_size = 0;
 	int psi_en = 0;
+	int cur_rtp_seq_num;
+	int cur_ts_video_cc;
 	ktime_t ktime;
 	int64_t timestamp;
 
@@ -949,21 +960,24 @@ static bool tsmux_ioctl_otf_dq_buf(struct tsmux_context *ctx)
 		rtp_size = ctx->otf_cmd_queue.config.pkt_ctrl.rtp_size;
 		psi_en = ctx->otf_cmd_queue.config.pkt_ctrl.psi_en;
 
+		cur_ts_video_cc = ctx->rtp_ts_info.ts_video_cc;
 		ctx->rtp_ts_info.ts_video_cc = increment_ts_continuity_counter(
-			ctx->rtp_ts_info.ts_video_cc, out_size, rtp_size, psi_en);
+			cur_ts_video_cc, out_size, rtp_size, psi_en);
 #ifdef ADD_NULL_TS_PACKET
 		// TSMUX_HAL will add null ts packet after end of frame
 		ctx->rtp_ts_info.ts_video_cc++;
 		if (ctx->rtp_ts_info.ts_video_cc == 16)
 			ctx->rtp_ts_info.ts_video_cc = 0;
 #endif
+		cur_rtp_seq_num = ctx->rtp_ts_info.rtp_seq_number;
 		ctx->rtp_ts_info.rtp_seq_number = increment_rtp_sequence_number(
-			ctx->rtp_ts_info.rtp_seq_number, out_size,
+			cur_rtp_seq_num, out_size,
 			ctx->otf_cmd_queue.config.pkt_ctrl.rtp_size);
 
-		print_tsmux(TSMUX_COMMON, "otf job_done, seq 0x%x, over %d, v_cc 0x%x\n",
-			ctx->rtp_ts_info.rtp_seq_number, ctx->rtp_ts_info.rtp_seq_override,
-			ctx->rtp_ts_info.ts_video_cc);
+		print_tsmux(TSMUX_COMMON, "otf job_done, cur rtp seq 0x%x, next rtp seq 0x%x\n",
+			cur_rtp_seq_num, ctx->rtp_ts_info.rtp_seq_number);
+		print_tsmux(TSMUX_COMMON, "otf job_done, cur v_cc 0x%x, next v_cc 0x%x\n",
+			cur_ts_video_cc, ctx->rtp_ts_info.ts_video_cc);
 
 		ctx->otf_cmd_queue.cur_buf_num = index;
 		ctx->otf_outbuf_info[index].buf_state = BUF_DQ;
