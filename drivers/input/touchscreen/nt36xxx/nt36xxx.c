@@ -35,6 +35,7 @@
 #include <linux/gpio.h>
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input/mt.h>
 #include <linux/wakelock.h>
 #include <linux/of_gpio.h>
@@ -764,6 +765,11 @@ return:
 static int nvt_gpio_config(struct nvt_ts_data *ts)
 {
 	int32_t ret = 0;
+	struct pinctrl *pinctrl_vdd;
+
+	pinctrl_vdd = devm_pinctrl_get_select(&ts->client->dev, "on_state");
+	if (IS_ERR(pinctrl_vdd))
+			NVT_ERR("Failed to on vdd GPIO\n");
 
 #if NVT_TOUCH_SUPPORT_HW_RST
 	/* request RST-pin (Output/High) */
