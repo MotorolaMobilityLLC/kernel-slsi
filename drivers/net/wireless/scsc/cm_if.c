@@ -117,7 +117,7 @@ static void wlan_failure_reset(struct scsc_service_client *client, u16 scsc_pani
 int slsi_check_rf_test_mode(void)
 {
 	struct file *fp = NULL;
-	char *filepath = "/data/misc/conn/.psm.info";
+	char *filepath = "/data/vendor/conn/.psm.info";
 	char power_val = 0;
 
 	fp = filp_open(filepath, O_RDONLY, 0);

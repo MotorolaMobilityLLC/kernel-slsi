@@ -219,7 +219,7 @@ static void slsi_print_platform_id(struct slsi_dev *sdev)
 static void write_wifi_version_info_file(struct slsi_dev *sdev)
 {
 	struct file *fp = NULL;
-	char *filepath = "/data/misc/conn/.wifiver.info";
+	char *filepath = "/data/vendor/conn/.wifiver.info";
 	char buf[256];
 	char build_id_fw[128];
 	char build_id_drv[64];
@@ -304,7 +304,7 @@ int slsi_start(struct slsi_dev *sdev)
 #ifdef CONFIG_SCSC_WLAN_AP_INFO_FILE
 	u32 offset = 0;
 	struct file *fp = NULL;
-	char *filepath = "/data/misc/conn/.softap.info";
+	char *filepath = "/data/vendor/conn/.softap.info";
 	char buf[512];
 #endif
 
@@ -438,7 +438,7 @@ int slsi_start(struct slsi_dev *sdev)
 	write_wifi_version_info_file(sdev);
 
 #ifdef CONFIG_SCSC_WLAN_AP_INFO_FILE
-	/* writing .softap.info in /data/misc/conn */
+	/* writing .softap.info in /data/vendor/conn */
 	fp = filp_open(filepath, O_WRONLY | O_CREAT, 0644);
 
 	if (!fp)  {

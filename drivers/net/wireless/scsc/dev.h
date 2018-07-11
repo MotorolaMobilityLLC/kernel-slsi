@@ -1016,7 +1016,7 @@ struct slsi_dev {
 	bool                       allow_switch_40_mhz; /* Used in AP cert to disable HT40 when not configured */
 	bool                       allow_switch_80_mhz; /* Used in AP cert to disable VHT when not configured */
 #ifdef CONFIG_SCSC_WLAN_AP_INFO_FILE
-	/* Parameters in '/data/misc/conn/.softap.info' */
+	/* Parameters in '/data/vendor/conn/.softap.info' */
 	bool                       dualband_concurrency;
 	u32                        softap_max_client;
 #endif
