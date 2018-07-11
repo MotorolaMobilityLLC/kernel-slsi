@@ -24,10 +24,10 @@ int main(int argc, char *argv[])
 	fclose(f);
 	p = (struct dbg_snapshot_log *)string;
 
-	printf("log = {}\n");
+	printf("log = []\n");
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
-			printf("log[%.9f] = { 'type' : 'sched', 'cpu' : %d, 'comm' : '%s', 'pid' : %d}\n",
+			printf("log.append({'time':%.9f, 'type' : 'sched', 'cpu' : %d, 'comm' : '%s', 'pid' : %d})\n",
 					p->task[i][j].time/1.0e9,
 					i,
 					p->task[i][j].task_comm,
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_FREQ
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
-		printf("log[%.9f] = {  'type' : 'freq', 'cpu' : %d, 'cluster' : %d, 'freq' : %lu }\n",
+		printf("log.append({'time':%.9f, 'type' : 'freq', 'cpu' : %d, 'cluster' : %d, 'freq' : %lu })\n",
 				p->freq[i].time/1.0e9,
 				p->freq[i].cpu,
 				p->freq[i].type,
@@ -51,8 +51,8 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
-			printf("log[%.9f] = { 'type' : 'irq', 'cpu' : %d, 'num' : %d,"
-					"'en' : %d, 'func' : '%p'}\n",
+			printf("log.append({'time':%.9f, 'type' : 'irq', 'cpu' : %d, 'num' : %d,"
+					"'en' : %d, 'func' : '%p'})\n",
 					p->irq[i][j].time/1.0e9,
 					i,
 					p->irq[i][j].irq,
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
-			printf("log[%.9f] = { 'type' : 'cpuidle', 'cpu' : %d, 'state' : %d}\n",
+			printf("log.append({'time':%.9f, 'type' : 'cpuidle', 'cpu' : %d, 'state' : %d})\n",
 					p->cpuidle[i][j].time/1.0e9,
 					i,
 					p->cpuidle[i][j].state);
@@ -75,12 +75,12 @@ int main(int argc, char *argv[])
 	}
 #ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
 	for (i = 0; i < DSS_API_MAX_NUM << 2; i++) {
-		printf("log[%.9f] = { 'type' : 'binder', 'cpu' : %d, 'trace_type' : %d, 'transaction_id' : %d,"
+		printf("log.append({'time':%.9f, 'type' : 'binder', 'cpu' : %d, 'trace_type' : %d, 'transaction_id' : %d,"
 				" 'from_pid' : %d, 'from_tid' : %d, 'to_pid' : %d, 'to_tid' : %d,"
 				" 'from_pid_comm' : '%s', 'from_tid_comm' : '%s',"
 				" 'to_pid_comm' : '%s', 'to_tid_comm' : '%s', 'to_node_id' : %d,"
 				" 'reply' : %d, 'flags' : 0x%x, 'code' : 0x%x,"
-				" 'return_error' : %d, 'return_error_param' : %d, 'return_error_line' : %d}\n",
+				" 'return_error' : %d, 'return_error_param' : %d, 'return_error_line' : %d})\n",
 				p->binder[i].time/1.0e9,
 				p->binder[i].cpu, p->binder[i].base.trace_type, p->binder[i].base.transaction_id,
 				p->binder[i].base.from_pid, p->binder[i].base.from_tid,
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 #endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_ACPM
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
-		printf("log[%.9f] = {  'type' : 'acpmlog', 'log' : '%s', 'value' : %d }\n",
+		printf("log.append({'time':%.9f, 'type' : 'acpmlog', 'log' : '%s', 'value' : %d })\n",
 				p->acpm[i].acpm_time/1.0e9,
 				p->acpm[i].log,
 				p->acpm[i].data);
