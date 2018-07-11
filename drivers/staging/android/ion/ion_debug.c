@@ -23,14 +23,28 @@
 
 #define ION_MAX_LOGBUF 128
 
+const static char *heap_type_name[] = {
+	"system",
+	"syscntig",
+	"carveout",
+	"chunk",
+	"cma",
+	"hpa",
+};
+
 static size_t ion_print_buffer(struct ion_buffer *buffer, bool alive,
 			       char *logbuf, int buflen)
 {
 	struct ion_iovm_map *iovm;
 	int count;
+	unsigned int heaptype = buffer->heap->type;
 
-	count = scnprintf(logbuf, buflen, "[%4d] %15s %#5lx %8zu : ",
-			  buffer->id, buffer->heap->name, buffer->flags,
+	if (heaptype >= ARRAY_SIZE(heap_type_name))
+		heaptype = 0; /* forces it to 0 to prevent buffer overrun */
+
+	count = scnprintf(logbuf, buflen, "[%4d] %15s %8s %#5lx %8zu : ",
+			  buffer->id, buffer->heap->name,
+			  heap_type_name[heaptype], buffer->flags,
 			  buffer->size / SZ_1K);
 	buflen = max(0, buflen - count);
 	/*
@@ -65,8 +79,8 @@ static int ion_debug_buffers_show(struct seq_file *s, void *unused)
 	char logbuf[ION_MAX_LOGBUF];
 	size_t total = 0;
 
-	seq_printf(s, "[  id] %15s %5s %8s : %s\n",
-		   "heap", "flags", "size(kb)", "iommu_mapped...");
+	seq_printf(s, "[  id] %15s %8s %5s %8s : %s\n",
+		   "heap", "heaptype", "flags", "size(kb)", "iommu_mapped...");
 
 	mutex_lock(&idev->buffer_lock);
 	for (n = rb_first(&idev->buffers); n; n = rb_next(n)) {
@@ -136,8 +150,8 @@ static int ion_oom_notifier_fn(struct notifier_block *nb,
 	char logbuf[ION_MAX_LOGBUF];
 	size_t total = 0;
 
-	pr_info("[  id] %15s %5s %8s : %s\n",
-		"heap", "flags", "size(kb)", "iommu_mapped...");
+	pr_info("[  id] %15s %8s %5s %8s : %s\n",
+		"heap", "heaptype", "flags", "size(kb)", "iommu_mapped...");
 
 	mutex_lock(&idev->buffer_lock);
 	for (n = rb_first(&idev->buffers); n; n = rb_next(n)) {
