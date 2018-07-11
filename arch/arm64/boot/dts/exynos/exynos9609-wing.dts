@@ -1978,27 +1978,27 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&usbpd_irq>;
 		usbpd,usbpd_int = <&gpa2 2 0>;
-	};
 
-	pdic-manager {
-		/* sink */
-		pdic,max_power = <5000>;
-		pdic,op_power = <2500>;
-		pdic,max_voltage = <6000>;
-		pdic,max_current = <2000>;
-		pdic,min_current = <500>;
+		pdic-manager {
+			/* sink */
+			pdic,max_power = <5000>;
+			pdic,op_power = <2500>;
+			pdic,max_voltage = <6000>;
+			pdic,max_current = <2000>;
+			pdic,min_current = <500>;
 
-		pdic,giveback = <0>;
-		pdic,usb_com_capable = <1>;
-		pdic,no_usb_suspend = <1>;
+			pdic,giveback = <0>;
+			pdic,usb_com_capable = <1>;
+			pdic,no_usb_suspend = <1>;
 
-		/* source */
-		source,max_voltage = <5000>;
-		source,min_voltage = <4000>;
-		source,max_power = <2500>;
+			/* source */
+			source,max_voltage = <5000>;
+			source,min_voltage = <4000>;
+			source,max_power = <2500>;
 
-		/* sink cap */
-		sink,capable_max_voltage = <9000>;
+			/* sink cap */
+			sink,capable_max_voltage = <9000>;
+		};
 	};
 };
 
@@ -2013,13 +2013,13 @@
 		pinctrl-0 = <&if_pmic_irq>;
 		s2mu106,irq-gpio = <&gpa2 1 0>;
 		s2mu106,wakeup;
-	};
 
-	muic {
-		status = "okay";
-		muic,uart_addr = "11850000.pinctrl";
-		muic,uart_rxd = "gpq0-3";
-		muic,uart_txd = "gpq0-4";
+		muic {
+			status = "okay";
+			muic,uart_addr = "11850000.pinctrl";
+			muic,uart_rxd = "gpq0-3";
+			muic,uart_txd = "gpq0-4";
+		};
 	};
 
 	s2mu106-charger {
