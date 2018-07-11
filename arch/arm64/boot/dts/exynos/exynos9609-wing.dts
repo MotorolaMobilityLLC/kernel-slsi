@@ -1032,6 +1032,7 @@
 		};
 	};
 
+#if 0
 	spi_9: spi@13940000 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi9_bus &spi9_cs_func>;
@@ -1158,6 +1159,7 @@
 			};
 		};
 	};
+#endif
 
 	dummy_audio_codec: audio_codec_dummy {
 		status = "okay";
