@@ -1955,6 +1955,14 @@
 		samsung,pin-pud = <3>;
 		samsung,pin-drv = <3>;
 	};
+/* TODO: Need to check pin number
+	small_charger_irq: small-charger-irq {
+		samsung,pins = "gpa2-5";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+*/
 };
 
 &i2c_0 {
@@ -1967,11 +1975,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&fuel_irq>;
 		fuelgauge,fuel_int = <&gpa2 3 0>;
+		fuelgauge,fuel_alert_vol = <3400>;
 		fuelgauge,fuel_alert_soc = <1>;
-		fuelgauge,capacity_max = <1000>;
-		fuelgauge,capacity_max_margin = <70>;
-		fuelgauge,capacity_min = <0>;
-		fuelgauge,capacity_calculation_type = <28>;
 		fuelgauge,type_str = "SDI";
 		fuelgauge,model_type = <1>;
 	};
@@ -2006,6 +2011,19 @@
 	};
 };
 
+/* TODO: Change for 4.14 kernel
+hsi2c_10: hsi2c@11D80000 {
+	status = "okay";
+	s2mcs02-charger@41 {
+		compatible = "samsung,s2mcs02-charger";
+		reg = <0x41>;
+		default-clk = <100000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&small_charger_irq>;
+		s2mcs02-charger,irq-gpio = <&gpa2 5 0>;
+	};
+};
+*/
 &i2c_1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
