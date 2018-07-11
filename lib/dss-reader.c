@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+#ifdef CONFIG_DEBUG_SNAPSHOT_FREQ
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
 		printf("log[%.9f] = {  'type' : 'freq', 'cpu' : %d, 'cluster' : %d, 'freq' : %lu }\n",
 				p->freq[i].time/1.0e9,
@@ -46,6 +47,7 @@ int main(int argc, char *argv[])
 		if (p->freq[i].time == 0)
 			break;
 	}
+#endif
 
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
