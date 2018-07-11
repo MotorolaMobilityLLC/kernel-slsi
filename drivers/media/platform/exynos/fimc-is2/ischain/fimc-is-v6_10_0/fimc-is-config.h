@@ -207,6 +207,7 @@
 #define USE_PRE_FLASH_FIRE_WORK
 
 #define FLASH_CAL_DATA_ENABLE
-#define CHAIN_USE_VC_TASKLET	1
+
+#define CHAIN_USE_VC_TASKLET	0
 
 #endif
