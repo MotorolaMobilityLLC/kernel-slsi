@@ -102,6 +102,7 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		flag = ION_FLAG_PROTECTED;
 		break;
 	default:
+		heapname = "unknown";
 		mfc_err_ctx("not supported mfc mem type: %d, heapname: %s\n",
 				special_buf->buftype, heapname);
 		return -EINVAL;
