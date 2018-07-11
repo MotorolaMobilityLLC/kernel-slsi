@@ -243,7 +243,7 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
 	 * The framework parser for the version may depend on this
 	 * exact formatting.
 	 */
-	snprintf(buf, sizeof(buf), "%s (f/w_ver: %s\nregDom_ver: %d.%d)\n",
+	snprintf(buf, sizeof(buf), "%s (f/w_ver: %s)\nregDom_ver: %d.%d\n",
 		build_id_drv,
 		build_id_fw,
 		((sdev->reg_dom_version >> 8) & 0xFF), (sdev->reg_dom_version & 0xFF));
