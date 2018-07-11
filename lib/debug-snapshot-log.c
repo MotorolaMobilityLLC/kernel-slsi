@@ -1299,13 +1299,13 @@ void dbg_snapshot_acpm(unsigned long long timestamp, const char *log, unsigned i
 				(ARRAY_SIZE(dss_log->acpm) - 1);
 		int len = strlen(log);
 
-		if (len >= 9)
-			len = 9;
+		if (len >= 8)
+			len = 8;
 
 		dss_log->acpm[i].time = cpu_clock(cpu);
 		dss_log->acpm[i].acpm_time = timestamp;
 		strncpy(dss_log->acpm[i].log, log, len);
-		dss_log->acpm[i].log[8] = '\0';
+		dss_log->acpm[i].log[len] = '\0';
 		dss_log->acpm[i].data = data;
 	}
 }
