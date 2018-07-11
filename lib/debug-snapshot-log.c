@@ -1056,6 +1056,36 @@ void dbg_snapshot_pmu(int id, const char *func_name, int mode)
 }
 #endif
 
+static struct notifier_block **dss_should_check_nl[] = {
+	(struct notifier_block **)(&panic_notifier_list.head),
+	(struct notifier_block **)(&reboot_notifier_list.head),
+	(struct notifier_block **)(&restart_handler_list.head),
+#ifdef CONFIG_EXYNOS_ITMON
+	(struct notifier_block **)(&itmon_notifier_list.head),
+#endif
+};
+
+void dbg_snapshot_print_notifier_call(void **nl, unsigned long func, int en)
+{
+	struct notifier_block **nl_org = (struct notifier_block **)nl;
+	char notifier_name[KSYM_NAME_LEN];
+	char notifier_func_name[KSYM_NAME_LEN];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dss_should_check_nl); i++) {
+		if (nl_org == dss_should_check_nl[i]) {
+			lookup_symbol_name((unsigned long)nl_org, notifier_name);
+			lookup_symbol_name((unsigned long)func, notifier_func_name);
+
+			pr_info("debug-snapshot: %s -> %s call %s\n",
+				notifier_name,
+				notifier_func_name,
+				en == DSS_FLAG_IN ? "+" : "-");
+			break;
+		}
+	}
+}
+
 #ifdef CONFIG_DEBUG_SNAPSHOT_FREQ
 static void dbg_snapshot_print_freqinfo(void)
 {

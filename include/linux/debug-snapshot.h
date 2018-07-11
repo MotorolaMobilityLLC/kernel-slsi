@@ -25,6 +25,7 @@ extern void dbg_snapshot_work(void *worker, void *v_task, void *fn, int en);
 extern void dbg_snapshot_cpuidle(char *modes, unsigned state, int diff, int en);
 extern void dbg_snapshot_suspend(void *fn, void *dev, int en);
 extern void dbg_snapshot_irq(int irq, void *fn, void *val, int en);
+extern void dbg_snapshot_print_notifier_call(void **nl, unsigned long func, int en);
 extern int dbg_snapshot_try_enable(const char *name, unsigned long long duration);
 extern int dbg_snapshot_set_enable(const char *name, int en);
 extern int dbg_snapshot_get_enable(const char *name);
@@ -255,6 +256,13 @@ static inline bool dbg_snapshot_dumper_one(void *v_dumper,
 extern void dbg_snapshot_soc_helper_init(void);
 static inline void dbg_snapshot_bug_func(void) {BUG();}
 static inline void dbg_snapshot_spin_func(void) {do {wfi();} while(1);}
+
+extern struct atomic_notifier_head restart_handler_list;
+extern struct blocking_notifier_head reboot_notifier_list;
+
+#ifdef CONFIG_EXYNOS_ITMON
+extern struct atomic_notifier_head itmon_notifier_list;
+#endif
 
 /**
  * dsslog_flag - added log information supported.

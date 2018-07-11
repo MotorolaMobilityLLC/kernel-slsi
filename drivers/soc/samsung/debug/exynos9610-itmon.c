@@ -491,7 +491,7 @@ struct itmon_panic_block {
 };
 
 /* declare notifier_list */
-static ATOMIC_NOTIFIER_HEAD(itmon_notifier_list);
+ATOMIC_NOTIFIER_HEAD(itmon_notifier_list);
 
 static const struct of_device_id itmon_dt_match[] = {
 	{.compatible = "samsung,exynos-itmon",
