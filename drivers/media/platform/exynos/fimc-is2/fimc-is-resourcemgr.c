@@ -660,25 +660,26 @@ static int __init fimc_is_lib_mem_map(void)
 	return 0;
 }
 
-static int __init fimc_is_heap_mem_map(struct fimc_is_resourcemgr *resourcemgr)
+static int __init fimc_is_heap_mem_map(struct fimc_is_resourcemgr *resourcemgr,
+	struct vm_struct *vm, int heap_size)
 {
 	struct fimc_is_mem *mem = &resourcemgr->mem;
-	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
+	struct fimc_is_priv_buf *pb;
 	struct scatterlist *sg;
 	struct sg_table *table;
 	int i, j;
-	int npages = fimc_is_heap_vm.size / PAGE_SIZE;
+	int npages = vm->size / PAGE_SIZE;
 	struct page **pages = vmalloc(sizeof(struct page *) * npages);
 	struct page **tmp = pages;
 
-	minfo->pb_heap_ddk = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, HEAP_SIZE, 16);
-	if (IS_ERR_OR_NULL(minfo->pb_heap_ddk)) {
-		err("failed to allocate buffer for DDK HEAP");
+	pb = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, heap_size, 16);
+	if (IS_ERR_OR_NULL(pb)) {
+		err("failed to allocate buffer for HEAP");
 		vfree(pages);
 		return -ENOMEM;
 	}
 
-	table = minfo->pb_heap_ddk->sgt;
+	table = pb->sgt;
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
@@ -690,11 +691,11 @@ static int __init fimc_is_heap_mem_map(struct fimc_is_resourcemgr *resourcemgr)
 			*(tmp++) = page++;
 	}
 
-	if (map_vm_area(&fimc_is_heap_vm, PAGE_KERNEL, pages)) {
+	if (map_vm_area(vm, PAGE_KERNEL, pages)) {
 		probe_err("failed to mapping between virt and phys for binary");
-		vunmap(fimc_is_heap_vm.addr);
+		vunmap(vm->addr);
 		vfree(pages);
-		CALL_VOID_BUFOP(minfo->pb_heap_ddk, free, minfo->pb_heap_ddk);
+		CALL_VOID_BUFOP(pb, free, pb);
 		return -ENOMEM;
 	}
 
@@ -1116,9 +1117,9 @@ int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr,
 		goto p_err;
 	}
 
-	ret = fimc_is_heap_mem_map(resourcemgr);
+	ret = fimc_is_heap_mem_map(resourcemgr, &fimc_is_heap_vm, HEAP_SIZE);
 	if (ret) {
-		probe_err("fimc_is_heap_mem_map is fail(%d)", ret);
+		probe_err("fimc_is_heap_mem_map for HEAP_DDK is fail(%d)", ret);
 		goto p_err;
 	}
 
