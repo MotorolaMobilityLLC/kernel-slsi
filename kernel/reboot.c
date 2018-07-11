@@ -108,7 +108,7 @@ EXPORT_SYMBOL(unregister_reboot_notifier);
  *	Notifier list for kernel code which wants to be called
  *	to restart the system.
  */
-static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
+ATOMIC_NOTIFIER_HEAD(restart_handler_list);
 
 /**
  *	register_restart_handler - Register function to be called to reset
