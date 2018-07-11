@@ -13,7 +13,6 @@
 #define is_secure_info_fail(x)	((((x) >> 16) & 0xffff) == 0xdead)
 static inline u32 __secure_info_read(unsigned int addr)
 {
-#if 0
 	u32 ret;
 
 	ret = exynos_smc(SMC_DRM_SEC_SMMU_INFO, (unsigned long)addr,
@@ -22,9 +21,6 @@ static inline u32 __secure_info_read(unsigned int addr)
 		pr_err("Invalid value returned, %#x\n", ret);
 
 	return ret;
-#else
-	return 0;
-#endif
 }
 
 static inline void __sysmmu_tlb_invalidate_all(void __iomem *sfrbase)
