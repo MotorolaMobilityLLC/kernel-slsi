@@ -211,7 +211,7 @@ void *ipc_get_chub_map(void)
 #endif
 
 	CSP_PRINTF_INFO
-	    ("contexthub map information(v%u)\nbl(%p %d)\nos(%p %d)\nipc(%p %d)\nram(%p %d)\nshared(%p %d)\ndump(%p %d)\n",
+	    ("contexthub map information(v%u)\n bl(%p %d)\n os(%p %d)\n ipc(%p %d)\n ram(%p %d)\n shared(%p %d)\n dump(%p %d)\n",
 	     map->ipc_version,
 	     ipc_addr[IPC_REG_BL].base, ipc_addr[IPC_REG_BL].offset,
 	     ipc_addr[IPC_REG_OS].base, ipc_addr[IPC_REG_OS].offset,
@@ -556,10 +556,11 @@ void ipc_print_channel(void)
 }
 #endif
 
-int ipc_check_reset_valid(struct ipc_map_area *map)
+int ipc_check_reset_valid()
 {
 	int i;
 	int ret = 0;
+	struct ipc_map_area *map = ipc_get_base(IPC_REG_IPC);
 
 	for (i = 0; i < IPC_DATA_MAX; i++)
 		if (map->data[i].dq || map->data[i].eq ||

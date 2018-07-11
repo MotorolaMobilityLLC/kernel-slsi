@@ -111,7 +111,11 @@ struct chub_alive {
 	wait_queue_head_t event;
 };
 
+#ifdef USE_EXYNOS_LOG
 #define CHUB_DBG_DIR "/data/exynos/log/chub"
+#else
+#define CHUB_DBG_DIR "/data"
+#endif
 
 enum chub_err_type {
 	CHUB_ERR_NONE,
@@ -122,11 +126,12 @@ enum chub_err_type {
 	CHUB_ERR_CHUB_NO_RESPONSE,
 	CHUB_ERR_ITMON,
 	CHUB_ERR_NANOHUB,
+	CHUB_ERR_RESET_CNT,
 	CHUB_ERR_CHUB_MAX,
 	CHUB_ERR_NANOHUB_FAULT, /* chub error */
 	CHUB_ERR_NANOHUB_ASSERT,
 	CHUB_ERR_NANOHUB_ERROR,
-	CHUB_ERR_NANOHUB_WDT,
+	CHUB_ERR_NANOHUB_WDT, /* 13 */
 	CHUB_ERR_COMMS_NACK,
 	CHUB_ERR_COMMS_BUSY,
 	CHUB_ERR_COMMS_UNKNOWN,
@@ -141,6 +146,7 @@ struct contexthub_baaw_info {
 	unsigned int baaw_p_apm_chub_remap;
 };
 
+#define CHUB_IRQ_PIN_MAX (5)
 struct contexthub_ipc_info {
 	struct device *dev;
 	struct nanohub_data *data;
@@ -181,6 +187,8 @@ struct contexthub_ipc_info {
 	bool os_load;
 	char os_name[MAX_FILE_LEN];
 	struct notifier_block itmon_nb;
+	u32 irq_pin_len;
+	u32 irq_pins[CHUB_IRQ_PIN_MAX];
 #ifdef CONFIG_CONTEXTHUB_DEBUG
 	struct work_struct utc_work;
 #endif

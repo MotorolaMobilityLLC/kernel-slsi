@@ -92,11 +92,12 @@ static void chub_dbg_write_file(struct device *dev, char *name, void *buf, int s
 		CHUB_DBG_DIR, p_dump->reason, sec, name);
 
 	old_fs = get_fs();
-	set_fs(KERNEL_DS);
+	set_fs(get_ds());
 
-	filp = filp_open(file_name, O_RDWR | O_TRUNC | O_CREAT, S_IRWUG);
+	filp = filp_open(file_name, O_RDWR|O_CREAT|O_APPEND, 0666);
 	if (IS_ERR(filp)) {
-		dev_warn(dev, "%s: open file fail\n", __func__);
+		dev_warn(dev, "%s: open '%s' file fail: filp:%p\n",
+			__func__, file_name, filp);
 		goto out;
 	}
 
@@ -202,6 +203,12 @@ void chub_dbg_check_and_download_image(struct contexthub_ipc_info *ipc)
 void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 {
 	int val;
+	char *dbg_name[CHUB_ERR_MAX] = {"none", "evtq_empty",
+		"read_fail", "write_fail", "evtq_no_hw_trigger",
+		"chub_no_resp", "itmon", "nanohub_dbg",	"reset_cnt",
+		"chub_err_max", "fw_fault", "fw_assert", "fw_error",
+		"fw_wdt", "comms_nack", "comms_busy",
+		"comms_unknown", "comms", "comms_max"};
 
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	struct nanohub_data *data = ipc->data;
@@ -231,8 +238,8 @@ void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 #endif
 	for (val = 0; val < CHUB_ERR_MAX; val++)
 		if (ipc->err_cnt[val])
-			CSP_PRINTF_INFO("error %d occurs %d times\n",
-					val, ipc->err_cnt[val]);
+			CSP_PRINTF_INFO("error %d(%s) occurs %d times\n",
+					val, dbg_name[val], ipc->err_cnt[val]);
 	ipc_dump();
 	/* dump nanohub kernel status */
 	CSP_PRINTF_INFO("CHUB DUMP: Request to dump nanohub kernel status\n");
@@ -299,7 +306,6 @@ char chub_utc_name[][SIZE_UTC_NAME] = {
 	[IPC_DEBUG_UTC_HANG] = "hang",
 };
 
-
 static ssize_t chub_alive_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -339,6 +345,8 @@ static ssize_t chub_utc_store(struct device *dev,
 	int err;
 
 	err = kstrtol(&buf[0], 10, &event);
+	dev_info(ipc->dev, "%s: event:%d\n", __func__, event);
+
 	if (!err) {
 		err = contexthub_request(ipc);
 		if (err)

@@ -177,7 +177,7 @@ enum ipc_debug_event {
 	IPC_DEBUG_UTC_SPI,
 	IPC_DEBUG_UTC_CMU,
 	IPC_DEBUG_UTC_TIME_SYNC,
-	IPC_DEBUG_UTC_ASSERT,
+	IPC_DEBUG_UTC_ASSERT, /* 10 */
 	IPC_DEBUG_UTC_FAULT,
 	IPC_DEBUG_UTC_CHECK_STATUS,
 	IPC_DEBUG_UTC_CHECK_CPU_UTIL,
@@ -187,7 +187,7 @@ enum ipc_debug_event {
 	IPC_DEBUG_UTC_IPC_TEST_END,
 	IPC_DEBUG_UTC_MAX,
 	IPC_DEBUG_NANOHUB_MAX,
-	IPC_DEBUG_DUMP_STATUS,
+	IPC_DEBUG_DUMP_STATUS,  /* 20 */
 	IPC_DEBUG_CHUB_PRINT_LOG,
 	IPC_DEBUG_CHUB_FULL_LOG,
 	IPC_DEBUG_CHUB_FAULT,
@@ -347,6 +347,7 @@ struct ipc_buf {
 };
 
 struct ipc_map_area {
+	u8 persist_padding[128]; /* persisten base shoud be ipc base */
 #ifdef USE_IPC_BUF
 	struct ipc_buf data[IPC_DATA_MAX];
 #else
@@ -410,12 +411,13 @@ struct ipc_map_area {
 
 /* channel ctrl functions */
 void ipc_print_channel(void);
+int ipc_check_valid(void);
 char *ipc_get_cs_name(enum channel_status cs);
 void ipc_set_base(void *addr);
 void *ipc_get_base(enum ipc_region area);
 u32 ipc_get_offset(enum ipc_region area);
 void *ipc_get_addr(enum ipc_region area, int buf_num);
-int ipc_check_reset_valid(struct ipc_map_area *ipc_map);
+int ipc_check_reset_valid(void);
 void ipc_init(void);
 int ipc_hw_read_int_start_index(enum ipc_owner owner);
 void ipc_update_channel_status(struct ipc_content *content,

@@ -28,6 +28,7 @@
 #include <linux/random.h>
 #include <linux/rtc.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/timekeeping.h>
 #ifdef CONFIG_EXYNOS_ITMON
 #include <soc/samsung/exynos-itmon.h>
@@ -44,6 +45,7 @@
 #include "../../soc/samsung/cal-if/pmucal_shub.h"
 #define WAIT_TRY_CNT (3)
 #define WAIT_TIMEOUT_MS (1000)
+#define WAIT_RESET_MS (100)
 enum { CHUB_ON, CHUB_OFF };
 enum { C2A_ON, C2A_OFF };
 
@@ -58,6 +60,19 @@ int contexthub_is_run(struct contexthub_ipc_info *ipc)
 #else
 	return 1;
 #endif
+}
+
+static inline int contexthub_is_active(struct contexthub_ipc_info *ipc)
+{
+	int status = atomic_read(&ipc->chub_status);
+
+	if (status == CHUB_ST_RUN)
+		return 0;
+	else {
+		dev_warn(ipc->dev, "%s: isn't active: status:%d\n",
+			__func__, status);
+		return -EINVAL;
+	}
 }
 
 /* request contexthub to host driver */
@@ -162,6 +177,7 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 {
 	struct device *chub_dev = chub->dev;
 	int ret = 0;
+	int i;
 
 	chub->ipc_map = ipc_get_chub_map();
 	if (!chub->ipc_map)
@@ -176,6 +192,13 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 					   "fw", 1);
 	if (!chub->fw_log)
 		return -EINVAL;
+
+	for (i = 0; i < chub->irq_pin_len; i++) {
+		disable_irq_nosync(chub->irq_pins[i]);
+		dev_info(chub_dev,
+			"%s: %d is for chub. disable it\n",
+			__func__, chub->irq_pins[i]);
+	}
 
 #ifdef LOWLEVEL_DEBUG
 	chub->dd_log_buffer = vmalloc(SZ_256K + sizeof(struct LOG_BUFFER *));
@@ -249,6 +272,7 @@ static void enable_debug_workqueue(struct contexthub_ipc_info *ipc, enum chub_er
 			__func__, err, ipc->err_cnt[err], ipc->active_err);
 	}
 
+	dev_info(ipc->dev, "%s: dbg:%d\n", __func__, err);
 	if (err == CHUB_ERR_ITMON) {
 		chub_dbg_dump_gpr(ipc);
 		chub_dbg_dump_ram(ipc, err);
@@ -264,7 +288,13 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 #ifdef USE_IPC_BUF
 	int size = 0;
 	int ret;
+	int lock;
+	struct ipc_buf *ipc_buf;
 
+	if (contexthub_is_active(ipc))
+		return 0;
+
+	ipc_buf = ipc_get_base(IPC_REG_IPC_C2A);
 	if (!ipc->read_lock.flag) {
 		spin_lock_irqsave(&ipc->read_lock.event.lock, flag);
 		read_get_locked(ipc);
@@ -290,6 +320,9 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 #else
 	struct ipc_content *content;
 	int ch = INVAL_CHANNEL;
+
+	if (contexthub_is_active(ipc))
+		return 0;
 
 	if (ipc->read_lock.flag) {
 search_channel:
@@ -337,6 +370,9 @@ int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 #ifdef USE_IPC_BUF
 	int ret;
 
+	if (contexthub_is_active(ipc))
+		return 0;
+
 	ret = ipc_write_data(IPC_DATA_A2C, tx, (u16)length);
 	if (ret) {
 		pr_err("%s: fails to write data: ret:%d, len:%d errcnt:%d\n",
@@ -346,7 +382,12 @@ int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 	}
 	return length;
 #else
-	struct ipc_content *content =
+	struct ipc_content *content;
+
+	if (contexthub_is_active(ipc))
+		return 0;
+
+	content =
 	    ipc_get_channel(IPC_REG_IPC_A2C, CS_IDLE, CS_AP_WRITE);
 
 	if (!content) {
@@ -388,13 +429,12 @@ static void check_rtc_time(void)
 	ap_t = rtc_tm_to_time64(&ap_tm);
 }
 
-/* simple alive check function */
+/* simple alive check function : don't use ipc map */
 static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
 {
 	int val;
 
 	ipc->chub_alive_lock.flag = 0;
-	ipc_write_val(AP, sched_clock());
 	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
 	val = wait_event_timeout(ipc->chub_alive_lock.event,
 				 ipc->chub_alive_lock.flag,
@@ -521,6 +561,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 		break;
 	}
 
+	msleep(WAIT_RESET_MS);
 	if (ret)
 		return ret;
 	else
@@ -765,6 +806,12 @@ int contexthub_reset(struct contexthub_ipc_info *ipc)
 		dev_info(ipc->dev, "%s: chub reseted! (cnt:%d)\n",
 			__func__, atomic_read(&ipc->in_reset));
 
+	if (!ret)
+		ipc->err_cnt[CHUB_ERR_RESET_CNT]++;
+
+	if (!ret)
+		ret = ipc_check_reset_valid();
+
 	atomic_dec(&ipc->in_reset);
 	return ret;
 }
@@ -874,6 +921,7 @@ static void handle_debug_work_func(struct work_struct *work)
 				 "Contexthub notified that logbuf is full\n");
 			break;
 		case IPC_DEBUG_CHUB_PRINT_LOG:
+			log_flush(ipc->fw_log);
 			break;
 		case IPC_DEBUG_CHUB_FAULT:
 			dev_warn(ipc->dev, "Contexthub notified fault\n");
@@ -892,15 +940,18 @@ static void handle_debug_work_func(struct work_struct *work)
 		}
 
 		/* clear dbg event */
+		dev_info(ipc->dev, "%s: dbg from chub:%d, err:%d\n",
+			__func__, event, err);
 		ipc_write_debug_event(AP, 0);
 		if (err)
 			ipc->err_cnt[err]++;
-		return;
+		else
+			return;
 	}
 
 do_err_handle:
-	dev_info(ipc->dev, "%s: active_err:0x%x, alive:%d\n",
-		__func__, ipc->active_err, alive);
+	dev_info(ipc->dev, "%s: active_err:0x%x, alive:%d, dbg:%d\n",
+		__func__, ipc->active_err, alive, event);
 
 	/* print error status */
 	for (i = 0; i < CHUB_ERR_CHUB_MAX; i++) {
@@ -1060,7 +1111,8 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CHUB_RESET_ENABLE
+#define CONFIG_WDT_ENABLE
+#if defined(CHUB_RESET_ENABLE) && defined(CONFIG_WDT_ENABLE)
 static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 {
 	struct contexthub_ipc_info *ipc = data;
@@ -1073,67 +1125,32 @@ static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 }
 #endif
 
-static int contexthub_get_cmgp_clocks(struct device *dev)
+static struct clk *devm_clk_get_and_prepare(struct device *dev,
+	const char *name)
 {
-#if defined(CONFIG_SOC_EXYNOS9610)
-	struct clk *clk;
-	int ret = 0;
+	struct clk *clk = NULL;
+	int ret;
 
-	/* RPR0521, LIS3MDL */
-	clk = devm_clk_get(dev, "cmgp_usi01");
+	clk = devm_clk_get(dev, name);
 	if (IS_ERR(clk)) {
-		dev_err(dev, "[nanohub] cannot get cmgp_usi01\n");
-		return -ENOENT;
+		dev_err(dev, "Failed to get clock %s\n", name);
+		goto error;
 	}
-	ret = clk_prepare(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot prepare cmgp_usi01\n");
-		return ret;
-	}
-	ret = clk_enable(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot enable cmgp_usi01\n");
-		return ret;
-	}
-	dev_info(dev, "cmgp_usi01(%lu) is enabled\n", clk_get_rate(clk));
 
-	/* BMP280 */
-	clk = devm_clk_get(dev, "cmgp_usi03");
-	if (IS_ERR(clk)) {
-		dev_err(dev, "[nanohub] cannot get cmgp_usi03\n");
-		return -ENOENT;
-	}
 	ret = clk_prepare(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot prepare cmgp_usi03\n");
-		return ret;
+	if (ret < 0) {
+		dev_err(dev, "Failed to prepare clock %s\n", name);
+		goto error;
 	}
-	ret = clk_enable(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot enable cmgp_usi03\n");
-		return ret;
-	}
-	dev_info(dev, "cmgp_usi03(%lu) is enabled\n", clk_get_rate(clk));
 
-	clk = devm_clk_get(dev, "cmgp_i2c");
-	if (IS_ERR(clk)) {
-		dev_err(dev, "[nanohub] cannot get cmgp_i2c\n");
-		return -ENOENT;
-	}
-	ret = clk_prepare(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot prepare cmgp_i2c\n");
-		return ret;
-	}
 	ret = clk_enable(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot enable cmgp_i2c\n");
-		return ret;
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable clock %s\n", name);
+		goto error;
 	}
-	dev_info(dev, "cmgp_i2c(%lu) is enabled\n", clk_get_rate(clk));
-#endif
 
-	return 0;
+error:
+	return clk;
 }
 
 #if defined(CONFIG_SOC_EXYNOS9610)
@@ -1150,7 +1167,10 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 	const char *resetmode;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
+	const char *string_array[10];
+	int chub_clk_len;
 	struct clk *clk;
+	int i;
 
 	if (!node) {
 		dev_err(dev, "driver doesn't support non-dt\n");
@@ -1191,7 +1211,7 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 		return ret;
 	}
 
-#ifdef CHUB_RESET_ENABLE
+#if defined(CHUB_RESET_ENABLE) && defined(CONFIG_WDT_ENABLE)
 	/* get wdt interrupt optionally */
 	chub->irq_wdt = irq_of_parse_and_map(node, 1);
 	if (chub->irq_wdt > 0) {
@@ -1284,33 +1304,40 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
+	/* disable chub irq list (for sensor irq) */
+	chub->irq_pin_len = of_property_count_u32_elems(node, "chub-irq-pin");
+	if (chub->irq_pin_len) {
+		if (chub->irq_pin_len > sizeof(chub->irq_pins)) {
+			dev_err(&pdev->dev,
+			"failed to get irq pin length %d, %d\n",
+			chub->irq_pin_len, sizeof(chub->irq_pins));
+			chub->irq_pin_len = 0;
+			return -ENODEV;
+		}
+
+		if(of_property_read_u32_array(node, "chub-irq-pin",
+				chub->irq_pins, chub->irq_pin_len)) {
+			dev_err(&pdev->dev,
+				"failed to get irq-pin\n");
+			return -ENODEV;
+		}
+	}
 #if defined(CONFIG_SOC_EXYNOS9610)
 	cal_dll_apm_enable();
 #endif
-	clk = devm_clk_get(dev, "chub_bus");
-	if (IS_ERR(clk)) {
-		dev_err(dev, "[nanohub] cannot get clock\n");
-		return -ENOENT;
-	}
-#if defined(CONFIG_SOC_EXYNOS9610)
-	ret = clk_prepare(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot prepare clock\n");
-		return ret;
-	}
 
-	ret = clk_enable(clk);
-	if (ret) {
-		dev_err(dev, "[nanohub] cannot enable clock\n");
-		return ret;
-	}
-#endif
+	clk = devm_clk_get_and_prepare(dev, "chub_bus");
+	if (!clk)
+		return -ENODEV;
 	chub->clkrate = clk_get_rate(clk);
 
-	ret = contexthub_get_cmgp_clocks(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "[nanohub] contexthub_get_cmgp_clocks failed\n");
-		return ret;
+	chub_clk_len = of_property_count_strings(node, "clock-names");
+	of_property_read_string_array(node, "clock-names", string_array, chub_clk_len);
+	for (i = 0 ; i < chub_clk_len; i++){
+		clk = devm_clk_get_and_prepare(dev, string_array[i]);
+		if (!clk)
+			return -ENODEV;
+		dev_info(&pdev->dev, "clk_name: %s enable\n", __clk_get_name(clk));
 	}
 
 	return 0;
@@ -1324,7 +1351,7 @@ static ssize_t chub_poweron(struct device *dev,
 	int ret = contexthub_poweron(ipc);
 
 	if (!ret)
-		ret = ipc_check_reset_valid(ipc->ipc_map);
+		ret = ipc_check_reset_valid();
 
 	return ret < 0 ? ret : count;
 }
@@ -1341,9 +1368,6 @@ static ssize_t chub_reset(struct device *dev,
 
 	if (!ret)
 		ret = contexthub_reset(ipc);
-
-	if (!ret)
-		ret = ipc_check_reset_valid(ipc->ipc_map);
 
 	return ret < 0 ? ret : count;
 }
