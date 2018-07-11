@@ -1779,6 +1779,25 @@
 	exynos,fips-block_offset = <5>;
 };
 
+&contexthub_0 {
+	/* chub irq pin lists */
+	chub-irq-pin = <162>;
+	clocks =
+		/* SHUB */
+		<&clock UMUX_CLKCMU_SHUB_BUS>,
+		/* RPR0521, LIS3MDL */
+		<&clock CMGP01_USI>,
+		/* BMP280 */
+		<&clock CMGP03_USI>,
+		/* PRP0521, LIS3MDL, BMP280 are all I2C */
+		<&clock CMGP_I2C>;
+	clock-names =
+		"chub_bus",
+		"cmgp_usi01",
+		"cmgp_usi03",
+		"cmgp_i2c";
+};
+
 &hsi2c_3 {
 	#address-cells = <1>;
 	#size-cells = <0>;

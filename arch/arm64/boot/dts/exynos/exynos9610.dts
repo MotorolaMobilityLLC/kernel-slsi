@@ -101,6 +101,7 @@
 		uart6 = &serial_6;
 		uart7 = &serial_7;
 		fmp0 = &fmp_0;
+		contexthub0 = &contexthub_0;
 		dpp0 = &dpp_0;
 		dpp1 = &dpp_1;
 		dpp2 = &dpp_2;
@@ -3207,7 +3208,7 @@
 		status = "disabled";
 	};
 
-	contexthub: contexthub_ipc@11980000 {
+	contexthub_0: contexthub {
 		compatible = "samsung,exynos-nanohub";
 		interrupts = <0 39 0>,<0 111 0>; /* INTREQ_MAILBOX_SHUB2AP, INTREQ_WDT_SHUB */
 		/* mailbox, sram, dumpgpr, chub reset & cub cpu reset, baaw_p_apm_shub, chub cpu clock */
@@ -3224,20 +3225,6 @@
 		/* none, pass, os.checked.bin, Exynos9610.bin */
 		os-type = "os.checked.bin";
 		reset-mode = "block";
-		clocks =
-			/* SHUB */
-			<&clock UMUX_CLKCMU_SHUB_BUS>,
-			/* RPR0521, LIS3MDL */
-			<&clock CMGP01_USI>,
-			/* BMP280 */
-			<&clock CMGP03_USI>,
-			/* PRP0521, LIS3MDL, BMP280 are all I2C */
-			<&clock CMGP_I2C>;
-		clock-names =
-			"chub_bus",
-			"cmgp_usi01",
-			"cmgp_usi03",
-			"cmgp_i2c";
 	};
 
 	/* Secure log */
