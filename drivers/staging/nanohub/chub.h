@@ -111,6 +111,8 @@ struct chub_alive {
 	wait_queue_head_t event;
 };
 
+#define CHUB_DBG_DIR "/data/exynos/log/chub"
+
 enum chub_err_type {
 	CHUB_ERR_NONE,
 	CHUB_ERR_EVTQ_EMTPY, /* ap error */

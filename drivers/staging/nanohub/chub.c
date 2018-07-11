@@ -153,6 +153,7 @@ static int contexthub_read_process(uint8_t *rx, u8 *raw_rx, u32 size)
 
 	return NANOHUB_PACKET_SIZE(packet->len);
 #else
+	memcpy_fromio(rx, (void *)raw_rx, size);
 	return size;
 #endif
 }
@@ -160,6 +161,7 @@ static int contexthub_read_process(uint8_t *rx, u8 *raw_rx, u32 size)
 static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 {
 	struct device *chub_dev = chub->dev;
+	int ret = 0;
 
 	chub->ipc_map = ipc_get_chub_map();
 	if (!chub->ipc_map)
@@ -183,15 +185,11 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 	chub->dd_log =
 	    log_register_buffer(chub_dev, 1, chub->dd_log_buffer, "dd", 0);
 #endif
-	chub_dbg_init(chub_dev);
+	ret = chub_dbg_init(chub_dev);
+	if (ret)
+		dev_err(chub_dev, "%s: fails. ret:%d\n", __func__);
 
-	dev_info(chub_dev,
-		 "IPC map information\n\tinfo(base:%p size:%zu)\n\tipc(base:%p size:%zu)\n\tlogbuf(base:%p size:%d)\n",
-		 chub, sizeof(struct contexthub_ipc_info),
-		 ipc_get_base(IPC_REG_IPC), sizeof(struct ipc_map_area),
-		 ipc_get_base(IPC_REG_LOG), chub->ipc_map->logbuf.size);
-
-	return 0;
+	return ret;
 }
 
 #ifdef PACKET_LOW_DEBUG
@@ -243,16 +241,17 @@ static inline void read_put_unlocked(struct contexthub_ipc_info *ipc)
 
 static void enable_debug_workqueue(struct contexthub_ipc_info *ipc, enum chub_err_type err)
 {
-	ipc->err_cnt[err]++;
-	ipc->active_err |= (1 << err);
+	if (err != CHUB_ERR_NANOHUB) {
+		ipc->err_cnt[err]++;
+		ipc->active_err |= (1 << err);
 
-	dev_info(ipc->dev, "%s: err:%d(cnt:%d), active:0x%x\n",
-		__func__, err, ipc->err_cnt[err], ipc->active_err);
+		dev_info(ipc->dev, "%s: err:%d(cnt:%d), active:0x%x\n",
+			__func__, err, ipc->err_cnt[err], ipc->active_err);
+	}
 
 	if (err == CHUB_ERR_ITMON) {
 		chub_dbg_dump_gpr(ipc);
 		chub_dbg_dump_ram(ipc, err);
-		chub_dbg_print_hw(ipc);
 	} else {
 		schedule_work(&ipc->debug_work);
 	}
@@ -395,6 +394,7 @@ static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
 	int val;
 
 	ipc->chub_alive_lock.flag = 0;
+	ipc_write_val(AP, sched_clock());
 	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
 	val = wait_event_timeout(ipc->chub_alive_lock.event,
 				 ipc->chub_alive_lock.flag,
@@ -402,7 +402,6 @@ static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
 
 	return ipc->chub_alive_lock.flag;
 }
-
 
 static int contexthub_wait_alive(struct contexthub_ipc_info *ipc)
 {
@@ -829,7 +828,7 @@ static void handle_utc_work_func(struct work_struct *work)
 	    container_of(work, struct contexthub_ipc_info, utc_work);
 	int trycnt = 0;
 
-#if 0
+#ifdef USE_TIME_SYNC
 	while (ipc->utc_run) {
 		msleep(20000);
 		ipc_write_val(AP, sched_clock());
@@ -860,29 +859,10 @@ static void handle_debug_work_func(struct work_struct *work)
 #endif
 	int i;
 
-	dev_info(ipc->dev, "%s: active_err:0x%x, alive:%d\n",
-		__func__, ipc->active_err, alive);
-
 	if (!alive || ipc->err_cnt[CHUB_ERR_NANOHUB_WDT]) {
 		need_reset = 1;
 		err = CHUB_ERR_NANOHUB_WDT;
-		goto do_reset;
-	}
-
-	/* print error status */
-	for (i = 0; i < CHUB_ERR_CHUB_MAX; i++) {
-		if (ipc->active_err & (1 << i)) {
-			dev_info(ipc->dev, "%s: err%d-%d, active_err:0x%x\n",
-				__func__, i, ipc->err_cnt[i], ipc->active_err);
-			ipc->active_err &= ~(1 << i);
-			err = i;
-		}
-	}
-	/* print comms error status */
-	for (i = CHUB_ERR_MAX + 1; i < CHUB_ERR_COMMS_MAX; i++) {
-		if (ipc->err_cnt[i])
-			dev_info(ipc->dev, "%s: comms: err%d-%d\n",
-				__func__, i, ipc->err_cnt[i]);
+		goto do_err_handle;
 	}
 
 	/* check chub fw error */
@@ -915,9 +895,30 @@ static void handle_debug_work_func(struct work_struct *work)
 		ipc_write_debug_event(AP, 0);
 		if (err)
 			ipc->err_cnt[err]++;
+		return;
 	}
 
-do_reset:
+do_err_handle:
+	dev_info(ipc->dev, "%s: active_err:0x%x, alive:%d\n",
+		__func__, ipc->active_err, alive);
+
+	/* print error status */
+	for (i = 0; i < CHUB_ERR_CHUB_MAX; i++) {
+		if (ipc->active_err & (1 << i)) {
+			dev_info(ipc->dev, "%s: err%d-%d, active_err:0x%x\n",
+				__func__, i, ipc->err_cnt[i], ipc->active_err);
+			ipc->active_err &= ~(1 << i);
+			err = i;
+		}
+	}
+
+	/* print comms error status */
+	for (i = CHUB_ERR_MAX + 1; i < CHUB_ERR_COMMS_MAX; i++) {
+		if (ipc->err_cnt[i])
+			dev_info(ipc->dev, "%s: comms: err%d-%d\n",
+				__func__, i, ipc->err_cnt[i]);
+	}
+
 	dev_info(ipc->dev, "%s: error:%d, alive:%d\n",
 		__func__, err, alive);
 
@@ -1319,7 +1320,11 @@ static ssize_t chub_poweron(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	int ret = contexthub_poweron(dev_get_drvdata(dev));
+	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+	int ret = contexthub_poweron(ipc);
+
+	if (!ret)
+		ret = ipc_check_reset_valid(ipc->ipc_map);
 
 	return ret < 0 ? ret : count;
 }
@@ -1328,12 +1333,17 @@ static ssize_t chub_reset(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	int ret;
+	int ret = 0;
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
 
-	ret = contexthub_download_image(ipc, 0);
+	if (!ipc->block_reset)
+		ret = contexthub_download_image(ipc, 0);
+
 	if (!ret)
 		ret = contexthub_reset(ipc);
+
+	if (!ret)
+		ret = ipc_check_reset_valid(ipc->ipc_map);
 
 	return ret < 0 ? ret : count;
 }

@@ -47,28 +47,6 @@ struct dbg_dump {
 static struct dbg_dump *p_dbg_dump;
 static struct reserved_mem *chub_rmem;
 
-void chub_dbg_print_hw(struct contexthub_ipc_info *ipc)
-{
-	if (p_dbg_dump) {
-		int i;
-		struct dbg_dump *p_dump = p_dbg_dump;
-
-		dev_info(ipc->dev, "%s: err:%d, time:%lld\n",
-			__func__, p_dump->reason, p_dump->time);
-
-		for (i = 0; i <= GPR_PC_INDEX; i++)
-			pr_info("gpr: R%d: 0x%x\n", i, p_dump->gpr[i]);
-
-		print_hex_dump(KERN_CONT, "dram:",
-			DUMP_PREFIX_OFFSET, 16, 1, p_dbg_dump, sizeof(struct dbg_dump), false);
-#if 0
-		print_hex_dump(KERN_CONT, "sram:",
-			DUMP_PREFIX_OFFSET, 16, 1, &p_dbg_dump->sram[p_dbg_dump->sram_start],
-			ipc_get_chub_mem_size(), false);
-#endif
-	}
-}
-
 void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 {
 	if (p_dbg_dump) {
@@ -89,6 +67,9 @@ void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 		p_dump->gpr[GPR_PC_INDEX] =
 		    readl(ipc->chub_dumpgrp + REG_CHUB_DUMPGPR_PCR);
 
+		for (i = 0; i <= GPR_PC_INDEX; i++)
+			pr_info("gpr: R%d: 0x%x\n", i, p_dump->gpr[i]);
+
 		contexthub_release(ipc);
 	}
 }
@@ -102,13 +83,13 @@ static u32 get_dbg_dump_size(void)
 static void chub_dbg_write_file(struct device *dev, char *name, void *buf, int size)
 {
 	struct file *filp;
-	char file_name[32];
+	char file_name[64];
 	mm_segment_t old_fs;
 	struct dbg_dump *p_dump = p_dbg_dump;
 	u32 sec = p_dump->time / NSEC_PER_SEC;
 
-	snprintf(file_name, sizeof(file_name), "/data/nano-%02u-%06u-%s.dump",
-		 p_dump->reason, sec, name);
+	snprintf(file_name, sizeof(file_name), "%s/nano-%02u-%06u-%s.dump",
+		CHUB_DBG_DIR, p_dump->reason, sec, name);
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -221,6 +202,8 @@ void chub_dbg_check_and_download_image(struct contexthub_ipc_info *ipc)
 void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 {
 	int val;
+
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
 	struct nanohub_data *data = ipc->data;
 
 	CSP_PRINTF_INFO
@@ -234,6 +217,7 @@ void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 		pr_warn("%s: chub isn't run\n", __func__);
 		return;
 	}
+#endif
 
 #ifndef USE_IPC_BUF
 	CSP_PRINTF_INFO

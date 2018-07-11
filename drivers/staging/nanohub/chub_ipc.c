@@ -17,6 +17,7 @@
 #include <errno.h>
 #elif defined(EMBOS)
 #include <Device.h>
+#define EINVAL 22
 #endif
 #include <mailboxDrv.h>
 #include <csp_common.h>
@@ -210,7 +211,7 @@ void *ipc_get_chub_map(void)
 #endif
 
 	CSP_PRINTF_INFO
-	    ("contexthub map information(v%u)\n\tbl(%p %d)\n\tos(%p %d)\n\tipc(%p %d)\n\tram(%p %d)\n\tshared(%p %d)\n\tdump(%p %d)\n",
+	    ("contexthub map information(v%u)\nbl(%p %d)\nos(%p %d)\nipc(%p %d)\nram(%p %d)\nshared(%p %d)\ndump(%p %d)\n",
 	     map->ipc_version,
 	     ipc_addr[IPC_REG_BL].base, ipc_addr[IPC_REG_BL].offset,
 	     ipc_addr[IPC_REG_OS].base, ipc_addr[IPC_REG_OS].offset,
@@ -218,6 +219,15 @@ void *ipc_get_chub_map(void)
 	     ipc_addr[IPC_REG_RAM].base, ipc_addr[IPC_REG_RAM].offset,
 	     ipc_addr[IPC_REG_SHARED].base, ipc_addr[IPC_REG_SHARED].offset,
 	     ipc_addr[IPC_REG_DUMP].base, ipc_addr[IPC_REG_DUMP].offset);
+
+    CSP_PRINTF_INFO
+          ("ipc_map information\n ipc:%x\n data_a2c:%x\n data_c2a:%x\n evt_a2c:%x\n evt_c2a:%x\n log:%x\n",
+          (unsigned int)ipc_get_base(IPC_REG_IPC),
+          (unsigned int)ipc_get_base(IPC_REG_IPC_A2C),
+          (unsigned int)ipc_get_base(IPC_REG_IPC_C2A),
+          (unsigned int)ipc_get_base(IPC_REG_IPC_EVT_A2C),
+          (unsigned int)ipc_get_base(IPC_REG_IPC_EVT_C2A),
+          (unsigned int)ipc_get_base(IPC_REG_LOG));
 
 	return ipc_map;
 }
@@ -239,7 +249,7 @@ void ipc_dump(void)
 }
 
 #ifdef USE_IPC_BUF
-inline void ipc_copy_bytes(u8 *dst, u8 *src, int size)
+static inline void ipc_copy_bytes(u8 *dst, u8 *src, int size)
 {
 	int i;
 
@@ -546,6 +556,38 @@ void ipc_print_channel(void)
 }
 #endif
 
+int ipc_check_reset_valid(struct ipc_map_area *map)
+{
+	int i;
+	int ret = 0;
+
+	for (i = 0; i < IPC_DATA_MAX; i++)
+		if (map->data[i].dq || map->data[i].eq ||
+			map->data[i].full || (map->data[i].empty != 1)) {
+			CSP_PRINTF_INFO("contexthub: %s: ipc_data_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
+			__func__, i ? "a2c" : "c2a",
+			map->data[i].eq,
+			map->data[i].dq,
+			map->data[i].full,
+			map->data[i].empty);
+			ret = -EINVAL;
+		}
+
+	for (i = 0; i < IPC_EVT_MAX; i++)
+		if (map->evt[i].ctrl.eq || map->evt[i].ctrl.dq ||
+			map->evt[i].ctrl.full || (map->evt[i].ctrl.empty != 1)) {
+			CSP_PRINTF_INFO("contexthub: %s: ipc_evt_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
+			__func__, i ? "a2c" : "c2a",
+			map->evt[i].ctrl.eq,
+			map->evt[i].ctrl.eq,
+			map->evt[i].ctrl.full,
+			map->evt[i].ctrl.empty);
+			ret = -EINVAL;
+		}
+
+	return ret;
+}
+
 void ipc_init(void)
 {
 	int i, j;
@@ -577,7 +619,7 @@ void ipc_init(void)
 		ipc_map->evt[j].ctrl.dq = 0;
 		ipc_map->evt[j].ctrl.eq = 0;
 		ipc_map->evt[j].ctrl.full = 0;
-		ipc_map->evt[j].ctrl.empty = 0;
+		ipc_map->evt[j].ctrl.empty = 1;
 		ipc_map->evt[j].ctrl.irq = 0;
 
 		for (i = 0; i < IPC_EVT_NUM; i++) {

@@ -285,7 +285,7 @@ static void chub_log_auto_save_ctrl(struct log_buffer_info *info, u32 event)
 	if (event) {
 		/* set file name */
 		snprintf(info->save_file_name, sizeof(info->save_file_name),
-			 "/data/nano-%02d-00-%06u.log", info->id,
+			 "%s/nano-%02d-00-%06u.log", CHUB_DBG_DIR, info->id,
 			 (u32)(sched_clock() / NSEC_PER_SEC));
 
 		chub_log_auto_save_open(info);
@@ -341,7 +341,7 @@ static void log_dump(struct log_buffer_info *info, int err)
 {
 	struct file *filp;
 	mm_segment_t old_fs;
-	char save_file_name[32];
+	char save_file_name[64];
 	struct LOG_BUFFER *buffer = info->log_buffer;
 	u32 wrap_index = buffer->index_writer;
 
@@ -355,8 +355,8 @@ static void log_dump(struct log_buffer_info *info, int err)
 	}
 
 	snprintf(save_file_name, sizeof(save_file_name),
-		 "/data/nano-%02d-%02d-%06u.log", info->id, err,
-		 (u32)(sched_clock() / NSEC_PER_SEC));
+		 "%s/nano-%02d-%02d-%06u.log", CHUB_DBG_DIR,
+		 info->id, err, (u32)(sched_clock() / NSEC_PER_SEC));
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);

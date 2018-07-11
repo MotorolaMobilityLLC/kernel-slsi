@@ -31,7 +31,7 @@ struct log_buffer_info {
 	bool file_created;
 	struct mutex lock;	/* logbuf access lock */
 	ssize_t log_file_index;
-	char save_file_name[32];
+	char save_file_name[64];
 	struct LOG_BUFFER *log_buffer;
 	struct log_kernel_buffer kernel_buffer;
 	bool sram_log_buffer;

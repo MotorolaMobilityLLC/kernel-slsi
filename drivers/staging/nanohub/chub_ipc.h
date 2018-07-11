@@ -167,7 +167,7 @@ enum irq_evt_chub {
 };
 
 enum ipc_debug_event {
-	IPC_DEBUG_UTC_STOP,
+	IPC_DEBUG_UTC_STOP, /* no used. UTC_NONE */
 	IPC_DEBUG_UTC_AGING,
 	IPC_DEBUG_UTC_WDT,
 	IPC_DEBUG_UTC_RTC,
@@ -188,7 +188,6 @@ enum ipc_debug_event {
 	IPC_DEBUG_UTC_MAX,
 	IPC_DEBUG_NANOHUB_MAX,
 	IPC_DEBUG_DUMP_STATUS,
-	IPC_DEBUG_FLUSH_LOG,
 	IPC_DEBUG_CHUB_PRINT_LOG,
 	IPC_DEBUG_CHUB_FULL_LOG,
 	IPC_DEBUG_CHUB_FAULT,
@@ -416,6 +415,7 @@ void ipc_set_base(void *addr);
 void *ipc_get_base(enum ipc_region area);
 u32 ipc_get_offset(enum ipc_region area);
 void *ipc_get_addr(enum ipc_region area, int buf_num);
+int ipc_check_reset_valid(struct ipc_map_area *ipc_map);
 void ipc_init(void);
 int ipc_hw_read_int_start_index(enum ipc_owner owner);
 void ipc_update_channel_status(struct ipc_content *content,
