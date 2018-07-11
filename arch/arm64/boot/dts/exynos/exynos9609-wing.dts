@@ -1456,6 +1456,7 @@
 	};
 #endif
 
+#if 0
 	fimc_is@144B0000 {
 		vender {
 			rear_sensor_id = <47>; /* 46: RPB, 20: 2P8, 47: 2P7SQ */
@@ -1928,6 +1929,7 @@
 		is_bns = <0>;
 		status = "okay";
 	};
+#endif
 };
 
 &pinctrl_0 {
