@@ -311,14 +311,6 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	}
 	minfo->total_size += minfo->pb_fshared->size;
 
-	/* reserved memory for library */
-	minfo->pb_heap_rta = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, RESERVE_LIB_SIZE, 16);
-	if (IS_ERR_OR_NULL(minfo->pb_heap_rta)) {
-		err("failed to allocate buffer for library");
-		return -ENOMEM;
-	}
-	minfo->total_size += minfo->pb_heap_rta->size;
-
 	tnr_size = 0;
 #if !defined(ENABLE_DYNAMIC_MEM)
 #if defined(ENABLE_TNR)
@@ -404,9 +396,6 @@ static int fimc_is_resourcemgr_initmem(struct fimc_is_resourcemgr *resourcemgr)
 	/* set information */
 	resourcemgr->minfo.dvaddr = 0;
 	resourcemgr->minfo.kvaddr = 0;
-
-	resourcemgr->minfo.dvaddr_lib = CALL_BUFOP(minfo->pb_heap_rta, dvaddr, minfo->pb_heap_rta);
-	resourcemgr->minfo.kvaddr_lib = CALL_BUFOP(minfo->pb_heap_rta, kvaddr, minfo->pb_heap_rta);
 
 	resourcemgr->minfo.dvaddr_debug = CALL_BUFOP(minfo->pb_debug, dvaddr, minfo->pb_debug);
 	resourcemgr->minfo.kvaddr_debug = CALL_BUFOP(minfo->pb_debug, kvaddr, minfo->pb_debug);
@@ -536,6 +525,7 @@ static int fimc_is_resourcemgr_deinit_dynamic_mem(struct fimc_is_resourcemgr *re
 
 static struct vm_struct fimc_is_lib_vm;
 static struct vm_struct fimc_is_heap_vm;
+static struct vm_struct fimc_is_heap_rta_vm;
 #if defined(RESERVED_MEM_IN_DT)
 static int fimc_is_rmem_device_init(struct reserved_mem *rmem,
 				    struct device *dev)
@@ -623,7 +613,14 @@ static int __init fimc_is_lib_mem_alloc(char *str)
 
 	vm_area_add_early(&fimc_is_heap_vm);
 
-	probe_info("fimc-is heap memory: 0x%lx\n", HEAP_START);
+	probe_info("fimc-is heap DDK memory: 0x%lx\n", HEAP_START);
+
+	fimc_is_heap_rta_vm.addr = (void *)HEAP_RTA_START;
+	fimc_is_heap_rta_vm.size = HEAP_RTA_SIZE + PAGE_SIZE;
+
+	vm_area_add_early(&fimc_is_heap_rta_vm);
+
+	probe_info("fimc-is heap RTA memory: 0x%lx\n", HEAP_RTA_START);
 
 	return 0;
 }
@@ -1120,6 +1117,12 @@ int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr,
 	ret = fimc_is_heap_mem_map(resourcemgr, &fimc_is_heap_vm, HEAP_SIZE);
 	if (ret) {
 		probe_err("fimc_is_heap_mem_map for HEAP_DDK is fail(%d)", ret);
+		goto p_err;
+	}
+
+	ret = fimc_is_heap_mem_map(resourcemgr, &fimc_is_heap_rta_vm, HEAP_RTA_SIZE);
+	if (ret) {
+		probe_err("fimc_is_heap_mem_map for HEAP_RTA is fail(%d)", ret);
 		goto p_err;
 	}
 
