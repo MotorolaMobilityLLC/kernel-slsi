@@ -442,20 +442,6 @@ static void free_to_mblk(struct lib_mem_block *mblk, void *kva)
 	spin_unlock_irqrestore(&mblk->lock, flag);
 }
 
-void *fimc_is_alloc_heap(u32 size)
-{
-	struct fimc_is_lib_support *lib = &gPtr_lib_support;
-
-	return alloc_from_mblk(&lib->mb_heap_rta, size);
-}
-
-void fimc_is_free_heap(void *kva)
-{
-	struct fimc_is_lib_support *lib = &gPtr_lib_support;
-
-	return free_to_mblk(&lib->mb_heap_rta, kva);
-}
-
 void *fimc_is_alloc_dma(u32 size)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
@@ -1908,8 +1894,8 @@ void set_os_system_funcs(os_system_func_t *funcs)
 {
 	funcs[0] = (os_system_func_t)fimc_is_log_write_console;
 
-	funcs[1] = (os_system_func_t)fimc_is_alloc_heap;
-	funcs[2] = (os_system_func_t)fimc_is_free_heap;
+	funcs[1] = NULL;
+	funcs[2] = NULL;
 
 	funcs[3] = (os_system_func_t)fimc_is_assert;
 
@@ -1960,8 +1946,8 @@ void set_os_system_funcs(os_system_func_t *funcs)
 	funcs[41] = (os_system_func_t)fimc_is_spin_unlock_irq;
 	funcs[42] = (os_system_func_t)fimc_is_spin_lock_irqsave;
 	funcs[43] = (os_system_func_t)fimc_is_spin_unlock_irqrestore;
-	funcs[44] = (os_system_func_t)fimc_is_alloc_heap;
-	funcs[45] = (os_system_func_t)fimc_is_free_heap;
+	funcs[44] = NULL;
+	funcs[45] = NULL;
 	funcs[46] = (os_system_func_t)get_reg_addr;
 
 	funcs[47] = (os_system_func_t)fimc_is_lib_in_interrupt;
@@ -2014,8 +2000,8 @@ void set_os_system_funcs_for_rta(os_system_func_t *funcs)
 #endif
 
 	/* Index 10 => memory : alloc/free */
-	funcs[10] = (os_system_func_t)fimc_is_alloc_heap;
-	funcs[11] = (os_system_func_t)fimc_is_free_heap;
+	funcs[10] = NULL;
+	funcs[11] = NULL;
 
 	/* Index 20 => memory : misc */
 
@@ -2584,7 +2570,6 @@ int fimc_is_load_bin(void)
 
 	lib->binary_load_flg = true;
 
-	mblk_init(&lib->mb_heap_rta, lib->minfo->pb_heap_rta, MT_TYPE_MB_HEAP, "HEAP");
 	mblk_init(&lib->mb_dma, lib->minfo->pb_taaisp, MT_TYPE_MB_DMA, "DMA");
 	mblk_init(&lib->mb_vra, lib->minfo->pb_vra, MT_TYPE_MB_VRA, "VRA");
 
