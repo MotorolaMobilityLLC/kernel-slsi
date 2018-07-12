@@ -97,7 +97,12 @@ int main(int argc, char *argv[])
 #endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_ACPM
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
-		printf("log.append({'time':%.9f, 'type' : 'acpmlog', 'log' : '%s', 'value' : %d })\n",
+		for (j = 0; j < 8; j++) {
+			if (!((p->acpm[i].log[j] >= 'a' && p->acpm[i].log[j] <= 'z') || p->acpm[i].log[j] == '_'))
+				p->acpm[i].log[j] = 0;
+		}
+		printf("log.append({'time':%.9f, 'acpm_time':%.9f, 'type' : 'acpmlog', 'log' : '%s', 'value' : %d })\n",
+				p->acpm[i].time/1.0e9,
 				p->acpm[i].acpm_time/1.0e9,
 				p->acpm[i].log,
 				p->acpm[i].data);
