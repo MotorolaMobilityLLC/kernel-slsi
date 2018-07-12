@@ -207,6 +207,10 @@ static int slsi_cdev_open(struct inode *inode, struct file *file)
 	file->private_data = client;
 	slsi_procfs_inc_node();
 
+#ifdef CONFIG_SCSC_MXLOGGER
+	scsc_service_register_observer(NULL, "udi");
+#endif
+
 	SLSI_DBG1_NODEV(SLSI_UDI, "Client:%d added\n", indx);
 
 	return 0;
@@ -257,6 +261,10 @@ static int slsi_cdev_release(struct inode *inode, struct file *filp)
 	kfree(client);
 	slsi_procfs_dec_node();
 
+#ifdef CONFIG_SCSC_MXLOGGER
+	scsc_service_unregister_observer(NULL, "udi");
+#endif
+
 	SLSI_DBG1_NODEV(SLSI_UDI, "Client:%d removed\n", indx);
 
 	return 0;
@@ -280,7 +288,7 @@ static ssize_t slsi_cdev_read(struct file *filp, char *p, size_t len, loff_t *po
 
 		/* wait until getting a signal */
 		if (wait_event_interruptible(client->log_wq, skb_queue_len(&client->log_list))) {
-			SLSI_ERR_NODEV("slsi_cdev_read: wait_event_interruptible failed.");
+			SLSI_ERR_NODEV("slsi_cdev_read: wait_event_interruptible failed.\n");
 			return -ERESTARTSYS;
 		}
 	}

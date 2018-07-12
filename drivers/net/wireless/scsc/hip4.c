@@ -13,6 +13,9 @@
 #include <linux/ktime.h>
 #include <linux/kthread.h>
 #include <scsc/scsc_logring.h>
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
 
 #include "hip4.h"
 #include "mbulk.h"
@@ -430,6 +433,41 @@ static const struct file_operations hip4_procfs_jitter_fops = {
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = single_release,
+};
+#endif
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+static int hip4_collect(struct scsc_log_collector_client *collect_client, size_t size)
+{
+	struct slsi_hip4 *hip = (struct slsi_hip4 *)collect_client->prv;
+	struct hip4_priv *hip_priv;
+	int ret = 0;
+
+	if (!hip)
+		return 0;
+
+	hip_priv = hip->hip_priv;
+	if (!hip_priv)
+		return 0;
+
+	if (!hip_priv->mib_collect || !hip_priv->mib_sz)
+		return 0;
+
+	SLSI_INFO_NODEV("Hip4 collecting HCF\n");
+	mutex_lock(&hip_priv->in_collection);
+	ret = scsc_log_collector_write(hip_priv->mib_collect, hip_priv->mib_sz, 1);
+	mutex_unlock(&hip_priv->in_collection);
+	return ret;
+}
+
+/* Collect client registration for HCF file*/
+struct scsc_log_collector_client hip4_collect_hcf_client = {
+	.name = "wlan_hcf",
+	.type = SCSC_LOG_CHUNK_WLAN_HCF,
+	.collect_init = NULL,
+	.collect = hip4_collect,
+	.collect_end = NULL,
+	.prv = NULL,
 };
 #endif
 
@@ -962,9 +1000,8 @@ static void hip4_wq(struct work_struct *data)
 #endif
 		mem = scsc_mx_service_mif_addr_to_ptr(service, ref);
 		m = (struct mbulk *)mem;
-
 		if (!m) {
-			SLSI_ERR_NODEV("FB: Mbulk is NULL\n");
+			SLSI_ERR_NODEV("FB: Mbulk is NULL 0x%x\n", ref);
 			goto consume_fb_mbulk;
 		}
 		/* colour is defined as: */
@@ -1031,6 +1068,10 @@ consume_fb_mbulk:
 #endif
 		mem = scsc_mx_service_mif_addr_to_ptr(service, ref);
 		m = (struct mbulk *)(mem);
+		if (!m) {
+			SLSI_ERR_NODEV("Ctrl: Mbulk is NULL 0x%x\n", ref);
+			goto consume_ctl_mbulk;
+		}
 		/* Process Control Signal */
 
 		skb = hip4_mbulk_to_skb(service, m, to_free, false);
@@ -1142,6 +1183,11 @@ consume_ctl_mbulk:
 #endif
 		mem = scsc_mx_service_mif_addr_to_ptr(service, ref);
 		m = (struct mbulk *)(mem);
+		if (!m) {
+			SLSI_ERR_NODEV("Dat: Mbulk is NULL 0x%x\n", ref);
+			goto consume_dat_mbulk;
+		}
+
 		skb = hip4_mbulk_to_skb(service, m, to_free, false);
 		if (!skb) {
 			SLSI_ERR_NODEV("Dat: Error parsing skb\n");
@@ -1468,6 +1514,7 @@ int hip4_init(struct slsi_hip4 *hip)
 		hip_control->config_v4.mib_sz       = 0;
 		hip_control->config_v3.mib_loc      = 0;
 		hip_control->config_v3.mib_sz       = 0;
+		total_mib_len = 0;
 	} else if (total_mib_len) {
 		SLSI_INFO_NODEV("Loading MIB into shared memory, size (%d)\n", total_mib_len);
 		/* Load each MIB file into shared DRAM region */
@@ -1602,6 +1649,23 @@ int hip4_init(struct slsi_hip4 *hip)
 			SLSI_WARN(sdev, "failed to add PM QoS request\n");
 		}
 	}
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	/* Register with log collector to collect wlan hcf file */
+	/* Make a copy for collection */
+	mutex_init(&hip->hip_priv->in_collection);
+	if (total_mib_len) {
+		hip->hip_priv->mib_collect = vmalloc(total_mib_len);
+		if (hip->hip_priv->mib_collect) {
+			memcpy(hip->hip_priv->mib_collect, (u8 *)hip_ptr + HIP4_WLAN_MIB_OFFSET, total_mib_len);
+			hip->hip_priv->mib_sz = total_mib_len;
+			hip4_collect_hcf_client.prv = hip;
+			scsc_log_collector_register_client(&hip4_collect_hcf_client);
+		} else {
+			SLSI_WARN(sdev, "failed to allocate memory for hcf file backup\n");
+		}
+	}
+#endif
 	return 0;
 }
 
@@ -1848,6 +1912,17 @@ void hip4_deinit(struct slsi_hip4 *hip)
 		return;
 
 	service = sdev->service;
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	mutex_lock(&hip->hip_priv->in_collection);
+	hip4_collect_hcf_client.prv = NULL;
+	scsc_log_collector_unregister_client(&hip4_collect_hcf_client);
+	if (hip->hip_priv->mib_collect) {
+		hip->hip_priv->mib_sz = 0;
+		vfree(hip->hip_priv->mib_collect);
+	}
+	mutex_unlock(&hip->hip_priv->in_collection);
+#endif
 
 	/* de-register with traffic monitor */
 	slsi_traffic_mon_client_unregister(sdev, hip);

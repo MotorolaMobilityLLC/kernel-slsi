@@ -324,8 +324,14 @@ struct hip4_priv {
 	/* PM QoS control */
 	struct work_struct           pm_qos_work;
 	/* PM QoS control spinlock */
-	spinlock_t					 pm_qos_lock;
+	spinlock_t                   pm_qos_lock;
 	u8                           pm_qos_state;
+
+	/* Collection artificats */
+	void                         *mib_collect;
+	u16                          mib_sz;
+	/* Mutex to protect hcf file collection if a tear down is triggered */
+	struct mutex                 in_collection;
 };
 
 struct scsc_service;

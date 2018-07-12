@@ -26,6 +26,9 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <scsc/scsc_mx.h>
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include "hip4_sampler.h"
@@ -41,9 +44,9 @@ struct hip4_record {
 
 static atomic_t in_read;
 
-static bool hip4_sampler_enable;
+static bool hip4_sampler_enable = true;
 module_param(hip4_sampler_enable, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(hip4_sampler_enable, "Enable hip4_sampler_enable. Run-time option - (default: N)");
+MODULE_PARM_DESC(hip4_sampler_enable, "Enable hip4_sampler_enable. Run-time option - (default: Y)");
 
 static bool hip4_sampler_dynamic = true;
 module_param(hip4_sampler_dynamic, bool, S_IRUGO | S_IWUSR);
@@ -489,6 +492,72 @@ void hip4_sampler_tcp_decode(struct slsi_dev *sdev, struct net_device *dev, u8 *
 	}
 }
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+int hip4_collect_init(struct scsc_log_collector_client *collect_client)
+{
+	/* Stop Sampling */
+	atomic_set(&in_read, 1);
+	return 0;
+}
+
+int hip4_collect(struct scsc_log_collector_client *collect_client, size_t size)
+{
+	int i = SCSC_HIP4_DEBUG_INTERFACES;
+	int ret = 0;
+	unsigned long flags;
+	u32 num_samples;
+	struct hip4_sampler_dev *hip4_dev;
+	void *buf;
+
+	SLSI_INFO_NODEV("Triggered log collection in hip4_sampler\n");
+
+	if (!hip4_sampler_enable)
+		return 0;
+
+	while (i--)
+		if (hip4_sampler.devs[i].mx == collect_client->prv && hip4_sampler.devs[i].type == OFFLINE) {
+			hip4_dev = &hip4_sampler.devs[i];
+			num_samples = kfifo_len(&hip4_dev->fifo);
+			if (!num_samples)
+				continue;
+			buf = vmalloc(num_samples * sizeof(struct hip4_record));
+			if (!buf)
+				continue;
+			spin_lock_irqsave(&hip4_dev->spinlock, flags);
+			ret = kfifo_out(&hip4_dev->fifo, buf, num_samples);
+			spin_unlock_irqrestore(&hip4_dev->spinlock, flags);
+			if (!ret)
+				goto error;
+			SLSI_DBG1_NODEV(SLSI_HIP, "num_samples %d ret %d size of hip4_record %zu\n", num_samples, ret, sizeof(struct hip4_record));
+			ret = scsc_log_collector_write(buf, ret * sizeof(struct hip4_record), 1);
+			if (ret)
+				goto error;
+			vfree(buf);
+		}
+	return 0;
+error:
+	vfree(buf);
+	return ret;
+}
+
+int hip4_collect_end(struct scsc_log_collector_client *collect_client)
+{
+	/* Restart sampling */
+	atomic_set(&in_read, 0);
+	return 0;
+}
+
+/* Collect client registration */
+struct scsc_log_collector_client hip4_collect_client = {
+	.name = "HIP4 Sampler",
+	.type = SCSC_LOG_CHUNK_HIP4_SAMPLER,
+	.collect_init = hip4_collect_init,
+	.collect = hip4_collect,
+	.collect_end = hip4_collect_end,
+	.prv = NULL,
+};
+#endif
+
 static int hip4_sampler_open(struct inode *inode, struct file *filp)
 {
 	struct hip4_sampler_dev *hip4_dev;
@@ -691,6 +760,7 @@ void hip4_sampler_create(struct slsi_dev *sdev, struct scsc_mx *mx)
 
 	SLSI_INFO_NODEV("hip4_sampler version: %d.%d\n", VER_MAJOR, VER_MINOR);
 
+	memset(&hip4_sampler, 0, sizeof(hip4_sampler));
 	/* Check whether exists */
 	if (!hip4_sampler.init) {
 		ret = alloc_chrdev_region(&hip4_sampler.device, 0, SCSC_HIP4_DEBUG_INTERFACES, "hip4_sampler_char");
@@ -811,6 +881,10 @@ void hip4_sampler_create(struct slsi_dev *sdev, struct scsc_mx *mx)
 		set_bit(minor, bitmap_hip4_sampler_minor);
 	}
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	hip4_collect_client.prv = mx;
+	scsc_log_collector_register_client(&hip4_collect_client);
+#endif
 	hip4_sampler.init = true;
 
 	SLSI_INFO_NODEV("%s: Ready to start sampling....\n", DRV_NAME);
@@ -851,6 +925,9 @@ void hip4_sampler_destroy(struct slsi_dev *sdev, struct scsc_mx *mx)
 			hip4_sampler.devs[i].mx = NULL;
 			clear_bit(i, bitmap_hip4_sampler_minor);
 		}
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_unregister_client(&hip4_collect_client);
+#endif
 	class_destroy(hip4_sampler.class_hip4_sampler);
 	unregister_chrdev_region(hip4_sampler.device, SCSC_HIP4_DEBUG_INTERFACES);
 	hip4_sampler.init = false;

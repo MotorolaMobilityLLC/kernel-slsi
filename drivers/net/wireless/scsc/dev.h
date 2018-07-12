@@ -47,6 +47,9 @@
 #include "nl80211_vendor.h"
 #include "traffic_monitor.h"
 
+#define FAPI_MAJOR_VERSION(v) (((v) >> 8) & 0xFF)
+#define FAPI_MINOR_VERSION(v) ((v) & 0xFF)
+
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 /* the FAPI definition should be in fapi.h auto-generated file.
  * But until a new FAPI version is generated, the definition for

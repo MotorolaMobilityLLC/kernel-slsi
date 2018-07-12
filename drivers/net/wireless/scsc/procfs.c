@@ -17,9 +17,6 @@
 
 #include "mib.h"
 
-#define FAPI_MAJOR_VERSION(v) ((v >> 8) & 0xFF)
-#define FAPI_MINOR_VERSION(v) ((v) & 0xFF)
-
 int slsi_procfs_open_file_generic(struct inode *inode, struct file *file)
 {
 	file->private_data = SLSI_PDE_DATA(inode);

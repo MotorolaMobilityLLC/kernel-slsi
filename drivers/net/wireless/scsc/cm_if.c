@@ -16,6 +16,9 @@
 
 #include "../scsc/scsc_mx_impl.h" /* TODO */
 #include <scsc/scsc_mx.h>
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
 
 static bool EnableTestMode;
 module_param(EnableTestMode, bool, S_IRUGO | S_IWUSR);
@@ -154,6 +157,9 @@ void slsi_wlan_service_probe(struct scsc_mx_module_client *module_client, struct
 	struct slsi_dev            *sdev;
 	struct device              *dev;
 	struct scsc_service_client mx_wlan_client;
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	char buf[SCSC_LOG_FAPI_VERSION_SIZE];
+#endif
 
 	SLSI_UNUSED_PARAMETER(module_client);
 
@@ -201,6 +207,20 @@ void slsi_wlan_service_probe(struct scsc_mx_module_client *module_client, struct
 
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 		hip4_sampler_create(sdev, mx);
+#endif
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+		memset(buf, 0, SCSC_LOG_FAPI_VERSION_SIZE);
+		/* Write FAPI VERSION to collector header */
+		/* IMPORTANT - Do not change the formatting as User space tooling is parsing the string
+		 * to read SAP fapi versions.
+		 */
+		snprintf(buf, SCSC_LOG_FAPI_VERSION_SIZE, "ma:%u.%u, mlme:%u.%u, debug:%u.%u, test:%u.%u",
+			 FAPI_MAJOR_VERSION(FAPI_DATA_SAP_VERSION), FAPI_MINOR_VERSION(FAPI_DATA_SAP_VERSION),
+			 FAPI_MAJOR_VERSION(FAPI_CONTROL_SAP_VERSION), FAPI_MINOR_VERSION(FAPI_CONTROL_SAP_VERSION),
+			 FAPI_MAJOR_VERSION(FAPI_DEBUG_SAP_VERSION), FAPI_MINOR_VERSION(FAPI_DEBUG_SAP_VERSION),
+			 FAPI_MAJOR_VERSION(FAPI_TEST_SAP_VERSION), FAPI_MINOR_VERSION(FAPI_TEST_SAP_VERSION));
+
+		scsc_log_collector_write_fapi(buf, SCSC_LOG_FAPI_VERSION_SIZE);
 #endif
 	}
 
