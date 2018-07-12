@@ -84,6 +84,8 @@ scsc_mx-y += \
 	mifqos.o \
 	mx140_file.o
 
+scsc_mx-$(CONFIG_SCSC_MXLOGGER) += mxlogger.o
+
 scsc_mx-$(CONFIG_SCSC_SMAPPER) += mifsmapper.o
 
 scsc_mx-$(CONFIG_SCSC_WLBTD) += scsc_wlbtd.o

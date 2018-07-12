@@ -35,6 +35,13 @@ config SCSC_PCIE
 	depends on SCSC_CORE
 	depends on PCI
 
+config SCSC_MXLOGGER
+	bool "Samsung SCSC MXLOGGER"
+	depends on SCSC_CORE
+	default y
+	---help---
+	   MXLOGGER provides FW level logging in DRAM
+
 config SCSC_SMAPPER
 	bool "Samsung SCSC WLAN Smapper support"
 	depends on SCSC_CORE

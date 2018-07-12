@@ -74,6 +74,8 @@ struct scsc_service_client {
 	int (*suspend)(struct scsc_service_client *client);
 	/* called when AP processor has resumed */
 	int (*resume)(struct scsc_service_client *client);
+	/* called when log collection has been triggered */
+	void (*log)(struct scsc_service_client *client, u16 reason);
 };
 
 #ifdef CONFIG_SCSC_FM
@@ -226,6 +228,15 @@ u16 scsc_service_get_alignment(struct scsc_service *service);
 int scsc_service_pm_qos_add_request(struct scsc_service *service, enum scsc_qos_config config);
 int scsc_service_pm_qos_update_request(struct scsc_service *service, enum scsc_qos_config config);
 int scsc_service_pm_qos_remove_request(struct scsc_service *service);
+
+/* MXLOGGER API */
+/* If there is no service/mxman associated, register the observer as global (will affect all the mx instanes)*/
+/* Users of these functions should ensure that the registers/unregister functions are balanced (i.e. if observer is registed as global,
+ * it _has_ to unregister as global) */
+int scsc_service_register_observer(struct scsc_service *service, char *name);
+/* Unregister an observer */
+int scsc_service_unregister_observer(struct scsc_service *service, char *name);
+
 /* Reads a configuration file into memory.
  *
  * Path is relative to the currently selected firmware configuration

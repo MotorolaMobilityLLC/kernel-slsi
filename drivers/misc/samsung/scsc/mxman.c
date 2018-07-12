@@ -23,6 +23,7 @@
 #include "fwimage.h"
 #include "fwhdr.h"
 #include "mxlog.h"
+#include "mxlogger.h"
 #include "fw_panic_record.h"
 #include "panicmon.h"
 #include "mxproc.h"
@@ -35,6 +36,9 @@
 #include <scsc/scsc_release.h>
 #include "scsc_mx.h"
 #include <linux/fs.h>
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
 
 #include <scsc/scsc_logring.h>
 #ifdef CONFIG_SCSC_WLBTD
@@ -873,6 +877,9 @@ static int mxman_start(struct mxman *mxman)
 						  &mxman_message_handler, mxman);
 
 	mxlog_init(scsc_mx_get_mxlog(mxman->mx), mxman->mx, mxman->fw_build_id);
+#ifdef CONFIG_SCSC_MXLOGGER
+	mxlogger_init(mxman->mx, scsc_mx_get_mxlogger(mxman->mx), MXL_POOL_SZ);
+#endif
 #ifdef CONFIG_SCSC_SMAPPER
 	/* Initialize SMAPPER */
 	mifsmapper_init(scsc_mx_get_smapper(mxman->mx), mif);
@@ -933,6 +940,9 @@ static int mxman_start(struct mxman *mxman)
 			mxman_stop(mxman);
 			return r;
 		}
+#ifdef CONFIG_SCSC_MXLOGGER
+		mxlogger_start(scsc_mx_get_mxlogger(mxman->mx));
+#endif
 	} else {
 		msleep(WAIT_FOR_FW_TO_START_DELAY_MS);
 	}
@@ -1320,6 +1330,11 @@ static void mxman_failure_work(struct work_struct *work)
 		if (mif->mif_cleanup && mxman_recovery_disabled())
 			mif->mif_cleanup(mif);
 	}
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	/* Collect mxlogger logs */
+	scsc_log_collector_collect(SCSC_LOG_REASON_FW_PANIC);
+#endif
+
 	if (!mxman_recovery_disabled())
 		srvman_clear_error(srvman);
 	mutex_unlock(&mxman->mxman_mutex);
@@ -1468,7 +1483,6 @@ static int __mxman_open(struct mxman *mxman)
 		mxman->users++;
 		mxman->mxman_state = MXMAN_STATE_STARTED;
 		mutex_unlock(&mxman->mxman_mutex);
-
 		/* Start mxlogger */
 		if (!disable_logger) {
 			static char mxlbin[128];
@@ -1608,6 +1622,12 @@ void mxman_close(struct mxman *mxman)
 			mutex_unlock(&mxman->mxman_mutex);
 			return;
 		}
+#ifdef CONFIG_SCSC_MXLOGGER
+		/**
+		 * Deinit mxlogger on last service stop...BUT before asking for HALT
+		 */
+		mxlogger_deinit(mxman->mx, scsc_mx_get_mxlogger(mxman->mx));
+#endif
 		/*
 		 * Ask the subsystem to stop (MM_STOP_REQ), and wait
 		 * for response (MM_STOP_RSP).
@@ -1755,6 +1775,9 @@ int mxman_suspend(struct mxman *mxman)
 
 	if (mxman->mxman_state == MXMAN_STATE_STARTED) {
 		SCSC_TAG_INFO(MXMAN, "MM_HOST_SUSPEND\n");
+#ifdef CONFIG_SCSC_MXLOGGER
+		mxlogger_generate_sync_record(scsc_mx_get_mxlogger(mxman->mx), MXLOGGER_SYN_SUSPEND);
+#endif
 		mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxman->mx), MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT, &message, sizeof(message));
 		mxman->suspended = 1;
 		atomic_inc(&mxman->suspend_count);
@@ -1793,6 +1816,9 @@ void mxman_resume(struct mxman *mxman)
 
 	if (mxman->mxman_state == MXMAN_STATE_STARTED) {
 		SCSC_TAG_INFO(MXMAN, "MM_HOST_RESUME\n");
+#ifdef CONFIG_SCSC_MXLOGGER
+		mxlogger_generate_sync_record(scsc_mx_get_mxlogger(mxman->mx), MXLOGGER_SYN_RESUME);
+#endif
 		mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxman->mx), MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT, &message, sizeof(message));
 		mxman->suspended = 0;
 	}
@@ -1968,7 +1994,9 @@ EXPORT_SYMBOL(mxman_get_fw_version);
 
 void mxman_get_driver_version(char *version, size_t ver_sz)
 {
-	snprintf(version, ver_sz - 1, "drv_ver: %d.%d.%d.%d",
+	/* IMPORTANT - Do not change the formatting as User space tooling is parsing the string
+	* to read SAP fapi versions. */
+	snprintf(version, ver_sz - 1, "drv_ver: %u.%u.%u.%u",
 		 SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT);
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_get_and_print_build_type();

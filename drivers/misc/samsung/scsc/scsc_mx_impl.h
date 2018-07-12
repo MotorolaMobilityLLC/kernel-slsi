@@ -40,6 +40,7 @@ struct gdb_transport    *scsc_mx_get_gdb_transport_r4(struct scsc_mx *mx);
 struct gdb_transport    *scsc_mx_get_gdb_transport_m4(struct scsc_mx *mx);
 struct mxlog            *scsc_mx_get_mxlog(struct scsc_mx *mx);
 struct mxlog_transport  *scsc_mx_get_mxlog_transport(struct scsc_mx *mx);
+struct mxlogger         *scsc_mx_get_mxlogger(struct scsc_mx *mx);
 struct panicmon         *scsc_mx_get_panicmon(struct scsc_mx *mx);
 struct suspendmon	*scsc_mx_get_suspendmon(struct scsc_mx *mx);
 int mx140_file_download_fw(struct scsc_mx *mx, void *dest, size_t dest_size, u32 *fw_image_size);

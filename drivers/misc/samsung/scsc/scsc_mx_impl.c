@@ -20,6 +20,7 @@
 #include "mxmgmt_transport.h"
 #include "gdb_transport.h"
 #include "mxlog.h"
+#include "mxlogger.h"
 #include "panicmon.h"
 #include "mxlog_transport.h"
 #include "suspendmon.h"
@@ -43,6 +44,7 @@ struct scsc_mx {
 	struct gdb_transport    gdb_transport_m4;
 	int                     users;
 	struct mxlog            mxlog;
+	struct mxlogger         mxlogger;
 	struct panicmon         panicmon;
 	struct mxlog_transport  mxlog_transport;
 	struct suspendmon	suspendmon;
@@ -169,6 +171,11 @@ struct panicmon *scsc_mx_get_panicmon(struct scsc_mx *mx)
 struct mxlog_transport *scsc_mx_get_mxlog_transport(struct scsc_mx *mx)
 {
 	return &mx->mxlog_transport;
+}
+
+struct mxlogger *scsc_mx_get_mxlogger(struct scsc_mx *mx)
+{
+	return &mx->mxlogger;
 }
 
 struct suspendmon *scsc_mx_get_suspendmon(struct scsc_mx *mx)

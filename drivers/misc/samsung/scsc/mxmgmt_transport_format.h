@@ -7,6 +7,8 @@
 #ifndef MXMGR_TRANSPORT_FORMAT_H__
 #define MXMGR_TRANSPORT_FORMAT_H__
 
+#define MXMGR_MESSAGE_PAYLOAD_SIZE 7
+
 /**
  * Layout of messages across the manager transport streams.
  *
@@ -15,7 +17,7 @@
  */
 struct mxmgr_message {
 	uint8_t channel_id; /* Channel ID from mxmgr_channels */
-	uint8_t payload[7]; /* Message content to store in the transport stream - user defined format */
+	uint8_t payload[MXMGR_MESSAGE_PAYLOAD_SIZE]; /* Message content to store in the transport stream - user defined format */
 } __packed;
 
 #endif /* MXMGR_TRANSPORT_FORMAT_H__ */
