@@ -260,11 +260,17 @@
 		ems {
 			/* Ontime Migration */
 			ontime {
-				/* between little and middle */
-				step0 {
-					up-threshold = <215>;
-					down-threshold = <170>;
-					min-residency-us = <8192>;
+				/* little cores */
+				coregroup0 {
+					lower-boundary = <0>;
+					upper-boundary = <68>;
+					coverage-ratio = <100>;
+				};
+				/* big cores */
+				coregroup1 {
+					lower-boundary = <17>;
+					upper-boundary = <100>;
+					coverage-ratio = <75>;
 				};
 			};
 
