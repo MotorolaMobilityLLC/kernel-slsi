@@ -51,7 +51,7 @@ struct ontime_cond {
 	struct kobj_attribute	down_threshold_attr;
 	struct kobj_attribute	min_residency_attr;
 };
-static struct ontime_cond *ontime_cond = NULL;
+static struct ontime_cond *ontime_cond;
 
 /* Structure of ontime migration environment */
 struct ontime_env {
@@ -757,7 +757,7 @@ static int __init ontime_sysfs_init(void)
 	step = 0;
 	cond = ontime_cond;
 	while (cond) {
-		char buf[25];
+		char buf[20];
 		char *name;
 
 		/* If ontime is disabled in this step, do not create sysfs node */
@@ -765,7 +765,7 @@ static int __init ontime_sysfs_init(void)
 			goto skip;
 
 		/* Init up_threshold node */
-		snprintf(buf, sizeof(buf), "up_threshold_step%d", step);
+		sprintf(buf, "up_threshold_step%d", step);
 		name = kstrdup(buf, GFP_KERNEL);
 		if (!name)
 			goto out;
@@ -775,7 +775,7 @@ static int __init ontime_sysfs_init(void)
 		ontime_attrs[i++] = &cond->up_threshold_attr.attr;
 
 		/* Init down_threshold node */
-		snprintf(buf, sizeof(buf), "down_threshold_step%d", step);
+		sprintf(buf, "down_threshold_step%d", step);
 		name = kstrdup(buf, GFP_KERNEL);
 		if (!name)
 			goto out;
@@ -785,7 +785,7 @@ static int __init ontime_sysfs_init(void)
 		ontime_attrs[i++] = &cond->down_threshold_attr.attr;
 
 		/* Init min_residency node */
-		snprintf(buf, sizeof(buf), "min_residency_step%d", step);
+		sprintf(buf, "min_residency_step%d", step);
 		name = kstrdup(buf, GFP_KERNEL);
 		if (!name)
 			goto out;
