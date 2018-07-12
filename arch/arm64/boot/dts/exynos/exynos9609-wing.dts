@@ -764,12 +764,14 @@
 
 	usbdrd_phy:phy@131D0000 {
 		status = "okay";
+		usb3phy-isolation = <1>;
 
 		hs_tune_param = <&usb_hs_tune>;
 	};
 
 	usbdrd3_phy:phy@131F0000 {
 		status = "okay";
+		usb3phy-isolation = <1>;
 
 		hs_tune_param = <&usb3_hs_tune>;
 		ss_tune_param = <&usb3_ss_tune>;
