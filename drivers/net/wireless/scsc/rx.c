@@ -779,14 +779,10 @@ enum slsi_wlan_vendor_attr_roam_auth {
 	SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST - 1
 };
 
-int slsi_send_roam_vendor_event(struct slsi_dev *sdev,
-				const u8 *bssid,
-				const u8 *req_ie, size_t req_ie_len,
-				const u8 *resp_ie, size_t resp_ie_len,
-				const u8 *beacon_ie, size_t beacon_ie_len,
-				bool authorized)
+int slsi_send_roam_vendor_event(struct slsi_dev *sdev, const u8 *bssid,
+				const u8 *req_ie, u32 req_ie_len, const u8 *resp_ie, u32 resp_ie_len,
+				const u8 *beacon_ie, u32 beacon_ie_len, bool authorized)
 {
-	int                                    length = ETH_ALEN + 32 + req_ie_len + resp_ie_len;
 	bool                                   is_secured_bss;
 	struct sk_buff                         *skb = NULL;
 
@@ -796,9 +792,11 @@ int slsi_send_roam_vendor_event(struct slsi_dev *sdev,
 	SLSI_DBG2(sdev, SLSI_MLME, "authorized:%d, is_secured_bss:%d\n", authorized, is_secured_bss);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
-	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, length, SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH, GFP_KERNEL);
+	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE,
+					  SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH, GFP_KERNEL);
 #else
-	skb = cfg80211_vendor_event_alloc(sdev->wiphy, length, SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH, GFP_KERNEL);
+	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NLMSG_DEFAULT_SIZE,
+					  SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH, GFP_KERNEL);
 #endif
 	if (!skb) {
 		SLSI_ERR_NODEV("Failed to allocate skb for VENDOR Roam event\n");
@@ -809,7 +807,8 @@ int slsi_send_roam_vendor_event(struct slsi_dev *sdev,
 	   (req_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_REQ_IE, req_ie_len, req_ie)) ||
 	   (resp_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_RESP_IE, resp_ie_len, resp_ie)) ||
 	   (beacon_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_BEACON_IE, beacon_ie_len, beacon_ie))) {
-		SLSI_ERR_NODEV("Failed nla_put 1\n");
+		SLSI_ERR_NODEV("Failed nla_put ,req_ie_len=%d,resp_ie_len=%d,beacon_ie_len=%d\n",
+			       req_ie_len, resp_ie_len, beacon_ie_len);
 		slsi_kfree_skb(skb);
 		return -EINVAL;
 	}
