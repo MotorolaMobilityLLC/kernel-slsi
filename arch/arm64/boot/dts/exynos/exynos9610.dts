@@ -280,8 +280,8 @@
 				overutil-level0 {
 					cpus =	"0-3",
 						"4-7";
-					ratio =	<35>,
-						<50>;
+					ratio =	<30>,
+						<40>;
 				};
 				overutil-level1 {
 					cpus =	"0-7";
