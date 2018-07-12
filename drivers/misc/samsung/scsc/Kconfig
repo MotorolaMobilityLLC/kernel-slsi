@@ -135,3 +135,6 @@ config SCSC_WIFILOGGER_TEST
 	depends on SCSC_WIFILOGGER && SCSC_WIFILOGGER_DEBUGFS
 	default n
 
+config SCSC_LOG_COLLECTION
+	bool "Samsung SCSC Log Collection"
+	depends on SCSC_CORE
