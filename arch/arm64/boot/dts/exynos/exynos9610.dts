@@ -324,6 +324,12 @@
 			system-idle;
 		};
 
+		vcpu_topology {
+			vcluster_cnt = <2>;
+			vcluster0_sibling = "0-3";
+			vcluster1_sibling = "4-7";
+		};
+
 		idle-ip {
 			idle-ip-list =
 				  "13970000.pwm",		/* [ 0] pwm      */
