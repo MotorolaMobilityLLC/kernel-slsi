@@ -4,6 +4,7 @@
  *
  ******************************************************************************/
 
+#include <scsc/scsc_mx.h>
 #include "scsc_logring_main.h"
 #include "scsc_logring_debugfs.h"
 
@@ -308,11 +309,32 @@ loff_t debugfile_llseek(struct file *filp, loff_t off, int whence)
 	return newpos;
 }
 
+static int samsg_open(struct inode *ino, struct file *filp)
+{
+	int ret;
+
+	ret = debugfile_open(ino, filp);
+#ifdef CONFIG_SCSC_MXLOGGER
+	if (!ret)
+		scsc_service_register_observer(NULL, "LOGRING");
+#endif
+	return ret;
+}
+
+static int samsg_release(struct inode *ino, struct file *filp)
+{
+#ifdef CONFIG_SCSC_MXLOGGER
+	scsc_service_unregister_observer(NULL, "LOGRING");
+#endif
+
+	return debugfile_release(ino, filp);
+}
+
 const struct file_operations samsg_fops = {
 	.owner = THIS_MODULE,
-	.open = debugfile_open,
+	.open = samsg_open,
 	.read = samsg_read,
-	.release = debugfile_release,
+	.release = samsg_release,
 };
 
 /**

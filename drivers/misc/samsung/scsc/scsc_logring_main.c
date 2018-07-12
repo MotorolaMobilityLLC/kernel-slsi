@@ -3,10 +3,12 @@
  *   Copyright (c) 2016 - 2018 Samsung Electronics Co., Ltd. All rights reserved.
  *
  ********************************************************************************/
-
 #include "scsc_logring_main.h"
 #include "scsc_logring_ring.h"
 #include "scsc_logring_debugfs.h"
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
 
 /* Global module parameters */
 static int              enable = DEFAULT_ENABLE_LOGRING;
@@ -25,6 +27,19 @@ static int              scsc_redirect_to_printk_droplvl = DEFAULT_REDIRECT_DROPL
 static int              scsc_reset_all_droplevels_to;
 
 struct scsc_ring_buffer *the_ringbuf;
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+static int logring_collect(struct scsc_log_collector_client *collect_client, size_t size);
+
+struct scsc_log_collector_client logring_collect_client = {
+	.name = "Logring",
+	.type = SCSC_LOG_CHUNK_LOGRING,
+	.collect_init = NULL,
+	.collect = logring_collect,
+	.collect_end = NULL,
+	.prv = NULL,
+};
+#endif
 
 /* Module init and ring buffer allocation */
 int __init samlog_init(void)
@@ -70,6 +85,10 @@ int __init samlog_init(void)
 			rb->bsz);
 	scsc_printk_tag(NO_ECHO_PRK, NO_TAG,
 			"Using THROWAWAY DYNAMIC per-reader buffer.\n");
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_register_client(&logring_collect_client);
+#endif
 	return 0;
 
 tfail:
@@ -88,6 +107,9 @@ void __exit samlog_exit(void)
 	initialized = false;
 	free_ring_buffer(the_ringbuf);
 	the_ringbuf = NULL;
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_unregister_client(&logring_collect_client);
+#endif
 	pr_info("Samlog Unloaded\n");
 }
 
@@ -299,6 +321,29 @@ int *scsc_droplevels[] = {
 #endif
 	&scsc_droplevel_test_me,
 };
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+static int logring_collect(struct scsc_log_collector_client *collect_client, size_t size)
+{
+	int ret = 0, saved_droplevel;
+
+	if (!the_ringbuf)
+		return 0;
+
+	/**
+	 * Inhibit logring during collection overriding with scsc_droplevel_all
+	 */
+	saved_droplevel = scsc_droplevel_all;
+	scsc_droplevel_all = DEFAULT_DROP_ALL;
+
+	/* Write buffer */
+	ret = scsc_log_collector_write(the_ringbuf->buf, the_ringbuf->bsz, 1);
+
+	scsc_droplevel_all = saved_droplevel;
+
+	return ret;
+}
+#endif
 
 static int scsc_reset_all_droplevels_to_set_param_cb(const char *val,
 						     const struct kernel_param *kp)
