@@ -443,10 +443,8 @@ struct s610_radio {
 #ifdef USE_AUDIO_PM
 	struct device *a_dev;
 #endif /* USE_AUDIO_PM */
-	struct clk *clk;
-	struct clk *clk_pll;
-	struct clk *mux_aud_fm;
-	struct clk *clk_aud_fm;
+	struct clk **clocks;
+	const char **clk_ids;
 	int tc_on;
 	int trf_on;
 	int dual_clk_on;
