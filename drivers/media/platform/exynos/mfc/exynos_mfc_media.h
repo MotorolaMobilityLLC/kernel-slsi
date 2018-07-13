@@ -405,6 +405,8 @@ enum v4l2_mpeg_video_hevc_hierarchical_coding_type {
 					(V4L2_CID_MPEG_MFC_BASE + 181)
 #define V4L2_CID_MPEG_VIDEO_VP9_PROFILE				\
 					(V4L2_CID_MPEG_MFC_BASE + 182)
+#define V4L2_CID_MPEG_VIDEO_VP9_LEVEL				\
+					(V4L2_CID_MPEG_MFC_BASE + 183)
 
 /* CIDs for new common interface */
 #define V4L2_CID_MPEG_VIDEO_ROI_CONTROL				\

@@ -910,8 +910,8 @@ struct mfc_mpeg4_enc_params {
  */
 struct mfc_vp9_enc_params {
 	/* VP9 Only */
-	u8 vp9_version;
 	u8 profile;
+	u8 level;
 	u8 rc_min_qp;
 	u8 rc_max_qp;
 	u8 rc_min_qp_p;

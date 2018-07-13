@@ -892,6 +892,9 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_enc))
 		val |= ENC_SET_STATIC_INFO;
 
+	if (dev->pdata->support_422)
+		val |= ENC_SET_VP9_PROFILE_LEVEL;
+
 	mfc_debug(5, "[CTRLS] ext info val: %#x\n", val);
 
 	return val;
@@ -1456,7 +1459,7 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		p->codec.vp8.num_hier_layer = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_VP9_VERSION:
-		p->codec.vp9.vp9_version = ctrl->value;
+		p->codec.vp9.profile = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_VP9_RC_FRAME_RATE:
 		p->rc_framerate = ctrl->value;
@@ -1518,6 +1521,9 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_VP9_PROFILE:
 		p->codec.vp9.profile = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VP9_LEVEL:
+		p->codec.vp9.level = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP:
 		p->codec.hevc.rc_frame_qp = ctrl->value;

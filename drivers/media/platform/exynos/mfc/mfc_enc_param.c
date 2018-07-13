@@ -852,7 +852,9 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 
 	/* profile*/
 	reg = 0;
-	mfc_set_bits(reg, 0xF, 0, p_vp9->vp9_version);
+	mfc_set_bits(reg, 0xF, 0, p_vp9->profile);
+	/* level */
+	mfc_set_bits(reg, 0xFF, 8, p_vp9->level);
 	/* bit depth minus8 */
 	if (ctx->is_10bit) {
 		mfc_set_bits(reg, 0x3F, 17, 0x2);
@@ -862,17 +864,17 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 
 	/* for only information about wrong setting */
 	if (ctx->is_422) {
-		if ((p_vp9->vp9_version != MFC_REG_E_PROFILE_VP9_PROFILE1) &&
-			(p_vp9->vp9_version != MFC_REG_E_PROFILE_VP9_PROFILE3)) {
+		if ((p_vp9->profile != MFC_REG_E_PROFILE_VP9_PROFILE1) &&
+			(p_vp9->profile != MFC_REG_E_PROFILE_VP9_PROFILE3)) {
 			mfc_err_ctx("4:2:2 format is not matched with profile(%d)\n",
-					p_vp9->vp9_version);
+					p_vp9->profile);
 		}
 	}
 	if (ctx->is_10bit) {
-		if ((p_vp9->vp9_version != MFC_REG_E_PROFILE_VP9_PROFILE2) &&
-			(p_vp9->vp9_version != MFC_REG_E_PROFILE_VP9_PROFILE3)) {
+		if ((p_vp9->profile != MFC_REG_E_PROFILE_VP9_PROFILE2) &&
+			(p_vp9->profile != MFC_REG_E_PROFILE_VP9_PROFILE3)) {
 			mfc_err_ctx("[10BIT] format is not matched with profile(%d)\n",
-					p_vp9->vp9_version);
+					p_vp9->profile);
 		}
 	}
 
