@@ -2013,19 +2013,6 @@
 	};
 };
 
-/* TODO: Change for 4.14 kernel
-hsi2c_10: hsi2c@11D80000 {
-	status = "okay";
-	s2mcs02-charger@41 {
-		compatible = "samsung,s2mcs02-charger";
-		reg = <0x41>;
-		default-clk = <100000000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&small_charger_irq>;
-		s2mcs02-charger,irq-gpio = <&gpa2 5 0>;
-	};
-};
-*/
 &i2c_1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -2044,6 +2031,12 @@ hsi2c_10: hsi2c@11D80000 {
 			muic,uart_rxd = "gpq0-3";
 			muic,uart_txd = "gpq0-4";
 		};
+	};
+
+	s2mcs02-charger@41 {
+		compatible = "samsung,s2mcs02-charger";
+		reg = <0x41>;
+		default-clk = <100000000>;
 	};
 
 	s2mu106-charger {
