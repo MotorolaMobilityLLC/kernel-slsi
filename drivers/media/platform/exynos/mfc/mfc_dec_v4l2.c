@@ -1012,7 +1012,6 @@ static int mfc_dec_g_ctrl(struct file *file, void *priv,
 static int mfc_dec_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
-	struct mfc_dev *dev = video_drvdata(file);
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_ctx_ctrl *ctx_ctrl;

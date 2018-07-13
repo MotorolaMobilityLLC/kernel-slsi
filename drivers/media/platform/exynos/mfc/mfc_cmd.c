@@ -271,7 +271,6 @@ int mfc_cmd_enc_seq_header(struct mfc_ctx *ctx)
 int mfc_cmd_dec_init_buffers(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
-	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned int reg = 0, pix_val;
 	int ret;
 

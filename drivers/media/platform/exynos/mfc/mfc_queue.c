@@ -951,12 +951,12 @@ int mfc_check_buf_vb_flag(struct mfc_ctx *ctx, enum mfc_vb_flag f)
 	mfc_debug(2, "[BUFINFO] addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	if (mfc_check_vb_flag(mfc_buf, f)) {
-		mfc_debug(2, "find flag %ld\n", f);
+		mfc_debug(2, "find flag %d\n", f);
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 		return 1;
 	}
 
-	mfc_debug(4, "no flag %ld\n", f);
+	mfc_debug(4, "no flag %d\n", f);
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 
 	return 0;

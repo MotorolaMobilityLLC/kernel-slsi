@@ -621,7 +621,7 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 
 		for (i = 0; i < raw->num_planes; i++) {
 			pInStr->Frame2bitAddr[i] = addr_2bit[i];
-			mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set src 2bit addr[%d]: 0x%08llx\n",
+			mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set src index:%d, 2bit addr[%d]: 0x%08llx\n",
 					ctx->num, index, i, addr_2bit[i]);
 		}
 	} else if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV16M_S10B ||
@@ -631,7 +631,7 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 
 		for (i = 0; i < raw->num_planes; i++) {
 			pInStr->Frame2bitAddr[i] = addr_2bit[i];
-			mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set src 2bit addr[%d]: 0x%08llx\n",
+			mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set src index:%d, 2bit addr[%d]: 0x%08llx\n",
 					ctx->num, index, i, addr_2bit[i]);
 		}
 	}
@@ -651,7 +651,7 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 	if (call_cop(ctx, set_buf_ctrls_val_nal_q_enc, ctx, &ctx->src_ctrls[index], pInStr) < 0)
 		mfc_err_ctx("[NALQ] failed in set_buf_ctrals_val in nal q\n");
 
-	mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set dst index: %d, addr: 0x%08llx\n",
+	mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set dst index: %d, addr: 0x%08x\n",
 			ctx->num, dst_mb->vb.vb2_buf.index, pInStr->StreamBufferAddr);
 	mfc_debug(2, "[NALQ] input queue, src_buf_queue -> src_buf_nal_queue, index:%d\n",
 			src_mb->vb.vb2_buf.index);
@@ -727,7 +727,7 @@ static int __mfc_nal_q_run_in_buf_dec(struct mfc_ctx *ctx, DecoderInputStr *pInS
 
 	mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set src index: %d, addr: 0x%08llx\n",
 			ctx->num, src_index, buf_addr);
-	mfc_debug(2, "[NALQ][STREAM] strm_size: %#lx(%d), buf_size: %u\n",
+	mfc_debug(2, "[NALQ][STREAM] strm_size: %#x(%d), buf_size: %u\n",
 			strm_size, strm_size, cpb_buf_size);
 
 	if (strm_size == 0)
@@ -795,7 +795,6 @@ static void __mfc_nal_q_get_enc_frame_buffer(struct mfc_ctx *ctx,
 
 static void __mfc_nal_q_handle_stream_copy_timestamp(struct mfc_ctx *ctx, struct mfc_buf *src_mb)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_buf *dst_mb;
@@ -1076,8 +1075,6 @@ static void __mfc_nal_q_handle_ref_frame(struct mfc_ctx *ctx, DecoderOutputStr *
 
 static void __mfc_nal_q_handle_frame_copy_timestamp(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 {
-	struct mfc_dec *dec = ctx->dec_priv;
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf *ref_mb, *src_mb;
 	dma_addr_t dec_y_addr;
 

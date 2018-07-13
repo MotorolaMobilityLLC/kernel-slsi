@@ -48,9 +48,9 @@ void mfc_set_risc_base_addr(struct mfc_dev *dev,
 
 	MFC_WRITEL(fw_buf->daddr, MFC_REG_RISC_BASE_ADDRESS);
 	mfc_debug(2, "[MEMINFO][F/W] %s Base Address : %#x\n",
-			buf_type == MFCBUF_DRM ? "DRM" : "NORMAL", fw_buf->daddr);
+			buf_type == MFCBUF_DRM ? "DRM" : "NORMAL", (u32)fw_buf->daddr);
 	MFC_TRACE_DEV("%s F/W Base Address : %#x\n",
-			buf_type == MFCBUF_DRM ? "DRM" : "NORMAL", fw_buf->daddr);
+			buf_type == MFCBUF_DRM ? "DRM" : "NORMAL", (u32)fw_buf->daddr);
 }
 
 void mfc_cmd_host2risc(struct mfc_dev *dev, int cmd)

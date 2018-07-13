@@ -169,7 +169,7 @@ static int mfc_enc_buf_prepare(struct vb2_buffer *vb)
 			buf_size, enc->dst_buf_size);
 
 		if (buf_size < enc->dst_buf_size) {
-			mfc_err_ctx("[STREAM] size(%d) is smaller than (%d)\n",
+			mfc_err_ctx("[STREAM] size(%lu) is smaller than (%d)\n",
 					buf_size, enc->dst_buf_size);
 			return -EINVAL;
 		}
@@ -182,7 +182,7 @@ static int mfc_enc_buf_prepare(struct vb2_buffer *vb)
 			mfc_debug(2, "[FRAME] single plane vb size: %lu, calc size: %d\n",
 					buf_size, raw->total_plane_size);
 			if (buf_size < raw->total_plane_size) {
-				mfc_err_ctx("[FRAME] single plane size(%d) is smaller than (%d)\n",
+				mfc_err_ctx("[FRAME] single plane size(%lu) is smaller than (%d)\n",
 						buf_size, raw->total_plane_size);
 				return -EINVAL;
 			}
@@ -192,7 +192,7 @@ static int mfc_enc_buf_prepare(struct vb2_buffer *vb)
 				mfc_debug(2, "[FRAME] plane[%d] vb size: %lu, calc size: %d\n",
 						i, buf_size, raw->plane_size[i]);
 				if (buf_size < raw->plane_size[i]) {
-					mfc_err_ctx("[FRAME] plane[%d] size(%d) is smaller than (%d)\n",
+					mfc_err_ctx("[FRAME] plane[%d] size(%lu) is smaller than (%d)\n",
 							i, buf_size, raw->plane_size[i]);
 					return -EINVAL;
 				}

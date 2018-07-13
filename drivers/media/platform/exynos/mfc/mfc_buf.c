@@ -165,7 +165,6 @@ void mfc_release_instance_context(struct mfc_ctx *ctx)
 static void __mfc_dec_calc_codec_buffer_size(struct mfc_ctx *ctx)
 {
 	struct mfc_dec *dec;
-	int i;
 
 	dec = ctx->dec_priv;
 

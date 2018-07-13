@@ -275,7 +275,7 @@ int mfc_set_dec_stream_buffer(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 
 	mfc_debug(2, "[BUFINFO] ctx[%d] set src index: %d, addr: 0x%08llx\n",
 			ctx->num, index, addr);
-	mfc_debug(2, "[STREAM] strm_size: %#lx(%d), buf_size: %u, offset: %u\n",
+	mfc_debug(2, "[STREAM] strm_size: %#x(%d), buf_size: %u, offset: %u\n",
 			strm_size, strm_size, cpb_buf_size, start_num_byte);
 
 	if (strm_size == 0)

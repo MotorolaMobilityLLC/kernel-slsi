@@ -192,8 +192,6 @@ static void __mfc_set_linear_stride_size(struct mfc_ctx *ctx,
 
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
-	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_raw_info *raw;
 	int i;
 	int extra = MFC_LINEAR_BUF_SIZE;
@@ -306,7 +304,6 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 
 void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_raw_info *raw;
 	unsigned int mb_width, mb_height, default_size;
 	int i, extra;

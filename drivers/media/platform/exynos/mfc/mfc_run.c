@@ -180,7 +180,7 @@ void mfc_run_deinit_hw(struct mfc_dev *dev)
 int mfc_run_sleep(struct mfc_dev *dev)
 {
 	struct mfc_ctx *ctx;
-	int old_state, i;
+	int i;
 	int need_cache_flush = 0;
 
 	mfc_debug_enter();
@@ -312,7 +312,6 @@ int mfc_run_wakeup(struct mfc_dev *dev)
 
 int mfc_run_dec_init(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *src_mb;
 
@@ -363,7 +362,6 @@ static int __mfc_check_last_frame(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 
 int mfc_run_dec_frame(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *src_mb, *dst_mb;
 	int last_frame = 0;
@@ -421,7 +419,6 @@ int mfc_run_dec_frame(struct mfc_ctx *ctx)
 
 int mfc_run_dec_last_frames(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *src_mb, *dst_mb;
 

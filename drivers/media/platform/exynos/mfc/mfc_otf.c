@@ -174,9 +174,9 @@ static int __mfc_otf_init_hwfc_buf(struct mfc_ctx *ctx)
 {
 #ifdef CONFIG_VIDEO_EXYNOS_REPEATER
 	struct shared_buffer_info *shared_buf_info;
-#endif
 	struct _otf_handle *handle = ctx->otf_handle;
 	struct _otf_buf_info *buf_info = &handle->otf_buf_info;
+#endif
 
 	mfc_debug_enter();
 
