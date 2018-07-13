@@ -109,6 +109,14 @@ static int pmucal_rae_wait(struct pmucal_seq *seq)
 	return 0;
 }
 
+static void pmucal_rae_raw_wait(struct pmucal_seq *seq)
+{
+	while (1) {
+		if (pmucal_rae_check_value(seq))
+			break;
+	}
+}
+
 static inline void pmucal_rae_read(struct pmucal_seq *seq)
 {
 	u32 reg;
@@ -249,6 +257,9 @@ int pmucal_rae_handle_seq(struct pmucal_seq *seq, unsigned int seq_size)
 			ret = pmucal_rae_wait(&seq[i]);
 			if (ret)
 				return ret;
+			break;
+		case PMUCAL_RAW_WAIT:
+			pmucal_rae_raw_wait(&seq[i]);
 			break;
 #ifdef CONFIG_FLEXPMU
 		case PMUCAL_WRITE_WAIT:
