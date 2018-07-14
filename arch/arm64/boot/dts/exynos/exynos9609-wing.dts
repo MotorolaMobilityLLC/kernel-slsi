@@ -758,7 +758,7 @@
 		status = "okay";
 		dwc3 {
 			dr_mode = "otg";
-			maximum-speed = "super-speed";
+			maximum-speed = "high-speed";
 		};
 	};
 
