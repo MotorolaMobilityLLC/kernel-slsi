@@ -119,7 +119,6 @@ wait_done:
 		mfc_err_ctx("Finished (ctx->int_reason:%d, command: %d)\n",
 				ctx->int_reason, command);
 		mfc_err_ctx("But error (ctx->int_err:%d)\n", ctx->int_err);
-		call_dop(dev, dump_and_stop_debug_mode, dev);
 		return -1;
 	}
 
