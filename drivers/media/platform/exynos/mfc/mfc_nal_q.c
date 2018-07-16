@@ -153,6 +153,7 @@ void mfc_nal_q_clock_off(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 	mfc_debug(2, "[NALQ] nal_q_clk_cnt = %d\n", nal_q_handle->nal_q_clk_cnt);
 
 	if (!nal_q_handle->nal_q_clk_cnt) {
+		spin_unlock_irqrestore(&nal_q_handle->lock, flags);
 		mfc_err_dev("[NALQ] nal_q_clk_cnt is already zero\n");
 		return;
 	}
