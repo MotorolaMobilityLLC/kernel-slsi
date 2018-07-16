@@ -227,6 +227,13 @@
 			samsung,pins = "gpg0-7";
 			samsung,pin-con-pdn = <3>;
 		};
+
+		motor_pwm: motor_pwm {
+			samsung,pins = "gpg4-2";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <1>;
+			samsung,pin-drv = <0>;
+		};
 	};
 
 
@@ -2033,6 +2040,15 @@
 		};
 	};
 
+	s2mu106-haptic {
+		status = "okay";
+		haptic,pwm_id = <1>;
+		haptic,operation_mode = <2>; /* 0 : ERM_I2C, 1 : ERM_GPIO, 2 : LRA */
+		haptic,hbst_en;
+		haptic,hbst_automode;
+		haptic,boost_level = <5000>;
+	};
+
 	s2mcs02-charger@41 {
 		compatible = "samsung,s2mcs02-charger";
 		reg = <0x41>;
@@ -2065,6 +2081,13 @@
 			100 100 100 100 100 100 0>;
 	};
 };
+
+&sec_pwm {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&motor_pwm>;
+};
+
 
 &fmp_0 {
 	exynos,block-type = "sda";
