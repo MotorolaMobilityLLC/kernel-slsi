@@ -1180,9 +1180,6 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 	if (IS_ERR_OR_NULL(itmon_info))
 		return NOTIFY_DONE;
 
-	if (!itmon_info->master)
-		return NOTIFY_DONE;
-
 	/* print dump if it is an MFC ITMON error */
 	if ((strncmp("MFC", itmon_info->port, sizeof("MFC") - 1) == 0) &&
 			(strncmp("MFC", itmon_info->master, sizeof("MFC") - 1) == 0)) {
