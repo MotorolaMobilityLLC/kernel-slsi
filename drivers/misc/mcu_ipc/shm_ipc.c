@@ -549,6 +549,7 @@ static int verify_cp_memory_map(struct cp_reserved_map_table *tab)
 	int verify = 1;
 
 	if (tab->ext_bin_count <= 0 || (tab->ext_bin_count > EXTERN_BIN_MAX_COUNT)) {
+		pr_err("ERROR ext_bin_count=%d\n", tab->ext_bin_count);
 		verify = 0;
 		goto exit;
 	}
@@ -556,6 +557,10 @@ static int verify_cp_memory_map(struct cp_reserved_map_table *tab)
 	for (i = 1; i < total_bin; i++) {
 		if (cp_mem_map.sExtBin[i-1].ext_bin_addr + cp_mem_map.sExtBin[i-1].ext_bin_size
 				!=  cp_mem_map.sExtBin[i].ext_bin_addr) {
+			pr_err("ERROR ext_bin_addr[%d]=0x%08x ext_bin_size[%d]=0x%08x ext_bin_addr[%d]=0x%08x\n",
+					i-1, cp_mem_map.sExtBin[i-1].ext_bin_addr,
+					i-1, cp_mem_map.sExtBin[i-1].ext_bin_size,
+					i, cp_mem_map.sExtBin[i].ext_bin_addr);
 			verify = 0;
 			goto exit;
 		}
