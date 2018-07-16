@@ -351,7 +351,7 @@ int mfc_run_dec_init(struct mfc_ctx *ctx)
 
 static int __mfc_check_last_frame(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 {
-	if (mfc_check_vb_flag(mfc_buf, FLAG_LAST_FRAME)) {
+	if (mfc_check_vb_flag(mfc_buf, MFC_FLAG_LAST_FRAME)) {
 		mfc_debug(2, "Setting ctx->state to FINISHING\n");
 		mfc_change_state(ctx, MFCINST_FINISHING);
 		return 1;

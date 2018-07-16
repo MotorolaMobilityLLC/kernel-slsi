@@ -122,7 +122,7 @@ static inline void mfc_set_vb_flag(struct mfc_buf *mfc_buf, enum mfc_vb_flag f)
 
 static inline int mfc_check_vb_flag(struct mfc_buf *mfc_buf, enum mfc_vb_flag f)
 {
-	if (mfc_buf->vb.reserved2 & f)
+	if (mfc_buf->vb.reserved2 & (1 << f))
 		return 1;
 
 	return 0;

@@ -69,10 +69,6 @@
 
 #define MFC_BASE_MASK		((1 << 17) - 1)
 
-#define FLAG_LAST_FRAME		0x80000000
-#define FLAG_EMPTY_DATA		0x40000000
-#define FLAG_CSD		0x20000000
-
 /* MFC conceal color is black */
 #define MFC_CONCEAL_COLOR	0x8020000
 
