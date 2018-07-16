@@ -256,6 +256,8 @@ struct dsim_lcd_driver {
 	int (*doze_suspend)(struct dsim_device *dsim);
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	int (*read_state)(struct dsim_device *dsim);
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+	int (*cabc)(struct dsim_device *dsim, int mode);
 #endif
 };
 
