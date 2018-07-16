@@ -36,7 +36,7 @@
 			};
 
 			chosen {
-				bootargs = "console=ram skip_initramfs rootwait ro init=/init root=/dev/sda2 clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=exynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80f9fe0000 pmic_info=0x3";
+				bootargs = "console=ram skip_initramfs rootwait ro init=/init clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=exynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80f9fe0000 pmic_info=0x3";
 				linux,initrd-start = <0x84000000>;
 				linux,initrd-end = <0x841FFFFF>;
 			};
@@ -51,6 +51,10 @@
 			firmware {
 				android {
 					compatible = "android,firmware";
+					vbmeta {
+						compatible = "android,vbmeta";
+						parts = "vbmeta,boot,system,vendor";
+					};
 					fstab {
 						compatible = "android,fstab";
 						vendor {
@@ -58,7 +62,7 @@
 							dev = "/dev/block/platform/13520000.ufs/by-name/vendor";
 							type = "ext4";
 							mnt_flags = "ro";
-							fsmgr_flags = "wait,slotselect";
+							fsmgr_flags = "wait,avb,slotselect";
 						};
 					};
 				};
