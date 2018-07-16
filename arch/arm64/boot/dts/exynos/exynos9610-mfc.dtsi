@@ -46,6 +46,7 @@
 		static_info_dec = <1 0x0>;
 		color_aspect_enc = <1 0x0>;
 		static_info_enc = <1 0x180314>;
+		hdr10_plus = <0 0x0>;
 
 		/* Default 10bit format for decoding (1: P010, 0: 8+2) */
 		P010_decoding = <0>;
@@ -54,6 +55,9 @@
 		support_10bit = <1>;
 		support_422 = <1>;
 		support_rgb = <0>;
+
+		/* HDR10+ num max window */
+		max_hdr_win = <0>;
 
 		/* Encoder default parameter: max number is 100 */
 		enc_param_num = <25>;
