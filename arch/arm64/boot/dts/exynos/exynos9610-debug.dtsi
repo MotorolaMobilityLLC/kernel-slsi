@@ -41,4 +41,42 @@
 	exynos-helper {
 		compatible = "samsung,exynos-helper";
 	};
+
+        coresight@16000000 {
+		compatible = "exynos,coresight";
+		base = <0x16000000>;
+		sj-offset = <0x6000>;
+		cl0_cpu0@400000 {
+		        device_type = "cs";
+			dbg-offset = <0x410000>;
+		};
+		cl0_cpu1@500000 {
+		        device_type = "cs";
+			dbg-offset = <0x510000>;
+		};
+		cl0_cpu2@600000 {
+		        device_type = "cs";
+			dbg-offset = <0x610000>;
+		};
+		cl0_cpu3@700000 {
+		        device_type = "cs";
+			dbg-offset = <0x710000>;
+		};
+		cl1_cpu0@800000 {
+		        device_type = "cs";
+			dbg-offset = <0x810000>;
+		};
+		cl1_cpu1@900000 {
+		        device_type = "cs";
+			dbg-offset = <0x910000>;
+		};
+		cl1_cpu2@a00000 {
+		        device_type = "cs";
+			dbg-offset = <0xa10000>;
+		};
+		cl1_cpu3@b00000 {
+		        device_type = "cs";
+			dbg-offset = <0xb10000>;
+		};
+	};
 };
