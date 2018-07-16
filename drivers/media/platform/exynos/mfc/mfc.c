@@ -100,7 +100,7 @@ static void __mfc_deinit_dec_ctx(struct mfc_ctx *ctx)
 	mfc_delete_queue(&ctx->dst_buf_nal_queue);
 	mfc_delete_queue(&ctx->ref_buf_queue);
 
-	mfc_mem_cleanup_user_shared_handle(ctx, &dec->sh_handle);
+	mfc_mem_cleanup_user_shared_handle(ctx, &dec->sh_handle_dpb);
 	mfc_mem_cleanup_user_shared_handle(ctx, &dec->sh_handle_hdr);
 	kfree(dec->hdr10_plus_info);
 	kfree(dec->ref_info);
@@ -166,7 +166,7 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 	mfc_clear_assigned_dpb(ctx);
 
 	/* sh_handle: released dpb info */
-	dec->sh_handle.fd = -1;
+	dec->sh_handle_dpb.fd = -1;
 	dec->ref_info = kzalloc(
 		(sizeof(struct dec_dpb_ref_info) * MFC_MAX_DPBS), GFP_KERNEL);
 	if (!dec->ref_info) {

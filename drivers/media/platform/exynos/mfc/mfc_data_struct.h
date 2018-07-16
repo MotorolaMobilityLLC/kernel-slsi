@@ -1351,7 +1351,7 @@ struct mfc_dec {
 
 	struct dec_dpb_ref_info *ref_info;
 	int assigned_fd[MFC_MAX_DPBS];
-	struct mfc_user_shared_handle sh_handle;
+	struct mfc_user_shared_handle sh_handle_dpb;
 	struct mfc_user_shared_handle sh_handle_hdr;
 	struct hdr10_plus_meta *hdr10_plus_info;
 
