@@ -12,6 +12,24 @@
 #ifndef __NT36672A_PARAM_H__
 #define __NT36672A_PARAM_H__
 
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+enum cabc_mode {
+	CABC_OFF = 0,
+	CABC_USER_IMAGE,
+	CABC_STILL_PICTURE,
+	CABC_MOVING_IMAGE,
+	CABC_READ_MODE = 0x80,
+};
+
+enum power_mode {
+	POWER_SAVE_OFF = 0,
+	POWER_SAVE_LOW = 1,
+	POWER_SAVE_MEDIUM = 2,
+	POWER_SAVE_HIGH = 3,
+	POWER_SAVE_MAX = 4,
+};
+#endif
+
 /* MIPI commands list */
 static const unsigned char SEQ_SLEEP_OUT[] = {
 	0x11,
