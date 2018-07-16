@@ -66,6 +66,12 @@ config EXYNOS_READ_ESD_SOLUTION
 	default n
 	help
 	  If this menu is enabled, you can detect ESD of panel.
+config EXYNOS_PANEL_CABC
+	bool "Support CABC using DDI command"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  If this menu is enabled, you can control CABC mode of panle.
 
 config EXYNOS_LOW_PERSISTENCE
 	bool "Support Low Persistence Mode"
