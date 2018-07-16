@@ -551,6 +551,98 @@ static void __mfc_nal_q_set_slice_mode(struct mfc_ctx *ctx, EncoderInputStr *pIn
 	}
 }
 
+static void __mfc_nal_q_get_hdr_plus_info(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr,
+		struct hdr10_plus_meta *sei_meta)
+{
+	struct mfc_dev *dev = ctx->dev;
+	unsigned int upper_value, lower_value;
+	int num_win, num_distribution;
+	int i, j;
+
+	sei_meta->valid = 1;
+
+	/* iru_t_t35 */
+	sei_meta->t35_country_code = pOutStr->St2094_40sei[0] & 0xFF;
+	sei_meta->t35_terminal_provider_code = pOutStr->St2094_40sei[0] >> 8 & 0xFF;
+	upper_value = pOutStr->St2094_40sei[0] >> 24 & 0xFF;
+	lower_value = pOutStr->St2094_40sei[1] & 0xFF;
+	sei_meta->t35_terminal_provider_oriented_code = (upper_value << 8) | lower_value;
+
+	/* application */
+	sei_meta->application_identifier = pOutStr->St2094_40sei[1] >> 8 & 0xFF;
+	sei_meta->application_version = pOutStr->St2094_40sei[1] >> 16 & 0xFF;
+
+	/* window information */
+	sei_meta->num_windows = pOutStr->St2094_40sei[1] >> 24 & 0x3;
+	num_win = sei_meta->num_windows;
+	if (num_win > dev->pdata->max_hdr_win) {
+		mfc_err_ctx("NAL Q:[HDR+] num_window(%d) is exceeded supported max_num_window(%d)\n",
+				num_win, dev->pdata->max_hdr_win);
+		num_win = dev->pdata->max_hdr_win;
+	}
+
+	/* luminance */
+	sei_meta->target_maximum_luminance = pOutStr->St2094_40sei[2] & 0x7FFFFFF;
+	sei_meta->target_actual_peak_luminance_flag = pOutStr->St2094_40sei[2] >> 27 & 0x1;
+	sei_meta->mastering_actual_peak_luminance_flag = pOutStr->St2094_40sei[22] >> 10 & 0x1;
+
+	/* per window setting */
+	for (i = 0; i < num_win; i++) {
+		/* scl */
+		for (j = 0; j < HDR_MAX_SCL; j++) {
+			sei_meta->win_info[i].maxscl[j] =
+				pOutStr->St2094_40sei[3 + j] & 0x1FFFF;
+		}
+		sei_meta->win_info[i].average_maxrgb =
+			pOutStr->St2094_40sei[6] & 0x1FFFF;
+
+		/* distribution */
+		sei_meta->win_info[i].num_distribution_maxrgb_percentiles =
+			pOutStr->St2094_40sei[6] >> 17 & 0xF;
+		num_distribution = sei_meta->win_info[i].num_distribution_maxrgb_percentiles;
+		for (j = 0; j < num_distribution; j++) {
+			sei_meta->win_info[i].distribution_maxrgb_percentages[j] =
+				pOutStr->St2094_40sei[7 + j] & 0x7F;
+			sei_meta->win_info[i].distribution_maxrgb_percentiles[j] =
+				pOutStr->St2094_40sei[7 + j] >> 7 & 0x1FFFF;
+		}
+
+		/* bright pixels */
+		sei_meta->win_info[i].fraction_bright_pixels =
+			pOutStr->St2094_40sei[22] & 0x3FF;
+
+		/* tone mapping */
+		sei_meta->win_info[i].tone_mapping_flag =
+			pOutStr->St2094_40sei[22] >> 11 & 0x1;
+		if (sei_meta->win_info[i].tone_mapping_flag) {
+			sei_meta->win_info[i].knee_point_x =
+				pOutStr->St2094_40sei[23] & 0xFFF;
+			sei_meta->win_info[i].knee_point_y =
+				pOutStr->St2094_40sei[23] >> 12 & 0xFFF;
+			sei_meta->win_info[i].num_bezier_curve_anchors =
+				pOutStr->St2094_40sei[23] >> 24 & 0xF;
+			for (j = 0; j < HDR_MAX_BEZIER_CURVES / 3; j++) {
+				sei_meta->win_info[i].bezier_curve_anchors[j * 3] =
+					pOutStr->St2094_40sei[24 + j] & 0x3FF;
+				sei_meta->win_info[i].bezier_curve_anchors[j * 3 + 1] =
+					pOutStr->St2094_40sei[24 + j] >> 10 & 0x3FF;
+				sei_meta->win_info[i].bezier_curve_anchors[j * 3 + 2] =
+					pOutStr->St2094_40sei[24 + j] >> 20 & 0x3FF;
+			}
+		}
+
+		/* color saturation */
+		sei_meta->win_info[i].color_saturation_mapping_flag =
+			pOutStr->St2094_40sei[29] & 0x1;
+		if (sei_meta->win_info[i].color_saturation_mapping_flag)
+			sei_meta->win_info[i].color_saturation_weight =
+				pOutStr->St2094_40sei[29] >> 1 & 0x3F;
+	}
+
+	if (debug_level >= 5)
+		mfc_print_dec_hdr_plus_info(ctx, index);
+}
+
 static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInStr)
 {
 	struct mfc_dev *dev = ctx->dev;
@@ -1140,6 +1232,7 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 	unsigned int dst_frame_status;
 	unsigned int is_video_signal_type = 0, is_colour_description = 0;
 	unsigned int is_content_light = 0, is_display_colour = 0;
+	unsigned int is_hdr10_plus_sei = 0;
 	unsigned int disp_err;
 	int i, index;
 
@@ -1159,6 +1252,9 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 					& MFC_REG_D_SEI_AVAIL_MASTERING_DISPLAY_MASK);
 	}
 
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus))
+		is_hdr10_plus_sei = ((pOutStr->SeiAvail >> MFC_REG_D_SEI_AVAIL_ST_2094_40_SHIFT)
+					& MFC_REG_D_SEI_AVAIL_ST_2094_40_MASK);
 	if (dec->immediate_display == 1) {
 		dspl_y_addr = pOutStr->DecodedAddr[0];
 		frame_type = pOutStr->DecodedFrameType & MFC_REG_DECODED_FRAME_MASK;
@@ -1206,6 +1302,14 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 			}
 			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[NALQ][HDR] color range parsed\n");
+		}
+
+		if (is_hdr10_plus_sei) {
+			__mfc_nal_q_get_hdr_plus_info(ctx, pOutStr, &dec->hdr10_plus_info[index]);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_PLUS);
+			mfc_debug(2, "[NALQ][HDR+] HDR10 plus dyanmic SEI metadata parsed\n");
+		} else {
+			dec->hdr10_plus_info[index].valid = 0;
 		}
 
 		for (i = 0; i < raw->num_planes; i++)
@@ -1680,7 +1784,8 @@ int mfc_nal_q_enqueue_in_buf(struct mfc_dev *dev, struct mfc_ctx *ctx,
 		mfc_err_dev("[NAL-Q][DUMP][%s INPUT][c: %d] diff: %d, count: %d, exe: %d\n",
 				ctx->type == MFCINST_ENCODER ? "ENC" : "DEC", dev->curr_ctx,
 				input_diff, input_count, input_exe_count);
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4, (int *)pStr, 256, false);
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+				(int *)pStr, NAL_Q_DUMP_MAX_STR_SIZE, false);
 		printk("...\n");
 	}
 	input_count++;
@@ -1763,7 +1868,8 @@ EncoderOutputStr *mfc_nal_q_dequeue_out_buf(struct mfc_dev *dev,
 				ctx->type == MFCINST_ENCODER ? "ENC" : "DEC",
 				nal_q_out_handle->nal_q_ctx,
 				output_diff, output_count, output_exe_count);
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4, (int *)pStr, 256, false);
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+				(int *)pStr, NAL_Q_DUMP_MAX_STR_SIZE, false);
 		printk("...\n");
 	}
 	nal_q_out_handle->out_exe_count++;

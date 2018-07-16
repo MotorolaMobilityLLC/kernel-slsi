@@ -229,6 +229,8 @@ void mfc_cmd_dec_seq_header(struct mfc_ctx *ctx)
 		reg |= (0x1 << MFC_REG_D_SEI_ENABLE_MASTERING_DISPLAY_SHIFT);
 	}
 	reg |= (0x1 << MFC_REG_D_SEI_ENABLE_RECOVERY_PARSING_SHIFT);
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus))
+		reg |= (0x1 << MFC_REG_D_SEI_ENABLE_ST_2094_40_SEI_SHIFT);
 
 	MFC_WRITEL(reg, MFC_REG_D_SEI_ENABLE);
 	mfc_debug(2, "SEI enable was set, 0x%x\n", MFC_READL(MFC_REG_D_SEI_ENABLE));

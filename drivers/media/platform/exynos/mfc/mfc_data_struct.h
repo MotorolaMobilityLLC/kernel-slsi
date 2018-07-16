@@ -48,6 +48,11 @@
 #define HWFC_MAX_BUF			10
 #define OTF_MAX_BUF			30
 
+#define HDR_MAX_WINDOWS			3
+#define HDR_MAX_SCL			3
+#define HDR_MAX_DISTRIBUTION		15
+#define HDR_MAX_BEZIER_CURVES		15
+
 /* Maximum number of temporal layers */
 #define VIDEO_MAX_TEMPORAL_LAYERS	7
 
@@ -177,6 +182,7 @@ enum mfc_vb_flag {
 	MFC_FLAG_HDR_COLOUR_DESC	= 3,
 	MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE	= 4,
 	MFC_FLAG_BLACKBAR_DETECT	= 5,
+	MFC_FLAG_HDR_PLUS		= 6,
 	MFC_FLAG_CSD			= 29,
 	MFC_FLAG_EMPTY_DATA		= 30,
 	MFC_FLAG_LAST_FRAME		= 31,
@@ -427,6 +433,8 @@ struct mfc_platdata {
 	unsigned int support_10bit;
 	unsigned int support_422;
 	unsigned int support_rgb;
+	/* HDR10+ */
+	unsigned int max_hdr_win;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	/* QoS */
 	unsigned int num_qos_steps;
@@ -446,6 +454,7 @@ struct mfc_platdata {
 	struct mfc_feature static_info_dec;
 	struct mfc_feature color_aspect_enc;
 	struct mfc_feature static_info_enc;
+	struct mfc_feature hdr10_plus;
 #ifdef CONFIG_EXYNOS_BTS
 	struct mfc_bw_info mfc_bw_info;
 #endif
@@ -465,15 +474,16 @@ struct mfc_platdata {
 };
 
 /************************ NAL_Q data structure ************************/
-#define NAL_Q_IN_ENTRY_SIZE		256
-#define NAL_Q_OUT_ENTRY_SIZE		256
+#define NAL_Q_IN_ENTRY_SIZE		512
+#define NAL_Q_OUT_ENTRY_SIZE		512
 
 #define NAL_Q_IN_DEC_STR_SIZE		112
 #define NAL_Q_IN_ENC_STR_SIZE		204
-#define NAL_Q_OUT_DEC_STR_SIZE		248
+#define NAL_Q_OUT_DEC_STR_SIZE		376
 #define NAL_Q_OUT_ENC_STR_SIZE		64
+#define NAL_Q_DUMP_MAX_STR_SIZE		376
 
-/* 256*128(max instance 32 * slot 4) = 32 kbytes */
+/* 512*128(max instance 32 * slot 4) = 64 kbytes */
 #define NAL_Q_IN_QUEUE_SIZE		128
 #define NAL_Q_OUT_QUEUE_SIZE		128
 
@@ -606,8 +616,11 @@ typedef struct __DecoderOutputStr {
 	int MasteringDisplayColourVolumeSei3;
 	int MasteringDisplayColourVolumeSei4;
 	int MasteringDisplayColourVolumeSei5;
+	int FirstPlaneDpbSize;
+	int SecondPlaneDpbSize;
+	int St2094_40sei[30];
 	char reserved[NAL_Q_OUT_ENTRY_SIZE - NAL_Q_OUT_DEC_STR_SIZE];
-} DecoderOutputStr; /* 62*4 =  248 bytes */
+} DecoderOutputStr; /* 94*4 =  376 bytes */
 
 typedef struct __EncoderOutputStr {
 	int StartCode; /* 0xBBBBBBBB; Encoder output structure marker */
@@ -1224,6 +1237,70 @@ struct mfc_raw_info {
 	unsigned int total_plane_size;
 };
 
+/* HDR10+ ST 2094 40 Metadata HEVC SEI Message */
+struct hdr10_plus_meta_per_win {
+	unsigned int  maxscl[HDR_MAX_SCL];
+	unsigned int  average_maxrgb;
+	unsigned char num_distribution_maxrgb_percentiles;
+	unsigned char distribution_maxrgb_percentages[HDR_MAX_DISTRIBUTION];
+	unsigned int  distribution_maxrgb_percentiles[HDR_MAX_DISTRIBUTION];
+	unsigned int  fraction_bright_pixels;
+
+	unsigned short tone_mapping_flag;
+	unsigned short knee_point_x;
+	unsigned short knee_point_y;
+	unsigned short num_bezier_curve_anchors;
+	unsigned short bezier_curve_anchors[HDR_MAX_BEZIER_CURVES];
+
+	unsigned char color_saturation_mapping_flag;
+	unsigned char color_saturation_weight;
+
+	/*
+	 * This field is reserved for ST2094-40 SEI below or the others
+	 * window_upper_left_corner_x
+	 * window_upper_left_corner_y
+	 * window_lower_right_corner_x
+	 * window_lower_right_corner_y
+	 * center_of_ellipse_x
+	 * center_of_ellipse_y
+	 * rotation_angle
+	 * semimajor_axis_internal_ellipse
+	 * semimajor_axis_external_ellipse
+	 * semiminor_axis_external_ellipse
+	 * overlap_process_option
+	 */
+	unsigned int reserved[11];
+};
+
+struct hdr10_plus_meta {
+	unsigned int valid;
+
+	unsigned char  t35_country_code;
+	unsigned short t35_terminal_provider_code;
+	unsigned short t35_terminal_provider_oriented_code;
+	unsigned char  application_identifier;
+	unsigned short application_version;
+	unsigned char  num_windows;
+
+	unsigned int  target_maximum_luminance;
+	unsigned char target_actual_peak_luminance_flag;
+	unsigned char num_rows_target_luminance;
+	unsigned char num_cols_target_luminance;
+
+	unsigned char mastering_actual_peak_luminance_flag;
+	unsigned char num_rows_mastering_luminance;
+	unsigned char num_cols_mastering_luminance;
+
+	struct hdr10_plus_meta_per_win win_info[HDR_MAX_WINDOWS];
+
+	/*
+	 * This field is reserved for ST2094-40 SEI below or the others
+	 * targeted_system_display_actual_peak_luminance[rows][cols]
+	 * mastering_display_actual_peak_luminance[rows][cols]
+	 */
+	unsigned int reserved[11];
+};
+
 struct mfc_timestamp {
 	struct list_head list;
 	struct timeval timestamp;
@@ -1275,6 +1352,8 @@ struct mfc_dec {
 	struct dec_dpb_ref_info *ref_info;
 	int assigned_fd[MFC_MAX_DPBS];
 	struct mfc_user_shared_handle sh_handle;
+	struct mfc_user_shared_handle sh_handle_hdr;
+	struct hdr10_plus_meta *hdr10_plus_info;
 
 	int has_multiframe;
 

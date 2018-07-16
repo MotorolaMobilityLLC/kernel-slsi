@@ -161,6 +161,7 @@
 #define	DEC_SET_DYNAMIC_DPB		(1 << 1)
 #define	DEC_SET_LAST_FRAME_INFO		(1 << 2)
 #define	DEC_SET_SKYPE_FLAG		(1 << 3)
+#define	DEC_SET_HDR10_PLUS		(1 << 4)
 
 /* Extra information for Encoder */
 #define	ENC_SET_RGB_INPUT		(1 << 0)

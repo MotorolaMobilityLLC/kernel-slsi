@@ -124,6 +124,9 @@
 #define mfc_get_sei_avail_mastering_display()	((MFC_READL(MFC_REG_D_SEI_AVAIL)	\
 						>> MFC_REG_D_SEI_AVAIL_MASTERING_DISPLAY_SHIFT)	\
 						& MFC_REG_D_SEI_AVAIL_MASTERING_DISPLAY_MASK)
+#define mfc_get_sei_avail_st_2094_40()		((MFC_READL(MFC_REG_D_SEI_AVAIL)	\
+						>> MFC_REG_D_SEI_AVAIL_ST_2094_40_SHIFT)	\
+						& MFC_REG_D_SEI_AVAIL_ST_2094_40_MASK)
 #define mfc_get_video_signal_type()		((MFC_READL(MFC_REG_D_VIDEO_SIGNAL_TYPE)	\
 						>> MFC_REG_D_VIDEO_SIGNAL_TYPE_FLAG_SHIFT)	\
 						& MFC_REG_D_VIDEO_SIGNAL_TYPE_FLAG_MASK)
@@ -270,5 +273,8 @@ void mfc_set_enc_stride(struct mfc_ctx *ctx);
 int mfc_set_dynamic_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_vb);
 
 void mfc_set_pixel_format(struct mfc_dev *dev, unsigned int format);
+
+void mfc_print_dec_hdr_plus_info(struct mfc_ctx *ctx, int index);
+void mfc_get_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta);
 
 #endif /* __MFC_REG_API_H */

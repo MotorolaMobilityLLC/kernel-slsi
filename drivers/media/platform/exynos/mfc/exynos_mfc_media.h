@@ -258,6 +258,8 @@ enum v4l2_mpeg_video_hevc_hierarchical_coding_type {
 					(V4L2_CID_MPEG_MFC_BASE + 107)
 #define V4L2_CID_MPEG_MFC_CONFIG_QP_ENABLE             \
 					(V4L2_CID_MPEG_MFC_BASE + 108)
+#define V4L2_CID_MPEG_MFC_HDR_USER_SHARED_HANDLE	\
+					(V4L2_CID_MPEG_MFC_BASE + 109)
 
 /* CIDs for HEVC encoding. Number gaps are for compatibility */
 

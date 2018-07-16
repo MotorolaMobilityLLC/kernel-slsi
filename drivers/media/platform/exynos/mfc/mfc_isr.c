@@ -225,6 +225,7 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx,
 	unsigned int dst_frame_status;
 	unsigned int is_video_signal_type = 0, is_colour_description = 0;
 	unsigned int is_content_light = 0, is_display_colour = 0;
+	unsigned int is_hdr10_plus_sei = 0;
 	unsigned int i, index;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
@@ -236,6 +237,9 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx,
 		is_content_light = mfc_get_sei_avail_content_light();
 		is_display_colour = mfc_get_sei_avail_mastering_display();
 	}
+
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus))
+		is_hdr10_plus_sei = mfc_get_sei_avail_st_2094_40();
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->black_bar) && dec->detect_black_bar)
 		__mfc_handle_black_bar_info(dev, ctx);
@@ -297,6 +301,14 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx,
 		if (dec->black_bar_updated) {
 			mfc_set_vb_flag(ref_mb, MFC_FLAG_BLACKBAR_DETECT);
 			mfc_debug(3, "[BLACKBAR] black bar detected\n");
+		}
+
+		if (is_hdr10_plus_sei) {
+			mfc_get_hdr_plus_info(ctx, &dec->hdr10_plus_info[index]);
+			mfc_set_vb_flag(ref_mb, MFC_FLAG_HDR_PLUS);
+			mfc_debug(2, "[HDR+] HDR10 plus dyanmic SEI metadata parsed\n");
+		} else {
+			dec->hdr10_plus_info[index].valid = 0;
 		}
 
 		if (ctx->src_fmt->mem_planes == 1) {

@@ -101,6 +101,8 @@ static void __mfc_deinit_dec_ctx(struct mfc_ctx *ctx)
 	mfc_delete_queue(&ctx->ref_buf_queue);
 
 	mfc_mem_cleanup_user_shared_handle(ctx, &dec->sh_handle);
+	mfc_mem_cleanup_user_shared_handle(ctx, &dec->sh_handle_hdr);
+	kfree(dec->hdr10_plus_info);
 	kfree(dec->ref_info);
 	kfree(dec);
 }
@@ -162,6 +164,8 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 	dec->is_dpb_full = 0;
 	mfc_cleanup_assigned_fd(ctx);
 	mfc_clear_assigned_dpb(ctx);
+
+	/* sh_handle: released dpb info */
 	dec->sh_handle.fd = -1;
 	dec->ref_info = kzalloc(
 		(sizeof(struct dec_dpb_ref_info) * MFC_MAX_DPBS), GFP_KERNEL);
@@ -172,6 +176,16 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 	}
 	for (i = 0; i < MFC_MAX_BUFFERS; i++)
 		dec->ref_info[i].dpb[0].fd[0] = MFC_INFO_INIT_FD;
+
+	/* sh_handle: HDR10+ HEVC SEI meta */
+	dec->sh_handle_hdr.fd = -1;
+	dec->hdr10_plus_info = kzalloc(
+			(sizeof(struct hdr10_plus_meta) * MFC_MAX_DPBS), GFP_KERNEL);
+	if (!dec->hdr10_plus_info) {
+		mfc_err_dev("[HDR+] failed to allocate HDR10+ information data\n");
+		ret = -ENOMEM;
+		goto fail_dec_init;
+	}
 
 	/* Init videobuf2 queue for OUTPUT */
 	ctx->vq_src.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
@@ -972,6 +986,7 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32_array(np, "static_info_dec", &pdata->static_info_dec.support, 2);
 	of_property_read_u32_array(np, "color_aspect_enc", &pdata->color_aspect_enc.support, 2);
 	of_property_read_u32_array(np, "static_info_enc", &pdata->static_info_enc.support, 2);
+	of_property_read_u32_array(np, "hdr10_plus", &pdata->hdr10_plus.support, 2);
 
 	/* Default 10bit format for decoding */
 	of_property_read_u32(np, "P010_decoding", &pdata->P010_decoding);
@@ -980,6 +995,9 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32(np, "support_10bit", &pdata->support_10bit);
 	of_property_read_u32(np, "support_422", &pdata->support_422);
 	of_property_read_u32(np, "support_rgb", &pdata->support_rgb);
+
+	/* HDR10+ num max window */
+	of_property_read_u32(np, "max_hdr_win", &pdata->max_hdr_win);
 
 	/* Encoder default parameter */
 	of_property_read_u32(np, "enc_param_num", &pdata->enc_param_num);
@@ -1634,7 +1652,7 @@ static const struct dev_pm_ops mfc_pm_ops = {
 struct mfc_ctx_buf_size mfc_ctx_buf_size = {
 	.dev_ctx	= PAGE_ALIGN(0x7800),	/*  30KB */
 	.h264_dec_ctx	= PAGE_ALIGN(0x200000),	/* 1.6MB */
-	.other_dec_ctx	= PAGE_ALIGN(0x7800),	/*  30KB */
+	.other_dec_ctx	= PAGE_ALIGN(0xC800),	/*  50KB */
 	.h264_enc_ctx	= PAGE_ALIGN(0x19000),	/* 100KB */
 	.hevc_enc_ctx	= PAGE_ALIGN(0xA000),	/*  40KB */
 	.other_enc_ctx	= PAGE_ALIGN(0x6400),	/*  25KB */

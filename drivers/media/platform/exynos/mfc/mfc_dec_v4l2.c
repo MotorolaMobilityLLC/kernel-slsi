@@ -739,6 +739,7 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct dec_dpb_ref_info *dstBuf, *srcBuf;
+	struct hdr10_plus_meta *dst_sei_meta, *src_sei_meta;
 	int ret;
 	int ncount = 0;
 
@@ -774,6 +775,14 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 					dec->sh_handle.vaddr + buf->index;
 			memcpy(dstBuf, srcBuf, sizeof(struct dec_dpb_ref_info));
 			dstBuf->index = buf->index;
+		}
+
+		/* Memcpy from dec->hdr10_plus_info to shared memory */
+		src_sei_meta = &dec->hdr10_plus_info[buf->index];
+		if (dec->sh_handle_hdr.vaddr != NULL) {
+			dst_sei_meta = (struct hdr10_plus_meta *)
+				dec->sh_handle_hdr.vaddr + buf->index;
+			memcpy(dst_sei_meta, src_sei_meta, sizeof(struct hdr10_plus_meta));
 		}
 	}
 	mfc_debug_leave();
@@ -864,6 +873,9 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 	val |= DEC_SET_DYNAMIC_DPB;
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->skype))
 		val |= DEC_SET_SKYPE_FLAG;
+
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus))
+		val |= DEC_SET_HDR10_PLUS;
 
 	mfc_debug(5, "[CTRLS] ext info val: %#x\n", val);
 
@@ -1086,6 +1098,15 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 		break;
 	case V4L2_CID_MPEG_VIDEO_BLACK_BAR_DETECT:
 		dec->detect_black_bar = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_MFC_HDR_USER_SHARED_HANDLE:
+		dec->sh_handle_hdr.fd = ctrl->value;
+		if (mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle_hdr)) {
+			dec->sh_handle_hdr.fd = -1;
+			return -EINVAL;
+		}
+		mfc_debug(2, "[MEMINFO][HDR+] shared handle fd: %d, vaddr: 0x%p\n",
+				dec->sh_handle_hdr.fd, dec->sh_handle_hdr.vaddr);
 		break;
 	default:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
