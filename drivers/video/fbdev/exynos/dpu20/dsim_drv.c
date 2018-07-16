@@ -1493,6 +1493,53 @@ error:
 	return ret;
 }
 
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+static ssize_t dsim_cabc_sysfs_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int count = 0;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	count = dsim->panel_ops->cabc(dsim, 0x80);
+	dsim_info("[CABC] read byte: %d\n", count);
+	sprintf(buf, "%d", count);
+
+	/* return: read byte(s) count */
+	return count;
+}
+
+static ssize_t dsim_cabc_sysfs_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long mode;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	/* when success, return 0 */
+	ret = kstrtoul(buf, 0, &mode);
+	if (ret)
+		return 0;
+
+	ret = dsim->panel_ops->cabc(dsim, mode);
+
+	/* return: write byte(s) count */
+	return ret;
+}
+
+static DEVICE_ATTR(cabc, 0644, dsim_cabc_sysfs_show, dsim_cabc_sysfs_store);
+
+int dsim_create_cabc_sysfs(struct dsim_device *dsim)
+{
+	int ret = 0;
+
+	ret = device_create_file(dsim->dev, &dev_attr_cabc);
+	if (ret)
+		dsim_err("failed to create cabc control sysfs\n");
+
+	return ret;
+}
+#endif
+
 static void dsim_parse_lcd_info(struct dsim_device *dsim)
 {
 	struct device_node *node = NULL;
@@ -1943,6 +1990,8 @@ static int dsim_probe(struct platform_device *pdev)
 #if defined(READ_ESD_SOLUTION_TEST)
 	dsim_create_esd_test_sysfs(dsim);
 #endif
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+	dsim_create_cabc_sysfs(dsim);
 #endif
 
 #ifdef DPHY_LOOP
