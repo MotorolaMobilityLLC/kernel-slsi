@@ -478,7 +478,7 @@ struct mfc_platdata {
 #define NAL_Q_OUT_ENTRY_SIZE		512
 
 #define NAL_Q_IN_DEC_STR_SIZE		112
-#define NAL_Q_IN_ENC_STR_SIZE		204
+#define NAL_Q_IN_ENC_STR_SIZE		324
 #define NAL_Q_OUT_DEC_STR_SIZE		376
 #define NAL_Q_OUT_ENC_STR_SIZE		64
 #define NAL_Q_DUMP_MAX_STR_SIZE		376
@@ -554,8 +554,9 @@ typedef struct __EncoderInputStr {
 	int ExtCtbQpAddr;
 	int WeightUpper;
 	int RcMode;
+	int St2094_40sei[30];
 	char reserved[NAL_Q_IN_ENTRY_SIZE - NAL_Q_IN_ENC_STR_SIZE];
-} EncoderInputStr; /* 51*4 = 204 bytes */
+} EncoderInputStr; /* 81*4 = 324 bytes */
 
 typedef struct __DecoderOutputStr {
 	int StartCode; /* 0xAAAAAAAA; Decoder output structure marker */
@@ -1404,6 +1405,7 @@ struct mfc_enc {
 	int stored_tag;
 	struct mfc_user_shared_handle sh_handle_svc;
 	struct mfc_user_shared_handle sh_handle_roi;
+	struct mfc_user_shared_handle sh_handle_hdr;
 	int roi_index;
 	struct mfc_special_buf roi_buf[MFC_MAX_EXTRA_BUF];
 	struct mfc_enc_roi_info roi_info[MFC_MAX_EXTRA_BUF];

@@ -494,9 +494,12 @@ int mfc_run_enc_init(struct mfc_ctx *ctx)
 
 int mfc_run_enc_frame(struct mfc_ctx *ctx)
 {
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_buf *dst_mb;
 	struct mfc_buf *src_mb;
 	struct mfc_raw_info *raw;
+	struct hdr10_plus_meta dst_sei_meta, *src_sei_meta;
 	unsigned int index, i;
 	int last_frame = 0;
 
@@ -526,6 +529,21 @@ int mfc_run_enc_frame(struct mfc_ctx *ctx)
 		mfc_raw_protect(ctx, src_mb, index);
 
 	mfc_set_enc_frame_buffer(ctx, src_mb, raw->num_planes);
+
+	/* HDR10+ sei meta */
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus)) {
+		if (enc->sh_handle_hdr.fd == -1) {
+			mfc_debug(3, "[HDR+] there is no handle for SEI meta\n");
+		} else {
+			src_sei_meta = (struct hdr10_plus_meta *)enc->sh_handle_hdr.vaddr + index;
+			if (src_sei_meta->valid) {
+				mfc_debug(3, "[HDR+] there is valid SEI meta data in buf[%d]\n",
+						index);
+				memcpy(&dst_sei_meta, src_sei_meta, sizeof(struct hdr10_plus_meta));
+				mfc_set_hdr_plus_info(ctx, &dst_sei_meta);
+			}
+		}
+	}
 
 	dst_mb = mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
 	if (!dst_mb) {

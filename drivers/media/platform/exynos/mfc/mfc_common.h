@@ -176,6 +176,7 @@
 #define	ENC_SET_COLOR_ASPECT		(1 << 9)
 #define	ENC_SET_HP_BITRATE_CONTROL	(1 << 10)
 #define	ENC_SET_STATIC_INFO		(1 << 11)
+#define	ENC_SET_HDR10_PLUS		(1 << 12)
 #define	ENC_SET_VP9_PROFILE_LEVEL	(1 << 13)
 
 #define MFC_VER_MAJOR(dev)	((dev->pdata->ip_ver >> 8) & 0xFF)

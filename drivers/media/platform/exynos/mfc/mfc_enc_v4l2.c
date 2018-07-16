@@ -892,6 +892,9 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_enc))
 		val |= ENC_SET_STATIC_INFO;
 
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus))
+		val |= ENC_SET_HDR10_PLUS;
+
 	if (dev->pdata->support_422)
 		val |= ENC_SET_VP9_PROFILE_LEVEL;
 
@@ -1758,6 +1761,18 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_2:
 		p->display_primaries_2 = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_MFC_HDR_USER_SHARED_HANDLE:
+		if (enc->sh_handle_hdr.fd == -1) {
+			enc->sh_handle_hdr.fd = ctrl->value;
+			if (mfc_mem_get_user_shared_handle(ctx, &enc->sh_handle_hdr)) {
+				enc->sh_handle_hdr.fd = -1;
+				return -EINVAL;
+			}
+			mfc_debug(2, "[MEMINFO][HDR+] shared handle fd: %d, vaddr: 0x%p\n",
+					enc->sh_handle_hdr.fd,
+					enc->sh_handle_hdr.vaddr);
+		}
 		break;
 	default:
 		mfc_err_ctx("Invalid control: 0x%08x\n", ctrl->id);

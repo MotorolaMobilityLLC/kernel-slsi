@@ -237,6 +237,7 @@ static void __mfc_deinit_enc_ctx(struct mfc_ctx *ctx)
 
 	mfc_mem_cleanup_user_shared_handle(ctx, &enc->sh_handle_svc);
 	mfc_mem_cleanup_user_shared_handle(ctx, &enc->sh_handle_roi);
+	mfc_mem_cleanup_user_shared_handle(ctx, &enc->sh_handle_hdr);
 	mfc_release_enc_roi_buffer(ctx);
 	kfree(enc);
 }
@@ -290,6 +291,7 @@ static int __mfc_init_enc_ctx(struct mfc_ctx *ctx)
 
 	enc->sh_handle_svc.fd = -1;
 	enc->sh_handle_roi.fd = -1;
+	enc->sh_handle_hdr.fd = -1;
 
 	/* Init videobuf2 queue for OUTPUT */
 	ctx->vq_src.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
@@ -1654,8 +1656,8 @@ struct mfc_ctx_buf_size mfc_ctx_buf_size = {
 	.h264_dec_ctx	= PAGE_ALIGN(0x200000),	/* 1.6MB */
 	.other_dec_ctx	= PAGE_ALIGN(0xC800),	/*  50KB */
 	.h264_enc_ctx	= PAGE_ALIGN(0x19000),	/* 100KB */
-	.hevc_enc_ctx	= PAGE_ALIGN(0xA000),	/*  40KB */
-	.other_enc_ctx	= PAGE_ALIGN(0x6400),	/*  25KB */
+	.hevc_enc_ctx	= PAGE_ALIGN(0xC800),	/*  50KB */
+	.other_enc_ctx	= PAGE_ALIGN(0xC800),	/*  50KB */
 	.shared_buf	= PAGE_ALIGN(0x2000),	/*   8KB */
 	.dbg_info_buf	= PAGE_ALIGN(0x1000),	/* 4KB for DEBUG INFO */
 };

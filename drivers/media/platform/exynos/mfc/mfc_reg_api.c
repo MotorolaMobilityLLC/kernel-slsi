@@ -515,17 +515,17 @@ void mfc_set_pixel_format(struct mfc_dev *dev, unsigned int format)
 			pix_val, mem_type_10bit, reg);
 }
 
-void mfc_print_dec_hdr_plus_info(struct mfc_ctx *ctx, int index)
+void mfc_print_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta)
 {
 	struct mfc_dev *dev = ctx->dev;
-	struct mfc_dec *dec = ctx->dec_priv;
-	struct hdr10_plus_meta *sei_meta;
 	int num_distribution;
 	int i, j;
 
-	sei_meta = &dec->hdr10_plus_info[index];
+	if (ctx->type == MFCINST_DECODER)
+		mfc_debug(5, "[HDR+] ================= Decoder metadata =================\n");
+	else
+		mfc_debug(5, "[HDR+] ================= Encoder metadata =================\n");
 
-	mfc_debug(5, "[HDR+] ================================================================\n");
 	mfc_debug(5, "[HDR+] valid: %#x\n", sei_meta->valid);
 	mfc_debug(5, "[HDR+] itu t35 country_code: %#x, provider_code %#x, oriented_code: %#x\n",
 			sei_meta->t35_country_code, sei_meta->t35_terminal_provider_code,
@@ -583,8 +583,12 @@ void mfc_print_dec_hdr_plus_info(struct mfc_ctx *ctx, int index)
 		if (dev->nal_q_handle->nal_q_state == NAL_Q_STATE_STARTED)
 			return;
 
-	print_hex_dump(KERN_ERR, "[HDR+] ", DUMP_PREFIX_ADDRESS, 32, 4,
-			dev->regs_base + MFC_REG_D_ST_2094_40_SEI_0, 0x78, false);
+	if (ctx->type == MFCINST_DECODER)
+		print_hex_dump(KERN_ERR, "[HDR+] ", DUMP_PREFIX_ADDRESS, 32, 4,
+				dev->regs_base + MFC_REG_D_ST_2094_40_SEI_0, 0x78, false);
+	else
+		print_hex_dump(KERN_ERR, "[HDR+] ", DUMP_PREFIX_ADDRESS, 32, 4,
+				dev->regs_base + MFC_REG_E_ST_2094_40_SEI_0, 0x78, false);
 }
 
 void mfc_get_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta)
@@ -676,5 +680,105 @@ void mfc_get_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta
 	}
 
 	if (debug_level >= 5)
-		mfc_print_dec_hdr_plus_info(ctx, index);
+		mfc_print_hdr_plus_info(ctx, sei_meta);
+}
+
+void mfc_set_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta)
+{
+	struct mfc_dev *dev = ctx->dev;
+	unsigned int reg = 0;
+	int num_win, num_distribution;
+	int i, j;
+
+	reg = MFC_READL(MFC_REG_E_HEVC_NAL_CONTROL);
+	reg &= ~(0x1 << 6);
+	reg |= ((sei_meta->valid & 0x1) << 6);
+	MFC_WRITEL(reg, MFC_REG_E_HEVC_NAL_CONTROL);
+
+	/* iru_t_t35 */
+	reg = 0;
+	reg |= (sei_meta->t35_country_code & 0xFF);
+	reg |= ((sei_meta->t35_terminal_provider_code & 0xFF) << 8);
+	reg |= (((sei_meta->t35_terminal_provider_oriented_code >> 8) & 0xFF) << 24);
+	MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_0);
+
+	/* window information */
+	num_win = (sei_meta->num_windows & 0x3);
+	if (!num_win || (num_win > dev->pdata->max_hdr_win)) {
+		mfc_debug(3, "[HDR+] num_window is only supported till %d\n",
+				dev->pdata->max_hdr_win);
+		num_win = dev->pdata->max_hdr_win;
+		sei_meta->num_windows = num_win;
+	}
+
+	/* application */
+	reg = 0;
+	reg |= (sei_meta->t35_terminal_provider_oriented_code & 0xFF);
+	reg |= ((sei_meta->application_identifier & 0xFF) << 8);
+	reg |= ((sei_meta->application_version & 0xFF) << 16);
+	reg |= ((sei_meta->num_windows & 0x3) << 24);
+	MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_1);
+
+	/* luminance */
+	reg = 0;
+	reg |= (sei_meta->target_maximum_luminance & 0x7FFFFFF);
+	reg |= ((sei_meta->target_actual_peak_luminance_flag & 0x1) << 27);
+	MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_2);
+
+	/* per window setting */
+	for (i = 0; i < num_win; i++) {
+		/* scl */
+		for (j = 0; j < HDR_MAX_SCL; j++) {
+			reg = (sei_meta->win_info[i].maxscl[j] & 0x1FFFF);
+			MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_3 + (4 * j));
+		}
+
+		/* distribution */
+		reg = 0;
+		reg |= (sei_meta->win_info[i].average_maxrgb & 0x1FFFF);
+		reg |= ((sei_meta->win_info[i].num_distribution_maxrgb_percentiles & 0xF) << 17);
+		MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_6);
+		num_distribution = (sei_meta->win_info[i].num_distribution_maxrgb_percentiles & 0xF);
+		for (j = 0; j < num_distribution; j++) {
+			reg = 0;
+			reg |= (sei_meta->win_info[i].distribution_maxrgb_percentages[j] & 0x7F);
+			reg |= ((sei_meta->win_info[i].distribution_maxrgb_percentiles[j] & 0x1FFFF) << 7);
+			MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_7 + (4 * j));
+		}
+
+		/* bright pixels, luminance */
+		reg = 0;
+		reg |= (sei_meta->win_info[i].fraction_bright_pixels & 0x3FF);
+		reg |= ((sei_meta->mastering_actual_peak_luminance_flag & 0x1) << 10);
+
+		/* tone mapping */
+		reg |= ((sei_meta->win_info[i].tone_mapping_flag & 0x1) << 11);
+		MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_22);
+		if (sei_meta->win_info[i].tone_mapping_flag & 0x1) {
+			reg = 0;
+			reg |= (sei_meta->win_info[i].knee_point_x & 0xFFF);
+			reg |= ((sei_meta->win_info[i].knee_point_y & 0xFFF) << 12);
+			reg |= ((sei_meta->win_info[i].num_bezier_curve_anchors & 0xF) << 24);
+			MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_23);
+			for (j = 0; j < HDR_MAX_BEZIER_CURVES / 3; j++) {
+				reg = 0;
+				reg |= (sei_meta->win_info[i].bezier_curve_anchors[j * 3] & 0x3FF);
+				reg |= ((sei_meta->win_info[i].bezier_curve_anchors[j * 3 + 1] & 0x3FF) << 10);
+				reg |= ((sei_meta->win_info[i].bezier_curve_anchors[j * 3 + 2] & 0x3FF) << 20);
+				MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_24 + (4 * j));
+			}
+
+		}
+
+		/* color saturation */
+		if (sei_meta->win_info[i].color_saturation_mapping_flag & 0x1) {
+			reg = 0;
+			reg |= (sei_meta->win_info[i].color_saturation_mapping_flag & 0x1);
+			reg |= ((sei_meta->win_info[i].color_saturation_weight & 0x3F) << 1);
+			MFC_WRITEL(reg, MFC_REG_E_ST_2094_40_SEI_29);
+		}
+	}
+
+	if (debug_level >= 5)
+		mfc_print_hdr_plus_info(ctx, sei_meta);
 }

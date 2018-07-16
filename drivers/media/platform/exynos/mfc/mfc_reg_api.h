@@ -274,7 +274,8 @@ int mfc_set_dynamic_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_vb);
 
 void mfc_set_pixel_format(struct mfc_dev *dev, unsigned int format);
 
-void mfc_print_dec_hdr_plus_info(struct mfc_ctx *ctx, int index);
+void mfc_print_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta);
 void mfc_get_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta);
+void mfc_set_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta);
 
 #endif /* __MFC_REG_API_H */

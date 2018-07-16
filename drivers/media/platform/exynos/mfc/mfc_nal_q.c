@@ -640,14 +640,113 @@ static void __mfc_nal_q_get_hdr_plus_info(struct mfc_ctx *ctx, DecoderOutputStr 
 	}
 
 	if (debug_level >= 5)
-		mfc_print_dec_hdr_plus_info(ctx, index);
+		mfc_print_hdr_plus_info(ctx, sei_meta);
+}
+
+static void __mfc_nal_q_set_hdr_plus_info(struct mfc_ctx *ctx, EncoderInputStr *pInStr,
+		struct hdr10_plus_meta *sei_meta)
+{
+	struct mfc_dev *dev = ctx->dev;
+	unsigned int val = 0;
+	int num_win, num_distribution;
+	int i, j;
+
+	pInStr->HevcNalControl &= ~(sei_meta->valid << 6);
+	pInStr->HevcNalControl |= ((sei_meta->valid & 0x1) << 6);
+
+	/* iru_t_t35 */
+	val = 0;
+	val |= (sei_meta->t35_country_code & 0xFF);
+	val |= ((sei_meta->t35_terminal_provider_code & 0xFF) << 8);
+	val |= (((sei_meta->t35_terminal_provider_oriented_code >> 8) & 0xFF) << 24);
+	pInStr->St2094_40sei[0] = val;
+
+	/* window information */
+	num_win = (sei_meta->num_windows & 0x3);
+	if (!num_win || (num_win > dev->pdata->max_hdr_win)) {
+		mfc_debug(3, "NAL Q:[HDR+] num_window is only supported till %d\n",
+				dev->pdata->max_hdr_win);
+		num_win = dev->pdata->max_hdr_win;
+		sei_meta->num_windows = num_win;
+	}
+
+	/* application */
+	val = 0;
+	val |= (sei_meta->t35_terminal_provider_oriented_code & 0xFF);
+	val |= ((sei_meta->application_identifier & 0xFF) << 8);
+	val |= ((sei_meta->application_version & 0xFF) << 16);
+	val |= ((sei_meta->num_windows & 0x3) << 24);
+	pInStr->St2094_40sei[1] = val;
+
+	/* luminance */
+	val = 0;
+	val |= (sei_meta->target_maximum_luminance & 0x7FFFFFF);
+	val |= ((sei_meta->target_actual_peak_luminance_flag & 0x1) << 27);
+	pInStr->St2094_40sei[2] = val;
+
+	/* per window setting */
+	for (i = 0; i < num_win; i++) {
+		/* scl */
+		for (j = 0; j < HDR_MAX_SCL; j++)
+			pInStr->St2094_40sei[3 + j] = (sei_meta->win_info[i].maxscl[j] & 0x1FFFF);
+
+		/* distribution */
+		val = 0;
+		val |= (sei_meta->win_info[i].average_maxrgb & 0x1FFFF);
+		val |= ((sei_meta->win_info[i].num_distribution_maxrgb_percentiles & 0xF) << 17);
+		pInStr->St2094_40sei[6] = val;
+		num_distribution = (sei_meta->win_info[i].num_distribution_maxrgb_percentiles & 0xF);
+		for (j = 0; j < num_distribution; j++) {
+			val = 0;
+			val |= (sei_meta->win_info[i].distribution_maxrgb_percentages[j] & 0x7F);
+			val |= ((sei_meta->win_info[i].distribution_maxrgb_percentiles[j] & 0x1FFFF) << 7);
+			pInStr->St2094_40sei[7 + j] = val;
+		}
+
+		/* bright pixels, luminance */
+		val = 0;
+		val |= (sei_meta->win_info[i].fraction_bright_pixels & 0x3FF);
+		val |= ((sei_meta->mastering_actual_peak_luminance_flag & 0x1) << 10);
+
+		/* tone mapping */
+		val |= ((sei_meta->win_info[i].tone_mapping_flag & 0x1) << 11);
+		pInStr->St2094_40sei[22] = val;
+		if (sei_meta->win_info[i].tone_mapping_flag & 0x1) {
+			val = 0;
+			val |= (sei_meta->win_info[i].knee_point_x & 0xFFF);
+			val |= ((sei_meta->win_info[i].knee_point_y & 0xFFF) << 12);
+			val |= ((sei_meta->win_info[i].num_bezier_curve_anchors & 0xF) << 24);
+			pInStr->St2094_40sei[23] = val;
+			for (j = 0; j < HDR_MAX_BEZIER_CURVES / 3; j++) {
+				val = 0;
+				val |= (sei_meta->win_info[i].bezier_curve_anchors[j * 3] & 0x3FF);
+				val |= ((sei_meta->win_info[i].bezier_curve_anchors[j * 3 + 1] & 0x3FF) << 10);
+				val |= ((sei_meta->win_info[i].bezier_curve_anchors[j * 3 + 2] & 0x3FF) << 20);
+				pInStr->St2094_40sei[24 + j] = val;
+			}
+
+		}
+
+		/* color saturation */
+		if (sei_meta->win_info[i].color_saturation_mapping_flag & 0x1) {
+			val = 0;
+			val |= (sei_meta->win_info[i].color_saturation_mapping_flag & 0x1);
+			val |= ((sei_meta->win_info[i].color_saturation_weight & 0x3F) << 1);
+			pInStr->St2094_40sei[29] = val;
+		}
+	}
+
+	if (debug_level >= 5)
+		mfc_print_hdr_plus_info(ctx, sei_meta);
 }
 
 static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInStr)
 {
 	struct mfc_dev *dev = ctx->dev;
+	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_buf *src_mb, *dst_mb;
 	struct mfc_raw_info *raw = NULL;
+	struct hdr10_plus_meta dst_sei_meta, *src_sei_meta;
 	dma_addr_t src_addr[3] = {0, 0, 0};
 	dma_addr_t addr_2bit[2] = {0, 0};
 	unsigned int index, i;
@@ -726,6 +825,22 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 			pInStr->Frame2bitAddr[i] = addr_2bit[i];
 			mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] set src index:%d, 2bit addr[%d]: 0x%08llx\n",
 					ctx->num, index, i, addr_2bit[i]);
+		}
+	}
+
+	/* HDR10+ sei meta */
+	index = src_mb->vb.vb2_buf.index;
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus)) {
+		if (enc->sh_handle_hdr.fd == -1) {
+			mfc_debug(3, "[NALQ][HDR+] there is no handle for SEI meta\n");
+		} else {
+			src_sei_meta = (struct hdr10_plus_meta *)enc->sh_handle_hdr.vaddr + index;
+			if (src_sei_meta->valid) {
+				mfc_debug(3, "[NALQ][HDR+] there is valid SEI meta data in buf[%d]\n",
+						index);
+				memcpy(&dst_sei_meta, src_sei_meta, sizeof(struct hdr10_plus_meta));
+				__mfc_nal_q_set_hdr_plus_info(ctx, pInStr, &dst_sei_meta);
+			}
 		}
 	}
 
