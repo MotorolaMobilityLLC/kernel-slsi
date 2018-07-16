@@ -1483,7 +1483,7 @@ irqreturn_t mfc_irq(int irq, void *priv)
 	reason = mfc_get_int_reason();
 	err = mfc_get_int_err();
 	mfc_debug(1, "Int reason: %d (err: %d)\n", reason, err);
-	MFC_TRACE_DEV("<< INT: %d\n", reason);
+	MFC_TRACE_DEV("<< INT: %d (err: %d)\n", reason, err);
 
 	dev->preempt_ctx = MFC_NO_INSTANCE_SET;
 
