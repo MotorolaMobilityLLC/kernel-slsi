@@ -631,10 +631,6 @@ int dsim_reset_panel(struct dsim_device *dsim)
 	gpio_set_value(res->lcd_reset, 0);
 	usleep_range(5000, 6000);
 	gpio_set_value(res->lcd_reset, 1);
-	usleep_range(5000, 6000);
-	gpio_set_value(res->lcd_reset, 0);
-	usleep_range(5000, 6000);
-	gpio_set_value(res->lcd_reset, 1);
 
 	gpio_free(res->lcd_reset);
 
