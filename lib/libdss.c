@@ -27,30 +27,32 @@ int main(int argc, char *argv[])
 	printf("log = []\n");
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
+			if (p->task[i][j].time == 0)
+				break;
 			printf("log.append({'time':%.9f, 'type' : 'sched', 'cpu' : %d, 'comm' : '%s', 'pid' : %d})\n",
 					p->task[i][j].time/1.0e9,
 					i,
 					p->task[i][j].task_comm,
 					p->task[i][j].pid);
-			if (p->task[i][j].time == 0)
-				break;
 		}
 	}
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_FREQ
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
+		if (p->freq[i].time == 0)
+			break;
 		printf("log.append({'time':%.9f, 'type' : 'freq', 'cpu' : %d, 'cluster' : %d, 'freq' : %lu })\n",
 				p->freq[i].time/1.0e9,
 				p->freq[i].cpu,
 				p->freq[i].type,
 				p->freq[i].target_freq);
-		if (p->freq[i].time == 0)
-			break;
 	}
 #endif
 
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
+			if (p->irq[i][j].time == 0)
+				break;
 			printf("log.append({'time':%.9f, 'type' : 'irq', 'cpu' : %d, 'num' : %d,"
 					"'en' : %d, 'func' : '%p'})\n",
 					p->irq[i][j].time/1.0e9,
@@ -58,23 +60,23 @@ int main(int argc, char *argv[])
 					p->irq[i][j].irq,
 					p->irq[i][j].en,
 					p->irq[i][j].fn);
-			if (p->irq[i][j].time == 0)
-				break;
 		}
 	}
 
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		for (j = 0; j < DSS_LOG_MAX_NUM; j++) {
+			if (p->cpuidle[i][j].time == 0)
+				break;
 			printf("log.append({'time':%.9f, 'type' : 'cpuidle', 'cpu' : %d, 'state' : %d})\n",
 					p->cpuidle[i][j].time/1.0e9,
 					i,
 					p->cpuidle[i][j].state);
-			if (p->cpuidle[i][j].time == 0)
-				break;
 		}
 	}
 #ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
 	for (i = 0; i < DSS_API_MAX_NUM << 2; i++) {
+		if (p->binder[i].time == 0)
+			break;
 		printf("log.append({'time':%.9f, 'type' : 'binder', 'cpu' : %d, 'trace_type' : %d, 'transaction_id' : %d,"
 				" 'from_pid' : %d, 'from_tid' : %d, 'to_pid' : %d, 'to_tid' : %d,"
 				" 'from_pid_comm' : '%s', 'from_tid_comm' : '%s',"
@@ -91,12 +93,12 @@ int main(int argc, char *argv[])
 				p->binder[i].transaction.flags, p->binder[i].transaction.code,
 				p->binder[i].error.return_error, p->binder[i].error.return_error_param,
 				p->binder[i].error.return_error_line);
-		if (p->binder[i].time == 0)
-			break;
 	}
 #endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_ACPM
 	for (i = 0; i < DSS_LOG_MAX_NUM; i++) {
+		if (p->acpm[i].time == 0)
+			break;
 		for (j = 0; j < 8; j++) {
 			if (!((p->acpm[i].log[j] >= 'a' && p->acpm[i].log[j] <= 'z') || p->acpm[i].log[j] == '_'))
 				p->acpm[i].log[j] = 0;
@@ -106,8 +108,6 @@ int main(int argc, char *argv[])
 				p->acpm[i].acpm_time/1.0e9,
 				p->acpm[i].log,
 				p->acpm[i].data);
-		if (p->acpm[i].time == 0)
-			break;
 	}
 #endif
 	return 0;
