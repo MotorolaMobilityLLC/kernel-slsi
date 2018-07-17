@@ -59,13 +59,13 @@ struct scsc_log_status {
 	loff_t pos;
 	bool in_collection;
 	char fapi_ver[SCSC_LOG_FAPI_VERSION_SIZE];
-	struct mutex log_mutex;
-	struct mutex collection_mutex;
 
 	struct workqueue_struct *collection_workq;
 	struct work_struct	collect_work;
 	enum scsc_log_reason    collect_reason;
 } log_status;
+
+static DEFINE_MUTEX(log_mutex);
 
 static void collection_worker(struct work_struct *work)
 {
@@ -83,8 +83,6 @@ int __init scsc_log_collector(void)
 {
 	pr_info("Log Collector Init\n");
 
-	mutex_init(&log_status.log_mutex);
-	mutex_init(&log_status.collection_mutex);
 	log_status.in_collection = false;
 	log_status.collection_workq = create_workqueue("log_collector");
 	if (log_status.collection_workq)
@@ -140,9 +138,12 @@ int scsc_log_collector_register_client(struct scsc_log_collector_client *collect
 		return -EIO;
 	}
 
+	mutex_lock(&log_mutex);
 	lc = kzalloc(sizeof(*lc), GFP_KERNEL);
-	if (!lc)
+	if (!lc) {
+		mutex_unlock(&log_mutex);
 		return -ENOMEM;
+	}
 
 	lc->collect_client = collect_client;
 	list_add_tail(&lc->list, &scsc_log_collector_list.list);
@@ -151,6 +152,7 @@ int scsc_log_collector_register_client(struct scsc_log_collector_client *collect
 	list_sort(NULL, &scsc_log_collector_list.list, scsc_log_collector_compare);
 
 	pr_info("Registered client: %s\n", collect_client->name);
+	mutex_unlock(&log_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(scsc_log_collector_register_client);
@@ -161,7 +163,7 @@ int scsc_log_collector_unregister_client(struct scsc_log_collector_client *colle
 	bool match = false;
 
 	/* block any attempt of unregistering while a collection is in progres */
-	mutex_lock(&log_status.log_mutex);
+	mutex_lock(&log_mutex);
 	list_for_each_entry_safe(lc, next, &scsc_log_collector_list.list, list) {
 		if (lc->collect_client == collect_client) {
 			match = true;
@@ -174,7 +176,7 @@ int scsc_log_collector_unregister_client(struct scsc_log_collector_client *colle
 		pr_err("FATAL, no match for given scsc_log_collector_client\n");
 
 	pr_info("Unregistered client: %s\n", collect_client->name);
-	mutex_unlock(&log_status.log_mutex);
+	mutex_unlock(&log_mutex);
 
 	return 0;
 }
@@ -241,7 +243,7 @@ static inline int __scsc_log_collector_collect_to_file(enum scsc_log_reason reas
 	struct scsc_log_chunk_header chk_header;
 	u8 j;
 
-	mutex_lock(&log_status.log_mutex);
+	mutex_lock(&log_mutex);
 
 	pr_info("Log collection to file triggered\n");
 
@@ -347,7 +349,7 @@ exit:
 
 	pr_info("File %s collection end. Took: %lld\n", memdump_path, ktime_to_ns(ktime_sub(ktime_get(), start)));
 
-	mutex_unlock(&log_status.log_mutex);
+	mutex_unlock(&log_mutex);
 	return ret;
 }
 
@@ -355,12 +357,10 @@ int scsc_log_collector_collect(enum scsc_log_reason reason)
 {
 	int ret;
 
-	mutex_lock(&log_status.collection_mutex);
 	if (collect_to_ram)
 		ret = __scsc_log_collector_collect_to_ram(reason);
 	else
 		ret =  __scsc_log_collector_collect_to_file(reason);
-	mutex_unlock(&log_status.collection_mutex);
 
 	return ret;
 }

@@ -1914,9 +1914,10 @@ void hip4_deinit(struct slsi_hip4 *hip)
 	service = sdev->service;
 
 #ifdef CONFIG_SCSC_LOG_COLLECTION
-	mutex_lock(&hip->hip_priv->in_collection);
 	hip4_collect_hcf_client.prv = NULL;
+	/* Unregister outside the in_collection_lock to avoid deadlock */
 	scsc_log_collector_unregister_client(&hip4_collect_hcf_client);
+	mutex_lock(&hip->hip_priv->in_collection);
 	if (hip->hip_priv->mib_collect) {
 		hip->hip_priv->mib_sz = 0;
 		vfree(hip->hip_priv->mib_collect);

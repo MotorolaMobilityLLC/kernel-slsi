@@ -383,9 +383,16 @@ static int mxlogger_collect(struct scsc_log_collector_client *collect_client, si
 	if (mxlogger && mxlogger->mx)
 		mif = scsc_mx_get_mif_abs(mxlogger->mx);
 	else
-		return -EIO;
+		/* Return 0 as 'success' to continue the collection of other chunks */
+		return 0;
 
 	mutex_lock(&mxlogger->lock);
+
+	if (mxlogger->initialized == false) {
+		SCSC_TAG_ERR(MXMAN, "MXLOGGER not initialized\n");
+		mutex_unlock(&mxlogger->lock);
+		return 0;
+	}
 
 	if (collect_client->type == SCSC_LOG_CHUNK_SYNC)
 		i = MXLOGGER_SYNC;
@@ -419,7 +426,7 @@ static int mxlogger_collect(struct scsc_log_collector_client *collect_client, si
 	}
 
 	mutex_unlock(&mxlogger->lock);
-	return ret;
+	return 0;
 }
 
 static int mxlogger_collect_end(struct scsc_log_collector_client *collect_client)
@@ -654,6 +661,19 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	struct mxlogger_node *mn, *next;
 	bool match = false;
 
+	/* Run deregistration before adquiring the mxlogger lock to avoid
+	 * deadlock with log_collector.
+	 */
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_sync);
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_imp);
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_common);
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_bt);
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_wlan);
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_radio);
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_mxl);
+	scsc_log_collector_unregister_client(&mxlogger_collect_client_udi);
+#endif
 	mutex_lock(&mxlogger->lock);
 	mxlogger->initialized = false;
 	mxlogger_to_host(mxlogger);
@@ -676,16 +696,6 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	if (match == false)
 		SCSC_TAG_ERR(MXMAN, "FATAL, no match for given scsc_mif_abs\n");
 
-#ifdef CONFIG_SCSC_LOG_COLLECTION
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_sync);
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_imp);
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_common);
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_bt);
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_wlan);
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_rsv_radio);
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_mxl);
-	scsc_log_collector_unregister_client(&mxlogger_collect_client_udi);
-#endif
 	mutex_unlock(&mxlogger->lock);
 }
 
@@ -711,7 +721,7 @@ int mxlogger_unregister_observer(struct mxlogger *mxlogger, char *name)
 	mutex_lock(&mxlogger->lock);
 
 	if (mxlogger->observers == 0) {
-		SCSC_TAG_INFO(MXMAN, "Incorrect number of observers \n");
+		SCSC_TAG_INFO(MXMAN, "Incorrect number of observers\n");
 		mutex_unlock(&mxlogger->lock);
 		return -EIO;
 	}
@@ -730,7 +740,8 @@ int mxlogger_unregister_observer(struct mxlogger *mxlogger, char *name)
 }
 
 /* Global observer are not associated to any [mx] mxlogger instance. So it registers as
- * an observer to all the [mx] mxlogger instances. */
+ * an observer to all the [mx] mxlogger instances.
+ */
 int mxlogger_register_global_observer(char *name)
 {
 	struct mxlogger_node *mn, *next;
