@@ -2055,6 +2055,43 @@
 		default-clk = <100000000>;
 	};
 
+	flash_led {
+		/* Change here if you want to use FLED_EN pin
+		   fled-en1-gpio = <&gpg1 2 0>;
+		   fled-en2-gpio = <&gpg1 2 0>;
+		   fled-en3-gpio = <&gpg1 2 0>;
+		   fled-en4-gpio = <&gpg1 2 0>;
+		 */
+		status = "okay";
+		default_current = <50>;
+		max_current = <200>;
+		default_timer = <0>;
+
+		s2mu106-channel1 {
+			id = <0>;
+			/*
+			   current = <100>;
+			   timer = <200>;
+			*/
+		};
+
+		s2mu106-channel2 {
+			id = <1>;
+			/*
+			   current = <100>;
+			   timer = <200>;
+			*/
+		};
+
+		s2mu106-channel3 {
+			id = <2>;
+			/*
+			   current = <100>;
+			   timer = <200>;
+			*/
+		};
+	};
+
 	s2mu106-charger {
 		status = "okay";
 		battery,charger_name = "s2mu106-charger";
