@@ -344,28 +344,32 @@ struct mfc_special_buf {
 	size_t				size;
 };
 
+#ifdef CONFIG_EXYNOS_BTS
+struct mfc_bw_data {
+	unsigned int	peak;
+	unsigned int	read;
+	unsigned int	write;
+};
+
+struct mfc_bw_info {
+	struct mfc_bw_data bw_enc_h264;
+	struct mfc_bw_data bw_enc_hevc;
+	struct mfc_bw_data bw_enc_hevc_10bit;
+	struct mfc_bw_data bw_enc_vp8;
+	struct mfc_bw_data bw_enc_vp9;
+	struct mfc_bw_data bw_enc_vp9_10bit;
+	struct mfc_bw_data bw_enc_mpeg4;
+	struct mfc_bw_data bw_dec_h264;
+	struct mfc_bw_data bw_dec_hevc;
+	struct mfc_bw_data bw_dec_hevc_10bit;
+	struct mfc_bw_data bw_dec_vp8;
+	struct mfc_bw_data bw_dec_vp9;
+	struct mfc_bw_data bw_dec_vp9_10bit;
+	struct mfc_bw_data bw_dec_mpeg4;
+};
+#endif
+
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-struct mfc_qos_bw_data {
-	unsigned long	peak;
-	unsigned long	read;
-	unsigned long	write;
-};
-
-struct mfc_qos_bw {
-	struct mfc_qos_bw_data h264_dec_uhd_bw;
-	struct mfc_qos_bw_data hevc_dec_uhd_bw;
-	struct mfc_qos_bw_data hevc_dec_uhd_10bit_bw;
-	struct mfc_qos_bw_data vp8_dec_uhd_bw;
-	struct mfc_qos_bw_data vp9_dec_uhd_bw;
-	struct mfc_qos_bw_data mpeg4_dec_uhd_bw;
-	struct mfc_qos_bw_data h264_enc_uhd_bw;
-	struct mfc_qos_bw_data hevc_enc_uhd_bw;
-	struct mfc_qos_bw_data hevc_enc_uhd_10bit_bw;
-	struct mfc_qos_bw_data vp8_enc_uhd_bw;
-	struct mfc_qos_bw_data vp9_enc_uhd_bw;
-	struct mfc_qos_bw_data mpeg4_enc_uhd_bw;
-};
-
 /*
  * threshold_mb - threshold of total MB(macroblock) count
  * Total MB count can be calculated by
@@ -430,7 +434,9 @@ struct mfc_platdata {
 	struct mfc_feature static_info_dec;
 	struct mfc_feature color_aspect_enc;
 	struct mfc_feature static_info_enc;
-
+#ifdef CONFIG_EXYNOS_BTS
+	struct mfc_bw_info mfc_bw_info;
+#endif
 	/*
 	 * new variables should be added above
 	 * ============ boundary line ============

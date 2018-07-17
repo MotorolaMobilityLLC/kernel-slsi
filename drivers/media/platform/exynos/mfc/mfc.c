@@ -990,6 +990,23 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 				pdata->enc_param_val, pdata->enc_param_num);
 	}
 
+#ifdef CONFIG_EXYNOS_BTS
+	of_property_read_u32_array(np, "bw_enc_h264", &pdata->mfc_bw_info.bw_enc_h264.peak, 3);
+	of_property_read_u32_array(np, "bw_enc_hevc", &pdata->mfc_bw_info.bw_enc_hevc.peak, 3);
+	of_property_read_u32_array(np, "bw_enc_hevc_10bit", &pdata->mfc_bw_info.bw_enc_hevc_10bit.peak, 3);
+	of_property_read_u32_array(np, "bw_enc_vp8", &pdata->mfc_bw_info.bw_enc_vp8.peak, 3);
+	of_property_read_u32_array(np, "bw_enc_vp9", &pdata->mfc_bw_info.bw_enc_vp9.peak, 3);
+	of_property_read_u32_array(np, "bw_enc_vp9_10bit", &pdata->mfc_bw_info.bw_enc_vp9_10bit.peak, 3);
+	of_property_read_u32_array(np, "bw_enc_mpeg4", &pdata->mfc_bw_info.bw_enc_mpeg4.peak, 3);
+	of_property_read_u32_array(np, "bw_dec_h264", &pdata->mfc_bw_info.bw_dec_h264.peak, 3);
+	of_property_read_u32_array(np, "bw_dec_hevc", &pdata->mfc_bw_info.bw_dec_hevc.peak, 3);
+	of_property_read_u32_array(np, "bw_dec_hevc_10bit", &pdata->mfc_bw_info.bw_dec_hevc_10bit.peak, 3);
+	of_property_read_u32_array(np, "bw_dec_vp8", &pdata->mfc_bw_info.bw_dec_vp8.peak, 3);
+	of_property_read_u32_array(np, "bw_dec_vp9", &pdata->mfc_bw_info.bw_dec_vp9.peak, 3);
+	of_property_read_u32_array(np, "bw_dec_vp9_10bit", &pdata->mfc_bw_info.bw_dec_vp9_10bit.peak, 3);
+	of_property_read_u32_array(np, "bw_dec_mpeg4", &pdata->mfc_bw_info.bw_dec_mpeg4.peak, 3);
+#endif
+
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	/* QoS */
 	of_property_read_u32(np, "num_qos_steps", &pdata->num_qos_steps);

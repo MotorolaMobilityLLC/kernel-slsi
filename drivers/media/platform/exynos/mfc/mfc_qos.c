@@ -214,7 +214,7 @@ static void __mfc_qos_operate(struct mfc_ctx *ctx, int opr_type, int idx)
 }
 
 #ifdef CONFIG_EXYNOS_BTS
-static void __mfc_qos_set(struct mfc_ctx *ctx, struct bts_bw *mfc_bw, int i)
+static void __mfc_qos_set(struct mfc_ctx *ctx, struct bts_bw *curr_mfc_bw, int i)
 #else
 static void __mfc_qos_set(struct mfc_ctx *ctx, int i)
 #endif
@@ -231,10 +231,10 @@ static void __mfc_qos_set(struct mfc_ctx *ctx, int i)
 			qos_table[i].freq_mif);
 
 #ifdef CONFIG_EXYNOS_BTS
-	if (mfc_bw->peak != dev->mfc_bw.peak) {
-		dev->mfc_bw.peak = mfc_bw->peak;
-		dev->mfc_bw.read = mfc_bw->read;
-		dev->mfc_bw.write = mfc_bw->write;
+	if (curr_mfc_bw->peak != dev->mfc_bw.peak) {
+		dev->mfc_bw.peak = curr_mfc_bw->peak;
+		dev->mfc_bw.read = curr_mfc_bw->read;
+		dev->mfc_bw.write = curr_mfc_bw->write;
 		__mfc_qos_operate(ctx, MFC_QOS_BW, i);
 	}
 #endif
@@ -347,25 +347,10 @@ static inline unsigned long __mfc_qos_get_mb_per_second(struct mfc_ctx *ctx)
 }
 
 #ifdef CONFIG_EXYNOS_BTS
-static struct mfc_qos_bw mfc_bw_info = {
-	/*				  peak   read   write	(KB/UHD frame) */
-	.h264_dec_uhd_bw	=	{ 38131, 40206, 24870 },
-	.hevc_dec_uhd_bw	=	{ 35055, 33741, 20511 },
-	.hevc_dec_uhd_10bit_bw	=	{ 38643, 36428, 25491 },
-	.vp8_dec_uhd_bw		=	{ 28693, 30464, 22331 },
-	.vp9_dec_uhd_bw		=	{ 21464, 22160, 19747 },
-	.mpeg4_dec_uhd_bw	=	{ 31567, 25191, 15961 },
-	.h264_enc_uhd_bw	=	{ 62543, 75230, 13080 },
-	.hevc_enc_uhd_bw	=	{ 54863, 65417, 11422 },
-	.hevc_enc_uhd_10bit_bw	=	{ 68011, 79367, 14688 },
-	.vp8_enc_uhd_bw		=	{ 63970, 67281, 22508 },
-	.vp9_enc_uhd_bw		=	{ 84443, 71588, 19337 },
-	.mpeg4_enc_uhd_bw	=	{ 44633, 55310, 9599  },
-};
-
-static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *mfc_bw)
+static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *curr_mfc_bw_ctx)
 {
-	struct mfc_qos_bw_data bw_data;
+	struct mfc_bw_data bw_data;
+	struct mfc_bw_info *bw_info = &ctx->dev->pdata->mfc_bw_info;
 	unsigned long mb_width, mb_height, fps, mb;
 	unsigned long peak_bw_per_sec;
 	unsigned long read_bw_per_sec;
@@ -382,25 +367,25 @@ static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *mfc_
 	switch (ctx->codec_mode) {
 	case MFC_REG_CODEC_H264_DEC:
 	case MFC_REG_CODEC_H264_MVC_DEC:
-		bw_data = mfc_bw_info.h264_dec_uhd_bw;
+		bw_data = bw_info->bw_dec_h264;
 		break;
 	case MFC_REG_CODEC_H264_ENC:
 	case MFC_REG_CODEC_H264_MVC_ENC:
-		bw_data = mfc_bw_info.h264_enc_uhd_bw;
+		bw_data = bw_info->bw_enc_h264;
 		break;
 	case MFC_REG_CODEC_HEVC_DEC:
 	case MFC_REG_CODEC_BPG_DEC:
 		if (ctx->is_10bit)
-			bw_data = mfc_bw_info.hevc_dec_uhd_10bit_bw;
+			bw_data = bw_info->bw_dec_hevc_10bit;
 		else
-			bw_data = mfc_bw_info.hevc_dec_uhd_bw;
+			bw_data = bw_info->bw_dec_hevc;
 		break;
 	case MFC_REG_CODEC_HEVC_ENC:
 	case MFC_REG_CODEC_BPG_ENC:
 		if (ctx->is_10bit)
-			bw_data = mfc_bw_info.hevc_enc_uhd_10bit_bw;
+			bw_data = bw_info->bw_enc_hevc_10bit;
 		else
-			bw_data = mfc_bw_info.hevc_enc_uhd_bw;
+			bw_data = bw_info->bw_enc_hevc;
 		break;
 	case MFC_REG_CODEC_MPEG4_DEC:
 	case MFC_REG_CODEC_FIMV1_DEC:
@@ -411,23 +396,29 @@ static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *mfc_
 	case MFC_REG_CODEC_VC1_RCV_DEC:
 	case MFC_REG_CODEC_VC1_DEC:
 	case MFC_REG_CODEC_MPEG2_DEC:
-		bw_data = mfc_bw_info.mpeg4_dec_uhd_bw;
+		bw_data = bw_info->bw_dec_mpeg4;
 		break;
 	case MFC_REG_CODEC_VP8_DEC:
-		bw_data = mfc_bw_info.vp8_dec_uhd_bw;
+		bw_data = bw_info->bw_dec_vp8;
 		break;
 	case MFC_REG_CODEC_VP9_DEC:
-		bw_data = mfc_bw_info.vp9_dec_uhd_bw;
+		if (ctx->is_10bit)
+			bw_data = bw_info->bw_dec_vp9_10bit;
+		else
+			bw_data = bw_info->bw_dec_vp9;
 		break;
 	case MFC_REG_CODEC_MPEG4_ENC:
 	case MFC_REG_CODEC_H263_ENC:
-		bw_data = mfc_bw_info.mpeg4_enc_uhd_bw;
+		bw_data = bw_info->bw_enc_mpeg4;
 		break;
 	case MFC_REG_CODEC_VP8_ENC:
-		bw_data = mfc_bw_info.vp8_enc_uhd_bw;
+		bw_data = bw_info->bw_enc_vp8;
 		break;
 	case MFC_REG_CODEC_VP9_ENC:
-		bw_data = mfc_bw_info.vp9_enc_uhd_bw;
+		if (ctx->is_10bit)
+			bw_data = bw_info->bw_enc_vp9_10bit;
+		else
+			bw_data = bw_info->bw_enc_vp9;
 		break;
 	default:
 		bw_data.peak = 0;
@@ -458,9 +449,9 @@ static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *mfc_
 		write_bw_per_sec = MIN_BW_PER_SEC;
 	}
 
-	mfc_bw->peak = (unsigned int)peak_bw_per_sec;
-	mfc_bw->read = (unsigned int)read_bw_per_sec;
-	mfc_bw->write = (unsigned int)write_bw_per_sec;
+	curr_mfc_bw_ctx->peak = (unsigned int)peak_bw_per_sec;
+	curr_mfc_bw_ctx->read = (unsigned int)read_bw_per_sec;
+	curr_mfc_bw_ctx->write = (unsigned int)write_bw_per_sec;
 }
 #endif
 
@@ -475,7 +466,7 @@ void mfc_qos_on(struct mfc_ctx *ctx)
 	int i, found = 0, enc_found = 0;
 	int start_qos_step;
 #ifdef CONFIG_EXYNOS_BTS
-	struct bts_bw mfc_bw, mfc_bw_ctx;
+	struct bts_bw curr_mfc_bw, curr_mfc_bw_ctx;
 #endif
 
 	if (perf_boost_mode) {
@@ -491,9 +482,9 @@ void mfc_qos_on(struct mfc_ctx *ctx)
 		list_add_tail(&ctx->qos_list, &dev->qos_queue);
 
 #ifdef CONFIG_EXYNOS_BTS
-	mfc_bw.peak = 0;
-	mfc_bw.read = 0;
-	mfc_bw.write = 0;
+	curr_mfc_bw.peak = 0;
+	curr_mfc_bw.read = 0;
+	curr_mfc_bw.write = 0;
 #endif
 	/* get the hw macroblock */
 	list_for_each_entry(qos_ctx, &dev->qos_queue, qos_list) {
@@ -502,10 +493,10 @@ void mfc_qos_on(struct mfc_ctx *ctx)
 		hw_mb += __mfc_qos_get_mb_per_second(qos_ctx);
 		total_fps += (qos_ctx->framerate / 1000);
 #ifdef CONFIG_EXYNOS_BTS
-		__mfc_qos_get_bw_per_second(qos_ctx, &mfc_bw_ctx);
-		mfc_bw.peak += mfc_bw_ctx.peak;
-		mfc_bw.read += mfc_bw_ctx.read;
-		mfc_bw.write += mfc_bw_ctx.write;
+		__mfc_qos_get_bw_per_second(qos_ctx, &curr_mfc_bw_ctx);
+		curr_mfc_bw.peak += curr_mfc_bw_ctx.peak;
+		curr_mfc_bw.read += curr_mfc_bw_ctx.read;
+		curr_mfc_bw.write += curr_mfc_bw_ctx.write;
 #endif
 	}
 
@@ -535,7 +526,7 @@ void mfc_qos_on(struct mfc_ctx *ctx)
 		mfc_debug(4, "[QoS] overspec mb %ld > %d\n", total_mb, pdata->max_mb);
 
 #ifdef CONFIG_EXYNOS_BTS
-	__mfc_qos_set(ctx, &mfc_bw, i);
+	__mfc_qos_set(ctx, &curr_mfc_bw, i);
 #else
 	__mfc_qos_set(ctx, i);
 #endif
