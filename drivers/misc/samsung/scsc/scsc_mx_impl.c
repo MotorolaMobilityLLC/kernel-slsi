@@ -31,6 +31,7 @@ struct scsc_mx {
 	struct scsc_mif_abs     *mif_abs;
 	struct mifintrbit       intr;
 	struct miframman        ram;
+	struct miframman        ram2;
 	struct mifmboxman       mbox;
 #ifdef CONFIG_SCSC_SMAPPER
 	struct mifsmapper	smapper;
@@ -108,6 +109,11 @@ struct mifintrbit *scsc_mx_get_intrbit(struct scsc_mx *mx)
 struct miframman *scsc_mx_get_ramman(struct scsc_mx *mx)
 {
 	return &mx->ram;
+}
+
+struct miframman *scsc_mx_get_ramman2(struct scsc_mx *mx)
+{
+	return &mx->ram2;
 }
 
 struct mifmboxman *scsc_mx_get_mboxman(struct scsc_mx *mx)

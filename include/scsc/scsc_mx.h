@@ -17,6 +17,13 @@
 #define	SCSC_FW_EVENT_FAILURE			0
 #define	SCSC_FW_EVENT_MOREDUMP_COMPLETE		1
 
+/** The following flags define the pools that can used for memory allocation.
+ * To be used with scsc_mx_service_mifram_alloc_extended **/
+/* Standard memory allocation */
+#define MIFRAMMAN_MEM_POOL_GENERIC 1
+/* Used for buffers containing logs that will not be dumped by moredump */
+#define MIFRAMMAN_MEM_POOL_LOGGING 2
+
 struct device;
 struct firmware;
 struct scsc_mx;
@@ -144,10 +151,15 @@ void scsc_service_on_halt_ldos_off(struct scsc_service *service);
 #endif
 
 /* MEMORY Interface*/
-/** Allocate a contiguous block of SDRAM accessible to Client Driver */
+/** Allocate a contiguous block of SDRAM accessible to Client Driver. The memory will be allocated
+ * from generic pool (MIFRAMMAN_MEM_POOL_GENERIC) */
 int scsc_mx_service_mifram_alloc(struct scsc_service *service, size_t nbytes, scsc_mifram_ref *ref, u32 align);
+/* Same as scsc_mx_service_mifram_alloc but allows to specify flags (MIFRAMMAN_MEM_POOL_XX).
+ * So, for example, to allocate memory from the logging pool use MIFRAMMAN_MEM_POOL_LOGGING. */
+int scsc_mx_service_mifram_alloc_extended(struct scsc_service *service, size_t nbytes, scsc_mifram_ref *ref, u32 align, uint32_t flags);
 /** Free a contiguous block of SDRAM */
 void scsc_mx_service_mifram_free(struct scsc_service *service, scsc_mifram_ref ref);
+void scsc_mx_service_mifram_free_extended(struct scsc_service *service, scsc_mifram_ref ref, uint32_t flags);
 
 /* MBOX Interface */
 /** Allocate n contiguous mailboxes. Outputs index of first mbox, returns FALSE if can’t allocate n contiguous mailboxes. */

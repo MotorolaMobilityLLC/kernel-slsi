@@ -642,14 +642,24 @@ EXPORT_SYMBOL(scsc_service_on_halt_ldos_off);
  * is cleared to an INVALID value that can be safely fed to the companion
  * function scsc_mx_service_mifram_free().
  */
-int scsc_mx_service_mifram_alloc(struct scsc_service *service, size_t nbytes, scsc_mifram_ref *ref, u32 align)
+int scsc_mx_service_mifram_alloc_extended(struct scsc_service *service, size_t nbytes, scsc_mifram_ref *ref, u32 align, uint32_t flags)
 {
 	struct scsc_mx      *mx = service->mx;
 	void                *mem;
 	int                 ret;
+	struct miframman    *ramman;
 
-	mem = miframman_alloc(scsc_mx_get_ramman(mx), nbytes, align);
+	if (flags & MIFRAMMAN_MEM_POOL_GENERIC) {
+		ramman = scsc_mx_get_ramman(mx);
+	} else if (flags & MIFRAMMAN_MEM_POOL_LOGGING) {
+		ramman = scsc_mx_get_ramman2(mx);
+	} else {
+		SCSC_TAG_ERR(MXMAN, "Unsupported flags value: %d", flags);
+		*ref = SCSC_MIFRAM_INVALID_REF;
+		return -ENOMEM;
+	}
 
+	mem = miframman_alloc(ramman, nbytes, align);
 	if (!mem) {
 		SCSC_TAG_ERR(MXMAN, "miframman_alloc() failed\n");
 		*ref = SCSC_MIFRAM_INVALID_REF;
@@ -662,26 +672,48 @@ int scsc_mx_service_mifram_alloc(struct scsc_service *service, size_t nbytes, sc
 	ret = scsc_mx_service_mif_ptr_to_addr(service, mem, ref);
 	if (ret) {
 		SCSC_TAG_ERR(MXMAN, "scsc_mx_service_mif_ptr_to_addr() failed: ret=%d", ret);
-		miframman_free(scsc_mx_get_ramman(mx), mem);
+		miframman_free(ramman, mem);
 		*ref = SCSC_MIFRAM_INVALID_REF;
 	} else {
 		SCSC_TAG_DEBUG(MXMAN, "mem %p ref %d\n", mem, *ref);
 	}
 	return ret;
 }
+EXPORT_SYMBOL(scsc_mx_service_mifram_alloc_extended);
+
+int scsc_mx_service_mifram_alloc(struct scsc_service *service, size_t nbytes, scsc_mifram_ref *ref, u32 align)
+{
+	return scsc_mx_service_mifram_alloc_extended(service, nbytes, ref, align, MIFRAMMAN_MEM_POOL_GENERIC);
+}
 EXPORT_SYMBOL(scsc_mx_service_mifram_alloc);
 
 /** Free a contiguous block of SDRAM */
-void scsc_mx_service_mifram_free(struct scsc_service *service, scsc_mifram_ref ref)
+void scsc_mx_service_mifram_free_extended(struct scsc_service *service, scsc_mifram_ref ref, uint32_t flags)
 {
 	struct scsc_mx *mx = service->mx;
 	void           *mem;
+	struct miframman    *ramman;
+
+	if (flags & MIFRAMMAN_MEM_POOL_GENERIC) {
+		ramman = scsc_mx_get_ramman(mx);
+	} else if (flags & MIFRAMMAN_MEM_POOL_LOGGING) {
+		ramman = scsc_mx_get_ramman2(mx);
+	} else {
+		SCSC_TAG_ERR(MXMAN, "Unsupported flags value: %d", flags);
+		return;
+	}
 
 	mem = scsc_mx_service_mif_addr_to_ptr(service, ref);
 
 	SCSC_TAG_DEBUG(MXMAN, "**** Freeing %p\n", mem);
 
-	miframman_free(scsc_mx_get_ramman(mx), mem);
+	miframman_free(ramman, mem);
+}
+EXPORT_SYMBOL(scsc_mx_service_mifram_free_extended);
+
+void scsc_mx_service_mifram_free(struct scsc_service *service, scsc_mifram_ref ref)
+{
+	scsc_mx_service_mifram_free_extended(service, ref, MIFRAMMAN_MEM_POOL_GENERIC);
 }
 EXPORT_SYMBOL(scsc_mx_service_mifram_free);
 

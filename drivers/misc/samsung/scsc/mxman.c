@@ -51,6 +51,8 @@ static struct work_struct	wlbtd_work;
 #define STRING_BUFFER_MAX_LENGTH 512
 #define NUMBER_OF_STRING_ARGS	5
 #define MX_DRAM_SIZE (4 * 1024 * 1024)
+#define MX_DRAM_SIZE_SECTION_1 (8 * 1024 * 1024)
+#define MX_DRAM_SIZE_SECTION_2 (8 * 1024 * 1024)
 #define MX_FW_RUNTIME_LENGTH (1024 * 1024)
 #define WAIT_FOR_FW_TO_START_DELAY_MS 1000
 #define MBOX2_MAGIC_NUMBER 0xbcdeedcb
@@ -801,6 +803,8 @@ static int mxman_start(struct mxman *mxman)
 	bool                fwhdr_parsed_ok;
 	void                *start_mifram_heap;
 	u32                 length_mifram_heap;
+	void                *start_mifram_heap2;
+	u32                 length_mifram_heap2;
 	int                 r;
 
 	if (reset_failed) {
@@ -826,7 +830,7 @@ static int mxman_start(struct mxman *mxman)
 		return -ENOMEM;
 	}
 
-	SCSC_TAG_DEBUG(MXMAN, "Allocated %zu bytes\n", size_dram);
+	SCSC_TAG_INFO(MXMAN, "Allocated %zu bytes\n", size_dram);
 
 #ifdef CONFIG_SCSC_CHV_SUPPORT
 	if (chv_run)
@@ -848,9 +852,13 @@ static int mxman_start(struct mxman *mxman)
 	 * rounding up the size if required
 	 */
 	start_mifram_heap = (char *)start_dram + fwhdr->fw_runtime_length;
-	length_mifram_heap = size_dram - fwhdr->fw_runtime_length;
+	length_mifram_heap = MX_DRAM_SIZE_SECTION_1 - fwhdr->fw_runtime_length;
+
+	start_mifram_heap2 = (char *)start_dram + MX_DRAM_SIZE_SECTION_2;
+	length_mifram_heap2 = MX_DRAM_SIZE_SECTION_2;
 
 	miframman_init(scsc_mx_get_ramman(mxman->mx), start_mifram_heap, length_mifram_heap);
+	miframman_init(scsc_mx_get_ramman2(mxman->mx), start_mifram_heap2, length_mifram_heap2);
 	mifmboxman_init(scsc_mx_get_mboxman(mxman->mx));
 	mifintrbit_init(scsc_mx_get_intrbit(mxman->mx), mif);
 
@@ -861,6 +869,7 @@ static int mxman_start(struct mxman *mxman)
 		fw_crc_wq_stop(mxman);
 		mifintrbit_deinit(scsc_mx_get_intrbit(mxman->mx));
 		miframman_deinit(scsc_mx_get_ramman(mxman->mx));
+		miframman_deinit(scsc_mx_get_ramman2(mxman->mx));
 		mifmboxman_deinit(scsc_mx_get_mboxman(mxman->mx));
 #ifdef CONFIG_SCSC_SMAPPER
 		mifsmapper_deinit(scsc_mx_get_smapper(mxman->mx));
@@ -1586,6 +1595,7 @@ static void mxman_stop(struct mxman *mxman)
 	/* Unitialise components (they may perform some checks - e.g. all memory freed) */
 	mifintrbit_deinit(scsc_mx_get_intrbit(mxman->mx));
 	miframman_deinit(scsc_mx_get_ramman(mxman->mx));
+	miframman_deinit(scsc_mx_get_ramman2(mxman->mx));
 	mifmboxman_deinit(scsc_mx_get_mboxman(mxman->mx));
 #ifdef CONFIG_SCSC_SMAPPER
 	mifsmapper_deinit(scsc_mx_get_smapper(mxman->mx));
