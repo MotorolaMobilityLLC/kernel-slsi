@@ -52,6 +52,11 @@ struct dbg_snapshot_ops dss_ops = {
 };
 #endif
 
+const char *debug_level_val[] = {
+	"low",
+	"mid",
+};
+
 struct dbg_snapshot_item dss_items[] = {
 	{"header",		{0, 0, 0, false, false}, NULL ,NULL, 0, },
 	{"log_kernel",		{0, 0, 0, false, false}, NULL ,NULL, 0, },
@@ -76,6 +81,35 @@ struct dbg_snapshot_desc dss_desc;
 
 /* Variable for assigning virtual address base */
 static size_t g_dbg_snapshot_vaddr_base = DSS_FIXED_VIRT_BASE;
+
+int dbg_snapshot_set_debug_level(const char *level)
+{
+	int i;
+
+	if (!level)
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(debug_level_val); i++) {
+		if (!strncmp(level, debug_level_val[i],
+				strlen(debug_level_val[i]))) {
+			dss_desc.debug_level = i;
+			goto out;
+		}
+	}
+#if !IS_ENABLED(CONFIG_DEBUG_SNAPSHOT_USER_MODE)
+	dss_desc.debug_level = DSS_DEBUG_LEVEL_MID;
+#else
+	dss_desc.debug_level = DSS_DEBUG_LEVEL_LOW;
+#endif
+
+out:
+	return 0;
+}
+
+int dbg_snapshot_get_debug_level(void)
+{
+	return dss_desc.debug_level;
+}
 
 int dbg_snapshot_set_enable(const char *name, int en)
 {
@@ -598,8 +632,32 @@ static void __init dbg_snapshot_fixmap(void)
 static int dbg_snapshot_init_dt_parse(struct device_node *np)
 {
 	int ret = 0;
-	struct device_node *sfr_dump_np = of_get_child_by_name(np, "dump-info");
+	struct device_node *sfr_dump_np;
+	const char *debug_level;
 
+	if (of_property_read_u32(np, "use_multistage_wdt_irq",
+				&dss_desc.multistage_wdt_irq)) {
+		dss_desc.multistage_wdt_irq = 0;
+		pr_err("debug-snapshot: no support multistage_wdt\n");
+	}
+
+	if (of_property_read_string(np, "debug_level", &debug_level)) {
+	/*
+	 * if failed to get debug_level in device tree
+	 * debug_level should be followed kernel configuration policy
+	 */
+#if !IS_ENABLED(CONFIG_DEBUG_SNAPSHOT_USER_MODE)
+		dss_desc.debug_level = DSS_DEBUG_LEVEL_MID;
+#else
+		dss_desc.debug_level = DSS_DEBUG_LEVEL_LOW;
+#endif
+	} else {
+		dbg_snapshot_set_debug_level(debug_level);
+	}
+	pr_info("debug-snapshot: debug_level [%s]\n",
+			debug_level_val[dss_desc.debug_level]);
+
+	sfr_dump_np = of_get_child_by_name(np, "dump-info");
 	if (!sfr_dump_np) {
 		pr_err("debug-snapshot: failed to get dump-info node\n");
 		ret = -ENODEV;
@@ -615,13 +673,6 @@ static int dbg_snapshot_init_dt_parse(struct device_node *np)
 	}
 	if (ret < 0)
 		dbg_snapshot_set_enable("log_sfr", false);
-
-	if (of_property_read_u32(np, "use_multistage_wdt_irq",
-				&dss_desc.multistage_wdt_irq)) {
-		dss_desc.multistage_wdt_irq = 0;
-		pr_err("debug-snapshot: no support multistage_wdt\n");
-		ret = -EINVAL;
-	}
 
 	of_node_put(np);
 	return ret;

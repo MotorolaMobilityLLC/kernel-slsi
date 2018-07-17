@@ -2000,9 +2000,14 @@ menuconfig DEBUG_SNAPSHOT
 	default n
 
 config DEBUG_SNAPSHOT_LINUX_BUILD
-	bool
+	bool "May be built in LINUX environment"
 	depends on DEBUG_SNAPSHOT
 	default y
+
+config DEBUG_SNAPSHOT_USER_MODE
+	bool "Enable User Mode, Most of debug feature are disabled"
+	depends on DEBUG_SNAPSHOT
+	default n
 
 config DEBUG_SNAPSHOT_CALLSTACK
 	int "shown callstack level"
@@ -2108,5 +2113,5 @@ config DEBUG_SNAPSHOT_CRASH_KEY
 
 config DEBUG_SNAPSHOT_MINIMIZED_MODE
 	bool "Support minimized feature configuration"
-	depends on DEBUG_SNAPSHOT
+	depends on DEBUG_SNAPSHOT_USER_MODE
 	default n

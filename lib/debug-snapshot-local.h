@@ -40,12 +40,15 @@ extern void dbg_snapshot_recall_hardlockup_core(void);
 
 extern struct dbg_snapshot_helper_ops *dss_soc_ops;
 
-
 /* SoC Specific define, This will be removed */
 #define DSS_REG_MCT_ADDR	(0)
 #define DSS_REG_MCT_SIZE	(0)
 #define DSS_REG_UART_ADDR	(0)
 #define DSS_REG_UART_SIZE	(0)
+
+#define DSS_DEBUG_LEVEL_NONE	(-1)
+#define DSS_DEBUG_LEVEL_LOW	(0)
+#define DSS_DEBUG_LEVEL_MID	(1)
 
 typedef int (*dss_initcall_t)(const struct device_node *);
 
@@ -96,6 +99,7 @@ struct dbg_snapshot_desc {
 	int hardlockup_detected;
 	int allcorelockup_detected;
 	int no_wdt_dev;
+	int debug_level;
 };
 
 
