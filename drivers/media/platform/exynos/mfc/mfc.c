@@ -1038,6 +1038,17 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32(np_qos, "freq_mif", &pdata->qos_boost_table->freq_mif);
 	of_property_read_u32_array(np_qos, "freq_cluster", &pdata->qos_boost_table->freq_cluster[0],
 			pdata->qos_boost_table->num_cluster);
+
+	/* QoS weight */
+	of_property_read_u32(np, "qos_weight_h264_hevc", &pdata->qos_weight.weight_h264_hevc);
+	of_property_read_u32(np, "qos_weight_vp8_vp9", &pdata->qos_weight.weight_vp8_vp9);
+	of_property_read_u32(np, "qos_weight_other_codec", &pdata->qos_weight.weight_other_codec);
+	of_property_read_u32(np, "qos_weight_3plane", &pdata->qos_weight.weight_3plane);
+	of_property_read_u32(np, "qos_weight_10bit", &pdata->qos_weight.weight_10bit);
+	of_property_read_u32(np, "qos_weight_422", &pdata->qos_weight.weight_422);
+	of_property_read_u32(np, "qos_weight_bframe", &pdata->qos_weight.weight_bframe);
+	of_property_read_u32(np, "qos_weight_num_of_ref", &pdata->qos_weight.weight_num_of_ref);
+	of_property_read_u32(np, "qos_weight_num_of_tile", &pdata->qos_weight.weight_num_of_tile);
 #endif
 }
 

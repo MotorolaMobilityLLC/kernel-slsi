@@ -393,6 +393,18 @@ struct mfc_qos_boost {
 	unsigned int freq_mif;
 	unsigned int freq_cluster[MAX_NUM_CLUSTER];
 };
+
+struct mfc_qos_weight {
+	unsigned int weight_h264_hevc;
+	unsigned int weight_vp8_vp9;
+	unsigned int weight_other_codec;
+	unsigned int weight_3plane;
+	unsigned int weight_10bit;
+	unsigned int weight_422;
+	unsigned int weight_bframe;
+	unsigned int weight_num_of_ref;
+	unsigned int weight_num_of_tile;
+};
 #endif
 
 struct mfc_feature {
@@ -436,6 +448,9 @@ struct mfc_platdata {
 	struct mfc_feature static_info_enc;
 #ifdef CONFIG_EXYNOS_BTS
 	struct mfc_bw_info mfc_bw_info;
+#endif
+#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+	struct mfc_qos_weight qos_weight;
 #endif
 	/*
 	 * new variables should be added above

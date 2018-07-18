@@ -251,6 +251,7 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_enc_params *p;
+	struct mfc_qos_weight *qos_weight = &ctx->dev->pdata->qos_weight;
 	u32 num_planes = ctx->dst_fmt->num_planes;
 	int weight = 1000;
 	unsigned long weighted_mb;
@@ -260,25 +261,60 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 	case MFC_REG_CODEC_H264_MVC_DEC:
 	case MFC_REG_CODEC_H264_ENC:
 	case MFC_REG_CODEC_H264_MVC_ENC:
+		weight = (weight * 100) / qos_weight->weight_h264_hevc;
+		mfc_debug(3, "[QoS] weight: h264, hevc codec, weight: %d\n", weight / 10);
+		if (num_planes == 3) {
+			weight = (weight * 100) / qos_weight->weight_3plane;
+			mfc_debug(3, "[QoS] weight: 3 plane, weight: %d\n", weight / 10);
+		}
+		break;
+
 	case MFC_REG_CODEC_VP8_DEC:
 	case MFC_REG_CODEC_VP8_ENC:
-		if (num_planes == 3)
-			weight = (weight * 100) / MFC_QOS_WEIGHT_3PLANE;
+		weight = (weight * 100) / qos_weight->weight_vp8_vp9;
+		mfc_debug(3, "[QoS] weight: vp8, vp9 codec, weight: %d\n", weight / 10);
+		if (num_planes == 3) {
+			weight = (weight * 100) / qos_weight->weight_3plane;
+			mfc_debug(3, "[QoS] weight: 3 plane, weight: %d\n", weight / 10);
+		}
 		break;
 
 	case MFC_REG_CODEC_HEVC_DEC:
 	case MFC_REG_CODEC_HEVC_ENC:
-	case MFC_REG_CODEC_VP9_DEC:
-	case MFC_REG_CODEC_VP9_ENC:
 	case MFC_REG_CODEC_BPG_DEC:
 	case MFC_REG_CODEC_BPG_ENC:
+		weight = (weight * 100) / qos_weight->weight_h264_hevc;
+		mfc_debug(3, "[QoS] weight: h264, hevc codec, weight: %d\n", weight / 10);
 		if (num_planes == 3) {
-			weight = (weight * 100) / MFC_QOS_WEIGHT_3PLANE;
+			weight = (weight * 100) / qos_weight->weight_3plane;
+			mfc_debug(3, "[QoS] weight: 3 plane, weight: %d\n", weight / 10);
 		} else {
-			if (ctx->is_10bit)
-				weight = (weight * 100) / MFC_QOS_WEIGHT_10BIT;
-			else if (ctx->is_422)
-				weight = (weight * 100) / MFC_QOS_WEIGHT_422_10INTRA;
+			if (ctx->is_422) {
+				weight = (weight * 100) / qos_weight->weight_422;
+				mfc_debug(3, "[QoS] weight: 422foramt, weight: %d\n", weight / 10);
+			} else if (ctx->is_10bit) {
+				weight = (weight * 100) / qos_weight->weight_10bit;
+				mfc_debug(3, "[QoS] weight: 10bit, weight: %d\n", weight / 10);
+			}
+		}
+		break;
+
+	case MFC_REG_CODEC_VP9_DEC:
+	case MFC_REG_CODEC_VP9_ENC:
+		weight = (weight * 100) / qos_weight->weight_vp8_vp9;
+		mfc_debug(3, "[QoS] weight: vp8, vp9 codec, weight: %d\n", weight / 10);
+
+		if (num_planes == 3) {
+			weight = (weight * 100) / qos_weight->weight_3plane;
+			mfc_debug(3, "[QoS] weight: 3 plane, weight: %d\n", weight / 10);
+		} else {
+			if (ctx->is_422) {
+				weight = (weight * 100) / qos_weight->weight_422;
+				mfc_debug(3, "[QoS] weight: 422foramt, weight: %d\n", weight / 10);
+			} else if (ctx->is_10bit) {
+				weight = (weight * 100) / qos_weight->weight_10bit;
+				mfc_debug(3, "[QoS] weight: 10bit, weight: %d\n", weight / 10);
+			}
 		}
 		break;
 
@@ -293,7 +329,8 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 	case MFC_REG_CODEC_MPEG2_DEC:
 	case MFC_REG_CODEC_MPEG4_ENC:
 	case MFC_REG_CODEC_H263_ENC:
-		weight = (weight * 100) / MFC_QOS_WEIGHT_OTHER_CODEC;
+		weight = (weight * 100) / qos_weight->weight_other_codec;
+		mfc_debug(3, "[QoS] weight: other codec, weight: %d\n", weight / 10);
 		break;
 
 	default:
@@ -303,26 +340,26 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 	if (enc) {
 		p = &enc->params;
 		if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx)) && p->num_b_frame) {
-			weight = (weight * 100) / MFC_QOS_WEIGHT_BFRAME;
-			mfc_debug(3, "[QoS] weight: B frame encoding\n");
+			weight = (weight * 100) / qos_weight->weight_bframe;
+			mfc_debug(3, "[QoS] weight: B frame encoding, weight: %d\n", weight / 10);
 		}
 		if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx) || IS_VP8_ENC(ctx) ||
 					IS_VP9_ENC(ctx)) && (p->num_refs_for_p >= 2)) {
-			weight = (weight * 100) / MFC_QOS_WEIGHT_NUM_OF_REF;
-			mfc_debug(3, "[QoS] weight: num of ref >= 2\n");
+			weight = (weight * 100) / qos_weight->weight_num_of_ref;
+			mfc_debug(3, "[QoS] weight: num of ref >= 2, weight: %d\n", weight / 10);
 		}
 	}
 	if (dec) {
 		if (dec->num_of_tile_over_4) {
-			weight = (weight * 100) / MFC_QOS_WEIGHT_NUM_OF_TILE;
-			mfc_debug(3, "[QoS] weight: num of tile >= 4\n");
+			weight = (weight * 100) / qos_weight->weight_num_of_tile;
+			mfc_debug(3, "[QoS] weight: num of tile >= 4, weight: %d\n", weight / 10);
 		}
 	}
 
 	weighted_mb = (mb * weight) / 1000;
-	mfc_debug(3, "[QoS] weight: %d.%03d, codec: %d, num planes: %d, "
+	mfc_debug(3, "[QoS] weight: %d, codec: %d, num planes: %d, "
 			"10bit: %d, 422format: %d (mb: %ld)\n",
-			weight / 1000, weight % 1000, ctx->codec_mode,
+			weight / 10, ctx->codec_mode,
 			num_planes, ctx->is_10bit, ctx->is_422,
 			weighted_mb);
 

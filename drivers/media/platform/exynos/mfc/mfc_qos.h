@@ -26,14 +26,6 @@
 
 #define MFC_DRV_TIME			500
 
-#define MFC_QOS_WEIGHT_3PLANE		80
-#define MFC_QOS_WEIGHT_OTHER_CODEC	25
-#define MFC_QOS_WEIGHT_10BIT		75
-#define MFC_QOS_WEIGHT_422_10INTRA	70
-#define MFC_QOS_WEIGHT_BFRAME		50
-#define MFC_QOS_WEIGHT_NUM_OF_REF	50
-#define MFC_QOS_WEIGHT_NUM_OF_TILE	75
-
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 void mfc_perf_boost_enable(struct mfc_dev *dev);
 void mfc_perf_boost_disable(struct mfc_dev *dev);
