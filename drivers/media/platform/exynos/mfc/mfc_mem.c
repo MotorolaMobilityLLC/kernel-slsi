@@ -225,6 +225,12 @@ int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 		mfc_err_ctx("[BUFCON] it is not buffer container\n");
 		return -1;
 	}
+
+	if (mask == 0) {
+		mfc_err_ctx("[BUFCON] number of valid buffers is zero\n");
+		return -1;
+	}
+
 	mfc_debug(3, "[BUFCON] bufcon mask info %#x\n", mask);
 
 	for (i = 0; i < mfc_buf->num_bufs_in_batch; i++) {
