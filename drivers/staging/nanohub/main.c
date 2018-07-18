@@ -722,7 +722,7 @@ static int nanohub_hw_reset(struct nanohub_data *data)
 	}
 #elif defined(CONFIG_NANOHUB_MAILBOX)
 #ifdef CHUB_RESET_ENABLE
-	ret = contexthub_reset(data->pdata->mailbox_client);
+	ret = contexthub_reset(data->pdata->mailbox_client, 0);
 #else
 	ret = -EINVAL;
 #endif
@@ -838,7 +838,7 @@ static ssize_t nanohub_download_bl(struct device *dev,
 
 	return ret < 0 ? ret : count;
 #elif defined(CONFIG_NANOHUB_MAILBOX)
-	ret = contexthub_download_bl(data->pdata->mailbox_client);
+	ret = contexthub_reset(data->pdata->mailbox_client, 1);
 
 	return ret < 0 ? ret : count;
 #endif
@@ -851,7 +851,7 @@ static ssize_t nanohub_download_kernel(struct device *dev,
 	struct nanohub_data *data = dev_get_nanohub_data(dev);
 
 #ifdef CONFIG_NANOHUB_MAILBOX
-	int ret = contexthub_download_kernel(data->pdata->mailbox_client);
+	int ret = contexthub_download_image(data->pdata->mailbox_client, IPC_REG_OS);
 
 	return ret < 0 ? ret : count;
 #else

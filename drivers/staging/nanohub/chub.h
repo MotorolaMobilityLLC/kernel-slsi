@@ -68,18 +68,19 @@
 	__ret;								\
 })
 
+#define CHUB_RESET_ENABLE
+
 enum mailbox_event {
 	MAILBOX_EVT_UTC_MAX = IPC_DEBUG_UTC_MAX,
 	MAILBOX_EVT_DUMP_STATUS = IPC_DEBUG_DUMP_STATUS,
-	MAILBOX_EVT_DUMP_CHUB,
-	MAILBOX_EVT_POWER_ON,
-	MAILBOX_EVT_DEBUG_MAX,
 	MAILBOX_EVT_WAKEUP,
 	MAILBOX_EVT_WAKEUP_CLR,
 	MAILBOX_EVT_ERASE_SHARED,
 	MAILBOX_EVT_ENABLE_IRQ,
 	MAILBOX_EVT_DISABLE_IRQ,
+	MAILBOX_EVT_RESET_EVT_START,
 	MAILBOX_EVT_INIT_IPC,
+	MAILBOX_EVT_POWER_ON,
 	MAILBOX_EVT_CHUB_ALIVE,
 	MAILBOX_EVT_SHUTDOWN,
 	MAILBOX_EVT_RESET,
@@ -92,6 +93,7 @@ enum chub_status {
 	CHUB_ST_RUN,
 	CHUB_ST_SHUTDOWN,
 	CHUB_ST_NO_RESPONSE,
+	CHUB_ST_ERR,
 	CHUB_ST_HANG,
 };
 
@@ -123,20 +125,18 @@ enum chub_err_type {
 	CHUB_ERR_READ_FAIL,
 	CHUB_ERR_WRITE_FAIL,
 	CHUB_ERR_EVTQ_NO_HW_TRIGGER,
-	CHUB_ERR_CHUB_NO_RESPONSE,
+	CHUB_ERR_CHUB_NO_RESPONSE, /* 5 */
 	CHUB_ERR_ITMON,
-	CHUB_ERR_NANOHUB,
-	CHUB_ERR_RESET_CNT,
-	CHUB_ERR_CHUB_MAX,
-	CHUB_ERR_NANOHUB_FAULT, /* chub error */
-	CHUB_ERR_NANOHUB_ASSERT,
-	CHUB_ERR_NANOHUB_ERROR,
-	CHUB_ERR_NANOHUB_WDT, /* 13 */
-	CHUB_ERR_COMMS_NACK,
+	CHUB_ERR_FW_FAULT, /* chub error */
+	CHUB_ERR_FW_WDT, /* 8 */
+	CHUB_ERR_NEED_RESET,
+	CHUB_ERR_FW_ERROR = CHUB_ERR_NEED_RESET,
+	CHUB_ERR_COMMS_NACK, /* ap comms error */
 	CHUB_ERR_COMMS_BUSY,
 	CHUB_ERR_COMMS_UNKNOWN,
 	CHUB_ERR_COMMS,
-	CHUB_ERR_COMMS_MAX,
+	CHUB_ERR_RESET_CNT,
+	CHUB_ERR_NANOHUB, /* nanohub dbg error */
 	CHUB_ERR_MAX,
 };
 
@@ -156,8 +156,6 @@ struct contexthub_ipc_info {
 	struct read_wait read_lock;
 #ifdef USE_IPC_BUF
 	u8 rxbuf[PACKET_SIZE_MAX];
-#else
-	struct recv_ctrl recv_order;
 #endif
 	struct chub_alive chub_alive_lock;
 	void __iomem *sram;
@@ -175,12 +173,13 @@ struct contexthub_ipc_info {
 	unsigned long clkrate;
 	atomic_t chub_status;
 	atomic_t in_reset;
+	atomic_t in_pmu_shutdown;
 	atomic_t irq1_apInt;
 	atomic_t wakeup_chub;
 	int irq_mailbox;
 	int irq_wdt;
 	int err_cnt[CHUB_ERR_MAX];
-	u32 active_err;
+	u32 cur_err;
 	int utc_run;
 	int powermode;
 	int block_reset;
@@ -283,6 +282,9 @@ struct contexthub_ipc_info {
 #define IPC_HW_WRITE_BAAW_CHUB3(base, val) \
 	__raw_writel((val), (base) + REG_BAAW_D_CHUB3)
 
+enum access_type { HW_ACCESS, IPC_ACCESS };
+
+int contexthub_get_token(struct contexthub_ipc_info *ipc, enum access_type acc);
 int contexthub_ipc_write_event(struct contexthub_ipc_info *data,
 				enum mailbox_event event);
 int contexthub_ipc_read(struct contexthub_ipc_info *ipc,
@@ -290,13 +292,11 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc,
 int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 				uint8_t *tx, int length, int timeout);
 int contexthub_poweron(struct contexthub_ipc_info *data);
-int contexthub_download_image(struct contexthub_ipc_info *data, int bl);
-int contexthub_download_kernel(struct contexthub_ipc_info *dev);
-int contexthub_download_bl(struct contexthub_ipc_info *data);
-int contexthub_reset(struct contexthub_ipc_info *data);
+int contexthub_download_image(struct contexthub_ipc_info *data, enum ipc_region reg);
+int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load);
 int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 
 int contexthub_is_run(struct contexthub_ipc_info *ipc);
-int contexthub_request(struct contexthub_ipc_info *ipc);
+int contexthub_request(struct contexthub_ipc_info *ipc, enum access_type acc);
 void contexthub_release(struct contexthub_ipc_info *ipc);
 #endif

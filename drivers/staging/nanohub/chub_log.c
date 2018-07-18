@@ -41,6 +41,8 @@ static void log_memcpy(struct log_buffer_info *info,
 		       struct log_kernel_buffer *kernel_buffer,
 		       const char *src, size_t size)
 {
+	mm_segment_t old_fs;
+
 	size_t left_size = SIZE_OF_BUFFER - kernel_buffer->index;
 
 	dev_dbg(info->dev, "%s(%zu)\n", __func__, size);
@@ -51,8 +53,25 @@ static void log_memcpy(struct log_buffer_info *info,
 		size = SIZE_OF_BUFFER;
 	}
 
-	if (log_auto_save && !info->filp)
-		info->filp = filp_open(info->save_file_name, O_RDWR | O_APPEND | O_CREAT, S_IRWUG);
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if(log_auto_save) {
+		if (likely(info->file_created)) {
+		        info->filp = filp_open(info->save_file_name, O_RDWR | O_APPEND | O_CREAT, S_IRWUG);
+		        dev_info(info->dev, "appended to %s\n", info->save_file_name);
+		} else {
+		        info->filp = filp_open(info->save_file_name, O_RDWR | O_TRUNC | O_CREAT, S_IRWUG);
+		        info->file_created = true;
+		        dev_info(info->dev, "created %s\n", info->save_file_name);
+		}
+
+		if (IS_ERR(info->filp)) {
+		        dev_warn(info->dev, "%s: saving log fail\n", __func__);
+		        goto out;
+		}
+
+	}
 
 	if (left_size < size) {
 		if (info->sram_log_buffer)
@@ -84,6 +103,9 @@ static void log_memcpy(struct log_buffer_info *info,
 	}
 
 	kernel_buffer->index += size;
+
+out:
+	set_fs(old_fs);
 }
 
 void log_flush(struct log_buffer_info *info)
@@ -137,7 +159,7 @@ static void log_flush_all(void)
 	struct log_buffer_info *info;
 
 	list_for_each_entry(info, &log_list_head, list) {
-		if (info && !contexthub_is_run(dev_get_drvdata(info->dev))) {
+		if (info && !contexthub_get_token(dev_get_drvdata(info->dev), HW_ACCESS)) {
 			pr_warn("%s: chub isn't run\n", __func__);
 			return;
 		}
@@ -265,14 +287,16 @@ static void chub_log_auto_save_open(struct log_buffer_info *info)
 	set_fs(KERNEL_DS);
 
 	/* close previous */
-	if (info->filp)
-		filp_close(info->filp, NULL);
+	if (info->filp && !IS_ERR(info->filp)) {
+		dev_info(info->dev, "%s closing previous file %p\n", __func__, info->filp);
+		filp_close(info->filp, current->files);
+		}
 
 	info->filp =
 	    filp_open(info->save_file_name, O_RDWR | O_TRUNC | O_CREAT,
 		      S_IRWUG);
 
-	dev_dbg(info->dev, "%s created\n", info->save_file_name);
+	dev_info(info->dev, "%s created\n", info->save_file_name);
 
 	if (IS_ERR(info->filp))
 		dev_warn(info->dev, "%s: saving log fail\n", __func__);
@@ -287,13 +311,13 @@ static void chub_log_auto_save_ctrl(struct log_buffer_info *info, u32 event)
 		snprintf(info->save_file_name, sizeof(info->save_file_name),
 			 "%s/nano-%02d-00-%06u.log", CHUB_DBG_DIR, info->id,
 			 (u32)(sched_clock() / NSEC_PER_SEC));
-
 		chub_log_auto_save_open(info);
 		log_auto_save = 1;
 	} else {
 		log_auto_save = 0;
-		filp_close(info->filp, NULL);
+		info->filp = NULL;
 	}
+
 	pr_info("%s: %s, %d, %p\n", __func__, info->save_file_name,
 		log_auto_save, info->filp);
 }
@@ -436,7 +460,7 @@ static ssize_t chub_log_flush_save(struct device *dev,
 	err = kstrtol(&buf[0], 10, &event);
 	if (!err) {
 		if (!auto_log_flush_ms) {
-			err = contexthub_request(ipc);
+			err = contexthub_request(ipc, HW_ACCESS);
 			if (!err) {
 				log_flush_all();
 				contexthub_release(ipc);

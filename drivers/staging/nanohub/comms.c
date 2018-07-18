@@ -290,7 +290,7 @@ static inline void contexthub_update_result(struct nanohub_data *data, int err)
 {
 	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
 
-	if (!err)
+	if (err >= 0)
 		ipc->err_cnt[CHUB_ERR_COMMS] = 0;
 	else {
 		ipc->err_cnt[CHUB_ERR_COMMS]++;
@@ -300,7 +300,7 @@ static inline void contexthub_update_result(struct nanohub_data *data, int err)
 		else if (err == ERROR_BUSY)
 			ipc->err_cnt[CHUB_ERR_COMMS_BUSY]++;
 		else
-			ipc->err_cnt[CHUB_ERR_COMMS_BUSY]++;
+			ipc->err_cnt[CHUB_ERR_COMMS_UNKNOWN]++;
 	}
 }
 #else
@@ -377,11 +377,6 @@ static int nanohub_comms_tx_rx(struct nanohub_data *data,
 	int ret;
 	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
 
-	if (atomic_read(&ipc->in_reset)) {
-		dev_err(ipc->dev, "%s: chub reset in-progress\n", __func__);
-		return ERROR_BUSY;
-	}
-
 	ret = data->comms.write(data, (uint8_t *)&pad->packet, packet_size,
 				data->comms.timeout_write);
 
@@ -422,12 +417,6 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 	struct timespec ts;
 	s64 boottime;
 	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
-
-	if (atomic_read(&ipc->in_reset)) {
-		packet_free(pad);
-		dev_err(ipc->dev, "%s: chub reset in-progress\n", __func__);
-		return ERROR_BUSY;
-	}
 
 	if (pad == NULL)
 		return ERROR_NACK;

@@ -53,7 +53,7 @@ void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
-		if (contexthub_request(ipc)) {
+		if (contexthub_request(ipc, HW_ACCESS)) {
 			pr_err("%s: fails to contexthub_request\n", __func__);
 			return;
 		}
@@ -116,7 +116,7 @@ out:
 void chub_dbg_dump_ram(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
 {
 	if (p_dbg_dump) {
-		if (contexthub_request(ipc)) {
+		if (contexthub_request(ipc, HW_ACCESS)) {
 			pr_err("%s: fails to contexthub_request\n", __func__);
 			return;
 		}
@@ -133,19 +133,56 @@ void chub_dbg_dump_ram(struct contexthub_ipc_info *ipc, enum chub_err_type reaso
 	}
 }
 
+static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
+{
+	int val;
+	int i;
+	char *dbg_name[CHUB_ERR_MAX] = {"none", "evtq_empty",
+		"read_fail", "write_fail", "evtq_no_hw_trigger",
+		"chub_no_resp", "itmon", "fw_fault", "fw_wdt",
+		"fw_err", "comms_nack", "comms_busy",
+		"comms_unknown", "comms", "reset_cnt", "fw_dbg"};
+
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
+	struct nanohub_data *data = ipc->data;
+
+	dev_info(ipc->dev,
+		"%s: nanohub driver status\nwu:%d wu_l:%d acq:%d irq1_apInt:%d fired:%d\n",
+		__func__,
+		atomic_read(&data->wakeup_cnt),
+		atomic_read(&data->wakeup_lock_cnt),
+		atomic_read(&data->wakeup_acquired),
+		atomic_read(&ipc->irq1_apInt), nanohub_irq1_fired(data));
+
+#endif
+
+	/* print error status */
+	for (i = 0; i < CHUB_ERR_MAX; i++) {
+		if (ipc->err_cnt[i])
+			dev_info(ipc->dev, "%s: err(%d:%s) %d times\n",
+				__func__, i, dbg_name[i], ipc->err_cnt[i]);
+	}
+
+	if (!contexthub_request(ipc, IPC_ACCESS)) {
+		pr_err("%s: fails to request contexthub. \n", __func__);
+		return;
+	}
+
+	/* dump nanohub kernel status */
+	contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
+	log_flush(ipc->fw_log);
+	contexthub_release(ipc);
+}
+
 void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
 {
 	dev_info(ipc->dev, "%s: reason:%d\n", __func__, reason);
+
 	chub_dbg_dump_gpr(ipc);
 	chub_dbg_dump_ram(ipc, reason);
 
 	if (p_dbg_dump) {
 #ifdef	CONFIG_CONTEXTHUB_DEBUG
-		if (contexthub_request(ipc)) {
-			pr_err("%s: fails to contexthub_request\n", __func__);
-			return;
-		}
-
 		/* write file */
 		dev_info(ipc->dev,
 			"%s: write file: sram:%p, dram:%p(off:%d), size:%d\n",
@@ -159,19 +196,20 @@ void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason
 		chub_dbg_write_file(ipc->dev, "sram",
 			&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			ipc_get_chub_mem_size());
-
-		contexthub_release(ipc);
 #endif
 	}
+
+	/* dump log and status with ipc */
+	chub_dbg_dump_status(ipc);
 }
 
-void chub_dbg_check_and_download_image(struct contexthub_ipc_info *ipc)
+int chub_dbg_check_and_download_image(struct contexthub_ipc_info *ipc)
 {
 	u32 *bl = vmalloc(ipc_get_offset(IPC_REG_BL));
-	int ret;
+	int ret = 0;
 
 	memcpy_fromio(bl, ipc_get_base(IPC_REG_BL), ipc_get_offset(IPC_REG_BL));
-	contexthub_download_image(ipc, 1);
+	contexthub_download_image(ipc, IPC_REG_BL);
 
 	ret = memcmp(bl, ipc_get_base(IPC_REG_BL), ipc_get_offset(IPC_REG_BL));
 	if (ret) {
@@ -184,68 +222,25 @@ void chub_dbg_check_and_download_image(struct contexthub_ipc_info *ipc)
 			if (bl[i] != bl_image[i]) {
 				pr_info("bl[%d] %x -> wrong %x\n", i,
 					bl_image[i], bl[i]);
-				break;
+				ret = -EINVAL;
+				goto out;
 			}
 	}
-	contexthub_download_image(ipc, 0);
+	contexthub_download_image(ipc, IPC_REG_OS);
 
 	/* os image is dumped on &p_dbg_dump->sram[p_dbg_dump->sram_start] */
 	ret = memcmp(&p_dbg_dump->sram[p_dbg_dump->sram_start],
 		     ipc_get_base(IPC_REG_OS), ipc_get_offset(IPC_REG_OS));
 
-	if (ret)
+	if (ret) {
 		pr_info("os doens't match with size %d\n",
 			ipc_get_offset(IPC_REG_OS));
-
-	vfree(bl);
-}
-
-void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
-{
-	int val;
-	char *dbg_name[CHUB_ERR_MAX] = {"none", "evtq_empty",
-		"read_fail", "write_fail", "evtq_no_hw_trigger",
-		"chub_no_resp", "itmon", "nanohub_dbg",	"reset_cnt",
-		"chub_err_max", "fw_fault", "fw_assert", "fw_error",
-		"fw_wdt", "comms_nack", "comms_busy",
-		"comms_unknown", "comms", "comms_max"};
-
-#ifdef CONFIG_CHRE_SENSORHUB_HAL
-	struct nanohub_data *data = ipc->data;
-
-	CSP_PRINTF_INFO
-	    ("CHUB DUMP: nanohub driver status\nwu:%d wu_l:%d acq:%d irq1_apInt:%d fired:%d\n",
-	     atomic_read(&data->wakeup_cnt),
-	     atomic_read(&data->wakeup_lock_cnt),
-	     atomic_read(&data->wakeup_acquired),
-	     atomic_read(&ipc->irq1_apInt), nanohub_irq1_fired(data));
-
-	if (!contexthub_is_run(ipc)) {
-		pr_warn("%s: chub isn't run\n", __func__);
-		return;
+		ret = -EINVAL;
 	}
-#endif
 
-#ifndef USE_IPC_BUF
-	CSP_PRINTF_INFO
-	    ("CHUB DUMP: contexthub driver status\nflag:%x cnt:%d, order:%lu\nalive container:\n",
-	     ipc->read_lock.flag, atomic_read(&ipc->read_lock.cnt),
-	     ipc->recv_order.order);
-	for (val = 0; val < IRQ_EVT_CH_MAX; val++)
-		if (ipc->recv_order.container[val])
-			CSP_PRINTF_INFO("container[%d]:%lu\n", val,
-					ipc->recv_order.container[val]);
-#endif
-	for (val = 0; val < CHUB_ERR_MAX; val++)
-		if (ipc->err_cnt[val])
-			CSP_PRINTF_INFO("error %d(%s) occurs %d times\n",
-					val, dbg_name[val], ipc->err_cnt[val]);
-	ipc_dump();
-	/* dump nanohub kernel status */
-	CSP_PRINTF_INFO("CHUB DUMP: Request to dump nanohub kernel status\n");
-	ipc_write_debug_event(AP, (u32)MAILBOX_EVT_DUMP_STATUS);
-	ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_DEBUG);
-	log_flush(ipc->fw_log);
+out:
+	vfree(bl);
+	return ret;
 }
 
 static ssize_t chub_bin_sram_read(struct file *file, struct kobject *kobj,
@@ -256,7 +251,7 @@ static ssize_t chub_bin_sram_read(struct file *file, struct kobject *kobj,
 
 	dev_dbg(dev, "%s(%lld, %zu)\n", __func__, off, size);
 
-	if (!contexthub_is_run(dev_get_drvdata(dev))) {
+	if (!contexthub_get_token(dev_get_drvdata(dev), HW_ACCESS)) {
 		pr_warn("%s: chub isn't run\n", __func__);
 		return -EINVAL;
 	}
@@ -304,6 +299,7 @@ char chub_utc_name[][SIZE_UTC_NAME] = {
 	[IPC_DEBUG_UTC_CHECK_CPU_UTIL] = "utilization",
 	[IPC_DEBUG_UTC_HEAP_DEBUG] = "heap",
 	[IPC_DEBUG_UTC_HANG] = "hang",
+	[IPC_DEBUG_UTC_HANG_ITMON] = "itmon",
 };
 
 static ssize_t chub_alive_show(struct device *dev,
@@ -348,7 +344,7 @@ static ssize_t chub_utc_store(struct device *dev,
 	dev_info(ipc->dev, "%s: event:%d\n", __func__, event);
 
 	if (!err) {
-		err = contexthub_request(ipc);
+		err = contexthub_request(ipc, IPC_ACCESS);
 		if (err)
 			pr_err("%s: fails to request contexthub. ret:%d\n", __func__, err);
 
@@ -376,56 +372,54 @@ static ssize_t chub_ipc_store(struct device *dev,
 		memset(input, 0, PACKET_SIZE_MAX);
 		memcpy(input, buf, count);
 	} else {
-		pr_err("%s: ipc size(%d) is bigger than max(%d)\n",
+		dev_err(ipc->dev, "%s: ipc size(%d) is bigger than max(%d)\n",
 			__func__, (int)count, (int)PACKET_SIZE_MAX);
 		return -EINVAL;
 	}
 
-	ret = contexthub_request(ipc);
+	ret = contexthub_request(ipc, IPC_ACCESS);
 	if (ret) {
-		pr_err("%s: fails to request contexthub. ret:%d\n", __func__, ret);
+		dev_err(ipc->dev, "%s: fails to request contexthub. ret:%d\n", __func__, ret);
 		return ret;
 	}
 
 	ret = contexthub_ipc_write_event(ipc, (u32)IPC_DEBUG_UTC_IPC_TEST_START);
 	if (ret) {
-		pr_err("%s: fails to set start test event. ret:%d\n", __func__, ret);
+		dev_err(ipc->dev, "%s: fails to set start test event. ret:%d\n", __func__, ret);
 		count = ret;
 		goto out;
 	}
 
 	ret = contexthub_ipc_write(ipc, input, count, IPC_MAX_TIMEOUT);
 	if (ret != count) {
-		pr_info("%s: fail to write\n", __func__);
-		return -EINVAL;
+		dev_info(ipc->dev, "%s: fail to write\n", __func__);
+		goto out;
 	}
 
 	ret = contexthub_ipc_read(ipc, output, 0, IPC_MAX_TIMEOUT);
 	if (count != ret) {
-		pr_info("%s: fail to read ret:%d\n", __func__, ret);
-		return -EINVAL;
+		dev_info(ipc->dev, "%s: fail to read ret:%d\n", __func__, ret);
 	}
 
 	if (strncmp(input, output, count)) {
-		pr_info("%s: fail to compare input/output\n", __func__);
+		dev_info(ipc->dev, "%s: fail to compare input/output\n", __func__);
 		print_hex_dump(KERN_CONT, "chub input:",
 				       DUMP_PREFIX_OFFSET, 16, 1, input,
 				       count, false);
 		print_hex_dump(KERN_CONT, "chub output:",
 				       DUMP_PREFIX_OFFSET, 16, 1, output,
 				       count, false);
-		return 0;
-	}
-	ret = contexthub_ipc_write_event(ipc, (u32)IPC_DEBUG_UTC_IPC_TEST_END);
-	if (ret) {
-		pr_err("%s: fails to set end test event. ret:%d\n", __func__, ret);
-		count = ret;
 	} else
-		pr_info("[%s pass] len:%d, str: %s\n", __func__, (int)count, output);
+		dev_info(ipc->dev, "[%s pass] len:%d, str: %s\n", __func__, (int)count, output);
 
 out:
-	contexthub_release(ipc);
+	ret = contexthub_ipc_write_event(ipc, (u32)IPC_DEBUG_UTC_IPC_TEST_END);
+	if (ret) {
+		dev_err(ipc->dev, "%s: fails to set end test event. ret:%d\n", __func__, ret);
+		count = ret;
+	}
 
+	contexthub_release(ipc);
 	return count;
 }
 
@@ -434,17 +428,8 @@ static ssize_t chub_get_dump_status_store(struct device *dev,
 					  const char *buf, size_t count)
 {
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
-	int ret = contexthub_request(ipc);
-
-	if (ret) {
-		pr_err("%s: fails to contexthub_request\n", __func__);
-		return 0;
-	}
 
 	chub_dbg_dump_status(ipc);
-	contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
-
-	contexthub_release(ipc);
 	return count;
 }
 
@@ -499,7 +484,7 @@ static ssize_t chub_wakeup_store(struct device *dev,
 		return ret;
 
 	if (event)
-		ret = contexthub_request(ipc);
+		ret = contexthub_request(ipc, IPC_ACCESS);
 	else
 		contexthub_release(ipc);
 

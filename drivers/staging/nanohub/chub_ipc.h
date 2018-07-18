@@ -18,17 +18,11 @@
 #define AP_IPC
 #endif
 
-#define USE_IPC_BUF
-#ifdef USE_IPC_BUF
-#define IPC_VERSION (180611)
-#else
-#define IPC_VERSION (180111)
-#endif
+#define IPC_VERSION (180730)
 
 #if defined(CHUB_IPC)
 #if defined(SEOS)
 #include <nanohubPacket.h>
-#define PACKET_SIZE_MAX (NANOHUB_PACKET_SIZE_MAX)
 #elif defined(EMBOS)
 /* TODO: Add embos */
 #define SUPPORT_LOOPBACKTEST
@@ -37,14 +31,13 @@
 #elif defined(AP_IPC)
 #if defined(CONFIG_NANOHUB)
 #include "comms.h"
-#define PACKET_SIZE_MAX (NANOHUB_PACKET_SIZE_MAX)
 #elif defined(CONFIG_CONTEXTHUB_DRV)
 // TODO: Add packet size.. #define PACKET_SIZE_MAX ()
 #endif
 #endif
 
 #ifndef PACKET_SIZE_MAX
-#define PACKET_SIZE_MAX (270)
+#define PACKET_SIZE_MAX (272)
 #endif
 
 #ifdef LOWLEVEL_DEBUG
@@ -80,6 +73,9 @@
 /* contexthub bootargs */
 #define BL_OFFSET		(0x0)
 #define MAP_INFO_OFFSET (256)
+#define MAP_INFO_MAX_SIZE (128)
+#define CHUB_PERSISTBUF_SIZE (96)
+
 #define OS_UPDT_MAGIC	"Nanohub OS"
 
 #define BOOTMODE_COLD       (0x77773333)
@@ -183,6 +179,7 @@ enum ipc_debug_event {
 	IPC_DEBUG_UTC_CHECK_CPU_UTIL,
 	IPC_DEBUG_UTC_HEAP_DEBUG,
 	IPC_DEBUG_UTC_HANG,
+	IPC_DEBUG_UTC_HANG_ITMON,
 	IPC_DEBUG_UTC_IPC_TEST_START,
 	IPC_DEBUG_UTC_IPC_TEST_END,
 	IPC_DEBUG_UTC_MAX,
@@ -209,6 +206,7 @@ enum ipc_region {
 	IPC_REG_SHARED,
 	IPC_REG_RAM,
 	IPC_REG_LOG,
+	IPC_REG_PERSISTBUF,
 	IPC_REG_DUMP,
 	IPC_REG_MAX,
 };
@@ -281,15 +279,6 @@ enum channel_status {
 	CS_MAX = 0xf
 };
 
-/* ipc channel structure */
-struct ipc_content {
-	u8 buf[PACKET_SIZE_MAX];
-	u32 num;
-	u32 size;
-	u32 status;
-	u32 pad;
-};
-
 #define INVAL_CHANNEL (-1)
 
 #if defined(AP_IPC) || defined(EMBOS)
@@ -336,23 +325,26 @@ struct ipc_logbuf {
 #define IPC_DATA_SIZE (4096)
 #endif
 
+struct ipc_channel_buf {
+	u32 size;
+	u8 buf[PACKET_SIZE_MAX];
+};
+
+#define IPC_CH_BUF_NUM (6)
 struct ipc_buf {
 	volatile u32 eq;
 	volatile u32 dq;
 	volatile u32 full;
 	volatile u32 empty;
-	u32 cnt_dbg_rd; /* for debug */
-	u32 cnt_dbg_wt; /* for debug */
+#ifdef USE_IPC_BUF
 	u8 buf[IPC_DATA_SIZE];
+#else
+	struct ipc_channel_buf ch[IPC_CH_BUF_NUM];
+#endif
 };
 
 struct ipc_map_area {
-	u8 persist_padding[128]; /* persisten base shoud be ipc base */
-#ifdef USE_IPC_BUF
 	struct ipc_buf data[IPC_DATA_MAX];
-#else
-	struct ipc_content data[IPC_DATA_MAX][IPC_BUF_NUM];
-#endif
 	struct ipc_evt evt[IPC_EVT_MAX];
 	struct ipc_logbuf logbuf;
 };
@@ -420,11 +412,6 @@ void *ipc_get_addr(enum ipc_region area, int buf_num);
 int ipc_check_reset_valid(void);
 void ipc_init(void);
 int ipc_hw_read_int_start_index(enum ipc_owner owner);
-void ipc_update_channel_status(struct ipc_content *content,
-			       enum channel_status next);
-void *ipc_scan_channel(enum ipc_region area, enum channel_status target);
-void *ipc_get_channel(enum ipc_region area, enum channel_status target,
-		      enum channel_status next);
 /* logbuf functions */
 void *ipc_get_logbuf(void);
 unsigned int ipc_logbuf_get_token(void);
@@ -464,7 +451,11 @@ u32 *ipc_get_chub_msp(void);
 #endif
 
 void ipc_print_databuf(void);
-int ipc_read_data(enum ipc_data_list dir, uint8_t *rx);
+#ifdef USE_IPC_BUF
+int ipc_read_data(enum ipc_data_list dir, u8 *rx);
+#else
+void *ipc_read_data(enum ipc_data_list dir, u32 *len);
+#endif
 int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length);
 
 #endif

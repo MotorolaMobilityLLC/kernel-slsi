@@ -40,6 +40,8 @@ struct ipc_owner_ctrl {
 
 struct ipc_map_area *ipc_map;
 
+#define NAME_PREFIX "nanohub-ipc"
+
 #ifdef PACKET_LOW_DEBUG
 #define GET_IPC_REG_STRING(a) (((a) == IPC_REG_IPC_C2A) ? "wt" : "rd")
 
@@ -152,15 +154,22 @@ void *ipc_get_chub_map(void)
 	struct chub_bootargs *map = (struct chub_bootargs *)(sram_base + MAP_INFO_OFFSET);
 
 	if (strncmp(OS_UPDT_MAGIC, map->magic, sizeof(OS_UPDT_MAGIC))) {
-		CSP_PRINTF_ERROR("%s: %p has wrong magic key: %s -> %s\n",
-				 __func__, map, OS_UPDT_MAGIC, map->magic);
+		CSP_PRINTF_ERROR("%s: %s: %p has wrong magic key: %s -> %s\n",
+			NAME_PREFIX, __func__, map, OS_UPDT_MAGIC, map->magic);
 		return 0;
 	}
 
 	if (map->ipc_version != IPC_VERSION) {
 		CSP_PRINTF_ERROR
-		    ("%s: ipc_version doesn't match: AP %d, Chub: %d\n",
-		     __func__, IPC_VERSION, map->ipc_version);
+		    ("%s: %s: ipc_version doesn't match: AP %d, Chub: %d\n",
+		     NAME_PREFIX, __func__, IPC_VERSION, map->ipc_version);
+		return 0;
+	}
+
+	if (sizeof(struct chub_bootargs) > MAP_INFO_MAX_SIZE) {
+		CSP_PRINTF_ERROR
+		    ("%s: %s: map size bigger than max %d > %d", NAME_PREFIX, __func__,
+		    sizeof(struct chub_bootargs), MAP_INFO_MAX_SIZE);
 		return 0;
 	}
 
@@ -179,40 +188,37 @@ void *ipc_get_chub_map(void)
 
 	ipc_map = ipc_addr[IPC_REG_IPC].base;
 	ipc_map->logbuf.size =
-	    ipc_addr[IPC_REG_IPC].offset - sizeof(struct ipc_map_area);
+	    ipc_addr[IPC_REG_IPC].offset - sizeof(struct ipc_map_area) - CHUB_PERSISTBUF_SIZE;
 
 	ipc_addr[IPC_REG_IPC_EVT_A2C].base = &ipc_map->evt[IPC_EVT_A2C].data;
-	ipc_addr[IPC_REG_IPC_EVT_A2C].offset = 0;
+	ipc_addr[IPC_REG_IPC_EVT_A2C].offset = sizeof(struct ipc_evt);
 	ipc_addr[IPC_REG_IPC_EVT_A2C_CTRL].base =
 	    &ipc_map->evt[IPC_EVT_A2C].ctrl;
 	ipc_addr[IPC_REG_IPC_EVT_A2C_CTRL].offset = 0;
 	ipc_addr[IPC_REG_IPC_EVT_C2A].base = &ipc_map->evt[IPC_EVT_C2A].data;
-	ipc_addr[IPC_REG_IPC_EVT_C2A].offset = 0;
+	ipc_addr[IPC_REG_IPC_EVT_C2A].offset = sizeof(struct ipc_evt);
 	ipc_addr[IPC_REG_IPC_EVT_C2A_CTRL].base =
 	    &ipc_map->evt[IPC_EVT_C2A].ctrl;
 	ipc_addr[IPC_REG_IPC_EVT_C2A_CTRL].offset = 0;
 	ipc_addr[IPC_REG_IPC_C2A].base = &ipc_map->data[IPC_DATA_C2A];
 	ipc_addr[IPC_REG_IPC_A2C].base = &ipc_map->data[IPC_DATA_A2C];
-#ifdef USE_IPC_BUF
 	ipc_addr[IPC_REG_IPC_C2A].offset = sizeof(struct ipc_buf);
 	ipc_addr[IPC_REG_IPC_A2C].offset = sizeof(struct ipc_buf);
-#else
-	ipc_addr[IPC_REG_IPC_C2A].offset = sizeof(struct ipc_content);
-	ipc_addr[IPC_REG_IPC_A2C].offset = sizeof(struct ipc_content);
-#endif
 
 	ipc_addr[IPC_REG_LOG].base = &ipc_map->logbuf.buf;
-	ipc_addr[IPC_REG_LOG].offset =
-	    ipc_addr[IPC_REG_IPC].offset - sizeof(struct ipc_map_area);
+	ipc_addr[IPC_REG_LOG].offset = ipc_map->logbuf.size;
+	ipc_addr[IPC_REG_PERSISTBUF].base = ipc_addr[IPC_REG_LOG].base + ipc_addr[IPC_REG_LOG].offset;
+	ipc_addr[IPC_REG_PERSISTBUF].offset = CHUB_PERSISTBUF_SIZE;
 
-#ifdef CHUB_IPC
-	ipc_map->logbuf.token = 0;
-	memset(ipc_addr[IPC_REG_LOG].base, 0, ipc_addr[IPC_REG_LOG].offset);
-#endif
+	if (((u32)ipc_addr[IPC_REG_PERSISTBUF].base + ipc_addr[IPC_REG_PERSISTBUF].offset) >
+			((u32)ipc_addr[IPC_REG_IPC].base + ipc_addr[IPC_REG_IPC].offset))
+		CSP_PRINTF_INFO("%s: %s: wrong persistbuf addr:%p, %d, ipc_end:0x%x\n",
+			NAME_PREFIX, __func__,
+			ipc_addr[IPC_REG_PERSISTBUF].base, ipc_addr[IPC_REG_PERSISTBUF].offset, map->ipc_end);
 
 	CSP_PRINTF_INFO
-	    ("contexthub map information(v%u)\n bl(%p %d)\n os(%p %d)\n ipc(%p %d)\n ram(%p %d)\n shared(%p %d)\n dump(%p %d)\n",
-	     map->ipc_version,
+	    ("%s: contexthub map information(v%u)\n bl(%p %d)\n os(%p %d)\n ipc(%p %d)\n ram(%p %d)\n shared(%p %d)\n dump(%p %d)\n",
+	     NAME_PREFIX, map->ipc_version,
 	     ipc_addr[IPC_REG_BL].base, ipc_addr[IPC_REG_BL].offset,
 	     ipc_addr[IPC_REG_OS].base, ipc_addr[IPC_REG_OS].offset,
 	     ipc_addr[IPC_REG_IPC].base, ipc_addr[IPC_REG_IPC].offset,
@@ -220,35 +226,107 @@ void *ipc_get_chub_map(void)
 	     ipc_addr[IPC_REG_SHARED].base, ipc_addr[IPC_REG_SHARED].offset,
 	     ipc_addr[IPC_REG_DUMP].base, ipc_addr[IPC_REG_DUMP].offset);
 
-    CSP_PRINTF_INFO
-          ("ipc_map information\n ipc:%x\n data_a2c:%x\n data_c2a:%x\n evt_a2c:%x\n evt_c2a:%x\n log:%x\n",
-          (unsigned int)ipc_get_base(IPC_REG_IPC),
-          (unsigned int)ipc_get_base(IPC_REG_IPC_A2C),
-          (unsigned int)ipc_get_base(IPC_REG_IPC_C2A),
-          (unsigned int)ipc_get_base(IPC_REG_IPC_EVT_A2C),
-          (unsigned int)ipc_get_base(IPC_REG_IPC_EVT_C2A),
-          (unsigned int)ipc_get_base(IPC_REG_LOG));
+	CSP_PRINTF_INFO
+		("%s: ipc_map information\n ipc(%p %d)\n data_c2a(%p %d)\n data_a2c(%p %d)\n evt_c2a(%p %d)\n evt_a2c(%p %d)\n log(%p %d)\n persistbuf(%p %d)\n",
+		NAME_PREFIX, ipc_get_base(IPC_REG_IPC), ipc_get_offset(IPC_REG_IPC),
+		ipc_get_base(IPC_REG_IPC_C2A), ipc_get_offset(IPC_REG_IPC_C2A),
+		ipc_get_base(IPC_REG_IPC_A2C), ipc_get_offset(IPC_REG_IPC_A2C),
+		ipc_get_base(IPC_REG_IPC_EVT_C2A), ipc_get_offset(IPC_REG_IPC_EVT_C2A),
+		ipc_get_base(IPC_REG_IPC_EVT_A2C), ipc_get_offset(IPC_REG_IPC_EVT_A2C),
+		ipc_get_base(IPC_REG_LOG), ipc_get_offset(IPC_REG_LOG),
+		ipc_get_base(IPC_REG_PERSISTBUF), ipc_get_offset(IPC_REG_PERSISTBUF));
+
+#ifndef USE_IPC_BUF
+	CSP_PRINTF_INFO
+		("%s: ipc_map data_ch: size:%d on %d channel\n", NAME_PREFIX, PACKET_SIZE_MAX, IPC_CH_BUF_NUM);
+#ifdef SEOS
+	if (PACKET_SIZE_MAX < NANOHUB_PACKET_SIZE_MAX)
+		CSP_PRINTF_ERROR("%s: %d should be bigger than %d\n", NAME_PREFIX, PACKET_SIZE_MAX, NANOHUB_PACKET_SIZE_MAX);
+#endif
+#endif
 
 	return ipc_map;
 }
 
 void ipc_dump(void)
 {
-	CSP_PRINTF_INFO("%s: a2x event\n", __func__);
+	CSP_PRINTF_INFO("%s: %s: a2x event\n", NAME_PREFIX, __func__);
 	ipc_print_evt(IPC_EVT_A2C);
-	CSP_PRINTF_INFO("%s: c2a event\n", __func__);
+	CSP_PRINTF_INFO("%s: %s: c2a event\n", NAME_PREFIX, __func__);
 	ipc_print_evt(IPC_EVT_C2A);
-
-#ifndef USE_IPC_BUF
-	CSP_PRINTF_INFO("%s: active channel\n", __func__);
-	ipc_print_channel();
-#else
-	CSP_PRINTF_INFO("%s: data buffer\n", __func__);
+	CSP_PRINTF_INFO("%s: %s: data buffer\n", NAME_PREFIX, __func__);
 	ipc_print_databuf();
-#endif
 }
 
-#ifdef USE_IPC_BUF
+#ifndef USE_IPC_BUF
+static inline bool __ipc_queue_empty(struct ipc_buf *ipc_data)
+{
+	return (ipc_data->eq == ipc_data->dq);
+}
+
+static inline bool __ipc_queue_full(struct ipc_buf *ipc_data)
+{
+	return (((ipc_data->eq + 1) % IPC_CH_BUF_NUM) == ipc_data->dq);
+}
+
+static inline void data_dir_to_reg(enum ipc_data_list dir)
+{
+}
+
+int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
+{
+	int ret = 0;
+	enum ipc_region reg = (dir == IPC_DATA_C2A) ? IPC_REG_IPC_C2A : IPC_REG_IPC_A2C;
+	struct ipc_buf *ipc_data = ipc_get_base(reg);
+
+	if (length <= PACKET_SIZE_MAX) {
+		if (!__ipc_queue_full(ipc_data)) {
+				struct ipc_channel_buf *ipc;
+
+				ipc = &ipc_data->ch[ipc_data->eq];
+				ipc->size = length;
+#ifdef AP_IPC
+				memcpy_toio(ipc->buf, tx, length);
+#else
+				memcpy(ipc->buf, tx, length);
+#endif
+				ipc_data->eq = (ipc_data->eq + 1) % IPC_CH_BUF_NUM;
+		} else {
+				ret = -EINVAL;
+		}
+	} else {
+		CSP_PRINTF_INFO("%s: invalid size:%d\n",
+			__func__, length);
+		return -1;
+	}
+
+	if (!ret) {
+		enum ipc_evt_list evtq = (dir == IPC_DATA_C2A) ? IPC_EVT_C2A : IPC_EVT_A2C;
+
+		ret = ipc_add_evt(evtq, IRQ_EVT_CH0);
+	} else {
+		CSP_PRINTF_INFO("%s: %s: error\n", NAME_PREFIX, __func__);
+	}
+	return ret;
+}
+
+void *ipc_read_data(enum ipc_data_list dir, u32 *len)
+{
+	enum ipc_region reg = (dir == IPC_DATA_C2A) ? IPC_REG_IPC_C2A : IPC_REG_IPC_A2C;
+	struct ipc_buf *ipc_data = ipc_get_base(reg);
+
+	if (!__ipc_queue_empty(ipc_data)) {
+		struct ipc_channel_buf *ipc;
+
+		ipc = &ipc_data->ch[ipc_data->dq];
+		*len = ipc->size;
+		ipc_data->dq = (ipc_data->dq + 1) % IPC_CH_BUF_NUM;
+		return ipc->buf;
+	}
+
+	return NULL;
+}
+#else
 static inline void ipc_copy_bytes(u8 *dst, u8 *src, int size)
 {
 	int i;
@@ -270,17 +348,7 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 	u16 size_to_read;
 	u32 size_to_copy_top;
 	u32 size_to_copy_bottom;
-	enum ipc_region reg;
-
-	/* get ipc region */
-	if (dir == IPC_DATA_C2A)
-		reg = IPC_REG_IPC_C2A;
-	else if (dir == IPC_DATA_A2C)
-		reg = IPC_REG_IPC_A2C;
-	else {
-		CSP_PRINTF_ERROR("%s: invalid dir:%d\n", __func__, dir);
-		return -1;
-	}
+	enum ipc_region reg = (dir == IPC_DATA_C2A) ? IPC_REG_IPC_C2A : IPC_REG_IPC_A2C;
 
 	/* get ipc_data base */
 	ipc_data = ipc_get_base(reg);
@@ -290,15 +358,14 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 	/* check index due to sram corruption */
 	if ((eq > IPC_DATA_SIZE) || (dq > IPC_DATA_SIZE) ||
 		(ipc_data->full > 1) || (ipc_data->empty > 1)) {
-		CSP_PRINTF_ERROR("%s: invalid index:%d, %d, %d, %d\n",
-			__func__, eq, dq, ipc_data->full, ipc_data->empty);
+		 CSP_PRINTF_ERROR("%s: %s: invalid index: eq:%d, dq:%d, full:%d, empty:%d\n",
+			NAME_PREFIX, __func__, eq, dq, ipc_data->full, ipc_data->empty);
 		return -1;
 	}
 
 #ifdef USE_IPC_BUF_LOG
-	CSP_PRINTF_INFO("%s: dir:%s(w:%d, r:%d, cnt:%d), e:%d d:%d, empty:%d, full:%d, ipc_data:%p, len:%d\n",
-		__func__, dir ? "a2c" : "c2a", ipc_data->cnt_dbg_wt,
-		ipc_data->cnt_dbg_rd, ipc_data->cnt, eq, dq, ipc_data->empty,
+	CSP_PRINTF_INFO("%s: %s: dir:%s, e:%d d:%d, empty:%d, full:%d, ipc_data:%p, len:%d\n",
+		NAME_PREFIX, __func__, dir ? "a2c" : "c2a", ipc_data->cnt, eq, dq, ipc_data->empty,
 		ipc_data->full, ipc_data, length);
 #endif
 
@@ -310,22 +377,21 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 		else if (eq < dq)
 			useful = dq - eq;
 		else if (ipc_data->full) {
-			CSP_PRINTF_ERROR("%s is full(eq:%d, dq:%d, f:%d, e:%d)\n",
-				__func__, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+			CSP_PRINTF_ERROR("%s: %s is full(eq:%d, dq:%d, f:%d, e:%d)\n",
+				NAME_PREFIX, __func__, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return -1;
 		} else {
 			useful = IPC_DATA_SIZE;
 		}
 
 #ifdef USE_IPC_BUF_LOG
-		ipc_data->cnt_dbg_wt++;
-		CSP_PRINTF_INFO("w: eq:%d, dq:%d, useful:%d\n",	eq, dq, useful);
+		CSP_PRINTF_INFO("%s: w: eq:%d, dq:%d, useful:%d\n",	NAME_PREFIX, eq, dq, useful);
 #endif
 		/* check length */
 		if (length + sizeof(u16) > useful) {
 			CSP_PRINTF_ERROR
-				("%s: no buffer. len:%d, remain:%d eq:%d, dq:%d (eq:%d, dq:%d, f:%d, e:%d)\n",
-				 __func__, length, useful, eq, dq, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+				("%s: %s: no buffer. len:%d, remain:%d eq:%d, dq:%d (eq:%d, dq:%d, f:%d, e:%d)\n",
+				NAME_PREFIX, __func__, length, useful, eq, dq, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return -1;
 		}
 
@@ -365,8 +431,8 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 			ipc_data->empty = 0;
 
 #ifdef USE_IPC_BUF_LOG
-		CSP_PRINTF_INFO("w_out: eq:%d, dq:%d, f:%d, e:%d\n",
-			ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+		CSP_PRINTF_INFO("%s: w_out: eq:%d, dq:%d, f:%d, e:%d\n",
+			NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 #endif
 		return 0;
 	} else {
@@ -377,8 +443,8 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 		else if (eq < dq)
 			useful = (IPC_DATA_SIZE - dq) + eq;
 		else if (ipc_data->empty) {
-			CSP_PRINTF_ERROR("%s is empty (eq:%d, dq:%d, f:%d, e:%d)\n",
-				__func__, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+			CSP_PRINTF_ERROR("%s: %s is empty (eq:%d, dq:%d, f:%d, e:%d)\n",
+				NAME_PREFIX, __func__, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return 0;
 		} else {
 			useful = IPC_DATA_SIZE;
@@ -394,21 +460,20 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 			dq = 0;
 
 		size_to_read = (size_upper << 8) | size_lower;
-		if (size_to_read >= PACKET_SIZE_MAX) {
-			CSP_PRINTF_ERROR("%s: wrong size:%d\n",
-				__func__, size_to_read);
+		if (size_to_read > PACKET_SIZE_MAX) {
+			CSP_PRINTF_ERROR("%s: %s: wrong size:%d\n",
+				NAME_PREFIX, __func__, size_to_read);
 			return -1;
 		}
 
 #ifdef USE_IPC_BUF_LOG
-		ipc_data->cnt_dbg_rd++;
-		CSP_PRINTF_INFO("r: eq:%d, dq:%d, useful:%d, size_to_read:%d\n",
-			eq, dq, useful, size_to_read);
+		CSP_PRINTF_INFO("%s: r: eq:%d, dq:%d, useful:%d, size_to_read:%d\n",
+			NAME_PREFIX, eq, dq, useful, size_to_read);
 #endif
 
 		if (useful < sizeof(u16) + size_to_read) {
-			CSP_PRINTF_ERROR("%s: no enough read size: useful:%d, read_to_size:%d,%d (eq:%d, dq:%d, f:%d, e:%d)\n",
-				__func__, useful, size_to_read, sizeof(u16),
+			CSP_PRINTF_ERROR("%s: %s: no enough read size: useful:%d, read_to_size:%d,%d (eq:%d, dq:%d, f:%d, e:%d)\n",
+				NAME_PREFIX, __func__, useful, size_to_read, sizeof(u16),
 				ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 			return 0;
 		}
@@ -438,8 +503,8 @@ static inline int ipc_io_data(enum ipc_data_list dir, u8 *buf, u16 length)
 			ipc_data->full = 0;
 
 #ifdef USE_IPC_BUF_LOG
-		CSP_PRINTF_INFO("r_out (read_to_size:%d): eq:%d, dq:%d, f:%d, e:%d\n",
-			size_to_read, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+		CSP_PRINTF_INFO("%s: r_out (read_to_size:%d): eq:%d, dq:%d, f:%d, e:%d\n",
+			NAME_PREFIX, size_to_read, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 #endif
 		return size_to_read;
 	}
@@ -462,99 +527,35 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 		evtq = (dir == IPC_DATA_C2A) ? IPC_EVT_C2A : IPC_EVT_A2C;
 		ret = ipc_add_evt(evtq, IRQ_EVT_CH0);
 	} else {
-		CSP_PRINTF_INFO("%s: error\n", __func__);
+		CSP_PRINTF_INFO("%s: %s: error\n", NAME_PREFIX, __func__);
 	}
 	return ret;
 }
 
-int ipc_read_data(enum ipc_data_list dir, uint8_t *rx)
+int ipc_read_data(enum ipc_data_list dir, u8 *rx)
 {
 	int ret = ipc_io_data(dir, rx, 0);
 
 	if (!ret || (ret < 0)) {
-		CSP_PRINTF_INFO("%s: error\n", __func__);
-		return 0;
+		CSP_PRINTF_INFO("%s: %s: error\n", NAME_PREFIX, __func__);
+		return -1;
 	}
 	return ret;
 }
+#endif
 
 void ipc_print_databuf(void)
 {
 	struct ipc_buf *ipc_data = ipc_get_base(IPC_REG_IPC_A2C);
 
-	CSP_PRINTF_INFO("a2c: eq:%d dq:%d full:%d empty:%d tx:%d rx:%d\n",
-				ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty,
-				ipc_data->cnt_dbg_wt, ipc_data->cnt_dbg_rd);
+	CSP_PRINTF_INFO("%s: a2c: eq:%d dq:%d full:%d empty:%d\n",
+				NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 
 	ipc_data = ipc_get_base(IPC_REG_IPC_C2A);
 
-	CSP_PRINTF_INFO("c2a: eq:%d dq:%d full:%d empty:%d tx:%d rx:%d\n",
-				ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty,
-				ipc_data->cnt_dbg_wt, ipc_data->cnt_dbg_rd);
+	CSP_PRINTF_INFO("%s: c2a: eq:%d dq:%d full:%d empty:%d\n",
+				NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 }
-
-#else
-/* ipc channel functions */
-#define GET_IPC_REG_NAME(c) (((c) == CS_WRITE) ? "W" : (((c) == CS_RECV) ? "R" : "I"))
-#define GET_CH_NAME(c) (((c) == CS_AP) ? "A" : "C")
-#define GET_CH_OWNER(o) (((o) == IPC_DATA_C2A) ? "C2A" : "A2C")
-
-inline void ipc_update_channel_status(struct ipc_content *content,
-				      enum channel_status next)
-{
-#ifdef PACKET_LOW_DEBUG
-	unsigned int org = __raw_readl(&content->status);
-
-	CSP_PRINTF_INFO("CH(%s)%d: %s->%s\n", GET_CH_NAME(org >> CS_OWN_OFFSET),
-			content->num, GET_IPC_REG_NAME((org & CS_IPC_REG_CMP)),
-			GET_IPC_REG_NAME((next & CS_IPC_REG_CMP)));
-#endif
-
-	__raw_writel(next, &content->status);
-}
-
-void *ipc_scan_channel(enum ipc_region area, enum channel_status target)
-{
-	int i;
-	struct ipc_content *content = ipc_get_base(area);
-
-	for (i = 0; i < IPC_BUF_NUM; i++, content++)
-		if (__raw_readl(&content->status) == target)
-			return content;
-
-	return NULL;
-}
-
-void *ipc_get_channel(enum ipc_region area, enum channel_status target,
-		      enum channel_status next)
-{
-	int i;
-	struct ipc_content *content = ipc_get_base(area);
-
-	for (i = 0; i < IPC_BUF_NUM; i++, content++) {
-		if (__raw_readl(&content->status) == target) {
-			ipc_update_channel_status(content, next);
-			return content;
-		}
-	}
-
-	return NULL;
-}
-
-void ipc_print_channel(void)
-{
-	int i, j, org;
-
-	for (j = 0; j < IPC_DATA_MAX; j++) {
-		for (i = 0; i < IPC_BUF_NUM; i++) {
-			org = ipc_map->data[j][i].status;
-			if (org & CS_IPC_REG_CMP)
-				CSP_PRINTF_INFO("CH-%s:%x\n",
-						GET_CH_OWNER(j), org);
-		}
-	}
-}
-#endif
 
 int ipc_check_reset_valid()
 {
@@ -565,8 +566,8 @@ int ipc_check_reset_valid()
 	for (i = 0; i < IPC_DATA_MAX; i++)
 		if (map->data[i].dq || map->data[i].eq ||
 			map->data[i].full || (map->data[i].empty != 1)) {
-			CSP_PRINTF_INFO("contexthub: %s: ipc_data_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
-			__func__, i ? "a2c" : "c2a",
+			CSP_PRINTF_INFO("%s: %s: ipc_data_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
+			NAME_PREFIX, __func__, i ? "a2c" : "c2a",
 			map->data[i].eq,
 			map->data[i].dq,
 			map->data[i].full,
@@ -577,8 +578,8 @@ int ipc_check_reset_valid()
 	for (i = 0; i < IPC_EVT_MAX; i++)
 		if (map->evt[i].ctrl.eq || map->evt[i].ctrl.dq ||
 			map->evt[i].ctrl.full || (map->evt[i].ctrl.empty != 1)) {
-			CSP_PRINTF_INFO("contexthub: %s: ipc_evt_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
-			__func__, i ? "a2c" : "c2a",
+			CSP_PRINTF_INFO("%s: %s: ipc_evt_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
+			NAME_PREFIX, __func__, i ? "a2c" : "c2a",
 			map->evt[i].ctrl.eq,
 			map->evt[i].ctrl.eq,
 			map->evt[i].ctrl.full,
@@ -596,23 +597,13 @@ void ipc_init(void)
 	if (!ipc_map)
 		CSP_PRINTF_ERROR("%s: ipc_map is NULL.\n", __func__);
 
-#ifdef USE_IPC_BUF
 	for (i = 0; i < IPC_DATA_MAX; i++) {
 		ipc_map->data[i].eq = 0;
 		ipc_map->data[i].dq = 0;
 		ipc_map->data[i].full = 0;
 		ipc_map->data[i].empty = 1;
-		ipc_map->data[i].cnt_dbg_wt = 0;
-		ipc_map->data[i].cnt_dbg_rd = 0;
 	}
-#else
-	for (i = 0; i < IPC_BUF_NUM; i++) {
-		ipc_map->data[IPC_DATA_C2A][i].num = i;
-		ipc_map->data[IPC_DATA_C2A][i].status = CS_CHUB_OWN;
-		ipc_map->data[IPC_DATA_A2C][i].num = i;
-		ipc_map->data[IPC_DATA_A2C][i].status = CS_AP_OWN;
-	}
-#endif
+
 
 	ipc_hw_clear_all_int_pend_reg(AP);
 
@@ -671,9 +662,22 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 	struct ipc_evt_buf *cur_evt = NULL;
 
 	if (!ipc_evt) {
-		CSP_PRINTF_ERROR("%s: invalid ipc_evt\n", __func__);
+		CSP_PRINTF_ERROR("%s: %s: invalid ipc_evt\n", NAME_PREFIX, __func__);
 		return -1;
 	}
+
+#if 0
+	/* check index due to sram corruption */
+	if ((__raw_readl(&ipc_evt->ctrl.eq) > IPC_EVT_NUM) ||
+		(__raw_readl(&ipc_evt->ctrl.dq) > IPC_EVT_NUM) ||
+		(__raw_readl(&ipc_evt->ctrl.full) > 1) ||
+		(__raw_readl(&ipc_evt->ctrl.empty) > 1)) {
+		CSP_PRINTF_ERROR("%s: invalid index: eq:%d, dq:%d, full:%d, empty:%d\n",
+			__func__, ipc_evt->ctrl.eq, ipc_evt->ctrl.dq,
+			ipc_evt->ctrl.full, ipc_evt->ctrl.empty);
+		return -1;
+	}
+#endif
 
 	if (!__raw_readl(&ipc_evt->ctrl.full)) {
 		cur_evt = &ipc_evt->data[ipc_evt->ctrl.eq];
@@ -701,15 +705,15 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 		} while (ipc_evt->ctrl.full && (trycnt < MAX_TRY_CNT));
 
 		if (!__raw_readl(&ipc_evt->ctrl.full)) {
-			CSP_PRINTF_INFO("%s: evt %d during %d ms is full\n",
-					__func__, evt, EVT_WAIT_TIME * trycnt);
+			CSP_PRINTF_INFO("%s: %s: evt %d during %d ms is full\n",
+					NAME_PREFIX, __func__, evt, EVT_WAIT_TIME * trycnt);
 			return -1;
 		} else {
-			CSP_PRINTF_ERROR("%s: fail to add evt\n", __func__);
+			CSP_PRINTF_ERROR("%s: %s: fail to add evt\n", NAME_PREFIX, __func__);
 			return -1;
 		}
 #else
-		CSP_PRINTF_ERROR("%s: fail to add evt\n", __func__);
+		CSP_PRINTF_ERROR("%s: %s: fail to add evt\n", NAME_PREFIX, __func__);
 		return -1;
 #endif
 	}
@@ -734,14 +738,14 @@ void ipc_print_evt(enum ipc_evt_list evtq)
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
 	int i;
 
-	CSP_PRINTF_INFO("evt-%s: eq:%d dq:%d full:%d irq:%d\n",
-			IPC_GET_EVT_NAME(evtq), ipc_evt->ctrl.eq,
+	CSP_PRINTF_INFO("%s: evt-%s: eq:%d dq:%d full:%d irq:%d\n",
+			NAME_PREFIX, IPC_GET_EVT_NAME(evtq), ipc_evt->ctrl.eq,
 			ipc_evt->ctrl.dq, ipc_evt->ctrl.full,
 			ipc_evt->ctrl.irq);
 
 	for (i = 0; i < IPC_EVT_NUM; i++) {
-		CSP_PRINTF_INFO("evt%d(evt:%d,irq:%d,f:%d)\n",
-				i, ipc_evt->data[i].evt,
+		CSP_PRINTF_INFO("%s: evt%d(evt:%d,irq:%d,f:%d)\n",
+				NAME_PREFIX, i, ipc_evt->data[i].evt,
 				ipc_evt->data[i].irq, ipc_evt->data[i].status);
 	}
 
