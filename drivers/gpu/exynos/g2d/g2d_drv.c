@@ -778,7 +778,6 @@ struct g2d_device_data {
 };
 
 const struct g2d_device_data g2d_9610_data __initconst = {
-	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION,
 	.max_layers = G2D_MAX_IMAGES_HALF,
 };
 

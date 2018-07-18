@@ -90,11 +90,10 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 		if ((task->target.flags & G2D_LAYERFLAG_SECURE) || state)
 			state |= 1 << 24;
-#if 0
+
 		writel_relaxed(state,
 			       g2d_dev->reg +
 			       G2D_JOBn_LAYER_SECURE_REG(task->job_id));
-#endif
 	}
 
 	writel_relaxed(G2D_JOB_HEADER_DATA(task->priority, task->job_id),
