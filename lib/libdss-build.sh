@@ -1,6 +1,6 @@
 clang \
   --target=aarch64-linux-gnu \
-  -I/usr/aarch64-linux-gnu/include \
+  -Ilib/libdss-include \
   -Iinclude \
   -mlittle-endian \
   -Qunused-arguments \
