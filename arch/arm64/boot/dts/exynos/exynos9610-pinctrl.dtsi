@@ -95,6 +95,19 @@
 			interrupts = <0 142 0>;
 		};
 
+		WB2AP_FEMCTRL_WLBT_00: WB2AP_FEMCTRL_WLBT_00 {
+			       samsung,pins = "gpm16-0";
+			       samsung,pin-function = <0x6>;
+			       samsung,pin-pud = <1>;
+			       samsung,pin-drv = <3>;
+		       };
+		WB2AP_FEMCTRL_WLBT_01: WB2AP_FEMCTRL_WLBT_01 {
+				       samsung,pins = "gpm17-0";
+				       samsung,pin-function = <0x6>;
+				       samsung,pin-pud = <1>;
+				       samsung,pin-drv = <3>;
+		       };
+
 		gpm1: gpm1 {
 			gpio-controller;
 			#gpio-cells = <2>;
