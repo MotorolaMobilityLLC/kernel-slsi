@@ -22,17 +22,35 @@ static int msg_from_wlbtd_cb(struct sk_buff *skb, struct genl_info *info)
 	int status;
 
 	if (info->attrs[1])
-		SCSC_TAG_INFO(WLBTD, "wlbtd returned data : %s\n",
+		SCSC_TAG_INFO(WLBTD, "returned data : %s\n",
 				(char *)nla_data(info->attrs[1]));
 
 	if (info->attrs[2]) {
 		status = *((__u32 *)nla_data(info->attrs[2]));
 		if (!status)
-			SCSC_TAG_INFO(WLBTD,
-				"wlbtd returned status : %u\n",	status);
+			SCSC_TAG_INFO(WLBTD, "returned status : %u\n", status);
 		else
-			SCSC_TAG_ERR(WLBTD,
-				"wlbtd returned error : %u\n",	status);
+			SCSC_TAG_ERR(WLBTD, "returned error : %u\n", status);
+	}
+
+	complete(&script_done);
+	return 0;
+}
+
+static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
+{
+	int status;
+
+	if (info->attrs[1])
+		SCSC_TAG_INFO(WLBTD, "returned data : %s\n",
+				(char *)nla_data(info->attrs[1]));
+
+	if (info->attrs[2]) {
+		status = nla_get_u16(info->attrs[2]);
+		if (!status)
+			SCSC_TAG_INFO(WLBTD, "returned status : %u\n", status);
+		else
+			SCSC_TAG_ERR(WLBTD, "returned error : %u\n", status);
 	}
 
 	complete(&script_done);
@@ -80,6 +98,11 @@ static struct nla_policy policies[] = {
 	[ATTR_INT] = { .type = NLA_U32, },
 };
 
+static struct nla_policy policy_sable[] = {
+	[ATTR_STR] = { .type = NLA_STRING, },
+	[ATTR_INT] = { .type = NLA_U16, },
+};
+
 static struct nla_policy policies_build_type[] = {
 	[ATTR_STR] = { .type = NLA_STRING, },
 };
@@ -100,6 +123,13 @@ const struct genl_ops scsc_ops[] = {
 		.flags = 0,
 		.policy = policies_build_type,
 		.doit = msg_from_wlbtd_build_type_cb,
+		.dumpit = NULL,
+	},
+	{
+		.cmd = EVENT_SABLE,
+		.flags = 0,
+		.policy = policy_sable,
+		.doit = msg_from_wlbtd_sable_cb,
 		.dumpit = NULL,
 	},
 };
@@ -201,6 +231,98 @@ error:
 	nlmsg_free(skb);
 	return -1;
 }
+
+int call_wlbtd_sable(const char *trigger)
+{
+	struct sk_buff *skb;
+	void *msg;
+	int rc = 0;
+	unsigned long completion_jiffies = 0;
+	unsigned long max_timeout_jiffies = msecs_to_jiffies(MAX_TIMEOUT);
+
+	SCSC_TAG_INFO(WLBTD, "start:trigger - %s\n", trigger);
+
+	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb) {
+		SCSC_TAG_ERR(WLBTD, "Failed to construct message\n");
+		goto error;
+	}
+
+	SCSC_TAG_DEBUG(WLBTD, "create message\n");
+	msg = genlmsg_put(skb,
+			0,		// PID is whatever
+			0,		// Sequence number (don't care)
+			&scsc_nlfamily,	// Pointer to family struct
+			0,		// Flags
+			EVENT_SABLE	// Generic netlink command
+			);
+	if (!msg) {
+		SCSC_TAG_ERR(WLBTD, "Failed to create message\n");
+		goto error;
+	}
+	/* TODO: change when we get passed proper code as well */
+	SCSC_TAG_DEBUG(WLBTD, "add values to msg\n");
+	rc = nla_put_u16(skb, ATTR_INT, 0xffff);
+	if (rc) {
+		SCSC_TAG_ERR(WLBTD, "nla_put_u16 failed. rc = %d\n", rc);
+		genlmsg_cancel(skb, msg);
+		goto error;
+	}
+
+	rc = nla_put_string(skb, ATTR_STR, trigger);
+	if (rc) {
+		SCSC_TAG_ERR(WLBTD, "nla_put_string failed. rc = %d\n", rc);
+		genlmsg_cancel(skb, msg);
+		goto error;
+	}
+
+	genlmsg_end(skb, msg);
+
+	SCSC_TAG_DEBUG(WLBTD, "finalize & send msg\n");
+	/* genlmsg_multicast_allns() frees skb */
+	rc = genlmsg_multicast_allns(&scsc_nlfamily, skb, 0, 0, GFP_KERNEL);
+
+	if (rc) {
+		if (rc == -ESRCH) {
+			/* If no one registered to scsc_mcgrp (e.g. in case
+			 * wlbtd is not running) genlmsg_multicast_allns
+			 * returns -ESRCH. Ignore and return.
+			 */
+			SCSC_TAG_WARNING(WLBTD, "WLBTD not running ?\n");
+			return rc;
+		}
+		SCSC_TAG_ERR(WLBTD, "Failed to send message. rc = %d\n", rc);
+		return rc;
+	}
+
+	SCSC_TAG_INFO(WLBTD, "waiting for completion\n");
+
+	/* wait for script to finish */
+	completion_jiffies = wait_for_completion_timeout(&script_done,
+						max_timeout_jiffies);
+
+	if (completion_jiffies != max_timeout_jiffies) {
+
+		completion_jiffies = max_timeout_jiffies - completion_jiffies;
+		SCSC_TAG_INFO(WLBTD, "log collection done in %dms\n",
+			(int)jiffies_to_msecs(completion_jiffies));
+	} else
+		SCSC_TAG_ERR(WLBTD, "wait for completion timed out !\n");
+
+	/* reinit so completion can be re-used */
+	reinit_completion(&script_done);
+
+	SCSC_TAG_INFO(WLBTD, "  end:trigger - %s\n", trigger);
+
+	return rc;
+
+error:
+	/* free skb */
+	nlmsg_free(skb);
+
+	return -1;
+}
+EXPORT_SYMBOL(call_wlbtd_sable);
 
 int call_wlbtd(const char *script_path)
 {

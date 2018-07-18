@@ -18,6 +18,9 @@
 #include <scsc/scsc_log_collector.h>
 #include "scsc_log_collector_proc.h"
 #include <scsc/scsc_mx.h>
+#ifdef CONFIG_SCSC_WLBTD
+#include "scsc_wlbtd.h"
+#endif
 
 #define SCSC_NUM_CHUNKS_SUPPORTED	12
 
@@ -42,7 +45,7 @@ static bool collect_to_ram;
 module_param(collect_to_ram, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(collect_to_ram, "Collect buffer in ram");
 
-static char collection_dir_buf[256] = "/data/exynos/log/wifi/";
+static char collection_dir_buf[256] = "/data/exynos/log/wifi";
 module_param_string(collection_target_directory, collection_dir_buf, sizeof(collection_dir_buf), S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(collection_target_directory, "Specify collection target directory");
 
@@ -222,8 +225,11 @@ static inline int __scsc_log_collector_collect_to_ram(enum scsc_log_reason reaso
 #define align_chunk(ppos) (((ppos) + (SCSC_LOG_CHUNK_ALIGN - 1)) & \
 			  ~(SCSC_LOG_CHUNK_ALIGN - 1))
 
-const char *scsc_loc_reason_str[] = { "unknown", "fw_panic", "host_trig",
-				      "fw_trig", "dumpstate", "wlan_disc", "bt_trig" /* Add others */};
+const char *scsc_loc_reason_str[] = { "unknown", "scsc_log_fw_panic",
+				      "scsc_log_host_trig",
+				      "scsc_log_fw_trig", "scsc_log_dumpstate",
+				      "scsc_log_wlan_trig", "scsc_log_bt_trig",
+				      "scsc_log_common_trig"/* Add others */};
 
 static inline int __scsc_log_collector_collect_to_file(enum scsc_log_reason reason)
 {
@@ -251,8 +257,8 @@ static inline int __scsc_log_collector_collect_to_file(enum scsc_log_reason reas
 	do_gettimeofday(&t);
 	time_to_tm(t.tv_sec, 0, &tm_n);
 
-	snprintf(memdump_path, sizeof(memdump_path), "%s%s_%s.sbl",
-		 collection_dir_buf, "scsc_log", scsc_loc_reason_str[reason]);
+	snprintf(memdump_path, sizeof(memdump_path), "%s/%s.sbl",
+		 collection_dir_buf, scsc_loc_reason_str[reason]);
 
 	/* change to KERNEL_DS address limit */
 	old_fs = get_fs();
@@ -349,7 +355,11 @@ exit:
 
 	pr_info("File %s collection end. Took: %lld\n", memdump_path, ktime_to_ns(ktime_sub(ktime_get(), start)));
 
+#ifdef CONFIG_SCSC_WLBTD
+	call_wlbtd_sable(scsc_loc_reason_str[reason]);
+#endif
 	mutex_unlock(&log_mutex);
+
 	return ret;
 }
 

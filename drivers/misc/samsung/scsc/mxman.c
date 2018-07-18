@@ -1297,7 +1297,16 @@ static void mxman_failure_work(struct work_struct *work)
 				/* we can safely call call_wlbtd as we are
 				 * in workqueue context
 				 */
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+				/* Collect mxlogger logs */
+				r = scsc_log_collector_collect(SCSC_LOG_REASON_FW_PANIC);
+				if (r != 0)
+					SCSC_TAG_INFO(MXMAN, "sable creation failed.");
+				/* call old method to generate moredump anyway */
 				r = call_wlbtd(SCSC_SCRIPT_MOREDUMP);
+#else
+				r = call_wlbtd(SCSC_SCRIPT_MOREDUMP);
+#endif
 #else
 				r = coredump_helper();
 #endif
@@ -1339,10 +1348,6 @@ static void mxman_failure_work(struct work_struct *work)
 		if (mif->mif_cleanup && mxman_recovery_disabled())
 			mif->mif_cleanup(mif);
 	}
-#ifdef CONFIG_SCSC_LOG_COLLECTION
-	/* Collect mxlogger logs */
-	scsc_log_collector_collect(SCSC_LOG_REASON_FW_PANIC);
-#endif
 
 	if (!mxman_recovery_disabled())
 		srvman_clear_error(srvman);
@@ -1408,7 +1413,12 @@ static void print_mailboxes(struct mxman *mxman)
 static void wlbtd_work_func(struct work_struct *work)
 {
 	/* require sleep-able workqueue to run successfully */
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	/* Collect mxlogger logs */
+	scsc_log_collector_collect(SCSC_LOG_REASON_WLAN_DISCONNECT);
+#else
 	call_wlbtd(SCSC_SCRIPT_LOGGER_DUMP);
+#endif
 }
 
 static void wlbtd_wq_init(struct mxman *mx)
