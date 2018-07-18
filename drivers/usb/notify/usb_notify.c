@@ -808,6 +808,9 @@ static void otg_notify_state(struct otg_notify *n,
 		if (enable) {
 			n->charger_detect = 1;
 			if (n->usb_noti_done) {
+				if (n->is_wakelock)
+					wake_unlock(&u_notify->wlock);
+
 				n->set_charger(enable);
 				n->usb_noti_done = 0;
 			}
