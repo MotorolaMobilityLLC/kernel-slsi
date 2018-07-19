@@ -1493,7 +1493,12 @@ static int cs47l35_open(struct snd_compr_stream *stream)
 	struct cs47l35 *cs47l35 = snd_soc_platform_get_drvdata(rtd->platform);
 	struct madera_priv *priv = &cs47l35->core;
 	struct madera *madera = priv->madera;
-	int n_adsp;
+	int n_adsp, channel;
+
+	channel = 0;
+	dev_dbg(madera->dev,
+			"Open compr stream '%s' for DAI %d '%s'\n",
+			stream->name, rtd->codec_dai->id, rtd->codec_dai->name);
 
 	if (strcmp(rtd->codec_dai->name, "cs47l35-dsp-voicectrl") == 0) {
 		n_adsp = 2;
@@ -1506,7 +1511,7 @@ static int cs47l35_open(struct snd_compr_stream *stream)
 		return -EINVAL;
 	}
 
-	return wm_adsp_compr_open(&priv->adsp[n_adsp], stream);
+	return wm_adsp_compr_open(&priv->adsp[n_adsp], stream, channel);
 }
 
 static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
@@ -1515,11 +1520,11 @@ static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 	struct madera_priv *priv = &cs47l35->core;
 	struct madera *madera = priv->madera;
 	struct madera_voice_trigger_info trig_info;
-	int serviced = 0;
+	int serviced = 0, channel = 0;
 	int i, ret;
 
 	for (i = 0; i < CS47L35_NUM_ADSP; ++i) {
-		ret = wm_adsp_compr_handle_irq(&priv->adsp[i]);
+		ret = wm_adsp_compr_handle_irq(&priv->adsp[i], channel);
 		if (ret != -ENODEV)
 			serviced++;
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
