@@ -35,7 +35,7 @@
 #define MADERA_BASECLK_44K1	45158400
 
 #define MADERA_AMP_RATE	48000
-#define MADERA_AMP_BCLK	(MADERA_AMP_RATE * 16 * 4)
+#define MADERA_AMP_BCLK	(MADERA_AMP_RATE * 16 * 2)
 
 #define EXYNOS_PMU_PMU_DEBUG_OFFSET	0x0A00
 #define MADERA_DAI_ID			0x4735
@@ -582,6 +582,7 @@ static void madera_init_debugfs(struct snd_soc_card *card)
 }
 #endif
 
+#if 0
 static int madera_amp_late_probe(struct snd_soc_card *card, int dai)
 {
 	struct madera_drvdata *drvdata = card->drvdata;
@@ -623,6 +624,41 @@ static int madera_amp_late_probe(struct snd_soc_card *card, int dai)
 
 	return 0;
 }
+#else
+static int madera_amp_late_probe(struct snd_soc_card *card, int dai)
+{
+	struct madera_drvdata *drvdata = card->drvdata;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *amp_dai;
+	struct snd_soc_codec *amp;
+	int ret;
+	dev_info(card->dev, "%s\n", __func__);
+
+	if (!dai || !card->dai_link[dai].name)
+		return 0;
+
+	if (!drvdata->opclk.valid) {
+		dev_err(card->dev, "OPCLK required to use speaker amp\n");
+		return -ENOENT;
+	}
+	dev_info(card->dev, "%s: %s\n", __func__, card->dai_link[dai].name);
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[dai].name);
+	amp_dai = rtd->codec_dai;
+	amp = amp_dai->codec;
+
+	/* using bclk for sysclk*/
+	ret = snd_soc_codec_set_sysclk(amp, 0, 0, MADERA_AMP_BCLK,
+				     SND_SOC_CLOCK_IN);
+	if (ret != 0) {
+		dev_err(card->dev, "Failed to set amp DAI clock: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+#endif
 
 static int exynos9610_late_probe(struct snd_soc_card *card)
 {
