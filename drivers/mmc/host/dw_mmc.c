@@ -2618,7 +2618,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				 * If all data-related interrupts don't come
 				 * within the given time in reading data state.
 				 */
-				if (host->dir_status == DW_MCI_RECV_STATUS)
+				if ((host->pdata->sw_drto) &&
+						(host->dir_status == DW_MCI_RECV_STATUS))
 					dw_mci_set_drto(host);
 				break;
 			}
@@ -2661,7 +2662,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				 * interrupt doesn't come within the given time.
 				 * in reading data state.
 				 */
-				if (host->dir_status == DW_MCI_RECV_STATUS)
+				if ((host->pdata->sw_drto) &&
+						(host->dir_status == DW_MCI_RECV_STATUS))
 					dw_mci_set_drto(host);
 				break;
 			}
@@ -3250,7 +3252,8 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		}
 
 		if (pending & SDMMC_INT_DATA_OVER) {
-			del_timer(&host->dto_timer);
+			if (host->pdata->sw_drto)
+				del_timer(&host->dto_timer);
 
 			mci_writel(host, RINTSTS, SDMMC_INT_DATA_OVER);
 			dw_mci_debug_cmd_log(host->cmd, host, false, DW_MCI_FLAG_DTO, 0);
@@ -4019,6 +4022,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	if (of_find_property(np, "card-detect-gpio", NULL))
 		pdata->cd_type = DW_MCI_CD_GPIO;
+	if (of_find_property(np, "broken-drto", NULL))
+		pdata->sw_drto = true;
 
 	return pdata;
 }
@@ -4160,7 +4165,8 @@ int dw_mci_probe(struct dw_mci *host)
 
 	setup_timer(&host->cto_timer, dw_mci_cto_timer, (unsigned long)host);
 
-	setup_timer(&host->dto_timer, dw_mci_dto_timer, (unsigned long)host);
+	if (host->pdata->sw_drto)
+		setup_timer(&host->dto_timer, dw_mci_dto_timer, (unsigned long)host);
 
 	spin_lock_init(&host->lock);
 	spin_lock_init(&host->irq_lock);
