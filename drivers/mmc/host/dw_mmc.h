@@ -375,6 +375,9 @@ struct dw_mci_board {
 	bool enable_cclk_on_suspend;
 	bool on_suspend;
 
+	/* Broke DRTO */
+	bool sw_drto;
+
 	/* Number of descriptors */
 	unsigned int desc_sz;
 };
