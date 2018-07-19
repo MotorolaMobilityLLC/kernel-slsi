@@ -974,6 +974,13 @@
 			samsung,pin-val = <0>;
 		};
 
+		codec_en: codec_en {
+			samsung,pins = "gpg1-1";
+			samsung,pin-function = <1>;
+			samsung,pin-pud = <0>;
+			samsung,pin-val = <1>;
+		};
+
 		/* USI_PERI_CAMI2C_0 */
 		hsi2c12_bus: hsi2c12-bus {
 			samsung,pins = "gpc0-0", "gpc0-1";
