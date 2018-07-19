@@ -553,6 +553,7 @@
 					regulator-min-microvolt = <800000>;
 					regulator-max-microvolt = <1950000>;
 					regulator-ramp-delay = <12000>;
+					regulator-always-on;
 				};
 
 				l43_reg: LDO43 {
@@ -569,6 +570,7 @@
 					regulator-min-microvolt = <800000>;
 					regulator-max-microvolt = <1300000>;
 					regulator-ramp-delay = <12000>;
+					regulator-always-on;
 				};
 			};
 		};
@@ -1002,22 +1004,7 @@
 		regulator-always-on;
 	};
 
-	pinctrl@11850000 {
-		amp_irq: amp-irq {
-			samsung,pins ="gpa0-2";
-			samsung,pin-function = <0xf>;
-			samsung,pin-pud = <0>;
-		};
-	};
-
 	pinctrl@139B0000 {
-		amp_reset: amp-reset {
-			samsung,pins ="gpg3-3";
-			samsung,pin-pud = <0>;
-			samsung,pin-con-pdn =<3>;
-			samsung,pin-pud-pdn = <0>;
-		};
-
 		vdd_on: vdd-on {
 			samsung,pins ="gpg3-4";
 			samsung,pin-function = <1>;
@@ -1031,21 +1018,60 @@
 			samsung,pin-val = <0>;
 			samsung,pin-pud = <1>;
 		};
-	};
 
-	pinctrl@139B0000 {
 		codec_reset: codec-reset {
 			samsung,pins ="gpg3-2";
 			samsung,pin-pud = <0>;
 			samsung,pin-con-pdn =<3>;
 			samsung,pin-pud-pdn = <0>;
 		};
+
+		codec_en: codec_en {
+			samsung,pins = "gpg1-1";
+			samsung,pin-function = <1>;
+			samsung,pin-pud = <3>;
+			samsung,pin-val = <1>;
+		};
 	};
 
-#if 0
+
+
+	spi_6: spi@13900000 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi6_bus &spi6_cs_func>;
+		/*cs-gpios = <&gpp2 3 0>;*/
+		/*gpp2[3]*/
+		/*num-cs = <1>;*/
+
+		cs35l41_left: cs35l41@0 {
+			compatible = "cirrus,cs35l41";
+			#sound-dai-cells = <1>;
+			reg = <0x0>;
+			spi-max-frequency = <11000000>;
+			interrupt-parent = <&gpa0>;
+			interrupts = <2 0 0>;
+			reset-gpios = <&gpg3 3 0>;
+			VA-supply = <&l42_reg>;
+			VP-supply = <&V_SYS>;
+			cirrus,asp-sdout-hiz = <0x3>;
+
+			cirrus,gpio-config2 {
+				cirrus,gpio-src-select = <0x4>;
+				cirrus,gpio-out-enable;
+			};
+
+			controller-data {
+				/*cs-gpio = <gpm8 0 0>*/
+				samsung,spi-feedback-delay = <1>;
+				samsung,spi-chip-select-mode = <0>;
+			};
+		};
+	};
+
 	spi_9: spi@13940000 {
 		pinctrl-names = "default";
-		pinctrl-0 = <&spi9_bus &spi9_cs_func>;
+		pinctrl-0 = <&spi9_bus &spi9_cs_func  &codec_en>;
 		status = "okay";
 		cs47l35: cs47l35@0 {
 			compatible = "cirrus,cs47l35";
@@ -1070,7 +1096,7 @@
 			SPKVDD-supply = <&V_SYS>;
 
 			reset-gpios = <&gpg3 2 0>;
-
+	              
 			cirrus,dmic-ref = <0 0 0>;
 			cirrus,inmode = <
 				0 0 0 0 /* IN1 */
@@ -1169,7 +1195,6 @@
 			};
 		};
 	};
-#endif
 
 	dummy_audio_codec: audio_codec_dummy {
 		status = "okay";
@@ -1181,7 +1206,6 @@
 		status = "okay";
 	};
 
-#if 0
 	sound {
 		status = "okay";
 		compatible = "samsung,exynos9610-madera";
@@ -1213,11 +1237,11 @@
 			"AIF2 Capture", "OPCLK",
 			"VOUTPUT", "ABOX UAIF0 Playback",
 			"SPEAKER", "Left SPK",
-			"VOUTPUTCALL", "ABOX UAIF2 Playback",
-			"ABOX UAIF2 Capture", "VINPUTCALL";
+			"VOUTPUTCALL", "ABOX SIFS0 Playback",
+			"ABOX SIFS0 Capture", "VINPUTCALL";
 
 		samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_2
-			&abox_uaif_4 &abox_dsif &abox_spdy &cs35l35_left>;
+			&abox_uaif_4 &abox_dsif &abox_spdy &cs35l41_left>;
 		samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX",
 			"ABOX", "ABOX", "ABOX", "Left";
 		samsung,aux = <&abox_effect &abox_bt>;
@@ -1461,12 +1485,11 @@
 				sound-dai = <&cs47l35 1>;
 			};
 			codec {
-				sound-dai = <&cs35l35_left 0>;
+				sound-dai = <&cs35l41_left 0>;
 			};
 		};
 
 	};
-#endif
 
 #if 0
 	fimc_is@144B0000 {
