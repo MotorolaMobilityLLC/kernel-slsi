@@ -39,6 +39,7 @@ struct tsmux_buffer_info {
 	struct dma_buf *dmabuf;
 	struct dma_buf_attachment *dmabuf_att;
 	dma_addr_t dma_addr;
+	void *vaddr;
 	enum otf_buf_state buf_state;
 };
 
@@ -46,6 +47,7 @@ struct tsmux_device {
 	struct miscdevice misc_dev;
 	struct device *dev;
 
+	uint32_t hw_version;
 	void __iomem *regs_base;
 	struct resource *tsmux_mem;
 	struct clk *tsmux_clock;

@@ -22,6 +22,8 @@
 #include "tsmux_reg.h"
 #include "tsmux_dbg.h"
 
+#define ORDERING_FIXED_VERSION		0x02010000
+
 #define MAX_JOB_DONE_WAIT_TIME		1000000
 #define AUDIO_TIME_PERIOD_US		21333
 #define ADD_NULL_TS_PACKET
@@ -931,6 +933,192 @@ static int get_job_done_buf(struct tsmux_context *ctx)
 	return index;
 }
 
+void reordering_pes_private_data(char *packetized_data, bool psi)
+{
+	char *ptr = 0;
+	char adaptation_field_control = 0;
+	int adaptation_field_length = 0;
+	int psi_packet = 3;
+	int remain_ts_packet = 7;
+	uint32_t PTS_DTS_flags = 0;
+	uint32_t ESCR_flag = 0;
+	uint32_t ES_rate_flag = 0;
+	uint32_t DSM_trick_mode_flag = 0;
+	uint32_t additional_copy_info_flag = 0;
+	uint32_t PES_CRC_flag = 0;
+	uint32_t PES_extension_flag = 0;
+	uint32_t PES_private_data_flag = 0;
+	uint32_t StreamCounter = 0;
+	uint64_t InputCounter = 0;
+	uint8_t PES_private_data[16] = {0};
+
+	ptr = packetized_data;	/* ptr will point the rtp header */
+	ptr += 12;  /* skip rtp header, ptr will point the ts header */
+	while (remain_ts_packet > 0) {
+		if (*ptr != 0x47u) {	/* check sync byte */
+			print_tsmux(TSMUX_ERR, "wrong sync byte: 0x%x", *ptr);
+			return;
+		}
+
+		ptr += 1; /* skip sync byte(8b) */
+		ptr += 2; /* skip err(1b), start(1b), priority(1b), PID(13b) */
+		adaptation_field_control = ((*ptr) >> 4) & 0x3;
+		ptr += 1; /* skip scarmbling(2b), adaptation(2b), continuity counter(4b) */
+
+		if (adaptation_field_control == 0x3) {
+			adaptation_field_length = *ptr;
+			ptr += 1; /* skip adaptation_field_length(8b) */
+			ptr += adaptation_field_length; /* skip adaptation field */
+		}
+
+		if (psi && psi_packet > 0) {
+			ptr += 184; /* skip ts payload */
+			psi_packet--;
+		} else {
+			/* ptr points the pes header */
+			ptr += 3; /* skip packet_startcode_prefix(24b) */
+			ptr += 1; /* skip stream_id(8b) */
+			ptr += 2; /* skip PES_packet_length(16b) */
+
+			/* skip marker bit(2b), scrambling(2b),
+			 * priority(1b), data_alignment_indicator(1b),
+			 * copyright(1b), original_or_copy(1b)
+			 */
+			ptr += 1;
+
+			PTS_DTS_flags = ((*ptr) >> 6) & 0x3;
+			ESCR_flag = ((*ptr) >> 5) & 0x1;
+			ES_rate_flag = ((*ptr) >> 4) & 0x1;
+			DSM_trick_mode_flag = ((*ptr) >> 3) & 0x1;
+			additional_copy_info_flag = ((*ptr) >> 2) & 0x1;
+			PES_CRC_flag = ((*ptr) >> 1) & 0x1;
+			PES_extension_flag = *ptr & 0x1;
+
+			/* skip PTS_DTS_flags(2b), ESCR_flag(1b),
+			 * ES_rate_flag(1b), DSM_trick_mode_flag(1b),
+			 * additional_copy_info_flag(1b),
+			 * PES_CRC_flag(1b), PES_extension_flag(1b)
+			 */
+			ptr += 1;
+
+			ptr += 1; /* skip PES_header_data_length(8b) */
+
+			if (PTS_DTS_flags == 2 || PTS_DTS_flags == 3) {
+				ptr += 5; /* skip PTS(40b) */
+				if (PTS_DTS_flags == 3)
+					ptr += 5; /* skip DTS(40b) */
+			}
+
+			if (ESCR_flag)
+				ptr += 6; /* skip ESCR(48b) */
+
+			if (ES_rate_flag)
+				ptr += 3; /* skip ES_rate(24b) */
+
+			if (DSM_trick_mode_flag)
+				ptr += 1; /* skip DSM_trick_mode(8b) */
+
+			if (additional_copy_info_flag)
+				ptr += 1; /* skip additional_copy_info(8b) */
+
+			if (PES_CRC_flag)
+				ptr += 2; /* skip PES_CRC(16b) */
+
+			print_tsmux(TSMUX_OTF, "PES_extension_flag: %d\n", PES_extension_flag);
+			if (PES_extension_flag) {
+				PES_private_data_flag = ((*ptr) >> 7) & 0x1;
+
+				/* skip PES_private_data_flag(1b),
+				 * pack_header_field_flag(1b),
+				 * program_packet_sequence_counter_flag(1b),
+				 * P_STD_buffer_flag(1b),
+				 * marker bit(3b),
+				 * PES_entension2_flag(1)
+				 */
+
+				ptr += 1;
+
+				if (PES_private_data_flag) {
+					memcpy(PES_private_data, ptr, sizeof(PES_private_data));
+
+					StreamCounter |= (((PES_private_data[1] >> 1) & 3) << 30) & 0xc0000000;
+					StreamCounter |= (PES_private_data[2] << 22) & 0x3fc00000;
+					StreamCounter |= (((PES_private_data[3] >> 1) & 0x7f) << 15) & 0x003f8000;
+					StreamCounter |= (PES_private_data[4] << 7) & 0x00007f80;
+					StreamCounter |= ((PES_private_data[5] >> 1) & 0x7f) & 0x0000007f;
+
+					InputCounter |=
+						((uint64_t)((PES_private_data[7] >> 1) & 0x0f) << 60)
+						& 0xf000000000000000;
+					InputCounter |=
+						((uint64_t)PES_private_data[8] << 52)
+						& 0x0ff0000000000000;
+					InputCounter |=
+						((uint64_t)((PES_private_data[9] >> 1) & 0x7f) << 45)
+						& 0x000fe00000000000;
+					InputCounter |=
+						((uint64_t)PES_private_data[10] << 37)
+						& 0x00001fe000000000;
+					InputCounter |=
+						((uint64_t)((PES_private_data[11] >> 1) & 0x7f) << 30)
+						& 0x0000001fc0000000;
+					InputCounter |=
+						((uint64_t)PES_private_data[12] << 22)
+						& 0x000000003fc00000;
+					InputCounter |=
+						((uint64_t)((PES_private_data[13] >> 1) & 0x7f) << 15)
+						& 0x00000000003f8000;
+					InputCounter |=
+						((uint64_t)PES_private_data[14] << 7)
+						& 0x0000000000007f80;
+					InputCounter |=
+						((uint64_t)((PES_private_data[15] >> 1) & 0x7f))
+						& 0x000000000000007f;
+
+					/* reordering stream counter */
+					StreamCounter =
+						(StreamCounter & 0xff000000) >> 24 |
+						(StreamCounter & 0x00ff0000) >> 8 |
+						(StreamCounter & 0x0000ff00) << 8 |
+						(StreamCounter & 0x000000ff) << 24;
+
+					/* reordering input counter */
+					InputCounter =
+						(InputCounter & 0xff00000000000000) >> 56 |
+						(InputCounter & 0x00ff000000000000) >> 40 |
+						(InputCounter & 0x0000ff0000000000) >> 24 |
+						(InputCounter & 0x000000ff00000000) >> 8 |
+						(InputCounter & 0x00000000ff000000) << 8 |
+						(InputCounter & 0x0000000000ff0000) << 24 |
+						(InputCounter & 0x000000000000ff00) << 40 |
+						(InputCounter & 0x00000000000000ff) << 56;
+
+					PES_private_data[0] = 0x00;
+					PES_private_data[1] = (((StreamCounter >> 30) & 3) << 1) | 1;
+					PES_private_data[2] = (StreamCounter >> 22) & 0xff;
+					PES_private_data[3] = (((StreamCounter >> 15) & 0x7f) << 1) | 1;
+					PES_private_data[4] = (StreamCounter >> 7) & 0xff;
+					PES_private_data[5] = ((StreamCounter & 0x7f) << 1) | 1;
+					PES_private_data[6] = 0x00;
+					PES_private_data[7] = (((InputCounter >> 60) & 0x0f) << 1) | 1;
+					PES_private_data[8] = (InputCounter >> 52) & 0xff;
+					PES_private_data[9] = (((InputCounter >> 45) & 0x7f) << 1) | 1;
+					PES_private_data[10] = (InputCounter >> 37) & 0xff;
+					PES_private_data[11] = (((InputCounter >> 30) & 0x7f) << 1) | 1;
+					PES_private_data[12] = (InputCounter >> 22) & 0xff;
+					PES_private_data[13] = (((InputCounter >> 15) & 0x7f) << 1) | 1;
+					PES_private_data[14] = (InputCounter >> 7) & 0xff;
+					PES_private_data[15] = ((InputCounter & 0x7f) << 1) | 1;
+
+					memcpy(ptr, PES_private_data, sizeof(PES_private_data));
+				}
+			}
+			break;
+		}
+		remain_ts_packet -= 1;
+	}
+}
+
 static bool tsmux_ioctl_otf_dq_buf(struct tsmux_context *ctx)
 {
 	unsigned long wait_time = 0;
@@ -982,6 +1170,15 @@ static bool tsmux_ioctl_otf_dq_buf(struct tsmux_context *ctx)
 		ctx->otf_cmd_queue.cur_buf_num = index;
 		ctx->otf_outbuf_info[index].buf_state = BUF_DQ;
 		print_tsmux(TSMUX_OTF, "dq buf index: %d\n", index);
+
+		if (tsmux_dev->hw_version < ORDERING_FIXED_VERSION &&
+				ctx->otf_cmd_queue.config.hex_ctrl.otf_enable) {
+			print_tsmux(TSMUX_OTF, "reordering pes private data, hw_version: 0x%.8x\n",
+					tsmux_dev->hw_version);
+			reordering_pes_private_data(
+					(char *)ctx->otf_outbuf_info[index].vaddr,
+					psi_en);
+		}
 
 		spin_unlock_irqrestore(&tsmux_dev->device_spinlock, flags);
 	} else {
@@ -1067,6 +1264,11 @@ static bool tsmux_ioctl_otf_map_buf(struct tsmux_context *ctx)
 			print_tsmux(TSMUX_OTF, "ion_iovmm_map() ret dma_addr_t 0x%llx\n",
 					out_buf_info->dma_addr);
 
+			out_buf_info->vaddr =
+				dma_buf_vmap(out_buf_info->dmabuf);
+			print_tsmux(TSMUX_OTF, "dma_buf_vmap(%p) ret vaddr %p\n",
+					out_buf_info->dmabuf, out_buf_info->vaddr);
+
 			out_buf_info->buf_state = BUF_FREE;
 		}
 	}
@@ -1089,6 +1291,15 @@ int tsmux_ioctl_otf_unmap_buf(struct tsmux_context *ctx)
 	print_tsmux(TSMUX_OTF, "unmap otf out_buf\n");
 	for (i = 0; i < TSMUX_OUT_BUF_CNT; i++) {
 		out_buf_info = &ctx->otf_outbuf_info[i];
+
+		if (out_buf_info->vaddr) {
+			print_tsmux(TSMUX_OTF, "dma_buf_vunmap(%p, %p)\n",
+					out_buf_info->dmabuf,
+					out_buf_info->vaddr);
+			dma_buf_vunmap(out_buf_info->dmabuf,
+					out_buf_info->vaddr);
+			out_buf_info->vaddr = 0;
+		}
 
 		if (out_buf_info->dma_addr) {
 			print_tsmux(TSMUX_OTF, "ion_iovmm_unmmap(%p, 0x%llx)\n",
@@ -1441,6 +1652,8 @@ static int tsmux_probe(struct platform_device *pdev)
 		goto err_misc_register;
 
 	platform_set_drvdata(pdev, tsmux_dev);
+
+	tsmux_dev->hw_version = tsmux_get_hw_version(tsmux_dev);
 
 	print_tsmux(TSMUX_COMMON, "%s--\n", __func__);
 
