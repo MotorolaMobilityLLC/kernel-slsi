@@ -107,6 +107,9 @@
 #define CMD_TESTFORCEHANG "SLSI_TEST_FORCE_HANG"
 #define CMD_GETREGULATORY "GETREGULATORY"
 
+#define CMD_SET_TX_POWER_SAR "SET_TX_POWER_SAR"
+#define CMD_GET_TX_POWER_SAR "GET_TX_POWER_SAR"
+
 #define ROAMOFFLAPLIST_MIN 1
 #define ROAMOFFLAPLIST_MAX 100
 
@@ -1749,13 +1752,60 @@ int slsi_set_tx_power_calling(struct net_device *dev, char *command, int buf_len
 		host_state = host_state | FAPI_HOSTSTATE_SAR_ACTIVE;
 	else
 		host_state = host_state & ~FAPI_HOSTSTATE_SAR_ACTIVE;
-	sdev->device_config.host_state = host_state;
 
 	error = slsi_mlme_set_host_state(sdev, dev, host_state);
+	if (!error)
+		sdev->device_config.host_state = host_state;
 
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 
 	return error;
+}
+
+int slsi_set_tx_power_sar(struct net_device *dev, char *command, int buf_len)
+{
+	struct netdev_vif    *ndev_vif = netdev_priv(dev);
+	struct slsi_dev      *sdev = ndev_vif->sdev;
+	int                  mode;
+	int                  error = 0;
+	u8                   host_state;
+
+	(void)slsi_str_to_int(command, &mode);
+	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
+	host_state = sdev->device_config.host_state;
+	host_state &= ~(FAPI_HOSTSTATE_SAR_ACTIVE | BIT(3) | BIT(4));
+
+	if (mode)
+		host_state |= ((mode - 1) << 3) | FAPI_HOSTSTATE_SAR_ACTIVE;
+
+	error = slsi_mlme_set_host_state(sdev, dev, host_state);
+	if (!error)
+		sdev->device_config.host_state = host_state;
+
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+
+	return error;
+}
+
+int slsi_get_tx_power_sar(struct net_device *dev, char *command, int buf_len)
+{
+	struct netdev_vif        *ndev_vif = netdev_priv(dev);
+	struct slsi_dev      *sdev = ndev_vif->sdev;
+	int len = 0;
+	u8                   host_state, index;
+
+	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
+	host_state = sdev->device_config.host_state;
+
+	if (host_state & FAPI_HOSTSTATE_SAR_ACTIVE)
+		index = ((host_state >> 3) & 3) + 1;
+	else
+		index = 0;
+
+	len = snprintf(command, buf_len, "%u", index);
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+
+	return len;
 }
 
 static int slsi_print_regulatory(struct slsi_802_11d_reg_domain *domain_info, char *buf, int buf_len, struct slsi_supported_channels *supported_channels, int supp_chan_length)
@@ -2359,6 +2409,11 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	} else if (strncasecmp(command, CMD_SET_TX_POWER_CALLING, strlen(CMD_SET_TX_POWER_CALLING)) == 0) {
 		ret = slsi_set_tx_power_calling(dev, command + strlen(CMD_SET_TX_POWER_CALLING) + 1,
 						priv_cmd.total_len - (strlen(CMD_SET_TX_POWER_CALLING) + 1));
+	} else if (strncasecmp(command, CMD_SET_TX_POWER_SAR, strlen(CMD_SET_TX_POWER_SAR)) == 0) {
+		ret = slsi_set_tx_power_sar(dev, command + strlen(CMD_SET_TX_POWER_SAR) + 1,
+					    priv_cmd.total_len - (strlen(CMD_SET_TX_POWER_SAR) + 1));
+	} else if (strncasecmp(command, CMD_GET_TX_POWER_SAR, strlen(CMD_GET_TX_POWER_SAR)) == 0) {
+		ret = slsi_get_tx_power_sar(dev, command, priv_cmd.total_len);
 	} else if (strncasecmp(command, CMD_GETREGULATORY, strlen(CMD_GETREGULATORY)) == 0) {
 		ret = slsi_get_regulatory(dev, command, priv_cmd.total_len);
 #ifdef CONFIG_SCSC_WLAN_HANG_TEST
