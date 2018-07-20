@@ -2151,7 +2151,7 @@ int fimc_is_itf_grp_shot(struct fimc_is_device_ischain *device,
 
 #ifdef CONFIG_USE_SENSOR_GROUP
 
-#ifdef ENABLE_REMOSAIC_CAPTURE
+#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
 	if (!test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state)
 		&& (frame->shot->ctl.aa.sceneMode == AA_SCENE_MODE_REMOSAIC))
 		is_remosaic_preview = true;

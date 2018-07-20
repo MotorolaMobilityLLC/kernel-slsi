@@ -461,7 +461,7 @@ struct fimc_is_device_sensor {
 	u32					cal_status[CAMERA_CRC_INDEX_MAX];
 	u8					otp_cal_buf[SENSOR_OTP_PAGE][SENSOR_OTP_PAGE_SIZE];
 
-#ifdef ENABLE_REMOSAIC_CAPTURE
+#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
 	struct fimc_is_frame				*mode_chg_frame;
 #endif
 };
