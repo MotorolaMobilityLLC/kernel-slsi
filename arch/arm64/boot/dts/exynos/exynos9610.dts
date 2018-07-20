@@ -2768,7 +2768,7 @@
 			samsung,offset = <0x502000>;
 		};
 		ext_bin_1: ext_bin@1 {
-			status = "disabled";
+			status = "okay";
 			samsung,name = "AP_AUDIO_SLSI.bin";
 			samsung,area = <1>;
 			samsung,offset = <0x7F0000>;
