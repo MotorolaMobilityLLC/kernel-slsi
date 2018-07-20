@@ -159,4 +159,14 @@ config USI_V2
 	bool "Enable Universal Serial Interface version 2"
 	default y
 
+config EXYNOS_SMC_LOG_THRESHOLD
+	int "threshold of detection(microsecond)"
+	range 0 1000000
+	default 0
+
+config DEBUG_SNAPSHOT_LOGGING_SMC
+	bool "Exynos Logging SMC"
+	depends on DEBUG_SNAPSHOT
+	default y
+
 endif
