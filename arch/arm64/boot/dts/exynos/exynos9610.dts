@@ -2743,7 +2743,7 @@
 			abox = <&abox>;
 		};
 
-		abox_debug: abox_debug@0 {
+		abox_debug: abox-debug@0 {
 			compatible = "samsung,abox-debug";
 			memory-region = <&abox_rmem>;
 			reg = <0x0 0x0 0x0>;
