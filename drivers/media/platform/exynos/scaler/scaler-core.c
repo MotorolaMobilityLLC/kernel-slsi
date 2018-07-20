@@ -584,7 +584,7 @@ static const struct sc_variant sc_variant[] = {
 	},
 };
 
-#if defined(CONFIG_PM_DEVFREQ) && defined(CONFIG_NEVER_DEFINED_FIXME)
+#if defined(CONFIG_PM_DEVFREQ)
 static void sc_pm_qos_update_devfreq(struct sc_qos_request *qos_req,
 				int pm_qos_class, u32 freq)
 {
@@ -3809,7 +3809,7 @@ static int sc_probe(struct platform_device *pdev)
 		goto err_m2m;
 	}
 
-#if defined(CONFIG_PM_DEVFREQ) && defined(CONFIG_NEVER_DEFINED_FIX_ME)
+#if defined(CONFIG_PM_DEVFREQ)
 	if (!of_property_read_u32(pdev->dev.of_node, "mscl,int_qos_minlock",
 				(u32 *)&sc->qosreq_int_level)) {
 		if (sc->qosreq_int_level > 0) {
