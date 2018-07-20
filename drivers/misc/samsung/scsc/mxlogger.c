@@ -25,6 +25,16 @@
 
 static bool mxlogger_forced_disabled = true;
 
+static void update_fake_observer(void)
+{
+	SCSC_TAG_INFO(MXMAN, "MXLOGGER will now be %sABLED.\n",
+			mxlogger_forced_disabled ? "DIS" : "EN");
+	if (mxlogger_forced_disabled)
+		mxlogger_register_global_observer("FAKE_OBSERVER");
+	else
+		mxlogger_unregister_global_observer("FAKE_OBSERVER");
+}
+
 static int force_disable_mxlogger_set_param_cb(const char *val,
 					       const struct kernel_param *kp)
 {
@@ -35,15 +45,8 @@ static int force_disable_mxlogger_set_param_cb(const char *val,
 
 	if (mxlogger_forced_disabled ^ nval) {
 		mxlogger_forced_disabled = nval;
-
-		SCSC_TAG_INFO(MXMAN, "MXLOGGER will now be %sABLED.\n",
-			      mxlogger_forced_disabled ? "FORCIBLY DIS" : "RE-EN");
-		if (mxlogger_forced_disabled)
-			mxlogger_register_global_observer("FAKE_OBSERVER");
-		else
-			mxlogger_unregister_global_observer("FAKE_OBSERVER");
+		update_fake_observer();
 	}
-
 	return 0;
 }
 
@@ -580,6 +583,12 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 		return -ENOMEM;
 	}
 
+	/**
+	 * Update observers status considering
+	 * current value of mxlogger_forced_disabled
+	 */
+	update_fake_observer();
+
 	mutex_lock(&global_lock);
 	mxlogger->observers = active_global_observers;
 	if (mxlogger->observers)
@@ -641,13 +650,30 @@ int mxlogger_start(struct mxlogger *mxlogger)
 		return -ENOMEM;
 	}
 
-	/* Enabling before switching direction to avoid msg lost */
-	mxlogger_enable(mxlogger, true);
-
-	if (mxlogger->observers == 0)
+	/**
+	 * MXLOGGER on FW-side is at this point starting up too during
+	 * WLBT chip boot and it cannot make any assumption till about
+	 * the current number of observers and direction set: so, during
+	 * MXLOGGER FW-side initialization, ZERO observers were registered.
+	 *
+	 * As a consequence on chip-boot FW-MXLOGGER defaults to:
+	 *  - direction DRAM
+	 *  - all rings disabled (ingressing messages discarded)
+	 */
+	if (!mxlogger->observers) {
+		/* Enabling BEFORE communicating direction DRAM
+		 * to avoid losing messages on rings.
+		 */
+		mxlogger_enable(mxlogger, true);
 		mxlogger_to_shared_dram(mxlogger);
-	else
+	} else {
 		mxlogger_to_host(mxlogger);
+		/* Enabling AFTER communicating direction HOST
+		 * to avoid wrongly spilling messages into the
+		 * rings early at start (like at boot).
+		 */
+		mxlogger_enable(mxlogger, true);
+	}
 
 	SCSC_TAG_INFO(MXMAN, "MXLOGGER Configured.\n");
 	mutex_unlock(&mxlogger->lock);
