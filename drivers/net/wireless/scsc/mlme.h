@@ -28,10 +28,6 @@ enum slsi_ac_index_wmm_pe {
 #define SLSI_WLAN_OUI_TYPE_WFA_HS20_IND 0x10
 #define SLSI_WLAN_OUI_TYPE_WFA_OSEN 0x12
 
-/*RSN capabilities bytes*/
-#define SLSI_WLAN_RSN_CAP_AMSDU  BIT(2)
-#define SLSI_WLAN_RSN_CAP_EXTENDED_ID_MASK  BIT(5)
-
 /*Extended capabilities bytes*/
 #define SLSI_WLAN_EXT_CAPA2_BSS_TRANSISITION_ENABLED  (1 << 3)
 #define SLSI_WLAN_EXT_CAPA3_INTERWORKING_ENABLED        (1 << 7)

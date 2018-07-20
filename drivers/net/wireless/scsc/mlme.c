@@ -1623,7 +1623,6 @@ int slsi_modify_ies(struct net_device *dev, u8 eid, u8 *ies, int ies_len, u8 ie_
 			break;
 		case WLAN_EID_DS_PARAMS:
 		case WLAN_EID_HT_OPERATION:
-		case WLAN_EID_RSN:
 			if (ie_index == 2)
 				ie[ie_index] = ie_value;
 			else
@@ -1643,7 +1642,7 @@ static void slsi_mlme_start_prepare_ies(struct sk_buff *req, struct netdev_vif *
 {
 	const u8 *wps_ie, *vht_capab_ie, *tail_pos = NULL, *ext_capab_ie;
 	size_t   beacon_ie_len = 0, tail_length = 0;
-	u8       *country_ie, *rsn_ie;
+	u8       *country_ie;
 	const u8 *beacon_tail = settings->beacon.tail;
 	size_t   beacon_tail_len = settings->beacon.tail_len;
 
@@ -1674,24 +1673,7 @@ static void slsi_mlme_start_prepare_ies(struct sk_buff *req, struct netdev_vif *
 			beacon_tail_len -= (country_ie[1] + 2);
 		}
 	}
-	rsn_ie = (u8 *)cfg80211_find_ie(WLAN_EID_RSN, beacon_tail, beacon_tail_len);
-	if (rsn_ie) {
-		u8 rsn_capab = SLSI_WLAN_RSN_CAP_AMSDU | SLSI_WLAN_RSN_CAP_EXTENDED_ID_MASK;
-		 /* 9=1(length)+2(version)+4(Group data cipher suite)+
-		  * 2(Pairwise cipher suite count)
-		  */
-		int rsn_capab_idx = 9, akm_count;
-		int pcs_count = rsn_ie[9] << 8 | rsn_ie[8];
 
-		/* Added bytes for Pairwise cipher suite list*/
-		rsn_capab_idx = 9 + 4 * pcs_count;
-		akm_count = rsn_ie[rsn_capab_idx + 2] << 8 | rsn_ie[rsn_capab_idx + 1];
-		/*Added bytes for AKM suite count and list*/
-		rsn_capab_idx = rsn_capab_idx + 2 + 4 * akm_count + 1;
-
-		slsi_modify_ies(ndev_vif->wdev.netdev, WLAN_EID_RSN, (u8 *)settings->beacon.tail,
-				settings->beacon.tail_len, rsn_capab_idx + 1, rsn_capab);
-	}
 	/* Modify HT IE based on OBSS scan data */
 	if (ndev_vif->ap.non_ht_bss_present) {
 		u8 op_mode = 1;
