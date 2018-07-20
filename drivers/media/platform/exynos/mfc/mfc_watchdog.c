@@ -176,10 +176,11 @@ static void __mfc_dump_state(struct mfc_dev *dev)
 			dev->shutdown, dev->sleep, dev->itmon_notified);
 	pr_err("options debug_level:%d, debug_mode:%d, mmcache:%d, perf_boost:%d\n",
 			debug_level, dev->pdata->debug_mode, dev->mmcache.is_on_status, perf_boost_mode);
-	pr_err("NAL-Q state:%d, exception:%d, in_exe_cnt: %d, out_exe_cnt: %d\n",
-			nal_q_handle->nal_q_state, nal_q_handle->nal_q_exception,
-			nal_q_handle->nal_q_in_handle->in_exe_count,
-			nal_q_handle->nal_q_out_handle->out_exe_count);
+	if (nal_q_handle)
+		pr_err("NAL-Q state:%d, exception:%d, in_exe_cnt: %d, out_exe_cnt: %d\n",
+				nal_q_handle->nal_q_state, nal_q_handle->nal_q_exception,
+				nal_q_handle->nal_q_in_handle->in_exe_count,
+				nal_q_handle->nal_q_out_handle->out_exe_count);
 
 	curr_ctx = __mfc_get_curr_ctx(dev);
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++)
