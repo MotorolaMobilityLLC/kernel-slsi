@@ -3814,6 +3814,43 @@ void fimc_is_scaler_set_cac_map_crt_thr(void __iomem *base_addr, struct cac_cfg_
 	/* not supported */
 }
 
+/* for UVSP */
+void fimc_is_scaler_set_uvsp_enable(void __iomem *base_addr, u32 hw_id, u32 en)
+{
+	/* not supported */
+}
+
+void fimc_is_scaler_set_uvsp_radial_ctrl(void __iomem *base_addr, u32 hw_id, struct uvsp_ctrl *cfg)
+{
+	/* not supported */
+}
+
+void fimc_is_scaler_set_uvsp_radial_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_radial_cfg *cfg)
+{
+	/* not supported */
+}
+
+void fimc_is_scaler_set_uvsp_pedestal_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_pedestal_cfg *cfg)
+{
+	/* not supported */
+}
+
+void fimc_is_scaler_set_uvsp_offset_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_offset_cfg *cfg)
+{
+	/* not supported */
+}
+
+void fimc_is_scaler_set_uvsp_desat_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_desat_cfg *cfg)
+{
+	/* not supported */
+}
+
+void fimc_is_scaler_set_uvsp_r2y_coef_cfg(void __iomem *base_addr, u32 hw_id, struct uvsp_r2y_coef_cfg *cfg)
+{
+	/* not supported */
+}
+
+
 /* DS */
 void fimc_is_scaler_set_ds_enable(void __iomem *base_addr, u32 ds_enable)
 {
