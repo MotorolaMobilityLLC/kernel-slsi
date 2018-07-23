@@ -223,6 +223,9 @@ static int s2mpb02_led_setup(struct s2mpb02_led_data *led_data)
 	ret |= s2mpb02_update_reg(led_data->i2c, S2MPB02_REG_FLED_CTRL1,
 		S2MPB02_FLED_CTRL1_LV_DISABLE, S2MPB02_FLED_CTRL1_LV_EN_MASK);
 
+	/* temp : set fault shutdown control disable */
+	ret |= s2mpb02_update_reg(led_data->i2c, S2MPB02_REG_FLED_CTRL1, 0x0, 0x20);
+
 	/* set current & timeout */
 	ret |= s2mpb02_update_reg(led_data->i2c, S2MPB02_REG_FLED_CUR1,
 		data->brightness << leds_shift[id], leds_mask[id]);
