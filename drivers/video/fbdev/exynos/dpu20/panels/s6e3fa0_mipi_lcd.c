@@ -32,6 +32,18 @@
 unsigned char set_brightness[2] = {0x51, 0x7F};
 int backlightlevel_log;
 
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+struct panel_device {
+	struct device *dev;
+	struct dsim_device *dsim;
+	struct mutex lock;
+	int cabc_mode;
+};
+
+struct panel_device *panel_drvdata;
+struct class *panel_class;
+#endif
+
 static int s6e3fa0_get_brightness(struct backlight_device *bd)
 {
 	return bd->props.brightness;
@@ -208,8 +220,121 @@ static const struct backlight_ops s6e3fa0_backlight_ops = {
 	.update_status = s6e3fa0_set_brightness,
 };
 
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+static int s6e3fa0_cabc_mode(struct dsim_device *dsim, int mode)
+{
+	int ret = 0;
+	int count;
+	unsigned char buf[] = {0x0, 0x0};
+	unsigned char SEQ_CABC_CMD[] = {0x55, 0x00, 0x00};
+	unsigned char cmd = MIPI_DCS_WRITE_POWER_SAVE; /* 0x55 */
+
+	dsim_dbg("%s: CABC mode[%d] write/read\n", __func__, mode);
+
+	switch (mode) {
+	/* read */
+	case CABC_READ_MODE:
+		cmd = MIPI_DCS_GET_POWER_SAVE; /* 0x56 */
+		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ, cmd, 0x1, buf);
+		if (ret < 0) {
+			pr_err("CABC REG(0x%02X) read failure!\n", cmd);
+			count = 0;
+		} else {
+			pr_info("CABC REG(0x%02X) read success: 0x%02x\n",
+				cmd, *(unsigned int *)buf & 0xFF);
+			count = 1;
+		}
+		return count;
+
+	/* write */
+	case POWER_SAVE_OFF:
+		SEQ_CABC_CMD[1] = CABC_OFF;
+		break;
+	case POWER_SAVE_LOW:
+		SEQ_CABC_CMD[1] = CABC_USER_IMAGE;
+		break;
+	case POWER_SAVE_MEDIUM:
+		SEQ_CABC_CMD[1] = CABC_STILL_PICTURE;
+		break;
+	case POWER_SAVE_HIGH:
+		SEQ_CABC_CMD[1] = CABC_MOVING_IMAGE;
+		break;
+	default:
+		pr_err("Unavailable CABC mode(%d)!\n", mode);
+		return -EINVAL;
+	}
+
+	ret = dsim_write_data(dsim, MIPI_DSI_DCS_LONG_WRITE,
+			(unsigned long)SEQ_CABC_CMD /*cmd*/,
+			ARRAY_SIZE(SEQ_CABC_CMD));
+	if (ret < 0) {
+		pr_err("CABC write command failure!\n");
+		count = 0;
+	} else {
+		dsim_dbg("CABC write command success!\n");
+		count = ARRAY_SIZE(SEQ_CABC_CMD);
+	}
+
+	return count;
+}
+
+static ssize_t panel_cabc_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	int ret = 0;
+	struct panel_device *panel = dev_get_drvdata(dev);
+
+	mutex_lock(&panel->lock);
+
+	ret = s6e3fa0_cabc_mode(panel->dsim, CABC_READ_MODE);
+
+	mutex_unlock(&panel->lock);
+
+	count = snprintf(buf, PAGE_SIZE, "cabc_mode = %d, ret = %d\n",
+			panel->cabc_mode, ret);
+
+	return count;
+}
+
+static ssize_t panel_cabc_mode_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned int value = 0;
+	struct panel_device *panel = dev_get_drvdata(dev);
+
+	ret = kstrtouint(buf, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&panel->lock);
+	panel->cabc_mode = value;
+	mutex_unlock(&panel->lock);
+
+	pr_info("%s: %d\n", __func__, value);
+
+	s6e3fa0_cabc_mode(panel->dsim, panel->cabc_mode);
+
+	return count;
+}
+
+static DEVICE_ATTR(cabc_mode, 0660, panel_cabc_mode_show,
+			panel_cabc_mode_store);
+
+static struct attribute *panel_attrs[] = {
+	&dev_attr_cabc_mode.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(panel);
+#endif
+
 static int s6e3fa0_probe(struct dsim_device *dsim)
 {
+	int ret = 1;
+	struct panel_device *panel;
+	static unsigned int panel_no;
+
 	dsim->bd = backlight_device_register("backlight_0", dsim->dev,
 		NULL, &s6e3fa0_backlight_ops, NULL);
 	if (IS_ERR(dsim->bd))
@@ -218,13 +343,68 @@ static int s6e3fa0_probe(struct dsim_device *dsim)
 	dsim->bd->props.max_brightness = MAX_BRIGHTNESS;
 	dsim->bd->props.brightness = DEFAULT_BRIGHTNESS;
 
-	return 1;
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+	panel = kzalloc(sizeof(struct panel_device), GFP_KERNEL);
+	if (!panel) {
+		pr_err("failed to allocate panel\n");
+		ret = -ENOMEM;
+		goto exit0;
+	}
+
+	panel_drvdata = panel;
+
+	panel->dsim = dsim;
+	panel->cabc_mode = 0;
+
+	if (IS_ERR_OR_NULL(panel_class)) {
+		panel_class = class_create(THIS_MODULE, "panel");
+		if (IS_ERR_OR_NULL(panel_class)) {
+			pr_err("failed to create panel class\n");
+			ret = -EINVAL;
+			goto exit1;
+		}
+
+		panel_class->dev_groups = panel_groups;
+	}
+
+	panel->dev = device_create(panel_class, dsim->dev, 0,
+			&panel, !panel_no ? "panel" : "panel%d", panel_no);
+	if (IS_ERR_OR_NULL(panel->dev)) {
+		pr_err("failed to create panel device\n");
+		ret = -EINVAL;
+		goto exit2;
+	}
+
+	mutex_init(&panel->lock);
+	dev_set_drvdata(panel->dev, panel);
+
+	panel_no++;
+
+	return ret;
+
+exit2:
+	class_destroy(panel_class);
+exit1:
+	kfree(panel);
+exit0:
+#endif
+	return ret;
 }
 
 static int s6e3fa0_displayon(struct dsim_device *dsim)
 {
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+	struct panel_device *panel = panel_drvdata;
+#endif
+
 	lcd_init(dsim->id, &dsim->lcd_info);
 	lcd_enable(dsim->id);
+
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
+	if (panel)
+		s6e3fa0_cabc_mode(dsim, panel->cabc_mode);
+#endif
+
 	return 1;
 }
 

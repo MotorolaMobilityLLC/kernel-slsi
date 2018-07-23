@@ -105,6 +105,13 @@ config SUPPORT_KERNEL_4_9
         depends on EXYNOS_DPU20
         default n
 
+config EXYNOS_PANEL_CABC
+	bool "Support CABC using DDI command"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  If this menu is enabled, you can control CABC mode of panel.
+
 endif
 
 source "drivers/video/fbdev/exynos/dpu20/panels/Kconfig"
