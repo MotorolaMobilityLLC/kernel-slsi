@@ -487,7 +487,7 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 	}
 
 	mxlogger->mx = mx;
-	miframman = scsc_mx_get_ramman(mx);
+	miframman = scsc_mx_get_ramman2(mx);
 	if (!miframman)
 		return -ENOMEM;
 	mxlogger->mem = miframman_alloc(miframman, mem_sz, 32);
@@ -707,7 +707,7 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	mxmgmt_transport_register_channel_handler(scsc_mx_get_mxmgmt_transport(mxlogger->mx),
 						  MMTRANS_CHAN_ID_MAXWELL_LOGGING,
 						  NULL, NULL);
-	miframman = scsc_mx_get_ramman(mx);
+	miframman = scsc_mx_get_ramman2(mx);
 	if (miframman)
 		miframman_free(miframman, mxlogger->mem);
 
