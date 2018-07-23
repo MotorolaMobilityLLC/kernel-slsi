@@ -552,8 +552,8 @@
 					};
 
 					torch {
-						torch1-gpio = "gpg3-1";
-						flash1-gpio = "gpg3-0";
+						torch1-gpio = <&gpg3 1 0x1>;
+						flash1-gpio = <&gpg3 0 0x1>;
 
 						status = "okay";
 
