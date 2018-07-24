@@ -371,8 +371,8 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 				FIMC_BUG(1);
 			}
 
-			param_set->output_kva_me[i] = frame->shot->uctl.scalerUd.mexcTargetAddress[i];
-			if (frame->shot->uctl.scalerUd.mexcTargetAddress[i] == 0) {
+			param_set->output_kva_me[i] = frame->mexcTargetAddress[i];
+			if (frame->mexcTargetAddress[i] == 0) {
 				msdbg_hw(2, "[F:%d]mexcTargetAddress[%d] is zero",
 					frame->instance, hw_ip, frame->fcount, i);
 			}
@@ -385,8 +385,8 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 
 	if (param_set->dma_output_before_bds.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->planes; i++) {
-			param_set->output_dva_before_bds[i] = frame->shot->uctl.scalerUd.txcTargetAddress[i];
-			if (frame->shot->uctl.scalerUd.txcTargetAddress[i] == 0) {
+			param_set->output_dva_before_bds[i] = frame->txcTargetAddress[i];
+			if (frame->txcTargetAddress[i] == 0) {
 				msinfo_hw("[F:%d]txcTargetAddress[%d] is zero\n",
 					frame->instance, hw_ip, frame->fcount, i);
 				param_set->dma_output_before_bds.cmd = DMA_OUTPUT_COMMAND_DISABLE;
@@ -397,15 +397,15 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	if (param_set->dma_output_after_bds.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->planes; i++) {
 #if defined(SOC_3AAISP)
-			param_set->output_dva_after_bds[i] = frame->shot->uctl.scalerUd.txcTargetAddress[i];
-			if (frame->shot->uctl.scalerUd.txcTargetAddress[i] == 0) {
+			param_set->output_dva_after_bds[i] = frame->txcTargetAddress[i];
+			if (frame->txcTargetAddress[i] == 0) {
 				msinfo_hw("[F:%d]txcTargetAddress[%d] is zero\n",
 					frame->instance, hw_ip, frame->fcount, i);
 				param_set->dma_output_after_bds.cmd = DMA_OUTPUT_COMMAND_DISABLE;
 			}
 #else
-			param_set->output_dva_after_bds[i] = frame->shot->uctl.scalerUd.txpTargetAddress[i];
-			if (frame->shot->uctl.scalerUd.txpTargetAddress[i] == 0) {
+			param_set->output_dva_after_bds[i] = frame->txpTargetAddress[i];
+			if (frame->txpTargetAddress[i] == 0) {
 				msinfo_hw("[F:%d]txpTargetAddress[%d] is zero\n",
 					frame->instance, hw_ip, frame->fcount, i);
 				param_set->dma_output_after_bds.cmd = DMA_OUTPUT_COMMAND_DISABLE;
@@ -418,8 +418,8 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 
 	if (param_set->dma_output_efd.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
 		for (i = 0; i < param->efd_output.plane; i++) {
-			param_set->output_dva_efd[i] = frame->shot->uctl.scalerUd.efdTargetAddress[i];
-			if (frame->shot->uctl.scalerUd.efdTargetAddress[i] == 0) {
+			param_set->output_dva_efd[i] = frame->efdTargetAddress[i];
+			if (frame->efdTargetAddress[i] == 0) {
 				msinfo_hw("[F:%d]efdTargetAddress[%d] is zero\n",
 					frame->instance, hw_ip, frame->fcount, i);
 				param_set->dma_output_efd.cmd = DMA_OUTPUT_COMMAND_DISABLE;
@@ -429,8 +429,8 @@ static int fimc_is_hw_3aa_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 
 	if (param_set->dma_output_mrg.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->planes; i++) {
-			param_set->output_dva_mrg[i] = frame->shot->uctl.scalerUd.mrgTargetAddress[i];
-			if (frame->shot->uctl.scalerUd.mrgTargetAddress[i] == 0) {
+			param_set->output_dva_mrg[i] = frame->mrgTargetAddress[i];
+			if (frame->mrgTargetAddress[i] == 0) {
 				msinfo_hw("[F:%d]mrgTargetAddress[%d] is zero\n",
 					frame->instance, hw_ip, frame->fcount, i);
 				param_set->dma_output_mrg.cmd = DMA_OUTPUT_COMMAND_DISABLE;

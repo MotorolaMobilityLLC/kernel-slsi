@@ -529,10 +529,26 @@ static inline void fimc_is_hardware_fill_frame_info(u32 instance,
 	hw_frame->out_flag      = GET_OUT_FLAG_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN, frame->out_flag);
 	hw_frame->core_flag	= 0;
 	atomic_set(&hw_frame->shot_done_flag, 1);
-	for (i = 0; i < FIMC_IS_MAX_PLANES; i++) {
-		hw_frame->dvaddr_buffer[i] = frame->dvaddr_buffer[i];
-		hw_frame->kvaddr_buffer[i] = frame->kvaddr_buffer[i];
-	}
+
+	memcpy(hw_frame->dvaddr_buffer, frame->dvaddr_buffer, sizeof(frame->dvaddr_buffer));
+	memcpy(hw_frame->kvaddr_buffer, frame->kvaddr_buffer, sizeof(frame->kvaddr_buffer));
+	memcpy(hw_frame->txcTargetAddress, frame->txcTargetAddress, sizeof(frame->txcTargetAddress));
+	memcpy(hw_frame->txpTargetAddress, frame->txpTargetAddress, sizeof(frame->txpTargetAddress));
+	memcpy(hw_frame->mrgTargetAddress, frame->mrgTargetAddress, sizeof(frame->mrgTargetAddress));
+	memcpy(hw_frame->efdTargetAddress, frame->efdTargetAddress, sizeof(frame->efdTargetAddress));
+	memcpy(hw_frame->ixcTargetAddress, frame->ixcTargetAddress, sizeof(frame->ixcTargetAddress));
+	memcpy(hw_frame->ixpTargetAddress, frame->ixpTargetAddress, sizeof(frame->ixpTargetAddress));
+	memcpy(hw_frame->mexcTargetAddress, frame->mexcTargetAddress, sizeof(frame->mexcTargetAddress));
+	memcpy(hw_frame->sccTargetAddress, frame->sccTargetAddress, sizeof(frame->sccTargetAddress));
+	memcpy(hw_frame->scpTargetAddress, frame->scpTargetAddress, sizeof(frame->scpTargetAddress));
+	memcpy(hw_frame->sc0TargetAddress, frame->sc0TargetAddress, sizeof(frame->sc0TargetAddress));
+	memcpy(hw_frame->sc1TargetAddress, frame->sc1TargetAddress, sizeof(frame->sc1TargetAddress));
+	memcpy(hw_frame->sc2TargetAddress, frame->sc2TargetAddress, sizeof(frame->sc2TargetAddress));
+	memcpy(hw_frame->sc3TargetAddress, frame->sc3TargetAddress, sizeof(frame->sc3TargetAddress));
+	memcpy(hw_frame->sc4TargetAddress, frame->sc4TargetAddress, sizeof(frame->sc4TargetAddress));
+	memcpy(hw_frame->sc5TargetAddress, frame->sc5TargetAddress, sizeof(frame->sc5TargetAddress));
+	memcpy(hw_frame->dxcTargetAddress, frame->dxcTargetAddress, sizeof(frame->dxcTargetAddress));
+
 	hw_frame->instance = instance;
 }
 

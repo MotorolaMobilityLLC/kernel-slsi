@@ -588,26 +588,26 @@ static u32 *hw_mcsc_get_target_addr(u32 out_id, struct fimc_is_frame *frame)
 
 	switch (out_id) {
 	case MCSC_OUTPUT0:
-		addr = frame->shot->uctl.scalerUd.sc0TargetAddress;
+		addr = frame->sc0TargetAddress;
 		break;
 	case MCSC_OUTPUT1:
-		addr = frame->shot->uctl.scalerUd.sc1TargetAddress;
+		addr = frame->sc1TargetAddress;
 		break;
 	case MCSC_OUTPUT2:
-		addr = frame->shot->uctl.scalerUd.sc2TargetAddress;
+		addr = frame->sc2TargetAddress;
 		break;
 	case MCSC_OUTPUT3:
-		addr = frame->shot->uctl.scalerUd.sc3TargetAddress;
+		addr = frame->sc3TargetAddress;
 		break;
 	case MCSC_OUTPUT4:
-		addr = frame->shot->uctl.scalerUd.sc4TargetAddress;
+		addr = frame->sc4TargetAddress;
 		break;
 	case MCSC_OUTPUT5:
-		addr = frame->shot->uctl.scalerUd.sc5TargetAddress;
+		addr = frame->sc5TargetAddress;
 		break;
 	default:
 		err_hw("[F:%d] invalid output id(%d)\n", frame->fcount, out_id);
-		addr = frame->shot->uctl.scalerUd.sc0TargetAddress;
+		addr = frame->sc0TargetAddress;
 		break;
 	}
 

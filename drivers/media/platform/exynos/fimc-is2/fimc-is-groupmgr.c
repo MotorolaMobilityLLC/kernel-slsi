@@ -2511,15 +2511,6 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 				}
 		}
 
-		/* orientation is set by user */
-		orientation = frame->shot->uctl.scalerUd.orientation;
-		for (i = 0; i < INTERFACE_TYPE_MAX; i++)
-			backup_mcsc_blk_port[i] = frame->shot->uctl.scalerUd.mcsc_sub_blk_port[i];
-		memset(&frame->shot->uctl.scalerUd, 0, sizeof(struct camera2_scaler_uctl));
-		frame->shot->uctl.scalerUd.orientation = orientation;
-		for (i = 0; i < INTERFACE_TYPE_MAX; i++)
-			frame->shot->uctl.scalerUd.mcsc_sub_blk_port[i] = backup_mcsc_blk_port[i];
-
 		frame->lindex = 0;
 		frame->hindex = 0;
 		frame->result = 0;

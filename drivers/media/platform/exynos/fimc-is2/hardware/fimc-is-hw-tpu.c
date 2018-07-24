@@ -327,8 +327,8 @@ static int fimc_is_hw_tpu_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 
 	if (param_set->dma_output.cmd != DMA_OUTPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->num_buffers; i++) {
-			param_set->output_dva[i] = frame->shot->uctl.scalerUd.dxcTargetAddress[frame->cur_buf_index + i];
-			if (frame->shot->uctl.scalerUd.dxcTargetAddress[i] == 0) {
+			param_set->output_dva[i] = frame->dxcTargetAddress[frame->cur_buf_index + i];
+			if (frame->dxcTargetAddress[i] == 0) {
 				msinfo_hw("[F:%d]dxcTargetAddress[%d] is zero",
 					frame->instance, hw_ip, frame->fcount, i);
 				param_set->dma_output.cmd = DMA_OUTPUT_COMMAND_DISABLE;

@@ -208,6 +208,29 @@ struct fimc_is_frame {
 	u32			dvaddr_buffer[FIMC_IS_MAX_PLANES];
 	ulong 		kvaddr_buffer[FIMC_IS_MAX_PLANES];
 
+	/*
+	 * target address for capture node
+	 * [0] invalid address, stop
+	 * [others] valid address
+	 */
+	u32 sourceAddress[FIMC_IS_MAX_PLANES]; /* DC1S: DCP slave input DMA */
+	u32 txcTargetAddress[FIMC_IS_MAX_PLANES]; /* 3AA capture DMA */
+	u32 txpTargetAddress[FIMC_IS_MAX_PLANES]; /* 3AA preview DMA */
+	u32 mrgTargetAddress[FIMC_IS_MAX_PLANES];
+	u32 efdTargetAddress[FIMC_IS_MAX_PLANES];
+	u32 ixcTargetAddress[FIMC_IS_MAX_PLANES];
+	u32 ixpTargetAddress[FIMC_IS_MAX_PLANES];
+	u64 mexcTargetAddress[FIMC_IS_MAX_PLANES]; /* ME out DMA */
+	u32 sccTargetAddress[FIMC_IS_MAX_PLANES]; /* DC0S: DCP master capture DMA */
+	u32 scpTargetAddress[FIMC_IS_MAX_PLANES]; /* DC1S: DCP slave capture DMA */
+	u32 sc0TargetAddress[FIMC_IS_MAX_PLANES];
+	u32 sc1TargetAddress[FIMC_IS_MAX_PLANES];
+	u32 sc2TargetAddress[FIMC_IS_MAX_PLANES];
+	u32 sc3TargetAddress[FIMC_IS_MAX_PLANES];
+	u32 sc4TargetAddress[FIMC_IS_MAX_PLANES];
+	u32 sc5TargetAddress[FIMC_IS_MAX_PLANES];
+	u32 dxcTargetAddress[FIMC_IS_MAX_PLANES]; /* DC2S: DCP disparity capture DMA */
+
 	/* multi-buffer use */
 	u32			num_buffers; /* total number of buffers per frame */
 	u32			cur_buf_index; /* current processed buffer index */

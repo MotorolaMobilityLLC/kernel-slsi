@@ -173,56 +173,56 @@ static int fimc_is_resume(struct device *dev)
 }
 
 #ifdef ENABLE_FAULT_HANDLER
-static void fimc_is_print_target_dva(struct camera2_shot *shot)
+static void fimc_is_print_target_dva(struct fimc_is_frame *leader_frame)
 {
 	u32 plane_index;
 
 	for (plane_index = 0; plane_index < FIMC_IS_MAX_PLANES; plane_index++) {
-		if (shot->uctl.scalerUd.sourceAddress[plane_index])
+		if (leader_frame->sourceAddress[plane_index])
 			pr_err("sourceAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sourceAddress[plane_index]);
-		if (shot->uctl.scalerUd.txcTargetAddress[plane_index])
+				plane_index, leader_frame->sourceAddress[plane_index]);
+		if (leader_frame->txcTargetAddress[plane_index])
 			pr_err("txcTargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.txcTargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.txpTargetAddress[plane_index])
+				plane_index, leader_frame->txcTargetAddress[plane_index]);
+		if (leader_frame->txpTargetAddress[plane_index])
 			pr_err("txpTargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.txpTargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.ixcTargetAddress[plane_index])
+				plane_index, leader_frame->txpTargetAddress[plane_index]);
+		if (leader_frame->ixcTargetAddress[plane_index])
 			pr_err("ixcTargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.ixcTargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.ixpTargetAddress[plane_index])
+				plane_index, leader_frame->ixcTargetAddress[plane_index]);
+		if (leader_frame->ixpTargetAddress[plane_index])
 			pr_err("ixpTargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.ixpTargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.mexcTargetAddress[plane_index])
+				plane_index, leader_frame->ixpTargetAddress[plane_index]);
+		if (leader_frame->mexcTargetAddress[plane_index])
 			pr_err("mexcTargetAddress[%d] = 0x%16LX\n",
-				plane_index, shot->uctl.scalerUd.mexcTargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.sccTargetAddress[plane_index])
+				plane_index, leader_frame->mexcTargetAddress[plane_index]);
+		if (leader_frame->sccTargetAddress[plane_index])
 			pr_err("sccTargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sccTargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.scpTargetAddress[plane_index])
+				plane_index, leader_frame->sccTargetAddress[plane_index]);
+		if (leader_frame->scpTargetAddress[plane_index])
 			pr_err("scpTargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.scpTargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.sc0TargetAddress[plane_index])
+				plane_index, leader_frame->scpTargetAddress[plane_index]);
+		if (leader_frame->sc0TargetAddress[plane_index])
 			pr_err("sc0TargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sc0TargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.sc1TargetAddress[plane_index])
+				plane_index, leader_frame->sc0TargetAddress[plane_index]);
+		if (leader_frame->sc1TargetAddress[plane_index])
 			pr_err("sc1TargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sc1TargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.sc2TargetAddress[plane_index])
+				plane_index, leader_frame->sc1TargetAddress[plane_index]);
+		if (leader_frame->sc2TargetAddress[plane_index])
 			pr_err("sc2TargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sc2TargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.sc3TargetAddress[plane_index])
+				plane_index, leader_frame->sc2TargetAddress[plane_index]);
+		if (leader_frame->sc3TargetAddress[plane_index])
 			pr_err("sc3TargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sc3TargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.sc4TargetAddress[plane_index])
+				plane_index, leader_frame->sc3TargetAddress[plane_index]);
+		if (leader_frame->sc4TargetAddress[plane_index])
 			pr_err("sc4TargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sc4TargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.sc5TargetAddress[plane_index])
+				plane_index, leader_frame->sc4TargetAddress[plane_index]);
+		if (leader_frame->sc5TargetAddress[plane_index])
 			pr_err("sc5TargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.sc5TargetAddress[plane_index]);
-		if (shot->uctl.scalerUd.dxcTargetAddress[plane_index])
+				plane_index, leader_frame->sc5TargetAddress[plane_index]);
+		if (leader_frame->dxcTargetAddress[plane_index])
 			pr_err("dxcTargetAddress[%d] = 0x%08X\n",
-				plane_index, shot->uctl.scalerUd.dxcTargetAddress[plane_index]);
+				plane_index, leader_frame->dxcTargetAddress[plane_index]);
 	}
 }
 
@@ -243,7 +243,7 @@ void fimc_is_print_frame_dva(struct fimc_is_subdev *subdev)
 
 				shot = framemgr->frames[j].shot;
 				if (shot)
-					fimc_is_print_target_dva(shot);
+					fimc_is_print_target_dva(&framemgr->frames[j]);
 			}
 		}
 	}

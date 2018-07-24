@@ -342,7 +342,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 	if (param_set->dma_input_s.cmd == DMA_INPUT_COMMAND_ENABLE) {
 		for (i = 0; i < plane; i++) {
 			param_set->input_dva[DCP_DMA_IN_GDC_SLAVE][i] =
-				frame->shot->uctl.scalerUd.sourceAddress[i];
+				frame->sourceAddress[i];
 			if (param_set->input_dva[DCP_DMA_IN_GDC_SLAVE][i] == 0) {
 				mserr_hw("[F:%d]DCP_DMA_IN_GDC_SLAVE plane[%d]dva is zero",
 					frame->instance, hw_ip, frame->fcount, i);
@@ -356,7 +356,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 	if (param_set->dma_output_m.cmd == DMA_INPUT_COMMAND_ENABLE) {
 		for (i = 0; i < plane; i++) {
 			param_set->output_dva[DCP_DMA_OUT_MASTER][i] =
-				frame->shot->uctl.scalerUd.sccTargetAddress[i];
+				frame->sccTargetAddress[i];
 			if (param_set->output_dva[DCP_DMA_OUT_MASTER][i] == 0) {
 				mserr_hw("[F:%d]DCP_DMA_OUT_MASTER plane[%d] dva is zero",
 					frame->instance, hw_ip, frame->fcount, i);
@@ -370,7 +370,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 	if (param_set->dma_output_s.cmd == DMA_INPUT_COMMAND_ENABLE) {
 		for (i = 0; i < plane; i++) {
 			param_set->output_dva[DCP_DMA_OUT_SLAVE][i] =
-				frame->shot->uctl.scalerUd.scpTargetAddress[i];
+				frame->scpTargetAddress[i];
 			if (param_set->output_dva[DCP_DMA_OUT_SLAVE][i] == 0) {
 				mserr_hw("[F:%d]DCP_DMA_OUT_SLAVE plane[%d] dva is zero",
 					frame->instance, hw_ip, frame->fcount, i);
@@ -387,7 +387,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 
 		/* disparity output: currnet data */
 		param_set->output_dva[DCP_DMA_OUT_DISPARITY][0] =
-			frame->shot->uctl.scalerUd.dxcTargetAddress[0];
+			frame->dxcTargetAddress[0];
 		if (param_set->output_dva[DCP_DMA_OUT_DISPARITY][0] == 0) {
 			mserr_hw("[F:%d]DCP_DMA_OUT_DISPARITY plane[%d] dva is zero",
 				frame->instance, hw_ip, frame->fcount, 0);
@@ -400,7 +400,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 	if (param_set->dma_output_m_ds.cmd == DMA_INPUT_COMMAND_ENABLE) {
 		for (i = 0; i < plane; i++) {
 			param_set->output_dva[DCP_DMA_OUT_MASTER_DS][i] =
-				frame->shot->uctl.scalerUd.sccTargetAddress[8 + i];
+				frame->sccTargetAddress[8 + i];
 
 			if (param_set->output_dva[DCP_DMA_OUT_MASTER_DS][i] == 0) {
 				mserr_hw("[F:%d]DCP_DMA_OUT_MASTER_DS plane[%d] dva is zero",
@@ -415,7 +415,7 @@ int fimc_is_hw_dcp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame
 	if (param_set->dma_output_s_ds.cmd == DMA_INPUT_COMMAND_ENABLE) {
 		for (i = 0; i < plane; i++) {
 			param_set->output_dva[DCP_DMA_OUT_SLAVE_DS][i] =
-				frame->shot->uctl.scalerUd.scpTargetAddress[8 + i];
+				frame->scpTargetAddress[8 + i];
 			if (param_set->output_dva[DCP_DMA_OUT_SLAVE_DS][i] == 0) {
 				mserr_hw("[F:%d]DCP_DMA_OUT_SLAVE_DS plane[%d] dva is zero",
 					frame->instance, hw_ip, frame->fcount, i);
