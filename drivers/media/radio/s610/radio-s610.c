@@ -67,13 +67,6 @@ static int fm_radio_runtime_resume(struct device *dev);
 void enable_FM_mux_clk_aud(struct s610_radio *radio);
 void disable_clk_gating(struct s610_radio *radio);
 
-static int fm_clk_get(struct s610_radio *radio);
-static int fm_clk_prepare(struct s610_radio *radio);
-static int fm_clk_enable(struct s610_radio *radio);
-static void fm_clk_unprepare(struct s610_radio *radio);
-static void fm_clk_disable(struct s610_radio *radio);
-static void fm_clk_put(struct s610_radio *radio);
-
 signed int exynos_get_fm_open_status(void);
 signed int shared_fm_open_cnt;
 
@@ -2017,24 +2010,26 @@ static int s610_radio_probe(struct platform_device *pdev)
 		ret =  -ENOMEM;
 		goto alloc_err1;
 	}
-
-	radio->dev = dev;
-	radio->pdev = pdev;
-	gradio = radio;
-
-	ret = fm_clk_get(radio);
-	if (ret)
-		goto alloc_err2;
-
-	fm_clk_prepare(radio);
-	if (ret)
-		goto alloc_err2;
-
-	fm_clk_enable(radio);
-	if (ret) {
-		fm_clk_unprepare(radio);
+	
+	clk = devm_clk_get(&pdev->dev, "qch_fm");
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "failed to get clock\n");
+		ret = PTR_ERR(clk);
 		goto alloc_err2;
 	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable clock\n");
+		goto alloc_err2;
+	}
+
+	ret = clk_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		goto alloc_err2;
+	}
+	radio->clk = clk;
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
@@ -2100,6 +2095,10 @@ static int s610_radio_probe(struct platform_device *pdev)
 	}
 	radio->irq = resource->start;
 #endif /* RDS_POLLING_ENABLE */
+
+	radio->dev = dev;
+	radio->pdev = pdev;
+	gradio = radio;
 
 #ifdef USE_FM_LNA_ENABLE
 	elna_gpio = of_get_named_gpio(dnode, "elna_gpio", 0);
@@ -2406,9 +2405,8 @@ alloc_err4:
 alloc_err3:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-
-	fm_clk_disable(radio);
-	fm_clk_unprepare(radio);
+	clk_disable(radio->clk);
+	clk_unregister(clk);
 
 alloc_err2:
 	kfree(radio->low);
@@ -2427,9 +2425,9 @@ static int s610_radio_remove(struct platform_device *pdev)
 	struct s610_radio *radio = platform_get_drvdata(pdev);
 
 	if (radio) {
-		fm_clk_disable(radio);
-		fm_clk_unprepare(radio);
-		fm_clk_put(radio);
+		clk_disable(radio->clk);
+		clk_unregister(radio->clk);
+		clk_put(radio->clk);
 
 		pm_runtime_disable(&pdev->dev);
 		pm_runtime_set_suspended(&pdev->dev);
@@ -2453,143 +2451,35 @@ static int s610_radio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int fm_clk_get(struct s610_radio *radio)
+#define AUD_PLL_RATE_HZ_BYPASS		(26000000)
+#define AUD_PLL_RATE_HZ_FOR_48000	(1179648040)
+static int fm_radio_clk_enable(struct s610_radio *radio)
 {
-	struct device *dev = radio->dev;
-	struct clk *clk;
-	int clk_count;
-	int ret, i;
+	unsigned long ret = 0;
 
-	clk_count = of_property_count_strings(dev->of_node, "clock-names");
-	if (IS_ERR_VALUE((unsigned long)clk_count)) {
-		dev_err(dev, "invalid clk list in %s node", dev->of_node->name);
-		return -EINVAL;
-	}
-
-	radio->clk_ids = (const char **)devm_kmalloc(dev,
-				(clk_count + 1) * sizeof(const char *),
-				GFP_KERNEL);
-	if (!radio->clk_ids) {
-		dev_err(dev, "failed to alloc for clock ids");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < clk_count; i++) {
-		ret = of_property_read_string_index(dev->of_node, "clock-names",
-								i, &radio->clk_ids[i]);
-		if (ret) {
-			dev_err(dev, "failed to read clocks name %d from %s node\n",
-					i, dev->of_node->name);
+	if (radio->clk) {
+		ret = clk_enable(radio->clk);
+		if (ret)
 			return ret;
-		}
-	}
-	radio->clk_ids[clk_count] = NULL;
-
-	radio->clocks = (struct clk **) devm_kmalloc(dev,
-			clk_count * sizeof(struct clk *), GFP_KERNEL);
-	if (!radio->clocks) {
-		dev_err(dev, "%s: couldn't alloc\n", __func__);
-		return -ENOMEM;
+	} else {
+		dev_err(radio->v4l2dev.dev,
+			"%s: fm radio clk_enable failed\n", __func__);
+		ret = -EIO;
 	}
 
-	for (i = 0; radio->clk_ids[i] != NULL; i++) {
-		clk = devm_clk_get(dev, radio->clk_ids[i]);
-		if (IS_ERR_OR_NULL(clk))
-			goto err;
-
-		radio->clocks[i] = clk;
-	}
-	radio->clocks[i] = NULL;
-
-	return 0;
-
-err:
-	dev_err(dev, "couldn't get %s clock\n", radio->clk_ids[i]);
-	return -EINVAL;
-}
-
-static int fm_clk_prepare(struct s610_radio *radio)
-{
-	int i;
-	int ret;
-
-	for (i = 0; radio->clocks[i] != NULL; i++) {
-		ret = clk_prepare(radio->clocks[i]);
-		if (ret)
-			goto err;
-	}
-
-	return 0;
-
-err:
-	dev_err(radio->dev, "couldn't prepare clock[%d]\n", i);
-
-	/* roll back */
-	for (i = i - 1; i >= 0; i--)
-		clk_unprepare(radio->clocks[i]);
+	dev_info(radio->dev, "FM clock: %lu\n", clk_get_rate(radio->clk));
 
 	return ret;
 }
 
-static int fm_clk_enable(struct s610_radio *radio)
+static void fm_radio_clk_disable(struct s610_radio *radio)
 {
-	int i;
-	int ret;
-
-	for (i = 0; radio->clocks[i] != NULL; i++) {
-		ret = clk_enable(radio->clocks[i]);
-		if (ret)
-			goto err;
-
-		dev_info(radio->dev, "clock %s%t: %lu\n", radio->clk_ids[i], clk_get_rate(radio->clocks[i]));
-
-		if (!strcmp(radio->clk_ids[i], "clk_aud_fm")) {
-			if (clk_get_rate(radio->clocks[i]) != 40000) {
-				ret = clk_set_rate(radio->clocks[i], 40000);
-				if (IS_ERR_VALUE((unsigned long)ret))
-					dev_info(radio->dev,
-					"setting clock clk_aud_fm to 40KHz is failed: %lu\n", ret);
-				dev_info(radio->dev, "FM clock clk_aud_fm: %lu\n",
-					clk_get_rate(radio->clocks[i]));
-			}
-		}
+	if (radio->clk) {
+		clk_disable(radio->clk);
+	} else {
+		dev_err(radio->v4l2dev.dev,
+			"%s: fm radio clk_disable failed\n", __func__);
 	}
-
-	return 0;
-
-err:
-	dev_err(radio->dev, "couldn't enable clock[%d]\n", i);
-
-	/* roll back */
-	for (i = i - 1; i >= 0; i--)
-		clk_disable(radio->clocks[i]);
-
-	return ret;
-}
-
-static void fm_clk_unprepare(struct s610_radio *radio)
-{
-	int i;
-
-	for (i = 0; radio->clocks[i] != NULL; i++)
-		clk_unprepare(radio->clocks[i]);
-}
-
-static void fm_clk_disable(struct s610_radio *radio)
-{
-	int i;
-
-	for (i = 0; radio->clocks[i] != NULL; i++)
-		clk_disable(radio->clocks[i]);
-}
-
-static void fm_clk_put(struct s610_radio *radio)
-{
-	int i;
-
-	for (i = 0; radio->clocks[i] != NULL; i++)
-		clk_put(radio->clocks[i]);
-
 }
 
 #ifdef CONFIG_PM
@@ -2599,7 +2489,7 @@ static int fm_radio_runtime_suspend(struct device *dev)
 
 	FUNC_ENTRY(radio);
 
-	fm_clk_disable(radio);
+	fm_radio_clk_disable(radio);
 
 	return 0;
 }
@@ -2611,7 +2501,11 @@ static int fm_radio_runtime_resume(struct device *dev)
 
 	FUNC_ENTRY(radio);
 
-	fm_clk_enable(radio);
+	ret = fm_radio_clk_enable(radio);
+	if (ret) {
+		dev_err(dev, "%s: clk_enable failed\n", __func__);
+		return ret;
+	}
 
 	return 0;
 }
