@@ -1587,8 +1587,7 @@ static int mfc_suspend(struct device *device)
 	}
 
 	ret = mfc_run_sleep(dev);
-	if (ret == 0)
-		mfc_release_hwlock_dev(dev);
+	mfc_release_hwlock_dev(dev);
 
 	return ret;
 }
@@ -1617,8 +1616,7 @@ static int mfc_resume(struct device *device)
 	}
 
 	ret = mfc_run_wakeup(dev);
-	if (ret == 0)
-		mfc_release_hwlock_dev(dev);
+	mfc_release_hwlock_dev(dev);
 
 	return ret;
 }
