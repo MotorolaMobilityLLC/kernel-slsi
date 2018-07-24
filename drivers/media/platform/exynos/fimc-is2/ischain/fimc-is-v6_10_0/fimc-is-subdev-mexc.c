@@ -36,7 +36,6 @@ static int fimc_is_ischain_mexc_tag(struct fimc_is_subdev *subdev,
 {
 	int ret = 0;
 	struct fimc_is_queue *queue;
-	struct camera2_scaler_uctl *scalerUd;
 	struct fimc_is_device_ischain *device;
 	u32 pixelformat = 0;
 	u32 me_width, me_height;
@@ -52,7 +51,6 @@ static int fimc_is_ischain_mexc_tag(struct fimc_is_subdev *subdev,
 
 	mdbgs_ischain(4, "MEXC TAG(request %d)\n", device, node->request);
 
-	scalerUd = &ldr_frame->shot->uctl.scalerUd;
 	queue = GET_SUBDEV_QUEUE(subdev);
 	if (!queue) {
 		merr("queue is NULL", device);
@@ -78,15 +76,15 @@ static int fimc_is_ischain_mexc_tag(struct fimc_is_subdev *subdev,
 			pixelformat,
 			me_width,
 			me_height,
-			scalerUd->mexcTargetAddress);
+			ldr_frame->mexcTargetAddress);
 		if (ret) {
 			mswarn("%d frame is drop", device, subdev, ldr_frame->fcount);
 			node->request = 0;
 		}
 	} else {
-		scalerUd->mexcTargetAddress[0] = 0;
-		scalerUd->mexcTargetAddress[1] = 0;
-		scalerUd->mexcTargetAddress[2] = 0;
+		ldr_frame->mexcTargetAddress[0] = 0;
+		ldr_frame->mexcTargetAddress[1] = 0;
+		ldr_frame->mexcTargetAddress[2] = 0;
 		node->request = 0;
 	}
 

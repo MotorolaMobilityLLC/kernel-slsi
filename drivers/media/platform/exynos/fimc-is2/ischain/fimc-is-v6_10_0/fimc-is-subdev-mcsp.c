@@ -461,27 +461,27 @@ static int fimc_is_ischain_mxp_tag(struct fimc_is_subdev *subdev,
 	switch (node->vid) {
 	case FIMC_IS_VIDEO_M0P_NUM:
 		index = PARAM_MCS_OUTPUT0;
-		target_addr = ldr_frame->shot->uctl.scalerUd.sc0TargetAddress;
+		target_addr = ldr_frame->sc0TargetAddress;
 		break;
 	case FIMC_IS_VIDEO_M1P_NUM:
 		index = PARAM_MCS_OUTPUT1;
-		target_addr = ldr_frame->shot->uctl.scalerUd.sc1TargetAddress;
+		target_addr = ldr_frame->sc1TargetAddress;
 		break;
 	case FIMC_IS_VIDEO_M2P_NUM:
 		index = PARAM_MCS_OUTPUT2;
-		target_addr = ldr_frame->shot->uctl.scalerUd.sc2TargetAddress;
+		target_addr = ldr_frame->sc2TargetAddress;
 		break;
 	case FIMC_IS_VIDEO_M3P_NUM:
 		index = PARAM_MCS_OUTPUT3;
-		target_addr = ldr_frame->shot->uctl.scalerUd.sc3TargetAddress;
+		target_addr = ldr_frame->sc3TargetAddress;
 		break;
 	case FIMC_IS_VIDEO_M4P_NUM:
 		index = PARAM_MCS_OUTPUT4;
-		target_addr = ldr_frame->shot->uctl.scalerUd.sc4TargetAddress;
+		target_addr = ldr_frame->sc4TargetAddress;
 		break;
 	case FIMC_IS_VIDEO_M5P_NUM:
 		index = PARAM_MCS_OUTPUT5;
-		target_addr = ldr_frame->shot->uctl.scalerUd.sc5TargetAddress;
+		target_addr = ldr_frame->sc5TargetAddress;
 		break;
 	default:
 		mserr("vid(%d) is not matched", device, subdev, node->vid);
