@@ -1194,7 +1194,7 @@ static void s2mu004_muic_detect_dev_ccic(struct s2mu004_muic_data *muic_data,
 		muic_pdata->attached_dev = ATTACHED_DEV_NONE_MUIC;
 	} else {
 		/* Attach from CCIC */
-		muic_pdata->attached_dev = new_dev;
+		//muic_pdata->attached_dev = new_dev;
 		pr_info("%s DETECTED\n", dev_to_str(new_dev));
 
 		switch (new_dev) {
@@ -1212,11 +1212,11 @@ static void s2mu004_muic_detect_dev_ccic(struct s2mu004_muic_data *muic_data,
 		}
 	}
 
-	if (muic_pdata->attached_dev != ATTACHED_DEV_NONE_MUIC) {
+	if (new_dev != ATTACHED_DEV_NONE_MUIC) {
 		adc = s2mu004_i2c_read_byte(muic_data->i2c, S2MU004_REG_MUIC_ADC);
 		vbvolt = s2mu004_i2c_read_byte(muic_data->i2c, S2MU004_REG_MUIC_DEVICE_APPLE);
 		muic_core_handle_attach(muic_data->pdata, new_dev, adc, !!vbvolt);
-	} else if (muic_pdata->attached_dev == ATTACHED_DEV_NONE_MUIC) {
+	} else if (new_dev == ATTACHED_DEV_NONE_MUIC) {
 		muic_core_handle_detach(muic_data->pdata);
 	}
 }
