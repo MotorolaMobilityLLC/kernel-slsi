@@ -857,7 +857,7 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 	mfc_set_bits(reg, 0xFF, 8, p_vp9->level);
 	/* bit depth minus8 */
 	if (ctx->is_10bit) {
-		mfc_set_bits(reg, 0x3F, 17, 0x2);
+		mfc_set_bits(reg, 0x7, 17, 0x2);
 		mfc_set_bits(reg, 0x7, 20, 0x2);
 	}
 	MFC_RAW_WRITEL(reg, MFC_REG_E_PICTURE_PROFILE);
@@ -1189,7 +1189,7 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 		mfc_clear_set_bits(reg, 0x1, 0, p->static_info_enable);
 		MFC_RAW_WRITEL(reg, MFC_REG_E_HEVC_OPTIONS_2);
 		/* MAX_PIC_AVERAGE_LIGHT & MAX_CONTENT_LIGHT */
-		reg = p->max_pic_average_light;
+		mfc_clear_set_bits(reg, 0xFFFF, 0, p->max_pic_average_light);
 		mfc_clear_set_bits(reg, 0xFFFF, 16, p->max_content_light);
 		MFC_RAW_WRITEL(reg, MFC_REG_E_CONTENT_LIGHT_LEVEL_INFO_SEI);
 		/* MAX_DISPLAY_LUMINANCE */
