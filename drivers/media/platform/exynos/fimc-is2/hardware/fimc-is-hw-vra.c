@@ -789,7 +789,7 @@ static int fimc_is_hw_vra_frame_ndone(struct fimc_is_hw_ip *hw_ip,
 	output_id = FIMC_IS_HW_CORE_END;
 	if (test_bit_variables(hw_ip->id, &frame->core_flag))
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, wq_id, output_id,
-				done_type, true);
+				done_type, false);
 
 	return ret;
 }

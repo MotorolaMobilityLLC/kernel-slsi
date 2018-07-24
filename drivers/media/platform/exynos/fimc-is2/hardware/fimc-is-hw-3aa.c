@@ -618,7 +618,6 @@ static int fimc_is_hw_3aa_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 	int wq_id_3xc, wq_id_3xp, wq_id_3xf, wq_id_3xg;
 	int output_id;
 	int ret = 0;
-	bool flag_get_meta = true;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!frame);
@@ -645,43 +644,37 @@ static int fimc_is_hw_3aa_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 	output_id = ENTRY_3AC;
 	if (test_bit(output_id, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, wq_id_3xc,
-				output_id, done_type, flag_get_meta);
-		flag_get_meta = false;
+				output_id, done_type, false);
 	}
 
 	output_id = ENTRY_3AP;
 	if (test_bit(output_id, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, wq_id_3xp,
-				output_id, done_type, flag_get_meta);
-		flag_get_meta = false;
+				output_id, done_type, false);
 	}
 
 	output_id = ENTRY_3AF;
 	if (test_bit(output_id, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, wq_id_3xf,
-				output_id, done_type, flag_get_meta);
-		flag_get_meta = false;
+				output_id, done_type, false);
 	}
 
 	output_id = ENTRY_3AG;
 	if (test_bit(output_id, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, wq_id_3xg,
-				output_id, done_type, flag_get_meta);
-		flag_get_meta = false;
+				output_id, done_type, false);
 	}
 
 	output_id = ENTRY_MEXC;
 	if (test_bit(output_id, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, WORK_ME0C_FDONE,
-				output_id, done_type, flag_get_meta);
-		flag_get_meta = false;
+				output_id, done_type, false);
 	}
 
 	output_id = FIMC_IS_HW_CORE_END;
 	if (test_bit(hw_ip->id, &frame->core_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, -1,
-				output_id, done_type, flag_get_meta);
-		flag_get_meta = false;
+				output_id, done_type, false);
 	}
 
 	return ret;

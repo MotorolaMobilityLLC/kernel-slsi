@@ -569,54 +569,46 @@ int fimc_is_hw_dcp_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	u32 instance, enum ShotErrorType done_type)
 {
 	int ret = 0;
-	bool flag_get_meta = true;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!frame);
 
 	if (test_bit(ENTRY_DC1S, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_DC1S_FDONE, ENTRY_DC1S, done_type, flag_get_meta);
-		flag_get_meta = false;
+			WORK_DC1S_FDONE, ENTRY_DC1S, done_type, false);
 	}
 
 
 	if (test_bit(ENTRY_DC0C, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_DC0C_FDONE, ENTRY_DC0C, done_type, flag_get_meta);
-		flag_get_meta = false;
+			WORK_DC0C_FDONE, ENTRY_DC0C, done_type, false);
 	}
 
 
 	if (test_bit(ENTRY_DC1C, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_DC1C_FDONE, ENTRY_DC1C, done_type, flag_get_meta);
-		flag_get_meta = false;
+			WORK_DC1C_FDONE, ENTRY_DC1C, done_type, false);
 	}
 
 
 	if (test_bit(ENTRY_DC2C, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_DC2C_FDONE, ENTRY_DC2C, done_type, flag_get_meta);
-		flag_get_meta = false;
+			WORK_DC2C_FDONE, ENTRY_DC2C, done_type, false);
 	}
 
 	if (test_bit(ENTRY_DC3C, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_DC3C_FDONE, ENTRY_DC3C, done_type, flag_get_meta);
-		flag_get_meta = false;
+			WORK_DC3C_FDONE, ENTRY_DC3C, done_type, false);
 	}
 
 	if (test_bit(ENTRY_DC4C, &frame->out_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			WORK_DC4C_FDONE, ENTRY_DC4C, done_type, flag_get_meta);
-		flag_get_meta = false;
+			WORK_DC4C_FDONE, ENTRY_DC4C, done_type, false);
 	}
 
 	if (test_bit(hw_ip->id, &frame->core_flag)) {
 		ret = fimc_is_hardware_frame_done(hw_ip, frame,
-			-1, FIMC_IS_HW_CORE_END, done_type, flag_get_meta);
-		flag_get_meta = false;
+			-1, FIMC_IS_HW_CORE_END, done_type, false);
 	}
 
 	return ret;
