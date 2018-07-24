@@ -211,13 +211,19 @@ static nal_queue_in_handle* __mfc_nal_q_create_in_q(struct mfc_dev *dev,
 
 	nal_q_in_handle->nal_q_handle = nal_q_handle;
 	nal_q_in_handle->in_buf.buftype = MFCBUF_NORMAL;
-	nal_q_in_handle->in_buf.size = NAL_Q_IN_ENTRY_SIZE * (NAL_Q_IN_QUEUE_SIZE + 2);
+	/*
+	 * Total nal_q buf size = entry size * num slot * max instance
+	 * ex) entry size is 512 byte
+	 *     512 byte * 4 slot * 32 instance = 64KB
+	 * Plus 1 is needed for margin, because F/W exceeds sometimes.
+	 */
+	nal_q_in_handle->in_buf.size = dev->pdata->nal_q_entry_size * (NAL_Q_QUEUE_SIZE + 1);
 	if (mfc_mem_ion_alloc(dev, &nal_q_in_handle->in_buf)) {
 		mfc_err_dev("[NALQ] failed to get memory\n");
 		kfree(nal_q_in_handle);
 		return NULL;
 	}
-	nal_q_in_handle->nal_q_in_addr = (nal_in_queue *)nal_q_in_handle->in_buf.vaddr;
+	nal_q_in_handle->nal_q_in_addr = nal_q_in_handle->in_buf.vaddr;
 
 	mfc_debug_leave();
 
@@ -239,13 +245,19 @@ static nal_queue_out_handle* __mfc_nal_q_create_out_q(struct mfc_dev *dev,
 
 	nal_q_out_handle->nal_q_handle = nal_q_handle;
 	nal_q_out_handle->out_buf.buftype = MFCBUF_NORMAL;
-	nal_q_out_handle->out_buf.size = NAL_Q_OUT_ENTRY_SIZE * (NAL_Q_OUT_QUEUE_SIZE + 2);
+	/*
+	 * Total nal_q buf size = entry size * num slot * max instance
+	 * ex) entry size is 512 byte
+	 *     512 byte * 4 slot * 32 instance = 64KB
+	 * Plus 1 is needed for margin, because F/W exceeds sometimes.
+	 */
+	nal_q_out_handle->out_buf.size = dev->pdata->nal_q_entry_size * (NAL_Q_QUEUE_SIZE + 1);
 	if (mfc_mem_ion_alloc(dev, &nal_q_out_handle->out_buf)) {
 		mfc_err_dev("[NALQ] failed to get memory\n");
 		kfree(nal_q_out_handle);
 		return NULL;
 	}
-	nal_q_out_handle->nal_q_out_addr = (nal_out_queue *)nal_q_out_handle->out_buf.vaddr;
+	nal_q_out_handle->nal_q_out_addr = nal_q_out_handle->out_buf.vaddr;
 
 	mfc_debug_leave();
 
@@ -412,7 +424,7 @@ void mfc_nal_q_start(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 
 	addr = nal_q_handle->nal_q_in_handle->in_buf.daddr;
 
-	mfc_update_nal_queue_input(dev, addr, NAL_Q_IN_ENTRY_SIZE * NAL_Q_IN_QUEUE_SIZE);
+	mfc_update_nal_queue_input(dev, addr, dev->pdata->nal_q_entry_size * NAL_Q_QUEUE_SIZE);
 
 	mfc_debug(2, "[NALQ] MFC_REG_NAL_QUEUE_INPUT_ADDR=0x%x\n",
 		mfc_get_nal_q_input_addr());
@@ -421,7 +433,7 @@ void mfc_nal_q_start(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 
 	addr = nal_q_handle->nal_q_out_handle->out_buf.daddr;
 
-	mfc_update_nal_queue_output(dev, addr, NAL_Q_OUT_ENTRY_SIZE * NAL_Q_OUT_QUEUE_SIZE);
+	mfc_update_nal_queue_output(dev, addr, dev->pdata->nal_q_entry_size * NAL_Q_QUEUE_SIZE);
 
 	mfc_debug(2, "[NALQ] MFC_REG_NAL_QUEUE_OUTPUT_ADDR=0x%x\n",
 		mfc_get_nal_q_output_addr());
@@ -559,6 +571,11 @@ static void __mfc_nal_q_get_hdr_plus_info(struct mfc_ctx *ctx, DecoderOutputStr 
 	int num_win, num_distribution;
 	int i, j;
 
+	if (dev->pdata->nal_q_entry_size < NAL_Q_ENTRY_SIZE_FOR_HDR10) {
+		mfc_err_dev("[NALQ][HDR+] insufficient NAL-Q entry size\n");
+		return;
+	}
+
 	sei_meta->valid = 1;
 
 	/* iru_t_t35 */
@@ -650,6 +667,11 @@ static void __mfc_nal_q_set_hdr_plus_info(struct mfc_ctx *ctx, EncoderInputStr *
 	unsigned int val = 0;
 	int num_win, num_distribution;
 	int i, j;
+
+	if (dev->pdata->nal_q_entry_size < NAL_Q_ENTRY_SIZE_FOR_HDR10) {
+		mfc_err_dev("[NALQ][HDR+] insufficient NAL-Q entry size\n");
+		return;
+	}
 
 	pInStr->HevcNalControl &= ~(sei_meta->valid << 6);
 	pInStr->HevcNalControl |= ((sei_meta->valid & 0x1) << 6);
@@ -1837,7 +1859,7 @@ int mfc_nal_q_enqueue_in_buf(struct mfc_dev *dev, struct mfc_ctx *ctx,
 	unsigned int input_count = 0;
 	unsigned int input_exe_count = 0;
 	int input_diff = 0;
-	unsigned int index = 0;
+	unsigned int index = 0, offset = 0;
 	EncoderInputStr *pStr = NULL;
 	int ret = 0;
 
@@ -1863,26 +1885,27 @@ int mfc_nal_q_enqueue_in_buf(struct mfc_dev *dev, struct mfc_ctx *ctx,
 
 	/*
 	 * meaning of the variable input_diff
-	 * 0:				number of available slots = NAL_Q_IN_QUEUE_SIZE
-	 * 1:				number of available slots = NAL_Q_IN_QUEUE_SIZE - 1
+	 * 0:				number of available slots = NAL_Q_QUEUE_SIZE
+	 * 1:				number of available slots = NAL_Q_QUEUE_SIZE - 1
 	 * ...
-	 * NAL_Q_IN_QUEUE_SIZE-1:	number of available slots = 1
-	 * NAL_Q_IN_QUEUE_SIZE:		number of available slots = 0
+	 * NAL_Q_QUEUE_SIZE-1:		number of available slots = 1
+	 * NAL_Q_QUEUE_SIZE:		number of available slots = 0
 	 */
 
 	mfc_debug(2, "[NALQ] input_diff = %d(in: %d, exe: %d)\n",
 			input_diff, input_count, input_exe_count);
 
-	if ((input_diff < 0) || (input_diff >= NAL_Q_IN_QUEUE_SIZE)) {
+	if ((input_diff < 0) || (input_diff >= NAL_Q_QUEUE_SIZE)) {
 		mfc_err_dev("[NALQ] No available input slot(%d)\n", input_diff);
 		spin_unlock_irqrestore(&nal_q_in_handle->nal_q_handle->lock, flags);
 		return -EINVAL;
 	}
 
-	index = input_count % NAL_Q_IN_QUEUE_SIZE;
-	pStr = &(nal_q_in_handle->nal_q_in_addr->entry[index].enc);
+	index = input_count % NAL_Q_QUEUE_SIZE;
+	offset = dev->pdata->nal_q_entry_size * index;
+	pStr = (EncoderInputStr *)(nal_q_in_handle->nal_q_in_addr + offset);
 
-	memset(pStr, 0, NAL_Q_IN_ENTRY_SIZE);
+	memset(pStr, 0, dev->pdata->nal_q_entry_size);
 
 	if (ctx->type == MFCINST_ENCODER)
 		ret = __mfc_nal_q_run_in_buf_enc(ctx, pStr);
@@ -1900,7 +1923,7 @@ int mfc_nal_q_enqueue_in_buf(struct mfc_dev *dev, struct mfc_ctx *ctx,
 				ctx->type == MFCINST_ENCODER ? "ENC" : "DEC", dev->curr_ctx,
 				input_diff, input_count, input_exe_count);
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				(int *)pStr, NAL_Q_DUMP_MAX_STR_SIZE, false);
+				(int *)pStr, dev->pdata->nal_q_dump_size, false);
 		printk("...\n");
 	}
 	input_count++;
@@ -1931,11 +1954,10 @@ EncoderOutputStr *mfc_nal_q_dequeue_out_buf(struct mfc_dev *dev,
 	unsigned long flags;
 	unsigned int output_count = 0;
 	unsigned int output_exe_count = 0;
-	int output_diff = 0;
-	unsigned int index = 0;
-	EncoderOutputStr *pStr = NULL;
-
 	int input_diff = 0;
+	int output_diff = 0;
+	unsigned int index = 0, offset = 0;
+	EncoderOutputStr *pStr = NULL;
 
 	mfc_debug_enter();
 
@@ -1955,20 +1977,21 @@ EncoderOutputStr *mfc_nal_q_dequeue_out_buf(struct mfc_dev *dev,
 	 * 0:				number of output slots = 0
 	 * 1:				number of output slots = 1
 	 * ...
-	 * NAL_Q_OUT_QUEUE_SIZE-1:	number of output slots = NAL_Q_OUT_QUEUE_SIZE - 1
-	 * NAL_Q_OUT_QUEUE_SIZE:	number of output slots = NAL_Q_OUT_QUEUE_SIZE
+	 * NAL_Q_QUEUE_SIZE-1:		number of output slots = NAL_Q_QUEUE_SIZE - 1
+	 * NAL_Q_QUEUE_SIZE:		number of output slots = NAL_Q_QUEUE_SIZE
 	 */
 
 	mfc_debug(2, "[NALQ] output_diff = %d(out: %d, exe: %d)\n",
 			output_diff, output_count, output_exe_count);
-	if ((output_diff <= 0) || (output_diff > NAL_Q_OUT_QUEUE_SIZE)) {
+	if ((output_diff <= 0) || (output_diff > NAL_Q_QUEUE_SIZE)) {
 		spin_unlock_irqrestore(&nal_q_out_handle->nal_q_handle->lock, flags);
 		mfc_debug(2, "[NALQ] No available output slot(%d)\n", output_diff);
 		return pStr;
 	}
 
-	index = output_exe_count % NAL_Q_OUT_QUEUE_SIZE;
-	pStr = &(nal_q_out_handle->nal_q_out_addr->entry[index].enc);
+	index = output_exe_count % NAL_Q_QUEUE_SIZE;
+	offset = dev->pdata->nal_q_entry_size * index;
+	pStr = (EncoderOutputStr *)(nal_q_out_handle->nal_q_out_addr + offset);
 
 	nal_q_out_handle->nal_q_ctx = __mfc_nal_q_find_ctx(dev, pStr);
 	if (nal_q_out_handle->nal_q_ctx < 0) {
@@ -1984,7 +2007,7 @@ EncoderOutputStr *mfc_nal_q_dequeue_out_buf(struct mfc_dev *dev,
 				nal_q_out_handle->nal_q_ctx,
 				output_diff, output_count, output_exe_count);
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-				(int *)pStr, NAL_Q_DUMP_MAX_STR_SIZE, false);
+				(int *)pStr, dev->pdata->nal_q_dump_size, false);
 		printk("...\n");
 	}
 	nal_q_out_handle->out_exe_count++;

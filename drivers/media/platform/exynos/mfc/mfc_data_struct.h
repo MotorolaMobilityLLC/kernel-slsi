@@ -446,6 +446,9 @@ struct mfc_platdata {
 	struct mfc_qos *qos_table;
 	struct mfc_qos_boost *qos_boost_table;
 #endif
+	/* NAL-Q size */
+	unsigned int nal_q_entry_size;
+	unsigned int nal_q_dump_size;
 	/* Features */
 	struct mfc_feature nal_q;
 	struct mfc_feature skype;
@@ -474,18 +477,10 @@ struct mfc_platdata {
 };
 
 /************************ NAL_Q data structure ************************/
-#define NAL_Q_IN_ENTRY_SIZE		512
-#define NAL_Q_OUT_ENTRY_SIZE		512
+#define NAL_Q_ENTRY_SIZE_FOR_HDR10	512
 
-#define NAL_Q_IN_DEC_STR_SIZE		112
-#define NAL_Q_IN_ENC_STR_SIZE		324
-#define NAL_Q_OUT_DEC_STR_SIZE		376
-#define NAL_Q_OUT_ENC_STR_SIZE		64
-#define NAL_Q_DUMP_MAX_STR_SIZE		376
-
-/* 512*128(max instance 32 * slot 4) = 64 kbytes */
-#define NAL_Q_IN_QUEUE_SIZE		128
-#define NAL_Q_OUT_QUEUE_SIZE		128
+/* slot 4 * max instance 32 = 128 */
+#define NAL_Q_QUEUE_SIZE		128
 
 typedef struct __DecoderInputStr {
 	int StartCode; /* = 0xAAAAAAAA; Decoder input structure marker */
@@ -508,7 +503,6 @@ typedef struct __DecoderInputStr {
 	int Frame2BitStrideSize[2];
 	unsigned int ScratchBufAddr;
 	int ScratchBufSize;
-	char reserved[NAL_Q_IN_ENTRY_SIZE - NAL_Q_IN_DEC_STR_SIZE];
 } DecoderInputStr; /* 28*4 = 112 bytes */
 
 typedef struct __EncoderInputStr {
@@ -555,7 +549,6 @@ typedef struct __EncoderInputStr {
 	int WeightUpper;
 	int RcMode;
 	int St2094_40sei[30];
-	char reserved[NAL_Q_IN_ENTRY_SIZE - NAL_Q_IN_ENC_STR_SIZE];
 } EncoderInputStr; /* 81*4 = 324 bytes */
 
 typedef struct __DecoderOutputStr {
@@ -620,7 +613,6 @@ typedef struct __DecoderOutputStr {
 	int FirstPlaneDpbSize;
 	int SecondPlaneDpbSize;
 	int St2094_40sei[30];
-	char reserved[NAL_Q_OUT_ENTRY_SIZE - NAL_Q_OUT_DEC_STR_SIZE];
 } DecoderOutputStr; /* 94*4 =  376 bytes */
 
 typedef struct __EncoderOutputStr {
@@ -638,7 +630,6 @@ typedef struct __EncoderOutputStr {
 	unsigned int ReconLumaDpbAddr;
 	unsigned int ReconChromaDpbAddr;
 	int EncCnt;
-	char reserved[NAL_Q_OUT_ENTRY_SIZE - NAL_Q_OUT_ENC_STR_SIZE];
 } EncoderOutputStr; /* 16*4 = 64 bytes */
 
 /**
@@ -650,33 +641,19 @@ typedef enum _nal_queue_state {
 	NAL_Q_STATE_STOPPED, /* when mfc_nal_q_stop() is called */
 } nal_queue_state;
 
-typedef struct _nal_in_queue {
-	union {
-		DecoderInputStr dec;
-		EncoderInputStr enc;
-	} entry[NAL_Q_IN_QUEUE_SIZE];
-} nal_in_queue;
-
-typedef struct _nal_out_queue {
-	union {
-		DecoderOutputStr dec;
-		EncoderOutputStr enc;
-	} entry[NAL_Q_OUT_QUEUE_SIZE];
-} nal_out_queue;
-
 struct _nal_queue_handle;
 typedef struct _nal_queue_in_handle {
 	struct _nal_queue_handle *nal_q_handle;
 	struct mfc_special_buf in_buf;
 	unsigned int in_exe_count;
-	nal_in_queue *nal_q_in_addr;
+	void *nal_q_in_addr;
 } nal_queue_in_handle;
 
 typedef struct _nal_queue_out_handle {
 	struct _nal_queue_handle *nal_q_handle;
 	struct mfc_special_buf out_buf;
 	unsigned int out_exe_count;
-	nal_out_queue *nal_q_out_addr;
+	void *nal_q_out_addr;
 	int nal_q_ctx;
 } nal_queue_out_handle;
 

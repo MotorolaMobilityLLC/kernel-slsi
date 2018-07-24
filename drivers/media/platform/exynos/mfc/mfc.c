@@ -980,6 +980,10 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32(np, "axid_mask", &pdata->axid_mask);
 	of_property_read_u32(np, "mfc_fault_num", &pdata->mfc_fault_num);
 
+	/* NAL-Q size */
+	of_property_read_u32(np, "nal_q_entry_size", &pdata->nal_q_entry_size);
+	of_property_read_u32(np, "nal_q_dump_size", &pdata->nal_q_dump_size);
+
 	/* Features */
 	of_property_read_u32_array(np, "nal_q", &pdata->nal_q.support, 2);
 	of_property_read_u32_array(np, "skype", &pdata->skype.support, 2);

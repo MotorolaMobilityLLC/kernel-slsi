@@ -145,12 +145,15 @@ static void __mfc_save_logging_sfr(struct mfc_dev *dev)
 static int __mfc_get_curr_ctx(struct mfc_dev *dev)
 {
 	nal_queue_handle *nal_q_handle = dev->nal_q_handle;
-	int index;
+	unsigned int index, offset;
+	DecoderInputStr *pStr;
 
 	if (nal_q_handle) {
 		if (nal_q_handle->nal_q_state == NAL_Q_STATE_STARTED) {
-			index = nal_q_handle->nal_q_in_handle->in_exe_count % NAL_Q_IN_QUEUE_SIZE;
-			return nal_q_handle->nal_q_in_handle->nal_q_in_addr->entry[index].dec.InstanceId;
+			index = nal_q_handle->nal_q_in_handle->in_exe_count % NAL_Q_QUEUE_SIZE;
+			offset = dev->pdata->nal_q_entry_size * index;
+			pStr = (DecoderInputStr *)(nal_q_handle->nal_q_in_handle->nal_q_in_addr + offset);
+			return pStr->InstanceId;
 		}
 	}
 
