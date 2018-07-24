@@ -435,7 +435,7 @@ TRACE_EVENT(ems_manage_band,
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid			= p->pid;
 		__entry->band_id		= band_id;
-		strncpy(__entry->event, event, 64);
+		strncpy(__entry->event, event, 63);
 	),
 
 	TP_printk("comm=%s pid=%d band_id=%d event=%s",

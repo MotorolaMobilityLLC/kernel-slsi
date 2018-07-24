@@ -399,6 +399,10 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	unsigned long max_mips_freq = 0;
 	int last_state;
 
+	cpumask_and(cpus, cpus, cpu_possible_mask);
+	if (cpumask_empty(cpus))
+		return;
+
 	mips = per_cpu(energy_table, cpumask_any(cpus)).mips;
 	for_each_cpu(cpu, cpus) {
 		/*

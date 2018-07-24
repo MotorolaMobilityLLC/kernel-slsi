@@ -842,7 +842,7 @@ static int __init cpu_power_mode_init(void)
 		}
 
 		mode->id = id++;
-		strncpy(mode->name, dn->name, NAME_LEN);
+		strncpy(mode->name, dn->name, NAME_LEN - 1);
 
 		of_property_read_u32(dn, "target-residency", &mode->target_residency);
 		of_property_read_u32(dn, "psci-index", &mode->psci_index);

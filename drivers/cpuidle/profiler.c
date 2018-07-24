@@ -482,7 +482,7 @@ cpuidle_profile_cpu_idle_register(struct cpuidle_driver *drv)
 	}
 
 	for (i = 0; i < state_count; i++)
-		strncpy(state[i].desc, drv->states[i].desc, DESC_LEN);
+		strncpy(state[i].desc, drv->states[i].desc, DESC_LEN - 1);
 
 	cpu_idle_state = state;
 	cpu_idle_state_count = state_count;
@@ -500,7 +500,7 @@ cpuidle_profile_group_idle_register(int id, const char *name)
 	}
 
 	state->id = id;
-	strncpy(state->desc, name, DESC_LEN);
+	strncpy(state->desc, name, DESC_LEN - 1);
 
 	group_idle_state[group_idle_state_count] = state;
 	group_idle_state_count++;
