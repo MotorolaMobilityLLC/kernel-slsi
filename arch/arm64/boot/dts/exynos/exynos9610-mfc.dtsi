@@ -38,6 +38,10 @@
 		axid_mask = <0xFFFF>;
 		mfc_fault_num = <0x0>;
 
+		/* NAL-Q size */
+		nal_q_entry_size = <256>;
+		nal_q_dump_size = <248>;
+
 		/* Features <on/off version> */
 		nal_q = <1 0x0>;
 		skype = <1 0x0>;
