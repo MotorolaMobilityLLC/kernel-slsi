@@ -26,7 +26,6 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/smc.h>
-#include <linux/cpumask.h>
 
 #include <soc/samsung/exynos-seclog.h>
 
@@ -115,7 +114,7 @@ static void exynos_seclog_worker(struct work_struct *work)
 	pr_debug("%s: Start seclog_worker\n", __func__);
 
 	/* Print log message in a message buffer */
-	for_each_possible_cpu(cpu) {
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		v_log_addr = SECLOG_PHYS_TO_VIRT(sec_log[cpu]->start_log_addr);
 
 		while (sec_log[cpu]->log_read_cnt != sec_log[cpu]->log_write_cnt) {
@@ -180,7 +179,7 @@ static irqreturn_t exynos_seclog_irq_handler(int irq, void *dev_id)
 		schedule_work(&slog_ctx.work);
 	} else {
 		/* Skip all log messages */
-		for_each_possible_cpu(cpu) {
+		for (cpu = 0; cpu < NR_CPUS; cpu++) {
 			sec_log[cpu]->log_read_cnt = sec_log[cpu]->log_write_cnt;
 			sec_log[cpu]->log_return_cnt = 0;
 		}
@@ -312,7 +311,7 @@ static int exynos_seclog_probe(struct platform_device *pdev)
 
 detect_ldfw_err:
 	/* Setup virtual address of message buffer of each core */
-	for_each_possible_cpu(i) {
+	for (i = 0; i < NR_CPUS; i++) {
 		sec_log[i] = (struct sec_log_info *)((unsigned long)ldata.virt_addr
 								+ (SECLOG_LOG_BUF_SIZE * i));
 		dev_dbg(&pdev->dev,
