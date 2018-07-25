@@ -171,6 +171,7 @@ static int fimc_is_gframe_check(struct fimc_is_group *gprev,
 
 	device = group->device;
 
+#ifndef DISABLE_CHECK_PERFRAME_FMT_SIZE
 	/*
 	 * perframe check
 	 * 1. perframe size can't exceed s_format size
@@ -185,6 +186,7 @@ static int fimc_is_gframe_check(struct fimc_is_group *gprev,
 		frame->shot_ext->node_group.leader.input.cropRegion[2] = incrop->w;
 		frame->shot_ext->node_group.leader.input.cropRegion[3] = incrop->h;
 	}
+#endif
 
 	for (capture_id = 0; capture_id < CAPTURE_NODE_MAX; ++capture_id) {
 		node = &gframe->group_cfg[group->slot].capture[capture_id];
@@ -201,6 +203,7 @@ static int fimc_is_gframe_check(struct fimc_is_group *gprev,
 			goto p_err;
 		}
 
+#ifndef DISABLE_CHECK_PERFRAME_FMT_SIZE
 		if ((otcrop->w * otcrop->h) > (subdev->output.width * subdev->output.height)) {
 			mrwarn("[V%d][req:%d] the output size is invalid(perframe:%dx%d > subdev:%dx%d)", group, gframe,
 				node->vid, node->request,
@@ -210,7 +213,7 @@ static int fimc_is_gframe_check(struct fimc_is_group *gprev,
 			frame->shot_ext->node_group.capture[capture_id].output.cropRegion[2] = otcrop->w;
 			frame->shot_ext->node_group.capture[capture_id].output.cropRegion[3] = otcrop->h;
 		}
-
+#endif
 		subdev->cid = capture_id;
 	}
 
