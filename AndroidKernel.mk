@@ -70,15 +70,7 @@ endif
 
 TARGET_PREBUILT_KERNEL := $(KERNEL_BIN)
 
-.PHONY: remove-bins
-remove-bin:
-	$(hide) echo "Clean Up prebuilts"
-	rm -f $(KERNEL_CONFIG)
-	rm -f $(KERNEL_BIN)
-	rm -f $(KERNEL_DTB)
-	rm -f $(INSTALLED_KERNEL_TARGET)
-	rm -f $(INSTALLED_DTBOIMAGE_TARGET)
-	rm -f $(INSTALLED_DTB_TARGET)
+.PHONY: phony-rebuild
 
 .PHONY: kernel
 kernel: $(KERNEL_BIN)
@@ -87,7 +79,7 @@ kernel: $(KERNEL_BIN)
 kernel-distclean:
 	$(MAKE) -C $(TARGET_KERNEL_SOURCE) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE) distclean
 
-$(KERNEL_CONFIG): remove-bins
+$(KERNEL_CONFIG): phony-rebuild
 	$(hide) echo "make $(KERNEL_DEFCONFIG)"
 	$(MAKE_CONFIG_CMD)
 
