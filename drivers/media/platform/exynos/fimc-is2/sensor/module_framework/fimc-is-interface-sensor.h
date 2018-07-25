@@ -812,11 +812,15 @@ struct fimc_is_cis_ext2_interface_ops {
 	int (*set_long_term_expo_mode)(struct fimc_is_sensor_interface *itf,
 				struct fimc_is_long_term_expo_mode *long_term_expo_mode);
 	int (*set_low_noise_mode)(struct fimc_is_sensor_interface *itf, u32 mode);
-	int (*get_sensor_max_dynamic_fps)(struct fimc_is_sensor_interface *itf,
-				u32 *max_dynamic_fps);
+	int (*get_sensor_max_dynamic_fps)(struct fimc_is_sensor_interface *itf, u32 *max_dynamic_fps);
 	/* Get static memory address for DDK/RTA backup data */
 	int (*get_static_mem)(int ctrl_id, void **mem, int *size);
-	void *reserved[17];
+	int (*request_wb_gain)(struct fimc_is_sensor_interface *itf,
+				u32 gr_gain, u32 r_gain, u32 b_gain, u32 gb_gain);
+	int (*set_sensor_info_mfhdr_mode_change)(struct fimc_is_sensor_interface *itf,
+				u32 count, u32 *long_expo, u32 *long_again, u32 *long_dgain,
+				u32 *expo, u32 *again, u32 *dgain);
+	void *reserved[15];
 };
 
 struct fimc_is_cis_event_ops {
