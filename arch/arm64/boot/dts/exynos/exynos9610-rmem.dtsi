@@ -147,7 +147,7 @@
 
 		vipx_fw_code_rmem: vipx_fw_rmem@0xB8000000 {
 		      compatible = "exynos,vipx_fw_code_rmem";
-		      reg = <0x0 0xb8000000 0x300000>;
+		      reg = <0x0 0xb8000000 0x500000>;
 		};
 	};
 };
