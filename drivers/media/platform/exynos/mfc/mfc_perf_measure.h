@@ -43,7 +43,7 @@ static inline void mfc_perf_init(struct mfc_dev *dev)
 	dev->perf.count = 0;
 	dev->perf.drv_margin = 0;
 
-	mfc_measure_init();
+	__mfc_measure_init();
 
 	mfc_info_dev("MFC frequency : %ld\n", clk_get_rate(dev->pm.clock));
 }
@@ -70,7 +70,7 @@ static inline void mfc_perf_measure_on(struct mfc_dev *dev)
 
 	do_gettimeofday(&dev->perf.begin);
 
-	mfc_measure_on(dev);
+	__mfc_measure_on(dev);
 
 	dev->perf.new_start = 1;
 	dev->perf.count++;
@@ -81,14 +81,14 @@ static inline void mfc_perf_measure_off(struct mfc_dev *dev)
 	unsigned int diff;
 
 	if ((dev->perf.new_start) && (dev->perf.count > 0)) {
-		mfc_measure_off(dev);
+		__mfc_measure_off(dev);
 
 		do_gettimeofday(&dev->perf.end);
 
 		diff = (dev->perf.end.tv_sec * 1000000 + dev->perf.end.tv_usec)
 			- (dev->perf.begin.tv_sec * 1000000 + dev->perf.begin.tv_usec);
 
-		mfc_measure_store(dev, diff);
+		__mfc_measure_store(dev, diff);
 
 		mfc_debug(3, "uDECtype :%d, uENCtype :%d, codectype :%d\n",
 			mfc_get_dec_frame_type(), mfc_get_enc_slice_type(), MFC_READL(MFC_REG_CODEC_TYPE));
