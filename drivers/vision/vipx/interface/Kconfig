@@ -1,0 +1,29 @@
+config EXYNOS_VIPX_INTERFACE
+	bool "Select Interface"
+	help
+	  This is VIPx interface
+
+config EXYNOS_VIPX_HARDWARE
+	bool "Use Hardware"
+	depends on EXYNOS_VIPX_INTERFACE
+	help
+	  This is hardware device
+
+choice
+	prompt "Select Message box type"
+	depends on EXYNOS_VIPX_INTERFACE
+	help
+	  Select VIP(x) message box type.
+
+config EXYNOS_VIPX_MBOX
+	bool "Use VIPX MBOX"
+	depends on EXYNOS_VIPX_INTERFACE
+	help
+	  This is message box device
+
+config EXYNOS_EMUL_MBOX
+	bool "Use EMUL MBOX"
+	depends on EXYNOS_VIPX_INTERFACE
+	help
+	  This is message box emulator
+endchoice

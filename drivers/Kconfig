@@ -217,4 +217,7 @@ source "drivers/bts/Kconfig"
 source "drivers/gud/Kconfig"
 
 source "drivers/ccic/Kconfig"
+
+source "drivers/vision/Kconfig"
+
 endmenu
