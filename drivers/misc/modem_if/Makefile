@@ -11,3 +11,5 @@ obj-$(CONFIG_LINK_DEVICE_SHMEM)	+= modem_link_device_shmem.o \
 				modem_link_device_memory.o
 
 obj-$(CONFIG_MODEMCTRL_MODAP_S3XXAP) += modem_modemctl_device_sh333ap.o
+
+obj-$(CONFIG_UART_SWITCH) += uart_switch.o

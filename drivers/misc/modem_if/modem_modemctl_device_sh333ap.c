@@ -32,6 +32,7 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_link_device_shmem.h"
+#include "uart_switch.h"
 
 #define MIF_INIT_TIMEOUT	(300 * HZ)
 #define MBREG_MAX_NUM 64
@@ -514,6 +515,11 @@ static int sh333ap_boot_done(struct modem_ctl *mc)
 
 	if (wake_lock_active(&mc->mc_wake_lock))
 		wake_unlock(&mc->mc_wake_lock);
+
+#ifdef CONFIG_UART_SWITCH
+	mif_err("Recheck UART direction.\n");
+	cp_recheck_uart_dir();
+#endif
 
 	mif_info("---\n");
 	return 0;

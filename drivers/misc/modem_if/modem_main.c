@@ -41,6 +41,7 @@
 #include "modem_prj.h"
 #include "modem_variation.h"
 #include "modem_utils.h"
+#include "uart_switch.h"
 
 #define FMT_WAKE_TIME	(HZ/2)
 #define RAW_WAKE_TIME	(HZ*6)
@@ -344,6 +345,10 @@ static int parse_dt_mbox_pdata(struct device *dev, struct device_node *np,
 	mif_dt_read_u32 (np, "sbi_pda_active_pos", mbox->sbi_pda_active_pos);
 	mif_dt_read_u32 (np, "sbi_ap_status_mask", mbox->sbi_ap_status_mask);
 	mif_dt_read_u32 (np, "sbi_ap_status_pos", mbox->sbi_ap_status_pos);
+	mif_dt_read_u32 (np, "sbi_sys_rev_mask", mbox->sbi_sys_rev_mask);
+	mif_dt_read_u32 (np, "sbi_sys_rev_pos", mbox->sbi_sys_rev_pos);
+	mif_dt_read_u32 (np, "sbi_ds_det_mask", mbox->sbi_ds_det_mask);
+	mif_dt_read_u32 (np, "sbi_ds_det_pos", mbox->sbi_ds_det_pos);
 
 	return 0;
 }
@@ -417,11 +422,11 @@ static struct modem_data *modem_if_parse_dt_pdata(struct device *dev)
 	return pdata;
 
 error:
-	if (pdata) {
-		if (pdata->iodevs)
-			devm_kfree(dev, pdata->iodevs);
-		devm_kfree(dev, pdata);
-	}
+	if (pdata->mbx)
+		devm_kfree(dev, pdata->mbx);
+	if (pdata->iodevs)
+		devm_kfree(dev, pdata->iodevs);
+	devm_kfree(dev, pdata);
 
 	return ERR_PTR(-EINVAL);
 }
@@ -548,6 +553,9 @@ static int modem_probe(struct platform_device *pdev)
 
 	if (sysfs_create_groups(&dev->kobj, modem_groups))
 		mif_err("failed to create modem groups node\n");
+
+	if (uart_switch_init(pdev))
+		mif_err("uart_switch_init fail\n");
 
 	mif_err("%s: ---\n", pdata->name);
 

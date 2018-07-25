@@ -14,6 +14,7 @@ config MODEM_CHIP_MODAP_S3XXAP
 	select SHM_IPC
 	select CP_PMUCAL
 	select CP_SECURE_BOOT
+	select UART_SWITCH
 	default n
 
 menu "Configurations"
@@ -39,6 +40,10 @@ config SIM_DETECT
 
 config MODEM_IF_ADAPTIVE_QOS
 	bool "Enable Adaptive QOS for high data performance"
+	default n
+
+config UART_SWITCH
+	bool "UART SWITCH Support"
 	default n
 
 endmenu

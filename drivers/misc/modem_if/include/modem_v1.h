@@ -79,14 +79,8 @@ enum sipc_ver {
 	MAX_SIPC_VER
 };
 
-#define STR_CP_FAIL "cp_fail"
+#define STR_CP_FAIL	"cp_fail"
 #define STR_CP_WDT	"cp_wdt"	/* CP watchdog timer */
-
-enum uart_direction {
-	AP = 0,
-	CP = 1,
-};
-
 enum iodev_attr_bit {
 	ATTR_SIPC4,
 	ATTR_SIPC5,
@@ -226,6 +220,11 @@ struct modem_mbox {
 	unsigned int sbi_pda_active_pos;
 	unsigned int sbi_ap_status_mask;
 	unsigned int sbi_ap_status_pos;
+
+	unsigned int sbi_sys_rev_mask;
+	unsigned int sbi_sys_rev_pos;
+	unsigned int sbi_ds_det_mask;
+	unsigned int sbi_ds_det_pos;
 
 	unsigned int sbi_uart_noti_mask;
 	unsigned int sbi_uart_noti_pos;
