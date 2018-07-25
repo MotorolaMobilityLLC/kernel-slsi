@@ -29,6 +29,8 @@
 #include <linux/muic/s2mu004-muic.h>
 #include <linux/sec_sysfs.h>
 
+struct device *switch_device;
+
 static ssize_t s2mu004_muic_show_uart_en(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -66,6 +68,7 @@ static ssize_t s2mu004_muic_set_uart_en(struct device *dev,
 	return count;
 }
 
+#ifndef CONFIG_UART_SWITCH
 static ssize_t s2mu004_muic_show_uart_sel(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -120,6 +123,7 @@ static ssize_t s2mu004_muic_set_usb_sel(struct device *dev,
 {
 	return count;
 }
+#endif
 
 static ssize_t s2mu004_muic_show_usb_en(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -614,10 +618,12 @@ static ssize_t muic_store_afc_set_voltage(struct device *dev,
 
 static DEVICE_ATTR(uart_en, 0664, s2mu004_muic_show_uart_en,
 					s2mu004_muic_set_uart_en);
+#ifndef CONFIG_UART_SWITCH
 static DEVICE_ATTR(uart_sel, 0664, s2mu004_muic_show_uart_sel,
 					s2mu004_muic_set_uart_sel);
 static DEVICE_ATTR(usb_sel, 0664, s2mu004_muic_show_usb_sel,
 					s2mu004_muic_set_usb_sel);
+#endif
 static DEVICE_ATTR(adc, 0664, s2mu004_muic_show_adc, NULL);
 #if IS_ENABLED(DEBUG_MUIC)
 static DEVICE_ATTR(mansw, 0664, s2mu004_muic_show_mansw, NULL);
@@ -650,8 +656,10 @@ static DEVICE_ATTR(afc_set_voltage, 0220,
 
 static struct attribute *s2mu004_muic_attributes[] = {
 	&dev_attr_uart_en.attr,
+#ifndef CONFIG_UART_SWITCH
 	&dev_attr_uart_sel.attr,
 	&dev_attr_usb_sel.attr,
+#endif
 	&dev_attr_adc.attr,
 #if IS_ENABLED(DEBUG_MUIC)
 	&dev_attr_mansw.attr,
@@ -685,29 +693,28 @@ int s2mu004_muic_init_sysfs(struct s2mu004_muic_data *muic_data)
 	int ret;
 	/* create sysfs group */
 #if IS_ENABLED(CONFIG_SEC_FACTORY)
-	muic_data->switch_device = sec_device_find("switch");
+	switch_device = sec_device_find("switch");
+#else
+	switch_device = sec_device_create(NULL, "switch");
 #endif
 
-	if (muic_data->switch_device == NULL)
-		muic_data->switch_device = sec_device_create(NULL, "switch");
-
-	if (IS_ERR(muic_data->switch_device)) {
+	if (IS_ERR(switch_device)) {
 		pr_err("%s Failed to create device(switch)!\n", __func__);
 		ret = -ENODEV;
 		return ret;
 	}
 
-	ret = sysfs_create_group(&muic_data->switch_device->kobj, &s2mu004_muic_group);
+	ret = sysfs_create_group(&switch_device->kobj, &s2mu004_muic_group);
 	if (ret) {
 		pr_err("failed to create sysfs\n");
 		return ret;
 	}
-	dev_set_drvdata(muic_data->switch_device, muic_data);
+
 	return ret;
 }
 
 void s2mu004_muic_deinit_sysfs(struct s2mu004_muic_data *muic_data)
 {
-	if (muic_data->switch_device)
-		sysfs_remove_group(&muic_data->switch_device->kobj, &s2mu004_muic_group);
+	if (switch_device)
+		sysfs_remove_group(&switch_device->kobj, &s2mu004_muic_group);
 }
