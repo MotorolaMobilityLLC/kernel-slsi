@@ -18,6 +18,8 @@
 #include <scsc/scsc_log_collector.h>
 #include "scsc_log_collector_proc.h"
 #include <scsc/scsc_mx.h>
+#include "mxlogger.h"
+
 #ifdef CONFIG_SCSC_WLBTD
 #include "scsc_wlbtd.h"
 #endif
@@ -48,6 +50,41 @@ MODULE_PARM_DESC(collect_to_ram, "Collect buffer in ram");
 static char collection_dir_buf[256] = "/data/exynos/log/wifi";
 module_param_string(collection_target_directory, collection_dir_buf, sizeof(collection_dir_buf), S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(collection_target_directory, "Specify collection target directory");
+
+static bool sable_collection_off;
+static int sable_collection_off_set_param_cb(const char *val,
+					     const struct kernel_param *kp)
+{
+	bool nval;
+
+	if (!val || strtobool(val, &nval))
+		return -EINVAL;
+
+	if (sable_collection_off ^ nval) {
+		sable_collection_off = nval;
+		mxlogger_set_enabled_status(!sable_collection_off);
+		pr_info("Sable Log Collection is now %sABLED.\n",
+			sable_collection_off ? "DIS" : "EN");
+	}
+	return 0;
+}
+
+/**
+ * As described in struct kernel_param+ops the _get method:
+ * -> returns length written or -errno.  Buffer is 4k (ie. be short!)
+ */
+static int sable_collection_off_get_param_cb(char *buffer,
+					     const struct kernel_param *kp)
+{
+	return sprintf(buffer, "%c", sable_collection_off ? 'Y' : 'N');
+}
+
+static struct kernel_param_ops sable_collection_off_ops = {
+	.set = sable_collection_off_set_param_cb,
+	.get = sable_collection_off_get_param_cb,
+};
+module_param_cb(sable_collection_off, &sable_collection_off_ops, NULL, 0644);
+MODULE_PARM_DESC(sable_collection_off, "Disable SABLE Log Collection. This will inhibit also MXLOGGER");
 
 struct scsc_log_client {
 	struct list_head list;
@@ -90,6 +127,10 @@ int __init scsc_log_collector(void)
 	log_status.collection_workq = create_workqueue("log_collector");
 	if (log_status.collection_workq)
 		INIT_WORK(&log_status.collect_work, collection_worker);
+	/* Update mxlogger status on init.*/
+	pr_info("Sable Log Collection is now %sABLED.\n",
+		sable_collection_off ? "DIS" : "EN");
+	mxlogger_set_enabled_status(!sable_collection_off);
 	scsc_log_collect_proc_create();
 	return 0;
 }
@@ -365,7 +406,13 @@ exit:
 
 int scsc_log_collector_collect(enum scsc_log_reason reason)
 {
-	int ret;
+	int ret = -1;
+
+	if (sable_collection_off) {
+		pr_info("Sable Log Collection is currently DISABLED (sable_collection_off=Y).\n");
+		pr_info("Ignoring incoming Sable Collection request with Reason=%d.\n", reason);
+		return ret;
+	}
 
 	if (collect_to_ram)
 		ret = __scsc_log_collector_collect_to_ram(reason);

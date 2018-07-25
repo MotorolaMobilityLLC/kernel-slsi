@@ -206,6 +206,7 @@ int mxlogger_register_observer(struct mxlogger *mxlogger, char *name);
 int mxlogger_unregister_observer(struct mxlogger *mxlogger, char *name);
 int mxlogger_register_global_observer(char *name);
 int mxlogger_unregister_global_observer(char *name);
+bool mxlogger_set_enabled_status(bool enable);
 
 #define MEM_LAYOUT_CHECK()	\
  ({				\

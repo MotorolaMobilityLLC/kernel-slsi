@@ -65,7 +65,7 @@ static bool fwhdr_parse_v02(char *fw, struct fwhdr *fwhdr)
 		fwhdr->const_fw_length = FWHDR_02_CONST_FW_LENGTH(fw);
 		fwhdr->hdr_length = FWHDR_02_HDR_LENGTH(fw);
 		fwhdr->fw_runtime_length = FWHDR_02_HEADER_FIRMWARE_RUNTIME_LENGTH(fw);
-		SCSC_TAG_INFO(FW_LOAD, "hdr_length=%d", fwhdr->hdr_length);
+		SCSC_TAG_INFO(FW_LOAD, "hdr_length=%d\n", fwhdr->hdr_length);
 		fwhdr->r4_panic_record_offset = FWHDR_02_R4_PANIC_RECORD_OFFSET(fw);
 		fwhdr->m4_panic_record_offset = FWHDR_02_M4_PANIC_RECORD_OFFSET(fw);
 		return true;

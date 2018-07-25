@@ -23,19 +23,35 @@
 #include "mifintrbit.h"
 #include "mxmgmt_transport.h"
 
-static bool mxlogger_forced_disabled = true;
+static bool mxlogger_disabled;
+module_param(mxlogger_disabled, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(mxlogger_disabled, "Disable MXLOGGER Configuration. Effective only at next WLBT boot.");
+
+bool mxlogger_set_enabled_status(bool enable)
+{
+	mxlogger_disabled = !enable;
+
+	SCSC_TAG_INFO(MXMAN, "MXLOGGER has been NOW %sABLED. Effective at next WLBT boot.\n",
+		      mxlogger_disabled ? "DIS" : "EN");
+
+	return mxlogger_disabled;
+}
+EXPORT_SYMBOL(mxlogger_set_enabled_status);
+
+static bool mxlogger_forced_to_host = true;
 
 static void update_fake_observer(void)
 {
-	SCSC_TAG_INFO(MXMAN, "MXLOGGER will now be %sABLED.\n",
-			mxlogger_forced_disabled ? "DIS" : "EN");
-	if (mxlogger_forced_disabled)
+	if (mxlogger_forced_to_host) {
 		mxlogger_register_global_observer("FAKE_OBSERVER");
-	else
+		SCSC_TAG_INFO(MXMAN, "MXLOGGER is now FORCED TO HOST.\n");
+	} else {
 		mxlogger_unregister_global_observer("FAKE_OBSERVER");
+		SCSC_TAG_INFO(MXMAN, "MXLOGGER is now operating NORMALLY.\n");
+	}
 }
 
-static int force_disable_mxlogger_set_param_cb(const char *val,
+static int mxlogger_force_to_host_set_param_cb(const char *val,
 					       const struct kernel_param *kp)
 {
 	bool nval;
@@ -43,8 +59,8 @@ static int force_disable_mxlogger_set_param_cb(const char *val,
 	if (!val || strtobool(val, &nval))
 		return -EINVAL;
 
-	if (mxlogger_forced_disabled ^ nval) {
-		mxlogger_forced_disabled = nval;
+	if (mxlogger_forced_to_host ^ nval) {
+		mxlogger_forced_to_host = nval;
 		update_fake_observer();
 	}
 	return 0;
@@ -54,18 +70,18 @@ static int force_disable_mxlogger_set_param_cb(const char *val,
  * As described in struct kernel_param+ops the _get method:
  * -> returns length written or -errno.  Buffer is 4k (ie. be short!)
  */
-static int force_disable_mxlogger_get_param_cb(char *buffer,
+static int mxlogger_force_to_host_get_param_cb(char *buffer,
 					       const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%c", mxlogger_forced_disabled ? 'Y' : 'N');
+	return sprintf(buffer, "%c", mxlogger_forced_to_host ? 'Y' : 'N');
 }
 
-static struct kernel_param_ops force_disable_mxlogger_ops = {
-	.set = force_disable_mxlogger_set_param_cb,
-	.get = force_disable_mxlogger_get_param_cb,
+static struct kernel_param_ops mxlogger_force_to_host_ops = {
+	.set = mxlogger_force_to_host_set_param_cb,
+	.get = mxlogger_force_to_host_get_param_cb,
 };
-module_param_cb(force_disable_mxlogger, &force_disable_mxlogger_ops, NULL, 0644);
-MODULE_PARM_DESC(force_disable_mxlogger, "Force mxlogger to be disabled, using a fake observer.");
+module_param_cb(mxlogger_force_to_host, &mxlogger_force_to_host_ops, NULL, 0644);
+MODULE_PARM_DESC(mxlogger_force_to_host, "Force mxlogger to redirect to Host all the time, using a fake observer.");
 
 /**
  * Observers of log material could come and go before mxman and mxlogger
@@ -480,7 +496,6 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 		return -EIO;
 	}
 
-	//XXX ???
 	if (mem_sz <= (sizeof(struct mxlogger_config_area) + MXLOGGER_IMP_SIZE)) {
 		SCSC_TAG_ERR(MXMAN, "Insufficient memory allocation\n");
 		return -EIO;
@@ -508,7 +523,6 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 	/* Initialize configuration structure */
 	SCSC_TAG_INFO(MXMAN, "MXLOGGER Configuration: 0x%x\n", (u32)mxlogger->mifram_ref);
 	cfg = (struct mxlogger_config_area *)mxlogger->mem;
-	//memset(cfg, 0, sizeof(struct mxlogger_config_area));
 
 	cfg->config.magic_number = MXLOGGER_MAGIG_NUMBER;
 	cfg->config.config_major = MXLOGGER_MAJOR;
@@ -585,7 +599,7 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 
 	/**
 	 * Update observers status considering
-	 * current value of mxlogger_forced_disabled
+	 * current value of mxlogger_forced_to_host
 	 */
 	update_fake_observer();
 
@@ -642,6 +656,11 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 
 int mxlogger_start(struct mxlogger *mxlogger)
 {
+	if (mxlogger_disabled) {
+		SCSC_TAG_WARNING(MXMAN, "MXLOGGER is disabled. Not Starting.\n");
+		return -1;
+	}
+
 	SCSC_TAG_INFO(MXMAN, "Starting mxlogger with %d observer[s]\n", mxlogger->observers);
 
 	mutex_lock(&mxlogger->lock);
