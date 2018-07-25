@@ -3247,6 +3247,19 @@ int paf_reserved(struct fimc_is_sensor_interface *itf)
 	return -EINVAL;
 }
 
+int request_wb_gain(struct fimc_is_sensor_interface *itf,
+		u32 gr_gain, u32 r_gain, u32 b_gain, u32 gb_gain)
+{
+	return 0;
+}
+
+int set_sensor_info_mfhdr_mode_change(struct fimc_is_sensor_interface *itf,
+		u32 count, u32 *long_expo, u32 *long_again, u32 *long_dgain,
+		u32 *expo, u32 *again, u32 *dgain)
+{
+	return 0;
+}
+
 int init_sensor_interface(struct fimc_is_sensor_interface *itf)
 {
 	int ret = 0;
@@ -3406,6 +3419,9 @@ int init_sensor_interface(struct fimc_is_sensor_interface *itf)
 	itf->dual_itf_ops.set_reuse_ae_exposure = set_reuse_ae_exposure;
 	itf->dual_itf_ops.reserved[0] = dual_reserved_0;
 	itf->dual_itf_ops.reserved[1] = dual_reserved_1;
+
+	itf->cis_ext2_itf_ops.request_wb_gain = request_wb_gain;
+	itf->cis_ext2_itf_ops.set_sensor_info_mfhdr_mode_change = set_sensor_info_mfhdr_mode_change;
 
 	return ret;
 }
