@@ -3256,7 +3256,7 @@ static int slsi_nan_enable(struct wiphy *wiphy, struct wireless_dev *wdev, const
 
 	if (!slsi_dev_nan_supported(sdev)) {
 		SLSI_ERR(sdev, "NAN not allowed(mib:%d)\n", sdev->nan_enabled);
-		ret = WIFI_ERROR_NOT_SUPPORTED;
+		ret = WIFI_HAL_ERROR_NOT_SUPPORTED;
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
 		goto exit;
 	}
@@ -3441,7 +3441,7 @@ static int slsi_nan_publish(struct wiphy *wiphy, struct wireless_dev *wdev, cons
 	if (!ndev_vif->activated) {
 		SLSI_WARN(sdev, "NAN vif not activated\n");
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_ERROR_NOT_AVAILABLE;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 		goto exit_with_lock;
 	}
 
@@ -3507,7 +3507,7 @@ static int slsi_nan_publish_cancel(struct wiphy *wiphy, struct wireless_dev *wde
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	if (!ndev_vif->activated) {
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_ERROR_NOT_AVAILABLE;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 		goto exit_with_lock;
 	}
 	if (!publish_id || !slsi_nan_is_publish_id_active(ndev_vif, publish_id)) {
@@ -3673,7 +3673,7 @@ static int slsi_nan_subscribe(struct wiphy *wiphy, struct wireless_dev *wdev, co
 	if (!ndev_vif->activated) {
 		SLSI_WARN(sdev, "NAN vif not activated\n");
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_ERROR_NOT_AVAILABLE;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 		goto exit_with_lock;
 	}
 
@@ -3706,7 +3706,7 @@ static int slsi_nan_subscribe_cancel(struct wiphy *wiphy, struct wireless_dev *w
 	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct net_device *dev = slsi_nan_get_netdev(sdev);
 	struct netdev_vif *ndev_vif;
-	int type, tmp, ret = WIFI_ERROR_UNKNOWN;
+	int type, tmp, ret = WIFI_HAL_ERROR_UNKNOWN;
 	u16 subscribe_id = 0;
 	const struct nlattr *iter;
 	u32 reply_status = NAN_STATUS_SUCCESS;
@@ -3714,7 +3714,7 @@ static int slsi_nan_subscribe_cancel(struct wiphy *wiphy, struct wireless_dev *w
 	if (!dev) {
 		SLSI_ERR(sdev, "NAN netif not active!!");
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_ERROR_NOT_AVAILABLE;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 		goto exit;
 	}
 
@@ -3747,7 +3747,7 @@ static int slsi_nan_subscribe_cancel(struct wiphy *wiphy, struct wireless_dev *w
 	} else {
 		SLSI_ERR(sdev, "vif not activated\n");
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_ERROR_NOT_AVAILABLE;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 	}
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 exit:
@@ -3832,7 +3832,7 @@ static int slsi_nan_transmit_followup(struct wiphy *wiphy, struct wireless_dev *
 	if (!ndev_vif->activated) {
 		SLSI_WARN(sdev, "NAN vif not activated\n");
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_ERROR_NOT_AVAILABLE;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 		goto exit_with_lock;
 	}
 
@@ -4090,7 +4090,7 @@ static int slsi_nan_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 	if (!ndev_vif->activated) {
 		SLSI_WARN(sdev, "NAN vif not activated\n");
 		reply_status = NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_ERROR_NOT_AVAILABLE;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 	} else {
 		ret = slsi_mlme_nan_set_config(sdev, dev, &hal_req);
 		if (ret)
