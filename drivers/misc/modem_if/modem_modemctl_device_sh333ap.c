@@ -326,16 +326,23 @@ static int sh333ap_on(struct modem_ctl *mc)
 		mif_err("get_hw_rev() ERROR\n");
 	}
 
-	ds_det = get_sim_socket_detection(np);
-	if (ds_det >= 0) {
-		mbox_update_value(MCU_CP, mbx_ap_status, ds_det,
-			sbi_ds_det_mask, sbi_ds_det_pos);
+	if (mc->sim_slot_cnt > 0) {
+		mbox_update_value(MCU_CP, mbx_ap_status, mc->sim_slot_cnt,
+				sbi_ds_det_mask, sbi_ds_det_pos);
+		mif_err("System sim config: %d\n", mc->sim_slot_cnt);
 	} else {
-		mif_err("get_sim_socket_detection() ERROR\n");
+		ds_det = get_sim_socket_detection(np);
+
+		if (ds_det >= 0) {
+			mbox_update_value(MCU_CP, mbx_ap_status, ds_det,
+				sbi_ds_det_mask, sbi_ds_det_pos);
+			mif_err("SIM Socket Detection %d\n", ds_det);
+		} else {
+			mif_err("get_sim_socket_detection() ERROR\n");
+		}
 	}
 
 	mif_err("System Revision %d\n", sys_rev);
-	mif_err("SIM Socket Detection %d\n", ds_det);
 
 	spin_unlock_irqrestore(&mc->ap_status_lock, flags);
 
