@@ -976,11 +976,20 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	char *buff;
 	void __user *user_buff;
 	unsigned long size;
+	int val;
 
 	switch (cmd) {
 	case IOCTL_MODEM_ON:
 		if (mc->ops.modem_on) {
 			mif_err("%s: IOCTL_MODEM_ON\n", iod->name);
+			if (arg) {
+				user_buff = (void __user *)arg;
+
+				if (copy_from_user(&val, user_buff, sizeof(val)))
+					return -EFAULT;
+
+				mc->sim_slot_cnt = val;
+			}
 			return mc->ops.modem_on(mc);
 		}
 		mif_err("%s: !mc->ops.modem_on\n", iod->name);
