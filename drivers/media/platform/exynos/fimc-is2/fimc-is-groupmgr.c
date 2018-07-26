@@ -3344,6 +3344,13 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 				frame->shot->udm.ni.nextNextFrameNoiseIndex;
 		}
 
+#ifdef ENABLE_INIT_AWB
+		/* wb gain backup for initial AWB */
+		if (device->sensor && ((child == &device->group_isp) || (child->subdev[ENTRY_ISP])))
+			memcpy(device->sensor->last_wb, frame->shot->dm.color.gains,
+				sizeof(float) * WB_GAIN_COUNT);
+#endif
+
 #if !defined(FAST_FDAE)
 		if ((child == &device->group_vra) || (child->subdev[ENTRY_VRA])) {
 #ifdef ENABLE_FD_SW
