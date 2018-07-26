@@ -205,6 +205,13 @@ typedef struct {
 	unsigned int factory_step;
 } ois_shared_data;
 
+struct wb_gains {
+	u32 gr;
+	u32 r;
+	u32 b;
+	u32 gb;
+};
+
 typedef struct {
 	/** The length of a frame is specified as a number of lines, frame_length_lines.
 	  @remarks
@@ -376,6 +383,7 @@ struct fimc_is_cis_ops {
 	int (*cis_set_super_slow_motion_threshold)(struct v4l2_subdev *subdev, u32 threshold);
 	int (*cis_get_super_slow_motion_threshold)(struct v4l2_subdev *subdev, u32 *threshold);
 	int (*cis_factory_test)(struct v4l2_subdev *subdev);
+	int (*cis_set_wb_gains)(struct v4l2_subdev *subdev, struct wb_gains wb_gains);
 };
 
 struct fimc_is_sensor_ctl
@@ -423,6 +431,9 @@ struct fimc_is_sensor_ctl
 
 	// Frame number that indicating shot. Currntly, it is not used.
 	/* (14) */  bool shot_frame_number;
+
+	struct wb_gains_data wb_gains;
+	bool update_wb_gains;
 };
 
 typedef enum fimc_is_sensor_adjust_direction_ {
