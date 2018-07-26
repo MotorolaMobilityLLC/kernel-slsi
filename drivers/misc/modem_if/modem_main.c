@@ -121,6 +121,7 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev,
 	modemctl->msd = msd;
 	modemctl->dev = dev;
 	modemctl->phone_state = STATE_OFFLINE;
+	modemctl->sim_slot_cnt = 1;
 
 	modemctl->mdm_data = pdata;
 	modemctl->name = pdata->name;
