@@ -46,6 +46,7 @@ struct fimc_is_cis {
 	u32				aperture_num;
 	bool				use_dgain;
 	bool				hdr_ctrl_by_again;
+	bool				use_wb_gain;
 
 	struct fimc_is_sensor_ctl	sensor_ctls[CAM2P0_UCTL_LIST_SIZE];
 
@@ -60,6 +61,7 @@ struct fimc_is_cis {
 	u32				mode_chg_long_expo;
 	u32				mode_chg_long_again;
 	u32				mode_chg_long_dgain;
+	struct wb_gains			mode_chg_wb_gains;
 
 	/* expected dms */
 	camera2_sensor_dm_t		expecting_sensor_dm[EXPECT_DM_NUM];
@@ -500,6 +502,8 @@ int fimc_is_sensor_peri_s_analog_gain(struct fimc_is_device_sensor *device,
 				u32 long_analog_gain, u32 short_analog_gain);
 int fimc_is_sensor_peri_s_digital_gain(struct fimc_is_device_sensor *device,
 				u32 long_digital_gain, u32 short_digital_gain);
+int fimc_is_sensor_peri_s_wb_gains(struct fimc_is_device_sensor *device,
+				struct wb_gains wb_gains);
 int fimc_is_sensor_peri_adj_ctrl(struct fimc_is_device_sensor *device,
 				u32 input, struct v4l2_control *ctrl);
 

@@ -3250,6 +3250,51 @@ int paf_reserved(struct fimc_is_sensor_interface *itf)
 int request_wb_gain(struct fimc_is_sensor_interface *itf,
 		u32 gr_gain, u32 r_gain, u32 b_gain, u32 gb_gain)
 {
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+	struct fimc_is_device_sensor *sensor;
+	struct fimc_is_sensor_ctl *sensor_ctl = NULL;
+	int i;
+	u32 frame_count = 0, num_of_frame = 1;
+
+	BUG_ON(!itf);
+	BUG_ON(itf->magic != SENSOR_INTERFACE_MAGIC);
+
+	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri, sensor_interface);
+
+	sensor = get_device_sensor(itf);
+	if (!sensor) {
+		err("%s, failed to get sensor device", __func__);
+		return -1;
+	}
+
+	if (!test_bit(FIMC_IS_SENSOR_FRONT_START, &sensor->state)) {
+		sensor_peri->cis.mode_chg_wb_gains.gr = gr_gain;
+		sensor_peri->cis.mode_chg_wb_gains.r = r_gain;
+		sensor_peri->cis.mode_chg_wb_gains.b = b_gain;
+		sensor_peri->cis.mode_chg_wb_gains.gb = gb_gain;
+	}
+
+	frame_count = get_frame_count(itf);
+	get_num_of_frame_per_one_3aa(itf, &num_of_frame);
+
+	for (i = 0; i < num_of_frame; i++) {
+		sensor_ctl = get_sensor_ctl_from_module(itf, frame_count + i);
+		BUG_ON(!sensor_ctl);
+
+		sensor_ctl->wb_gains.gr = gr_gain;
+		sensor_ctl->wb_gains.r = r_gain;
+		sensor_ctl->wb_gains.b = b_gain;
+		sensor_ctl->wb_gains.gb = gb_gain;
+
+		if (i == 0)
+			sensor_ctl->update_wb_gains = true;
+	}
+
+	dbg_sensor(1, "[%s] stream %s, wb gains(gr:%d, r:%d, b:%d, gb:%d)\n",
+		__func__,
+		test_bit(FIMC_IS_SENSOR_FRONT_START, &sensor->state) ? "on" : "off",
+		gr_gain, r_gain, b_gain, gb_gain);
+
 	return 0;
 }
 
