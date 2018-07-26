@@ -404,11 +404,6 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	mfc_info_ctx("[STREAM] Enc dst codec(%d) : %s\n",
 			ctx->codec_mode, ctx->dst_fmt->name);
 
-	if (__mfc_enc_check_resolution(ctx)) {
-		mfc_err_ctx("Unsupported resolution\n");
-		return -EINVAL;
-	}
-
 	if (ctx->otf_handle) {
 		if (ctx->dst_fmt->fourcc != V4L2_PIX_FMT_H264 &&
 				ctx->dst_fmt->fourcc != V4L2_PIX_FMT_HEVC) {
@@ -420,6 +415,11 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 			mfc_otf_destroy(ctx);
 			return -EINVAL;
 		}
+	}
+
+	if (__mfc_enc_check_resolution(ctx)) {
+		mfc_err_ctx("Unsupported resolution\n");
+		return -EINVAL;
 	}
 
 	enc->dst_buf_size = pix_fmt_mp->plane_fmt[0].sizeimage;
