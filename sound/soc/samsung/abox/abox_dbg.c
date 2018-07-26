@@ -255,12 +255,9 @@ void abox_dbg_dump_mem(struct device *dev, struct abox_data *data,
 		memcpy_fromio(p_dump->sfr, data->sfr_base, sizeof(p_dump->sfr));
 		memcpy_fromio(p_dump->sfr_gic_gicd, gic_data->gicd_base,
 				sizeof(p_dump->sfr_gic_gicd));
-		if (!p_dump->dram) {
-			if (src == ABOX_DBG_DUMP_KERNEL)
-				p_dump->dram = vzalloc(DRAM_FIRMWARE_SIZE);
-			else if (src == ABOX_DBG_DUMP_FIRMWARE)
-				p_dump->dram = abox_dbg_alloc_mem_atomic(dev, p_dump);
-		}
+		if (!p_dump->dram)
+			p_dump->dram = abox_dbg_alloc_mem_atomic(dev, p_dump);
+
 		if (!IS_ERR_OR_NULL(p_dump->dram)) {
 			memcpy(p_dump->dram, data->dram_base, DRAM_FIRMWARE_SIZE);
 			flush_cache_all();
@@ -467,20 +464,18 @@ static int samsung_abox_debug_remove(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s\n", __func__);
 	for (i = 0; i < ABOX_DBG_DUMP_COUNT; i++) {
-		if (i == ABOX_DBG_DUMP_KERNEL) {
-			vfree(p_abox_dbg_dump_min[i]->dram);
-		} else if (i == ABOX_DBG_DUMP_FIRMWARE) {
-			struct page **tmp = p_abox_dbg_dump_min[i]->pages;
-			if (p_abox_dbg_dump_min[i]->dram)
-				vm_unmap_ram(p_abox_dbg_dump_min[i]->dram,
-				    DRAM_FIRMWARE_SIZE);
-			if (tmp) {
-				int j;
-				for (j = 0; j < DRAM_FIRMWARE_SIZE / PAGE_SIZE; j++, tmp++)
-					__free_pages(*tmp, 0);
-				kfree(p_abox_dbg_dump_min[i]->pages);
-				p_abox_dbg_dump_min[i]->pages = NULL;
-			}
+		struct page **tmp = p_abox_dbg_dump_min[i]->pages;
+
+		if (p_abox_dbg_dump_min[i]->dram)
+			vm_unmap_ram(p_abox_dbg_dump_min[i]->dram,
+			    DRAM_FIRMWARE_SIZE);
+		if (tmp) {
+			int j;
+
+			for (j = 0; j < DRAM_FIRMWARE_SIZE / PAGE_SIZE; j++, tmp++)
+				__free_pages(*tmp, 0);
+			kfree(p_abox_dbg_dump_min[i]->pages);
+			p_abox_dbg_dump_min[i]->pages = NULL;
 		}
 	}
 
