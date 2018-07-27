@@ -1968,6 +1968,7 @@ void dsim_reg_set_partial_update(u32 id, struct decon_lcd *lcd_info)
 	dsim_reg_set_hresol(id, lcd_info->xres, lcd_info);
 	dsim_reg_set_porch(id, lcd_info);
 	dsim_reg_set_num_of_transfer(id, lcd_info->yres);
+	dsim_reg_set_threshold(id, lcd_info->xres);
 }
 
 void dsim_reg_set_mres(u32 id, struct decon_lcd *lcd_info)
