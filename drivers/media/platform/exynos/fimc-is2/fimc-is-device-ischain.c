@@ -3853,6 +3853,9 @@ static int fimc_is_ischain_init_wrap(struct fimc_is_device_ischain *device,
 			case SENSOR_POSITION_REAR2:
 				sensor_id = priv->rear_second_sensor_id;
 				break;
+			case SENSOR_POSITION_REAR3:
+				sensor_id = priv->rear_third_sensor_id;
+				break;
 			default:
 				merr("invalid module position(%d)", device, module->position);
 				ret = -EINVAL;

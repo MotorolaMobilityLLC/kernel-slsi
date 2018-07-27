@@ -110,6 +110,9 @@ int fimc_is_search_sensor_module_with_position(struct fimc_is_device_sensor *dev
 	case SENSOR_POSITION_REAR2:
 		sensor_id = priv->rear_second_sensor_id;
 		break;
+	case SENSOR_POSITION_REAR3:
+		sensor_id = priv->rear_third_sensor_id;
+		break;
 #ifdef CONFIG_VENDER_PSV
 	case SENSOR_POSITION_VIRTUAL:
 		sensor_id = SENSOR_NAME_VIRTUAL;
