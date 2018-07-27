@@ -1724,6 +1724,32 @@
 		};
 	};
 
+	rgb_led {
+		status = "okay";
+		default_current = <2>;
+		default_off_dur_mode = <0>;
+		max_current = <255>;
+
+		s2mu106-led1 {
+			id = <0>;
+			//	current = <5>;
+		};
+
+		s2mu106-led2 {
+			id = <1>;
+			//	current = <5>;
+		};
+
+		s2mu106-led3 {
+			id = <2>;
+			//	current = <5>;
+		};
+		s2mu106-led4 {
+			id = <3>;
+			//	current = <5>;
+		};
+	};
+
 	s2mu106-charger {
 		status = "okay";
 		battery,charger_name = "s2mu106-charger";
