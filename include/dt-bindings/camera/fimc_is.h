@@ -88,4 +88,12 @@
 #define VC_MIPISTAT		2
 #define VC_EMBEDDED		3
 
+#define SP_REAR		0
+#define SP_FRONT	1
+#define SP_REAR2	2
+#define SP_SECURE	3
+#define SP_FRONT2	5
+#define SP_REAR3	6
+#define SP_VIRTUAL	100
+
 #endif
