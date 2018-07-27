@@ -2039,8 +2039,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		/* Enable LDPC, SGI20 and SGI40 for both SoftAP & P2PGO if firmware supports */
 		if (cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, settings->beacon.tail, settings->beacon.tail_len)) {
 			u8 enforce_ht_cap1 = sdev->fw_ht_cap[0] & (IEEE80211_HT_CAP_LDPC_CODING |
-								  IEEE80211_HT_CAP_SGI_20 |
-								  IEEE80211_HT_CAP_SGI_40);
+								  IEEE80211_HT_CAP_SGI_20);
 			u8 enforce_ht_cap2 = sdev->fw_ht_cap[1] & (IEEE80211_HT_CAP_RX_STBC >> 8);
 
 			slsi_modify_ies(dev, WLAN_EID_HT_CAPABILITY, (u8 *)settings->beacon.tail,
