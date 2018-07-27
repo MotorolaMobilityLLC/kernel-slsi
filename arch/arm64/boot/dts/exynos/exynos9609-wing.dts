@@ -71,150 +71,6 @@
 				};
 			};
 
-			serial_0: uart@13820000 {
-				status = "okay";
-			};
-
-			dsim_0: dsim@0x148E0000 {
-				lcd_info = <&nt36672a>;
-				/* reset, lcd_bias_enp, lcd_bias_enn, lcd_bl_en*/
-				gpios = <&gpg1 4 0x1>, <&gpg3 1 0x1>, <&gpg3 0 0x1>, <&gpg2 1 0x1>;
-			};
-
-			/* USI_0_SHUB */
-			usi_0_shub: usi@11013000 {
-				usi_v2_mode = "spi";
-				status = "okay";
-			};
-
-			/* USI_SHUB_0_I2C */
-			usi_0_shub_i2c: usi@11013004 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				status = "disabled";
-			};
-
-			/* USI_0_CMGP */
-			usi_0_cmgp: usi@11C12000 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_0_CMGP_I2C */
-			usi_0_cmgp_i2c: usi@11C12004 {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_1_CMGP */
-			usi_1_cmgp: usi@11C12010 {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_1_CMGP_I2C */
-			usi_1_cmgp_i2c: usi@11C12014 {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_2_CMGP */
-			usi_2_cmgp: usi@11C12020 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_2_CMGP_I2C */
-			usi_2_cmgp_i2c: usi@11C12024 {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_3_CMGP */
-			usi_3_cmgp: usi@11C12030 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				status = "disabled";
-			};
-
-			/* USI_3_CMGP_I2C */
-			usi_3_cmgp_i2c: usi@11C12034 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				status = "disabled";
-			};
-
-			/* USI_4_CMGP */
-			usi_4_cmgp: usi@11C12040 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				status = "disabled";
-			};
-
-			/* USI_4_CMGP_I2C */
-			usi_4_cmgp_i2c: usi@11C12044 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				status = "disabled";
-			};
-
-			/* USI_PERI_UART */
-			usi_peri_uart: usi@10011010 {
-				usi_v2_mode = "uart";
-				status = "okay";
-			};
-
-			/* USI_PERI_CAMI2C_0 */
-			usi_peri_cami2c_0: usi@10011020 {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_PERI_CAMI2C_1 */
-			usi_peri_cami2c_1: usi@10011024 {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_PERI_CAMI2C_2 */
-			usi_peri_cami2c_2: usi@10011028 {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_PERI_CAMI2C_3 */
-			usi_peri_cami2c_3: usi@1001102C {
-				usi_v2_mode = "i2c";
-				status = "okay";
-			};
-
-			/* USI_PERI_SPI_0 */
-			usi_peri_spi_0: usi@10011030 {
-				usi_v2_mode = "spi";
-				status = "okay";
-			};
-
-			/* USI_PERI_SPI_1 */
-			usi_peri_spi_1: usi@10011034 {
-				usi_v2_mode = "spi";
-				status = "okay";
-			};
-
-			/* USI_PERI_USI_0 */
-			usi_peri_usi_0: usi@1001103C {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				status = "disabled";
-			};
-
-			/* USI_PERI_USI_0_I2C */
-			usi_peri_usi_0_i2c: usi@10011040 {
-				/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
-				status = "disabled";
-			};
-
-			/* USI_PERI_SPI_2 */
-			usi_peri_spi_2: usi@10011038 {
-				usi_v2_mode = "spi";
-				status = "okay";
-			};
-
 			ifconn {
 				status = "okay";
 				compatible = "samsung,ifconn";
@@ -699,29 +555,6 @@
 				udc = <&udc>;
 			};
 
-			usb@13200000 {
-				status = "okay";
-				dwc3 {
-					dr_mode = "otg";
-					maximum-speed = "high-speed";
-				};
-			};
-
-			usbdrd_phy:phy@131D0000 {
-				status = "okay";
-				usb3phy-isolation = <1>;
-
-				hs_tune_param = <&usb_hs_tune>;
-			};
-
-			usbdrd3_phy:phy@131F0000 {
-				status = "okay";
-				usb3phy-isolation = <1>;
-
-				hs_tune_param = <&usb3_hs_tune>;
-				ss_tune_param = <&usb3_ss_tune>;
-			};
-
 			usb_hs_tune:usb_hs_tune {
 				hs_tune_cnt = <12>;
 
@@ -939,221 +772,6 @@
 				regulator-always-on;
 			};
 
-			spi_6: spi@13900000 {
-				status = "disable";
-				pinctrl-names = "default";
-				pinctrl-0 = <&spi6_bus &spi6_cs_func>;
-				/*cs-gpios = <&gpp2 3 0>;*/
-				/*gpp2[3]*/
-				/*num-cs = <1>;*/
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cs35l41_left: cs35l41@0 {
-					compatible = "cirrus,cs35l41";
-					reg = <0x0>;
-
-					spi-max-frequency = <9600000>;
-
-					interrupts = <2 0 0>;
-					interrupt-controller;
-					interrupt-parent = <&gpa0>;
-					reset-gpios = <&gpg3 3 0>;
-					#sound-dai-cells = <1>;
-
-					VA-supply = <&l42_reg>;
-					VP-supply = <&V_SYS>;
-
-					cirrus,boost-peak-milliamp = <4500>;
-					cirrus,boost-ind-nanohenry = <1000>;
-					cirrus,boost-cap-microfarad = <15>;
-					cirrus,asp-sdout-hiz = <0x1>;
-					cirrus,gpio-config2 {
-						cirrus,gpio-src-select = <0x4>;
-						cirrus,gpio-output-enable;
-					};
-
-					controller-data {
-						/*cs-gpio = <gpm8 0 0>*/
-						/*cs-gpios = <&gpp2 3 0>;*/
-						samsung,spi-feedback-delay = <1>;
-						samsung,spi-chip-select-mode = <0>;
-					};
-				};
-			};
-#if 0
-			i2c@0 {
-				status = "okay";
-				compatible = "i2c-gpio";
-
-				pinctrl-names = "default";
-				pinctrl-0 = <&amp_sda &amp_scl &amp_ad0 &amp_ad1>;
-
-				gpios = <&gpp2 2 0 /* sda */
-					 &gpp2 1 0 /* scl */
-					>;
-
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				cs35l41_left: cs35l41@40 {
-					compatible = "cirrus,cs35l41";
-					reg = <0x40>;
-
-					interrupts = <2 0 0>;
-					interrupt-controller;
-					interrupt-parent = <&gpa0>;
-					reset-gpios = <&gpg3 3 0>;
-					#sound-dai-cells = <1>;
-
-					VA-supply = <&l42_reg>;
-					VP-supply = <&V_SYS>;
-
-					cirrus,boost-peak-milliamp = <4500>;
-					cirrus,boost-ind-nanohenry = <1000>;
-					cirrus,boost-cap-microfarad = <15>;
-					cirrus,asp-sdout-hiz = <0x1>;
-					cirrus,gpio-config2 {
-						cirrus,gpio-src-select = <0x4>;
-						cirrus,gpio-output-enable;
-					};
-				};
-			};
-
-#endif
-			spi_9: spi@13940000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&spi9_bus &spi9_cs_func  &codec_en>;
-				status = "okay";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cs47l35: cs47l35@0 {
-					compatible = "cirrus,cs47l35";
-					reg = <0x0>;
-
-					spi-max-frequency = <11000000>;
-
-					interrupts = <6 0 0>;
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					interrupt-parent = <&gpa0>;
-					gpio-controller;
-					#gpio-cells = <2>;
-					#sound-dai-cells = <1>;
-
-					/*l42_reg shoulde be change after board fixed*/
-					AVDD-supply = <&l42_reg>;
-					DBVDD1-supply = <&l42_reg>;
-					DBVDD2-supply = <&l42_reg>;
-					CPVDD1-supply = <&l42_reg>;
-					CPVDD2-supply = <&l44_reg>;
-					DCVDD-supply = <&l44_reg>;
-					SPKVDD-supply = <&V_SYS>;
-
-					reset-gpios = <&gpg3 2 0>;
-
-					cirrus,dmic-ref = <0 0 0>;
-					cirrus,inmode = <
-						0 0 0 0 /* IN1 */
-						0 0 0 0 /* IN2 */
-					>;
-
-				     cirrus,gpsw = <1 0>;
-
-					pinctrl-names = "probe", "active";
-					pinctrl-0 = <&codec_reset>;
-					pinctrl-1 = <&codec_reset &cs47l35_defaults>;
-
-					madera_pinctrl: madera-pinctrl {
-						compatible = "cirrus,madera-pinctrl";
-						cs47l35_defaults: cs47l35-gpio-defaults {
-							aif1 {
-								groups = "aif1";
-								function = "aif1";
-								bias-bus-hold;
-							};
-
-							aif2 {
-								groups = "aif2";
-								function = "aif2";
-								bias-bus-hold;
-							};
-
-							aif3 {
-								groups = "aif3";
-								function = "aif3";
-								bias-bus-hold;
-							};
-
-							gpio6 { /* Amp Clock */
-								groups = "gpio6";
-								function = "opclk";
-								bias-pull-up;
-								output-low;
-							};
-
-							gpio5 { /* Mic Polarity Flip */
-								groups = "gpio5";
-								function = "io";
-							};
-						};
-					};
-
-
-					micvdd {
-						regulator-min-microvolt = <3000000>;
-						regulator-max-microvolt = <3000000>;
-					};
-
-					MICBIAS1 {
-						regulator-min-microvolt = <2800000>;
-						regulator-max-microvolt = <2800000>;
-						cirrus,ext-cap = <1>;
-					};
-					MICBIAS1A {
-						regulator-active-discharge = <1>;
-					};
-					MICBIAS1B {
-						regulator-active-discharge = <1>;
-					};
-
-					MICBIAS2 {
-						regulator-min-microvolt = <2800000>;
-						regulator-max-microvolt = <2800000>;
-						cirrus,ext-cap = <1>;
-					};
-
-					MICBIAS2A {
-						regulator-active-discharge = <1>;
-					};
-					MICBIAS2B {
-						regulator-active-discharge = <1>;
-					};
-
-					cirrus,accdet {
-						#address-cells = <1>;
-						#size-cells = <0>;
-
-						acc@1 {
-							reg = <1>;
-
-							cirrus,micd-configs = <
-								0 0 2 0 0
-							>;
-							cirrus,micd-bias-start-time = <8>;
-							cirrus,micd-rate = <6>;
-							/*cirrus,micd-pol-gpios = <&cs47l35 4 0>;*/
-							cirrus,micd-detect-debounce-ms = <500>;
-							/*cirrus,jd-use-jd2;*/
-							/*cirrus,micd-clamp-mode = <0x8>;*/
-						};
-					};
-
-					controller-data {
-						samsung,spi-feedback-delay = <1>;
-						samsung,spi-chip-select-mode = <0>;
-					};
-				};
-			};
 
 			dummy_audio_codec: audio_codec_dummy {
 				status = "okay";
@@ -1932,37 +1550,6 @@
 	}; /* end of fragment */
 }; /* end of root */
 
-&pinctrl_0 {
-	if_pmic_irq: if-pmic-irq {
-		samsung,pins = "gpa2-1";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
-	};
-
-	fuel_irq: fuel-irq {
-		samsung,pins = "gpa2-3";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
-	};
-
-	usbpd_irq: usbpd-irq {
-		samsung,pins = "gpa2-2";
-		samsung,pin-function = <0xf>;
-		samsung,pin-pud = <3>;
-		samsung,pin-drv = <3>;
-	};
-/* TODO: Need to check pin number
-	small_charger_irq: small-charger-irq {
-		samsung,pins = "gpa2-5";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
-	};
-*/
-};
-
 &i2c_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -2175,6 +1762,35 @@
 		samsung,pin-function = <0>;
 		samsung,pin-pud = <1>;
 	};
+
+	if_pmic_irq: if-pmic-irq {
+		samsung,pins = "gpa2-1";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
+	fuel_irq: fuel-irq {
+		samsung,pins = "gpa2-3";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
+	usbpd_irq: usbpd-irq {
+		samsung,pins = "gpa2-2";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <3>;
+	};
+/* TODO: Need to check pin number
+	small_charger_irq: small-charger-irq {
+		samsung,pins = "gpa2-5";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+*/
 };
 
 &pinctrl_4 {
@@ -2244,4 +1860,389 @@
 		samsung,pin-pud = <1>;
 	};
 #endif
+};
+
+&udc {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	maximum-speed = "high-speed";
+};
+
+&usbdrd_phy {
+	status = "okay";
+	usb3phy-isolation = <1>;
+
+	hs_tune_param = <&usb_hs_tune>;
+};
+
+&usbdrd3_phy {
+	status = "okay";
+	usb3phy-isolation = <1>;
+
+	hs_tune_param = <&usb3_hs_tune>;
+	ss_tune_param = <&usb3_ss_tune>;
+};
+
+&serial_0 {
+	status = "okay";
+};
+
+&dsim_0 {
+	lcd_info = <&nt36672a>;
+	/* reset, lcd_bias_enp, lcd_bias_enn, lcd_bl_en*/
+	gpios = <&gpg1 4 0x1>, <&gpg3 1 0x1>, <&gpg3 0 0x1>, <&gpg2 1 0x1>;
+};
+
+/* USI_0_SHUB */
+&usi_0_shub {
+	usi_v2_mode = "spi";
+	status = "okay";
+};
+
+/* USI_SHUB_0_I2C */
+&usi_0_shub_i2c {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	status = "disabled";
+};
+
+/* USI_0_CMGP */
+&usi_0_cmgp {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_0_CMGP_I2C */
+&usi_0_cmgp_i2c {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_1_CMGP */
+&usi_1_cmgp {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_1_CMGP_I2C */
+&usi_1_cmgp_i2c {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_2_CMGP */
+&usi_2_cmgp {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_2_CMGP_I2C */
+&usi_2_cmgp_i2c {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_3_CMGP */
+&usi_3_cmgp {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	status = "disabled";
+};
+
+/* USI_3_CMGP_I2C */
+&usi_3_cmgp_i2c {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	status = "disabled";
+};
+
+/* USI_4_CMGP */
+&usi_4_cmgp {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	status = "disabled";
+};
+
+/* USI_4_CMGP_I2C */
+&usi_4_cmgp_i2c {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	status = "disabled";
+};
+
+/* USI_PERI_UART */
+&usi_peri_uart {
+	usi_v2_mode = "uart";
+	status = "okay";
+};
+
+/* USI_PERI_CAMI2C_0 */
+&usi_peri_cami2c_0 {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_PERI_CAMI2C_1 */
+&usi_peri_cami2c_1 {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_PERI_CAMI2C_2 */
+&usi_peri_cami2c_2 {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_PERI_CAMI2C_3 */
+&usi_peri_cami2c_3 {
+	usi_v2_mode = "i2c";
+	status = "okay";
+};
+
+/* USI_PERI_SPI_0 */
+&usi_peri_spi_0 {
+	usi_v2_mode = "spi";
+	status = "okay";
+};
+
+/* USI_PERI_SPI_1 */
+&usi_peri_spi_1 {
+	usi_v2_mode = "spi";
+	status = "okay";
+};
+
+/* USI_PERI_USI_0 */
+&usi_peri_usi_0 {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	status = "disabled";
+};
+
+/* USI_PERI_USI_0_I2C */
+&usi_peri_usi_0_i2c {
+	/*	usi_v2_mode = "i2c" or "spi" or "uart"	*/
+	status = "disabled";
+};
+
+/* USI_PERI_SPI_2 */
+&usi_peri_spi_2 {
+	usi_v2_mode = "spi";
+	status = "okay";
+};
+
+&spi_6 {
+	status = "disable";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi6_bus &spi6_cs_func>;
+	/*cs-gpios = <&gpp2 3 0>;*/
+	/*gpp2[3]*/
+	/*num-cs = <1>;*/
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs35l41_left: cs35l41@0 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x0>;
+
+		spi-max-frequency = <9600000>;
+
+		interrupts = <2 0 0>;
+		interrupt-controller;
+		interrupt-parent = <&gpa0>;
+		reset-gpios = <&gpg3 3 0>;
+		#sound-dai-cells = <1>;
+
+		VA-supply = <&l42_reg>;
+		VP-supply = <&V_SYS>;
+
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x1>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+
+		controller-data {
+			/*cs-gpio = <gpm8 0 0>*/
+			/*cs-gpios = <&gpp2 3 0>;*/
+			samsung,spi-feedback-delay = <1>;
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
+};
+
+#if 0
+&i2c@0 {
+	status = "okay";
+	compatible = "i2c-gpio";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&amp_sda &amp_scl &amp_ad0 &amp_ad1>;
+
+	gpios = <&gpp2 2 0 /* sda */
+		 &gpp2 1 0 /* scl */
+		>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	cs35l41_left: cs35l41@40 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+
+		interrupts = <2 0 0>;
+		interrupt-controller;
+		interrupt-parent = <&gpa0>;
+		reset-gpios = <&gpg3 3 0>;
+		#sound-dai-cells = <1>;
+
+		VA-supply = <&l42_reg>;
+		VP-supply = <&V_SYS>;
+
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x1>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+	};
+};
+#endif
+
+&spi_9 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi9_bus &spi9_cs_func  &codec_en>;
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs47l35: cs47l35@0 {
+		compatible = "cirrus,cs47l35";
+		reg = <0x0>;
+
+		spi-max-frequency = <11000000>;
+
+		interrupts = <6 0 0>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpa0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		#sound-dai-cells = <1>;
+
+		/*l42_reg shoulde be change after board fixed*/
+		AVDD-supply = <&l42_reg>;
+		DBVDD1-supply = <&l42_reg>;
+		DBVDD2-supply = <&l42_reg>;
+		CPVDD1-supply = <&l42_reg>;
+		CPVDD2-supply = <&l44_reg>;
+		DCVDD-supply = <&l44_reg>;
+		SPKVDD-supply = <&V_SYS>;
+
+		reset-gpios = <&gpg3 2 0>;
+
+		cirrus,dmic-ref = <0 0 0>;
+		cirrus,inmode = <
+			0 0 0 0 /* IN1 */
+			0 0 0 0 /* IN2 */
+		>;
+
+	     cirrus,gpsw = <1 0>;
+
+		pinctrl-names = "probe", "active";
+		pinctrl-0 = <&codec_reset>;
+		pinctrl-1 = <&codec_reset &cs47l35_defaults>;
+
+		madera_pinctrl: madera-pinctrl {
+			compatible = "cirrus,madera-pinctrl";
+			cs47l35_defaults: cs47l35-gpio-defaults {
+				aif1 {
+					groups = "aif1";
+					function = "aif1";
+					bias-bus-hold;
+				};
+
+				aif2 {
+					groups = "aif2";
+					function = "aif2";
+					bias-bus-hold;
+				};
+
+				aif3 {
+					groups = "aif3";
+					function = "aif3";
+					bias-bus-hold;
+				};
+
+				gpio6 { /* Amp Clock */
+					groups = "gpio6";
+					function = "opclk";
+					bias-pull-up;
+					output-low;
+				};
+
+				gpio5 { /* Mic Polarity Flip */
+					groups = "gpio5";
+					function = "io";
+				};
+			};
+		};
+
+
+		micvdd {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+		};
+
+		MICBIAS1 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			cirrus,ext-cap = <1>;
+		};
+		MICBIAS1A {
+			regulator-active-discharge = <1>;
+		};
+		MICBIAS1B {
+			regulator-active-discharge = <1>;
+		};
+
+		MICBIAS2 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			cirrus,ext-cap = <1>;
+		};
+
+		MICBIAS2A {
+			regulator-active-discharge = <1>;
+		};
+		MICBIAS2B {
+			regulator-active-discharge = <1>;
+		};
+
+		cirrus,accdet {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			acc@1 {
+				reg = <1>;
+
+				cirrus,micd-configs = <
+					0 0 2 0 0
+				>;
+				cirrus,micd-bias-start-time = <8>;
+				cirrus,micd-rate = <6>;
+				/*cirrus,micd-pol-gpios = <&cs47l35 4 0>;*/
+				cirrus,micd-detect-debounce-ms = <500>;
+				/*cirrus,jd-use-jd2;*/
+				/*cirrus,micd-clamp-mode = <0x8>;*/
+			};
+		};
+
+		controller-data {
+			samsung,spi-feedback-delay = <1>;
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
 };
