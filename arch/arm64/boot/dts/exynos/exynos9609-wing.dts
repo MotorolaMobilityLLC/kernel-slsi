@@ -25,7 +25,7 @@
 
 	fragment@model {
 		target-path = "/";
-	        __overlay__ {
+		__overlay__ {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			model = "Samsung Wing board based on EXYNOS9610";
@@ -36,7 +36,7 @@
 			};
 
 			chosen {
-				bootargs = "ccic_info=0x1 console=ram root=/dev/ram0 clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=samsungexynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80fa000000 pmic_info=0x3";
+				bootargs = "console=ram skip_initramfs rootwait ro init=/init clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=exynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80fa000000 pmic_info=0x3 ccic_info=0x1 ";
 				linux,initrd-start = <0x84000000>;
 				linux,initrd-end = <0x841FFFFF>;
 			};
@@ -51,21 +51,18 @@
 			firmware {
 				android {
 					compatible = "android,firmware";
+					vbmeta {
+						compatible = "android,vbmeta";
+						parts = "vbmeta,boot,system,vendor";
+					};
 					fstab {
 						compatible = "android,fstab";
-						system {
-							compatible = "android,system";
-							dev = "/dev/block/platform/13520000.ufs/by-name/system";
-							type = "ext4";
-							mnt_flags = "ro";
-							fsmgr_flags = "wait";
-						};
 						vendor {
 							compatible = "android,vendor";
 							dev = "/dev/block/platform/13520000.ufs/by-name/vendor";
 							type = "ext4";
 							mnt_flags = "ro";
-							fsmgr_flags = "wait";
+							fsmgr_flags = "wait,avb,slotselect";
 						};
 					};
 				};
