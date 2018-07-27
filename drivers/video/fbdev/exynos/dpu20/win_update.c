@@ -140,9 +140,6 @@ static void win_update_check_limitation(struct decon_device *decon,
 
 		decon_intersection(&regs->up_region, &r, &r);
 
-		if (!(r.right - r.left) && !(r.bottom - r.top))
-			continue;
-
 		if (is_yuv(config)) {
 			/* check alignment for NV12/NV21 format */
 			update.x = regs->up_region.left;

@@ -339,8 +339,8 @@ u32 dpu_get_alpha_len(int format)
 
 bool decon_intersect(struct decon_rect *r1, struct decon_rect *r2)
 {
-	return !(r1->left > r2->right || r1->right < r2->left ||
-		r1->top > r2->bottom || r1->bottom < r2->top);
+	return !(r1->left >= r2->right || r1->right <= r2->left ||
+		r1->top >= r2->bottom || r1->bottom <= r2->top);
 }
 
 int decon_intersection(struct decon_rect *r1,
