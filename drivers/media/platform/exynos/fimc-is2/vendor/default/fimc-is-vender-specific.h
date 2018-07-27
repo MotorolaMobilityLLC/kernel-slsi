@@ -26,6 +26,7 @@ struct fimc_is_vender_specific {
 	u32			secure_sensor_id;
 #endif
 	u32			front_second_sensor_id;
+	u32			rear_third_sensor_id;
 	u32			ois_sensor_index;
 	u32                     aperture_sensor_index;
 	bool			zoom_running;
