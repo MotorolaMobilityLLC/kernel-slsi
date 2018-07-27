@@ -458,12 +458,7 @@ struct mfc_platdata {
 	struct mfc_feature color_aspect_enc;
 	struct mfc_feature static_info_enc;
 	struct mfc_feature hdr10_plus;
-#ifdef CONFIG_EXYNOS_BTS
-	struct mfc_bw_info mfc_bw_info;
-#endif
-#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-	struct mfc_qos_weight qos_weight;
-#endif
+
 	/*
 	 * new variables should be added above
 	 * ============ boundary line ============
@@ -474,6 +469,13 @@ struct mfc_platdata {
 	unsigned int enc_param_num;
 	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];
 	unsigned int enc_param_val[MFC_MAX_DEFAULT_PARAM];
+
+#ifdef CONFIG_EXYNOS_BTS
+	struct mfc_bw_info mfc_bw_info;
+#endif
+#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+	struct mfc_qos_weight qos_weight;
+#endif
 };
 
 /************************ NAL_Q data structure ************************/
