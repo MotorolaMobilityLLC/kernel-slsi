@@ -4006,6 +4006,11 @@ int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u8 h
 	struct sk_buff    *cfm;
 	int               r = 0;
 
+	if (slsi_is_test_mode_enabled()) {
+		SLSI_NET_INFO(dev, "Skip MLME_HOST_STATE_REQ in wlanlite mode\n");
+		return -EOPNOTSUPP;
+	}
+
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_set_host_state(state =%d)\n", host_state);
 
 	req = fapi_alloc(mlme_host_state_req, MLME_HOST_STATE_REQ, 0, 0);
