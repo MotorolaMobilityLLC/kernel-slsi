@@ -633,8 +633,6 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 			*governor = t;
 			err = 0;
 		}
-		if (t && !try_module_get(t->owner))
-			t = NULL;
 
 		mutex_unlock(&cpufreq_governor_mutex);
 	}
@@ -697,6 +695,8 @@ static ssize_t store_##file_name					\
 	struct cpufreq_policy new_policy;				\
 									\
 	memcpy(&new_policy, policy, sizeof(*policy));			\
+	new_policy.min = policy->user_policy.min;			\
+	new_policy.max = policy->user_policy.max;			\
 									\
 	ret = sscanf(buf, "%u", &new_policy.object);			\
 	if (ret != 1)							\
@@ -763,10 +763,6 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 		return -EINVAL;
 
 	ret = cpufreq_set_policy(policy, &new_policy);
-
-	if (new_policy.governor)
-		module_put(new_policy.governor->owner);
-
 	return ret ? ret : count;
 }
 
@@ -1366,13 +1362,13 @@ static int cpufreq_online(unsigned int cpu)
 	return 0;
 
 out_exit_policy:
+	for_each_cpu(j, policy->real_cpus)
+		remove_cpu_dev_symlink(policy, get_cpu_device(j));
+
 	up_write(&policy->rwsem);
 
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(policy);
-
-	for_each_cpu(j, policy->real_cpus)
-		remove_cpu_dev_symlink(policy, get_cpu_device(j));
 
 out_free_policy:
 	cpufreq_policy_free(policy);

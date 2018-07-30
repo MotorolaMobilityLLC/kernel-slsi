@@ -105,7 +105,7 @@ _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
  *
  */
 static int
-_scsih_set_fwfault_debug(const char *val, struct kernel_param *kp)
+_scsih_set_fwfault_debug(const char *val, const struct kernel_param *kp)
 {
 	int ret = param_set_int(val, kp);
 	struct MPT3SAS_ADAPTER *ioc;
@@ -1921,8 +1921,11 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 				continue;
 			}
 
-			for_each_cpu(cpu, mask)
+			for_each_cpu_and(cpu, mask, cpu_online_mask) {
+				if (cpu >= ioc->cpu_msix_table_sz)
+					break;
 				ioc->cpu_msix_table[cpu] = reply_q->msix_index;
+			}
 		}
 		return;
 	}

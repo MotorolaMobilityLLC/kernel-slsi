@@ -194,12 +194,8 @@ static int do_read_inode(struct inode *inode)
 	projid_t i_projid;
 
 	/* Check if ino is within scope */
-	if (check_nid_range(sbi, inode->i_ino)) {
-		f2fs_msg(inode->i_sb, KERN_ERR, "bad inode number: %lu",
-			 (unsigned long) inode->i_ino);
-		WARN_ON(1);
+	if (check_nid_range(sbi, inode->i_ino))
 		return -EINVAL;
-	}
 
 	node_page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(node_page))
@@ -284,6 +280,10 @@ static int do_read_inode(struct inode *inode)
 		fi->i_crtime.tv_nsec = le32_to_cpu(ri->i_crtime_nsec);
 	}
 
+	F2FS_I(inode)->i_disk_time[0] = inode->i_atime;
+	F2FS_I(inode)->i_disk_time[1] = inode->i_ctime;
+	F2FS_I(inode)->i_disk_time[2] = inode->i_mtime;
+	F2FS_I(inode)->i_disk_time[3] = F2FS_I(inode)->i_crtime;
 	f2fs_put_page(node_page, 1);
 
 	stat_inc_inline_xattr(inode);
@@ -439,12 +439,15 @@ void update_inode(struct inode *inode, struct page *node_page)
 	}
 
 	__set_inode_rdev(inode, ri);
-	set_cold_node(inode, node_page);
 
 	/* deleted inode */
 	if (inode->i_nlink == 0)
 		clear_inline_node(node_page);
 
+	F2FS_I(inode)->i_disk_time[0] = inode->i_atime;
+	F2FS_I(inode)->i_disk_time[1] = inode->i_ctime;
+	F2FS_I(inode)->i_disk_time[2] = inode->i_mtime;
+	F2FS_I(inode)->i_disk_time[3] = F2FS_I(inode)->i_crtime;
 }
 
 void update_inode_page(struct inode *inode)
@@ -581,11 +584,14 @@ no_delete:
 		alloc_nid_failed(sbi, inode->i_ino);
 		clear_inode_flag(inode, FI_FREE_NID);
 	} else {
-		f2fs_bug_on(sbi, err &&
-			!exist_written_data(sbi, inode->i_ino, ORPHAN_INO));
+		/*
+		 * If xattr nid is corrupted, we can reach out error condition,
+		 * err & !exist_written_data(sbi, inode->i_ino, ORPHAN_INO)).
+		 * In that case, check_nid_range() is enough to give a clue.
+		 */
 	}
 out_clear:
-	fscrypt_put_encryption_info(inode, NULL);
+	fscrypt_put_encryption_info(inode);
 	clear_inode(inode);
 }
 

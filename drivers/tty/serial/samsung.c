@@ -690,6 +690,100 @@ static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
+<<<<<<< HEAD
+=======
+static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
+{
+	struct s3c24xx_uart_dma	*dma = p->dma;
+	int ret;
+
+	/* Default slave configuration parameters */
+	dma->rx_conf.direction		= DMA_DEV_TO_MEM;
+	dma->rx_conf.src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
+	dma->rx_conf.src_addr		= p->port.mapbase + S3C2410_URXH;
+	dma->rx_conf.src_maxburst	= 1;
+
+	dma->tx_conf.direction		= DMA_MEM_TO_DEV;
+	dma->tx_conf.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
+	dma->tx_conf.dst_addr		= p->port.mapbase + S3C2410_UTXH;
+	dma->tx_conf.dst_maxburst	= 1;
+
+	dma->rx_chan = dma_request_chan(p->port.dev, "rx");
+
+	if (IS_ERR(dma->rx_chan))
+		return PTR_ERR(dma->rx_chan);
+
+	dmaengine_slave_config(dma->rx_chan, &dma->rx_conf);
+
+	dma->tx_chan = dma_request_chan(p->port.dev, "tx");
+	if (IS_ERR(dma->tx_chan)) {
+		ret = PTR_ERR(dma->tx_chan);
+		goto err_release_rx;
+	}
+
+	dmaengine_slave_config(dma->tx_chan, &dma->tx_conf);
+
+	/* RX buffer */
+	dma->rx_size = PAGE_SIZE;
+
+	dma->rx_buf = kmalloc(dma->rx_size, GFP_KERNEL);
+	if (!dma->rx_buf) {
+		ret = -ENOMEM;
+		goto err_release_tx;
+	}
+
+	dma->rx_addr = dma_map_single(p->port.dev, dma->rx_buf,
+				dma->rx_size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(p->port.dev, dma->rx_addr)) {
+		ret = -EIO;
+		goto err_free_rx;
+	}
+
+	/* TX buffer */
+	dma->tx_addr = dma_map_single(p->port.dev, p->port.state->xmit.buf,
+				UART_XMIT_SIZE, DMA_TO_DEVICE);
+	if (dma_mapping_error(p->port.dev, dma->tx_addr)) {
+		ret = -EIO;
+		goto err_unmap_rx;
+	}
+
+	return 0;
+
+err_unmap_rx:
+	dma_unmap_single(p->port.dev, dma->rx_addr, dma->rx_size,
+			 DMA_FROM_DEVICE);
+err_free_rx:
+	kfree(dma->rx_buf);
+err_release_tx:
+	dma_release_channel(dma->tx_chan);
+err_release_rx:
+	dma_release_channel(dma->rx_chan);
+	return ret;
+}
+
+static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
+{
+	struct s3c24xx_uart_dma	*dma = p->dma;
+
+	if (dma->rx_chan) {
+		dmaengine_terminate_all(dma->rx_chan);
+		dma_unmap_single(p->port.dev, dma->rx_addr,
+				dma->rx_size, DMA_FROM_DEVICE);
+		kfree(dma->rx_buf);
+		dma_release_channel(dma->rx_chan);
+		dma->rx_chan = NULL;
+	}
+
+	if (dma->tx_chan) {
+		dmaengine_terminate_all(dma->tx_chan);
+		dma_unmap_single(p->port.dev, dma->tx_addr,
+				UART_XMIT_SIZE, DMA_TO_DEVICE);
+		dma_release_channel(dma->tx_chan);
+		dma->tx_chan = NULL;
+	}
+}
+
+>>>>>>> 818299f6bdae
 static void s3c24xx_serial_shutdown(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
@@ -1686,12 +1780,20 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	if (ourport->port.line != port_index)
 		ourport = exynos_serial_default_port(port_index);
 
+<<<<<<< HEAD
 	if (ourport->port.line >= CONFIG_SERIAL_SAMSUNG_UARTS) {
 		dev_err(&pdev->dev,
 			"the port %d exceeded CONFIG_SERIAL_SAMSUNG_UARTS(%d)\n"
 			, ourport->port.line, CONFIG_SERIAL_SAMSUNG_UARTS);
 		return -EINVAL;
 	}
+=======
+	if (index >= ARRAY_SIZE(s3c24xx_serial_ports)) {
+		dev_err(&pdev->dev, "serial%d out of range\n", index);
+		return -EINVAL;
+	}
+	ourport = &s3c24xx_serial_ports[index];
+>>>>>>> 818299f6bdae
 
 	ourport->drv_data = s3c24xx_get_driver_data(pdev);
 	if (!ourport->drv_data) {

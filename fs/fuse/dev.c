@@ -383,8 +383,7 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		if (!fc->blocked && waitqueue_active(&fc->blocked_waitq))
 			wake_up(&fc->blocked_waitq);
 
-		if (fc->num_background == fc->congestion_threshold &&
-		    fc->connected && fc->sb) {
+		if (fc->num_background == fc->congestion_threshold && fc->sb) {
 			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
 			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
 		}
@@ -1892,8 +1891,10 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 
 	err = copy_out_args(cs, &req->out, nbytes);
 	if (req->in.h.opcode == FUSE_CANONICAL_PATH) {
-		req->out.h.error = kern_path((char *)req->out.args[0].value, 0,
-							req->canonical_path);
+		char *path = (char *)req->out.args[0].value;
+
+		path[req->out.args[0].size - 1] = 0;
+		req->out.h.error = kern_path(path, 0, req->canonical_path);
 	}
 	fuse_copy_finish(cs);
 
