@@ -71,6 +71,8 @@ struct hip4_smapper_control {
 	u32  mbox_scb;   /* SMAPPER MBOX scoreboard location */
 	u32 *mbox_ptr;   /* Mbox pointer */
 	spinlock_t   smapper_lock;
+	/* Lookup table to map the virtual bank mapping in wlan with the phy mapping in HW */
+	u8 lookuptable[HIP4_SMAPPER_TOTAL_BANKS];
 };
 
 struct hip4_smapper_bank {

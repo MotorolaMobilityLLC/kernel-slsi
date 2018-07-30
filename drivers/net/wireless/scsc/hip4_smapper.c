@@ -21,6 +21,7 @@ static int hip4_smapper_alloc_bank(struct slsi_dev *sdev, struct hip4_priv *priv
 {
 	u16 i;
 	struct hip4_smapper_bank *bank = &(priv)->smapper_banks[bank_name];
+	struct hip4_smapper_control *control = &(priv)->smapper_control;
 
 	SLSI_DBG4_NODEV(SLSI_SMAPPER, "Init bank %d entry_size %d is_large %d\n", bank_name, entry_size, is_large);
 	bank->entry_size = entry_size;
@@ -40,6 +41,9 @@ static int hip4_smapper_alloc_bank(struct slsi_dev *sdev, struct hip4_priv *priv
 
 	bank->align = scsc_service_get_alignment(sdev->service);
 	bank->in_use = true;
+
+	/* update the mapping with BANK# in WLAN with PHY BANK#*/
+	control->lookuptable[bank->bank] = bank_name;
 
 	return 0;
 }
@@ -200,10 +204,14 @@ int hip4_smapper_consume_entry(struct slsi_dev *sdev, struct slsi_hip4 *hip, str
 	len = desc->entry_size;
 	headroom = desc->headroom;
 
+
 	if (bank_num > HIP4_SMAPPER_TOTAL_BANKS) {
 		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Incorrect bank_num %d\n", bank_num);
 		goto error;
 	}
+
+	/* Transform PHY BANK# with BANK# in Wlan service*/
+	bank_num = control->lookuptable[bank_num];
 
 	bank = &hip->hip_priv->smapper_banks[bank_num];
 
