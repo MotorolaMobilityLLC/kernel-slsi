@@ -110,7 +110,6 @@
 #define EXYNOS_EMUL_DATA_MASK	0x1FF
 #define EXYNOS_EMUL_ENABLE	0x1
 
-<<<<<<< HEAD
 #define EXYNOS_TMU_REG_THD_TEMP0		0x50
 #define EXYNOS_TMU_REG_THD_TEMP1		0x170
 #define EXYNOS_TMU_REG_THD_TEMP8		0x450
@@ -221,135 +220,6 @@ static LIST_HEAD(dtm_dev_list);
 static u32 t_bgri_trim;
 static u32 t_vref_trim;
 static u32 t_vbei_trim;
-=======
-/* Exynos5260 specific */
-#define EXYNOS5260_TMU_REG_INTEN		0xC0
-#define EXYNOS5260_TMU_REG_INTSTAT		0xC4
-#define EXYNOS5260_TMU_REG_INTCLEAR		0xC8
-#define EXYNOS5260_EMUL_CON			0x100
-
-/* Exynos4412 specific */
-#define EXYNOS4412_MUX_ADDR_VALUE          6
-#define EXYNOS4412_MUX_ADDR_SHIFT          20
-
-/* Exynos5433 specific registers */
-#define EXYNOS5433_TMU_REG_CONTROL1		0x024
-#define EXYNOS5433_TMU_SAMPLING_INTERVAL	0x02c
-#define EXYNOS5433_TMU_COUNTER_VALUE0		0x030
-#define EXYNOS5433_TMU_COUNTER_VALUE1		0x034
-#define EXYNOS5433_TMU_REG_CURRENT_TEMP1	0x044
-#define EXYNOS5433_THD_TEMP_RISE3_0		0x050
-#define EXYNOS5433_THD_TEMP_RISE7_4		0x054
-#define EXYNOS5433_THD_TEMP_FALL3_0		0x060
-#define EXYNOS5433_THD_TEMP_FALL7_4		0x064
-#define EXYNOS5433_TMU_REG_INTEN		0x0c0
-#define EXYNOS5433_TMU_REG_INTPEND		0x0c8
-#define EXYNOS5433_TMU_EMUL_CON			0x110
-#define EXYNOS5433_TMU_PD_DET_EN		0x130
-
-#define EXYNOS5433_TRIMINFO_SENSOR_ID_SHIFT	16
-#define EXYNOS5433_TRIMINFO_CALIB_SEL_SHIFT	23
-#define EXYNOS5433_TRIMINFO_SENSOR_ID_MASK	\
-			(0xf << EXYNOS5433_TRIMINFO_SENSOR_ID_SHIFT)
-#define EXYNOS5433_TRIMINFO_CALIB_SEL_MASK	BIT(23)
-
-#define EXYNOS5433_TRIMINFO_ONE_POINT_TRIMMING	0
-#define EXYNOS5433_TRIMINFO_TWO_POINT_TRIMMING	1
-
-#define EXYNOS5433_PD_DET_EN			1
-
-/*exynos5440 specific registers*/
-#define EXYNOS5440_TMU_S0_7_TRIM		0x000
-#define EXYNOS5440_TMU_S0_7_CTRL		0x020
-#define EXYNOS5440_TMU_S0_7_DEBUG		0x040
-#define EXYNOS5440_TMU_S0_7_TEMP		0x0f0
-#define EXYNOS5440_TMU_S0_7_TH0			0x110
-#define EXYNOS5440_TMU_S0_7_TH1			0x130
-#define EXYNOS5440_TMU_S0_7_TH2			0x150
-#define EXYNOS5440_TMU_S0_7_IRQEN		0x210
-#define EXYNOS5440_TMU_S0_7_IRQ			0x230
-/* exynos5440 common registers */
-#define EXYNOS5440_TMU_IRQ_STATUS		0x000
-#define EXYNOS5440_TMU_PMIN			0x004
-
-#define EXYNOS5440_TMU_INTEN_RISE0_SHIFT	0
-#define EXYNOS5440_TMU_INTEN_RISE1_SHIFT	1
-#define EXYNOS5440_TMU_INTEN_RISE2_SHIFT	2
-#define EXYNOS5440_TMU_INTEN_RISE3_SHIFT	3
-#define EXYNOS5440_TMU_INTEN_FALL0_SHIFT	4
-#define EXYNOS5440_TMU_TH_RISE4_SHIFT		24
-#define EXYNOS5440_EFUSE_SWAP_OFFSET		8
-
-/* Exynos7 specific registers */
-#define EXYNOS7_THD_TEMP_RISE7_6		0x50
-#define EXYNOS7_THD_TEMP_FALL7_6		0x60
-#define EXYNOS7_TMU_REG_INTEN			0x110
-#define EXYNOS7_TMU_REG_INTPEND			0x118
-#define EXYNOS7_TMU_REG_EMUL_CON		0x160
-
-#define EXYNOS7_TMU_TEMP_MASK			0x1ff
-#define EXYNOS7_PD_DET_EN_SHIFT			23
-#define EXYNOS7_TMU_INTEN_RISE0_SHIFT		0
-#define EXYNOS7_TMU_INTEN_RISE1_SHIFT		1
-#define EXYNOS7_TMU_INTEN_RISE2_SHIFT		2
-#define EXYNOS7_TMU_INTEN_RISE3_SHIFT		3
-#define EXYNOS7_TMU_INTEN_RISE4_SHIFT		4
-#define EXYNOS7_TMU_INTEN_RISE5_SHIFT		5
-#define EXYNOS7_TMU_INTEN_RISE6_SHIFT		6
-#define EXYNOS7_TMU_INTEN_RISE7_SHIFT		7
-#define EXYNOS7_EMUL_DATA_SHIFT			7
-#define EXYNOS7_EMUL_DATA_MASK			0x1ff
-
-#define MCELSIUS	1000
-/**
- * struct exynos_tmu_data : A structure to hold the private data of the TMU
-	driver
- * @id: identifier of the one instance of the TMU controller.
- * @pdata: pointer to the tmu platform/configuration data
- * @base: base address of the single instance of the TMU controller.
- * @base_second: base address of the common registers of the TMU controller.
- * @irq: irq number of the TMU controller.
- * @soc: id of the SOC type.
- * @irq_work: pointer to the irq work structure.
- * @lock: lock to implement synchronization.
- * @clk: pointer to the clock structure.
- * @clk_sec: pointer to the clock structure for accessing the base_second.
- * @sclk: pointer to the clock structure for accessing the tmu special clk.
- * @temp_error1: fused value of the first point trim.
- * @temp_error2: fused value of the second point trim.
- * @regulator: pointer to the TMU regulator structure.
- * @reg_conf: pointer to structure to register with core thermal.
- * @ntrip: number of supported trip points.
- * @enabled: current status of TMU device
- * @tmu_initialize: SoC specific TMU initialization method
- * @tmu_control: SoC specific TMU control method
- * @tmu_read: SoC specific TMU temperature read method
- * @tmu_set_emulation: SoC specific TMU emulation setting method
- * @tmu_clear_irqs: SoC specific TMU interrupts clearing method
- */
-struct exynos_tmu_data {
-	int id;
-	struct exynos_tmu_platform_data *pdata;
-	void __iomem *base;
-	void __iomem *base_second;
-	int irq;
-	enum soc_type soc;
-	struct work_struct irq_work;
-	struct mutex lock;
-	struct clk *clk, *clk_sec, *sclk;
-	u16 temp_error1, temp_error2;
-	struct regulator *regulator;
-	struct thermal_zone_device *tzd;
-	unsigned int ntrip;
-	bool enabled;
-
-	int (*tmu_initialize)(struct platform_device *pdev);
-	void (*tmu_control)(struct platform_device *pdev, bool on);
-	int (*tmu_read)(struct exynos_tmu_data *data);
-	void (*tmu_set_emulation)(struct exynos_tmu_data *data, int temp);
-	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
-};
->>>>>>> 818299f6bdae
 
 static void exynos_report_trigger(struct exynos_tmu_data *p)
 {
@@ -481,11 +351,7 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 
 	mutex_lock(&data->lock);
 	data->tmu_control(pdev, on);
-<<<<<<< HEAD
-=======
 	data->enabled = on;
-	clk_disable(data->clk);
->>>>>>> 818299f6bdae
 	mutex_unlock(&data->lock);
 }
 
@@ -917,7 +783,6 @@ static void exynos9610_tmu_control(struct platform_device *pdev, bool on)
 static int exynos_get_temp(void *p, int *temp)
 {
 	struct exynos_tmu_data *data = p;
-<<<<<<< HEAD
 #ifndef CONFIG_EXYNOS_ACPM_THERMAL
 	struct thermal_cooling_device *cdev = NULL;
 	struct thermal_zone_device *tz;
@@ -930,31 +795,19 @@ static int exynos_get_temp(void *p, int *temp)
 	unsigned int mcinfo_temp = 0;
 	unsigned int i;
 #endif
-=======
-	int value, ret = 0;
->>>>>>> 818299f6bdae
 
 	if (!data || !data->tmu_read || !data->enabled)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
 
-<<<<<<< HEAD
 	if (data->num_of_sensors)
 		*temp = data->tmu_read(data) * MCELSIUS;
 	else
 		*temp = code_to_temp(data, data->tmu_read(data)) * MCELSIUS;
-=======
-	value = data->tmu_read(data);
-	if (value < 0)
-		ret = value;
-	else
-		*temp = code_to_temp(data, value) * MCELSIUS;
->>>>>>> 818299f6bdae
 
 	mutex_unlock(&data->lock);
 
-<<<<<<< HEAD
 #ifndef CONFIG_EXYNOS_ACPM_THERMAL
 	tz = data->tzd;
 
@@ -994,9 +847,6 @@ static int exynos_get_temp(void *p, int *temp)
 	}
 #endif
 	return 0;
-=======
-	return ret;
->>>>>>> 818299f6bdae
 }
 
 static int exynos_get_trend(void *p, int trip, enum thermal_trend *trend)
