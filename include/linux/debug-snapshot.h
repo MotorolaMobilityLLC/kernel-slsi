@@ -23,7 +23,7 @@
 extern void dbg_snapshot_task(int cpu, void *v_task);
 extern void dbg_snapshot_work(void *worker, void *v_task, void *fn, int en);
 extern void dbg_snapshot_cpuidle(char *modes, unsigned state, int diff, int en);
-extern void dbg_snapshot_suspend(void *fn, void *dev, int en);
+extern void dbg_snapshot_suspend(char *log, void *fn, void *dev, int state, int en);
 extern void dbg_snapshot_irq(int irq, void *fn, void *val, int en);
 extern void dbg_snapshot_print_notifier_call(void **nl, unsigned long func, int en);
 extern int dbg_snapshot_try_enable(const char *name, unsigned long long duration);
@@ -191,7 +191,7 @@ extern void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
 #define dbg_snapshot_work(a,b,c,d)		do { } while(0)
 #define dbg_snapshot_clockevent(a,b,c)	do { } while(0)
 #define dbg_snapshot_cpuidle(a,b,c,d)	do { } while(0)
-#define dbg_snapshot_suspend(a,b,c)	do { } while(0)
+#define dbg_snapshot_suspend(a,b,c,d,e)	do { } while(0)
 #define dbg_snapshot_regulator(a,b,c,d,e,f)	do { } while(0)
 #define dbg_snapshot_thermal(a,b,c,d)	do { } while(0)
 #define dbg_snapshot_irq(a,b,c,d)		do { } while(0)
@@ -259,6 +259,7 @@ static inline void dbg_snapshot_spin_func(void) {do {wfi();} while(1);}
 
 extern struct atomic_notifier_head restart_handler_list;
 extern struct blocking_notifier_head reboot_notifier_list;
+extern struct blocking_notifier_head pm_chain_head;
 
 #ifdef CONFIG_EXYNOS_ITMON
 extern struct atomic_notifier_head itmon_notifier_list;

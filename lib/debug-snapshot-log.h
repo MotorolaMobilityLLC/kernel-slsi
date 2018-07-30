@@ -36,7 +36,8 @@
 #define DSS_SPARE_SZ			(DSS_HEADER_SIZE - DSS_HEADER_TOTAL_SZ)
 
 /*  Length domain */
-#define DSS_LOG_STRING_LENGTH		SZ_128
+#define DSS_LOG_STRING_LEN		SZ_128
+#define DSS_LOG_GEN_LEN			SZ_16
 #define DSS_MMU_REG_OFFSET		SZ_512
 #define DSS_CORE_REG_OFFSET		SZ_512
 #define DSS_LOG_MAX_NUM			SZ_1K
@@ -118,6 +119,7 @@ struct dbg_snapshot_log {
 	struct __suspend_log {
 		unsigned long long time;
 		unsigned long sp;
+		char log[DSS_LOG_GEN_LEN];
 		void *fn;
 #ifdef CONFIG_DEBUG_SNAPSHOT_LINUX_BUILD
 		struct device *dev;
@@ -125,6 +127,7 @@ struct dbg_snapshot_log {
 		void *dev;
 #endif
 		int en;
+		int state;
 		int core;
 	} suspend[DSS_LOG_MAX_NUM * 4];
 
@@ -354,7 +357,7 @@ struct dbg_snapshot_log {
 	struct __printk_log {
 		unsigned long long time;
 		int cpu;
-		char log[DSS_LOG_STRING_LENGTH];
+		char log[DSS_LOG_STRING_LEN];
 		void *caller[DSS_CALLSTACK_MAX_NUM];
 	} printk[DSS_API_MAX_NUM];
 #endif
