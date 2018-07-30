@@ -565,7 +565,6 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 static int __maybe_unused xhci_plat_suspend(struct device *dev)
 {
-<<<<<<< HEAD
 	/*
 	 *struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	 *struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -573,10 +572,6 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	 */
 
 	pr_info("[%s] \n",__func__);
-=======
-	struct usb_hcd	*hcd = dev_get_drvdata(dev);
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
->>>>>>> 818299f6bdae
 
 	/*
 	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
@@ -586,7 +581,6 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	 * reconsider this when xhci_plat_suspend enlarges its scope, e.g.,
 	 * also applies to runtime suspend.
 	 */
-<<<<<<< HEAD
 
 	/*
 	 *ret = xhci_suspend(xhci, device_may_wakeup(dev));
@@ -595,14 +589,10 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	 *	clk_disable_unprepare(xhci->clk);
 	 */
 	return 0;
-=======
-	return xhci_suspend(xhci, device_may_wakeup(dev));
->>>>>>> 818299f6bdae
 }
 
 static int __maybe_unused xhci_plat_resume(struct device *dev)
 {
-<<<<<<< HEAD
 	/*
 	 *struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	 *struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -610,15 +600,6 @@ static int __maybe_unused xhci_plat_resume(struct device *dev)
 	 */
 
 	pr_info("[%s] \n",__func__);
-=======
-	struct usb_hcd	*hcd = dev_get_drvdata(dev);
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int ret;
-
-	ret = xhci_priv_resume_quirk(hcd);
-	if (ret)
-		return ret;
->>>>>>> 818299f6bdae
 
 	/*
 	 *if (!device_may_wakeup(dev) && !IS_ERR(xhci->clk))

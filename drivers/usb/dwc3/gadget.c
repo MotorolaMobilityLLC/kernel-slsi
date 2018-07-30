@@ -192,31 +192,11 @@ void dwc3_gadget_del_and_unmap_request(struct dwc3_ep *dep,
 	if (req->request.status == -EINPROGRESS)
 		req->request.status = status;
 
-<<<<<<< HEAD
-	/*
-	 * NOTICE we don't want to unmap before calling ->complete() if we're
-	 * dealing with a bounced ep0 request. If we unmap it here, we would end
-	 * up overwritting the contents of req->buf and this could confuse the
-	 * gadget driver.
-	 */
-	if (req->trb) {
-		if (dwc->ep0_bounced && dep->number <= 1) {
-			dwc->ep0_bounced = false;
-			unmap_after_complete = true;
-		} else {
-			usb_gadget_unmap_request_by_dev(dwc->sysdev,
-						&req->request, req->direction);
-			req->trb = NULL;
-		}
-	}
-
-=======
 	if (req->trb)
 		usb_gadget_unmap_request_by_dev(dwc->sysdev,
 				&req->request, req->direction);
 
 	req->trb = NULL;
->>>>>>> 818299f6bdae
 	trace_dwc3_gadget_giveback(req);
 
 	if (dep->number > 1)
@@ -243,17 +223,6 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	spin_unlock(&dwc->lock);
 	usb_gadget_giveback_request(&dep->endpoint, &req->request);
 	spin_lock(&dwc->lock);
-<<<<<<< HEAD
-
-	if (unmap_after_complete)
-		usb_gadget_unmap_request_by_dev(dwc->sysdev,
-				&req->request, req->direction);
-	req->trb = NULL;
-
-	if (dep->number > 1)
-		pm_runtime_put(dwc->dev);
-=======
->>>>>>> 818299f6bdae
 }
 
 /**

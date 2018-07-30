@@ -434,16 +434,6 @@ int dwc3_soft_reset(struct dwc3 *dwc)
 
 		cpu_relax();
 	} while (true);
-=======
-done:
-	/*
-	 * For DWC_usb31 controller, once DWC3_DCTL_CSFTRST bit is cleared,
-	 * we must wait at least 50ms before accessing the PHY domain
-	 * (synchronization delay). DWC_usb31 programming guide section 1.3.2.
-	 */
-	if (dwc3_is_usb31(dwc))
-		msleep(50);
->>>>>>> 818299f6bdae
 
 	return 0;
 }
