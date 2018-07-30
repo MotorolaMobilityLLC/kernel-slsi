@@ -202,6 +202,7 @@ void thaw_processes(void)
 	struct task_struct *curr = current;
 
 	trace_suspend_resume(TPS("thaw_processes"), 0, true);
+	dbg_snapshot_suspend("thaw_processes", thaw_processes, NULL, 0, DSS_FLAG_IN);
 	if (pm_freezing)
 		atomic_dec(&system_freezing_cnt);
 	pm_freezing = false;
@@ -231,6 +232,7 @@ void thaw_processes(void)
 
 	schedule();
 	pr_cont("done.\n");
+	dbg_snapshot_suspend("thaw_processes", thaw_processes, NULL, 0, DSS_FLAG_OUT);
 	trace_suspend_resume(TPS("thaw_processes"), 0, false);
 }
 

@@ -29,6 +29,7 @@
 #include <asm/traps.h>
 #include <asm/hardirq.h>
 #include <asm/stacktrace.h>
+#include <asm/arch_timer.h>
 #include <linux/debug-snapshot.h>
 #include <linux/kernel_stat.h>
 #include <linux/irqnr.h>
@@ -694,19 +695,30 @@ void dbg_snapshot_cpuidle(char *modes, unsigned state, int diff, int en)
 	}
 }
 
-void dbg_snapshot_suspend(void *fn, void *dev, int en)
+void dbg_snapshot_suspend(char *log, void *fn, void *dev, int state, int en)
 {
 	struct dbg_snapshot_item *item = &dss_items[dss_desc.kevents_num];
 
 	if (unlikely(!dss_base.enabled || !item->entry.enabled))
 		return;
 	{
+		int len;
 		int cpu = raw_smp_processor_id();
 		unsigned long i = atomic_inc_return(&dss_idx.suspend_log_idx) &
 				(ARRAY_SIZE(dss_log->suspend) - 1);
 
 		dss_log->suspend[i].time = cpu_clock(cpu);
 		dss_log->suspend[i].sp = (unsigned long) current_stack_pointer;
+
+		if (log) {
+			len = strlen(log);
+			memcpy(dss_log->suspend[i].log, log,
+					len < DSS_LOG_GEN_LEN ?
+					len : DSS_LOG_GEN_LEN - 1);
+		} else {
+			memset(dss_log->suspend[i].log, 0, DSS_LOG_GEN_LEN - 1);
+		}
+
 		dss_log->suspend[i].fn = fn;
 		dss_log->suspend[i].dev = (struct device *)dev;
 		dss_log->suspend[i].core = cpu;
@@ -1060,6 +1072,9 @@ static struct notifier_block **dss_should_check_nl[] = {
 	(struct notifier_block **)(&panic_notifier_list.head),
 	(struct notifier_block **)(&reboot_notifier_list.head),
 	(struct notifier_block **)(&restart_handler_list.head),
+#ifdef CONFIG_PM_SLEEP
+	(struct notifier_block **)(&pm_chain_head.head),
+#endif
 #ifdef CONFIG_EXYNOS_ITMON
 	(struct notifier_block **)(&itmon_notifier_list.head),
 #endif
