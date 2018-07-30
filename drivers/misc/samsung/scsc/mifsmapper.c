@@ -143,7 +143,7 @@ int mifsmapper_alloc_bank(struct mifsmapper *smapper, bool large_bank, u32 entry
 	/* Clear bank entries */
 	bitmap_zero(bank[which_bit + offset].entries_bm, bank[which_bit + offset].num_entries);
 
-	*entries = bank[which_bit].mem_range_bytes/entry_size;
+	*entries = bank[which_bit + offset].mem_range_bytes/entry_size;
 	/* Saturate */
 	if (*entries > bank[which_bit + offset].num_entries)
 		*entries = bank[which_bit + offset].num_entries;
@@ -163,7 +163,7 @@ int mifsmapper_alloc_bank(struct mifsmapper *smapper, bool large_bank, u32 entry
 	bank[which_bit + offset].in_use = true;
 	bank[which_bit + offset].granularity = entry_size;
 
-	SCSC_TAG_INFO(MIF, "entries %d bank[which_bit].num_entries %d large bank %d logical bank %d entries left %d\n", *entries, bank[which_bit + offset].num_entries, large_bank, which_bit + offset,
+	SCSC_TAG_INFO(MIF, "entries %d bank.num_entries %d large bank %d logical bank %d entries left %d\n", *entries, bank[which_bit + offset].num_entries, large_bank, which_bit + offset,
 			bank[which_bit + offset].num_entries_left);
 
 	spin_unlock(&smapper->lock);
