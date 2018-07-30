@@ -1,4 +1,0 @@
-config VISION_CORE
-        bool "Vision Core"
-        help
-          This is a vision core

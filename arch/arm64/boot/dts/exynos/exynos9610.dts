@@ -2976,7 +2976,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		domain-clients = <&vipx>;
+		domain-clients = <>;
 	};
 
 	iommu-domain_abox {
@@ -3448,33 +3448,4 @@
 		available_stop_owner = <PANIC_HANDLE CAMERA_DRIVER MODEM_IF ITMON_HANDLE>;
 		buff_size = <0x100000>;
 	};
-
-	vipx: vipx@10D60000 {
-		compatible = "samsung,exynos-vipx";
-		id = <0>;
-		reg = <0x0 0x10D60000 0x10000>, /* VIPX_CPU_SS1 */
-			<0x0 0x10F60000 0x10000>, /* VIPX_CPU_SS2 */
-			<0x0 0x10D90000 0x2000>, /* ITCM(8K) */
-			<0x0 0x10DA0000 0x4000>; /* DTCM(16K) */
-		pinctrl-names = "default","release";
-		pinctrl-0 = <>;
-		pinctrl-1 = <>;
-		clocks = <&clock UMUX_CLKCMU_VIPX1_BUS>,
-			<&clock GATE_VIPX1_QCH>,
-			<&clock UMUX_CLKCMU_VIPX2_BUS>,
-			<&clock GATE_VIPX2_QCH>,
-			<&clock GATE_VIPX2_QCH_LOCAL>;
-		clock-names = "UMUX_CLKCMU_VIPX1_BUS",
-			"GATE_VIPX1_QCH",
-			"UMUX_CLKCMU_VIPX2_BUS",
-			"GATE_VIPX2_QCH",
-			"GATE_VIPX2_QCH_LOCAL";
-
-		/*samsung,power-domain = <&pd_vipx2>;*/
-		interrupts = <0 129 0>,
-			<0 130 0>;
-		iommus = <&sysmmu_vipx1>, <&sysmmu_vipx2>;
-		status = "ok";
-	};
-
 };
