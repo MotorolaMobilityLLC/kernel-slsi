@@ -1442,14 +1442,9 @@ static void dw_mci_ctrl_thld(struct dw_mci *host, struct mmc_data *data)
 	 * Card write Threshold is introduced since 2.80a
 	 * It's used when HS400 mode is enabled.
 	 */
-<<<<<<< HEAD
-	if (data->flags & MMC_DATA_WRITE && !(host->timing != MMC_TIMING_MMC_HS400))
-		return;
-=======
 	if (data->flags & MMC_DATA_WRITE &&
 		host->timing != MMC_TIMING_MMC_HS400)
 		goto disable;
->>>>>>> 818299f6bdae
 
 	if (data->flags & MMC_DATA_WRITE)
 		enable = SDMMC_CARD_WR_THR_EN;
@@ -1457,12 +1452,8 @@ static void dw_mci_ctrl_thld(struct dw_mci *host, struct mmc_data *data)
 		enable = SDMMC_CARD_RD_THR_EN;
 
 	if (host->timing != MMC_TIMING_MMC_HS200 &&
-<<<<<<< HEAD
-	    host->timing != MMC_TIMING_MMC_HS400 && host->timing != MMC_TIMING_UHS_SDR104)
-=======
 	    host->timing != MMC_TIMING_UHS_SDR104 &&
 	    host->timing != MMC_TIMING_MMC_HS400)
->>>>>>> 818299f6bdae
 		goto disable;
 
 	blksz_depth = blksz / (1 << host->data_shift);
