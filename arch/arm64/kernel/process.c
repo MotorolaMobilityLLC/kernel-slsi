@@ -222,7 +222,6 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 		for (j = 0; j < 8; j++) {
 			u32	data;
 			if (probe_kernel_address(p, data)) {
-<<<<<<< HEAD
 				if (j == 7)
 					pr_cont(" ********\n");
 				else
@@ -235,15 +234,6 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 			}
 			++p;
 		}
-=======
-				pr_cont(" ********");
-			} else {
-				pr_cont(" %08x", data);
-			}
-			++p;
-		}
-		pr_cont("\n");
->>>>>>> 818299f6bdae
 	}
 }
 

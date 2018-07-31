@@ -15,7 +15,6 @@
 #define _LINUX_FSCRYPT_H
 
 #include <linux/fs.h>
-<<<<<<< HEAD
 #include <linux/mm.h>
 #include <linux/bio.h>
 #include <linux/dcache.h>
@@ -31,12 +30,10 @@
 			IS_ENABLED(CONFIG_UBIFS_FS_ENCRYPTION))
 #endif
 
-=======
-
 #define FS_CRYPTO_BLOCK_SIZE		16
 
 struct fscrypt_ctx;
->>>>>>> 818299f6bdae
+
 struct fscrypt_info;
 
 struct fscrypt_str {

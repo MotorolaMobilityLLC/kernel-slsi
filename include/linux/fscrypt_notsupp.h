@@ -214,7 +214,6 @@ static inline int __fscrypt_prepare_lookup(struct inode *dir,
 	return -EOPNOTSUPP;
 }
 
-<<<<<<< HEAD
 static inline int fscrypt_disk_encrypted(const struct inode *inode)
 {
 	return;
@@ -229,7 +228,7 @@ static inline void *fscrypt_get_diskcipher(const struct inode *inode)
 {
 	return NULL;
 }
-=======
+
 static inline int __fscrypt_prepare_symlink(struct inode *dir,
 					    unsigned int len,
 					    unsigned int max_len,
@@ -254,5 +253,4 @@ static inline const char *fscrypt_get_symlink(struct inode *inode,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
->>>>>>> 818299f6bdae
 #endif	/* _LINUX_FSCRYPT_NOTSUPP_H */

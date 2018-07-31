@@ -398,7 +398,6 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 
 	return -ETIMEDOUT;
 
-<<<<<<< HEAD
 err_usb2phy_init:
 	phy_exit(dwc->usb2_generic_phy);
 
