@@ -212,19 +212,58 @@ void slsi_get_hw_mac_address(struct slsi_dev *sdev, u8 *addr)
 	u32                   u[ETH_ALEN];
 	char                  path_name[MX_WLAN_FILE_PATH_LEN_MAX];
 	int                   r;
-	bool		      valid = false;
+	bool                  valid = false;
+//BEGIN IKKANE-6
+#ifdef MOTO_UTAGS_MAC
+	struct device_node *chosen_node = NULL;
+	//Moto, read MACs from bootparams
+	chosen_node = of_find_node_by_name(NULL, "chosen");
+	if (!chosen_node) {
+		SLSI_ERR(sdev, "%s: get chosen node read failed\n", __func__);
+		goto mac_ss;
+	} else {
+		int len=0;
+		const char *cmd_line = NULL;
+		cmd_line = of_get_property(chosen_node, "bootargs", &len);
+		if (!cmd_line || len <= 0) {
+			SLSI_ERR(sdev, "%s: get wlan MACs bootargs failed\n", __func__);
+			goto mac_ss;
+		} else {
+			char * mac_idx = NULL;
+			mac_idx = strstr(cmd_line, WIFI_MAC_BOOTARG);
+			if (mac_idx == NULL) {
+				SLSI_ERR(sdev, "%s: " WIFI_MAC_BOOTARG " not present in bootargs", __func__);
+				goto mac_ss;
+			} else {
+				char macStr[MACSTRLEN+1] = {0};
+				// extract MAC from boot params
+				mac_idx += strlen(WIFI_MAC_BOOTARG);
+				memcpy(macStr, mac_idx, MACSTRLEN);
+				sscanf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
+					u[0], u[1], u[2], u[3], u[4], u[5]);
+				for (i = 0; i < ETH_ALEN; i++)
+					addr[i] = u[i] & 0xff;
+				SLSI_INFO(sdev, "WiFi MAC address loaded from utag: %02X:%02X:%02X:%02X:%02X:%02X\n",
+					u[0], u[1], u[2], u[3], u[4], u[5]);
+			}
+		}
+	}
+	return;
+mac_ss:
+#endif
+//END IKKANE-6
 
-	/* Module parameter override */
-	r = sscanf(mac_addr_override, "%02X:%02X:%02X:%02X:%02X:%02X", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
-	if (r != ETH_ALEN) {
-		SLSI_ERR(sdev, "mac_addr modparam set, but format is incorrect (should be e.g. xx:xx:xx:xx:xx:xx)\n");
-		goto mac_sysfs;
-	}
-	for (i = 0; i < ETH_ALEN; i++) {
-		if (u[i] != 0xff)
-			valid = true;
-		addr[i] = u[i] & 0xff;
-	}
+        /* Module parameter override */
+        r = sscanf(mac_addr_override, "%02X:%02X:%02X:%02X:%02X:%02X", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
+        if (r != ETH_ALEN) {
+                SLSI_ERR(sdev, "mac_addr modparam set, but format is incorrect (should be e.g. xx:xx:xx:xx:xx:xx)\n");
+                goto mac_sysfs;
+        }
+        for (i = 0; i < ETH_ALEN; i++) {
+                if (u[i] != 0xff)
+                        valid = true;
+                addr[i] = u[i] & 0xff;
+        }
 
 	/* If the override is valid, use it */
 	if (valid) {
@@ -317,6 +356,15 @@ mac_default:
 	mx140_file_release_conf(sdev->maxwell_core, e);
 
 	SLSI_ETHER_COPY(addr, SLSI_DEFAULT_HW_MAC_ADDR);
+//BEGIN IKKANE-6
+#ifdef MOTO_UTAGS_MAC
+	/* Motorola OUI */
+	addr[0] = 0xF0;
+	addr[1] = 0xD7;
+	addr[2] = 0xAA;
+#endif
+//END IKKANE-6
+
 #if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
 	/* Randomise MAC address from the soc uid */
 	addr[3] = (exynos_soc_info.unique_id & 0xFF0000000000) >> 40;
