@@ -1422,7 +1422,6 @@ static void __qbuf_work(struct work_struct *work)
 {
 	struct vb2_buffer *vb;
 	struct vb2_queue *q;
-	unsigned long flags;
 
 	vb = container_of(work, struct vb2_buffer, qbuf_work);
 	q = vb->vb2_queue;
@@ -1470,7 +1469,6 @@ static void vb2_qbuf_fence_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 static void vb2_fence_timeout_handler(unsigned long arg)
 {
 	struct vb2_buffer *vb = (struct vb2_buffer *)arg;
-	struct vb2_queue *q = vb->vb2_queue;
 	struct dma_fence *fence;
 	unsigned long flags;
 	char name[32];
