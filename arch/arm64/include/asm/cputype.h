@@ -75,11 +75,8 @@
 #define ARM_CPU_IMP_CAVIUM		0x43
 #define ARM_CPU_IMP_BRCM		0x42
 #define ARM_CPU_IMP_QCOM		0x51
-<<<<<<< HEAD
 #define ARM_CPU_IMP_SEC			0x53
-=======
 #define ARM_CPU_IMP_NVIDIA		0x4E
->>>>>>> 818299f6bdae
 
 #define ARM_CPU_PART_AEM_V8		0xD0F
 #define ARM_CPU_PART_FOUNDATION		0xD00

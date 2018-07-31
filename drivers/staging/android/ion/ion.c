@@ -134,14 +134,10 @@ err2:
 
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
-<<<<<<< HEAD
 	exynos_ion_free_fixup(buffer);
-	if (WARN_ON(buffer->kmap_cnt > 0))
-=======
 	if (buffer->kmap_cnt > 0) {
 		pr_warn_once("%s: buffer still mapped in the kernel\n",
 			     __func__);
->>>>>>> 818299f6bdae
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	}
 	buffer->heap->ops->free(buffer);
