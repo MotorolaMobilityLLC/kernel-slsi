@@ -157,7 +157,6 @@ static int contexthub_read_process(uint8_t *rx, u8 *raw_rx, u32 size)
 static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 {
 	struct device *chub_dev = chub->dev;
-	int i;
 
 	chub->ipc_map = ipc_get_chub_map();
 	if (!chub->ipc_map)
@@ -243,11 +242,9 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 				int timeout)
 {
 	unsigned long flag;
-	int ret;
 #ifdef USE_IPC_BUF
 	int size = 0;
-	int lock;
-	struct ipc_buf *ipc_buf = ipc_get_base(IPC_REG_IPC_C2A);
+	int ret;
 
 	if (!ipc->read_lock.flag) {
 		spin_lock_irqsave(&ipc->read_lock.event.lock, flag);
@@ -851,7 +848,9 @@ static void handle_debug_work_func(struct work_struct *work)
 	bool need_reset = 0;
 	bool alive = contexthub_lowlevel_alive(ipc);
 	int err = 0;
+#ifdef CHUB_RESET_ENABLE
 	int ret;
+#endif
 	int i;
 
 	dev_info(ipc->dev, "%s: fw_err:%d, alive:%d\n",
@@ -937,8 +936,9 @@ do_reset:
 
 static void handle_irq(struct contexthub_ipc_info *ipc, enum irq_evt_chub evt)
 {
+#ifndef USE_IPC_BUF
 	struct ipc_content *content;
-
+#endif
 	switch (evt) {
 	case IRQ_EVT_C2A_DEBUG:
 		schedule_work(&ipc->debug_work);

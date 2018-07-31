@@ -388,7 +388,7 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 	do {
 		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 		if (!(reg & DWC3_DCTL_CSFTRST))
-			goto done;
+			return 0;
 
 		udelay(1);
 	} while (--retries);

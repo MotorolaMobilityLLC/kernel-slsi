@@ -181,7 +181,6 @@ void dwc3_gadget_del_and_unmap_request(struct dwc3_ep *dep,
 		struct dwc3_request *req, int status)
 {
 	struct dwc3			*dwc = dep->dwc;
-	unsigned int			unmap_after_complete = false;
 
 	req->started = false;
 	/* Only delete from the list if the item isn't poisoned. */

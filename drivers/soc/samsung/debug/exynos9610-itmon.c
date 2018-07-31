@@ -848,10 +848,9 @@ static void itmon_report_tracedata(struct itmon_dev *itmon,
 	struct itmon_platdata *pdata = itmon->pdata;
 	struct itmon_tracedata *tracedata = &node->tracedata;
 	struct itmon_traceinfo *traceinfo = &pdata->traceinfo[trans_type];
-	struct itmon_nodegroup *group = node->group;
 	struct itmon_masterinfo *master;
 	struct itmon_rpathinfo *port;
-	unsigned int errcode, axid, val;
+	unsigned int errcode, axid;
 
 	errcode = BIT_ERR_CODE(tracedata->int_info);
 	axid = BIT_AXID(tracedata->int_info);

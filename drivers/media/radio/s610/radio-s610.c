@@ -2514,18 +2514,18 @@ static int fm_radio_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int fm_radio_suspend(struct device *dev)
 {
-	struct s610_radio *radio = dev_get_drvdata(dev);
+//	struct s610_radio *radio = dev_get_drvdata(dev);
 
-	FUNC_ENTRY(radio);
+//	FUNC_ENTRY(radio);
 
 	return 0;
 }
 
 static int fm_radio_resume(struct device *dev)
 {
-	struct s610_radio *radio = dev_get_drvdata(dev);
+//	struct s610_radio *radio = dev_get_drvdata(dev);
 
-	FUNC_ENTRY(radio);
+//	FUNC_ENTRY(radio);
 
 	return 0;
 }

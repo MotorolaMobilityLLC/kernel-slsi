@@ -284,9 +284,8 @@ int fimc_is_devicemgr_start(struct fimc_is_devicemgr *devicemgr,
 	struct fimc_is_group *child_group;
 	struct devicemgr_sensor_tag_data *tag_data;
 	u32 stream;
-#endif
 	int i;
-
+#endif
 	switch (type) {
 	case FIMC_IS_DEVICE_SENSOR:
 		sensor = (struct fimc_is_device_sensor *)device;
@@ -342,8 +341,9 @@ int fimc_is_devicemgr_stop(struct fimc_is_devicemgr *devicemgr,
 #ifndef ENABLE_SENSOR_VC_FUNCTION
 	struct fimc_is_group *child_group;
 	u32 stream;
-#endif
 	int i;
+#endif
+
 
 	switch (type) {
 	case FIMC_IS_DEVICE_SENSOR:

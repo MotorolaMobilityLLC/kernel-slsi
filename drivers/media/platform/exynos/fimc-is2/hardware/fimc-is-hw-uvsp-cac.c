@@ -146,10 +146,12 @@ int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap;
 	struct hw_mcsc_setfile *setfile;
-	struct cac_setfile_contents *cac;
 	enum exynos_sensor_position sensor_position;
 	u32 ni, backup_in;
 
+#if defined(USE_UVSP_CAC)
+	struct cac_setfile_contents *cac;
+#endif
 	BUG_ON(!hw_ip);
 	BUG_ON(!hw_ip->priv_info);
 
@@ -508,7 +510,9 @@ int fimc_is_hw_mcsc_update_uvsp_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_hw_mcsc *hw_mcsc;
 	struct fimc_is_hw_mcsc_cap *cap;
 	struct hw_mcsc_setfile *setfile;
+#if defined(USE_UVSP_CAC)
 	struct uvsp_setfile_contents *uvsp;
+#endif
 	struct cal_info *cal_info;
 	enum exynos_sensor_position sensor_position;
 	u32 ni;

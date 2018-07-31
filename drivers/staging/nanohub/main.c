@@ -1380,11 +1380,6 @@ static int nanohub_kthread(void *arg)
 	static const struct sched_param param = {
 		.sched_priority = (MAX_USER_RT_PRIO/2)-1,
 	};
-#ifdef CONFIG_NANOHUB_MAILBOX
-#ifndef CHUB_RESET_ENABLE
-	struct contexthub_ipc_info *ipc;
-#endif
-#endif
 
 	data->kthread_err_cnt = 0;
 	sched_setscheduler(current, SCHED_FIFO, &param);
