@@ -1,4 +1,4 @@
-clang \
+${CC} \
   --target=aarch64-linux-gnu \
   -Ilib/libdss-include \
   -Iinclude \
@@ -27,4 +27,4 @@ clang \
   -fno-stack-check \
   -g lib/libdss.c -o lib/libdss.o
 
-aarch64-linux-android-ar -rc libdss.a lib/libdss.o
+${CROSS_COMPILE}ar -rc libdss.a lib/libdss.o
