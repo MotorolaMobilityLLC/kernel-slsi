@@ -145,6 +145,7 @@ void s2mm005_usbpd_state_detect(struct s2mm005_data *usbpd_data)
 		usbpd_data->is_pr_swap = 0;
 		usbpd_data->is_attached = false;
 		usbpd_data->cnt = 0;
+		usbpd_data->cur_rid = RID_UNDEFINED;
 		usbpd_process_cc_attach(udev, USBPD_DETACHED);
 	}
 }
