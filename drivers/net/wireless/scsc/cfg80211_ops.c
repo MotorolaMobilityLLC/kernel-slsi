@@ -460,8 +460,9 @@ int slsi_scan(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 	/* Update scan timing for P2P social channels scan. */
-	if ((request->ie) && cfg80211_find_vendor_ie(WLAN_OUI_WFA, WLAN_OUI_TYPE_WFA_P2P, request->ie, request->ie_len)
-	    && SLSI_IS_P2P_SSID(request->ssids[0].ssid, request->ssids[0].ssid_len)) {
+	if ((request->ie) &&
+	    cfg80211_find_vendor_ie(WLAN_OUI_WFA, WLAN_OUI_TYPE_WFA_P2P, request->ie, request->ie_len) &&
+	    request->ssids && SLSI_IS_P2P_SSID(request->ssids[0].ssid, request->ssids[0].ssid_len)) {
 		/* In supplicant during joining procedure the P2P GO scan
 		 * with GO's operating channel comes on P2P device. Hence added the
 		 * check for n_channels as 1

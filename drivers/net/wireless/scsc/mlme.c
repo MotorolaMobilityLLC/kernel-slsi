@@ -1134,7 +1134,8 @@ static int slsi_mlme_append_channel_list(struct slsi_dev                    *sde
 					 struct sk_buff                     *req,
 					 u32                                num_channels,
 					 struct ieee80211_channel           *channels[],
-					 u16                                scan_type)
+					 u16                                scan_type,
+					 bool                               passive_scan)
 {
 	int               chann;
 	u16               freq_fw_unit;
@@ -1195,7 +1196,10 @@ static int slsi_mlme_append_channel_list(struct slsi_dev                    *sde
 		freq_fw_unit = cpu_to_le16(freq_fw_unit);
 		memcpy(p, &freq_fw_unit, sizeof(freq_fw_unit));
 
-		p[2] = 0;
+		if (passive_scan)
+			p[2] = FAPI_SCANPOLICY_PASSIVE;
+		else
+			p[2] = 0;
 
 		channels_list_ie[1] += SLSI_SCAN_CHANNEL_DESCRIPTOR_SIZE;
 	}
@@ -1352,7 +1356,8 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 	}
 
 	if (request->n_channels) {
-		r = slsi_mlme_append_channel_list(sdev, dev, req, request->n_channels, request->channels, FAPI_SCANTYPE_SCHEDULED_SCAN);
+		r = slsi_mlme_append_channel_list(sdev, dev, req, request->n_channels, request->channels,
+						  FAPI_SCANTYPE_SCHEDULED_SCAN, request->n_ssids == 0);
 		if (r)
 			return r;
 	}
@@ -1444,7 +1449,8 @@ int slsi_mlme_add_scan(
 		fapi_append_data(req, ies, ies_len);
 
 		if (n_channels) {
-			r = slsi_mlme_append_channel_list(sdev, dev, req, n_channels, channels, scan_type);
+			r = slsi_mlme_append_channel_list(sdev, dev, req, n_channels, channels, scan_type,
+							  n_ssids == 0);
 			if (r)
 				return r;
 		}
