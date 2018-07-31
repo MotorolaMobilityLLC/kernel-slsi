@@ -636,6 +636,7 @@ static int setup_bhcs(struct scsc_service *service,
 	int err = 0;
 	unsigned char *conf_ptr;
 	const struct firmware *firm = NULL;
+	struct device_node *chosen_node = NULL; //IKKANE-6
 	/* Fill the configuration information */
 	bhcs->version = BHCS_VERSION;
 	bhcs->bsmhcp_protocol_offset = protocol_ref;
@@ -764,6 +765,43 @@ static int setup_bhcs(struct scsc_service *service,
 		firm = NULL;
 	}
 #endif
+
+//BEGIN IKKANE-6
+#ifdef MOTO_UTAGS_MAC
+	//Moto, read MACs from bootparams
+	chosen_node = of_find_node_by_name(NULL, "chosen");
+	if (!chosen_node) {
+		SCSC_TAG_ERR(BT_COMMON, "%s: get chosen node read failed\n", __func__);
+	} else {
+		int len=0;
+		const char *cmd_line = NULL;
+		cmd_line = of_get_property(chosen_node, "bootargs", &len);
+		if (!cmd_line || len <= 0) {
+			SCSC_TAG_ERR(BT_COMMON, "%s: get bt MACs bootargs failed\n", __func__);
+		} else {
+			char * mac_idx = NULL;
+			mac_idx = strstr(cmd_line, BT_MAC_BOOTARG);
+			if (mac_idx == NULL) {
+				SCSC_TAG_ERR(BT_COMMON, "%s: " BT_MAC_BOOTARG " not present in bootargs", __func__);
+			} else {
+				char macStr[MACSTRLEN+1] = {0};
+				u32 u[SCSC_BT_ADDR_LEN] = {0};
+				// extract MAC from boot params
+				mac_idx += strlen(WIFI_MAC_BOOTARG);
+				memcpy(macStr, mac_idx, MACSTRLEN);
+				sscanf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
+					u[0], u[1], u[2], u[3], u[4], u[5]);
+				bhcs->bluetooth_address_lap =
+					(u[3] << 16) | (u[4] << 8) | u[5];
+				bhcs->bluetooth_address_uap = u[2];
+				bhcs->bluetooth_address_nap = (u[0] << 8) | u[1];
+				SCSC_TAG_ERR(BT_COMMON,, "BT MAC address loaded from utag: %02X:%02X:%02X:%02X:%02X:%02X\n",
+					u[0], u[1], u[2], u[3], u[4], u[5]);
+			}
+		}
+	}
+#endif
+//END IKKANE-6
 
 #ifdef CONFIG_SCSC_DEBUG
 	SCSC_TAG_DEBUG(BT_COMMON, "Bluetooth address: %04X:%02X:%06X\n",
@@ -2183,15 +2221,22 @@ static int __init scsc_bt_module_init(void)
 	spin_lock_init(&bt_service.avdtp_detect.lock);
 	spin_lock_init(&bt_service.avdtp_detect.fw_write_lock);
 
-#if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
+//BEGIN IKKANE-6
+#ifdef MOTO_UTAGS_MAC
+	sprintf(bluetooth_address_fallback, "F0:D7:AA:%02X:%02X:%02X",
+		(exynos_soc_info.unique_id & 0xFF0000000000) >> 40,
+		(exynos_soc_info.unique_id & 0x00FF00000000) >> 32,
+		(exynos_soc_info.unique_id & 0x0000FF000000) >> 24);
+#elif defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
 	sprintf(bluetooth_address_fallback, "%02X:%02X:%02X:%02X:%02X:%02X",
-	       (exynos_soc_info.unique_id & 0x000000FF0000) >> 16,
-	       (exynos_soc_info.unique_id & 0x00000000FF00) >> 8,
-	       (exynos_soc_info.unique_id & 0x0000000000FF) >> 0,
-	       (exynos_soc_info.unique_id & 0xFF0000000000) >> 40,
-	       (exynos_soc_info.unique_id & 0x00FF00000000) >> 32,
-	       (exynos_soc_info.unique_id & 0x0000FF000000) >> 24);
+		(exynos_soc_info.unique_id & 0x000000FF0000) >> 16,
+		(exynos_soc_info.unique_id & 0x00000000FF00) >> 8,
+		(exynos_soc_info.unique_id & 0x0000000000FF) >> 0,
+		(exynos_soc_info.unique_id & 0xFF0000000000) >> 40,
+		(exynos_soc_info.unique_id & 0x00FF00000000) >> 32,
+		(exynos_soc_info.unique_id & 0x0000FF000000) >> 24);
 #endif
+//END IKKANE-6
 
 #ifdef CONFIG_SCSC_ANT
 	SCSC_TAG_DEBUG(BT_COMMON, "dev=%u class=%p\n",

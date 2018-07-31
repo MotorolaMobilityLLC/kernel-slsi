@@ -17,6 +17,14 @@
 extern "C" {
 #endif
 
+//BEGIN IKKANE-6
+#define MOTO_UTAGS_MAC 1
+#include <linux/of.h>
+#include <linux/of_address.h>
+#define WIFI_MAC_BOOTARG "androidboot.wifimacaddr="
+#define BT_MAC_BOOTARG "androidboot.btmacaddr="
+#define MACSTRLEN 17
+//END IKKANE-6
 
 #define SLSI_KIC_INTERFACE_VERSION_MAJOR 1
 #define SLSI_KIC_INTERFACE_VERSION_MINOR 0
