@@ -94,6 +94,7 @@ struct mfc_buf *mfc_get_del_if_consumed(struct mfc_ctx *ctx, struct mfc_buf_queu
 	struct mfc_buf *mfc_buf = NULL;
 	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned long remained;
+	bool exceed = false;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
@@ -107,16 +108,22 @@ struct mfc_buf *mfc_get_del_if_consumed(struct mfc_ctx *ctx, struct mfc_buf_queu
 
 	mfc_debug(2, "addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
-	if (dec->remained_size)
+	if (dec->remained_size) {
 		remained = dec->remained_size - consumed;
-	else
+		if (consumed > dec->remained_size)
+			exceed = true;
+	} else {
 		remained = mfc_buf->vb.vb2_buf.planes[0].bytesused - consumed;
+		if (consumed > mfc_buf->vb.vb2_buf.planes[0].bytesused)
+			exceed = true;
+	}
 
 	mfc_debug(2, "[MULTIFRAME] Total Size: %d, consumed: %ld, remained: %ld\n",
 		mfc_buf->vb.vb2_buf.planes[0].bytesused, consumed, remained);
+	if (exceed == true)
+		mfc_err_ctx("[MULTIFRAME] consumed size exceeded the total remained size\n");
 
-	if ((consumed > 0) && (remained > min_bytes) && (error == 0) &&
-			(mfc_buf->vb.vb2_buf.planes[0].bytesused > consumed)){
+	if ((consumed > 0) && (remained > min_bytes) && (error == 0) && (exceed == false)) {
 		/* do not delete from queue */
 		*deleted = 0;
 	} else {

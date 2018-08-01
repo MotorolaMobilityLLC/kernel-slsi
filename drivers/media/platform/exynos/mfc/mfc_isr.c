@@ -469,6 +469,7 @@ static void __mfc_handle_frame_error(struct mfc_ctx *ctx,
 
 		mfc_debug(2, "MFC needs next buffer\n");
 		dec->consumed = 0;
+		dec->remained_size = 0;
 
 		if (call_cop(ctx, get_buf_ctrls_val, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_err_ctx("failed in get_buf_ctrls_val\n");
