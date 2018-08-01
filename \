@@ -13,14 +13,11 @@
 /plugin/;
 
 #include "exynos9610_battery_data.dtsi"
-#include "exynos9610-mot-kane.dtsi"
 #include <dt-bindings/clock/exynos9610.h>
 #include "modem-ss360ap-sit-pdata.dtsi"
 #include "exynos9610-display-lcd.dtsi"
 #include "novatek-nt36xxx-i2c.dtsi"
-#include "himax-hx83112a-i2c.dtsi"
 #include "wing-sensor.dtsi"
-#include "exynos9610-robusta2-motor.dtsi"
 
 / {
 	compatible = "samsung,exynos9610", "samsung,WING";
@@ -90,8 +87,6 @@
 				pinctrl-0 = <&spi7_bus &spi7_cs_func>;
 				egistec,gpio_irq    = <&gpa0 5 0>;
 				egistec,gpio_rst    = <&gpa1 1 0>;
-				egistec,gpio_ldo3p3_en    = <&gpg2 0 0>;
-				egistec,gpio_ldo1p8_en    = <&gpg2 2 0>;
 			};
 			/*Fingerprint end*/
 
@@ -522,6 +517,8 @@
 				supports-cmd23;
 				supports-erase;
 				supports-highspeed;
+				sd-uhs-sdr50;
+				sd-uhs-sdr104;
 				card-detect-invert;
 				card-detect-gpio;
 				bypass-for-allpass;
@@ -835,9 +832,9 @@
 					"ABOX SIFS0 Capture", "VINPUTCALL";
 
 				samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_2
-					&abox_uaif_4 &abox_dsif &abox_spdy &cs35l41_left>;
+					&abox_uaif_4 &abox_dsif &abox_spdy>; /*&cs35l41_left*/
 				samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX",
-					"ABOX", "ABOX", "ABOX", "SPK";
+					"ABOX", "ABOX", "ABOX", "Left";
 				samsung,aux = <&abox_effect &abox_bt>;
 
 				rdma@0 {
@@ -1073,6 +1070,7 @@
 					};
 				};
 
+#if 0		/*ToDo: enable speaker amp on EVB board*/
 				codec-left-amp@0 {
 					format = "i2s";
 
@@ -1083,51 +1081,7 @@
 						sound-dai = <&cs35l41_left 0>;
 					};
 				};
-
-				cpu-dsp-voice-control@0 {
-					cpu {
-						sound-dai = <&cs47l35 3>;
-					};
-					codec {
-						sound-dai = <&dummy_audio_codec>;
-					};
-				};
-
-				cpu-dsp-trace@0 {
-					cpu {
-						sound-dai = <&cs47l35 4>;
-					};
-					codec {
-						sound-dai = <&dummy_audio_codec>;
-					};
-				};
-
-				cpu-dsp2-text@0 {
-					cpu {
-						sound-dai = <&cs47l35 5>;
-					};
-					codec {
-						sound-dai = <&dummy_audio_codec>;
-					};
-				};
-
-				cpu-dsp3-text@0 {
-					cpu {
-						sound-dai = <&cs47l35 6>;
-					};
-					codec {
-						sound-dai = <&dummy_audio_codec>;
-					};
-				};
-
-				cpu-dsp1-text@0 {
-					cpu {
-						sound-dai = <&cs47l35 7>;
-					};
-					codec {
-						sound-dai = <&dummy_audio_codec>;
-					};
-				};
+#endif
 			};
 
 
@@ -1727,32 +1681,6 @@
 		};
 	};
 
-	rgb_led {
-		status = "okay";
-		default_current = <2>;
-		default_off_dur_mode = <0>;
-		max_current = <255>;
-
-		s2mu106-led1 {
-			id = <0>;
-			//	current = <5>;
-		};
-
-		s2mu106-led2 {
-			id = <1>;
-			//	current = <5>;
-		};
-
-		s2mu106-led3 {
-			id = <2>;
-			//	current = <5>;
-		};
-		s2mu106-led4 {
-			id = <3>;
-			//	current = <5>;
-		};
-	};
-
 	s2mu106-charger {
 		status = "okay";
 		battery,charger_name = "s2mu106-charger";
@@ -1777,55 +1705,6 @@
 		battery,full_check_current_2nd = <
 			100 0 100 100 100 100 100 100 100 100
 			100 100 100 100 100 100 0>;
-	};
-};
-
-&exynos_adc {
-	status = "okay";
-	cpu_thermistor {
-		compatible = "murata,ncp03wf104";
-		status = "okay";
-		pullup-uv = <1800000>;
-		pullup-ohm = <100000>;
-		pulldown-ohm = <0>;
-		io-channels = <&exynos_adc 0>;
-		io-channel-names = "cpu_therm";
-	};
-	chg_thermistor {
-		compatible = "murata,ncp03wf104";
-		status = "okay";
-		pullup-uv = <1800000>;
-		pullup-ohm = <100000>;
-		pulldown-ohm = <0>;
-		io-channels = <&exynos_adc 1>;
-		io-channel-names = "chg_therm";
-	};
-	pa_thermistor {
-		compatible = "murata,ncp03wf104";
-		status = "okay";
-		pullup-uv = <1800000>;
-		pullup-ohm = <100000>;
-		pulldown-ohm = <0>;
-		io-channels = <&exynos_adc 4>;
-		io-channel-names = "pa_therm";
-	};
-	board_thermistor {
-		compatible = "murata,ncp03wf104";
-		status = "okay";
-		pullup-uv = <1800000>;
-		pullup-ohm = <100000>;
-		pulldown-ohm = <0>;
-		io-channels = <&exynos_adc 7>;
-		io-channel-names = "board_therm";
-	};
-	battery_thermistor {
-		compatible = "murata,ncp03wf104";
-		status = "okay";
-		pullup-uv = <1800000>;
-		pullup-ohm = <100000>;
-		pulldown-ohm = <0>;
-		io-channels = <&exynos_adc 8>;
-		io-channel-names = "batt_therm";
 	};
 };
 
@@ -2213,7 +2092,7 @@
 };
 
 &spi_6 {
-	status = "okay";
+	status = "disable";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi6_bus &spi6_cs_func>;
 	/*cs-gpios = <&gpp2 3 0>;*/
@@ -2245,59 +2124,6 @@
 			cirrus,gpio-output-enable;
 		};
 
-		adsps {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			prince_l_dsp: adsp@2b80000 {
-				reg = <0x2b80000>;
-				firmware {
-					protection_music_aac {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-aac.bin";
-					};
-					protection_voice_aac {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-aac.bin";
-					};
-					protection_ringtone_aac {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-aac.bin";
-					};
-					protection_notification_aac {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-aac.bin";
-					};
-					protection_music_sec {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-sec.bin";
-					};
-					protection_voice_sec {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-sec.bin";
-					};
-					protection_ringtone_sec{
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-sec.bin";
-					};
-					protection_notification_sec {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-sec.bin";
-					};
-					calibration {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-cali.wmfw";
-					};
-				};
-			};
-		};
 		controller-data {
 			/*cs-gpio = <gpm8 0 0>*/
 			/*cs-gpios = <&gpp2 3 0>;*/
@@ -2472,42 +2298,6 @@
 				cirrus,micd-detect-debounce-ms = <500>;
 				/*cirrus,jd-use-jd2;*/
 				/*cirrus,micd-clamp-mode = <0x8>;*/
-			};
-		};
-
-		adsps {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			adsp@0ffe00 {
-				reg = <0x0ffe00>;
-				firmware {
-					ultrasound {
-						wlf,wmfw-file = "marley-dsp1-ultrasound.wmfw";
-						wlf,bin-file = "marley-dsp1v-ultrasound.bin";
-					};
-				};
-			};
-			adsp@17fe00 {
-				reg = <0x17fe00>;
-				firmware {
-					frontend {
-						wlf,wmfw-file = "marley-dsp2-aov-frontend.wmfw";
-						wlf,bin-file = "marley-dsp2-aov-vrgain.bin";
-					};
-				};
-			};
-			adsp@1ffe00 {
-				reg = <0x1ffe00>;
-				firmware {
-					aov {
-						wlf,wmfw-file = "marley-dsp3-aov-control.wmfw";
-						wlf,bin-file = "marley-dsp3-aov-model.bin";
-					};
-					ez2record {
-						wlf,wmfw-file = "marley-dsp3-ez2-record.wmfw";
-						wlf,bin-file = "marley-dsp3-ez2-record.bin";
-					};
-				};
 			};
 		};
 
