@@ -2538,9 +2538,11 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	const struct xfrm_link *link;
 	int type, err;
 
+#ifdef SUPPORT_STRONGSWAN_5X
 #ifdef CONFIG_COMPAT
 	if (in_compat_syscall())
 		return -EOPNOTSUPP;
+#endif
 #endif
 
 	type = nlh->nlmsg_type;
