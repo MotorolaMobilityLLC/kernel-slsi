@@ -343,9 +343,10 @@
 
 						l37_reg: LDO37 {
 							regulator-name = "vdd_ldo37";
-							regulator-min-microvolt = <1800000>;
-							regulator-max-microvolt = <3375000>;
+							regulator-min-microvolt = <1620000>;
+							regulator-max-microvolt = <1900000>;
 							regulator-ramp-delay = <12000>;
+							regulator-always-on;
 						};
 
 						l38_reg: LDO38 {
@@ -1583,6 +1584,28 @@
 		battery,full_check_current_2nd = <
 			100 0 100 100 100 100 100 100 100 100
 			100 100 100 100 100 100 0>;
+	};
+};
+
+&i2c_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	sec-nfc@27 {
+		compatible = "sec-nfc";
+		reg = <0x27>;
+
+		sec-nfc,ven-gpio = <&gpg0 0 0>;
+		sec-nfc,firm-gpio = <&gpg0 2 0>;
+
+		sec-nfc,irq-gpio = <&gpa1 2 0>;
+		sec-nfc,clk_req-gpio = <&gpg0 1 0>;
+
+		clock-names = "OSC_NFC";
+		clocks = <&clock OSC_NFC>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&xclkout1>;
 	};
 };
 
