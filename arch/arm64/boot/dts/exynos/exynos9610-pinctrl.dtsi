@@ -62,6 +62,12 @@
 			samsung,pin-pud = <0>;
 		};
 
+		xclkout1: xclkout1 {
+			samsung,pins = "gpq0-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+		};
+
 		/* USI_PERIC0_UART_DBG */
 		uart0_bus: uart0-bus {
 			samsung,pins = "gpq0-3", "gpq0-4";
