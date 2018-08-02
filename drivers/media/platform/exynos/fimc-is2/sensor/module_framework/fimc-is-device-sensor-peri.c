@@ -374,7 +374,7 @@ int fimc_is_sensor_init_sensor_thread(struct fimc_is_device_sensor_peri *sensor_
 			return ret;
 		}
 
-		sensor_peri->sensor_work_index = 0;
+		kthread_init_work(&sensor_peri->sensor_work, fimc_is_sensor_sensor_work_fn);
 	}
 
 	return ret;
@@ -387,6 +387,7 @@ void fimc_is_sensor_deinit_sensor_thread(struct fimc_is_device_sensor_peri *sens
 			err("kthread_stop fail");
 
 		sensor_peri->sensor_task = NULL;
+		sensor_peri->use_sensor_work = false;
 		info("%s:\n", __func__);
 	}
 }
@@ -1074,7 +1075,8 @@ int fimc_is_sensor_peri_notify_vsync(struct v4l2_subdev *subdev, void *arg)
 
 	cis->cis_data->sen_vsync_count = vsync_count;
 
-	if (sensor_peri->sensor_task != NULL) {
+	if (sensor_peri->sensor_task != NULL
+		|| sensor_peri->use_sensor_work) {
 		/* run sensor setting thread */
 		kthread_queue_work(&sensor_peri->sensor_worker, &sensor_peri->sensor_work);
 	}
@@ -1790,6 +1792,7 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			memset(&sensor_peri->cis.sensor_ctls[i].cur_cam20_flash_udctrl, 0, sizeof(camera2_flash_uctl_t));
 			sensor_peri->cis.sensor_ctls[i].valid_flash_udctrl = false;
 		}
+		sensor_peri->use_sensor_work = false;
 	}
 	if (ret < 0) {
 		err("[SEN:%d] v4l2_subdev_call(s_stream, on:%d) is fail(%d)",
