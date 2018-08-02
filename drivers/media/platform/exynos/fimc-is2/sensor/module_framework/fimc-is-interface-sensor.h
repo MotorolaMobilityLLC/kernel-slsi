@@ -432,7 +432,7 @@ struct fimc_is_sensor_ctl
 	// Frame number that indicating shot. Currntly, it is not used.
 	/* (14) */  bool shot_frame_number;
 
-	struct wb_gains_data wb_gains;
+	struct wb_gains wb_gains;
 	bool update_wb_gains;
 };
 
