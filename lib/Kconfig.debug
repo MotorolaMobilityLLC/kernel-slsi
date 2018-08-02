@@ -2015,17 +2015,6 @@ config DEBUG_SNAPSHOT_CALLSTACK
 	range 1 4
 	default 4
 
-config DEBUG_SNAPSHOT_IRQ_EXIT
-	bool "Enable debugging of interrupt exit event by kevent"
-	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
-	default y
-
-config DEBUG_SNAPSHOT_IRQ_EXIT_THRESHOLD
-	int "threshold of detection(microsecond)"
-	depends on DEBUG_SNAPSHOT_IRQ_EXIT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
-	range 0 1000000
-	default 0
-
 config DEBUG_SNAPSHOT_IRQ_DISABLED
 	bool "Enable debugging of interrupt disable event by kevent(EXPERIMENTAL)"
 	depends on DEBUG_SNAPSHOT && !DEBUG_SNAPSHOT_MINIMIZED_MODE
