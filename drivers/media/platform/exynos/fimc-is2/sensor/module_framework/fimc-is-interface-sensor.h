@@ -432,8 +432,12 @@ struct fimc_is_sensor_ctl
 	// Frame number that indicating shot. Currntly, it is not used.
 	/* (14) */  bool shot_frame_number;
 
+	/* For WB(White Balance) gain update */
 	struct wb_gains wb_gains;
 	bool update_wb_gains;
+
+	/* force_update set when need to update w/o DDK or RTA */
+	bool force_update;
 };
 
 typedef enum fimc_is_sensor_adjust_direction_ {
