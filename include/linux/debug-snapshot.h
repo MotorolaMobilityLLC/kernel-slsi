@@ -24,7 +24,7 @@ extern void dbg_snapshot_task(int cpu, void *v_task);
 extern void dbg_snapshot_work(void *worker, void *v_task, void *fn, int en);
 extern void dbg_snapshot_cpuidle(char *modes, unsigned state, int diff, int en);
 extern void dbg_snapshot_suspend(char *log, void *fn, void *dev, int state, int en);
-extern void dbg_snapshot_irq(int irq, void *fn, void *val, int en);
+extern void dbg_snapshot_irq(int irq, void *fn, void *val, unsigned long long time, int en);
 extern void dbg_snapshot_print_notifier_call(void **nl, unsigned long func, int en);
 extern int dbg_snapshot_try_enable(const char *name, unsigned long long duration);
 extern int dbg_snapshot_set_enable(const char *name, int en);
@@ -57,7 +57,8 @@ extern void dbg_snapshot_hook_hardlockup_exit(void);
 extern void dbg_snapshot_dump_sfr(void);
 extern int dbg_snapshot_hook_pmsg(char *buffer, size_t count);
 extern void dbg_snapshot_save_log(int cpu, unsigned long where);
-
+#define dbg_snapshot_irq_var(v)   do {    v = cpu_clock(raw_smp_processor_id());  \
+				  } while(0)
 /* option */
 #ifdef CONFIG_DEBUG_SNAPSHOT_ACPM
 extern void dbg_snapshot_acpm(unsigned long long timestamp, const char *log, unsigned int data);
@@ -152,15 +153,6 @@ void dbg_snapshot_dm(int type, unsigned long min, unsigned long max, s32 wait_t,
 #define dbg_snapshot_dm(a,b,c,d,e)		do { } while(0)
 #endif
 
-#ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-extern void dbg_snapshot_irq_exit(unsigned int irq, unsigned long long start_time);
-#define dbg_snapshot_irq_exit_var(v)	do {	v = cpu_clock(raw_smp_processor_id());	\
-					} while(0)
-#else
-#define dbg_snapshot_irq_exit(a,b)		do { } while(0)
-#define dbg_snapshot_irq_exit_var(v)	do { v = 0; } while(0)
-#endif
-
 #ifdef CONFIG_DEBUG_SNAPSHOT_CRASH_KEY
 void dbg_snapshot_check_crash_key(unsigned int code, int value);
 #else
@@ -194,14 +186,13 @@ extern void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
 #define dbg_snapshot_suspend(a,b,c,d,e)	do { } while(0)
 #define dbg_snapshot_regulator(a,b,c,d,e,f)	do { } while(0)
 #define dbg_snapshot_thermal(a,b,c,d)	do { } while(0)
-#define dbg_snapshot_irq(a,b,c,d)		do { } while(0)
-#define dbg_snapshot_irq_exit(a,b)		do { } while(0)
+#define dbg_snapshot_irq(a,b,c,d,e)		do { } while(0)
 #define dbg_snapshot_irqs_disabled(a)	do { } while(0)
 #define dbg_snapshot_spinlock(a,b)		do { } while(0)
 #define dbg_snapshot_clk(a,b,c,d)		do { } while(0)
 #define dbg_snapshot_pmu(a,b,c)		do { } while(0)
 #define dbg_snapshot_freq(a,b,c,d)		do { } while(0)
-#define dbg_snapshot_irq_exit_var(v)	do { v = 0; } while(0)
+#define dbg_snapshot_irq_var(v)		do { v = 0; } while(0)
 #define dbg_snapshot_reg(a,b,c,d)		do { } while(0)
 #define dbg_snapshot_hrtimer(a,b,c,d)	do { } while(0)
 #define dbg_snapshot_i2c(a,b,c,d)		do { } while(0)
@@ -283,7 +274,8 @@ enum dsslog_flag {
 	DSS_FLAG_SOFTIRQ		= 10000,
 	DSS_FLAG_SOFTIRQ_HI_TASKLET	= 10100,
 	DSS_FLAG_SOFTIRQ_TASKLET	= 10200,
-	DSS_FLAG_CALL_TIMER_FN		= 20000
+	DSS_FLAG_CALL_TIMER_FN		= 20000,
+	DSS_FLAG_SMP_CALL_FN		= 30000,
 };
 
 enum dsslog_freq_flag {

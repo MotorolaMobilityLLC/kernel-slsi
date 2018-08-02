@@ -137,22 +137,13 @@ struct dbg_snapshot_log {
 		int irq;
 		void *fn;
 #ifdef CONFIG_DEBUG_SNAPSHOT_LINUX_BUILD
-		struct irqaction *action;
+		struct irq_desc *desc;
 #else
-		void *action;
+		void *desc;
 #endif
+		unsigned long long latency;
 		int en;
 	} irq[DSS_NR_CPUS][DSS_LOG_MAX_NUM * 2];
-
-#ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-	struct __irq_exit_log {
-		unsigned long long time;
-		unsigned long sp;
-		unsigned long long end_time;
-		unsigned long long latency;
-		int irq;
-	} irq_exit[DSS_NR_CPUS][DSS_LOG_MAX_NUM];
-#endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_SPINLOCK
 	struct __spinlock_log {
 		unsigned long long time;
