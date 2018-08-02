@@ -1233,14 +1233,15 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 		return NOTIFY_DONE;
 
 	/* print dump if it is an MFC ITMON error */
-	if (strncmp("MFC", itmon_info->port, sizeof("MFC") - 1) == 0) {
-		if (!itmon_info->master)
-			return NOTIFY_DONE;
-		if (strncmp("MFC", itmon_info->master, sizeof("MFC") - 1) == 0) {
+	if (itmon_info->port &&
+			strncmp("MFC", itmon_info->port, sizeof("MFC") - 1) == 0) {
+		if (itmon_info->master &&
+			strncmp("MFC", itmon_info->master, sizeof("MFC") - 1) == 0) {
 			is_mfc_itmon = 1;
 			is_master = 1;
 		}
-	} else if (strncmp("MFC", itmon_info->dest, sizeof("MFC") - 1) == 0) {
+	} else if (itmon_info->dest &&
+			strncmp("MFC", itmon_info->dest, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
 		is_master = 0;
 	}
