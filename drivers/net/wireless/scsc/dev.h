@@ -736,7 +736,6 @@ struct netdev_vif {
 };
 
 struct slsi_802_11d_reg_domain {
-	int                        no_indoor_freq;
 	u8                         *countrylist;
 	struct ieee80211_regdomain *regdomain;
 	int                        country_len;

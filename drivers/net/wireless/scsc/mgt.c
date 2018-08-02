@@ -3873,7 +3873,6 @@ static void slsi_reg_mib_to_regd(struct slsi_mib_data *mib, struct slsi_802_11d_
 	u16 freq;
 	u8 byte_val;
 	struct ieee80211_reg_rule *reg_rule;
-	int freq_found = 0;
 
 	domain_info->regdomain->alpha2[0] = *(u8 *)(&mib->data[i]);
 	i++;
@@ -3908,12 +3907,7 @@ static void slsi_reg_mib_to_regd(struct slsi_mib_data *mib, struct slsi_802_11d_
 
 		/* Flags 1 byte */
 		reg_rule->flags = slsi_remap_reg_rule_flags(*(u8 *)(&mib->data[i + 6]));
-		if (!freq_found)
-			if (((reg_rule->freq_range.start_freq_khz / 1000000) == 5) &&
-			    !(reg_rule->flags & NL80211_RRF_NO_OUTDOOR)) {
-				domain_info->no_indoor_freq = (reg_rule->freq_range.start_freq_khz / 1000) + 10;
-				freq_found = 1;
-			}
+
 		i += 7;
 
 		num_rules++; /* Num of reg rules */

@@ -1881,6 +1881,9 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 #endif
 	struct ieee80211_channel  *channel = NULL;
 	int indoor_channel = 0;
+	int i;
+	u32 chan_flags;
+	u16 center_freq;
 
 	SLSI_MUTEX_LOCK(sdev->start_stop_mutex);
 	if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
@@ -1909,18 +1912,6 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 #endif
 
-	channel =  ieee80211_get_channel(sdev->wiphy, settings->chandef.chan->center_freq);
-	if ((channel->flags) & (IEEE80211_CHAN_INDOOR_ONLY)) {
-		settings->chandef.chan = ieee80211_get_channel(wiphy,
-								 sdev->device_config.domain_info.no_indoor_freq);
-		settings->chandef.center_freq1 = sdev->device_config.domain_info.no_indoor_freq;
-		indoor_channel = 1;
-	}
-
-	r = slsi_ap_start_validate(dev, sdev, settings);
-	if (r != 0)
-		goto exit_with_vif_mutex;
-
 	memset(&ndev_vif->ap, 0, sizeof(ndev_vif->ap));
 	/* Initialise all allocated peer structures to remove old data. */
 	/*slsi_netif_init_all_peers(sdev, dev);*/
@@ -1935,15 +1926,55 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 				r = -EINVAL;
 				goto exit_with_vif_mutex;
 			}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
-			if (slsi_check_channelization(sdev, ndev_vif->chandef) != 0) {
+		}
+	}
+	if (sdev->band_5g_supported && ((settings->chandef.chan->center_freq / 1000) == 5)) {
+		channel =  ieee80211_get_channel(sdev->wiphy, settings->chandef.chan->center_freq);
+		if (!channel) {
+			SLSI_ERR(sdev, "Invalid frequency %d used to start AP. Channel not found\n",
+				 settings->chandef.chan->center_freq);
+			r = -EINVAL;
+			goto exit_with_vif_mutex;
+		}
+		if ((channel->flags) & (IEEE80211_CHAN_INDOOR_ONLY)) {
+			chan_flags = (IEEE80211_CHAN_INDOOR_ONLY | IEEE80211_CHAN_RADAR | IEEE80211_CHAN_DISABLED |
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 10, 13)
+				      IEEE80211_CHAN_PASSIVE_SCAN
 #else
-			if (slsi_check_channelization(sdev, ndev_vif->channel_type) != 0) {
+				      IEEE80211_CHAN_NO_IR
 #endif
+				     );
+
+			for (i = 0; i < wiphy->bands[NL80211_BAND_5GHZ]->n_channels; i++) {
+				if (!(wiphy->bands[NL80211_BAND_5GHZ]->channels[i].flags & chan_flags)) {
+					center_freq = wiphy->bands[NL80211_BAND_5GHZ]->channels[i].center_freq;
+					settings->chandef.chan = ieee80211_get_channel(wiphy, center_freq);
+					settings->chandef.center_freq1 = center_freq;
+					SLSI_DBG1(sdev, SLSI_CFG80211, "ap valid frequency :%d, chan_flags:%x\n",
+						  center_freq, wiphy->bands[NL80211_BAND_5GHZ]->channels[i].flags);
+					indoor_channel = 1;
+					break;
+				}
+			}
+			if (indoor_channel == 0) {
+				SLSI_ERR(sdev, "No valid channel found to start the AP");
 				r = -EINVAL;
 				goto exit_with_vif_mutex;
 			}
 		}
+	}
+
+	r = slsi_ap_start_validate(dev, sdev, settings);
+	if (r != 0)
+		goto exit_with_vif_mutex;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
+	if (slsi_check_channelization(sdev, ndev_vif->chandef) != 0) {
+#else
+	if (slsi_check_channelization(sdev, ndev_vif->channel_type) != 0) {
+#endif
+		r = -EINVAL;
+		goto exit_with_vif_mutex;
 	}
 
 	if (ndev_vif->iftype == NL80211_IFTYPE_P2P_GO) {
