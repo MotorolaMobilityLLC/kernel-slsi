@@ -430,7 +430,7 @@ struct fimc_is_device_sensor_peri {
 	unsigned long			peri_state;
 
 	/* Thread for sensor and high spped recording setting */
-	u32				sensor_work_index;
+	bool				use_sensor_work;
 	spinlock_t			sensor_work_lock;
 	struct task_struct		*sensor_task;
 	struct kthread_worker		sensor_worker;

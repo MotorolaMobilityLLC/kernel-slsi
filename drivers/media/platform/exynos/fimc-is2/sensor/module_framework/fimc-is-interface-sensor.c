@@ -3302,6 +3302,76 @@ int set_sensor_info_mfhdr_mode_change(struct fimc_is_sensor_interface *itf,
 		u32 count, u32 *long_expo, u32 *long_again, u32 *long_dgain,
 		u32 *expo, u32 *again, u32 *dgain)
 {
+	struct fimc_is_device_sensor_peri *sensor_peri;
+	struct fimc_is_device_sensor *sensor;
+	camera2_sensor_uctl_t *sensor_uctl;
+	struct fimc_is_sensor_ctl *sensor_ctl;
+	int idx;
+
+	BUG_ON(!itf);
+	BUG_ON(itf->magic != SENSOR_INTERFACE_MAGIC);
+
+	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri, sensor_interface);
+
+	sensor = get_device_sensor(itf);
+	if (!sensor) {
+		err("%s, failed to get sensor device", __func__);
+		return -1;
+	}
+
+	if (test_bit(FIMC_IS_SENSOR_FRONT_START, &sensor->state))
+		warn("[%s] called during stream on", __func__);
+
+	if (count < 1) {
+		err("[%s] wrong request count(%d)", __func__, count);
+		return -1;
+	}
+
+	/* set index 0 values to mode_chg_xxx variables
+	 * for applying values before stream on
+	 */
+	sensor_peri->cis.mode_chg_expo = expo[0];
+	sensor_peri->cis.mode_chg_again = again[0];
+	sensor_peri->cis.mode_chg_dgain = dgain[0];
+	sensor_peri->cis.mode_chg_long_expo = long_expo[0];
+	sensor_peri->cis.mode_chg_long_again = long_again[0];
+	sensor_peri->cis.mode_chg_long_dgain = long_dgain[0];
+
+	/* set index 0 ~ cnt-1 values to sensor uctl variables
+	 * for applying values during streaming.
+	 * (index 0 is set for code clean(not updated during streaming)
+	 * set "use_sensor_work" to true for call sensor_work_thread
+	 * to apply sensor settings
+	 */
+	sensor_peri->use_sensor_work = true;
+	for (idx = 0; idx < count; idx++) {
+		sensor_ctl = get_sensor_ctl_from_module(itf, get_frame_count(itf) + idx);
+		sensor_ctl->force_update = true;
+
+		sensor_uctl = get_sensor_uctl_from_module(itf, get_frame_count(itf) + idx);
+		BUG_ON(!sensor_uctl);
+
+		sensor_uctl->exposureTime = fimc_is_sensor_convert_us_to_ns(long_expo[idx]);
+		sensor_uctl->longExposureTime = fimc_is_sensor_convert_us_to_ns(long_expo[idx]);
+		sensor_uctl->shortExposureTime = fimc_is_sensor_convert_us_to_ns(expo[idx]);
+
+		sensor_uctl->sensitivity = DIV_ROUND_UP((long_again[idx] + long_dgain[idx]), 10);
+		sensor_uctl->analogGain = again[idx];
+		sensor_uctl->digitalGain = dgain[idx];
+		sensor_uctl->longAnalogGain = long_again[idx];
+		sensor_uctl->shortAnalogGain = again[idx];
+		sensor_uctl->longDigitalGain = long_dgain[idx];
+		sensor_uctl->shortDigitalGain = dgain[idx];
+
+		set_sensor_uctl_valid(itf, idx);
+
+		dbg_sensor(1, "[%s][%d]: exp(%d), again(%d), dgain(%d), "
+			KERN_CONT "long_exp(%d), long_again(%d), long_dgain(%d)\n",
+			__func__, idx,
+			expo[idx], again[idx], dgain[idx],
+			long_expo[idx], long_again[idx], long_dgain[idx]);
+	}
+
 	return 0;
 }
 

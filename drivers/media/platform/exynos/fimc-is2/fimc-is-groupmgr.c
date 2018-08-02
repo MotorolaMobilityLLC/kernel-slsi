@@ -2966,7 +2966,7 @@ int fimc_is_group_shot(struct fimc_is_groupmgr *groupmgr,
 
 	if (device->sensor && !test_bit(FIMC_IS_SENSOR_FRONT_START, &device->sensor->state)) {
 #ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
-		if (frame->shot->ctl.aa.sceneMode == AA_SCENE_MODE_REMOSAIC) {
+		if (CHK_REMOSAIC_SCN(frame->shot->ctl.aa.sceneMode)) {
 			clear_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->sensor->state);
 			device->sensor->mode_chg_frame = frame;
 		} else {
