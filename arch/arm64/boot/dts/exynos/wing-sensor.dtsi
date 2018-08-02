@@ -1,0 +1,83 @@
+/*
+ * Copyright (C) 2010 - 2017 Novatek, Inc.
+ *
+ * $Revision: 22971 $
+ * $Date: 2018-02-08 16:05:40 +0800 (週四, 08 二月 2018) $
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
+
+&hsi2c_7 {
+	status = "okay";
+	samsung,reset-before-trans;
+	clock-frequency = <400000>;
+	Semtech_sx9320@28 {
+		compatible = "Semtech,sx932x";
+		reg = <0x28>;
+		cap_vdd-supply = <&l3_reg>;
+		Semtech,nirq-gpio = <&gpa2 6 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cap_int_status>;
+		egistec,gpio_rst = <&gpa1 1 0>;
+		status = "ok";	/**/
+		Semtech,reg-num = <46>; /* total registers number to initialize*/
+       		Semtech,reg-init  = /bits/ 8 < 0x10 0x16
+                                0x20 0x00
+                                0x23 0x00
+                                0x24 0x44
+                                0x26 0x01
+                                0x27 0x44
+                                0x28 0x01 /*PH0 to CS0 input*/
+                                0x29 0x04
+                                0x2A 0x10 /*PH2 CS2-input,CS1-dync,CS0-HZ*/
+                                0x2B 0x00
+                                0x2C 0x12
+                                0x2D 0x08
+                                0x30 0x09
+                                0x31 0x09
+                                0x32 0x08
+                                0x33 0x20
+                                0x34 0x0C
+                                0x35 0x00
+                                0x36 0x1b
+                                0x37 0x1b
+                                0x40 0x00
+                                0x41 0x00
+                                0x42 0x00
+                                0x43 0x00
+                                0x44 0x00
+                                0x45 0x05
+                                0x46 0x00
+                                0x47 0x00
+                                0x48 0x00
+                                0x49 0x80
+                                0x4A 0x00
+                                0x4B 0x00
+                                0x4C 0x00
+                                0x4D 0x00
+                                0x4E 0x80
+                                0x4F 0x0C
+                                0x50 0x00
+                                0x51 0x70
+                                0x52 0x20
+                                0x53 0xE1
+                                0x54 0xF0
+                                0x05 0x70
+                                0x06 0x00
+                                0x07 0x00
+                                0x08 0x00
+				0x11 0x27>;
+
+	};
+
+};
