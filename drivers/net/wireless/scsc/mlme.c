@@ -1419,7 +1419,7 @@ int slsi_mlme_add_scan(
 		return -EINVAL;
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
-	SLSI_NET_DBG3(dev, SLSI_MLME, "id:0x%x, n_channels:%d, n_ssids\n", (ndev_vif->ifnum << 8 | SLSI_SCAN_HW_ID),
+	SLSI_NET_DBG3(dev, SLSI_MLME, "id:0x%x, n_channels:%d, n_ssids:%d\n", (ndev_vif->ifnum << 8 | SLSI_SCAN_HW_ID),
 		      n_channels, n_ssids);
 
 	alloc_data_size += sizeof(scan_timing_ie) +

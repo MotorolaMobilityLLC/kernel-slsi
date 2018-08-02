@@ -660,6 +660,9 @@ void slsi_scan_cleanup(struct slsi_dev *sdev, struct net_device *dev)
 
 	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
 	for (i = 0; i < SLSI_SCAN_MAX; i++) {
+		if (ndev_vif->scan[i].scan_req && !sdev->mlme_blocked &&
+		    SLSI_IS_VIF_INDEX_P2P_GROUP(ndev_vif))
+			slsi_mlme_del_scan(sdev, dev, (ndev_vif->ifnum << 8 | i), false);
 		slsi_purge_scan_results(ndev_vif, i);
 		if (ndev_vif->scan[i].scan_req && i == SLSI_SCAN_HW_ID)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))
