@@ -602,10 +602,22 @@ void irq_init_desc(unsigned int irq)
 int generic_handle_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	struct irqaction *action;
+	unsigned long long start_time;
 
 	if (!desc)
 		return -EINVAL;
+
+	action = desc->action;
+	dbg_snapshot_irq_var(start_time);
+	dbg_snapshot_irq(irq, (void *)action->handler, (void *)desc,
+				0, DSS_FLAG_IN);
+
 	generic_handle_irq_desc(desc);
+
+	dbg_snapshot_irq(irq, (void *)action->handler, (void *)desc,
+				start_time, DSS_FLAG_OUT);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(generic_handle_irq);
@@ -624,11 +636,9 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
 			bool lookup, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	unsigned long long start_time;
 	unsigned int irq = hwirq;
 	int ret = 0;
 
-	dbg_snapshot_irq_exit_var(start_time);
 	irq_enter();
 
 #ifdef CONFIG_IRQ_DOMAIN
@@ -648,7 +658,6 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
 	}
 
 	irq_exit();
-	dbg_snapshot_irq_exit(irq, start_time);
 	set_irq_regs(old_regs);
 	return ret;
 }

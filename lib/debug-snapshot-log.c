@@ -87,9 +87,6 @@ struct dbg_snapshot_log_idx {
 #ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_DISABLED
 	atomic_t irqs_disabled_log_idx[DSS_NR_CPUS];
 #endif
-#ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-	atomic_t irq_exit_log_idx[DSS_NR_CPUS];
-#endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_REG
 	atomic_t reg_log_idx[DSS_NR_CPUS];
 #endif
@@ -142,16 +139,6 @@ int dss_irqlog_exlist[DSS_EX_MAX_NUM] = {
 /*  interrupt number ex) 152, 153, 154, */
 	-1,
 };
-
-#ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-int dss_irqexit_exlist[DSS_EX_MAX_NUM] = {
-/*  interrupt number ex) 152, 153, 154, */
-	-1,
-};
-
-unsigned int dss_irqexit_threshold =
-		CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT_THRESHOLD;
-#endif
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_REG
 struct dss_reg_list {
@@ -241,9 +228,6 @@ void __init dbg_snapshot_init_log_idx(void)
 #endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_DISABLED
 		atomic_set(&(dss_idx.irqs_disabled_log_idx[i]), -1);
-#endif
-#ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-		atomic_set(&(dss_idx.irq_exit_log_idx[i]), -1);
 #endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_REG
 		atomic_set(&(dss_idx.reg_log_idx[i]), -1);
@@ -395,32 +379,6 @@ bool dbg_snapshot_dumper_one(void *v_dumper, char *line, size_t size, size_t *le
 						irq, irq_fn, en == DSS_FLAG_IN ? "IN" : "OUT");
 		break;
 	}
-#ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-	case DSS_FLAG_IRQ_EXIT:
-	{
-		unsigned long end_time, latency;
-		int irq;
-
-		array_size = ARRAY_SIZE(dss_log->irq_exit[0]) - 1;
-		if (!dumper->active) {
-			idx = (atomic_read(&dss_idx.irq_exit_log_idx[0]) + 1) & array_size;
-			dumper->init_idx = idx;
-			dumper->active = true;
-		}
-		ts = dss_log->irq_exit[cpu][idx].time;
-		rem_nsec = do_div(ts, NSEC_PER_SEC);
-
-		end_time = dss_log->irq_exit[cpu][idx].end_time;
-		latency = dss_log->irq_exit[cpu][idx].latency;
-		irq = dss_log->irq_exit[cpu][idx].irq;
-
-		*len = snprintf(line, size, "[%8lu.%09lu][%04d:CPU%u] irq:%6d,  "
-					    "latency:%16zu,  end_time:%16zu\n",
-						(unsigned long)ts, rem_nsec / NSEC_PER_USEC, idx, cpu,
-						irq, latency, end_time);
-		break;
-	}
-#endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_SPINLOCK
 	case DSS_FLAG_SPINLOCK:
 	{
@@ -885,7 +843,7 @@ void dbg_snapshot_thermal(void *data, unsigned int temp, char *name, unsigned in
 }
 #endif
 
-void dbg_snapshot_irq(int irq, void *fn, void *val, int en)
+void dbg_snapshot_irq(int irq, void *fn, void *val, unsigned long long start_time, int en)
 {
 	struct dbg_snapshot_item *item = &dss_items[dss_desc.kevents_num];
 	unsigned long flags;
@@ -896,61 +854,28 @@ void dbg_snapshot_irq(int irq, void *fn, void *val, int en)
 	flags = pure_arch_local_irq_save();
 	{
 		int cpu = raw_smp_processor_id();
+		unsigned long long time, latency;
 		unsigned long i;
 
-		for (i = 0; i < ARRAY_SIZE(dss_irqlog_exlist); i++) {
-			if (irq == dss_irqlog_exlist[i]) {
-				pure_arch_local_irq_restore(flags);
-				return;
-			}
-		}
+		time = cpu_clock(cpu);
+
+		if (start_time == 0)
+			start_time = time;
+
+		latency = time - start_time;
 		i = atomic_inc_return(&dss_idx.irq_log_idx[cpu]) &
 				(ARRAY_SIZE(dss_log->irq[0]) - 1);
 
-		dss_log->irq[cpu][i].time = cpu_clock(cpu);
+		dss_log->irq[cpu][i].time = time;
 		dss_log->irq[cpu][i].sp = (unsigned long) current_stack_pointer;
 		dss_log->irq[cpu][i].irq = irq;
 		dss_log->irq[cpu][i].fn = (void *)fn;
-		dss_log->irq[cpu][i].action = (struct irqaction *)val;
+		dss_log->irq[cpu][i].desc = (struct irq_desc *)val;
+		dss_log->irq[cpu][i].latency = latency;
 		dss_log->irq[cpu][i].en = en;
 	}
 	pure_arch_local_irq_restore(flags);
 }
-
-#ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-void dbg_snapshot_irq_exit(unsigned int irq, unsigned long long start_time)
-{
-	struct dbg_snapshot_item *item = &dss_items[dss_desc.kevents_num];
-	unsigned long i;
-
-	if (unlikely(!dss_base.enabled || !item->entry.enabled))
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(dss_irqexit_exlist); i++)
-		if (irq == dss_irqexit_exlist[i])
-			return;
-	{
-		int cpu = raw_smp_processor_id();
-		unsigned long long time, latency;
-
-		i = atomic_inc_return(&dss_idx.irq_exit_log_idx[cpu]) &
-			(ARRAY_SIZE(dss_log->irq_exit[0]) - 1);
-
-		time = cpu_clock(cpu);
-		latency = time - start_time;
-
-		if (unlikely(latency >
-			(dss_irqexit_threshold * 1000))) {
-			dss_log->irq_exit[cpu][i].latency = latency;
-			dss_log->irq_exit[cpu][i].sp = (unsigned long) current_stack_pointer;
-			dss_log->irq_exit[cpu][i].end_time = time;
-			dss_log->irq_exit[cpu][i].time = start_time;
-			dss_log->irq_exit[cpu][i].irq = irq;
-		} else
-			atomic_dec(&dss_idx.irq_exit_log_idx[cpu]);
-	}
-}
-#endif
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_SPINLOCK
 void dbg_snapshot_spinlock(void *v_lock, int en)

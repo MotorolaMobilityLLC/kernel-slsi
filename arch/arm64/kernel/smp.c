@@ -24,6 +24,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task_stack.h>
+#include <linux/sched/clock.h>
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/profile.h>
@@ -889,15 +890,18 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
 	struct pt_regs *old_regs = set_irq_regs(regs);
+	unsigned long long start_time;
 
 	if ((unsigned)ipinr < NR_IPI) {
 		trace_ipi_entry_rcuidle(ipi_types[ipinr]);
 		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
 	}
 
+	dbg_snapshot_irq_var(start_time);
+	dbg_snapshot_irq(ipinr, handle_IPI, NULL, 0, DSS_FLAG_IN);
+
 	switch (ipinr) {
 	case IPI_RESCHEDULE:
-		dbg_snapshot_irq(ipinr, scheduler_ipi, NULL, DSS_FLAG_IN);
 		scheduler_ipi();
 		break;
 
@@ -914,13 +918,11 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		dbg_snapshot_irq(ipinr, ipi_cpu_stop, NULL, DSS_FLAG_IN);
 		ipi_cpu_stop(cpu, regs);
 		irq_exit();
 		break;
 
 	case IPI_CPU_CRASH_STOP:
-		dbg_snapshot_irq(ipinr, ipi_cpu_crash_stop, NULL, DSS_FLAG_IN);
 		if (IS_ENABLED(CONFIG_KEXEC_CORE)) {
 			irq_enter();
 			ipi_cpu_crash_stop(cpu, regs);
@@ -932,7 +934,6 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	case IPI_TIMER:
 		irq_enter();
-		dbg_snapshot_irq(ipinr, tick_receive_broadcast, NULL, DSS_FLAG_IN);
 		tick_receive_broadcast();
 		irq_exit();
 		break;
@@ -941,7 +942,6 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 #ifdef CONFIG_IRQ_WORK
 	case IPI_IRQ_WORK:
 		irq_enter();
-		dbg_snapshot_irq(ipinr, irq_work_run, NULL, DSS_FLAG_IN);
 		irq_work_run();
 		irq_exit();
 		break;
@@ -949,7 +949,6 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 #ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
 	case IPI_WAKEUP:
-		dbg_snapshot_irq(ipinr, handle_IPI, NULL, DSS_FLAG_IN);
 		WARN_ONCE(!acpi_parking_protocol_valid(cpu),
 			  "CPU%u: Wake-up IPI outside the ACPI parking protocol\n",
 			  cpu);
@@ -957,7 +956,6 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 #endif
 
 	default:
-		dbg_snapshot_irq(ipinr, handle_IPI, NULL, DSS_FLAG_IN);
 		pr_crit("CPU%u: Unknown IPI message 0x%x\n", cpu, ipinr);
 		break;
 	}
@@ -965,7 +963,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 	if ((unsigned)ipinr < NR_IPI)
 		trace_ipi_exit_rcuidle(ipi_types[ipinr]);
 
-	dbg_snapshot_irq(ipinr, handle_IPI, NULL, DSS_FLAG_OUT);
+	dbg_snapshot_irq(ipinr, handle_IPI, NULL, start_time, DSS_FLAG_OUT);
 
 	set_irq_regs(old_regs);
 }
