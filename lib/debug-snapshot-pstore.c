@@ -220,6 +220,7 @@ static struct ramoops_platform_data dss_ramoops_data = {
 	.console_size	= SZ_512K,
 	.ftrace_size	= SZ_512K,
 	.pmsg_size	= SZ_512K,
+        .annotate_size  = SZ_2K,
 #endif
 	.dump_oops	= 1,
 };
