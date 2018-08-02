@@ -52,6 +52,14 @@
 
 #define NI_BACKUP_MAX			32
 
+/* TODO: remove AA_SCENE_MODE_REMOSAIC */
+#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
+#define CHK_REMOSAIC_SCN(sceneMode)	\
+	(((sceneMode == AA_SCENE_MODE_REMOSAIC) \
+	|| (sceneMode == AA_SCENE_MODE_REMOSAIC_PURE_BAYER_ONLY) \
+	|| (sceneMode == AA_SCENE_MODE_REMOSAIC_MFHDR_PURE_BAYER_ONLY)) ? 1 : 0)
+#endif
+
 /*global state*/
 enum fimc_is_ischain_state {
 	FIMC_IS_ISCHAIN_OPENING,
