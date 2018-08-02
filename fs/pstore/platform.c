@@ -430,6 +430,7 @@ static int pstore_decompress(void *in, void *out, size_t inlen, size_t outlen)
 		return -EIO;
 }
 
+#if 0
 static void allocate_buf_for_compression(void)
 {
 	if (zbackend) {
@@ -439,6 +440,7 @@ static void allocate_buf_for_compression(void)
 		pr_err("allocate compression buffer error!\n");
 	}
 }
+#endif
 
 static void free_buf_for_compression(void)
 {
@@ -594,6 +596,53 @@ static void pstore_unregister_kmsg(void)
 	kmsg_dump_unregister(&pstore_dumper);
 }
 
+
+/* Export function to save device specific power up
+ * data
+ *
+ */
+
+int  pstore_annotate(const char *buf)
+{
+	unsigned cnt = strlen(buf);
+	const char *end = buf + cnt;
+
+	if (!psinfo) {
+		pr_warn("device not present!\n");
+		return -ENODEV;
+	}
+	while (buf < end) {
+		unsigned long flags;
+		int ret;
+		struct pstore_record record;
+
+        pstore_record_init(&record, psinfo);
+        record.type = PSTORE_TYPE_ANNOTATE;
+
+		if (cnt > psinfo->bufsize)
+			cnt = psinfo->bufsize;
+
+		if (oops_in_progress) {
+			if (!spin_trylock_irqsave(&psinfo->buf_lock, flags))
+				break;
+		} else {
+			spin_lock_irqsave(&psinfo->buf_lock, flags);
+		}
+		record.buf = (char *)buf;
+		record.size = cnt;
+		ret = psinfo->write(&record);
+		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+
+		pr_debug("ret %d wrote bytes %d\n", ret, cnt);
+		buf += cnt;
+		cnt = end - buf;
+	}
+	return 0;
+
+}
+EXPORT_SYMBOL_GPL(pstore_annotate);
+
+
 #ifdef CONFIG_PSTORE_CONSOLE
 static void pstore_console_write(struct console *con, const char *s, unsigned c)
 {
@@ -720,7 +769,12 @@ int pstore_register(struct pstore_info *psi)
 		return -EINVAL;
 	}
 
+	// FIX ME!
+	// Disable pstore compression/decompression for ramdom decompression fail
+	// will enable it when DDR is stable
+#if 0
 	allocate_buf_for_compression();
+#endif
 
 	if (pstore_is_mounted())
 		pstore_get_records(0);
