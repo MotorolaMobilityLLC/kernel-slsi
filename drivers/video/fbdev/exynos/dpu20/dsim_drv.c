@@ -1940,7 +1940,6 @@ static int dsim_probe(struct platform_device *pdev)
 #if defined(READ_ESD_SOLUTION_TEST)
 	dsim_create_esd_test_sysfs(dsim);
 #endif
-#endif
 
 #ifdef DPHY_LOOP
 	dsim_reg_set_dphy_loop_back_test(dsim->id);
