@@ -503,6 +503,7 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 	}
 
 	if ((module_ctl->valid_sensor_ctrl == true) ||
+		(module_ctl->force_update) ||
 		(module_ctl->sensor_frame_number == applied_frame_number && module_ctl->alg_reset_flag == true)) {
 		sensor_ctrl = &module_ctl->cur_cam20_sensor_ctrl;
 		sensor_uctrl = &module_ctl->cur_cam20_sensor_udctrl;
@@ -598,6 +599,8 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 
 			module_ctl->update_wb_gains = false;
 		}
+
+		module_ctl->force_update = false;
 	} else {
 		if (module_ctl->alg_reset_flag == false) {
 			dbg_sensor(1, "[%s] frame number(%d)  alg_reset_flag (%d)\n", __func__,
