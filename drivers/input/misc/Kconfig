@@ -881,4 +881,11 @@ config INPUT_S2MU106_HAPTIC
 	 The Haptic Motor driver support both ERM and
 	 LRA type actuators.
 
+config SARSENSOR_SX9325
+	bool "SARSENSOR SX9325"
+	default n
+	help
+	  Say Y here if you have a sar sensor SX9325 connected
+	  to your system.If unsure, say N.
+
 endif
