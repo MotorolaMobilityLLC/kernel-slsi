@@ -2645,7 +2645,7 @@
 			compatible = "samsung,abox-wdma";
 			reg = <0x0 0x14A52300 0x100>;
 			id = <3>;
-			type = "normal";
+			type = "realtime";
 		};
 
 		abox_wdma_4: abox_wdma@0x14A52400 {
