@@ -259,9 +259,14 @@ void *hip4_smapper_get_skb_data(struct slsi_dev *sdev, struct slsi_hip4 *hip, st
 	spin_lock_irqsave(&control->smapper_lock, flags);
 	skb = (struct sk_buff *)cb->skb_addr;
 
+	if (!skb) {
+		SLSI_DBG4_NODEV(SLSI_SMAPPER, "NULL SKB smapper\n");
+		spin_unlock_irqrestore(&control->smapper_lock, flags);
+		return NULL;
+	}
+
 	SLSI_DBG4_NODEV(SLSI_SMAPPER, "Get SKB smapper: 0x%p, SKB fapi 0x%p\n", skb, skb_fapi);
 	spin_unlock_irqrestore(&control->smapper_lock, flags);
-
 	return skb->data;
 }
 
