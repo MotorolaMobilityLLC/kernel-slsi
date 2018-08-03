@@ -57,6 +57,7 @@ void slsi_hip_deinit(struct slsi_dev *sdev);
 int slsi_hip_start(struct slsi_dev *sdev);
 int slsi_hip_setup(struct slsi_dev *sdev);
 int slsi_hip_consume_smapper_entry(struct slsi_dev *sdev, struct sk_buff *skb);
+void *slsi_hip_get_skb_data_from_smapper(struct slsi_dev *sdev, struct sk_buff *skb);
 struct sk_buff *slsi_hip_get_skb_from_smapper(struct slsi_dev *sdev, struct sk_buff *skb);
 int slsi_hip_stop(struct slsi_dev *sdev);
 

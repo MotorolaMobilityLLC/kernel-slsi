@@ -280,6 +280,11 @@ struct sk_buff *slsi_hip_get_skb_from_smapper(struct slsi_dev *sdev, struct sk_b
 {
 	return hip4_smapper_get_skb(sdev, &sdev->hip4_inst, skb);
 }
+
+void *slsi_hip_get_skb_data_from_smapper(struct slsi_dev *sdev, struct sk_buff *skb)
+{
+	return hip4_smapper_get_skb_data(sdev, &sdev->hip4_inst, skb);
+}
 #endif
 
 int slsi_hip_stop(struct slsi_dev *sdev)

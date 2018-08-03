@@ -201,11 +201,26 @@ static int slsi_rx_data_process_skb(struct slsi_dev *sdev, struct net_device *de
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_peer *peer = NULL;
-	struct ethhdr *ehdr = (struct ethhdr *)fapi_get_data((*skb));
+	struct ethhdr *ehdr;
 	u16 seq_num;
 	bool skip_ba = from_ba;
 	bool is_amsdu = slsi_rx_is_amsdu((*skb));
 	u8 trafic_q = slsi_frame_priority_to_ac_queue(fapi_get_u16((*skb), u.ma_unitdata_ind.priority));
+
+#ifdef CONFIG_SCSC_SMAPPER
+	/* Check if the payload is in the SMAPPER entry */
+	if (fapi_get_u16((*skb), u.ma_unitdata_ind.bulk_data_descriptor) == FAPI_BULKDATADESCRIPTOR_SMAPPER) {
+		ehdr = (struct ethhdr *)slsi_hip_get_skb_data_from_smapper(sdev, (*skb));
+		if (!(ehdr)) {
+			SLSI_NET_DBG2(dev, SLSI_RX, "SKB from SMAPPER is NULL\n");
+			return -EINVAL;
+		}
+	} else {
+		ehdr = (struct ethhdr *)fapi_get_data((*skb));
+	}
+#else
+	ehdr = (struct ethhdr *)fapi_get_data((*skb));
+#endif
 
 	SLSI_NET_DBG_HEX(dev, SLSI_RX, (*skb)->data, (*skb)->len < 64 ? (*skb)->len : 64, "\n");
 
