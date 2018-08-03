@@ -121,7 +121,6 @@ struct dbg_snapshot_log_idx {
 	atomic_t binder_log_idx;
 #endif
 #ifndef CONFIG_DEBUG_SNAPSHOT_MINIMIZED_MODE
-	atomic_t clockevent_log_idx[DSS_NR_CPUS];
 	atomic_t printkl_log_idx;
 	atomic_t printk_log_idx;
 #endif
@@ -218,9 +217,6 @@ void __init dbg_snapshot_init_log_idx(void)
 	for (i = 0; i < DSS_NR_CPUS; i++) {
 		atomic_set(&(dss_idx.task_log_idx[i]), -1);
 		atomic_set(&(dss_idx.work_log_idx[i]), -1);
-#ifndef CONFIG_DEBUG_SNAPSHOT_MINIMIZED_MODE
-		atomic_set(&(dss_idx.clockevent_log_idx[i]), -1);
-#endif
 		atomic_set(&(dss_idx.cpuidle_log_idx[i]), -1);
 		atomic_set(&(dss_idx.irq_log_idx[i]), -1);
 #ifdef CONFIG_DEBUG_SNAPSHOT_SPINLOCK
@@ -1360,29 +1356,6 @@ void dbg_snapshot_reg(unsigned int read, size_t val, size_t reg, int en)
 #endif
 
 #ifndef CONFIG_DEBUG_SNAPSHOT_MINIMIZED_MODE
-void dbg_snapshot_clockevent(unsigned long long clc, int64_t delta, void *next_event)
-{
-	struct dbg_snapshot_item *item = &dss_items[dss_desc.kevents_num];
-
-	if (unlikely(!dss_base.enabled || !item->entry.enabled))
-		return;
-	{
-		int cpu = raw_smp_processor_id();
-		unsigned long j, i = atomic_inc_return(&dss_idx.clockevent_log_idx[cpu]) &
-				(ARRAY_SIZE(dss_log->clockevent[0]) - 1);
-
-		dss_log->clockevent[cpu][i].time = cpu_clock(cpu);
-		dss_log->clockevent[cpu][i].mct_cycle = clc;
-		dss_log->clockevent[cpu][i].delta_ns = delta;
-		dss_log->clockevent[cpu][i].next_event = *((ktime_t *)next_event);
-
-		for (j = 0; j < dss_desc.callstack; j++) {
-			dss_log->clockevent[cpu][i].caller[j] =
-				(void *)((size_t)return_address(j + 1));
-		}
-	}
-}
-
 void dbg_snapshot_printk(const char *fmt, ...)
 {
 	struct dbg_snapshot_item *item = &dss_items[dss_desc.kevents_num];
