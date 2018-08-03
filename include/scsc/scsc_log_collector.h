@@ -69,6 +69,8 @@ enum scsc_log_chunk_type {
 	SCSC_LOG_CHUNK_INVALID = 255,
 };
 
+#define SCSC_LOG_COLLECT_MAX_SIZE	(16*1024*1024)
+
 /* SBL HEADER v 0.0*/
 struct scsc_log_sbl_header {
 	char magic[4];
@@ -101,6 +103,9 @@ struct scsc_log_collector_client {
 
 int scsc_log_collector_register_client(struct scsc_log_collector_client *collect_client);
 int scsc_log_collector_unregister_client(struct scsc_log_collector_client *collect_client);
+
+/* Public method to get pointer of SBL RAM buffer. */
+unsigned char *scsc_log_collector_get_buffer(void);
 
 /* Public method to register FAPI version. */
 void scsc_log_collector_write_fapi(char __user *buf, size_t len);

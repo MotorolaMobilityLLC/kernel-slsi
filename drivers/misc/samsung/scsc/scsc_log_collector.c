@@ -17,6 +17,7 @@
 
 #include <scsc/scsc_log_collector.h>
 #include "scsc_log_collector_proc.h"
+#include "scsc_log_collector_mmap.h"
 #include <scsc/scsc_mx.h>
 #include "mxlogger.h"
 
@@ -26,6 +27,8 @@
 
 #define SCSC_NUM_CHUNKS_SUPPORTED	12
 
+#define TO_RAM				0
+#define TO_FILE				1
 /* Add-remove supported chunks on this kernel */
 static u8 chunk_supported_sbl[SCSC_NUM_CHUNKS_SUPPORTED] = {
 	SCSC_LOG_CHUNK_SYNC,
@@ -43,7 +46,7 @@ static u8 chunk_supported_sbl[SCSC_NUM_CHUNKS_SUPPORTED] = {
 };
 
 /* Collect logs in an intermediate buffer to be collected at later time (mmap or wq) */
-static bool collect_to_ram;
+static bool collect_to_ram = true;
 module_param(collect_to_ram, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(collect_to_ram, "Collect buffer in ram");
 
@@ -100,6 +103,7 @@ struct scsc_log_status {
 	bool in_collection;
 	char fapi_ver[SCSC_LOG_FAPI_VERSION_SIZE];
 
+	unsigned char *buf;
 	struct workqueue_struct *collection_workq;
 	struct work_struct	collect_work;
 	enum scsc_log_reason    collect_reason;
@@ -131,12 +135,24 @@ int __init scsc_log_collector(void)
 	pr_info("Sable Log Collection is now %sABLED.\n",
 		sable_collection_off ? "DIS" : "EN");
 	mxlogger_set_enabled_status(!sable_collection_off);
+
+	/* Create the buffer on the constructor */
+	log_status.buf = vzalloc(SCSC_LOG_COLLECT_MAX_SIZE);
+	if (IS_ERR_OR_NULL(log_status.buf)) {
+		pr_err("open allocating memmory err = %ld\n", PTR_ERR(log_status.buf));
+		log_status.buf = NULL;
+	}
+
 	scsc_log_collect_proc_create();
+	scsc_log_collector_mmap_create();
 	return 0;
 }
 
 void __exit scsc_log_collector_exit(void)
 {
+	if (log_status.buf)
+		vfree(log_status.buf);
+
 	scsc_log_collect_proc_remove();
 	if (log_status.collection_workq) {
 		cancel_work_sync(&log_status.collect_work);
@@ -227,8 +243,27 @@ int scsc_log_collector_unregister_client(struct scsc_log_collector_client *colle
 EXPORT_SYMBOL(scsc_log_collector_unregister_client);
 
 
+unsigned char *scsc_log_collector_get_buffer(void)
+{
+	return log_status.buf;
+}
+
 static inline int __scsc_log_collector_write_to_ram(char __user *buf, size_t count, u8 align)
 {
+	if (!log_status.in_collection || !log_status.buf)
+		return -EIO;
+
+	if (log_status.pos + count > SCSC_LOG_COLLECT_MAX_SIZE) {
+		pr_err("Write will exceed SCSC_LOG_COLLECT_MAX_SIZE. Abort write\n");
+		return -ENOMEM;
+	}
+
+	log_status.pos = (log_status.pos + align - 1) & ~(align - 1);
+	/* Write buf to RAM */
+	memcpy(log_status.buf + log_status.pos, buf, count);
+
+	log_status.pos += count;
+
 	return 0;
 }
 
@@ -238,6 +273,11 @@ static inline int __scsc_log_collector_write_to_file(char __user *buf, size_t co
 
 	if (!log_status.in_collection)
 		return -EIO;
+
+	if (log_status.pos + count > SCSC_LOG_COLLECT_MAX_SIZE) {
+		pr_err("Write will exceed SCSC_LOG_COLLECT_MAX_SIZE. Abort write\n");
+		return -ENOMEM;
+	}
 
 	log_status.pos = (log_status.pos + align - 1) & ~(align - 1);
 	/* Write buf to file */
@@ -272,11 +312,9 @@ const char *scsc_loc_reason_str[] = { "unknown", "scsc_log_fw_panic",
 				      "scsc_log_wlan_trig", "scsc_log_bt_trig",
 				      "scsc_log_common_trig"/* Add others */};
 
-static inline int __scsc_log_collector_collect_to_file(enum scsc_log_reason reason)
+static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u8 buffer)
 {
 	struct scsc_log_client *lc, *next;
-	struct timeval t;
-	struct tm tm_n;
 	mm_segment_t old_fs;
 	char memdump_path[128];
 	int ret = 0;
@@ -289,26 +327,32 @@ static inline int __scsc_log_collector_collect_to_file(enum scsc_log_reason reas
 	struct scsc_log_sbl_header sbl_header;
 	struct scsc_log_chunk_header chk_header;
 	u8 j;
+	bool sbl_is_valid =  false;
 
 	mutex_lock(&log_mutex);
 
-	pr_info("Log collection to file triggered\n");
+	pr_info("Log collection triggered\n");
 
 	start = ktime_get();
-	do_gettimeofday(&t);
-	time_to_tm(t.tv_sec, 0, &tm_n);
 
-	snprintf(memdump_path, sizeof(memdump_path), "%s/%s.sbl",
-		 collection_dir_buf, scsc_loc_reason_str[reason]);
+	if (buffer == TO_FILE) {
+		snprintf(memdump_path, sizeof(memdump_path), "%s/%s.sbl",
+			 collection_dir_buf, scsc_loc_reason_str[reason]);
 
-	/* change to KERNEL_DS address limit */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
+		/* change to KERNEL_DS address limit */
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
 
-	log_status.fp = filp_open(memdump_path, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0664);
-	if (IS_ERR(log_status.fp)) {
-		pr_err("open file error, err = %ld\n", PTR_ERR(log_status.fp));
-		goto exit;
+		log_status.fp = filp_open(memdump_path, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0664);
+		if (IS_ERR(log_status.fp)) {
+			pr_err("open file error, err = %ld\n", PTR_ERR(log_status.fp));
+			mutex_unlock(&log_mutex);
+			return PTR_ERR(log_status.fp);
+		}
+	} else if (!log_status.buf) {
+		pr_err("RAM buffer not created. Aborting dump\n");
+		mutex_unlock(&log_mutex);
+		return -ENOMEM;
 	}
 
 	log_status.in_collection = true;
@@ -372,20 +416,25 @@ static inline int __scsc_log_collector_collect_to_file(enum scsc_log_reason reas
 
 	scsc_log_collector_write((char *)&sbl_header, sizeof(struct scsc_log_sbl_header), 1);
 
-	/* Sync file from filesystem to physical media */
-	ret = vfs_fsync(log_status.fp, 0);
-	if (ret < 0) {
-		pr_err("sync file error, error = %d\n", ret);
-		goto exit;
+	if (buffer == TO_FILE) {
+		/* Sync file from filesystem to physical media */
+		ret = vfs_fsync(log_status.fp, 0);
+		if (ret < 0) {
+			pr_err("sync file error, error = %d\n", ret);
+			goto exit;
+		}
 	}
 
+	sbl_is_valid = true;
 exit:
-	/* close file before return */
-	if (!IS_ERR(log_status.fp))
-		filp_close(log_status.fp, current->files);
+	if (buffer == TO_FILE) {
+		/* close file before return */
+		if (!IS_ERR(log_status.fp))
+			filp_close(log_status.fp, current->files);
 
-	/* restore previous address limit */
-	set_fs(old_fs);
+		/* restore previous address limit */
+		set_fs(old_fs);
+	}
 
 	log_status.in_collection = false;
 
@@ -394,10 +443,11 @@ exit:
 			lc->collect_client->collect_end(lc->collect_client);
 	}
 
-	pr_info("File %s collection end. Took: %lld\n", memdump_path, ktime_to_ns(ktime_sub(ktime_get(), start)));
+	pr_info("Log collection end. Took: %lld\n", ktime_to_ns(ktime_sub(ktime_get(), start)));
 
 #ifdef CONFIG_SCSC_WLBTD
-	call_wlbtd_sable(scsc_loc_reason_str[reason]);
+	if (sbl_is_valid)
+		call_wlbtd_sable(scsc_loc_reason_str[reason]);
 #endif
 	mutex_unlock(&log_mutex);
 
@@ -415,9 +465,9 @@ int scsc_log_collector_collect(enum scsc_log_reason reason)
 	}
 
 	if (collect_to_ram)
-		ret = __scsc_log_collector_collect_to_ram(reason);
+		ret = __scsc_log_collector_collect(reason, TO_RAM);
 	else
-		ret =  __scsc_log_collector_collect_to_file(reason);
+		ret = __scsc_log_collector_collect(reason, TO_FILE);
 
 	return ret;
 }
