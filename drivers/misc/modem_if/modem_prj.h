@@ -738,9 +738,6 @@ struct modem_ctl {
 	unsigned int gpio_reset_req_n;
 	unsigned int gpio_cp_reset;
 
-	/* for checking number of usim slot by rild*/
-	int sim_slot_cnt;
-
 	/* for broadcasting AP's PM state (active or sleep) */
 	unsigned int gpio_pda_active;
 	unsigned int mbx_pda_active;
