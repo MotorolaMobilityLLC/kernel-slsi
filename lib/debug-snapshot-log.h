@@ -324,19 +324,6 @@ struct dbg_snapshot_log {
 #endif
 
 #ifndef CONFIG_DEBUG_SNAPSHOT_MINIMIZED_MODE
-	struct __clockevent_log {
-		unsigned long long time;
-		unsigned long long mct_cycle;
-#ifdef CONFIG_DEBUG_SNAPSHOT_LINUX_BUILD
-		int64_t	delta_ns;
-		ktime_t	next_event;
-#else
-		long long delta_ns;
-		long long next_event;
-#endif
-		void *caller[DSS_CALLSTACK_MAX_NUM];
-	} clockevent[DSS_NR_CPUS][DSS_LOG_MAX_NUM];
-
 	struct __printkl_log {
 		unsigned long long time;
 		int cpu;
