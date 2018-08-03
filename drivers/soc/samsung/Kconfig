@@ -27,6 +27,7 @@ config EXYNOS_BCM_DBG_GNR
 config EXYNOS_BCM_DBG_DUMP
 	bool "EXYNOS_BCM_DBG dump support"
 	depends on EXYNOS_BCM_DBG
+	default y if EXYNOS_BCM_DBG
 	help
 	  Enable exynos-bcm_dbg dump support
 
