@@ -137,7 +137,7 @@
 
 		gnss_reserved: gnss_if {
 			compatible = "exynos,gnss_if";
-			reg = <0x0 0xFB000000 0x800000>;
+			reg = <0x0 0xFA300000 0x800000>;
 		};
 
 		wifibt_if {
