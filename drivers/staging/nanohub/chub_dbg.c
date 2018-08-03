@@ -135,7 +135,6 @@ void chub_dbg_dump_ram(struct contexthub_ipc_info *ipc, enum chub_err_type reaso
 
 static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 {
-	int val;
 	int i;
 	char *dbg_name[CHUB_ERR_MAX] = {"none", "evtq_empty",
 		"read_fail", "write_fail", "evtq_no_hw_trigger",

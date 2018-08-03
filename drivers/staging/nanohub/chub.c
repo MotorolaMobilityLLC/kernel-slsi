@@ -382,10 +382,6 @@ static void handle_debug_work_func(struct work_struct *work)
 {
 	struct contexthub_ipc_info *ipc =
 	    container_of(work, struct contexthub_ipc_info, debug_work);
-	enum ipc_debug_event event = 0;
-	enum chub_err_type err = 0;
-	bool need_reset = 0;
-	int ret;
 	int i;
 
 	mutex_lock(&dbg_mutex);
@@ -406,7 +402,6 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 	unsigned long flag;
 	int size = 0;
 	int ret;
-	int lock;
 	void *rxbuf;
 
 	if (!contexthub_get_token(ipc, IPC_ACCESS)) {
@@ -916,7 +911,6 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 {
 	const struct firmware *entry;
 	int ret;
-	char *name;
 
 	if (reg == IPC_REG_BL)
 		ret = request_firmware(&entry, "bl.unchecked.bin", ipc->dev);
@@ -938,164 +932,8 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 	return 0;
 }
 
-int contexthub_download_bl(struct contexthub_ipc_info *ipc)
-{
-	int ret;
-
-	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_SHUTDOWN);
-
-	if (!ret)
-		ret = contexthub_download_image(ipc, 1);
-
-	if (!ret)
-		ret = contexthub_download_image(ipc, 0);
-
-	if (!ret)
-		ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_RESET);
-
-	return ret;
-}
-
-int contexthub_download_kernel(struct contexthub_ipc_info *ipc)
-{
-	return contexthub_download_image(ipc, 0);
-}
-
-#ifdef CONFIG_CONTEXTHUB_DEBUG
-static void handle_utc_work_func(struct work_struct *work)
-{
-	struct contexthub_ipc_info *ipc =
-	    container_of(work, struct contexthub_ipc_info, utc_work);
-	int trycnt = 0;
-
-#ifdef USE_TIME_SYNC
-	while (ipc->utc_run) {
-		msleep(20000);
-		ipc_write_val(AP, sched_clock());
-		ipc_write_debug_event(AP, ipc->utc_run);
-		ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_DEBUG);
-		if (!(++trycnt % 10))
-			log_flush(ipc->fw_log);
-	};
-#endif
-
-	dev_dbg(ipc->dev, "%s is done with %d try\n", __func__, trycnt);
-}
-#endif
-
-#define MAX_ERR_CNT (3)
-/* handle errors of chub driver and fw  */
-static void handle_debug_work_func(struct work_struct *work)
-{
-	struct contexthub_ipc_info *ipc =
-	    container_of(work, struct contexthub_ipc_info, debug_work);
-	enum ipc_debug_event event = 0;
-	enum chub_err_type err = 0;
-	bool need_reset = 0;
-	bool alive = contexthub_lowlevel_alive(ipc);
-	int err = 0;
-#ifdef CHUB_RESET_ENABLE
-	int ret;
-#endif
-	int i;
-
-	if (!alive || ipc->err_cnt[CHUB_ERR_NANOHUB_WDT]) {
-		need_reset = 1;
-		err = CHUB_ERR_NANOHUB_WDT;
-		goto do_err_handle;
-	}
-
-	/* check chub fw error */
-	event = ipc_read_debug_event(AP);
-	if (event) {
-		switch (event) {
-		case IPC_DEBUG_CHUB_FULL_LOG:
-			dev_warn(ipc->dev,
-				 "Contexthub notified that logbuf is full\n");
-			break;
-		case IPC_DEBUG_CHUB_PRINT_LOG:
-			log_flush(ipc->fw_log);
-			break;
-		case IPC_DEBUG_CHUB_FAULT:
-			dev_warn(ipc->dev, "Contexthub notified fault\n");
-			err = CHUB_ERR_NANOHUB_FAULT;
-			break;
-		case IPC_DEBUG_CHUB_ASSERT:
-			dev_warn(ipc->dev, "Contexthub notified assert\n");
-			err = CHUB_ERR_NANOHUB_ASSERT;
-			break;
-		case IPC_DEBUG_CHUB_ERROR:
-			dev_warn(ipc->dev, "Contexthub notified error\n");
-			err = CHUB_ERR_NANOHUB_ERROR;
-			break;
-		default:
-			break;
-		}
-
-		/* clear dbg event */
-		dev_info(ipc->dev, "%s: dbg from chub:%d, err:%d\n",
-			__func__, event, err);
-		ipc_write_debug_event(AP, 0);
-		if (err)
-			ipc->err_cnt[err]++;
-		else
-			return;
-	}
-
-do_err_handle:
-	dev_info(ipc->dev, "%s: active_err:0x%x, alive:%d, dbg:%d\n",
-		__func__, ipc->active_err, alive, event);
-
-	/* print error status */
-	for (i = 0; i < CHUB_ERR_CHUB_MAX; i++) {
-		if (ipc->active_err & (1 << i)) {
-			dev_info(ipc->dev, "%s: err%d-%d, active_err:0x%x\n",
-				__func__, i, ipc->err_cnt[i], ipc->active_err);
-			ipc->active_err &= ~(1 << i);
-			err = i;
-		}
-	}
-
-	/* print comms error status */
-	for (i = CHUB_ERR_MAX + 1; i < CHUB_ERR_COMMS_MAX; i++) {
-		if (ipc->err_cnt[i])
-			dev_info(ipc->dev, "%s: comms: err%d-%d\n",
-				__func__, i, ipc->err_cnt[i]);
-	}
-
-	dev_info(ipc->dev, "%s: error:%d, alive:%d\n",
-		__func__, err, alive);
-
-	/* dump hw & sram into file */
-	chub_dbg_dump_hw(ipc, err);
-	if (need_reset) {
-#ifdef CHUB_RESET_ENABLE
-		ret = contexthub_reset(ipc);
-		if (ret)
-			dev_warn(ipc->dev, "%s: fails to reset %d.\n",
-				__func__, ret);
-		else {
-			/* TODO: recovery */
-			dev_info(ipc->dev, "%s: chub reset! should be recovery\n",
-				__func__);
-			if (CHUB_ERR_NANOHUB_WDT == CHUB_ERR_NANOHUB_WDT)
-				if (ipc->irq_wdt)
-					enable_irq(ipc->irq_wdt);
-		}
-#else
-		atomic_set(&ipc->chub_status, CHUB_ST_HANG);
-#endif
-	} else {
-		/* dump log into file: DO NOT logbuf dueto sram corruption */
-		log_dump_all(err);
-	}
-}
-
 static void handle_irq(struct contexthub_ipc_info *ipc, enum irq_evt_chub evt)
 {
-#ifndef USE_IPC_BUF
-	struct ipc_content *content;
-#endif
 	switch (evt) {
 	case IRQ_EVT_C2A_DEBUG:
 		request_debug_work(ipc, CHUB_ERR_NANOHUB, 1);

@@ -375,7 +375,6 @@ static int nanohub_comms_tx_rx(struct nanohub_data *data,
 			       uint32_t seq, uint8_t *rx, size_t rx_len)
 {
 	int ret;
-	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
 
 	ret = data->comms.write(data, (uint8_t *)&pad->packet, packet_size,
 				data->comms.timeout_write);
@@ -416,7 +415,6 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 	uint32_t seq;
 	struct timespec ts;
 	s64 boottime;
-	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
 
 	if (pad == NULL)
 		return ERROR_NACK;

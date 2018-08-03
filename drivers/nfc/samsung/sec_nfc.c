@@ -622,7 +622,6 @@ static int sec_nfc_parse_dt(struct device *dev,
     struct sec_nfc_platform_data *pdata)
 {
     struct device_node *np = dev->of_node;
-    int ret;
 
     pdata->ven = of_get_named_gpio(np, "sec-nfc,ven-gpio", 0);
     pdata->firm = of_get_named_gpio(np, "sec-nfc,firm-gpio", 0);
