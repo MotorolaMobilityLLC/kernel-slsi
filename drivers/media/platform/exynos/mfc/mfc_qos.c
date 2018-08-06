@@ -342,11 +342,13 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 		if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx)) && p->num_b_frame) {
 			weight = (weight * 100) / qos_weight->weight_bframe;
 			mfc_debug(3, "[QoS] weight: B frame encoding, weight: %d\n", weight / 10);
-		}
-		if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx) || IS_VP8_ENC(ctx) ||
+		} else if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx) || IS_VP8_ENC(ctx) ||
 					IS_VP9_ENC(ctx)) && (p->num_refs_for_p >= 2)) {
 			weight = (weight * 100) / qos_weight->weight_num_of_ref;
 			mfc_debug(3, "[QoS] weight: num of ref >= 2, weight: %d\n", weight / 10);
+		} else if (IS_HEVC_ENC(ctx) && p->codec.hevc.general_pb_enable) {
+			weight = (weight * 100) / qos_weight->weight_gpb;
+			mfc_debug(3, "[QoS] weight: Genaral PB, weight: %d\n", weight / 10);
 		}
 	}
 	if (dec) {

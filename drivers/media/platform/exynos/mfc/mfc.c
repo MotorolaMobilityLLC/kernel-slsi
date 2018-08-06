@@ -1072,6 +1072,7 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32(np, "qos_weight_422", &pdata->qos_weight.weight_422);
 	of_property_read_u32(np, "qos_weight_bframe", &pdata->qos_weight.weight_bframe);
 	of_property_read_u32(np, "qos_weight_num_of_ref", &pdata->qos_weight.weight_num_of_ref);
+	of_property_read_u32(np, "qos_weight_gpb", &pdata->qos_weight.weight_gpb);
 	of_property_read_u32(np, "qos_weight_num_of_tile", &pdata->qos_weight.weight_num_of_tile);
 #endif
 }

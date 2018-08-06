@@ -409,6 +409,7 @@ struct mfc_qos_weight {
 	unsigned int weight_422;
 	unsigned int weight_bframe;
 	unsigned int weight_num_of_ref;
+	unsigned int weight_gpb;
 	unsigned int weight_num_of_tile;
 };
 #endif
