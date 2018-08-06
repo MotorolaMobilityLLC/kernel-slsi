@@ -194,4 +194,12 @@ config DEBUG_SNAPSHOT_LOGGING_SMC
 	depends on DEBUG_SNAPSHOT
 	default y
 
+config BOOTINFO
+    bool "Boot Information Feature"
+    default n
+    help
+      This feature provides access to certain boot information
+      from both kernel context (via function call) and user
+      context (via /proc/bootinfo).
+
 endif
