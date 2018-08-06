@@ -72,3 +72,6 @@ obj-$(CONFIG_EXYNOS_HIU)	+= exynos-hiu.o
 # HAFM & HAFM-TB
 obj-$(CONFIG_EXYNOS_PSTATE_HAFM)	+= exynos-hafm.o
 obj-$(CONFIG_EXYNOS_PSTATE_HAFM_TB)	+= exynos-hafm-tb.o
+
+# bootinfo
+obj-$(CONFIG_BOOTINFO) += bootinfo.o
