@@ -51,8 +51,7 @@ static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
 	}
 
 	if (ret) {
-		pr_err("%s: reserved fields of query_data should be 0\n",
-		       __func__);
+		perrfn("reserved fields of query_data should be 0");
 		return -EINVAL;
 	}
 
@@ -77,7 +76,7 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	dir = ion_ioctl_dir(cmd);
 
 	if (_IOC_SIZE(cmd) > sizeof(data)) {
-		pr_err("%s: unknown ioctl %#x\n", __func__, cmd);
+		perrfn("unknown ioctl %#x", cmd);
 		return -EINVAL;
 	}
 
@@ -118,7 +117,7 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	default:
 		if (cmd != ION_IOC_FREE)
-			pr_err("%s: unknown ioctl %#x\n", __func__, cmd);
+			perrfn("unknown ioctl %#x", cmd);
 		return -ENOTTY;
 	}
 

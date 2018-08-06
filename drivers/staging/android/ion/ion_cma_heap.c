@@ -56,8 +56,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	pages = cma_alloc(cma_heap->cma, nr_pages, align, GFP_KERNEL);
 	if (!pages) {
-		pr_err("%s: failed to allocate from %s(id %d), size %lu\n",
-		       __func__, cma_heap->heap.name, cma_heap->heap.id, len);
+		perrfn("failed to allocate from %s(id %d), size %lu",
+		       cma_heap->heap.name, cma_heap->heap.id, len);
 		goto err;
 	}
 
@@ -85,7 +85,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);
 	if (ret) {
-		pr_err("%s: failed to alloc sgtable(err %d)\n", __func__, -ret);
+		perrfn("failed to alloc sgtable(err %d)", -ret);
 		goto free_mem;
 	}
 

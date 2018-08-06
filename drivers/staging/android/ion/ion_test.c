@@ -55,15 +55,15 @@ static int ion_handle_test_dma(struct device *dev, struct dma_buf *dma_buf,
 
 	attach = dma_buf_attach(dma_buf, dev);
 	if (IS_ERR(attach)) {
-		dev_err(dev, "%s: failed to attach dmabuf (err %ld)\n",
-			__func__, PTR_ERR(attach));
+		perrfndev(dev, "failed to attach dmabuf (err %ld)",
+			  PTR_ERR(attach));
 		return PTR_ERR(attach);
 	}
 
 	table = dma_buf_map_attachment(attach, dir);
 	if (IS_ERR(table)) {
-		dev_err(dev, "%s: failed to map dmabuf (err %ld)\n",
-			__func__, PTR_ERR(table));
+		perrfndev(dev, "failed to map dmabuf (err %ld)",
+			  PTR_ERR(table));
 		return PTR_ERR(table);
 	}
 
@@ -160,19 +160,19 @@ static int ion_handle_test_phys(struct ion_test_data *test_data,
 	int i;
 
 	if (!test_data->dma_buf) {
-		pr_err("%s: no dmabuf is attached\n", __func__);
+		perrfn("no dmabuf is attached");
 		return -EINVAL;
 	}
 
 	att = dma_buf_attach(test_data->dma_buf, test_data->dev);
 	if (IS_ERR(att)) {
-		pr_err("%s: Failed to attach dmabuf\n", __func__);
+		perrfn("Failed to attach dmabuf");
 		return PTR_ERR(att);
 	}
 
 	sgt = dma_buf_map_attachment(att, DMA_TO_DEVICE);
 	if (IS_ERR(sgt)) {
-		pr_err("%s: Failed to map to attachment\n", __func__);
+		perrfn("Failed to map to attachment");
 		ret = PTR_ERR(sgt);
 		goto err_map;
 	}
@@ -184,9 +184,8 @@ static int ion_handle_test_phys(struct ion_test_data *test_data,
 
 		for_each_sg(sgt->sgl, sg, sgt->orig_nents, i) {
 			if (len != sg->length) {
-				pr_err(
-				"%s: expected size %zu but found %u at %d\n",
-				__func__, len, sg->length, i);
+				perrfn("expected size %zu but found %u at %d",
+				       len, sg->length, i);
 				ret = -EINVAL;
 				break;
 			}
@@ -199,8 +198,7 @@ static int ion_handle_test_phys(struct ion_test_data *test_data,
 
 		for_each_sg(sgt->sgl, sg, sgt->orig_nents, i) {
 			if (addr >= sg_phys(sg)) {
-				pr_err("%s: pages are not in address order\n",
-				       __func__);
+				perrfn("pages are not in address order");
 				ret = -EINVAL;
 				break;
 			}
@@ -211,15 +209,13 @@ static int ion_handle_test_phys(struct ion_test_data *test_data,
 	case PHYS_IS_RESERVED:
 	{
 		if (sgt->orig_nents != 1) {
-			pr_err("%s: buffer should be physically contiguous\n",
-			       __func__);
+			perrfn("buffer should be physically contiguous");
 			ret = -EINVAL;
 			break;
 		}
 
 		if (!PageReserved(sg_page(sgt->sgl))) {
-			pr_err("%s: page of the buffer is not reserved\n",
-			       __func__);
+			perrfn("page of the buffer is not reserved");
 			ret = -EINVAL;
 			break;
 		}
@@ -229,15 +225,13 @@ static int ion_handle_test_phys(struct ion_test_data *test_data,
 	case PHYS_IS_CMA:
 	{
 		if (sgt->orig_nents != 1) {
-			pr_err("%s: buffer should be physically contiguous\n",
-			       __func__);
+			perrfn("buffer should be physically contiguous");
 			ret = -EINVAL;
 			break;
 		}
 
 		if (!is_migrate_cma_page(sg_page(sgt->sgl))) {
-			pr_err("%s: page of the buffer is not cma page\n",
-			       __func__);
+			perrfn("page of the buffer is not cma page");
 			ret = -EINVAL;
 			break;
 		}
@@ -247,31 +241,26 @@ static int ion_handle_test_phys(struct ion_test_data *test_data,
 	case PHYS_IS_ALIGNED:
 	{
 		if (sgt->orig_nents != 1) {
-			pr_err("%s: buffer should be physically contiguous\n",
-			       __func__);
+			perrfn("buffer should be physically contiguous");
 			ret = -EINVAL;
 			break;
 		}
 
 		if ((arg & ~arg) != 0) {
-			pr_err(
-			"%s: arg %u of PHYS_IS_ALIGNED is not power of 2\n",
-			__func__, arg);
+			perrfn("arg %u of PHYS_IS_ALIGNED is not power of 2", arg);
 			ret = -EINVAL;
 			break;
 		}
 
 		if (!IS_ALIGNED(sg_phys(sgt->sgl), arg)) {
-			pr_err("%s: buffer is not aligned by %u\n",
-			       __func__, arg);
+			perrfn("buffer is not aligned by %u", arg);
 			ret = -EINVAL;
 			break;
 		}
 		break;
 	}
 	default:
-		pr_err("%s: unknown command %u to ION_IOC_TEST_PHYS\n",
-		       __func__, cmd);
+		perrfn("unknown command %u to ION_IOC_TEST_PHYS", cmd);
 		ret = -EINVAL;
 		break;
 	}
@@ -403,7 +392,7 @@ static int __init ion_test_probe(struct platform_device *pdev)
 	testdev->misc.parent = &pdev->dev;
 	ret = misc_register(&testdev->misc);
 	if (ret) {
-		pr_err("failed to register misc device.\n");
+		perr("failed to register misc device.");
 		return ret;
 	}
 
