@@ -911,7 +911,7 @@ int fimc_is_lib_isp_load_cal_data(struct fimc_is_lib_isp *this,
 }
 
 int fimc_is_lib_isp_get_cal_data(struct fimc_is_lib_isp *this,
-	u32 instance_id, struct cal_info *data, int type)
+	u32 instance_id, struct cal_info *c_info, int type)
 {
 	int ret = 0;
 
@@ -920,13 +920,13 @@ int fimc_is_lib_isp_get_cal_data(struct fimc_is_lib_isp *this,
 	FIMC_BUG(!this->object);
 
 	ret = CALL_LIBOP(this, get_cal_data, this->object, instance_id,
-				data, type);
+				c_info, type);
 	if (ret) {
 		err_lib("apply_tune_set fail (%d)", ret);
 		return ret;
 	}
 	dbg_lib(3, "%s: data(%d,%d,%d,%d)\n",
-		__func__, data[0], data[1], data[2], data[3]);
+		__func__, c_info->data[0], c_info->data[1], c_info->data[2], c_info->data[3]);
 
 	return ret;
 }

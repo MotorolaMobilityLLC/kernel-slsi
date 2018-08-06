@@ -260,7 +260,7 @@ int fimc_is_lib_isp_delete_tune_set(struct fimc_is_lib_isp *this,
 int fimc_is_lib_isp_load_cal_data(struct fimc_is_lib_isp *this,
 	u32 index, ulong addr);
 int fimc_is_lib_isp_get_cal_data(struct fimc_is_lib_isp *this,
-	u32 instance_id, struct cal_info *data, int type);
+	u32 instance_id, struct cal_info *c_info, int type);
 int fimc_is_lib_isp_sensor_info_mode_chg(struct fimc_is_lib_isp *this,
 	u32 instance_id, struct camera2_shot *shot);
 int fimc_is_lib_isp_sensor_update_control(struct fimc_is_lib_isp *this,
