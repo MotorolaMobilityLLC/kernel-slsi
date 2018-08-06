@@ -465,6 +465,7 @@ void hw_mcsc_calc_uvsp_radial_ctrl(struct fimc_is_hw_ip *hw_ip,
 	struct camera2_shot_ext *shot_ext;
 	u32 lsc_center_x, lsc_center_y;
 
+	uvsp_ctrl = &hw_mcsc->uvsp_ctrl;
 	lsc_center_x = cal_info->data[0];
 	lsc_center_y = cal_info->data[1];
 	uvsp_ctrl->biquad_a = cal_info->data[2];
@@ -486,7 +487,6 @@ void hw_mcsc_calc_uvsp_radial_ctrl(struct fimc_is_hw_ip *hw_ip,
 		shot_ext->crop_taa_x, shot_ext->crop_taa_y,
 		shot_ext->bds_ratio_x, shot_ext->bds_ratio_y);
 
-	uvsp_ctrl = &hw_mcsc->uvsp_ctrl;
 	uvsp_ctrl->binning_x = shot_ext->binning_ratio_x * shot_ext->bds_ratio_x * 1024;
 	uvsp_ctrl->binning_y = shot_ext->binning_ratio_y * shot_ext->bds_ratio_y * 1024;
 	if (shot_ext->bds_ratio_x && shot_ext->bds_ratio_y) {
