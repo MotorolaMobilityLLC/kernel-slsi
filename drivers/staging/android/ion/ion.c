@@ -66,7 +66,7 @@ static void ion_buffer_add(struct ion_device *dev,
 		} else if (buffer > entry) {
 			p = &(*p)->rb_right;
 		} else {
-			pr_err("%s: buffer already found.", __func__);
+			perrfn("buffer already found.");
 			BUG();
 		}
 	}
@@ -127,8 +127,8 @@ err1:
 	heap->ops->free(buffer);
 err2:
 	kfree(buffer);
-	pr_err("%s: failed to alloc (len %zu, flag %#lx) buffer from %s heap\n",
-	       __func__, len, flags, heap->name);
+	perrfn("failed to alloc (len %zu, flag %#lx) buffer from %s heap",
+	       len, flags, heap->name);
 	return ERR_PTR(ret);
 }
 
@@ -172,8 +172,8 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 		      "heap->ops->map_kernel should return ERR_PTR on error"))
 		return ERR_PTR(-EINVAL);
 	if (IS_ERR(vaddr)) {
-		pr_err("%s: failed to alloc kernel address of %zu buffer\n",
-		       __func__, buffer->size);
+		perrfn("failed to alloc kernel address of %zu buffer",
+		       buffer->size);
 		return vaddr;
 	}
 	buffer->vaddr = vaddr;
@@ -280,20 +280,17 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	int ret = 0;
 
 	if (!buffer->heap->ops->map_user) {
-		pr_err("%s: this heap does not define a method for mapping to userspace\n",
-		       __func__);
+		perrfn("this heap does not define a method for mapping to userspace");
 		return -EINVAL;
 	}
 
 	if ((buffer->flags & ION_FLAG_NOZEROED) != 0) {
-		pr_err("%s: mmap() to nozeroed buffer is not allowed\n",
-		       __func__);
+		perrfn("mmap() to nozeroed buffer is not allowed");
 		return -EACCES;
 	}
 
 	if ((buffer->flags & ION_FLAG_PROTECTED) != 0) {
-		pr_err("%s: mmap() to protected buffer is not allowed\n",
-		       __func__);
+		perrfn("mmap() to protected buffer is not allowed");
 		return -EACCES;
 	}
 
@@ -306,8 +303,7 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	mutex_unlock(&buffer->lock);
 
 	if (ret)
-		pr_err("%s: failure mapping buffer to userspace\n",
-		       __func__);
+		perrfn("failure mapping buffer to userspace");
 
 	return ret;
 }
@@ -456,8 +452,8 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 	len = PAGE_ALIGN(len);
 
 	if (!len) {
-		pr_err("%s: zero size allocation - heapmask %#x, flags %#x\n",
-		       __func__, heap_id_mask, flags);
+		perrfn("zero size allocation - heapmask %#x, flags %#x",
+		       heap_id_mask, flags);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -473,8 +469,7 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 	up_read(&dev->lock);
 
 	if (!buffer) {
-		pr_err("%s: no matching heap found against heapmaks %#x\n",
-		       __func__, heap_id_mask);
+		perrfn("no matching heap found against heapmaks %#x", heap_id_mask);
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -491,8 +486,7 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 
 	dmabuf = dma_buf_export(&exp_info);
 	if (IS_ERR(dmabuf)) {
-		pr_err("%s: failed to export dmabuf (err %ld)\n", __func__,
-		       -PTR_ERR(dmabuf));
+		perrfn("failed to export dmabuf (err %ld)", -PTR_ERR(dmabuf));
 		_ion_buffer_destroy(buffer);
 	}
 
@@ -509,7 +503,7 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 
 	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
 	if (fd < 0) {
-		pr_err("%s: failed to get dmabuf fd (err %d)\n", __func__, -fd);
+		perrfn("failed to get dmabuf fd (err %d)",  -fd);
 		dma_buf_put(dmabuf);
 	}
 
@@ -532,7 +526,7 @@ int ion_query_heaps(struct ion_heap_query *query)
 	}
 
 	if (query->cnt <= 0) {
-		pr_err("%s: invalid heapdata count %u\n", __func__, query->cnt);
+		perrfn("invalid heapdata count %u",  query->cnt);
 		goto out;
 	}
 
@@ -633,8 +627,7 @@ void ion_device_add_heap(struct ion_heap *heap)
 	struct ion_device *dev = internal_dev;
 
 	if (!heap->ops->allocate || !heap->ops->free)
-		pr_err("%s: can not add heap with invalid ops struct.\n",
-		       __func__);
+		perrfn("can not add heap with invalid ops struct.");
 
 	spin_lock_init(&heap->free_lock);
 	heap->free_list_size = 0;
@@ -666,8 +659,8 @@ void ion_device_add_heap(struct ion_heap *heap)
 			char buf[256], *path;
 
 			path = dentry_path(dev->debug_root, buf, 256);
-			pr_err("Failed to create heap shrinker debugfs at %s/%s\n",
-			       path, debug_name);
+			perr("Failed to create heap shrinker debugfs at %s/%s",
+			     path, debug_name);
 		}
 	}
 
@@ -691,14 +684,14 @@ static int ion_device_create(void)
 	idev->dev.parent = NULL;
 	ret = misc_register(&idev->dev);
 	if (ret) {
-		pr_err("ion: failed to register misc device.\n");
+		perr("ion: failed to register misc device.");
 		kfree(idev);
 		return ret;
 	}
 
 	idev->debug_root = debugfs_create_dir("ion", NULL);
 	if (!idev->debug_root) {
-		pr_err("ion: failed to create debugfs root directory.\n");
+		perr("ion: failed to create debugfs root directory.");
 		goto debugfs_done;
 	}
 

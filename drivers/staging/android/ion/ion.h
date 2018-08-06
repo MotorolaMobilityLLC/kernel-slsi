@@ -370,4 +370,17 @@ void ion_contig_heap_show_buffers(struct ion_heap *heap,
 void *ion_buffer_kmap_get(struct ion_buffer *buffer);
 void ion_buffer_kmap_put(struct ion_buffer *buffer);
 
+#define IONPREFIX "[Exynos][ION] "
+#define perr(format, arg...) \
+	pr_err(IONPREFIX format "\n", ##arg)
+
+#define perrfn(format, arg...) \
+	pr_err(IONPREFIX "%s: " format "\n", __func__, ##arg)
+
+#define perrdev(dev, format, arg...) \
+	dev_err(dev, IONPREFIX format "\n", ##arg)
+
+#define perrfndev(dev, format, arg...) \
+	dev_err(dev, IONPREFIX "%s: " format "\n", __func__, ##arg)
+
 #endif /* _ION_H */

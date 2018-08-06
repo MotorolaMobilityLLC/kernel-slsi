@@ -20,6 +20,7 @@
 
 #include <asm/cacheflush.h>
 
+#include "ion.h"
 #include "ion_exynos.h"
 
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
@@ -52,7 +53,7 @@ static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 	unsigned long out_addr;
 
 	if (!secure_iova_pool) {
-		pr_err("%s: Secure IOVA pool is not created\n", __func__);
+		perrfn("Secure IOVA pool is not created");
 		return -ENODEV;
 	}
 
@@ -68,8 +69,8 @@ static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 	spin_unlock(&siova_pool_lock);
 
 	if (out_addr == 0) {
-		pr_err("%s: failed alloc secure iova. %zu/%zu bytes used\n",
-		       __func__, gen_pool_avail(secure_iova_pool),
+		perrfn("failed alloc secure iova. %zu/%zu bytes used",
+		       gen_pool_avail(secure_iova_pool),
 		       gen_pool_size(secure_iova_pool));
 		return -ENOMEM;
 	}
@@ -82,7 +83,7 @@ static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 void ion_secure_iova_free(unsigned long addr, unsigned long size)
 {
 	if (!secure_iova_pool) {
-		pr_err("%s: Secure IOVA pool is not created\n", __func__);
+		perrfn("Secure IOVA pool is not created");
 		return;
 	}
 
@@ -95,14 +96,13 @@ int __init ion_secure_iova_pool_create(void)
 {
 	secure_iova_pool = gen_pool_create(PAGE_SHIFT, -1);
 	if (!secure_iova_pool) {
-		pr_err("%s: failed to create Secure IOVA pool\n", __func__);
+		perrfn("failed to create Secure IOVA pool");
 		return -ENOMEM;
 	}
 
 	if (gen_pool_add(secure_iova_pool, ION_SECURE_DMA_BASE,
 			 ION_SECURE_DMA_END - ION_SECURE_DMA_BASE, -1)) {
-		pr_err("%s: failed to set address range of Secure IOVA pool\n",
-		       __func__);
+		perrfn("failed to set address range of Secure IOVA pool");
 		return -ENOMEM;
 	}
 
@@ -139,8 +139,8 @@ static int ion_secure_protect(struct ion_buffer_prot_info *protdesc,
 err_smc:
 	ion_secure_iova_free(dma_addr, size);
 err_iova:
-	pr_err("%s: PROT:%#x (err=%d,va=%#lx,len=%#lx,cnt=%u,flg=%u)\n",
-	       __func__, SMC_DRM_PPMP_PROT, drmret, dma_addr, size,
+	perrfn("PROT:%#x (err=%d,va=%#lx,len=%#lx,cnt=%u,flg=%u)",
+	       SMC_DRM_PPMP_PROT, drmret, dma_addr, size,
 	       protdesc->chunk_count, protdesc->flags);
 
 	return ret;
@@ -159,8 +159,8 @@ static int ion_secure_unprotect(struct ion_buffer_prot_info *protdesc)
 	ion_secure_iova_free(protdesc->dma_addr, size);
 
 	if (ret != DRMDRV_OK) {
-		pr_err("%s: UNPROT:%d(err=%d,va=%#x,len=%#lx,cnt=%u,flg=%u)\n",
-		       __func__, SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
+		perrfn("UNPROT:%d(err=%d,va=%#x,len=%#lx,cnt=%u,flg=%u)",
+		       SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
 		       size, protdesc->chunk_count, protdesc->flags);
 		return -EACCES;
 	}
@@ -203,8 +203,8 @@ void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
 
 	ret = ion_secure_protect(protdesc, protalign);
 	if (ret) {
-		pr_err("%s: protection failure (id%u,len%u,base%#lx,align%#x\n",
-		       __func__, protection_id, size, phys, protalign);
+		perrfn("protection failure (id%u,len%u,base%#lx,align%#x",
+		       protection_id, size, phys, protalign);
 		kfree(protdesc);
 		return ERR_PTR(ret);
 	}
@@ -243,8 +243,8 @@ void *ion_buffer_protect_multi(unsigned int protection_id, unsigned int count,
 
 	ret = ion_secure_protect(protdesc, protalign);
 	if (ret) {
-		pr_err("%s: protection failure (id%u,chk%u,count%u,align%#x\n",
-		       __func__, protection_id, chunk_size, count, protalign);
+		perrfn("protection failure (id%u,chk%u,count%u,align%#x",
+		       protection_id, chunk_size, count, protalign);
 		kfree(protdesc);
 		return ERR_PTR(ret);
 	}

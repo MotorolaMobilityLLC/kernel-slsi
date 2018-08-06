@@ -61,21 +61,18 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 
 	prop = of_get_flat_dt_prop(rmem->fdt_node, "ion,heapname", &len);
 	if (!prop) {
-		pr_err("%s: 'ion,heapname' is missing in '%s' node\n",
-		       __func__, rmem->name);
+		perrfn("'ion,heapname' is missing in '%s' node", rmem->name);
 		return -EINVAL;
 	}
 	heapname = (char *)prop;
 
 	if (reserved_mem_count == ARRAY_SIZE(ion_reserved_mem)) {
-		pr_err("%s: Not enough reserved_mem slot for %s\n",
-		       __func__, rmem->name);
+		perrfn("Not enough reserved_mem slot for %s", rmem->name);
 		return -ENOMEM;
 	}
 
 	if (untch && reusable) {
-		pr_err("%s: 'reusable', 'untouchable' should not be together\n",
-		       __func__);
+		perrfn("'reusable', 'untouchable' should not be together");
 		return -EINVAL;
 	}
 
@@ -86,8 +83,7 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 		ret = cma_init_reserved_mem(rmem->base, rmem->size, 0,
 					    heapname, &cma);
 		if (ret < 0) {
-			pr_err("%s: failed to init cma for '%s'\n",
-			       __func__, heapname);
+			perrfn("failed to init cma for '%s'", heapname);
 			return ret;
 		}
 
@@ -123,8 +119,7 @@ static bool __init register_hpa_heap(struct device_node *np,
 	u32 align;
 
 	if (of_property_read_string(np, "ion,heapname", &pheap.name)) {
-		pr_err("%s: failed to read ion,heapname in '%s'\n",
-		       __func__, np->name);
+		perrfn("failed to read ion,heapname in '%s'", np->name);
 		return false;
 	}
 
@@ -132,20 +127,19 @@ static bool __init register_hpa_heap(struct device_node *np,
 
 	if (pheap.secure) {
 		if (of_property_read_u32(np, "ion,protection_id", &pheap.id)) {
-			pr_err("%s: failed to read ion,protection_id in '%s'\n",
-			       __func__, np->name);
+			perrfn("failed to read ion,protection_id in '%s'", np->name);
 			return false;
 		}
 
 		if (pheap.id > 32) {
-			pr_err("%s: too large protection id %d of '%s'\n",
-			       __func__, pheap.id, pheap.name);
+			perrfn("too large protection id %d of '%s'",
+			       pheap.id, pheap.name);
 			return false;
 		}
 
 		if ((1 << pheap.id) & prot_id_map) {
-			pr_err("%s: protection_id %d in '%s' already exists\n",
-			       __func__, pheap.id, np->name);
+			perrfn("protection_id %d in '%s' already exists",
+			       pheap.id, np->name);
 			return false;
 		}
 	}
@@ -159,8 +153,8 @@ static bool __init register_hpa_heap(struct device_node *np,
 	heap = ion_hpa_heap_create(&pheap, hpa_alloc_exceptions,
 				   hpa_num_exception_areas);
 	if (IS_ERR(heap)) {
-		pr_err("%s: failed to register '%s' heap\n",
-		       __func__, pheap.name);
+		perrfn("failed to register '%s' heap",
+		       pheap.name);
 		return false;
 	}
 
@@ -242,14 +236,14 @@ static int __init exynos_ion_register_heaps(void)
 		pheap.untouchable = ion_reserved_mem[i].untouchable;
 
 		if (pheap.id > 32) {
-			pr_err("%s: too large protection id %d of '%s'\n",
-			       __func__, pheap.id, pheap.name);
+			perrfn("too large protection id %d of '%s'",
+			       pheap.id, pheap.name);
 			continue;
 		}
 
 		if (pheap.secure && ((1 << pheap.id) & prot_id_map)) {
-			pr_err("%s: protection id %d of '%s' already exists\n",
-			       __func__, pheap.id, pheap.name);
+			perrfn("protection id %d of '%s' already exists",
+			       pheap.id, pheap.name);
 			continue;
 		}
 
@@ -263,8 +257,7 @@ static int __init exynos_ion_register_heaps(void)
 		}
 
 		if (IS_ERR(heap)) {
-			pr_err("%s: failed to register '%s' heap\n",
-			       __func__, pheap.name);
+			perrfn("failed to register '%s' heap", pheap.name);
 			continue;
 		}
 

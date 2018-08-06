@@ -28,7 +28,7 @@ struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 	struct ion_heap *heap = ion_get_heap_by_name(heap_name);
 
 	if (!heap) {
-		pr_err("%s: heap '%s' is not found\n", __func__, heap_name);
+		perrfn("heap '%s' is not found", heap_name);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -64,8 +64,7 @@ static struct ion_iovm_map *ion_buffer_iova_create(struct ion_buffer *buffer,
 		int ret = (int)iovm_map->iova;
 
 		kfree(iovm_map);
-		dev_err(dev, "%s: failed to allocate iova (err %d)\n",
-			__func__, ret);
+		perrfndev(dev, "failed to allocate iova (err %d)", ret);
 		return ERR_PTR(ret);
 	}
 
@@ -97,7 +96,7 @@ dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
 
 	domain = get_domain_from_dev(attachment->dev);
 	if (!domain) {
-		dev_err(attachment->dev, "%s: no iommu domain\n", __func__);
+		perrfndev(attachment->dev, "no iommu domain");
 		return -EINVAL;
 	}
 
@@ -150,7 +149,7 @@ void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
 
 	domain = get_domain_from_dev(attachment->dev);
 	if (!domain) {
-		dev_err(attachment->dev, "%s: no iommu domain\n", __func__);
+		perrfndev(attachment->dev, "no iommu domain");
 		return;
 	}
 
@@ -216,8 +215,8 @@ int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer)
 				 table->orig_nents, DMA_TO_DEVICE,
 				 DMA_ATTR_SKIP_CPU_SYNC);
 	if (nents < table->orig_nents) {
-		pr_err("%s: failed dma_map_sg(nents %d)=nents %d\n",
-		       __func__, table->orig_nents, nents);
+		perrfn("failed dma_map_sg(nents %d)=nents %d",
+		       table->orig_nents, nents);
 		if (id < MAX_BUFFER_IDS)
 			ida_simple_remove(&ion_buffer_ida, id);
 		return -ENOMEM;

@@ -142,7 +142,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	unsigned int max_order = orders[0];
 
 	if (size / PAGE_SIZE > totalram_pages / 2) {
-		pr_err("%s: too large allocation, %zu bytes\n", __func__, size);
+		perrfn("too large allocation, %zu bytes", size);
 		return -ENOMEM;
 	}
 
@@ -162,7 +162,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		goto free_pages;
 
 	if (sg_alloc_table(table, i, GFP_KERNEL)) {
-		pr_err("%s: failed to alloc sgtable of %d nent\n", __func__, i);
+		perrfn("failed to alloc sgtable of %d nent", i);
 		goto free_table;
 	}
 
