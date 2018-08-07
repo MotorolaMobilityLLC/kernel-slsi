@@ -44,7 +44,7 @@
 
 #define SCSC_MAX_INTERFACES     (5 * (SCSC_MMAP_NODE + SCSC_GDB_NODE))
 
-#define MAX_MEMORY              4194304UL /* 4M maximum memory */
+#define MAX_MEMORY              (8 * 1024 * 1024UL) /* maximum memory: this should match MX_DRAM_SIZE_SECTION_1 */
 
 DECLARE_BITMAP(bitmap_minor, SCSC_MAX_INTERFACES);
 
