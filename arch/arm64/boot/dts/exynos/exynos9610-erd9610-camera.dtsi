@@ -475,6 +475,7 @@
 		reg = <0x2d>; /* 1 bit right shift */
 		id = <0>; /* matching fimc_is_sensor id */
 		setfile = "setA";
+		use_initial_ae; /* for initial AE */
 	};
 
 	fimc-is-actuator@72 {
@@ -500,6 +501,7 @@
 		reg = <0x10>; /* 1 bit right shift */
 		id = <2>; /* matching fimc_is_sensor id */
 		setfile = "setA";
+		use_initial_ae; /* for initial AE */
 	};
 
 	fimc-is-actuator@74 {
@@ -524,6 +526,7 @@
 		reg = <0x35>; /* 1 bit right shift */
 		id = <1>; /* matching fimc_is_sensor id */
 		setfile = "setA";
+		use_initial_ae; /* for initial AE */
 	};
 };
 
