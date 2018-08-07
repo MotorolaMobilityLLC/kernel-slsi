@@ -1,7 +1,7 @@
 /*! \file sx932x.c
  * \brief  SX9320 Driver
  *
- * Driver for the SX9320 
+ * Driver for the SX9320
  * Copyright (c) 2011 Semtech Corp
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 #include <linux/syscalls.h>
 #include <linux/wakelock.h>
 #include <linux/uaccess.h>
-#include <linux/sort.h> 
+#include <linux/sort.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
@@ -68,7 +68,7 @@ static int irq_gpio_num;
 
 /*! \fn static int write_register(psx93XX_t this, u8 address, u8 value)
  * \brief Sends a write register to the device
- * \param this Pointer to main parent struct 
+ * \param this Pointer to main parent struct
  * \param address 8-bit register address
  * \param value   8-bit register value to write to address
  * \return Value from i2c_master_send
@@ -95,11 +95,11 @@ static int write_register(psx93XX_t this, u8 address, u8 value)
 	return returnValue;
 }
 
-/*! \fn static int read_register(psx93XX_t this, u8 address, u8 *value) 
+/*! \fn static int read_register(psx93XX_t this, u8 address, u8 *value)
 * \brief Reads a register's value from the device
-* \param this Pointer to main parent struct 
+* \param this Pointer to main parent struct
 * \param address 8-Bit address to read from
-* \param value Pointer to 8-bit value to save register value to 
+* \param value Pointer to 8-bit value to save register value to
 * \return Value from i2c_smbus_read_byte_data if < 0. else 0
 */
 static int read_register(psx93XX_t this, u8 address, u8 *value)
@@ -112,7 +112,7 @@ static int read_register(psx93XX_t this, u8 address, u8 *value)
 		dev_info(&i2c->dev, "read_register Address:i2c:%s 0x%x Return: 0x%x\n",this->bus,
 														address,returnValue);
 		returnValue = i2c_smbus_read_byte_data(i2c,address);
-		
+
 		#ifdef DEBUG
 		dev_info(&i2c->dev, "read_register Address: 0x%x Return: 0x%x\n",
 														address,returnValue);
@@ -121,7 +121,7 @@ static int read_register(psx93XX_t this, u8 address, u8 *value)
 		if (returnValue >= 0) {
 			*value = returnValue;
 			return 0;
-		} 
+		}
 		else {
 			return returnValue;
 		}
@@ -134,9 +134,9 @@ static int read_register(psx93XX_t this, u8 address, u8 *value)
 /*! \fn static int read_regStat(psx93XX_t this)
  * \brief Shortcut to read what caused interrupt.
  * \details This is to keep the drivers a unified
- * function that will read whatever register(s) 
+ * function that will read whatever register(s)
  * provide information on why the interrupt was caused.
- * \param this Pointer to main parent struct 
+ * \param this Pointer to main parent struct
  * \return If successful, Value of bit(s) that cause interrupt, else 0
  */
 static int read_regStat(psx93XX_t this)
@@ -196,7 +196,7 @@ static int sx932x_Hardware_Check(psx93XX_t this)
 	u8 failcode;
 	u8 loop = 0;
 	this->failStatusCode = 0;
-	
+
 	//Check th IRQ Status
 	while(this->get_nirq_low && this->get_nirq_low()){
 		read_regStat(this);
@@ -206,17 +206,17 @@ static int sx932x_Hardware_Check(psx93XX_t this)
 			break;
 		}
 	}
-	
+
 	//Check I2C Connection
 	ret = read_register(this, SX932x_WHOAMI_REG, &failcode);
 	if(ret < 0){
 		this->failStatusCode = SX932x_I2C_ERROR;
 	}
-		
+
 	if(failcode!= SX932x_WHOAMI_VALUE){
 		this->failStatusCode = SX932x_ID_ERROR;
 	}
-	
+
 	dev_info(this->pdev, "sx932x failcode = 0x%x\n",this->failStatusCode);
 	return (int)this->failStatusCode;
 }
@@ -292,19 +292,19 @@ static void read_rawData(psx93XX_t this)
 	u16 offset;
 	if(this){
 		for(csx =0; csx<4; csx++){
-			write_register(this,SX932x_CPSRD,csx);//here to check the CS1, also can read other channel		
+			write_register(this,SX932x_CPSRD,csx);//here to check the CS1, also can read other channel
 			read_register(this,SX932x_USEMSB,&msb);
 			read_register(this,SX932x_USELSB,&lsb);
 			useful = (s32)((msb << 8) | lsb);
-			
+
 			read_register(this,SX932x_AVGMSB,&msb);
 			read_register(this,SX932x_AVGLSB,&lsb);
 			average = (s32)((msb << 8) | lsb);
-			
+
 			read_register(this,SX932x_DIFFMSB,&msb);
 			read_register(this,SX932x_DIFFLSB,&lsb);
 			diff = (s32)((msb << 8) | lsb);
-			
+
 			read_register(this,SX932x_OFFSETMSB,&msb);
 			read_register(this,SX932x_OFFSETLSB,&lsb);
 			offset = (u16)((msb << 8) | lsb);
@@ -351,7 +351,7 @@ static void sx932x_reg_init(psx93XX_t this)
 	psx932x_t pDevice = 0;
 	psx932x_platform_data_t pdata = 0;
 	int i = 0;
-	/* configure device */ 
+	/* configure device */
 	dev_info(this->pdev, "Going to Setup I2C Registers\n");
 	if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw))
 	{
@@ -385,7 +385,7 @@ static void sx932x_reg_init(psx93XX_t this)
 
 /*! \fn static int initialize(psx93XX_t this)
  * \brief Performs all initialization needed to configure the device
- * \param this Pointer to main parent struct 
+ * \param this Pointer to main parent struct
  * \return Last used command's return value (negative if error)
  */
 static int initialize(psx93XX_t this)
@@ -402,16 +402,16 @@ static int initialize(psx93XX_t this)
 		dev_info(this->pdev, "Sent Software Reset. Waiting until device is back from reset to continue.\n");
 		/* just sleep for awhile instead of using a loop with reading irq status */
 		msleep(100);
-		
+
 		ret = sx932x_global_variable_init(this);
-		
+
 		sx932x_reg_init(this);
 		msleep(100); /* make sure everything is running */
 		manual_offset_calibration(this);
 
 		/* re-enable interrupt handling */
 		enable_irq(this->irq);
-		
+
 		/* make sure no interrupts are pending since enabling irq will only
 		* work on next falling edge */
 		read_regStat(this);
@@ -420,9 +420,9 @@ static int initialize(psx93XX_t this)
 	return -ENOMEM;
 }
 
-/*! 
+/*!
  * \brief Handle what to do when a touch occurs
- * \param this Pointer to main parent struct 
+ * \param this Pointer to main parent struct
  */
 static void touchProcess(psx93XX_t this)
 {
@@ -490,10 +490,9 @@ static int sx932x_parse_dt(struct sx932x_platform_data *pdata, struct device *de
 {
 	struct device_node *dNode = dev->of_node;
 	enum of_gpio_flags flags;
-	int ret;
 	if (dNode == NULL)
 		return -ENODEV;
-	
+
 	pdata->irq_gpio= of_get_named_gpio_flags(dNode,
 											"Semtech,nirq-gpio", 0, &flags);
 	irq_gpio_num = pdata->irq_gpio;
@@ -501,7 +500,7 @@ static int sx932x_parse_dt(struct sx932x_platform_data *pdata, struct device *de
 		pr_err("[SENSOR]: %s - get irq_gpio error\n", __func__);
 		return -ENODEV;
 	}
-	
+
 	/***********************************************************************/
 	// load in registers from device tree
 	of_property_read_u32(dNode,"Semtech,reg-num",&pdata->i2c_reg_num);
@@ -548,7 +547,7 @@ static int sx932x_init_platform_hw(struct i2c_client *client)
 				return rc;
 			}
 			pinctrl_int = devm_pinctrl_get_select(this->pdev, "default");
-			
+
 			this->irq = client->irq = gpio_to_irq(pdata->irq_gpio);
 		}
 		else {
@@ -558,7 +557,7 @@ static int sx932x_init_platform_hw(struct i2c_client *client)
 	else {
 		pr_err("[SX9320] : %s - Do not init platform HW", __func__);
 	}
-	
+
 	pr_err("[SX9320]: %s - sx9320_irq_debug\n",__func__);
 	return rc;
 }
@@ -592,12 +591,10 @@ static int sx932x_get_nirq_state(void)
  * \return Whether probe was successful
  */
 static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *id)
-{    
+{
 	int i = 0;
 	int err = 0;
 	int ret = 0;
-	u8 data1 = 0;
-	int  q = 0;
 	psx93XX_t this = 0;
 	psx932x_t pDevice = 0;
 	psx932x_platform_data_t pplatData = 0;
@@ -654,8 +651,8 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 	}
 	pplatData->get_is_nirq_low = sx932x_get_nirq_state;
 	pplatData->pbuttonInformation = pButtonInformationData;
- 
-	client->dev.platform_data = pplatData; 
+
+	client->dev.platform_data = pplatData;
 	err = sx932x_parse_dt(pplatData, &client->dev);
 	if (err) {
 		dev_err(&client->dev, "could not setup pin\n");
@@ -664,15 +661,15 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	pplatData->init_platform_hw = sx932x_init_platform_hw;
 	dev_err(&client->dev, "SX9320 init_platform_hw done!\n");
-	
+
 	if (this){
 		dev_info(&client->dev, "SX9320 initialize start!!");
-		/* In case we need to reinitialize data 
+		/* In case we need to reinitialize data
 		* (e.q. if suspend reset device) */
 		this->init = initialize;
 		/* shortcut to read status of interrupt */
 		this->refreshStatus = read_regStat;
-		/* pointer to function from platform data to get pendown 
+		/* pointer to function from platform data to get pendown
 		* (1->NIRQ=0, 0->NIRQ=1) */
 		this->get_nirq_low = pplatData->get_is_nirq_low;
 		/* save irq in case we need to reference it */
@@ -905,7 +902,7 @@ static void sx93XX_worker_func(struct work_struct *work)
 		status = this->refreshStatus(this);
 		counter = -1;
 		dev_dbg(this->pdev, "Worker - Refresh Status %d\n",status);
-		
+
 		while((++counter) < MAX_NUM_STATUS_BITS) { /* counter start from MSB */
 			if (((status>>counter) & 0x01) && (this->statusFunc[counter])) {
 				dev_info(this->pdev, "SX9320 Function Pointer Found. Calling\n");
