@@ -417,46 +417,44 @@
 
 	exynos-powermode {
 		wakeup-masks {
+			/*
+			 * wakeup_mask configuration
+			 *	        SICD          SICD_CPD      AFTR          STOP
+			 *              LPD           LPA           ALPA          DSTOP
+			 *              SLEEP         SLEEP_VTS_ON  SLEEP_AUD_ON  FAPO
+			 *		SLEEP_USB_L2
+			 */
 			wakeup-mask {
-				/*
-				 * wakeup_mask configuration
-				 *	        SICD          SICD_CPD      AFTR          STOP
-				 *              LPD           LPA           ALPA          DSTOP
-				 *              SLEEP         SLEEP_VTS_ON  SLEEP_AUD_ON  FAPO
-				 *		SLEEP_USB_L2
-				 */
-				wakeup-mask {
-					mask = <0x40000000>, <0x0>,        <0x0>,        <0x0>,
-					       <0x0>,        <0x0>,        <0x0>,        <0x0>,
-					       <0xD00D7E7E>, <0x500D7E7E>, <0x500D7E7E>, <0x0>,
-					       <0xD00D7E7E>;
-					mask-offset = <0x610>;
-					stat-offset = <0x600>;
-				};
-				wakeup-mask2 {
-					mask = <0x0>,	     <0x0>, 	   <0x0>, 	 <0x0>,
-					       <0x0>,        <0x0>,        <0x0>,        <0x0>,
-					       <0xFFFF00FF>, <0xFFFF00FF>, <0xFFFF00FF>, <0x0>,
-					       <0xFFFF00FF>;
-					mask-offset = <0x614>;
-					stat-offset = <0x604>;
-				};
-				wakeup-mask3 {
-					mask = <0x0>,	     <0x0>, 	   <0x0>, 	 <0x0>,
-					       <0x0>,        <0x0>,        <0x0>,        <0x0>,
-					       <0xFFFF00FF>, <0xFFFF00FF>, <0xFFFF00FF>, <0x0>,
-					       <0xFFFF00FF>;
-					mask-offset = <0x618>;
-					stat-offset = <0x608>;
-				};
-				wakeup-mask4 {
-					mask = <0x0>,	     <0x0>, 	   <0x0>,	 <0x0>,
-					       <0x0>,        <0x0>,        <0x0>,        <0x0>,
-					       <0x0>, 	     <0x0>, 	   <0x0>,        <0x0>,
-					       <0x0>;
-					mask-offset = <0x61c>;
-					stat-offset = <0x610>;
-				};
+				mask = <0x40000000>, <0x0>,        <0x0>,        <0x0>,
+				       <0x0>,        <0x0>,        <0x0>,        <0x0>,
+				       <0xD00D7E7E>, <0x500D7E7E>, <0x500D7E7E>, <0x0>,
+				       <0xD00D7E7E>;
+				mask-offset = <0x610>;
+				stat-offset = <0x600>;
+			};
+			wakeup-mask2 {
+				mask = <0x0>,	     <0x0>, 	   <0x0>, 	 <0x0>,
+				       <0x0>,        <0x0>,        <0x0>,        <0x0>,
+				       <0xFFFF00FF>, <0xFFFF00FF>, <0xFFFF00FF>, <0x0>,
+				       <0xFFFF00FF>;
+				mask-offset = <0x614>;
+				stat-offset = <0x604>;
+			};
+			wakeup-mask3 {
+				mask = <0x0>,	     <0x0>, 	   <0x0>, 	 <0x0>,
+				       <0x0>,        <0x0>,        <0x0>,        <0x0>,
+				       <0xFFFF00FF>, <0xFFFF00FF>, <0xFFFF00FF>, <0x0>,
+				       <0xFFFF00FF>;
+				mask-offset = <0x618>;
+				stat-offset = <0x608>;
+			};
+			wakeup-mask4 {
+				mask = <0x0>,	     <0x0>, 	   <0x0>,	 <0x0>,
+				       <0x0>,        <0x0>,        <0x0>,        <0x0>,
+				       <0x0>, 	     <0x0>, 	   <0x0>,        <0x0>,
+				       <0x0>;
+				mask-offset = <0x61c>;
+				stat-offset = <0x610>;
 			};
 		};
 	};
