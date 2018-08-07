@@ -1653,6 +1653,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_compensate_gain_for_extremely_br = sensor_cis_compensate_gain_for_extremely_br,
 	.cis_wait_streamoff = sensor_cis_wait_streamoff,
 	.cis_wait_streamon = sensor_cis_wait_streamon,
+	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 };
 
 static int cis_2t7sx_probe(struct i2c_client *client,
@@ -1775,6 +1776,9 @@ static int cis_2t7sx_probe(struct i2c_client *client,
 		sensor_2t7sx_pllinfos = sensor_2t7sx_pllinfos_A;
 		sensor_2t7sx_max_setfile_num = ARRAY_SIZE(sensor_2t7sx_setfiles_A);
 	}
+
+	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
+	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
 
 	v4l2_i2c_subdev_init(subdev_cis, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_cis, cis);
