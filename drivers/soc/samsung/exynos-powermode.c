@@ -145,7 +145,7 @@ static int parsing_dt_wakeup_mask(struct device_node *np)
 				return ret;
 		}
 
-		ret = of_property_read_u32(child, "reg-offset",
+		ret = of_property_read_u32(child, "mask-offset",
 				&pm_info->wakeup_mask_offset[mask_index]);
 		if (ret)
 			return ret;
