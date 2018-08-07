@@ -38,15 +38,15 @@ static struct mfc_fmt *__mfc_enc_find_format(struct mfc_ctx *ctx,
 		}
 	}
 
-	if (!dev->pdata->support_10bit && (fmt->type & MFC_FMT_10BIT)) {
+	if (fmt && !dev->pdata->support_10bit && (fmt->type & MFC_FMT_10BIT)) {
 		mfc_err_ctx("[FRAME] 10bit is not supported\n");
 		fmt = NULL;
 	}
-	if (!dev->pdata->support_422 && (fmt->type & MFC_FMT_422)) {
+	if (fmt && !dev->pdata->support_422 && (fmt->type & MFC_FMT_422)) {
 		mfc_err_ctx("[FRAME] 422 is not supported\n");
 		fmt = NULL;
 	}
-	if (!dev->pdata->support_rgb && (fmt->type & MFC_FMT_RGB)) {
+	if (fmt && !dev->pdata->support_rgb && (fmt->type & MFC_FMT_RGB)) {
 		mfc_err_ctx("[FRAME] RGB is not supported\n");
 		fmt = NULL;
 	}
