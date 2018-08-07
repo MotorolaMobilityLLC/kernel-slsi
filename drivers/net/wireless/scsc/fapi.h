@@ -37,7 +37,6 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 	memset(skb->cb, 0, sizeof(struct slsi_skb_cb));
 	return slsi_skb_cb_get(skb);
 }
-
 #endif
 
 #define FAPI_SIG_TYPE_MASK 0x0F00
@@ -52,10 +51,10 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_SAP_TYPE_DEBUG 0x8000
 #define FAPI_SAP_TYPE_TEST  0x9000
 
-#define FAPI_CONTROL_SAP_ENG_VERSION             0x0000
 #define FAPI_DEBUG_SAP_ENG_VERSION               0x0000
+#define FAPI_CONTROL_SAP_ENG_VERSION             0x0000
 #define FAPI_DATA_SAP_ENG_VERSION                0x0000
-#define FAPI_TEST_SAP_ENG_VERSION                0x0000
+#define FAPI_TEST_SAP_ENG_VERSION                0x0006
 #define FAPI_DEBUG_SAP_VERSION                   0x0d03
 #define FAPI_CONTROL_SAP_VERSION                 0x0e00
 #define FAPI_TEST_SAP_VERSION                    0x0e00
@@ -295,9 +294,10 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_DATARATE_CTR_NO_ERROR               0xe001
 #define FAPI_DATARATE_CTR_CRC_ERROR              0xe002
 #define FAPI_DATARATE_CTR_BAD_SIGNAL             0xe003
-#define FAPI_DATARATE_CTR_PTW70                  0xe004
+#define FAPI_DATARATE_CTR_STBC                   0xe004
 #define FAPI_DATARATE_CTR_DUPLICATE              0xe005
 #define FAPI_DATARATE_CTR_ERROR                  0xe006
+#define FAPI_DATARATE_CTR_LDPC                   0xe007
 
 #define FAPI_DATAUNITDESCRIPTOR_IEEE802_11_FRAME   0x0000
 #define FAPI_DATAUNITDESCRIPTOR_IEEE802_3_FRAME    0x0001
@@ -310,10 +310,11 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_DEVICEROLE_P2P_DEVICE               0x0003
 #define FAPI_DEVICEROLE_P2P_CLIENT               0x0004
 
-#define FAPI_DEVICESTATE_IDLE         0
-#define FAPI_DEVICESTATE_RX_RUNNING   1
-#define FAPI_DEVICESTATE_TX_RUNNING   2
-#define FAPI_DEVICESTATE_CW_RUNNING   3
+#define FAPI_DEVICESTATE_IDLE           0
+#define FAPI_DEVICESTATE_RX_RUNNING     1
+#define FAPI_DEVICESTATE_TX_RUNNING     2
+#define FAPI_DEVICESTATE_CW_RUNNING     3
+#define FAPI_DEVICESTATE_BIST_RUNNING   4
 
 #define FAPI_DIRECTION_TRANSMIT   0x0000
 #define FAPI_DIRECTION_RECEIVE    0x0001
@@ -402,15 +403,17 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_HOSTSTATE_LCD_ACTIVE        0x0001
 #define FAPI_HOSTSTATE_CELLULAR_ACTIVE   0x0002
 #define FAPI_HOSTSTATE_SAR_ACTIVE        0x0004
+#define FAPI_HOSTSTATE_GRIP_ACTIVE       0x0008
 
 #define FAPI_HT_NON_HT_RATE   0x1
 #define FAPI_HT_HT_RATE       0x2
 #define FAPI_HT_VHT_RATE      0x3
 
-#define FAPI_KEYTYPE_GROUP      0x0000
-#define FAPI_KEYTYPE_PAIRWISE   0x0001
-#define FAPI_KEYTYPE_WEP        0x0002
-#define FAPI_KEYTYPE_IGTK       0x0003
+#define FAPI_KEYTYPE_GROUP           0x0000
+#define FAPI_KEYTYPE_PAIRWISE        0x0001
+#define FAPI_KEYTYPE_WEP             0x0002
+#define FAPI_KEYTYPE_IGTK            0x0003
+#define FAPI_KEYTYPE_FIRST_ILLEGAL   0x0004
 
 #define FAPI_MESSAGETYPE_EAP_MESSAGE          0x0001
 #define FAPI_MESSAGETYPE_EAPOL_KEY_M123       0x0002
@@ -564,7 +567,7 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_RESULTCODE_ASSOC_ABORT                         0x8012
 #define FAPI_RESULTCODE_INVALID_TLV_VALUE                   0x9000
 #define FAPI_RESULTCODE_NAN_PROTOCOL_FAILURE                0x9001
-#define FAPI_RESULTCODE_NAN_INVALID_PUBLISH_SUBSCBE_ID      0x9002
+#define FAPI_RESULTCODE_NAN_INVALID_PUBLISH_SUBSCRIBE_ID    0x9002
 #define FAPI_RESULTCODE_NAN_INVALID_REQUESTOR_INSTANCE_ID   0x9003
 
 #define FAPI_RTTBANDWIDTH_20MHZ    0x0004
@@ -605,7 +608,6 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_RXSTARTFLAGS_NONE           0x0000
 #define FAPI_RXSTARTFLAGS_SCAN_CHANNEL   0x0001
 #define FAPI_RXSTARTFLAGS_FILTERING      0x0002
-#define FAPI_RXSTARTFLAGS_PERIODIC       0x0004
 #define FAPI_RXSTARTFLAGS_ACK            0x0008
 #define FAPI_RXSTARTFLAGS_LP_MODE        0x0010
 
@@ -674,12 +676,13 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_TXSETPARAMSFLAGS_ACK                   0x0001
 #define FAPI_TXSETPARAMSFLAGS_DUPLICATE_80          0x0002
 #define FAPI_TXSETPARAMSFLAGS_DUPLICATE_40          0x0004
-#define FAPI_TXSETPARAMSFLAGS_THERMAL_DUTY_CYCLE    0x0008
+#define FAPI_TXSETPARAMSFLAGS_DEAFEN_RX             0x0008
 #define FAPI_TXSETPARAMSFLAGS_CS                    0x0010
 #define FAPI_TXSETPARAMSFLAGS_SCAN_CHANNEL          0x0020
 #define FAPI_TXSETPARAMSFLAGS_SHORT_PREAMBLE        0x0040
 #define FAPI_TXSETPARAMSFLAGS_DISABLE_SCRAMBLER     0x0080
 #define FAPI_TXSETPARAMSFLAGS_LDPC                  0x0100
+#define FAPI_TXSETPARAMSFLAGS_STBC                  0x0200
 #define FAPI_TXSETPARAMSFLAGS_DISABLE_SPREADER      0x0400
 #define FAPI_TXSETPARAMSFLAGS_GREENFIELD_PREAMBLE   0x0800
 #define FAPI_TXSETPARAMSFLAGS_IBSS_FRAMES           0x2000
@@ -691,11 +694,19 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_USAGE_NO_USE   0x0
 #define FAPI_USAGE_USE      0x1
 
+#define FAPI_VIFRANGE_VIF_INDEX_MIN   0x0001
+#define FAPI_VIFRANGE_VIF_INDEX_MAX   0x0008
+
 #define FAPI_VIFTYPE_UNSYNCHRONISED   0x0000
+#define FAPI_VIFTYPE_SCAN             0x0001
 #define FAPI_VIFTYPE_STATION          0x0002
 #define FAPI_VIFTYPE_AP               0x0003
 #define FAPI_VIFTYPE_WLANLITE         0x0004
 #define FAPI_VIFTYPE_NAN              0x0005
+#define FAPI_VIFTYPE_DISCOVERY        0x0006
+#define FAPI_VIFTYPE_OFFCHANNEL       0x0007
+#define FAPI_VIFTYPE_RANGE            0x0008
+#define FAPI_VIFTYPE_MONITOR          0x0010
 
 #define FAPI_CHANNELBANDWIDTH_BANDWIDTH_20MHZ_PRIMARYCHANNELPOSITION_P0               0x0000
 #define FAPI_CHANNELBANDWIDTH_BANDWIDTH_20MHZ_PRIMARYCHANNELPOSITION_P1               0x0001
@@ -904,8 +915,7 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define WLANLITE_RX_STOP_REQ                  0x900d
 #define WLANLITE_STATUS_REQ                   0x900e
 #define TEST_PMALLOC_REQ                      0x900f
-#define TEST_SA_QUERY_REQ                     0x9010
-#define TEST_CHANNEL_SWITCH_REQ               0x9011
+#define TEST_CONFIGURE_MONITOR_MODE_REQ       0x9010
 #define TEST_CHECK_FW_ALIVE_REQ               0x9012
 #define DEBUG_GENERIC_REQ                     0x9013
 #define DEBUG_PKT_SINK_START_REQ              0x9014
@@ -919,9 +929,10 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define TEST_HIP_TESTER_STOP_REQ              0x901c
 #define TEST_HIP_TESTER_SET_PARAMS_REQ        0x901d
 #define TEST_HIP_TESTER_REPORT_REQ            0x901e
-#define TEST_SPARE_SIGNAL_1_REQ               0x901f
-#define TEST_SPARE_SIGNAL_2_REQ               0x9020
-#define TEST_SPARE_SIGNAL_3_REQ               0x9021
+#define TEST_BIST_GET_TX_GAIN_REQ             0x901f
+#define TEST_SPARE_SIGNAL_1_REQ               0x9020
+#define TEST_SPARE_SIGNAL_2_REQ               0x9021
+#define TEST_SPARE_SIGNAL_3_REQ               0x9022
 #define RADIO_LOGGING_CFM                     0x9100
 #define WLANLITE_CW_START_CFM                 0x9101
 #define WLANLITE_TX_SET_PARAMS_CFM            0x9102
@@ -934,8 +945,7 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define WLANLITE_RX_STOP_CFM                  0x9109
 #define WLANLITE_STATUS_CFM                   0x910a
 #define TEST_PMALLOC_CFM                      0x910b
-#define TEST_SA_QUERY_CFM                     0x910c
-#define TEST_CHANNEL_SWITCH_CFM               0x910d
+#define TEST_CONFIGURE_MONITOR_MODE_CFM       0x910c
 #define TEST_CHECK_FW_ALIVE_CFM               0x910e
 #define TEST_SUSPEND_CFM                      0x910f
 #define TEST_RESUME_CFM                       0x9110
@@ -944,9 +954,10 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define TEST_HIP_TESTER_START_CFM             0x9113
 #define TEST_HIP_TESTER_STOP_CFM              0x9114
 #define TEST_HIP_TESTER_SET_PARAMS_CFM        0x9115
-#define TEST_SPARE_SIGNAL_1_CFM               0x9116
-#define TEST_SPARE_SIGNAL_2_CFM               0x9117
-#define TEST_SPARE_SIGNAL_3_CFM               0x9118
+#define TEST_BIST_GET_TX_GAIN_CFM             0x9116
+#define TEST_SPARE_SIGNAL_1_CFM               0x9117
+#define TEST_SPARE_SIGNAL_2_CFM               0x9118
+#define TEST_SPARE_SIGNAL_3_CFM               0x9119
 #define TEST_SPARE_SIGNAL_1_RES               0x9200
 #define TEST_SPARE_SIGNAL_2_RES               0x9201
 #define TEST_SPARE_SIGNAL_3_RES               0x9202
@@ -2383,6 +2394,7 @@ struct fapi_signal {
 		struct {
 			__le32 logging_source;
 			__le32 logging_frequency;
+			__le32 capture_stream;
 			__le32 trigger_mode;
 			__le32 delay;
 			__le32 buffer_size;
@@ -2458,8 +2470,8 @@ struct fapi_signal {
 			__le16 channel_information;
 			__le16 flags;
 			u8     mac_addr[ETH_ALEN];
-			__le32 on_duration;
-			__le32 off_duration;
+			__le32 reserved1;
+			__le32 reserved2;
 			__le16 num_mpdus_per_ampdu;
 			__le32 spare_1;
 			__le32 spare_2;
@@ -2493,21 +2505,11 @@ struct fapi_signal {
 		} __packed test_pmalloc_req;
 		struct {
 			__le16 vif;
-			__le16 sa_query_rsp_enabled;
 			__le32 spare_1;
 			__le32 spare_2;
 			__le32 spare_3;
 			u8     dr[0];
-		} __packed test_sa_query_req;
-		struct {
-			__le16 vif;
-			__le16 channel_frequency;
-			__le16 count;
-			__le32 spare_1;
-			__le32 spare_2;
-			__le32 spare_3;
-			u8     dr[0];
-		} __packed test_channel_switch_req;
+		} __packed test_configure_monitor_mode_req;
 		struct {
 			__le32 spare_1;
 			__le32 spare_2;
@@ -2631,6 +2633,15 @@ struct fapi_signal {
 			__le32 spare_3;
 			u8     dr[0];
 		} __packed test_hip_tester_report_req;
+		struct {
+			__le16 freq;
+			__le16 tx_gain;
+			__le16 rx_gain;
+			__le32 spare_1;
+			__le32 spare_2;
+			__le32 spare_3;
+			u8     dr[0];
+		} __packed test_bist_get_tx_gain_req;
 		struct {
 			__le16 vif;
 			__le32 spare_1;
@@ -2756,19 +2767,13 @@ struct fapi_signal {
 			u8     dr[0];
 		} __packed test_pmalloc_cfm;
 		struct {
+			__le16 vif;
 			__le16 result_code;
 			__le32 spare_1;
 			__le32 spare_2;
 			__le32 spare_3;
 			u8     dr[0];
-		} __packed test_sa_query_cfm;
-		struct {
-			__le16 result_code;
-			__le32 spare_1;
-			__le32 spare_2;
-			__le32 spare_3;
-			u8     dr[0];
-		} __packed test_channel_switch_cfm;
+		} __packed test_configure_monitor_mode_cfm;
 		struct {
 			__le32 spare_1;
 			__le32 spare_2;
@@ -2838,6 +2843,14 @@ struct fapi_signal {
 			__le32 spare_3;
 			u8     dr[0];
 		} __packed test_hip_tester_set_params_cfm;
+		struct {
+			__le16 result_code;
+			__le32 gain;
+			__le32 spare_1;
+			__le32 spare_2;
+			__le32 spare_3;
+			u8     dr[0];
+		} __packed test_bist_get_tx_gain_cfm;
 		struct {
 			__le16 vif;
 			__le16 result_code;
@@ -3021,7 +3034,6 @@ static inline struct sk_buff *fapi_alloc_f(size_t sig_size, size_t data_size, u1
 #define fapi_get_datalen(mp_skb) (slsi_skb_cb_get(mp_skb)->data_length - slsi_skb_cb_get(mp_skb)->sig_length)
 #define fapi_get_data(mp_skb) (mp_skb->data + fapi_get_siglen(mp_skb))
 #define fapi_get_vif(mp_skb) le16_to_cpu(((struct fapi_vif_signal_header *)(mp_skb)->data)->vif)
-#define fapi_set_vif(mp_skb, mp_value) (((struct fapi_vif_signal_header *)(mp_skb)->data)->vif = cpu_to_le16(mp_value))
 
 /* Helper to get the struct ieee80211_mgmt from the data */
 #define fapi_get_mgmt(mp_skb) ((struct ieee80211_mgmt *)fapi_get_data(mp_skb))
@@ -3182,8 +3194,8 @@ static inline u16 fapi_get_expected_size(struct sk_buff *skb)
 		fapi_sig_size(wlanlite_rx_stop_req),
 		fapi_sig_size(wlanlite_status_req),
 		fapi_sig_size(test_pmalloc_req),
-		fapi_sig_size(test_sa_query_req),
-		fapi_sig_size(test_channel_switch_req),
+		fapi_sig_size(test_configure_monitor_mode_req),
+		0,
 		fapi_sig_size(test_check_fw_alive_req),
 		fapi_sig_size(debug_generic_req),
 		fapi_sig_size(debug_pkt_sink_start_req),
@@ -3197,6 +3209,7 @@ static inline u16 fapi_get_expected_size(struct sk_buff *skb)
 		fapi_sig_size(test_hip_tester_stop_req),
 		fapi_sig_size(test_hip_tester_set_params_req),
 		fapi_sig_size(test_hip_tester_report_req),
+		fapi_sig_size(test_bist_get_tx_gain_req),
 		fapi_sig_size(test_spare_signal_1_req),
 		fapi_sig_size(test_spare_signal_2_req),
 		fapi_sig_size(test_spare_signal_3_req),
@@ -3284,8 +3297,8 @@ static inline u16 fapi_get_expected_size(struct sk_buff *skb)
 		fapi_sig_size(wlanlite_rx_stop_cfm),
 		fapi_sig_size(wlanlite_status_cfm),
 		fapi_sig_size(test_pmalloc_cfm),
-		fapi_sig_size(test_sa_query_cfm),
-		fapi_sig_size(test_channel_switch_cfm),
+		fapi_sig_size(test_configure_monitor_mode_cfm),
+		0,
 		fapi_sig_size(test_check_fw_alive_cfm),
 		fapi_sig_size(test_suspend_cfm),
 		fapi_sig_size(test_resume_cfm),
@@ -3294,6 +3307,7 @@ static inline u16 fapi_get_expected_size(struct sk_buff *skb)
 		fapi_sig_size(test_hip_tester_start_cfm),
 		fapi_sig_size(test_hip_tester_stop_cfm),
 		fapi_sig_size(test_hip_tester_set_params_cfm),
+		fapi_sig_size(test_bist_get_tx_gain_cfm),
 		fapi_sig_size(test_spare_signal_1_cfm),
 		fapi_sig_size(test_spare_signal_2_cfm),
 		fapi_sig_size(test_spare_signal_3_cfm),

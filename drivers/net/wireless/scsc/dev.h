@@ -50,14 +50,6 @@
 #define FAPI_MAJOR_VERSION(v) (((v) >> 8) & 0xFF)
 #define FAPI_MINOR_VERSION(v) ((v) & 0xFF)
 
-#ifdef CONFIG_SCSC_WLAN_DEBUG
-/* the FAPI definition should be in fapi.h auto-generated file.
- * But until a new FAPI version is generated, the definition for
- * a VIF type as Monitor is added here
- */
-#define FAPI_VIFTYPE_MONITOR          0x0006
-#endif
-
 /* Modes for CMDGETBSSINFO and CMDGETSTAINFO */
 #define SLSI_80211_MODE_11B 0
 #define SLSI_80211_MODE_11G 1
