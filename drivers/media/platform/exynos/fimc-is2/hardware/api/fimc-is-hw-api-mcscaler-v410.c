@@ -1726,6 +1726,26 @@ void fimc_is_scaler_set_flip_mode(void __iomem *base_addr, u32 output_id, u32 fl
 	}
 }
 
+void fimc_is_scaler_get_flip_mode(void __iomem *base_addr, u32 output_id, u32 *flip)
+{
+	switch (output_id) {
+	case MCSC_OUTPUT0:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA0_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA0_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT1:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA1_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA1_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT2:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA2_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA2_FLIP_CONTROL]);
+		break;
+	default:
+		break;
+	}
+}
+
 void fimc_is_scaler_set_rdma_size(void __iomem *base_addr, u32 width, u32 height)
 {
 	u32 reg_value = 0;
@@ -3793,7 +3813,7 @@ void fimc_is_scaler_set_djag_tunning_param(void __iomem *base_addr, const struct
 	/* not support */
 }
 
-void fimc_is_scaler_set_djag_wb_thres(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb)
+void fimc_is_scaler_set_djag_dither_wb(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb, u32 wht, u32 blk)
 {
 	/* not supported */
 }
@@ -3952,7 +3972,7 @@ void fimc_is_scaler_set_ds_gamma_table_enable(void __iomem *base_addr, u32 ds_ga
 }
 
 /* LFRO : Less Fast Read Out */
-void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 lfro_enable, u32 lfro_total_fnum)
+void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 hw_id, u32 lfro_enable, u32 lfro_total_fnum)
 {
 	u32 reg_value = 0;
 
@@ -3961,7 +3981,7 @@ void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 lfro_enabl
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_SCALER_FAST_MODE_CTRL], reg_value);
 }
 
-u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr)
+u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr, u32 hw_id)
 {
 	u32 ret = 0;
 	u32 fcnt = 0;

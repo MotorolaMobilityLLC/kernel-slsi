@@ -194,10 +194,8 @@ struct fimc_is_frame {
 	void			*subdev; /* fimc_is_subdev */
 
 	/* group leader use */
-	struct camera2_shot	*shot;
 	struct camera2_shot_ext	*shot_ext;
-	ulong			kvaddr_shot;
-	u32			dvaddr_shot;
+	struct camera2_shot	*shot;
 	size_t			shot_size;
 
 	/* stream use */
@@ -205,8 +203,8 @@ struct fimc_is_frame {
 
 	/* common use */
 	u32			planes; /* total planes include multi-buffers */
-	u32			dvaddr_buffer[FIMC_IS_MAX_PLANES];
-	ulong 		kvaddr_buffer[FIMC_IS_MAX_PLANES];
+	dma_addr_t		dvaddr_buffer[FIMC_IS_MAX_PLANES];
+	ulong			kvaddr_buffer[FIMC_IS_MAX_PLANES];
 
 	/*
 	 * target address for capture node
@@ -253,6 +251,9 @@ struct fimc_is_frame {
 	u32			type;
 	unsigned long		core_flag;
 	atomic_t		shot_done_flag;
+#else
+	/* group leader use */
+	dma_addr_t		dvaddr_shot;
 #endif
 
 #ifdef ENABLE_SYNC_REPROCESSING

@@ -22,17 +22,56 @@
 
 #include "fimc-is-hw-api-common.h"
 #include "fimc-is-config.h"
+#include "fimc-is-core.h"
 #include "fimc-is-type.h"
 #include "fimc-is-regs.h"
 #include "fimc-is-device-csi.h"
 #include "fimc-is-hw.h"
 #include "fimc-is-hw-csi-v5_1.h"
 #include "fimc-is-device-sensor.h"
+#include <linux/clk.h>
 
 void csi_hw_phy_otp_config(u32 __iomem *base_reg, u32 instance)
 {
 #if IS_ENABLED(CONFIG_EXYNOS_OTP)
 #endif
+}
+
+int csi_set_ppc_mode(u32 width, u32 height, u32 frame_rate, u32 mipi_speed,
+		u32 lanes, const char *conid, u32 *pixel_mode)
+{
+	struct clk *target;
+	u32 target_clk;
+	u32 need_clk_by_rate;
+	u32 need_clk_by_speed;
+	int ret = 0;
+
+	target = clk_get(fimc_is_dev, conid);
+	if (IS_ERR_OR_NULL(target)) {
+		err("%s: can not get target: %s\n", __func__, conid);
+		return -EINVAL;
+	}
+
+	target_clk = clk_get_rate(target);
+	if (!target_clk) {
+		err("%s: clk value is zero: %s\n", __func__, conid);
+		return -EINVAL;
+	}
+
+	need_clk_by_rate = width * height * frame_rate;
+	need_clk_by_speed = mipi_speed * lanes / 10; /* TODO: only RAW10 format case */
+	info("need_clk (rate: %d)(speed: %d)\n", need_clk_by_rate, need_clk_by_speed);
+
+	/* 2ppc boundary check */
+	if (target_clk * 2 > need_clk_by_rate && target_clk * 2 > need_clk_by_speed) {
+		info("csi pixel mode is set 2ppc\n");
+		*pixel_mode = CSIS_PIXEL_MODE_DUAL;
+	} else {
+		info("csi pixel mode is set 4ppc, can not use wdma\n");
+		*pixel_mode = CSIS_PIXEL_MODE_QUAD;
+	}
+
+	return ret;
 }
 
 int csi_hw_reset(u32 __iomem *base_reg)
@@ -250,7 +289,6 @@ int csi_hw_s_control(u32 __iomem *base_reg, u32 id, u32 value)
 	return 0;
 }
 
-#if !defined(CONFIG_VENDER_PSV)
 int csi_hw_s_config(u32 __iomem *base_reg,
 	u32 vc, struct fimc_is_vci_config *config, u32 width, u32 height)
 {
@@ -284,9 +322,11 @@ int csi_hw_s_config(u32 __iomem *base_reg,
 	}
 
 #if defined(CONFIG_SOC_EXYNOS9610)
-	if (sensor_cfg->mipi_speed > 2000) {
-		pixel_mode = CSIS_PIXEL_MODE_QUAD;
-		info("%s: mipi_speed(%d), pixel_mode(%d)\n", __func__, sensor_cfg->mipi_speed, pixel_mode);
+	ret = csi_set_ppc_mode(sensor_cfg->width, sensor_cfg->height, sensor_cfg->framerate,
+		sensor_cfg->mipi_speed, sensor_cfg->lanes, "UMUX_CLKCMU_CAM_BUS", &pixel_mode);
+	if (ret) {
+		err("invalid set_ppc_mode\n");
+		goto p_err;
 	}
 #endif
 
@@ -341,10 +381,12 @@ int csi_hw_s_config_dma(u32 __iomem *base_reg, u32 vc, struct fimc_is_image *ima
 	}
 
 	if (cfg->format->pixelformat == V4L2_PIX_FMT_SBGGR10 ||
-		cfg->format->pixelformat == V4L2_PIX_FMT_SBGGR12)
+		cfg->format->pixelformat == V4L2_PIX_FMT_SBGGR12 ||
+		cfg->format->pixelformat == V4L2_PIX_FMT_PRIV_MAGIC)
 #else
 	if (image->format.pixelformat == V4L2_PIX_FMT_SBGGR10 ||
-		image->format.pixelformat == V4L2_PIX_FMT_SBGGR12)
+		image->format.pixelformat == V4L2_PIX_FMT_SBGGR12 ||
+		image->format.pixelformat == V4L2_PIX_FMT_PRIV_MAGIC)
 #endif
 		dma_pack12 = CSIS_REG_DMA_PACK12;
 	else
@@ -425,12 +467,6 @@ int csi_hw_s_config_dma(u32 __iomem *base_reg, u32 vc, struct fimc_is_image *ima
 p_err:
 	return ret;
 }
-#else /* CONFIG_VENDER_PSV: not operate function, just return */
-int csi_hw_s_config(u32 __iomem *base_reg,
-	u32 vc, struct fimc_is_vci_config *config, u32 width, u32 height) { return 0; }
-int csi_hw_s_config_dma(u32 __iomem *base_reg,
-	u32 vc, struct fimc_is_frame_cfg *cfg, u32 hwformat) { return 0; }
-#endif
 
 int csi_hw_s_irq_msk(u32 __iomem *base_reg, bool on)
 {
@@ -579,7 +615,6 @@ u32 csi_hw_g_frameptr(u32 __iomem *base_reg, u32 vc)
 	return frame_ptr;
 }
 
-#if !defined(CONFIG_VENDER_PSV)
 void csi_hw_s_dma_addr(u32 __iomem *base_reg, u32 vc, u32 number, u32 addr)
 {
 	u32 i = 0;
@@ -610,11 +645,6 @@ void csi_hw_s_output_dma(u32 __iomem *base_reg, u32 vc, bool enable)
 	val = fimc_is_hw_set_field_value(val, &csi_vcdma_fields[CSIS_F_DMA_N_UPDT_PTR_EN], enable);
 	fimc_is_hw_set_reg(base_reg, &csi_vcdma_regs[CSIS_R_DMA0_CTRL], val);
 }
-#else /* CONFIG_VENDER_PSV */
-void csi_hw_s_dma_addr(u32 __iomem *base_reg, u32 vc, u32 number, u32 addr) { return; }
-void csi_hw_s_multibuf_dma_addr(u32 __iomem *base_reg, u32 vc, u32 number, u32 addr) { return; }
-void csi_hw_s_output_dma(u32 __iomem *base_reg, u32 vc, bool enable) { return; }
-#endif
 
 bool csi_hw_g_output_dma_enable(u32 __iomem *base_reg, u32 vc)
 {
@@ -654,7 +684,6 @@ int csi_hw_dma_common_reset(void)
 	return 0;
 }
 
-#if !defined(CONFIG_VENDER_PSV)
 #define GET_DMA_CH(x, y)	((x) & (1 << (y)))
 int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int dma_ch)
 {
@@ -662,19 +691,12 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	u32 sram0_split;
 	u32 sram1_split;
 	u32 max;
+	u32 matrix_num;
+	u32 dma_pri_0;
+	u32 dma_pri_1;
 
 	if (!base_reg)
 		return 0;
-
-	/* Common DMA Arbitration Priority register */
-	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 1 = CSIS2 DMA has a high priority */
-	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 2 = CSIS3 DMA has a high priority */
-	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 1 = CSIS0 DMA has a high priority */
-	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 2 = CSIS1 DMA has a high priority */
-	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI]);
-	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_1], 0x1);
-	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_0], 0x2);
-	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI], val);
 
 	/* Common DMA Control register */
 	/* CSIS_DMA_F_IP_PROCESSING : 1 = Q-channel clock enable  */
@@ -683,14 +705,14 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_IP_PROCESSING], 0x1);
 	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_CTRL], val);
 
-	/* Common DMA SRAM split register */
-	/* CSIS_DMA_F_DMA_SRAM1_SPLIT : internal SRAM1 is 10KB (640 * 16 bytes) */
-	/* CSIS_DMA_F_DMA_SRAM0_SPLIT : internal SRAM0 is 10KB (640 * 16 bytes) */
-	/* This register can be set between 0 to 640 */
 	max = size / 16;
 	sram0_split = max / 2;
 	sram1_split = max / 2;
+	matrix_num = 0;
+	dma_pri_0 = 2;
+	dma_pri_1 = 1;
 
+#if defined(CONFIG_SOC_EXYNOS9810)
 	if (GET_DMA_CH(dma_ch, 0) && !GET_DMA_CH(dma_ch, 1))
 		sram0_split = max;
 	else if (!GET_DMA_CH(dma_ch, 0) && GET_DMA_CH(dma_ch, 1))
@@ -703,16 +725,65 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 
 	if (GET_DMA_CH(dma_ch, 4))
 		sram0_split = max;
+#elif defined(CONFIG_SOC_EXYNOS9610)
+	dma_pri_0 = 1;
+	dma_pri_1 = 1;
 
+	if (GET_DMA_CH(dma_ch, 0) && GET_DMA_CH(dma_ch, 1)) {
+		matrix_num = 0;
+		sram0_split = max;
+		sram1_split = max;
+	} else if (GET_DMA_CH(dma_ch, 0) && GET_DMA_CH(dma_ch, 2)) {
+		matrix_num = 0;
+		sram0_split = max;
+		sram1_split = max;
+	} else if (GET_DMA_CH(dma_ch, 0)) {
+		matrix_num = 0;
+		sram0_split = max;
+		sram1_split = max; /* Due to PAFSTAT stat DMA limitation, set DMA2 split to max */
+	} else if (GET_DMA_CH(dma_ch, 1)) {
+		dma_pri_0 = 2;
+		matrix_num = 2;
+		sram1_split = max;
+	} else if (GET_DMA_CH(dma_ch, 2)) {
+		matrix_num = 2;
+		sram1_split = 4; /* Rear2 uses a DMA3 as image out */
+		dma_pri_1 = 2;
+	} else if (GET_DMA_CH(dma_ch, 3)) {
+		dma_pri_1 = 2;
+		matrix_num = 17;
+		sram0_split = max;
+	} else {
+		warn("invalid dma_ch: can not split(%x)\n", dma_ch);
+		matrix_num = 0;
+	}
+#endif
+
+	/* Common DMA SRAM split register */
+	/* CSIS_DMA_F_DMA_SRAM1_SPLIT : internal SRAM1 is 10KB (640 * 16 bytes) */
+	/* CSIS_DMA_F_DMA_SRAM0_SPLIT : internal SRAM0 is 10KB (640 * 16 bytes) */
+	/* This register can be set between 0 to 640 */
+	info("selected sram_matrix: %d, sram0_split: %d,  sram1_split: %d\n", matrix_num, sram0_split, sram1_split);
 	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_SRAM_SPLIT]);
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_SRAM1_SPLIT], sram1_split);
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_SRAM0_SPLIT], sram0_split);
 	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_SRAM_SPLIT], val);
 
+	/* Common DMA Arbitration Priority register */
+	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 1 = CSIS2 DMA has a high priority */
+	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 2 = CSIS3 DMA has a high priority */
+	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 1 = CSIS0 DMA has a high priority */
+	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 2 = CSIS1 DMA has a high priority */
+	info("DMA0_priority: %d,  DMA1_priorty: %d", dma_pri_0, dma_pri_1);
+	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI]);
+	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_0], dma_pri_0);
+	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_1], dma_pri_1);
+	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI], val);
+
 	/* Common DMA Martix register */
 	/* CSIS_DMA_F_DMA_MATRIX : Under Table see */
 	/*       CSIS0      CSIS1      CSIS2      CSIS3  */
-	/* 0  : SRAM0_0    SRAM0_0    SRAM1_0    SRAM1_1 */
+	/* 0  : SRAM0_0    SRAM0_1    SRAM1_0    SRAM1_1 */
 	/* 2  : SRAM0_0    SRAM1_0    SRAM0_1    SRAM1_1 */
 	/* 5  : SRAM0_0    SRAM1_1    SRAM1_0    SRAM0_1 */
 	/* 14 : SRAM1_0    SRAM0_1    SRAM0_0    SRAM1_1 */
@@ -721,7 +792,7 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	/* 22 : SRAM1_1    SRAM1_0    SRAM0_0    SRAM0_1 */
 	/* 23 : SRAM1_1    SRAM1_0    SRAM0_1    SRAM0_0 */
 	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_MATRIX]);
-	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_MATRIX], 0x0);
+	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_MATRIX], matrix_num);
 	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_MATRIX], val);
 
 	return 0;
@@ -777,9 +848,6 @@ int csi_hw_s_dma_common(u32 __iomem *base_reg)
 
 	return 0;
 }
-#else /* CONFIG_VENDER_PSV */
-int csi_hw_s_dma_common(u32 __iomem *base_reg) { return 0; }
-#endif
 
 int csi_hw_s_dma_common_pattern_enable(u32 __iomem *base_reg,
 	u32 width, u32 height, u32 fps, u32 clk)
@@ -998,8 +1066,7 @@ int csi_hw_g_dma_irq_src_vc(u32 __iomem *base_reg, struct csis_irq_src *src, u32
 	return 0;
 }
 
-#if !defined(CONFIG_VENDER_PSV)
-int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat)
+int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 actual_vc, u32 hwformat)
 {
 	int ret = 0;
 	u32 val;
@@ -1012,59 +1079,60 @@ int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat)
 		goto p_err;
 	}
 
-#if !defined(CONFIG_SOC_EXYNOS9610)
-	if (vc == CSI_VIRTUAL_CH_0) {
-#endif
-		switch (hwformat) {
-		case HW_FORMAT_RAW10:
-		case HW_FORMAT_RAW6_DA:
-		case HW_FORMAT_RAW7_DS:
-		case HW_FORMAT_RAW8_DS:
-			otf_format = 0;
-			dma_input_path = CSIS_REG_DMA_INPUT_OTF;
-			break;
-		case HW_FORMAT_RAW12:
-			otf_format = 1;
-			dma_input_path = CSIS_REG_DMA_INPUT_OTF;
-			break;
-		case HW_FORMAT_RAW14:
-		case HW_FORMAT_RAW10_DA:
-			otf_format = 2;
-			dma_input_path = CSIS_REG_DMA_INPUT_OTF;
-			break;
-		case HW_FORMAT_RAW8:
-		case HW_FORMAT_USER:
-			otf_format = 3;
-			dma_input_path = CSIS_REG_DMA_INPUT_PRL;
-			break;
-		default:
-			err("invalid data format (%02X)", hwformat);
-			ret = -EINVAL;
-			goto p_err;
-		}
+	switch (hwformat) {
+	case HW_FORMAT_RAW10:
+	case HW_FORMAT_RAW6_DA:
+	case HW_FORMAT_RAW7_DS:
+	case HW_FORMAT_RAW8_DS:
+		otf_format = 0;
+		dma_input_path = CSIS_REG_DMA_INPUT_OTF;
+		break;
+	case HW_FORMAT_RAW12:
+		otf_format = 1;
+		dma_input_path = CSIS_REG_DMA_INPUT_OTF;
+		break;
+	case HW_FORMAT_RAW14:
+	case HW_FORMAT_RAW10_DA:
+		otf_format = 2;
+		dma_input_path = CSIS_REG_DMA_INPUT_OTF;
+		break;
+	case HW_FORMAT_RAW8:
+	case HW_FORMAT_USER:
+	case HW_FORMAT_EMBEDDED_8BIT:
+	case HW_FORMAT_YUV420_8BIT:
+	case HW_FORMAT_YUV420_10BIT:
+	case HW_FORMAT_YUV422_8BIT:
+	case HW_FORMAT_YUV422_10BIT:
+	case HW_FORMAT_RGB565:
+	case HW_FORMAT_RGB666:
+	case HW_FORMAT_RGB888:
+	case HW_FORMAT_RAW6:
+	case HW_FORMAT_RAW7:
+		otf_format = 3;
+		dma_input_path = CSIS_REG_DMA_INPUT_PRL;
+		break;
+	default:
+		err("invalid data format (%02X)", hwformat);
+		ret = -EINVAL;
+		goto p_err;
+	}
 
+	if (vc == CSI_VIRTUAL_CH_0) {
 		val = fimc_is_hw_get_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_OTF_FORMAT]);
 		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_OTF_FORMAT], otf_format);
 		fimc_is_hw_set_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_OTF_FORMAT], val);
-
-		val = fimc_is_hw_get_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL]);
-		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_DMA_INPUT_PATH_CH0],
-			dma_input_path);
-#if defined(CONFIG_SOC_EXYNOS9610)
-		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_DMA_INPUT_PATH_CH1],
-			dma_input_path);
-#endif
-		fimc_is_hw_set_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL], val);
-#if !defined(CONFIG_SOC_EXYNOS9610)
 	}
-#endif
 
+	if (actual_vc == CSI_VIRTUAL_CH_0 || actual_vc == CSI_VIRTUAL_CH_1) {
+		val = fimc_is_hw_get_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL]);
+		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_DMA_INPUT_PATH_CH0 + actual_vc],
+			dma_input_path);
+
+		fimc_is_hw_set_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL], val);
+	}
 p_err:
 	return ret;
 }
-#else
-int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat) { return 0; }
-#endif
 
 #ifdef USE_SENSOR_IF_DPHY
 #define PHY_REF_SPEED	(1500)

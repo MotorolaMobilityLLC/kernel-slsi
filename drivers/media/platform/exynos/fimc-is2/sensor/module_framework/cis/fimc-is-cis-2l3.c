@@ -126,8 +126,9 @@ static void sensor_2l3_set_integration_max_margin(u32 mode, cis_shared_data *cis
 	case SENSOR_2L3_2016X1134_30FPS_MODE2:
 	case SENSOR_2L3_1504X1504_120FPS_MODE2:
 	case SENSOR_2L3_1504X1504_30FPS_MODE2:
-	case SENSOR_2L3_2016X1134_60FPS_MODE2_SSM:
-	case SENSOR_2L3_1280X720_60FPS_MODE2_SSM:
+	case SENSOR_2L3_2016X1134_60FPS_MODE2_SSM_960:
+	case SENSOR_2L3_1280X720_60FPS_MODE2_SSM_960:
+	case SENSOR_2L3_1280X720_60FPS_MODE2_SSM_480:
 	case SENSOR_2L3_4032X3024_30FPS_MODE2_DRAM_TEST_SECTION1:
 	case SENSOR_2L3_4032X3024_30FPS_MODE2_DRAM_TEST_SECTION2:
 		cis_data->max_margin_coarse_integration_time = SENSOR_2L3_COARSE_INTEGRATION_TIME_MAX_MARGIN;
@@ -213,7 +214,6 @@ static void sensor_2l3_cis_data_calculation(const struct sensor_pll_info_compact
 
 void sensor_2l3_cis_data_calc(struct v4l2_subdev *subdev, u32 mode)
 {
-	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
 
 	WARN_ON(!subdev);
@@ -227,6 +227,7 @@ void sensor_2l3_cis_data_calc(struct v4l2_subdev *subdev, u32 mode)
 		return;
 	}
 
+#if 0
 	/* If check_rev fail when cis_init, one more check_rev in mode_change */
 	if (cis->rev_flag == true) {
 		cis->rev_flag = false;
@@ -236,6 +237,7 @@ void sensor_2l3_cis_data_calc(struct v4l2_subdev *subdev, u32 mode)
 			return;
 		}
 	}
+#endif
 
 	if (cis->cis_data->stream_on) {
 		info("[%s] call mode change in stream on state\n", __func__);
@@ -289,9 +291,6 @@ int sensor_2l3_cis_check_rev(struct v4l2_subdev *subdev)
 	u8 rev = 0;
 	struct i2c_client *client;
 	struct fimc_is_cis *cis = NULL;
-	struct fimc_is_module_enum *module;
-	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
-	struct sensor_open_extended *ext_info;
 
 	WARN_ON(!subdev);
 
@@ -306,20 +305,38 @@ int sensor_2l3_cis_check_rev(struct v4l2_subdev *subdev)
 		return ret;
 	}
 
-	sensor_peri = container_of(cis, struct fimc_is_device_sensor_peri, cis);
-	module = sensor_peri->module;
-	ext_info = &module->ext;
-	WARN_ON(!ext_info);
+	memset(cis->cis_data, 0, sizeof(cis_shared_data));
+	cis->rev_flag = false;
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
+
 	ret = fimc_is_sensor_read8(client, 0x0002, &rev);
 	if (ret < 0) {
-		err("fimc_is_sensor_read8 fail, (ret %d)", ret);
-		goto p_err;
+		cis->rev_flag = true;
+		ret = -EAGAIN;
+	} else {
+		cis->cis_data->cis_rev = rev;
+		pr_info("%s : Default version 2l3 sensor. Rev. 0x%X\n", __func__, rev);
 	}
 
-	cis->cis_data->cis_rev = rev;
-	pr_info("%s : Default version 2l3 sensor. Rev. 0x%X\n", __func__, rev);
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
+	return ret;
+}
+
+int sensor_2l3_cis_select_setfile(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	u8 rev = 0;
+	struct fimc_is_cis *cis = NULL;
+
+	WARN_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	WARN_ON(!cis);
+	WARN_ON(!cis->cis_data);
+
+	rev = cis->cis_data->cis_rev;
 
 	switch (rev) {
 	case 0xA0:
@@ -378,8 +395,6 @@ int sensor_2l3_cis_check_rev(struct v4l2_subdev *subdev)
 		break;
 	}
 
-p_err:
-	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 	return ret;
 }
 
@@ -392,7 +407,6 @@ int sensor_2l3_cis_init(struct v4l2_subdev *subdev)
 	struct fimc_is_cis *cis;
 	u32 setfile_index = 0;
 	cis_setting_info setinfo;
-	int retry_cnt = 3;
 	setinfo.param = NULL;
 	setinfo.return_value = 0;
 
@@ -406,22 +420,8 @@ int sensor_2l3_cis_init(struct v4l2_subdev *subdev)
 	}
 
 	WARN_ON(!cis->cis_data);
-	memset(cis->cis_data, 0, sizeof(cis_shared_data));
-	cis->rev_flag = false;
 
-retry:
-	ret = sensor_2l3_cis_check_rev(subdev);
-	if (ret < 0) {
-		if (retry_cnt-- > 0) {
-			err("sensor_2l3_check_rev is fail. retry %d", retry_cnt);
-			usleep_range(10000, 10000);
-			goto retry;
-		} else {
-			warn("sensor_2l3_check_rev is fail when cis init, ret(%d)", ret);
-			cis->rev_flag = true;
-			goto p_err;
-		}
-	}
+	sensor_2l3_cis_select_setfile(subdev);
 
 	need_cancel_retention_mode = false;
 
@@ -741,8 +741,9 @@ int sensor_2l3_cis_retention_crc_enable(struct v4l2_subdev *subdev, u32 mode)
 	case SENSOR_2L3_2016X1134_120FPS_MODE2:
 	case SENSOR_2L3_1504X1504_120FPS_MODE2:
 	case SENSOR_2L3_1008X756_120FPS_MODE2:
-	case SENSOR_2L3_2016X1134_60FPS_MODE2_SSM:
-	case SENSOR_2L3_1280X720_60FPS_MODE2_SSM:
+	case SENSOR_2L3_2016X1134_60FPS_MODE2_SSM_960:
+	case SENSOR_2L3_1280X720_60FPS_MODE2_SSM_960:
+	case SENSOR_2L3_1280X720_60FPS_MODE2_SSM_480:
 		break;
 	default:
 		/* Sensor stream on */
@@ -843,6 +844,7 @@ int sensor_2l3_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	ext_info = &module->ext;
 	WARN_ON(!ext_info);
 
+#if 0
 	/* If check_rev fail when cis_init, one more check_rev in mode_change */
 	if (cis->rev_flag == true) {
 		cis->rev_flag = false;
@@ -852,6 +854,7 @@ int sensor_2l3_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 			goto p_err;
 		}
 	}
+#endif
 
 #if 0 /* cis_data_calculation is called in module_s_format */
 	sensor_2l3_cis_data_calculation(sensor_2l3_pllinfos[mode], cis->cis_data);
@@ -985,12 +988,20 @@ int sensor_2l3_cis_set_lownoise_mode_change(struct v4l2_subdev *subdev)
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
 	unsigned int mode = 0;
+	struct fimc_is_module_enum *module;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+	struct sensor_open_extended *ext_info = NULL;
 
 	WARN_ON(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	WARN_ON(!cis);
 	WARN_ON(!cis->cis_data);
+
+	sensor_peri = container_of(cis, struct fimc_is_device_sensor_peri, cis);
+	module = sensor_peri->module;
+	ext_info = &module->ext;
+	WARN_ON(!ext_info);
 
 	mode = cis->cis_data->sens_config_index_cur;
 
@@ -1080,6 +1091,28 @@ int sensor_2l3_cis_set_lownoise_mode_change(struct v4l2_subdev *subdev)
 		ret |= fimc_is_sensor_write16(cis->client, 0x30E6, 0x0500);
 		dbg_common(i2c_log_enable, "%s : i2c_write", " (0x30E6, 0x0500)\n", __func__);
 #endif
+		break;
+	case FIMC_IS_CIS_LN2_PEDESTAL128:
+		dbg_sensor(1, "[%s] FIMC_IS_CIS_LN2_PEDESTAL128\n", __func__);
+		ret |= fimc_is_sensor_write16(cis->client, 0x0B30, 0x0200);
+		ret |= fimc_is_sensor_write16(cis->client, 0x0BC0, 0x0080); /* pedestal 128 */
+
+#ifdef CAMERA_REAR2
+		ret |= fimc_is_sensor_write16(cis->client, 0x30E4, 0x0000);
+		ret |= fimc_is_sensor_write16(cis->client, 0x30E6, 0x0500);
+#endif
+		ext_info->use_retention_mode = SENSOR_RETENTION_INACTIVE;
+		break;
+	case FIMC_IS_CIS_LN4_PEDESTAL128:
+		dbg_sensor(1, "[%s] FIMC_IS_CIS_LN4_PEDESTAL128\n", __func__);
+		ret |= fimc_is_sensor_write16(cis->client, 0x0B30, 0x0300);
+		ret |= fimc_is_sensor_write16(cis->client, 0x0BC0, 0x0080); /* pedestal 128 */
+
+#ifdef CAMERA_REAR2
+		ret |= fimc_is_sensor_write16(cis->client, 0x30E4, 0x0000);
+		ret |= fimc_is_sensor_write16(cis->client, 0x30E6, 0x0500);
+#endif
+		ext_info->use_retention_mode = SENSOR_RETENTION_INACTIVE;
 		break;
 	default:
 		dbg_sensor(1, "[%s] not support lownoise mode(%d)\n",
@@ -2730,12 +2763,20 @@ int sensor_2l3_cis_set_frs_control(struct v4l2_subdev *subdev, u32 command)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
+	struct fimc_is_module_enum *module;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+	struct sensor_open_extended *ext_info = NULL;
 
 	WARN_ON(!subdev);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	WARN_ON(!cis);
 	WARN_ON(!cis->cis_data);
+
+	sensor_peri = container_of(cis, struct fimc_is_device_sensor_peri, cis);
+	module = sensor_peri->module;
+	ext_info = &module->ext;
+	WARN_ON(!ext_info);
 
 	switch (command) {
 	case FRS_SSM_START:
@@ -2774,6 +2815,17 @@ int sensor_2l3_cis_set_frs_control(struct v4l2_subdev *subdev, u32 command)
 		dbg_common(i2c_log_enable, "%s : i2c_write", " (0x0A58, 0x0000)\n", __func__);
 		ret |= fimc_is_sensor_write16(cis->client, 0x0A5A, 0x0000); /* before_q_frames = 0 */
 		dbg_common(i2c_log_enable, "%s : i2c_write", " (0x0A5A, 0x0000)\n", __func__);
+		break;
+	case FRS_SSM_MODE_FACTORY_TEST:
+		pr_info("[%s] SUPER_SLOW_MOTION_MODE_FACTORY_TEST\n", __func__);
+		ret |= fimc_is_sensor_write8(cis->client, 0x0A50, 0x01);    /* Enable Manual Q Only */
+		ret |= fimc_is_sensor_write16(cis->client, 0x0A58, 0x0000); /* q_mask_frames */
+		ret |= fimc_is_sensor_write16(cis->client, 0x0A5A, 0x0010); /* before_q_frames = 16 */
+		ret |= fimc_is_sensor_write8(cis->client, 0x0A52, 0x01); /* start_user_record */
+		ret |= fimc_is_sensor_write16(cis->client, 0xF408, 0x0009); /* test */
+		ret |= fimc_is_sensor_write16(cis->client, 0xF404, 0xFFF3); /* test */
+
+		ext_info->use_retention_mode = SENSOR_RETENTION_INACTIVE;
 		break;
 	case FRS_DRAM_TEST_SECTION2:
 		if (sensor_2l3_max_setfile_num > SENSOR_2L3_4032X3024_30FPS_MODE2_DRAM_TEST_SECTION2) {
@@ -2838,6 +2890,60 @@ int sensor_2l3_cis_set_super_slow_motion_roi(struct v4l2_subdev *subdev, struct 
 	return ret;
 }
 
+int sensor_2l3_cis_set_super_slow_motion_threshold(struct v4l2_subdev *subdev, u32 threshold)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis = NULL;
+	u8 final_threshold = (u8)threshold;
+
+	WARN_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	WARN_ON(!cis);
+	WARN_ON(!cis->cis_data);
+
+	ret |= fimc_is_sensor_write16(cis->client, 0x6028, 0x2001);
+	ret |= fimc_is_sensor_write16(cis->client, 0x602A, 0x2CC0);
+	ret |= fimc_is_sensor_write16(cis->client, 0x6F12, final_threshold);
+	ret |= fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
+	if (ret < 0) {
+		pr_err("ERR[%s]: super slow roi setting fail\n", __func__);
+	}
+
+	pr_info("[%s] : super slow threshold(%d)\n", __func__, threshold);
+
+	return ret;
+}
+
+int sensor_2l3_cis_get_super_slow_motion_threshold(struct v4l2_subdev *subdev, u32 *threshold)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis = NULL;
+	u8 final_threshold = 0;
+
+	WARN_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	WARN_ON(!cis);
+	WARN_ON(!cis->cis_data);
+
+	ret |= fimc_is_sensor_write16(cis->client, 0x602C, 0x2000);
+	ret |= fimc_is_sensor_write16(cis->client, 0x602E, 0xFF75);
+	ret |= fimc_is_sensor_read8(cis->client, 0x6F12, &final_threshold);
+	ret |= fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
+	if (ret < 0) {
+		pr_err("ERR[%s]: super slow roi setting fail\n", __func__);
+		*threshold = 0;
+		return ret;
+	}
+
+	*threshold = final_threshold;
+
+	pr_info("[%s] : super slow threshold(%d)\n", __func__, *threshold);
+
+	return ret;
+}
+
 static struct fimc_is_cis_ops cis_ops_2l3 = {
 	.cis_init = sensor_2l3_cis_init,
 	.cis_log_status = sensor_2l3_cis_log_status,
@@ -2869,6 +2975,10 @@ static struct fimc_is_cis_ops cis_ops_2l3 = {
 	.cis_set_long_term_exposure = sensor_2l3_cis_long_term_exposure,
 	.cis_set_frs_control = sensor_2l3_cis_set_frs_control,
 	.cis_set_super_slow_motion_roi = sensor_2l3_cis_set_super_slow_motion_roi,
+	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
+	.cis_check_rev = sensor_2l3_cis_check_rev,
+	.cis_set_super_slow_motion_threshold = sensor_2l3_cis_set_super_slow_motion_threshold,
+	.cis_get_super_slow_motion_threshold = sensor_2l3_cis_get_super_slow_motion_threshold,
 };
 
 static int cis_2l3_probe(struct i2c_client *client,
@@ -2978,6 +3088,9 @@ static int cis_2l3_probe(struct i2c_client *client,
 		v4l2_set_subdev_hostdata(subdev_cis, device);
 		snprintf(subdev_cis->name, V4L2_SUBDEV_NAME_SIZE, "cis-subdev.%d", cis->id);
 	}
+
+	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
+	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
 
 	ret = of_property_read_string(dnode, "setfile", &setfile);
 	if (ret) {

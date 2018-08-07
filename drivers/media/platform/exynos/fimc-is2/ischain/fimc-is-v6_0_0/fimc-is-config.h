@@ -60,6 +60,7 @@
 /* #define ENABLE_DNR_IN_TPU */
 /*#define ENABLE_DNR_IN_MCSC */
 #define ENABLE_TNR
+#define NUM_OF_TNR_BUF	4 /* dual(2) & double buffering(2) */
 #define ENABLE_10BIT_MCSC
 #define ENABLE_DJAG_IN_MCSC
 #define ENABLE_VRA
@@ -151,7 +152,7 @@
 #define MULTI_SHOT_TASKLET
 /* #define ENABLE_EARLY_SHOT */
 
-#if defined(USE_I2C_LOCK) && !defined(CONFIG_VENDER_PSV)
+#if defined(USE_I2C_LOCK)
 #define I2C_MUTEX_LOCK(lock)	mutex_lock(lock)
 #define I2C_MUTEX_UNLOCK(lock)	mutex_unlock(lock)
 #else

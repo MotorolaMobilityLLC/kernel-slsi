@@ -659,6 +659,7 @@ static int fimc_is_ssx_video_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_IS_INTENT:
 	case V4L2_CID_IS_CAPTURE_EXPOSURETIME:
 	case V4L2_CID_IS_TRANSIENT_ACTION:
+	case V4L2_CID_IS_FACTORY_APERTURE_CONTROL:
 		ret = fimc_is_video_s_ctrl(file, vctx, ctrl);
 		if (ret) {
 			merr("fimc_is_video_s_ctrl is fail(%d)", device, ret);
@@ -803,7 +804,12 @@ static int fimc_is_ssx_video_g_ctrl(struct file *file, void *priv,
 	case VENDER_G_CTRL:
 		/* This s_ctrl is needed to skip, when the s_ctrl id was found. */
 		break;
-
+	case V4L2_CID_IS_G_SENSOR_FACTORY_RESULT:
+		if (test_bit(FIMC_IS_SENSOR_S_INPUT, &device->state))
+			ctrl->value = 1;
+		else
+			ctrl->value = 0;
+		break;
 	default:
 		ret = fimc_is_sensor_g_ctrl(device, ctrl);
 		if (ret) {
@@ -922,21 +928,6 @@ static int fimc_is_ssx_queue_setup(struct vb2_queue *vbq,
 	return ret;
 }
 
-static int fimc_is_ssx_buffer_prepare(struct vb2_buffer *vb)
-{
-	return fimc_is_queue_prepare(vb);
-}
-
-static inline void fimc_is_ssx_wait_prepare(struct vb2_queue *vbq)
-{
-	fimc_is_queue_wait_prepare(vbq);
-}
-
-static inline void fimc_is_ssx_wait_finish(struct vb2_queue *vbq)
-{
-	fimc_is_queue_wait_finish(vbq);
-}
-
 static int fimc_is_ssx_start_streaming(struct vb2_queue *vbq,
 	unsigned int count)
 {
@@ -1038,12 +1029,13 @@ static void fimc_is_ssx_buffer_finish(struct vb2_buffer *vb)
 
 const struct vb2_ops fimc_is_ssx_qops = {
 	.queue_setup		= fimc_is_ssx_queue_setup,
-	.buf_init		= fimc_is_buffer_init,
-	.buf_prepare		= fimc_is_ssx_buffer_prepare,
+	.buf_init		= fimc_is_queue_buffer_init,
+	.buf_cleanup		= fimc_is_queue_buffer_cleanup,
+	.buf_prepare		= fimc_is_queue_buffer_prepare,
 	.buf_queue		= fimc_is_ssx_buffer_queue,
 	.buf_finish		= fimc_is_ssx_buffer_finish,
-	.wait_prepare		= fimc_is_ssx_wait_prepare,
-	.wait_finish		= fimc_is_ssx_wait_finish,
+	.wait_prepare		= fimc_is_queue_wait_prepare,
+	.wait_finish		= fimc_is_queue_wait_finish,
 	.start_streaming	= fimc_is_ssx_start_streaming,
 	.stop_streaming		= fimc_is_ssx_stop_streaming,
 };

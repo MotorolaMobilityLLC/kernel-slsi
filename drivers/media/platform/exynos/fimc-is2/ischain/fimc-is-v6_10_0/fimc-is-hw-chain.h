@@ -27,7 +27,7 @@
 #define IORESOURCE_PAF_CORE	7
 #define IORESOURCE_PAF_RDMA	8
 
-#define FIMC_IS_RESERVE_LIB_SIZE	(0x01100000)	/* 17MB */
+#define FIMC_IS_RESERVE_LIB_SIZE	(0x00010000)	/* 64KB, not used */
 #define FIMC_IS_TAAISP_SIZE		(0x00500000)	/* 5MB */
 #define FIMC_IS_VRA_SIZE		(0x00800000)	/* 8MB */
 
@@ -36,6 +36,7 @@
 #define SYSREG_CAM_BASE_ADDR		0x14510000
 #define SYSREG_ISP_BASE_ADDR		0x14710000
 #define SYSREG_ISP_LHM_ATB_GLUE_ADDR		0x14710900
+#define ISP_AXI2ACEL_EXT_ISP_CTRL_ADDR	(SYSREG_ISP_BASE_ADDR + 0x0700)
 
 #define CSIS0_QCH_EN_ADDR		0x14400004
 #define CSIS1_QCH_EN_ADDR		0x14410004
@@ -64,6 +65,7 @@ enum taaisp_chain_id {
 	ID_TPU_0 = 4,
 	ID_TPU_1 = 5,
 	ID_DCP	 = 6,
+	ID_VPP	 = 7,	/* ID_3AA_2 */
 	ID_3AAISP_MAX
 };
 
@@ -80,7 +82,7 @@ enum hwip_interrupt_map {
 #define MCSC_INTR_MASK		(0x0030007C)
 #define USE_DMA_BUFFER_INDEX	(0) /* 0 ~ 7 */
 #define MCSC_PRECISION		(20)
-#define MCSC_POLY_RATIO_UP	(10)
+#define MCSC_POLY_RATIO_UP	(16)
 #define MCSC_POLY_RATIO_DOWN	(16)
 #define MCSC_POST_RATIO_DOWN	(16)
 /* #define MCSC_POST_WA */
@@ -92,8 +94,14 @@ enum hwip_interrupt_map {
 #define MAX_MCSC_DNR_HEIGHT		(4320)
 #define MAX_MCSC_DNR_NUM_BUFFER		(2)
 
+#ifdef USE_DNR_YIC_MODE_ALWAYS
+#define MCSC_DNR_WIDTH                  (((((MAX_MCSC_DNR_WIDTH) * 2 + 32) / 32) + ((MAX_MCSC_DNR_WIDTH) / 2)) * 2)
+#define MCSC_DNR_HEIGHT			(MAX_MCSC_DNR_HEIGHT / 2)
+#else
 #define MCSC_DNR_WIDTH			(MAX_MCSC_DNR_WIDTH)
 #define MCSC_DNR_HEIGHT			(MAX_MCSC_DNR_HEIGHT)
+#endif
+
 #define FIMC_IS_MCSC_DNR_SIZE		ALIGN(MCSC_DNR_WIDTH * MCSC_DNR_HEIGHT * 2 \
 						* MAX_MCSC_DNR_NUM_BUFFER, 16)
 
@@ -101,6 +109,11 @@ enum hwip_interrupt_map {
 #define MCSC_DNR_USE_INTERNAL_BUF	(true)
 #define MCSC_DNR_OUTPUT_INDEX		(0)
 #define MCSC_DNR_USE_TUNING		(true)
+#define MCSC_SETFILE_VERSION		(0x14027431)
+#define MCSC_DJAG_IN_VIDEO_MODE		(DEV_HW_MCSC0)
+#define MCSC_DJAG_IN_CAPTURE_MODE	(DEV_HW_MCSC1)
+#define MCSC_CAC_IN_VIDEO_MODE		(DEV_HW_MCSC0)
+#define MCSC_CAC_IN_CAPTURE_MODE	(DEV_HW_MCSC1)
 
 enum mc_scaler_interrupt_map {
 	INTR_MC_SCALER_FRAME_END		= 0,

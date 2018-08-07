@@ -37,7 +37,8 @@ struct fimc_is_device_ischain;
 #define CSIS_NOTIFY_FEND		4
 #define CSIS_NOTIFY_DMA_END		5
 #define CSIS_NOTIFY_DMA_END_VC_EMBEDDED	6
-#define CSIS_NOTIFY_LINE		7
+#define CSIS_NOTIFY_DMA_END_VC_MIPISTAT	7
+#define CSIS_NOTIFY_LINE		8
 
 #define SENSOR_MAX_ENUM			4 /* 4 modules(2 rear, 2 front) for same csis */
 #define ACTUATOR_MAX_ENUM		3
@@ -76,6 +77,9 @@ struct fimc_is_device_ischain;
 #define ACTUATOR_I2C_ADDR_SHIFT		8
 #define OIS_I2C_ADDR_MASK		0xFF0000
 #define OIS_I2C_ADDR_SHIFT		16
+
+#define SENSOR_OTP_PAGE			256
+#define SENSOR_OTP_PAGE_SIZE		64
 
 #define SENSOR_SIZE_WIDTH_MASK		0xFFFF0000
 #define SENSOR_SIZE_WIDTH_SHIFT		16
@@ -168,13 +172,7 @@ enum fimc_is_sensor_subdev_ioctl {
 	SENSOR_IOCTL_PATTERN_DISABLE,
 };
 
-#if defined(CONFIG_SECURE_CAMERA_USE)
-#define MC_SECURE_CAMERA_SYSREG_PROT    ((uint32_t)(0x82002132))
-#define MC_SECURE_CAMERA_INIT           ((uint32_t)(0x83000041))
-#define MC_SECURE_CAMERA_CFW_ENABLE     ((uint32_t)(0x83000042))
-#define MC_SECURE_CAMERA_PREPARE        ((uint32_t)(0x83000043))
-#define MC_SECURE_CAMERA_UNPREPARE      ((uint32_t)(0x83000044))
-
+#if defined(SECURE_CAMERA_IRIS)
 enum fimc_is_sensor_smc_state {
         FIMC_IS_SENSOR_SMC_INIT = 0,
         FIMC_IS_SENSOR_SMC_CFW_ENABLE,
@@ -213,7 +211,11 @@ enum fimc_is_ex_mode {
 	EX_NONE = 0,
 	EX_DRAMTEST = 1,
 	EX_LIVEFOCUS = 2,
-	EX_DUALFPS = 3,
+	EX_DUALFPS_960 = 3,
+	EX_DUALFPS_480 = 4,
+	EX_PDAF_OFF = 5,
+	EX_SSM_TEST = 6,
+	EX_3DHDR = 7,
 };
 
 struct fimc_is_sensor_cfg {
@@ -232,11 +234,12 @@ struct fimc_is_sensor_cfg {
 };
 
 
-struct fimc_is_sensor_vc_max_size {
+struct fimc_is_sensor_vc_extra_info {
 	int stat_type;
-	u32 width;
-	u32 height;
-	u32 element_size;
+	int sensor_mode;
+	u32 max_width;
+	u32 max_height;
+	u32 max_element;
 };
 
 struct fimc_is_sensor_ops {
@@ -282,8 +285,7 @@ struct fimc_is_module_enum {
 	u32						bitwidth;
 	u32						cfgs;
 	struct fimc_is_sensor_cfg			*cfg;
-	struct fimc_is_sensor_vc_max_size		vc_max_size[VC_BUF_DATA_TYPE_MAX];
-	u32						vc_max_buf;
+	struct fimc_is_sensor_vc_extra_info		vc_extra_info[VC_BUF_DATA_TYPE_MAX];
 	u32						vc_buffer_offset[CSI_VIRTUAL_CH_MAX];
 	struct i2c_client				*client;
 	struct sensor_open_extended			ext;
@@ -315,7 +317,8 @@ enum fimc_is_sensor_state {
 	FIMC_IS_SENSOR_SUBDEV_MODULE_INIT,	/* Deprecated: from device-sensor_v2 */
 	FIMC_IS_SENSOR_OTF_OUTPUT,
 	FIMC_IS_SENSOR_ITF_REGISTER,	/* to check whether sensor interfaces are registered */
-	FIMC_IS_SENSOR_WAIT_STREAMING
+	FIMC_IS_SENSOR_WAIT_STREAMING,
+	SENSOR_MODULE_GOT_INTO_TROUBLE,
 };
 
 enum sensor_subdev_internel_use {
@@ -323,6 +326,20 @@ enum sensor_subdev_internel_use {
 	SUBDEV_SSVC1_INTERNAL_USE,
 	SUBDEV_SSVC2_INTERNAL_USE,
 	SUBDEV_SSVC3_INTERNAL_USE,
+};
+
+/*
+ * Cal data status
+ * [0]: NO ERROR
+ * [1]: CRC FAIL
+ * [2]: LIMIT FAIL
+ * => Check AWB out of the ratio EEPROM/OTP data
+ */
+
+enum fimc_is_sensor_cal_status {
+	CRC_NO_ERROR = 0,
+	CRC_ERROR,
+	LIMIT_FAILURE,
 };
 
 struct fimc_is_device_sensor {
@@ -362,7 +379,7 @@ struct fimc_is_device_sensor {
 	spinlock_t					slock_state;
 	struct mutex					mlock_state;
 	atomic_t					group_open_cnt;
-#if defined(CONFIG_SECURE_CAMERA_USE)
+#if defined(SECURE_CAMERA_IRIS)
 	enum fimc_is_sensor_smc_state			smc_state;
 #endif
 
@@ -397,7 +414,6 @@ struct fimc_is_device_sensor {
 	bool						dtp_check;
 	struct timer_list				dtp_timer;
 	unsigned long					force_stop;
-	u32						dtp_del_flag;
 
 	/* for early buffer done */
 	u32						early_buf_done_mode;
@@ -411,7 +427,11 @@ struct fimc_is_device_sensor {
 	struct fimc_is_flash				*flash;
 	struct v4l2_subdev				*subdev_ois;
 	struct fimc_is_ois				*ois;
+	struct v4l2_subdev				*subdev_mcu;
+	struct fimc_is_mcu				*mcu;
 	struct v4l2_subdev				*subdev_aperture;
+	struct v4l2_subdev				*subdev_eeprom;
+	struct fimc_is_eeprom				*eeprom;
 	struct fimc_is_aperture				*aperture;
 	void						*private_data;
 	struct fimc_is_group				group_sensor;
@@ -434,6 +454,15 @@ struct fimc_is_device_sensor {
 	float					chk_wb[WB_GAIN_COUNT];
 	u32					init_wb_cnt;
 #endif
+
+#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
+	struct fimc_is_frame				*mode_chg_frame;
+#endif
+
+	bool					use_otp_cal;
+	const char				*otp_filename;
+	u32					cal_status[CAMERA_CRC_INDEX_MAX];
+	u8					otp_cal_buf[SENSOR_OTP_PAGE][SENSOR_OTP_PAGE_SIZE];
 };
 
 int fimc_is_sensor_open(struct fimc_is_device_sensor *device,

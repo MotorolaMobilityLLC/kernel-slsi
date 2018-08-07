@@ -550,20 +550,6 @@ static int fimc_is_scc_queue_setup(struct vb2_queue *vbq,
 
 	return ret;
 }
-static int fimc_is_scc_buffer_prepare(struct vb2_buffer *vb)
-{
-	return fimc_is_queue_prepare(vb);
-}
-
-static inline void fimc_is_scc_wait_prepare(struct vb2_queue *vbq)
-{
-	fimc_is_queue_wait_prepare(vbq);
-}
-
-static inline void fimc_is_scc_wait_finish(struct vb2_queue *vbq)
-{
-	fimc_is_queue_wait_finish(vbq);
-}
 
 static int fimc_is_scc_start_streaming(struct vb2_queue *vbq,
 	unsigned int count)
@@ -667,12 +653,13 @@ static void fimc_is_scc_buffer_finish(struct vb2_buffer *vb)
 
 const struct vb2_ops fimc_is_scc_qops = {
 	.queue_setup		= fimc_is_scc_queue_setup,
-	.buf_init		= fimc_is_buffer_init,
-	.buf_prepare		= fimc_is_scc_buffer_prepare,
+	.buf_init		= fimc_is_queue_buffer_init,
+	.buf_cleanup		= fimc_is_queue_buffer_cleanup,
+	.buf_prepare		= fimc_is_queue_buffer_prepare,
 	.buf_queue		= fimc_is_scc_buffer_queue,
 	.buf_finish		= fimc_is_scc_buffer_finish,
-	.wait_prepare		= fimc_is_scc_wait_prepare,
-	.wait_finish		= fimc_is_scc_wait_finish,
+	.wait_prepare		= fimc_is_queue_wait_prepare,
+	.wait_finish		= fimc_is_queue_wait_finish,
 	.start_streaming	= fimc_is_scc_start_streaming,
 	.stop_streaming		= fimc_is_scc_stop_streaming,
 };

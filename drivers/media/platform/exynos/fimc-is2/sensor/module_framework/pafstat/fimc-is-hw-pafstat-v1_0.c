@@ -13,6 +13,8 @@
 #include "fimc-is-hw-pafstat.h"
 #include "fimc-is-hw-pafstat-v1_0.h"
 #include "fimc-is-device-sensor.h"
+#include "fimc-is-core.h"
+#include <linux/clk.h>
 
 u32 pafstat_hw_g_reg_cnt(void)
 {
@@ -91,7 +93,7 @@ int pafstat_hw_s_sensor_mode(void __iomem *base_reg, u32 pd_mode)
 		break;
 	case PD_MSPD_TAIL:
 		sensor_mode = SENSOR_MODE_MSPD_TAIL;
-		enable = 0;
+		enable = 1;
 		break;
 	default:
 		warn("PD MODE(%d) is invalid", pd_mode);
@@ -144,13 +146,43 @@ void pafstat_hw_com_s_lic_mode(void __iomem *base_reg, u32 id,
 			&pafstat_fields[PAFSTAT_F_COM_LIC_BYPASS], 0); /* TODO */
 }
 
-void pafstat_hw_s_4ppc(void __iomem *base_reg, u32 mipi_speed)
+int pafstat_hw_s_4ppc(void __iomem *base_reg, u32 width, u32 height, u32 frame_rate,
+		u32 mipi_speed, u32 lanes, const char *conid)
 {
-	u32 pixel_mode = (mipi_speed > 2000 ? 1: 0); /* 0: 2PPC, 1: 4PPC */
+	struct clk *target;
+	u32 target_clk;
+	u32 need_clk_by_rate;
+	u32 need_clk_by_speed;
+	u32 pixel_mode;
 
-	info("[PAFSTAT] LIC_4PPC(%d)\n", pixel_mode);
+	target = clk_get(fimc_is_dev, conid);
+	if (IS_ERR_OR_NULL(target)) {
+		err("%s: can not get target: %s\n", __func__, conid);
+		return -ENODEV;
+	}
+
+	target_clk = clk_get_rate(target);
+	if (!target_clk) {
+		err("%s: clk value is zero: %s\n", __func__, conid);
+		return -ENODEV;
+	}
+
+	need_clk_by_rate = width * height * frame_rate;
+	need_clk_by_speed = mipi_speed * lanes / 10; /* TODO: only RAW10 format case */
+	info("need_clk (rate: %d)(speed: %d)\n", need_clk_by_rate, need_clk_by_speed);
+
+	/* 2ppc boundary check */
+	if (target_clk * 2 > need_clk_by_rate && target_clk * 2 > need_clk_by_speed) {
+		info("pafstat pixel mode is set 2ppc\n");
+		pixel_mode = 0; /* 2ppc mode */
+	} else {
+		info("pafste pixel mode is set 4ppc\n");
+		pixel_mode = 1; /* 4ppc mode */
+	}
 	fimc_is_hw_set_field(base_reg, &pafstat_regs[PAFSTAT_R_CTX_LIC_4PPC],
 			&pafstat_fields[PAFSTAT_F_CTX_LIC_4PPC], pixel_mode);
+
+	return 0;
 }
 
 void pafstat_hw_com_s_fro(void __iomem *base_reg, u32 fro_cnt)
@@ -261,13 +293,94 @@ int pafstat_hw_sw_reset(void __iomem *base_reg)
 	return 0;
 }
 
+void pafstat_hw_s_lbctrl(void __iomem *base_reg, u32 width, u32 height)
+{
+	u32 val = 0;
+	u32 pd_mode;
+
+	val = fimc_is_hw_set_field_value(val,
+			&pafstat_fields[PAFSTAT_F_LBCTRL_IMG_HEIGHT], height);
+	val = fimc_is_hw_set_field_value(val,
+			&pafstat_fields[PAFSTAT_F_LBCTRL_IMG_WIDTH], width);
+	fimc_is_hw_set_reg(base_reg,
+			&pafstat_regs[PAFSTAT_R_PAFSTAT_LBCTRL_IMAGE_SIZE], val);
+
+	pd_mode = fimc_is_hw_get_field(base_reg, &pafstat_regs[PAFSTAT_R_CTX_SENSOR_MODE],
+			&pafstat_fields[PAFSTAT_F_CTX_SENSOR_MODE]);
+
+	if (pd_mode == SENSOR_MODE_MSPD || pd_mode == SENSOR_MODE_MSPD_TAIL)
+		val = 1;
+	else
+		val = 0;
+
+	fimc_is_hw_set_reg(base_reg,
+			&pafstat_regs[PAFSTAT_R_PAFSTAT_LBCTRL_BPC_MODE], val);
+}
+
+int pafstat_hw_g_fwin_stat(void __iomem *base_reg, void *buf, size_t len)
+{
+	size_t fwin_stat_len = 6 * 112 * sizeof(u32);
+	u32 fwin_stat[6][112];
+	int f_idx, t;
+	u32 reg_idx;
+
+	if (len < fwin_stat_len) {
+		warn("the size of STAT0 buffer is too small: %d < %d",
+							len, fwin_stat_len);
+		fwin_stat_len = len;
+	}
+
+	for (f_idx = 0; f_idx < 6; f_idx++) {
+		for (t = 0; t < 112; t++) {
+			reg_idx = PAFSTAT_R_PAFSTAT_STAT_RESULT_OUT_FW0_ACCESS + 2 * f_idx;
+			fwin_stat[f_idx][t] = fimc_is_hw_get_reg(base_reg, &pafstat_regs[reg_idx]);
+		}
+	}
+
+	memcpy((void *)buf, &fwin_stat[0][0], fwin_stat_len);
+
+	return fwin_stat_len;
+}
+
+int pafstat_hw_com_s_med_line(void __iomem *base_reg)
+{
+	int tmp, med_line = 0, max_pos_end_y = 0;
+	int i;
+	int margin = 100;
+
+	/* MED interrupt used instead of stat_out_end.
+	 * Because, stat_out_end interrupt can't use because of H/W limitation.
+	 *
+	 * MED line = max STAT_FWIN_x_POS_END_Y + margin (x:0~5)
+	 */
+
+	for (i = 0; i < 6; i++) {
+		tmp = fimc_is_hw_get_reg(base_reg,
+				&pafstat_regs[PAFSTAT_R_PAFSTAT_STAT_FWIN_0_POS_END_Y + 4 * i]);
+
+		if (tmp > max_pos_end_y)
+			max_pos_end_y = tmp;
+	}
+
+	/* TODO: modify other pd mode support, 8 is for only MSPD */
+	med_line = max_pos_end_y * 8 + margin;
+
+	fimc_is_hw_set_reg(base_reg,
+			&pafstat_regs[PAFSTAT_R_CTX_LINE_NUM_MED_INT], med_line);
+
+	return med_line;
+}
+
 /* PAF RDMA */
-void fimc_is_hw_paf_oneshot_enable(void __iomem *base_reg, int enable)
+void fimc_is_hw_paf_oneshot_enable(void __iomem *base_reg)
 {
 	pafstat_hw_s_ready(base_reg, 1);
 
 	fimc_is_hw_set_field(base_reg, &pafstat_regs[PAFSTAT_R_CTX_ONESHOT],
 			&pafstat_fields[PAFSTAT_F_CTX_ONESHOT], 1);
+	fimc_is_hw_set_field(base_reg, &pafstat_regs[PAFSTAT_R_CTX_GLOBAL_ENABLE],
+			&pafstat_fields[PAFSTAT_F_CTX_GLOBAL_ENABLE], 0);
+
 }
 
 void fimc_is_hw_paf_common_config(void __iomem *base_reg_com, void __iomem *base_reg, u32 paf_ch, u32 width, u32 height)
@@ -323,6 +436,8 @@ void fimc_is_hw_paf_rdma_config(void __iomem *base_reg, u32 hw_format, u32 bitwi
 	case DMA_OUTPUT_FORMAT_BAYER:
 		if (bitwidth == DMA_OUTPUT_BIT_WIDTH_8BIT)
 			dma_format = PAFSTAT_RDMA_FORMAT_8BIT_PACK;
+		else if (bitwidth == DMA_OUTPUT_BIT_WIDTH_16BIT)
+			dma_format = PAFSTAT_RDMA_FORMAT_16BIT_PACK_LSB_ALIGN;
 		break;
 	default:
 		dma_format = PAFSTAT_RDMA_FORMAT_12BIT_PACK_LSB_ALIGN;
@@ -386,4 +501,3 @@ void fimc_is_hw_paf_sfr_dump(void __iomem *base_reg_com, void __iomem *base_reg)
 	info("PAFSTAT RDMA SFR DUMP : %p\n", base_reg);
 	fimc_is_hw_dump_regs(base_reg, pafstat_rdma_regs, PAFSTAT_RDMA_REG_CNT);
 }
-

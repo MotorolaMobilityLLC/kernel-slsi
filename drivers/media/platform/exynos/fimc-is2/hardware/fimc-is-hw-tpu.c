@@ -249,6 +249,46 @@ static void fimc_is_hw_tpu_check_param(struct tpu_param *param,
 	}
 }
 
+static void fimc_is_hw_tpu_update_param(struct tpu_param *param,
+	struct tpu_param_set *param_set, u32 lindex, u32 hindex)
+{
+	if ((lindex & LOWBIT_OF(PARAM_TPU_CONTROL))
+		|| (hindex & HIGHBIT_OF(PARAM_TPU_CONTROL))) {
+		memcpy(&param_set->control, &param->control,
+			sizeof(struct param_control));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_TPU_CONFIG))
+		|| (hindex & HIGHBIT_OF(PARAM_TPU_CONFIG))) {
+		memcpy(&param_set->config, &param->config,
+			sizeof(struct param_tpu_config));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_TPU_OTF_INPUT))
+		|| (hindex & HIGHBIT_OF(PARAM_TPU_OTF_INPUT))) {
+		memcpy(&param_set->otf_input, &param->otf_input,
+			sizeof(struct param_otf_input));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_TPU_DMA_INPUT))
+		|| (hindex & HIGHBIT_OF(PARAM_TPU_DMA_INPUT))) {
+		memcpy(&param_set->dma_input, &param->dma_input,
+			sizeof(struct param_dma_input));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_TPU_OTF_OUTPUT))
+		|| (hindex & HIGHBIT_OF(PARAM_TPU_OTF_OUTPUT))) {
+		memcpy(&param_set->otf_output, &param->otf_output,
+			sizeof(struct param_otf_output));
+	}
+
+	if ((lindex & LOWBIT_OF(PARAM_TPU_DMA_OUTPUT))
+		|| (hindex & HIGHBIT_OF(PARAM_TPU_DMA_OUTPUT))) {
+		memcpy(&param_set->dma_output, &param->dma_output,
+			sizeof(struct param_dma_output));
+	}
+}
+
 static int fimc_is_hw_tpu_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	ulong hw_map)
 {
@@ -316,7 +356,8 @@ static int fimc_is_hw_tpu_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	/* DMA settings */
 	if (param_set->dma_input.cmd != DMA_INPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->num_buffers; i++) {
-			param_set->input_dva[i] = frame->dvaddr_buffer[frame->cur_buf_index + i];
+			param_set->input_dva[i] = (typeof(*param_set->input_dva))
+				frame->dvaddr_buffer[frame->cur_buf_index + i];
 			if (!frame->dvaddr_buffer[i]) {
 				mserr_hw("[F:%d]dvaddr_buffer[%d] is zero",
 					frame->instance, hw_ip, frame->fcount, i);
@@ -404,46 +445,6 @@ static int fimc_is_hw_tpu_set_param(struct fimc_is_hw_ip *hw_ip, struct is_regio
 				lindex, hindex);
 
 	return ret;
-}
-
-void fimc_is_hw_tpu_update_param(struct tpu_param *param,
-	struct tpu_param_set *param_set, u32 lindex, u32 hindex)
-{
-	if ((lindex & LOWBIT_OF(PARAM_TPU_CONTROL))
-		|| (hindex & HIGHBIT_OF(PARAM_TPU_CONTROL))) {
-		memcpy(&param_set->control, &param->control,
-			sizeof(struct param_control));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_TPU_CONFIG))
-		|| (hindex & HIGHBIT_OF(PARAM_TPU_CONFIG))) {
-		memcpy(&param_set->config, &param->config,
-			sizeof(struct param_tpu_config));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_TPU_OTF_INPUT))
-		|| (hindex & HIGHBIT_OF(PARAM_TPU_OTF_INPUT))) {
-		memcpy(&param_set->otf_input, &param->otf_input,
-			sizeof(struct param_otf_input));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_TPU_DMA_INPUT))
-		|| (hindex & HIGHBIT_OF(PARAM_TPU_DMA_INPUT))) {
-		memcpy(&param_set->dma_input, &param->dma_input,
-			sizeof(struct param_dma_input));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_TPU_OTF_OUTPUT))
-		|| (hindex & HIGHBIT_OF(PARAM_TPU_OTF_OUTPUT))) {
-		memcpy(&param_set->otf_output, &param->otf_output,
-			sizeof(struct param_otf_output));
-	}
-
-	if ((lindex & LOWBIT_OF(PARAM_TPU_DMA_OUTPUT))
-		|| (hindex & HIGHBIT_OF(PARAM_TPU_DMA_OUTPUT))) {
-		memcpy(&param_set->dma_output, &param->dma_output,
-			sizeof(struct param_dma_output));
-	}
 }
 
 static int fimc_is_hw_tpu_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,

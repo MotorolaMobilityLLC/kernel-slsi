@@ -165,6 +165,11 @@ enum fimc_is_debug_target {
 	FIMC_IS_DEBUG_DCC3
 };
 
+enum fimc_is_secure_camera_type {
+	FIMC_IS_SECURE_CAMERA_IRIS = 1,
+	FIMC_IS_SECURE_CAMERA_FACE = 2,
+};
+
 enum fimc_is_front_input_entity {
 	FIMC_IS_FRONT_INPUT_NONE = 0,
 	FIMC_IS_FRONT_INPUT_SENSOR,
@@ -307,6 +312,8 @@ struct fimc_is_core {
 	struct fimc_is_video			video_31p;
 	struct fimc_is_video			video_31f;
 	struct fimc_is_video			video_31g;
+	struct fimc_is_video			video_32s;
+	struct fimc_is_video			video_32p;
 	struct fimc_is_video			video_i0s;
 	struct fimc_is_video			video_i0c;
 	struct fimc_is_video			video_i0p;
@@ -314,6 +321,7 @@ struct fimc_is_core {
 	struct fimc_is_video			video_i1c;
 	struct fimc_is_video			video_i1p;
 	struct fimc_is_video			video_me0c;
+	struct fimc_is_video			video_me1c;
 	struct fimc_is_video			video_scc;
 	struct fimc_is_video			video_scp;
 	struct fimc_is_video			video_d0s;
@@ -354,11 +362,17 @@ struct fimc_is_core {
 	struct mutex				secure_state_lock;
 	unsigned long				secure_state;
 #endif
+	ulong					secure_mem_info[2];	/* size, addr */
+	ulong					non_secure_mem_info[2];	/* size, addr */
+	u32					scenario;
 
 	unsigned long                           sensor_map;
 	struct fimc_is_dual_info		dual_info;
+	struct mutex				ois_mode_lock;
 };
 
+int fimc_is_secure_func(struct fimc_is_core *core,
+	struct fimc_is_device_sensor *device, u32 type, u32 scenario, ulong smc_cmd);
 struct fimc_is_device_sensor *fimc_is_get_sensor_device(struct fimc_is_core *core);
 int fimc_is_put_sensor_device(struct fimc_is_core *core);
 void fimc_is_print_frame_dva(struct fimc_is_subdev *subdev);

@@ -14,7 +14,8 @@
 #include "fimc-is-device-sensor-peri.h"
 
 enum pafstat_sfr_state {
-	PAFSTAT_SFR_UNAPPLIED = 0,
+	PAFSTAT_SFR_INIT = -1,
+	PAFSTAT_SFR_READY = 0,
 	PAFSTAT_SFR_APPLIED,
 	PAFSTAT_SFR_STATE_MAX
 };
@@ -59,9 +60,9 @@ enum pafstat_interrupt_map {
 
 /* INT_MASK 0: means enable interrupt, 1: means disable interrupt */
 #define PAFSTAT_INT_MASK	((1 << PAFSTAT_INT_TIMEOUT) \
-				| (1 << PAFSTAT_INT_FRAME_LINE) \
 				| (1 << PAFSTAT_INT_BAYER_FRAME_END) \
-				| (1 << PAFSTAT_INT_STAT_FRAME_END))
+				| (1 << PAFSTAT_INT_STAT_FRAME_END) \
+				| (1 << PAFSTAT_INT_FRAME_FAIL))
 
 u32 pafstat_hw_g_reg_cnt(void);
 void pafstat_hw_g_floating_size(u32 *width, u32 *height, u32 *element);
@@ -80,7 +81,8 @@ int pafstat_hw_s_sensor_mode(void __iomem *base_reg, u32 pd_mode);
 void pafstat_hw_com_s_lic_mode(void __iomem *base_reg, u32 id,
 	enum pafstat_lic_mode lic_mode, enum pafstat_input_path input);
 void pafstat_hw_com_s_fro(void __iomem *base_reg, u32 fro_cnt);
-void pafstat_hw_s_4ppc(void __iomem *base_reg, u32 mipi_speed);
+int pafstat_hw_s_4ppc(void __iomem *base_reg, u32 width, u32 height, u32 frame_rate,
+	u32 mipi_speed, u32 lanes, const char *conid);
 void pafstat_hw_s_img_size(void __iomem *base_reg, u32 width, u32 height);
 void pafstat_hw_s_pd_size(void __iomem *base_reg, u32 width, u32 height);
 void pafstat_hw_s_input_path(void __iomem *base_reg, enum pafstat_input_path input);
@@ -88,6 +90,9 @@ void pafstat_hw_com_init(void __iomem *base_reg);
 void pafstat_hw_s_timeout_cnt_clear(void __iomem *base_reg);
 void pafstat_hw_s_intr_mask_all_context(void);
 int pafstat_hw_sw_reset(void __iomem *base_reg);
+void pafstat_hw_s_lbctrl(void __iomem *base_reg, u32 width, u32 height);
+int pafstat_hw_g_fwin_stat(void __iomem *base_reg, void *buf, size_t len);
+int pafstat_hw_com_s_med_line(void __iomem *base_reg);
 
 /* PAF RDMA */
 void fimc_is_hw_paf_common_config(void __iomem *base_reg_com, void __iomem *base_reg,
@@ -97,6 +102,6 @@ void fimc_is_hw_paf_rdma_config(void __iomem *base_reg, u32 hw_format, u32 bitwi
 void fimc_is_hw_paf_rdma_set_addr(void __iomem *base_reg, u32 addr);
 void fimc_is_hw_paf_rdma_enable(void __iomem *base_reg_com, void __iomem *base_reg, u32 enable);
 void fimc_is_hw_paf_sfr_dump(void __iomem *base_reg_com, void __iomem *base_reg);
-void fimc_is_hw_paf_oneshot_enable(void __iomem *base_reg, int enable);
+void fimc_is_hw_paf_oneshot_enable(void __iomem *base_reg);
 
 #endif

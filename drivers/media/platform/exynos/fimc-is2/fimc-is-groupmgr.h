@@ -43,10 +43,11 @@
 #define GROUP_ID_SS3		15
 #define GROUP_ID_SS4		16
 #define GROUP_ID_SS5		17
-#define GROUP_ID_MAX		18
+#define GROUP_ID_3AA2		18	/* VPP */
+#define GROUP_ID_MAX		19
 #define GROUP_ID_PARM_MASK	((1 << (GROUP_ID_SS0)) - 1)
-#define GROUP_ID_SHIFT		(18)
-#define GROUP_ID_MASK		(0x3FFFF)
+#define GROUP_ID_SHIFT		(19)
+#define GROUP_ID_MASK		(0x7FFFF)
 #define GROUP_ID(id)		(1 << (id))
 
 #define GROUP_SLOT_SENSOR	0
@@ -186,6 +187,7 @@ struct fimc_is_group {
 	struct camera2_ctl		fast_ctl;
 #endif
 	struct camera2_aa_ctl		intent_ctl;
+	struct camera2_lens_ctl		lens_ctl;
 
 	u32				id; /* group id */
 	u32				slot; /* group slot */
@@ -291,9 +293,6 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 	struct fimc_is_group *group,
 	struct fimc_is_frame *frame,
 	u32 done_state);
-
-int fimc_is_gframe_cancel(struct fimc_is_groupmgr *groupmgr,
-	struct fimc_is_group *group, u32 target_fcount);
 
 unsigned long fimc_is_group_lock(struct fimc_is_group *group,
 		enum fimc_is_device_type device_type,

@@ -2487,6 +2487,13 @@ static int fimc_is_sensor_back_start(void *qdevice,
 		goto p_err;
 	}
 
+	ret = v4l2_subdev_call(device->subdev_module, video,
+				s_routing, 0, 0, 0);
+	if (ret) {
+		merr("failed at s_routing for module(%d)", device, ret);
+		goto p_err;
+	}
+
 	flite = (struct fimc_is_device_flite *)v4l2_get_subdevdata(subdev_flite);
 	if (!flite) {
 		merr("flite is NULL", device);

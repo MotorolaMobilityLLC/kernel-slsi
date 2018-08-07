@@ -64,20 +64,4 @@ struct fimc_is_interface_ischain {
 int fimc_is_interface_ischain_probe(struct fimc_is_interface_ischain *this,
 	struct fimc_is_hardware *hardware, struct fimc_is_resourcemgr *resourcemgr,
 	struct platform_device *pdev, ulong core_regs);
-int fimc_is_interface_paf_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
-int fimc_is_interface_3aa_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
-int fimc_is_interface_isp_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
-int fimc_is_interface_tpu_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
-int fimc_is_interface_scaler_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
-int fimc_is_interface_vra_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
-int fimc_is_interface_dcp_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
-int fimc_is_interface_srdz_probe(struct fimc_is_interface_ischain *itfc,
-	int hw_id, struct platform_device *pdev);
 #endif

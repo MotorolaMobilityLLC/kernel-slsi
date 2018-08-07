@@ -442,32 +442,32 @@ static void free_to_mblk(struct lib_mem_block *mblk, void *kva)
 	spin_unlock_irqrestore(&mblk->lock, flag);
 }
 
-void *fimc_is_alloc_heap(u32 size)
+void *fimc_is_alloc_dma_taaisp(u32 size)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
-	return alloc_from_mblk(&lib->mb_heap_rta, size);
+	return alloc_from_mblk(&lib->mb_dma_taaisp, size);
 }
 
-void fimc_is_free_heap(void *kva)
+void fimc_is_free_dma_taaisp(void *kva)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
-	return free_to_mblk(&lib->mb_heap_rta, kva);
+	return free_to_mblk(&lib->mb_dma_taaisp, kva);
 }
 
-void *fimc_is_alloc_dma(u32 size)
+void *fimc_is_alloc_dma_tnr(u32 size)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
-	return alloc_from_mblk(&lib->mb_dma, size);
+	return alloc_from_mblk(&lib->mb_dma_tnr, size);
 }
 
-void fimc_is_free_dma(void *kva)
+void fimc_is_free_dma_tnr(void *kva)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
-	return free_to_mblk(&lib->mb_dma, kva);
+	return free_to_mblk(&lib->mb_dma_tnr, kva);
 }
 
 void *fimc_is_alloc_vra(u32 size)
@@ -509,7 +509,7 @@ static void __maybe_unused *fimc_is_alloc_dma_pb(u32 size)
 		return NULL;
 	}
 
-	pb = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, size, 0);
+	pb = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, size, 0, NULL);
 	if (IS_ERR_OR_NULL(pb)) {
 		err_lib("failed to allocate a private buffer");
 		kfree(buf);
@@ -630,11 +630,18 @@ static int mblk_kva(struct lib_mem_block *mblk, u32 dva, ulong *kva)
 	return 0;
 }
 
-int fimc_is_dva_dma(ulong kva, u32 *dva)
+int fimc_is_dva_dma_taaisp(ulong kva, u32 *dva)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
-	return mblk_dva(&lib->mb_dma, kva, dva);
+	return mblk_dva(&lib->mb_dma_taaisp, kva, dva);
+}
+
+int fimc_is_dva_dma_tnr(ulong kva, u32 *dva)
+{
+	struct fimc_is_lib_support *lib = &gPtr_lib_support;
+
+	return mblk_dva(&lib->mb_dma_tnr, kva, dva);
 }
 
 int fimc_is_dva_vra(ulong kva, u32 *dva)
@@ -644,11 +651,18 @@ int fimc_is_dva_vra(ulong kva, u32 *dva)
 	return mblk_dva(&lib->mb_vra, kva, dva);
 }
 
-int fimc_is_kva_dma(u32 dva, ulong *kva)
+int fimc_is_kva_dma_taaisp(u32 dva, ulong *kva)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
-	return mblk_kva(&lib->mb_dma, dva, kva);
+	return mblk_kva(&lib->mb_dma_taaisp, dva, kva);
+}
+
+int fimc_is_kva_dma_tnr(u32 dva, ulong *kva)
+{
+	struct fimc_is_lib_support *lib = &gPtr_lib_support;
+
+	return mblk_kva(&lib->mb_dma_tnr, dva, kva);
 }
 
 int fimc_is_kva_vra(u32 dva, ulong *kva)
@@ -675,11 +689,18 @@ static void mblk_clean(struct lib_mem_block *mblk, ulong kva, u32 size)
 		DMA_TO_DEVICE);
 }
 
-void fimc_is_inv_dma(ulong kva, u32 size)
+void fimc_is_inv_dma_taaisp(ulong kva, u32 size)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
-	return mblk_inv(&lib->mb_dma, kva, size);
+	return mblk_inv(&lib->mb_dma_taaisp, kva, size);
+}
+
+void fimc_is_inv_dma_tnr(ulong kva, u32 size)
+{
+	struct fimc_is_lib_support *lib = &gPtr_lib_support;
+
+	return mblk_inv(&lib->mb_dma_tnr, kva, size);
 }
 
 void fimc_is_inv_vra(ulong kva, u32 size)
@@ -1052,6 +1073,7 @@ int fimc_is_timer_disable(void *timer)
 #define IRQ_ID_TPU0(x)		(x - (INTR_ID_BASE_OFFSET * 4))
 #define IRQ_ID_TPU1(x)		(x - (INTR_ID_BASE_OFFSET * 5))
 #define IRQ_ID_DCP(x)		(x - (INTR_ID_BASE_OFFSET * 6))
+#define IRQ_ID_VPP(x)		(x - (INTR_ID_BASE_OFFSET * 7))
 #define valid_3aaisp_intr_index(intr_index) \
 	(0 <= intr_index && intr_index < INTR_HWIP_MAX)
 
@@ -1083,6 +1105,9 @@ int fimc_is_register_interrupt(struct hwip_intr_handler info)
 		break;
 	case ID_DCP:
 		intr_index = IRQ_ID_DCP(info.id);
+		break;
+	case ID_VPP:
+		intr_index = IRQ_ID_VPP(info.id);
 		break;
 	default:
 		err_lib("invalid chaind_id(%d)", info.chain_id);
@@ -1145,6 +1170,9 @@ int fimc_is_unregister_interrupt(u32 intr_id, u32 chain_id)
 	case ID_DCP:
 		intr_index = IRQ_ID_DCP(intr_id);
 		break;
+	case ID_VPP:
+		intr_index = IRQ_ID_VPP(intr_id);
+		break;
 	default:
 		err_lib("invalid chaind_id(%d)", chain_id);
 		return 0;
@@ -1185,7 +1213,7 @@ static irqreturn_t  fimc_is_general_interrupt_isr (int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int fimc_is_register_general_interrupt(struct general_intr_handler info)
+static int fimc_is_register_general_interrupt(struct general_intr_handler info)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 	int ret = 0;
@@ -1225,7 +1253,7 @@ int fimc_is_register_general_interrupt(struct general_intr_handler info)
 	return ret;
 }
 
-int fimc_is_unregister_general_interrupt(struct general_intr_handler info)
+static int fimc_is_unregister_general_interrupt(struct general_intr_handler info)
 {
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
 
@@ -1459,6 +1487,9 @@ ulong get_reg_addr(u32 id)
 		break;
 	case ID_DCP:
 		hw_id = DEV_HW_DCP;
+		break;
+	case ID_VPP:
+		hw_id = DEV_HW_VPP;
 		break;
 	default:
 		warn_lib("get_reg_addr: invalid id(%d)\n", id);
@@ -1898,8 +1929,8 @@ void set_os_system_funcs(os_system_func_t *funcs)
 {
 	funcs[0] = (os_system_func_t)fimc_is_log_write_console;
 
-	funcs[1] = (os_system_func_t)fimc_is_alloc_heap;
-	funcs[2] = (os_system_func_t)fimc_is_free_heap;
+	funcs[1] = NULL;
+	funcs[2] = NULL;
 
 	funcs[3] = (os_system_func_t)fimc_is_assert;
 
@@ -1935,12 +1966,12 @@ void set_os_system_funcs(os_system_func_t *funcs)
 	funcs[28] = (os_system_func_t)fimc_is_get_usec;
 	funcs[29] = (os_system_func_t)fimc_is_log_write;
 
-	funcs[30] = (os_system_func_t)fimc_is_dva_dma;
-	funcs[31] = (os_system_func_t)fimc_is_kva_dma;
+	funcs[30] = (os_system_func_t)fimc_is_dva_dma_taaisp;
+	funcs[31] = (os_system_func_t)fimc_is_kva_dma_taaisp;
 	funcs[32] = (os_system_func_t)fimc_is_sleep;
-	funcs[33] = (os_system_func_t)fimc_is_inv_dma;
-	funcs[34] = (os_system_func_t)fimc_is_alloc_dma;
-	funcs[35] = (os_system_func_t)fimc_is_free_dma;
+	funcs[33] = (os_system_func_t)fimc_is_inv_dma_taaisp;
+	funcs[34] = (os_system_func_t)fimc_is_alloc_dma_taaisp;
+	funcs[35] = (os_system_func_t)fimc_is_free_dma_taaisp;
 
 	funcs[36] = (os_system_func_t)fimc_is_spin_lock_init;
 	funcs[37] = (os_system_func_t)fimc_is_spin_lock_finish;
@@ -1950,8 +1981,8 @@ void set_os_system_funcs(os_system_func_t *funcs)
 	funcs[41] = (os_system_func_t)fimc_is_spin_unlock_irq;
 	funcs[42] = (os_system_func_t)fimc_is_spin_lock_irqsave;
 	funcs[43] = (os_system_func_t)fimc_is_spin_unlock_irqrestore;
-	funcs[44] = (os_system_func_t)fimc_is_alloc_heap;
-	funcs[45] = (os_system_func_t)fimc_is_free_heap;
+	funcs[44] = NULL;
+	funcs[45] = NULL;
 	funcs[46] = (os_system_func_t)get_reg_addr;
 
 	funcs[47] = (os_system_func_t)fimc_is_lib_in_interrupt;
@@ -1959,6 +1990,12 @@ void set_os_system_funcs(os_system_func_t *funcs)
 
 	funcs[49] = (os_system_func_t)fimc_is_get_fd_data; /* for FDAE/FDAF */
 	funcs[50] = (os_system_func_t)fimc_is_get_hybrid_fd_data; /* for FDAE/FDAF */
+
+	funcs[60] = (os_system_func_t)fimc_is_dva_dma_tnr;
+	funcs[61] = (os_system_func_t)fimc_is_kva_dma_tnr;
+	funcs[62] = (os_system_func_t)fimc_is_inv_dma_tnr;
+	funcs[63] = (os_system_func_t)fimc_is_alloc_dma_tnr;
+	funcs[64] = (os_system_func_t)fimc_is_free_dma_tnr;
 
 	/* TODO: re-odering function table */
 	funcs[99] = (os_system_func_t)fimc_is_event_write;
@@ -2004,8 +2041,8 @@ void set_os_system_funcs_for_rta(os_system_func_t *funcs)
 #endif
 
 	/* Index 10 => memory : alloc/free */
-	funcs[10] = (os_system_func_t)fimc_is_alloc_heap;
-	funcs[11] = (os_system_func_t)fimc_is_free_heap;
+	funcs[10] = NULL;
+	funcs[11] = NULL;
 
 	/* Index 20 => memory : misc */
 
@@ -2498,6 +2535,9 @@ int fimc_is_load_bin(void)
 {
 	int ret = 0;
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
+	struct fimc_is_core *core;
+
+	core = (struct fimc_is_core *)platform_get_drvdata(lib->pdev);
 
 	info_lib("binary load start\n");
 
@@ -2574,8 +2614,18 @@ int fimc_is_load_bin(void)
 
 	lib->binary_load_flg = true;
 
-	mblk_init(&lib->mb_heap_rta, lib->minfo->pb_heap_rta, MT_TYPE_MB_HEAP, "HEAP");
-	mblk_init(&lib->mb_dma, lib->minfo->pb_taaisp, MT_TYPE_MB_DMA, "DMA");
+#if defined(SECURE_CAMERA_FACE)
+	if (core && core->scenario == FIMC_IS_SCENARIO_SECURE)
+		mblk_init(&lib->mb_dma_taaisp, lib->minfo->pb_taaisp_s,
+				MT_TYPE_MB_DMA_TAAISP, "DMA_TAAISP_S");
+	else
+#endif
+		mblk_init(&lib->mb_dma_taaisp, lib->minfo->pb_taaisp,
+				MT_TYPE_MB_DMA_TAAISP, "DMA_TAAISP");
+
+#if defined(ENABLE_TNR)
+	mblk_init(&lib->mb_dma_tnr, lib->minfo->pb_tnr, MT_TYPE_MB_DMA_TNR, "DMA_TNR");
+#endif
 	mblk_init(&lib->mb_vra, lib->minfo->pb_vra, MT_TYPE_MB_VRA, "VRA");
 
 	spin_lock_init(&lib->slock_nmb);

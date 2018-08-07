@@ -60,6 +60,22 @@ config CAMERA_ACT_DW9807_OBJ
         help
           Use to build DW9807 driver.
 
+config CAMERA_ACT_DW9823_OBJ
+        bool "Use actuator DW9823"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_ACT_SELECT
+        default n
+        help
+          Use to build DW9823 driver.
+
+config CAMERA_ACT_DW9839_OBJ
+        bool "Use actuator DW9839"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_ACT_SELECT
+        default n
+        help
+          Use to build DW9839 driver.
+
 config CAMERA_ACT_AK7372_OBJ
         bool "Use actuator AK7372"
 	depends on USE_DIRECT_IS_CONTROL
@@ -91,3 +107,11 @@ config CAMERA_ACT_ZC533_OBJ
         default n
         help
           Use to build ZC533 driver.
+
+config CAMERA_ACT_ZC569_OBJ
+        bool "Use actuator ZC569"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_ACT_SELECT
+        default n
+        help
+          Use to build ZC569 driver.

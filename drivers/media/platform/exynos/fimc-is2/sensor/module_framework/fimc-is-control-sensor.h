@@ -13,6 +13,8 @@
 
 #include <linux/workqueue.h>
 
+#include "fimc-is-interface-sensor.h"
+
 #define NUM_OF_FRAME_30FPS	(1)
 #define NUM_OF_FRAME_60FPS	(2)
 #define NUM_OF_FRAME_120FPS	(4)
@@ -22,17 +24,10 @@
 #define CAM2P0_UCTL_LIST_SIZE   (NUM_OF_FRAME_480FPS + 1)	/* This value must be larger than NUM_OF_FRAME */
 #define EXPECT_DM_NUM		(CAM2P0_UCTL_LIST_SIZE)
 
-struct gain_setting {
-	u32 sensitivity;
-	u32 long_again;
-	u32 short_again;
-	u32 long_dgain;
-	u32 short_dgain;
-};
-
 /* Helper function */
 u64 fimc_is_sensor_convert_us_to_ns(u32 usec);
 u32 fimc_is_sensor_convert_ns_to_us(u64 nsec);
+u32 fimc_is_sensor_calculate_tgain(u32 dgain, u32 again);
 
 struct fimc_is_device_sensor;
 void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device);
@@ -43,6 +38,13 @@ void fimc_is_sensor_ois_stop(struct fimc_is_device_sensor *device);
 #endif
 int fimc_is_sensor_ctl_adjust_sync(struct fimc_is_device_sensor *device, u32 adjust_sync);
 int fimc_is_sensor_ctl_low_noise_mode(struct fimc_is_device_sensor *device, u32 mode);
+
+void fimc_is_sensor_ctl_update_exposure_to_uctl(camera2_sensor_uctl_t *sensor_uctl,
+	enum fimc_is_exposure_gain_count num_data,
+	u32 *exposure);
+void fimc_is_sensor_ctl_update_gain_to_uctl(camera2_sensor_uctl_t *sensor_uctl,
+	enum fimc_is_exposure_gain_count num_data,
+	u32 *analog_gain, u32 *digital_gain);
 
 /* Actuator funtion */
 int fimc_is_actuator_ctl_set_position(struct fimc_is_device_sensor *device, u32 position);

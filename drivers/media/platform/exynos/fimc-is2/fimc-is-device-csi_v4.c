@@ -119,8 +119,12 @@ static inline void csi_s_config_dma(struct fimc_is_device_csi *csi, struct fimc_
 			continue;
 
 		if (test_bit(FIMC_IS_SUBDEV_INTERNAL_USE, &dma_subdev->state)) {
+			if ((csi->sensor_cfg->output[vc].type == VC_NOTHING) ||
+				(csi->sensor_cfg->output[vc].type == VC_PRIVATE))
+				continue;
+
 			/* set from internal subdev setting */
-			fmt.pixelformat = dma_subdev->pixelformat;
+			fmt.pixelformat = V4L2_PIX_FMT_PRIV_MAGIC;
 			framecfg.format = &fmt;
 			framecfg.width = dma_subdev->output.width;
 		} else {
@@ -135,7 +139,13 @@ static inline void csi_s_config_dma(struct fimc_is_device_csi *csi, struct fimc_
 		}
 
 		csi_hw_s_config_dma(csi->vc_reg[csi->scm][vc], vc, &framecfg, vci_config[vc].hwformat);
-		csi_hw_s_config_dma_cmn(csi->cmn_reg[csi->scm][vc], vc, vci_config[vc].hwformat);
+
+		/* vc: determine for vc0 img format for otf path
+		 * dma_subdev->vc_ch[csi->scm]: actual channel at each vc used,
+		 *                              it need to csis_wdma input path select(ch0 or ch1)
+		 */
+		csi_hw_s_config_dma_cmn(csi->cmn_reg[csi->scm][vc],
+				vc, dma_subdev->vc_ch[csi->scm], vci_config[vc].hwformat);
 	}
 }
 
@@ -143,14 +153,16 @@ static inline void csi_s_buf_addr(struct fimc_is_device_csi *csi, struct fimc_is
 {
 	FIMC_BUG_VOID(!frame);
 
-	csi_hw_s_dma_addr(csi->vc_reg[csi->scm][vc], vc, index, frame->dvaddr_buffer[0]);
+	csi_hw_s_dma_addr(csi->vc_reg[csi->scm][vc], vc, index,
+				(u32)frame->dvaddr_buffer[0]);
 }
 
 static inline void csi_s_multibuf_addr(struct fimc_is_device_csi *csi, struct fimc_is_frame *frame, u32 index, u32 vc)
 {
 	FIMC_BUG_VOID(!frame);
 
-	csi_hw_s_multibuf_dma_addr(csi->vc_reg[csi->scm][vc], vc, index, frame->dvaddr_buffer[0]);
+	csi_hw_s_multibuf_dma_addr(csi->vc_reg[csi->scm][vc], vc, index,
+				(u32)frame->dvaddr_buffer[0]);
 }
 
 static inline void csi_s_output_dma(struct fimc_is_device_csi *csi, u32 vc, bool enable)
@@ -221,7 +233,8 @@ static void csis_s_vc_dma_multibuf(struct fimc_is_device_csi *csi)
 		if (!dma_subdev
 			|| (!test_bit(FIMC_IS_SUBDEV_INTERNAL_USE, &dma_subdev->state))
 			|| (!test_bit(FIMC_IS_SUBDEV_START, &dma_subdev->state))
-			|| (csi->sensor_cfg->output[vc].type == VC_NOTHING))
+			|| (csi->sensor_cfg->output[vc].type == VC_NOTHING)
+			|| (csi->sensor_cfg->output[vc].type == VC_PRIVATE))
 			continue;
 
 		framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
@@ -250,6 +263,7 @@ static void csis_disable_all_vc_dma_buf(struct fimc_is_device_csi *csi)
 	u32 vc;
 	int cur_dma_enable;
 	struct fimc_is_framemgr *framemgr;
+	struct fimc_is_frame *frame;
 	struct fimc_is_subdev *dma_subdev;
 
 	/* default disable dma setting for several virtual ch 0 ~ 3 */
@@ -271,6 +285,18 @@ static void csis_disable_all_vc_dma_buf(struct fimc_is_device_csi *csi)
 		framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
 		framemgr_e_barrier(framemgr, 0);
 		if (likely(framemgr)) {
+			/* process to NDONE if set to bad frame */
+			if (framemgr->queued_count[FS_PROCESS]) {
+				frame = peek_frame(framemgr, FS_PROCESS);
+
+				if (frame->result) {
+					mserr("[F%d] NDONE(%d, E%X)\n", dma_subdev, dma_subdev,
+						frame->fcount, frame->index, frame->result);
+					trans_frame(framemgr, frame, FS_COMPLETE);
+					CALL_VOPS(dma_subdev->vctx, done, frame->index, VB2_BUF_STATE_ERROR);
+				}
+			}
+
 			/*
 			 * W/A: DMA should be on forcely at invalid frame state.
 			 * The invalid state indicates that there is process frame at DMA off.
@@ -361,7 +387,8 @@ static void csis_flush_vc_multibuf(struct fimc_is_device_csi *csi, u32 vc)
 	if (!subdev
 		|| !test_bit(FIMC_IS_SUBDEV_START, &subdev->state)
 		|| !test_bit(FIMC_IS_SUBDEV_INTERNAL_USE, &subdev->state)
-		|| (csi->sensor_cfg->output[vc].type == VC_NOTHING))
+		|| (csi->sensor_cfg->output[vc].type == VC_NOTHING)
+		|| (csi->sensor_cfg->output[vc].type == VC_PRIVATE))
 		return;
 
 	framemgr = GET_SUBDEV_FRAMEMGR(subdev);
@@ -620,11 +647,25 @@ static void csi_dma_tag(struct v4l2_subdev *subdev,
 				CALL_BUFOP(dma_subdev->pb_subdev[frame->index], sync_for_cpu,
 					dma_subdev->pb_subdev[frame->index],
 					0,
-					dma_subdev->output.width * dma_subdev->output.height * 2,
+					dma_subdev->pb_subdev[frame->index]->size,
 					DMA_FROM_DEVICE);
 			}
 
 			data_type = CSIS_NOTIFY_DMA_END_VC_EMBEDDED;
+
+			mdbgd_front("%s, %s[%d] = %d\n", csi, __func__, "VC_EMBEDDED",
+							frameptr, frame->fcount);
+
+		} else if (csi->sensor_cfg->output[vc].type == VC_MIPISTAT) {
+			u32 frameptr = csi_hw_g_frameptr(csi->vc_reg[csi->scm][vc], vc);
+
+			frameptr = frameptr % framemgr->num_frames;
+			frame = &framemgr->frames[frameptr];
+
+			data_type = CSIS_NOTIFY_DMA_END_VC_MIPISTAT;
+
+			mdbgd_front("%s, %s[%d] = %d\n", csi, __func__, "VC_MIPISTAT",
+							frameptr, frame->fcount);
 		} else {
 			return;
 		}
@@ -1082,8 +1123,15 @@ static irqreturn_t fimc_is_isr_csi_dma(int irq, void *data)
 	if (dma_frame_end) {
 #if !defined(SUPPORTED_EARLYBUF_DONE_HW)
 		/* VC0 */
-		if (csi->dma_subdev[CSI_VIRTUAL_CH_0] && (dma_frame_end & (1 << CSI_VIRTUAL_CH_0)))
-			csi_wq_func_schedule(csi, &csi->wq_csis_dma[CSI_VIRTUAL_CH_0]);
+		if (csi->dma_subdev[CSI_VIRTUAL_CH_0] && (dma_frame_end & (1 << CSI_VIRTUAL_CH_0))) {
+			if (IS_ENABLED(CHAIN_USE_VC_TASKLET)) {
+				csi_wq_func_schedule(csi, &csi->wq_csis_dma[CSI_VIRTUAL_CH_0]);
+			} else {
+				framemgr = csis_get_vc_framemgr(csi, CSI_VIRTUAL_CH_0);
+				if (framemgr)
+					csi_dma_tag(*csi->subdev, csi, framemgr, CSI_VIRTUAL_CH_0);
+			}
+		}
 #endif
 		for (vc = CSI_VIRTUAL_CH_1; vc < CSI_VIRTUAL_CH_MAX; vc++) {
 			if ((dma_frame_end & (1 << vc)) && csi->dma_subdev[vc]) {
@@ -1222,34 +1270,15 @@ static int csi_s_power(struct v4l2_subdev *subdev,
 		return -EINVAL;
 	}
 
-	if (on) {
+	if (on)
 		ret = phy_power_on(csi->phy);
-	} else {
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-		if (csi->phy->power_count > 0)
-#endif
-		{
-			ret = phy_power_off(csi->phy);
-		}
-	}
+	else
+		ret = phy_power_off(csi->phy);
 
 	if (ret) {
 		err("fail to csi%d power on/off(%d)", csi->instance, on);
 		goto p_err;
 	}
-
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	if (csi->extra_phy) {
-		if (on && (csi->extra_phy->power_count == 0))
-			ret = phy_power_on(csi->extra_phy);
-		else if (!on && (csi->extra_phy->power_count == 1))
-			ret = phy_power_off(csi->extra_phy);
-
-		if (ret)
-			warn("fail to extra csi%d power on/off(%d)",
-						csi->instance, on);
-	}
-#endif
 
 p_err:
 	mdbgd_front("%s(%d, %d)\n", csi, __func__, on, ret);
@@ -1540,6 +1569,10 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 
 	/* if sensor's output otf was enabled, enable line irq */
 	if (!test_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->state)) {
+		/* update line_fcount for sensor_notify_by_line */
+		device->line_fcount = atomic_read(&csi->fcount) + 1;
+		minfo("[CSI] start line irq cnt(%d)\n", csi, device->line_fcount);
+
 		csi_hw_s_control(base_reg, CSIS_CTRL_LINE_RATIO, csi->image.window.height * CSI_LINE_RATIO / 20);
 		csi_hw_s_control(base_reg, CSIS_CTRL_ENABLE_LINE_IRQ, 0x1);
 		tasklet_init(&csi->tasklet_csis_line, tasklet_csis_line, (unsigned long)subdev);
@@ -1552,7 +1585,7 @@ static int csi_stream_on(struct v4l2_subdev *subdev,
 		ret = get_dma(device, &dma_ch);
 		if (ret)
 			goto err_get_dma;
-		/* FIXME: 10KB 10KB 5KB -> 36KB, 36KB, 8KB, 16KB */
+		/* SRAM0: 10KB  SRAM1: 10KB */
 		csi_hw_s_dma_common_dynamic(csi_dma->base_reg, 10 * SZ_1K, dma_ch);
 #if defined(ENABLE_PDP_STAT_DMA)
 		csi_hw_s_dma_common_dynamic(csi_dma->base_reg_stat, 5 * SZ_1K, dma_ch);
@@ -1846,6 +1879,9 @@ static int csi_s_buffer(struct v4l2_subdev *subdev, void *buf, unsigned int *siz
 	if (csi_hw_g_output_dma_enable(csi->vc_reg[csi->scm][vc], vc)) {
 		err("[VC%d][F%d] already DMA enabled!!", vc, frame->fcount);
 		ret = -EINVAL;
+
+		frame->result = IS_SHOT_BAD_FRAME;
+		trans_frame(framemgr, frame, FS_PROCESS);
 	} else {
 		csi_s_buf_addr(csi, frame, 0, vc);
 		csi_s_output_dma(csi, vc, true);
@@ -1976,12 +2012,6 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 		ret = PTR_ERR(csi->phy);
 		goto err_get_phy_dev;
 	}
-
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	csi->extra_phy = devm_phy_get(dev, "extra_csis_dphy");
-	if (IS_ERR(csi->extra_phy))
-		csi->extra_phy = NULL;
-#endif
 
 	irq_name = __getname();
 	if (unlikely(!irq_name)) {
@@ -2121,9 +2151,6 @@ err_get_vc_dma_res:
 	__putname(irq_name);
 
 err_alloc_irq_name:
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	devm_phy_put(dev, csi->extra_phy);
-#endif
 	devm_phy_put(dev, csi->phy);
 
 err_get_phy_dev:

@@ -97,6 +97,7 @@ struct fimc_is_subdev * video2subdev(enum fimc_is_subdev_device_type device_type
 		subdev = &ischain->ixp;
 		break;
 	case FIMC_IS_VIDEO_ME0C_NUM:
+	case FIMC_IS_VIDEO_ME1C_NUM:
 		subdev = &ischain->mexc;
 		break;
 	case FIMC_IS_VIDEO_D0S_NUM:
@@ -1219,9 +1220,9 @@ vra_pass:
 static int fimc_is_subdev_internal_alloc_buffer(struct fimc_is_subdev *subdev,
 	struct fimc_is_mem *mem)
 {
-	int ret = 0;
+	int ret;
 	int i;
-	int buffer_size = 0;
+	int buffer_size;
 	struct fimc_is_frame *frame;
 
 	FIMC_BUG(!subdev);
@@ -1232,28 +1233,27 @@ static int fimc_is_subdev_internal_alloc_buffer(struct fimc_is_subdev *subdev,
 	}
 
 	for (i = 0; i < subdev->buffer_num; i++) {
-		/* TODO : buffer alloc format change */
-		buffer_size = ALIGN(subdev->output.width * 2, 16) * subdev->output.height;
+		buffer_size = subdev->output.width * subdev->output.height
+					* subdev->bytes_per_pixel;
 
 		if (buffer_size <= 0) {
 			err("wrong internal subdev buffer size(%d)", buffer_size);
 			return -EINVAL;
 		}
 
-		subdev->pb_subdev[i] = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, buffer_size, 16);
+		subdev->pb_subdev[i] = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, buffer_size, 0, NULL);
 		if (IS_ERR_OR_NULL(subdev->pb_subdev[i])) {
 			err("failed to allocate buffer for internal subdev");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_allocate_pb_subdev;
 		}
-
-		subdev->dvaddr_subdev[i] = CALL_BUFOP(subdev->pb_subdev[i], dvaddr, subdev->pb_subdev[i]);
-		subdev->kvaddr_subdev[i] = CALL_BUFOP(subdev->pb_subdev[i], kvaddr, subdev->pb_subdev[i]);
 	}
 
 	ret = frame_manager_open(&subdev->internal_framemgr, subdev->buffer_num);
 	if (ret) {
 		err("fimc_is_frame_open is fail(%d)", ret);
-		goto p_err;
+		ret = -EINVAL;
+		goto err_open_framemgr;
 	}
 
 	for (i = 0; i < subdev->buffer_num; i++) {
@@ -1262,8 +1262,8 @@ static int fimc_is_subdev_internal_alloc_buffer(struct fimc_is_subdev *subdev,
 
 		/* TODO : support multi-plane */
 		frame->planes = 1;
-		frame->dvaddr_buffer[0] = subdev->dvaddr_subdev[i];
-		frame->kvaddr_buffer[0] = subdev->kvaddr_subdev[i];
+		frame->dvaddr_buffer[0] = CALL_BUFOP(subdev->pb_subdev[i], dvaddr, subdev->pb_subdev[i]);
+		frame->kvaddr_buffer[0] = CALL_BUFOP(subdev->pb_subdev[i], kvaddr, subdev->pb_subdev[i]);
 
 		set_bit(FRAME_MEM_INIT, &frame->mem_state);
 	}
@@ -1271,7 +1271,13 @@ static int fimc_is_subdev_internal_alloc_buffer(struct fimc_is_subdev *subdev,
 	info("[%d] %s (subdev_id: %d, size: %d, buffernum: %d)",
 		subdev->instance, __func__, subdev->id, buffer_size, subdev->buffer_num);
 
-p_err:
+	return 0;
+
+err_open_framemgr:
+err_allocate_pb_subdev:
+	while (i-- > 0)
+		CALL_VOID_BUFOP(subdev->pb_subdev[i], free, subdev->pb_subdev[i]);
+
 	return ret;
 };
 
@@ -1389,8 +1395,6 @@ static int fimc_is_sensor_subdev_internal_free_buffer(struct fimc_is_device_sens
 			ret = -EINVAL;
 			goto p_err;
 		}
-
-		//csi->dma_subdev[i] = NULL;
 	}
 
 p_err:
@@ -1679,22 +1683,24 @@ static int fimc_is_sensor_subdev_internal_s_format(struct fimc_is_device_sensor 
 		/* VC type dependent value setting */
 		switch (vci_cfg->type) {
 		case VC_TAILPDAF:
-			subdev->pixelformat = V4L2_PIX_FMT_SBGGR16;
-			subdev->buffer_num = 8;
+			subdev->buffer_num = SUBDEV_INTERNAL_BUF_MAX;
 			subdev->vc_buffer_offset = module->vc_buffer_offset[ch];
 			snprintf(subdev->data_type, sizeof(subdev->data_type), "VC_TAILPDAF");
 			break;
 		case VC_MIPISTAT:
-			subdev->pixelformat = V4L2_PIX_FMT_SBGGR16;
-			subdev->buffer_num = 8;
+			subdev->buffer_num = SUBDEV_INTERNAL_BUF_MAX;
 			subdev->vc_buffer_offset = module->vc_buffer_offset[ch];
 			snprintf(subdev->data_type, sizeof(subdev->data_type), "VC_MIPISTAT");
 			break;
 		case VC_EMBEDDED:
-			subdev->pixelformat = V4L2_PIX_FMT_SBGGR16;
-			subdev->buffer_num = 8;
+			subdev->buffer_num = SUBDEV_INTERNAL_BUF_MAX;
 			subdev->vc_buffer_offset = module->vc_buffer_offset[ch];
 			snprintf(subdev->data_type, sizeof(subdev->data_type), "VC_EMBEDDED");
+			break;
+		case VC_PRIVATE:
+			subdev->buffer_num = SUBDEV_INTERNAL_BUF_MAX;
+			subdev->vc_buffer_offset = module->vc_buffer_offset[ch];
+			snprintf(subdev->data_type, sizeof(subdev->data_type), "VC_PRIVATE");
 			break;
 		default:
 			err("wrong internal vc ch(%d) type(%d)", ch, vci_cfg->type);
@@ -1715,8 +1721,10 @@ static int fimc_is_sensor_subdev_internal_s_format(struct fimc_is_device_sensor 
 		subdev->output.crop.w = subdev->output.width;
 		subdev->output.crop.h = subdev->output.height;
 
-		/* TODO: remove this */
-		//csi->dma_subdev[ch] = subdev;
+		if (vci_cfg->type == VC_TAILPDAF)
+			subdev->bytes_per_pixel = 2;
+		else
+			subdev->bytes_per_pixel = 1;
 
 		set_bit(FIMC_IS_SUBDEV_INTERNAL_S_FMT, &subdev->state);
 	}

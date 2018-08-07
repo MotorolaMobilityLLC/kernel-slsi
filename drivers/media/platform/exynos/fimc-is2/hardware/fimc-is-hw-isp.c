@@ -74,6 +74,7 @@ static int __nocfi fimc_is_hw_isp_open(struct fimc_is_hw_ip *hw_ip, u32 instance
 err_chain_create:
 err_lib_func:
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 err_alloc:
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
@@ -143,6 +144,7 @@ static int fimc_is_hw_isp_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 
 	fimc_is_lib_isp_chain_destroy(hw_ip, &hw_isp->lib[instance], instance);
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
 
@@ -227,6 +229,9 @@ int fimc_is_hw_isp_set_yuv_range(struct fimc_is_hw_ip *hw_ip,
 	int hw_slot = 0;
 	int yuv_range = 0; /* 0: FULL, 1: NARROW */
 
+#if !defined(USE_YUV_RANGE_BY_ISP)
+	return 0;
+#endif
 	if (test_bit(DEV_HW_MCSC0, &hw_map))
 		hw_id = DEV_HW_MCSC0;
 	else if (test_bit(DEV_HW_MCSC1, &hw_map))
@@ -274,6 +279,45 @@ int fimc_is_hw_isp_set_yuv_range(struct fimc_is_hw_ip *hw_ip,
 		param_set->dma_output_yuv.format);
 
 	return ret;
+}
+
+static void fimc_is_hw_isp_update_param(struct fimc_is_hw_ip *hw_ip, struct is_region *region,
+	struct isp_param_set *param_set, u32 lindex, u32 hindex, u32 instance)
+{
+	struct isp_param *param;
+
+	FIMC_BUG_VOID(!region);
+	FIMC_BUG_VOID(!param_set);
+
+	param = &region->parameter.isp;
+	param_set->instance_id = instance;
+
+	/* check input */
+	if (lindex & LOWBIT_OF(PARAM_ISP_OTF_INPUT)) {
+		memcpy(&param_set->otf_input, &param->otf_input,
+			sizeof(struct param_otf_input));
+	}
+
+	if (lindex & LOWBIT_OF(PARAM_ISP_VDMA1_INPUT)) {
+		memcpy(&param_set->dma_input, &param->vdma1_input,
+			sizeof(struct param_dma_input));
+	}
+
+	/* check output*/
+	if (lindex & LOWBIT_OF(PARAM_ISP_OTF_OUTPUT)) {
+		memcpy(&param_set->otf_output, &param->otf_output,
+			sizeof(struct param_otf_output));
+	}
+
+	if (lindex & LOWBIT_OF(PARAM_ISP_VDMA4_OUTPUT)) {
+		memcpy(&param_set->dma_output_chunk, &param->vdma4_output,
+			sizeof(struct param_dma_output));
+	}
+
+	if (lindex & LOWBIT_OF(PARAM_ISP_VDMA5_OUTPUT)) {
+		memcpy(&param_set->dma_output_yuv, &param->vdma5_output,
+			sizeof(struct param_dma_output));
+	}
 }
 
 static int fimc_is_hw_isp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
@@ -347,7 +391,8 @@ static int fimc_is_hw_isp_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	/* DMA settings */
 	if (param_set->dma_input.cmd != DMA_INPUT_COMMAND_DISABLE) {
 		for (i = 0; i < frame->num_buffers; i++) {
-			param_set->input_dva[i] = frame->dvaddr_buffer[frame->cur_buf_index + i];
+			param_set->input_dva[i] = (typeof(*param_set->input_dva))
+				frame->dvaddr_buffer[frame->cur_buf_index + i];
 			if (frame->dvaddr_buffer[i] == 0) {
 				msinfo_hw("[F:%d]dvaddr_buffer[%d] is zero",
 					frame->instance, hw_ip, frame->fcount, i);
@@ -426,13 +471,13 @@ config:
 			   This is because DDK calculates the position of the cropped image
 			   from the 3AA size. */
 			fimc_is_hw_3aa_update_param(hw_ip,
-				region, param_set->taa_param,
+				&region->parameter, param_set->taa_param,
 				lindex, hindex, frame->instance);
 		}
 	}
 
 	ret = fimc_is_hw_isp_set_yuv_range(hw_ip, param_set, frame->fcount, hw_map);
-	fimc_is_lib_isp_shot(hw_ip, &hw_isp->lib[frame->instance], param_set, frame->shot);
+	ret |= fimc_is_lib_isp_shot(hw_ip, &hw_isp->lib[frame->instance], param_set, frame->shot);
 
 	set_bit(HW_CONFIG, &hw_ip->state);
 
@@ -469,45 +514,6 @@ static int __nocfi fimc_is_hw_isp_set_param(struct fimc_is_hw_ip *hw_ip, struct 
 	return ret;
 }
 
-void fimc_is_hw_isp_update_param(struct fimc_is_hw_ip *hw_ip, struct is_region *region,
-	struct isp_param_set *param_set, u32 lindex, u32 hindex, u32 instance)
-{
-	struct isp_param *param;
-
-	FIMC_BUG_VOID(!region);
-	FIMC_BUG_VOID(!param_set);
-
-	param = &region->parameter.isp;
-	param_set->instance_id = instance;
-
-	/* check input */
-	if (lindex & LOWBIT_OF(PARAM_ISP_OTF_INPUT)) {
-		memcpy(&param_set->otf_input, &param->otf_input,
-			sizeof(struct param_otf_input));
-	}
-
-	if (lindex & LOWBIT_OF(PARAM_ISP_VDMA1_INPUT)) {
-		memcpy(&param_set->dma_input, &param->vdma1_input,
-			sizeof(struct param_dma_input));
-	}
-
-	/* check output*/
-	if (lindex & LOWBIT_OF(PARAM_ISP_OTF_OUTPUT)) {
-		memcpy(&param_set->otf_output, &param->otf_output,
-			sizeof(struct param_otf_output));
-	}
-
-	if (lindex & LOWBIT_OF(PARAM_ISP_VDMA4_OUTPUT)) {
-		memcpy(&param_set->dma_output_chunk, &param->vdma4_output,
-			sizeof(struct param_dma_output));
-	}
-
-	if (lindex & LOWBIT_OF(PARAM_ISP_VDMA5_OUTPUT)) {
-		memcpy(&param_set->dma_output_yuv, &param->vdma5_output,
-			sizeof(struct param_dma_output));
-	}
-}
-
 static int fimc_is_hw_isp_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	ulong hw_map)
 {
@@ -527,6 +533,14 @@ static int fimc_is_hw_isp_get_meta(struct fimc_is_hw_ip *hw_ip, struct fimc_is_f
 	if (ret)
 		mserr_hw("get_meta fail", frame->instance, hw_ip);
 
+	if (frame->shot) {
+		msdbg_hw(2, "%s: [F:%d], %d,%d,%d\n", frame->instance, hw_ip, __func__,
+			frame->fcount,
+			frame->shot->udm.ni.currentFrameNoiseIndex,
+			frame->shot->udm.ni.nextFrameNoiseIndex,
+			frame->shot->udm.ni.nextNextFrameNoiseIndex);
+	}
+
 	return ret;
 }
 
@@ -534,7 +548,7 @@ static int fimc_is_hw_isp_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 	u32 instance, enum ShotErrorType done_type)
 {
 	int ret = 0;
-	int wq_id_ixc, wq_id_ixp, output_id;
+	int wq_id_ixc, wq_id_ixp, wq_id_mexc, output_id;
 
 	FIMC_BUG(!hw_ip);
 	FIMC_BUG(!frame);
@@ -543,10 +557,12 @@ static int fimc_is_hw_isp_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 	case DEV_HW_ISP0:
 		wq_id_ixc = WORK_I0C_FDONE;
 		wq_id_ixp = WORK_I0P_FDONE;
+		wq_id_mexc = WORK_ME0C_FDONE;
 		break;
 	case DEV_HW_ISP1:
 		wq_id_ixc = WORK_I1C_FDONE;
 		wq_id_ixp = WORK_I1P_FDONE;
+		wq_id_mexc = WORK_ME1C_FDONE;
 		break;
 	default:
 		mserr_hw("[F:%d]invalid hw(%d)", instance, hw_ip, frame->fcount, hw_ip->id);
@@ -568,7 +584,7 @@ static int fimc_is_hw_isp_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 
 	output_id = ENTRY_MEXC;
 	if (test_bit(output_id, &frame->out_flag)) {
-		ret = fimc_is_hardware_frame_done(hw_ip, frame, WORK_ME0C_FDONE,
+		ret = fimc_is_hardware_frame_done(hw_ip, frame, wq_id_mexc,
 				output_id, done_type, false);
 	}
 

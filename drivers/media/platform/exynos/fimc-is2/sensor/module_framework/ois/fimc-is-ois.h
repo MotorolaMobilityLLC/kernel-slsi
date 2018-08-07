@@ -12,7 +12,7 @@
 #ifndef FIMC_IS_OIS_FW_H
 #define FIMC_IS_OIS_FW_H
 
-#define FIMC_IS_OIS_SDCARD_PATH			"/data/media/0/"
+#define FIMC_IS_OIS_SDCARD_PATH			"/vendor/firmware/"
 #define FIMC_IS_OIS_FW_NAME_SEC			"ois_fw_sec.bin"
 #define FIMC_IS_OIS_FW_NAME_DOM			"ois_fw_dom.bin"
 

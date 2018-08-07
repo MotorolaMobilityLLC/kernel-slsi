@@ -35,6 +35,9 @@
 #define REG_TARGET_LOW		0x85
 #define REG_SRV_STATE1		0xB0
 #define REG_TGT_CNVTIM		0xB2
+#define REG_ADC_HIGH       	0x0A /* actual POS[15:8] */
+#define REG_ADC_LOW       	0x0B /* actual POS[7:4] */
+
 
 extern struct fimc_is_lib_support gPtr_lib_support;
 extern struct fimc_is_sysfs_actuator sysfs_actuator;
@@ -44,7 +47,7 @@ static int sensor_lc898217_write_position(struct i2c_client *client, u32 val)
 	int ret = 0;
 	u8 val_high = 0, val_low = 0;
 
-	BUG_ON(!client);
+	FIMC_BUG(!client);
 
 	if (!client->adapter) {
 		err("Could not find adapter!\n");
@@ -74,7 +77,6 @@ p_err:
 int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 {
 	int ret = 0;
-	u8 product_id = 0;
 	struct fimc_is_actuator *actuator;
 	struct i2c_client *client = NULL;
 #ifdef DEBUG_ACTUATOR_TIME
@@ -87,7 +89,7 @@ int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 
 	int first_position = DEF_LC898217_FIRST_POSITION;
 
-	BUG_ON(!subdev);
+	FIMC_BUG(!subdev);
 
 	dbg_actuator("%s\n", __func__);
 
@@ -104,12 +106,21 @@ int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 		goto p_err;
 	}
 
+	mdelay(8);
 	I2C_MUTEX_LOCK(actuator->i2c_lock);
+	/* Initial Data Down Load */
+	ret = fimc_is_sensor_addr8_write8(client, 0xE0, 0x01);
+	if (ret < 0)
+		goto p_err_mutex;
+	mdelay(1);
+
+#if 0
+	u8 product_id = 0;
 	ret = fimc_is_sensor_addr8_read8(client, 0x03, &product_id);
 	if (ret < 0)
 		goto p_err_mutex;
 
-#if 0
+
 	if (product_id != LC898217_PRODUCT_ID) {
 		err("LC898217 is not detected(%d), Slave: %d\n", product_id, client->addr);
 		goto p_err_mutex;
@@ -119,7 +130,7 @@ int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 	/* EEPROM AF calData address */
 	if (gPtr_lib_support.binary_load_flg) {
 		/* get pan_focus */
-		cal_addr = gPtr_lib_support.minfo->kvaddr_rear_cal + EEPROM_OEM_BASE;
+		cal_addr = gPtr_lib_support.minfo->kvaddr_cal[SENSOR_POSITION_REAR] + EEPROM_OEM_BASE;
 		memcpy((void *)&cal_data, (void *)cal_addr, sizeof(cal_data));
 
 		if (cal_data > 0)
@@ -167,11 +178,11 @@ int sensor_lc898217_actuator_get_status(struct v4l2_subdev *subdev, u32 *info)
 
 	dbg_actuator("%s\n", __func__);
 
-	BUG_ON(!subdev);
-	BUG_ON(!info);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!info);
 
 	actuator = (struct fimc_is_actuator *)v4l2_get_subdevdata(subdev);
-	BUG_ON(!actuator);
+	FIMC_BUG(!actuator);
 
 	client = actuator->client;
 	if (unlikely(!client)) {
@@ -207,11 +218,11 @@ int sensor_lc898217_actuator_set_position(struct v4l2_subdev *subdev, u32 *info)
 	do_gettimeofday(&st);
 #endif
 
-	BUG_ON(!subdev);
-	BUG_ON(!info);
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!info);
 
 	actuator = (struct fimc_is_actuator *)v4l2_get_subdevdata(subdev);
-	BUG_ON(!actuator);
+	FIMC_BUG(!actuator);
 
 	client = actuator->client;
 	if (unlikely(!client)) {
@@ -250,6 +261,58 @@ p_err:
 	return ret;
 }
 
+int sensor_lc898217_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *info)
+{
+	int ret = 0;
+	struct fimc_is_actuator *actuator;
+	struct i2c_client *client;
+	u32 actual_pos;
+	u8 actual_high, actual_low;
+
+#ifdef DEBUG_ACTUATOR_TIME
+	struct timeval st, end;
+
+	do_gettimeofday(&st);
+#endif
+
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!info);
+
+	actuator = (struct fimc_is_actuator *)v4l2_get_subdevdata(subdev);
+	FIMC_BUG(!actuator);
+
+	client = actuator->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		return -EINVAL;
+	}
+
+	I2C_MUTEX_LOCK(actuator->i2c_lock);
+
+	ret = fimc_is_sensor_addr8_read8(client, REG_ADC_HIGH, &actual_high);
+	ret = fimc_is_sensor_addr8_read8(client, REG_ADC_LOW, &actual_low);
+	if (ret < 0)
+		goto p_err;
+
+	actual_pos = ((actual_high << 8) | actual_low) >> 4;
+	dbg_actuator("actual_pos is: %d, actual_high is: %d, actual_low is: %d\n",actual_pos, actual_high, actual_low);
+
+	*info = actual_pos;
+
+	if (*info > 1023)
+		*info = 1023;
+
+#ifdef DEBUG_ACTUATOR_TIME
+	do_gettimeofday(&end);
+	pr_info("[%s] time %lu us", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
+#endif
+
+p_err:
+	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
+
+	return ret;
+}
+
 static int sensor_lc898217_actuator_g_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 {
 	int ret = 0;
@@ -260,6 +323,14 @@ static int sensor_lc898217_actuator_g_ctrl(struct v4l2_subdev *subdev, struct v4
 		ret = sensor_lc898217_actuator_get_status(subdev, &val);
 		if (ret < 0) {
 			err("err!!! ret(%d), actuator status(%d)", ret, val);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		break;
+	case V4L2_CID_ACTUATOR_GET_ACTUAL_POSITION:
+		ret = sensor_lc898217_actuator_get_actual_position(subdev, &val);
+		if (ret < 0) {
+			err("sensor_lc898217_get_actual_position failed(%d)", ret);
 			ret = -EINVAL;
 			goto p_err;
 		}
@@ -317,13 +388,14 @@ static int sensor_lc898217_actuator_probe(struct i2c_client *client,
 	struct v4l2_subdev *subdev_actuator = NULL;
 	struct fimc_is_actuator *actuator = NULL;
 	struct fimc_is_device_sensor *device = NULL;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
 	u32 sensor_id = 0;
 	u32 place = 0;
 	struct device *dev;
 	struct device_node *dnode;
 
-	BUG_ON(!fimc_is_dev);
-	BUG_ON(!client);
+	FIMC_BUG(!fimc_is_dev);
+	FIMC_BUG(!client);
 
 	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
 	if (!core) {
@@ -355,6 +427,12 @@ static int sensor_lc898217_actuator_probe(struct i2c_client *client,
 		goto p_err;
 	}
 
+	sensor_peri = find_peri_by_act_id(device, ACTUATOR_NAME_LC898217);
+	if (!sensor_peri) {
+		probe_info("sensor peri is net yet probed");
+		return -EPROBE_DEFER;
+	}
+
 	actuator = kzalloc(sizeof(struct fimc_is_actuator), GFP_KERNEL);
 	if (!actuator) {
 		err("actuator is NULL");
@@ -368,6 +446,7 @@ static int sensor_lc898217_actuator_probe(struct i2c_client *client,
 		ret = -ENOMEM;
 		goto p_err;
 	}
+	sensor_peri->subdev_actuator = subdev_actuator;
 
 	/* This name must is match to sensor_open_extended actuator name */
 	actuator->id = ACTUATOR_NAME_LC898217;
@@ -381,26 +460,20 @@ static int sensor_lc898217_actuator_probe(struct i2c_client *client,
 	actuator->i2c_lock = NULL;
 	actuator->need_softlanding = 0;
 	actuator->actuator_ops = NULL;
+	actuator->actual_pos_support = true;
 
-	device->subdev_actuator[place] = subdev_actuator;
-	device->actuator[place] = actuator;
+	device->subdev_actuator[sensor_id] = subdev_actuator;
+	device->actuator[sensor_id] = actuator;
 
 	v4l2_i2c_subdev_init(subdev_actuator, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_actuator, actuator);
 	v4l2_set_subdev_hostdata(subdev_actuator, device);
 
+	set_bit(FIMC_IS_SENSOR_ACTUATOR_AVAILABLE, &sensor_peri->peri_state);
+
 	snprintf(subdev_actuator->name, V4L2_SUBDEV_NAME_SIZE, "actuator-subdev.%d", actuator->id);
-
-	probe_info("%s done\n", __func__);
-	return ret;
-
 p_err:
-	if (actuator)
-		kzfree(actuator);
-
-	if (subdev_actuator)
-		kzfree(subdev_actuator);
-
+	probe_info("%s done\n", __func__);
 	return ret;
 }
 

@@ -1292,7 +1292,7 @@ void fimc_is_scaler_set_poly_scaler_coef(void __iomem *base_addr, u32 output_id,
 	u32 h_coef = 0, v_coef = 0;
 	/* this value equals 0 - scale-down operation */
 	u32 h_phase_offset = 0, v_phase_offset = 0;
-#if defined(LHM_ENABLE_EVT0)
+#if !defined(USE_UVSP_CAC)
 	bool adjust_coef = false;
 
 	/* M/M dev team guided, x7/8 ~ x5/8 => x8/8 ~ x7/8
@@ -1626,7 +1626,7 @@ void fimc_is_scaler_set_post_scaler_coef(void __iomem *base_addr, u32 output_id,
 	/* this value equals 0 - scale-down operation */
 	u32 h_phase_offset = 0, v_phase_offset = 0;
 
-#if defined(LHM_ENABLE_EVT0)
+#if !defined(USE_UVSP_CAC)
 	h_coef = get_scaler_coef_ver1(hratio, false);
 	v_coef = get_scaler_coef_ver1(vratio, false);
 #else
@@ -2444,6 +2444,34 @@ void fimc_is_scaler_set_flip_mode(void __iomem *base_addr, u32 output_id, u32 fl
 	}
 }
 
+void fimc_is_scaler_get_flip_mode(void __iomem *base_addr, u32 output_id, u32 *flip)
+{
+	switch (output_id) {
+	case MCSC_OUTPUT0:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA0_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA0_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT1:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA1_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA1_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT2:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA2_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA2_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT3:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA3_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA3_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT4:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA4_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA4_FLIP_CONTROL]);
+		break;
+	default:
+		break;
+	}
+}
+
 void fimc_is_scaler_set_rdma_size(void __iomem *base_addr, u32 width, u32 height)
 {
 	u32 reg_val = 0;
@@ -2746,84 +2774,83 @@ void fimc_is_scaler_set_rdma_2bit_addr(void __iomem *base_addr,
 	}
 }
 
-u32 g_addr[8] = {0, };
-u32 *get_wdma_addr_arr(u32 output_id)
+void get_wdma_addr_arr(u32 output_id, u32 *addr)
 {
 	switch (output_id) {
 	case MCSC_OUTPUT0:
-		g_addr[0] = MCSC_R_WDMA0_BASE_ADDR_0;
-		g_addr[1] = MCSC_R_WDMA0_BASE_ADDR_0_IDX1;
-		g_addr[2] = MCSC_R_WDMA0_BASE_ADDR_0_IDX2;
-		g_addr[3] = MCSC_R_WDMA0_BASE_ADDR_0_IDX3;
-		g_addr[4] = MCSC_R_WDMA0_BASE_ADDR_0_IDX4;
-		g_addr[5] = MCSC_R_WDMA0_BASE_ADDR_0_IDX5;
-		g_addr[6] = MCSC_R_WDMA0_BASE_ADDR_0_IDX6;
-		g_addr[7] = MCSC_R_WDMA0_BASE_ADDR_0_IDX7;
+		addr[0] = MCSC_R_WDMA0_BASE_ADDR_0;
+		addr[1] = MCSC_R_WDMA0_BASE_ADDR_0_IDX1;
+		addr[2] = MCSC_R_WDMA0_BASE_ADDR_0_IDX2;
+		addr[3] = MCSC_R_WDMA0_BASE_ADDR_0_IDX3;
+		addr[4] = MCSC_R_WDMA0_BASE_ADDR_0_IDX4;
+		addr[5] = MCSC_R_WDMA0_BASE_ADDR_0_IDX5;
+		addr[6] = MCSC_R_WDMA0_BASE_ADDR_0_IDX6;
+		addr[7] = MCSC_R_WDMA0_BASE_ADDR_0_IDX7;
 		break;
 	case MCSC_OUTPUT1:
-		g_addr[0] = MCSC_R_WDMA1_BASE_ADDR_0;
-		g_addr[1] = MCSC_R_WDMA1_BASE_ADDR_0_IDX1;
-		g_addr[2] = MCSC_R_WDMA1_BASE_ADDR_0_IDX2;
-		g_addr[3] = MCSC_R_WDMA1_BASE_ADDR_0_IDX3;
-		g_addr[4] = MCSC_R_WDMA1_BASE_ADDR_0_IDX4;
-		g_addr[5] = MCSC_R_WDMA1_BASE_ADDR_0_IDX5;
-		g_addr[6] = MCSC_R_WDMA1_BASE_ADDR_0_IDX6;
-		g_addr[7] = MCSC_R_WDMA1_BASE_ADDR_0_IDX7;
+		addr[0] = MCSC_R_WDMA1_BASE_ADDR_0;
+		addr[1] = MCSC_R_WDMA1_BASE_ADDR_0_IDX1;
+		addr[2] = MCSC_R_WDMA1_BASE_ADDR_0_IDX2;
+		addr[3] = MCSC_R_WDMA1_BASE_ADDR_0_IDX3;
+		addr[4] = MCSC_R_WDMA1_BASE_ADDR_0_IDX4;
+		addr[5] = MCSC_R_WDMA1_BASE_ADDR_0_IDX5;
+		addr[6] = MCSC_R_WDMA1_BASE_ADDR_0_IDX6;
+		addr[7] = MCSC_R_WDMA1_BASE_ADDR_0_IDX7;
 		break;
 	case MCSC_OUTPUT2:
-		g_addr[0] = MCSC_R_WDMA2_BASE_ADDR_0;
-		g_addr[1] = MCSC_R_WDMA2_BASE_ADDR_0_IDX1;
-		g_addr[2] = MCSC_R_WDMA2_BASE_ADDR_0_IDX2;
-		g_addr[3] = MCSC_R_WDMA2_BASE_ADDR_0_IDX3;
-		g_addr[4] = MCSC_R_WDMA2_BASE_ADDR_0_IDX4;
-		g_addr[5] = MCSC_R_WDMA2_BASE_ADDR_0_IDX5;
-		g_addr[6] = MCSC_R_WDMA2_BASE_ADDR_0_IDX6;
-		g_addr[7] = MCSC_R_WDMA2_BASE_ADDR_0_IDX7;
+		addr[0] = MCSC_R_WDMA2_BASE_ADDR_0;
+		addr[1] = MCSC_R_WDMA2_BASE_ADDR_0_IDX1;
+		addr[2] = MCSC_R_WDMA2_BASE_ADDR_0_IDX2;
+		addr[3] = MCSC_R_WDMA2_BASE_ADDR_0_IDX3;
+		addr[4] = MCSC_R_WDMA2_BASE_ADDR_0_IDX4;
+		addr[5] = MCSC_R_WDMA2_BASE_ADDR_0_IDX5;
+		addr[6] = MCSC_R_WDMA2_BASE_ADDR_0_IDX6;
+		addr[7] = MCSC_R_WDMA2_BASE_ADDR_0_IDX7;
 		break;
 	case MCSC_OUTPUT3:
-		g_addr[0] = MCSC_R_WDMA3_BASE_ADDR_0;
-		g_addr[1] = MCSC_R_WDMA3_BASE_ADDR_0_IDX1;
-		g_addr[2] = MCSC_R_WDMA3_BASE_ADDR_0_IDX2;
-		g_addr[3] = MCSC_R_WDMA3_BASE_ADDR_0_IDX3;
-		g_addr[4] = MCSC_R_WDMA3_BASE_ADDR_0_IDX4;
-		g_addr[5] = MCSC_R_WDMA3_BASE_ADDR_0_IDX5;
-		g_addr[6] = MCSC_R_WDMA3_BASE_ADDR_0_IDX6;
-		g_addr[7] = MCSC_R_WDMA3_BASE_ADDR_0_IDX7;
+		addr[0] = MCSC_R_WDMA3_BASE_ADDR_0;
+		addr[1] = MCSC_R_WDMA3_BASE_ADDR_0_IDX1;
+		addr[2] = MCSC_R_WDMA3_BASE_ADDR_0_IDX2;
+		addr[3] = MCSC_R_WDMA3_BASE_ADDR_0_IDX3;
+		addr[4] = MCSC_R_WDMA3_BASE_ADDR_0_IDX4;
+		addr[5] = MCSC_R_WDMA3_BASE_ADDR_0_IDX5;
+		addr[6] = MCSC_R_WDMA3_BASE_ADDR_0_IDX6;
+		addr[7] = MCSC_R_WDMA3_BASE_ADDR_0_IDX7;
 		break;
 	case MCSC_OUTPUT4:
-		g_addr[0] = MCSC_R_WDMA4_BASE_ADDR_0;
-		g_addr[1] = MCSC_R_WDMA4_BASE_ADDR_0_IDX1;
-		g_addr[2] = MCSC_R_WDMA4_BASE_ADDR_0_IDX2;
-		g_addr[3] = MCSC_R_WDMA4_BASE_ADDR_0_IDX3;
-		g_addr[4] = MCSC_R_WDMA4_BASE_ADDR_0_IDX4;
-		g_addr[5] = MCSC_R_WDMA4_BASE_ADDR_0_IDX5;
-		g_addr[6] = MCSC_R_WDMA4_BASE_ADDR_0_IDX6;
-		g_addr[7] = MCSC_R_WDMA4_BASE_ADDR_0_IDX7;
+		addr[0] = MCSC_R_WDMA4_BASE_ADDR_0;
+		addr[1] = MCSC_R_WDMA4_BASE_ADDR_0_IDX1;
+		addr[2] = MCSC_R_WDMA4_BASE_ADDR_0_IDX2;
+		addr[3] = MCSC_R_WDMA4_BASE_ADDR_0_IDX3;
+		addr[4] = MCSC_R_WDMA4_BASE_ADDR_0_IDX4;
+		addr[5] = MCSC_R_WDMA4_BASE_ADDR_0_IDX5;
+		addr[6] = MCSC_R_WDMA4_BASE_ADDR_0_IDX6;
+		addr[7] = MCSC_R_WDMA4_BASE_ADDR_0_IDX7;
 		break;
 	case MCSC_OUTPUT_DS:
-		g_addr[0] = MCSC_R_WDMADS_BASE_ADDR_0;
-		g_addr[1] = MCSC_R_WDMADS_BASE_ADDR_0_IDX1;
-		g_addr[2] = MCSC_R_WDMADS_BASE_ADDR_0_IDX2;
-		g_addr[3] = MCSC_R_WDMADS_BASE_ADDR_0_IDX3;
-		g_addr[4] = MCSC_R_WDMADS_BASE_ADDR_0_IDX4;
-		g_addr[5] = MCSC_R_WDMADS_BASE_ADDR_0_IDX5;
-		g_addr[6] = MCSC_R_WDMADS_BASE_ADDR_0_IDX6;
-		g_addr[7] = MCSC_R_WDMADS_BASE_ADDR_0_IDX7;
+		addr[0] = MCSC_R_WDMADS_BASE_ADDR_0;
+		addr[1] = MCSC_R_WDMADS_BASE_ADDR_0_IDX1;
+		addr[2] = MCSC_R_WDMADS_BASE_ADDR_0_IDX2;
+		addr[3] = MCSC_R_WDMADS_BASE_ADDR_0_IDX3;
+		addr[4] = MCSC_R_WDMADS_BASE_ADDR_0_IDX4;
+		addr[5] = MCSC_R_WDMADS_BASE_ADDR_0_IDX5;
+		addr[6] = MCSC_R_WDMADS_BASE_ADDR_0_IDX6;
+		addr[7] = MCSC_R_WDMADS_BASE_ADDR_0_IDX7;
 		break;
 	default:
-		g_addr[0] = 0;
+		panic("invalid output_id(%d)", output_id);
 		break;
 	}
 
-	return g_addr;
+	return;
 }
 
 void fimc_is_scaler_set_wdma_addr(void __iomem *base_addr, u32 output_id,
 	u32 y_addr, u32 cb_addr, u32 cr_addr, int buf_index)
 {
-	u32 *addr;
+	u32 addr[8] = {0, };
 
-	addr = get_wdma_addr_arr(output_id);
+	get_wdma_addr_arr(output_id, addr);
 	if (!addr[0])
 		return;
 
@@ -2840,13 +2867,13 @@ void fimc_is_scaler_set_wdma_addr(void __iomem *base_addr, u32 output_id,
 void fimc_is_scaler_set_wdma_2bit_addr(void __iomem *base_addr, u32 output_id,
 	u32 y_2bit_addr, u32 cbcr_2bit_addr, int buf_index)
 {
-	u32 *addr;
+	u32 addr[8] = {0, };
 
 	/* WDMADS can not support 10bit format */
 	if (output_id == MCSC_OUTPUT_DS)
 		return;
 
-	addr = get_wdma_addr_arr(output_id);
+	get_wdma_addr_arr(output_id, addr);
 	if (!addr[0])
 		return;
 
@@ -2857,9 +2884,9 @@ void fimc_is_scaler_set_wdma_2bit_addr(void __iomem *base_addr, u32 output_id,
 void fimc_is_scaler_get_wdma_addr(void __iomem *base_addr, u32 output_id,
 	u32 *y_addr, u32 *cb_addr, u32 *cr_addr, int buf_index)
 {
-	u32 *addr;
+	u32 addr[8] = {0, };
 
-	addr = get_wdma_addr_arr(output_id);
+	get_wdma_addr_arr(output_id, addr);
 	if (!addr[0])
 		return;
 
@@ -2886,9 +2913,9 @@ void fimc_is_scaler_clear_rdma_addr(void __iomem *base_addr)
 
 void fimc_is_scaler_clear_wdma_addr(void __iomem *base_addr, u32 output_id)
 {
-	u32 *addr;
+	u32 addr[8] = {0, };
 
-	addr = get_wdma_addr_arr(output_id);
+	get_wdma_addr_arr(output_id, addr);
 	if (!addr[0])
 		return;
 
@@ -3492,13 +3519,17 @@ void fimc_is_scaler_set_djag_tunning_param(void __iomem *base_addr, const struct
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DJAG_CP_ARBI], reg_val);
 }
 
-void fimc_is_scaler_set_djag_wb_thres(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb)
+void fimc_is_scaler_set_djag_dither_wb(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb, u32 wht, u32 blk)
 {
 	u32 reg_val = 0;
 
 	if (!djag_wb)
 		return;
 
+	reg_val = fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_DJAG_DITHER_THRES]);
+
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_DJAG_DITHER_WHITE_LEVEL], wht);
+	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_DJAG_DITHER_BLACK_LEVEL], blk);
 	reg_val = fimc_is_hw_set_field_value(reg_val, &mcsc_fields[MCSC_F_DJAG_DITHER_WB_THRES],
 		djag_wb->dither_wb_thres);
 	fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_DJAG_DITHER_THRES], reg_val);
@@ -3973,15 +4004,58 @@ void fimc_is_scaler_set_ds_gamma_table_enable(void __iomem *base_addr, u32 ds_ga
  */
 
 /* LFRO : Less Fast Read Out */
-void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 lfro_enable, u32 lfro_total_fnum)
+void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 hw_id, u32 lfro_enable, u32 lfro_total_fnum)
 {
-	/* not supported */
+	u32 reg_value = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_FAST_MODE_NUM_MINUS1_0],
+			lfro_total_fnum - 1);
+		reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_FAST_MODE_EN_0],
+			lfro_enable);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_SCALER_FAST_MODE_CTRL_0], reg_value);
+		break;
+	case DEV_HW_MCSC1:
+		reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_FAST_MODE_NUM_MINUS1_1],
+			lfro_total_fnum - 1);
+		reg_value = fimc_is_hw_set_field_value(reg_value, &mcsc_fields[MCSC_F_FAST_MODE_EN_1],
+			lfro_enable);
+		fimc_is_hw_set_reg(base_addr, &mcsc_regs[MCSC_R_SCALER_FAST_MODE_CTRL_1], reg_value);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
 }
 
-u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr)
+u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr, u32 hw_id)
 {
-	/* not supported */
-	return 0;
+	u32 ret = 0;
+	u32 fcnt = 0;
+
+	switch (hw_id) {
+	case DEV_HW_MCSC0:
+		fcnt = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_SCALER_FAST_MODE_STATUS_0],
+			&mcsc_fields[MCSC_F_FAST_MODE_FRAME_CNT_0]);
+		ret = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_SCALER_FAST_MODE_STATUS_0],
+			&mcsc_fields[MCSC_F_FAST_MODE_ERROR_STATUS_0]);
+		break;
+	case DEV_HW_MCSC1:
+		fcnt = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_SCALER_FAST_MODE_STATUS_1],
+			&mcsc_fields[MCSC_F_FAST_MODE_FRAME_CNT_1]);
+		ret = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_SCALER_FAST_MODE_STATUS_1],
+			&mcsc_fields[MCSC_F_FAST_MODE_ERROR_STATUS_1]);
+		break;
+	default:
+		warn_hw("invalid hw_id(%d) for MCSC api\n", hw_id);
+		break;
+	}
+
+	if (ret)
+		warn_hw("[FRO:%d]frame status: (0x%x)\n", fcnt, ret);
+
+	return ret;
 }
 
 static void fimc_is_scaler0_clear_intr_src(void __iomem *base_addr, u32 status)
@@ -4165,7 +4239,7 @@ void fimc_is_scaler_dump(void __iomem *base_addr)
 	u32 i = 0;
 	u32 reg_val = 0;
 
-	info_hw("MCSC ver 4.0");
+	info_hw("MCSC ver 5.0");
 
 	for (i = 0; i < MCSC_REG_CNT; i++) {
 		reg_val = readl(base_addr + mcsc_regs[i].sfr_offset);

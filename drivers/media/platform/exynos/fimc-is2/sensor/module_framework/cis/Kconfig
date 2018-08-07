@@ -92,6 +92,14 @@ config CAMERA_CIS_3H1_OBJ
 		help
 		  Use to build 3H1 camera sensor.
 
+config CAMERA_CIS_3J1_OBJ
+		bool "Use 3J1 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 3J1 camera sensor.
+
 config CAMERA_CIS_4E6_OBJ
 		bool "Use 4E6 camera cis"
 	depends on USE_DIRECT_IS_CONTROL
@@ -148,6 +156,14 @@ config CAMERA_CIS_3P8_OBJ
 		help
 		  Use to build 3P8 camera sensor.
 
+config CAMERA_CIS_3P9_OBJ
+		bool "Use 3P9 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 3P9 camera sensor.
+
 config CAMERA_CIS_3P8SP_OBJ
 		bool "Use 3P8SP camera cis"
 	depends on USE_DIRECT_IS_CONTROL
@@ -203,6 +219,14 @@ config CAMERA_CIS_2L3_OBJ
 		default n
 		help
 		  Use to build 2L3 camera sensor.
+
+config CAMERA_CIS_2L4_OBJ
+		bool "Use 2L4 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 2L4 camera sensor.
 
 config CAMERA_CIS_IMX260_OBJ
 		bool "Use IMX260 camera cis"
@@ -267,6 +291,70 @@ config CAMERA_CIS_SR259_OBJ
 		default n
 		help
 		  Use to build SR259 camera sensor.
+
+config CAMERA_CIS_IMX576_OBJ
+		bool "Use IMX576 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build IMX576 camera sensor.
+
+config CAMERA_CIS_5E9_OBJ
+		bool "Use S5K5E9 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build S5K5E9 camera sensor.
+
+config CAMERA_CIS_4HA_OBJ
+		bool "Use S5K4HA camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build S5K4HA camera sensor.
+
+config CAMERA_CIS_2X5SP_OBJ
+		bool "Use 2X5SP camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 2X5SP camera sensor.
+
+config CAMERA_CIS_GM1SP_OBJ
+		bool "Use GM1SP camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build GM1SP camera sensor.
+
+config CAMERA_CIS_12A10_OBJ
+		bool "Use 12A10 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 12A10 camera sensor.
+
+config CAMERA_CIS_12A10FF_OBJ
+		bool "Use 12A10FF camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 12A10FF camera sensor.
+
+config CAMERA_CIS_16885C_OBJ
+		bool "Use 16885C camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 16885C camera sensor.
 
 config CAMERA_CIS_VIRTUAL_OBJ
 		bool "Use VIRTUAL camera cis"

@@ -728,7 +728,8 @@ enum aa_capture_intent {
 	AA_CAPTURE_INTENT_STILL_CAPTURE_DEBLUR_DYNAMIC_SHOT,
 	AA_CAPTURE_INTENT_STILL_CAPTURE_OIS_DYNAMIC_SHOT,
 	AA_CAPTURE_INTENT_STILL_CAPTURE_EXPOSURE_DYNAMIC_SHOT,
-	AA_CAPTURE_INTENT_STILL_CAPTURE_HDR_DYNAMIC_SHOT,
+	AA_CAPTURE_INTENT_STILL_CAPTURE_MFHDR_DYNAMIC_SHOT,
+	AA_CAPTURE_INTENT_STILL_CAPTURE_LLHDR_DYNAMIC_SHOT,
 	AA_CAPTURE_INTENT_STILL_CAPTURE_CANCEL,
 	AA_CAPTURE_INTENT_STILL_CAPTURE_NORMAL_FLASH,
 };
@@ -793,6 +794,9 @@ enum aa_scene_mode {
 	AA_SCENE_MODE_HYPERLAPSE,
 	AA_SCENE_MODE_FACTORY_LN2,
 	AA_SCENE_MODE_FACTORY_LN4,
+	AA_SCENE_MODE_LABS,
+	AA_SCENE_MODE_REMOSAIC_PURE_BAYER_ONLY,
+	AA_SCENE_MODE_REMOSAIC_MFHDR_PURE_BAYER_ONLY,
 };
 
 enum aa_effect_mode {
@@ -1069,7 +1073,9 @@ struct camera2_aa_ctl {
 	uint32_t			vendor_captureCount;
 	uint32_t			vendor_captureExposureTime;
 	float				vendor_objectDistanceCm;
-	uint32_t			vendor_reserved[9];
+	int32_t				vendor_colorTempKelvin;
+	int32_t				vendor_enableDynamicShotDm;
+	uint32_t			vendor_reserved[8];
 };
 
 struct camera2_aa_dm {
@@ -1113,13 +1119,16 @@ struct camera2_aa_dm {
 	uint32_t			vendor_captureCount;
 	uint32_t			vendor_captureExposureTime;
 	float				vendor_objectDistanceCm;
+	int32_t				vendor_colorTempKelvin;
 	// For dual
 	uint32_t			vendor_wideTeleConvEv;
 	uint32_t			vendor_teleSync;
 	uint32_t			vendor_fusionCaptureAeInfo;
 	uint32_t			vendor_fusionCaptureAfInfo;
-
-	uint32_t			vendor_reserved[9];
+	uint32_t			vendor_colorTempIndex;
+	uint32_t			vendor_luxIndex;
+	float				vendor_luxStandard;
+	uint32_t			vendor_reserved[6];
 };
 
 struct camera2_aa_sm {
@@ -1207,6 +1216,15 @@ struct camera2_reprocess_sm {
 	uint32_t	maxCaptureStall;
 };
 
+struct camera2_faceBeauty_ctl
+{
+	int32_t		strength;
+};
+
+struct camera2_faceBeauty_dm
+{
+	int32_t		strength;
+};
 
 /* android.depth */
 
@@ -1285,6 +1303,7 @@ struct camera2_ctl {
 	struct camera2_blacklevel_ctl		blacklevel;
 	struct camera2_sync_ctl			sync;
 	struct camera2_reprocess_ctl		reprocess;
+	struct camera2_faceBeauty_ctl		facebeauty;
 
 	/* vendor feature */
 	struct camera2_entry_ctl		vendor_entry;
@@ -1310,6 +1329,7 @@ struct camera2_dm {
 	struct camera2_blacklevel_dm		blacklevel;
 	struct camera2_sync_dm			sync;
 	struct camera2_reprocess_dm	 	reprocess;
+	struct camera2_faceBeauty_dm		facebeauty;
 
 	/* vendor feature */
 	struct camera2_entry_dm			vendor_entry;
@@ -1530,10 +1550,13 @@ struct camera2_sensor_uctl {
 	uint32_t	digitalGain;
 	uint64_t	longExposureTime; /* For supporting WDR */
 	uint64_t	shortExposureTime;
+	uint64_t	middleExposureTime;
 	uint32_t	longAnalogGain;
 	uint32_t	shortAnalogGain;
+	uint32_t	middleAnalogGain;
 	uint32_t	longDigitalGain;
 	uint32_t	shortDigitalGain;
+	uint32_t	middleDigitalGain;
 
 	uint64_t	exposureTime;
 	uint32_t	frameDuration;
@@ -1547,10 +1570,13 @@ struct camera2_sensor_udm {
 	uint32_t	digitalGain;
 	uint64_t	longExposureTime;
 	uint64_t	shortExposureTime;
+	uint64_t	middleExposureTime;
 	uint32_t	longAnalogGain;
 	uint32_t	shortAnalogGain;
+	uint32_t	middleAnalogGain;
 	uint32_t	longDigitalGain;
 	uint32_t	shortDigitalGain;
+	uint32_t	middleDigitalGain;
 	uint64_t	timeStampBoot;
 	uint32_t	multiLuminances[9];
 };
@@ -1908,7 +1934,8 @@ struct camera2_udm {
 	enum aa_fallback		fallback;
 	uint32_t			frame_id;
 	enum camera2_scene_index	scene_index;
-	uint32_t			reserved[10];
+	uint32_t			flicker_detect;
+	uint32_t			reserved[9];
 };
 
 struct camera2_shot {
@@ -1999,6 +2026,82 @@ struct hfd_meta {
 	uint32_t		rot[CAMERA2_MAX_FACES];
 	uint32_t		mirror_x[CAMERA2_MAX_FACES];
 	uint32_t		hw_rot_mirror[CAMERA2_MAX_FACES];
+};
+
+enum camera_flip_mode {
+	CAM_FLIP_MODE_NORMAL = 0,
+	CAM_FLIP_MODE_HORIZONTAL,
+	CAM_FLIP_MODE_VERTICAL,
+	CAM_FLIP_MODE_HORIZONTAL_VERTICAL,
+	CAM_FLIP_MODE_MAX,
+};
+
+enum camera_thermal_mode {
+	CAM_THERMAL_NORMAL = 0,
+	CAM_THERMAL_THROTTLING,
+	CAM_THERMAL_TRIPPING,
+	CAM_THERMAL_MAX,
+};
+
+enum camera_crc_index {
+	CAMERA_CRC_INDEX_DUAL = 0,
+	CAMERA_CRC_INDEX_PDAF,
+	CAMERA_CRC_INDEX_AWB,
+	CAMERA_CRC_INDEX_AF,
+	CAMERA_CRC_INDEX_MNF,
+	CAMERA_CRC_INDEX_MAX,
+};
+
+enum sensor_gyro_info_state {
+	SENSOR_GYRO_INFO_STATE_BASE = 0,
+	SENSOR_GYRO_INFO_STATE_SUCCESS,
+	SENSOR_GYRO_INFO_STATE_FAIL,
+	SENSOR_GYRO_INFO_STATE_MAX,
+};
+
+struct facial_score {
+	int32_t			left_eye;
+	int32_t			right_eye;
+	int32_t			mouth;
+	int32_t			smile;
+	int32_t			left_blink;
+	int32_t			right_blink;
+};
+
+struct facial_angle {
+	uint32_t		yaw;
+	uint32_t		roll;
+};
+
+struct vra_ext_meta {
+	struct facial_score	facialScore[CAMERA2_MAX_FACES];
+	struct facial_angle	facialAngle[CAMERA2_MAX_FACES];
+	uint32_t		reserved[10];
+};
+
+struct ddk_setfile_ver
+{
+	uint32_t	header1; // 0xF85A20B4
+	uint32_t	header2; // 0xCA539ADF
+	char		ddk_version[128];
+	char		setfile_version[128];
+};
+
+struct sensor_gyro_info {
+	int32_t x;
+	int32_t y;
+	int32_t z;
+	enum sensor_gyro_info_state state;
+};
+
+struct camera2_shot_ext_user {
+	int		crc_result[CAMERA_CRC_INDEX_MAX];
+	int		focus_actual_pos;
+	int		focus_target_pos;
+
+	struct ddk_setfile_ver	ddk_version;
+
+	struct sensor_gyro_info gyro_info;
 };
 
 /** \brief
@@ -2149,9 +2252,20 @@ struct camera2_shot_ext {
 	uint32_t			crop_taa_y;
 	uint32_t			bds_ratio_x;
 	uint32_t			bds_ratio_y;
+	uint32_t			remosaic_rotation;
+
+	enum camera_flip_mode		mcsc_flip[MCSC_PORT_MAX];
+	enum camera_flip_mode		mcsc_flip_result[MCSC_PORT_MAX];
+
+	struct vra_ext_meta		vra_ext;
+
+	enum camera_thermal_mode	thermal;
+
+	/* Use user vendor */
+	struct camera2_shot_ext_user	user;
 
 	/* reserved for future */
-	uint32_t			reserved[8];
+	uint32_t			reserved[7];
 
 	/**	\brief
 	  processing time debugging
@@ -2271,6 +2385,7 @@ typedef struct camera2_fd_uctl camera2_fd_uctl_t;
 typedef struct camera2_fd_udm camera2_fd_udm_t;
 
 typedef struct camera2_sensor_uctl camera2_sensor_uctl_t;
+typedef struct camera2_sensor_udm camera2_sensor_udm_t;
 
 typedef struct camera2_aa_uctl camera2_aa_uctl_t;
 typedef struct camera2_aa_udm camera2_aa_udm_t;

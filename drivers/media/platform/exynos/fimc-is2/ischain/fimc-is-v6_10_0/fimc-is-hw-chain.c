@@ -105,7 +105,7 @@ static struct fimc_is_field sysreg_cam_fields[SYSREG_CAM_REG_FIELD_CNT] = {
  * [1] I_PAFSTAT_CORE0_IN_CSIS1_EN
  * [0] I_PAFSTAT_CORE0_IN_CSIS0_EN
  */
-#define MUX_SET_VAL_DEFAULT		(0x00402077)
+#define MUX_SET_VAL_DEFAULT		(0x005820FF)
 #define MUX_CLR_VAL_DEFAULT		(0x007FFFFF)
 
 /* Define default subdev ops if there are not used subdev IP */
@@ -300,7 +300,7 @@ int fimc_is_hw_group_open(void *group_data)
 	case GROUP_ID_ISP1:
 	case GROUP_ID_MCS0:
 	case GROUP_ID_MCS1:
-		leader->constraints_width = 5376;
+		leader->constraints_width = 5760;
 		leader->constraints_height = 4320;
 		break;
 	case GROUP_ID_VRA0:
@@ -318,26 +318,31 @@ int fimc_is_hw_group_open(void *group_data)
 int fimc_is_hw_camif_cfg(void *sensor_data)
 {
 	int ret = 0;
-	int i;
 	unsigned long value = 0;
 	struct fimc_is_core *core;
 	struct fimc_is_device_sensor *sensor;
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_device_ischain *ischain;
+	struct exynos_platform_fimc_is_sensor *pdata;
 	u32 paf_ch = 0;
 	u32 csi_ch = 0;
 	u32 mux_set_val = MUX_SET_VAL_DEFAULT;
 	u32 mux_clr_val = MUX_CLR_VAL_DEFAULT;
-	u32 position;
 	unsigned long mux_backup_val = 0;
+	u32 multi_ch;
+	int i;
 
 	FIMC_BUG(!sensor_data);
 
-	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
-	if (!core)
+	sensor = (struct fimc_is_device_sensor *)sensor_data;
+
+	pdata = sensor->pdata;
+	if (!pdata)
 		goto p_err;
 
-	sensor = (struct fimc_is_device_sensor *)sensor_data;
+	core = sensor->private_data;
+	if (!core)
+		goto p_err;
 
 	ischain = sensor->ischain;
 	if (!ischain)
@@ -351,11 +356,37 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	}
 
 	csi_ch = csi->instance;
-	if (csi_ch > CSI_ID_MAX) {
+	if (csi_ch >= CSI_ID_MAX) {
 		merr("CSI channel is invalid(%d)\n", sensor, csi_ch);
 		ret = -ERANGE;
 		goto p_err;
 	}
+
+	/* default PIP set by DT */
+	multi_ch = pdata->multi_ch;
+	if (pdata->camif_mux_val)
+		mux_set_val = pdata->camif_mux_val;
+
+	for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
+		if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state))
+			&& core->sensor[i].instance != sensor->instance) {
+			csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(core->sensor[i].subdev_csi);
+			if (!csi) {
+				merr("csi is null\n", sensor);
+				ret = -ENODEV;
+				goto p_err;
+			}
+
+			multi_ch = csi->instance;
+			if (multi_ch >= CSI_ID_MAX) {
+				merr("CSI channel is invalid(%d)\n", sensor, multi_ch);
+				ret = -ERANGE;
+				goto p_err;
+			}
+			break;
+		}
+	}
+	minfo("csi_ch(%d), multi_ch(%d) will be set\n", sensor, csi_ch, multi_ch);
 
 	mutex_lock(&ischain->resourcemgr->sysreg_lock);
 
@@ -369,26 +400,12 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	case 0:
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
 				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], csi_ch);
-
-		for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
-			if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state))) {
-				position = core->sensor[i].position;
-
-				if (position == SENSOR_POSITION_REAR2) {
-					mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-						&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], ((csi_ch == 0) ? 2 : 0));
-					break;
-				} else if (position == SENSOR_POSITION_FRONT) {
-					mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-						&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], ((csi_ch == 0) ? 1 : 0));
-					break;
-				}
-			}
-		}
+		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], multi_ch);
 		break;
 	case 1:
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], ((csi_ch == 0) ? 1 : 0));
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], multi_ch);
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
 				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], csi_ch);
 		break;
@@ -397,6 +414,15 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 		ret = -ERANGE;
 		goto p_err_lock;
 	}
+
+	/* DPHY to CSIS MUX */
+	mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+					&sysreg_cam_fields[SYSREG_CAM_F_CSIS0_DPHY_S_MUXSEL], (pdata->csi_mux >> 0) & 0x1);
+	mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+					&sysreg_cam_fields[SYSREG_CAM_F_CSIS1_DPHY_S_MUXSEL], (pdata->csi_mux >> 1) & 0x1);
+	mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
+					&sysreg_cam_fields[SYSREG_CAM_F_CSIS2_DPHY_S_MUXSEL], (pdata->csi_mux >> 2) & 0x1);
+
 	minfo("CSI(%d) --> PAFSTAT(%d), mux(0x%08X), backup(0x%08lX)\n",
 		sensor, csi_ch, paf_ch, mux_set_val, mux_backup_val);
 
@@ -475,7 +501,19 @@ void fimc_is_hw_ischain_qe_cfg(void)
 int fimc_is_hw_ischain_cfg(void *ischain_data)
 {
 	int ret = 0;
-	/* TBD */
+	void __iomem *isp_axi2acel_reg;
+
+	isp_axi2acel_reg = ioremap_nocache(ISP_AXI2ACEL_EXT_ISP_CTRL_ADDR, SZ_4);
+
+	/* SYSREG_ISP - AXI2ACEL_EXT_ISP_CTRL
+	 * [5]  : AXI2ACEL_ISO1_I_EXT_WLU_EN
+	 * [4:3]: AXI2ACEL_ISO1_I_EXT_DOMAIN
+	 * [2]  : AXI2ACEL_ISO0_I_EXT_WLU_EN
+	 * [1:0]: AXI2ACEL_ISO0_I_EXT_DOMAIN
+	 */
+	writel(0x5, isp_axi2acel_reg);
+
+	iounmap(isp_axi2acel_reg);
 
 	return ret;
 }
@@ -1463,6 +1501,7 @@ exit:
 unsigned int get_dma(struct fimc_is_device_sensor *device, u32 *dma_ch)
 {
 	struct fimc_is_core *core;
+	struct fimc_is_device_csi *csi;
 	u32 open_sensor_count = 0;
 	u32 position;
 	int i;
@@ -1473,21 +1512,28 @@ unsigned int get_dma(struct fimc_is_device_sensor *device, u32 *dma_ch)
 	for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
 		if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state))) {
 			open_sensor_count++;
-			position = device->position;
+			position = core->sensor[i].position;
+
+			csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(core->sensor[i].subdev_csi);
+			if (!csi) {
+				merr("csi is null\n", device);
+				ret = -ENODEV;
+				goto p_err;
+			}
+			if (csi->instance > CSI_ID_MAX) {
+				merr("CSI channel is invalid(%d)\n", device, csi->instance);
+				ret = -ERANGE;
+				goto p_err;
+			}
+
 			switch (position) {
 			case SENSOR_POSITION_REAR:
-				*dma_ch |= 1 << 0;
-				*dma_ch |= 1 << 4;
-				break;
 			case SENSOR_POSITION_FRONT:
-				*dma_ch |= 1 << 1;
-				break;
 			case SENSOR_POSITION_REAR2:
-				*dma_ch |= 1 << 2;
+			case SENSOR_POSITION_REAR3:
+				*dma_ch |= 1 << csi->instance;
 				break;
 			case SENSOR_POSITION_SECURE:
-				*dma_ch |= 1 << 3;
-				break;
 			default:
 				err("invalid sensor(%d)", position);
 				ret = -EINVAL;

@@ -16,15 +16,18 @@
 #include "fimc-is-vender-specific.h"
 #include "fimc-is-core.h"
 #include "fimc-is-interface-library.h"
+#ifndef ENABLE_IS_CORE
+#include "fimc-is-device-sensor-peri.h"
+#endif
 
 static u32  rear_sensor_id;
 static u32  front_sensor_id;
-static u32  rear_second_sensor_id;
+static u32  rear2_sensor_id;
 #ifdef CONFIG_SECURE_CAMERA_USE
 static u32  secure_sensor_id;
 #endif
-static u32  front_second_sensor_id;
-static u32  rear_third_sensor_id;
+static u32  front2_sensor_id;
+static u32  rear3_sensor_id;
 static u32  ois_sensor_index;
 static u32  aperture_sensor_index;
 
@@ -59,12 +62,12 @@ int fimc_is_vender_probe(struct fimc_is_vender *vender)
 
 	priv->rear_sensor_id = rear_sensor_id;
 	priv->front_sensor_id = front_sensor_id;
-	priv->rear_second_sensor_id = rear_second_sensor_id;
+	priv->rear2_sensor_id = rear2_sensor_id;
 #ifdef CONFIG_SECURE_CAMERA_USE
 	priv->secure_sensor_id = secure_sensor_id;
 #endif
-	priv->front_second_sensor_id = front_second_sensor_id;
-	priv->rear_third_sensor_id = rear_third_sensor_id;
+	priv->front2_sensor_id = front2_sensor_id;
+	priv->rear3_sensor_id = rear3_sensor_id;
 	priv->ois_sensor_index = ois_sensor_index;
 	priv->aperture_sensor_index = aperture_sensor_index;
 
@@ -85,22 +88,22 @@ int fimc_is_vender_dt(struct device_node *np)
 	if (ret)
 		probe_err("front_sensor_id read is fail(%d)", ret);
 
-	ret = of_property_read_u32(np, "rear_second_sensor_id", &rear_second_sensor_id);
+	ret = of_property_read_u32(np, "rear2_sensor_id", &rear2_sensor_id);
 	if (ret)
-		probe_err("rear_second_sensor_id read is fail(%d)", ret);
+		probe_err("rear2_sensor_id read is fail(%d)", ret);
 
 #ifdef CONFIG_SECURE_CAMERA_USE
 	ret = of_property_read_u32(np, "secure_sensor_id", &secure_sensor_id);
 	if (ret)
 		probe_err("secure_sensor_id read is fail(%d)", ret);
 #endif
-	ret = of_property_read_u32(np, "front_second_sensor_id", &front_second_sensor_id);
+	ret = of_property_read_u32(np, "front2_sensor_id", &front2_sensor_id);
 	if (ret)
-		probe_err("front_second_sensor_id read is fail(%d)", ret);
+		probe_err("front2_sensor_id read is fail(%d)", ret);
 
-	ret = of_property_read_u32(np, "rear_third_sensor_id", &rear_third_sensor_id);
+	ret = of_property_read_u32(np, "rear3_sensor_id", &rear3_sensor_id);
 	if (ret)
-		probe_err("rear_third_sensor_id read is fail(%d)", ret);
+		probe_err("rear3_sensor_id read is fail(%d)", ret);
 
 	ret = of_property_read_u32(np, "ois_sensor_index", &ois_sensor_index);
 	if (ret)
@@ -143,7 +146,7 @@ void fimc_is_vender_resource_put(struct fimc_is_vender *vender)
 }
 
 #if !defined(ENABLE_CAL_LOAD)
-int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
+int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is_vender *vender,
 	void *module_data)
 {
 	int ret = 0;
@@ -151,46 +154,49 @@ int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
 	return ret;
 }
 #else
-int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
+static int fimc_is_led_cal_file_read(const char *file_name, const void *data, unsigned long size)
+{
+	int ret = 0;
+	long fsize, nread;
+	mm_segment_t old_fs;
+	struct file *fp;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	fp = filp_open(file_name, O_RDONLY, 0);
+	if (IS_ERR_OR_NULL(fp)) {
+		ret = PTR_ERR(fp);
+		err("file_open(%s) fail(%d)!!\n", file_name, ret);
+		goto p_err;
+	}
+
+	fsize = fp->f_path.dentry->d_inode->i_size;
+
+	nread = vfs_read(fp, (char __user *)data, size, &fp->f_pos);
+
+	info("%s(): read to file(%s) size(%ld)\n", __func__, file_name, nread);
+p_err:
+	if (!IS_ERR_OR_NULL(fp))
+		filp_close(fp, NULL);
+
+	set_fs(old_fs);
+
+	return ret;
+}
+
+int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is_vender *vender,
 	void *module_data)
 {
 	struct fimc_is_core *core;
 	struct fimc_is_module_enum *module = module_data;
-	struct fimc_is_binary cal_bin;
 	ulong cal_addr = 0;
 	int ret = 0;
 
 	core = container_of(vender, struct fimc_is_core, vender);
 
-	setup_binary_loader(&cal_bin, 0, 0, NULL, NULL);
-	if (module->position == SENSOR_POSITION_REAR) {
-		/* Load calibration data from file system */
-		ret = request_binary(&cal_bin, FIMC_IS_REAR_CAL_SDCARD_PATH,
-								FIMC_IS_REAR_CAL, NULL);
-		if (ret) {
-			err("[Vendor]: request_binary filed: %s%s",
-					FIMC_IS_REAR_CAL_SDCARD_PATH, FIMC_IS_REAR_CAL);
-			goto exit;
-		}
-#ifdef ENABLE_IS_CORE
-		cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET0;
-#else
-		cal_addr = core->resourcemgr.minfo.kvaddr_rear_cal;
-#endif
-	} else if (module->position == SENSOR_POSITION_FRONT) {
-		/* Load calibration data from file system */
-		ret = request_binary(&cal_bin, FIMC_IS_REAR_CAL_SDCARD_PATH,
-								FIMC_IS_FRONT_CAL, NULL);
-		if (ret) {
-			err("[Vendor]: request_binary filed: %s%s",
-					FIMC_IS_REAR_CAL_SDCARD_PATH, FIMC_IS_FRONT_CAL);
-			goto exit;
-		}
-#ifdef ENABLE_IS_CORE
-		cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET1;
-#else
-		cal_addr = core->resourcemgr.minfo.kvaddr_front_cal;
-#endif
+	if (sensor->use_otp_cal || sensor->subdev_eeprom) {
+		cal_addr = core->resourcemgr.minfo.kvaddr_cal[module->position];
 	} else {
 		err("[Vendor]: Invalid sensor position: %d", module->position);
 		module->ext.sensor_con.cal_address = 0;
@@ -198,9 +204,22 @@ int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
 		goto exit;
 	}
 
-	memcpy((void *)(cal_addr), (void *)cal_bin.data, cal_bin.size);
+	/* When use EEPROM memcpy eeprom data */
+	if (sensor->subdev_eeprom)
+		memcpy((void *)(cal_addr), (void *)sensor->eeprom->data, sensor->eeprom->total_size);
+	else
+		memcpy((void *)(cal_addr), (void *)sensor->otp_cal_buf, sizeof(sensor->otp_cal_buf));
 
-	release_binary(&cal_bin);
+	ret = fimc_is_led_cal_file_read(FIMC_IS_LED_CAL_DATA_PATH, (void *)(cal_addr + CAL_DATA_SIZE),
+			LED_CAL_DATA_SIZE);
+
+	/* if getting led_cal_data_file is failed, fill buf with 0xff */
+	if (ret) {
+		memset((void *)(cal_addr + CAL_DATA_SIZE), 0xff, LED_CAL_DATA_SIZE);
+		warn("get led_cal_data fail\n");
+	} else {
+		info("get led_cal_data success\n");
+	}
 exit:
 	if (ret)
 		err("CAL data loading is fail: skip");

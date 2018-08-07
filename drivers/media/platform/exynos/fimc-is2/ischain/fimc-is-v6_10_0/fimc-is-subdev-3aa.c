@@ -147,6 +147,20 @@ static int fimc_is_ischain_3aa_cfg(struct fimc_is_subdev *leader,
 #endif
 	dma_input->bayer_crop_width = incrop->w;
 	dma_input->bayer_crop_height = incrop->h;
+	dma_input->orientation = DMA_INPUT_ORIENTATION_NORMAL;
+#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
+	/* if rotation remosaic frame reprocessing is doing, set "CCW(1)" as default,
+	 * TODO: get orientation value through interface if needed
+	 */
+	if (test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state)
+		&& (frame && CHK_REMOSAIC_SCN(frame->shot->ctl.aa.sceneMode))) {
+		if (frame->shot_ext->remosaic_rotation)
+			dma_input->orientation = DMA_INPUT_ORIENTATION_CCW;
+		else
+			dma_input->orientation = DMA_INPUT_ORIENTATION_NORMAL;
+		msrinfo("DMA rotate(%d) for REMOSAIC\n", device, leader, frame, dma_input->orientation);
+	}
+#endif
 	*lindex |= LOWBIT_OF(PARAM_3AA_VDMA1_INPUT);
 	*hindex |= HIGHBIT_OF(PARAM_3AA_VDMA1_INPUT);
 	(*indexes)++;
@@ -263,6 +277,7 @@ static int fimc_is_ischain_3aa_tag(struct fimc_is_subdev *subdev,
 
 	if (!COMPARE_CROP(incrop, &inparm) ||
 		!COMPARE_CROP(otcrop, &otparm) ||
+		!atomic_read(&group->head->scount) ||
 		test_bit(FIMC_IS_SUBDEV_FORCE_SET, &leader->state)) {
 		ret = fimc_is_ischain_3aa_cfg(subdev,
 			device,

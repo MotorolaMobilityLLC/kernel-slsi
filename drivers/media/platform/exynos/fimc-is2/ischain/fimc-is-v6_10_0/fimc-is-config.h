@@ -61,12 +61,14 @@
 /* #define ENABLE_DIS */
 /* #define ENABLE_DNR_IN_TPU */
 #define ENABLE_DNR_IN_MCSC
+#define USE_DNR_YIC_MODE_ALWAYS
 #define ENABLE_10BIT_MCSC
 /* #define ENABLE_DJAG_IN_MCSC */
 #define ENABLE_VRA
-/* #define ENABLE_REPROCESSING_FD */
+#define ENABLE_VRA_FDONE_WITH_CALLBACK
 #define ENABLE_VRA_CHANGE_SETFILE_PARSING
 #define ENABLE_HYBRID_FD
+#define ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
 
 #define USE_ONE_BINARY
 #define USE_RTA_BINARY
@@ -120,6 +122,8 @@
 
 /* #define ENABLE_FULLCHAIN_OVERFLOW_RECOVERY */
 
+#undef OVERFLOW_PANIC_ENABLE_CSIS
+
 #if defined(ENABLE_FULLCHAIN_OVERFLOW_RECOVERY)
 #undef OVERFLOW_PANIC_ENABLE_ISCHAIN
 #endif
@@ -141,13 +145,13 @@
 #define USE_3AA_CROP_AFTER_BDS
 
 /* #define ENABLE_ULTRA_FAST_SHOT */
+#define ENABLE_FAST_AF_TRIGGER
 #define ENABLE_HWFC
 /* #define FW_SUSPEND_RESUME */
 /* #define TPU_COMPRESSOR */
 #define USE_I2C_LOCK
 #undef ENABLE_FULL_BYPASS
 #define SENSOR_REQUEST_DELAY		2
-#define ENABLE_REMOSAIC_CAPTURE
 #define ENABLE_SENSOR_VC_FUNCTION
 
 #ifdef ENABLE_IRQ_MULTI_TARGET
@@ -160,7 +164,7 @@
 #define MULTI_SHOT_TASKLET
 /* #define ENABLE_EARLY_SHOT */
 
-#if defined(USE_I2C_LOCK) && !defined(CONFIG_VENDER_PSV)
+#if defined(USE_I2C_LOCK)
 #define I2C_MUTEX_LOCK(lock)	mutex_lock(lock)
 #define I2C_MUTEX_UNLOCK(lock)	mutex_unlock(lock)
 #else
@@ -188,7 +192,7 @@
 /* HACK */
 #define DISABLE_CHECK_PERFRAME_FMT_SIZE
 
-/* #define BDS_DVFS */
+#define BDS_DVFS
 #define ENABLE_HW_FAST_READ_OUT
 #define FULL_OTF_TAIL_GROUP_ID		GROUP_ID_MCS0
 
@@ -197,5 +201,11 @@
 #define WB_GAIN_COUNT		(4)
 #define INIT_AWB_COUNT_REAR	(3)
 #define INIT_AWB_COUNT_FRONT	(7)
+
+/* sensor module use_work option */
+#define USE_OIS_INIT_WORK
+#define USE_PRE_FLASH_FIRE_WORK
+
+#define FLASH_CAL_DATA_ENABLE
 
 #endif

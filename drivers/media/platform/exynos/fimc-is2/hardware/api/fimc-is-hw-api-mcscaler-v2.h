@@ -22,8 +22,6 @@
 #define RATIO_X3_8	2796203
 #define RATIO_X2_8	4194304
 
-#define MCSC_SETFILE_VERSION	0x14027431
-
 enum mcsc_wdma_priority {
 	MCSC_WDMA_OUTPUT0_Y = 0,
 	MCSC_WDMA_OUTPUT0_U = 1,
@@ -142,6 +140,7 @@ void fimc_is_scaler_set_wdma_format(void __iomem *base_addr, u32 hw_id, u32 outp
 void fimc_is_scaler_get_wdma_format(void __iomem *base_addr, u32 output_id, u32 *dma_out_format);
 void fimc_is_scaler_set_swap_mode(void __iomem *base_addr, u32 output_id, u32 swap);
 void fimc_is_scaler_set_flip_mode(void __iomem *base_addr, u32 output_id, u32 flip);
+void fimc_is_scaler_get_flip_mode(void __iomem *base_addr, u32 output_id, u32 *flip);
 void fimc_is_scaler_set_rdma_size(void __iomem *base_addr, u32 width, u32 height);
 void fimc_is_scaler_get_rdma_size(void __iomem *base_addr, u32 *width, u32 *height);
 void fimc_is_scaler_set_wdma_size(void __iomem *base_addr, u32 output_id, u32 width, u32 height);
@@ -226,7 +225,7 @@ void fimc_is_scaler_set_djag_scaling_ratio(void __iomem *base_addr, u32 hratio, 
 void fimc_is_scaler_set_djag_init_phase_offset(void __iomem *base_addr, u32 h_offset, u32 v_offset);
 void fimc_is_scaler_set_djag_round_mode(void __iomem *base_addr, u32 round_enable);
 void fimc_is_scaler_set_djag_tunning_param(void __iomem *base_addr, const struct djag_setfile_contents *djag_tune);
-void fimc_is_scaler_set_djag_wb_thres(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb);
+void fimc_is_scaler_set_djag_dither_wb(void __iomem *base_addr, struct djag_wb_thres_cfg *djag_wb, u32 wht, u32 blk);
 
 /* cac */
 void fimc_is_scaler_set_cac_enable(void __iomem *base_addr, u32 en);
@@ -256,6 +255,10 @@ void fimc_is_scaler_set_ds_dst_size(void __iomem *base_addr, u32 width, u32 heig
 void fimc_is_scaler_set_ds_scaling_ratio(void __iomem *base_addr, u32 hratio, u32 vratio);
 void fimc_is_scaler_set_ds_init_phase_offset(void __iomem *base_addr, u32 h_offset, u32 v_offset);
 void fimc_is_scaler_set_ds_gamma_table_enable(void __iomem *base_addr, u32 ds_gamma_enable);
+
+/* FRO */
+void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 hw_id, u32 lfro_enable, u32 lfro_total_fnum);
+u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr, u32 hw_id);
 
 void fimc_is_scaler_clear_intr_src(void __iomem *base_addr, u32 hw_id, u32 status);
 u32 fimc_is_scaler_get_intr_mask(void __iomem *base_addr, u32 hw_id);

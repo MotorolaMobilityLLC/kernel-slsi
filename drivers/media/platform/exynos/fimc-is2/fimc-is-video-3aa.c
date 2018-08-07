@@ -108,6 +108,39 @@ p_err:
 	return ret;
 }
 
+int fimc_is_32s_video_probe(void *data)
+{
+	int ret = 0;
+	struct fimc_is_core *core;
+	struct fimc_is_video *video;
+
+	FIMC_BUG(!data);
+
+	core = (struct fimc_is_core *)data;
+	video = &core->video_32s;
+	video->resourcemgr = &core->resourcemgr;
+
+	if (!core->pdev) {
+		probe_err("pdev is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	ret = fimc_is_video_probe(video,
+		FIMC_IS_VIDEO_3XS_NAME(2),
+		FIMC_IS_VIDEO_32S_NUM,
+		VFL_DIR_M2M,
+		&core->resourcemgr.mem,
+		&core->v4l2_dev,
+		&fimc_is_3aa_video_fops,
+		&fimc_is_3aa_video_ioctl_ops);
+	if (ret)
+		dev_err(&core->pdev->dev, "%s is fail(%d)\n", __func__, ret);
+
+p_err:
+	return ret;
+}
+
 /*
  * =============================================================================
  * Video File Opertation
@@ -418,10 +451,12 @@ static int fimc_is_3aa_video_prepare(struct file *file, void *priv,
 		goto p_err;
 	}
 
+#ifdef ENABLE_IS_CORE
 	if (!test_bit(FRAME_MEM_MAPPED, &frame->mem_state)) {
 		fimc_is_itf_map(device, GROUP_ID(device->group_3aa.id), frame->dvaddr_shot, frame->shot_size);
 		set_bit(FRAME_MEM_MAPPED, &frame->mem_state);
 	}
+#endif
 
 p_err:
 	minfo("[3%dS:V] %s(%d):%d\n", device, GET_3XS_ID(GET_VIDEO(vctx)), __func__, buf->index, ret);
@@ -713,21 +748,6 @@ static int fimc_is_3aa_queue_setup(struct vb2_queue *vbq,
 	return ret;
 }
 
-static int fimc_is_3aa_buffer_prepare(struct vb2_buffer *vb)
-{
-	return fimc_is_queue_prepare(vb);
-}
-
-static inline void fimc_is_3aa_wait_prepare(struct vb2_queue *vbq)
-{
-	fimc_is_queue_wait_prepare(vbq);
-}
-
-static inline void fimc_is_3aa_wait_finish(struct vb2_queue *vbq)
-{
-	fimc_is_queue_wait_finish(vbq);
-}
-
 static int fimc_is_3aa_start_streaming(struct vb2_queue *vbq,
 	unsigned int count)
 {
@@ -828,12 +848,13 @@ static void fimc_is_3aa_buffer_finish(struct vb2_buffer *vb)
 
 const struct vb2_ops fimc_is_3aa_qops = {
 	.queue_setup		= fimc_is_3aa_queue_setup,
-	.buf_init		= fimc_is_buffer_init,
-	.buf_prepare		= fimc_is_3aa_buffer_prepare,
+	.buf_init		= fimc_is_queue_buffer_init,
+	.buf_cleanup		= fimc_is_queue_buffer_cleanup,
+	.buf_prepare		= fimc_is_queue_buffer_prepare,
 	.buf_queue		= fimc_is_3aa_buffer_queue,
 	.buf_finish		= fimc_is_3aa_buffer_finish,
-	.wait_prepare		= fimc_is_3aa_wait_prepare,
-	.wait_finish		= fimc_is_3aa_wait_finish,
+	.wait_prepare		= fimc_is_queue_wait_prepare,
+	.wait_finish		= fimc_is_queue_wait_finish,
 	.start_streaming	= fimc_is_3aa_start_streaming,
 	.stop_streaming		= fimc_is_3aa_stop_streaming,
 };

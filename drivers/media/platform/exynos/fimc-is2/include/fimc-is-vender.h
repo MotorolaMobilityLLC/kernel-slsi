@@ -20,6 +20,7 @@
 
 #include "exynos-fimc-is-sensor.h"
 #include "fimc-is-device-csi.h"
+#include "fimc-is-device-sensor.h"
 
 #define FIMC_IS_PATH_LEN 100
 #define VENDER_S_CTRL 0
@@ -28,8 +29,8 @@
 struct fimc_is_vender {
 	char fw_path[FIMC_IS_PATH_LEN];
 	char request_fw_path[FIMC_IS_PATH_LEN];
-	char setfile_path[SENSOR_POSITION_END][FIMC_IS_PATH_LEN];
-	char request_setfile_path[SENSOR_POSITION_END][FIMC_IS_PATH_LEN];
+	char setfile_path[SENSOR_POSITION_MAX][FIMC_IS_PATH_LEN];
+	char request_setfile_path[SENSOR_POSITION_MAX][FIMC_IS_PATH_LEN];
 	void *private_data;
 	int companion_crc_error;
 };
@@ -40,6 +41,32 @@ enum {
 	FW_FAIL,
 };
 
+enum fimc_is_rom_id {
+	ROM_ID_REAR		= 0,
+	ROM_ID_FRONT	= 1,
+	ROM_ID_REAR2	= 2,
+	ROM_ID_FRONT2	= 3,
+	ROM_ID_REAR3	= 4,
+	ROM_ID_FRONT3	= 5,
+	ROM_ID_MAX,
+	ROM_ID_NOTHING   = 100
+};
+
+enum fimc_is_rom_type {
+	ROM_TYPE_NONE	= 0,
+	ROM_TYPE_FROM	= 1,
+	ROM_TYPE_EEPROM	= 2,
+	ROM_TYPE_OTPROM	= 3,
+	ROM_TYPE_MAX,
+};
+
+enum fimc_is_rom_cal_index {
+	ROM_CAL_MASTER	= 0,
+	ROM_CAL_SLAVE0	= 1,
+	ROM_CAL_SLAVE1	= 2,
+	ROM_CAL_MAX,
+};
+
 bool fimc_is_sec_is_valid_moduleid(char *moduleid);
 
 void fimc_is_vendor_csi_stream_on(struct fimc_is_device_csi *csi);
@@ -48,11 +75,12 @@ void fimc_is_vender_csi_err_print_debug_log(struct fimc_is_device_sensor *device
 
 int fimc_is_vender_probe(struct fimc_is_vender *vender);
 int fimc_is_vender_dt(struct device_node *np);
+int fimc_is_vendor_rom_parse_dt(struct device_node *dnode, int rom_id);
 int fimc_is_vender_fw_prepare(struct fimc_is_vender *vender);
 int fimc_is_vender_fw_filp_open(struct fimc_is_vender *vender, struct file **fp, int bin_type);
 int fimc_is_vender_preproc_fw_load(struct fimc_is_vender *vender);
 int fimc_is_vender_s_ctrl(struct fimc_is_vender *vender);
-int fimc_is_vender_cal_load(struct fimc_is_vender *vender, void *module_data);
+int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is_vender *vender, void *module_data);
 int fimc_is_vender_module_sel(struct fimc_is_vender *vender, void *module_data);
 int fimc_is_vender_module_del(struct fimc_is_vender *vender, void *module_data);
 int fimc_is_vender_fw_sel(struct fimc_is_vender *vender);
@@ -85,4 +113,8 @@ int fimc_is_vender_request_binary(struct fimc_is_binary * bin, const char * path
 void fimc_is_vender_resource_get(struct fimc_is_vender *vender);
 void fimc_is_vender_resource_put(struct fimc_is_vender *vender);
 int fimc_is_vender_remove_dump_fw_file(void);
+int fimc_is_vendor_get_module_from_position(int position, struct fimc_is_module_enum ** module);
+int fimc_is_vendor_get_rom_id_from_position(int position);
+int fimc_is_vendor_get_rom_cal_index_from_position(int position);
+bool fimc_is_vendor_check_camera_running(int position);
 #endif

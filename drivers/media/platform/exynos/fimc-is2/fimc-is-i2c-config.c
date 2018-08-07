@@ -19,6 +19,7 @@
 #endif
 #include "fimc-is-i2c-config.h"
 #include "fimc-is-core.h"
+#include "fimc-is-vender-specific.h"
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 int fimc_is_i2c_pin_config(struct i2c_client *client, int state)
@@ -63,6 +64,7 @@ int fimc_is_i2c_pin_control(struct fimc_is_module_enum *module, u32 scenario, u3
 	struct fimc_is_core *core;
 	int i2c_config_state = 0;
 	u32 i2c_channel = 0;
+	struct fimc_is_vender_specific *specific;
 
 	if (value)
 		i2c_config_state = I2C_PIN_STATE_ON;
@@ -73,8 +75,13 @@ int fimc_is_i2c_pin_control(struct fimc_is_module_enum *module, u32 scenario, u3
 	device = v4l2_get_subdev_hostdata(module->subdev);
 	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
 
+	FIMC_BUG(!core);
+
+	specific = core->vender.private_data;
+
 	switch (scenario) {
 	case SENSOR_SCENARIO_NORMAL:
+	case SENSOR_SCENARIO_VISION:
 		if (sensor_peri->cis.client) {
 			info("%s[%d] cis i2c config(%d), position(%d), scenario(%d)\n",
 				__func__, __LINE__, i2c_config_state, module->position, scenario);
@@ -82,12 +89,11 @@ int fimc_is_i2c_pin_control(struct fimc_is_module_enum *module, u32 scenario, u3
 		}
 		if (device->ois) {
 			i2c_channel = module->ext.ois_con.peri_setting.i2c.channel;
-			if (core != NULL) {
-				if (i2c_config_state == I2C_PIN_STATE_ON)
-					atomic_inc(&core->i2c_rsccount[i2c_channel]);
-				else if (i2c_config_state == I2C_PIN_STATE_OFF)
-					atomic_dec(&core->i2c_rsccount[i2c_channel]);
-			}
+
+			if (i2c_config_state == I2C_PIN_STATE_ON)
+				atomic_inc(&core->i2c_rsccount[i2c_channel]);
+			else if (i2c_config_state == I2C_PIN_STATE_OFF)
+				atomic_dec(&core->i2c_rsccount[i2c_channel]);
 
 			if (atomic_read(&core->i2c_rsccount[i2c_channel]) == value) {
 				info("%s[%d] ois i2c config(%d), position(%d), scenario(%d), i2c_channel(%d)\n",
@@ -105,6 +111,11 @@ int fimc_is_i2c_pin_control(struct fimc_is_module_enum *module, u32 scenario, u3
 				__func__, __LINE__, i2c_config_state, module->position, scenario);
 			ret |= fimc_is_i2c_pin_config(device->aperture->client, i2c_config_state);
 		}
+		if (device->mcu) {
+			info("%s[%d] mcu i2c config(%d), position(%d), scenario(%d)\n",
+				__func__, __LINE__, i2c_config_state, module->position, scenario);
+			ret |= fimc_is_i2c_pin_config(device->mcu->client, i2c_config_state);
+		}
 		break;
 	case SENSOR_SCENARIO_OIS_FACTORY:
 		if (device->ois) {
@@ -112,12 +123,17 @@ int fimc_is_i2c_pin_control(struct fimc_is_module_enum *module, u32 scenario, u3
 				__func__, __LINE__, i2c_config_state, module->position, scenario);
 			ret |= fimc_is_i2c_pin_config(device->ois->client, i2c_config_state);
 		}
+		if (device->mcu) {
+			info("%s[%d] mcu i2c config(%d), position(%d), scenario(%d)\n",
+				__func__, __LINE__, i2c_config_state, module->position, scenario);
+			ret |= fimc_is_i2c_pin_config(device->mcu->client, i2c_config_state);
+		}
 		break;
 	case SENSOR_SCENARIO_READ_ROM:
-		if (device->actuator[module->position]) {
-			info("%s[%d] actuator i2c config(%d), position(%d), scenario(%d)\n",
-				__func__, __LINE__, i2c_config_state, module->position, scenario);
-			ret |= fimc_is_i2c_pin_config(device->actuator[module->position]->client, i2c_config_state);
+		if (module->pdata->rom_id >= ROM_ID_REAR && module->pdata->rom_id < ROM_ID_MAX) {
+			info("%s[%d] eeprom i2c config(%d), rom_id(%d), scenario(%d)\n",
+				__func__, __LINE__, i2c_config_state, module->pdata->rom_id, scenario);
+			ret |= fimc_is_i2c_pin_config(specific->eeprom_client[module->pdata->rom_id], i2c_config_state);
 		}
 		break;
 	case SENSOR_SCENARIO_SECURE:

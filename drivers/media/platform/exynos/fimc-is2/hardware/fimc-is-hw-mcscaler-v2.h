@@ -27,6 +27,25 @@
 	(output_id + ENTRY_M0P)
 #define GET_DJAG_ZOOM_RATIO(in, out) (u32)(((in * 1000 / out) << MCSC_PRECISION) / 1000)
 
+/*
+ * [0:3]: DJAG
+ * [4:7]: CAC
+ * [8:11]: UVSP
+ * [12:31]: Reserved
+ */
+#define SUBBLK_IP_DJAG			(0) /* [0:3] */
+#define SUBBLK_IP_CAC			(4) /* [4:7] */
+#define SUBBLK_IP_UVSP			(8) /* [8:11] */
+
+#define SUBBLK_CTRL_SYSFS		(0)
+#define SUBBLK_CTRL_EN			(1)
+#define SUBBLK_CTRL_INPUT		(3)
+
+#define GET_SUBBLK_CTRL_BIT(value, IP_OFFSET, CTRL_OFFSET)	\
+	(((value) >> ((IP_OFFSET) + (CTRL_OFFSET))) & 0x1)
+
+#define GET_CORE_NUM(id)	((id) - DEV_HW_MCSC0)
+
 enum mcsc_img_format {
 	MCSC_YUV422_1P_YUYV = 0,
 	MCSC_YUV422_1P_YVYU,
@@ -142,6 +161,9 @@ struct hw_mcsc_setfile {
 struct fimc_is_hw_mcsc_cap {
 	u32			hw_ver;
 	u32			max_output;
+	u32			max_djag;
+	u32			max_cac;
+	u32			max_uvsp;
 	enum mcsc_cap_enum	in_otf;
 	enum mcsc_cap_enum	in_dma;
 	enum mcsc_cap_enum	hwfc;
@@ -157,9 +179,13 @@ struct fimc_is_hw_mcsc_cap {
 	enum mcsc_cap_enum	ds_vra;
 };
 
+#define SUBBLK_TDNR	(0)
+#define SUBBLK_CAC	(1)
+#define SUBBLK_UVSP	(2)
+#define SUBBLK_MAX	(3)
 struct fimc_is_hw_mcsc {
-	struct	hw_mcsc_setfile setfile[SENSOR_POSITION_END][FIMC_IS_MAX_SETFILE];
-	struct	hw_mcsc_setfile *cur_setfile[SENSOR_POSITION_END];
+	struct	hw_mcsc_setfile setfile[SENSOR_POSITION_MAX][FIMC_IS_MAX_SETFILE];
+	struct	hw_mcsc_setfile *cur_setfile[SENSOR_POSITION_MAX];
 	struct	fimc_is_hw_mcsc_cap cap;
 
 	u32	in_img_format;
@@ -171,7 +197,8 @@ struct fimc_is_hw_mcsc {
 	ulong	out_en;		/* This flag save whether the capture video node of MCSC is opened or not. */
 	u32	prev_hwfc_output_ids;
 	/* noise_index also needs to use in TDNR, CAC, DJAG */
-	u32			cur_ni;
+	u32			cur_ni[SUBBLK_MAX];
+	struct camera2_ni_udm	ni_udm[NI_BACKUP_MAX];
 
 	/* for tdnr use */
 	enum mcsc_output_index	tdnr_output;
@@ -198,6 +225,8 @@ struct fimc_is_hw_mcsc {
 
 int fimc_is_hw_mcsc_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface *itf,
 	struct fimc_is_interface_ischain *itfc, int id, const char *name);
+void fimc_is_hw_mcsc_get_force_block_control(struct fimc_is_hw_ip *hw_ip, u32 ip_offset, u32 num_of_block,
+	u32 *input_sel, bool *en);
 
 int fimc_is_hw_mcsc_update_param(struct fimc_is_hw_ip *hw_ip,
 	struct mcs_param *param, u32 lindex, u32 hindex, u32 instance);
@@ -245,7 +274,10 @@ int fimc_is_hw_mcsc_update_tdnr_register(struct fimc_is_hw_ip *hw_ip,
 int fimc_is_hw_mcsc_recovery_tdnr_register(struct fimc_is_hw_ip *hw_ip,
 		struct is_param_region *param, u32 instance);
 
-
+void fimc_is_hw_mcsc_set_size_for_uvsp(struct fimc_is_hardware *hardware,
+	struct fimc_is_frame *frame, ulong hw_map);
+void fimc_is_hw_mcsc_set_ni(struct fimc_is_hardware *hardware, struct fimc_is_frame *frame,
+	u32 instance);
 void fimc_is_hw_mcsc_adjust_size_with_djag(struct fimc_is_hw_ip *hw_ip, struct param_mcs_input *input,
 	struct fimc_is_hw_mcsc_cap *cap, u32 *x, u32 *y, u32 *width, u32 *height);
 int fimc_is_hw_mcsc_update_djag_register(struct fimc_is_hw_ip *hw_ip,
@@ -262,8 +294,6 @@ int fimc_is_hw_mcsc_update_ysum_register(struct fimc_is_hw_ip *hw_ip,
 int fimc_is_hw_mcsc_update_dsvra_register(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_group *head, struct mcs_param *mcs_param,
 	u32 instance, struct camera2_shot *shot);
-void fimc_is_scaler_set_lfro_mode_enable(void __iomem *base_addr, u32 lfro_enable, u32 lfro_total_fnum);
-u32 fimc_is_scaler_get_lfro_mode_status(void __iomem *base_addr);
 
 #ifdef DEBUG_HW_SIZE
 #define hw_mcsc_check_size(hw_ip, param, instance, output_id) \

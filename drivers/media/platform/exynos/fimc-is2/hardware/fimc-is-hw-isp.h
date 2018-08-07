@@ -23,7 +23,4 @@ struct fimc_is_hw_isp {
 
 int fimc_is_hw_isp_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface *itf,
 	struct fimc_is_interface_ischain *itfc, int id, const char *name);
-void fimc_is_hw_isp_update_param(struct fimc_is_hw_ip *hw_ip, struct is_region *region,
-	struct isp_param_set *param_set, u32 lindex, u32 hindex, u32 instance);
-int fimc_is_hw_isp_reset(struct fimc_is_hw_ip *hw_ip);
 #endif

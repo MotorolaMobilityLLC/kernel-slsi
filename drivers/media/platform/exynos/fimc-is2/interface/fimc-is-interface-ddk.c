@@ -22,7 +22,6 @@ module_param(debug_time_hw, int, 0644);
 bool check_dma_done(struct fimc_is_hw_ip *hw_ip, u32 instance_id, u32 fcount)
 {
 	bool ret = false;
-	int expected_fcount;
 	struct fimc_is_frame *frame;
 	struct fimc_is_frame *list_frame;
 	struct fimc_is_framemgr *framemgr;
@@ -70,38 +69,35 @@ flush_config_frame:
 	}
 
 	/*
-	 * The expected_fcount in which num_buffers is considered.
-	 * It would be matched with frame->fcount which has "HW_WAIT_DONE" state.
-	 *  ex. frame->fcount : 1, num_buffer : 4, fcount : 4 => expected_fcount : 1
+	 * fcount: This value should be same value that is notified by host at shot time.
+	 * In case of FRO or batch mode, this value also should be same between start and end.
 	 */
-	expected_fcount = fcount - (frame->num_buffers - 1);
-
-	msdbg_hw(1, "check_dma [ddk:%d,exp:%d,hw:%d] frame(F:%d,idx:%d,num_buffers:%d)\n",
+	msdbg_hw(1, "check_dma [ddk:%d,hw:%d] frame(F:%d,idx:%d,num_buffers:%d)\n",
 			instance_id, hw_ip,
-			fcount, expected_fcount, hw_fcount,
+			fcount, hw_fcount,
 			frame->fcount, frame->cur_buf_index, frame->num_buffers);
 
-	if (((frame->num_buffers > 1) && (expected_fcount != frame->fcount))
-		|| ((frame->num_buffers == 1) && (expected_fcount != (frame->fcount + frame->cur_buf_index)))) {
+	if (((frame->num_buffers > 1) && (fcount != frame->fcount))
+		|| ((frame->num_buffers == 1) && (fcount != (frame->fcount + frame->cur_buf_index)))) {
 		framemgr_e_barrier_common(framemgr, 0, flags);
 		list_frame = find_frame(framemgr, FS_HW_WAIT_DONE, frame_fcount,
-					(void *)(ulong)expected_fcount);
+					(void *)(ulong)fcount);
 		framemgr_x_barrier_common(framemgr, 0, flags);
 		if (list_frame == NULL) {
-			mswarn_hw("queued_count(%d) [ddk:%d,exp:%d,hw:%d] invalid frame(F:%d,idx:%d)",
+			mswarn_hw("queued_count(%d) [ddk:%d,hw:%d] invalid frame(F:%d,idx:%d)",
 				instance_id, hw_ip,
 				framemgr->queued_count[FS_HW_WAIT_DONE],
-				fcount, expected_fcount, hw_fcount,
+				fcount, hw_fcount,
 				frame->fcount, frame->cur_buf_index);
 flush_wait_done_frame:
 			framemgr_e_barrier_common(framemgr, 0, flags);
 			frame = peek_frame(framemgr, FS_HW_WAIT_DONE);
 			if (frame) {
-				if (unlikely(frame->fcount < expected_fcount)) {
+				if (unlikely(frame->fcount < fcount)) {
 					framemgr_x_barrier_common(framemgr, 0, flags);
 					fimc_is_hardware_frame_ndone(hw_ip, frame, frame->instance, IS_SHOT_INVALID_FRAMENUMBER);
 					goto flush_wait_done_frame;
-				} else if (unlikely(frame->fcount > expected_fcount)) {
+				} else if (unlikely(frame->fcount > fcount)) {
 					mswarn_hw("%s:[F%d] Too early frame. Skip it.",
 							instance_id, hw_ip,
 							__func__, frame->fcount);
@@ -140,7 +136,8 @@ flush_wait_done_frame:
 		output_id2 = ENTRY_3AF;
 		wq_id3 = WORK_31G_FDONE; /* mrg output */
 		output_id3 = ENTRY_3AG;
-		/* TODO: Added MEXC for 3AA1 */
+		wq_id4 = WORK_ME1C_FDONE; /* me output */
+		output_id4 = ENTRY_MEXC;
 		break;
 	case DEV_HW_ISP0:
 		wq_id0 = WORK_I0P_FDONE; /* chunk output */
@@ -155,6 +152,8 @@ flush_wait_done_frame:
 		output_id0 = ENTRY_IXP;
 		wq_id1 = WORK_I1C_FDONE;
 		output_id1 = ENTRY_IXC;
+		wq_id2 = WORK_ME1C_FDONE; /* me output */
+		output_id2 = ENTRY_MEXC;
 		break;
 	case DEV_HW_TPU0:
 		wq_id1 = WORK_D0C_FDONE;
@@ -731,16 +730,16 @@ int __nocfi fimc_is_lib_isp_set_ctrl(struct fimc_is_hw_ip *hw_ip,
 	return 0;
 }
 
-void __nocfi fimc_is_lib_isp_shot(struct fimc_is_hw_ip *hw_ip,
+int __nocfi fimc_is_lib_isp_shot(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_lib_isp *this, void *param_set, struct camera2_shot *shot)
 {
 	int ret = 0;
 
-	FIMC_BUG_VOID(!hw_ip);
-	FIMC_BUG_VOID(!this);
-	FIMC_BUG_VOID(!param_set);
-	FIMC_BUG_VOID(!this->func);
-	FIMC_BUG_VOID(!this->object);
+	FIMC_BUG(!hw_ip);
+	FIMC_BUG(!this);
+	FIMC_BUG(!param_set);
+	FIMC_BUG(!this->func);
+	FIMC_BUG(!this->object);
 
 	switch (hw_ip->id) {
 	case DEV_HW_3AA0:
@@ -779,6 +778,8 @@ void __nocfi fimc_is_lib_isp_shot(struct fimc_is_hw_ip *hw_ip,
 		err_lib("invalid hw (%d)", hw_ip->id);
 		break;
 	}
+
+	return ret;
 }
 
 int __nocfi fimc_is_lib_isp_get_meta(struct fimc_is_hw_ip *hw_ip,

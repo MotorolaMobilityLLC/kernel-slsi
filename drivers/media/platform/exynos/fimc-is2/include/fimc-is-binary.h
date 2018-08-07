@@ -14,15 +14,6 @@
 
 #include "fimc-is-config.h"
 
-#if defined(CONFIG_VENDER_PSV)
-#define FIMC_IS_FW_PATH                        "/system/vendor/firmware/"
-#define FIMC_IS_FW_DUMP_PATH                   "/data/"
-#define FIMC_IS_SETFILE_SDCARD_PATH            "/data/"
-#define FIMC_IS_FW_SDCARD                      "/data/fimc_is_fw2.bin"
-#define FIMC_IS_FW                             "fimc_is_fw2.bin"
-#define FIMC_IS_ISP_LIB_SDCARD_PATH            "/root/stream/data/"
-
-#else
 #ifdef VENDER_PATH
 #define FIMC_IS_FW_PATH 			"/system/vendor/firmware/"
 #define FIMC_IS_FW_DUMP_PATH			"/data/camera/"
@@ -47,7 +38,6 @@
 #define FIMC_IS_REAR_CAL_SDCARD_PATH		"/data/"
 #define FIMC_IS_FRONT_CAL_SDCARD_PATH		"/data/"
 #endif
-#endif /* defined(CONFIG_VENDER_PSV) */
 
 #ifdef USE_ONE_BINARY
 #define FIMC_IS_ISP_LIB				"fimc_is_lib.bin"
@@ -60,6 +50,8 @@
 
 #define FD_SW_BIN_NAME				"fimc_is_fd.bin"
 #define FD_SW_SDCARD				"/data/fimc_is_fd.bin"
+
+#define FIMC_IS_LED_CAL_DATA_PATH		"/mnt/vendor/persist/camera/ledcal/rear"
 
 #ifdef ENABLE_IS_CORE
 #define FW_MEM_SIZE			0x02000000
@@ -103,15 +95,17 @@
 
 /* reserved memory for FIMC-IS */
 #define SETFILE_SIZE		(0x0032C000)
-#define REAR_CALDATA_SIZE	(0x00010000)
-#define FRONT_CALDATA_SIZE	(0x00010000)
+#define CAL_DATA_SIZE		(0x00010000)
+#define LED_CAL_DATA_SIZE	(0x00000400)
+#define TOTAL_CAL_DATA_SIZE	(CAL_DATA_SIZE + LED_CAL_DATA_SIZE)
 #define DEBUG_REGION_SIZE	(0x0007D000)
 #define EVENT_REGION_SIZE	(0x0007D000)
 #define FSHARED_REGION_SIZE	(0x00010000)
 #define DATA_REGION_SIZE	(0x00010000)
 #define PARAM_REGION_SIZE	(0x00005000)	/* 20KB * instance(4) */
 
-#define RESERVE_LIB_SIZE	(FIMC_IS_RESERVE_LIB_SIZE)	/* 2MB */
+#define HEAP_RTA_START		(HEAP_START + SZ_64M)		/* HEAP_SIZE(for DDK) should be smaller than 64MB */
+#define HEAP_RTA_SIZE		(FIMC_IS_RESERVE_LIB_SIZE)	/* 6MB ~ */
 #define TAAISP_DMA_SIZE		(FIMC_IS_TAAISP_SIZE)	/* 512KB */
 #define LHFD_MAP_SIZE		(0x009F0000)	/* 9.9375MB */
 #define VRA_DMA_SIZE		(FIMC_IS_VRA_SIZE)	/* 8MB */

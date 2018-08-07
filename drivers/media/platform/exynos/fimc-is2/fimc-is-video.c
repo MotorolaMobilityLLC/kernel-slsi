@@ -29,7 +29,6 @@
 #include <linux/syscalls.h>
 #include <linux/videodev2_exynos_media.h>
 #include <linux/dma-buf.h>
-#include <linux/dma-buf-container.h>
 
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
@@ -47,14 +46,14 @@
 #include "fimc-is-mem.h"
 #include "fimc-is-video.h"
 
-#define SPARE_PLANE 1
-#define SPARE_SIZE (32 * 1024)
+#define NUM_OF_META_PLANE	1
+#define SIZE_OF_META_PLANE	SZ_32K
 
 struct fimc_is_fmt fimc_is_formats[] = {
 	{
 		.name		= "YUV 4:4:4 packed, YCbCr",
 		.pixelformat	= V4L2_PIX_FMT_YUV444,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.mbus_code	= 0, /* Not Defined */
 		.bitsperpixel	= { 24 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV444,
@@ -64,7 +63,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.pixelformat	= V4L2_PIX_FMT_YUYV,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bitsperpixel	= { 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
@@ -74,7 +73,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.pixelformat	= V4L2_PIX_FMT_YUYV,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bitsperpixel	= { 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
@@ -84,7 +83,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 packed, CbYCrY",
 		.pixelformat	= V4L2_PIX_FMT_UYVY,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.bitsperpixel	= { 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
@@ -94,7 +93,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 planar, Y/CbCr",
 		.pixelformat	= V4L2_PIX_FMT_NV16,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -103,7 +102,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 planar, Y/CbCr",
 		.pixelformat	= V4L2_PIX_FMT_NV61,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_CrCb,
@@ -112,7 +111,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 non-contiguous 2-planar,, Y/CbCr",
 		.pixelformat	= V4L2_PIX_FMT_NV16M,
-		.num_planes	= 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -121,7 +120,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 non-contiguous 2-planar, Y/CbCr",
 		.pixelformat	= V4L2_PIX_FMT_NV61M,
-		.num_planes	= 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_CrCb,
@@ -130,7 +129,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 planar, Y/Cb/Cr",
 		.pixelformat	= V4L2_PIX_FMT_YUV422P,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -139,7 +138,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 planar, YCbCr",
 		.pixelformat	= V4L2_PIX_FMT_YUV420,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 4, 4 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -148,7 +147,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 planar, YCbCr",
 		.pixelformat	= V4L2_PIX_FMT_YVU420,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 4, 4 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -157,7 +156,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 planar, Y/CbCr",
 		.pixelformat	= V4L2_PIX_FMT_NV12,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -166,7 +165,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 planar, Y/CrCb",
 		.pixelformat	= V4L2_PIX_FMT_NV21,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_CrCb,
@@ -175,7 +174,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr",
 		.pixelformat	= V4L2_PIX_FMT_NV12M,
-		.num_planes	= 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -184,7 +183,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YVU 4:2:0 non-contiguous 2-planar, Y/CrCb",
 		.pixelformat	= V4L2_PIX_FMT_NV21M,
-		.num_planes	= 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_CrCb,
@@ -193,7 +192,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 non-contiguous 3-planar, Y/Cb/Cr",
 		.pixelformat	= V4L2_PIX_FMT_YUV420M,
-		.num_planes	= 3 + SPARE_PLANE,
+		.num_planes	= 3 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 4, 4 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -202,7 +201,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 non-contiguous 3-planar, Y/Cr/Cb",
 		.pixelformat	= V4L2_PIX_FMT_YVU420M,
-		.num_planes	= 3 + SPARE_PLANE,
+		.num_planes	= 3 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 4, 4 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -211,7 +210,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "BAYER 8 bit(GRBG)",
 		.pixelformat	= V4L2_PIX_FMT_SGRBG8,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_BAYER,
 		.hw_order	= DMA_OUTPUT_ORDER_GB_BG,
@@ -220,7 +219,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "BAYER 8 bit(BA81)",
 		.pixelformat	= V4L2_PIX_FMT_SBGGR8,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_BAYER,
 		.hw_order	= DMA_OUTPUT_ORDER_GB_BG,
@@ -229,7 +228,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "BAYER 10 bit",
 		.pixelformat	= V4L2_PIX_FMT_SBGGR10,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 10 },
 		.hw_format	= DMA_OUTPUT_FORMAT_BAYER_PACKED,
 		.hw_order	= DMA_OUTPUT_ORDER_GB_BG,
@@ -238,7 +237,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "BAYER 12 bit",
 		.pixelformat	= V4L2_PIX_FMT_SBGGR12,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 12 },
 		.hw_format	= DMA_OUTPUT_FORMAT_BAYER_PACKED,
 		.hw_order	= DMA_OUTPUT_ORDER_GB_BG,
@@ -247,7 +246,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "BAYER 16 bit",
 		.pixelformat	= V4L2_PIX_FMT_SBGGR16,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_BAYER,
 		.hw_order	= DMA_OUTPUT_ORDER_GB_BG,
@@ -256,7 +255,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "ARGB8888",
 		.pixelformat	= V4L2_PIX_FMT_RGB32,
-		.num_planes = 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 32 },
 		.hw_format	= DMA_OUTPUT_FORMAT_RGB,
 		.hw_order	= DMA_OUTPUT_ORDER_ARGB,
@@ -265,7 +264,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "Y 8bit",
 		.pixelformat	= V4L2_PIX_FMT_GREY,
-		.num_planes = 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_Y,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -274,7 +273,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "Y 10bit",
 		.pixelformat	= V4L2_PIX_FMT_Y10,
-		.num_planes = 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_Y,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -283,7 +282,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "Y 12bit",
 		.pixelformat	= V4L2_PIX_FMT_Y12,
-		.num_planes = 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_Y,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -292,7 +291,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "Y Packed 10bit",
 		.pixelformat	= V4L2_PIX_FMT_Y10BPACK,
-		.num_planes = 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 10 },
 		.hw_format	= DMA_OUTPUT_FORMAT_Y,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -301,7 +300,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "P210_16B",
 		.pixelformat	= V4L2_PIX_FMT_NV16M_P210,
-		.num_planes = 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 16, 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -310,7 +309,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "P210_10B",
 		.pixelformat	= V4L2_PIX_FMT_NV16M_P210,
-		.num_planes = 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 10, 10 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -319,7 +318,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "P010_16B",
 		.pixelformat	= V4L2_PIX_FMT_NV12M_P010,
-		.num_planes = 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 16, 16 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -328,7 +327,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "P010_10B",
 		.pixelformat	= V4L2_PIX_FMT_NV12M_P010,
-		.num_planes = 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 10, 10 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -337,7 +336,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV422 2P 10bit(8+2)",
 		.pixelformat	= V4L2_PIX_FMT_NV16M_S10B,
-		.num_planes = 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV422,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -346,7 +345,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "YUV420 2P 10bit(8+2)",
 		.pixelformat	= V4L2_PIX_FMT_NV12M_S10B,
-		.num_planes = 2 + SPARE_PLANE,
+		.num_planes	= 2 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 8, 8 },
 		.hw_format	= DMA_OUTPUT_FORMAT_YUV420,
 		.hw_order	= DMA_OUTPUT_ORDER_CbCr,
@@ -355,7 +354,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "JPEG",
 		.pixelformat	= V4L2_PIX_FMT_JPEG,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.mbus_code	= MEDIA_BUS_FMT_JPEG_1X8,
 		.bitsperpixel	= { 8 },
 		.hw_format	= 0,
@@ -365,7 +364,7 @@ struct fimc_is_fmt fimc_is_formats[] = {
 	}, {
 		.name		= "DEPTH",
 		.pixelformat	= V4L2_PIX_FMT_Z16,
-		.num_planes	= 1 + SPARE_PLANE,
+		.num_planes	= 1 + NUM_OF_META_PLANE,
 		.bitsperpixel	= { 32 },
 		.hw_format	= 0,
 		.hw_order	= DMA_OUTPUT_ORDER_NO,
@@ -421,12 +420,10 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 {
 	u32 plane;
 	u32 width[FIMC_IS_MAX_PLANES];
-	u32 image_planes;
+	u32 image_planes = num_planes - NUM_OF_META_PLANE;
 
 	FIMC_BUG_VOID(!frame);
 	FIMC_BUG_VOID(!frame->format);
-
-	image_planes = num_planes - SPARE_PLANE;
 
 	for (plane = 0; plane < FIMC_IS_MAX_PLANES; ++plane)
 		width[plane] = max(frame->width * frame->format->bitsperpixel[plane] / BITS_PER_BYTE,
@@ -437,14 +434,14 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 		dbg("V4L2_PIX_FMT_YUV444(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = width[0] * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
 		dbg("V4L2_PIX_FMT_YUYV(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = width[0] * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
@@ -452,7 +449,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = width[0] * frame->height
 				+ width[1] * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
@@ -461,7 +458,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane] = width[0] * frame->height;
 			sizes[plane + 1] = width[1] * frame->height;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 		dbg("V4L2_PIX_FMT_YUV422P(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -470,7 +467,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 				+ width[1] * frame->height / 2
 				+ width[2] * frame->height / 2;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
@@ -479,7 +476,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane] = width[0] * frame->height
 				+ width[1] * frame->height / 2;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
@@ -488,7 +485,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane] = width[0] * frame->height;
 			sizes[plane + 1] = width[1] * frame->height / 2;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
@@ -498,7 +495,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 				+ width[1] * frame->height / 2
 				+ width[2] * frame->height / 2;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YVU420M:
@@ -508,19 +505,19 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane + 1] = width[1] * frame->height / 2;
 			sizes[plane + 2] = width[2] * frame->height / 2;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_SGRBG8:
 		dbg("V4L2_PIX_FMT_SGRBG8(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = frame->width * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_SBGGR8:
 		dbg("V4L2_PIX_FMT_SBGGR8(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = frame->width * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_SBGGR10:
 		dbg("V4L2_PIX_FMT_SBGGR10(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -538,7 +535,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 				}
 			}
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_SBGGR12:
 		dbg("V4L2_PIX_FMT_SBGGR12(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -555,7 +552,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 				}
 			}
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_SBGGR16:
 		dbg("V4L2_PIX_FMT_SBGGR16(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -572,37 +569,37 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 				}
 			}
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_RGB32:
 		dbg("V4L2_PIX_FMT_RGB32(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = frame->width * frame->height * 4;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_GREY:
 		dbg("V4L2_PIX_FMT_GREY(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = frame->width * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_Y10:
 		dbg("V4L2_PIX_FMT_Y10(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = width[0] * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_Y12:
 		dbg("V4L2_PIX_FMT_Y12(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = width[0] * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_Y10BPACK:
 		dbg("V4L2_PIX_FMT_Y10BPACK(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = ALIGN(width[0], 16) * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV16M_P210:
 		dbg("V4L2_PIX_FMT_NV16M_P210(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -610,7 +607,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane] =  ALIGN(width[0], 16) * frame->height;
 			sizes[plane + 1] = ALIGN(width[1], 16) * frame->height;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
 		dbg("V4L2_PIX_FMT_NV12M_P010(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -618,7 +615,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane] = ALIGN(width[0], 16) * frame->height;
 			sizes[plane + 1] = ALIGN(width[0], 16) * frame->height / 2;
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV16M_S10B:
 		dbg("V4L2_PIX_FMT_NV16M_S10B(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -628,7 +625,7 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane + 1] = NV16M_CBCR_SIZE(frame->width, frame->height)
 				+ NV16M_CBCR_2B_SIZE(frame->width, frame->height);
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_NV12M_S10B:
 		dbg("V4L2_PIX_FMT_NV12M_S10B(w:%d)(h:%d)\n", frame->width, frame->height);
@@ -638,19 +635,19 @@ static void fimc_is_set_plane_size(struct fimc_is_frame_cfg *frame,
 			sizes[plane + 1] = NV12M_CBCR_SIZE(frame->width, frame->height)
 				+ NV12M_CBCR_2B_SIZE(frame->width, frame->height);
 		}
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_JPEG:
 		dbg("V4L2_PIX_FMT_JPEG(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = width[0] * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	case V4L2_PIX_FMT_Z16:
 		dbg("V4L2_PIX_FMT_Z16(w:%d)(h:%d)\n", frame->width, frame->height);
 		for (plane = 0; plane < image_planes; plane++)
 			sizes[plane] = width[0] * frame->height;
-		sizes[plane] = SPARE_SIZE;
+		sizes[plane] = SIZE_OF_META_PLANE;
 		break;
 	default:
 		err("unknown pixelformat(%c%c%c%c)\n", (char)((frame->format->pixelformat >> 0) & 0xFF),
@@ -705,7 +702,7 @@ static int queue_init(void *priv, struct vb2_queue *vbq,
 	vbq->type		= type;
 	vbq->io_modes		= VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	vbq->drv_priv		= vctx;
-	vbq->buf_struct_size = sizeof(struct fimc_is_vb2_buf);
+	vbq->buf_struct_size	= sizeof(struct fimc_is_vb2_buf);
 	vbq->ops		= vctx->vb2_ops;
 	vbq->mem_ops		= vctx->vb2_mem_ops;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0))
@@ -798,6 +795,8 @@ static int fimc_is_queue_open(struct fimc_is_queue *queue,
 	clear_bit(FIMC_IS_QUEUE_BUFFER_PREPARED, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_BUFFER_READY, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_STREAM_ON, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_KMAP, &queue->state);
 	memset(&queue->framecfg, 0, sizeof(struct fimc_is_frame_cfg));
 	frame_manager_probe(&queue->framemgr, queue->id, queue->name);
 
@@ -813,6 +812,8 @@ static int fimc_is_queue_close(struct fimc_is_queue *queue)
 	clear_bit(FIMC_IS_QUEUE_BUFFER_PREPARED, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_BUFFER_READY, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_STREAM_ON, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_KMAP, &queue->state);
 	frame_manager_close(&queue->framemgr);
 
 	return ret;
@@ -842,6 +843,9 @@ static int fimc_is_queue_set_format_mplane(struct fimc_is_queue *queue,
 	queue->framecfg.quantization	= pix->quantization;
 	queue->framecfg.width			= pix->width;
 	queue->framecfg.height			= pix->height;
+
+	if (fmt->hw_format == DMA_OUTPUT_FORMAT_BAYER_PACKED)
+		queue->framecfg.hw_pixeltype = pix->flags;
 
 	for (plane = 0; plane < fmt->hw_plane; ++plane) {
 		if (pix->plane_fmt[plane].bytesperline) {
@@ -900,134 +904,73 @@ int fimc_is_queue_setup(struct fimc_is_queue *queue,
 int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	struct vb2_buffer *vb)
 {
-	u32 ret = 0, i;
-	u32 index;
-	u32 ext_size;
-	u32 spare;
-	struct fimc_is_video *video;
-	struct fimc_is_video_ctx *vctx;
-	struct fimc_is_framemgr *framemgr;
-	struct fimc_is_frame *frame;
+	struct fimc_is_video_ctx *vctx = container_of(queue, struct fimc_is_video_ctx, queue);
+	struct fimc_is_video *video = GET_VIDEO(vctx);
+	struct fimc_is_framemgr *framemgr = &queue->framemgr;
 	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
 	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
-	struct dma_buf *dmabuf;
-	struct dma_buf *bufs[FIMC_IS_MAX_PLANES];
-	int batch_size;
-	int buf_i, buf_k;
-	int image_planes;
-	int meta_planes = 1;
-	struct fimc_is_ion_ctx *ctx;
-	dma_addr_t dva;
-	ulong kva;
+	unsigned int index = vb->index;
+	unsigned int num_i_planes = vb->num_planes - NUM_OF_META_PLANE;
+	unsigned int num_buffers, pos_meta_p;
+	struct fimc_is_frame *frame;
+	int i;
+	int ret = 0;
 
-	index = vb->index;
-	image_planes = vb->num_planes - meta_planes; /* last plane is maeta plane */
-	framemgr = &queue->framemgr;
-	FIMC_BUG(framemgr->id == FRAMEMGR_ID_INVALID);
-	vctx = container_of(queue, struct fimc_is_video_ctx, queue);
-	video = GET_VIDEO(vctx);
 	FIMC_BUG(!video);
-	ctx = video->alloc_ctx;
 
-	/* plane address is updated for checking everytime */
-	for (i = 0; i < image_planes; i++) {
-		/* get dmabuf_container */
-		dmabuf = dma_buf_get(vb->planes[i].m.fd);
-		if (IS_ERR_OR_NULL(dmabuf)) {
-			err("%s Failed to get dmabuf for fd %d\n", __func__, vb->planes[i].m.fd);
-			return (u32)PTR_ERR(dmabuf);
+	/* image planes */
+	if (IS_ENABLED(CONFIG_DMA_BUF_CONTAINER) && vbuf->num_merged_dbufs) {
+		/* vbuf has been sorted by the order of buffer */
+		memcpy(queue->buf_dva[index], vbuf->dva,
+			sizeof(dma_addr_t) * vbuf->num_merged_dbufs);
+
+		num_buffers = vbuf->num_merged_dbufs / num_i_planes;
+	} else {
+		for (i = 0; i < num_i_planes; i++) {
+			if (test_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state))
+				queue->buf_dva[index][i] = vbuf->dva[i];
+			else
+				queue->buf_dva[index][i] = vbuf->ops->plane_dvaddr(vbuf, i);
+
+			if (test_bit(IS_QUEUE_NEED_TO_KMAP, &queue->state))
+				queue->buf_kva[index][i] = vbuf->ops->plane_kmap(vbuf, i);
 		}
 
-		/* get the buffer count in the dmabuf_container */
-		batch_size = dmabuf_container_get_count(dmabuf);
-		if (batch_size == 0) {
-			/*
-			 * FIXME: exiting this function here causes leak of
-			 * dma-bufs. This also applies to the above return
-			 * statement and all 'goto exit' statements below.
-			 * Please fix this by the right person in charge.
-			 */
-			err("%s Empty dmabuf-container of fd %d\n", __func__,
-			    vb->planes[i].m.fd);
-			dma_buf_put(dmabuf);
-			return (u32)-ENOMEM;
-		}
-
-		if (batch_size < 0)
-			batch_size = 0;
-
-		if (batch_size > 0) {
-			/* traverse and check the buffers in dmabuf_container */
-			for (buf_i = 0; buf_i < batch_size; buf_i++) {
-				buf_k = buf_i * image_planes + i; /* YYUU --> YUYU */
-				bufs[buf_k] = dmabuf_container_get_buffer(dmabuf, buf_i);
-				if (IS_ERR(bufs[buf_k])) {
-					mverr("Fail to dmabuf_container_get_buffer",
-						vctx, video);
-					ret = (u32)PTR_ERR(bufs[buf_k]);
-					goto exit;
-				}
-
-				dva = vbuf->ops->bufcon_map(vbuf, ctx->dev, buf_k, bufs[buf_k]);
-				if (!dva) {
-					mverr("Fail to bufcon_map", vctx, video);
-					ret = -ENOMEM;
-					goto exit;
-				}
-				queue->buf_dva[index][buf_k] = dva;
-
-				ret = dma_buf_begin_cpu_access(bufs[buf_k], DMA_TO_DEVICE);
-				if (ret) {
-					pr_err("%s: Failed to prepare CPU access of fd %d\n", __func__, vb->planes[i].m.fd);
-					return PTR_ERR(dmabuf);
-				}
-				kva = (ulong)dma_buf_vmap(bufs[buf_k]);
-				queue->buf_kva[index][buf_k] = kva;
-
-				dma_buf_put(bufs[buf_k]);
-			}
-		} else {
-			queue->buf_dva[index][i] = vbuf->ops->plane_dvaddr(vbuf, i);
-			queue->buf_kva[index][i] = vbuf->ops->plane_kvaddr(vbuf, i);
-		}
-
-		dma_buf_put(dmabuf);
+		num_buffers = 1;
 	}
 
-	batch_size = batch_size > 0 ? batch_size : 1;
-	if (batch_size > VIDEO_MAX_PLANES) {
-		mverr("batch count is invalid (%d)", vctx, video, batch_size);
-		goto exit;
-	}
-
-	frame = &framemgr->frames[index];
-	frame->num_buffers = batch_size;
-	frame->planes = image_planes * batch_size;
-	spare = image_planes * batch_size;
+	pos_meta_p = num_buffers * num_i_planes;
 
 	/* meta plane */
-	queue->buf_kva[index][spare] = vbuf->ops->plane_kvaddr(vbuf, image_planes);
-	if (!queue->buf_kva[index][spare]) {
-		mverr("plane_kvaddr is fail(%s)", vctx, video, framemgr->name);
-		ret = -EINVAL;
-		goto exit;
+	queue->buf_kva[index][pos_meta_p]
+			= vbuf->ops->plane_kmap(vbuf, num_i_planes);
+	if (!queue->buf_kva[index][pos_meta_p]) {
+		mverr("failed to get kva for %s", vctx, video, queue->name);
+		ret = -ENOMEM;
+		goto err_get_kva_for_meta;
 	}
 
-	if (framemgr->id & FRAMEMGR_ID_SHOT) {
-		ext_size = sizeof(struct camera2_shot_ext) - sizeof(struct camera2_shot);
+	/* setup a frame */
+	frame = &framemgr->frames[index];
+	frame->num_buffers = num_buffers;
+	frame->planes = num_buffers * num_i_planes;
 
-		frame->kvaddr_shot = queue->buf_kva[index][spare] + ext_size;
-		frame->shot = (struct camera2_shot *)frame->kvaddr_shot;
-		frame->shot_ext = (struct camera2_shot_ext *)queue->buf_kva[index][spare];
-		frame->shot_size = queue->framecfg.size[spare] - ext_size;
+	if (framemgr->id & FRAMEMGR_ID_SHOT) {
+		frame->shot_ext
+			= (struct camera2_shot_ext *)queue->buf_kva[index][pos_meta_p];
+		frame->shot = (struct camera2_shot *)((unsigned long)frame->shot_ext
+					+ offsetof(struct camera2_shot_ext, shot));
+		frame->shot_size = queue->framecfg.size[pos_meta_p]
+					- offsetof(struct camera2_shot_ext, shot);
 #ifdef MEASURE_TIME
 		frame->tzone = (struct timeval *)frame->shot_ext->timeZone;
 #endif
 	} else {
-		frame->stream = (struct camera2_stream *)queue->buf_kva[index][spare];
+		frame->stream
+			= (struct camera2_stream *)queue->buf_kva[index][pos_meta_p];
 
 		/* TODO : Someday need to change the variable type of struct to ulong */
-		frame->stream->address = (u32)queue->buf_kva[index][spare];
+		frame->stream->address = (u32)queue->buf_kva[index][pos_meta_p];
 	}
 
 	/* uninitialized frame need to get info */
@@ -1038,41 +981,47 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	for (i = 0; i < frame->planes; i++) {
 		if (frame->dvaddr_buffer[i] != queue->buf_dva[index][i]) {
 			if (video->resourcemgr->hal_version == IS_HAL_VER_3_2) {
-				frame->dvaddr_buffer[i] = (u32)queue->buf_dva[index][i];
+				frame->dvaddr_buffer[i] = queue->buf_dva[index][i];
 			} else {
-				mverr("buffer[%d][%d] is changed(%08X != %08lX)", vctx, video, index, i,
-					frame->dvaddr_buffer[i], queue->buf_dva[index][i]);
+				mverr("buffer[%d][%d] is changed(%pad != %pad)",
+					vctx, video,
+					index, i,
+					&frame->dvaddr_buffer[i],
+					&queue->buf_dva[index][i]);
 				ret = -EINVAL;
-				goto exit;
+				goto err_dva_changed;
 			}
 		}
+
 		if (frame->kvaddr_buffer[i] != queue->buf_kva[index][i]) {
 			if (video->resourcemgr->hal_version == IS_HAL_VER_3_2) {
 				frame->kvaddr_buffer[i] = queue->buf_kva[index][i];
 			} else {
-				mverr("kvaddr buffer[%d][%d] is changed(%08lX != %08lX)", vctx, video, index, i,
+				mverr("kvaddr buffer[%d][%d] is changed(0x%08lx != 0x%08lx)",
+					vctx, video, index, i,
 					frame->kvaddr_buffer[i], queue->buf_kva[index][i]);
 				ret = -EINVAL;
-				goto exit;
+				goto err_kva_changed;
 			}
 		}
 	}
 
-	goto exit;
+	return 0;
 
 set_info:
 	if (test_bit(FIMC_IS_QUEUE_BUFFER_PREPARED, &queue->state)) {
 		mverr("already prepared but new index(%d) is came", vctx, video, index);
 		ret = -EINVAL;
-		goto exit;
+		goto err_queue_prepared_already;
 	}
 
 	for (i = 0; i < frame->planes; i++) {
-		frame->dvaddr_buffer[i] = (u32)queue->buf_dva[index][i];
+		frame->dvaddr_buffer[i] = queue->buf_dva[index][i];
 		frame->kvaddr_buffer[i] = queue->buf_kva[index][i];
 
 #ifdef PRINT_BUFADDR
-		mvinfo("%s %d.%d %08X\n", vctx, video, framemgr->name, index, i, frame->dvaddr_buffer[i]);
+		mvinfo("%s %d.%d %pad\n", vctx, video, framemgr->name, index,
+					i, &frame->dvaddr_buffer[i]);
 #endif
 	}
 
@@ -1084,16 +1033,24 @@ set_info:
 		set_bit(FIMC_IS_QUEUE_BUFFER_READY, &queue->state);
 
 	if (queue->buf_maxcount == queue->buf_refcount) {
-		mvinfo("batch size(%d)\n", vctx, video, batch_size);
+		if (IS_ENABLED(CONFIG_DMA_BUF_CONTAINER)
+				&& vbuf->num_merged_dbufs)
+			mvinfo("%s number of merged buffers: %d\n",
+				vctx, video, queue->name, num_buffers);
 		set_bit(FIMC_IS_QUEUE_BUFFER_PREPARED, &queue->state);
 	}
 
-exit:
 	queue->buf_que++;
+
+err_queue_prepared_already:
+err_kva_changed:
+err_dva_changed:
+err_get_kva_for_meta:
+
 	return ret;
 }
 
-int fimc_is_buffer_init(struct vb2_buffer *vb)
+int fimc_is_queue_buffer_init(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
 	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
@@ -1104,22 +1061,79 @@ int fimc_is_buffer_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-int fimc_is_queue_prepare(struct vb2_buffer *vb)
+void fimc_is_queue_buffer_cleanup(struct vb2_buffer *vb)
 {
-	struct fimc_is_video_ctx *vctx;
+	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
+	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
+	struct fimc_is_video_ctx *vctx = vb->vb2_queue->drv_priv;
+	unsigned int pos_meta_p = vb->num_planes - NUM_OF_META_PLANE;
+	int i;
 
-	FIMC_BUG(!vb);
-	FIMC_BUG(!vb->vb2_queue);
+	/* FIXME: doesn't support dmabuf container yet */
+	if (test_bit(IS_QUEUE_NEED_TO_KMAP, &vctx->queue.state)) {
+		for (i = 0; i < vb->num_planes; i++)
+			vbuf->ops->plane_kunmap(vbuf, i);
+	} else {
+		vbuf->ops->plane_kunmap(vbuf, pos_meta_p);
+	}
+}
 
-	vctx = vb->vb2_queue->drv_priv;
-	if (!vctx) {
-		err("vctx is NULL");
-		return -EINVAL;
+
+int fimc_is_queue_buffer_prepare(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
+	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
+	struct fimc_is_video_ctx *vctx = vb->vb2_queue->drv_priv;
+	struct fimc_is_video *video = GET_VIDEO(vctx);
+	struct fimc_is_ion_ctx *ctx =  video->alloc_ctx;
+	unsigned int num_i_planes = vb->num_planes - NUM_OF_META_PLANE;
+	int ret;
+
+	if (IS_ENABLED(CONFIG_DMA_BUF_CONTAINER)) {
+		ret = vbuf->ops->dbufcon_prepare(vbuf,
+				num_i_planes, ctx->dev);
+		if (ret) {
+			err("failed to prepare dmabuf-container: %d", vb->index);
+			return ret;
+		}
+
+		if (vbuf->num_merged_dbufs) {
+			ret = vbuf->ops->dbufcon_map(vbuf);
+			if (ret) {
+				err("failed to map dmabuf-container: %d", vb->index);
+				vbuf->ops->dbufcon_finish(vbuf);
+				return ret;
+			}
+		}
+	}
+
+	if (test_bit(IS_QUEUE_NEED_TO_REMAP, &vctx->queue.state)) {
+		ret = vbuf->ops->remap_attr(vbuf, 0);
+		if (ret) {
+			err("failed to remap dmabuf: %d", vb->index);
+			return ret;
+		}
 	}
 
 	vctx->queue.buf_pre++;
 
 	return 0;
+}
+
+void fimc_is_queue_buffer_finish(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
+	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
+	struct fimc_is_video_ctx *vctx = vb->vb2_queue->drv_priv;
+
+	if (IS_ENABLED(CONFIG_DMA_BUF_CONTAINER) &&
+			(vbuf->num_merged_dbufs)) {
+		vbuf->ops->dbufcon_unmap(vbuf);
+		vbuf->ops->dbufcon_finish(vbuf);
+	}
+
+	if (test_bit(IS_QUEUE_NEED_TO_REMAP, &vctx->queue.state))
+		vbuf->ops->unremap_attr(vbuf, 0);
 }
 
 void fimc_is_queue_wait_prepare(struct vb2_queue *vbq)
@@ -1213,22 +1227,6 @@ int fimc_is_queue_stop_streaming(struct fimc_is_queue *queue,
 
 p_err:
 	return ret;
-}
-
-void fimc_is_queue_buffer_finish(struct vb2_buffer *vb)
-{
-	u32 i;
-	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
-	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
-
-	for (i = 0; i < FIMC_IS_MAX_PLANES; i++) {
-		if (!vbuf->bufs[i])
-			break;
-
-		vbuf->ops->bufcon_unmap(vbuf, i);
-	}
-
-	return;
 }
 
 int fimc_is_video_probe(struct fimc_is_video *video,
@@ -1768,6 +1766,25 @@ int fimc_is_video_prepare(struct file *file,
 			goto p_err;
 		}
 
+		if (!V4L2_TYPE_IS_MULTIPLANAR(buf->type)) {
+			mverr("the type of passed buffer is not multi-planar",
+					vctx, video);
+			ret = -EINVAL;
+			goto p_err;
+		}
+
+		if (!buf->m.planes) {
+			mverr("planes array not provided", vctx, video);
+			ret = -EINVAL;
+			goto p_err;
+		}
+
+		if (buf->length > FIMC_IS_MAX_PLANES) {
+			mverr("incorrect planes array length", vctx, video);
+			ret = -EINVAL;
+			goto p_err;
+		}
+
 		/* Destination */
 		memcpy(&pipe->buf[PIPE_SLOT_DST][index], buf, sizeof(struct v4l2_buffer));
 		memcpy(pipe->planes[PIPE_SLOT_DST][index], buf->m.planes, sizeof(struct v4l2_plane) * buf->length);
@@ -1997,6 +2014,12 @@ int fimc_is_video_s_ctrl(struct file *file,
 		}
 		break;
 	case V4L2_CID_IS_SET_SETFILE:
+	{
+		u32 scenario;
+		struct fimc_is_core *core;
+
+		core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
+
 		if (test_bit(FIMC_IS_ISCHAIN_START, &device->state)) {
 			mverr("device is already started, setfile applying is fail", vctx, video);
 			ret = -EINVAL;
@@ -2004,10 +2027,16 @@ int fimc_is_video_s_ctrl(struct file *file,
 		}
 
 		device->setfile = ctrl->value;
-		minfo(" setfile(%d), scenario(%d) at s_ctrl\n", device,
-			device->setfile & FIMC_IS_SETFILE_MASK,
-			(device->setfile & FIMC_IS_SCENARIO_MASK) >> FIMC_IS_SCENARIO_SHIFT);
+		scenario = (device->setfile & FIMC_IS_SCENARIO_MASK) >> FIMC_IS_SCENARIO_SHIFT;
+		mvinfo(" setfile(%d), scenario(%d) at s_ctrl\n", device, video,
+			device->setfile & FIMC_IS_SETFILE_MASK, scenario);
+
+		if (core && scenario == FIMC_IS_SCENARIO_SECURE) {
+			mvinfo(" SECURE scenario(%d) was detected\n", device, video, scenario);
+			core->scenario = scenario;
+		}
 		break;
+	}
 	case V4L2_CID_IS_HAL_VERSION:
 		if (ctrl->value < 0 || ctrl->value >= IS_HAL_VER_MAX) {
 			mverr("hal version(%d) is invalid", vctx, video, ctrl->value);

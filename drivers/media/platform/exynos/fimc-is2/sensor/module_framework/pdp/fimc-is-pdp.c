@@ -1,8 +1,7 @@
 /*
- * Samsung Exynos5 SoC series Sensor driver
+ * Samsung Exynos SoC series PDP drvier
  *
- *
- * Copyright (c) 2017 Samsung Electronics Co., Ltd
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,572 +19,405 @@
 #include "fimc-is-config.h"
 #include "fimc-is-pdp.h"
 #include "fimc-is-hw-pdp.h"
-#include "fimc-is-interface-library.h"
+#include "fimc-is-device-sensor-peri.h"
 
-struct general_intr_handler info_handler;
+static struct fimc_is_pdp pdp_devices[MAX_NUM_OF_PDP];
 
-static int debug_pdp;
-
-module_param(debug_pdp, int, 0644);
-
-static struct fimc_is_pdp pdp_device[MAX_NUM_OF_PDP];
-
-extern struct fimc_is_lib_support gPtr_lib_support;
-
-#ifdef ENABLE_PDP_IRQ
 static irqreturn_t fimc_is_isr_pdp(int irq, void *data)
 {
+	struct fimc_is_module_enum *module;
+	struct v4l2_subdev *subdev_module;
+	struct fimc_is_device_sensor *sensor;
 	struct fimc_is_pdp *pdp;
-	int state;
+	unsigned int state;
 
-	pdp = data;
-	state = pdp_hw_g_irq_state(pdp->base_reg, true);
-	printk("PDP IRQ: %d\n", state);
+	pdp = (struct fimc_is_pdp *)data;
 
-#ifdef DEBUG_DUMP_STAT0
-	if (state == PDP_INT_FRAME_PAF_STAT0)
-		schedule_work(&pdp->wq_pdp_stat0);
-#endif
+	state = pdp_hw_g_irq_state(pdp->base, true) & ~pdp_hw_g_irq_mask(pdp->base);
+	dbg_pdp(1, "IRQ: 0x%x\n", state);
+
+	if (!pdp_hw_is_occured(state, PE_PAF_STAT0))
+		return IRQ_NONE;
+
+	if (debug_pdp >= 2) {
+		module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(pdp->subdev);
+		if (!module) {
+			err("failed to get module");
+			return IRQ_NONE;
+		}
+
+		subdev_module = module->subdev;
+		if (!subdev_module) {
+			err("module's subdev was not probed");
+			return IRQ_NONE;
+		}
+
+		sensor = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module);
+
+		dbg_pdp(2, "IRQ: 0x%x, sensor fcount: %d\n", state, sensor->fcount);
+	}
+
+	tasklet_schedule(&pdp->tasklet_stat0);
 
 	return IRQ_HANDLED;
 }
-#endif
 
-int pdp_get_irq_state(struct v4l2_subdev *subdev, int *state)
+static void pdp_tasklet_stat0(unsigned long data)
 {
 	struct fimc_is_pdp *pdp;
-	struct fimc_is_device_sensor_peri *sensor_peri;
 	struct fimc_is_module_enum *module;
+	struct v4l2_subdev *subdev_module;
+	struct fimc_is_device_sensor *sensor;
+	struct fimc_is_device_csi *csi;
+	struct fimc_is_subdev *dma_subdev;
+	struct fimc_is_framemgr *framemgr;
+	struct fimc_is_frame *frame;
+	unsigned int frameptr;
+	int ch;
 
-	WARN_ON(!subdev);
-
-	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
-	WARN_ON(!pdp);
-
-	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
-	WARN_ON(!module);
-
-	sensor_peri = module->private_data;
-	WARN_ON(!sensor_peri);
-
-	if (!test_bit(FIMC_IS_SENSOR_PDP_AVAILABLE, &sensor_peri->peri_state))
-		*state = -EPERM;
-	else {
-		mutex_lock(&pdp->control_lock);
-		*state = pdp_hw_g_irq_state(pdp->base_reg, false);
-		mutex_unlock(&pdp->control_lock);
-	}
-	return 0;
-}
-
-int pdp_clear_irq_state(struct v4l2_subdev *subdev, int state)
-{
-	struct fimc_is_pdp *pdp;
-	struct fimc_is_device_sensor_peri *sensor_peri;
-	struct fimc_is_module_enum *module;
-
-	WARN_ON(!subdev);
-
-	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
-	WARN_ON(!pdp);
-
-	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
-	WARN_ON(!module);
-
-	sensor_peri = module->private_data;
-	WARN_ON(!sensor_peri);
-
-	mutex_lock(&pdp->control_lock);
-	pdp_hw_clr_irq_state(pdp->base_reg, state);
-	mutex_unlock(&pdp->control_lock);
-
-	return 0;
-}
-
-int pdp_set_sensor_info(struct fimc_is_pdp *pdp, u32 sensor_info)
-{
-	int width = 0, height = 0, active_height = 0;
-	int af_size_x = 0, af_size_y = 0;
-	int hbin = 0, vbin = 0, vsft = 0;
-	struct pdp_point_info cropInfo;
-	struct pdp_paf_roi_setting_t roiInfo;
-
-	switch (sensor_info) {
-	case (4032<<16|3024):	/* 4032 x 3024 */
-		/*1.  Image Info */
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		active_height = 756;
-		/* 2. AF */
-		af_size_x = 504;
-		af_size_y = 378;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 503;
-		roiInfo.roi_end_y = 377;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 503;
-		cropInfo.ey = 377;
-		/* 5. HBIN / VBIN /VSFT */
-		hbin = 1;
-		vbin = 1;
-		vsft = 1;
-		break;
-	case (4032<<16|2268):	/* 4032 x 2268 */
-		/*1.  Image Info */
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		active_height = 566;
-		/* 2. AF */
-		af_size_x = 504;
-		af_size_y = 282;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 503;
-		roiInfo.roi_end_y = 281;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 503;
-		cropInfo.ey = 281;
-		/* 5. HBIN / VBIN /VSFT */
-		hbin = 1;
-		vbin = 1;
-		vsft = 1;
-		break;
-	case (4032<<16|1960):	/* 4032 x 1960 */
-		/*1.  Image Info */
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		active_height = 490;
-		/* 2. AF */
-		af_size_x = 504;
-		af_size_y = 244;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 503;
-		roiInfo.roi_end_y = 243;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 503;
-		cropInfo.ey = 243;
-		/* 5. HBIN / VBIN /VSFT */
-		hbin = 1;
-		vbin = 1;
-		vsft = 1;
-		break;
-	case (3024<<16|3024):	/* 3024 x 3024 */
-		/*1.  Image Info */
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		active_height = 756;
-		/* 2. AF */
-		af_size_x = 376;
-		af_size_y = 376;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 375;
-		roiInfo.roi_end_y = 375;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 375;
-		cropInfo.ey = 375;
-		/* 5. HBIN / VBIN /VSFT */
-		hbin = 1;
-		vbin = 1;
-		vsft = 1;
-		break;
-	case (2016<<16|1512):	/* 2016 x 1512 */
-		/*1.  Image Info */
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		active_height = 378;
-		/* 2. AF */
-		af_size_x = 504;
-		af_size_y = 378;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 503;
-		roiInfo.roi_end_y = 377;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 503;
-		cropInfo.ey = 377;
-		/* 5. HBIN / VBIN /VSFT */
-		hbin = 0;
-		vbin = 0;
-		vsft = 0;
-		break;
-	case (2016<<16|1134):	/* 2016 x 1134 */
-		/*1.  Image Info */
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		active_height = 282;
-		/* 2. AF */
-		af_size_x = 504;
-		af_size_y = 282;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 503;
-		roiInfo.roi_end_y = 281;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 503;
-		cropInfo.ey = 281;
-		/* 5. HBIN / VBIN /VSFT */
-		hbin = 0;
-		vbin = 0;
-		vsft = 0;
-		break;
-	case (1504<<16|1504):	/* 1504 x 1504 */
-		/*1.  Image Info */
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		active_height = 376;
-		/* 2. AF */
-		af_size_x = 376;
-		af_size_y = 376;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 375;
-		roiInfo.roi_end_y = 375;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 503;
-		cropInfo.ey = 503;
-		/* 5. HBIN / VBIN /VSFT */
-		hbin = 0;
-		vbin = 0;
-		vsft = 0;
-		break;
-	default:
-		width = (sensor_info & 0xFFFF0000)>>16;
-		height = sensor_info & 0xFFFF;
-		err("Invalid Sensor Size.(%dx%d) set default size(4:3)", width, height);
-		/*1.  Image Info */
-		width = 4032;
-		height = 3024;
-		active_height = 756;
-		/* 2. AF */
-		af_size_x = 504;
-		af_size_y = 378;
-		/* 3. ROI Info */
-		roiInfo.roi_start_x = 0;
-		roiInfo.roi_start_y = 0;
-		roiInfo.roi_end_x = 503;
-		roiInfo.roi_end_y = 377;
-		/* 4. Crop Info*/
-		cropInfo.sx = 0;
-		cropInfo.sy = 0;
-		cropInfo.ex = 503;
-		cropInfo.ey = 377;
-		/* 5. HBIN / VBIN /VSFT*/
-		hbin = 1;
-		vbin = 1;
-		vsft = 1;
-		break;
+	pdp = (struct fimc_is_pdp *)data;
+	if (!pdp) {
+		err("failed to get PDP");
+		return;
 	}
 
-	pdp_hw_s_paf_col(pdp->base_reg, width);
-	pdp_hw_s_paf_active_size(pdp->base_reg, width, active_height);
-	pdp_hw_s_paf_af_size(pdp->base_reg, af_size_x, af_size_y);
-	pdp_hw_s_paf_roi(pdp->base_reg, &roiInfo);
-	pdp_hw_s_paf_crop_size(pdp->base_reg, &cropInfo);
-	pdp_hw_s_paf_mpd_bin_shift(pdp->base_reg, hbin, vbin, vsft);
-
-	info("[PDP]I_COL(%d), ActiveSize(%dx%d), AfSize(%dx%d)\n",
-		width, width, active_height, af_size_x, af_size_y);
-	info("[PDP]roi(%dx%d~%dx%d), crop(%dx%d~%dx%d)\n",
-		roiInfo.roi_start_x, roiInfo.roi_start_y, roiInfo.roi_end_x, roiInfo.roi_end_y,
-		cropInfo.sx, cropInfo.sy, cropInfo.ex, cropInfo.ey);
-
-	return 0;
-}
-
-int pdp_read_paf_sfr_stat(struct v4l2_subdev *subdev, u32 *buf)
-{
-	struct fimc_is_pdp *pdp;
-
-	WARN_ON(!subdev);
-	WARN_ON(!buf);
-
-	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
-	WARN_ON(!pdp);
-
-	pdp_hw_g_paf_sfr_stats(pdp->base_reg, buf);
-
-	return 0;
-}
-
-int pdp_set_parameters(struct v4l2_subdev *subdev, struct pdp_total_setting_t *pdp_param)
-{
-	int i = 0;
-	struct fimc_is_pdp *pdp;
-
-	WARN_ON(!subdev);
-	WARN_ON(!pdp_param);
-
-	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
-	WARN_ON(!pdp);
-
-	dbg_pdp(1, "[%s] IN\n", __func__);
-
-	/* PAF SETTING */
-	WARN_ON(!pdp_param->paf_setting);
-	if (pdp_param->paf_setting->update) {
-		dbg_pdp(2, "[%s] update_paf_setting\n", __func__);
-
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_setting(pdp->base_reg, pdp_param->paf_setting);
-		mutex_unlock(&pdp->control_lock);
-
-		pdp_param->paf_setting->update = false;
+	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(pdp->subdev);
+	if (!module) {
+		err("failed to get module");
+		return;
 	}
 
-	/* PAF ROI */
-	WARN_ON(!pdp_param->paf_roi_setting);
-	if (pdp_param->paf_roi_setting->update) {
-		dbg_pdp(2, "[%s] update_paf_roi_setting\n", __func__);
-
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_roi(pdp->base_reg, pdp_param->paf_roi_setting);
-		mutex_unlock(&pdp->control_lock);
-
-		pdp_param->paf_roi_setting->update = false;
+	subdev_module = module->subdev;
+	if (!subdev_module) {
+		err("module's subdev was not probed");
+		return;
 	}
 
-	/* SINGLE_WINDOW */
-	WARN_ON(!pdp_param->paf_single_window);
-	if (pdp_param->paf_single_window->update) {
-		dbg_pdp(2, "[%s] update_single_win\n", __func__);
+	sensor = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module);
+	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(sensor->subdev_csi);
 
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_single_window(pdp->base_reg, pdp_param->paf_single_window);
-		mutex_unlock(&pdp->control_lock);
+	for (ch = CSI_VIRTUAL_CH_1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
+		if (sensor->cfg->output[ch].type == VC_PRIVATE) {
+			dma_subdev = csi->dma_subdev[ch];
+			if (!dma_subdev ||
+				!test_bit(FIMC_IS_SUBDEV_START, &dma_subdev->state))
+				continue;
 
-		pdp_param->paf_single_window->update = false;
-	}
+			framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
+			if (!framemgr) {
+				err("failed to get framemgr");
+				continue;
+			}
 
-	/* MAIN WINDOW */
-	WARN_ON(!pdp_param->paf_main_window);
-	if (pdp_param->paf_main_window->update) {
-		dbg_pdp(2, "[%s] update_main_win\n", __func__);
+			framemgr_e_barrier(framemgr, FMGR_IDX_29);
 
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_main_window(pdp->base_reg, pdp_param->paf_main_window);
-		mutex_unlock(&pdp->control_lock);
-		pdp_param->paf_main_window->update = false;
-	}
+			frameptr = atomic_read(&pdp->frameptr_stat0) % framemgr->num_frames;
+			frame = &framemgr->frames[frameptr];
+			frame->fcount = sensor->fcount;
 
-	/* MULTI WINDOW */
-	WARN_ON(!pdp_param->paf_multi_window);
-	if (pdp_param->paf_multi_window->update) {
-		dbg_pdp(2, "[%s] update_multi_win\n", __func__);
+			pdp_hw_g_stat0(pdp->base, (void *)frame->kvaddr_buffer[0],
+				dma_subdev->output.width * dma_subdev->output.height);
 
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_multi_window(pdp->base_reg, pdp_param->paf_multi_window);
-		mutex_unlock(&pdp->control_lock);
+			atomic_inc(&pdp->frameptr_stat0);
 
-		pdp_param->paf_multi_window->update = false;
-	}
-
-	/* KNEE */
-	WARN_ON(!pdp_param->paf_knee_setting);
-	if (pdp_param->paf_knee_setting->update) {
-		dbg_pdp(2, "[%s] update_knee\n", __func__);
-
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_knee(pdp->base_reg, pdp_param->paf_knee_setting);
-		mutex_unlock(&pdp->control_lock);
-
-		pdp_param->paf_knee_setting->update = false;
-	}
-
-	/* FILTER COR */
-	WARN_ON(!pdp_param->paf_filter_cor);
-	if (pdp_param->paf_filter_cor->update) {
-		dbg_pdp(2, "[%s] update_filter_cor\n", __func__);
-
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_filter_cor(pdp->base_reg, pdp_param->paf_filter_cor);
-		mutex_unlock(&pdp->control_lock);
-
-		pdp_param->paf_filter_cor->update = false;
-	}
-
-	/* FILTER BIN */
-	WARN_ON(!pdp_param->paf_filter_bin);
-	if (pdp_param->paf_filter_bin->update) {
-		dbg_pdp(2, "[%s] update_filter_bin\n", __func__);
-
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_paf_filter_bin(pdp->base_reg, pdp_param->paf_filter_bin);
-		mutex_unlock(&pdp->control_lock);
-
-		pdp_param->paf_filter_bin->update = false;
-	}
-
-	/* FILTER IIR0, 1, 2, L */
-	for (i = 0; i < MAX_FILTER_BAND; i++) {
-		WARN_ON(!pdp_param->paf_filter_band[i]);
-		if (pdp_param->paf_filter_band[i]->update) {
-			dbg_pdp(2, "[%s] paf_filter_band[%d]\n", __func__, i);
-
-			mutex_lock(&pdp->control_lock);
-			pdp_hw_s_paf_filter_band(pdp->base_reg, pdp_param->paf_filter_band[i], i);
-			mutex_unlock(&pdp->control_lock);
-
-			pdp_param->paf_filter_band[i]->update = false;
+			framemgr_x_barrier(framemgr, FMGR_IDX_29);
 		}
 	}
 
-	/* WDR SETTING */
-	WARN_ON(!pdp_param->wdr_setting);
-	if (pdp_param->wdr_setting->update) {
-		dbg_pdp(2, "[%s] update_wdr_setting\n", __func__);
+	if (pdp->wq_stat0)
+		queue_work(pdp->wq_stat0, &pdp->work_stat0);
+	else
+		schedule_work(&pdp->work_stat0);
 
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_wdr_setting(pdp->base_reg, pdp_param->wdr_setting);
-		mutex_unlock(&pdp->control_lock);
+	dbg_pdp(3, "%s, sensor fcount: %d\n", __func__, sensor->fcount);
+}
 
-		pdp_param->wdr_setting->update = false;
+static void pdp_worker_stat0(struct work_struct *work)
+{
+	struct fimc_is_pdp *pdp;
+	struct fimc_is_module_enum *module;
+	struct v4l2_subdev *subdev_module;
+	struct fimc_is_device_sensor *sensor;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
+
+	pdp = container_of(work, struct fimc_is_pdp, work_stat0);
+	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(pdp->subdev);
+	if (!module) {
+		err("failed to get module");
+		return;
 	}
 
-	/* DEPTH SETTING */
-	WARN_ON(!pdp_param->depth_setting);
-	if (pdp_param->depth_setting->update) {
-		dbg_pdp(2, "[%s] update_depth_setting\n", __func__);
-
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_depth_setting(pdp->base_reg, pdp_param->depth_setting);
-		mutex_unlock(&pdp->control_lock);
-
-		pdp_param->depth_setting->update = false;
+	subdev_module = module->subdev;
+	if (!subdev_module) {
+		err("module's subdev was not probed");
+		return;
 	}
 
-	/* Y EXT */
-	WARN_ON(!pdp_param->y_ext_param);
-	if (pdp_param->y_ext_param->update) {
-		dbg_pdp(2, "[%s] update_depth_setting\n", __func__);
+	sensor = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module);
 
-		mutex_lock(&pdp->control_lock);
-		pdp_hw_s_y_ext_setting(pdp->base_reg, pdp_param->y_ext_param);
-		mutex_unlock(&pdp->control_lock);
+	spin_lock_irqsave(&pdp->slock_paf_action, flag);
+	list_for_each_entry_safe(pa, temp, &pdp->list_of_paf_action, list) {
+		switch (pa->type) {
+		case VC_STAT_TYPE_PDP_1_0_PDAF_STAT0:
+		case VC_STAT_TYPE_PDP_1_1_PDAF_STAT0:
+#ifdef ENABLE_FPSIMD_FOR_USER
+			fpsimd_get();
+			pa->notifier(pa->type, *(unsigned int *)&sensor->fcount, pa->data);
+			fpsimd_put();
+#else
+			pa->notifier(pa->type, *(unsigned int *)&sensor->fcount, pa->data);
+#endif
+			break;
+		default:
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&pdp->slock_paf_action, flag);
 
-		pdp_param->y_ext_param->update = false;
+	dbg_pdp(3, "%s, sensor fcount: %d\n", __func__, sensor->fcount);
+}
+
+int pdp_set_param(struct v4l2_subdev *subdev, struct paf_setting_t *regs, u32 regs_size)
+{
+	int i;
+	struct fimc_is_pdp *pdp;
+
+	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
+	if (!pdp) {
+		err("failed to get PDP");
+		return -ENODEV;
+	}
+
+	dbg_pdp(1, "PDP(%p) SFR setting\n", pdp->base);
+	for (i = 0; i < regs_size; i++) {
+		dbg_pdp(1, "[%d] ofs: 0x%x, val: 0x%x\n",
+				i, regs[i].reg_addr, regs[i].reg_data);
+		writel(regs[i].reg_data, pdp->base + regs[i].reg_addr);
 	}
 
 	return 0;
 }
 
-int pdp_read_pdp_reg(struct v4l2_subdev *subdev, struct pdp_read_reg_setting_t *reg_param)
+int pdp_get_ready(struct v4l2_subdev *subdev, u32 *ready)
 {
-	struct fimc_is_pdp *pdp;
-
-	WARN_ON(!subdev);
-	WARN_ON(!reg_param);
-
-	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
-	WARN_ON(!pdp);
-
-	mutex_lock(&pdp->control_lock);
-	pdp_hw_g_pdp_reg(pdp->base_reg, reg_param);
-	mutex_unlock(&pdp->control_lock);
+	*ready = 1;
 
 	return 0;
+}
+
+int pdp_register_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
+		vc_dma_notifier_t notifier, void *data)
+{
+	struct fimc_is_pdp *pdp;
+	struct paf_action *pa;
+	unsigned long flag;
+
+	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
+	if (!pdp) {
+		err("failed to get PDP");
+		return -ENODEV;
+	}
+
+	switch (type) {
+	case VC_STAT_TYPE_PDP_1_0_PDAF_STAT0:
+	case VC_STAT_TYPE_PDP_1_1_PDAF_STAT0:
+	case VC_STAT_TYPE_PDP_1_0_PDAF_STAT1:
+	case VC_STAT_TYPE_PDP_1_1_PDAF_STAT1:
+		pa = kzalloc(sizeof(struct paf_action), GFP_ATOMIC);
+		if (!pa) {
+			err_lib("failed to allocate a PAF action");
+			return -ENOMEM;
+		}
+
+		pa->type = type;
+		pa->notifier = notifier;
+		pa->data = data;
+
+		spin_lock_irqsave(&pdp->slock_paf_action, flag);
+		list_add(&pa->list, &pdp->list_of_paf_action);
+		spin_unlock_irqrestore(&pdp->slock_paf_action, flag);
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dbg_pdp(2, "%s, type: %d, notifier: %p\n", __func__, type, notifier);
+
+	return 0;
+}
+
+int pdp_unregister_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
+		vc_dma_notifier_t notifier)
+{
+	struct fimc_is_pdp *pdp;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
+
+	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
+	if (!pdp) {
+		err("failed to get PDP");
+		return -ENODEV;
+	}
+
+	switch (type) {
+	case VC_STAT_TYPE_PDP_1_0_PDAF_STAT0:
+	case VC_STAT_TYPE_PDP_1_1_PDAF_STAT0:
+	case VC_STAT_TYPE_PDP_1_0_PDAF_STAT1:
+	case VC_STAT_TYPE_PDP_1_1_PDAF_STAT1:
+		spin_lock_irqsave(&pdp->slock_paf_action, flag);
+		list_for_each_entry_safe(pa, temp,
+				&pdp->list_of_paf_action, list) {
+			if ((pa->notifier == notifier)
+					&& (pa->type == type)) {
+				list_del(&pa->list);
+				kfree(pa);
+			}
+		}
+		spin_unlock_irqrestore(&pdp->slock_paf_action, flag);
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dbg_pdp(2, "%s, type: %d, notifier: %p\n", __func__, type, notifier);
+
+	return 0;
+}
+
+void pdp_notify(struct v4l2_subdev *subdev, unsigned int type, void *data)
+{
+	struct fimc_is_pdp *pdp;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
+
+	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
+	if (!pdp) {
+		err("failed to get PDP");
+		return;
+	}
+
+	switch (type) {
+	case CSIS_NOTIFY_DMA_END_VC_MIPISTAT:
+		spin_lock_irqsave(&pdp->slock_paf_action, flag);
+		list_for_each_entry_safe(pa, temp, &pdp->list_of_paf_action, list) {
+			switch (pa->type) {
+			case VC_STAT_TYPE_PDP_1_0_PDAF_STAT1:
+			case VC_STAT_TYPE_PDP_1_1_PDAF_STAT1:
+#ifdef ENABLE_FPSIMD_FOR_USER
+				fpsimd_get();
+				pa->notifier(pa->type, *(unsigned int *)data, pa->data);
+				fpsimd_put();
+#else
+				pa->notifier(pa->type, *(unsigned int *)data, pa->data);
+#endif
+				break;
+			default:
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&pdp->slock_paf_action, flag);
+
+	default:
+		break;
+	}
+
+	dbg_pdp(2, "%s, sensor fcount: %d\n", __func__, *(unsigned int *)data);
 }
 
 int pdp_register(struct fimc_is_module_enum *module, int pdp_ch)
 {
-	int ret = 0;
-	struct fimc_is_pdp *pdp = NULL;
-	struct fimc_is_device_sensor *sensor_dev = NULL;
 	struct fimc_is_device_sensor_peri *sensor_peri = module->private_data;
+	struct v4l2_subdev *subdev_module;
+	struct fimc_is_device_sensor *sensor;
+	struct fimc_is_pdp *pdp;
+
+	if (!sensor_peri) {
+		err("could not refer to sensor's peri");
+		return -ENODEV;
+	}
 
 	if (test_bit(FIMC_IS_SENSOR_PDP_AVAILABLE, &sensor_peri->peri_state)) {
 		err("already registered");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
-
-	WARN_ON(!sensor_peri);
-	sensor_dev = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(sensor_peri->subdev_cis);
 
 	if (pdp_ch >= MAX_NUM_OF_PDP) {
-		err("A pdp channel is invalide");
-		ret = -EINVAL;
-		goto p_err;
+		err("requested channel: %d is invalid", pdp_ch);
+		return -EINVAL;
 	}
 
-	pdp = &pdp_device[pdp_ch];
+	subdev_module = module->subdev;
+	if (!subdev_module) {
+		err("module's subdev was not probed");
+		return -ENODEV;
+	}
+
+	sensor = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module);
+	if (sensor->cfg->pd_mode != PD_MOD3)
+		return 0;
+
+	pdp = &pdp_devices[pdp_ch];
+
 	sensor_peri->pdp = pdp;
 	sensor_peri->subdev_pdp = pdp->subdev;
 	v4l2_set_subdev_hostdata(pdp->subdev, module);
 
-	if (sensor_dev->cfg->pd_mode != PD_MOD3) {
-		pdp_hw_enable(pdp->base_reg, PD_NONE);
-		ret = -ENOTSUPP;
-	} else {
-		set_bit(FIMC_IS_SENSOR_PDP_AVAILABLE, &sensor_peri->peri_state);
-		pdp_hw_s_config(pdp->base_reg);
-	}
+	spin_lock_init(&pdp->slock_paf_action);
+	INIT_LIST_HEAD(&pdp->list_of_paf_action);
 
-	info("[PDP:%d] %s(ret:%d)\n", pdp->id, __func__, ret);
-	return ret;
-p_err:
-	return ret;
+	set_bit(FIMC_IS_SENSOR_PDP_AVAILABLE, &sensor_peri->peri_state);
+
+	info("[PDP:%d] is registered\n", pdp->id);
+
+	return 0;
 }
 
 int pdp_unregister(struct fimc_is_module_enum *module)
 {
-	int ret = 0;
 	struct fimc_is_device_sensor_peri *sensor_peri = module->private_data;
-	struct fimc_is_pdp *pdp = NULL;
-	struct fimc_is_device_sensor *sensor_dev = NULL;
+	struct fimc_is_pdp *pdp;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
 
-	WARN_ON(!sensor_peri);
-	sensor_dev = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(sensor_peri->subdev_cis);
-
-	if (sensor_dev->cfg->pd_mode != PD_MOD3) {
-		ret = -ENOTSUPP;
-		goto p_err;
+	if (!sensor_peri) {
+		err("could not refer to sensor's peri");
+		return -ENODEV;
 	}
 
 	if (!test_bit(FIMC_IS_SENSOR_PDP_AVAILABLE, &sensor_peri->peri_state)) {
 		err("already unregistered");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(sensor_peri->subdev_pdp);
 	if (!pdp) {
-		err("A subdev data of PDP is null");
-		ret = -ENODEV;
-		goto p_err;
+		err("failed to get PDP");
+		return -ENODEV;
+	}
+
+	if (!list_empty(&pdp->list_of_paf_action)) {
+		err("flush remaining notifiers...");
+		spin_lock_irqsave(&pdp->slock_paf_action, flag);
+		list_for_each_entry_safe(pa, temp,
+				&pdp->list_of_paf_action, list) {
+			list_del(&pa->list);
+			kfree(pa);
+		}
+		spin_unlock_irqrestore(&pdp->slock_paf_action, flag);
 	}
 
 	sensor_peri->pdp = NULL;
 	sensor_peri->subdev_pdp = NULL;
+	v4l2_set_subdev_hostdata(pdp->subdev, NULL);
+
 	clear_bit(FIMC_IS_SENSOR_PDP_AVAILABLE, &sensor_peri->peri_state);
 
-	info("[PDP:%d] %s(ret:%d)\n", pdp->id, __func__, ret);
-	return ret;
-p_err:
-	return ret;
+	info("[PDP:%d] is unregistered\n", pdp->id);
+
+	return 0;
 }
 
 int pdp_init(struct v4l2_subdev *subdev, u32 val)
@@ -595,47 +427,45 @@ int pdp_init(struct v4l2_subdev *subdev, u32 val)
 
 static int pdp_s_stream(struct v4l2_subdev *subdev, int pd_mode)
 {
-	int ret = 0;
-	int irq_state = 0;
-	int enable = 0;
+	bool enable;
+	unsigned int sensor_type;
 	struct fimc_is_pdp *pdp;
-	struct fimc_is_device_sensor_peri *sensor_peri;
-	struct fimc_is_module_enum *module;
-	cis_shared_data *cis_data = NULL;
-
-	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
-	WARN_ON(!module);
-
-	sensor_peri = module->private_data;
-	WARN_ON(!sensor_peri);
-
-	cis_data = sensor_peri->cis.cis_data;
-	WARN_ON(!cis_data);
 
 	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
 	if (!pdp) {
-		err("A subdev data of PDP is null");
-		ret = -ENODEV;
-		goto p_err;
+		err("failed to get PDP");
+		return -ENODEV;
 	}
 
-#ifdef DEBUG_DUMP_STAT0
-	INIT_WORK(&pdp->wq_pdp_stat0, pdp_hw_g_pad_single_window_stat);
-#endif
+	enable = pdp_hw_to_sensor_type(pd_mode, &sensor_type);
+	if (enable) {
+		tasklet_init(&pdp->tasklet_stat0, pdp_tasklet_stat0, (unsigned long)pdp);
+		atomic_set(&pdp->frameptr_stat0, 0);
+		INIT_WORK(&pdp->work_stat0, pdp_worker_stat0);
 
-	enable = pdp_hw_enable(pdp->base_reg, pd_mode);
+		if (debug_pdp >= 5) {
+			info("[PDP:%d] is configured as default values\n", pdp->id);
+			pdp_hw_s_config_default(pdp->base);
+		}
 
-	irq_state = pdp_hw_g_irq_state(pdp->base_reg, true);
+		pdp_hw_s_sensor_type(pdp->base, sensor_type);
+		pdp_hw_s_core(pdp->base, true);
 
-	if (debug_pdp == 3)
-		pdp_hw_dump(pdp->base_reg);
+		if (debug_pdp >= 2)
+			pdp_hw_dump(pdp->base);
+	} else {
+		pdp_hw_s_core(pdp->base, false);
 
-	info("[PDP:%d] PD_MOD%d, HW_ENABLE(%d), IRQ(%d)\n",
-		pdp->id, pd_mode, enable, irq_state);
+		tasklet_kill(&pdp->tasklet_stat0);
+		if (flush_work(&pdp->work_stat0))
+			info("flush pdp wq for stat0\n");
+	}
 
-	return ret;
-p_err:
-	return ret;
+	info("[PDP:%d] %s as PD mode: %d, IRQ: 0x%x\n",
+		pdp->id, enable ? "enabled" : "disabled", pd_mode,
+		pdp_hw_g_irq_state(pdp->base, false) & ~pdp_hw_g_irq_mask(pdp->base));
+
+	return 0;
 }
 
 static int pdp_s_param(struct v4l2_subdev *subdev, struct v4l2_streamparm *param)
@@ -648,16 +478,13 @@ static int pdp_s_format(struct v4l2_subdev *subdev,
 	struct v4l2_subdev_format *fmt)
 {
 	int ret = 0;
-	u32 sensor_info = 0;
 	size_t width, height;
 	struct fimc_is_pdp *pdp;
-	struct fimc_is_module_enum *module;
 
 	pdp = (struct fimc_is_pdp *)v4l2_get_subdevdata(subdev);
 	if (!pdp) {
 		err("A subdev data of PDP is null");
-		ret = -ENODEV;
-		goto p_err;
+		return -ENODEV;
 	}
 
 	width = fmt->format.width;
@@ -665,18 +492,6 @@ static int pdp_s_format(struct v4l2_subdev *subdev,
 	pdp->width = width;
 	pdp->height = height;
 
-	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
-	if (!module) {
-		err("[PDP:%d] A host data of PDP is null", pdp->id);
-		ret = -ENODEV;
-		goto p_err;
-	}
-
-	sensor_info = (u32)((width<<16) | height);
-	pdp_set_sensor_info(pdp, sensor_info);
-
-	return ret;
-p_err:
 	return ret;
 }
 
@@ -700,134 +515,127 @@ static const struct v4l2_subdev_ops subdev_ops = {
 };
 
 struct fimc_is_pdp_ops pdp_ops = {
-	.read_pdp_reg = pdp_read_pdp_reg,
-	.read_paf_sfr_stat = pdp_read_paf_sfr_stat,
-	.get_irq_state = pdp_get_irq_state,
-	.clear_irq_state = pdp_clear_irq_state,
-	.set_pdp_param = pdp_set_parameters,
+	.set_param = pdp_set_param,
+	.get_ready = pdp_get_ready,
+	.register_notifier = pdp_register_notifier,
+	.unregister_notifier = pdp_unregister_notifier,
+	.notify = pdp_notify,
 };
 
 static int __init pdp_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	int id = -1;
-	struct fimc_is_core *core;
-	struct resource *mem_res;
+	int ret;
+	int id;
+	struct resource *res;
 	struct fimc_is_pdp *pdp;
-	struct device_node *dnode;
-	struct device *dev;
+	struct device *dev = &pdev->dev;
 
-	WARN_ON(!fimc_is_dev);
-	WARN_ON(!pdev);
-	WARN_ON(!pdev->dev.of_node);
-
-	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
-	if (!core) {
-		probe_err("core device is not yet probed");
-		return -EPROBE_DEFER;
+	id = of_alias_get_id(dev->of_node, "pdp");
+	if (id < 0 || id >= MAX_NUM_OF_PDP) {
+		dev_err(dev, "invalid id (out-of-range)\n");
+		return -EINVAL;
 	}
 
-	dev = &pdev->dev;
-	dnode = dev->of_node;
+	pdp = &pdp_devices[id];
+	pdp->id = id;
 
-	ret = of_property_read_u32(dnode, "id", &pdev->id);
-	if (ret) {
-		dev_err(dev, "id read is fail(%d)\n", ret);
-		goto err_get_id;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "can't get memory resource\n");
+		return -ENODEV;
 	}
 
-	id = pdev->id;
-	pdp = &pdp_device[id];
-
-	/* Get SFR base register */
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(dev, "Failed to get io memory region(%p)\n", mem_res);
-		ret = -EBUSY;
-		goto err_get_resource;
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				dev_name(dev))) {
+		dev_err(dev, "can't request region for resource %pR\n", res);
+		return -EBUSY;
 	}
 
-	pdp->regs_start = mem_res->start;
-	pdp->regs_end = mem_res->end;
-	pdp->base_reg =  devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
-	if (!pdp->base_reg) {
-		dev_err(dev, "Failed to remap io region(%p)\n", pdp->base_reg);
+	pdp->regs_start = res->start;
+	pdp->regs_end = res->end;
+
+	pdp->base = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	if (!pdp->base) {
+		dev_err(dev, "ioremap failed\n");
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
 
-	/* Get CORE IRQ SPI number */
 	pdp->irq = platform_get_irq(pdev, 0);
 	if (pdp->irq < 0) {
-		dev_err(dev, "Failed to get pdp_irq(%d)\n", pdp->irq);
-		ret = -EBUSY;
+		dev_err(dev, "failed to get IRQ resource: %d\n", pdp->irq);
+		ret = pdp->irq;
 		goto err_get_irq;
 	}
 
-#ifdef ENABLE_PDP_IRQ
-	ret = request_irq(pdp->irq,
-			fimc_is_isr_pdp,
+	ret = devm_request_irq(dev, pdp->irq, fimc_is_isr_pdp,
 			IRQF_SHARED | FIMC_IS_HW_IRQ_FLAG,
-			"pdp",
-			pdp);
+			dev_name(dev), pdp);
 	if (ret) {
-		dev_err(dev, "request_irq(IRQ_PDP %d) is fail(%d)\n", pdp->irq, ret);
-		goto err_get_irq;
+		dev_err(dev, "failed to request IRQ(%d): %d\n", pdp->irq, ret);
+		goto err_req_irq;
 	}
-#endif
-
-	pdp->id = id;
-	platform_set_drvdata(pdev, pdp);
 
 	pdp->subdev = devm_kzalloc(&pdev->dev, sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (!pdp->subdev) {
+		dev_err(dev, "failed to alloc memory for pdp-subdev\n");
 		ret = -ENOMEM;
-		goto err_subdev_alloc;
+		goto err_alloc_subdev;
 	}
 
 	v4l2_subdev_init(pdp->subdev, &subdev_ops);
-
 	v4l2_set_subdevdata(pdp->subdev, pdp);
 	snprintf(pdp->subdev->name, V4L2_SUBDEV_NAME_SIZE, "pdp-subdev.%d", pdp->id);
 
-	if (id == 1)
-		gPtr_lib_support.intr_handler[ID_GENERAL_INTR_PDP1_STAT].irq = pdp->irq;
-	else
-		gPtr_lib_support.intr_handler[ID_GENERAL_INTR_PDP0_STAT].irq = pdp->irq;
-
 	pdp->pdp_ops = &pdp_ops;
+
 	mutex_init(&pdp->control_lock);
 
-#ifdef DEBUG_DUMP_STAT0
-	pdp->workqueue = alloc_workqueue("fimc-pdp/[H/U]", WQ_HIGHPRI | WQ_UNBOUND, 0);
-	if (!pdp->workqueue)
+	pdp->wq_stat0 = alloc_workqueue("pdp-stat0/[H/U]", WQ_HIGHPRI | WQ_UNBOUND, 0);
+	if (!pdp->wq_stat0)
 		probe_warn("failed to alloc PDP own workqueue, will be use global one");
-#endif
-	probe_info("%s(%s)\n", __func__, dev_name(&pdev->dev));
 
-	return ret;
+	platform_set_drvdata(pdev, pdp);
+	probe_info("%s device probe success\n", dev_name(dev));
 
-err_subdev_alloc:
+	return 0;
+
+err_alloc_subdev:
+	devm_free_irq(dev, pdp->irq, pdp);
+err_req_irq:
 err_get_irq:
+	devm_iounmap(dev, pdp->base);
 err_ioremap:
-err_get_resource:
-err_get_id:
+	devm_release_mem_region(dev, res->start, resource_size(res));
+
 	return ret;
 }
 
-static const struct of_device_id exynos_fimc_is_pdp_match[] = {
+static const struct of_device_id sensor_paf_pdp_match[] = {
 	{
-		.compatible = "samsung,exynos5-fimc-is-pdp",
+		.compatible = "samsung,sensor-paf-pdp",
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_fimc_is_pdp_match);
+MODULE_DEVICE_TABLE(of, sensor_paf_pdp_match);
 
-static struct platform_driver pdp_driver = {
+static struct platform_driver sensor_paf_pdp_platform_driver = {
 	.driver = {
-		.name   = "FIMC-IS-PDP",
+		.name   = "Sensor-PAF-PDP",
 		.owner  = THIS_MODULE,
-		.of_match_table = exynos_fimc_is_pdp_match,
+		.of_match_table = sensor_paf_pdp_match,
 	}
 };
-builtin_platform_driver_probe(pdp_driver, pdp_probe);
+
+static int __init sensor_paf_pdp_init(void)
+{
+	int ret;
+
+	ret = platform_driver_probe(&sensor_paf_pdp_platform_driver, pdp_probe);
+	if (ret)
+		err("failed to probe %s driver: %d\n",
+			sensor_paf_pdp_platform_driver.driver.name, ret);
+
+	return ret;
+}
+late_initcall_sync(sensor_paf_pdp_init);

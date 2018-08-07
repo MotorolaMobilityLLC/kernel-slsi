@@ -198,7 +198,7 @@ static int fimc_is_hw_vra_ch1_handle_interrupt(u32 id, void *context)
 				fimc_is_hw_vra_save_debug_info(hw_ip, lib_vra, DEBUG_POINT_FRAME_START);
 				atomic_set(&hw_ip->status.Vvalid, V_VALID);
 				clear_bit(HW_CONFIG, &hw_ip->state);
-#ifdef ENABLE_REPROCESSING_FD
+#ifdef ENABLE_VRA_FDONE_WITH_CALLBACK
 				clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
 				clear_bit(instance, &lib_vra->done_vra_hw_intr);
 #endif
@@ -211,10 +211,11 @@ static int fimc_is_hw_vra_ch1_handle_interrupt(u32 id, void *context)
 					unsigned char *buffer_dva = NULL;
 					mframe->cur_buf_index = hw_ip->cur_s_int;
 					/* TODO: It is required to support other YUV format */
-					buffer_kva = (unsigned char *)(mframe->kvaddr_buffer \
-						[mframe->cur_buf_index * 2]); /* Y-plane index of NV21 */
-					buffer_dva = (unsigned char *)(ulong)(mframe->dvaddr_buffer \
-						[mframe->cur_buf_index * 2]);
+					/* Y-plane index of NV21 */
+					buffer_kva = (unsigned char *)
+						(mframe->kvaddr_buffer[mframe->cur_buf_index * 2]);
+					buffer_dva = (unsigned char *)
+						(mframe->dvaddr_buffer[mframe->cur_buf_index * 2]);
 					ret = fimc_is_lib_vra_new_frame(lib_vra, buffer_kva, buffer_dva, atomic_read(&hw_ip->instance));
 					if (ret)
 						mserr_hw("lib_vra_new_frame is fail (%d)",
@@ -247,20 +248,20 @@ static int fimc_is_hw_vra_ch1_handle_interrupt(u32 id, void *context)
 			if (hw_ip->cur_e_int >= hw_ip->num_buffers) {
 				atomic_set(&hw_ip->status.Vvalid, V_BLANK);
 				fimc_is_hw_vra_save_debug_info(hw_ip, lib_vra, DEBUG_POINT_FRAME_END);
-#ifdef ENABLE_REPROCESSING_FD
+#ifdef ENABLE_VRA_FDONE_WITH_CALLBACK
 				set_bit(instance, &lib_vra->done_vra_hw_intr);
 
-				spin_lock(&lib_vra->reprocess_fd_lock);
+				spin_lock(&lib_vra->fdone_cb_lock);
 				if (test_bit(instance, &lib_vra->done_vra_hw_intr)
 					&& test_bit(instance, &lib_vra->done_vra_callback_out_ready)) {
 					clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
 					clear_bit(instance, &lib_vra->done_vra_hw_intr);
-					spin_unlock(&lib_vra->reprocess_fd_lock);
+					spin_unlock(&lib_vra->fdone_cb_lock);
 
 					fimc_is_hardware_frame_done(hw_ip, NULL, -1,
 						FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
 				} else {
-					spin_unlock(&lib_vra->reprocess_fd_lock);
+					spin_unlock(&lib_vra->fdone_cb_lock);
 				}
 #else
 				fimc_is_hardware_frame_done(hw_ip, NULL, -1,
@@ -277,6 +278,23 @@ static int fimc_is_hw_vra_ch1_handle_interrupt(u32 id, void *context)
 		msinfo_hw("[ch1]: error! status(0x%x)\n", instance, hw_ip, intr_status);
 
 	return ret;
+}
+
+static void fimc_is_hw_vra_reset(struct fimc_is_hw_ip *hw_ip)
+{
+	u32 all_intr;
+	bool has_vra_ch1_only = false;
+	int ret = 0;
+
+	/* Interrupt clear */
+	ret = fimc_is_hw_g_ctrl(NULL, 0, HW_G_CTRL_HAS_VRA_CH1_ONLY, (void *)&has_vra_ch1_only);
+	if (!has_vra_ch1_only) {
+		all_intr = fimc_is_vra_chain0_get_all_intr(hw_ip->regs);
+		fimc_is_vra_chain0_set_clear_intr(hw_ip->regs, all_intr);
+	}
+
+	all_intr = fimc_is_vra_chain1_get_all_intr(hw_ip->regs);
+	fimc_is_vra_chain1_set_clear_intr(hw_ip->regs, all_intr);
 }
 
 static int __nocfi fimc_is_hw_vra_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
@@ -343,7 +361,7 @@ static int __nocfi fimc_is_hw_vra_open(struct fimc_is_hw_ip *hw_ip, u32 instance
 		mserr_hw("failed to init. task(%d)", instance, hw_ip, ret);
 		goto err_vra_init_task;
 	}
-#ifdef ENABLE_REPROCESSING_FD
+#ifdef ENABLE_VRA_FDONE_WITH_CALLBACK
 		hw_vra->lib_vra.hw_ip = hw_ip;
 #endif
 
@@ -376,6 +394,7 @@ err_vra_frame_work_init:
 		mserr_hw("lib_vra_free_memory is fail (%d)", instance, hw_ip, ret_err);
 err_vra_alloc_memory:
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 err_alloc:
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
@@ -457,6 +476,7 @@ static int fimc_is_hw_vra_close(struct fimc_is_hw_ip *hw_ip, u32 instance)
 	}
 
 	vfree(hw_ip->priv_info);
+	hw_ip->priv_info = NULL;
 	frame_manager_close(hw_ip->framemgr);
 	frame_manager_close(hw_ip->framemgr_late);
 
@@ -541,6 +561,57 @@ static int fimc_is_hw_vra_disable(struct fimc_is_hw_ip *hw_ip, u32 instance,
 
 	return 0;
 }
+
+static int fimc_is_hw_vra_update_param(struct fimc_is_hw_ip *hw_ip,
+	struct vra_param *param, u32 lindex, u32 hindex, u32 instance, u32 fcount)
+{
+	int ret = 0;
+	struct fimc_is_hw_vra *hw_vra;
+	struct fimc_is_lib_vra *lib_vra;
+
+	hw_vra = (struct fimc_is_hw_vra *)hw_ip->priv_info;
+
+	FIMC_BUG(!hw_ip);
+	FIMC_BUG(!param);
+
+	lib_vra = &hw_vra->lib_vra;
+
+#ifdef VRA_DMA_TEST_BY_IMAGE
+	ret = fimc_is_lib_vra_test_input(lib_vra, instance);
+	if (ret) {
+		mserr_hw("test_input is fail (%d)", instance, hw_ip, ret);
+		return ret;
+	}
+	return 0;
+#endif
+
+	if (param->otf_input.cmd == OTF_INPUT_COMMAND_ENABLE) {
+		if ((lindex & LOWBIT_OF(PARAM_FD_OTF_INPUT))
+			|| (hindex & HIGHBIT_OF(PARAM_FD_OTF_INPUT))) {
+			ret = fimc_is_lib_vra_otf_input(lib_vra, param, instance, fcount);
+			if (ret) {
+				mserr_hw("otf_input is fail (%d)", instance, hw_ip, ret);
+				return ret;
+			}
+		}
+	} else if (param->dma_input.cmd == DMA_INPUT_COMMAND_ENABLE) {
+		if ((lindex & LOWBIT_OF(PARAM_FD_DMA_INPUT))
+			|| (hindex & HIGHBIT_OF(PARAM_FD_DMA_INPUT))) {
+			ret = fimc_is_lib_vra_dma_input(lib_vra, param, instance, fcount);
+			if (ret) {
+				mserr_hw("dma_input is fail (%d)", instance, hw_ip, ret);
+				return ret;
+			}
+		}
+	} else {
+		mserr_hw("param setting is wrong! otf_input.cmd(%d), dma_input.cmd(%d)",
+			instance, hw_ip, param->otf_input.cmd, param->dma_input.cmd);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 
 static int fimc_is_hw_vra_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame *frame,
 	ulong hw_map)
@@ -650,11 +721,15 @@ new_frame:
 	/* Add for CH1 DMA input */
 	if (lib_vra->fr_work_init.dram_input) {
 		/* TODO: It is required to support other YUV format */
-		buffer_kva = (unsigned char *)(frame->kvaddr_buffer[frame->cur_buf_index * 2]); /* Y-plane index of NV21 */
-		buffer_dva = (unsigned char *)(u64)(frame->dvaddr_buffer[frame->cur_buf_index * 2]);
+		/* Y-plane index of NV21 */
+		buffer_kva = (unsigned char *)
+			(frame->kvaddr_buffer[frame->cur_buf_index * 2]);
+		buffer_dva = (unsigned char *)
+			(frame->dvaddr_buffer[frame->cur_buf_index * 2]);
 		hw_ip->mframe = frame;
 	}
 	msdbg_hw(2, "[F:%d]lib_vra_new_frame\n", instance, hw_ip, frame->fcount);
+	lib_vra->fr_index = frame->fcount;
 	ret = fimc_is_lib_vra_new_frame(lib_vra, buffer_kva, buffer_dva, instance);
 	if (ret) {
 		mserr_hw("lib_vra_new_frame is fail (%d)", instance, hw_ip, ret);
@@ -720,56 +795,6 @@ static int fimc_is_hw_vra_set_param(struct fimc_is_hw_ip *hw_ip,
 	if (ret) {
 		mserr_hw("set_param is fail (%d)", instance, hw_ip, ret);
 		return ret;
-	}
-
-	return ret;
-}
-
-int fimc_is_hw_vra_update_param(struct fimc_is_hw_ip *hw_ip,
-	struct vra_param *param, u32 lindex, u32 hindex, u32 instance, u32 fcount)
-{
-	int ret = 0;
-	struct fimc_is_hw_vra *hw_vra;
-	struct fimc_is_lib_vra *lib_vra;
-
-	hw_vra = (struct fimc_is_hw_vra *)hw_ip->priv_info;
-
-	FIMC_BUG(!hw_ip);
-	FIMC_BUG(!param);
-
-	lib_vra = &hw_vra->lib_vra;
-
-#ifdef VRA_DMA_TEST_BY_IMAGE
-	ret = fimc_is_lib_vra_test_input(lib_vra, instance);
-	if (ret) {
-		mserr_hw("test_input is fail (%d)", instance, hw_ip, ret);
-		return ret;
-	}
-	return 0;
-#endif
-
-	if (param->otf_input.cmd == OTF_INPUT_COMMAND_ENABLE) {
-		if ((lindex & LOWBIT_OF(PARAM_FD_OTF_INPUT))
-			|| (hindex & HIGHBIT_OF(PARAM_FD_OTF_INPUT))) {
-			ret = fimc_is_lib_vra_otf_input(lib_vra, param, instance, fcount);
-			if (ret) {
-				mserr_hw("otf_input is fail (%d)", instance, hw_ip, ret);
-				return ret;
-			}
-		}
-	} else if (param->dma_input.cmd == DMA_INPUT_COMMAND_ENABLE) {
-		if ((lindex & LOWBIT_OF(PARAM_FD_DMA_INPUT))
-			|| (hindex & HIGHBIT_OF(PARAM_FD_DMA_INPUT))) {
-			ret = fimc_is_lib_vra_dma_input(lib_vra, param, instance, fcount);
-			if (ret) {
-				mserr_hw("dma_input is fail (%d)", instance, hw_ip, ret);
-				return ret;
-			}
-		}
-	} else {
-		mserr_hw("param setting is wrong! otf_input.cmd(%d), dma_input.cmd(%d)",
-			instance, hw_ip, param->otf_input.cmd, param->dma_input.cmd);
-		return -EINVAL;
 	}
 
 	return ret;
@@ -1054,23 +1079,6 @@ static int fimc_is_hw_vra_delete_setfile(struct fimc_is_hw_ip *hw_ip, u32 instan
 	clear_bit(HW_TUNESET, &hw_ip->state);
 
 	return 0;
-}
-
-void fimc_is_hw_vra_reset(struct fimc_is_hw_ip *hw_ip)
-{
-	u32 all_intr;
-	bool has_vra_ch1_only = false;
-	int ret = 0;
-
-	/* Interrupt clear */
-	ret = fimc_is_hw_g_ctrl(NULL, 0, HW_G_CTRL_HAS_VRA_CH1_ONLY, (void *)&has_vra_ch1_only);
-	if(!has_vra_ch1_only) {
-		all_intr = fimc_is_vra_chain0_get_all_intr(hw_ip->regs);
-		fimc_is_vra_chain0_set_clear_intr(hw_ip->regs, all_intr);
-	}
-
-	all_intr = fimc_is_vra_chain1_get_all_intr(hw_ip->regs);
-	fimc_is_vra_chain1_set_clear_intr(hw_ip->regs, all_intr);
 }
 
 static int fimc_is_hw_vra_get_meta(struct fimc_is_hw_ip *hw_ip,

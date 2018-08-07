@@ -50,7 +50,15 @@
 #define FIMC_IS_CRANGE_FULL		0
 #define FIMC_IS_CRANGE_LIMITED		1
 
-#define NI_BACKUP_MAX			10
+#define NI_BACKUP_MAX			32
+
+/* TODO: remove AA_SCENE_MODE_REMOSAIC */
+#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
+#define CHK_REMOSAIC_SCN(sceneMode)	\
+	(((sceneMode == AA_SCENE_MODE_REMOSAIC) \
+	|| (sceneMode == AA_SCENE_MODE_REMOSAIC_PURE_BAYER_ONLY) \
+	|| (sceneMode == AA_SCENE_MODE_REMOSAIC_MFHDR_PURE_BAYER_ONLY)) ? 1 : 0)
+#endif
 
 /*global state*/
 enum fimc_is_ischain_state {
@@ -258,11 +266,6 @@ int fimc_is_ischain_isp_buffer_queue(struct fimc_is_device_ischain *device,
 int fimc_is_ischain_isp_buffer_finish(struct fimc_is_device_ischain *this,
 	u32 index);
 
-/*scc subdev*/
-/*scp subdev*/
-int fimc_is_ischain_scp_s_format(struct fimc_is_device_ischain *device,
-	u32 pixelformat, u32 width, u32 height);
-
 /* dis subdev */
 int fimc_is_ischain_dis_open(struct fimc_is_device_ischain *device,
 	struct fimc_is_video_ctx *vctx);
@@ -331,13 +334,6 @@ int fimc_is_ischain_vra_buffer_queue(struct fimc_is_device_ischain *device,
 int fimc_is_ischain_vra_buffer_finish(struct fimc_is_device_ischain *this,
 	u32 index);
 
-/*special api for sensor*/
-int fimc_is_ischain_camctl(struct fimc_is_device_ischain *this,
-	struct fimc_is_frame *frame,
-	u32 fcount);
-int fimc_is_ischain_tag(struct fimc_is_device_ischain *ischain,
-	struct fimc_is_frame *frame);
-
 int fimc_is_itf_stream_on(struct fimc_is_device_ischain *this);
 int fimc_is_itf_stream_off(struct fimc_is_device_ischain *this);
 int fimc_is_itf_process_start(struct fimc_is_device_ischain *device,
@@ -346,8 +342,10 @@ int fimc_is_itf_process_stop(struct fimc_is_device_ischain *device,
 	u32 group);
 int fimc_is_itf_force_stop(struct fimc_is_device_ischain *device,
 	u32 group);
+#ifdef ENABLE_IS_CORE
 int fimc_is_itf_map(struct fimc_is_device_ischain *device,
-	u32 group, u32 shot_addr, u32 shot_size);
+	u32 group, dma_addr_t shot_addr, size_t shot_size);
+#endif
 int fimc_is_itf_grp_shot(struct fimc_is_device_ischain *device,
 	struct fimc_is_group *group,
 	struct fimc_is_frame *frame);
