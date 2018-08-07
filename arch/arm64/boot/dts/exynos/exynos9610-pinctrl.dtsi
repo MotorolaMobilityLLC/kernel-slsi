@@ -172,6 +172,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
+			interrupts = <0 162 0>;
 		};
 
 		gpm9: gpm9 {
