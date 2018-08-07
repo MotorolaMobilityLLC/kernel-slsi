@@ -30,6 +30,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/timekeeping.h>
+#include <linux/of_gpio.h>
 #ifdef CONFIG_EXYNOS_ITMON
 #include <soc/samsung/exynos-itmon.h>
 #endif
@@ -181,7 +182,6 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 {
 	struct device *chub_dev = chub->dev;
 	int ret = 0;
-	int i;
 
 	chub->ipc_map = ipc_get_chub_map();
 	if (!chub->ipc_map)
@@ -197,11 +197,16 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 	if (!chub->fw_log)
 		return -EINVAL;
 
-	for (i = 0; i < chub->irq_pin_len; i++) {
-		disable_irq_nosync(chub->irq_pins[i]);
-		dev_info(chub_dev,
-			"%s: %d is for chub. disable it\n",
-			__func__, chub->irq_pins[i]);
+	if (chub->irq_pin_len) {
+		int i;
+
+		for (i = 0; i < chub->irq_pin_len; i++) {
+			u32 irq = gpio_to_irq(chub->irq_pins[i]);
+
+			disable_irq_nosync(irq);
+			dev_info(chub_dev, "%s: %d irq (pin:%d) is for chub. disable it\n",
+				__func__, irq, chub->irq_pins[i]);
+		}
 	}
 
 #ifdef LOWLEVEL_DEBUG
@@ -214,7 +219,7 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 #endif
 	ret = chub_dbg_init(chub_dev);
 	if (ret)
-		dev_err(chub_dev, "%s: fails. ret:%d\n", __func__);
+		dev_err(chub_dev, "%s: fails. ret:%d\n", __func__, ret);
 
 	return ret;
 }
@@ -1214,7 +1219,7 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 	}
 
 	/* disable chub irq list (for sensor irq) */
-	chub->irq_pin_len = of_property_count_u32_elems(node, "chub-irq-pin");
+	of_property_read_u32(node, "chub-irq-pin-len", &chub->irq_pin_len);
 	if (chub->irq_pin_len) {
 		if (chub->irq_pin_len > sizeof(chub->irq_pins)) {
 			dev_err(&pdev->dev,
@@ -1224,11 +1229,14 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 			return -ENODEV;
 		}
 
-		if(of_property_read_u32_array(node, "chub-irq-pin",
-				chub->irq_pins, chub->irq_pin_len)) {
-			dev_err(&pdev->dev,
-				"failed to get irq-pin\n");
-			return -ENODEV;
+		dev_info(&pdev->dev, "get chub irq_pin len:%d\n", chub->irq_pin_len);
+		for (i = 0; i < chub->irq_pin_len; i++) {
+			chub->irq_pins[i] = of_get_named_gpio(node, "chub-irq-pin", i);
+			if (!gpio_is_valid(chub->irq_pins[i])) {
+				dev_err(&pdev->dev, "get invalid chub irq_pin:%d\n", chub->irq_pins[i]);
+				return -EINVAL;
+			}
+			dev_info(&pdev->dev, "get chub irq_pin:%d\n", chub->irq_pins[i]);
 		}
 	}
 #if defined(CONFIG_SOC_EXYNOS9610)
