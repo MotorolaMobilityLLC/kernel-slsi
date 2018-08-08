@@ -244,13 +244,14 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 {
 	char state_array[] = {'R', 'S', 'D', 'T', 't', 'Z', 'X', 'x', 'K', 'W'};
 	unsigned char idx = 0;
-	unsigned long state = (tsk->state & TASK_REPORT) | tsk->exit_state;
+	unsigned long state;
 	unsigned long wchan;
 	unsigned long pc = 0;
 	char symname[KSYM_NAME_LEN];
 
 	if ((tsk == NULL) || (tsk->stack == NULL))
 		return;
+	state = (tsk->state & TASK_REPORT) | tsk->exit_state;
 
 	pc = KSTK_EIP(tsk);
 	wchan = get_wchan(tsk);
@@ -375,7 +376,7 @@ void dbg_snapshot_check_crash_key(unsigned int code, int value)
 
 void __init dbg_snapshot_allcorelockup_detector_init(void)
 {
-	int ret;
+	int ret = -1;
 
 	if (!dss_desc.multistage_wdt_irq)
 		return;
