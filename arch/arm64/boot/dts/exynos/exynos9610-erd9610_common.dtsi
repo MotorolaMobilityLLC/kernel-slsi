@@ -1820,3 +1820,25 @@
 		sink,capable_max_voltage = <9000>;
 	};
 };
+
+&exynos_adc {
+	status = "okay";
+	soc_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 0>;
+		io-channel-names = "soc_therm";
+	};
+	batt_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 1>;
+		io-channel-names = "batt_therm";
+	};
+};
