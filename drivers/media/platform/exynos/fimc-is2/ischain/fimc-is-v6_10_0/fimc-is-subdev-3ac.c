@@ -80,7 +80,14 @@ static int fimc_is_ischain_3ac_start(struct fimc_is_device_ischain *device,
 	dma_output->format = hw_format;
 	dma_output->order = hw_order;
 	dma_output->bitwidth = hw_bitwidth;
-	dma_output->msb = MSB_OF_3AA_DMA_OUT;
+
+	/* HACK: for reverse raw capture, forcely use the 10bit unpacked, not 12bit unpacked */
+	if (test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state) &&
+			hw_bitwidth == DMA_OUTPUT_BIT_WIDTH_16BIT)
+		dma_output->msb = MSB_OF_DNG_DMA_OUT;
+	else
+		dma_output->msb = MSB_OF_3AA_DMA_OUT;
+
 	dma_output->width = otcrop->w;
 	dma_output->height = otcrop->h;
 	dma_output->crop_enable = 0;
