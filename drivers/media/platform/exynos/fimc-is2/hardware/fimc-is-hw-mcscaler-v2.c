@@ -107,9 +107,6 @@ static int fimc_is_hw_mcsc_handle_interrupt(u32 id, void *context)
 
 		if (hw_ip->cur_e_int >= hw_ip->num_buffers) {
 			fimc_is_hw_mcsc_frame_done(hw_ip, NULL, IS_SHOT_SUCCESS);
-			dbg_isr("[F:%d][S-E] %05llu us\n", hw_ip, hw_fcount,
-				(hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_END] -
-				hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_START]) / 1000);
 
 			if (!atomic_read(&hardware->streaming[hardware->sensor_position[instance]]))
 				sinfo_hw("[F:%d]F.E\n", hw_ip, hw_fcount);
@@ -225,6 +222,9 @@ struct fimc_is_hw_ip *get_mcsc_hw_ip(struct fimc_is_hw_ip *hw_ip)
 {
 	int hw_slot = -1;
 	u32 hw_id;
+
+	if (!hw_ip)
+		return NULL;
 
 	switch (hw_ip->id) {
 	case DEV_HW_MCSC0:
@@ -1342,6 +1342,10 @@ void fimc_is_hw_mcsc_frame_done(struct fimc_is_hw_ip *hw_ip, struct fimc_is_fram
 	index = hw_ip->debug_index[1];
 	hw_ip->debug_info[index].cpuid[dbg_pt] = raw_smp_processor_id();
 	hw_ip->debug_info[index].time[dbg_pt] = cpu_clock(raw_smp_processor_id());
+
+	dbg_isr("[F:%d][S-E] %05llu us\n", hw_ip, atomic_read(&hw_ip->fcount),
+		(hw_ip->debug_info[index].time[dbg_pt] -
+		hw_ip->debug_info[index].time[DEBUG_POINT_FRAME_START]) / 1000);
 
 	if (!flag_get_meta)
 		atomic_inc(&hw_ip->count.dma);
