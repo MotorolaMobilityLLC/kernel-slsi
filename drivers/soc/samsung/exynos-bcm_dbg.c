@@ -1606,9 +1606,9 @@ static ssize_t store_event_ctrl(struct device *dev,
 	struct exynos_bcm_dbg_data *data = platform_get_drvdata(pdev);
 	struct exynos_bcm_ipc_base_info ipc_base_info;
 	struct exynos_bcm_event bcm_event;
-	unsigned int bcm_ip_index;
-	unsigned int event_id, ip_range;
-	unsigned int defined_index;
+	unsigned int bcm_ip_index = 0;
+	unsigned int ip_range = 0;
+	unsigned int event_id, defined_index;
 	unsigned int *event;
 	int ev_cnt, dfd_cnt, ret;
 
@@ -1627,7 +1627,12 @@ static ssize_t store_event_ctrl(struct device *dev,
 				&ip_range, &bcm_ip_index, &defined_index,
 				&event[0], &event[1], &event[2], &event[3],
 				&event[4], &event[5], &event[6], &event[7]);
+	} else {
+		BCM_ERR("%s: invalid bcm_cnt_nr\n", __func__);
+		kfree(event);
+		return -EINVAL;
 	}
+
 	/* 3 means is the number of index */
 	if (ret != data->bcm_cnt_nr + 3) {
 		kfree(event);
@@ -1800,7 +1805,8 @@ static ssize_t store_filter_id_ctrl(struct device *dev,
 	struct exynos_bcm_dbg_data *data = platform_get_drvdata(pdev);
 	struct exynos_bcm_ipc_base_info ipc_base_info;
 	struct exynos_bcm_filter_id filter_id;
-	unsigned int bcm_ip_index, ip_range;
+	unsigned int bcm_ip_index = 0;
+	unsigned int ip_range = 0;
 	unsigned int defined_index;
 	unsigned int sm_id_mask, sm_id_value;
 	unsigned int *sm_id_active;
@@ -1823,6 +1829,10 @@ static ssize_t store_filter_id_ctrl(struct device *dev,
 				&sm_id_active[2], &sm_id_active[3],
 				&sm_id_active[4], &sm_id_active[5],
 				&sm_id_active[6], &sm_id_active[7]);
+	} else {
+		BCM_ERR("%s: invalid bcm_cnt_nr\n", __func__);
+		kfree(sm_id_active);
+		return -EINVAL;
 	}
 
 	/* 5 --> the number of index */
@@ -2013,7 +2023,8 @@ static ssize_t store_filter_others_ctrl(struct device *dev,
 	struct exynos_bcm_dbg_data *data = platform_get_drvdata(pdev);
 	struct exynos_bcm_ipc_base_info ipc_base_info;
 	struct exynos_bcm_filter_others filter_others;
-	unsigned int bcm_ip_index, ip_range;
+	unsigned int bcm_ip_index = 0;
+	unsigned int ip_range = 0;
 	unsigned int defined_index;
 	unsigned int sm_other_type[BCM_EVT_FLT_OTHR_MAX];
 	unsigned int sm_other_mask[BCM_EVT_FLT_OTHR_MAX];
@@ -2043,6 +2054,10 @@ static ssize_t store_filter_others_ctrl(struct device *dev,
 				&sm_other_active[2], &sm_other_active[3],
 				&sm_other_active[4], &sm_other_active[5],
 				&sm_other_active[6], &sm_other_active[7]);
+	} else {
+		BCM_ERR("%s: invalid bcm_cnt_nr\n", __func__);
+		kfree(sm_other_active);
+		return -EINVAL;
 	}
 
 	/* 9 --> the number of index */
@@ -2228,7 +2243,8 @@ static ssize_t store_sample_id_ctrl(struct device *dev,
 	struct exynos_bcm_dbg_data *data = platform_get_drvdata(pdev);
 	struct exynos_bcm_ipc_base_info ipc_base_info;
 	struct exynos_bcm_sample_id sample_id;
-	unsigned int bcm_ip_index, ip_range;
+	unsigned int bcm_ip_index = 0;
+	unsigned int ip_range = 0;
 	unsigned int defined_index;
 	unsigned int peak_mask, peak_id;
 	unsigned int *peak_enable;
@@ -2252,6 +2268,10 @@ static ssize_t store_sample_id_ctrl(struct device *dev,
 				&peak_enable[2], &peak_enable[3],
 				&peak_enable[4], &peak_enable[5],
 				&peak_enable[6], &peak_enable[7]);
+	} else {
+		BCM_ERR("%s: invalid bcm_cnt_nr\n", __func__);
+		kfree(peak_enable);
+		return -EINVAL;
 	}
 
 	/* 5 --> the number of index */
