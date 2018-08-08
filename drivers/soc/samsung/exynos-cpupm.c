@@ -288,17 +288,14 @@ static void cpu_disable(unsigned int cpu)
 	cal_cpu_disable(cpu);
 }
 
-static DEFINE_PER_CPU(int, vcluster_id);
-static void cluster_enable(unsigned int cpu_id)
+static void cluster_enable(unsigned int cluster_id)
 {
-	unsigned int cluster_id = per_cpu(vcluster_id, cpu_id);;
 	cal_cluster_enable(cluster_id);
 	big_reset_control(1);
 }
 
-static void cluster_disable(unsigned int cpu_id)
+static void cluster_disable(unsigned int cluster_id)
 {
-	unsigned int cluster_id = per_cpu(vcluster_id, cpu_id);
 	big_reset_control(0);
 	cal_cluster_disable(cluster_id);
 }
@@ -320,7 +317,7 @@ static int cpuhp_cpupm_online(unsigned int cpu)
 
 	cpumask_and(&mask, cpu_cluster_mask(cpu), cpu_online_mask);
 	if (cpumask_weight(&mask) == 0) {
-		cluster_enable(cpu);
+		cluster_enable(cpu_topology[cpu].cluster_id);
 		/* clear cpus of this cluster from cpuhp_last_mask */
 		cpumask_andnot(&cpuhp_last_mask,
 			&cpuhp_last_mask, cpu_cluster_mask(cpu));
@@ -343,7 +340,7 @@ static int cpuhp_cpupm_offline(unsigned int cpu)
 	if ((cpumask_weight(&online_mask) == 0) && cpumask_empty(&last_mask)) {
 		/* set cpu cpuhp_last_mask */
 		cpumask_set_cpu(cpu, &cpuhp_last_mask);
-		cluster_disable(cpu);
+		cluster_disable(cpu_topology[cpu].cluster_id);
 	}
 	spin_unlock(&cpupm_lock);
 
@@ -620,7 +617,7 @@ static int try_to_enter_power_mode(int cpu, struct power_mode *mode)
 	 */
 	switch (mode->type) {
 	case POWERMODE_TYPE_CLUSTER:
-		cluster_disable(cpu);
+		cluster_disable(cpu_topology[cpu].cluster_id);
 		break;
 	case POWERMODE_TYPE_SYSTEM:
 		if (unlikely(exynos_system_idle_enter()))
@@ -655,7 +652,7 @@ static void exit_mode(int cpu, struct power_mode *mode, int cancel)
 
 	switch (mode->type) {
 	case POWERMODE_TYPE_CLUSTER:
-		cluster_enable(cpu);
+		cluster_enable(cpu_topology[cpu].cluster_id);
 		break;
 	case POWERMODE_TYPE_SYSTEM:
 		exynos_system_idle_exit(cancel);
@@ -889,32 +886,6 @@ static int __init cpu_power_mode_init(void)
 
 	if (attr_count)
 		cpupm_sysfs_node_init(attr_count);
-
-	dn = of_find_node_by_path("/cpupm/vcpu_topology");
-	if (dn){
-		int i, cluster_cnt = 0;
-		of_property_read_u32(dn, "vcluster_cnt", &cluster_cnt);
-
-		pr_info("%s:Virtual Cluster Info\n", __func__);
-		for (i = 0 ; i < cluster_cnt ; i++) {
-			int cpu;
-			char name[20];
-			struct cpumask sibling;
-			snprintf(name, sizeof(name), "vcluster%d_sibling", i);
-			if (!of_property_read_string(dn, name, &buf)) {
-				cpulist_parse(buf, &sibling);
-
-				pr_info("Cluster%d : ", i);
-				for_each_cpu(cpu, &sibling) {
-					per_cpu(vcluster_id, cpu) = i;
-					pr_info("%d ", cpu);
-				}
-				pr_info("\n");
-			}
-		}
-	}else {
-		pr_info("No Virtual Cluster Info\n");
-	}
 
 	return 0;
 }
