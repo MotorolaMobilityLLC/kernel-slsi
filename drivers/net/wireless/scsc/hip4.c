@@ -38,6 +38,13 @@ static int hip4_qos_med_tput_in_mbps = 150;
 module_param(hip4_qos_med_tput_in_mbps, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(hip4_qos_med_tput_in_mbps, "throughput (in Mbps) to apply Median PM QoS");
 
+#ifdef CONFIG_SCSC_SMAPPER
+static bool hip4_smapper_enable = true;
+module_param(hip4_smapper_enable, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(hip4_smapper_enable, "enable HIP4 SMAPPER. (default: Y)");
+static bool hip4_smapper_is_enabled;
+#endif
+
 static ktime_t intr_received;
 static ktime_t bh_init;
 static ktime_t bh_end;
@@ -1632,7 +1639,10 @@ int hip4_init(struct slsi_hip4 *hip)
 
 #ifdef CONFIG_SCSC_SMAPPER
 	/* Init SMAPPER */
-	hip4_smapper_init(sdev, hip);
+	if (hip4_smapper_enable) {
+		hip4_smapper_init(sdev, hip);
+		hip4_smapper_is_enabled = true;
+	}
 #endif
 
 	/* setup for PM QoS */
@@ -1931,7 +1941,10 @@ void hip4_deinit(struct slsi_hip4 *hip)
 
 #ifdef CONFIG_SCSC_SMAPPER
 	/* Init SMAPPER */
-	hip4_smapper_deinit(sdev, hip);
+	if (hip4_smapper_is_enabled) {
+		hip4_smapper_is_enabled = false;
+		hip4_smapper_deinit(sdev, hip);
+	}
 #endif
 	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock);
 
