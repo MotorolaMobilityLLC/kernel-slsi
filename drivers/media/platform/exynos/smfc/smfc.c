@@ -188,7 +188,6 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 				struct device *alloc_devs[])
 {
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
-	unsigned int i;
 
 	if (!(ctx->flags & SMFC_CTX_COMPRESS) && (*num_buffers > 1)) {
 		dev_info(ctx->smfc->dev,
@@ -205,7 +204,7 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 		 */
 		sizes[0] = PAGE_SIZE;
 		*num_planes = 1;
-		alloc_devs[i] = ctx->smfc->dev;
+		alloc_devs[0] = ctx->smfc->dev;
 		if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS)) {
 			sizes[1] = PAGE_SIZE;
 			alloc_devs[1] = ctx->smfc->dev;
