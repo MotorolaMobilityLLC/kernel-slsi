@@ -46,6 +46,7 @@
 #endif
 
 #ifdef CONFIG_SCSC_SMAPPER
+#include <linux/dma-mapping.h>
 #include "mif_reg_smapper.h"
 #endif
 #include <linux/pm_qos.h>
