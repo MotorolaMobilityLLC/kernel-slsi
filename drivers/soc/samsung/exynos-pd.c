@@ -258,7 +258,7 @@ static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 	/* pd power on/off latency is less than 1ms */
 	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
 
-	pd->genpd.states = kzalloc(sizeof(pd->genpd.states), GFP_KERNEL);
+	pd->genpd.states = kzalloc(sizeof(struct genpd_power_state), GFP_KERNEL);
 
 	if (!pd->genpd.states)
 		return -ENOMEM;
