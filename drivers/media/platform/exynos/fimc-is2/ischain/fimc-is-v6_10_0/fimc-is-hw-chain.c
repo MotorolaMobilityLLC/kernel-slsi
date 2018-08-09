@@ -328,6 +328,7 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	u32 mux_set_val = MUX_SET_VAL_DEFAULT;
 	u32 mux_clr_val = MUX_CLR_VAL_DEFAULT;
 	unsigned long mux_backup_val = 0;
+	u32 dual_ch;
 
 	FIMC_BUG(!sensor_data);
 
@@ -336,6 +337,8 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	pdata = sensor->pdata;
 	if (!pdata)
 		goto p_err;
+
+	dual_ch = pdata->dual_ch;
 
 	ischain = sensor->ischain;
 	if (!ischain)
@@ -368,11 +371,11 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
 				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], csi_ch);
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], ((csi_ch == 0) ? 2 : 0));
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], dual_ch);
 		break;
 	case 1:
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], ((csi_ch == 0) ? 1 : 0));
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], dual_ch);
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
 				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], csi_ch);
 		break;
