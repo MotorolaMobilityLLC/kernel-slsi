@@ -47,6 +47,9 @@ struct task_band {
 };
 
 #ifdef CONFIG_SCHED_EMS
+extern struct kobject *ems_kobj;
+extern unsigned int get_cpu_max_capacity(unsigned int cpu);
+
 /* task util initialization */
 extern void exynos_init_entity_util_avg(struct sched_entity *se);
 
