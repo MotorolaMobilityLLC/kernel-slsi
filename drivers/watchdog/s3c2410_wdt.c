@@ -1184,8 +1184,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	struct s3c2410_wdt *wdt;
 	struct resource *wdt_mem;
 	struct resource *wdt_irq;
-	unsigned int wtcon, disable_reg_val, mask_reset_reg_val;
-	unsigned int noncpu_int_reg_val;
+	unsigned int wtcon, disable_reg_val = 0, mask_reset_reg_val = 0;
+	unsigned int noncpu_int_reg_val = 0;
 	int started = 0;
 	int ret, cluster_index;
 
