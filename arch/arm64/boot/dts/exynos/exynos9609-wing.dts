@@ -1693,6 +1693,29 @@
 	};
 };
 
+&i2c_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	sec-nfc@27 {
+		compatible = "sec-nfc";
+		reg = <0x27>;
+
+		sec-nfc,ven-gpio = <&gpg0 0 0>;
+		sec-nfc,firm-gpio = <&gpg0 2 0>;
+
+		sec-nfc,irq-gpio = <&gpa1 2 0>;
+		sec-nfc,clk_req-gpio = <&gpg0 1 0>;
+		sec-nfc,ldo_en = <&gpm22 0 0>;
+
+		clock-names = "OSC_NFC";
+		clocks = <&clock OSC_NFC>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&xclkout1>;
+	};
+};
+
 &sec_pwm {
 	status = "okay";
 	pinctrl-names = "default";
