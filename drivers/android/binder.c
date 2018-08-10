@@ -5047,8 +5047,8 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 
 err_bad_arg:
-	pr_err("binder_mmap: %d(%s) %lx-%lx %s failed %d\n",
-	       proc->pid, proc->tsk->comm, vma->vm_start, vma->vm_end, failure_string, ret);
+	pr_err("%s: %d(%s) %lx-%lx %s failed %d\n", __func__,
+		proc->pid, proc->tsk->comm, vma->vm_start, vma->vm_end, failure_string, ret);
 	return ret;
 }
 
@@ -5057,7 +5057,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	struct binder_proc *proc;
 	struct binder_device *binder_dev;
 
-	binder_debug(BINDER_DEBUG_OPEN_CLOSE, "binder_open: %d:%d (%s:%s)\n",
+	binder_debug(BINDER_DEBUG_OPEN_CLOSE, "%s: %d:%d (%s:%s)\n", __func__,
 		     current->group_leader->pid, current->pid,
 		     current->group_leader->comm, current->comm);
 
