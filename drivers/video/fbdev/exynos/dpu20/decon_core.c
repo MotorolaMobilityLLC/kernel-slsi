@@ -1270,7 +1270,7 @@ static int decon_import_buffer(struct decon_device *decon, int idx,
 	struct displayport_device *displayport;
 #endif
 	struct dsim_device *dsim;
-	struct device *dev;
+	struct device *dev = NULL;
 	int i;
 	size_t buf_size = 0;
 
@@ -2192,16 +2192,20 @@ int decon_update_last_regs(struct decon_device *decon,
 		struct decon_reg_data *regs)
 {
 	int ret = 0;
+	struct decon_dma_buf_data old_dma_bufs[decon->dt.max_win][MAX_PLANE_CNT];
 	struct decon_mode_info psr;
+	int old_plane_cnt[MAX_DECON_WIN];
 
 	decon_info("%s +\n", __func__);
 
 	decon_exit_hiber(decon);
 
+	decon_acquire_old_bufs(decon, regs, old_dma_bufs, old_plane_cnt);
+
 	decon_check_used_dpp(decon, regs);
 
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)
-	decon_update_vgf_info(decon, regs, true);
+	decon_update_afbc_info(decon, regs, true);
 #endif
 
 	decon_update_hdr_info(decon, regs);
@@ -2255,8 +2259,8 @@ end:
 	DPU_EVENT_LOG(DPU_EVT_FENCE_RELEASE, &decon->sd, ktime_set(0, 0));
 
 #if defined(CONFIG_EXYNOS_AFBC_DEBUG)
-	decon_save_vgf_connected_win_id(decon, regs);
-	decon_update_vgf_info(decon, regs, false);
+	decon_save_afbc_enabled_win_id(decon, regs);
+	decon_update_afbc_info(decon, regs, false);
 #endif
 
 #if defined(CONFIG_EXYNOS_BTS)
@@ -3121,7 +3125,7 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 	struct displayport_device *displayport;
 #endif
 	struct dsim_device *dsim;
-	struct device *dev;
+	struct device *dev = NULL;
 	unsigned int real_size, virt_size, size;
 	dma_addr_t map_dma;
 #if defined(CONFIG_SUPPORT_LEGACY_ION)
