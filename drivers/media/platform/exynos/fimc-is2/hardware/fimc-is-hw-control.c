@@ -514,8 +514,6 @@ static inline void fimc_is_hardware_fill_frame_info(u32 instance,
 	struct fimc_is_frame *hw_frame,
 	struct fimc_is_frame *frame)
 {
-	int i;
-
 	hw_frame->groupmgr	= frame->groupmgr;
 	hw_frame->group		= frame->group;
 	hw_frame->shot		= frame->shot;

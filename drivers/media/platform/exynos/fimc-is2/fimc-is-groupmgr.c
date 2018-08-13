@@ -2453,9 +2453,6 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
 	cis_shared_data *cis_data = NULL;
 #endif
-	u32 orientation;
-	enum mcsc_port backup_mcsc_blk_port[INTERFACE_TYPE_MAX];
-	int i = 0;
 
 	FIMC_BUG(!groupmgr);
 	FIMC_BUG(!group);
