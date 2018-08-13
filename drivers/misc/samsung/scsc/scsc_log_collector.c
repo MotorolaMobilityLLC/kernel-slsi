@@ -50,7 +50,7 @@ static bool collect_to_ram = true;
 module_param(collect_to_ram, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(collect_to_ram, "Collect buffer in ram");
 
-static char collection_dir_buf[256] = "/data/exynos/log/wifi";
+static char collection_dir_buf[256] = "/data/vendor/log/wifi";
 module_param_string(collection_target_directory, collection_dir_buf, sizeof(collection_dir_buf), S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(collection_target_directory, "Specify collection target directory");
 
