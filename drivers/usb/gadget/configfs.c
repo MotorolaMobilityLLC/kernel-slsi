@@ -1711,11 +1711,8 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 	b = strim(buf);
 
 	printk("Function stored : %s\n", b);
-	while (b) {
-		name = strsep(&b, ",");
-		if (!name)
-			continue;
-
+	name = strsep(&b, ",");
+	while (name) {
 		list_for_each_entry(c, &cdev->configs, list) {
 			cfg = container_of(c, struct config_usb_cfg, c);
 			list_for_each_entry_safe(f, tmp, &dev->linked_func, list) {
@@ -1725,6 +1722,7 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 				}
 			}
 		}
+		name = strsep(&b, ",");
 	}
 
 	mutex_unlock(&dev->lock);
