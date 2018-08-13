@@ -20,6 +20,7 @@
 
 #include <linux/exynos_iovmm.h>
 #include <linux/ion_exynos.h>
+#include <linux/dma-buf-container.h>
 
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-memops.h>
@@ -612,7 +613,13 @@ static int vb2_dma_sg_map_dmabuf(void *mem_priv, size_t size)
 		return -EINVAL;
 	}
 
-	if ((buf->iova == 0) || IS_ERR_VALUE(buf->iova)) {
+	/*
+	 * A dmabuf container itself is also a dmabuf. It is capable of attach
+	 * and map but the buffer in it is not accessible because it just has
+	 * metadata of dma-buf array.
+	 */
+	if ((dmabuf_container_get_count(buf->db_attach->dmabuf) < 0) &&
+	    ((buf->iova == 0) || IS_ERR_VALUE(buf->iova))) {
 		if (device_get_dma_attr(buf->dev) == DEV_DMA_COHERENT)
 			ioprot |= IOMMU_CACHE;
 
@@ -669,7 +676,8 @@ static void vb2_dma_sg_detach_dmabuf(void *mem_priv)
 	if (WARN_ON(buf->dma_sgt))
 		vb2_dma_sg_unmap_dmabuf(buf, 0);
 
-	ion_iovmm_unmap(buf->db_attach, buf->iova);
+	if (dmabuf_container_get_count(buf->db_attach->dmabuf) < 0)
+		ion_iovmm_unmap(buf->db_attach, buf->iova);
 
 	/* detach this attachment */
 	dma_buf_detach(buf->db_attach->dmabuf, buf->db_attach);
