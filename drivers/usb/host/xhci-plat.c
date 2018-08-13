@@ -320,7 +320,11 @@ static int xhci_plat_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pm_runtime_set_active(&pdev->dev);
+	ret = pm_runtime_set_active(&pdev->dev);
+	if (ret != 0) {
+		pr_err("USB can't enable runtime pm (%d)\n", ret);
+		goto runtime_pm_err;
+	}
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 
@@ -501,6 +505,7 @@ disable_runtime:
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+runtime_pm_err:
 	return ret;
 }
 
@@ -532,11 +537,11 @@ static int xhci_plat_remove(struct platform_device *dev)
 	}
 	xhci_dbg(xhci, "%s: waited %dmsec", __func__, timeout);
 
+	xhci->xhc_state |= XHCI_STATE_REMOVING;
+
 	dev_info(&dev->dev, "WAKE UNLOCK\n");
 	wake_unlock(xhci->wakelock);
 	wake_lock_destroy(xhci->wakelock);
-
-	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_phy_shutdown(hcd->usb_phy);
