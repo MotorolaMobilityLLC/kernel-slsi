@@ -25,9 +25,9 @@
 
 extern void (*arm_pm_restart)(char str, const char *cmd);
 
-extern void dbg_snapshot_log_idx_init(void);
-extern void dbg_snapshot_utils_init(void);
-extern void dbg_snapshot_helper_init(void);
+extern void dbg_snapshot_init_log_idx(void);
+extern void dbg_snapshot_init_utils(void);
+extern void dbg_snapshot_init_helper(void);
 extern void __iomem *dbg_snapshot_get_base_vaddr(void);
 extern void __iomem *dbg_snapshot_get_base_paddr(void);
 extern void dbg_snapshot_scratch_reg(unsigned int val);
@@ -47,6 +47,7 @@ extern struct dbg_snapshot_helper_ops *dss_soc_ops;
 #define DSS_REG_UART_SIZE	(0)
 
 #define DSS_DEBUG_LEVEL_NONE	(-1)
+#define DSS_DEBUG_LEVEL_PREFIX	(0xDB9 << 16)
 #define DSS_DEBUG_LEVEL_LOW	(0)
 #define DSS_DEBUG_LEVEL_MID	(1)
 

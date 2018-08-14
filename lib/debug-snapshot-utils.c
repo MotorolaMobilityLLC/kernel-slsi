@@ -399,7 +399,7 @@ void __init dbg_snapshot_allcorelockup_detector_init(void)
 			ret == 0 ? "success" : "failed", ret);
 }
 
-void __init dbg_snapshot_utils_init(void)
+void __init dbg_snapshot_init_utils(void)
 {
 	size_t vaddr;
 	int i;
