@@ -191,4 +191,11 @@
 /* #define BDS_DVFS */
 #define ENABLE_HW_FAST_READ_OUT
 #define FULL_OTF_TAIL_GROUP_ID		GROUP_ID_MCS0
+
+/* init AWB */
+#define ENABLE_INIT_AWB
+#define WB_GAIN_COUNT		(4)
+#define INIT_AWB_COUNT_REAR	(3)
+#define INIT_AWB_COUNT_FRONT	(7)
+
 #endif
