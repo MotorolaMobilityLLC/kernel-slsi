@@ -1302,8 +1302,6 @@ static void mxman_failure_work(struct work_struct *work)
 				r = scsc_log_collector_collect(SCSC_LOG_REASON_FW_PANIC);
 				if (r != 0)
 					SCSC_TAG_INFO(MXMAN, "sable creation failed.");
-				/* call old method to generate moredump anyway */
-				r = call_wlbtd(SCSC_SCRIPT_MOREDUMP);
 #else
 				r = call_wlbtd(SCSC_SCRIPT_MOREDUMP);
 #endif
