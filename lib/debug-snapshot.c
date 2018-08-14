@@ -82,27 +82,20 @@ struct dbg_snapshot_desc dss_desc;
 /* Variable for assigning virtual address base */
 static size_t g_dbg_snapshot_vaddr_base = DSS_FIXED_VIRT_BASE;
 
-int dbg_snapshot_set_debug_level(const char *level)
+int dbg_snapshot_set_debug_level(int level)
 {
 	int i;
 
-	if (!level)
-		goto out;
-
-	for (i = 0; i < ARRAY_SIZE(debug_level_val); i++) {
-		if (!strncmp(level, debug_level_val[i],
-				strlen(debug_level_val[i]))) {
-			dss_desc.debug_level = i;
-			goto out;
-		}
-	}
+	if (level > -1 && level < ARRAY_SIZE(debug_level_val)) {
+		dss_desc.debug_level = i;
+	} else {
 #if !IS_ENABLED(CONFIG_DEBUG_SNAPSHOT_USER_MODE)
-	dss_desc.debug_level = DSS_DEBUG_LEVEL_MID;
+		dss_desc.debug_level = DSS_DEBUG_LEVEL_MID;
 #else
-	dss_desc.debug_level = DSS_DEBUG_LEVEL_LOW;
+		dss_desc.debug_level = DSS_DEBUG_LEVEL_LOW;
 #endif
-
-out:
+	}
+	dbg_snapshot_set_debug_level_reg();
 	return 0;
 }
 
@@ -641,22 +634,6 @@ static int dbg_snapshot_init_dt_parse(struct device_node *np)
 		pr_err("debug-snapshot: no support multistage_wdt\n");
 	}
 
-	if (of_property_read_string(np, "debug_level", &debug_level)) {
-	/*
-	 * if failed to get debug_level in device tree
-	 * debug_level should be followed kernel configuration policy
-	 */
-#if !IS_ENABLED(CONFIG_DEBUG_SNAPSHOT_USER_MODE)
-		dss_desc.debug_level = DSS_DEBUG_LEVEL_MID;
-#else
-		dss_desc.debug_level = DSS_DEBUG_LEVEL_LOW;
-#endif
-	} else {
-		dbg_snapshot_set_debug_level(debug_level);
-	}
-	pr_info("debug-snapshot: debug_level [%s]\n",
-			debug_level_val[dss_desc.debug_level]);
-
 	sfr_dump_np = of_get_child_by_name(np, "dump-info");
 	if (!sfr_dump_np) {
 		pr_err("debug-snapshot: failed to get dump-info node\n");
@@ -702,6 +679,20 @@ static int __init dbg_snapshot_init_dt(void)
 	return init_fn(np);
 }
 
+static int __init dbg_snapshot_init_value(void)
+{
+	int val = dbg_snapshot_get_debug_level_reg();
+
+	dbg_snapshot_set_debug_level(val);
+
+	pr_info("debug-snapshot: debug_level [%s]\n",
+		debug_level_val[dss_desc.debug_level]);
+
+	dbg_snapshot_scratch_reg(DSS_SIGN_SCRATCH);
+
+	return 0;
+}
+
 static int __init dbg_snapshot_init(void)
 {
 	dbg_snapshot_init_desc();
@@ -713,13 +704,13 @@ static int __init dbg_snapshot_init(void)
 	 *  --> @virtual_addr | @phy_addr | @buffer_size | @magic_key(0xDBDBDBDB)
 	 *  And then, the debug buffer is shown.
 	 */
-		dbg_snapshot_log_idx_init();
+		dbg_snapshot_init_log_idx();
 		dbg_snapshot_fixmap();
 		dbg_snapshot_init_dt();
-		dbg_snapshot_helper_init();
-		dbg_snapshot_utils_init();
+		dbg_snapshot_init_helper();
+		dbg_snapshot_init_utils();
+		dbg_snapshot_init_value();
 
-		dbg_snapshot_scratch_reg(DSS_SIGN_SCRATCH);
 		dbg_snapshot_set_enable("base", true);
 
 		register_hook_logbuf(dbg_snapshot_hook_logbuf);

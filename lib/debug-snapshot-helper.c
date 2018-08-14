@@ -104,6 +104,27 @@ static void dbg_snapshot_report_reason(unsigned int val)
 		__raw_writel(val, dbg_snapshot_get_base_vaddr() + DSS_OFFSET_EMERGENCY_REASON);
 }
 
+void dbg_snapshot_set_debug_level_reg(void)
+{
+	if (dbg_snapshot_get_enable("header"))
+		__raw_writel(dss_desc.debug_level | DSS_DEBUG_LEVEL_PREFIX,
+			dbg_snapshot_get_base_vaddr() + DSS_OFFSET_DEBUG_LEVEL);
+}
+
+int dbg_snapshot_get_debug_level_reg(void)
+{
+	int ret = DSS_DEBUG_LEVEL_NONE;
+
+	if (dbg_snapshot_get_enable("header")) {
+		int val = __raw_readl(dbg_snapshot_get_base_vaddr() + DSS_OFFSET_DEBUG_LEVEL);
+
+		if ((val & GENMASK(31, 16)) == DSS_DEBUG_LEVEL_PREFIX)
+			ret = val & GENMASK(15, 0);
+	}
+
+	return ret;
+}
+
 void dbg_snapshot_scratch_reg(unsigned int val)
 {
 	if (dbg_snapshot_get_enable("header"))
@@ -389,7 +410,7 @@ void dbg_snapshot_register_soc_ops(struct dbg_snapshot_helper_ops *ops)
 		dss_soc_ops = ops;
 }
 
-void __init dbg_snapshot_helper_init(void)
+void __init dbg_snapshot_init_helper(void)
 {
 	register_reboot_notifier(&nb_reboot_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);

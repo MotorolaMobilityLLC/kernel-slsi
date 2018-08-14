@@ -187,7 +187,7 @@ static char *dss_freq_name[] = {
 static struct dbg_snapshot_log_idx dss_idx;
 static struct dbg_snapshot_lastinfo dss_lastinfo;
 
-void __init dbg_snapshot_log_idx_init(void)
+void __init dbg_snapshot_init_log_idx(void)
 {
 	int i;
 
