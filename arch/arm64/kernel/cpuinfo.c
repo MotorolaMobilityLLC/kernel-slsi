@@ -33,6 +33,13 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/delay.h>
+#include <linux/of_fdt.h>
+#if defined(CONFIG_BOOTINFO)
+#include <soc/samsung/bootinfo.h>
+#endif
+
+
+void __attribute__((weak)) mach_cpuinfo_show(struct seq_file *m, void *v);
 
 /*
  * In case the boot CPU is hotpluggable, we record its initial state and
@@ -164,6 +171,14 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
 	}
 
+#if defined(CONFIG_BOOTINFO)
+	seq_printf(m, "Revision\t: %04x\n", system_rev);
+	seq_printf(m, "Serial\t\t: %08x%08x\n",
+		 system_serial_high, system_serial_low);
+
+	if (mach_cpuinfo_show)
+		mach_cpuinfo_show(m, v);
+#endif
 	return 0;
 }
 
