@@ -193,12 +193,10 @@ int hip4_smapper_consume_entry(struct slsi_dev *sdev, struct slsi_hip4 *hip, str
 	u16 headroom;
 	struct hip4_smapper_descriptor *desc;
 	struct hip4_smapper_control *control;
-	unsigned long flags;
 	struct slsi_skb_cb *cb = slsi_skb_cb_get(skb_fapi);
 
 	control = &(hip->hip_priv->smapper_control);
 
-	spin_lock_irqsave(&control->smapper_lock, flags);
 	desc = (struct hip4_smapper_descriptor *)skb_fapi->data;
 
 	bank_num = desc->bank_num;
@@ -240,12 +238,10 @@ int hip4_smapper_consume_entry(struct slsi_dev *sdev, struct slsi_hip4 *hip, str
 	skb_put(skb, len);
 	cb->skb_addr = skb;
 	SLSI_DBG4_NODEV(SLSI_SMAPPER, "Consumed Bank %d Entry %d Len %d SKB smapper: 0x%p, SKB fapi %p\n", bank_num, entry, len, skb, skb_fapi);
-	spin_unlock_irqrestore(&control->smapper_lock, flags);
 
 	return 0;
 error:
 	/* RX is broken.....*/
-	spin_unlock_irqrestore(&control->smapper_lock, flags);
 	return -EIO;
 }
 
@@ -254,21 +250,17 @@ void *hip4_smapper_get_skb_data(struct slsi_dev *sdev, struct slsi_hip4 *hip, st
 	struct sk_buff *skb;
 	struct slsi_skb_cb *cb = slsi_skb_cb_get(skb_fapi);
 	struct hip4_smapper_control *control;
-	unsigned long flags;
 
 	control = &(hip->hip_priv->smapper_control);
 
-	spin_lock_irqsave(&control->smapper_lock, flags);
 	skb = (struct sk_buff *)cb->skb_addr;
 
 	if (!skb) {
 		SLSI_DBG4_NODEV(SLSI_SMAPPER, "NULL SKB smapper\n");
-		spin_unlock_irqrestore(&control->smapper_lock, flags);
 		return NULL;
 	}
 
 	SLSI_DBG4_NODEV(SLSI_SMAPPER, "Get SKB smapper: 0x%p, SKB fapi 0x%p\n", skb, skb_fapi);
-	spin_unlock_irqrestore(&control->smapper_lock, flags);
 	return skb->data;
 }
 
@@ -277,17 +269,14 @@ struct sk_buff *hip4_smapper_get_skb(struct slsi_dev *sdev, struct slsi_hip4 *hi
 	struct sk_buff *skb;
 	struct slsi_skb_cb *cb = slsi_skb_cb_get(skb_fapi);
 	struct hip4_smapper_control *control;
-	unsigned long flags;
 
 	control = &(hip->hip_priv->smapper_control);
 
-	spin_lock_irqsave(&control->smapper_lock, flags);
 	skb = (struct sk_buff *)cb->skb_addr;
 
 	SLSI_DBG4_NODEV(SLSI_SMAPPER, "Get SKB smapper: 0x%p, SKB fapi 0x%p\n", skb, skb_fapi);
 	cb->free_ma_unitdat = true;
 	slsi_kfree_skb(skb_fapi);
-	spin_unlock_irqrestore(&control->smapper_lock, flags);
 
 	return skb;
 }
