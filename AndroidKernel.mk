@@ -22,6 +22,13 @@ else
 KERNEL_ARCH := $(TARGET_KERNEL_ARCH)
 endif
 
+TARGET_KERNEL_MAKE_ENV := $(strip $(TARGET_KERNEL_MAKE_ENV))
+ifeq ($(TARGET_KERNEL_MAKE_ENV),)
+KERNEL_MAKE_ENV :=
+else
+KERNEL_MAKE_ENV := $(TARGET_KERNEL_MAKE_ENV)
+endif
+
 ifeq ($(CROSS_COMPILE),)
 KERNEL_CROSS_COMPILE := aarch64-linux-android-
 else
@@ -49,6 +56,9 @@ else
 CLANG_TRIPLE := $(CLANG_TRIPLE)
 endif
 
+BUILD_ROOT_LOC := ../../
+KERNEL_OUT := $(TARGET_OUT_INTERMEDIATES)/kernel/$(TARGET_KERNEL)
+KERNEL_OUT := $(KERNEL_OBJECTS)
 ifeq ($(TARGET_PREBUILT_KERNEL),)
 
 KERNEL_CONFIG := $(KERNEL_OBJECTS)/.config
@@ -95,9 +105,27 @@ ifeq ($(N_KERNEL_BUILD_THREAD),)
 N_KERNEL_BUILD_THREAD := 1
 endif
 
+include $(TARGET_KERNEL_SOURCE)/defconfig.mk
+
+
 TARGET_PREBUILT_KERNEL := $(KERNEL_BIN)
 
-.PHONY: phony-rebuild
+# Make the kernel config
+#   $1 output dir
+#   $2 kernel config filepath
+#   $3 defconfig
+#   $4 kernel source
+#   $5 kernel make env
+#   $6 kernel architecture
+#   $7 cross compile sub-command
+#   $8 make command
+define do-kernel-config
+    ( cp $(3) $(2) && $(8) -C $(4) O=$(1) $(5) ARCH=$(6) CROSS_COMPILE=$(7) defoldconfig ) || ( rm -f $(2) && false )
+endef
+
+
+$(KERNEL_OUT):
+	mkdir -p $(KERNEL_OUT)
 
 .PHONY: kernel
 kernel: $(KERNEL_BIN)
@@ -106,14 +134,11 @@ kernel: $(KERNEL_BIN)
 kernel-distclean:
 	$(MAKE) -C $(TARGET_KERNEL_SOURCE) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE) distclean
 
-$(KERNEL_CONFIG): phony-rebuild
-ifeq ($(TARGET_PRODUCT),kane_factory)
-	cat $(ERD9609_DEFCONFIG_PATH) $(ROBUSTA2_FACTORY_DEFCONFIG_PATH) > $(ERD9609_ROBUSTA2_FACTORY_DEFCONFIG_PATH)
-endif
-	$(hide) echo "make $(KERNEL_DEFCONFIG)"
-	$(MAKE_CONFIG_CMD)
+$(KERNEL_CONFIG): $(TARGET_DEFCONFIG)
+	$(hide) echo "make $(KERNEL_CONFIG)"
+	$(call do-kernel-config,$(BUILD_ROOT_LOC)$(KERNEL_OUT),$@,$(TARGET_DEFCONFIG),$(TARGET_KERNEL_SOURCE),$(KERNEL_MAKE_ENV),$(KERNEL_ARCH),$(KERNEL_CROSS_COMPILE),$(MAKE))
 
-$(KERNEL_BIN): $(KERNEL_CONFIG)
+$(KERNEL_BIN): $(KERNEL_OUT) $(KERNEL_CONFIG)
 	$(hide) echo "Building kernel..."
 	$(MAKE) -C $(TARGET_KERNEL_SOURCE) O=$(PWD)/$(KERNEL_OBJECTS) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE) CLANG_TRIPLE=$(CLANG_TRIPLE) CC=$(CC) $(LLVM_OPTIONS) -j$(N_KERNEL_BUILD_THREAD)
 
