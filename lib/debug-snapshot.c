@@ -626,7 +626,6 @@ static int dbg_snapshot_init_dt_parse(struct device_node *np)
 {
 	int ret = 0;
 	struct device_node *sfr_dump_np;
-	const char *debug_level;
 
 	if (of_property_read_u32(np, "use_multistage_wdt_irq",
 				&dss_desc.multistage_wdt_irq)) {
