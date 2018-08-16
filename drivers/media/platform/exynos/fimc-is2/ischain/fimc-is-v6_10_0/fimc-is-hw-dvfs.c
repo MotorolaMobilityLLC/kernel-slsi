@@ -55,6 +55,8 @@ DECLARE_DVFS_DT(FIMC_IS_SN_END,
 		{"dual_sync_video_fhd_capture_"		, FIMC_IS_SN_DUAL_SYNC_FHD_CAMCORDING_CAPTURE},
 		{"dual_sync_video_uhd_"			, FIMC_IS_SN_DUAL_SYNC_UHD_CAMCORDING},
 		{"dual_sync_video_uhd_capture_"		, FIMC_IS_SN_DUAL_SYNC_UHD_CAMCORDING_CAPTURE},
+		{"pip_preview_"                    , FIMC_IS_SN_PIP_PREVIEW},
+		{"pip_capture_"                    , FIMC_IS_SN_PIP_CAPTURE},
 		{"preview_high_speed_fps_"         , FIMC_IS_SN_PREVIEW_HIGH_SPEED_FPS},
 		{"video_high_speed_60fps_"         , FIMC_IS_SN_VIDEO_HIGH_SPEED_60FPS},
 		{"video_high_speed_120fps_"        , FIMC_IS_SN_VIDEO_HIGH_SPEED_120FPS},
@@ -109,6 +111,9 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_DUAL_SYNC_FHD_CAMCORDING);
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_DUAL_SYNC_FHD_CAMCORDING_CAPTURE);
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_DUAL_SYNC_UHD_CAMCORDING);
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_DUAL_SYNC_UHD_CAMCORDING_CAPTURE);
+
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_PREVIEW);
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_CAPTURE);
 
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_PREVIEW_HIGH_SPEED_FPS);
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_VIDEO_HIGH_SPEED_60FPS);
@@ -215,6 +220,10 @@ struct fimc_is_dvfs_scenario static_scenarios[] = {
 		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_DUAL_PREVIEW),
 		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_DUAL_PREVIEW),
 	}, {
+		.scenario_id		= FIMC_IS_SN_PIP_PREVIEW,
+		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_PIP_PREVIEW),
+		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_PREVIEW),
+	}, {
 		.scenario_id		= FIMC_IS_SN_FRONT_VT1,
 		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_FRONT_VT1),
 		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_VT1),
@@ -286,6 +295,11 @@ static struct fimc_is_dvfs_scenario dynamic_scenarios[] = {
 		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_DUAL_CAPTURE),
 		.keep_frame_tick	= FIMC_IS_DVFS_DUAL_CAPTURE_TICK,
 		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_DUAL_CAPTURE),
+	}, {
+		.scenario_id		= FIMC_IS_SN_PIP_CAPTURE,
+		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_PIP_CAPTURE),
+		.keep_frame_tick	= FIMC_IS_DVFS_DUAL_CAPTURE_TICK,
+		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_CAPTURE),
 	}, {
 		.scenario_id		= FIMC_IS_SN_REAR_CAMCORDING_HD_CAPTURE,
 		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_REAR_CAMCORDING_HD_CAPTURE),
@@ -528,7 +542,8 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR_PREVIEW_FHD)
 	if ((position == SENSOR_POSITION_REAR) &&
 			(fps <= 30) &&
 			(resol <= SIZE_12MP_FHD_BDS) &&
-			(!setfile_flag))
+			(!setfile_flag) &&
+			(stream_cnt < 2))
 
 		return 1;
 	else
@@ -788,6 +803,25 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_DUAL_CAPTURE)
 		return 0;
 }
 
+/* pip preview */
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_PREVIEW)
+{
+	if (stream_cnt > 1)
+		return 1;
+	else
+		return 0;
+}
+
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_PIP_CAPTURE)
+{
+	struct fimc_is_dvfs_scenario_ctrl *static_ctrl = device->resourcemgr->dvfs_ctrl.static_ctrl;
+
+	if (test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state) &&
+		(static_ctrl->cur_scenario_id == FIMC_IS_SN_PIP_PREVIEW))
+		return 1;
+	else
+		return 0;
+}
 
 /* front vt1 */
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_VT1)
