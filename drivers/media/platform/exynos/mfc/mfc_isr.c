@@ -648,8 +648,11 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 		return;
 	}
 
-	if (need_dpb_change || need_scratch_change)
-		mfc_debug(2, "[DRC] Interframe resolution change is not supported\n");
+	if (need_dpb_change || need_scratch_change) {
+		mfc_err_ctx("[DRC] Interframe resolution change is not supported\n");
+		mfc_change_state(ctx, MFCINST_ERROR);
+		return;
+	}
 
 	if (mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0) &&
 		mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->dst_buf_queue, 0)) {

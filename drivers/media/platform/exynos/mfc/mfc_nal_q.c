@@ -1688,9 +1688,10 @@ void __mfc_nal_q_handle_frame(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 		goto leave_handle_frame;
 	}
 	if (need_dpb_change || need_scratch_change) {
-		mfc_debug(2, "[NALQ][DRC] Interframe resolution change is not supported\n");
+		mfc_err_ctx("[NALQ][DRC] Interframe resolution change is not supported\n");
 		dev->nal_q_handle->nal_q_exception = 1;
 		mfc_info_ctx("[NALQ][DRC] nal_q_exception is set (interframe res change)\n");
+		mfc_change_state(ctx, MFCINST_ERROR);
 		goto leave_handle_frame;
 	}
 	if (is_interlaced) {
