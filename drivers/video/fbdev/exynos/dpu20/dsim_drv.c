@@ -1784,6 +1784,7 @@ static int dsim_remove(struct platform_device *pdev)
 
 static void dsim_shutdown(struct platform_device *pdev)
 {
+#if 0
 	struct dsim_device *dsim = platform_get_drvdata(pdev);
 
 	DPU_EVENT_LOG(DPU_EVT_DSIM_SHUTDOWN, &dsim->sd, ktime_set(0, 0));
@@ -1792,6 +1793,9 @@ static void dsim_shutdown(struct platform_device *pdev)
 	dsim_disable(dsim);
 
 	dsim_info("%s -\n", __func__);
+#else
+	dsim_info("%s +-\n", __func__);
+#endif
 }
 
 static int dsim_runtime_suspend(struct device *dev)
