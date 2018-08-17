@@ -46,11 +46,6 @@ extern struct dbg_snapshot_helper_ops *dss_soc_ops;
 #define DSS_REG_UART_ADDR	(0)
 #define DSS_REG_UART_SIZE	(0)
 
-#define DSS_DEBUG_LEVEL_NONE	(-1)
-#define DSS_DEBUG_LEVEL_PREFIX	(0xDB9 << 16)
-#define DSS_DEBUG_LEVEL_LOW	(0)
-#define DSS_DEBUG_LEVEL_MID	(1)
-
 typedef int (*dss_initcall_t)(const struct device_node *);
 
 struct dbg_snapshot_base {
