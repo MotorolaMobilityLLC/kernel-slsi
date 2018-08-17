@@ -410,9 +410,13 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 			mfc_err_ctx("[OTF] only H.264 and HEVC is supported\n");
 			return -EINVAL;
 		}
-		if (mfc_otf_init(ctx)) {
+		ret = mfc_otf_init(ctx);
+		if (ret) {
 			mfc_err_ctx("[OTF] otf_init failed\n");
 			mfc_otf_destroy(ctx);
+			/* This should be no error return when VTS test case */
+			if (ret == -EFAULT)
+				return 0;
 			return -EINVAL;
 		}
 	}

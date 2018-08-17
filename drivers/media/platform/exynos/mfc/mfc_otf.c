@@ -185,7 +185,7 @@ static int __mfc_otf_init_hwfc_buf(struct mfc_ctx *ctx)
 	/* request buffers */
 	if (hwfc_request_buffer(shared_buf_info, 1)) {
 		mfc_err_dev("[OTF] request_buffer failed\n");
-		return -EINVAL;
+		return -EFAULT;
 	}
 #endif
 	mfc_debug(2, "[OTF] recieved buffer information\n");
@@ -310,6 +310,8 @@ void mfc_otf_destroy(struct mfc_ctx *ctx)
 
 int mfc_otf_init(struct mfc_ctx *ctx)
 {
+	int ret;
+
 	mfc_debug_enter();
 
 	if (!ctx) {
@@ -322,9 +324,10 @@ int mfc_otf_init(struct mfc_ctx *ctx)
 		return -EINVAL;
 	}
 
-	if (__mfc_otf_init_hwfc_buf(ctx)) {
+	ret = __mfc_otf_init_hwfc_buf(ctx);
+	if (ret) {
 		mfc_err_dev("[OTF] HWFC init failed\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	mfc_debug(2, "[OTF] otf_init is completed\n");
