@@ -291,4 +291,10 @@ enum dsslog_freq_flag {
 	DSS_FLAG_FSYS0,
 	DSS_FLAG_END
 };
+
+#define DSS_DEBUG_LEVEL_NONE	(-1)
+#define DSS_DEBUG_LEVEL_PREFIX	(0xDB9 << 16)
+#define DSS_DEBUG_LEVEL_LOW	(0)
+#define DSS_DEBUG_LEVEL_MID	(1)
+
 #endif
