@@ -1801,6 +1801,7 @@ static int dsim_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	dsim->esd_recovering = false;
+#endif
 #if defined(READ_ESD_SOLUTION_TEST)
 	dsim_create_esd_test_sysfs(dsim);
 #endif
