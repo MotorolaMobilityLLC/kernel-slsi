@@ -523,6 +523,7 @@ static int mfc_dec_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		return -ENOMEM;
 	}
 
+	mfc_change_state(ctx, MFCINST_INIT);
 	mfc_set_bit(ctx->num, &dev->work_bits);
 	ret = mfc_just_run(dev, ctx->num);
 	if (ret) {

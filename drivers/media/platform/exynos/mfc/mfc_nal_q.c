@@ -1193,7 +1193,7 @@ static void __mfc_nal_q_handle_stream(struct mfc_ctx *ctx, EncoderOutputStr *pOu
 
 	/* buffer full handling */
 	if (ctx->state == MFCINST_RUNNING_BUF_FULL)
-		ctx->state = MFCINST_RUNNING;
+		mfc_change_state(ctx, MFCINST_RUNNING);
 
 	/* set encoded frame type */
 	enc->frame_type = slice_type;

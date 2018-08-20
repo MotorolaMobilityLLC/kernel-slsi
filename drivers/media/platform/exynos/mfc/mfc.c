@@ -138,7 +138,6 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 	ctx->capture_state = QUEUE_FREE;
 	ctx->output_state = QUEUE_FREE;
 
-	mfc_change_state(ctx, MFCINST_INIT);
 	ctx->type = MFCINST_DECODER;
 	ctx->c_ops = &decoder_ctrls_ops;
 	ctx->src_fmt = &dec_formats[DEF_DEC_SRC_FMT];

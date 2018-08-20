@@ -436,8 +436,6 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -ENOMEM;
 	}
 
-	mfc_change_state(ctx, MFCINST_INIT);
-
 	ctx->capture_state = QUEUE_FREE;
 
 	ret = mfc_alloc_enc_roi_buffer(ctx);
@@ -457,6 +455,7 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
+	mfc_change_state(ctx, MFCINST_INIT);
 	mfc_set_bit(ctx->num, &dev->work_bits);
 	ret = mfc_just_run(dev, ctx->num);
 	if (ret) {
