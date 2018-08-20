@@ -674,14 +674,8 @@ static int __mfc_wait_close_inst(struct mfc_dev *dev, struct mfc_ctx *ctx)
 static int mfc_release(struct file *file)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct mfc_dev *dev = NULL;
+	struct mfc_dev *dev = ctx->dev;
 	int ret = 0;
-
-	dev = ctx->dev;
-	if (!dev) {
-		mfc_err_dev("no mfc device to run\n");
-		return -EINVAL;
-	}
 
 	mutex_lock(&dev->mfc_mutex);
 
@@ -751,18 +745,12 @@ static int mfc_release(struct file *file)
 			if (ret != DRMDRV_OK) {
 				mfc_err_ctx("failed MFC DRM F/W unprot(%#x)\n", ret);
 				call_dop(dev, dump_and_stop_debug_mode, dev);
-				goto err_release;
 			}
 		}
 #endif
 
-		if (dev->nal_q_handle) {
-			ret = mfc_nal_q_destroy(dev, dev->nal_q_handle);
-			if (ret) {
-				mfc_err_ctx("failed nal_q destroy\n");
-				goto err_release;
-			}
-		}
+		if (dev->nal_q_handle)
+			mfc_nal_q_destroy(dev, dev->nal_q_handle);
 	}
 
 	mfc_qos_off(ctx);
@@ -810,11 +798,6 @@ static int mfc_release(struct file *file)
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 
-	mutex_unlock(&dev->mfc_mutex);
-	return ret;
-
-err_release:
-	mfc_release_hwlock_ctx(ctx);
 	mutex_unlock(&dev->mfc_mutex);
 	return ret;
 

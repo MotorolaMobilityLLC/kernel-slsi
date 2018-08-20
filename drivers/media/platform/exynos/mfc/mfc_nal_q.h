@@ -22,7 +22,7 @@ void mfc_nal_q_clock_off(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
 void mfc_nal_q_cleanup_clock(struct mfc_dev *dev);
 
 nal_queue_handle *mfc_nal_q_create(struct mfc_dev *dev);
-int mfc_nal_q_destroy(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
+void mfc_nal_q_destroy(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
 
 void mfc_nal_q_init(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);
 void mfc_nal_q_start(struct mfc_dev *dev, nal_queue_handle *nal_q_handle);

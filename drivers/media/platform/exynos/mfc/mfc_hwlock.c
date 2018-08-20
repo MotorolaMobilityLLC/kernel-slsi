@@ -512,14 +512,8 @@ void mfc_cache_flush(struct mfc_dev *dev, int is_drm)
 static int __mfc_nal_q_just_run(struct mfc_ctx *ctx, int need_cache_flush)
 {
 	struct mfc_dev *dev = ctx->dev;
-	unsigned int ret = -1;
-
 	nal_queue_handle *nal_q_handle = dev->nal_q_handle;
-
-	if (!nal_q_handle) {
-		mfc_err_dev("nal_q_handle is NULL\n");
-		return ret;
-	}
+	unsigned int ret = -1;
 
 	switch (nal_q_handle->nal_q_state) {
 	case NAL_Q_STATE_CREATED:
@@ -703,15 +697,9 @@ static int __mfc_just_run_enc(struct mfc_ctx *ctx)
 /* Run an operation on hardware */
 int mfc_just_run(struct mfc_dev *dev, int new_ctx_index)
 {
-	struct mfc_ctx *ctx;
+	struct mfc_ctx *ctx = dev->ctx[new_ctx_index];
 	unsigned int ret = 0;
 	int need_cache_flush = 0;
-
-	ctx = dev->ctx[new_ctx_index];
-	if (!ctx) {
-		mfc_err_dev("no mfc context to run\n");
-		return -EINVAL;
-	}
 
 	if (ctx->state == MFCINST_RUNNING)
 		mfc_clean_ctx_int_flags(ctx);

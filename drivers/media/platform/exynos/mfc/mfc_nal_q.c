@@ -264,38 +264,30 @@ static nal_queue_out_handle* __mfc_nal_q_create_out_q(struct mfc_dev *dev,
 	return nal_q_out_handle;
 }
 
-static int __mfc_nal_q_destroy_in_q(struct mfc_dev *dev,
+static void __mfc_nal_q_destroy_in_q(struct mfc_dev *dev,
 			nal_queue_in_handle *nal_q_in_handle)
 {
 	mfc_debug_enter();
 
-	if (!nal_q_in_handle)
-		return -EINVAL;
-
-	mfc_mem_ion_free(dev, &nal_q_in_handle->in_buf);
-	if (nal_q_in_handle)
+	if (nal_q_in_handle) {
+		mfc_mem_ion_free(dev, &nal_q_in_handle->in_buf);
 		kfree(nal_q_in_handle);
+	}
 
 	mfc_debug_leave();
-
-	return 0;
 }
 
-static int __mfc_nal_q_destroy_out_q(struct mfc_dev *dev,
+static void __mfc_nal_q_destroy_out_q(struct mfc_dev *dev,
 			nal_queue_out_handle *nal_q_out_handle)
 {
 	mfc_debug_enter();
 
-	if (!nal_q_out_handle)
-		return -EINVAL;
-
-	mfc_mem_ion_free(dev, &nal_q_out_handle->out_buf);
-	if (nal_q_out_handle)
+	if (nal_q_out_handle) {
+		mfc_mem_ion_free(dev, &nal_q_out_handle->out_buf);
 		kfree(nal_q_out_handle);
+	}
 
 	mfc_debug_leave();
-
-	return 0;
 }
 
 /*
@@ -339,35 +331,20 @@ nal_queue_handle *mfc_nal_q_create(struct mfc_dev *dev)
 	return nal_q_handle;
 }
 
-int mfc_nal_q_destroy(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
+void mfc_nal_q_destroy(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
 {
-	int ret = 0;
-
 	mfc_debug_enter();
 
-	if (!nal_q_handle) {
-		mfc_err_dev("[NALQ] there isn't nal_q_handle\n");
-		return -EINVAL;
-	}
+	if (nal_q_handle->nal_q_out_handle)
+		__mfc_nal_q_destroy_out_q(dev, nal_q_handle->nal_q_out_handle);
 
-	ret = __mfc_nal_q_destroy_out_q(dev, nal_q_handle->nal_q_out_handle);
-	if (ret) {
-		mfc_err_dev("[NALQ] failed nal_q_out_handle destroy\n");
-		return ret;
-	}
-
-	ret = __mfc_nal_q_destroy_in_q(dev, nal_q_handle->nal_q_in_handle);
-	if (ret) {
-		mfc_err_dev("[NALQ] failed nal_q_in_handle destroy\n");
-		return ret;
-	}
+	if (nal_q_handle->nal_q_in_handle)
+		__mfc_nal_q_destroy_in_q(dev, nal_q_handle->nal_q_in_handle);
 
 	kfree(nal_q_handle);
 	dev->nal_q_handle = NULL;
 
 	mfc_debug_leave();
-
-	return ret;
 }
 
 void mfc_nal_q_init(struct mfc_dev *dev, nal_queue_handle *nal_q_handle)
