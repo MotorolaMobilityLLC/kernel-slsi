@@ -36,17 +36,14 @@ static bool __need_migrate_cma_page(struct page *page,
 				struct vm_area_struct *vma,
 				unsigned long start, unsigned int flags)
 {
-	if (!(flags & FOLL_GET))
+	if (!(flags & (FOLL_GET | FOLL_CMA)))
 		return false;
 
-	if (get_pageblock_migratetype(page) != MIGRATE_CMA)
+	if (!is_migrate_cma_page(page))
 		return false;
 
 	if ((vma->vm_flags & VM_STACK_INCOMPLETE_SETUP) ==
 					VM_STACK_INCOMPLETE_SETUP)
-		return false;
-
-	if (!(flags & FOLL_CMA))
 		return false;
 
 	if (!PageLRU(page)) {
