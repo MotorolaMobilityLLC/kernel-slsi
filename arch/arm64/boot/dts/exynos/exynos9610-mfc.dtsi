@@ -111,6 +111,7 @@
 		qos_weight_num_of_ref = <50>;
 		qos_weight_gpb = <50>;
 		qos_weight_num_of_tile = <75>;
+		qos_weight_super64_bframe = <60>;
 
 		/* Sub nodes for sysmmu, hwfc and mmcache */
 		#address-cells = <2>;
