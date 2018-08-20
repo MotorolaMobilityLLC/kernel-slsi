@@ -383,7 +383,6 @@ static void mfc_dec_stop_streaming(struct vb2_queue *q)
 				test_bit(ctx->num, &dev->hwlock.bits), q->type);
 	MFC_TRACE_CTX("** DEC streamoff(type:%d)\n", q->type);
 
-	MFC_TRACE_CTX_HWLOCK("**DEC streamoff(type:%d)\n", q->type);
 	/* If a H/W operation is in progress, wait for it complete */
 	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {

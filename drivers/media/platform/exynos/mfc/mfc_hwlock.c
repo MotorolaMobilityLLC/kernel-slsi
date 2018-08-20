@@ -133,11 +133,6 @@ int mfc_get_hwlock_dev(struct mfc_dev *dev)
 			((dev->hwlock.transfer_owner == 1) && (dev->hwlock.dev == 1)),
 			msecs_to_jiffies(MFC_HWLOCK_TIMEOUT));
 
-		MFC_TRACE_DEV_HWLOCK("get_hwlock_dev: before waiting\n");
-		MFC_TRACE_DEV_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
-				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
-				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
-
 		dev->hwlock.transfer_owner = 0;
 		__mfc_remove_listable_wq_dev(dev);
 		if (ret == 0) {
@@ -154,11 +149,6 @@ int mfc_get_hwlock_dev(struct mfc_dev *dev)
 		dev->hwlock.bits = 0;
 		dev->hwlock.dev = 1;
 		dev->hwlock.owned_by_irq = 0;
-
-		MFC_TRACE_DEV_HWLOCK("get_hwlock_dev: no waiting\n");
-		MFC_TRACE_DEV_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
-				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
-				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		__mfc_print_hwlock(dev);
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
@@ -179,7 +169,6 @@ int mfc_get_hwlock_dev(struct mfc_dev *dev)
  */
 int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx)
 {
-	struct mfc_ctx *ctx = curr_ctx;
 	struct mfc_dev *dev = curr_ctx->dev;
 	int ret = 0;
 	unsigned long flags;
@@ -202,21 +191,11 @@ int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx)
 
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-		MFC_TRACE_CTX_HWLOCK("get_hwlock_ctx: before waiting\n");
-		MFC_TRACE_CTX_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
-				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
-				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
-
 		mfc_debug(2, "Waiting for hwlock to be released\n");
 
 		ret = wait_event_timeout(curr_ctx->hwlock_wq.wait_queue,
 			((dev->hwlock.transfer_owner == 1) && (test_bit(curr_ctx->num, &dev->hwlock.bits))),
 			msecs_to_jiffies(MFC_HWLOCK_TIMEOUT));
-
-		MFC_TRACE_CTX_HWLOCK("get_hwlock_ctx: after waiting, ret:%d\n", ret);
-		MFC_TRACE_CTX_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
-				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
-				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		dev->hwlock.transfer_owner = 0;
 		__mfc_remove_listable_wq_ctx(curr_ctx);
@@ -235,11 +214,6 @@ int mfc_get_hwlock_ctx(struct mfc_ctx *curr_ctx)
 		dev->hwlock.dev = 0;
 		set_bit(curr_ctx->num, &dev->hwlock.bits);
 		dev->hwlock.owned_by_irq = 0;
-
-		MFC_TRACE_CTX_HWLOCK("get_hwlock_ctx: no waiting\n");
-		MFC_TRACE_CTX_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
-				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
-				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		__mfc_print_hwlock(dev);
 		spin_unlock_irqrestore(&dev->hwlock.lock, flags);
@@ -290,11 +264,6 @@ void mfc_release_hwlock_dev(struct mfc_dev *dev)
 
 		dev->hwlock.transfer_owner = 1;
 
-		MFC_TRACE_DEV_HWLOCK("release_hwlock_dev: wakeup\n");
-		MFC_TRACE_DEV_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
-				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
-				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
-
 		wake_up(&listable_wq->wait_queue);
 	}
 
@@ -312,7 +281,6 @@ void mfc_release_hwlock_dev(struct mfc_dev *dev)
 static void __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
 {
 	struct mfc_dev *dev = curr_ctx->dev;
-	struct mfc_ctx *ctx = curr_ctx;
 	struct mfc_listable_wq *listable_wq;
 
 	__mfc_print_hwlock(dev);
@@ -338,11 +306,6 @@ static void __mfc_release_hwlock_ctx_protected(struct mfc_ctx *curr_ctx)
 		}
 
 		dev->hwlock.transfer_owner = 1;
-
-		MFC_TRACE_CTX_HWLOCK("release_hwlock_ctx: wakeup\n");
-		MFC_TRACE_CTX_HWLOCK(">>dev:0x%lx, bits:0x%lx, owned:%d, wl:%d, trans:%d\n",
-				dev->hwlock.dev, dev->hwlock.bits, dev->hwlock.owned_by_irq,
-				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 
 		wake_up(&listable_wq->wait_queue);
 	}

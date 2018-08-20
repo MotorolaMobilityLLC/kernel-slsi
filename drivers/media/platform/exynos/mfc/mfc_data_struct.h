@@ -717,6 +717,7 @@ struct mfc_dump_ops {
 	void (*dump_regs)(struct mfc_dev *dev);
 	void (*dump_info)(struct mfc_dev *dev);
 	void (*dump_info_without_regs)(struct mfc_dev *dev);
+	void (*dump_info_context)(struct mfc_dev *dev);
 	void (*dump_and_stop_always)(struct mfc_dev *dev);
 	void (*dump_and_stop_debug_mode)(struct mfc_dev *dev);
 };
@@ -810,8 +811,9 @@ struct mfc_dev {
 
 	atomic_t trace_ref;
 	struct _mfc_trace *mfc_trace;
-	atomic_t trace_ref_hwlock;
-	struct _mfc_trace *mfc_trace_hwlock;
+	atomic_t trace_ref_longterm;
+
+	struct _mfc_trace *mfc_trace_longterm;
 	bool continue_clock_on;
 
 	bool shutdown;

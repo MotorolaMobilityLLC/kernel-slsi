@@ -59,7 +59,7 @@
 #define MFC_ENC_OTF_DRM_NAME		"s5p-mfc-enc-otf-secure"
 
 struct _mfc_trace g_mfc_trace[MFC_TRACE_COUNT_MAX];
-struct _mfc_trace g_mfc_trace_hwlock[MFC_TRACE_COUNT_MAX];
+struct _mfc_trace g_mfc_trace_longterm[MFC_TRACE_COUNT_MAX];
 struct mfc_dev *g_mfc_dev;
 
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
@@ -372,7 +372,6 @@ static int __mfc_init_instance(struct mfc_dev *dev, struct mfc_ctx *ctx)
 	if (dbg_enable)
 		mfc_alloc_dbg_info_buffer(dev);
 
-	MFC_TRACE_DEV_HWLOCK("**open\n");
 	ret = mfc_get_hwlock_dev(dev);
 	if (ret < 0) {
 		mfc_err_dev("Failed to get hwlock\n");
@@ -519,6 +518,8 @@ static int mfc_open(struct file *file)
 		ctx->num++;
 		if (ctx->num >= MFC_NUM_CONTEXTS) {
 			mfc_err_dev("Too many open contexts\n");
+			mfc_err_dev("Print information to check if there was an error or not\n");
+			call_dop(dev, dump_info_context, dev);
 			ret = -EBUSY;
 			goto err_ctx_num;
 		}
@@ -558,6 +559,8 @@ static int mfc_open(struct file *file)
 					dev->num_drm_inst, dev->num_inst);
 		} else {
 			mfc_err_ctx("Too many instance are opened for DRM\n");
+			mfc_err_dev("Print information to check if there was an error or not\n");
+			call_dop(dev, dump_info_context, dev);
 			ret = -EINVAL;
 			goto err_drm_start;
 		}
@@ -593,6 +596,8 @@ static int mfc_open(struct file *file)
 	trace_mfc_node_open(ctx->num, dev->num_inst, ctx->type, ctx->is_drm);
 	mfc_info_ctx("MFC open completed [%d:%d] dev = 0x%p, ctx = 0x%p, version = %d\n",
 			dev->num_drm_inst, dev->num_inst, dev, ctx, MFC_DRIVER_INFO);
+	MFC_TRACE_CTX_LT("[INFO] %s %s opened (ctx:%d, total:%d)\n", ctx->is_drm ? "DRM" : "Normal",
+			mfc_is_decoder_node(node) ? "DEC" : "ENC", ctx->num, dev->num_inst);
 	mutex_unlock(&dev->mfc_mutex);
 	return ret;
 
@@ -632,6 +637,8 @@ err_no_device:
 
 static int __mfc_wait_close_inst(struct mfc_dev *dev, struct mfc_ctx *ctx)
 {
+	int ret;
+
 	if (atomic_read(&dev->watchdog_run)) {
 		mfc_err_ctx("watchdog already running!\n");
 		return 0;
@@ -648,20 +655,25 @@ static int __mfc_wait_close_inst(struct mfc_dev *dev, struct mfc_ctx *ctx)
 
 	/* To issue the command 'CLOSE_INSTANCE' */
 	if (mfc_just_run(dev, ctx->num)) {
-		mfc_err_ctx("Failed to run MFC\n");
+		mfc_err_ctx("failed to run MFC, state: %d\n", ctx->state);
+		MFC_TRACE_CTX_LT("[ERR][Release] failed to run MFC, state: %d\n", ctx->state);
 		return -EIO;
 	}
 
 	/* Wait until instance is returned or timeout occured */
-	if (mfc_wait_for_done_ctx(ctx,
-				MFC_REG_R2H_CMD_CLOSE_INSTANCE_RET) == 1) {
-		mfc_err_ctx("Waiting for CLOSE_INSTANCE timed out\n");
+	ret = mfc_wait_for_done_ctx(ctx, MFC_REG_R2H_CMD_CLOSE_INSTANCE_RET);
+	if (ret == 1) {
+		mfc_err_ctx("failed to wait CLOSE_INSTANCE(timeout)\n");
+
 		if (mfc_wait_for_done_ctx(ctx,
 					MFC_REG_R2H_CMD_CLOSE_INSTANCE_RET)) {
-			mfc_err_ctx("waiting once more but timed out\n");
+			mfc_err_ctx("waited once more but failed to wait CLOSE_INSTANCE\n");
 			dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_CLOSE_INST);
 			call_dop(dev, dump_and_stop_always, dev);
 		}
+	} else if (ret == -1) {
+		mfc_err_ctx("failed to wait CLOSE_INSTANCE(err)\n");
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 	}
 
 	ctx->inst_no = MFC_NO_INSTANCE_SET;
@@ -681,6 +693,8 @@ static int mfc_release(struct file *file)
 	mfc_info_ctx("MFC driver release is called [%d:%d], is_drm(%d)\n",
 			dev->num_drm_inst, dev->num_inst, ctx->is_drm);
 
+	MFC_TRACE_CTX_LT("[INFO] release is called (ctx:%d, total:%d)\n", ctx->num, dev->num_inst);
+
 	mfc_clear_bit(ctx->num, &dev->work_bits);
 
 	/* If a H/W operation is in progress, wait for it complete */
@@ -690,10 +704,11 @@ static int mfc_release(struct file *file)
 			mfc_cleanup_work_bit_and_try_run(ctx);
 		}
 	}
-	MFC_TRACE_CTX_HWLOCK("**release\n");
+
 	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
 		mfc_err_dev("Failed to get hwlock\n");
+		MFC_TRACE_CTX_LT("[ERR][Release] failed to get hwlock (shutdown: %d)\n", dev->shutdown);
 		mutex_unlock(&dev->mfc_mutex);
 		return -EBUSY;
 	}
@@ -785,6 +800,8 @@ static int mfc_release(struct file *file)
 	mfc_destroy_listable_wq_ctx(ctx);
 
 	trace_mfc_node_close(ctx->num, dev->num_inst, ctx->type, ctx->is_drm);
+
+	MFC_TRACE_CTX_LT("[INFO] Release finished (ctx:%d, total:%d)\n", ctx->num, dev->num_inst);
 
 	dev->ctx[ctx->num] = 0;
 	kfree(ctx);
@@ -1290,9 +1307,9 @@ static int mfc_probe(struct platform_device *pdev)
 	__mfc_parse_dt(dev->device->of_node, dev);
 
 	atomic_set(&dev->trace_ref, 0);
-	atomic_set(&dev->trace_ref_hwlock, 0);
+	atomic_set(&dev->trace_ref_longterm, 0);
 	dev->mfc_trace = g_mfc_trace;
-	dev->mfc_trace_hwlock = g_mfc_trace_hwlock;
+	dev->mfc_trace_longterm = g_mfc_trace_longterm;
 
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
 
@@ -1524,7 +1541,6 @@ static void mfc_shutdown(struct platform_device *pdev)
 	int ret;
 
 	mfc_info_dev("MFC shutdown is called\n");
-	MFC_TRACE_DEV_HWLOCK("**shutdown \n");
 
 	if (!mfc_pm_get_pwr_ref_cnt(dev)) {
 		dev->shutdown = 1;
@@ -1560,7 +1576,6 @@ static int mfc_suspend(struct device *device)
 	if (dev->num_inst == 0)
 		return 0;
 
-	MFC_TRACE_DEV_HWLOCK("**sleep\n");
 	ret = mfc_get_hwlock_dev(dev);
 	if (ret < 0) {
 		mfc_err_dev("Failed to get hwlock\n");
@@ -1589,7 +1604,6 @@ static int mfc_resume(struct device *device)
 	if (dev->num_inst == 0)
 		return 0;
 
-	MFC_TRACE_DEV_HWLOCK("**wakeup\n");
 	ret = mfc_get_hwlock_dev(dev);
 	if (ret < 0) {
 		mfc_err_dev("Failed to get hwlock\n");

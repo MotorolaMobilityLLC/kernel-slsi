@@ -445,8 +445,6 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -ENOMEM;
 	}
 
-	MFC_TRACE_CTX_HWLOCK("**ENC s_fmt\n");
-
 	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
 		mfc_err_dev("Failed to get hwlock\n");

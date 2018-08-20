@@ -216,6 +216,20 @@ static void __mfc_dump_trace(struct mfc_dev *dev)
 	}
 }
 
+static void __mfc_dump_trace_longterm(struct mfc_dev *dev)
+{
+	int i, cnt, trace_cnt;
+
+	pr_err("-----------dumping MFC trace long-term info-----------\n");
+
+	trace_cnt = atomic_read(&dev->trace_ref_longterm);
+	for (i = MFC_TRACE_COUNT_PRINT - 1; i >= 0; i--) {
+		cnt = ((trace_cnt + MFC_TRACE_COUNT_MAX) - i) % MFC_TRACE_COUNT_MAX;
+		pr_err("MFC trace longterm[%d]: time=%llu, str=%s", cnt,
+				dev->mfc_trace_longterm[cnt].time, dev->mfc_trace_longterm[cnt].str);
+	}
+}
+
 void __mfc_dump_buffer_info(struct mfc_dev *dev)
 {
 	struct mfc_ctx *ctx;
@@ -337,6 +351,12 @@ static void __mfc_dump_struct(struct mfc_dev *dev)
 	}
 }
 
+static void __mfc_dump_info_context(struct mfc_dev *dev)
+{
+	__mfc_dump_state(dev);
+	__mfc_dump_trace_longterm(dev);
+}
+
 static void __mfc_dump_info_without_regs(struct mfc_dev *dev)
 {
 	__mfc_dump_state(dev);
@@ -418,6 +438,7 @@ struct mfc_dump_ops mfc_dump_ops = {
 	.dump_regs			= __mfc_dump_regs,
 	.dump_info			= __mfc_dump_info,
 	.dump_info_without_regs		= __mfc_dump_info_without_regs,
+	.dump_info_context		= __mfc_dump_info_context,
 	.dump_and_stop_always		= __mfc_dump_info_and_stop_hw,
 	.dump_and_stop_debug_mode	= __mfc_dump_info_and_stop_hw_debug,
 };

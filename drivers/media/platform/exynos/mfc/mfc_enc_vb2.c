@@ -350,7 +350,7 @@ static void mfc_enc_stop_streaming(struct vb2_queue *q)
 		}
 		aborted = 1;
 	}
-	MFC_TRACE_CTX_HWLOCK("**ENC streamoff(type:%d)\n", q->type);
+
 	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
 		mfc_err_ctx("Failed to get hwlock\n");

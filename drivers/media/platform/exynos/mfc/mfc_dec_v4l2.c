@@ -501,7 +501,6 @@ static int mfc_dec_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	mfc_debug(2, "[STREAM] sizeimage: %d\n", pix_fmt_mp->plane_fmt[0].sizeimage);
 	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 
-	MFC_TRACE_CTX_HWLOCK("**DEC s_fmt\n");
 	ret = mfc_get_hwlock_ctx(ctx);
 	if (ret < 0) {
 		mfc_err_ctx("Failed to get hwlock\n");
