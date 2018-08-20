@@ -692,6 +692,7 @@ static int __init dbg_snapshot_init_dt(void)
 static int __init dbg_snapshot_init_value(void)
 {
 	int val = dbg_snapshot_get_debug_level_reg();
+	struct dbg_snapshot_item *item;
 
 	dbg_snapshot_set_debug_level(val);
 
@@ -699,6 +700,23 @@ static int __init dbg_snapshot_init_value(void)
 		debug_level_val[dss_desc.debug_level]);
 
 	dbg_snapshot_scratch_reg(DSS_SIGN_SCRATCH);
+
+	/* copy linux_banner, physical address of
+	 * kernel log / platform log / kevents to DSS header */
+	strncpy(dbg_snapshot_get_base_vaddr() + DSS_OFFSET_LINUX_BANNER,
+		linux_banner, strlen(linux_banner));
+
+	item = &dss_items[dss_desc.log_kernel_num];
+	__raw_writel(item->entry.paddr,
+		dbg_snapshot_get_base_vaddr() + DSS_OFFSET_KERNEL_LOG);
+
+	item = &dss_items[dss_desc.log_platform_num];
+	__raw_writel(item->entry.paddr,
+		dbg_snapshot_get_base_vaddr() + DSS_OFFSET_PLATFORM_LOG);
+
+	item = &dss_items[dss_desc.kevents_num];
+	__raw_writel(item->entry.paddr,
+		dbg_snapshot_get_base_vaddr() + DSS_OFFSET_KERNEL_EVENT);
 
 	return 0;
 }
