@@ -45,6 +45,7 @@
 #include <linux/property.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
+#include <linux/debug-snapshot.h>
 
 #include "i2c-core.h"
 
@@ -1947,7 +1948,9 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
 		}
 
+		dbg_snapshot_i2c(adap, msgs, num, DSS_FLAG_IN);
 		ret = __i2c_transfer(adap, msgs, num);
+		dbg_snapshot_i2c(adap, msgs, num, DSS_FLAG_OUT);
 		i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
 
 		return ret;
