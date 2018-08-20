@@ -69,14 +69,16 @@ struct id_tbl_info {
 	unsigned reserved_0:16;
 	unsigned reserved_1:16;
 	unsigned reserved_2:16;
+	unsigned reserved_3:16;
+	unsigned reserved_4:16;
 	unsigned char ids_big:8;
 	unsigned char ids_g3d:8;
 	unsigned char ids_others:8; /* little, int, mif, disp, cp */
-	unsigned reserved_3:8;
-	unsigned reserved_4;
+	unsigned reserved_5:8;
+	unsigned reserved_6;
 	unsigned short sub_rev:4;
 	unsigned short main_rev:4;
-	unsigned reserved_5;
+	unsigned reserved_7;
 };
 
 static volatile struct asv_tbl_info *asv_tbl;
