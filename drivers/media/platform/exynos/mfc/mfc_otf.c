@@ -387,14 +387,46 @@ int mfc_otf_ctx_ready(struct mfc_ctx *ctx)
 	return 0;
 }
 
+static int __check_disable_header_gen(struct mfc_dev *dev)
+{
+	unsigned int base_addr = 0xF000;
+	unsigned int shift = 6;
+	unsigned int mask = 1;
+
+	if (!dev->reg_val)
+		return 0;
+
+	if ((dev->reg_val[MFC_REG_E_ENC_OPTIONS - base_addr] >> shift) & mask)
+		return 1;
+
+	return 0;
+}
+
 int mfc_otf_run_enc_init(struct mfc_ctx *ctx)
 {
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_raw_info *raw = &ctx->raw_buf;
+#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+	struct packetizing_param packet_param;
+#endif
+
 	int ret;
 
 	mfc_debug_enter();
 
 	mfc_set_enc_stride(ctx);
 	mfc_clean_ctx_int_flags(ctx);
+
+	if (reg_test && !__check_disable_header_gen(dev)) {
+#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+		packet_param.time_stamp = 0;
+		ret = packetize(&packet_param);
+		if (ret)
+			return ret;
+#endif
+		mfc_otf_set_stream_size(ctx, raw->total_plane_size);
+	}
+
 	ret = mfc_cmd_enc_seq_header(ctx);
 
 	mfc_debug_leave();

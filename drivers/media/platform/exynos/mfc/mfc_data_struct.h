@@ -320,6 +320,10 @@ struct mfc_debugfs {
 	struct dentry *root;
 	struct dentry *mfc_info;
 	struct dentry *debug_info;
+#ifdef CONFIG_MFC_REG_TEST
+	struct dentry *reg_info;
+	struct dentry *reg_test;
+#endif
 	struct dentry *debug_level;
 	struct dentry *debug_ts;
 	struct dentry *dbg_enable;
@@ -838,6 +842,10 @@ struct mfc_dev {
 	struct notifier_block itmon_nb;
 #endif
 	int itmon_notified;
+
+	char *reg_buf;
+	unsigned int *reg_val;
+	unsigned int reg_cnt;
 };
 
 /**

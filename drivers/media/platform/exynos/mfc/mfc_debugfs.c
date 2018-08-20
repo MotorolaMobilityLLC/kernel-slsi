@@ -32,6 +32,7 @@ unsigned int sfr_dump;
 unsigned int mmcache_dump;
 unsigned int mmcache_disable;
 unsigned int perf_boost_mode;
+unsigned int reg_test;
 
 static int __mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -123,6 +124,76 @@ static int __mfc_debug_info_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
+#ifdef CONFIG_MFC_REG_TEST
+static int __mfc_reg_info_show(struct seq_file *s, void *unused)
+{
+	struct mfc_dev *dev = g_mfc_dev;
+	unsigned int i;
+
+	seq_puts(s, ">> MFC REG test(encoder)\n");
+
+	seq_printf(s, "-----Register test on/off: %s\n", reg_test ? "on" : "off");
+	seq_printf(s, "-----Register number: %d\n", dev->reg_cnt);
+
+	if (dev->reg_val) {
+		seq_puts(s, "-----Register values\n");
+		for (i = 0; i < dev->reg_cnt; i++) {
+			seq_printf(s, "%08x ", dev->reg_val[i]);
+			if ((i % 8) == 7)
+				seq_printf(s, "\n");
+		}
+	} else {
+		seq_puts(s, "-----There is no reg_buf, set the register value\n");
+	}
+
+	return 0;
+}
+
+static ssize_t __mfc_reg_info_write(struct file *file, const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct mfc_dev *dev = g_mfc_dev;
+	ssize_t len;
+	unsigned int index = 0;
+	char temp_char;
+
+	if (!dev->reg_buf) {
+		dev->reg_buf = kzalloc(SZ_1M, GFP_KERNEL);
+		mfc_info_dev("[REGTEST] alloc reg_buf\n");
+	}
+
+	if (!dev->reg_val) {
+		dev->reg_val = kzalloc(SZ_1M, GFP_KERNEL);
+		mfc_info_dev("[REGTEST] alloc reg_val\n");
+	}
+
+	len = simple_write_to_buffer(dev->reg_buf, SZ_1M - 1,
+					ppos, user_buf, count);
+	if (len <= 0)
+		return len;
+
+	mfc_info_dev("[REGTEST] len: %d, ppos: %llu\n", len, *ppos);
+
+	dev->reg_buf[*ppos] = '\0';
+
+	dev->reg_cnt = 0;
+	while (index + 7 < *ppos) {
+		temp_char = dev->reg_buf[index];
+		if ((temp_char >= '0' && temp_char <= '9') ||
+				(temp_char >= 'A' && temp_char <= 'F') ||
+				(temp_char >= 'a' && temp_char <= 'f')) {
+			sscanf(&dev->reg_buf[index], "%08x", &dev->reg_val[dev->reg_cnt]);
+			index += 8;
+			dev->reg_cnt++;
+		} else {
+			index++;
+		}
+	}
+
+	return len;
+}
+#endif
+
 static int __mfc_info_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, __mfc_info_show, inode->i_private);
@@ -132,6 +203,13 @@ static int __mfc_debug_info_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, __mfc_debug_info_show, inode->i_private);
 }
+
+#ifdef CONFIG_MFC_REG_TEST
+static int __mfc_reg_info_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, __mfc_reg_info_show, inode->i_private);
+}
+#endif
 
 static const struct file_operations mfc_info_fops = {
 	.open = __mfc_info_open,
@@ -147,13 +225,23 @@ static const struct file_operations debug_info_fops = {
 	.release = single_release,
 };
 
+#ifdef CONFIG_MFC_REG_TEST
+static const struct file_operations reg_info_fops = {
+	.open = __mfc_reg_info_open,
+	.read = seq_read,
+	.write = __mfc_reg_info_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+#endif
+
 void mfc_init_debugfs(struct mfc_dev *dev)
 {
 	struct mfc_debugfs *debugfs = &dev->debugfs;
 
 	debugfs->root = debugfs_create_dir("mfc", NULL);
 	if (!debugfs->root) {
-		mfc_err_dev("debugfs: failed to create root derectory\n");
+		mfc_err_dev("debugfs: failed to create root directory\n");
 		return;
 	}
 
@@ -161,6 +249,12 @@ void mfc_init_debugfs(struct mfc_dev *dev)
 			0444, debugfs->root, dev, &mfc_info_fops);
 	debugfs->debug_info = debugfs_create_file("debug_info",
 			0444, debugfs->root, dev, &debug_info_fops);
+#ifdef CONFIG_MFC_REG_TEST
+	debugfs->reg_info = debugfs_create_file("reg_info",
+			0644, debugfs->root, dev, &reg_info_fops);
+	debugfs->reg_test = debugfs_create_u32("reg_test",
+			0644, debugfs->root, &reg_test);
+#endif
 	debugfs->debug_level = debugfs_create_u32("debug",
 			0644, debugfs->root, &debug_level);
 	debugfs->debug_ts = debugfs_create_u32("debug_ts",

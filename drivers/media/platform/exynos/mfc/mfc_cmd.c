@@ -260,6 +260,9 @@ int mfc_cmd_enc_seq_header(struct mfc_ctx *ctx)
 
 	MFC_WRITEL(ctx->inst_no, MFC_REG_INSTANCE_ID);
 
+	if (reg_test)
+		mfc_set_test_params(dev);
+
 	if (sfr_dump & MFC_DUMP_ENC_SEQ_START)
 		call_dop(dev, dump_regs, dev);
 

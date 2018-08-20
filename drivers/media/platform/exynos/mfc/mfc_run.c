@@ -570,7 +570,9 @@ int mfc_run_enc_frame(struct mfc_ctx *ctx)
 
 	if (IS_H264_ENC(ctx))
 		mfc_set_aso_slice_order_h264(ctx);
-	mfc_set_slice_mode(ctx);
+
+	if (!reg_test)
+		mfc_set_slice_mode(ctx);
 
 	mfc_cmd_enc_one_frame(ctx, last_frame);
 

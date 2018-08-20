@@ -372,7 +372,7 @@ static void __mfc_set_fmo_slice_map_h264(struct mfc_ctx *ctx, struct mfc_h264_en
 	}
 }
 
-void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
+static void __mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -584,7 +584,7 @@ void mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-void mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
+static void __mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -658,7 +658,7 @@ void mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-void mfc_set_enc_params_h263(struct mfc_ctx *ctx)
+static void __mfc_set_enc_params_h263(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -715,7 +715,7 @@ void mfc_set_enc_params_h263(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-void mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
+static void __mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -829,7 +829,7 @@ void mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
+static void __mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -969,7 +969,7 @@ void mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
+static void __mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -1221,7 +1221,7 @@ void mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-void mfc_set_enc_params_bpg(struct mfc_ctx *ctx)
+static void __mfc_set_enc_params_bpg(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -1255,19 +1255,19 @@ int mfc_set_enc_params(struct mfc_ctx *ctx)
 	struct mfc_dev *dev = ctx->dev;
 
 	if (IS_H264_ENC(ctx))
-		mfc_set_enc_params_h264(ctx);
+		__mfc_set_enc_params_h264(ctx);
 	else if (IS_MPEG4_ENC(ctx))
-		mfc_set_enc_params_mpeg4(ctx);
+		__mfc_set_enc_params_mpeg4(ctx);
 	else if (IS_H263_ENC(ctx))
-		mfc_set_enc_params_h263(ctx);
+		__mfc_set_enc_params_h263(ctx);
 	else if (IS_VP8_ENC(ctx))
-		mfc_set_enc_params_vp8(ctx);
+		__mfc_set_enc_params_vp8(ctx);
 	else if (IS_VP9_ENC(ctx))
-		mfc_set_enc_params_vp9(ctx);
+		__mfc_set_enc_params_vp9(ctx);
 	else if (IS_HEVC_ENC(ctx))
-		mfc_set_enc_params_hevc(ctx);
+		__mfc_set_enc_params_hevc(ctx);
 	else if (IS_BPG_ENC(ctx))
-		mfc_set_enc_params_bpg(ctx);
+		__mfc_set_enc_params_bpg(ctx);
 	else {
 		mfc_err_ctx("Unknown codec for encoding (%x)\n",
 			ctx->codec_mode);
@@ -1281,4 +1281,27 @@ int mfc_set_enc_params(struct mfc_ctx *ctx)
 			MFC_RAW_READL(MFC_REG_E_RC_MODE));
 
 	return 0;
+}
+
+void mfc_set_test_params(struct mfc_dev *dev)
+{
+
+	unsigned int base_addr = 0xF000;
+	unsigned int i;
+
+	if (!dev->reg_val) {
+		mfc_err_dev("[REGTEST] There is no reg_val set the register value\n");
+		return;
+	}
+
+	mfc_info_dev("[REGTEST] Overwrite register value for encoder register test\n");
+
+	for (i = 0; i < dev->reg_cnt; i++)
+		if (((base_addr + (i * 4)) != MFC_REG_E_STREAM_BUFFER_ADDR) &&
+				((base_addr + (i * 4)) != MFC_REG_E_SOURCE_FIRST_STRIDE) &&
+				((base_addr + (i * 4)) != MFC_REG_E_SOURCE_SECOND_STRIDE) &&
+				((base_addr + (i * 4)) != MFC_REG_E_SOURCE_THIRD_STRIDE) &&
+				((base_addr + (i * 4)) != MFC_REG_PIXEL_FORMAT))
+			MFC_RAW_WRITEL(dev->reg_val[i], base_addr + (i * 4));
+
 }
