@@ -156,6 +156,8 @@
 				((ctx)->type == MFCINST_ENCODER) &&	\
 				((ctx)->framerate / 1000) >= 60)
 
+#define IS_SUPER64_BFRAME(ctx, size, type)	((ctx->is_10bit) && (size >= 2) && (type == 3))
+
 /* Extra information for Decoder */
 #define	DEC_SET_DUAL_DPB		(1 << 0)
 #define	DEC_SET_DYNAMIC_DPB		(1 << 1)

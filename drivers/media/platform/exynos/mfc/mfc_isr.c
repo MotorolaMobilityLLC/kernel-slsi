@@ -703,8 +703,16 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 		}
 	}
 
-	if (mfc_get_num_of_tile() >= 4)
+	/* Detection for QoS weight */
+	if (!dec->num_of_tile_over_4 && mfc_get_num_of_tile() >= 4) {
 		dec->num_of_tile_over_4 = 1;
+		mfc_qos_on(ctx);
+	}
+	if (!dec->super64_bframe && IS_SUPER64_BFRAME(ctx, mfc_get_lcu_size(),
+				mfc_get_dec_frame_type())) {
+		dec->super64_bframe = 1;
+		mfc_qos_on(ctx);
+	}
 
 	switch (dst_frame_status) {
 	case MFC_REG_DEC_STATUS_DECODING_DISPLAY:

@@ -415,6 +415,7 @@ struct mfc_qos_weight {
 	unsigned int weight_num_of_ref;
 	unsigned int weight_gpb;
 	unsigned int weight_num_of_tile;
+	unsigned int weight_super64_bframe;
 };
 #endif
 
@@ -1352,6 +1353,7 @@ struct mfc_dec {
 	unsigned int dec_only_release_flag;
 
 	unsigned int num_of_tile_over_4;
+	unsigned int super64_bframe;
 
 	unsigned int color_range;
 	unsigned int color_space;

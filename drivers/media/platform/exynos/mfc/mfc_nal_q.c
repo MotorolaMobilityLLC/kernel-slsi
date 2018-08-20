@@ -1685,6 +1685,20 @@ void __mfc_nal_q_handle_frame(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 		goto leave_handle_frame;
 	}
 
+	/* Detection for QoS weight */
+	if (!dec->num_of_tile_over_4 && (((pOutStr->DisplayStatus
+				>> MFC_REG_DEC_STATUS_NUM_OF_TILE_SHIFT)
+				& MFC_REG_DEC_STATUS_NUM_OF_TILE_MASK) >= 4)) {
+		dec->num_of_tile_over_4 = 1;
+		mfc_qos_on(ctx);
+	}
+	if (!dec->super64_bframe && IS_SUPER64_BFRAME(ctx,
+				(pOutStr->HevcInfo & MFC_REG_D_HEVC_INFO_LCU_SIZE_MASK),
+				(pOutStr->DecodedFrameType & MFC_REG_DECODED_FRAME_MASK))) {
+		dec->super64_bframe = 1;
+		mfc_qos_on(ctx);
+	}
+
 	switch (dst_frame_status) {
 	case MFC_REG_DEC_STATUS_DECODING_DISPLAY:
 		__mfc_nal_q_handle_ref_frame(ctx, pOutStr);

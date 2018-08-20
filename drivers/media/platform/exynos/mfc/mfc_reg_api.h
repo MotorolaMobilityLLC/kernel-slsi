@@ -168,6 +168,8 @@
 #define mfc_get_num_of_tile()		((MFC_READL(MFC_REG_D_DECODED_STATUS)		\
 						>> MFC_REG_DEC_STATUS_NUM_OF_TILE_SHIFT)	\
 						& MFC_REG_DEC_STATUS_NUM_OF_TILE_MASK)
+#define mfc_get_lcu_size()			(MFC_READL(MFC_REG_D_HEVC_INFO)		\
+						& MFC_REG_D_HEVC_INFO_LCU_SIZE_MASK)
 
 
 /* nal queue information */
