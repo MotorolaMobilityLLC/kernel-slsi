@@ -935,7 +935,11 @@ static int mxman_start(struct mxman *mxman)
 		SCSC_TAG_INFO(MXMAN, "HW reset deassertion failed\n");
 
 		/* Save log at point of failure */
+#ifdef CONFIG_SCSC_MX_LOG_DUMP
 		mx140_log_dump();
+#elif CONFIG_SCSC_LOG_COLLECTION
+		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_COMMON, SCSC_LOG_HOST_COMMON_REASON_START);
+#endif
 	}
 	if (fwhdr_parsed_ok) {
 		r = wait_for_mm_msg_start_ind(mxman);
@@ -1299,9 +1303,7 @@ static void mxman_failure_work(struct work_struct *work)
 				 */
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 				/* Collect mxlogger logs */
-				r = scsc_log_collector_collect(SCSC_LOG_REASON_FW_PANIC);
-				if (r != 0)
-					SCSC_TAG_INFO(MXMAN, "sable creation failed.");
+				scsc_log_collector_schedule_collection(SCSC_LOG_FW_PANIC, mxman->scsc_panic_code);
 #else
 				r = call_wlbtd(SCSC_SCRIPT_MOREDUMP);
 #endif
@@ -1413,7 +1415,7 @@ static void wlbtd_work_func(struct work_struct *work)
 	/* require sleep-able workqueue to run successfully */
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 	/* Collect mxlogger logs */
-	scsc_log_collector_collect(SCSC_LOG_REASON_WLAN_DISCONNECT);
+	/* Extend to scsc_log_collector_collect() if required */
 #else
 	call_wlbtd(SCSC_SCRIPT_LOGGER_DUMP);
 #endif
@@ -1588,7 +1590,11 @@ static void mxman_stop(struct mxman *mxman)
 		reset_failed = true;
 
 		/* Save log at point of failure */
+#ifdef CONFIG_SCSC_MX_LOG_DUMP
 		mx140_log_dump();
+#elif CONFIG_SCSC_LOG_COLLECTION
+		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_COMMON, SCSC_LOG_HOST_COMMON_REASON_STOP);
+#endif
 	}
 
 	panicmon_deinit(scsc_mx_get_panicmon(mxman->mx));

@@ -47,10 +47,10 @@ static ssize_t log_collect_procfs_trigger_collection_write(struct file *file, co
 
 	if (val == '1') {
 		pr_info("%s: Userland has triggered log collection\n", __func__);
-		scsc_log_collector_collect(SCSC_LOG_REASON_HOST_PROC_TRIGGERED);
+		scsc_log_collector_schedule_collection(SCSC_LOG_USER, SCSC_LOG_USER_REASON_PROC);
 	} else if (val == '2') {
 		pr_info("%s: Dumpstate/dumpsys has triggered log collection\n", __func__);
-		scsc_log_collector_collect(SCSC_LOG_REASON_DUMPSTATE);
+		scsc_log_collector_schedule_collection(SCSC_LOG_DUMPSTATE, SCSC_LOG_DUMPSTATE_REASON);
 	} else {
 		pr_err("%s: Incorrect argument\n", __func__);
 	}

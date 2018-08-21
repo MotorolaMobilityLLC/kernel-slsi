@@ -16,6 +16,7 @@
 #include <linux/ieee80211.h>
 #include "mib.h"
 #include <scsc/scsc_mx.h>
+#include <scsc/scsc_log_collector.h>
 #include "dev.h"
 
 #define CMD_RXFILTERADD         "RXFILTER-ADD"
@@ -2452,8 +2453,10 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #ifndef SLSI_TEST_DEV
 	} else if (strncasecmp(command, CMD_DRIVERDEBUGDUMP, strlen(CMD_DRIVERDEBUGDUMP)) == 0) {
 		slsi_dump_stats(dev);
-#ifdef CONFIG_SCSC_PRINTK
+#ifdef CONFIG_SCSC_MX_LOG_DUMP
 		ret = mx140_log_dump();
+#elif CONFIG_SCSC_LOG_COLLECTION
+		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DRIVERDEBUGDUMP);
 #endif
 #endif
 	} else {

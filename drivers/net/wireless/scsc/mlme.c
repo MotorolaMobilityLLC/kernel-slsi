@@ -8,6 +8,7 @@
 #include <net/cfg80211.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <scsc/scsc_log_collector.h>
 
 #include "dev.h"
 #include "debug.h"
@@ -2301,8 +2302,10 @@ int slsi_mlme_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *mac,
 
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_disconnect_req(vif:%u, bssid:%pM, reason:%d)\n", ndev_vif->ifnum, mac, reason_code);
 
-#ifdef CONFIG_SCSC_PRINTK
+#ifdef CONFIG_SCSC_MX_LOG_DUMP
 	mx140_log_dump();
+#elif CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DISCONNECT);
 #endif
 	/* No data reference required */
 	req = fapi_alloc(mlme_disconnect_req, MLME_DISCONNECT_REQ, ndev_vif->ifnum, 0);

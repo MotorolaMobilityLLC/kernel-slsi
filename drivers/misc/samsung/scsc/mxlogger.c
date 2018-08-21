@@ -205,9 +205,9 @@ static void mxlogger_message_handler(const void *message, void *data)
 		complete(&mxlogger->rings_serialized_ops);
 		break;
 	case MM_MXLOGGER_COLLECTION_FW_REQ_EVT:
-		SCSC_TAG_INFO(MXMAN, "MXLOGGER:: FW requested collection - Reason:%d\n", msg->arg);
+		SCSC_TAG_INFO(MXMAN, "MXLOGGER:: FW requested collection - Reason code:%d\n", msg->arg);
 #ifdef CONFIG_SCSC_LOG_COLLECTION
-		scsc_log_collector_schedule_collection(SCSC_LOG_REASON_FW_TRIGGERED);
+		scsc_log_collector_schedule_collection(SCSC_LOG_FW, msg->arg);
 #endif
 		break;
 	default:

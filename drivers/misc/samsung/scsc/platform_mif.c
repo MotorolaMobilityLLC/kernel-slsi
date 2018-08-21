@@ -61,6 +61,9 @@
 extern int exynos_acpm_set_flag(void);
 #endif
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
 /* Time to wait for CFG_REQ IRQ on 9610 */
 #define WLBT_BOOT_TIMEOUT (HZ)
 
@@ -1207,8 +1210,11 @@ done:
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev, "Reset not recovered");
 
 	/* Save log at point of failure, last to show recovery attempt */
+#ifdef CONFIG_SCSC_MX_LOG_DUMP
 	mx140_log_dump();
-
+#elif CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_COMMON, SCSC_LOG_HOST_COMMON_RECOVER_RST);
+#endif
 	return ret;
 }
 

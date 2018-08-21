@@ -45,6 +45,8 @@ static u8 chunk_supported_sbl[SCSC_NUM_CHUNKS_SUPPORTED] = {
 	SCSC_LOG_CHUNK_LOGRING,
 };
 
+static int scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_code);
+
 /* Collect logs in an intermediate buffer to be collected at later time (mmap or wq) */
 static bool collect_to_ram = true;
 module_param(collect_to_ram, bool, S_IRUGO | S_IWUSR);
@@ -107,6 +109,7 @@ struct scsc_log_status {
 	struct workqueue_struct *collection_workq;
 	struct work_struct	collect_work;
 	enum scsc_log_reason    collect_reason;
+	u16 reason_code;
 } log_status;
 
 static DEFINE_MUTEX(log_mutex);
@@ -119,7 +122,7 @@ static void collection_worker(struct work_struct *work)
 	if (!ls)
 		return;
 	pr_info("SCSC running scheduled Log Collection - reason:%d\n", ls->collect_reason);
-	scsc_log_collector_collect(ls->collect_reason);
+	scsc_log_collector_collect(ls->collect_reason, ls->reason_code);
 }
 
 /* Module init */
@@ -307,12 +310,12 @@ static inline int __scsc_log_collector_collect_to_ram(enum scsc_log_reason reaso
 			  ~(SCSC_LOG_CHUNK_ALIGN - 1))
 
 const char *scsc_loc_reason_str[] = { "unknown", "scsc_log_fw_panic",
-				      "scsc_log_host_trig",
-				      "scsc_log_fw_trig", "scsc_log_dumpstate",
-				      "scsc_log_wlan_trig", "scsc_log_bt_trig",
-				      "scsc_log_common_trig"/* Add others */};
+				      "scsc_log_user",
+				      "scsc_log_fw", "scsc_log_dumpstate",
+				      "scsc_log_host_wlan", "scsc_log_host_bt",
+				      "scsc_log_host_common"/* Add others */};
 
-static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u8 buffer)
+static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_code, u8 buffer)
 {
 	struct scsc_log_client *lc, *next;
 	mm_segment_t old_fs;
@@ -331,7 +334,7 @@ static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u8 b
 
 	mutex_lock(&log_mutex);
 
-	pr_info("Log collection triggered\n");
+	pr_info("Log collection triggered %s reason_code 0x%x\n", scsc_loc_reason_str[reason], reason_code);
 
 	start = ktime_get();
 
@@ -402,7 +405,8 @@ static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u8 b
 	sbl_header.version_major = SCSC_LOG_HEADER_VERSION_MAJOR;
 	sbl_header.version_minor = SCSC_LOG_HEADER_VERSION_MINOR;
 	sbl_header.num_chunks = num_chunks;
-	sbl_header.reason = reason;
+	sbl_header.trigger = reason;
+	sbl_header.reason_code = reason_code;
 	sbl_header.offset_data = first_chunk_pos;
 	mxman_get_fw_version(version_fw, SCSC_LOG_FW_VERSION_SIZE);
 	memcpy(sbl_header.fw_version, version_fw, SCSC_LOG_FW_VERSION_SIZE);
@@ -447,14 +451,14 @@ exit:
 
 #ifdef CONFIG_SCSC_WLBTD
 	if (sbl_is_valid)
-		call_wlbtd_sable(scsc_loc_reason_str[reason]);
+		call_wlbtd_sable(scsc_loc_reason_str[reason], reason_code);
 #endif
 	mutex_unlock(&log_mutex);
 
 	return ret;
 }
 
-int scsc_log_collector_collect(enum scsc_log_reason reason)
+static int scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_code)
 {
 	int ret = -1;
 
@@ -465,19 +469,22 @@ int scsc_log_collector_collect(enum scsc_log_reason reason)
 	}
 
 	if (collect_to_ram)
-		ret = __scsc_log_collector_collect(reason, TO_RAM);
+		ret = __scsc_log_collector_collect(reason, reason_code, TO_RAM);
 	else
-		ret = __scsc_log_collector_collect(reason, TO_FILE);
+		ret = __scsc_log_collector_collect(reason, reason_code, TO_FILE);
 
 	return ret;
 }
-EXPORT_SYMBOL(scsc_log_collector_collect);
 
-void  scsc_log_collector_schedule_collection(enum scsc_log_reason reason)
+void scsc_log_collector_schedule_collection(enum scsc_log_reason reason, u16 reason_code)
 {
 	if (log_status.collection_workq) {
 		log_status.collect_reason = reason;
-		queue_work(log_status.collection_workq, &log_status.collect_work);
+		log_status.reason_code = reason_code;
+		if (!queue_work(log_status.collection_workq, &log_status.collect_work))
+			pr_info("Log collection %s reason_code 0x%x rejected. Collection already scheduled\n",
+				scsc_loc_reason_str[reason], reason_code);
+
 	} else {
 		pr_err("Log Collection Workqueue NOT available...aborting scheduled collection.\n");
 	}

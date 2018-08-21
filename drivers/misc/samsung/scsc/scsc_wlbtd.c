@@ -232,7 +232,7 @@ error:
 	return -1;
 }
 
-int call_wlbtd_sable(const char *trigger)
+int call_wlbtd_sable(const char *trigger, u16 reason_code)
 {
 	struct sk_buff *skb;
 	void *msg;
@@ -260,9 +260,8 @@ int call_wlbtd_sable(const char *trigger)
 		SCSC_TAG_ERR(WLBTD, "Failed to create message\n");
 		goto error;
 	}
-	/* TODO: change when we get passed proper code as well */
 	SCSC_TAG_DEBUG(WLBTD, "add values to msg\n");
-	rc = nla_put_u16(skb, ATTR_INT, 0xffff);
+	rc = nla_put_u16(skb, ATTR_INT, reason_code);
 	if (rc) {
 		SCSC_TAG_ERR(WLBTD, "nla_put_u16 failed. rc = %d\n", rc);
 		genlmsg_cancel(skb, msg);
