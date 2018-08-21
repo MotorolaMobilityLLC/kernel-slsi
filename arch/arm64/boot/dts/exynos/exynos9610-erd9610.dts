@@ -1781,8 +1781,6 @@
 
 &contexthub_0 {
 	/* chub irq pin lists */
-	chub-irq-pin-len = <1>;
-	chub-irq-pin = <&gpm8 0 0>;
 	clocks =
 		/* SHUB */
 		<&clock UMUX_CLKCMU_SHUB_BUS>,
