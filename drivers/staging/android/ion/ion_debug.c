@@ -17,6 +17,7 @@
 #include <linux/rbtree.h>
 #include <linux/debugfs.h>
 #include <linux/oom.h>
+#include <linux/sort.h>
 
 #include "ion.h"
 #include "ion_exynos.h"
@@ -24,6 +25,10 @@
 
 #define ION_MAX_EVENT_LOG	1024
 #define ION_EVENT_CLAMP_ID(id) ((id) & (ION_MAX_EVENT_LOG - 1))
+
+#define ion_debug_print(s, fmt, ...) \
+	((s) ? seq_printf(s, fmt, ##__VA_ARGS__) :\
+	 pr_info(fmt, ##__VA_ARGS__))
 
 static atomic_t eventid;
 
@@ -155,7 +160,87 @@ static const struct file_operations debug_event_fops = {
 	.release = single_release,
 };
 
-#define ION_MAX_LOGBUF 128
+static int contig_heap_cmp(const void *l, const void *r)
+{
+	struct ion_buffer *left = *((struct ion_buffer **)l);
+	struct ion_buffer *right = *((struct ion_buffer **)r);
+
+	return ((unsigned long)sg_phys(left->sg_table->sgl)) -
+		((unsigned long)sg_phys(right->sg_table->sgl));
+}
+
+void ion_contig_heap_show_buffers(struct seq_file *s, struct ion_heap *heap,
+				  phys_addr_t base, size_t pool_size)
+{
+	size_t total_size = 0;
+	struct rb_node *n;
+	struct ion_buffer **sorted = NULL;
+	int i, count = 64, ptr = 0;
+
+	if (heap->type != ION_HEAP_TYPE_CARVEOUT &&
+	    heap->type != ION_HEAP_TYPE_DMA)
+		return;
+
+	ion_debug_print(s,
+			"ION heap '%s' of type %u and id %u, size %zu bytes\n",
+			heap->name, heap->type, heap->id, pool_size);
+
+	mutex_lock(&heap->dev->buffer_lock);
+	for (n = rb_first(&heap->dev->buffers); n; n = rb_next(n)) {
+		struct ion_buffer *buffer = rb_entry(n, struct ion_buffer,
+						     node);
+
+		if (buffer->heap != heap)
+			continue;
+
+		if (!sorted)
+			sorted = kmalloc_array(count, sizeof(*sorted),
+					       GFP_KERNEL);
+
+		if (ptr == count) {
+			struct ion_buffer **tmp;
+
+			tmp = kmalloc_array(2 * count, sizeof(*sorted),
+					    GFP_KERNEL);
+			memcpy(tmp, sorted, sizeof(*sorted) * count);
+			count *= 2;
+			kfree(sorted);
+
+			sorted = tmp;
+		}
+
+		sorted[ptr++] = buffer;
+	}
+
+	if (!sorted) {
+		mutex_unlock(&heap->dev->buffer_lock);
+		return;
+	}
+
+	sort(sorted, ptr, sizeof(*sorted), contig_heap_cmp, NULL);
+
+	for (i = 0; i < ptr; i++) {
+		unsigned long cur, next;
+
+		cur = (unsigned long)(sg_phys(sorted[i]->sg_table->sgl) - base);
+		next = (i == ptr - 1) ?
+			pool_size : (unsigned long)
+			(sg_phys(sorted[i + 1]->sg_table->sgl) - base);
+
+		ion_debug_print(s,
+				"offset %#010lx size %10zu (free %10zu)\n",
+				cur, sorted[i]->size,
+				next - cur - sorted[i]->size);
+
+		total_size += sorted[i]->size;
+	}
+
+	ion_debug_print(s, "Total allocated size: %zu bytes --------------\n",
+			total_size);
+
+	mutex_unlock(&heap->dev->buffer_lock);
+	kfree(sorted);
+}
 
 const static char *heap_type_name[] = {
 	"system",
@@ -166,92 +251,139 @@ const static char *heap_type_name[] = {
 	"hpa",
 };
 
-static size_t ion_print_buffer(struct ion_buffer *buffer, bool alive,
-			       char *logbuf, int buflen)
+static void ion_debug_freed_buffer(struct seq_file *s, struct ion_device *dev)
 {
-	struct ion_iovm_map *iovm;
-	int count;
-	unsigned int heaptype = buffer->heap->type;
-
-	if (heaptype >= ARRAY_SIZE(heap_type_name))
-		heaptype = 0; /* forces it to 0 to prevent buffer overrun */
-
-	count = scnprintf(logbuf, buflen, "[%4d] %15s %8s %#5lx %8zu : ",
-			  buffer->id, buffer->heap->name,
-			  heap_type_name[heaptype], buffer->flags,
-			  buffer->size / SZ_1K);
-	buflen = max(0, buflen - count);
-	/*
-	 * It is okay even if count is larger than ION_MAX_LOGBUF
-	 * because buflen then becomes zero and scnprintf never writes to
-	 * the buffer if the size is zero.
-	 */
-	logbuf += count;
-
-	if (alive) {
-		list_for_each_entry(iovm, &buffer->iovas, list) {
-			count = scnprintf(logbuf, buflen, "%s(%d) ",
-					  dev_name(iovm->dev),
-					  atomic_read(&iovm->mapcnt));
-			buflen = max(0, buflen - count);
-			logbuf += count;
-		}
-		scnprintf(logbuf, buflen, "\n");
-	} else {
-		scnprintf(logbuf, buflen, "(freed)\n");
-	}
-
-	return buffer->size;
-}
-
-static int ion_debug_buffers_show(struct seq_file *s, void *unused)
-{
-	struct ion_device *idev = s->private;
-	struct rb_node *n;
-	struct ion_buffer *buffer;
 	struct ion_heap *heap;
-	char logbuf[ION_MAX_LOGBUF];
-	size_t total = 0;
+	struct ion_buffer *buffer;
 
-	seq_printf(s, "[  id] %15s %8s %5s %8s : %s\n",
-		   "heap", "heaptype", "flags", "size(kb)", "iommu_mapped...");
-
-	mutex_lock(&idev->buffer_lock);
-	for (n = rb_first(&idev->buffers); n; n = rb_next(n)) {
-		buffer = rb_entry(n, struct ion_buffer, node);
-		mutex_lock(&buffer->lock);
-
-		total += ion_print_buffer(buffer, true, logbuf, ION_MAX_LOGBUF);
-		seq_puts(s, logbuf);
-
-		mutex_unlock(&buffer->lock);
-	}
-	mutex_unlock(&idev->buffer_lock);
-
-	down_read(&idev->lock);
-	plist_for_each_entry(heap, &idev->heaps, node) {
+	down_read(&dev->lock);
+	plist_for_each_entry(heap, &dev->heaps, node) {
 		if (!(heap->flags & ION_HEAP_FLAG_DEFER_FREE))
 			continue;
 
 		spin_lock(&heap->free_lock);
 		/* buffer lock is not required because the buffer is freed */
 		list_for_each_entry(buffer, &heap->free_list, list) {
-			ion_print_buffer(buffer, false, logbuf, ION_MAX_LOGBUF);
-			seq_puts(s, logbuf);
+			unsigned int heaptype = (buffer->heap->type <
+				ARRAY_SIZE(heap_type_name)) ?
+				buffer->heap->type : 0;
+
+			ion_debug_print(s,
+					"[%4d] %15s %8s %#5lx %8zu : freed\n",
+					buffer->id, buffer->heap->name,
+					heap_type_name[heaptype], buffer->flags,
+					buffer->size / SZ_1K);
 		}
 		spin_unlock(&heap->free_lock);
 	}
-	up_read(&idev->lock);
+	up_read(&dev->lock);
+}
 
-	seq_printf(s, "TOTAL: %zu kb\n\n", total / SZ_1K);
+static void ion_debug_buffer_for_heap(struct seq_file *s,
+				      struct ion_device *dev,
+				      struct ion_heap *heap)
+{
+	struct rb_node *n;
+	struct ion_buffer *buffer;
+	size_t total = 0;
 
-	down_read(&idev->lock);
-	plist_for_each_entry(heap, &idev->heaps, node)
-		if (heap->debug_show) {
-			seq_printf(s, "Page pools of %s:\n", heap->name);
-			heap->debug_show(heap, s, unused);
+	ion_debug_print(s, "[  id] %15s %8s %5s %8s : %s\n",
+			"heap", "heaptype", "flags", "size(kb)",
+			"iommu_mapped...");
+
+	mutex_lock(&dev->buffer_lock);
+	for (n = rb_first(&dev->buffers); n; n = rb_next(n)) {
+		buffer = rb_entry(n, struct ion_buffer, node);
+
+		if (!heap || heap == buffer->heap) {
+			struct ion_iovm_map *iovm;
+			unsigned int heaptype = (buffer->heap->type <
+				ARRAY_SIZE(heap_type_name)) ?
+				buffer->heap->type : 0;
+
+			mutex_lock(&buffer->lock);
+			ion_debug_print(s, "[%4d] %15s %8s %#5lx %8zu ",
+					buffer->id, buffer->heap->name,
+					heap_type_name[heaptype], buffer->flags,
+					buffer->size / SZ_1K);
+
+			list_for_each_entry(iovm, &buffer->iovas, list) {
+				ion_debug_print(s, "%s(%d) ",
+						dev_name(iovm->dev),
+						atomic_read(&iovm->mapcnt));
+			}
+			ion_debug_print(s, "\n");
+
+			total += buffer->size;
+
+			mutex_unlock(&buffer->lock);
 		}
-	up_read(&idev->lock);
+	}
+	mutex_unlock(&dev->buffer_lock);
+
+	total /= SZ_1K;
+
+	ion_debug_print(s, "TOTAL: %zu kb\n", total);
+}
+
+#define ion_debug_buffer_for_all_heap(s, dev) \
+	ion_debug_buffer_for_heap(s, dev, NULL)
+
+static int ion_debug_heap_show(struct seq_file *s, void *unused)
+{
+	struct ion_heap *heap = s->private;
+
+	seq_printf(s, "ION heap '%s' of type %u and id %u\n",
+		   heap->name, heap->type, heap->id);
+
+	ion_debug_buffer_for_heap(s, heap->dev, heap);
+
+	if (heap->debug_show)
+		heap->debug_show(heap, s, unused);
+
+	return 0;
+}
+
+static int ion_debug_heap_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ion_debug_heap_show, inode->i_private);
+}
+
+static const struct file_operations debug_heap_fops = {
+	.open = ion_debug_heap_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void ion_debug_heap_init(struct ion_heap *heap)
+{
+	char debug_name[64];
+	struct dentry *heap_file;
+
+	if (!heap->dev->heaps_debug_root)
+		return;
+
+	snprintf(debug_name, 64, "%s", heap->name);
+
+	heap_file = debugfs_create_file(
+			debug_name, 0444, heap->dev->heaps_debug_root,
+			heap, &debug_heap_fops);
+	if (!heap_file) {
+		char buf[256], *path;
+
+		path = dentry_path(heap->dev->heaps_debug_root,
+				   buf, 256);
+		perrfn("failed to create %s/%s", path, heap_file);
+	}
+}
+
+static int ion_debug_buffers_show(struct seq_file *s, void *unused)
+{
+	struct ion_device *idev = s->private;
+
+	ion_debug_buffer_for_all_heap(s, idev);
+	ion_debug_freed_buffer(s, idev);
 
 	return 0;
 }
@@ -278,43 +410,9 @@ static int ion_oom_notifier_fn(struct notifier_block *nb,
 {
 	struct ion_device *idev =
 		container_of(nb, struct ion_oom_notifier_struct, nb)->idev;
-	struct rb_node *n;
-	struct ion_buffer *buffer;
-	struct ion_heap *heap;
-	char logbuf[ION_MAX_LOGBUF];
-	size_t total = 0;
 
-	pr_info("[  id] %15s %8s %5s %8s : %s\n",
-		"heap", "heaptype", "flags", "size(kb)", "iommu_mapped...");
-
-	mutex_lock(&idev->buffer_lock);
-	for (n = rb_first(&idev->buffers); n; n = rb_next(n)) {
-		buffer = rb_entry(n, struct ion_buffer, node);
-		mutex_lock(&buffer->lock);
-
-		total += ion_print_buffer(buffer, true, logbuf, ION_MAX_LOGBUF);
-		pr_info("%s", logbuf);
-
-		mutex_unlock(&buffer->lock);
-	}
-	mutex_unlock(&idev->buffer_lock);
-
-	down_read(&idev->lock);
-	plist_for_each_entry(heap, &idev->heaps, node) {
-		if (!(heap->flags & ION_HEAP_FLAG_DEFER_FREE))
-			continue;
-
-		spin_lock(&heap->free_lock);
-		/* buffer lock is not required because the buffer is freed */
-		list_for_each_entry(buffer, &heap->free_list, list) {
-			ion_print_buffer(buffer, false, logbuf, ION_MAX_LOGBUF);
-			pr_info("%s", logbuf);
-		}
-		spin_unlock(&heap->free_lock);
-	}
-	up_read(&idev->lock);
-
-	pr_info("TOTAL: %zu kb\n", total / SZ_1K);
+	ion_debug_buffer_for_all_heap(NULL, idev);
+	ion_debug_freed_buffer(NULL, idev);
 
 	return 0;
 }
@@ -335,7 +433,11 @@ void ion_debug_initialize(struct ion_device *idev)
 	event_file = debugfs_create_file("event", 0444, idev->debug_root,
 					 idev, &debug_event_fops);
 	if (!event_file)
-		pr_err("%s: failed to create debugfs/ion/event\n", __func__);
+		perrfn("failed to create debugfs/ion/event");
+
+	idev->heaps_debug_root = debugfs_create_dir("heaps", idev->debug_root);
+	if (!idev->heaps_debug_root)
+		perrfn("failed to create debugfs/ion/heaps directory");
 
 	ion_oom_notifier.idev = idev;
 	register_oom_notifier(&ion_oom_notifier.nb);

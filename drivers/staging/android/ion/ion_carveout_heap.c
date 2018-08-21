@@ -27,6 +27,7 @@
 
 #include "ion.h"
 #include "ion_exynos.h"
+#include "ion_debug.h"
 
 #define ION_CARVEOUT_ALLOCATE_FAIL	-1
 
@@ -118,7 +119,7 @@ err_free_table:
 	sg_free_table(table);
 err_free:
 	kfree(table);
-	ion_contig_heap_show_buffers(&carveout_heap->heap,
+	ion_contig_heap_show_buffers(NULL, &carveout_heap->heap,
 				     carveout_heap->base, carveout_heap->size);
 	return ret;
 }
@@ -197,6 +198,19 @@ static struct ion_heap_ops carveout_heap_ops = {
 	.query_heap = carveout_heap_query,
 };
 
+static int ion_carveout_heap_debug_show(struct ion_heap *heap,
+					struct seq_file *s,
+					void *unused)
+{
+	struct ion_carveout_heap *carveout_heap =
+		container_of(heap, struct ion_carveout_heap, heap);
+
+	ion_contig_heap_show_buffers(s, &carveout_heap->heap,
+				     carveout_heap->base, carveout_heap->size);
+
+	return 0;
+}
+
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_carveout_heap *carveout_heap;
@@ -243,6 +257,7 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 	carveout_heap->protection_id = heap_data->id;
 	carveout_heap->secure = heap_data->secure;
 	carveout_heap->untouchable = heap_data->untouchable;
+	carveout_heap->heap.debug_show = ion_carveout_heap_debug_show;
 
 	return &carveout_heap->heap;
 }

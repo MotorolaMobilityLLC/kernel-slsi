@@ -17,6 +17,13 @@
 #ifndef _ION_DEBUG_H_
 #define _ION_DEBUG_H_
 
+#ifdef CONFIG_ION_EXYNOS
+void ion_contig_heap_show_buffers(struct seq_file *s, struct ion_heap *heap,
+				  phys_addr_t base, size_t pool_size);
+#else
+#define ion_contig_heap_show_buffers do { } while (0)
+#endif
+
 enum ion_event_type {
 	ION_EVENT_TYPE_ALLOC = 0,
 	ION_EVENT_TYPE_FREE,
