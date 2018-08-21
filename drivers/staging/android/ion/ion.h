@@ -104,6 +104,7 @@ struct ion_device {
 	struct rw_semaphore lock;
 	struct plist_head heaps;
 	struct dentry *debug_root;
+	struct dentry *heaps_debug_root;
 	int heap_cnt;
 };
 
@@ -363,9 +364,6 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 int ion_query_heaps(struct ion_heap_query *query);
-
-void ion_contig_heap_show_buffers(struct ion_heap *heap,
-				  phys_addr_t base, size_t pool_size);
 
 void *ion_buffer_kmap_get(struct ion_buffer *buffer);
 void ion_buffer_kmap_put(struct ion_buffer *buffer);

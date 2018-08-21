@@ -27,6 +27,7 @@
 
 #include "ion.h"
 #include "ion_exynos.h"
+#include "ion_debug.h"
 
 struct ion_cma_heap {
 	struct ion_heap heap;
@@ -116,7 +117,7 @@ free_mem:
 err_table:
 	cma_release(cma_heap->cma, pages, nr_pages);
 err:
-	ion_contig_heap_show_buffers(&cma_heap->heap,
+	ion_contig_heap_show_buffers(NULL, &cma_heap->heap,
 				     cma_get_base(cma_heap->cma),
 				     cma_get_size(cma_heap->cma));
 	return ret;
@@ -158,6 +159,18 @@ static struct ion_heap_ops ion_cma_ops = {
 };
 
 #ifdef CONFIG_ION_EXYNOS
+static int ion_cma_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
+				   void *unused)
+{
+	struct ion_cma_heap *cma_heap = to_cma_heap(heap);
+
+	ion_contig_heap_show_buffers(s, &cma_heap->heap,
+				     cma_get_base(cma_heap->cma),
+				     cma_get_size(cma_heap->cma));
+
+	return 0;
+}
+
 struct ion_heap *ion_cma_heap_create(struct cma *cma,
 				     struct ion_platform_heap *heap_data)
 {
@@ -170,6 +183,7 @@ struct ion_heap *ion_cma_heap_create(struct cma *cma,
 	cma_heap->heap.ops = &ion_cma_ops;
 	cma_heap->cma = cma;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
+	cma_heap->heap.debug_show = ion_cma_heap_debug_show;
 	cma_heap->heap.name = kstrndup(heap_data->name,
 				       MAX_HEAP_NAME - 1, GFP_KERNEL);
 	cma_heap->align_order = get_order(heap_data->align);

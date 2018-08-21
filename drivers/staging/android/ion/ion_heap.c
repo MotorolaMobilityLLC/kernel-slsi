@@ -315,33 +315,3 @@ void ion_heap_init_shrinker(struct ion_heap *heap)
 	heap->shrinker.batch = 0;
 	register_shrinker(&heap->shrinker);
 }
-
-void ion_contig_heap_show_buffers(struct ion_heap *heap,
-				  phys_addr_t base, size_t pool_size)
-{
-	size_t total_size = 0;
-	struct rb_node *n;
-
-	if (heap->type != ION_HEAP_TYPE_CARVEOUT &&
-	    heap->type != ION_HEAP_TYPE_DMA)
-		return;
-
-	pr_info("ION heap '%s' of type %u and id %u, size %zu bytes\n",
-		heap->name, heap->type, heap->id, pool_size);
-	pr_info("List of buffers --------------------------------\n");
-	mutex_lock(&heap->dev->buffer_lock);
-	for (n = rb_first(&heap->dev->buffers); n; n = rb_next(n)) {
-		struct ion_buffer *buffer = rb_entry(n, struct ion_buffer,
-						     node);
-		unsigned long offset;
-
-		if (buffer->heap != heap)
-			continue;
-
-		offset = (unsigned long)(sg_phys(buffer->sg_table->sgl) - base);
-		pr_info("    OFFSET %#010lx SIZE %zu\n", offset, buffer->size);
-		total_size += buffer->size;
-	}
-	mutex_unlock(&heap->dev->buffer_lock);
-	pr_info("Total allocated size: %zu bytes --------------\n", total_size);
-}

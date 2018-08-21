@@ -115,6 +115,7 @@ int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 				      enum dma_data_direction direction);
 void ion_debug_initialize(struct ion_device *idev);
+void ion_debug_heap_init(struct ion_heap *heap);
 
 #else
 static inline void *ion_buffer_protect_single(unsigned int protection_id,
@@ -167,6 +168,7 @@ static inline int ion_exynos_dma_buf_end_cpu_access(
 }
 
 #define ion_debug_initialize(idev) do { } while (0)
+#define ion_debug_heap_init(idev) do { } while (0)
 #endif
 
 extern const struct dma_buf_ops ion_dma_buf_ops;
