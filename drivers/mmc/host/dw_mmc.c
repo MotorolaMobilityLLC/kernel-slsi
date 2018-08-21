@@ -3899,10 +3899,10 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 			dw_mci_reset(host);
 		spin_unlock_bh(&host->lock);
 	}
-	if (present)
-		mmc_detect_change(slot->mmc, msecs_to_jiffies(host->pdata->detect_delay_ms));
-	else {
-		mmc_detect_change(slot->mmc, 0);
+
+	mmc_detect_change(slot->mmc, msecs_to_jiffies(host->pdata->detect_delay_ms));
+
+	if (!present) {
 		if (host->pdata->only_once_tune)
 			host->pdata->tuned = false;
 
