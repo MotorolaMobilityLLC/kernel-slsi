@@ -715,7 +715,8 @@ static ssize_t scsc_acl_credit(char __user *buf, size_t len)
 	ssize_t                      ret = 0;
 
 	SCSC_TAG_DEBUG(BT_H4, "td (hci_connection_handle=0x%03x, buffer_index=%u), len=%zu, read_offset=%zu\n",
-		       td->hci_connection_handle, td->buffer_index, len, bt_service.read_offset);
+		       td->hci_connection_handle & SCSC_BT_ACL_HANDLE_MASK,
+		       td->buffer_index, len, bt_service.read_offset);
 
 	/* Calculate the amount of data that can be transferred */
 	len = min(h4_hci_event_ncp_header_len - bt_service.read_offset, len);
@@ -1044,23 +1045,30 @@ static ssize_t scsc_bt_shm_h4_read_acl_credit(char __user *buf, size_t len)
 	ssize_t ret = 0;
 	ssize_t consumed = 0;
 
-	if (BT_READ_OP_NONE == bt_service.read_operation && 0 == ret && bt_service.mailbox_acl_free_read != bt_service.mailbox_acl_free_write) {
+	if (BT_READ_OP_NONE == bt_service.read_operation && 0 == ret &&
+	    bt_service.mailbox_acl_free_read != bt_service.mailbox_acl_free_write) {
 		u32 entries = 0;
 		u32 index;
 
 		memset(h4_hci_event_ncp_header, 0, sizeof(h4_hci_event_ncp_header));
 
 		while (bt_service.mailbox_acl_free_read != bt_service.mailbox_acl_free_write) {
-			struct BSMHCP_TD_ACL_TX_FREE *td = &bt_service.bsmhcp_protocol->acl_tx_free_transfer_ring[bt_service.mailbox_acl_free_read];
+			struct BSMHCP_TD_ACL_TX_FREE *td =
+			    &bt_service.bsmhcp_protocol->acl_tx_free_transfer_ring[bt_service.mailbox_acl_free_read];
+			uint16_t sanitized_conn_handle = td->hci_connection_handle & SCSC_BT_ACL_HANDLE_MASK;
 
-			if (CONNECTION_ACTIVE == bt_service.connection_handle_list[td->hci_connection_handle].state) {
+			if (bt_service.connection_handle_list[sanitized_conn_handle].state == CONNECTION_ACTIVE) {
 				for (index = 0; index < BSMHCP_TRANSFER_RING_ACL_COUNT; index++) {
 					if (0 == h4_hci_credit_entries[index].hci_connection_handle) {
-						h4_hci_credit_entries[index].hci_connection_handle = td->hci_connection_handle;
+						h4_hci_credit_entries[index].hci_connection_handle =
+						    td->hci_connection_handle;
 						h4_hci_credit_entries[index].credits = 1;
 						entries++;
 						break;
-					} else if (h4_hci_credit_entries[index].hci_connection_handle == td->hci_connection_handle) {
+					} else if ((h4_hci_credit_entries[index].hci_connection_handle &
+						    SCSC_BT_ACL_HANDLE_MASK) == sanitized_conn_handle) {
+						h4_hci_credit_entries[index].hci_connection_handle =
+						    td->hci_connection_handle;
 						h4_hci_credit_entries[index].credits++;
 						break;
 					}
@@ -1068,7 +1076,7 @@ static ssize_t scsc_bt_shm_h4_read_acl_credit(char __user *buf, size_t len)
 			} else
 				SCSC_TAG_WARNING(BT_H4,
 					"No active connection ((hci_connection_handle=0x%03x)\n",
-					td->hci_connection_handle);
+					sanitized_conn_handle);
 
 			BSMHCP_INCREASE_INDEX(bt_service.mailbox_acl_free_read, BSMHCP_TRANSFER_RING_ACL_SIZE);
 		}

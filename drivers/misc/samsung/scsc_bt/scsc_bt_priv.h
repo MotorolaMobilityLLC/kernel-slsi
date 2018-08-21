@@ -67,6 +67,7 @@
 #define SCSC_BT_CONNECTION_INFO_MAX     (0x1000)
 #define SCSC_BT_ACL_RAW_MASK            (0xF000)
 #define SCSC_BT_ACL_RAW                 (0x2000)
+#define SCSC_BT_ACL_HANDLE_MASK         (0x0FFF)
 
 #define SCSC_TTY_MINORS (8)
 
