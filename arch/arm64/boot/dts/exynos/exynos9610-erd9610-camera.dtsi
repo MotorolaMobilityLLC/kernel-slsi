@@ -278,7 +278,7 @@
 			rear_preview_full_int = <DVFS_INT_L0>;
 			rear_preview_full_hpg = <1>;
 
-			rear_capture_int_cam = <DVFS_INT_CAM_L2>;
+			rear_capture_int_cam = <DVFS_INT_CAM_L0>;
 			rear_capture_cam = <DVFS_CAM_L1>;
 			rear_capture_mif = <DVFS_MIF_L3>;
 			rear_capture_int = <DVFS_INT_L0>;
