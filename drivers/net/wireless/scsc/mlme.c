@@ -1854,11 +1854,14 @@ int slsi_mlme_start(struct slsi_dev *sdev, struct net_device *dev, u8 *bssid, st
 	if (append_vht_ies)
 		vht_ies_len = SLSI_VHT_CAPABILITIES_IE_LEN + SLSI_VHT_OPERATION_IE_LEN;
 
-	if ((recv_vht_capab_ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, settings->beacon.tail,
-						  settings->beacon.tail_len)) != NULL)
+	recv_vht_capab_ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, settings->beacon.tail,
+					     settings->beacon.tail_len);
+	if (recv_vht_capab_ie)
 		vht_ies_len -= (recv_vht_capab_ie[1] + 2);
-	if ((recv_vht_operation_ie = cfg80211_find_ie(WLAN_EID_VHT_OPERATION, settings->beacon.tail,
-						      settings->beacon.tail_len)) != NULL)
+
+	recv_vht_operation_ie = cfg80211_find_ie(WLAN_EID_VHT_OPERATION, settings->beacon.tail,
+						 settings->beacon.tail_len);
+	if (recv_vht_operation_ie)
 		vht_ies_len -= (recv_vht_operation_ie[1] + 2);
 
 	if (ndev_vif->chandef->width == NL80211_CHAN_WIDTH_80) {
