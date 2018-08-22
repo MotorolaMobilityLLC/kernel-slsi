@@ -415,22 +415,25 @@
 		};
 	};
 
-	fimc_is_pafstat0: fimc_is_pafstat@14440000 {
+	sensor_paf_pafstat_0: sensor-paf-pafstat@14440000 {
 		/* PAFSTAT CORE0 */
-		compatible = "samsung,exynos5-fimc-is-pafstat";
+		compatible = "samsung,sensor-paf-pafstat";
 		reg = <0x0 0x14440000 0x1000>,
 			<0x0 0x14448000 0x1000>; /* PAFSTAT CONTEXT0 */
 		interrupts = <0 329 0>;
-		id = <0>;
 	};
 
-	fimc_is_pafstat1: fimc_is_pafstat@14444000 {
+	sensor_paf_pafstat_1: sensor-paf-pafstat@14444000 {
 		/* PDP CORE1 */
-		compatible = "samsung,exynos5-fimc-is-pafstat";
+		compatible = "samsung,sensor-paf-pafstat";
 		reg = <0x0 0x14444000 0x1000>,
 			<0x0 0x1444C000 0x1000>; /* PAFSTAT CONTEXT1 */
 		interrupts = <0 330 0>;
-		id = <1>;
+	};
+
+	aliases {
+		pafstat0 = &sensor_paf_pafstat_0;
+		pafstat1 = &sensor_paf_pafstat_1;
 	};
 
 	camerapp_gdc: gdc@14630000 {
