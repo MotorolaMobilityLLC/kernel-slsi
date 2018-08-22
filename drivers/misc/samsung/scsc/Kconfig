@@ -146,7 +146,7 @@ config SCSC_WIFILOGGER_TEST
 config SCSC_LOG_COLLECTION
 	bool "Samsung SCSC Log Collection"
 	depends on SCSC_CORE
-	default y
+	default n
 	---help---
 	  Enable LOG collection to collect Chunks (host and FW) and generate a SBL file
 
