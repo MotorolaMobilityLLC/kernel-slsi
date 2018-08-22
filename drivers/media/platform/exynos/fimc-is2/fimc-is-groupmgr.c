@@ -2547,6 +2547,22 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 			}
 		}
 #endif
+
+#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
+		if ((GET_DEVICE_TYPE_BY_GRP(group->id) == FIMC_IS_DEVICE_SENSOR)
+				&& (device->sensor && !test_bit(FIMC_IS_SENSOR_FRONT_START, &device->sensor->state))) {
+			device->sensor->mode_chg_frame = NULL;
+
+			if (CHK_REMOSAIC_SCN(frame->shot->ctl.aa.sceneMode)) {
+				clear_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->sensor->state);
+				device->sensor->mode_chg_frame = frame;
+			} else {
+				if (group->child)
+					set_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->sensor->state);
+			}
+		}
+#endif
+
 		trans_frame(framemgr, frame, FS_REQUEST);
 	} else {
 		err("frame(%d) is invalid state(%d)\n", index, frame->state);
@@ -2965,17 +2981,6 @@ int fimc_is_group_shot(struct fimc_is_groupmgr *groupmgr,
 	}
 
 	if (device->sensor && !test_bit(FIMC_IS_SENSOR_FRONT_START, &device->sensor->state)) {
-#ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
-		if (CHK_REMOSAIC_SCN(frame->shot->ctl.aa.sceneMode)) {
-			clear_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->sensor->state);
-			device->sensor->mode_chg_frame = frame;
-		} else {
-			if (group->child)
-				set_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->sensor->state);
-
-			device->sensor->mode_chg_frame = NULL;
-		}
-#endif
 		/*
 		 * this statement is execued only at initial.
 		 * automatic increase the frame count of sensor
