@@ -295,7 +295,7 @@ int dmabuf_trace_alloc(struct dma_buf *dmabuf)
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
-		goto err_task;
+		return ret;
 
 	INIT_LIST_HEAD(&buffer->ref_list);
 
