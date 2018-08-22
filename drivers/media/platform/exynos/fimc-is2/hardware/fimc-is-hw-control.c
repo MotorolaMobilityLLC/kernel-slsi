@@ -286,9 +286,11 @@ static void _fimc_is_hardware_sfr_dump(struct fimc_is_hw_ip *hw_ip, bool flag_pr
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 32, 4,
 			hw_ip->regs, reg_size, false);
 #else
-	if (flag_print_log)
-		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 32, 4,
-				hw_ip->regs, reg_size, false);
+	if (flag_print_log) {
+		if (hw_ip->id != DEV_HW_3AA1 || hw_ip->id != DEV_HW_VRA)
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 32, 4,
+					hw_ip->regs, reg_size, false);
+	}
 #endif
 	if (IS_ERR_OR_NULL(hw_ip->sfr_b_dump))
 		return;
@@ -2672,7 +2674,7 @@ int fimc_is_hardware_frame_ndone(struct fimc_is_hw_ip *ldr_hw_ip,
 			}
 
 			if (done_type == IS_SHOT_TIMEOUT)
-				_fimc_is_hardware_sfr_dump(hw_ip, false);
+				_fimc_is_hardware_sfr_dump(hw_ip, true);
 		}
 		head = head->child;
 	}
