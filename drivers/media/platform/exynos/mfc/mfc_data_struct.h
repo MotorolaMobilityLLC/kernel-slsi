@@ -132,7 +132,7 @@ enum mfc_queue_state {
 enum mfc_dec_wait_state {
 	WAIT_NONE = 0,
 	WAIT_DECODING,
-	WAIT_INITBUF_DONE,
+	WAIT_DPB_FLUSH,
 };
 
 /**

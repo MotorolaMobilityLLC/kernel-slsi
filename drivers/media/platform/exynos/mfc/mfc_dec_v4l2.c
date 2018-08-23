@@ -284,12 +284,16 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if (ctx->state == MFCINST_GOT_INST ||
 	    ctx->state == MFCINST_RES_CHANGE_FLUSH ||
 	    ctx->state == MFCINST_RES_CHANGE_END) {
-		/* If the MFC is parsing the header,
-		 * so wait until it is finished */
-		if (mfc_wait_for_done_ctx(ctx,
-				MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
-				mfc_err_dev("header parsing failed\n");
-				return -EAGAIN;
+		/* If there is no source buffer to parsing, we can't SEQ_START */
+		if ((ctx->wait_state == WAIT_DECODING) &&
+			mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0)) {
+			mfc_err_dev("There is no source buffer to parsing, keep previous resolution\n");
+			return -EAGAIN;
+		}
+		/* If the MFC is parsing the header, so wait until it is finished */
+		if (mfc_wait_for_done_ctx(ctx, MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
+			mfc_err_dev("header parsing failed\n");
+			return -EAGAIN;
 		}
 	}
 
@@ -351,6 +355,11 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 					pix_fmt_mp->plane_fmt[i].sizeimage = raw->plane_size[i];
 			}
 		}
+	}
+
+	if (ctx->wait_state == WAIT_DECODING) {
+		ctx->wait_state = WAIT_DPB_FLUSH;
+		mfc_debug(2, "wait DPB flush for decoding(INIT_BUFFER)\n");
 	}
 
 	mfc_debug_leave();

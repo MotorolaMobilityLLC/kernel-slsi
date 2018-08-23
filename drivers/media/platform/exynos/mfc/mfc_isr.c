@@ -1466,10 +1466,6 @@ static int __mfc_irq_ctx(struct mfc_ctx *ctx, unsigned int reason, unsigned int 
 
 		mfc_change_state(ctx, MFCINST_RUNNING);
 		if (ctx->type == MFCINST_DECODER) {
-			if (ctx->wait_state == WAIT_DECODING) {
-				ctx->wait_state = WAIT_INITBUF_DONE;
-				mfc_debug(2, "INIT_BUFFER has done, but can't start decoding\n");
-			}
 			if (ctx->is_dpb_realloc)
 				ctx->is_dpb_realloc = 0;
 		}

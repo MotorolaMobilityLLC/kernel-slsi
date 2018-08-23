@@ -365,10 +365,9 @@ static void __mfc_dec_dst_stop_streaming(struct mfc_ctx *ctx)
 		index++;
 	}
 
-	if (ctx->wait_state == WAIT_INITBUF_DONE ||
-			ctx->wait_state == WAIT_DECODING) {
+	if (ctx->wait_state == WAIT_DPB_FLUSH) {
 		ctx->wait_state = WAIT_NONE;
-		mfc_debug(2, "Decoding can be started now\n");
+		mfc_debug(2, "Decoding(INIT_BUFFER) can be started now\n");
 	}
 }
 
