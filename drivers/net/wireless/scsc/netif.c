@@ -771,6 +771,7 @@ static netdev_tx_t slsi_net_hw_xmit(struct sk_buff *skb, struct net_device *dev)
 	enum slsi_traffic_q traffic_q = slsi_frame_priority_to_ac_queue(skb->priority);
 
 	slsi_wakelock(&sdev->wlan_wl);
+	slsi_skb_cb_init(skb);
 
 	/* Check for misaligned (oddly aligned) data.
 	 * The f/w requires 16 bit aligned.
