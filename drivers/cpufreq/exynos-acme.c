@@ -21,6 +21,7 @@
 #include <linux/cpu_cooling.h>
 #include <linux/suspend.h>
 #include <linux/ems.h>
+#include <linux/ems_service.h>
 
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/ect_parser.h>
@@ -884,6 +885,7 @@ static ssize_t store_cpufreq_min_limit(struct kobject *kobj,
 		/* Clear all constraint by cpufreq_min_limit */
 		if (input < 0) {
 			pm_qos_update_request(&domain->user_min_qos_req, 0);
+			request_kernel_prefer_perf(STUNE_TOPAPP, 0);
 			continue;
 		}
 
@@ -903,6 +905,8 @@ static ssize_t store_cpufreq_min_limit(struct kobject *kobj,
 
 		freq = min(freq, domain->max_freq);
 		pm_qos_update_request(&domain->user_min_qos_req, freq);
+
+		request_kernel_prefer_perf(STUNE_TOPAPP, domain->user_boost);
 
 		set_max = true;
 	}
@@ -1462,6 +1466,9 @@ static __init int init_domain(struct exynos_cpufreq_domain *domain,
 	/* Default QoS for user */
 	if (!of_property_read_u32(dn, "user-default-qos", &val))
 		domain->user_default_qos = val;
+
+	if (!of_property_read_u32(dn, "user-boost", &val))
+		domain->user_boost = val;
 
 	if (of_property_read_bool(dn, "need-awake"))
 		domain->need_awake = true;
