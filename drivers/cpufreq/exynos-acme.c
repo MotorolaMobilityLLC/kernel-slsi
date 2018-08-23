@@ -830,16 +830,6 @@ static ssize_t show_cpufreq_min_limit(struct kobject *kobj,
 	list_for_each_entry_reverse(domain, &domains, list) {
 		scale++;
 
-#ifdef CONFIG_SCHED_HMP
-		/*
-		 * In HMP architecture, last domain is big.
-		 * If HMP boost is not activated, PM QoS value of
-		 * big is not shown.
-		 */
-		if (domain == last_domain() && !get_hmp_boost())
-			continue;
-#endif
-
 		/* get value of minimum PM QoS */
 		pm_qos_min = pm_qos_request(domain->pm_qos_min_class);
 		if (pm_qos_min > 0) {
@@ -865,22 +855,6 @@ static ssize_t show_cpufreq_min_limit(struct kobject *kobj,
 	return snprintf(buf, 10, "%u\n",
 		first_domain()->min_freq >> (scale * SCALE_SIZE));
 }
-
-#ifdef CONFIG_SCHED_HMP
-static bool hmp_boost;
-static void control_hmp_boost(bool enable)
-{
-	if (hmp_boost && !enable) {
-		set_hmp_boost(0);
-		hmp_boost = false;
-	} else if (!hmp_boost && enable) {
-		set_hmp_boost(1);
-		hmp_boost = true;
-	}
-}
-#else
-static inline void control_hmp_boost(bool enable) {}
-#endif
 
 static ssize_t store_cpufreq_min_limit(struct kobject *kobj,
 				struct attribute *attr, const char *buf,
@@ -910,7 +884,6 @@ static ssize_t store_cpufreq_min_limit(struct kobject *kobj,
 		/* Clear all constraint by cpufreq_min_limit */
 		if (input < 0) {
 			pm_qos_update_request(&domain->user_min_qos_req, 0);
-			control_hmp_boost(false);
 			continue;
 		}
 
@@ -927,15 +900,6 @@ static ssize_t store_cpufreq_min_limit(struct kobject *kobj,
 			pm_qos_update_request(&domain->user_min_qos_req, 0);
 			continue;
 		}
-
-		/*
-		 * In HMP, last domain is big. Input frequency is in range
-		 * of big, it enables HMP boost.
-		 */
-		if (domain == last_domain())
-			control_hmp_boost(true);
-		else
-			control_hmp_boost(false);
 
 		freq = min(freq, domain->max_freq);
 		pm_qos_update_request(&domain->user_min_qos_req, freq);
@@ -990,15 +954,6 @@ static ssize_t store_cpufreq_min_limit_wo_boost(struct kobject *kobj,
 			pm_qos_update_request(&domain->user_min_qos_wo_boost_req, 0);
 			continue;
 		}
-
-#ifdef CONFIG_SCHED_HMP
-		/*
-		 * If hmp_boost was already activated by cpufreq_min_limit,
-		 * print a message to avoid confusing who activated hmp_boost.
-		 */
-		if (domain == last_domain() && hmp_boost)
-			pr_info("HMP boost was already activated by cpufreq_min_limit node");
-#endif
 
 		freq = min(freq, domain->max_freq);
 		pm_qos_update_request(&domain->user_min_qos_wo_boost_req, freq);
