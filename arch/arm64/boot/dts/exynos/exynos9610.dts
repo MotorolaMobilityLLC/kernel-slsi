@@ -118,6 +118,21 @@
 		reg = <0x0 0x10000000 0x100>;
 	};
 
+	arm-pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <0 82 4>,
+			   <0 83 4>,
+			   <0 84 4>,
+			   <0 85 4>,
+			   <0 96 4>,
+			   <0 97 4>,
+			   <0 98 4>,
+			   <0 99 4>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>,
+					<&cpu3>, <&cpu4>, <&cpu5>,
+					<&cpu6>, <&cpu7>;
+	};
+
 	cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
