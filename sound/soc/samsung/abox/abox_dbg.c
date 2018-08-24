@@ -121,7 +121,7 @@ static void *abox_dbg_alloc_mem_atomic(struct device *dev, struct abox_dbg_dump_
 	int i, j;
 	int npages = DRAM_FIRMWARE_SIZE / PAGE_SIZE;
 	struct page **tmp;
-	gfp_t alloc_gfp_flag = GFP_KERNEL | GFP_ATOMIC;
+	gfp_t alloc_gfp_flag = GFP_ATOMIC;
 
 	p_dump->pages = kzalloc(sizeof(struct page *) * npages, alloc_gfp_flag);
 	if (!p_dump->pages) {
