@@ -48,7 +48,7 @@
 #define HCI_EVENT_NUMBER_OF_COMPLETED_PACKETS_EVENT     (0x13)
 #define HCI_EVENT_HARDWARE_ERROR_EVENT                  (0x10)
 
-#define SCSC_BT_CONF      "bluetooth/bt.hcf"
+#define SCSC_BT_CONF      "bt.hcf"
 #ifdef CONFIG_SCSC_BT_BLUEZ
 #define SCSC_BT_ADDR      "/csa/bluetooth/.bd_addr"
 #define SCSC_BT_ADDR_LEN  (3)
@@ -184,6 +184,13 @@ struct scsc_common_service {
 
 extern struct scsc_common_service common_service;
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+struct scsc_bt_hcf_collection {
+	void                       *hcf;
+	u32                        hcf_size;
+};
+#endif
+
 struct scsc_bt_service {
 	dev_t                          device;
 	struct scsc_service            *service;
@@ -245,6 +252,10 @@ struct scsc_bt_service {
 	struct scsc_bt_avdtp_detect    avdtp_detect;
 	struct completion              recovery_release_complete;
 	struct completion              recovery_probe_complete;
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	struct scsc_bt_hcf_collection  hcf_collection;
+#endif
 };
 
 extern struct scsc_bt_service bt_service;

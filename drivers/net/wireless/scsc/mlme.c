@@ -15,6 +15,7 @@
 #include "mlme.h"
 #include "mib.h"
 #include "mgt.h"
+#include "cac.h"
 
 #define SLSI_SCAN_PRIVATE_IE_CHANNEL_LIST_HEADER_LEN	7
 #define SLSI_SCAN_PRIVATE_IE_SSID_FILTER_HEADER_LEN		7
@@ -905,6 +906,8 @@ void slsi_mlme_del_vif(struct slsi_dev *sdev, struct net_device *dev)
 		ndev_vif->probe_req_ie_len = 0;
 		ndev_vif->delete_probe_req_ies = false;
 	}
+	if (SLSI_IS_VIF_INDEX_P2P(ndev_vif))
+		ndev_vif->drv_in_p2p_procedure = false;
 
 	slsi_kfree_skb(cfm);
 }
@@ -940,6 +943,35 @@ int slsi_mlme_set_channel(struct slsi_dev *sdev, struct net_device *dev, struct 
 
 	if (fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
 		SLSI_NET_ERR(dev, "mlme_set_channel_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code));
+		r = -EINVAL;
+	}
+
+	slsi_kfree_skb(cfm);
+	return r;
+}
+
+int slsi_mlme_spare_signal_1(struct slsi_dev *sdev, struct net_device *dev)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	int		     r = 0;
+
+	SLSI_NET_DBG3(dev, SLSI_MLME, "slsi_mlme_spare_signal_1\n");
+
+	req = fapi_alloc(mlme_spare_signal_1_req, MLME_SPARE_SIGNAL_1_REQ, ndev_vif->ifnum, 0);
+
+	if (!req)
+		return -ENOMEM;
+
+	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_SPARE_SIGNAL_1_CFM);
+
+	if (!cfm)
+		return -EIO;
+
+	if (fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_NET_ERR(dev, "mlme_spare_channel_cfm(result:%u) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -1975,9 +2007,11 @@ static const u8 *slsi_mlme_connect_get_sec_ie(struct cfg80211_connect_params *sm
 	return ptr;
 }
 
-/* If is_copy is true copy the required IEs from connect_ie to ie_dest. else calculate the required ie length */
-static int slsi_mlme_connect_info_elems_ie_prep(const u8 *connect_ie, const size_t connect_ie_len,
-						bool is_copy, u8 *ie_dest, int ie_dest_len)
+/* If is_copy is true copy the required IEs from connect_ie to ie_dest. else
+ * calculate the required ie length
+ */
+static int slsi_mlme_connect_info_elems_ie_prep(struct slsi_dev *sdev, const u8 *connect_ie,
+						const size_t connect_ie_len, bool is_copy, u8 *ie_dest, int ie_dest_len)
 {
 	const u8 *ie_pos = NULL;
 	int      info_elem_length = 0;
@@ -1994,7 +2028,8 @@ static int slsi_mlme_connect_info_elems_ie_prep(const u8 *connect_ie, const size
 			if (ie_dest_len >= curr_ie_len) {
 				memcpy(ie_dest, ie_pos, curr_ie_len);
 				ie_dest += curr_ie_len;
-				ie_dest_len -= curr_ie_len;         /* free space available in ie_dest for next ie */
+				/* free space avail in ie_dest for next ie*/
+				ie_dest_len -= curr_ie_len;
 			} else {
 				SLSI_ERR_NODEV("interwork ie extract error (ie_copy_l:%d, c_ie_l:%d):\n", ie_dest_len, curr_ie_len);
 				return -EINVAL;
@@ -2007,7 +2042,8 @@ static int slsi_mlme_connect_info_elems_ie_prep(const u8 *connect_ie, const size
 	/* vendor specific IEs will be the last elements. */
 	ie_pos = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, connect_ie, connect_ie_len);
 	if (ie_pos) {
-		curr_ie_len = connect_ie_len - (ie_pos - connect_ie);         /* length of all the vendor specific IEs */
+		/* length of all the vendor specific IEs */
+		curr_ie_len = connect_ie_len - (ie_pos - connect_ie);
 		if (is_copy) {
 			if (ie_dest_len >= curr_ie_len) {
 				memcpy(ie_dest, ie_pos, curr_ie_len);
@@ -2022,6 +2058,30 @@ static int slsi_mlme_connect_info_elems_ie_prep(const u8 *connect_ie, const size
 		}
 	}
 
+	if (sdev->device_config.qos_info != -1) {
+		if (is_copy) {
+			if (ie_dest_len >= 9) {
+				int pos = 0;
+
+				ie_dest[pos++] = SLSI_WLAN_EID_VENDOR_SPECIFIC;
+				ie_dest[pos++] = 0x07;
+				ie_dest[pos++] = 0x00;
+				ie_dest[pos++] = 0x50;
+				ie_dest[pos++] = 0xf2;
+				ie_dest[pos++] = WLAN_OUI_TYPE_MICROSOFT_WMM;
+				ie_dest[pos++] = WMM_OUI_SUBTYPE_INFORMATION_ELEMENT;
+				ie_dest[pos++] = WMM_VERSION;
+				ie_dest[pos++] = sdev->device_config.qos_info & 0x0F;
+				ie_dest += pos;
+				ie_dest_len -= pos;
+			} else {
+				SLSI_ERR_NODEV("Required 9bytes but left:%d\n", ie_dest_len);
+				return -EINVAL;
+			}
+		} else {
+			info_elem_length += 9;
+		}
+	}
 	return info_elem_length;
 }
 
@@ -2034,7 +2094,7 @@ static int slsi_mlme_connect_info_elements(struct slsi_dev *sdev, struct net_dev
 	int               r = 0;
 	u8                *p;
 
-	info_elem_length = slsi_mlme_connect_info_elems_ie_prep(sme->ie, sme->ie_len, false, NULL, 0);
+	info_elem_length = slsi_mlme_connect_info_elems_ie_prep(sdev, sme->ie, sme->ie_len, false, NULL, 0);
 
 	/* NO IE required in MLME-ADD-INFO-ELEMENTS */
 	if (info_elem_length <= 0)
@@ -2053,7 +2113,7 @@ static int slsi_mlme_connect_info_elements(struct slsi_dev *sdev, struct net_dev
 		return -EINVAL;
 	}
 
-	(void)slsi_mlme_connect_info_elems_ie_prep(sme->ie, sme->ie_len, true, p, info_elem_length);
+	(void)slsi_mlme_connect_info_elems_ie_prep(sdev, sme->ie, sme->ie_len, true, p, info_elem_length);
 
 	/* backup ies */
 	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
@@ -2306,10 +2366,7 @@ int slsi_mlme_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *mac,
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_disconnect_req(vif:%u, bssid:%pM, reason:%d)\n", ndev_vif->ifnum, mac, reason_code);
 
 #ifdef CONFIG_SCSC_LOG_COLLECTION
-	/* stop sable generation as a workaround for now on wifi disconnect.
-	 * TODO: serialize tar generation in wlbtd
-	 * scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DISCONNECT);
-	 */
+	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DISCONNECT);
 #else
 	mx140_log_dump();
 #endif
@@ -2392,6 +2449,10 @@ int slsi_mlme_set_key(struct slsi_dev *sdev, struct net_device *dev, u16 key_id,
 
 		if (key_id > 3)
 			SLSI_NET_WARN(dev, "Key ID is greater than 3");
+		/* Incase of WEP key index is appended before key.
+		 * So increment length by one
+		 */
+		fapi_set_u16(req, u.mlme_setkeys_req.length, (key->key_len + 1) * 8);
 		fapi_append_data(req, &wep_key_id, 1);
 	}
 	fapi_append_data(req, key->key, key->key_len);

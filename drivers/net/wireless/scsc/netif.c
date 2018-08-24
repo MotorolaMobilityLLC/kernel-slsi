@@ -1196,7 +1196,7 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	ndev_vif->delete_probe_req_ies = false;
 	ndev_vif->probe_req_ies = NULL;
 	ndev_vif->probe_req_ie_len = 0;
-
+	ndev_vif->drv_in_p2p_procedure = false;
 	return 0;
 
 exit_with_error:

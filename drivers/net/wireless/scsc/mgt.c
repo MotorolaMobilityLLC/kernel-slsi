@@ -24,6 +24,9 @@
 #include "unittest.h"
 #endif
 #include "hip.h"
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
 
 #include "procfs.h"
 #include "mib.h"
@@ -55,7 +58,6 @@ MODULE_PARM_DESC(mib_file2_t, "mib data filename");
 static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *mib_info, const struct firmware **fw);
 static int slsi_mib_close_file(struct slsi_dev *sdev, const struct firmware *e);
 static int slsi_mib_download_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *mib_info);
-static void slsi_reset_channel_flags(struct slsi_dev *sdev);
 static int slsi_country_to_index(struct slsi_802_11d_reg_domain *domain_info, const char *alpha2);
 static int slsi_mib_initial_get(struct slsi_dev *sdev);
 static int slsi_hanged_event_count;
@@ -191,31 +193,6 @@ mac_default:
 #endif
 }
 
-static void slsi_print_platform_id(struct slsi_dev *sdev)
-{
-	const struct firmware *e = NULL;
-	char                  path_name[MX_WLAN_FILE_PATH_LEN_MAX];
-	int                   r;
-
-	/* read platform id file */
-	scnprintf(path_name, MX_WLAN_FILE_PATH_LEN_MAX, "wlan/platform.txt");
-	SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "Platform ID file : %s\n", path_name);
-
-	r = mx140_file_request_conf(sdev->maxwell_core, &e, path_name);
-	if (r != 0) {
-		mx140_file_release_conf(sdev->maxwell_core, e);
-		return;
-	}
-	if (!e) {
-		SLSI_WARN(sdev, "mx140_file_request_device_conf() returned success, but the struct firmware handle was null\n");
-		mx140_file_release_conf(sdev->maxwell_core, e);
-		return;
-	}
-	SLSI_INFO(sdev, "Platform ID loaded from %s: %s", path_name, (char *)e->data); /* .txt is \n terminated */
-	mx140_file_release_conf(sdev->maxwell_core, e);
-}
-
-
 static void write_wifi_version_info_file(struct slsi_dev *sdev)
 {
 	struct file *fp = NULL;
@@ -243,10 +220,17 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
 	 * The framework parser for the version may depend on this
 	 * exact formatting.
 	 */
-	snprintf(buf, sizeof(buf), "%s (f/w_ver: %s)\nregDom_ver: %d.%d\n",
-		build_id_drv,
-		build_id_fw,
-		((sdev->reg_dom_version >> 8) & 0xFF), (sdev->reg_dom_version & 0xFF));
+	snprintf(buf, sizeof(buf),
+		 "drv_ver: %s\n"
+		 "f/w_ver: %s\n"
+		 "hcf_ver_hw: %u\n"
+		 "hcf_ver_sw: %u\n"
+		 "regDom_ver: %d.%d\n",
+		 build_id_drv,
+		 build_id_fw,
+		 sdev->mib[0].mib_hash,
+		 sdev->mib[1].mib_hash,
+		 ((sdev->reg_dom_version >> 8) & 0xFF), (sdev->reg_dom_version & 0xFF));
 
 	kernel_write(fp, buf, strlen(buf), 0);
 
@@ -293,6 +277,67 @@ void slsi_stop_monitor_mode(struct slsi_dev *sdev, struct net_device *dev)
 	slsi_mlme_del_vif(sdev, dev);
 	slsi_vif_deactivated(sdev, dev);
 }
+#endif
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+static int slsi_hcf_collect(struct scsc_log_collector_client *collect_client, size_t size)
+{
+	struct slsi_dev *sdev = (struct slsi_dev *)collect_client->prv;
+	int ret = 0;
+	u8 index = sdev->collect_mib.num_files;
+	u8 i;
+	u8 *data;
+
+	SLSI_INFO_NODEV("Collecting WLAN HCF\n");
+
+	if (!sdev->collect_mib.enabled)
+		SLSI_INFO_NODEV("Collection not enabled\n");
+
+	spin_lock(&sdev->collect_mib.in_collection);
+	ret = scsc_log_collector_write(&index, sizeof(char), 1);
+	if (ret) {
+		spin_unlock(&sdev->collect_mib.in_collection);
+		return ret;
+	}
+
+	for (i = 0; i < index; i++) {
+		SLSI_INFO_NODEV("Collecting WLAN HCF. File %s\n", sdev->collect_mib.file[i].file_name);
+		/* Write file name */
+		ret = scsc_log_collector_write((char *)&sdev->collect_mib.file[i].file_name, 32, 1);
+		if (ret) {
+			spin_unlock(&sdev->collect_mib.in_collection);
+			return ret;
+		}
+		/* Write file len */
+		ret = scsc_log_collector_write((char *)&sdev->collect_mib.file[i].len, sizeof(u16), 1);
+		if (ret) {
+			spin_unlock(&sdev->collect_mib.in_collection);
+			return ret;
+		}
+		/* Write data */
+		data = sdev->collect_mib.file[i].data;
+		if (!data)
+			continue;
+		ret = scsc_log_collector_write((char *)data, sdev->collect_mib.file[i].len, 1);
+		if (ret) {
+			spin_unlock(&sdev->collect_mib.in_collection);
+			return ret;
+		}
+	}
+	spin_unlock(&sdev->collect_mib.in_collection);
+
+	return ret;
+}
+
+/* Collect client registration for HCF file*/
+struct scsc_log_collector_client slsi_hcf_client = {
+	.name = "wlan_hcf",
+	.type = SCSC_LOG_CHUNK_WLAN_HCF,
+	.collect_init = NULL,
+	.collect = slsi_hcf_collect,
+	.collect_end = NULL,
+	.prv = NULL,
+};
 #endif
 
 #define SLSI_SM_WLAN_SERVICE_RECOVERY_COMPLETED_TIMEOUT 20000
@@ -347,7 +392,6 @@ int slsi_start(struct slsi_dev *sdev)
 
 	SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Step [1/2]: Start WLAN service\n");
 	SLSI_EC_GOTO(slsi_sm_wlan_service_open(sdev), err, err_done);
-	slsi_print_platform_id(sdev);
 	/**
 	 * Download MIB data, if any.
 	 */
@@ -355,6 +399,11 @@ int slsi_start(struct slsi_dev *sdev)
 
 	sdev->local_mib.mib_hash = 0; /* Reset localmib hash value */
 #ifndef SLSI_TEST_DEV
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	spin_lock_init(&sdev->collect_mib.in_collection);
+	sdev->collect_mib.num_files = 0;
+	sdev->collect_mib.enabled = false;
+#endif
 #ifndef CONFIG_SCSC_DOWNLOAD_FILE
 	if (slsi_is_rf_test_mode_enabled()) {
 		sdev->mib[0].mib_file_name = mib_file_t;
@@ -466,6 +515,12 @@ int slsi_start(struct slsi_dev *sdev)
 		SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Succeed to write softap information to .softap.info\n");
 	}
 #endif
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	/* Register with log collector to collect wlan hcf file */
+	slsi_hcf_client.prv = sdev;
+	scsc_log_collector_register_client(&slsi_hcf_client);
+	sdev->collect_mib.enabled = true;
+#endif
 	slsi_update_supported_channels_regd_flags(sdev);
 	SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "---Driver started successfully---\n");
 	sdev->device_state = SLSI_DEVICE_STATE_STARTED;
@@ -536,6 +591,10 @@ struct net_device *slsi_new_interface_create(struct wiphy        *wiphy,
 
 static void slsi_stop_chip(struct slsi_dev *sdev)
 {
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	u8 index = sdev->collect_mib.num_files;
+	u8 i;
+#endif
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(sdev->start_stop_mutex));
 
 	SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "netdev_up_count:%d device_state:%d\n", sdev->netdev_up_count, sdev->device_state);
@@ -546,6 +605,13 @@ static void slsi_stop_chip(struct slsi_dev *sdev)
 	/* Only shutdown on the last device going down. */
 	if (sdev->netdev_up_count)
 		return;
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	sdev->collect_mib.enabled = false;
+	scsc_log_collector_unregister_client(&slsi_hcf_client);
+	for (i = 0; i < index; i++)
+		kfree(sdev->collect_mib.file[i].data);
+#endif
 
 	slsi_reset_channel_flags(sdev);
 	slsi_regd_init(sdev);
@@ -804,6 +870,10 @@ static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *m
 	const char *mib_file_ext;
 	char path_name[MX_WLAN_FILE_PATH_LEN_MAX];
 	char *mib_file_name = mib_info->mib_file_name;
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	u8 index = sdev->collect_mib.num_files;
+	u8 *data;
+#endif
 
 	if (!mib_file_name || !fw)
 		return -EINVAL;
@@ -825,7 +895,7 @@ static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *m
 	scnprintf(path_name, MX_WLAN_FILE_PATH_LEN_MAX, "wlan/%s", mib_file_name);
 	SLSI_INFO(sdev, "Path to the MIB file : %s\n", path_name);
 
-	r = mx140_file_request_conf(sdev->maxwell_core, &e, path_name);
+	r = mx140_file_request_conf(sdev->maxwell_core, &e, "wlan", mib_file_name);
 	if (r || (!e)) {
 		SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Skip MIB download as file [%s] is NOT found and is optional\n", mib_file_name);
 		*fw = e;
@@ -835,6 +905,22 @@ static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *m
 	mib_info->mib_data = (u8 *)e->data;
 	mib_info->mib_len = e->size;
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	spin_lock(&sdev->collect_mib.in_collection);
+	memset(&sdev->collect_mib.file[index].file_name, 0, 32);
+	memcpy(&sdev->collect_mib.file[index].file_name, mib_file_name, 32);
+	sdev->collect_mib.file[index].len = mib_info->mib_len;
+	data = kmalloc(mib_info->mib_len, GFP_ATOMIC);
+	if (!data) {
+		spin_unlock(&sdev->collect_mib.in_collection);
+		goto cont;
+	}
+	memcpy(data, mib_info->mib_data, mib_info->mib_len);
+	sdev->collect_mib.file[index].data = data;
+	sdev->collect_mib.num_files += 1;
+	spin_unlock(&sdev->collect_mib.in_collection);
+cont:
+#endif
 	/* Check MIB file header */
 	if (mib_info->mib_len >= 8 &&              /* Room for header */
 		/*(sdev->mib_data[6] & 0xF0) == 0x20 && */ /* WLAN subsystem */
@@ -1062,7 +1148,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		} else {
 			sdev->nan_enabled = false;
 			SLSI_WARN(sdev, "Error reading NAN enabled mib\n");
-                }
+		}
 
 		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) { /* UnifiForcedScheduleDuration */
 			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_UINT);
@@ -2084,7 +2170,10 @@ int slsi_handle_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *pe
 		 * the connection with the AP has been lost
 		 */
 		if (ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTING) {
-			SLSI_NET_WARN(dev, "Unexpected mlme_disconnect_ind - whilst connecting\n");
+			if (peer_address)
+				SLSI_NET_WARN(dev, "Unexpected mlme_disconnect_ind - whilst connecting\n");
+			else
+				SLSI_NET_WARN(dev, "Connection failure\n");
 		} else if (ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED) {
 			if (reason == FAPI_REASONCODE_SYNCHRONISATION_LOSS)
 				reason = 0; /*reason code to recognise beacon loss */
@@ -3016,21 +3105,6 @@ exit_with_vif:
 	return r;
 }
 
-int slsi_set_uapsd_qos_info(struct slsi_dev *sdev, struct net_device *dev)
-{
-	int error = 0;
-
-	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
-	SLSI_DBG1(sdev, SLSI_MLME, "Configured QoS Info :0x%x\n", sdev->device_config.qos_info);
-	if (sdev->device_config.qos_info != -1) {
-		error = slsi_set_uint_mib(sdev, dev, SLSI_PSID_UNIFI_STATION_QOS_INFO, sdev->device_config.qos_info);
-		if (error)
-			SLSI_ERR(sdev, "Err setting qos info . error = %d\n", error);
-	}
-	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
-	return error;
-}
-
 int slsi_set_boost(struct slsi_dev *sdev, struct net_device *dev)
 {
 	int error = 0;
@@ -3070,6 +3144,13 @@ static void slsi_p2p_roc_duration_expiry_work(struct work_struct *work)
 
 	/* If action frame tx is in progress don't schedule work to delete vif */
 	if (ndev_vif->sdev->p2p_state != P2P_ACTION_FRAME_TX_RX) {
+		/* After sucessful frame transmission,  we will move to LISTENING or VIF ACTIVE state.
+		 * Unset channel should not be sent down during p2p procedure.
+		 */
+		if (ndev_vif->drv_in_p2p_procedure == 0) {
+			slsi_mlme_spare_signal_1(ndev_vif->sdev, ndev_vif->wdev.netdev);
+			ndev_vif->driver_channel = 0;
+		}
 		slsi_p2p_queue_unsync_vif_del_work(ndev_vif, SLSI_P2P_UNSYNC_VIF_EXTRA_MSEC);
 		SLSI_P2P_STATE_CHANGE(ndev_vif->sdev, P2P_IDLE_VIF_ACTIVE);
 	}
@@ -3178,6 +3259,7 @@ int slsi_p2p_vif_activate(struct slsi_dev *sdev, struct net_device *dev, struct 
 		goto exit_with_vif;
 	} else {
 		ndev_vif->chan = chan;
+		ndev_vif->driver_channel = chan->hw_value;
 	}
 
 	ndev_vif->mgmt_tx_data.exp_frame = SLSI_P2P_PA_INVALID;
@@ -3914,7 +3996,7 @@ static void slsi_reg_mib_to_regd(struct slsi_mib_data *mib, struct slsi_802_11d_
 	domain_info->regdomain->n_reg_rules = num_rules;
 }
 
-static void slsi_reset_channel_flags(struct slsi_dev *sdev)
+void slsi_reset_channel_flags(struct slsi_dev *sdev)
 {
 	enum nl80211_band band;
 	struct ieee80211_channel *chan;
@@ -4100,7 +4182,6 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 	int sta_frequency = ndev_sta_vif->chan->center_freq;
 
 	SLSI_DBG1(sdev, SLSI_CFG80211, "Station connected on frequency: %d\n", sta_frequency);
-	SLSI_DBG1(sdev, SLSI_CFG80211, "AP frequency received: %d\n", settings->chandef.chan->center_freq);
 
 	if (((sta_frequency) / 1000) == 2) { /*For 2.4GHz */
 		/*if single antenna*/
@@ -4592,6 +4673,7 @@ int slsi_hs2_vif_activate(struct slsi_dev *sdev, struct net_device *dev, struct 
 		goto exit_with_vif;
 	}
 	ndev_vif->chan = chan;
+	ndev_vif->driver_channel = chan->hw_value;
 	return r;
 
 exit_with_vif:

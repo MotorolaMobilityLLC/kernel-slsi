@@ -778,7 +778,7 @@ static ssize_t scsc_bt_shm_h4_read_continue(char __user *buf, size_t len)
 			/* All done - increase the read pointer and continue */
 			BSMHCP_INCREASE_INDEX(bt_service.mailbox_iq_report_read, BSMHCP_TRANSFER_RING_IQ_REPORT_SIZE);
 	} else if (BT_READ_OP_HCI_EVT_ERROR == bt_service.read_operation) {
-		SCSC_TAG_DEBUG(BT_H4, "BT_READ_OP_HCI_EVT_ERROR\n");
+		SCSC_TAG_ERR(BT_H4, "BT_READ_OP_HCI_EVT_ERROR\n");
 
 		/* Copy data into the userspace buffer */
 		ret = scsc_hci_evt_error_read(buf, len);

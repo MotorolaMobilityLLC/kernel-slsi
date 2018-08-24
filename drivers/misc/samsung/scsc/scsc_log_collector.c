@@ -14,6 +14,7 @@
 #include <linux/list_sort.h>
 #include <linux/limits.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 
 #include <scsc/scsc_log_collector.h>
 #include "scsc_log_collector_proc.h"
@@ -110,6 +111,8 @@ struct scsc_log_status {
 	struct work_struct	collect_work;
 	enum scsc_log_reason    collect_reason;
 	u16 reason_code;
+	struct completion complete;
+	struct mutex collection_serial;
 } log_status;
 
 static DEFINE_MUTEX(log_mutex);
@@ -121,8 +124,10 @@ static void collection_worker(struct work_struct *work)
 	ls = container_of(work, struct scsc_log_status, collect_work);
 	if (!ls)
 		return;
-	pr_info("SCSC running scheduled Log Collection - reason:%d\n", ls->collect_reason);
+	pr_info("SCSC running scheduled Log Collection - collect reason:%d reason code:%d\n",
+		 ls->collect_reason, ls->reason_code);
 	scsc_log_collector_collect(ls->collect_reason, ls->reason_code);
+	complete(&log_status.complete);
 }
 
 /* Module init */
@@ -145,6 +150,9 @@ int __init scsc_log_collector(void)
 		pr_err("open allocating memmory err = %ld\n", PTR_ERR(log_status.buf));
 		log_status.buf = NULL;
 	}
+
+	init_completion(&log_status.complete);
+	mutex_init(&log_status.collection_serial);
 
 	scsc_log_collect_proc_create();
 	scsc_log_collector_mmap_create();
@@ -463,7 +471,7 @@ static int scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_co
 	int ret = -1;
 
 	if (sable_collection_off) {
-		pr_info("Sable Log Collection is currently DISABLED (sable_collection_off=Y).\n");
+		pr_info("Sable Log collection is currently DISABLED (sable_collection_off=Y).\n");
 		pr_info("Ignoring incoming Sable Collection request with Reason=%d.\n", reason);
 		return ret;
 	}
@@ -478,12 +486,21 @@ static int scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_co
 
 void scsc_log_collector_schedule_collection(enum scsc_log_reason reason, u16 reason_code)
 {
+	int err;
+
 	if (log_status.collection_workq) {
+		mutex_lock(&log_status.collection_serial);
+		pr_info("Log collection Schedule");
 		log_status.collect_reason = reason;
 		log_status.reason_code = reason_code;
 		if (!queue_work(log_status.collection_workq, &log_status.collect_work))
 			pr_info("Log collection %s reason_code 0x%x rejected. Collection already scheduled\n",
 				scsc_loc_reason_str[reason], reason_code);
+		err = wait_for_completion_timeout(&log_status.complete, 5*HZ);
+		if (!err)
+			pr_err("Log collection Timeout");
+		pr_info("Log collection End");
+		mutex_unlock(&log_status.collection_serial);
 
 	} else {
 		pr_err("Log Collection Workqueue NOT available...aborting scheduled collection.\n");

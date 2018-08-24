@@ -659,76 +659,71 @@ irqreturn_t platform_wdog_isr(int irq, void *data)
  * be programmed using the CBUS during the config phase.
  */
 uint32_t ka_patch[] = {
-	/* Spurious cfg_req fix #2
+	/* Power save fix #2
 	 * Maxwell142 PMU+PROC combined boot ROM
 	 * IP Version: 0xA3
 	 * Major Version: 0xF, Minor Version: 0xF
-	 * PMU ROM version: 0x2
+	 * PMU ROM version: 0x4
 	 * PROC  ROM version: 0x0
 	 */
 	0x90750002,
-	0x00207518,
-	0xa611a4c2,
-	0x90757911,
-	0x012075e0,
-	0xe5e79075,
-	0x600154b3,
-	0x18a230f7,
-	0xe503b143,
-	0xfb03b4b2,
-	0x74fcb153,
-	0x02207507,
-	0xadb5acf5,
-	0x032075fd,
-	0x7508a075,
-	0xb4750420,
-	0x05207501,
-	0x0154b3e5,
-	0xb475fa70,
-	0x18907500,
-	0x80062075,
-	0x798278bf,
-	0x75b98083,
-	0x377907a0,
-	0x54e6b078,
-	0x0207b407,
-	0xf6d90b80,
-	0x90f5c404,
-	0x8000af75,
-	0x90907503,
-	0xeff75322,
-	0x79fece53,
-	0x53fed904,
-	0x0c79fdce,
-	0xce53fed9,
-	0x2b9275fb,
-	0x53019375,
-	0xce53fd91,
-	0x08f943f7,
-	0x22fef953,
-	0xd8fed9f9,
-	0x9e7522fb,
-	0xcfc17501,
-	0x75a4c275,
-	0xc4750ac3,
-	0xa4c57547,
-	0x756cc675,
-	0xd27540c7,
-	0x10d37503,
-	0x7500c975,
-	0xcb75d0ca,
-	0x00cc7500,
-	0x75009a75,
-	0x9c75c09b,
-	0x009d7500,
-	0x82740278,
-	0x43a08012,
-	0x057802c6,
-	0x8012d074,
-	0xd09075a0,
-	0x75029175,
-	0xa975029e,
-	0x00002201,
+	0x11a4c218,
+	0x75671191,
+	0x9075e090,
+	0x54b3e5e7,
+	0x30f76001,
+	0xb14315a2,
+	0xb4b2e503,
+	0xb153fb03,
+	0xa90185fc,
+	0xacf50774,
+	0x75fdadb5,
+	0xb47508a0,
+	0x54b3e501,
+	0x75fa7001,
+	0x907500b4,
+	0x78cb8018,
+	0x80837982,
+	0x07a075c5,
+	0xb0783779,
+	0xb40754e6,
+	0x0b800207,
+	0xc404f6d9,
+	0xaf7590f5,
+	0x75038000,
+	0x53229090,
+	0xce53eff7,
+	0xd90479fe,
+	0xfdce53fe,
+	0xfed90c79,
+	0x75fbce53,
+	0x91530b92,
+	0xf7ce53fd,
+	0x5308f943,
+	0xf922fef9,
+	0xfbd8fed9,
+	0x019e7522,
+	0x75cfc175,
+	0xc375a4c2,
+	0x47c4750a,
+	0x75a4c575,
+	0xc7756cc6,
+	0x03d27540,
+	0x7510d375,
+	0xca7500c9,
+	0x00cb75d0,
+	0x7500cc75,
+	0x9b75009a,
+	0x009c75c0,
+	0x78009d75,
+	0x12827402,
+	0xc6438b80,
+	0x74057802,
+	0x8b8012d0,
+	0x75d09075,
+	0x9e750291,
+	0x01a97502,
+	0x00000022,
 };
 
 extern bool reset_failed;
@@ -1318,10 +1313,8 @@ static int platform_mif_pmu_reset(struct scsc_mif_abs *interface, u8 rst_case)
 		return ret;
 	}
 
-	if (rst_case == 1)
-		ret = platform_mif_power(interface, false);
-	else
-		ret = platform_mif_hold_reset(interface, true);
+	/* rst_case is always 2 on 9610 */
+	ret = platform_mif_hold_reset(interface, true);
 
 	if (ret)
 		return ret;
@@ -1331,8 +1324,16 @@ static int platform_mif_pmu_reset(struct scsc_mif_abs *interface, u8 rst_case)
 		regmap_read(platform->pmureg, CENTRAL_SEQ_WLBT_STATUS, &val);
 		val &= STATES;
 		val >>= 16;
-		if (val == 0x80)
-			return 0;	/* OK - return */
+		if (val == 0x80) {
+			/* OK. Switch CTRL_NS[MASK_PWR_REQ] ownership to FW following
+			 * reset. WLBT PWR_REQ is cleared when it's put in reset.
+			 * The SW PWR_REQ remains asserted, but as ownership is now FW,
+			 * it'll be ignored. This leaves it as we found it.
+			 */
+			platform_mif_power(interface, false);
+
+			return 0; /* OK - return */
+		}
 	} while (time_before(jiffies, timeout));
 
 	SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,

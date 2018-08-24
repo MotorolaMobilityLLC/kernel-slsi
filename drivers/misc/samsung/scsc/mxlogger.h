@@ -33,7 +33,7 @@
  *
  */
 
-#define MXL_POOL_SZ			(4 * 1024 * 1024)
+#define MXL_POOL_SZ			(6 * 1024 * 1024)
 
 #define	MXLOGGER_RINGS_TMO_US		200000
 
@@ -69,13 +69,14 @@
 #define MXLOGGER_IMP_SIZE		(102 * 1024)
 #define MXLOGGER_RSV_COMMON_SZ		(4 * 1024)
 #define MXLOGGER_RSV_BT_SZ		(4 * 1024)
-#define MXLOGGER_RSV_WLAN_SZ		(4 * 1024)
+#define MXLOGGER_RSV_WLAN_SZ		(2 * 1024 * 1024)
 #define MXLOGGER_RSV_RADIO_SZ		(4 * 1024)
 
 #define MXLOGGER_TOTAL_FIX_BUF		(MXLOGGER_SYNC_SIZE + MXLOGGER_IMP_SIZE + \
 					MXLOGGER_RSV_COMMON_SZ + MXLOGGER_RSV_BT_SZ + \
 					MXLOGGER_RSV_WLAN_SZ + MXLOGGER_RSV_RADIO_SZ)
-/* Add further buffers in pow2 size */
+
+#define MXLOGGER_NON_FIX_BUF_ALIGN	32
 
 #define MXLOGGER_MAGIG_NUMBER		0xcaba0401
 #define MXLOGGER_MAJOR			0
@@ -155,7 +156,7 @@ struct mxlogger_sync_record {
 
 struct buffer_desc {
 	u32 location;			/* Buffer location */
-	u32 size; 			/* Buffer sz (in bytes) */
+	u32 size;			/* Buffer sz (in bytes) */
 	u32 status;			/* buffer status */
 	u32 info;			/* buffer info */
 } __packed;
@@ -169,8 +170,8 @@ struct mxlogger_config {
 } __packed;
 
 struct mxlogger_config_area {
-	struct 	mxlogger_config  config;
-	struct 	buffer_desc  	 bfds[MXLOGGER_NUM_BUFFERS];
+	struct mxlogger_config	config;
+	struct buffer_desc	bfds[MXLOGGER_NUM_BUFFERS];
 	uint8_t	*buffers_start;
 } __packed;
 
@@ -182,6 +183,7 @@ struct log_msg_packet {
 
 struct mxlogger {
 	bool				initialized;
+	bool				configured;
 	bool				enabled;
 	struct scsc_mx			*mx;
 	void				*mem;
@@ -189,7 +191,7 @@ struct mxlogger {
 	uint32_t			msz;
 	scsc_mifram_ref			mifram_ref;
 	struct mutex			lock;
-	struct mxlogger_config_area 	*cfg;
+	struct mxlogger_config_area	*cfg;
 	u8				observers;
 	u8				sync_buffer_index;
 	/* collection variables */
@@ -209,8 +211,9 @@ int mxlogger_unregister_global_observer(char *name);
 bool mxlogger_set_enabled_status(bool enable);
 
 #define MEM_LAYOUT_CHECK()	\
- ({				\
+({				\
 	BUILD_BUG_ON((sizeof(struct mxlogger_sync_record) * NUM_SYNC_RECORDS) >  MXLOGGER_SYNC_SIZE); \
- })
+	BUILD_BUG_ON((MXLOGGER_TOTAL_FIX_BUF + sizeof(struct mxlogger_config_area))  > MXL_POOL_SZ); \
+})
 
 #endif /* __MX_LOGGER_H__ */

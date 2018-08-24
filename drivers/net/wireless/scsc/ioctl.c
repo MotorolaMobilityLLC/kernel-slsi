@@ -80,6 +80,7 @@
 
 #define CMD_FAKEMAC "FAKEMAC"
 
+#define CMD_GETBSSRSSI "GET_BSS_RSSI"
 #define CMD_GETBSSINFO "GETBSSINFO"
 #define CMD_GETSTAINFO "GETSTAINFO"
 #define CMD_GETASSOCREJECTINFO "GETASSOCREJECTINFO"
@@ -601,6 +602,7 @@ static int slsi_p2p_lo_start(struct net_device *dev, char *command)
 		goto exit_with_vif_deactivate;
 	} else {
 		ndev_vif->chan = chan;
+		ndev_vif->driver_channel = chan->hw_value;
 	}
 	/* If framework sends the values for listen offload as 1,500,5000 and 6,
 	 * where 5000ms (5 seconds) is the listen interval which needs to be repeated
@@ -2013,24 +2015,40 @@ int slsi_set_fcc_channel(struct net_device *dev, char *cmd, int cmd_len)
 	struct netdev_vif    *ndev_vif = netdev_priv(dev);
 	struct slsi_dev      *sdev = ndev_vif->sdev;
 	int                  status;
-	bool                 max_power_ena;
+	bool                 flight_mode_ena;
 	u8                   host_state;
+	int                  err;
+	char                 alpha2[3];
 
-	max_power_ena = (cmd[0]  == '0');
+	/* SET_FCC_CHANNEL 0 when device is in flightmode */
+	flight_mode_ena = (cmd[0]  == '0');
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
 	host_state = sdev->device_config.host_state;
 
-	if (max_power_ena)
-		host_state = host_state | FAPI_HOSTSTATE_CELLULAR_ACTIVE;
-	else
+	if (flight_mode_ena)
 		host_state = host_state & ~FAPI_HOSTSTATE_CELLULAR_ACTIVE;
+	else
+		host_state = host_state | FAPI_HOSTSTATE_CELLULAR_ACTIVE;
 	sdev->device_config.host_state = host_state;
 
 	status = slsi_mlme_set_host_state(sdev, dev, host_state);
-	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
-
-	if (status)
+	if (status) {
 		SLSI_ERR(sdev, "Err setting MMaxPowerEna. error = %d\n", status);
+	} else {
+		err = slsi_read_default_country(sdev, alpha2, 1);
+		if (err) {
+			SLSI_WARN(sdev, "Err updating reg_rules = %d\n", err);
+		} else {
+			memcpy(sdev->device_config.domain_info.regdomain->alpha2, alpha2, 2);
+			/* Read the regulatory params for the country.*/
+			if (slsi_read_regulatory_rules(sdev, &sdev->device_config.domain_info, alpha2) == 0) {
+				slsi_reset_channel_flags(sdev);
+				wiphy_apply_custom_regulatory(sdev->wiphy, sdev->device_config.domain_info.regdomain);
+				slsi_update_supported_channels_regd_flags(sdev);
+			}
+		}
+	}
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 
 	return status;
 }
@@ -2139,6 +2157,18 @@ int slsi_get_sta_info(struct net_device *dev, char *command, int buf_len)
 	return len;
 }
 
+static int slsi_get_bss_rssi(struct net_device *dev, char *command, int buf_len)
+{
+	struct netdev_vif        *ndev_vif = netdev_priv(dev);
+	int len = 0;
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	len = snprintf(command, buf_len, "%d", ndev_vif->sta.last_connected_bss.rssi);
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+
+	return len;
+}
+
 static int slsi_get_bss_info(struct net_device *dev, char *command, int buf_len)
 {
 	struct netdev_vif        *ndev_vif = netdev_priv(dev);
@@ -2215,7 +2245,7 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 	command[priv_cmd.total_len] = '\0';
 
-	SLSI_NET_DBG3(dev, SLSI_CFG80211, "command: %.*s, total_len in priv_cmd = %d\n", priv_cmd.total_len, command, priv_cmd.total_len);
+	SLSI_INFO_NODEV("command: %.*s\n", priv_cmd.total_len, command);
 
 	if (strncasecmp(command, CMD_SETSUSPENDMODE, strlen(CMD_SETSUSPENDMODE)) == 0) {
 		ret = slsi_set_suspend_mode(dev, command);
@@ -2426,6 +2456,8 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 					   priv_cmd.total_len - (strlen(CMD_SET_FCC_CHANNEL) + 1));
 	} else if (strncasecmp(command, CMD_FAKEMAC, strlen(CMD_FAKEMAC)) == 0) {
 		ret = slsi_fake_mac_write(dev, command + strlen(CMD_FAKEMAC) + 1);
+	} else if (strncasecmp(command, CMD_GETBSSRSSI, strlen(CMD_GETBSSRSSI)) == 0) {
+		ret = slsi_get_bss_rssi(dev, command, priv_cmd.total_len);
 	} else if (strncasecmp(command, CMD_GETBSSINFO, strlen(CMD_GETBSSINFO)) == 0) {
 		ret = slsi_get_bss_info(dev, command, priv_cmd.total_len);
 	} else if (strncasecmp(command, CMD_GETSTAINFO, strlen(CMD_GETSTAINFO)) == 0) {

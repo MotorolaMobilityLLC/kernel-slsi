@@ -256,7 +256,7 @@ int scsc_service_unregister_observer(struct scsc_service *service, char *name);
  * Returns pointer to data or NULL if file not found.
  * Call mx140_file_release_conf()to release the memory.
  */
-int mx140_file_request_conf(struct scsc_mx *mx, const struct firmware **conf, const char *config_path);
+int mx140_file_request_conf(struct scsc_mx *mx, const struct firmware **conf, const char *config_path, const char *filename);
 
 /* Reads a debug configuration file into memory.
  *

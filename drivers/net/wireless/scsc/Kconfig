@@ -12,6 +12,7 @@ config SCSC_WLAN_KEY_MGMT_OFFLOAD
 
 config SCSC_WLAN_HIP4_PROFILING
 	bool "Enable HIP4 profiling"
+        default y
 	depends on SCSC_WLAN
 	---help---
 	  This option enables HIP4 profiling

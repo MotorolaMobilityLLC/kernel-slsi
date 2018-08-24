@@ -148,6 +148,8 @@ void slsi_mlme_del_vif(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_mlme_set_channel(struct slsi_dev *sdev, struct net_device *dev, struct ieee80211_channel *chan, u16 duration, u16 interval, u16 count);
 void slsi_ap_obss_scan_done_ind(struct net_device *dev, struct netdev_vif *ndev_vif);
 
+int slsi_mlme_spare_signal_1(struct slsi_dev *sdev, struct net_device *dev);
+
 /**
  * slsi_mlme_add_autonomous_scan() Returns:
  *  0 : Scan installed

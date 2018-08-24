@@ -148,23 +148,6 @@ static struct genl_family scsc_nlfamily = {
 	.n_mcgrps = ARRAY_SIZE(scsc_mcgrp),
 };
 
-int scsc_wlbtd_init(void)
-{
-	int r = 0;
-	/* register the family so that wlbtd can bind */
-	/*r = genl_register_family_with_ops_groups(&scsc_nlfamily, scsc_ops,
-	      scsc_mcgrp); */
-	r = genl_register_family(&scsc_nlfamily);
-	if (r) {
-		SCSC_TAG_ERR(WLBTD, "Failed to register family. (%d)\n", r);
-		return -1;
-	}
-
-	init_completion(&script_done);
-
-	return r;
-}
-
 int scsc_wlbtd_get_and_print_build_type(void)
 {
 	struct sk_buff *skb;
@@ -300,11 +283,11 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 	completion_jiffies = wait_for_completion_timeout(&script_done,
 						max_timeout_jiffies);
 
-	if (completion_jiffies != max_timeout_jiffies) {
+	if (completion_jiffies) {
 
 		completion_jiffies = max_timeout_jiffies - completion_jiffies;
-		SCSC_TAG_INFO(WLBTD, "log collection done in %dms\n",
-			(int)jiffies_to_msecs(completion_jiffies));
+		SCSC_TAG_INFO(WLBTD, "sable generated in %dms\n",
+			(int)jiffies_to_msecs(completion_jiffies) ? : 1);
 	} else
 		SCSC_TAG_ERR(WLBTD, "wait for completion timed out !\n");
 
@@ -414,6 +397,21 @@ error:
 	return -1;
 }
 EXPORT_SYMBOL(call_wlbtd);
+
+int scsc_wlbtd_init(void)
+{
+	int r = 0;
+	/* register the family so that wlbtd can bind */
+	r = genl_register_family(&scsc_nlfamily);
+	if (r) {
+		SCSC_TAG_ERR(WLBTD, "Failed to register family. (%d)\n", r);
+		return -1;
+	}
+
+	init_completion(&script_done);
+
+	return r;
+}
 
 int scsc_wlbtd_deinit(void)
 {

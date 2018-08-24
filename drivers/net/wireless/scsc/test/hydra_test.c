@@ -60,7 +60,7 @@ int slsi_sm_wlan_service_open(struct slsi_dev *sdev)
 	return 0;
 }
 
-int mx140_file_request_conf(struct scsc_mx *mx, const struct firmware **conf, const char *config_rel_path)
+int mx140_file_request_conf(struct scsc_mx *mx, const struct firmware **conf, const char *config_rel_path, const char *filename)
 {
 	return 0;
 }

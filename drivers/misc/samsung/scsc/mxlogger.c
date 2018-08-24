@@ -38,15 +38,23 @@ bool mxlogger_set_enabled_status(bool enable)
 }
 EXPORT_SYMBOL(mxlogger_set_enabled_status);
 
-static bool mxlogger_forced_to_host = true;
+static bool mxlogger_forced_to_host;
 
 static void update_fake_observer(void)
 {
+	static bool mxlogger_fake_observers_registered;
+
 	if (mxlogger_forced_to_host) {
-		mxlogger_register_global_observer("FAKE_OBSERVER");
+		if (!mxlogger_fake_observers_registered) {
+			mxlogger_register_global_observer("FAKE_OBSERVER");
+			mxlogger_fake_observers_registered = true;
+		}
 		SCSC_TAG_INFO(MXMAN, "MXLOGGER is now FORCED TO HOST.\n");
 	} else {
-		mxlogger_unregister_global_observer("FAKE_OBSERVER");
+		if (mxlogger_fake_observers_registered) {
+			mxlogger_unregister_global_observer("FAKE_OBSERVER");
+			mxlogger_fake_observers_registered = false;
+		}
 		SCSC_TAG_INFO(MXMAN, "MXLOGGER is now operating NORMALLY.\n");
 	}
 }
@@ -262,11 +270,14 @@ int mxlogger_generate_sync_record(struct mxlogger *mxlogger, enum mxlogger_sync_
 	return r;
 }
 
+static void mxlogger_wait_for_msg_reinit_completion(struct mxlogger *mxlogger)
+{
+	reinit_completion(&mxlogger->rings_serialized_ops);
+}
+
 static bool mxlogger_wait_for_msg_reply(struct mxlogger *mxlogger)
 {
 	int ret;
-
-	reinit_completion(&mxlogger->rings_serialized_ops);
 
 	ret = wait_for_completion_timeout(&mxlogger->rings_serialized_ops, usecs_to_jiffies(MXLOGGER_RINGS_TMO_US));
 	if (ret) {
@@ -293,6 +304,11 @@ static inline void __mxlogger_enable(struct mxlogger *mxlogger, bool enable, uin
 	msg.arg = (enable) ? MM_MXLOGGER_LOGGER_ENABLE : MM_MXLOGGER_LOGGER_DISABLE;
 	msg.payload[0] = reason;
 
+	/* Reinit the completion before sending the message over cpacketbuffer
+	 * otherwise there might be a race condition
+	 */
+	mxlogger_wait_for_msg_reinit_completion(mxlogger);
+
 	mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxlogger->mx),
 			      MMTRANS_CHAN_ID_MAXWELL_LOGGING,
 			      &msg, sizeof(msg));
@@ -318,6 +334,12 @@ static int mxlogger_send_config(struct mxlogger *mxlogger)
 	msg.msg = MM_MXLOGGER_CONFIG_CMD;
 	msg.arg = MM_MXLOGGER_CONFIG_BASE_ADDR;
 	memcpy(&msg.payload, &mxlogger->mifram_ref, sizeof(mxlogger->mifram_ref));
+
+	/* Reinit the completion before sending the message over cpacketbuffer
+	 * otherwise there might be a race condition
+	 */
+	mxlogger_wait_for_msg_reinit_completion(mxlogger);
+
 	mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxlogger->mx),
 			      MMTRANS_CHAN_ID_MAXWELL_LOGGING,
 			      &msg, sizeof(msg));
@@ -491,12 +513,7 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 
 	MEM_LAYOUT_CHECK();
 
-	if (!is_power_of_2(mem_sz)) {
-		SCSC_TAG_ERR(MXMAN, "MXLOGGER size should be power of 2\n");
-		return -EIO;
-	}
-
-	if (mem_sz <= (sizeof(struct mxlogger_config_area) + MXLOGGER_IMP_SIZE)) {
+	if (mem_sz <= (sizeof(struct mxlogger_config_area) + MXLOGGER_TOTAL_FIX_BUF)) {
 		SCSC_TAG_ERR(MXMAN, "Insufficient memory allocation\n");
 		return -EIO;
 	}
@@ -567,7 +584,11 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 
 	/* Compute buffer locations and size based on the remaining space */
 	remaining_mem = mem_sz - (sizeof(struct mxlogger_config_area) + MXLOGGER_TOTAL_FIX_BUF);
-	udi_mxl_mem_sz = remaining_mem >> 1;
+
+	/* Align the buffer to be cache friendly */
+	udi_mxl_mem_sz = (remaining_mem >> 1) & ~(MXLOGGER_NON_FIX_BUF_ALIGN - 1);
+
+	SCSC_TAG_INFO(MXMAN, "remaining_mem %zu udi/mxlogger size %zu\n", remaining_mem, udi_mxl_mem_sz);
 
 	cfg->bfds[MXLOGGER_MXLOG].location =
 		cfg->bfds[MXLOGGER_MXLOG - 1].location +
@@ -649,8 +670,8 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 	mxlogger_collect_client_mxl.prv = mxlogger;
 	scsc_log_collector_register_client(&mxlogger_collect_client_mxl);
 #endif
-
-	SCSC_TAG_INFO(MXMAN, "MXLOGGER Initialized.\n");
+	mxlogger->configured = true;
+	SCSC_TAG_INFO(MXMAN, "MXLOGGER Configured\n");
 	return 0;
 }
 
@@ -658,6 +679,11 @@ int mxlogger_start(struct mxlogger *mxlogger)
 {
 	if (mxlogger_disabled) {
 		SCSC_TAG_WARNING(MXMAN, "MXLOGGER is disabled. Not Starting.\n");
+		return -1;
+	}
+
+	if (!mxlogger || !mxlogger->configured) {
+		SCSC_TAG_WARNING(MXMAN, "MXLOGGER is not valid or not configured.\n");
 		return -1;
 	}
 
@@ -694,7 +720,7 @@ int mxlogger_start(struct mxlogger *mxlogger)
 		mxlogger_enable(mxlogger, true);
 	}
 
-	SCSC_TAG_INFO(MXMAN, "MXLOGGER Configured.\n");
+	SCSC_TAG_INFO(MXMAN, "MXLOGGER Started.\n");
 	mutex_unlock(&mxlogger->lock);
 
 	return 0;
@@ -720,6 +746,7 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	scsc_log_collector_unregister_client(&mxlogger_collect_client_udi);
 #endif
 	mutex_lock(&mxlogger->lock);
+	mxlogger->configured = false;
 	mxlogger->initialized = false;
 	mxlogger_to_host(mxlogger);
 	mxlogger_enable(mxlogger, false);

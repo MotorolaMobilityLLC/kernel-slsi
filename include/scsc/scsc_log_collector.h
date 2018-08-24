@@ -8,7 +8,7 @@
 #define __SCSC_LOG_COLLECTOR_H__
 
 /* High nibble is Major, Low nibble is Minor */
-#define SCSC_LOG_HEADER_VERSION_MAJOR	0x00
+#define SCSC_LOG_HEADER_VERSION_MAJOR	0x01
 #define SCSC_LOG_HEADER_VERSION_MINOR	0x00
 /* Magic string. 4 bytes "SCSC"*/
 /* Header version. 1 byte */
@@ -66,7 +66,7 @@ enum scsc_log_chunk_type {
 	SCSC_LOG_RESERVED_BT,
 	SCSC_LOG_RESERVED_WLAN,
 	SCSC_LOG_RESERVED_RADIO,
-	SCSC_LOG_CHUNK_LOGRING,
+	SCSC_LOG_CHUNK_LOGRING = 254,
 	/* Add other chunks */
 	SCSC_LOG_CHUNK_INVALID = 255,
 };

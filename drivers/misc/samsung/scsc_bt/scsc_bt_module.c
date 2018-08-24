@@ -37,6 +37,10 @@
 #include "scsc_bt_priv.h"
 #include "../scsc/scsc_mx_impl.h"
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+#include <scsc/scsc_log_collector.h>
+#endif
+
 #define SCSC_MODDESC "SCSC MX BT Driver"
 #define SCSC_MODAUTH "Samsung Electronics Co., Ltd"
 #define SCSC_MODVERSION "-devel"
@@ -276,6 +280,31 @@ static void slsi_bt_audio_remove(void)
 	bt_audio.dev_iommu_unmap(audio_device, size);
 }
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+static int bt_hcf_collect(struct scsc_log_collector_client *collect_client, size_t size)
+{
+	struct scsc_bt_hcf_collection *hcf_collect = (struct scsc_bt_hcf_collection *) collect_client->prv;
+	int ret = 0;
+
+	if (hcf_collect == NULL)
+		return ret;
+
+	SCSC_TAG_DEBUG(BT_COMMON, "Collecting BT config file\n");
+	ret = scsc_log_collector_write(hcf_collect->hcf, hcf_collect->hcf_size, 1);
+
+	return ret;
+}
+
+struct scsc_log_collector_client bt_collect_hcf_client = {
+	.name = "bt_hcf",
+	.type = SCSC_LOG_CHUNK_BT_HCF,
+	.collect_init = NULL,
+	.collect = bt_hcf_collect,
+	.collect_end = NULL,
+	.prv = NULL,
+};
+#endif
+
 static int slsi_sm_bt_service_cleanup(bool allow_service_stop)
 {
 	SCSC_TAG_DEBUG(BT_COMMON, "enter (service=%p)\n", bt_service.service);
@@ -320,6 +349,18 @@ static int slsi_sm_bt_service_cleanup(bool allow_service_stop)
 			audio_device_probed		= false;
 		}
 		mutex_unlock(&bt_audio_mutex);
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+		/* Deinit HCF log collection */
+		scsc_log_collector_unregister_client(&bt_collect_hcf_client);
+		bt_collect_hcf_client.prv = NULL;
+
+		if (bt_service.hcf_collection.hcf) {
+			/* Reset HCF pointer - memory will be freed later */
+			bt_service.hcf_collection.hcf_size = 0;
+			bt_service.hcf_collection.hcf = NULL;
+		}
+#endif
 
 		/* Release the shared memory */
 		SCSC_TAG_DEBUG(BT_COMMON,
@@ -539,7 +580,7 @@ static int setup_bhcs(struct scsc_service *service,
 	SCSC_TAG_DEBUG(BT_COMMON,
 		"loading configuration: " SCSC_BT_CONF "\n");
 	err = mx140_file_request_conf(common_service.maxwell_core,
-				      &firm, SCSC_BT_CONF);
+				      &firm, "bluetooth", SCSC_BT_CONF);
 	if (err) {
 		/* Not found - just silently ignore this */
 		SCSC_TAG_DEBUG(BT_COMMON, "configuration not found\n");
@@ -819,6 +860,20 @@ int slsi_sm_bt_service_start(void)
 			 sizeof(struct BSMHCP_PROTOCOL),
 			 &bt_service.config_ref,
 			 &bt_service.bhcs_ref);
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	/* Save the binary BT config ref and register for
+	 * log collector to collect the hcf file
+	 */
+	if (bhcs->configuration_length > 0) {
+		bt_service.hcf_collection.hcf =
+				scsc_mx_service_mif_addr_to_ptr(bt_service.service,
+								bt_service.config_ref);
+		bt_service.hcf_collection.hcf_size = bhcs->configuration_length;
+		bt_collect_hcf_client.prv = &bt_service.hcf_collection;
+		scsc_log_collector_register_client(&bt_collect_hcf_client);
+	}
+#endif
 
 	if (err == -EINVAL)
 		goto exit;
@@ -1411,14 +1466,9 @@ static void slsi_bt_service_remove(struct scsc_mx_module_client *module_client,
 	slsi_bt_notify_remove();
 
 	if (reason == SCSC_MODULE_CLIENT_REASON_RECOVERY && bt_recovery_in_progress) {
-		int ret;
-
 		mutex_unlock(&bt_start_mutex);
-		ret = wait_for_completion_timeout(&bt_service.recovery_release_complete,
-		       msecs_to_jiffies(SLSI_BT_SERVICE_STOP_RECOVERY_TIMEOUT));
+		wait_for_completion(&bt_service.recovery_release_complete);
 		reinit_completion(&bt_service.recovery_release_complete);
-		if (ret == 0)
-			SCSC_TAG_INFO(BT_COMMON, "recovery_release_complete timeout\n");
 
 		mutex_lock(&bt_start_mutex);
 		if (slsi_sm_bt_service_stop() == -EIO)

@@ -484,7 +484,18 @@ void slsi_rx_netdev_data_work(struct work_struct *work)
 		slsi_debug_frame(sdev, dev, skb, "RX");
 		switch (fapi_get_u16(skb, id)) {
 		case MA_UNITDATA_IND:
+#ifdef CONFIG_SCSC_SMAPPER
+			if (fapi_get_u16(skb, u.ma_unitdata_ind.bulk_data_descriptor) == FAPI_BULKDATADESCRIPTOR_SMAPPER) {
+				u8 *frame = (u8 *)slsi_hip_get_skb_data_from_smapper(sdev, skb);
+
+				if (frame)
+					SCSC_HIP4_SAMPLER_TCP_DECODE(sdev, dev, frame, false);
+			} else {
+				SCSC_HIP4_SAMPLER_TCP_DECODE(sdev, dev, skb->data + fapi_get_siglen(skb), false);
+			}
+#else
 			SCSC_HIP4_SAMPLER_TCP_DECODE(sdev, dev, skb->data + fapi_get_siglen(skb), false);
+#endif
 			(void)slsi_rx_data(sdev, dev, skb, false);
 			break;
 		case MA_UNITDATA_CFM:

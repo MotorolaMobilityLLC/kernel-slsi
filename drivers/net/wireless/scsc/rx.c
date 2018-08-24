@@ -788,6 +788,7 @@ int slsi_send_roam_vendor_event(struct slsi_dev *sdev, const u8 *bssid,
 {
 	bool                                   is_secured_bss;
 	struct sk_buff                         *skb = NULL;
+	u8 err = 0;
 
 	is_secured_bss = cfg80211_find_ie(WLAN_EID_RSN, req_ie, req_ie_len) ||
 					cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT, WLAN_OUI_TYPE_MICROSOFT_WPA, req_ie, req_ie_len);
@@ -805,17 +806,18 @@ int slsi_send_roam_vendor_event(struct slsi_dev *sdev, const u8 *bssid,
 		SLSI_ERR_NODEV("Failed to allocate skb for VENDOR Roam event\n");
 		return -ENOMEM;
 	}
-	if (nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_BSSID, ETH_ALEN, bssid) ||
-	    nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_AUTHORIZED, 1, &authorized) ||
-	   (req_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_REQ_IE, req_ie_len, req_ie)) ||
-	   (resp_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_RESP_IE, resp_ie_len, resp_ie)) ||
-	   (beacon_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_BEACON_IE, beacon_ie_len, beacon_ie))) {
-		SLSI_ERR_NODEV("Failed nla_put ,req_ie_len=%d,resp_ie_len=%d,beacon_ie_len=%d\n",
-			       req_ie_len, resp_ie_len, beacon_ie_len);
+
+	err |= nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_BSSID, ETH_ALEN, bssid) ? BIT(1) : 0;
+	err |= nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_AUTHORIZED, 1, &authorized) ? BIT(2) : 0;
+	err |= (req_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_REQ_IE, req_ie_len, req_ie)) ? BIT(3) : 0;
+	err |= (resp_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_AUTH_RESP_IE, resp_ie_len, resp_ie)) ? BIT(4) : 0;
+	err |= (beacon_ie && nla_put(skb, SLSI_WLAN_VENDOR_ATTR_ROAM_BEACON_IE, beacon_ie_len, beacon_ie)) ? BIT(5) : 0;
+	if (err) {
+		SLSI_ERR_NODEV("Failed nla_put ,req_ie_len=%d,resp_ie_len=%d,beacon_ie_len=%d,condition_failed=%d\n",
+			       req_ie_len, resp_ie_len, beacon_ie_len, err);
 		slsi_kfree_skb(skb);
 		return -EINVAL;
 	}
-
 	SLSI_DBG3_NODEV(SLSI_MLME, "Event: KEY_MGMT_ROAM_AUTH(%d)\n", SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH);
 	cfg80211_vendor_event(skb, GFP_KERNEL);
 	return 0;
@@ -1913,6 +1915,21 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 					SLSI_NET_WARN(dev, "Driver in incorrect P2P state (P2P_LISTENING)");
 
 				cancel_delayed_work(&ndev_vif->unsync.del_vif_work);
+				/* Sending down the Unset channel is delayed when listen work expires in
+				 * middle of P2P procedure. For example,When Listen Work expires after
+				 * sending provision discovery req,unset channel is not sent to FW.
+				 * After Receiving the PROV_DISC_RESP,  if listen work is not present
+				 * Unset channel to be sent down.Similarly During P2P Negotiation procedure,
+				 * Unset channel is not sent to FW.Once Negotiation is complete,
+				 * if listen work is not present Unset channel to be sent down.
+				 */
+				if ((subtype == SLSI_P2P_PA_GO_NEG_CFM) || (subtype == SLSI_P2P_PA_PROV_DISC_RSP)) {
+					ndev_vif->drv_in_p2p_procedure = false;
+					if (!delayed_work_pending(&ndev_vif->unsync.roc_expiry_work)) {
+						slsi_mlme_spare_signal_1(ndev_vif->sdev, ndev_vif->wdev.netdev);
+						ndev_vif->driver_channel = 0;
+					}
+				}
 
 				ndev_vif->mgmt_tx_data.exp_frame = SLSI_P2P_PA_INVALID;
 				(void)slsi_mlme_reset_dwell_time(sdev, dev);

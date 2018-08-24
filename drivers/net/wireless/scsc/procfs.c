@@ -437,6 +437,8 @@ static ssize_t slsi_procfs_uapsd_write(struct file *file,
 
 	/*Store the qos info and use it to set MIB during connection*/
 	sdev->device_config.qos_info = qos_info;
+	SLSI_DBG1(sdev, SLSI_MLME, "set qos_info:%d\n", sdev->device_config.qos_info);
+
 
 	kfree(read_string);
 	return count;

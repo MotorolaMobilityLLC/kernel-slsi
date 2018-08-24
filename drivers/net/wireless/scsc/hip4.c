@@ -13,9 +13,6 @@
 #include <linux/ktime.h>
 #include <linux/kthread.h>
 #include <scsc/scsc_logring.h>
-#ifdef CONFIG_SCSC_LOG_COLLECTION
-#include <scsc/scsc_log_collector.h>
-#endif
 
 #include "hip4.h"
 #include "mbulk.h"
@@ -443,41 +440,6 @@ static const struct file_operations hip4_procfs_jitter_fops = {
 };
 #endif
 
-#ifdef CONFIG_SCSC_LOG_COLLECTION
-static int hip4_collect(struct scsc_log_collector_client *collect_client, size_t size)
-{
-	struct slsi_hip4 *hip = (struct slsi_hip4 *)collect_client->prv;
-	struct hip4_priv *hip_priv;
-	int ret = 0;
-
-	if (!hip)
-		return 0;
-
-	hip_priv = hip->hip_priv;
-	if (!hip_priv)
-		return 0;
-
-	if (!hip_priv->mib_collect || !hip_priv->mib_sz)
-		return 0;
-
-	SLSI_INFO_NODEV("Hip4 collecting HCF\n");
-	mutex_lock(&hip_priv->in_collection);
-	ret = scsc_log_collector_write(hip_priv->mib_collect, hip_priv->mib_sz, 1);
-	mutex_unlock(&hip_priv->in_collection);
-	return ret;
-}
-
-/* Collect client registration for HCF file*/
-struct scsc_log_collector_client hip4_collect_hcf_client = {
-	.name = "wlan_hcf",
-	.type = SCSC_LOG_CHUNK_WLAN_HCF,
-	.collect_init = NULL,
-	.collect = hip4_collect,
-	.collect_end = NULL,
-	.prv = NULL,
-};
-#endif
-
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0))
 static inline ktime_t ktime_add_ms(const ktime_t kt, const u64 msec)
 {
@@ -530,29 +492,6 @@ error:
 	read_unlock_bh(&hip_priv->rw_scoreboard);
 	return value;
 }
-
-#if 0
-/* Function can be called from BH context */
-static u8 hip4_read_vif_peer_status(struct slsi_hip4 *hip, u16 vif, u16 peer)
-{
-	struct hip4_priv    *hip_priv = hip->hip_priv;
-	u32                 value;
-
-	read_lock_bh(&hip_priv->rw_scoreboard);
-	if (hip->hip_priv->version == 3 || hip->hip_priv->version == 4) {
-		value = *((u8 *)(hip->hip_priv->scbrd_base + ((vif*8) + FW_OWN_VIF)));
-		value = (value & (0x3 << (peer % 4)*0x2)) >> (peer % 4)*0x2;
-	} else {
-		SLSI_ERR_NODEV("Incorrect version\n");
-	}
-
-	/* Memory barrier when reading shared mailbox/memory */
-	smp_rmb();
-
-	read_unlock_bh(&hip_priv->rw_scoreboard);
-	return value;
-}
-#endif
 
 static void hip4_dump_dbg(struct slsi_hip4 *hip, struct mbulk *m, struct sk_buff *skb, struct scsc_service *service)
 {
@@ -1048,6 +987,8 @@ consume_fb_mbulk:
 	}
 	SCSC_HIP4_SAMPLER_INT_OUT_BH(hip_priv->minor, 2);
 
+	atomic_set(&hip->hip_priv->in_rx, 2);
+
 	idx_r = hip4_read_index(hip, HIP4_MIF_Q_TH_CTRL, ridx);
 	idx_w = hip4_read_index(hip, HIP4_MIF_Q_TH_CTRL, widx);
 
@@ -1139,6 +1080,8 @@ consume_ctl_mbulk:
 	}
 
 	SCSC_HIP4_SAMPLER_INT_OUT_BH(hip_priv->minor, 1);
+
+	atomic_set(&hip->hip_priv->in_rx, 3);
 
 	idx_r = hip4_read_index(hip, HIP4_MIF_Q_TH_DAT, ridx);
 	idx_w = hip4_read_index(hip, HIP4_MIF_Q_TH_DAT, widx);
@@ -1317,6 +1260,10 @@ static void hip4_irq_handler(int irq, void *data)
 		SLSI_ERR_NODEV("INT triggered while WDT is active\n");
 		SLSI_ERR_NODEV("bh_init %lld\n", ktime_to_ns(bh_init));
 		SLSI_ERR_NODEV("bh_end  %lld\n", ktime_to_ns(bh_end));
+#ifndef TASKLET
+		SLSI_ERR_NODEV("hip4_wq work_busy %d\n", work_busy(&hip->hip_priv->intr_wq));
+#endif
+		SLSI_ERR_NODEV("hip4_priv->in_rx  %d\n", atomic_read(&hip->hip_priv->in_rx));
 	}
 	/* If system is not in suspend, mask interrupt to avoid interrupt storm and let BH run */
 	if (!atomic_read(&hip->hip_priv->in_suspend)) {
@@ -1659,23 +1606,6 @@ int hip4_init(struct slsi_hip4 *hip)
 			SLSI_WARN(sdev, "failed to add PM QoS request\n");
 		}
 	}
-
-#ifdef CONFIG_SCSC_LOG_COLLECTION
-	/* Register with log collector to collect wlan hcf file */
-	/* Make a copy for collection */
-	mutex_init(&hip->hip_priv->in_collection);
-	if (total_mib_len) {
-		hip->hip_priv->mib_collect = vmalloc(total_mib_len);
-		if (hip->hip_priv->mib_collect) {
-			memcpy(hip->hip_priv->mib_collect, (u8 *)hip_ptr + HIP4_WLAN_MIB_OFFSET, total_mib_len);
-			hip->hip_priv->mib_sz = total_mib_len;
-			hip4_collect_hcf_client.prv = hip;
-			scsc_log_collector_register_client(&hip4_collect_hcf_client);
-		} else {
-			SLSI_WARN(sdev, "failed to allocate memory for hcf file backup\n");
-		}
-	}
-#endif
 	return 0;
 }
 
@@ -1922,18 +1852,6 @@ void hip4_deinit(struct slsi_hip4 *hip)
 		return;
 
 	service = sdev->service;
-
-#ifdef CONFIG_SCSC_LOG_COLLECTION
-	hip4_collect_hcf_client.prv = NULL;
-	/* Unregister outside the in_collection_lock to avoid deadlock */
-	scsc_log_collector_unregister_client(&hip4_collect_hcf_client);
-	mutex_lock(&hip->hip_priv->in_collection);
-	if (hip->hip_priv->mib_collect) {
-		hip->hip_priv->mib_sz = 0;
-		vfree(hip->hip_priv->mib_collect);
-	}
-	mutex_unlock(&hip->hip_priv->in_collection);
-#endif
 
 	/* de-register with traffic monitor */
 	slsi_traffic_mon_client_unregister(sdev, hip);

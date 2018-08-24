@@ -650,6 +650,8 @@ struct netdev_vif {
 	enum nl80211_iftype         iftype;
 	enum nl80211_channel_type   channel_type;
 	struct ieee80211_channel    *chan;
+	u16 driver_channel;
+	bool drv_in_p2p_procedure;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 	struct cfg80211_chan_def    *chandef;
 #endif
@@ -884,6 +886,24 @@ struct slsi_dev_mib_info {
 
 #define SLSI_WLAN_MAX_MIB_FILE     2 /* Number of WLAN HCFs to load */
 
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+struct slsi_dev_mib_collect_file {
+	char		file_name[32];
+	u16		len;
+	u8		*data;
+} __packed;
+
+struct slsi_dev_mib_collect {
+	bool		enabled;
+	/* Serialize writers/readers */
+	spinlock_t	in_collection;
+	char			num_files;
+	/* +1 represents local_mib */
+	struct slsi_dev_mib_collect_file  file[SLSI_WLAN_MAX_MIB_FILE + 1];
+};
+
+#endif
+
 struct slsi_dev {
 	/* Devices */
 	struct device              *dev;
@@ -934,7 +954,9 @@ struct slsi_dev {
 	u8                         hw_addr[ETH_ALEN];
 	struct slsi_dev_mib_info   mib[SLSI_WLAN_MAX_MIB_FILE];
 	struct slsi_dev_mib_info   local_mib;
-
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	struct slsi_dev_mib_collect  collect_mib;
+#endif
 	char                       *maddr_file_name;
 	bool                       *term_udi_users;   /* Try to terminate UDI users during unload */
 	int                        *sig_wait_cfm_timeout;

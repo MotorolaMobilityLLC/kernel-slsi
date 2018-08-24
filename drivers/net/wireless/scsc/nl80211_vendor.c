@@ -147,8 +147,10 @@ static struct netdev_vif *slsi_gscan_get_vif(struct slsi_dev *sdev)
 	struct net_device *dev;
 
 	dev = slsi_gscan_get_netdev(sdev);
-	if (WARN_ON(!dev))
+	if (!dev) {
+		SLSI_WARN_NODEV("Dev is NULL\n");
 		return NULL;
+	}
 
 	return netdev_priv(dev);
 }
@@ -426,7 +428,8 @@ void slsi_hotlist_ap_lost_indication(struct slsi_dev *sdev, struct net_device *d
 	int                              offset = 0;
 	int                              i;
 
-	if (WARN_ON(!ndev_vif)) {
+	if (!ndev_vif) {
+		SLSI_WARN_NODEV("ndev_vif is NULL\n");
 		slsi_kfree_skb(skb);
 		return;
 	}
@@ -489,10 +492,13 @@ void slsi_hotlist_ap_found_indication(struct slsi_dev *sdev, struct net_device *
 	u8                         *event_buffer;
 	int                        offset;
 
-	if (WARN_ON(!ndev_vif))
+	if (!ndev_vif) {
+		SLSI_WARN_NODEV("ndev_vif is NULL\n");
 		return;
+	}
 
-	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
+	if (!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex))
+		SLSI_WARN_NODEV("ndev_vif->scan_mutex is not locked\n");
 
 	SLSI_NET_DBG1(dev, SLSI_GSCAN, "Hotlist AP Found Indication: %pM\n", scan_res->nl_scan_res.bssid);
 
@@ -555,7 +561,8 @@ static void slsi_gscan_hash_add(struct slsi_dev *sdev, struct slsi_gscan_result 
 	struct netdev_vif *ndev_vif;
 
 	ndev_vif = slsi_gscan_get_vif(sdev);
-	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
+	if (!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex))
+		SLSI_WARN_NODEV("ndev_vif->scan_mutex is not locked\n");
 
 	scan_res->hnext = sdev->gscan_hash_table[key];
 	sdev->gscan_hash_table[key] = scan_res;
@@ -573,7 +580,8 @@ static struct slsi_gscan_result *slsi_gscan_hash_get(struct slsi_dev *sdev, u8 *
 
 	ndev_vif = slsi_gscan_get_vif(sdev);
 
-	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
+	if (!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex))
+		SLSI_WARN_NODEV("ndev_vif->scan_mutex is not locked\n");
 
 	temp = sdev->gscan_hash_table[key];
 	while (temp != NULL) {
@@ -594,7 +602,8 @@ void slsi_gscan_hash_remove(struct slsi_dev *sdev, u8 *mac)
 	struct slsi_gscan_result *scan_res = NULL;
 
 	ndev_vif = slsi_gscan_get_vif(sdev);
-	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
+	if (!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex))
+		SLSI_WARN_NODEV("ndev_vif->scan_mutex is not locked\n");
 
 	if (sdev->gscan_hash_table[key] == NULL)
 		return;
@@ -624,7 +633,7 @@ void slsi_gscan_hash_remove(struct slsi_dev *sdev, u8 *mac)
 		kfree(scan_res);
 	}
 
-	if (WARN_ON(sdev->num_gscan_results < 0))
+	if (sdev->num_gscan_results < 0)
 		SLSI_ERR(sdev, "Wrong num_gscan_results: %d\n", sdev->num_gscan_results);
 }
 
@@ -669,7 +678,8 @@ void slsi_gscan_handle_scan_result(struct slsi_dev *sdev, struct net_device *dev
 	u16                      anqp_length;
 	int                      hs2_network_id;
 
-	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
+	if (!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex))
+		SLSI_WARN_NODEV("ndev_vif->scan_mutex is not locked\n");
 
 	SLSI_NET_DBG_HEX(dev, SLSI_GSCAN, skb->data, skb->len, "mlme_scan_ind skb->len: %d\n", skb->len);
 
@@ -994,8 +1004,10 @@ void slsi_gscan_flush_scan_results(struct slsi_dev *sdev)
 	int                      i;
 
 	ndev_vif = slsi_gscan_get_vif(sdev);
-	if (WARN_ON(!ndev_vif))
+	if (!ndev_vif) {
+		SLSI_WARN_NODEV("ndev_vif is NULL");
 		return;
+	}
 
 	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
 	for (i = 0; i < SLSI_GSCAN_HASH_TABLE_SIZE; i++)
@@ -1010,8 +1022,11 @@ void slsi_gscan_flush_scan_results(struct slsi_dev *sdev)
 	SLSI_DBG2(sdev, SLSI_GSCAN, "num_gscan_results: %d, buffer_consumed = %d\n",
 		  sdev->num_gscan_results, sdev->buffer_consumed);
 
-	WARN_ON(sdev->num_gscan_results != 0);
-	WARN_ON(sdev->buffer_consumed != 0);
+	if (sdev->num_gscan_results != 0)
+		SLSI_WARN_NODEV("sdev->num_gscan_results is not zero\n");
+
+	if (sdev->buffer_consumed != 0)
+		SLSI_WARN_NODEV("sdev->buffer_consumedis not zero\n");
 
 	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
 }
@@ -1022,8 +1037,10 @@ void slsi_gscan_flush_hotlist_results(struct slsi_dev *sdev)
 	struct netdev_vif          *ndev_vif;
 
 	ndev_vif = slsi_gscan_get_vif(sdev);
-	if (WARN_ON(!ndev_vif))
+	if (!ndev_vif) {
+		SLSI_WARN_NODEV("ndev_vif is NULL\n");
 		return;
+	}
 
 	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
 
@@ -1045,8 +1062,11 @@ static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param
 	int                          i;
 
 	dev = slsi_gscan_get_netdev(sdev);
-	if (WARN_ON(!dev))
+
+	if (!dev) {
+		SLSI_WARN_NODEV("dev is NULL\n");
 		return -EINVAL;
+	}
 
 	for (i = 0; i < nl_gscan_param->num_buckets; i++) {
 		u16 report_mode = 0;
@@ -1112,8 +1132,10 @@ static int slsi_gscan_add(struct wiphy *wiphy, struct wireless_dev *wdev, const 
 
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_ADD_GSCAN\n");
 
-	if (WARN_ON(!sdev))
+	if (!sdev) {
+		SLSI_WARN_NODEV("sdev is NULL\n");
 		return -EINVAL;
+	}
 
 	if (!slsi_dev_gscan_supported())
 		return -ENOTSUPP;
@@ -1206,8 +1228,10 @@ static int slsi_gscan_del(struct wiphy *wiphy,
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_DEL_GSCAN\n");
 
 	dev = slsi_gscan_get_netdev(sdev);
-	if (WARN_ON(!dev))
+	if (!dev) {
+		SLSI_WARN_NODEV("dev is NULL\n");
 		return -EINVAL;
+	}
 
 	ndev_vif = netdev_priv(dev);
 
@@ -1267,8 +1291,10 @@ static int slsi_gscan_get_scan_results(struct wiphy *wiphy,
 	}
 
 	ndev_vif = slsi_gscan_get_vif(sdev);
-	if (WARN_ON(!ndev_vif))
+	if (!ndev_vif) {
+		SLSI_WARN_NODEV("ndev_vif is NULL\n");
 		return -EINVAL;
+	}
 
 	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
 
@@ -1391,8 +1417,10 @@ static int slsi_gscan_set_hotlist(struct wiphy *wiphy,
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_SET_BSSID_HOTLIST\n");
 
 	dev = slsi_gscan_get_netdev(sdev);
-	if (WARN_ON(!dev))
+	if (!dev) {
+		SLSI_WARN_NODEV("dev is NULL\n");
 		return -EINVAL;
+	}
 
 	ndev_vif = netdev_priv(dev);
 
@@ -1431,8 +1459,10 @@ static int slsi_gscan_reset_hotlist(struct wiphy *wiphy,
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_RESET_BSSID_HOTLIST\n");
 
 	dev = slsi_gscan_get_netdev(sdev);
-	if (WARN_ON(!dev))
+	if (!dev) {
+		SLSI_WARN_NODEV("dev is NULL\n");
 		return -EINVAL;
+	}
 	ndev_vif = netdev_priv(dev);
 
 	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
@@ -1728,8 +1758,10 @@ static int slsi_set_bssid_blacklist(struct wiphy *wiphy, struct wireless_dev *wd
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_SET_BSSID_BLACK_LIST\n");
 
 	net_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
-	if (WARN_ON(!net_dev))
+	if (!net_dev) {
+		SLSI_WARN_NODEV("net_dev is NULL\n");
 		return -EINVAL;
+	}
 
 	ndev_vif = netdev_priv(net_dev);
 	/*This subcmd can be issued in either connected or disconnected state.
@@ -1809,21 +1841,25 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 	ndev_vif = netdev_priv(net_dev);
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (WARN_ON(!ndev_vif->activated)) {
+	if (!ndev_vif->activated) {
+		SLSI_WARN_NODEV("ndev_vif is not activated\n");
 		r = -EINVAL;
 		goto exit;
 	}
-	if (WARN_ON(ndev_vif->vif_type != FAPI_VIFTYPE_STATION)) {
+	if (ndev_vif->vif_type != FAPI_VIFTYPE_STATION) {
+		SLSI_WARN_NODEV("ndev_vif->vif_type is not FAPI_VIFTYPE_STATION\n");
 		r = -EINVAL;
 		goto exit;
 	}
-	if (WARN_ON(ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED)) {
+	if (ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED) {
+		SLSI_WARN_NODEV("ndev_vif->sta.vif_status is not SLSI_VIF_STATUS_CONNECTED\n");
 		r = -EINVAL;
 		goto exit;
 	}
 
 	peer = slsi_get_peer_from_qs(sdev, net_dev, SLSI_STA_PEER_QUEUESET);
-	if (WARN_ON(!peer)) {
+	if (!peer) {
+		SLSI_WARN_NODEV("peer is NULL\n");
 		r = -EINVAL;
 		goto exit;
 	}
@@ -1872,7 +1908,8 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 				  ndev_vif->sta.keepalive_host_tag[index - 1], 0, 0, 0);
 
 	skb = slsi_alloc_skb_headroom(sizeof(struct ethhdr) + ip_pkt_len, GFP_KERNEL);
-	if (WARN_ON(!skb)) {
+	if (!skb) {
+		SLSI_WARN_NODEV("Memory allocation failed for skb\n");
 		r = -ENOMEM;
 		goto exit;
 	}
@@ -1909,6 +1946,8 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 				      0, (period * 1000));
 	if (r == 0)
 		ndev_vif->sta.keepalive_host_tag[index - 1] = host_tag;
+	else
+		slsi_kfree_skb(skb);
 
 exit:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
@@ -1938,15 +1977,18 @@ static int slsi_stop_keepalive_offload(struct wiphy *wiphy, struct wireless_dev 
 	ndev_vif = netdev_priv(net_dev);
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (WARN_ON(!ndev_vif->activated)) {
+	if (!ndev_vif->activated) {
+		SLSI_WARN(sdev, "VIF is not activated\n");
 		r = -EINVAL;
 		goto exit;
 	}
-	if (WARN_ON(ndev_vif->vif_type != FAPI_VIFTYPE_STATION)) {
+	if (ndev_vif->vif_type != FAPI_VIFTYPE_STATION) {
+		SLSI_WARN(sdev, "Not a STA VIF\n");
 		r = -EINVAL;
 		goto exit;
 	}
-	if (WARN_ON(ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED)) {
+	if (ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED) {
+		SLSI_WARN(sdev, "VIF is not connected\n");
 		r = -EINVAL;
 		goto exit;
 	}
@@ -5266,7 +5308,6 @@ static int slsi_get_logger_supported_feature_set(struct wiphy *wiphy, struct wir
 		SLSI_ERR(sdev, "scsc_wifi_get_logger_supported_feature_set failed ret:%d\n", ret);
 		goto exit;
 	}
-	SLSI_DBG1(sdev, SLSI_GSCAN, "MOHIT : Value of supported featres is %d\n", supported_features);
 	ret = slsi_vendor_cmd_reply(wiphy, &supported_features, sizeof(supported_features));
 exit:
 	SLSI_MUTEX_UNLOCK(sdev->logger_mutex);

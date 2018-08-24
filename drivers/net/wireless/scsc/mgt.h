@@ -404,7 +404,6 @@ struct ieee80211_channel *slsi_find_scan_channel(struct slsi_dev *sdev, struct i
 int slsi_auto_chan_select_scan(struct slsi_dev *sdev, int chan_count, struct ieee80211_channel *channels[]);
 int slsi_set_uint_mib(struct slsi_dev *dev, struct net_device *ndev, u16 psid, int value);
 int slsi_update_regd_rules(struct slsi_dev *sdev, bool country_check);
-int slsi_set_uapsd_qos_info(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_set_boost(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_p2p_init(struct slsi_dev *sdev, struct netdev_vif *ndev_vif);
 void slsi_p2p_deinit(struct slsi_dev *sdev, struct netdev_vif *ndev_vif);
@@ -468,4 +467,5 @@ void slsi_update_supported_channels_regd_flags(struct slsi_dev *sdev);
 int slsi_test_send_hanged_vendor_event(struct net_device *dev);
 #endif
 void slsi_hs2_dump_public_action_subtype(struct ieee80211_mgmt *mgmt, bool tx);
+void slsi_reset_channel_flags(struct slsi_dev *sdev);
 #endif /*__SLSI_MGT_H__*/

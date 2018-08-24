@@ -63,13 +63,45 @@ static int hip4_smapper_alloc_bank(struct slsi_dev *sdev, struct hip4_priv *priv
 	return 0;
 }
 
+static int hip4_smapper_allocate_skb_buffer_entry(struct slsi_dev *sdev, struct hip4_smapper_bank *bank, int idx)
+{
+	struct sk_buff *skb;
+	int err;
+
+	skb = slsi_alloc_skb(bank->entry_size, GFP_ATOMIC);
+	if (!skb) {
+		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Not enough memory\n");
+		return -ENOMEM;
+	}
+	SLSI_DBG4_NODEV(SLSI_SMAPPER, "SKB allocated: 0x%p at bank %d entry %d\n", skb, bank->bank, idx);
+	bank->skbuff_dma[idx] = dma_map_single(sdev->dev, skb->data,
+					     bank->entry_size, DMA_FROM_DEVICE);
+	err = dma_mapping_error(sdev->dev, bank->skbuff_dma[idx]);
+	if (err) {
+		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Error mapping SKB: 0x%p at bank %d entry %d\n", skb, bank->bank, idx);
+		slsi_kfree_skb(skb);
+		return err;
+	}
+
+	/* Check alignment */
+	if (!IS_ALIGNED(bank->skbuff_dma[idx], bank->align)) {
+		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Phys address: 0x%x not %d aligned. Unmap memory and return error\n",
+				bank->skbuff_dma[idx], bank->align);
+		dma_unmap_single(sdev->dev, bank->skbuff_dma[idx], bank->entry_size, DMA_FROM_DEVICE);
+		slsi_kfree_skb(skb);
+		bank->skbuff_dma[idx] = 0;
+		return -ENOMEM;
+	}
+	bank->skbuff[idx] = skb;
+	return 0;
+}
+
 /* Pre-Allocate the skbs for the RX entries */
 static int hip4_smapper_allocate_skb_buffers(struct slsi_dev *sdev, struct hip4_smapper_bank *bank)
 {
 	unsigned int i;
 	unsigned int n;
-	struct sk_buff *skb;
-	int err;
+	int res;
 
 	if (!bank)
 		return -EINVAL;
@@ -77,30 +109,9 @@ static int hip4_smapper_allocate_skb_buffers(struct slsi_dev *sdev, struct hip4_
 	n = bank->entries;
 	for (i = 0; i < n; i++) {
 		if (!bank->skbuff[i]) {
-			skb = slsi_alloc_skb(bank->entry_size, GFP_ATOMIC);
-			if (!skb) {
-				SLSI_DBG4_NODEV(SLSI_SMAPPER, "Not enough memory\n");
-				return -ENOMEM;
-			}
-			SLSI_DBG4_NODEV(SLSI_SMAPPER, "SKB allocated: 0x%p at bank %d entry %d\n", skb, bank->bank, i);
-			bank->skbuff_dma[i] = dma_map_single(sdev->dev, skb->data,
-							     bank->entry_size, DMA_FROM_DEVICE);
-			err = dma_mapping_error(sdev->dev, bank->skbuff_dma[i]);
-			if (err) {
-				SLSI_DBG4_NODEV(SLSI_SMAPPER, "Error mapping SKB: 0x%p at bank %d entry %d\n", skb, bank->bank, i);
-				slsi_kfree_skb(skb);
-				return err;
-			}
-
-			/* Check alignment */
-			if (!IS_ALIGNED(bank->skbuff_dma[i], bank->align)) {
-				SLSI_DBG4_NODEV(SLSI_SMAPPER, "Phys address: 0x%x not %d aligned. Unmap memory and return error\n", bank->skbuff_dma[i], bank->align);
-				dma_unmap_single(sdev->dev, bank->skbuff_dma[i], bank->entry_size, DMA_FROM_DEVICE);
-				slsi_kfree_skb(skb);
-				bank->skbuff_dma[i] = 0;
-				return -ENOMEM;
-			}
-			bank->skbuff[i] = skb;
+			res = hip4_smapper_allocate_skb_buffer_entry(sdev, bank, i);
+			if (res != 0)
+				return res;
 		}
 	}
 
@@ -170,8 +181,7 @@ static void hip4_smapper_refill_isr(int irq, void *data)
 		if (!bank->in_use)
 			continue;
 
-		if (HIP4_SMAPPER_GET_BANK_OWNER(bank->bank, *control->mbox_ptr) == HIP_SMAPPER_OWNER_HOST &&
-		    HIP4_SMAPPER_GET_BANK_STATE(bank->bank, *control->mbox_ptr) == HIP_SMAPPER_STATUS_REFILL) {
+		if (HIP4_SMAPPER_GET_BANK_OWNER(bank->bank, *control->mbox_ptr) == HIP_SMAPPER_OWNER_HOST) {
 			SLSI_DBG4_NODEV(SLSI_SMAPPER, "SKB allocation at bank %d\n", i);
 			if (hip4_smapper_allocate_skb_buffers(sdev, bank)) {
 				SLSI_DBG4_NODEV(SLSI_SMAPPER, "Error Allocating skb buffers at bank %d. Setting owner to FW\n", i);
@@ -217,7 +227,6 @@ int hip4_smapper_consume_entry(struct slsi_dev *sdev, struct slsi_hip4 *hip, str
 	len = desc->entry_size;
 	headroom = desc->headroom;
 
-
 	if (bank_num >= HIP4_SMAPPER_TOTAL_BANKS) {
 		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Incorrect bank_num %d\n", bank_num);
 		goto error;
@@ -247,6 +256,9 @@ int hip4_smapper_consume_entry(struct slsi_dev *sdev, struct slsi_hip4 *hip, str
 	bank->skbuff[entry] = NULL;
 	dma_unmap_single(sdev->dev, bank->skbuff_dma[entry], bank->entry_size, DMA_FROM_DEVICE);
 	bank->skbuff_dma[entry] = 0;
+
+	hip4_smapper_allocate_skb_buffer_entry(sdev, bank, entry);
+
 	skb_reserve(skb, headroom);
 	skb_put(skb, len);
 	cb->skb_addr = skb;
