@@ -1552,10 +1552,10 @@ void slsi_rx_disconnect_ind(struct slsi_dev *sdev, struct net_device *dev, struc
 		      fapi_get_vif(skb),
 		      fapi_get_buff(skb, u.mlme_disconnect_ind.peer_sta_address));
 
-#ifdef CONFIG_SCSC_MX_LOG_DUMP
-	mx140_log_dump();
-#elif CONFIG_SCSC_LOG_COLLECTION
+#ifdef CONFIG_SCSC_LOG_COLLECTION
 	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DISCONNECT_IND);
+#else
+	mx140_log_dump();
 #endif
 	slsi_handle_disconnect(sdev,
 			       dev,
@@ -1577,10 +1577,10 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 		      fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code),
 		      fapi_get_buff(skb, u.mlme_disconnected_ind.peer_sta_address));
 
-#ifdef CONFIG_SCSC_MX_LOG_DUMP
-	mx140_log_dump();
-#elif CONFIG_SCSC_LOG_COLLECTION
+#ifdef CONFIG_SCSC_LOG_COLLECTION
 	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DISCONNECTED_IND);
+#else
+	mx140_log_dump();
 #endif
 	if (ndev_vif->vif_type == FAPI_VIFTYPE_AP) {
 		if (fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code) ==

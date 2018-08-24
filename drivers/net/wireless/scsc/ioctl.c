@@ -2453,10 +2453,10 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #ifndef SLSI_TEST_DEV
 	} else if (strncasecmp(command, CMD_DRIVERDEBUGDUMP, strlen(CMD_DRIVERDEBUGDUMP)) == 0) {
 		slsi_dump_stats(dev);
-#ifdef CONFIG_SCSC_MX_LOG_DUMP
-		ret = mx140_log_dump();
-#elif CONFIG_SCSC_LOG_COLLECTION
+#ifdef CONFIG_SCSC_LOG_COLLECTION
 		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DRIVERDEBUGDUMP);
+#else
+		ret = mx140_log_dump();
 #endif
 #endif
 	} else {

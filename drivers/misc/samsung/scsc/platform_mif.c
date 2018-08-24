@@ -1210,10 +1210,10 @@ done:
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev, "Reset not recovered");
 
 	/* Save log at point of failure, last to show recovery attempt */
-#ifdef CONFIG_SCSC_MX_LOG_DUMP
-	mx140_log_dump();
-#elif CONFIG_SCSC_LOG_COLLECTION
+#ifdef CONFIG_SCSC_LOG_COLLECTION
 	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_COMMON, SCSC_LOG_HOST_COMMON_RECOVER_RST);
+#else
+	mx140_log_dump();
 #endif
 	return ret;
 }

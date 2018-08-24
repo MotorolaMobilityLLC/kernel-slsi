@@ -935,10 +935,10 @@ static int mxman_start(struct mxman *mxman)
 		SCSC_TAG_INFO(MXMAN, "HW reset deassertion failed\n");
 
 		/* Save log at point of failure */
-#ifdef CONFIG_SCSC_MX_LOG_DUMP
-		mx140_log_dump();
-#elif CONFIG_SCSC_LOG_COLLECTION
+#ifdef CONFIG_SCSC_LOG_COLLECTION
 		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_COMMON, SCSC_LOG_HOST_COMMON_REASON_START);
+#else
+		mx140_log_dump();
 #endif
 	}
 	if (fwhdr_parsed_ok) {
@@ -1590,10 +1590,10 @@ static void mxman_stop(struct mxman *mxman)
 		reset_failed = true;
 
 		/* Save log at point of failure */
-#ifdef CONFIG_SCSC_MX_LOG_DUMP
-		mx140_log_dump();
-#elif CONFIG_SCSC_LOG_COLLECTION
+#ifdef CONFIG_SCSC_LOG_COLLECTION
 		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_COMMON, SCSC_LOG_HOST_COMMON_REASON_STOP);
+#else
+		mx140_log_dump();
 #endif
 	}
 
