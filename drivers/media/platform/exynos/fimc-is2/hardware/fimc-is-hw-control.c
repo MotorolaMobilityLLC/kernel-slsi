@@ -938,7 +938,7 @@ int fimc_is_hardware_probe(struct fimc_is_hardware *hardware,
 		hardware->sensor_position[i] = 0;
 	}
 
-	for (i = 0; i < SENSOR_POSITION_END; i++)
+	for (i = 0; i < SENSOR_POSITION_MAX; i++)
 		atomic_set(&hardware->streaming[i], 0);
 
 	atomic_set(&hardware->rsccount, 0);
@@ -2097,7 +2097,7 @@ int fimc_is_hardware_open(struct fimc_is_hardware *hardware, u32 hw_id,
 		}
 
 		memset(hw_ip->debug_info, 0x00, sizeof(struct hw_debug_info) * DEBUG_FRAME_COUNT);
-		memset(hw_ip->setfile, 0x00, sizeof(struct fimc_is_hw_ip_setfile) * SENSOR_POSITION_END);
+		memset(hw_ip->setfile, 0x00, sizeof(struct fimc_is_hw_ip_setfile) * SENSOR_POSITION_MAX);
 		hw_ip->applied_scenario = -1;
 		hw_ip->debug_index[0] = 0;
 		hw_ip->debug_index[1] = 0;

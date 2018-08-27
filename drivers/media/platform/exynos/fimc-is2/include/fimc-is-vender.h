@@ -29,8 +29,8 @@
 struct fimc_is_vender {
 	char fw_path[FIMC_IS_PATH_LEN];
 	char request_fw_path[FIMC_IS_PATH_LEN];
-	char setfile_path[SENSOR_POSITION_END][FIMC_IS_PATH_LEN];
-	char request_setfile_path[SENSOR_POSITION_END][FIMC_IS_PATH_LEN];
+	char setfile_path[SENSOR_POSITION_MAX][FIMC_IS_PATH_LEN];
+	char request_setfile_path[SENSOR_POSITION_MAX][FIMC_IS_PATH_LEN];
 	void *private_data;
 	int companion_crc_error;
 };
