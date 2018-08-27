@@ -36,6 +36,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 	u16			proto = ntohs(skb->protocol);
 	int			ret = 0;
 	u32              dwell_time = sdev->fw_dwell_time;
+	u64			tx_bytes_tmp = 0;
 
 	slsi_spinlock_lock(&ndev_vif->peer_lock);
 	peer = slsi_get_peer_from_mac(sdev, dev, eth_hdr(skb)->h_dest);
@@ -85,10 +86,11 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 	}
 
 	/* EAPOL/WAI frames are send via the MLME */
+	tx_bytes_tmp = skb->len; // len copy to avoid null pointer of skb
 	ret = slsi_mlme_send_frame_data(sdev, dev, skb, msg_type, 0, dwell_time, 0);
 	if (!ret) {
 		peer->sinfo.tx_packets++;
-		peer->sinfo.tx_bytes += skb->len;
+		peer->sinfo.tx_bytes += tx_bytes_tmp; //skb->len;
 	}
 	slsi_spinlock_unlock(&ndev_vif->peer_lock);
 	return ret;
