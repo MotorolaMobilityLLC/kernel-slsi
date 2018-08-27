@@ -817,21 +817,26 @@ static int fimc_is_hw_3aa_apply_setfile(struct fimc_is_hw_ip *hw_ip, u32 scenari
 	hw_3aa = (struct fimc_is_hw_3aa *)hw_ip->priv_info;
 
 	ret = fimc_is_lib_isp_apply_tune_set(&hw_3aa->lib[instance], setfile_index, instance);
+	if (ret)
+		return ret;
 
-	if (sensor_position == SENSOR_POSITION_REAR || sensor_position == SENSOR_POSITION_REAR2)
-		cal_addr = hw_3aa->lib_support->minfo->kvaddr_rear_cal;
-#if !defined(CONFIG_CAMERA_OTPROM_SUPPORT_FRONT)
-	else if (sensor_position == SENSOR_POSITION_FRONT)
-		cal_addr = hw_3aa->lib_support->minfo->kvaddr_front_cal;
-#endif
-	else
+	if ((sensor_position == SENSOR_POSITION_REAR) &&
+			IS_ENABLED(CONFIG_CAMERA_OTPROM_SUPPORT_REAR)) {
 		return 0;
+	} else if (sensor_position == SENSOR_POSITION_FRONT &&
+			IS_ENABLED(CONFIG_CAMERA_OTPROM_SUPPORT_FRONT)) {
+		return 0;
+	} else if (sensor_position < SENSOR_POSITION_MAX) {
+		cal_addr = hw_3aa->lib_support->minfo->kvaddr_cal[sensor_position];
 
-	msinfo_hw("load cal data, position: %d, addr: 0x%lx \n", instance, hw_ip,
+		msinfo_hw("load cal data, position: %d, addr: 0x%lx\n", instance, hw_ip,
 				sensor_position, cal_addr);
-	ret = fimc_is_lib_isp_load_cal_data(&hw_3aa->lib[instance], instance, cal_addr);
-	ret = fimc_is_lib_isp_get_cal_data(&hw_3aa->lib[instance], instance,
-		&hw_ip->hardware->cal_info[sensor_position], CAL_TYPE_LSC_UVSP);
+		ret = fimc_is_lib_isp_load_cal_data(&hw_3aa->lib[instance], instance, cal_addr);
+		ret = fimc_is_lib_isp_get_cal_data(&hw_3aa->lib[instance], instance,
+				&hw_ip->hardware->cal_info[sensor_position], CAL_TYPE_LSC_UVSP);
+	} else {
+		return 0;
+	}
 
 	return ret;
 }

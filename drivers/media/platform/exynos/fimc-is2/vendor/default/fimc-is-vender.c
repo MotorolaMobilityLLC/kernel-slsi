@@ -169,13 +169,13 @@ int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is
 #ifdef ENABLE_IS_CORE
 			cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET0;
 #else
-			cal_addr = core->resourcemgr.minfo.kvaddr_rear_cal;
+			cal_addr = core->resourcemgr.minfo.kvaddr_cal[SENSOR_POSITION_REAR];
 #endif
 		} else if (module->position == SENSOR_POSITION_FRONT || module->position == SENSOR_POSITION_FRONT2) {
 #ifdef ENABLE_IS_CORE
 			cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET1;
 #else
-			cal_addr = core->resourcemgr.minfo.kvaddr_front_cal;
+			cal_addr = core->resourcemgr.minfo.kvaddr_cal[SENSOR_POSITION_REAR];
 #endif
 		}
 	} else {

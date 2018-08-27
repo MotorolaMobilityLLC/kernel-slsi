@@ -241,6 +241,7 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
 	size_t tpu_size = 0;
 	size_t tnr_size;
+	int i;
 
 	minfo->total_size = 0;
 	/* setfile */
@@ -251,21 +252,15 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	}
 	minfo->total_size += minfo->pb_setfile->size;
 
-	/* calibration data for rear lens */
-	minfo->pb_rear_cal = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, REAR_CALDATA_SIZE, 16);
-	if (IS_ERR_OR_NULL(minfo->pb_rear_cal)) {
-		err("failed to allocate buffer for REAR_CALDATA");
-		return -ENOMEM;
+	/* calibration data for each sensor postion */
+	for (i = 0; i < SENSOR_POSITION_MAX; i++) {
+		minfo->pb_cal[i] = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, CALDATA_SIZE, 16);
+		if (IS_ERR_OR_NULL(minfo->pb_cal[i])) {
+			err("failed to allocate buffer for REAR_CALDATA");
+			return -ENOMEM;
+		}
+		minfo->total_size += minfo->pb_cal[i]->size;
 	}
-	minfo->total_size += minfo->pb_rear_cal->size;
-
-	/* calibration data for front lens */
-	minfo->pb_front_cal = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, FRONT_CALDATA_SIZE, 16);
-	if (IS_ERR_OR_NULL(minfo->pb_front_cal)) {
-		err("failed to allocate buffer for FRONT_CALDATA");
-		return -ENOMEM;
-	}
-	minfo->total_size += minfo->pb_front_cal->size;
 
 	/* library logging */
 	minfo->pb_debug = mem->kmalloc(DEBUG_REGION_SIZE + 0x10, 16);
@@ -394,6 +389,7 @@ static int fimc_is_resourcemgr_initmem(struct fimc_is_resourcemgr *resourcemgr)
 {
 	struct fimc_is_minfo *minfo = NULL;
 	int ret = 0;
+	int i;
 
 	probe_info("fimc_is_init_mem - ION\n");
 
@@ -466,8 +462,10 @@ static int fimc_is_resourcemgr_initmem(struct fimc_is_resourcemgr *resourcemgr)
 	resourcemgr->minfo.kvaddr_event_cnt =  resourcemgr->minfo.kvaddr_event
 						+ EVENT_REGION_SIZE;
 	resourcemgr->minfo.kvaddr_setfile = CALL_BUFOP(minfo->pb_setfile, kvaddr, minfo->pb_setfile);
-	resourcemgr->minfo.kvaddr_rear_cal = CALL_BUFOP(minfo->pb_rear_cal, kvaddr, minfo->pb_rear_cal);
-	resourcemgr->minfo.kvaddr_front_cal = CALL_BUFOP(minfo->pb_front_cal, kvaddr, minfo->pb_front_cal);
+
+	for (i = 0; i < SENSOR_POSITION_MAX; i++)
+		resourcemgr->minfo.kvaddr_cal[i] =
+			CALL_BUFOP(minfo->pb_cal[i], kvaddr, minfo->pb_cal[i]);
 
 	probe_info("[RSC] Kernel virtual for library: %08lx\n", resourcemgr->minfo.kvaddr);
 	probe_info("[RSC] Kernel virtual for debug: %08lx\n", resourcemgr->minfo.kvaddr_debug);
