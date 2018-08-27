@@ -314,9 +314,8 @@ static int fimc_is_hw_mcsc_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	msdbg_hw(2, "open: [G:0x%x], framemgr[%s]", instance, hw_ip,
 		GROUP_ID(group->id), hw_ip->framemgr->name);
 
-	for (i = 0; i < SENSOR_POSITION_END; i++) {
+	for (i = 0; i < SENSOR_POSITION_MAX; i++)
 		hw_mcsc->cur_setfile[i] = NULL;
-	}
 
 	if (check_sc_core_running(hw_ip, cap))
 		return 0;

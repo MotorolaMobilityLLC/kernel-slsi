@@ -100,8 +100,8 @@
 #define SP_FRONT4	7
 #define SP_REAR_TOF	8
 #define SP_FRONT_TOF	9
-#define SP_SECURE	10
-#define SP_VIRTUAL	100
+#define SP_SECURE	100
+#define SP_VIRTUAL	101
 
 #define DUAL_SYNC_NONE		0
 #define DUAL_SYNC_MASTER	1

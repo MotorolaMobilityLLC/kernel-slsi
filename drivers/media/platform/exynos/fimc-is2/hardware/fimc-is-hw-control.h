@@ -297,7 +297,7 @@ struct fimc_is_hw_ip {
 	struct fimc_is_interface		*itf;
 	/* control interface */
 	struct fimc_is_interface_ischain	*itfc;
-	struct fimc_is_hw_ip_setfile		setfile[SENSOR_POSITION_END];
+	struct fimc_is_hw_ip_setfile		setfile[SENSOR_POSITION_MAX];
 	u32					applied_scenario;
 	/* for dump sfr */
 	u8					*sfr_dump;
@@ -383,8 +383,8 @@ struct fimc_is_hardware {
 	/* for access mcuctl regs */
 	void __iomem			*base_addr_mcuctl;
 
-	struct cal_info			cal_info[SENSOR_POSITION_END];
-	atomic_t			streaming[SENSOR_POSITION_END];
+	struct cal_info			cal_info[SENSOR_POSITION_MAX];
+	atomic_t			streaming[SENSOR_POSITION_MAX];
 	atomic_t			bug_count;
 	atomic_t			log_count;
 
