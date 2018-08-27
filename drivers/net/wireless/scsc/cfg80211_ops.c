@@ -1876,7 +1876,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	u8 *ds_params_ie = NULL;
 	struct ieee80211_mgmt  *mgmt;
 	u16                    beacon_ie_head_len;
-	u8 *ht_operation_ie;
+	u8 *ht_operation_ie = NULL;
 	struct netdev_vif *ndev_sta_vif;
 #endif
 	struct ieee80211_channel  *channel = NULL;
