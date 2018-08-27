@@ -18,6 +18,7 @@
 #include <media/videobuf2-dma-sg.h>
 #endif
 #include "fimc-is-framemgr.h"
+#include "exynos-fimc-is-sensor.h"
 
 struct fimc_is_vb2_buf;
 struct fimc_is_vb2_buf_ops {
@@ -145,8 +146,7 @@ struct fimc_is_mem {
 struct fimc_is_minfo {
 	struct fimc_is_priv_buf *pb_fw;
 	struct fimc_is_priv_buf *pb_setfile;
-	struct fimc_is_priv_buf *pb_rear_cal;
-	struct fimc_is_priv_buf *pb_front_cal;
+	struct fimc_is_priv_buf *pb_cal[SENSOR_POSITION_MAX];
 	struct fimc_is_priv_buf *pb_debug;
 	struct fimc_is_priv_buf *pb_event;
 	struct fimc_is_priv_buf *pb_fshared;
@@ -191,8 +191,7 @@ struct fimc_is_minfo {
 	ulong		kvaddr_mcsc_dnr;
 
 	ulong		kvaddr_setfile;
-	ulong		kvaddr_rear_cal;
-	ulong		kvaddr_front_cal;
+	ulong		kvaddr_cal[SENSOR_POSITION_MAX];
 };
 
 int fimc_is_mem_init(struct fimc_is_mem *mem, struct platform_device *pdev);
