@@ -443,6 +443,11 @@ void hip4_sampler_tcp_decode(struct slsi_dev *sdev, struct net_device *dev, u8 *
 				u32 optlen, len = 0;
 
 				optlen = (tcp_hdr->doff - 5) * 4;
+				if (optlen > 60) {
+					SLSI_WARN(sdev, "Error optlen : %u\n", optlen);
+					optlen = 60;
+				}
+
 				options = (u8 *)tcp_hdr + TCP_ACK_SUPPRESSION_OPTIONS_OFFSET;
 
 				while (optlen > 0) {
@@ -464,7 +469,10 @@ void hip4_sampler_tcp_decode(struct slsi_dev *sdev, struct net_device *dev, u8 *
 					if (len == 0)
 						break;
 
-					optlen -= len;
+					if (optlen >= len)
+						optlen -= len;
+					else
+						optlen = 0;
 					options += len;
 				}
 			}
