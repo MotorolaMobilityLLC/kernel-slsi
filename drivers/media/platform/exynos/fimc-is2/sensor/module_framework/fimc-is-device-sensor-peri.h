@@ -350,6 +350,9 @@ struct fimc_is_pafstat_ops {
 	int (*unregister_notifier)(struct v4l2_subdev *subdev,
 			enum itf_vc_stat_type type,
 			paf_notifier_t notifier);
+	void (*notify)(struct v4l2_subdev *subdev,
+			unsigned int type,
+			void *data);
 
 	/* device specific ops */
 	int (*set_num_buffers)(struct v4l2_subdev *subdev,
@@ -395,6 +398,9 @@ struct fimc_is_pafstat {
 	struct fimc_is_pafstat_ops	*pafstat_ops;
 	struct v4l2_subdev		*subdev; /* connected module subdevice */
 	char				name[FIMC_IS_STR_LEN];
+
+	spinlock_t			slock_paf_action;
+	struct list_head		list_of_paf_action;
 };
 
 struct fimc_is_device_sensor_peri {
