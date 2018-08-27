@@ -255,6 +255,109 @@ int pafstat_hw_get_ready(struct v4l2_subdev *subdev, u32 *ready)
 	return 0;
 }
 
+int pafstat_register_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
+		paf_notifier_t notifier, void *data)
+{
+	struct fimc_is_pafstat *pafstat;
+	struct paf_action *pa;
+	unsigned long flag;
+
+	pafstat = (struct fimc_is_pafstat *)v4l2_get_subdevdata(subdev);
+	if (!pafstat) {
+		err("%s, failed to get PDP", __func__);
+		return -ENODEV;
+	}
+
+	switch (type) {
+	case VC_STAT_TYPE_PAFSTAT_FLOATING:
+	case VC_STAT_TYPE_PAFSTAT_STATIC:
+		pa = kzalloc(sizeof(struct paf_action), GFP_ATOMIC);
+		if (!pa) {
+			err_lib("failed to allocate a PAF action");
+			return -ENOMEM;
+		}
+
+		pa->type = type;
+		pa->notifier = notifier;
+		pa->data = data;
+
+		spin_lock_irqsave(&pafstat->slock_paf_action, flag);
+		list_add(&pa->list, &pafstat->list_of_paf_action);
+		spin_unlock_irqrestore(&pafstat->slock_paf_action, flag);
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* TODO: below version removes all notifiers have been registered with same stat. type */
+int pafstat_unregister_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
+		paf_notifier_t notifier)
+{
+	struct fimc_is_pafstat *pafstat;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
+
+	pafstat = (struct fimc_is_pafstat *)v4l2_get_subdevdata(subdev);
+	if (!pafstat) {
+		err("%s, failed to get PAFSTAT", __func__);
+		return -ENODEV;
+	}
+
+	switch (type) {
+	case VC_STAT_TYPE_PAFSTAT_FLOATING:
+	case VC_STAT_TYPE_PAFSTAT_STATIC:
+		spin_lock_irqsave(&pafstat->slock_paf_action, flag);
+		list_for_each_entry_safe(pa, temp,
+				&pafstat->list_of_paf_action, list) {
+			if (pa->type == type) {
+				list_del(&pa->list);
+				kfree(pa);
+			}
+		}
+		spin_unlock_irqrestore(&pafstat->slock_paf_action, flag);
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void pafstat_notify(struct v4l2_subdev *subdev, unsigned int type, void *data)
+{
+	struct fimc_is_pafstat *pafstat;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
+
+	pafstat = (struct fimc_is_pafstat *)v4l2_get_subdevdata(subdev);
+	if (!pafstat)
+		err("%s, failed to get PAFSTAT", __func__);
+
+	switch (type) {
+	case CSIS_NOTIFY_DMA_END_VC_MIPISTAT:
+		spin_lock_irqsave(&pafstat->slock_paf_action, flag);
+		list_for_each_entry_safe(pa, temp, &pafstat->list_of_paf_action, list) {
+			switch (pa->type) {
+			case VC_STAT_TYPE_PAFSTAT_FLOATING:
+			case VC_STAT_TYPE_PAFSTAT_STATIC:
+				pa->notifier(pa->type, *(unsigned int *)data, pa->data);
+				break;
+			default:
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&pafstat->slock_paf_action, flag);
+
+	default:
+		break;
+	}
+}
+
 int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 {
 	int ret = 0;
@@ -278,6 +381,8 @@ int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 	sensor_peri->pafstat = pafstat;
 	sensor_peri->subdev_pafstat = pafstat->subdev;
 	v4l2_set_subdev_hostdata(pafstat->subdev, module);
+	spin_lock_init(&pafstat->slock_paf_action);
+	INIT_LIST_HEAD(&pafstat->list_of_paf_action);
 
 	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_UNAPPLIED);
 	atomic_set(&pafstat->fs, 0);
@@ -312,6 +417,8 @@ int pafstat_unregister(struct fimc_is_module_enum *module)
 	struct fimc_is_device_sensor_peri *sensor_peri = module->private_data;
 	struct fimc_is_pafstat *pafstat;
 	long timetowait;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
 
 	if (!test_bit(FIMC_IS_SENSOR_PAFSTAT_AVAILABLE, &sensor_peri->peri_state)) {
 		err("already unregistered");
@@ -324,6 +431,17 @@ int pafstat_unregister(struct fimc_is_module_enum *module)
 		err("A subdev data of PAFSTAT is null");
 		ret = -ENODEV;
 		goto p_err;
+	}
+
+	if (!list_empty(&pafstat->list_of_paf_action)) {
+		err("flush remaining notifiers...");
+		spin_lock_irqsave(&pafstat->slock_paf_action, flag);
+		list_for_each_entry_safe(pa, temp,
+				&pafstat->list_of_paf_action, list) {
+			list_del(&pa->list);
+			kfree(pa);
+		}
+		spin_unlock_irqrestore(&pafstat->slock_paf_action, flag);
 	}
 
 	sensor_peri->pafstat = NULL;
@@ -504,6 +622,9 @@ static const struct v4l2_subdev_ops subdev_ops = {
 struct fimc_is_pafstat_ops pafstat_ops = {
 	.set_param = pafstat_hw_set_regs,
 	.get_ready = pafstat_hw_get_ready,
+	.register_notifier = pafstat_register_notifier,
+	.unregister_notifier = pafstat_unregister_notifier,
+	.notify = pafstat_notify,
 	.set_num_buffers = pafstat_set_num_buffers,
 };
 
