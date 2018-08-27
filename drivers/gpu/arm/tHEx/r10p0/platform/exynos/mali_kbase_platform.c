@@ -23,7 +23,8 @@
 #include "gpu_notifier.h"
 #include "gpu_dvfs_governor.h"
 #include "gpu_control.h"
-
+#include <soc/samsung/cal-if.h>
+#include <linux/of_platform.h>
 
 #if MALI_SEC_SECURE_RENDERING
 #include <linux/smc.h>
@@ -31,6 +32,10 @@
 
 /* SMC CALL return value for Successfully works */
 #define GPU_SMC_TZPC_OK 0
+#endif
+
+#ifndef KHZ
+#define KHZ (1000)
 #endif
 
 struct kbase_device *pkbdev;
@@ -155,13 +160,29 @@ static int gpu_validate_attrib_data(struct exynos_context *platform)
 {
 	uintptr_t data;
 	gpu_attribute *attrib = (gpu_attribute *)gpu_get_config_attributes();
+	unsigned long(*funcptr)(unsigned int);
+	unsigned int cal_id;
+	struct kbase_device *kbdev;
+	struct device_node *np;
 
 	platform->attrib = attrib;
 
 	data = gpu_get_attrib_data(attrib, GPU_MAX_CLOCK);
 	platform->gpu_max_clock = data == 0 ? 500 : (u32) data;
+
 	data = gpu_get_attrib_data(attrib, GPU_MAX_CLOCK_LIMIT);
+
+	/*
 	platform->gpu_max_clock_limit = data == 0 ? 500 : (u32) data;
+	*/
+
+	kbdev = gpu_get_device_structure();
+	np = kbdev->dev->of_node;
+	of_property_read_u32(np, "g3d_cmu_cal_id", &cal_id);
+
+	funcptr = (unsigned long(*)(unsigned int))data;
+	platform->gpu_max_clock_limit = (int)funcptr(cal_id)/KHZ;
+
 	data = gpu_get_attrib_data(attrib, GPU_MIN_CLOCK);
 	platform->gpu_min_clock = data == 0 ? 160 : (u32) data;
 	data = gpu_get_attrib_data(attrib, GPU_DVFS_START_CLOCK);
