@@ -1,8 +1,8 @@
 /*
- * Samsung Exynos5 SoC series Sensor driver
+ * Samsung Exynos SoC series PAFSTAT driver
  *
  *
- * Copyright (c) 2017 Samsung Electronics Co., Ltd
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,7 +21,7 @@
 #include "fimc-is-hw-pafstat.h"
 #include "fimc-is-interface-library.h"
 
-static struct fimc_is_pafstat pafstat_device[MAX_NUM_OF_PAFSTAT];
+static struct fimc_is_pafstat pafstat_devices[MAX_NUM_OF_PAFSTAT];
 atomic_t	g_pafstat_rsccount;
 
 static void prepare_pafstat_sfr_dump(struct fimc_is_pafstat *pafstat)
@@ -274,7 +274,7 @@ int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 		goto p_err;
 	}
 
-	pafstat = &pafstat_device[pafstat_ch];
+	pafstat = &pafstat_devices[pafstat_ch];
 	sensor_peri->pafstat = pafstat;
 	sensor_peri->subdev_pafstat = pafstat->subdev;
 	v4l2_set_subdev_hostdata(pafstat->subdev, module);
@@ -288,7 +288,7 @@ int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 	atomic_set(&pafstat->Vvalid, V_BLANK);
 	init_waitqueue_head(&pafstat->wait_queue);
 
-	pafstat->regs_com = pafstat_device[0].regs;
+	pafstat->regs_com = pafstat_devices[0].regs;
 	if (!atomic_read(&g_pafstat_rsccount)) {
 		info("[PAFSTAT:%d] %s: hw_com_init()\n", pafstat->id, __func__);
 		pafstat_hw_com_init(pafstat->regs_com);
@@ -511,88 +511,90 @@ static int __init pafstat_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int id = -1;
-	struct resource *mem_res;
+	struct resource *res, *res_b;
 	struct fimc_is_pafstat *pafstat;
-	struct device_node *dnode;
-	struct device *dev;
+	struct device *dev = &pdev->dev;
 	u32 reg_cnt = 0;
-	char irq_name[16];
 
 	WARN_ON(!fimc_is_dev);
 	WARN_ON(!pdev);
 	WARN_ON(!pdev->dev.of_node);
 
-	dev = &pdev->dev;
-	dnode = dev->of_node;
-
-	ret = of_property_read_u32(dnode, "id", &pdev->id);
-	if (ret) {
-		dev_err(dev, "id read is fail(%d)\n", ret);
-		goto err_get_id;
+	id = of_alias_get_id(dev->of_node, "pafstat");
+	if (id < 0 || id >= MAX_NUM_OF_PAFSTAT) {
+		dev_err(dev, "invalid id (out-of-range)\n");
+		return -EINVAL;
 	}
 
-	id = pdev->id;
-	pafstat = &pafstat_device[id];
+	pafstat = &pafstat_devices[id];
+	pafstat->id = id;
 
-	/* Get SFR base register */
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(dev, "Failed to get io memory region(%p)\n", mem_res);
-		ret = -EBUSY;
-		goto err_get_resource;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "can't get memory resource\n");
+		return -ENODEV;
 	}
 
-	pafstat->regs_start = mem_res->start;
-	pafstat->regs_end = mem_res->end;
-	pafstat->regs = devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				dev_name(dev))) {
+		dev_err(dev, "can't request region for resource %p\n", res);
+		return -EBUSY;
+	}
+
+	pafstat->regs_start = res->start;
+	pafstat->regs_end = res->end;
+	pafstat->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
 	if (!pafstat->regs) {
-		dev_err(dev, "Failed to remap io region(%p)\n", pafstat->regs);
+		dev_err(dev, "ioremap failed\n");
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!mem_res) {
-		dev_err(dev, "Failed to get io memory region(%p)\n", mem_res);
+	res_b = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res_b) {
+		dev_err(dev, "can't get memory resource\n");
+		ret = -ENODEV;
+		goto err_get_rsc_b;
+	}
+
+	if (!devm_request_mem_region(dev, res_b->start, resource_size(res_b),
+				dev_name(dev))) {
+		dev_err(dev, "can't request region for resource %p\n", res_b);
 		ret = -EBUSY;
-		goto err_get_resource;
+		goto err_get_rsc_b;
 	}
 
-	pafstat->regs_b_start = mem_res->start;
-	pafstat->regs_b_end = mem_res->end;
-	pafstat->regs_b = devm_ioremap_nocache(&pdev->dev, mem_res->start, resource_size(mem_res));
+	pafstat->regs_b_start = res_b->start;
+	pafstat->regs_b_end = res_b->end;
+	pafstat->regs_b = devm_ioremap_nocache(dev, res_b->start, resource_size(res_b));
 	if (!pafstat->regs_b) {
-		dev_err(dev, "Failed to remap io region(%p)\n", pafstat->regs_b);
+		dev_err(dev, "ioremap failed(reg_b)\n");
 		ret = -ENOMEM;
-		goto err_ioremap;
+		goto err_ioremap_b;
 	}
 
-	/* Get CORE IRQ SPI number */
 	pafstat->irq = platform_get_irq(pdev, 0);
 	if (pafstat->irq < 0) {
-		dev_err(dev, "Failed to get pafstat_irq(%d)\n", pafstat->irq);
-		ret = -EBUSY;
-		goto err_get_irq;
+		dev_err(dev, "failed to get IRQ resource: %d\n", pafstat->irq);
+		ret = pafstat->irq;
+		goto err_irq;
 	}
 
-	snprintf(irq_name, sizeof(irq_name), "pafstat%d", id);
-	ret = request_irq(pafstat->irq,
+	ret = devm_request_irq(dev, pafstat->irq,
 			fimc_is_isr_pafstat,
 			FIMC_IS_HW_IRQ_FLAG | IRQF_SHARED,
-			irq_name,
+			dev_name(dev),
 			pafstat);
 	if (ret) {
-		dev_err(dev, "request_irq(IRQ_PAFSTAT %d) is fail(%d)\n", pafstat->irq, ret);
-		goto err_get_irq;
+		dev_err(dev, "failed to request IRQ(%d): %d\n", pafstat->irq, ret);
+		goto err_irq;
 	}
-
-	pafstat->id = id;
-	platform_set_drvdata(pdev, pafstat);
 
 	pafstat->subdev = devm_kzalloc(&pdev->dev, sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (!pafstat->subdev) {
+		probe_err("failed to alloc memory for pafstat-subdev\n");
 		ret = -ENOMEM;
-		goto err_subdev_alloc;
+		goto err_alloc;
 	}
 
 	snprintf(pafstat->name, FIMC_IS_STR_LEN, "PAFSTAT%d", pafstat->id);
@@ -601,7 +603,7 @@ static int __init pafstat_probe(struct platform_device *pdev)
 	if (!pafstat->regs_set) {
 		probe_err("pafstat->reg_set NULL");
 		ret = -ENOMEM;
-		goto err_reg_cnt_alloc;
+		goto err_alloc;
 	}
 
 	v4l2_subdev_init(pafstat->subdev, &subdev_ops);
@@ -614,31 +616,49 @@ static int __init pafstat_probe(struct platform_device *pdev)
 	prepare_pafstat_sfr_dump(pafstat);
 	atomic_set(&g_pafstat_rsccount, 0);
 
+	platform_set_drvdata(pdev, pafstat);
 	probe_info("%s(%s)\n", __func__, dev_name(&pdev->dev));
 	return ret;
 
-err_reg_cnt_alloc:
-err_subdev_alloc:
-err_get_irq:
+err_alloc:
+	devm_free_irq(dev, pafstat->irq, pafstat);
+err_irq:
+	devm_iounmap(dev, pafstat->regs_b);
+err_ioremap_b:
+	devm_release_mem_region(dev, res_b->start, resource_size(res_b));
+err_get_rsc_b:
+	devm_iounmap(dev, pafstat->regs);
 err_ioremap:
-err_get_resource:
-err_get_id:
+	devm_release_mem_region(dev, res->start, resource_size(res));
+
 	return ret;
 }
 
-static const struct of_device_id exynos_fimc_is_pafstat_match[] = {
+static const struct of_device_id sensor_paf_pafstat_match[] = {
 	{
-		.compatible = "samsung,exynos5-fimc-is-pafstat",
+		.compatible = "samsung,sensor-paf-pafstat",
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_fimc_is_pafstat_match);
+MODULE_DEVICE_TABLE(of, sensor_paf_pafstat_match);
 
-static struct platform_driver pafstat_driver = {
+static struct platform_driver sensor_paf_pafstat_platform_driver = {
 	.driver = {
-		.name   = "FIMC-IS-PAFSTAT",
+		.name   = "Sensor-PAF-PAFSTAT",
 		.owner  = THIS_MODULE,
-		.of_match_table = exynos_fimc_is_pafstat_match,
+		.of_match_table = sensor_paf_pafstat_match,
 	}
 };
-builtin_platform_driver_probe(pafstat_driver, pafstat_probe);
+
+static int __init sensor_paf_pafstat_init(void)
+{
+	int ret;
+
+	ret = platform_driver_probe(&sensor_paf_pafstat_platform_driver, pafstat_probe);
+	if (ret)
+		err("failed to probe %s driver: %d\n",
+			sensor_paf_pafstat_platform_driver.driver.name, ret);
+
+	return ret;
+}
+late_initcall_sync(sensor_paf_pafstat_init);
