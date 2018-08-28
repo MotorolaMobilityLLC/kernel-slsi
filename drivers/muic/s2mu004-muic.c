@@ -1532,8 +1532,14 @@ static irqreturn_t s2mu004_muic_attach_isr(int irq, void *data)
 	struct muic_platform_data *muic_pdata = muic_data->pdata;
 	int ret = 0;
 
-	if (muic_data == NULL || muic_pdata == NULL) {
-		pr_err("%s, data NULL\n", __func__);
+	if (muic_data == NULL) {
+		pr_err("%s, data NULL (Line:%d)\n", __func__, __LINE__);
+		return IRQ_NONE;
+	}
+
+	muic_pdata = muic_data->pdata;
+	if (muic_pdata == NULL) {
+		pr_err("%s, data NULL (Line:%d)\n", __func__, __LINE__);
 		return IRQ_NONE;
 	}
 
