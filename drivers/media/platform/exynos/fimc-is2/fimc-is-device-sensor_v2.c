@@ -1209,6 +1209,10 @@ static int fimc_is_sensor_notify_by_dma_end(struct fimc_is_device_sensor *device
 				CALL_PDPOPS(sensor_peri->pdp, notify,
 						sensor_peri->subdev_pdp,
 						notification, (void *)&frame->fcount);
+			else if (test_bit(FIMC_IS_SENSOR_PAFSTAT_AVAILABLE, &sensor_peri->peri_state))
+				CALL_PAFSTATOPS(sensor_peri->pafstat, notify,
+						sensor_peri->subdev_pafstat,
+						notification, (void *)&frame->fcount);
 			break;
 		default:
 			break;
