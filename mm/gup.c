@@ -36,7 +36,7 @@ static bool __need_migrate_cma_page(struct page *page,
 				struct vm_area_struct *vma,
 				unsigned long start, unsigned int flags)
 {
-	if (!(flags & (FOLL_GET | FOLL_CMA)))
+	if (!(flags & FOLL_GET) || !(flags & FOLL_CMA))
 		return false;
 
 	if (!is_migrate_cma_page(page))
