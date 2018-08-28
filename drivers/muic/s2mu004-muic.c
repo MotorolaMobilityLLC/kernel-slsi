@@ -1579,11 +1579,23 @@ irq_skip:
 static irqreturn_t s2mu004_muic_detach_isr(int irq, void *data)
 {
 	struct s2mu004_muic_data *muic_data = data;
-	struct muic_platform_data *muic_pdata = muic_data->pdata;
-	struct muic_interface_t *muic_if = muic_data->if_data;
+	struct muic_platform_data *muic_pdata;
+	struct muic_interface_t *muic_if;
 
-	if (muic_data == NULL || muic_pdata == NULL || muic_if == NULL) {
-		pr_err("%s, data NULL\n", __func__);
+	if (muic_data == NULL) {
+		pr_err("%s, data NULL (Line:%d)\n", __func__, __LINE__);
+		return IRQ_NONE;
+	}
+
+	muic_pdata = muic_data->pdata;
+	if (muic_pdata == NULL) {
+		pr_err("%s, data NULL (Line:%d)\n", __func__, __LINE__);
+		return IRQ_NONE;
+	}
+
+	muic_if = muic_data->if_data;
+	if (muic_if == NULL) {
+		pr_err("%s, data NULL (Line:%d)\n", __func__, __LINE__);
 		return IRQ_NONE;
 	}
 
