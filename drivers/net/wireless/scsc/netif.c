@@ -1025,6 +1025,12 @@ exit:
 	ndev_vif->sta.regd_mc_addr_count = i;
 }
 
+static int  slsi_set_mac_address(struct net_device *dev, void *addr)
+{
+	SLSI_NET_DBG1(dev, SLSI_NETDEV, "slsi_set_mac_address\n");
+	return 0;
+}
+
 static const struct net_device_ops slsi_netdev_ops = {
 	.ndo_open         = slsi_net_open,
 	.ndo_stop         = slsi_net_stop,
@@ -1034,6 +1040,7 @@ static const struct net_device_ops slsi_netdev_ops = {
 	.ndo_select_queue = slsi_net_select_queue,
 	.ndo_fix_features = slsi_net_fix_features,
 	.ndo_set_rx_mode = slsi_set_multicast_list,
+	.ndo_set_mac_address = slsi_set_mac_address,
 };
 
 static void slsi_if_setup(struct net_device *dev)
