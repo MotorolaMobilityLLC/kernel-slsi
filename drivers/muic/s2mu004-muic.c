@@ -1635,10 +1635,16 @@ irq_skip:
 static irqreturn_t s2mu004_muic_vbus_isr(int irq, void *data)
 {
 	struct s2mu004_muic_data *muic_data = data;
-	struct muic_platform_data *muic_pdata = muic_data->pdata;
+	struct muic_platform_data *muic_pdata;
 
-	if (muic_data == NULL || muic_pdata == NULL) {
-		pr_err("%s, data NULL\n", __func__);
+	if (muic_data == NULL) {
+		pr_err("%s, data NULL (Line:%d)\n", __func__, __LINE__);
+		return IRQ_NONE;
+	}
+
+	muic_pdata = muic_data->pdata;
+	if (muic_pdata == NULL) {
+		pr_err("%s, data NULL (Line:%d)\n", __func__, __LINE__);
 		return IRQ_NONE;
 	}
 
@@ -1824,7 +1830,7 @@ static int s2mu004_muic_irq_init(struct s2mu004_muic_data *muic_data)
 		__func__, muic_data->irq_attach, muic_data->irq_detach, muic_data->irq_rid_chg,
 			muic_data->irq_vbus_on);
 	pr_info("muic-rsvd_attach(%d), muic-adc_change(%d), muic-av_charge(%d), muic-vbus_off(%d)\n",
-		muic_data->irq_rsvd_attach, muic_data->irq_adc_change, 
+		muic_data->irq_rsvd_attach, muic_data->irq_adc_change,
 		muic_data->irq_av_charge, muic_data->irq_vbus_off);
 
 	return ret;
