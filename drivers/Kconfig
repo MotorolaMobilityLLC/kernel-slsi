@@ -220,4 +220,6 @@ source "drivers/ccic/Kconfig"
 
 source "drivers/vision/Kconfig"
 
+source "drivers/sensors/Kconfig"
+
 endmenu
