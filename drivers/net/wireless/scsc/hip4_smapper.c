@@ -26,6 +26,8 @@ static int hip4_smapper_alloc_bank(struct slsi_dev *sdev, struct hip4_priv *priv
 	SLSI_DBG4_NODEV(SLSI_SMAPPER, "Init bank %d entry_size %d is_large %d\n", bank_name, entry_size, is_large);
 	bank->entry_size = entry_size;
 	bank->bank = scsc_service_mifsmapper_alloc_bank(sdev->service, is_large, bank->entry_size, &bank->entries);
+	if(bank->bank < 0)
+		return bank->bank;
 	bank->skbuff = kmalloc_array(bank->entries, sizeof(struct sk_buff *),
 					GFP_KERNEL);
 	bank->skbuff_dma = kmalloc_array(bank->entries, sizeof(dma_addr_t),
@@ -205,7 +207,7 @@ int hip4_smapper_consume_entry(struct slsi_dev *sdev, struct slsi_hip4 *hip, str
 	headroom = desc->headroom;
 
 
-	if (bank_num > HIP4_SMAPPER_TOTAL_BANKS) {
+	if (bank_num >= HIP4_SMAPPER_TOTAL_BANKS) {
 		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Incorrect bank_num %d\n", bank_num);
 		goto error;
 	}

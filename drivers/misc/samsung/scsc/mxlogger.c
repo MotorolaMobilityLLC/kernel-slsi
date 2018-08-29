@@ -220,7 +220,7 @@ static void mxlogger_message_handler(const void *message, void *data)
 
 static int __mxlogger_generate_sync_record(struct mxlogger *mxlogger, enum mxlogger_sync_event event)
 {
-	struct mxlogger_sync_record sync_r;
+	struct mxlogger_sync_record sync_r = {};
 	struct timeval t;
 	struct log_msg_packet msg = {};
 	void *mem;
