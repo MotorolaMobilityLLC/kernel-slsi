@@ -22,12 +22,25 @@ static int hip4_smapper_alloc_bank(struct slsi_dev *sdev, struct hip4_priv *priv
 	u16 i;
 	struct hip4_smapper_bank *bank = &(priv)->smapper_banks[bank_name];
 	struct hip4_smapper_control *control = &(priv)->smapper_control;
+	int err;
 
 	SLSI_DBG4_NODEV(SLSI_SMAPPER, "Init bank %d entry_size %d is_large %d\n", bank_name, entry_size, is_large);
 	bank->entry_size = entry_size;
-	bank->bank = scsc_service_mifsmapper_alloc_bank(sdev->service, is_large, bank->entry_size, &bank->entries);
-	if(bank->bank < 0)
-		return bank->bank;
+
+	/* function returns negative number if an error occurs, otherwise returns the bank number */
+	err = scsc_service_mifsmapper_alloc_bank(sdev->service, is_large, bank->entry_size, &bank->entries);
+	if (err < 0) {
+		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Error allocating bank %d\n", err);
+		return -ENOMEM;
+	}
+
+	bank->bank = (u32)err;
+	if (bank->bank >= HIP4_SMAPPER_TOTAL_BANKS) {
+		scsc_service_mifsmapper_free_bank(sdev->service, bank->bank);
+		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Incorrect bank_num %d\n", bank->bank);
+		return -ENOMEM;
+	}
+
 	bank->skbuff = kmalloc_array(bank->entries, sizeof(struct sk_buff *),
 					GFP_KERNEL);
 	bank->skbuff_dma = kmalloc_array(bank->entries, sizeof(dma_addr_t),
