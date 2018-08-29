@@ -580,6 +580,7 @@ int mfc_load_firmware(struct mfc_dev *dev)
 
 	if (err != 0) {
 		mfc_err_dev("[F/W] Couldn't find the F/W invalid path\n");
+		release_firmware(fw_blob);
 		return -EINVAL;
 	}
 
