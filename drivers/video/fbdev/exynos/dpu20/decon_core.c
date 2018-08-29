@@ -1723,6 +1723,10 @@ static int __decon_update_regs(struct decon_device *decon, struct decon_reg_data
 	if (!regs->num_of_window) {
 		decon_err("decon%d: num_of_window=0 during dpp_config(err_cnt:%d)\n",
 			decon->id, err_cnt);
+		for (i = 0; i < decon->dt.max_win; i++)
+			decon_reg_set_win_enable(decon->id, i, false);
+		decon_reg_all_win_shadow_update_req(decon->id);
+		decon_reg_update_req_global(decon->id);
 		return 0;
 	}
 
