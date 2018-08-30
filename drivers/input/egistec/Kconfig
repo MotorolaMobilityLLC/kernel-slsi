@@ -1,0 +1,12 @@
+#
+# Input misc drivers configuration
+#
+
+
+config INPUT_EGISTEC_320
+	tristate "Egistec ET320 fingerprint sensor"
+	default n
+	help
+	 Say Y here if you wish to include support for EGIS finger print sensor.
+	 If unsure, say N.
+
