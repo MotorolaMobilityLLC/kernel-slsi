@@ -44,7 +44,7 @@ config SCSC_MXLOGGER
 
 config SCSC_SMAPPER
 	bool "Samsung SCSC WLAN Smapper support"
-	default n
+	default y
 	depends on SCSC_CORE
 	---help---
 	   SMAPPER provides direct access to Linux SKBs

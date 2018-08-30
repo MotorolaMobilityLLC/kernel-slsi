@@ -106,9 +106,9 @@ static int hip4_smapper_free_skb_buffers(struct slsi_dev *sdev, struct hip4_smap
 	for (i = 0; i < n; i++) {
 		if (bank->skbuff[i]) {
 			SLSI_DBG4_NODEV(SLSI_SMAPPER, "SKB free: 0x%p at bank %d entry %d\n", bank->skbuff[i], bank->bank, i);
-			slsi_kfree_skb(bank->skbuff[i]);
 			dma_unmap_single(sdev->dev, bank->skbuff_dma[i], bank->entry_size, DMA_FROM_DEVICE);
 			bank->skbuff_dma[i] = 0;
+			slsi_kfree_skb(bank->skbuff[i]);
 			bank->skbuff[i] = NULL;
 		}
 	}
