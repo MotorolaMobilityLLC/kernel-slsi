@@ -76,6 +76,20 @@
 				ifconn,muic = "s2mu106-muic";
 			};
 
+			/*Fingerprint start*/
+			et320: et320{
+				compatible = "egistec,et320";
+				status = "ok";
+				reg = <0>;
+				clocks = <&clock GATE_SPI_1_QCH>, <&clock SPI1>;
+				clock-names = "spi", "spi_busclk0";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi7_bus &spi7_cs_func>;
+				egistec,gpio_irq    = <&gpa0 5 0>;
+				egistec,gpio_rst    = <&gpa1 1 0>;
+			};
+			/*Fingerprint end*/
+
 			speedy@11a10000 {
 				status = "okay";
 				#address-cells = <1>;
@@ -343,10 +357,11 @@
 						};
 
 						l37_reg: LDO37 {
-							regulator-name = "vdd_ldo37";
-							regulator-min-microvolt = <1800000>;
-							regulator-max-microvolt = <3375000>;
-							regulator-ramp-delay = <12000>;
+						        regulator-name = "vdd_ldo37";
+					                regulator-min-microvolt = <3300000>;
+					                regulator-max-microvolt = <3300000>;
+					                regulator-ramp-delay = <12000>;
+					                regulator-always-on;
 						};
 
 						l38_reg: LDO38 {
