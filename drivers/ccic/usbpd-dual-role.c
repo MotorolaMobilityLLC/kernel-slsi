@@ -149,16 +149,19 @@ static int ccic_set_dual_role(struct dual_role_phy_instance *dual_role,
 {
 	struct usbpd_dev *udev = dual_role_get_drvdata(dual_role);
 	struct device *dev = &dual_role->dev;
-	struct usbpd_info *pd_info = &udev->desc->pd_info;
-	const struct usbpd_ops *ops = udev->desc->ops;
+	struct usbpd_info *pd_info = NULL;
+	const struct usbpd_ops *ops = NULL;
 	USB_STATUS attached_state;
 	int timeout = 0;
 	int ret = 0;
 
-	if (!udev) {
+	if (udev == NULL) {
 		dev_err(dev, "%s : usbpd_dev is null \n", __func__);
 		return -ENOMEM;
 	}
+
+	pd_info = &udev->desc->pd_info;
+	ops = udev->desc->ops;
 
 	/* Get Current Role */
 	attached_state = pd_info->data_role;
@@ -251,11 +254,11 @@ int dual_role_get_local_prop(struct dual_role_phy_instance *dual_role,
 				    unsigned int *val)
 {
 	struct usbpd_dev *udev = dual_role_get_drvdata(dual_role);
-	struct usbpd_info *pd_info = &udev->desc->pd_info;
+	struct usbpd_info *pd_info = NULL;
 	int power_role = 0;
 	USB_STATUS attached_state = 0;
 
-	if (!udev) {
+	if (udev == NULL) {
 		pr_err("%s : usbpd_dev is null \n", __func__);
 		return -ENOMEM;
 	}
