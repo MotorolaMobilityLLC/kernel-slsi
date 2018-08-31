@@ -97,6 +97,14 @@ void ion_buffer_unprotect(void *priv);
 void exynos_ion_fixup(struct ion_device *idev);
 int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer);
 void exynos_ion_free_fixup(struct ion_buffer *buffer);
+struct sg_table *ion_exynos_map_dma_buf_area(
+				struct dma_buf_attachment *attachment,
+				enum dma_data_direction direction,
+				size_t size);
+void ion_exynos_unmap_dma_buf_area(struct dma_buf_attachment *attachment,
+				   struct sg_table *table,
+				   enum dma_data_direction direction,
+				   size_t size);
 struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction);
 void ion_exynos_unmap_dma_buf(struct dma_buf_attachment *attachment,

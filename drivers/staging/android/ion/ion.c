@@ -426,6 +426,8 @@ const struct dma_buf_ops ion_dma_buf_ops = {
 #ifdef CONFIG_ION_EXYNOS
 	.map_dma_buf = ion_exynos_map_dma_buf,
 	.unmap_dma_buf = ion_exynos_unmap_dma_buf,
+	.map_dma_buf_area = ion_exynos_map_dma_buf_area,
+	.unmap_dma_buf_area = ion_exynos_unmap_dma_buf_area,
 	.begin_cpu_access = ion_exynos_dma_buf_begin_cpu_access,
 	.end_cpu_access = ion_exynos_dma_buf_end_cpu_access,
 #else

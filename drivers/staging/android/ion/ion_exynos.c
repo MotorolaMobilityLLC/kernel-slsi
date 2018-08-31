@@ -249,6 +249,69 @@ void exynos_ion_free_fixup(struct ion_buffer *buffer)
 		ida_simple_remove(&ion_buffer_ida, buffer->id);
 }
 
+struct sg_table *ion_exynos_map_dma_buf_area(
+		struct dma_buf_attachment *attachment,
+		enum dma_data_direction direction, size_t size)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+
+	if (ion_buffer_cached(buffer) && direction != DMA_NONE) {
+		struct scatterlist *sg;
+		int i;
+
+		ion_event_begin();
+
+		for_each_sg(buffer->sg_table->sgl, sg,
+			    buffer->sg_table->nents, i) {
+			size_t sg_len = min_t(size_t, size, sg->length);
+
+			dma_sync_single_for_device(attachment->dev,
+						   sg->dma_address,
+						   sg_len, direction);
+
+			size -= sg_len;
+
+			if (!size)
+				break;
+		}
+
+		ion_event_end(ION_EVENT_TYPE_MAP_DMA_BUF, buffer);
+	}
+
+	return buffer->sg_table;
+}
+
+void ion_exynos_unmap_dma_buf_area(struct dma_buf_attachment *attachment,
+				   struct sg_table *table,
+				   enum dma_data_direction direction,
+				   size_t size)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+
+	if (ion_buffer_cached(buffer) && direction != DMA_NONE) {
+		struct scatterlist *sg;
+		int i;
+
+		ion_event_begin();
+
+		for_each_sg(buffer->sg_table->sgl, sg,
+			    buffer->sg_table->nents, i) {
+			size_t sg_len = min_t(size_t, size, sg->length);
+
+			dma_sync_single_for_cpu(attachment->dev,
+						sg->dma_address,
+						sg_len, direction);
+
+			size -= sg_len;
+
+			if (!size)
+				break;
+		}
+
+		ion_event_end(ION_EVENT_TYPE_UNMAP_DMA_BUF, buffer);
+	}
+}
+
 struct sg_table *ion_exynos_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
 {
