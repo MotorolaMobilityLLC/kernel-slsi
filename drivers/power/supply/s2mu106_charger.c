@@ -20,6 +20,7 @@
 #include <linux/mfd/samsung/s2mu106.h>
 #include <linux/power/s2mu106_charger.h>
 #include <linux/version.h>
+#include <linux/power_supply.h>
 
 static char *s2mu106_supplied_to[] = {
 	"battery",
@@ -65,6 +66,25 @@ static void s2mu106_test_read(struct i2c_client *i2c)
 
 }
 
+static void s2mu106_dump_register(struct s2mu106_charger_data *charger)
+{
+	u8 data = 0;
+	int i;
+	char str[1016] = {0,};
+
+	for (i = 0; i < 25; i++) {
+		s2mu106_read_reg(charger->i2c, S2MU106_CHG_CTRL0+i, &data);
+		sprintf(str+strlen(str), "CTRL%d:0x%02x, ", i, data);
+	}
+
+	for (i = 0; i < 5; i++) {
+		s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS0+i, &data);
+		sprintf(str+strlen(str), "STUS%d:0x%02x, ", i, data);
+	}
+
+	pr_err("%s: %s\n", __func__, str);
+}
+
 static int s2mu106_charger_otg_control(
 		struct s2mu106_charger_data *charger, bool enable)
 {
@@ -108,6 +128,7 @@ static int s2mu106_charger_otg_control(
 	power_supply_changed(charger->psy_otg);
 	return enable;
 }
+
 
 static void s2mu106_enable_charger_switch(
 	struct s2mu106_charger_data *charger, int onoff)
@@ -525,6 +546,7 @@ static int s2mu106_chg_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = s2mu106_get_batt_present(charger);
+		s2mu106_dump_register(charger);
 		break;
 	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
 		val->intval = charger->is_charging;
@@ -825,8 +847,7 @@ static irqreturn_t s2mu106_ovp_isr(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
-
-static int s2mu106_charger_parse_dt(struct device *dev,
+static int s2mu106_charger_parse_dt(struct platform_device *pdev,
 		struct s2mu106_charger_platform_data *pdata)
 {
 	struct device_node *np = of_find_node_by_name(NULL, "s2mu106-charger");
@@ -910,7 +931,6 @@ static const struct of_device_id s2mu106_charger_match_table[] = {
 	{ .compatible = "samsung,s2mu106-charger",},
 	{},
 };
-
 static int s2mu106_charger_probe(struct platform_device *pdev)
 {
 	struct s2mu106_dev *s2mu106 = dev_get_drvdata(pdev->dev.parent);
@@ -936,7 +956,7 @@ static int s2mu106_charger_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_parse_dt_nomem;
 	}
-	ret = s2mu106_charger_parse_dt(&pdev->dev, charger->pdata);
+	ret = s2mu106_charger_parse_dt(pdev, charger->pdata);
 	if (ret < 0)
 		goto err_parse_dt;
 
@@ -1108,7 +1128,6 @@ static int s2mu106_charger_remove(struct platform_device *pdev)
 {
 	struct s2mu106_charger_data *charger =
 		platform_get_drvdata(pdev);
-
 	power_supply_unregister(charger->psy_chg);
 	mutex_destroy(&charger->charger_mutex);
 	kfree(charger);
