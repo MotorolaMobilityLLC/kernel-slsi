@@ -160,6 +160,8 @@ struct s2mu106_fuelgauge_data {
 
 	int fg_irq;
 	bool probe_done;
+        int battery_profile_index;
+
 #if (TEMP_COMPEN) || (BATCAP_LEARN)
 	bool bat_charging; /* battery is charging */
 #endif
