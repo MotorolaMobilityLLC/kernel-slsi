@@ -201,29 +201,58 @@ static void vb2_dma_sg_put(void *buf_priv)
 	}
 }
 
-static void vb2_dma_sg_prepare(void *buf_priv)
+static void vb2_dma_sg_prepare(void *buf_priv, size_t size)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
+	struct scatterlist *sg;
+	int i;
 
 	/* DMABUF exporter will flush the cache for us */
 	if (buf->db_attach)
 		return;
 
-	dma_sync_sg_for_device(buf->dev, sgt->sgl, sgt->orig_nents,
-			       buf->dma_dir);
+	if (size == 0)
+		size = buf->size;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+		size_t sg_len = min_t(size_t, size, sg->length);
+
+		dma_sync_single_for_device(buf->dev, sg->dma_address,
+					   sg_len, buf->dma_dir);
+
+		size -= sg_len;
+
+		if (!size)
+			break;
+	}
 }
 
-static void vb2_dma_sg_finish(void *buf_priv)
+static void vb2_dma_sg_finish(void *buf_priv, size_t size)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
+	struct scatterlist *sg;
+	int i;
 
 	/* DMABUF exporter will flush the cache for us */
 	if (buf->db_attach)
 		return;
 
-	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->orig_nents, buf->dma_dir);
+	if (size == 0)
+		size = buf->size;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+		size_t sg_len = min_t(size_t, size, sg->length);
+
+		dma_sync_single_for_cpu(buf->dev, sg->dma_address,
+					sg_len, buf->dma_dir);
+
+		size -= sg_len;
+
+		if (!size)
+			break;
+	}
 }
 
 static void *vb2_dma_sg_get_userptr(struct device *dev, unsigned long vaddr,
@@ -556,7 +585,7 @@ static struct dma_buf *vb2_dma_sg_get_dmabuf(void *buf_priv, unsigned long flags
 /*       callbacks for DMABUF buffers        */
 /*********************************************/
 
-static int vb2_dma_sg_map_dmabuf(void *mem_priv)
+static int vb2_dma_sg_map_dmabuf(void *mem_priv, size_t size)
 {
 	struct vb2_dma_sg_buf *buf = mem_priv;
 	struct sg_table *sgt;
@@ -573,7 +602,11 @@ static int vb2_dma_sg_map_dmabuf(void *mem_priv)
 	}
 
 	/* get the associated scatterlist for this buffer */
-	sgt = dma_buf_map_attachment(buf->db_attach, buf->dma_dir);
+	sgt = (size == 0) ?
+		dma_buf_map_attachment(buf->db_attach, buf->dma_dir) :
+		dma_buf_map_attachment_area(buf->db_attach,
+					    buf->dma_dir, size);
+
 	if (IS_ERR(sgt)) {
 		pr_err("Error getting dmabuf scatterlist\n");
 		return -EINVAL;
@@ -599,7 +632,7 @@ static int vb2_dma_sg_map_dmabuf(void *mem_priv)
 	return 0;
 }
 
-static void vb2_dma_sg_unmap_dmabuf(void *mem_priv)
+static void vb2_dma_sg_unmap_dmabuf(void *mem_priv, size_t size)
 {
 	struct vb2_dma_sg_buf *buf = mem_priv;
 	struct sg_table *sgt = buf->dma_sgt;
@@ -618,7 +651,12 @@ static void vb2_dma_sg_unmap_dmabuf(void *mem_priv)
 		dma_buf_vunmap(buf->db_attach->dmabuf, buf->vaddr);
 		buf->vaddr = NULL;
 	}
-	dma_buf_unmap_attachment(buf->db_attach, sgt, buf->dma_dir);
+
+	if (size == 0)
+		dma_buf_unmap_attachment(buf->db_attach, sgt, buf->dma_dir);
+	else
+		dma_buf_unmap_attachment_area(buf->db_attach, sgt,
+					      buf->dma_dir, size);
 
 	buf->dma_sgt = NULL;
 }
@@ -629,7 +667,7 @@ static void vb2_dma_sg_detach_dmabuf(void *mem_priv)
 
 	/* if vb2 works correctly you should never detach mapped buffer */
 	if (WARN_ON(buf->dma_sgt))
-		vb2_dma_sg_unmap_dmabuf(buf);
+		vb2_dma_sg_unmap_dmabuf(buf, 0);
 
 	ion_iovmm_unmap(buf->db_attach, buf->iova);
 

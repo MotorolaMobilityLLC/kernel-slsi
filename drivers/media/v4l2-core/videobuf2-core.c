@@ -270,7 +270,8 @@ static void __vb2_plane_dmabuf_put(struct vb2_buffer *vb, struct vb2_plane *p)
 		return;
 
 	if (p->dbuf_mapped)
-		call_void_memop(vb, unmap_dmabuf, p->mem_priv);
+		call_void_memop(vb, unmap_dmabuf,
+				p->mem_priv, 0);
 
 	call_void_memop(vb, detach_dmabuf, p->mem_priv);
 	dma_buf_put(p->dbuf);
@@ -913,7 +914,8 @@ static void vb2_process_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state
 	    state != VB2_BUF_STATE_REQUEUEING) {
 		/* sync buffers */
 		for (plane = 0; plane < vb->num_planes; ++plane)
-			call_void_memop(vb, finish, vb->planes[plane].mem_priv);
+			call_void_memop(vb, finish, vb->planes[plane].mem_priv,
+					vb->planes[plane].bytesused);
 	}
 
 	spin_lock_irqsave(&q->done_lock, flags);
@@ -1202,7 +1204,9 @@ static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
 	 * userspace knows sooner rather than later if the dma-buf map fails.
 	 */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv);
+		ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv,
+				 planes[plane].bytesused);
+
 		if (ret) {
 			dprintk(1, "failed to map dmabuf for plane %d\n",
 				plane);
@@ -1308,7 +1312,8 @@ static int __buf_prepare(struct vb2_buffer *vb, const void *pb)
 
 	/* sync buffers */
 	for (plane = 0; plane < vb->num_planes; ++plane)
-		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
+		call_void_memop(vb, prepare, vb->planes[plane].mem_priv,
+				vb->planes[plane].bytesused);
 
 	vb->state = VB2_BUF_STATE_PREPARED;
 
@@ -1791,7 +1796,11 @@ static void __vb2_dqbuf(struct vb2_buffer *vb)
 		for (i = 0; i < vb->num_planes; ++i) {
 			if (!vb->planes[i].dbuf_mapped)
 				continue;
-			call_void_memop(vb, unmap_dmabuf, vb->planes[i].mem_priv);
+
+			call_void_memop(vb, unmap_dmabuf,
+					vb->planes[i].mem_priv,
+					vb->planes[i].bytesused);
+
 			vb->planes[i].dbuf_mapped = 0;
 		}
 }
@@ -1923,7 +1932,8 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 
 			for (plane = 0; plane < vb->num_planes; ++plane)
 				call_void_memop(vb, finish,
-						vb->planes[plane].mem_priv);
+						vb->planes[plane].mem_priv,
+						0);
 		}
 
 		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
