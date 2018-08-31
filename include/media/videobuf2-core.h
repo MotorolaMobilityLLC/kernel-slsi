@@ -126,16 +126,16 @@ struct vb2_mem_ops {
 					enum dma_data_direction dma_dir);
 	void		(*put_userptr)(void *buf_priv);
 
-	void		(*prepare)(void *buf_priv);
-	void		(*finish)(void *buf_priv);
+	void		(*prepare)(void *buf_priv, size_t size);
+	void		(*finish)(void *buf_priv, size_t size);
 
 	void		*(*attach_dmabuf)(struct device *dev,
 					  struct dma_buf *dbuf,
 					  unsigned long size,
 					  enum dma_data_direction dma_dir);
 	void		(*detach_dmabuf)(void *buf_priv);
-	int		(*map_dmabuf)(void *buf_priv);
-	void		(*unmap_dmabuf)(void *buf_priv);
+	int		(*map_dmabuf)(void *buf_priv, size_t size);
+	void		(*unmap_dmabuf)(void *buf_priv, size_t size);
 
 	void		*(*vaddr)(void *buf_priv);
 	void		*(*cookie)(void *buf_priv);
