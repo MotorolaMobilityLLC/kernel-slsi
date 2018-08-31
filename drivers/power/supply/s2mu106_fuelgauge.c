@@ -183,6 +183,125 @@ static void s2mu106_fg_test_read(struct i2c_client *client)
 	pr_info("[FG]%s: %s\n", __func__, str);
 }
 
+static void WA_0_issue_at_init(struct s2mu106_fuelgauge_data *fuelgauge)
+{
+	int a = 0;
+	u8 v_52 = 0, v_53 = 0, temp1, temp2;
+	int FG_volt, UI_volt, offset;
+	u8 v_40 = 0;
+	u8 temp_REG26 = 0, temp_REG27 = 0, temp = 0;
+
+	/* Step 1: [Surge test] get UI voltage (0.1mV)*/
+	UI_volt = s2mu106_get_ocv(fuelgauge);
+
+	/* current fix for soc */
+	s2mu106_read_reg_byte(fuelgauge->i2c, 0x27, &temp_REG27);
+	temp = temp_REG27;
+	temp |= 0x0F;
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x27, temp);
+
+	s2mu106_read_reg_byte(fuelgauge->i2c, 0x26, &temp_REG26);
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x26, 0xF7);
+
+	/* avgvbat factor value set to 0xFF */
+	s2mu106_read_reg_byte(fuelgauge->i2c, 0x40, &v_40);
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x40, 0xFF);
+
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x1E, 0x0F);
+	msleep(50);
+
+	/* Step 2: [Surge test] get FG voltage (0.1mV) */
+	FG_volt = s2mu106_get_vbat(fuelgauge) * 10;
+
+	/* Step 3: [Surge test] get offset */
+	offset = UI_volt - FG_volt;
+	pr_info("%s: UI_volt(%d), FG_volt(%d), offset(%d)\n",
+			__func__, UI_volt, FG_volt, offset);
+
+	/* Step 4: [Surge test] */
+	s2mu106_read_reg_byte(fuelgauge->i2c, 0x53, &v_53);
+	s2mu106_read_reg_byte(fuelgauge->i2c, 0x52, &v_52);
+	pr_info("%s: v_53(0x%x), v_52(0x%x)\n", __func__, v_53, v_52);
+
+	a = (v_53 & 0x0F) << 8;
+	a += v_52;
+	pr_info("%s: a before add offset (0x%x)\n", __func__, a);
+
+	/* 2`s complement */
+	if (a & (0x01 << 11))
+		a = (-10000 * ((a^0xFFF) + 1)) >> 13;
+	else
+		a = (10000 * a) >> 13;
+
+	a = a + offset;
+	pr_err("%s: a after add offset (0x%x)\n", __func__, a);
+
+	/* limit upper/lower offset */
+	if (a > 2490)
+		a = 2490;
+
+	if (a < (-2490))
+		a = -2490;
+
+	a = (a << 13) / 10000;
+	if (a < 0)
+		a = -1*((a^0xFFF)+1);
+
+	pr_info("%s: a after add offset (0x%x)\n", __func__, a);
+
+	a &= 0xfff;
+	pr_info("%s: (a)&0xFFF (0x%x)\n", __func__, a);
+
+	/* modify 0x53[3:0] */
+	temp1 = v_53 & 0xF0;
+	temp2 = (u8)((a&0xF00) >> 8);
+	temp1 |= temp2;
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x53, temp1);
+
+	/* modify 0x52[7:0] */
+	temp2 = (u8)(a & 0xFF);
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x52, temp2);
+
+	/* restart and dumpdone */
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x1E, 0x0F);
+	msleep(300);
+
+	/* restore current register */
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x27, temp_REG27);
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x26, 0xF6);
+
+	/* recovery 0x52 and 0x53 */
+	s2mu106_read_reg_byte(fuelgauge->i2c, 0x53, &temp1);
+	temp1 &= 0xF0;
+	temp1 |= (v_53 & 0x0F);
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x53, temp1);
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x52, v_52);
+
+	/* restore monout avgvbat factor value */
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x40, v_40);
+}
+
+static void s2mu106_fuelgauge_select_table(struct s2mu106_fuelgauge_data *fuelgauge)
+{
+	/* Need to check which battery battery cell will be used */
+
+	if (fuelgauge->battery_profile_index == 0) {
+		fuelgauge->info.battery_table3 = fuelgauge->info.battery_table3_cell1;
+		fuelgauge->info.battery_table4 = fuelgauge->info.battery_table4_cell1;
+		fuelgauge->info.soc_arr_val = fuelgauge->info.soc_arr_val_cell1;
+		fuelgauge->info.ocv_arr_val = fuelgauge->info.ocv_arr_val_cell1;
+		fuelgauge->info.batcap = fuelgauge->info.batcap_cell1;
+		fuelgauge->info.accum = fuelgauge->info.accum_cell1;
+	} else {
+		fuelgauge->info.battery_table3 = fuelgauge->info.battery_table3_cell2;
+		fuelgauge->info.battery_table4 = fuelgauge->info.battery_table4_cell2;
+		fuelgauge->info.soc_arr_val = fuelgauge->info.soc_arr_val_cell2;
+		fuelgauge->info.ocv_arr_val = fuelgauge->info.ocv_arr_val_cell2;
+		fuelgauge->info.batcap = fuelgauge->info.batcap_cell2;
+		fuelgauge->info.accum = fuelgauge->info.accum_cell2;
+	}
+}
+
 static void s2mu106_reset_fg(struct s2mu106_fuelgauge_data *fuelgauge)
 {
 	int i;
@@ -1112,7 +1231,7 @@ static int s2mu106_get_current(struct s2mu106_fuelgauge_data *fuelgauge)
 
 	if (compliment & (0x1 << 15)) { /* Charging */
 		curr = ((~compliment) & 0xFFFF) + 1;
-		curr = (curr * 1000) >> 12;
+		curr = ((curr * 1000) >> 12) * (-1);
 	} else { /* dischaging */
 		curr = compliment & 0x7FFF;
 		curr = (curr * (-1000)) >> 12;
@@ -1476,6 +1595,90 @@ static irqreturn_t s2mu106_fg_irq_thread(int irq, void *irq_data)
 
 	return IRQ_HANDLED;
 }
+static const char *fg_get_mmi_battid(void)
+{
+	struct device_node *np = of_find_node_by_path("/chosen");
+	const char *battsn_buf;
+	int retval;
+
+	battsn_buf = NULL;
+
+	if (np)
+		retval = of_property_read_string(np, "mmi,battid",
+						 &battsn_buf);
+	else
+		return NULL;
+
+	if ((retval == -EINVAL) || !battsn_buf) {
+		pr_err("Battsn unused\n");
+		of_node_put(np);
+		return NULL;
+
+	} else
+		pr_err("Battsn = %s\n", battsn_buf);
+
+	of_node_put(np);
+
+	return battsn_buf;
+}
+
+static int fg_get_serialnumber(struct s2mu106_fuelgauge_data *chip,
+					       struct device_node *np)
+{
+	const char *sn_buf, *df_sn, *dev_sn;
+	int rc;
+	int battery_cell1 = 0;
+	int battery_cell2 = 1;
+	int battery_index = 0;
+	bool battery_matched = false;
+
+	dev_sn = NULL;
+	df_sn = NULL;
+	sn_buf = NULL;
+	chip->battery_profile_index = 0;
+
+	dev_sn = fg_get_mmi_battid();
+	if (dev_sn == NULL) {
+		pr_info("%s, utag battery id did not setted", __func__);
+	}
+
+	rc = of_property_read_string(np, "df-serialnum",
+				     &df_sn);
+	if (rc)
+		pr_info("%s,No Default Serial Number defined");
+	else if (df_sn)
+		pr_info("%s,Default Serial Number %s", __func__, df_sn);
+
+	rc = of_property_read_string(np, "serialnum_cell1",
+				     &sn_buf);
+	if (rc)
+		pr_info("%s, No cell1 Serial Number defined", __func__);
+	else {
+		if ((dev_sn && strnstr(dev_sn, sn_buf, 32)) || (df_sn && strnstr(df_sn, sn_buf, 32))) {
+				battery_matched = true;
+				battery_index = battery_cell1;
+		}
+	}
+
+	rc = of_property_read_string(np, "serialnum_cell2",
+				     &sn_buf);
+	if (rc)
+		pr_info("%s,No cell2 Serial Number defined", __func__);
+	else {
+		if ((dev_sn && strnstr(dev_sn, sn_buf, 32)) || (df_sn && strnstr(df_sn, sn_buf, 32))) {
+				battery_matched = true;
+				battery_index = battery_cell2;
+		}
+	}
+	if (battery_matched)
+		pr_info("%s, battery matched index:%d", __func__, battery_index);
+	else
+		pr_info("%s, battery did not matched , use default index:%d", __func__, battery_index);		
+
+	chip->battery_profile_index = battery_index;
+
+	return battery_index;
+}
 
 static int s2mu106_fuelgauge_get_cell_id(struct s2mu106_fuelgauge_data *fuelgauge)
 {
@@ -1563,6 +1766,7 @@ static int s2mu106_fuelgauge_parse_dt(struct s2mu106_fuelgauge_data *fuelgauge)
 			ret = of_property_read_u32_array(np, "battery,battery_table3_cell1", fuelgauge->info.battery_table3_cell1, 88);
 			if (ret < 0)
 				pr_err("%s error reading battery,battery_table3_cell1\n", __func__);
+
 			ret = of_property_read_u32_array(np, "battery,battery_table4_cell1", fuelgauge->info.battery_table4_cell1, 22);
 			if (ret < 0)
 				pr_err("%s error reading battery,battery_table4_cell1\n", __func__);
@@ -1574,21 +1778,17 @@ static int s2mu106_fuelgauge_parse_dt(struct s2mu106_fuelgauge_data *fuelgauge)
 			ret = of_property_read_u32_array(np, "battery,soc_arr_val_cell1", fuelgauge->info.soc_arr_val_cell1, 22);
 			if (ret < 0)
 				pr_err("%s error reading battery,soc_arr_val_cell1\n", __func__);
+
 			ret = of_property_read_u32_array(np, "battery,ocv_arr_val_cell1", fuelgauge->info.ocv_arr_val_cell1, 22);
 			if (ret < 0)
 				pr_err("%s error reading battery,ocv_arr_val_cell1\n", __func__);
 
 			ret = of_property_read_u32_array(np, "battery,accum_cell1", fuelgauge->info.accum_cell1, 2);
 			if (ret < 0) {
-				fuelgauge->info.accum_cell1[1]=0x00; // REG 0x44
-				fuelgauge->info.accum_cell1[0]=0x08; // REG 0x45
+				fuelgauge->info.accum_cell1[1] = 0x00; // REG 0x44
+				fuelgauge->info.accum_cell1[0] = 0x08; // REG 0x45
 				pr_err("%s There is no cell1 accumulative rate in DT. Use default value(0x800)\n", __func__);
 			}
-
-			ret = of_property_read_u32(np, "battery,battery_param_ver_cell1",
-					&fuelgauge->info.battery_param_ver_cell1);
-			if (ret < 0)
-				pr_err("%s There is no cell1 battery parameter version\n", __func__);
 
 			/* get cell2 battery data */
 			ret = of_property_read_u32_array(np, "battery,battery_table3_cell2", fuelgauge->info.battery_table3_cell2, 88);
@@ -1630,6 +1830,9 @@ static int s2mu106_fuelgauge_parse_dt(struct s2mu106_fuelgauge_data *fuelgauge)
 						__func__);
 				fuelgauge->low_temp_limit = 100;
 			}
+
+			fg_get_serialnumber(fuelgauge, np);
+
 		}
 	}
 
@@ -1657,6 +1860,7 @@ static const struct power_supply_desc s2mu106_fuelgauge_power_supply_desc = {
 	.get_property = s2mu106_fg_get_property,
 	.set_property = s2mu106_fg_set_property,
 };
+
 
 static int s2mu106_fuelgauge_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
