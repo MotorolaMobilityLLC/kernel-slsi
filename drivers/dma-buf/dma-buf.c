@@ -641,6 +641,76 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 EXPORT_SYMBOL_GPL(dma_buf_detach);
 
 /**
+ * dma_buf_map_attachment_area - Returns the scatterlist table of
+ * the attachment mapped into _device_ address space.
+ * Is a wrapper for map_dma_buf_area() of the dma_buf_ops.
+ *
+ * @attach:	[in]	attachment whose scatterlist is to be returned
+ * @direction:	[in]	direction of DMA transfer
+ * @size:       [in]    the hint for the exporter
+ *
+ * Returns sg_table containing the scatterlist to be returned; returns ERR_PTR
+ * on error. May return -EINTR if it is interrupted by a signal.
+ *
+ * This passes the size as hint. The exporter can use this size to map or manage
+ * cache maintenance for DMA. However the exporter must ensure that scatterlist
+ * or manage device virtual address space even if pair of [un]map_dma_buf and
+ * [un]map_dma_buf_area doesn't match each other, that is, the sg_table from
+ * map_dma_buf_area could be relased by unmap_dma_buf or the sg_table from
+ * map_dma_buf could be released by unmap_dma_buf_area.
+ */
+struct sg_table *dma_buf_map_attachment_area(struct dma_buf_attachment *attach,
+					     enum dma_data_direction direction,
+					     size_t size)
+{
+	struct sg_table *sg_table;
+
+	if (!attach->dmabuf->ops->map_dma_buf_area)
+		return dma_buf_map_attachment(attach, direction);
+
+	might_sleep();
+
+	if (WARN_ON(!attach || !attach->dmabuf))
+		return ERR_PTR(-EINVAL);
+
+	sg_table = attach->dmabuf->ops->map_dma_buf_area(attach, direction,
+							 size);
+	if (!sg_table)
+		sg_table = ERR_PTR(-ENOMEM);
+
+	return sg_table;
+}
+EXPORT_SYMBOL_GPL(dma_buf_map_attachment_area);
+
+/**
+ * dma_buf_unmap_attachment_area - unmaps and decreases usecount of the buffer
+ * might deallocate the scatterlist associated by requested size.
+ * Is a wrapper for unmap_dma_buf_area() of dma_buf_ops.
+ *
+ * @attach:	[in]	attachment to unmap buffer from
+ * @sg_table:	[in]	scatterlist info of the buffer to unmap
+ * @direction:  [in]    direction of DMA transfer
+ * @size:       [in]    the hint for the exporter
+ */
+void dma_buf_unmap_attachment_area(struct dma_buf_attachment *attach,
+				   struct sg_table *sg_table,
+				   enum dma_data_direction direction,
+				   size_t size)
+{
+	if (!attach->dmabuf->ops->unmap_dma_buf_area)
+		return dma_buf_unmap_attachment(attach, sg_table, direction);
+
+	might_sleep();
+
+	if (WARN_ON(!attach || !attach->dmabuf || !sg_table))
+		return;
+
+	attach->dmabuf->ops->unmap_dma_buf_area(attach, sg_table,
+						   direction, size);
+}
+EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment_area);
+
+/**
  * dma_buf_map_attachment - Returns the scatterlist table of the attachment;
  * mapped into _device_ address space. Is a wrapper for map_dma_buf() of the
  * dma_buf_ops.
