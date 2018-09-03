@@ -206,6 +206,8 @@ void big_reset_control(int en)
 #define REBOOT_MODE_FASTBOOT		0xFC
 /* Reboot into recovery */
 #define REBOOT_MODE_RECOVERY		0xFF
+/* Reboot into recovery */
+#define REBOOT_MODE_FACTORY		0xFD
 
 #if !defined(CONFIG_SEC_REBOOT)
 #ifdef CONFIG_OF
@@ -287,6 +289,8 @@ static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 			__raw_writel(REBOOT_MODE_FASTBOOT, addr);
 		} else if (!strcmp(cmd, "recovery")) {
 			__raw_writel(REBOOT_MODE_RECOVERY, addr);
+		} else if (!strcmp(cmd, "factory")) {
+			__raw_writel(REBOOT_MODE_FACTORY, addr);
 		}
 	}
 
