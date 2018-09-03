@@ -14,7 +14,6 @@ config MODEM_CHIP_MODAP_S3XXAP
 	select SHM_IPC
 	select CP_PMUCAL
 	select CP_SECURE_BOOT
-	select UART_SWITCH
 	default n
 
 menu "Configurations"
