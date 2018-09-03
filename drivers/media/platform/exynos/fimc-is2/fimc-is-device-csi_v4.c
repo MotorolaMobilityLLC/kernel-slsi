@@ -628,7 +628,7 @@ static void csi_dma_tag(struct v4l2_subdev *subdev,
 				CALL_BUFOP(dma_subdev->pb_subdev[frame->index], sync_for_cpu,
 					dma_subdev->pb_subdev[frame->index],
 					0,
-					dma_subdev->output.width * dma_subdev->output.height * 2,
+					dma_subdev->pb_subdev[frame->index]->size,
 					DMA_FROM_DEVICE);
 			}
 
