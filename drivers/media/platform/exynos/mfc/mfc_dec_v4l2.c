@@ -1117,6 +1117,9 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 		mfc_debug(2, "[MEMINFO][HDR+] shared handle fd: %d, vaddr: 0x%p\n",
 				dec->sh_handle_hdr.fd, dec->sh_handle_hdr.vaddr);
 		break;
+	case V4L2_CID_MPEG_VIDEO_DECODING_ORDER:
+		dec->decoding_order = ctrl->value;
+		break;
 	default:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
 			if (!(ctx_ctrl->type & MFC_CTRL_TYPE_SET))

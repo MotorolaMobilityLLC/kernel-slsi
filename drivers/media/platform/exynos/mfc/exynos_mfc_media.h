@@ -431,6 +431,8 @@ enum v4l2_mpeg_video_hevc_hierarchical_coding_type {
 					(V4L2_CID_MPEG_MFC_BASE + 198)
 #define V4L2_CID_MPEG_VIDEO_HIERARCHICAL_BITRATE_CTRL		\
 					(V4L2_CID_MPEG_MFC_BASE + 199)
+#define V4L2_CID_MPEG_VIDEO_DECODING_ORDER			\
+					(V4L2_CID_MPEG_MFC_BASE + 200)
 
 /* QP BOUND interface */
 #define V4L2_CID_MPEG_VIDEO_H264_MAX_QP_P			\
