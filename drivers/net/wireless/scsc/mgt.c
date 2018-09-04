@@ -932,7 +932,6 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 							       { SLSI_PSID_UNIFI_VHT_ACTIVATED, {0, 0} },
 							       { SLSI_PSID_UNIFI_HT_CAPABILITIES, {0, 0} },
 							       { SLSI_PSID_UNIFI_VHT_CAPABILITIES, {0, 0} },
-							       { SLSI_PSID_UNIFI24_G40_MHZ_CHANNELS, {0, 0} },
 							       { SLSI_PSID_UNIFI_HARDWARE_PLATFORM, {0, 0} },
 							       { SLSI_PSID_UNIFI_REG_DOM_VERSION, {0, 0} },
 							       { SLSI_PSID_UNIFI_NAN_ENABLED, {0, 0} },
@@ -946,6 +945,10 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 #endif
 							      };/*Check the mibrsp.dataLength when a new mib is added*/
 
+	/* 40 MHz bandwidth is not supported in 2.4 GHz in AP/GO Mode Currently.
+	 * Reading the mib to check the support is removed and is initialized to 0.
+	 */
+	sdev->fw_2g_40mhz_enabled = 0;
 	r = slsi_mib_encode_get_list(&mibreq, sizeof(get_values) / sizeof(struct slsi_mib_get_entry), get_values);
 	if (r != SLSI_MIB_STATUS_SUCCESS)
 		return -ENOMEM;
@@ -1040,11 +1043,6 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		} else {
 			SLSI_WARN(sdev, "Error reading VHT capabilities\n");
 		}
-		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE)  /* 40Mz wide channels in the 2.4G band enabled */
-			sdev->fw_2g_40mhz_enabled = values[mib_index].u.boolValue;
-		else
-			SLSI_WARN(sdev, "Error reading 2g 40mhz enabled mib\n");
-
 		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) {    /* HARDWARE_PLATFORM */
 			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_UINT);
 			sdev->plat_info_mib.plat_build = values[mib_index].u.uintValue;
