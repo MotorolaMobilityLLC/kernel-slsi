@@ -78,7 +78,7 @@ static int firmware_update(struct device *dev, void *fw_base, const char *fw_nam
 
 	dev_info(dev, "Loading %s firmware ... ", fw_name);
 	err = request_firmware(&fw_entry, fw_name, dev);
-	if (err || !fw_entry) {
+	if (err < 0) {
 		dev_err(dev, "firmware request FAIL \n");
 		return err;
 	}
