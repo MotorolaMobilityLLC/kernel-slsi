@@ -18,7 +18,7 @@
 #define AP_IPC
 #endif
 
-#define IPC_VERSION (180730)
+#define IPC_VERSION (180831)
 
 #if defined(CHUB_IPC)
 #if defined(SEOS)
@@ -180,12 +180,13 @@ enum ipc_debug_event {
 	IPC_DEBUG_UTC_HEAP_DEBUG,
 	IPC_DEBUG_UTC_HANG,
 	IPC_DEBUG_UTC_HANG_ITMON,
+	IPC_DEBUG_UTC_SENSOR_CHIPID, /* ap request */
 	IPC_DEBUG_UTC_IPC_TEST_START,
 	IPC_DEBUG_UTC_IPC_TEST_END,
+	IPC_DEBUG_DUMP_STATUS,
 	IPC_DEBUG_UTC_MAX,
 	IPC_DEBUG_NANOHUB_MAX,
-	IPC_DEBUG_DUMP_STATUS,  /* 20 */
-	IPC_DEBUG_CHUB_PRINT_LOG,
+	IPC_DEBUG_CHUB_PRINT_LOG, /* chub request */
 	IPC_DEBUG_CHUB_FULL_LOG,
 	IPC_DEBUG_CHUB_FAULT,
 	IPC_DEBUG_CHUB_ASSERT,
@@ -314,10 +315,11 @@ struct ipc_log_content {
 };
 
 struct ipc_logbuf {
-	u32 token;
 	u32 eq;	/* write owner chub (index_writer) */
 	u32 dq;	/* read onwer ap (index_reader) */
 	u32 size;
+	u32 token;
+	u32 full;
 	char buf[0];
 };
 
@@ -343,9 +345,15 @@ struct ipc_buf {
 #endif
 };
 
+struct ipc_debug {
+	u32 event;
+	u32 val[IPC_DATA_MAX];
+};
+
 struct ipc_map_area {
 	struct ipc_buf data[IPC_DATA_MAX];
 	struct ipc_evt evt[IPC_EVT_MAX];
+	struct ipc_debug dbg;
 	struct ipc_logbuf logbuf;
 };
 
@@ -436,6 +444,9 @@ void ipc_logbuf_put_with_char(char ch);
 int ipc_logbuf_need_flush(void);
 void ipc_write_debug_event(enum ipc_owner owner, enum ipc_debug_event action);
 u32 ipc_read_debug_event(enum ipc_owner owner);
+void ipc_write_debug_val(enum ipc_data_list dir, u32 val);
+u32 ipc_read_debug_val(enum ipc_data_list dir);
+
 void *ipc_get_chub_map(void);
 u32 ipc_get_chub_mem_size(void);
 u64 ipc_read_val(enum ipc_owner owner);
@@ -450,7 +461,6 @@ u32 *ipc_get_chub_psp(void);
 u32 *ipc_get_chub_msp(void);
 #endif
 
-void ipc_print_databuf(void);
 #ifdef USE_IPC_BUF
 int ipc_read_data(enum ipc_data_list dir, u8 *rx);
 #else

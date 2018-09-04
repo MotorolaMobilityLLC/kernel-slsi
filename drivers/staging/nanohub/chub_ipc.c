@@ -248,16 +248,6 @@ void *ipc_get_chub_map(void)
 	return ipc_map;
 }
 
-void ipc_dump(void)
-{
-	CSP_PRINTF_INFO("%s: %s: a2x event\n", NAME_PREFIX, __func__);
-	ipc_print_evt(IPC_EVT_A2C);
-	CSP_PRINTF_INFO("%s: %s: c2a event\n", NAME_PREFIX, __func__);
-	ipc_print_evt(IPC_EVT_C2A);
-	CSP_PRINTF_INFO("%s: %s: data buffer\n", NAME_PREFIX, __func__);
-	ipc_print_databuf();
-}
-
 #ifndef USE_IPC_BUF
 static inline bool __ipc_queue_empty(struct ipc_buf *ipc_data)
 {
@@ -544,17 +534,25 @@ int ipc_read_data(enum ipc_data_list dir, u8 *rx)
 }
 #endif
 
-void ipc_print_databuf(void)
+static void ipc_print_databuf(void)
 {
 	struct ipc_buf *ipc_data = ipc_get_base(IPC_REG_IPC_A2C);
 
 	CSP_PRINTF_INFO("%s: a2c: eq:%d dq:%d full:%d empty:%d\n",
-				NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+		NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
 
 	ipc_data = ipc_get_base(IPC_REG_IPC_C2A);
 
 	CSP_PRINTF_INFO("%s: c2a: eq:%d dq:%d full:%d empty:%d\n",
-				NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+		NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+}
+
+static void ipc_print_logbuf(void)
+{
+	struct ipc_logbuf *logbuf = &ipc_map->logbuf;
+
+	CSP_PRINTF_INFO("%s: token:%d, eq:%d, dq:%d, size:%d, full:%d\n",
+		NAME_PREFIX, logbuf->token, logbuf->eq, logbuf->dq, logbuf->size, logbuf->full);
 }
 
 int ipc_check_reset_valid()
@@ -603,7 +601,6 @@ void ipc_init(void)
 		ipc_map->data[i].full = 0;
 		ipc_map->data[i].empty = 1;
 	}
-
 
 	ipc_hw_clear_all_int_pend_reg(AP);
 
@@ -752,6 +749,18 @@ void ipc_print_evt(enum ipc_evt_list evtq)
 	(void)ipc_evt;
 }
 
+void ipc_dump(void)
+{
+	CSP_PRINTF_INFO("%s: %s: a2x event\n", NAME_PREFIX, __func__);
+	ipc_print_evt(IPC_EVT_A2C);
+	CSP_PRINTF_INFO("%s: %s: c2a event\n", NAME_PREFIX, __func__);
+	ipc_print_evt(IPC_EVT_C2A);
+	CSP_PRINTF_INFO("%s: %s: data buffer\n", NAME_PREFIX, __func__);
+	ipc_print_databuf();
+	CSP_PRINTF_INFO("%s: %s: log buffer\n", NAME_PREFIX, __func__);
+	ipc_print_logbuf();
+}
+
 u32 ipc_logbuf_get_token(void)
 {
 	__raw_writel(ipc_map->logbuf.token + 1, &ipc_map->logbuf.token);
@@ -773,7 +782,7 @@ void ipc_logbuf_put_with_char(char ch)
 			ipc_add_evt(IPC_EVT_C2A, IRQ_EVT_CHUB_TO_AP_DEBUG);
 		}
 #endif
-
+		ipc_map->logbuf.token++;
 		logbuf = ipc_map->logbuf.buf;
 
 		*(logbuf + ipc_map->logbuf.eq) = ch;
@@ -904,12 +913,22 @@ void ipc_hw_unmask_irq(enum ipc_owner owner, int irq)
 
 void ipc_write_debug_event(enum ipc_owner owner, enum ipc_debug_event action)
 {
-	ipc_hw_write_shared_reg(owner, action, SR_DEBUG_ACTION);
+	ipc_map->dbg.event = action;
 }
 
 u32 ipc_read_debug_event(enum ipc_owner owner)
 {
-	return ipc_hw_read_shared_reg(owner, SR_DEBUG_ACTION);
+	return ipc_map->dbg.event;
+}
+
+void ipc_write_debug_val(enum ipc_data_list dir, u32 val)
+{
+	ipc_map->dbg.val[dir] = val;
+}
+
+u32 ipc_read_debug_val(enum ipc_data_list dir)
+{
+	return ipc_map->dbg.val[dir];
 }
 
 void ipc_write_val(enum ipc_owner owner, u64 val)

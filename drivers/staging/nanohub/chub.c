@@ -44,9 +44,8 @@
 #include "chub_ipc.h"
 #include "chub_dbg.h"
 #include "../../soc/samsung/cal-if/pmucal_shub.h"
-#define WAIT_TRY_CNT (3)
+
 #define WAIT_TIMEOUT_MS (1000)
-#define WAIT_RESET_MS (100)
 enum { CHUB_ON, CHUB_OFF };
 enum { C2A_ON, C2A_OFF };
 
@@ -192,7 +191,7 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 	chub->ipc_map->logbuf.eq = 0;
 	chub->ipc_map->logbuf.dq = 0;
 	chub->fw_log = log_register_buffer(chub_dev, 0,
-					   (void *)&chub->ipc_map->logbuf.eq,
+					   (void *)&chub->ipc_map->logbuf,
 					   "fw", 1);
 	if (!chub->fw_log)
 		return -EINVAL;
@@ -590,7 +589,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 		/* wait active */
 		trycnt = 0;
 		do {
-			msleep(WAIT_RESET_MS);
+			msleep(WAIT_CHUB_MS);
 			contexthub_ipc_write_event(ipc, MAILBOX_EVT_CHUB_ALIVE);
 			if (++trycnt > WAIT_TRY_CNT)
 				break;

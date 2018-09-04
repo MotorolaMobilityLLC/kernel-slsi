@@ -39,9 +39,11 @@ struct log_buffer_info {
 };
 
 struct LOG_BUFFER {
-	u32 index_writer;
-	u32 index_reader;
-	u32 size;
+	volatile u32 index_writer;
+	volatile u32 index_reader;
+	volatile u32 size;
+	volatile u32 token;
+	volatile u32 full;
 	char buffer[0];
 };
 

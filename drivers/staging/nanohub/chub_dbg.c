@@ -13,6 +13,7 @@
 #include <linux/iommu.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
+#include <linux/delay.h>
 #include "chub_dbg.h"
 #include "chub_ipc.h"
 #include "chub.h"
@@ -124,6 +125,7 @@ void chub_dbg_dump_ram(struct contexthub_ipc_info *ipc, enum chub_err_type reaso
 		p_dbg_dump->time = sched_clock();
 		p_dbg_dump->reason = reason;
 
+		ipc_dump();
 		/* dump SRAM to reserved DRAM */
 		memcpy_fromio(&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			      ipc_get_base(IPC_REG_DUMP),
@@ -162,7 +164,7 @@ static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 				__func__, i, dbg_name[i], ipc->err_cnt[i]);
 	}
 
-	if (!contexthub_request(ipc, IPC_ACCESS)) {
+	if (contexthub_request(ipc, IPC_ACCESS)) {
 		pr_err("%s: fails to request contexthub. \n", __func__);
 		return;
 	}
@@ -478,6 +480,7 @@ static ssize_t chub_wakeup_store(struct device *dev,
 	long event;
 	int ret;
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+
 	ret = kstrtol(&buf[0], 10, &event);
 	if (ret)
 		return ret;

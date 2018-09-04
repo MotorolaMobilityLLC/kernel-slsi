@@ -28,6 +28,9 @@
 #include "chub_ipc.h"
 #include "chub_log.h"
 
+#define WAIT_TRY_CNT (3)
+#define WAIT_CHUB_MS (100)
+
 /* utils for nanohub main */
 #define wait_event_interruptible_timeout_locked(q, cond, tmo)		\
 ({									\

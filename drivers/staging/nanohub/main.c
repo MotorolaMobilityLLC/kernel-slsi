@@ -1058,6 +1058,60 @@ static ssize_t nanohub_unlock_bl(struct device *dev,
 	return ret < 0 ? ret : count;
 }
 #endif
+
+
+#ifdef CONFIG_NANOHUB_MAILBOX
+static int chub_get_chipid(struct contexthub_ipc_info *ipc)
+
+{
+	int trycnt = 0;
+	u32 id = 0;
+
+	ipc_write_debug_val(IPC_DATA_C2A, 0); /* clear */
+	contexthub_ipc_write_event(ipc, (u32)IPC_DEBUG_UTC_SENSOR_CHIPID);
+
+	do {
+		msleep(WAIT_CHUB_MS);
+		id = ipc_read_debug_val(IPC_DATA_C2A);
+		if (++trycnt > WAIT_TRY_CNT) {
+			pr_warn("%s: can't get result\n", __func__);
+			break;
+		}
+	} while (!id);
+
+	return id;
+}
+
+static ssize_t chub_chipid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct nanohub_data *data = dev_get_nanohub_data(dev);
+	u32 id = chub_get_chipid(data->pdata->mailbox_client);
+
+	dev_info(dev, "%s: %d\n", __func__, id);
+	if (id)
+		return sprintf(buf, "0x%x\n", id);
+	else
+		return 0;
+}
+
+static ssize_t chub_chipid_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	long id;
+	int err = kstrtol(&buf[0], 10, &id);
+
+	dev_info(dev, "%s: id: %d\n", __func__, id);
+	if (!err) {
+		ipc_write_debug_val(IPC_DATA_A2C, (u32)id);
+		return count;
+	} else {
+		return 0;
+	}
+}
+#endif
+
 static struct device_attribute attributes[] = {
 	__ATTR(wakeup, 0440, nanohub_wakeup_query, NULL),
 	__ATTR(app_info, 0440, nanohub_app_info, NULL),
@@ -1076,6 +1130,9 @@ static struct device_attribute attributes[] = {
 #ifdef CONFIG_EXT_CHUB
 	__ATTR(lock, 0220, NULL, nanohub_lock_bl),
 	__ATTR(unlock, 0220, NULL, nanohub_unlock_bl),
+#endif
+#ifdef CONFIG_NANOHUB_MAILBOX
+	__ATTR(chipid, 0664, chub_chipid_show, chub_chipid_store),
 #endif
 };
 
