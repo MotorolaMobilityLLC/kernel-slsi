@@ -9,10 +9,11 @@
 #define MAX_TIMEOUT	30000 /* in milisecounds */
 
 /* completion to indicate when moredump is done */
-static DECLARE_COMPLETION(script_done);
+static DECLARE_COMPLETION(event_done);
 
 static DEFINE_MUTEX(build_type_lock);
 static char *build_type;
+static DEFINE_MUTEX(sable_lock);
 
 /**
  * This callback runs whenever the socket receives messages.
@@ -33,7 +34,8 @@ static int msg_from_wlbtd_cb(struct sk_buff *skb, struct genl_info *info)
 			SCSC_TAG_ERR(WLBTD, "returned error : %u\n", status);
 	}
 
-	complete(&script_done);
+	complete(&event_done);
+
 	return 0;
 }
 
@@ -53,7 +55,8 @@ static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 			SCSC_TAG_ERR(WLBTD, "returned error : %u\n", status);
 	}
 
-	complete(&script_done);
+	complete(&event_done);
+
 	return 0;
 }
 
@@ -137,7 +140,7 @@ const struct genl_ops scsc_ops[] = {
 /* The netlink family */
 static struct genl_family scsc_nlfamily = {
 	.id = 0, /* Don't bother with a hardcoded ID */
-	.name = "scsc_nl_family",     /* Have users key off the name instead */
+	.name = "scsc_mdp_family",     /* Have users key off the name instead */
 	.hdrsize = 0,           /* No private header */
 	.version = 1,
 	.maxattr = __ATTR_MAX,
@@ -223,6 +226,7 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 	unsigned long completion_jiffies = 0;
 	unsigned long max_timeout_jiffies = msecs_to_jiffies(MAX_TIMEOUT);
 
+	mutex_lock(&sable_lock);
 	SCSC_TAG_INFO(WLBTD, "start:trigger - %s\n", trigger);
 
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
@@ -280,11 +284,10 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 	SCSC_TAG_INFO(WLBTD, "waiting for completion\n");
 
 	/* wait for script to finish */
-	completion_jiffies = wait_for_completion_timeout(&script_done,
+	completion_jiffies = wait_for_completion_timeout(&event_done,
 						max_timeout_jiffies);
 
 	if (completion_jiffies) {
-
 		completion_jiffies = max_timeout_jiffies - completion_jiffies;
 		SCSC_TAG_INFO(WLBTD, "sable generated in %dms\n",
 			(int)jiffies_to_msecs(completion_jiffies) ? : 1);
@@ -292,9 +295,10 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 		SCSC_TAG_ERR(WLBTD, "wait for completion timed out !\n");
 
 	/* reinit so completion can be re-used */
-	reinit_completion(&script_done);
+	reinit_completion(&event_done);
 
 	SCSC_TAG_INFO(WLBTD, "  end:trigger - %s\n", trigger);
+	mutex_unlock(&sable_lock);
 
 	return rc;
 
@@ -372,19 +376,19 @@ int call_wlbtd(const char *script_path)
 	SCSC_TAG_INFO(WLBTD, "waiting for completion\n");
 
 	/* wait for script to finish */
-	completion_jiffies = wait_for_completion_timeout(&script_done,
+	completion_jiffies = wait_for_completion_timeout(&event_done,
 						max_timeout_jiffies);
 
-	if (completion_jiffies != max_timeout_jiffies) {
+	if (completion_jiffies) {
 
 		completion_jiffies = max_timeout_jiffies - completion_jiffies;
 		SCSC_TAG_INFO(WLBTD, "done in %dms\n",
-			(int)jiffies_to_msecs(completion_jiffies));
+			(int)jiffies_to_msecs(completion_jiffies) ? : 1);
 	} else
 		SCSC_TAG_ERR(WLBTD, "wait for completion timed out !\n");
 
 	/* reinit so completion can be re-used */
-	reinit_completion(&script_done);
+	reinit_completion(&event_done);
 
 	SCSC_TAG_DEBUG(WLBTD, "end\n");
 
@@ -408,7 +412,7 @@ int scsc_wlbtd_init(void)
 		return -1;
 	}
 
-	init_completion(&script_done);
+	init_completion(&event_done);
 
 	return r;
 }

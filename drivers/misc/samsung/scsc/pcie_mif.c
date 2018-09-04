@@ -99,6 +99,23 @@ static void pcie_mif_emulate_reset_request_interrupt(struct pcie_mif *pcie)
 	}
 }
 
+#ifdef CONFIG_SCSC_QOS
+static int pcie_mif_pm_qos_add_request(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req, enum scsc_qos_config config)
+{
+	return 0;
+}
+
+static int pcie_mif_pm_qos_update_request(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req, enum scsc_qos_config config)
+{
+	return 0;
+}
+
+static int pcie_mif_pm_qos_remove_request(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req)
+{
+	return 0;
+}
+#endif
+
 irqreturn_t pcie_mif_isr(int irq, void *data)
 {
 	struct pcie_mif *pcie = (struct pcie_mif *)data;
@@ -464,6 +481,11 @@ struct scsc_mif_abs *pcie_mif_create(struct pci_dev *pdev, const struct pci_devi
 	pcie_if->get_mif_device = pcie_mif_get_mif_device;
 	pcie_if->irq_clear = pcie_mif_irq_clear;
 	pcie_if->mif_dump_registers = pcie_mif_dump_register;
+#ifdef CONFIG_SCSC_QOS
+	pcie_if->mif_pm_qos_add_request = pcie_mif_pm_qos_add_request;
+	pcie_if->mif_pm_qos_update_request = pcie_mif_pm_qos_update_request;
+	pcie_if->mif_pm_qos_remove_request = pcie_mif_pm_qos_remove_request;
+#endif
 
 	/* Suspend/resume not supported in PCIe MIF */
 	pcie_if->suspend_reg_handler = NULL;

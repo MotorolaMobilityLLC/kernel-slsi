@@ -1387,7 +1387,7 @@ static ssize_t slsi_auto_chan_write(struct net_device *dev, char *command, int b
 
 	}
 
-	SLSI_DBG3(sdev, SLSI_INIT_DEINIT, "Number of channels for autchannel selection= %d", count_channels);
+	SLSI_DBG3(sdev, SLSI_INIT_DEINIT, "Number of channels for autochannel selection= %d", count_channels);
 
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
 	sdev->device_config.ap_auto_chan = 0;
@@ -1403,7 +1403,7 @@ if ((ndev_sta_vif->activated) && (ndev_sta_vif->vif_type == FAPI_VIFTYPE_STATION
 		sdev->device_config.ap_auto_chan = ieee80211_frequency_to_channel(sta_frequency);
 	else
 		sdev->device_config.ap_auto_chan = 1;
-	SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "Auto channel written = %d", sdev->device_config.ap_auto_chan);
+	SLSI_INFO(sdev, "Channel selected = %d", sdev->device_config.ap_auto_chan);
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 	return 0;
 }
@@ -2066,7 +2066,7 @@ int slsi_fake_mac_write(struct net_device *dev, char *cmd)
 	else
 		enable = 0;
 
-	status = slsi_mib_encode_bool(&mib_data, SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION, enable, 0);
+	status = slsi_mib_encode_bool(&mib_data, SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION_ACTIVATED, enable, 0);
 	if (status != SLSI_MIB_STATUS_SUCCESS) {
 		SLSI_ERR(sdev, "FAKE MAC FAIL: no mem for MIB\n");
 		return -ENOMEM;
@@ -2389,6 +2389,12 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 						    priv_cmd.total_len - skip);
 	} else if (strncasecmp(command, CMD_GETROAMSCANCHANNELS, strlen(CMD_GETROAMSCANCHANNELS)) == 0) {
 		ret = slsi_roam_scan_channels_read(dev, command, priv_cmd.total_len);
+	} else if (strncasecmp(command, CMD_SETROAMOFFLOAD, strlen(CMD_SETROAMOFFLOAD)) == 0) {
+		ret = slsi_roam_mode_write(dev, command + strlen(CMD_SETROAMOFFLOAD) + 1,
+					   priv_cmd.total_len - (strlen(CMD_SETROAMOFFLOAD) + 1));
+	} else if (strncasecmp(command, CMD_SETROAMOFFLAPLIST, strlen(CMD_SETROAMOFFLAPLIST)) == 0) {
+		ret = slsi_roam_offload_ap_list(dev, command + strlen(CMD_SETROAMOFFLAPLIST) + 1,
+						priv_cmd.total_len - (strlen(CMD_SETROAMOFFLAPLIST) + 1));
 #endif
 	} else if (strncasecmp(command, CMD_SET_PMK, strlen(CMD_SET_PMK)) == 0) {
 		ret = slsi_set_pmk(dev, command, priv_cmd.total_len);
@@ -2431,12 +2437,6 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	} else if (strncasecmp(command, CMD_TDLSCHANNELSWITCH, strlen(CMD_TDLSCHANNELSWITCH)) == 0) {
 		ret = slsi_tdls_channel_switch(dev, command + strlen(CMD_TDLSCHANNELSWITCH) + 1,
 					       priv_cmd.total_len - (strlen(CMD_TDLSCHANNELSWITCH) + 1));
-	} else if (strncasecmp(command, CMD_SETROAMOFFLOAD, strlen(CMD_SETROAMOFFLOAD)) == 0) {
-		ret = slsi_roam_mode_write(dev, command + strlen(CMD_SETROAMOFFLOAD) + 1,
-					   priv_cmd.total_len - (strlen(CMD_SETROAMOFFLOAD) + 1));
-	} else if (strncasecmp(command, CMD_SETROAMOFFLAPLIST, strlen(CMD_SETROAMOFFLAPLIST)) == 0) {
-		ret = slsi_roam_offload_ap_list(dev, command + strlen(CMD_SETROAMOFFLAPLIST) + 1,
-						priv_cmd.total_len - (strlen(CMD_SETROAMOFFLAPLIST) + 1));
 	} else if (strncasecmp(command, CMD_SET_TX_POWER_CALLING, strlen(CMD_SET_TX_POWER_CALLING)) == 0) {
 		ret = slsi_set_tx_power_calling(dev, command + strlen(CMD_SET_TX_POWER_CALLING) + 1,
 						priv_cmd.total_len - (strlen(CMD_SET_TX_POWER_CALLING) + 1));

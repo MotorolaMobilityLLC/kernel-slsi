@@ -44,14 +44,11 @@
 #define SLSI_MIB_MAX_CLIENT (10)
 #define SLSI_REG_PARAM_START_INDEX (1)
 
-/* temp until it gets integrated into mib.h by Autogen */
-#define SLSI_PSID_UNIFI_REG_DOM_VERSION	8019
-
 static char *mib_file_t = "wlan_t.hcf";
 module_param(mib_file_t, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mib_file_t, "mib data filename");
 
-static char *mib_file2_t = "wlan_sw_t.hcf";
+static char *mib_file2_t = "wlan_t_sw.hcf";
 module_param(mib_file2_t, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mib_file2_t, "mib data filename");
 
@@ -153,6 +150,7 @@ void slsi_get_hw_mac_address(struct slsi_dev *sdev, u8 *addr)
 		return;
 	}
 mac_efs:
+#ifdef CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME
 	r = mx140_request_file(sdev->maxwell_core, CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, &e);
 	if (r != 0)
 		goto mac_default;
@@ -170,6 +168,7 @@ mac_efs:
 	SLSI_INFO(sdev, "MAC address loaded from %s: %02X:%02X:%02X:%02X:%02X:%02X\n", CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, u[0], u[1], u[2], u[3], u[4], u[5]);
 	mx140_release_file(sdev->maxwell_core, e);
 	return;
+#endif
 
 mac_default:
 	/* This is safe to call, even if the struct firmware handle is NULL */
@@ -196,7 +195,11 @@ mac_default:
 static void write_wifi_version_info_file(struct slsi_dev *sdev)
 {
 	struct file *fp = NULL;
+#if defined(ANDROID_VERSION) && (ANDROID_VERSION >= 90000)
 	char *filepath = "/data/vendor/conn/.wifiver.info";
+#else
+	char *filepath = "/data/misc/conn/.wifiver.info";
+#endif
 	char buf[256];
 	char build_id_fw[128];
 	char build_id_drv[64];
@@ -219,25 +222,47 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
 	 * as it can have fatal consequences.
 	 * The framework parser for the version may depend on this
 	 * exact formatting.
+	 *
+	 * Also beware that ANDROID_VERSION will not be defined in AOSP.
 	 */
+#if defined(ANDROID_VERSION) && (ANDROID_VERSION >= 90000)
+	/* P-OS */
 	snprintf(buf, sizeof(buf),
-		 "drv_ver: %s\n"
+		 "%s\n"	/* drv_ver: already appended by mxman_get_driver_version() */
 		 "f/w_ver: %s\n"
-		 "hcf_ver_hw: %u\n"
-		 "hcf_ver_sw: %u\n"
+		 "hcf_ver_hw: %s\n"
+		 "hcf_ver_sw: %s\n"
 		 "regDom_ver: %d.%d\n",
 		 build_id_drv,
 		 build_id_fw,
-		 sdev->mib[0].mib_hash,
-		 sdev->mib[1].mib_hash,
+		 sdev->mib[0].platform,
+		 sdev->mib[1].platform,
 		 ((sdev->reg_dom_version >> 8) & 0xFF), (sdev->reg_dom_version & 0xFF));
+#else
+	/* O-OS, or unknown */
+	snprintf(buf, sizeof(buf),
+		 "%s (f/w_ver: %s)\nregDom_ver: %d.%d\n",
+		 build_id_drv,
+		 build_id_fw,
+		 ((sdev->reg_dom_version >> 8) & 0xFF), (sdev->reg_dom_version & 0xFF));
+#endif
 
+/* If ANDROID_VERSION is not known, avoid writing the file, as it could go to the wrong
+ * location.
+ */
+#ifdef ANDROID_VERSION
+#ifdef CONFIG_SCSC_WLBTD
+	wlbtd_write_file(filepath, buf);
+#else
 	kernel_write(fp, buf, strlen(buf), 0);
 
 	if (fp)
 		filp_close(fp, NULL);
-
+#endif
 	SLSI_INFO(sdev, "Succeed to write firmware/host information to .wifiver.info\n");
+#else
+	SLSI_UNUSED_PARAMETER(filepath);
+#endif
 }
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
@@ -416,7 +441,7 @@ int slsi_start(struct slsi_dev *sdev)
 
 		/* Only the first file is mandatory */
 		if (i == 0 && err) {
-			SLSI_ERR(sdev, "slsi_mib_open_file failed: err=%d\n", err);
+			SLSI_ERR(sdev, "mib: Mandatory wlan hcf missing. WLAN will not start (err=%d)\n", err);
 			slsi_sm_wlan_service_close(sdev);
 			goto err_done;
 		}
@@ -500,6 +525,11 @@ int slsi_start(struct slsi_dev *sdev)
 	} else {
 		offset = snprintf(buf + offset, sizeof(buf), "#softap.info\n");
 		offset += snprintf(buf + offset, sizeof(buf), "DualBandConcurrency=%s\n", sdev->dualband_concurrency ? "yes" : "no");
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+		offset += snprintf(buf + offset, sizeof(buf), "DualInterface=%s\n", "yes");
+#else
+		offset += snprintf(buf + offset, sizeof(buf), "DualInterface=%s\n", "no");
+#endif
 		offset += snprintf(buf + offset, sizeof(buf), "5G=%s\n", sdev->band_5g_supported ? "yes" : "no");
 		offset += snprintf(buf + offset, sizeof(buf), "maxClient=%d\n", !sdev->softap_max_client ? SLSI_MIB_MAX_CLIENT : sdev->softap_max_client);
 
@@ -524,6 +554,7 @@ int slsi_start(struct slsi_dev *sdev)
 	slsi_update_supported_channels_regd_flags(sdev);
 	SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "---Driver started successfully---\n");
 	sdev->device_state = SLSI_DEVICE_STATE_STARTED;
+	memset(sdev->rtt_vif, -1, sizeof(sdev->rtt_vif));
 	SLSI_MUTEX_UNLOCK(sdev->start_stop_mutex);
 
 	slsi_kic_system_event(slsi_kic_system_event_category_initialisation,
@@ -683,7 +714,6 @@ void slsi_vif_cleanup(struct slsi_dev *sdev, struct net_device *dev, bool hw_ava
 			if (hw_available) {
 				struct slsi_peer *peer;
 				int              j = 0;
-				int              r = 0;
 
 				while (j < SLSI_PEER_INDEX_MAX) {
 					peer = ndev_vif->peer_sta_record[j];
@@ -691,9 +721,6 @@ void slsi_vif_cleanup(struct slsi_dev *sdev, struct net_device *dev, bool hw_ava
 						slsi_ps_port_control(sdev, dev, peer, SLSI_STA_CONN_STATE_DISCONNECTED);
 					++j;
 				}
-				r = slsi_mlme_disconnect(sdev, dev, NULL, WLAN_REASON_DEAUTH_LEAVING, true);
-				if (r != 0)
-					SLSI_NET_ERR(dev, "Disconnection returned with CFM failure\n");
 				slsi_mlme_del_vif(sdev, dev);
 			}
 			SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Calling slsi_vif_deactivated\n");
@@ -703,7 +730,7 @@ void slsi_vif_cleanup(struct slsi_dev *sdev, struct net_device *dev, bool hw_ava
 				SLSI_P2P_STATE_CHANGE(sdev, P2P_IDLE_NO_VIF);
 		} else if (ndev_vif->vif_type == FAPI_VIFTYPE_UNSYNCHRONISED) {
 			if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
-				slsi_hs2_vif_deactivate(sdev, dev, hw_available);
+				slsi_wlan_unsync_vif_deactivate(sdev, dev, hw_available);
 			} else {
 				SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "P2P active - Deactivate\n");
 				slsi_p2p_vif_deactivate(sdev, dev, hw_available);
@@ -861,6 +888,133 @@ static u8 *slsi_mib_slice(struct slsi_dev *sdev, const u8 *data, u32 length, u32
 	return mib_slice;
 }
 
+/* Extract the platform name string from the HCF file */
+static int slsi_mib_get_platform(struct slsi_dev_mib_info *mib_info)
+{
+	size_t plat_name_len;
+	int pos = 0;
+
+	/* The mib_data passed to this function should already
+	 * have had its HCF header skipped.
+	 *
+	 * This is shoehorned into specific PSIDs to allow backward
+	 * compatibility, so we must look into the HCF payload
+	 * instead of the header :(
+	 *
+	 * The updated configcmd util guarantees that these keys
+	 * will appear first:
+	 *
+	 * PSIDs:
+	 * 0xfffe - 16 bit version ID, value 1.
+	 * 0xffff - If version ID=1, holds platform name string.
+	 */
+
+	mib_info->platform[0] = '\0';
+
+	/* Sanity - payload long enough for info? */
+	if (mib_info->mib_len < 12) {
+		SLSI_INFO_NODEV("HCF file too short\n");
+		return -EINVAL;				/* file too short */
+	}
+
+	if (mib_info->mib_data[pos++] != 0xFE ||	/* Version ID FFFE */
+	    mib_info->mib_data[pos++] != 0xFF) {
+		SLSI_INFO_NODEV("No HCF version ID\n");
+		return -EINVAL;				/* No version ID */
+	}
+	if (mib_info->mib_data[pos++] != 0x01 ||	/* Len 1, LE */
+	    mib_info->mib_data[pos++] != 0x00) {
+		SLSI_INFO_NODEV("Bad length\n");
+		return -EINVAL;				/* Unknown length */
+	}
+	if (mib_info->mib_data[pos++] != 0x01 ||	/* Header ID 1, LE */
+	    mib_info->mib_data[pos++] != 0x00) {
+		SLSI_INFO_NODEV("Bad version ID\n");
+		return -EINVAL;				/* Unknown version ID */
+	}
+	if (mib_info->mib_data[pos++] != 0xFF ||	/* Platform Name FFFF */
+	    mib_info->mib_data[pos++] != 0xFF) {
+		SLSI_INFO_NODEV("No HCF platform name\n");
+		return -EINVAL;				/* No platform name */
+	}
+
+	/* Length of platform name */
+	plat_name_len = mib_info->mib_data[pos++];
+	plat_name_len |= (mib_info->mib_data[pos++] << 16);
+
+	/* Sanity check */
+	if (plat_name_len + pos > mib_info->mib_len || plat_name_len < 2) {
+		SLSI_ERR_NODEV("Bad HCF FFFF key length %zu\n",
+			       plat_name_len);
+		return -EINVAL;				/* Implausible length */
+	}
+
+	/* Skip vldata header SC-506179-SP. This conveys the
+	 * length of the platform string and is 2 or 3 octets long
+	 * depending on the length of the string.
+	 */
+	{
+#define SLSI_VLDATA_STRING	0xA0
+#define SLSI_VLDATA_LEN		0x17
+
+		u8 vlen_hdr = mib_info->mib_data[pos++];
+		u8 vlen_len = vlen_hdr & SLSI_VLDATA_LEN; /* size of length field */
+
+		/* Skip vlen header octet */
+		plat_name_len--;
+
+		SLSI_DBG1_NODEV(SLSI_INIT_DEINIT, "vlhdr 0x%x, len %u\n", vlen_hdr, vlen_len);
+
+		/* Is it an octet string type? */
+		if (!(vlen_hdr & SLSI_VLDATA_STRING)) {
+			SLSI_ERR_NODEV("No string vlen header 0x%x\n", vlen_hdr);
+			return -EINVAL;
+		}
+
+		/* Handle 1 or 2 octet length field only */
+		if (vlen_len > 2) {
+			SLSI_ERR_NODEV("Too long octet string header %u\n", vlen_len);
+			return -EINVAL;
+		}
+
+		/* Skip over the string length field.
+		 * Note we just use datalength anyway.
+		 */
+		pos += vlen_len;
+		plat_name_len -= vlen_len;
+	}
+
+	/* Limit the platform name to space in driver and read */
+	{
+		size_t trunc_len = plat_name_len;
+
+		if (trunc_len > sizeof(mib_info->platform))
+			trunc_len = sizeof(mib_info->platform) - 1;
+
+		/* Extract platform name */
+		memcpy(mib_info->platform, &mib_info->mib_data[pos], trunc_len);
+		mib_info->platform[trunc_len] = '\0';
+
+		/* Print non-truncated string in log now */
+		SLSI_INFO_NODEV("MIB platform: %.*s\n", (int)plat_name_len, &mib_info->mib_data[pos]);
+
+		SLSI_DBG1_NODEV(SLSI_INIT_DEINIT, "plat_name_len: %zu + %u\n",
+				plat_name_len, (plat_name_len & 1));
+	}
+
+	/* Pad string to 16-bit boundary */
+	plat_name_len += (plat_name_len & 1);
+	pos += plat_name_len;
+
+	/* Advance over the keys we read, FW doesn't need them */
+	mib_info->mib_data += pos;
+	mib_info->mib_len -= pos;
+
+	SLSI_DBG1_NODEV(SLSI_INIT_DEINIT, "Skip %d octets HCF payload\n", pos);
+
+	return 0;
+}
+
 #define MGT_HASH_SIZE_BYTES	2 /* Hash will be contained in a uint32 */
 #define MGT_HASH_OFFSET		4
 static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *mib_info, const struct firmware **fw)
@@ -897,9 +1051,9 @@ static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *m
 
 	r = mx140_file_request_conf(sdev->maxwell_core, &e, "wlan", mib_file_name);
 	if (r || (!e)) {
-		SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Skip MIB download as file [%s] is NOT found and is optional\n", mib_file_name);
+		SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Skip MIB download as file %s is NOT found\n", mib_file_name);
 		*fw = e;
-		return 0;
+		return r;
 	}
 
 	mib_info->mib_data = (u8 *)e->data;
@@ -936,6 +1090,9 @@ cont:
 		/* All good - skip header and continue */
 		mib_info->mib_data += 8;
 		mib_info->mib_len -= 8;
+
+		/* Extract platform name if available */
+		slsi_mib_get_platform(mib_info);
 	} else {
 		/* Bad header */
 		SLSI_ERR(sdev, "configuration file '%s' has bad header\n", mib_info->mib_file_name);
@@ -1021,7 +1178,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 							       { SLSI_PSID_UNIFI_HARDWARE_PLATFORM, {0, 0} },
 							       { SLSI_PSID_UNIFI_REG_DOM_VERSION, {0, 0} },
 							       { SLSI_PSID_UNIFI_NAN_ENABLED, {0, 0} },
-							       { SLSI_PSID_UNIFI_FORCED_SCHEDULE_DURATION, {0, 0} },
+							       { SLSI_PSID_UNIFI_DEFAULT_DWELL_TIME, {0, 0} },
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 							       { SLSI_PSID_UNIFI_WI_FI_SHARING5_GHZ_CHANNEL, {0, 0} },
 #endif
@@ -1331,6 +1488,49 @@ int slsi_mib_get_gscan_cap(struct slsi_dev *sdev, struct slsi_nl_gscan_capabilit
 	return r;
 }
 #endif
+
+int slsi_mib_get_rtt_cap(struct slsi_dev *sdev, struct net_device *dev, struct slsi_rtt_capabilities *cap)
+{
+	struct slsi_mib_data supported_rtt_capab = { 0, NULL };
+	struct slsi_mib_data mibrsp = { 0, NULL };
+	struct slsi_mib_value     *values = NULL;
+
+	struct slsi_mib_get_entry get_values[] = { { SLSI_PSID_UNIFI_RTT_CAPABILITIES, { 0, 0 } } };
+
+	mibrsp.dataLength = 64;
+	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
+	if (!mibrsp.data) {
+		SLSI_ERR(sdev, "Cannot kmalloc %d bytes\n", mibrsp.dataLength);
+		kfree(mibrsp.data);
+		return -ENOMEM;
+	}
+
+	values = slsi_read_mibs(sdev, dev, get_values, 1, &mibrsp);
+	if (!values) {
+		kfree(mibrsp.data);
+		return -EINVAL;
+	}
+
+	if (values[0].type != SLSI_MIB_TYPE_OCTET) {
+		SLSI_ERR(sdev, "Invalid type (%d) for SLSI_PSID_UNIFI_RTT_CAPABILITIES", values[0].type);
+		kfree(mibrsp.data);
+		kfree(values);
+		return -EINVAL;
+	}
+	supported_rtt_capab = values[0].u.octetValue;
+	cap->rtt_one_sided_supported = supported_rtt_capab.data[0];
+	cap->rtt_ftm_supported = supported_rtt_capab.data[1];
+	cap->lci_support = supported_rtt_capab.data[2];
+	cap->lcr_support = supported_rtt_capab.data[3];
+	cap->responder_supported = supported_rtt_capab.data[4];
+	cap->preamble_support = supported_rtt_capab.data[5];
+	cap->bw_support = supported_rtt_capab.data[6];
+	cap->mc_version = supported_rtt_capab.data[7];
+
+	kfree(values);
+	kfree(mibrsp.data);
+	return 0;
+}
 
 struct slsi_peer *slsi_peer_add(struct slsi_dev *sdev, struct net_device *dev, u8 *peer_address, u16 aid)
 {
@@ -1766,10 +1966,9 @@ void slsi_vif_deactivated(struct slsi_dev *sdev, struct net_device *dev)
 
 	/* MUST be done first to ensure that other code doesn't treat the VIF as still active */
 	ndev_vif->activated = false;
+#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	slsi_skb_queue_purge(&ndev_vif->rx_data.queue);
-
-	slsi_skb_queue_purge(&ndev_vif->rx_data.queue);
-
+#endif
 	for (i = 0; i < (SLSI_ADHOC_PEER_CONNECTIONS_MAX); i++) {
 		struct slsi_peer *peer = ndev_vif->peer_sta_record[i];
 
@@ -1845,7 +2044,7 @@ static int slsi_sta_ieee80211_mode(struct net_device *dev, u16 current_bss_chann
 static int slsi_get_sta_mode(struct net_device *dev, const u8 *last_peer_mac)
 {
 	struct netdev_vif    *ndev_vif = netdev_priv(dev);
-	struct slsi_dev *sdev;
+	struct slsi_dev *sdev = ndev_vif->sdev;
 	struct slsi_peer    *last_peer;
 	const u8             *peer_ie;
 
@@ -3015,8 +3214,6 @@ int slsi_auto_chan_select_scan(struct slsi_dev *sdev, int n_channels, struct iee
 		return r;
 	}
 
-	SLSI_NET_DBG1(dev, SLSI_CFG80211, "number of Channels %d\n", n_channels);
-
 	ndev_vif = netdev_priv(dev);
 	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
 
@@ -3096,6 +3293,8 @@ next_scan:
 		SLSI_MUTEX_LOCK(sdev->device_config_mutex);
 		sdev->device_config.ap_auto_chan = channels[selected_index]->hw_value & 0xFF;
 		SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+
+		SLSI_INFO(sdev, "Channel selected = %d", sdev->device_config.ap_auto_chan);
 	}
 	slsi_skb_queue_purge(&unique_scan_results);
 	ndev_vif->scan[SLSI_SCAN_HW_ID].is_blocking_scan = false;
@@ -3556,25 +3755,40 @@ u8 slsi_p2p_get_exp_peer_frame_subtype(u8 subtype)
 	}
 }
 
-void slsi_hs2_dump_public_action_subtype(struct ieee80211_mgmt *mgmt, bool tx)
+void slsi_wlan_dump_public_action_subtype(struct ieee80211_mgmt *mgmt, bool tx)
 {
 	u8 action_code = ((u8 *)&mgmt->u.action.u)[0];
+	u8 action_category = mgmt->u.action.category;
 
-	switch (action_code) {
-	case SLSI_PA_GAS_INITIAL_REQ:
-		SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Initial Request\n", tx ? "TX" : "RX");
-		break;
-	case SLSI_PA_GAS_INITIAL_RSP:
-		SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Initial Response\n", tx ? "TX" : "RX");
-		break;
-	case SLSI_PA_GAS_COMEBACK_REQ:
-		SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Comeback Request\n", tx ? "TX" : "RX");
-		break;
-	case SLSI_PA_GAS_COMEBACK_RSP:
-		SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Comeback Response\n", tx ? "TX" : "RX");
-		break;
-	default:
-		SLSI_DBG1_NODEV(SLSI_CFG80211, "Unknown GAS Frame : %d\n", action_code);
+	switch (action_category) {
+	case WLAN_CATEGORY_RADIO_MEASUREMENT:
+		switch (action_code) {
+		case SLSI_RM_NEIGH_REP_REQ:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: RM Neigh Report Request\n", tx ? "TX" : "RX");
+			break;
+		case SLSI_RM_NEIGH_REP_RSP:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: RM Neigh Report Response\n", tx ? "TX" : "RX");
+			break;
+		default:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "Unknown Radio Measurement Frame : %d\n", action_code);
+		}
+	case WLAN_CATEGORY_PUBLIC:
+		switch (action_code) {
+		case SLSI_PA_GAS_INITIAL_REQ:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Initial Request\n", tx ? "TX" : "RX");
+			break;
+		case SLSI_PA_GAS_INITIAL_RSP:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Initial Response\n", tx ? "TX" : "RX");
+			break;
+		case SLSI_PA_GAS_COMEBACK_REQ:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Comeback Request\n", tx ? "TX" : "RX");
+			break;
+		case SLSI_PA_GAS_COMEBACK_RSP:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Comeback Response\n", tx ? "TX" : "RX");
+			break;
+		default:
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "Unknown GAS Frame : %d\n", action_code);
+		}
 	}
 }
 
@@ -4123,12 +4337,9 @@ void slsi_modify_ies_on_channel_switch(struct net_device *dev, struct cfg80211_a
 				       u8 *ds_params_ie, u8 *ht_operation_ie, struct ieee80211_mgmt  *mgmt,
 				       u16 beacon_ie_head_len)
 {
-	ds_params_ie = (u8 *)cfg80211_find_ie(WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable, beacon_ie_head_len);
 	slsi_modify_ies(dev, WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable,
 			beacon_ie_head_len, 2, ieee80211_frequency_to_channel(settings->chandef.chan->center_freq));
 
-	ht_operation_ie = (u8 *)cfg80211_find_ie(WLAN_EID_HT_OPERATION, settings->beacon.tail,
-						 settings->beacon.tail_len);
 	slsi_modify_ies(dev, WLAN_EID_HT_OPERATION, (u8 *)settings->beacon.tail,
 			settings->beacon.tail_len, 2,
 			ieee80211_frequency_to_channel(settings->chandef.chan->center_freq));
@@ -4372,7 +4583,49 @@ exit:
 	return 0;
 }
 #endif
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+int slsi_set_mac_randomisation_mask(struct slsi_dev *sdev, u8 *mac_address_mask)
+{
+	int r = 0;
+	struct slsi_mib_data mib_data = { 0, NULL };
 
+	SLSI_DBG1(sdev, SLSI_CFG80211, "Mask is :%pM\n", mac_address_mask);
+	r = slsi_mib_encode_octet(&mib_data, SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION_MASK, ETH_ALEN,
+				  mac_address_mask, 0);
+	if (r != SLSI_MIB_STATUS_SUCCESS) {
+		SLSI_ERR(sdev, "Err setting unifiMacAddrRandomistaionMask MIB. error = %d\n", r);
+		if (sdev->scan_addr_set) {
+			struct slsi_mib_data mib_data_randomization_activated = { 0, NULL };
+
+			r = slsi_mib_encode_bool(&mib_data_randomization_activated,
+						 SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION_ACTIVATED, 1, 0);
+			if (r != SLSI_MIB_STATUS_SUCCESS) {
+				SLSI_ERR(sdev, "UNIFI_MAC_ADDRESS_RANDOMISATION_ACTIVATED: no mem for MIB\n");
+				return  -ENOMEM;
+			}
+
+			r = slsi_mlme_set(sdev, NULL, mib_data_randomization_activated.data,
+					  mib_data_randomization_activated.dataLength);
+
+			kfree(mib_data_randomization_activated.data);
+
+			if (r)
+				SLSI_ERR(sdev, "Err setting unifiMacAddrRandomistaionActivated MIB. error = %d\n", r);
+				return r;
+			}
+			return -ENOMEM;
+		}
+	if (mib_data.dataLength == 0) {
+		SLSI_WARN(sdev, "Mib Data length is Zero\n");
+		return -EINVAL;
+	}
+	r = slsi_mlme_set(sdev, NULL, mib_data.data, mib_data.dataLength);
+	if (r)
+		SLSI_ERR(sdev, "Err setting Randomized mac mask= %d\n", r);
+	kfree(mib_data.data);
+	return r;
+}
+#endif
 /* Set the new country code and read the regulatory parameters of updated country. */
 int slsi_set_country_update_regd(struct slsi_dev *sdev, const char *alpha2_code, int size)
 {
@@ -4630,46 +4883,51 @@ static void slsi_hs2_unsync_vif_delete_work(struct work_struct *work)
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	SLSI_NET_DBG1(ndev_vif->wdev.netdev, SLSI_CFG80211, "Delete HS vif duration expired  - Deactivate unsync vif\n");
-	slsi_hs2_vif_deactivate(ndev_vif->sdev, ndev_vif->wdev.netdev, true);
+	slsi_wlan_unsync_vif_deactivate(ndev_vif->sdev, ndev_vif->wdev.netdev, true);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 }
 
-int slsi_hs2_vif_activate(struct slsi_dev *sdev, struct net_device *dev, struct ieee80211_channel *chan, u16 wait)
+int slsi_wlan_unsync_vif_activate(struct slsi_dev *sdev, struct net_device *dev,
+				  struct ieee80211_channel *chan, u16 wait)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	int r = 0;
 	u8 device_address[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	u32                 action_frame_bmap;
 
-	SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "Activate HS unsync vif\n");
+	SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "Activate wlan unsync vif\n");
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
 
 	ndev_vif->vif_type = FAPI_VIFTYPE_UNSYNCHRONISED;
 
-	/* Avoid suspend when HS2 unsync VIF is active */
+	/* Avoid suspend when wlan unsync VIF is active */
 	slsi_wakelock(&sdev->wlan_wl);
 
 	/* Interface address and device address are same for unsync vif */
 	if (slsi_mlme_add_vif(sdev, dev, dev->dev_addr, device_address) != 0) {
-		SLSI_NET_ERR(dev, "add vif failed for HS unsync vif\n");
+		SLSI_NET_ERR(dev, "add vif failed for wlan unsync vif\n");
 		goto exit_with_error;
 	}
 
 	if (slsi_vif_activated(sdev, dev) != 0) {
-		SLSI_NET_ERR(dev, "vif activate failed for HS unsync vif\n");
+		SLSI_NET_ERR(dev, "vif activate failed for wlan unsync vif\n");
 		slsi_mlme_del_vif(sdev, dev);
 		goto exit_with_error;
 	}
-	sdev->hs2_state = HS2_VIF_ACTIVE;
+	sdev->wlan_unsync_vif_state = WLAN_UNSYNC_VIF_ACTIVE;
 	INIT_DELAYED_WORK(&ndev_vif->unsync.hs2_del_vif_work, slsi_hs2_unsync_vif_delete_work);
+	action_frame_bmap = SLSI_ACTION_FRAME_PUBLIC | SLSI_ACTION_FRAME_RADIO_MEASUREMENT;
 
-	if (slsi_mlme_register_action_frame(sdev, dev, SLSI_ACTION_FRAME_PUBLIC, SLSI_ACTION_FRAME_PUBLIC) != 0) {
-		SLSI_NET_ERR(dev, "Action frame registration failed for HS unsync vif\n");
+	r = slsi_mlme_register_action_frame(sdev, dev, action_frame_bmap, action_frame_bmap);
+	if (r != 0) {
+		SLSI_NET_ERR(dev, "slsi_mlme_register_action_frame failed: resultcode = %d, action_frame_bmap:%d\n",
+			     r, action_frame_bmap);
 		goto exit_with_vif;
 	}
 
 	if (slsi_mlme_set_channel(sdev, dev, chan, SLSI_FW_CHANNEL_DURATION_UNSPECIFIED, 0, 0) != 0) {
-		SLSI_NET_ERR(dev, "Set channel failed for HS unsync vif\n");
+		SLSI_NET_ERR(dev, "Set channel failed for wlan unsync vif\n");
 		goto exit_with_vif;
 	}
 	ndev_vif->chan = chan;
@@ -4677,23 +4935,23 @@ int slsi_hs2_vif_activate(struct slsi_dev *sdev, struct net_device *dev, struct 
 	return r;
 
 exit_with_vif:
-	slsi_hs2_vif_deactivate(sdev, dev, true);
+	slsi_wlan_unsync_vif_deactivate(sdev, dev, true);
 exit_with_error:
 	slsi_wakeunlock(&sdev->wlan_wl);
 	return -EINVAL;
 }
 
 /* Delete unsync vif - DON'T update the vif type */
-void slsi_hs2_vif_deactivate(struct slsi_dev *sdev, struct net_device *dev, bool hw_available)
+void slsi_wlan_unsync_vif_deactivate(struct slsi_dev *sdev, struct net_device *dev, bool hw_available)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 
-	SLSI_NET_DBG1(dev, SLSI_INIT_DEINIT, "De-activate HS unsync vif\n");
+	SLSI_NET_DBG1(dev, SLSI_INIT_DEINIT, "De-activate wlan unsync vif\n");
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
 
-	if (sdev->hs2_state == HS2_NO_VIF) {
-		SLSI_NET_DBG1(dev, SLSI_INIT_DEINIT, "HS unsync vif already deactivated\n");
+	if (sdev->wlan_unsync_vif_state == WLAN_UNSYNC_NO_VIF) {
+		SLSI_NET_DBG1(dev, SLSI_INIT_DEINIT, "wlan unsync vif already deactivated\n");
 		return;
 	}
 
@@ -4707,7 +4965,7 @@ void slsi_hs2_vif_deactivate(struct slsi_dev *sdev, struct net_device *dev, bool
 
 	slsi_wakeunlock(&sdev->wlan_wl);
 
-	sdev->hs2_state = HS2_NO_VIF;
+	sdev->wlan_unsync_vif_state = WLAN_UNSYNC_NO_VIF;
 	ndev_vif->activated = false;
 	ndev_vif->chan = NULL;
 
@@ -4740,16 +4998,20 @@ void slsi_update_supported_channels_regd_flags(struct slsi_dev *sdev)
 	struct wiphy *wiphy = sdev->wiphy;
 	struct ieee80211_channel *chan;
 
+	/* If all channels are supported by chip no need disable any channel
+	 * So return
+	 */
 	if (sdev->enabled_channel_count == 39)
 		return;
-
-	for (i = 0; i <  ARRAY_SIZE(sdev->supported_2g_channels); i++) {
-		if (sdev->supported_2g_channels[i] == 0) {
-			chan = &wiphy->bands[0]->channels[i];
-			chan->flags |= IEEE80211_CHAN_DISABLED;
+	if (wiphy->bands[0]) {
+		for (i = 0; i < ARRAY_SIZE(sdev->supported_2g_channels); i++) {
+			if (sdev->supported_2g_channels[i] == 0) {
+				chan = &wiphy->bands[0]->channels[i];
+				chan->flags |= IEEE80211_CHAN_DISABLED;
+			}
 		}
 	}
-	if (sdev->band_5g_supported) {
+	if (sdev->band_5g_supported && wiphy->bands[1]) {
 		for (i = 0; i <  ARRAY_SIZE(sdev->supported_5g_channels); i++) {
 			if (sdev->supported_5g_channels[i] == 0) {
 				chan = &wiphy->bands[1]->channels[i];
