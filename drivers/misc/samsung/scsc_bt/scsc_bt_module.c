@@ -44,7 +44,6 @@
 #define SCSC_MODDESC "SCSC MX BT Driver"
 #define SCSC_MODAUTH "Samsung Electronics Co., Ltd"
 #define SCSC_MODVERSION "-devel"
-#define SCSC_BT_LOGGER "/system/bin/bt_dump.sh"
 
 #define SLSI_BT_SERVICE_CLOSE_RETRY 60
 #define SLSI_BT_SERVICE_STOP_RECOVERY_TIMEOUT 20000
@@ -87,13 +86,12 @@ static u32 firmware_control;
 static bool firmware_control_reset = true;
 static u32 firmware_mxlog_filter;
 static bool disable_service;
-static bool call_usermode_helper;
-static char *envp[] = { "HOME=/", "PATH=/system/bin:/sbin:", NULL };
-static char *argv[] = { SCSC_BT_LOGGER, NULL };
 
 /* Audio */
 static struct device *audio_device;
+static struct device *previous_audio_device;
 static bool audio_device_probed;
+static bool audio_device_been_probed;
 static struct scsc_bt_audio bt_audio;
 
 module_param(bluetooth_address, ullong, S_IRUGO | S_IWUSR);
@@ -126,9 +124,6 @@ module_param(disable_service, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(disable_service,
 		 "Disables service startup");
 
-module_param(call_usermode_helper, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(call_usermode_helper, "Allows the call to the usermode helper");
-
 /*
  * Service event callbacks called from mx-core when things go wrong
  */
@@ -142,6 +137,19 @@ static void bt_stop_on_failure(struct scsc_service_client *client)
 	bt_recovery_in_progress = 1;
 
 	atomic_inc(&bt_service.error_count);
+
+	/* Zero the shared memory on error. The A-Box does not stop using this
+	 * memory immediately as designed. To prevent noise during recovery we zero the
+	 * shared memory before freeing it
+	 */
+	mutex_lock(&bt_audio_mutex);
+
+	if (bt_service.abox_ref != 0 && bt_audio.abox_virtual) {
+		memset(bt_audio.abox_virtual->abox_to_bt_streaming_if_data, 0, SCSC_BT_AUDIO_ABOX_DATA_SIZE);
+		memset(bt_audio.abox_virtual->bt_to_abox_streaming_if_data, 0, SCSC_BT_AUDIO_ABOX_DATA_SIZE);
+	}
+
+	mutex_unlock(&bt_audio_mutex);
 }
 
 static void bt_failure_reset(struct scsc_service_client *client, u16 scsc_panic_code)
@@ -205,17 +213,6 @@ static struct scsc_service_client mx_ant_client = {
 };
 #endif
 
-static void scsc_bt_invoke_usermode_helper(void)
-{
-	int ret = 0;
-
-	ret = call_usermodehelper(SCSC_BT_LOGGER, argv, envp, UMH_WAIT_EXEC);
-	if (ret != 0)
-		SCSC_TAG_ERR(BT_COMMON, "Bluetooth logger failed with error: %i\n", ret);
-	else
-		SCSC_TAG_INFO(BT_COMMON, "Bluetooth logger invoked successfully\n");
-}
-
 static void slsi_sm_bt_service_cleanup_interrupts(void)
 {
 	u16 int_src = bt_service.bsmhcp_protocol->header.info_bg_to_ap_int_src;
@@ -243,8 +240,8 @@ static int slsi_sm_bt_service_cleanup_stop_service(void)
 			scsc_mx_service_service_failed(bt_service.service, "BT service stop failed");
 			SCSC_TAG_DEBUG(BT_COMMON,
 				       "force service fail complete\n");
-			return -EIO;
 		}
+		return -EIO;
 	}
 
 	return 0;
@@ -273,11 +270,12 @@ static void slsi_bt_audio_remove(void)
 {
 	size_t size;
 
-	if (audio_device == NULL || bt_audio.dev_iommu_unmap == NULL)
+	if (previous_audio_device == NULL || bt_audio.dev_iommu_unmap == NULL)
 		return;
 
 	size = PAGE_ALIGN(sizeof(*bt_audio.abox_physical));
-	bt_audio.dev_iommu_unmap(audio_device, size);
+	bt_audio.dev_iommu_unmap(previous_audio_device, size);
+	previous_audio_device = NULL;
 }
 
 #ifdef CONFIG_SCSC_LOG_COLLECTION
@@ -340,9 +338,6 @@ static int slsi_sm_bt_service_cleanup(bool allow_service_stop)
 
 		mutex_lock(&bt_audio_mutex);
 		if (audio_device) {
-			if (audio_device_probed)
-				slsi_bt_audio_remove();
-
 			bt_audio.dev			= NULL;
 			bt_audio.abox_virtual		= NULL;
 			bt_audio.abox_physical		= NULL;
@@ -798,15 +793,25 @@ int slsi_sm_bt_service_start(void)
 		 * only if the physical start address of the 4MB region is aligned
 		 * to 4kB (which maybe will be always the case).
 		 */
-		err = scsc_mx_service_mifram_alloc(bt_service.service,
-							sizeof(struct scsc_bt_audio_abox),
-							&bt_service.abox_ref,
-							SCSC_BT_AUDIO_PAGE_SIZE);
+
+		/* unmap previously mapped memory if necessary */
+		if (audio_device_been_probed) {
+			slsi_bt_audio_remove();
+			/* audio_device_been_probed is always true once set */
+		}
+
+		err = scsc_mx_service_mif_ptr_to_addr(bt_service.service,
+				scsc_mx_service_get_bt_audio_abox(bt_service.service),
+				&bt_service.abox_ref);
 		if (err) {
-			SCSC_TAG_WARNING(BT_COMMON, "mifram alloc failed\n");
+			SCSC_TAG_WARNING(BT_COMMON, "scsc_mx_service_mif_ptr_to_addr failed\n");
 			err = -EINVAL;
 			goto exit;
 		}
+		/* irrespective of the technical definition of probe - wrt to memory allocation it has been */
+		audio_device_been_probed = true;
+		/* ...and this is the audio_device it was associated with */
+		previous_audio_device = audio_device;
 
 		bt_audio.abox_virtual = (struct scsc_bt_audio_abox *)
 						scsc_mx_service_mif_addr_to_ptr(
@@ -1135,15 +1140,7 @@ static int scsc_bt_h4_open(struct inode *inode, struct file *file)
 		ret = slsi_sm_bt_service_start();
 		if (0 == ret)
 			bt_service.h4_users = true;
-		else if (call_usermode_helper) {
-			scsc_bt_invoke_usermode_helper();
-			call_usermode_helper = false;
-		}
 	} else {
-		if (call_usermode_helper) {
-			scsc_bt_invoke_usermode_helper();
-			call_usermode_helper = false;
-		}
 		ret = -EBUSY;
 	}
 
@@ -1259,15 +1256,7 @@ static int scsc_ant_open(struct inode *inode, struct file *file)
 		ret = slsi_sm_ant_service_start();
 		if (ret == 0)
 			ant_service.ant_users = true;
-		else if (call_usermode_helper) {
-			scsc_bt_invoke_usermode_helper();
-			call_usermode_helper = false;
-		}
 	} else {
-		if (call_usermode_helper) {
-			scsc_bt_invoke_usermode_helper();
-			call_usermode_helper = false;
-		}
 		ret = -EBUSY;
 	}
 
@@ -1878,9 +1867,6 @@ int scsc_bt_audio_unregister(struct device *dev)
 	mutex_lock(&bt_audio_mutex);
 
 	if (audio_device != NULL && dev == audio_device) {
-		if (audio_device_probed)
-			slsi_bt_audio_remove();
-
 		bt_audio.dev			= NULL;
 		bt_audio.abox_virtual		= NULL;
 		bt_audio.abox_physical		= NULL;

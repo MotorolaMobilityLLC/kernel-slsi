@@ -602,8 +602,8 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_RTTSTATUS_FAIL_INVALID_REQUEST          0x000d
 #define FAPI_RTTSTATUS_FAIL_FTM_PARAMETER_OVERRIDE   0x000f
 
-#define FAPI_RTTTYPE_ONE_SIDED   0x0000
-#define FAPI_RTTTYPE_TWO_SIDED   0x0001
+#define FAPI_RTTTYPE_ONE_SIDED   0x0001
+#define FAPI_RTTTYPE_TWO_SIDED   0x0002
 
 #define FAPI_RXSTARTFLAGS_NONE           0x0000
 #define FAPI_RXSTARTFLAGS_SCAN_CHANNEL   0x0001

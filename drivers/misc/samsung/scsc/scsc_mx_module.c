@@ -107,9 +107,6 @@ static int __init scsc_mx_module_init(void)
 		SCSC_RELEASE_ITERATION,
 		SCSC_RELEASE_CANDIDATE,
 		SCSC_RELEASE_POINT);
-#ifdef CONFIG_SCSC_WLBTD
-	scsc_wlbtd_get_and_print_build_type();
-#endif
 
 	scsc_mif_abs_register(&mx_module_mif_if);
 	return 0;

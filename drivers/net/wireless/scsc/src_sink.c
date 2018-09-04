@@ -42,6 +42,7 @@ static int slsi_src_sink_fake_sta_start(struct slsi_dev *sdev, struct net_device
 		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 		return -EFAULT;
 	}
+	peer->qos_enabled = true;
 	slsi_ps_port_control(sdev, dev, peer, SLSI_STA_CONN_STATE_CONNECTED);
 	netif_carrier_on(dev);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
