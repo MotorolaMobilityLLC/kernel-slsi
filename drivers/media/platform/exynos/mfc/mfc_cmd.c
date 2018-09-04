@@ -207,6 +207,10 @@ void mfc_cmd_dec_seq_header(struct mfc_ctx *ctx)
 	/* Parsing all including PPS */
 	reg |= (0x1 << MFC_REG_D_DEC_OPT_SPECIAL_PARSING_SHIFT);
 
+	/* Enabe decoding order */
+	if (dec->decoding_order)
+		reg |= (0x1 << MFC_REG_D_DEC_OPT_DECODING_ORDER_ENABLE);
+
 	MFC_WRITEL(reg, MFC_REG_D_DEC_OPTIONS);
 
 	MFC_WRITEL(MFC_CONCEAL_COLOR, MFC_REG_D_FORCE_PIXEL_VAL);

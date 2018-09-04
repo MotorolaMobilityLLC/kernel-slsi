@@ -1358,6 +1358,7 @@ struct mfc_dec {
 	unsigned int color_range;
 	unsigned int color_space;
 
+	unsigned int decoding_order;
 	/*
 	 * new variables should be added above
 	 * ============ boundary line ============
