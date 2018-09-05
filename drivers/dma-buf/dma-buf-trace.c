@@ -130,7 +130,7 @@ static int dmabuf_trace_task_release(struct inode *inode, struct file *file)
 	struct dmabuf_trace_ref *ref, *tmp;
 
 	if (!(task->task->flags & PF_EXITING)) {
-		pr_err("%s: Invalid to close '%d' on process '%s'(%x, %x)\n",
+		pr_err("%s: Invalid to close '%d' on process '%s'(%x, %lx)\n",
 		       __func__, task->task->pid, task->task->comm,
 		       task->task->flags, task->task->state);
 
