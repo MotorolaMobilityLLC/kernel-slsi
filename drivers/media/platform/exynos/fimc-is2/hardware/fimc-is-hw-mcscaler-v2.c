@@ -424,6 +424,7 @@ static int fimc_is_hw_mcsc_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulo
 		return -EINVAL;
 	}
 
+	atomic_inc(&hw_ip->run_rsccount);
 	if (test_bit(HW_RUN, &hw_ip->state))
 		return ret;
 
@@ -471,7 +472,7 @@ static int fimc_is_hw_mcsc_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ul
 	if (!test_bit_variables(hw_ip->id, &hw_map))
 		return 0;
 
-	if (atomic_read(&hw_ip->rsccount) > 1)
+	if (atomic_dec_return(&hw_ip->run_rsccount) > 0)
 		return 0;
 
 	msinfo_hw("mcsc_disable: Vvalid(%d)\n", instance, hw_ip,
@@ -2787,6 +2788,7 @@ int fimc_is_hw_mcsc_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface 
 	hw_ip->is_leader = true;
 	atomic_set(&hw_ip->status.Vvalid, V_BLANK);
 	atomic_set(&hw_ip->rsccount, 0);
+	atomic_set(&hw_ip->run_rsccount, 0);
 	init_waitqueue_head(&hw_ip->status.wait_queue);
 
 	/* set mcsc sfr base address */

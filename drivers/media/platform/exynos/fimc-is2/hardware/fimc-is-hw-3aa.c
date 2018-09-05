@@ -213,6 +213,7 @@ static int fimc_is_hw_3aa_enable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulon
 		return -EINVAL;
 	}
 
+	atomic_inc(&hw_ip->run_rsccount);
 	set_bit(HW_RUN, &hw_ip->state);
 
 	return ret;
@@ -264,7 +265,7 @@ static int fimc_is_hw_3aa_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulo
 		msdbg_hw(2, "already disabled\n", instance, hw_ip);
 	}
 
-	if (atomic_read(&hw_ip->rsccount) > 1)
+	if (atomic_dec_return(&hw_ip->run_rsccount) > 0)
 		return 0;
 
 	clear_bit(HW_RUN, &hw_ip->state);
@@ -934,6 +935,7 @@ int fimc_is_hw_3aa_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface *
 	atomic_set(&hw_ip->status.Vvalid, V_BLANK);
 	atomic_set(&hw_ip->status.otf_start, 0);
 	atomic_set(&hw_ip->rsccount, 0);
+	atomic_set(&hw_ip->run_rsccount, 0);
 	init_waitqueue_head(&hw_ip->status.wait_queue);
 
 	clear_bit(HW_OPEN, &hw_ip->state);
