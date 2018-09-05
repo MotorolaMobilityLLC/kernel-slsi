@@ -1529,7 +1529,7 @@ static int s2mu004_muic_detect_dev_mrid_adc(struct s2mu004_muic_data *muic_data)
 static irqreturn_t s2mu004_muic_attach_isr(int irq, void *data)
 {
 	struct s2mu004_muic_data *muic_data = data;
-	struct muic_platform_data *muic_pdata = muic_data->pdata;
+	struct muic_platform_data *muic_pdata;
 	int ret = 0;
 
 	if (muic_data == NULL) {
