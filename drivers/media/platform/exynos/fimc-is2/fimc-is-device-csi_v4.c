@@ -651,13 +651,8 @@ static void csi_err_check(struct fimc_is_device_csi *csi, u32 *err_id)
 			csi_frame_start_inline(csi);
 			break;
 		case CSIS_ERR_LOST_FS_VC:
-			/* 1. disable next dma */
+			/* disable next dma */
 			csi_s_output_dma(csi, CSI_VIRTUAL_CH_0, false);
-			/* 2. increase the sensor fcount */
-			/* 3. schedule the start tasklet */
-			csi_frame_start_inline(csi);
-			/* 4. schedule the end tasklet */
-			csi_frame_end_inline(csi);
 			break;
 		default:
 			break;
@@ -943,6 +938,7 @@ static irqreturn_t fimc_is_isr_csi(int irq, void *data)
 	int dma_frame_end;
 #endif
 	struct csis_irq_src irq_src;
+	u32 ch, err_flag = 0;
 
 	csi = data;
 	memset(&irq_src, 0x0, sizeof(struct csis_irq_src));
@@ -996,6 +992,19 @@ static irqreturn_t fimc_is_isr_csi(int irq, void *data)
 		if (csi->sw_checker != EXPECT_FRAME_END) {
 			warn("[CSIS%d] Lost start interupt\n",
 					csi->instance);
+
+			/*
+			 * If LOST_FS_VC_ERR is happened, there is only end interrupt
+			 * so, check if error occur continuously during 10 frame.
+			 */
+			/* check to error */
+			for (ch = CSI_VIRTUAL_CH_0; ch < CSI_VIRTUAL_CH_MAX; ch++)
+				err_flag |= csi->error_id[ch];
+
+			/* error handling */
+			if (err_flag)
+				csi_err_handle(csi);
+
 			goto clear_status;
 		}
 		csi_frame_end_inline(csi);
