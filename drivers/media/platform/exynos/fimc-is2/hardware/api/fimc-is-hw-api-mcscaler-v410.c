@@ -198,7 +198,7 @@ void fimc_is_scaler_stop(void __iomem *base_addr, u32 hw_id)
 	/* Qactive must set to "0" for ip clock gating */
 	if (!fimc_is_hw_get_reg(base_addr, &mcsc_regs[MCSC_R_SCALER_ENABLE])
 		&& fimc_is_hw_get_field(base_addr,
-			&mcsc_regs[MCSC_R_SCALER_RUNNING_STATUS], &mcsc_fields[MCSC_F_SCALER_IDLE])
+			&mcsc_regs[MCSC_R_SCALER_RUNNING_STATUS], &mcsc_fields[MCSC_F_SCALER_IDLE]))
 		fimc_is_hw_set_field(base_addr,
 			&mcsc_regs[MCSC_R_APB_CLK_GATE_CTRL], &mcsc_fields[MCSC_F_QACTIVE_ENABLE], 0);
 #endif
