@@ -270,8 +270,13 @@ static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 		return ret;
 	}
 
-	ret = iio_convert_raw_to_processed(channel, raw, &uv, 1000);
-	if (ret < 0) {
+	if (pdata->iio_convert_support) {
+		ret = iio_convert_raw_to_processed(channel, raw, &uv, 1000);
+		if (ret < 0) {
+			/* Assume 12 bit ADC with vref at pullup_uv */
+			uv = (pdata->pullup_uv * (s64)raw) >> 12;
+		}
+	} else {
 		/* Assume 12 bit ADC with vref at pullup_uv */
 		uv = (pdata->pullup_uv * (s64)raw) >> 12;
 	}
@@ -350,6 +355,11 @@ ntc_thermistor_parse_dt(struct device *dev)
 		pdata->connect = NTC_CONNECTED_POSITIVE;
 	else /* status change should be possible if not always on. */
 		pdata->connect = NTC_CONNECTED_GROUND;
+
+	if (of_find_property(np, "iio-convert-support", NULL))
+		pdata->iio_convert_support = true;
+	else
+		pdata->iio_convert_support = false;
 
 	pdata->chan = chan;
 	pdata->read_uv = ntc_adc_iio_read;
