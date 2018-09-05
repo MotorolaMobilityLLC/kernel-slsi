@@ -633,7 +633,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, pdev_id->name,
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, pdev->name,
 							   data, ntc_groups);
 	if (IS_ERR(hwmon_dev)) {
 		dev_err(dev, "unable to register as hwmon device.\n");
