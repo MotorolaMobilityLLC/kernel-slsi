@@ -178,6 +178,7 @@ void __init exynos_chipid_early_init(void)
 {
 	struct device_node *np;
 	const struct of_device_id *match;
+	void __iomem *reg;
 
 	if (exynos_soc_info.reg)
 		return;
@@ -190,6 +191,12 @@ void __init exynos_chipid_early_init(void)
 	exynos_soc_info.reg = of_iomap(np, 0);
 	if (!exynos_soc_info.reg)
 		panic("%s: failed to map registers\n", __func__);
+
+	reg = of_iomap(np, 1);
+	if (!reg)
+		pr_err("%s: can't get base of memsize\n", __func__);
+	else
+		exynos_soc_info.memsize = __raw_readq(reg);
 
 	exynos_chipid_get_chipid_info();
 }
@@ -295,6 +302,12 @@ static ssize_t chipid_evt_ver_show(struct kobject *kobj,
 				exynos_soc_info.sub_rev);
 }
 
+static ssize_t chipid_memsize_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, 20, "%llu bytes\n", exynos_soc_info.memsize);
+}
+
 static struct kobj_attribute chipid_product_id_attr =
         __ATTR(product_id, 0644, chipid_product_id_show, NULL);
 
@@ -310,12 +323,16 @@ static struct kobj_attribute chipid_revision_attr =
 static struct kobj_attribute chipid_evt_ver_attr =
         __ATTR(evt_ver, 0644, chipid_evt_ver_show, NULL);
 
+static struct kobj_attribute chipid_memsize_attr =
+	__ATTR(memsize, 0440, chipid_memsize_show, NULL);
+
 static struct attribute *chipid_sysfs_attrs[] = {
 	&chipid_product_id_attr.attr,
 	&chipid_unique_id_attr.attr,
 	&chipid_lot_id_attr.attr,
 	&chipid_revision_attr.attr,
 	&chipid_evt_ver_attr.attr,
+	&chipid_memsize_attr.attr,
 	NULL,
 };
 

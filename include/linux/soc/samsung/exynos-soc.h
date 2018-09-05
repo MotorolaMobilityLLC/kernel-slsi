@@ -61,6 +61,7 @@ struct exynos_chipid_info {
 	u32 sub_rev;
 	u32 lot_id;
 	u64 unique_id;
+	u64 memsize;
 	struct exynos_chipid_variant *drv_data;
 };
 
