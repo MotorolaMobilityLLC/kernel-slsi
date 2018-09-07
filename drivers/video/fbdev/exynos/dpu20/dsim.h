@@ -257,9 +257,6 @@ struct dsim_lcd_driver {
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	int (*read_state)(struct dsim_device *dsim);
 #endif
-#if defined(CONFIG_EXYNOS_PANEL_CABC)
-	int (*cabc)(struct dsim_device *dsim, int mode);
-#endif
 };
 
 int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1);
