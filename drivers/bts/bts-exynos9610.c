@@ -1551,7 +1551,7 @@ static ssize_t exynos_dmc_timeout_write(struct file *file, const char __user *us
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -1636,7 +1636,7 @@ static ssize_t exynos_mo_write(struct file *file, const char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -1724,7 +1724,7 @@ static ssize_t exynos_max_mo_write(struct file *file, const char __user *user_bu
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -1812,7 +1812,7 @@ static ssize_t exynos_full_mo_write(struct file *file, const char __user *user_b
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -1898,7 +1898,7 @@ static ssize_t exynos_prio_write(struct file *file, const char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -1964,7 +1964,7 @@ static ssize_t exynos_scen_write(struct file *file, const char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2039,7 +2039,7 @@ static ssize_t exynos_qmax_write(struct file *file, const char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2119,7 +2119,7 @@ static ssize_t exynos_timeout_write(struct file *file, const char __user *user_b
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2206,7 +2206,7 @@ static ssize_t exynos_timeout_en_write(struct file *file, const char __user *use
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2293,7 +2293,7 @@ static ssize_t exynos_write_flush_write(struct file *file, const char __user *us
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2384,7 +2384,7 @@ static ssize_t exynos_vc_timer_th_write(struct file *file, const char __user *us
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2480,7 +2480,7 @@ static ssize_t exynos_cutoff_con_write(struct file *file, const char __user *use
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2565,7 +2565,7 @@ static ssize_t exynos_brb_cutoff_write(struct file *file, const char __user *use
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2650,7 +2650,7 @@ static ssize_t exynos_rdbuf_cutoff_write(struct file *file, const char __user *u
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2735,7 +2735,7 @@ static ssize_t exynos_rreq_thrt_con_write(struct file *file, const char __user *
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2820,7 +2820,7 @@ static ssize_t exynos_allow_mo_region_write(struct file *file, const char __user
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2911,7 +2911,7 @@ static ssize_t exynos_pf_qos_timer_write(struct file *file, const char __user *u
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
@@ -2981,7 +2981,7 @@ static ssize_t exynos_bts_scen_test_write(struct file *file, const char __user *
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	len = simple_write_to_buffer(buf, count, ppos, user_buf, count);
 	if (len < 0) {
 		kfree(buf);
 		return len;
