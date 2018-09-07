@@ -67,7 +67,7 @@ static int __init parse_core(struct device_node *core, int cluster_id, int clust
 	cpu = get_cpu_for_node(core);
 	if (cpu < 0) {
 		pr_err("%pOF: Can't get CPU for leaf core\n", core);
-		return -EINVAL;
+		return 0;
 	}
 
 	cpu_topology[cpu].cluster_id = cluster_id;
