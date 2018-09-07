@@ -851,11 +851,15 @@ static int __init cpu_power_mode_init(void)
 		if (of_property_read_bool(dn, "system-idle"))
 			mode->system_idle = true;
 
-		if (!of_property_read_string(dn, "siblings", &buf))
+		if (!of_property_read_string(dn, "siblings", &buf)) {
 			cpulist_parse(buf, &mode->siblings);
+			cpumask_and(&mode->siblings, &mode->siblings, cpu_possible_mask);
+		}
 
-		if (!of_property_read_string(dn, "entry-allowed", &buf))
+		if (!of_property_read_string(dn, "entry-allowed", &buf)) {
 			cpulist_parse(buf, &mode->entry_allowed);
+			cpumask_and(&mode->entry_allowed, &mode->entry_allowed, cpu_possible_mask);
+		}
 
 		atomic_set(&mode->disable, 0);
 
