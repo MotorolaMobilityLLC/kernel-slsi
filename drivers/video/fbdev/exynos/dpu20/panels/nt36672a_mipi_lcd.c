@@ -199,70 +199,9 @@ static int nt36672a_resume(struct dsim_device *dsim)
 	return 0;
 }
 
-#if defined (CONFIG_EXYNOS_PANEL_CABC)
-static int nt36672a_cabc_mode(struct dsim_device *dsim, int mode)
-{
-	int ret = 0;
-	int count;
-	unsigned char buf[] = {0x0, 0x0};
-	unsigned char SEQ_CABC_CMD[] = {0x55, 0x00, 0x00};
-	unsigned char cmd = MIPI_DCS_WRITE_POWER_SAVE; /* 0x55 */
-
-	dsim_info("%s: CABC mode[%d] write/read\n", __func__, mode);
-
-	switch (mode) {
-	/* read */
-	case CABC_READ_MODE:
-		cmd = MIPI_DCS_GET_POWER_SAVE; /* 0x56 */
-		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ, cmd, 0x1, buf);
-		if (ret < 0) {
-			dsim_err("CABC REG(0x%02x) read failure!\n", cmd);
-			count = 0;
-		} else {
-			dsim_info("CABC REG(0x%02x) read success: 0x%02x\n",
-					cmd, *(unsigned int *)buf & 0xFF);
-			count = 1;
-		}
-		return count;
-
-	/*write */
-	case POWER_SAVE_OFF:
-		SEQ_CABC_CMD[1] = CABC_OFF;
-		break;
-	case POWER_SAVE_LOW:
-		SEQ_CABC_CMD[1] = CABC_USER_IMAGE;
-		break;
-	case POWER_SAVE_MEDIUM:
-		SEQ_CABC_CMD[1] = CABC_STILL_PICTURE;
-		break;
-	case POWER_SAVE_HIGH:
-		SEQ_CABC_CMD[1] = CABC_MOVING_IMAGE;
-		break;
-	default:
-		dsim_err("Unavailable CABC mode(%d)!\n", mode);
-		return -EINVAL;
-	}
-	ret = dsim_write_data(dsim, MIPI_DSI_DCS_LONG_WRITE,
-			(unsigned long)SEQ_CABC_CMD /* cmd */,
-			ARRAY_SIZE(SEQ_CABC_CMD));
-	if (ret < 0) {
-		dsim_err("CABC write command failure!\n");
-		count = 0;
-	} else {
-		dsim_dbg("CABC write command success!\n");
-		count = ARRAY_SIZE(SEQ_CABC_CMD);
-	}
-
-	return count;
-}
-#endif
-
 struct dsim_lcd_driver nt36672a_mipi_lcd_driver = {
 	.probe		= nt36672a_probe,
 	.displayon	= nt36672a_displayon,
 	.suspend	= nt36672a_suspend,
 	.resume		= nt36672a_resume,
-#if defined (CONFIG_EXYNOS_PANEL_CABC)
-	.cabc		= nt36672a_cabc_mode,
-#endif
 };
