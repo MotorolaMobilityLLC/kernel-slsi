@@ -113,6 +113,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 
 	return 0;
 err_prot:
+	ion_carveout_free(carveout_heap, paddr, size);
 err_free_table:
 	sg_free_table(table);
 err_free:
