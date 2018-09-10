@@ -766,6 +766,7 @@ static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 		dsim_warn("%s dsim already on(%s)\n",
 				__func__, dsim_state_names[dsim->state]);
 		dsim->state = state;
+		enable_irq(dsim->res.irq);
 		return 0;
 	}
 
@@ -876,11 +877,11 @@ static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 	dsim->state = state;
 	mutex_unlock(&dsim->cmd_lock);
 
+	disable_irq(dsim->res.irq);
 	if (dsim_reg_stop(dsim->id, dsim->data_lane) < 0) {
 		dsim_to_regs_param(dsim, &regs);
 		__dsim_dump(dsim->id, &regs);
 	}
-	disable_irq(dsim->res.irq);
 
 	/* HACK */
 	phy_power_off(dsim->phy);
