@@ -189,6 +189,17 @@
 #define SLSI_DHCP_MESSAGE_TYPE_FORCERENEW 0x09
 #define SLSI_DHCP_MESSAGE_TYPE_INVALID    0x0A
 
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+#define SLSI_MAX_ARP_SEND_FRAME  8
+#endif
+#define SLSI_ARP_SRC_IP_ADDR_OFFSET   14
+#define SLSI_ARP_DEST_IP_ADDR_OFFSET  24
+#define SLSI_IS_GRATUITOUS_ARP(frame) (!memcmp(&frame[SLSI_ARP_SRC_IP_ADDR_OFFSET],\
+					       &frame[SLSI_ARP_DEST_IP_ADDR_OFFSET], 4))
+#define SLSI_ARP_REPLY_OPCODE  2
+#define SLSI_ARP_REQUEST_OPCODE  1
+#define SLSI_ARP_OPCODE_OFFSET  6
+
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 4, 0))
 	#define WLAN_CATEGORY_WNM 10
 #endif
@@ -481,6 +492,11 @@ void slsi_reset_throughput_stats(struct net_device *dev);
 int slsi_set_mib_rssi_boost(struct slsi_dev *sdev, struct net_device *dev, u16 psid, int index, int boost);
 #ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
 int slsi_set_mib_soft_roaming_enabled(struct slsi_dev *sdev, struct net_device *dev, bool enable);
+#endif
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+int slsi_read_enhanced_arp_rx_count_by_lower_mac(struct slsi_dev *sdev, struct net_device *dev, u16 psid);
+void slsi_fill_enhanced_arp_out_of_order_drop_counter(struct netdev_vif *ndev_vif,
+						      struct sk_buff *skb);
 #endif
 void slsi_modify_ies_on_channel_switch(struct net_device *dev, struct cfg80211_ap_settings *settings,
 				       u8 *ds_params_ie, u8 *ht_operation_ie, struct ieee80211_mgmt  *mgmt,

@@ -408,6 +408,11 @@ static int slsi_procfs_build_show(struct seq_file *m, void *v)
 #else
 	seq_puts(m, "CONFIG_SCSC_WIFI_NAN_ENABLE                       : n\n");
 #endif
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+	seq_puts(m, "CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT          : y\n");
+#else
+	seq_puts(m, "CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT          : n\n");
+#endif
 
 	return 0;
 }

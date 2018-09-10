@@ -1344,7 +1344,10 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 							       { SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION_ACTIVATED, {0, 0} },
 #endif
-							       { SLSI_PSID_UNIFI_DEFAULT_COUNTRY_WITHOUT_CH12_CH13, {0, 0} }
+							       { SLSI_PSID_UNIFI_DEFAULT_COUNTRY_WITHOUT_CH12_CH13, {0, 0} },
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+							       { SLSI_PSID_UNIFI_ARP_DETECT_ACTIVATED, {0, 0} }
+#endif
 							      };/*Check the mibrsp.dataLength when a new mib is added*/
 
 	/* 40 MHz bandwidth is not supported in 2.4 GHz in AP/GO Mode Currently.
@@ -1355,7 +1358,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 	if (r != SLSI_MIB_STATUS_SUCCESS)
 		return -ENOMEM;
 
-	mibrsp.dataLength = 174;
+	mibrsp.dataLength = 184;
 	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
 	if (!mibrsp.data) {
 		kfree(mibreq.data);
@@ -1506,6 +1509,12 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 			sdev->device_config.disable_ch12_ch13 = values[mib_index].u.boolValue;
 		else
 			SLSI_WARN(sdev, "Error reading default country without ch12/13 mib\n");
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE)  /* Enhanced Arp Detect Support */
+			sdev->device_config.fw_enhanced_arp_detect_supported = values[mib_index].u.boolValue;
+		else
+			SLSI_WARN(sdev, "Error reading Enhanced Arp Detect Support mib\n");
+#endif
 
 		kfree(values);
 	}
@@ -2619,6 +2628,9 @@ int slsi_handle_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *pe
 			ndev_vif->sta.assoc_req_add_info_elem = NULL;
 			ndev_vif->sta.assoc_req_add_info_elem_len = 0;
 		}
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+		memset(&ndev_vif->enhanced_arp_stats, 0, sizeof(ndev_vif->enhanced_arp_stats));
+#endif
 		slsi_mlme_del_vif(sdev, dev);
 		slsi_vif_deactivated(sdev, dev);
 		break;
@@ -4912,6 +4924,88 @@ int slsi_set_mib_soft_roaming_enabled(struct slsi_dev *sdev, struct net_device *
 		}
 
 	return error;
+}
+#endif
+
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+int slsi_read_enhanced_arp_rx_count_by_lower_mac(struct slsi_dev *sdev, struct net_device *dev, u16 psid)
+{
+	struct netdev_vif                      *ndev_vif = netdev_priv(dev);
+	struct slsi_mib_data mibreq = { 0, NULL };
+	struct slsi_mib_data mibrsp = { 0, NULL };
+	struct slsi_mib_entry mib_val;
+	int r                       = 0;
+	int rx_len                = 0;
+	int len                     = 0;
+
+	SLSI_DBG3(sdev, SLSI_MLME, "\n");
+
+	slsi_mib_encode_get(&mibreq, psid, 0);
+
+	mibrsp.dataLength = 10; /* PSID header(5) + uint 4 bytes + status(1) */
+	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
+
+	if (!mibrsp.data) {
+		SLSI_ERR(sdev, "Failed to alloc for Mib response\n");
+		kfree(mibreq.data);
+		return -ENOMEM;
+	}
+
+	r = slsi_mlme_get(sdev, dev, mibreq.data, mibreq.dataLength, mibrsp.data,
+			  mibrsp.dataLength, &rx_len);
+	kfree(mibreq.data);
+
+	if (r == 0) {
+		mibrsp.dataLength = rx_len;
+		len = slsi_mib_decode(&mibrsp, &mib_val);
+
+		if (len == 0) {
+			kfree(mibrsp.data);
+			SLSI_ERR(sdev, "Mib decode error\n");
+			return -EINVAL;
+		}
+		ndev_vif->enhanced_arp_stats.arp_rsp_rx_count_by_lower_mac = mib_val.value.u.uintValue;
+	} else {
+		SLSI_ERR(sdev, "Mib read failed (error: %d)\n", r);
+	}
+
+	kfree(mibrsp.data);
+	return r;
+}
+
+void slsi_fill_enhanced_arp_out_of_order_drop_counter(struct netdev_vif *ndev_vif,
+						      struct sk_buff *skb)
+{
+	struct ethhdr *eth_hdr;
+	u8 *frame;
+	u16 arp_opcode;
+
+#ifdef CONFIG_SCSC_SMAPPER
+	/* Check if the payload is in the SMAPPER entry */
+	if (fapi_get_u16(skb, u.ma_unitdata_ind.bulk_data_descriptor) == FAPI_BULKDATADESCRIPTOR_SMAPPER) {
+		frame = slsi_hip_get_skb_data_from_smapper(ndev_vif->sdev, skb);
+		eth_hdr = (struct ethhdr *)frame;
+		if (!(eth_hdr)) {
+			SLSI_DBG2(ndev_vif->sdev, SLSI_RX, "SKB from SMAPPER is NULL\n");
+			return;
+		}
+		frame = frame + sizeof(struct ethhdr);
+	} else {
+		frame = fapi_get_data(skb) + sizeof(struct ethhdr);
+		eth_hdr = (struct ethhdr *)fapi_get_data(skb);
+	}
+#else
+	frame = fapi_get_data(skb) + sizeof(struct ethhdr);
+	eth_hdr = (struct ethhdr *)fapi_get_data(skb);
+#endif
+
+	arp_opcode = frame[SLSI_ARP_OPCODE_OFFSET] << 8 | frame[SLSI_ARP_OPCODE_OFFSET + 1];
+	/* check if sender ip = gateway ip and it is an ARP response*/
+	if ((ntohs(eth_hdr->h_proto) == ETH_P_ARP) &&
+	    (arp_opcode == SLSI_ARP_REPLY_OPCODE) &&
+	    !SLSI_IS_GRATUITOUS_ARP(frame) &&
+	    !memcmp(&frame[SLSI_ARP_SRC_IP_ADDR_OFFSET], &ndev_vif->target_ip_addr, 4))
+		ndev_vif->enhanced_arp_stats.arp_rsp_count_out_of_order_drop++;
 }
 #endif
 

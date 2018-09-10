@@ -2311,6 +2311,21 @@ void slsi_rx_frame_transmission_ind(struct slsi_dev *sdev, struct net_device *de
 	}
 
 	if ((tx_status == FAPI_TRANSMISSIONSTATUS_SUCCESSFUL) || (tx_status == FAPI_TRANSMISSIONSTATUS_RETRY_LIMIT)) {
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+		if (ndev_vif->enhanced_arp_detect_enabled && (ndev_vif->vif_type == FAPI_VIFTYPE_STATION)) {
+			int i = 0;
+
+			for (i = 0; i < SLSI_MAX_ARP_SEND_FRAME; i++) {
+				if (ndev_vif->enhanced_arp_host_tag[i] == host_tag) {
+					ndev_vif->enhanced_arp_host_tag[i] = 0;
+					ndev_vif->enhanced_arp_stats.arp_req_rx_count_by_lower_mac++;
+					if (tx_status == FAPI_TRANSMISSIONSTATUS_SUCCESSFUL)
+						ndev_vif->enhanced_arp_stats.arp_req_count_tx_success++;
+					break;
+				}
+			}
+		}
+#endif
 		if ((ndev_vif->vif_type == FAPI_VIFTYPE_STATION) &&
 		    (ndev_vif->sta.m4_host_tag == host_tag)) {
 			switch (ndev_vif->sta.resp_id) {

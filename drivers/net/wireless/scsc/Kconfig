@@ -235,3 +235,10 @@ config SCSC_WLAN_LOW_LATENCY_MODE
         ---help---
           This option tells whether support is provided for enabling
           or disabling roaming as per the latency mode.
+
+config SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+        bool "Enable enhanced arp detection"
+        default n
+        ---help---
+          This option tells whether enhanced arp detection
+          is enabled or not.
