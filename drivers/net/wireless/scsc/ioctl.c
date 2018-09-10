@@ -88,6 +88,11 @@
 #define CMD_GETSTAINFO "GETSTAINFO"
 #define CMD_GETASSOCREJECTINFO "GETASSOCREJECTINFO"
 
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+#define CMD_SET_ENHANCED_ARP_TARGET "SET_ENHANCED_ARP_TARGET"
+#define CMD_GET_ENHANCED_ARP_COUNTS "GET_ENHANCED_ARP_COUNTS"
+#endif
+
 /* Known commands from framework for which no handlers */
 #define CMD_AMPDU_MPDU "AMPDU_MPDU"
 #define CMD_BTCOEXMODE "BTCOEXMODE"
@@ -2267,6 +2272,82 @@ int slsi_set_latency_mode(struct net_device *dev, char *cmd, int cmd_len)
 }
 #endif
 
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+static int slsi_enhanced_arp_start_stop(struct net_device *dev, char *command, int buf_len)
+{
+	struct netdev_vif    *ndev_vif = netdev_priv(dev);
+	struct slsi_dev      *sdev = ndev_vif->sdev;
+	int result = 0;
+	int readbyte = 0;
+	int readvalue = 0;
+	int i = 0;
+
+	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
+	if (!sdev->device_config.fw_enhanced_arp_detect_supported) {
+		SLSI_ERR(sdev, "Enhanced ARP Detect Feature is not supported.\n");
+		return -ENOTSUPP;
+	}
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	if (ndev_vif->vif_type != FAPI_VIFTYPE_STATION) {
+		SLSI_ERR(sdev, "Not in STA mode\n");
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex)
+		return -EPERM;
+	}
+
+	SLSI_DBG1(sdev, SLSI_CFG80211, "Enhanced ARP Start/Stop\n");
+
+	for (i = 0; i < 4 ; i++) {
+		readbyte = slsi_str_to_int(command, &readvalue);
+		ndev_vif->target_ip_addr[i] = readvalue;
+		command = command + readbyte + 1;
+	}
+
+	if (ndev_vif->target_ip_addr[0] != 0) { /* start enhanced arp detect */
+		/* clear all the counters */
+		memset(&ndev_vif->enhanced_arp_stats, 0, sizeof(ndev_vif->enhanced_arp_stats));
+		ndev_vif->enhanced_arp_detect_enabled = true;
+		result = slsi_mlme_arp_detect_request(sdev, dev, FAPI_ACTION_START, ndev_vif->target_ip_addr);
+	} else { /* stop enhanced arp detect */
+		ndev_vif->enhanced_arp_detect_enabled = false;
+		result = slsi_mlme_arp_detect_request(sdev, dev, FAPI_ACTION_STOP, ndev_vif->target_ip_addr);
+	}
+
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	return result;
+}
+
+static int slsi_enhanced_arp_get_stats(struct net_device *dev, char *command, int buf_len)
+{
+	struct netdev_vif                      *ndev_vif = netdev_priv(dev);
+	struct slsi_dev      *sdev = ndev_vif->sdev;
+	int                                    r = 0;
+	int                                    len = 0;
+
+	r = slsi_read_enhanced_arp_rx_count_by_lower_mac(sdev, dev, SLSI_PSID_UNIFI_ARP_DETECT_RESPONSE_COUNTER);
+
+	if (r == 0) {
+		len = snprintf(command, buf_len, "%d %d %d %d %d %d %d %d %d %d",
+			       ndev_vif->enhanced_arp_stats.arp_req_count_from_netdev,
+			       ndev_vif->enhanced_arp_stats.arp_req_count_to_lower_mac,
+			       ndev_vif->enhanced_arp_stats.arp_req_rx_count_by_lower_mac,
+			       ndev_vif->enhanced_arp_stats.arp_req_count_tx_success,
+			       ndev_vif->enhanced_arp_stats.arp_rsp_rx_count_by_lower_mac,
+			       ndev_vif->enhanced_arp_stats.arp_rsp_rx_count_by_upper_mac,
+			       ndev_vif->enhanced_arp_stats.arp_rsp_count_to_netdev,
+			       ndev_vif->enhanced_arp_stats.arp_rsp_count_out_of_order_drop,
+			       0, /*ap_link_active not supported, set as 0*/
+			       ndev_vif->enhanced_arp_stats.is_duplicate_addr_detected);
+	}
+
+	/*clear all the counters*/
+	memset(&ndev_vif->enhanced_arp_stats, 0, sizeof(ndev_vif->enhanced_arp_stats));
+
+	return len;
+}
+#endif
+
 int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 #define MAX_LEN_PRIV_COMMAND    4096 /*This value is the max reply size set in supplicant*/
@@ -2532,6 +2613,14 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	} else if (strncasecmp(command, CMD_SET_LATENCY_MODE, strlen(CMD_SET_LATENCY_MODE)) == 0) {
 		ret = slsi_set_latency_mode(dev, command + strlen(CMD_SET_LATENCY_MODE) + 1,
 					    priv_cmd.total_len - (strlen(CMD_SET_LATENCY_MODE) + 1));
+#endif
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+	} else if (strncasecmp(command, CMD_SET_ENHANCED_ARP_TARGET, strlen(CMD_SET_ENHANCED_ARP_TARGET)) == 0) {
+		int skip = strlen(CMD_SET_ENHANCED_ARP_TARGET) + 1;
+
+		ret = slsi_enhanced_arp_start_stop(dev, command + skip, priv_cmd.total_len - skip);
+	} else if (strncasecmp(command, CMD_GET_ENHANCED_ARP_COUNTS, strlen(CMD_SET_ENHANCED_ARP_TARGET)) == 0) {
+		ret = slsi_enhanced_arp_get_stats(dev, command, priv_cmd.total_len);
 #endif
 	} else if ((strncasecmp(command, CMD_RXFILTERSTART, strlen(CMD_RXFILTERSTART)) == 0) ||
 			(strncasecmp(command, CMD_RXFILTERSTOP, strlen(CMD_RXFILTERSTOP)) == 0) ||

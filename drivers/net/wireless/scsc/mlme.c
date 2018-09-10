@@ -3030,6 +3030,26 @@ int slsi_mlme_send_frame_data(struct slsi_dev *sdev, struct net_device *dev, str
 		return ret;
 	}
 
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+	if (ndev_vif->enhanced_arp_detect_enabled && (msg_type == FAPI_MESSAGETYPE_ARP)) {
+		u8 *frame = fapi_get_data(skb) + sizeof(struct ethhdr);
+		u16 arp_opcode = frame[SLSI_ARP_OPCODE_OFFSET] << 8 | frame[SLSI_ARP_OPCODE_OFFSET + 1];
+		int i = 0;
+
+		if ((arp_opcode == SLSI_ARP_REQUEST_OPCODE) &&
+		    !SLSI_IS_GRATUITOUS_ARP(frame) &&
+		    !memcmp(&frame[SLSI_ARP_DEST_IP_ADDR_OFFSET], &ndev_vif->target_ip_addr, 4)) {
+			ndev_vif->enhanced_arp_stats.arp_req_count_to_lower_mac++;
+			for (i = 0; i < SLSI_MAX_ARP_SEND_FRAME; i++) {
+				if (!ndev_vif->enhanced_arp_host_tag[i]) {
+					ndev_vif->enhanced_arp_host_tag[i] = host_tag;
+					break;
+				}
+			}
+		}
+	}
+#endif
+
 	if (original_skb)
 		slsi_kfree_skb(original_skb);
 
@@ -4099,6 +4119,67 @@ int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u8 h
 	slsi_kfree_skb(cfm);
 	return r;
 }
+
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+int slsi_mlme_arp_detect_request(struct slsi_dev *sdev, struct net_device *dev, u16 action, u8 *target_ipaddr)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct sk_buff    *req;
+	struct sk_buff    *rx;
+	int               r = 0;
+	u32 ipaddress = 0x0;
+	int i = 0;
+
+	if (!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex)) {
+		SLSI_ERR(sdev, "ndev_vif mutex is not locked\n");
+		r = -EINVAL;
+		goto exit;
+	}
+
+	if (!ndev_vif->activated) {
+		SLSI_ERR(sdev, "ndev_vif is not activated\n");
+		r = -EINVAL;
+		goto exit;
+	}
+
+	if ((ndev_vif->vif_type != FAPI_VIFTYPE_STATION) && (ndev_vif->iftype == NL80211_IFTYPE_STATION)) {
+		SLSI_ERR(sdev, "vif_type is not FAPI_VIFTYPE_STATION\n");
+		r = -EINVAL;
+		goto exit;
+	}
+
+	req = fapi_alloc(mlme_arp_detect_req, MLME_ARP_DETECT_REQ, ndev_vif->ifnum, 0);
+	if (!req) {
+		r = -ENOMEM;
+		goto exit;
+	}
+
+	for (i = 0; i < 4; i++)
+		ipaddress = (ipaddress << 8) | ((unsigned char)target_ipaddr[i]);
+	ipaddress = htonl(ipaddress);
+
+	fapi_set_u16(req, u.mlme_arp_detect_req.arp_detect_action, action);
+	fapi_append_data(req, (const u8 *)&ipaddress, 4);
+
+	SLSI_NET_DBG2(dev, SLSI_MLME, "mlme_arp_detect_req(vif:%u, action:%d IP Address:%d.%d.%d.%d)\n",
+		      ndev_vif->ifnum, action, ndev_vif->target_ip_addr[0], ndev_vif->target_ip_addr[1],
+		      ndev_vif->target_ip_addr[2], ndev_vif->target_ip_addr[3]);
+	rx = slsi_mlme_req_cfm(sdev, dev, req, MLME_ARP_DETECT_CFM);
+	if (!rx) {
+		r = -EIO;
+		goto exit;
+	}
+
+	if (fapi_get_u16(rx, u.mlme_arp_detect_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_NET_ERR(dev, "mlme_arp_detect_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(rx, u.mlme_arp_detect_cfm.result_code));
+		r = -EINVAL;
+	}
+
+exit:
+	return r;
+}
+#endif
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 #define SLSI_TEST_CONFIG_MONITOR_MODE_DESCRIPTOR_SIZE	(12)

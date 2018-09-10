@@ -310,6 +310,43 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 		ndev_vif->stats.rx_bytes += rx_skb->len;
 		ndev_vif->rx_packets[trafic_q]++;
 
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+	if (!ndev_vif->enhanced_arp_stats.is_duplicate_addr_detected) {
+		u8 *frame = skb->data + 12; /* frame points to packet type */
+		u16 packet_type = frame[0] << 8 | frame[1];
+
+		if (packet_type == ETH_P_ARP) {
+			frame = frame + 2; /* ARP packet */
+			/*match source IP address in ARP with the DUT Ip address*/
+			if ((frame[SLSI_ARP_SRC_IP_ADDR_OFFSET] == (ndev_vif->ipaddress & 255)) &&
+			    (frame[SLSI_ARP_SRC_IP_ADDR_OFFSET + 1] == ((ndev_vif->ipaddress >>  8U) & 255)) &&
+			    (frame[SLSI_ARP_SRC_IP_ADDR_OFFSET + 2] == ((ndev_vif->ipaddress >> 16U) & 255)) &&
+			    (frame[SLSI_ARP_SRC_IP_ADDR_OFFSET + 3] == ((ndev_vif->ipaddress >> 24U) & 255)) &&
+			    !SLSI_IS_GRATUITOUS_ARP(frame) &&
+			    !SLSI_ETHER_EQUAL(sdev->hw_addr, frame + 8)) /*if src MAC = DUT MAC */
+				ndev_vif->enhanced_arp_stats.is_duplicate_addr_detected = 1;
+		}
+	}
+
+	if (ndev_vif->enhanced_arp_detect_enabled && (ndev_vif->vif_type == FAPI_VIFTYPE_STATION)) {
+		u8 *frame = skb->data + 12; /* frame points to packet type */
+		u16 packet_type = frame[0] << 8 | frame[1];
+		u16 arp_opcode;
+
+		if (packet_type == ETH_P_ARP) {
+			frame = frame + 2; /* ARP packet */
+			arp_opcode = frame[SLSI_ARP_OPCODE_OFFSET] << 8 | frame[SLSI_ARP_OPCODE_OFFSET + 1];
+			/* check if sender ip = gateway ip and it is an ARP response */
+			if ((arp_opcode == SLSI_ARP_REPLY_OPCODE) &&
+			    !SLSI_IS_GRATUITOUS_ARP(frame) &&
+			    !memcmp(&frame[SLSI_ARP_SRC_IP_ADDR_OFFSET], &ndev_vif->target_ip_addr, 4)) {
+				ndev_vif->enhanced_arp_stats.arp_rsp_count_to_netdev++;
+				ndev_vif->enhanced_arp_stats.arp_rsp_rx_count_by_upper_mac++;
+			}
+		}
+	}
+#endif
+
 		rx_skb->dev = dev;
 		rx_skb->ip_summed = CHECKSUM_NONE;
 		rx_skb->protocol = eth_type_trans(rx_skb, dev);

@@ -335,6 +335,21 @@ struct slsi_ssid_map {
 	int band;
 };
 
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+struct slsi_enhanced_arp_counters {
+	u16 arp_req_count_from_netdev;
+	u16 arp_req_count_to_lower_mac;
+	u16 arp_req_rx_count_by_lower_mac;
+	u16 arp_req_count_tx_success;
+	u16 arp_rsp_rx_count_by_lower_mac;
+	u16 arp_rsp_rx_count_by_upper_mac;
+	u16 arp_rsp_count_to_netdev;
+	u16 arp_rsp_count_out_of_order_drop;
+	u16 ap_link_active;
+	bool is_duplicate_addr_detected;
+};
+#endif
+
 struct slsi_peer {
 	/* Flag MUST be set last when creating a record and immediately when removing.
 	 * Otherwise another process could test the flag and start using the data.
@@ -791,6 +806,12 @@ struct netdev_vif {
 	u32 throughput_rx;
 	u32 throughput_tx_bps;
 	u32 throughput_rx_bps;
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+	bool enhanced_arp_detect_enabled;
+	struct slsi_enhanced_arp_counters enhanced_arp_stats;
+	u8 target_ip_addr[4];
+	int enhanced_arp_host_tag[5];
+#endif
 };
 
 struct slsi_802_11d_reg_domain {
@@ -860,9 +881,10 @@ struct slsi_dev_config {
 
 	u8                                      host_state;
 
-	int                                      rssi_boost_5g;
-	int                                      rssi_boost_2g;
-	bool                                   disable_ch12_ch13;
+	int                                     rssi_boost_5g;
+	int                                     rssi_boost_2g;
+	bool                                    disable_ch12_ch13;
+	bool                                    fw_enhanced_arp_detect_supported;
 };
 
 #define SLSI_DEVICE_STATE_ATTACHING 0

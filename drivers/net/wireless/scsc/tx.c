@@ -156,7 +156,7 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	enum slsi_traffic_q tq;
 	u32 dwell_time = 0;
 	u8 *frame;
-	u32 arp_opcode;
+	u16 arp_opcode;
 	u32 dhcp_message_type = SLSI_DHCP_MESSAGE_TYPE_INVALID;
 
 	if (slsi_is_test_mode_enabled()) {
@@ -196,9 +196,15 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 		case ETH_P_ARP:
 			SLSI_NET_DBG2(dev, SLSI_MLME, "transmit ARP frame from SLSI_NETIF_Q_PRIORITY\n");
 			frame = skb->data + sizeof(struct ethhdr);
-			arp_opcode = frame[6] << 8 | frame[7];
-			if ((arp_opcode == 1) &&
-			    memcmp(&frame[14], &frame[24], 4)) { /*opcode 1: ARP request(except gratuitous ARP)*/
+			arp_opcode = frame[SLSI_ARP_OPCODE_OFFSET] << 8 | frame[SLSI_ARP_OPCODE_OFFSET + 1];
+			if ((arp_opcode == SLSI_ARP_REQUEST_OPCODE) &&
+			    !SLSI_IS_GRATUITOUS_ARP(frame)) {
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+				if (ndev_vif->enhanced_arp_detect_enabled &&
+				    !memcmp(&frame[SLSI_ARP_DEST_IP_ADDR_OFFSET], &ndev_vif->target_ip_addr, 4)) {
+					ndev_vif->enhanced_arp_stats.arp_req_count_from_netdev++;
+				}
+#endif
 				dwell_time = sdev->fw_dwell_time;
 			}
 			return slsi_mlme_send_frame_data(sdev, dev, skb, FAPI_MESSAGETYPE_ARP, 0, dwell_time, 0);

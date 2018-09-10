@@ -7297,6 +7297,8 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
 
 /*AUTOGEN TBD*/
 #define SLSI_PSID_UNIFI_ROAM_SOFT_ROAMING_ENABLED 0x0806
+#define SLSI_PSID_UNIFI_ARP_DETECT_ACTIVATED 0x08C6
+#define SLSI_PSID_UNIFI_ARP_DETECT_RESPONSE_COUNTER 0x08C7
 
 #ifdef __cplusplus
 }
