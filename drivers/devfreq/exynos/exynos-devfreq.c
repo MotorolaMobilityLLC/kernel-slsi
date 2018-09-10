@@ -803,7 +803,7 @@ int find_exynos_devfreq_dm_type(struct device *dev, int *dm_type)
 	return 0;
 }
 
-struct device *find_exynos_devfreq_device(void *devdata)
+struct devfreq *find_exynos_devfreq_device(void *devdata)
 {
 	struct exynos_devfreq_data *data = devdata;
 
@@ -812,7 +812,7 @@ struct device *find_exynos_devfreq_device(void *devdata)
 		return ERR_PTR(-EINVAL);
 	}
 
-	return data->dev;
+	return data->devfreq;
 }
 #endif
 

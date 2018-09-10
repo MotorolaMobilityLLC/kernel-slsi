@@ -212,24 +212,14 @@ static struct devfreq_governor *find_devfreq_governor(const char *name)
 static int devfreq_frequency_scaler(int dm_type, void *devdata,
 				u32 target_freq, unsigned int relation)
 {
-	struct device *dev;
 	struct devfreq *devfreq;
 	unsigned long freq = target_freq;
 	u32 flags = 0;
 	int err = 0;
 
-	dev = find_exynos_devfreq_device(devdata);
-	if (IS_ERR(dev)) {
-		pr_err("%s: No such devfreq device for dm_type(%d)\n", __func__, dm_type);
-		err = -ENODEV;
-		goto err_out;
-	}
-
-	mutex_lock(&devfreq_list_lock);
-	devfreq = find_device_devfreq(dev);
-	mutex_unlock(&devfreq_list_lock);
-	if (IS_ERR(devfreq)) {
-		dev_err(dev, "%s: No such devfreq for the device\n", __func__);
+	devfreq = find_exynos_devfreq_device(devdata);
+	if (IS_ERR_OR_NULL(devfreq)) {
+		pr_err("%s: No such devfreq for dm_type(%d)\n", __func__, dm_type);
 		err = -ENODEV;
 		goto err_out;
 	}

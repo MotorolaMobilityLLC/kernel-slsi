@@ -106,7 +106,7 @@ s32 exynos_devfreq_get_opp_idx(struct exynos_devfreq_opp_table *table,
 #if defined(CONFIG_ARM_EXYNOS_DEVFREQ) && defined(CONFIG_EXYNOS_DVFS_MANAGER)
 u32 exynos_devfreq_get_dm_type(u32 devfreq_type);
 u32 exynos_devfreq_get_devfreq_type(int dm_type);
-struct device *find_exynos_devfreq_device(void *devdata);
+struct devfreq *find_exynos_devfreq_device(void *devdata);
 int find_exynos_devfreq_dm_type(struct device *dev, int *dm_type);
 #endif
 #endif	/* __EXYNOS_DEVFREQ_H_ */
