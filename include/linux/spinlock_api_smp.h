@@ -87,7 +87,9 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	preempt_disable();
 	if (do_raw_spin_trylock(lock)) {
+		dbg_snapshot_spinlock(lock, 1);
 		spin_acquire(&lock->dep_map, 0, 1, _RET_IP_);
+		dbg_snapshot_spinlock(lock, 2);
 		return 1;
 	}
 	preempt_enable();
