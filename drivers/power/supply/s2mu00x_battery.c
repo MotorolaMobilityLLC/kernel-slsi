@@ -231,6 +231,9 @@ struct s2mu00x_battery_info {
 	int vchg_voltage;
 	int vchg_current;
 	int charge_temp;
+
+	int thermal_enable;
+	int thermal_fast_charge_percentage;
 };
 
 static int is_charging_mode = S2MU00X_NOR_MODE;
@@ -297,6 +300,13 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 		get_charging_current(battery, &input_current, &charging_current);
 	}
 
+
+	if(battery->thermal_enable == 1)
+	{
+		charging_current = charging_current * battery->thermal_fast_charge_percentage / 100;
+		pr_info("%s: cable_type(%d), charging current: %d (by thermal_enable: %d %d \n", __func__,
+			battery->cable_type, charging_current, battery->thermal_enable, battery->thermal_fast_charge_percentage);
+	}
 	/* set input current limit */
 	if (battery->input_current != input_current) {
 		value.intval = input_current;
@@ -1889,6 +1899,95 @@ static void soc_control_worker(struct work_struct *work)
 {
 	struct s2mu00x_battery_info *battery =
 		container_of(work, struct s2mu00x_battery_info, soc_control.work);
+	pr_err("%s \n", __func__);
+	return 1;
+}
+
+static ssize_t charger_set_store(struct device *dev,
+			struct device_attribute *devattr, const char *buf, size_t count)
+{
+	struct power_supply *psy = dev_get_drvdata(dev);
+	struct s2mu00x_battery_info *battery = power_supply_get_drvdata(psy);
+	int enable;
+
+	sscanf(buf, "%d", &enable);
+	pr_err("%s enable: %d\n", __func__, enable);
+
+	if(enable == 1) {
+		battery->cable_type = POWER_SUPPLY_TYPE_MAINS;
+		alarm_cancel(&battery->monitor_alarm);
+		wake_lock(&battery->monitor_wake_lock);
+		queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+	}
+	else {
+		battery->cable_type = POWER_SUPPLY_TYPE_BATTERY;
+		alarm_cancel(&battery->monitor_alarm);
+		wake_lock(&battery->monitor_wake_lock);
+		queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+
+	}
+	return count;
+}
+static ssize_t charger_status_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct power_supply *psy = dev_get_drvdata(dev);
+	struct s2mu00x_battery_info *battery = power_supply_get_drvdata(psy);
+
+	if(battery->cable_type == POWER_SUPPLY_TYPE_MAINS)
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+
+	pr_err("%s \n", __func__);
+	return 1;
+}
+static ssize_t charger_status_store(struct device *dev,
+			struct device_attribute *devattr, const char *buf, size_t count)
+{
+	pr_err("%s \n", __func__);
+	return count;
+}
+
+static ssize_t charger_current_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct power_supply *psy = dev_get_drvdata(dev);
+	struct s2mu00x_battery_info *battery = power_supply_get_drvdata(psy);
+
+	return sprintf(buf, "Input current limit : %d , Charging current limit: %d\n", battery->input_current, battery->charging_current);
+}
+
+static ssize_t charger_current_store(struct device *dev,
+			struct device_attribute *devattr, const char *buf, size_t count)
+{
+	struct power_supply *psy = dev_get_drvdata(dev);
+	struct s2mu00x_battery_info *battery = power_supply_get_drvdata(psy);
+	int thermal_enable, thermal_fast_charge_percentage;
+
+	sscanf(buf, "%d %d", &thermal_enable, &thermal_fast_charge_percentage);
+	pr_err("%s thermal_enable: %d thermal_fast_charge_percentage: %d\n", __func__,
+		thermal_enable, thermal_fast_charge_percentage);
+
+	battery->thermal_enable = thermal_enable;
+	battery->thermal_fast_charge_percentage = thermal_fast_charge_percentage;
+
+	set_charging_current(battery);
+
+
+	pr_err("%s \n", __func__);
+	return count;
+}
+DEVICE_ATTR(charger_set, 0664, charger_set_show, charger_set_store);
+DEVICE_ATTR(charger_status, 0664, charger_status_show, charger_status_store);
+DEVICE_ATTR(charger_current, 0664, charger_current_show, charger_current_store);
+
+#if 0
+static struct device_attribute s2mu00x_battery_attrs[] = {
+	dev_attr_charger_set,
+	dev_attr_charger_status,
+};
+#endif
 
 	pr_info("%s: S2MU00x battery capacity = %d, status = %d\n",
 		__func__, battery->capacity, battery->status);
@@ -1899,6 +1998,24 @@ static void soc_control_worker(struct work_struct *work)
 	}
 
 	queue_delayed_work(battery->monitor_wqueue, &battery->soc_control, 10*HZ);
+	ret = device_create_file(dev, &dev_attr_charger_status);
+	if (ret)
+		goto create_attrs_failed;
+
+	ret = device_create_file(dev, &dev_attr_charger_current);
+	if (ret)
+		goto create_attrs_failed;
+
+
+	goto create_attrs_succeed;
+
+create_attrs_failed:
+	device_remove_file(dev, &dev_attr_charger_set);
+	device_remove_file(dev, &dev_attr_charger_status);
+
+#endif
+create_attrs_succeed:
+	return ret;
 }
 
 static int s2mu00x_battery_probe(struct platform_device *pdev)
