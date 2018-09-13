@@ -36,6 +36,7 @@ obj-$(CONFIG_CAMERA_CIS_IMX241_OBJ) += fimc-is-cis-imx241.o
 obj-$(CONFIG_CAMERA_CIS_IMX576_OBJ) += fimc-is-cis-imx576.o
 obj-$(CONFIG_CAMERA_CIS_SR259_OBJ) += fimc-is-cis-sr259.o
 obj-$(CONFIG_CAMERA_CIS_3P9_OBJ) += fimc-is-cis-3p9.o
+obj-$(CONFIG_CAMERA_CIS_2X5SP_OBJ) += fimc-is-cis-2x5sp.o
 
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-is2
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-is2/include
