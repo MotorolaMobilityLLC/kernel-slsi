@@ -1591,7 +1591,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	samsung,i2c-max-bus-freq = <400000>;
+	samsung,i2c-max-bus-freq = <600000>;
 
 	sec-nfc@27 {
 		compatible = "sec-nfc";
