@@ -113,13 +113,15 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	buffer->dev = dev;
 	buffer->size = len;
 
-	ret = exynos_ion_alloc_fixup(dev, buffer);
-	if (ret < 0)
-		goto err1;
-
 	INIT_LIST_HEAD(&buffer->iovas);
 	mutex_init(&buffer->lock);
 	mutex_lock(&dev->buffer_lock);
+	ret = exynos_ion_alloc_fixup(dev, buffer);
+	if (ret < 0) {
+		mutex_unlock(&dev->buffer_lock);
+		goto err1;
+	}
+
 	ion_buffer_add(dev, buffer);
 	mutex_unlock(&dev->buffer_lock);
 	return buffer;
