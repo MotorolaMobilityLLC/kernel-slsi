@@ -236,6 +236,10 @@ struct dsim_device {
 #endif
 	u32 ddi_id;
 	char ddi_device_type[DSIM_DDI_TYPE_LEN];
+	struct mutex bl_lock;
+	int max_brightness;
+	int brightness;
+	int log_brightness;
 };
 
 struct dsim_lcd_driver {

@@ -32,7 +32,6 @@
 unsigned char set_brightness[2] = {0x51, 0x7F};
 int backlightlevel_log;
 
-#if defined(CONFIG_EXYNOS_PANEL_CABC)
 struct panel_device {
 	struct device *dev;
 	struct dsim_device *dsim;
@@ -42,7 +41,6 @@ struct panel_device {
 
 struct panel_device *panel_drvdata;
 struct class *panel_class;
-#endif
 
 static int s6e3fa0_get_brightness(struct backlight_device *bd)
 {
@@ -214,8 +212,15 @@ static int s6e3fa0_set_brightness(struct backlight_device *bd)
 		printk(KERN_ALERT "Brightness should be in the range of 0 ~ 255\n");
 		return -EINVAL;
 	}
+	if ((brightness > dsim->max_brightness) &&
+			(brightness <= MAX_BRIGHTNESS)) {
+		dsim->log_brightness = brightness;
+		brightness = dsim->max_brightness;
+	}
 
 	s6e3fa0_update_brightness(dsim, brightness);
+	dsim->brightness = brightness;
+
 	return 1;
 }
 
@@ -281,6 +286,7 @@ static int s6e3fa0_cabc_mode(struct dsim_device *dsim, int mode)
 
 	return count;
 }
+#endif
 
 static ssize_t s6e3fa0_panel_cabc_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -291,8 +297,9 @@ static ssize_t s6e3fa0_panel_cabc_mode_show(struct device *dev,
 
 	mutex_lock(&panel->lock);
 
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
 	ret = s6e3fa0_cabc_mode(panel->dsim, CABC_READ_MODE);
-
+#endif
 	mutex_unlock(&panel->lock);
 
 	count = snprintf(buf, PAGE_SIZE, "cabc_mode = %d, ret = %d\n",
@@ -318,20 +325,121 @@ static ssize_t s6e3fa0_panel_cabc_mode_store(struct device *dev,
 
 	pr_info("%s: %d\n", __func__, value);
 
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
 	s6e3fa0_cabc_mode(panel->dsim, panel->cabc_mode);
-
+#endif
 	return count;
 }
 
 static DEVICE_ATTR(cabc_mode, 0660, s6e3fa0_panel_cabc_mode_show,
 			s6e3fa0_panel_cabc_mode_store);
 
+static ssize_t panel_max_brightness_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+
+	count = snprintf(buf, PAGE_SIZE, "max_brightness = %d\n",
+			dsim->max_brightness);
+
+	return count;
+}
+
+static ssize_t panel_max_brightness_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned int value = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+
+	ret = kstrtouint(buf, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&dsim->bl_lock);
+
+	if (value > MAX_BRIGHTNESS) {
+		dsim->max_brightness = MAX_BRIGHTNESS;
+		if (dsim->log_brightness > 0)
+			dsim->brightness = dsim->log_brightness;
+		dsim->bd->props.brightness = dsim->brightness;
+		s6e3fa0_set_brightness(dsim->bd);
+	}
+
+	if ((value >= MIN_BRIGHTNESS) && (value <= MAX_BRIGHTNESS))
+		dsim->max_brightness = value;
+
+	if (dsim->brightness > dsim->max_brightness) {
+		dsim->brightness = dsim->max_brightness;
+		s6e3fa0_update_brightness(dsim, dsim->brightness);
+	}
+
+	mutex_unlock(&dsim->bl_lock);
+
+	pr_info("%s: %d\n", __func__, dsim->max_brightness);
+
+	return count;
+}
+
+static DEVICE_ATTR(max_brightness, 0660, panel_max_brightness_show,
+		panel_max_brightness_store);
+
+
+static ssize_t panel_brightness_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+
+	count = snprintf(buf, PAGE_SIZE, "brightness = %d\n",
+			dsim->brightness);
+
+	return count;
+}
+
+static ssize_t panel_brightness_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned int value = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+
+	ret = kstrtouint(buf, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&dsim->bl_lock);
+
+	if (value <= dsim->max_brightness) {
+		dsim->brightness = value;
+		dsim->bd->props.brightness = dsim->brightness;
+		s6e3fa0_set_brightness(dsim->bd);
+	} else if (value <= MAX_BRIGHTNESS) {
+		dsim->log_brightness = value;
+	} else {
+		pr_err("%s, brightness value is wrong[%d]\n",
+				__func__, value);
+	}
+
+	mutex_unlock(&dsim->bl_lock);
+
+	pr_info("%s: %d\n", __func__, dsim->brightness);
+
+	return count;
+}
+
+static DEVICE_ATTR(brightness, 0660, panel_brightness_show,
+		panel_brightness_store);
+
+
 static struct attribute *panel_attrs[] = {
 	&dev_attr_cabc_mode.attr,
+	&dev_attr_max_brightness.attr,
+	&dev_attr_brightness.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(panel);
-#endif
 
 static int s6e3fa0_probe(struct dsim_device *dsim)
 {
@@ -346,8 +454,9 @@ static int s6e3fa0_probe(struct dsim_device *dsim)
 
 	dsim->bd->props.max_brightness = MAX_BRIGHTNESS;
 	dsim->bd->props.brightness = DEFAULT_BRIGHTNESS;
+	dsim->max_brightness = MAX_BRIGHTNESS;
+	dsim->brightness = DEFAULT_BRIGHTNESS;
 
-#if defined(CONFIG_EXYNOS_PANEL_CABC)
 	panel = kzalloc(sizeof(struct panel_device), GFP_KERNEL);
 	if (!panel) {
 		pr_err("failed to allocate panel\n");
@@ -391,7 +500,6 @@ exit2:
 exit1:
 	kfree(panel);
 exit0:
-#endif
 	return ret;
 }
 
