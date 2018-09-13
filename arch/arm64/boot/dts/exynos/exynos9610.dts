@@ -305,6 +305,18 @@
 					ratio =	<DEFAULT_RATIO>;
 				};
 			};
+
+			/* FRT Migration */
+			frt {
+				/* little cores */
+				coregroup0 {
+					coverage-ratio = <30>;
+				};
+				/* big cores */
+				coregroup1 {
+					coverage-ratio = <15>;
+				};
+			};
 		};
 	};
 
