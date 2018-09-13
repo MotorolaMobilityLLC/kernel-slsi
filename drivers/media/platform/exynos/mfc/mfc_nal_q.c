@@ -1622,9 +1622,9 @@ void __mfc_nal_q_handle_frame(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 	need_scratch_change = (pOutStr->DisplayStatus
 				 >> MFC_REG_DISP_STATUS_NEED_SCRATCH_CHANGE_SHIFT)
 				& MFC_REG_DISP_STATUS_NEED_SCRATCH_CHANGE_MASK;
-	is_interlaced = (pOutStr->DisplayStatus
-				>> MFC_REG_DISP_STATUS_INTERLACE_SHIFT)
-				& MFC_REG_DISP_STATUS_INTERLACE_MASK;
+	is_interlaced = (pOutStr->DecodedStatus
+				>> MFC_REG_DEC_STATUS_INTERLACE_SHIFT)
+				& MFC_REG_DEC_STATUS_INTERLACE_MASK;
 	sei_avail_status = pOutStr->SeiAvail;
 	err = pOutStr->ErrorCode;
 
@@ -1671,7 +1671,12 @@ void __mfc_nal_q_handle_frame(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 		mfc_change_state(ctx, MFCINST_ERROR);
 		goto leave_handle_frame;
 	}
-	if (is_interlaced) {
+	/*
+	 * H264/VC1/MPEG2/MPEG4 can have interlace type
+	 * Only MPEG4 can continue to use NALQ
+	 * because MPEG4 doesn't handle field unit.
+	 */
+	if (is_interlaced && !IS_MPEG4_DEC(ctx)) {
 		mfc_debug(2, "[NALQ][INTERLACE] Progressive -> Interlaced\n");
 		dec->is_interlaced = is_interlaced;
 		dev->nal_q_handle->nal_q_exception = 1;
