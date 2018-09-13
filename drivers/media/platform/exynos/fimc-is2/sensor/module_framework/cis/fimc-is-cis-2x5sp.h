@@ -1,0 +1,31 @@
+/*
+ * Samsung Exynos5 SoC series Sensor driver
+ *
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#ifndef FIMC_IS_CIS_2X5SP_H
+#define FIMC_IS_CIS_2X5SP_H
+
+#include "fimc-is-cis.h"
+
+#define EXT_CLK_Mhz (26)
+
+#define SENSOR_2X5SP_MAX_WIDTH		(5760)
+#define SENSOR_2X5SP_MAX_HEIGHT		(4320)
+
+/* TODO: Check below values are valid */
+#define SENSOR_2X5SP_FINE_INTEGRATION_TIME_MIN                0x0
+#define SENSOR_2X5SP_FINE_INTEGRATION_TIME_MAX                0x0 /* Not used */
+#define SENSOR_2X5SP_COARSE_INTEGRATION_TIME_MIN              0x4
+#define SENSOR_2X5SP_COARSE_INTEGRATION_TIME_MAX_MARGIN       0x4
+
+#define USE_GROUP_PARAM_HOLD	(0)
+
+#endif
+
