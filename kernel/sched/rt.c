@@ -15,7 +15,6 @@
 
 #ifdef CONFIG_SCHED_USE_FLUID_RT
 struct frt_dom {
-	bool			enabled;
 	unsigned int		coverage_ratio;
 	unsigned int		coverage_thr;
 	unsigned int		active_ratio;
@@ -278,10 +277,12 @@ static void frt_parse_dt(struct device_node *dn, struct frt_dom *dom, int cnt)
 	if (!dom->active_ratio)
 		dom->active_thr = 0;
 
-	dom->enabled = true;
 	return;
 
 disable:
+	dom->coregroup = cnt;
+	dom->coverage_ratio = 100;
+	dom->active_thr = 0;
 	pr_err("FRT(%s): failed to parse frt node\n", __func__);
 }
 
@@ -298,6 +299,8 @@ static int __init init_frt(void)
 
 	INIT_LIST_HEAD(&frt_list);
 	ptr_mask = kzalloc(sizeof(struct cpumask), GFP_KERNEL);
+	if (!ptr_mask)
+		pr_err("FRT(%s): failed to allocate ptr_mask\n");
 	cpumask_setall(ptr_mask);
 
 	for_each_possible_cpu(cpu) {
@@ -305,6 +308,8 @@ static int __init init_frt(void)
 			continue;
 
 		dom = kzalloc(sizeof(struct frt_dom), GFP_KERNEL);
+		if (!dom)
+			pr_err("FRT(%s): failed to allocate dom\n");
 		if (cpu == 0)
 			head = dom;
 
@@ -327,7 +332,6 @@ static int __init init_frt(void)
 
 		list_add_tail(&dom->list, &frt_list);
 	}
-
 	frt_sysfs_init();
 
 	of_node_put(dn);
