@@ -283,4 +283,4 @@ static int __init exynos_ion_register_heaps(void)
 
 	return 0;
 }
-subsys_initcall(exynos_ion_register_heaps);
+subsys_initcall_sync(exynos_ion_register_heaps);
