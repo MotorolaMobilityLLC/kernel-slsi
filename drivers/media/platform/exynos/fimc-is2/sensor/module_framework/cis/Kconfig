@@ -316,6 +316,14 @@ config CAMERA_CIS_4HA_OBJ
 		help
 		  Use to build S5K4HA camera sensor.
 
+config CAMERA_CIS_2X5SP_OBJ
+		bool "Use 2X5SP camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 2X5SP camera sensor.
+
 config CAMERA_CIS_VIRTUAL_OBJ
 		bool "Use VIRTUAL camera cis"
 	depends on USE_DIRECT_IS_CONTROL
