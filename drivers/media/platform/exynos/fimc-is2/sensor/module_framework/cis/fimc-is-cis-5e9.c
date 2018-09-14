@@ -39,6 +39,7 @@
 #include "fimc-is-cis-5e9.h"
 #include "fimc-is-cis-5e9-setA.h"
 #include "fimc-is-cis-5e9-setB.h"
+#include "fimc-is-cis-5e9-setC.h"
 
 #include "fimc-is-helper-i2c.h"
 #include "fimc-is-vender-specific.h"
@@ -1928,6 +1929,14 @@ static int __init cis_5e9_probe(struct i2c_client *client,
 		sensor_5e9_setfile_sizes = sensor_5e9_setfile_B_sizes;
 		sensor_5e9_pllinfos = sensor_5e9_pllinfos_B;
 		sensor_5e9_max_setfile_num = ARRAY_SIZE(sensor_5e9_setfiles_B);
+	} else if (strcmp(setfile, "setC") == 0) {
+		probe_info("%s setfile_C\n", __func__);
+		sensor_5e9_global = sensor_5e9_setfile_C_Global;
+		sensor_5e9_global_size = ARRAY_SIZE(sensor_5e9_setfile_C_Global);
+		sensor_5e9_setfiles = sensor_5e9_setfiles_C;
+		sensor_5e9_setfile_sizes = sensor_5e9_setfile_C_sizes;
+		sensor_5e9_pllinfos = sensor_5e9_pllinfos_C;
+		sensor_5e9_max_setfile_num = ARRAY_SIZE(sensor_5e9_setfiles_C);
 	} else {
 		err("%s setfile index out of bound, take default (setfile_A)", __func__);
 		sensor_5e9_global = sensor_5e9_setfile_A_Global;
