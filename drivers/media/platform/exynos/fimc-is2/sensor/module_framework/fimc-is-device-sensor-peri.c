@@ -1719,10 +1719,19 @@ int fimc_is_sensor_peri_s_frame_duration(struct fimc_is_device_sensor *device,
 	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
 
 #ifdef FIXED_SENSOR_DEBUG
-	if (unlikely(sysfs_sensor.is_en == true)) {
+	sysfs_sensor.max_fps = sensor_peri->cis.cis_data->max_fps;
+
+	if (unlikely(sysfs_sensor.is_en == true) || unlikely(sysfs_sensor.is_fps_en == true)) {
+		if (sysfs_sensor.set_fps < sysfs_sensor.max_fps) {
+			sysfs_sensor.frame_duration = sysfs_sensor.set_fps;
+		} else if (sysfs_sensor.frame_duration > sysfs_sensor.max_fps) {
+			sysfs_sensor.frame_duration = sysfs_sensor.max_fps;
+		}
+
 		frame_duration = FPS_TO_DURATION_US(sysfs_sensor.frame_duration);
 		dbg_sensor(1, "sysfs_sensor.frame_duration = %d\n", sysfs_sensor.frame_duration);
-	}
+	} else
+		sysfs_sensor.frame_duration = FPS_TO_DURATION_US(frame_duration);
 #endif
 
 	ret = CALL_CISOPS(&sensor_peri->cis, cis_set_frame_duration, sensor_peri->subdev_cis, frame_duration);

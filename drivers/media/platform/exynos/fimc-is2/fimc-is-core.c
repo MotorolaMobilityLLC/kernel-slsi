@@ -921,6 +921,71 @@ static ssize_t store_fixed_sensor_val(struct device *dev,
 
 }
 
+static ssize_t show_fixed_sensor_fps(struct device *dev, struct device_attribute *attr,
+				  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "current_fps(%d), max_fps(%d)\n",
+			sysfs_sensor.frame_duration,
+			sysfs_sensor.max_fps);
+}
+
+static ssize_t store_fixed_sensor_fps(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int ret;
+	int input_val;
+
+	ret = kstrtoint(buf, 0, &input_val);
+	if (ret) {
+		err("Fail to conversion on success(%d)\n", ret);
+		return ret;
+	}
+
+	if (sysfs_sensor.is_fps_en) {
+		if (input_val > sysfs_sensor.max_fps) {
+			warn("Over max fps(%d), setting current fps to max(%d -> %d)\n",
+					FIXED_MAX_FPS_VALUE, input_val, FIXED_MAX_FPS_VALUE);
+
+			sysfs_sensor.set_fps = input_val;
+			input_val = sysfs_sensor.max_fps;
+		} else if (input_val < FIXED_MIN_FPS_VALUE) {
+			warn("Lower than enable to sensor fps setting, setting to (%d -> %d)\n",
+					input_val, FIXED_MIN_FPS_VALUE);
+
+			input_val = FIXED_MIN_FPS_VALUE;
+		}
+
+		sysfs_sensor.frame_duration = input_val;
+	} else
+		warn("Not enable a is_fps_en, has to first setting is_fps_en\n");
+
+	return count;
+}
+
+static ssize_t show_en_fixed_sensor_fps(struct device *dev, struct device_attribute *attr,
+				  char *buf)
+{
+	if (sysfs_sensor.is_fps_en)
+		return snprintf(buf, PAGE_SIZE, "%s\n", "enabled");
+	else
+		return snprintf(buf, PAGE_SIZE, "%s\n", "disabled");
+}
+
+static ssize_t store_en_fixed_sensor_fps(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	if (buf[0] == '1')
+		sysfs_sensor.is_fps_en = true;
+	else {
+		sysfs_sensor.is_fps_en = false;
+		sysfs_sensor.frame_duration = FIXED_MAX_FPS_VALUE;
+	}
+
+	return count;
+}
+
 static ssize_t show_en_fixed_sensor(struct device *dev, struct device_attribute *attr,
 				  char *buf)
 {
@@ -965,6 +1030,8 @@ static DEVICE_ATTR(fixed_position, 0644, show_actuator_fixed_position, store_act
 
 #ifdef FIXED_SENSOR_DEBUG
 static DEVICE_ATTR(fixed_sensor_val, 0644, show_fixed_sensor_val, store_fixed_sensor_val);
+static DEVICE_ATTR(fixed_sensor_fps, 0644, show_fixed_sensor_fps, store_fixed_sensor_fps);
+static DEVICE_ATTR(en_fixed_sensor_fps, 0644, show_en_fixed_sensor_fps, store_en_fixed_sensor_fps);
 static DEVICE_ATTR(en_fixed_sensor, 0644, show_en_fixed_sensor, store_en_fixed_sensor);
 #endif
 #endif
@@ -988,6 +1055,8 @@ static struct attribute *fimc_is_debug_entries[] = {
 	&dev_attr_fixed_position.attr,
 #ifdef FIXED_SENSOR_DEBUG
 	&dev_attr_fixed_sensor_val.attr,
+	&dev_attr_fixed_sensor_fps.attr,
+	&dev_attr_en_fixed_sensor_fps.attr,
 	&dev_attr_en_fixed_sensor.attr,
 #endif
 #endif
@@ -1360,7 +1429,10 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 	}
 #ifdef FIXED_SENSOR_DEBUG
 	sysfs_sensor.is_en = false;
-	sysfs_sensor.frame_duration = FIXED_FPS_VALUE;
+	sysfs_sensor.is_fps_en = false;
+	sysfs_sensor.frame_duration = FIXED_MAX_FPS_VALUE;
+	sysfs_sensor.max_fps = FIXED_MAX_FPS_VALUE;
+	sysfs_sensor.set_fps = FIXED_MAX_FPS_VALUE;
 	sysfs_sensor.long_exposure_time = FIXED_EXPOSURE_VALUE;
 	sysfs_sensor.short_exposure_time = FIXED_EXPOSURE_VALUE;
 	sysfs_sensor.long_analog_gain = FIXED_AGAIN_VALUE;
