@@ -251,6 +251,7 @@ struct fimc_is_dual_info {
 #ifdef FIXED_SENSOR_DEBUG
 struct fimc_is_sysfs_sensor {
 	bool		is_en;
+	bool		is_fps_en;
 	unsigned int	frame_duration;
 	unsigned int	long_exposure_time;
 	unsigned int	short_exposure_time;
@@ -258,6 +259,8 @@ struct fimc_is_sysfs_sensor {
 	unsigned int	short_analog_gain;
 	unsigned int	long_digital_gain;
 	unsigned int	short_digital_gain;
+	unsigned int	set_fps;
+	int		max_fps;
 };
 #endif
 
