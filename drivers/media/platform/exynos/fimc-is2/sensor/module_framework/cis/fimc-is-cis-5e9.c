@@ -150,6 +150,45 @@ static int sensor_5e9_wait_stream_off_status(cis_shared_data *cis_data)
 	return ret;
 }
 
+int sensor_5e9_cis_check_rev(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	u8 rev = 0;
+	struct i2c_client *client;
+	struct fimc_is_cis *cis = NULL;
+
+	WARN_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	WARN_ON(!cis);
+	WARN_ON(!cis->cis_data);
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		return ret;
+	}
+
+	memset(cis->cis_data, 0, sizeof(cis_shared_data));
+	cis->rev_flag = false;
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+
+	ret = fimc_is_sensor_read8(client, 0x0002, &rev);
+	if (ret < 0) {
+		cis->rev_flag = true;
+		ret = -EAGAIN;
+	} else {
+		cis->cis_data->cis_rev = rev;
+		pr_info("%s : Rev. 0x%X\n", __func__, rev);
+	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
+	return ret;
+}
+
 /* CIS OPS */
 int sensor_5e9_cis_init(struct v4l2_subdev *subdev)
 {
@@ -188,15 +227,6 @@ int sensor_5e9_cis_init(struct v4l2_subdev *subdev)
 #endif
 
 	BUG_ON(!cis->cis_data);
-	memset(cis->cis_data, 0, sizeof(cis_shared_data));
-	cis->rev_flag = false;
-
-	ret = sensor_cis_check_rev(cis);
-	if (ret < 0) {
-		warn("sensor_5e9_check_rev is fail when cis init");
-		cis->rev_flag = true;
-		ret = 0;
-	}
 
 	cis->cis_data->cur_width = SENSOR_5E9_MAX_WIDTH;
 	cis->cis_data->cur_height = SENSOR_5E9_MAX_HEIGHT;
@@ -494,16 +524,6 @@ int sensor_5e9_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 		err("invalid mode(%d)!!", mode);
 		ret = -EINVAL;
 		goto p_err;
-	}
-
-	/* If check_rev fail when cis_init, one more check_rev in mode_change */
-	if (cis->rev_flag == true) {
-		cis->rev_flag = false;
-		ret = sensor_cis_check_rev(cis);
-		if (ret < 0) {
-			err("sensor_5e9_check_rev is fail");
-			goto p_err;
-		}
 	}
 
 	sensor_5e9_cis_data_calculation(sensor_5e9_pllinfos[mode], cis->cis_data);
@@ -1787,6 +1807,8 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_compensate_gain_for_extremely_br = sensor_cis_compensate_gain_for_extremely_br,
 	.cis_wait_streamoff = sensor_cis_wait_streamoff,
 	.cis_wait_streamon = sensor_cis_wait_streamon,
+	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
+	.cis_check_rev = sensor_5e9_cis_check_rev,
 };
 
 static int __init cis_5e9_probe(struct i2c_client *client,
@@ -1915,6 +1937,9 @@ static int __init cis_5e9_probe(struct i2c_client *client,
 		sensor_5e9_pllinfos = sensor_5e9_pllinfos_A;
 		sensor_5e9_max_setfile_num = ARRAY_SIZE(sensor_5e9_setfiles_A);
 	}
+
+	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
+	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
 
 	v4l2_i2c_subdev_init(subdev_cis, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_cis, cis);
