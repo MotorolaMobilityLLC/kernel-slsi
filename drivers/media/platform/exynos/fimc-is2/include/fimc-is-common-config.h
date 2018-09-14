@@ -115,8 +115,9 @@ extern int debug_sensor;
 /* #define FIXED_FPS_DEBUG */
 /* #define FIXED_TDNR_NOISE_INDEX */
 
-/* 5fps */
-#define FIXED_FPS_VALUE (30 / 6)
+/* 30fps */
+#define FIXED_MAX_FPS_VALUE (30)
+#define FIXED_MIN_FPS_VALUE (1)
 #define FIXED_EXPOSURE_VALUE (200000) /* 33.333 * 6 */
 #define FIXED_AGAIN_VALUE (150 * 6)
 #define FIXED_DGAIN_VALUE (150 * 6)
