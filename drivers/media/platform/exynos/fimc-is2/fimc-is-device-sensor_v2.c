@@ -802,11 +802,6 @@ static void fimc_is_sensor_dtp(unsigned long data)
 
 	FIMC_BUG_VOID(!device);
 
-	if (device->dtp_del_flag) {
-		del_timer(&device->dtp_timer);
-		device->dtp_del_flag = false;
-	}
-
 	/* Don't need to dtp check */
 	if ((!device->force_stop && !device->dtp_check) || sysfs_debug.pattern_en)
 		return;
@@ -1362,7 +1357,6 @@ static void fimc_is_sensor_instanton(struct work_struct *data)
 #ifdef ENABLE_DTP
 	if (device->dtp_check) {
 		mod_timer(&device->dtp_timer, jiffies +  msecs_to_jiffies(300));
-		device->dtp_del_flag = true;
 		info("DTP checking...\n");
 	}
 #endif
@@ -1468,7 +1462,6 @@ static int __init fimc_is_sensor_probe(struct platform_device *pdev)
 	device->pdata = pdata;
 	device->groupmgr = &core->groupmgr;
 	device->devicemgr = &core->devicemgr;
-	device->dtp_del_flag = false;
 #ifdef ENABLE_INIT_AWB
 	memset(device->init_wb, 0, sizeof(float) * WB_GAIN_COUNT);
 	memset(device->last_wb, 0, sizeof(float) * WB_GAIN_COUNT);
