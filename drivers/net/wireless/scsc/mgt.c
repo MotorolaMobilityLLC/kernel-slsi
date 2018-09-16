@@ -4769,6 +4769,25 @@ int slsi_set_mib_rssi_boost(struct slsi_dev *sdev, struct net_device *dev, u16 p
 	return error;
 }
 
+#ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
+int slsi_set_mib_soft_roaming_enabled(struct slsi_dev *sdev, struct net_device *dev, bool enable)
+{
+	struct slsi_mib_data mib_data = { 0, NULL };
+	int error = SLSI_MIB_STATUS_FAILURE;
+
+	if (slsi_mib_encode_bool(&mib_data, SLSI_PSID_UNIFI_ROAM_SOFT_ROAMING_ENABLED,
+				 enable, 0) == SLSI_MIB_STATUS_SUCCESS)
+		if (mib_data.dataLength) {
+			error = slsi_mlme_set(sdev, dev, mib_data.data, mib_data.dataLength);
+			if (error)
+				SLSI_ERR(sdev, "Err Setting MIB failed. error = %d\n", error);
+			kfree(mib_data.data);
+		}
+
+	return error;
+}
+#endif
+
 void slsi_modify_ies_on_channel_switch(struct net_device *dev, struct cfg80211_ap_settings *settings,
 				       u8 *ds_params_ie, u8 *ht_operation_ie, struct ieee80211_mgmt  *mgmt,
 				       u16 beacon_ie_head_len)

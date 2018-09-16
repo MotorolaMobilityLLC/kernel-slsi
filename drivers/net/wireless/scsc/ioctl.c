@@ -73,6 +73,9 @@
 #define CMD_TDLSCHANNELSWITCH  "TDLS_CHANNEL_SWITCH"
 #define CMD_SETROAMOFFLOAD     "SETROAMOFFLOAD"
 #define CMD_SETROAMOFFLAPLIST  "SETROAMOFFLAPLIST"
+#ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
+#define CMD_SET_LATENCY_MODE "SET_LATENCY_MODE"
+#endif
 
 #define CMD_SETBAND "SETBAND"
 #define CMD_GETBAND "GETBAND"
@@ -2246,6 +2249,21 @@ static int slsi_get_assoc_reject_info(struct net_device *dev, char *command, int
 	return len;
 }
 
+#ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
+int slsi_set_latency_mode(struct net_device *dev, char *cmd, int cmd_len)
+{
+	struct netdev_vif    *ndev_vif = netdev_priv(dev);
+	struct slsi_dev      *sdev = ndev_vif->sdev;
+	bool                 enable_roaming;
+
+	/* latency_mode =0 (Normal), latency_mode =1 (Low) */
+	enable_roaming = (cmd[0] == '0') ? true : false;
+	SLSI_DBG1(sdev, SLSI_CFG80211, "Setting latency mode %d\n", cmd[0] - '0');
+
+	return slsi_set_mib_soft_roaming_enabled(sdev, dev, enable_roaming);
+}
+#endif
+
 int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 #define MAX_LEN_PRIV_COMMAND    4096 /*This value is the max reply size set in supplicant*/
@@ -2507,6 +2525,11 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = slsi_get_sta_info(dev, command, priv_cmd.total_len);
 	} else if (strncasecmp(command, CMD_GETASSOCREJECTINFO, strlen(CMD_GETASSOCREJECTINFO)) == 0) {
 		ret = slsi_get_assoc_reject_info(dev, command, priv_cmd.total_len);
+#ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
+	} else if (strncasecmp(command, CMD_SET_LATENCY_MODE, strlen(CMD_SET_LATENCY_MODE)) == 0) {
+		ret = slsi_set_latency_mode(dev, command + strlen(CMD_SET_LATENCY_MODE) + 1,
+					    priv_cmd.total_len - (strlen(CMD_SET_LATENCY_MODE) + 1));
+#endif
 	} else if ((strncasecmp(command, CMD_RXFILTERSTART, strlen(CMD_RXFILTERSTART)) == 0) ||
 			(strncasecmp(command, CMD_RXFILTERSTOP, strlen(CMD_RXFILTERSTOP)) == 0) ||
 			(strncasecmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) ||
