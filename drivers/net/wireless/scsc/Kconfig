@@ -228,3 +228,10 @@ config SCSC_WLAN_SET_NUM_ANTENNAS
         default n
         ---help---
           This option tells whether configuring of number of antennas is enabled or not.
+
+config SCSC_WLAN_LOW_LATENCY_MODE
+        bool "Support enabling/disabling roaming as per latency mode"
+        default n
+        ---help---
+          This option tells whether support is provided for enabling
+          or disabling roaming as per the latency mode.
