@@ -4,7 +4,7 @@
 #include <sound/soc.h>
 
 #define MADERA_SLIMBUS_MAX_CHANNELS 8
-#define CONFIG_SND_SOC_MADERA_SLIMBUS 1
+#define CONFIG_SND_SOC_MADERA_SLIMBUS 0
 #ifdef CONFIG_SND_SOC_MADERA_SLIMBUS
 #include <linux/slimbus/slimbus.h>
 
