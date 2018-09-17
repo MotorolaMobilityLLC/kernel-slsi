@@ -228,33 +228,66 @@ static void mxlogger_message_handler(const void *message, void *data)
 
 static int __mxlogger_generate_sync_record(struct mxlogger *mxlogger, enum mxlogger_sync_event event)
 {
-	struct mxlogger_sync_record sync_r = {};
+	struct mxlogger_sync_record *sync_r_mem;
 	struct timeval t;
 	struct log_msg_packet msg = {};
+	unsigned long int jd;
 	void *mem;
+	ktime_t t1, t2;
 
 	msg.msg = MM_MXLOGGER_SYNC_RECORD;
 	msg.arg = MM_MXLOGGER_SYNC_INDEX;
 	memcpy(&msg.payload, &mxlogger->sync_buffer_index, sizeof(mxlogger->sync_buffer_index));
 
-	do_gettimeofday(&t);
-
-	sync_r.tv_sec = (u64)t.tv_sec;
-	sync_r.tv_usec = (u64)t.tv_usec;
-	sync_r.kernel_time = ktime_to_ns(ktime_get());
-	sync_r.sync_event = event;
-
 	/* Get the pointer from the index of the sync array */
 	mem =  mxlogger->mem_sync_buf + mxlogger->sync_buffer_index * sizeof(struct mxlogger_sync_record);
-	memcpy(mem, &sync_r, sizeof(struct mxlogger_sync_record));
+	sync_r_mem = (struct mxlogger_sync_record *)mem;
+	/* Write values in record as FW migth be doing sanity checks */
+	sync_r_mem->tv_sec = 1;
+	sync_r_mem->tv_usec = 1;
+	sync_r_mem->kernel_time = 1;
+	sync_r_mem->sync_event = event;
+	sync_r_mem->fw_time = 0;
+	sync_r_mem->fw_wrap = 0;
 
-	mxlogger->sync_buffer_index++;
-	mxlogger->sync_buffer_index &= SYNC_MASK;
 
+	SCSC_TAG_INFO(MXMAN, "Get FW time\n");
+	preempt_disable();
+	/* set the tight loop timeout - we do not require precission but something to not
+	 * loop forever
+	 */
+	jd = jiffies + msecs_to_jiffies(20);
 	/* Send the msg as fast as possible */
 	mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxlogger->mx),
 			      MMTRANS_CHAN_ID_MAXWELL_LOGGING,
 			      &msg, sizeof(msg));
+	t1 = ktime_get();
+	/* Tight loop to read memory */
+	while (time_before(jiffies, jd) && sync_r_mem->fw_time == 0 && sync_r_mem->fw_wrap == 0)
+		;
+	t2 = ktime_get();
+	do_gettimeofday(&t);
+	preempt_enable();
+
+	/* Do the processing */
+	if (sync_r_mem->fw_wrap == 0 && sync_r_mem->fw_time == 0) {
+		/* FW didn't update the record (FW panic?). Do not create a SYNC record */
+		SCSC_TAG_INFO(MXMAN, "FW failure updating the FW time\n");
+		SCSC_TAG_INFO(MXMAN, "Sync delta %lld\n", ktime_to_ns(ktime_sub(t2, t1)));
+		return 0;
+	}
+
+	sync_r_mem->tv_sec = (u64)t.tv_sec;
+	sync_r_mem->tv_usec = (u64)t.tv_usec;
+	sync_r_mem->kernel_time = ktime_to_ns(t2);
+	sync_r_mem->sync_event = event;
+
+	SCSC_TAG_INFO(MXMAN, "Sample, %lld, %u, %lld.%06lld\n",
+		ktime_to_ns(sync_r_mem->kernel_time), sync_r_mem->fw_time, sync_r_mem->tv_sec, sync_r_mem->tv_usec);
+	SCSC_TAG_INFO(MXMAN, "Sync delta %lld\n", ktime_to_ns(ktime_sub(t2, t1)));
+
+	mxlogger->sync_buffer_index++;
+	mxlogger->sync_buffer_index &= SYNC_MASK;
 
 	return 0;
 }
@@ -513,6 +546,8 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 
 	MEM_LAYOUT_CHECK();
 
+	mxlogger->configured = false;
+
 	if (mem_sz <= (sizeof(struct mxlogger_config_area) + MXLOGGER_TOTAL_FIX_BUF)) {
 		SCSC_TAG_ERR(MXMAN, "Insufficient memory allocation\n");
 		return -EIO;
@@ -732,6 +767,12 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	struct mxlogger_node *mn, *next;
 	bool match = false;
 
+	SCSC_TAG_INFO(MXMAN, "\n");
+
+	if (!mxlogger || !mxlogger->configured) {
+		SCSC_TAG_WARNING(MXMAN, "MXLOGGER is not valid or not configured.\n");
+		return;
+	}
 	/* Run deregistration before adquiring the mxlogger lock to avoid
 	 * deadlock with log_collector.
 	 */
@@ -768,6 +809,7 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	if (match == false)
 		SCSC_TAG_ERR(MXMAN, "FATAL, no match for given scsc_mif_abs\n");
 
+	SCSC_TAG_INFO(MXMAN, "End\n");
 	mutex_unlock(&mxlogger->lock);
 }
 

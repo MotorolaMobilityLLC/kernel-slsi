@@ -113,6 +113,10 @@
 #define SLSI_PA_GAS_COMEBACK_REQ (12)
 #define SLSI_PA_GAS_COMEBACK_RSP (13)
 
+/*Radio Measurement action frames types */
+#define SLSI_RM_NEIGH_REP_REQ  (4)
+#define SLSI_RM_NEIGH_REP_RSP  (5)
+
 /* For service discovery action frames dummy subtype is used by setting the 7th bit */
 #define SLSI_PA_GAS_DUMMY_SUBTYPE_MASK   0x80
 #define SLSI_PA_GAS_INITIAL_REQ_SUBTYPE  (SLSI_PA_GAS_INITIAL_REQ | SLSI_PA_GAS_DUMMY_SUBTYPE_MASK)
@@ -452,10 +456,14 @@ int slsi_read_unifi_countrylist(struct slsi_dev *sdev, u16 psid);
 int slsi_read_default_country(struct slsi_dev *sdev, u8 *alpha2, u16 index);
 int slsi_read_disconnect_ind_timeout(struct slsi_dev *sdev, u16 psid);
 int slsi_read_regulatory_rules(struct slsi_dev *sdev, struct slsi_802_11d_reg_domain *domain_info, const char *alpha2);
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+int slsi_set_mac_randomisation_mask(struct slsi_dev *sdev, u8 *mac_address_mask);
+#endif
 int slsi_set_country_update_regd(struct slsi_dev *sdev, const char *alpha2_code, int size);
 void slsi_clear_offchannel_data(struct slsi_dev *sdev, bool acquire_lock);
-int slsi_hs2_vif_activate(struct slsi_dev *sdev, struct net_device *dev, struct ieee80211_channel *chan, u16 duration);
-void slsi_hs2_vif_deactivate(struct slsi_dev *sdev, struct net_device *devbool, bool hw_available);
+int slsi_wlan_unsync_vif_activate(struct slsi_dev *sdev, struct net_device *dev,
+				  struct ieee80211_channel *chan, u16 duration);
+void slsi_wlan_unsync_vif_deactivate(struct slsi_dev *sdev, struct net_device *devbool, bool hw_available);
 int slsi_is_wes_action_frame(const struct ieee80211_mgmt *mgmt);
 void slsi_scan_ind_timeout_handle(struct work_struct *work);
 void slsi_vif_cleanup(struct slsi_dev *sdev, struct net_device *dev, bool hw_available);
@@ -466,6 +474,11 @@ void slsi_update_supported_channels_regd_flags(struct slsi_dev *sdev);
 #ifdef CONFIG_SCSC_WLAN_HANG_TEST
 int slsi_test_send_hanged_vendor_event(struct net_device *dev);
 #endif
-void slsi_hs2_dump_public_action_subtype(struct ieee80211_mgmt *mgmt, bool tx);
+void slsi_wlan_dump_public_action_subtype(struct ieee80211_mgmt *mgmt, bool tx);
 void slsi_reset_channel_flags(struct slsi_dev *sdev);
+
+/* Sysfs based mac address override */
+void slsi_create_sysfs_macaddr(void);
+void slsi_destroy_sysfs_macaddr(void);
+
 #endif /*__SLSI_MGT_H__*/

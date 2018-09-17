@@ -72,6 +72,9 @@ MODULE_PARM_DESC(vo_vi_block_ack_disabled, "Disable VO VI Block Ack logic added 
 static int max_scan_result_count = 200;
 module_param(max_scan_result_count, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_scan_result_count, "Max scan results to be reported");
+static bool rtt_disabled = 1;
+module_param(rtt_disabled, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rtt_disabled, "Disable rtt: to disable rtt set 1");
 
 static bool nan_disabled;
 module_param(nan_disabled, bool, S_IRUGO | S_IWUSR);
@@ -80,6 +83,11 @@ MODULE_PARM_DESC(nan_disabled, "Disable NAN: to disable NAN set 1.");
 bool slsi_dev_gscan_supported(void)
 {
 	return !gscan_disabled;
+}
+
+bool slsi_dev_rtt_supported(void)
+{
+	return !rtt_disabled;
 }
 
 bool slsi_dev_llslogs_supported(void)
@@ -139,7 +147,7 @@ static int slsi_dev_inetaddr_changed(struct notifier_block *nb, unsigned long da
 
 	SLSI_NET_INFO(dev, "IP: %pI4\n", &ifa->ifa_address);
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-#ifndef SLSI_TEST_DEV
+#if !defined SLSI_TEST_DEV && defined CONFIG_ANDROID
 	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif) && wake_lock_active(&sdev->wlan_wl_roam)) {
 		SLSI_NET_DBG2(dev, SLSI_NETDEV, "Releasing the roaming wakelock\n");
 		wake_unlock(&sdev->wlan_wl_roam);
@@ -235,6 +243,7 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	sdev->mlme_blocked = false;
 
 	SLSI_MUTEX_INIT(sdev->netdev_add_remove_mutex);
+	SLSI_MUTEX_INIT(sdev->netdev_remove_mutex);
 	SLSI_MUTEX_INIT(sdev->start_stop_mutex);
 	SLSI_MUTEX_INIT(sdev->device_config_mutex);
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
@@ -271,7 +280,7 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	slsi_wakelock_init(&sdev->wlan_wl, "wlan");
 	slsi_wakelock_init(&sdev->wlan_wl_mlme, "wlan_mlme");
 	slsi_wakelock_init(&sdev->wlan_wl_ma, "wlan_ma");
-#ifndef SLSI_TEST_DEV
+#if !defined SLSI_TEST_DEV && defined CONFIG_ANDROID
 	wake_lock_init(&sdev->wlan_wl_roam, WAKE_LOCK_SUSPEND, "wlan_roam");
 #endif
 	sdev->recovery_next_state = 0;
@@ -419,7 +428,7 @@ err_if:
 	slsi_wakelock_exit(&sdev->wlan_wl);
 	slsi_wakelock_exit(&sdev->wlan_wl_mlme);
 	slsi_wakelock_exit(&sdev->wlan_wl_ma);
-#ifndef SLSI_TEST_DEV
+#if !defined SLSI_TEST_DEV && defined CONFIG_ANDROID
 	wake_lock_destroy(&sdev->wlan_wl_roam);
 #endif
 	slsi_cfg80211_free(sdev);
@@ -488,7 +497,7 @@ void slsi_dev_detach(struct slsi_dev *sdev)
 	slsi_wakelock_exit(&sdev->wlan_wl);
 	slsi_wakelock_exit(&sdev->wlan_wl_mlme);
 	slsi_wakelock_exit(&sdev->wlan_wl_ma);
-#ifndef SLSI_TEST_DEV
+#if !defined SLSI_TEST_DEV && defined CONFIG_ANDROID
 	wake_lock_destroy(&sdev->wlan_wl_roam);
 #endif
 
@@ -517,6 +526,10 @@ int __init slsi_dev_load(void)
 	sap_dbg_init();
 	sap_test_init();
 
+/* Always create devnode if TW Android P on */
+#if defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000
+	slsi_create_sysfs_macaddr();
+#endif
 	SLSI_INFO_NODEV("--- Maxwell Wi-Fi driver loaded successfully ---\n");
 	return 0;
 }
@@ -525,6 +538,9 @@ void __exit slsi_dev_unload(void)
 {
 	SLSI_INFO_NODEV("Unloading Maxwell Wi-Fi driver\n");
 
+#if defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000
+	slsi_destroy_sysfs_macaddr();
+#endif
 	/* Unregister SAPs */
 	sap_mlme_deinit();
 	sap_ma_deinit();

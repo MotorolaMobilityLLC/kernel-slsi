@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2012 - 2017 Samsung Electronics Co., Ltd and its Licensors.
+ * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd and its Licensors.
  * All rights reserved.
  *
  *****************************************************************************/
@@ -148,6 +148,27 @@ size_t slsi_mib_decode_uint32(u8 *buffer, u32 *value)
 	return 1 + length;
 }
 
+size_t slsi_mib_decodeUint64(u8 *buffer, u64 *value)
+{
+	size_t i;
+	u64    v = 0;
+	size_t length = buffer[0] & SLSI_MIB_LENGTH_MASK;
+
+	if (!(buffer[0] & SLSI_MIB_MORE_MASK)) {
+		*value = buffer[0] & 0x7F;
+		return 1;
+	}
+
+	for (i = 0; i < length; i++) {
+		v = (v << 8);
+		v |= buffer[1 + i];
+	}
+
+	*value = v;
+
+	return 1 + length;
+}
+
 size_t slsi_mib_decodeInt32(u8 *buffer, s32 *value)
 {
 	size_t i;
@@ -169,6 +190,31 @@ size_t slsi_mib_decodeInt32(u8 *buffer, s32 *value)
 	}
 
 	*value = (s32)v;
+
+	return 1 + length;
+}
+
+size_t slsi_mib_decodeInt64(u8 *buffer, s64 *value)
+{
+	size_t i;
+	u64    v = 0xFFFFFFFFFFFFFFFFULL;
+	size_t length = buffer[0] & SLSI_MIB_LENGTH_MASK;
+
+	if (!(buffer[0] & SLSI_MIB_SIGN_MASK))
+		/* just use the Unsigned Decoder */
+		return slsi_mib_decodeUint64(buffer, (u64 *)value);
+
+	if (!(buffer[0] & SLSI_MIB_MORE_MASK)) {
+		*value = (s64)(0xFFFFFFFFFFFFFF80ULL | buffer[0]);
+		return 1;
+	}
+
+	for (i = 0; i < length; i++) {
+		v = (v << 8);
+		v |= buffer[1 + i];
+	}
+
+	*value = (s64)v;
 
 	return 1 + length;
 }

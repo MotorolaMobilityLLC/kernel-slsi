@@ -49,7 +49,9 @@
 #include <linux/dma-mapping.h>
 #include "mif_reg_smapper.h"
 #endif
+#ifdef CONFIG_SCSC_QOS
 #include <linux/pm_qos.h>
+#endif
 
 #if !defined(CONFIG_SOC_EXYNOS7872) && !defined(CONFIG_SOC_EXYNOS7570) \
 	&& !defined(CONFIG_SOC_EXYNOS7885) && !defined(CONFIG_SOC_EXYNOS9610)
@@ -92,12 +94,14 @@ static bool enable_platform_mif_arm_reset = true;
 module_param(enable_platform_mif_arm_reset, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_platform_mif_arm_reset, "Enables WIFIBT ARM cores reset");
 
+#ifdef CONFIG_SCSC_QOS
 struct qos_table {
 	unsigned int freq_mif;
 	unsigned int freq_int;
 	unsigned int freq_cl0;
 	unsigned int freq_cl1;
 };
+#endif
 
 struct platform_mif {
 	struct scsc_mif_abs    interface;
@@ -181,10 +185,11 @@ struct platform_mif {
 	void          (*reset_request_handler)(int irq, void *data);
 	void          *irq_reset_request_dev;
 
+#ifdef CONFIG_SCSC_QOS
 	/* QoS table */
 	struct qos_table *qos;
 	bool qos_enabled;
-
+#endif
 	/* Suspend/resume handlers */
 	int (*suspend_handler)(struct scsc_mif_abs *abs, void *data);
 	void (*resume_handler)(struct scsc_mif_abs *abs, void *data);
@@ -434,7 +439,7 @@ static int platform_mif_parse_smapper(struct platform_mif *platform, struct devi
 	return 0;
 }
 #endif
-
+#ifdef CONFIG_SCSC_QOS
 static int platform_mif_parse_qos(struct platform_mif *platform, struct device_node *np)
 {
 	int len, i;
@@ -575,6 +580,7 @@ static int platform_mif_pm_qos_remove_request(struct scsc_mif_abs *interface, st
 
 	return 0;
 }
+#endif
 
 static void platform_mif_irq_default_handler(int irq, void *data)
 {
@@ -2130,10 +2136,11 @@ struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 	platform_if->mif_smapper_configure = platform_mif_smapper_configure;
 	platform_if->mif_smapper_get_bank_base_address = platform_mif_smapper_get_bank_base_address;
 #endif
+#ifdef CONFIG_SCSC_QOS
 	platform_if->mif_pm_qos_add_request = platform_mif_pm_qos_add_request;
 	platform_if->mif_pm_qos_update_request = platform_mif_pm_qos_update_request;
 	platform_if->mif_pm_qos_remove_request = platform_mif_pm_qos_remove_request;
-
+#endif
 	/* Update state */
 	platform->pdev = pdev;
 	platform->dev = &pdev->dev;
@@ -2386,7 +2393,9 @@ cont:
 		platform_mif_parse_smapper(platform, platform->dev->of_node, smapper_banks);
 
 #endif
+#ifdef CONFIG_SCSC_QOS
 	platform_mif_parse_qos(platform, platform->dev->of_node);
+#endif
 #ifdef CONFIG_SCSC_CLK20MHZ
 	/* Assign USBPLL ownership to WLBT f/w */
 	__platform_mif_usbpll_claim(platform, true);

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2017 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -73,6 +73,8 @@ enum slsi_ac_index_wmm_pe {
 #define SLSI_ACTION_FRAME_WMM     (1 << 17)
 #define SLSI_ACTION_FRAME_WNM     (1 << 10)
 #define SLSI_ACTION_FRAME_QOS     (1 << 1)
+#define SLSI_ACTION_FRAME_PROTECTED_DUAL    BIT(9)
+#define SLSI_ACTION_FRAME_RADIO_MEASUREMENT    BIT(5)
 
 /* Firmware transmit rates */
 #define SLSI_TX_RATE_NON_HT_1MBPS 0x4001
@@ -129,7 +131,8 @@ struct slsi_mlme_pkt_filter_elem {
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 u16 slsi_get_chann_info(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef);
-int slsi_check_channelization(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef);
+int slsi_check_channelization(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef,
+			      int wifi_sharing_channel_switched);
 #else
 u16 slsi_get_chann_info(struct slsi_dev *sdev, enum nl80211_channel_type channel_type);
 int slsi_check_channelization(struct slsi_dev *sdev, enum nl80211_channel_type channel_type);
@@ -150,6 +153,7 @@ void slsi_ap_obss_scan_done_ind(struct net_device *dev, struct netdev_vif *ndev_
 
 int slsi_mlme_spare_signal_1(struct slsi_dev *sdev, struct net_device *dev);
 
+u16 slsi_compute_chann_info(struct slsi_dev *sdev, u16 width, u16 center_freq0, u16 channel_freq);
 /**
  * slsi_mlme_add_autonomous_scan() Returns:
  *  0 : Scan installed
@@ -255,4 +259,6 @@ int slsi_mlme_set_ctwindow(struct slsi_dev *sdev, struct net_device *dev, unsign
 int slsi_mlme_set_p2p_noa(struct slsi_dev *sdev, struct net_device *dev, unsigned int noa_count,
 			  unsigned int interval, unsigned int duration);
 void slsi_fw_tx_rate_calc(u16 fw_rate, struct rate_info *tx_rate, unsigned long *data_rate_mbps);
+int slsi_test_sap_configure_monitor_mode(struct slsi_dev *sdev, struct net_device *dev, struct cfg80211_chan_def *chandef);
+
 #endif /*__SLSI_MLME_H__*/

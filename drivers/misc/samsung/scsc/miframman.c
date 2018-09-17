@@ -10,7 +10,9 @@
 #include <scsc/scsc_logring.h>
 #include "scsc_mif_abs.h"
 
+#include "scsc/api/bt_audio.h"
 #include "miframman.h"
+
 
 /* Caller should provide locking */
 void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool)
@@ -35,6 +37,12 @@ void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool)
 	ram->start_dram = start_dram;
 	ram->size_pool = size_pool;
 	ram->free_mem = ram->num_blocks * MIFRAMMAN_BLOCK_SIZE;
+}
+
+void miframabox_init(struct mifabox *mifabox, void *start_aboxram)
+{
+	/* No locking as not a shared resource */
+	mifabox->aboxram = (struct scsc_bt_audio_abox *)start_aboxram;
 }
 
 void *__miframman_alloc(struct miframman *ram, size_t nbytes)
@@ -173,3 +181,11 @@ void miframman_deinit(struct miframman *ram)
 	ram->size_pool = 0;
 	ram->free_mem = 0;
 }
+
+void miframabox_deinit(struct mifabox *mifabox)
+{
+	/* not dynamic - so just mark as NULL */
+	/* Maybe this function should be empty? */
+	mifabox->aboxram = NULL;
+}
+
