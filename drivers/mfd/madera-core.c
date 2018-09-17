@@ -672,6 +672,8 @@ int madera_dev_init(struct madera *madera)
 	if (ret)
 		goto err_pinctrl;
 
+	mutex_init(&madera->reg_setting_lock);
+	
 	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
 
 	if (dev_get_platdata(madera->dev)) {

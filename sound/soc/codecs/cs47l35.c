@@ -29,13 +29,75 @@
 #include "madera.h"
 #include "wm_adsp.h"
 
+#if IS_ENABLED(CONFIG_SND_SOC_AOV_TRIGGER)
+#include "aov_trigger.h"
+#endif
 #define CS47L35_NUM_ADSP	3
 #define CS47L35_MONO_OUTPUTS	1
+
+#define ADSP2_CONTROL	0x0
+#define ADSP2_CORE_ENA	0x0002
 
 struct cs47l35 {
 	struct madera_priv core;
 	struct madera_fll fll;
 };
+
+static const int cs47l35_fx_inputs[] = {
+	MADERA_MIXER_INPUTS_4_N(MADERA_EQ1MIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_EQ2MIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_EQ3MIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_EQ4MIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_DRC1LMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_DRC1RMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_DRC2LMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_DRC2RMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_HPLP1MIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_HPLP2MIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_HPLP3MIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_HPLP4MIX_INPUT_1_SOURCE, 2),
+};
+
+static const int cs47l35_isrc1_fsl_inputs[] = {
+	MADERA_MIXER_INPUTS_4_N(MADERA_ISRC1INT1MIX_INPUT_1_SOURCE, 8),
+};
+
+static const int cs47l35_isrc1_fsh_inputs[] = {
+	MADERA_MIXER_INPUTS_4_N(MADERA_ISRC1DEC1MIX_INPUT_1_SOURCE, 8),
+};
+
+static const int cs47l35_isrc2_fsl_inputs[] = {
+	MADERA_MIXER_INPUTS_4_N(MADERA_ISRC2INT1MIX_INPUT_1_SOURCE, 8),
+};
+
+static const int cs47l35_isrc2_fsh_inputs[] = {
+	MADERA_MIXER_INPUTS_4_N(MADERA_ISRC2DEC1MIX_INPUT_1_SOURCE, 8),
+};
+
+static const int cs47l35_out_inputs[] = {
+	MADERA_MIXER_INPUTS_4_N(MADERA_OUT1LMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_OUT1RMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_OUT4LMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_OUT5LMIX_INPUT_1_SOURCE, 2),
+	MADERA_MIXER_INPUTS_4_N(MADERA_OUT5RMIX_INPUT_1_SOURCE, 2),
+};
+
+static const int cs47l35_spd1_inputs[] = {
+	MADERA_MIXER_INPUTS_2_N(MADERA_SPDIF1TX1MIX_INPUT_1_SOURCE, 8),
+};
+
+static const int cs47l35_dsp1_inputs[] = {
+	MADERA_DSP_MIXER_INPUTS(MADERA_DSP1LMIX_INPUT_1_SOURCE),
+};
+
+static const int cs47l35_dsp2_inputs[] = {
+	MADERA_DSP_MIXER_INPUTS(MADERA_DSP2LMIX_INPUT_1_SOURCE),
+};
+
+static const int cs47l35_dsp3_inputs[] = {
+	MADERA_DSP_MIXER_INPUTS(MADERA_DSP3LMIX_INPUT_1_SOURCE),
+};
+
 
 static const struct wm_adsp_region cs47l35_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x080000 },
@@ -81,6 +143,58 @@ static SOC_ENUM_SINGLE_DECL(cs47l35_outdemux_enum, SND_SOC_NOPM, 0,
 static const struct snd_kcontrol_new cs47l35_outdemux =
 	SOC_DAPM_ENUM_EXT("HPOUT1 Demux", cs47l35_outdemux_enum,
 			  snd_soc_dapm_get_enum_double, madera_out1_demux_put);
+static int cs47l35_get_sources(unsigned int reg,
+			       const unsigned int **cur_sources, int *lim)
+{
+	int ret = 0;
+
+	switch (reg) {
+	case MADERA_FX_CTRL1:
+		*cur_sources = cs47l35_fx_inputs;
+		*lim = ARRAY_SIZE(cs47l35_fx_inputs);
+		break;
+	case MADERA_ISRC_1_CTRL_1:
+		*cur_sources = cs47l35_isrc1_fsh_inputs;
+		*lim = ARRAY_SIZE(cs47l35_isrc1_fsh_inputs);
+		break;
+	case MADERA_ISRC_1_CTRL_2:
+		*cur_sources = cs47l35_isrc1_fsl_inputs;
+		*lim = ARRAY_SIZE(cs47l35_isrc1_fsl_inputs);
+		break;
+	case MADERA_ISRC_2_CTRL_1:
+		*cur_sources = cs47l35_isrc2_fsh_inputs;
+		*lim = ARRAY_SIZE(cs47l35_isrc2_fsh_inputs);
+		break;
+	case MADERA_ISRC_2_CTRL_2:
+		*cur_sources = cs47l35_isrc2_fsl_inputs;
+		*lim = ARRAY_SIZE(cs47l35_isrc2_fsl_inputs);
+		break;
+	case MADERA_OUTPUT_RATE_1:
+		*cur_sources = cs47l35_out_inputs;
+		*lim = ARRAY_SIZE(cs47l35_out_inputs);
+		break;
+	case MADERA_SPD1_TX_CONTROL:
+		*cur_sources = cs47l35_spd1_inputs;
+		*lim = ARRAY_SIZE(cs47l35_spd1_inputs);
+		break;
+	case MADERA_DSP1_CONFIG_1:
+		*cur_sources = cs47l35_dsp1_inputs;
+		*lim = ARRAY_SIZE(cs47l35_dsp1_inputs);
+		break;
+	case MADERA_DSP2_CONFIG_1:
+		*cur_sources = cs47l35_dsp2_inputs;
+		*lim = ARRAY_SIZE(cs47l35_dsp2_inputs);
+		break;
+	case MADERA_DSP3_CONFIG_1:
+		*cur_sources = cs47l35_dsp3_inputs;
+		*lim = ARRAY_SIZE(cs47l35_dsp3_inputs);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
 
 static int cs47l35_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol,
@@ -116,6 +230,58 @@ static int cs47l35_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	return wm_adsp2_early_event(w, kcontrol, event, freq);
 }
 
+static int cs47l35_get_dsp_state(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
+	struct soc_mixer_control *mc = (struct soc_mixer_control *)
+		kcontrol->private_value;
+	struct wm_adsp *dsp = &dsps[mc->shift];
+	unsigned int val;
+
+	regmap_read(dsp->regmap, dsp->base + ADSP2_CONTROL, &val);
+	if (val & ADSP2_CORE_ENA)
+		ucontrol->value.integer.value[0] = 1;
+	else
+		ucontrol->value.integer.value[0] = 0;
+
+	return 0;
+}
+
+static int cs47l35_put_dsp_state(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int cs47l35_get_trig_state(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct cs47l35 *cs47l35 = snd_soc_codec_get_drvdata(codec);
+	struct madera_priv *priv = &cs47l35->core;
+	/* DSP3, Channel 1 */
+	struct wm_adsp_compr *compr = priv->adsp[2].compr[0];
+	if (compr)
+		ucontrol->value.integer.value[0] = compr->freed;
+	return 0;
+}
+
+static int cs47l35_put_trig_state(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct cs47l35 *cs47l35 = snd_soc_codec_get_drvdata(codec);
+	struct madera_priv *priv = &cs47l35->core;
+	/* DSP3, Channel 1 */
+	struct wm_adsp_compr *compr = priv->adsp[2].compr[0];
+	int value = ucontrol->value.integer.value[0];
+
+	if (compr)
+		compr->freed = value;
+	return 0;
+}
 #define CS47L35_NG_SRC(name, base) \
 	SOC_SINGLE(name " NG HPOUT1L Switch",  base,  0, 1, 0), \
 	SOC_SINGLE(name " NG HPOUT1R Switch",  base,  1, 1, 0), \
@@ -225,6 +391,16 @@ SOC_SINGLE("IN2L HPF Switch", MADERA_IN2L_CONTROL,
 SOC_SINGLE("IN2R HPF Switch", MADERA_IN2R_CONTROL,
 	   MADERA_IN2R_HPF_SHIFT, 1, 0),
 
+SOC_SINGLE_EXT("Set Trigger State Switch", SND_SOC_NOPM, 0, 1, 0,
+	       cs47l35_get_trig_state,
+	       cs47l35_put_trig_state),
+SOC_SINGLE_EXT("Get DSP1 State", SND_SOC_NOPM, 0, 1, 0, cs47l35_get_dsp_state,
+	       cs47l35_put_dsp_state),
+SOC_SINGLE_EXT("Get DSP2 State", SND_SOC_NOPM, 1, 1, 0, cs47l35_get_dsp_state,
+	       cs47l35_put_dsp_state),
+SOC_SINGLE_EXT("Get DSP3 State", SND_SOC_NOPM, 2, 1, 0, cs47l35_get_dsp_state,
+	       cs47l35_put_dsp_state),
+
 SOC_SINGLE_TLV("IN1L Digital Volume", MADERA_ADC_DIGITAL_VOLUME_1L,
 	       MADERA_IN1L_DIG_VOL_SHIFT, 0xbf, 0, madera_digital_tlv),
 SOC_SINGLE_TLV("IN1R Digital Volume", MADERA_ADC_DIGITAL_VOLUME_1R,
@@ -236,6 +412,20 @@ SOC_SINGLE_TLV("IN2R Digital Volume", MADERA_ADC_DIGITAL_VOLUME_2R,
 
 SOC_ENUM("Input Ramp Up", madera_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", madera_in_vd_ramp),
+
+MADERA_FRF_BYTES("FRF COEFF 1L", MADERA_FRF_COEFFICIENT_1L_1,
+				 MADERA_FRF_COEFFICIENT_LEN),
+MADERA_FRF_BYTES("FRF COEFF 1R", MADERA_FRF_COEFFICIENT_1R_1,
+				 MADERA_FRF_COEFFICIENT_LEN),
+MADERA_FRF_BYTES("FRF COEFF 4L", CS47L35_FRF_COEFFICIENT_4L_1,
+				 MADERA_FRF_COEFFICIENT_LEN),
+MADERA_FRF_BYTES("FRF COEFF 5L", CS47L35_FRF_COEFFICIENT_5L_1,
+				 MADERA_FRF_COEFFICIENT_LEN),
+MADERA_FRF_BYTES("FRF COEFF 5R", CS47L35_FRF_COEFFICIENT_5R_1,
+				 MADERA_FRF_COEFFICIENT_LEN),
+
+SND_SOC_BYTES("DAC COMP 1", MADERA_DAC_COMP_1, 1),
+SND_SOC_BYTES("DAC COMP 2", MADERA_DAC_COMP_2, 1),
 
 MADERA_MIXER_CONTROLS("EQ1", MADERA_EQ1MIX_INPUT_1_SOURCE),
 MADERA_MIXER_CONTROLS("EQ2", MADERA_EQ2MIX_INPUT_1_SOURCE),
@@ -375,6 +565,10 @@ SOC_DOUBLE_R_TLV("SPKDAT1 Digital Volume", MADERA_DAC_DIGITAL_VOLUME_5L,
 SOC_DOUBLE("SPKDAT1 Switch", MADERA_PDM_SPK1_CTRL_1, MADERA_SPK1L_MUTE_SHIFT,
 	   MADERA_SPK1R_MUTE_SHIFT, 1, 1),
 
+SOC_DOUBLE_EXT("HPOUT1 DRE Switch", MADERA_DRE_ENABLE,
+	   MADERA_DRE1L_ENA_SHIFT, MADERA_DRE1R_ENA_SHIFT, 1, 0,
+	   snd_soc_get_volsw, madera_dre_put),
+
 SOC_DOUBLE("HPOUT1 EDRE Switch", MADERA_EDRE_ENABLE,
 	   MADERA_EDRE_OUT1L_THR1_ENA_SHIFT,
 	   MADERA_EDRE_OUT1R_THR1_ENA_SHIFT, 1, 0),
@@ -505,6 +699,20 @@ MADERA_MUX_ENUMS(ISRC2DEC2, MADERA_ISRC2DEC2MIX_INPUT_1_SOURCE);
 MADERA_MUX_ENUMS(ISRC2DEC3, MADERA_ISRC2DEC3MIX_INPUT_1_SOURCE);
 MADERA_MUX_ENUMS(ISRC2DEC4, MADERA_ISRC2DEC4MIX_INPUT_1_SOURCE);
 
+static const char * const cs47l35_memory_mux_texts[] = {
+	"None",
+	"Shared Memory",
+};
+
+static const struct soc_enum cs47l35_memory_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(cs47l35_memory_mux_texts),
+			cs47l35_memory_mux_texts);
+
+static const struct snd_kcontrol_new cs47l35_memory_mux[] = {
+	SOC_DAPM_ENUM("DSP2 Virtual Input", cs47l35_memory_enum),
+	SOC_DAPM_ENUM("DSP3 Virtual Input", cs47l35_memory_enum),
+};
+
 static const char * const cs47l35_aec_loopback_texts[] = {
 	"HPOUT1L", "HPOUT1R", "SPKOUT", "SPKDAT1L", "SPKDAT1R",
 };
@@ -622,6 +830,8 @@ SND_SOC_DAPM_SUPPLY("PWMCLK", SND_SOC_NOPM,
 		    madera_domain_clk_ev,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
+SND_SOC_DAPM_SUPPLY("GPSW", MADERA_GP_SWITCH_1,
+		0, 0, NULL, 0),
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
 
@@ -631,11 +841,18 @@ SND_SOC_DAPM_INPUT("IN1BL"),
 SND_SOC_DAPM_INPUT("IN1BR"),
 SND_SOC_DAPM_INPUT("IN2L"),
 SND_SOC_DAPM_INPUT("IN2R"),
+SND_SOC_DAPM_INPUT("DSP Virtual Input"),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
-SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
+SND_SOC_DAPM_OUTPUT("DSP1 Trigger Out"),
+SND_SOC_DAPM_OUTPUT("DSP2 Trigger Out"),
+SND_SOC_DAPM_OUTPUT("DSP3 Trigger Out"),
+
+SND_SOC_DAPM_OUTPUT("DSP1 Virtual Output"),
+SND_SOC_DAPM_OUTPUT("DSP2 Virtual Output"),
+SND_SOC_DAPM_OUTPUT("DSP3 Virtual Output"),
 
 SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[0]),
 SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[1]),
@@ -916,6 +1133,11 @@ MADERA_DSP_WIDGETS(DSP1, "DSP1"),
 MADERA_DSP_WIDGETS(DSP2, "DSP2"),
 MADERA_DSP_WIDGETS(DSP3, "DSP3"),
 
+SND_SOC_DAPM_MUX("DSP2 Virtual Input", SND_SOC_NOPM, 0, 0,
+		      &cs47l35_memory_mux[0]),
+SND_SOC_DAPM_MUX("DSP3 Virtual Input", SND_SOC_NOPM, 0, 0,
+		      &cs47l35_memory_mux[1]),
+
 SND_SOC_DAPM_SWITCH("DSP1 Trigger Output", SND_SOC_NOPM, 0, 0,
 		    &madera_dsp_trigger_output_mux[0]),
 SND_SOC_DAPM_SWITCH("DSP2 Trigger Output", SND_SOC_NOPM, 0, 0,
@@ -1119,6 +1341,10 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	{ "IN2L", NULL, "SYSCLK" },
 	{ "IN2R", NULL, "SYSCLK" },
 
+	{ "DSP1", NULL, "DSPCLK"},
+	{ "DSP2", NULL, "DSPCLK"},
+	{ "DSP3", NULL, "DSPCLK"},
+
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 
@@ -1189,9 +1415,13 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	{ "Slim1 Capture", NULL, "SYSCLK" },
 	{ "Slim2 Capture", NULL, "SYSCLK" },
 
+	{ "Voice Control CPU", NULL, "Voice Control DSP" },
 	{ "Voice Control DSP", NULL, "DSP3" },
+	{ "Voice Control CPU", NULL, "SYSCLK" },
+	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
+	{ "Audio Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L Mux", "A", "IN1AL" },
 	{ "IN1L Mux", "B", "IN1BL" },
@@ -1257,13 +1487,35 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	MADERA_DSP_ROUTES("DSP2"),
 	MADERA_DSP_ROUTES("DSP3"),
 
-	{ "DSP Trigger Out", NULL, "DSP1 Trigger Output" },
-	{ "DSP Trigger Out", NULL, "DSP2 Trigger Output" },
-	{ "DSP Trigger Out", NULL, "DSP3 Trigger Output" },
+	{ "DSP2 Preloader", NULL, "DSP2 Virtual Input" },
+	{ "DSP2 Virtual Input", "Shared Memory", "DSP3" },
+	{ "DSP3 Preloader", NULL, "DSP3 Virtual Input" },
+	{ "DSP3 Virtual Input", "Shared Memory", "DSP2" },
+
+	{ "DSP1 Trigger Out", NULL, "SYSCLK" },
+	{ "DSP1 Trigger Out", NULL, "DSP1 Trigger Output" },
+	{ "DSP2 Trigger Out", NULL, "DSP2 Trigger Output" },
+	{ "DSP3 Trigger Out", NULL, "DSP3 Trigger Output" },
 
 	{ "DSP1 Trigger Output", "Switch", "DSP1" },
 	{ "DSP2 Trigger Output", "Switch", "DSP2" },
 	{ "DSP3 Trigger Output", "Switch", "DSP3" },
+
+	{ "DSP1 Preloader", NULL, "DSP Virtual Input" },
+	{ "DSP1 Trigger Out", NULL, "DSP1 Virtual Output" },
+	{ "DSP1 Virtual Output", NULL, "SYSCLK" },
+
+	{ "DSP2 Preloader", NULL, "DSP Virtual Input" },
+	{ "DSP2 Trigger Out", NULL, "DSP2 Virtual Output" },
+	{ "DSP2 Virtual Output", NULL, "SYSCLK" },
+
+	{ "DSP3 Preloader", NULL, "DSP Virtual Input" },
+	{ "DSP3 Trigger Out", NULL, "DSP3 Virtual Output" },
+	{ "DSP3 Virtual Output", NULL, "SYSCLK" },
+
+	{"LHPF1 Input 1", NULL, "DSP Virtual Input"},
+	{"LHPF2 Input 1", NULL, "DSP Virtual Input"},
+	{"LHPF3 Input 1", NULL, "DSP Virtual Input"},
 
 	MADERA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
 	MADERA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),
@@ -1485,6 +1737,69 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 			.formats = MADERA_FORMATS,
 		},
 	},
+	{
+		.name = "cs47l35-dsp1-cpu-txt",
+		.capture = {
+			.stream_name = "Text DSP1 CPU",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l35-dsp1-txt",
+		.capture = {
+			.stream_name = "Text DSP1",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
+		},
+	},
+	{
+		.name = "cs47l35-dsp2-cpu-txt",
+		.capture = {
+			.stream_name = "Text DSP2 CPU",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l35-dsp2-txt",
+		.capture = {
+			.stream_name = "Text DSP2",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
+		},
+	},
+	{
+		.name = "cs47l35-dsp3-cpu-txt",
+		.capture = {
+			.stream_name = "Text DSP3 CPU",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l35-dsp3-txt",
+		.capture = {
+			.stream_name = "Text DSP3",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
+		},
+	},
 };
 
 static int cs47l35_open(struct snd_compr_stream *stream)
@@ -1495,15 +1810,30 @@ static int cs47l35_open(struct snd_compr_stream *stream)
 	struct madera *madera = priv->madera;
 	int n_adsp, channel;
 
-	channel = 0;
 	dev_dbg(madera->dev,
 			"Open compr stream '%s' for DAI %d '%s'\n",
 			stream->name, rtd->codec_dai->id, rtd->codec_dai->name);
 
 	if (strcmp(rtd->codec_dai->name, "cs47l35-dsp-voicectrl") == 0) {
+	/* DSP 3 channel 1 */
 		n_adsp = 2;
+		channel = 0;
 	} else if (strcmp(rtd->codec_dai->name, "cs47l35-dsp-trace") == 0) {
+	/* DSP 1 channel 1 */
 		n_adsp = 0;
+		channel = 0;
+	} else if (strcmp(rtd->codec_dai->name, "cs47l35-dsp1-txt") == 0) {
+	/* DSP 1 channel 2 */
+		n_adsp = 0;
+		channel = 1;
+	} else if (strcmp(rtd->codec_dai->name, "cs47l35-dsp3-txt") == 0) {
+	/* DSP 3 channel 2 */
+		n_adsp = 2;
+		channel = 1;
+	} else if (strcmp(rtd->codec_dai->name, "cs47l35-dsp2-txt") == 0) {
+	/* DSP 2 channel 1 */
+		n_adsp = 1;
+		channel = 0;
 	} else {
 		dev_err(madera->dev,
 			"No suitable compressed stream for DAI '%s'\n",
@@ -1514,25 +1844,101 @@ static int cs47l35_open(struct snd_compr_stream *stream)
 	return wm_adsp_compr_open(&priv->adsp[n_adsp], stream, channel);
 }
 
+static int cs47l35_panic_check(struct cs47l35 *cs47l35, int dev, int *reg)
+{
+	struct madera_priv *priv = &cs47l35->core;
+	struct madera *madera = priv->madera;
+	unsigned int val, scratch1;
+	struct madera_voice_trigger_info trig_info;
+
+	*reg = MADERA_DSP1_SCRATCH_1 + (0x80000 * dev);
+	regmap_read(madera->regmap_32bit, *reg, &val);
+
+	val = val >> 16;
+	if ((val & 0x3fff) == 0)
+		return val;
+
+	dev_err(madera->dev, "DSP%d Panic %x\n", dev, val);
+
+	scratch1 = val;
+	memset(trig_info.err_msg, 0, sizeof(trig_info.err_msg));
+
+	regmap_read(madera->regmap_32bit, *reg, &val);
+	trig_info.err_msg[1] = (u16)val;
+	trig_info.err_msg[0] = (u16)(val >> 16);
+
+	regmap_read(madera->regmap_32bit, *reg+2, &val);
+	trig_info.err_msg[2] = (u16)val;
+	trig_info.err_msg[3] = (u16)(val >> 16);
+
+
+	/* Panic callback */
+	trig_info.core_num = dev;
+	trig_info.code = MADERA_TRIGGER_PANIC;
+	madera_call_notifiers(madera,
+			      MADERA_NOTIFY_VOICE_TRIGGER,
+			      &trig_info);
+
+	/* Clean panic field */
+	scratch1 &= 0xc000;
+	regmap_write(madera->regmap_32bit, *reg, (scratch1<<16));
+
+	return scratch1;
+}
+
+static int cs47l35_text_event(struct cs47l35 *cs47l35, int dev)
+{
+	struct madera_priv *priv = &cs47l35->core;
+	struct madera *madera = priv->madera;
+
+	dev_dbg(madera->dev, "DSP%d Text event\n", dev);
+	return 0;
+}
+
 static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 {
 	struct cs47l35 *cs47l35 = data;
 	struct madera_priv *priv = &cs47l35->core;
 	struct madera *madera = priv->madera;
 	struct madera_voice_trigger_info trig_info;
+	int i, scratch_reg, reg, ret;
 	int serviced = 0, channel = 0;
-	int i, ret;
 
-	for (i = 0; i < CS47L35_NUM_ADSP; ++i) {
-		ret = wm_adsp_compr_handle_irq(&priv->adsp[i], channel);
-		if (ret != -ENODEV)
-			serviced++;
-		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
-			trig_info.core_num = i + 1;
+	for (i = 0; i < CS47L35_NUM_ADSP; i++) {
+
+		scratch_reg = cs47l35_panic_check(cs47l35, i, &reg);
+		dev_dbg(madera->dev, "dsp %d, scratch_reg %x\n", i, scratch_reg);
+		if ((scratch_reg & 0x3fff) == 0) {
+			if (scratch_reg & 0x4000) {
+				/* Clear code bit */
+				scratch_reg &= 0xbfff;
+				scratch_reg = scratch_reg << 16;
+				regmap_write(madera->regmap_32bit, reg,
+					scratch_reg);
+			trig_info.core_num = i;
+			trig_info.code = MADERA_TRIGGER_VOICE;
 			madera_call_notifiers(madera,
 					      MADERA_NOTIFY_VOICE_TRIGGER,
 					      &trig_info);
+			channel = 0;
+			dev_dbg(madera->dev, "Call AOV voice trigger notifier\n");
+			}
+
+			/* Text interrupt */
+			if (scratch_reg & 0x8000) {
+				/* Clear event bit */
+				scratch_reg &= 0x7fff;
+				scratch_reg = scratch_reg << 16;
+				regmap_write(madera->regmap_32bit, reg,
+					scratch_reg);
+				dev_dbg(madera->dev, "Calling Text Callback\n");
+				cs47l35_text_event(cs47l35, i);
+				channel = 1;
+			}
 		}
+		ret = wm_adsp_compr_handle_irq(&priv->adsp[i], channel);
+		if (ret != -ENODEV)
+			serviced++;
 	}
 
 	if (!serviced) {
@@ -1584,15 +1990,20 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
+
+
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_codec_probe(&cs47l35->core.adsp[i], codec);
-
+#if IS_ENABLED(CONFIG_SND_SOC_AOV_TRIGGER)
+	aov_trigger_register_notifier(codec);
+#endif
 	return 0;
 }
 
 static int cs47l35_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cs47l35 *cs47l35 = snd_soc_codec_get_drvdata(codec);
+
 	int i;
 
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
@@ -1662,6 +2073,10 @@ static int cs47l35_probe(struct platform_device *pdev)
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs47l35_dai) > MADERA_MAX_DAI);
 
+	/* FX Rate has the largest number of sources */
+	BUILD_BUG_ON(ARRAY_SIZE(cs47l35->core.mixer_sources_cache) <
+		     ARRAY_SIZE(cs47l35_fx_inputs));
+
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
 		dev_dbg(&pdev->dev, "irqchip driver not ready\n");
@@ -1681,6 +2096,7 @@ static int cs47l35_probe(struct platform_device *pdev)
 	cs47l35->core.madera = madera;
 	cs47l35->core.dev = &pdev->dev;
 	cs47l35->core.num_inputs = 4;
+	cs47l35->core.get_sources = cs47l35_get_sources;
 
 	ret = madera_core_init(&cs47l35->core);
 	if (ret)
