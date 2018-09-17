@@ -168,6 +168,8 @@ struct madera {
 
 	struct snd_soc_dapm_context *dapm;
 
+	struct mutex reg_setting_lock;
+
 	struct blocking_notifier_head notifier;
 };
 
