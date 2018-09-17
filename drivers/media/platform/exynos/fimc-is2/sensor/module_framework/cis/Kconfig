@@ -324,6 +324,14 @@ config CAMERA_CIS_2X5SP_OBJ
 		help
 		  Use to build 2X5SP camera sensor.
 
+config CAMERA_CIS_GM1SP_OBJ
+		bool "Use GM1SP camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build GM1SP camera sensor.
+
 config CAMERA_CIS_VIRTUAL_OBJ
 		bool "Use VIRTUAL camera cis"
 	depends on USE_DIRECT_IS_CONTROL
