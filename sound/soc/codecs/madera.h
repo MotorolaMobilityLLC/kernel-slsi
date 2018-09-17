@@ -106,17 +106,28 @@
 #define MADERA_DOM_GRP_DFC		28
 #define MADERA_N_DOM_GRPS		29
 
-#define MADERA_MAX_DAI			11
+#define MADERA_MAX_DAI			17
 #define MADERA_MAX_ADSP			7
 
+#define MADERA_MAX_AIF_SOURCES		32
+#define MADERA_MAX_MIXER_SOURCES	48
 #define MADERA_NUM_MIXER_INPUTS		148
+
+#define MADERA_FRF_COEFFICIENT_LEN	4
 
 struct madera;
 struct wm_adsp;
-
+/* Voice trigger event codes */
+enum {
+	MADERA_TRIGGER_VOICE,
+	MADERA_TRIGGER_TEXT,
+	MADERA_TRIGGER_PANIC
+};
 struct madera_voice_trigger_info {
 	/** Which core triggered, 1-based (1 = DSP1, ...) */
 	int core_num;
+	int code;
+	u16 err_msg[4];
 };
 
 struct madera_dai_priv {
@@ -150,6 +161,18 @@ struct madera_priv {
 	int tdm_slots[MADERA_MAX_AIF];
 
 	int domain_group_ref[MADERA_N_DOM_GRPS];
+	unsigned int aif_sources_cache[MADERA_MAX_AIF_SOURCES];
+	unsigned int mixer_sources_cache[MADERA_MAX_MIXER_SOURCES];
+
+	int (*get_sources)(unsigned int reg, const unsigned int **cur_sources,
+			   int *lim);
+
+
+	u32 rx1_samplerate;
+	u32 rx1_sampleszbits;
+	u32 rx2_samplerate;
+	u32 rx2_sampleszbits;
+
 };
 
 struct madera_fll_cfg {
@@ -318,6 +341,29 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	((unsigned long)&(struct soc_bytes) { .base = xbase,	\
 	 .num_regs = 1 }) }
 
+#define MADERA_FRF_BYTES(xname, xbase, xregs)			\
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get,	\
+	.put = madera_frf_bytes_put, .private_value =		\
+	((unsigned long)&(struct soc_bytes) {.base = xbase,	\
+	 .num_regs = xregs }) }
+
+/* 2 mixer inputs with a stride of n in the register address */
+#define MADERA_MIXER_INPUTS_2_N(_reg, n)	\
+	(_reg),					\
+	(_reg) + (1 * (n))
+
+/* 4 mixer inputs with a stride of n in the register address */
+#define MADERA_MIXER_INPUTS_4_N(_reg, n)		\
+	MADERA_MIXER_INPUTS_2_N(_reg, n),		\
+	MADERA_MIXER_INPUTS_2_N(_reg + (2 * n), n)
+
+#define MADERA_DSP_MIXER_INPUTS(_reg) 		\
+	MADERA_MIXER_INPUTS_4_N(_reg, 2),	\
+	MADERA_MIXER_INPUTS_4_N(_reg + 8, 2),	\
+	MADERA_MIXER_INPUTS_4_N(_reg + 16, 8),	\
+	MADERA_MIXER_INPUTS_2_N(_reg + 48, 8)
+
 #define MADERA_RATES SNDRV_PCM_RATE_KNOT
 
 #define MADERA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -430,6 +476,9 @@ int madera_adsp_rate_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol);
 int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol);
+extern int madera_frf_bytes_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+				
 int madera_set_adsp_clk(struct madera_priv *priv, int dsp_num,
 			unsigned int freq);
 
