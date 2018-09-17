@@ -31,10 +31,12 @@
 #ifdef CONFIG_SCSC_SMAPPER
 #include "mifsmapper.h"
 #endif
+#ifdef CONFIG_SCSC_QOS
 #include "mifqos.h"
+#endif
 #include <scsc/kic/slsi_kic_lib.h>
 #include <scsc/scsc_release.h>
-#include "scsc_mx.h"
+#include <scsc/scsc_mx.h>
 #include <linux/fs.h>
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 #include <scsc/scsc_log_collector.h>
@@ -47,6 +49,9 @@
 #define SCSC_SCRIPT_LOGGER_DUMP	"mx_logger_dump.sh"
 static struct work_struct	wlbtd_work;
 #endif
+
+#include <asm/page.h>
+#include <scsc/api/bt_audio.h>
 
 #define STRING_BUFFER_MAX_LENGTH 512
 #define NUMBER_OF_STRING_ARGS	5
@@ -159,6 +164,13 @@ MODULE_PARM_DESC(disable_logger, "Disable launch of user space logger");
 /* Track when WLBT reset fails to allow debug */
 bool reset_failed;
 static u64 reset_failed_time;
+
+/* Status of FM driver request, which persists beyond the lifecyle
+ * of the scsx_mx driver.
+ */
+#ifdef CONFIG_SCSC_FM
+static u32 is_fm_on;
+#endif
 
 static int firmware_runtime_flags;
 /**
@@ -604,6 +616,15 @@ static int transports_init(struct mxman *mxman)
 	mxconf->magic = MXCONF_MAGIC;
 	mxconf->version.major = MXCONF_VERSION_MAJOR;
 	mxconf->version.minor = MXCONF_VERSION_MINOR;
+
+	/* Pass pre-existing FM status to FW */
+#if (MXCONF_VERSION_MINOR >= 3)
+	mxconf->flags = 0;
+#ifdef CONFIG_SCSC_FM
+	mxconf->flags |= is_fm_on ? MXCONF_FLAGS_FM_ON : 0;
+#endif
+	SCSC_TAG_INFO(MXMAN, "mxconf flags 0x%08x\n", mxconf->flags);
+#endif
 	/* serialise mxmgmt transport */
 	mxmgmt_transport_config_serialise(scsc_mx_get_mxmgmt_transport(mx), &mxconf->mx_trans_conf);
 	/* serialise Cortex-R4 gdb transport */
@@ -854,11 +875,16 @@ static int mxman_start(struct mxman *mxman)
 	start_mifram_heap = (char *)start_dram + fwhdr->fw_runtime_length;
 	length_mifram_heap = MX_DRAM_SIZE_SECTION_1 - fwhdr->fw_runtime_length;
 
+
 	start_mifram_heap2 = (char *)start_dram + MX_DRAM_SIZE_SECTION_2;
-	length_mifram_heap2 = MX_DRAM_SIZE_SECTION_2;
+
+	/* ABox reserved at end so adjust length - round to multiple of PAGE_SIZE */
+	length_mifram_heap2 = MX_DRAM_SIZE_SECTION_2 -
+			((sizeof(struct scsc_bt_audio_abox) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
 
 	miframman_init(scsc_mx_get_ramman(mxman->mx), start_mifram_heap, length_mifram_heap);
 	miframman_init(scsc_mx_get_ramman2(mxman->mx), start_mifram_heap2, length_mifram_heap2);
+	miframabox_init(scsc_mx_get_aboxram(mxman->mx), start_mifram_heap2 + length_mifram_heap2);
 	mifmboxman_init(scsc_mx_get_mboxman(mxman->mx));
 	mifintrbit_init(scsc_mx_get_intrbit(mxman->mx), mif);
 
@@ -870,11 +896,14 @@ static int mxman_start(struct mxman *mxman)
 		mifintrbit_deinit(scsc_mx_get_intrbit(mxman->mx));
 		miframman_deinit(scsc_mx_get_ramman(mxman->mx));
 		miframman_deinit(scsc_mx_get_ramman2(mxman->mx));
+		miframabox_deinit(scsc_mx_get_aboxram(mxman->mx));
 		mifmboxman_deinit(scsc_mx_get_mboxman(mxman->mx));
 #ifdef CONFIG_SCSC_SMAPPER
 		mifsmapper_deinit(scsc_mx_get_smapper(mxman->mx));
 #endif
+#ifdef CONFIG_SCSC_QOS
 		mifqos_deinit(scsc_mx_get_qos(mxman->mx));
+#endif
 		/* Release the MIF memory resources */
 		mif->unmap(mif, mxman->start_dram);
 		return r;
@@ -882,8 +911,9 @@ static int mxman_start(struct mxman *mxman)
 	mbox_init(mxman, fwhdr->firmware_entry_point);
 	init_completion(&mxman->mm_msg_start_ind_completion);
 	init_completion(&mxman->mm_msg_halt_rsp_completion);
-	mxmgmt_transport_register_channel_handler(scsc_mx_get_mxmgmt_transport(mxman->mx), MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT,
-						  &mxman_message_handler, mxman);
+	mxmgmt_transport_register_channel_handler(scsc_mx_get_mxmgmt_transport(mxman->mx),
+						MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT,
+						&mxman_message_handler, mxman);
 
 	mxlog_init(scsc_mx_get_mxlog(mxman->mx), mxman->mx, mxman->fw_build_id);
 #ifdef CONFIG_SCSC_MXLOGGER
@@ -893,7 +923,9 @@ static int mxman_start(struct mxman *mxman)
 	/* Initialize SMAPPER */
 	mifsmapper_init(scsc_mx_get_smapper(mxman->mx), mif);
 #endif
+#ifdef CONFIG_SCSC_QOS
 	mifqos_init(scsc_mx_get_qos(mxman->mx), mif);
+#endif
 
 #ifdef CONFIG_SCSC_CHV_SUPPORT
 	if (chv_run) {
@@ -1095,6 +1127,7 @@ void mxman_show_last_panic(struct mxman *mxman)
 	print_panic_code(mxman->scsc_panic_code);
 
 	SCSC_TAG_INFO(MXMAN, "Reason: '%s'\n", mxman->failure_reason[0] ? mxman->failure_reason : "<null>");
+	SCSC_TAG_INFO(MXMAN, "Auto-recovery: %s\n", disable_recovery_handling ? "off" : "on");
 
 	if (disable_recovery_handling) {
 		/* Labour the point that a reboot is needed when autorecovery is disabled */
@@ -1200,8 +1233,11 @@ static void mxman_failure_work(struct work_struct *work)
 	struct srvman *srvman;
 	struct scsc_mx *mx = mxman->mx;
 	struct scsc_mif_abs *mif = scsc_mx_get_mif_abs(mxman->mx);
+	int used = 0, r = 0;
 
+#ifdef CONFIG_ANDROID
 	wake_lock(&mxman->recovery_wake_lock);
+#endif
 
 	slsi_kic_system_event(slsi_kic_system_event_category_error,
 			      slsi_kic_system_events_subsystem_crashed, GFP_KERNEL);
@@ -1215,7 +1251,9 @@ static void mxman_failure_work(struct work_struct *work)
 
 	if (mxman->mxman_state != MXMAN_STATE_STARTED && mxman->mxman_state != MXMAN_STATE_STARTING) {
 		SCSC_TAG_WARNING(MXMAN, "Not in started state: mxman->mxman_state=%d\n", mxman->mxman_state);
+#ifdef CONFIG_ANDROID
 		wake_unlock(&mxman->recovery_wake_lock);
+#endif
 		mutex_unlock(&mxman->mxman_mutex);
 		return;
 	}
@@ -1241,7 +1279,9 @@ static void mxman_failure_work(struct work_struct *work)
 		WARN_ON(mxman->mxman_state != MXMAN_STATE_FAILED
 			&& mxman->mxman_state != MXMAN_STATE_FREEZED);
 		SCSC_TAG_ERR(MXMAN, "Bad state=%d\n", mxman->mxman_state);
+#ifdef CONFIG_ANDROID
 		wake_unlock(&mxman->recovery_wake_lock);
+#endif
 		mutex_unlock(&mxman->mxman_mutex);
 		return;
 	}
@@ -1260,6 +1300,7 @@ static void mxman_failure_work(struct work_struct *work)
 			SCSC_RELEASE_ITERATION,
 			SCSC_RELEASE_CANDIDATE,
 			SCSC_RELEASE_POINT);
+		SCSC_TAG_INFO(MXMAN, "Auto-recovery: %s\n", mxman_recovery_disabled() ? "off" : "on");
 #ifdef CONFIG_SCSC_WLBTD
 		scsc_wlbtd_get_and_print_build_type();
 #endif
@@ -1281,8 +1322,6 @@ static void mxman_failure_work(struct work_struct *work)
 				      MAX_UHELP_TMO_MS);
 			/* Waits for the usermode_helper subsytem to be re-enabled. */
 			if (usermodehelper_read_lock_wait(msecs_to_jiffies(MAX_UHELP_TMO_MS))) {
-				int used, r;
-
 				/**
 				 * Release immediately the rwsem on usermode_helper
 				 * enabled since we anyway already hold a wakelock here
@@ -1348,6 +1387,7 @@ static void mxman_failure_work(struct work_struct *work)
 		if (mif->mif_cleanup && mxman_recovery_disabled())
 			mif->mif_cleanup(mif);
 	}
+	SCSC_TAG_INFO(MXMAN, "Auto-recovery: %s\n", mxman_recovery_disabled() ? "off" : "on");
 
 	if (!mxman_recovery_disabled())
 		srvman_clear_error(srvman);
@@ -1367,7 +1407,9 @@ static void mxman_failure_work(struct work_struct *work)
 	if (mxman_recovery_disabled())
 		complete(&mxman->recovery_completion);
 
+#ifdef CONFIG_ANDROID
 	wake_unlock(&mxman->recovery_wake_lock);
+#endif
 }
 
 static void failure_wq_init(struct mxman *mxman)
@@ -1469,6 +1511,7 @@ static int __mxman_open(struct mxman *mxman)
 		SCSC_TAG_INFO(MXMAN, "Reason: '%s'\n", mxman->failure_reason[0] ? mxman->failure_reason : "<null>");
 		print_panic_code(mxman->scsc_panic_code);
 	}
+	SCSC_TAG_INFO(MXMAN, "Auto-recovery: %s\n", mxman_recovery_disabled() ? "off" : "on");
 	srvman = scsc_mx_get_srvman(mxman->mx);
 	if (srvman && srvman->error) {
 		mutex_unlock(&mxman->mxman_mutex);
@@ -1610,11 +1653,14 @@ static void mxman_stop(struct mxman *mxman)
 	mifintrbit_deinit(scsc_mx_get_intrbit(mxman->mx));
 	miframman_deinit(scsc_mx_get_ramman(mxman->mx));
 	miframman_deinit(scsc_mx_get_ramman2(mxman->mx));
+	miframabox_deinit(scsc_mx_get_aboxram(mxman->mx));
 	mifmboxman_deinit(scsc_mx_get_mboxman(mxman->mx));
 #ifdef CONFIG_SCSC_SMAPPER
 	mifsmapper_deinit(scsc_mx_get_smapper(mxman->mx));
 #endif
+#ifdef CONFIG_SCSC_QOS
 	mifqos_deinit(scsc_mx_get_qos(mxman->mx));
+#endif
 	/* Release the MIF memory resources */
 	mif->unmap(mif, mxman->start_dram);
 }
@@ -1673,6 +1719,12 @@ void mxman_close(struct mxman *mxman)
 			mutex_unlock(&mxman->mxman_mutex);
 			return;
 		}
+#ifdef CONFIG_SCSC_MXLOGGER
+		/**
+		 * Deinit mxlogger on last service stop...BUT before asking for HALT
+		 */
+		mxlogger_deinit(mxman->mx, scsc_mx_get_mxlogger(mxman->mx));
+#endif
 
 		mxman_stop(mxman);
 		mxman->mxman_state = MXMAN_STATE_STOPPED;
@@ -1727,7 +1779,9 @@ void mxman_init(struct mxman *mxman, struct scsc_mx *mx)
 #endif
 	mutex_init(&mxman->mxman_mutex);
 	init_completion(&mxman->recovery_completion);
+#ifdef CONFIG_ANDROID
 	wake_lock_init(&mxman->recovery_wake_lock, WAKE_LOCK_SUSPEND, "mxman_recovery");
+#endif
 
 	/* set the initial state */
 	mxman->mxman_state = MXMAN_STATE_STOPPED;
@@ -1747,7 +1801,9 @@ void mxman_deinit(struct mxman *mxman)
 #ifdef CONFIG_SCSC_WLBTD
 	wlbtd_wq_deinit(mxman);
 #endif
+#ifdef CONFIG_ANDROID
 	wake_lock_destroy(&mxman->recovery_wake_lock);
+#endif
 	mutex_destroy(&mxman->mxman_mutex);
 }
 
@@ -1814,11 +1870,29 @@ int mxman_suspend(struct mxman *mxman)
 void mxman_on_halt_ldos_on(struct mxman *mxman)
 {
 	mxman->on_halt_ldos_on = 1;
+
+	/* FM status to pass into FW at next FW init,
+	 * by which time driver context is lost.
+	 * This is required, because now WLBT gates
+	 * LDOs with TCXO instead of leaving them
+	 * always on, to save power in deep sleep.
+	 * FM, however, needs them always on. So
+	 * we need to know when to leave the LDOs
+	 * alone at WLBT boot.
+	 */
+	is_fm_on = 1;
 }
 
 void mxman_on_halt_ldos_off(struct mxman *mxman)
 {
+	/* Newer FW no longer need set shared LDOs
+	 * always-off at WLBT halt, as TCXO gating
+	 * has the same effect. But pass the "off"
+	 * request for backwards compatibility
+	 * with old FW.
+	 */
 	mxman->on_halt_ldos_on = 0;
+	is_fm_on = 0;
 }
 #endif
 
@@ -1988,8 +2062,6 @@ int mx140_log_dump(void)
 	}
 # endif /* CONFIG_SCSC_WLBTD */
 	return r;
-
-
 #else
 	return 0;
 #endif
@@ -2012,7 +2084,7 @@ EXPORT_SYMBOL(mxman_recovery_disabled);
 void mxman_get_fw_version(char *version, size_t ver_sz)
 {
 	/* unavailable only if chip not probed ! */
-	snprintf(version, ver_sz - 1, "%s", saved_fw_build_id);
+	snprintf(version, ver_sz, "%s", saved_fw_build_id);
 }
 EXPORT_SYMBOL(mxman_get_fw_version);
 
@@ -2020,7 +2092,7 @@ void mxman_get_driver_version(char *version, size_t ver_sz)
 {
 	/* IMPORTANT - Do not change the formatting as User space tooling is parsing the string
 	* to read SAP fapi versions. */
-	snprintf(version, ver_sz - 1, "drv_ver: %u.%u.%u.%u",
+	snprintf(version, ver_sz, "drv_ver: %u.%u.%u.%u",
 		 SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT);
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_get_and_print_build_type();

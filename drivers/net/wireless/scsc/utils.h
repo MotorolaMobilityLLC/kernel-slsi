@@ -13,8 +13,8 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <net/cfg80211.h>
-#include <netif.h>
 
+#include "netif.h"
 #include "wakelock.h"
 #ifdef CONFIG_SCSC_SMAPPER
 struct slsi_skb_cb {

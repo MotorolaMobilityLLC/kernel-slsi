@@ -7,7 +7,9 @@
 #ifndef _SRVMAN_H
 #define _SRVMAN_H
 
+#ifdef CONFIG_ANDROID
 #include <linux/wakelock.h>
+#endif
 
 struct srvman;
 
@@ -26,7 +28,9 @@ struct srvman {
 	struct mutex     service_list_mutex;
 	struct mutex     api_access_mutex;
 	bool             error;
+#ifdef CONFIG_ANDROID
 	struct wake_lock sm_wake_lock;
+#endif
 };
 
 

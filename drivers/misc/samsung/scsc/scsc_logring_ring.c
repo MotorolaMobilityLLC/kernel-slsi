@@ -364,7 +364,7 @@ int push_record_string(struct scsc_ring_buffer *rb, int tag, int lev,
 	rec_len = tag_writer_string(rb->spare, tag, lev, prepend_header,
 				    msg_head, args);
 	/* Line too long anyway drop */
-	if (rec_len == BASE_SPARE_SZ) {
+	if (rec_len >= BASE_SPARE_SZ - SCSC_RINGREC_SZ) {
 		raw_spin_unlock_irqrestore(&rb->lock, flags);
 		return 0;
 	}

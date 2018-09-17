@@ -265,7 +265,7 @@ void hip4_sampler_update_record(u32 minor, u8 param1, u8 param2, u8 param3, u8 p
 	struct hip4_sampler_dev *hip4_dev;
 	unsigned long flags;
 
-	if (!hip4_sampler_enable)
+	if (!hip4_sampler_enable || !hip4_sampler.init)
 		return;
 
 	if (atomic_read(&in_read))
@@ -451,19 +451,17 @@ void hip4_sampler_tcp_decode(struct slsi_dev *sdev, struct net_device *dev, u8 *
 		if ((tcp_ack->dport == tcp_hdr->source) && (tcp_ack->sport == tcp_hdr->dest)) {
 			if (from_ba && tcp_hdr->syn && tcp_hdr->ack) {
 				unsigned char *options;
-				u32 optlen, len = 0;
+				u32 optlen = 0, len = 0;
 
-				optlen = (tcp_hdr->doff - 5) * 4;
-				if (optlen > 60) {
-					SLSI_WARN(sdev, "Error optlen : %u\n", optlen);
-					optlen = 60;
-				}
+				if (tcp_hdr->doff > 5)
+					optlen = (tcp_hdr->doff - 5) * 4;
 
 				options = (u8 *)tcp_hdr + TCP_ACK_SUPPRESSION_OPTIONS_OFFSET;
 
 				while (optlen > 0) {
 					switch (options[0]) {
 					case TCP_ACK_SUPPRESSION_OPTION_EOL:
+						len = 1;
 						break;
 					case TCP_ACK_SUPPRESSION_OPTION_NOP:
 						len = 1;
@@ -476,8 +474,10 @@ void hip4_sampler_tcp_decode(struct slsi_dev *sdev, struct net_device *dev, u8 *
 						len = options[1];
 						break;
 					}
-					/* if length field in TCP options is 0, then options are bogus; return here */
-					if (len == 0)
+					/* if length field in TCP options is 0, or greater than
+					 * total options length, then options are incorrect
+					 */
+					if ((len == 0) || (len >= optlen))
 						break;
 
 					if (optlen >= len)
@@ -898,6 +898,7 @@ void hip4_sampler_create(struct slsi_dev *sdev, struct scsc_mx *mx)
 	hip4_collect_client.prv = mx;
 	scsc_log_collector_register_client(&hip4_collect_client);
 #endif
+	spin_lock_init(&g_spinlock);
 	hip4_sampler.init = true;
 
 	SLSI_INFO_NODEV("%s: Ready to start sampling....\n", DRV_NAME);

@@ -320,6 +320,11 @@ int hip4_smapper_init(struct slsi_dev *sdev, struct slsi_hip4 *hip)
 	if (dma_set_mask_and_coherent(sdev->dev, DMA_BIT_MASK(64)) != 0)
 		return -EIO;
 
+	if (!scsc_mx_service_alloc_mboxes(sdev->service, 1, &control->mbox_scb)) {
+		SLSI_DBG4_NODEV(SLSI_SMAPPER, "Unable to allocate mbox\n");
+		return -ENODEV;
+	}
+
 	/* Claim the RX buffers */
 	hip4_smapper_alloc_bank(sdev, hip->hip_priv, RX_0, SMAPPER_GRANULARITY, HIP4_SMAPPER_BANK_LARGE);
 	hip4_smapper_alloc_bank(sdev, hip->hip_priv, RX_1, SMAPPER_GRANULARITY, HIP4_SMAPPER_BANK_LARGE);
@@ -331,13 +336,12 @@ int hip4_smapper_init(struct slsi_dev *sdev, struct slsi_hip4 *hip)
 	hip4_smapper_allocate_skb_buffers(sdev, &hip->hip_priv->smapper_banks[RX_2]);
 	hip4_smapper_allocate_skb_buffers(sdev, &hip->hip_priv->smapper_banks[RX_3]);
 
-	/* Allocate Maxwell resources - TODO: remove the emul */
+	/* Allocate Maxwell resources */
 	control->th_req =
 		scsc_service_mifintrbit_register_tohost(sdev->service, hip4_smapper_refill_isr, hip);
 	control->fh_ind =
 		scsc_service_mifintrbit_alloc_fromhost(sdev->service, SCSC_MIFINTR_TARGET_R4);
 
-	scsc_mx_service_alloc_mboxes(sdev->service, 1, &control->mbox_scb);
 	control->mbox_ptr =
 		scsc_mx_service_get_mbox_ptr(sdev->service, control->mbox_scb);
 
@@ -379,9 +383,6 @@ void hip4_smapper_deinit(struct slsi_dev *sdev, struct slsi_hip4 *hip)
 	control = &(hip->hip_priv->smapper_control);
 
 	spin_lock_irqsave(&control->smapper_lock, flags);
-	scsc_service_mifintrbit_unregister_tohost(sdev->service, control->th_req);
-	scsc_service_mifintrbit_free_fromhost(sdev->service, control->fh_ind, SCSC_MIFINTR_TARGET_R4);
-
 	for (i = RX_0; i < END_RX_BANKS; i++) {
 		bank = &hip->hip_priv->smapper_banks[i];
 		bank->in_use = false;
@@ -391,4 +392,9 @@ void hip4_smapper_deinit(struct slsi_dev *sdev, struct slsi_hip4 *hip)
 		scsc_service_mifsmapper_free_bank(sdev->service, bank->bank);
 	}
 	spin_unlock_irqrestore(&control->smapper_lock, flags);
+
+	scsc_service_mifintrbit_unregister_tohost(sdev->service, control->th_req);
+	scsc_service_mifintrbit_free_fromhost(sdev->service, control->fh_ind, SCSC_MIFINTR_TARGET_R4);
+	scsc_service_free_mboxes(sdev->service, 1, control->mbox_scb);
+
 }

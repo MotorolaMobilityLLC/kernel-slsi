@@ -14,7 +14,6 @@
 #include "hip4_sampler.h"
 #endif
 
-#include "../scsc/scsc_mx_impl.h" /* TODO */
 #include <scsc/scsc_mx.h>
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 #include <scsc/scsc_log_collector.h>
@@ -185,7 +184,7 @@ void slsi_wlan_service_probe(struct scsc_mx_module_client *module_client, struct
 		mx_wlan_client.suspend           = wlan_suspend;
 		mx_wlan_client.resume            = wlan_resume;
 
-		dev = scsc_mx_get_device(mx);
+		dev = scsc_service_get_device_by_mx(mx);
 
 		/* The mutex must be released at this point since the attach
 		 * process may call various functions including

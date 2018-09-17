@@ -42,6 +42,9 @@ static int sap_test_version_supported(u16 version)
 
 static int sap_test_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 {
+	if (slsi_rx_blocking_signals(sdev, skb) == 0)
+		return 0;
+
 	SLSI_INFO_NODEV("TEST SAP not implemented\n");
 	/* Silently consume the skb */
 	slsi_kfree_skb(skb);

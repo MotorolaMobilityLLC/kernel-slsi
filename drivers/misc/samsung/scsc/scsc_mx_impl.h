@@ -27,11 +27,14 @@ struct mifintrbit       *scsc_mx_get_intrbit(struct scsc_mx *mx);
 struct mifmuxman        *scsc_mx_get_muxman(struct scsc_mx *mx);
 struct miframman        *scsc_mx_get_ramman(struct scsc_mx *mx);
 struct miframman        *scsc_mx_get_ramman2(struct scsc_mx *mx);
+struct mifabox          *scsc_mx_get_aboxram(struct scsc_mx *mx);
 struct mifmboxman       *scsc_mx_get_mboxman(struct scsc_mx *mx);
 #ifdef CONFIG_SCSC_SMAPPER
 struct mifsmapper       *scsc_mx_get_smapper(struct scsc_mx *mx);
 #endif
+#ifdef CONFIG_SCSC_QOS
 struct mifqos           *scsc_mx_get_qos(struct scsc_mx *mx);
+#endif
 struct device           *scsc_mx_get_device(struct scsc_mx *mx);
 struct mxman            *scsc_mx_get_mxman(struct scsc_mx *mx);
 struct srvman           *scsc_mx_get_srvman(struct scsc_mx *mx);
