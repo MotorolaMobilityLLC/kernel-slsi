@@ -1325,7 +1325,6 @@ struct mfc_dec {
 	unsigned long remained_size;
 	dma_addr_t y_addr_for_pb;
 
-	enum v4l2_memory dst_memtype;
 	int sei_parse;
 
 	int cr_left, cr_right, cr_top, cr_bot;
