@@ -4950,6 +4950,35 @@ int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 		return 0;
 }
 EXPORT_SYMBOL_GPL(madera_set_output_mode);
+int madera_frf_bytes_put(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_bytes *params = (void *)kcontrol->private_value;
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct madera *madera = priv->madera;
+	int ret, len;
+	void *data;
+
+	len = params->num_regs * component->val_bytes;
+
+	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
+	if (!data)
+		return -ENOMEM;
+
+	mutex_lock(&madera->reg_setting_lock);
+	regmap_write(madera->regmap, 0x80, 0x3);
+
+	ret = regmap_raw_write(madera->regmap, params->base, data, len);
+
+	regmap_write(madera->regmap, 0x80, 0x0);
+	mutex_unlock(&madera->reg_setting_lock);
+
+	kfree(data);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(madera_frf_bytes_put);
 
 static bool madera_eq_filter_unstable(bool mode, __be16 _a, __be16 _b)
 {
