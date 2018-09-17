@@ -3410,11 +3410,6 @@ static void wm_halo_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err;
 
-	/* Sync set controls */
-	ret = wm_coeff_sync_controls(dsp);
-	if (ret != 0)
-		goto err;
-
 	dsp->booted = true;
 
 err:
@@ -3464,6 +3459,8 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	char preload[32];
 
+	if (!dsp->suffix)
+		dsp->suffix = "";
 	if (codec->component.name_prefix)
 		snprintf(preload, ARRAY_SIZE(preload), "%s DSP%u%s Preload",
 			codec->component.name_prefix, mc->shift, dsp->suffix);
@@ -3724,6 +3721,11 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 			return ret;
 		}
 
+		/* Sync set controls */
+		ret = wm_coeff_sync_controls(dsp);
+		if (ret != 0)
+			goto err;
+
 		adsp_dbg(dsp, "Setting RX rates.\n");
 		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
 					     dsp->n_rx_channels,
@@ -3938,6 +3940,22 @@ static int wm_adsp_of_parse_firmware(struct wm_adsp *dsp,
 	i = 0;
 	while ((fw = of_get_next_child(fws, fw)) != NULL) {
 		ctl_names[i] = fw->name;
+
+		/* check for old dts configuration */
+		ret = of_property_read_string(fw, "wlf,wmfw-file",
+					      &dsp->firmwares[i].file);
+		if (ret == 0) {
+			ret = of_property_read_string(fw, "wlf,bin-file",
+					      &dsp->firmwares[i].binfile);
+			if (ret < 0)
+				dsp->firmwares[i].binfile = NULL;
+			dsp->firmwares[i].fullname = true;
+			dsp->firmwares[i].compr_direction = SND_COMPRESS_CAPTURE;
+			dsp->firmwares[i].num_caps = ARRAY_SIZE(trace_caps);
+			dsp->firmwares[i].caps = trace_caps;
+			i++;
+			continue;
+		}
 
 		ret = of_property_read_string(fw, "cirrus,wmfw-file",
 					      &dsp->firmwares[i].file);
