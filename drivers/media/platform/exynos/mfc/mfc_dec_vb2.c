@@ -446,7 +446,7 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(2, "[BUFINFO] ctx[%d] add src index:%d, addr: 0x%08llx\n",
 				ctx->num, vb->index, buf->addr[0][0]);
-		if (dec->dst_memtype == V4L2_MEMORY_DMABUF &&
+		if (vb->memory == V4L2_MEMORY_DMABUF &&
 				ctx->state < MFCINST_HEAD_PARSED && !ctx->is_drm)
 			stream_vir = vb2_plane_vaddr(vb, 0);
 
@@ -466,7 +466,7 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 					ctx->num, vb->index, i, buf->addr[0][i]);
 		mfc_store_dpb(ctx, vb);
 
-		if ((dec->dst_memtype == V4L2_MEMORY_USERPTR || dec->dst_memtype == V4L2_MEMORY_DMABUF) &&
+		if ((vb->memory == V4L2_MEMORY_USERPTR || vb->memory == V4L2_MEMORY_DMABUF) &&
 				mfc_is_queue_count_same(&ctx->buf_queue_lock,
 					&ctx->dst_buf_queue, dec->total_dpb_count))
 			ctx->capture_state = QUEUE_BUFS_MMAPED;

@@ -619,8 +619,6 @@ static int mfc_dec_reqbufs(struct file *file, void *priv,
 			return ret;
 		}
 
-		dec->dst_memtype = reqbufs->memory;
-
 		if (ctx->capture_state != QUEUE_FREE) {
 			mfc_err_ctx("Bufs have already been requested\n");
 			return -EINVAL;

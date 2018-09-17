@@ -1001,12 +1001,12 @@ static inline void __mfc_handle_error(struct mfc_ctx *ctx,
 			if (src_mb) {
 				stream_vir = src_mb->vir_addr;
 				strm_size = src_mb->vb.vb2_buf.planes[0].bytesused;
-				if (strm_size > 32)
-					strm_size = 32;
+				if (strm_size > 640)
+					strm_size = 640;
 
 				if (stream_vir && strm_size)
 					print_hex_dump(KERN_ERR, "No header: ",
-							DUMP_PREFIX_ADDRESS, strm_size, 0,
+							DUMP_PREFIX_ADDRESS, 32, 4,
 							stream_vir, strm_size, false);
 
 				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
