@@ -1,4 +1,5 @@
-if test "${CC}" = "clang"; then
+#!/bin/bash
+if [[ ${CC} = *"clang" ]]; then
 ${CC} \
   --target=aarch64-linux-gnu \
   -Ilib/libdss-include \
