@@ -1034,14 +1034,63 @@ static struct snd_soc_dai_link exynos9610_dai[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
-#if 0 /*ToDo: enable speaker amp on EVB board*/
 	{
 		.name = "codec-left-amp",
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 		.params = madera_amp_params,
 	},
-#endif
+
+	{
+		.name = "cpu-dsp-voice-control",
+		.stream_name = "cpu-dsp-voice-control",
+		.cpu_dai_name = "cs47l35-cpu-voicectrl",
+		.platform_name = "cs47l35-codec",
+		.codec_dai_name = "cs47l35-dsp-voicectrl",
+		.codec_name = "cs47l35-codec",
+		.ignore_suspend = 1,
+		.dynamic = 0,
+	},
+	{
+		.name = "cpu-dsp-trace",
+		.stream_name = "cpu-dsp-voice-trace",
+		.cpu_dai_name = "cs47l35-cpu-trace",
+		.platform_name = "cs47l35-codec",
+		.codec_dai_name = "cs47l35-dsp-trace",
+		.codec_name = "cs47l35-codec",
+		.ignore_suspend = 1,
+		.dynamic = 0,
+	},
+	{
+		.name = "cpu-dsp2-text",
+		.stream_name = "cpu-dsp2-text",
+		.cpu_dai_name = "cs47l35-dsp2-cpu-txt",
+		.platform_name = "cs47l35-codec",
+		.codec_dai_name = "cs47l35-dsp2-txt",
+		.codec_name = "cs47l35-codec",
+		.ignore_suspend = 1,
+		.dynamic = 0,
+	},
+	{
+		.name = "cpu-dsp3-text",
+		.stream_name = "cpu-dsp3-text",
+		.cpu_dai_name = "cs47l35-dsp3-cpu-txt",
+		.platform_name = "cs47l35-codec",
+		.codec_dai_name = "cs47l35-dsp3-txt",
+		.codec_name = "cs47l35-codec",
+		.ignore_suspend = 1,
+		.dynamic = 0,
+	},
+	{
+		.name = "cpu-dsp1-text",
+		.stream_name = "cpu-dsp1-text",
+		.cpu_dai_name = "cs47l35-dsp1-cpu-txt",
+		.platform_name = "cs47l35-codec",
+		.codec_dai_name = "cs47l35-dsp1-txt",
+		.codec_name = "cs47l35-codec",
+		.ignore_suspend = 1,
+		.dynamic = 0,
+	}
 
 };
 
