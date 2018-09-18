@@ -832,9 +832,9 @@
 					"ABOX SIFS0 Capture", "VINPUTCALL";
 
 				samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_2
-					&abox_uaif_4 &abox_dsif &abox_spdy>; /*&cs35l41_left*/
+					&abox_uaif_4 &abox_dsif &abox_spdy &cs35l41_left>;
 				samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX",
-					"ABOX", "ABOX", "ABOX", "Left";
+					"ABOX", "ABOX", "ABOX", "SPK";
 				samsung,aux = <&abox_effect &abox_bt>;
 
 				rdma@0 {
@@ -1070,7 +1070,6 @@
 					};
 				};
 
-#if 0		/*ToDo: enable speaker amp on EVB board*/
 				codec-left-amp@0 {
 					format = "i2s";
 
@@ -1081,7 +1080,51 @@
 						sound-dai = <&cs35l41_left 0>;
 					};
 				};
-#endif
+
+				cpu-dsp-voice-control@0 {
+					cpu {
+						sound-dai = <&cs47l35 3>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+
+				cpu-dsp-trace@0 {
+					cpu {
+						sound-dai = <&cs47l35 4>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+
+				cpu-dsp2-text@0 {
+					cpu {
+						sound-dai = <&cs47l35 5>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+
+				cpu-dsp3-text@0 {
+					cpu {
+						sound-dai = <&cs47l35 6>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+
+				cpu-dsp1-text@0 {
+					cpu {
+						sound-dai = <&cs47l35 7>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
 			};
 
 
@@ -2092,7 +2135,7 @@
 };
 
 &spi_6 {
-	status = "disable";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi6_bus &spi6_cs_func>;
 	/*cs-gpios = <&gpp2 3 0>;*/
