@@ -277,7 +277,7 @@ static int cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
 			   1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT, 0);
 	regmap_write(cs35l41->regmap, CS35L41_CSPL_MBOX_CMD_DRV, cmd);
 	ret = wait_for_completion_timeout(&cs35l41->mbox_cmd,
-					  usecs_to_jiffies(CS35L41_MBOXWAIT));
+					  msecs_to_jiffies(CS35L41_MBOXWAIT));
 	if (ret == 0) {
 		dev_err(cs35l41->dev,
 			"Timout waiting for DSP to set mbox cmd\n");
@@ -833,7 +833,6 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0,
 				cs35l41_dsp_load_ev, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPK"),
-
 	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 1, &amp_enable_ctrl),
 	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, CS35L41_SP_ENABLES, 16, 0),
 	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, CS35L41_SP_ENABLES, 17, 0),
@@ -1159,39 +1158,15 @@ static int cs35l41_dai_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
+
 static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(dai->codec);
-	struct snd_soc_codec *codec = dai->codec;
-	int i, ret;
+	int i;
 	unsigned int rate = params_rate(params);
 	u8 asp_width, asp_wl;
-	int sclk_rate = params_rate(params) * params_width(params)
-			* params_channels(params);
-
-	if ((cs35l41->clksrc == CS35L41_PLLSRC_SCLK) &&
-		(cs35l41->sclk != sclk_rate)) {
-		dev_dbg(cs35l41->dev, "Reset sclk rate to %d from %d\n",
-			sclk_rate, cs35l41->sclk);
-		dev_dbg(cs35l41->dev, "rate %d width %d channels %d\n",
-			params_rate(params), params_width(params),
-			params_channels(params));
-		ret = cs35l41_codec_set_sysclk(codec, CS35L41_PLLSRC_SCLK, 0,
-			sclk_rate, 0);
-		if (ret != 0) {
-			dev_err(cs35l41->dev, "Can't set codec sysclk %d\n",
-				ret);
-			return ret;
-		}
-		ret = cs35l41_dai_set_sysclk(dai,
-				CS35L41_PLLSRC_SCLK, sclk_rate, 0);
-		if (ret != 0) {
-			dev_err(cs35l41->dev, "Can't set dai sysclk %d\n", ret);
-			return ret;
-		}
-	}
 
 	for (i = 0; i < ARRAY_SIZE(cs35l41_fs_rates); i++) {
 		if (rate == cs35l41_fs_rates[i].rate)
@@ -1232,7 +1207,7 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 				asp_wl << CS35L41_ASP_TX_WL_SHIFT);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int cs35l41_boost_config(struct cs35l41_private *cs35l41,
