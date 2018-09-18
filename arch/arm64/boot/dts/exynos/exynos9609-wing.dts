@@ -27,6 +27,7 @@
 	board_id = <0x0>;
 	board_rev = <0x0>;
 
+
 	fragment@model {
 		target-path = "/";
 		__overlay__ {
@@ -2517,3 +2518,4 @@
 		};
 	};
 };
+#include "exynos9610-mot-kane.dtsi"
