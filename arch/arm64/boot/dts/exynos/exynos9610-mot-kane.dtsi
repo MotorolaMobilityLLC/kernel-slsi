@@ -14,7 +14,15 @@
 				mmi,dir-name = "hw";
 				mmi,main-utags = "/dev/block/platform/13520000.ufs/by-name/hw";
 			};
+                };
+        };
 
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			model = "kane";
+			mot,soc-id = <0xE9610000>;
+			mot,board-id = <0x41 0x8000>;
 		};
 	};
 };
