@@ -357,6 +357,7 @@ struct fimc_is_core {
 	struct mutex				secure_state_lock;
 	unsigned long				secure_state;
 #endif
+	u32					scenario;
 
 	unsigned long                           sensor_map;
 	struct fimc_is_dual_info		dual_info;
