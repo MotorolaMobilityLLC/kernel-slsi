@@ -172,6 +172,7 @@ static inline int log_msg(void *data)
 
 static void logging_worker(struct kthread_work *work)
 {
+#if 0
 	static DEFINE_MUTEX(local_mutex);
 
 	mutex_lock(&local_mutex);
@@ -190,6 +191,7 @@ static void logging_worker(struct kthread_work *work)
 			log_ctx.tail = 0;
 	}
 	mutex_unlock(&local_mutex);
+#endif
 }
 
 /*
@@ -199,12 +201,14 @@ static void logging_worker(struct kthread_work *work)
  */
 void logging_run(void)
 {
+#if 0
 	if (log_ctx.enabled && !log_ctx.dead &&
 	    log_ctx.trace_buf->head != log_ctx.tail)
 #if KERNEL_VERSION(4, 9, 0) > LINUX_VERSION_CODE
 		queue_kthread_work(&log_ctx.worker, &log_ctx.work);
 #else
 		kthread_queue_work(&log_ctx.worker, &log_ctx.work);
+#endif
 #endif
 }
 
