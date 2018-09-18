@@ -66,6 +66,7 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	struct dentry *lower_dentry;
 	struct vfsmount *lower_dentry_mnt;
 	struct dentry *lower_parent_dentry = NULL;
+	struct dentry *parent_dentry = NULL;
 	struct path lower_path;
 	const struct cred *saved_cred = NULL;
 	struct fs_struct *saved_fs;
@@ -82,6 +83,14 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	if (!saved_cred)
 		return -ENOMEM;
 
+	parent_dentry = dget_parent(dentry);
+        if (!check_min_free_space(parent_dentry, 0, 1)) {
+                pr_err("sdcardfs: No minimum free space.\n");
+                err = -ENOSPC;
+                dput(parent_dentry);
+                goto out_revert;
+        }
+        dput(parent_dentry);
 	sdcardfs_get_lower_path(dentry, &lower_path);
 	lower_dentry = lower_path.dentry;
 	lower_dentry_mnt = lower_path.mnt;
@@ -122,7 +131,8 @@ out:
 out_unlock:
 	unlock_dir(lower_parent_dentry);
 	sdcardfs_put_lower_path(dentry, &lower_path);
-	revert_fsids(saved_cred);
+out_revert:	
+        revert_fsids(saved_cred);
 out_eacces:
 	return err;
 }
