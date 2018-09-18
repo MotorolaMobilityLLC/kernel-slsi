@@ -123,7 +123,7 @@ endif
 
 config SCSC_WLAN_MAC_ADDRESS_FILENAME
 	string "MAC address filename"
-	default "/efs/wifi/.mac.info"
+	default "/sys/module/scsc_wlan/parameters/mac_addr"
 	---help---
 	  Select the programmed MAC address file.
 
