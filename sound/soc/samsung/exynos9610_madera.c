@@ -42,6 +42,14 @@
 #define MADERA_CODEC_MAX		10
 #define MADERA_AUX_MAX			2
 
+#define RDMA_COUNT                      8
+#define WDMA_COUNT                      5
+
+#define UAIF_START			(RDMA_COUNT + WDMA_COUNT)
+#define UAIF_COUNT			4
+#define SIFS_START			(RDMA_COUNT + WDMA_COUNT + UAIF_COUNT + 2)
+#define SIFS_COUNT			3
+
 static unsigned int baserate = MADERA_BASECLK_48K;
 
 enum FLL_ID { FLL1, FLL2, FLL3, FLLAO };
@@ -132,6 +140,9 @@ static struct snd_soc_pcm_runtime *madera_get_rtd(struct snd_soc_card *card,
 			break;
 		}
 	}
+
+	if (!rtd)
+		rtd = snd_soc_get_pcm_runtime(card, card->dai_link[id].name);
 
 	return rtd;
 }
@@ -619,7 +630,10 @@ static int exynos9610_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *aif_dai;
 	struct snd_soc_codec *codec;
 	struct snd_soc_component *cpu;
-	int ret;
+	struct snd_soc_dapm_context *dapm;
+	char name[SZ_32];
+	const char *prefix;
+	int ret, i;
 
 	aif_dai = madera_get_rtd(card, 0)->cpu_dai;
 	cpu = aif_dai->component;
@@ -664,6 +678,8 @@ static int exynos9610_late_probe(struct snd_soc_card *card)
 	snd_soc_dapm_ignore_suspend(&card->dapm, "VOUTPUT");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "VINPUT1");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "VINPUT2");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "VOUTPUTCALL");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "VINPUTCALL");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "HEADSETMIC");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "RECEIVER");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "HEADPHONE");
@@ -676,6 +692,7 @@ static int exynos9610_late_probe(struct snd_soc_card *card)
 
 	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1 Playback");
 	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1 Capture");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF3 Capture");
 	snd_soc_dapm_sync(snd_soc_codec_get_dapm(codec));
 
 	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA0 Playback");
@@ -692,6 +709,30 @@ static int exynos9610_late_probe(struct snd_soc_card *card)
 	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX WDMA3 Capture");
 	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX WDMA4 Capture");
 	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	for (i = 0; i < UAIF_COUNT; i++) {
+		aif_dai = madera_get_rtd(card, UAIF_START + i)->cpu_dai;
+		cpu = aif_dai->component;
+		dapm = snd_soc_component_get_dapm(cpu);
+		prefix = dapm->component->name_prefix;
+		snprintf(name, sizeof(name), "%s UAIF%d Capture", prefix, i);
+		snd_soc_dapm_ignore_suspend(dapm, name);
+		snprintf(name, sizeof(name), "%s UAIF%d Playback", prefix, i);
+		snd_soc_dapm_ignore_suspend(dapm, name);
+		snd_soc_dapm_sync(dapm);
+	}
+
+	for (i = 0; i < SIFS_COUNT; i++) {
+		aif_dai = madera_get_rtd(card, SIFS_START + i)->cpu_dai;
+		cpu = aif_dai->component;
+		dapm = snd_soc_component_get_dapm(cpu);
+		prefix = dapm->component->name_prefix;
+		snprintf(name, sizeof(name), "%s SIFS%d Capture", prefix, i);
+		snd_soc_dapm_ignore_suspend(dapm, name);
+		snprintf(name, sizeof(name), "%s SIFS%d Playback", prefix, i);
+		snd_soc_dapm_ignore_suspend(dapm, name);
+		snd_soc_dapm_sync(dapm);
+	}
 
 	madera_init_debugfs(card);
 
@@ -1004,6 +1045,8 @@ static struct snd_soc_dai_link exynos9610_dai[] = {
 	},
 	{
 		.name = "codec-left-amp",
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 		.params = madera_amp_params,
 	},
 
