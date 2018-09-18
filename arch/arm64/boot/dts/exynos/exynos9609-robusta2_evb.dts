@@ -2167,6 +2167,59 @@
 			cirrus,gpio-output-enable;
 		};
 
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			prince_l_dsp: adsp@2b80000 {
+				reg = <0x2b80000>;
+				firmware {
+					protection_music_aac {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-aac.bin";
+					};
+					protection_voice_aac {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-aac.bin";
+					};
+					protection_ringtone_aac {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-aac.bin";
+					};
+					protection_notification_aac {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-aac.bin";
+					};
+					protection_music_sec {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-sec.bin";
+					};
+					protection_voice_sec {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-sec.bin";
+					};
+					protection_ringtone_sec{
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-sec.bin";
+					};
+					protection_notification_sec {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-sec.bin";
+					};
+					calibration {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-cali.wmfw";
+					};
+				};
+			};
+		};
 		controller-data {
 			/*cs-gpio = <gpm8 0 0>*/
 			/*cs-gpios = <&gpp2 3 0>;*/
@@ -2341,6 +2394,42 @@
 				cirrus,micd-detect-debounce-ms = <500>;
 				/*cirrus,jd-use-jd2;*/
 				/*cirrus,micd-clamp-mode = <0x8>;*/
+			};
+		};
+
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			adsp@0ffe00 {
+				reg = <0x0ffe00>;
+				firmware {
+					ultrasound {
+						wlf,wmfw-file = "marley-dsp1-ultrasound.wmfw";
+						wlf,bin-file = "marley-dsp1v-ultrasound.bin";
+					};
+				};
+			};
+			adsp@17fe00 {
+				reg = <0x17fe00>;
+				firmware {
+					frontend {
+						wlf,wmfw-file = "marley-dsp2-aov-frontend.wmfw";
+						wlf,bin-file = "marley-dsp2-aov-vrgain.bin";
+					};
+				};
+			};
+			adsp@1ffe00 {
+				reg = <0x1ffe00>;
+				firmware {
+					aov {
+						wlf,wmfw-file = "marley-dsp3-aov-control.wmfw";
+						wlf,bin-file = "marley-dsp3-aov-model.bin";
+					};
+					ez2record {
+						wlf,wmfw-file = "marley-dsp3-ez2-record.wmfw";
+						wlf,bin-file = "marley-dsp3-ez2-record.bin";
+					};
+				};
 			};
 		};
 
