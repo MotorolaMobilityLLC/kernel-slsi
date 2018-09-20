@@ -87,6 +87,8 @@
 				pinctrl-0 = <&spi7_bus &spi7_cs_func>;
 				egistec,gpio_irq    = <&gpa0 5 0>;
 				egistec,gpio_rst    = <&gpa1 1 0>;
+				egistec,gpio_ldo3p3_en    = <&gpg2 0 0>;
+				egistec,gpio_ldo1p8_en    = <&gpg2 2 0>;
 			};
 			/*Fingerprint end*/
 
