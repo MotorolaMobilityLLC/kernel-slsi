@@ -3365,9 +3365,9 @@ int set_sensor_info_mfhdr_mode_change(struct fimc_is_sensor_interface *itf,
 
 		set_sensor_uctl_valid(itf, idx);
 
-		dbg_sensor(1, "[%s][%d]: exp(%d), again(%d), dgain(%d), "
+		dbg_sensor(1, "[%s][I:%d,F:%d]: exp(%d), again(%d), dgain(%d), "
 			KERN_CONT "long_exp(%d), long_again(%d), long_dgain(%d)\n",
-			__func__, idx,
+			__func__, idx, get_frame_count(itf) + idx,
 			expo[idx], again[idx], dgain[idx],
 			long_expo[idx], long_again[idx], long_dgain[idx]);
 	}
