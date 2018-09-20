@@ -73,6 +73,8 @@ int request_irq_done = 0;
 #define LEVEL_TRIGGER_LOW       0x2
 #define LEVEL_TRIGGER_HIGH      0x3
 
+#define GPIO_LDO1P8_EN (1)
+#define GPIO_LDO3P3_EN (1)
 
 struct ioctl_cmd {
 int int_mode;
@@ -585,8 +587,8 @@ int etspi_platformInit(struct etspi_data *etspi)
 
 	if (etspi != NULL) {
 		/* initial 18V power pin */
-#if 0		
-		status = gpio_request(etspi->vdd_18v_Pin, "18v-gpio");
+#if GPIO_LDO1P8_EN
+		status = gpio_request(etspi->vdd_18v_Pin, "fp_18v-gpio");
 		if (status < 0) {
 			pr_err("%s gpio_requset vdd_18v_Pin failed\n",
 				__func__);
@@ -603,8 +605,10 @@ int etspi_platformInit(struct etspi_data *etspi)
 		gpio_set_value(etspi->vdd_18v_Pin, 1);
 		pr_err("etspi:  vdd_18v_Pin set to high\n");
 		mdelay(1);
+#endif
+#if GPIO_LDO3P3_EN
 		/* initial 33V power pin */
-		status = gpio_request(etspi->vcc_33v_Pin, "33v-gpio");
+		status = gpio_request(etspi->vcc_33v_Pin, "fp_33v-gpio");
 		if (status < 0) {
 			pr_err("%s gpio_requset vcc_33v_Pin failed\n",
 				__func__);
@@ -623,7 +627,7 @@ int etspi_platformInit(struct etspi_data *etspi)
 #endif
 		
 		/* Initial Reset Pin*/
-		status = gpio_request(etspi->rstPin, "ets_reset-gpio");
+		status = gpio_request(etspi->rstPin, "fp_reset-gpio");
 		if (status < 0) {
 			pr_err("%s gpio_requset etspi_Reset failed\n",
 				__func__);
@@ -640,7 +644,7 @@ int etspi_platformInit(struct etspi_data *etspi)
 		pr_err("etspi:  reset to high\n");
 
 		/* Initial IRQ Pin*/
-		status = gpio_request(etspi->irqPin, "ets_irq-gpio");
+		status = gpio_request(etspi->irqPin, "fp_irq-gpio");
 		if (status < 0) {
 			pr_err("%s gpio_request etspi_irq failed\n",
 				__func__);
@@ -659,8 +663,12 @@ int etspi_platformInit(struct etspi_data *etspi)
 
 etspi_platformInit_gpio_init_failed:
 	gpio_free(etspi->irqPin);
-//	gpio_free(etspi->vcc_33v_Pin);
-//	gpio_free(etspi->vdd_18v_Pin);
+#if GPIO_LDO3P3_EN
+	gpio_free(etspi->vcc_33v_Pin);
+#endif
+#if GPIO_LDO1P8_EN
+	gpio_free(etspi->vdd_18v_Pin);
+#endif
 etspi_platformInit_irq_failed:
 	gpio_free(etspi->rstPin);
 etspi_platformInit_rst_failed:
@@ -692,7 +700,7 @@ static int etspi_parse_dt(struct device *dev,
 		data->irqPin = gpio;
 		DEBUG_PRINT("%s: drdyPin=%d\n", __func__, data->irqPin);
 	}
-/*
+#if GPIO_LDO3P3_EN
 	gpio = of_get_named_gpio(np, "egistec,gpio_ldo3p3_en", 0);
 	if (gpio < 0) {
 		errorno = gpio;
@@ -701,6 +709,8 @@ static int etspi_parse_dt(struct device *dev,
 		data->vcc_33v_Pin = gpio;
 		pr_info("%s: 3.3v power pin=%d\n", __func__, data->vcc_33v_Pin);
 	}
+#endif
+#if GPIO_LDO1P8_EN
 	gpio = of_get_named_gpio(np, "egistec,gpio_ldo1p8_en", 0);
 	if (gpio < 0) {
 		errorno = gpio;
@@ -709,7 +719,7 @@ static int etspi_parse_dt(struct device *dev,
 		data->vdd_18v_Pin = gpio;
 		pr_info("%s: 18v power pin=%d\n", __func__, data->vdd_18v_Pin);
 	}
-*/	
+#endif
 	DEBUG_PRINT("%s is successful\n", __func__);
 	return errorno;
 dt_exit:
