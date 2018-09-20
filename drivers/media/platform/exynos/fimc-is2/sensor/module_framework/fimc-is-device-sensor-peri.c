@@ -304,6 +304,11 @@ void fimc_is_sensor_set_cis_uctrl_list(struct fimc_is_device_sensor_peri *sensor
 	FIMC_BUG_VOID(!sensor_peri);
 
 	for (i = 0; i < CAM2P0_UCTL_LIST_SIZE; i++) {
+		if (sensor_peri->cis.sensor_ctls[i].force_update) {
+			dbg_sensor(1, "skip uctl_list set, sensor_ctl[%d]->force_update\n", i);
+			continue;
+		}
+
 		sensor_uctl = &sensor_peri->cis.sensor_ctls[i].cur_cam20_sensor_udctrl;
 
 		if (fimc_is_vender_wdr_mode_on(sensor_peri->cis.cis_data)) {
@@ -1789,6 +1794,7 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 		for (i = 0; i < CAM2P0_UCTL_LIST_SIZE; i++) {
 			memset(&sensor_peri->cis.sensor_ctls[i].cur_cam20_sensor_udctrl, 0, sizeof(camera2_sensor_uctl_t));
 			sensor_peri->cis.sensor_ctls[i].valid_sensor_ctrl = 0;
+			sensor_peri->cis.sensor_ctls[i].force_update = false;
 			memset(&sensor_peri->cis.sensor_ctls[i].cur_cam20_flash_udctrl, 0, sizeof(camera2_flash_uctl_t));
 			sensor_peri->cis.sensor_ctls[i].valid_flash_udctrl = false;
 		}
