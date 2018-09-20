@@ -1938,32 +1938,6 @@
 		samsung,pin-pud = <3>;
 		samsung,pin-val = <1>;
 	};
-#if 0		/*Should be removed: enable speaker amp on EVB board*/
-	amp_sda: amp-sda {
-		samsung,pins = "gpp2-2";
-		samsung,pin-function = <3>;
-		samsung,pin-pud = <3>;
-		samsung,pin-drv = <0>;
-	};
-	amp_scl: amp-scl {
-		samsung,pins = "gpp2-1";
-		samsung,pin-function = <3>;
-		samsung,pin-pud = <3>;
-		samsung,pin-drv = <0>;
-	};
-	amp_ad1: amp-ad1 {
-		samsung,pins = "gpp2-0";
-		samsung,pin-function = <1>;
-		samsung,pin-val = <0>;
-		samsung,pin-pud = <1>;
-	};
-	amp_ad0: amp-ad0 {
-		samsung,pins = "gpp2-3";
-		samsung,pin-function = <1>;
-		samsung,pin-val = <0>;
-		samsung,pin-pud = <1>;
-	};
-#endif
 };
 
 &udc {
@@ -2229,46 +2203,6 @@
 	};
 };
 
-#if 0
-&i2c@0 {
-	status = "okay";
-	compatible = "i2c-gpio";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&amp_sda &amp_scl &amp_ad0 &amp_ad1>;
-
-	gpios = <&gpp2 2 0 /* sda */
-		 &gpp2 1 0 /* scl */
-		>;
-
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	cs35l41_left: cs35l41@40 {
-		compatible = "cirrus,cs35l41";
-		reg = <0x40>;
-
-		interrupts = <2 0 0>;
-		interrupt-controller;
-		interrupt-parent = <&gpa0>;
-		reset-gpios = <&gpg3 3 0>;
-		#sound-dai-cells = <1>;
-
-		VA-supply = <&l42_reg>;
-		VP-supply = <&V_SYS>;
-
-		cirrus,boost-peak-milliamp = <4500>;
-		cirrus,boost-ind-nanohenry = <1000>;
-		cirrus,boost-cap-microfarad = <15>;
-		cirrus,asp-sdout-hiz = <0x1>;
-		cirrus,gpio-config2 {
-			cirrus,gpio-src-select = <0x4>;
-			cirrus,gpio-output-enable;
-		};
-	};
-};
-#endif
-
 &spi_9 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi9_bus &spi9_cs_func  &codec_en>;
@@ -2289,13 +2223,13 @@
 		#gpio-cells = <2>;
 		#sound-dai-cells = <1>;
 
-		/*l42_reg shoulde be change after board fixed*/
 		AVDD-supply = <&l42_reg>;
 		DBVDD1-supply = <&l42_reg>;
 		DBVDD2-supply = <&l42_reg>;
 		CPVDD1-supply = <&l42_reg>;
-		CPVDD2-supply = <&l44_reg>;
-		DCVDD-supply = <&l44_reg>;
+		/*Not used LDO44*/
+		/*CPVDD2-supply = <&l44_reg>;*/
+		/*DCVDD-supply = <&l44_reg>;*/
 		SPKVDD-supply = <&V_SYS>;
 
 		reset-gpios = <&gpg3 2 0>;
