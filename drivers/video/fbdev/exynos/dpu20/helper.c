@@ -679,8 +679,6 @@ int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 	struct device *dev, unsigned long iova, int flags, void *token)
 {
 	struct decon_device *decon = NULL;
-	struct dpp_device *dpp = NULL;
-	int i;
 
 	if (!strcmp(DSIM_MODULE_NAME, dev->driver->name)) {
 		decon = get_decon_drvdata(0);
@@ -694,16 +692,8 @@ int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < decon->dt.dpp_cnt; i++) {
-		if (test_bit(i, &decon->prev_used_dpp)) {
-			dpp = get_dpp_drvdata(i);
-#if defined(DPU_DUMP_BUFFER_IRQ)
-			dpu_dump_buffer_data(dpp);
-#endif
-		}
-	}
-
-	decon_dump(decon);
+	if (decon)
+		decon_dump(decon);
 
 	return 0;
 }
