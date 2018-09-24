@@ -44,6 +44,10 @@ struct hip4_record {
 
 static atomic_t in_read;
 
+/* Create a global spinlock for all the instances */
+/* It is less efficent, but we simplify the implementation */
+static spinlock_t  g_spinlock;
+
 static bool hip4_sampler_enable = true;
 module_param(hip4_sampler_enable, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(hip4_sampler_enable, "Enable hip4_sampler_enable. Run-time option - (default: Y)");
@@ -177,8 +181,6 @@ struct hip4_sampler_dev {
 	wait_queue_head_t read_wait;
 	/* Device in error */
 	enum hip4_dg_errors    error;
-	/* Device node spinlock for IRQ */
-	spinlock_t        spinlock;
 	/* Device node mutex for fops */
 	struct mutex      mutex;
 	/* Record number */
@@ -271,11 +273,10 @@ void hip4_sampler_update_record(u32 minor, u8 param1, u8 param2, u8 param3, u8 p
 	if (minor >= SCSC_HIP4_INTERFACES)
 		return;
 
+	spin_lock_irqsave(&g_spinlock, flags);
 	hip4_dev = &hip4_sampler.devs[minor];
-
-	spin_lock_irqsave(&hip4_dev->spinlock, flags);
 	__hip4_sampler_update_record(hip4_dev, minor, param1, param2, param3, param4, param5);
-	spin_unlock_irqrestore(&hip4_dev->spinlock, flags);
+	spin_unlock_irqrestore(&g_spinlock, flags);
 }
 
 static void hip4_sampler_store_param(void)
@@ -359,12 +360,21 @@ static void hip4_sampler_dynamic_switcher(u32 bps)
 	}
 }
 
+static u32 g_tput_rx;
+static u32 g_tput_tx;
+
 void hip4_sampler_tput_monitor(void *client_ctx, u32 state, u32 tput_tx, u32 tput_rx)
 {
 	struct hip4_sampler_dev *hip4_sampler_dev = (struct hip4_sampler_dev *)client_ctx;
 
 	if (!hip4_sampler_enable)
 		return;
+
+	if ((g_tput_tx == tput_tx) && (g_tput_rx == tput_rx))
+		return;
+
+	g_tput_rx == tput_tx;
+	g_tput_rx == tput_rx;
 
 	if (hip4_sampler_dynamic) {
 		/* Call the dynamic switcher with the computed bps
@@ -531,9 +541,9 @@ int hip4_collect(struct scsc_log_collector_client *collect_client, size_t size)
 			buf = vmalloc(num_samples * sizeof(struct hip4_record));
 			if (!buf)
 				continue;
-			spin_lock_irqsave(&hip4_dev->spinlock, flags);
+			spin_lock_irqsave(&g_spinlock, flags);
 			ret = kfifo_out(&hip4_dev->fifo, buf, num_samples);
-			spin_unlock_irqrestore(&hip4_dev->spinlock, flags);
+			spin_unlock_irqrestore(&g_spinlock, flags);
 			if (!ret)
 				goto error;
 			SLSI_DBG1_NODEV(SLSI_HIP, "num_samples %d ret %d size of hip4_record %zu\n", num_samples, ret, sizeof(struct hip4_record));
@@ -601,14 +611,12 @@ static int hip4_sampler_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = hip4_dev;
 
-	spin_lock(&hip4_dev->spinlock);
 	/* Clear any remaining error */
 	hip4_dev->error = NO_ERROR;
 
 	hip4_dev->record_num = 0;
 	hip4_dev->kfifo_max = 0;
 	hip4_dev->filp = filp;
-	spin_unlock(&hip4_dev->spinlock);
 
 	SLSI_INFO_NODEV("%s: Sampling....\n", DRV_NAME);
 end:
@@ -727,11 +735,9 @@ static int hip4_sampler_release(struct inode *inode, struct file *filp)
 		return -EIO;
 	}
 
-	spin_lock(&hip4_dev->spinlock);
 	filp->private_data = NULL;
 	hip4_dev->filp = NULL;
 	kfifo_free(&hip4_dev->fifo);
-	spin_unlock(&hip4_dev->spinlock);
 
 	mutex_unlock(&hip4_dev->mutex);
 	SLSI_INFO_NODEV("%s: Sampling... end. Kfifo_max = %d\n", DRV_NAME, hip4_dev->kfifo_max);
@@ -821,7 +827,6 @@ void hip4_sampler_create(struct slsi_dev *sdev, struct scsc_mx *mx)
 		hip4_sampler.devs[minor].mx = mx;
 
 		mutex_init(&hip4_sampler.devs[minor].mutex);
-		spin_lock_init(&hip4_sampler.devs[minor].spinlock);
 		hip4_sampler.devs[minor].kfifo_max = 0;
 		hip4_sampler.devs[minor].type = STREAMING;
 		hip4_sampler.devs[minor].minor = minor;
@@ -881,7 +886,6 @@ void hip4_sampler_create(struct slsi_dev *sdev, struct scsc_mx *mx)
 		hip4_sampler.devs[minor].mx = mx;
 
 		mutex_init(&hip4_sampler.devs[minor].mutex);
-		spin_lock_init(&hip4_sampler.devs[minor].spinlock);
 		hip4_sampler.devs[minor].kfifo_max = 0;
 		hip4_sampler.devs[minor].type = OFFLINE;
 
@@ -918,10 +922,8 @@ void hip4_sampler_destroy(struct slsi_dev *sdev, struct scsc_mx *mx)
 			 * the service (device node) is open
 			 */
 			if (hip4_sampler.devs[i].filp) {
-				spin_lock(&hip4_sampler.devs[i].spinlock);
 				hip4_sampler.devs[i].filp = NULL;
 				kfifo_free(&hip4_sampler.devs[i].fifo);
-				spin_unlock(&hip4_dev->spinlock);
 			}
 			if (hip4_sampler.devs[i].type == OFFLINE)
 				kfifo_free(&hip4_sampler.devs[i].fifo);
