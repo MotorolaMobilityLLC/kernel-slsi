@@ -1,0 +1,5 @@
+config AW8695_HAPTIC
+    tristate "Haptic driver for awinic AW8695 series"
+    depends on I2C
+    help
+      This option enables support for AW8695 series Haptic Driver.
