@@ -543,4 +543,5 @@ source "drivers/misc/mcu_ipc/Kconfig"
 source "drivers/misc/modem_if/Kconfig"
 source "drivers/misc/gnss_if/Kconfig"
 source "drivers/misc/samsung/Kconfig"
+source "drivers/misc/aw8695_haptic/Kconfig"
 endmenu
