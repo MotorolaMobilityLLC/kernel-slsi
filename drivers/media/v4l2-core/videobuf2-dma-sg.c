@@ -729,7 +729,7 @@ dma_addr_t vb2_dma_sg_plane_dma_addr(struct vb2_buffer *vb,
 {
 	struct vb2_dma_sg_buf *buf = vb->planes[plane_no].mem_priv;
 
-	return buf->iova;
+	return buf->iova + vb->planes[plane_no].data_offset;
 }
 
 const struct vb2_mem_ops vb2_dma_sg_memops = {
