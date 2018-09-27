@@ -1466,7 +1466,12 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 #if defined(SECURE_CAMERA_IRIS) || defined(SECURE_CAMERA_FACE)
 	probe_info("%s: call SMC_SECCAM_SETENV, SECURE_CAMERA_CH(%#x), SECURE_CAMERA_HEAP_ID(%d)\n",
 		__func__, SECURE_CAMERA_CH, SECURE_CAMERA_HEAP_ID);
+
+#if defined(SECURE_CAMERA_FACE_SEQ_CHK)
+	ret = 0;
+#else
 	ret = exynos_smc(SMC_SECCAM_SETENV, SECURE_CAMERA_CH, SECURE_CAMERA_HEAP_ID, 0);
+#endif
 	if (ret) {
 		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_SETENV fail(%d)\n", ret);
 		goto p_err3;
@@ -1474,7 +1479,11 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 
 	probe_info("%s: call SMC_SECCAM_INIT, SECURE_CAMERA_MEM_ADDR(%#x), SECURE_CAMERA_MEM_SIZE(%#x)\n",
 		__func__, SECURE_CAMERA_MEM_ADDR, SECURE_CAMERA_MEM_SIZE);
+#if defined(SECURE_CAMERA_FACE_SEQ_CHK)
+	ret = 0;
+#else
 	ret = exynos_smc(SMC_SECCAM_INIT, SECURE_CAMERA_MEM_ADDR, SECURE_CAMERA_MEM_SIZE, 0);
+#endif
 	if (ret) {
 		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_INIT fail(%d)\n", ret);
 		goto p_err3;

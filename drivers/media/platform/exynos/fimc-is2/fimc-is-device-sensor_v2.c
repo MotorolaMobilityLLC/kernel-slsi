@@ -3150,7 +3150,11 @@ static int fimc_is_sensor_back_start(void *qdevice,
 	if (core->secure_state == FIMC_IS_STATE_UNSECURE && core->scenario == FIMC_IS_SCENARIO_SECURE) {
 		core->secure_state = FIMC_IS_STATE_SECURING;
 
+#if defined(SECURE_CAMERA_FACE_SEQ_CHK)
+		ret_smc = 0;
+#else
 		ret_smc = exynos_smc(SMC_SECCAM_PREPARE, 0, 0, 0);
+#endif
 		if (ret_smc != 0) {
 			merr("[SMC] SMC_SECCAM_PREPARE fail(%d)", device, ret_smc);
 			mutex_unlock(&core->secure_state_lock);
@@ -3183,7 +3187,11 @@ p_err:
 #if defined(SECURE_CAMERA_FACE)
 	mutex_lock(&core->secure_state_lock);
 	if (ret_smc && (core->secure_state == FIMC_IS_STATE_SECURING)) {
+#if defined(SECURE_CAMERA_FACE_SEQ_CHK)
+		ret_smc = 0;
+#else
 		ret_smc = exynos_smc(SMC_SECCAM_UNPREPARE, 0, 0, 0);
+#endif
 		if (ret_smc != 0) {
 			merr("[SMC] SMC_SECURE_CAMERA_UNPREPARE fail(%d)", device, ret);
 		} else {
