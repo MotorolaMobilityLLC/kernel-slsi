@@ -240,7 +240,7 @@ void slsi_get_hw_mac_address(struct slsi_dev *sdev, u8 *addr)
 				mac_idx += strlen(WIFI_MAC_BOOTARG);
 				memcpy(macStr, mac_idx, MACSTRLEN);
 				sscanf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
-					u[0], u[1], u[2], u[3], u[4], u[5]);
+					&u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
 				for (i = 0; i < ETH_ALEN; i++)
 					addr[i] = u[i] & 0xff;
 				SLSI_INFO(sdev, "WiFi MAC address loaded from utag: %02X:%02X:%02X:%02X:%02X:%02X\n",
