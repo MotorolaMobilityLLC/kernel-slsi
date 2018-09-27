@@ -787,10 +787,10 @@ static int setup_bhcs(struct scsc_service *service,
 				char macStr[MACSTRLEN+1] = {0};
 				u32 u[SCSC_BT_ADDR_LEN] = {0};
 				// extract MAC from boot params
-				mac_idx += strlen(WIFI_MAC_BOOTARG);
+				mac_idx += strlen(BT_MAC_BOOTARG);
 				memcpy(macStr, mac_idx, MACSTRLEN);
 				sscanf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
-					u[0], u[1], u[2], u[3], u[4], u[5]);
+					&u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
 				bhcs->bluetooth_address_lap =
 					(u[3] << 16) | (u[4] << 8) | u[5];
 				bhcs->bluetooth_address_uap = u[2];
