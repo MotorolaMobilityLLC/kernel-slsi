@@ -319,6 +319,7 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 {
 	int ret = 0;
 	unsigned long value = 0;
+	struct fimc_is_core *core;
 	struct fimc_is_device_sensor *sensor;
 	struct fimc_is_device_csi *csi;
 	struct fimc_is_device_ischain *ischain;
@@ -328,7 +329,8 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	u32 mux_set_val = MUX_SET_VAL_DEFAULT;
 	u32 mux_clr_val = MUX_CLR_VAL_DEFAULT;
 	unsigned long mux_backup_val = 0;
-	u32 dual_ch;
+	u32 multi_ch;
+	int i;
 
 	FIMC_BUG(!sensor_data);
 
@@ -338,7 +340,9 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	if (!pdata)
 		goto p_err;
 
-	dual_ch = pdata->dual_ch;
+	core = sensor->private_data;
+	if (!core)
+		goto p_err;
 
 	ischain = sensor->ischain;
 	if (!ischain)
@@ -352,11 +356,35 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 	}
 
 	csi_ch = csi->instance;
-	if (csi_ch > CSI_ID_MAX) {
+	if (csi_ch >= CSI_ID_MAX) {
 		merr("CSI channel is invalid(%d)\n", sensor, csi_ch);
 		ret = -ERANGE;
 		goto p_err;
 	}
+
+	/* default PIP set by DT */
+	multi_ch = pdata->multi_ch;
+
+	for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
+		if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state))
+			&& core->sensor[i].instance != sensor->instance) {
+			csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(core->sensor[i].subdev_csi);
+			if (!csi) {
+				merr("csi is null\n", sensor);
+				ret = -ENODEV;
+				goto p_err;
+			}
+
+			multi_ch = csi->instance;
+			if (multi_ch >= CSI_ID_MAX) {
+				merr("CSI channel is invalid(%d)\n", sensor, multi_ch);
+				ret = -ERANGE;
+				goto p_err;
+			}
+			break;
+		}
+	}
+	minfo("csi_ch(%d), multi_ch(%d) will be set\n", sensor, csi_ch, multi_ch);
 
 	mutex_lock(&ischain->resourcemgr->sysreg_lock);
 
@@ -371,11 +399,11 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
 				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], csi_ch);
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], dual_ch);
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], multi_ch);
 		break;
 	case 1:
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
-				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], dual_ch);
+				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA0_VAL], multi_ch);
 		mux_set_val = fimc_is_hw_set_field_value(mux_set_val,
 				&sysreg_cam_fields[SYSREG_CAM_F_MUX_3AA1_VAL], csi_ch);
 		break;
