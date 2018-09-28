@@ -3864,7 +3864,7 @@ static int fimc_is_ischain_init_wrap(struct fimc_is_device_ischain *device,
 			case SENSOR_POSITION_REAR3:
 				sensor_id = priv->rear3_sensor_id;
 				break;
-#ifdef CONFIG_SECURE_CAMERA_USE
+#if defined(SECURE_CAMERA_IRIS)
 			case SENSOR_POSITION_SECURE:
 				sensor_id = priv->secure_sensor_id;
 				break;
