@@ -1463,7 +1463,7 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 
 	EXYNOS_MIF_ADD_NOTIFIER(&exynos_fimc_is_mif_throttling_nb);
 
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(SECURE_CAMERA_EMULATE)
+#if defined(SECURE_CAMERA_IRIS)
 	ret = exynos_smc(SMC_SECCAM_SETENV, SECURE_CAMERA_CH, ION_EXYNOS_HEAP_ID_SECURE_CAMERA, 0);
 	if (ret) {
 		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_SETENV fail(%d)\n", ret);
