@@ -530,6 +530,23 @@ static int dsim_get_clocks(struct dsim_device *dsim)
 	return 0;
 }
 
+static int dsim_get_ddi_id(struct dsim_device *dsim)
+{
+	struct device *dev = dsim->dev;
+
+	if (!dev->of_node) {
+		dsim_warn("no device tree information\n");
+		return -1;
+	}
+
+	dsim->ddi_id = 0;
+	of_property_read_u32(dev->of_node, "ddi_id", &dsim->ddi_id);
+
+	dsim_info("Transfered ddi id is [0x%08x]\n", dsim->ddi_id);
+
+	return 0;
+}
+
 static int dsim_get_gpios(struct dsim_device *dsim)
 {
 	struct device *dev = dsim->dev;
@@ -1265,8 +1282,10 @@ int dsim_create_cmd_rw_sysfs(struct dsim_device *dsim)
 
 static void dsim_parse_lcd_info(struct dsim_device *dsim)
 {
+	struct device_node *node = NULL;
+	struct device *dev = dsim->dev;
+	char *ddi_device_type;
 	u32 res[14];
-	struct device_node *node;
 	unsigned int mres_num = 1;
 	u32 mres_w[3] = {0, };
 	u32 mres_h[3] = {0, };
@@ -1280,7 +1299,22 @@ static void dsim_parse_lcd_info(struct dsim_device *dsim)
 	u32 hdr_mnl = 0;
 	int k;
 
-	node = of_parse_phandle(dsim->dev->of_node, "lcd_info", 0);
+	of_property_read_u32(dev->of_node, "ddi_id", &dsim->ddi_id);
+	dsim_info("ddi id : 0x%08x\n", dsim->ddi_id);
+
+	switch (dsim->ddi_id) {
+	case 0xff244040:
+		ddi_device_type = "samsung-s6e3fa0-vdo";
+		dsim_info("ddi type : %s\n", ddi_device_type);
+		break;
+
+	default:
+		dsim_info("can't read ddi_device_type\n");
+		BUG();
+		break;
+	}
+
+	node = of_find_node_by_type(node, ddi_device_type);
 
 	of_property_read_u32(node, "mode", &dsim->lcd_info.mode);
 	dsim_info("%s mode\n", dsim->lcd_info.mode ? "command" : "video");
@@ -1485,31 +1519,23 @@ static int dsim_parse_dt(struct dsim_device *dsim, struct device *dev)
 	dsim_get_gpios(dsim);
 	dsim_get_regulator(dsim);
 	dsim_parse_lcd_info(dsim);
+	dsim_get_ddi_id(dsim);
 
 	return 0;
 }
 
 static void dsim_register_panel(struct dsim_device *dsim)
 {
-#if IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_S6E3HA2K)
-	dsim->panel_ops = &s6e3ha2k_mipi_lcd_driver;
-#elif IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_S6E3HF4)
-	dsim->panel_ops = &s6e3hf4_mipi_lcd_driver;
-#elif IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_S6E3HA6)
-	dsim->panel_ops = &s6e3ha6_mipi_lcd_driver;
-#elif IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_S6E3HA8)
-	dsim->panel_ops = &s6e3ha8_mipi_lcd_driver;
-#elif IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_S6E3AA2)
-	dsim->panel_ops = &s6e3aa2_mipi_lcd_driver;
-#elif IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_S6E3FA0)
-	dsim->panel_ops = &s6e3fa0_mipi_lcd_driver;
-#elif IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_S6E3FA7)
-	dsim->panel_ops = &s6e3fa7_mipi_lcd_driver;
-#elif IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_EMUL_DISP)
-	dsim->panel_ops = &emul_disp_mipi_lcd_driver;
-#else
-	dsim->panel_ops = &s6e3ha2k_mipi_lcd_driver;
-#endif
+	switch (dsim->ddi_id) {
+	case 0xff244040:
+		dsim->panel_ops = &s6e3fa0_mipi_lcd_driver;
+		dsim_info("panel ops : s6e3fa0_mipi_lcd_driver\n");
+		break;
+	default:
+		dsim_info("panel ops is not bind\n");
+		BUG();
+		break;
+	}
 }
 
 static int dsim_get_data_lanes(struct dsim_device *dsim)

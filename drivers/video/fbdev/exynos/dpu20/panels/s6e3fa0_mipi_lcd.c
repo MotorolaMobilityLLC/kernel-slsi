@@ -49,7 +49,7 @@ static int s6e3fa0_get_brightness(struct backlight_device *bd)
 	return bd->props.brightness;
 }
 
-static int get_backlight_level(int brightness)
+static int s6e3fa0_get_backlight_level(int brightness)
 {
 	int backlightlevel;
 
@@ -173,13 +173,13 @@ static int get_backlight_level(int brightness)
 	return backlightlevel;
 }
 
-static int update_brightness(struct dsim_device *dsim, int brightness)
+static int s6e3fa0_update_brightness(struct dsim_device *dsim, int brightness)
 {
 	int backlightlevel;
 
 	dsim_dbg("%s +\n", __func__);
 
-	backlightlevel = get_backlight_level(brightness);
+	backlightlevel = s6e3fa0_get_backlight_level(brightness);
 
 	set_brightness[1] = backlightlevel;
 
@@ -215,7 +215,7 @@ static int s6e3fa0_set_brightness(struct backlight_device *bd)
 		return -EINVAL;
 	}
 
-	update_brightness(dsim, brightness);
+	s6e3fa0_update_brightness(dsim, brightness);
 	return 1;
 }
 
@@ -282,7 +282,7 @@ static int s6e3fa0_cabc_mode(struct dsim_device *dsim, int mode)
 	return count;
 }
 
-static ssize_t panel_cabc_mode_show(struct device *dev,
+static ssize_t s6e3fa0_panel_cabc_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	ssize_t count = 0;
@@ -301,7 +301,7 @@ static ssize_t panel_cabc_mode_show(struct device *dev,
 	return count;
 }
 
-static ssize_t panel_cabc_mode_store(struct device *dev,
+static ssize_t s6e3fa0_panel_cabc_mode_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ret;
@@ -323,8 +323,8 @@ static ssize_t panel_cabc_mode_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(cabc_mode, 0660, panel_cabc_mode_show,
-			panel_cabc_mode_store);
+static DEVICE_ATTR(cabc_mode, 0660, s6e3fa0_panel_cabc_mode_show,
+			s6e3fa0_panel_cabc_mode_store);
 
 static struct attribute *panel_attrs[] = {
 	&dev_attr_cabc_mode.attr,
@@ -401,8 +401,8 @@ static int s6e3fa0_displayon(struct dsim_device *dsim)
 	struct panel_device *panel = panel_drvdata;
 #endif
 
-	lcd_init(dsim->id, &dsim->lcd_info);
-	lcd_enable(dsim->id);
+	s6e3fa0_lcd_init(dsim->id, &dsim->lcd_info);
+	s6e3fa0_lcd_enable(dsim->id);
 
 #if defined(CONFIG_EXYNOS_PANEL_CABC)
 	if (panel)
@@ -418,8 +418,8 @@ static int s6e3fa0_displayon(struct dsim_device *dsim)
 
 static int s6e3fa0_suspend(struct dsim_device *dsim)
 {
-	lcd_disable(dsim->id);
-	lcd_sleepin(dsim->id);
+	s6e3fa0_lcd_disable(dsim->id);
+	s6e3fa0_lcd_sleepin(dsim->id);
 
 	return 1;
 }
@@ -506,20 +506,20 @@ static int s6e3fa0_read_state(struct dsim_device *dsim)
 		return DSIM_ESD_OK;
 	case 5: /* always return esd ok and display off/on by force*/
 		dsim_info("%s, lcd_disable is called for ESD test\n", __func__);
-		lcd_disable(dsim->id);
+		s6e3fa0_lcd_disable(dsim->id);
 		dsim_info("%s, 2sec sleep for ESD test\n", __func__);
 		msleep(2000);
 		dsim_info("%s, lcd_enable is called for ESD test\n", __func__);
-		lcd_enable(dsim->id);
+		s6e3fa0_lcd_enable(dsim->id);
 		dsim->esd_test = 4;
 		return DSIM_ESD_OK;
 	case 6: /* always return esd detection and display off by force*/
 		dsim_info("%s, lcd_disable is called for ESD test\n", __func__);
-		lcd_disable(dsim->id);
+		s6e3fa0_lcd_disable(dsim->id);
 		dsim_info("%s, 2sec sleep for ESD test\n", __func__);
 		msleep(2000);
 		dsim_info("%s, lcd_enable is called for ESD test\n", __func__);
-		lcd_enable(dsim->id);
+		s6e3fa0_lcd_enable(dsim->id);
 		dsim->esd_test = 4;
 		return DSIM_ESD_ERROR;
 	case 7: /* return DSIM_ESD_CHECK_ERROR by force */

@@ -2498,6 +2498,7 @@
 		clocks = <&clock UMUX_CLKCMU_DISPAUD_BUS>;
 
 		memory-region = <&fb_rmem>;
+		ddi_id = <0xffffffff>;
 	};
 
 	decon_f: decon_f@0x148B0000 {

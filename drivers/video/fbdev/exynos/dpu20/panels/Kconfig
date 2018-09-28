@@ -1,6 +1,9 @@
 config EXYNOS_DECON_LCD
 	depends on EXYNOS_DPU20
 	bool "Select LCD panel driver"
+config EXYNOS_DECON_LCD_MULTI
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "Support Muli panel drivers"
 
 config EXYNOS_DECON_LCD_S6E3HA2K
 	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM

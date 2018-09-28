@@ -14,6 +14,7 @@
 		target-path = "/";
 		__overlay__ {
 			emul_display: emul_display {
+				device_type = "samsung-emul";
 				mode = <0>; /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <320 240>;
 			/*	resolution = <1080 1920>; */
@@ -44,6 +45,7 @@
 			};
 
 			s6e3hf4: s6e3hf4_wqhd {
+				device_type = "samsung-s6e3hf4";
 				mode = <2>;		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <1440 2560>;
 				size = <68 122>;
@@ -78,6 +80,7 @@
 			};
 
 			s6e3ha2k: s6e3ha2k_wqhd {
+				device_type = "samsung-s6e3ha2k";
 				mode = <2>;		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <1440 2560>;
 				size = <80 120>;
@@ -112,6 +115,7 @@
 			};
 
 			s6e3ha3: s6e3ha3_wqhd {
+				device_type = "samsung-s6e3ha3";
 				mode = <2>;		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <1440 2560>;
 				size = <70 121>;
@@ -146,6 +150,7 @@
 			};
 
 			s6e3ha6: s6e3ha6_ddi {
+				device_type = "samsung-s6e3ha6";
 				mode = <2>;
 				resolution = <1440 2960>;
 				size = <69 142>;
@@ -180,6 +185,7 @@
 			};
 
 			s6e3fa0: s6e3fa0_fhd {
+				device_type = "samsung-s6e3fa0";
 				mode = <2>;             /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <1080 1920>;
 				size = <70 121>;
@@ -214,6 +220,7 @@
 			};
 
 			s6e3fa0_vid: s6e3fa0_hfd_vid {
+				device_type = "samsung-s6e3fa0-vdo";
 				mode = <0>; /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <1080 1920>;
 				size = <80 120>;
