@@ -303,7 +303,6 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 269 0>;
 		};
 
 		gpm21: gpm21 {
