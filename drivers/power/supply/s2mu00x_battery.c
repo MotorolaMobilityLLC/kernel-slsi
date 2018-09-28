@@ -74,6 +74,10 @@ static enum power_supply_property s2mu00x_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 };
 
 static enum power_supply_property s2mu00x_power_props[] = {
@@ -428,6 +432,18 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 			else
 				val->intval = battery->capacity;
 		}
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = battery->current_now;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_AVG:
+		val->intval = battery->current_avg;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = battery->full_check_cnt + 1;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		val->intval = 100;
 		break;
 	default:
 		ret = -ENODATA;
