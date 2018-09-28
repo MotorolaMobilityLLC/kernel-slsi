@@ -1308,6 +1308,11 @@ static void dsim_parse_lcd_info(struct dsim_device *dsim)
 		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
 
+	case 0xff216102:
+		ddi_device_type = "novatek-nt36672a";
+		dsim_info("ddi type : %s\n", ddi_device_type);
+		break;
+
 	default:
 		dsim_info("can't read ddi_device_type\n");
 		BUG();
@@ -1530,6 +1535,10 @@ static void dsim_register_panel(struct dsim_device *dsim)
 	case 0xff244040:
 		dsim->panel_ops = &s6e3fa0_mipi_lcd_driver;
 		dsim_info("panel ops : s6e3fa0_mipi_lcd_driver\n");
+		break;
+	case 0xff216102:
+		dsim->panel_ops = &nt36672a_mipi_lcd_driver;
+		dsim_info("panel ops : nt36672a_mipi_lcd_driver\n");
 		break;
 	default:
 		dsim_info("panel ops is not bind\n");
