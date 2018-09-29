@@ -742,6 +742,15 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	rndis_data_intf.bInterfaceNumber = status;
 	rndis_union_desc.bSlaveInterface0 = status;
 
+	/* "Wireless" RNDIS; auto-detected by Windows */
+	rndis_iad_descriptor.bFunctionClass =
+					USB_CLASS_WIRELESS_CONTROLLER;
+	rndis_iad_descriptor.bFunctionSubClass = 0x01;
+	rndis_iad_descriptor.bFunctionProtocol = 0x03;
+	rndis_control_intf.bInterfaceClass =
+					USB_CLASS_WIRELESS_CONTROLLER;
+	rndis_control_intf.bInterfaceSubClass =	 0x01;
+	rndis_control_intf.bInterfaceProtocol =	 0x03;
 	status = -ENODEV;
 
 	/* allocate instance-specific endpoints */
