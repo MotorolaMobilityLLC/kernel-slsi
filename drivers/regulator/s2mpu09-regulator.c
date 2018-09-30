@@ -686,7 +686,7 @@ static int s2mpu09_pmic_probe(struct platform_device *pdev)
 	s2mpu09_write_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_SELMIF0, 0xbf);
 	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_SELMIF1, 0xC7, 0xC7);
 #endif
-
+	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_L25CTRL, 0xC0, 0xC0);
 	pr_info("%s s2mpu09 pmic driver Loading end\n", __func__);
 	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_RTCBUF, 0x4, 0x4);
 
