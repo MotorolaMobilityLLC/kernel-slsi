@@ -2141,36 +2141,6 @@ int fimc_is_sensor_s_input(struct fimc_is_device_sensor *device,
 		goto p_err;
 	}
 	if (device->pdata->scenario == SENSOR_SCENARIO_SECURE) {
-#if defined(NOT_SEPERATED_SYSREG)
-		mdbgd_sensor("secure state: %lu\n", device, core->secure_state);
-
-		mutex_lock(&core->secure_state_lock);
-		if (core->secure_state == FIMC_IS_STATE_UNSECURE) {
-			core->secure_state = FIMC_IS_STATE_SECURING;
-			ret = fimc_is_hw_ischain_cfg(device->ischain);
-			if (ret) {
-				core->secure_state = FIMC_IS_STATE_UNSECURE;
-				mutex_unlock(&core->secure_state_lock);
-				merr("failed to configure ischain: (%d)",
-								device, ret);
-				goto p_err;
-			}
-
-			ret = exynos_smc(MC_SECURE_CAMERA_SYSREG_PROT, 1, 0, 0);
-			if (ret) {
-				core->secure_state = FIMC_IS_STATE_UNSECURE;
-				mutex_unlock(&core->secure_state_lock);
-				merr("[SMC] failed to secure fimc-is: (%d)",
-								device, ret);
-				goto p_err;
-			} else {
-				core->secure_state = FIMC_IS_STATE_SECURED;
-				minfo("[SMC] fimc-is was secured\n", device);
-			}
-		}
-		mutex_unlock(&core->secure_state_lock);
-#endif
-
 #if defined(SECURE_CAMERA_EMULATE)
 		ret = exynos_smc(SMC_SECCAM_PREPARE, 0, 0, 0);
 #else
@@ -2327,22 +2297,6 @@ p_err:
 				device->smc_state = FIMC_IS_SENSOR_SMC_UNPREPARE;
 			}
 		}
-#if defined(NOT_SEPERATED_SYSREG)
-		mutex_lock(&core->secure_state_lock);
-		if (core->secure_state == FIMC_IS_STATE_SECURED) {
-			mdbgd_sensor("configure ischain to unsecure\n", device);
-
-			ret_smc = exynos_smc(MC_SECURE_CAMERA_SYSREG_PROT, 0, 0, 0);
-			if (ret_smc) {
-				merr("[SMC] failed to unsecure fimc-is: (%d)",
-									device, ret);
-			} else {
-				core->secure_state = FIMC_IS_STATE_UNSECURE;
-				minfo("[SMC] be unsecured fimc-is\n", device);
-			}
-		}
-		mutex_unlock(&core->secure_state_lock);
-#endif
 	}
 #endif
 
@@ -3556,12 +3510,6 @@ int fimc_is_sensor_runtime_suspend(struct device *dev)
 	struct v4l2_subdev *subdev_csi;
 #if defined(CONFIG_SECURE_CAMERA_USE) || defined(CONFIG_PM_DEVFREQ)
 	struct fimc_is_core *core;
-#if defined(NOT_SEPERATED_SYSREG)
-	struct fimc_is_device_csi *csi;
-	struct fimc_is_device_sensor *extra_device;
-	struct fimc_is_device_csi *extra_csi;
-	int i;
-#endif
 #endif
 
 	device = NULL;
@@ -3586,34 +3534,9 @@ int fimc_is_sensor_runtime_suspend(struct device *dev)
 	if (!subdev_csi)
 		mwarn("subdev_csi is NULL", device);
 
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	core = device->private_data;
-	csi = v4l2_get_subdevdata(device->subdev_csi);
-
-	if (csi && csi->extra_phy) {
-		csi->extra_phy_off = 1;
-
-		for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
-			extra_device = &core->sensor[i];
-			if (!extra_device)
-				continue;
-
-			extra_csi = v4l2_get_subdevdata(extra_device->subdev_csi);
-			if (extra_csi && (csi->extra_phy == extra_csi->phy)) {
-				csi->extra_phy_off =
-					!test_bit(CSIS_START_STREAM, &extra_csi->state);
-				break;
-			}
-		}
-	}
-
-	if (!(core->secure_state == FIMC_IS_STATE_SECURED))
-#endif
-	{
-		ret = v4l2_subdev_call(subdev_csi, core, s_power, 0);
-		if (ret)
-			mwarn("v4l2_csi_call(s_power) is fail(%d)", device, ret);
-	}
+	ret = v4l2_subdev_call(subdev_csi, core, s_power, 0);
+	if (ret)
+		mwarn("v4l2_csi_call(s_power) is fail(%d)", device, ret);
 
 	ret = fimc_is_sensor_g_module(device, &module);
 	if (ret) {
@@ -3653,22 +3576,6 @@ p_err:
 				device->smc_state = FIMC_IS_SENSOR_SMC_UNPREPARE;
 			}
 		}
-#if defined(NOT_SEPERATED_SYSREG)
-		mutex_lock(&core->secure_state_lock);
-		if (core->secure_state == FIMC_IS_STATE_SECURED) {
-			mdbgd_sensor("configure ischain to unsecure\n", device);
-
-			ret = exynos_smc(MC_SECURE_CAMERA_SYSREG_PROT, 0, 0, 0);
-			if (ret) {
-				merr("[SMC] failed to unsecure fimc-is: (%d)",
-									device, ret);
-			} else {
-				core->secure_state = FIMC_IS_STATE_UNSECURE;
-				minfo("[SMC] be unsecured fimc-is\n", device);
-			}
-		}
-		mutex_unlock(&core->secure_state_lock);
-#endif
 	}
 #endif
 
@@ -3722,9 +3629,6 @@ int fimc_is_sensor_runtime_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct fimc_is_device_sensor *device;
 	struct v4l2_subdev *subdev_csi;
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	struct fimc_is_core *core;
-#endif
 
 	device = NULL;
 
@@ -3747,16 +3651,10 @@ int fimc_is_sensor_runtime_resume(struct device *dev)
 		goto p_err;
 	}
 
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	core = device->private_data;
-	if (!(core->secure_state == FIMC_IS_STATE_SECURED))
-#endif
-	{
-		ret = v4l2_subdev_call(subdev_csi, core, s_power, 1);
-		if (ret) {
-			merr("v4l2_csi_call(s_power) is fail(%d)", device, ret);
-			goto p_err;
-		}
+	ret = v4l2_subdev_call(subdev_csi, core, s_power, 1);
+	if (ret) {
+		merr("v4l2_csi_call(s_power) is fail(%d)", device, ret);
+		goto p_err;
 	}
 
 	/* configuration clock control */
