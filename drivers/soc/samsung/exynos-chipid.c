@@ -305,7 +305,7 @@ static ssize_t chipid_evt_ver_show(struct kobject *kobj,
 static ssize_t chipid_memsize_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *buf)
 {
-	return snprintf(buf, 20, "%llu bytes\n", exynos_soc_info.memsize);
+	return snprintf(buf, 20, "%llu\n", exynos_soc_info.memsize);
 }
 
 static struct kobj_attribute chipid_product_id_attr =
