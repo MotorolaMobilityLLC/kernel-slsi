@@ -1245,34 +1245,15 @@ static int csi_s_power(struct v4l2_subdev *subdev,
 		return -EINVAL;
 	}
 
-	if (on) {
+	if (on)
 		ret = phy_power_on(csi->phy);
-	} else {
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-		if (csi->phy->power_count > 0)
-#endif
-		{
-			ret = phy_power_off(csi->phy);
-		}
-	}
+	else
+		ret = phy_power_off(csi->phy);
 
 	if (ret) {
 		err("fail to csi%d power on/off(%d)", csi->instance, on);
 		goto p_err;
 	}
-
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	if (csi->extra_phy) {
-		if (on && (csi->extra_phy->power_count == 0))
-			ret = phy_power_on(csi->extra_phy);
-		else if (!on && (csi->extra_phy->power_count == 1))
-			ret = phy_power_off(csi->extra_phy);
-
-		if (ret)
-			warn("fail to extra csi%d power on/off(%d)",
-						csi->instance, on);
-	}
-#endif
 
 p_err:
 	mdbgd_front("%s(%d, %d)\n", csi, __func__, on, ret);
@@ -2004,12 +1985,6 @@ int fimc_is_csi_probe(void *parent, u32 instance)
 		goto err_get_phy_dev;
 	}
 
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	csi->extra_phy = devm_phy_get(dev, "extra_csis_dphy");
-	if (IS_ERR(csi->extra_phy))
-		csi->extra_phy = NULL;
-#endif
-
 	irq_name = __getname();
 	if (unlikely(!irq_name)) {
 		ret = -ENOMEM;
@@ -2148,9 +2123,6 @@ err_get_vc_dma_res:
 	__putname(irq_name);
 
 err_alloc_irq_name:
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-	devm_phy_put(dev, csi->extra_phy);
-#endif
 	devm_phy_put(dev, csi->phy);
 
 err_get_phy_dev:
