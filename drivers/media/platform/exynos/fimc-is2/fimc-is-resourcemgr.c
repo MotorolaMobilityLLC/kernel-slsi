@@ -1314,12 +1314,6 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 #endif
 		/* CSIS common DMA rcount set */
 		atomic_set(&core->csi_dma.rcount, 0);
-#if defined(CONFIG_SECURE_CAMERA_USE) && defined(NOT_SEPERATED_SYSREG)
-		mutex_init(&core->secure_state_lock);
-		core->secure_state = FIMC_IS_STATE_UNSECURE;
-
-		dbgd_resource("%s: fimc-is secure state has reset\n", __func__);
-#endif
 		core->dual_info.mode = FIMC_IS_DUAL_MODE_NOTHING;
 		core->dual_info.pre_mode = FIMC_IS_DUAL_MODE_NOTHING;
 		core->dual_info.tick_count = 0;

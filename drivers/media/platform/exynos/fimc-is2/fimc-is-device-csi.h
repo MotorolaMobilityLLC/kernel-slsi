@@ -103,10 +103,6 @@ struct fimc_is_device_csi {
 	/* pointer address from device sensor */
 	struct v4l2_subdev		**subdev;
 	struct phy			*phy;
-#if defined(CONFIG_SECURE_CAMERA_USE)
-	struct phy      *extra_phy;
-	int		extra_phy_off;
-#endif
 
 	u32 error_id[CSI_VIRTUAL_CH_MAX];
 	u32 error_count;
