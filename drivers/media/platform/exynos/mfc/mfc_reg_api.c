@@ -154,7 +154,7 @@ int mfc_set_dec_codec_buffers(struct mfc_ctx *ctx)
 		mfc_debug(2, "Notcoded frame copy mode start\n");
 	}
 	/* Enable 10bit Dithering */
-	if (ctx->is_10bit) {
+	if (ctx->is_10bit && !dev->pdata->P010_decoding) {
 		reg |= (0x1 << MFC_REG_D_INIT_BUF_OPT_DITHERING_EN_SHIFT);
 		/* 64byte align, It is vaid only for VP9 */
 		reg |= (0x1 << MFC_REG_D_INIT_BUF_OPT_STRIDE_SIZE_ALIGN);
