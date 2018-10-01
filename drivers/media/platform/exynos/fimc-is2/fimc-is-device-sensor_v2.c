@@ -2140,17 +2140,11 @@ int fimc_is_sensor_s_input(struct fimc_is_device_sensor *device,
 		merr("fimc_is_devicemgr_binding is fail", device);
 		goto p_err;
 	}
-	if (device->pdata->scenario == SENSOR_SCENARIO_SECURE) {
-		ret = exynos_smc(SMC_SECCAM_PREPARE, 0, 0, 0);
-		if(ret != 0) {
-			merr("[SMC] MC_SECURE_CAMERA_PREPARE fail(%d)\n", device, ret);
-			goto p_err;
-		} else {
-			minfo("[SMC] Call MC_SECURE_CAMERA_PREPARE ret(%d) / smc_state(%d->%d)\n",
-						device, ret, device->smc_state, FIMC_IS_SENSOR_SMC_PREPARE);
-			device->smc_state = FIMC_IS_SENSOR_SMC_PREPARE;
-		}
-	}
+
+	ret = fimc_is_secure_func(core, device, FIMC_IS_SECURE_CAMERA_IRIS,
+			device->pdata->scenario, SMC_SECCAM_PREPARE);
+	if (ret)
+		goto p_err;
 #endif
 
 #ifdef ENABLE_INIT_AWB
@@ -2278,18 +2272,9 @@ int fimc_is_sensor_s_input(struct fimc_is_device_sensor *device,
 
 p_err:
 #if defined(SECURE_CAMERA_IRIS)
-	if (ret && (device->pdata->scenario == SENSOR_SCENARIO_SECURE)) {
-		if (device->smc_state == FIMC_IS_SENSOR_SMC_PREPARE) {
-			ret_smc = exynos_smc(SMC_SECCAM_UNPREPARE, 0, 0, 0);
-			if (ret_smc != 0) {
-				merr("[SMC] MC_SECURE_CAMERA_UNPREPARE fail(%d)\n", device, ret);
-			} else {
-				minfo("[SMC] Call MC_SECURE_CAMERA_UNPREPARE ret(%d) / smc_state(%d->%d)\n",
-						device, ret, device->smc_state, FIMC_IS_SENSOR_SMC_UNPREPARE);
-				device->smc_state = FIMC_IS_SENSOR_SMC_UNPREPARE;
-			}
-		}
-	}
+	if (ret)
+		ret = fimc_is_secure_func(NULL, device, FIMC_IS_SECURE_CAMERA_IRIS,
+			device->pdata->scenario, SMC_SECCAM_UNPREPARE);
 #endif
 
 	minfo("[SEN:D] %s(%d, %d):%d\n", device, __func__, input, scenario, ret);
@@ -3093,7 +3078,6 @@ static int fimc_is_sensor_back_start(void *qdevice,
 	struct fimc_is_groupmgr *groupmgr;
 	struct fimc_is_group *group;
 #if defined(SECURE_CAMERA_FACE)
-	int ret_smc = 0;
 	struct fimc_is_core *core;
 #endif
 
@@ -3146,26 +3130,10 @@ static int fimc_is_sensor_back_start(void *qdevice,
 		return -EINVAL;
 	}
 
-	mutex_lock(&core->secure_state_lock);
-	if (core->secure_state == FIMC_IS_STATE_UNSECURE && core->scenario == FIMC_IS_SCENARIO_SECURE) {
-		core->secure_state = FIMC_IS_STATE_SECURING;
-
-#if defined(SECURE_CAMERA_FACE_SEQ_CHK)
-		ret_smc = 0;
-#else
-		ret_smc = exynos_smc(SMC_SECCAM_PREPARE, 0, 0, 0);
-#endif
-		if (ret_smc != 0) {
-			merr("[SMC] SMC_SECCAM_PREPARE fail(%d)", device, ret_smc);
-			mutex_unlock(&core->secure_state_lock);
-			goto p_err;
-		} else {
-			minfo("[SMC] Call SMC_SECCAM_PREPARE ret(%d) / state(%d->%d)\n",
-				device, ret_smc, core->secure_state, FIMC_IS_STATE_SECURED);
-		}
-		core->secure_state = FIMC_IS_STATE_SECURED;
-	}
-	mutex_unlock(&core->secure_state_lock);
+	ret = fimc_is_secure_func(core, device, FIMC_IS_SECURE_CAMERA_FACE,
+			core->scenario, SMC_SECCAM_PREPARE);
+	if (ret)
+		goto p_err;
 #endif
 	ret = fimc_is_devicemgr_start(device->devicemgr, (void *)device, FIMC_IS_DEVICE_SENSOR);
 	if (ret) {
@@ -3183,25 +3151,12 @@ static int fimc_is_sensor_back_start(void *qdevice,
 	set_bit(FIMC_IS_SENSOR_BACK_START, &device->state);
 
 p_err:
-
 #if defined(SECURE_CAMERA_FACE)
-	mutex_lock(&core->secure_state_lock);
-	if (ret_smc && (core->secure_state == FIMC_IS_STATE_SECURING)) {
-#if defined(SECURE_CAMERA_FACE_SEQ_CHK)
-		ret_smc = 0;
-#else
-		ret_smc = exynos_smc(SMC_SECCAM_UNPREPARE, 0, 0, 0);
+	if (ret)
+		ret = fimc_is_secure_func(core, NULL, FIMC_IS_SECURE_CAMERA_FACE,
+			core->scenario, SMC_SECCAM_UNPREPARE);
 #endif
-		if (ret_smc != 0) {
-			merr("[SMC] SMC_SECURE_CAMERA_UNPREPARE fail(%d)", device, ret);
-		} else {
-			minfo("[SMC] Call SMC_SECURE_CAMERA_UNPREPARE ret(%d) / state(%d->%d)\n",
-				device, ret, core->secure_state, FIMC_IS_STATE_UNSECURE);
-		}
-		core->secure_state = FIMC_IS_STATE_UNSECURE;
-	}
-	mutex_unlock(&core->secure_state_lock);
-#endif
+
 	minfo("[SEN:D] %s(%dx%d, %d)\n", device, __func__,
 		device->image.window.width, device->image.window.height, ret);
 	return ret;
@@ -3604,18 +3559,8 @@ int fimc_is_sensor_runtime_suspend(struct device *dev)
 
 p_err:
 #if defined(SECURE_CAMERA_IRIS)
-	if (device->pdata->scenario == SENSOR_SCENARIO_SECURE) {
-		if (device->smc_state == FIMC_IS_SENSOR_SMC_PREPARE) {
-			ret = exynos_smc(SMC_SECCAM_UNPREPARE, 0, 0, 0);
-			if (ret != 0) {
-				merr("[SMC] MC_SECURE_CAMERA_UNPREPARE fail(%d)\n", device, ret);
-			} else {
-				minfo("[SMC] Call MC_SECURE_CAMERA_UNPREPARE ret(%d) / smc_state(%d->%d)\n",
-							device, ret, device->smc_state, FIMC_IS_SENSOR_SMC_UNPREPARE);
-				device->smc_state = FIMC_IS_SENSOR_SMC_UNPREPARE;
-			}
-		}
-	}
+	ret = fimc_is_secure_func(NULL, device, FIMC_IS_SECURE_CAMERA_IRIS,
+			device->pdata->scenario, SMC_SECCAM_UNPREPARE);
 #endif
 
 #if defined(CONFIG_PM_DEVFREQ)
