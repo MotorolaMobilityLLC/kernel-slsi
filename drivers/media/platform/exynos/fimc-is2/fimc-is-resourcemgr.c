@@ -35,6 +35,9 @@
 #ifdef CONFIG_CMU_EWF
 #include <soc/samsung/cmu_ewf.h>
 #endif
+#if defined(CONFIG_SECURE_CAMERA_USE)
+#include <linux/smc.h>
+#endif
 
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
@@ -1314,6 +1317,13 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 #endif
 		/* CSIS common DMA rcount set */
 		atomic_set(&core->csi_dma.rcount, 0);
+#if defined(SECURE_CAMERA_FACE)
+		mutex_init(&core->secure_state_lock);
+		core->secure_state = FIMC_IS_STATE_UNSECURE;
+		core->scenario = 0;
+
+		info("%s: fimc-is secure state has reset\n", __func__);
+#endif
 		core->dual_info.mode = FIMC_IS_DUAL_MODE_NOTHING;
 		core->dual_info.pre_mode = FIMC_IS_DUAL_MODE_NOTHING;
 		core->dual_info.tick_count = 0;
@@ -1636,6 +1646,21 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 	/* global update */
 	if (atomic_read(&core->rsccount) == 1) {
 		u32 current_min, current_max;
+
+#if defined(SECURE_CAMERA_FACE)
+		mutex_lock(&core->secure_state_lock);
+		if (core->secure_state == FIMC_IS_STATE_SECURED) {
+			ret = exynos_smc(SMC_SECCAM_UNPREPARE, 0, 0, 0);
+			if (ret != 0) {
+				err("[SMC] SMC_SECCAM_UNPREPARE fail(%d)\n", ret);
+			} else {
+				info("[SMC] Call SMC_SECCAM_UNPREPARE ret(%d) / smc_state(%d->%d)\n",
+						ret, core->secure_state, FIMC_IS_STATE_UNSECURE);
+			}
+			core->secure_state = FIMC_IS_STATE_UNSECURE;
+		}
+		mutex_unlock(&core->secure_state_lock);
+#endif
 
 #ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 		exynos_bcm_dbg_stop(CAMERA_DRIVER);

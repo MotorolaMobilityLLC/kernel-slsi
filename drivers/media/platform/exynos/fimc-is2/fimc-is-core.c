@@ -1463,12 +1463,17 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 
 	EXYNOS_MIF_ADD_NOTIFIER(&exynos_fimc_is_mif_throttling_nb);
 
-#if defined(SECURE_CAMERA_IRIS)
-	ret = exynos_smc(SMC_SECCAM_SETENV, SECURE_CAMERA_CH, ION_EXYNOS_HEAP_ID_SECURE_CAMERA, 0);
+#if defined(SECURE_CAMERA_IRIS) || defined(SECURE_CAMERA_FACE)
+	probe_info("%s: call SMC_SECCAM_SETENV, SECURE_CAMERA_CH(%#x), SECURE_CAMERA_HEAP_ID(%d)\n",
+		__func__, SECURE_CAMERA_CH, SECURE_CAMERA_HEAP_ID);
+	ret = exynos_smc(SMC_SECCAM_SETENV, SECURE_CAMERA_CH, SECURE_CAMERA_HEAP_ID, 0);
 	if (ret) {
 		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_SETENV fail(%d)\n", ret);
 		goto p_err3;
 	}
+
+	probe_info("%s: call SMC_SECCAM_INIT, SECURE_CAMERA_MEM_ADDR(%#x), SECURE_CAMERA_MEM_SIZE(%#x)\n",
+		__func__, SECURE_CAMERA_MEM_ADDR, SECURE_CAMERA_MEM_SIZE);
 	ret = exynos_smc(SMC_SECCAM_INIT, SECURE_CAMERA_MEM_ADDR, SECURE_CAMERA_MEM_SIZE, 0);
 	if (ret) {
 		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_INIT fail(%d)\n", ret);
