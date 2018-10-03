@@ -68,6 +68,14 @@ config CAMERA_ACT_DW9823_OBJ
         help
           Use to build DW9823 driver.
 
+config CAMERA_ACT_DW9839_OBJ
+        bool "Use actuator DW9839"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_ACT_SELECT
+        default n
+        help
+          Use to build DW9839 driver.
+
 config CAMERA_ACT_AK7372_OBJ
         bool "Use actuator AK7372"
 	depends on USE_DIRECT_IS_CONTROL
