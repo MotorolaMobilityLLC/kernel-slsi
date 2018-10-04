@@ -1203,6 +1203,9 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 	u32 channel;
 #endif
 	struct pinctrl_state *s;
+#if defined(SECURE_CAMERA_IRIS) || defined(SECURE_CAMERA_FACE)
+	ulong mem_info_addr, mem_info_size;
+#endif
 
 	probe_info("%s:start(%ld, %ld)\n", __func__,
 		sizeof(struct fimc_is_core), sizeof(struct fimc_is_video_ctx));
@@ -1592,12 +1595,15 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 		goto p_err3;
 	}
 
-	probe_info("%s: call SMC_SECCAM_INIT, SECURE_CAMERA_MEM_ADDR(%#x), SECURE_CAMERA_MEM_SIZE(%#x)\n",
-		__func__, SECURE_CAMERA_MEM_ADDR, SECURE_CAMERA_MEM_SIZE);
+	mem_info_addr = core->secure_mem_info[0] ? core->secure_mem_info[0] : SECURE_CAMERA_MEM_ADDR;
+	mem_info_size = core->secure_mem_info[1] ? core->secure_mem_info[1] : SECURE_CAMERA_MEM_SIZE;
+
+	probe_info("%s: call SMC_SECCAM_INIT, mem_info(%#08lx, %#08lx)\n",
+		__func__, mem_info_addr, mem_info_size);
 #if defined(SECURE_CAMERA_FACE_SEQ_CHK)
 	ret = 0;
 #else
-	ret = exynos_smc(SMC_SECCAM_INIT, SECURE_CAMERA_MEM_ADDR, SECURE_CAMERA_MEM_SIZE, 0);
+	ret = exynos_smc(SMC_SECCAM_INIT, mem_info_addr, mem_info_size, 0);
 #endif
 	if (ret) {
 		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_INIT fail(%d)\n", ret);
