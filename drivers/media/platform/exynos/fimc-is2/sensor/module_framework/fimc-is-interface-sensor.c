@@ -1914,7 +1914,8 @@ int copy_sensor_ctl(struct fimc_is_sensor_interface *itf,
 		 *	 - In case of AE_MODE is not OFF and aeTargetFpsRange[0] is not 0,
 		 *	   frame durtaion is 1000000us / aeTargetFpsRage[0]
 		 */
-		if (shot->ctl.aa.aeMode == AA_AEMODE_OFF) {
+		if ((shot->ctl.aa.aeMode == AA_AEMODE_OFF)
+			|| (shot->ctl.aa.mode == AA_CONTROL_OFF)) {
 			sensor_ctl->valid_sensor_ctrl = true;
 			sensor_ctl->is_sensor_request = true;
 		} else if (shot->ctl.aa.aeTargetFpsRange[1] != 0) {
