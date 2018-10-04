@@ -2486,15 +2486,17 @@ exit:
 	/* Force flush the old H/W frames with DONE state */
 	framemgr_e_barrier_common(framemgr, 0, flags);
 	if (framemgr->queued_count[FS_HW_WAIT_DONE] > 0) {
+		struct fimc_is_frame *temp;
 		u32 fcount = frame->fcount;
+		u32 instance = frame->instance;
 
-		frame = peek_frame(framemgr, FS_HW_WAIT_DONE);
-		while (frame && frame->fcount < fcount) {
-			msinfo_hw("[F%d]force flush\n",
-					frame->instance, hw_ip, frame->fcount);
-			trans_frame(framemgr, frame, FS_HW_FREE);
-			atomic_set(&frame->shot_done_flag, 0);
-			frame = peek_frame(framemgr, FS_HW_WAIT_DONE);
+		list_for_each_entry_safe(frame, temp, &framemgr->queued_list[FS_HW_WAIT_DONE], list) {
+			if (frame && frame->instance == instance && frame->fcount < fcount) {
+				msinfo_hw("[F%d]force flush\n",
+						frame->instance, hw_ip, frame->fcount);
+				trans_frame(framemgr, frame, FS_HW_FREE);
+				atomic_set(&frame->shot_done_flag, 0);
+			}
 		}
 	}
 	framemgr_x_barrier_common(framemgr, 0, flags);
