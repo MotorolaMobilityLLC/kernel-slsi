@@ -113,6 +113,17 @@
 		mshc2 = &dwmmc_2;
 	};
 
+	ect {
+		parameter_address = <0x90000000>;
+		parameter_size = <0x19000>;
+	};
+
+	chosen {
+		bootargs = "console=ram androidboot.dtbo_idx=0 skip_initramfs rootwait ro init=/init clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=exynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80f9fe0000 pmic_info=0x3 ccic_info=0x1 epx_activate=true";
+		linux,initrd-start = <0x84000000>;
+		linux,initrd-end = <0x841FFFFF>;
+	};
+
 	chipid@10000000 {
 		compatible = "samsung,exynos9-chipid";
 		reg = <0x0 0x10000000 0x100>, <0x0 0x2038848 0x10>;
