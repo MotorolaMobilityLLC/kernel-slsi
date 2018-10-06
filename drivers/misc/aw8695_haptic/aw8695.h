@@ -44,8 +44,9 @@
 #define HAPTIC_MAX_TIMEOUT                  10000
 
 #define AW8695_HAPTIC_F0_PRE                2350
-#define AW8695_HAPTIC_F0_DRV_LVL            80
+#define AW8695_HAPTIC_F0_DRV_LVL            95
 #define AW8695_HAPTIC_F0_COEFF              260    //2.604167
+#define AW8695_OPEN_PLAYBACK                0
 
 enum aw8695_flags {
     AW8695_FLAG_NONR = 0,
