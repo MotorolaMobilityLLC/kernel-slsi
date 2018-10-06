@@ -40,7 +40,7 @@
 #define AW8695_I2C_NAME "aw8695_haptic"
 #define AW8695_HAPTIC_NAME "aw8695_haptic"
 
-#define AW8695_VERSION "v1.1.3"
+#define AW8695_VERSION "v1.1.4"
 
 
 #define AWINIC_RAM_UPDATE_DELAY
@@ -468,6 +468,7 @@ static int aw8695_haptic_stop(struct aw8695 *aw8695)
     pr_debug("%s enter\n", __func__);
 
     aw8695_haptic_play_go(aw8695, false);
+	msleep(40);
     aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_STANDBY_MODE);
 
     return 0;
@@ -893,7 +894,7 @@ static void aw8695_haptic_audio_work_routine(struct work_struct *work)
  *****************************************************/
 static int aw8695_haptic_cont(struct aw8695 *aw8695)
 {
-    pr_info("%s enter\n", __func__);
+    pr_debug("%s enter\n", __func__);
 
     mutex_lock(&aw8695->lock);
 
@@ -918,8 +919,13 @@ static int aw8695_haptic_cont(struct aw8695 *aw8695)
             AW8695_BIT_CONT_CTRL_WAIT_PERIOD_MASK, AW8695_BIT_CONT_CTRL_WAIT_1PERIOD);
     aw8695_i2c_write_bits(aw8695, AW8695_REG_CONT_CTRL,
             AW8695_BIT_CONT_CTRL_MODE_MASK, AW8695_BIT_CONT_CTRL_BY_GO_SIGNAL);
+#if AW8695_OPEN_PLAYBACK
     aw8695_i2c_write_bits(aw8695, AW8695_REG_CONT_CTRL,
             AW8695_BIT_CONT_CTRL_EN_CLOSE_MASK, AW8695_BIT_CONT_CTRL_OPEN_PLAYBACK);
+#else
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_CONT_CTRL,
+            AW8695_BIT_CONT_CTRL_EN_CLOSE_MASK, AW8695_BIT_CONT_CTRL_CLOSE_PLAYBACK);
+#endif
     aw8695_i2c_write_bits(aw8695, AW8695_REG_CONT_CTRL,
             AW8695_BIT_CONT_CTRL_F0_DETECT_MASK, AW8695_BIT_CONT_CTRL_F0_DETECT_DISABLE);
     aw8695_i2c_write_bits(aw8695, AW8695_REG_CONT_CTRL,
@@ -929,7 +935,7 @@ static int aw8695_haptic_cont(struct aw8695 *aw8695)
 
     /* TD time */
     aw8695_i2c_write(aw8695, AW8695_REG_TD_H, 0x00);
-    aw8695_i2c_write(aw8695, AW8695_REG_TD_L, 0x5d);
+    aw8695_i2c_write(aw8695, AW8695_REG_TD_L, 0x73);
     aw8695_i2c_write(aw8695, AW8695_REG_TSET, 0x12);
 
     /* zero cross */
@@ -941,12 +947,12 @@ static int aw8695_haptic_cont(struct aw8695 *aw8695)
     aw8695_i2c_write(aw8695, AW8695_REG_BEMF_VTHH_L, 0x08);
     aw8695_i2c_write(aw8695, AW8695_REG_BEMF_VTHL_H, 0x03);
     aw8695_i2c_write(aw8695, AW8695_REG_BEMF_VTHL_L, 0xf8);
-    aw8695_i2c_write(aw8695, AW8695_REG_BEMF_NUM, 0x53);
+    aw8695_i2c_write(aw8695, AW8695_REG_BEMF_NUM, 0x54);
     aw8695_i2c_write(aw8695, AW8695_REG_TIME_NZC, 0x1f);
 
     /* f0 driver level */
     aw8695_i2c_write(aw8695, AW8695_REG_DRV_LVL, aw8695->f0_drv_lvl);
-    aw8695_i2c_write(aw8695, AW8695_REG_DRV_LVL_OV, 0x7f);
+    aw8695_i2c_write(aw8695, AW8695_REG_DRV_LVL_OV, 0x70);
 
     /* cont play go */
     aw8695_haptic_play_go(aw8695, true);
@@ -996,8 +1002,8 @@ static int aw8695_haptic_f0_calibration(struct aw8695 *aw8695)
     /* LPF */
     aw8695_i2c_write_bits(aw8695, AW8695_REG_DATCTRL,
             AW8695_BIT_DATCTRL_FC_MASK, AW8695_BIT_DATCTRL_FC_1000HZ);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_DATCTRL,
-            AW8695_BIT_DATCTRL_LPF_ENABLE_MASK, AW8695_BIT_DATCTRL_LPF_ENABLE);
+//    aw8695_i2c_write_bits(aw8695, AW8695_REG_DATCTRL,
+ //           AW8695_BIT_DATCTRL_LPF_ENABLE_MASK, AW8695_BIT_DATCTRL_LPF_ENABLE);
 
     /* LRA OSC Source */
     aw8695_i2c_write_bits(aw8695, AW8695_REG_ANACTRL,
@@ -1307,7 +1313,7 @@ static int aw8695_haptic_init(struct aw8695 *aw8695)
     ret = aw8695_i2c_read(aw8695, AW8695_REG_WAVSEQ1, &reg_val);
     aw8695->index = reg_val & 0x7F;
     ret = aw8695_i2c_read(aw8695, AW8695_REG_DATDBG, &reg_val);
-    aw8695->gain = reg_val & 0x7F;
+    aw8695->gain = reg_val & 0xFF;
     ret = aw8695_i2c_read(aw8695, AW8695_REG_BSTDBG4, &reg_val);
     aw8695->vmax = (reg_val>>0)&0x3F;
     for(i=0; i<AW8695_SEQUENCER_SIZE; i++) {
@@ -2135,7 +2141,7 @@ static int aw8695_vibrator_init(struct aw8695 *aw8695)
     pr_info("%s enter\n", __func__);
 
 #ifdef TIMED_OUTPUT
-    aw8695->to_dev.name = "vibrator_aw8695";
+    aw8695->to_dev.name = "vibrator";
     aw8695->to_dev.get_time = aw8695_vibrator_get_time;
     aw8695->to_dev.enable = aw8695_vibrator_enable;
 
@@ -2151,7 +2157,7 @@ static int aw8695_vibrator_init(struct aw8695 *aw8695)
         return ret;
     }
 #else
-    aw8695->cdev.name = "vibrator_aw8695";
+    aw8695->cdev.name = "vibrator";
     aw8695->cdev.brightness_get = aw8695_haptic_brightness_get;
     aw8695->cdev.brightness_set = aw8695_haptic_brightness_set;
 
@@ -2189,19 +2195,19 @@ static int aw8695_vibrator_init(struct aw8695 *aw8695)
 static void aw8695_interrupt_clear(struct aw8695 *aw8695)
 {
     unsigned char reg_val = 0;
-    pr_info("%s enter\n", __func__);
+    pr_debug("%s enter\n", __func__);
     aw8695_i2c_read(aw8695, AW8695_REG_SYSINT, &reg_val);
-    pr_info("%s: reg SYSINT=0x%x\n", __func__, reg_val);
+    pr_debug("%s: reg SYSINT=0x%x\n", __func__, reg_val);
 }
 
 static void aw8695_interrupt_setup(struct aw8695 *aw8695)
 {
     unsigned char reg_val = 0;
 
-    pr_info("%s enter\n", __func__);
+    pr_debug("%s enter\n", __func__);
 
     aw8695_i2c_read(aw8695, AW8695_REG_SYSINT, &reg_val);
-    pr_info("%s: reg SYSINT=0x%x\n", __func__, reg_val);
+    pr_debug("%s: reg SYSINT=0x%x\n", __func__, reg_val);
 
     aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSINTM,
             AW8695_BIT_SYSINTM_BSTERR_MASK, AW8695_BIT_SYSINTM_BSTERR_OFF);
@@ -2225,9 +2231,9 @@ static irqreturn_t aw8695_irq(int irq, void *data)
     pr_debug("%s enter\n", __func__);
 
     aw8695_i2c_read(aw8695, AW8695_REG_SYSINT, &reg_val);
-    pr_info("%s: reg SYSINT=0x%x\n", __func__, reg_val);
+    pr_debug("%s: reg SYSINT=0x%x\n", __func__, reg_val);
     aw8695_i2c_read(aw8695, AW8695_REG_DBGSTAT, &dbg_val);
-    pr_info("%s: reg DBGSTAT=0x%x\n", __func__, dbg_val);
+    pr_debug("%s: reg DBGSTAT=0x%x\n", __func__, dbg_val);
 
     if(reg_val & AW8695_BIT_SYSINT_OVI) {
         pr_err("%s chip ov int error\n", __func__);
