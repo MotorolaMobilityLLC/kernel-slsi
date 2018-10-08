@@ -24,7 +24,7 @@
 
 #define MAX_BRIGHTNESS 255
 #define MIN_BRIGHTNESS 0
-#define DEFAULT_BRIGHTNESS 0
+#define DEFAULT_BRIGHTNESS 170
 
 static struct dsim_device *dsim_base;
 static struct backlight_device *bd;
