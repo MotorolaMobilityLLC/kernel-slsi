@@ -169,6 +169,7 @@ struct fimc_is_aperture {
 	struct work_struct		aperture_set_work;
 };
 
+#define FLASH_LED_CH_MAX	(4)
 struct fimc_is_flash_data {
 	enum flash_mode			mode;
 	u32				intensity;
@@ -187,6 +188,9 @@ struct fimc_is_flash {
 
 	int				flash_gpio;
 	int				torch_gpio;
+
+	/* for select led channel */
+	int				led_ch[FLASH_LED_CH_MAX];
 
 	struct fimc_is_flash_data	flash_data;
 	struct fimc_is_flash_expo_gain  flash_ae;
