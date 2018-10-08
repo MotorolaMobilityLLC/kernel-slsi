@@ -236,6 +236,17 @@ static void pcie_l1ss_disable_handler(void *arg)
 }
 #endif
 
+static int sys_rev;
+#ifdef CONFIG_HW_REV_DETECT
+static int __init hw_rev_setup(char *str)
+{
+	get_option(&str, &sys_rev);
+	mif_info("sys_rev:0x%x\n", sys_rev);
+
+	return 0;
+}
+__setup("revision=", hw_rev_setup);
+#else
 static int get_hw_rev(struct device_node *np)
 {
 	int value, cnt, gpio_cnt;
@@ -260,6 +271,7 @@ static int get_hw_rev(struct device_node *np)
 
 	return hw_rev;
 }
+#endif
 
 #ifdef CONFIG_SIM_DETECT
 static unsigned int get_sim_socket_detection(struct device_node *np)
@@ -297,7 +309,7 @@ static int sh333ap_on(struct modem_ctl *mc)
 	int ret;
 	int i;
 	unsigned long int flags;
-	int sys_rev, ds_det;
+	int ds_det;
 	unsigned int mbx_ap_status;
 	unsigned int sbi_ds_det_mask, sbi_ds_det_pos;
 	unsigned int sbi_sys_rev_mask, sbi_sys_rev_pos;
@@ -322,14 +334,16 @@ static int sh333ap_on(struct modem_ctl *mc)
 
 	spin_lock_irqsave(&mc->ap_status_lock, flags);
 
+#ifndef CONFIG_HW_REV_DETECT
 	sys_rev = get_hw_rev(np);
+#endif
 	if (sys_rev >= 0) {
 		mbox_update_value(MCU_CP, mbx_ap_status, sys_rev,
 			sbi_sys_rev_mask, sbi_sys_rev_pos);
 	} else {
 		mif_err("get_hw_rev() ERROR\n");
 	}
-	mif_err("System Revision %d\n", sys_rev);
+	mif_err("System Revision 0x%x\n", sys_rev);
 
 	if (mc->sim_slot_cnt > 0) {
 		mif_err("System sim config: %d\n", mc->sim_slot_cnt);
