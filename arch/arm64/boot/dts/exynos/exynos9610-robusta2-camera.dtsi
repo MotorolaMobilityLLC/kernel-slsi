@@ -40,7 +40,7 @@
 				status = "okay";
 
 				af {
-					product_name = <18>; /* ACTUATOR_NAME_AK737X */
+					product_name = <23>; /* ACTUATOR_NAME_DW9839 */
 					i2c_ch = <0>; /* SENSOR_CONTROL_I2C0 */
 				};
 
@@ -515,8 +515,8 @@
 	};
 
 	fimc-is-actuator@72 {
-		compatible = "samsung,exynos5-fimc-is-actuator-ak737x";
-		reg = <0x0C>; /* TODO: need to check */
+		compatible = "samsung,exynos5-fimc-is-actuator-dw9839";
+		reg = <0x0C>;
 		id = <0>; /* matching fimc_is_sensor id */
 		place = <0>;
 	};
