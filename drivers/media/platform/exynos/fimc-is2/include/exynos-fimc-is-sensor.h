@@ -198,6 +198,7 @@ enum flash_drv_name {
 	FLADRV_NAME_DRV_FLASH_GPIO = 11, /* Common Gpio type(Flash mode, Movie/torch mode) */
 	FLADRV_NAME_LM3644	= 12,
 	FLADRV_NAME_DRV_FLASH_I2C = 13, /* Common I2C type */
+	FLADRV_NAME_S2MU106	= 14,
 	FLADRV_NAME_END,
 	FLADRV_NAME_NOTHING	= 100,
 };

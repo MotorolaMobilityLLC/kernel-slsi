@@ -1,0 +1,306 @@
+/*
+ * Samsung Exynos5 SoC series Flash driver
+ *
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <linux/gpio.h>
+#include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/platform_device.h>
+#include <linux/of_gpio.h>
+
+#include <linux/videodev2.h>
+#include <linux/videodev2_exynos_camera.h>
+
+#include "fimc-is-device-sensor.h"
+#include "fimc-is-device-sensor-peri.h"
+#include "fimc-is-core.h"
+
+#include <linux/leds-s2mu106.h>
+
+static int flash_s2mu106_init(struct v4l2_subdev *subdev, u32 val)
+{
+	int ret = 0;
+	struct fimc_is_flash *flash;
+	int i;
+
+	FIMC_BUG(!subdev);
+
+	flash = (struct fimc_is_flash *)v4l2_get_subdevdata(subdev);
+
+	FIMC_BUG(!flash);
+
+	/* TODO: init flash driver */
+	flash->flash_data.mode = CAM2_FLASH_MODE_OFF;
+	flash->flash_data.intensity = 100; /* TODO: Need to figure out min/max range */
+	flash->flash_data.firing_time_us = 1 * 1000 * 1000; /* Max firing time is 1sec */
+	flash->flash_data.flash_fired = false;
+
+	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
+		if (flash->led_ch[i] >= 0)
+			s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_OFF);
+	}
+
+	return ret;
+}
+
+static int flash_s2mu106_control(struct v4l2_subdev *subdev, enum flash_mode mode, u32 intensity)
+{
+	int ret = 0;
+	struct fimc_is_flash *flash = NULL;
+	int i;
+
+	FIMC_BUG(!subdev);
+
+	flash = (struct fimc_is_flash *)v4l2_get_subdevdata(subdev);
+	FIMC_BUG(!flash);
+
+	dbg_flash("%s : mode = %s, intensity = %d\n", __func__,
+		mode == CAM2_FLASH_MODE_OFF ? "OFF" :
+		mode == CAM2_FLASH_MODE_SINGLE ? "FLASH" : "TORCH",
+		intensity);
+
+	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
+		if (flash->led_ch[i] == -1)
+			continue;
+
+		/* TODO: adjust intensity */
+
+		switch (mode) {
+		case CAM2_FLASH_MODE_OFF:
+			ret = s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_OFF);
+			if (ret < 0) {
+				err("flash off fail(led_ch:%d)", flash->led_ch[i]);
+				ret = -EINVAL;
+			}
+			break;
+		case CAM2_FLASH_MODE_SINGLE:
+			ret = s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_SINGLE);
+			if (ret < 0) {
+				err("capture flash on fail(led_ch:%d)", flash->led_ch[i]);
+				ret = -EINVAL;
+			}
+			break;
+		case CAM2_FLASH_MODE_TORCH:
+			ret = s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_TORCH);
+			if (ret < 0) {
+				err("torch flash on fail(led_ch:%d)", flash->led_ch[i]);
+				ret = -EINVAL;
+			}
+			break;
+		default:
+			err("Invalid flash mode");
+			ret = -EINVAL;
+			goto p_err;
+		}
+	}
+
+p_err:
+	return ret;
+}
+
+int flash_s2mu106_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
+{
+	int ret = 0;
+	struct fimc_is_flash *flash = NULL;
+
+	FIMC_BUG(!subdev);
+
+	flash = (struct fimc_is_flash *)v4l2_get_subdevdata(subdev);
+	FIMC_BUG(!flash);
+
+	switch (ctrl->id) {
+	case V4L2_CID_FLASH_SET_INTENSITY:
+		/* TODO : Check min/max intensity */
+		if (ctrl->value < 0) {
+			err("failed to flash set intensity: %d\n", ctrl->value);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		flash->flash_data.intensity = ctrl->value;
+		break;
+	case V4L2_CID_FLASH_SET_FIRING_TIME:
+		/* TODO : Check min/max firing time */
+		if (ctrl->value < 0) {
+			err("failed to flash set firing time: %d\n", ctrl->value);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		flash->flash_data.firing_time_us = ctrl->value;
+		break;
+	case V4L2_CID_FLASH_SET_FIRE:
+		ret =  flash_s2mu106_control(subdev, flash->flash_data.mode, ctrl->value);
+		if (ret) {
+			err("flash_s2mu106_control(mode:%d, val:%d) is fail(%d)",
+					(int)flash->flash_data.mode, ctrl->value, ret);
+			goto p_err;
+		}
+		break;
+	default:
+		err("err!!! Unknown CID(%#x)", ctrl->id);
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+p_err:
+	return ret;
+}
+
+static const struct v4l2_subdev_core_ops core_ops = {
+	.init = flash_s2mu106_init,
+	.s_ctrl = flash_s2mu106_s_ctrl,
+};
+
+static const struct v4l2_subdev_ops subdev_ops = {
+	.core = &core_ops,
+};
+
+static int __init flash_s2mu106_probe(struct device *dev, struct i2c_client *client)
+{
+	int ret = 0;
+	struct fimc_is_core *core;
+	struct v4l2_subdev *subdev_flash;
+	struct fimc_is_device_sensor *device;
+	struct fimc_is_flash *flash;
+	u32 sensor_id = 0;
+	struct device_node *dnode;
+	int i, elements;
+
+	FIMC_BUG(!fimc_is_dev);
+	FIMC_BUG(!dev);
+
+	dnode = dev->of_node;
+
+	ret = of_property_read_u32(dnode, "id", &sensor_id);
+	if (ret) {
+		err("id read is fail(%d)", ret);
+		goto p_err;
+	}
+
+	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
+	if (!core) {
+		probe_info("core device is not yet probed");
+		ret = -EPROBE_DEFER;
+		goto p_err;
+	}
+
+	device = &core->sensor[sensor_id];
+
+	flash = kzalloc(sizeof(struct fimc_is_flash), GFP_KERNEL);
+	if (!flash) {
+		err("flash is NULL");
+		ret = -ENOMEM;
+		goto p_err;
+	}
+
+	subdev_flash = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
+	if (!subdev_flash) {
+		err("subdev_flash is NULL");
+		ret = -ENOMEM;
+		kfree(flash);
+		goto p_err;
+	}
+
+	flash->id = FLADRV_NAME_S2MU106;
+	flash->subdev = subdev_flash;
+	flash->client = client;
+
+	flash->flash_data.mode = CAM2_FLASH_MODE_OFF;
+	flash->flash_data.intensity = 100; /* TODO: Need to figure out min/max range */
+	flash->flash_data.firing_time_us = 1 * 1000 * 1000; /* Max firing time is 1sec */
+
+	/* get flash_led ch by dt */
+	for (i = 0; i < FLASH_LED_CH_MAX; i++)
+		flash->led_ch[i] = -1;
+
+	elements = of_property_count_u32_elems(dnode, "led_ch");
+	if (elements < 0 || elements > FLASH_LED_CH_MAX) {
+		warn("flash led elements is too much or wrong(%d), set to max(%d)\n",
+			elements, FLASH_LED_CH_MAX);
+		elements = FLASH_LED_CH_MAX;
+	}
+
+	if (elements) {
+		if (of_property_read_u32_array(dnode, "led_ch", flash->led_ch, elements)) {
+			err("cannot get flash led_ch, set only ch1\n");
+			flash->led_ch[0] = 1;
+		}
+	} else {
+		probe_info("set flash_ch as default(only ch1)\n");
+		flash->led_ch[0] = 1;
+	}
+
+	device->subdev_flash = subdev_flash;
+	device->flash = flash;
+
+	v4l2_subdev_init(subdev_flash, &subdev_ops);
+
+	v4l2_set_subdevdata(subdev_flash, flash);
+	v4l2_set_subdev_hostdata(subdev_flash, device);
+	snprintf(subdev_flash->name, V4L2_SUBDEV_NAME_SIZE, "flash-subdev.%d", flash->id);
+
+p_err:
+	return ret;
+}
+
+static int __init flash_s2mu106_platform_probe(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct device *dev;
+
+	FIMC_BUG(!pdev);
+
+	dev = &pdev->dev;
+
+	ret = flash_s2mu106_probe(dev, NULL);
+	if (ret < 0) {
+		probe_err("flash gpio probe fail(%d)\n", ret);
+		goto p_err;
+	}
+
+	probe_info("%s done\n", __func__);
+
+p_err:
+	return ret;
+}
+
+static const struct of_device_id exynos_fimc_is_sensor_flash_s2mu106_match[] = {
+	{
+		.compatible = "samsung,sensor-flash-s2mu106",
+	},
+	{
+		.compatible = "samsung,sensor-front-flash-s2mu106",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_fimc_is_sensor_flash_s2mu106_match);
+
+/* register platform driver */
+static struct platform_driver sensor_flash_s2mu106_platform_driver = {
+	.driver = {
+		.name   = "FIMC-IS-SENSOR-FLASH-S2MU106-PLATFORM",
+		.owner  = THIS_MODULE,
+		.of_match_table = exynos_fimc_is_sensor_flash_s2mu106_match,
+	}
+};
+
+static int __init fimc_is_sensor_flash_s2mu106_init(void)
+{
+	int ret;
+
+	ret = platform_driver_probe(&sensor_flash_s2mu106_platform_driver,
+				flash_s2mu106_platform_probe);
+	if (ret)
+		err("failed to probe %s driver: %d\n",
+			sensor_flash_s2mu106_platform_driver.driver.name, ret);
+
+	return ret;
+}
+late_initcall_sync(fimc_is_sensor_flash_s2mu106_init);

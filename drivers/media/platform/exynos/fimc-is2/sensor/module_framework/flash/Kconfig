@@ -28,6 +28,14 @@ config CAMERA_FLASH_S2MPB02_OBJ
         help
           Use to build S2MPB02 driver.
 
+config CAMERA_FLASH_S2MU106_OBJ
+        bool "Use S2MU106"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_FLASH_SELECT
+        default n
+        help
+          Use to build S2MU106 driver.
+
 config CAMERA_FLASH_GPIO_OBJ
         bool "Use GPIO"
 	depends on USE_DIRECT_IS_CONTROL
