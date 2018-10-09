@@ -15,7 +15,7 @@
 &hsi2c_6 {
 	status = "okay";
 	samsung,reset-before-trans;
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 
 	aw8695_haptic@5A {
 		compatible = "awinic,aw8695_haptic";
