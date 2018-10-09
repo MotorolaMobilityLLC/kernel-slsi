@@ -22,7 +22,20 @@
 		__overlay__ {
 			model = "kane";
 			mot,soc-id = <0xE9610000>;
-			mot,board-id = <0x41 0x8000>;
+			mot,board-id = <0x41 0xA100>;
+
+			utags {
+				compatible = "mmi,utags";
+				mmi,main-utags = "/dev/block/by-name/utags";
+				mmi,backup-utags = "/dev/block/by-name/utagsBackup";
+			};
+
+			hw {
+				compatible = "mmi,utags";
+				mmi,dir-name = "hw";
+				mmi,main-utags = "/dev/block/by-name/hw";
+			};
+
 		};
 	};
 };
