@@ -1002,8 +1002,8 @@ static int aw8695_haptic_f0_calibration(struct aw8695 *aw8695)
     /* LPF */
     aw8695_i2c_write_bits(aw8695, AW8695_REG_DATCTRL,
             AW8695_BIT_DATCTRL_FC_MASK, AW8695_BIT_DATCTRL_FC_1000HZ);
-//    aw8695_i2c_write_bits(aw8695, AW8695_REG_DATCTRL,
- //           AW8695_BIT_DATCTRL_LPF_ENABLE_MASK, AW8695_BIT_DATCTRL_LPF_ENABLE);
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_DATCTRL,
+            AW8695_BIT_DATCTRL_LPF_ENABLE_MASK, AW8695_BIT_DATCTRL_LPF_ENABLE);
 
     /* LRA OSC Source */
     aw8695_i2c_write_bits(aw8695, AW8695_REG_ANACTRL,
