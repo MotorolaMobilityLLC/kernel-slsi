@@ -510,9 +510,14 @@ err:
 static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct dpp_device *dpp = v4l2_get_subdevdata(sd);
-	bool reset = (bool)arg;
+	bool reset;
 	int ret = 0;
 	int *afbc_enabled;
+
+	if (arg == NULL)
+		return -1;
+	else
+		reset = (bool)arg;
 
 	switch (cmd) {
 	case DPP_WIN_CONFIG:
