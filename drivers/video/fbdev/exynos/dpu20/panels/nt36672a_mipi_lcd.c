@@ -37,8 +37,8 @@ struct panel_device {
 	int cabc_mode;
 };
 
-struct panel_device *panel_drvdata;
-struct class *panel_class;
+struct panel_device *nt36672a_panel_drvdata;
+struct class *nt36672a_panel_class;
 #endif
 
 static int nt36672a_get_brightness(struct backlight_device *bd)
@@ -309,23 +309,23 @@ static int nt36672a_probe(struct dsim_device *dsim)
 		goto exit0;
 	}
 
-	panel_drvdata = panel;
+	nt36672a_panel_drvdata = panel;
 
 	panel->dsim = dsim;
 	panel->cabc_mode = 0;
 
-	if (IS_ERR_OR_NULL(panel_class)) {
-		panel_class = class_create(THIS_MODULE, "panel");
-		if (IS_ERR_OR_NULL(panel_class)) {
+	if (IS_ERR_OR_NULL(nt36672a_panel_class)) {
+		nt36672a_panel_class = class_create(THIS_MODULE, "panel");
+		if (IS_ERR_OR_NULL(nt36672a_panel_class)) {
 			pr_err("failed to create panel class\n");
 			ret = -EINVAL;
 			goto exit1;
 		}
 
-		panel_class->dev_groups = panel_groups;
+		nt36672a_panel_class->dev_groups = panel_groups;
 	}
 
-	panel->dev = device_create(panel_class, dsim->dev, 0,
+	panel->dev = device_create(nt36672a_panel_class, dsim->dev, 0,
 			&panel, !panel_no ? "panel" : "panel%d", panel_no);
 	if (IS_ERR_OR_NULL(panel->dev)) {
 		pr_err("failed to create panel device\n");
@@ -341,7 +341,7 @@ static int nt36672a_probe(struct dsim_device *dsim)
 	return ret;
 
 exit2:
-	class_destroy(panel_class);
+	class_destroy(nt36672a_panel_class);
 exit1:
 	kfree(panel);
 exit0:
@@ -352,7 +352,7 @@ exit0:
 static int nt36672a_displayon(struct dsim_device *dsim)
 {
 #if defined(CONFIG_EXYNOS_PANEL_CABC)
-	struct panel_device *panel = panel_drvdata;
+	struct panel_device *panel = nt36672a_panel_drvdata;
 #endif
 	dsim_info("%s +\n", __func__);
 	nt36672a_lcd_init(dsim->id, &dsim->lcd_info);
