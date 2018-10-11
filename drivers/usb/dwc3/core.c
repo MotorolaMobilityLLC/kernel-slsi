@@ -948,7 +948,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc);
  */
 int dwc3_core_init(struct dwc3 *dwc)
 {
-	u32			reg;
+	u32			reg = 0;
 	struct dwc3_otg		*dotg = dwc->dotg;
 	int			ret;
 
