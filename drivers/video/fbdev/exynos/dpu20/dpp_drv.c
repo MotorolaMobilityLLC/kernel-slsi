@@ -510,14 +510,9 @@ err:
 static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct dpp_device *dpp = v4l2_get_subdevdata(sd);
-	bool reset;
+	bool reset = (bool)arg;
 	int ret = 0;
 	int *afbc_enabled;
-
-	if (arg == NULL)
-		return -1;
-	else
-		reset = (bool)arg;
 
 	switch (cmd) {
 	case DPP_WIN_CONFIG:
@@ -542,6 +537,11 @@ static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		break;
 
 	case DPP_AFBC_ATTR_ENABLED:
+		if (!arg) {
+			dpp_err("failed to get afbc enabled info\n");
+			ret = -EINVAL;
+			break;
+		}
 		afbc_enabled = (int *)arg;
 		ret = dpp_afbc_enabled(dpp, afbc_enabled);
 		break;
@@ -551,6 +551,11 @@ static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		break;
 
 	case DPP_GET_RESTRICTION:
+		if (!arg) {
+			dpp_err("failed to get dpp restriction\n");
+			ret = -EINVAL;
+			break;
+		}
 		memcpy((struct dpp_restriction *)arg, &dpp->restriction,
 				sizeof(struct dpp_restriction));
 		break;
