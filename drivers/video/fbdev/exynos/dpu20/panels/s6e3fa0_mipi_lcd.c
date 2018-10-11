@@ -39,8 +39,8 @@ struct panel_device {
 	int cabc_mode;
 };
 
-struct panel_device *panel_drvdata;
-struct class *panel_class;
+struct panel_device *s6e3fa0_panel_drvdata;
+struct class *s6e3fa0_panel_class;
 
 static int s6e3fa0_get_brightness(struct backlight_device *bd)
 {
@@ -464,23 +464,23 @@ static int s6e3fa0_probe(struct dsim_device *dsim)
 		goto exit0;
 	}
 
-	panel_drvdata = panel;
+	s6e3fa0_panel_drvdata = panel;
 
 	panel->dsim = dsim;
 	panel->cabc_mode = 0;
 
-	if (IS_ERR_OR_NULL(panel_class)) {
-		panel_class = class_create(THIS_MODULE, "panel");
-		if (IS_ERR_OR_NULL(panel_class)) {
+	if (IS_ERR_OR_NULL(s6e3fa0_panel_class)) {
+		s6e3fa0_panel_class = class_create(THIS_MODULE, "panel");
+		if (IS_ERR_OR_NULL(s6e3fa0_panel_class)) {
 			pr_err("failed to create panel class\n");
 			ret = -EINVAL;
 			goto exit1;
 		}
 
-		panel_class->dev_groups = panel_groups;
+		s6e3fa0_panel_class->dev_groups = panel_groups;
 	}
 
-	panel->dev = device_create(panel_class, dsim->dev, 0,
+	panel->dev = device_create(s6e3fa0_panel_class, dsim->dev, 0,
 			&panel, !panel_no ? "panel" : "panel%d", panel_no);
 	if (IS_ERR_OR_NULL(panel->dev)) {
 		pr_err("failed to create panel device\n");
@@ -496,7 +496,7 @@ static int s6e3fa0_probe(struct dsim_device *dsim)
 	return ret;
 
 exit2:
-	class_destroy(panel_class);
+	class_destroy(s6e3fa0_panel_class);
 exit1:
 	kfree(panel);
 exit0:
@@ -506,7 +506,7 @@ exit0:
 static int s6e3fa0_displayon(struct dsim_device *dsim)
 {
 #if defined(CONFIG_EXYNOS_PANEL_CABC)
-	struct panel_device *panel = panel_drvdata;
+	struct panel_device *panel = s6e3fa0_panel_drvdata;
 #endif
 
 	s6e3fa0_lcd_init(dsim->id, &dsim->lcd_info);
