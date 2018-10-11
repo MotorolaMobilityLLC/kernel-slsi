@@ -602,20 +602,25 @@ void irq_init_desc(unsigned int irq)
 int generic_handle_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irqaction *action;
+	irq_handler_t handler;
 	unsigned long long start_time;
 
 	if (!desc)
 		return -EINVAL;
 
-	action = desc->action;
 	dbg_snapshot_irq_var(start_time);
-	dbg_snapshot_irq(irq, (void *)action->handler, (void *)desc,
+
+	if (likely(desc->action))
+		handler = desc->action->handler;
+	else
+		handler = NULL;
+
+	dbg_snapshot_irq(irq, (void *)handler, (void *)desc,
 				0, DSS_FLAG_IN);
 
 	generic_handle_irq_desc(desc);
 
-	dbg_snapshot_irq(irq, (void *)action->handler, (void *)desc,
+	dbg_snapshot_irq(irq, (void *)handler, (void *)desc,
 				start_time, DSS_FLAG_OUT);
 
 	return 0;
