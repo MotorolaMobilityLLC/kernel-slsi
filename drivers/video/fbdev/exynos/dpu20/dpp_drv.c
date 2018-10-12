@@ -547,6 +547,11 @@ static long dpp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		break;
 
 	case DPP_GET_PORT_NUM:
+		if (!arg) {
+			dpp_err("failed to get dpp port num\n");
+			ret = -EINVAL;
+			break;
+		}
 		*(int *)arg = dpp->port;
 		break;
 
