@@ -1163,12 +1163,50 @@ static long dsim_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return ret;
 }
 
+static int dsim_reg_read(struct v4l2_subdev *sd, struct fb_regrw_access_t *rr)
+{
+	int ret = 0;
+	u32 dsi_package_type = 0;
+	int i = 0;
+
+	struct dsim_device *dsim = container_of(sd, struct dsim_device, sd);
+	dsim_err("dsim_reg_read:read reg addr = 0x%x,rw_cnt = %d,use_hs_mode = %d!\n",rr->address,rr->buffer_size,rr->use_hs_mode);
+
+	switch (rr->buffer_size) {
+	case 0:
+	case 1:
+	case 2:
+		dsi_package_type = MIPI_DSI_DCS_READ;
+		break;
+	default:
+		dsi_package_type = MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM;
+		break;
+	}
+	dsi_package_type = MIPI_DSI_DCS_READ;
+	/* dsim sends the request for the lcd id and gets it buffer */
+	ret = dsim_read_data(dsim, dsi_package_type,
+		rr->address, rr->buffer_size, rr->buffer);
+
+	if (ret < 0){
+		dsim_err("%s:Failed to read panel reg!\n",__func__);
+	}else{
+		dsim_info("%s:Suceeded to read panel reg :0x%x = 0x%x\n",__func__,rr->address,rr->buffer);
+		ret = 0;
+	}
+
+	for(i=0;i<rr->buffer_size;i++)
+		dsim_err("dsim_reg_read@@@@@@@@@@@:rr.buf[%d]=0x%x!\n",i,rr->buffer[i]);
+
+	return ret;
+}
+
 static const struct v4l2_subdev_core_ops dsim_sd_core_ops = {
 	.ioctl = dsim_ioctl,
 };
 
 static const struct v4l2_subdev_video_ops dsim_sd_video_ops = {
 	.s_stream = dsim_s_stream,
+	.reg_read = dsim_reg_read,
 };
 
 static const struct v4l2_subdev_ops dsim_subdev_ops = {

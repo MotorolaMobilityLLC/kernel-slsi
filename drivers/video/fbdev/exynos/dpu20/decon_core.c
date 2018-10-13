@@ -3116,6 +3116,32 @@ static ssize_t decon_fb_write(struct fb_info *info, const char __user *buf,
 	return 0;
 }
 
+static int decon_fb_read_reg(struct fb_info *info, struct fb_regrw_access_t *rr)
+{
+	struct decon_win *win = info->par;
+	struct decon_device *decon = win->decon;
+
+	int ret = 0;
+	int i = 0;
+	int num_dsi = (decon->dt.dsi_mode == DSI_MODE_DUAL_DSI) ? 2 : 1;
+
+	decon_err("%s in\n",__func__);
+
+	if (DECON_STATE_OFF == decon->state) {
+		decon_err("lcd has suspend already,couldn't support reg read/write\n");
+		return -EFAULT;
+	}
+	for (i = 0; i < num_dsi; i++) {
+		ret = v4l2_subdev_call(decon->out_sd[i], video, reg_read, rr);
+		if (ret) {
+			decon_err("stopping stream failed for %s,ret = %d\n",
+					decon->out_sd[i]->name,ret);
+		}
+	}
+
+	return ret;
+}
+
 int decon_release(struct fb_info *info, int user)
 {
 	struct decon_win *win = info->par;
@@ -3171,6 +3197,7 @@ static struct fb_ops decon_fb_ops = {
 	.fb_ioctl	= decon_ioctl,
 	.fb_read	= decon_fb_read,
 	.fb_write	= decon_fb_write,
+	.fb_read_reg	= decon_fb_read_reg,
 	.fb_pan_display	= decon_pan_display,
 	.fb_mmap	= decon_mmap,
 	.fb_release	= decon_release,
