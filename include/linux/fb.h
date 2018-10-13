@@ -283,6 +283,8 @@ struct fb_ops {
 
 	/* blank display */
 	int (*fb_blank)(int blank, struct fb_info *info);
+	/* display read */
+	int (*fb_read_reg)(struct fb_info *info, struct fb_regrw_access_t *rr);
 
 	/* pan display */
 	int (*fb_pan_display)(struct fb_var_screeninfo *var, struct fb_info *info);
