@@ -262,6 +262,36 @@ int fb_set_cmap(struct fb_cmap *cmap, struct fb_info *info)
 	return rc;
 }
 
+int fb_user_to_kernel(struct fb_regrw_access_t_user *from_rw, struct fb_regrw_access_t **to_rw)
+{
+	int ret = 0;
+	printk("fb_user_to_kernel:user_rr.reg = 0x%x,user_rr.cnt = %d, user_rr.hs_mode = %d,user_rr.buf = 0x%8x\n",from_rw->address,from_rw->buffer_size,from_rw->use_hs_mode,from_rw->buffer);
+
+
+	*to_rw = kmalloc(sizeof(struct fb_regrw_access_t),GFP_KERNEL);
+
+	if (to_rw == NULL)
+		return -ENOMEM;
+
+	memset(*to_rw, 0, sizeof(struct fb_regrw_access_t));
+
+
+	(*to_rw)->address = from_rw->address;
+	(*to_rw)->buffer_size = from_rw->buffer_size;
+	(*to_rw)->use_hs_mode = from_rw->use_hs_mode;
+
+	(*to_rw)->buffer = kmalloc((*to_rw)->buffer_size*sizeof(__u8), GFP_KERNEL);
+	if(!((*to_rw)->buffer))
+		return -ENOMEM;
+
+	memset((*to_rw)->buffer, 0, (*to_rw)->buffer_size*sizeof(__u8));
+
+	if (copy_from_user((*to_rw)->buffer, from_rw->buffer, (*to_rw)->buffer_size*sizeof(__u8)))
+		return -ENOMEM;
+
+	return ret;
+}
+
 int fb_set_user_cmap(struct fb_cmap_user *cmap, struct fb_info *info)
 {
 	int rc, size = cmap->len * sizeof(u16);

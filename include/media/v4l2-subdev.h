@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/v4l2-subdev.h>
+#include <linux/fb.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-common.h>
@@ -403,6 +404,7 @@ struct v4l2_subdev_video_ops {
 	int (*g_tvnorms_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
+	int (*reg_read)(struct v4l2_subdev *sd, struct fb_regrw_access_t *rr);
 	int (*g_pixelaspect)(struct v4l2_subdev *sd, struct v4l2_fract *aspect);
 	int (*g_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
