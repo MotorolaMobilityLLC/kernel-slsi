@@ -24,6 +24,7 @@
 /* #define FBIOGET_MONITORSPEC	0x460C */
 /* #define FBIOPUT_MONITORSPEC	0x460D */
 /* #define FBIOSWITCH_MONIBIT	0x460E */
+#define FB_RGER_IOCTL  0xc00c6d40
 #define FBIOGET_CON2FBMAP	0x460F
 #define FBIOPUT_CON2FBMAP	0x4610
 #define FBIOBLANK		0x4611		/* arg: 0 or vesa level + 1 */
@@ -391,6 +392,19 @@ struct fb_cursor {
 	const char *mask;	/* cursor mask bits */
 	struct fbcurpos hot;	/* cursor hot spot */
 	struct fb_image	image;	/* Cursor image */
+};
+
+struct fb_regrw_access_t {
+	__u8  address;
+	__u8  use_hs_mode;
+	__u32 buffer_size;
+	__u8  *buffer;
+};
+struct fb_regrw_access_t_user {
+	__u8  address;
+	__u8  use_hs_mode;
+	__u32 buffer_size;
+	__u8  __user *buffer;
 };
 
 #ifdef CONFIG_FB_BACKLIGHT
