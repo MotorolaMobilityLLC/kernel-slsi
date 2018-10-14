@@ -243,7 +243,9 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	struct fimc_is_mem *mem = &resourcemgr->mem;
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
 	size_t tpu_size = 0;
-	size_t tnr_size;
+#if !defined(ENABLE_DYNAMIC_MEM)
+	size_t tnr_size = 0;
+#endif
 	int i;
 
 	minfo->total_size = 0;
@@ -314,11 +316,9 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	}
 	minfo->total_size += minfo->pb_fshared->size;
 
-	tnr_size = 0;
 #if !defined(ENABLE_DYNAMIC_MEM)
 #if defined(ENABLE_TNR)
-	/* 4 is double buffering & 2 instance for dual camera */
-	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * 4);
+	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * NUM_OF_TNR_BUF);
 #endif
 
 	/* 3aa/isp internal DMA buffer */
@@ -473,12 +473,10 @@ static int fimc_is_resourcemgr_alloc_dynamic_mem(struct fimc_is_resourcemgr *res
 {
 	struct fimc_is_mem *mem = &resourcemgr->mem;
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
-	size_t tnr_size;
+	size_t tnr_size = 0;
 
-	tnr_size = 0;
 #if defined (ENABLE_TNR)
-	/* 4 is double buffering & 2 instance for dual camera */
-	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * 4);
+	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * NUM_OF_TNR_BUF);
 #endif
 
 	/* 3aa/isp internal DMA buffer */
