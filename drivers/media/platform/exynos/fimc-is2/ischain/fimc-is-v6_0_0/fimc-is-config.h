@@ -60,6 +60,7 @@
 /* #define ENABLE_DNR_IN_TPU */
 /*#define ENABLE_DNR_IN_MCSC */
 #define ENABLE_TNR
+#define NUM_OF_TNR_BUF	4 /* dual(2) & double buffering(2) */
 #define ENABLE_10BIT_MCSC
 #define ENABLE_DJAG_IN_MCSC
 #define ENABLE_VRA
