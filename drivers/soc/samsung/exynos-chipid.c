@@ -22,6 +22,21 @@
 struct exynos_chipid_info exynos_soc_info;
 EXPORT_SYMBOL(exynos_soc_info);
 
+static long board_rev;
+
+static int __init get_revision(char *str)
+{
+	int res = 0;
+	res  = kstrtol(str, 16, &board_rev);
+	if (res)
+		pr_info("%s: Get Board Revision fail!!\n", __func__);
+	else
+		pr_info("Board Revision = 0x%x\n", board_rev);
+	return 0;
+}
+
+early_param("revision", get_revision);
+
 static const char * __init product_id_to_name(unsigned int product_id)
 {
 	const char *soc_name;
@@ -308,6 +323,12 @@ static ssize_t chipid_memsize_show(struct device *dev,
 	return snprintf(buf, 20, "%llu\n", exynos_soc_info.memsize);
 }
 
+static ssize_t chipid_board_id_show(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, 14, "%ld", board_rev);
+}
+
 static struct device_attribute chipid_product_id_attr =
         __ATTR(product_id, 0644, chipid_product_id_show, NULL);
 
@@ -326,6 +347,9 @@ static struct device_attribute chipid_evt_ver_attr =
 static struct device_attribute chipid_memsize_attr =
 	__ATTR(memsize, 0440, chipid_memsize_show, NULL);
 
+static struct kobj_attribute chipid_board_id_attr =
+	__ATTR(board_id, 0644, chipid_board_id_show, NULL);
+
 static struct attribute *chipid_sysfs_attrs[] = {
 	&chipid_product_id_attr.attr,
 	&chipid_unique_id_attr.attr,
@@ -333,6 +357,7 @@ static struct attribute *chipid_sysfs_attrs[] = {
 	&chipid_revision_attr.attr,
 	&chipid_evt_ver_attr.attr,
 	&chipid_memsize_attr.attr,
+	&chipid_board_id_attr.attr,
 	NULL,
 };
 
