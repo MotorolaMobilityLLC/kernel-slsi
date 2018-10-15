@@ -36,6 +36,11 @@
 				mmi,main-utags = "/dev/block/by-name/hw";
 			};
 
+			aov-trigger {
+				status = "okay";
+				compatible = "mmi,aov-trigger";
+			};
+
 		};
 	};
 };
