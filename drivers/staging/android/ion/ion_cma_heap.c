@@ -47,8 +47,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct sg_table *table;
 	struct page *pages;
 	unsigned long size = PAGE_ALIGN(len);
-	unsigned long nr_pages = size >> PAGE_SHIFT;
 	unsigned long align = cma_heap->align_order;
+	unsigned long nr_pages = ALIGN(size >> PAGE_SHIFT, 1 << align);
 	bool cacheflush = !(flags & ION_FLAG_CACHED) ||
 			  ((flags & ION_FLAG_SYNC_FORCE) != 0);
 	bool protected = cma_heap->secure && (flags & ION_FLAG_PROTECTED);
@@ -127,7 +127,8 @@ static void ion_cma_free(struct ion_buffer *buffer)
 	struct ion_cma_heap *cma_heap = to_cma_heap(buffer->heap);
 	bool protected = cma_heap->secure &&
 			 (buffer->flags & ION_FLAG_PROTECTED);
-	unsigned long nr_pages = PAGE_ALIGN(buffer->size) >> PAGE_SHIFT;
+	unsigned long nr_pages = ALIGN(PAGE_ALIGN(buffer->size) >> PAGE_SHIFT,
+				       1 << cma_heap->align_order);
 
 	if (protected)
 		ion_buffer_unprotect(buffer->priv_virt);
