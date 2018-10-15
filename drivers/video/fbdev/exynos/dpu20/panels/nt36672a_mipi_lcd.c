@@ -279,12 +279,38 @@ static ssize_t panel_cabc_mode_store(struct device *dev,
 static DEVICE_ATTR(cabc_mode, 0660, panel_cabc_mode_show,
 		panel_cabc_mode_store);
 
+#endif
+static ssize_t lcd_panel_supplier_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+
+	count = snprintf(buf, PAGE_SIZE, "%s\n","nt36672a");
+	return count;
+}
+
+static DEVICE_ATTR(panel_supplier, 0644, lcd_panel_supplier_show,NULL);
+
 static struct attribute *panel_attrs[] = {
 	&dev_attr_cabc_mode.attr,
+	&dev_attr_panel_supplier.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(panel);
-#endif
+
+static struct attribute_group panel = {
+	.attrs = panel_attrs,
+};
+
+static int nt36672a_create_sysfs(struct dsim_device *dsim)
+{
+	int rc;
+	rc = sysfs_create_group(&dsim->dev->kobj, &panel);
+	if (rc)
+		pr_err("sysfs group creation failed, rc=%d\n", rc);
+	return rc;
+}
+
 
 static int nt36672a_probe(struct dsim_device *dsim)
 {
@@ -301,6 +327,7 @@ static int nt36672a_probe(struct dsim_device *dsim)
 
 	bd->props.max_brightness = MAX_BRIGHTNESS;
 	bd->props.brightness = DEFAULT_BRIGHTNESS;
+	nt36672a_create_sysfs(dsim);
 #if defined(CONFIG_EXYNOS_PANEL_CABC)
 	panel = kzalloc(sizeof(struct panel_device), GFP_KERNEL);
 	if (!panel) {
