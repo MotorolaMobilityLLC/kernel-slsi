@@ -1,0 +1,20 @@
+
+/ {
+	fragment@utag {
+		target-path = "/";
+		__overlay__ {
+			utags {
+				compatible = "mmi,utags";
+				mmi,main-utags = "/dev/block/platform/13520000.ufs/by-name/utags";
+				mmi,backup-utags = "/dev/block/platform/13520000.ufs/by-name/utagsBackup";
+			};
+
+			hw {
+				compatible = "mmi,utags";
+				mmi,dir-name = "hw";
+				mmi,main-utags = "/dev/block/platform/13520000.ufs/by-name/hw";
+			};
+
+		};
+	};
+};
