@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/kobject.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/printk.h>
 #include <linux/string.h>
