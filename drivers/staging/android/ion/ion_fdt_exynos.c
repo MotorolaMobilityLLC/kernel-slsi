@@ -171,42 +171,53 @@ static bool __init exynos_ion_register_hpa_heaps(unsigned int prot_id_map)
 	bool secure = false;
 
 	for_each_node_by_name(np, "ion-hpa-heap") {
-		const __be32 *range;
+		int naddr = of_n_addr_cells(np);
+		int nsize = of_n_size_cells(np);
+		phys_addr_t base, size;
+		const __be32 *prop;
 		int len;
+		int i;
 
-		range = of_get_property(np, "ion,hpa_alloc_exception", &len);
-		if (range && (len > 0)) {
-			int n_addr = of_n_addr_cells(np);
-			int n_size = of_n_size_cells(np);
-			int n_area = len / (sizeof(*range) * (n_size + n_addr));
-			const void *prop;
-			phys_addr_t base, size;
-			int i;
+		/*
+		 * If 'ion-hpa-heap' node defines its own range properties,
+		 * override the range properties defined by its parent.
+		 */
+		prop = of_get_property(np, "#address-cells", NULL);
+		if (prop)
+			naddr = be32_to_cpup(prop);
 
-			/*
-			 * If 'ion-hpa-heap' node defines its own range properties,
-			 * override the range properties defined by its parent.
-			 */
-			prop = of_get_property(np, "#address-cells", NULL);
-			if (prop)
-				n_addr = be32_to_cpup(prop);
+		prop = of_get_property(np, "#size-cells", NULL);
+		if (prop)
+			nsize = be32_to_cpup(prop);
 
-			prop = of_get_property(np, "#size-cells", NULL);
-			if (prop)
-				n_size = be32_to_cpup(prop);
+		prop = of_get_property(np, "ion,hpa_limit", &len);
+		if (prop && len > 0 &&
+		    hpa_num_exception_areas < MAX_HPA_EXCEPTION_AREAS) {
+			base = (phys_addr_t)of_read_number(prop, naddr);
 
-			for (i = hpa_num_exception_areas;
-			     i < min(n_area, MAX_HPA_EXCEPTION_AREAS) ; i++) {
-				base = (phys_addr_t)of_read_number(range, n_addr);
-				range += n_addr;
-				size = (phys_addr_t)of_read_number(range, n_size);
-				range += n_size;
+			i = hpa_num_exception_areas++;
+			hpa_alloc_exceptions[i][0] = base;
+			hpa_alloc_exceptions[i][1] = -1;
+		}
+
+		prop = of_get_property(np, "ion,hpa_alloc_exception", &len);
+		if (prop && len > 0) {
+			int n_area = len / (sizeof(*prop) * (nsize + naddr));
+
+			n_area += hpa_num_exception_areas;
+			n_area = min(n_area, MAX_HPA_EXCEPTION_AREAS);
+
+			for (i = hpa_num_exception_areas; i < n_area ; i++) {
+				base = (phys_addr_t)of_read_number(prop, naddr);
+				prop += naddr;
+				size = (phys_addr_t)of_read_number(prop, nsize);
+				prop += nsize;
 
 				hpa_alloc_exceptions[i][0] = base;
 				hpa_alloc_exceptions[i][1] = base + size - 1;
 			}
 
-			hpa_num_exception_areas = i;
+			hpa_num_exception_areas = n_area;
 		}
 
 		for_each_child_of_node(np, child)
