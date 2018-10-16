@@ -1561,8 +1561,9 @@ static void dsim_parse_lcd_info(struct dsim_device *dsim)
 		break;
 
 	default:
-		dsim_info("can't read ddi_device_type\n");
-		BUG();
+		dsim_info("read ddi_device_type default lcd\n");
+		ddi_device_type = "default-lcd-vdo";
+		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
 	}
 
@@ -1790,8 +1791,9 @@ static void dsim_register_panel(struct dsim_device *dsim)
 		dsim_info("panel ops : nt36672a_mipi_lcd_driver\n");
 		break;
 	default:
-		dsim_info("panel ops is not bind\n");
-		BUG();
+		dsim_info("panel ops is default lcd\n");
+		dsim->panel_ops = &default_mipi_lcd_driver;
+		dsim_info("panel ops : default_mipi_lcd_driver\n");
 		break;
 	}
 }
