@@ -237,6 +237,37 @@ static int manual_offset_calibration(psx93XX_t this)
 
 }
 
+static ssize_t manual_offset_calibration_value_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	u32 reg_value = 0;
+	psx93XX_t this = dev_get_drvdata(dev);
+	char *p = buf;
+
+	LOG_DBG("Reading SX933X_OFFSETPHX_REG\n");
+	sx933x_i2c_read_16bit(this, SX933X_OFFSETPH0_REG, &reg_value);
+	p += snprintf(p, PAGE_SIZE, "SX933X_OFFSETPH0_REG(0x%04x)=0x%04x\n",
+			SX933X_OFFSETPH0_REG, reg_value & 0x7FFF);
+
+	sx933x_i2c_read_16bit(this, SX933X_OFFSETPH1_REG, &reg_value);
+	p += snprintf(p, PAGE_SIZE, "SX933X_OFFSETPH1_REG(0x%04x)=0x%04x\n",
+			SX933X_OFFSETPH1_REG, reg_value & 0x7FFF);
+
+	sx933x_i2c_read_16bit(this, SX933X_OFFSETPH2_REG, &reg_value);
+	p += snprintf(p, PAGE_SIZE, "SX933X_OFFSETPH2_REG(0x%04x)=0x%04x\n",
+			SX933X_OFFSETPH2_REG, reg_value & 0x7FFF);
+
+	sx933x_i2c_read_16bit(this, SX933X_OFFSETPH3_REG, &reg_value);
+	p += snprintf(p, PAGE_SIZE, "SX933X_OFFSETPH3_REG(0x%04x)=0x%04x\n",
+			SX933X_OFFSETPH3_REG, reg_value & 0x7FFF);
+
+	sx933x_i2c_read_16bit(this, SX933X_OFFSETPH4_REG, &reg_value);
+	p += snprintf(p, PAGE_SIZE, "SX933X_OFFSETPH4_REG(0x%04x)=0x%04x\n",
+			SX933X_OFFSETPH4_REG, reg_value & 0x7FFF);
+
+	return (p - buf);
+}
+
 /****************************************************************************/
 /*! \brief sysfs show function for manual calibration which currently just
  * returns register value.
@@ -367,6 +398,7 @@ static ssize_t sx933x_raw_data_show(struct device *dev, struct device_attribute 
 }
 
 static DEVICE_ATTR(manual_calibrate, 0664, manual_offset_calibration_show,manual_offset_calibration_store);
+static DEVICE_ATTR(manual_calibrate_value, 0664, manual_offset_calibration_value_show, NULL);
 static DEVICE_ATTR(register_write,  0664, NULL,sx933x_register_write_store);
 static DEVICE_ATTR(register_read,0664, NULL,sx933x_register_read_store);
 static DEVICE_ATTR(raw_data,0664,sx933x_raw_data_show,NULL);
@@ -374,6 +406,7 @@ static DEVICE_ATTR(raw_data,0664,sx933x_raw_data_show,NULL);
 static struct attribute *sx933x_attributes[] =
 {
 	&dev_attr_manual_calibrate.attr,
+	&dev_attr_manual_calibrate_value.attr,
 	&dev_attr_register_write.attr,
 	&dev_attr_register_read.attr,
 	&dev_attr_raw_data.attr,
