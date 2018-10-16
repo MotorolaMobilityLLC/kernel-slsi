@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/of_gpio.h>
 
 #include <soc/samsung/exynos-pmu.h>
 #include <sound/samsung/abox.h>
@@ -92,9 +93,12 @@ struct madera_drvdata {
 	int left_amp_dai;
 	int right_amp_dai;
 	struct clk *clk[MADERA_MAX_CLOCKS];
+	unsigned int spk_id;
+	int spk_id_value;
 };
 
 static struct madera_drvdata exynos9610_drvdata;
+static struct snd_soc_card exynos9610_madera;
 
 static int map_fllid_with_name(const char *name)
 {
@@ -1099,10 +1103,24 @@ static const char * const vts_output_texts[] = {
         "DMIC1",
 };
 
+static int madera_spk_id_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = &exynos9610_madera;
+	struct madera_drvdata *drvdata = card->drvdata;
+
+	dev_info(drvdata->dev, "%s(%d)\n", __func__, drvdata->spk_id_value);
+	ucontrol->value.integer.value[0] = drvdata->spk_id_value;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new exynos9610_controls[] = {
 	SOC_DAPM_PIN_SWITCH("DMIC1"),
 	SOC_DAPM_PIN_SWITCH("DMIC2"),
 	SOC_DAPM_PIN_SWITCH("DMIC3"),
+	SOC_SINGLE_EXT("SPK ID", SND_SOC_NOPM, 0, 1, 0,
+			madera_spk_id_get, NULL),
 };
 
 static struct snd_soc_dapm_widget exynos9610_widgets[] = {
@@ -1317,6 +1335,16 @@ static int exynos9610_audio_probe(struct platform_device *pdev)
 			&drvdata->outclk, false);
 	if (ret)
 		dev_info(card->dev, "Failed to parse outclk: %d\n", ret);
+
+	if (of_get_property(np, "gpios", NULL) != NULL)  {
+		drvdata->spk_id = of_get_gpio(np, 0);
+		if (drvdata->spk_id < 0) {
+			dev_err(&pdev->dev, "failed to get SPK ID GPIO");
+		} else {
+			drvdata->spk_id_value = gpio_get_value(drvdata->spk_id);
+			dev_info(&pdev->dev, "SPK_ID gpio value = %d\n", drvdata->spk_id_value);
+		}
+	}
 
 	for_each_child_of_node(np, dai) {
 		if (!exynos9610_dai[nlink].name)
