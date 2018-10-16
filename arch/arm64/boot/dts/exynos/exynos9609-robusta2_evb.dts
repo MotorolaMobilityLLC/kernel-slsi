@@ -815,6 +815,8 @@
 
 				cirrus,opclk = <3 0 12288000>;
 
+				gpios = <&gpm25 0 0>;
+
 				samsung,routing =
 					"HEADSETMIC", "MICBIAS1B",
 					"IN1BR", "HEADSETMIC",
