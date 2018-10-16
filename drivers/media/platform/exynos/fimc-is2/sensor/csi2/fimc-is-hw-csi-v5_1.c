@@ -692,19 +692,11 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	u32 sram1_split;
 	u32 max;
 	u32 matrix_num;
+	u32 dma_pri_0;
+	u32 dma_pri_1;
 
 	if (!base_reg)
 		return 0;
-
-	/* Common DMA Arbitration Priority register */
-	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 1 = CSIS2 DMA has a high priority */
-	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 2 = CSIS3 DMA has a high priority */
-	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 1 = CSIS0 DMA has a high priority */
-	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 2 = CSIS1 DMA has a high priority */
-	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI]);
-	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_1], 0x1);
-	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_0], 0x2);
-	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI], val);
 
 	/* Common DMA Control register */
 	/* CSIS_DMA_F_IP_PROCESSING : 1 = Q-channel clock enable  */
@@ -713,14 +705,12 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_IP_PROCESSING], 0x1);
 	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_CTRL], val);
 
-	/* Common DMA SRAM split register */
-	/* CSIS_DMA_F_DMA_SRAM1_SPLIT : internal SRAM1 is 10KB (640 * 16 bytes) */
-	/* CSIS_DMA_F_DMA_SRAM0_SPLIT : internal SRAM0 is 10KB (640 * 16 bytes) */
-	/* This register can be set between 0 to 640 */
 	max = size / 16;
 	sram0_split = max / 2;
 	sram1_split = max / 2;
 	matrix_num = 0;
+	dma_pri_0 = 2;
+	dma_pri_1 = 1;
 
 #if defined(CONFIG_SOC_EXYNOS9810)
 	if (GET_DMA_CH(dma_ch, 0) && !GET_DMA_CH(dma_ch, 1))
@@ -736,33 +726,57 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	if (GET_DMA_CH(dma_ch, 4))
 		sram0_split = max;
 #elif defined(CONFIG_SOC_EXYNOS9610)
-	if (GET_DMA_CH(dma_ch, SENSOR_POSITION_REAR) && GET_DMA_CH(dma_ch, SENSOR_POSITION_REAR2)) {
+	dma_pri_0 = 1;
+	dma_pri_1 = 1;
+
+	if (GET_DMA_CH(dma_ch, 0) && GET_DMA_CH(dma_ch, 1)) {
 		matrix_num = 2;
 		sram0_split = max;
 		sram1_split = max;
-	} else if (GET_DMA_CH(dma_ch, SENSOR_POSITION_REAR)) {
+	} else if (GET_DMA_CH(dma_ch, 0) && GET_DMA_CH(dma_ch, 2)) {
 		matrix_num = 0;
 		sram0_split = max;
-	} else if (GET_DMA_CH(dma_ch, SENSOR_POSITION_REAR2)) {
+		sram1_split = max;
+	} else if (GET_DMA_CH(dma_ch, 0)) {
+		matrix_num = 0;
+		sram0_split = max;
+	} else if (GET_DMA_CH(dma_ch, 1)) {
+		dma_pri_0 = 2;
 		matrix_num = 2;
 		sram1_split = max;
-	} else if (GET_DMA_CH(dma_ch, SENSOR_POSITION_FRONT)) {
+	} else if (GET_DMA_CH(dma_ch, 2)) {
 		matrix_num = 0;
 		sram1_split = max;
-	} else if (GET_DMA_CH(dma_ch, SENSOR_POSITION_REAR3)) {
-		matrix_num = 2;
-		sram1_split = max;
+	} else if (GET_DMA_CH(dma_ch, 3)) {
+		dma_pri_1 = 2;
+		matrix_num = 17;
+		sram0_split = max;
 	} else {
 		warn("invalid dma_ch: can not split(%x)\n", dma_ch);
 		matrix_num = 0;
 	}
 #endif
 
-	info("selected sram_matrix: %d,  sram0_split: %d,  sram1_split: %d\n", matrix_num, sram0_split, sram1_split);
+	/* Common DMA SRAM split register */
+	/* CSIS_DMA_F_DMA_SRAM1_SPLIT : internal SRAM1 is 10KB (640 * 16 bytes) */
+	/* CSIS_DMA_F_DMA_SRAM0_SPLIT : internal SRAM0 is 10KB (640 * 16 bytes) */
+	/* This register can be set between 0 to 640 */
+	info("selected sram_matrix: %d, sram0_split: %d,  sram1_split: %d\n", matrix_num, sram0_split, sram1_split);
 	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_SRAM_SPLIT]);
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_SRAM1_SPLIT], sram1_split);
 	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_SRAM0_SPLIT], sram0_split);
 	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_SRAM_SPLIT], val);
+
+	/* Common DMA Arbitration Priority register */
+	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 1 = CSIS2 DMA has a high priority */
+	/* CSIS_DMA_F_DMA_ARB_PRI_1 : 2 = CSIS3 DMA has a high priority */
+	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 1 = CSIS0 DMA has a high priority */
+	/* CSIS_DMA_F_DMA_ARB_PRI_0 : 2 = CSIS1 DMA has a high priority */
+	info("DMA0_priority: %d,  DMA1_priorty: %d", dma_pri_0, dma_pri_1);
+	val = fimc_is_hw_get_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI]);
+	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_0], dma_pri_0);
+	val = fimc_is_hw_set_field_value(val, &csi_dma_fields[CSIS_DMA_F_DMA_ARB_PRI_1], dma_pri_1);
+	fimc_is_hw_set_reg(base_reg, &csi_dma_regs[CSIS_DMA_R_COMMON_DMA_ARB_PRI], val);
 
 	/* Common DMA Martix register */
 	/* CSIS_DMA_F_DMA_MATRIX : Under Table see */
