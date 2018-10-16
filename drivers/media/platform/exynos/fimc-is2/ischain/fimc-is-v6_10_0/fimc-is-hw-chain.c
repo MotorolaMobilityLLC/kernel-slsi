@@ -1459,6 +1459,7 @@ exit:
 unsigned int get_dma(struct fimc_is_device_sensor *device, u32 *dma_ch)
 {
 	struct fimc_is_core *core;
+	struct fimc_is_device_csi *csi;
 	u32 open_sensor_count = 0;
 	u32 position;
 	int i;
@@ -1470,12 +1471,25 @@ unsigned int get_dma(struct fimc_is_device_sensor *device, u32 *dma_ch)
 		if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state))) {
 			open_sensor_count++;
 			position = core->sensor[i].position;
+
+			csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(core->sensor[i].subdev_csi);
+			if (!csi) {
+				merr("csi is null\n", device);
+				ret = -ENODEV;
+				goto p_err;
+			}
+			if (csi->instance > CSI_ID_MAX) {
+				merr("CSI channel is invalid(%d)\n", device, csi->instance);
+				ret = -ERANGE;
+				goto p_err;
+			}
+
 			switch (position) {
 			case SENSOR_POSITION_REAR:
 			case SENSOR_POSITION_FRONT:
 			case SENSOR_POSITION_REAR2:
 			case SENSOR_POSITION_REAR3:
-				*dma_ch |= 1 << position;
+				*dma_ch |= 1 << csi->instance;
 				break;
 			case SENSOR_POSITION_SECURE:
 			default:
