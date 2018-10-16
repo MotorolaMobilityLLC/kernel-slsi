@@ -36,4 +36,15 @@ int nt36672a_lcd_dump(int id);
 void nt36672a_lcd_mres(int id, int mres_idx, int dsc_en);
 void nt36672a_lcd_lane_ctl(int id, unsigned int lane_num);
 
+void default_lcd_init(int id, struct decon_lcd *lcd);
+void default_lcd_enable(int id);
+void default_lcd_disable(int id);
+void default_lcd_sleepin(int id);
+void default_lcd_sleepout(int id);
+int default_lcd_gamma_ctrl(int id, unsigned int backlightlevel);
+int default_lcd_gamma_update(int id);
+int default_lcd_dump(int id);
+void default_lcd_mres(int id, int mres_idx, int dsc_en);
+void default_lcd_lane_ctl(int id, unsigned int lane_num);
+
 #endif /* __LCD_CTRL_H__ */
