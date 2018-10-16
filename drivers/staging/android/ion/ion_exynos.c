@@ -376,7 +376,6 @@ int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	if (!ion_buffer_cached(buffer))
 		return 0;
 
-	mutex_lock(&buffer->lock);
 	if (direction == DMA_BIDIRECTIONAL) {
 		exynos_flush_sg(buffer->dev->dev.this_device,
 				buffer->sg_table->sgl,
@@ -387,7 +386,6 @@ int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 				    buffer->sg_table->orig_nents,
 				    direction);
 	}
-	mutex_unlock(&buffer->lock);
 
 	ion_event_end(ION_EVENT_TYPE_BEGIN_CPU_ACCESS, buffer);
 
@@ -410,7 +408,6 @@ int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	if (!ion_buffer_cached(buffer))
 		return 0;
 
-	mutex_lock(&buffer->lock);
 	if (direction == DMA_BIDIRECTIONAL) {
 		exynos_flush_sg(buffer->dev->dev.this_device,
 				buffer->sg_table->sgl,
@@ -421,7 +418,6 @@ int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 				       buffer->sg_table->orig_nents,
 				       direction);
 	}
-	mutex_unlock(&buffer->lock);
 
 	ion_event_end(ION_EVENT_TYPE_END_CPU_ACCESS, buffer);
 
