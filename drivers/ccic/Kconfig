@@ -44,6 +44,14 @@ config CCIC_DP
 	  If you say yes here you will get support for
 	  for the dp alternate.
 
+config CCIC_SYSFS
+	bool "Using CCIC SYSFS System"
+	depends on USE_CCIC
+	default n
+	help
+	  If you say yes here you will get support for
+	  sysfs system.
+
 config CCIC_S2MM005 
 	bool "CCIC S2MM005"
 	depends on I2C 
