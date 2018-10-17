@@ -296,27 +296,18 @@ static void ion_debug_buffer_for_heap(struct seq_file *s,
 		buffer = rb_entry(n, struct ion_buffer, node);
 
 		if (!heap || heap == buffer->heap) {
-			struct ion_iovm_map *iovm;
 			unsigned int heaptype = (buffer->heap->type <
 				ARRAY_SIZE(heap_type_name)) ?
 				buffer->heap->type : 0;
 
-			mutex_lock(&buffer->lock);
 			ion_debug_print(s, "[%4d] %15s %8s %#5lx %8zu ",
 					buffer->id, buffer->heap->name,
 					heap_type_name[heaptype], buffer->flags,
 					buffer->size / SZ_1K);
 
-			list_for_each_entry(iovm, &buffer->iovas, list) {
-				ion_debug_print(s, "%s(%d) ",
-						dev_name(iovm->dev),
-						atomic_read(&iovm->mapcnt));
-			}
 			ion_debug_print(s, "\n");
 
 			total += buffer->size;
-
-			mutex_unlock(&buffer->lock);
 		}
 	}
 	mutex_unlock(&dev->buffer_lock);
@@ -411,6 +402,12 @@ static int ion_oom_notifier_fn(struct notifier_block *nb,
 	struct ion_device *idev =
 		container_of(nb, struct ion_oom_notifier_struct, nb)->idev;
 
+	/*
+	 * The oom notifier should be careful to use the lock because
+	 * it makes recursive lock. If the ion get the lock and tries to
+	 * allocate the memory and then oom notifier happens and oom notifier
+	 * tries to get the same lock, it makes recursive lock.
+	 */
 	ion_debug_buffer_for_all_heap(NULL, idev);
 	ion_debug_freed_buffer(NULL, idev);
 
