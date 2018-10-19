@@ -80,7 +80,6 @@ static int fmp_fips_cipher_init(struct fmp_fips_info *info,
 		return -ENODEV;
 	}
 	fmp = info->fmp;
-
 	memset(out, 0, sizeof(*out));
 
 	if (!strcmp(alg_name, "cbc(aes-fmp)"))
@@ -89,12 +88,7 @@ static int fmp_fips_cipher_init(struct fmp_fips_info *info,
 		info->data->ci.algo_mode = EXYNOS_FMP_ALGO_MODE_AES_XTS;
 	else {
 		dev_err(fmp->dev, "%s: Invalid mode\n", __func__);
-		ret = -EINVAL;
-		goto err;
-	}
-	if (ret) {
-		dev_err(fmp->dev, "%s: Fail to init fmp cipher\n", __func__);
-		goto err;
+		return -EINVAL;
 	}
 
 	out->blocksize = 16;
@@ -102,11 +96,10 @@ static int fmp_fips_cipher_init(struct fmp_fips_info *info,
 	ret = fmp_fips_set_key(fmp, info, enckey, twkey, key_len);
 	if (ret) {
 		dev_err(fmp->dev, "%s: Fail to set fmp key\n", __func__);
-		goto err;
+		return ret;
 	}
 
 	out->init = 1;
-err:
 	return ret;
 }
 
@@ -499,7 +492,7 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 		Pt[k] = kzalloc(nbytes, GFP_KERNEL);
 		if (!Pt[k]) {
 			ret = -ENOMEM;
-			goto out_err_mem_pt_k;
+			goto out_err_mem_ct;
 		}
 	}
 
@@ -513,7 +506,7 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 		Ct[k] = kzalloc(nbytes, GFP_KERNEL);
 		if (!Ct[k]) {
 			ret = -ENOMEM;
-			goto out_err_mem_ct_k;
+			goto out_err_fail;
 		}
 	}
 
@@ -583,13 +576,11 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 out_err_fail:
 	for (k = 0; k < 1000; k++)
 		kzfree(Ct[k]);
-out_err_mem_ct_k:
 	kzfree(Ct);
 
 out_err_mem_ct:
 	for (k = 0; k < 1000; k++)
 		kzfree(Pt[k]);
-out_err_mem_pt_k:
 	kzfree(Pt);
 out_err_mem_pt:
 	free_page((unsigned long)data);
@@ -665,7 +656,8 @@ static int fmp_create_session(struct fmp_fips_info *info,
 
 	if (!fmp->test_data) {
 		dev_err(fmp->dev, "Invalid fips data\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error_cipher;
 	}
 
 	/* Set-up crypto transform. */
@@ -912,8 +904,7 @@ int fmp_fips_open(struct inode *inode, struct file *file)
 
 	if (!fmp || !fmp->dev) {
 		pr_err("%s: Invalid fmp driver\n", __func__);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	dev_info(fmp->dev, "fmp fips driver name : %s\n", dev_name(fmp->dev));
@@ -958,6 +949,7 @@ int fmp_fips_open(struct inode *inode, struct file *file)
 err:
 	if (info)
 		fmp_test_exit(info->data);
+	kfree(info);
 	return ret;
 }
 
