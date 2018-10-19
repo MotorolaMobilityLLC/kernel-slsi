@@ -1609,6 +1609,20 @@ static int __init fimc_is_probe(struct platform_device *pdev)
 		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_INIT fail(%d)\n", ret);
 		goto p_err3;
 	}
+	mem_info_addr = core->non_secure_mem_info[0] ? core->non_secure_mem_info[0] : NON_SECURE_CAMERA_MEM_ADDR;
+	mem_info_size = core->non_secure_mem_info[1] ? core->non_secure_mem_info[1] : NON_SECURE_CAMERA_MEM_SIZE;
+
+	probe_info("%s: call SMC_SECCAM_INIT_NSBUF, mem_info(%#08lx, %#08lx)\n",
+		__func__, mem_info_addr, mem_info_size);
+#if defined(SECURE_CAMERA_FACE_SEQ_CHK)
+	ret = 0;
+#else
+	ret = exynos_smc(SMC_SECCAM_INIT_NSBUF, mem_info_addr, mem_info_size, 0);
+#endif
+	if (ret) {
+		dev_err(fimc_is_dev, "[SMC] SMC_SECCAM_INIT_NSBUF fail(%d)\n", ret);
+		goto p_err3;
+	}
 #endif
 
 #if defined(CONFIG_PM)
