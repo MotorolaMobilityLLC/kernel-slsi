@@ -47,6 +47,7 @@
 #if defined(CONFIG_SOC_EXYNOS9610)
 #include <dt-bindings/clock/exynos9610.h>
 #endif
+#include <asm/current.h>
 
 #include "decon.h"
 #include "dsim.h"
@@ -3146,6 +3147,11 @@ int decon_release(struct fb_info *info, int user)
 
 	decon_info("%s + : %d\n", __func__, decon->id);
 
+	if (!strcmp("disp_util",current->comm)) {
+		decon_info("%s, tcmd test is operating\n", __func__);
+		goto tcmd_test;
+	}
+
 	if (decon->id && decon->dt.out_type == DECON_OUT_DSI) {
 		decon_get_out_sd(decon);
 		decon_info("output device of decon%d is changed to %s\n",
@@ -3166,6 +3172,7 @@ int decon_release(struct fb_info *info, int user)
 			decon_dp_disable(decon);
 	}
 
+tcmd_test:
 	decon_info("%s - : %d\n", __func__, decon->id);
 
 	return 0;
