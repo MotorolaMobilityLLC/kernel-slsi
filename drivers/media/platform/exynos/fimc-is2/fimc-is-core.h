@@ -363,6 +363,7 @@ struct fimc_is_core {
 	unsigned long				secure_state;
 #endif
 	ulong					secure_mem_info[2];	/* size, addr */
+	ulong					non_secure_mem_info[2];	/* size, addr */
 	u32					scenario;
 
 	unsigned long                           sensor_map;
