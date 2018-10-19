@@ -52,5 +52,6 @@ void mbox_update_value(enum mcu_ipc_region id, u32 mbx_num,
 u32 mbox_extract_value(enum mcu_ipc_region id, u32 mbx_num, u32 mask, u32 pos);
 void mbox_sw_reset(enum mcu_ipc_region id);
 void mcu_ipc_clear_all_interrupt(enum mcu_ipc_region id);
+int mcu_ipc_set_affinity(enum mcu_ipc_region id, int affinity);
 
 #endif

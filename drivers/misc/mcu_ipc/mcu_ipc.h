@@ -48,6 +48,7 @@ struct mcu_ipc_drv_data {
 	struct device *mcu_ipc_dev;
 	struct mcu_ipc_ipc_handler hd[16];
 	spinlock_t lock;
+	int irq;
 };
 
 static struct mcu_ipc_drv_data mcu_dat[MCU_MAX];

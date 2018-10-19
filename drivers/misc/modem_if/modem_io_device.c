@@ -357,7 +357,7 @@ static int rx_multi_pdp(struct sk_buff *skb)
 		ret = netif_rx_ni(skb);
 
 	if (ret != NET_RX_SUCCESS) {
-		mif_err("%s->%s: ERR! netif_rx fail (err %d)\n",
+		mif_err_limited("%s->%s: ERR! netif_rx fail (err %d)\n",
 			ld->name, iod->name, ret);
 	}
 

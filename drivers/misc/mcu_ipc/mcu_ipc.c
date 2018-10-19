@@ -195,10 +195,18 @@ static int mcu_ipc_set_affinity(enum mcu_ipc_region id, struct device *dev, int 
 			mcu_dat[id].dmask);
 }
 #else
-static int mcu_ipc_set_affinity(enum mcu_ipc_region id, struct device *dev, int irq)
+int mcu_ipc_set_affinity(enum mcu_ipc_region id, int affinity)
 {
+	if (id >= MCU_MAX) {
+		pr_err("mcu_ipc_set_affinity err. id=%d\n", id);
+		return -1;
+	}
+
+	irq_set_affinity(mcu_dat[id].irq, cpumask_of(affinity));
+
 	return 0;
 }
+EXPORT_SYMBOL(mcu_ipc_set_affinity);
 #endif
 
 #ifdef CONFIG_MCU_IPC_TEST
@@ -235,8 +243,6 @@ static int mcu_ipc_probe(struct platform_device *pdev)
 	int mcu_ipc_irq;
 	int err = 0;
 	u32 id = 0;
-	struct cpumask cpumaks_mcu_ipc;
-	int ret;
 
 	dev_err(&pdev->dev, "%s: mcu_ipc probe start.\n", __func__);
 
@@ -283,23 +289,9 @@ static int mcu_ipc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't request MCU_IPC IRQ\n");
 		return err;
 	}
-
-	/* Set CPU affinity for mcu_ipc */
-	cpumask_clear(&cpumaks_mcu_ipc);
-	cpumask_set_cpu(MCU_IPC_AFFINITY_CORE, &cpumaks_mcu_ipc);
-	ret = irq_set_affinity_hint(mcu_ipc_irq, &cpumaks_mcu_ipc);
-	if (ret)
-		dev_err(dev, "irq_set_affinity_hit error: %d\n", ret);
-	else
-		dev_info(dev, "irq_set_affinity_hint - CPU core: %d\n",
-				MCU_IPC_AFFINITY_CORE);
+	mcu_dat[id].irq = mcu_ipc_irq;
 
 	mcu_ipc_clear_all_interrupt(id);
-
-	/* set argos irq affinity */
-	err = mcu_ipc_set_affinity(id, dev, mcu_ipc_irq);
-	if (err)
-		dev_err(dev, "Can't set IRQ affinity with(%d)\n", err);
 
 #ifdef CONFIG_MCU_IPC_TEST
 	test_without_dev(id);

@@ -888,7 +888,7 @@ static void ipc_rx_task(unsigned long data)
 
 		msg_handler(shmd, mst);
 
-		queue_delayed_work_on(3, system_long_wq, &shmd->msg_rx_dwork, 0);
+		queue_delayed_work(system_long_wq, &shmd->msg_rx_dwork, 0);
 	}
 }
 
@@ -1157,6 +1157,8 @@ static void shmem_qos_work_max(struct work_struct *work)
 			INT_MAX);
 	pm_qos_update_request(&pm_qos_req_int,
 			INT_MAX);
+
+	mcu_ipc_set_affinity(MCU_CP, 4);
 }
 
 static void shmem_qos_work_normal(struct work_struct *work)
