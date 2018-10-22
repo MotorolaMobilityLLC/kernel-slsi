@@ -396,12 +396,68 @@ static ssize_t sx933x_raw_data_show(struct device *dev, struct device_attribute 
 	}
 	return (p-buf);
 }
+static ssize_t sx933x_diff_data_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	char *p = buf;
+	int csx;
+	s32 diff;
+	u32 uData;
+	psx93XX_t this = dev_get_drvdata(dev);
+	if(this) {
+		for(csx =0; csx<5; csx++) {
+			sx933x_i2c_read_16bit(this, SX933X_DIFFPH0_REG + csx*4, &uData);
+			diff = (s32)uData>>10;
+			p += snprintf(p, PAGE_SIZE, "[PH: %d] DIFF = 0x%04x\n",
+					csx,diff);
+		}
+	}
+	return (p-buf);
+}
+static ssize_t sx933x_hardware_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int ret;
+	u32 idCode;
+	u8 loop = 0;
+	int result = 0;
 
+	psx93XX_t this = dev_get_drvdata(dev);
+	this->failStatusCode = 0;
+	//Check th IRQ Status
+	while(this->get_nirq_low && this->get_nirq_low())
+	{
+		read_regStat(this);
+		msleep(100);
+		if(++loop >10)
+		{
+			result = SX933x_NIRQ_ERROR;
+			break;
+		}
+	}
+
+	//Check I2C Connection
+	ret = sx933x_i2c_read_16bit(this, SX933X_INFO_REG, &idCode);
+	if(ret < 0)
+	{
+		result = SX933x_I2C_ERROR;
+	}
+
+	if(idCode!= SX933X_WHOAMI_VALUE)
+	{
+		result = SX933x_ID_ERROR;
+	}
+	if(result == 0)
+		result = SX933X_HARDWARE_CHECK_SUCCESS;
+	else
+		result = SX933X_HARDWARE_CHECK_FAIL;
+	return sprintf(buf, "%d\n", result);
+}
 static DEVICE_ATTR(manual_calibrate, 0664, manual_offset_calibration_show,manual_offset_calibration_store);
 static DEVICE_ATTR(manual_calibrate_value, 0664, manual_offset_calibration_value_show, NULL);
 static DEVICE_ATTR(register_write,  0664, NULL,sx933x_register_write_store);
 static DEVICE_ATTR(register_read,0664, NULL,sx933x_register_read_store);
 static DEVICE_ATTR(raw_data,0664,sx933x_raw_data_show,NULL);
+static DEVICE_ATTR(diff_data,0664,sx933x_diff_data_show,NULL);
+static DEVICE_ATTR(hardware_id,0664,sx933x_hardware_id_show,NULL);
 
 static struct attribute *sx933x_attributes[] =
 {
@@ -410,6 +466,8 @@ static struct attribute *sx933x_attributes[] =
 	&dev_attr_register_write.attr,
 	&dev_attr_register_read.attr,
 	&dev_attr_raw_data.attr,
+	&dev_attr_diff_data.attr,
+	&dev_attr_hardware_id.attr,
 	NULL,
 };
 static struct attribute_group sx933x_attr_group =
