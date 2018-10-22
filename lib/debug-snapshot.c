@@ -197,10 +197,18 @@ static inline void dbg_snapshot_hook_logger(const char *name,
 	struct dbg_snapshot_item *item = &dss_items[dss_desc.log_platform_num];
 
 	if (likely(dss_base.enabled && item->entry.enabled)) {
+		size_t last_buf;
+
 		if (unlikely((dbg_snapshot_check_eob(item, size))))
 			item->curr_ptr = item->head_ptr;
+
 		memcpy(item->curr_ptr, buf, size);
 		item->curr_ptr += size;
+		/*  save the address of last_buf to physical address */
+		last_buf = (size_t)item->curr_ptr;
+
+		__raw_writel(item->entry.paddr + (last_buf - item->entry.vaddr),
+			dbg_snapshot_get_base_vaddr() + DSS_OFFSET_LAST_PLATFORM_LOGBUF);
 	}
 }
 
@@ -610,6 +618,16 @@ static void __init dbg_snapshot_fixmap(void)
 				/*  invalid address, set to first line */
 				dss_items[i].curr_ptr = (unsigned char *)vaddr;
 				/*  initialize logbuf to 0 */
+				memset((size_t *)vaddr, 0, size);
+			}
+		} else if (i == dss_desc.log_platform_num) {
+			last_buf = (size_t)__raw_readl(dbg_snapshot_get_base_vaddr() +
+							DSS_OFFSET_LAST_PLATFORM_LOGBUF);
+			if (last_buf >= dss_items[i].entry.vaddr &&
+				(last_buf) <= (dss_items[i].entry.vaddr + dss_items[i].entry.size)) {
+				dss_items[i].curr_ptr = (unsigned char *)(last_buf);
+			} else {
+				dss_items[i].curr_ptr = (unsigned char *)vaddr;
 				memset((size_t *)vaddr, 0, size);
 			}
 		} else {
