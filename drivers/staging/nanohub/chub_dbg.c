@@ -69,9 +69,9 @@ void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 		    readl(ipc->chub_dumpgrp + REG_CHUB_DUMPGPR_PCR);
 
 		for (i = 0; i <= GPR_PC_INDEX; i++)
-			pr_info("gpr: R%d: 0x%x\n", i, p_dump->gpr[i]);
+			pr_info("R%d: 0x%x\n", i, p_dump->gpr[i]);
 
-		contexthub_release(ipc);
+		contexthub_release(ipc, HW_ACCESS);
 	}
 }
 
@@ -131,7 +131,7 @@ void chub_dbg_dump_ram(struct contexthub_ipc_info *ipc, enum chub_err_type reaso
 			      ipc_get_base(IPC_REG_DUMP),
 			      ipc_get_chub_mem_size());
 
-		contexthub_release(ipc);
+		contexthub_release(ipc, HW_ACCESS);
 	}
 }
 
@@ -172,7 +172,7 @@ static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 	/* dump nanohub kernel status */
 	contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
 	log_flush(ipc->fw_log);
-	contexthub_release(ipc);
+	contexthub_release(ipc, IPC_ACCESS);
 }
 
 void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
@@ -252,12 +252,13 @@ static ssize_t chub_bin_sram_read(struct file *file, struct kobject *kobj,
 
 	dev_dbg(dev, "%s(%lld, %zu)\n", __func__, off, size);
 
-	if (!contexthub_get_token(dev_get_drvdata(dev), HW_ACCESS)) {
+	if (contexthub_request(dev_get_drvdata(dev), HW_ACCESS)) {
 		pr_warn("%s: chub isn't run\n", __func__);
 		return -EINVAL;
 	}
 
 	memcpy_fromio(buf, battr->private + off, size);
+	contexthub_release(dev_get_drvdata(dev), HW_ACCESS);
 	return size;
 }
 
@@ -345,12 +346,13 @@ static ssize_t chub_utc_store(struct device *dev,
 	dev_info(ipc->dev, "%s: event:%d\n", __func__, event);
 
 	if (!err) {
-		err = contexthub_request(ipc, IPC_ACCESS);
-		if (err)
-			pr_err("%s: fails to request contexthub. ret:%d\n", __func__, err);
+		if (contexthub_request(ipc, IPC_ACCESS)) {
+			pr_err("%s: fails to request contexthub\n", __func__);
+			return 0;
+		}
 
 		contexthub_ipc_write_event(ipc, event);
-		contexthub_release(ipc);
+		contexthub_release(ipc, IPC_ACCESS);
 		return count;
 	} else {
 		return 0;
@@ -378,10 +380,9 @@ static ssize_t chub_ipc_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	ret = contexthub_request(ipc, IPC_ACCESS);
-	if (ret) {
-		dev_err(ipc->dev, "%s: fails to request contexthub. ret:%d\n", __func__, ret);
-		return ret;
+	if (contexthub_request(ipc, IPC_ACCESS)) {
+		dev_err(ipc->dev, "%s: fails to request contexthub. ret:%d\n", __func__);
+		return -EINVAL;
 	}
 
 	ret = contexthub_ipc_write_event(ipc, (u32)IPC_DEBUG_UTC_IPC_TEST_START);
@@ -420,7 +421,7 @@ out:
 		count = ret;
 	}
 
-	contexthub_release(ipc);
+	contexthub_release(ipc, IPC_ACCESS);
 	return count;
 }
 
@@ -488,7 +489,7 @@ static ssize_t chub_wakeup_store(struct device *dev,
 	if (event)
 		ret = contexthub_request(ipc, IPC_ACCESS);
 	else
-		contexthub_release(ipc);
+		contexthub_release(ipc, IPC_ACCESS);
 
 	return ret ? ret : count;
 }

@@ -159,11 +159,16 @@ static void log_flush_all(void)
 	struct log_buffer_info *info;
 
 	list_for_each_entry(info, &log_list_head, list) {
-		if (info && !contexthub_get_token(dev_get_drvdata(info->dev), HW_ACCESS)) {
+		if (!info) {
+			pr_warn("%s: fails get info\n", __func__);
+			return;
+		}
+		if (contexthub_request(dev_get_drvdata(info->dev), IPC_ACCESS)) {
 			pr_warn("%s: chub isn't run\n", __func__);
 			return;
 		}
 	    log_flush(info);
+		contexthub_release(dev_get_drvdata(info->dev), IPC_ACCESS);
 	}
 }
 
@@ -460,10 +465,10 @@ static ssize_t chub_log_flush_save(struct device *dev,
 	err = kstrtol(&buf[0], 10, &event);
 	if (!err) {
 		if (!auto_log_flush_ms) {
-			err = contexthub_request(ipc, HW_ACCESS);
+			err = contexthub_request(ipc, IPC_ACCESS);
 			if (!err) {
 				log_flush_all();
-				contexthub_release(ipc);
+				contexthub_release(ipc, IPC_ACCESS);
 			} else {
 				pr_err("%s: fails to flush log\n", __func__);
 			}

@@ -72,7 +72,6 @@
 })
 
 #define CHUB_RESET_ENABLE
-
 enum mailbox_event {
 	MAILBOX_EVT_UTC_MAX = IPC_DEBUG_UTC_MAX,
 	MAILBOX_EVT_DUMP_STATUS = IPC_DEBUG_DUMP_STATUS,
@@ -176,11 +175,11 @@ struct contexthub_ipc_info {
 	unsigned long clkrate;
 	atomic_t chub_status;
 	atomic_t in_reset;
-	atomic_t in_pmu_shutdown;
 	atomic_t irq1_apInt;
 	atomic_t wakeup_chub;
 	int irq_mailbox;
 	int irq_wdt;
+	bool irq_wdt_disabled;
 	int err_cnt[CHUB_ERR_MAX];
 	u32 cur_err;
 	int utc_run;
@@ -287,7 +286,6 @@ struct contexthub_ipc_info {
 
 enum access_type { HW_ACCESS, IPC_ACCESS };
 
-int contexthub_get_token(struct contexthub_ipc_info *ipc, enum access_type acc);
 int contexthub_ipc_write_event(struct contexthub_ipc_info *data,
 				enum mailbox_event event);
 int contexthub_ipc_read(struct contexthub_ipc_info *ipc,
@@ -301,5 +299,5 @@ int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 
 int contexthub_is_run(struct contexthub_ipc_info *ipc);
 int contexthub_request(struct contexthub_ipc_info *ipc, enum access_type acc);
-void contexthub_release(struct contexthub_ipc_info *ipc);
+void contexthub_release(struct contexthub_ipc_info *ipc, enum access_type acc);
 #endif
