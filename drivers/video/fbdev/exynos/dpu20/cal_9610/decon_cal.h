@@ -86,6 +86,11 @@ enum decon_scaler_path {
 	SCALERPATH_VG0	= 0x1,
 };
 
+enum decon_enhance_path {
+	ENHANCEPATH_ENHANCE_ALL_OFF	= 0x0,
+	ENHANCEPATH_DQE_ON		= 0x2,
+};
+
 enum decon_path_cfg {
 	PATH_CON_ID_DSIM_IF0 = 0,
 	PATH_CON_ID_DSIM_IF1 = 1,
@@ -295,6 +300,11 @@ void __decon_dump(u32 id, void __iomem *regs, void __iomem *base_regs, bool dsc_
 void decon_reg_set_int(u32 id, struct decon_mode_info *psr, u32 en);
 int decon_reg_get_interrupt_and_clear(u32 id, u32 *ext_irq);
 
+void decon_reg_set_data_path(u32 id, enum decon_data_path d_path,
+		enum decon_scaler_path s_path, enum decon_enhance_path e_path);
+void decon_reg_get_data_path(u32 id, enum decon_data_path *d_path,
+		enum decon_scaler_path *s_path, enum decon_enhance_path *e_path);
+
 void decon_reg_set_start_crc(u32 id, u32 en);
 void decon_reg_set_select_crc_bits(u32 id, u32 bit_sel);
 void decon_reg_get_crc_data(u32 id, u32 *w0_data, u32 *w1_data);
@@ -307,6 +317,7 @@ int decon_check_global_limitation(struct decon_device *decon,
 
 /* TODO: this will be removed later */
 void decon_reg_update_req_global(u32 id);
+void decon_reg_update_req_dqe(u32 id);
 /*********************************************************************/
 
 #endif /* __SAMSUNG_DECON_CAL_H__ */

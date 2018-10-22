@@ -281,14 +281,27 @@ static void decon_reg_set_blender_bg_image_size(u32 id,
 
 }
 
-static void decon_reg_set_data_path(u32 id, enum decon_data_path d_path,
-		enum decon_scaler_path s_path)
+void decon_reg_set_data_path(u32 id, enum decon_data_path d_path,
+		enum decon_scaler_path s_path, enum decon_enhance_path e_path)
 {
 	u32 val, mask;
 
-	val = SCALER_PATH_F(s_path) | COMP_OUTIF_PATH_F(d_path);
-	mask = SCALER_PATH_MASK | COMP_OUTIF_PATH_MASK;
+	val = SCALER_PATH_F(s_path)
+		| ENHANCE_PATH_F(e_path)
+		| COMP_OUTIF_PATH_F(d_path);
+	mask = SCALER_PATH_MASK | ENHANCE_PATH_MASK | COMP_OUTIF_PATH_MASK;
 	decon_write_mask(id, DATA_PATH_CONTROL_2, val, mask);
+}
+
+void decon_reg_get_data_path(u32 id, enum decon_data_path *d_path,
+		enum decon_scaler_path *s_path, enum decon_enhance_path *e_path)
+{
+	u32 val;
+
+	val = decon_read(id, DATA_PATH_CONTROL_2);
+	*d_path = COMP_OUTIF_PATH_GET(val);
+	*s_path = SCALER_PATH_GET(val);
+	*e_path = ENHANCE_PATH_GET(val);
 }
 
 /*
@@ -1373,6 +1386,7 @@ static void decon_reg_configure_lcd(u32 id, struct decon_param *p)
 	u32 overlap_w = 0;
 	enum decon_data_path d_path = DPATH_DSCENC0_OUTFIFO0_DSIMIF0;
 	enum decon_scaler_path s_path = SCALERPATH_OFF;
+	enum decon_enhance_path e_path = ENHANCEPATH_ENHANCE_ALL_OFF;
 
 	struct decon_lcd *lcd_info = p->lcd_info;
 	struct decon_mode_info *psr = &p->psr;
@@ -1397,7 +1411,7 @@ static void decon_reg_configure_lcd(u32 id, struct decon_param *p)
 			decon_err("[decon%d] dsc_cnt=%d : not supported\n",
 				id, lcd_info->dsc_cnt);
 
-		decon_reg_set_data_path(id, d_path, s_path);
+		decon_reg_set_data_path(id, d_path, s_path, e_path);
 		/* call decon_reg_config_data_path_size () inside */
 		dsc_reg_init(id, p, overlap_w, 0);
 	} else {
@@ -1408,7 +1422,7 @@ static void decon_reg_configure_lcd(u32 id, struct decon_param *p)
 				DPATH_NOCOMP_OUTFIFO0_DSIMIF0 :
 				DECON2_NOCOMP_OUTFIFO0_DPIF;
 
-		decon_reg_set_data_path(id, d_path, s_path);
+		decon_reg_set_data_path(id, d_path, s_path, e_path);
 
 		decon_reg_config_data_path_size(id,
 			lcd_info->xres, lcd_info->yres, overlap_w, NULL, p);
@@ -1426,6 +1440,7 @@ static void decon_reg_init_probe(u32 id, u32 dsi_idx, struct decon_param *p)
 	struct decon_mode_info *psr = &p->psr;
 	enum decon_data_path d_path = DPATH_DSCENC0_OUTFIFO0_DSIMIF0;
 	enum decon_scaler_path s_path = SCALERPATH_OFF;
+	enum decon_enhance_path e_path = ENHANCEPATH_ENHANCE_ALL_OFF;
 	enum decon_rgb_order rgb_order = DECON_RGB;
 	enum decon_dsi_mode dsi_mode = psr->dsi_mode;
 	u32 overlap_w = 0; /* default=0 : range=[0, 32] & (multiples of 2) */
@@ -1464,7 +1479,7 @@ static void decon_reg_init_probe(u32 id, u32 dsi_idx, struct decon_param *p)
 			decon_err("[decon%d] dsc_cnt=%d : not supported\n",
 				id, lcd_info->dsc_cnt);
 
-		decon_reg_set_data_path(id, d_path, s_path);
+		decon_reg_set_data_path(id, d_path, s_path, e_path);
 		/* call decon_reg_config_data_path_size () inside */
 		dsc_reg_init(id, p, overlap_w, 0);
 	} else {
@@ -1475,7 +1490,7 @@ static void decon_reg_init_probe(u32 id, u32 dsi_idx, struct decon_param *p)
 				DPATH_NOCOMP_OUTFIFO0_DSIMIF0 :
 				DECON2_NOCOMP_OUTFIFO0_DPIF;
 
-		decon_reg_set_data_path(id, d_path, s_path);
+		decon_reg_set_data_path(id, d_path, s_path, e_path);
 
 		decon_reg_config_data_path_size(id,
 			lcd_info->xres, lcd_info->yres, overlap_w, NULL, p);
@@ -1513,7 +1528,9 @@ static int decon_reg_stop_perframe(u32 id, u32 dsi_idx,
 
 	/* perframe stop */
 	decon_reg_per_frame_off(id);
-
+#if defined(CONFIG_EXYNOS_DECON_DQE)
+	decon_reg_update_req_dqe(id);
+#endif
 	decon_reg_update_req_global(id);
 
 	/* timeout : 1 / fps + 20% margin */
@@ -1539,7 +1556,9 @@ static int decon_reg_stop_inst(u32 id, u32 dsi_idx, struct decon_mode_info *psr,
 
 	/* instant stop */
 	decon_reg_direct_on_off(id, 0);
-
+#if defined(CONFIG_EXYNOS_DECON_DQE)
+	decon_reg_update_req_dqe(id);
+#endif
 	decon_reg_update_req_global(id);
 
 #if defined(CONFIG_EXYNOS_DISPLAYPORT)
@@ -1725,11 +1744,21 @@ void decon_reg_update_req_global(u32 id)
 			SHADOW_REG_UPDATE_REQ_GLOBAL);
 }
 
+void decon_reg_update_req_dqe(u32 id)
+{
+	if (id != 0)
+		return;
+
+	decon_write_mask(id, SHADOW_REG_UPDATE_REQ, ~0,
+			SHADOW_REG_UPDATE_REQ_DQE);
+}
+
 int decon_reg_init(u32 id, u32 dsi_idx, struct decon_param *p)
 {
 	struct decon_lcd *lcd_info = p->lcd_info;
 	struct decon_mode_info *psr = &p->psr;
 	enum decon_scaler_path s_path = SCALERPATH_OFF;
+	enum decon_enhance_path e_path = ENHANCEPATH_ENHANCE_ALL_OFF;
 
 	/*
 	 * DECON does not need to start, if DECON is already
@@ -1771,7 +1800,7 @@ int decon_reg_init(u32 id, u32 dsi_idx, struct decon_param *p)
 
 	/* FIXME: DECON_T dedicated to PRE_WB */
 	if (p->psr.out_type == DECON_OUT_WB)
-		decon_reg_set_data_path(id, DPATH_WBPRE_ONLY, s_path);
+		decon_reg_set_data_path(id, DPATH_WBPRE_ONLY, s_path, e_path);
 
 	/* asserted interrupt should be cleared before initializing decon hw */
 	decon_reg_clear_int_all(id);
@@ -1787,6 +1816,9 @@ int decon_reg_start(u32 id, struct decon_mode_info *psr)
 	int ret = 0;
 
 	decon_reg_direct_on_off(id, 1);
+#if defined(CONFIG_EXYNOS_DECON_DQE)
+	decon_reg_update_req_dqe(id);
+#endif
 	decon_reg_update_req_global(id);
 
 	/*
