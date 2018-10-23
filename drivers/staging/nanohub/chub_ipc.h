@@ -81,6 +81,8 @@
 #define BOOTMODE_COLD       (0x77773333)
 #define BOOTMODE_PWRGATING  (0x11118888)
 
+#define READY_TO_GO 99
+
 struct chub_bootargs {
 	char magic[16];
 	u32 ipc_version;
