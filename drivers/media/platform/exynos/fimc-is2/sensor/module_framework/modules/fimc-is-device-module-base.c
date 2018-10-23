@@ -201,10 +201,12 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 		}
 	}
 
+	device = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_cis);
+	FIMC_BUG(!device);
+
 	ret = CALL_CISOPS(&sensor_peri->cis, cis_check_rev, subdev_cis);
 	if (ret < 0) {
-		device = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_cis);
-		if (device != NULL && ret == -EAGAIN) {
+		if (ret == -EAGAIN) {
 			err("Checking sensor revision is fail. So retry camera power sequence.");
 			sensor_module_power_reset(subdev, device);
 			ret = CALL_CISOPS(&sensor_peri->cis, cis_check_rev, subdev_cis);
@@ -306,6 +308,14 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 		ret = v4l2_subdev_call(subdev_preprocessor, core, init, 0);
 		if (ret) {
 			err("v4l2_preprocessor_call(init) is fail(%d)", ret);
+			goto p_err;
+		}
+	}
+
+	if (device->pdata->scenario == SENSOR_SCENARIO_FACTORY) {
+		ret = CALL_CISOPS(&sensor_peri->cis, cis_factory_test, subdev_cis);
+		if (ret) {
+			err("cis_factory_test is fail(%d)", ret);
 			goto p_err;
 		}
 	}
