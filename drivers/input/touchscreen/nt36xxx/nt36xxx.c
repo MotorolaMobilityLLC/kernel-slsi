@@ -1200,6 +1200,12 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 #endif
 
 	NVT_LOG("start\n");
+	//---check i2c func.---
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		NVT_ERR("i2c_check_functionality failed. (no I2C_FUNC_I2C)\n");
+		ret = -ENODEV;
+		goto err_check_functionality_failed;
+	}
 
 	ts = kmalloc(sizeof(struct nvt_ts_data), GFP_KERNEL);
 	if (ts == NULL) {
@@ -1218,13 +1224,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	if (ret) {
 		NVT_ERR("gpio config error!\n");
 		goto err_gpio_config_failed;
-	}
-
-	//---check i2c func.---
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		NVT_ERR("i2c_check_functionality failed. (no I2C_FUNC_I2C)\n");
-		ret = -ENODEV;
-		goto err_check_functionality_failed;
 	}
 
 	// need 10ms delay after POR(power on reset)
@@ -1439,11 +1438,18 @@ err_input_dev_alloc_failed:
 err_create_nvt_wq_failed:
 	mutex_destroy(&ts->lock);
 err_chipvertrim_failed:
-err_check_functionality_failed:
-	gpio_free(ts->irq_gpio);
+#if NVT_TOUCH_SUPPORT_HW_RST
+	if (gpio_is_valid(ts->reset_gpio))
+		gpio_free(ts->reset_gpio);
+#endif
+	if (gpio_is_valid(ts->irq_gpio))
+		gpio_free(ts->irq_gpio);
 err_gpio_config_failed:
 	i2c_set_clientdata(client, NULL);
 	kfree(ts);
+err_check_functionality_failed:
+
+	NVT_LOG("exit %s abnormal end\n",__func__);
 	return ret;
 }
 
