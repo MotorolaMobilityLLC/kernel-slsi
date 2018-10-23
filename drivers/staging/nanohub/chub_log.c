@@ -153,7 +153,7 @@ void log_flush(struct log_buffer_info *info)
 static void log_flush_all_work_func(struct work_struct *work);
 static DECLARE_DEFERRABLE_WORK(log_flush_all_work, log_flush_all_work_func);
 
-static void log_flush_all(void)
+void log_flush_all(void)
 {
 	struct log_buffer_info *info;
 

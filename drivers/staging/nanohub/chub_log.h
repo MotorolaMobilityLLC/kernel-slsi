@@ -49,6 +49,7 @@ struct LOG_BUFFER {
 
 void log_flush(struct log_buffer_info *info);
 void log_schedule_flush_all(void);
+void log_flush_all(void);
 struct log_buffer_info *log_register_buffer(struct device *dev, int id,
 					    struct LOG_BUFFER *buffer,
 					    char *name, bool sram);
