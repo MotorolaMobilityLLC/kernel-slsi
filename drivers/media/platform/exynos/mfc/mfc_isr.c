@@ -643,7 +643,7 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 	if (res_change) {
 		mfc_debug(2, "[DRC] Resolution change set to %d\n", res_change);
 		mfc_change_state(ctx, MFCINST_RES_CHANGE_INIT);
-		ctx->wait_state = WAIT_DECODING;
+		ctx->wait_state = WAIT_G_FMT | WAIT_STOP;
 		mfc_debug(2, "[DRC] Decoding waiting! : %d\n", ctx->wait_state);
 		return;
 	}
@@ -667,7 +667,7 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 		ctx->is_dpb_realloc = 1;
 		mfc_change_state(ctx, MFCINST_HEAD_PARSED);
 		ctx->capture_state = QUEUE_FREE;
-		ctx->wait_state = WAIT_DECODING;
+		ctx->wait_state = WAIT_STOP;
 		__mfc_handle_frame_all_extracted(ctx);
 		goto leave_handle_frame;
 	}
