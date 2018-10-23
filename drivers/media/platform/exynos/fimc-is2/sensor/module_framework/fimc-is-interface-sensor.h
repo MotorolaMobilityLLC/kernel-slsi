@@ -375,6 +375,7 @@ struct fimc_is_cis_ops {
 	int (*cis_check_rev)(struct v4l2_subdev *subdev);
 	int (*cis_set_super_slow_motion_threshold)(struct v4l2_subdev *subdev, u32 threshold);
 	int (*cis_get_super_slow_motion_threshold)(struct v4l2_subdev *subdev, u32 *threshold);
+	int (*cis_factory_test)(struct v4l2_subdev *subdev);
 };
 
 struct fimc_is_sensor_ctl

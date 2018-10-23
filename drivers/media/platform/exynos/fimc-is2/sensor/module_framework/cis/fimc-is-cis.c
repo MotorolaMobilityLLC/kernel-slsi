@@ -539,3 +539,60 @@ int sensor_cis_set_initial_exposure(struct v4l2_subdev *subdev)
 
 	return 0;
 }
+
+int sensor_cis_factory_test(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	if (unlikely(!cis)) {
+		err("cis is NULL");
+		return -EINVAL;
+	}
+
+	/* sensor mode setting */
+	ret = CALL_CISOPS(cis, cis_set_global_setting, subdev);
+	if (ret < 0) {
+		err("[%s] cis global setting fail\n", __func__);
+		return ret;
+	}
+
+	ret = CALL_CISOPS(cis, cis_mode_change, subdev, 0);
+	if (ret < 0) {
+		err("[%s] cis mode setting(0) fail\n", __func__);
+		return ret;
+	}
+
+	/* sensor stream on */
+	ret = CALL_CISOPS(cis, cis_stream_on, subdev);
+	if (ret < 0) {
+		err("[%s] stream on fail\n", __func__);
+		return ret;
+	}
+
+	ret = CALL_CISOPS(cis, cis_wait_streamon, subdev);
+	if (ret < 0) {
+		err("[%s] sensor wait stream on fail\n", __func__);
+		return ret;
+	}
+
+	msleep(100);
+
+	/* Sensor stream off */
+	ret = CALL_CISOPS(cis, cis_stream_off, subdev);
+	if (ret < 0) {
+		err("[%s] stream off fail\n", __func__);
+		return ret;
+	}
+
+	ret = CALL_CISOPS(cis, cis_wait_streamoff, subdev);
+	if (ret < 0) {
+		err("[%s] stream off fail\n", __func__);
+		return ret;
+	}
+
+	info("[MOD:D:%d] %s: %d\n", cis->id, __func__, ret);
+
+	return ret;
+}
