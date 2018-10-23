@@ -141,14 +141,22 @@ static int hix83112a_get_backlight_level(int brightness)
 	return backlightlevel;
 }
 
-unsigned char set_brightness_level[3] = {0x51, 0xFF, 0xFF};
+unsigned char set_brightness_level[3] = {0x51, 0x0F, 0xFF};
 static int hix83112a_update_brightness(int brightness)
 {
 	int backlightlevel;
 
 	backlightlevel = hix83112a_get_backlight_level(brightness);
 
-	pr_info("brightness [%d]\n", brightness);
+	if(brightness!=0){
+		set_brightness_level[1] = (unsigned char)((brightness*(0xFFF/0xFF)+0x0F)>>8);
+		set_brightness_level[2] = (unsigned char)((brightness*(0xFFF/0xFF)+0x0F)&0x0FF);
+	}else{
+		set_brightness_level[1] = 0x00;
+		set_brightness_level[2] = 0x00;
+	}
+
+	pr_info("brightness [%d]\n",brightness);
 
 	if(dsim_wr_data(0, MIPI_DSI_DCS_LONG_WRITE,
 				(unsigned long)set_brightness_level, 3))
