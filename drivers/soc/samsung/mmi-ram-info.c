@@ -113,6 +113,7 @@ static int __init init_mmi_ram_info(void)
 
 	static struct kobject *ram_info_properties_kobj;
 	uint32_t vid, tid;
+	int type = 0;
 	const char *tname = "unknown";
 	const char *vname = "unknown";
 	static const char *vendors[] = {
@@ -138,6 +139,11 @@ static int __init init_mmi_ram_info(void)
 		"N NVM",
 		"Reserved"
 	};
+	static const char *types_lpddr4[] = {
+		"LP4",
+		"LP4x",
+		"LP4x",
+	};
 
 	smem_ddr_info =  NULL;
 	n = of_find_node_by_path("/chosen/mmi,ram");
@@ -151,6 +157,8 @@ static int __init init_mmi_ram_info(void)
 			rc = of_property_read_u32(n,"mr7", &ddr_info.mr7);
 		if (rc == 0 )
 			rc = of_property_read_u32(n,"mr8", &ddr_info.mr8);
+		if (rc == 0 )
+			of_property_read_u32(n,"type",&type);
 		of_node_put(n);
 		if (rc == 0 )
 			smem_ddr_info = &ddr_info;
@@ -173,8 +181,13 @@ static int __init init_mmi_ram_info(void)
 
 		/* identify type */
 		tid = smem_ddr_info->mr8 & 0x03;
-		if (tid < (sizeof(types)/sizeof(types[0])))
-			tname = types[tid];
+		if (type == 6 ) {
+			if (tid < (sizeof(types_lpddr4)/sizeof(types_lpddr4[0])))
+				tname = types_lpddr4[tid];
+		}else{
+			if (tid < (sizeof(types)/sizeof(types[0])))
+				tname = types[tid];
+		}
 
 		snprintf(sysfsram_type_name, sizeof(sysfsram_type_name),
 			"%s", tname);
