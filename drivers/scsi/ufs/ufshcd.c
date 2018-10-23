@@ -6773,11 +6773,11 @@ retry:
 	} else {
 		if ((pwr_info->lane_rx != pwr_info->peer_available_lane_rx)
 			|| (pwr_info->lane_tx != pwr_info->peer_available_lane_tx)) {
-			dev_err(hba->dev,
-				"%s: peer availabele lanes are not equal to connected lanes\n",
-				__func__);
-			ret = -EINVAL;
-			goto out;
+			dev_info(hba->dev,
+				"%s: availabele lanes, Host:Device Lane tx %d%d rx %d:%d\n",
+				__func__,
+				pwr_info->lane_tx, pwr_info->peer_available_lane_tx,
+				pwr_info->lane_rx, pwr_info->peer_available_lane_rx);
 		}
 		ret = ufshcd_config_pwr_mode(hba, &hba->max_pwr_info.info);
 		if (ret) {
