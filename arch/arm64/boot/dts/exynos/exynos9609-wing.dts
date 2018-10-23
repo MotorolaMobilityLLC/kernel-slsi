@@ -18,6 +18,7 @@
 #include "modem-ss360ap-sit-pdata.dtsi"
 #include "exynos9610-display-lcd.dtsi"
 #include "novatek-nt36xxx-i2c.dtsi"
+#include "himax-hx83112a-i2c.dtsi"
 #include "wing-sensor.dtsi"
 #include "exynos9610-robusta2-motor.dtsi"
 
