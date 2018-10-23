@@ -969,7 +969,7 @@ void slsi_rx_scan_done_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 
 void slsi_rx_channel_switched_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
 {
-	u16 freq;
+	u16 freq = 0;
 	int width;
 	int primary_chan_pos;
 	u16 temp_chan_info;
@@ -978,19 +978,19 @@ void slsi_rx_channel_switched_ind(struct slsi_dev *sdev, struct net_device *dev,
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 
 	temp_chan_info = fapi_get_u16(skb, u.mlme_channel_switched_ind.channel_information);
-	freq = fapi_get_u16(skb, u.mlme_channel_switched_ind.channel_frequency);
-	freq = freq / 2;
+	cf1 = fapi_get_u16(skb, u.mlme_channel_switched_ind.channel_frequency);
+	cf1 = cf1 / 2;
 
 	primary_chan_pos = (temp_chan_info >> 8);
 	width = (temp_chan_info & 0x00FF);
 
-	/*If width is 80Mhz then do frequency calculation, else store as it is*/
+	/* If width is 80MHz/40MHz then do frequency calculation, else store as it is */
 	if (width == 40)
-		cf1 = (10 + freq - (primary_chan_pos * 20));
+		freq = cf1 + (primary_chan_pos * 20) - 10;
 	else if (width == 80)
-		cf1 = (30 + freq - (primary_chan_pos * 20));
+		freq = cf1 + (primary_chan_pos * 20) - 30;
 	else
-		cf1 = freq;
+		freq = cf1;
 
 	if (width == 20)
 		width = NL80211_CHAN_WIDTH_20;
