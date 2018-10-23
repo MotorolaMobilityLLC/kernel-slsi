@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
 #include <linux/shm_ipc.h>
+#include <linux/netdevice.h>
 
 enum modem_t {
 	SEC_CMC221,
@@ -124,6 +125,9 @@ struct modem_io_t {
 	enum modem_link tx_link;
 	u32 attrs;
 	char *app;
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	int napi_weight;
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 
 	unsigned int ul_num_buffers;
 	unsigned int ul_buffer_size;
@@ -297,6 +301,9 @@ struct modem_data {
 	unsigned int lock_value;
 	struct modem_mbox *mbx;
 	struct modem_pmu *pmu;
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	struct shmem_link_device *shmd;
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 
 	int cp_active;
 	int cp_wdt_reset;

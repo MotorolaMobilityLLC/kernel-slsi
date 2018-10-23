@@ -499,6 +499,11 @@ struct io_device {
 	struct exynos_seq_num seq_num;
 	u8 packet_index;
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	struct napi_struct napi;
+	unsigned int rx_poll_count;
+#endif /* CONFIG_LINK_DEVICE_NAPI */
+
 	/* DO NOT use __current_link directly
 	 * you MUST use skbpriv(skb)->ld in mc, link, etc..
 	 */
@@ -636,6 +641,15 @@ struct link_device {
 	/* for recording crash_reason */
 	int (*crash_reason)(struct link_device *ld, struct io_device *iod,
 			unsigned long arg);
+
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	/* Poll function for NAPI */
+	int (*poll_recv_on_iod)(struct link_device *ld, struct io_device *iod,
+			int budget);
+
+	int (*enable_rx_int)(struct link_device *ld);
+	int (*disable_rx_int)(struct link_device *ld);
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 };
 
 /** rx_alloc_skb - allocate an skbuff and set skb's iod, ld

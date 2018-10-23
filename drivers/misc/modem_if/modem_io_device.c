@@ -25,6 +25,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <trace/events/napi.h>
 
 #include "modem_prj.h"
 #include "modem_utils.h"
@@ -351,6 +352,13 @@ static int rx_multi_pdp(struct sk_buff *skb)
 		skb_pull(skb, sizeof(struct ethhdr));
 	}
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	ret = netif_receive_skb(skb);
+	if (ret != NET_RX_SUCCESS) {
+		mif_err("%s->%s: ERR! netif_receive_skb (err %d)\n",
+			ld->name, iod->name, ret);
+	}
+#else /* !CONFIG_LINK_DEVICE_NAPI */
 	if (in_interrupt())
 		ret = netif_rx(skb);
 	else
@@ -360,7 +368,7 @@ static int rx_multi_pdp(struct sk_buff *skb)
 		mif_err_limited("%s->%s: ERR! netif_rx fail (err %d)\n",
 			ld->name, iod->name, ret);
 	}
-
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 	return ret;
 }
 

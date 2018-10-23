@@ -25,6 +25,14 @@ config LINK_DEVICE_SHMEM
 	bool "Link device: shared memory"
 	default n
 
+config LINK_DEVICE_NAPI
+	bool "Use Rx polling (NAPI)"
+	depends on SEC_MODEM_IF
+	default n
+	help
+	NAPI is a new driver API designed to reduce CPU and interrupt load
+	when the driver is receiving lots of packets.
+
 config CP_SECURE_BOOT
 	bool "Support CP Secure Boot"
 	default n

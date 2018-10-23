@@ -34,6 +34,7 @@
 #include <linux/modem_notifier.h>
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/exynos-modem-ctrl.h>
+#include <trace/events/napi.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_link_device_shmem.h"
@@ -602,6 +603,34 @@ static void msg_rx_work(struct work_struct *ws)
 	}
 }
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+static ktime_t rx_int_enable_time;
+static ktime_t rx_int_disable_time;
+
+static int shmem_enable_rx_int(struct link_device *ld)
+{
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	shmd->rx_int_enable = 1;
+	rx_int_enable_time = ktime_get();
+	shmd->rx_int_disabled_time +=
+		ktime_to_us(ktime_sub(rx_int_enable_time,
+					rx_int_disable_time));
+
+	return mbox_enable_irq(MCU_CP, shmd->irq_cp2ap_msg);
+}
+
+static int shmem_disable_rx_int(struct link_device *ld)
+{
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	shmd->rx_int_enable = 0;
+	rx_int_disable_time = ktime_get();
+
+	return mbox_disable_irq(MCU_CP, shmd->irq_cp2ap_msg);
+}
+#endif /* CONFIG_LINK_DEVICE_NAPI */
+
 /**
  * rx_ipc_frames
  * @shmd: pointer to an instance of shmem_link_device structure
@@ -618,6 +647,118 @@ static void msg_rx_work(struct work_struct *ws)
  * Requires a recv_skb method in the io_device instance, so this function must
  * be used for only EXYNOS.
  */
+#ifdef CONFIG_LINK_DEVICE_NAPI
+static int rx_ipc_frames(struct shmem_link_device *shmd, int dev,
+			struct circ_status *circ, int budget, int *work_done)
+{
+	struct link_device *ld = &shmd->ld;
+	struct io_device *iod;
+	struct sk_buff *skb;
+	/**
+	 * variables for the status of the circular queue
+	 */
+	u8 *src;
+	u8 hdr[EXYNOS_HEADER_SIZE];
+	/**
+	 * variables for RX processing
+	 */
+	int qsize;	/* size of the queue			*/
+	int rcvd;	/* size of data in the RXQ or error	*/
+	int rest;	/* size of the rest data		*/
+	int out;	/* index to the start of current frame	*/
+	int tot;	/* total length including padding data	*/
+	int rcvd_pkt;	/* number of received packets		*/
+
+	src = circ->buff;
+	qsize = circ->qsize;
+	out = circ->out;
+	rcvd = circ->size;
+
+	rest = circ->size;
+	tot = 0;
+	rcvd_pkt = 0;
+
+	while (rest > 0) {
+		u8 ch;
+
+		/* Copy the header in the frame to the header buffer */
+		circ_read(hdr, src, qsize, out, EXYNOS_HEADER_SIZE);
+
+		/* Check the config field in the header */
+		if (unlikely(!exynos_start_valid(hdr))) {
+			mif_err("%s: ERR! %s INVALID config 0x%02X (rcvd %d, rest %d)\n",
+				ld->name, get_dev_name(dev), hdr[0],
+				rcvd, rest);
+			goto bad_msg;
+		}
+
+		/* Verify the total length of the frame (data + padding) */
+		tot = exynos_get_total_len(hdr);
+		if (unlikely(tot > rest)) {
+			mif_err("%s: ERR! %s tot %d > rest %d (rcvd %d)\n",
+				ld->name, get_dev_name(dev), tot, rest, rcvd);
+			goto bad_msg;
+		}
+
+		/* Allocate an skb */
+		skb = dev_alloc_skb(tot);
+		if (!skb) {
+			mif_err("%s: ERR! %s dev_alloc_skb(%d) fail\n",
+				ld->name, get_dev_name(dev), tot);
+			goto no_mem;
+		}
+
+		/* Set the attribute of the skb as "single frame" */
+		skbpriv(skb)->single_frame = true;
+
+		/* Read the frame from the RXQ */
+		circ_read(skb_put(skb, tot), src, qsize, out, tot);
+
+		ch = exynos_get_ch(skb->data);
+		iod = link_get_iod_with_channel(ld, ch);
+		if (!iod) {
+			mif_err("%s: ERR! no IPC iod\n", ld->name);
+			kfree_skb(skb);
+			break;
+		}
+
+		skbpriv(skb)->lnk_hdr = iod->link_header;
+		skbpriv(skb)->exynos_ch = ch;
+
+		iod->recv_skb(iod, ld, skb);
+
+		/* Calculate new out value */
+		rest -= tot;
+		out += tot;
+		if (unlikely(out >= qsize))
+			out -= qsize;
+
+		rcvd_pkt++;
+		if ((budget != 0) && (rcvd_pkt >= budget))
+			goto exit;
+	}
+
+	/* Update tail (out) pointer to empty out the RXQ */
+	set_rxq_tail(shmd, dev, circ->in);
+	*work_done = rcvd_pkt;
+	return rcvd;
+
+exit:
+no_mem:
+	/* Update tail (out) pointer to the frame to be read in the future */
+	set_rxq_tail(shmd, dev, out);
+	rcvd -= rest;
+	*work_done = rcvd_pkt;
+	return rcvd;
+
+bad_msg:
+#ifdef CONFIG_DEBUG_MODEM_IF
+	mif_err("%s: ERR! rcvd:%d tot:%d rest:%d\n", ld->name, rcvd, tot, rest);
+	pr_ipc(1, "shmem: ERR! CP2MIF", (src + out), (rest > 20) ? 20 : rest);
+#endif
+	return -EBADMSG;
+}
+#else /* !CONFIG_LINK_DEVICE_NAPI */
 static int rx_ipc_frames(struct shmem_link_device *shmd, int dev,
 			struct circ_status *circ)
 {
@@ -720,6 +861,7 @@ bad_msg:
 #endif
 	return -EBADMSG;
 }
+#endif
 
 static inline void done_req_ack(struct shmem_link_device *shmd, int dev)
 {
@@ -784,6 +926,123 @@ static inline void recv_req_ack(struct shmem_link_device *shmd,
 	}
 }
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+static int msg_handler(struct shmem_link_device *shmd, struct mem_status *mst,
+		int *budget)
+{
+	struct link_device *ld = &shmd->ld;
+	struct circ_status circ;
+	int i = 0;
+	int ret = 0;
+	int rcvd = 0;
+	int work_done;
+	int init_budget = *budget;
+
+	if (!ipc_active(shmd)) {
+		mif_err("%s: ERR! IPC is NOT ACTIVE!!!\n", ld->name);
+		trigger_forced_cp_crash(shmd, MEM_CRASH_REASON_AP,
+				"ERR! IPC not active in msg_handler()");
+		return 0;
+	}
+
+	for (i = 0; i < MAX_EXYNOS_DEVICES; i++) {
+		/* Skip RX processing if there is no data in the RXQ */
+		if (mst->head[i][RX] == mst->tail[i][RX]) {
+			done_req_ack(shmd, i);
+			continue;
+		}
+
+		/* Get the size of data in the RXQ */
+		ret = get_rxq_rcvd(shmd, i, mst, &circ);
+		if (unlikely(ret < 0)) {
+			mif_err("%s: ERR! get_rxq_rcvd fail (err %d)\n",
+				ld->name, ret);
+			trigger_forced_cp_crash(shmd, MEM_CRASH_REASON_CP,
+				"ERR! invalid RXQ head/tail value in msg_handler()");
+			return 0;
+		}
+
+		check_rx_shmem_status(shmd, &circ);
+
+		/* Read data in the RXQ */
+		ret = rx_ipc_frames(shmd, i, &circ, *budget, &work_done);
+		if (unlikely(ret < 0)) {
+			trigger_forced_cp_crash(shmd, MEM_CRASH_REASON_CP,
+				"ERR! invalid RX frame in msg_handler()");
+			return rcvd;
+		}
+
+		if (init_budget != 0)
+			*budget -= work_done;
+
+		/* return value should be packet counts */
+		rcvd += work_done;
+
+		/* If RX packets counts meet budget, abort to read packets */
+		if (init_budget != 0 && *budget == 0)
+			break;
+
+		if (ret < circ.size)
+			break;
+
+		/* Process REQ_ACK (At this point, the RXQ may be empty.) */
+		done_req_ack(shmd, i);
+	}
+
+	return rcvd;
+}
+
+int ipc_rx_func(struct shmem_link_device *shmd, int budget)
+{
+	int qlen = msq_get_size(&shmd->rx_msq);
+	int rcvd = 0;
+	int init_budget = budget;
+
+	while (qlen-- > 0) {
+		struct mem_status *mst;
+		int i;
+		u16 intr;
+
+		mst = msq_get_data_slot(&shmd->rx_msq);
+		if (!mst)
+			break;
+
+		intr = mst->int2ap;
+
+		/* Process a SHMEM command */
+		if (unlikely(INT_CMD_VALID(intr))) {
+			cmd_handler(shmd, intr);
+			continue;
+		}
+
+		/* Update tail variables with the current tail pointers */
+		for (i = 0; i < MAX_EXYNOS_DEVICES; i++)
+			update_rxq_tail_status(shmd, i, mst);
+
+		/* Check and receive RES_ACK from CP */
+		if (unlikely(intr & INT_MASK_RES_ACK_SET))
+			recv_res_ack(shmd, mst);
+
+		/* Check and receive REQ_ACK from CP */
+		if (unlikely(intr & INT_MASK_REQ_ACK_SET))
+			recv_req_ack(shmd, mst);
+
+		rcvd += msg_handler(shmd, mst, &budget);
+
+		if (init_budget != 0 && budget == 0)
+			break;
+	}
+
+	return rcvd;
+}
+
+static void ipc_rx_task(unsigned long data)
+{
+	struct shmem_link_device *shmd = (struct shmem_link_device *)data;
+
+	ipc_rx_func(shmd, 0);
+}
+#else /* !CONFIG_LINK_DEVICE_NAPI */
 /**
  * msg_handler: receives IPC messages from every RXQ
  * @shmd: pointer to an instance of shmem_link_device structure
@@ -891,6 +1150,7 @@ static void ipc_rx_task(unsigned long data)
 		queue_delayed_work(system_long_wq, &shmd->msg_rx_dwork, 0);
 	}
 }
+#endif
 
 /**
  * rx_udl_frames
@@ -1120,6 +1380,17 @@ static void udl_handler(struct shmem_link_device *shmd, struct mem_status *mst)
  */
 static void shmem_irq_handler(void *data)
 {
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	struct shmem_link_device *shmd = (struct shmem_link_device *)data;
+
+	shmd->rx_int_count++;
+	if (napi_schedule_prep(&shmd->mld_napi)) {
+		struct link_device *ld = (struct link_device *)&shmd->ld;
+
+		ld->disable_rx_int(ld);
+		__napi_schedule(&shmd->mld_napi);
+	}
+#else /* !CONFIG_LINK_DEVICE_NAPI */
 	struct shmem_link_device *shmd = (struct shmem_link_device *)data;
 	struct link_device *ld = (struct link_device *)&shmd->ld;
 	struct mem_status *mst = msq_get_free_slot(&shmd->rx_msq);
@@ -1142,6 +1413,7 @@ static void shmem_irq_handler(void *data)
 		udl_handler(shmd, mst);
 	else
 		tasklet_schedule(&shmd->rx_tsk);
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 }
 
 #ifdef CONFIG_MODEM_IF_ADAPTIVE_QOS
@@ -1853,6 +2125,10 @@ static int shmem_dload_start(struct link_device *ld, struct io_device *iod)
 
 	ld->mode = LINK_MODE_DLOAD;
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	sync_net_dev(ld);
+#endif /* CONFIG_LINK_DEVICE_NAPI */
+
 	clear_shmem_map(shmd);
 	msq_reset(&shmd->rx_msq);
 
@@ -1920,6 +2196,10 @@ static int shmem_dump_start(struct link_device *ld, struct io_device *iod)
 	struct shmem_link_device *shmd = to_shmem_link_device(ld);
 
 	ld->mode = LINK_MODE_ULOAD;
+
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	sync_net_dev(ld);
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 
 	clear_shmem_map(shmd);
 	msq_reset(&shmd->rx_msq);
@@ -2246,6 +2526,229 @@ static int shmem_crash_reason(struct link_device *ld, struct io_device *iod,
 	return 0;
 }
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+/*
+ * shmd_rx_int_poll
+ *
+ * This NAPI poll function does not handle reception of any network frames.
+ * It is used for servicing CP2AP commands and FMT RX frames while the RX
+ * mailbox interrupt is masked. When the mailbox interrupt is masked, CP can
+ * set the interrupt but the AP will not react. However, the interrupt status
+ * bit will still be set, so we can poll the status bit to handle new RX
+ * interrupts.
+ * If the RAW NAPI functions are no longer scheduled at the end of this poll
+ * function, we can enable the mailbox interrupt and stop polling.
+ */
+static int shmd_rx_int_poll(struct napi_struct *napi, int budget)
+{
+	struct shmem_link_device *shmd = container_of(napi,
+			struct shmem_link_device, mld_napi);
+	struct link_device *ld = &shmd->ld;
+	struct mem_status *mst = msq_get_free_slot(&shmd->rx_msq);
+	int rcvd = 0;
+	int ret;
+
+	ret = mbox_check_irq(MCU_CP, shmd->irq_cp2ap_msg);
+	if (IS_ERR_VALUE((unsigned long)ret))
+		goto dummy_poll_complete;
+
+	shmd->rx_poll_count++;
+
+	get_shmem_status(shmd, RX, mst);
+
+	if (ret) {
+		if (ld->mode == LINK_MODE_DLOAD || ld->mode == LINK_MODE_ULOAD)
+			udl_handler(shmd, mst);
+		else
+			rcvd = ipc_rx_func(shmd, budget);
+	} else
+		rcvd = ipc_rx_func(shmd, budget);
+
+	if (rcvd) {
+		if (rcvd < budget) {
+			napi_complete_done(napi, rcvd);
+			ld->enable_rx_int(ld);
+		}
+	} else {
+		goto dummy_poll_complete;
+	}
+	return rcvd;
+
+dummy_poll_complete:
+	napi_complete(napi);
+	ld->enable_rx_int(ld);
+
+	return 0;
+}
+
+void sync_net_dev(struct link_device *ld)
+{
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	napi_synchronize(&shmd->mld_napi);
+
+	mif_info("%s\n", netdev_name(&shmd->dummy_net));
+}
+
+static ssize_t rx_napi_list_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+	struct napi_struct *n;
+	struct net_device *netdev;
+
+	netdev = &shmd->dummy_net;
+
+	count += snprintf(&buf[count], PAGE_SIZE, "[%s`s napi_list]\n", netdev_name(netdev));
+	list_for_each_entry(n, &netdev->napi_list, dev_list)
+		count += snprintf(&buf[count], PAGE_SIZE, "state: %s(%ld), weight: %d, poll: 0x%p\n",
+				test_bit(NAPI_STATE_SCHED, &n->state) ? "NAPI_STATE_SCHED" : "NAPI_STATE_COMPLETE",
+				n->state, n->weight, (void *)n->poll);
+
+	return count;
+}
+
+static ssize_t rx_int_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	count += snprintf(&buf[count], PAGE_SIZE, "rx_int_enable: %d\n", shmd->rx_int_enable);
+	return count;
+
+}
+
+static ssize_t rx_int_enable_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	long val = 0;
+	int ret;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	ret = kstrtol(buf, 10, &val);
+
+	if (val == 0)
+		shmd->rx_int_enable = 0;
+	return count;
+}
+
+static ssize_t rx_int_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	count += snprintf(&buf[count], PAGE_SIZE, "rx_int_count: %d\n", shmd->rx_int_count);
+	return count;
+}
+
+static ssize_t rx_int_count_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	long val = 0;
+	int ret;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	ret = kstrtol(buf, 10, &val);
+
+	if (val == 0)
+		shmd->rx_int_count = 0;
+	return count;
+}
+
+static ssize_t rx_poll_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	count += snprintf(&buf[count], PAGE_SIZE, "rx_poll_count: %d\n", shmd->rx_poll_count);
+	return count;
+}
+
+static ssize_t rx_poll_count_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	long val = 0;
+	int ret;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	ret = kstrtol(buf, 10, &val);
+
+	if (val == 0)
+		shmd->rx_poll_count = 0;
+	return count;
+}
+
+static ssize_t rx_int_disabled_time_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	count += snprintf(&buf[count], PAGE_SIZE, "rx_int_disabled_time: %d\n", shmd->rx_int_disabled_time);
+	return count;
+}
+
+static ssize_t rx_int_disabled_time_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	long val = 0;
+	int ret;
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+
+	ret = kstrtol(buf, 10, &val);
+
+	if (val == 0)
+		shmd->rx_int_disabled_time = 0;
+	return count;
+}
+
+static DEVICE_ATTR(rx_napi_list, 0644, rx_napi_list_show, NULL);//rx_int_enable_store);
+static DEVICE_ATTR(rx_int_enable, 0644, rx_int_enable_show, rx_int_enable_store);
+static DEVICE_ATTR(rx_int_count, 0644, rx_int_count_show, rx_int_count_store);
+static DEVICE_ATTR(rx_poll_count, 0644, rx_poll_count_show, rx_poll_count_store);
+static DEVICE_ATTR(rx_int_disabled_time, 0644, rx_int_disabled_time_show, rx_int_disabled_time_store);
+
+static struct attribute *napi_attrs[] = {
+	&dev_attr_rx_napi_list.attr,
+	&dev_attr_rx_int_enable.attr,
+	&dev_attr_rx_int_count.attr,
+	&dev_attr_rx_poll_count.attr,
+	&dev_attr_rx_int_disabled_time.attr,
+	NULL,
+};
+
+static const struct attribute_group napi_group = {	\
+	.attrs = napi_attrs,					\
+	.name = "napi",
+};
+#endif /* CONFIG_LINK_DEVICE_NAPI */
+
 struct link_device *shmem_create_link_device(struct platform_device *pdev)
 {
 	struct shmem_link_device *shmd = NULL;
@@ -2303,6 +2806,14 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 	ld->acpm_dump = save_acpm_dump;
 
 	ld->crash_reason = shmem_crash_reason;
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	ld->enable_rx_int = shmem_enable_rx_int;
+	ld->disable_rx_int = shmem_disable_rx_int;
+
+	init_dummy_netdev(&shmd->dummy_net);
+	netif_napi_add(&shmd->dummy_net, &shmd->mld_napi, shmd_rx_int_poll, 64);
+	napi_enable(&shmd->mld_napi);
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 
 	INIT_LIST_HEAD(&ld->list);
 
@@ -2470,6 +2981,11 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 	mif_info("%s: mbox_request_irq(%u) - irq\n", ld->name, shmd->irq_cp2ap_msg);
 
 	modem->syscp_info = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	if (sysfs_create_group(&pdev->dev.kobj, &napi_group))
+		mif_err("failed to create sysfs node related napi\n");
+#endif
 
 	mif_info("---\n");
 	return ld;

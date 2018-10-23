@@ -38,6 +38,7 @@ struct mcu_ipc_drv_data {
 
 	void __iomem *ioaddr;
 	u32 registered_irq;
+	unsigned long unmasked_irq;
 
 	/**
 	 * irq affinity cpu mask
@@ -48,6 +49,7 @@ struct mcu_ipc_drv_data {
 	struct device *mcu_ipc_dev;
 	struct mcu_ipc_ipc_handler hd[16];
 	spinlock_t lock;
+	spinlock_t reg_lock;
 	int irq;
 };
 

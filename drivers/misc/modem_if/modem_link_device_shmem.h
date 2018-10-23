@@ -229,6 +229,14 @@ struct shmem_link_device {
 	struct crash_reason crash_reason;
 
 	struct timer_list max_qos_timer;
+#ifdef CONFIG_LINK_DEVICE_NAPI
+	struct net_device dummy_net;
+	struct napi_struct mld_napi;
+	unsigned int rx_int_enable;
+	unsigned int rx_int_count;
+	unsigned int rx_poll_count;
+	unsigned long long rx_int_disabled_time;
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 };
 
 /* converts from struct link_device* to struct xxx_link_device* */
@@ -853,5 +861,9 @@ static inline void print_res_ack(struct shmem_link_device *shmd, int dev,
 		get_dev_name(dev), req_ack_rcvd, in, out, rcvd, space);
 }
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+int ipc_rx_func(struct shmem_link_device *shmd, int budget);
+void sync_net_dev(struct link_device *ld);
+#endif /* CONFIG_LINK_DEVICE_NAPI */
 #endif
 
