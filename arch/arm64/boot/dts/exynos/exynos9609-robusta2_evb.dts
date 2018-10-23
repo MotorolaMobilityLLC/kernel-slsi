@@ -1287,6 +1287,8 @@
 	#size-cells = <0>;
 	status = "okay";
 
+	samsung,i2c-max-bus-freq = <600000>;
+
 	sec-nfc@27 {
 		compatible = "sec-nfc";
 		reg = <0x27>;
