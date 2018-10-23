@@ -1555,8 +1555,13 @@ static void dsim_parse_lcd_info(struct dsim_device *dsim)
 		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
 
-	case 0xff216102:
+	case 0x6001a902:
 		ddi_device_type = "novatek-nt36672a";
+		dsim_info("ddi type : %s\n", ddi_device_type);
+		break;
+
+	case 0x91720401:
+		ddi_device_type = "hixmax-hix83112a";
 		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
 
@@ -1786,9 +1791,13 @@ static void dsim_register_panel(struct dsim_device *dsim)
 		dsim->panel_ops = &s6e3fa0_mipi_lcd_driver;
 		dsim_info("panel ops : s6e3fa0_mipi_lcd_driver\n");
 		break;
-	case 0xff216102:
+	case 0x6001a902:
 		dsim->panel_ops = &nt36672a_mipi_lcd_driver;
 		dsim_info("panel ops : nt36672a_mipi_lcd_driver\n");
+		break;
+	case 0x91720401:
+		dsim->panel_ops = &hix83112a_mipi_lcd_driver;
+		dsim_info("panel ops : hix83112a_mipi_lcd_driver\n");
 		break;
 	default:
 		dsim_info("panel ops is default lcd\n");
