@@ -1283,6 +1283,56 @@
 	};
 };
 
+&exynos_adc {
+	status = "okay";
+	cpu_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 0>;
+		io-channel-names = "cpu_therm";
+	};
+	battery_thermistor {
+		compatible = "murata,ncp15xh103";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 1>;
+		io-channel-names = "bat_therm";
+	};
+	pa_thermistor {
+		compatible = "murata,ncp15xh103";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <0>;
+		pulldown-ohm = <10000>;
+		io-channels = <&exynos_adc 4>;
+		io-channel-names = "pa_therm";
+		connected-positive;
+	};
+	board_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 7>;
+		io-channel-names = "board_therm";
+	};
+	usb_con_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 8>;
+		io-channel-names = "usb_con_therm";
+	};
+};
+
 &i2c_2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
