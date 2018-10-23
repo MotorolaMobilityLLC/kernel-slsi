@@ -2526,6 +2526,31 @@ static int shmem_crash_reason(struct link_device *ld, struct io_device *iod,
 	return 0;
 }
 
+#ifdef CONFIG_MODEM_IF_NET_GRO
+static long gro_flush_time = 100000L;
+module_param(gro_flush_time, long, 0644);
+
+static void gro_flush_timer(struct link_device *ld)
+{
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+	struct timespec curr, diff;
+
+	if (!gro_flush_time)
+		return;
+
+	if (unlikely(shmd->flush_time.tv_sec == 0)) {
+		getnstimeofday(&shmd->flush_time);
+	} else {
+		getnstimeofday(&(curr));
+		diff = timespec_sub(curr, shmd->flush_time);
+		if ((diff.tv_sec > 0) || (diff.tv_nsec > gro_flush_time)) {
+			napi_gro_flush(&shmd->mld_napi, false);
+			getnstimeofday(&shmd->flush_time);
+		}
+	}
+}
+#endif
+
 #ifdef CONFIG_LINK_DEVICE_NAPI
 /*
  * shmd_rx_int_poll
@@ -2806,6 +2831,10 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 	ld->acpm_dump = save_acpm_dump;
 
 	ld->crash_reason = shmem_crash_reason;
+#ifdef CONFIG_MODEM_IF_NET_GRO
+	ld->gro_flush = gro_flush_timer;
+#endif
+
 #ifdef CONFIG_LINK_DEVICE_NAPI
 	ld->enable_rx_int = shmem_enable_rx_int;
 	ld->disable_rx_int = shmem_disable_rx_int;

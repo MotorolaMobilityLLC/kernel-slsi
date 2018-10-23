@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/if_arp.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 #include <linux/device.h>
@@ -29,7 +30,7 @@
 
 #include "modem_prj.h"
 #include "modem_utils.h"
-
+#include "modem_link_device_shmem.h"
 
 static u16 exynos_build_fr_config(struct io_device *iod, struct link_device *ld,
 		unsigned int count);
@@ -311,12 +312,34 @@ static int rx_raw_misc(struct sk_buff *skb)
 	return 0;
 }
 
+#ifdef CONFIG_LINK_DEVICE_NAPI
+#ifdef CONFIG_MODEM_IF_NET_GRO
+static int check_gro_support(struct sk_buff *skb)
+{
+	switch (skb->data[0] & 0xF0) {
+	case 0x40:
+		return (ip_hdr(skb)->protocol == IPPROTO_TCP);
+
+	case 0x60:
+		return (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP);
+	}
+	return 0;
+}
+#else
+static int check_gro_support(struct sk_buff *skb)
+{
+	return 0;
+}
+#endif
+#endif
+
 static int rx_multi_pdp(struct sk_buff *skb)
 {
 	struct link_device *ld = skbpriv(skb)->ld;
 	struct io_device *iod = skbpriv(skb)->iod;
 	struct net_device *ndev;
 	struct iphdr *iphdr;
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
 	int ret;
 
 	ndev = iod->ndev;
@@ -353,10 +376,23 @@ static int rx_multi_pdp(struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_LINK_DEVICE_NAPI
-	ret = netif_receive_skb(skb);
-	if (ret != NET_RX_SUCCESS) {
-		mif_err("%s->%s: ERR! netif_receive_skb (err %d)\n",
-			ld->name, iod->name, ret);
+	skb_reset_network_header(skb);
+
+	if (check_gro_support(skb)) {
+		ret = napi_gro_receive(&shmd->mld_napi, skb);
+		if (ret == GRO_DROP) {
+			mif_err_limited("%s: %s<-%s: ERR! napi_gro_receive\n",
+				ld->name, iod->name, iod->mc->name);
+		}
+
+		if (ld->gro_flush)
+			ld->gro_flush(ld);
+	} else {
+		ret = netif_receive_skb(skb);
+		if (ret != NET_RX_SUCCESS) {
+			mif_err_limited("%s->%s: ERR! netif_receive_skb (err %d)\n",
+				ld->name, iod->name, ret);
+		}
 	}
 #else /* !CONFIG_LINK_DEVICE_NAPI */
 	if (in_interrupt())
@@ -1546,6 +1582,9 @@ static void vnet_setup(struct net_device *ndev)
 	ndev->tx_queue_len = 1000;
 	ndev->mtu = ETH_DATA_LEN;
 	ndev->watchdog_timeo = 5 * HZ;
+#ifdef CONFIG_MODEM_IF_NET_GRO
+	ndev->features |= NETIF_F_GRO;
+#endif
 }
 
 static void vnet_setup_ether(struct net_device *ndev)
@@ -1559,6 +1598,9 @@ static void vnet_setup_ether(struct net_device *ndev)
 	ndev->tx_queue_len = 1000;
 	ndev->mtu = ETH_DATA_LEN;
 	ndev->watchdog_timeo = 5 * HZ;
+#ifdef CONFIG_MODEM_IF_NET_GRO
+	ndev->features |= NETIF_F_GRO;
+#endif
 }
 
 static u16 exynos_build_fr_config(struct io_device *iod, struct link_device *ld,

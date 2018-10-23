@@ -237,6 +237,10 @@ struct shmem_link_device {
 	unsigned int rx_poll_count;
 	unsigned long long rx_int_disabled_time;
 #endif /* CONFIG_LINK_DEVICE_NAPI */
+
+#ifdef CONFIG_MODEM_IF_NET_GRO
+	struct timespec flush_time;
+#endif
 };
 
 /* converts from struct link_device* to struct xxx_link_device* */

@@ -49,6 +49,13 @@ config MODEM_IF_ADAPTIVE_QOS
 	bool "Enable Adaptive QOS for high data performance"
 	default n
 
+config MODEM_IF_NET_GRO
+	bool "enable GRO feature"
+	depends on LINK_DEVICE_NAPI
+	default n
+	---help---
+	 This enables GRO(Generic Receive Offload) feature
+
 config UART_SWITCH
 	bool "UART SWITCH Support"
 	default n

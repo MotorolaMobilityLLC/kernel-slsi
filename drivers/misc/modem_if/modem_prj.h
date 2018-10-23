@@ -25,6 +25,9 @@
 #include <linux/spinlock.h>
 #include <linux/cdev.h>
 #include <linux/types.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
+
 #include "include/modem_v1.h"
 #include "include/exynos_ipc.h"
 
@@ -650,6 +653,7 @@ struct link_device {
 	int (*enable_rx_int)(struct link_device *ld);
 	int (*disable_rx_int)(struct link_device *ld);
 #endif /* CONFIG_LINK_DEVICE_NAPI */
+	void (*gro_flush)(struct link_device *ld);
 };
 
 /** rx_alloc_skb - allocate an skbuff and set skb's iod, ld
