@@ -285,7 +285,7 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 	    ctx->state == MFCINST_RES_CHANGE_FLUSH ||
 	    ctx->state == MFCINST_RES_CHANGE_END) {
 		/* If there is no source buffer to parsing, we can't SEQ_START */
-		if ((ctx->wait_state == WAIT_DECODING) &&
+		if (((ctx->wait_state & WAIT_G_FMT) != 0) &&
 			mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0)) {
 			mfc_err_dev("There is no source buffer to parsing, keep previous resolution\n");
 			return -EAGAIN;
@@ -357,9 +357,9 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 		}
 	}
 
-	if (ctx->wait_state == WAIT_DECODING) {
-		ctx->wait_state = WAIT_DPB_FLUSH;
-		mfc_debug(2, "wait DPB flush for decoding(INIT_BUFFER)\n");
+	if ((ctx->wait_state & WAIT_G_FMT) != 0) {
+		ctx->wait_state &= ~(WAIT_G_FMT);
+		mfc_debug(2, "clear WAIT_G_FMT %d\n", ctx->wait_state);
 	}
 
 	mfc_debug_leave();

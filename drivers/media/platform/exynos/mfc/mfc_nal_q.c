@@ -1652,7 +1652,7 @@ void __mfc_nal_q_handle_frame(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 	if (res_change) {
 		mfc_debug(2, "[NALQ][DRC] Resolution change set to %d\n", res_change);
 		mfc_change_state(ctx, MFCINST_RES_CHANGE_INIT);
-		ctx->wait_state = WAIT_DECODING;
+		ctx->wait_state = WAIT_G_FMT | WAIT_STOP;
 		dev->nal_q_handle->nal_q_exception = 1;
 		mfc_info_ctx("[NALQ][DRC] nal_q_exception is set (res change)\n");
 		goto leave_handle_frame;

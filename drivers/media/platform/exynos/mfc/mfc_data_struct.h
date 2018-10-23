@@ -130,9 +130,9 @@ enum mfc_queue_state {
 };
 
 enum mfc_dec_wait_state {
-	WAIT_NONE = 0,
-	WAIT_DECODING,
-	WAIT_DPB_FLUSH,
+	WAIT_NONE	= 0,
+	WAIT_G_FMT	= (1 << 0),
+	WAIT_STOP	= (1 << 1),
 };
 
 /**
