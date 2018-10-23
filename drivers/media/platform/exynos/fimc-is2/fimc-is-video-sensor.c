@@ -804,7 +804,12 @@ static int fimc_is_ssx_video_g_ctrl(struct file *file, void *priv,
 	case VENDER_G_CTRL:
 		/* This s_ctrl is needed to skip, when the s_ctrl id was found. */
 		break;
-
+	case V4L2_CID_IS_G_SENSOR_FACTORY_RESULT:
+		if (test_bit(FIMC_IS_SENSOR_S_INPUT, &device->state))
+			ctrl->value = 1;
+		else
+			ctrl->value = 0;
+		break;
 	default:
 		ret = fimc_is_sensor_g_ctrl(device, ctrl);
 		if (ret) {
