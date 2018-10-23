@@ -72,5 +72,6 @@ int sensor_cis_wait_streamoff(struct v4l2_subdev *subdev);
 int sensor_cis_wait_streamon(struct v4l2_subdev *subdev);
 
 int sensor_cis_set_initial_exposure(struct v4l2_subdev *subdev);
+int sensor_cis_factory_test(struct v4l2_subdev *subdev);
 
 #endif
