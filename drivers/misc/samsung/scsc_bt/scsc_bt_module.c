@@ -648,7 +648,7 @@ static int setup_bhcs(struct scsc_service *service,
 	SCSC_TAG_DEBUG(BT_COMMON,
 		"loading Bluetooth address configuration file: "
 		SCSC_BT_ADDR "\n");
-	err = mx140_request_file(common_service.maxwell_core, SCSC_BT_ADDR, &firm);
+	err = mx140_request_proc_file(common_service.maxwell_core, SCSC_BT_ADDR, &firm);
 	if (err) {
 		/* Not found - just silently ignore this */
 		SCSC_TAG_DEBUG(BT_COMMON, "Bluetooth address not found\n");
