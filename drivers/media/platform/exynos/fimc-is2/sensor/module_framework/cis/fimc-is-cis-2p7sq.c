@@ -1654,6 +1654,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_wait_streamoff = sensor_cis_wait_streamoff,
 	.cis_wait_streamon = sensor_cis_wait_streamon,
 	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
+	.cis_factory_test = sensor_cis_factory_test,
 };
 
 static int cis_2p7sq_probe(struct i2c_client *client,
