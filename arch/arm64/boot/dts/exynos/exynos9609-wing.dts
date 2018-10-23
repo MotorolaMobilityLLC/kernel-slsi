@@ -1782,6 +1782,55 @@
 	};
 };
 
+&exynos_adc {
+	status = "okay";
+	cpu_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 0>;
+		io-channel-names = "cpu_therm";
+	};
+	chg_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 1>;
+		io-channel-names = "chg_therm";
+	};
+	pa_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 4>;
+		io-channel-names = "pa_therm";
+	};
+	board_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 7>;
+		io-channel-names = "board_therm";
+	};
+	battery_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 8>;
+		io-channel-names = "batt_therm";
+	};
+};
+
 &i2c_2 {
 	#address-cells = <1>;
 	#size-cells = <0>;

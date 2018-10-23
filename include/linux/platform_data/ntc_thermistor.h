@@ -57,6 +57,7 @@ struct ntc_thermistor_platform_data {
 	struct iio_channel *chan;
 	bool iio_convert_support;
 
+	bool iio_convert_support;
 	int (*read_ohm)(void);
 };
 
