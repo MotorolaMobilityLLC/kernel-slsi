@@ -126,29 +126,26 @@ void slsi_get_hw_mac_address(struct slsi_dev *sdev, u8 *addr)
 	int                   r;
 
 	/* read maddr_file */
-	if (sdev->maddr_file_name) {
-		scnprintf(path_name, MX_WLAN_FILE_PATH_LEN_MAX, "wlan/%s", sdev->maddr_file_name);
-		SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "MAC address file : %s\n", path_name);
+	r = mx140_request_proc_file(sdev->maxwell_core, SLSI_WIFI_ADDR, &e);
 
-		r = mx140_file_request_device_conf(sdev->maxwell_core, &e, path_name);
-		if (r != 0)
-			goto mac_efs;
+	if (r != 0)
+		goto mac_efs;
 
-		if (!e) {
-			SLSI_ERR(sdev, "mx140_file_request_device_conf() returned succes, but firmware was null\n");
-			goto mac_efs;
-		}
-		r = sscanf(e->data, "%02X:%02X:%02X:%02X:%02X:%02X", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
-		mx140_file_release_conf(sdev->maxwell_core, e);
-		if (r != ETH_ALEN) {
-			SLSI_ERR(sdev, "%s exists, but format is incorrect (should be e.g. xx:xx:xx:xx:xx:xx)\n", path_name);
-			goto mac_efs;
-		}
-		for (i = 0; i < ETH_ALEN; i++)
-			addr[i] = u[i] & 0xff;
-		SLSI_INFO(sdev, "MAC address loaded from %s: %02X:%02X:%02X:%02X:%02X:%02X\n", path_name, u[0], u[1], u[2], u[3], u[4], u[5]);
-		return;
+	if (!e) {
+		SLSI_ERR(sdev, "mx140_file_request_device_conf() returned succes, but firmware was null\n");
+		goto mac_efs;
 	}
+	r = sscanf(e->data, "%02X:%02X:%02X:%02X:%02X:%02X", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
+	mx140_file_release_conf(sdev->maxwell_core, e);
+	if (r != ETH_ALEN) {
+		SLSI_ERR(sdev, "%s exists, but format is incorrect (should be e.g. xx:xx:xx:xx:xx:xx)\n", SLSI_WIFI_ADDR);
+		goto mac_efs;
+	}
+	for (i = 0; i < ETH_ALEN; i++)
+		addr[i] = u[i] & 0xff;
+	SLSI_INFO(sdev, "MAC address loaded from %s: %02X:%02X:%02X:%02X:%02X:%02X\n", path_name, u[0], u[1], u[2], u[3], u[4], u[5]);
+	return;
+
 mac_efs:
 #ifdef CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME
 	r = mx140_request_file(sdev->maxwell_core, CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, &e);
@@ -166,6 +163,12 @@ mac_efs:
 	for (i = 0; i < ETH_ALEN; i++)
 		addr[i] = u[i] & 0xff;
 	SLSI_INFO(sdev, "MAC address loaded from %s: %02X:%02X:%02X:%02X:%02X:%02X\n", CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, u[0], u[1], u[2], u[3], u[4], u[5]);
+
+	/* MAC address in efs could be invalid, try to fix it to normal address */
+	if (addr[0] & 0x01) {
+		addr[0] = addr[0] & 0xfe;
+		SLSI_INFO(sdev, "MAC address invalid, fixed address: %pM", addr);
+	}
 	mx140_release_file(sdev->maxwell_core, e);
 	return;
 #endif
