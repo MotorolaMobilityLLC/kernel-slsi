@@ -1310,12 +1310,18 @@ void exynos_bcm_dbg_stop(unsigned int bcm_stop_owner)
 {
 	int ret;
 
+	if (!bcm_dbg_data) {
+		BCM_ERR("bcm_dbg_data is not ready!\n");
+		return;
+	}
+
 #ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 	if (!bcm_dbg_data->bcm_load_bin) {
 		BCM_ERR("BCM bin has not been loaded yet!!\n");
 		return;
 	}
 #endif
+
 	if (bcm_stop_owner >= STOP_OWNER_MAX) {
 		BCM_ERR("Invalid stop owner (%u)\n", bcm_stop_owner);
 		return;
