@@ -1908,6 +1908,11 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 					memcpy(&enc->roi_info[index],
 							enc->sh_handle_roi.vaddr,
 							sizeof(struct mfc_enc_roi_info));
+					if (enc->roi_info[index].size > enc->roi_buf[index].size) {
+						mfc_err_ctx("[MEMINFO][ROI] roi info size %d is over\n",
+							enc->roi_info[index].size);
+						return -EINVAL;
+					}
 					if (copy_from_user(enc->roi_buf[index].vaddr,
 							enc->roi_info[index].addr,
 							enc->roi_info[index].size))
