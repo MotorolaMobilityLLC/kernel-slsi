@@ -1385,6 +1385,7 @@
 		"cmgp_usi01",
 		"cmgp_usi03",
 		"cmgp_i2c";
+	os-type = "os.checked_0.bin";
 };
 
 &pinctrl_0 {
