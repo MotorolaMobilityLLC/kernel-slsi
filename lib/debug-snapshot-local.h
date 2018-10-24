@@ -63,6 +63,19 @@ struct dbg_snapshot_item {
 	struct vm_struct vm;
 };
 
+struct dbg_snapshot_bl {
+	unsigned int magic1;
+	unsigned int magic2;
+	unsigned int item_count;
+	unsigned int reserved;
+	struct {
+		char name[SZ_16];
+		unsigned int paddr;
+		unsigned int size;
+		unsigned int enabled;
+	} item[SZ_16];
+};
+
 struct dbg_snapshot_sfrdump {
 	char *name;
 	void __iomem *reg;
