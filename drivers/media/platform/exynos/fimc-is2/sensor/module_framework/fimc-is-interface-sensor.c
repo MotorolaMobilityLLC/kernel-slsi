@@ -510,15 +510,11 @@ int set_gain_permile(struct fimc_is_sensor_interface *itf,
 
 		/* set exposure */
 		if (mode == ITF_CIS_SMIA) {
-			sensor_uctl->sensitivity = DIV_ROUND_UP(long_total_gain, 10);
-
 			sensor_uctl->analogGain = long_analog_gain;
 			sensor_uctl->digitalGain = long_digital_gain;
 
 			set_sensor_uctl_valid(itf, frame_count);
 		} else if (mode == ITF_CIS_SMIA_WDR) {
-			sensor_uctl->sensitivity = DIV_ROUND_UP(long_total_gain, 10);
-
 			/* Caution: short values are setted at analog/digital gain */
 			sensor_uctl->analogGain = short_analog_gain;
 			sensor_uctl->digitalGain = short_digital_gain;
