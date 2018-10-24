@@ -14,6 +14,8 @@ config MODEM_CHIP_MODAP_S3XXAP
 	select SHM_IPC
 	select CP_PMUCAL
 	select CP_SECURE_BOOT
+	select LINK_DEVICE_NAPI
+	select MODEM_IF_NET_GRO
 	default n
 
 menu "Configurations"
