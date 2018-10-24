@@ -57,6 +57,9 @@ extern void dbg_snapshot_hook_hardlockup_exit(void);
 extern void dbg_snapshot_dump_sfr(void);
 extern int dbg_snapshot_hook_pmsg(char *buffer, size_t count);
 extern void dbg_snapshot_save_log(int cpu, unsigned long where);
+extern int dbg_snapshot_add_bl_item_info(const char *name,
+		unsigned int paddr, unsigned int size);
+
 #define dbg_snapshot_irq_var(v)   do {    v = cpu_clock(raw_smp_processor_id());  \
 				  } while(0)
 /* option */
@@ -241,6 +244,11 @@ static inline bool dbg_snapshot_dumper_one(void *v_dumper,
 				char *line, size_t size, size_t *len)
 {
 	return false;
+}
+static int dbg_snapshot_add_bl_item_info(const char *name,
+				unsigned int paddr, unsigned int size)
+{
+	return 0;
 }
 #endif /* CONFIG_DEBUG_SNAPSHOT */
 

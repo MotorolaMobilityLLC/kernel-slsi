@@ -57,6 +57,7 @@ const char *debug_level_val[] = {
 	"mid",
 };
 
+struct dbg_snapshot_bl *dss_bl;
 struct dbg_snapshot_item dss_items[] = {
 	{"header",		{0, 0, 0, false, false}, NULL ,NULL, 0, },
 	{"log_kernel",		{0, 0, 0, false, false}, NULL ,NULL, 0, },
@@ -100,6 +101,20 @@ int dbg_snapshot_set_debug_level(int level)
 int dbg_snapshot_get_debug_level(void)
 {
 	return dss_desc.debug_level;
+}
+
+int dbg_snapshot_add_bl_item_info(const char *name, unsigned int paddr, unsigned int size)
+{
+	if (dss_bl->item_count >= SZ_16)
+		return -1;
+
+	memcpy(dss_bl->item[dss_bl->item_count].name, name, strlen(name) + 1);
+	dss_bl->item[dss_bl->item_count].paddr = paddr;
+	dss_bl->item[dss_bl->item_count].size = size;
+	dss_bl->item[dss_bl->item_count].enabled = 1;
+	dss_bl->item_count++;
+
+	return 0;
 }
 
 int dbg_snapshot_set_enable(const char *name, int en)
@@ -584,6 +599,19 @@ static void __init dbg_snapshot_fixmap_header(void)
 
 	/*  initialize kernel event to 0 except only header */
 	memset((size_t *)(vaddr + DSS_KEEP_HEADER_SZ), 0, size - DSS_KEEP_HEADER_SZ);
+
+	dss_bl = dbg_snapshot_get_base_vaddr() + DSS_OFFSET_ITEM_INFO;
+	memset(dss_bl, 0, sizeof(struct dbg_snapshot_bl));
+	dss_bl->magic1 = 0x01234567;
+	dss_bl->magic2 = 0x89ABCDEF;
+	dss_bl->item_count = ARRAY_SIZE(dss_items);
+	memcpy(dss_bl->item[dss_desc.header_num].name,
+			dss_items[dss_desc.header_num].name,
+			strlen(dss_items[dss_desc.header_num].name) + 1);
+	dss_bl->item[dss_desc.header_num].paddr = paddr;
+	dss_bl->item[dss_desc.header_num].size = size;
+	dss_bl->item[dss_desc.header_num].enabled =
+		dss_items[dss_desc.header_num].entry.enabled;
 }
 
 static void __init dbg_snapshot_fixmap(void)
@@ -596,6 +624,11 @@ static void __init dbg_snapshot_fixmap(void)
 	dbg_snapshot_fixmap_header();
 
 	for (i = 1; i < ARRAY_SIZE(dss_items); i++) {
+		memcpy(dss_bl->item[i].name,
+				dss_items[i].name,
+				strlen(dss_items[i].name) + 1);
+		dss_bl->item[i].enabled = dss_items[i].entry.enabled;
+
 		if (!dss_items[i].entry.enabled)
 			continue;
 
@@ -639,6 +672,12 @@ static void __init dbg_snapshot_fixmap(void)
 		dss_info.info_log[i - 1].head_ptr = (unsigned char *)dss_items[i].entry.vaddr;
 		dss_info.info_log[i - 1].curr_ptr = NULL;
 		dss_info.info_log[i - 1].entry.size = size;
+
+		memcpy(dss_bl->item[i].name,
+				dss_items[i].name,
+				strlen(dss_items[i].name) + 1);
+		dss_bl->item[i].paddr = paddr;
+		dss_bl->item[i].size = size;
 	}
 
 	dss_log = (struct dbg_snapshot_log *)(dss_items[dss_desc.kevents_num].entry.vaddr);
@@ -710,7 +749,6 @@ static int __init dbg_snapshot_init_dt(void)
 static int __init dbg_snapshot_init_value(void)
 {
 	int val = dbg_snapshot_get_debug_level_reg();
-	struct dbg_snapshot_item *item;
 
 	dbg_snapshot_set_debug_level(val);
 
@@ -723,18 +761,6 @@ static int __init dbg_snapshot_init_value(void)
 	 * kernel log / platform log / kevents to DSS header */
 	strncpy(dbg_snapshot_get_base_vaddr() + DSS_OFFSET_LINUX_BANNER,
 		linux_banner, strlen(linux_banner));
-
-	item = &dss_items[dss_desc.log_kernel_num];
-	__raw_writel(item->entry.paddr,
-		dbg_snapshot_get_base_vaddr() + DSS_OFFSET_KERNEL_LOG);
-
-	item = &dss_items[dss_desc.log_platform_num];
-	__raw_writel(item->entry.paddr,
-		dbg_snapshot_get_base_vaddr() + DSS_OFFSET_PLATFORM_LOG);
-
-	item = &dss_items[dss_desc.kevents_num];
-	__raw_writel(item->entry.paddr,
-		dbg_snapshot_get_base_vaddr() + DSS_OFFSET_KERNEL_EVENT);
 
 	return 0;
 }
