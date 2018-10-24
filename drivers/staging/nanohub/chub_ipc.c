@@ -238,7 +238,8 @@ void *ipc_get_chub_map(void)
 
 #ifndef USE_IPC_BUF
 	CSP_PRINTF_INFO
-		("%s: ipc_map data_ch: size:%d on %d channel\n", NAME_PREFIX, PACKET_SIZE_MAX, IPC_CH_BUF_NUM);
+		("%s: ipc_map data_ch:size:%d on %d channel. evt_ch:%d\n",
+			NAME_PREFIX, PACKET_SIZE_MAX, IPC_CH_BUF_NUM, IPC_EVT_NUM);
 #ifdef SEOS
 	if (PACKET_SIZE_MAX < NANOHUB_PACKET_SIZE_MAX)
 		CSP_PRINTF_ERROR("%s: %d should be bigger than %d\n", NAME_PREFIX, PACKET_SIZE_MAX, NANOHUB_PACKET_SIZE_MAX);
@@ -271,23 +272,24 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 
 	if (length <= PACKET_SIZE_MAX) {
 		if (!__ipc_queue_full(ipc_data)) {
-				struct ipc_channel_buf *ipc;
+			struct ipc_channel_buf *ipc;
 
-				ipc = &ipc_data->ch[ipc_data->eq];
-				ipc->size = length;
+			ipc = &ipc_data->ch[ipc_data->eq];
+			ipc->size = length;
 #ifdef AP_IPC
-				memcpy_toio(ipc->buf, tx, length);
+			memcpy_toio(ipc->buf, tx, length);
 #else
-				memcpy(ipc->buf, tx, length);
+			memcpy(ipc->buf, tx, length);
 #endif
-				ipc_data->eq = (ipc_data->eq + 1) % IPC_CH_BUF_NUM;
+			ipc_data->eq = (ipc_data->eq + 1) % IPC_CH_BUF_NUM;
 		} else {
-				ret = -EINVAL;
+			CSP_PRINTF_INFO("%s: %s: is full\n", NAME_PREFIX, __func__);
+			ret = -EINVAL;
 		}
 	} else {
-		CSP_PRINTF_INFO("%s: invalid size:%d\n",
-			__func__, length);
-		return -1;
+		CSP_PRINTF_INFO("%s: %s: invalid size:%d\n",
+			NAME_PREFIX, __func__, length);
+		ret = -EINVAL;
 	}
 
 	if (!ret) {
@@ -295,7 +297,8 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 
 		ret = ipc_add_evt(evtq, IRQ_EVT_CH0);
 	} else {
-		CSP_PRINTF_INFO("%s: %s: error\n", NAME_PREFIX, __func__);
+		CSP_PRINTF_INFO("%s: %s: error: eq:%d, dq:%d\n",
+			NAME_PREFIX, __func__, ipc_data->eq, ipc_data->dq);
 	}
 	return ret;
 }

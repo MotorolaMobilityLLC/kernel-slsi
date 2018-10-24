@@ -29,6 +29,7 @@
 #include "chub_log.h"
 
 #define WAIT_TRY_CNT (3)
+#define RESET_WAIT_TRY_CNT (10)
 #define WAIT_CHUB_MS (100)
 
 /* utils for nanohub main */
@@ -177,6 +178,7 @@ struct contexthub_ipc_info {
 	atomic_t in_reset;
 	atomic_t irq1_apInt;
 	atomic_t wakeup_chub;
+	atomic_t in_use_ipc;
 	int irq_mailbox;
 	int irq_wdt;
 	bool irq_wdt_disabled;
@@ -284,8 +286,6 @@ struct contexthub_ipc_info {
 #define IPC_HW_WRITE_BAAW_CHUB3(base, val) \
 	__raw_writel((val), (base) + REG_BAAW_D_CHUB3)
 
-enum access_type { HW_ACCESS, IPC_ACCESS };
-
 int contexthub_ipc_write_event(struct contexthub_ipc_info *data,
 				enum mailbox_event event);
 int contexthub_ipc_read(struct contexthub_ipc_info *ipc,
@@ -294,10 +294,8 @@ int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 				uint8_t *tx, int length, int timeout);
 int contexthub_poweron(struct contexthub_ipc_info *data);
 int contexthub_download_image(struct contexthub_ipc_info *data, enum ipc_region reg);
-int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load);
+int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump_id);
 int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
-
-int contexthub_is_run(struct contexthub_ipc_info *ipc);
-int contexthub_request(struct contexthub_ipc_info *ipc, enum access_type acc);
-void contexthub_release(struct contexthub_ipc_info *ipc, enum access_type acc);
+int contexthub_request(struct contexthub_ipc_info *ipc);
+void contexthub_release(struct contexthub_ipc_info *ipc);
 #endif

@@ -18,7 +18,7 @@
 #define AP_IPC
 #endif
 
-#define IPC_VERSION (180831)
+#define IPC_VERSION (181024)
 
 #if defined(CHUB_IPC)
 #if defined(SEOS)
@@ -112,7 +112,7 @@ struct chub_bootargs {
  * logbuf / logbuf_ctrl
  */
 #define IPC_BUF_NUM (IRQ_EVT_CH_MAX)
-#define IPC_EVT_NUM (15)
+#define IPC_EVT_NUM (30)
 #define IPC_LOGBUF_NUM (256)
 
 enum sr_num {
@@ -332,7 +332,7 @@ struct ipc_channel_buf {
 	u8 buf[PACKET_SIZE_MAX];
 };
 
-#define IPC_CH_BUF_NUM (6)
+#define IPC_CH_BUF_NUM (16)
 struct ipc_buf {
 	volatile u32 eq;
 	volatile u32 dq;

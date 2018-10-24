@@ -70,7 +70,6 @@ static void log_memcpy(struct log_buffer_info *info,
 		        dev_warn(info->dev, "%s: saving log fail\n", __func__);
 		        goto out;
 		}
-
 	}
 
 	if (left_size < size) {
@@ -163,12 +162,7 @@ static void log_flush_all(void)
 			pr_warn("%s: fails get info\n", __func__);
 			return;
 		}
-		if (contexthub_request(dev_get_drvdata(info->dev), IPC_ACCESS)) {
-			pr_warn("%s: chub isn't run\n", __func__);
-			return;
-		}
-	    log_flush(info);
-		contexthub_release(dev_get_drvdata(info->dev), IPC_ACCESS);
+		log_flush(info);
 	}
 }
 
@@ -461,14 +455,12 @@ static ssize_t chub_log_flush_save(struct device *dev,
 {
 	long event;
 	int err;
-	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+
 	err = kstrtol(&buf[0], 10, &event);
 	if (!err) {
 		if (!auto_log_flush_ms) {
-			err = contexthub_request(ipc, IPC_ACCESS);
 			if (!err) {
 				log_flush_all();
-				contexthub_release(ipc, IPC_ACCESS);
 			} else {
 				pr_err("%s: fails to flush log\n", __func__);
 			}

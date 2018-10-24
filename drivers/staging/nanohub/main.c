@@ -342,6 +342,7 @@ int request_wakeup_ex(struct nanohub_data *data, long timeout_ms,
 	ktime_t wakeup_ktime;
 #ifdef CONFIG_NANOHUB_MAILBOX
 	unsigned long flag;
+
 	spin_lock_irqsave(&data->wakeup_wait.lock, flag);
 #else
 	spin_lock(&data->wakeup_wait.lock);
@@ -370,7 +371,11 @@ int request_wakeup_ex(struct nanohub_data *data, long timeout_ms,
 			if (ktime_to_ns(ktime_delta) > WAKEUP_ERR_TIME_NS
 				&& data->wakeup_err_cnt > WAKEUP_ERR_CNT) {
 				mcu_wakeup_gpio_put_locked(data, priority_lock);
+#ifdef CONFIG_NANOHUB_MAILBOX
+				spin_unlock_irqrestore(&data->wakeup_wait.lock, flag);
+#else
 				spin_unlock(&data->wakeup_wait.lock);
+#endif
 				dev_info(sensor_dev,
 					"wakeup: hard reset due to consistent error\n");
 				ret = nanohub_hw_reset(data);
@@ -404,9 +409,9 @@ void release_wakeup_ex(struct nanohub_data *data, int key, int lock_mode)
 {
 	bool done;
 	bool priority_lock = lock_mode > LOCK_MODE_NORMAL;
-
 #ifdef CONFIG_NANOHUB_MAILBOX
 	unsigned long flag;
+
 	spin_lock_irqsave(&data->wakeup_wait.lock, flag);
 #else
 	spin_lock(&data->wakeup_wait.lock);
@@ -490,6 +495,7 @@ int nanohub_wakeup_eom(struct nanohub_data *data, bool repeat)
 	return ret;
 }
 
+#ifdef CONFIG_EXT_CHUB
 static void __nanohub_interrupt_cfg(struct nanohub_data *data,
 				    u8 interrupt, bool mask)
 {
@@ -520,17 +526,21 @@ static void __nanohub_interrupt_cfg(struct nanohub_data *data,
 			interrupt, ret, mask_ret);
 	} while ((ret != 1 || mask_ret != 1) && --cnt > 0);
 }
-
+#endif
 static inline void nanohub_mask_interrupt(struct nanohub_data *data,
 					  u8 interrupt)
 {
+#ifdef CONFIG_EXT_CHUB
 	__nanohub_interrupt_cfg(data, interrupt, true);
+#endif
 }
 
 static inline void nanohub_unmask_interrupt(struct nanohub_data *data,
 					    u8 interrupt)
 {
+#ifdef CONFIG_EXT_CHUB
 	__nanohub_interrupt_cfg(data, interrupt, false);
+#endif
 }
 
 static ssize_t nanohub_wakeup_query(struct device *dev,
@@ -636,10 +646,12 @@ static inline int nanohub_wakeup_lock(struct nanohub_data *data, int mode)
 				SUSPEND_TIMEOUT_MS : WAKEUP_TIMEOUT_MS,
 				KEY_WAKEUP_LOCK, mode);
 	if (ret < 0) {
+#ifdef CONFIG_EXT_CHUB
 		if (data->irq2)
 			enable_irq(data->irq2);
 		else
 			nanohub_unmask_interrupt(data, 2);
+#endif
 		return ret;
 	}
 
@@ -650,9 +662,12 @@ static inline int nanohub_wakeup_lock(struct nanohub_data *data, int mode)
 		release_wakeup_ex(data, KEY_WAKEUP_LOCK, mode);
 		return ret;
 	}
-#endif
 	if (mode != LOCK_MODE_SUSPEND_RESUME)
 		disable_irq(data->irq1);
+#else
+		if (mode != LOCK_MODE_SUSPEND_RESUME)
+			contexthub_ipc_write_event(data->pdata->mailbox_client, (u32)MAILBOX_EVT_DISABLE_IRQ);
+#endif
 
 	atomic_set(&data->lock_mode, mode);
 	mcu_wakeup_gpio_set_value(data, mode != LOCK_MODE_IO_BL);
@@ -666,17 +681,23 @@ static inline int nanohub_wakeup_unlock(struct nanohub_data *data)
 	int mode = atomic_read(&data->lock_mode);
 
 	atomic_set(&data->lock_mode, LOCK_MODE_NONE);
+#ifdef CONFIG_EXT_CHUB
 	if (mode != LOCK_MODE_SUSPEND_RESUME)
 		enable_irq(data->irq1);
-#ifdef CONFIG_EXT_CHUB
 	if (mode == LOCK_MODE_IO || mode == LOCK_MODE_IO_BL)
 		nanohub_bl_close(data);
-#endif
 	if (data->irq2)
 		enable_irq(data->irq2);
+
 	release_wakeup_ex(data, KEY_WAKEUP_LOCK, mode);
 	if (!data->irq2)
 		nanohub_unmask_interrupt(data, 2);
+#else
+	if (mode != LOCK_MODE_SUSPEND_RESUME)
+		contexthub_ipc_write_event(data->pdata->mailbox_client, (u32)MAILBOX_EVT_ENABLE_IRQ);
+	release_wakeup_ex(data, KEY_WAKEUP_LOCK, mode);
+#endif
+
 	nanohub_notify_thread(data);
 
 	return mode;
@@ -722,7 +743,7 @@ static int nanohub_hw_reset(struct nanohub_data *data)
 	}
 #elif defined(CONFIG_NANOHUB_MAILBOX)
 #ifdef CHUB_RESET_ENABLE
-	ret = contexthub_reset(data->pdata->mailbox_client, 0);
+	ret = contexthub_reset(data->pdata->mailbox_client, 0, CHUB_ERR_COMMS);
 #else
 	ret = -EINVAL;
 #endif
@@ -748,7 +769,7 @@ static ssize_t nanohub_erase_shared(struct device *dev,
 {
 	struct nanohub_data *data = dev_get_nanohub_data(dev);
 
-#ifdef CONFIG_EXT_CHUB
+#if defined(CONFIG_EXT_CHUB)
 	uint8_t status = CMD_ACK;
 	int ret;
 
@@ -808,7 +829,6 @@ static ssize_t nanohub_download_bl(struct device *dev,
 {
 	struct nanohub_data *data = dev_get_nanohub_data(dev);
 	int ret;
-
 #ifdef CONFIG_EXT_CHUB
 	const struct nanohub_platform_data *pdata = data->pdata;
 	const struct firmware *fw_entry;
@@ -838,7 +858,7 @@ static ssize_t nanohub_download_bl(struct device *dev,
 
 	return ret < 0 ? ret : count;
 #elif defined(CONFIG_NANOHUB_MAILBOX)
-	ret = contexthub_reset(data->pdata->mailbox_client, 1);
+	ret = contexthub_reset(data->pdata->mailbox_client, 1, 0);
 
 	return ret < 0 ? ret : count;
 #endif
@@ -1215,11 +1235,16 @@ int nanohub_reset(struct nanohub_data *data)
 
 	gpio_set_value(pdata->nreset_gpio, 1);
 	usleep_range(650000, 700000);
+
+#ifdef CONFIG_EXT_CHUB
 	enable_irq(data->irq1);
 	if (data->irq2)
 		enable_irq(data->irq2);
 	else
 		nanohub_unmask_interrupt(data, 2);
+#else
+	contexthub_ipc_write_event(data->pdata->mailbox_client, (u32)MAILBOX_EVT_ENABLE_IRQ);
+#endif
 
 	return 0;
 #endif
@@ -1289,7 +1314,7 @@ static ssize_t nanohub_write(struct file *file, const char *buffer,
 	}
 #endif
 
-	ret = request_wakeup_timeout(data, WAKEUP_TIMEOUT_MS);
+	ret = request_wakeup_timeout(data, 500);
 	if (ret)
 		return ret;
 
@@ -1437,11 +1462,6 @@ static int nanohub_kthread(void *arg)
 	static const struct sched_param param = {
 		.sched_priority = (MAX_USER_RT_PRIO/2)-1,
 	};
-#ifdef CONFIG_NANOHUB_MAILBOX
-#ifndef CHUB_RESET_ENABLE
-	struct contexthub_ipc_info *ipc;
-#endif
-#endif
 
 	data->kthread_err_cnt = 0;
 	sched_setscheduler(current, SCHED_FIFO, &param);
@@ -1489,7 +1509,7 @@ static int nanohub_kthread(void *arg)
 			buf = nanohub_io_get_buf(&data->free_pool,
 						 false);
 		if (buf) {
-			ret = request_wakeup_timeout(data, WAKEUP_TIMEOUT_MS);
+			ret = request_wakeup_timeout(data, 600);
 			if (ret) {
 				dev_info(sensor_dev,
 					 "%s: request_wakeup_timeout: ret=%d\n",
@@ -1920,7 +1940,7 @@ int nanohub_remove(struct iio_dev *iio_dev)
 
 int nanohub_suspend(struct iio_dev *iio_dev)
 {
-#ifdef CONFIG_EXT_CHUB
+#if defined(CONFIG_EXT_CHUB)
 	struct nanohub_data *data = iio_priv(iio_dev);
 	int ret;
 
@@ -1951,7 +1971,7 @@ int nanohub_suspend(struct iio_dev *iio_dev)
 	}
 
 	return ret;
-#else
+#elif defined(CONFIG_NANOHUB_MAILBOX)
 	(void)iio_dev;
 
 	return 0;
@@ -1960,16 +1980,15 @@ int nanohub_suspend(struct iio_dev *iio_dev)
 
 int nanohub_resume(struct iio_dev *iio_dev)
 {
-#ifdef CONFIG_EXT_CHUB
 	struct nanohub_data *data = iio_priv(iio_dev);
 
+#if defined(CONFIG_EXT_CHUB)
 	disable_irq_wake(data->irq1);
 	nanohub_wakeup_unlock(data);
-#else
-	(void)iio_dev;
-
-	return 0;
+#elif defined(CONFIG_NANOHUB_MAILBOX)
+	nanohub_notify_thread(data);
 #endif
+	return 0;
 }
 
 static int __init nanohub_init(void)
