@@ -15,6 +15,10 @@
 #ifndef __MODEM_LINK_DEVICE_SHMEM_H__
 #define __MODEM_LINK_DEVICE_SHMEM_H__
 
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+#include <asm/cacheflush.h>
+#endif
+
 #include "modem_utils.h"
 #include "modem_link_device_memory.h"
 

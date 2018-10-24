@@ -668,6 +668,9 @@ static int rx_ipc_frames(struct shmem_link_device *shmd, int dev,
 	int out;	/* index to the start of current frame	*/
 	int tot;	/* total length including padding data	*/
 	int rcvd_pkt;	/* number of received packets		*/
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	int len;
+#endif
 
 	src = circ->buff;
 	qsize = circ->qsize;
@@ -677,6 +680,17 @@ static int rx_ipc_frames(struct shmem_link_device *shmd, int dev,
 	rest = circ->size;
 	tot = 0;
 	rcvd_pkt = 0;
+
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	if ((out + rcvd) <= qsize) {
+		__inval_dcache_area((void *)(src + out), rcvd);
+	} else {
+		len = qsize - out;
+
+		__inval_dcache_area((void *)(src + out), len);
+		__inval_dcache_area((void *)src, rcvd - len);
+	}
+#endif
 
 	while (rest > 0) {
 		u8 ch;
@@ -779,6 +793,9 @@ static int rx_ipc_frames(struct shmem_link_device *shmd, int dev,
 	int rest;	/* size of the rest data		*/
 	int out;	/* index to the start of current frame	*/
 	int tot;	/* total length including padding data	*/
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	int len;
+#endif
 
 	src = circ->buff;
 	qsize = circ->qsize;
@@ -787,6 +804,17 @@ static int rx_ipc_frames(struct shmem_link_device *shmd, int dev,
 
 	rest = circ->size;
 	tot = 0;
+
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	if ((out + rcvd) <= qsize) {
+		__inval_dcache_area((void *)(src + out), rcvd);
+	} else {
+		len = qsize - out;
+
+		__inval_dcache_area((void *)(src + out), len);
+		__inval_dcache_area((void *)src, rcvd - len);
+	}
+#endif
 
 	while (rest > 0) {
 		u8 ch;
@@ -1188,6 +1216,9 @@ static int rx_udl_frames(struct shmem_link_device *shmd, int dev,
 	u32 rest;	/* size of the rest data		*/
 	u32 out;	/* index to the start of current frame	*/
 	unsigned int tot;	/* total length including padding data	*/
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	int len;
+#endif
 
 	src = circ->buff;
 	qsize = circ->qsize;
@@ -1195,6 +1226,18 @@ static int rx_udl_frames(struct shmem_link_device *shmd, int dev,
 	rcvd = circ->size;
 	rest = circ->size;
 	tot = 0;
+
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	if ((out + rcvd) <= qsize) {
+		__inval_dcache_area((void *)(src + out), rcvd);
+	} else {
+		len = qsize - out;
+
+		__inval_dcache_area((void *)(src + out), len);
+		__inval_dcache_area((void *)src, rcvd - len);
+	}
+#endif
+
 	while (rest > 0) {
 		u8 ch;
 
@@ -2254,7 +2297,11 @@ static void shmem_remap_4mb_ipc_region(struct shmem_link_device *shmd)
 
 	dev->rxq.head = (u32 __iomem *)&map->raw_rx_head;
 	dev->rxq.tail = (u32 __iomem *)&map->raw_rx_tail;
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	dev->rxq.buff = (u8 __iomem *)phys_to_virt(shmd->start + SZ_2M);
+#else
 	dev->rxq.buff = (u8 __iomem *)&map->raw_rx_buff[0];
+#endif
 	dev->rxq.size = SHM_4M_RAW_RX_BUFF_SZ;
 
 	dev->mask_req_ack = INT_MASK_REQ_ACK_R;
@@ -2273,8 +2320,11 @@ static int shmem_init_ipc_map(struct shmem_link_device *shmd)
 	else
 		return -EINVAL;
 
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	memset(shmd->base, 0, shmd->size - SHM_4M_RAW_RX_BUFF_SZ);
+#else
 	memset(shmd->base, 0, shmd->size);
-
+#endif
 	shmd->magic = shmd->ipc_map.magic;
 	shmd->access = shmd->ipc_map.access;
 
@@ -2879,7 +2929,11 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 
 	shmd->start = modem->shmem_base + modem->ipcmem_offset;
 	shmd->size = modem->ipc_size;
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	shmd->base = shm_request_region(shmd->start, shmd->size - SHM_4M_RAW_RX_BUFF_SZ);
+#else
 	shmd->base = shm_request_region(shmd->start, shmd->size);
+#endif
 	if (!shmd->base) {
 		mif_err("%s: ERR! shm_request_region fail\n", ld->name);
 		goto error;

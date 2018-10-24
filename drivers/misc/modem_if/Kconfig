@@ -16,6 +16,7 @@ config MODEM_CHIP_MODAP_S3XXAP
 	select CP_SECURE_BOOT
 	select LINK_DEVICE_NAPI
 	select MODEM_IF_NET_GRO
+	select CACHED_RAW_RX_BUFFER
 	default n
 
 menu "Configurations"
@@ -57,6 +58,10 @@ config MODEM_IF_NET_GRO
 	default n
 	---help---
 	 This enables GRO(Generic Receive Offload) feature
+
+config CACHED_RAW_RX_BUFFER
+	bool "Set cached RX RAW BUFFER for high data performance"
+	default n
 
 config UART_SWITCH
 	bool "UART SWITCH Support"

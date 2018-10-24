@@ -30,12 +30,6 @@ static int save_dump_file(struct link_device *ld, struct io_device *iod,
 		return -EFAULT;
 	}
 
-	ret = copy_to_user((void __user *)arg, &dump_size, sizeof(dump_size));
-	if (ret) {
-		mif_err("ERR! copy_from_user fail!\n");
-		return -EFAULT;
-	}
-
 	while (copied < dump_size) {
 		if (dump_size - copied < alloc_size)
 			alloc_size =  dump_size - copied;
@@ -79,9 +73,16 @@ int save_vss_dump(struct link_device *ld, struct io_device *iod,
 {
 	struct shmem_link_device *shmd = to_shmem_link_device(ld);
 	size_t vss_size = shm_get_vss_size();
+	int ret = 0;
 
 	if (vss_size == 0 || shmd->vss_base == NULL) {
 		mif_err("ERR! save_vss_dump fail!\n");
+		return -EFAULT;
+	}
+
+	ret = copy_to_user((void __user *)arg, &vss_size, sizeof(vss_size));
+	if (ret) {
+		mif_err("ERR! copy_from_user fail!\n");
 		return -EFAULT;
 	}
 
@@ -93,9 +94,16 @@ int save_acpm_dump(struct link_device *ld, struct io_device *iod,
 {
 	struct shmem_link_device *shmd = to_shmem_link_device(ld);
 	size_t acpm_size = shm_get_acpm_size();
+	int ret = 0;
 
 	if (acpm_size == 0 || shmd->acpm_base == NULL) {
 		mif_err("ERR! save_acpm_dump fail!\n");
+		return -EFAULT;
+	}
+
+	ret = copy_to_user((void __user *)arg, &acpm_size, sizeof(acpm_size));
+	if (ret) {
+		mif_err("ERR! copy_from_user fail!\n");
 		return -EFAULT;
 	}
 
@@ -107,11 +115,32 @@ int save_shmem_dump(struct link_device *ld, struct io_device *iod,
 {
 	struct shmem_link_device *shmd = to_shmem_link_device(ld);
 	size_t shmem_size = shmd->size;
+	int ret = 0;
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	u8 *rxq_buff;
+	int rxq_buff_size;
+
+	rxq_buff = get_rxq_buff(shmd, IPC_RAW);
+	rxq_buff_size = get_rxq_buff_size(shmd, IPC_RAW);
+#endif
 
 	if (shmem_size == 0 || shmd->base == NULL) {
 		mif_err("ERR! save_shmem_dump fail!\n");
 		return -EFAULT;
 	}
 
-	return save_dump_file(ld, iod, arg, (u8 __iomem *)shmd->base, shmem_size);
+	ret = copy_to_user((void __user *)arg, &shmem_size, sizeof(shmem_size));
+	if (ret) {
+		mif_err("ERR! copy_from_user fail!\n");
+		return -EFAULT;
+	}
+
+#ifdef CONFIG_CACHED_RAW_RX_BUFFER
+	ret = save_dump_file(ld, iod, arg, (u8 __iomem *)shmd->base, shmem_size - rxq_buff_size);
+	__inval_dcache_area((void *)rxq_buff, rxq_buff_size);
+	ret = save_dump_file(ld, iod, arg, (u8 __iomem *)rxq_buff, rxq_buff_size);
+#else
+	ret = save_dump_file(ld, iod, arg, (u8 __iomem *)shmd->base, shmem_size);
+#endif
+	return ret;
 }
