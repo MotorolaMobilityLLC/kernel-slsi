@@ -171,15 +171,17 @@ static inline int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
 {
 	struct sk_buff_head *rxq = &iod->sk_rx_q;
 
-	skb_queue_tail(rxq, skb);
-
-	if (iod->format < IPC_MULTI_RAW && rxq->qlen > MAX_IOD_RXQ_LEN) {
-		mif_err("%s: %s application may be dead (rxq->qlen %d > %d)\n",
+	if ((iod->format < IPC_MULTI_RAW) && (rxq->qlen >= MAX_IOD_RXQ_LEN)) {
+		mif_err_limited("%s: %s application may be dead (rxq->qlen %d > %d)\n",
 			iod->name, iod->app ? iod->app : "corresponding",
 			rxq->qlen, MAX_IOD_RXQ_LEN);
-		skb_queue_purge(rxq);
+
+		wake_up(&iod->wq);
+
 		return -ENOSPC;
 	}
+
+	skb_queue_tail(rxq, skb);
 
 	mif_debug("%s: rxq->qlen = %d\n", iod->name, rxq->qlen);
 	wake_up(&iod->wq);
@@ -307,9 +309,7 @@ static int rx_raw_misc(struct sk_buff *skb)
 		skb_pull(skb, EXYNOS_HEADER_SIZE);
 	}
 
-	queue_skb_to_iod(skb, iod);
-
-	return 0;
+	return queue_skb_to_iod(skb, iod);
 }
 
 #ifdef CONFIG_LINK_DEVICE_NAPI
