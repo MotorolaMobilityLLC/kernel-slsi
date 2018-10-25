@@ -171,7 +171,7 @@ static int s6e3fa0_get_backlight_level(int brightness)
 	return backlightlevel;
 }
 
-static int s6e3fa0_update_brightness(struct dsim_device *dsim, int brightness)
+static int s6e3fa0_update_brightness(int brightness)
 {
 	int backlightlevel;
 
@@ -218,7 +218,13 @@ static int s6e3fa0_set_brightness(struct backlight_device *bd)
 		brightness = dsim->max_brightness;
 	}
 
-	s6e3fa0_update_brightness(dsim, brightness);
+	dsim->user_brightness = brightness;
+	if ((brightness > dsim->max_brightness) &&
+			(brightness <= MAX_BRIGHTNESS)) {
+		brightness = dsim->max_brightness;
+	}
+
+	s6e3fa0_update_brightness(brightness);
 	dsim->brightness = brightness;
 
 	return 1;
@@ -352,6 +358,7 @@ static ssize_t panel_max_brightness_store(struct device *dev,
 	int ret;
 	unsigned int value = 0;
 	struct dsim_device *dsim = get_dsim_drvdata(0);
+	int old_brightness;
 
 	ret = kstrtouint(buf, 0, &value);
 	if (ret < 0)
@@ -359,22 +366,26 @@ static ssize_t panel_max_brightness_store(struct device *dev,
 
 	mutex_lock(&dsim->bl_lock);
 
+	old_brightness = dsim->brightness;
+
 	if (value > MAX_BRIGHTNESS) {
 		dsim->max_brightness = MAX_BRIGHTNESS;
-		if (dsim->log_brightness > 0)
-			dsim->brightness = dsim->log_brightness;
-		dsim->bd->props.brightness = dsim->brightness;
-		s6e3fa0_set_brightness(dsim->bd);
-	}
-
-	if ((value >= MIN_BRIGHTNESS) && (value <= MAX_BRIGHTNESS))
+		dsim->brightness = dsim->user_brightness;
+	} else if ((value >= MIN_BRIGHTNESS) && (value <= MAX_BRIGHTNESS)) {
 		dsim->max_brightness = value;
-
-	if (dsim->brightness > dsim->max_brightness) {
-		dsim->brightness = dsim->max_brightness;
-		s6e3fa0_update_brightness(dsim, dsim->brightness);
+		if (dsim->user_brightness > dsim->max_brightness)
+			dsim->brightness = dsim->max_brightness;
+		else
+			dsim->brightness = dsim->user_brightness;
+	} else {
+		goto end;
 	}
 
+	if (old_brightness != dsim->brightness) {
+		s6e3fa0_update_brightness(dsim->brightness);
+	}
+
+end:
 	mutex_unlock(&dsim->bl_lock);
 
 	pr_info("%s: %d\n", __func__, dsim->max_brightness);
@@ -416,7 +427,7 @@ static ssize_t panel_brightness_store(struct device *dev,
 		dsim->bd->props.brightness = dsim->brightness;
 		s6e3fa0_set_brightness(dsim->bd);
 	} else if (value <= MAX_BRIGHTNESS) {
-		dsim->log_brightness = value;
+		dsim->user_brightness = value;
 	} else {
 		pr_err("%s, brightness value is wrong[%d]\n",
 				__func__, value);
@@ -489,6 +500,7 @@ static int s6e3fa0_probe(struct dsim_device *dsim)
 	}
 
 	mutex_init(&panel->lock);
+	mutex_init(&dsim->bl_lock);
 	dev_set_drvdata(panel->dev, panel);
 
 	panel_no++;
