@@ -140,6 +140,7 @@ void fimc_is_scaler_set_wdma_format(void __iomem *base_addr, u32 hw_id, u32 outp
 void fimc_is_scaler_get_wdma_format(void __iomem *base_addr, u32 output_id, u32 *dma_out_format);
 void fimc_is_scaler_set_swap_mode(void __iomem *base_addr, u32 output_id, u32 swap);
 void fimc_is_scaler_set_flip_mode(void __iomem *base_addr, u32 output_id, u32 flip);
+void fimc_is_scaler_get_flip_mode(void __iomem *base_addr, u32 output_id, u32 *flip);
 void fimc_is_scaler_set_rdma_size(void __iomem *base_addr, u32 width, u32 height);
 void fimc_is_scaler_get_rdma_size(void __iomem *base_addr, u32 *width, u32 *height);
 void fimc_is_scaler_set_wdma_size(void __iomem *base_addr, u32 output_id, u32 width, u32 height);
