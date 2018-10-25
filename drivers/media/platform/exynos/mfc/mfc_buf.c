@@ -425,9 +425,11 @@ static int __mfc_alloc_enc_roi_buffer(struct mfc_ctx *ctx, struct mfc_special_bu
 
 	roi_buf->buftype = MFCBUF_NORMAL;
 	roi_buf->size = buf_size->shared_buf;
-	if (mfc_mem_ion_alloc(dev, roi_buf)) {
-		mfc_err_ctx("[ROI] Allocating ROI buffer failed\n");
-		return -ENOMEM;
+	if (roi_buf->dma_buf == NULL) {
+		if (mfc_mem_ion_alloc(dev, roi_buf)) {
+			mfc_err_ctx("[ROI] Allocating ROI buffer failed\n");
+			return -ENOMEM;
+		}
 	}
 	mfc_debug(2, "[MEMINFO][ROI] roi buf ctx[%d] size: %ld, daddr: 0x%08llx, vaddr: 0x%p\n",
 			ctx->num, roi_buf->size, roi_buf->daddr, roi_buf->vaddr);
