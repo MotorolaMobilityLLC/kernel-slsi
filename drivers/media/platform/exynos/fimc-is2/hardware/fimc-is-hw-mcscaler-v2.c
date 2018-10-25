@@ -2829,6 +2829,8 @@ static int fimc_is_hw_mcsc_get_meta(struct fimc_is_hw_ip *hw_ip,
 {
 	int ret = 0;
 	struct fimc_is_hw_mcsc *hw_mcsc;
+	struct fimc_is_hw_mcsc_cap *cap;
+	int i;
 
 	if (unlikely(!frame)) {
 		mserr_hw("get_meta: frame is null", atomic_read(&hw_ip->instance), hw_ip);
@@ -2844,9 +2846,19 @@ static int fimc_is_hw_mcsc_get_meta(struct fimc_is_hw_ip *hw_ip,
 		return -EINVAL;
 	}
 
+	cap = GET_MCSC_HW_CAP(hw_ip);
+	if (!cap) {
+		err_hw("failed to get hw_mcsc_cap(%p)", cap);
+		return -EINVAL;
+	}
+
 	fimc_is_scaler_get_ysum_result(hw_ip->regs,
 		&frame->shot->udm.scaler.ysumdata.higher_ysum_value,
 		&frame->shot->udm.scaler.ysumdata.lower_ysum_value);
+
+	for (i = MCSC_OUTPUT0; i < cap->max_output; i++)
+		fimc_is_scaler_get_flip_mode(hw_ip->regs, i,
+			&frame->shot_ext->mcsc_flip_result[i]);
 
 	return ret;
 }

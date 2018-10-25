@@ -2444,6 +2444,34 @@ void fimc_is_scaler_set_flip_mode(void __iomem *base_addr, u32 output_id, u32 fl
 	}
 }
 
+void fimc_is_scaler_get_flip_mode(void __iomem *base_addr, u32 output_id, u32 *flip)
+{
+	switch (output_id) {
+	case MCSC_OUTPUT0:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA0_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA0_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT1:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA1_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA1_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT2:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA2_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA2_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT3:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA3_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA3_FLIP_CONTROL]);
+		break;
+	case MCSC_OUTPUT4:
+		*flip = fimc_is_hw_get_field(base_addr, &mcsc_regs[MCSC_R_WDMA4_FLIP_CONTROL],
+				&mcsc_fields[MCSC_F_WDMA4_FLIP_CONTROL]);
+		break;
+	default:
+		break;
+	}
+}
+
 void fimc_is_scaler_set_rdma_size(void __iomem *base_addr, u32 width, u32 height)
 {
 	u32 reg_val = 0;
