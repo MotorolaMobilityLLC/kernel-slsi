@@ -13,7 +13,6 @@
 /plugin/;
 
 #include "exynos9609-robusta2_common.dtsi"
-#include "exynos9610-mot-kane.dtsi"
 
 / {
 	compatible = "samsung,exynos9610", "samsung,Robusta2 EVB";
@@ -29,3 +28,4 @@
 		}; /* end of __overlay__ */
 	}; /* end of fragment */
 }; /* end of root */
+#include "exynos9610-mot-kane.dtsi"
