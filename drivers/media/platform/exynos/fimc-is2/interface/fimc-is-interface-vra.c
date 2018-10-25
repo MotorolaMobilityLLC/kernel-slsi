@@ -1021,7 +1021,7 @@ int __nocfi fimc_is_lib_vra_frame_work_final(struct fimc_is_lib_vra *lib_vra)
 }
 
 static int fimc_is_lib_vra_update_dm(struct fimc_is_lib_vra *lib_vra, u32 instance,
-	struct camera2_stats_dm *dm)
+	struct camera2_stats_dm *dm, struct vra_ext_meta *vra_ext)
 {
 	int face_num;
 	struct api_vra_face_base_str *base;
@@ -1086,6 +1086,21 @@ static int fimc_is_lib_vra_update_dm(struct fimc_is_lib_vra *lib_vra, u32 instan
 			dm->faceLandmarks[face_num][3],
 			dm->faceLandmarks[face_num][4],
 			dm->faceLandmarks[face_num][5]);
+
+		vra_ext->facialScore[face_num].left_eye = facial->scores[VRA_FF_SCORE_LEFT_EYE];
+		vra_ext->facialScore[face_num].right_eye = facial->scores[VRA_FF_SCORE_RIGHT_EYE];
+		vra_ext->facialScore[face_num].mouth = facial->scores[VRA_FF_SCORE_MOUTH];
+		vra_ext->facialScore[face_num].smile = facial->scores[VRA_FF_SCORE_SMILE];
+		vra_ext->facialScore[face_num].left_blink = facial->scores[VRA_FF_SCORE_BLINK_LEFT];
+		vra_ext->facialScore[face_num].right_blink = facial->scores[VRA_FF_SCORE_BLINK_RIGHT];
+
+		dbg_lib(3, "lib_vra_update_dm: facial score(eye l:%d,r:%d mouth:%d smile:%d blink l:%d,r:%d)\n",
+			facial->scores[VRA_FF_SCORE_LEFT_EYE],
+			facial->scores[VRA_FF_SCORE_RIGHT_EYE],
+			facial->scores[VRA_FF_SCORE_MOUTH],
+			facial->scores[VRA_FF_SCORE_SMILE],
+			facial->scores[VRA_FF_SCORE_BLINK_LEFT],
+			facial->scores[VRA_FF_SCORE_BLINK_RIGHT]);
 	}
 
 	/* ToDo: Add error handler for detected face range */
@@ -1168,6 +1183,7 @@ int fimc_is_lib_vra_get_meta(struct fimc_is_lib_vra *lib_vra,
 	int ret = 0;
 	struct camera2_stats_ctl *stats_ctl;
 	struct camera2_stats_dm *stats_dm;
+	struct vra_ext_meta *vra_ext;
 
 	if (unlikely(!lib_vra)) {
 		err_lib("lib_vra is NULL");
@@ -1179,8 +1195,14 @@ int fimc_is_lib_vra_get_meta(struct fimc_is_lib_vra *lib_vra,
 		return -EINVAL;
 	}
 
+	if (unlikely(!frame->shot_ext)) {
+		err_lib("frame->shot_ext is NULL");
+		return -EINVAL;
+	}
+
 	stats_ctl = &frame->shot->ctl.stats;
 	stats_dm = &frame->shot->dm.stats;
+	vra_ext = &frame->shot_ext->vra_ext;
 
 	if (stats_ctl->faceDetectMode == FACEDETECT_MODE_OFF) {
 		stats_dm->faceDetectMode = FACEDETECT_MODE_OFF;
@@ -1199,7 +1221,7 @@ int fimc_is_lib_vra_get_meta(struct fimc_is_lib_vra *lib_vra,
 	}
 #endif
 	ret = fimc_is_lib_vra_update_dm(lib_vra, frame->instance,
-		stats_dm);
+		stats_dm, vra_ext);
 	if (ret) {
 		err_lib("lib_vra_update_dm is fail (%#x)", ret);
 		return -EINVAL;
