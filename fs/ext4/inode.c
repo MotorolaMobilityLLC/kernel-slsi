@@ -3833,9 +3833,11 @@ static ssize_t ext4_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t ret;
 	int rw = iov_iter_rw(iter);
 
+#ifdef CONFIG_EXT4_FS_ENCRYPTION /* encrypt uses buffered-io for encryption, but, disk-encrypt can use direct-io */
 	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode)
 			&& !fscrypt_disk_encrypted(inode))
 		return 0;
+#endif
 	/*
 	 * If we are doing data journalling we don't support O_DIRECT
 	 */

@@ -449,7 +449,7 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 	dio->refcount++;
 	spin_unlock_irqrestore(&dio->bio_lock, flags);
 
-#if defined(CONFIG_EXT4_FS_ENCRYPTION) && defined(CONFIG_CRYPTO_DISKCIPHER)
+#if defined(CONFIG_CRYPTO_DISKCIPHER)
 	if (dio->inode && fscrypt_has_encryption_key(dio->inode)) {
 		fscrypt_set_bio(dio->inode, bio);
 		crypto_diskcipher_debug(FS_DIO, bio->bi_opf);

@@ -346,7 +346,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 			}
 		}
 		/* clear diskcipher. use skcipher */
-		pr_warn("%s: (inode %lu) fails to get diskcipher (%s, %d)\n",
+		pr_debug("%s: (inode %lu) fails to get diskcipher (%s, %d)\n",
 			 __func__, inode->i_ino, cipher_str, res);
 		crypt_info->ci_dtfm = NULL;
 	}
