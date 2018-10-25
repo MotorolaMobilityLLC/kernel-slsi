@@ -57,6 +57,13 @@ static void __mfc_dump_regs(struct mfc_dev *dev)
 	pr_err("-----------dumping MFC registers (SFR base = 0x%p, dev = 0x%p)\n",
 				dev->regs_base, dev);
 
+	if (!mfc_pm_get_pwr_ref_cnt(dev) || !mfc_pm_get_clk_ref_cnt(dev)) {
+		pr_err("Power(%d) or clock(%d) is not enabled\n",
+				mfc_pm_get_pwr_ref_cnt(dev),
+				mfc_pm_get_clk_ref_cnt(dev));
+		return;
+	}
+
 	mfc_enable_all_clocks(dev);
 
 	for (i = 0; i < MFC_SFR_AREA_COUNT; i++) {
@@ -367,6 +374,14 @@ static void __mfc_dump_info_without_regs(struct mfc_dev *dev)
 static void __mfc_dump_info(struct mfc_dev *dev)
 {
 	__mfc_dump_info_without_regs(dev);
+
+	if (!mfc_pm_get_pwr_ref_cnt(dev) || !mfc_pm_get_clk_ref_cnt(dev)) {
+		pr_err("Power(%d) or clock(%d) is not enabled\n",
+				mfc_pm_get_pwr_ref_cnt(dev),
+				mfc_pm_get_clk_ref_cnt(dev));
+		return;
+	}
+
 	__mfc_save_logging_sfr(dev);
 	__mfc_dump_buffer_info(dev);
 	__mfc_dump_regs(dev);
