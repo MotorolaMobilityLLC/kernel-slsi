@@ -236,6 +236,10 @@ struct dsim_device {
 	bool esd_recovering;
 #endif
 	u32 ddi_id;
+	struct mutex bl_lock;
+	int max_brightness;
+	int brightness;
+	int user_brightness;
 };
 
 struct dsim_lcd_driver {
