@@ -28,6 +28,7 @@
 #include <linux/videodev2_exynos_camera.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/bug.h>
+#include <soc/samsung/tmu.h>
 
 #include "fimc-is-type.h"
 #include "fimc-is-core.h"
@@ -3274,6 +3275,7 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 #endif
 	ulong flags;
 	struct fimc_is_group_task *gtask_child;
+	struct fimc_is_resourcemgr *resourcemgr;
 
 	FIMC_BUG(!groupmgr);
 	FIMC_BUG(!group);
@@ -3306,6 +3308,7 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state))
 		fimc_is_sensor_dm_tag(device->sensor, frame);
 
+	resourcemgr = device->resourcemgr;
 #ifdef ENABLE_SHARED_METADATA
 	fimc_is_hw_shared_meta_update(device, group, frame, SHARED_META_SHOT_DONE);
 #else
@@ -3317,6 +3320,23 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 				frame->shot->udm.ni.currentFrameNoiseIndex;
 			device->next_noise_idx[(frame->fcount + 2) % NI_BACKUP_MAX] =
 				frame->shot->udm.ni.nextNextFrameNoiseIndex;
+
+			/* thermal state update */
+			switch (resourcemgr->tmu_state) {
+			case ISP_NORMAL:
+			case ISP_COLD:
+				frame->shot_ext->thermal = CAM_THERMAL_NORMAL;
+				break;
+			case ISP_THROTTLING:
+				frame->shot_ext->thermal = CAM_THERMAL_THROTTLING;
+				break;
+			case ISP_TRIPPING:
+				frame->shot_ext->thermal = CAM_THERMAL_TRIPPING;
+				break;
+			default:
+				warn("invalid tmu_state");
+				break;
+			}
 		}
 
 #ifdef ENABLE_INIT_AWB
