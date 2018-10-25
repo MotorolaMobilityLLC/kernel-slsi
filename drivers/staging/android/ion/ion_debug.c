@@ -287,9 +287,8 @@ static void ion_debug_buffer_for_heap(struct seq_file *s,
 	struct ion_buffer *buffer;
 	size_t total = 0;
 
-	ion_debug_print(s, "[  id] %15s %8s %5s %8s : %s\n",
-			"heap", "heaptype", "flags", "size(kb)",
-			"iommu_mapped...");
+	ion_debug_print(s, "[  id] %15s %8s %5s %8s\n",
+			"heap", "heaptype", "flags", "size(kb)");
 
 	mutex_lock(&dev->buffer_lock);
 	for (n = rb_first(&dev->buffers); n; n = rb_next(n)) {
@@ -300,12 +299,10 @@ static void ion_debug_buffer_for_heap(struct seq_file *s,
 				ARRAY_SIZE(heap_type_name)) ?
 				buffer->heap->type : 0;
 
-			ion_debug_print(s, "[%4d] %15s %8s %#5lx %8zu ",
+			ion_debug_print(s, "[%4d] %15s %8s %#5lx %8zu\n",
 					buffer->id, buffer->heap->name,
 					heap_type_name[heaptype], buffer->flags,
 					buffer->size / SZ_1K);
-
-			ion_debug_print(s, "\n");
 
 			total += buffer->size;
 		}
