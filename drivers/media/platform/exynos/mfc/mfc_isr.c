@@ -1197,7 +1197,7 @@ static int __mfc_handle_seq_enc(struct mfc_ctx *ctx)
 	/* If the ROI is enabled at SEQ_START, clear ROI_ENABLE bit */
 	mfc_clear_roi_enable(dev);
 
-	if (!ctx->codec_buffer_allocated) {
+	if (ctx->codec_buffer_allocated) {
 		mfc_debug(2, "[DRC] previous codec buffer is exist\n");
 
 		if (dev->has_mmcache && dev->mmcache.is_on_status)
@@ -1429,7 +1429,7 @@ static int __mfc_irq_ctx(struct mfc_ctx *ctx, unsigned int reason, unsigned int 
 	case MFC_REG_R2H_CMD_COMPLETE_SEQ_RET:
 		if (ctx->type == MFCINST_ENCODER) {
 			__mfc_handle_stream(ctx);
-			mfc_change_state(ctx, MFCINST_RUNNING);
+			mfc_change_state(ctx, MFCINST_FINISHED);
 		} else if (ctx->type == MFCINST_DECODER) {
 			return __mfc_handle_done_frame(ctx, reason, err);
 		}

@@ -526,7 +526,7 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	__mfc_enc_check_format(ctx);
 
-	if (ctx->state == MFCINST_RUNNING) {
+	if (ctx->state == MFCINST_FINISHED) {
 		mfc_change_state(ctx, MFCINST_GOT_INST);
 		mfc_info_ctx("[DRC] Enc resolution is changed\n");
 	}
@@ -586,8 +586,8 @@ static int mfc_enc_s_crop(struct file *file, void *priv, const struct v4l2_crop 
 
 	if ((cr->c.height > ctx->img_height) || (cr->c.top > ctx->img_height) ||
 			(cr->c.width > ctx->img_width) || (cr->c.left > ctx->img_width) ||
-			(cr->c.left <= (ctx->img_width - cr->c.width)) ||
-			(cr->c.top <= (ctx->img_height - cr->c.height))) {
+			(cr->c.left >= (ctx->img_width - cr->c.width)) ||
+			(cr->c.top >= (ctx->img_height - cr->c.height))) {
 		mfc_err_ctx("[FRAME] Out of crop range: (%d,%d,%d,%d) from %dx%d\n",
 				cr->c.left, cr->c.top, cr->c.width, cr->c.height,
 				ctx->img_width, ctx->img_height);
