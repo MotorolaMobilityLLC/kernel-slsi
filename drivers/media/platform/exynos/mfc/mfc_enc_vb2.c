@@ -335,7 +335,6 @@ static void mfc_enc_stop_streaming(struct vb2_queue *q)
 	struct mfc_ctx *ctx = q->drv_priv;
 	struct mfc_dev *dev = ctx->dev;
 	int index = 0;
-	int aborted = 0;
 	int ret = 0;
 
 	mfc_info_ctx("enc stop_streaming is called, hwlock : %d, type : %d\n",
@@ -348,7 +347,6 @@ static void mfc_enc_stop_streaming(struct vb2_queue *q)
 			mfc_err_ctx("time out during nal abort\n");
 			mfc_cleanup_work_bit_and_try_run(ctx);
 		}
-		aborted = 1;
 	}
 
 	ret = mfc_get_hwlock_ctx(ctx);
@@ -368,7 +366,7 @@ static void mfc_enc_stop_streaming(struct vb2_queue *q)
 			index++;
 		}
 	} else if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		if (ctx->state == MFCINST_RUNNING) {
+		if (ctx->state == MFCINST_RUNNING || ctx->state == MFCINST_FINISHING) {
 			mfc_change_state(ctx, MFCINST_FINISHING);
 			mfc_set_bit(ctx->num, &dev->work_bits);
 
@@ -382,7 +380,7 @@ static void mfc_enc_stop_streaming(struct vb2_queue *q)
 					mfc_err_ctx("Waiting for LAST_SEQ timed out\n");
 					break;
 				}
-				if (ctx->state == MFCINST_RUNNING) {
+				if (ctx->state == MFCINST_FINISHED) {
 					mfc_debug(2, "all encoded buffers out\n");
 					break;
 				}
@@ -402,8 +400,8 @@ static void mfc_enc_stop_streaming(struct vb2_queue *q)
 		}
 	}
 
-	if (aborted || ctx->state == MFCINST_FINISHING)
-		mfc_change_state(ctx, MFCINST_RUNNING);
+	if (ctx->state == MFCINST_FINISHING)
+		mfc_change_state(ctx, MFCINST_FINISHED);
 
 	mfc_debug(2, "buffer cleanup is done in stop_streaming, type : %d\n", q->type);
 
