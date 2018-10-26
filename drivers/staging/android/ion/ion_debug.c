@@ -18,6 +18,7 @@
 #include <linux/debugfs.h>
 #include <linux/oom.h>
 #include <linux/sort.h>
+#include <linux/slab.h>
 
 #include "ion.h"
 #include "ion_exynos.h"
