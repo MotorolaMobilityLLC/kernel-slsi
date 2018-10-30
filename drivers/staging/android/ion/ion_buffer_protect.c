@@ -256,14 +256,17 @@ void *ion_buffer_protect_multi(unsigned int protection_id, unsigned int count,
 	return protdesc;
 }
 
-void ion_buffer_unprotect(void *priv)
+int ion_buffer_unprotect(void *priv)
 {
 	struct ion_buffer_prot_info *protdesc = priv;
+	int ret = 0;
 
 	if (priv) {
-		ion_secure_unprotect(protdesc);
+		ret = ion_secure_unprotect(protdesc);
 		if (protdesc->chunk_count > 1)
 			kfree(phys_to_virt(protdesc->bus_address));
 		kfree(protdesc);
 	}
+
+	return ret;
 }

@@ -93,7 +93,7 @@ void *ion_buffer_protect_single(unsigned int protection_id, unsigned int size,
 void *ion_buffer_protect_multi(unsigned int protection_id, unsigned int count,
 			       unsigned int chunk_size, unsigned long *phys_arr,
 			       unsigned int protalign);
-void ion_buffer_unprotect(void *priv);
+int ion_buffer_unprotect(void *priv);
 void exynos_ion_fixup(struct ion_device *idev);
 int exynos_ion_alloc_fixup(struct ion_device *idev, struct ion_buffer *buffer);
 void exynos_ion_free_fixup(struct ion_buffer *buffer);

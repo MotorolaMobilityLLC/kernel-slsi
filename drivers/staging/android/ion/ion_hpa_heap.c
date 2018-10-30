@@ -155,11 +155,14 @@ static void ion_hpa_free(struct ion_buffer *buffer)
 	struct sg_table *sgt = buffer->sg_table;
 	struct scatterlist *sg;
 	int i;
+	int unprot_err = 0;
 
 	if (protected)
-		ion_buffer_unprotect(buffer->priv_virt);
-	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
-		__free_pages(sg_page(sg), hpa_heap->order);
+		unprot_err = ion_buffer_unprotect(buffer->priv_virt);
+
+	if (!unprot_err)
+		for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
+			__free_pages(sg_page(sg), hpa_heap->order);
 	sg_free_table(sgt);
 	kfree(sgt);
 }
