@@ -424,6 +424,8 @@ static inline struct slsi_skb_cb *slsi_skb_cb_init(struct sk_buff *skb)
 #define FAPI_MESSAGETYPE_WAI_MESSAGE          0x0007
 #define FAPI_MESSAGETYPE_PERIODIC_OFFLOAD     0x0008
 #define FAPI_MESSAGETYPE_IEEE80211_ACTION     0x0010
+/* TBD: Auto generate to add this */
+#define FAPI_MESSAGETYPE_IEEE80211_MGMT_NOT_ACTION 0x0011
 
 #define FAPI_MODE_SOURCE     0x0001
 #define FAPI_MODE_SINK       0x0002

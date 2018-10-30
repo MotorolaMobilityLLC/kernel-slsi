@@ -2169,6 +2169,9 @@ int slsi_mlme_connect(struct slsi_dev *sdev, struct net_device *dev, struct cfg8
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
 	case NL80211_AUTHTYPE_SHARED_KEY:
 		break;
+	case NL80211_AUTHTYPE_SAE:
+		auth_type = NL80211_AUTHTYPE_NETWORK_EAP;
+		break;
 	case NL80211_AUTHTYPE_AUTOMATIC:
 		/* In case of WEP, need to try both open and shared.
 		 * FW does this if auth is shared_key. So set it to shared.
@@ -2889,6 +2892,33 @@ int slsi_mlme_powermgt(struct slsi_dev *sdev, struct net_device *dev, u16 power_
 	return slsi_mlme_powermgt_unlocked(sdev, dev, power_mode);
 }
 
+int slsi_mlme_synchronised_response(struct slsi_dev *sdev, struct net_device *dev,
+				    struct cfg80211_external_auth_params *params)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	if (ndev_vif->activated) {
+		SLSI_NET_DBG3(dev, SLSI_MLME, "MLME_SPARE_SIGNAL_1_RES\n");
+
+		req = fapi_alloc(mlme_spare_signal_1_res, MLME_SPARE_SIGNAL_1_RES, ndev_vif->ifnum, 0);
+		if (!req)
+			return -ENOMEM;
+
+		fapi_set_low16_u32(req, u.mlme_spare_signal_1_res.spare_1, params->status);
+		fapi_set_high16_u32(req, u.mlme_spare_signal_1_res.spare_1, *(u16 *)(&params->bssid[0]));
+		fapi_set_u32(req, u.mlme_spare_signal_1_res.spare_2, *(u32 *)(&params->bssid[2]));
+
+		SLSI_NET_DBG2(dev, SLSI_MLME, "mlme_synchronised_response(vif:%d) status:%d\n",
+			      ndev_vif->ifnum, params->status);
+		cfm = slsi_mlme_req_no_cfm(sdev, dev, req);
+		if (cfm)
+			SLSI_NET_ERR(dev, "Received cfm for MLME_SPARE_SIGNAL_1_RES\n");
+	} else
+		SLSI_NET_DBG1(dev, SLSI_MLME, "vif is not active");
+
+	return 0;
+}
 int slsi_mlme_register_action_frame(struct slsi_dev *sdev, struct net_device *dev, u32 af_bitmap_active, u32 af_bitmap_suspended)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
