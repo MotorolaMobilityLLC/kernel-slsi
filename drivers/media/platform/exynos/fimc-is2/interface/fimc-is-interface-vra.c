@@ -116,19 +116,19 @@ static void fimc_is_lib_vra_callback_final_output_ready(u32 instance,
 	}
 #endif
 
-#ifdef ENABLE_REPROCESSING_FD
-	spin_lock_irqsave(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
+#ifdef ENABLE_VRA_FDONE_WITH_CALLBACK
+	spin_lock_irqsave(&lib_vra->fdone_cb_lock, lib_vra->fdone_cb_flag);
 	set_bit(instance, &lib_vra->done_vra_callback_out_ready);
 
 	if (test_bit(instance, &lib_vra->done_vra_hw_intr)
 		&& test_bit(instance, &lib_vra->done_vra_callback_out_ready)) {
 		clear_bit(instance, &lib_vra->done_vra_callback_out_ready);
 		clear_bit(instance, &lib_vra->done_vra_hw_intr);
-		spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
+		spin_unlock_irqrestore(&lib_vra->fdone_cb_lock, lib_vra->fdone_cb_flag);
 		fimc_is_hardware_frame_done(lib_vra->hw_ip, NULL, -1,
 			FIMC_IS_HW_CORE_END, IS_SHOT_SUCCESS, true);
 	} else {
-		spin_unlock_irqrestore(&lib_vra->reprocess_fd_lock, lib_vra->reprocess_fd_flag);
+		spin_unlock_irqrestore(&lib_vra->fdone_cb_lock, lib_vra->fdone_cb_flag);
 	}
 #endif
 }
@@ -572,8 +572,8 @@ int __nocfi fimc_is_lib_vra_init_frame_work(struct fimc_is_lib_vra *lib_vra,
 	spin_lock_init(&lib_vra->ctl_lock);
 	spin_lock_init(&lib_vra->algs_lock);
 	spin_lock_init(&lib_vra->intr_lock);
-#ifdef ENABLE_REPROCESSING_FD
-	spin_lock_init(&lib_vra->reprocess_fd_lock);
+#ifdef ENABLE_VRA_FDONE_WITH_CALLBACK
+	spin_lock_init(&lib_vra->fdone_cb_lock);
 #endif
 	for (i = 0; i < VRA_TOTAL_SENSORS; i++) {
 		spin_lock_init(&lib_vra->af_fd_slock[i]);
