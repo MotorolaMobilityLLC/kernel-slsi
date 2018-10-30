@@ -1522,6 +1522,12 @@
 		samsung,pin-pud = <3>;
 		samsung,pin-val = <1>;
 	};
+
+	pa_reset: pa-reset {
+		samsung,pins ="gpg3-3";
+		samsung,pin-con-pdn =<3>;
+		samsung,pin-pud-pdn = <3>;
+	};
 };
 
 &udc {
@@ -1695,7 +1701,7 @@
 &spi_6 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi6_bus &spi6_cs_func>;
+	pinctrl-0 = <&spi6_bus &spi6_cs_func &pa_reset>;
 	/*cs-gpios = <&gpp2 3 0>;*/
 	/*gpp2[3]*/
 	/*num-cs = <1>;*/
