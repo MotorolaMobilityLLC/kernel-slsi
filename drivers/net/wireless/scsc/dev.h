@@ -555,6 +555,7 @@ struct slsi_vif_sta {
 
 	/*This structure is used to store last disconnected bss info and valid even when vif is deactivated. */
 	struct slsi_last_connected_bss last_connected_bss;
+	struct cfg80211_crypto_settings crypto;
 };
 
 struct slsi_vif_unsync {

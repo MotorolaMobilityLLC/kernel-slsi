@@ -191,6 +191,10 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 		slsi_kfree_skb(skb);
 		break;
 #endif
+	case MLME_SPARE_SIGNAL_1_IND:
+		slsi_rx_synchronised_ind(sdev, dev, skb);
+		slsi_kfree_skb(skb);
+		break;
 	default:
 		slsi_kfree_skb(skb);
 		SLSI_NET_ERR(dev, "Unhandled Ind: 0x%.4x\n", id);
