@@ -198,7 +198,7 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 		mfc_set_bits(reg, 0x1, 18, 0x1);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_ENC_OPTIONS);
 
-	mfc_set_pixel_format(dev, ctx->src_fmt->fourcc);
+	mfc_set_pixel_format(ctx, ctx->src_fmt->fourcc);
 
 	/* padding control & value */
 	MFC_RAW_WRITEL(0x0, MFC_REG_E_PADDING_CTRL);
