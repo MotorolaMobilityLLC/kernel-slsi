@@ -1514,6 +1514,7 @@ struct mfc_ctx {
 
 	int batch_mode;
 	bool check_dump;
+	bool mem_type_10bit;
 
 	struct vb2_queue vq_src;
 	struct vb2_queue vq_dst;

@@ -226,7 +226,7 @@ void mfc_cmd_dec_seq_header(struct mfc_ctx *ctx)
 		MFC_WRITEL(ctx->img_height, MFC_REG_D_SET_FRAME_HEIGHT);
 	}
 
-	mfc_set_pixel_format(dev, ctx->dst_fmt->fourcc);
+	mfc_set_pixel_format(ctx, ctx->dst_fmt->fourcc);
 
 	reg = 0;
 	/* Enable realloc interface if SEI is enabled */

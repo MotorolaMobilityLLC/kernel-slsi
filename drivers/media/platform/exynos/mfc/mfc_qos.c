@@ -248,7 +248,6 @@ static void __mfc_qos_set(struct mfc_ctx *ctx, int i)
 static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 						unsigned long mb)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_enc_params *p;
@@ -294,7 +293,7 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 				weight = (weight * 100) / qos_weight->weight_422;
 				mfc_debug(3, "[QoS] 422foramt, weight: %d\n", weight / 10);
 			} else if (ctx->is_10bit) {
-				if (!dev->pdata->P010_decoding && dec && dec->super64_bframe) {
+				if (!ctx->mem_type_10bit && dec && dec->super64_bframe) {
 					weight = (weight * 100) / qos_weight->weight_super64_bframe;
 					mfc_debug(3, "[QoS] super64 B frame, weight: %d\n", weight / 10);
 				} else {

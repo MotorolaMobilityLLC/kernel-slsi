@@ -153,8 +153,8 @@ int mfc_set_dec_codec_buffers(struct mfc_ctx *ctx)
 		reg |= (0x1 << MFC_REG_D_INIT_BUF_OPT_COPY_NOT_CODED_SHIFT);
 		mfc_debug(2, "Notcoded frame copy mode start\n");
 	}
-	/* Enable 10bit Dithering */
-	if (ctx->is_10bit && !dev->pdata->P010_decoding) {
+	/* Enable 10bit Dithering when only 8+2 10bit format */
+	if (ctx->is_10bit && !ctx->mem_type_10bit) {
 		reg |= (0x1 << MFC_REG_D_INIT_BUF_OPT_DITHERING_EN_SHIFT);
 		/* 64byte align, It is vaid only for VP9 */
 		reg |= (0x1 << MFC_REG_D_INIT_BUF_OPT_STRIDE_SIZE_ALIGN);
@@ -456,13 +456,14 @@ int mfc_set_dynamic_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_mb)
 	return 0;
 }
 
-void mfc_set_pixel_format(struct mfc_dev *dev, unsigned int format)
+void mfc_set_pixel_format(struct mfc_ctx *ctx, unsigned int format)
 {
+	struct mfc_dev *dev = ctx->dev;
 	unsigned int reg = 0;
-	unsigned int pix_val, mem_type_10bit = 0;
+	unsigned int pix_val;
 
 	if (dev->pdata->P010_decoding)
-		mem_type_10bit = 1;
+		ctx->mem_type_10bit = 1;
 
 	switch (format) {
 	case V4L2_PIX_FMT_NV12M:
@@ -486,22 +487,22 @@ void mfc_set_pixel_format(struct mfc_dev *dev, unsigned int format)
 	case V4L2_PIX_FMT_NV12N_10B:
 	case V4L2_PIX_FMT_NV12M_S10B:
 	case V4L2_PIX_FMT_NV16M_S10B:
-		mem_type_10bit = 0;
+		ctx->mem_type_10bit = 0;
 		pix_val = 0;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV16M_P210:
-		mem_type_10bit = 1;
+		ctx->mem_type_10bit = 1;
 		pix_val = 0;
 		break;
 	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV61M_S10B:
-		mem_type_10bit = 0;
+		ctx->mem_type_10bit = 0;
 		pix_val = 1;
 		break;
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:
-		mem_type_10bit = 1;
+		ctx->mem_type_10bit = 1;
 		pix_val = 1;
 		break;
 	default:
@@ -509,10 +510,10 @@ void mfc_set_pixel_format(struct mfc_dev *dev, unsigned int format)
 		break;
 	}
 	reg |= pix_val;
-	reg |= (mem_type_10bit << 4);
+	reg |= (ctx->mem_type_10bit << 4);
 	MFC_WRITEL(reg, MFC_REG_PIXEL_FORMAT);
 	mfc_debug(2, "[FRAME] pixel format: %d, mem_type_10bit for 10bit: %d (reg: %#x)\n",
-			pix_val, mem_type_10bit, reg);
+			pix_val, ctx->mem_type_10bit, reg);
 }
 
 void mfc_print_hdr_plus_info(struct mfc_ctx *ctx, struct hdr10_plus_meta *sei_meta)
