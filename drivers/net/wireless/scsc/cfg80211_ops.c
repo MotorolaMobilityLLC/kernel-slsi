@@ -1075,8 +1075,24 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 	 */
 	netif_carrier_on(dev);
 	ndev_vif->sta.vif_status = SLSI_VIF_STATUS_CONNECTING;
-	r = slsi_mlme_connect(sdev, dev, sme, channel, bssid);
+	if (sme->auth_type == NL80211_AUTHTYPE_SAE && (sme->flags & CONNECT_REQ_EXTERNAL_AUTH_SUPPORT)) {
+		const u8 *rsn;
 
+		ndev_vif->sta.crypto.wpa_versions = 3;
+		rsn = cfg80211_find_ie(WLAN_EID_RSN, ndev_vif->sta.sta_bss->ies->data, ndev_vif->sta.sta_bss->ies->len);
+		if (rsn) {
+			int pos;
+
+			pos = 7 + 2 + (rsn[8] * 4) + 2;
+			ndev_vif->sta.crypto.akm_suites[0] = ((rsn[pos + 4] << 24) | (rsn[pos + 3] << 16) | (rsn[pos + 2] << 8) | (rsn[pos + 1]));
+		}
+
+		SLSI_NET_DBG1(dev, SLSI_CFG80211, "RSN IE: : %1d\n", ndev_vif->sta.crypto.akm_suites[0]);
+	} else {
+		ndev_vif->sta.crypto.wpa_versions = 0;
+	}
+
+	r = slsi_mlme_connect(sdev, dev, sme, channel, bssid);
 	if (r != 0) {
 		ndev_vif->sta.is_wps = false;
 		SLSI_NET_ERR(dev, "connect failed: %d\n", r);
@@ -2681,8 +2697,8 @@ static int slsi_wlan_mgmt_tx(struct slsi_dev *sdev, struct net_device *dev,
 	int                r = 0;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
 
-	slsi_wlan_dump_public_action_subtype(sdev, mgmt, true);
-
+	if (!ieee80211_is_auth(mgmt->frame_control))
+		slsi_wlan_dump_public_action_subtype(sdev, mgmt, true);
 	if (!ndev_vif->activated) {
 		r = slsi_wlan_unsync_vif_activate(sdev, dev, chan, wait);
 		if (r)
@@ -2696,7 +2712,12 @@ static int slsi_wlan_mgmt_tx(struct slsi_dev *sdev, struct net_device *dev,
 		queue_delayed_work(sdev->device_wq, &ndev_vif->unsync.hs2_del_vif_work, msecs_to_jiffies(wait));
 	} else {
 		/* vif is active*/
-		if (ndev_vif->vif_type == FAPI_VIFTYPE_UNSYNCHRONISED) {
+		if (ieee80211_is_auth(mgmt->frame_control)) {
+			SLSI_NET_DBG1(dev, SLSI_CFG80211, "Transmit on the current frequency\n");
+			r = slsi_mlme_send_frame_mgmt(sdev, dev, buf, len, FAPI_DATAUNITDESCRIPTOR_IEEE802_11_FRAME, FAPI_MESSAGETYPE_IEEE80211_MGMT_NOT_ACTION, host_tag, 0, wait * 1000, 0);
+			if (r)
+				return r;
+		} else if (ndev_vif->vif_type == FAPI_VIFTYPE_UNSYNCHRONISED) {
 			cancel_delayed_work(&ndev_vif->unsync.hs2_del_vif_work);
 			/*even if we fail to cancel the delayed work, we shall go ahead and send action frames*/
 			if (ndev_vif->driver_channel != chan->hw_value) {
@@ -2791,16 +2812,19 @@ int slsi_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
-	SLSI_NET_DBG2(dev, SLSI_CFG80211, "Mgmt Frame Tx: iface_num = %d, channel = %d, wait = %d, noAck = %d,"
-		      "offchannel = %d, mgmt->frame_control = %d, vif_type = %d\n", ndev_vif->ifnum, chan->hw_value,
-		      wait, dont_wait_for_ack, offchan, mgmt->frame_control, ndev_vif->vif_type);
+	if (!(ieee80211_is_auth(mgmt->frame_control))) {
+		SLSI_NET_DBG2(dev, SLSI_CFG80211, "Mgmt Frame Tx: iface_num = %d, channel = %d, wait = %d, noAck = %d,"
+			      "offchannel = %d, mgmt->frame_control = %d, vif_type = %d\n", ndev_vif->ifnum, chan->hw_value,
+			      wait, dont_wait_for_ack, offchan, mgmt->frame_control, ndev_vif->vif_type);
+	} else {
+		SLSI_NET_DBG2(dev, SLSI_CFG80211, "Received Auth Frame");
+	}
 
 	if (!(ieee80211_is_mgmt(mgmt->frame_control))) {
 		SLSI_NET_ERR(dev, "Drop Tx frame: Not a Management frame\n");
 		r = -EINVAL;
 		goto exit;
 	}
-
 	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
 		r = slsi_wlan_mgmt_tx(SDEV_FROM_WIPHY(wiphy), dev, chan, wait, buf, len, dont_wait_for_ack, cookie);
 		goto exit;
@@ -2912,6 +2936,18 @@ int slsi_set_txq_params(struct wiphy *wiphy, struct net_device *ndev,
 	return r;
 }
 
+int slsi_synchronised_response(struct wiphy *wiphy, struct net_device *dev,
+			       struct cfg80211_external_auth_params *params)
+{
+	struct slsi_dev                   *sdev = SDEV_FROM_WIPHY(wiphy);
+	struct netdev_vif                 *ndev_vif = netdev_priv(dev);
+	int r;
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	r = slsi_mlme_synchronised_response(sdev, dev, params);
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	return r;
+}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 static int slsi_update_ft_ies(struct wiphy *wiphy, struct net_device *dev, struct cfg80211_update_ft_ies_params *ftie)
 {
@@ -3004,6 +3040,7 @@ static struct cfg80211_ops slsi_ops = {
 	.mgmt_tx = slsi_mgmt_tx,
 	.mgmt_tx_cancel_wait = slsi_mgmt_tx_cancel_wait,
 	.set_txq_params = slsi_set_txq_params,
+	.external_auth = slsi_synchronised_response,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 	.set_mac_acl = slsi_set_mac_acl,
 	.update_ft_ies = slsi_update_ft_ies,
@@ -3178,12 +3215,14 @@ static const struct ieee80211_txrx_stypes
 				   ieee80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_AP] = {
 		.tx = 0xffff,
-		.rx = BIT(IEEE80211_STYPE_ACTION >> 4)
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4)
 	},
 	[NL80211_IFTYPE_STATION] = {
 		.tx = 0xffff,
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4)
 	},
 	[NL80211_IFTYPE_P2P_GO] = {
 		.tx = 0xffff,
@@ -3408,6 +3447,9 @@ struct slsi_dev                           *slsi_cfg80211_new(struct device *dev)
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 	wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 #endif
+#endif
+#ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
+	wiphy->features |= NL80211_FEATURE_SAE;
 #endif
 	return sdev;
 }

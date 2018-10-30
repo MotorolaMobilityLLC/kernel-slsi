@@ -1588,6 +1588,32 @@ void slsi_rx_buffered_frames(struct slsi_dev *sdev, struct net_device *dev, stru
 	}
 }
 
+void slsi_rx_synchronised_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	const u8  *connecting_ssid = NULL;
+	struct cfg80211_external_auth_params auth_request;
+	int r;
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	SLSI_NET_DBG1(dev, SLSI_MLME, "Received slsi_rx_synchronised_ind\n");
+	if (ndev_vif->sta.sta_bss->ies->len)
+		connecting_ssid = cfg80211_find_ie(WLAN_EID_SSID, ndev_vif->sta.sta_bss->ies->data,
+						   ndev_vif->sta.sta_bss->ies->len);
+
+	auth_request.action = NL80211_EXTERNAL_AUTH_START;
+	memcpy(auth_request.bssid, ndev_vif->sta.sta_bss->bssid, ETH_ALEN);
+	if (connecting_ssid && (connecting_ssid[1] > 0)) {
+		memcpy(auth_request.ssid.ssid, &connecting_ssid[2], connecting_ssid[1]);
+		auth_request.ssid.ssid_len = connecting_ssid[1];
+	}
+	auth_request.key_mgmt_suite = ndev_vif->sta.crypto.akm_suites[0];
+	r = cfg80211_external_auth_request(dev, &auth_request, GFP_KERNEL);
+	if (r)
+		SLSI_NET_DBG1(dev, SLSI_MLME, "cfg80211_external_auth_request failed");
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+}
+
 void slsi_rx_connected_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -1817,6 +1843,28 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_CONNECT_ERR);
 #endif
 		status = fw_result_code;
+#ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
+	if (ndev_vif->sta.crypto.wpa_versions == 3) {
+		const u8  *connecting_ssid = NULL;
+		int r;
+		struct cfg80211_external_auth_params auth_request;
+
+		if (ndev_vif->sta.sta_bss->ies->len)
+			connecting_ssid = cfg80211_find_ie(WLAN_EID_SSID, ndev_vif->sta.sta_bss->ies->data,
+							   ndev_vif->sta.sta_bss->ies->len);
+
+		auth_request.action = NL80211_EXTERNAL_AUTH_ABORT;
+		memcpy(auth_request.bssid, ndev_vif->sta.sta_bss->bssid, ETH_ALEN);
+		if (connecting_ssid && (connecting_ssid[1] > 0)) {
+			memcpy(auth_request.ssid.ssid, &connecting_ssid[2], connecting_ssid[1]);
+			auth_request.ssid.ssid_len = connecting_ssid[1];
+		}
+		auth_request.key_mgmt_suite = ndev_vif->sta.crypto.akm_suites[0];
+		r = cfg80211_external_auth_request(dev, &auth_request, GFP_KERNEL);
+		if (r)
+			SLSI_NET_DBG1(dev, SLSI_MLME, "cfg80211_external_auth_request Abort failed");
+	}
+#endif
 	} else {
 		SLSI_INFO(sdev, "Received Association Response\n");
 		if (!peer || !peer->assoc_ie) {
@@ -2314,9 +2362,12 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 		if (!mgmt_len)
 			goto exit;
 		mgmt = fapi_get_mgmt(skb);
+		if (ieee80211_is_auth(mgmt->frame_control)) {
+			cfg80211_rx_mgmt(&ndev_vif->wdev, frequency, 0, (const u8 *)mgmt, mgmt_len, GFP_ATOMIC);
+			goto exit;
+		}
 		if (WARN_ON(!(ieee80211_is_action(mgmt->frame_control))))
 			goto exit;
-
 		if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
 #ifdef CONFIG_SCSC_WLAN_WES_NCHO
 			if (slsi_is_wes_action_frame(mgmt)) {
