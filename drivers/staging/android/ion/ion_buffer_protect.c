@@ -156,14 +156,18 @@ static int ion_secure_unprotect(struct ion_buffer_prot_info *protdesc)
 	 */
 	ret = exynos_smc(SMC_DRM_PPMP_UNPROT, virt_to_phys(protdesc), 0, 0);
 
-	ion_secure_iova_free(protdesc->dma_addr, size);
-
 	if (ret != DRMDRV_OK) {
 		perrfn("UNPROT:%d(err=%d,va=%#x,len=%#lx,cnt=%u,flg=%u)",
 		       SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
 		       size, protdesc->chunk_count, protdesc->flags);
 		return -EACCES;
 	}
+	/*
+	 * retain the secure device address if unprotection to its area fails.
+	 * It might be unusable forever since we do not know the state o ft he
+	 * secure world before returning error from exynos_smc() above.
+	 */
+	ion_secure_iova_free(protdesc->dma_addr, size);
 
 	return 0;
 }
