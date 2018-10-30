@@ -34,7 +34,7 @@
 #include "modem_link_device_shmem.h"
 #include "uart_switch.h"
 
-#define MIF_INIT_TIMEOUT	(300 * HZ)
+#define MIF_INIT_TIMEOUT	(15 * HZ)
 #define MBREG_MAX_NUM 64
 
 static struct modem_ctl *g_mc;
