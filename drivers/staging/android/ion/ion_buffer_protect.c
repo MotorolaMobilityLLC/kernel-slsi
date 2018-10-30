@@ -80,7 +80,7 @@ static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 	return 0;
 }
 
-void ion_secure_iova_free(unsigned long addr, unsigned long size)
+static void ion_secure_iova_free(unsigned long addr, unsigned long size)
 {
 	if (!secure_iova_pool) {
 		perrfn("Secure IOVA pool is not created");
