@@ -210,12 +210,12 @@ struct fimc_is_lib_vra {
 	void					*test_input_buffer;
 	bool					image_load;
 #endif
-#ifdef ENABLE_REPROCESSING_FD
+#ifdef ENABLE_VRA_FDONE_WITH_CALLBACK
 	struct fimc_is_hw_ip		*hw_ip;
 	unsigned long			done_vra_callback_out_ready;
 	unsigned long			done_vra_hw_intr;
-	spinlock_t			reprocess_fd_lock;
-	ulong				reprocess_fd_flag;
+	spinlock_t			fdone_cb_lock;
+	ulong				fdone_cb_flag;
 #endif
 #ifdef ENABLE_VRA_CHANGE_SETFILE_PARSING
 	ulong				tune_count;
