@@ -131,18 +131,22 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
 	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
+	int unprot_err = 0;
 
 	if (carveout_heap->secure && (buffer->flags & ION_FLAG_PROTECTED))
-		ion_buffer_unprotect(buffer->priv_virt);
+		unprot_err = ion_buffer_unprotect(buffer->priv_virt);
 
-	if (!carveout_heap->untouchable) {
-		ion_heap_buffer_zero(buffer);
-		/* the free pages in carveout pool should be cache cold */
-		if ((buffer->flags & ION_FLAG_CACHED) != 0)
-			__flush_dcache_area(page_to_virt(page), buffer->size);
+	if (!unprot_err) {
+		if (!carveout_heap->untouchable) {
+			ion_heap_buffer_zero(buffer);
+			/* free pages in carveout pool should be cache cold */
+			if ((buffer->flags & ION_FLAG_CACHED) != 0)
+				__flush_dcache_area(page_to_virt(page),
+						    buffer->size);
+		}
+
+		ion_carveout_free(carveout_heap, paddr, buffer->size);
 	}
-
-	ion_carveout_free(carveout_heap, paddr, buffer->size);
 	sg_free_table(table);
 	kfree(table);
 }

@@ -130,11 +130,14 @@ static void ion_cma_free(struct ion_buffer *buffer)
 			 (buffer->flags & ION_FLAG_PROTECTED);
 	unsigned long nr_pages = ALIGN(PAGE_ALIGN(buffer->size) >> PAGE_SHIFT,
 				       1 << cma_heap->align_order);
+	int unprot_err = 0;
 
 	if (protected)
-		ion_buffer_unprotect(buffer->priv_virt);
+		unprot_err = ion_buffer_unprotect(buffer->priv_virt);
 	/* release memory */
-	cma_release(cma_heap->cma, sg_page(buffer->sg_table->sgl), nr_pages);
+	if (!unprot_err)
+		cma_release(cma_heap->cma, sg_page(buffer->sg_table->sgl),
+			    nr_pages);
 	/* release sg table */
 	sg_free_table(buffer->sg_table);
 	kfree(buffer->sg_table);
