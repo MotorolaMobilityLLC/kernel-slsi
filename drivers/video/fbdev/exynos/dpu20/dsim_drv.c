@@ -634,7 +634,7 @@ int dsim_reset_panel(struct dsim_device *dsim)
 
 	gpio_free(res->lcd_reset);
 
-	usleep_range(10000, 11000);
+	usleep_range(50000, 60000);
 
 	dsim_dbg("%s -\n", __func__);
 	return 0;
@@ -699,6 +699,17 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			}
 		}
 	} else {
+		if (res->lcd_power[2] > 0) {
+			ret = gpio_request_one(res->lcd_power[2],
+					GPIOF_OUT_INIT_LOW, "lcd_power2");
+			if (ret < 0) {
+				dsim_err("failed 3nd LCD power off\n");
+				return -EINVAL;
+			}
+			gpio_free(res->lcd_power[2]);
+			usleep_range(5000, 6000);
+		}
+
 		ret = gpio_request_one(res->lcd_reset, GPIOF_OUT_INIT_LOW,
 				"lcd_reset");
 		if (ret < 0) {
@@ -706,17 +717,7 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			return -EINVAL;
 		}
 		gpio_free(res->lcd_reset);
-
-		if (res->lcd_power[0] > 0) {
-			ret = gpio_request_one(res->lcd_power[0],
-					GPIOF_OUT_INIT_LOW, "lcd_power0");
-			if (ret < 0) {
-				dsim_err("failed LCD power off\n");
-				return -EINVAL;
-			}
-			gpio_free(res->lcd_power[0]);
-			usleep_range(5000, 6000);
-		}
+		usleep_range(1000, 2000);
 
 		if (res->lcd_power[1] > 0) {
 			ret = gpio_request_one(res->lcd_power[1],
@@ -729,14 +730,14 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			usleep_range(5000, 6000);
 		}
 
-		if (res->lcd_power[2] > 0) {
-			ret = gpio_request_one(res->lcd_power[2],
-					GPIOF_OUT_INIT_LOW, "lcd_power2");
+		if (res->lcd_power[0] > 0) {
+			ret = gpio_request_one(res->lcd_power[0],
+					GPIOF_OUT_INIT_LOW, "lcd_power0");
 			if (ret < 0) {
-				dsim_err("failed 3nd LCD power off\n");
+				dsim_err("failed LCD power off\n");
 				return -EINVAL;
 			}
-			gpio_free(res->lcd_power[2]);
+			gpio_free(res->lcd_power[0]);
 			usleep_range(5000, 6000);
 		}
 
