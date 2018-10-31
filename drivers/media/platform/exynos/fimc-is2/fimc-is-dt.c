@@ -331,9 +331,9 @@ int fimc_is_sensor_parse_dt(struct platform_device *pdev)
 		probe_info("skip phy-csi mux data read (%d)", ret);
 	}
 
-	ret = of_property_read_u32(dnode, "dual_ch", &pdata->dual_ch);
+	ret = of_property_read_u32(dnode, "multi_ch", &pdata->multi_ch);
 	if (ret) {
-		probe_info("skip dual_ch bool data read (%d)", ret);
+		probe_info("skip multi_ch bool data read (%d)", ret);
 	}
 
 	elems = of_property_count_u32_elems(dnode, "dma_ch");
