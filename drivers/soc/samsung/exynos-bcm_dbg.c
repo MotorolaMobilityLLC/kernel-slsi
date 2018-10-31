@@ -156,6 +156,11 @@ int exynos_bcm_dbg_ipc_send_data(enum exynos_bcm_dbg_ipc_type ipc_type,
 	int ret;
 	unsigned long flags;
 
+	if (!data) {
+		BCM_ERR("%s: data is not ready!\n", __func__);
+		return -ENODEV;
+	}
+
 	spin_lock_irqsave(&data->lock, flags);
 	ret = __exynos_bcm_dbg_ipc_send_data(ipc_type, data, cmd);
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -1287,6 +1292,12 @@ static int exynos_bcm_dbg_run(unsigned int bcm_run,
 void exynos_bcm_dbg_start(void)
 {
 	int ret;
+
+	if (!bcm_dbg_data) {
+		BCM_ERR("%s: bcm_dbg_data is not ready!\n", __func__);
+		return;
+	}
+
 #ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 	if (!bcm_dbg_data->bcm_load_bin) {
 		ret = exynos_bcm_dbg_load_bin();
@@ -1296,6 +1307,7 @@ void exynos_bcm_dbg_start(void)
 		}
 	}
 #endif
+
 	ret = exynos_bcm_dbg_run(BCM_RUN, bcm_dbg_data);
 	if (ret) {
 		BCM_ERR("%s: failed to bcm start\n", __func__);
@@ -1311,7 +1323,7 @@ void exynos_bcm_dbg_stop(unsigned int bcm_stop_owner)
 	int ret;
 
 	if (!bcm_dbg_data) {
-		BCM_ERR("bcm_dbg_data is not ready!\n");
+		BCM_ERR("%s: bcm_dbg_data is not ready!\n", __func__);
 		return;
 	}
 
@@ -3372,6 +3384,7 @@ static int __init exynos_bcm_dbg_probe(struct platform_device *pdev)
 err_init:
 #endif
 	kfree(data);
+	data = NULL;
 err_data:
 	return ret;
 }
@@ -3392,6 +3405,7 @@ static int exynos_bcm_dbg_remove(struct platform_device *pdev)
 
 	exynos_bcm_dbg_ipc_channel_release(data);
 	kfree(data);
+	data = NULL;
 
 	BCM_INFO("%s: exynos bcm is removed!!\n", __func__);
 
