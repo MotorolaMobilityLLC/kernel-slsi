@@ -150,6 +150,8 @@ struct fimc_is_actuator {
 	u32				vendor_first_pos;
 	u32				vendor_first_delay;
 	bool				vendor_use_sleep_mode;
+
+	bool					init_cal_setting;
 };
 
 struct fimc_is_aperture {
