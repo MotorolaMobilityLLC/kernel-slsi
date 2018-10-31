@@ -402,7 +402,10 @@ static int hix83112a_displayon(struct dsim_device *dsim)
 
 static int hix83112a_suspend(struct dsim_device *dsim)
 {
-	return 0;
+	dsim_info("%s +\n", __func__);
+	hix83112a_lcd_disable(dsim->id);
+	dsim_info("%s -\n", __func__);
+	return 1;
 }
 
 static int hix83112a_resume(struct dsim_device *dsim)
