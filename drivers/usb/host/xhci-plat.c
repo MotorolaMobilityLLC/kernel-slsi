@@ -437,6 +437,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 			"can't get xhci l2 support, error = %d\n", ret);
 	}
 
+	xhci->xhci_alloc = &xhci_pre_alloc;
+
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto disable_usb_phy;
@@ -538,6 +540,7 @@ static int xhci_plat_remove(struct platform_device *dev)
 	xhci_dbg(xhci, "%s: waited %dmsec", __func__, timeout);
 
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
+	xhci->xhci_alloc->offset = 0;
 
 	dev_info(&dev->dev, "WAKE UNLOCK\n");
 	wake_unlock(xhci->wakelock);

@@ -26,6 +26,16 @@
 struct host_data xhci_data;
 #endif
 
+struct usb_xhci_pre_alloc {
+	u8 *pre_dma_alloc;
+	u64 offset;
+
+	dma_addr_t	dma;
+};
+
+struct usb_xhci_pre_alloc xhci_pre_alloc;
+void __iomem *phycon_base_addr;
+
 static int dwc3_host_get_irq(struct dwc3 *dwc)
 {
 	struct platform_device	*dwc3_pdev = to_platform_device(dwc->dev);
@@ -115,6 +125,14 @@ int dwc3_host_init(struct dwc3 *dwc)
 
 	if (dwc->usb3_lpm_capable)
 		props[prop_idx++].name = "usb3-lpm-capable";
+
+	/* pre dma_alloc */
+	xhci_pre_alloc.pre_dma_alloc = dma_alloc_coherent(dwc->dev, SZ_2M,
+					&xhci_pre_alloc.dma, GFP_KERNEL);
+	if (!xhci_pre_alloc.pre_dma_alloc) {
+		dev_err(dwc->dev, "%s: dma_alloc fail!!!!\n", __func__);
+		goto err1;
+	}
 
 	/**
 	 * WORKAROUND: dwc3 revisions <=3.00a have a limitation
