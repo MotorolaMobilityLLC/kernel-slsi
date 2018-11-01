@@ -1776,9 +1776,15 @@
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-sec.bin";
 					};
-					calibration {
+					calibration_aac {
 						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-cali.wmfw";
+						cirrus,wmfw-file = "cs35l41-dsp1-diag.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-aac-cali.bin";
+					};
+					calibration_qisheng{
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-diag.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-qissheng-cali.bin";
 					};
 				};
 			};
