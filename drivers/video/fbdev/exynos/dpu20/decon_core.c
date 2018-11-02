@@ -4006,7 +4006,21 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	dsim = container_of(decon->out_sd[0], struct dsim_device, sd);
 	decon_reg_start(decon->id, &psr);
 	decon_reg_set_int(decon->id, &psr, 1);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	if (decon->dt.out_type == DECON_OUT_DSI)
+		v4l2_subdev_call(decon->out_sd[0], core, ioctl,
+				DSIM_IOC_LPDT_CMD, (unsigned long *)1);
+#endif
 	call_panel_ops(dsim, displayon, dsim);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	if (decon->dt.out_type == DECON_OUT_DSI) {
+		v4l2_subdev_call(decon->out_sd[0], core, ioctl,
+				DSIM_IOC_HS_CLK_ENABLE, NULL);
+		v4l2_subdev_call(decon->out_sd[0], core, ioctl,
+				DSIM_IOC_LPDT_CMD, (unsigned long *)0);
+
+	}
+#endif
 	decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
 	if (decon_reg_wait_update_done_and_mask(decon->id, &psr,
 				SHADOW_UPDATE_TIMEOUT) < 0)
