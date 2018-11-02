@@ -409,6 +409,8 @@ static inline bool IS_DSIM_OFF_STATE(struct dsim_device *dsim)
 #define DSIM_IOC_FREE_FB_RES		_IOW('D', 11, u32)
 #define DSIM_IOC_DOZE			_IOW('D', 20, u32)
 #define DSIM_IOC_DOZE_SUSPEND		_IOW('D', 21, u32)
+#define DSIM_IOC_HS_CLK_ENABLE		_IOW('D', 30, int)
+#define DSIM_IOC_LPDT_CMD		_IOW('D', 31, int)
 
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 #define DSIM_ESD_OK			0
