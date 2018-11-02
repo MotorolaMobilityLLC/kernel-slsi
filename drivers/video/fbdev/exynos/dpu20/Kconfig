@@ -124,6 +124,12 @@ config EXYNOS_DECON_DQE
 	depends on EXYNOS_DPU20
 	default n
 
+config EXYNOS_PANEL_INIT_LPDT
+	bool "Support PANEL INIT LPDT command"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  If this menu is enabled, COMMAND will write in LPDT mode.
 endif
 
 source "drivers/video/fbdev/exynos/dpu20/panels/Kconfig"
