@@ -73,6 +73,9 @@ void dsim_reg_set_bist(u32 id, u32 en);
 
 void dsim_reg_set_cmd_transfer_mode(u32 id, u32 lp);
 
+void dsim_reg_set_int(u32 id, u32 en);
+
+int dsim_reg_set_hs_clock(u32 id, u32 en);
 /* DSIM SFR dump */
 void __dsim_dump(u32 id, struct dsim_regs *regs);
 

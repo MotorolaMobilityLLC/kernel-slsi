@@ -1552,7 +1552,7 @@ static u32 dsim_reg_is_noncont_clk_enabled(u32 id)
 	return ret;
 }
 
-static int dsim_reg_set_hs_clock(u32 id, u32 en)
+int dsim_reg_set_hs_clock(u32 id, u32 en)
 {
 	int reg = 0;
 	int is_noncont = dsim_reg_is_noncont_clk_enabled(id);
@@ -1568,7 +1568,7 @@ static int dsim_reg_set_hs_clock(u32 id, u32 en)
 	return reg;
 }
 
-static void dsim_reg_set_int(u32 id, u32 en)
+void dsim_reg_set_int(u32 id, u32 en)
 {
 	u32 val = en ? 0 : ~0;
 	u32 mask;
@@ -1762,6 +1762,10 @@ void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
 
 	dsim_reg_set_config(id, lcd_info, clks);
 
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+#endif
+
 	if (panel_ctrl)
 		dsim_reset_panel(dsim);
 }
@@ -1770,7 +1774,6 @@ void dsim_reg_init(u32 id, struct decon_lcd *lcd_info, struct dsim_clks *clks,
 void dsim_reg_start(u32 id)
 {
 	dsim_reg_set_hs_clock(id, 1);
-	dsim_reg_set_int(id, 1);
 }
 
 /* Unset clocks and lanes and stop_state */
@@ -1813,7 +1816,10 @@ int dsim_reg_exit_ulps_and_start(u32 id, u32 ddi_type, u32 lanes)
 
 	/* try to exit ULPS mode. The sequence is depends on DDI type */
 	ret = dsim_reg_set_ulps_by_ddi(id, ddi_type, lanes, 0);
+#if !defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
 	dsim_reg_start(id);
+#endif
+	dsim_reg_set_int(id, 1);
 	return ret;
 }
 
