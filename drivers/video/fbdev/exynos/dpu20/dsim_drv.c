@@ -814,7 +814,10 @@ static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 
 	panel_ctrl = (state == DSIM_STATE_ON) ? true : false;
 	dsim_reg_init(dsim->id, &dsim->lcd_info, &dsim->clks, panel_ctrl);
+#if !defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
 	dsim_reg_start(dsim->id);
+#endif
+	dsim_reg_set_int(dsim->id, 1);
 
 	dsim->state = state;
 	enable_irq(dsim->res.irq);
@@ -842,8 +845,16 @@ static int dsim_enable(struct dsim_device *dsim)
 		goto out;
 	}
 
-	if (prev_state != DSIM_STATE_INIT)
+	if (prev_state != DSIM_STATE_INIT) {
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+		dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+#endif
 		call_panel_ops(dsim, displayon, dsim);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+		dsim_reg_start(dsim->id);
+		dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
+#endif
+	}
 
 	dsim_info("dsim-%d %s - (state:%s -> %s)\n", dsim->id, __func__,
 			dsim_state_names[prev_state],
@@ -872,8 +883,15 @@ static int dsim_doze(struct dsim_device *dsim)
 				dsim->id, dsim_state_names[next_state], ret);
 		goto out;
 	}
-	if (prev_state != DSIM_STATE_INIT)
+	if (prev_state != DSIM_STATE_INIT) {
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+		dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+#endif
 		call_panel_ops(dsim, doze, dsim);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+		dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
+#endif
+	}
 	dsim_info("dsim-%d %s - (state:%s -> %s)\n", dsim->id, __func__,
 			dsim_state_names[prev_state],
 			dsim_state_names[dsim->state]);
@@ -939,8 +957,15 @@ static int dsim_disable(struct dsim_device *dsim)
 		return 0;
 	}
 
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	dsim_reg_set_hs_clock(dsim->id, 0);
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+#endif
 	dsim_info("dsim-%d %s +\n", dsim->id, __func__);
 	call_panel_ops(dsim, suspend, dsim);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
+#endif
 	ret = _dsim_disable(dsim, next_state);
 	if (ret < 0) {
 		dsim_err("dsim-%d failed to set %s (ret %d)\n",
@@ -967,8 +992,14 @@ static int dsim_doze_suspend(struct dsim_device *dsim)
 		return 0;
 	}
 
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+#endif
 	dsim_info("dsim-%d %s +\n", dsim->id, __func__);
 	call_panel_ops(dsim, doze_suspend, dsim);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
+#endif
 	ret = _dsim_disable(dsim, next_state);
 	if (ret < 0) {
 		dsim_err("dsim-%d failed to set %s (ret %d)\n",
@@ -1155,6 +1186,18 @@ static long dsim_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ret = dsim_doze_suspend(dsim);
 		break;
 
+	case DSIM_IOC_HS_CLK_ENABLE:
+		ret = dsim_reg_set_hs_clock(dsim->id, 1);
+		break;
+
+	case DSIM_IOC_LPDT_CMD:
+		if ((unsigned long)arg)
+			dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+		else
+			dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
+
+		break;
+
 	default:
 		dsim_err("unsupported ioctl");
 		ret = -EINVAL;
@@ -1312,7 +1355,13 @@ static ssize_t dsim_cmd_sysfs_store(struct device *dev,
 	switch (cmd) {
 	case 1:
 		ret = dsim_cmd_sysfs_read(dsim);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+#endif
 		call_panel_ops(dsim, dump, dsim);
+#if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
+#endif
 		if (ret)
 			return ret;
 		break;

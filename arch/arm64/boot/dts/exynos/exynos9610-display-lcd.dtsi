@@ -266,7 +266,7 @@
 				timing,dsi-hs-clk = <1300>;
 				/* TODO : pms value to be set */
 				timing,pmsk = <1 100 1 0>;
-				timing,dsi-escape-clk = <20>;
+				timing,dsi-escape-clk = <10>;
 				mic_en = <0>;		/* 0: Disable, 1: Enable */
 				mic_ratio = <0>;	/* 0: 1/2 mic, 1: 1/3 mic */
 				mic_ver = <0>;		/* 0: mic v1.1, 1: v1.2, 2: v2.0 */
