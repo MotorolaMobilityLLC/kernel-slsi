@@ -403,6 +403,8 @@ static int __init exynos_reboot_setup(struct device_node *np)
 			pr_err("%s: failed to map to exynos-pmu-base address 0x%x\n",
 				__func__, id);
 			err = -ENOMEM;
+		} else {
+			__raw_writel(0x77665505, exynos_pmu_base + EXYNOS_PMU_SYSIP_DAT3); //defaule reboot reason is AP Panic
 		}
 	}
 
