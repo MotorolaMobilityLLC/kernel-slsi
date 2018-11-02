@@ -672,7 +672,7 @@ static int __policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 #endif
 	s32 time = 0, pre_time = 0;
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_DM
+#ifdef CONFIG_DEBUG_SNAPSHOT_DM
 	dbg_snapshot_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 #endif
 	do_gettimeofday(&pre);
@@ -720,7 +720,7 @@ out:
 	time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
 		(after.tv_usec - before.tv_usec);
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_DM
+#ifdef CONFIG_DEBUG_SNAPSHOT_DM
 	dbg_snapshot_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 #endif
 
@@ -787,7 +787,7 @@ static int __DM_CALL(int dm_type, unsigned long *target_freq)
 	struct timeval pre, before, after;
 	s32 time = 0, pre_time = 0;
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_DM
+#ifdef CONFIG_DEBUG_SNAPSHOT_DM
 	dbg_snapshot_dm((int)dm_type, *target_freq, 1, pre_time, time);
 #endif
 	do_gettimeofday(&pre);
@@ -851,7 +851,7 @@ static int __DM_CALL(int dm_type, unsigned long *target_freq)
 	time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
 		(after.tv_usec - before.tv_usec);
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_DM
+#ifdef CONFIG_DEBUG_SNAPSHOT_DM
 	dbg_snapshot_dm((int)dm_type, *target_freq, 3, pre_time, time);
 #endif
 
