@@ -32,6 +32,7 @@
 #define HIMAX_PROC_INT_EN_FILE		"int_en"
 #define HIMAX_PROC_LAYOUT_FILE		"layout"
 #define HIMAX_PROC_CRC_TEST_FILE		"CRC_test"
+#define HIMAX_PROC_FW_UPGRADE_FILE		"fw_upgrade_status"
 
 static struct proc_dir_entry *himax_proc_debug_level_file;
 static struct proc_dir_entry *himax_proc_vendor_file;
@@ -39,6 +40,7 @@ static struct proc_dir_entry *himax_proc_attn_file;
 static struct proc_dir_entry *himax_proc_int_en_file;
 static struct proc_dir_entry *himax_proc_layout_file;
 static struct proc_dir_entry *himax_proc_CRC_test_file;
+static struct proc_dir_entry *himax_proc_fw_upgrade_file;
 
 int himax_touch_proc_init(void);
 void himax_touch_proc_deinit(void);
