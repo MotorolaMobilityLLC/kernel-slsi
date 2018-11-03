@@ -705,11 +705,12 @@ static int himax_auto_update_check(void)
 {
 	I("%s:Entering!\n", __func__);
 	if (g_core_fp.fp_fw_ver_bin() == 0) {
-		if (((ic_data->vendor_fw_ver < g_i_FW_VER) || (ic_data->vendor_config_ver < g_i_CFG_VER))) {
+		if (((ic_data->vendor_fw_ver != g_i_FW_VER) || (ic_data->vendor_config_ver != g_i_CFG_VER))) {
 			I("Need to update!\n");
 			return NO_ERR;
 		}	else {
 			I("No need to update!\n");
+			private_ts->fw_upgrade_status = NO_ERR;
 			return 1;
 		}
 	} else {
@@ -773,11 +774,13 @@ update_retry:
 			goto update_retry;
 		}	else {
 			result = -1;
+			private_ts->fw_upgrade_status = FW_NOT_READY;
 		} /*upgrade fail*/
 	} else {
 		g_core_fp.fp_read_FW_ver();
 		g_core_fp.fp_touch_information();
 		result = 1;/*upgrade success*/
+		private_ts->fw_upgrade_status = READY_TO_SERVE;
 		I("%s: TP upgrade OK\n", __func__);
 	}
 
@@ -2168,6 +2171,11 @@ static int himax_fw_updater (struct himax_ts_data *ts, const char *fileName) {
 		E("%s: Flash command fail: %d\n", __func__, __LINE__);
 		break;
 	}
+	if (result == 0)
+		private_ts->fw_upgrade_status = FW_NOT_READY;
+	else
+		private_ts->fw_upgrade_status = READY_TO_SERVE;
+
 	release_firmware(fw);
 	g_core_fp.fp_read_FW_ver();
 	g_core_fp.fp_touch_information();
