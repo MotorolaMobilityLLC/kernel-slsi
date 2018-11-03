@@ -1815,6 +1815,11 @@ static ssize_t himax_debug_write(struct file *file, const char *buff,
 			fw_update_complete = false;
 			break;
 		}
+		if (fw_update_complete != true)
+			private_ts->fw_upgrade_status = FW_NOT_READY;
+		else
+			private_ts->fw_upgrade_status = READY_TO_SERVE;
+
 		release_firmware(fw);
 		goto firmware_upgrade_done;
 #endif
@@ -2344,7 +2349,35 @@ void himax_ts_flash_func(void)
 	*/
 }
 
+static ssize_t himax_fw_upgrade_read(struct file *file, char *buf,
+										size_t len, loff_t *pos)
+{
+	struct himax_ts_data *ts_data;
+	size_t ret = 0;
+	char *temp_buf;
+	ts_data = private_ts;
 
+	if (*pos != 0)
+		return 0;
+
+	temp_buf = kzalloc(len, GFP_KERNEL);
+	ret = snprintf(temp_buf + ret, len - ret, "%d\n", ts_data->fw_upgrade_status);
+	I("[%s][%d]read:%s\n", __func__, __LINE__, temp_buf);
+
+	if (copy_to_user(buf, temp_buf, len))
+		E("%s,here:%d\n", __func__, __LINE__);
+
+	*pos += ret;
+
+	kfree(temp_buf);
+
+	return ret;
+}
+
+static struct file_operations himax_proc_fw_upgrade_ops = {
+	.owner = THIS_MODULE,
+	.read = himax_fw_upgrade_read,
+};
 
 static ssize_t himax_sense_on_off_write(struct file *file, const char *buff,
 										size_t len, loff_t *pos)
@@ -2575,7 +2608,16 @@ int himax_touch_proc_init(void)
 		goto fail_18;
 	}
 
+	himax_proc_fw_upgrade_file = proc_create(HIMAX_PROC_FW_UPGRADE_FILE, (S_IWUSR | S_IRUGO),
+								  himax_touch_proc_dir, &himax_proc_fw_upgrade_ops);
+	if (himax_proc_fw_upgrade_file == NULL) {
+		E(" %s: proc fw_upgrade_status file create failed!\n", __func__);
+		goto fail_19;
+	}
+
 	return 0 ;
+fail_19:
+	remove_proc_entry(HIMAX_PROC_CRC_TEST_FILE, himax_touch_proc_dir);
 fail_18:
 #ifdef HX_ESD_RECOVERY
 	remove_proc_entry(HIMAX_PROC_ESD_CNT_FILE, himax_touch_proc_dir);

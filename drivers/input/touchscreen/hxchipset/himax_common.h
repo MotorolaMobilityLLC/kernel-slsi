@@ -296,6 +296,7 @@ struct himax_ts_data {
 
 
 	uint32_t debug_log_level;
+	int fw_upgrade_status;
 	uint32_t widthFactor;
 	uint32_t heightFactor;
 	uint32_t tw_x_min;
