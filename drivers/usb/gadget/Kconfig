@@ -513,6 +513,12 @@ config USB_CONFIGFS_F_MIDI
 	  connections can then be made on the gadget system, using
 	  ALSA's aconnect utility etc.
 
+config TRACK_ID
+	bool "track id as serialno"
+	depends on USB_CONFIGFS
+	help
+	  use track id as adb device number.
+
 config USB_CONFIGFS_F_HID
 	bool "HID function"
 	depends on USB_CONFIGFS
