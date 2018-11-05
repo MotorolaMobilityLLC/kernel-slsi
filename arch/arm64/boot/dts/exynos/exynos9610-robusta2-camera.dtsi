@@ -503,6 +503,7 @@
 	clock-frequency = <1000000>;
 	samsung,reset-before-trans;
 
+	samsung,fast-plus-mode;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -548,6 +549,7 @@
 	clock-frequency = <1000000>;
 	samsung,reset-before-trans;
 
+	samsung,fast-plus-mode;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
