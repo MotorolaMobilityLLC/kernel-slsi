@@ -1929,15 +1929,6 @@
 		adsps {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			adsp@0ffe00 {
-				reg = <0x0ffe00>;
-				firmware {
-					ultrasound {
-						wlf,wmfw-file = "marley-dsp1-ultrasound.wmfw";
-						wlf,bin-file = "marley-dsp1v-ultrasound.bin";
-					};
-				};
-			};
 			adsp@17fe00 {
 				reg = <0x17fe00>;
 				firmware {
@@ -1953,10 +1944,6 @@
 					aov {
 						wlf,wmfw-file = "marley-dsp3-aov-control.wmfw";
 						wlf,bin-file = "marley-dsp3-aov-model.bin";
-					};
-					ez2record {
-						wlf,wmfw-file = "marley-dsp3-ez2-record.wmfw";
-						wlf,bin-file = "marley-dsp3-ez2-record.bin";
 					};
 				};
 			};
