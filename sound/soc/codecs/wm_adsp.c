@@ -500,8 +500,8 @@ static void wm_adsp_buf_flash(struct list_head *list, void *dest)
 #define WM_ADSP_FW_TRACE    8
 #define WM_ADSP_FW_SPK_PROT 9
 #define WM_ADSP_FW_MISC     10
-
-#define WM_ADSP_NUM_FW      11
+#define WM_ADSP_FW_Ez2record     11
+#define WM_ADSP_NUM_FW      12
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =  "MBC/VSS",
@@ -515,6 +515,7 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_TRACE] =    "Dbg Trace",
 	[WM_ADSP_FW_SPK_PROT] = "Protection",
 	[WM_ADSP_FW_MISC] =     "Misc",
+	[WM_ADSP_FW_Ez2record] = "ez2record",
 };
 
 struct wm_adsp_system_config_xm_hdr {
@@ -683,6 +684,7 @@ static struct wm_adsp_fw_defs wm_adsp_fw[WM_ADSP_NUM_FW] = {
 	},
 	[WM_ADSP_FW_SPK_PROT] = { .file = "spk-prot" },
 	[WM_ADSP_FW_MISC] =     { .file = "misc" },
+	[WM_ADSP_FW_Ez2record] =     { .file = "ez2-record" },
 };
 
 struct wm_coeff_ctl_ops {
@@ -2183,11 +2185,19 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		case WMFW_ADSP2_XM:
 		case WMFW_ADSP2_YM:
 		case WMFW_ADSP1_ZM:
+			region_name = wm_adsp_mem_region_name(type);
+			reg = wm_adsp_region_to_reg(dsp, mem, offset);
+			break;
 		case WMFW_HALO_PM_PACKED:
+			region_name = wm_adsp_mem_region_name(type);
+			reg = wm_adsp_region_to_reg(dsp, mem, offset);
+			burst_multiple = 20;
+			break;
 		case WMFW_HALO_XM_PACKED:
 		case WMFW_HALO_YM_PACKED:
 			region_name = wm_adsp_mem_region_name(type);
 			reg = wm_adsp_region_to_reg(dsp, mem, offset);
+			burst_multiple = 12;
 			break;
 		default:
 			adsp_warn(dsp,
@@ -2852,14 +2862,15 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 				reg = offset;
 			}
 			break;
-
+		case WMFW_HALO_PM_PACKED:
+			burst_multiple += 8; /* plus the 8 below yields 20 */
+		case WMFW_HALO_XM_PACKED:
+		case WMFW_HALO_YM_PACKED:
+			burst_multiple += 8; /* yields 12 */
 		case WMFW_ADSP1_DM:
 		case WMFW_ADSP1_ZM:
 		case WMFW_ADSP2_XM:
 		case WMFW_ADSP2_YM:
-		case WMFW_HALO_XM_PACKED:
-		case WMFW_HALO_YM_PACKED:
-		case WMFW_HALO_PM_PACKED:
 			adsp_dbg(dsp, "%s.%d: %d bytes in %x for %x\n",
 				 file, blocks, le32_to_cpu(blk->len),
 				 type, le32_to_cpu(blk->id));
