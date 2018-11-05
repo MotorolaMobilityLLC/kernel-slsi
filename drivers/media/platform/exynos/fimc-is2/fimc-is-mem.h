@@ -106,7 +106,7 @@ struct fimc_is_mem_ops {
 	void (*suspend)(void *ctx);
 	void (*set_cached)(void *ctx, bool cacheable);
 	int (*set_alignment)(void *ctx, size_t alignment);
-	struct fimc_is_priv_buf *(*alloc)(void *ctx, size_t size, size_t align);
+	struct fimc_is_priv_buf *(*alloc)(void *ctx, size_t size, size_t align, const char *heapname);
 };
 
 struct fimc_is_ion_ctx {
