@@ -38,6 +38,7 @@
 #include "fimc-is-dt.h"
 #include "fimc-is-cis-gm1sp.h"
 #include "fimc-is-cis-gm1sp-setA.h"
+#include "fimc-is-cis-gm1sp-setB.h"
 
 #include "fimc-is-helper-i2c.h"
 
@@ -1597,6 +1598,14 @@ static int cis_gm1sp_probe(struct i2c_client *client,
 		sensor_gm1sp_setfile_sizes = sensor_gm1sp_setfile_A_sizes;
 		sensor_gm1sp_pllinfos = sensor_gm1sp_pllinfos_A;
 		sensor_gm1sp_max_setfile_num = ARRAY_SIZE(sensor_gm1sp_setfiles_A);
+	} else if (strcmp(setfile, "setB") == 0) {
+		probe_info("%s setfile_B\n", __func__);
+		sensor_gm1sp_global = sensor_gm1sp_setfile_B_Global;
+		sensor_gm1sp_global_size = ARRAY_SIZE(sensor_gm1sp_setfile_B_Global);
+		sensor_gm1sp_setfiles = sensor_gm1sp_setfiles_B;
+		sensor_gm1sp_setfile_sizes = sensor_gm1sp_setfile_B_sizes;
+		sensor_gm1sp_pllinfos = sensor_gm1sp_pllinfos_B;
+		sensor_gm1sp_max_setfile_num = ARRAY_SIZE(sensor_gm1sp_setfiles_B);
 	} else {
 		err("%s setfile index out of bound, take default (setfile_A)", __func__);
 		sensor_gm1sp_global = sensor_gm1sp_setfile_A_Global;
