@@ -7,15 +7,22 @@ KERNEL_DEBUG_DEFCONFIG          := $(LJAPDEFCONFIGSRC)/debug-$(DEFCONFIG_BASENAM
 PRODUCT_KERNEL_DEBUG_DEFCONFIG  := $(LJAPDEFCONFIGSRC)/$(PRODUCT_DEBUG_DEFCONFIG)
 FACTORY_DEFCONFIG		:= $(LJAPDEFCONFIGSRC)/factory-$(DEFCONFIG_BASENAME).config
 
+
+PRODUCT_SPECIFIC_DEFCONFIGS :=  $(DEFCONFIGSRC)/$(KERNEL_DEFCONFIG)
+# append all additional configs
+ifneq ($(KERNEL_EXTRA_CONFIG),)
+PRODUCT_SPECIFIC_DEFCONFIGS += $(KERNEL_EXTRA_CONFIG:%=$(LJAPDEFCONFIGSRC)/%.config)
+endif
+
 # add debug config file for non-user build
 ifneq ($(TARGET_BUILD_VARIANT), user)
 ifneq ($(TARGET_NO_KERNEL_DEBUG), true)
 ifneq ($(wildcard $(KERNEL_DEBUG_DEFCONFIG)),)
 PRODUCT_SPECIFIC_DEFCONFIGS += $(KERNEL_DEBUG_DEFCONFIG)
+endif
 # Add a product-specific debug defconfig, too
 ifneq ($(PRODUCT_DEBUG_DEFCONFIG),)
 PRODUCT_SPECIFIC_DEFCONFIGS += $(PRODUCT_KERNEL_DEBUG_DEFCONFIG)
-endif
 endif
 endif
 endif
@@ -23,14 +30,6 @@ endif
 ifeq ($(TARGET_FACTORY_DEFCONFIG), true)
 PRODUCT_SPECIFIC_DEFCONFIGS += $(FACTORY_DEFCONFIG)
 endif
-
-#previous config not defined yet
-PRODUCT_SPECIFIC_DEFCONFIGS :=  $(DEFCONFIGSRC)/$(KERNEL_DEFCONFIG)
-# append all additional configs
-ifneq ($(KERNEL_EXTRA_CONFIG),)
-PRODUCT_SPECIFIC_DEFCONFIGS += $(KERNEL_EXTRA_CONFIG:%=$(LJAPDEFCONFIGSRC)/%.config)
-endif
-
 
 define do-make-defconfig
 	$(hide) mkdir -p $(dir $(1))
