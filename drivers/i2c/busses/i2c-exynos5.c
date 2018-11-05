@@ -417,7 +417,10 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 	} else if (mode == HSI2C_FAST_PLUS_SPD) {
 		op_clk = i2c->fs_plus_clock;
 
-		fs_div = ipclk / (op_clk * 15);
+		//fs_div = ipclk / (op_clk * 15);
+		//from the spec, fs and hs div calculation formula: Fscl = ipc/((CLK_DIV_FS+1)*16).
+		fs_div = ipclk / (op_clk * 16) -1;
+
 		fs_div &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
 		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
