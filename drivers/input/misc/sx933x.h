@@ -247,17 +247,17 @@
 #define   SX933X_STAT0_BODYSTAT_PH0_FLAG      0x00000100
 
 /*      Chip ID 	*/
-#define SX933X_WHOAMI_VALUE                   0x00003114
+#define SX933X_WHOAMI_VALUE                   0x00003113
+#define SX933X_WHOAMI_VALUE_ALL                   0x00003100
+
 /*command*/
 #define SX933X_PHASE_CONTROL                  0x0000000F
 #define SX933X_COMPENSATION_CONTROL           0x0000000E
 #define SX933X_ENTER_CONTROL                  0x0000000D
 #define SX933X_EXIT_CONTROL                   0x0000000C
 
-
 #define SX933X_HARDWARE_CHECK_SUCCESS         1
 #define SX933X_HARDWARE_CHECK_FAIL            0
-
 
 
 /**************************************
@@ -307,345 +307,434 @@ typedef struct totalButtonInformation *pbuttonInformation_t;
  * default
  */
 /*define the value without Phase enable settings for easy changes in driver*/
+#if 0
 static const struct smtc_reg_data sx933x_i2c_reg_setup[] =
 {
-	//
+	//ocean disable clock spreading
 	{
-		.reg = SX933X_AFECTRL_REG,
+		.reg = SX933X_AFECTRL_REG, //0x4054
 		.val = 0x00000400,
 	},
 	//
 	{
-		.reg = SX933X_CLKGEN_REG,
+		.reg = SX933X_CLKGEN_REG, //0x4200
 		.val = 0x00000008,
 	},
 	//
 	{
-		.reg = SX933X_PINCFG_REG,
+		.reg = SX933X_PINCFG_REG, //0x42C0
 		.val = 0x08000000,
 	},
 	{
-		.reg = SX933X_PINDOUT_REG,
+		.reg = SX933X_PINDOUT_REG, //0x42C4
 		.val = 0x0000003F,
 	},
 	//
 	{
-		.reg = SX933X_IRQCFG0_REG,
+		.reg = SX933X_IRQCFG0_REG, //0x800C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_IRQCFG1_REG,
+		.reg = SX933X_IRQCFG1_REG, //0x8010
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_IRQCFG2_REG,
+		.reg = SX933X_IRQCFG2_REG, //0x8014
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_IRQCFG3_REG,
+		.reg = SX933X_IRQCFG3_REG, //0x8018
 		.val = 0x00000000,
 	},
 	//
 	{
-		.reg = SX933X_SCANPERIOD_REG,
+		.reg = SX933X_SCANPERIOD_REG, //0x801C
 		.val = 0x00000032,
 	},
 	{
-		.reg = SX933X_GNRLCTRL2_REG,
+		.reg = SX933X_GNRLCTRL2_REG, //0x8020
 		.val = 0x3F001F, //enable phase0~phase4  0x00FF0001,
 	},
 	{
-		.reg = SX933X_AFEPARAMSPH0_REG,
-		.val = 0x00010001,
+		.reg = SX933X_AFEPARAMSPH0_REG, //0x8024
+		.val = 0x300008d7,
 	},
 	{
-		.reg = SX933X_AFEPHPH0_REG,
+		.reg = SX933X_AFEPHPH0_REG, //0x8028
 		.val = 0x00A00BE3,
 	},
 	{
-		.reg = SX933X_AFEPARAMSPH1_REG,
+		.reg = SX933X_AFEPARAMSPH1_REG, //0x802C
 		.val = 0x300004D4,
 	},
 	{
-		.reg = SX933X_AFEPHPH1_REG,
+		.reg = SX933X_AFEPHPH1_REG, //0x8030
 		.val = 0x00,
 	},
 	{
-		.reg = SX933X_AFEPARAMSPH2_REG,
+		.reg = SX933X_AFEPARAMSPH2_REG, //0x8034
 		.val = 0x300004D4,//0x44F,//AFE setting for phase2  3.85pf
 	},
 	{
-		.reg = SX933X_AFEPHPH2_REG,
+		.reg = SX933X_AFEPHPH2_REG, //0x8038
 		.val = 0x00,//Configure for phase2
 	},
 	{
-		.reg = SX933X_AFEPARAMSPH3_REG,
+		.reg = SX933X_AFEPARAMSPH3_REG, //0x803C
 		.val = 0x300004D4,//0x44F,//AFE setting for phase3 3.3pf
 	},
 	{
-		.reg = SX933X_AFEPHPH3_REG,
+		.reg = SX933X_AFEPHPH3_REG, //0x8040
 		.val = 0x00,//Configure for phase3
 	},
 	{
-		.reg = SX933X_AFEPARAMSPH4_REG,
+		.reg = SX933X_AFEPARAMSPH4_REG, //0x8044
 		.val = 0x300004D4,//0x44F,//AFE setting for phase4 9.9pf
 	},
 	{
-		.reg = SX933X_AFEPHPH4_REG,
+		.reg = SX933X_AFEPHPH4_REG, //0x8048
 		.val = 0x00,//Configure for phase4
 	},
 	{
-		.reg = SX933X_AFEPARAMSPH5_REG,
+		.reg = SX933X_AFEPARAMSPH5_REG, //0x804c
 		.val = 0x300004D4,
 	},
 	{
-		.reg = SX933X_AFEPHPH5_REG,
+		.reg = SX933X_AFEPHPH5_REG, //0x8050
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADCFILTPH0_REG,
+		.reg = SX933X_ADCFILTPH0_REG, //0x8054
 		.val = 0x10162000,
 	},
 	{
-		.reg = SX933X_AVGBFILTPH0_REG,
+		.reg = SX933X_AVGBFILTPH0_REG, //0x8058
 		.val = 0x20400017,
 	},
 	{
-		.reg = SX933X_AVGAFILTPH0_REG,
+		.reg = SX933X_AVGAFILTPH0_REG, //0x805C
 		.val = 0x31CF9110,
 	},
 	{
-		.reg = SX933X_ADVDIG0PH0_REG,
+		.reg = SX933X_ADVDIG0PH0_REG, //0x8060
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG1PH0_REG,
+		.reg = SX933X_ADVDIG1PH0_REG, //0x8064
 		.val = 0x00,
 	},
 	{
-		.reg = SX933X_ADVDIG2PH0_REG,
+		.reg = SX933X_ADVDIG2PH0_REG, //0x8068
 		.val = 0x00,
 	},
 	{
-		.reg = SX933X_ADVDIG3PH0_REG ,
+		.reg = SX933X_ADVDIG3PH0_REG , //0x806C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG4PH0_REG,
+		.reg = SX933X_ADVDIG4PH0_REG, //0x8070
 		.val = 0x10000,
 	},
 	{
-		.reg = SX933X_ADCFILTPH1_REG,
+		.reg = SX933X_ADCFILTPH1_REG, //0x8074
 		.val = 0x100000,
 	},
 	{
-		.reg = SX933X_AVGBFILTPH1_REG,
+		.reg = SX933X_AVGBFILTPH1_REG, //0x8078
 		.val = 0x20600C00,
 	},
 	{
-		.reg = SX933X_AVGAFILTPH1_REG,
+		.reg = SX933X_AVGAFILTPH1_REG, //0x807C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG0PH1_REG,
+		.reg = SX933X_ADVDIG0PH1_REG, //0x8080
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG1PH1_REG,
+		.reg = SX933X_ADVDIG1PH1_REG, //0x8084
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG2PH1_REG,
+		.reg = SX933X_ADVDIG2PH1_REG, //0x8088
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG3PH1_REG ,
+		.reg = SX933X_ADVDIG3PH1_REG , //0x808C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG4PH1_REG,
+		.reg = SX933X_ADVDIG4PH1_REG, //0x8090
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADCFILTPH2_REG,
+		.reg = SX933X_ADCFILTPH2_REG, //0x8094
 		.val = 0x100000,
 	},
 	{
-		.reg = SX933X_AVGBFILTPH2_REG,
+		.reg = SX933X_AVGBFILTPH2_REG, //0x8098
 		.val = 0x20600C00,
 	},
 	{
-		.reg = SX933X_AVGAFILTPH2_REG,
+		.reg = SX933X_AVGAFILTPH2_REG, //0x809C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG0PH2_REG,
+		.reg = SX933X_ADVDIG0PH2_REG, //0x80A0
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG1PH2_REG,
+		.reg = SX933X_ADVDIG1PH2_REG, //0x80A4
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG2PH2_REG,
+		.reg = SX933X_ADVDIG2PH2_REG, //0x80A8
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG3PH2_REG ,
+		.reg = SX933X_ADVDIG3PH2_REG , //0x80AC
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG4PH2_REG,
+		.reg = SX933X_ADVDIG4PH2_REG, //0x80B0
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADCFILTPH3_REG,
+		.reg = SX933X_ADCFILTPH3_REG, //0x80B4
 		.val = 0x100000,
 	},
 	{
-		.reg = SX933X_AVGBFILTPH3_REG,
+		.reg = SX933X_AVGBFILTPH3_REG, //0x80B8
 		.val = 0x20600C00,
 	},
 	{
-		.reg = SX933X_AVGAFILTPH3_REG,
+		.reg = SX933X_AVGAFILTPH3_REG, //0x80BC
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG0PH3_REG,
+		.reg = SX933X_ADVDIG0PH3_REG, //0x80C0
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG1PH3_REG,
+		.reg = SX933X_ADVDIG1PH3_REG, //0x80C4
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG2PH3_REG,
+		.reg = SX933X_ADVDIG2PH3_REG, //0x80C8
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG3PH3_REG ,
+		.reg = SX933X_ADVDIG3PH3_REG , //0x80CC
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG4PH3_REG,
+		.reg = SX933X_ADVDIG4PH3_REG, //0x80D0
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADCFILTPH4_REG,
+		.reg = SX933X_ADCFILTPH4_REG, //0x80D4
 		.val = 0x100000,
 	},
 	{
-		.reg = SX933X_AVGBFILTPH4_REG,
+		.reg = SX933X_AVGBFILTPH4_REG, //0x80D8
 		.val = 0x20600C00,
 	},
 	{
-		.reg = SX933X_AVGAFILTPH4_REG,
+		.reg = SX933X_AVGAFILTPH4_REG, //0x80DC
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG0PH4_REG,
+		.reg = SX933X_ADVDIG0PH4_REG, //0x80E0
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG1PH4_REG,
+		.reg = SX933X_ADVDIG1PH4_REG, //0x80E4
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG2PH4_REG,
+		.reg = SX933X_ADVDIG2PH4_REG, //0x80E8
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG3PH4_REG ,
+		.reg = SX933X_ADVDIG3PH4_REG , //0x80EC
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG4PH4_REG,
+		.reg = SX933X_ADVDIG4PH4_REG, //0x80F0
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADCFILTPH5_REG,
+		.reg = SX933X_ADCFILTPH5_REG, //0x80F4
 		.val = 0x100000,
 	},
 	{
-		.reg = SX933X_AVGBFILTPH5_REG,
+		.reg = SX933X_AVGBFILTPH5_REG, //0x80F8
 		.val = 0x20600C00,
 	},
 	{
-		.reg = SX933X_AVGAFILTPH5_REG,
+		.reg = SX933X_AVGAFILTPH5_REG, //0x80FC
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG0PH5_REG,
+		.reg = SX933X_ADVDIG0PH5_REG, //0x8100
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG1PH5_REG,
+		.reg = SX933X_ADVDIG1PH5_REG, //0x8104
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG2PH5_REG,
+		.reg = SX933X_ADVDIG2PH5_REG, //0x8108
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG3PH5_REG ,
+		.reg = SX933X_ADVDIG3PH5_REG , //0x810C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_ADVDIG4PH5_REG,
+		.reg = SX933X_ADVDIG4PH5_REG, //0x8110
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_REFCORRA_REG,
+		.reg = SX933X_REFCORRA_REG, //0x8124
 		.val = 0x7B13B10,
 	},
 	{
-		.reg = SX933X_REFCORRB_REG,
+		.reg = SX933X_REFCORRB_REG, //0x8128
 		.val = 0x4000000,
 	},
 	{
-		.reg = SX933X_SMARTSAR0A_REG,
+		.reg = SX933X_SMARTSAR0A_REG, //0x812C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_SMARTSAR1A_REG,
+		.reg = SX933X_SMARTSAR1A_REG, //0x8130
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_SMARTSAR2A_REG,
+		.reg = SX933X_SMARTSAR2A_REG, //0x8134
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_SMARTSAR0B_REG,
+		.reg = SX933X_SMARTSAR0B_REG, //0x8138
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_SMARTSAR1B_REG,
+		.reg = SX933X_SMARTSAR1B_REG, //0x813C
 		.val = 0x00000000,
 	},
 	{
-		.reg = SX933X_SMARTSAR2B_REG,
-		.val = 0x00000000,
-	},
-	//
-	{
-		.reg = SX933X_AUTOFREQ0_REG,
-		.val = 0x00000000,
-	},
-	{
-		.reg = SX933X_AUTOFREQ1_REG,
+		.reg = SX933X_SMARTSAR2B_REG, //0x8140
 		.val = 0x00000000,
 	},
 	//
 	{
-		.reg = SX933X_HOSTIRQMSK_REG,
+		.reg = SX933X_AUTOFREQ0_REG, //0x8154
+		.val = 0x00000000,
+	},
+	{
+		.reg = SX933X_AUTOFREQ1_REG, //0x8158
+		.val = 0x00000000,
+	},
+	//
+	{
+		.reg = SX933X_HOSTIRQMSK_REG, //0x4004
 		.val = 0x00000078,
 	},
 	{
-		.reg = SX933X_HOSTIRQCTRL_REG,
+		.reg = SX933X_HOSTIRQCTRL_REG, //0x4008
 		.val = 0x00,
 	}
 };
+#else
+static const struct smtc_reg_data sx933x_i2c_reg_setup[] =
+{	
+	{0x4004,0x7C},
+	{0x4008,0x00},
+	{0x4054,0x400},
+	{0x42C0,0x8000000},
+	{0x42C4,0x3F},
+	{0x800C,0x00},
+	{0x8010,0x00},
+	{0x8014,0x00},
+	{0x8018,0x00},
+	{0x801C,0x31},
+	{0x8020,0x1F001F},
+	{0x8024,0x100088F},
+	{0x8028,0x3FFE86DE},
+	{0x802C,0x100088F},
+	{0x8030,0x3FF782CF},
+	{0x8034,0x100088F},
+	{0x8038,0x3FBF82E9},
+	{0x803C,0x100088F},
+	{0x8040,0x3DFF82C8},
+	{0x8044,0x100088F},
+	{0x8048,0x2FFF82D1},
+	{0x804C,0x88E},
+	{0x8050,0x80001EE6},
+	{0x8054,0x10162815},
+	{0x8058,0x60600C31},
+	{0x805C,0x54AC4300},
+	{0x8060,0x00},
+	{0x8064,0x00},
+	{0x8068,0x00},
+	{0x806C,0x00},
+	{0x8070,0x00},
+	{0x8074,0x10162815},
+	{0x8078,0x60600C31},
+	{0x807C,0x54AC4300},
+	{0x8080,0x00},
+	{0x8084,0x00},
+	{0x8088,0x00},
+	{0x808C,0x00},
+	{0x8090,0x00},
+	{0x8094,0x10166400},
+	{0x8098,0x60400031},
+	{0x809C,0x54AC4300},
+	{0x80A0,0x00},
+	{0x80A4,0x00},
+	{0x80A8,0x00},
+	{0x80AC,0x00},
+	{0x80B0,0x00},
+	{0x80B4,0x10125F15},
+	{0x80B8,0x60600B31},
+	{0x80BC,0x54AC4300},
+	{0x80C0,0x00},
+	{0x80C4,0x00},
+	{0x80C8,0x00},
+	{0x80CC,0x00},
+	{0x80D0,0x00},
+	{0x80D4,0x10166400},
+	{0x80D8,0x60400031},
+	{0x80DC,0x54AC4300},
+	{0x80E0,0x00},
+	{0x80E4,0x00},
+	{0x80E8,0x00},
+	{0x80EC,0x00},
+	{0x80F0,0x00},
+	{0x80F4,0x10162800},
+	{0x80F8,0x20400031},
+	{0x80FC,0x54AC5300},
+	{0x8100,0x00},
+	{0x8104,0x00},
+	{0x8108,0x00},
+	{0x810C,0x00},
+	{0x8110,0x00},
+	{0x8124,0x400000A},
+	{0x8128,0x400000C},
+	{0x812C,0x00},
+	{0x8130,0x00},
+	{0x8134,0x00},
+	{0x8138,0x00},
+	{0x813C,0x00},
+	{0x8140,0x00},
+	{0x8144,0x00},
+	{0x8148,0x00},
+	{0x814C,0x00},
+	{0x81A4,0x1C40019},
+};
 
+#endif
 static struct _buttonInfo psmtcButtons[] =
 {
 	{
