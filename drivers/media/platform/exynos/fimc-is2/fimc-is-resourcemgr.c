@@ -509,6 +509,8 @@ static int fimc_is_resourcemgr_init_dynamic_mem(struct fimc_is_resourcemgr *reso
 
 	resourcemgr->minfo.dvaddr_taaisp = CALL_BUFOP(minfo->pb_taaisp, dvaddr, minfo->pb_taaisp);
 	resourcemgr->minfo.kvaddr_taaisp = CALL_BUFOP(minfo->pb_taaisp, kvaddr, minfo->pb_taaisp);
+	info("[RSC] TAAISP_DMA memory kva(%#lx), dva(%#lx)\n",
+		resourcemgr->minfo.kvaddr_taaisp, resourcemgr->minfo.dvaddr_taaisp);
 
 	info("[RSC] %s done\n", __func__);
 p_err:
@@ -525,6 +527,68 @@ static int fimc_is_resourcemgr_deinit_dynamic_mem(struct fimc_is_resourcemgr *re
 	return ret;
 }
 #endif /* #ifdef ENABLE_DYNAMIC_MEM */
+
+#if defined(SECURE_CAMERA_FACE)
+static int fimc_is_resourcemgr_alloc_secure_mem(struct fimc_is_resourcemgr *resourcemgr)
+{
+	struct fimc_is_mem *mem = &resourcemgr->mem;
+	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
+	size_t tnr_size;
+
+	tnr_size = 0;
+#if defined(ENABLE_TNR)
+	/* 4 is double buffering & 2 instance for dual camera */
+	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * 4);
+#endif
+
+	/* 3aa/isp internal DMA buffer */
+	minfo->pb_taaisp_s = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TAAISP_DMA_SIZE + tnr_size, 16, NULL);
+	if (IS_ERR_OR_NULL(minfo->pb_taaisp_s)) {
+		err("failed to allocate buffer for TAAISP_DMA_S");
+		return -ENOMEM;
+	}
+
+	info("[RSC] TAAISP_DMA_S memory size (aligned) : %08lx\n", TAAISP_DMA_SIZE + tnr_size);
+
+	return 0;
+}
+
+static int fimc_is_resourcemgr_init_secure_mem(struct fimc_is_resourcemgr *resourcemgr)
+{
+	struct fimc_is_minfo *minfo = NULL;
+	int ret = 0;
+
+	probe_info("fimc_is_init_mem - ION\n");
+
+	ret = fimc_is_resourcemgr_alloc_secure_mem(resourcemgr);
+	if (ret) {
+		err("Couldn't alloc for FIMC-IS\n");
+		ret = -ENOMEM;
+		goto p_err;
+	}
+
+	minfo = &resourcemgr->minfo;
+
+	resourcemgr->minfo.dvaddr_taaisp_s = CALL_BUFOP(minfo->pb_taaisp_s, dvaddr, minfo->pb_taaisp_s);
+	resourcemgr->minfo.kvaddr_taaisp_s = CALL_BUFOP(minfo->pb_taaisp_s, kvaddr, minfo->pb_taaisp_s);
+	info("[RSC] TAAISP_DMA_S memory kva(%#lx), dva(%#lx)\n",
+		resourcemgr->minfo.kvaddr_taaisp_s, resourcemgr->minfo.dvaddr_taaisp_s);
+
+	info("[RSC] %s done\n", __func__);
+p_err:
+	return ret;
+}
+
+static int fimc_is_resourcemgr_deinit_secure_mem(struct fimc_is_resourcemgr *resourcemgr)
+{
+	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
+	int ret = 0;
+
+	CALL_VOID_BUFOP(minfo->pb_taaisp_s, free, minfo->pb_taaisp_s);
+
+	return ret;
+}
+#endif
 
 static struct vm_struct fimc_is_lib_vm;
 static struct vm_struct fimc_is_heap_vm;
@@ -1426,6 +1490,14 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			if (ret) {
 				err("fimc_is_interface_open is fail(%d)", ret);
 				goto p_err;
+			} else {
+#if defined(SECURE_CAMERA_FACE)
+				ret = fimc_is_resourcemgr_init_secure_mem(resourcemgr);
+				if (ret) {
+					err("fimc_is_resourcemgr_init_secure_mem is fail(%d)\n", ret);
+					goto p_err;
+				}
+#endif
 			}
 
 			ret = fimc_is_ischain_power(&core->ischain[0], 1);
@@ -1615,8 +1687,15 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 				err("fimc_is_ischain_power is fail(%d)", ret);
 
 			ret = fimc_is_interface_close(&core->interface);
-			if (ret)
+			if (ret) {
 				err("fimc_is_interface_close is fail(%d)", ret);
+			} else {
+#if defined(SECURE_CAMERA_FACE)
+				ret = fimc_is_resourcemgr_deinit_secure_mem(resourcemgr);
+				if (ret)
+					err("fimc_is_resourcemgr_deinit_secure_mem is fail(%d)", ret);
+#endif
+			}
 
 			ret = fimc_is_debug_close();
 			if (ret)
@@ -1661,7 +1740,6 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 		if (ret)
 			err("fimc_is_resourcemgr_deinit_dynamic_mem is fail(%d)", ret);
 #endif
-
 
 		current_min = (resourcemgr->cluster0 & CLUSTER_MIN_MASK) >> CLUSTER_MIN_SHIFT;
 		current_max = (resourcemgr->cluster0 & CLUSTER_MAX_MASK) >> CLUSTER_MAX_SHIFT;

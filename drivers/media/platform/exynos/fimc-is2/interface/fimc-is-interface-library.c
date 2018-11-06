@@ -2494,6 +2494,9 @@ int fimc_is_load_bin(void)
 {
 	int ret = 0;
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
+	struct fimc_is_core *core;
+
+	core = (struct fimc_is_core *)platform_get_drvdata(lib->pdev);
 
 	info_lib("binary load start\n");
 
@@ -2570,7 +2573,13 @@ int fimc_is_load_bin(void)
 
 	lib->binary_load_flg = true;
 
-	mblk_init(&lib->mb_dma, lib->minfo->pb_taaisp, MT_TYPE_MB_DMA, "DMA");
+#if defined(SECURE_CAMERA_FACE)
+	if (core && core->scenario == FIMC_IS_SCENARIO_SECURE)
+		mblk_init(&lib->mb_dma, lib->minfo->pb_taaisp_s, MT_TYPE_MB_DMA, "DMA_S");
+	else
+#endif
+		mblk_init(&lib->mb_dma, lib->minfo->pb_taaisp, MT_TYPE_MB_DMA, "DMA");
+
 	mblk_init(&lib->mb_vra, lib->minfo->pb_vra, MT_TYPE_MB_VRA, "VRA");
 
 	spin_lock_init(&lib->slock_nmb);
