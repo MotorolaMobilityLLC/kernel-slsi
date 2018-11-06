@@ -54,6 +54,7 @@
 #define MAIN_SENSOR		1 //CS1
 
 /* Failer Index */
+#define SX933x_ID_SUCCESS 	0
 #define SX933x_ID_ERROR 	1
 #define SX933x_NIRQ_ERROR	2
 #define SX933x_CONN_ERROR	3
@@ -208,7 +209,7 @@ static int sx933x_Hardware_Check(psx93XX_t this)
 		this->failStatusCode = SX933x_I2C_ERROR;
 	}
 
-	if(idCode!= SX933X_WHOAMI_VALUE)
+	if((idCode&0x00003100) != SX933X_WHOAMI_VALUE_ALL)
 	{
 		this->failStatusCode = SX933x_ID_ERROR;
 	}
@@ -301,7 +302,6 @@ static ssize_t manual_offset_calibration_store(struct device *dev,
 
 	return count;
 }
-
 /****************************************************************************/
 static ssize_t sx933x_register_write_store(struct device *dev,
 		struct device_attribute *attr,  const char *buf, size_t count)
@@ -316,7 +316,6 @@ static ssize_t sx933x_register_write_store(struct device *dev,
 	}
 
 	sx933x_i2c_write_16bit(this, reg_address, val);
-
 	LOG_DBG("%s - Register(0x%x) data(0x%x)\n",__func__, reg_address, val);
 	return count;
 }
@@ -341,6 +340,52 @@ static ssize_t sx933x_register_read_store(struct device *dev,
 	LOG_DBG("%s - Register(0x%2x) data(0x%4x) nirq_state(%d)\n",__func__, regist, val, nirq_state);
 	return count;
 }
+static void read_dbg_raw(psx93XX_t this)
+{
+	u32 uData;
+	s32 ref_raw, ant_raw;
+
+	sx933x_i2c_read_16bit(this, 0x81A4, &uData);
+
+	//MANT_MLB
+	uData &= ~(0x7 << 3); //PH0
+	sx933x_i2c_write_16bit(this, 0x81A4, uData);
+	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
+	ant_raw = (s32)uData>>10;
+
+	//MANT_REF
+	uData &= ~(0x7 << 3);
+	uData |= 4 << 3; //PH4
+	sx933x_i2c_write_16bit(this, 0x81A4, uData);
+	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
+	ref_raw = (s32)uData>>10;
+	LOG_DBG("MANT_MLB = %d REF = %d \n", ant_raw, ref_raw);
+
+	//MANT__HB
+	uData &= ~(0x7 << 3);
+	uData |= 1 << 3; //PH1
+	sx933x_i2c_write_16bit(this, 0x81A4, uData);
+	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
+	ant_raw = (s32)uData>>10;
+	LOG_DBG("MANT__HB = %d REF = %d \n", ant_raw, ref_raw);
+
+	//DIV_ANT
+	uData &= ~(0x7 << 3);
+	uData |= 3 << 3; //PH3
+	sx933x_i2c_write_16bit(this, 0x81A4, uData);
+	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
+	ant_raw = (s32)uData>>10;
+
+	//DIV_REF
+	uData &= ~(0x7 << 3);
+	uData |= 2 << 3; //PH2
+	sx933x_i2c_write_16bit(this, 0x81A4, uData);
+	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
+	ref_raw = (s32)uData>>10;
+
+	LOG_DBG("DIV_ANT = %d DIV_REF = %d \n", ant_raw, ref_raw);
+
+}
 
 static void read_rawData(psx93XX_t this)
 {
@@ -350,7 +395,7 @@ static void read_rawData(psx93XX_t this)
 	s32 diff;
 	u32 uData;
 	u16 offset;
-	//s32 state = 0;
+	s32 state = 0;
 
 	if(this)
 	{
@@ -365,13 +410,30 @@ static void read_rawData(psx93XX_t this)
 			diff = (s32)uData>>10;
 			sx933x_i2c_read_16bit(this, SX933X_OFFSETPH0_REG + index*2, &uData);
 			offset = (u16)(uData & 0x7FFF);
-			//state = psmtcButtons[csx].state;
-			LOG_DBG("[PH: %d] Useful = %d Average = %d, DIFF = %d Offset = %d \n",
-					csx,useful,average,diff,offset);
+			state = psmtcButtons[csx].state;
+			LOG_DBG("[PH: %d] Useful = %d Average = %d, DIFF = %d Offset = %d state = %d \n",
+					csx,useful,average,diff,offset, state);
 		}
 	}
-}
+	read_dbg_raw(this);
 
+}
+static ssize_t sx933x_all_reg_data_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	u32 val=0;
+	u16 regist = 0;
+	char *p = buf;
+	int i;
+	psx93XX_t this = dev_get_drvdata(dev);
+	for (i = 0; i < ARRAY_SIZE(sx933x_i2c_reg_setup); i++)
+	{
+		regist = (u16)(sx933x_i2c_reg_setup[i].reg);
+		sx933x_i2c_read_16bit(this, regist, &val);
+		p += snprintf(p, PAGE_SIZE, "reg=(0x%04x)  value=0x%04x\n",
+			regist,val);
+	}
+	return (p-buf);
+}
 static ssize_t sx933x_raw_data_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	char *p = buf;
@@ -390,7 +452,7 @@ static ssize_t sx933x_raw_data_show(struct device *dev, struct device_attribute 
 			diff = (s32)uData>>10;
 			sx933x_i2c_read_16bit(this, SX933X_OFFSETPH0_REG + csx*8, &uData);
 			offset = (u16)(uData & 0x7FFF);
-			p += snprintf(p, PAGE_SIZE, "[PH: %d] Useful = %d, Average = %d, DIFF = %d Offset = %d \n",
+			p += snprintf(p, PAGE_SIZE, "[PH: %d] Useful = %d, Average = %d, DIFF = %d Offset = %d\n",
 					csx,useful,average,diff,offset);
 		}
 	}
@@ -418,7 +480,7 @@ static ssize_t sx933x_hardware_id_show(struct device *dev, struct device_attribu
 	int ret;
 	u32 idCode;
 	u8 loop = 0;
-	int result = 0;
+	int result = 1;
 
 	psx93XX_t this = dev_get_drvdata(dev);
 	this->failStatusCode = 0;
@@ -441,9 +503,9 @@ static ssize_t sx933x_hardware_id_show(struct device *dev, struct device_attribu
 		result = SX933x_I2C_ERROR;
 	}
 
-	if(idCode!= SX933X_WHOAMI_VALUE)
+	if((idCode&0x00003100)== SX933X_WHOAMI_VALUE_ALL)
 	{
-		result = SX933x_ID_ERROR;
+		result = SX933x_ID_SUCCESS;
 	}
 	if(result == 0)
 		result = SX933X_HARDWARE_CHECK_SUCCESS;
@@ -458,6 +520,7 @@ static DEVICE_ATTR(register_read,0664, NULL,sx933x_register_read_store);
 static DEVICE_ATTR(raw_data,0664,sx933x_raw_data_show,NULL);
 static DEVICE_ATTR(diff_data,0664,sx933x_diff_data_show,NULL);
 static DEVICE_ATTR(hardware_id,0664,sx933x_hardware_id_show,NULL);
+static DEVICE_ATTR(all_reg_value,0664,sx933x_all_reg_data_show,NULL);
 
 static struct attribute *sx933x_attributes[] =
 {
@@ -468,6 +531,7 @@ static struct attribute *sx933x_attributes[] =
 	&dev_attr_raw_data.attr,
 	&dev_attr_diff_data.attr,
 	&dev_attr_hardware_id.attr,
+	&dev_attr_all_reg_value.attr,
 	NULL,
 };
 static struct attribute_group sx933x_attr_group =
@@ -638,7 +702,9 @@ static void touchProcess(psx93XX_t this)
 				}
 			} else if (touchFlag == pCurrentButton->ProxMask) {
 				if (pCurrentButton->state == PROXACTIVE)
+				{
 					LOG_DBG(" %s already PROXACTIVE\n", pCurrentButton->name);
+				}
 				else {
 					input_report_abs(input, ABS_DISTANCE, 1);
 					input_sync(input);
@@ -773,7 +839,6 @@ static int capsensor_set_enable(struct sensors_classdev *sensors_cdev,
 	bool disableFlag = true;
 	int i = 0;
 	u32 temp = 0x0;
-
 	for (i = 0; i < ARRAY_SIZE(psmtcButtons); i++) {
 		if (strcmp(sensors_cdev->name, psmtcButtons[i].name) == 0) {
 			if (enable == 1) {
