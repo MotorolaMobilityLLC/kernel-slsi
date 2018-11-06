@@ -155,6 +155,7 @@ struct fimc_is_minfo {
 	struct fimc_is_priv_buf *pb_heap_rta; /* RTA HEAP */
 	struct fimc_is_priv_buf *pb_heap_ddk; /* DDK HEAP */
 	struct fimc_is_priv_buf *pb_taaisp;
+	struct fimc_is_priv_buf *pb_taaisp_s;	/* secure */
 	struct fimc_is_priv_buf *pb_lhfd;
 	struct fimc_is_priv_buf *pb_vra;
 	struct fimc_is_priv_buf *pb_tpu;
@@ -181,6 +182,8 @@ struct fimc_is_minfo {
 
 	dma_addr_t	dvaddr_taaisp;
 	ulong		kvaddr_taaisp;
+	dma_addr_t	dvaddr_taaisp_s;
+	ulong		kvaddr_taaisp_s;
 	dma_addr_t	dvaddr_tpu;
 	ulong		kvaddr_tpu;
 	dma_addr_t	dvaddr_lhfd;	/* FD map buffer region */
