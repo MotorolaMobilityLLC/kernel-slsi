@@ -115,6 +115,8 @@ static const char *cmd_to_string(enum cmd_id id)
 		return "load token";
 	case MC_MCP_CMD_CHECK_LOAD_TA:
 		return "check load TA";
+	case MC_MCP_CMD_LOAD_SYSENC_KEY_SO:
+		return "load Key SO";
 	}
 	return "unknown";
 }
@@ -526,6 +528,19 @@ int mcp_load_check(const struct tee_object *obj,
 	header = (union mclf_header *)(obj->data + obj->header_length);
 	cmd.cmd_check_load.uuid = header->mclf_header_v2.uuid;
 	return mcp_cmd(&cmd, 0, NULL, &cmd.cmd_check_load.uuid);
+}
+
+int mcp_load_key_so(uintptr_t data, const struct mcp_buffer_map *map)
+{
+	union mcp_message cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.cmd_header.cmd_id = MC_MCP_CMD_LOAD_SYSENC_KEY_SO;
+	cmd.cmd_load_key_so.wsm_data_type = map->type;
+	cmd.cmd_load_key_so.adr_load_data = map->addr;
+	cmd.cmd_load_key_so.ofs_load_data = map->offset;
+	cmd.cmd_load_key_so.len_load_data = map->length;
+	return mcp_cmd(&cmd, 0, NULL, NULL);
 }
 
 int mcp_open_session(struct mcp_session *session, struct mcp_open_info *info,

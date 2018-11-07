@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 TRUSTONIC LIMITED
+ * Copyright (c) 2013-2018 TRUSTONIC LIMITED
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +32,8 @@
 	defined(CONFIG_SOC_EXYNOS5433) || defined(CONFIG_SOC_EXYNOS7870) || \
 	defined(CONFIG_SOC_EXYNOS8890) || defined(CONFIG_SOC_EXYNOS7880) || defined(CONFIG_SOC_EXYNOS8895)
 #define MC_INTR_SSIQ	255
+#elif defined(CONFIG_SOC_EXYNOS7885)
+#define MC_INTR_SSIQ	97
 #elif defined(CONFIG_SOC_EXYNOS7420) || defined(CONFIG_SOC_EXYNOS7580)
 #define MC_INTR_SSIQ	246
 #endif

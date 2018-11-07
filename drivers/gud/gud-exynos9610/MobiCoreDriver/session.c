@@ -85,6 +85,11 @@ static int wsm_create(struct tee_session *session, struct tee_wsm *wsm,
 		return -EINVAL;
 	}
 
+	if (buf->len > BUFFER_LENGTH_MAX) {
+		mc_dev_err(-EINVAL, "buffer size %u too big", buf->len);
+		return -EINVAL;
+	}
+
 	wsm->mmu = client_mmu_create(session->client, buf, &wsm->cbuf);
 	if (IS_ERR(wsm->mmu))
 		return PTR_ERR(wsm->mmu);
@@ -326,8 +331,10 @@ static int check_prepare_identity(const struct mc_identity *identity,
 	struct mc_identity *mcp_id = (struct mc_identity *)mcp_identity;
 	u8 hash[SHA1_HASH_SIZE] = { 0 };
 	bool application = false;
+	bool supplied_ca_identity = false;
 	const void *data;
 	unsigned int data_len;
+	static const u8 zero_buffer[sizeof(identity->login_data)] = { 0 };
 
 	/* Copy login type */
 	mcp_identity->login_type = identity->login_type;
@@ -365,16 +372,21 @@ static int check_prepare_identity(const struct mc_identity *identity,
 
 	switch (identity->login_type) {
 	case LOGIN_PUBLIC:
-	case LOGIN_USER:
 	case LOGIN_GROUP:
+		break;
+	case LOGIN_USER:
+		data = NULL;
+		data_len = 0;
 		break;
 	case LOGIN_APPLICATION:
 		application = true;
+		supplied_ca_identity = true;
 		data = NULL;
 		data_len = 0;
 		break;
 	case LOGIN_USER_APPLICATION:
 		application = true;
+		supplied_ca_identity = true;
 		data = &mcp_id->uid;
 		data_len = sizeof(mcp_id->uid);
 		break;
@@ -390,7 +402,17 @@ static int check_prepare_identity(const struct mc_identity *identity,
 		return -EINVAL;
 	}
 
-	if (application) {
+	/* let the supplied login_data pass through if it is LOGIN_APPLICATION
+	 * or LOGIN_USER_APPLICATION and not a zero-filled buffer
+	 * That buffer is expected to contain a NWd computed hash containing the
+	 * CA identity
+	 */
+	if (supplied_ca_identity &&
+	    memcmp(identity->login_data, zero_buffer,
+		   sizeof(identity->login_data)) != 0) {
+		memcpy(&mcp_id->login_data, identity->login_data,
+		       sizeof(mcp_id->login_data));
+	} else if (application) {
 		int ret = hash_path_and_data(task, hash, data, data_len);
 
 		if (ret) {

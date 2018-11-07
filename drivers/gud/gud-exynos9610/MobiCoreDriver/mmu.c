@@ -124,6 +124,23 @@ static inline long gup_local(struct mm_struct *mm, uintptr_t start,
 }
 #endif
 
+static inline long gup_local_repeat(struct mm_struct *mm, uintptr_t start,
+				    unsigned long nr_pages, int write,
+				    struct page **pages)
+{
+	int retries = 10;
+	long ret = 0;
+
+	while (retries--) {
+		ret = gup_local(mm, start, nr_pages, write, pages);
+
+		if (-EBUSY != ret)
+			break;
+	}
+
+	return ret;
+}
+
 /*
  * A table that could be either a pmd or pte
  */
@@ -453,16 +470,17 @@ struct tee_mmu *tee_mmu_create(struct mm_struct *mm,
 			 * Linux creates (page faults) the underlying pages if
 			 * missing.
 			 */
-			gup_ret = gup_local(mm, (uintptr_t)reader,
-					    nr_pages, 1, pages);
+			gup_ret = gup_local_repeat(mm, (uintptr_t)reader,
+						   nr_pages, 1, pages);
 			if ((gup_ret == -EFAULT) && !writeable) {
 				/*
 				 * If mapping read/write fails, and the buffer
 				 * is to be shared as input only, try to map
 				 * again read-only.
 				 */
-				gup_ret = gup_local(mm, (uintptr_t)reader,
-						    nr_pages, 0, pages);
+				gup_ret = gup_local_repeat(mm,
+							   (uintptr_t)reader,
+							   nr_pages, 0, pages);
 			}
 			up_read(&mm->mmap_sem);
 			if (gup_ret < 0) {

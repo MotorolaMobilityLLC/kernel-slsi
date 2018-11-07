@@ -23,7 +23,6 @@
 
 #include "public/mc_user.h"
 #include "public/mc_admin.h"		/* MC_ADMIN_DEVNODE */
-#include "public/mc_linux_api.h"	/* mc_switch_core */
 
 #include "platform.h"			/* MC_PM_RUNTIME */
 #include "main.h"
@@ -38,6 +37,7 @@
 #include "xen_fe.h"
 #include "build_tag.h"
 
+/* ExySp */
 #define MC_DEVICE_PROPNAME "samsung,exynos-tee"
 
 /* Default entry for our driver in device tree */
@@ -236,43 +236,6 @@ static ssize_t debug_struct_counters_read(struct file *file,
 static const struct file_operations debug_struct_counters_ops = {
 	.read = debug_struct_counters_read,
 	.llseek = default_llseek,
-};
-
-static ssize_t debug_coreswitch_write(struct file *file,
-				      const char __user *buffer,
-				      size_t buffer_len, loff_t *ppos)
-{
-	int new_cpu = 0;
-
-	/* Invalid data, nothing to do */
-	if (buffer_len < 1)
-		return -EINVAL;
-
-	if (kstrtoint_from_user(buffer, buffer_len, 0, &new_cpu))
-		return -EINVAL;
-
-	mc_dev_devel("set active cpu to %d", new_cpu);
-	mc_switch_core(new_cpu);
-	return buffer_len;
-}
-
-static ssize_t debug_coreswitch_read(struct file *file, char __user *buffer,
-				     size_t buffer_len, loff_t *ppos)
-{
-	char cpu_str[8];
-	int ret = 0;
-
-	ret = snprintf(cpu_str, sizeof(cpu_str), "%d\n", mc_active_core());
-	if (ret < 0)
-		return -EINVAL;
-
-	return simple_read_from_buffer(buffer, buffer_len, ppos,
-				       cpu_str, ret);
-}
-
-static const struct file_operations debug_coreswitch_ops = {
-	.write = debug_coreswitch_write,
-	.read = debug_coreswitch_read,
 };
 
 static inline int device_user_init(void)
@@ -652,8 +615,6 @@ static int mobicore_probe(struct platform_device *pdev)
 	/* Create debugfs info entries */
 	debugfs_create_file("structs_counters", 0400, g_ctx.debug_dir, NULL,
 			    &debug_struct_counters_ops);
-	debugfs_create_file("active_cpu", 0600, g_ctx.debug_dir, NULL,
-			    &debug_coreswitch_ops);
 
 	/* Initialize common API layer */
 	client_init();
@@ -686,19 +647,18 @@ static int mobicore_probe(struct platform_device *pdev)
 		ret = device_admin_init();
 		if (ret)
 			goto err_admin;
-	}
 
 #ifndef MC_DELAYED_TEE_START
-	ret = mobicore_start();
+		ret = mobicore_start();
 #endif
-	if (ret)
-		goto err_start;
+		if (ret)
+			goto err_start;
+	}
 
 	return 0;
 
 err_start:
-	if (!is_xen_domu())
-		device_admin_exit();
+	device_admin_exit();
 err_admin:
 	device_common_exit();
 err_common:

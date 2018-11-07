@@ -35,5 +35,6 @@ config TRUSTONIC_TRUSTED_UI_FB_BLANK
     ---help---
     Blank the framebuffer before starting a TUI session
 
+#ExySp
 source "drivers/gud/gud-exynos9610/sec-os-ctrl/Kconfig"
 source "drivers/gud/gud-exynos9610/sec-os-booster/Kconfig"

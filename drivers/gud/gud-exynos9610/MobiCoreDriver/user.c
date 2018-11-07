@@ -384,8 +384,11 @@ static int user_mmap(struct file *file, struct vm_area_struct *vmarea)
 {
 	struct tee_client *client = get_client(file);
 
-	if ((vmarea->vm_end - vmarea->vm_start) > BUFFER_LENGTH_MAX)
+	if ((vmarea->vm_end - vmarea->vm_start) > BUFFER_LENGTH_MAX) {
+		mc_dev_err(-EINVAL, "buffer size %lu too big",
+			   vmarea->vm_end - vmarea->vm_start);
 		return -EINVAL;
+	}
 
 	/* Alloc contiguous buffer for this client */
 	return client_cbuf_create(client,
