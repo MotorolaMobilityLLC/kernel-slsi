@@ -18,6 +18,7 @@
 #include <linux/exynos_iovmm.h>
 #include <asm/cacheflush.h>
 #include <linux/idr.h>
+#include <linux/ion_exynos.h>
 
 #include "ion.h"
 #include "ion_exynos.h"
@@ -78,24 +79,16 @@ static struct ion_iovm_map *ion_buffer_iova_create(struct ion_buffer *buffer,
 	return iovm_map;
 }
 
-dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
-			 off_t offset, size_t size,
-			 enum dma_data_direction direction, int prop)
-{
-	struct ion_buffer *buffer = attachment->dmabuf->priv;
+static dma_addr_t __ion_iovmm_map(struct dma_buf_attachment *attachment,
+				  off_t offset, size_t size,
+				  enum dma_data_direction direction, int prop)
+{	struct ion_buffer *buffer = attachment->dmabuf->priv;
 	struct ion_iovm_map *iovm_map;
 	struct iommu_domain *domain;
 
 	ion_event_begin();
 
 	BUG_ON(attachment->dmabuf->ops != &ion_dma_buf_ops);
-
-	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) &&
-				(buffer->flags & ION_FLAG_PROTECTED)) {
-		struct ion_buffer_prot_info *prot = buffer->priv_virt;
-
-		return prot->dma_addr;
-	}
 
 	domain = get_domain_from_dev(attachment->dev);
 	if (!domain) {
@@ -134,23 +127,57 @@ dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
 	return iovm_map->iova;
 }
 
-/* unmapping is deferred until buffer is freed for performance */
-void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
+dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
+			 off_t offset, size_t size,
+			 enum dma_data_direction direction, int prop)
 {
 	struct ion_buffer *buffer = attachment->dmabuf->priv;
-	struct ion_iovm_map *iovm_map;
-	struct iommu_domain *domain;
+	dma_addr_t iova;
 
 	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) &&
 	    (buffer->flags & ION_FLAG_PROTECTED)) {
 		struct ion_buffer_prot_info *prot = buffer->priv_virt;
 
-		if (prot->dma_addr != iova)
-			WARN(1, "unmap invalid secure iova %pad for %#x\n",
-			     &iova, (int)prot->dma_addr);
-
-		return;
+		iova = prot->dma_addr;
+	} else {
+		iova = __ion_iovmm_map(attachment, offset, size,
+				       direction, prop);
 	}
+
+	return iova;
+}
+
+dma_addr_t ion_iovmm_map_attr(struct dma_buf_attachment *attachment,
+			      off_t offset, size_t size,
+			      enum dma_data_direction direction, int prop,
+			      int map_attr)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+	dma_addr_t iova = -EINVAL;
+
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) &&
+	    (map_attr & IOMMU_EXYNOS_SECURE)) {
+		struct ion_buffer_prot_info *prot = buffer->priv_virt;
+
+		if (!(buffer->flags & ION_FLAG_PROTECTED))
+			perrfndev(attachment->dev,
+				  "No secure address for normal buffer");
+		else
+			iova = prot->dma_addr;
+	} else {
+		iova = __ion_iovmm_map(attachment, offset, size,
+				       direction, prop);
+	}
+
+	return iova;
+}
+
+/* unmapping is deferred until buffer is freed for performance */
+void __ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+	struct ion_iovm_map *iovm_map;
+	struct iommu_domain *domain;
 
 	domain = get_domain_from_dev(attachment->dev);
 	if (!domain) {
@@ -169,6 +196,44 @@ void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
 
 	WARN(1, "iova %pad not found for %s\n",
 	     &iova, dev_name(attachment->dev));
+}
+
+void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) &&
+	    (buffer->flags & ION_FLAG_PROTECTED)) {
+		struct ion_buffer_prot_info *prot = buffer->priv_virt;
+
+		if (prot->dma_addr != iova)
+			WARN(1, "unmap invalid secure iova %pad for %#x\n",
+			     &iova, (int)prot->dma_addr);
+	} else {
+		__ion_iovmm_unmap(attachment, iova);
+	}
+}
+
+void ion_iovmm_unmap_attr(struct dma_buf_attachment *attachment,
+			  dma_addr_t iova, int map_attr)
+{
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) &&
+	    (map_attr & IOMMU_EXYNOS_SECURE)) {
+		struct ion_buffer_prot_info *prot = buffer->priv_virt;
+
+		if (!(buffer->flags & ION_FLAG_PROTECTED)) {
+			perrfndev(attachment->dev,
+				  "No secure iova for normal buffer(%#lx)%#x",
+				  buffer->flags, map_attr);
+		} else if (prot->dma_addr != iova) {
+			WARN(1, "unmap invalid secure iova %pad for %#x\n",
+			     &iova, (int)prot->dma_addr);
+		}
+	} else {
+		__ion_iovmm_unmap(attachment, iova);
+	}
 }
 
 #define MAX_BUFFER_IDS 2048
