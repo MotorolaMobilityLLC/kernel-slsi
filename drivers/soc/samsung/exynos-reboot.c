@@ -349,6 +349,8 @@ static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 			__raw_writel(0x77665507, restart_reason);
 		} else if (!strncmp(cmd, "post-panic", 10)) {
 			__raw_writel(0x77665506, restart_reason);
+		} else if (!strncmp(cmd, "panic", 5)) {
+			__raw_writel(0x77665505, restart_reason);
 		} else {
 			__raw_writel(0x77665501, restart_reason);
 		}
