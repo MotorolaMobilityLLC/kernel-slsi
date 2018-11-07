@@ -128,6 +128,9 @@ struct exynos_platform_fimc_is_module {
 	u32 preprocessor_i2c_addr;
 	u32 preprocessor_i2c_ch;
 	u32 preprocessor_dma_channel;
+	u32 eeprom_product_name;
+	u32 eeprom_i2c_ch;
+	u32 eeprom_i2c_addr;
 	bool power_seq_dt;
 	u32 internal_vc[CSI_VIRTUAL_CH_MAX];
 	u32 vc_buffer_offset[CSI_VIRTUAL_CH_MAX];

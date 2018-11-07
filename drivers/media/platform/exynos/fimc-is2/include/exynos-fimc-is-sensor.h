@@ -238,6 +238,13 @@ enum aperture_name {
 	APERTURE_NAME_NOTHING	= 100,
 };
 
+enum eeprom_name {
+	EEPROM_NAME_GM1		= 1,
+	EEPROM_NAME_5E9		= 2,
+	EEPROM_NAME_END,
+	EEPROM_NAME_NOTHING	= 100,
+};
+
 enum sensor_peri_type {
 	SE_NULL		= 0,
 	SE_I2C		= 1,
@@ -321,6 +328,7 @@ struct sensor_open_extended {
 	struct sensor_protocol1 ois_con;
 	struct sensor_protocol1 aperture_con;
 	struct sensor_protocol1 mcu_con;
+	struct sensor_protocol1 eeprom_con;
 	u32 mclk;
 	u32 mipi_lane_num;
 	u32 mipi_speed;
