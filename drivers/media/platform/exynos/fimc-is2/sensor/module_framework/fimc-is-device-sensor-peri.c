@@ -182,6 +182,37 @@ struct fimc_is_device_sensor_peri *find_peri_by_ois_id(struct fimc_is_device_sen
 	return sensor_peri;
 }
 
+struct fimc_is_device_sensor_peri *find_peri_by_eeprom_id(struct fimc_is_device_sensor *device,
+							u32 eeprom)
+{
+	u32 mindex = 0, mmax = 0;
+	struct fimc_is_module_enum *module_enum = NULL;
+	struct fimc_is_resourcemgr *resourcemgr = NULL;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+
+	FIMC_BUG_NULL(!device);
+	resourcemgr = device->resourcemgr;
+	module_enum = device->module_enum;
+	FIMC_BUG_NULL(!module_enum);
+
+	if (unlikely(resourcemgr == NULL))
+		return NULL;
+
+	mmax = atomic_read(&device->module_count);
+	for (mindex = 0; mindex < mmax; mindex++) {
+		if (module_enum[mindex].ext.eeprom_con.product_name == eeprom) {
+			sensor_peri = (struct fimc_is_device_sensor_peri *)module_enum[mindex].private_data;
+			break;
+		}
+	}
+
+	if (mindex >= mmax) {
+		merr("eeprom(%d) is not found", device, eeprom);
+	}
+
+	return sensor_peri;
+}
+
 static void fimc_is_sensor_init_expecting_dm(struct fimc_is_device_sensor *device,
 	struct fimc_is_cis *cis)
 {

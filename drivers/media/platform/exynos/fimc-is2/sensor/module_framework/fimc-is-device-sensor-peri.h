@@ -178,6 +178,19 @@ struct fimc_is_aperture {
 	struct work_struct		aperture_set_work;
 };
 
+struct fimc_is_eeprom {
+	u32				id;
+	struct v4l2_subdev			*subdev; /* connected module subdevice */
+	u32					device; /* connected sensor device */
+	struct i2c_client			*client;
+	struct fimc_is_eeprom_ops		*eeprom_ops;
+	struct fimc_is_device_sensor_peri	*sensor_peri;
+	struct mutex				*i2c_lock;
+
+	char					*data;
+	u32					total_size;
+};
+
 #define FLASH_LED_CH_MAX	(4)
 struct fimc_is_flash_data {
 	enum flash_mode			mode;
@@ -409,6 +422,9 @@ struct fimc_is_device_sensor_peri {
 	struct fimc_is_mcu		*mcu;
 	struct v4l2_subdev		*subdev_mcu;
 
+	struct fimc_is_eeprom		*eeprom;
+	struct v4l2_subdev		*subdev_eeprom;
+
 	unsigned long			peri_state;
 
 	/* Thread for sensor and high spped recording setting */
@@ -447,6 +463,8 @@ struct fimc_is_device_sensor_peri *find_peri_by_preprocessor_id(struct fimc_is_d
 							u32 preprocessor);
 struct fimc_is_device_sensor_peri *find_peri_by_ois_id(struct fimc_is_device_sensor *device,
 							u32 ois);
+struct fimc_is_device_sensor_peri *find_peri_by_eeprom_id(struct fimc_is_device_sensor *device,
+							u32 eeprom);
 
 void fimc_is_sensor_set_cis_uctrl_list(struct fimc_is_device_sensor_peri *sensor_peri,
 		u32 long_exp, u32 short_exp,
@@ -512,4 +530,5 @@ void fimc_is_sensor_peri_init_work(struct fimc_is_device_sensor_peri *sensor_per
 #define CALL_APERTUREOPS(s, op, args...) (((s)->aperture_ops->op) ? ((s)->aperture_ops->op(args)) : 0)
 #define CALL_PDPOPS(s, op, args...) (((s)->pdp_ops->op) ? ((s)->pdp_ops->op(args)) : 0)
 #define CALL_PAFSTATOPS(s, op, args...) (((s)->pafstat_ops->op) ? ((s)->pafstat_ops->op(args)) : 0)
+#define CALL_EEPROMOPS(s, op, args...) (((s)->eeprom_ops->op) ? ((s)->eeprom_ops->op(args)) : 0)
 #endif
