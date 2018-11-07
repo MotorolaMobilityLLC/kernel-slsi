@@ -48,10 +48,18 @@ static inline bool ion_cached_hwrender(struct dma_buf *dmabuf)
 #endif
 
 #if defined(CONFIG_EXYNOS_IOVMM) && defined(CONFIG_ION_EXYNOS)
+#define IOMMU_EXYNOS_SECURE	(1 << 0)
+
 dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
 			 off_t offset, size_t size,
 			 enum dma_data_direction direction, int prop);
 void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova);
+dma_addr_t ion_iovmm_map_attr(struct dma_buf_attachment *attachment,
+			      off_t offset, size_t size,
+			      enum dma_data_direction direction, int prop,
+			      int map_attr);
+void ion_iovmm_unmap_attr(struct dma_buf_attachment *attachment,
+			  dma_addr_t iova, int map_attr);
 #else
 static inline dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
 				       off_t offset, size_t size,
@@ -61,6 +69,15 @@ static inline dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
 	return -ENODEV;
 }
 #define ion_iovmm_unmap(attachment, iova) do { } while (0)
+static inline dma_addr_t ion_iovmm_map_attr(struct dma_buf_attachment *attachment,
+					    off_t offset, size_t size,
+					    enum dma_data_direction direction,
+					    int prop, int map_attr)
+{
+	return -ENODEV;
+}
+#define ion_iovmm_unmap(attachment, iova, map_attr) do { } while (0)
+
 #endif
 
 #endif /* __LINUX_ION_EXYNOS_H__ */
