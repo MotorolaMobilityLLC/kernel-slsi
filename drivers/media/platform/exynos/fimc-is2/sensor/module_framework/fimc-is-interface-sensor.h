@@ -460,6 +460,7 @@ enum fimc_is_sensor_peri_state {
 	FIMC_IS_SENSOR_PDP_AVAILABLE,
 	FIMC_IS_SENSOR_APERTURE_AVAILABLE,
 	FIMC_IS_SENSOR_PAFSTAT_AVAILABLE,
+	FIMC_IS_SENSOR_EEPROM_AVAILABLE,
 };
 
 enum fimc_is_actuator_pos_size_bit {
@@ -984,6 +985,19 @@ struct fimc_is_dual_interface_ops {
 	int (*set_reuse_ae_exposure)(struct fimc_is_sensor_interface *itf,
 				u32 ae_exposure, u32 ae_deltaev);
 	int (*reserved[2])(struct fimc_is_sensor_interface *itf);
+};
+
+struct fimc_is_eeprom_ops {
+	int (*eeprom_read)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_all_crc)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_info)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_awb)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_af)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_ae)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_lsc)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_ois)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_pdaf)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_dual)(struct v4l2_subdev *subdev);
 };
 
 struct fimc_is_sensor_interface {
