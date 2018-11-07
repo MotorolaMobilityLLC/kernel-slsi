@@ -416,6 +416,8 @@ struct fimc_is_device_sensor {
 	struct v4l2_subdev				*subdev_mcu;
 	struct fimc_is_mcu				*mcu;
 	struct v4l2_subdev				*subdev_aperture;
+	struct v4l2_subdev				*subdev_eeprom;
+	struct fimc_is_eeprom				*eeprom;
 	struct fimc_is_aperture				*aperture;
 	void						*private_data;
 	struct fimc_is_group				group_sensor;
