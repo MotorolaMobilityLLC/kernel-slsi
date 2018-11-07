@@ -39,6 +39,10 @@ static struct {
 	/* GP operations */
 	struct mutex		gp_operations_lock;
 	struct list_head	gp_operations;
+	/* Last back-end state,
+	 * to overcome an issue in some Xen implementations
+	 */
+	int			last_be_state;
 } l_ctx;
 
 struct xen_fe_mc_session {
@@ -1131,6 +1135,13 @@ static void xen_fe_backend_changed(struct xenbus_device *xdev,
 	struct tee_xfe *xfe = l_ctx.xfe;
 
 	mc_dev_devel("be state changed to %d", be_state);
+
+	if (be_state == l_ctx.last_be_state) {
+		/* Protection against duplicated notifications (TBUG-1387) */
+		mc_dev_devel("be state (%d) already set... ignoring", be_state);
+		return;
+	}
+
 	switch (be_state) {
 	case XenbusStateUnknown:
 	case XenbusStateInitialising:
@@ -1149,6 +1160,9 @@ static void xen_fe_backend_changed(struct xenbus_device *xdev,
 	case XenbusStateReconfigured:
 		break;
 	}
+
+	/* Refresh last back-end state */
+	l_ctx.last_be_state = be_state;
 }
 
 static struct xenbus_driver xen_fe_driver = {

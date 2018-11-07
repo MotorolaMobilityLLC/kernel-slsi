@@ -798,6 +798,26 @@ static inline int load_check(struct mc_admin_load_info *info)
 	return ret;
 }
 
+static inline int load_key_so(struct mc_admin_load_info *key_so)
+{
+	struct tee_mmu *mmu;
+	struct mcp_buffer_map map;
+	struct mc_ioctl_buffer buf;
+	int ret;
+
+	buf.va = (uintptr_t)key_so->address;
+	buf.len = key_so->length;
+	buf.flags = MC_IO_MAP_INPUT;
+	mmu = tee_mmu_create(current->mm, &buf);
+	if (IS_ERR(mmu))
+		return PTR_ERR(mmu);
+
+	tee_mmu_buffer(mmu, &map);
+	ret = mcp_load_key_so(key_so->address, &map);
+	tee_mmu_put(mmu);
+	return ret;
+}
+
 static ssize_t admin_write(struct file *file, const char __user *user,
 			   size_t len, loff_t *off)
 {
@@ -1017,6 +1037,17 @@ static long admin_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		ret = load_check(&info);
+		break;
+	}
+	case MC_ADMIN_IO_LOAD_KEY_SO: {
+		struct mc_admin_load_info info;
+
+		if (copy_from_user(&info, uarg, sizeof(info))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = load_key_so(&info);
 		break;
 	}
 	default:

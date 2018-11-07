@@ -37,14 +37,12 @@
 #define MC_FC_INIT	MC_FC_STD32(1)  /**< Initializing FastCall. */
 #define MC_FC_INFO	MC_FC_STD32(2)  /**< Info FastCall. */
 #define MC_FC_MEM_TRACE	MC_FC_STD32(10)  /**< Enable SWd tracing via memory */
-#define MC_FC_SWAP_CPU	MC_FC_STD32(54)  /**< Change new active Core */
 
 #else
 
 #define MC_FC_INIT	((u32)(-1))  /**< Initializing FastCall. */
 #define MC_FC_INFO	((u32)(-2))  /**< Info FastCall. */
 #define MC_FC_MEM_TRACE	((u32)(-31))  /**< Enable SWd tracing via memory */
-#define MC_FC_SWAP_CPU	((u32)(0x84000005))  /**< Change new active Core */
 
 #endif
 
@@ -129,6 +127,10 @@
 #define MC_EXT_INFO_ID_MC_EXC_UUID1	24
 #define MC_EXT_INFO_ID_MC_EXC_UUID2	25
 #define MC_EXT_INFO_ID_MC_EXC_UUID3	26
+/**< MobiCore exception handler last crashing task offset */
+#define MC_EXT_INFO_ID_TASK_OFFSET	27
+/**< MobiCore exception handler last crashing task's mclib offset */
+#define MC_EXT_INFO_ID_MCLIB_OFFSET	28
 
 /** @} */
 

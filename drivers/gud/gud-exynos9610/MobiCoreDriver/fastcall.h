@@ -21,7 +21,6 @@ int fc_trace_init(phys_addr_t buffer, u32 size);
 int fc_trace_deinit(void);
 int fc_nsiq(u32 session_id, u32 payload);
 int fc_yield(u32 timeslice);
-int fc_switch_core(int core_id);
 
 int mc_fastcall_debug_smclog(struct kasnprintf_buf *buf);
 

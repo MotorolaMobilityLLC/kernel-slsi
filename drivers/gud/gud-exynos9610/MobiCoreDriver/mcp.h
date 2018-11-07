@@ -93,6 +93,7 @@ int mcp_get_version(struct mc_version_info *version_info);
 int mcp_load_token(uintptr_t data, const struct mcp_buffer_map *buffer_map);
 int mcp_load_check(const struct tee_object *obj,
 		   const struct mcp_buffer_map *buffer_map);
+int mcp_load_key_so(uintptr_t data, const struct mcp_buffer_map *buffer_map);
 int mcp_open_session(struct mcp_session *session, struct mcp_open_info *info,
 		     bool *tci_in_use);
 int mcp_close_session(struct mcp_session *session);

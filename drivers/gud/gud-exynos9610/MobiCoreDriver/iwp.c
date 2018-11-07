@@ -414,9 +414,19 @@ static int iwp_operation_to_iws(struct gp_operation *operation,
 		case TEEC_MEMREF_TEMP_OUTPUT:
 		case TEEC_MEMREF_TEMP_INOUT:
 			if (operation->params[i].tmpref.buffer) {
+				struct gp_temp_memref *tmpref;
+
+				tmpref = &operation->params[i].tmpref;
 				/* Prepare buffer to map */
-				bufs[i].va = operation->params[i].tmpref.buffer;
-				bufs[i].len = operation->params[i].tmpref.size;
+				bufs[i].va = tmpref->buffer;
+				if (tmpref->size > BUFFER_LENGTH_MAX) {
+					mc_dev_err(-EINVAL,
+						   "buffer size %llu too big",
+						   tmpref->size);
+					return -EINVAL;
+				}
+
+				bufs[i].len = tmpref->size;
 				if (param_type == TEEC_MEMREF_TEMP_INPUT)
 					bufs[i].flags = MC_IO_MAP_INPUT;
 				else if (param_type == TEEC_MEMREF_TEMP_OUTPUT)

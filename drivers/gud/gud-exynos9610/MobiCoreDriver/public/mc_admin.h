@@ -76,6 +76,8 @@ struct mc_admin_load_info {
 	_IOW(MC_IOC_MAGIC, 3, struct mc_admin_load_info)
 #define MC_ADMIN_IO_LOAD_CHECK \
 	_IOW(MC_IOC_MAGIC, 4, struct mc_admin_load_info)
+#define MC_ADMIN_IO_LOAD_KEY_SO \
+	_IOW(MC_IOC_MAGIC, 5, struct mc_admin_load_info)
 
 #ifdef __cplusplus
 }

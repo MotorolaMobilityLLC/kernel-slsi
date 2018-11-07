@@ -12,7 +12,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/cpu.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -29,7 +28,6 @@
 #include "platform.h"			/* CPU-related information */
 
 #include "public/mc_user.h"
-#include "public/mc_linux_api.h"	/* mc_switch_core */
 
 #include "mci/mcifc.h"
 #include "mci/mciiwp.h"
@@ -46,16 +44,6 @@
 #define NQ_NUM_ELEMS		64
 #define SCHEDULING_FREQ		5	/**< N-SIQ every n-th time */
 #define DEFAULT_TIMEOUT_MS	20000	/* We do nothing on timeout anyway */
-
-/* If not forced by platform header, use defaults below */
-
-#ifndef CPU_IDS
-#define CPU_IDS { 0x0000, 0x0001, 0x0002, 0x0003, \
-		  0x0100, 0x0101, 0x0102, 0x0103, \
-		  0x0200, 0x0201, 0x0202, 0x0203 }
-#endif
-
-static const u32 cpu_ids[] = CPU_IDS;
 
 static struct {
 	struct mutex buffer_mutex;	/* Lock on SWd communication buffer */
@@ -91,8 +79,6 @@ static struct {
 	struct mcp_time		*time;
 
 	/* Scheduler */
-	int			active_cpu;	/* We always start on CPU #0 */
-	int			next_cpu;	/* If core switch required */
 	struct task_struct	*tee_scheduler_thread;
 	bool			tee_scheduler_run;
 	bool			tee_hung;
@@ -117,68 +103,6 @@ static struct {
 	u32			log_buffer_size;
 	bool			log_buffer_busy;
 } l_ctx;
-
-#ifdef MC_SMC_FASTCALL
-static inline int nq_set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
-{
-	return 0;
-}
-#else /* MC_SMC_FASTCALL */
-static inline int nq_set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
-{
-	return set_cpus_allowed_ptr(p, &new_mask);
-}
-#endif /* ! MC_SMC_FASTCALL */
-
-static inline int switch_to_online_core(int dying_cpu)
-{
-	int cpu;
-
-	if (l_ctx.active_cpu != dying_cpu) {
-		mc_dev_devel("not active CPU, no action taken");
-		return 0;
-	}
-
-	/* Chose the first online CPU and switch! */
-	for_each_online_cpu(cpu) {
-		if (cpu != dying_cpu) {
-			mc_dev_info("CPU #%d is dying, switching to CPU #%d",
-				    dying_cpu, cpu);
-			return mc_switch_core(cpu);
-		}
-
-		mc_dev_devel("skipping CPU #%d", dying_cpu);
-	}
-
-	return 0;
-}
-
-#if KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE
-static int cpu_notifer_callback(struct notifier_block *nfb,
-				unsigned long action, void *hcpu)
-{
-	int cpu = (int)(uintptr_t)hcpu;
-
-	switch (action) {
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-		mc_dev_devel("CPU #%d is going to die", cpu);
-		switch_to_online_core(cpu);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block cpu_notifer = {
-	.notifier_call = cpu_notifer_callback,
-};
-#else
-static int nq_cpu_down_prep(unsigned int cpu)
-{
-	mc_dev_devel("CPU #%d is going to die", cpu);
-	return switch_to_online_core(cpu);
-}
-#endif
 
 static inline bool is_iwp_id(u32 id)
 {
@@ -514,6 +438,12 @@ static void nq_dump_status(void)
 		{ MC_EXT_INFO_ID_MC_EXC_IPCMSG, "mcExcep.cause"},
 		/**< MobiCore exception handler last IPC data */
 		{MC_EXT_INFO_ID_MC_EXC_IPCDATA, "mcExcep.meta"},
+		/**< MobiCore last crashing task offset */
+		{MC_EXT_INFO_ID_TASK_OFFSET,
+		"faultRec.offset.task"},
+		/**< MobiCore last crashing task's mcLib offset */
+		{MC_EXT_INFO_ID_MCLIB_OFFSET,
+		"faultRec.offset.mclib"},
 	};
 
 	char uuid_str[33];
@@ -538,9 +468,9 @@ static void nq_dump_status(void)
 		if (fc_info(status_map[i].index, NULL, &info))
 			return;
 
-		mc_dev_info("  %-20s= 0x%08x", status_map[i].msg, info);
+		mc_dev_info("  %-22s= 0x%08x", status_map[i].msg, info);
 		if (ret >= 0)
-			ret = kasnprintf(&l_ctx.dump, "%-20s= 0x%08x\n",
+			ret = kasnprintf(&l_ctx.dump, "%-22s= 0x%08x\n",
 					 status_map[i].msg, info);
 	}
 
@@ -558,9 +488,9 @@ static void nq_dump_status(void)
 		}
 	}
 
-	mc_dev_info("  %-20s= 0x%s", "mcExcep.uuid", uuid_str);
+	mc_dev_info("  %-22s= 0x%s", "mcExcep.uuid", uuid_str);
 	if (ret >= 0)
-		ret = kasnprintf(&l_ctx.dump, "%-20s= 0x%s\n", "mcExcep.uuid",
+		ret = kasnprintf(&l_ctx.dump, "%-22s= 0x%s\n", "mcExcep.uuid",
 				 uuid_str);
 
 	if (ret < 0) {
@@ -846,36 +776,13 @@ static inline bool tee_sleep(s32 timeout_ms)
 	return timeout_ms == 0;
 }
 
-static inline int nq_switch_core(void)
-{
-	int cpu = l_ctx.next_cpu;
-	int core_id;
-	int ret;
-
-	if (cpu < 0 || cpu >= nr_cpu_ids || !cpu_online(cpu))
-		return -EINVAL;
-
-	core_id = cpu_ids[cpu];
-	ret = fc_switch_core(core_id);
-	logging_run();
-	if (ret) {
-		mc_dev_err(ret, "failed to switch core from %d to %d",
-			   l_ctx.active_cpu, cpu);
-		return ret;
-	}
-
-	mc_dev_devel("switched core from %d to %d", l_ctx.active_cpu, cpu);
-	l_ctx.active_cpu = cpu;
-	return ret;
-}
-
 /*
  * This thread, and only this thread, schedules the SWd. Hence, reading the idle
  * status and its associated timeout is safe from race conditions.
  */
 static int tee_scheduler(void *arg)
 {
-	int timeslice = 0;	/* Actually scheduling period */
+	bool swd_notify = false;
 	int ret = 0;
 
 	/* Enable TEE clock */
@@ -937,34 +844,23 @@ static int tee_scheduler(void *arg)
 		case NONE:
 			break;
 		case YIELD:
-			/* Yield forced: increment timeslice */
-			timeslice++;
+			swd_notify = false;
 			break;
 		case NSIQ:
-			timeslice = 0;
+			swd_notify = true;
 			break;
 		case SUSPEND:
 			/* Force N_SIQ */
-			timeslice = 0;
+			swd_notify = true;
 			set_sleep_mode_rq(MC_FLAG_REQ_TO_SLEEP);
 			pm_request = true;
 			break;
 		case RESUME:
 			/* Force N_SIQ */
-			timeslice = 0;
+			swd_notify = true;
 			set_sleep_mode_rq(MC_FLAG_NO_SLEEP_REQ);
 			pm_request = true;
 			break;
-		}
-
-		/* Switch core */
-		if (l_ctx.next_cpu != l_ctx.active_cpu && !nq_switch_core()) {
-			cpumask_t cpu_mask;
-
-			cpumask_clear(&cpu_mask);
-			cpumask_set_cpu(l_ctx.active_cpu, &cpu_mask);
-			nq_set_cpus_allowed(l_ctx.tee_scheduler_thread,
-					    cpu_mask);
 		}
 
 		l_ctx.request = NONE;
@@ -976,18 +872,18 @@ static int tee_scheduler(void *arg)
 		l_ctx.mcp_buffer->flags.timeout_ms = -1;
 		mutex_unlock(&l_ctx.buffer_mutex);
 
-		if (timeslice--) {
-			/* Resume SWd from where it was */
-			fc_yield(timeslice);
-		} else {
+		if (swd_notify) {
 			u32 session_id = 0;
 			u32 payload = 0;
 
 			retrieve_last_session_payload(&session_id, &payload);
-			timeslice = SCHEDULING_FREQ;
+			swd_notify = false;
 
 			/* Call SWd scheduler */
 			fc_nsiq(session_id, payload);
+		} else {
+			/* Resume SWd from where it was */
+			fc_yield(0);
 		}
 
 		/* Always flush log buffer after the SWd has run */
@@ -1097,8 +993,6 @@ int nq_start(void)
 		return ret;
 	}
 
-	/* The scheduler/fastcall thread MUST run on CPU 0 at startup */
-	nq_set_cpus_allowed(l_ctx.tee_scheduler_thread, CPU_MASK_CPU0);
 	wake_up_process(l_ctx.tee_scheduler_thread);
 
 	wait_for_completion(&l_ctx.boot_complete);
@@ -1128,21 +1022,6 @@ int nq_init(void)
 	size_t q_len, mci_len;
 	unsigned long mci;
 	int ret;
-
-	if (nr_cpu_ids) {
-#if KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE
-		ret = register_cpu_notifier(&cpu_notifer);
-#else
-		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-						"tee/trustonic:online",
-						NULL, nq_cpu_down_prep);
-#endif
-		/* ExySp : Kinibi 410 */
-		if (ret < 0) {
-			mc_dev_err(ret, "cpu online callback setup failed");
-			goto err_register;
-		}
-	}
 
 	ret = mc_clock_init();
 	if (ret)
@@ -1214,13 +1093,6 @@ err_mci:
 err_logging:
 	mc_clock_exit();
 err_clock:
-	if (nr_cpu_ids)
-#if KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE
-		unregister_cpu_notifier(&cpu_notifer);
-#else
-		cpuhp_remove_state_nocalls(CPUHP_AP_ONLINE_DYN);
-#endif
-err_register:
 	return ret;
 }
 
@@ -1231,31 +1103,5 @@ void nq_exit(void)
 
 	free_pages((unsigned long)l_ctx.mci, l_ctx.order);
 	logging_exit(l_ctx.log_buffer_busy);
-	if (nr_cpu_ids)
-#if KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE
-		unregister_cpu_notifier(&cpu_notifer);
-#else
-		cpuhp_remove_state_nocalls(CPUHP_AP_ONLINE_DYN);
-#endif
 	mc_clock_exit();
-}
-
-int mc_active_core(void)
-{
-	return l_ctx.active_cpu;
-}
-
-int mc_switch_core(int cpu)
-{
-	if (cpu >= nr_cpu_ids)
-		return -EINVAL;
-
-	if (!cpu_online(cpu))
-		return -EPERM;
-
-	l_ctx.next_cpu = cpu;
-	/* Ping the tee_scheduler thread to update */
-	nq_scheduler_command(YIELD);
-
-	return 0;
 }

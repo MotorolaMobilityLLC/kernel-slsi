@@ -247,7 +247,7 @@ u32 teec_open_session(struct teec_context *context,
 		      u32 *return_origin)
 {
 	struct mc_uuid_t uuid;
-	struct mc_identity identity;
+	struct mc_identity identity = {0};
 	struct tee_client *client = NULL;
 	struct gp_operation gp_op;
 	struct gp_return gp_ret;

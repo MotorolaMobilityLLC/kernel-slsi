@@ -101,22 +101,6 @@ union fc_trace {
 	} out;
 };
 
-union fc_switch_core {
-	union fc_common common;
-
-	struct {
-		u32 cmd;
-		u32 core_id;
-	} in;
-
-	struct {
-		u32 resp;
-		u32 ret;
-		u32 state;
-		u32 ext_info;
-	} out;
-};
-
 union fc_nsiq {
 	union fc_common common;
 
@@ -151,6 +135,7 @@ union fc_yield {
 /* Structure to log SMC calls */
 struct smc_log_entry {
 	u64 cpu_clk;
+	int cpu_id;
 	union fc_common fc;
 };
 
@@ -186,6 +171,7 @@ static inline int __smc(union fc_common *fc, const char *func)
 
 	/* Log SMC call */
 	smc_log[smc_log_index].cpu_clk = local_clock();
+	smc_log[smc_log_index].cpu_id  = raw_smp_processor_id();
 	smc_log[smc_log_index].fc = *fc;
 	if (++smc_log_index >= SMC_LOG_SIZE)
 		smc_log_index = 0;
@@ -275,7 +261,7 @@ int fc_init(uintptr_t addr, ptrdiff_t off, size_t q_len, size_t buf_len)
 	fc.in.nq_info = (u32)(((addr_high & 0xFFFF) << 16) | (q_len & 0xFFFF));
 	/* mcp buffer start/length [16:16] [start, length] */
 	fc.in.mcp_info = (u32)((off << 16) | (buf_len & 0xFFFF));
-	mc_dev_devel("cmd=%d, base=0x%08x,nq_info=0x%08x, mcp_info=0x%08x",
+	mc_dev_devel("cmd=0x%08x, base=0x%08x, nq_info=0x%08x, mcp_info=0x%08x",
 		     fc.in.cmd, fc.in.base, fc.in.nq_info,
 		     fc.in.mcp_info);
 	return smc(&fc);
@@ -351,21 +337,11 @@ int fc_yield(u32 timeslice)
 	return smc(&fc);
 }
 
-int fc_switch_core(int core_id)
-{
-	union fc_switch_core fc;
-
-	memset(&fc, 0, sizeof(fc));
-	fc.in.cmd = MC_FC_SWAP_CPU;
-	fc.in.core_id = core_id;
-	return smc(&fc);
-}
-
 static int show_smc_log_entry(struct kasnprintf_buf *buf,
 			      struct smc_log_entry *entry)
 {
-	return kasnprintf(buf, "%20llu %10d 0x%08x 0x%08x 0x%08x\n",
-			  entry->cpu_clk, (s32)entry->fc.in.cmd,
+	return kasnprintf(buf, "%20llu %10d 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			  entry->cpu_clk, entry->cpu_id, entry->fc.in.cmd,
 			  entry->fc.in.param[0], entry->fc.in.param[1],
 			  entry->fc.in.param[2]);
 }
@@ -378,7 +354,7 @@ int mc_fastcall_debug_smclog(struct kasnprintf_buf *buf)
 {
 	int i, ret = 0;
 
-	ret = kasnprintf(buf, "%20s %10s %-10s %-10s %-10s\n",
+	ret = kasnprintf(buf, "%10s %20s %10s %-10s %-10s %-10s\n", "CPU id",
 			 "CPU clock", "command", "param1", "param2", "param3");
 	if (ret < 0)
 		return ret;
