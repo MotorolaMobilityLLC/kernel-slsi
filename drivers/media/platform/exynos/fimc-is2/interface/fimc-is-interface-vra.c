@@ -1101,6 +1101,17 @@ static int fimc_is_lib_vra_update_dm(struct fimc_is_lib_vra *lib_vra, u32 instan
 			facial->scores[VRA_FF_SCORE_SMILE],
 			facial->scores[VRA_FF_SCORE_BLINK_LEFT],
 			facial->scores[VRA_FF_SCORE_BLINK_RIGHT]);
+
+		/* facial angle meta
+		 * Yaw: Front: 0, Semi-Profile: 45/315, Profile: 90/270
+		 * Roll: Front: 0~330 (unit:30), Semi-Profile/Profile: 0~270 (unit:90)
+		 */
+		vra_ext->facialAngle[face_num].yaw = base->yaw;
+		vra_ext->facialAngle[face_num].roll = base->rotation;
+
+		dbg_lib(3, "lib_vra_update_dm: facial angle(yaw:%d,roll:%d)\n",
+			base->yaw, base->rotation);
+
 	}
 
 	/* ToDo: Add error handler for detected face range */
