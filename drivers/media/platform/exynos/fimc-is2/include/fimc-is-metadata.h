@@ -2026,8 +2026,15 @@ struct facial_score {
 	int32_t			right_blink;
 };
 
+struct facial_angle {
+	uint32_t		yaw;
+	uint32_t		roll;
+};
+
 struct vra_ext_meta {
 	struct facial_score	facialScore[CAMERA2_MAX_FACES];
+	struct facial_angle	facialAngle[CAMERA2_MAX_FACES];
+	uint32_t		reserved[10];
 };
 
 /** \brief
