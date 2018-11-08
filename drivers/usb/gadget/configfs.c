@@ -171,19 +171,18 @@ static int set_alt_serialnumber(struct gadget_strings *gs)
 	char *str;
 	int ret = -ENOMEM;
 
-#ifdef CONFIG_TRACK_ID
-	return 0;
-#endif
 	str = kmalloc(CHIPID_SIZE + 1, GFP_KERNEL);
 	if (!str) {
 		pr_err("%s: failed to alloc for string\n", __func__);
 		return ret;
 	}
+
 	snprintf(str, CHIPID_SIZE + 1, "%016lx", (long)exynos_soc_info.unique_id);
 	if (usb_string_copy(str, &gs->serialnumber))
 		pr_err("%s: failed to copy alternative string\n", __func__);
 	else
 		ret = 0;
+
 	kfree(str);
 	return ret;
 }
