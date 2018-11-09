@@ -1,0 +1,14 @@
+menuconfig CAMERA_EEPROM_SELECT
+	bool "Sensor eeprom select"
+	depends on USE_DIRECT_IS_CONTROL
+	help
+	  Say Y here to enable support for platform-specific V4L drivers.
+
+config CAMERA_EEPROM_GM1_OBJ
+	bool "Use GM1 EEPROM"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_EEPROM_SELECT
+	default n
+	help
+	  Use to build GM1 eeprom driver.
+
