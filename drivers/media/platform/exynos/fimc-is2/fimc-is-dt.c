@@ -559,6 +559,18 @@ static int parse_aperture_data(struct exynos_platform_fimc_is_module *pdata, str
 	return 0;
 }
 
+static int parse_eeprom_data(struct exynos_platform_fimc_is_module *pdata, struct device_node *dnode)
+{
+	u32 temp;
+	char *pprop;
+
+	DT_READ_U32(dnode, "product_name", pdata->eeprom_product_name);
+	DT_READ_U32(dnode, "i2c_addr", pdata->eeprom_i2c_addr);
+	DT_READ_U32(dnode, "i2c_ch", pdata->eeprom_i2c_ch);
+
+	return 0;
+}
+
 static int parse_power_seq_data(struct exynos_platform_fimc_is_module *pdata, struct device_node *dnode)
 {
 	u32 temp;
@@ -666,6 +678,7 @@ int fimc_is_module_parse_dt(struct device *dev,
 	struct device_node *aperture_np;
 	struct device_node *power_np;
 	struct device_node *internal_vc_np;
+	struct device_node *eeprom_np;
 
 	FIMC_BUG(!dev);
 	FIMC_BUG(!dev->of_node);
@@ -768,6 +781,12 @@ int fimc_is_module_parse_dt(struct device *dev,
 	} else {
 		parse_aperture_data(pdata, aperture_np);
 	}
+
+	eeprom_np = of_find_node_by_name(dnode, "eeprom");
+	if (!eeprom_np)
+		pdata->eeprom_product_name = EEPROM_NAME_NOTHING;
+	else
+		parse_eeprom_data(pdata, eeprom_np);
 
 	pdata->power_seq_dt = of_property_read_bool(dnode, "use_power_seq");
 	if(pdata->power_seq_dt == true) {
