@@ -135,7 +135,7 @@
 				};
 
 				internal_vc {
-					/* DUMMY */
+					vc_list = <3 VC_EMBEDDED 0>;
 				};
 			};
 
@@ -511,7 +511,7 @@
 		compatible = "samsung,exynos5-fimc-is-cis-gm1sp";
 		reg = <0x2d>; /* TODO: need to check */
 		id = <0>; /* matching fimc_is_sensor id */
-		setfile = "setA";
+		setfile = "setB";
 		use_initial_ae; /* for initial AE */
 	};
 
@@ -557,7 +557,7 @@
 		compatible = "samsung,exynos5-fimc-is-cis-2x5sp";
 		reg = <0x10>; /* 1 bit right shift */
 		id = <1>; /* matching fimc_is_sensor id */
-		setfile = "setA";
+		setfile = "setB";
 		use_initial_ae; /* for initial AE */
 	};
 };
@@ -586,6 +586,7 @@
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	status = "okay";
+	use_ssvc3_internal;
 };
 
 &fimc_is_sensor2 {
