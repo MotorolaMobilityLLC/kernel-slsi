@@ -18,6 +18,7 @@ obj-$(CONFIG_USE_DIRECT_IS_CONTROL) += module_framework/ \
 obj-$(CONFIG_CAMERA_FPGA_DPHY) += module_framework/dphy/
 
 obj-y += module_framework/ois/
+obj-y += module_framework/eeprom/
 
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-is2
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-is2/include
