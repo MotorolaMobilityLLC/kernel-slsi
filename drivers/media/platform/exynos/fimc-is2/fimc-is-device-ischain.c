@@ -3672,7 +3672,7 @@ static int fimc_is_ischain_init(struct fimc_is_device_ischain *device,
 		 * So vender must set this cal_address to let F/W load cal data.
 		 */
 		module->ext.sensor_con.cal_address = 0;
-		ret = fimc_is_vender_cal_load(vender, module);
+		ret = fimc_is_vender_cal_load(sensor, vender, module);
 		if (ret) {
 			merr("fimc_is_vender_cal_load is fail(%d)", device, ret);
 			goto p_err;
