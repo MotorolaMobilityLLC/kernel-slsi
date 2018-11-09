@@ -2103,6 +2103,27 @@ int fimc_is_sensor_s_input(struct fimc_is_device_sensor *device,
 		sensor_peri->aperture = NULL;
 	}
 
+	/* set eeprom data */
+	if (device->eeprom && module->ext.eeprom_con.product_name == device->eeprom->id) {
+		u32 i2c_channel = module->ext.eeprom_con.peri_setting.i2c.channel;
+		sensor_peri->subdev_eeprom = device->subdev_eeprom;
+		sensor_peri->eeprom = device->eeprom;
+		sensor_peri->eeprom->sensor_peri = sensor_peri;
+		if (i2c_channel < SENSOR_CONTROL_I2C_MAX)
+			sensor_peri->eeprom->i2c_lock = &core->i2c_lock[i2c_channel];
+		else
+			mwarn("wrong eeprom i2c_channel(%d)", device, i2c_channel);
+
+		if (sensor_peri->eeprom)
+			set_bit(FIMC_IS_SENSOR_EEPROM_AVAILABLE, &sensor_peri->peri_state);
+
+		info("%s[%d] enable eeprom i2c client. position = %d\n",
+				__func__, __LINE__, core->current_position);
+	} else {
+		sensor_peri->subdev_eeprom = NULL;
+		sensor_peri->eeprom = NULL;
+	}
+
 	fimc_is_sensor_peri_init_work(sensor_peri);
 #endif
 
