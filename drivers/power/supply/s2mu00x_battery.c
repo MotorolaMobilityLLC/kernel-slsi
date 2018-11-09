@@ -503,7 +503,8 @@ static int get_property_from_fg(struct s2mu00x_battery_info *chip,
 static int smbchg_charging_en(struct s2mu00x_battery_info *chip, bool en);
 static int smbchg_chg_system_temp_level_set(struct s2mu00x_battery_info *chip, int lvl_sel);
 static int get_prop_batt_current_now(struct s2mu00x_battery_info *chip);
-
+static void set_max_allowed_current_ma(struct s2mu00x_battery_info *chip,int current_ma);
+static void smbchg_set_temp_chgpath(struct s2mu00x_battery_info *chip, int prev_temp);
 static char *s2mu00x_supplied_to[] = {
 	"s2mu00x-battery",
 };
@@ -1615,6 +1616,10 @@ end_ifconn_handle:
 	if (action == IFCONN_NOTIFY_ID_DETACH) {
 		smbchg_relax(battery);
 		cancel_delayed_work_sync(&battery->heartbeat_work);
+		battery->stepchg_state = STEP_NONE;
+		battery->charging_limit_modes = CHARGING_LIMIT_OFF;
+		set_max_allowed_current_ma(battery,battery->stepchg_current_ma);
+		smbchg_set_temp_chgpath(battery,battery->temp_state);
 	} else {
 		smbchg_stay_awake(battery);
 		cancel_delayed_work(&battery->heartbeat_work);
@@ -2704,6 +2709,31 @@ create_attrs_succeed:
 bool is_usb_present(struct s2mu00x_battery_info *chip)
 {
 	int type = chip->cable_type;
+	bool present = false;
+
+	switch (type) {
+	case POWER_SUPPLY_TYPE_USB:
+	case POWER_SUPPLY_TYPE_USB_CDP:
+	case POWER_SUPPLY_TYPE_USB_DCP:
+	case POWER_SUPPLY_TYPE_MAINS:
+	case POWER_SUPPLY_TYPE_HV_MAINS:
+	case POWER_SUPPLY_TYPE_PREPARE_TA:
+	case POWER_SUPPLY_TYPE_UNKNOWN:
+		present = true;
+		break;
+	default:
+		present = false;
+		break;	
+	}
+
+	printk(KERN_ERR "%s,usb_present:%d",__func__,present);
+
+	return present;
+}
+
+bool is_sdp_cdp(struct s2mu00x_battery_info *chip)
+{
+        int type = chip->cable_type;
 
 	if (type == POWER_SUPPLY_TYPE_USB || type == POWER_SUPPLY_TYPE_USB_CDP)
 		return true;
@@ -3985,7 +4015,7 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 				      chip->stepchg_current_ma);
 
 		pr_info("%s, target_fastchg_current_ma:%d\n", __func__, chip->target_fastchg_current_ma);
-		if (is_usb_present(chip)) {
+		if (is_sdp_cdp(chip)) {
 			pr_info("%s, usb\n",__func__);
 			//need test usb charging.
 			chip->update_allowed_fastchg_current_ma = false;
