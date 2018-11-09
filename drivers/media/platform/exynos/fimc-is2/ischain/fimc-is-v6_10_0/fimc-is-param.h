@@ -232,6 +232,12 @@ enum dma_input_error {
 	DMA_INPUT_ERROR_NO	= 0 /*  DMA input setting is done */
 };
 
+enum dma_input_orientation {
+	DMA_INPUT_ORIENTATION_NORMAL = 0,
+	DMA_INPUT_ORIENTATION_CCW    = 1,
+	DMA_INPUT_ORIENTATION_CW     = 2
+};
+
 /* ----------------------  Output  ----------------------------------- */
 enum otf_output_crop {
 	OTF_OUTPUT_CROP_DISABLE		= 0,
