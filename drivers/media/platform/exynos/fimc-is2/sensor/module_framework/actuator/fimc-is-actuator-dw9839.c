@@ -46,7 +46,7 @@
 #define DEF_DW9839_FIRST_DELAY			20
 #define DEF_DW9839_SECOND_DELAY			10
 
-#define MANUAL_PID_CAL_SETTING	/* TODO: disable define */
+/* #define MANUAL_PID_CAL_SETTING */
 
 extern struct fimc_is_sysfs_actuator sysfs_actuator;
 
