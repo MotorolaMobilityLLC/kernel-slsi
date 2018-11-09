@@ -791,7 +791,8 @@ struct param_dma_input {
 	u32	msb; /* last bit of data in memory size */
 	u32	v_otf_enable;
 	u32	v_otf_token_line;
-	u32	reserved[PARAMETER_MAX_MEMBER-19];
+	u32	orientation; /* 0: normal, 1: ccw: 2: cw */
+	u32	reserved[PARAMETER_MAX_MEMBER-20];
 	u32	err;
 };
 
