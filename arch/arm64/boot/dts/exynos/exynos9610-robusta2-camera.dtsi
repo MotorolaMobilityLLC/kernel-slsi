@@ -52,6 +52,10 @@
 					product_name = <100>; /* NOTHING */
 				};
 
+				eeprom {
+					product_name = <1>; /* EEPROM_NAME_GM1 */
+				};
+
 				internal_vc {
 					/* DUMMY */
 				};
@@ -520,6 +524,12 @@
 		reg = <0x0C>;
 		id = <0>; /* matching fimc_is_sensor id */
 		place = <0>;
+	};
+
+	fimc-is-eeprom@51 {
+		compatible = "samsung,exynos5-fimc-is-sensor-eeprom-gm1";
+		reg = <0x51>;
+		id = <0>;
 	};
 };
 
