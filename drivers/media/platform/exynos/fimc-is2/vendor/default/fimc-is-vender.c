@@ -16,6 +16,9 @@
 #include "fimc-is-vender-specific.h"
 #include "fimc-is-core.h"
 #include "fimc-is-interface-library.h"
+#ifndef ENABLE_IS_CORE
+#include "fimc-is-device-sensor-peri.h"
+#endif
 
 static u32  rear_sensor_id;
 static u32  front_sensor_id;
@@ -143,7 +146,7 @@ void fimc_is_vender_resource_put(struct fimc_is_vender *vender)
 }
 
 #if !defined(ENABLE_CAL_LOAD)
-int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
+int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is_vender *vender,
 	void *module_data)
 {
 	int ret = 0;
@@ -151,41 +154,23 @@ int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
 	return ret;
 }
 #else
-int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
+int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is_vender *vender,
 	void *module_data)
 {
 	struct fimc_is_core *core;
 	struct fimc_is_module_enum *module = module_data;
-	struct fimc_is_binary cal_bin;
 	ulong cal_addr = 0;
 	int ret = 0;
 
 	core = container_of(vender, struct fimc_is_core, vender);
 
-	setup_binary_loader(&cal_bin, 0, 0, NULL, NULL);
 	if (module->position == SENSOR_POSITION_REAR) {
-		/* Load calibration data from file system */
-		ret = request_binary(&cal_bin, FIMC_IS_REAR_CAL_SDCARD_PATH,
-								FIMC_IS_REAR_CAL, NULL);
-		if (ret) {
-			err("[Vendor]: request_binary filed: %s%s",
-					FIMC_IS_REAR_CAL_SDCARD_PATH, FIMC_IS_REAR_CAL);
-			goto exit;
-		}
 #ifdef ENABLE_IS_CORE
 		cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET0;
 #else
 		cal_addr = core->resourcemgr.minfo.kvaddr_rear_cal;
 #endif
 	} else if (module->position == SENSOR_POSITION_FRONT) {
-		/* Load calibration data from file system */
-		ret = request_binary(&cal_bin, FIMC_IS_REAR_CAL_SDCARD_PATH,
-								FIMC_IS_FRONT_CAL, NULL);
-		if (ret) {
-			err("[Vendor]: request_binary filed: %s%s",
-					FIMC_IS_REAR_CAL_SDCARD_PATH, FIMC_IS_FRONT_CAL);
-			goto exit;
-		}
 #ifdef ENABLE_IS_CORE
 		cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET1;
 #else
@@ -198,9 +183,8 @@ int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
 		goto exit;
 	}
 
-	memcpy((void *)(cal_addr), (void *)cal_bin.data, cal_bin.size);
+	memcpy((void *)(cal_addr), (void *)sensor->eeprom->data, sensor->eeprom->total_size);
 
-	release_binary(&cal_bin);
 exit:
 	if (ret)
 		err("CAL data loading is fail: skip");
