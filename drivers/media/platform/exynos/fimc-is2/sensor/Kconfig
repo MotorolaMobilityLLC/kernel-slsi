@@ -66,5 +66,6 @@ source "drivers/media/platform/exynos/fimc-is2/sensor/module_framework/dphy/Kcon
 source "drivers/media/platform/exynos/fimc-is2/sensor/module_framework/pdp/Kconfig"
 source "drivers/media/platform/exynos/fimc-is2/sensor/module_framework/pafstat/Kconfig"
 source "drivers/media/platform/exynos/fimc-is2/sensor/module_framework/aperture/Kconfig"
+source "drivers/media/platform/exynos/fimc-is2/sensor/module_framework/eeprom/Kconfig"
 
 endmenu
