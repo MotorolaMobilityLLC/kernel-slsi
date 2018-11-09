@@ -80,7 +80,7 @@ int fimc_is_vender_fw_prepare(struct fimc_is_vender *vender);
 int fimc_is_vender_fw_filp_open(struct fimc_is_vender *vender, struct file **fp, int bin_type);
 int fimc_is_vender_preproc_fw_load(struct fimc_is_vender *vender);
 int fimc_is_vender_s_ctrl(struct fimc_is_vender *vender);
-int fimc_is_vender_cal_load(struct fimc_is_vender *vender, void *module_data);
+int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is_vender *vender, void *module_data);
 int fimc_is_vender_module_sel(struct fimc_is_vender *vender, void *module_data);
 int fimc_is_vender_module_del(struct fimc_is_vender *vender, void *module_data);
 int fimc_is_vender_fw_sel(struct fimc_is_vender *vender);
