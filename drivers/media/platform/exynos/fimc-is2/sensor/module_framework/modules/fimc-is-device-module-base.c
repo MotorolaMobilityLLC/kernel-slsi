@@ -647,6 +647,7 @@ int sensor_module_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 	struct fimc_is_device_sensor *device = NULL;
 	struct fimc_is_module_enum *module = NULL;
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+	struct ae_param ae_val;
 
 	FIMC_BUG(!subdev);
 
@@ -661,8 +662,9 @@ int sensor_module_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 
 	switch(ctrl->id) {
 	case V4L2_CID_SENSOR_SET_AE_TARGET:
+		ae_val.val = ae_val.short_val = ctrl->value;
 		/* long_exposure_time and short_exposure_time is same value */
-		ret = fimc_is_sensor_peri_s_exposure_time(device, ctrl->value, ctrl->value);
+		ret = fimc_is_sensor_peri_s_exposure_time(device, ae_val);
 		if (ret < 0) {
 			err("failed to set exposure time : %d\n - %d",
 					ctrl->value, ret);
@@ -688,7 +690,8 @@ int sensor_module_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 	case V4L2_CID_SENSOR_SET_ANALOG_GAIN:
 	if (sensor_peri->cis.cis_data->analog_gain[1] != ctrl->value) {
 		/* long_analog_gain and short_analog_gain is same value */
-		ret = fimc_is_sensor_peri_s_analog_gain(device, ctrl->value, ctrl->value);
+		ae_val.val = ae_val.short_val = ctrl->value;
+		ret = fimc_is_sensor_peri_s_analog_gain(device, ae_val);
 		if (ret < 0) {
 			err("failed to set analog gain : %d\n - %d",
 					ctrl->value, ret);
@@ -698,7 +701,8 @@ int sensor_module_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 	}
 	case V4L2_CID_SENSOR_SET_DIGITAL_GAIN:
 		/* long_digital_gain and short_digital_gain is same value */
-		ret = fimc_is_sensor_peri_s_digital_gain(device, ctrl->value, ctrl->value);
+		ae_val.val = ae_val.short_val = ctrl->value;
+		ret = fimc_is_sensor_peri_s_digital_gain(device, ae_val);
 		if (ret < 0) {
 			err("failed to set digital gain : %d\n - %d",
 					ctrl->value, ret);
