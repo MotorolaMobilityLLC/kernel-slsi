@@ -293,15 +293,20 @@ void fimc_is_sensor_cis_status_dump_work(struct work_struct *data)
 }
 
 void fimc_is_sensor_set_cis_uctrl_list(struct fimc_is_device_sensor_peri *sensor_peri,
-		u32 long_exp, u32 short_exp,
-		u32 long_total_gain, u32 short_total_gain,
-		u32 long_analog_gain, u32 short_analog_gain,
-		u32 long_digital_gain, u32 short_digital_gain)
+		enum fimc_is_exposure_gain_count num_data,
+		u32 *exposure,
+		u32 *total_gain,
+		u32 *analog_gain,
+		u32 *digital_gain)
 {
 	int i = 0;
 	camera2_sensor_uctl_t *sensor_uctl;
 
 	FIMC_BUG_VOID(!sensor_peri);
+	FIMC_BUG_VOID(!exposure);
+	FIMC_BUG_VOID(!total_gain);
+	FIMC_BUG_VOID(!analog_gain);
+	FIMC_BUG_VOID(!digital_gain);
 
 	for (i = 0; i < CAM2P0_UCTL_LIST_SIZE; i++) {
 		if (sensor_peri->cis.sensor_ctls[i].force_update) {
@@ -311,33 +316,8 @@ void fimc_is_sensor_set_cis_uctrl_list(struct fimc_is_device_sensor_peri *sensor
 
 		sensor_uctl = &sensor_peri->cis.sensor_ctls[i].cur_cam20_sensor_udctrl;
 
-		if (fimc_is_vender_wdr_mode_on(sensor_peri->cis.cis_data)) {
-			sensor_uctl->exposureTime = 0;
-			sensor_uctl->longExposureTime = fimc_is_sensor_convert_us_to_ns(long_exp);
-			sensor_uctl->shortExposureTime = fimc_is_sensor_convert_us_to_ns(short_exp);
-
-			sensor_uctl->sensitivity = long_total_gain;
-			sensor_uctl->analogGain = 0;
-			sensor_uctl->digitalGain = 0;
-
-			sensor_uctl->longAnalogGain = long_analog_gain;
-			sensor_uctl->shortAnalogGain = short_analog_gain;
-			sensor_uctl->longDigitalGain = long_digital_gain;
-			sensor_uctl->shortDigitalGain = short_digital_gain;
-		} else {
-			sensor_uctl->exposureTime = fimc_is_sensor_convert_us_to_ns(long_exp);
-			sensor_uctl->longExposureTime = 0;
-			sensor_uctl->shortExposureTime = 0;
-
-			sensor_uctl->sensitivity = long_total_gain;
-			sensor_uctl->analogGain = long_analog_gain;
-			sensor_uctl->digitalGain = long_digital_gain;
-
-			sensor_uctl->longAnalogGain = 0;
-			sensor_uctl->shortAnalogGain = 0;
-			sensor_uctl->longDigitalGain = 0;
-			sensor_uctl->shortDigitalGain = 0;
-		}
+		fimc_is_sensor_ctl_update_exposure_to_uctl(sensor_uctl, num_data, exposure);
+		fimc_is_sensor_ctl_update_gain_to_uctl(sensor_uctl, num_data, analog_gain, digital_gain);
 	}
 }
 
@@ -435,7 +415,8 @@ int fimc_is_sensor_initial_setting_low_exposure(struct fimc_is_device_sensor_per
 {
 	int ret = 0;
 	struct fimc_is_device_sensor *device;
-
+	struct ae_param expo, again, dgain;
+	u32 tgain[EXPOSURE_GAIN_MAX] = {1000, 1000, 1000};
 	FIMC_BUG(!sensor_peri);
 
 	device = v4l2_get_subdev_hostdata(sensor_peri->subdev_cis);
@@ -444,29 +425,23 @@ int fimc_is_sensor_initial_setting_low_exposure(struct fimc_is_device_sensor_per
 	dbg_sensor(1, "[%s] expo(%d), again(%d), dgain(%d)\n", __func__,
 			sensor_peri->cis.cis_data->low_expo_start, 100, 100);
 
-	fimc_is_sensor_peri_s_analog_gain(device, 1000, 1000);
-	fimc_is_sensor_peri_s_digital_gain(device, 1000, 1000);
-	fimc_is_sensor_peri_s_exposure_time(device,
-			sensor_peri->cis.cis_data->low_expo_start,
-			sensor_peri->cis.cis_data->low_expo_start);
+	again.long_val = again.short_val = again.middle_val = 1000;
+	dgain.long_val = dgain.short_val = dgain.middle_val = 1000;
+	expo.long_val = expo.short_val = expo.middle_val =
+			sensor_peri->cis.cis_data->low_expo_start;
+
+	fimc_is_sensor_peri_s_analog_gain(device, again);
+	fimc_is_sensor_peri_s_digital_gain(device, dgain);
+	fimc_is_sensor_peri_s_exposure_time(device, expo);
 
 #if !defined(DISABLE_LIB)
 	sensor_peri->sensor_interface.cis_itf_ops.request_reset_expo_gain(&sensor_peri->sensor_interface,
-			sensor_peri->cis.cis_data->low_expo_start,
-			1000,
-			1000,
-			1000,
-			sensor_peri->cis.cis_data->low_expo_start,
-			1000,
-			1000,
-			1000);
+			EXPOSURE_GAIN_COUNT_3,
+			&expo.long_val,
+			tgain,
+			&again.long_val,
+			&dgain.long_val);
 #endif
-	fimc_is_sensor_set_cis_uctrl_list(sensor_peri,
-			sensor_peri->cis.cis_data->low_expo_start,
-			sensor_peri->cis.cis_data->low_expo_start,
-			1000, 1000,
-			1000, 1000,
-			1000, 1000);
 
 	return ret;
 }
@@ -511,14 +486,11 @@ int fimc_is_sensor_mode_change(struct fimc_is_cis *cis, u32 mode)
 void fimc_is_sensor_setting_mode_change(struct fimc_is_device_sensor_peri *sensor_peri)
 {
 	struct fimc_is_device_sensor *device;
-	u32 expo = 0;
-	u32 tgain = 0;
-	u32 again = 0;
-	u32 dgain = 0;
-	u32 long_expo = 0;
-	u32 long_tgain = 0;
-	u32 long_again = 0;
-	u32 long_dgain = 0;
+	struct ae_param expo;
+	struct ae_param again;
+	struct ae_param dgain;
+	u32 tgain[EXPOSURE_GAIN_MAX] = {0, 0, 0};
+	enum fimc_is_exposure_gain_count num_data;
 	u32 frame_duration = 0;
 
 	FIMC_BUG_VOID(!sensor_peri);
@@ -526,63 +498,90 @@ void fimc_is_sensor_setting_mode_change(struct fimc_is_device_sensor_peri *senso
 	device = v4l2_get_subdev_hostdata(sensor_peri->subdev_cis);
 	FIMC_BUG_VOID(!device);
 
-	expo = sensor_peri->cis.mode_chg_expo;
-	again = sensor_peri->cis.mode_chg_again;
-	dgain = sensor_peri->cis.mode_chg_dgain;
-	long_expo = sensor_peri->cis.mode_chg_long_expo;
-	long_again = sensor_peri->cis.mode_chg_long_again;
-	long_dgain = sensor_peri->cis.mode_chg_long_dgain;
+	num_data = sensor_peri->cis.exp_gain_cnt;
+	switch (num_data) {
+	case EXPOSURE_GAIN_COUNT_1:
+		expo.val = expo.short_val = sensor_peri->cis.mode_chg.exposure;
+		again.val = again.short_val = sensor_peri->cis.mode_chg.analog_gain;
+		dgain.val = dgain.short_val = sensor_peri->cis.mode_chg.digital_gain;
 
-	dbg_sensor(1, "[%s] expo(%d), again(%d), dgain(%d)\n", __func__,
-			expo, again, dgain);
+		if (expo.val == 0 || again.val < 1000 || dgain.val < 1000) {
+			err("[%s] invalid mode change settings exp(%d), again(%d), dgain(%d)\n",
+				__func__, expo.val, again.val, dgain.val);
+			expo.val = sensor_peri->cis.cis_data->low_expo_start;
+			again.val = 1000;
+			dgain.val = 1000;
+		}
 
+		tgain[EXPOSURE_GAIN_LONG] = fimc_is_sensor_calculate_tgain(dgain.val, again.val);
+		break;
+	case EXPOSURE_GAIN_COUNT_2:
+		expo.long_val = sensor_peri->cis.mode_chg.long_exposure;
+		again.long_val = sensor_peri->cis.mode_chg.long_analog_gain;
+		dgain.long_val = sensor_peri->cis.mode_chg.long_digital_gain;
+		expo.short_val = sensor_peri->cis.mode_chg.short_exposure;
+		again.short_val = sensor_peri->cis.mode_chg.short_analog_gain;
+		dgain.short_val = sensor_peri->cis.mode_chg.short_digital_gain;
 
-	if (expo == 0 || again < 1000 || dgain < 1000 || long_expo == 0 || long_again < 1000 || long_dgain < 1000) {
-		err("[%s] invalid mode change sensor settings exp(%d), gain(%d, %d) long_exp(%d), long_gain(%d, %d)\n",
-				__func__, expo, again, dgain, long_expo, long_again, long_dgain);
-		expo = sensor_peri->cis.cis_data->low_expo_start;
-		again = 1000;
-		dgain = 1000;
-		long_expo = sensor_peri->cis.cis_data->low_expo_start;
-		long_again = 1000;
-		long_dgain = 1000;
+		if (expo.long_val == 0 || again.long_val < 1000 || dgain.long_val < 1000
+			|| expo.short_val == 0 || again.short_val < 1000 || dgain.short_val < 1000) {
+			err("[%s] invalid mode change settings exp(%d %d), again(%d %d), dgain(%d %d)\n",
+				__func__, expo.long_val, expo.short_val,
+				again.long_val, again.short_val, dgain.long_val, dgain.short_val);
+			expo.long_val = expo.short_val = sensor_peri->cis.cis_data->low_expo_start;
+			again.long_val = again.short_val = 1000;
+			dgain.long_val = dgain.short_val = 1000;
+		}
+
+		tgain[EXPOSURE_GAIN_LONG] = fimc_is_sensor_calculate_tgain(dgain.long_val, again.long_val);
+		tgain[EXPOSURE_GAIN_SHORT] = fimc_is_sensor_calculate_tgain(dgain.short_val, again.short_val);
+		break;
+	case EXPOSURE_GAIN_COUNT_3:
+		expo.long_val = sensor_peri->cis.mode_chg.long_exposure;
+		again.long_val = sensor_peri->cis.mode_chg.long_analog_gain;
+		dgain.long_val = sensor_peri->cis.mode_chg.long_digital_gain;
+		expo.short_val = sensor_peri->cis.mode_chg.short_exposure;
+		again.short_val = sensor_peri->cis.mode_chg.short_analog_gain;
+		dgain.short_val = sensor_peri->cis.mode_chg.short_digital_gain;
+		expo.middle_val = sensor_peri->cis.mode_chg.middle_exposure;
+		again.middle_val = sensor_peri->cis.mode_chg.middle_analog_gain;
+		dgain.middle_val = sensor_peri->cis.mode_chg.middle_digital_gain;
+
+		if (expo.long_val == 0 || again.long_val < 1000 || dgain.long_val < 1000
+			|| expo.short_val == 0 || again.short_val < 1000 || dgain.short_val < 1000
+			|| expo.middle_val == 0 || again.middle_val < 1000 || dgain.middle_val < 1000) {
+			err("[%s] invalid mode change settings exp(%d %d %d), again(%d %d %d), dgain(%d %d %d)\n",
+				__func__, expo.long_val, expo.short_val,
+				again.long_val, again.short_val, dgain.long_val, dgain.short_val);
+			expo.long_val = expo.short_val = expo.middle_val = sensor_peri->cis.cis_data->low_expo_start;
+			again.long_val = again.short_val = again.middle_val = 1000;
+			dgain.long_val = dgain.short_val = again.middle_val = 1000;
+		}
+
+		tgain[EXPOSURE_GAIN_LONG] = fimc_is_sensor_calculate_tgain(dgain.long_val, again.long_val);
+		tgain[EXPOSURE_GAIN_SHORT] = fimc_is_sensor_calculate_tgain(dgain.short_val, again.short_val);
+		tgain[EXPOSURE_GAIN_MIDDLE] = fimc_is_sensor_calculate_tgain(dgain.middle_val, again.middle_val);
+		break;
+	default:
+		err("[%s] invalid exp_gain_count(%d)\n", __func__, num_data);
 	}
 
-	if (dgain > 1000)
-		tgain = dgain * (again / 1000);
-	else
-		tgain = again;
-
-	if (long_dgain > 1000)
-		long_tgain = long_dgain * (long_again / 1000);
-	else
-		long_tgain = long_again;
-
-	CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis, MAX(long_expo, expo),
-		&frame_duration);
+	CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis,
+		MAX(expo.long_val, MAX(expo.short_val, expo.middle_val)), &frame_duration);
 	fimc_is_sensor_peri_s_frame_duration(device, frame_duration);
 
-	fimc_is_sensor_peri_s_analog_gain(device, long_again, again);
-	fimc_is_sensor_peri_s_digital_gain(device, long_dgain, dgain);
-	fimc_is_sensor_peri_s_exposure_time(device, long_expo, expo);
+	fimc_is_sensor_peri_s_analog_gain(device, again);
+	fimc_is_sensor_peri_s_digital_gain(device, dgain);
+	fimc_is_sensor_peri_s_exposure_time(device, expo);
 
 	fimc_is_sensor_peri_s_wb_gains(device, sensor_peri->cis.mode_chg_wb_gains);
 
 	sensor_peri->sensor_interface.cis_itf_ops.request_reset_expo_gain(&sensor_peri->sensor_interface,
-			long_expo,
-			long_tgain,
-			long_again,
-			long_dgain,
-			expo,
+			num_data,
+			&expo.long_val,
 			tgain,
-			again,
-			dgain);
-
-	fimc_is_sensor_set_cis_uctrl_list(sensor_peri,
-			long_expo, expo,
-			long_tgain, tgain,
-			long_again, again,
-			long_dgain, dgain);
+			&again.long_val,
+			&dgain.long_val);
 }
 
 void fimc_is_sensor_flash_fire_work(struct work_struct *data)
@@ -594,8 +593,9 @@ void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 	struct fimc_is_device_sensor *device;
 	struct fimc_is_device_sensor_peri *sensor_peri;
 	struct v4l2_subdev *subdev_flash;
+	struct ae_param expo, dgain, again;
+	u32 tgain[EXPOSURE_GAIN_MAX];
 	u32 step = 0;
-
 	FIMC_BUG_VOID(!data);
 
 	flash_data = container_of(data, struct fimc_is_flash_data, flash_fire_work);
@@ -649,53 +649,49 @@ void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 	step = flash->flash_ae.main_fls_strm_on_off_step;
 
 	if (sensor_peri->sensor_interface.cis_mode == ITF_CIS_SMIA) {
+		expo.val = expo.short_val = expo.middle_val = flash->flash_ae.expo[step];
+		again.val = again.short_val = again.middle_val = flash->flash_ae.again[step];
+		dgain.val = dgain.short_val = dgain.middle_val = flash->flash_ae.dgain[step];
+		tgain[0] = tgain[1] = tgain[2] = flash->flash_ae.tgain[step];
+
 		CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis,
 		    flash->flash_ae.expo[step], &frame_duration);
 		fimc_is_sensor_peri_s_frame_duration(device, frame_duration);
 
-		fimc_is_sensor_peri_s_analog_gain(device, flash->flash_ae.again[step], flash->flash_ae.again[step]);
-		fimc_is_sensor_peri_s_digital_gain(device, flash->flash_ae.dgain[step], flash->flash_ae.dgain[step]);
-		fimc_is_sensor_peri_s_exposure_time(device, flash->flash_ae.expo[step], flash->flash_ae.expo[step]);
+		fimc_is_sensor_peri_s_analog_gain(device, again);
+		fimc_is_sensor_peri_s_digital_gain(device, dgain);
+		fimc_is_sensor_peri_s_exposure_time(device, expo);
 
 		sensor_peri->sensor_interface.cis_itf_ops.request_reset_expo_gain(&sensor_peri->sensor_interface,
-			flash->flash_ae.expo[step],
-			flash->flash_ae.tgain[step],
-			flash->flash_ae.again[step],
-			flash->flash_ae.dgain[step],
-			flash->flash_ae.expo[step],
-			flash->flash_ae.tgain[step],
-			flash->flash_ae.again[step],
-			flash->flash_ae.dgain[step]);
-
-		fimc_is_sensor_set_cis_uctrl_list(sensor_peri,
-			flash->flash_ae.expo[step], flash->flash_ae.expo[step],
-			flash->flash_ae.tgain[step], flash->flash_ae.tgain[step],
-			flash->flash_ae.again[step], flash->flash_ae.again[step],
-			flash->flash_ae.dgain[step], flash->flash_ae.dgain[step]);
+			EXPOSURE_GAIN_COUNT_3,
+			&expo.val,
+			tgain,
+			&again.val,
+			&dgain.val);
 	} else {
+		expo.long_val = expo.middle_val = flash->flash_ae.long_expo[step]; /* TODO: divide middle */
+		expo.short_val = flash->flash_ae.short_expo[step];
+		again.long_val = again.middle_val = flash->flash_ae.long_again[step];
+		again.short_val = flash->flash_ae.short_again[step];
+		dgain.long_val = dgain.middle_val = flash->flash_ae.long_dgain[step];
+		dgain.short_val = flash->flash_ae.short_again[step];
+		tgain[0] = tgain[2] = flash->flash_ae.long_tgain[step];
+		tgain[1] = flash->flash_ae.short_tgain[step];
+
 		CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis,
 			MAX(flash->flash_ae.long_expo[step], flash->flash_ae.short_expo[step]), &frame_duration);
 		fimc_is_sensor_peri_s_frame_duration(device, frame_duration);
 
-		fimc_is_sensor_peri_s_analog_gain(device, flash->flash_ae.long_again[step], flash->flash_ae.short_again[step]);
-		fimc_is_sensor_peri_s_digital_gain(device, flash->flash_ae.long_dgain[step], flash->flash_ae.short_dgain[step]);
-		fimc_is_sensor_peri_s_exposure_time(device, flash->flash_ae.long_expo[step], flash->flash_ae.short_expo[step]);
+		fimc_is_sensor_peri_s_analog_gain(device, again);
+		fimc_is_sensor_peri_s_digital_gain(device, dgain);
+		fimc_is_sensor_peri_s_exposure_time(device, expo);
 
 		sensor_peri->sensor_interface.cis_itf_ops.request_reset_expo_gain(&sensor_peri->sensor_interface,
-			flash->flash_ae.long_expo[step],
-			flash->flash_ae.long_tgain[step],
-			flash->flash_ae.long_again[step],
-			flash->flash_ae.long_dgain[step],
-			flash->flash_ae.short_expo[step],
-			flash->flash_ae.short_tgain[step],
-			flash->flash_ae.short_again[step],
-			flash->flash_ae.short_dgain[step]);
-
-		fimc_is_sensor_set_cis_uctrl_list(sensor_peri,
-			flash->flash_ae.long_expo[step], flash->flash_ae.short_expo[step],
-			flash->flash_ae.long_tgain[step], flash->flash_ae.short_tgain[step],
-			flash->flash_ae.long_again[step], flash->flash_ae.short_again[step],
-			flash->flash_ae.long_dgain[step], flash->flash_ae.short_dgain[step]);
+			EXPOSURE_GAIN_COUNT_3,
+			&expo.val,
+			tgain,
+			&again.val,
+			&dgain.val);
 	}
 
 	dbg_flash("[%s][FLASH] mode %d, intensity %d, firing time %d us, step %d\n", __func__,
@@ -1413,6 +1409,8 @@ void fimc_is_sensor_long_term_mode_set_work(struct work_struct *data)
 	struct fimc_is_device_sensor_peri *sensor_peri;
 	struct v4l2_subdev *subdev_cis;
 	struct fimc_is_device_sensor *device;
+	struct ae_param expo, dgain, again;
+	u32 tgain[EXPOSURE_GAIN_MAX];
 	u32 step = 0;
 	u32 frame_duration = 0;
 
@@ -1481,28 +1479,24 @@ void fimc_is_sensor_long_term_mode_set_work(struct work_struct *data)
 		}
 	}
 
+	expo.val = expo.short_val = expo.middle_val = cis->long_term_mode.expo[step];
+	again.val = again.short_val = again.middle_val = cis->long_term_mode.again[step];
+	dgain.val = dgain.short_val = dgain.middle_val = cis->long_term_mode.dgain[step];
+	tgain[0] = tgain[1] = tgain[2] = cis->long_term_mode.tgain[step];
+
 	CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis,
 			cis->long_term_mode.expo[step], &frame_duration);
 	fimc_is_sensor_peri_s_frame_duration(device, frame_duration);
-	fimc_is_sensor_peri_s_analog_gain(device, cis->long_term_mode.again[step], cis->long_term_mode.again[step]);
-	fimc_is_sensor_peri_s_digital_gain(device, cis->long_term_mode.dgain[step], cis->long_term_mode.dgain[step]);
-	fimc_is_sensor_peri_s_exposure_time(device, cis->long_term_mode.expo[step], cis->long_term_mode.expo[step]);
+	fimc_is_sensor_peri_s_analog_gain(device, again);
+	fimc_is_sensor_peri_s_digital_gain(device, dgain);
+	fimc_is_sensor_peri_s_exposure_time(device, expo);
 
 	sensor_peri->sensor_interface.cis_itf_ops.request_reset_expo_gain(&sensor_peri->sensor_interface,
-			cis->long_term_mode.expo[step],
-			cis->long_term_mode.tgain[step],
-			cis->long_term_mode.again[step],
-			cis->long_term_mode.dgain[step],
-			cis->long_term_mode.expo[step],
-			cis->long_term_mode.tgain[step],
-			cis->long_term_mode.again[step],
-			cis->long_term_mode.dgain[step]);
-
-	fimc_is_sensor_set_cis_uctrl_list(sensor_peri,
-			cis->long_term_mode.expo[step], cis->long_term_mode.expo[step],
-			cis->long_term_mode.tgain[step], cis->long_term_mode.tgain[step],
-			cis->long_term_mode.again[step], cis->long_term_mode.again[step],
-			cis->long_term_mode.dgain[step], cis->long_term_mode.dgain[step]);
+			EXPOSURE_GAIN_COUNT_3,
+			&expo.val,
+			tgain,
+			&again.val,
+			&dgain.val);
 
 	step = cis->long_term_mode.sen_strm_off_on_step++;
 
@@ -1871,13 +1865,12 @@ p_err:
 }
 
 int fimc_is_sensor_peri_s_exposure_time(struct fimc_is_device_sensor *device,
-				u32 long_exposure_time, u32 short_exposure_time)
+	struct ae_param expo)
 {
 	int ret = 0;
 	struct v4l2_subdev *subdev_module;
 	struct fimc_is_module_enum *module;
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
-	struct ae_param exposure;
 
 	FIMC_BUG(!device);
 
@@ -1896,41 +1889,33 @@ int fimc_is_sensor_peri_s_exposure_time(struct fimc_is_device_sensor *device,
 	}
 	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
 
-	if ((long_exposure_time <= 0) || (short_exposure_time <= 0)) {
-		err("it is wrong exposure time (long:%d, short:%d)", long_exposure_time, short_exposure_time);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
 #ifdef FIXED_SENSOR_DEBUG
 	if (unlikely(sysfs_sensor.is_en == true)) {
-		long_exposure_time = sysfs_sensor.long_exposure_time;
-		short_exposure_time = sysfs_sensor.short_exposure_time;
-		dbg_sensor(1, "exposure = %d %d\n", long_exposure_time, short_exposure_time);
+		expo.long_val = sysfs_sensor.long_exposure_time;
+		expo.short_val = sysfs_sensor.short_exposure_time;
+		dbg_sensor(1, "exposure = %d %d\n", expo.long_val, expo.short_val);
 	}
 #endif
 
-	exposure.long_val = long_exposure_time;
-	exposure.short_val = short_exposure_time;
-	ret = CALL_CISOPS(&sensor_peri->cis, cis_set_exposure_time, sensor_peri->subdev_cis, &exposure);
+	ret = CALL_CISOPS(&sensor_peri->cis, cis_set_exposure_time, sensor_peri->subdev_cis, &expo);
 	if (ret < 0) {
 		err("err!!! ret(%d)", ret);
 		goto p_err;
 	}
-	device->exposure_time = long_exposure_time;
+
+	device->exposure_time = expo.long_val;
 
 p_err:
 	return ret;
 }
 
 int fimc_is_sensor_peri_s_analog_gain(struct fimc_is_device_sensor *device,
-	u32 long_analog_gain, u32 short_analog_gain)
+	struct ae_param again)
 {
 	int ret = 0;
 	struct v4l2_subdev *subdev_module;
 	struct fimc_is_module_enum *module;
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
-	struct ae_param again;
 
 	FIMC_BUG(!device);
 
@@ -1949,22 +1934,14 @@ int fimc_is_sensor_peri_s_analog_gain(struct fimc_is_device_sensor *device,
 	}
 	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
 
-	if (long_analog_gain <= 0 ) {
-		err("it is wrong analog gain(%d)", long_analog_gain);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
 #ifdef FIXED_SENSOR_DEBUG
 	if (unlikely(sysfs_sensor.is_en == true)) {
-		long_analog_gain = sysfs_sensor.long_analog_gain * 10;
-		short_analog_gain = sysfs_sensor.short_analog_gain * 10;
+		again.long_val = sysfs_sensor.long_analog_gain * 10;
+		again.short_val = sysfs_sensor.short_analog_gain * 10;
 		dbg_sensor(1, "again = %d %d\n", sysfs_sensor.long_analog_gain, sysfs_sensor.short_analog_gain);
 	}
 #endif
 
-	again.long_val = long_analog_gain;
-	again.short_val = short_analog_gain;
 	ret = CALL_CISOPS(&sensor_peri->cis, cis_set_analog_gain, sensor_peri->subdev_cis, &again);
 	if (ret < 0) {
 		err("err!!! ret(%d)", ret);
@@ -1972,20 +1949,19 @@ int fimc_is_sensor_peri_s_analog_gain(struct fimc_is_device_sensor *device,
 	}
 	/* 0: Previous input, 1: Current input */
 	sensor_peri->cis.cis_data->analog_gain[0] = sensor_peri->cis.cis_data->analog_gain[1];
-	sensor_peri->cis.cis_data->analog_gain[1] = long_analog_gain;
+	sensor_peri->cis.cis_data->analog_gain[1] = again.long_val;
 
 p_err:
 	return ret;
 }
 
 int fimc_is_sensor_peri_s_digital_gain(struct fimc_is_device_sensor *device,
-	u32 long_digital_gain, u32 short_digital_gain)
+	struct ae_param dgain)
 {
 	int ret = 0;
 	struct v4l2_subdev *subdev_module;
 	struct fimc_is_module_enum *module;
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
-	struct ae_param dgain;
 
 	FIMC_BUG(!device);
 
@@ -2004,22 +1980,14 @@ int fimc_is_sensor_peri_s_digital_gain(struct fimc_is_device_sensor *device,
 	}
 	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
 
-	if (long_digital_gain <= 0 ) {
-		err("it is wrong digital gain(%d)", long_digital_gain);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
 #ifdef FIXED_SENSOR_DEBUG
 	if (unlikely(sysfs_sensor.is_en == true)) {
-		long_digital_gain = sysfs_sensor.long_digital_gain * 10;
-		short_digital_gain = sysfs_sensor.short_digital_gain * 10;
+		dgain.long_val = sysfs_sensor.long_digital_gain * 10;
+		dgain.short_val = sysfs_sensor.short_digital_gain * 10;
 		dbg_sensor(1, "dgain = %d %d\n", sysfs_sensor.long_digital_gain, sysfs_sensor.short_digital_gain);
 	}
 #endif
 
-	dgain.long_val = long_digital_gain;
-	dgain.short_val = short_digital_gain;
 	ret = CALL_CISOPS(&sensor_peri->cis, cis_set_digital_gain, sensor_peri->subdev_cis, &dgain);
 	if (ret < 0) {
 		err("err!!! ret(%d)", ret);
@@ -2027,7 +1995,7 @@ int fimc_is_sensor_peri_s_digital_gain(struct fimc_is_device_sensor *device,
 	}
 	/* 0: Previous input, 1: Current input */
 	sensor_peri->cis.cis_data->digital_gain[0] = sensor_peri->cis.cis_data->digital_gain[1];
-	sensor_peri->cis.cis_data->digital_gain[1] = long_digital_gain;
+	sensor_peri->cis.cis_data->digital_gain[1] = dgain.long_val;
 
 p_err:
 	return ret;
@@ -2133,6 +2101,11 @@ int fimc_is_sensor_peri_compensate_gain_for_ext_br(struct fimc_is_device_sensor 
 	}
 	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
 
+	if (*again == 0 || *dgain == 0) {
+		dbg_sensor(1, "%s: skip", __func__);
+		goto p_err;
+	}
+
 	ret = CALL_CISOPS(&sensor_peri->cis, cis_compensate_gain_for_extremely_br, sensor_peri->subdev_cis, expo, again, dgain);
 	if (ret < 0) {
 		err("err!!! ret(%d)", ret);
@@ -2146,6 +2119,7 @@ p_err:
 int fimc_is_sensor_peri_debug_fixed(struct fimc_is_device_sensor *device)
 {
 	int ret = 0;
+	struct ae_param expo, dgain, again;
 
 	if (!device) {
 		err("device is null\n");
@@ -2163,16 +2137,18 @@ int fimc_is_sensor_peri_debug_fixed(struct fimc_is_device_sensor *device)
 
 		dbg_sensor(1, "exposure = %d %d\n",
 				sysfs_sensor.long_exposure_time, sysfs_sensor.short_exposure_time);
-		if (fimc_is_sensor_peri_s_exposure_time(device,
-					sysfs_sensor.long_exposure_time, sysfs_sensor.short_exposure_time)) {
+		expo.long_val = sysfs_sensor.long_exposure_time;
+		expo.short_val = sysfs_sensor.short_exposure_time;
+		if (fimc_is_sensor_peri_s_exposure_time(device, expo)) {
 			err("failed to set exposure time : %d %d\n - %d",
 				sysfs_sensor.long_exposure_time, sysfs_sensor.short_exposure_time, ret);
 			goto p_err;
 		}
 
 		dbg_sensor(1, "again = %d %d\n", sysfs_sensor.long_analog_gain, sysfs_sensor.short_analog_gain);
-		ret = fimc_is_sensor_peri_s_analog_gain(device,
-				sysfs_sensor.long_analog_gain * 10, sysfs_sensor.short_analog_gain * 10);
+		again.long_val = sysfs_sensor.long_analog_gain * 10;
+		again.short_val = sysfs_sensor.long_analog_gain * 10;
+		ret = fimc_is_sensor_peri_s_analog_gain(device, again);
 		if (ret < 0) {
 			err("failed to set analog gain : %d %d\n - %d",
 					sysfs_sensor.long_analog_gain,
@@ -2181,9 +2157,9 @@ int fimc_is_sensor_peri_debug_fixed(struct fimc_is_device_sensor *device)
 		}
 
 		dbg_sensor(1, "dgain = %d %d\n", sysfs_sensor.long_digital_gain, sysfs_sensor.short_digital_gain);
-		ret = fimc_is_sensor_peri_s_digital_gain(device,
-				sysfs_sensor.long_digital_gain * 10,
-				sysfs_sensor.short_digital_gain * 10);
+		dgain.long_val = sysfs_sensor.long_digital_gain * 10;
+		dgain.short_val = sysfs_sensor.long_digital_gain * 10;
+		ret = fimc_is_sensor_peri_s_analog_gain(device, dgain);
 		if (ret < 0) {
 			err("failed to set digital gain : %d %d\n - %d",
 				sysfs_sensor.long_digital_gain,
