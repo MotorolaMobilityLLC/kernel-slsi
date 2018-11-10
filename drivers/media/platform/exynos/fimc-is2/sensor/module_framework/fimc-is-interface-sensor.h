@@ -83,6 +83,7 @@ struct ae_param {
 		u32 long_val;
 	};
 	u32 short_val;
+	u32 middle_val;
 };
 
 typedef struct {
@@ -155,15 +156,18 @@ struct vc_buf_info_t {
 };
 
 typedef struct {
-	unsigned long long exposure;
+	unsigned int exposure;
 	unsigned int analog_gain;
 	unsigned int digital_gain;
-	unsigned long long long_exposure;
+	unsigned int long_exposure;
 	unsigned int long_analog_gain;
 	unsigned int long_digital_gain;
-	unsigned long long short_exposure;
+	unsigned int short_exposure;
 	unsigned int short_analog_gain;
 	unsigned int short_digital_gain;
+	unsigned int middle_exposure;
+	unsigned int middle_analog_gain;
+	unsigned int middle_digital_gain;
 } ae_setting;
 
 typedef struct {
@@ -503,6 +507,21 @@ enum fimc_is_cis_lownoise_mode {
 	FIMC_IS_CIS_LOWNOISE_MODE_MAX,
 };
 
+enum fimc_is_exposure_gain_count {
+	EXPOSURE_GAIN_COUNT_INVALID = 0,
+	EXPOSURE_GAIN_COUNT_1,
+	EXPOSURE_GAIN_COUNT_2,
+	EXPOSURE_GAIN_COUNT_3,
+	EXPOSURE_GAIN_COUNT_END
+};
+
+enum fimc_is_exposure_gain_type {
+	EXPOSURE_GAIN_LONG = 0,
+	EXPOSURE_GAIN_SHORT,
+	EXPOSURE_GAIN_MIDDLE,
+	EXPOSURE_GAIN_MAX
+};
+
 enum fimc_is_aperture_control_step {
 	APERTURE_STEP_STATIONARY = 0,
 	APERTURE_STEP_PREPARE,
@@ -644,62 +663,57 @@ struct fimc_is_cis_interface_ops {
 	bool (*is_vvalid_period)(struct fimc_is_sensor_interface *itf);
 
 	int (*request_exposure)(struct fimc_is_sensor_interface *itf,
-				u32 long_exposure,
-				u32 short_exposure);
+		enum fimc_is_exposure_gain_count num_data, u32 *exposure);
 
 	int (*adjust_exposure)(struct fimc_is_sensor_interface *itf,
-				u32 long_exposure,
-				u32 short_exposure,
-				u32 *available_long_exposure,
-				u32 *available_short_exposure,
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *exposure,
+				u32 *available_exposure,
 				fimc_is_sensor_adjust_direction adjust_direction);
 
 	int (*get_next_frame_timing)(struct fimc_is_sensor_interface *itf,
-					u32 *long_exposure,
-					u32 *short_exposure,
-					u32 *frame_period,
-					u64 *line_period);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *exposure,
+				u32 *frame_period,
+				u64 *line_period);
 
 	int (*get_frame_timing)(struct fimc_is_sensor_interface *itf,
-					u32 *long_exposure,
-					u32 *short_exposure,
-					u32 *frame_period,
-					u64 *line_period);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *exposure,
+				u32 *frame_period,
+				u64 *line_period);
 
 	int (*request_analog_gain)(struct fimc_is_sensor_interface *itf,
-					u32 long_analog_gain,
-					u32 short_analog_gain);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *analog_gain);
 
 	int (*request_gain)(struct fimc_is_sensor_interface *itf,
-				u32 long_total_gain,
-				u32 long_analog_gain,
-				u32 long_digital_gain,
-				u32 short_total_gain,
-				u32 short_analog_gain,
-				u32 short_digital_gain);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *total_gain,
+				u32 *analog_gain,
+				u32 *digital_gain);
 
 	int (*adjust_analog_gain)(struct fimc_is_sensor_interface *itf,
-					u32 desired_long_analog_gain,
-					u32 desired_short_analog_gain,
-					u32 *actual_long_gain,
-					u32 *actual_short_gain,
-					fimc_is_sensor_adjust_direction adjust_direction);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *desired_analog_gain,
+				u32 *actual_gain,
+				fimc_is_sensor_adjust_direction adjust_direction);
 
 	int (*get_next_analog_gain)(struct fimc_is_sensor_interface *itf,
-				u32 *long_analog_gain,
-				u32 *short_analog_gain);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *analog_gain);
 
 	int (*get_analog_gain)(struct fimc_is_sensor_interface *itf,
-				u32 *long_analog_gain,
-				u32 *short_analog_gain);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *analog_gain);
 
 	int (*get_next_digital_gain)(struct fimc_is_sensor_interface *itf,
-				u32 *long_digital_gain,
-				u32 *short_digital_gain);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *digital_gain);
 
 	int (*get_digital_gain)(struct fimc_is_sensor_interface *itf,
-				u32 *long_digital_gain,
-				u32 *short_digital_gain);
+				enum fimc_is_exposure_gain_count num_data,
+				u32 *digital_gain);
 
 	bool (*is_actuator_available)(struct fimc_is_sensor_interface *itf);
 	bool (*is_flash_available)(struct fimc_is_sensor_interface *itf);
@@ -763,21 +777,16 @@ struct fimc_is_cis_interface_ops {
 
 	/* reset exposure and gain for Flash */
 	int (*request_reset_expo_gain)(struct fimc_is_sensor_interface *itf,
-					u32 long_expo,
-					u32 long_tgain,
-					u32 long_again,
-					u32 long_dgain,
-					u32 short_expo,
-					u32 short_tgain,
-					u32 short_again,
-					u32 short_dgain);
+					enum fimc_is_exposure_gain_count num_data,
+					u32 *expo,
+					u32 *tgain,
+					u32 *again,
+					u32 *dgain);
 	int (*set_sensor_info_mode_change)(struct fimc_is_sensor_interface *itf,
-					u32 long_expo,
-					u32 long_again,
-					u32 long_dgain,
-					u32 expo,
-					u32 again,
-					u32 dgain);
+					enum fimc_is_exposure_gain_count num_data,
+					u32 *expo,
+					u32 *again,
+					u32 *dgain);
 	int (*update_sensor_dynamic_meta)(struct fimc_is_sensor_interface *itf,
 					u32 frame_count,
 					camera2_ctl_t *ctrl,
@@ -799,12 +808,10 @@ struct fimc_is_cis_interface_ops {
 	int (*set_sensor_3a_mode)(struct fimc_is_sensor_interface *itf,
 					u32 mode);
 	int (*get_initial_exposure_gain_of_sensor)(struct fimc_is_sensor_interface *itf,
-					u32 *long_expo,
-					u32 *long_again,
-					u32 *long_dgain,
-					u32 *short_expo,
-					u32 *short_again,
-					u32 *short_dgain);
+					enum fimc_is_exposure_gain_count num_data,
+					u32 *expo,
+					u32 *again,
+					u32 *dgain);
 };
 
 struct fimc_is_cis_ext_interface_ops {
@@ -1037,10 +1044,10 @@ struct fimc_is_sensor_interface {
 	enum DIFF_BET_SEN_ISP	diff_bet_sen_isp;
 	enum itf_cis_interface	cis_mode;
 
-	u32			total_gain[MAX_EXPOSURE_GAIN_PER_FRAME][NUM_FRAMES];
-	u32			analog_gain[MAX_EXPOSURE_GAIN_PER_FRAME][NUM_FRAMES];
-	u32			digital_gain[MAX_EXPOSURE_GAIN_PER_FRAME][NUM_FRAMES];
-	u32			exposure[MAX_EXPOSURE_GAIN_PER_FRAME][NUM_FRAMES];
+	u32			total_gain[EXPOSURE_GAIN_MAX][NUM_FRAMES];
+	u32			analog_gain[EXPOSURE_GAIN_MAX][NUM_FRAMES];
+	u32			digital_gain[EXPOSURE_GAIN_MAX][NUM_FRAMES];
+	u32			exposure[EXPOSURE_GAIN_MAX][NUM_FRAMES];
 
 	u32			flash_mode[NUM_FRAMES];
 	u32			flash_intensity[NUM_FRAMES];
