@@ -54,13 +54,9 @@ struct fimc_is_cis {
 	camera2_sensor_uctl_t		cur_sensor_uctrl;
 
 	/* settings for mode change */
-	bool				need_mode_change;
-	u32				mode_chg_expo;
-	u32				mode_chg_again;
-	u32				mode_chg_dgain;
-	u32				mode_chg_long_expo;
-	u32				mode_chg_long_again;
-	u32				mode_chg_long_dgain;
+	bool					need_mode_change;
+	enum fimc_is_exposure_gain_count	exp_gain_cnt;
+	ae_setting				mode_chg;
 	struct wb_gains			mode_chg_wb_gains;
 
 	/* expected dms */
@@ -469,10 +465,11 @@ struct fimc_is_device_sensor_peri *find_peri_by_eeprom_id(struct fimc_is_device_
 							u32 eeprom);
 
 void fimc_is_sensor_set_cis_uctrl_list(struct fimc_is_device_sensor_peri *sensor_peri,
-		u32 long_exp, u32 short_exp,
-		u32 long_total_gain, u32 short_total_gain,
-		u32 long_analog_gain, u32 short_analog_gain,
-		u32 long_digital_gain, u32 short_digital_gain);
+		enum fimc_is_exposure_gain_count num_data,
+		u32 *exposure,
+		u32 *total_gain,
+		u32 *analog_gain,
+		u32 *digital_gain);
 
 int fimc_is_sensor_peri_notify_vsync(struct v4l2_subdev *subdev, void *arg);
 int fimc_is_sensor_peri_notify_vblank(struct v4l2_subdev *subdev, void *arg);
@@ -497,11 +494,11 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 int fimc_is_sensor_peri_s_frame_duration(struct fimc_is_device_sensor *device,
 				u32 frame_duration);
 int fimc_is_sensor_peri_s_exposure_time(struct fimc_is_device_sensor *device,
-				u32 long_exposure_time, u32 short_exposure_time);
+				struct ae_param expo);
 int fimc_is_sensor_peri_s_analog_gain(struct fimc_is_device_sensor *device,
-				u32 long_analog_gain, u32 short_analog_gain);
+				struct ae_param again);
 int fimc_is_sensor_peri_s_digital_gain(struct fimc_is_device_sensor *device,
-				u32 long_digital_gain, u32 short_digital_gain);
+				struct ae_param dgain);
 int fimc_is_sensor_peri_s_wb_gains(struct fimc_is_device_sensor *device,
 				struct wb_gains wb_gains);
 int fimc_is_sensor_peri_adj_ctrl(struct fimc_is_device_sensor *device,
