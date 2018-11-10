@@ -1070,7 +1070,9 @@ struct camera2_aa_ctl {
 	uint32_t			vendor_captureCount;
 	uint32_t			vendor_captureExposureTime;
 	float				vendor_objectDistanceCm;
-	uint32_t			vendor_reserved[9];
+	int32_t				vendor_colorTempKelvin;
+	int32_t				vendor_enableDynamicShotDm;
+	uint32_t			vendor_reserved[8];
 };
 
 struct camera2_aa_dm {
@@ -1114,13 +1116,16 @@ struct camera2_aa_dm {
 	uint32_t			vendor_captureCount;
 	uint32_t			vendor_captureExposureTime;
 	float				vendor_objectDistanceCm;
+	int32_t				vendor_colorTempKelvin;
 	// For dual
 	uint32_t			vendor_wideTeleConvEv;
 	uint32_t			vendor_teleSync;
 	uint32_t			vendor_fusionCaptureAeInfo;
 	uint32_t			vendor_fusionCaptureAfInfo;
-
-	uint32_t			vendor_reserved[9];
+	uint32_t			vendor_colorTempIndex;
+	uint32_t			vendor_luxIndex;
+	uint32_t			vendor_luxStandard;
+	uint32_t			vendor_reserved[6];
 };
 
 struct camera2_aa_sm {
@@ -1531,10 +1536,13 @@ struct camera2_sensor_uctl {
 	uint32_t	digitalGain;
 	uint64_t	longExposureTime; /* For supporting WDR */
 	uint64_t	shortExposureTime;
+	uint64_t	middleExposureTime;
 	uint32_t	longAnalogGain;
 	uint32_t	shortAnalogGain;
+	uint32_t	middleAnalogGain;
 	uint32_t	longDigitalGain;
 	uint32_t	shortDigitalGain;
+	uint32_t	middleDigitalGain;
 
 	uint64_t	exposureTime;
 	uint32_t	frameDuration;
@@ -1548,10 +1556,13 @@ struct camera2_sensor_udm {
 	uint32_t	digitalGain;
 	uint64_t	longExposureTime;
 	uint64_t	shortExposureTime;
+	uint64_t	middleExposureTime;
 	uint32_t	longAnalogGain;
 	uint32_t	shortAnalogGain;
+	uint32_t	middleAnalogGain;
 	uint32_t	longDigitalGain;
 	uint32_t	shortDigitalGain;
+	uint32_t	middleDigitalGain;
 	uint64_t	timeStampBoot;
 	uint32_t	multiLuminances[9];
 };
