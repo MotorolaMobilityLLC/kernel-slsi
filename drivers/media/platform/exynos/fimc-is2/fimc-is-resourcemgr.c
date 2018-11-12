@@ -1622,6 +1622,12 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			info("fimc_is_load_clear() done\n");
 		}
 #endif
+
+#if defined(SECURE_CAMERA_FACE)
+		ret = fimc_is_secure_func(core, NULL, FIMC_IS_SECURE_CAMERA_FACE,
+			core->scenario, SMC_SECCAM_UNPREPARE);
+#endif
+
 		switch (rsc_type) {
 		case RESOURCE_TYPE_PREPROC:
 #if defined(CONFIG_PM)
@@ -1727,11 +1733,6 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 	/* global update */
 	if (atomic_read(&core->rsccount) == 1) {
 		u32 current_min, current_max;
-
-#if defined(SECURE_CAMERA_FACE)
-		ret = fimc_is_secure_func(core, NULL, FIMC_IS_SECURE_CAMERA_FACE,
-			core->scenario, SMC_SECCAM_UNPREPARE);
-#endif
 
 #ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 		exynos_bcm_dbg_stop(CAMERA_DRIVER);
