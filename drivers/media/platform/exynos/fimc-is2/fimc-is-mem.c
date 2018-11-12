@@ -33,6 +33,7 @@
 #include <linux/dma-buf-container.h>
 #include <linux/ion_exynos.h>
 #include <asm/cacheflush.h>
+#include <media/videobuf2-memops.h>
 
 #include "fimc-is-core.h"
 #include "fimc-is-cmd.h"
@@ -46,6 +47,34 @@
 #endif
 
 #if defined(CONFIG_VIDEOBUF2_DMA_SG)
+struct vb2_dma_sg_buf {
+	struct device			*dev;
+	void				*vaddr;
+	struct page			**pages;
+	struct frame_vector		*vec;
+	int				offset;
+	enum dma_data_direction		dma_dir;
+	struct sg_table			sg_table;
+	/*
+	 * This will point to sg_table when used with the MMAP or USERPTR
+	 * memory model, and to the dma_buf sglist when used with the
+	 * DMABUF memory model.
+	 */
+	struct sg_table			*dma_sgt;
+	size_t				size;
+	unsigned int			num_pages;
+	refcount_t			refcount;
+	struct vb2_vmarea_handler	handler;
+
+	struct dma_buf_attachment	*db_attach;
+	/*
+	 * Our IO address space is not managed by dma-mapping. Therefore
+	 * scatterlist.dma_address should not be corrupted by the IO address
+	 * returned by iovmm_map() because it is used by cache maintenance.
+	 */
+	dma_addr_t			iova;
+};
+
 /* fimc-is vb2 buffer operations */
 static inline ulong is_vb2_dma_sg_plane_kvaddr(
 		struct fimc_is_vb2_buf *vbuf, u32 plane)
@@ -59,6 +88,70 @@ static inline dma_addr_t is_vb2_dma_sg_plane_dvaddr(
 
 {
 	return vb2_dma_sg_plane_dma_addr(&vbuf->vb.vb2_buf, plane);
+}
+
+static long is_vb2_dma_sg_remap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
+{
+	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
+	struct vb2_dma_sg_buf *buf;
+	unsigned int plane;
+	long ret;
+	int ioprot = IOMMU_READ	| IOMMU_WRITE;
+
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		buf = vb->planes[plane].mem_priv;
+		vbuf->sgt[plane] = dma_buf_map_attachment(buf->db_attach, buf->dma_dir);
+
+		if (IS_ERR(vbuf->sgt[plane])) {
+			pr_err("Error getting dmabuf scatterlist\n");
+			goto err_get_sgt;
+		}
+
+		if ((vbuf->dva[plane] == 0) || IS_ERR_VALUE(vbuf->dva[plane])) {
+			if (device_get_dma_attr(buf->dev) == DEV_DMA_COHERENT)
+				ioprot |= IOMMU_CACHE;
+
+			vbuf->dva[plane] = ion_iovmm_map_attr(buf->db_attach, 0, buf->size,
+					DMA_BIDIRECTIONAL, ioprot, attr);
+			if (IS_ERR_VALUE(vbuf->dva[plane])) {
+				pr_err("Error from ion_iovmm_map()=%pad\n", &vbuf->dva[plane]);
+				ret = vbuf->dva[plane];
+				goto err_map_remap;
+			}
+		}
+	}
+
+	return 0;
+
+err_map_remap:
+	dma_buf_unmap_attachment(buf->db_attach, vbuf->sgt[plane], buf->dma_dir);
+	vbuf->dva[plane] = 0;
+
+err_get_sgt:
+	while (plane-- > 0) {
+		buf = vb->planes[plane].mem_priv;
+
+		ion_iovmm_unmap_attr(buf->db_attach, vbuf->dva[plane], attr);
+		dma_buf_unmap_attachment(buf->db_attach, vbuf->sgt[plane], buf->dma_dir);
+		vbuf->dva[plane] = 0;
+	}
+
+	return ret;
+}
+
+void is_vb2_dma_sg_unremap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
+{
+	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
+	struct vb2_dma_sg_buf *buf;
+	unsigned int plane;
+
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		buf = vb->planes[plane].mem_priv;
+
+		ion_iovmm_unmap_attr(buf->db_attach, vbuf->dva[plane], attr);
+		dma_buf_unmap_attachment(buf->db_attach, vbuf->sgt[plane], buf->dma_dir);
+		vbuf->dva[plane] = 0;
+	}
 }
 
 #ifdef CONFIG_DMA_BUF_CONTAINER
@@ -256,6 +349,8 @@ static void is_dbufcon_unmap(struct fimc_is_vb2_buf *vbuf)
 const struct fimc_is_vb2_buf_ops is_vb2_buf_ops_dma_sg = {
 	.plane_kvaddr		= is_vb2_dma_sg_plane_kvaddr,
 	.plane_dvaddr		= is_vb2_dma_sg_plane_dvaddr,
+	.remap_attr		= is_vb2_dma_sg_remap_attr,
+	.unremap_attr		= is_vb2_dma_sg_unremap_attr,
 	.dbufcon_prepare	= is_dbufcon_prepare,
 	.dbufcon_finish		= is_dbufcon_finish,
 	.dbufcon_map		= is_dbufcon_map,

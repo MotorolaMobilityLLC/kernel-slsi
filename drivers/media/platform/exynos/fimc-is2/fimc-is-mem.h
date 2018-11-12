@@ -23,6 +23,8 @@ struct fimc_is_vb2_buf;
 struct fimc_is_vb2_buf_ops {
 	ulong (*plane_kvaddr)(struct fimc_is_vb2_buf *vbuf, u32 plane);
 	dma_addr_t (*plane_dvaddr)(struct fimc_is_vb2_buf *vbuf, u32 plane);
+	long (*remap_attr)(struct fimc_is_vb2_buf *vbuf, int attr);
+	void (*unremap_attr)(struct fimc_is_vb2_buf *vbuf, int attr);
 	long (*dbufcon_prepare)(struct fimc_is_vb2_buf *vbuf, u32 num_planes, struct device *dev);
 	void (*dbufcon_finish)(struct fimc_is_vb2_buf *vbuf);
 	long (*dbufcon_map)(struct fimc_is_vb2_buf *vbuf);
