@@ -365,3 +365,14 @@
 		};
 	};
 };
+
+&hsi2c_3 {
+	status = "okay";
+	samsung,reset-before-trans;
+	clock-frequency = <400000>;
+
+	backlight_i2c@36 {
+		compatible = "backlight_i2c";
+		reg = <0x36>;
+	};
+};
