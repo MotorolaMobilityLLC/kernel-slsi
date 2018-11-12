@@ -1838,6 +1838,78 @@ p_err:
 	return ret;
 }
 
+int sensor_2x5sp_cis_set_wb_gain(struct v4l2_subdev *subdev, struct wb_gains wb_gains)
+{
+	int ret = 0;
+	int hold = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+	u16 abs_gains[4] = {0, }; /* [0]=gr, [1]=r, [2]=b, [3]=gb */
+
+#ifdef DEBUG_SENSOR_TIME
+	struct timeval st, end;
+
+	do_gettimeofday(&st);
+#endif
+
+	BUG_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	BUG_ON(!cis);
+	BUG_ON(!cis->cis_data);
+
+	if (!cis->use_wb_gain)
+		return ret;
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	dbg_sensor(1, "[SEN:%d]%s:DDK vlaue: wb_gain_gr(%d), wb_gain_r(%d), wb_gain_b(%d)\n",
+			cis->id, __func__, wb_gains.gr, wb_gains.r, wb_gains.b, wb_gains.gb);
+
+	if (wb_gains.gr == 0 || wb_gains.r == 0 || wb_gains.b == 0 || wb_gains.gb == 0)
+		return ret;
+
+	abs_gains[0] = (u16)((wb_gains.r / 4) & 0xFFFF);
+	abs_gains[1] = (u16)((wb_gains.gr / 4) & 0xFFFF);
+	abs_gains[2] = (u16)((wb_gains.b / 4) & 0xFFFF);
+
+	dbg_sensor(1, "[SEN:%d]%s, abs_gain_r(0x%4X), abs_gain_gr(0x%4X), abs_gain_b(0x%4X)\n",
+			cis->id, __func__, abs_gains[0], abs_gains[1], abs_gains[2]);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
+	if (hold < 0) {
+		ret = hold;
+		goto p_err;
+	}
+
+	/* 0x40000D12 ~ 0x400000D16: api_rw_color_temperature_absolute_gain_red/green/blue */
+	ret = fimc_is_sensor_write16(client, 0x6028, 0x4000);
+	ret |= fimc_is_sensor_write16_array(client, 0x0D12, abs_gains, 3);
+	if (ret < 0)
+		goto p_err;
+
+#ifdef DEBUG_SENSOR_TIME
+	do_gettimeofday(&end);
+	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec)*1000000 + (end.tv_usec - st.tv_usec));
+#endif
+
+p_err:
+	if (hold > 0) {
+		hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x00);
+		if (hold < 0)
+			ret = hold;
+	}
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+	return ret;
+}
+
 static struct fimc_is_cis_ops cis_ops = {
 	.cis_init = sensor_2x5sp_cis_init,
 	.cis_log_status = sensor_2x5sp_cis_log_status,
@@ -1868,6 +1940,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 	.cis_check_rev = sensor_2x5sp_cis_check_rev,
 	.cis_factory_test = sensor_cis_factory_test,
+	.cis_set_wb_gains = sensor_2x5sp_cis_set_wb_gain,
 };
 
 static int cis_2x5sp_probe(struct i2c_client *client,
@@ -1957,6 +2030,7 @@ static int cis_2x5sp_probe(struct i2c_client *client,
 
 	cis->use_dgain = true;
 	cis->hdr_ctrl_by_again = false;
+	cis->use_wb_gain = true;
 
 	ret = of_property_read_string(dnode, "setfile", &setfile);
 	if (ret) {
