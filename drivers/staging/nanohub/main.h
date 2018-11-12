@@ -193,6 +193,10 @@ static inline int nanohub_irq2_fired(struct nanohub_data *data)
 }
 #endif
 
+#ifdef CONFIG_NANOHUB_MAILBOX
+void nanohub_add_dump_request(struct nanohub_data *data);
+#endif
+
 static inline int request_wakeup_timeout(struct nanohub_data *data, int timeout)
 {
 	return request_wakeup_ex(data, timeout, KEY_WAKEUP, LOCK_MODE_NORMAL);
