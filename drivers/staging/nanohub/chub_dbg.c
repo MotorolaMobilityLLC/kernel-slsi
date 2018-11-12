@@ -62,9 +62,6 @@ static void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 				  i * 4);
 		p_dump->gpr[GPR_PC_INDEX] =
 		    readl(ipc->chub_dumpgrp + REG_CHUB_DUMPGPR_PCR);
-
-		for (i = 0; i <= GPR_PC_INDEX; i++)
-			pr_info("R%d: 0x%x\n", i, p_dump->gpr[i]);
 	}
 }
 
@@ -73,7 +70,7 @@ static u32 get_dbg_dump_size(void)
 	return sizeof(struct dbg_dump) + ipc_get_chub_mem_size();
 };
 
-#ifdef	CONFIG_CONTEXTHUB_DEBUG
+#if defined(CONFIG_CONTEXTHUB_DEBUG) && defined(SUPPORT_DUMP_ON_DRIVER)
 static void chub_dbg_write_file(struct device *dev, char *name, void *buf, int size)
 {
 	struct file *filp;
@@ -140,7 +137,6 @@ static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 		atomic_read(&data->wakeup_lock_cnt),
 		atomic_read(&data->wakeup_acquired),
 		atomic_read(&ipc->irq1_apInt), nanohub_irq1_fired(data));
-
 #endif
 
 	/* print error status */
@@ -163,6 +159,12 @@ void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason
 	chub_dbg_dump_gpr(ipc);
 	chub_dbg_dump_ram(ipc, reason);
 
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
+	nanohub_add_dump_request(ipc->data);
+#endif
+
+#ifdef SUPPORT_DUMP_ON_DRIVER
+	/* dosen't support on android-p */
 	if (p_dbg_dump) {
 #ifdef	CONFIG_CONTEXTHUB_DEBUG
 		/* write file */
@@ -183,6 +185,7 @@ void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason
 
 	/* dump log and status with ipc */
 	chub_dbg_dump_status(ipc);
+#endif
 }
 
 int chub_dbg_check_and_download_image(struct contexthub_ipc_info *ipc)
@@ -231,8 +234,7 @@ static ssize_t chub_bin_sram_read(struct file *file, struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 
-	dev_dbg(dev, "%s(%lld, %zu)\n", __func__, off, size);
-
+	dev_info(dev, "%s(%p: %lld, %zu)\n", __func__, battr->private, off, size);
 	memcpy_fromio(buf, battr->private + off, size);
 	return size;
 }
@@ -243,17 +245,27 @@ static ssize_t chub_bin_dram_read(struct file *file, struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 
-	dev_dbg(dev, "%s(%lld, %zu)\n", __func__, off, size);
+	dev_info(dev, "%s(%p: %lld, %zu)\n", __func__, battr->private, off, size);
+	memcpy(buf, battr->private + off, size);
+	return size;
+}
+
+static ssize_t chub_bin_dumped_sram_read(struct file *file, struct kobject *kobj,
+				  struct bin_attribute *battr, char *buf,
+				  loff_t off, size_t size)
+{
 	memcpy(buf, battr->private + off, size);
 	return size;
 }
 
 static BIN_ATTR_RO(chub_bin_sram, 0);
 static BIN_ATTR_RO(chub_bin_dram, 0);
+static BIN_ATTR_RO(chub_bin_dumped_sram, 0);
 
 static struct bin_attribute *chub_bin_attrs[] = {
 	&bin_attr_chub_bin_sram,
 	&bin_attr_chub_bin_dram,
+	&bin_attr_chub_bin_dumped_sram,
 };
 
 #define SIZE_UTC_NAME (16)
@@ -489,19 +501,33 @@ void *chub_dbg_get_memory(enum dbg_dump_area area)
 	return addr;
 }
 
-int chub_dbg_init(struct device *dev)
+int chub_dbg_init(struct contexthub_ipc_info *chub)
 {
 	int i, ret = 0;
 	enum dbg_dump_area area;
 
-	if (!chub_rmem)
+	struct device *dev;
+	struct device *sensor_dev = NULL;
+
+	if (!chub_rmem || !chub)
 		return -EINVAL;
+
+	sensor_dev = dev = chub->dev;
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
+	if (chub->data)
+		sensor_dev = chub->data->io[ID_NANOHUB_SENSOR].dev;
+#endif
+
+	pr_info("%s: %s: %s\n", __func__, dev_name(dev), dev_name(sensor_dev));
+
+	bin_attr_chub_bin_dumped_sram.size = ipc_get_chub_mem_size();
+	bin_attr_chub_bin_dumped_sram.private = p_dbg_dump->sram;
+
+	bin_attr_chub_bin_dram.size = sizeof(struct dbg_dump);
+	bin_attr_chub_bin_dram.private= p_dbg_dump;
 
 	bin_attr_chub_bin_sram.size = ipc_get_chub_mem_size();
 	bin_attr_chub_bin_sram.private = ipc_get_base(IPC_REG_DUMP);
-
-	bin_attr_chub_bin_dram.size = sizeof(struct dbg_dump);
-	bin_attr_chub_bin_dram.private = p_dbg_dump;
 
 	if (chub_rmem->size < get_dbg_dump_size())
 		dev_err(dev,
@@ -511,9 +537,9 @@ int chub_dbg_init(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(chub_bin_attrs); i++) {
 		struct bin_attribute *battr = chub_bin_attrs[i];
 
-		ret = device_create_bin_file(dev, battr);
+		ret = device_create_bin_file(sensor_dev, battr);
 		if (ret < 0)
-			dev_warn(dev, "Failed to create file: %s\n",
+			dev_warn(sensor_dev, "Failed to create file: %s\n",
 				 battr->attr.name);
 	}
 
@@ -558,9 +584,10 @@ int chub_dbg_init(struct device *dev)
 	p_dbg_dump->info[area].size = bin_attr_chub_bin_sram.size;
 
 	dev_dbg(dev,
-		"%s(%pa) is mapped on %p (sram %p) with size of %u, dump size %u\n",
+		"%s(%pa) is mapped on %p (sram %p: startoffset:%d) with size of %u, dump size %u\n",
 		"dump buffer", &chub_rmem->base, phys_to_virt(chub_rmem->base),
 		&p_dbg_dump->sram[p_dbg_dump->sram_start],
+		p_dbg_dump->sram_start,
 		(u32)chub_rmem->size, get_dbg_dump_size());
 
 	return ret;

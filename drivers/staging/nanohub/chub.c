@@ -230,7 +230,7 @@ static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 	chub->dd_log =
 	    log_register_buffer(chub_dev, 1, chub->dd_log_buffer, "dd", 0);
 #endif
-	ret = chub_dbg_init(chub_dev);
+	ret = chub_dbg_init(chub);
 	if (ret)
 		dev_err(chub_dev, "%s: fails. ret:%d\n", __func__, ret);
 
@@ -920,7 +920,7 @@ out:
 int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 {
 	int ret;
-	int trycnt;
+	int trycnt = 0;
 
 	dev_info(ipc->dev, "%s: force:%d, status:%d, in-reset:%d, user:%d\n",
 		__func__, force_load, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset), atomic_read(&ipc->in_use_ipc));
@@ -936,13 +936,15 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 		msleep(WAIT_CHUB_MS);
 		if (++trycnt > RESET_WAIT_TRY_CNT) {
 			dev_info(ipc->dev, "%s: cann't get lock. force reset: %d\n", __func__, atomic_read(&ipc->in_use_ipc));
-			break;
+			atomic_dec(&ipc->in_reset);
+			mutex_unlock(&reset_mutex);
+			return -EINVAL;
 		}
 		dev_info(ipc->dev, "%s: wait for ipc user free: %d\n", __func__, atomic_read(&ipc->in_use_ipc));
 	} while (atomic_read(&ipc->in_use_ipc));
 
 	if (dump)
-		chub_dbg_dump_hw(ipc, dump);
+		chub_dbg_dump_hw(ipc, ipc->cur_err);
 
 	dev_info(ipc->dev, "%s: start reset status:%d\n", __func__, atomic_read(&ipc->chub_status));
 	if (!ipc->block_reset) {
@@ -1000,6 +1002,7 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 	const struct firmware *entry;
 	int ret;
 
+	dev_info(ipc->dev, "%s: enter for bl:%d\n", reg == IPC_REG_BL);
 	if (reg == IPC_REG_BL)
 		ret = request_firmware(&entry, "bl.unchecked.bin", ipc->dev);
 	else if (reg == IPC_REG_OS)
@@ -1377,7 +1380,7 @@ static ssize_t chub_reset(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
-	int ret = contexthub_reset(ipc, 1, 0);
+	int ret = contexthub_reset(ipc, 1, 1);
 
 	return ret < 0 ? ret : count;
 }
