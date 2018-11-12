@@ -556,11 +556,12 @@ static int fimc_is_ischain_mxp_tag(struct fimc_is_subdev *subdev,
 				otcrop->x, otcrop->y, otcrop->w, otcrop->h);
 		}
 
+		/* buf_tag should be set by unit of stride */
 		ret = fimc_is_ischain_buf_tag(device,
 			subdev,
 			ldr_frame,
 			pixelformat,
-			otcrop->w,
+			mcs_output->dma_stride_y,
 			otcrop->h,
 			target_addr);
 		if (ret) {
