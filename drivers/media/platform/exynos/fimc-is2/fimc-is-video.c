@@ -795,6 +795,7 @@ static int fimc_is_queue_open(struct fimc_is_queue *queue,
 	clear_bit(FIMC_IS_QUEUE_BUFFER_PREPARED, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_BUFFER_READY, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_STREAM_ON, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state);
 	memset(&queue->framecfg, 0, sizeof(struct fimc_is_frame_cfg));
 	frame_manager_probe(&queue->framemgr, queue->id, queue->name);
 
@@ -810,6 +811,7 @@ static int fimc_is_queue_close(struct fimc_is_queue *queue)
 	clear_bit(FIMC_IS_QUEUE_BUFFER_PREPARED, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_BUFFER_READY, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_STREAM_ON, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state);
 	frame_manager_close(&queue->framemgr);
 
 	return ret;
@@ -923,11 +925,14 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 		num_buffers = vbuf->num_merged_dbufs / num_i_planes;
 	} else {
 		for (i = 0; i < num_i_planes; i++) {
-			queue->buf_dva[index][i] = vbuf->ops->plane_dvaddr(vbuf, i);
-			queue->buf_kva[index][i] = vbuf->ops->plane_kvaddr(vbuf, i);
+			if (test_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state))
+				queue->buf_dva[index][i] = vbuf->dva[i];
+			else
+				queue->buf_dva[index][i] = vbuf->ops->plane_dvaddr(vbuf, i);
 		}
 
 		num_buffers = 1;
+
 	}
 
 	pos_meta_p = num_buffers * num_i_planes;
@@ -1080,6 +1085,14 @@ int fimc_is_queue_buffer_prepare(struct vb2_buffer *vb)
 		}
 	}
 
+	if (test_bit(IS_QUEUE_NEED_TO_REMAP, &vctx->queue.state)) {
+		ret = vbuf->ops->remap_attr(vbuf, 0);
+		if (ret) {
+			err("failed to remap dmabuf: %d", vb->index);
+			return ret;
+		}
+	}
+
 	vctx->queue.buf_pre++;
 
 	return 0;
@@ -1089,12 +1102,16 @@ void fimc_is_queue_buffer_finish(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
 	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
+	struct fimc_is_video_ctx *vctx = vb->vb2_queue->drv_priv;
 
 	if (IS_ENABLED(CONFIG_DMA_BUF_CONTAINER) &&
 			(vbuf->num_merged_dbufs)) {
 		vbuf->ops->dbufcon_unmap(vbuf);
 		vbuf->ops->dbufcon_finish(vbuf);
 	}
+
+	if (test_bit(IS_QUEUE_NEED_TO_REMAP, &vctx->queue.state))
+		vbuf->ops->unremap_attr(vbuf, 0);
 }
 
 void fimc_is_queue_wait_prepare(struct vb2_queue *vbq)
