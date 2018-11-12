@@ -467,6 +467,26 @@ config BACKLIGHT_ARCXCNN
 	  If you have an ARCxCnnnn family backlight say Y to enable
 	  the backlight driver.
 
+config BACKLIGHT_SGM37603
+	tristate "sgm37603 backlight support"
+	depends on I2C
+	default n
+	help
+	  This driver is backlight.
+
+	  To compile this driver as a module, choose M here. The module will be called lcd.
+	  It is a driver support bias vendor SGM37603A.
+
+config BACKLIGHT_LM36923
+	tristate "lm36923 backlight support"
+	depends on I2C
+	default n
+	help
+	  This driver is backlight.
+
+	  To compile this driver as a module, choose M here. The module will be called lcd.
+	  It is a  driver support bias vendor like LM36923.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT
