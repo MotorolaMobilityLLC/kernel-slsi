@@ -129,7 +129,7 @@ static int fimc_is_ischain_isp_cfg(struct fimc_is_subdev *leader,
 	 * TODO: get orientation value through interface if needed
 	 */
 	if (test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state)
-		&& (frame && frame->shot->ctl.aa.sceneMode == AA_SCENE_MODE_REMOSAIC)) {
+		&& (frame && CHK_REMOSAIC_SCN(frame->shot->ctl.aa.sceneMode))) {
 		dma_input->orientation = DMA_INPUT_ORIENTATION_CCW;
 		msrinfo("DMA rotate(%d) for REMOSAIC\n", device, leader, frame, dma_input->orientation);
 	}
