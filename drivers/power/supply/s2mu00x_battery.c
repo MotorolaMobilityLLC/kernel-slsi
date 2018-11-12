@@ -926,6 +926,7 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
 		val->intval = battery->vchg_voltage;
+		break;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		/* Make charge rate and USB input throttling mutually
 		   exclusive for now */
