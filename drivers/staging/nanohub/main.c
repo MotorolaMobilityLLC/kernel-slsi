@@ -175,6 +175,20 @@ static inline bool nanohub_io_has_buf(struct nanohub_io *io)
 	return !list_empty(&io->buf_list);
 }
 
+#ifdef CONFIG_NANOHUB_MAILBOX
+#define EVT_DEBUG_DUMP                   0x00007F02  /* defined on sensorhal */
+
+int nanohub_is_reset_notify_io(struct nanohub_buf *buf)
+{
+	if (buf) {
+		uint32_t *buffer = (uint32_t *)buf->buffer;
+		if (*buffer == EVT_DEBUG_DUMP)
+			return true;
+	}
+	return false;
+}
+#endif
+
 static struct nanohub_buf *nanohub_io_get_buf(struct nanohub_io *io,
 					      bool wait)
 {
@@ -1079,7 +1093,6 @@ static ssize_t nanohub_unlock_bl(struct device *dev,
 }
 #endif
 
-
 #ifdef CONFIG_NANOHUB_MAILBOX
 static int chub_get_chipid(struct contexthub_ipc_info *ipc)
 
@@ -1128,6 +1141,22 @@ static ssize_t chub_chipid_store(struct device *dev,
 		return count;
 	} else {
 		return 0;
+	}
+}
+
+void nanohub_add_dump_request(struct nanohub_data *data)
+{
+	struct nanohub_io *io = &data->io[ID_NANOHUB_SENSOR];
+	struct nanohub_buf *buf = nanohub_io_get_buf(&data->free_pool, false);
+	uint32_t *buffer;
+
+	if (buf) {
+		buffer = (uint32_t *)buf->buffer;
+		*buffer = EVT_DEBUG_DUMP;
+		nanohub_io_put_buf(io, buf);
+		wake_lock_timeout(&data->wakelock_read, msecs_to_jiffies(250));
+	} else {
+		pr_err("%s: cann't get io buf\n", __func__);
 	}
 }
 #endif
@@ -1293,7 +1322,17 @@ static ssize_t nanohub_read(struct file *file, char *buffer, size_t length,
 	else
 		ret = buf->length;
 
+#ifdef CONFIG_NANOHUB_MAILBOX
+	if (nanohub_is_reset_notify_io(buf)) {
+		io = &io->data->free_pool;
+		spin_lock(&io->buf_wait.lock);
+		list_add_tail(&buf->list, &io->buf_list);
+		spin_unlock(&io->buf_wait.lock);
+	} else
+		nanohub_io_put_buf(&data->free_pool, buf);
+#else
 	nanohub_io_put_buf(&data->free_pool, buf);
+#endif
 
 	return ret;
 }
@@ -1438,7 +1477,10 @@ static void nanohub_process_buffer(struct nanohub_data *data,
 	}
 	if (event_id == APP_TO_HOST_EVENTID) {
 		wakeup = true;
+#ifndef CONFIG_NANOHUB_MAILBOX
+		/* chub doesn't enable nanohal. use sensorhal io */
 		io = &data->io[ID_NANOHUB_COMMS];
+#endif
 	}
 
 	nanohub_io_put_buf(io, *buf);
