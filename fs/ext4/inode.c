@@ -1223,7 +1223,7 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 			if (decrypt && fscrypt_has_encryption_key(inode)) {
 				bh->b_private = fscrypt_get_diskcipher(inode);
 				if (bh->b_private) {
-					bi_opf |= (REQ_CRYPT | REQ_AUX_PRIV);
+					bi_opf |= REQ_CRYPT;
 					decrypt = 0;
 				}
 			}

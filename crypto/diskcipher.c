@@ -192,7 +192,7 @@ void crypto_diskcipher_set(struct bio *bio,
 			   struct crypto_diskcipher *tfm)
 {
 	if (bio && tfm) {
-		bio->bi_opf |= (REQ_CRYPT | REQ_AUX_PRIV);
+		bio->bi_opf |= REQ_CRYPT;
 		bio->bi_aux_private = tfm;
 	}
 	crypto_diskcipher_debug(DISKC_API_SET, 0);

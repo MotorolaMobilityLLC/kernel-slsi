@@ -210,7 +210,7 @@ int fmp_cipher_run(struct exynos_fmp *fmp, struct fmp_test_data *fdata,
 		/* ci is crypto_tfm_ctx(tfm) */
 		bh->b_private = priv;
 	}
-	op_flags = REQ_CRYPT | REQ_AUX_PRIV;
+	op_flags = REQ_CRYPT;
 
 	if (write == WRITE_MODE) {
 		memcpy(bh->b_data, data, len);
