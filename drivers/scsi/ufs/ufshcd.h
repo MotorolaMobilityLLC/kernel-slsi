@@ -340,7 +340,7 @@ struct ufs_hba_variant_ops {
 	u8      (*get_unipro_result)(struct ufs_hba *hba, u32 num);
 	int	(*phy_initialization)(struct ufs_hba *);
 	int	(*crypto_engine_cfg)(struct ufs_hba *, struct ufshcd_lrb *,
-					struct scatterlist *, int, int);
+					struct scatterlist *, int, int, int);
 	int	(*crypto_engine_clear)(struct ufs_hba *, struct ufshcd_lrb *);
 	int	(*access_control_abort)(struct ufs_hba *);
 
@@ -1043,11 +1043,11 @@ int ufshcd_read_health_desc(struct ufs_hba *hba, u8 *buf, u32 size);
 static inline int ufshcd_vops_crypto_engine_cfg(struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp,
 					struct scatterlist *sg, int index,
-					int sector_offset)
+					int sector_offset, int page_index)
 {
 	if (hba->vops && hba->vops->crypto_engine_cfg)
 		return hba->vops->crypto_engine_cfg(hba, lrbp, sg, index,
-						sector_offset);
+						sector_offset, page_index);
 	return 0;
 }
 

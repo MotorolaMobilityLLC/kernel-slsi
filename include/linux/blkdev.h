@@ -154,7 +154,9 @@ struct request {
 	unsigned int __data_len;	/* total data len */
 	int tag;
 	sector_t __sector;		/* sector cursor */
-
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DUN
+	u64 __dun;                      /* dun for UFS */
+#endif
 	struct bio *bio;
 	struct bio *biotail;
 
@@ -866,14 +868,6 @@ static inline unsigned int blk_queue_depth(struct request_queue *q)
 	return q->nr_requests;
 }
 
-static inline bool blk_crypt_mergeable(struct bio *a, struct bio *b)
-{
-	if (bio_has_crypt(a) == bio_has_crypt(b))
-		return true;
-
-	return false;
-}
-
 /*
  * q->prep_rq_fn return values
  */
@@ -1035,6 +1029,13 @@ static inline sector_t blk_rq_pos(const struct request *rq)
 {
 	return rq->__sector;
 }
+
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DUN
+static inline sector_t blk_rq_dun(const struct request *rq)
+{
+	return rq->__dun;
+}
+#endif
 
 static inline unsigned int blk_rq_bytes(const struct request *rq)
 {

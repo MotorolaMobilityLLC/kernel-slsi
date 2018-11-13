@@ -219,7 +219,7 @@ static inline int fscrypt_disk_encrypted(const struct inode *inode)
 	return 0;
 }
 
-static inline void fscrypt_set_bio(const struct inode *inode, struct bio *bio)
+static inline void fscrypt_set_bio(const struct inode *inode, struct bio *bio, u64 dun)
 {
 	return;
 }

@@ -7,6 +7,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
+#include <crypto/diskcipher.h>
 
 #include <trace/events/block.h>
 
@@ -660,6 +661,48 @@ static void blk_account_io_merge(struct request *req)
 	}
 }
 
+static inline bool blk_crypt_mergeable(struct bio *bio1, struct bio *bio2)
+{
+#ifndef CONFIG_CRYPTO_DISKCIPHER_DUN
+	if (bio_has_crypt(bio1) == bio_has_crypt(bio2))
+		return true;
+#else
+	/* case-1. nocrypt, nocrypt: true -> merge */
+	if (!bio_has_crypt(bio1) && !bio_has_crypt(bio2))
+		return true;
+
+	/* case-2. crypt, crypt: TRUE -> MERGE, BUT CHECK DUN */
+	if (bio_has_crypt(bio1) == bio_has_crypt(bio2)) {
+		struct inode *inode1 = crypto_diskcipher_get_inode(bio1);
+		struct inode *inode2 = crypto_diskcipher_get_inode(bio2);
+
+		if (inode1 != inode2)
+			return false;
+
+		if (!inode1 || !inode2)
+			return false;
+
+		/* case-2.1 : NODUN, NODUN ->  true -> merge */
+		if (!bio_dun(bio1) && !bio_dun(bio2))
+			return true;
+
+		/* case-2.2 : DUN == DUN ->  true -> merge */
+		if (bio_dun(bio1) && bio_dun(bio2))
+			if (bio_end_dun(bio1) == bio_dun(bio2))
+				return true;
+
+		/* case-2.3 : DUN, NODUN -> false-> NO-MERGE
+			if (bio_has_crypt_dun(bio1) != bio_has_crypt_dun(bio2))
+				return false; */
+	}
+	/* case-3. nocrypt, crypt: false-> NO-MERGE
+	if (bio_has_crypt(bio1) != bio_has_crypt(bio2))
+		return false; */
+#endif
+
+	return false;
+}
+
 /*
  * For non-mq, this has to be called with the request spinlock acquired.
  * For mq with scheduling, the appropriate queue wide lock should be held.
@@ -839,6 +882,10 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 {
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DUN
+	if (blk_rq_dun(rq) || bio_dun(bio))
+		return ELEVATOR_NO_MERGE;
+#endif
 	if (req_op(rq) == REQ_OP_DISCARD &&
 	    queue_max_discard_segments(rq->q) > 1)
 		return ELEVATOR_DISCARD_MERGE;

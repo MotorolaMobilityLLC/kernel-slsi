@@ -602,6 +602,9 @@ void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 	if (bio_flagged(bio_src, BIO_THROTTLED))
 		bio_set_flag(bio, BIO_THROTTLED);
 	bio->bi_opf = bio_src->bi_opf;
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DUN
+	bio->bi_iter.bi_dun = bio_src->bi_iter.bi_dun;
+#endif
 	bio->bi_write_hint = bio_src->bi_write_hint;
 	bio->bi_iter = bio_src->bi_iter;
 	bio->bi_io_vec = bio_src->bi_io_vec;
@@ -716,6 +719,9 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 		}
 	}
 
+#ifdef CONFIG_CRYPTO_DISKCIPHER_DUN
+	bio->bi_iter.bi_dun = bio_src->bi_iter.bi_dun;
+#endif
 	bio_clone_blkcg_association(bio, bio_src);
 
 	return bio;

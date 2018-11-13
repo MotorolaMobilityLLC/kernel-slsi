@@ -984,9 +984,9 @@ static u8 exynos_ufs_get_unipro_direct(struct ufs_hba *hba, u32 num)
 static int exynos_ufs_crypto_engine_cfg(struct ufs_hba *hba,
 				struct ufshcd_lrb *lrbp,
 				struct scatterlist *sg, int index,
-				int sector_offset)
+				int sector_offset, int page_index)
 {
-	return exynos_ufs_fmp_cfg(hba, lrbp, sg, index, sector_offset);
+	return exynos_ufs_fmp_cfg(hba, lrbp, sg, index, sector_offset, page_index);
 }
 
 static int exynos_ufs_crypto_engine_clear(struct ufs_hba *hba,

@@ -1608,6 +1608,13 @@ config CRYPTO_DISKCIPHER
 	 Diskcipher support the crypt operation of the block host device
 	 that has inline crypto engine.
 
+config CRYPTO_DISKCIPHER_DUN
+	bool "Diskcipher use dun"
+	default y
+	depends on CRYPTO_DISKCIPHER && F2FS_FS_ENCRYPTION
+	help
+	 support Diskcipher use dun(device unit number)
+
 config CRYPTO_DISKCIPHER_DEBUG
 	bool "Diskcipher debug support"
 	default n
