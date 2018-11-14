@@ -18,4 +18,9 @@
 #define RINGING_CONTROL			0x2F /* 11ms */
 #define PRESCALER				0x01 /* Tvib x 1 */
 
+struct dw9839_actuator_info {
+	u16	pcal;
+	u16	ncal;
+};
+
 #endif
