@@ -469,7 +469,13 @@ long sensor_module_ioctl(struct v4l2_subdev *subdev, unsigned int cmd, void *arg
 			goto p_err;
 		}
 		break;
-
+	case V4L2_CID_ACTUATOR_UPDATE_DYNAMIC_META:
+		ret = fimc_is_sensor_peri_update_actuator_dm(subdev, arg);
+		if (ret) {
+			err("err!!! ret(%d), update actuator dm fail\n", ret);
+			goto p_err;
+		}
+		break;
 	default:
 		err("err!!! Unknown CID(%#x)", cmd);
 		ret = -EINVAL;
@@ -592,6 +598,7 @@ int sensor_module_g_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 		}
 		break;
 	case V4L2_CID_ACTUATOR_GET_STATUS:
+	case V4L2_CID_ACTUATOR_GET_ACTUAL_POSITION:
 		ret = v4l2_subdev_call(sensor_peri->subdev_actuator, core, g_ctrl, ctrl);
 		if (ret) {
 			err("[MOD:%s] v4l2_subdev_call(g_ctrl, id:%d) is fail(%d)",

@@ -300,7 +300,8 @@ int get_cur_frame_position(struct fimc_is_sensor_interface *itf, u32 *position)
 
 	cur_frame_cnt = get_frame_count(itf);
 	index = cur_frame_cnt % EXPECT_DM_NUM;
-	*position = sensor_peri->cis.expecting_lens_udm[index].pos;
+	FIMC_BUG(!sensor_peri->actuator);
+	*position = sensor_peri->actuator->expecting_lens_udm[index].pos;
 
 	dbg_actuator("%s: cur_frame(%d), position(%d)\n",
 			__func__, cur_frame_cnt, *position);
@@ -371,7 +372,8 @@ int get_prev_frame_position(struct fimc_is_sensor_interface *itf,
 	cur_frame_cnt = get_frame_count(itf);
 	prev_frame_cnt = cur_frame_cnt - frame_diff;
 	index = (cur_frame_cnt - frame_diff) % EXPECT_DM_NUM;
-	*position = sensor_peri->cis.expecting_lens_udm[index].pos;
+	FIMC_BUG(!sensor_peri->actuator);
+	*position = sensor_peri->actuator->expecting_lens_udm[index].pos;
 
 	dbg_actuator("%s: cur_frame(%d), prev_frame(%d), prev_position(%d)\n",
 			__func__, cur_frame_cnt, prev_frame_cnt, *position);
@@ -429,6 +431,23 @@ int get_status(struct fimc_is_sensor_interface *itf, u32 *status)
 		ret = -EINVAL;
 		goto p_err;
 	}
+
+	FIMC_BUG(!sensor_peri->actuator);
+
+	if (sensor_peri->actuator->actual_pos_support) {
+		u32 act_pos, index;
+
+		ret = sensor_get_ctrl(itf, V4L2_CID_ACTUATOR_GET_ACTUAL_POSITION, &act_pos);
+		if (ret < 0) {
+			err("Actuator get status fail. ret(%d)", ret);
+			ret = -EINVAL;
+			goto p_err;
+		}
+
+		index = get_frame_count(itf) % EXPECT_DM_NUM;
+		sensor_peri->actuator->expecting_actual_pos[index] = act_pos;
+	}
+
 p_err:
 	return ret;
 }
