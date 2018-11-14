@@ -43,9 +43,6 @@ static inline void copy_lens_udm(camera2_uctl_t *uctl, camera2_udm_t *udm)
 {
 	if (uctl->lensUd.posSize != 0)
 		DUP_SHOT_UCTL_UDM(lens);
-	else
-		memset(&udm->lens, 0x00, sizeof(camera2_lens_udm_t));
-
 }
 
 #define CPY_MODE_UDM(item)	CPY_SHOT_UCTL_UDM(isMode, item)
