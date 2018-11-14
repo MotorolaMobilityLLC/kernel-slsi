@@ -2762,6 +2762,8 @@ int himax_chip_common_suspend(struct himax_ts_data *ts)
 		return 0;
 	}
 
+	HX_ESD_RESET_ACTIVATE = 0;
+
 #if defined(HX_SMART_WAKEUP) || defined(HX_HIGH_SENSE) || defined(HX_USB_DETECT_GLOBAL)
 #ifndef HX_RESUME_SEND_CMD
 	g_core_fp.fp_resend_cmd_func(ts->suspended);
