@@ -1010,6 +1010,11 @@ int fimc_is_sensor_dm_tag(struct fimc_is_device_sensor *device,
 #endif
 	}
 
+	ret = v4l2_subdev_call(device->subdev_module, core, ioctl,
+			V4L2_CID_ACTUATOR_UPDATE_DYNAMIC_META, (void *)frame);
+	if (ret)
+		merr("update actuator dynamic meta is fail", device);
+
 	return ret;
 }
 
