@@ -62,12 +62,10 @@ struct fimc_is_cis {
 	u32				mode_chg_long_dgain;
 
 	/* expected dms */
-	camera2_lens_dm_t		expecting_lens_dm[EXPECT_DM_NUM];
 	camera2_sensor_dm_t		expecting_sensor_dm[EXPECT_DM_NUM];
 	camera2_flash_dm_t		expecting_flash_dm[EXPECT_DM_NUM];
 
 	/* expected udm */
-	camera2_lens_udm_t		expecting_lens_udm[EXPECT_DM_NUM];
 	camera2_sensor_udm_t		expecting_sensor_udm[EXPECT_DM_NUM];
 
 	/* For sensor status dump */
@@ -153,6 +151,14 @@ struct fimc_is_actuator {
 	bool				vendor_use_sleep_mode;
 
 	bool					init_cal_setting;
+	bool					actual_pos_support;
+
+	void					*priv_info;
+
+	/* expecting dm/udm for actuator */
+	camera2_lens_dm_t		expecting_lens_dm[EXPECT_DM_NUM];
+	camera2_lens_udm_t		expecting_lens_udm[EXPECT_DM_NUM];
+	u32				expecting_actual_pos[EXPECT_DM_NUM];
 };
 
 struct fimc_is_aperture {
@@ -455,6 +461,7 @@ int fimc_is_sensor_peri_pre_flash_fire(struct v4l2_subdev *subdev, void *arg);
 int fimc_is_sensor_peri_notify_actuator(struct v4l2_subdev *subdev, void *arg);
 int fimc_is_sensor_peri_notify_m2m_actuator(void *arg);
 int fimc_is_sensor_peri_notify_actuator_init(struct v4l2_subdev *subdev);
+int fimc_is_sensor_peri_update_actuator_dm(struct v4l2_subdev *subdev, void *arg);
 
 int fimc_is_sensor_peri_call_m2m_actuator(struct fimc_is_device_sensor *device);
 int fimc_is_sensor_initial_preprocessor_setting(struct fimc_is_device_sensor_peri *sensor_peri);
