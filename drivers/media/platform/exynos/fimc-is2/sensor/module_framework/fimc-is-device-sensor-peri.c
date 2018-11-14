@@ -1008,8 +1008,9 @@ int fimc_is_sensor_peri_notify_actuator(struct v4l2_subdev *subdev, void *arg)
 	actuator_itf = &sensor_peri->sensor_interface.actuator_itf;
 
 	/* Set expecting actuator position */
+	FIMC_BUG(!sensor_peri->actuator);
 	frame_index = (*(u32 *)arg + 1) % EXPECT_DM_NUM;
-	sensor_peri->cis.expecting_lens_udm[frame_index].pos = actuator_itf->virtual_pos;
+	sensor_peri->actuator->expecting_lens_udm[frame_index].pos = actuator_itf->virtual_pos;
 
 	dbg_actuator("%s: expexting frame cnt(%d), algorithm position(%d)\n",
 			__func__, (*(u32 *)arg + 1), actuator_itf->virtual_pos);
@@ -1201,6 +1202,55 @@ int fimc_is_sensor_peri_notify_actuator_init(struct v4l2_subdev *subdev)
 
 p_err:
 	return ret;
+}
+
+int fimc_is_sensor_peri_update_actuator_dm(struct v4l2_subdev *subdev, void *arg)
+{
+	struct fimc_is_module_enum *module;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+
+	FIMC_BUG(!subdev);
+
+	module = (struct fimc_is_module_enum *)v4l2_get_subdevdata(subdev);
+	if (!module) {
+		err("%s, module is NULL", __func__);
+		return -EINVAL;
+	}
+
+	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
+
+	if (test_bit(FIMC_IS_SENSOR_ACTUATOR_AVAILABLE, &sensor_peri->peri_state)) {
+		struct fimc_is_frame *frame = (struct fimc_is_frame *)arg;
+		int index;
+
+		FIMC_BUG(!frame);
+		FIMC_BUG(!frame->shot);
+		FIMC_BUG(!frame->shot_ext);
+		FIMC_BUG(!sensor_peri->actuator);
+
+		index = frame->fcount % EXPECT_DM_NUM;
+
+		if (frame->shot->uctl.lensUd.posSize) {
+			dbg_sensor(1, "[%s] lens used for manual control. skip\n", __func__);
+			return 0;
+		}
+
+		frame->shot->udm.lens.pos =
+			sensor_peri->actuator->expecting_lens_udm[index].pos;
+
+		if (sensor_peri->actuator->actual_pos_support) {
+			frame->shot_ext->user.focus_actual_pos =
+				sensor_peri->actuator->expecting_actual_pos[index];
+		}
+
+		dbg_sensor(1, "[%s][F:%d]: target_pos(%d), actual_pos(%s: %d)\n",
+			__func__, frame->fcount,
+			frame->shot->udm.lens.pos,
+			sensor_peri->actuator->actual_pos_support ? "EN" : "NA",
+			frame->shot_ext->user.focus_actual_pos);
+	}
+
+	return 0;
 }
 
 int fimc_is_sensor_peri_pre_flash_fire(struct v4l2_subdev *subdev, void *arg)
