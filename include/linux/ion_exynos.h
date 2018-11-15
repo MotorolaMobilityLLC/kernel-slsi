@@ -21,6 +21,7 @@
 struct dma_buf_attachment;
 
 #define ION_FLAG_CACHED 1
+#define ION_FLAG_NOZEROED 8
 #define ION_FLAG_PROTECTED 16
 
 #ifdef CONFIG_ION_EXYNOS
