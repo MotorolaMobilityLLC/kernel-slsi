@@ -2017,6 +2017,14 @@ enum camera_thermal_mode {
 	CAM_THERMAL_MAX,
 };
 
+enum camera_crc_index {
+	CAMERA_CRC_INDEX_DUAL = 0,
+	CAMERA_CRC_INDEX_PDAF,
+	CAMERA_CRC_INDEX_AWB,
+	CAMERA_CRC_INDEX_AF,
+	CAMERA_CRC_INDEX_MAX,
+};
+
 struct facial_score {
 	int32_t			left_eye;
 	int32_t			right_eye;
@@ -2035,6 +2043,11 @@ struct vra_ext_meta {
 	struct facial_score	facialScore[CAMERA2_MAX_FACES];
 	struct facial_angle	facialAngle[CAMERA2_MAX_FACES];
 	uint32_t		reserved[10];
+};
+
+struct camera2_shot_ext_user {
+	int		crc_result[CAMERA_CRC_INDEX_MAX];
+	int		focus_actual_pos;
 };
 
 /** \brief
@@ -2192,6 +2205,9 @@ struct camera2_shot_ext {
 	struct vra_ext_meta		vra_ext;
 
 	enum camera_thermal_mode	thermal;
+
+	/* Use user vendor */
+	struct camera2_shot_ext_user	user;
 
 	/* reserved for future */
 	uint32_t			reserved[8];
