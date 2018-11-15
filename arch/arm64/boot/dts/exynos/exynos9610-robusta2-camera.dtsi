@@ -537,7 +537,7 @@
 		compatible = "samsung,exynos5-fimc-is-cis-5e9";
 		reg = <0x10>; /* 1 bit right shift */
 		id = <2>; /* matching fimc_is_sensor id */
-		setfile = "setA";
+		setfile = "setC";
 		use_initial_ae; /* for initial AE */
 	};
 };
