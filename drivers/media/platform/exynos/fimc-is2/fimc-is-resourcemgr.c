@@ -558,9 +558,16 @@ static int fimc_is_resourcemgr_alloc_secure_mem(struct fimc_is_resourcemgr *reso
 static int fimc_is_resourcemgr_init_secure_mem(struct fimc_is_resourcemgr *resourcemgr)
 {
 	struct fimc_is_minfo *minfo = NULL;
+	struct fimc_is_core *core;
 	int ret = 0;
 
-	probe_info("fimc_is_init_mem - ION\n");
+	core = container_of(resourcemgr, struct fimc_is_core, resourcemgr);
+	FIMC_BUG(!core);
+
+	if (core->scenario != FIMC_IS_SCENARIO_SECURE)
+		return ret;
+
+	info("fimc_is_init_secure_mem - ION\n");
 
 	ret = fimc_is_resourcemgr_alloc_secure_mem(resourcemgr);
 	if (ret) {
@@ -584,9 +591,20 @@ p_err:
 static int fimc_is_resourcemgr_deinit_secure_mem(struct fimc_is_resourcemgr *resourcemgr)
 {
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
+	struct fimc_is_core *core;
 	int ret = 0;
 
-	CALL_VOID_BUFOP(minfo->pb_taaisp_s, free, minfo->pb_taaisp_s);
+	core = container_of(resourcemgr, struct fimc_is_core, resourcemgr);
+	FIMC_BUG(!core);
+
+	if (minfo->pb_taaisp_s)
+		CALL_VOID_BUFOP(minfo->pb_taaisp_s, free, minfo->pb_taaisp_s);
+
+	minfo->pb_taaisp_s = NULL;
+	resourcemgr->minfo.dvaddr_taaisp_s = 0;
+	resourcemgr->minfo.kvaddr_taaisp_s = 0;
+
+	info("[RSC] %s done\n", __func__);
 
 	return ret;
 }
