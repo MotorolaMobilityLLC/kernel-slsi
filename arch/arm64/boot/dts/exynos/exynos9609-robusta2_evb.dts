@@ -521,8 +521,6 @@
 				supports-cmd23;
 				supports-erase;
 				supports-highspeed;
-				sd-uhs-sdr50;
-				sd-uhs-sdr104;
 				card-detect-invert;
 				card-detect-gpio;
 				bypass-for-allpass;
