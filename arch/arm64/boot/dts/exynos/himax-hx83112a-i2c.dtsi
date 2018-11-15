@@ -6,7 +6,7 @@
 	status = "ok";
 	#address-cells = <1>;
 	#size-cells = <0>;
-
+	samsung,i2c-max-bus-freq = <400000>;
 	himax@48 {
 		compatible = "himax,hxcommon";
 		reg = <0x48>;

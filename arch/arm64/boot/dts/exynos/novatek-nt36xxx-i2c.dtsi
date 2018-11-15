@@ -21,7 +21,7 @@
 	status = "ok";
 	#address-cells = <1>;
 	#size-cells = <0>;
-
+	samsung,i2c-max-bus-freq = <400000>;
 	/* Novatek device tree node */
 	novatek@62 {
 		compatible = "novatek,NVT-ts";
