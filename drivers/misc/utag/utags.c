@@ -588,7 +588,7 @@ static int proc_utag_file(char *utag_name, char *utag_type,
 		node->mode = mode;
 		node->dir = dnode->dir;
 		node->ctrl = ctrl;
-		node->file = proc_create_data(node->file_name, 0,
+		node->file = proc_create_data(node->file_name, 0660,
 			dnode->dir, fops, node);
 
 		pr_debug("created file [%s/%s]\n",
@@ -614,23 +614,23 @@ static int proc_utag_util(struct ctrl *ctrl)
 {
 	struct proc_dir_entry *dir;
 
-	dir = proc_mkdir("all", ctrl->root);
+	dir = proc_mkdir_data("all", 0771, ctrl->root, NULL);
 	if (!dir) {
 		pr_err("failed to create util\n");
 		return -EIO;
 	}
 
-	if (!proc_create_data("new", 0600, dir, &new_fops, ctrl)) {
+	if (!proc_create_data("new", 0220, dir, &new_fops, ctrl)) {
 		pr_err("Failed to create utag new entry\n");
 		return -EIO;
 	}
 
-	if (!proc_create_data("lock", 0600, dir, &lock_fops, ctrl)) {
+	if (!proc_create_data("lock", 0660, dir, &lock_fops, ctrl)) {
 		pr_err("Failed to create lock entry\n");
 		return -EIO;
 	}
 
-	if (!proc_create_data(".delete", 0600, dir, &delete_fops, ctrl)) {
+	if (!proc_create_data(".delete", 0220, dir, &delete_fops, ctrl)) {
 		pr_err("Failed to create delete entry\n");
 		return -EIO;
 	}
@@ -657,7 +657,7 @@ static struct proc_dir_entry *proc_utag_dir(struct ctrl *ctrl,
 		return dnode->dir;
 	}
 
-	dir = proc_mkdir(tname, parent);
+	dir = proc_mkdir_data(tname, 0771, parent, NULL);
 	if (!dir) {
 		pr_err("failed to create dir %s\n", tname);
 		return ERR_PTR(-ENOMEM);
@@ -1872,7 +1872,7 @@ static int utags_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ctrl->root = proc_mkdir(ctrl->dir_name, NULL);
+	ctrl->root = proc_mkdir_data(ctrl->dir_name, 0771, NULL, NULL);
 	if (!ctrl->root) {
 		destroy_workqueue(ctrl->load_queue);
 		destroy_workqueue(ctrl->store_queue);
@@ -1883,7 +1883,7 @@ static int utags_probe(struct platform_device *pdev)
 	if (!strncmp(ctrl->dir_name, HW_ROOT, sizeof(HW_ROOT)))
 		ctrl->hwtag = 1;
 
-	if (!proc_create_data("reload", 0600, ctrl->root, &reload_fops, ctrl)) {
+	if (!proc_create_data("reload", 0660, ctrl->root, &reload_fops, ctrl)) {
 		pr_err("Failed to create reload entry\n");
 		destroy_workqueue(ctrl->load_queue);
 		destroy_workqueue(ctrl->store_queue);
