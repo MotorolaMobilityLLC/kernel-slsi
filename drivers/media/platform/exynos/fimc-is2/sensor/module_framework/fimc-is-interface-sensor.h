@@ -990,6 +990,7 @@ struct fimc_is_dual_interface_ops {
 struct fimc_is_eeprom_ops {
 	int (*eeprom_read)(struct v4l2_subdev *subdev);
 	int (*eeprom_check_all_crc)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_address)(struct v4l2_subdev *subdev);
 	int (*eeprom_check_info)(struct v4l2_subdev *subdev);
 	int (*eeprom_check_awb)(struct v4l2_subdev *subdev);
 	int (*eeprom_check_af)(struct v4l2_subdev *subdev);
@@ -998,6 +999,7 @@ struct fimc_is_eeprom_ops {
 	int (*eeprom_check_ois)(struct v4l2_subdev *subdev);
 	int (*eeprom_check_pdaf)(struct v4l2_subdev *subdev);
 	int (*eeprom_check_dual)(struct v4l2_subdev *subdev);
+	int (*eeprom_check_sfr)(struct v4l2_subdev *subdev);
 };
 
 struct fimc_is_sensor_interface {
