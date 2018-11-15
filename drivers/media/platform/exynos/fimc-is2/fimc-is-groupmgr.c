@@ -42,7 +42,7 @@
 #include "fimc-is-debug.h"
 #include "fimc-is-hw.h"
 #include "fimc-is-vender.h"
-#if defined(CONFIG_CAMERA_PDP)
+#if defined(CONFIG_CAMERA_PDP) || defined(CONFIG_CAMERA_EEPROM_SELECT)
 #include "fimc-is-interface-sensor.h"
 #include "fimc-is-device-sensor-peri.h"
 #endif
@@ -3265,6 +3265,7 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 	u32 done_state)
 {
 	int ret = 0;
+	int i = 0;
 	struct fimc_is_device_ischain *device;
 	struct fimc_is_group_framemgr *gframemgr;
 	struct fimc_is_group_frame *gframe;
@@ -3336,6 +3337,12 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 			default:
 				warn("invalid tmu_state");
 				break;
+			}
+
+			if (device->sensor->subdev_eeprom || device->sensor->use_otp_cal) {
+				/* Sensor EEPROM CAL data status update */
+				for (i = 0; i < CAMERA_CRC_INDEX_MAX; i++)
+					frame->shot_ext->user.crc_result[i] = device->sensor->cal_status[i];
 			}
 		}
 
