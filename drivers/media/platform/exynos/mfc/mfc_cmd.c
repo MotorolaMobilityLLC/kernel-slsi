@@ -95,7 +95,11 @@ void mfc_cmd_open_inst(struct mfc_ctx *ctx)
 	MFC_WRITEL(reg, MFC_REG_CODEC_CONTROL);
 
 	mfc_debug(2, "Requested codec mode: %d\n", ctx->codec_mode);
-	MFC_WRITEL(ctx->codec_mode, MFC_REG_CODEC_TYPE);
+	reg = ctx->codec_mode & MFC_REG_CODEC_TYPE_MASK;
+	reg |= (0x1 << MFC_REG_CLEAR_CTX_MEM_SHIFT);
+	mfc_debug(2, "Enable to clear context memory: %#x\n", reg);
+	MFC_WRITEL(reg, MFC_REG_CODEC_TYPE);
+
 	MFC_WRITEL(ctx->instance_ctx_buf.daddr, MFC_REG_CONTEXT_MEM_ADDR);
 	MFC_WRITEL(ctx->instance_ctx_buf.size, MFC_REG_CONTEXT_MEM_SIZE);
 	if (ctx->type == MFCINST_DECODER)

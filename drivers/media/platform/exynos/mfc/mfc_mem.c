@@ -81,25 +81,23 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		struct mfc_special_buf *special_buf)
 {
 	struct mfc_ctx *ctx = dev->ctx[dev->curr_ctx];
-	int flag;
+	int flag = ION_FLAG_NOZEROED;
 	const char *heapname;
 
 	switch (special_buf->buftype) {
 	case MFCBUF_NORMAL:
 		heapname = "ion_system_heap";
-		flag = 0;
 		break;
 	case MFCBUF_NORMAL_FW:
 		heapname = "vnfw_heap";
-		flag = 0;
 		break;
 	case MFCBUF_DRM:
 		heapname = "vframe_heap";
-		flag = ION_FLAG_PROTECTED;
+		flag |= ION_FLAG_PROTECTED;
 		break;
 	case MFCBUF_DRM_FW:
 		heapname = "vfw_heap";
-		flag = ION_FLAG_PROTECTED;
+		flag |= ION_FLAG_PROTECTED;
 		break;
 	default:
 		heapname = "unknown";
