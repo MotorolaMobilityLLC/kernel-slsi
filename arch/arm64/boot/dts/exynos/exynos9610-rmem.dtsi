@@ -90,7 +90,7 @@
 
 		fb_rmem: bootloader_fb {
 			compatible = "exynos,fb_rmem";
-			reg = <0x0 0xed000000 0x3000000>;
+			reg = <0x0 0xec000000 0x4000000>;
 		};
 
 		chub_rmem: chub_rmem {
