@@ -327,6 +327,20 @@ enum sensor_subdev_internel_use {
 	SUBDEV_SSVC3_INTERNAL_USE,
 };
 
+/*
+ * Cal data status
+ * [0]: NO ERROR
+ * [1]: CRC FAIL
+ * [2]: LIMIT FAIL
+ * => Check AWB out of the ratio EEPROM/OTP data
+ */
+
+enum fimc_is_sensor_cal_status {
+	CRC_NO_ERROR = 0,
+	CRC_ERROR,
+	LIMIT_FAILURE,
+};
+
 struct fimc_is_device_sensor {
 	struct v4l2_device				v4l2_dev;
 	struct platform_device				*pdev;
@@ -440,6 +454,7 @@ struct fimc_is_device_sensor {
 	float					chk_wb[WB_GAIN_COUNT];
 	u32					init_wb_cnt;
 #endif
+	u32					cal_status[CAMERA_CRC_INDEX_MAX];
 };
 
 int fimc_is_sensor_open(struct fimc_is_device_sensor *device,
