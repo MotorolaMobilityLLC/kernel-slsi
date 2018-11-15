@@ -1813,7 +1813,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_factory_test = sensor_cis_factory_test,
 };
 
-static int __init cis_5e9_probe(struct i2c_client *client,
+static int cis_5e9_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	int ret = 0;
