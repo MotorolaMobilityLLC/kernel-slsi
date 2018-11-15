@@ -359,10 +359,10 @@ struct printk_log {
 	u8 facility;		/* syslog facility */
 	u8 flags:5;		/* internal record flags */
 	u8 level:3;		/* syslog level */
+	u8 cpu;			/* cpu id */
 #ifdef CONFIG_PRINTK_PROCESS
 	char process[16];	/* process name */
 	pid_t pid;		/* process id */
-	u8 cpu;			/* cpu id */
 	u8 in_interrupt;	/* interrupt context */
 #endif
 }
@@ -572,11 +572,10 @@ static size_t print_process(const struct printk_log *msg, char *buf)
 		return 0;
 
 	if (!buf)
-		return snprintf(NULL, 0, "%c[%1d:%15s:%5d] ", ' ', 0, " ", 0);
+		return snprintf(NULL, 0, "%c[%15s:%5d] ", ' ', " ", 0);
 
-	return sprintf(buf, "%c[%1d:%15s:%5d] ",
+	return sprintf(buf, "%c[%15s:%5d] ",
 			msg->in_interrupt ? 'I' : ' ',
-			msg->cpu,
 			msg->process,
 			msg->pid);
 }
@@ -733,12 +732,12 @@ static int log_store(int facility, int level,
 	memset(log_dict(msg) + dict_len, 0, pad_len);
 	msg->len = size;
 
+	msg->cpu = smp_processor_id();
 #ifdef CONFIG_PRINTK_PROCESS
 	if (printk_process) {
 		strncpy(msg->process, current->comm, sizeof(msg->process) - 1);
 		msg->process[sizeof(msg->process) - 1] = '\0';
 		msg->pid = task_pid_nr(current);
-		msg->cpu = smp_processor_id();
 		msg->in_interrupt = in_interrupt() ? 1 : 0;
 	}
 #endif
@@ -1330,7 +1329,7 @@ static inline void boot_delay_msec(int level)
 static bool printk_time = IS_ENABLED(CONFIG_PRINTK_TIME);
 module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
 
-static size_t print_time(u64 ts, char *buf)
+static size_t print_time(u64 ts, char *buf, u8 cpu)
 {
 	unsigned long rem_nsec;
 
@@ -1340,10 +1339,10 @@ static size_t print_time(u64 ts, char *buf)
 	rem_nsec = do_div(ts, 1000000000);
 
 	if (!buf)
-		return snprintf(NULL, 0, "[%5lu.000000] ", (unsigned long)ts);
+		return snprintf(NULL, 0, "[%5lu.000000,%u] ", (unsigned long)ts, cpu);
 
-	return sprintf(buf, "[%5lu.%06lu] ",
-		       (unsigned long)ts, rem_nsec / 1000);
+	return sprintf(buf, "[%5lu.%06lu,%u] ",
+		       (unsigned long)ts, rem_nsec / 1000,cpu);
 }
 
 static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
@@ -1365,7 +1364,8 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
 		}
 	}
 
-	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
+        len += print_time(msg->ts_nsec, buf ? buf + len : NULL,
+                        msg->cpu);
 #ifndef CONFIG_PRINTK_UTC_TIME
 	len += print_process(msg, buf ? buf + len : NULL);
 #endif
