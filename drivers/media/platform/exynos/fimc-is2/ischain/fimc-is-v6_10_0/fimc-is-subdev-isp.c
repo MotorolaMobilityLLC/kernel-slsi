@@ -130,7 +130,10 @@ static int fimc_is_ischain_isp_cfg(struct fimc_is_subdev *leader,
 	 */
 	if (test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state)
 		&& (frame && CHK_REMOSAIC_SCN(frame->shot->ctl.aa.sceneMode))) {
-		dma_input->orientation = DMA_INPUT_ORIENTATION_CCW;
+		if (frame->shot_ext->remosaic_rotation)
+			dma_input->orientation = DMA_INPUT_ORIENTATION_CCW;
+		else
+			dma_input->orientation = DMA_INPUT_ORIENTATION_NORMAL;
 		msrinfo("DMA rotate(%d) for REMOSAIC\n", device, leader, frame, dma_input->orientation);
 	}
 #endif
