@@ -319,7 +319,7 @@ static int __init sensor_module_2x5sp_probe(struct platform_device *pdev)
 	module->margin_bottom = 0;
 	module->pixel_width = module->active_width;
 	module->pixel_height = module->active_height;
-	module->max_framerate = 120;
+	module->max_framerate = 240;
 	module->position = pdata->position;
 	module->bitwidth = 10;
 	module->sensor_maker = "SLSI";
