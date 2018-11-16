@@ -4667,7 +4667,7 @@ const u32 sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR[] = {
 const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_2880x2160_30fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	2150000000, /* mipi_datarate */
-	1950000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	975000000,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x21C0, /* frame_length_lines	(0x0340) */
 	0x0EB0, /* line_length_pck	(0x0342) */
 };
@@ -4675,7 +4675,7 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_2880x2160_30fps = {
 const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_2880x2160_30fps_3DHDR = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1502000000, /* mipi_datarate */
-	1950000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	975000000,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x1248, /* frame_length_lines	(0x0340) */
 	0x1B10, /* line_length_pck	(0x0342) */
 };
@@ -4683,7 +4683,7 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_2880x2160_30fps_3DHD
 const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_5760x4320_27fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	2150000000, /* mipi_datarate */
-	1950000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	975000000,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x1290, /* frame_length_lines	(0x0340) */
 	0x1DA0, /* line_length_pck	(0x0342) */
 };
@@ -4691,7 +4691,7 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_5760x4320_27fps = {
 const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_1920x1080_120fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1800000000, /* mipi_datarate */
-	1950000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	975000000,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x0908, /* frame_length_lines	(0x0340) */
 	0x0DB0, /* line_length_pck	(0x0342) */
 };
@@ -4699,7 +4699,7 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_1920x1080_120fps = {
 const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_1920x1080_240fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1800000000, /* mipi_datarate */
-	1950000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	975000000,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x04CE, /* frame_length_lines	(0x0340) */
 	0x0CE0, /* line_length_pck	(0x0342) */
 };
