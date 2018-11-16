@@ -164,18 +164,20 @@ int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is
 
 	core = container_of(vender, struct fimc_is_core, vender);
 
-	if (module->position == SENSOR_POSITION_REAR) {
+	if (sensor->use_otp_cal || sensor->subdev_eeprom) {
+		if (module->position == SENSOR_POSITION_REAR || module->position == SENSOR_POSITION_REAR2) {
 #ifdef ENABLE_IS_CORE
-		cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET0;
+			cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET0;
 #else
-		cal_addr = core->resourcemgr.minfo.kvaddr_rear_cal;
+			cal_addr = core->resourcemgr.minfo.kvaddr_rear_cal;
 #endif
-	} else if (module->position == SENSOR_POSITION_FRONT) {
+		} else if (module->position == SENSOR_POSITION_FRONT || module->position == SENSOR_POSITION_FRONT2) {
 #ifdef ENABLE_IS_CORE
-		cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET1;
+			cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET1;
 #else
-		cal_addr = core->resourcemgr.minfo.kvaddr_front_cal;
+			cal_addr = core->resourcemgr.minfo.kvaddr_front_cal;
 #endif
+		}
 	} else {
 		err("[Vendor]: Invalid sensor position: %d", module->position);
 		module->ext.sensor_con.cal_address = 0;
@@ -183,7 +185,11 @@ int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is
 		goto exit;
 	}
 
-	memcpy((void *)(cal_addr), (void *)sensor->eeprom->data, sensor->eeprom->total_size);
+	/* When use EEPROM memcpy eeprom data */
+	if (sensor->subdev_eeprom)
+		memcpy((void *)(cal_addr), (void *)sensor->eeprom->data, sensor->eeprom->total_size);
+	else
+		memcpy((void *)(cal_addr), (void *)sensor->otp_cal_buf, sizeof(sensor->otp_cal_buf));
 
 exit:
 	if (ret)
