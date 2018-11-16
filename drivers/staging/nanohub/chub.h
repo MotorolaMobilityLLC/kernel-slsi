@@ -163,7 +163,7 @@ struct contexthub_ipc_info {
 	struct chub_alive chub_alive_lock;
 	void __iomem *sram;
 	void __iomem *mailbox;
-	void __iomem *chub_dumpgrp;
+	void __iomem *chub_dumpgpr;
 	void __iomem *chub_baaw;
 	void __iomem *pmu_chub_reset;
 	void __iomem *pmu_chub_cpu;
@@ -242,7 +242,7 @@ struct contexthub_ipc_info {
 #define ENABLE BIT(0)
 #endif
 
-/*	CHUB dump GRP Registers : CHUB BASE + 0x1f000000 */
+/*	CHUB dump gpr Registers : CHUB BASE + 0x1f000000 */
 #define REG_CHUB_DUMPGPR_CTRL (0x0)
 #define REG_CHUB_DUMPGPR_PCR  (0x4)
 #define REG_CHUB_DUMPGPR_GP0R (0x10)
