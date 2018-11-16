@@ -25,7 +25,38 @@
 #define SENSOR_2X5SP_COARSE_INTEGRATION_TIME_MIN              0x4
 #define SENSOR_2X5SP_COARSE_INTEGRATION_TIME_MAX_MARGIN       0x4
 
-#define USE_GROUP_PARAM_HOLD	(0)
+#define USE_GROUP_PARAM_HOLD		(0)
+
+/* OTP valies */
+#define OTP_DATA_PATH			"/data/camera/2x5_otp_cal_data.bin"
+#define OTP_PAGE_CTRL			0x0A00
+#define OTP_PAGE_SELECT			0x0A02
+#define OTP_PAGE_BASE			0x0A04
+#define OTP_PAGE_START			0
+#define OTP_PAGE_END			255
+#define OTP_PAGE_SIZE			64
+
+#define OTP_GRP1_AWB_CRC_START		(254 * OTP_PAGE_SIZE)
+#define OTP_GRP1_AWB_CRC_SIZE		(60)
+#define OTP_GRP1_LSC_XTC_CRC_START	(163 * OTP_PAGE_SIZE + 8)
+#define OTP_GRP1_LSC_XTC_CRC_SIZE	(2896)
+
+#define OTP_GRP2_AWB_CRC_START		(255 * OTP_PAGE_SIZE)
+#define OTP_GRP2_AWB_CRC_SIZE		(60)
+#define OTP_GRP2_LSC_XTC_CRC_START	(208 * OTP_PAGE_SIZE + 18)
+#define OTP_GRP2_LSC_XTC_CRC_SIZE	(2896)
+
+enum otp_group {
+	OTP_GROUP_ONE = 0x1,
+	OTP_GROUP_TWO = 0x2,
+	OTP_GROUP_MAX,
+};
+
+enum valid_check {
+	OTP_DATA_EMPTY = 0x0,
+	OTP_DATA_VALID = 0x1,
+	OTP_DATA_INVALID = 0x3,
+};
 
 #endif
 
