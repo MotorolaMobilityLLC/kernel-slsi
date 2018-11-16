@@ -118,18 +118,32 @@ u32 ipc_get_chub_clk(void)
 	return map->chubclk;
 }
 
-void ipc_set_chub_bootmode(u32 bootmode)
+void ipc_set_chub_bootmode(u16 bootmode)
 {
 	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
 
 	map->bootmode = bootmode;
 }
 
-u32 ipc_get_chub_bootmode(void)
+u16 ipc_get_chub_bootmode(void)
 {
 	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
 
 	return map->bootmode;
+}
+
+void ipc_set_chub_kernel_log(u16 kernel_log)
+{
+	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
+
+	map->kernel_log = kernel_log;
+}
+
+u16 ipc_get_chub_kernel_log(void)
+{
+	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
+
+	return map->kernel_log;
 }
 
 #if defined(LOCAL_POWERGATE)
