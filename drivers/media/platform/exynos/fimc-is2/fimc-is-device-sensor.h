@@ -78,6 +78,9 @@ struct fimc_is_device_ischain;
 #define OIS_I2C_ADDR_MASK		0xFF0000
 #define OIS_I2C_ADDR_SHIFT		16
 
+#define SENSOR_OTP_PAGE			256
+#define SENSOR_OTP_PAGE_SIZE		64
+
 #define SENSOR_SIZE_WIDTH_MASK		0xFFFF0000
 #define SENSOR_SIZE_WIDTH_SHIFT		16
 #define SENSOR_SIZE_HEIGHT_MASK		0xFFFF
@@ -454,7 +457,9 @@ struct fimc_is_device_sensor {
 	float					chk_wb[WB_GAIN_COUNT];
 	u32					init_wb_cnt;
 #endif
+	bool					use_otp_cal;
 	u32					cal_status[CAMERA_CRC_INDEX_MAX];
+	u8					otp_cal_buf[SENSOR_OTP_PAGE][SENSOR_OTP_PAGE_SIZE];
 };
 
 int fimc_is_sensor_open(struct fimc_is_device_sensor *device,
