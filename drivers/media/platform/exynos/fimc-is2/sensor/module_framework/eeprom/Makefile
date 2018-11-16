@@ -1,5 +1,6 @@
 obj-$(CONFIG_CAMERA_EEPROM_SELECT) += fimc-is-sensor-eeprom.o
 obj-$(CONFIG_CAMERA_EEPROM_GM1_OBJ) += fimc-is-sensor-eeprom-gm1.o
+obj-$(CONFIG_CAMERA_EEPROM_5E9_OBJ) += fimc-is-sensor-eeprom-5e9.o
 
 ccflags-y := -Idrivers/media/platform/exynos/fimc-is2
 ccflags-y += -Idrivers/media/platform/exynos/fimc-is2/include
