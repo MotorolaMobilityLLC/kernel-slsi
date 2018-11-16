@@ -571,6 +571,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	ipc_hw_write_shared_reg(AP, ipc->os_load, SR_BOOT_MODE);
 	ipc_set_chub_clk((u32)ipc->clkrate);
 	ipc_set_chub_bootmode(BOOTMODE_COLD);
+	ipc_set_chub_kernel_log(KERNEL_LOG_ON);
 
 	switch (event) {
 	case MAILBOX_EVT_POWER_ON:
@@ -580,8 +581,8 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 		if (atomic_read(&ipc->chub_status) == CHUB_ST_NO_POWER) {
 			atomic_set(&ipc->chub_status, CHUB_ST_POWER_ON);
 
-			/* enable Dump GRP */
-			IPC_HW_WRITE_DUMPGPR_CTRL(ipc->chub_dumpgrp, 0x1);
+			/* enable Dump gpr */
+			IPC_HW_WRITE_DUMPGPR_CTRL(ipc->chub_dumpgpr, 0x1);
 
 #if defined(CONFIG_SOC_EXYNOS9610)
 			/* cmu cm4 clock - gating */
@@ -922,8 +923,8 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 	int ret;
 	int trycnt = 0;
 
-	dev_info(ipc->dev, "%s: force:%d, status:%d, in-reset:%d, user:%d\n",
-		__func__, force_load, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset), atomic_read(&ipc->in_use_ipc));
+	dev_info(ipc->dev, "%s: force:%d, status:%d, in-reset:%d, dump:%d, user:%d\n",
+		__func__, force_load, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset), dump, atomic_read(&ipc->in_use_ipc));
 	mutex_lock(&reset_mutex);
 	if (!force_load && (atomic_read(&ipc->chub_status) == CHUB_ST_RUN)) {
 		mutex_unlock(&reset_mutex);
@@ -935,7 +936,7 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 	do {
 		msleep(WAIT_CHUB_MS);
 		if (++trycnt > RESET_WAIT_TRY_CNT) {
-			dev_info(ipc->dev, "%s: cann't get lock. force reset: %d\n", __func__, atomic_read(&ipc->in_use_ipc));
+			dev_info(ipc->dev, "%s: can't get lock. in_use_ipc: %d\n", __func__, atomic_read(&ipc->in_use_ipc));
 			atomic_dec(&ipc->in_reset);
 			mutex_unlock(&reset_mutex);
 			return -EINVAL;
@@ -957,7 +958,7 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 	dev_info(ipc->dev, "%s: enter shutdown\n", __func__);
 	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_SHUTDOWN);
 	if (ret) {
-		dev_err(ipc->dev, "%s: shutdonw fails, ret:%d\n", __func__, ret);
+		dev_err(ipc->dev, "%s: shutdown fails, ret:%d\n", __func__, ret);
 		goto out;
 	}
 	dev_info(ipc->dev, "%s: out shutdown\n", __func__);
@@ -1123,7 +1124,7 @@ static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 {
 	struct contexthub_ipc_info *ipc = data;
 
-	dev_info(ipc->dev, "%s calledn", __func__);
+	dev_info(ipc->dev, "%s called\n", __func__);
 	disable_irq_nosync(ipc->irq_wdt);
 	ipc->irq_wdt_disabled = 1;
 	request_debug_work(ipc, CHUB_ERR_FW_WDT, 1);
@@ -1266,17 +1267,17 @@ static __init int contexthub_ipc_hw_init(struct platform_device *pdev,
 
 	/* get chub gpr base */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dumpgpr");
-	chub->chub_dumpgrp = devm_ioremap_resource(dev, res);
-	if (IS_ERR(chub->chub_dumpgrp)) {
-		dev_err(dev, "fails to get dumpgrp\n");
-		return PTR_ERR(chub->chub_dumpgrp);
+	chub->chub_dumpgpr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(chub->chub_dumpgpr)) {
+		dev_err(dev, "fails to get dumpgpr\n");
+		return PTR_ERR(chub->chub_dumpgpr);
 	}
 
 	/* get pmu reset base */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "chub_reset");
 	chub->pmu_chub_reset = devm_ioremap_resource(dev, res);
 	if (IS_ERR(chub->pmu_chub_reset)) {
-		dev_err(dev, "fails to get dumpgrp\n");
+		dev_err(dev, "fails to get dumpgpr\n");
 		return PTR_ERR(chub->pmu_chub_reset);
 	}
 
@@ -1503,6 +1504,9 @@ static int contexthub_suspend(struct device *dev)
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
 	struct nanohub_data *data = ipc->data;
 
+	pr_info("nanohub log to kernel off\n");
+	ipc_set_chub_kernel_log(KERNEL_LOG_OFF);
+
 	return nanohub_suspend(data->iio_dev);
 }
 
@@ -1510,6 +1514,9 @@ static int contexthub_resume(struct device *dev)
 {
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
 	struct nanohub_data *data = ipc->data;
+
+	pr_info("nanohub log to kernel on\n");
+	ipc_set_chub_kernel_log(KERNEL_LOG_ON);
 
 	return nanohub_resume(data->iio_dev);
 }
