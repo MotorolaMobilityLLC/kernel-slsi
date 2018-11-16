@@ -438,12 +438,6 @@ struct power_mode {
 /* Maximum number of power modes manageable per cpu */
 #define MAX_MODE	5
 
-/* Iterator for power mode */
-#define for_each_mode(mode, array, pos)			\
-	for ((pos) = 0, (mode) = (array)[0];		\
-		(mode) = (array)[(pos)],		\
-		(pos) < MAX_MODE; (pos)++)
-
 /*
  * Main struct of CPUPM
  * Each cpu has its own data structure and main purpose of this struct is to
@@ -482,12 +476,14 @@ void disable_power_mode(int cpu, int type)
 {
 	struct exynos_cpupm *pm;
 	struct power_mode *mode;
-	int pos;
+	int i;
 
 	spin_lock(&cpupm_lock);
 	pm = &per_cpu(cpupm, cpu);
 
-	for_each_mode(mode, pm->modes, pos) {
+	for (i = 0; i < MAX_MODE; i++) {
+		mode = pm->modes[i];
+
 		if (IS_NULL(mode))
 			break;
 
@@ -517,12 +513,13 @@ void enable_power_mode(int cpu, int type)
 {
 	struct exynos_cpupm *pm;
 	struct power_mode *mode;
-	int pos;
+	int i;
 
 	spin_lock(&cpupm_lock);
 	pm = &per_cpu(cpupm, cpu);
 
-	for_each_mode(mode, pm->modes, pos) {
+	for (i = 0; i < MAX_MODE; i++) {
+		mode = pm->modes[i];
 		if (IS_NULL(mode))
 			break;
 
@@ -669,7 +666,7 @@ int exynos_cpu_pm_enter(int cpu, int index)
 {
 	struct exynos_cpupm *pm;
 	struct power_mode *mode;
-	int pos;
+	int i;
 
 	spin_lock(&cpupm_lock);
 	pm = &per_cpu(cpupm, cpu);
@@ -681,7 +678,8 @@ int exynos_cpu_pm_enter(int cpu, int index)
 	set_state_powerdown(pm);
 
 	/* Try to enter power mode */
-	for_each_mode(mode, pm->modes, pos) {
+	for (i = 0; i < MAX_MODE; i++) {
+		mode = pm->modes[i];
 		if (IS_NULL(mode))
 			break;
 
@@ -698,13 +696,14 @@ void exynos_cpu_pm_exit(int cpu, int cancel)
 {
 	struct exynos_cpupm *pm;
 	struct power_mode *mode;
-	int pos;
+	int i;
 
 	spin_lock(&cpupm_lock);
 	pm = &per_cpu(cpupm, cpu);
 
 	/* Make settings to exit from mode */
-	for_each_mode(mode, pm->modes, pos) {
+	for (i = 0; i < MAX_MODE; i++) {
+		mode = pm->modes[i];
 		if (IS_NULL(mode))
 			break;
 
@@ -809,11 +808,12 @@ static void __init
 add_mode(struct power_mode **modes, struct power_mode *new)
 {
 	struct power_mode *mode;
-	int pos;
+	int i;
 
-	for_each_mode(mode, modes, pos) {
+	for (i = 0; i < MAX_MODE; i++) {
+		mode = modes[i];
 		if (IS_NULL(mode)) {
-			modes[pos] = new;
+			modes[i] = new;
 			return;
 		}
 	}
