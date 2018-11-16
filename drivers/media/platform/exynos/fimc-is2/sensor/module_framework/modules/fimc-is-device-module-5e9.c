@@ -391,6 +391,17 @@ static int __init sensor_module_5e9_probe(struct platform_device *pdev)
 		ext->ois_con.peri_type = SE_NULL;
 	}
 
+	if (pdata->eeprom_product_name != EEPROM_NAME_NOTHING) {
+		ext->eeprom_con.product_name = pdata->eeprom_product_name;
+		ext->eeprom_con.peri_type = SE_I2C;
+		ext->eeprom_con.peri_setting.i2c.channel = pdata->eeprom_i2c_ch;
+		ext->eeprom_con.peri_setting.i2c.slave_address = pdata->eeprom_i2c_addr;
+		ext->eeprom_con.peri_setting.i2c.speed = 400000;
+	} else {
+		ext->eeprom_con.product_name = pdata->eeprom_product_name;
+		ext->eeprom_con.peri_type = SE_NULL;
+	}
+
 	v4l2_subdev_init(subdev_module, &subdev_ops);
 
 	v4l2_set_subdevdata(subdev_module, module);
