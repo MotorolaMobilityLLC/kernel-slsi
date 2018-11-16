@@ -54,14 +54,14 @@ static void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
-		IPC_HW_WRITE_DUMPGPR_CTRL(ipc->chub_dumpgrp, 0x1);
+		IPC_HW_WRITE_DUMPGPR_CTRL(ipc->chub_dumpgpr, 0x1);
 		/* dump GPR */
 		for (i = 0; i <= GPR_PC_INDEX - 1; i++)
 			p_dump->gpr[i] =
-			    readl(ipc->chub_dumpgrp + REG_CHUB_DUMPGPR_GP0R +
+			    readl(ipc->chub_dumpgpr + REG_CHUB_DUMPGPR_GP0R +
 				  i * 4);
 		p_dump->gpr[GPR_PC_INDEX] =
-		    readl(ipc->chub_dumpgrp + REG_CHUB_DUMPGPR_PCR);
+		    readl(ipc->chub_dumpgpr + REG_CHUB_DUMPGPR_PCR);
 	}
 }
 

@@ -78,8 +78,11 @@
 
 #define OS_UPDT_MAGIC	"Nanohub OS"
 
-#define BOOTMODE_COLD       (0x77773333)
-#define BOOTMODE_PWRGATING  (0x11118888)
+#define BOOTMODE_COLD       (0x7733)
+#define BOOTMODE_PWRGATING  (0x1188)
+
+#define KERNEL_LOG_ON		(0x1)
+#define KERNEL_LOG_OFF		(0x0)
 
 #define READY_TO_GO 99
 
@@ -99,7 +102,8 @@ struct chub_bootargs {
 	u32 dump_start;
 	u32 dump_end;
 	u32 chubclk;
-	u32 bootmode;
+	u16 bootmode;
+	u16 kernel_log;
 #if defined(LOCAL_POWERGATE)
 	u32 psp;
 	u32 msp;
@@ -455,8 +459,10 @@ u64 ipc_read_val(enum ipc_owner owner);
 void ipc_write_val(enum ipc_owner owner, u64 result);
 void ipc_set_chub_clk(u32 clk);
 u32 ipc_get_chub_clk(void);
-void ipc_set_chub_bootmode(u32 bootmode);
-u32 ipc_get_chub_bootmode(void);
+void ipc_set_chub_bootmode(u16 bootmode);
+u16 ipc_get_chub_bootmode(void);
+void ipc_set_chub_kernel_log(u16 kernel_log);
+u16 ipc_get_chub_kernel_log(void);
 void ipc_dump(void);
 #if defined(LOCAL_POWERGATE)
 u32 *ipc_get_chub_psp(void);
