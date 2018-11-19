@@ -153,10 +153,11 @@ static int cs35l41_dsp_power_ev(struct snd_soc_dapm_widget *w,
 
 		return 0;
 	case SND_SOC_DAPM_PRE_PMD:
-		if (cs35l41->halo_booted == false) {
+	     //if (cs35l41->halo_booted == false) {
 			wm_halo_early_event(w, kcontrol, event);
 			wm_halo_event(w, kcontrol, event);
-		}
+	     //}
+             cs35l41->halo_booted = false;
 	default:
 		return 0;
 	}
