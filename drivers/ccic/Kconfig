@@ -28,6 +28,14 @@ config CCIC_S2MU106
 	  If you say yes here you will get support for
 	  for the S2MU106 USBPD chip.
 
+config CCIC_TRY_SNK
+	bool "Using USB PD TRY SNK FUNCTION"
+	depends on USE_CCIC
+	default n
+	help
+	  If you say yes here you will get support for
+	  Try Snk Function.
+
 config CCIC_VDM
 	bool "Using USB PD VDM Message"
 	depends on USE_CCIC
