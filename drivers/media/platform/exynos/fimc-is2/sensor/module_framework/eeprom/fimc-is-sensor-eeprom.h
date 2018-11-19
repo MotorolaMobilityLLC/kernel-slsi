@@ -10,11 +10,13 @@
 #ifndef FIMC_IS_EEPROM_H
 #define FIMC_IS_EEPROM_H
 
+void fimc_is_eeprom_cal_data_set(char *data, char *name,
+		u32 addr, u32 size, u32 value);
 int fimc_is_eeprom_file_write(const char *file_name, const void *data,
 		unsigned long size);
 int fimc_is_eeprom_file_read(const char *file_name, const void *data,
 		unsigned long size);
-int fimc_is_eeprom_module_read(struct i2c_client *client, char *file_name,
+int fimc_is_eeprom_module_read(struct i2c_client *client, u32 addr,
 		char *data, unsigned long size);
 int fimc_is_sensor_eeprom_check_crc(char *data, size_t size);
 
