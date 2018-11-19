@@ -166,27 +166,6 @@ static int usb_string_copy(const char *s, char **s_copy)
 	return 0;
 }
 
-static int set_alt_serialnumber(struct gadget_strings *gs)
-{
-	char *str;
-	int ret = -ENOMEM;
-
-	str = kmalloc(CHIPID_SIZE + 1, GFP_KERNEL);
-	if (!str) {
-		pr_err("%s: failed to alloc for string\n", __func__);
-		return ret;
-	}
-
-	snprintf(str, CHIPID_SIZE + 1, "%016lx", (long)exynos_soc_info.unique_id);
-	if (usb_string_copy(str, &gs->serialnumber))
-		pr_err("%s: failed to copy alternative string\n", __func__);
-	else
-		ret = 0;
-
-	kfree(str);
-	return ret;
-}
-
 #define GI_DEVICE_DESC_SIMPLE_R_u8(__name)	\
 static ssize_t gadget_dev_desc_##__name##_show(struct config_item *item, \
 			char *page)	\
@@ -1356,9 +1335,6 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 			gs->strings[USB_GADGET_MANUFACTURER_IDX].s =
 				gs->manufacturer;
 			gs->strings[USB_GADGET_PRODUCT_IDX].s = gs->product;
-			if (gs->serialnumber && !set_alt_serialnumber(gs))
-				pr_info("usb: serial number: %s\n",
-						gs->serialnumber);
 			gs->strings[USB_GADGET_SERIAL_IDX].s = gs->serialnumber;
 			i++;
 		}
