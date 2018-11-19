@@ -533,22 +533,15 @@ static int fimc_is_resourcemgr_alloc_secure_mem(struct fimc_is_resourcemgr *reso
 {
 	struct fimc_is_mem *mem = &resourcemgr->mem;
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
-	size_t tnr_size;
-
-	tnr_size = 0;
-#if defined(ENABLE_TNR)
-	/* 4 is double buffering & 2 instance for dual camera */
-	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * 4);
-#endif
 
 	/* 3aa/isp internal DMA buffer */
-	minfo->pb_taaisp_s = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TAAISP_DMA_SIZE + tnr_size, 16, NULL);
+	minfo->pb_taaisp_s = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TAAISP_DMA_SIZE, 16, NULL);
 	if (IS_ERR_OR_NULL(minfo->pb_taaisp_s)) {
 		err("failed to allocate buffer for TAAISP_DMA_S");
 		return -ENOMEM;
 	}
 
-	info("[RSC] TAAISP_DMA_S memory size (aligned) : %08lx\n", TAAISP_DMA_SIZE + tnr_size);
+	info("[RSC] TAAISP_DMA_S memory size (aligned) : %08lx\n", TAAISP_DMA_SIZE);
 
 	return 0;
 }
