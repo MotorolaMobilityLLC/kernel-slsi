@@ -4136,7 +4136,7 @@ void factory_usb_shutdown(struct s2mu00x_battery_info *chip)
 		chip->factory_cable = false;
 	}
 }
-
+#if 0
 static void soc_control_worker(struct work_struct *work)
 {
 	struct s2mu00x_battery_info *battery =
@@ -4152,7 +4152,7 @@ static void soc_control_worker(struct work_struct *work)
 
 	queue_delayed_work(battery->monitor_wqueue, &battery->soc_control, 10*HZ);
 }
-
+#endif
 static int s2mu00x_battery_probe(struct platform_device *pdev)
 {
 	struct s2mu00x_battery_info *battery;
@@ -4356,8 +4356,8 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	if ((is_charging_mode == S2MU00X_POWEROFF_CHG_MODE) ||
 		(is_charging_mode == S2MU00X_NOR_MODE)) {
 		pr_info("%s: Poweroff charger mode, enable charging\n", __func__);
-		INIT_DELAYED_WORK(&battery->soc_control, soc_control_worker);
-		queue_delayed_work(battery->monitor_wqueue, &battery->soc_control, 5*HZ);
+	//	INIT_DELAYED_WORK(&battery->soc_control, soc_control_worker);
+	//	queue_delayed_work(battery->monitor_wqueue, &battery->soc_control, 5*HZ);
 	} else if (is_charging_mode == S2MU00X_FAC_MODE) {
 		pr_info("%s: Factory boot mode, stop charging\n", __func__);
 		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
