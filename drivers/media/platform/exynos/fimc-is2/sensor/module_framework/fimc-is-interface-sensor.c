@@ -2896,19 +2896,6 @@ int get_vc_dma_buf_info(struct fimc_is_sensor_interface *itf,
 	buf_info->height = subdev->output.height;
 	buf_info->element_size = module->vc_extra_info[request_data_type].max_element;
 
-#if defined(CONFIG_CAMERA_PAFSTAT)
-	switch (buf_info->stat_type) {
-	case VC_STAT_TYPE_PAFSTAT_FLOATING:
-		pafstat_hw_g_floating_size(&buf_info->width, &buf_info->height, &buf_info->element_size);
-		break;
-	case VC_STAT_TYPE_PAFSTAT_STATIC:
-		pafstat_hw_g_static_size(&buf_info->width, &buf_info->height, &buf_info->element_size);
-		break;
-	default:
-		break;
-	}
-#endif
-
 	info("VC buf (req_type(%d), stat_type(%d), width(%d), height(%d), element(%d byte))\n",
 		request_data_type, buf_info->stat_type, buf_info->width, buf_info->height, buf_info->element_size);
 
