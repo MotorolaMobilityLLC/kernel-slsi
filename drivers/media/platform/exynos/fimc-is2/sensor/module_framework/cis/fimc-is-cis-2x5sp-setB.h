@@ -4128,7 +4128,7 @@ const u32 sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR[] = {
 	0x602A, 0x122A, 0x2,
 	0x6F12, 0x0A01, 0x2,
 	0x6028, 0x4000, 0x2,
-	0x0118, 0x0102, 0x2,
+	0x0118, 0x0002, 0x2,
 	0x1134, 0x4474, 0x2,
 	0x6028, 0x2000, 0x2,
 	0x602A, 0x1186, 0x2,
@@ -4706,7 +4706,7 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_1920x1080_240fps = {
 
 static const u32 *sensor_2x5sp_setfiles_B[] = {
 	sensor_2x5sp_setfile_B_2880x2160_30fps,
-	/* sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR, */
+	sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR,
 	sensor_2x5sp_setfile_B_5760x4320_27fps,
 	sensor_2x5sp_setfile_B_1920x1080_120fps,
 	sensor_2x5sp_setfile_B_1920x1080_240fps,
@@ -4714,7 +4714,7 @@ static const u32 *sensor_2x5sp_setfiles_B[] = {
 
 static const u32 sensor_2x5sp_setfile_B_sizes[] = {
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_2880x2160_30fps),
-	/* ARRAY_SIZE(sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR), */
+	ARRAY_SIZE(sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR),
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_5760x4320_27fps),
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_1920x1080_120fps),
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_1920x1080_240fps),
@@ -4722,7 +4722,7 @@ static const u32 sensor_2x5sp_setfile_B_sizes[] = {
 
 static const struct sensor_pll_info_compact *sensor_2x5sp_pllinfos_B[] = {
 	&sensor_2x5sp_pllinfo_B_2880x2160_30fps,
-	/* &sensor_2x5sp_pllinfo_B_2880x2160_30fps_3DHDR, */
+	&sensor_2x5sp_pllinfo_B_2880x2160_30fps_3DHDR,
 	&sensor_2x5sp_pllinfo_B_5760x4320_27fps,
 	&sensor_2x5sp_pllinfo_B_1920x1080_120fps,
 	&sensor_2x5sp_pllinfo_B_1920x1080_240fps,
