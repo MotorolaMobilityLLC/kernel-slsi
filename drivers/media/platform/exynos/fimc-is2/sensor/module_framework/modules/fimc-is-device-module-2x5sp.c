@@ -45,24 +45,22 @@ static struct fimc_is_sensor_cfg config_module_2x5sp[] = {
 		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
 		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
 		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
-#if 0 /* TODO: for 3DHDR */
-	FIMC_IS_SENSOR_CFG(2880, 2160, 30, 0, 0, CSI_DATA_LANES_4, 1502, CSI_MODE_DT_ONLY, PD_NONE,
+	FIMC_IS_SENSOR_CFG_EX(2880, 2160, 30, 0, 1, CSI_DATA_LANES_4, 1502, CSI_MODE_VC_DT, PD_NONE, EX_3DHDR,
 		VC_IN(0, HW_FORMAT_RAW10, 2880, 2160), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 2880, 2160),
 		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
-		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
-		VC_IN(0, HW_FORMAT_EMBEDDED_8BIT, 2880, 31), VC_OUT(HW_FORMAT_EMBEDDED_8BIT, VC_EMBEDDED, 2880, 31)),
-#endif
-	FIMC_IS_SENSOR_CFG(5760, 4320, 27, 0, 1, CSI_DATA_LANES_4, 2150, CSI_MODE_VC_DT, PD_NONE,
+		VC_IN(2, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
+		VC_IN(0, HW_FORMAT_USER, 2880, 34), VC_OUT(HW_FORMAT_USER, VC_EMBEDDED, 2880, 34)),
+	FIMC_IS_SENSOR_CFG(5760, 4320, 27, 0, 2, CSI_DATA_LANES_4, 2150, CSI_MODE_VC_DT, PD_NONE,
 		VC_IN(0, HW_FORMAT_RAW10, 5760, 4320), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 5760, 4320),
 		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
 		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
 		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
-	FIMC_IS_SENSOR_CFG(1920, 1080, 120, 0, 2, CSI_DATA_LANES_4, 1800, CSI_MODE_VC_DT, PD_NONE,
+	FIMC_IS_SENSOR_CFG(1920, 1080, 120, 0, 3, CSI_DATA_LANES_4, 1800, CSI_MODE_VC_DT, PD_NONE,
 		VC_IN(0, HW_FORMAT_RAW10, 1920, 1080), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 1920, 1080),
 		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
 		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
 		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
-	FIMC_IS_SENSOR_CFG(1920, 1080, 240, 0, 3, CSI_DATA_LANES_4, 1800, CSI_MODE_VC_DT, PD_NONE,
+	FIMC_IS_SENSOR_CFG(1920, 1080, 240, 0, 4, CSI_DATA_LANES_4, 1800, CSI_MODE_VC_DT, PD_NONE,
 		VC_IN(0, HW_FORMAT_RAW10, 1920, 1080), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 1920, 1080),
 		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
 		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
@@ -275,6 +273,7 @@ static int __init sensor_module_2x5sp_probe(struct platform_device *pdev)
 	struct sensor_open_extended *ext;
 	struct exynos_platform_fimc_is_module *pdata;
 	struct device *dev;
+	int ch, t;
 	struct pinctrl_state *s;
 
 	BUG_ON(!fimc_is_dev);
@@ -328,6 +327,29 @@ static int __init sensor_module_2x5sp_probe(struct platform_device *pdev)
 	module->cfgs = ARRAY_SIZE(config_module_2x5sp);
 	module->cfg = config_module_2x5sp;
 	module->ops = NULL;
+
+	for (ch = 1; ch < CSI_VIRTUAL_CH_MAX; ch++)
+		module->vc_buffer_offset[ch] = pdata->vc_buffer_offset[ch];
+
+	for (t = VC_BUF_DATA_TYPE_SENSOR_STAT1; t < VC_BUF_DATA_TYPE_MAX; t++) {
+		module->vc_extra_info[t].stat_type = VC_STAT_TYPE_INVALID;
+		module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_INVALID;
+		module->vc_extra_info[t].max_width = 0;
+		module->vc_extra_info[t].max_height = 0;
+		module->vc_extra_info[t].max_element = 0;
+
+		switch (t) {
+		case VC_BUF_DATA_TYPE_SENSOR_STAT2:
+			module->vc_extra_info[t].stat_type
+				= VC_STAT_TYPE_TAIL_FOR_3HDR_LSI;
+
+			module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_3HDR_LSI;
+			module->vc_extra_info[t].max_width = 2880;
+			module->vc_extra_info[t].max_height = 34;
+			module->vc_extra_info[t].max_element = 1;
+			break;
+		}
+	}
 
 	/* Sensor peri */
 	module->private_data = kzalloc(sizeof(struct fimc_is_device_sensor_peri), GFP_KERNEL);
