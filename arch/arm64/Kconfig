@@ -211,7 +211,8 @@ config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config ZONE_DMA
-	def_bool y
+	bool
+	default n
 
 config HAVE_GENERIC_GUP
 	def_bool y
