@@ -2185,6 +2185,7 @@ static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data)
 	struct device *dev = pdic_data->dev;
 	struct usbpd_data *pd_data = dev_get_drvdata(dev);
 	int ret = 0;
+	u8 data = 0;
 
 	dev_info(dev, "%s\n", __func__);
 
@@ -2210,6 +2211,24 @@ static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data)
 
 	pdic_data->status_reg = 0;
 	usbpd_reinit(dev);
+#ifdef CONFIG_CCIC_TRY_SNK
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, &data);
+	data &= ~(S2MU106_REG_PLUG_CTRL_MODE_MASK | S2MU106_REG_PLUG_CTRL_RP_SEL_MASK);
+	data |= S2MU106_REG_PLUG_CTRL_DRP | S2MU106_REG_PLUG_CTRL_RP180;
+	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, data);
+
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL, &data);
+	data |= S2MU106_REG_PLUG_CTRL_UFP_ATTACH_OPT;
+	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL, data);
+
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_SET_RD, &data);
+	data &= ~S2MU106_REG_USB31_EN;
+	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_SET_RD, data);
+
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_DET, &data);
+	data |= S2MU106_REG_DET_RD_OR_VBUS;
+	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_DET, data);
+#endif
 	pdic_data->rid = REG_RID_MAX;
 	pdic_data->check_rid_wa = false;
 	pdic_data->is_factory_mode = false;
