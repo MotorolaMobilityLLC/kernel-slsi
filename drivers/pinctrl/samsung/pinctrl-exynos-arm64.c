@@ -544,9 +544,9 @@ const struct samsung_pin_ctrl exynos9610_pin_ctrl[] = {
 		/* pin-controller instance 5 SHUB data */
 		.pin_banks	= exynos9610_pin_banks5,
 		.nr_banks	= ARRAY_SIZE(exynos9610_pin_banks5),
-		.eint_gpio_init = exynos_eint_gpio_init,
-		.suspend	= exynos_pinctrl_suspend,
-		.resume		= exynos_pinctrl_resume,
+		//.eint_gpio_init = exynos_eint_gpio_init,
+		//.suspend	= exynos_pinctrl_suspend,
+		//.resume	= exynos_pinctrl_resume,
 	},
 };
 
