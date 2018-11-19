@@ -1754,25 +1754,25 @@
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-aac.bin";
 					};
-					protection_music_sec {
+					protection_music_qisheng {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-sec.bin";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-qisheng.bin";
 					};
-					protection_voice_sec {
+					protection_voice_qisheng {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-sec.bin";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-qisheng.bin";
 					};
-					protection_ringtone_sec{
+					protection_ringtone_qisheng{
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-sec.bin";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-qisheng.bin";
 					};
-					protection_notification_sec {
+					protection_notification_qisheng {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-sec.bin";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-qisheng.bin";
 					};
 					calibration_aac {
 						cirrus,full-name;
