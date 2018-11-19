@@ -689,10 +689,6 @@ void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 	} else if (flash->flash_ae.main_fls_ae_reset == true) {
 		if (flash->flash_ae.main_fls_strm_on_off_step == 0) {
 			if (flash->flash_data.flash_fired == false) {
-				flash->flash_data.mode = CAM2_FLASH_MODE_SINGLE;
-				flash->flash_data.intensity = 10;
-				flash->flash_data.firing_time_us = 500000;
-
 				info("[%s] main-flash ON(%d), pow(%d), time(%d)\n",
 					__func__,
 					flash->flash_data.mode,
