@@ -93,7 +93,6 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 	struct fimc_is_pafstat *pafstat;
 	u32 irq_src, irq_mask, status;
 	bool err_intr_flag = false;
-	u32 ret;
 
 	pafstat = data;
 	if (pafstat == NULL)
@@ -106,7 +105,7 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 	pafstat_hw_s_irq_src(pafstat->regs, status);
 
 	if (status & (1 << PAFSTAT_INT_FRAME_START)) {
-		u32 __iomem *base_reg = pafstat->regs;
+		void __iomem *base_reg = pafstat->regs;
 
 		atomic_set(&pafstat->Vvalid, V_VALID);
 #if 0 /* TODO */
@@ -117,20 +116,10 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 #endif
 
 		pafstat_hw_s_img_size(base_reg, pafstat->in_width, pafstat->in_height);
-		pafstat_hw_s_pd_size(base_reg, pafstat->pd_width, pafstat->pd_height);
-		if (atomic_read(&pafstat->sfr_state)) { /* TODO */
-			u32 reg_idx;
 
-			for (reg_idx = 0; reg_idx < pafstat->regs_max; reg_idx++) {
-				if (pafstat->regs_set[reg_idx].reg_addr)
-					writel(pafstat->regs_set[reg_idx].reg_data,
-							base_reg + pafstat->regs_set[reg_idx].reg_addr);
-			}
-		}
-
-		ret = pafstat_hw_g_ready(base_reg);
-		if (!ret)
+		if (atomic_read(&pafstat->sfr_state) == PAFSTAT_SFR_READY)
 			atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_APPLIED);
+
 		pafstat_hw_s_ready(base_reg, 1);
 
 		atomic_inc(&pafstat->fs);
@@ -167,6 +156,9 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 		atomic_inc(&pafstat->cl);
 		dbg_sensor(5, "[PAFSTAT:%d] LINE interrupt (0x%x)", pafstat->id, status);
 		atomic_add(pafstat->fro_cnt, &pafstat->cl);
+
+		if (atomic_read(&pafstat->sfr_state) == PAFSTAT_SFR_APPLIED)
+			tasklet_schedule(&pafstat->tasklet_fwin_stat);
 	}
 
 	if (status & (1 << PAFSTAT_INT_FRAME_FAIL)) {
@@ -190,6 +182,115 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 #endif
 
 	return IRQ_HANDLED;
+}
+
+static void pafstat_tasklet_fwin_stat(unsigned long data)
+{
+	struct fimc_is_pafstat *pafstat;
+	struct fimc_is_module_enum *module;
+	struct v4l2_subdev *subdev_module;
+	struct fimc_is_device_sensor *sensor;
+	struct fimc_is_device_csi *csi;
+	struct fimc_is_subdev *dma_subdev;
+	struct fimc_is_framemgr *framemgr;
+	struct fimc_is_frame *frame;
+	unsigned int frameptr;
+	int ch;
+
+	pafstat = (struct fimc_is_pafstat *)data;
+	if (!pafstat) {
+		err("failed to get PAFSTAT");
+		return;
+	}
+
+	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(pafstat->subdev);
+	if (!module) {
+		err("failed to get module");
+		return;
+	}
+
+	subdev_module = module->subdev;
+	if (!subdev_module) {
+		err("module's subdev was not probed");
+		return;
+	}
+
+	sensor = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module);
+	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(sensor->subdev_csi);
+
+	for (ch = CSI_VIRTUAL_CH_1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
+		if (sensor->cfg->output[ch].type == VC_PRIVATE) {
+			dma_subdev = csi->dma_subdev[ch];
+			if (!dma_subdev ||
+				!test_bit(FIMC_IS_SUBDEV_START, &dma_subdev->state))
+				continue;
+
+			framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
+			if (!framemgr) {
+				err("failed to get framemgr");
+				continue;
+			}
+
+			framemgr_e_barrier(framemgr, FMGR_IDX_29);
+
+			frameptr = atomic_read(&pafstat->frameptr_fwin_stat) % framemgr->num_frames;
+			frame = &framemgr->frames[frameptr];
+			frame->fcount = sensor->fcount;
+
+			pafstat_hw_g_fwin_stat(pafstat->regs, (void *)frame->kvaddr_buffer[0],
+				dma_subdev->output.width * dma_subdev->output.height);
+
+			atomic_inc(&pafstat->frameptr_fwin_stat);
+
+			framemgr_x_barrier(framemgr, FMGR_IDX_29);
+		}
+	}
+
+	if (pafstat->wq_fwin_stat)
+		queue_work(pafstat->wq_fwin_stat, &pafstat->work_fwin_stat);
+	else
+		schedule_work(&pafstat->work_fwin_stat);
+
+	dbg_pafstat(1, "%s, sensor fcount: %d\n", __func__, sensor->fcount);
+}
+
+static void pafstat_worker_fwin_stat(struct work_struct *work)
+{
+	struct fimc_is_pafstat *pafstat;
+	struct fimc_is_module_enum *module;
+	struct v4l2_subdev *subdev_module;
+	struct fimc_is_device_sensor *sensor;
+	struct paf_action *pa, *temp;
+	unsigned long flag;
+
+	pafstat = container_of(work, struct fimc_is_pafstat, work_fwin_stat);
+	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(pafstat->subdev);
+	if (!module) {
+		err("failed to get module");
+		return;
+	}
+
+	subdev_module = module->subdev;
+	if (!subdev_module) {
+		err("module's subdev was not probed");
+		return;
+	}
+
+	sensor = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module);
+
+	spin_lock_irqsave(&pafstat->slock_paf_action, flag);
+	list_for_each_entry_safe(pa, temp, &pafstat->list_of_paf_action, list) {
+		switch (pa->type) {
+		case VC_STAT_TYPE_PAFSTAT_FLOATING:
+			pa->notifier(pa->type, *(unsigned int *)&sensor->fcount, pa->data);
+			break;
+		default:
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&pafstat->slock_paf_action, flag);
+
+	dbg_pafstat(1, "%s, sensor fcount: %d\n", __func__, sensor->fcount);
 }
 
 int pafstat_set_num_buffers(struct v4l2_subdev *subdev, u32 num_buffers, struct fimc_is_sensor_cfg *cfg)
@@ -225,7 +326,9 @@ int pafstat_set_num_buffers(struct v4l2_subdev *subdev, u32 num_buffers, struct 
 int pafstat_hw_set_regs(struct v4l2_subdev *subdev,
 		struct paf_setting_t *regs, u32 regs_cnt)
 {
+	int i;
 	struct fimc_is_pafstat *pafstat;
+	int med_line;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -233,9 +336,17 @@ int pafstat_hw_set_regs(struct v4l2_subdev *subdev,
 		return -ENODEV;
 	}
 
-	memcpy(pafstat->regs_set, regs, regs_cnt * sizeof(struct paf_setting_t));
-	pafstat->regs_max = regs_cnt;
-	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_UNAPPLIED);
+	dbg_pafstat(1, "PAFSTAT(%p) SFR setting\n", pafstat->regs);
+	for (i = 0; i < regs_cnt; i++) {
+		dbg_pafstat(2, "[%d] ofs: 0x%x, val: 0x%x\n",
+				i, regs[i].reg_addr, regs[i].reg_data);
+		writel(regs[i].reg_data, pafstat->regs + regs[i].reg_addr);
+	}
+
+	med_line = pafstat_hw_com_s_med_line(pafstat->regs);
+	dbg_pafstat(1, "MED LINE_NUM(%d)\n", med_line);
+
+	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_READY);
 
 	return 0;
 }
@@ -343,13 +454,13 @@ void pafstat_notify(struct v4l2_subdev *subdev, unsigned int type, void *data)
 		spin_lock_irqsave(&pafstat->slock_paf_action, flag);
 		list_for_each_entry_safe(pa, temp, &pafstat->list_of_paf_action, list) {
 			switch (pa->type) {
-			case VC_STAT_TYPE_PAFSTAT_FLOATING:
 			case VC_STAT_TYPE_PAFSTAT_STATIC:
 				pa->notifier(pa->type, *(unsigned int *)data, pa->data);
 				break;
 			default:
 				break;
 			}
+			dbg_pafstat(1, "%s, sensor fcount: %d\n", __func__, *(unsigned int *)data);
 		}
 		spin_unlock_irqrestore(&pafstat->slock_paf_action, flag);
 
@@ -384,7 +495,7 @@ int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 	spin_lock_init(&pafstat->slock_paf_action);
 	INIT_LIST_HEAD(&pafstat->list_of_paf_action);
 
-	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_UNAPPLIED);
+	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_INIT);
 	atomic_set(&pafstat->fs, 0);
 	atomic_set(&pafstat->cl, 0);
 	atomic_set(&pafstat->fe, 0);
@@ -416,7 +527,6 @@ int pafstat_unregister(struct fimc_is_module_enum *module)
 	int ret = 0;
 	struct fimc_is_device_sensor_peri *sensor_peri = module->private_data;
 	struct fimc_is_pafstat *pafstat;
-	long timetowait;
 	struct paf_action *pa, *temp;
 	unsigned long flag;
 
@@ -448,16 +558,6 @@ int pafstat_unregister(struct fimc_is_module_enum *module)
 	sensor_peri->subdev_pafstat = NULL;
 	pafstat_hw_s_enable(pafstat->regs, 0);
 
-	timetowait = wait_event_timeout(pafstat->wait_queue,
-		!atomic_read(&pafstat->Vvalid),
-		FIMC_IS_HW_STOP_TIMEOUT);
-
-	if (!timetowait) {
-		err("[PAFSTAT:%d]wait FRAME_END timeout (%ld), fro_cnt(%d)",
-			pafstat->id, timetowait, pafstat->fro_cnt);
-		ret = -ETIME;
-	}
-
 	clear_bit(FIMC_IS_SENSOR_PAFSTAT_AVAILABLE, &sensor_peri->peri_state);
 	atomic_dec(&g_pafstat_rsccount);
 
@@ -475,11 +575,36 @@ int pafstat_init(struct v4l2_subdev *subdev, u32 val)
 static int pafstat_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	struct fimc_is_pafstat *pafstat;
+	cis_shared_data *cis_data = NULL;
+	struct fimc_is_module_enum *module;
+	struct fimc_is_device_sensor_peri *sensor_peri;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
 		err("A subdev data of PAFSTAT is null");
 		return -ENODEV;
+	}
+
+	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
+	if (!module) {
+		err("[PAFSTAT:%d] A host data of PAFSTAT is null", pafstat->id);
+		return -ENODEV;
+	}
+
+	sensor_peri = module->private_data;
+	WARN_ON(!sensor_peri);
+
+	cis_data = sensor_peri->cis.cis_data;
+	WARN_ON(!cis_data);
+
+	if (cis_data->is_data.paf_stat_enable && enable) {
+		tasklet_init(&pafstat->tasklet_fwin_stat, pafstat_tasklet_fwin_stat, (unsigned long)pafstat);
+		atomic_set(&pafstat->frameptr_fwin_stat, 0);
+		INIT_WORK(&pafstat->work_fwin_stat, pafstat_worker_fwin_stat);
+	} else {
+		tasklet_kill(&pafstat->tasklet_fwin_stat);
+		if (flush_work(&pafstat->work_fwin_stat))
+			info("flush pafstat wq for fwin stat\n");
 	}
 
 	pafstat_hw_s_enable(pafstat->regs, enable);
@@ -555,6 +680,9 @@ static int pafstat_s_format(struct v4l2_subdev *subdev,
 		pafstat_hw_s_pd_size(pafstat->regs, pafstat->pd_width, pafstat->pd_height);
 		pd_mode = sensor->cfg->pd_mode;
 	}
+
+	pafstat_hw_s_lbctrl(pafstat->regs,
+			pafstat->pd_width, pafstat->pd_height);
 
 	pd_enable = pafstat_hw_s_sensor_mode(pafstat->regs, pd_mode);
 	cis_data->is_data.paf_stat_enable = pd_enable;

@@ -401,6 +401,11 @@ struct fimc_is_pafstat {
 
 	spinlock_t			slock_paf_action;
 	struct list_head		list_of_paf_action;
+
+	struct tasklet_struct		tasklet_fwin_stat;
+	atomic_t			frameptr_fwin_stat;
+	struct workqueue_struct		*wq_fwin_stat;
+	struct work_struct		work_fwin_stat;
 };
 
 struct fimc_is_device_sensor_peri {
