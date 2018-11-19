@@ -821,12 +821,6 @@ int sensor_2x5sp_cis_stream_on(struct v4l2_subdev *subdev)
 	fimc_is_sensor_write16(client, 0x6028, 0x4000);
 	fimc_is_sensor_write8(client, 0x0100, 0x01);
 
-	/* WDR */
-	if (fimc_is_vender_wdr_mode_on(cis_data))
-		fimc_is_sensor_write8(client, 0x021E, 0x01);
-	else
-		fimc_is_sensor_write8(client, 0x021E, 0x00);
-
 	cis_data->stream_on = true;
 
 #ifdef DEBUG_SENSOR_TIME
@@ -899,6 +893,7 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	u32 vt_pic_clk_freq_mhz = 0;
 	u16 long_coarse_int = 0;
 	u16 short_coarse_int = 0;
+	u16 middle_coarse_int = 0;
 	u32 line_length_pck = 0;
 	u32 min_fine_int = 0;
 
@@ -932,8 +927,9 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 
 	cis_data = cis->cis_data;
 
-	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), target long(%d), short(%d)\n", cis->id, __func__,
-			cis_data->sen_vsync_count, target_exposure->long_val, target_exposure->short_val);
+	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), target long(%d), short(%d), middle(%d)\n", cis->id, __func__,
+			cis_data->sen_vsync_count,
+			target_exposure->long_val, target_exposure->short_val, target_exposure->middle_val);
 
 	vt_pic_clk_freq_mhz = cis_data->pclk / (1000 * 1000);
 	line_length_pck = cis_data->line_length_pck;
@@ -941,6 +937,7 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 
 	long_coarse_int = ((target_exposure->long_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
 	short_coarse_int = ((target_exposure->short_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
+	middle_coarse_int = ((target_exposure->middle_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
 
 	if (long_coarse_int > cis_data->max_coarse_integration_time) {
 		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), long coarse(%d) max(%d)\n", cis->id, __func__,
@@ -952,6 +949,12 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), short coarse(%d) max(%d)\n", cis->id, __func__,
 			cis_data->sen_vsync_count, short_coarse_int, cis_data->max_coarse_integration_time);
 		short_coarse_int = cis_data->max_coarse_integration_time;
+	}
+
+	if (middle_coarse_int > cis_data->max_coarse_integration_time) {
+		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), middle coarse(%d) max(%d)\n", cis->id, __func__,
+			cis_data->sen_vsync_count, middle_coarse_int, cis_data->max_coarse_integration_time);
+		middle_coarse_int = cis_data->max_coarse_integration_time;
 	}
 
 	if (long_coarse_int < cis_data->min_coarse_integration_time) {
@@ -966,6 +969,12 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 		short_coarse_int = cis_data->min_coarse_integration_time;
 	}
 
+	if (middle_coarse_int < cis_data->min_coarse_integration_time) {
+		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), middle coarse(%d) min(%d)\n", cis->id, __func__,
+			cis_data->sen_vsync_count, middle_coarse_int, cis_data->min_coarse_integration_time);
+		middle_coarse_int = cis_data->min_coarse_integration_time;
+	}
+
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
@@ -978,19 +987,21 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 		goto p_err;
 
 	/* Long exposure */
-	if (fimc_is_vender_wdr_mode_on(cis_data)) {
+	if (cis_data->is_data.wdr_mode != CAMERA_WDR_OFF) {
 		ret = fimc_is_sensor_write16(client, 0x0226, long_coarse_int);
 		if (ret < 0)
 			goto p_err;
 
-		/* TODO: medium coarse integration time: 0x022A */
+		ret = fimc_is_sensor_write16(client, 0x022C, middle_coarse_int);
+		if (ret < 0)
+			goto p_err;
 	}
 
 	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), vt_pic_clk_freq_mhz (%d), line_length_pck(%d), min_fine_int (%d)\n",
 		cis->id, __func__, cis_data->sen_vsync_count, vt_pic_clk_freq_mhz, line_length_pck, min_fine_int);
-	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), frame_length_lines(%#x), long_coarse_int %#x, short_coarse_int %#x\n",
+	dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), frame_length_lines(%#x), coarse_int (L:%#x, S:%#x, M:%#x)\n",
 		cis->id, __func__, cis_data->sen_vsync_count, cis_data->frame_length_lines,
-		long_coarse_int, short_coarse_int);
+		long_coarse_int, short_coarse_int, middle_coarse_int);
 
 #ifdef DEBUG_SENSOR_TIME
 	do_gettimeofday(&end);
@@ -1397,7 +1408,7 @@ int sensor_2x5sp_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param
 		analog_gain = cis->cis_data->max_analog_gain[0];
 
 	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_again = %d us, analog_gain(%#x)\n",
-		cis->id, __func__, cis->cis_data->sen_vsync_count, again->val, analog_gain);
+		cis->id, __func__, cis->cis_data->sen_vsync_count, again->long_val, analog_gain);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
@@ -1595,6 +1606,7 @@ int sensor_2x5sp_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_para
 
 	u16 long_gain = 0;
 	u16 short_gain = 0;
+	u16 middle_gain = 0;
 	u16 dgains[4] = {0};
 
 #ifdef DEBUG_SENSOR_TIME
@@ -1622,6 +1634,7 @@ int sensor_2x5sp_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_para
 
 	long_gain = (u16)sensor_cis_calc_dgain_code(dgain->long_val);
 	short_gain = (u16)sensor_cis_calc_dgain_code(dgain->short_val);
+	middle_gain = (u16)sensor_cis_calc_dgain_code(dgain->middle_val);
 
 	if (long_gain < cis->cis_data->min_digital_gain[0])
 		long_gain = cis->cis_data->min_digital_gain[0];
@@ -1635,9 +1648,15 @@ int sensor_2x5sp_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_para
 	if (short_gain > cis->cis_data->max_digital_gain[0])
 		short_gain = cis->cis_data->max_digital_gain[0];
 
-	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_dgain = %d/%d us, long_gain(%#x), short_gain(%#x)\n",
+	if (middle_gain < cis->cis_data->min_digital_gain[0])
+		middle_gain = cis->cis_data->min_digital_gain[0];
+
+	if (middle_gain > cis->cis_data->max_digital_gain[0])
+		middle_gain = cis->cis_data->max_digital_gain[0];
+
+	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_dgain = %d/%d/%d us, gain(L:%#x, S:%#x, M:%#x)\n",
 		cis->id, __func__, cis->cis_data->sen_vsync_count, dgain->long_val,
-		dgain->short_val, long_gain, short_gain);
+		dgain->short_val, dgain->middle_val, long_gain, short_gain, middle_gain);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
@@ -1652,12 +1671,17 @@ int sensor_2x5sp_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_para
 		goto p_err;
 
 	/* Long & medium digital gain */
-	if (fimc_is_vender_wdr_mode_on(cis_data)) {
-		ret = fimc_is_sensor_write16(client, 0x0230, long_gain);
+	if (cis_data->is_data.wdr_mode != CAMERA_WDR_OFF) {
+		dgains[0] = dgains[1] = dgains[2] = dgains[3] = long_gain;
+		/* long digital gain */
+		ret = fimc_is_sensor_write16_array(client, 0x0230, dgains, 4);
 		if (ret < 0)
 			goto p_err;
-
-		/* TODO: middle_gain update, 0x0238 */
+		dgains[0] = dgains[1] = dgains[2] = dgains[3] = middle_gain;
+		/* middle digital gain */
+		ret = fimc_is_sensor_write16_array(client, 0x0238, dgains, 4);
+		if (ret < 0)
+			goto p_err;
 	}
 
 #ifdef DEBUG_SENSOR_TIME
@@ -1910,6 +1934,267 @@ p_err:
 	return ret;
 }
 
+int sensor_2x5sp_cis_set_3hdr_roi(struct v4l2_subdev *subdev, struct roi_setting_t roi_control)
+{
+	int ret = 0;
+	int hold = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+	u16 roi_val[4];
+#ifdef DEBUG_SENSOR_TIME
+	struct timeval st, end;
+
+	do_gettimeofday(&st);
+#endif
+
+	BUG_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	BUG_ON(!cis);
+	BUG_ON(!cis->cis_data);
+
+	if (!cis->use_3hdr)
+		return ret;
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	dbg_sensor(1, "%s: [MOD:%d] roi_control (start_x:%d, start_y:%d, end_x:%d, end_y:%d)\n",
+		__func__, cis->id,
+		roi_control.roi_start_x, roi_control.roi_start_y,
+		roi_control.roi_end_x, roi_control.roi_end_y);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
+	if (hold < 0) {
+		ret = hold;
+		goto p_err;
+	}
+
+	/* 0x2000_XXXX */
+	ret = fimc_is_sensor_write16(client, 0x6028, 0x2000);
+	if (ret < 0)
+		goto p_err;
+
+	/* t_isp_rgby_hist_mem_cfg_active_window_percent_14bit */
+	roi_val[0] = roi_control.roi_start_x; /* 0x20004B26: top_left_x */
+	roi_val[1] = roi_control.roi_start_y; /* 0x20004B28: top_left_y */
+	roi_val[2] = roi_control.roi_end_x; /* 0x20004B2A: bot_right_x */
+	roi_val[3] = roi_control.roi_end_y; /* 0x20004B2C: bot_right_y */
+
+	ret = fimc_is_sensor_write16_array(client, 0x4B26, roi_val, 4);
+	if (ret < 0)
+		goto p_err;
+
+	/* t_isp_rgby_hist_grid_grid & thstat_grid_area */
+	roi_val[0] = roi_control.roi_end_x - roi_control.roi_start_x; /* 0x20004BEE & 0x20004E44: width */
+	roi_val[1] = roi_control.roi_end_y - roi_control.roi_start_y; /* 0x20004BF0 & 0x20004E46: height */
+	roi_val[2] = (roi_control.roi_start_x + roi_control.roi_end_x) / 2; /* center_x */
+	roi_val[3] = (roi_control.roi_start_y + roi_control.roi_end_y) / 2; /* center_y */
+
+	ret = fimc_is_sensor_write16_array(client, 0x4BEE, roi_val, 4);
+	if (ret < 0)
+		goto p_err;
+
+	ret = fimc_is_sensor_write16_array(client, 0x4E44, roi_val, 2);
+	if (ret < 0)
+		goto p_err;
+
+	/* restore 0x4000_XXXX */
+	ret = fimc_is_sensor_write16(client, 0x6028, 0x4000);
+	if (ret < 0)
+		goto p_err;
+
+#ifdef DEBUG_SENSOR_TIME
+	do_gettimeofday(&end);
+	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec)*1000000 + (end.tv_usec - st.tv_usec));
+#endif
+
+p_err:
+	if (hold > 0) {
+		hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x00);
+		if (hold < 0)
+			ret = hold;
+	}
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+	return ret;
+}
+
+int sensor_2x5sp_cis_set_3hdr_stat(struct v4l2_subdev *subdev, bool streaming, void *data)
+{
+	int ret = 0;
+	int hold = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+	u16 weight[3];
+	u16 low_gate_thr, high_gate_thr;
+	struct roi_setting_t y_sum_roi;
+	struct sensor_lsi_3hdr_stat_control_mode_change mode_change_stat;
+	struct sensor_lsi_3hdr_stat_control_per_frame per_frame_stat;
+#ifdef DEBUG_SENSOR_TIME
+	struct timeval st, end;
+
+	do_gettimeofday(&st);
+#endif
+
+	FIMC_BUG(!subdev);
+	FIMC_BUG(!data);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	BUG_ON(!cis);
+	BUG_ON(!cis->cis_data);
+
+	if (!cis->use_3hdr)
+		return ret;
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
+	if (hold < 0) {
+		ret = hold;
+		goto p_err;
+	}
+
+	if (streaming) {
+		per_frame_stat = *(struct sensor_lsi_3hdr_stat_control_per_frame *)data;
+
+		weight[0] = per_frame_stat.r_weight;
+		weight[1] = per_frame_stat.g_weight;
+		weight[2] = per_frame_stat.b_weight;
+	} else {
+		mode_change_stat = *(struct sensor_lsi_3hdr_stat_control_mode_change *)data;
+
+		weight[0] = mode_change_stat.r_weight;
+		weight[1] = mode_change_stat.g_weight;
+		weight[2] = mode_change_stat.b_weight;
+
+		low_gate_thr = mode_change_stat.low_gate_thr;
+		high_gate_thr = mode_change_stat.high_gate_thr;
+
+		y_sum_roi = mode_change_stat.y_sum_roi;
+	}
+
+	ret = fimc_is_sensor_write16(client, 0x6028, 0x2000);
+	if (ret < 0)
+		goto p_err;
+
+	/* t_isp_rgby_hist_short_exp_weight */
+	ret = fimc_is_sensor_write16_array(client, 0x4BBC, weight, 3);
+	if (ret < 0)
+		goto p_err;
+
+	/* t_isp_rgby_hist_long_exp_weight */
+	ret = fimc_is_sensor_write16_array(client, 0x4BCA, weight, 3);
+	if (ret < 0)
+		goto p_err;
+
+	/* t_isp_rgby_hist_medium_exp_weight */
+	ret = fimc_is_sensor_write16_array(client, 0x4BD8, weight, 3);
+	if (ret < 0)
+		goto p_err;
+
+	/* t_isp_rgby_hist_mixed_exp_weight */
+	ret = fimc_is_sensor_write16_array(client, 0x4BE6, weight, 3);
+	if (ret < 0)
+		goto p_err;
+
+	/* t_isp_drc_thstat_rgb_weights */
+	ret = fimc_is_sensor_write16_array(client, 0x4E2C, weight, 3);
+	if (ret < 0)
+		goto p_err;
+
+	if (!streaming) {
+		/* t_isp_drc_thstat_u_low_tresh_red */
+		ret = fimc_is_sensor_write16(client, 0x4E1A, low_gate_thr);
+		if (ret < 0)
+			goto p_err;
+		/* t_isp_drc_thstat_u_high_tresh_red */
+		ret = fimc_is_sensor_write16(client, 0x4E1C, high_gate_thr);
+		if (ret < 0)
+			goto p_err;
+
+		/* t_isp_drc_thstat_u_low_tresh_green */
+		ret = fimc_is_sensor_write16(client, 0x4E1E, low_gate_thr);
+		if (ret < 0)
+			goto p_err;
+
+		/* t_isp_drc_thstat_u_high_tresh_green */
+		ret = fimc_is_sensor_write16(client, 0x4E20, high_gate_thr);
+		if (ret < 0)
+			goto p_err;
+
+		/* t_isp_drc_thstat_u_low_tresh_blue */
+		ret = fimc_is_sensor_write16(client, 0x4E22, low_gate_thr);
+		if (ret < 0)
+			goto p_err;
+
+		/* t_isp_drc_thstat_u_high_tresh_blue */
+		ret = fimc_is_sensor_write16(client, 0x4E24, high_gate_thr);
+		if (ret < 0)
+			goto p_err;
+
+		/* t_isp_y_sum_top_left_x */
+		ret = fimc_is_sensor_write16(client, 0x4E04, y_sum_roi.roi_start_x);
+		if (ret < 0)
+			goto p_err;
+		ret = fimc_is_sensor_write16(client, 0x4E06, y_sum_roi.roi_start_y);
+		if (ret < 0)
+			goto p_err;
+	}
+
+	/* restore 0x4000_XXXX */
+	ret = fimc_is_sensor_write16(client, 0x6028, 0x4000);
+	if (ret < 0)
+		goto p_err;
+
+#ifdef DEBUG_SENSOR_TIME
+	do_gettimeofday(&end);
+	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec)*1000000 + (end.tv_usec - st.tv_usec));
+#endif
+
+p_err:
+	if (hold > 0) {
+		hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x00);
+		if (hold < 0)
+			ret = hold;
+	}
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+	return ret;
+}
+
+void sensor_2x5sp_cis_check_wdr_mode(struct v4l2_subdev *subdev, u32 mode_idx)
+{
+	struct fimc_is_cis *cis;
+
+	FIMC_BUG_VOID(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	FIMC_BUG_VOID(!cis);
+	FIMC_BUG_VOID(!cis->cis_data);
+
+	/* check wdr mode */
+	if (mode_idx == SENSOR_2X5SP_2880X2160_30FPS_3DHDR)
+		cis->cis_data->is_data.wdr_enable = true;
+	else
+		cis->cis_data->is_data.wdr_enable = false;
+
+	dbg_sensor(1, "[%s] wdr_enable: %d\n", __func__,
+				cis->cis_data->is_data.wdr_enable);
+}
+
 static struct fimc_is_cis_ops cis_ops = {
 	.cis_init = sensor_2x5sp_cis_init,
 	.cis_log_status = sensor_2x5sp_cis_log_status,
@@ -1941,6 +2226,9 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_check_rev = sensor_2x5sp_cis_check_rev,
 	.cis_factory_test = sensor_cis_factory_test,
 	.cis_set_wb_gains = sensor_2x5sp_cis_set_wb_gain,
+	.cis_set_roi_stat = sensor_2x5sp_cis_set_3hdr_roi,
+	.cis_set_3hdr_stat = sensor_2x5sp_cis_set_3hdr_stat,
+	.cis_check_wdr_mode = sensor_2x5sp_cis_check_wdr_mode,
 };
 
 static int cis_2x5sp_probe(struct i2c_client *client,
@@ -2031,6 +2319,7 @@ static int cis_2x5sp_probe(struct i2c_client *client,
 	cis->use_dgain = true;
 	cis->hdr_ctrl_by_again = false;
 	cis->use_wb_gain = true;
+	cis->use_3hdr = true;
 
 	ret = of_property_read_string(dnode, "setfile", &setfile);
 	if (ret) {
