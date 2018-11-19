@@ -21,6 +21,18 @@
 #include "fimc-is-helper-i2c.h"
 #include "fimc-is-core.h"
 
+void fimc_is_eeprom_cal_data_set(char *data, char *name,
+		u32 addr, u32 size, u32 value)
+{
+	int i;
+
+	/* value setting to (name) cal data section */
+	for (i = addr; i < size; i++)
+		data[i] = value;
+
+	info("%s() Done: %s calibration data is %d set\n", __func__, name, value);
+}
+
 int fimc_is_eeprom_file_write(const char *file_name, const void *data,
 		unsigned long size)
 {
@@ -138,13 +150,13 @@ int fimc_is_sensor_eeprom_check_crc(char *data, size_t size)
 	return crc16;
 }
 
-int fimc_is_eeprom_module_read(struct i2c_client *client, char *file_name,
+int fimc_is_eeprom_module_read(struct i2c_client *client, u32 addr,
 		char *data, unsigned long size)
 {
 	int ret = 0;
 
 	/* Read EEPROM cal data in module */
-	ret = fimc_is_sensor_read8_size(client, &data[0], 0x0, size);
+	ret = fimc_is_sensor_read8_size(client, &data[0], addr, size);
 	if (ret < 0) {
 		err("%s(), i2c read failed(%d)\n", __func__, ret);
 		return ret;
