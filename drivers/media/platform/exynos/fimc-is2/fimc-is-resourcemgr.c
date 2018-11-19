@@ -1510,15 +1510,15 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			if (ret) {
 				err("fimc_is_interface_open is fail(%d)", ret);
 				goto p_err;
-			} else {
-#if defined(SECURE_CAMERA_FACE)
-				ret = fimc_is_resourcemgr_init_secure_mem(resourcemgr);
-				if (ret) {
-					err("fimc_is_resourcemgr_init_secure_mem is fail(%d)\n", ret);
-					goto p_err;
-				}
-#endif
 			}
+
+#if defined(SECURE_CAMERA_FACE)
+			ret = fimc_is_resourcemgr_init_secure_mem(resourcemgr);
+			if (ret) {
+				err("fimc_is_resourcemgr_init_secure_mem is fail(%d)\n", ret);
+				goto p_err;
+			}
+#endif
 
 			ret = fimc_is_ischain_power(&core->ischain[0], 1);
 			if (ret) {
@@ -1642,8 +1642,9 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 #endif
 
 #if defined(SECURE_CAMERA_FACE)
-		ret = fimc_is_secure_func(core, NULL, FIMC_IS_SECURE_CAMERA_FACE,
-			core->scenario, SMC_SECCAM_UNPREPARE);
+		if (rsccount == 1)
+			ret = fimc_is_secure_func(core, NULL, FIMC_IS_SECURE_CAMERA_FACE,
+				core->scenario, SMC_SECCAM_UNPREPARE);
 #endif
 
 		switch (rsc_type) {
@@ -1713,15 +1714,14 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 				err("fimc_is_ischain_power is fail(%d)", ret);
 
 			ret = fimc_is_interface_close(&core->interface);
-			if (ret) {
+			if (ret)
 				err("fimc_is_interface_close is fail(%d)", ret);
-			} else {
+
 #if defined(SECURE_CAMERA_FACE)
-				ret = fimc_is_resourcemgr_deinit_secure_mem(resourcemgr);
-				if (ret)
-					err("fimc_is_resourcemgr_deinit_secure_mem is fail(%d)", ret);
+			ret = fimc_is_resourcemgr_deinit_secure_mem(resourcemgr);
+			if (ret)
+				err("fimc_is_resourcemgr_deinit_secure_mem is fail(%d)", ret);
 #endif
-			}
 
 			ret = fimc_is_debug_close();
 			if (ret)
