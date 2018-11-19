@@ -14,7 +14,8 @@
 #include "fimc-is-device-sensor-peri.h"
 
 enum pafstat_sfr_state {
-	PAFSTAT_SFR_UNAPPLIED = 0,
+	PAFSTAT_SFR_INIT = -1,
+	PAFSTAT_SFR_READY = 0,
 	PAFSTAT_SFR_APPLIED,
 	PAFSTAT_SFR_STATE_MAX
 };
@@ -59,9 +60,9 @@ enum pafstat_interrupt_map {
 
 /* INT_MASK 0: means enable interrupt, 1: means disable interrupt */
 #define PAFSTAT_INT_MASK	((1 << PAFSTAT_INT_TIMEOUT) \
-				| (1 << PAFSTAT_INT_FRAME_LINE) \
 				| (1 << PAFSTAT_INT_BAYER_FRAME_END) \
-				| (1 << PAFSTAT_INT_STAT_FRAME_END))
+				| (1 << PAFSTAT_INT_STAT_FRAME_END) \
+				| (1 << PAFSTAT_INT_FRAME_FAIL))
 
 u32 pafstat_hw_g_reg_cnt(void);
 void pafstat_hw_g_floating_size(u32 *width, u32 *height, u32 *element);
@@ -89,6 +90,9 @@ void pafstat_hw_com_init(void __iomem *base_reg);
 void pafstat_hw_s_timeout_cnt_clear(void __iomem *base_reg);
 void pafstat_hw_s_intr_mask_all_context(void);
 int pafstat_hw_sw_reset(void __iomem *base_reg);
+void pafstat_hw_s_lbctrl(void __iomem *base_reg, u32 width, u32 height);
+int pafstat_hw_g_fwin_stat(void __iomem *base_reg, void *buf, size_t len);
+int pafstat_hw_com_s_med_line(void __iomem *base_reg);
 
 /* PAF RDMA */
 void fimc_is_hw_paf_common_config(void __iomem *base_reg_com, void __iomem *base_reg,
