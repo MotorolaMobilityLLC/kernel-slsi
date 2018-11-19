@@ -25,6 +25,10 @@
 
 #include <linux/leds-s2mu106.h>
 
+#define CAPTURE_MAX_TOTAL_CURRENT	(1500)
+#define TORCH_MAX_TOTAL_CURRENT		(250)
+#define MAX_FLASH_INTENSITY		(256)
+
 static int flash_s2mu106_init(struct v4l2_subdev *subdev, u32 val)
 {
 	int ret = 0;
@@ -51,11 +55,52 @@ static int flash_s2mu106_init(struct v4l2_subdev *subdev, u32 val)
 	return ret;
 }
 
+static int flash_s2mu106_adj_current(struct fimc_is_flash *flash, enum flash_mode mode, u32 intensity)
+{
+	int adj_current = 0;
+	int max_current = 0;
+	int led_num = 0;
+	int i;
+
+	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
+		if (flash->led_ch[i] != -1)
+			led_num++;
+	}
+
+	if (led_num == 0) {
+		err("wrong flash led number, set to 0");
+		return 0;
+	}
+
+	if (mode == CAM2_FLASH_MODE_SINGLE)
+		max_current = CAPTURE_MAX_TOTAL_CURRENT;
+	else if (mode == CAM2_FLASH_MODE_TORCH)
+		max_current = TORCH_MAX_TOTAL_CURRENT;
+	else
+		return 0;
+
+	if (intensity > MAX_FLASH_INTENSITY) {
+		warn("flash intensity(%d) > max(%d), set to max forcely",
+				intensity, MAX_FLASH_INTENSITY);
+		intensity = MAX_FLASH_INTENSITY;
+	}
+
+	adj_current = ((max_current * intensity) / MAX_FLASH_INTENSITY) / led_num;
+
+	dbg_flash("%s: mode: %s, adj_current: %d\n", __func__,
+		mode == CAM2_FLASH_MODE_OFF ? "OFF" :
+		mode == CAM2_FLASH_MODE_SINGLE ? "FLASH" : "TORCH",
+		adj_current);
+
+	return adj_current;
+}
+
 static int flash_s2mu106_control(struct v4l2_subdev *subdev, enum flash_mode mode, u32 intensity)
 {
 	int ret = 0;
 	struct fimc_is_flash *flash = NULL;
 	int i;
+	int adj_current = 0;
 
 	FIMC_BUG(!subdev);
 
@@ -67,11 +112,11 @@ static int flash_s2mu106_control(struct v4l2_subdev *subdev, enum flash_mode mod
 		mode == CAM2_FLASH_MODE_SINGLE ? "FLASH" : "TORCH",
 		intensity);
 
+	adj_current = flash_s2mu106_adj_current(flash, mode, intensity);
+
 	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
 		if (flash->led_ch[i] == -1)
 			continue;
-
-		/* TODO: adjust intensity */
 
 		switch (mode) {
 		case CAM2_FLASH_MODE_OFF:
@@ -82,14 +127,26 @@ static int flash_s2mu106_control(struct v4l2_subdev *subdev, enum flash_mode mod
 			}
 			break;
 		case CAM2_FLASH_MODE_SINGLE:
-			ret = s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_SINGLE);
+			ret = s2mu106_fled_set_curr(flash->led_ch[i], CAM_FLASH_MODE_SINGLE, adj_current);
+			if (ret < 0) {
+				err("capture flash set current fail(led_ch:%d)", flash->led_ch[i]);
+				ret = -EINVAL;
+			}
+
+			ret |= s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_SINGLE);
 			if (ret < 0) {
 				err("capture flash on fail(led_ch:%d)", flash->led_ch[i]);
 				ret = -EINVAL;
 			}
 			break;
 		case CAM2_FLASH_MODE_TORCH:
-			ret = s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_TORCH);
+			ret = s2mu106_fled_set_curr(flash->led_ch[i], CAM_FLASH_MODE_TORCH, adj_current);
+			if (ret < 0) {
+				err("torch flash set current fail(led_ch:%d)", flash->led_ch[i]);
+				ret = -EINVAL;
+			}
+
+			ret |= s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_TORCH);
 			if (ret < 0) {
 				err("torch flash on fail(led_ch:%d)", flash->led_ch[i]);
 				ret = -EINVAL;
