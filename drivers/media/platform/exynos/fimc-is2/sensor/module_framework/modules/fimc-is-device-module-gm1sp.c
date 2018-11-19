@@ -40,11 +40,11 @@
 
 static struct fimc_is_sensor_cfg config_module_gm1sp[] = {
 			/* width, height, fps, settle, mode, lane, speed, interleave, pd_mode */
-	FIMC_IS_SENSOR_CFG(4000, 3000, 30, 0, 0, CSI_DATA_LANES_4, 1152, CSI_MODE_VC_DT, PD_NONE,
+	FIMC_IS_SENSOR_CFG(4000, 3000, 30, 0, 0, CSI_DATA_LANES_4, 1152, CSI_MODE_VC_DT, PD_MSPD_TAIL,
 		VC_IN(0, HW_FORMAT_RAW10, 4000, 3000), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 4000, 3000),
-		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
-		VC_IN(2, HW_FORMAT_USER, 0, 0), VC_OUT(HW_FORMAT_USER, VC_NOTHING, 0, 0),
-		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
+		VC_IN(1, HW_FORMAT_RAW10, 496, 736), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 0, 0),
+		VC_IN(2, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_USER, VC_MIPISTAT, 127680, 1),
+		VC_IN(3, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_USER, VC_PRIVATE, 4032, 1)),
 	FIMC_IS_SENSOR_CFG(2000, 1124, 60, 0, 1, CSI_DATA_LANES_4, 1152, CSI_MODE_VC_DT, PD_NONE,
 		VC_IN(0, HW_FORMAT_RAW10, 2000, 1124), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 2000, 1124),
 		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
@@ -270,6 +270,7 @@ static int __init sensor_module_gm1sp_probe(struct platform_device *pdev)
 	struct sensor_open_extended *ext;
 	struct exynos_platform_fimc_is_module *pdata;
 	struct device *dev;
+	int ch, t;
 	struct pinctrl_state *s;
 
 	BUG_ON(!fimc_is_dev);
@@ -323,6 +324,40 @@ static int __init sensor_module_gm1sp_probe(struct platform_device *pdev)
 	module->cfgs = ARRAY_SIZE(config_module_gm1sp);
 	module->cfg = config_module_gm1sp;
 	module->ops = NULL;
+
+	for (ch = 1; ch < CSI_VIRTUAL_CH_MAX; ch++)
+		module->vc_buffer_offset[ch] = pdata->vc_buffer_offset[ch];
+
+	for (t = VC_BUF_DATA_TYPE_SENSOR_STAT1; t < VC_BUF_DATA_TYPE_MAX; t++) {
+		module->vc_extra_info[t].stat_type = VC_STAT_TYPE_INVALID;
+		module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_INVALID;
+		module->vc_extra_info[t].max_width = 0;
+		module->vc_extra_info[t].max_height = 0;
+		module->vc_extra_info[t].max_element = 0;
+
+		if (IS_ENABLED(CONFIG_CAMERA_PAFSTAT)) {
+			switch (t) {
+			case VC_BUF_DATA_TYPE_GENERAL_STAT1:
+				module->vc_extra_info[t].stat_type
+					= VC_STAT_TYPE_PAFSTAT_FLOATING;
+
+				module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_ULTRA_PD_TAIL;
+				module->vc_extra_info[t].max_width = 4032;
+				module->vc_extra_info[t].max_height = 1;
+				module->vc_extra_info[t].max_element = 1;
+				break;
+			case VC_BUF_DATA_TYPE_GENERAL_STAT2:
+				module->vc_extra_info[t].stat_type
+					= VC_STAT_TYPE_PAFSTAT_STATIC;
+
+				module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_ULTRA_PD_TAIL;
+				module->vc_extra_info[t].max_width = 127680;
+				module->vc_extra_info[t].max_height = 1;
+				module->vc_extra_info[t].max_element = 1;
+				break;
+			}
+		}
+	}
 
 	/* Sensor peri */
 	module->private_data = kzalloc(sizeof(struct fimc_is_device_sensor_peri), GFP_KERNEL);
