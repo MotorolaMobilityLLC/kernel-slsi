@@ -130,7 +130,8 @@ enum memory_track_type {
 
 	/* memory block */
 	MT_TYPE_MB_HEAP	= 0x10,
-	MT_TYPE_MB_DMA,
+	MT_TYPE_MB_DMA_TAAISP,
+	MT_TYPE_MB_DMA_TNR,
 
 	MT_TYPE_MB_VRA	= 0x20,
 
@@ -225,7 +226,8 @@ struct fimc_is_lib_support {
 
 	/* memory blocks */
 	struct lib_mem_block			mb_heap_rta;
-	struct lib_mem_block			mb_dma;
+	struct lib_mem_block			mb_dma_taaisp;
+	struct lib_mem_block			mb_dma_tnr;
 	struct lib_mem_block			mb_vra;
 	/* non-memory block */
 	spinlock_t				slock_nmb;
