@@ -810,6 +810,7 @@ struct mfc_dev {
 	struct pm_qos_request qos_req_mif;
 	struct pm_qos_request qos_req_cluster[MAX_NUM_CLUSTER];
 	int qos_has_enc_ctx;
+	struct mutex qos_mutex;
 #endif
 	int id;
 	atomic_t clk_ref;

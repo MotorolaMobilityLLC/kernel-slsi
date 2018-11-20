@@ -1414,6 +1414,7 @@ static int mfc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	atomic_set(&dev->qos_req_cur, 0);
+	mutex_init(&dev->qos_mutex);
 
 	mfc_info_dev("[QoS] control: mfc_freq(%d), mo(%d), bw(%d)\n",
 			dev->pdata->mfc_freq_control, dev->pdata->mo_control, dev->pdata->bw_control);

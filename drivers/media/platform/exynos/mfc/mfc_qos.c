@@ -239,10 +239,12 @@ static void __mfc_qos_set(struct mfc_ctx *ctx, int i)
 	}
 #endif
 
+	mutex_lock(&dev->qos_mutex);
 	if (atomic_read(&dev->qos_req_cur) == 0)
 		__mfc_qos_operate(ctx, MFC_QOS_ADD, i);
 	else if (atomic_read(&dev->qos_req_cur) != (i + 1))
 		__mfc_qos_operate(ctx, MFC_QOS_UPDATE, i);
+	mutex_unlock(&dev->qos_mutex);
 }
 
 static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
@@ -596,10 +598,12 @@ void mfc_qos_off(struct mfc_ctx *ctx)
 	}
 
 	if (list_empty(&dev->qos_queue)) {
+		mutex_lock(&dev->qos_mutex);
 		if (atomic_read(&dev->qos_req_cur) != 0) {
 			mfc_err_ctx("[QoS] MFC request count is wrong!\n");
 			__mfc_qos_operate(ctx, MFC_QOS_REMOVE, 0);
 		}
+		mutex_unlock(&dev->qos_mutex);
 		return;
 	}
 
@@ -655,14 +659,17 @@ void mfc_qos_off(struct mfc_ctx *ctx)
 	if (found)
 		list_del(&ctx->qos_list);
 
-	if (list_empty(&dev->qos_queue) || total_mb == 0)
+	if (list_empty(&dev->qos_queue) || total_mb == 0) {
+		mutex_lock(&dev->qos_mutex);
 		__mfc_qos_operate(ctx, MFC_QOS_REMOVE, 0);
-	else
+		mutex_unlock(&dev->qos_mutex);
+	} else {
 #ifdef CONFIG_EXYNOS_BTS
 		__mfc_qos_set(ctx, &mfc_bw, i);
 #else
 		__mfc_qos_set(ctx, i);
 #endif
+	}
 }
 #endif
 
