@@ -359,7 +359,6 @@ static void read_dbg_raw(psx93XX_t this)
 	sx933x_i2c_write_16bit(this, 0x81A4, uData);
 	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
 	ref_raw = (s32)uData>>10;
-	LOG_DBG("MANT_MLB = %d REF = %d \n", ant_raw, ref_raw);
 
 	//MANT__HB
 	uData &= ~(0x7 << 3);
@@ -367,7 +366,6 @@ static void read_dbg_raw(psx93XX_t this)
 	sx933x_i2c_write_16bit(this, 0x81A4, uData);
 	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
 	ant_raw = (s32)uData>>10;
-	LOG_DBG("MANT__HB = %d REF = %d \n", ant_raw, ref_raw);
 
 	//DIV_ANT
 	uData &= ~(0x7 << 3);
@@ -382,8 +380,6 @@ static void read_dbg_raw(psx93XX_t this)
 	sx933x_i2c_write_16bit(this, 0x81A4, uData);
 	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
 	ref_raw = (s32)uData>>10;
-
-	LOG_DBG("DIV_ANT = %d DIV_REF = %d \n", ant_raw, ref_raw);
 
 }
 
@@ -411,8 +407,6 @@ static void read_rawData(psx93XX_t this)
 			sx933x_i2c_read_16bit(this, SX933X_OFFSETPH0_REG + index*2, &uData);
 			offset = (u16)(uData & 0x7FFF);
 			state = psmtcButtons[csx].state;
-			LOG_DBG("[PH: %d] Useful = %d Average = %d, DIFF = %d Offset = %d state = %d \n",
-					csx,useful,average,diff,offset, state);
 		}
 	}
 	read_dbg_raw(this);
@@ -1225,7 +1219,6 @@ static irqreturn_t sx93XX_irq(int irq, void *pvoid)
 		this = (psx93XX_t)pvoid;
 		if ((!this->get_nirq_low) || this->get_nirq_low())
 		{
-			LOG_INFO("sx93XX_irq - call sx93XX_schedule_work\n");
 			sx93XX_schedule_work(this,0);
 		}
 		else
