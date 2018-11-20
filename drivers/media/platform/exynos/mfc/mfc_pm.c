@@ -43,16 +43,18 @@ int mfc_pm_clock_on(struct mfc_dev *dev)
 
 	dev->pm.clock_on_steps = 1;
 	state = atomic_read(&dev->clk_ref);
-
 	MFC_TRACE_DEV("** clock_on start: ref state(%d)\n", state);
-	ret = clk_enable(dev->pm.clock);
-	if (ret < 0) {
-		mfc_err_dev("clk_enable failed (%d)\n", ret);
-		call_dop(dev, dump_and_stop_debug_mode, dev);
-		return ret;
-	}
-	dev->pm.clock_on_steps |= 0x1 << 1;
 
+	/*
+	 * When the clock is enabled, the MFC core can run immediately.
+	 * So the base addr and protection should be applied before clock enable.
+	 * The MFC and TZPC SFR are in APB clock domain and it is accessible
+	 * through Q-CH even if clock off.
+	 * The sequence for switching normal to drm is following
+	 * cache flush (cmd 12) -> clock off -> set DRM base addr
+	 * -> IP Protection enable -> clock on
+	 */
+	dev->pm.clock_on_steps |= 0x1 << 1;
 	if (dev->pm.base_type != MFCBUF_INVALID)
 		mfc_set_risc_base_addr(dev, dev->pm.base_type);
 
@@ -70,14 +72,22 @@ int mfc_pm_clock_on(struct mfc_dev *dev)
 			mfc_err_dev("Protection Enable failed! ret(%u)\n", ret);
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			spin_unlock_irqrestore(&dev->pm.clklock, flags);
-			clk_disable(dev->pm.clock);
 			return -EACCES;
 		}
 		mfc_debug(3, "End: enable protection\n");
 		spin_unlock_irqrestore(&dev->pm.clklock, flags);
 	}
 #endif
+
 	dev->pm.clock_on_steps |= 0x1 << 4;
+	ret = clk_enable(dev->pm.clock);
+	if (ret < 0) {
+		mfc_err_dev("clk_enable failed (%d)\n", ret);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
+		return ret;
+	}
+
+	dev->pm.clock_on_steps |= 0x1 << 5;
 	atomic_inc_return(&dev->clk_ref);
 
 	dev->pm.clock_on_steps |= 0x1 << 6;
@@ -114,34 +124,39 @@ void mfc_pm_clock_off(struct mfc_dev *dev)
 		mfc_err_dev("Clock state is wrong(%d)\n", state);
 		atomic_set(&dev->clk_ref, 0);
 		dev->pm.clock_off_steps |= 0x1 << 2;
+		MFC_TRACE_DEV("** clock_off wrong: ref state(%d)\n", atomic_read(&dev->clk_ref));
 	} else {
+		dev->pm.clock_off_steps |= 0x1 << 3;
+		clk_disable(dev->pm.clock);
+
+		dev->pm.clock_off_steps |= 0x1 << 4;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 		if (dev->curr_ctx_is_drm) {
 			unsigned long flags;
 			int ret = 0;
-
+			/*
+			 * After clock off the protection disable should be
+			 * because the MFC core can continuously run during clock on
+			 */
 			mfc_debug(3, "Begin: disable protection\n");
 			spin_lock_irqsave(&dev->pm.clklock, flags);
-			dev->pm.clock_off_steps |= 0x1 << 3;
+			dev->pm.clock_off_steps |= 0x1 << 5;
 			ret = exynos_smc(SMC_PROTECTION_SET, 0,
 					dev->id, SMC_PROTECTION_DISABLE);
 			if (ret != DRMDRV_OK) {
 				mfc_err_dev("Protection Disable failed! ret(%u)\n", ret);
 				call_dop(dev, dump_and_stop_debug_mode, dev);
 				spin_unlock_irqrestore(&dev->pm.clklock, flags);
-				clk_disable(dev->pm.clock);
 				return;
 			}
 			mfc_debug(3, "End: disable protection\n");
-			dev->pm.clock_off_steps |= 0x1 << 4;
+			dev->pm.clock_off_steps |= 0x1 << 6;
 			spin_unlock_irqrestore(&dev->pm.clklock, flags);
 		}
 #endif
-		dev->pm.clock_off_steps |= 0x1 << 5;
-		clk_disable(dev->pm.clock);
 	}
 
-	dev->pm.clock_off_steps |= 0x1 << 6;
+	dev->pm.clock_off_steps |= 0x1 << 7;
 	state = atomic_read(&dev->clk_ref);
 	mfc_debug(2, "- %d\n", state);
 	MFC_TRACE_DEV("** clock_off end: ref state(%d)\n", state);
