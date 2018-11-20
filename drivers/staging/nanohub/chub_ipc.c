@@ -674,9 +674,12 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
 	enum ipc_owner owner = (evtq < IPC_EVT_AP_MAX) ? AP : IPC_OWN_MAX;
 	struct ipc_evt_buf *cur_evt = NULL;
+#if defined(CHUB_IPC)
+	int trycnt = 0;
+#endif
 
-	if (!ipc_evt) {
-		CSP_PRINTF_ERROR("%s: %s: invalid ipc_evt\n", NAME_PREFIX, __func__);
+	if (!ipc_evt || (owner != AP)) {
+		CSP_PRINTF_ERROR("%s: %s: invalid ipc_evt, owner:%d\n", NAME_PREFIX, __func__, owner);
 		return -1;
 	}
 
@@ -692,7 +695,6 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 		return -1;
 	}
 #endif
-
 	if (!__raw_readl(&ipc_evt->ctrl.full)) {
 		cur_evt = &ipc_evt->data[ipc_evt->ctrl.eq];
 		if (!cur_evt) {
@@ -700,19 +702,30 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 			return -1;
 		}
 
+		/* wait pending clear on irq pend */
+		if (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq)) {
+			CSP_PRINTF_ERROR("%s: irq:%d pending:0x%x\n", __func__, ipc_evt->ctrl.irq, ipc_hw_read_int_status_reg(AP));
+#if defined(CHUB_IPC)
+            /* don't sleep on ap */
+			do {
+				trycnt++;
+				msleep(EVT_WAIT_TIME);
+			} while (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq) && (trycnt < MAX_TRY_CNT));
+
+			CSP_PRINTF_INFO("%s: %s: pending irq wait: pend:%d irq %d during %d times\n",
+				NAME_PREFIX, __func__, ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq),
+				ipc_evt->ctrl.irq, trycnt);
+#endif
+		}
 		cur_evt->evt = evt;
 		cur_evt->status = IPC_EVT_EQ;
 		cur_evt->irq = ipc_evt->ctrl.irq;
-
 		ipc_evt->ctrl.eq = EVT_Q_INT(ipc_evt->ctrl.eq + 1);
 		ipc_evt->ctrl.irq = IRQ_EVT_IDX_INT(ipc_evt->ctrl.irq + 1);
-
 		if (ipc_evt->ctrl.eq == __raw_readl(&ipc_evt->ctrl.dq))
 			__raw_writel(1, &ipc_evt->ctrl.full);
 	} else {
 #if defined(CHUB_IPC)
-		int trycnt = 0;
-
 		do {
 			trycnt++;
 			msleep(EVT_WAIT_TIME);
