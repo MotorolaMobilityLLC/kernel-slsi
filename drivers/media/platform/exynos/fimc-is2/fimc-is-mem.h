@@ -156,6 +156,7 @@ struct fimc_is_minfo {
 	struct fimc_is_priv_buf *pb_heap_ddk; /* DDK HEAP */
 	struct fimc_is_priv_buf *pb_taaisp;
 	struct fimc_is_priv_buf *pb_taaisp_s;	/* secure */
+	struct fimc_is_priv_buf *pb_tnr;
 	struct fimc_is_priv_buf *pb_lhfd;
 	struct fimc_is_priv_buf *pb_vra;
 	struct fimc_is_priv_buf *pb_tpu;

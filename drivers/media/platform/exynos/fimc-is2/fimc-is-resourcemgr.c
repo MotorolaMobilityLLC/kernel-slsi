@@ -243,8 +243,8 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	struct fimc_is_mem *mem = &resourcemgr->mem;
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
 	size_t tpu_size = 0;
-#if !defined(ENABLE_DYNAMIC_MEM)
-	size_t tnr_size = 0;
+#if !defined(ENABLE_DYNAMIC_MEM) && defined(ENABLE_TNR)
+	size_t tnr_size = ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * NUM_OF_TNR_BUF);
 #endif
 	int i;
 
@@ -317,19 +317,27 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	minfo->total_size += minfo->pb_fshared->size;
 
 #if !defined(ENABLE_DYNAMIC_MEM)
-#if defined(ENABLE_TNR)
-	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * NUM_OF_TNR_BUF);
-#endif
-
 	/* 3aa/isp internal DMA buffer */
-	minfo->pb_taaisp = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TAAISP_DMA_SIZE + tnr_size, 16, NULL);
+	minfo->pb_taaisp = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TAAISP_DMA_SIZE, 16, NULL);
 	if (IS_ERR_OR_NULL(minfo->pb_taaisp)) {
-		err("failed to allocate buffer for TAAISP_DMAE");
+		err("failed to allocate buffer for TAAISP_DMA");
 		return -ENOMEM;
 	}
 	minfo->total_size += minfo->pb_taaisp->size;
 
-	info("[RSC] TAAISP_DMA memory size (aligned) : %08lx\n", TAAISP_DMA_SIZE + tnr_size);
+	info("[RSC] TAAISP_DMA memory size (aligned) : %08lx\n", TAAISP_DMA_SIZE);
+
+#if defined(ENABLE_TNR)
+	/* TNR internal DMA buffer */
+	minfo->pb_tnr = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, tnr_size, 16, NULL);
+	if (IS_ERR_OR_NULL(minfo->pb_tnr)) {
+		err("failed to allocate buffer for TNR DMA");
+		return -ENOMEM;
+	}
+	minfo->total_size += minfo->pb_tnr->size;
+
+	info("[RSC] TNR_DMA memory size: %08lx\n", tnr_size);
+#endif
 #endif
 
 #if defined (ENABLE_FD_SW)
@@ -473,20 +481,30 @@ static int fimc_is_resourcemgr_alloc_dynamic_mem(struct fimc_is_resourcemgr *res
 {
 	struct fimc_is_mem *mem = &resourcemgr->mem;
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
-	size_t tnr_size = 0;
-
 #if defined (ENABLE_TNR)
-	tnr_size += ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * NUM_OF_TNR_BUF);
+	size_t tnr_size = ((SIZE_TNR_IMAGE_BUF + SIZE_TNR_WEIGHT_BUF) * NUM_OF_TNR_BUF);
 #endif
 
 	/* 3aa/isp internal DMA buffer */
-	minfo->pb_taaisp = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TAAISP_DMA_SIZE + tnr_size, 16, NULL);
+	minfo->pb_taaisp = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TAAISP_DMA_SIZE, 16, NULL);
 	if (IS_ERR_OR_NULL(minfo->pb_taaisp)) {
 		err("failed to allocate buffer for TAAISP_DMA memory");
 		return -ENOMEM;
 	}
 
-	info("[RSC] TAAISP_DMA memory size (aligned) : %08lx\n", TAAISP_DMA_SIZE + tnr_size);
+	info("[RSC] TAAISP_DMA memory size (aligned) : %08lx\n", TAAISP_DMA_SIZE);
+
+#if defined(ENABLE_TNR)
+	/* TNR internal DMA buffer */
+	minfo->pb_tnr = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, tnr_size, 16, NULL);
+	if (IS_ERR_OR_NULL(minfo->pb_tnr)) {
+		CALL_VOID_BUFOP(minfo->pb_taaisp, free, minfo->pb_taaisp);
+		err("failed to allocate buffer for TNR DMA");
+		return -ENOMEM;
+	}
+
+	info("[RSC] TNR_DMA memory size: %08lx\n", tnr_size);
+#endif
 
 	return 0;
 }
@@ -520,11 +538,13 @@ p_err:
 static int fimc_is_resourcemgr_deinit_dynamic_mem(struct fimc_is_resourcemgr *resourcemgr)
 {
 	struct fimc_is_minfo *minfo = &resourcemgr->minfo;
-	int ret = 0;
 
+#if defined(ENABLE_TNR)
+	CALL_VOID_BUFOP(minfo->pb_tnr, free, minfo->pb_tnr);
+#endif
 	CALL_VOID_BUFOP(minfo->pb_taaisp, free, minfo->pb_taaisp);
 
-	return ret;
+	return 0;
 }
 #endif /* #ifdef ENABLE_DYNAMIC_MEM */
 
