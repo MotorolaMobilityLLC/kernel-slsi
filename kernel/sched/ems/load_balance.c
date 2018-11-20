@@ -137,9 +137,12 @@ static inline int get_topology_depth(void)
 
 static inline int get_last_level(struct lbt_overutil *ou)
 {
-	int level;
+	int level, depth = get_topology_depth();
 
-	for (level = 0; &ou[level] != NULL; level++) {
+	for (level = 0; level <= depth ; level++) {
+		if (&ou[level] == NULL)
+			return -1;
+
 		if (ou[level].top == true)
 			return level;
 	}
