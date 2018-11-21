@@ -450,9 +450,9 @@ static ssize_t chub_wakeup_store(struct device *dev,
 		return ret;
 
 	if (event)
-		ret = contexthub_request(ipc, IPC_ACCESS);
+		ret = contexthub_request(ipc);
 	else
-		contexthub_release(ipc, IPC_ACCESS);
+		contexthub_release(ipc);
 
 	return ret ? ret : count;
 }
