@@ -4,6 +4,7 @@ ${CC} \
   --target=aarch64-linux-gnu \
   -Ilib/libdss-include \
   -Iinclude \
+  -I$1/include \
   -mlittle-endian \
   -Qunused-arguments \
   -fno-strict-aliasing \
@@ -27,7 +28,7 @@ ${CC} \
   -fno-strict-overflow \
   -fno-merge-all-constants \
   -fno-stack-check \
-  -g lib/libdss.c -o lib/libdss.o
+  -g lib/libdss.c -o ${1}lib/libdss.o
 
-${CROSS_COMPILE}ar -rc libdss.a lib/libdss.o
+${CROSS_COMPILE}ar -rc ${1}libdss.a ${1}lib/libdss.o
 fi
