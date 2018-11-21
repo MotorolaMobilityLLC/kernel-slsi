@@ -117,7 +117,10 @@ int soc_has_big(void)
 					| RESET_DISABLE_WDT_PRESET_DBG	\
 					| RESET_DISABLE_PRESET_DBG	\
 					| RESET_DISABLE_L2RESET)
-
+#define LAST_POWERUP_REASON_REG			(0x0854)  /*EXYNOS9610_POWER_INFORM9*/
+#define RESET_EXTRA_POST_PANIC_REASON  (BIT(4) | BIT(5))
+#define RESET_EXTRA_POST_PMICWDT_REASON        BIT(5)
+#define RESET_EXTRA_POST_WDT_REASON    BIT(4)
 static int in_panic = 0;
 static int panic_prep_restart(struct notifier_block *this,
 			      unsigned long event, void *ptr)
@@ -290,6 +293,8 @@ static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 	u32 soc_id, revision;
 	void __iomem *addr;
 	void __iomem *restart_reason;
+	void __iomem *addr_extra;
+
 	if (!exynos_pmu_base)
 		return;
 #ifdef CONFIG_EXYNOS_ACPM
@@ -299,6 +304,9 @@ static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 
 	addr = exynos_pmu_base + EXYNOS_PMU_SYSIP_DAT0;
 	restart_reason = exynos_pmu_base + EXYNOS_PMU_SYSIP_DAT3;
+	addr_extra = exynos_pmu_base + LAST_POWERUP_REASON_REG;
+	/*Clear the last power up reason first*/
+	__raw_writel(0, addr_extra);
 
 	if (cmd) {
 		if (!strcmp((char *)cmd, "charge")) {
@@ -345,10 +353,13 @@ static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 			}
 		} else if (!strncmp(cmd, "post-wdt", 8)) {
 			__raw_writel(0x77665508, restart_reason);
+			__raw_writel(RESET_EXTRA_POST_WDT_REASON, addr_extra);
 		} else if (!strncmp(cmd, "post-pmicwdt", 12)) {
 			__raw_writel(0x77665507, restart_reason);
+			__raw_writel(RESET_EXTRA_POST_PMICWDT_REASON, addr_extra);
 		} else if (!strncmp(cmd, "post-panic", 10)) {
 			__raw_writel(0x77665506, restart_reason);
+			__raw_writel(RESET_EXTRA_POST_PANIC_REASON, addr_extra);
 		} else if (!strncmp(cmd, "panic", 5)) {
 			__raw_writel(0x77665505, restart_reason);
 		} else {
