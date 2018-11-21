@@ -2820,7 +2820,7 @@ static int s2mu106_usbpd_irq_init(struct s2mu106_usbpd_data *_data)
 	if (i2c->irq) {
 		ret = request_threaded_irq(i2c->irq, s2mu106_irq_isr,
 				s2mu106_irq_thread,
-				(IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_NO_SUSPEND),
+				(IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_NO_SUSPEND),
 				"s2mu106-usbpd", _data);
 		if (ret < 0) {
 			dev_err(dev, "%s failed to request irq(%d)\n",
