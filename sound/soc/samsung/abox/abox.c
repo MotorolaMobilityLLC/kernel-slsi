@@ -4390,7 +4390,6 @@ static void abox_boot_done_work_func(struct work_struct *work)
 	abox_restore_data(dev);
 	abox_request_cpu_gear(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
 			ABOX_CPU_GEAR_MIN);
-	abox_request_dram_on(pdev, dev, false);
 }
 
 static void abox_boot_done(struct device *dev, unsigned int version)
@@ -5591,6 +5590,7 @@ error:
 
 static int abox_disable(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct abox_data *data = dev_get_drvdata(dev);
 	enum calliope_state state = data->calliope_state;
 
@@ -5609,7 +5609,7 @@ static int abox_disable(struct device *dev)
 		abox_cpu_pm_ipc(dev, false);
 	data->calliope_state = CALLIOPE_DISABLED;
 	abox_log_drain_all(dev);
-
+	abox_request_dram_on(pdev, dev, false);
 	abox_save_register(data);
 	abox_cfg_gpio(dev, "idle");
 	abox_pad_retention(true);
