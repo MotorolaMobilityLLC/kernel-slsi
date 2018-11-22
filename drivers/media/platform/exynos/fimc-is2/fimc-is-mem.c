@@ -90,6 +90,64 @@ static inline dma_addr_t is_vb2_dma_sg_plane_dvaddr(
 	return vb2_dma_sg_plane_dma_addr(&vbuf->vb.vb2_buf, plane);
 }
 
+static inline ulong is_vb2_dma_sg_plane_kmap(
+		struct fimc_is_vb2_buf *vbuf, u32 plane)
+{
+	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
+	struct vb2_dma_sg_buf *buf = vb->planes[plane].mem_priv;
+	struct dma_buf *dbuf;
+
+	if (likely(vbuf->kva[plane]))
+		return vbuf->kva[plane];
+
+	dbuf = dma_buf_get(vb->planes[plane].m.fd);
+	if (IS_ERR_OR_NULL(dbuf)) {
+		pr_err("failed to get dmabuf of fd: %d, plane: %d\n",
+				vb->planes[plane].m.fd, plane);
+		return 0;
+	}
+
+	if (dma_buf_begin_cpu_access(dbuf, buf->dma_dir)) {
+		dma_buf_put(dbuf);
+		pr_err("failed to access dmabuf of fd: %d, plane: %d\n",
+				vb->planes[plane].m.fd, plane);
+		return 0;
+	}
+
+	vbuf->kva[plane] = (ulong)dma_buf_kmap(dbuf, buf->offset / PAGE_SIZE);
+
+	if (!vbuf->kva[plane])
+		dma_buf_end_cpu_access(dbuf, buf->dma_dir);
+	else
+		vbuf->kva[plane] += buf->offset & ~PAGE_MASK;
+
+	dma_buf_put(dbuf);
+
+	return vbuf->kva[plane];
+}
+
+static inline void is_vb2_dma_sg_plane_kunmap(
+		struct fimc_is_vb2_buf *vbuf, u32 plane)
+{
+	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
+	struct dma_buf *dbuf;
+
+	dbuf = dma_buf_get(vb->planes[plane].m.fd);
+	if (IS_ERR_OR_NULL(dbuf)) {
+		pr_err("failed to get dmabuf of fd: %d, plane: %d",
+				vb->planes[plane].m.fd, plane);
+		return;
+	}
+
+	if (vbuf->kva[plane]) {
+		dma_buf_kunmap(dbuf, 0, (void *)vbuf->kva[plane]);
+		dma_buf_end_cpu_access(dbuf, 0);
+		vbuf->kva[plane] = 0;
+	}
+
+	dma_buf_put(dbuf);
+}
+
 static long is_vb2_dma_sg_remap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
 {
 	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
@@ -350,6 +408,8 @@ static void is_dbufcon_unmap(struct fimc_is_vb2_buf *vbuf)
 const struct fimc_is_vb2_buf_ops is_vb2_buf_ops_dma_sg = {
 	.plane_kvaddr		= is_vb2_dma_sg_plane_kvaddr,
 	.plane_dvaddr		= is_vb2_dma_sg_plane_dvaddr,
+	.plane_kmap		= is_vb2_dma_sg_plane_kmap,
+	.plane_kunmap		= is_vb2_dma_sg_plane_kunmap,
 	.remap_attr		= is_vb2_dma_sg_remap_attr,
 	.unremap_attr		= is_vb2_dma_sg_unremap_attr,
 	.dbufcon_prepare	= is_dbufcon_prepare,
