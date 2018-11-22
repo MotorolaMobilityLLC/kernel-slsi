@@ -242,16 +242,16 @@ EXPORT_SYMBOL(dbg_snapshot_save_context);
 
 static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_main)
 {
-	char state_array[] = {'R', 'S', 'D', 'T', 't', 'Z', 'X', 'x', 'K', 'W'};
+	char state_array[] = {'R', 'S', 'D', 'T', 't', 'X', 'Z', 'P', 'x', 'K', 'W', 'I', 'N'};
 	unsigned char idx = 0;
 	unsigned long state;
 	unsigned long wchan;
 	unsigned long pc = 0;
 	char symname[KSYM_NAME_LEN];
 
-	if ((tsk == NULL) || (tsk->stack == NULL))
+	if ((tsk == NULL) || !try_get_task_stack(tsk))
 		return;
-	state = (tsk->state & TASK_REPORT) | tsk->exit_state;
+	state = tsk->state | tsk->exit_state;
 
 	pc = KSTK_EIP(tsk);
 	wchan = get_wchan(tsk);
