@@ -34,6 +34,7 @@
 #ifdef CONFIG_SCSC_QOS
 #include "mifqos.h"
 #endif
+#include "mxfwconfig.h"
 #include <scsc/kic/slsi_kic_lib.h>
 #include <scsc/scsc_release.h>
 #include <scsc/scsc_mx.h>
@@ -841,13 +842,12 @@ static int transports_init(struct mxman *mxman)
 	mxconf->version.minor = MXCONF_VERSION_MINOR;
 
 	/* Pass pre-existing FM status to FW */
-#if (MXCONF_VERSION_MINOR >= 3)
 	mxconf->flags = 0;
 #ifdef CONFIG_SCSC_FM
 	mxconf->flags |= is_fm_on ? MXCONF_FLAGS_FM_ON : 0;
 #endif
 	SCSC_TAG_INFO(MXMAN, "mxconf flags 0x%08x\n", mxconf->flags);
-#endif
+
 	/* serialise mxmgmt transport */
 	mxmgmt_transport_config_serialise(scsc_mx_get_mxmgmt_transport(mx), &mxconf->mx_trans_conf);
 	/* serialise Cortex-R4 gdb transport */
@@ -866,6 +866,10 @@ static int transports_init(struct mxman *mxman)
 		       *scsc_mx_get_mxlog_transport(mx)->mif_stream.buffer.write_index
 		      );
 
+#ifdef CONFIG_SCSC_COMMON_HCF
+	/* Load Common Config HCF */
+	mxfwconfig_load(mxman->mx, &mxconf->fwconfig);
+#endif
 	return 0;
 }
 
@@ -1117,6 +1121,7 @@ static int mxman_start(struct mxman *mxman)
 	miframabox_init(scsc_mx_get_aboxram(mxman->mx), start_mifram_heap2 + length_mifram_heap2);
 	mifmboxman_init(scsc_mx_get_mboxman(mxman->mx));
 	mifintrbit_init(scsc_mx_get_intrbit(mxman->mx), mif);
+	mxfwconfig_init(mxman->mx);
 
 	/* Initialise transports */
 	r = transports_init(mxman);
@@ -1896,6 +1901,7 @@ static void mxman_stop(struct mxman *mxman)
 
 	panicmon_deinit(scsc_mx_get_panicmon(mxman->mx));
 	transports_release(mxman);
+	mxfwconfig_unload(mxman->mx);
 
 	mxlog_release(scsc_mx_get_mxlog(mxman->mx));
 	/* unregister channel handler */
@@ -1904,6 +1910,7 @@ static void mxman_stop(struct mxman *mxman)
 	fw_crc_wq_stop(mxman);
 
 	/* Unitialise components (they may perform some checks - e.g. all memory freed) */
+	mxfwconfig_deinit(mxman->mx);
 	mifintrbit_deinit(scsc_mx_get_intrbit(mxman->mx));
 	miframman_deinit(scsc_mx_get_ramman(mxman->mx));
 	miframman_deinit(scsc_mx_get_ramman2(mxman->mx));
