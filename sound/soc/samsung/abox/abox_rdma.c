@@ -758,8 +758,6 @@ static int abox_rdma_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		if (ret < 0)
 			dev_err(dev, "%s: pause cmd failed(%d)\n", __func__,
 					ret);
-
-		abox_request_dram_on(platform_data->pdev_abox, dev, false);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		dev_info(dev, "SNDRV_PCM_TRIGGER_STOP\n");
@@ -793,8 +791,6 @@ static int abox_rdma_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		data->byte_offset = 0;
 		data->copied_total = 0;
 		data->received_total = 0;
-
-		abox_request_dram_on(platform_data->pdev_abox, dev, false);
 		break;
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -802,8 +798,6 @@ static int abox_rdma_compr_trigger(struct snd_compr_stream *stream, int cmd)
 				(cmd == SNDRV_PCM_TRIGGER_START) ?
 				"SNDRV_PCM_TRIGGER_START" :
 				"SNDRV_PCM_TRIGGER_PAUSE_RELEASE");
-
-		abox_request_dram_on(platform_data->pdev_abox, dev, true);
 
 		data->start = 1;
 		ret = abox_rdma_mailbox_send_cmd(dev, CMD_COMPR_START);
@@ -1479,7 +1473,6 @@ static int abox_rdma_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_platform *platform = rtd->platform;
 	struct device *dev = platform->dev;
 	struct abox_platform_data *data = dev_get_drvdata(dev);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int id = data->id;
 	int ret;
 	ABOX_IPC_MSG msg;
@@ -1495,9 +1488,6 @@ static int abox_rdma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (memblock_is_memory(runtime->dma_addr))
-			abox_request_dram_on(data->pdev_abox, dev, true);
-
 		pcmtask_msg->param.trigger = 1;
 		ret = abox_rdma_request_ipc(data, &msg, 1, 0);
 		break;
@@ -1515,10 +1505,6 @@ static int abox_rdma_trigger(struct snd_pcm_substream *substream, int cmd)
 		default:
 			break;
 		}
-
-		if (memblock_is_memory(runtime->dma_addr))
-			abox_request_dram_on(data->pdev_abox, dev, false);
-
 		break;
 	default:
 		ret = -EINVAL;

@@ -143,13 +143,10 @@ static ssize_t abox_dump_auto_write(struct file *file, const char __user *data,
 			struct platform_device *pdev_abox;
 
 			pdev_abox = to_platform_device(abox_dump_dev_abox);
-			if (enable) {
-				abox_request_dram_on(pdev_abox, dev, true);
+			if (enable)
 				pm_runtime_get(dev);
-			} else {
+			else
 				pm_runtime_put(dev);
-				abox_request_dram_on(pdev_abox, dev, false);
-			}
 		}
 
 		info->auto_started = enable;
