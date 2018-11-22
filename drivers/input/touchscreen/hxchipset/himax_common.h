@@ -62,7 +62,7 @@
 #define HX_RST_PIN_FUNC
 #define HX_RESUME_SEND_CMD
 #define HX_ESD_RECOVERY
-#define HX_AUTO_UPDATE_FW
+/*#define HX_AUTO_UPDATE_FW*/
 /*#define HX_SMART_WAKEUP*/
 /*#define HX_GESTURE_TRACK*/
 /*#define HX_HIGH_SENSE*/
