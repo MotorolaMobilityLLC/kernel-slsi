@@ -362,6 +362,42 @@
 				hdr_max_avg_luma = <1200000>;	/* 120 */
 				hdr_min_luma = <5>;				/* 0.0005 */
 			};
+
+			nov36672a: nov36672a {
+				device_type = "novatek-nov36672a";
+				mode = <0>; /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
+				resolution = <1080 2520>;
+				size = <80 120>;
+				timing,refresh = <60>;
+				timing,h-porch = <40 40 20>;
+				timing,v-porch = <8 10 2>;
+				timing,dsi-hs-clk = <1440>;
+				/* TODO : pms value to be set */
+				timing,pmsk = <4 443 1 0>;
+				timing,dsi-escape-clk = <10>;
+				mic_en = <0>;		/* 0: Disable, 1: Enable */
+				mic_ratio = <0>;	/* 0: 1/2 mic, 1: 1/3 mic */
+				mic_ver = <0>;		/* 0: mic v1.1, 1: v1.2, 2: v2.0 */
+				type_of_ddi = <2>;	/* 0: Samsung Mobile, 1: MAGNA, 2: Normal(Etc) */
+				dsc_en = <0>;		/* 0: Disable, 1: Enable */
+				dsc_cnt = <0>;		/* used DSC count */
+				dsc_slice_num = <0>;	/* count of dsc slice */
+				data_lane = <4>;	/* number of using data lane */
+				cmd_underrun_lp_ref = <4942>;	/* for underrun detect at command mode*/
+				vt_compensation = <0>;	/* for underrun detect at video mode*/
+				mres_en = <0>;
+				mres_number = <3>;
+				mres_width = <1440 1080 720>;
+				mres_height = <2960 2220 1480>;
+				mres_dsc_width = <720 540 360>;
+				mres_dsc_height = <40 30 74>;
+				mres_dsc_en = <1 1 0>;
+				hdr_num = <1>;		/* max: 4 */
+				hdr_type = <2 0 0 0>;	/* 1: DOLBY_VISION, 2: HDR10, 3: HLG */
+				hdr_max_luma = <5400000>;		/* 540 */
+				hdr_max_avg_luma = <1200000>;	/* 120 */
+				hdr_min_luma = <5>;				/* 0.0005 */
+			};
 		};
 	};
 };
