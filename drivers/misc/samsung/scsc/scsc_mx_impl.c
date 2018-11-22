@@ -30,9 +30,11 @@
 #include "suspendmon.h"
 
 #include "scsc/api/bt_audio.h"
+#include "mxfwconfig.h"
 #ifdef CONFIG_SCSC_WLBTD
 #include "scsc_wlbtd.h"
 #endif
+
 struct scsc_mx {
 	struct scsc_mif_abs     *mif_abs;
 	struct mifintrbit       intr;
@@ -58,6 +60,7 @@ struct scsc_mx {
 	struct panicmon         panicmon;
 	struct mxlog_transport  mxlog_transport;
 	struct suspendmon	suspendmon;
+	struct mxfwconfig	mxfwconfig;
 };
 
 
@@ -204,3 +207,9 @@ struct suspendmon *scsc_mx_get_suspendmon(struct scsc_mx *mx)
 {
 	return &mx->suspendmon;
 }
+
+struct mxfwconfig *scsc_mx_get_mxfwconfig(struct scsc_mx *mx)
+{
+	return &mx->mxfwconfig;
+}
+

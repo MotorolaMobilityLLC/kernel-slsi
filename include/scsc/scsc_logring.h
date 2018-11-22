@@ -62,6 +62,7 @@ enum scsc_logring_tags {
 	WLBTD,
 	WLOG,
 	LERNA,
+	MX_CFG,
 #ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
 	SLSI_INIT_DEINIT,
 	SLSI_NETDEV,
