@@ -932,14 +932,13 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 		}
 
 		num_buffers = 1;
-
 	}
 
 	pos_meta_p = num_buffers * num_i_planes;
 
 	/* meta plane */
 	queue->buf_kva[index][pos_meta_p]
-			= vbuf->ops->plane_kvaddr(vbuf, num_i_planes);
+			= vbuf->ops->plane_kmap(vbuf, num_i_planes);
 	if (!queue->buf_kva[index][pos_meta_p]) {
 		mverr("failed to get kva for %s", vctx, video, queue->name);
 		ret = -ENOMEM;
