@@ -32,7 +32,7 @@
  * marco
  *
  ********************************************************/
-#define MAX_I2C_BUFFER_SIZE 65536
+#define MAX_I2C_BUFFER_SIZE                 65536
 
 #define AW8695_REG_MAX                      0xff
 
@@ -43,23 +43,90 @@
 
 #define HAPTIC_MAX_TIMEOUT                  10000
 
-#define AW8695_HAPTIC_F0_PRE                2350
-#define AW8695_HAPTIC_F0_DRV_LVL            95
-#define AW8695_HAPTIC_F0_COEFF              260    //2.604167
-#define AW8695_OPEN_PLAYBACK                0
+/* motor config */
+//#define LRA_0619
+#define LRA_0832
+
+#ifdef LRA_0619
+#define AW8695_HAPTIC_F0_PRE                1700    // 170Hz
+#define AW8695_HAPTIC_F0_CALI_PERCEN        7       // -7%~7%
+#define AW8695_HAPTIC_CONT_DRV_LVL          105     // 105*6.1/256=2.50v
+#define AW8695_HAPTIC_CONT_DRV_LVL_OV       125     // 125*6.1/256=2.98v
+#define AW8695_HAPTIC_CONT_TD               0x009a
+#define AW8695_HAPTIC_CONT_ZC_THR           0x0ff1
+#define AW8695_HAPTIC_CONT_NUM_BRK          3
+#endif
+
+#ifdef LRA_0832
+#define AW8695_HAPTIC_F0_PRE                2350    // 235Hz
+#define AW8695_HAPTIC_F0_CALI_PERCEN        7       // -7%~7%
+#define AW8695_HAPTIC_CONT_DRV_LVL          95
+#define AW8695_HAPTIC_CONT_DRV_LVL_OV       0x70     // 155*6.1/256=3.69v
+#define AW8695_HAPTIC_CONT_TD               0x0073
+#define AW8695_HAPTIC_CONT_ZC_THR           0x0ff1
+#define AW8695_HAPTIC_CONT_NUM_BRK          3
+#endif
+
+
+#define AW8695_HAPTIC_F0_COEFF              260     //2.604167
+
+
+/* trig config */
+#define AW8695_TRG1_ENABLE                  1
+#define AW8695_TRG2_ENABLE                  1
+#define AW8695_TRG3_ENABLE                  1
+
+#define AW8695_TRG1_DEFAULT_LEVEL           1       // 1: high level; 0: low level
+#define AW8695_TRG2_DEFAULT_LEVEL           1       // 1: high level; 0: low level
+#define AW8695_TRG3_DEFAULT_LEVEL           1       // 1: high level; 0: low level
+
+#if AW8695_TRG1_ENABLE
+#define AW8695_TRG1_DEFAULT_ENABLE          AW8695_BIT_TRGCFG2_TRG1_ENABLE
+#else
+#define AW8695_TRG1_DEFAULT_ENABLE          AW8695_BIT_TRGCFG2_TRG1_DISABLE
+#endif
+
+#if AW8695_TRG2_ENABLE
+#define AW8695_TRG2_DEFAULT_ENABLE          AW8695_BIT_TRGCFG2_TRG2_ENABLE
+#else
+#define AW8695_TRG2_DEFAULT_ENABLE          AW8695_BIT_TRGCFG2_TRG2_DISABLE
+#endif
+
+#if AW8695_TRG3_ENABLE
+#define AW8695_TRG3_DEFAULT_ENABLE          AW8695_BIT_TRGCFG2_TRG3_ENABLE
+#else
+#define AW8695_TRG3_DEFAULT_ENABLE          AW8695_BIT_TRGCFG2_TRG3_DISABLE
+#endif
+
+#if AW8695_TRG1_DEFAULT_LEVEL
+#define AW8695_TRG1_DEFAULT_POLAR           AW8695_BIT_TRGCFG1_TRG1_POLAR_POS
+#else
+#define AW8695_TRG1_DEFAULT_POLAR           AW8695_BIT_TRGCFG1_TRG1_POLAR_NEG
+#endif
+
+#if AW8695_TRG2_DEFAULT_LEVEL
+#define AW8695_TRG2_DEFAULT_POLAR           AW8695_BIT_TRGCFG1_TRG2_POLAR_POS
+#else
+#define AW8695_TRG2_DEFAULT_POLAR           AW8695_BIT_TRGCFG1_TRG2_POLAR_NEG
+#endif
+
+#if AW8695_TRG3_DEFAULT_LEVEL
+#define AW8695_TRG3_DEFAULT_POLAR           AW8695_BIT_TRGCFG1_TRG3_POLAR_POS
+#else
+#define AW8695_TRG3_DEFAULT_POLAR           AW8695_BIT_TRGCFG1_TRG3_POLAR_NEG
+#endif
+
+enum ram_mode_seq {
+    AW8695_LONG_RAM = 1,
+    AW8695_SHORT_RAM_20_UP = 2,
+    AW8695_SHORT_RAM_60_UP = 3,
+    AW8695_SHORT_RAM_80_UP = 4,
+    AW8695_SHORT_RAM_100_UP = 5,
+};
 
 enum aw8695_flags {
     AW8695_FLAG_NONR = 0,
     AW8695_FLAG_SKIP_INTERRUPTS = 1,
-};
-
-enum aw8695_chipids {
-    AW8690_ID = 0,
-    AW8691_ID = 1,
-    AW8694_ID = 4,
-    AW8695_ID = 5,
-    AW8696_ID = 6,
-    AW8697_ID = 7,
 };
 
 enum aw8695_haptic_read_write {
@@ -74,11 +141,28 @@ enum aw8695_haptic_work_mode {
     AW8695_HAPTIC_RTP_MODE = 2,
     AW8695_HAPTIC_TRIG_MODE = 3,
     AW8695_HAPTIC_CONT_MODE = 4,
+    AW8695_HAPTIC_RAM_LOOP_MODE = 5,
 };
 
 enum aw8695_haptic_bst_mode {
     AW8695_HAPTIC_BYPASS_MODE = 0,
     AW8695_HAPTIC_BOOST_MODE = 1,
+};
+
+enum aw8695_haptic_activate_mode {
+  AW8695_HAPTIC_ACTIVATE_RAM_MODE = 0,
+  AW8695_HAPTIC_ACTIVATE_CONT_MODE = 1,
+};
+
+
+enum aw8695_haptic_vbat_comp_mode {
+    AW8695_HAPTIC_VBAT_SW_COMP_MODE = 0,
+    AW8695_HAPTIC_VBAT_HW_COMP_MODE = 1,
+};
+
+enum aw8695_haptic_f0_flag {
+    AW8695_HAPTIC_LRA_F0 = 0,
+    AW8695_HAPTIC_CALI_F0 = 1,
 };
 
 enum aw8695_haptic_pwm_mode {
@@ -155,6 +239,10 @@ struct aw8695 {
 
     unsigned char play_mode;
 
+    unsigned char activate_mode;
+
+    unsigned char auto_boost;
+
     int state;
     int duration;
     int amplitude;
@@ -173,9 +261,15 @@ struct aw8695 {
 
     unsigned int f0;
     unsigned int f0_pre;
-    unsigned char f0_drv_lvl;
+    unsigned int cont_f0;
+    unsigned int cont_td;
+    unsigned int cont_zc_thr;
+    unsigned char cont_drv_lvl;
+    unsigned char cont_drv_lvl_ov;
+    unsigned char cont_num_brk;
     unsigned char max_pos_beme;
     unsigned char max_neg_beme;
+    unsigned char f0_cali_flag;
 
     struct haptic_audio haptic_audio;
 };
