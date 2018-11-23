@@ -46,7 +46,7 @@
 #define AW8695_REG_END_DLY_L     0x2a
 #define AW8695_REG_DATCTRL       0x2b
 #define AW8695_REG_PWMDEL        0x2c
-#define AW8695_REG_PWMPRE        0x2d
+#define AW8695_REG_PWMPRC        0x2d
 #define AW8695_REG_PWMDBG        0x2e
 #define AW8695_REG_LDOCTRL       0x2f
 #define AW8695_REG_DBGSTAT       0x30
@@ -69,7 +69,7 @@
 #define AW8695_REG_RAMADDRL      0x41
 #define AW8695_REG_RAMDATA       0x42
 #define AW8695_REG_GLB_STATE     0x46
-#define AW8695_REG_BAT_AUTO      0x47
+#define AW8695_REG_BST_AUTO      0x47
 #define AW8695_REG_CONT_CTRL     0x48
 #define AW8695_REG_F_PRE_H       0x49
 #define AW8695_REG_F_PRE_L       0x4a
@@ -164,7 +164,7 @@ const unsigned char aw8695_reg_access[AW8695_REG_MAX]={
  [AW8695_REG_END_DLY_L   ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_DATCTRL     ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_PWMDEL      ] = REG_RD_ACCESS|REG_WR_ACCESS,
- [AW8695_REG_PWMPRE      ] = REG_RD_ACCESS|REG_WR_ACCESS,
+ [AW8695_REG_PWMPRC      ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_PWMDBG      ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_LDOCTRL     ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_DBGSTAT     ] = REG_RD_ACCESS,
@@ -187,7 +187,7 @@ const unsigned char aw8695_reg_access[AW8695_REG_MAX]={
  [AW8695_REG_RAMADDRL    ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_RAMDATA     ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_GLB_STATE   ] = REG_RD_ACCESS|REG_WR_ACCESS,
- [AW8695_REG_BAT_AUTO    ] = REG_RD_ACCESS|REG_WR_ACCESS,
+ [AW8695_REG_BST_AUTO    ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_CONT_CTRL   ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_F_PRE_H     ] = REG_RD_ACCESS|REG_WR_ACCESS,
  [AW8695_REG_F_PRE_L     ] = REG_RD_ACCESS|REG_WR_ACCESS,
@@ -234,248 +234,311 @@ const unsigned char aw8695_reg_access[AW8695_REG_MAX]={
 /******************************************************
  * Register Detail
  *****************************************************/
-// SYSST
-#define AW8695_BIT_SYSST_BSTERRS                 (1<<7)
-#define AW8695_BIT_SYSST_OVS                     (1<<6)
-#define AW8695_BIT_SYSST_UVLS                    (1<<5)
-#define AW8695_BIT_SYSST_FF_AES                  (1<<4)
-#define AW8695_BIT_SYSST_FF_AFS                  (1<<3)
-#define AW8695_BIT_SYSST_OCDS                    (1<<2)
-#define AW8695_BIT_SYSST_OTS                     (1<<1)
-#define AW8695_BIT_SYSST_DONES                   (1<<0)
+// SYSST: reg0x01
+#define AW8695_BIT_SYSST_BSTERRS                    (1<<7)
+#define AW8695_BIT_SYSST_OVS                        (1<<6)
+#define AW8695_BIT_SYSST_UVLS                       (1<<5)
+#define AW8695_BIT_SYSST_FF_AES                     (1<<4)
+#define AW8695_BIT_SYSST_FF_AFS                     (1<<3)
+#define AW8695_BIT_SYSST_OCDS                       (1<<2)
+#define AW8695_BIT_SYSST_OTS                        (1<<1)
+#define AW8695_BIT_SYSST_DONES                      (1<<0)
 
-// SYSINT
-#define AW8695_BIT_SYSINT_BSTERRI                (1<<7)
-#define AW8695_BIT_SYSINT_OVI                    (1<<6)
-#define AW8695_BIT_SYSINT_UVLI                   (1<<5)
-#define AW8695_BIT_SYSINT_FF_AEI                 (1<<4)
-#define AW8695_BIT_SYSINT_FF_AFI                 (1<<3)
-#define AW8695_BIT_SYSINT_OCDI                   (1<<2)
-#define AW8695_BIT_SYSINT_OTI                    (1<<1)
-#define AW8695_BIT_SYSINT_DONEI                  (1<<0)
+// SYSINT: reg0x02
+#define AW8695_BIT_SYSINT_BSTERRI                   (1<<7)
+#define AW8695_BIT_SYSINT_OVI                       (1<<6)
+#define AW8695_BIT_SYSINT_UVLI                      (1<<5)
+#define AW8695_BIT_SYSINT_FF_AEI                    (1<<4)
+#define AW8695_BIT_SYSINT_FF_AFI                    (1<<3)
+#define AW8695_BIT_SYSINT_OCDI                      (1<<2)
+#define AW8695_BIT_SYSINT_OTI                       (1<<1)
+#define AW8695_BIT_SYSINT_DONEI                     (1<<0)
 
-// SYSINTM
-#define AW8695_BIT_SYSINTM_BSTERR_MASK           (~(1<<7))
-#define AW8695_BIT_SYSINTM_BSTERR_OFF            (1<<7)
-#define AW8695_BIT_SYSINTM_BSTERR_EN             (0<<7)
-#define AW8695_BIT_SYSINTM_OV_MASK               (~(1<<6))
-#define AW8695_BIT_SYSINTM_OV_OFF                (1<<6)
-#define AW8695_BIT_SYSINTM_OV_EN                 (0<<6)
-#define AW8695_BIT_SYSINTM_UVLO_MASK             (~(1<<5))
-#define AW8695_BIT_SYSINTM_UVLO_OFF              (1<<5)
-#define AW8695_BIT_SYSINTM_UVLO_EN               (0<<5)
-#define AW8695_BIT_SYSINTM_FF_AE_MASK            (~(1<<4))
-#define AW8695_BIT_SYSINTM_FF_AE_OFF             (1<<4)
-#define AW8695_BIT_SYSINTM_FF_AE_EN              (0<<4)
-#define AW8695_BIT_SYSINTM_FF_AF_MASK            (~(1<<3))
-#define AW8695_BIT_SYSINTM_FF_AF_OFF             (1<<3)
-#define AW8695_BIT_SYSINTM_FF_AF_EN              (0<<3)
-#define AW8695_BIT_SYSINTM_OCD_MASK              (~(1<<2))
-#define AW8695_BIT_SYSINTM_OCD_OFF               (1<<2)
-#define AW8695_BIT_SYSINTM_OCD_EN                (0<<2)
-#define AW8695_BIT_SYSINTM_OT_MASK               (~(1<<1))
-#define AW8695_BIT_SYSINTM_OT_OFF                (1<<1)
-#define AW8695_BIT_SYSINTM_OT_EN                 (0<<1)
-#define AW8695_BIT_SYSINTM_DONE_MASK             (~(1<<0))
-#define AW8695_BIT_SYSINTM_DONE_OFF              (1<<0)
-#define AW8695_BIT_SYSINTM_DONE_EN               (0<<0)
+// SYSINTM: reg0x03
+#define AW8695_BIT_SYSINTM_BSTERR_MASK              (~(1<<7))
+#define AW8695_BIT_SYSINTM_BSTERR_OFF               (1<<7)
+#define AW8695_BIT_SYSINTM_BSTERR_EN                (0<<7)
+#define AW8695_BIT_SYSINTM_OV_MASK                  (~(1<<6))
+#define AW8695_BIT_SYSINTM_OV_OFF                   (1<<6)
+#define AW8695_BIT_SYSINTM_OV_EN                    (0<<6)
+#define AW8695_BIT_SYSINTM_UVLO_MASK                (~(1<<5))
+#define AW8695_BIT_SYSINTM_UVLO_OFF                 (1<<5)
+#define AW8695_BIT_SYSINTM_UVLO_EN                  (0<<5)
+#define AW8695_BIT_SYSINTM_FF_AE_MASK               (~(1<<4))
+#define AW8695_BIT_SYSINTM_FF_AE_OFF                (1<<4)
+#define AW8695_BIT_SYSINTM_FF_AE_EN                 (0<<4)
+#define AW8695_BIT_SYSINTM_FF_AF_MASK               (~(1<<3))
+#define AW8695_BIT_SYSINTM_FF_AF_OFF                (1<<3)
+#define AW8695_BIT_SYSINTM_FF_AF_EN                 (0<<3)
+#define AW8695_BIT_SYSINTM_OCD_MASK                 (~(1<<2))
+#define AW8695_BIT_SYSINTM_OCD_OFF                  (1<<2)
+#define AW8695_BIT_SYSINTM_OCD_EN                   (0<<2)
+#define AW8695_BIT_SYSINTM_OT_MASK                  (~(1<<1))
+#define AW8695_BIT_SYSINTM_OT_OFF                   (1<<1)
+#define AW8695_BIT_SYSINTM_OT_EN                    (0<<1)
+#define AW8695_BIT_SYSINTM_DONE_MASK                (~(1<<0))
+#define AW8695_BIT_SYSINTM_DONE_OFF                 (1<<0)
+#define AW8695_BIT_SYSINTM_DONE_EN                  (0<<0)
 
-// SYSCTRL
-#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_MASK      (~(3<<6))
-#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_4X        (3<<6)
-#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_2X        (0<<6)
-#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_1X        (1<<6)
-#define AW8695_BIT_SYSCTRL_RAMINIT_MASK          (~(1<<5))
-#define AW8695_BIT_SYSCTRL_RAMINIT_EN            (1<<5)
-#define AW8695_BIT_SYSCTRL_RAMINIT_OFF           (0<<5)
-#define AW8695_BIT_SYSCTRL_PLAY_MODE_MASK        (~(3<<2))
-#define AW8695_BIT_SYSCTRL_PLAY_MODE_CONT        (2<<2)
-#define AW8695_BIT_SYSCTRL_PLAY_MODE_RTP         (1<<2)
-#define AW8695_BIT_SYSCTRL_PLAY_MODE_RAM         (0<<2)
-#define AW8695_BIT_SYSCTRL_BST_MODE_MASK         (~(1<<1))
-#define AW8695_BIT_SYSCTRL_BST_MODE_BOOST        (1<<1)
-#define AW8695_BIT_SYSCTRL_BST_MODE_BYPASS       (0<<1)
-#define AW8695_BIT_SYSCTRL_WORK_MODE_MASK        (~(1<<0))
-#define AW8695_BIT_SYSCTRL_STANDBY               (1<<0)
-#define AW8695_BIT_SYSCTRL_ACTIVE                (0<<0)
+// SYSCTRL: reg0x04
+#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_MASK         (~(3<<6))
+#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_4X           (3<<6)
+#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_2X           (0<<6)
+#define AW8695_BIT_SYSCTRL_WAVDAT_MODE_1X           (1<<6)
+#define AW8695_BIT_SYSCTRL_RAMINIT_MASK             (~(1<<5))
+#define AW8695_BIT_SYSCTRL_RAMINIT_EN               (1<<5)
+#define AW8695_BIT_SYSCTRL_RAMINIT_OFF              (0<<5)
+#define AW8695_BIT_SYSCTRL_PLAY_MODE_MASK           (~(3<<2))
+#define AW8695_BIT_SYSCTRL_PLAY_MODE_CONT           (2<<2)
+#define AW8695_BIT_SYSCTRL_PLAY_MODE_RTP            (1<<2)
+#define AW8695_BIT_SYSCTRL_PLAY_MODE_RAM            (0<<2)
+#define AW8695_BIT_SYSCTRL_BST_MODE_MASK            (~(1<<1))
+#define AW8695_BIT_SYSCTRL_BST_MODE_BOOST           (1<<1)
+#define AW8695_BIT_SYSCTRL_BST_MODE_BYPASS          (0<<1)
+#define AW8695_BIT_SYSCTRL_WORK_MODE_MASK           (~(1<<0))
+#define AW8695_BIT_SYSCTRL_STANDBY                  (1<<0)
+#define AW8695_BIT_SYSCTRL_ACTIVE                   (0<<0)
 
-// GO
-#define AW8695_BIT_GO_MASK                       (~(1<<0))
-#define AW8695_BIT_GO_ENABLE                     (1<<0)
-#define AW8695_BIT_GO_DISABLE                    (0<<0)
+// GO: reg0x05
+#define AW8695_BIT_GO_MASK                          (~(1<<0))
+#define AW8695_BIT_GO_ENABLE                        (1<<0)
+#define AW8695_BIT_GO_DISABLE                       (0<<0)
 
-// WAVSEQ1
-#define AW8695_BIT_WAVSEQ1_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ1_WAV_FRM_SEQ1_MASK     (~(127<<0))
+// WAVSEQ1: reg0x07
+#define AW8695_BIT_WAVSEQ1_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ1_WAV_FRM_SEQ1_MASK        (~(127<<0))
 
-// WAVSEQ2
-#define AW8695_BIT_WAVSEQ2_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ2_WAV_FRM_SEQ2_MASK     (~(127<<0))
+// WAVSEQ2: reg0x08
+#define AW8695_BIT_WAVSEQ2_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ2_WAV_FRM_SEQ2_MASK        (~(127<<0))
 
-// WAVSEQ3
-#define AW8695_BIT_WAVSEQ3_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ3_WAV_FRM_SEQ3_MASK     (~(127<<0))
+// WAVSEQ3: reg0x09
+#define AW8695_BIT_WAVSEQ3_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ3_WAV_FRM_SEQ3_MASK        (~(127<<0))
 
-// WAVSEQ4
-#define AW8695_BIT_WAVSEQ4_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ4_WAV_FRM_SEQ4_MASK     (~(127<<0))
+// WAVSEQ4: reg0x0a
+#define AW8695_BIT_WAVSEQ4_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ4_WAV_FRM_SEQ4_MASK        (~(127<<0))
 
-// WAVSEQ5
-#define AW8695_BIT_WAVSEQ5_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ5_WAV_FRM_SEQ5_MASK     (~(127<<0))
+// WAVSEQ5: reg0x0b
+#define AW8695_BIT_WAVSEQ5_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ5_WAV_FRM_SEQ5_MASK        (~(127<<0))
 
-// WAVSEQ6
-#define AW8695_BIT_WAVSEQ6_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ6_WAV_FRM_SEQ6_MASK     (~(127<<0))
+// WAVSEQ6: reg0x0c
+#define AW8695_BIT_WAVSEQ6_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ6_WAV_FRM_SEQ6_MASK        (~(127<<0))
 
-// WAVSEQ7
-#define AW8695_BIT_WAVSEQ7_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ7_WAV_FRM_SEQ7_MASK     (~(127<<0))
+// WAVSEQ7: reg0x0d
+#define AW8695_BIT_WAVSEQ7_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ7_WAV_FRM_SEQ7_MASK        (~(127<<0))
 
-// WAVSEQ8
-#define AW8695_BIT_WAVSEQ8_WAIT                  (1<<7)
-#define AW8695_BIT_WAVSEQ8_WAV_FRM_SEQ8_MASK     (~(127<<0))
+// WAVSEQ8: reg0x0e
+#define AW8695_BIT_WAVSEQ8_WAIT                     (1<<7)
+#define AW8695_BIT_WAVSEQ8_WAV_FRM_SEQ8_MASK        (~(127<<0))
 
-// WAVLOOP
-#define AW8695_BIT_WAVLOOP_SEQN_MASK            (~(15<<4))
-#define AW8695_BIT_WAVLOOP_SEQNP1_MASK          (~(15<<0))
-#define AW8695_BIT_WAVLOOP_INIFINITELY          (15<<0)
+// WAVLOOP:
+#define AW8695_BIT_WAVLOOP_SEQN_MASK                (~(15<<4))
+#define AW8695_BIT_WAVLOOP_SEQNP1_MASK              (~(15<<0))
+#define AW8695_BIT_WAVLOOP_INIFINITELY              (15<<0)
 
-// WAVLOOP1
-#define AW8695_BIT_WAVLOOP1_SEQ1_MASK            (~(15<<4))
-#define AW8695_BIT_WAVLOOP1_SEQ2_MASK            (~(15<<0))
+// WAVLOOP1: reg0x0f
+#define AW8695_BIT_WAVLOOP1_SEQ1_MASK               (~(15<<4))
+#define AW8695_BIT_WAVLOOP1_SEQ2_MASK               (~(15<<0))
 
-// WAVLOOP2
-#define AW8695_BIT_WAVLOOP2_SEQ3_MASK            (~(15<<4))
-#define AW8695_BIT_WAVLOOP2_SEQ4_MASK            (~(15<<0))
+// WAVLOOP2: reg0x10
+#define AW8695_BIT_WAVLOOP2_SEQ3_MASK               (~(15<<4))
+#define AW8695_BIT_WAVLOOP2_SEQ4_MASK               (~(15<<0))
 
-// WAVLOOP3
-#define AW8695_BIT_WAVLOOP3_SEQ5_MASK            (~(15<<4))
-#define AW8695_BIT_WAVLOOP3_SEQ6_MASK            (~(15<<0))
+// WAVLOOP3: reg0x11
+#define AW8695_BIT_WAVLOOP3_SEQ5_MASK               (~(15<<4))
+#define AW8695_BIT_WAVLOOP3_SEQ6_MASK               (~(15<<0))
 
-// WAVLOOP4
-#define AW8695_BIT_WAVLOOP4_SEQ7_MASK            (~(15<<4))
-#define AW8695_BIT_WAVLOOP4_SEQ8_MASK            (~(15<<0))
-
-
-// PLAYPRIO
-#define AW8695_BIT_PLAYPRIO_GO_MASK              (~(3<<6))
-#define AW8695_BIT_PLAYPRIO_TRIG3_MASK           (~(3<<4))
-#define AW8695_BIT_PLAYPRIO_TRIG2_MASK           (~(3<<2))
-#define AW8695_BIT_PLAYPRIO_TRIG1_MASK           (~(3<<0))
-
-// TRGCFG1
-#define AW8695_BIT_TRGCFG1_TRG3_POLAR_MASK       (~(1<<5))
-#define AW8695_BIT_TRGCFG1_TRG3_POLAR_NEG        (1<<5)
-#define AW8695_BIT_TRGCFG1_TRG3_POLAR_POS        (0<<5)
-#define AW8695_BIT_TRGCFG1_TRG3_EDGE_MASK        (~(1<<4))
-#define AW8695_BIT_TRGCFG1_TRG3_EDGE_POS         (1<<4)
-#define AW8695_BIT_TRGCFG1_TRG3_EDGE_POS_NEG     (0<<4)
-#define AW8695_BIT_TRGCFG1_TRG2_POLAR_MASK       (~(1<<3))
-#define AW8695_BIT_TRGCFG1_TRG2_POLAR_NEG        (1<<3)
-#define AW8695_BIT_TRGCFG1_TRG2_POLAR_POS        (0<<3)
-#define AW8695_BIT_TRGCFG1_TRG2_EDGE_MASK        (~(1<<2))
-#define AW8695_BIT_TRGCFG1_TRG2_EDGE_POS         (1<<2)
-#define AW8695_BIT_TRGCFG1_TRG2_EDGE_POS_NEG     (0<<2)
-#define AW8695_BIT_TRGCFG1_TRG1_POLAR_MASK       (~(1<<1))
-#define AW8695_BIT_TRGCFG1_TRG1_POLAR_NEG        (1<<1)
-#define AW8695_BIT_TRGCFG1_TRG1_POLAR_POS        (0<<1)
-#define AW8695_BIT_TRGCFG1_TRG1_EDGE_MASK        (~(1<<0))
-#define AW8695_BIT_TRGCFG1_TRG1_EDGE_POS         (1<<0)
-#define AW8695_BIT_TRGCFG1_TRG1_EDGE_POS_NEG     (0<<0)
-
-// TRGCFG2
-#define AW8695_BIT_TRGCFG2_TRG3_ENABLE_MASK      (~(1<<2))
-#define AW8695_BIT_TRGCFG2_TRG3_ENABLE           (1<<2)
-#define AW8695_BIT_TRGCFG2_TRG3_DISABLE          (0<<2)
-#define AW8695_BIT_TRGCFG2_TRG2_ENABLE_MASK      (~(1<<1))
-#define AW8695_BIT_TRGCFG2_TRG2_ENABLE           (1<<1)
-#define AW8695_BIT_TRGCFG2_TRG2_DISABLE          (0<<1)
-#define AW8695_BIT_TRGCFG2_TRG1_ENABLE_MASK      (~(1<<0))
-#define AW8695_BIT_TRGCFG2_TRG1_ENABLE           (1<<0)
-#define AW8695_BIT_TRGCFG2_TRG1_DISABLE          (0<<0)
-
-// DATCTRL
-#define AW8695_BIT_DATCTRL_FC_MASK              (~(1<<6))
-#define AW8695_BIT_DATCTRL_FC_1000HZ            (3<<6)
-#define AW8695_BIT_DATCTRL_FC_800HZ             (3<<6)
-#define AW8695_BIT_DATCTRL_FC_600HZ             (1<<6)
-#define AW8695_BIT_DATCTRL_FC_400HZ             (0<<6)
-#define AW8695_BIT_DATCTRL_LPF_ENABLE_MASK      (~(1<<5))
-#define AW8695_BIT_DATCTRL_LPF_ENABLE           (1<<5)
-#define AW8695_BIT_DATCTRL_LPF_DISABLE          (0<<5)
+// WAVLOOP4: reg0x12
+#define AW8695_BIT_WAVLOOP4_SEQ7_MASK               (~(15<<4))
+#define AW8695_BIT_WAVLOOP4_SEQ8_MASK               (~(15<<0))
 
 
-// PWMDBG
-#define AW8695_BIT_PWMDBG_PWM_MODE_MASK          (~(3<<5))
-#define AW8695_BIT_PWMDBG_PWM_12K                (3<<5)
-#define AW8695_BIT_PWMDBG_PWM_24K                (2<<5)
-#define AW8695_BIT_PWMDBG_PWM_48K                (0<<5)
+// PLAYPRIO: reg0x1a
+#define AW8695_BIT_PLAYPRIO_GO_MASK                 (~(3<<6))
+#define AW8695_BIT_PLAYPRIO_TRIG3_MASK              (~(3<<4))
+#define AW8695_BIT_PLAYPRIO_TRIG2_MASK              (~(3<<2))
+#define AW8695_BIT_PLAYPRIO_TRIG1_MASK              (~(3<<0))
+
+// TRGCFG1: reg0x1b
+#define AW8695_BIT_TRGCFG1_TRG3_POLAR_MASK          (~(1<<5))
+#define AW8695_BIT_TRGCFG1_TRG3_POLAR_NEG           (1<<5)
+#define AW8695_BIT_TRGCFG1_TRG3_POLAR_POS           (0<<5)
+#define AW8695_BIT_TRGCFG1_TRG3_EDGE_MASK           (~(1<<4))
+#define AW8695_BIT_TRGCFG1_TRG3_EDGE_POS            (1<<4)
+#define AW8695_BIT_TRGCFG1_TRG3_EDGE_POS_NEG        (0<<4)
+#define AW8695_BIT_TRGCFG1_TRG2_POLAR_MASK          (~(1<<3))
+#define AW8695_BIT_TRGCFG1_TRG2_POLAR_NEG           (1<<3)
+#define AW8695_BIT_TRGCFG1_TRG2_POLAR_POS           (0<<3)
+#define AW8695_BIT_TRGCFG1_TRG2_EDGE_MASK           (~(1<<2))
+#define AW8695_BIT_TRGCFG1_TRG2_EDGE_POS            (1<<2)
+#define AW8695_BIT_TRGCFG1_TRG2_EDGE_POS_NEG        (0<<2)
+#define AW8695_BIT_TRGCFG1_TRG1_POLAR_MASK          (~(1<<1))
+#define AW8695_BIT_TRGCFG1_TRG1_POLAR_NEG           (1<<1)
+#define AW8695_BIT_TRGCFG1_TRG1_POLAR_POS           (0<<1)
+#define AW8695_BIT_TRGCFG1_TRG1_EDGE_MASK           (~(1<<0))
+#define AW8695_BIT_TRGCFG1_TRG1_EDGE_POS            (1<<0)
+#define AW8695_BIT_TRGCFG1_TRG1_EDGE_POS_NEG        (0<<0)
+
+// TRGCFG2: reg0x1c
+#define AW8695_BIT_TRGCFG2_TRG3_ENABLE_MASK         (~(1<<2))
+#define AW8695_BIT_TRGCFG2_TRG3_ENABLE              (1<<2)
+#define AW8695_BIT_TRGCFG2_TRG3_DISABLE             (0<<2)
+#define AW8695_BIT_TRGCFG2_TRG2_ENABLE_MASK         (~(1<<1))
+#define AW8695_BIT_TRGCFG2_TRG2_ENABLE              (1<<1)
+#define AW8695_BIT_TRGCFG2_TRG2_DISABLE             (0<<1)
+#define AW8695_BIT_TRGCFG2_TRG1_ENABLE_MASK         (~(1<<0))
+#define AW8695_BIT_TRGCFG2_TRG1_ENABLE              (1<<0)
+#define AW8695_BIT_TRGCFG2_TRG1_DISABLE             (0<<0)
+
+// DBGCTRL: reg0x20
+#define AW8695_BIT_DBGCTRL_INT_EDGE_MODE_MASK       (~(1<<3))
+#define AW8695_BIT_DBGCTRL_INT_EDGE_MODE_POS        (1<<3)
+#define AW8695_BIT_DBGCTRL_INT_EDGE_MODE_BOTH       (0<<3)
+#define AW8695_BIT_DBGCTRL_INT_MODE_MASK            (~(1<<2))
+#define AW8695_BIT_DBGCTRL_INT_MODE_EDGE            (1<<2)
+#define AW8695_BIT_DBGCTRL_INT_MODE_LEVEL           (0<<2)
+
+// DATCTRL: reg0x2b
+#define AW8695_BIT_DATCTRL_FC_MASK                  (~(1<<6))
+#define AW8695_BIT_DATCTRL_FC_1000HZ                (3<<6)
+#define AW8695_BIT_DATCTRL_FC_800HZ                 (3<<6)
+#define AW8695_BIT_DATCTRL_FC_600HZ                 (1<<6)
+#define AW8695_BIT_DATCTRL_FC_400HZ                 (0<<6)
+#define AW8695_BIT_DATCTRL_LPF_ENABLE_MASK          (~(1<<5))
+#define AW8695_BIT_DATCTRL_LPF_ENABLE               (1<<5)
+#define AW8695_BIT_DATCTRL_LPF_DISABLE              (0<<5)
+#define AW8695_BIT_DATCTRL_WAKEMODE_ENABLE_MASK     (~(1<<0))
+#define AW8695_BIT_DATCTRL_WAKEMODE_ENABLE          (1<<0)
+#define AW8695_BIT_DATCTRL_WAKEMODE_DISABLE         (0<<0)
+
+// PWMPRC: reg0x2d
+#define AW8695_BIT_PWMPRC_PRC_MASK                  (~(1<<7))
+#define AW8695_BIT_PWMPRC_PRC_ENABLE                (1<<7)
+#define AW8695_BIT_PWMPRC_PRC_DISABLE               (0<<7)
+#define AW8695_BIT_PWMPRC_PRCTIME_MASK              (~(0x7f<<0))
+
+// PWMDBG: reg0x2e
+#define AW8695_BIT_PWMDBG_PWM_MODE_MASK             (~(3<<5))
+#define AW8695_BIT_PWMDBG_PWM_12K                   (3<<5)
+#define AW8695_BIT_PWMDBG_PWM_24K                   (2<<5)
+#define AW8695_BIT_PWMDBG_PWM_48K                   (0<<5)
+
+// BSTCFG: reg0x34
+#define AW8695_BIT_BSTCFG_PEAKCUR_MASK              (~(7<<0))
+#define AW8695_BIT_BSTCFG_PEAKCUR_4A                (7<<0)
+#define AW8695_BIT_BSTCFG_PEAKCUR_3P75A             (6<<0)
+#define AW8695_BIT_BSTCFG_PEAKCUR_3P5A              (5<<0)
+#define AW8695_BIT_BSTCFG_PEAKCUR_3P25A             (4<<0)
+#define AW8695_BIT_BSTCFG_PEAKCUR_3A                (3<<0)
+#define AW8695_BIT_BSTCFG_PEAKCUR_2P5A              (2<<0)
+#define AW8695_BIT_BSTCFG_PEAKCUR_2A                (1<<0)
+#define AW8695_BIT_BSTCFG_PEAKCUR_1P5A              (0<<0)
+
+// ANADBG: reg0x35
+#define AW8695_BIT_ANADBG_IOC_MASK                  (~(3<<2))
+#define AW8695_BIT_ANADBG_IOC_4P65A                 (3<<2)
+#define AW8695_BIT_ANADBG_IOC_4P15A                 (2<<2)
+#define AW8695_BIT_ANADBG_IOC_3P65A                 (1<<2)
+#define AW8695_BIT_ANADBG_IOC_3P15A                 (0<<2)
+
+// ANACTRL: reg0x36
+#define AW8695_BIT_ANACTRL_LRA_SRC_MASK             (~(1<<5))
+#define AW8695_BIT_ANACTRL_LRA_SRC_REG              (1<<5)
+#define AW8695_BIT_ANACTRL_LRA_SRC_EFUSE            (0<<5)
+#define AW8695_BIT_ANACTRL_HD_PD_MASK               (~(1<<3))
+#define AW8695_BIT_ANACTRL_HD_PD_EN                 (1<<3)
+#define AW8695_BIT_ANACTRL_HD_HZ_EN                 (0<<3)
+
+// BSTDBG4: reg0x3a
+#define AW8695_BIT_BSTDBG4_BSTVOL_MASK              (~(31<<1))
+
+// PRLVL: reg0x3e
+#define AW8695_BIT_PRLVL_PR_MASK                    (~(1<<7))
+#define AW8695_BIT_PRLVL_PR_ENABLE                  (1<<7)
+#define AW8695_BIT_PRLVL_PR_DISABLE                 (0<<7)
+#define AW8695_BIT_PRLVL_PRLVL_MASK                 (~(0x7f<<0))
+
+//PRTIME: reg0x3f
+#define AW8695_BIT_PRTIME_PRTIME_MASK               (~(0xff<<0))
+
+// BST_AUTO: reg0x47
+#define AW8695_BIT_BST_AUTO_BST_AUTOSW_MASK         (~(1<<2))
+#define AW8695_BIT_BST_AUTO_BST_AUTOMATIC_BOOST     (1<<2)
+#define AW8695_BIT_BST_AUTO_BST_MANUAL_BOOST        (0<<2)
+#define AW8695_BIT_BST_AUTO_BST_RTP_MASK            (~(1<<1))
+#define AW8695_BIT_BST_AUTO_BST_RTP_ENABLE          (1<<1)
+#define AW8695_BIT_BST_AUTO_BST_RTP_DISABLE         (0<<1)
+#define AW8695_BIT_BST_AUTO_BST_RAM_MASK            (~(1<<0))
+#define AW8695_BIT_BST_AUTO_BST_RAM_ENABLE          (1<<0)
+#define AW8695_BIT_BST_AUTO_BST_RAM_DISABLE         (0<<0)
+
+// CONT_CTRL: reg0x48
+#define AW8695_BIT_CONT_CTRL_ZC_DETEC_MASK          (~(1<<7))
+#define AW8695_BIT_CONT_CTRL_ZC_DETEC_ENABLE        (1<<7)
+#define AW8695_BIT_CONT_CTRL_ZC_DETEC_DISABLE       (0<<7)
+#define AW8695_BIT_CONT_CTRL_WAIT_PERIOD_MASK       (~(3<<5))
+#define AW8695_BIT_CONT_CTRL_WAIT_8PERIOD           (3<<5)
+#define AW8695_BIT_CONT_CTRL_WAIT_4PERIOD           (2<<5)
+#define AW8695_BIT_CONT_CTRL_WAIT_2PERIOD           (1<<5)
+#define AW8695_BIT_CONT_CTRL_WAIT_1PERIOD           (0<<5)
+#define AW8695_BIT_CONT_CTRL_MODE_MASK              (~(1<<4))
+#define AW8695_BIT_CONT_CTRL_BY_DRV_TIME            (1<<4)
+#define AW8695_BIT_CONT_CTRL_BY_GO_SIGNAL           (0<<4)
+#define AW8695_BIT_CONT_CTRL_EN_CLOSE_MASK          (~(1<<3))
+#define AW8695_BIT_CONT_CTRL_CLOSE_PLAYBACK         (1<<3)
+#define AW8695_BIT_CONT_CTRL_OPEN_PLAYBACK          (0<<3)
+#define AW8695_BIT_CONT_CTRL_F0_DETECT_MASK         (~(1<<2))
+#define AW8695_BIT_CONT_CTRL_F0_DETECT_ENABLE       (1<<2)
+#define AW8695_BIT_CONT_CTRL_F0_DETECT_DISABLE      (0<<2)
+#define AW8695_BIT_CONT_CTRL_O2C_MASK               (~(1<<1))
+#define AW8695_BIT_CONT_CTRL_O2C_ENABLE             (1<<1)
+#define AW8695_BIT_CONT_CTRL_O2C_DISABLE            (0<<1)
+#define AW8695_BIT_CONT_CTRL_AUTO_BRK_MASK          (~(1<<0))
+#define AW8695_BIT_CONT_CTRL_AUTO_BRK_ENABLE        (1<<0)
+#define AW8695_BIT_CONT_CTRL_AUTO_BRK_DISABLE       (0<<0)
+
+// D2SCFG: reg0x5e
+#define AW8695_BIT_D2SCFG_CLK_ADC_MASK              (~(7<<5))
+#define AW8695_BIT_D2SCFG_CLK_ASC_0P09375MHZ        (7<<5)
+#define AW8695_BIT_D2SCFG_CLK_ASC_0P1875MHZ         (6<<5)
+#define AW8695_BIT_D2SCFG_CLK_ASC_0P375MHZ          (5<<5)
+#define AW8695_BIT_D2SCFG_CLK_ASC_0P75MHZ           (4<<5)
+#define AW8695_BIT_D2SCFG_CLK_ASC_1P5MHZ            (3<<5)
+#define AW8695_BIT_D2SCFG_CLK_ASC_3MHZ              (2<<5)
+#define AW8695_BIT_D2SCFG_CLK_ASC_6MHZ              (1<<5)
+#define AW8695_BIT_D2SCFG_CLK_ASC_12MHZ             (0<<5)
+
+// DETCTRL: reg0x5f
+#define AW8695_BIT_DETCTRL_RL_OS_MASK               (~(1<<6))
+#define AW8695_BIT_DETCTRL_RL_DETECT                (1<<6)
+#define AW8695_BIT_DETCTRL_OS_DETECT                (0<<6)
+#define AW8695_BIT_DETCTRL_PROTECT_MASK             (~(1<<5))
+#define AW8695_BIT_DETCTRL_PROTECT_NO_ACTION        (1<<5)
+#define AW8695_BIT_DETCTRL_PROTECT_SHUTDOWN         (0<<5)
+#define AW8695_BIT_DETCTRL_ADO_SLOT_MODE_MASK       (~(1<<4))
+#define AW8695_BIT_DETCTRL_ADO_SLOT_MODE_ENABLE     (1<<4)
+#define AW8695_BIT_DETCTRL_ADO_SLOT_MODE_DISABLE    (0<<4)
+#define AW8695_BIT_DETCTRL_VBAT_GO_MASK             (~(1<<1))
+#define AW8695_BIT_DETCTRL_VABT_GO_ENABLE           (1<<1)
+#define AW8695_BIT_DETCTRL_VBAT_GO_DISBALE          (0<<1)
+#define AW8695_BIT_DETCTRL_DIAG_GO_MASK             (~(1<<0))
+#define AW8695_BIT_DETCTRL_DIAG_GO_ENABLE           (1<<0)
+#define AW8695_BIT_DETCTRL_DIAG_GO_DISABLE          (0<<0)
 
 
-// CONT_CTRL
-#define AW8695_BIT_CONT_CTRL_ZC_DETEC_MASK       (~(1<<7))
-#define AW8695_BIT_CONT_CTRL_ZC_DETEC_ENABLE     (1<<7)
-#define AW8695_BIT_CONT_CTRL_ZC_DETEC_DISABLE    (0<<7)
-#define AW8695_BIT_CONT_CTRL_WAIT_PERIOD_MASK    (~(3<<5))
-#define AW8695_BIT_CONT_CTRL_WAIT_8PERIOD        (3<<5)
-#define AW8695_BIT_CONT_CTRL_WAIT_4PERIOD        (2<<5)
-#define AW8695_BIT_CONT_CTRL_WAIT_2PERIOD        (1<<5)
-#define AW8695_BIT_CONT_CTRL_WAIT_1PERIOD        (0<<5)
-#define AW8695_BIT_CONT_CTRL_MODE_MASK           (~(1<<4))
-#define AW8695_BIT_CONT_CTRL_BY_DRV_TIME         (1<<4)
-#define AW8695_BIT_CONT_CTRL_BY_GO_SIGNAL        (0<<4)
-#define AW8695_BIT_CONT_CTRL_EN_CLOSE_MASK       (~(1<<3))
-#define AW8695_BIT_CONT_CTRL_CLOSE_PLAYBACK      (1<<3)
-#define AW8695_BIT_CONT_CTRL_OPEN_PLAYBACK       (0<<3)
-#define AW8695_BIT_CONT_CTRL_F0_DETECT_MASK      (~(1<<2))
-#define AW8695_BIT_CONT_CTRL_F0_DETECT_ENABLE    (1<<2)
-#define AW8695_BIT_CONT_CTRL_F0_DETECT_DISABLE   (0<<2)
-#define AW8695_BIT_CONT_CTRL_O2C_MASK            (~(1<<1))
-#define AW8695_BIT_CONT_CTRL_O2C_ENABLE          (1<<1)
-#define AW8695_BIT_CONT_CTRL_O2C_DISABLE         (0<<1)
-#define AW8695_BIT_CONT_CTRL_AUTO_BRK_MASK       (~(1<<0))
-#define AW8695_BIT_CONT_CTRL_AUTO_BRK_ENABLE     (1<<0)
-#define AW8695_BIT_CONT_CTRL_AUTO_BRK_DISABLE    (0<<0)
+// ADCTEST: reg0x66
+#define AW8695_BIT_ADCTEST_VBAT_MODE_MASK           (~(1<<6))
+#define AW8695_BIT_ADCTEST_VBAT_HW_COMP             (1<<6)
+#define AW8695_BIT_ADCTEST_VBAT_SW_COMP             (0<<6)
+
+// BEMF_NUM: reg0x78
+#define AW8695_BIT_BEMF_NUM_BRK_MASK                (~(15<<0))
 
 
-// DETCTRL
-#define AW8695_BIT_DETCTRL_RL_OS_MASK            (~(1<<6))
-#define AW8695_BIT_DETCTRL_RL_DETECT             (1<<6)
-#define AW8695_BIT_DETCTRL_OS_DETECT             (0<<6)
-#define AW8695_BIT_DETCTRL_PROTECT_MASK          (~(1<<5))
-#define AW8695_BIT_DETCTRL_PROTECT_NO_ACTION     (1<<5)
-#define AW8695_BIT_DETCTRL_PROTECT_SHUTDOWN      (0<<5)
-#define AW8695_BIT_DETCTRL_VBAT_GO_MASK          (~(1<<1))
-#define AW8695_BIT_DETCTRL_VABT_GO_ENABLE        (1<<1)
-#define AW8695_BIT_DETCTRL_VBAT_GO_DISBALE       (0<<1)
-#define AW8695_BIT_DETCTRL_DIAG_GO_MASK          (~(1<<0))
-#define AW8695_BIT_DETCTRL_DIAG_GO_ENABLE        (1<<0)
-#define AW8695_BIT_DETCTRL_DIAG_GO_DISABLE       (0<<0)
-
-
-// VBAT MODE
-#define AW8695_BIT_DETCTRL_VBAT_MODE_MASK        (~(1<<6))
-#define AW8695_BIT_DETCTRL_VBAT_HW_COMP          (1<<6)
-#define AW8695_BIT_DETCTRL_VBAT_SW_COMP          (0<<6)
-
-// BSTCFG
-#define AW8695_BIT_BSTCFG_PEAKCUR_MASK          (~(7<<0))
-#define AW8695_BIT_BSTCFG_PEAKCUR_4A            (7<<0)
-#define AW8695_BIT_BSTCFG_PEAKCUR_3P75A         (6<<0)
-#define AW8695_BIT_BSTCFG_PEAKCUR_3P5A          (5<<0)
-#define AW8695_BIT_BSTCFG_PEAKCUR_3P25A         (4<<0)
-#define AW8695_BIT_BSTCFG_PEAKCUR_3A            (3<<0)
-#define AW8695_BIT_BSTCFG_PEAKCUR_2P5A          (2<<0)
-#define AW8695_BIT_BSTCFG_PEAKCUR_2A            (1<<0)
-#define AW8695_BIT_BSTCFG_PEAKCUR_1P5A          (0<<0)
-
-// BSTDBG4
-#define AW8695_BIT_BSTCFG_BSTVOL_MASK           (~(31<<3))
-
-// ANACTRL
-#define AW8695_BIT_ANACTRL_LRA_SRC_MASK         (~(1<<5))
-#define AW8695_BIT_ANACTRL_LRA_SRC_REG          (1<<5)
-#define AW8695_BIT_ANACTRL_LRA_SRC_EFUSE        (0<<5)
 
 #endif
