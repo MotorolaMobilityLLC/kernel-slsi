@@ -1600,22 +1600,22 @@ static void dsim_parse_lcd_info(struct dsim_device *dsim)
 	dsim_info("ddi id : 0x%08x\n", dsim->ddi_id);
 
 	switch (dsim->ddi_id) {
-	case 0xff244040:
+	case 0x404024ff:
 		ddi_device_type = "samsung-s6e3fa0-vdo";
 		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
 
-	case 0x6001a902:
+	case 0x02a90160:
 		ddi_device_type = "novatek-nt36672a";
 		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
 
-	case 0x91720401:
+	case 0x01047291:
 		ddi_device_type = "hixmax-hix83112a";
 		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
 
-	case 0x92120101:
+	case 0x01011292:
 		ddi_device_type = "novatek-nov36672a";
 		dsim_info("ddi type : %s\n", ddi_device_type);
 		break;
@@ -1842,19 +1842,19 @@ static int dsim_parse_dt(struct dsim_device *dsim, struct device *dev)
 static void dsim_register_panel(struct dsim_device *dsim)
 {
 	switch (dsim->ddi_id) {
-	case 0xff244040:
+	case 0x404024ff:
 		dsim->panel_ops = &s6e3fa0_mipi_lcd_driver;
 		dsim_info("panel ops : s6e3fa0_mipi_lcd_driver\n");
 		break;
-	case 0x6001a902:
+	case 0x02a90160:
 		dsim->panel_ops = &nt36672a_mipi_lcd_driver;
 		dsim_info("panel ops : nt36672a_mipi_lcd_driver\n");
 		break;
-	case 0x91720401:
+	case 0x01047291:
 		dsim->panel_ops = &hix83112a_mipi_lcd_driver;
 		dsim_info("panel ops : hix83112a_mipi_lcd_driver\n");
 		break;
-	case 0x92120101:
+	case 0x01011292:
 		dsim->panel_ops = &nov36672a_mipi_lcd_driver;
 		dsim_info("panel ops : nov36672a_mipi_lcd_driver\n");
 		break;
