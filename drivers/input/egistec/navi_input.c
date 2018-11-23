@@ -33,7 +33,7 @@ struct navi_cmd_struct cmd_list;
 
 /*****************************************************************
 *                                                                *
-*                         Configuration                          *
+*                         Configuration                      *
 *                                                                *
 *****************************************************************/
 
@@ -54,8 +54,12 @@ struct navi_cmd_struct cmd_list;
  *               Don't care properties.
  */
 
-#define ENABLE_SWIPE_UP_DOWN	DISABLE
+#define ENABLE_SWIPE_UP_DOWN	ENABLE
+#ifdef CONFIG_INPUT_EGISTEC_FPS_NAVI_HORIZON
+#define ENABLE_SWIPE_LEFT_RIGHT	ENABLE
+#else
 #define ENABLE_SWIPE_LEFT_RIGHT	DISABLE
+#endif
 #define ENABLE_FINGER_DOWN_UP	DISABLE
 #define KEY_FPS_DOWN   614
 #define KEY_FPS_UP     615
@@ -113,7 +117,7 @@ struct navi_cmd_struct cmd_list;
 #define	KEYEVENT_LEFT			KEY_FPS_YPLUS  /* KEY_LEFT */
 #define	KEYEVENT_LEFT_ACTION	KEY_PRESS_RELEASE
 #if ENABLE_FINGER_DOWN_UP
-unsigned int prev_keycode = 0;
+static unsigned int prev_keycode;
 #endif
 /*
  * @ TRANSLATED_COMMAND
@@ -144,8 +148,8 @@ unsigned int prev_keycode = 0;
  * @ ENABLE_TRANSLATED_LONG_TOUCH
  *     ENABLE/DISABLE : enable/disable long-touch event.
  */
-#define ENABLE_TRANSLATED_SINGLE_CLICK	ENABLE
-#define ENABLE_TRANSLATED_DOUBLE_CLICK	ENABLE
+#define ENABLE_TRANSLATED_SINGLE_CLICK	DISABLE
+#define ENABLE_TRANSLATED_DOUBLE_CLICK	DISABLE
 #define ENABLE_TRANSLATED_LONG_TOUCH	DISABLE
 
 
@@ -176,7 +180,7 @@ unsigned int prev_keycode = 0;
  *   KEY_PRESS_RELEASE : Combined action of press-then-release
  */
 #define LONGTOUCH_INTERVAL          400
-#define SINGLECLICK_INTERVAL        200
+#define SINGLECLICK_INTERVAL        150
 #define DOUBLECLICK_INTERVAL        150
 
 
@@ -289,7 +293,6 @@ static unsigned long g_SingleClickJiffies;
 static unsigned int g_SingleClick;
 
 
-
 /* Set event bits according to what events we would generate */
 void init_event_enable(struct etspi_data *etspi)
 {
@@ -389,18 +392,18 @@ void translated_command_converter(char cmd, struct etspi_data *etspi)
 				g_SingleClick, jiffies_to_msecs(jiffies - g_SingleClickJiffies),
 				jiffies_to_msecs(jiffies - g_DoubleClickJiffies), jiffies_to_msecs(jiffies));
 #if ENABLE_TRANSLATED_SINGLE_CLICK
-			if((jiffies - g_SingleClickJiffies) < (HZ * SINGLECLICK_INTERVAL / 1000)) {
+			if ((jiffies - g_SingleClickJiffies) < (HZ * SINGLECLICK_INTERVAL / 1000)) {
 				/* Click event */
 				send_key_event(etspi, KEYEVENT_CLICK, KEYEVENT_CLICK_ACTION);
 				g_SingleClick++;
-				if(g_SingleClick == 1) {
+				if (g_SingleClick == 1) {
 					g_DoubleClickJiffies = jiffies;
 				}
 			}
 #endif
 #if ENABLE_TRANSLATED_DOUBLE_CLICK
-			if (g_SingleClick >= 2 ) {
-				if((jiffies - g_DoubleClickJiffies) < (HZ * (SINGLECLICK_INTERVAL+DOUBLECLICK_INTERVAL) / 1000)) {
+			if (g_SingleClick >= 2) {
+				if ((jiffies - g_DoubleClickJiffies) < (HZ * (SINGLECLICK_INTERVAL+DOUBLECLICK_INTERVAL) / 1000)) {
 					/* Double click event */
 					send_key_event(etspi, KEYEVENT_DOUBLECLICK, KEYEVENT_DOUBLECLICK_ACTION);
 					g_SingleClick = 0;
@@ -411,7 +414,7 @@ void translated_command_converter(char cmd, struct etspi_data *etspi)
 
 			}
 #endif
-			
+
 #if ENABLE_FINGER_DOWN_UP
 			send_key_event(etspi, KEYEVENT_OFF, KEYEVENT_OFF_ACTION);
 #endif
@@ -580,15 +583,18 @@ static ssize_t navigation_event_func(struct device *dev,
 
 	if (etspi->input_dev == NULL)
 		pr_err("Egis navigation driver, etspi->input_dev is NULL\n");
+
+
 	tempcmd = kmalloc(sizeof(*tempcmd), GFP_KERNEL);
-	if (tempcmd != NULL) {
+	if(tempcmd != NULL) {
 		mutex_lock(&driver_mode_lock);
 		tempcmd->cmd = *buf;
+
 		list_add_tail(&tempcmd->list, &cmd_list.list);
 		nav_input_sig = 1;
 		mutex_unlock(&driver_mode_lock);
 		wake_up_interruptible(&nav_input_wait);
-	} else {
+	}else {
 		pr_err("navigation_event_func kmalloc failed\n");
 
 	}
@@ -644,16 +650,20 @@ static int nav_input_thread(void *et_spi)
 {
 	struct etspi_data *etspi = et_spi;
 	struct navi_cmd_struct *tempcmd, *acmd;
-
 	set_user_nice(current, -20);
+
 	DEBUG_PRINT("nav_input_thread enter\n");
+
 
 	while (1) {
 		wait_event_interruptible(nav_input_wait,
 			nav_input_sig || kthread_should_stop());
+
 		mutex_lock(&driver_mode_lock);
+
 		list_for_each_entry_safe(acmd, tempcmd, &cmd_list.list, list) {
-			translated_command_converter(acmd->cmd, etspi);
+			//access the member from aPerson
+			translated_command_converter(acmd->cmd,etspi);
 			list_del(&acmd->list);
 			kfree(acmd);
 		}
@@ -687,7 +697,7 @@ void uinput_egis_init(struct etspi_data *etspi)
 
 	INIT_LIST_HEAD(&cmd_list.list);
 	nav_input_sig = 0;
-	if (!nav_kthread) {
+	if(!nav_kthread) {
 		nav_kthread = kthread_run(nav_input_thread,
 			(void *)etspi, "nav_thread");
 	}
