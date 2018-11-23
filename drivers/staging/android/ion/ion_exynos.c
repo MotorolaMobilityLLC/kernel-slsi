@@ -193,6 +193,7 @@ void __ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova)
 			return;
 		}
 	}
+	mutex_unlock(&buffer->lock);
 
 	WARN(1, "iova %pad not found for %s\n",
 	     &iova, dev_name(attachment->dev));
