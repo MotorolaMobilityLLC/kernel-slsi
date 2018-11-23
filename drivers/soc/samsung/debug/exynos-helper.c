@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/smc.h>
+#include <linux/reboot.h>
 #include <linux/debug-snapshot-helper.h>
 #include <linux/debug-snapshot.h>
 #include <soc/samsung/exynos-debug.h>
@@ -41,7 +42,7 @@
 #include <soc/samsung/acpm_ipc_ctrl.h>
 #endif
 
-extern void (*arm_pm_restart)(char str, const char *cmd);
+extern void (*arm_pm_restart)(enum reboot_mode str, const char *cmd);
 
 static void exynos_early_panic(void *val)
 {
@@ -76,7 +77,7 @@ static void exynos_post_panic_entry(void *val)
 static void exynos_post_panic_exit(void *val)
 {
 #ifdef CONFIG_DEBUG_SNAPSHOT_PANIC_REBOOT
-	arm_pm_restart(0, "panic");
+	arm_pm_restart(REBOOT_COLD, "panic");
 #endif
 }
 

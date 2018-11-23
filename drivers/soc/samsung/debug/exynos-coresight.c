@@ -657,14 +657,14 @@ static struct bus_type ecs_subsys = {
 	.dev_name = "exynos-cs",
 };
 
-static ssize_t ecs_enable_show(struct kobject *kobj,
-			         struct kobj_attribute *attr, char *buf)
+static ssize_t ecs_enable_show(struct device *dev,
+			         struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, 10, "%sable\n", FLAG_T32_EN ? "en" : "dis");
 }
 
-static ssize_t ecs_enable_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t ecs_enable_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	int en;
@@ -680,7 +680,7 @@ static ssize_t ecs_enable_store(struct kobject *kobj,
 	return count;
 }
 
-static struct kobj_attribute ecs_enable_attr =
+static struct device_attribute ecs_enable_attr =
         __ATTR(enabled, 0644, ecs_enable_show, ecs_enable_store);
 
 static struct attribute *ecs_sysfs_attrs[] = {

@@ -1242,8 +1242,8 @@ static struct bus_type itmon_subsys = {
 	.dev_name = "itmon",
 };
 
-static ssize_t itmon_timeout_fix_val_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+static ssize_t itmon_timeout_fix_val_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	ssize_t n = 0;
 	struct itmon_platdata *pdata = g_itmon->pdata;
@@ -1253,8 +1253,8 @@ static ssize_t itmon_timeout_fix_val_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t itmon_timeout_fix_val_store(struct kobject *kobj,
-		struct kobj_attribute *attr, const char *buf, size_t count)
+static ssize_t itmon_timeout_fix_val_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long val = simple_strtoul(buf, NULL, 0);
 	struct itmon_platdata *pdata = g_itmon->pdata;
@@ -1265,8 +1265,8 @@ static ssize_t itmon_timeout_fix_val_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t itmon_scandump_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+static ssize_t itmon_scandump_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	ssize_t n = 0;
 	struct itmon_platdata *pdata = g_itmon->pdata;
@@ -1278,8 +1278,8 @@ static ssize_t itmon_scandump_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t itmon_scandump_store(struct kobject *kobj,
-		struct kobj_attribute *attr, const char *buf, size_t count)
+static ssize_t itmon_scandump_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long val = simple_strtoul(buf, NULL, 0);
 	struct itmon_platdata *pdata = g_itmon->pdata;
@@ -1292,8 +1292,8 @@ static ssize_t itmon_scandump_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t itmon_timeout_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+static ssize_t itmon_timeout_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	unsigned long i, offset;
 	ssize_t n = 0;
@@ -1319,8 +1319,8 @@ static ssize_t itmon_timeout_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t itmon_timeout_val_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+static ssize_t itmon_timeout_val_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	unsigned long i, offset;
 	ssize_t n = 0;
@@ -1346,8 +1346,8 @@ static ssize_t itmon_timeout_val_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t itmon_timeout_freeze_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+static ssize_t itmon_timeout_freeze_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	unsigned long i, offset;
 	ssize_t n = 0;
@@ -1373,8 +1373,8 @@ static ssize_t itmon_timeout_freeze_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t itmon_timeout_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t itmon_timeout_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	char *name;
@@ -1411,8 +1411,8 @@ static ssize_t itmon_timeout_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t itmon_timeout_val_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t itmon_timeout_val_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	char *name;
@@ -1446,8 +1446,8 @@ static ssize_t itmon_timeout_val_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t itmon_timeout_freeze_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t itmon_timeout_freeze_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	char *name;
@@ -1484,15 +1484,15 @@ static ssize_t itmon_timeout_freeze_store(struct kobject *kobj,
 	return count;
 }
 
-static struct kobj_attribute itmon_timeout_attr =
+static struct device_attribute itmon_timeout_attr =
 	__ATTR(timeout_en, 0644, itmon_timeout_show, itmon_timeout_store);
-static struct kobj_attribute itmon_timeout_fix_attr =
+static struct device_attribute itmon_timeout_fix_attr =
 	__ATTR(set_val, 0644, itmon_timeout_fix_val_show, itmon_timeout_fix_val_store);
-static struct kobj_attribute itmon_scandump_attr =
+static struct device_attribute itmon_scandump_attr =
 	__ATTR(scandump_en, 0644, itmon_scandump_show, itmon_scandump_store);
-static struct kobj_attribute itmon_timeout_val_attr =
+static struct device_attribute itmon_timeout_val_attr =
 	__ATTR(timeout_val, 0644, itmon_timeout_val_show, itmon_timeout_val_store);
-static struct kobj_attribute itmon_timeout_freeze_attr =
+static struct device_attribute itmon_timeout_freeze_attr =
 	__ATTR(timeout_freeze, 0644, itmon_timeout_freeze_show, itmon_timeout_freeze_store);
 
 static struct attribute *itmon_sysfs_attrs[] = {

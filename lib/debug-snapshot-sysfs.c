@@ -47,8 +47,8 @@ extern int dss_irqlog_exlist[DSS_EX_MAX_NUM];
 extern int dss_irqexit_exlist[DSS_EX_MAX_NUM];
 extern unsigned int dss_irqexit_threshold;
 
-static ssize_t dss_enable_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
+static ssize_t dss_enable_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct dbg_snapshot_item *item;
 	unsigned long i;
@@ -68,8 +68,8 @@ static ssize_t dss_enable_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t dss_enable_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t dss_enable_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	int en;
@@ -96,8 +96,8 @@ static ssize_t dss_enable_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t dss_callstack_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
+static ssize_t dss_callstack_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	ssize_t n = 0;
 
@@ -106,7 +106,7 @@ static ssize_t dss_callstack_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t dss_callstack_store(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t dss_callstack_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	unsigned long callstack;
@@ -121,8 +121,8 @@ static ssize_t dss_callstack_store(struct kobject *kobj, struct kobj_attribute *
 	return count;
 }
 
-static ssize_t dss_irqlog_exlist_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
+static ssize_t dss_irqlog_exlist_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	unsigned long i;
 	ssize_t n = 0;
@@ -137,8 +137,8 @@ static ssize_t dss_irqlog_exlist_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t dss_irqlog_exlist_store(struct kobject *kobj,
-					struct kobj_attribute *attr,
+static ssize_t dss_irqlog_exlist_store(struct device *dev,
+					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
 	unsigned long i;
@@ -165,8 +165,8 @@ static ssize_t dss_irqlog_exlist_store(struct kobject *kobj,
 }
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-static ssize_t dss_irqexit_exlist_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
+static ssize_t dss_irqexit_exlist_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	unsigned long i;
 	ssize_t n = 0;
@@ -180,8 +180,8 @@ static ssize_t dss_irqexit_exlist_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t dss_irqexit_exlist_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t dss_irqexit_exlist_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	unsigned long i;
@@ -207,8 +207,8 @@ static ssize_t dss_irqexit_exlist_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t dss_irqexit_threshold_show(struct kobject *kobj,
-					struct kobj_attribute *attr, char *buf)
+static ssize_t dss_irqexit_threshold_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
 {
 	ssize_t n;
 
@@ -216,8 +216,8 @@ static ssize_t dss_irqexit_threshold_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t dss_irqexit_threshold_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t dss_irqexit_threshold_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	unsigned long val;
@@ -234,8 +234,8 @@ static ssize_t dss_irqexit_threshold_store(struct kobject *kobj,
 #endif
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_REG
-static ssize_t dss_reg_exlist_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
+static ssize_t dss_reg_exlist_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	unsigned long i;
 	ssize_t n = 0;
@@ -250,8 +250,8 @@ static ssize_t dss_reg_exlist_show(struct kobject *kobj,
 	return n;
 }
 
-static ssize_t dss_reg_exlist_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
+static ssize_t dss_reg_exlist_store(struct device *dev,
+				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	unsigned long i;
@@ -274,27 +274,27 @@ static ssize_t dss_reg_exlist_store(struct kobject *kobj,
 #endif
 
 
-static struct kobj_attribute dss_enable_attr =
+static struct device_attribute dss_enable_attr =
 __ATTR(enabled, 0644, dss_enable_show, dss_enable_store);
 
-static struct kobj_attribute dss_callstack_attr =
+static struct device_attribute dss_callstack_attr =
 __ATTR(callstack, 0644, dss_callstack_show, dss_callstack_store);
 
-static struct kobj_attribute dss_irqlog_attr =
+static struct device_attribute dss_irqlog_attr =
 __ATTR(exlist_irqdisabled, 0644, dss_irqlog_exlist_show,
 					dss_irqlog_exlist_store);
 #ifdef CONFIG_DEBUG_SNAPSHOT_IRQ_EXIT
-static struct kobj_attribute dss_irqexit_attr =
+static struct device_attribute dss_irqexit_attr =
 __ATTR(exlist_irqexit, 0644, dss_irqexit_exlist_show,
 					dss_irqexit_exlist_store);
 
-static struct kobj_attribute dss_irqexit_threshold_attr =
+static struct device_attribute dss_irqexit_threshold_attr =
 __ATTR(threshold_irqexit, 0644, dss_irqexit_threshold_show,
 					dss_irqexit_threshold_store);
 #endif
 #ifdef CONFIG_DEBUG_SNAPSHOT_REG
 
-static struct kobj_attribute dss_reg_attr =
+static struct device_attribute dss_reg_attr =
 __ATTR(exlist_reg, 0644, dss_reg_exlist_show, dss_reg_exlist_store);
 #endif
 
