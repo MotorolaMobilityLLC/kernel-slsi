@@ -14,7 +14,6 @@ fw-external-y := $(subst $(quote),,$(CONFIG_EXTRA_FIRMWARE))
 
 fw-external-$(CONFIG_EXYNOS9610_ACPM) += exynos9610_acpm_fvp.fw
 fw-external-$(CONFIG_EXYNOS9610_ACPM) += exynos9610_acpm_tmu.fw
-fw-external-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_DSX) += tsp_synaptics/synaptics_b0_h.fw
 
 quiet_cmd_ihex  = IHEX    $@
       cmd_ihex  = $(OBJCOPY) -Iihex -Obinary $< $@
