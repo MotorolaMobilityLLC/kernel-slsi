@@ -49,23 +49,27 @@
 #include "et320.h"
 #include "navi_input.h"
 
+#define FP_SPICLK_ENABLE			0xaa
+#define FP_SPICLK_DISABLE			0xab
+
 #define EDGE_TRIGGER_FALLING    0x0
 #define	EDGE_TRIGGER_RAISING    0x1
 #define	LEVEL_TRIGGER_LOW       0x2
 #define	LEVEL_TRIGGER_HIGH      0x3
-#define EGIS_NAVI_INPUT 0  /* 1:open ; 0:close */
+#define EGIS_NAVI_INPUT 1  /* 1:open ; 0:close */
 struct wake_lock et320_wake_lock;
 
 /*
  * FPS interrupt table
  */
+struct clk *fp_spi_clk, *fp_spi_busclk0;
 
 struct interrupt_desc fps_ints = {0 , 0, "BUT0" , 0};
 
-unsigned int bufsiz = 4096;
+static unsigned int bufsiz = 4096;
 
-int gpio_irq;
-int request_irq_done = 0;
+static int gpio_irq;
+static int request_irq_done;
 /* int t_mode = 255; */
 
 #define EDGE_TRIGGER_FALLING    0x0
@@ -80,6 +84,7 @@ struct ioctl_cmd {
 int int_mode;
 int detect_period;
 int detect_threshold;
+int clk_enable;
 };
 /* To be compatible with fpc driver */
 #ifndef CONFIG_SENSORS_FPC_1020
@@ -370,8 +375,74 @@ int Interrupt_Free(struct etspi_data *etspi)
 	return 0;
 }
 
+static int spi_spp_clk_enable(struct platform_device *pdev, int bonoff)
+{
+	DEBUG_PRINT("%s line:%d enable spi clk\n", __func__,__LINE__);
+	fp_spi_clk = clk_get(&pdev->dev, "spi");
+	if (IS_ERR(fp_spi_clk)) {
+		DEBUG_PRINT("%s line:%d Can't get fp_spi_clk\n", __func__,__LINE__);
+		return -1;
+	}
+
+	fp_spi_busclk0 = clk_get(&pdev->dev, "spi_busclk0");
+	if (IS_ERR(fp_spi_busclk0)) {
+		DEBUG_PRINT("%s line:%d Can't get fp_spi_busclk0\n", __func__,__LINE__);
+		return -1;
+	}
+
+	DEBUG_PRINT("%s line:%d enable spi clk okxxxxx\n", __func__,__LINE__);
+	if (bonoff == 1) {
+		DEBUG_PRINT("%s line:%d enable spi clk\n", __func__,__LINE__);
+		clk_prepare_enable(fp_spi_clk);
+		clk_prepare_enable(fp_spi_busclk0);
+		clk_set_rate(fp_spi_clk, 10000000*4);
+		clk_set_rate(fp_spi_busclk0, 10000000*4);
+	} else {
+		DEBUG_PRINT("%s line:%d disable spi clk\n", __func__,__LINE__);
+		clk_disable_unprepare(fp_spi_clk);
+		clk_disable_unprepare(fp_spi_busclk0);
+		clk_put(fp_spi_clk);
+		clk_put(fp_spi_busclk0);
+		fp_spi_clk = NULL;
+		fp_spi_busclk0 = NULL;
+	}
+    return 0;
+}
 
 
+static int spi_clk_enable(struct etspi_data *etspi, int bonoff)
+{
+	DEBUG_PRINT("%s line:%d enable spi clk\n", __func__,__LINE__);
+	fp_spi_clk = clk_get(&etspi->spi->dev, "spi");
+	if (IS_ERR(fp_spi_clk)) {
+		DEBUG_PRINT("%s line:%d Can't get fp_spi_clk\n", __func__,__LINE__);
+		return -1;
+	}
+
+	fp_spi_busclk0 = clk_get(&etspi->spi->dev, "spi_busclk0");
+	if (IS_ERR(fp_spi_busclk0)) {
+		DEBUG_PRINT("%s line:%d Can't get fp_spi_busclk0\n", __func__,__LINE__);
+		return -1;
+	}
+
+	if (bonoff == 1) {
+
+		DEBUG_PRINT("%s line:%d enable spi clk\n", __func__,__LINE__);
+		clk_prepare_enable(fp_spi_clk);
+		clk_prepare_enable(fp_spi_busclk0);
+		clk_set_rate(fp_spi_clk, 10000000*4);
+		clk_set_rate(fp_spi_busclk0, 10000000*4);
+	} else {
+		DEBUG_PRINT("%s line:%d disable spi clk\n", __func__,__LINE__);
+		clk_disable_unprepare(fp_spi_clk);
+		clk_disable_unprepare(fp_spi_busclk0);
+		clk_put(fp_spi_clk);
+		clk_put(fp_spi_busclk0);
+		fp_spi_clk = NULL;
+		fp_spi_busclk0 = NULL;
+	}
+    return 0;
+}
 
 /*
  *	FUNCTION NAME.
@@ -492,6 +563,17 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		DEBUG_PRINT("etspi:fp_ioctl <<< fp Trigger function abort\n");
 		fps_interrupt_abort();
 		goto done;
+	case FP_SET_SPI_CLOCK:
+	case FP_SPICLK_ENABLE:
+	case FP_SPICLK_DISABLE:
+		if (copy_from_user(&data, (int __user *)arg, sizeof(data))) {
+			retval = -EFAULT;
+			goto done;
+		}
+		DEBUG_PRINT("fp_ioctl <<< FP_SPICLK_ENABLE_DISABLE -------  \n");
+		DEBUG_PRINT("etspi:fp_ioctl spi_clk_enable = %x\n", data.clk_enable);
+		spi_clk_enable(etspi, data.clk_enable);
+		goto done;
 	default:
 	retval = -ENOTTY;
 	break;
@@ -587,7 +669,7 @@ int etspi_platformInit(struct etspi_data *etspi)
 
 	if (etspi != NULL) {
 		/* initial 18V power pin */
-#if GPIO_LDO1P8_EN
+#if GPIO_LDO1P8_EN		
 		status = gpio_request(etspi->vdd_18v_Pin, "fp_18v-gpio");
 		if (status < 0) {
 			pr_err("%s gpio_requset vdd_18v_Pin failed\n",
@@ -666,7 +748,7 @@ etspi_platformInit_gpio_init_failed:
 #if GPIO_LDO3P3_EN
 	gpio_free(etspi->vcc_33v_Pin);
 #endif
-#if GPIO_LDO1P8_EN
+#if GPIO_LDO1P8_EN 
 	gpio_free(etspi->vdd_18v_Pin);
 #endif
 etspi_platformInit_irq_failed:
@@ -710,7 +792,7 @@ static int etspi_parse_dt(struct device *dev,
 		pr_info("%s: 3.3v power pin=%d\n", __func__, data->vcc_33v_Pin);
 	}
 #endif
-#if GPIO_LDO1P8_EN
+#if GPIO_LDO1P8_EN	
 	gpio = of_get_named_gpio(np, "egistec,gpio_ldo1p8_en", 0);
 	if (gpio < 0) {
 		errorno = gpio;
@@ -719,7 +801,7 @@ static int etspi_parse_dt(struct device *dev,
 		data->vdd_18v_Pin = gpio;
 		pr_info("%s: 18v power pin=%d\n", __func__, data->vdd_18v_Pin);
 	}
-#endif
+#endif	
 	DEBUG_PRINT("%s is successful\n", __func__);
 	return errorno;
 dt_exit:
@@ -744,6 +826,8 @@ static const struct file_operations etspi_fops = {
 static struct class *etspi_class;
 
 static int etspi_probe(struct platform_device *pdev);
+static int etspi_resume(struct platform_device *pdev);
+static int etspi_suspend(struct platform_device *pdev, pm_message_t state);
 static int etspi_remove(struct platform_device *pdev);
 
 #if 0
@@ -846,8 +930,10 @@ static struct platform_driver etspi_driver = {
 		.owner		= THIS_MODULE,
 		.of_match_table = etspi_match_table,
 	},
-    .probe =    etspi_probe,
-    .remove =   etspi_remove,
+    .probe 		=   etspi_probe,
+    .remove 	=   etspi_remove,
+    .resume 	=	etspi_resume,
+    .suspend 	=	etspi_suspend,
 };
 /* remark for dual sensors */
 /* module_platform_driver(etspi_driver); */
@@ -865,12 +951,27 @@ static int etspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int etspi_resume(struct platform_device *pdev)
+{
+	DEBUG_PRINT("%s(#%d)\n", __func__, __LINE__);
+	spi_spp_clk_enable(pdev , 1);
+	return 0;
+}
+
+static int etspi_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	DEBUG_PRINT("%s(#%d)\n", __func__, __LINE__);
+	spi_spp_clk_enable(pdev , 0);
+	return 0;
+}
+
+
+
 #define PINCTRL_STATE_DEFAULT "default"
 static int etspi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct etspi_data *etspi;
-	struct clk *fp_spi_clk, *fp_spi_busclk0;
 	struct pinctrl *pinctrlfpc;
 	struct pinctrl_state *gpioState;
 	int status = 0;
@@ -879,44 +980,42 @@ static int etspi_probe(struct platform_device *pdev)
 
 	DEBUG_PRINT("%s initial\n", __func__);
 	pinctrlfpc = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(pinctrlfpc)) 
+	if (IS_ERR(pinctrlfpc))
 	{
 		status = PTR_ERR(pinctrlfpc);
 		pr_err("Cannot find pinctrl!\n");
 		return -1;
 	}
 	gpioState =  pinctrl_lookup_state(pinctrlfpc, PINCTRL_STATE_DEFAULT);
-	if (IS_ERR(gpioState)) 
-	 {
+	if (IS_ERR(gpioState))
+	{
 		status = PTR_ERR(gpioState);
 		pr_err("%s pinctrl_lookup_state fail %d\n", __func__, status);
 		return -1;
-	} 
+	}
 	status =pinctrl_select_state(pinctrlfpc, gpioState);
 	if (status)
 	{
 		pr_err("pinctrl_select_state failed\n");
 		return -1;
 	}
-	
+
 	fp_spi_clk = clk_get(&pdev->dev, "spi");
 	if (IS_ERR(fp_spi_clk)) {
 		pr_err("Can't get fp_spi_clk\n");
 		return -1;
 	}
-
+	
 	fp_spi_busclk0 = clk_get(&pdev->dev, "spi_busclk0");
 	if (IS_ERR(fp_spi_busclk0)) {
 		pr_err("Can't get fp_spi_busclk0\n");
 		return -1;
 	}
-
+	
 	clk_prepare_enable(fp_spi_clk);
 	clk_prepare_enable(fp_spi_busclk0);
 	clk_set_rate(fp_spi_clk, 10000000*4);
 	clk_set_rate(fp_spi_busclk0, 10000000*4);
-	clk_put(fp_spi_clk);
-	clk_put(fp_spi_busclk0);
 
 	BUILD_BUG_ON(N_SPI_MINORS > 256);
 	status = register_chrdev(ET320_MAJOR, "et320", &etspi_fops);

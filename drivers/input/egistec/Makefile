@@ -6,5 +6,6 @@
 
 
 obj-$(CONFIG_INPUT_EGISTEC_320) += et320-int.o
+obj-$(CONFIG_INPUT_EGISTEC_320) += navi_input.o
 # navi_input.o
 
