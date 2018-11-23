@@ -55,8 +55,11 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 	prop = of_get_flat_dt_prop(rmem->fdt_node, "ion,alignment", &len);
 	if (prop && (be32_to_cpu(prop[0]) >= PAGE_SIZE)) {
 		alloc_align = be32_to_cpu(prop[0]);
-		if ((alloc_align & (alloc_align - 1)) != 0)
-			alloc_align = 1 << (get_order(alloc_align) + PAGE_SHIFT);
+		if ((alloc_align & (alloc_align - 1)) != 0) {
+			long order = get_order(alloc_align);
+
+			alloc_align = 1UL << (order + PAGE_SHIFT);
+		}
 	}
 
 	prop = of_get_flat_dt_prop(rmem->fdt_node, "ion,heapname", &len);
