@@ -186,7 +186,7 @@ static void carveout_heap_query(struct ion_heap *heap,
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
 
-	data->size = carveout_heap->size;
+	data->size = (__u32)carveout_heap->size;
 	if (carveout_heap->secure)
 		data->heap_flags |= ION_HEAPDATA_FLAGS_ALLOW_PROTECTION;
 	if (carveout_heap->untouchable)

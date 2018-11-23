@@ -55,7 +55,8 @@ static int ion_hpa_allocate(struct ion_heap *heap,
 				 unsigned long flags)
 {
 	struct ion_hpa_heap *hpa_heap = to_hpa_heap(heap);
-	unsigned int count = ION_HPA_PAGE_COUNT((unsigned int)len, hpa_heap);
+	unsigned int count =
+		(unsigned int)ION_HPA_PAGE_COUNT((unsigned int)len, hpa_heap);
 	bool zero = !(flags & ION_FLAG_NOZEROED);
 	bool cacheflush = !(flags & ION_FLAG_CACHED) ||
 			  ((flags & ION_FLAG_SYNC_FORCE) != 0);

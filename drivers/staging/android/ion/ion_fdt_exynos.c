@@ -98,7 +98,7 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 	ion_reserved_mem[reserved_mem_count].base = rmem->base;
 	ion_reserved_mem[reserved_mem_count].size = rmem->size;
 	ion_reserved_mem[reserved_mem_count].heapname = heapname;
-	ion_reserved_mem[reserved_mem_count].alloc_align = alloc_align;
+	ion_reserved_mem[reserved_mem_count].alloc_align = (unsigned int)alloc_align;
 	ion_reserved_mem[reserved_mem_count].protection_id = protection_id;
 	ion_reserved_mem[reserved_mem_count].secure = secure;
 	ion_reserved_mem[reserved_mem_count].untouchable = untch;
