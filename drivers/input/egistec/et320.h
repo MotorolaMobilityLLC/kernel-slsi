@@ -24,7 +24,7 @@
 #include <linux/printk.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
-
+#include <linux/clk.h>
 
 /*#define FP_SPI_DEBUG*/
 #define FP_SPI_DEBUG
@@ -137,7 +137,6 @@ struct etspi_data {
 	unsigned int vcc_33v_Pin;	/* Reset GPIO pin number */
     struct input_dev	*input_dev;
 	bool property_navigation_enable;
-
 };
 
 
