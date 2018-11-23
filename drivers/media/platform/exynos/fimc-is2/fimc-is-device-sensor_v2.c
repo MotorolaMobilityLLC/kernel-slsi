@@ -1228,9 +1228,6 @@ static int fimc_is_sensor_notify_by_line(struct fimc_is_device_sensor *device,
 
 	FIMC_BUG(!device);
 
-	if (device->line_fcount == 0)
-		device->line_fcount = 1;
-
 	device->line_fcount++;
 
 	group = &device->group_sensor;
