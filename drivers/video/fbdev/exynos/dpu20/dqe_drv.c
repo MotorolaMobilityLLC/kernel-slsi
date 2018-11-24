@@ -27,7 +27,7 @@ struct class *dqe_class;
 
 u32 gamma_lut[3][65];
 u32 cgc_lut[8][3];
-u32 hsc_lut[2][6];
+u32 hsc_lut[35];
 
 int dqe_log_level = 6;
 module_param(dqe_log_level, int, 0644);
@@ -145,10 +145,9 @@ static int dqe_save_context(void)
 
 	dqe->ctx.gamma_on = dqe_reg_get_gamma_on();
 
-	dqe->ctx.hsc[0].val = dqe_read(dqe->ctx.hsc[0].addr); /* DQEHSC_PPSCGAIN_RGB */
-	dqe->ctx.hsc[1].val = dqe_read(dqe->ctx.hsc[1].addr); /* DQEHSC_PPSCGAIN_CMY */
-	dqe->ctx.hsc[6].val = dqe_read(dqe->ctx.hsc[6].addr); /* DQEHSC_PPHCGAIN_RGB */
-	dqe->ctx.hsc[7].val = dqe_read(dqe->ctx.hsc[7].addr); /* DQEHSC_PPHCGAIN_CMY */
+	for (i = 0; i < DQEHSCLUT_MAX; i++)
+		dqe->ctx.hsc[i].val =
+			dqe_read(dqe->ctx.hsc[i].addr);
 
 	dqe->ctx.hsc_on = dqe_reg_get_hsc_on();
 	dqe->ctx.hsc_control = dqe_reg_get_hsc_control();
@@ -187,10 +186,7 @@ static int dqe_restore_context(void)
 	if (dqe->ctx.hsc_on) {
 		dqe_reg_set_hsc_control_all_reset();
 		dqe_reg_set_hsc_on(1);
-		if (dqe->ctx.hsc_control) {
-			dqe_reg_set_hsc_pphc_on(1);
-			dqe_reg_set_hsc_ppsc_on(1);
-		}
+		dqe_reg_set_hsc_control(dqe->ctx.hsc_control);
 	}
 
 	dqe->ctx.need_udpate = false;
@@ -231,18 +227,42 @@ static void dqe_hsc_lut_set(void)
 {
 	struct dqe_device *dqe = dqe_drvdata;
 
-	/* PPSCGAIN_RGB */
+	/* DQEHSC_PPSCGAIN_RGB */
 	dqe->ctx.hsc[0].val = (
-		DQEHSCLUT_R(hsc_lut[0][0]) | DQEHSCLUT_G(hsc_lut[0][1]) | DQEHSCLUT_B(hsc_lut[0][2]));
-	/* PPSCGAIN_CMY */
+		DQEHSCLUT_R(hsc_lut[1]) | DQEHSCLUT_G(hsc_lut[2]) | DQEHSCLUT_B(hsc_lut[3]));
+	/* DQEHSC_PPSCGAIN_CMY */
 	dqe->ctx.hsc[1].val = (
-		DQEHSCLUT_C(hsc_lut[0][3]) | DQEHSCLUT_M(hsc_lut[0][4]) | DQEHSCLUT_Y(hsc_lut[0][5]));
-	/* PPHCGAIN_RGB */
+		DQEHSCLUT_C(hsc_lut[4]) | DQEHSCLUT_M(hsc_lut[5]) | DQEHSCLUT_Y(hsc_lut[6]));
+	/* DQEHSC_ALPHASCALE_SHIFT */
+	dqe->ctx.hsc[2].val = (
+		DQEHSCLUT_ALPHA_SHIFT2(hsc_lut[21]) | DQEHSCLUT_ALPHA_SHIFT1(hsc_lut[20]) |
+		DQEHSCLUT_ALPHA_SCALE(hsc_lut[19]));
+	/* DQEHSC_POLY_CURVE0 */
+	dqe->ctx.hsc[3].val = (
+		DQEHSCLUT_POLY_CURVE3(hsc_lut[24]) | DQEHSCLUT_POLY_CURVE2(hsc_lut[23]) |
+		DQEHSCLUT_POLY_CURVE1(hsc_lut[22]));
+	/* DQEHSC_POLY_CURVE1 */
+	dqe->ctx.hsc[4].val = (
+		DQEHSCLUT_POLY_CURVE6(hsc_lut[27]) | DQEHSCLUT_POLY_CURVE5(hsc_lut[26]) |
+		DQEHSCLUT_POLY_CURVE4(hsc_lut[25]));
+	/* DQEHSC_SKIN_S */
+	dqe->ctx.hsc[5].val = (
+		DQEHSCLUT_SKIN_S2(hsc_lut[34]) | DQEHSCLUT_SKIN_S1(hsc_lut[33]));
+	/* DQEHSC_PPHCGAIN_RGB */
 	dqe->ctx.hsc[6].val = (
-		DQEHSCLUT_R(hsc_lut[1][0]) | DQEHSCLUT_G(hsc_lut[1][1]) | DQEHSCLUT_B(hsc_lut[1][2]));
-	/* PPHCGAIN_CMY */
+		DQEHSCLUT_R(hsc_lut[13]) | DQEHSCLUT_G(hsc_lut[14]) | DQEHSCLUT_B(hsc_lut[15]));
+	/* DQEHSC_PPHCGAIN_CMY */
 	dqe->ctx.hsc[7].val = (
-		DQEHSCLUT_C(hsc_lut[1][3]) | DQEHSCLUT_M(hsc_lut[1][4]) | DQEHSCLUT_Y(hsc_lut[1][5]));
+		DQEHSCLUT_C(hsc_lut[16]) | DQEHSCLUT_M(hsc_lut[17]) | DQEHSCLUT_Y(hsc_lut[18]));
+	/* DQEHSC_TSC_YCOMP */
+	dqe->ctx.hsc[8].val = (
+		DQEHSCLUT_YCOMP_RATIO(hsc_lut[8]) | DQEHSCLUT_TSC_GAIN(hsc_lut[10]));
+	/* DQEHSC_POLY_CURVE2 */
+	dqe->ctx.hsc[9].val = (
+		DQEHSCLUT_POLY_CURVE8(hsc_lut[29]) | DQEHSCLUT_POLY_CURVE7(hsc_lut[28]));
+	/* DQEHSC_SKIN_H */
+	dqe->ctx.hsc[10].val = (
+		DQEHSCLUT_SKIN_S2(hsc_lut[32]) | DQEHSCLUT_SKIN_S1(hsc_lut[31]));
 }
 
 static ssize_t decon_dqe_gamma_show(struct device *dev,
@@ -539,6 +559,7 @@ static ssize_t decon_dqe_hsc_store(struct device *dev, struct device_attribute *
 	char *ptr = NULL;
 	struct dqe_device *dqe = dev_get_drvdata(dev);
 	struct decon_device *decon = get_decon_drvdata(0);
+	s32 hsc_lut_signed[35] = {0,};
 
 	dqe_info("%s +\n", __func__);
 
@@ -566,8 +587,8 @@ static ssize_t decon_dqe_hsc_store(struct device *dev, struct device_attribute *
 	head = (char *)buffer;
 	if  (*head != 0) {
 		dqe_dbg("%s\n", head);
-		for (i = 0; i < 2; i++) {
-			k = (i == 1) ? 5 : 6;
+		for (i = 0; i < 1; i++) {
+			k = 34;
 			for (j = 0; j < k; j++) {
 				ptr = strchr(head, ',');
 				if (ptr == NULL) {
@@ -576,9 +597,9 @@ static ssize_t decon_dqe_hsc_store(struct device *dev, struct device_attribute *
 					goto err;
 				}
 				*ptr = 0;
-				ret = kstrtou32(head, 0, &hsc_lut[i][j]);
+				ret = kstrtos32(head, 0, &hsc_lut_signed[j]);
 				if (ret) {
-					dqe_err("strtou32(%d, %d) error.\n", i, j);
+					dqe_err("strtos32(%d, %d) error.\n", i, j);
 					ret = -EINVAL;
 					goto err;
 				}
@@ -589,9 +610,9 @@ static ssize_t decon_dqe_hsc_store(struct device *dev, struct device_attribute *
 		while (*(head + k) >= '0' && *(head + k) <= '9')
 			k++;
 		*(head + k) = 0;
-		ret = kstrtou32(head, 0, &hsc_lut[i-1][j]);
+		ret = kstrtos32(head, 0, &hsc_lut_signed[j]);
 		if (ret) {
-			dqe_err("strtou32(%d, %d) error.\n", i-1, j);
+			dqe_err("strtos32(%d, %d) error.\n", i-1, j);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -600,15 +621,24 @@ static ssize_t decon_dqe_hsc_store(struct device *dev, struct device_attribute *
 		goto err;
 	}
 
-	for (i = 0; i < 2; i++)
-		for (j = 0; j < 6; j++)
-			dqe_dbg("%d ", hsc_lut[i][j]);
+	for (j = 0; j < 35; j++)
+		dqe_dbg("%d ", hsc_lut_signed[j]);
+
+	/* signed -> unsigned */
+	for (j = 0; j < 35; j++) {
+		hsc_lut[j] = (u32)hsc_lut_signed[j];
+		dqe_dbg("%04x %d", hsc_lut[j], hsc_lut_signed[j]);
+	}
 
 	dqe_hsc_lut_set();
 
 	dqe->ctx.hsc_on = DQE_HSC_ON_MASK;
-	dqe->ctx.hsc_control = (HSC_PPSC_ON_MASK | HSC_PPHC_ON_MASK);
+	dqe->ctx.hsc_control = (
+		HSC_PPSC_ON(hsc_lut[0]) | HSC_YCOMP_ON(hsc_lut[7]) | HSC_TSC_ON(hsc_lut[9]) |
+		HSC_DITHER_ON(hsc_lut[11]) | HSC_PPHC_ON(hsc_lut[12]) | HSC_SKIN_ON(hsc_lut[30]));
 	dqe->ctx.need_udpate = true;
+
+	dqe_info("%s: hsc_control=0x%04x\n", __func__, dqe->ctx.hsc_control);
 
 	dqe_restore_context();
 	decon_reg_update_req_dqe(decon->id);

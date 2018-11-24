@@ -187,12 +187,51 @@
 #define DQEHSCLUT_M_GET(_v)		(((_v) >> 10) & 0x3ff)
 #define DQEHSCLUT_C_GET(_v)		(((_v) >> 0) & 0x3ff)
 
+#define DQEHSCLUT_ALPHA_SHIFT2(_v)	(((_v) & 0x1f) << 20)
+#define DQEHSCLUT_ALPHA_SHIFT1(_v)	(((_v) & 0x1ff) << 8)
+#define DQEHSCLUT_ALPHA_SCALE(_v)	(((_v) & 0xf) << 0)
+
+#define DQEHSCLUT_POLY_CURVE3(_v)	(((_v) & 0x3ff) << 20)
+#define DQEHSCLUT_POLY_CURVE2(_v)	(((_v) & 0x3ff) << 10)
+#define DQEHSCLUT_POLY_CURVE1(_v)	(((_v) & 0x3ff) << 0)
+
+#define DQEHSCLUT_POLY_CURVE6(_v)	(((_v) & 0x3ff) << 20)
+#define DQEHSCLUT_POLY_CURVE5(_v)	(((_v) & 0x3ff) << 10)
+#define DQEHSCLUT_POLY_CURVE4(_v)	(((_v) & 0x3ff) << 0)
+
+#define DQEHSCLUT_POLY_CURVE8(_v)	(((_v) & 0x3ff) << 10)
+#define DQEHSCLUT_POLY_CURVE7(_v)	(((_v) & 0x3ff) << 0)
+
+#define DQEHSCLUT_SKIN_S2(_v)		(((_v) & 0x1ff) << 16)
+#define DQEHSCLUT_SKIN_S1(_v)		(((_v) & 0x3ff) << 0)
+
+#define DQEHSCLUT_SKIN_H2(_v)		(((_v) & 0x1ff) << 16)
+#define DQEHSCLUT_SKIN_H1(_v)		(((_v) & 0x3ff) << 0)
+
+#define DQEHSCLUT_YCOMP_RATIO(_v)	(((_v) & 0xf) << 12)
+#define DQEHSCLUT_TSC_GAIN(_v)		(((_v) & 0x3ff) << 0)
+
 #define DQEHSC_CONTROL			0x0204
+#define HSC_PPSC_ON(_v)		(((_v) & 0x1) << 5)
 #define HSC_PPSC_ON_MASK		(1 << 5)
-#define HSC_PPSC_ON_GET(_v)		(((_v) >> 5) & 0x1)
+#define HSC_YCOMP_ON(_v)		(((_v) & 0x1) << 4)
+#define HSC_YCOMP_ON_MASK		(1 << 4)
+#define HSC_TSC_ON(_v)			(((_v) & 0x1) << 3)
+#define HSC_TSC_ON_MASK		(1 << 3)
+#define HSC_DITHER_ON(_v)		(((_v) & 0x1) << 2)
+#define HSC_DITHER_ON_MASK		(1 << 2)
+#define HSC_PPHC_ON(_v)		(((_v) & 0x1) << 1)
 #define HSC_PPHC_ON_MASK		(1 << 1)
-#define HSC_PPHC_ON_GET(_v)		(((_v) >> 1) & 0x1)
+#define HSC_SKIN_ON(_v)		(((_v) & 0x1) << 0)
+#define HSC_SKIN_ON_MASK		(1 << 0)
 #define HSC_ALL_MASK			(0x3f << 0)
+
+#define HSC_PPSC_ON_GET(_v)		(((_v) >> 5) & 0x1)
+#define HSC_YCOMP_ON_GET(_v)		(((_v) >> 4) & 0x1)
+#define HSC_TSC_ON_GET(_v)		(((_v) >> 3) & 0x1)
+#define HSC_DITHER_ON_GET(_v)		(((_v) >> 2) & 0x1)
+#define HSC_PPHC_ON_GET(_v)		(((_v) >> 1) & 0x1)
+#define HSC_SKIN_ON_GET(_v)		(((_v) >> 0) & 0x1)
 
 #define DQEHSC_PPSCGAIN_RGB		0x0208
 #define DQEHSC_PPSCGAIN_CMY		0x020c

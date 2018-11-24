@@ -52,6 +52,11 @@ void dqe_reg_set_hsc_ppsc_on(u32 on)
 	dqe_write_mask(DQEHSC_CONTROL, ~0, HSC_PPSC_ON_MASK);
 }
 
+void dqe_reg_set_hsc_control(u32 val)
+{
+	dqe_write_mask(DQEHSC_CONTROL, val, HSC_ALL_MASK);
+}
+
 void dqe_reg_set_hsc_control_all_reset(void)
 {
 	dqe_write_mask(DQEHSC_CONTROL, 0, HSC_ALL_MASK);

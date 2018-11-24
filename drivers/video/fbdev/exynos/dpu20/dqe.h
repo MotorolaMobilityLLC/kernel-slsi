@@ -112,6 +112,7 @@ void dqe_reg_set_hsc_on(u32 on);
 u32 dqe_reg_get_hsc_on(void);
 void dqe_reg_set_hsc_pphc_on(u32 on);
 void dqe_reg_set_hsc_ppsc_on(u32 on);
+void dqe_reg_set_hsc_control(u32 val);
 void dqe_reg_set_hsc_control_all_reset(void);
 u32 dqe_reg_get_hsc_control(void);
 void dqe_reg_set_aps_on(u32 on);
