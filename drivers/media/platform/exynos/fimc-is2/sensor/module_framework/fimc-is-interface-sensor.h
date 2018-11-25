@@ -114,6 +114,10 @@ enum itf_vc_stat_type {
 	/* Types for PDP 1.1 in Makalu EVT1 */
 	VC_STAT_TYPE_PDP_1_1_PDAF_STAT0 = 500,
 	VC_STAT_TYPE_PDP_1_1_PDAF_STAT1,
+
+	/* Types for 3HDR */
+	VC_STAT_TYPE_TAIL_FOR_3HDR_LSI = 600,
+	VC_STAT_TYPE_TAIL_FOR_3HDR_IMX,
 };
 
 enum itf_vc_sensor_mode {
@@ -145,6 +149,10 @@ enum itf_vc_sensor_mode {
 
 	/* IMX PDAF */
 	VC_SENSOR_MODE_IMX_PDAF = 500,
+
+	/* 3HDR */
+	VC_SENSOR_MODE_3HDR_LSI = 600,
+	VC_SENSOR_MODE_3HDR_IMX,
 };
 
 struct vc_buf_info_t {
@@ -214,6 +222,29 @@ struct wb_gains {
 	u32 r;
 	u32 b;
 	u32 gb;
+};
+
+struct roi_setting_t {
+	bool    update;
+	u16     roi_start_x;
+	u16     roi_start_y;
+	u16     roi_end_x;
+	u16     roi_end_y;
+};
+
+struct sensor_lsi_3hdr_stat_control_mode_change {
+	int r_weight;
+	int b_weight;
+	int g_weight;
+	int low_gate_thr;
+	int high_gate_thr;
+	struct roi_setting_t y_sum_roi;
+};
+
+struct sensor_lsi_3hdr_stat_control_per_frame {
+	int r_weight;
+	int b_weight;
+	int g_weight;
 };
 
 typedef struct {
@@ -388,6 +419,8 @@ struct fimc_is_cis_ops {
 	int (*cis_get_super_slow_motion_threshold)(struct v4l2_subdev *subdev, u32 *threshold);
 	int (*cis_factory_test)(struct v4l2_subdev *subdev);
 	int (*cis_set_wb_gains)(struct v4l2_subdev *subdev, struct wb_gains wb_gains);
+	int (*cis_set_roi_stat)(struct v4l2_subdev *subdev, struct roi_setting_t roi_control);
+	int (*cis_set_3hdr_stat)(struct v4l2_subdev *subdev, bool streaming, void *data);
 };
 
 struct fimc_is_sensor_ctl
@@ -442,6 +475,12 @@ struct fimc_is_sensor_ctl
 
 	/* force_update set when need to update w/o DDK or RTA */
 	bool force_update;
+
+	/* for update 3DHDR sensor stats */
+	struct roi_setting_t roi_control;
+	bool update_roi;
+	struct sensor_lsi_3hdr_stat_control_per_frame stat_control;
+	bool update_3hdr_stat;
 };
 
 typedef enum fimc_is_sensor_adjust_direction_ {
@@ -520,6 +559,12 @@ enum fimc_is_exposure_gain_type {
 	EXPOSURE_GAIN_SHORT,
 	EXPOSURE_GAIN_MIDDLE,
 	EXPOSURE_GAIN_MAX
+};
+
+enum fimc_is_sensor_stat_control {
+	SENSOR_STAT_NOTHING = 0, /* Default */
+	SENSOR_STAT_LSI_3DHDR, /* LSI 3DHDR stat control */
+	SENSOR_STAT_CONTROL_MAX,
 };
 
 enum fimc_is_aperture_control_step {
@@ -828,6 +873,18 @@ struct fimc_is_cis_ext_interface_ops {
 	u32(*request_frame_length_line)(struct fimc_is_sensor_interface *itf, u32 framelengthline);
 	int (*request_sensitivity)(struct fimc_is_sensor_interface *itf,
 								u32 sensitivity);
+	int (*get_sensor_flag)(struct fimc_is_sensor_interface *itf,
+			enum fimc_is_sensor_stat_control *stat_control_type,
+			u32 *exposure_count);
+	int (*set_sensor_stat_control_mode_change)(struct fimc_is_sensor_interface *itf,
+			enum fimc_is_sensor_stat_control stat_control_type,
+			void *stat_control);
+	int (*set_sensor_roi_control)(struct fimc_is_sensor_interface *itf,
+			enum fimc_is_sensor_stat_control stat_control_type,
+			void *roi_control);
+	int (*set_sensor_stat_control_per_frame)(struct fimc_is_sensor_interface *itf,
+			enum fimc_is_sensor_stat_control stat_control_type,
+			void *stat_control);
 };
 
 struct fimc_is_cis_ext2_interface_ops {

@@ -575,6 +575,7 @@ void fimc_is_sensor_setting_mode_change(struct fimc_is_device_sensor_peri *senso
 	fimc_is_sensor_peri_s_exposure_time(device, expo);
 
 	fimc_is_sensor_peri_s_wb_gains(device, sensor_peri->cis.mode_chg_wb_gains);
+	fimc_is_sensor_peri_s_sensor_stats(device, false, NULL, sensor_peri->cis.sensor_stats);
 
 	sensor_peri->sensor_interface.cis_itf_ops.request_reset_expo_gain(&sensor_peri->sensor_interface,
 			num_data,
@@ -2027,6 +2028,61 @@ int fimc_is_sensor_peri_s_wb_gains(struct fimc_is_device_sensor *device,
 	if (ret < 0)
 		err("failed to set wb gains(%d)", ret);
 
+p_err:
+	return ret;
+}
+
+int fimc_is_sensor_peri_s_sensor_stats(struct fimc_is_device_sensor *device,
+		bool streaming,
+		struct fimc_is_sensor_ctl *module_ctl,
+		void *data)
+{
+	int ret = 0;
+	struct v4l2_subdev *subdev_module;
+
+	struct fimc_is_module_enum *module;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+
+	BUG_ON(!device);
+	BUG_ON(!device->subdev_module);
+
+	subdev_module = device->subdev_module;
+
+	module = v4l2_get_subdevdata(subdev_module);
+	if (!module) {
+		err("module is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
+
+	if (streaming) {
+		FIMC_BUG(!module_ctl);
+
+		if (module_ctl->update_roi) {
+			ret = CALL_CISOPS(&sensor_peri->cis, cis_set_roi_stat,
+						sensor_peri->subdev_cis, module_ctl->roi_control);
+			if (ret < 0)
+				err("failed to set roi stat(%d)", ret);
+		}
+
+		if (module_ctl->update_3hdr_stat) {
+			ret = CALL_CISOPS(&sensor_peri->cis, cis_set_3hdr_stat,
+						sensor_peri->subdev_cis,
+						streaming,
+						(void *)&module_ctl->stat_control);
+			if (ret < 0)
+				err("failed to set 3hdr stat(%d)", ret);
+		}
+
+	} else {
+		ret = CALL_CISOPS(&sensor_peri->cis, cis_set_3hdr_stat,
+						sensor_peri->subdev_cis,
+						streaming,
+						data);
+		if (ret < 0)
+			err("failed to set 3hdr stat(%d)", ret);
+	}
 p_err:
 	return ret;
 }
