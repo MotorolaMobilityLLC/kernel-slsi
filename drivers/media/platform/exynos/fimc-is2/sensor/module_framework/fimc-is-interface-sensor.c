@@ -980,6 +980,141 @@ int request_sensitivity(struct fimc_is_sensor_interface *itf,
 	return ret;
 }
 
+int get_sensor_flag(struct fimc_is_sensor_interface *itf,
+		enum fimc_is_sensor_stat_control *stat_control_type,
+		u32 *exposure_count)
+{
+	int ret = 0;
+	struct fimc_is_device_sensor *sensor = NULL;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+	enum fimc_is_ex_mode ex_mode;
+
+	FIMC_BUG(!itf);
+	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
+	FIMC_BUG(!stat_control_type);
+	FIMC_BUG(!exposure_count);
+
+	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri, sensor_interface);
+	FIMC_BUG(!sensor_peri);
+	FIMC_BUG(!sensor_peri->cis.cis_data);
+
+	sensor = get_device_sensor(itf);
+	if (!sensor) {
+		err("failed to get sensor device");
+		return -ENODEV;
+	}
+
+	if (sensor_peri->cis.cis_data->is_data.wdr_enable) {
+		ex_mode = fimc_is_sensor_g_ex_mode(sensor);
+
+		if (ex_mode == EX_3DHDR) {
+			*stat_control_type = SENSOR_STAT_LSI_3DHDR;
+			*exposure_count = EXPOSURE_GAIN_COUNT_3;
+		} else {
+			*stat_control_type = SENSOR_STAT_NOTHING;
+			*exposure_count = EXPOSURE_GAIN_COUNT_2;
+		}
+	} else {
+		*stat_control_type = SENSOR_STAT_NOTHING;
+		*exposure_count = EXPOSURE_GAIN_COUNT_1;
+	}
+
+	dbg_sensor(1, "[%s] stat_control_type: %d, exposure_count: %d\n", __func__,
+			*stat_control_type, *exposure_count);
+
+	return ret;
+}
+
+int set_sensor_stat_control_mode_change(struct fimc_is_sensor_interface *itf,
+		enum fimc_is_sensor_stat_control stat_control_type,
+		void *stat_control)
+{
+	int ret = 0;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+
+	FIMC_BUG(!itf);
+	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
+	FIMC_BUG(!stat_control);
+
+	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri, sensor_interface);
+
+	if (stat_control_type == SENSOR_STAT_LSI_3DHDR)
+		sensor_peri->cis.sensor_stats = stat_control;
+	else
+		sensor_peri->cis.sensor_stats = NULL;
+
+	dbg_sensor(1, "[%s] sensor stat control mode change %s\n", __func__,
+		sensor_peri->cis.sensor_stats ? "Enabled" : "Disabled");
+
+	return ret;
+}
+
+int set_sensor_roi_control(struct fimc_is_sensor_interface *itf,
+		enum fimc_is_sensor_stat_control stat_control_type,
+		void *roi_control)
+{
+	u32 frame_count = 0;
+	struct fimc_is_sensor_ctl *sensor_ctl = NULL;
+	u32 num_of_frame = 1;
+	u32 i = 0;
+
+	FIMC_BUG(!itf);
+	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
+	FIMC_BUG(!roi_control);
+
+	frame_count = get_frame_count(itf);
+	get_num_of_frame_per_one_3aa(itf, &num_of_frame);
+
+	for (i = 0; i < num_of_frame; i++) {
+		sensor_ctl = get_sensor_ctl_from_module(itf, frame_count + i);
+		BUG_ON(!sensor_ctl);
+
+		if (stat_control_type == SENSOR_STAT_LSI_3DHDR) {
+			sensor_ctl->roi_control = *(struct roi_setting_t *)roi_control;
+			sensor_ctl->update_roi = true;
+		} else {
+			sensor_ctl->update_roi = false;
+		}
+	}
+
+	dbg_sensor(1, "[%s][F:%d]: %d\n", __func__, frame_count, sensor_ctl->update_3hdr_stat);
+
+	return 0;
+}
+
+int set_sensor_stat_control_per_frame(struct fimc_is_sensor_interface *itf,
+		enum fimc_is_sensor_stat_control stat_control_type,
+		void *stat_control)
+{
+	u32 frame_count = 0;
+	struct fimc_is_sensor_ctl *sensor_ctl = NULL;
+	u32 num_of_frame = 1;
+	u32 i = 0;
+
+	FIMC_BUG(!itf);
+	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
+	FIMC_BUG(!stat_control);
+
+	frame_count = get_frame_count(itf);
+	get_num_of_frame_per_one_3aa(itf, &num_of_frame);
+
+	for (i = 0; i < num_of_frame; i++) {
+		sensor_ctl = get_sensor_ctl_from_module(itf, frame_count + i);
+		BUG_ON(!sensor_ctl);
+
+		if (stat_control_type == SENSOR_STAT_LSI_3DHDR) {
+			sensor_ctl->stat_control
+				= *(struct sensor_lsi_3hdr_stat_control_per_frame *)stat_control;
+			sensor_ctl->update_3hdr_stat = true;
+		} else {
+			sensor_ctl->update_3hdr_stat = false;
+		}
+	}
+
+	dbg_sensor(1, "[%s][F:%d]: %d\n", __func__, frame_count, sensor_ctl->update_3hdr_stat);
+
+	return 0;
+}
 
 int adjust_analog_gain(struct fimc_is_sensor_interface *itf,
 			enum fimc_is_exposure_gain_count num_data,
@@ -2709,9 +2844,14 @@ int get_vc_dma_buf_info(struct fimc_is_sensor_interface *itf,
 
 	switch (request_data_type) {
 	case VC_BUF_DATA_TYPE_SENSOR_STAT1:
-	case VC_BUF_DATA_TYPE_SENSOR_STAT2:
 		for (ch = CSI_VIRTUAL_CH_1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
 			if (sensor->cfg->output[ch].type == VC_TAILPDAF)
+				break;
+		}
+		break;
+	case VC_BUF_DATA_TYPE_SENSOR_STAT2:
+		for (ch = CSI_VIRTUAL_CH_1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
+			if (sensor->cfg->output[ch].type == VC_EMBEDDED)
 				break;
 		}
 		break;
@@ -3502,6 +3642,10 @@ int init_sensor_interface(struct fimc_is_sensor_interface *itf)
 	itf->cis_ext_itf_ops.set_adjust_sync = set_adjust_sync;
 	itf->cis_ext_itf_ops.request_frame_length_line = request_frame_length_line;
 	itf->cis_ext_itf_ops.request_sensitivity = request_sensitivity;
+	itf->cis_ext_itf_ops.get_sensor_flag = get_sensor_flag;
+	itf->cis_ext_itf_ops.set_sensor_stat_control_mode_change = set_sensor_stat_control_mode_change;
+	itf->cis_ext_itf_ops.set_sensor_roi_control = set_sensor_roi_control;
+	itf->cis_ext_itf_ops.set_sensor_stat_control_per_frame = set_sensor_stat_control_per_frame;
 
 	/* Sensor dual sceanrio interface */
 	itf->dual_itf_ops.get_sensor_state = get_sensor_state;

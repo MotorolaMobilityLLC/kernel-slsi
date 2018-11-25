@@ -750,6 +750,15 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 			module_ctl->update_wb_gains = false;
 		}
 
+		if (module_ctl->update_3hdr_stat || module_ctl->update_roi) {
+			ret = fimc_is_sensor_peri_s_sensor_stats(device, true, module_ctl, NULL);
+			if (ret < 0)
+				err("[%s] frame number(%d) set exposure fail\n", __func__, applied_frame_number);
+
+			module_ctl->update_roi = false;
+			module_ctl->update_3hdr_stat = false;
+		}
+
 		module_ctl->force_update = false;
 	} else {
 		if (module_ctl->alg_reset_flag == false) {
