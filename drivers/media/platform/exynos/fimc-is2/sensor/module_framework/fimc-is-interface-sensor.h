@@ -421,6 +421,7 @@ struct fimc_is_cis_ops {
 	int (*cis_set_wb_gains)(struct v4l2_subdev *subdev, struct wb_gains wb_gains);
 	int (*cis_set_roi_stat)(struct v4l2_subdev *subdev, struct roi_setting_t roi_control);
 	int (*cis_set_3hdr_stat)(struct v4l2_subdev *subdev, bool streaming, void *data);
+	void (*cis_check_wdr_mode)(struct v4l2_subdev *subdev, u32 mode_idx);
 };
 
 struct fimc_is_sensor_ctl
