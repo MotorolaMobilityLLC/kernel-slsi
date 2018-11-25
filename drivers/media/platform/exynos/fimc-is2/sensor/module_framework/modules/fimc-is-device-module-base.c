@@ -1091,6 +1091,9 @@ int sensor_module_s_format(struct v4l2_subdev *subdev,
 		cis->cis_data->cur_width = fmt->format.width;
 		cis->cis_data->cur_height = fmt->format.height;
 
+		/* check wdr sensor mode */
+		CALL_CISOPS(cis, cis_check_wdr_mode, sensor_peri->subdev_cis, device->cfg->mode);
+
 		ret = fimc_is_sensor_mode_change(cis, device->cfg->mode);
 		if (ret) {
 			err("[MOD:%s] sensor_mode_change(cis_mode_change) is fail(%d)",
