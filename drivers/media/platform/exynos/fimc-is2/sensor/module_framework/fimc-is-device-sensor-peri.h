@@ -47,6 +47,7 @@ struct fimc_is_cis {
 	bool				use_dgain;
 	bool				hdr_ctrl_by_again;
 	bool				use_wb_gain;
+	bool				use_3hdr;
 
 	struct fimc_is_sensor_ctl	sensor_ctls[CAM2P0_UCTL_LIST_SIZE];
 
@@ -92,6 +93,9 @@ struct fimc_is_cis {
 	bool				use_initial_ae;
 	ae_setting			init_ae_setting;
 	ae_setting			last_ae_setting;
+
+	/* settings for sensor stat */
+	void				*sensor_stats;
 };
 
 struct fimc_is_actuator_data {
@@ -501,6 +505,10 @@ int fimc_is_sensor_peri_s_digital_gain(struct fimc_is_device_sensor *device,
 				struct ae_param dgain);
 int fimc_is_sensor_peri_s_wb_gains(struct fimc_is_device_sensor *device,
 				struct wb_gains wb_gains);
+int fimc_is_sensor_peri_s_sensor_stats(struct fimc_is_device_sensor *device,
+				bool streaming,
+				struct fimc_is_sensor_ctl *module_ctl,
+				void *data);
 int fimc_is_sensor_peri_adj_ctrl(struct fimc_is_device_sensor *device,
 				u32 input, struct v4l2_control *ctrl);
 
