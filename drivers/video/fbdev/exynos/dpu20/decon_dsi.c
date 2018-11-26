@@ -473,6 +473,9 @@ static void decon_esd_process(int esd, struct decon_device *decon)
 	case DSIM_ESD_CHECK_ERROR:
 		decon_err("%s, It is not ESD, \
 			but DDI is abnormal state(%d)\n", __func__, esd);
+		ret = decon_handle_esd(decon);
+		if (ret)
+			decon_err("%s, failed to recover ESD\n", __func__);
 		break;
 	case DSIM_ESD_OK:
 		decon_info("%s, DDI has normal state(%d)\n", __func__, esd);
