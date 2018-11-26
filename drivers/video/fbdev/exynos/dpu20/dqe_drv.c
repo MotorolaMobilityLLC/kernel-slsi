@@ -32,6 +32,12 @@ u32 hsc_lut[35];
 int dqe_log_level = 6;
 module_param(dqe_log_level, int, 0644);
 
+const u32 nightlight_gamma_tune[3][65] = {
+	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
+	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
+	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
+};
+
 static void dqe_load_context(void)
 {
 	int i, j;
@@ -702,6 +708,110 @@ static struct attribute *dqe_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(dqe);
+
+static void dqe_color_transform_make_sfr(int coeff[16], int inR, int inG, int inB, int *outR, int *outG, int *outB)
+{
+	*outR = (coeff[ 0] * inR) >> 15;
+	*outR = (*outR & 0x1) ? (*outR >> 1) + 1 : *outR >> 1;
+	*outG = (coeff[ 5] * inG) >> 15;
+	*outG = (*outG & 0x1) ? (*outG >> 1) + 1 : *outG >> 1;
+	*outB = (coeff[10] * inB) >> 15;
+	*outB = (*outB & 0x1) ? (*outB >> 1) + 1 : *outB >> 1;
+}
+
+static void dqe_color_transform_night_light(int in[16], int out[16])
+{
+	int kk, jj;
+	long long int inverse_i[16] = {60847, 1269, 1269, 0, 4260, 63838, 4260, 0, 429, 429, 60007, 0, 0, 0, 0, 65536};
+
+	for (kk = 0; kk < 4; kk++)
+		for (jj = 0; jj < 4; jj++)
+			out[kk * 4 + jj] = (inverse_i[kk * 4] * in[jj] + inverse_i[kk * 4 + 1] * in[jj + 4] + inverse_i[kk * 4 + 2] * in[jj + 8] + inverse_i[kk * 4 + 3] * in[jj + 12]) >> 16;
+}
+
+int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
+{
+	int ret = 0;
+	int i, j;
+	int temp[16];
+	struct dqe_device *dqe = dqe_drvdata;
+	struct decon_device *decon = get_decon_drvdata(0);
+
+	mutex_lock(&dqe->lock);
+
+	if (decon) {
+		if ((decon->state == DECON_STATE_OFF) ||
+			(decon->state == DECON_STATE_INIT)) {
+			dqe_err("decon is not enabled!(%d)\n", decon->state);
+			ret = -1;
+			goto err;
+		}
+	} else {
+		dqe_err("decon is NULL!\n");
+		ret = -1;
+		goto err;
+	}
+
+
+	dqe_info("%s : color_mode=%d, hint=%d\n", __func__,
+		dqe->ctx.color_mode, transform->hint);
+
+	if (transform->matrix[0] != 65536/*transform->hint*/) {
+		for (i = 0; i < 16; i++)
+			dqe_dbg("matrix[%d] = %d\n", i, transform->matrix[i]);
+
+		for (i = 0; i < 16; i++)
+			temp[i] = transform->matrix[i];
+
+		dqe_color_transform_night_light(temp, transform->matrix);
+
+		for (i = 0; i < 16; i++)
+			dqe_dbg("night[%d] = %d\n", i, transform->matrix[i]);
+	}
+
+	if (transform->matrix[0] == 65536 &&
+		transform->matrix[5] == 65536 &&
+		transform->matrix[10] == 65536)
+		dqe->ctx.night_light_on = 0;
+	else
+		dqe->ctx.night_light_on = 1;
+
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 65; j++)
+				gamma_lut[i][j] = nightlight_gamma_tune[i][j];
+
+	for (j = 0; j < 65; j++) {
+		int inR, inG, inB, outR, outG, outB;
+
+		inR = gamma_lut[0][j];
+		inG = gamma_lut[1][j];
+		inB = gamma_lut[2][j];
+
+		dqe_color_transform_make_sfr(transform->matrix, inR, inG, inB, &outR, &outG, &outB);
+
+		gamma_lut[0][j] = (u32)outR;
+		gamma_lut[1][j] = (u32)outG;
+		gamma_lut[2][j] = (u32)outB;
+	}
+
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 65; j++)
+			dqe_dbg("%d ", gamma_lut[i][j]);
+
+	dqe_gamma_lut_set();
+
+	dqe->ctx.gamma_on = DQE_GAMMA_ON_MASK;
+	dqe->ctx.need_udpate = true;
+
+	dqe_restore_context();
+	decon_reg_update_req_dqe(decon->id);
+err:
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s : ret(%d)\n", __func__, ret);
+
+	return ret;
+}
 
 void decon_dqe_enable(struct decon_device *decon)
 {

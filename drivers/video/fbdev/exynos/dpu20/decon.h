@@ -309,6 +309,82 @@ enum dpp_hdr_standard {
 	DPP_HDR_HLG,
 };
 
+/* HAL color mode */
+enum HAL_color_mode {
+	HAL_COLOR_MODE_NATIVE = 0,
+	HAL_COLOR_MODE_STANDARD_BT601_625 = 1,
+	HAL_COLOR_MODE_STANDARD_BT601_625_UNADJUSTED = 2,
+	HAL_COLOR_MODE_STANDARD_BT601_525 = 3,
+	HAL_COLOR_MODE_STANDARD_BT601_525_UNADJUSTED = 4,
+	HAL_COLOR_MODE_STANDARD_BT709 = 5,
+	HAL_COLOR_MODE_DCI_P3 = 6,
+	HAL_COLOR_MODE_SRGB = 7,
+	HAL_COLOR_MODE_ADOBE_RGB = 8,
+	HAL_COLOR_MODE_DISPLAY_P3 = 9,
+};
+
+/* HAL intent info */
+enum HAL_intent_info{
+	HAL_RENDER_INTENT_COLORIMETRIC = 0,
+	HAL_RENDER_INTENT_ENHANCE = 1,
+	HAL_RENDER_INTENT_TONE_MAP_COLORIMETRIC = 2,
+	HAL_RENDER_INTENT_TONE_MAP_ENHANCE = 3,
+};
+
+/* HAL color transform*/
+enum HAL_color_transform{
+	HAL_COLOR_TRANSFORM_IDENTITY = 0,
+	HAL_COLOR_TRANSFORM_ARBITRARY_MATRIX = 1,
+	HAL_COLOR_TRANSFORM_VALUE_INVERSE = 2,
+	HAL_COLOR_TRANSFORM_GRAYSCALE = 3,
+	HAL_COLOR_TRANSFORM_CORRECT_PROTANOPIA = 4,
+	HAL_COLOR_TRANSFORM_CORRECT_DEUTERANOPIA = 5,
+	HAL_COLOR_TRANSFORM_CORRECT_TRITANOPIA = 6,
+};
+
+struct decon_color_mode_info {
+	int index;
+	u32 color_mode;
+};
+
+/* decon supported color mode */
+enum decon_supported_color_mode {
+	DECON_COLOR_MODE_NATIVE = 0,
+	DECON_COLOR_MODE_SRGB,
+	DECON_COLOR_MODE_DCI_P3,
+	DECON_COLOR_MODE_NUM_MAX,
+};
+
+/* intents num and information in each color mode*/
+struct decon_render_intents_num_info {
+        u32 color_mode;
+        u32 render_intent_num;
+};
+
+struct decon_render_intent_info {
+        u32 color_mode;
+        u32 index;
+        u32 render_intent;
+};
+
+/* decon supported intent info */
+enum decon_supported_intent_info {
+	DECON_INTENT_COLORIMETRIC = 0,
+	DECON_INTENT_ENHANCE,
+	DECON_INTENT_NUM_MAX,
+};
+
+#define DECON_MATRIX_ELEMENT_NUM 16
+struct decon_color_transform_info {
+        u32 hint;
+        int matrix[DECON_MATRIX_ELEMENT_NUM];
+};
+
+struct decon_color_mode_with_render_intent_info {
+       u32 color_mode;
+       u32 render_intent;
+};
+
 struct decon_clocks {
 	unsigned long decon[CLK_ID_DPLL + 1];
 };
@@ -1367,4 +1443,16 @@ int decon_update_last_regs(struct decon_device *decon,
 
 /* DPU aclk */
 #define EXYNOS_DPU_GET_ACLK		_IOR('F', 500, u32)
+
+/* COLOR Mode */
+#define EXYNOS_GET_COLOR_MODE_NUM	_IOW('F', 600, __u32)
+#define EXYNOS_GET_COLOR_MODE		_IOW('F', 601, struct decon_color_mode_info)
+#define EXYNOS_SET_COLOR_MODE		_IOW('F', 602, __u32)
+
+#define EXYNOS_GET_RENDER_INTENTS_NUM	_IOW('F', 610, struct decon_render_intents_num_info)
+#define EXYNOS_GET_RENDER_INTENT	_IOW('F', 611, struct decon_render_intent_info)
+
+#define EXYNOS_SET_COLOR_TRANSFORM	_IOW('F', 612, struct decon_color_transform_info)
+#define EXYNOS_SET_COLOR_MODE_WITH_RENDER_INTENT	_IOW('F', 613, struct decon_color_mode_with_render_intent_info)
+
 #endif /* ___SAMSUNG_DECON_H__ */

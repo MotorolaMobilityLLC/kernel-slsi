@@ -87,6 +87,8 @@ struct dqe_ctx {
 	u32 hsc_on;
 	u32 hsc_control;
 	bool need_udpate;
+	u32 color_mode;
+	u32 night_light_on;
 };
 
 struct dqe_device {
@@ -151,5 +153,7 @@ void dqe_reg_set_hsc_tsc_ycomp(u32 ratio, u32 gain);
 void decon_dqe_enable(struct decon_device *decon);
 void decon_dqe_disable(struct decon_device *decon);
 int decon_dqe_create_interface(struct decon_device *decon);
+
+int decon_dqe_set_color_transform(struct decon_color_transform_info *transform);
 
 #endif
