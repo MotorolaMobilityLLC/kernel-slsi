@@ -303,8 +303,8 @@ static int cpu_idle_ratio(int cpu)
 	return calculate_percent(cpu_idle_time(cpu));
 }
 
-static ssize_t show_result(struct kobject *kobj,
-				     struct kobj_attribute *attr,
+static ssize_t show_result(struct device *kobj,
+				     struct device_attribute *attr,
 				     char *buf)
 {
 	int ret = 0;
@@ -420,8 +420,8 @@ static ssize_t show_result(struct kobject *kobj,
 /*********************************************************************
  *                          Sysfs interface                          *
  *********************************************************************/
-static ssize_t show_cpuidle_profile(struct kobject *kobj,
-				     struct kobj_attribute *attr,
+static ssize_t show_cpuidle_profile(struct device *dev,
+				     struct device_attribute *attr,
 				     char *buf)
 {
 	int ret = 0;
@@ -430,13 +430,13 @@ static ssize_t show_cpuidle_profile(struct kobject *kobj,
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"CPUIDLE profile is ongoing\n");
 	else
-		ret = show_result(kobj, attr, buf);
+		ret = show_result(dev, attr, buf);
 
 	return ret;
 }
 
-static ssize_t store_cpuidle_profile(struct kobject *kobj,
-				      struct kobj_attribute *attr,
+static ssize_t store_cpuidle_profile(struct device *dev,
+				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	int input;
@@ -452,7 +452,7 @@ static ssize_t store_cpuidle_profile(struct kobject *kobj,
 	return count;
 }
 
-static struct kobj_attribute cpuidle_profile_attr =
+static struct device_attribute cpuidle_profile_attr =
 	__ATTR(profile, 0644, show_cpuidle_profile, store_cpuidle_profile);
 
 static struct attribute *cpuidle_profile_attrs[] = {
