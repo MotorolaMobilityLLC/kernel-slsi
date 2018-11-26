@@ -329,7 +329,7 @@ struct fimc_is_sensor_cfg *fimc_is_sensor_g_mode(struct fimc_is_device_sensor *d
 	framerate = device->image.framerate;
 	ex_mode = device->ex_mode;
 
-	minfo("try to find sensor mode(%dx%d@%d) ex_mode(%d)", device,
+	merr("try to find sensor mode(%dx%d@%d) ex_mode(%d)", device,
 		width,
 		height,
 		framerate,
@@ -382,7 +382,7 @@ struct fimc_is_sensor_cfg *fimc_is_sensor_g_mode(struct fimc_is_device_sensor *d
 	}
 #endif
 
-	minfo("sensor mode(%dx%d@%d) ex_mode(%d) = %d (lane:%d)\n", device,
+	merr("sensor mode(%dx%d@%d) ex_mode(%d) = %d (lane:%d)\n", device,
 		select->width,
 		select->height,
 		select->framerate,
