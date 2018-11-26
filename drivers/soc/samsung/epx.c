@@ -135,7 +135,7 @@ static int epx_set_memory_x(unsigned long addr, int numpages)
 			__pgprot(PTE_PXN));
 }
 
-static ssize_t show_epx_activate(struct class *class,
+static ssize_t __nocfi show_epx_activate(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	long epx_fd;
