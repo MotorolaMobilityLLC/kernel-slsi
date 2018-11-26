@@ -21,7 +21,8 @@
 #define DQEIMG_HSIZE_GET(_v)		(((_v) >> 0) & 0x1fff)
 
 /* CGC_SET */
-#define DQECGCLUT_MAX			(8)
+#define DQECGC1LUT_MAX			(8)
+#define DQECGC2LUT_MAX			(9)
 #define DQECGC1_RGB_BASE		0x0010
 #define DQECGC2_RGB_BASE		0x0410
 
@@ -43,6 +44,9 @@
 #define DQECGC1_YELLOW			0x0024
 #define DQECGC1_WHITE			0x0028
 #define DQECGC1_BLACK			0x002c
+#define DQECGC_MC_CONTROL		0x0030
+#define DQECGC_MC_GAIN(_v)		(((_v) & 0xfff) << 4)
+#define DQECGC_MC_EN(_v)		(((_v) & 0x1) << 0)
 
 #define DQECGC2_RED			0x0410
 #define DQECGC2_GREEN			0x0414

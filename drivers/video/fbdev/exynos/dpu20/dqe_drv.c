@@ -26,7 +26,7 @@ struct dqe_device *dqe_drvdata;
 struct class *dqe_class;
 
 u32 gamma_lut[3][65];
-u32 cgc_lut[8][3];
+u32 cgc_lut[50];
 u32 hsc_lut[35];
 
 int dqe_log_level = 6;
@@ -34,13 +34,18 @@ module_param(dqe_log_level, int, 0644);
 
 static void dqe_load_context(void)
 {
-	int i;
+	int i, j;
 	struct dqe_device *dqe = dqe_drvdata;
 
 	dqe_info("%s\n", __func__);
 
-	for (i = 0; i < DQECGCLUT_MAX; i++) {
+	for (i = 0; i < DQECGC1LUT_MAX + 1; i++) {
 		dqe->ctx.cgc[i].addr = DQECGC1_RGB_BASE + (i * 4);
+		dqe->ctx.cgc[i].val = dqe_read(dqe->ctx.cgc[i].addr);
+	}
+
+	for (i = DQECGC1LUT_MAX + 1, j = 0; i < (DQECGC1LUT_MAX + DQECGC2LUT_MAX); i++, j++) {
+		dqe->ctx.cgc[i].addr = DQECGC2_RGB_BASE + (j * 4);
 		dqe->ctx.cgc[i].val = dqe_read(dqe->ctx.cgc[i].addr);
 	}
 
@@ -56,7 +61,18 @@ static void dqe_load_context(void)
 	dqe->ctx.hsc[DQEHSCLUT_MAX - 1].addr = DQEHSC_SKIN_H;
 	dqe->ctx.hsc[DQEHSCLUT_MAX - 1].val = dqe_read(dqe->ctx.hsc[DQEHSCLUT_MAX - 1].addr);
 
-	for (i = 0; i < DQECGCLUT_MAX; i++) {
+	for (i = 0; i < DQECGC1LUT_MAX; i++) {
+		dqe_dbg("0x%04x %d %d %d",
+			dqe->ctx.cgc[i].addr,
+			DQECGCLUT_R_GET(dqe->ctx.cgc[i].val),
+			DQECGCLUT_G_GET(dqe->ctx.cgc[i].val),
+			DQECGCLUT_B_GET(dqe->ctx.cgc[i].val));
+	}
+
+	dqe_dbg("0x%04x %08x ",
+		dqe->ctx.cgc[DQECGC1LUT_MAX].addr, dqe->ctx.cgc[DQECGC1LUT_MAX].val);
+
+	for (i = DQECGC1LUT_MAX + 1; i < (DQECGC1LUT_MAX + DQECGC2LUT_MAX); i++) {
 		dqe_dbg("0x%04x %d %d %d",
 			dqe->ctx.cgc[i].addr,
 			DQECGCLUT_R_GET(dqe->ctx.cgc[i].val),
@@ -92,6 +108,15 @@ static void dqe_init_context(void)
 	dqe->ctx.cgc[5].val = 0x0ff3fc00; /* DQECGC1_YELLOW */
 	dqe->ctx.cgc[6].val = 0x0ff3fcff; /* DQECGC1_WHITE */
 	dqe->ctx.cgc[7].val = 0x00000000; /* DQECGC1_BLACK */
+	dqe->ctx.cgc[8].val = 0x00000000; /* DQECGC_MC_CONTROL*/
+	dqe->ctx.cgc[9].val = 0x0ff00000; /* DQECGC2_RED */
+	dqe->ctx.cgc[10].val = 0x0003fc00; /* DQECGC2_GREEN */
+	dqe->ctx.cgc[11].val = 0x000000ff; /* DQECGC2_BLUE */
+	dqe->ctx.cgc[12].val = 0x0003fcff; /* DQECGC2_CYAN */
+	dqe->ctx.cgc[13].val = 0x0ff000ff; /* DQECGC2_MAGENTA */
+	dqe->ctx.cgc[14].val = 0x0ff3fc00; /* DQECGC2_YELLOW */
+	dqe->ctx.cgc[15].val = 0x0ff3fcff; /* DQECGC2_WHITE */
+	dqe->ctx.cgc[16].val = 0x00000000; /* DQECGC12_BLACK */
 
 	/* DQEGAMMALUT_R_01_00 -- DQEGAMMALUT_B_64 */
 	for (j = 0, k = 0; j < 3; j++) {
@@ -133,7 +158,7 @@ static int dqe_save_context(void)
 
 	dqe_dbg("%s\n", __func__);
 
-	for (i = 0; i < DQECGCLUT_MAX; i++)
+	for (i = 0; i < (DQECGC1LUT_MAX + DQECGC2LUT_MAX); i++)
 		dqe->ctx.cgc[i].val =
 			dqe_read(dqe->ctx.cgc[i].addr);
 
@@ -162,12 +187,9 @@ static int dqe_restore_context(void)
 
 	dqe_dbg("%s\n", __func__);
 
-	for (i = 0; i < DQECGCLUT_MAX; i++) {
+	for (i = 0; i < (DQECGC1LUT_MAX + DQECGC2LUT_MAX); i++)
 		dqe_write(dqe->ctx.cgc[i].addr,
 				dqe->ctx.cgc[i].val);
-		dqe_write(dqe->ctx.cgc[i].addr + 0x0400,
-				dqe->ctx.cgc[i].val);
-	}
 
 	if (dqe->ctx.cgc_on)
 		dqe_reg_set_cgc_on(1);
@@ -212,14 +234,28 @@ static void dqe_gamma_lut_set(void)
 
 static void dqe_cgc_lut_set(void)
 {
-	int i;
+	int i, j;
 	struct dqe_device *dqe = dqe_drvdata;
 
-	for (i = 0; i < 8; i++) {
+	/* DQECGC1_RED -- DQECGC1_BLACK*/
+	for (i = 0, j = 0; i < 8; i++) {
 		dqe->ctx.cgc[i].val = (
-			DQECGCLUT_R(cgc_lut[i][0]) |
-			DQECGCLUT_G(cgc_lut[i][1]) |
-			DQECGCLUT_B(cgc_lut[i][2]));
+			DQECGCLUT_R(cgc_lut[j]) |
+			DQECGCLUT_G(cgc_lut[j + 1]) |
+			DQECGCLUT_B(cgc_lut[j + 2]));
+		j += 3;
+	}
+
+	/* DQECGC_MC_CONTROL */
+	dqe->ctx.cgc[8].val = (DQECGC_MC_GAIN(cgc_lut[24]) | DQECGC_MC_EN(cgc_lut[25]));
+
+	/* DQECGC2_RED -- DQECGC2_BLACK*/
+	for (i = 9, j = 26; i < 17; i++) {
+		dqe->ctx.cgc[i].val = (
+			DQECGCLUT_R(cgc_lut[j]) |
+			DQECGCLUT_G(cgc_lut[j + 1]) |
+			DQECGCLUT_B(cgc_lut[j + 2]));
+		j += 3;
 	}
 }
 
@@ -402,7 +438,7 @@ static ssize_t decon_dqe_cgc_show(struct device *dev,
 
 	mutex_lock(&dqe->lock);
 
-	for (i = 0; i < DQECGCLUT_MAX; i++) {
+	for (i = 0; i < DQECGC1LUT_MAX; i++) {
 		dqe_info("%d %d %d ",
 			DQECGCLUT_R_GET(dqe->ctx.cgc[i].val),
 			DQECGCLUT_G_GET(dqe->ctx.cgc[i].val),
@@ -454,8 +490,8 @@ static ssize_t decon_dqe_cgc_store(struct device *dev, struct device_attribute *
 	head = (char *)buffer;
 	if  (*head != 0) {
 		dqe_dbg("%s\n", head);
-		for (i = 0; i < 8; i++) {
-			k = (i == 7) ? 2 : 3;
+		for (i = 0; i < 1; i++) {
+			k = 49;
 			for (j = 0; j < k; j++) {
 				ptr = strchr(head, ',');
 				if (ptr == NULL) {
@@ -464,7 +500,7 @@ static ssize_t decon_dqe_cgc_store(struct device *dev, struct device_attribute *
 					goto err;
 				}
 				*ptr = 0;
-				ret = kstrtou32(head, 0, &cgc_lut[i][j]);
+				ret = kstrtou32(head, 0, &cgc_lut[j]);
 				if (ret) {
 					dqe_err("strtou32(%d, %d) error.\n", i, j);
 					ret = -EINVAL;
@@ -477,7 +513,7 @@ static ssize_t decon_dqe_cgc_store(struct device *dev, struct device_attribute *
 		while (*(head + k) >= '0' && *(head + k) <= '9')
 			k++;
 		*(head + k) = 0;
-		ret = kstrtou32(head, 0, &cgc_lut[i-1][j]);
+		ret = kstrtou32(head, 0, &cgc_lut[j]);
 		if (ret) {
 			dqe_err("strtou32(%d, %d) error.\n", i-1, j);
 			ret = -EINVAL;
@@ -488,9 +524,8 @@ static ssize_t decon_dqe_cgc_store(struct device *dev, struct device_attribute *
 		goto err;
 	}
 
-	for (i = 0; i < 8; i++)
-		for (j = 0; j < 3; j++)
-			dqe_dbg("%d ", cgc_lut[i][j]);
+	for (j = 0; j < 50; j++)
+		dqe_dbg("%d ", cgc_lut[j]);
 
 	dqe_cgc_lut_set();
 

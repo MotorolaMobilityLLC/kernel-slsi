@@ -79,7 +79,7 @@ struct dqe_reg_dump {
 };
 
 struct dqe_ctx {
-	struct dqe_reg_dump cgc[DQECGCLUT_MAX];
+	struct dqe_reg_dump cgc[DQECGC1LUT_MAX + DQECGC2LUT_MAX];
 	struct dqe_reg_dump gamma[DQEGAMMALUT_MAX];
 	struct dqe_reg_dump hsc[DQEHSCLUT_MAX];
 	u32 cgc_on;
