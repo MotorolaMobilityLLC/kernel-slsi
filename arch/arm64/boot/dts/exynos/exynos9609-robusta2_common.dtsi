@@ -1725,42 +1725,47 @@
 			prince_l_dsp: adsp@2b80000 {
 				reg = <0x2b80000>;
 				firmware {
-					protection_music_aac {
+				    protectionsp_default {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-aac.bin";
 					};
-					protection_voice_aac {
+					protectionsp_music_aac {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-aac.bin";
+					};
+					protectionsp_voice_aac {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-aac.bin";
 					};
-					protection_ringtone_aac {
+					protectionsp_ringtone_aac {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-aac.bin";
 					};
-					protection_notification_aac {
+					protectionsp_notification_aac {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-aac.bin";
 					};
-					protection_music_qisheng {
+					protectionsp_music_qisheng {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-qisheng.bin";
 					};
-					protection_voice_qisheng {
+					protectionsp_voice_qisheng {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-voice-qisheng.bin";
 					};
-					protection_ringtone_qisheng{
+					protectionsp_ringtone_qisheng{
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-ringtone-qisheng.bin";
 					};
-					protection_notification_qisheng {
+					protectionsp_notification_qisheng {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-notification-qisheng.bin";
