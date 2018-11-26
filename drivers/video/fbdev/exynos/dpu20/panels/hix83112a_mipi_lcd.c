@@ -27,7 +27,7 @@
 static struct dsim_device *dsim_base;
 static struct backlight_device *bd;
 
-#if defined(CONFIG_EXYNOS_PANEL_CABC)
+
 struct panel_device {
 	struct device *dev;
 	struct dsim_device *dsim;
@@ -37,7 +37,7 @@ struct panel_device {
 
 struct panel_device *hix83112a_panel_drvdata;
 struct class *hix83112a_panel_class;
-#endif
+
 
 static int hix83112a_get_brightness(struct backlight_device *bd)
 {
@@ -162,20 +162,27 @@ static int hix83112a_update_brightness(int brightness)
 				(unsigned long)set_brightness_level, 3))
 		dsim_err("fail to send WRDISBV(0x51) command.\n");
 
-	mdelay(12);
-
 	return 0;
 }
 
 static int hix83112a_set_brightness(struct backlight_device *bd)
 {
+	struct dsim_device *dsim;
 	int brightness = bd->props.brightness;
+
+	dsim = get_dsim_drvdata(0);
 
 	if (brightness < MIN_BRIGHTNESS || brightness > MAX_BRIGHTNESS) {
 		pr_err("Brightness should be in the range of 0 ~ 255\n");
 		return -EINVAL;
 	}
+	dsim->user_brightness = brightness;
+	if ((brightness > dsim->max_brightness) &&
+			(brightness <= MAX_BRIGHTNESS)) {
+		brightness = dsim->max_brightness;
+	}
 	hix83112a_update_brightness(brightness);
+	dsim->brightness = brightness;
 
 	return 0;
 }
@@ -242,6 +249,7 @@ static int hix83112a_cabc_mode(struct dsim_device *dsim, int mode)
 
 	return count;
 }
+#endif
 
 static ssize_t panel_cabc_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -252,8 +260,9 @@ static ssize_t panel_cabc_mode_show(struct device *dev,
 
 	mutex_lock(&panel->lock);
 
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
 	ret = hix83112a_cabc_mode(panel->dsim, CABC_READ_MODE);
-
+#endif
 	mutex_unlock(&panel->lock);
 
 	count = snprintf(buf, PAGE_SIZE, "cabc_mode = %d, ret = %d\n",
@@ -278,16 +287,117 @@ static ssize_t panel_cabc_mode_store(struct device *dev,
 	mutex_unlock(&panel->lock);
 
 	pr_info("%s: %d\n", __func__, value);
-
+#if defined(CONFIG_EXYNOS_PANEL_CABC)
 	hix83112a_cabc_mode(panel->dsim, panel->cabc_mode);
+#endif
+	return count;
+}
+
+static ssize_t panel_max_brightness_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+
+	count = snprintf(buf, PAGE_SIZE, "max_brightness = %d\n",
+			dsim->max_brightness);
 
 	return count;
 }
 
+static ssize_t panel_max_brightness_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned int value = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+	int old_brightness;
+
+	ret = kstrtouint(buf, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&dsim->bl_lock);
+
+	old_brightness = dsim->brightness;
+
+	if (value > MAX_BRIGHTNESS) {
+		dsim->max_brightness = MAX_BRIGHTNESS;
+		dsim->brightness = dsim->user_brightness;
+	} else if ((value >= MIN_BRIGHTNESS) && (value <= MAX_BRIGHTNESS)) {
+		dsim->max_brightness = value;
+		if (dsim->user_brightness > dsim->max_brightness)
+			dsim->brightness = dsim->max_brightness;
+		else
+			dsim->brightness = dsim->user_brightness;
+	} else {
+		goto end;
+	}
+
+	if (old_brightness != dsim->brightness) {
+		hix83112a_update_brightness(dsim->brightness);
+	}
+
+end:
+	mutex_unlock(&dsim->bl_lock);
+
+	pr_info("%s: %d\n", __func__, dsim->max_brightness);
+
+	return count;
+}
+
+static DEVICE_ATTR(max_brightness, 0660, panel_max_brightness_show,
+			panel_max_brightness_store);
+
+
+static ssize_t panel_brightness_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+
+	count = snprintf(buf, PAGE_SIZE, "brightness = %d\n",
+			dsim->brightness);
+
+	return count;
+}
+
+static ssize_t panel_brightness_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned int value = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+
+	ret = kstrtouint(buf, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&dsim->bl_lock);
+
+	if (value <= dsim->max_brightness) {
+		dsim->brightness = value;
+		hix83112a_update_brightness(dsim->brightness);
+	} else if (value <= MAX_BRIGHTNESS) {
+		dsim->user_brightness = value;
+	} else {
+		pr_err("%s, brightness value is wrong[%d]\n",
+				__func__, value);
+	}
+
+	mutex_unlock(&dsim->bl_lock);
+
+	pr_info("%s: %d\n", __func__, dsim->brightness);
+
+	return count;
+}
+
+static DEVICE_ATTR(brightness, 0660, panel_brightness_show,
+			panel_brightness_store);
+
 static DEVICE_ATTR(cabc_mode, 0660, panel_cabc_mode_show,
 		panel_cabc_mode_store);
 
-#endif
 static ssize_t lcd_panel_supplier_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -302,6 +412,8 @@ static DEVICE_ATTR(panel_supplier, 0644, lcd_panel_supplier_show,NULL);
 static struct attribute *panel_attrs[] = {
 	&dev_attr_cabc_mode.attr,
 	&dev_attr_panel_supplier.attr,
+	&dev_attr_max_brightness.attr,
+	&dev_attr_brightness.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(panel);
@@ -335,8 +447,9 @@ static int hix83112a_probe(struct dsim_device *dsim)
 
 	bd->props.max_brightness = MAX_BRIGHTNESS;
 	bd->props.brightness = DEFAULT_BRIGHTNESS;
+	dsim->max_brightness = MAX_BRIGHTNESS;
+	dsim->brightness = DEFAULT_BRIGHTNESS;
 	hix83112a_create_sysfs(dsim);
-#if defined(CONFIG_EXYNOS_PANEL_CABC)
 	panel = kzalloc(sizeof(struct panel_device), GFP_KERNEL);
 	if (!panel) {
 		pr_err("failed to allocate panel\n");
@@ -369,6 +482,7 @@ static int hix83112a_probe(struct dsim_device *dsim)
 	}
 
 	mutex_init(&panel->lock);
+	mutex_init(&dsim->bl_lock);
 	dev_set_drvdata(panel->dev, panel);
 
 	panel_no++;
@@ -380,7 +494,6 @@ exit2:
 exit1:
 	kfree(panel);
 exit0:
-#endif
 	return ret;
 }
 
@@ -396,6 +509,10 @@ static int hix83112a_displayon(struct dsim_device *dsim)
 #if defined(CONFIG_EXYNOS_PANEL_CABC)
 	if (panel)
 		hix83112a_cabc_mode(dsim, panel->cabc_mode);
+#endif
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	if (dsim->esd_recovering)
+		hix83112a_update_brightness(dsim->brightness);
 #endif
 	return 1;
 }
@@ -413,9 +530,180 @@ static int hix83112a_resume(struct dsim_device *dsim)
 	return 0;
 }
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+#if defined(READ_ESD_SOLUTION_TEST)
+static int hix83112a_read_state(struct dsim_device *dsim)
+{
+	int ret = 0;
+	u8 buf[2] = {0x0};
+	int i = 0;
+	int RETRY = 5; /* several retries are allowed */
+	bool esd_detect = false;
+
+	dsim_info("%s, read DDI for checking ESD\n", __func__);
+
+	switch (dsim->esd_test) {
+	case 0: /* same as original operation */
+		for (i = 0; i < RETRY; i++) {
+			ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+					MIPI_DCS_GET_POWER_MODE, 0x1, buf);
+			if (ret < 0) {
+				dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+				if (dsim->state != DSIM_STATE_ON)
+					return DSIM_ESD_OK;
+				usleep_range(1000, 1100);
+				continue;
+			}
+
+			if ((buf[0] & 0x7c) == 0x1c) {
+				dsim_info("hix83112a panel REG 0x%02X=0x%02x\n",
+					MIPI_DCS_GET_POWER_MODE, buf[0]);
+				break;
+			}
+
+			dsim_err("hix83112a panel REG 0x%02X Not match: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+			esd_detect = true;
+		}
+
+		if (i < RETRY)
+			return DSIM_ESD_OK;
+		else if (esd_detect)
+			return DSIM_ESD_ERROR;
+		else
+			return DSIM_ESD_CHECK_ERROR;
+
+
+	case 1: /* simple check and always return esd_detection */
+		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+					MIPI_DCS_GET_POWER_MODE, 0x1, buf);
+		if (ret < 0) {
+			dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+		} else {
+			if ((buf[0] & 0x7c) == 0x1c)
+				dsim_info("hix83112a panel REG 0x%02X=0x%02x\n",
+					MIPI_DCS_GET_POWER_MODE, buf[0]);
+			else {
+				dsim_err("hix83112a panel REG 0x%02X Not match: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+			}
+		}
+		dsim->esd_test = 0;
+		return DSIM_ESD_ERROR;
+	case 2: /* always return esd detection and initialize  */
+		dsim->esd_test = 0;
+		return DSIM_ESD_ERROR;
+	case 3: /* always return esd detection */
+		dsim->esd_test = 3;
+		return DSIM_ESD_ERROR;
+	case 4: /* always return esd ok */
+		dsim->esd_test = 4;
+		return DSIM_ESD_OK;
+	case 5: /* always return esd ok and display off/on by force*/
+		dsim_info("%s, lcd_disable is called for ESD test\n", __func__);
+		hix83112a_lcd_disable(dsim->id);
+		dsim_info("%s, 2sec sleep for ESD test\n", __func__);
+		msleep(2000);
+		dsim_info("%s, lcd_enable is called for ESD test\n", __func__);
+		hix83112a_lcd_enable(dsim->id);
+		dsim->esd_test = 4;
+		return DSIM_ESD_OK;
+	case 6: /* always return esd detection and display off by force*/
+		dsim_info("%s, lcd_disable is called for ESD test\n", __func__);
+		hix83112a_lcd_disable(dsim->id);
+		dsim_info("%s, 2sec sleep for ESD test\n", __func__);
+		msleep(2000);
+		dsim_info("%s, lcd_enable is called for ESD test\n", __func__);
+		hix83112a_lcd_enable(dsim->id);
+		dsim->esd_test = 4;
+		return DSIM_ESD_ERROR;
+	case 7: /* return DSIM_ESD_CHECK_ERROR by force */
+		for (i = 0; i < RETRY; i++) {
+			ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+					MIPI_DCS_GET_POWER_MODE, 0x1, buf);
+			ret = -ETIMEDOUT;
+			if (ret < 0) {
+				dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+				if (dsim->state != DSIM_STATE_ON)
+					return DSIM_ESD_OK;
+				usleep_range(1000, 1100);
+				continue;
+			}
+		}
+
+		dsim->esd_test = 0;
+
+		if (i < RETRY)
+			return DSIM_ESD_OK;
+		else if (esd_detect)
+			return DSIM_ESD_ERROR;
+		else
+			return DSIM_ESD_CHECK_ERROR;
+	default:
+		break;
+	}
+	return DSIM_ESD_OK;
+}
+
+#else
+static int hix83112a_read_state(struct dsim_device *dsim)
+{
+	int ret = 0;
+	u8 buf[2] = {0x0};
+	int i = 0;
+	int RETRY = 2; /* several retries are allowed */
+	bool esd_detect = false;
+
+	dsim_info("%s, read DDI for checking ESD\n", __func__);
+
+	for (i = 0; i < RETRY; i++) {
+		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+				MIPI_DCS_GET_POWER_MODE, 0x1, buf);
+		if (ret < 0) {
+			dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+			if (dsim->state != DSIM_STATE_ON)
+				return DSIM_ESD_OK;
+			usleep_range(1000, 1100);
+			continue;
+		}
+		if ((buf[0] & 0x7c) == 0x1c) {
+			dsim_info("hix83112a panel REG 0x%02X=0x%02x\n",
+					MIPI_DCS_GET_POWER_MODE, buf[0]);
+			break;
+		}
+
+		dsim_err("hix83112a panel REG 0x%02X Not match: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+		esd_detect = true;
+	}
+
+	if (i < RETRY)
+		return DSIM_ESD_OK;
+	else if (esd_detect)
+		return DSIM_ESD_ERROR;
+	else
+		return DSIM_ESD_CHECK_ERROR;
+}
+#endif
+#endif
+
 struct dsim_lcd_driver hix83112a_mipi_lcd_driver = {
 	.probe		= hix83112a_probe,
 	.displayon	= hix83112a_displayon,
 	.suspend	= hix83112a_suspend,
 	.resume		= hix83112a_resume,
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	.read_state	= hix83112a_read_state,
+#endif
 };
