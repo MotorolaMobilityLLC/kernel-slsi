@@ -40,7 +40,7 @@ extern int dsim_log_level;
 #define MAX_DSIM_DATALANE_CNT			4
 
 #define MIPI_WR_TIMEOUT				msecs_to_jiffies(50)
-#define MIPI_RD_TIMEOUT				msecs_to_jiffies(100)
+#define MIPI_RD_TIMEOUT				msecs_to_jiffies(50)
 
 #define dsim_err(fmt, ...)							\
 	do {									\
