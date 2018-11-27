@@ -247,9 +247,9 @@ void exynos_bcm_dbg_stop(unsigned int bcm_stop_owner);
 #endif
 
 #ifdef CONFIG_EXYNOS_BCM_DBG_GNR
-int exynos_bcm_dbg_load_bin(void);
+int __nocfi exynos_bcm_dbg_load_bin(void);
 #else
-#define exynos_bcm_dbg_load_bin(a) do {} while (0)
+#define exynos_bcm_dbg_load_bin() do {} while (0)
 #endif
 
 #endif	/* __EXYNOS_BCM_DBG_H_ */

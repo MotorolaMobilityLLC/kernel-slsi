@@ -87,7 +87,7 @@ static int exynos_bcm_is_running(unsigned int run_state)
 	return 0;
 }
 
-static int __exynos_bcm_dbg_ipc_send_data(enum exynos_bcm_dbg_ipc_type ipc_type,
+static int __nocfi __exynos_bcm_dbg_ipc_send_data(enum exynos_bcm_dbg_ipc_type ipc_type,
 				struct exynos_bcm_dbg_data *data,
 				unsigned int *cmd)
 {
@@ -3129,7 +3129,7 @@ err_parse_dt:
 }
 
 #ifdef CONFIG_EXYNOS_BCM_DBG_GNR
-static enum hrtimer_restart bcm_monitor(struct hrtimer *hrtimer)
+static enum hrtimer_restart __nocfi bcm_monitor(struct hrtimer *hrtimer)
 {
 	unsigned long flags;
 	u32 period;
@@ -3207,7 +3207,7 @@ static int bcm_change_memory_common(unsigned long addr, int numpages,
 	return ret;
 }
 
-int exynos_bcm_dbg_load_bin(void)
+int __nocfi exynos_bcm_dbg_load_bin(void)
 {
 	int ret = 0;
 	struct file *fp = NULL;
