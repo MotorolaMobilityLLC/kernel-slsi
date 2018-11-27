@@ -1063,9 +1063,7 @@ int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat)
 		goto p_err;
 	}
 
-#if !defined(CONFIG_SOC_EXYNOS9610)
 	if (vc == CSI_VIRTUAL_CH_0) {
-#endif
 		switch (hwformat) {
 		case HW_FORMAT_RAW10:
 		case HW_FORMAT_RAW6_DA:
@@ -1116,9 +1114,7 @@ int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat)
 			dma_input_path);
 #endif
 		fimc_is_hw_set_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL], val);
-#if !defined(CONFIG_SOC_EXYNOS9610)
 	}
-#endif
 
 p_err:
 	return ret;
