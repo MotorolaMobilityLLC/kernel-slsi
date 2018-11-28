@@ -453,7 +453,7 @@ void fimc_is_itf_sudden_stop_wrap(struct fimc_is_device_ischain *device, u32 ins
 	return;
 }
 
-int fimc_is_itf_power_down_wrap(struct fimc_is_interface *interface, u32 instance)
+int __nocfi fimc_is_itf_power_down_wrap(struct fimc_is_interface *interface, u32 instance)
 {
 	int ret = 0;
 	struct fimc_is_core *core;

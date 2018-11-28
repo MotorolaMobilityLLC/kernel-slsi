@@ -13,7 +13,7 @@
 
 extern struct fimc_is_lib_support gPtr_lib_support;
 
-static int fimc_is_hw_3aa_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
+static int __nocfi fimc_is_hw_3aa_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	struct fimc_is_group *group)
 {
 	int ret = 0;

@@ -2836,7 +2836,7 @@ int fimc_is_sensor_g_csis_error(struct fimc_is_device_sensor *device)
 	return errorCode;
 }
 
-int fimc_is_sensor_register_itf(struct fimc_is_device_sensor *device)
+int __nocfi fimc_is_sensor_register_itf(struct fimc_is_device_sensor *device)
 {
 	int ret = 0;
 	struct v4l2_subdev *subdev = NULL;

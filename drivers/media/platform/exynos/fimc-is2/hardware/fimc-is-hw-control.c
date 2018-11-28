@@ -2977,7 +2977,7 @@ static void get_setfile_hw_slots(unsigned long *slots, unsigned long *hint)
 	dbg_hw(1, "              -> (0x%lx)\n", *hint);
 }
 
-int fimc_is_hardware_load_setfile(struct fimc_is_hardware *hardware, ulong addr,
+int __nocfi fimc_is_hardware_load_setfile(struct fimc_is_hardware *hardware, ulong addr,
 	u32 instance, ulong hw_map)
 {
 	struct fimc_is_setfile_header header;

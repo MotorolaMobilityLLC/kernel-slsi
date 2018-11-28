@@ -1479,7 +1479,7 @@ ulong get_reg_addr(u32 id)
 	return reg_addr;
 }
 
-static void lib_task_work(struct kthread_work *work)
+static void __nocfi lib_task_work(struct kthread_work *work)
 {
 	struct fimc_is_task_work *cur_work;
 
@@ -2160,7 +2160,7 @@ int fimc_is_memory_attribute_rox(struct fimc_is_memory_attribute *attribute)
 
 #define INDEX_VRA_BIN	0
 #define INDEX_ISP_BIN	1
-int fimc_is_load_ddk_bin(int loadType)
+int __nocfi fimc_is_load_ddk_bin(int loadType)
 {
 	int ret = 0;
 	char bin_type[4] = {0};
@@ -2384,7 +2384,7 @@ fail:
 #endif
 }
 
-int fimc_is_load_rta_bin(int loadType)
+int __nocfi fimc_is_load_rta_bin(int loadType)
 {
 	int ret = 0;
 #ifdef USE_RTA_BINARY

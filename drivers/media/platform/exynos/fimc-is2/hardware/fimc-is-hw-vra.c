@@ -279,7 +279,7 @@ static int fimc_is_hw_vra_ch1_handle_interrupt(u32 id, void *context)
 	return ret;
 }
 
-static int fimc_is_hw_vra_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
+static int __nocfi fimc_is_hw_vra_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	struct fimc_is_group *group)
 {
 	int ret = 0;

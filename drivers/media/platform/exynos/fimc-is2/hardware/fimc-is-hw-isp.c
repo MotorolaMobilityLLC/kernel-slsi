@@ -15,7 +15,7 @@
 
 extern struct fimc_is_lib_support gPtr_lib_support;
 
-static int fimc_is_hw_isp_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
+static int __nocfi fimc_is_hw_isp_open(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	struct fimc_is_group *group)
 {
 	int ret = 0;
@@ -439,7 +439,7 @@ config:
 	return ret;
 }
 
-static int fimc_is_hw_isp_set_param(struct fimc_is_hw_ip *hw_ip, struct is_region *region,
+static int __nocfi fimc_is_hw_isp_set_param(struct fimc_is_hw_ip *hw_ip, struct is_region *region,
 	u32 lindex, u32 hindex, u32 instance, ulong hw_map)
 {
 	int ret = 0;
