@@ -524,7 +524,7 @@ void fimc_is_hw_csi_qchannel_enable_all(bool enable)
 }
 #endif
 
-static inline void fimc_is_isr1_ddk(void *data)
+static inline void __nocfi fimc_is_isr1_ddk(void *data)
 {
 	struct fimc_is_interface_hwip *itf_hw = NULL;
 	struct hwip_intr_handler *intr_hw = NULL;
@@ -541,7 +541,7 @@ static inline void fimc_is_isr1_ddk(void *data)
 	}
 }
 
-static inline void fimc_is_isr2_ddk(void *data)
+static inline void __nocfi fimc_is_isr2_ddk(void *data)
 {
 	struct fimc_is_interface_hwip *itf_hw = NULL;
 	struct hwip_intr_handler *intr_hw = NULL;
@@ -573,49 +573,49 @@ static inline void fimc_is_isr1_host(void *data)
 
 }
 
-static irqreturn_t fimc_is_isr1_3aa0(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr1_3aa0(int irq, void *data)
 {
 	fimc_is_isr1_ddk(data);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fimc_is_isr2_3aa0(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr2_3aa0(int irq, void *data)
 {
 	fimc_is_isr2_ddk(data);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fimc_is_isr1_3aa1(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr1_3aa1(int irq, void *data)
 {
 	fimc_is_isr1_ddk(data);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fimc_is_isr2_3aa1(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr2_3aa1(int irq, void *data)
 {
 	fimc_is_isr2_ddk(data);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fimc_is_isr1_isp(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr1_isp(int irq, void *data)
 {
 	fimc_is_isr1_ddk(data);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fimc_is_isr2_isp(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr2_isp(int irq, void *data)
 {
 	fimc_is_isr2_ddk(data);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fimc_is_isr1_mcs(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr1_mcs(int irq, void *data)
 {
 	fimc_is_isr1_host(data);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fimc_is_isr1_vra(int irq, void *data)
+static irqreturn_t __nocfi fimc_is_isr1_vra(int irq, void *data)
 {
 	struct fimc_is_interface_hwip *itf_hw = NULL;
 	struct hwip_intr_handler *intr_hw = NULL;
@@ -1089,7 +1089,7 @@ int fimc_is_hw_get_irq(void *itfc_data, void *pdev_data, int hw_id)
 }
 
 //#define DECLARE_FUNC_NAME(NUM, NAME) fimc_is_isr##NUM_##NAME
-static inline int __fimc_is_hw_request_irq(struct fimc_is_interface_hwip *itf_hwip,
+static inline int __nocfi __fimc_is_hw_request_irq(struct fimc_is_interface_hwip *itf_hwip,
 	const char *name,
 	int isr_num,
 	unsigned int added_irq_flags,
