@@ -355,7 +355,7 @@ exit:
 
 	set_fs(old_fs);
 
-	return ret;
+	return 0;
 }
 
 int sensor_2x5sp_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_sensor *device)
