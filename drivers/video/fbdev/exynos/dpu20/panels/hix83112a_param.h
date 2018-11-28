@@ -36,7 +36,7 @@ static const unsigned char SEQ_SLEEP_IN[] = {
 };
 
 static const unsigned char SEQ_CMD_0[] = {
-	0x51, 0x00, 0xFF
+	0x51, 0x00, 0x00
 };
 
 static const unsigned char SEQ_CMD_1[] = {
@@ -44,7 +44,7 @@ static const unsigned char SEQ_CMD_1[] = {
 };
 
 static const unsigned char SEQ_CMD_2[] = {
-	0x55, 0x02
+	0x55, 0x01
 };
 
 #endif /* __HIX83112A_PARAM_H__ */
