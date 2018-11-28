@@ -2,7 +2,7 @@
  * Copyright (C) 2010 - 2017 Novatek, Inc.
  *
  * $Revision: 22971 $
- * $Date: 2018-02-08 16:05:40 +0800 (週四, 08 二月 2018) $
+ * $Date: 2018-02-08 16:05:40 +0800 (Thu, 08 Feb 2018) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,8 @@ static struct proc_dir_entry *NVT_proc_fw_version_entry;
 static struct proc_dir_entry *NVT_proc_baseline_entry;
 static struct proc_dir_entry *NVT_proc_raw_entry;
 static struct proc_dir_entry *NVT_proc_diff_entry;
+static struct proc_dir_entry *NVT_proc_fw_upgrade_entry;
+struct proc_dir_entry *nvt_android_touch_proc_dir;
 
 /*******************************************************
 Description:
@@ -413,44 +415,6 @@ const struct seq_operations nvt_seq_ops = {
 	.show   = c_show
 };
 
-/*******************************************************
-Description:
-	Novatek touchscreen /proc/nvt_fw_version open
-	function.
-
-return:
-	n.a.
-*******************************************************/
-static int32_t nvt_info_open(struct inode *inode, struct file *file)
-{
-	if (mutex_lock_interruptible(&ts->lock)) {
-		return -ERESTARTSYS;
-	}
-
-	NVT_LOG("++\n");
-#if NVT_TOUCH_ESD_PROTECT
-			nvt_esd_check_enable(false);
-#endif
-	if (nvt_get_fw_info()) {
-		mutex_unlock(&ts->lock);
-		return -EAGAIN;
-	}
-
-	mutex_unlock(&ts->lock);
-
-	NVT_LOG("--\n");
-
-	return seq_open(file, &nvt_fw_version_seq_ops);
-}
-
-static const struct file_operations nvt_info_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = nvt_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 static int32_t nvt_fw_version_open(struct inode *inode, struct file *file)
 {
 	if (mutex_lock_interruptible(&ts->lock)) {
@@ -459,7 +423,7 @@ static int32_t nvt_fw_version_open(struct inode *inode, struct file *file)
 
 	NVT_LOG("++\n");
 #if NVT_TOUCH_ESD_PROTECT
-		nvt_esd_check_enable(false);
+	nvt_esd_check_enable(false);
 #endif
 	if (nvt_get_fw_info()) {
 		mutex_unlock(&ts->lock);
@@ -496,7 +460,7 @@ static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 
 	NVT_LOG("++\n");
 #if NVT_TOUCH_ESD_PROTECT
-			nvt_esd_check_enable(false);
+	nvt_esd_check_enable(false);
 #endif
 	if (nvt_clear_fw_status()) {
 		mutex_unlock(&ts->lock);
@@ -554,7 +518,7 @@ static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 
 	NVT_LOG("++\n");
 #if NVT_TOUCH_ESD_PROTECT
-		nvt_esd_check_enable(false);
+	nvt_esd_check_enable(false);
 #endif
 	if (nvt_clear_fw_status()) {
 		mutex_unlock(&ts->lock);
@@ -619,7 +583,7 @@ static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 
 	NVT_LOG("++\n");
 #if NVT_TOUCH_ESD_PROTECT
-		nvt_esd_check_enable(false);
+	nvt_esd_check_enable(false);
 #endif
 	if (nvt_clear_fw_status()) {
 		mutex_unlock(&ts->lock);
@@ -669,6 +633,34 @@ static const struct file_operations nvt_diff_fops = {
 	.release = seq_release,
 };
 
+static ssize_t nvt_fw_upgrade_read(struct file *file, char *buf,
+										size_t len, loff_t *pos)
+{
+	size_t ret = 0;
+	char *temp_buf;
+
+	if (*pos != 0)
+		return 0;
+
+	temp_buf = kzalloc(len, GFP_KERNEL);
+	ret = snprintf(temp_buf + ret, len - ret, "%d\n", ts->fw_upgrade_status);
+	NVT_LOG("read:%s\n", temp_buf);
+
+	if (copy_to_user(buf, temp_buf, len))
+		NVT_ERR("copy_to_user error.\n");
+
+	*pos += ret;
+
+	kfree(temp_buf);
+
+	return ret;
+}
+
+static struct file_operations nvt_proc_fw_upgrade_ops = {
+	.owner = THIS_MODULE,
+	.read = nvt_fw_upgrade_read,
+};
+
 /*******************************************************
 Description:
 	Novatek touchscreen extra function proc. file node
@@ -679,6 +671,8 @@ return:
 *******************************************************/
 int32_t nvt_extra_proc_init(void)
 {
+	nvt_android_touch_proc_dir = proc_mkdir(NVT_PROC_TOUCH_FOLDER, NULL);
+
 	NVT_proc_fw_version_entry = proc_create(NVT_FW_VERSION, 0444, NULL,&nvt_fw_version_fops);
 	if (NVT_proc_fw_version_entry == NULL) {
 		NVT_ERR("create proc/nvt_fw_version Failed!\n");
@@ -709,6 +703,13 @@ int32_t nvt_extra_proc_init(void)
 		return -ENOMEM;
 	} else {
 		NVT_LOG("create proc/nvt_diff Succeeded!\n");
+	}
+
+	NVT_proc_fw_upgrade_entry = proc_create(NVT_PROC_FW_UPGRADE_FILE, (S_IWUSR | S_IRUGO),
+									nvt_android_touch_proc_dir, &nvt_proc_fw_upgrade_ops);
+	if (NVT_proc_fw_upgrade_entry == NULL) {
+		NVT_ERR(" %s: proc fw_upgrade_status file create failed!\n", __func__);
+		return -ENOMEM;
 	}
 
 	return 0;

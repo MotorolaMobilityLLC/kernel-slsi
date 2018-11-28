@@ -2,7 +2,7 @@
  * Copyright (C) 2010 - 2017 Novatek, Inc.
  *
  * $Revision: 22971 $
- * $Date: 2018-02-08 16:05:40 +0800 (週四, 08 二月 2018) $
+ * $Date: 2018-02-08 16:05:40 +0800 (Thu, 08 Feb 2018) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,10 @@
 #define FLASH_SECTOR_SIZE 4096
 #define SIZE_64KB 65536
 #define BLOCK_64KB_NUM 4
+
+#define NO_ERR 0
+#define READY_TO_SERVE 1
+#define FW_NOT_READY -6
 
 const struct firmware *fw_entry = NULL;
 
@@ -830,46 +834,53 @@ return:
 int32_t Update_Firmware(void)
 {
 	int32_t ret = 0;
-
+	NVT_LOG("enter %s start\n",__func__);
 	//---Stop CRC check to prevent IC auto reboot---
 	nvt_stop_crc_reboot();
 
 	// Step 1 : initial bootloader
 	ret = Init_BootLoader();
 	if (ret) {
+		ts->fw_upgrade_status = FW_NOT_READY;
 		return ret;
 	}
 
 	// Step 2 : Resume PD
 	ret = Resume_PD();
 	if (ret) {
+		ts->fw_upgrade_status = FW_NOT_READY;
 		return ret;
 	}
 
 	// Step 3 : Erase
 	ret = Erase_Flash();
 	if (ret) {
+		ts->fw_upgrade_status = FW_NOT_READY;
 		return ret;
 	}
 
 	// Step 4 : Program
 	ret = Write_Flash();
 	if (ret) {
+		ts->fw_upgrade_status = FW_NOT_READY;
 		return ret;
 	}
 
 	// Step 5 : Verify
 	ret = Verify_Flash();
 	if (ret) {
+		ts->fw_upgrade_status = FW_NOT_READY;
 		return ret;
 	}
 
 	//Step 6 : Bootloader Reset
 	nvt_bootloader_reset();
 	nvt_check_fw_reset_state(RESET_STATE_INIT);
-
+	ts->fw_upgrade_status = READY_TO_SERVE;
+	NVT_LOG("exit %s end\n",__func__);
 	return ret;
 }
+
 /*******************************************************
 Description:
 	Novatek touchscreen check flash end flag function.
@@ -983,6 +994,7 @@ void Boot_Update_Firmware(struct work_struct *work)
 	int32_t ret = 0;
 
 	char firmware_name[256] = "";
+	NVT_LOG("enter %s start\n",__func__);
 	sprintf(firmware_name, BOOT_UPDATE_FIRMWARE_NAME);
 
 	// request bin file in "/etc/firmware"
@@ -991,8 +1003,9 @@ void Boot_Update_Firmware(struct work_struct *work)
 		NVT_ERR("update_firmware_request failed. (%d)\n", ret);
 		return;
 	}
-
+	NVT_LOG("firmware name :%s\n",firmware_name);
 	mutex_lock(&ts->lock);
+
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
 #endif
@@ -1016,6 +1029,7 @@ void Boot_Update_Firmware(struct work_struct *work)
 		// Bootloader Reset
 		nvt_bootloader_reset();
 		nvt_check_fw_reset_state(RESET_STATE_INIT);
+		ts->fw_upgrade_status = NO_ERR;
 	}
 
 #if NVT_TOUCH_FW
