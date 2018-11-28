@@ -131,7 +131,8 @@
 #define IS_VP9_ENC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_VP9_ENC)
 #define IS_BPG_ENC(ctx)		((ctx)->codec_mode == MFC_REG_CODEC_BPG_ENC)
 
-#define CODEC_NOT_CODED(ctx)	(IS_MPEG4_DEC(ctx) || IS_VC1_DEC(ctx) || IS_VC1_RCV_DEC(ctx))
+#define CODEC_NOT_CODED(ctx)	(IS_MPEG4_DEC(ctx) || IS_VC1_DEC(ctx) ||	\
+				IS_VC1_RCV_DEC(ctx) || IS_VP9_DEC(ctx))
 #define CODEC_INTERLACED(ctx)	(IS_H264_DEC(ctx) || IS_H264_MVC_DEC(ctx) ||	\
 				IS_MPEG2_DEC(ctx) || IS_MPEG4_DEC(ctx) ||	\
 				IS_VC1_DEC(ctx) || IS_VC1_RCV_DEC(ctx))
