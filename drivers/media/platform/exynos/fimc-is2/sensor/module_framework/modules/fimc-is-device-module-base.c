@@ -256,6 +256,13 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 		}
 	}
 #endif
+	if (subdev_ois != NULL) {
+		ret = CALL_OISOPS(sensor_peri->ois, ois_init, sensor_peri->subdev_ois);
+		if (ret < 0) {
+			err("v4l2_subdev_call(ois_init) is fail(%d)", ret);
+			return ret;
+		}
+	}
 
 	if (sensor_peri->mcu && sensor_peri->mcu->ois != NULL) {
 		ret = CALL_OISOPS(sensor_peri->mcu->ois, ois_init, sensor_peri->subdev_mcu);

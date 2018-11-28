@@ -4,6 +4,14 @@ menuconfig CAMERA_OIS_SELECT
 	help
 	  Say Y here to enable support for platform-specific V4L drivers.
 
+config CAMERA_OIS_BU24218GWL_OBJ
+        bool "Use BU24218GWL ois"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_OIS_SELECT
+        default n
+        help
+          Use to build BU24218GWL ois.
+
 config CAMERA_OIS_IDG2030_OBJ
         bool "Use IDG2030 ois"
 	depends on USE_DIRECT_IS_CONTROL
@@ -11,4 +19,12 @@ config CAMERA_OIS_IDG2030_OBJ
         default n
         help
           Use to build IDG2030 ois.
+
+config OIS_DIRECT_FW_CONTROL
+        bool "Use ois direct FW control"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_OIS_SELECT
+        default n
+        help
+          Use to ois direct FW control.
 
