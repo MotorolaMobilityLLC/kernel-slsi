@@ -64,7 +64,7 @@ p_err:
 
 	set_fs(old_fs);
 
-	return ret;
+	return 0;
 }
 
 int fimc_is_eeprom_file_read(const char *file_name, const void *data,
