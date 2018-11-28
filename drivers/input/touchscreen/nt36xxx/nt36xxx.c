@@ -2,7 +2,7 @@
  * Copyright (C) 2010 - 2017 Novatek, Inc.
  *
  * $Revision: 22971 $
- * $Date: 2018-02-08 16:05:40 +0800 (週四, 08 二月 2018) $
+ * $Date: 2018-02-08 16:05:40 +0800 (Thu, 08 Feb 2018) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,10 +34,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
 #include <linux/uaccess.h>
 #include <linux/input/mt.h>
-#include <linux/wakelock.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 
@@ -51,6 +49,9 @@
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
 #endif
+#if defined(CONFIG_CHARGER_NOTIFY)
+#include <linux/power_supply.h>
+#endif
 
 #include "nt36xxx.h"
 
@@ -59,7 +60,7 @@
 
 static struct delayed_work nvt_esd_check_work;
 static struct workqueue_struct *nvt_esd_check_wq;
-static unsigned long irq_timer;
+static unsigned long irq_timer = 0;
 uint8_t esd_check = false;
 uint8_t esd_retry = 0;
 uint8_t esd_retry_max = 5;
@@ -93,6 +94,14 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 static void nvt_ts_early_suspend(struct early_suspend *h);
 static void nvt_ts_late_resume(struct early_suspend *h);
 #endif
+#if defined(CONFIG_CHARGER_NOTIFY)
+static int charger_notifier_callback(struct notifier_block *nb,
+		unsigned long val, void *v);
+int32_t nvt_set_charger(uint8_t charger_on_off);
+static void nvt_charger_notify_work(struct work_struct *work);
+int usb_detect_flag = 0;
+#endif
+
 
 #if TOUCH_KEY_NUM > 0
 const uint16_t touch_key_array[TOUCH_KEY_NUM] = {
@@ -179,7 +188,8 @@ int32_t CTP_I2C_WRITE(struct i2c_client *client, uint16_t address, uint8_t *buf,
 
 	while (retries < 5) {
 		ret = i2c_transfer(client->adapter, &msg, 1);
-		if (ret == 1)	break;
+		if (ret == 1)
+			break;
 		retries++;
 	}
 
@@ -222,7 +232,7 @@ return:
 void nvt_bootloader_reset(void)
 {
 	uint8_t buf[8] = {0};
-	NVT_ERR("xlixiang---enter-%s\n", __func__);
+	NVT_LOG("enter %s start\n",__func__);
 	//---write i2c cmds to reset---
 	buf[0] = 0x00;
 	buf[1] = 0x69;
@@ -230,6 +240,7 @@ void nvt_bootloader_reset(void)
 
 	// need 35ms delay after bootloader reset
 	msleep(35);
+	NVT_LOG("exit %s end\n",__func__);
 }
 
 /*******************************************************
@@ -327,9 +338,11 @@ int32_t nvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state)
 	uint8_t buf[8] = {0};
 	int32_t ret = 0;
 	int32_t retry = 0;
-	NVT_ERR("xlixiang---enter-%s\n", __func__);
+	NVT_LOG("enter %s start\n",__func__);
+
 	while (1) {
 		msleep(10);
+
 		//---read reset state---
 		buf[0] = EVENT_MAP_RESET_COMPLETE;
 		buf[1] = 0x00;
@@ -339,16 +352,16 @@ int32_t nvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state)
 			ret = 0;
 			break;
 		}
-	
+
 		retry++;
 		if (check_reset_state <= RESET_STATE_REK) {
 			if( unlikely(retry > 50)) {
-				NVT_ERR("error,retry = %d,buf[1] = 0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",retry,buf[1],buf[2], buf[3], buf[4], buf[5]);	
+				NVT_ERR("error,retry = %d,buf[1] = 0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",retry,buf[1],buf[2], buf[3], buf[4], buf[5]);
 				ret = -1;
-				break;			
-			}		
+				break;
+			}
 		}
-		else 
+		else
 		{
 			if(unlikely(retry > 100)) {
 				NVT_ERR("error, retry=%d, buf[1]=0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X\n", retry, buf[1], buf[2], buf[3], buf[4], buf[5]);
@@ -357,6 +370,7 @@ int32_t nvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state)
 			}
 		}
 	}
+	NVT_LOG("exit %s end\n",__func__);
 
 	return ret;
 }
@@ -406,6 +420,7 @@ int32_t nvt_get_fw_info(void)
 	uint8_t buf[64] = {0};
 	uint32_t retry_count = 0;
 	int32_t ret = 0;
+	NVT_LOG("enter %s start\n",__func__);
 
 info_retry:
 	//---set xdata index to EVENT BUF ADDR---
@@ -451,6 +466,7 @@ info_retry:
 
 	//---Get Novatek PID---
 	nvt_read_pid();
+	NVT_LOG("exit %s end\n",__func__);
 
 	return ret;
 }
@@ -634,7 +650,9 @@ static int32_t nvt_flash_proc_init(void)
 /* function page definition */
 #define FUNCPAGE_GESTURE         1
 
-static struct wake_lock gestrue_wakelock;
+#define NVT_TS_HOLD_TIME		5000
+static struct wakeup_source gestrue_wakelock;
+
 
 /*******************************************************
 Description:
@@ -736,6 +754,7 @@ return:
 static void nvt_parse_dt(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
+	NVT_LOG("enter %s start\n",__func__);
 
 #if NVT_TOUCH_SUPPORT_HW_RST
 	ts->reset_gpio = of_get_named_gpio_flags(np, "novatek,reset-gpio", 0, &ts->reset_flags);
@@ -743,7 +762,7 @@ static void nvt_parse_dt(struct device *dev)
 #endif
 	ts->irq_gpio = of_get_named_gpio_flags(np, "novatek,irq-gpio", 0, &ts->irq_flags);
 	NVT_LOG("novatek,irq-gpio=%d\n", ts->irq_gpio);
-
+	NVT_LOG("exit %s end\n",__func__);
 }
 #else
 static void nvt_parse_dt(struct device *dev)
@@ -765,12 +784,7 @@ return:
 static int nvt_gpio_config(struct nvt_ts_data *ts)
 {
 	int32_t ret = 0;
-	struct pinctrl *pinctrl_vdd;
-
-	pinctrl_vdd = devm_pinctrl_get_select(&ts->client->dev, "on_state");
-	if (IS_ERR(pinctrl_vdd))
-			NVT_ERR("Failed to on vdd GPIO\n");
-
+	NVT_LOG("enter %s start\n",__func__);
 #if NVT_TOUCH_SUPPORT_HW_RST
 	/* request RST-pin (Output/High) */
 	if (gpio_is_valid(ts->reset_gpio)) {
@@ -789,14 +803,18 @@ static int nvt_gpio_config(struct nvt_ts_data *ts)
 			goto err_request_irq_gpio;
 		}
 	}
+	NVT_LOG("exit %s end\n",__func__);
 
 	return ret;
 
 err_request_irq_gpio:
 #if NVT_TOUCH_SUPPORT_HW_RST
-	gpio_free(ts->reset_gpio);
+	if (gpio_is_valid(ts->reset_gpio))
+		gpio_free(ts->reset_gpio);
 err_request_reset_gpio:
 #endif
+	NVT_LOG("exit %s abnormal end\n",__func__);
+
 	return ret;
 }
 
@@ -837,7 +855,6 @@ static void nvt_esd_check_func(struct work_struct *work)
 
 	if ((timer > NVT_TOUCH_ESD_CHECK_PERIOD) && esd_check) {
 		NVT_ERR("do ESD recovery, timer = %d, retry = %d\n", timer, esd_retry);
-		printk("do ESD recovery, timer = %d, retry = %d\n", timer, esd_retry);
 		/* do esd recovery, bootloader reset */
 		nvt_bootloader_reset();
 		/* update interrupt timer */
@@ -884,7 +901,6 @@ static void nvt_ts_work_func(struct work_struct *work)
 	}
 
 #if NVT_TOUCH_ESD_PROTECT
-
 	if (nvt_fw_recovery(point_data)) {
 		nvt_esd_check_enable(true);
 		goto XFER_ERROR;
@@ -1007,7 +1023,7 @@ static irqreturn_t nvt_ts_irq_handler(int32_t irq, void *dev_id)
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
-		wake_lock_timeout(&gestrue_wakelock, msecs_to_jiffies(5000));
+		__pm_wakeup_event(&gestrue_wakelock, NVT_TS_HOLD_TIME);
 	}
 #endif
 
@@ -1040,7 +1056,7 @@ void nvt_stop_crc_reboot(void)
 	buf[0] = 0x4E;
 	CTP_I2C_READ(ts->client, I2C_BLDR_Address, buf, 4);
 
-	if (((buf[1] == 0xFC) && (buf[2] == 0xFC) && (buf[3] == 0xFC)) ||
+	if ((buf[1] == 0xFC) ||
 		((buf[1] == 0xFF) && (buf[2] == 0xFF) && (buf[3] == 0xFF))) {
 
 		//IC is in CRC fail reboot loop, needs to be stopped!
@@ -1102,6 +1118,7 @@ static int8_t nvt_ts_check_chip_ver_trim(void)
 	int32_t i = 0;
 	int32_t found_nvt_chip = 0;
 	int32_t ret = -1;
+	NVT_LOG("enter %s start\n",__func__);
 
 	nvt_bootloader_reset(); // NOT in retry loop
 
@@ -1129,6 +1146,13 @@ static int8_t nvt_ts_check_chip_ver_trim(void)
 		CTP_I2C_READ(ts->client, I2C_BLDR_Address, buf, 7);
 		NVT_LOG("buf[1]=0x%02X, buf[2]=0x%02X, buf[3]=0x%02X, buf[4]=0x%02X, buf[5]=0x%02X, buf[6]=0x%02X\n",
 			buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
+
+		/* ---Stop CRC check to prevent IC auto reboot---*/
+		if ((buf[1] == 0xFC) ||
+			((buf[1] == 0xFF) && (buf[2] == 0xFF) && (buf[3] == 0xFF))) {
+			nvt_stop_crc_reboot();
+			continue;
+		}
 
 		// compare read chip id on supported list
 		for (list = 0; list < (sizeof(trim_id_table) / sizeof(struct nvt_ts_trim_id_table)); list++) {
@@ -1171,16 +1195,11 @@ static int8_t nvt_ts_check_chip_ver_trim(void)
 			}
 		}
 
-		//---Stop CRC check to prevent IC auto reboot---
-		if (((buf[1] == 0xFC) && (buf[2] == 0xFC) && (buf[3] == 0xFC)) ||
-			((buf[1] == 0xFF) && (buf[2] == 0xFF) && (buf[3] == 0xFF))) {
-			nvt_stop_crc_reboot();
-		}
-
 		msleep(10);
 	}
 
 out:
+	NVT_LOG("exit %s end\n",__func__);
 	return ret;
 }
 
@@ -1199,7 +1218,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	int32_t retry = 0;
 #endif
 
-	NVT_LOG("start\n");
+	NVT_LOG("enter %s start\n",__func__);
 	//---check i2c func.---
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		NVT_ERR("i2c_check_functionality failed. (no I2C_FUNC_I2C)\n");
@@ -1219,6 +1238,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	//---parse dts---
 	nvt_parse_dt(&client->dev);
 
+
 	//---request and config GPIOs---
 	ret = nvt_gpio_config(ts);
 	if (ret) {
@@ -1228,7 +1248,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 
 	// need 10ms delay after POR(power on reset)
 	msleep(10);
-
 	//---check chip version trim---
 	ret = nvt_ts_check_chip_ver_trim();
 	if (ret) {
@@ -1305,7 +1324,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	for (retry = 0; retry < (sizeof(gesture_key_array) / sizeof(gesture_key_array[0])); retry++) {
 		input_set_capability(ts->input_dev, EV_KEY, gesture_key_array[retry]);
 	}
-	wake_lock_init(&gestrue_wakelock, WAKE_LOCK_SUSPEND, "poll-wake-lock");
+	wakeup_source_init(&gestrue_wakelock, "gestrue-wake-lock");
 #endif
 
 	sprintf(ts->phys, "input/ts");
@@ -1338,6 +1357,23 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 			NVT_LOG("request irq %d succeed\n", client->irq);
 		}
 	}
+
+#if defined(CONFIG_CHARGER_NOTIFY)
+		ts->usb_connected = 0;
+		ts->nvt_charger_notify_wq = create_singlethread_workqueue("nvt_charger_notify_wq");
+		if (!ts->nvt_charger_notify_wq) {
+			NVT_ERR(" allocate nvt_charger_notify_wq failed\n");
+			goto err_charger_notify_wq_failed;
+		}
+		INIT_WORK(&ts->charger_notify_work, nvt_charger_notify_work);
+
+		ts->charger_notif.notifier_call = charger_notifier_callback;
+		ret = power_supply_reg_notifier(&ts->charger_notif);
+		if (ret) {
+			NVT_ERR("Unable to register charger_notifier: %d\n",ret);
+			goto err_register_charger_notify_failed;
+		}
+#endif
 
 #if BOOT_UPDATE_FIRMWARE
 	nvt_fwu_wq = create_singlethread_workqueue("nvt_fwu_wq");
@@ -1413,7 +1449,8 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 #endif
 
 	bTouchIsAwake = 1;
-	NVT_LOG("end\n");
+
+	NVT_LOG("exit %s normal end\n",__func__);
 
 	enable_irq(client->irq);
 
@@ -1427,10 +1464,18 @@ err_register_early_suspend_failed:
 #if (NVT_TOUCH_PROC || NVT_TOUCH_EXT_PROC || NVT_TOUCH_MP)
 err_init_NVT_ts:
 #endif
-	free_irq(client->irq, ts);
 #if BOOT_UPDATE_FIRMWARE
-err_create_nvt_fwu_wq_failed:
+	err_create_nvt_fwu_wq_failed:
 #endif
+#if defined(CONFIG_CHARGER_NOTIFY)
+err_register_charger_notify_failed:
+	if (ts->charger_notif.notifier_call)
+		power_supply_unreg_notifier(&ts->charger_notif);
+	destroy_workqueue(ts->nvt_charger_notify_wq);
+	ts->nvt_charger_notify_wq = NULL;
+err_charger_notify_wq_failed:
+#endif
+	free_irq(client->irq, ts);
 err_int_request_failed:
 err_input_register_device_failed:
 	input_free_device(ts->input_dev);
@@ -1469,6 +1514,12 @@ static int32_t nvt_ts_remove(struct i2c_client *client)
 		NVT_ERR("Error occurred while unregistering fb_notifier.\n");
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&ts->early_suspend);
+#endif
+#if defined(CONFIG_CHARGER_NOTIFY)
+	if (ts->charger_notif.notifier_call)
+		power_supply_unreg_notifier(&ts->charger_notif);
+
+	destroy_workqueue(ts->nvt_charger_notify_wq);
 #endif
 
 #if NVT_TOUCH_FW
@@ -1577,8 +1628,6 @@ return:
 *******************************************************/
 static int32_t nvt_ts_resume(struct device *dev)
 {
-	int res = 0;
-
 	if (bTouchIsAwake) {
 		NVT_LOG("Touch is already resume\n");
 		return 0;
@@ -1589,26 +1638,31 @@ static int32_t nvt_ts_resume(struct device *dev)
 	mutex_lock(&ts->lock);
 
 	NVT_LOG("start\n");
-	// please make sure display reset(RESX) sequence and mipi dsi cmds sent before this
+	/* please make sure display reset(RESX) sequence and mipi dsi cmds sent before this*/
 #if NVT_TOUCH_SUPPORT_HW_RST
 	gpio_set_value(ts->reset_gpio, 1);
 #endif
 	nvt_bootloader_reset();
-	res = nvt_check_fw_reset_state(RESET_STATE_REK);
-
-	NVT_ERR("xlixiang---enter-%s-----res=%d\n", __func__, res);
+	nvt_check_fw_reset_state(RESET_STATE_REK);
 
 #if !WAKEUP_GESTURE
 	enable_irq(ts->client->irq);
 #endif
 
 #if NVT_TOUCH_ESD_PROTECT
+	nvt_esd_check_enable(true);
+
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
 	msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
 #endif
+#if defined(CONFIG_CHARGER_NOTIFY)
+	queue_work(ts->nvt_charger_notify_wq, &ts->charger_notify_work);
+#endif
+
 	bTouchIsAwake = 1;
+
 #if NVT_TOUCH_FW
-		ts->suspended = 0;
+	ts->suspended = 0;
 #endif
 
 	mutex_unlock(&ts->lock);
@@ -1665,6 +1719,116 @@ return:
 static void nvt_ts_late_resume(struct early_suspend *h)
 {
 	nvt_ts_resume(ts->client);
+}
+#endif
+
+#if defined(CONFIG_CHARGER_NOTIFY)
+int32_t nvt_set_charger(uint8_t charger_on_off)
+{
+	uint8_t buf[8] = {0};
+	int32_t ret = 0;
+
+	NVT_LOG("set charger: %d\n", charger_on_off);
+
+	msleep(20);
+	//---set xdata index to EVENT BUF ADDR---
+	buf[0] = 0xFF;
+	buf[1] = (ts->mmap->EVENT_BUF_ADDR >> 16) & 0xFF;
+	buf[2] = (ts->mmap->EVENT_BUF_ADDR >> 8) & 0xFF;
+
+	ret = CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 3);
+	if (ret < 0) {
+		NVT_ERR("Set event buffer index fail!\n");
+		goto nvt_set_charger_out;
+	}
+
+	if (charger_on_off == USB_DETECT_IN) {
+		buf[0] = EVENT_MAP_HOST_CMD;
+		buf[1] = CMD_CHARGER_ON;
+		ret = CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+		if (ret < 0) {
+			NVT_ERR("Write set charger command fail!\n");
+			goto nvt_set_charger_out;
+		}
+	} else if (charger_on_off == USB_DETECT_OUT) {
+		buf[0] = EVENT_MAP_HOST_CMD;
+		buf[1] = CMD_CHARGER_OFF;
+		ret = CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+		if (ret < 0) {
+			NVT_ERR("Write set charger command fail!\n");
+			goto nvt_set_charger_out;
+		}
+	} else {
+		NVT_ERR("Invalid charger parameter!\n");
+		ret = -EINVAL;
+	}
+
+nvt_set_charger_out:
+
+	return ret;
+}
+
+static void nvt_charger_notify_work(struct work_struct *work)
+{
+	if (NULL == work) {
+		NVT_ERR("%s:  parameter work are null!\n", __func__);
+		return;
+	}
+	NVT_LOG("enter\n");
+	if (USB_DETECT_IN == usb_detect_flag) {
+		if (mutex_lock_interruptible(&ts->lock)) {
+			NVT_ERR("Failed to lock in mutex_lock_interruptible(&ts->lock).\n");
+			return;
+		}
+		nvt_set_charger(USB_DETECT_IN);
+		mutex_unlock(&ts->lock);
+	} else if (USB_DETECT_OUT == usb_detect_flag) {
+			if (mutex_lock_interruptible(&ts->lock)) {
+				NVT_ERR("Failed to lock in mutex_lock_interruptible(&ts->lock).\n");
+				return;
+			}
+			nvt_set_charger(USB_DETECT_OUT);
+			mutex_unlock(&ts->lock);
+		} else {
+			NVT_LOG("Charger flag:%d not currently required!\n",usb_detect_flag);
+	}
+}
+
+static int charger_notifier_callback(struct notifier_block *nb,
+		unsigned long val, void *v)
+{
+	int ret = 0;
+	struct power_supply *psy = NULL;
+	struct nvt_ts_data *ts = container_of(nb, struct nvt_ts_data, charger_notif);
+	union power_supply_propval prop;
+
+	psy= power_supply_get_by_name("usb");
+	if (!psy){
+		return -EINVAL;
+		NVT_ERR("Couldn't get usbpsy\n");
+	}
+	if (!strcmp(psy->desc->name, "usb")){
+		if (psy && ts && val == POWER_SUPPLY_PROP_STATUS) {
+			ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_PRESENT,&prop);
+			if (ret < 0) {
+				NVT_ERR("Couldn't get POWER_SUPPLY_PROP_ONLINE rc=%d\n", ret);
+				return ret;
+			}else{
+				usb_detect_flag = prop.intval;
+				if(usb_detect_flag != ts->usb_connected) {
+					 if (USB_DETECT_IN == usb_detect_flag) {
+						  ts->usb_connected = USB_DETECT_IN;
+					 }else{
+						  ts->usb_connected = USB_DETECT_OUT;
+					 }
+					 if (bTouchIsAwake){
+						 queue_work(ts->nvt_charger_notify_wq, &ts->charger_notify_work);
+					}
+				}
+			}
+		}
+	}
+	return 0;
 }
 #endif
 

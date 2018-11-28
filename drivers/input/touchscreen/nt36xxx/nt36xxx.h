@@ -2,7 +2,7 @@
  * Copyright (C) 2010 - 2017 Novatek, Inc.
  *
  * $Revision: 22971 $
- * $Date: 2018-02-08 16:05:40 +0800 (週四, 08 二月 2018) $
+ * $Date: 2018-02-08 16:05:40 +0800 (Thu, 08 Feb 2018) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -27,7 +29,7 @@
 
 #include "nt36xxx_mem_map.h"
 
-#define NVT_DEBUG 1
+#define NVT_DEBUG 0
 
 //---GPIO number---
 #define NVTTOUCH_RST_PIN 980
@@ -56,10 +58,13 @@
 //---Input device info.---
 #define NVT_TS_NAME "NVTCapacitiveTouchScreen"
 
+//proc node info
+#define NVT_PROC_FW_UPGRADE_FILE "fw_upgrade_status"
+#define NVT_PROC_TOUCH_FOLDER "android_touch"
 
 //---Touch info.---
 #define TOUCH_DEFAULT_MAX_WIDTH 1080
-#define TOUCH_DEFAULT_MAX_HEIGHT 2246
+#define TOUCH_DEFAULT_MAX_HEIGHT 2520
 #define TOUCH_MAX_FINGER_NUM 10
 #define TOUCH_KEY_NUM 0
 #if TOUCH_KEY_NUM > 0
@@ -75,17 +80,24 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #define NVT_TOUCH_EXT_PROC 1
 #define NVT_TOUCH_FW 1
 #define NVT_TOUCH_MP 1
-#define NVT_TOUCH_MP_LENOVO 1
+#define NVT_TOUCH_MP_LENOVO 0
 #define MT_PROTOCOL_B 1
 #define WAKEUP_GESTURE 0
 #if WAKEUP_GESTURE
 extern const uint16_t gesture_key_array[];
 #endif
-#define BOOT_UPDATE_FIRMWARE 0
+#define BOOT_UPDATE_FIRMWARE 1
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw.bin"
 /* ---ESD Protect.--- */
-#define NVT_TOUCH_ESD_PROTECT 1
+#define NVT_TOUCH_ESD_PROTECT 0
 #define NVT_TOUCH_ESD_CHECK_PERIOD 2000	/* ms */
+
+#if defined(CONFIG_CHARGER_NOTIFY)
+	#define USB_DETECT_IN 1
+	#define USB_DETECT_OUT	0
+	#define CMD_CHARGER_ON	(0x53)
+	#define CMD_CHARGER_OFF (0x51)
+#endif
 
 struct nvt_ts_data {
 	struct i2c_client *client;
@@ -121,6 +133,13 @@ struct nvt_ts_data {
 	uint8_t force_reflash;
 	uint8_t loading_fw;
 #endif
+#if defined(CONFIG_CHARGER_NOTIFY)
+	struct notifier_block charger_notif;
+	uint8_t usb_connected;
+	struct workqueue_struct *nvt_charger_notify_wq;
+	struct work_struct charger_notify_work;
+#endif
+	int fw_upgrade_status;
 };
 
 #if NVT_TOUCH_FW
