@@ -1247,6 +1247,16 @@ config TOUCHSCREEN_ROHM_BU21023
 	  module will be called bu21023_ts.
 
 source "drivers/input/touchscreen/synaptics_dsx/Kconfig"
+config TOUCHSCREEN_NOVATEK_CHIPSET
+        bool "Novatek touchpanel Novatek series"
+        depends on I2C
+        help
+          Say Y here if you have a Novatek NT36525  touchscreen.
+          Novatek controllers are multi touch controllers which can
+          report 10 touches at a time.
+
+          If unsure, say N.
+
 source "drivers/input/touchscreen/nt36xxx/Kconfig"
 
 config TOUCHSCREEN_HIMAX_CHIPSET
