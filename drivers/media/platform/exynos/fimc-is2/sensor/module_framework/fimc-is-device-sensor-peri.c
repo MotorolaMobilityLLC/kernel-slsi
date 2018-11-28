@@ -1659,10 +1659,10 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 #endif
 			schedule_work(&sensor_peri->mcu->aperture->aperture_set_start_work);
 		} else {
-			if (sensor_peri->mcu && sensor_peri->mcu->ois) {
+			if (sensor_peri->ois) {
 				mutex_lock(&core->ois_mode_lock);
-				ret = CALL_OISOPS(sensor_peri->mcu->ois, ois_set_mode, sensor_peri->subdev_mcu,
-					sensor_peri->mcu->ois->ois_mode);
+				ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois,
+					sensor_peri->ois->ois_mode);
 				if (ret < 0)
 					err("v4l2_subdev_call(ois_set_mode) is fail(%d)", ret);
 				mutex_unlock(&core->ois_mode_lock);
