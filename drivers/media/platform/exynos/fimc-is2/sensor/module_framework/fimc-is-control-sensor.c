@@ -608,6 +608,15 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 		ret = fimc_is_sensor_peri_pre_flash_fire(device->subdev_module, &vsync_count);
 	}
 
+	if (sensor_peri->ois) {
+		ret = CALL_OISOPS(sensor_peri->ois, ois_set_mode, sensor_peri->subdev_ois, sensor_peri->ois->ois_mode);
+		if (ret < 0) {
+			err("[SEN:%d] v4l2_subdev_call(ois_mode_change, mode:%d) is fail(%d)",
+				module->sensor_id, sensor_peri->ois->ois_mode, ret);
+			goto p_err;
+		}
+	}
+
 	/* Warning! Aperture mode should be set before setting ois mode */
 	if (sensor_peri->mcu && sensor_peri->mcu->ois) {
 		ret = CALL_OISOPS(sensor_peri->mcu->ois, ois_set_mode, sensor_peri->subdev_mcu, sensor_peri->mcu->ois->ois_mode);
