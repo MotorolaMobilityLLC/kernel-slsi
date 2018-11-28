@@ -336,7 +336,7 @@ static void handle_debug_work(struct contexthub_ipc_info *ipc, enum chub_err_typ
 	}
 }
 
-static void request_debug_work(struct contexthub_ipc_info *ipc,
+static void contexthub_handle_debug(struct contexthub_ipc_info *ipc,
 	enum chub_err_type err,	bool enable_wq)
 {
 	dev_info(ipc->dev, "%s: err:%d(cnt:%d), enable_wq:%d\n",
@@ -484,7 +484,7 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 	return ret;
 
 fail_get_channel:
-	request_debug_work(ipc, CHUB_ERR_READ_FAIL, 0);
+	contexthub_handle_debug(ipc, CHUB_ERR_READ_FAIL, 0);
 	return -EINVAL;
 }
 
@@ -503,7 +503,7 @@ int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 	if (ret) {
 		pr_err("%s: fails to write data: ret:%d, len:%d errcnt:%d\n",
 			__func__, ret, length, ipc->err_cnt[CHUB_ERR_WRITE_FAIL]);
-		request_debug_work(ipc, CHUB_ERR_WRITE_FAIL, 0);
+		contexthub_handle_debug(ipc, CHUB_ERR_WRITE_FAIL, 0);
 		length = 0;
 	} else {
 		clear_err_cnt(ipc, CHUB_ERR_WRITE_FAIL);
@@ -759,7 +759,7 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 				"%s : chub isn't alive, should be reset. status:%d\n",
 				__func__, atomic_read(&ipc->chub_status));
 			atomic_set(&ipc->chub_status, CHUB_ST_NO_RESPONSE);
-			request_debug_work(ipc, CHUB_ERR_CHUB_NO_RESPONSE, 0);
+			contexthub_handle_debug(ipc, CHUB_ERR_CHUB_NO_RESPONSE, 0);
 			ret = -EINVAL;
 		}
 		break;
@@ -777,51 +777,52 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 		break;
 	}
 
-	if (!need_ipc)
-		return ret;
+	if (need_ipc) {
+		if (contexthub_get_token(ipc)) {
+			dev_warn(ipc->dev, "%s event:%d/%d fails chub isn't active, status:%d, inreset:%d\n",
+				__func__, event, MAILBOX_EVT_MAX, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
+			return -EINVAL;
+		}
 
-	if (contexthub_get_token(ipc)) {
-		dev_warn(ipc->dev, "%s event:%d/%d fails chub isn't active, status:%d, inreset:%d\n",
-			__func__, event, MAILBOX_EVT_MAX, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
-		return -EINVAL;
-	}
+		/* handle ipc */
+		switch (event) {
+		case MAILBOX_EVT_ERASE_SHARED:
+			memset(ipc_get_base(IPC_REG_SHARED), 0, ipc_get_offset(IPC_REG_SHARED));
+			break;
+		case MAILBOX_EVT_DUMP_STATUS:
+			/* dump nanohub kernel status */
+			dev_info(ipc->dev, "Request to dump chub fw status\n");
+			ipc_write_debug_event(AP, (u32)MAILBOX_EVT_DUMP_STATUS);
+			ret = ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_DEBUG);
+			break;
+		case MAILBOX_EVT_WAKEUP_CLR:
+			if (atomic_read(&ipc->wakeup_chub) == CHUB_ON) {
+				atomic_set(&ipc->wakeup_chub, CHUB_OFF);
+				ret = ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_WAKEUP_CLR);
+			}
+			break;
+		case MAILBOX_EVT_WAKEUP:
+			if (atomic_read(&ipc->wakeup_chub) == CHUB_OFF) {
+				atomic_set(&ipc->wakeup_chub, CHUB_ON);
+				ret = ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_WAKEUP);
+			}
+			break;
+		default:
+			/* handle ipc utc */
+			if ((int)event < IPC_DEBUG_UTC_MAX) {
+				ipc->utc_run = event;
+				if ((int)event == IPC_DEBUG_UTC_TIME_SYNC)
+					check_rtc_time();
+				ipc_write_debug_event(AP, (u32)event);
+				ret = ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_DEBUG);
+			}
+			break;
+		}
+		contexthub_put_token(ipc);
 
-	/* handle ipc */
-	switch (event) {
-	case MAILBOX_EVT_ERASE_SHARED:
-		memset(ipc_get_base(IPC_REG_SHARED), 0, ipc_get_offset(IPC_REG_SHARED));
-		break;
-	case MAILBOX_EVT_DUMP_STATUS:
-		/* dump nanohub kernel status */
-		dev_info(ipc->dev, "Request to dump chub fw status\n");
-		ipc_write_debug_event(AP, (u32)MAILBOX_EVT_DUMP_STATUS);
-		ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_DEBUG);
-		break;
-	case MAILBOX_EVT_WAKEUP_CLR:
-		if (atomic_read(&ipc->wakeup_chub) == CHUB_ON) {
-			atomic_set(&ipc->wakeup_chub, CHUB_OFF);
-			ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_WAKEUP_CLR);
-		}
-		break;
-	case MAILBOX_EVT_WAKEUP:
-		if (atomic_read(&ipc->wakeup_chub) == CHUB_OFF) {
-			atomic_set(&ipc->wakeup_chub, CHUB_ON);
-			ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_WAKEUP);
-		}
-		break;
-	default:
-		/* handle ipc utc */
-		if ((int)event < IPC_DEBUG_UTC_MAX) {
-			ipc->utc_run = event;
-			if ((int)event == IPC_DEBUG_UTC_TIME_SYNC)
-				check_rtc_time();
-			ipc_write_debug_event(AP, (u32)event);
-			ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_DEBUG);
-			ret = 0;
-		}
-		break;
+		if (ret)
+			ipc->err_cnt[CHUB_ERR_EVTQ_ADD]++;
 	}
-	contexthub_put_token(ipc);
 	return ret;
 }
 
@@ -865,7 +866,6 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 	} else {
 		ret = -EINVAL;
 	}
-
 	return ret;
 }
 
@@ -932,8 +932,10 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 		dev_info(ipc->dev, "%s: wait for ipc user free: %d\n", __func__, atomic_read(&ipc->in_use_ipc));
 	} while (atomic_read(&ipc->in_use_ipc));
 
-	if (dump)
+	if (dump) {
+		ipc->err_cnt[CHUB_ERR_NONE] = dump;
 		chub_dbg_dump_hw(ipc, ipc->cur_err);
+	}
 
 	dev_info(ipc->dev, "%s: start reset status:%d\n", __func__, atomic_read(&ipc->chub_status));
 	if (!ipc->block_reset) {
@@ -991,7 +993,7 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 	const struct firmware *entry;
 	int ret;
 
-	dev_info(ipc->dev, "%s: enter for bl:%d\n", reg == IPC_REG_BL);
+	dev_info(ipc->dev, "%s: enter for bl:%d\n", __func__, reg == IPC_REG_BL);
 	if (reg == IPC_REG_BL)
 		ret = request_firmware(&entry, "bl.unchecked.bin", ipc->dev);
 	else if (reg == IPC_REG_OS)
@@ -1016,7 +1018,7 @@ static void handle_irq(struct contexthub_ipc_info *ipc, enum irq_evt_chub evt)
 {
 	switch (evt) {
 	case IRQ_EVT_C2A_DEBUG:
-		request_debug_work(ipc, CHUB_ERR_NANOHUB, 1);
+		contexthub_handle_debug(ipc, CHUB_ERR_NANOHUB, 1);
 		break;
 	case IRQ_EVT_C2A_INT:
 		if (atomic_read(&ipc->irq1_apInt) == C2A_OFF) {
@@ -1099,7 +1101,7 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 		       status, ipc_hw_read_int_status_reg(AP),
 		       ipc_hw_read_int_gen_reg(AP));
 		ipc_hw_clear_all_int_pend_reg(AP);
-		request_debug_work(ipc, err, 1);
+		contexthub_handle_debug(ipc, err, 1);
 	} else {
 		clear_err_cnt(ipc, CHUB_ERR_EVTQ_EMTPY);
 		clear_err_cnt(ipc, CHUB_ERR_EVTQ_NO_HW_TRIGGER);
@@ -1115,7 +1117,7 @@ static irqreturn_t contexthub_irq_wdt_handler(int irq, void *data)
 	dev_info(ipc->dev, "%s called\n", __func__);
 	disable_irq_nosync(ipc->irq_wdt);
 	ipc->irq_wdt_disabled = 1;
-	request_debug_work(ipc, CHUB_ERR_FW_WDT, 1);
+	contexthub_handle_debug(ipc, CHUB_ERR_FW_WDT, 1);
 
 	return IRQ_HANDLED;
 }
@@ -1392,7 +1394,7 @@ static int chub_itmon_notifier(struct notifier_block *nb,
 		(!strncmp("PDMA_SHUB", itmon_data->master, sizeof("PDMA_SHUB") - 1)))) {
 		dev_info(data->dev, "%s: chub(%s) itmon detected: action:%d!!\n",
 			__func__, itmon_data->master, action);
-		request_debug_work(data, CHUB_ERR_ITMON, 1);
+		contexthub_handle_debug(data, CHUB_ERR_ITMON, 1);
 		return NOTIFY_OK;
 	}
 
@@ -1490,23 +1492,43 @@ static int contexthub_ipc_remove(struct platform_device *pdev)
 static int contexthub_suspend(struct device *dev)
 {
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
 	struct nanohub_data *data = ipc->data;
+#endif
 
-	pr_info("nanohub log to kernel off\n");
-	ipc_set_chub_kernel_log(KERNEL_LOG_OFF);
+	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
+		return 0;
 
+	dev_dbg(dev, "nanohub log to kernel off\n");
+	ipc_hw_write_shared_reg(AP, MAILBOX_REQUEST_KLOG_OFF, SR_3);
+	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
+
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
 	return nanohub_suspend(data->iio_dev);
+#else
+	return 0;
+#endif
 }
 
 static int contexthub_resume(struct device *dev)
 {
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
 	struct nanohub_data *data = ipc->data;
+#endif
 
-	pr_info("nanohub log to kernel on\n");
-	ipc_set_chub_kernel_log(KERNEL_LOG_ON);
+	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
+		return 0;
 
+	dev_dbg(dev, "nanohub log to kernel on\n");
+	ipc_hw_write_shared_reg(AP, MAILBOX_REQUEST_KLOG_ON, SR_3);
+	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
+
+#ifdef CONFIG_CHRE_SENSORHUB_HAL
 	return nanohub_resume(data->iio_dev);
+#else
+	return 0;
+#endif
 }
 
 static SIMPLE_DEV_PM_OPS(contexthub_pm_ops, contexthub_suspend, contexthub_resume);

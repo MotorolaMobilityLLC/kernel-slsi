@@ -15,6 +15,7 @@
 #if defined(SEOS)
 #include <seos.h>
 #include <errno.h>
+#include <cmsis.h>
 #elif defined(EMBOS)
 #include <Device.h>
 #define EINVAL 22
@@ -263,6 +264,23 @@ void *ipc_get_chub_map(void)
 	return ipc_map;
 }
 
+#ifdef CHUB_IPC
+#define DISABLE_IRQ() __disable_irq();
+#define ENABLE_IRQ() __enable_irq();
+static inline void busywait(u32 ms)
+{
+	msleep(ms);
+}
+#else /* AP IPC doesn't need it */
+#define DISABLE_IRQ() do {} while(0)
+#define ENABLE_IRQ() do {} while(0)
+static inline void busywait(u32 ms)
+{
+	(void)ms;
+	cpu_relax();
+}
+#endif
+
 #ifndef USE_IPC_BUF
 static inline bool __ipc_queue_empty(struct ipc_buf *ipc_data)
 {
@@ -285,6 +303,7 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 	struct ipc_buf *ipc_data = ipc_get_base(reg);
 
 	if (length <= PACKET_SIZE_MAX) {
+		DISABLE_IRQ();
 		if (!__ipc_queue_full(ipc_data)) {
 			struct ipc_channel_buf *ipc;
 
@@ -300,6 +319,7 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 			CSP_PRINTF_INFO("%s: %s: is full\n", NAME_PREFIX, __func__);
 			ret = -EINVAL;
 		}
+		ENABLE_IRQ();
 	} else {
 		CSP_PRINTF_INFO("%s: %s: invalid size:%d\n",
 			NAME_PREFIX, __func__, length);
@@ -310,9 +330,13 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 		enum ipc_evt_list evtq = (dir == IPC_DATA_C2A) ? IPC_EVT_C2A : IPC_EVT_A2C;
 
 		ret = ipc_add_evt(evtq, IRQ_EVT_CH0);
+		if (ret)
+			CSP_PRINTF_INFO("%s: %s: fail by add_evt\n",
+			NAME_PREFIX, __func__);
 	} else {
 		CSP_PRINTF_INFO("%s: %s: error: eq:%d, dq:%d\n",
 			NAME_PREFIX, __func__, ipc_data->eq, ipc_data->dq);
+		ipc_dump();
 	}
 	return ret;
 }
@@ -321,17 +345,19 @@ void *ipc_read_data(enum ipc_data_list dir, u32 *len)
 {
 	enum ipc_region reg = (dir == IPC_DATA_C2A) ? IPC_REG_IPC_C2A : IPC_REG_IPC_A2C;
 	struct ipc_buf *ipc_data = ipc_get_base(reg);
+	void *buf = NULL;
 
+	DISABLE_IRQ();
 	if (!__ipc_queue_empty(ipc_data)) {
 		struct ipc_channel_buf *ipc;
 
 		ipc = &ipc_data->ch[ipc_data->dq];
 		*len = ipc->size;
 		ipc_data->dq = (ipc_data->dq + 1) % IPC_CH_BUF_NUM;
-		return ipc->buf;
+		buf = ipc->buf;
 	}
-
-	return NULL;
+	ENABLE_IRQ();
+	return buf;
 }
 #else
 static inline void ipc_copy_bytes(u8 *dst, u8 *src, int size)
@@ -652,6 +678,7 @@ struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
 	struct ipc_evt_buf *cur_evt = NULL;
 
+	DISABLE_IRQ();
 	if (ipc_evt->ctrl.dq != __raw_readl(&ipc_evt->ctrl.eq)) {
 		cur_evt = &ipc_evt->data[ipc_evt->ctrl.dq];
 		cur_evt->status = IPC_EVT_DQ;
@@ -662,11 +689,12 @@ struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
 		ipc_evt->ctrl.dq = EVT_Q_INT(ipc_evt->ctrl.dq + 1);
 		__raw_writel(0, &ipc_evt->ctrl.full);
 	}
+	ENABLE_IRQ();
 
 	return cur_evt;
 }
 
-#define EVT_WAIT_TIME (10)
+#define EVT_WAIT_TIME (5)
 #define MAX_TRY_CNT (5)
 
 int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
@@ -674,48 +702,43 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
 	enum ipc_owner owner = (evtq < IPC_EVT_AP_MAX) ? AP : IPC_OWN_MAX;
 	struct ipc_evt_buf *cur_evt = NULL;
-#if defined(CHUB_IPC)
 	int trycnt = 0;
-#endif
+	u32 pending;
 
 	if (!ipc_evt || (owner != AP)) {
 		CSP_PRINTF_ERROR("%s: %s: invalid ipc_evt, owner:%d\n", NAME_PREFIX, __func__, owner);
 		return -1;
 	}
 
-#if 0
-	/* check index due to sram corruption */
-	if ((__raw_readl(&ipc_evt->ctrl.eq) > IPC_EVT_NUM) ||
-		(__raw_readl(&ipc_evt->ctrl.dq) > IPC_EVT_NUM) ||
-		(__raw_readl(&ipc_evt->ctrl.full) > 1) ||
-		(__raw_readl(&ipc_evt->ctrl.empty) > 1)) {
-		CSP_PRINTF_ERROR("%s: invalid index: eq:%d, dq:%d, full:%d, empty:%d\n",
-			__func__, ipc_evt->ctrl.eq, ipc_evt->ctrl.dq,
-			ipc_evt->ctrl.full, ipc_evt->ctrl.empty);
-		return -1;
-	}
-#endif
+retry:
+	DISABLE_IRQ();
 	if (!__raw_readl(&ipc_evt->ctrl.full)) {
 		cur_evt = &ipc_evt->data[ipc_evt->ctrl.eq];
 		if (!cur_evt) {
 			CSP_PRINTF_ERROR("%s: invalid cur_evt\n", __func__);
+			ENABLE_IRQ();
 			return -1;
 		}
 
 		/* wait pending clear on irq pend */
-		if (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq)) {
-			CSP_PRINTF_ERROR("%s: irq:%d pending:0x%x\n", __func__, ipc_evt->ctrl.irq, ipc_hw_read_int_status_reg(AP));
-#if defined(CHUB_IPC)
+		pending = ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq);
+		if (pending) {
+			CSP_PRINTF_ERROR("%s: %s: irq:%d pending:0x%x->0x%x\n",
+				NAME_PREFIX, __func__, ipc_evt->ctrl.irq, pending, ipc_hw_read_int_status_reg(AP));
             /* don't sleep on ap */
 			do {
-				trycnt++;
-				msleep(EVT_WAIT_TIME);
-			} while (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq) && (trycnt < MAX_TRY_CNT));
-
+				busywait(EVT_WAIT_TIME);
+			} while (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq) && (trycnt++ < MAX_TRY_CNT));
 			CSP_PRINTF_INFO("%s: %s: pending irq wait: pend:%d irq %d during %d times\n",
 				NAME_PREFIX, __func__, ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq),
 				ipc_evt->ctrl.irq, trycnt);
-#endif
+
+			if (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq)) {
+				CSP_PRINTF_ERROR("%s: %s: fail to add evt by pending:0x%x\n",
+					NAME_PREFIX, __func__, ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq));
+				ENABLE_IRQ();
+				return -1;
+			}
 		}
 		cur_evt->evt = evt;
 		cur_evt->status = IPC_EVT_EQ;
@@ -725,25 +748,22 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 		if (ipc_evt->ctrl.eq == __raw_readl(&ipc_evt->ctrl.dq))
 			__raw_writel(1, &ipc_evt->ctrl.full);
 	} else {
-#if defined(CHUB_IPC)
+		ENABLE_IRQ();
 		do {
-			trycnt++;
-			msleep(EVT_WAIT_TIME);
-		} while (ipc_evt->ctrl.full && (trycnt < MAX_TRY_CNT));
+			busywait(EVT_WAIT_TIME);
+		} while (ipc_evt->ctrl.full && (trycnt++ < MAX_TRY_CNT));
 
 		if (!__raw_readl(&ipc_evt->ctrl.full)) {
 			CSP_PRINTF_INFO("%s: %s: evt %d during %d ms is full\n",
 					NAME_PREFIX, __func__, evt, EVT_WAIT_TIME * trycnt);
-			return -1;
+			goto retry;
 		} else {
-			CSP_PRINTF_ERROR("%s: %s: fail to add evt\n", NAME_PREFIX, __func__);
+			CSP_PRINTF_ERROR("%s: %s: fail to add evt by full\n", NAME_PREFIX, __func__);
+			ipc_dump();
 			return -1;
 		}
-#else
-		CSP_PRINTF_ERROR("%s: %s: fail to add evt\n", NAME_PREFIX, __func__);
-		return -1;
-#endif
 	}
+	ENABLE_IRQ();
 
 	if (owner != IPC_OWN_MAX) {
 #if defined(AP_IPC)
@@ -754,7 +774,6 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 		else
 			return -1;
 	}
-
 	return 0;
 }
 
@@ -765,8 +784,8 @@ void ipc_print_evt(enum ipc_evt_list evtq)
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
 	int i;
 
-	CSP_PRINTF_INFO("%s: evt-%s: eq:%d dq:%d full:%d irq:%d\n",
-			NAME_PREFIX, IPC_GET_EVT_NAME(evtq), ipc_evt->ctrl.eq,
+	CSP_PRINTF_INFO("%s: evt(%p)-%s: eq:%d dq:%d full:%d irq:%d\n",
+			NAME_PREFIX, ipc_evt, IPC_GET_EVT_NAME(evtq), ipc_evt->ctrl.eq,
 			ipc_evt->ctrl.dq, ipc_evt->ctrl.full,
 			ipc_evt->ctrl.irq);
 
