@@ -3445,12 +3445,12 @@ int set_sensor_info_mfhdr_mode_change(struct fimc_is_sensor_interface *itf,
 	/* set index 0 values to mode_chg_xxx variables
 	 * for applying values before stream on
 	 */
-	sensor_peri->cis.mode_chg_expo = expo[0];
-	sensor_peri->cis.mode_chg_again = again[0];
-	sensor_peri->cis.mode_chg_dgain = dgain[0];
-	sensor_peri->cis.mode_chg_long_expo = long_expo[0];
-	sensor_peri->cis.mode_chg_long_again = long_again[0];
-	sensor_peri->cis.mode_chg_long_dgain = long_dgain[0];
+	sensor_peri->cis.mode_chg.exposure = expo[0];
+	sensor_peri->cis.mode_chg.analog_gain = again[0];
+	sensor_peri->cis.mode_chg.digital_gain = dgain[0];
+	sensor_peri->cis.mode_chg.long_exposure = long_expo[0];
+	sensor_peri->cis.mode_chg.long_analog_gain = long_again[0];
+	sensor_peri->cis.mode_chg.long_digital_gain = long_dgain[0];
 
 	/* set index 0 ~ cnt-1 values to sensor uctl variables
 	 * for applying values during streaming.
