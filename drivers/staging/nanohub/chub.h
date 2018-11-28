@@ -124,15 +124,16 @@ struct chub_alive {
 
 enum chub_err_type {
 	CHUB_ERR_NONE,
-	CHUB_ERR_EVTQ_EMTPY, /* ap error */
+	CHUB_ERR_EVTQ_ADD, /* ap error */
+	CHUB_ERR_EVTQ_EMTPY,
 	CHUB_ERR_READ_FAIL,
 	CHUB_ERR_WRITE_FAIL,
-	CHUB_ERR_EVTQ_NO_HW_TRIGGER,
-	CHUB_ERR_CHUB_NO_RESPONSE, /* 5 */
+	CHUB_ERR_EVTQ_NO_HW_TRIGGER, /* 5 */
+	CHUB_ERR_CHUB_NO_RESPONSE,
 	CHUB_ERR_ITMON,
 	CHUB_ERR_FW_FAULT, /* chub error */
-	CHUB_ERR_FW_WDT, /* 8 */
-	CHUB_ERR_NEED_RESET,
+	CHUB_ERR_FW_WDT,
+	CHUB_ERR_NEED_RESET, /* 10 */
 	CHUB_ERR_FW_ERROR = CHUB_ERR_NEED_RESET,
 	CHUB_ERR_COMMS_NACK, /* ap comms error */
 	CHUB_ERR_COMMS_BUSY,
@@ -151,6 +152,8 @@ struct contexthub_baaw_info {
 
 #define CHUB_IRQ_PIN_MAX (5)
 struct contexthub_ipc_info {
+	u32 cur_err;
+	int err_cnt[CHUB_ERR_MAX];
 	struct device *dev;
 	struct nanohub_data *data;
 	struct nanohub_platform_data *pdata;
@@ -182,8 +185,6 @@ struct contexthub_ipc_info {
 	int irq_mailbox;
 	int irq_wdt;
 	bool irq_wdt_disabled;
-	int err_cnt[CHUB_ERR_MAX];
-	u32 cur_err;
 	int utc_run;
 	int powermode;
 	int block_reset;

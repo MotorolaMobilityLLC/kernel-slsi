@@ -152,6 +152,7 @@ static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 	log_flush(ipc->fw_log);
 }
 
+
 void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
 {
 	dev_info(ipc->dev, "%s: reason:%d\n", __func__, reason);
@@ -583,7 +584,7 @@ int chub_dbg_init(struct contexthub_ipc_info *chub)
 	    (void *)p_dbg_dump;
 	p_dbg_dump->info[area].size = bin_attr_chub_bin_sram.size;
 
-	dev_dbg(dev,
+	dev_info(dev,
 		"%s(%pa) is mapped on %p (sram %p: startoffset:%d) with size of %u, dump size %u\n",
 		"dump buffer", &chub_rmem->base, phys_to_virt(chub_rmem->base),
 		&p_dbg_dump->sram[p_dbg_dump->sram_start],
