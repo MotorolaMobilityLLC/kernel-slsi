@@ -427,9 +427,6 @@ static int sh333ap_reset(struct modem_ctl *mc)
 	if (cp_online(mc))
 		modem_notify_event(MODEM_EVENT_RESET);
 
-	mc->phone_state = STATE_OFFLINE;
-	ld->mode = LINK_MODE_OFFLINE;
-
 	if (cal_cp_status() > 0) {
 		mif_err("CP aleady Power on, try reset\n");
 		mbox_set_interrupt(MCU_CP, mc->int_cp_wakeup);
@@ -438,6 +435,9 @@ static int sh333ap_reset(struct modem_ctl *mc)
 		cal_cp_reset_release();
 		mbox_sw_reset(MCU_CP);
 	}
+
+	mc->phone_state = STATE_OFFLINE;
+	ld->mode = LINK_MODE_OFFLINE;
 
 	usleep_range(10000, 11000);
 
