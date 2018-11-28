@@ -222,6 +222,7 @@ enum preprocessor_name {
 enum ois_name {
 	OIS_NAME_RUMBA_S4	= 1,
 	OIS_NAME_RUMBA_S6	= 2,
+	OIS_NAME_ROHM_BU24218GWL= 3,
 	OIS_NAME_END,
 	OIS_NAME_NOTHING	= 100,
 };
