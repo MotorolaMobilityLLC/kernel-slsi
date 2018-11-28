@@ -85,6 +85,8 @@
 #define KERNEL_LOG_OFF		(0x0)
 
 #define READY_TO_GO 99
+#define MAILBOX_REQUEST_KLOG_ON (0x1)
+#define MAILBOX_REQUEST_KLOG_OFF (0x2)
 
 struct chub_bootargs {
 	char magic[16];
