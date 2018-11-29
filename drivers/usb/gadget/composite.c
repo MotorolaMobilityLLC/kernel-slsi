@@ -23,6 +23,17 @@
 #include <asm/unaligned.h>
 
 #include "u_os_desc.h"
+#define SSUSB_GADGET_VBUS_DRAW 900 /* in mA */
+#define SSUSB_GADGET_VBUS_DRAW_UNITS 8
+#define HSUSB_GADGET_VBUS_DRAW_UNITS 2
+
+/*
+ * Based on enumerated USB speed, draw power with set_config and resume
+ * HSUSB: 500mA, SSUSB: 900mA
+ */
+#define USB_VBUS_DRAW(speed)\
+	(speed == USB_SPEED_SUPER ?\
+	 SSUSB_GADGET_VBUS_DRAW : CONFIG_USB_GADGET_VBUS_DRAW)
 
 /**
  * struct usb_os_string - represents OS String to be reported by a gadget
@@ -432,19 +443,15 @@ EXPORT_SYMBOL_GPL(usb_interface_id);
 static u8 encode_bMaxPower(enum usb_device_speed speed,
 		struct usb_configuration *c)
 {
-	unsigned val;
+	unsigned int val = CONFIG_USB_GADGET_VBUS_DRAW;
 
-	if (c->MaxPower)
-		val = c->MaxPower;
-	else
-		val = CONFIG_USB_GADGET_VBUS_DRAW;
-	if (!val)
-		return 0;
 	switch (speed) {
 	case USB_SPEED_SUPER:
-		return DIV_ROUND_UP(val, 8);
+		/* with super-speed report 900mA */
+		val = SSUSB_GADGET_VBUS_DRAW;
+		return (u8)(val / SSUSB_GADGET_VBUS_DRAW_UNITS);
 	default:
-		return DIV_ROUND_UP(val, 2);
+		return DIV_ROUND_UP(val, HSUSB_GADGET_VBUS_DRAW_UNITS);
 	}
 }
 
