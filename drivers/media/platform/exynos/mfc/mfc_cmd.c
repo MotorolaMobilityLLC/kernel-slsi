@@ -284,46 +284,9 @@ int mfc_cmd_enc_seq_header(struct mfc_ctx *ctx)
 int mfc_cmd_dec_init_buffers(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
-	unsigned int reg = 0, pix_val;
 	int ret;
 
-	switch (ctx->dst_fmt->fourcc) {
-	case V4L2_PIX_FMT_NV12M:
-	case V4L2_PIX_FMT_NV12N:
-	case V4L2_PIX_FMT_NV12MT_16X16:
-	case V4L2_PIX_FMT_NV16M:
-	case V4L2_PIX_FMT_NV12N_10B:
-	case V4L2_PIX_FMT_NV12M_S10B:
-	case V4L2_PIX_FMT_NV16M_S10B:
-	case V4L2_PIX_FMT_NV12M_P010:
-	case V4L2_PIX_FMT_NV16M_P210:
-		pix_val = 0;
-		break;
-	case V4L2_PIX_FMT_NV21M:
-	case V4L2_PIX_FMT_NV61M:
-	case V4L2_PIX_FMT_NV21M_S10B:
-	case V4L2_PIX_FMT_NV61M_S10B:
-	case V4L2_PIX_FMT_NV21M_P010:
-	case V4L2_PIX_FMT_NV61M_P210:
-		pix_val = 1;
-		break;
-	case V4L2_PIX_FMT_YVU420M:
-		pix_val = 2;
-		break;
-	case V4L2_PIX_FMT_YUV420M:
-	case V4L2_PIX_FMT_YUV420N:
-		pix_val = 3;
-		break;
-	default:
-		pix_val = 0;
-		break;
-	}
-	reg = MFC_READL(MFC_REG_PIXEL_FORMAT);
-	reg &= ~(0xF);
-	reg |= pix_val & 0xF;
-	MFC_WRITEL(reg, MFC_REG_PIXEL_FORMAT);
-	mfc_debug(2, "[FRAME] pixel format: %d, mem_type_10bit should be fixed on SEQ_START(reg: %#x)\n",
-			pix_val, reg);
+	mfc_set_pixel_format(ctx, ctx->dst_fmt->fourcc);
 
 	mfc_clean_ctx_int_flags(ctx);
 	ret = mfc_set_dec_codec_buffers(ctx);
