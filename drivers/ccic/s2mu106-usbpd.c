@@ -2418,6 +2418,7 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 	int ret = 0;
 	unsigned attach_status = 0, rid_status = 0;
 
+	disable_irq_nosync(irq);
 	dev_info(dev, "%s\n", __func__);
 
 	mutex_lock(&pdic_data->_mutex);
@@ -2502,7 +2503,7 @@ hard_reset:
 	mutex_unlock(&pdic_data->lpm_mutex);
 out:
 	mutex_unlock(&pdic_data->_mutex);
-
+	enable_irq(irq);
 	return IRQ_HANDLED;
 }
 
