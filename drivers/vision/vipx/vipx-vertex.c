@@ -459,10 +459,18 @@ static int vipx_vertex_streamon(struct file *file)
 	struct vipx_vertex *vertex = vctx->vertex;
 	struct vipx_queue *queue = &vctx->queue;
 	struct mutex *lock = &vctx->lock;
+	struct vipx_device *device = container_of(vertex, struct vipx_device, vertex);
+	struct vipx_system *system = &device->system;
 
 	if (mutex_lock_interruptible(lock)) {
 		vipx_ierr("mutex_lock_interruptible is fail\n", vctx);
 		return -ERESTARTSYS;
+	}
+
+	ret = vipx_hw_wait_bootup(&system->interface);
+	if (ret) {
+		vision_err("CM7 bootup is fail(%d)\n", ret);
+		goto p_err;
 	}
 
 	if (!(vctx->state & (BIT(VIPX_VERTEX_FORMAT) | BIT(VIPX_VERTEX_STOP)))) {

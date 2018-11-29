@@ -299,7 +299,8 @@ static struct vipx_priv_buf *vipx_ion_alloc(void *ctx,
 
 	size = PAGE_ALIGN(size);
 
-	buf->dma_buf = ion_alloc_dmabuf(heapname, size, alloc_ctx->flags);
+	buf->dma_buf = ion_alloc_dmabuf(heapname, size, ION_FLAG_NON_CACHED);
+	//buf->dma_buf = ion_alloc_dmabuf(heapname, size, alloc_ctx->flags);
 	if (IS_ERR(buf->dma_buf)) {
 		ret = -ENOMEM;
 		goto err_alloc;
@@ -495,7 +496,9 @@ dma_addr_t vipx_allocate_heap(struct vipx_memory *mem, u32 size)
 			vipx_err("failed to allocate buffer for VIPX_CM7_HEAP_SIZE");
 			ret = -ENOMEM;
 		}
+#ifdef DUMP_DEBUG_LOG_REGION
 		minfo->kvaddr_heap = vipx_ion_kvaddr(minfo->pb_heap);
+#endif
 		minfo->dvaddr_heap = vipx_ion_dvaddr(minfo->pb_heap);
 		vipx_info("heap kva(0x%p), dva(0x%x), size(%ld)\n",
 			minfo->kvaddr_heap, (u32)minfo->dvaddr_heap, minfo->pb_heap->size);

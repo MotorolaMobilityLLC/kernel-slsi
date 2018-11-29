@@ -60,10 +60,11 @@
 /* #define DBG_PRINT_TASK */
 /* #define DBG_VERBOSE_IO */
 
+#if 0
 //#define DUMP_DEBUG_LOG_REGION
 #define DEBUG_LOG_MEMORY
 //#define PRINT_DBG
-
+#endif
 #define DISABLE_VIPX_LOG 0
 
 #if DISABLE_VIPX_LOG

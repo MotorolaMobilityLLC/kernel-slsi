@@ -411,12 +411,13 @@ int vipx_system_fw_bootup(struct vipx_system *system)
 		vipx_err("CTL_OP(ctl_start) is fail(%d)\n", ret);
 		goto p_err;
 	}
-
+#if 0	// change code position to vipx_vertex_streamon in vipx-vertex.c before streamon execution
 	ret = vipx_hw_wait_bootup(&system->interface);
 	if (ret) {
 		vipx_err("vipx_hw_wait_bootup is fail(%d)\n", ret);
 		goto p_err;
 	}
+#endif
 
 p_err:
 	vipx_info("%s():%d\n", __func__, ret);

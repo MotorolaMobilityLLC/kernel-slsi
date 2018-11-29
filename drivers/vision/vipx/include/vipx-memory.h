@@ -34,6 +34,9 @@
 #define VIPX_IOVA_DRAM_FIRMWARE	0xB8000000
 #define VIPX_IOVA_DRAM_MBOX	0xA9000000
 
+#define ION_FLAG_NON_CACHED		0
+
+
 struct vipx_vb2_buf;
 struct vipx_vb2_buf_ops {
 	ulong (*plane_kvaddr)(struct vipx_vb2_buf *vbuf, u32 plane);

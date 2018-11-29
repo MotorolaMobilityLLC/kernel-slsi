@@ -107,7 +107,7 @@ int vipx_mbox_wait_reply(struct vipx_mailbox_ctrl *mctrl,
 	try_count = 1000;
 	while (--try_count && (mbox->wmsg_idx == mbox->rmsg_idx)) {
 		vipx_warn("waiting vipx reply(%d, %d)...(%d)\n", mbox->wmsg_idx, mbox->rmsg_idx, try_count);
-		msleep(10);
+		msleep(1);
 	}
 
 	if (try_count <= 0) {

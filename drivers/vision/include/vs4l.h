@@ -17,7 +17,7 @@
 #define VS4L_TARGET_SC_SHIFT	16
 #define VS4L_TARGET_PU		0xFFFF
 #define VS4L_TARGET_PU_SHIFT	0
-#define _MAX_NUM_OF_USER_PARAMS 80
+#define _MAX_NUM_OF_USER_PARAMS 180
 
 
 enum vs4l_graph_flag {

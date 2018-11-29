@@ -888,7 +888,7 @@ int vipx_interface_stop(struct vipx_interface *interface)
 	retry = VIPX_STOP_WAIT_COUNT;
 	while (--retry && itaskmgr->req_cnt) {
 		vipx_warn("waiting %d request completion...(%d)\n", itaskmgr->req_cnt, retry);
-		msleep(10);
+		msleep(1);
 	}
 
 	if (!retry) {
@@ -900,7 +900,7 @@ int vipx_interface_stop(struct vipx_interface *interface)
 	retry = VIPX_STOP_WAIT_COUNT;
 	while (--retry && itaskmgr->pro_cnt) {
 		vipx_warn("waiting %d process completion...(%d)\n", itaskmgr->pro_cnt, retry);
-		msleep(10);
+		msleep(1);
 	}
 
 	if (!retry) {
@@ -912,7 +912,7 @@ int vipx_interface_stop(struct vipx_interface *interface)
 	retry = VIPX_STOP_WAIT_COUNT;
 	while (--retry && itaskmgr->com_cnt) {
 		vipx_warn("waiting %d complete completion...(%d)\n", itaskmgr->com_cnt, retry);
-		msleep(10);
+		msleep(1);
 	}
 
 	if (!retry) {
@@ -933,20 +933,23 @@ int vipx_interface_stop(struct vipx_interface *interface)
 int vipx_hw_wait_bootup(struct vipx_interface *interface)
 {
 	int ret = 0;
-	int try_cnt = 10;
 	struct vipx_system *system = container_of(interface, struct vipx_system, interface);
-	struct vipx_binary *binary = &system->binary;
 
 	BUG_ON(!interface);
 
+#ifdef DUMP_DEBUG_LOG_REGION
+        int try_cnt = 10;
+        struct vipx_binary *binary = &system->binary;
 	while (try_cnt && !test_bit(VIPX_ITF_STATE_BOOTUP, &interface->state)) {
-		msleep(5);
+		msleep(1);
 		try_cnt--;
 		vipx_info("%s(): wait CM7 bootup\n",__func__);
 	}
+#endif
 
     vipx_info("debug kva(0x%p), dva(0x%x), size(%ld)\n", system->memory.info.kvaddr_debug, (u32)system->memory.info.dvaddr_debug, system->memory.info.pb_debug->size);
 
+#ifdef DUMP_DEBUG_LOG_REGION
 	if (try_cnt == 0)
 	{
 		if (!IS_ERR_OR_NULL(system->memory.info.kvaddr_debug)) {
@@ -957,7 +960,7 @@ int vipx_hw_wait_bootup(struct vipx_interface *interface)
 		}
 		ret = -EINVAL;
 	}
-
+#endif
 	vipx_info("%s():%d\n", __func__, ret);
 	return ret;
 }
@@ -1145,7 +1148,8 @@ int vipx_hw_destroy(struct vipx_interface *interface, struct vipx_task *itask)
 
 	if (payload.msg_u.destroy_graph_req.graph_id < SCENARIO_DE_CAPTURE)
 		heap_size = VIPX_CM7_HEAP_SIZE_PREVIEW;
-	else if (payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF)
+	else if ((payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF) ||
+		 (payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF_YUV))
 		heap_size = VIPX_CM7_HEAP_SIZE_ENF;
 	else
 		heap_size = VIPX_CM7_HEAP_SIZE_CAPTURE;
@@ -1246,8 +1250,9 @@ int vipx_hw_config(struct vipx_interface *interface, struct vipx_task *itask)
 	// Allocate and assign heap
 	if (payload.msg_u.set_graph_req.graph_id < SCENARIO_DE_CAPTURE)
 		heap_size = VIPX_CM7_HEAP_SIZE_PREVIEW;
-	else if (payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF_UV || 
-        payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF)
+	else if ((payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF_UV) || 
+	    (payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF) ||
+	    (payload.msg_u.destroy_graph_req.graph_id == SCENARIO_ENF_YUV))
 		heap_size = VIPX_CM7_HEAP_SIZE_ENF;
 	else
 		heap_size = VIPX_CM7_HEAP_SIZE_CAPTURE;

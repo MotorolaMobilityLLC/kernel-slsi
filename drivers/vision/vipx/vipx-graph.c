@@ -65,7 +65,7 @@ static int __vipx_graph_stop(struct vipx_graph *graph)
 	retry = VIPX_STOP_WAIT_COUNT;
 	while (--retry && taskmgr->req_cnt) {
 		vipx_iwarn("waiting %d request cancel...(%d)\n", graph, taskmgr->req_cnt, retry);
-		msleep(10);
+		msleep(1);
 	}
 
 	if (!retry) {
@@ -76,7 +76,7 @@ static int __vipx_graph_stop(struct vipx_graph *graph)
 	retry = VIPX_STOP_WAIT_COUNT;
 	while (--retry && taskmgr->pre_cnt) {
 		vipx_iwarn("waiting %d prepare cancel...(%d)\n", graph, taskmgr->pre_cnt, retry);
-		msleep(10);
+		msleep(1);
 	}
 
 	if (!retry) {
@@ -87,7 +87,7 @@ static int __vipx_graph_stop(struct vipx_graph *graph)
 	retry = VIPX_STOP_WAIT_COUNT;
 	while (--retry && taskmgr->pro_cnt) {
 		vipx_iwarn("waiting %d process done...(%d)\n", graph, taskmgr->pro_cnt, retry);
-		msleep(10);
+		msleep(1);
 	}
 
 	if (!retry) {
