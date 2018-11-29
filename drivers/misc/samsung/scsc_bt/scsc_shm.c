@@ -51,6 +51,8 @@ static void scsc_bt_shm_irq_handler(int irqbit, void *data)
 {
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(bt_service.service, irqbit);
+
+	/* Ensure irq bit is cleared before reading the mailbox indexes */
 	mb();
 
 	bt_service.interrupt_count++;
