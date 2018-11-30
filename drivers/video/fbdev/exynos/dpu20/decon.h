@@ -1309,8 +1309,6 @@ static inline bool decon_is_bypass(struct decon_device *decon)
 }
 #endif
 
-int decon_update_pwr_state(struct decon_device *decon, u32 mode);
-
 enum disp_pwr_mode {
 	DISP_PWR_OFF = 0,
 	DISP_PWR_DOZE,
@@ -1319,10 +1317,12 @@ enum disp_pwr_mode {
 	DISP_PWR_MAX,
 };
 
-typedef int (*set_pwr_state_t)(void *);
+int decon_update_pwr_state(struct decon_device *decon, enum disp_pwr_mode mode);
+
+typedef int (*set_pwr_state_t)(struct decon_device *);
 
 struct disp_pwr_state {
-	u32 state;
+	enum decon_state state;
 	set_pwr_state_t set_pwr_state;
 };
 
