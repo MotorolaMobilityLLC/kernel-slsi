@@ -60,6 +60,9 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		fimc_is_eeprom_cal_data_set(eeprom->data, "all",
 				EEPROM_ADD_CRC_SEC, EEPROM_DATA_SIZE, 0xff);
 
+        /*Set all cal_status to ERROR if Address cal data invalid*/
+		for (int i = 0; i < CAMERA_CRC_INDEX_MAX; i++)
+		    sensor->cal_status[i] = CRC_ERROR;
 		return ret;
 	} else
 		info("GM1 EEPROM Address section CRC check success\n");
@@ -72,8 +75,13 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		/* All calibration data is 0xff set but exception Address section */
 		fimc_is_eeprom_cal_data_set(eeprom->data, "Information - End",
 				EEPROM_INFO_CRC_SEC, EEPROM_ADD_CAL_SIZE, 0xff);
-	} else
+
+		sensor->cal_status[CAMERA_CRC_INDEX_MNF] = CRC_ERROR;
+	} else {
 		info("GM1 EEPROM Informaion section CRC check success\n");
+
+		sensor->cal_status[CAMERA_CRC_INDEX_MNF] = CRC_NO_ERROR;
+    }
 
 	/* Check CRC to AWB cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_awb, subdev);
