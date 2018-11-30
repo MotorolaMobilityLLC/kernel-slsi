@@ -162,6 +162,9 @@ static int nov36672a_set_brightness(struct backlight_device *bd)
 
 	dsim = get_dsim_drvdata(0);
 
+	if (!IS_DSIM_ON_STATE(dsim))
+		return 0;
+
 	if (brightness < MIN_BRIGHTNESS || brightness > MAX_BRIGHTNESS) {
 		pr_err("Brightness should be in the range of 0 ~ 255\n");
 		return -EINVAL;
