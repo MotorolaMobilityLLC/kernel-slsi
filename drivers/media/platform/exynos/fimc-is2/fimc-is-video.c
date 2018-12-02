@@ -1785,6 +1785,25 @@ int fimc_is_video_prepare(struct file *file,
 			goto p_err;
 		}
 
+		if (!V4L2_TYPE_IS_MULTIPLANAR(buf->type)) {
+			mverr("the type of passed buffer is not multi-planar",
+					vctx, video);
+			ret = -EINVAL;
+			goto p_err;
+		}
+
+		if (!buf->m.planes) {
+			mverr("planes array not provided", vctx, video);
+			ret = -EINVAL;
+			goto p_err;
+		}
+
+		if (buf->length > FIMC_IS_MAX_PLANES) {
+			mverr("incorrect planes array length", vctx, video);
+			ret = -EINVAL;
+			goto p_err;
+		}
+
 		/* Destination */
 		memcpy(&pipe->buf[PIPE_SLOT_DST][index], buf, sizeof(struct v4l2_buffer));
 		memcpy(pipe->planes[PIPE_SLOT_DST][index], buf->m.planes, sizeof(struct v4l2_plane) * buf->length);
