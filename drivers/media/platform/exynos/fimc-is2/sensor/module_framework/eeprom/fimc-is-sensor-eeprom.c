@@ -150,6 +150,36 @@ int fimc_is_sensor_eeprom_check_crc(char *data, size_t size)
 	return crc16;
 }
 
+int fimc_is_sensor_eeprom_check_awb_ratio(char *unit, char *golden, char *limit)
+{
+	int ret = 0;
+
+	float r_g_min = (float)(limit[0]) / 1000;
+	float r_g_max = (float)(limit[1]) / 1000;
+	float b_g_min = (float)(limit[2]) / 1000;
+	float b_g_max = (float)(limit[3]) / 1000;
+
+	float rg = (float) ((unit[1] << 8) | (unit[0])) / 16384;
+	float bg = (float) ((unit[3] << 8) | (unit[2])) / 16384;
+
+	float golden_rg = (float) ((golden[1] << 8) | (golden[0])) / 16384;
+	float golden_bg = (float) ((golden[3] << 8) | (golden[2])) / 16384;
+
+	if (rg < (golden_rg - r_g_min) || rg > (golden_rg + r_g_max)) {
+		err("%s(): Final RG calibration factors out of range! rg=0x%x golden_rg=0x%x",
+			__func__, (unit[1] << 8 | unit[0]), (golden[1] << 8 | golden[0]));
+		ret = 1;
+	}
+
+	if (bg < (golden_bg - b_g_min) || bg > (golden_bg + b_g_max)) {
+		err("%s(): Final BG calibration factors out of range! bg=0x%x, golden_bg=0x%x",
+			__func__, (unit[3] << 8 | unit[2]), (golden[3] << 8 | golden[2]));
+		ret = 1;
+	}
+
+	return ret;
+}
+
 int fimc_is_eeprom_module_read(struct i2c_client *client, u32 addr,
 		char *data, unsigned long size)
 {
