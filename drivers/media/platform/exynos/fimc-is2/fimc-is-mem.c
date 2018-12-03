@@ -103,6 +103,7 @@ static long is_vb2_dma_sg_remap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
 		vbuf->sgt[plane] = dma_buf_map_attachment(buf->db_attach, buf->dma_dir);
 
 		if (IS_ERR(vbuf->sgt[plane])) {
+			ret = PTR_ERR(vbuf->sgt[plane]);
 			pr_err("Error getting dmabuf scatterlist\n");
 			goto err_get_sgt;
 		}
@@ -114,8 +115,8 @@ static long is_vb2_dma_sg_remap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
 			vbuf->dva[plane] = ion_iovmm_map_attr(buf->db_attach, 0, buf->size,
 					DMA_BIDIRECTIONAL, ioprot, attr);
 			if (IS_ERR_VALUE(vbuf->dva[plane])) {
-				pr_err("Error from ion_iovmm_map()=%pad\n", &vbuf->dva[plane]);
 				ret = vbuf->dva[plane];
+				pr_err("Error from ion_iovmm_map(): %ld\n", ret);
 				goto err_map_remap;
 			}
 		}
