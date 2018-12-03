@@ -594,8 +594,8 @@ static int mfc_open(struct file *file)
 
 	mfc_perf_init(dev);
 	trace_mfc_node_open(ctx->num, dev->num_inst, ctx->type, ctx->is_drm);
-	mfc_info_ctx("MFC open completed [%d:%d] dev = 0x%p, ctx = 0x%p, version = %d\n",
-			dev->num_drm_inst, dev->num_inst, dev, ctx, MFC_DRIVER_INFO);
+	mfc_info_ctx("MFC open completed [%d:%d] version = %d\n",
+			dev->num_drm_inst, dev->num_inst, MFC_DRIVER_INFO);
 	MFC_TRACE_CTX_LT("[INFO] %s %s opened (ctx:%d, total:%d)\n", ctx->is_drm ? "DRM" : "Normal",
 			mfc_is_decoder_node(node) ? "DEC" : "ENC", ctx->num, dev->num_inst);
 	mutex_unlock(&dev->mfc_mutex);
@@ -808,8 +808,7 @@ static int mfc_release(struct file *file)
 
 	mfc_perf_print();
 
-	mfc_info_dev("mfc driver release finished [%d:%d], dev = 0x%p\n",
-			dev->num_drm_inst, dev->num_inst, dev);
+	mfc_info_dev("mfc driver release finished [%d:%d]\n", dev->num_drm_inst, dev->num_inst);
 
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
