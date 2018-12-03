@@ -1005,7 +1005,7 @@ static void __mfc_nal_q_handle_stream_copy_timestamp(struct mfc_ctx *ctx, struct
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_buf *dst_mb;
-	u32 interval;
+	u64 interval;
 	u64 start_timestamp;
 	u64 new_timestamp;
 
@@ -1069,9 +1069,11 @@ static void __mfc_nal_q_handle_stream_input(struct mfc_ctx *ctx, EncoderOutputSt
 				if (src_mb->done_index == src_mb->num_valid_bufs) {
 					src_mb = mfc_find_del_buf(&ctx->buf_queue_lock,
 							&ctx->src_buf_nal_queue, enc_addr[0]);
-					for (i = 0; i < raw->num_planes; i++)
-						mfc_bufcon_put_daddr(ctx, src_mb, i);
-					vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+					if (src_mb) {
+						for (i = 0; i < raw->num_planes; i++)
+							mfc_bufcon_put_daddr(ctx, src_mb, i);
+						vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
+					}
 				}
 			}
 		}
@@ -1129,9 +1131,6 @@ static void __mfc_nal_q_handle_stream_output(struct mfc_ctx *ctx, int slice_type
 				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_nal_queue),
 				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
 				dst_mb->vb.vb2_buf.index);
-		return;
-	} else if (strm_size < 0) {
-		mfc_err_ctx("[NALQ] invalid stream size: %d\n", strm_size);
 		return;
 	}
 

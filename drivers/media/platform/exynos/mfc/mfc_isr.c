@@ -753,19 +753,19 @@ static void __mfc_handle_stream_copy_timestamp(struct mfc_ctx *ctx, struct mfc_b
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_buf *dst_mb;
-	u32 interval;
+	u64 interval;
 	u64 start_timestamp;
 	u64 new_timestamp;
 
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
 	interval = NSEC_PER_SEC / p->rc_framerate;
 	if (debug_ts == 1)
-		mfc_info_ctx("[BUFCON][TS] %dfps, start timestamp: %lld, base interval: %d\n",
+		mfc_info_ctx("[BUFCON][TS] %dfps, start timestamp: %lld, base interval: %lld\n",
 				p->rc_framerate, start_timestamp, interval);
 
 	new_timestamp = start_timestamp + (interval * src_mb->done_index);
 	if (debug_ts == 1)
-		mfc_info_ctx("[BUFCON][TS] new timestamp: %lld, interval: %d\n",
+		mfc_info_ctx("[BUFCON][TS] new timestamp: %lld, interval: %lld\n",
 				new_timestamp, interval * src_mb->done_index);
 
 	/* Get the destination buffer */
@@ -813,14 +813,16 @@ static void __mfc_handle_stream_input(struct mfc_ctx *ctx)
 			if (!src_mb->num_valid_bufs || src_mb->done_index == src_mb->num_valid_bufs) {
 				src_mb = mfc_find_del_buf(&ctx->buf_queue_lock,
 						&ctx->src_buf_queue, enc_addr[0]);
-				for (i = 0; i < raw->num_planes; i++)
-					mfc_bufcon_put_daddr(ctx, src_mb, i);
-				vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
-			}
+				if (src_mb) {
+					for (i = 0; i < raw->num_planes; i++)
+						mfc_bufcon_put_daddr(ctx, src_mb, i);
+					vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
-			/* encoder src buffer CFW UNPROT */
-			if (ctx->is_drm)
-				mfc_raw_unprotect(ctx, src_mb, index);
+					/* encoder src buffer CFW UNPROT */
+					if (ctx->is_drm)
+						mfc_raw_unprotect(ctx, src_mb, index);
+				}
+			}
 		}
 	} else {
 		/* normal single buffer */
@@ -879,9 +881,6 @@ static void __mfc_handle_stream_output(struct mfc_ctx *ctx, int slice_type,
 
 	if (strm_size == 0) {
 		mfc_debug(3, "no encoded dst (reuse)\n");
-		return;
-	} else if (strm_size < 0) {
-		mfc_err_ctx("invalid stream size: %d\n", strm_size);
 		return;
 	}
 
