@@ -205,6 +205,36 @@ u16 sensor_2x5sp_cis_otp_get_crc16(char *data, int count)
 	return crc16;
 }
 
+int sensor_2x5sp_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
+{
+	int ret = 0;
+
+	float r_g_min = (float)(limit[0]) / 1000;
+	float r_g_max = (float)(limit[1]) / 1000;
+	float b_g_min = (float)(limit[2]) / 1000;
+	float b_g_max = (float)(limit[3]) / 1000;
+
+	float rg = (float) ((unit[1]) | (unit[0] << 8)) / 16384;
+	float bg = (float) ((unit[3]) | (unit[2] << 8)) / 16384;
+
+	float golden_rg = (float) ((golden[1]) | (golden[0] << 8)) / 16384;
+	float golden_bg = (float) ((golden[3]) | (golden[2] << 8)) / 16384;
+
+	if (rg < (golden_rg - r_g_min) || rg > (golden_rg + r_g_max)) {
+		err("%s(): Final RG calibration factors out of range! rg=0x%x golden_rg=0x%x",
+			__func__, (unit[1] | unit[0] << 8), (golden[1] | golden[0] << 8));
+		ret = 1;
+	}
+
+	if (bg < (golden_bg - b_g_min) || bg > (golden_bg + b_g_max)) {
+		err("%s(): Final BG calibration factors out of range! bg=0x%x, golden_bg=0x%x",
+			__func__, (unit[3] | unit[2] << 8), (golden[3] | golden[2] << 8));
+		ret = 1;
+	}
+
+	return ret;
+}
+
 int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 		struct fimc_is_device_sensor *device, int group)
 {
@@ -249,6 +279,7 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 			ret = -EINVAL;
 		} else
 			info("GR2: LSC & XTC CRC16 : 0x%x, cal buffer CRC: 0x%x\n", crc16, crc_value);
+		break;
 	default:
 		err("invalid OTP group when crc check(%d), check map data", group);
 		break;
@@ -292,28 +323,30 @@ exit:
 static int sensor_2x5sp_cis_otp_check(struct fimc_is_device_sensor *device, int group)
 {
 	int ret = 0;
-	u16 crc_value = 0;
+	u16 group_flag = 0;
 
 	switch (group) {
 	case OTP_GROUP_ONE:
 		/* Group1 valid check */
-		crc_value = (device->otp_cal_buf[254][0] >> 6);
-		if (crc_value != OTP_DATA_VALID) {
-			err("error Group1 OTP data invalid(0x%x)", crc_value);
+		group_flag = device->otp_cal_buf[254][0];
+		if (group_flag != OTP_DATA_VALID) {
+			err("error Group1 OTP data invalid(0x%x)", group_flag);
 			ret = -EINVAL;
-		} else
-			info("%s: Group1 OTP data valid(0x%x)\n", __func__, crc_value);
+		} else {
+			ret = OTP_GROUP_ONE;
+		}
 
 		break;
 	case OTP_GROUP_TWO:
 		/* First check Group2 data valid */
-		crc_value = (device->otp_cal_buf[255][0] >> 6);
-		if (crc_value != OTP_DATA_VALID) {
-			err("error Group2 OTP data invalid(0x%x)", crc_value);
+		group_flag = device->otp_cal_buf[255][0];
+		if (group_flag != OTP_DATA_VALID) {
+			err("error Group2 OTP data invalid(0x%x)", group_flag);
 			ret = -EINVAL;
 
-		} else
-			info("%s: Group2 OTP data valid(0x%x)\n", __func__, crc_value);
+		} else {
+			ret = OTP_GROUP_TWO;
+		}
 
 		break;
 	default:
@@ -430,6 +463,8 @@ int sensor_2x5sp_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_senso
 {
 	int ret = 0;
 	int i;
+	int otp_group = 0x0;
+	char *otp_buf = (char *)&device->otp_cal_buf[0][0];
 
 	ret = sensor_2x5sp_cis_otp_read_file(OTP_DATA_PATH, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 256);
 	if (ret) {
@@ -440,61 +475,50 @@ int sensor_2x5sp_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_senso
 			goto p_err;
 		}
 
-		/* Need to first check GROUP2 */
-		for (i = OTP_GROUP_MAX - 1; i >= OTP_GROUP_ONE; i--) {
-			/* OTP valid check */
-			ret = sensor_2x5sp_cis_otp_check(device, i);
-			if (ret < 0) {
-				if (i == OTP_GROUP_ONE) {
-					err("All OTP data are invalid, check module");
-					goto p_err;
-				} else
-					continue;
-			}
-
-			/* OTP CRC check */
-			ret = sensor_2x5sp_cis_otp_check_crc(subdev, device, i);
-			if (ret < 0) {
-				if (i == OTP_GROUP_ONE) {
-					err("All OTP data CRC check fail, check module");
-
-					device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_ERROR;
-					goto p_err;
-				} else
-					continue;
-			} else {
-				info("%s: OTP data availble\n", __func__);
-
-				device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_NO_ERROR;
-				break;
-			}
-		}
-
 		/* Write to OTP data at file */
 		ret = sensor_2x5sp_cis_otp_write_file(OTP_DATA_PATH, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 256);
 		if (ret < 0) {
 			err("2x5 OTP data don't file write");
 			goto p_err;
 		}
-	} else {
-		/* Need to first check GROUP2 */
-		for (i = OTP_GROUP_MAX - 1; i >= OTP_GROUP_ONE; i--) {
-			/* OTP CRC check */
-			ret = sensor_2x5sp_cis_otp_check_crc(subdev, device, i);
-			if (ret < 0) {
-				if (i == OTP_GROUP_ONE) {
-					err("All OTP data CRC check fail, check module");
+	}
 
-					device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_ERROR;
-					goto p_err;
-				} else
-					continue;
+	/* Need to first check GROUP2 */
+	for (i = OTP_GROUP_MAX - 1; i >= OTP_GROUP_ONE; i--) {
+		/* OTP valid check */
+		otp_group = sensor_2x5sp_cis_otp_check(device, i);
+		if (otp_group < 0) {
+			if (i == OTP_GROUP_ONE) {
+				err("All OTP data are invalid, check module");
+				goto p_err;
 			} else {
-				info("%s: OTP data availble\n", __func__);
-
-				device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_NO_ERROR;
-				break;
+				continue;
 			}
+		} else {
+			break;
+		}
+	}
+
+	/* OTP CRC check */
+	ret = sensor_2x5sp_cis_otp_check_crc(subdev, device, otp_group);
+	if (ret < 0) {
+		err("All OTP data CRC check fail, check module");
+
+		device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_ERROR;
+		goto p_err;
+	} else {
+		err("%s: OTP group%d data availble\n", __func__, otp_group);
+
+		device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_NO_ERROR;
+
+		ret = sensor_2x5sp_cis_otp_check_awb_ratio(&otp_buf[(253 + otp_group) * OTP_PAGE_SIZE + OTP_AWB_UNIT_OFFSET],
+			&otp_buf[(253 + otp_group) * OTP_PAGE_SIZE + OTP_AWB_GOLDEN_OFFSET],
+			&otp_buf[(253 + otp_group) * OTP_PAGE_SIZE + OTP_AWB_LIMIT_OFFSET]);
+
+		if (ret) {
+			err("%s(): 2X5 OTP AWB Group%d ratio out of limit(%d)", __func__, otp_group, ret);
+			device->cal_status[CAMERA_CRC_INDEX_AWB] = LIMIT_FAILURE;
+			ret = -1;
 		}
 	}
 
