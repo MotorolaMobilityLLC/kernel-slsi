@@ -32,6 +32,18 @@ u32 hsc_lut[35];
 int dqe_log_level = 6;
 module_param(dqe_log_level, int, 0644);
 
+const u32 mode1_cgc_tune[50] = {
+	255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0,0,0,255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0
+};
+
+const u32 mode2_cgc_tune[50] = {
+	255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0,0,0,255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0
+};
+
+const u32 bypass_cgc_tune[50] = {
+	255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0,0,0,255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0
+};
+
 const u32 nightlight_gamma_tune[3][65] = {
 	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
 	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
@@ -708,6 +720,70 @@ static struct attribute *dqe_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(dqe);
+
+int decon_dqe_set_color_mode(struct decon_color_mode_with_render_intent_info *mode)
+{
+	int i, ret = 0;
+	struct dqe_device *dqe = dqe_drvdata;
+	struct decon_device *decon = get_decon_drvdata(0);
+
+	mutex_lock(&dqe->lock);
+
+	if (decon) {
+		if ((decon->state == DECON_STATE_OFF) ||
+			(decon->state == DECON_STATE_INIT)) {
+			dqe_err("decon is not enabled!(%d)\n", decon->state);
+			ret = -1;
+			goto err;
+		}
+	} else {
+		dqe_err("decon is NULL!\n");
+		ret = -1;
+		goto err;
+	}
+
+	dqe_info("%s : %d\n", __func__, mode->color_mode);
+
+	switch (mode->color_mode) {
+	case HAL_COLOR_MODE_SRGB:
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] =mode1_cgc_tune[i] ;
+		break;
+
+	case HAL_COLOR_MODE_DCI_P3:
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] =mode2_cgc_tune[i] ;
+		break;
+
+	default:
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] =bypass_cgc_tune[i] ;
+		break;
+	}
+
+	dqe_cgc_lut_set();
+	if (!dqe->ctx.night_light_on)
+		dqe_gamma_lut_set();
+
+	dqe->ctx.color_mode = mode->color_mode;
+
+	if (!dqe->ctx.night_light_on)
+		dqe->ctx.cgc_on = DQE_CGC_ON_MASK;
+	else
+		dqe->ctx.cgc_on = 0;
+
+	dqe->ctx.need_udpate = true;
+
+	dqe_restore_context();
+	decon_reg_update_req_dqe(decon->id);
+err:
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s : ret(%d), cgc:%d, night_light:%d\n", __func__,
+		ret, dqe->ctx.cgc_on, dqe->ctx.night_light_on);
+
+	return ret;
+}
 
 static void dqe_color_transform_make_sfr(int coeff[16], int inR, int inG, int inB, int *outR, int *outG, int *outB)
 {

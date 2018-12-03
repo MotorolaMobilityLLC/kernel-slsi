@@ -3065,6 +3065,9 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 
 		decon_dbg("DQE: EXYNOS_SET_COLOR_MOE_WITH_RENDER_INTENT: %d %d\n",
 			cm_intent_info.color_mode, cm_intent_info.render_intent);
+#if defined(CONFIG_EXYNOS_DECON_DQE)
+		decon_dqe_set_color_mode(&cm_intent_info);
+#endif
 		break;
 
 	case EXYNOS_SET_COLOR_TRANSFORM:
