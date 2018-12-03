@@ -36,6 +36,10 @@
 #define OTP_PAGE_END			255
 #define OTP_PAGE_SIZE			64
 
+#define OTP_AWB_LIMIT_OFFSET	28
+#define OTP_AWB_GOLDEN_OFFSET	40
+#define OTP_AWB_UNIT_OFFSET	54
+
 #define OTP_GRP1_AWB_CRC_START		(254 * OTP_PAGE_SIZE)
 #define OTP_GRP1_AWB_CRC_SIZE		(60)
 #define OTP_GRP1_LSC_XTC_CRC_START	(163 * OTP_PAGE_SIZE + 8)
@@ -43,7 +47,7 @@
 
 #define OTP_GRP2_AWB_CRC_START		(255 * OTP_PAGE_SIZE)
 #define OTP_GRP2_AWB_CRC_SIZE		(60)
-#define OTP_GRP2_LSC_XTC_CRC_START	(208 * OTP_PAGE_SIZE + 18)
+#define OTP_GRP2_LSC_XTC_CRC_START	(208 * OTP_PAGE_SIZE + 24)
 #define OTP_GRP2_LSC_XTC_CRC_SIZE	(2896)
 
 enum otp_group {
@@ -53,9 +57,9 @@ enum otp_group {
 };
 
 enum valid_check {
-	OTP_DATA_EMPTY = 0x0,
-	OTP_DATA_VALID = 0x1,
-	OTP_DATA_INVALID = 0x3,
+	OTP_DATA_EMPTY = 0x00,
+	OTP_DATA_VALID = 0x40,
+	OTP_DATA_INVALID = 0xC0,
 };
 
 enum sensor_2x5sp_mode_enum {
