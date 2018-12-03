@@ -88,6 +88,14 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		info("GM1 EEPROM AWB section CRC check success\n");
 
 		sensor->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_NO_ERROR;
+
+		ret = fimc_is_sensor_eeprom_check_awb_ratio(&eeprom->data[EEPROM_AWB_UNIT_OFFSET],
+			&eeprom->data[EEPROM_AWB_GOLDEN_OFFSET],&eeprom->data[EEPROM_AWB_LIMIT_OFFSET]);
+		if (ret) {
+			err("%s(): GM1 EEPROM AWB ratio out of limit(%d)", __func__, ret);
+
+			sensor->cal_status[CAMERA_CRC_INDEX_AWB] = LIMIT_FAILURE;
+		}
 	}
 
 	/* Check CRC to AF cal data */
