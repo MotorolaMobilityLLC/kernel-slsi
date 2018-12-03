@@ -19,6 +19,7 @@ int fimc_is_eeprom_file_read(const char *file_name, const void *data,
 int fimc_is_eeprom_module_read(struct i2c_client *client, u32 addr,
 		char *data, unsigned long size);
 int fimc_is_sensor_eeprom_check_crc(char *data, size_t size);
+int fimc_is_sensor_eeprom_check_awb_ratio(char *unit, char *golden, char *limit);
 
 #endif
 
