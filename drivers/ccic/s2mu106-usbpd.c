@@ -2152,6 +2152,12 @@ static void s2mu106_usbpd_notify_detach(struct s2mu106_usbpd_data *pdic_data)
 	struct device *dev = pdic_data->dev;
 
 #if defined(CONFIG_IFCONN_NOTIFIER)
+	/* MUIC */
+	ifconn_event_work(pdic_data, IFCONN_NOTIFY_MUIC, IFCONN_NOTIFY_ID_ATTACH,
+								IFCONN_NOTIFY_EVENT_DETACH, NULL);
+
+	ifconn_event_work(pdic_data, IFCONN_NOTIFY_MUIC, IFCONN_NOTIFY_ID_RID,
+								IFCONN_NOTIFY_EVENT_DETACH, NULL);
 
 	if (pdic_data->is_host > HOST_OFF || pdic_data->is_client > CLIENT_OFF) {
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
@@ -2171,6 +2177,9 @@ static void s2mu106_usbpd_notify_detach(struct s2mu106_usbpd_data *pdic_data)
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 		pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_NONE;
 #endif
+		/* USB */
+		ifconn_event_work(pdic_data, IFCONN_NOTIFY_USB, IFCONN_NOTIFY_ID_USB,
+										IFCONN_NOTIFY_EVENT_DETACH, NULL);
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 		if (!pdic_data->try_state_change)
 			s2mu106_rprd_mode_change(pdic_data, TYPE_C_ATTACH_DRP);
