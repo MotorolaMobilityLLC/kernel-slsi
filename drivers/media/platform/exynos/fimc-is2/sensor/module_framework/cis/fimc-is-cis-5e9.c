@@ -73,7 +73,7 @@ static void sensor_5e9_cis_data_calculation(const struct sensor_pll_info *pll_in
 
 	/* 2. pixel rate calculation (Mpps) */
 	pll_voc_a = pll_info->ext_clk / pll_info->pre_pll_clk_div * pll_info->pll_multiplier;
-	vt_pix_clk_hz = pll_voc_a / (pll_info->vt_sys_clk_div * pll_info->vt_pix_clk_div);
+	vt_pix_clk_hz = pll_voc_a * 2 / (pll_info->vt_sys_clk_div * pll_info->vt_pix_clk_div);
 
 	dbg_sensor(1, "ext_clock(%d) / pre_pll_clk_div(%d) * pll_multiplier(%d) = pll_voc_a(%d)\n",
 						pll_info->ext_clk, pll_info->pre_pll_clk_div,
@@ -1781,6 +1781,43 @@ p_err:
 	return ret;
 }
 
+int sensor_5e9_cis_set_dual_slave_setting(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+
+	FIMC_BUG(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	FIMC_BUG(!cis);
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
+	/* Vsync Input Source Select */
+	ret = fimc_is_sensor_write8(client, 0x3C02, 0x01);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x3C02, 0x01, ret);
+	/* gpio1 Input Option */
+	ret = fimc_is_sensor_write8(client, 0x3C05, 0x1D);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x3C02, 0x1D, ret);
+	/* Dual Sync Slave enable */
+	ret = fimc_is_sensor_write8(client, 0x3500, 0x03);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x3500, 0x03, ret);
+
+p_err:
+	return ret;
+}
+
 static struct fimc_is_cis_ops cis_ops = {
 	.cis_init = sensor_5e9_cis_init,
 	.cis_log_status = sensor_5e9_cis_log_status,
@@ -1811,6 +1848,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 	.cis_check_rev = sensor_5e9_cis_check_rev,
 	.cis_factory_test = sensor_cis_factory_test,
+	.cis_set_dual_setting = sensor_5e9_cis_set_dual_slave_setting,
 };
 
 static int cis_5e9_probe(struct i2c_client *client,
