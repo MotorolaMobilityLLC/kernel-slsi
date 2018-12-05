@@ -355,6 +355,8 @@ void fimc_is_hw_paf_rdma_config(void __iomem *base_reg, u32 hw_format, u32 bitwi
 	case DMA_OUTPUT_FORMAT_BAYER:
 		if (bitwidth == DMA_OUTPUT_BIT_WIDTH_8BIT)
 			dma_format = PAFSTAT_RDMA_FORMAT_8BIT_PACK;
+		else if (bitwidth == DMA_OUTPUT_BIT_WIDTH_16BIT)
+			dma_format = PAFSTAT_RDMA_FORMAT_16BIT_PACK_LSB_ALIGN;
 		break;
 	default:
 		dma_format = PAFSTAT_RDMA_FORMAT_12BIT_PACK_LSB_ALIGN;
