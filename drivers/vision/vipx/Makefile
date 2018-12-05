@@ -1,16 +1,28 @@
-obj-y					+= vipx-debug.o
+#
+# Makefile for the VIPx common driver
+#
+
 obj-y					+= vipx-binary.o
-obj-y					+= vipx-time.o
-obj-y					+= vipx-taskmgr.o
+obj-y					+= vipx-compat-ioctl.o
+obj-y					+= vipx-ioctl.o
+obj-y					+= vipx-debug.o
+obj-y					+= vipx-device.o
 obj-y					+= vipx-graph.o
 obj-y					+= vipx-graphmgr.o
-obj-y					+= vipx-queue.o
-obj-y					+= vipx-vertex.o
-obj-y					+= vipx-device.o
-obj-y					+= vipx-memory.o
-obj-y					+= vipx-system.o
+obj-y					+= vipx-interface.o
 obj-y					+= vipx-io.o
-obj-$(CONFIG_EXYNOS_VIPX_INTERFACE)	+= interface/
+obj-y					+= vipx-mailbox.o
+obj-y					+= vipx-memory.o
+obj-y					+= vipx-queue.o
+obj-y					+= vipx-slab.o
+obj-y					+= vipx-system.o
+obj-y					+= vipx-taskmgr.o
+obj-y					+= vipx-time.o
+obj-y					+= vipx-core.o
+obj-y					+= vipx-context.o
+obj-y					+= vipx-kernel-binary.o
+obj-y					+= vipx-util.o
+
 obj-$(CONFIG_EXYNOS_VIPX_PLATFORM)	+= platform/
 
-EXTRA_CFLAGS += -Idrivers/vision/include -Idrivers/vision/vipx/include
+ccflags-y += -Idrivers/vision/vipx

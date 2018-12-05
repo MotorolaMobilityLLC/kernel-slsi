@@ -1,4 +1,5 @@
-obj-y					+= vipx-exynos.o
-obj-$(CONFIG_EXYNOS_VIPX_EXYNOS9610)	+= exynos9610/
+#
+# Makefile for the VIPx driver depends on platform
+#
 
-EXTRA_CFLAGS += -Idrivers/vision/vipx/include
+obj-$(CONFIG_EXYNOS_VIPX_EXYNOS9610)	+= exynos9610/

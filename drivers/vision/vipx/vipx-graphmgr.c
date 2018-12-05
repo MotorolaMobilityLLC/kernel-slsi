@@ -1,288 +1,308 @@
 /*
  * Samsung Exynos SoC series VIPx driver
  *
- * Copyright (c) 2017 Samsung Electronics Co., Ltd
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/kthread.h>
 #include <linux/sched/types.h>
-#include <linux/sched/rt.h>
-#include <linux/bug.h>
-#include <linux/scatterlist.h>
 
-
-#include "vipx-taskmgr.h"
+#include "vipx-log.h"
+#include "vipx-common-type.h"
 #include "vipx-device.h"
 #include "vipx-graphmgr.h"
 
-/*
- * task trans
- */
-
-static void __vipx_taskdesc_s_free(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_set_free(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-
+	vipx_enter();
 	taskdesc->state = VIPX_TASKDESC_STATE_FREE;
-
-	list_add_tail(&taskdesc->list, &graphmgr->tdfre_list);
-	graphmgr->tdfre_cnt++;
+	list_add_tail(&taskdesc->list, &gmgr->tdfre_list);
+	gmgr->tdfre_cnt++;
+	vipx_leave();
 }
 
-static void __vipx_taskdesc_free_head(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc **taskdesc)
+static struct vipx_taskdesc *__vipx_taskdesc_get_first_free(
+		struct vipx_graphmgr *gmgr)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
+	struct vipx_taskdesc *taskdesc = NULL;
 
-	if (graphmgr->tdfre_cnt)
-		*taskdesc = container_of(graphmgr->tdfre_list.next, struct vipx_taskdesc, list);
-	else
-		*taskdesc = NULL;
+	vipx_enter();
+	if (gmgr->tdfre_cnt)
+		taskdesc = list_first_entry(&gmgr->tdfre_list,
+				struct vipx_taskdesc, list);
+	vipx_leave();
+	return taskdesc;
 }
 
-static void __vipx_taskdesc_s_ready(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_set_ready(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-
-	taskdesc->state = VIPX_TASKDESC_STATE_FREE;
-
-	list_add_tail(&taskdesc->list, &graphmgr->tdrdy_list);
-	graphmgr->tdrdy_cnt++;
+	vipx_enter();
+	taskdesc->state = VIPX_TASKDESC_STATE_READY;
+	list_add_tail(&taskdesc->list, &gmgr->tdrdy_list);
+	gmgr->tdrdy_cnt++;
+	vipx_leave();
 }
 
-static void __vipx_taskdesc_g_ready(struct vipx_graphmgr *graphmgr,
-	struct vipx_taskdesc **taskdesc)
+static struct vipx_taskdesc *__vipx_taskdesc_pop_ready(
+		struct vipx_graphmgr *gmgr)
 {
-	if (graphmgr->tdrdy_cnt &&
-		(*taskdesc = container_of(graphmgr->tdrdy_list.next, struct vipx_taskdesc, list))) {
-		list_del(&(*taskdesc)->list);
-		graphmgr->tdrdy_cnt--;
-		(*taskdesc)->state = VIPX_TASK_STATE_INVALID;
-	} else {
-		*taskdesc = NULL;
+	struct vipx_taskdesc *taskdesc = NULL;
+
+	vipx_enter();
+	if (gmgr->tdrdy_cnt) {
+		taskdesc = container_of(gmgr->tdrdy_list.next,
+				struct vipx_taskdesc, list);
+
+		list_del(&taskdesc->list);
+		gmgr->tdrdy_cnt--;
 	}
+	vipx_leave();
+	return taskdesc;
 }
 
-static void __vipx_taskdesc_s_request(struct vipx_graphmgr *graphmgr,
-	struct vipx_taskdesc *prev,
-	struct vipx_taskdesc *taskdesc,
-	struct vipx_taskdesc *next)
+static void __vipx_taskdesc_set_request(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
+	vipx_enter();
 	taskdesc->state = VIPX_TASKDESC_STATE_REQUEST;
+	list_add_tail(&taskdesc->list, &gmgr->tdreq_list);
+	gmgr->tdreq_cnt++;
+	vipx_leave();
+}
 
-	if (prev && next) {
-		next->list.prev = &taskdesc->list;
-	        taskdesc->list.next = &next->list;
-	        taskdesc->list.prev = &prev->list;
-	        prev->list.next = &taskdesc->list;
-	} else if (prev) {
-		list_add_tail(&taskdesc->list, &graphmgr->tdreq_list);
-	} else {
-		list_add(&taskdesc->list, &graphmgr->tdreq_list);
+static void __vipx_taskdesc_set_request_sched(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc, struct vipx_taskdesc *next)
+{
+	vipx_enter();
+	taskdesc->state = VIPX_TASKDESC_STATE_REQUEST;
+	list_add_tail(&taskdesc->list, &next->list);
+	gmgr->tdreq_cnt++;
+	vipx_leave();
+}
+
+static void __vipx_taskdesc_set_process(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
+{
+	vipx_enter();
+	taskdesc->state = VIPX_TASKDESC_STATE_PROCESS;
+	list_add_tail(&taskdesc->list, &gmgr->tdpro_list);
+	gmgr->tdpro_cnt++;
+	vipx_leave();
+}
+
+static void __vipx_taskdesc_set_complete(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
+{
+	vipx_enter();
+	taskdesc->state = VIPX_TASKDESC_STATE_COMPLETE;
+	list_add_tail(&taskdesc->list, &gmgr->tdcom_list);
+	gmgr->tdcom_cnt++;
+	vipx_leave();
+}
+
+static void __vipx_taskdesc_trans_fre_to_rdy(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
+{
+	vipx_enter();
+	if (!gmgr->tdfre_cnt) {
+		vipx_warn("tdfre_cnt is zero\n");
+		return;
 	}
 
-	graphmgr->tdreq_cnt++;
-}
-
-static void __vipx_taskdesc_s_alloc(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
-{
-	taskdesc->state = VIPX_TASKDESC_STATE_ALLOC;
-	list_add_tail(&taskdesc->list, &graphmgr->tdalc_list);
-	graphmgr->tdalc_cnt++;
-}
-
-void __vipx_taskdesc_s_process(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
-{
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-
-	taskdesc->state = VIPX_TASKDESC_STATE_PROCESS;
-	list_add_tail(&taskdesc->list, &graphmgr->tdpro_list);
-	graphmgr->tdpro_cnt++;
-}
-
-static void __vipx_taskdesc_s_complete(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
-{
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-
-	taskdesc->state = VIPX_TASKDESC_STATE_COMPLETE;
-	list_add_tail(&taskdesc->list, &graphmgr->tdcom_list);
-	graphmgr->tdcom_cnt++;
-}
-
-void __vipx_taskdesc_trans_fre_to_rdy(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
-{
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdfre_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_FREE);
+	if (taskdesc->state != VIPX_TASKDESC_STATE_FREE) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdfre_cnt--;
-	__vipx_taskdesc_s_ready(graphmgr, taskdesc);
+	gmgr->tdfre_cnt--;
+	__vipx_taskdesc_set_ready(gmgr, taskdesc);
+	vipx_leave();
 }
 
-void __vipx_taskdesc_trans_rdy_to_fre(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_rdy_to_fre(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdrdy_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_READY);
+	vipx_enter();
+	if (!gmgr->tdrdy_cnt) {
+		vipx_warn("tdrdy_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_READY) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdrdy_cnt--;
-	__vipx_taskdesc_s_free(graphmgr, taskdesc);
+	gmgr->tdrdy_cnt--;
+	__vipx_taskdesc_set_free(gmgr, taskdesc);
+	vipx_leave();
 }
 
-void __vipx_taskdesc_trans_req_to_alc(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_req_to_pro(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdreq_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_REQUEST);
+	vipx_enter();
+	if (!gmgr->tdreq_cnt) {
+		vipx_warn("tdreq_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_REQUEST) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdreq_cnt--;
-	__vipx_taskdesc_s_alloc(graphmgr, taskdesc);
+	gmgr->tdreq_cnt--;
+	__vipx_taskdesc_set_process(gmgr, taskdesc);
+	vipx_leave();
 }
 
-void __vipx_taskdesc_trans_req_to_pro(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_req_to_fre(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdreq_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_REQUEST);
+	vipx_enter();
+	if (!gmgr->tdreq_cnt) {
+		vipx_warn("tdreq_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_REQUEST) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdreq_cnt--;
-	__vipx_taskdesc_s_process(graphmgr, taskdesc);
+	gmgr->tdreq_cnt--;
+	__vipx_taskdesc_set_free(gmgr, taskdesc);
+	vipx_leave();
 }
 
-void __vipx_taskdesc_trans_req_to_fre(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_alc_to_pro(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdreq_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_REQUEST);
+	vipx_enter();
+	if (!gmgr->tdalc_cnt) {
+		vipx_warn("tdalc_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_ALLOC) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdreq_cnt--;
-	__vipx_taskdesc_s_free(graphmgr, taskdesc);
+	gmgr->tdalc_cnt--;
+	__vipx_taskdesc_set_process(gmgr, taskdesc);
+	vipx_leave();
 }
 
-void __vipx_taskdesc_trans_alc_to_pro(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_alc_to_fre(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdalc_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_ALLOC);
+	vipx_enter();
+	if (!gmgr->tdalc_cnt) {
+		vipx_warn("tdalc_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_ALLOC) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdalc_cnt--;
-	__vipx_taskdesc_s_process(graphmgr, taskdesc);
+	gmgr->tdalc_cnt--;
+	__vipx_taskdesc_set_free(gmgr, taskdesc);
+	vipx_leave();
 }
 
-void __vipx_taskdesc_trans_alc_to_fre(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_pro_to_com(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdalc_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_ALLOC);
+	vipx_enter();
+	if (!gmgr->tdpro_cnt) {
+		vipx_warn("tdpro_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_PROCESS) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdalc_cnt--;
-	__vipx_taskdesc_s_free(graphmgr, taskdesc);
+	gmgr->tdpro_cnt--;
+	__vipx_taskdesc_set_complete(gmgr, taskdesc);
+	vipx_leave();
 }
 
-static void __vipx_taskdesc_trans_pro_to_com(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_pro_to_fre(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdpro_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_PROCESS);
+	vipx_enter();
+	if (!gmgr->tdpro_cnt) {
+		vipx_warn("tdpro_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_PROCESS) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdpro_cnt--;
-	__vipx_taskdesc_s_complete(graphmgr, taskdesc);
+	gmgr->tdpro_cnt--;
+	__vipx_taskdesc_set_free(gmgr, taskdesc);
+	vipx_leave();
 }
 
-void __vipx_taskdesc_trans_pro_to_fre(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static void __vipx_taskdesc_trans_com_to_fre(struct vipx_graphmgr *gmgr,
+		struct vipx_taskdesc *taskdesc)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdpro_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_PROCESS);
+	vipx_enter();
+	if (!gmgr->tdcom_cnt) {
+		vipx_warn("tdcom_cnt is zero\n");
+		return;
+	}
+
+	if (taskdesc->state != VIPX_TASKDESC_STATE_COMPLETE) {
+		vipx_warn("state(%x) is invlid\n", taskdesc->state);
+		return;
+	}
 
 	list_del(&taskdesc->list);
-	graphmgr->tdpro_cnt--;
-	__vipx_taskdesc_s_free(graphmgr, taskdesc);
+	gmgr->tdcom_cnt--;
+	__vipx_taskdesc_set_free(gmgr, taskdesc);
+	vipx_leave();
 }
 
-static void __vipx_taskdesc_trans_com_to_fre(struct vipx_graphmgr *graphmgr, struct vipx_taskdesc *taskdesc)
+static int __vipx_graphmgr_itf_init(struct vipx_interface *itf,
+		struct vipx_graph *graph)
 {
-	BUG_ON(!graphmgr);
-	BUG_ON(!taskdesc);
-	BUG_ON(!graphmgr->tdcom_cnt);
-	BUG_ON(taskdesc->state != VIPX_TASKDESC_STATE_COMPLETE);
-
-	list_del(&taskdesc->list);
-	graphmgr->tdcom_cnt--;
-	__vipx_taskdesc_s_free(graphmgr, taskdesc);
-}
-
-/*
- * task trans END
- */
-
-void vipx_taskdesc_print(struct vipx_graphmgr *graphmgr)
-{
-}
-
-#ifdef USE_TASK_TIMER
-static int vipx_time_thread(void *data)
-{
-	int ret = 0;
-
-	return ret;
-}
-#endif
-
-static int __vipx_itf_init(struct vipx_interface *interface,
-	struct vipx_graph *graph)
-{
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct vipx_taskmgr *itaskmgr;
 	struct vipx_task *itask;
 
-	BUG_ON(!interface);
-	BUG_ON(!graph);
-
-	itaskmgr = &interface->taskmgr;
-
-	ret = vipx_hw_enum(interface);
-	if (ret) {
-		vipx_err("vipx_hw_enum is fail(%d)\n", ret);
-		goto p_err;
-	}
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	vipx_task_pick_fre_to_req(itaskmgr, &itask);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-
 	if (!itask) {
-		vipx_err("itask is NULL\n");
 		ret = -ENOMEM;
-		goto p_err;
+		vipx_err("itask is NULL\n");
+		goto p_err_pick;
 	}
 
 	itask->id = 0;
@@ -295,38 +315,35 @@ static int __vipx_itf_init(struct vipx_interface *interface,
 	itask->param2 = 0;
 	itask->param3 = 0;
 
-	ret = vipx_hw_init(interface, itask);
-	if (ret) {
-		vipx_err("vipx_hw_init is fail(%d)\n", ret);
-		goto p_err;
-	}
+	ret = vipx_hw_init(itf, itask);
+	if (ret)
+		goto p_err_init;
 
-p_err:
-	vipx_info("%s:\n", __func__);
+	vipx_leave();
+	return 0;
+p_err_init:
+p_err_pick:
 	return ret;
 }
 
-static int __vipx_itf_deinit(struct vipx_interface *interface,
-	struct vipx_graph *graph)
+static int __vipx_graphmgr_itf_deinit(struct vipx_interface *itf,
+		struct vipx_graph *graph)
 {
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct vipx_taskmgr *itaskmgr;
 	struct vipx_task *itask;
 
-	BUG_ON(!interface);
-	BUG_ON(!graph);
-
-	itaskmgr = &interface->taskmgr;
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	vipx_task_pick_fre_to_req(itaskmgr, &itask);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-
 	if (!itask) {
-		vipx_err("itask is NULL\n");
 		ret = -ENOMEM;
-		goto p_err;
+		vipx_err("itask is NULL\n");
+		goto p_err_pick;
 	}
 
 	itask->id = 0;
@@ -339,43 +356,38 @@ static int __vipx_itf_deinit(struct vipx_interface *interface,
 	itask->param2 = 0;
 	itask->param3 = 0;
 
-	ret = vipx_hw_deinit(interface, itask);
-	if (ret) {
-		vipx_err("vipx_hw_deinit is fail(%d)\n", ret);
-		goto p_err;
-	}
+	ret = vipx_hw_deinit(itf, itask);
+	if (ret)
+		goto p_err_deinit;
 
-p_err:
-	vipx_info("%s:\n", __func__);
+	vipx_leave();
+	return 0;
+p_err_deinit:
+p_err_pick:
 	return ret;
 }
 
-int __vipx_itf_create(struct vipx_interface *interface,
-	struct vipx_graph *graph)
+static int __vipx_graphmgr_itf_create(struct vipx_interface *itf,
+		struct vipx_graph *graph)
 {
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct vipx_taskmgr *itaskmgr;
 	struct vipx_task *itask;
 
-	BUG_ON(!interface);
-	BUG_ON(!graph);
-
-	itaskmgr = &interface->taskmgr;
+	/* TODO check */
+	return 0;
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	vipx_task_pick_fre_to_req(itaskmgr, &itask);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-
 	if (!itask) {
-		vipx_err("itask is NULL\n");
 		ret = -ENOMEM;
+		vipx_err("itask is NULL\n");
 		goto p_err;
 	}
-
-#ifdef DBG_TIMEMEASURE
-	vipx_get_timestamp(&itask->time[VIPX_TMP_REQUEST]);
-#endif
 
 	itask->id = 0;
 	itask->lock = &graph->local_lock;
@@ -384,54 +396,38 @@ int __vipx_itf_create(struct vipx_interface *interface,
 	itask->message = VIPX_TASK_CREATE;
 	itask->param0 = graph->uid;
 	itask->param1 = graph->idx;
-	itask->param2 = (ulong)0;
-	itask->param3 = (ulong)0;
+	itask->param2 = 0;
+	itask->param3 = 0;
 
-	ret = vipx_hw_create(interface, itask);
-	if (ret) {
-		vipx_err("vipx_hw_create is fail(%d)\n", ret);
+	ret = vipx_hw_create(itf, itask);
+	if (ret)
 		goto p_err;
-	}
 
-#ifdef DBG_TIMEMEASURE
-	vipx_iinfo("[TM] C : %ldus, %ldus\n", graph,
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_PROCESS]) -
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_REQUEST]),
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_DONE]) -
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_PROCESS]));
-#endif
-
+	vipx_leave();
+	return 0;
 p_err:
-	vipx_info("%s:\n", __func__);
 	return ret;
 }
 
-static int __vipx_itf_destroy(struct vipx_interface *interface,
-	struct vipx_graph *graph)
+static int __vipx_graphmgr_itf_destroy(struct vipx_interface *itf,
+		struct vipx_graph *graph)
 {
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct vipx_taskmgr *itaskmgr;
 	struct vipx_task *itask;
 
-	BUG_ON(!interface);
-	BUG_ON(!graph);
-
-	itaskmgr = &interface->taskmgr;
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	vipx_task_pick_fre_to_req(itaskmgr, &itask);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-
 	if (!itask) {
-		vipx_err("itask is NULL\n");
 		ret = -ENOMEM;
+		vipx_err("itask is NULL\n");
 		goto p_err;
 	}
-
-#ifdef DBG_TIMEMEASURE
-	vipx_get_timestamp(&itask->time[VIPX_TMP_REQUEST]);
-#endif
 
 	itask->id = 0;
 	itask->lock = &graph->local_lock;
@@ -443,51 +439,35 @@ static int __vipx_itf_destroy(struct vipx_interface *interface,
 	itask->param2 = 0;
 	itask->param3 = 0;
 
-	ret = vipx_hw_destroy(interface, itask);
-	if (ret) {
-		vipx_err("vipx_hw_destory is fail(%d)\n", ret);
+	ret = vipx_hw_destroy(itf, itask);
+	if (ret)
 		goto p_err;
-	}
 
-#ifdef DBG_TIMEMEASURE
-	vipx_iinfo("[TM] D : %ldus, %ldus\n", graph,
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_PROCESS]) -
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_REQUEST]),
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_DONE]) -
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_PROCESS]));
-#endif
-
+	vipx_leave();
+	return 0;
 p_err:
-	vipx_info("%s:\n", __func__);
 	return ret;
 }
 
-static int __vipx_itf_config(struct vipx_interface *interface,
-	struct vipx_graph *graph)
+static int __vipx_graphmgr_itf_config(struct vipx_interface *itf,
+		struct vipx_graph *graph)
 {
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct vipx_taskmgr *itaskmgr;
 	struct vipx_task *itask;
 
-	BUG_ON(!interface);
-	BUG_ON(!graph);
-
-	itaskmgr = &interface->taskmgr;
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	vipx_task_pick_fre_to_req(itaskmgr, &itask);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-
 	if (!itask) {
-		vipx_err("itask is NULL\n");
 		ret = -ENOMEM;
+		vipx_err("itask is NULL\n");
 		goto p_err;
 	}
-
-#ifdef DBG_TIMEMEASURE
-	vipx_get_timestamp(&itask->time[VIPX_TMP_REQUEST]);
-#endif
 
 	itask->id = 0;
 	itask->lock = &graph->local_lock;
@@ -496,59 +476,43 @@ static int __vipx_itf_config(struct vipx_interface *interface,
 	itask->message = VIPX_TASK_ALLOCATE;
 	itask->param0 = graph->uid;
 	itask->param1 = graph->idx;
-	itask->param2 = (ulong)&graph->informat_list;
-	itask->param3 = (ulong)&graph->otformat_list;
+	itask->param2 = (unsigned long)&graph->inflist;
+	itask->param3 = (unsigned long)&graph->otflist;
 
-	ret = vipx_hw_config(interface, itask);
-	if (ret) {
-		vipx_err("vipx_hw_config is fail(%d)\n", ret);
+	ret = vipx_hw_config(itf, itask);
+	if (ret)
 		goto p_err;
-	}
 
-#ifdef DBG_TIMEMEASURE
-	vipx_iinfo("[TM] A : %ldus, %ldus\n", graph,
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_PROCESS]) -
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_REQUEST]),
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_DONE]) -
-		VIPX_TIME_IN_US(itask->time[VIPX_TMP_PROCESS]));
-#endif
-
+	vipx_leave();
+	return 0;
 p_err:
-	vipx_info("%s:\n", __func__);
 	return ret;
 }
 
-static int __vipx_itf_process(struct vipx_interface *interface,
-	struct vipx_graph *graph,
-	struct vipx_task *task)
+static int __vipx_graphmgr_itf_process(struct vipx_interface *itf,
+		struct vipx_graph *graph, struct vipx_task *task)
 {
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct vipx_taskmgr *itaskmgr;
 	struct vipx_task *itask;
 
-	BUG_ON(!interface);
-	BUG_ON(!graph);
-	BUG_ON(!task);
-
-	itaskmgr = &interface->taskmgr;
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	vipx_task_pick_fre_to_req(itaskmgr, &itask);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-
 	if (!itask) {
-		vipx_err("itask is NULL\n");
 		ret = -ENOMEM;
-		goto p_err;
+		vipx_err("itask is NULL\n");
+		goto p_err_pick;
 	}
 
 	if (test_bit(VIPX_GRAPH_FLAG_UPDATE_PARAM, &graph->flags)) {
-		ret = CALL_GOPS(graph, update_param, task);
-		if (ret) {
-			vipx_err("GOPS(update_param) is fail(%d)\n", ret);
-			goto p_err;
-		}
+		ret = graph->gops->update_param(graph, task);
+		if (ret)
+			goto p_err_update_param;
 
 		clear_bit(VIPX_GRAPH_FLAG_UPDATE_PARAM, &graph->flags);
 	}
@@ -560,236 +524,220 @@ static int __vipx_itf_process(struct vipx_interface *interface,
 	itask->message = VIPX_TASK_PROCESS;
 	itask->param0 = graph->uid;
 	itask->param1 = graph->idx;
-	itask->param2 = (ulong)0; /* return : DONE or NDONE */
+	itask->param2 = 0; /* return : DONE or NDONE */
 	itask->param3 = 0; /* return : error code if param2 is NDONE */
 	itask->flags = task->flags;
 	itask->incl = task->incl;
 	itask->otcl = task->otcl;
 
-	ret = CALL_GOPS(graph, process, task);
-	if (ret) {
-		vipx_err("GOPS(process) is fail(%d)\n", ret);
-		goto p_err;
-	}
+	ret = graph->gops->process(graph, task);
+	if (ret)
+		goto p_err_process;
 
-	ret = vipx_hw_process(interface, itask);
-	if (ret) {
-		vipx_err("vipx_hw_process is fail(%d)\n", ret);
-		goto p_err;
-	}
+	ret = vipx_hw_process(itf, itask);
+	if (ret)
+		goto p_err_hw_process;
 
-p_err:
-	vipx_dbg("%s:\n", __func__);
+	vipx_leave();
+	return 0;
+p_err_hw_process:
+p_err_process:
+p_err_update_param:
+p_err_pick:
 	return ret;
 }
 
-static void __vipx_graphmgr_sched(struct vipx_graphmgr *graphmgr)
+static void __vipx_graphmgr_sched(struct vipx_graphmgr *gmgr)
 {
-	int ret = 0;
+	int ret;
+	struct vipx_taskdesc *ready_td, *list_td, *temp;
 	struct vipx_graph *graph;
 	struct vipx_task *task;
-	struct vipx_taskdesc *ready, *request, *process, *prev, *next, *temp;
-	struct vipx_interface *interface;
 
-	interface = graphmgr->interface;
-	ready = NULL;
-	request = NULL;
-	prev = NULL;
-	next = NULL;
+	vipx_enter();
 
-	mutex_lock(&graphmgr->tdlock);
+	mutex_lock(&gmgr->tdlock);
 
-	/* 1. priority order */
 	while (1) {
-		__vipx_taskdesc_g_ready(graphmgr, &ready);
-		if (!ready)
+		ready_td = __vipx_taskdesc_pop_ready(gmgr);
+		if (!ready_td)
 			break;
 
-		list_for_each_entry_safe(next, temp, &graphmgr->tdreq_list, list) {
-			if (ready->priority > next->priority)
-				break;
-
-			prev = next;
-			next = NULL;
-		}
-
-		__vipx_taskdesc_s_request(graphmgr, prev, ready, next);
-	}
-
-	/* 2. */
-	list_for_each_entry_safe(request, temp, &graphmgr->tdreq_list, list) {
-		graph = request->graph;
-		task = request->task;
-
-		__vipx_taskdesc_trans_req_to_pro(graphmgr, request);
-	}
-
-	mutex_unlock(&graphmgr->tdlock);
-
-	/* 3. process graph */
-	list_for_each_entry_safe(process, temp, &graphmgr->tdpro_list, list) {
-		graph = process->graph;
-		task = process->task;
-
-		ret = __vipx_itf_process(interface, graph, task);
-		if (ret) {
-			vipx_err("__vipx_itf_process is fail(%d)\n", ret);
-
-			ret = CALL_GOPS(graph, cancel, task);
-			if (ret) {
-				vipx_err("CALL_GOPS(cancel) is fail(%d)\n", ret);
-				BUG();
-			}
-
-			process->graph = NULL;
-			process->task = NULL;
-			__vipx_taskdesc_trans_pro_to_fre(graphmgr, process);
+		if (!gmgr->tdreq_cnt) {
+			__vipx_taskdesc_set_request(gmgr, ready_td);
 			continue;
 		}
 
-		__vipx_taskdesc_trans_pro_to_com(graphmgr, process);
+		list_for_each_entry_safe(list_td, temp, &gmgr->tdreq_list,
+				list) {
+			if (ready_td->priority > list_td->priority) {
+				__vipx_taskdesc_set_request_sched(gmgr,
+						ready_td, list_td);
+				break;
+			}
+		}
+
+		if (ready_td->state == VIPX_TASKDESC_STATE_READY)
+			__vipx_taskdesc_set_request(gmgr, ready_td);
 	}
 
-	graphmgr->sched_cnt++;
-	vipx_dbg("[%s:%d]\n", __func__, __LINE__);
+	list_for_each_entry_safe(list_td, temp, &gmgr->tdreq_list, list) {
+		__vipx_taskdesc_trans_req_to_pro(gmgr, list_td);
+	}
+
+	mutex_unlock(&gmgr->tdlock);
+
+	list_for_each_entry_safe(list_td, temp, &gmgr->tdpro_list, list) {
+		graph = list_td->graph;
+		task = list_td->task;
+
+		ret = __vipx_graphmgr_itf_process(gmgr->interface, graph, task);
+		if (ret) {
+			ret = graph->gops->cancel(graph, task);
+			if (ret)
+				return;
+
+			list_td->graph = NULL;
+			list_td->task = NULL;
+			__vipx_taskdesc_trans_pro_to_fre(gmgr, list_td);
+			continue;
+		}
+
+		__vipx_taskdesc_trans_pro_to_com(gmgr, list_td);
+	}
+
+	gmgr->sched_cnt++;
+	vipx_leave();
 }
 
 static void vipx_graph_thread(struct kthread_work *work)
 {
-	int ret = 0;
-	struct vipx_graphmgr *graphmgr;
-	struct vipx_graph *graph;
+	int ret;
 	struct vipx_task *task;
-	struct vipx_taskdesc *taskdesc, * temp;
+	struct vipx_graph *graph;
+	struct vipx_graphmgr *gmgr;
+	struct vipx_taskdesc *taskdesc, *temp;
 
-	BUG_ON(!work);
-
+	vipx_enter();
 	task = container_of(work, struct vipx_task, work);
 	graph = task->owner;
-	graphmgr = graph->cookie;
+	gmgr = graph->owner;
 
 	switch (task->message) {
 	case VIPX_TASK_REQUEST:
-		ret = CALL_GOPS(graph, request, task);
-		if (ret) {
-			vipx_err("CALL_GOPS(request) is fail(%d)\n", ret);
-			BUG();
-		}
+		ret = graph->gops->request(graph, task);
+		if (ret)
+			return;
 
-		__vipx_taskdesc_free_head(graphmgr, &taskdesc);
+		taskdesc = __vipx_taskdesc_get_first_free(gmgr);
 		if (!taskdesc) {
 			vipx_err("taskdesc is NULL\n");
-			BUG();
+			return;
 		}
 
 		task->tdindex = taskdesc->index;
 		taskdesc->graph = graph;
 		taskdesc->task = task;
 		taskdesc->priority = graph->priority;
-		__vipx_taskdesc_trans_fre_to_rdy(graphmgr, taskdesc);
+		__vipx_taskdesc_trans_fre_to_rdy(gmgr, taskdesc);
 		break;
 	case VIPX_CTRL_STOP:
-		list_for_each_entry_safe(taskdesc, temp, &graphmgr->tdrdy_list, list) {
+		list_for_each_entry_safe(taskdesc, temp,
+				&gmgr->tdrdy_list, list) {
 			if (taskdesc->graph->idx != graph->idx)
 				continue;
 
-			ret = CALL_GOPS(graph, cancel, taskdesc->task);
-			if (ret) {
-				vipx_err("CALL_GOPS(cancel) is fail(%d)\n", ret);
-				BUG();
-			}
+			ret = graph->gops->cancel(graph, taskdesc->task);
+			if (ret)
+				return;
 
 			taskdesc->graph = NULL;
 			taskdesc->task = NULL;
-			__vipx_taskdesc_trans_rdy_to_fre(graphmgr, taskdesc);
+			__vipx_taskdesc_trans_rdy_to_fre(gmgr, taskdesc);
 		}
 
-		mutex_lock(&graphmgr->tdlock);
+		mutex_lock(&gmgr->tdlock);
 
-		list_for_each_entry_safe(taskdesc, temp, &graphmgr->tdreq_list, list) {
+		list_for_each_entry_safe(taskdesc, temp,
+				&gmgr->tdreq_list, list) {
 			if (taskdesc->graph->idx != graph->idx)
 				continue;
 
-			ret = CALL_GOPS(graph, cancel, taskdesc->task);
-			if (ret) {
-				vipx_err("CALL_GOPS(cancel) is fail(%d)\n", ret);
-				BUG();
-			}
+			ret = graph->gops->cancel(graph, taskdesc->task);
+			if (ret)
+				return;
 
 			taskdesc->graph = NULL;
 			taskdesc->task = NULL;
-			__vipx_taskdesc_trans_req_to_fre(graphmgr, taskdesc);
+			__vipx_taskdesc_trans_req_to_fre(gmgr, taskdesc);
 		}
 
-		mutex_unlock(&graphmgr->tdlock);
+		mutex_unlock(&gmgr->tdlock);
 
-		ret = CALL_GOPS(graph, control, task);
-		if (ret) {
-			vipx_err("CALL_GOPS(control) is fail(%d)\n", ret);
-			BUG();
-		}
+		ret = graph->gops->control(graph, task);
+		if (ret)
+			return;
+		/* TODO check return/break */
 		return;
 	default:
-		BUG();
-		break;
+		vipx_err("message of task is invalid (%d)\n", task->message);
+		return;
 	}
 
-	__vipx_graphmgr_sched(graphmgr);
-	vipx_dbg("[%s:%d]\n", __func__, __LINE__);
+	__vipx_graphmgr_sched(gmgr);
+	vipx_leave();
 }
 
 static void vipx_interface_thread(struct kthread_work *work)
 {
-	int ret = 0;
-	u32 task_index;
-	u32 taskdesc_index;
-	unsigned long flag;
-	struct vipx_graphmgr *graphmgr;
-	struct vipx_graph *graph;
-	struct vipx_taskmgr *itaskmgr;
+	int ret;
 	struct vipx_task *task, *itask;
+	struct vipx_interface *itf;
+	struct vipx_graphmgr *gmgr;
+	unsigned int taskdesc_index;
+	struct vipx_taskmgr *itaskmgr;
+	struct vipx_graph *graph;
 	struct vipx_taskdesc *taskdesc;
-	struct vipx_interface *interface;
+	unsigned long flags;
 
-	BUG_ON(!work);
-
+	vipx_enter();
 	itask = container_of(work, struct vipx_task, work);
-	interface = itask->owner;
-	itaskmgr = &interface->taskmgr;
-	graphmgr = interface->cookie;
+	itf = itask->owner;
+	itaskmgr = &itf->taskmgr;
+	gmgr = itf->cookie;
+
+	if (itask->findex >= VIPX_MAX_TASK) {
+		vipx_err("task index(%u) is invalid (%u)\n",
+				itask->findex, VIPX_MAX_TASK);
+		return;
+	}
 
 	switch (itask->message) {
 	case VIPX_TASK_ALLOCATE:
-		task_index = itask->findex;
 		taskdesc_index = itask->tdindex;
-
 		if (taskdesc_index >= VIPX_MAX_TASKDESC) {
-			vipx_err("taskdesc index(%d) is invalid\n", taskdesc_index);
-			BUG();
+			vipx_err("taskdesc index(%u) is invalid (%u)\n",
+					taskdesc_index, VIPX_MAX_TASKDESC);
+			return;
 		}
 
-		if (task_index >= VIPX_MAX_TASK) {
-			vipx_err("task index(%d) is invalid\n", task_index);
-			BUG();
-		}
-
-		taskdesc = &graphmgr->taskdesc[taskdesc_index];
+		taskdesc = &gmgr->taskdesc[taskdesc_index];
 		if (taskdesc->state != VIPX_TASKDESC_STATE_ALLOC) {
-			vipx_err("taskdesc state is invalid(%d)\n", taskdesc->state);
-			vipx_taskdesc_print(graphmgr);
-			BUG();
+			vipx_err("taskdesc state(%u) is not ALLOC (%u)\n",
+					taskdesc->state, taskdesc_index);
+			return;
 		}
 
 		graph = taskdesc->graph;
 		if (!graph) {
-			vipx_err("graph is NULL(%d)\n", taskdesc_index);
-			BUG();
+			vipx_err("graph is NULL (%u)\n", taskdesc_index);
+			return;
 		}
 
 		task = taskdesc->task;
 		if (!task) {
-			vipx_err("task is NULL(%d)\n", taskdesc_index);
-			BUG();
+			vipx_err("task is NULL (%u)\n", taskdesc_index);
+			return;
 		}
 
 		task->message = itask->message;
@@ -798,74 +746,67 @@ static void vipx_interface_thread(struct kthread_work *work)
 
 		/* return status check */
 		if (task->param0) {
-			vipx_err("allocation is fail(%ld, %ld)\n", task->param0, task->param1);
+			vipx_err("task allocation failed (%lu, %lu)\n",
+					task->param0, task->param1);
 
-			ret = CALL_GOPS(graph, cancel, task);
-			if (ret) {
-				vipx_err("CALL_GOPS(cancel) is fail(%d)\n", ret);
-				BUG();
-			}
+			ret = graph->gops->cancel(graph, task);
+			if (ret)
+				return;
 
 			/* taskdesc cleanup */
-			mutex_lock(&graphmgr->tdlock);
+			mutex_lock(&gmgr->tdlock);
 			taskdesc->graph = NULL;
 			taskdesc->task = NULL;
-			__vipx_taskdesc_trans_alc_to_fre(graphmgr, taskdesc);
-			mutex_unlock(&graphmgr->tdlock);
+			__vipx_taskdesc_trans_alc_to_fre(gmgr, taskdesc);
+			mutex_unlock(&gmgr->tdlock);
 		} else {
 			/* taskdesc transition */
-			mutex_lock(&graphmgr->tdlock);
-			__vipx_taskdesc_trans_alc_to_pro(graphmgr, taskdesc);
-			mutex_unlock(&graphmgr->tdlock);
+			mutex_lock(&gmgr->tdlock);
+			__vipx_taskdesc_trans_alc_to_pro(gmgr, taskdesc);
+			mutex_unlock(&gmgr->tdlock);
 		}
 
 		/* itask cleanup */
-		taskmgr_e_barrier_irqs(itaskmgr, 0, flag);
+		taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
 		vipx_task_trans_com_to_fre(itaskmgr, itask);
-		taskmgr_x_barrier_irqr(itaskmgr, 0, flag);
+		taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
 		break;
 	case VIPX_TASK_PROCESS:
-		task_index = itask->findex;
 		taskdesc_index = itask->tdindex;
-
 		if (taskdesc_index >= VIPX_MAX_TASKDESC) {
-			vipx_err("taskdesc index(%d) is invalid\n", taskdesc_index);
-			BUG();
+			vipx_err("taskdesc index(%u) is invalid (%u)\n",
+					taskdesc_index, VIPX_MAX_TASKDESC);
+			return;
 		}
 
-		if (task_index >= VIPX_MAX_TASK) {
-			vipx_err("task index(%d) is invalid\n", task_index);
-			BUG();
-		}
-
-		taskdesc = &graphmgr->taskdesc[taskdesc_index];
+		taskdesc = &gmgr->taskdesc[taskdesc_index];
 		if (taskdesc->state == VIPX_TASKDESC_STATE_FREE) {
-			vipx_err("taskdesc state is FREE(%d)\n", taskdesc->state);
-			vipx_taskdesc_print(graphmgr);
+			vipx_err("taskdesc(%u) state is FREE\n",
+					taskdesc_index);
 
 			/* itask cleanup */
-			taskmgr_e_barrier_irqs(itaskmgr, 0, flag);
+			taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
 			vipx_task_trans_com_to_fre(itaskmgr, itask);
-			taskmgr_x_barrier_irqr(itaskmgr, 0, flag);
+			taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
 			break;
 		}
 
 		if (taskdesc->state != VIPX_TASKDESC_STATE_COMPLETE) {
-			vipx_err("taskdesc state is invalid(%d)\n", taskdesc->state);
-			vipx_taskdesc_print(graphmgr);
-			BUG();
+			vipx_err("taskdesc state is not COMPLETE (%u)\n",
+					taskdesc->state);
+			return;
 		}
 
 		graph = taskdesc->graph;
 		if (!graph) {
-			vipx_err("graph is NULL(%d)\n", taskdesc_index);
-			BUG();
+			vipx_err("graph is NULL (%u)\n", taskdesc_index);
+			return;
 		}
 
 		task = taskdesc->task;
 		if (!task) {
-			vipx_err("task is NULL(%d)\n", taskdesc_index);
-			BUG();
+			vipx_err("task is NULL (%u)\n", taskdesc_index);
+			return;
 		}
 
 		task->message = itask->message;
@@ -873,299 +814,465 @@ static void vipx_interface_thread(struct kthread_work *work)
 		task->param0 = itask->param2;
 		task->param1 = itask->param3;
 
-		ret = CALL_GOPS(graph, done, task);
-		if (ret) {
-			vipx_err("CALL_GOPS(done) is fail(%d)\n", ret);
-			BUG();
-		}
+		ret = graph->gops->done(graph, task);
+		if (ret)
+			return;
 
 		/* taskdesc cleanup */
 		taskdesc->graph = NULL;
 		taskdesc->task = NULL;
-		__vipx_taskdesc_trans_com_to_fre(graphmgr, taskdesc);
+		__vipx_taskdesc_trans_com_to_fre(gmgr, taskdesc);
 
 		/* itask cleanup */
-		taskmgr_e_barrier_irqs(itaskmgr, 0, flag);
+		taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
 		vipx_task_trans_com_to_fre(itaskmgr, itask);
-		taskmgr_x_barrier_irqr(itaskmgr, 0, flag);
+		taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
 		break;
 	default:
-		BUG();
-		break;
+		vipx_err("message of task is invalid (%d)\n", itask->message);
+		return;
 	}
 
-	__vipx_graphmgr_sched(graphmgr);
-	vipx_dbg("[%s:%d]\n", __func__, __LINE__);
+	__vipx_graphmgr_sched(gmgr);
+	vipx_leave();
 }
 
-int vipx_graphmgr_grp_register(struct vipx_graphmgr *graphmgr, struct vipx_graph *graph)
+void vipx_taskdesc_print(struct vipx_graphmgr *gmgr)
 {
-	int ret = 0;
-	u32 index;
+	vipx_enter();
+	vipx_leave();
+}
 
-	BUG_ON(!graphmgr);
-	BUG_ON(!graph);
+int vipx_graphmgr_grp_register(struct vipx_graphmgr *gmgr,
+		struct vipx_graph *graph)
+{
+	int ret;
+	unsigned int index;
 
-	mutex_lock(&graphmgr->mlock);
-	for (index = 0; index < VIPX_MAX_GRAPH; index++) {
-		if (!graphmgr->graph[index]) {
-			graphmgr->graph[index] = graph;
+	vipx_enter();
+	mutex_lock(&gmgr->mlock);
+	for (index = 0; index < VIPX_MAX_GRAPH; ++index) {
+		if (!gmgr->graph[index]) {
+			gmgr->graph[index] = graph;
 			graph->idx = index;
 			break;
 		}
 	}
-	mutex_unlock(&graphmgr->mlock);
+	mutex_unlock(&gmgr->mlock);
 
 	if (index >= VIPX_MAX_GRAPH) {
-		vipx_err("graph slot is lack\n");
 		ret = -EINVAL;
+		vipx_err("graph slot is lack\n");
 		goto p_err;
 	}
 
 	kthread_init_work(&graph->control.work, vipx_graph_thread);
 	for (index = 0; index < VIPX_MAX_TASK; ++index)
-		kthread_init_work(&graph->taskmgr.task[index].work, vipx_graph_thread);
+		kthread_init_work(&graph->taskmgr.task[index].work,
+				vipx_graph_thread);
 
-	graph->global_lock = &graphmgr->mlock;
-	atomic_inc(&graphmgr->active_cnt);
+	graph->global_lock = &gmgr->mlock;
+	atomic_inc(&gmgr->active_cnt);
 
+	vipx_leave();
+	return 0;
 p_err:
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
 	return ret;
 }
 
-int vipx_graphmgr_grp_unregister(struct vipx_graphmgr *graphmgr, struct vipx_graph *graph)
+int vipx_graphmgr_grp_unregister(struct vipx_graphmgr *gmgr,
+		struct vipx_graph *graph)
 {
-	int ret = 0;
-
-	BUG_ON(!graphmgr);
-	BUG_ON(!graph);
-
-	mutex_lock(&graphmgr->mlock);
-	graphmgr->graph[graph->idx] = NULL;
-	mutex_unlock(&graphmgr->mlock);
-
-	atomic_dec(&graphmgr->active_cnt);
-
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
-	return ret;
+	vipx_enter();
+	mutex_lock(&gmgr->mlock);
+	gmgr->graph[graph->idx] = NULL;
+	mutex_unlock(&gmgr->mlock);
+	atomic_dec(&gmgr->active_cnt);
+	vipx_leave();
+	return 0;
 }
 
-int vipx_graphmgr_grp_start(struct vipx_graphmgr *graphmgr, struct vipx_graph *graph)
+int vipx_graphmgr_grp_start(struct vipx_graphmgr *gmgr,
+		struct vipx_graph *graph)
 {
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&graphmgr->mlock);
-	if (test_bit(VIPX_GRAPHMGR_ENUM, &graphmgr->state)) {
-		mutex_unlock(&graphmgr->mlock);
-		goto p_skip_hw_init;
-	}
-
-	ret = __vipx_itf_init(graphmgr->interface, graph);
-	if (ret) {
-		mutex_unlock(&graphmgr->mlock);
-		vipx_err("__vipx_itf_init is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-	set_bit(VIPX_GRAPHMGR_ENUM, &graphmgr->state);
-	mutex_unlock(&graphmgr->mlock);
-
-p_skip_hw_init:
-#if 0
-	ret = __vipx_itf_create(graphmgr->interface, graph);
-	if (ret) {
-		vipx_err("__vipx_itf_create is fail(%d)\n", ret);
-		goto p_err;
-	}
-#endif
-	ret = __vipx_itf_config(graphmgr->interface, graph);
-	if (ret) {
-		vipx_err("__vipx_itf_config is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-p_err:
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
-	return ret;
-}
-
-int vipx_graphmgr_grp_stop(struct vipx_graphmgr *graphmgr, struct vipx_graph *graph)
-{
-	int ret = 0;
-
-	ret = __vipx_itf_destroy(graphmgr->interface, graph);
-	if (ret) {
-		vipx_err("__vipx_itf_destroy is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-	mutex_lock(&graphmgr->mlock);
-	if (test_bit(VIPX_GRAPHMGR_ENUM, &graphmgr->state) &&
-			atomic_read(&graphmgr->active_cnt) == 1) {
-		ret = __vipx_itf_deinit(graphmgr->interface, graph);
+	vipx_enter();
+	mutex_lock(&gmgr->mlock);
+	if (!test_bit(VIPX_GRAPHMGR_ENUM, &gmgr->state)) {
+		ret = __vipx_graphmgr_itf_init(gmgr->interface, graph);
 		if (ret) {
-			mutex_unlock(&graphmgr->mlock);
-			vipx_err("__vipx_itf_deinit is fail(%d)\n", ret);
+			mutex_unlock(&gmgr->mlock);
+			goto p_err_init;
+		}
+		set_bit(VIPX_GRAPHMGR_ENUM, &gmgr->state);
+	}
+	mutex_unlock(&gmgr->mlock);
+
+	ret = __vipx_graphmgr_itf_create(gmgr->interface, graph);
+	if (ret)
+		goto p_err_create;
+
+	ret = __vipx_graphmgr_itf_config(gmgr->interface, graph);
+	if (ret)
+		goto p_err_config;
+
+	vipx_leave();
+	return 0;
+p_err_config:
+p_err_create:
+p_err_init:
+	return ret;
+}
+
+int vipx_graphmgr_grp_stop(struct vipx_graphmgr *gmgr,
+		struct vipx_graph *graph)
+{
+	int ret;
+
+	vipx_enter();
+	ret = __vipx_graphmgr_itf_destroy(gmgr->interface, graph);
+	if (ret)
+		goto p_err_destroy;
+
+	mutex_lock(&gmgr->mlock);
+	if (test_bit(VIPX_GRAPHMGR_ENUM, &gmgr->state) &&
+			atomic_read(&gmgr->active_cnt) == 1) {
+		ret = __vipx_graphmgr_itf_deinit(gmgr->interface, graph);
+		if (ret) {
+			mutex_unlock(&gmgr->mlock);
+			goto p_err_deinit;
+		}
+		clear_bit(VIPX_GRAPHMGR_ENUM, &gmgr->state);
+	}
+	mutex_unlock(&gmgr->mlock);
+
+	vipx_leave();
+	return 0;
+p_err_deinit:
+p_err_destroy:
+	return ret;
+}
+
+void vipx_graphmgr_queue(struct vipx_graphmgr *gmgr, struct vipx_task *task)
+{
+	vipx_enter();
+	kthread_queue_work(&gmgr->worker, &task->work);
+	vipx_leave();
+}
+
+static bool __vipx_graphmgr_check_model_id(struct vipx_graphmgr *gmgr,
+		struct vipx_graph_model *gmodel)
+{
+	unsigned int current_id, id;
+	bool same;
+
+	vipx_enter();
+	current_id = GET_COMMON_GRAPH_MODEL_ID(gmgr->current_model->id);
+	id = GET_COMMON_GRAPH_MODEL_ID(gmodel->id);
+
+	if (current_id == id)
+		same = true;
+	else
+		same = false;
+
+	vipx_leave();
+	return same;
+}
+
+static int __vipx_graphmgr_itf_load_graph(struct vipx_interface *itf,
+		struct vipx_graph_model *gmodel)
+{
+	int ret;
+	unsigned long flags;
+	struct vipx_taskmgr *itaskmgr;
+	struct vipx_task *itask;
+
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
+
+	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
+	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	if (!itask) {
+		ret = -ENOMEM;
+		vipx_err("itask is NULL\n");
+		goto p_err_pick;
+	}
+
+	itask->id = GET_COMMON_GRAPH_MODEL_ID(gmodel->id);
+	itask->message = VIPX_TASK_PROCESS;
+	itask->param0 = (unsigned long)&gmodel->common_ginfo;
+
+	ret = vipx_hw_load_graph(itf, itask);
+	if (ret)
+		goto p_err_hw_load_graph;
+
+	vipx_leave();
+	return 0;
+p_err_hw_load_graph:
+p_err_pick:
+	return ret;
+}
+
+int vipx_graphmgr_register_model(struct vipx_graphmgr *gmgr,
+		struct vipx_graph_model *gmodel)
+{
+	int ret;
+
+	vipx_enter();
+	mutex_lock(&gmgr->mlock);
+	if (gmgr->current_model) {
+		if (!__vipx_graphmgr_check_model_id(gmgr, gmodel)) {
+			ret = -EBUSY;
+			vipx_err("model is already registered(%#x/%#x)\n",
+					gmgr->current_model->id, gmodel->id);
+			mutex_unlock(&gmgr->mlock);
 			goto p_err;
 		}
-
-		clear_bit(VIPX_GRAPHMGR_ENUM, &graphmgr->state);
 	}
-	mutex_unlock(&graphmgr->mlock);
 
+	gmgr->current_model = gmodel;
+	mutex_unlock(&gmgr->mlock);
+
+	ret = __vipx_graphmgr_itf_load_graph(gmgr->interface, gmodel);
+	if (ret)
+		goto p_err_register;
+
+	vipx_leave();
+	return 0;
+p_err_register:
+	mutex_lock(&gmgr->mlock);
+	gmgr->current_model = NULL;
+	mutex_unlock(&gmgr->mlock);
 p_err:
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
 	return ret;
 }
 
-int vipx_graphmgr_itf_register(struct vipx_graphmgr *graphmgr, struct vipx_interface *interface)
+static int __vipx_graphmgr_itf_unload_graph(struct vipx_interface *itf,
+		struct vipx_graph_model *gmodel)
 {
-	int ret = 0;
-	u32 index;
+	int ret;
+	unsigned long flags;
+	struct vipx_taskmgr *itaskmgr;
+	struct vipx_task *itask;
 
-	BUG_ON(!graphmgr);
-	BUG_ON(!interface);
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
 
-	graphmgr->interface = interface;
-	for (index = 0; index < VIPX_MAX_TASK; ++index)
-		kthread_init_work(&interface->taskmgr.task[index].work, vipx_interface_thread);
-
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
-	return ret;
-}
-
-int vipx_graphmgr_itf_unregister(struct vipx_graphmgr *graphmgr, struct vipx_interface *interface)
-{
-	int ret = 0;
-	BUG_ON(!graphmgr);
-	BUG_ON(!interface);
-
-	graphmgr->interface = NULL;
-
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
-	return ret;
-}
-
-void vipx_graphmgr_queue(struct vipx_graphmgr *graphmgr, struct vipx_task *task)
-{
-	BUG_ON(!graphmgr);
-	BUG_ON(!task);
-
-	kthread_queue_work(&graphmgr->worker, &task->work);
-	vipx_dbg("[%s:%d]\n", __func__, __LINE__);
-}
-
-int vipx_graphmgr_probe(struct vipx_graphmgr *graphmgr)
-{
-	int ret = 0;
-	u32 index;
-	struct vipx_device *device = container_of(graphmgr, struct vipx_device, graphmgr);
-
-	BUG_ON(!graphmgr);
-	BUG_ON(!device);
-
-	graphmgr->tick_cnt = 0;
-	graphmgr->tick_pos = 0;
-	graphmgr->sched_cnt = 0;
-	graphmgr->sched_pos = 0;
-	graphmgr->task_graph = NULL;
-#ifdef USE_TASK_TIMER
-	graphmgr->task_timer = NULL;
-#endif
-	atomic_set(&graphmgr->active_cnt, 0);
-	mutex_init(&graphmgr->mlock);
-	mutex_init(&graphmgr->tdlock);
-	clear_bit(VIPX_GRAPHMGR_OPEN, &graphmgr->state);
-	clear_bit(VIPX_GRAPHMGR_ENUM, &graphmgr->state);
-
-	for (index = 0; index < VIPX_MAX_GRAPH; ++index)
-		graphmgr->graph[index] = NULL;
-
-	INIT_LIST_HEAD(&graphmgr->tdfre_list);
-	INIT_LIST_HEAD(&graphmgr->tdrdy_list);
-	INIT_LIST_HEAD(&graphmgr->tdreq_list);
-	INIT_LIST_HEAD(&graphmgr->tdalc_list);
-	INIT_LIST_HEAD(&graphmgr->tdpro_list);
-	INIT_LIST_HEAD(&graphmgr->tdcom_list);
-
-	graphmgr->tdfre_cnt = 0;
-	graphmgr->tdrdy_cnt = 0;
-	graphmgr->tdreq_cnt = 0;
-	graphmgr->tdalc_cnt = 0;
-	graphmgr->tdpro_cnt = 0;
-	graphmgr->tdcom_cnt = 0;
-
-	for (index = 0; index < VIPX_MAX_TASKDESC; ++index) {
-		graphmgr->taskdesc[index].index = index;
-		graphmgr->taskdesc[index].graph = NULL;
-		graphmgr->taskdesc[index].task = NULL;
-		graphmgr->taskdesc[index].state = VIPX_TASKDESC_STATE_INVALID;
-		__vipx_taskdesc_s_free(graphmgr, &graphmgr->taskdesc[index]);
+	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
+	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	if (!itask) {
+		ret = -ENOMEM;
+		vipx_err("itask is NULL\n");
+		goto p_err_pick;
 	}
 
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
+	itask->id = GET_COMMON_GRAPH_MODEL_ID(gmodel->id);
+	itask->message = VIPX_TASK_PROCESS;
+	itask->param0 = (unsigned long)&gmodel->common_ginfo;
+
+	ret = vipx_hw_unload_graph(itf, itask);
+	if (ret)
+		goto p_err_hw_unload_graph;
+
+	vipx_leave();
+	return 0;
+p_err_hw_unload_graph:
+p_err_pick:
 	return ret;
 }
 
-int vipx_graphmgr_open(struct vipx_graphmgr *graphmgr)
+int vipx_graphmgr_unregister_model(struct vipx_graphmgr *gmgr,
+		struct vipx_graph_model *gmodel)
 {
-	int ret = 0;
+	int ret;
+	struct vipx_graph_model *current_gmodel;
+
+	vipx_enter();
+	mutex_lock(&gmgr->mlock);
+	if (!gmgr->current_model) {
+		ret = -EFAULT;
+		vipx_err("model of manager is empty (%#x)\n", gmodel->id);
+		mutex_unlock(&gmgr->mlock);
+		goto p_err;
+	}
+
+	if (!__vipx_graphmgr_check_model_id(gmgr, gmodel)) {
+		ret = -EINVAL;
+		vipx_err("model of manager is different (%#x/%#x)\n",
+				gmgr->current_model->id, gmodel->id);
+		mutex_unlock(&gmgr->mlock);
+		goto p_err;
+	}
+
+	current_gmodel = gmgr->current_model;
+	gmgr->current_model = NULL;
+	mutex_unlock(&gmgr->mlock);
+
+	ret = __vipx_graphmgr_itf_unload_graph(gmgr->interface, current_gmodel);
+	if (ret)
+		goto p_err_unregister;
+
+	vipx_leave();
+	return 0;
+p_err_unregister:
+p_err:
+	return ret;
+}
+
+static int __vipx_graphmgr_itf_execute_graph(struct vipx_interface *itf,
+		struct vipx_graph_model *gmodel,
+		struct vipx_common_execute_info *einfo)
+{
+	int ret;
+	unsigned long flags;
+	struct vipx_taskmgr *itaskmgr;
+	struct vipx_task *itask;
+
+	vipx_enter();
+	itaskmgr = &itf->taskmgr;
+
+	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	itask = vipx_task_pick_fre_to_req(itaskmgr);
+	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	if (!itask) {
+		ret = -ENOMEM;
+		vipx_err("itask is NULL\n");
+		goto p_err_pick;
+	}
+
+	itask->id = GET_COMMON_GRAPH_MODEL_ID(gmodel->id);
+	itask->message = VIPX_TASK_PROCESS;
+	itask->param0 = (unsigned long)einfo;
+	itask->param1 = (unsigned long)gmodel;
+
+	ret = vipx_hw_execute_graph(itf, itask);
+	if (ret)
+		goto p_err_hw_load_graph;
+
+	vipx_leave();
+	return 0;
+p_err_hw_load_graph:
+p_err_pick:
+	return ret;
+}
+
+int vipx_graphmgr_execute_model(struct vipx_graphmgr *gmgr,
+		struct vipx_graph_model *gmodel,
+		struct vipx_common_execute_info *einfo)
+{
+	int ret;
+
+	vipx_enter();
+	mutex_lock(&gmgr->mlock);
+	if (gmgr->current_model) {
+		if (!__vipx_graphmgr_check_model_id(gmgr, gmodel)) {
+			ret = -EBUSY;
+			vipx_err("other model is registered(%#x/%#x)\n",
+					gmgr->current_model->id, gmodel->id);
+			mutex_unlock(&gmgr->mlock);
+			goto p_err;
+		}
+	}
+
+	gmgr->current_model = gmodel;
+	mutex_unlock(&gmgr->mlock);
+
+	ret = __vipx_graphmgr_itf_execute_graph(gmgr->interface, gmodel, einfo);
+	if (ret)
+		goto p_err_register;
+
+	vipx_leave();
+	return 0;
+p_err_register:
+	mutex_lock(&gmgr->mlock);
+	gmgr->current_model = NULL;
+	mutex_unlock(&gmgr->mlock);
+p_err:
+	return ret;
+}
+
+
+int vipx_graphmgr_open(struct vipx_graphmgr *gmgr)
+{
+	int ret;
 	char name[30];
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 
-	BUG_ON(!graphmgr);
-
-	kthread_init_worker(&graphmgr->worker);
+	vipx_enter();
+	kthread_init_worker(&gmgr->worker);
 	snprintf(name, sizeof(name), "vipx_graph");
-	graphmgr->task_graph = kthread_run(kthread_worker_fn, &graphmgr->worker, name);
-	if (IS_ERR_OR_NULL(graphmgr->task_graph)) {
+	gmgr->graph_task = kthread_run(kthread_worker_fn,
+			&gmgr->worker, name);
+	if (IS_ERR(gmgr->graph_task)) {
+		ret = PTR_ERR(gmgr->graph_task);
 		vipx_err("kthread_run is fail\n");
-		ret = -EINVAL;
-		goto p_err;
+		goto p_err_run;
 	}
 
-	ret = sched_setscheduler_nocheck(graphmgr->task_graph, SCHED_FIFO, &param);
+	ret = sched_setscheduler_nocheck(gmgr->graph_task,
+			SCHED_FIFO, &param);
 	if (ret) {
 		vipx_err("sched_setscheduler_nocheck is fail(%d)\n", ret);
-		goto p_err;
+		goto p_err_sched;
 	}
 
-#ifdef USE_TASK_TIMER
-	snprintf(name, sizeof(name), "vipx_timer");
-	graphmgr->task_timer = kthread_run(vipx_time_thread, graphmgr, name);
-	if (IS_ERR_OR_NULL(graphmgr->task_timer)) {
-		vipx_err("kthread_run is fail\n");
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	ret = sched_setscheduler_nocheck(graphmgr->task_timer, SCHED_FIFO, &param);
-	if (ret) {
-		vipx_err("sched_setscheduler_nocheck is fail(%d)\n", ret);
-		goto p_err;
-	}
-#endif
-
-	set_bit(VIPX_GRAPHMGR_OPEN, &graphmgr->state);
-
-p_err:
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
+	gmgr->current_model = NULL;
+	set_bit(VIPX_GRAPHMGR_OPEN, &gmgr->state);
+	vipx_leave();
+	return 0;
+p_err_sched:
+	kthread_stop(gmgr->graph_task);
+p_err_run:
 	return ret;
 }
 
-int vipx_graphmgr_close(struct vipx_graphmgr *graphmgr)
+int vipx_graphmgr_close(struct vipx_graphmgr *gmgr)
 {
-	int ret = 0;
+	vipx_enter();
+	kthread_stop(gmgr->graph_task);
+	clear_bit(VIPX_GRAPHMGR_OPEN, &gmgr->state);
+	clear_bit(VIPX_GRAPHMGR_ENUM, &gmgr->state);
+	vipx_leave();
+	return 0;
+}
 
-#ifdef USE_TASK_TIMER
-	kthread_stop(graphmgr->task_timer);
-#endif
-	kthread_stop(graphmgr->task_graph);
+int vipx_graphmgr_probe(struct vipx_system *sys)
+{
+	struct vipx_graphmgr *gmgr;
+	int index;
 
-	clear_bit(VIPX_GRAPHMGR_OPEN, &graphmgr->state);
-	clear_bit(VIPX_GRAPHMGR_ENUM, &graphmgr->state);
+	vipx_enter();
+	gmgr = &sys->graphmgr;
+	gmgr->interface = &sys->interface;
 
-	vipx_info("[%s:%d]\n", __func__, __LINE__);
-	return ret;
+	atomic_set(&gmgr->active_cnt, 0);
+	mutex_init(&gmgr->mlock);
+	mutex_init(&gmgr->tdlock);
+
+	INIT_LIST_HEAD(&gmgr->tdfre_list);
+	INIT_LIST_HEAD(&gmgr->tdrdy_list);
+	INIT_LIST_HEAD(&gmgr->tdreq_list);
+	INIT_LIST_HEAD(&gmgr->tdalc_list);
+	INIT_LIST_HEAD(&gmgr->tdpro_list);
+	INIT_LIST_HEAD(&gmgr->tdcom_list);
+
+	for (index = 0; index < VIPX_MAX_TASKDESC; ++index) {
+		gmgr->taskdesc[index].index = index;
+		__vipx_taskdesc_set_free(gmgr, &gmgr->taskdesc[index]);
+	}
+
+	for (index = 0; index < VIPX_MAX_TASK; ++index)
+		kthread_init_work(&gmgr->interface->taskmgr.task[index].work,
+				vipx_interface_thread);
+
+	return 0;
+}
+
+void vipx_graphmgr_remove(struct vipx_graphmgr *gmgr)
+{
+	mutex_destroy(&gmgr->tdlock);
+	mutex_destroy(&gmgr->mlock);
 }

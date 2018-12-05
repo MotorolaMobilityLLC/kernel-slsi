@@ -1,30 +1,25 @@
 /*
  * Samsung Exynos SoC series VIPx driver
  *
- * Copyright (c) 2017 Samsung Electronics Co., Ltd
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
+#ifndef __VIPX_GRAPH_H__
+#define __VIPX_GRAPH_H__
 
-#ifndef VIPX_GRAPH_H_
-#define VIPX_GRAPH_H_
+#include <linux/mutex.h>
+#include <linux/wait.h>
 
-#include <linux/types.h>
-
+#include "vipx-config.h"
 #include "vs4l.h"
 #include "vipx-taskmgr.h"
-#include "vipx-vertex.h"
-#include "vipx-interface.h"
+#include "vipx-common-type.h"
 
-#define VIPX_GRAPH_MAX_VERTEX		20
-#define VIPX_GRAPH_MAX_PRIORITY		20
-#define VIPX_GRAPH_MAX_INTERMEDIATE	64
-#define VIPX_GRAPH_MAX_LEVEL		20
-#define VIPX_GRAPH_STOP_TIMEOUT		(3 * HZ)
-
+struct vips_context;
 struct vipx_graph;
 
 enum vipx_graph_state {
@@ -40,15 +35,15 @@ enum vipx_graph_flag {
 };
 
 struct vipx_format {
-	u32			format;
-	u32			plane;
-	u32			width;
-	u32			height;
+	unsigned int			format;
+	unsigned int			plane;
+	unsigned int			width;
+	unsigned int			height;
 };
 
 struct vipx_format_list {
-	u32			count;
-	struct vipx_format	*formats;
+	unsigned int			count;
+	struct vipx_format		*formats;
 };
 
 struct vipx_graph_ops {
@@ -60,51 +55,60 @@ struct vipx_graph_ops {
 	int (*update_param)(struct vipx_graph *graph, struct vipx_task *task);
 };
 
-struct vipx_graph_intermediate {
-	u32				buffer_index;
-	u32				*buffer;
-	void				*handle;
-	int				fd;
+struct vipx_graph_model {
+	unsigned int			id;
+	struct list_head		kbin_list;
+	unsigned int			kbin_count;
+	struct vipx_common_graph_info	common_ginfo;
+	struct vipx_buffer		*graph;
+	struct vipx_buffer		*temp_buf;
+	struct vipx_buffer		*weight;
+	struct vipx_buffer		*bias;
+
+	struct list_head		list;
 };
 
 struct vipx_graph {
-	u32				idx;
-	u32				uid;
+	unsigned int			idx;
 	unsigned long			state;
-	unsigned long			flags;
-	u32				priority;
-	struct mutex			local_lock;
 	struct mutex			*global_lock;
 
-	/* for debugging */
-	u32				input_cnt;
-	u32				cancel_cnt;
-	u32				done_cnt;
-	u32				recent;
-
+	void				*owner;
 	const struct vipx_graph_ops	*gops;
-
-	void				*cookie;
-	void				*memory;
-	struct vipx_pipe			*pipe;
-	struct vipx_vertex_ctx 		vctx;
-
-	struct vipx_format_list		informat_list;
-	struct vipx_format_list		otformat_list;
-
-	u32				inhash[VIPX_MAX_TASK];
-	u32				othash[VIPX_MAX_TASK];
-	struct vipx_taskmgr		taskmgr;
+	struct mutex			local_lock;
 	struct vipx_task		control;
 	wait_queue_head_t		control_wq;
+	struct vipx_taskmgr		taskmgr;
+
+	unsigned int			uid;
+	unsigned long			flags;
+	unsigned int			priority;
+
+	struct vipx_format_list		inflist;
+	struct vipx_format_list		otflist;
+
+	unsigned int			inhash[VIPX_MAX_TASK];
+	unsigned int			othash[VIPX_MAX_TASK];
+
+	struct list_head		gmodel_list;
+	unsigned int			gmodel_count;
+
+	/* for debugging */
+	unsigned int			input_cnt;
+	unsigned int			cancel_cnt;
+	unsigned int			done_cnt;
+	unsigned int			recent;
+
+	struct vipx_context		*vctx;
 };
 
-void vipx_graph_print(struct vipx_graph *graph);
-int vipx_graph_create(struct vipx_graph **graph, void *cookie, void *memory);
-int vipx_graph_destroy(struct vipx_graph *graph);
-int vipx_graph_config(struct vipx_graph *graph, struct vs4l_graph *info);
-int vipx_graph_param(struct vipx_graph *graph, struct vs4l_param_list *plist);
+extern const struct vipx_queue_gops vipx_queue_gops;
+extern const struct vipx_vctx_gops vipx_vctx_gops;
 
-#define CALL_GOPS(g, op, ...)	(((g)->gops->op) ? ((g)->gops->op(g, ##__VA_ARGS__)) : 0)
+void vipx_graph_print(struct vipx_graph *graph);
+
+struct vipx_graph *vipx_graph_create(struct vipx_context *vctx,
+		void *graphmgr);
+int vipx_graph_destroy(struct vipx_graph *graph);
 
 #endif

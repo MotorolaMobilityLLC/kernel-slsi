@@ -1,11 +1,13 @@
 menuconfig VISION_SUPPORT
-        bool "Vision Support"
-	select VISION_CORE
-        help
-          If you want to use hardware acceleration for vision
-          enable this option and other options below.
+	bool "Vision Support"
+	help
+	  If you want to use hardware acceleration for vision
+	  enable this option and other options below.
 
 if VISION_SUPPORT
-source "drivers/vision/vision-core/Kconfig"
+
 source "drivers/vision/vipx/Kconfig"
+
+source "drivers/vision/vipx_vertex/Kconfig"
+
 endif # VISION_SUPPORT

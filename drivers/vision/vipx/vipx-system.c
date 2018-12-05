@@ -1,425 +1,386 @@
 /*
  * Samsung Exynos SoC series VIPx driver
  *
- * Copyright (c) 2017 Samsung Electronics Co., Ltd
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/pm_qos.h>
 #include <linux/exynos_iovmm.h>
-#include <asm/cacheflush.h>
-#include <linux/io.h>
 
-#include "vipx-config.h"
+#include "vipx-log.h"
 #include "vipx-device.h"
 #include "vipx-system.h"
 
-#define CAM_L0 690000
-#define CAM_L1 680000
-#define CAM_L2 670000
-#define CAM_L3 660000
-#define CAM_L4 650000
+#define CAM_L0		(690000)
+#define CAM_L1		(680000)
+#define CAM_L2		(670000)
+#define CAM_L3		(660000)
+#define CAM_L4		(650000)
 
-#define MIF_L0 2093000
-#define MIF_L1 2002000
-#define MIF_L2 1794000
-#define MIF_L3 1539000
-#define MIF_L4 1352000
-#define MIF_L5 1014000
-#define MIF_L6 845000
-#define MIF_L7 676000
+#define MIF_L0		(2093000)
+#define MIF_L1		(2002000)
+#define MIF_L2		(1794000)
+#define MIF_L3		(1539000)
+#define MIF_L4		(1352000)
+#define MIF_L5		(1014000)
+#define MIF_L6		(845000)
+#define MIF_L7		(676000)
 
+#if defined(CONFIG_PM_DEVFREQ)
 struct pm_qos_request exynos_vipx_qos_cam;
 struct pm_qos_request exynos_vipx_qos_mem;
-
-int vipx_system_probe(struct vipx_system *system, struct platform_device *pdev)
-{
-	int ret = 0;
-	struct device *dev;
-	struct resource *res;
-	void __iomem *iomem;
-	int irq;
-
-	BUG_ON(!system);
-	BUG_ON(!pdev);
-
-	dev = &pdev->dev;
-	system->cam_qos = 0;
-	system->mif_qos = 0;
-
-	/* VIPX_CPU_SS1 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		probe_err("platform_get_resource(0) is fail(%p)", res);
-		ret = PTR_ERR(res);
-		goto p_err;
-	}
-
-	iomem =  devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR_OR_NULL(iomem)) {
-		probe_err("devm_ioremap_resource(0) is fail(%p)", iomem);
-		ret = PTR_ERR(iomem);
-		goto p_err;
-	}
-
-	system->reg_ss[VIPX_REG_CPU_SS1] = iomem;
-	system->reg_ss_size[VIPX_REG_CPU_SS1] = resource_size(res);
-	probe_info("resource0 : %p\n", iomem);
-
-	/* VIPX_CPU_SS2 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res) {
-		probe_err("platform_get_resource(1) is fail(%p)", res);
-		ret = PTR_ERR(res);
-		goto p_err;
-	}
-
-	iomem =  devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR_OR_NULL(iomem)) {
-		probe_err("devm_ioremap_resource(1) is fail(%p)", iomem);
-		ret = PTR_ERR(iomem);
-		goto p_err;
-	}
-
-	system->reg_ss[VIPX_REG_CPU_SS2] = iomem;
-	system->reg_ss_size[VIPX_REG_CPU_SS2] = resource_size(res);
-	probe_info("resource1 : %p\n", iomem);
-
-	/* VIPX ITCM */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	if (!res) {
-		probe_err("platform_get_resource(2) is fail(%p)", res);
-		ret = PTR_ERR(res);
-		goto p_err;
-	}
-
-	iomem =  devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR_OR_NULL(iomem)) {
-		probe_err("devm_ioremap_resource(2) is fail(%p)", iomem);
-		ret = PTR_ERR(iomem);
-		goto p_err;
-	}
-
-	system->itcm = iomem;
-	system->itcm_size = resource_size(res);
-	probe_info("resource2 : %p\n", iomem);
-
-	/* VIPX DTCM */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	if (!res) {
-		probe_err("platform_get_resource(3) is fail(%p)", res);
-		ret = PTR_ERR(res);
-		goto p_err;
-	}
-
-	iomem =  devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR_OR_NULL(iomem)) {
-		probe_err("devm_ioremap_resource(3) is fail(%p)", iomem);
-		ret = PTR_ERR(iomem);
-		goto p_err;
-	}
-
-	system->dtcm = iomem;
-	system->dtcm_size = resource_size(res);
-	probe_info("resource3 : %p\n", iomem);
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		probe_err("platform_get_irq(0) is fail(%d)", irq);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	system->irq0 = irq;
-
-	irq = platform_get_irq(pdev, 1);
-	if (irq < 0) {
-		probe_err("platform_get_irq(1) is fail(%d)", irq);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	system->irq1 = irq;
-
-	ret = vipx_exynos_probe(&system->exynos, dev, system->reg_ss, system->itcm, system->dtcm);
-	if (ret) {
-		probe_err("vipx_exynos_probe is fail(%d)\n", ret);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	ret = vipx_memory_probe(&system->memory, dev);
-	if (ret) {
-		vipx_err("vipx_memory_probe is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-	ret = vipx_interface_probe(&system->interface, dev,
-		system->reg_ss[VIPX_REG_CPU_SS1], system->reg_ss_size[VIPX_REG_CPU_SS1],
-		system->irq0, system->irq1);
-	if (ret) {
-		vipx_err("vipx_interface_probe is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-	ret = vipx_binary_init(&system->binary, dev);
-	if (ret) {
-		vipx_err("vipx_binary_init is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-p_err:
-	probe_info("%s():%d\n", __func__, ret);
-	return ret;
-}
-
-int vipx_system_open(struct vipx_system *system)
-{
-	int ret = 0;
-
-	ret = vipx_memory_open(&system->memory);
-	if (ret) {
-		vipx_err("vipx_memory_open is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-	ret = vipx_interface_open(&system->interface,
-		(void *)system->memory.info.kvaddr_mbox, VIPX_MBOX_SIZE);
-	if (ret) {
-		vipx_err("vipx_interface_open is fail(%d)\n", ret);
-		vipx_memory_close(&system->memory);
-		goto p_err;
-	}
-
-p_err:
-	vipx_info("%s():%d\n", __func__, ret);
-	return ret;
-}
-
-int vipx_system_close(struct vipx_system *system)
-{
-	int ret = 0;
-
-#ifdef DUMP_DEBUG_LOG_REGION
-	struct vipx_binary *binary;
-	binary = &system->binary;
-
-//	flush_all_cpu_caches();
-
-	vipx_info("debug kva %p, heap kva %p\n", system->memory.info.kvaddr_debug, system->memory.info.kvaddr_heap);
-	system->memory.info.pb_debug->ops->sync_for_cpu(system->memory.info.pb_debug, 0, system->memory.info.pb_debug->size, 0);
-	if (!IS_ERR_OR_NULL(system->memory.info.kvaddr_debug)) {
-		ret = vipx_binary_write(binary, VIPX_FW_PATH1, "vipx_log.bin", system->memory.info.kvaddr_debug, VIPX_DEBUG_SIZE);
-		if (ret)
-			vipx_err("vipx_binary_write is fail(%d)\n", ret);
-	}
-
 #endif
 
-	ret = vipx_interface_close(&system->interface);
-	if (ret)
-		vipx_err("vipx_interface_close is fail(%d)\n", ret);
+int vipx_system_fw_bootup(struct vipx_system *sys)
+{
+	int ret;
+	struct vipx_memory *mem;
+	struct vipx_binary *bin;
 
-	ret = vipx_memory_close(&system->memory);
-	if (ret)
-		vipx_err("vipx_memory_close is fail(%d)\n", ret);
+	struct {
+		unsigned int mbox_addr;
+		unsigned int mbox_size;
+		unsigned int heap_addr;
+		unsigned int heap_size;
+		unsigned int debug_addr;
+		unsigned int debug_size;
+	} *shared_mem;
 
+	vipx_enter();
+	/* TODO check cam/bus */
+	//execl("/system/bin/cp", "/system/bin/cp", "/d/pm_qos/cam_throughput",
+	//		"/data", (char *)0);
+	//execl("/system/bin/cp", "/system/bin/cp", "/d/pm_qos/bus_throughput",
+	//		"/data", (char *)0);
+	mem = &sys->memory;
+	bin = &sys->binary;
+
+	ret = sys->ctrl_ops->reset(sys);
+	if (ret)
+		goto p_err;
+
+	ret = vipx_binary_read(bin, NULL, VIPX_FW_DRAM_NAME, mem->fw.kvaddr,
+			mem->fw.size);
+	if (ret)
+		goto p_err;
+
+	ret = vipx_binary_read(bin, NULL, VIPX_FW_DTCM_NAME, sys->dtcm,
+			sys->dtcm_size);
+	if (ret)
+		goto p_err;
+
+	shared_mem = sys->dtcm + 0x3FD0;
+	shared_mem->mbox_addr = mem->mbox.dvaddr;
+	shared_mem->mbox_size = mem->mbox.size;
+	shared_mem->heap_addr = mem->heap.dvaddr;
+	shared_mem->heap_size = mem->heap.size;
+	shared_mem->debug_addr = mem->debug.dvaddr;
+	shared_mem->debug_size = mem->debug.size;
+
+	ret = vipx_binary_read(bin, NULL, VIPX_FW_ITCM_NAME,
+			sys->itcm, sys->itcm_size);
+	if (ret)
+		goto p_err;
+
+	ret = sys->ctrl_ops->start(sys);
+	if (ret)
+		goto p_err;
+
+	ret = vipx_hw_wait_bootup(&sys->interface);
+	if (ret)
+		goto p_err;
+
+	vipx_leave();
+	return 0;
+p_err:
 	return ret;
 }
 
-int vipx_system_resume(struct vipx_system *system, u32 mode)
+int vipx_system_start(struct vipx_system *sys)
 {
-	int ret = 0;
-	struct vipx_exynos *exynos;
-	struct vipx_memory *memory;
+	int ret;
 
-	BUG_ON(!system);
-
-	exynos = &system->exynos;
-	memory = &system->memory;
-
-	ret = CLK_OP(exynos, clk_cfg);
-	if (ret) {
-		vipx_err("CLK_OP(clk_cfg) is fail(%d)\n", ret);
+	vipx_enter();
+	ret = vipx_interface_start(&sys->interface);
+	if (ret)
 		goto p_err;
-	}
 
+	vipx_leave();
+p_err:
+	return ret;
+}
+
+int vipx_system_stop(struct vipx_system *sys)
+{
+	int ret;
+
+	vipx_enter();
+	ret = vipx_interface_stop(&sys->interface);
+	if (ret)
+		goto p_err;
+
+	vipx_leave();
+p_err:
+	return ret;
+}
+
+int vipx_system_resume(struct vipx_system *sys)
+{
+	int ret;
+
+	vipx_enter();
 #if defined(CONFIG_PM_DEVFREQ)
 	pm_qos_add_request(&exynos_vipx_qos_cam, PM_QOS_CAM_THROUGHPUT, CAM_L0);
 	pm_qos_add_request(&exynos_vipx_qos_mem, PM_QOS_BUS_THROUGHPUT, MIF_L0);
 #endif
 
-	ret = CLK_OP(exynos, clk_on);
+	ret = sys->clk_ops->clk_on(sys);
+	if (ret)
+		goto p_err_clk_on;
+
+	sys->clk_ops->clk_dump(sys);
+
+	ret = iovmm_activate(sys->dev);
 	if (ret) {
-		vipx_err("CLK_OP(clk_on) is fail(%d)\n", ret);
-		goto p_err;
+		vipx_err("Failed to activate iommu (%d)\n", ret);
+		goto p_err_iovmm;
 	}
 
-#if defined(CONFIG_VIDEOBUF2_DMA_SG)
-	system->memory.vipx_mem_ops->resume(system->memory.default_ctx);
-#endif
-
-	if (mode == VIPX_DEVICE_MODE_TEST)
-		goto p_err;
-
-	ret = vipx_system_fw_bootup(system);
-	if (ret) {
-		vipx_err("vipx_system_fw_bootup is fail(%d)\n", ret);
-		goto p_err;
-	}
-
-p_err:
+	vipx_leave();
+	return 0;
+p_err_iovmm:
+	sys->clk_ops->clk_off(sys);
+p_err_clk_on:
+	pm_qos_remove_request(&exynos_vipx_qos_mem);
+	pm_qos_remove_request(&exynos_vipx_qos_cam);
 	return ret;
 }
 
-int vipx_system_suspend(struct vipx_system *system)
+int vipx_system_suspend(struct vipx_system *sys)
 {
-	int ret = 0;
-	struct vipx_exynos *exynos;
-	struct vipx_memory *memory;
+	vipx_enter();
+	iovmm_deactivate(sys->dev);
 
-	BUG_ON(!system);
+	//TODO check this
+	//ret = sys->ctrl_ops->reset(sys);
+	//if (ret)
+	//	vipx_err("Failed to reset for power down (%d)\n", ret);
 
-	exynos = &system->exynos;
-	memory = &system->memory;
-
-#if defined(CONFIG_VIDEOBUF2_DMA_SG)
-	system->memory.vipx_mem_ops->suspend(system->memory.default_ctx);
-#endif
-
-#if 0
-	ret = CTL_OP(exynos, ctl_reset, 0);
-	if (ret)
-		vipx_err("CTL_OP(ctl_reset) is fail(%d)\n", ret);
-#endif
-	ret = CLK_OP(exynos, clk_off);
-	if (ret)
-		vipx_err("CLK_OP(clk_off) is fail(%d)\n", ret);
+	sys->clk_ops->clk_off(sys);
 
 #if defined(CONFIG_PM_DEVFREQ)
-	pm_qos_remove_request(&exynos_vipx_qos_cam);
 	pm_qos_remove_request(&exynos_vipx_qos_mem);
+	pm_qos_remove_request(&exynos_vipx_qos_cam);
 #endif
 
-	return ret;
+	vipx_leave();
+	return 0;
 }
 
-int vipx_system_start(struct vipx_system *system)
+int vipx_system_open(struct vipx_system *sys)
 {
-	int ret = 0;
+	int ret;
 
-	ret = vipx_interface_start(&system->interface);
+	vipx_enter();
+	ret = vipx_memory_open(&sys->memory);
 	if (ret)
-		vipx_err("vipx_interface_start is fail(%d)\n", ret);
+		goto p_err_memory;
 
-	vipx_info("%s():%d\n", __func__, ret);
-	return ret;
-}
-
-int vipx_system_stop(struct vipx_system *system)
-{
-	int ret = 0;
-
-	ret = vipx_interface_stop(&system->interface);
+	ret = vipx_interface_open(&sys->interface,
+			sys->memory.mbox.kvaddr);
 	if (ret)
-		vipx_err("vipx_interface_stop is fail(%d)\n", ret);
+		goto p_err_interface;
 
-	vipx_info("%s():%d\n", __func__, ret);
+	ret = vipx_graphmgr_open(&sys->graphmgr);
+	if (ret)
+		goto p_err_graphmgr;
+
+	vipx_leave();
+	return 0;
+p_err_graphmgr:
+	vipx_interface_close(&sys->interface);
+p_err_interface:
+	vipx_memory_close(&sys->memory);
+p_err_memory:
 	return ret;
 }
 
-int vipx_system_fw_bootup(struct vipx_system *system)
+int vipx_system_close(struct vipx_system *sys)
 {
-	int ret = 0;
-	struct vipx_exynos *exynos;
-	struct vipx_memory *memory;
-	struct vipx_binary *binary;
+	vipx_enter();
+	vipx_graphmgr_close(&sys->graphmgr);
+	vipx_interface_close(&sys->interface);
+	vipx_memory_close(&sys->memory);
+	vipx_leave();
+	return 0;
+}
 
-	struct {
-		volatile u32 sign;
-		volatile u32 mbox_addr;
-		volatile u32 mbox_size;
-		volatile u32 debug_addr;
-		volatile u32 debug_size;
-	} *tail_p;
+int vipx_system_probe(struct vipx_device *device)
+{
+	int ret;
+	struct vipx_system *sys;
+	struct platform_device *pdev;
+	struct device *dev;
+	struct resource *res;
+	void __iomem *iomem;
 
-	BUG_ON(!system);
+	vipx_enter();
+	sys = &device->system;
+	sys->device = device;
 
-//	execl("/system/bin/cp", "/system/bin/cp", "/d/pm_qos/cam_throughput", "/data", (char *)0);
-//	execl("/system/bin/cp", "/system/bin/cp", "/d/pm_qos/bus_throughput", "/data", (char *)0);
-	exynos = &system->exynos;
-	memory = &system->memory;
-	binary = &system->binary;
+	pdev = to_platform_device(device->dev);
+	dev = device->dev;
+	sys->dev = dev;
 
-	ret = CTL_OP(exynos, ctl_reset, 0);
-	if (ret) {
-		vipx_err("CTL_OP(ctl_reset) is fail(%d)\n", ret);
-		goto p_err;
+	/* VIPX_CPU_SS1 */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -EINVAL;
+		vipx_err("platform_get_resource(0) is fail");
+		goto p_err_res_ss1;
 	}
 
-	ret = vipx_binary_read(binary, VIPX_FW_PATH1, VIPX_FW_DRAM_NAME,
-			(void *)system->memory.info.kvaddr_fw, VIPX_CM7_DRAM_BIN_SIZE);
-	if (ret) {
-		ret = vipx_binary_read(binary, VIPX_FW_PATH2, VIPX_FW_DRAM_NAME,
-				(void *)system->memory.info.kvaddr_fw, VIPX_CM7_DRAM_BIN_SIZE);
-		if (ret) {
-			vipx_err("vipx_dram_binary_load is fail(%d)\n", ret);
-			goto p_err;
-		}
+	iomem = devm_ioremap_resource(dev, res);
+	if (IS_ERR(iomem)) {
+		ret = PTR_ERR(iomem);
+		vipx_err("devm_ioremap_resource(0) is fail (%d)", ret);
+		goto p_err_remap_ss1;
 	}
 
-	ret = vipx_binary_read(binary, VIPX_FW_PATH1, VIPX_FW_DTCM_NAME,
-			(void *)system->dtcm, system->dtcm_size);
-	if (ret) {
-		ret = vipx_binary_read(binary, VIPX_FW_PATH2, VIPX_FW_DTCM_NAME,
-				(void *)system->dtcm, system->dtcm_size - SZ_1K);
-		if (ret) {
-			vipx_err("vipx_dtcm_binary_load is fail(%d)\n", ret);
-			goto p_err;
-		}
+	sys->reg_ss[REG_SS1] = iomem;
+	sys->reg_ss_size[REG_SS1] = resource_size(res);
+
+	/* VIPX_CPU_SS2 */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		ret = -EINVAL;
+		vipx_err("platform_get_resource(1) is fail");
+		goto p_err_res_ss2;
 	}
 
-	tail_p = (void *)(system->dtcm + 0x3FD0);
-	tail_p->sign = 0xABCDEFAB;
-	tail_p->mbox_addr = system->memory.info.dvaddr_mbox;
-	tail_p->mbox_size = VIPX_MBOX_SIZE;
-	tail_p->debug_addr = system->memory.info.dvaddr_debug;
-	tail_p->debug_size = VIPX_DEBUG_SIZE;
-
-    vipx_info("host_shared : %p, mbox_addr : %x, mbox_size : %x, debug_addr : %x, debug_size : %x\n",
-        tail_p, tail_p->mbox_addr, tail_p->mbox_size, tail_p->debug_addr, tail_p->debug_size);
-
-	ret = vipx_binary_read(binary, VIPX_FW_PATH1, VIPX_FW_ITCM_NAME,
-			(void *)system->itcm, system->itcm_size);
-	if (ret) {
-		ret = vipx_binary_read(binary, VIPX_FW_PATH2, VIPX_FW_ITCM_NAME,
-				(void *)system->itcm, system->itcm_size);
-		if (ret) {
-			vipx_err("vipx_itcm_binary_load is fail(%d)\n", ret);
-			goto p_err;
-		}
+	iomem = devm_ioremap_resource(dev, res);
+	if (IS_ERR(iomem)) {
+		ret = PTR_ERR(iomem);
+		vipx_err("devm_ioremap_resource(1) is fail (%d)", ret);
+		goto p_err_remap_ss2;
 	}
 
-//	flush_all_cpu_caches();
+	sys->reg_ss[REG_SS2] = iomem;
+	sys->reg_ss_size[REG_SS2] = resource_size(res);
 
-	ret = CTL_OP(exynos, ctl_start, 0);
-	if (ret) {
-		vipx_err("CTL_OP(ctl_start) is fail(%d)\n", ret);
-		goto p_err;
+	/* VIPX ITCM */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (!res) {
+		ret = -EINVAL;
+		vipx_err("platform_get_resource(2) is fail");
+		goto p_err_res_itcm;
 	}
-#if 0	// change code position to vipx_vertex_streamon in vipx-vertex.c before streamon execution
-	ret = vipx_hw_wait_bootup(&system->interface);
-	if (ret) {
-		vipx_err("vipx_hw_wait_bootup is fail(%d)\n", ret);
-		goto p_err;
-	}
-#endif
 
-p_err:
-	vipx_info("%s():%d\n", __func__, ret);
+	iomem = devm_ioremap_resource(dev, res);
+	if (IS_ERR(iomem)) {
+		ret = PTR_ERR(iomem);
+		vipx_err("devm_ioremap_resource(2) is fail (%d)", ret);
+		goto p_err_remap_itcm;
+	}
+
+	sys->itcm = iomem;
+	sys->itcm_size = resource_size(res);
+
+	/* VIPX DTCM */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	if (!res) {
+		ret = -EINVAL;
+		vipx_err("platform_get_resource(3) is fail");
+		goto p_err_res_dtcm;
+	}
+
+	iomem = devm_ioremap_resource(dev, res);
+	if (IS_ERR(iomem)) {
+		ret = PTR_ERR(iomem);
+		vipx_err("devm_ioremap_resource(3) is fail (%d)", ret);
+		goto p_err_remap_dtcm;
+	}
+
+	sys->dtcm = iomem;
+	sys->dtcm_size = resource_size(res);
+
+	sys->cam_qos = 0;
+	sys->mif_qos = 0;
+
+	sys->clk_ops = &vipx_clk_ops;
+	sys->ctrl_ops = &vipx_ctrl_ops;
+	sys->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(sys->pinctrl)) {
+		ret = PTR_ERR(sys->pinctrl);
+		vipx_err("Failed to get devm pinctrl (%d)\n", ret);
+		goto p_err_pinctrl;
+	}
+
+	ret = sys->clk_ops->clk_init(sys);
+	if (ret)
+		goto p_err_clk;
+
+	ret = vipx_memory_probe(sys);
+	if (ret)
+		goto p_err_memory;
+
+	ret = vipx_interface_probe(sys);
+	if (ret)
+		goto p_err_interface;
+
+	ret = vipx_binary_init(sys);
+	if (ret)
+		goto p_err_binary;
+
+	ret = vipx_graphmgr_probe(sys);
+	if (ret)
+		goto p_err_graphmgr;
+
+	vipx_leave();
+	return 0;
+p_err_graphmgr:
+	vipx_binary_deinit(&sys->binary);
+p_err_binary:
+	vipx_interface_remove(&sys->interface);
+p_err_interface:
+	vipx_memory_remove(&sys->memory);
+p_err_memory:
+	sys->clk_ops->clk_deinit(sys);
+p_err_clk:
+	devm_pinctrl_put(sys->pinctrl);
+p_err_pinctrl:
+	devm_iounmap(dev, sys->dtcm);
+p_err_remap_dtcm:
+p_err_res_dtcm:
+	devm_iounmap(dev, sys->itcm);
+p_err_remap_itcm:
+p_err_res_itcm:
+	devm_iounmap(dev, sys->reg_ss[REG_SS2]);
+p_err_remap_ss2:
+p_err_res_ss2:
+	devm_iounmap(dev, sys->reg_ss[REG_SS1]);
+p_err_remap_ss1:
+p_err_res_ss1:
 	return ret;
+}
+
+void vipx_system_remove(struct vipx_system *sys)
+{
+	vipx_enter();
+	vipx_graphmgr_remove(&sys->graphmgr);
+	vipx_binary_deinit(&sys->binary);
+	vipx_interface_remove(&sys->interface);
+	vipx_memory_remove(&sys->memory);
+	sys->clk_ops->clk_deinit(sys);
+	devm_pinctrl_put(sys->pinctrl);
+	devm_iounmap(sys->dev, sys->dtcm);
+	devm_iounmap(sys->dev, sys->itcm);
+	devm_iounmap(sys->dev, sys->reg_ss[REG_SS2]);
+	devm_iounmap(sys->dev, sys->reg_ss[REG_SS1]);
+	vipx_leave();
 }

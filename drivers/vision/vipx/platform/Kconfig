@@ -1,4 +1,4 @@
-config EXYNOS_VIPX_PLATFORM
+menuconfig EXYNOS_VIPX_PLATFORM
 	bool "Select Platform"
 	help
 	  This is a selection of platform
@@ -6,5 +6,6 @@ config EXYNOS_VIPX_PLATFORM
 config EXYNOS_VIPX_EXYNOS9610
 	bool "Use Exynos9610 platform"
 	depends on EXYNOS_VIPX_PLATFORM
+	depends on SOC_EXYNOS9610
 	help
 	  This is a exynos9610 platform

@@ -1,2 +1,2 @@
-obj-$(CONFIG_VISION_CORE)	+= vision-core/
-obj-$(CONFIG_EXYNOS_VIPX)	+= vipx/
+obj-$(CONFIG_EXYNOS_VIPX)		+= vipx/
+obj-$(CONFIG_EXYNOS_VIPX_VERTEX)	+= vipx_vertex/
