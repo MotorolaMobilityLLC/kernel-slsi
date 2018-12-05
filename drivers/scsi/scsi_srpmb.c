@@ -123,6 +123,12 @@ static void srpmb_worker(struct work_struct *data)
 			dev_err(&sr_pdev->dev, "ioctl error : %x\n", ret);
 			break;
 		}
+		if (req->rpmb_data[RPMB_RESULT] || req->rpmb_data[RPMB_RESULT+1]) {
+			dev_info(&sr_pdev->dev, "GET_WRITE_COUNTER: REQ/RES = %02x%02x, RESULT = %02x%02x\n",
+				req->rpmb_data[RPMB_REQRES], req->rpmb_data[RPMB_REQRES+1],
+				req->rpmb_data[RPMB_RESULT], req->rpmb_data[RPMB_RESULT+1]);
+		}
+
 		update_rpmb_status_flag(rpmb_ctx, req, RPMB_PASSED);
 
 		break;
@@ -174,15 +180,14 @@ static void srpmb_worker(struct work_struct *data)
 					"ioctl write_data result error: %x\n", ret);
 			break;
 		}
-
-		swap_packet(req->rpmb_data, (uint8_t *)&packet);
-		if (packet.result == 0) {
-			update_rpmb_status_flag(rpmb_ctx, req, RPMB_PASSED);
-		} else {
-			update_rpmb_status_flag(rpmb_ctx, req, packet.result);
-			dev_err(&sr_pdev->dev,
-					"packet result error: %x\n", req->status_flag);
+		if (req->rpmb_data[RPMB_RESULT] || req->rpmb_data[RPMB_RESULT+1]) {
+			dev_info(&sr_pdev->dev, "WRITE_DATA: REQ/RES = %02x%02x, RESULT = %02x%02x\n",
+				req->rpmb_data[RPMB_REQRES], req->rpmb_data[RPMB_REQRES+1],
+				req->rpmb_data[RPMB_RESULT], req->rpmb_data[RPMB_RESULT+1]);
 		}
+
+		update_rpmb_status_flag(rpmb_ctx, req, RPMB_PASSED);
+
 		break;
 	case READ_DATA:
 		if (req->data_len < RPMB_PACKET_SIZE ||
@@ -215,6 +220,12 @@ static void srpmb_worker(struct work_struct *data)
 					"ioctl result read data error : %x\n", ret);
 			break;
 		}
+		if (req->rpmb_data[RPMB_RESULT] || req->rpmb_data[RPMB_RESULT+1]) {
+			dev_info(&sr_pdev->dev, "READ_DATA: REQ/RES = %02x%02x, RESULT = %02x%02x\n",
+				req->rpmb_data[RPMB_REQRES], req->rpmb_data[RPMB_REQRES+1],
+				req->rpmb_data[RPMB_RESULT], req->rpmb_data[RPMB_RESULT+1]);
+		}
+
 		update_rpmb_status_flag(rpmb_ctx, req, RPMB_PASSED);
 
 		break;
