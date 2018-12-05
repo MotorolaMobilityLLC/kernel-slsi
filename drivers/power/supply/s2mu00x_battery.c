@@ -1620,7 +1620,6 @@ end_ifconn_handle:
 		battery->stepchg_state = STEP_NONE;
 		battery->charging_limit_modes = CHARGING_LIMIT_OFF;
 		set_max_allowed_current_ma(battery,battery->stepchg_current_ma);
-		smbchg_set_temp_chgpath(battery,battery->temp_state);
 	} else {
 		smbchg_stay_awake(battery);
 		cancel_delayed_work(&battery->heartbeat_work);
