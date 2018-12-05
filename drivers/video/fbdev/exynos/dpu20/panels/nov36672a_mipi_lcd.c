@@ -151,7 +151,6 @@ static int nov36672a_update_brightness(int brightness)
 				brightness) < 0)
 		dsim_err("fail to send SEQ_CMD_0 command.\n");
 
-	mdelay(12);
 	return 0;
 }
 
@@ -505,6 +504,10 @@ static int nov36672a_displayon(struct dsim_device *dsim)
 	if (panel)
 		nov36672a_cabc_mode(dsim, panel->cabc_mode);
 #endif
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	if (dsim->esd_recovering)
+		nov36672a_update_brightness(dsim->brightness);
+#endif
 	return 1;
 }
 
@@ -521,9 +524,56 @@ static int nov36672a_resume(struct dsim_device *dsim)
 	return 0;
 }
 
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+static int nov36672a_read_state(struct dsim_device *dsim)
+{
+	int ret = 0;
+	u8 buf[2] = {0x0};
+	int i = 0;
+	int RETRY = 2; /* several retries are allowed */
+	bool esd_detect = false;
+
+	dsim_info("%s, read DDI for checking ESD\n", __func__);
+
+	for (i = 0; i < RETRY; i++) {
+		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+				MIPI_DCS_GET_POWER_MODE, 0x1, buf);
+		if (ret < 0) {
+			dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+			if (dsim->state != DSIM_STATE_ON)
+				return DSIM_ESD_OK;
+			usleep_range(1000, 1100);
+			continue;
+		}
+		if ((buf[0] & 0x7c) == 0x1c) {
+			dsim_info("nov36672a panel REG 0x%02X=0x%02x\n",
+					MIPI_DCS_GET_POWER_MODE, buf[0]);
+			break;
+		}
+
+		dsim_err("nov36672a panel REG 0x%02X Not match: 0x%02x, i(%d)\n",
+					MIPI_DCS_GET_POWER_MODE,
+					*(unsigned int *)buf & 0xFF, i);
+		esd_detect = true;
+	}
+
+	if (i < RETRY)
+		return DSIM_ESD_OK;
+	else if (esd_detect)
+		return DSIM_ESD_ERROR;
+	else
+		return DSIM_ESD_CHECK_ERROR;
+}
+#endif
+
 struct dsim_lcd_driver nov36672a_mipi_lcd_driver = {
 	.probe		= nov36672a_probe,
 	.displayon	= nov36672a_displayon,
 	.suspend	= nov36672a_suspend,
 	.resume		= nov36672a_resume,
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	.read_state	= nov36672a_read_state,
+#endif
 };
