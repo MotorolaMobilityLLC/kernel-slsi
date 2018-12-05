@@ -1463,6 +1463,63 @@ p_err:
 	return ret;
 }
 
+int sensor_gm1sp_cis_set_dual_master_setting(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+
+	FIMC_BUG(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	FIMC_BUG(!cis);
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
+
+	/* page 0x2000*/
+	ret = fimc_is_sensor_write16(client, 0x6028, 0x4000);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x6028, 0x4000, ret);
+	/* dual sync enable */
+	ret = fimc_is_sensor_write16(client, 0x0A70, 0x0001);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x0A70, 0x0001, ret);
+	/* master mode select */
+	ret = fimc_is_sensor_write16(client, 0x0A72, 0x0100);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x0A72, 0x0100, ret);
+	/* page 0x2000*/
+	ret = fimc_is_sensor_write16(client, 0x6028, 0x2000);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x6028, 0x2000, ret);
+	/* dual sync out index */
+	ret = fimc_is_sensor_write16(client, 0x602A, 0x106A);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x602A, 0x106A, ret);
+	ret = fimc_is_sensor_write16(client, 0x6F12, 0x0003);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x6F12, 0x0003, ret);
+	/* master vsync out sel */
+	ret = fimc_is_sensor_write16(client, 0x602A, 0x2BC2);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x602A, 0x2BC2, ret);
+	ret = fimc_is_sensor_write16(client, 0x6F12, 0x0003);
+	if (unlikely(ret))
+		err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x6F12, 0x0003, ret);
+
+p_err:
+	return ret;
+}
+
+
 static struct fimc_is_cis_ops cis_ops = {
 	.cis_init = sensor_gm1sp_cis_init,
 	.cis_log_status = sensor_gm1sp_cis_log_status,
@@ -1493,6 +1550,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 	.cis_check_rev = sensor_gm1sp_cis_check_rev,
 	.cis_factory_test = sensor_cis_factory_test,
+	.cis_set_dual_setting = sensor_gm1sp_cis_set_dual_master_setting,
 };
 
 static int cis_gm1sp_probe(struct i2c_client *client,
