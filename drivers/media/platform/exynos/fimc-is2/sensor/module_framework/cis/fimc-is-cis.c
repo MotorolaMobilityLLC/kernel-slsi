@@ -457,7 +457,7 @@ int sensor_cis_wait_streamon(struct v4l2_subdev *subdev)
 	struct fimc_is_cis *cis;
 	struct i2c_client *client;
 	cis_shared_data *cis_data;
-	u32 wait_cnt = 0, time_out_cnt = 250;
+	u32 wait_cnt = 0, time_out_cnt = 2500;
 	u8 sensor_fcount = 0;
 
 	FIMC_BUG(!subdev);
