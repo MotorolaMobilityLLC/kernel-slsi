@@ -534,129 +534,6 @@ static int hix83112a_resume(struct dsim_device *dsim)
 }
 
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
-#if defined(READ_ESD_SOLUTION_TEST)
-static int hix83112a_read_state(struct dsim_device *dsim)
-{
-	int ret = 0;
-	u8 buf[2] = {0x0};
-	int i = 0;
-	int RETRY = 5; /* several retries are allowed */
-	bool esd_detect = false;
-
-	dsim_info("%s, read DDI for checking ESD\n", __func__);
-
-	switch (dsim->esd_test) {
-	case 0: /* same as original operation */
-		for (i = 0; i < RETRY; i++) {
-			ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-					MIPI_DCS_GET_POWER_MODE, 0x1, buf);
-			if (ret < 0) {
-				dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
-					MIPI_DCS_GET_POWER_MODE,
-					*(unsigned int *)buf & 0xFF, i);
-				if (dsim->state != DSIM_STATE_ON)
-					return DSIM_ESD_OK;
-				usleep_range(1000, 1100);
-				continue;
-			}
-
-			if ((buf[0] & 0x7c) == 0x1c) {
-				dsim_info("hix83112a panel REG 0x%02X=0x%02x\n",
-					MIPI_DCS_GET_POWER_MODE, buf[0]);
-				break;
-			}
-
-			dsim_err("hix83112a panel REG 0x%02X Not match: 0x%02x, i(%d)\n",
-					MIPI_DCS_GET_POWER_MODE,
-					*(unsigned int *)buf & 0xFF, i);
-			esd_detect = true;
-		}
-
-		if (i < RETRY)
-			return DSIM_ESD_OK;
-		else if (esd_detect)
-			return DSIM_ESD_ERROR;
-		else
-			return DSIM_ESD_CHECK_ERROR;
-
-
-	case 1: /* simple check and always return esd_detection */
-		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-					MIPI_DCS_GET_POWER_MODE, 0x1, buf);
-		if (ret < 0) {
-			dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
-					MIPI_DCS_GET_POWER_MODE,
-					*(unsigned int *)buf & 0xFF, i);
-		} else {
-			if ((buf[0] & 0x7c) == 0x1c)
-				dsim_info("hix83112a panel REG 0x%02X=0x%02x\n",
-					MIPI_DCS_GET_POWER_MODE, buf[0]);
-			else {
-				dsim_err("hix83112a panel REG 0x%02X Not match: 0x%02x, i(%d)\n",
-					MIPI_DCS_GET_POWER_MODE,
-					*(unsigned int *)buf & 0xFF, i);
-			}
-		}
-		dsim->esd_test = 0;
-		return DSIM_ESD_ERROR;
-	case 2: /* always return esd detection and initialize  */
-		dsim->esd_test = 0;
-		return DSIM_ESD_ERROR;
-	case 3: /* always return esd detection */
-		dsim->esd_test = 3;
-		return DSIM_ESD_ERROR;
-	case 4: /* always return esd ok */
-		dsim->esd_test = 4;
-		return DSIM_ESD_OK;
-	case 5: /* always return esd ok and display off/on by force*/
-		dsim_info("%s, lcd_disable is called for ESD test\n", __func__);
-		hix83112a_lcd_disable(dsim->id);
-		dsim_info("%s, 2sec sleep for ESD test\n", __func__);
-		msleep(2000);
-		dsim_info("%s, lcd_enable is called for ESD test\n", __func__);
-		hix83112a_lcd_enable(dsim->id);
-		dsim->esd_test = 4;
-		return DSIM_ESD_OK;
-	case 6: /* always return esd detection and display off by force*/
-		dsim_info("%s, lcd_disable is called for ESD test\n", __func__);
-		hix83112a_lcd_disable(dsim->id);
-		dsim_info("%s, 2sec sleep for ESD test\n", __func__);
-		msleep(2000);
-		dsim_info("%s, lcd_enable is called for ESD test\n", __func__);
-		hix83112a_lcd_enable(dsim->id);
-		dsim->esd_test = 4;
-		return DSIM_ESD_ERROR;
-	case 7: /* return DSIM_ESD_CHECK_ERROR by force */
-		for (i = 0; i < RETRY; i++) {
-			ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-					MIPI_DCS_GET_POWER_MODE, 0x1, buf);
-			ret = -ETIMEDOUT;
-			if (ret < 0) {
-				dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
-					MIPI_DCS_GET_POWER_MODE,
-					*(unsigned int *)buf & 0xFF, i);
-				if (dsim->state != DSIM_STATE_ON)
-					return DSIM_ESD_OK;
-				usleep_range(1000, 1100);
-				continue;
-			}
-		}
-
-		dsim->esd_test = 0;
-
-		if (i < RETRY)
-			return DSIM_ESD_OK;
-		else if (esd_detect)
-			return DSIM_ESD_ERROR;
-		else
-			return DSIM_ESD_CHECK_ERROR;
-	default:
-		break;
-	}
-	return DSIM_ESD_OK;
-}
-
-#else
 static int hix83112a_read_state(struct dsim_device *dsim)
 {
 	int ret = 0;
@@ -698,7 +575,6 @@ static int hix83112a_read_state(struct dsim_device *dsim)
 	else
 		return DSIM_ESD_CHECK_ERROR;
 }
-#endif
 #endif
 
 struct dsim_lcd_driver hix83112a_mipi_lcd_driver = {
