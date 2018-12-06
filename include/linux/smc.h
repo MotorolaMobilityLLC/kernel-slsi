@@ -101,6 +101,9 @@
 /* For connectivity I/F */
 #define SMC_CMD_CONN_IF			(0x82000710)
 
+/* For MMCache flush */
+#define SMC_CMD_MM_CACHE_OPERATION	(0x82000720)
+
 /* MACRO for SMC_CMD_REG */
 #define SMC_REG_CLASS_CP15		(0x0 << 30)
 #define SMC_REG_CLASS_SFR_W		(0x1 << 30)
