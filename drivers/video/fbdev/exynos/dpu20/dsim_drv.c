@@ -958,7 +958,6 @@ static int dsim_disable(struct dsim_device *dsim)
 	}
 
 #if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
-	dsim_reg_set_hs_clock(dsim->id, 0);
 	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
 #endif
 	dsim_info("dsim-%d %s +\n", dsim->id, __func__);
