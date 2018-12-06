@@ -1587,6 +1587,12 @@ static int mfc_suspend(struct device *device)
 	}
 
 	ret = mfc_run_sleep(dev);
+
+	if (dev->has_mmcache && dev->mmcache.is_on_status) {
+		mfc_invalidate_mmcache(dev);
+		mfc_mmcache_disable(dev);
+	}
+
 	mfc_release_hwlock_dev(dev);
 
 	return ret;
@@ -1613,6 +1619,9 @@ static int mfc_resume(struct device *device)
 				dev->hwlock.wl_count, dev->hwlock.transfer_owner);
 		return -EBUSY;
 	}
+
+	if (dev->has_mmcache && (dev->mmcache.is_on_status == 0))
+		mfc_mmcache_enable(dev);
 
 	ret = mfc_run_wakeup(dev);
 	mfc_release_hwlock_dev(dev);

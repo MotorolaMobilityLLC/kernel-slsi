@@ -10,6 +10,8 @@
  * (at your option) any later version.
  */
 
+#include <linux/smc.h>
+
 #include "mfc_mmcache.h"
 
 #include "mfc_reg_api.h"
@@ -190,39 +192,15 @@ void mfc_mmcache_disable(struct mfc_dev *dev)
 
 void mfc_invalidate_mmcache(struct mfc_dev *dev)
 {
-	void __iomem *addr;
-	unsigned int data;
-	unsigned long timeout;
+	int ret;
 
 	mfc_debug_enter();
 
-	addr = dev->mmcache.base + MMCACHE_INVALIDATE;
-	data = MMCACHE_INVALIDATE_VALUE;
-
-	mfc_debug(2, "[MMCACHE] before write 0x%X: (0x%08llX) 0x%X\n",
-			data, (unsigned long long)(addr),
-			MMCACHE_READL(MMCACHE_INVALIDATE));
-
-	MMCACHE_WRITEL(data, MMCACHE_INVALIDATE);
-
-	mfc_debug(2, "[MMCACHE] after write 0x%X: (0x%08llX) 0x%X\n",
-			data, (unsigned long long)(addr),
-			MMCACHE_READL(MMCACHE_INVALIDATE));
-
-	addr = dev->mmcache.base + MMCACHE_INVALIDATE_STATUS;
-
-	timeout = jiffies + msecs_to_jiffies(MMCACHE_INVAL_TIMEOUT);
-	while (1) {
-		if (MMCACHE_READL(MMCACHE_INVALIDATE_STATUS) == 0) {
-			mfc_debug(2, "[MMCACHE] invalidate done: (0x%08llX) 0x%X\n",
-					(unsigned long long)(addr), __raw_readl(addr));
-			break;
-		}
-		if (time_after(jiffies, timeout)) {
-			mfc_err_dev("[MMCACHE] Timeout while invalidation\n");
-			call_dop(dev, dump_and_stop_debug_mode, dev);
-			break;
-		}
+	/* The secure OS can flush all normal and secure data */
+	ret = exynos_smc(SMC_CMD_MM_CACHE_OPERATION, MMCACHE_GROUP2, 0x0, 0x0);
+	if (ret != DRMDRV_OK) {
+		mfc_err_dev("[MMCACHE] Fail to invalidation %x\n", ret);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
 	}
 
 	mfc_debug(2, "[MMCACHE] invalidated\n");
