@@ -682,11 +682,9 @@ int fb_notifier_callback(struct notifier_block *self,
 	struct fb_event *evdata = data;
 	int *blank;
 	struct himax_ts_data *ts =
-	    container_of(self, struct himax_ts_data, fb_notif);
-	I(" %s\n", __func__);
+		container_of(self, struct himax_ts_data, fb_notif);
 
-	if (evdata && evdata->data && event == FB_EVENT_BLANK && ts &&
-	    ts->client) {
+	if (evdata && evdata->data && event == FB_EVENT_BLANK && ts && ts->client) {
 		blank = evdata->data;
 
 		switch (*blank) {
@@ -743,7 +741,13 @@ int himax_chip_common_probe(struct i2c_client *client, const struct i2c_device_i
 
 int himax_chip_common_remove(struct i2c_client *client)
 {
+	struct himax_ts_data *ts = private_ts;
 	himax_chip_common_deinit();
+
+#if defined(HX_USB_DETECT_GLOBAL)
+	if (ts->charger_notif.notifier_call)
+		power_supply_unreg_notifier(&ts->charger_notif);
+#endif
 
 	return 0;
 }
