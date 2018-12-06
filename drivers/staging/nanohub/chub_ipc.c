@@ -178,18 +178,18 @@ u16 ipc_get_chub_bootmode(void)
 	return map->bootmode;
 }
 
-void ipc_set_chub_kernel_log(u16 kernel_log)
+void ipc_set_ap_wake(u16 wake)
 {
 	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
 
-	map->kernel_log = kernel_log;
+	map->wake = wake;
 }
 
-u16 ipc_get_chub_kernel_log(void)
+u16 ipc_get_ap_wake(void)
 {
 	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
 
-	return map->kernel_log;
+	return map->wake;
 }
 
 #if defined(LOCAL_POWERGATE)
