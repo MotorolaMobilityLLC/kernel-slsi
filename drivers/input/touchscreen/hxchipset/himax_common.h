@@ -67,7 +67,7 @@
 /*#define HX_GESTURE_TRACK*/
 /*#define HX_HIGH_SENSE*/
 /*#define HX_PALM_REPORT*/
-/*#define HX_USB_DETECT_GLOBAL*/
+#define HX_USB_DETECT_GLOBAL
 /*#define HX_USB_DETECT_CALLBACK*/
 /*#define HX_PROTOCOL_A*/				/* for MTK special platform.If turning on,it will report to system by using specific format. */
 /*#define HX_RESUME_HW_RESET*/
@@ -82,6 +82,10 @@
 
 #if defined(HX_EN_SEL_BUTTON) || defined(HX_EN_MUT_BUTTON)
 	/*#define HX_PLATFOME_DEFINE_KEY*/		/* for specfic platform to set key(button) */
+#endif
+
+#ifdef HX_USB_DETECT_GLOBAL
+#include <linux/power_supply.h>
 #endif
 
 #define HX_KEY_MAX_COUNT             4
@@ -368,9 +372,8 @@ struct himax_ts_data {
 #if defined(HX_USB_DETECT_CALLBACK) || defined(HX_USB_DETECT_GLOBAL)
 	uint8_t usb_connected;
 	uint8_t *cable_config;
+	struct notifier_block charger_notif;
 #endif
-
-
 };
 
 struct himax_debug {
