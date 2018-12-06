@@ -110,7 +110,6 @@ static void chub_dbg_dump_ram(struct contexthub_ipc_info *ipc, enum chub_err_typ
 		p_dbg_dump->time = sched_clock();
 		p_dbg_dump->reason = reason;
 
-		ipc_dump();
 		/* dump SRAM to reserved DRAM */
 		memcpy_fromio(&p_dbg_dump->sram[p_dbg_dump->sram_start],
 			      ipc_get_base(IPC_REG_DUMP),
