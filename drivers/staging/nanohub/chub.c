@@ -778,7 +778,7 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 	}
 
 	if (need_ipc) {
-		if (contexthub_get_token(ipc)) {
+		if (contexthub_get_token(ipc) || (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)) {
 			dev_warn(ipc->dev, "%s event:%d/%d fails chub isn't active, status:%d, inreset:%d\n",
 				__func__, event, MAILBOX_EVT_MAX, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
 			return -EINVAL;
@@ -853,18 +853,18 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 			dev_warn(dev, "fails to download kernel\n");
 			return ret;
 		}
+
 		ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_POWER_ON);
 		if (ret) {
 			dev_warn(dev, "fails to poweron\n");
 			return ret;
 		}
-
 		if (atomic_read(&ipc->chub_status) == CHUB_ST_RUN)
 			dev_info(dev, "contexthub power-on");
 		else if (ipc->sel_os == true)
 			dev_warn(dev, "contexthub failed to power-on");
 	} else {
-		ret = -EINVAL;
+		dev_info(dev, "%s: already power-on, status: %d", __func__, atomic_read(&ipc->chub_status));
 	}
 	return ret;
 }
