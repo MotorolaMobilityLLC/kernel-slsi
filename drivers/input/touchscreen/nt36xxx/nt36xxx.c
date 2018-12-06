@@ -49,11 +49,12 @@
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
 #endif
+
+#include "nt36xxx.h"
+
 #if defined(CONFIG_CHARGER_NOTIFY)
 #include <linux/power_supply.h>
 #endif
-
-#include "nt36xxx.h"
 
 #if NVT_TOUCH_ESD_PROTECT
 #include <linux/jiffies.h>
@@ -1809,7 +1810,7 @@ static int charger_notifier_callback(struct notifier_block *nb,
 	}
 	if (!strcmp(psy->desc->name, "usb")){
 		if (psy && ts && val == POWER_SUPPLY_PROP_STATUS) {
-			ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_PRESENT,&prop);
+			ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE,&prop);
 			if (ret < 0) {
 				NVT_ERR("Couldn't get POWER_SUPPLY_PROP_ONLINE rc=%d\n", ret);
 				return ret;
@@ -1822,7 +1823,7 @@ static int charger_notifier_callback(struct notifier_block *nb,
 						  ts->usb_connected = USB_DETECT_OUT;
 					 }
 					 if (bTouchIsAwake){
-						 queue_work(ts->nvt_charger_notify_wq, &ts->charger_notify_work);
+						queue_work(ts->nvt_charger_notify_wq, &ts->charger_notify_work);
 					}
 				}
 			}
