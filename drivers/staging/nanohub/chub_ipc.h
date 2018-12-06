@@ -75,15 +75,13 @@
 #define BOOTMODE_COLD       (0x7733)
 #define BOOTMODE_PWRGATING  (0x1188)
 
-#define KERNEL_LOG_ON		(0x1)
-#define KERNEL_LOG_OFF		(0x0)
+#define AP_WAKE				(0x1)
+#define AP_SLEEP			(0x2)
 
 #define AP_WAKE             (0x1)
 #define AP_SLEEP            (0x2)
 
 #define READY_TO_GO 99
-#define MAILBOX_REQUEST_KLOG_ON (0x1)
-#define MAILBOX_REQUEST_KLOG_OFF (0x2)
 
 struct chub_bootargs {
 	char magic[16];
@@ -102,7 +100,7 @@ struct chub_bootargs {
 	u32 dump_end;
 	u32 chubclk;
 	u16 bootmode;
-	u16 kernel_log;
+	u16 wake;
 #if defined(LOCAL_POWERGATE)
 	u32 psp;
 	u32 msp;
@@ -534,8 +532,8 @@ void ipc_set_chub_clk(u32 clk);
 u32 ipc_get_chub_clk(void);
 void ipc_set_chub_bootmode(u16 bootmode);
 u16 ipc_get_chub_bootmode(void);
-void ipc_set_chub_kernel_log(u16 kernel_log);
-u16 ipc_get_chub_kernel_log(void);
+void ipc_set_ap_wake(u16 wake);
+u16 ipc_get_ap_wake(void);
 void ipc_dump(void);
 #if defined(LOCAL_POWERGATE)
 u32 *ipc_get_chub_psp(void);
