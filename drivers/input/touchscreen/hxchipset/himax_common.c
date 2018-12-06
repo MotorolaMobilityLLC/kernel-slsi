@@ -2415,6 +2415,34 @@ device_destroy:
 	return -ENODEV;
 }
 
+#if defined(HX_USB_DETECT_GLOBAL)
+static int charger_notifier_callback(struct notifier_block *nb,
+								unsigned long val, void *v) {
+	int ret = 0;
+	struct power_supply *psy = NULL;
+	struct himax_ts_data *ts = container_of(nb, struct himax_ts_data, charger_notif);
+	union power_supply_propval prop;
+
+	psy= power_supply_get_by_name("usb");
+	if (!psy) {
+		return -EINVAL;
+		E("Couldn't get usbpsy\n");
+	}
+	if (!strcmp(psy->desc->name, "usb")) {
+		if (psy && ts && val == POWER_SUPPLY_PROP_STATUS) {
+			ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE,&prop);
+			if (ret < 0) {
+				E("Couldn't get POWER_SUPPLY_PROP_ONLINE rc=%d\n", ret);
+				return ret;
+			} else {
+				USB_detect_flag = prop.intval;
+			}
+		}
+	}
+	return 0;
+}
+#endif
+
 int himax_chip_common_init(void)
 {
 
@@ -2563,6 +2591,13 @@ FW_force_upgrade:
 #if defined(HX_USB_DETECT_CALLBACK) || defined(HX_USB_DETECT_GLOBAL)
 	ts->usb_connected = 0x00;
 	ts->cable_config = pdata->cable_config;
+
+	ts->charger_notif.notifier_call = charger_notifier_callback;
+	ret = power_supply_reg_notifier(&ts->charger_notif);
+	if (ret) {
+		E("Unable to register charger_notifier: %d\n",ret);
+		goto err_register_charger_notify_failed;
+	}
 #endif
 #ifdef	HX_PROTOCOL_A
 	ts->protocol_type = PROTOCOL_TYPE_A;
@@ -2676,6 +2711,11 @@ err_detect_failed:
 		destroy_workqueue(ts->himax_update_wq);
 	}
 err_update_wq_failed:
+#endif
+#if defined(HX_USB_DETECT_GLOBAL)
+err_register_charger_notify_failed:
+	if (ts->charger_notif.notifier_call)
+		power_supply_unreg_notifier(&ts->charger_notif);
 #endif
 error_ic_detect_failed:
 	if (gpio_is_valid(pdata->gpio_irq)) {
