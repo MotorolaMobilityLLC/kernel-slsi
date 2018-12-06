@@ -27,6 +27,8 @@
 #define MMCACHE_CG_CONTROL_VALUE	0x7FF
 #define MMCACHE_INVALIDATE_VALUE	0x41
 
+#define MMCACHE_GROUP2			0x2
+
 /* Need HW lock to call this function */
 
 void mfc_mmcache_enable(struct mfc_dev *dev);
