@@ -559,7 +559,6 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	ipc_hw_write_shared_reg(AP, ipc->os_load, SR_BOOT_MODE);
 	ipc_set_chub_clk((u32)ipc->clkrate);
 	ipc_set_chub_bootmode(BOOTMODE_COLD);
-	ipc_set_chub_kernel_log(KERNEL_LOG_ON);
 
 	switch (event) {
 	case MAILBOX_EVT_POWER_ON:
@@ -750,6 +749,7 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 		atomic_set(&ipc->chub_status, CHUB_ST_SHUTDOWN);
 		break;
 	case MAILBOX_EVT_CHUB_ALIVE:
+		ipc_hw_write_shared_reg(AP, AP_WAKE, SR_3);
 		val = contexthub_lowlevel_alive(ipc);
 		if (val) {
 			atomic_set(&ipc->chub_status, CHUB_ST_RUN);
@@ -1057,6 +1057,9 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 	enum chub_err_type err = 0;
 	enum irq_chub evt = 0;
 	int irq_num = IRQ_EVT_CHUB_ALIVE + start_index;
+#ifndef CHECK_HW_TRIGGER
+	int i;
+#endif
 
 	/* chub alive interrupt handle */
 	if (status & (1 << irq_num)) {
@@ -1072,6 +1075,23 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 		wake_up(&ipc->chub_alive_lock.event);
 	}
 
+#ifndef CHECK_HW_TRIGGER
+	if (status) {
+		for (i = start_index; i < irq_num; i++) {
+			if (status & (1 << i)) {
+				cur_evt = ipc_get_evt(IPC_EVT_C2A);
+				if (cur_evt) {
+					evt = cur_evt->evt;
+					handle_irq(ipc, (u32)evt);
+					ipc_hw_clear_int_pend_reg(AP, i);
+				} else {
+					err = CHUB_ERR_EVTQ_EMTPY;
+					break;
+				}
+			}
+		}
+	}
+#else
 	/* chub ipc interrupt handle */
 	while (status) {
 		cur_evt = ipc_get_evt(IPC_EVT_C2A);
@@ -1094,6 +1114,7 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 		ipc_hw_clear_int_pend_reg(AP, irq_num);
 		status &= ~(1 << irq_num);
 	}
+#endif
 
 	if (err) {
 		pr_err("inval irq err(%d):start_irqnum:%d,evt(%p):%d,irq_hw:%d,status_reg:0x%x(0x%x,0x%x)\n",
@@ -1499,8 +1520,8 @@ static int contexthub_suspend(struct device *dev)
 	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
 		return 0;
 
-	dev_dbg(dev, "nanohub log to kernel off\n");
-	ipc_hw_write_shared_reg(AP, MAILBOX_REQUEST_KLOG_OFF, SR_3);
+	dev_info(dev, "nanohub log to kernel off\n");
+	ipc_hw_write_shared_reg(AP, AP_SLEEP, SR_3);
 	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
 
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
@@ -1520,8 +1541,8 @@ static int contexthub_resume(struct device *dev)
 	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
 		return 0;
 
-	dev_dbg(dev, "nanohub log to kernel on\n");
-	ipc_hw_write_shared_reg(AP, MAILBOX_REQUEST_KLOG_ON, SR_3);
+	dev_info(dev, "nanohub log to kernel on\n");
+	ipc_hw_write_shared_reg(AP, AP_WAKE, SR_3);
 	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
 
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
