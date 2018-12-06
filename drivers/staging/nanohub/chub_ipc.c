@@ -74,6 +74,51 @@ void content_disassemble(struct ipc_content *content, enum ipc_region act)
 }
 #endif
 
+#define SENSORMAP_MAGIC	"SensorMap"
+#define MAX_ACTIVE_SENSOR_NUM (10)
+
+bool ipc_have_sensor_info(struct sensor_map *sensor_map)
+{
+	if (sensor_map)
+		if(!strncmp(SENSORMAP_MAGIC, sensor_map->magic, sizeof(SENSORMAP_MAGIC)))
+			return true;
+	return false;
+}
+
+void ipc_set_sensor_id(enum sensor_type type, enum vendor_sensor_list_id id)
+{
+	struct sensor_map *ipc_sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
+
+	if (ipc_have_sensor_info(ipc_sensor_map)) {
+		ipc_sensor_map->active_sensor_list[type] = id;
+		ipc_sensor_map->index++;
+	}
+}
+
+void *ipc_get_sensor_base(void)
+{
+	struct sensor_map *ipc_sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
+
+	if (ipc_have_sensor_info(ipc_sensor_map))
+		return &ipc_sensor_map->active_sensor_list[0];
+
+	CSP_PRINTF_INFO("%s: fails to get ipc_sensor_map:%p, magic:%s\n",
+		__func__, ipc_sensor_map, ipc_sensor_map ? ipc_sensor_map->magic : NULL);
+	return NULL;
+}
+
+enum vendor_sensor_list_id ipc_get_sensor_id(enum sensor_type type)
+{
+	struct sensor_map *ipc_sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
+
+	if (ipc_have_sensor_info(ipc_sensor_map) && (type < SENSOR_TYPE_MAX))
+		return (enum vendor_sensor_list_id)ipc_sensor_map->active_sensor_list[type];
+
+	CSP_PRINTF_INFO("%s: fails to get ipc_sensor_map:%p, type:%d, magic:%s\n",
+		__func__, ipc_sensor_map, type, ipc_sensor_map ? ipc_sensor_map->magic : NULL);
+	return sensor_list_no_active;
+}
+
 /* ipc address control functions */
 void ipc_set_base(void *addr)
 {
@@ -231,6 +276,16 @@ void *ipc_get_chub_map(void)
 			NAME_PREFIX, __func__,
 			ipc_addr[IPC_REG_PERSISTBUF].base, ipc_addr[IPC_REG_PERSISTBUF].offset, map->ipc_end);
 
+	ipc_addr[IPC_REG_IPC_SENSORINFO].base = &ipc_map->sensormap;
+	ipc_addr[IPC_REG_IPC_SENSORINFO].offset = sizeof(u8) * SENSOR_TYPE_MAX;
+#ifdef SEOS
+	if (!ipc_have_sensor_info(&ipc_map->sensormap)) {
+		CSP_PRINTF_INFO("%s: ipc set sensormap and maic: :%p\n", __func__, &ipc_map->sensormap);
+		memset(&ipc_map->sensormap, 0, sizeof(struct sensor_map));
+		strcpy(&ipc_map->sensormap.magic[0], SENSORMAP_MAGIC);
+	}
+#endif
+
 	CSP_PRINTF_INFO
 	    ("%s: contexthub map information(v%u)\n bl(%p %d)\n os(%p %d)\n ipc(%p %d)\n ram(%p %d)\n shared(%p %d)\n dump(%p %d)\n",
 	     NAME_PREFIX, map->ipc_version,
@@ -242,12 +297,13 @@ void *ipc_get_chub_map(void)
 	     ipc_addr[IPC_REG_DUMP].base, ipc_addr[IPC_REG_DUMP].offset);
 
 	CSP_PRINTF_INFO
-		("%s: ipc_map information\n ipc(%p %d)\n data_c2a(%p %d)\n data_a2c(%p %d)\n evt_c2a(%p %d)\n evt_a2c(%p %d)\n log(%p %d)\n persistbuf(%p %d)\n",
+		("%s: ipc_map information\n ipc(%p %d)\n data_c2a(%p %d)\n data_a2c(%p %d)\n evt_c2a(%p %d)\n evt_a2c(%p %d)\n sensormap(%p %d) \n log(%p %d)\n persistbuf(%p %d)\n",
 		NAME_PREFIX, ipc_get_base(IPC_REG_IPC), ipc_get_offset(IPC_REG_IPC),
 		ipc_get_base(IPC_REG_IPC_C2A), ipc_get_offset(IPC_REG_IPC_C2A),
 		ipc_get_base(IPC_REG_IPC_A2C), ipc_get_offset(IPC_REG_IPC_A2C),
 		ipc_get_base(IPC_REG_IPC_EVT_C2A), ipc_get_offset(IPC_REG_IPC_EVT_C2A),
 		ipc_get_base(IPC_REG_IPC_EVT_A2C), ipc_get_offset(IPC_REG_IPC_EVT_A2C),
+		ipc_get_base(IPC_REG_IPC_SENSORINFO), ipc_get_offset(IPC_REG_IPC_SENSORINFO),
 		ipc_get_base(IPC_REG_LOG), ipc_get_offset(IPC_REG_LOG),
 		ipc_get_base(IPC_REG_PERSISTBUF), ipc_get_offset(IPC_REG_PERSISTBUF));
 

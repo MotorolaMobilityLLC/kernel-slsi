@@ -62,13 +62,7 @@
 #endif
 #endif
 
-#ifdef LOWLEVEL_DEBUG
-#define DEBUG_PRINT(lv, fmt, ...)	\
-	((DEBUG_LEVEL == (0)) ? (CSP_PRINTF_INFO(fmt, ##__VA_ARGS__)) : \
-	((DEBUG_LEVEL == (lv)) ? (CSP_PRINTF_INFO(fmt, ##__VA_ARGS__)) : (NULL)))
-#else
-#define DEBUG_PRINT(level, fmt, ...)
-#endif
+#define SENSOR_NAME_SIZE (32)
 
 /* contexthub bootargs */
 #define BL_OFFSET		(0x0)
@@ -83,6 +77,9 @@
 
 #define KERNEL_LOG_ON		(0x1)
 #define KERNEL_LOG_OFF		(0x0)
+
+#define AP_WAKE             (0x1)
+#define AP_SLEEP            (0x2)
 
 #define READY_TO_GO 99
 #define MAILBOX_REQUEST_KLOG_ON (0x1)
@@ -212,6 +209,7 @@ enum ipc_region {
 	IPC_REG_IPC_EVT_C2A_CTRL,
 	IPC_REG_IPC_A2C,
 	IPC_REG_IPC_C2A,
+	IPC_REG_IPC_SENSORINFO,
 	IPC_REG_SHARED,
 	IPC_REG_RAM,
 	IPC_REG_LOG,
@@ -353,6 +351,73 @@ struct ipc_buf {
 #endif
 };
 
+/* sensor list and id sync with chre sensorhal */
+enum vendor_sensor_list_id {
+	sensor_list_no_active,
+	sensor_list_rpr051_prox,
+	sensor_list_rpr051_ligth,
+	sensor_list_bmi160_accel,
+	sensor_list_bmi160_accel_ucal,
+	sensor_list_bmi160_gyro,
+	sensor_list_bmi160_gyro_ucal,
+	sensor_list_stlis3mdl_mag,
+	sensor_list_stlis3mdl_mag_ucal,
+	sensor_list_bmp280_press,
+	sensor_list_max,
+};
+
+enum sensor_type {
+    SENSOR_TYPE_META_DATA = 0,
+    SENSOR_TYPE_ACCELEROMETER = 1,
+    SENSOR_TYPE_MAGNETIC_FIELD = 2,
+    SENSOR_TYPE_ORIENTATION = 3,
+    SENSOR_TYPE_GYROSCOPE = 4,
+    SENSOR_TYPE_LIGHT = 5,
+    SENSOR_TYPE_PRESSURE = 6,
+    SENSOR_TYPE_TEMPERATURE = 7,
+    SENSOR_TYPE_PROXIMITY = 8,
+    SENSOR_TYPE_GRAVITY = 9,
+    SENSOR_TYPE_LINEAR_ACCELERATION = 10,
+    SENSOR_TYPE_ROTATION_VECTOR = 11,
+    SENSOR_TYPE_RELATIVE_HUMIDITY = 12,
+    SENSOR_TYPE_AMBIENT_TEMPERATURE = 13,
+    SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED = 14,
+    SENSOR_TYPE_GAME_ROTATION_VECTOR = 15,
+    SENSOR_TYPE_GYROSCOPE_UNCALIBRATED = 16,
+    SENSOR_TYPE_SIGNIFICANT_MOTION = 17,
+    SENSOR_TYPE_STEP_DETECTOR = 18,
+    SENSOR_TYPE_STEP_COUNTER = 19,
+    SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR = 20,
+    SENSOR_TYPE_HEART_RATE = 21,
+    SENSOR_TYPE_TILT_DETECTOR = 22,
+    SENSOR_TYPE_WAKE_GESTURE = 23,
+    SENSOR_TYPE_GLANCE_GESTURE = 24,
+    SENSOR_TYPE_PICK_UP_GESTURE = 25,
+    SENSOR_TYPE_WRIST_TILT_GESTURE = 26,
+    SENSOR_TYPE_DEVICE_ORIENTATION = 27,
+    SENSOR_TYPE_POSE_6DOF = 28,
+    SENSOR_TYPE_STATIONARY_DETECT = 29,
+    SENSOR_TYPE_MOTION_DETECT = 30,
+    SENSOR_TYPE_HEART_BEAT = 31,
+    SENSOR_TYPE_DYNAMIC_SENSOR_META = 32,
+    SENSOR_TYPE_ADDITIONAL_INFO = 33,
+    SENSOR_TYPE_LOW_LATENCY_OFFBODY_DETECT = 34,
+    SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED = 35,
+    SENSOR_TYPE_MAX,
+};
+
+struct sensor_info {
+	bool active;
+	int type;
+	enum vendor_sensor_list_id id;
+};
+
+struct sensor_map {
+	char magic[16];
+	int index;
+	u8 active_sensor_list[SENSOR_TYPE_MAX];
+};
+
 struct ipc_debug {
 	u32 event;
 	u32 val[IPC_DATA_MAX];
@@ -362,6 +427,7 @@ struct ipc_map_area {
 	struct ipc_buf data[IPC_DATA_MAX];
 	struct ipc_evt evt[IPC_EVT_MAX];
 	struct ipc_debug dbg;
+	struct sensor_map sensormap;
 	struct ipc_logbuf logbuf;
 };
 
@@ -416,6 +482,11 @@ struct ipc_map_area {
 	__raw_writel(1 << ((num) + 16), (base) + REG_MAILBOX_INTGR0)
 #define IPC_HW_SET_MCUCTL(base, val) \
 	__raw_write32((val), (base) + REG_MAILBOX_MCUCTL)
+
+bool ipc_have_sensor_info(struct sensor_map *sensor_map);
+void ipc_set_sensor_id(enum sensor_type type, enum vendor_sensor_list_id id);
+enum vendor_sensor_list_id ipc_get_sensor_id(enum sensor_type type);
+void *ipc_get_sensor_base(void);
 
 /* channel ctrl functions */
 void ipc_print_channel(void);
