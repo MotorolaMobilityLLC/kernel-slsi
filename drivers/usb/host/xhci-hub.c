@@ -1487,6 +1487,8 @@ int xhci_hub_check_speed(struct usb_hcd *hcd)
 	for (i = 0; i < MAX_HC_SLOTS; i++) {
 		if (!xhci->devs[i])
 			continue;
+		if (!xhci->devs[i]->udev)
+			continue;
 		speed = xhci->devs[i]->udev->speed;
 		if (speed >= USB_SPEED_SUPER) {
 			return 1;
