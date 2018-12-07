@@ -60,7 +60,7 @@
 #ifdef LRA_0832
 #define AW8695_HAPTIC_F0_PRE                2350    // 235Hz
 #define AW8695_HAPTIC_F0_CALI_PERCEN        7       // -7%~7%
-#define AW8695_HAPTIC_CONT_DRV_LVL          95
+#define AW8695_HAPTIC_CONT_DRV_LVL          98
 #define AW8695_HAPTIC_CONT_DRV_LVL_OV       0x70     // 155*6.1/256=3.69v
 #define AW8695_HAPTIC_CONT_TD               0x0073
 #define AW8695_HAPTIC_CONT_ZC_THR           0x0ff1
@@ -117,11 +117,12 @@
 #endif
 
 enum ram_mode_seq {
-    AW8695_LONG_RAM = 1,
-    AW8695_SHORT_RAM_20_UP = 2,
-    AW8695_SHORT_RAM_60_UP = 3,
-    AW8695_SHORT_RAM_80_UP = 4,
-    AW8695_SHORT_RAM_100_UP = 5,
+    AW8695_SHORT_RAM_100_UP = 1,
+    AW8695_LONG_RAM = 2,
+    AW8695_SHORT_RAM_100_UP2 = 3,
+    AW8695_SHORT_RAM_60_UP = 4,
+    AW8695_SHORT_RAM_80_UP = 5,
+    AW8695_SHORT_RAM_20_UP = 6,
 };
 
 enum aw8695_flags {
