@@ -294,12 +294,15 @@ int pafstat_hw_sw_reset(void __iomem *base_reg)
 }
 
 /* PAF RDMA */
-void fimc_is_hw_paf_oneshot_enable(void __iomem *base_reg, int enable)
+void fimc_is_hw_paf_oneshot_enable(void __iomem *base_reg)
 {
 	pafstat_hw_s_ready(base_reg, 1);
 
 	fimc_is_hw_set_field(base_reg, &pafstat_regs[PAFSTAT_R_CTX_ONESHOT],
 			&pafstat_fields[PAFSTAT_F_CTX_ONESHOT], 1);
+	fimc_is_hw_set_field(base_reg, &pafstat_regs[PAFSTAT_R_CTX_GLOBAL_ENABLE],
+			&pafstat_fields[PAFSTAT_F_CTX_GLOBAL_ENABLE], 0);
+
 }
 
 void fimc_is_hw_paf_common_config(void __iomem *base_reg_com, void __iomem *base_reg, u32 paf_ch, u32 width, u32 height)
