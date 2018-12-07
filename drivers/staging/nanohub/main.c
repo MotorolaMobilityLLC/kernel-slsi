@@ -1477,10 +1477,8 @@ static void nanohub_process_buffer(struct nanohub_data *data,
 	}
 	if (event_id == APP_TO_HOST_EVENTID) {
 		wakeup = true;
-#ifndef CONFIG_NANOHUB_MAILBOX
 		/* chub doesn't enable nanohal. use sensorhal io */
 		io = &data->io[ID_NANOHUB_COMMS];
-#endif
 	}
 
 	nanohub_io_put_buf(io, *buf);
