@@ -1017,6 +1017,9 @@ struct fimc_is_flash_interface_ops {
 					camera2_shot_t *shot);
 };
 
+/* arguments: stat_type, frame_count, notifier_data */
+typedef int (*vc_dma_notifier_t)(int, unsigned int, void *);
+
 struct fimc_is_csi_interface_ops {
 	int (*get_vc_dma_buf)(struct fimc_is_sensor_interface *itf,
 				enum itf_vc_buf_data_type request_data_type,
@@ -1039,7 +1042,13 @@ struct fimc_is_csi_interface_ops {
 				u32 *sensor_shifted_num);
 	int (*reserved[3])(struct fimc_is_sensor_interface *itf);
 #else
-	int (*reserved[4])(struct fimc_is_sensor_interface *itf);
+	int (*register_vc_dma_notifier)(struct fimc_is_sensor_interface *itf,
+					enum itf_vc_stat_type type,
+					vc_dma_notifier_t notifier, void *data);
+	int (*unregister_vc_dma_notifier)(struct fimc_is_sensor_interface *itf,
+					enum itf_vc_stat_type type,
+					vc_dma_notifier_t notifier);
+	int (*reserved[2])(struct fimc_is_sensor_interface *itf);
 #endif
 };
 
@@ -1048,20 +1057,11 @@ struct paf_setting_t {
 	u32 reg_data;
 };
 
-/* arguments: stat_type, frame_count, notifier_data */
-typedef int (*paf_notifier_t)(int, unsigned int, void *);
-
 struct fimc_is_paf_interface_ops {
 	int (*set_paf_param)(struct fimc_is_sensor_interface *itf,
 				struct paf_setting_t *regs, u32 regs_size);
 	int (*get_paf_ready)(struct fimc_is_sensor_interface *itf, u32 *ready);
-	int (*register_paf_notifier)(struct fimc_is_sensor_interface *itf,
-					enum itf_vc_stat_type type,
-					paf_notifier_t notifier, void *data);
-	int (*unregister_paf_notifier)(struct fimc_is_sensor_interface *itf,
-					enum itf_vc_stat_type type,
-					paf_notifier_t notifier);
-	int (*reserved[4])(struct fimc_is_sensor_interface *itf);
+	int (*reserved[6])(struct fimc_is_sensor_interface *itf);
 };
 
 struct fimc_is_dual_interface_ops {
