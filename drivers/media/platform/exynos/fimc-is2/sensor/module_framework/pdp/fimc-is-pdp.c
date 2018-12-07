@@ -201,7 +201,7 @@ int pdp_get_ready(struct v4l2_subdev *subdev, u32 *ready)
 }
 
 int pdp_register_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
-		paf_notifier_t notifier, void *data)
+		vc_dma_notifier_t notifier, void *data)
 {
 	struct fimc_is_pdp *pdp;
 	struct paf_action *pa;
@@ -243,7 +243,7 @@ int pdp_register_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type
 }
 
 int pdp_unregister_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
-		paf_notifier_t notifier)
+		vc_dma_notifier_t notifier)
 {
 	struct fimc_is_pdp *pdp;
 	struct paf_action *pa, *temp;
