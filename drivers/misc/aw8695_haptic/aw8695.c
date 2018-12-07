@@ -1502,7 +1502,7 @@ static int aw8695_haptic_init(struct aw8695 *aw8695)
     /* haptic init */
     mutex_lock(&aw8695->lock);
 
-    aw8695->activate_mode = AW8695_HAPTIC_ACTIVATE_RAM_MODE;
+    aw8695->activate_mode = AW8695_HAPTIC_ACTIVATE_CONT_MODE;
 
     ret = aw8695_i2c_read(aw8695, AW8695_REG_WAVSEQ1, &reg_val);
     aw8695->index = reg_val & 0x7F;
