@@ -298,7 +298,7 @@ static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
 	return ipc->chub_alive_lock.flag;
 }
 
-#define CHUB_RESET_THOLD (5)
+#define CHUB_RESET_THOLD (10)
 /* handle errors of chub driver and fw  */
 static void handle_debug_work(struct contexthub_ipc_info *ipc, enum chub_err_type err)
 {
@@ -341,18 +341,6 @@ static void request_debug_work(struct contexthub_ipc_info *ipc,
 {
 	dev_info(ipc->dev, "%s: err:%d(cnt:%d), enable_wq:%d\n",
 		__func__, err, ipc->err_cnt[err], enable_wq);
-
-	if (err < CHUB_ERR_NEED_RESET) {
-		if (ipc->err_cnt[err] > CHUB_RESET_THOLD) {
-			atomic_set(&ipc->chub_status, CHUB_ST_ERR);
-			ipc->err_cnt[err] = 0;
-			dev_info(ipc->dev, "%s: err:%d(cnt:%d), enter error status\n",
-				__func__, err, ipc->err_cnt[err]);
-		} else {
-			ipc->err_cnt[err]++;
-			return;
-		}
-	}
 
 	/* get chub-fw err */
 	if (err == CHUB_ERR_NANOHUB) {
