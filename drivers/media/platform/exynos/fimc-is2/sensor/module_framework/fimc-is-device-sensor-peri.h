@@ -294,7 +294,7 @@ struct fimc_is_preprocessor {
 
 struct paf_action {
 	enum itf_vc_stat_type	type;
-	paf_notifier_t		notifier;
+	vc_dma_notifier_t	notifier;
 	void			*data;
 	unsigned int		flags;
 	const char		*name;
@@ -308,10 +308,10 @@ struct fimc_is_pdp_ops {
 	int (*get_ready)(struct v4l2_subdev *subdev, u32 *ready);
 	int (*register_notifier)(struct v4l2_subdev *subdev,
 			enum itf_vc_stat_type type,
-			paf_notifier_t notifier, void *data);
+			vc_dma_notifier_t notifier, void *data);
 	int (*unregister_notifier)(struct v4l2_subdev *subdev,
 			enum itf_vc_stat_type type,
-			paf_notifier_t notifier);
+			vc_dma_notifier_t notifier);
 	void (*notify)(struct v4l2_subdev *subdev,
 			unsigned int type,
 			void *data);
@@ -346,10 +346,10 @@ struct fimc_is_pafstat_ops {
 	int (*get_ready)(struct v4l2_subdev *subdev, u32 *ready);
 	int (*register_notifier)(struct v4l2_subdev *subdev,
 			enum itf_vc_stat_type type,
-			paf_notifier_t notifier, void *data);
+			vc_dma_notifier_t notifier, void *data);
 	int (*unregister_notifier)(struct v4l2_subdev *subdev,
 			enum itf_vc_stat_type type,
-			paf_notifier_t notifier);
+			vc_dma_notifier_t notifier);
 	void (*notify)(struct v4l2_subdev *subdev,
 			unsigned int type,
 			void *data);

@@ -367,7 +367,7 @@ int pafstat_hw_get_ready(struct v4l2_subdev *subdev, u32 *ready)
 }
 
 int pafstat_register_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
-		paf_notifier_t notifier, void *data)
+		vc_dma_notifier_t notifier, void *data)
 {
 	struct fimc_is_pafstat *pafstat;
 	struct paf_action *pa;
@@ -406,7 +406,7 @@ int pafstat_register_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type 
 
 /* TODO: below version removes all notifiers have been registered with same stat. type */
 int pafstat_unregister_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type type,
-		paf_notifier_t notifier)
+		vc_dma_notifier_t notifier)
 {
 	struct fimc_is_pafstat *pafstat;
 	struct paf_action *pa, *temp;

@@ -2966,6 +2966,104 @@ int get_sensor_shifted_num(struct fimc_is_sensor_interface *itf,
 }
 #endif
 
+int register_vc_dma_notifier(struct fimc_is_sensor_interface *itf,
+			enum itf_vc_stat_type type,
+			vc_dma_notifier_t notifier, void *data)
+{
+	struct fimc_is_device_sensor_peri *sensor_peri;
+	int ret;
+
+	if (!itf) {
+		err("invalid sensor interface");
+		return -EINVAL;
+	}
+
+	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
+
+	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri,
+			sensor_interface);
+	if (!sensor_peri) {
+		err("failed to get sensor_peri");
+		return -ENODEV;
+	}
+
+	/* PDP */
+	if (IS_ENABLED(CONFIG_CAMERA_PDP)) {
+		if (!sensor_peri->pdp || !sensor_peri->subdev_pdp) {
+			err("invalid PDP state");
+			return -EINVAL;
+		}
+
+		ret = CALL_PDPOPS(sensor_peri->pdp, register_notifier,
+				sensor_peri->subdev_pdp,
+				type, notifier, data);
+	/* PAFSTAT */
+	} else if (IS_ENABLED(CONFIG_CAMERA_PAFSTAT)) {
+		if (!sensor_peri->pafstat || !sensor_peri->subdev_pafstat) {
+			err("invalid PAFSTAT state");
+			return -EINVAL;
+		}
+
+		ret = CALL_PAFSTATOPS(sensor_peri->pafstat, register_notifier,
+				sensor_peri->subdev_pafstat,
+				type, notifier, data);
+	} else {
+		err("no PAF HW");
+		return -ENODEV;
+	}
+
+	return ret;
+}
+
+int unregister_vc_dma_notifier(struct fimc_is_sensor_interface *itf,
+			enum itf_vc_stat_type type,
+			vc_dma_notifier_t notifier)
+{
+	struct fimc_is_device_sensor_peri *sensor_peri;
+	int ret;
+
+	if (!itf) {
+		err("invalid sensor interface");
+		return -EINVAL;
+	}
+
+	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
+
+	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri,
+			sensor_interface);
+	if (!sensor_peri) {
+		err("failed to get sensor_peri");
+		return -ENODEV;
+	}
+
+	/* PDP */
+	if (IS_ENABLED(CONFIG_CAMERA_PDP)) {
+		if (!sensor_peri->pdp || !sensor_peri->subdev_pdp) {
+			err("invalid PDP state");
+			return -EINVAL;
+		}
+
+		ret = CALL_PDPOPS(sensor_peri->pdp, unregister_notifier,
+				sensor_peri->subdev_pdp,
+				type, notifier);
+	/* PAFSTAT */
+	} else if (IS_ENABLED(CONFIG_CAMERA_PAFSTAT)) {
+		if (!sensor_peri->pafstat || !sensor_peri->subdev_pafstat) {
+			err("invalid PAFSTAT state");
+			return -EINVAL;
+		}
+
+		ret = CALL_PAFSTATOPS(sensor_peri->pafstat, unregister_notifier,
+				sensor_peri->subdev_pafstat,
+				type, notifier);
+	} else {
+		err("no PAF HW");
+		return -ENODEV;
+	}
+
+	return ret;
+}
+
 int csi_reserved(struct fimc_is_sensor_interface *itf)
 {
 	return 0;
@@ -3252,104 +3350,6 @@ int get_paf_ready(struct fimc_is_sensor_interface *itf, u32 *ready)
 	return ret;
 }
 
-int register_paf_notifier(struct fimc_is_sensor_interface *itf,
-			enum itf_vc_stat_type type,
-			paf_notifier_t notifier, void *data)
-{
-	struct fimc_is_device_sensor_peri *sensor_peri;
-	int ret;
-
-	if (!itf) {
-		err("invalid sensor interface");
-		return -EINVAL;
-	}
-
-	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
-
-	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri,
-			sensor_interface);
-	if (!sensor_peri) {
-		err("failed to get sensor_peri");
-		return -ENODEV;
-	}
-
-	/* PDP */
-	if (IS_ENABLED(CONFIG_CAMERA_PDP)) {
-		if (!sensor_peri->pdp || !sensor_peri->subdev_pdp) {
-			err("invalid PDP state");
-			return -EINVAL;
-		}
-
-		ret = CALL_PDPOPS(sensor_peri->pdp, register_notifier,
-				sensor_peri->subdev_pdp,
-				type, notifier, data);
-	/* PAFSTAT */
-	} else if (IS_ENABLED(CONFIG_CAMERA_PAFSTAT)) {
-		if (!sensor_peri->pafstat || !sensor_peri->subdev_pafstat) {
-			err("invalid PAFSTAT state");
-			return -EINVAL;
-		}
-
-		ret = CALL_PAFSTATOPS(sensor_peri->pafstat, register_notifier,
-				sensor_peri->subdev_pafstat,
-				type, notifier, data);
-	} else {
-		err("no PAF HW");
-		return -ENODEV;
-	}
-
-	return ret;
-}
-
-int unregister_paf_notifier(struct fimc_is_sensor_interface *itf,
-			enum itf_vc_stat_type type,
-			paf_notifier_t notifier)
-{
-	struct fimc_is_device_sensor_peri *sensor_peri;
-	int ret;
-
-	if (!itf) {
-		err("invalid sensor interface");
-		return -EINVAL;
-	}
-
-	FIMC_BUG(itf->magic != SENSOR_INTERFACE_MAGIC);
-
-	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri,
-			sensor_interface);
-	if (!sensor_peri) {
-		err("failed to get sensor_peri");
-		return -ENODEV;
-	}
-
-	/* PDP */
-	if (IS_ENABLED(CONFIG_CAMERA_PDP)) {
-		if (!sensor_peri->pdp || !sensor_peri->subdev_pdp) {
-			err("invalid PDP state");
-			return -EINVAL;
-		}
-
-		ret = CALL_PDPOPS(sensor_peri->pdp, unregister_notifier,
-				sensor_peri->subdev_pdp,
-				type, notifier);
-	/* PAFSTAT */
-	} else if (IS_ENABLED(CONFIG_CAMERA_PAFSTAT)) {
-		if (!sensor_peri->pafstat || !sensor_peri->subdev_pafstat) {
-			err("invalid PAFSTAT state");
-			return -EINVAL;
-		}
-
-		ret = CALL_PAFSTATOPS(sensor_peri->pafstat, unregister_notifier,
-				sensor_peri->subdev_pafstat,
-				type, notifier);
-	} else {
-		err("no PAF HW");
-		return -ENODEV;
-	}
-
-	return ret;
-}
-
 int paf_reserved(struct fimc_is_sensor_interface *itf)
 {
 	return -EINVAL;
@@ -3604,12 +3604,10 @@ int init_sensor_interface(struct fimc_is_sensor_interface *itf)
 
 	itf->paf_itf_ops.set_paf_param = set_paf_param;
 	itf->paf_itf_ops.get_paf_ready = get_paf_ready;
-	itf->paf_itf_ops.register_paf_notifier = register_paf_notifier;
-	itf->paf_itf_ops.unregister_paf_notifier = unregister_paf_notifier;
 	itf->paf_itf_ops.reserved[0] = paf_reserved;
 	itf->paf_itf_ops.reserved[1] = paf_reserved;
 	itf->paf_itf_ops.reserved[2] = paf_reserved;
-	itf->paf_itf_ops.reserved[0] = paf_reserved;
+	itf->paf_itf_ops.reserved[3] = paf_reserved;
 
 	/* MIPI-CSI interface */
 	itf->csi_itf_ops.get_vc_dma_buf = get_vc_dma_buf;
@@ -3619,11 +3617,11 @@ int init_sensor_interface(struct fimc_is_sensor_interface *itf)
 #ifdef CAMERA_REAR2_SENSOR_SHIFT_CROP
 	itf->csi_itf_ops.get_sensor_shifted_num = get_sensor_shifted_num;
 #endif
+	itf->csi_itf_ops.register_vc_dma_notifier = register_vc_dma_notifier;
+	itf->csi_itf_ops.unregister_vc_dma_notifier = unregister_vc_dma_notifier;
 	itf->csi_itf_ops.reserved[0] = csi_reserved;
-	itf->csi_itf_ops.reserved[1] = csi_reserved;
-	itf->csi_itf_ops.reserved[2] = csi_reserved;
 #ifndef CAMERA_REAR2_SENSOR_SHIFT_CROP
-	itf->csi_itf_ops.reserved[3] = csi_reserved;
+	itf->csi_itf_ops.reserved[1] = csi_reserved;
 #endif
 
 	/* CIS ext2 interface */
