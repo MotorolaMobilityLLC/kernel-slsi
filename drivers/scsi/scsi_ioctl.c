@@ -192,7 +192,7 @@ static int srpmb_ioctl_secu_prot_command(struct scsi_device *sdev, char *cmd,
 				  &sshdr, timeout, retries, NULL);
 
 	if (prot_in_out == SCSI_IOCTL_SECURITY_PROTOCOL_IN) {
-		memcpy(req->rpmb_data, buf, req->data_len);
+		memcpy(req->rpmb_data, buf, bufflen);
 	}
 	SCSI_LOG_IOCTL(2, printk("Ioctl returned  0x%x\n", result));
 
