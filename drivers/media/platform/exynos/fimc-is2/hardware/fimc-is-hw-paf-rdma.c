@@ -24,6 +24,7 @@ static int fimc_is_hw_paf_handle_interrupt(u32 id, void *context)
 	u32 hw_fcount, instance;
 #if defined(CONFIG_CAMERA_PAFSTAT)
 	void __iomem *paf_ctx_addr;
+	void __iomem *paf_rdma_addr;
 	u32 irq_src, irq_mask, status;
 #endif
 
@@ -38,9 +39,9 @@ static int fimc_is_hw_paf_handle_interrupt(u32 id, void *context)
 	FIMC_BUG(!hw_ip->priv_info);
 	hw_paf = (struct fimc_is_hw_paf *)hw_ip->priv_info;
 
-
 #if defined(CONFIG_CAMERA_PAFSTAT)
 	paf_ctx_addr = (hw_ip->id == DEV_HW_PAF1) ? hw_paf->paf_ctx1_regs : hw_paf->paf_ctx0_regs;
+	paf_rdma_addr = (hw_ip->id == DEV_HW_PAF1) ? hw_paf->paf_rdma1_regs : hw_paf->paf_rdma0_regs;
 
 	irq_src = pafstat_hw_g_irq_src(paf_ctx_addr);
 	irq_mask = pafstat_hw_g_irq_mask(paf_ctx_addr);
@@ -53,6 +54,8 @@ static int fimc_is_hw_paf_handle_interrupt(u32 id, void *context)
 	if (status & (1 << PAFSTAT_INT_FRAME_START)) {
 		msdbg_hw(2, "PAF: F.S[F:%d]", instance, hw_ip, hw_fcount);
 		fimc_is_hardware_frame_start(hw_ip, instance);
+		/* pafstat_rdma is operated by oneshot */
+		fimc_is_hw_paf_rdma_enable(hw_paf->paf_rdma_core_regs, paf_rdma_addr, 0);
 	}
 
 	if (status & (1 << PAFSTAT_INT_TOTAL_FRAME_END)) {
