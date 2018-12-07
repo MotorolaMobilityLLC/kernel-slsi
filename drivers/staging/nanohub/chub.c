@@ -348,18 +348,6 @@ static void contexthub_handle_debug(struct contexthub_ipc_info *ipc,
 		goto error_handler;
 	}
 
-	if (err < CHUB_ERR_NEED_RESET) {
-		if (ipc->err_cnt[err] > CHUB_RESET_THOLD) {
-			atomic_set(&ipc->chub_status, CHUB_ST_ERR);
-			ipc->err_cnt[err] = 0;
-			dev_info(ipc->dev, "%s: err:%d(cnt:%d), enter error status\n",
-				__func__, err, ipc->err_cnt[err]);
-		} else {
-			ipc->err_cnt[err]++;
-			return;
-		}
-	}
-
 	/* get chub-fw err */
 	if (err == CHUB_ERR_NANOHUB) {
 		enum ipc_debug_event fw_evt;
