@@ -301,7 +301,7 @@ static int fimc_is_hw_paf_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 		lindex, hindex, frame->instance);
 
 	fimc_is_hw_paf_rdma_enable(hw_paf->paf_rdma_core_regs, paf_rdma_addr, 1);
-	fimc_is_hw_paf_oneshot_enable(paf_ctx_addr, 1);
+	fimc_is_hw_paf_oneshot_enable(paf_ctx_addr);
 #endif
 
 	set_bit(hw_ip->id, &frame->core_flag);
