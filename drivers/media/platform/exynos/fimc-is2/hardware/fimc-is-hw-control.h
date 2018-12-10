@@ -125,6 +125,7 @@ enum fimc_is_hw_state {
 	HW_MCS_YSUM_CFG,
 	HW_MCS_DS_CFG,
 	HW_OVERFLOW_RECOVERY,
+	HW_PAFSTAT_RDMA_CFG,
 	HW_END
 };
 
