@@ -52,7 +52,7 @@
 #include <linux/debug-snapshot.h>
 #endif
 
-#if 0 //def CONFIG_EXYNOS_BCM_DBG_GNR
+#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 #include <soc/samsung/exynos-bcm_dbg.h>
 #endif
 
@@ -1487,7 +1487,7 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			goto p_err;
 		}
 #endif
-#if 0 //def CONFIG_EXYNOS_BCM_DBG_GNR
+#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 		exynos_bcm_dbg_start();
 		dbgd_resource("exynos bcm debug was started\n");
 #endif
@@ -1817,7 +1817,7 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 	if (atomic_read(&core->rsccount) == 1) {
 		u32 current_min, current_max;
 
-#if 0 //def CONFIG_EXYNOS_BCM_DBG_GNR
+#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 		exynos_bcm_dbg_stop(CAMERA_DRIVER);
 		dbgd_resource("exynos bcm debug was stopped\n");
 #endif
