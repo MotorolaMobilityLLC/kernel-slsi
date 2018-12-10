@@ -57,7 +57,8 @@ static u32 sensor_gm1sp_max_setfile_num;
 static void sensor_gm1sp_cis_data_calculation(const struct sensor_pll_info_compact *pll_info_compact, cis_shared_data *cis_data)
 {
 	u32 vt_pix_clk_hz = 0;
-	u32 frame_rate = 0, max_fps = 0, frame_valid_us = 0;
+	u32 frame_rate = 0, frame_valid_us = 0;
+	u64 max_fps = 0;
 
 	FIMC_BUG_VOID(!pll_info_compact);
 
@@ -79,11 +80,11 @@ static void sensor_gm1sp_cis_data_calculation(const struct sensor_pll_info_compa
 		frame_rate, vt_pix_clk_hz, pll_info_compact->frame_length_lines, pll_info_compact->line_length_pck);
 
 	/* calculate max fps */
-	max_fps = (vt_pix_clk_hz * 10) / (pll_info_compact->frame_length_lines * pll_info_compact->line_length_pck);
+	max_fps = ((u64)vt_pix_clk_hz * 10) / (pll_info_compact->frame_length_lines * pll_info_compact->line_length_pck);
 	max_fps = (max_fps % 10 >= 5 ? frame_rate + 1 : frame_rate);
 
 	cis_data->pclk = vt_pix_clk_hz;
-	cis_data->max_fps = max_fps;
+	cis_data->max_fps = (u32)max_fps;
 	cis_data->frame_length_lines = pll_info_compact->frame_length_lines;
 	cis_data->line_length_pck = pll_info_compact->line_length_pck;
 	cis_data->line_readOut_time = sensor_cis_do_div64((u64)cis_data->line_length_pck * (u64)(1000 * 1000 * 1000), cis_data->pclk);
@@ -815,10 +816,9 @@ int sensor_gm1sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	struct i2c_client *client;
 	cis_shared_data *cis_data;
 
-	u32 vt_pic_clk_freq_mhz = 0;
 	u32 line_length_pck = 0;
 	u16 frame_length_lines = 0;
-
+	u64 numerator;
 	u32 max_coarse_integration_time = 0;
 
 #ifdef DEBUG_SENSOR_TIME
@@ -848,14 +848,13 @@ int sensor_gm1sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 		frame_duration = cis_data->min_frame_us_time;
 	}
 
-	vt_pic_clk_freq_mhz = cis_data->pclk / (1000 * 1000);
 	line_length_pck = cis_data->line_length_pck;
+	numerator = (u64)cis_data->pclk * frame_duration;
+	frame_length_lines = (u16)((numerator / line_length_pck) / (1000 * 1000));
 
-	frame_length_lines = (u16)((vt_pic_clk_freq_mhz * frame_duration) / line_length_pck);
-
-	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk_freq_mhz(%#x) frame_duration = %d us, "
-			KERN_CONT"(line_length_pck%#x), frame_length_lines(%#x)\n",
-			cis->id, __func__, vt_pic_clk_freq_mhz, frame_duration, line_length_pck, frame_length_lines);
+	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk(%#x) frame_duration = %d us,"
+		KERN_CONT "(line_length_pck%#x), frame_length_lines(%#x)\n",
+		cis->id, __func__, cis_data->pclk, frame_duration, line_length_pck, frame_length_lines);
 
 	hold = sensor_gm1sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {

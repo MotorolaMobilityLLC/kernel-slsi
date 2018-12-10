@@ -348,7 +348,7 @@ const u32 sensor_gm1sp_setfile_B_4000x3000_30fps[] = {
 	0x034E, 0x0BB8, 0x2,
 	0x0350, 0x0000, 0x2,
 	0x0352, 0x0000, 0x2,
-	0x0340, 0x0C86, 0x2,
+	0x0340, 0x0C84, 0x2,
 	0x0342, 0x13A0, 0x2,
 	0x0900, 0x0111, 0x2,
 	0x0380, 0x0001, 0x2,
@@ -1562,7 +1562,7 @@ const struct sensor_pll_info_compact sensor_gm1sp_pllinfo_B_4000x3000_30fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1152670000, /* mipi_datarate */
 	483170000,	/* pclk  = VT pix CLK (this value is different by cis) */
-	0x0C86, /* frame_length_lines	(0x0340) */
+	0x0C84, /* frame_length_lines	(0x0340) */
 	0x13A0, /* line_length_pck	(0x0342) */
 };
 
