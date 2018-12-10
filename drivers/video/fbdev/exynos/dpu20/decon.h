@@ -966,6 +966,7 @@ struct decon_device {
 
 	struct mutex lock;
 	struct mutex pm_lock;
+	struct mutex rcv_lock; /* recovery lock */
 	spinlock_t slock;
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	struct decon_esd esd;
@@ -1421,6 +1422,7 @@ int dpu_pm_domain_check_status(struct exynos_pm_domain *pm_domain);
 int decon_set_out_sd_state(struct decon_device *decon, enum decon_state state);
 int decon_update_last_regs(struct decon_device *decon,
 		struct decon_reg_data *regs);
+int decon_handle_recovery(struct decon_device *decon);
 
 int register_lcd_status_notifier(struct notifier_block *nb);
 int unregister_lcd_status_notifier(struct notifier_block *nb);

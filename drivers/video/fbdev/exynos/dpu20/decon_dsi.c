@@ -385,7 +385,7 @@ void decon_destroy_vsync_thread(struct decon_device *decon)
 
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 #define ESD_RECOVERY_RETRY_CNT	5
-static int decon_handle_esd(struct decon_device *decon)
+int decon_handle_recovery(struct decon_device *decon)
 {
 	struct dsim_device *dsim;
 	int ret = 0;
@@ -398,6 +398,8 @@ static int decon_handle_esd(struct decon_device *decon)
 		decon_warn("%s invalid param\n", __func__);
 		return -EINVAL;
 	}
+
+	mutex_lock(&decon->rcv_lock);
 
 	decon_bypass_on(decon);
 	dsim = container_of(decon->out_sd[0], struct dsim_device, sd);
@@ -460,6 +462,9 @@ static int decon_handle_esd(struct decon_device *decon)
 		decon_set_bypass(decon, true);
 
 	decon_bypass_off(decon);
+
+	mutex_unlock(&decon->rcv_lock);
+
 	decon_info("%s -\n", __func__);
 
 	return ret;
@@ -473,7 +478,7 @@ static void decon_esd_process(int esd, struct decon_device *decon)
 	case DSIM_ESD_CHECK_ERROR:
 		decon_err("%s, It is not ESD, \
 			but DDI is abnormal state(%d)\n", __func__, esd);
-		ret = decon_handle_esd(decon);
+		ret = decon_handle_recovery(decon);
 		if (ret)
 			decon_err("%s, failed to recover ESD\n", __func__);
 		break;
@@ -482,7 +487,7 @@ static void decon_esd_process(int esd, struct decon_device *decon)
 		break;
 	case DSIM_ESD_ERROR:
 		decon_err("%s, ESD is detected(%d)\n", __func__, esd);
-		ret = decon_handle_esd(decon);
+		ret = decon_handle_recovery(decon);
 		if (ret)
 			decon_err("%s, failed to recover ESD\n", __func__);
 		break;

@@ -4073,6 +4073,7 @@ static int decon_probe(struct platform_device *pdev)
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	mutex_init(&decon->esd.lock);
 #endif
+	mutex_init(&decon->rcv_lock);
 
 	decon_enter_shutdown_reset(decon);
 
