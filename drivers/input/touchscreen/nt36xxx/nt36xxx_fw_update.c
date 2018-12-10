@@ -135,10 +135,10 @@ int32_t Check_FW_Ver(void)
 	}
 
 	// compare IC and binary FW version
-	if (buf[1] > fw_entry->data[FW_BIN_VER_OFFSET])
-		return 1;
-	else
+	if (buf[1] != fw_entry->data[FW_BIN_VER_OFFSET])
 		return 0;
+	else
+		return 1;
 }
 
 /*******************************************************
