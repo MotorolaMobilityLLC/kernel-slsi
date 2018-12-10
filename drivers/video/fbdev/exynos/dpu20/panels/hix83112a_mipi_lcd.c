@@ -547,7 +547,10 @@ static int hix83112a_read_state(struct dsim_device *dsim)
 	for (i = 0; i < RETRY; i++) {
 		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
 				MIPI_DCS_GET_POWER_MODE, 0x1, buf);
-		if (ret < 0) {
+		if (ret == -ETIMEDOUT) {
+			dsim_info("recovery is already operated\n");
+			return DSIM_ESD_OK;
+		} else if ((ret < 0) && (ret != -ETIMEDOUT)) {
 			dsim_err("Failed to read panel REG 0x%02X!: 0x%02x, i(%d)\n",
 					MIPI_DCS_GET_POWER_MODE,
 					*(unsigned int *)buf & 0xFF, i);
