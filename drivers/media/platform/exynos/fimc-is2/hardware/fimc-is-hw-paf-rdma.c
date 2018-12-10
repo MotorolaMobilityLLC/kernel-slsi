@@ -33,7 +33,7 @@ static int fimc_is_hw_paf_handle_interrupt(u32 id, void *context)
 	hw_fcount = atomic_read(&hw_ip->fcount);
 	instance = atomic_read(&hw_ip->instance);
 
-	if (!test_bit(HW_INIT, &hw_ip->state))
+	if (!test_bit(HW_PAFSTAT_RDMA_CFG, &hw_ip->state))
 		return IRQ_NONE;
 
 	FIMC_BUG(!hw_ip->priv_info);
@@ -62,6 +62,7 @@ static int fimc_is_hw_paf_handle_interrupt(u32 id, void *context)
 		msdbg_hw(2, "PAF: F.E[F:%d]", instance, hw_ip, hw_fcount);
 		fimc_is_hardware_frame_done(hw_ip, NULL, -1, FIMC_IS_HW_CORE_END,
 						IS_SHOT_SUCCESS, true);
+		clear_bit(HW_PAFSTAT_RDMA_CFG, &hw_ip->state);
 		atomic_set(&hw_ip->status.Vvalid, V_BLANK);
 		wake_up(&hw_ip->status.wait_queue);
 		CALL_HW_OPS(hw_ip, clk_gate, instance, false, false);
@@ -227,6 +228,7 @@ static int fimc_is_hw_paf_disable(struct fimc_is_hw_ip *hw_ip, u32 instance, ulo
 
 	clear_bit(HW_RUN, &hw_ip->state);
 	clear_bit(HW_CONFIG, &hw_ip->state);
+	clear_bit(HW_PAFSTAT_RDMA_CFG, &hw_ip->state);
 
 	return ret;
 }
@@ -302,6 +304,8 @@ static int fimc_is_hw_paf_shot(struct fimc_is_hw_ip *hw_ip, struct fimc_is_frame
 	ret = fimc_is_hw_paf_update_param(hw_ip,
 		region, param,
 		lindex, hindex, frame->instance);
+
+	set_bit(HW_PAFSTAT_RDMA_CFG, &hw_ip->state);
 
 	fimc_is_hw_paf_rdma_enable(hw_paf->paf_rdma_core_regs, paf_rdma_addr, 1);
 	fimc_is_hw_paf_oneshot_enable(paf_ctx_addr);
@@ -405,6 +409,7 @@ static int fimc_is_hw_paf_frame_ndone(struct fimc_is_hw_ip *hw_ip, struct fimc_i
 	if (test_bit_variables(hw_ip->id, &frame->core_flag))
 		ret = fimc_is_hardware_frame_done(hw_ip, frame, -1,
 				output_id, done_type, false);
+	clear_bit(HW_PAFSTAT_RDMA_CFG, &hw_ip->state);
 
 	return ret;
 }
@@ -459,6 +464,7 @@ int fimc_is_hw_paf_probe(struct fimc_is_hw_ip *hw_ip, struct fimc_is_interface *
 	clear_bit(HW_CONFIG, &hw_ip->state);
 	clear_bit(HW_RUN, &hw_ip->state);
 	clear_bit(HW_TUNESET, &hw_ip->state);
+	clear_bit(HW_PAFSTAT_RDMA_CFG, &hw_ip->state);
 
 	sinfo_hw("probe done\n", hw_ip);
 
