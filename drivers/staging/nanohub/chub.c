@@ -342,6 +342,24 @@ static void contexthub_handle_debug(struct contexthub_ipc_info *ipc,
 	dev_info(ipc->dev, "%s: err:%d(cnt:%d), enable_wq:%d\n",
 		__func__, err, ipc->err_cnt[err], enable_wq);
 
+	/* set status in CHUB_ST_ERR */
+	if ((err == CHUB_ERR_ITMON) || (err == CHUB_ERR_FW_WDT) || (err == CHUB_ERR_FW_FAULT) || (err == CHUB_ERR_CHUB_NO_RESPONSE)) {
+		atomic_set(&ipc->chub_status, CHUB_ST_ERR);
+		goto error_handler;
+	}
+
+	if (err < CHUB_ERR_NEED_RESET) {
+		if (ipc->err_cnt[err] > CHUB_RESET_THOLD) {
+			atomic_set(&ipc->chub_status, CHUB_ST_ERR);
+			ipc->err_cnt[err] = 0;
+			dev_info(ipc->dev, "%s: err:%d(cnt:%d), enter error status\n",
+				__func__, err, ipc->err_cnt[err]);
+		} else {
+			ipc->err_cnt[err]++;
+			return;
+		}
+	}
+
 	/* get chub-fw err */
 	if (err == CHUB_ERR_NANOHUB) {
 		enum ipc_debug_event fw_evt;
@@ -362,10 +380,7 @@ static void contexthub_handle_debug(struct contexthub_ipc_info *ipc,
 		contexthub_put_token(ipc);
 	}
 
-	/* set status in CHUB_ST_ERR */
-	if ((err == CHUB_ERR_ITMON) || (err == CHUB_ERR_FW_WDT) || (err == CHUB_ERR_FW_FAULT))
-		atomic_set(&ipc->chub_status, CHUB_ST_ERR);
-
+error_handler:
 	/* handle err */
 	if (enable_wq) {
 		ipc->cur_err |= (1 << err);
@@ -778,8 +793,13 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 	}
 
 	if (need_ipc) {
-		if (contexthub_get_token(ipc) || (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)) {
+		if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN) {
 			dev_warn(ipc->dev, "%s event:%d/%d fails chub isn't active, status:%d, inreset:%d\n",
+				__func__, event, MAILBOX_EVT_MAX, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
+			return -EINVAL;
+		}
+		if (contexthub_get_token(ipc)) {
+			dev_warn(ipc->dev, "%s event:%d/%d fails to get token, status:%d, inreset:%d\n",
 				__func__, event, MAILBOX_EVT_MAX, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
 			return -EINVAL;
 		}
