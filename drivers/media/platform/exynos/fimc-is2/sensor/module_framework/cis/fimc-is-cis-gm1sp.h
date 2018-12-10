@@ -22,8 +22,8 @@
 /* TODO: Check below values are valid */
 #define SENSOR_GM1SP_FINE_INTEGRATION_TIME_MIN                0x0
 #define SENSOR_GM1SP_FINE_INTEGRATION_TIME_MAX                0x0 /* Not used */
-#define SENSOR_GM1SP_COARSE_INTEGRATION_TIME_MIN              0x4 /* TODO */
-#define SENSOR_GM1SP_COARSE_INTEGRATION_TIME_MAX_MARGIN       0x4 /* TODO */
+#define SENSOR_GM1SP_COARSE_INTEGRATION_TIME_MIN              0x2 /* TODO */
+#define SENSOR_GM1SP_COARSE_INTEGRATION_TIME_MAX_MARGIN       0x2 /* TODO */
 
 #define USE_GROUP_PARAM_HOLD	(0)
 
