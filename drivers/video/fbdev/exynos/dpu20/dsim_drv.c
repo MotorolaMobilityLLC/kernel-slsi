@@ -275,6 +275,7 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 	u32 rx_fifo_depth = DSIM_RX_FIFO_MAX_DEPTH;
 	struct decon_device *decon = get_decon_drvdata(0);
 	struct dsim_regs regs;
+	int ret2 = 0;
 
 	decon_hiber_block_exit(decon);
 
@@ -297,6 +298,12 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 	dsim_write_data(dsim, id, addr, 0);
 	if (!wait_for_completion_timeout(&dsim->rd_comp, MIPI_RD_TIMEOUT)) {
 		dsim_err("MIPI DSIM read Timeout!\n");
+		decon_handle_recovery(decon);
+		if (decon->esd.thread) {
+			ret2 = wake_up_process(decon->esd.thread);
+			dsim_info("%s:%d, wakeup esd thread(%d)\n", __func__,
+					__LINE__, ret2);
+		}
 		return -ETIMEDOUT;
 	}
 
@@ -1353,10 +1360,10 @@ static ssize_t dsim_cmd_sysfs_store(struct device *dev,
 
 	switch (cmd) {
 	case 1:
-		ret = dsim_cmd_sysfs_read(dsim);
 #if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
 	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
 #endif
+		ret = dsim_cmd_sysfs_read(dsim);
 		call_panel_ops(dsim, dump, dsim);
 #if defined(CONFIG_EXYNOS_PANEL_INIT_LPDT)
 	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
