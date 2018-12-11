@@ -88,11 +88,14 @@ int sensor_module_s_stream_paf(struct fimc_is_module_enum *module,
 	int ret = 0;
 	struct v4l2_subdev_format fmt;
 	struct v4l2_subdev *subdev;
+	int stream_en = PD_NONE;
 
 #if defined(CONFIG_CAMERA_PDP)
 	subdev = sensor_peri->subdev_pdp;
+	stream_en = enable ? cfg->pd_mode : PD_NONE;
 #elif defined(CONFIG_CAMERA_PAFSTAT)
 	subdev = sensor_peri->subdev_pafstat;
+	stream_en = enable;
 #endif
 	if (subdev) {
 		fmt.format.width = cfg->width;
@@ -104,7 +107,7 @@ int sensor_module_s_stream_paf(struct fimc_is_module_enum *module,
 			return ret;
 		}
 
-		ret = v4l2_subdev_call(subdev, video, s_stream, enable ? cfg->pd_mode : PD_NONE);
+		ret = v4l2_subdev_call(subdev, video, s_stream, stream_en);
 		if (ret) {
 			err("[MOD:%s] PAF s_stream is fail(%d)", module->sensor_name, ret);
 			return ret;
