@@ -249,6 +249,7 @@ void *ipc_get_chub_map(void)
 	ipc_map = ipc_addr[IPC_REG_IPC].base;
 	ipc_map->logbuf.size =
 	    ipc_addr[IPC_REG_IPC].offset - sizeof(struct ipc_map_area) - CHUB_PERSISTBUF_SIZE;
+	strcpy(&ipc_map->magic[0], CHUB_IPC_MAGIC);
 
 	ipc_addr[IPC_REG_IPC_EVT_A2C].base = &ipc_map->evt[IPC_EVT_A2C].data;
 	ipc_addr[IPC_REG_IPC_EVT_A2C].offset = sizeof(struct ipc_evt);
@@ -856,6 +857,11 @@ void ipc_print_evt(enum ipc_evt_list evtq)
 
 void ipc_dump(void)
 {
+	if (strncmp(CHUB_IPC_MAGIC, ipc_map->magic, sizeof(CHUB_IPC_MAGIC))) {
+		CSP_PRINTF_INFO("%s: %s: ipc crash\n", NAME_PREFIX, __func__);
+		return;
+	}
+
 	CSP_PRINTF_INFO("%s: %s: a2x event\n", NAME_PREFIX, __func__);
 	ipc_print_evt(IPC_EVT_A2C);
 	CSP_PRINTF_INFO("%s: %s: c2a event\n", NAME_PREFIX, __func__);
