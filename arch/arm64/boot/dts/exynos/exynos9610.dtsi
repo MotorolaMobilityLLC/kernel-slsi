@@ -329,6 +329,14 @@
 					active-ratio = <5>;
 				};
 			};
+
+			prefer-perf-service {
+				prefer-perf0 {
+					boost = <1>;
+					light-task-threshold = <0>;
+					prefer-cpus = "4-7", "0-3";
+				};
+			};
 		};
 	};
 
