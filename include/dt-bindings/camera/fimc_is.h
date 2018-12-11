@@ -103,4 +103,8 @@
 #define SP_SECURE	10
 #define SP_VIRTUAL	100
 
+#define DUAL_SYNC_NONE		0
+#define DUAL_SYNC_MASTER	1
+#define DUAL_SYNC_SLAVE		2
+
 #endif
