@@ -487,6 +487,9 @@ static int vipx_open(struct inode *inode, struct file *file)
 	file->private_data = vctx;
 
 	mutex_unlock(&core->lock);
+
+	vipx_info("The vipx has been successfully opened\n");
+
 	vipx_leave();
 	return 0;
 p_err_graph:
@@ -494,6 +497,7 @@ p_err_vctx:
 	__vref_put(&core->open_cnt);
 p_err_vref:
 	mutex_unlock(&core->lock);
+	vipx_err("Failed to open the vipx [%d]\n", ret);
 p_err_lock:
 	return ret;
 }
@@ -522,6 +526,7 @@ static int vipx_release(struct inode *inode, struct file *file)
 	__vref_put(&core->open_cnt);
 
 	mutex_unlock(&core->lock);
+	vipx_info("The vipx has been closed\n");
 	vipx_leave();
 	return 0;
 }

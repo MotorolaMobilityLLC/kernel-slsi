@@ -13,10 +13,11 @@
 #include "vipx-kernel-binary.h"
 #include "vipx-context.h"
 
-#define KERNEL_BINARY_DEBUG
-#define LOAD_GRAPH_INFO_DEBUG
-#define UNLOAD_GRAPH_INFO_DEBUG
-#define EXECUTE_DEBUG
+/* Disable DEBUG_LOG */
+// #define KERNEL_BINARY_DEBUG
+// #define LOAD_GRAPH_INFO_DEBUG
+// #define UNLOAD_GRAPH_INFO_DEBUG
+// #define EXECUTE_DEBUG
 
 static struct vipx_buffer *__vipx_context_create_buffer(
 		struct vipx_context *vctx,

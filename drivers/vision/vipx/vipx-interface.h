@@ -21,7 +21,7 @@
 
 #define VIPX_WORK_MAX_COUNT		(20)
 #define VIPX_WORK_MAX_DATA		(24)
-#define VIPX_COMMAND_TIMEOUT		(3 * HZ)
+#define VIPX_COMMAND_TIMEOUT		(10 * HZ)
 
 struct vipx_system;
 
