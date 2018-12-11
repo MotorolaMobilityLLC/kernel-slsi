@@ -71,6 +71,7 @@
 #define CHUB_PERSISTBUF_SIZE (96)
 
 #define OS_UPDT_MAGIC	"Nanohub OS"
+#define CHUB_IPC_MAGIC "IPC magic"
 
 #define BOOTMODE_COLD       (0x7733)
 #define BOOTMODE_PWRGATING  (0x1188)
@@ -422,6 +423,7 @@ struct ipc_debug {
 };
 
 struct ipc_map_area {
+	char magic[16];
 	struct ipc_buf data[IPC_DATA_MAX];
 	struct ipc_evt evt[IPC_EVT_MAX];
 	struct ipc_debug dbg;
