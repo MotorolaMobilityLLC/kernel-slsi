@@ -29,25 +29,24 @@ u32 gamma_lut[3][65];
 u32 cgc_lut[50];
 u32 hsc_lut[35];
 
+#define TUNE_MODE_SIZE 3
+u32 tune_mode[TUNE_MODE_SIZE][280];
+
 int dqe_log_level = 6;
 module_param(dqe_log_level, int, 0644);
-
-const u32 mode1_cgc_tune[50] = {
-	255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0,0,0,255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0
-};
-
-const u32 mode2_cgc_tune[50] = {
-	255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0,0,0,255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0
-};
 
 const u32 bypass_cgc_tune[50] = {
 	255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0,0,0,255,0,0,0,255,0,0,0,255,0,255,255,255,0,255,255,255,0,255,255,255,0,0,0
 };
 
-const u32 nightlight_gamma_tune[3][65] = {
+const u32 bypass_gamma_tune[3][65] = {
 	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
 	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
 	{0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220,224,228,232,236,240,244,248,252,256},
+};
+
+const s32 bypass_hsc_tune[35] = {
+	0,0,0,0,0,0,0,1,15,1,0,1,0,0,0,0,0,0,0,5,-10,0,10,30,170,230,240,155,70,32,1,10,64,51,204
 };
 
 static void dqe_load_context(void)
@@ -164,6 +163,24 @@ static void dqe_init_context(void)
 	dqe->ctx.hsc_control = 0;
 
 	dqe->ctx.need_udpate = true;
+
+	k = 0;
+	for (i = 0; i < 50; i++)
+		tune_mode[0][k++] = bypass_cgc_tune[i];
+
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 65; j++)
+			tune_mode[0][k++] = bypass_gamma_tune[i][j];
+
+	for (i = 0; i < 35; i++)
+		tune_mode[0][k++] = (u32)bypass_hsc_tune[i];
+
+	for (i = 0; i < 280; i++)
+		dqe_dbg("%04x, %d", tune_mode[0][i], tune_mode[0][i]);
+
+	for (i = 1; i < TUNE_MODE_SIZE; i++)
+		for (k = 0; k < 280; k++)
+			tune_mode[i][k] = tune_mode[i-1][k];
 }
 
 static int dqe_save_context(void)
@@ -713,10 +730,271 @@ static DEVICE_ATTR(hsc, 0660,
 	decon_dqe_hsc_show,
 	decon_dqe_hsc_store);
 
+static ssize_t decon_dqe_xml_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dqe_device *dqe = dev_get_drvdata(dev);
+	char *p = buf;
+	int len;
+
+	dqe_info("%s\n", __func__);
+
+	mutex_lock(&dqe->lock);
+
+	len = sprintf(p, "vendor/etc/dqe/calib_data.xml\n");
+
+	mutex_unlock(&dqe->lock);
+
+	return len;
+}
+
+static DEVICE_ATTR(xml, 0440, decon_dqe_xml_show, NULL);
+
+static int dqe_tune_mode_set(char *head, int mode)
+{
+	int ret = 0;
+	int i = 0, j, k;
+	char *ptr = NULL;
+	s32 tune_mode_signed[280] = {0,};
+
+	dqe_info("%s: %d \n", __func__, mode);
+
+	if  (*head != 0) {
+		dqe_dbg("%s\n", head);
+			k = 280;
+			for (j = 0; j < k; j++) {
+				ptr = strchr(head, ',');
+				if (ptr == NULL) {
+					dqe_err("not found comma.(%d, %d)\n", i, j);
+					ret = -EINVAL;
+					goto err;
+				}
+				*ptr = 0;
+				ret = kstrtos32(head, 0, &tune_mode_signed[j]);
+				if (ret) {
+					dqe_err("strtos32(%d, %d) error.\n", i, j);
+					ret = -EINVAL;
+					goto err;
+				}
+				head = ptr + 1;
+			}
+
+	} else {
+		dqe_err("buffer is null.\n");
+		goto err;
+	}
+
+	/* signed -> unsigned */
+	for (i = 0; i < 280; i++) {
+		tune_mode[mode][i] = (u32)tune_mode_signed[i];
+		dqe_dbg("%04x %d", tune_mode[mode][i], tune_mode_signed[i]);
+	}
+err:
+	if (ret)
+		dqe_info("%s : err(%d)\n", __func__, ret);
+
+	return ret;
+
+}
+
+static ssize_t decon_dqe_tune_mode1_store(struct device *dev, struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	int ret = 0;
+	char *head = NULL;
+	struct dqe_device *dqe = dev_get_drvdata(dev);
+
+	dqe_info("%s +\n", __func__);
+
+	mutex_lock(&dqe->lock);
+
+	if (count <= 0) {
+		dqe_err("tune mode1 write count error\n");
+		ret = -1;
+		goto err;
+	}
+
+	head = (char *)buffer;
+
+	ret = dqe_tune_mode_set(head, 1);
+	if (ret)
+		goto err;
+
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s -\n", __func__);
+
+	return count;
+err:
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s : err(%d)\n", __func__, ret);
+
+	return ret;
+}
+
+static DEVICE_ATTR(tune_mode1, 0660,
+	NULL,
+	decon_dqe_tune_mode1_store);
+
+static ssize_t decon_dqe_tune_mode2_store(struct device *dev, struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	int ret = 0;
+	char *head = NULL;
+	struct dqe_device *dqe = dev_get_drvdata(dev);
+
+	dqe_info("%s +\n", __func__);
+
+	mutex_lock(&dqe->lock);
+
+	if (count <= 0) {
+		dqe_err("tune mode2 write count error\n");
+		ret = -1;
+		goto err;
+	}
+
+	head = (char *)buffer;
+
+	ret = dqe_tune_mode_set(head, 2);
+	if (ret)
+		goto err;
+
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s -\n", __func__);
+
+	return count;
+err:
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s : err(%d)\n", __func__, ret);
+
+	return ret;
+}
+
+static DEVICE_ATTR(tune_mode2, 0660,
+	NULL,
+	decon_dqe_tune_mode2_store);
+
+static ssize_t decon_dqe_aosp_color_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int val = 0;
+	ssize_t count = 0;
+
+	dqe_info("%s\n", __func__);
+
+	count = snprintf(buf, PAGE_SIZE, "aosp_colors = %d\n", val);
+
+	return count;
+}
+
+static ssize_t decon_dqe_aosp_colors_store(struct device *dev, struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	int i, ret = 0;
+	unsigned int value = 0;
+	struct dqe_device *dqe = dev_get_drvdata(dev);
+	struct decon_device *decon = get_decon_drvdata(0);
+
+	dqe_info("%s +\n", __func__);
+
+	mutex_lock(&dqe->lock);
+
+	if (count <= 0) {
+		dqe_err("aosp colors write count error\n");
+		ret = -1;
+		goto err;
+	}
+
+	if (decon) {
+		if ((decon->state == DECON_STATE_OFF) ||
+			(decon->state == DECON_STATE_INIT)) {
+			dqe_err("decon is not enabled!(%d)\n", decon->state);
+			ret = -1;
+			goto err;
+		}
+	} else {
+		dqe_err("decon is NULL!\n");
+		ret = -1;
+		goto err;
+	}
+
+	ret = kstrtouint(buffer, 0, &value);
+	if (ret < 0)
+		goto err;
+
+	dqe_info("%s: %d\n", __func__, value);
+
+	switch (value) {
+	case 0: /* Natural */
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[1][i];
+		break;
+
+	case 1:/* Boosted */
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[1][i];
+		break;
+
+	case 2:/* Saturated */
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[0][i];
+		break;
+
+	case 90:/* mode0 */
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[0][i];
+		break;
+
+	case 91:/* mode1 */
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[1][i];
+		break;
+
+	case 92:/* mode1 */
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[2][i];
+		break;
+
+	default:
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[0][i];
+		break;
+	}
+
+	dqe_cgc_lut_set();
+
+	dqe->ctx.cgc_on = DQE_CGC_ON_MASK;
+	dqe->ctx.need_udpate = true;
+
+	dqe_restore_context();
+	decon_reg_update_req_dqe(decon->id);
+
+	mutex_unlock(&dqe->lock);
+
+	return count;
+err:
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s : err(%d)\n", __func__, ret);
+
+	return ret;
+}
+
+static DEVICE_ATTR(aosp_colors, 0660,
+	decon_dqe_aosp_color_show,
+	decon_dqe_aosp_colors_store);
+
 static struct attribute *dqe_attrs[] = {
 	&dev_attr_gamma.attr,
 	&dev_attr_cgc.attr,
 	&dev_attr_hsc.attr,
+	&dev_attr_xml.attr,
+	&dev_attr_tune_mode1.attr,
+	&dev_attr_tune_mode2.attr,
+	&dev_attr_aosp_colors.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(dqe);
@@ -747,17 +1025,17 @@ int decon_dqe_set_color_mode(struct decon_color_mode_with_render_intent_info *mo
 	switch (mode->color_mode) {
 	case HAL_COLOR_MODE_SRGB:
 		for (i = 0; i < 50; i++)
-			cgc_lut[i] =mode1_cgc_tune[i] ;
+			cgc_lut[i] = tune_mode[1][i];
 		break;
 
 	case HAL_COLOR_MODE_DCI_P3:
 		for (i = 0; i < 50; i++)
-			cgc_lut[i] =mode2_cgc_tune[i] ;
+			cgc_lut[i] = tune_mode[2][i];
 		break;
 
 	default:
 		for (i = 0; i < 50; i++)
-			cgc_lut[i] =bypass_cgc_tune[i] ;
+			cgc_lut[i] = tune_mode[0][i];
 		break;
 	}
 
@@ -828,10 +1106,6 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 		goto err;
 	}
 
-
-	dqe_info("%s : color_mode=%d, hint=%d\n", __func__,
-		dqe->ctx.color_mode, transform->hint);
-
 	if (transform->matrix[0] != 65536/*transform->hint*/) {
 		for (i = 0; i < 16; i++)
 			dqe_dbg("matrix[%d] = %d\n", i, transform->matrix[i]);
@@ -854,7 +1128,7 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 65; j++)
-				gamma_lut[i][j] = nightlight_gamma_tune[i][j];
+				gamma_lut[i][j] = bypass_gamma_tune[i][j];
 
 	for (j = 0; j < 65; j++) {
 		int inR, inG, inB, outR, outG, outB;
@@ -884,7 +1158,8 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 err:
 	mutex_unlock(&dqe->lock);
 
-	dqe_info("%s : ret(%d)\n", __func__, ret);
+	dqe_info("%s : ret=%d color_mode=%d, hint=%d\n",
+		__func__,ret , dqe->ctx.color_mode, transform->hint);
 
 	return ret;
 }
