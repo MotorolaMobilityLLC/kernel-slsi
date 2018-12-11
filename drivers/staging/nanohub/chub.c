@@ -982,10 +982,8 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 			else /* use previous binary */
 				ret = contexthub_download_and_check_image(ipc, IPC_REG_OS);
 
-			if (ret) {
+			if (ret)
 				dev_err(ipc->dev, "%s: download os fails\n", __func__);
-				goto out;
-			}
 		} else {
 				dev_err(ipc->dev, "%s: download bl fails\n", __func__);
 				goto out;
