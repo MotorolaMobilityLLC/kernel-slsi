@@ -1182,6 +1182,30 @@ void nanohub_add_dump_request(struct nanohub_data *data)
 		pr_err("%s: cann't get io buf\n", __func__);
 	}
 }
+
+static ssize_t chub_dumpio_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct nanohub_data *data = dev_get_nanohub_data(dev);
+	struct nanohub_io *io;
+	struct nanohub_buf *desc = NULL;
+	int buf_io_cnt[ID_NANOHUB_MAX] = {0, 0};
+	int free_io_cnt = 0;
+	int i;
+	int io_num;
+
+	for (i = 0; i < ID_NANOHUB_MAX; i++) {
+		io_num = i;
+		io = &data->io[i];
+		list_for_each_entry(desc, &io->buf_list, list)
+			buf_io_cnt[i]++;
+	}
+	list_for_each_entry(desc, &data->free_pool.buf_list, list)
+		free_io_cnt++;
+
+	return sprintf(buf, "%s: sensor:%d, comms:%d, free:%d \n", __func__,
+		buf_io_cnt[ID_NANOHUB_SENSOR], buf_io_cnt[ID_NANOHUB_COMMS], free_io_cnt);
+}
 #endif
 
 static struct device_attribute attributes[] = {
@@ -1206,6 +1230,7 @@ static struct device_attribute attributes[] = {
 #ifdef CONFIG_NANOHUB_MAILBOX
 	__ATTR(chipid, 0664, chub_chipid_show, chub_chipid_store),
 	__ATTR(sensortype, 0775, chub_sensortype_show, chub_sensortype_store),
+	__ATTR(dumpio, 0440, chub_dumpio_show, NULL),
 #endif
 };
 
