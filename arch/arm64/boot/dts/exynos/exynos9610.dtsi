@@ -3175,6 +3175,8 @@
 			pm_qos-min-class = <3>;
 			pm_qos-max-class = <4>;
 
+			user-boost = <0>;
+
 			#cooling-cells = <2>; /* min followed by max */
 
 			dm-constraints {
