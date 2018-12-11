@@ -354,25 +354,9 @@ int pafstat_init(struct v4l2_subdev *subdev, u32 val)
 	return 0;
 }
 
-static int pafstat_s_stream(struct v4l2_subdev *subdev, int pd_mode)
+static int pafstat_s_stream(struct v4l2_subdev *subdev, int enable)
 {
-	int irq_state = 0;
-	int enable = 0;
 	struct fimc_is_pafstat *pafstat;
-	struct fimc_is_device_sensor_peri *sensor_peri;
-	struct fimc_is_module_enum *module;
-	cis_shared_data *cis_data = NULL;
-	u32 lic_mode;
-	enum pafstat_input_path input = PAFSTAT_INPUT_OTF;
-
-	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
-	WARN_ON(!module);
-
-	sensor_peri = module->private_data;
-	WARN_ON(!sensor_peri);
-
-	cis_data = sensor_peri->cis.cis_data;
-	WARN_ON(!cis_data);
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -380,24 +364,9 @@ static int pafstat_s_stream(struct v4l2_subdev *subdev, int pd_mode)
 		return -ENODEV;
 	}
 
-	enable = pafstat_hw_s_sensor_mode(pafstat->regs, pd_mode);
-	pafstat_hw_s_irq_mask(pafstat->regs, PAFSTAT_INT_MASK);
+	pafstat_hw_s_enable(pafstat->regs, enable);
 
-	cis_data->is_data.paf_stat_enable = enable;
-	irq_state = pafstat_hw_g_irq_src(pafstat->regs);
-
-	lic_mode = (pafstat->fro_cnt == 0 ? LIC_MODE_INTERLEAVING : LIC_MODE_SINGLE_BUFFER);
-	pafstat_hw_com_s_lic_mode(pafstat->regs_com, pafstat->id, lic_mode, input);
-	pafstat_hw_com_s_output_mask(pafstat->regs_com, 0);
-	pafstat_hw_s_input_path(pafstat->regs, input);
-	pafstat_hw_s_img_size(pafstat->regs, pafstat->in_width, pafstat->in_height);
-
-	pafstat_hw_s_ready(pafstat->regs, 1);
-	pafstat_hw_s_enable(pafstat->regs, 1);
-
-	info("[PAFSTAT:%d] PD_MODE:%d, HW_ENABLE:%d, IRQ:0x%x, IRQ_MASK:0x%x, LIC_MODE(%s)\n",
-		pafstat->id, pd_mode, enable, irq_state, PAFSTAT_INT_MASK,
-		lic_mode == LIC_MODE_INTERLEAVING ? "INTERLEAVING": "SINGLE_BUFFER");
+	info("[PAFSTAT:%d] CORE_EN:%d\n", pafstat->id, enable);
 
 	return 0;
 }
@@ -413,9 +382,16 @@ static int pafstat_s_format(struct v4l2_subdev *subdev,
 {
 	int ret = 0;
 	size_t width, height;
+	int irq_state = 0;
+	int pd_enable = 0;
+	u32 lic_mode;
+	int pd_mode = PD_NONE;
+	enum pafstat_input_path input = PAFSTAT_INPUT_OTF;
 	struct fimc_is_pafstat *pafstat;
 	struct fimc_is_module_enum *module;
 	struct fimc_is_device_sensor *sensor = NULL;
+	struct fimc_is_device_sensor_peri *sensor_peri;
+	cis_shared_data *cis_data = NULL;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -429,6 +405,11 @@ static int pafstat_s_format(struct v4l2_subdev *subdev,
 	pafstat->in_width = width;
 	pafstat->in_height = height;
 	pafstat_hw_s_img_size(pafstat->regs, pafstat->in_width, pafstat->in_height);
+
+	lic_mode = (pafstat->fro_cnt == 0 ? LIC_MODE_INTERLEAVING : LIC_MODE_SINGLE_BUFFER);
+	pafstat_hw_com_s_lic_mode(pafstat->regs_com, pafstat->id, lic_mode, input);
+	pafstat_hw_com_s_output_mask(pafstat->regs_com, 0);
+	pafstat_hw_s_input_path(pafstat->regs, input);
 
 	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
 	if (!module) {
@@ -444,11 +425,30 @@ static int pafstat_s_format(struct v4l2_subdev *subdev,
 		goto p_err;
 	}
 
+	sensor_peri = module->private_data;
+	WARN_ON(!sensor_peri);
+
+	cis_data = sensor_peri->cis.cis_data;
+	WARN_ON(!cis_data);
+
 	if (sensor->cfg) {
 		pafstat->pd_width = sensor->cfg->input[CSI_VIRTUAL_CH_1].width;
 		pafstat->pd_height = sensor->cfg->input[CSI_VIRTUAL_CH_1].height;
 		pafstat_hw_s_pd_size(pafstat->regs, pafstat->pd_width, pafstat->pd_height);
+		pd_mode = sensor->cfg->pd_mode;
 	}
+
+	pd_enable = pafstat_hw_s_sensor_mode(pafstat->regs, pd_mode);
+	cis_data->is_data.paf_stat_enable = pd_enable;
+
+	pafstat_hw_s_irq_mask(pafstat->regs, PAFSTAT_INT_MASK);
+	irq_state = pafstat_hw_g_irq_src(pafstat->regs);
+
+	pafstat_hw_s_ready(pafstat->regs, 1);
+
+	info("[PAFSTAT:%d] PD_MODE:%d, PD_ENABLE:%d, IRQ:0x%x, IRQ_MASK:0x%x, LIC_MODE(%s)\n",
+		pafstat->id, pd_mode, pd_enable, irq_state, PAFSTAT_INT_MASK,
+		lic_mode == LIC_MODE_INTERLEAVING ? "INTERLEAVING" : "SINGLE_BUFFER");
 
 	info("[PAFSTAT:%d] %s: image_size(%lux%lu) pd_size(%lux%lu) ret(%d)\n", pafstat->id, __func__,
 		width, height, pafstat->pd_width, pafstat->pd_height, ret);
@@ -461,6 +461,8 @@ int fimc_is_pafstat_reset_recovery(struct v4l2_subdev *subdev, u32 reset_mode, i
 {
 	int ret = 0;
 	struct fimc_is_pafstat *pafstat;
+	struct v4l2_subdev_pad_config *cfg = NULL;
+	struct v4l2_subdev_format *fmt = NULL;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -472,7 +474,8 @@ int fimc_is_pafstat_reset_recovery(struct v4l2_subdev *subdev, u32 reset_mode, i
 		pafstat_hw_com_s_output_mask(pafstat->regs_com, 1);
 		pafstat_hw_sw_reset(pafstat->regs);
 	} else {
-		pafstat_s_stream(subdev, pd_mode);
+		pafstat_s_format(subdev, cfg, fmt);
+		pafstat_s_stream(subdev, 1);
 		pafstat_hw_com_s_output_mask(pafstat->regs_com, 0);
 	}
 
