@@ -1935,6 +1935,12 @@ int copy_sensor_ctl(struct fimc_is_sensor_interface *itf,
 		else
 			itf->cis_mode = ITF_CIS_SMIA;
 
+		if (shot->uctl.cameraMode == AA_CAMERAMODE_DUAL_SYNC
+			|| shot->uctl.cameraMode == AA_CAMERAMODE_DUAL_SYNC_SAME_TIME_CONTROL)
+			cis_data->dual_sync_enable = true;
+		else
+			cis_data->dual_sync_enable = false;
+
 		/* set frame rate : Limit of max frame duration
 		 * Frame duration is set by
 		 * 1. Manual sensor control
