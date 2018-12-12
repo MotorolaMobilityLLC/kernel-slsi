@@ -1463,15 +1463,10 @@ p_err:
 	return ret;
 }
 
-int sensor_gm1sp_cis_set_dual_master_setting(struct v4l2_subdev *subdev)
+static int sensor_gm1sp_cis_set_dual_master_setting(struct fimc_is_cis *cis)
 {
 	int ret = 0;
-	struct fimc_is_cis *cis;
 	struct i2c_client *client;
-
-	FIMC_BUG(!subdev);
-
-	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 
 	FIMC_BUG(!cis);
 
@@ -1519,6 +1514,41 @@ p_err:
 	return ret;
 }
 
+int sensor_gm1sp_cis_set_dual_setting(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+
+	FIMC_BUG(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	FIMC_BUG(!cis);
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	switch (cis->dual_sync_mode) {
+	case DUAL_SYNC_MASTER:
+		ret = sensor_gm1sp_cis_set_dual_master_setting(cis);
+		if (ret)
+			err("gm1sp dual master setting fail");
+		break;
+	case DUAL_SYNC_SLAVE:
+		break;
+	default:
+		err("invalid cis->dual_sync_mode(%d)\n", cis->dual_sync_mode);
+		ret = -EINVAL;
+	}
+
+p_err:
+	return ret;
+}
 
 static struct fimc_is_cis_ops cis_ops = {
 	.cis_init = sensor_gm1sp_cis_init,
@@ -1550,7 +1580,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 	.cis_check_rev = sensor_gm1sp_cis_check_rev,
 	.cis_factory_test = sensor_cis_factory_test,
-	.cis_set_dual_setting = sensor_gm1sp_cis_set_dual_master_setting,
+	.cis_set_dual_setting = sensor_gm1sp_cis_set_dual_setting,
 };
 
 static int cis_gm1sp_probe(struct i2c_client *client,
@@ -1637,6 +1667,16 @@ static int cis_gm1sp_probe(struct i2c_client *client,
 	}
 
 	probe_info("%s f-number %d\n", __func__, cis->aperture_num);
+
+	if (of_property_read_bool(dnode, "dual_sync_mode")) {
+		ret = of_property_read_u32(dnode, "dual_sync_mode", &cis->dual_sync_mode);
+		if (ret)
+			warn("dual_sync_mode read is fail(%d)", ret);
+	} else {
+		cis->dual_sync_mode = DUAL_SYNC_NONE;
+	}
+
+	probe_info("%s dual_sync_mode %d\n", __func__, cis->dual_sync_mode);
 
 	cis->use_dgain = true;
 	cis->hdr_ctrl_by_again = false;
