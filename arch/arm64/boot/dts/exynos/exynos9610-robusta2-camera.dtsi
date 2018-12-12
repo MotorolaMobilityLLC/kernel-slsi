@@ -523,6 +523,7 @@
 		id = <0>; /* matching fimc_is_sensor id */
 		setfile = "setB";
 		use_initial_ae; /* for initial AE */
+		dual_sync_mode = <DUAL_SYNC_MASTER>;
 	};
 
 	fimc-is-actuator@72 {
@@ -562,6 +563,7 @@
 		id = <2>; /* matching fimc_is_sensor id */
 		setfile = "setC";
 		use_initial_ae; /* for initial AE */
+		dual_sync_mode = <DUAL_SYNC_SLAVE>;
 	};
 
 	fimc-is-eeprom@54 {
