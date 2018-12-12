@@ -96,6 +96,9 @@ struct fimc_is_cis {
 
 	/* settings for sensor stat */
 	void				*sensor_stats;
+
+	/* dual sync mode */
+	u32				dual_sync_mode;
 };
 
 struct fimc_is_actuator_data {

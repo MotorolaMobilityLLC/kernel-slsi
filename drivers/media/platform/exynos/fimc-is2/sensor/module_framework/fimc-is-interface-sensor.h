@@ -361,6 +361,7 @@ typedef struct {
 #ifdef CAMERA_REAR2_SENSOR_SHIFT_CROP
 	u32				sensor_shifted_num;
 #endif
+	bool dual_sync_enable;
 } cis_shared_data;
 
 struct v4l2_subdev;
