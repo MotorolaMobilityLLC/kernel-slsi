@@ -319,7 +319,7 @@ static void handle_debug_work(struct contexthub_ipc_info *ipc, enum chub_err_typ
 		dev_info(ipc->dev, "%s: request silent reset. err:%d, alive:%d, status:%d, in-reset:%d\n",
 			__func__, err, alive, __raw_readl(&ipc->chub_status),
 			__raw_readl(&ipc->in_reset));
-		ret = contexthub_reset(ipc, 0, err);
+		ret = contexthub_reset(ipc, 1, err);
 		if (ret)
 			dev_warn(ipc->dev, "%s: fails to reset:%d. status:%d\n",
 				__func__, ret, __raw_readl(&ipc->chub_status));
@@ -991,7 +991,8 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 	int trycnt = 0;
 
 	dev_info(ipc->dev, "%s: force:%d, status:%d, in-reset:%d, dump:%d, user:%d\n",
-		__func__, force_load, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset), dump, atomic_read(&ipc->in_use_ipc));
+		__func__, force_load, atomic_read(&ipc->chub_status),
+		atomic_read(&ipc->in_reset), dump, atomic_read(&ipc->in_use_ipc));
 	mutex_lock(&reset_mutex);
 	if (!force_load && (atomic_read(&ipc->chub_status) == CHUB_ST_RUN)) {
 		mutex_unlock(&reset_mutex);
@@ -1003,12 +1004,14 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump)
 	do {
 		msleep(WAIT_CHUB_MS);
 		if (++trycnt > RESET_WAIT_TRY_CNT) {
-			dev_info(ipc->dev, "%s: can't get lock. in_use_ipc: %d\n", __func__, atomic_read(&ipc->in_use_ipc));
+			dev_info(ipc->dev, "%s: can't get lock. in_use_ipc: %d\n",
+				__func__, atomic_read(&ipc->in_use_ipc));
 			atomic_dec(&ipc->in_reset);
 			mutex_unlock(&reset_mutex);
 			return -EINVAL;
 		}
-		dev_info(ipc->dev, "%s: wait for ipc user free: %d\n", __func__, atomic_read(&ipc->in_use_ipc));
+		dev_info(ipc->dev, "%s: wait for ipc user free: %d\n",
+			__func__, atomic_read(&ipc->in_use_ipc));
 	} while (atomic_read(&ipc->in_use_ipc));
 
 	if (dump) {
