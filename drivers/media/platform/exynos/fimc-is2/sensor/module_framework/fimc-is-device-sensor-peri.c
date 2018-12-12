@@ -1732,6 +1732,11 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			}
 		}
 
+		/* HACK: when sensor0/2 opened, hw_sync enable forcely */
+		if (test_bit(FIMC_IS_SENSOR_OPEN, &core->sensor[0].state)
+			&& test_bit(FIMC_IS_SENSOR_OPEN, &core->sensor[2].state))
+			cis->cis_data->dual_sync_enable = true;
+
 		if (cis->cis_data->dual_sync_enable) {
 			ret = CALL_CISOPS(cis, cis_set_dual_setting, subdev_cis);
 			if (ret)
