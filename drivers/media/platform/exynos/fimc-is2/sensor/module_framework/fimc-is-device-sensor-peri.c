@@ -1732,13 +1732,11 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			}
 		}
 
-		/* dual master setting */
-		if (cis->id == SENSOR_NAME_S5KGM1SP)
+		if (cis->cis_data->dual_sync_enable) {
 			ret = CALL_CISOPS(cis, cis_set_dual_setting, subdev_cis);
-
-		/* dual slave setting */
-		if (test_bit(FIMC_IS_SENSOR_OPEN, &core->sensor[0].state) && cis->id == SENSOR_NAME_S5K5E9)
-			ret = CALL_CISOPS(cis, cis_set_dual_setting, subdev_cis);
+			if (ret)
+				err("[%s]: cis_set_dual_setting fail\n", __func__);
+		}
 
 		ret = CALL_CISOPS(cis, cis_stream_on, subdev_cis);
 		if (ret < 0) {
