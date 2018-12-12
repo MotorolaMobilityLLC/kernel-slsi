@@ -757,7 +757,7 @@ static int nanohub_hw_reset(struct nanohub_data *data)
 	}
 #elif defined(CONFIG_NANOHUB_MAILBOX)
 #ifdef CHUB_RESET_ENABLE
-	ret = contexthub_reset(data->pdata->mailbox_client, 0, CHUB_ERR_COMMS);
+	ret = contexthub_reset(data->pdata->mailbox_client, 1, CHUB_ERR_COMMS);
 #else
 	ret = -EINVAL;
 #endif
