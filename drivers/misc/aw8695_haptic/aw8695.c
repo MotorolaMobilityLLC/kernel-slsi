@@ -1,7 +1,7 @@
 /*
  * aw8695.c   aw8695 haptic module
  *
- * Version: v1.2.4
+ * Version: v1.2.8
  *
  * Copyright (c) 2018 AWINIC Technology CO., LTD
  *
@@ -41,7 +41,7 @@
 #define AW8695_I2C_NAME "aw8695_haptic"
 #define AW8695_HAPTIC_NAME "aw8695_haptic"
 
-#define AW8695_VERSION "v1.2.4"
+#define AW8695_VERSION "v1.2.8"
 
 
 #define AWINIC_RAM_UPDATE_DELAY
@@ -56,7 +56,9 @@
 
 
 #define AW8695_MAX_FIRMWARE_LOAD_CNT 20
-
+#ifdef MOTO_VIBRATOR_SUPPORT
+#define AW8695_SEQ_NO_RTP_BASE 102
+#endif
 /******************************************************
  *
  * variable
@@ -80,7 +82,9 @@ struct aw8695 *g_aw8695;
  ******************************************************/
 static void aw8695_interrupt_clear(struct aw8695 *aw8695);
 static int aw8695_haptic_trig_enable_config(struct aw8695 *aw8695);
-
+#ifdef MOTO_VIBRATOR_SUOOPRT
+static void aw8695_vibrate(struct aw8695 *aw8695, int value);
+#endif
 
  /******************************************************
  *
@@ -419,23 +423,22 @@ static int aw8695_haptic_play_mode(struct aw8695 *aw8695, unsigned char play_mod
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_PLAY_MODE_MASK, AW8695_BIT_SYSCTRL_PLAY_MODE_RAM);
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
-            if(aw8695->auto_boost) {
-                aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
-                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
-            }
-            aw8695_haptic_active(aw8695);
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BYPASS);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
                         AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_DISABLE);
             }
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
+            aw8695_haptic_active(aw8695);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
                         AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
+                aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+                        AW8695_BIT_SYSCTRL_BST_MODE_MASK&AW8695_BIT_SYSCTRL_WORK_MODE_MASK,
+                        AW8695_BIT_SYSCTRL_BST_MODE_BOOST|AW8695_BIT_SYSCTRL_STANDBY);
+                aw8695_haptic_active(aw8695);
+            } else {
+                aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+                        AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
             }
             msleep(3);
             break;
@@ -444,42 +447,34 @@ static int aw8695_haptic_play_mode(struct aw8695 *aw8695, unsigned char play_mod
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_PLAY_MODE_MASK, AW8695_BIT_SYSCTRL_PLAY_MODE_RAM);
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
-            if(aw8695->auto_boost) {
-                aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
-                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
-            }
-            aw8695_haptic_active(aw8695);
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BYPASS);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
                         AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_DISABLE);
             }
-            msleep(3);
+            aw8695_haptic_active(aw8695);
             break;
         case AW8695_HAPTIC_RTP_MODE:
             aw8695->play_mode = AW8695_HAPTIC_RTP_MODE;
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_PLAY_MODE_MASK, AW8695_BIT_SYSCTRL_PLAY_MODE_RTP);
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
-            if(aw8695->auto_boost) {
-                aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
-                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
-            }
-            aw8695_haptic_active(aw8695);
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BYPASS);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
-                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_DISABLE);
+                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RTP_DISABLE);
             }
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
+            aw8695_haptic_active(aw8695);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
-                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
+                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RTP_ENABLE);
+                aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+                        AW8695_BIT_SYSCTRL_BST_MODE_MASK&AW8695_BIT_SYSCTRL_WORK_MODE_MASK,
+                        AW8695_BIT_SYSCTRL_BST_MODE_BOOST|AW8695_BIT_SYSCTRL_STANDBY);
+                aw8695_haptic_active(aw8695);
+            } else {
+                aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+                        AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
             }
             msleep(3);
             break;
@@ -488,23 +483,22 @@ static int aw8695_haptic_play_mode(struct aw8695 *aw8695, unsigned char play_mod
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_PLAY_MODE_MASK, AW8695_BIT_SYSCTRL_PLAY_MODE_RAM);
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
-            if(aw8695->auto_boost) {
-                aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
-                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
-            }
-            aw8695_haptic_active(aw8695);
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BYPASS);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
                         AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_DISABLE);
             }
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
+            aw8695_haptic_active(aw8695);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
                         AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
+                aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+                        AW8695_BIT_SYSCTRL_BST_MODE_MASK&AW8695_BIT_SYSCTRL_WORK_MODE_MASK,
+                        AW8695_BIT_SYSCTRL_BST_MODE_BOOST|AW8695_BIT_SYSCTRL_STANDBY);
+                aw8695_haptic_active(aw8695);
+            } else {
+                aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+                        AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
             }
             msleep(3);
             break;
@@ -513,19 +507,12 @@ static int aw8695_haptic_play_mode(struct aw8695 *aw8695, unsigned char play_mod
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_PLAY_MODE_MASK, AW8695_BIT_SYSCTRL_PLAY_MODE_CONT);
             aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-                    AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
-            if(aw8695->auto_boost) {
-                aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
-                        AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_ENABLE);
-            }
-            aw8695_haptic_active(aw8695);
-            aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
                     AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BYPASS);
             if(aw8695->auto_boost) {
                 aw8695_i2c_write_bits(aw8695, AW8695_REG_BST_AUTO,
                         AW8695_BIT_BST_AUTO_BST_RAM_MASK, AW8695_BIT_BST_AUTO_BST_RAM_DISABLE);
             }
-            msleep(3);
+            aw8695_haptic_active(aw8695);
             break;
         default:
             dev_err(aw8695->dev, "%s: play mode %d err",
@@ -555,13 +542,13 @@ static int aw8695_haptic_stop_delay(struct aw8695 *aw8695)
     unsigned int cnt = 100;
 
     while(cnt--) {
-    aw8695_i2c_read(aw8695, AW8695_REG_GLB_STATE, &reg_val);
-    if((reg_val&0x0f) == 0x00) {
-        return 0;
-    }
-    msleep(2);
-    pr_info("%s wait for standby, reg glb_state=0x%02x\n",
-        __func__, reg_val);
+        aw8695_i2c_read(aw8695, AW8695_REG_GLB_STATE, &reg_val);
+        if((reg_val&0x0f) == 0x00) {
+            return 0;
+        }
+        msleep(2);
+        pr_debug("%s wait for standby, reg glb_state=0x%02x\n",
+            __func__, reg_val);
     }
     pr_err("%s do not enter standby automatically\n", __func__);
 
@@ -680,7 +667,6 @@ static int aw8695_haptic_play_wav_seq(struct aw8695 *aw8695, unsigned char flag)
 {
     pr_debug("%s enter\n", __func__);
 
-    //aw8695_haptic_stop(aw8695);
     if(flag) {
         aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_RAM_MODE);
         aw8695_haptic_start(aw8695);
@@ -691,7 +677,7 @@ static int aw8695_haptic_play_wav_seq(struct aw8695 *aw8695, unsigned char flag)
 static int aw8695_haptic_play_repeat_seq(struct aw8695 *aw8695, unsigned char flag)
 {
     pr_debug("%s enter\n", __func__);
-    //aw8695_haptic_stop(aw8695);
+
     if(flag) {
         aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_RAM_LOOP_MODE);
         aw8695_haptic_start(aw8695);
@@ -700,6 +686,11 @@ static int aw8695_haptic_play_repeat_seq(struct aw8695 *aw8695, unsigned char fl
     return 0;
 }
 
+/*****************************************************
+ *
+ * motor protect
+ *
+ *****************************************************/
 static int aw8695_haptic_swicth_motorprotect_config(struct aw8695 *aw8695, unsigned char addr, unsigned char val)
 {
     pr_debug("%s enter\n", __func__);
@@ -729,18 +720,106 @@ static int aw8695_haptic_swicth_motorprotect_config(struct aw8695 *aw8695, unsig
     } else{
         /*nothing to do;*/
     }
-	 return 0;
+    return 0;
 }
 
-static int aw8695_haptic_trig_default_level(struct aw8695 *aw8695)
+
+/*****************************************************
+ *
+ * trig config
+ *
+ *****************************************************/
+static int aw8695_haptic_trig_param_init(struct aw8695 *aw8695)
 {
     pr_debug("%s enter\n", __func__);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
-            AW8695_BIT_TRGCFG1_TRG1_POLAR_MASK, AW8695_TRG1_DEFAULT_POLAR);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
-            AW8695_BIT_TRGCFG1_TRG2_POLAR_MASK, AW8695_TRG2_DEFAULT_POLAR);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
-            AW8695_BIT_TRGCFG1_TRG3_POLAR_MASK, AW8695_TRG3_DEFAULT_POLAR);
+
+    aw8695->trig[0].enable = AW8695_TRG1_ENABLE;
+    aw8695->trig[0].default_level = AW8695_TRG1_DEFAULT_LEVEL;
+    aw8695->trig[0].dual_edge = AW8695_TRG1_DUAL_EDGE;
+    aw8695->trig[0].frist_seq = AW8695_TRG1_FIRST_EDGE_SEQ;
+    aw8695->trig[0].second_seq = AW8695_TRG1_SECOND_EDGE_SEQ;
+
+    aw8695->trig[1].enable = AW8695_TRG2_ENABLE;
+    aw8695->trig[1].default_level = AW8695_TRG2_DEFAULT_LEVEL;
+    aw8695->trig[1].dual_edge = AW8695_TRG2_DUAL_EDGE;
+    aw8695->trig[1].frist_seq = AW8695_TRG2_FIRST_EDGE_SEQ;
+    aw8695->trig[1].second_seq = AW8695_TRG2_SECOND_EDGE_SEQ;
+
+    aw8695->trig[2].enable = AW8695_TRG3_ENABLE;
+    aw8695->trig[2].default_level = AW8695_TRG3_DEFAULT_LEVEL;
+    aw8695->trig[2].dual_edge = AW8695_TRG3_DUAL_EDGE;
+    aw8695->trig[2].frist_seq = AW8695_TRG3_FIRST_EDGE_SEQ;
+    aw8695->trig[2].second_seq = AW8695_TRG3_SECOND_EDGE_SEQ;
+
+    return 0;
+}
+
+static int aw8695_haptic_trig_param_config(struct aw8695 *aw8695)
+{
+    pr_debug("%s enter\n", __func__);
+
+    if(aw8695->trig[0].default_level) {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG1_POLAR_MASK, AW8695_BIT_TRGCFG1_TRG1_POLAR_NEG);
+    } else {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG1_POLAR_MASK, AW8695_BIT_TRGCFG1_TRG1_POLAR_POS);
+    }
+    if(aw8695->trig[1].default_level) {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG2_POLAR_MASK, AW8695_BIT_TRGCFG1_TRG2_POLAR_NEG);
+    } else {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG2_POLAR_MASK, AW8695_BIT_TRGCFG1_TRG2_POLAR_POS);
+    }
+    if(aw8695->trig[2].default_level) {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG3_POLAR_MASK, AW8695_BIT_TRGCFG1_TRG3_POLAR_NEG);
+    } else {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG3_POLAR_MASK, AW8695_BIT_TRGCFG1_TRG3_POLAR_POS);
+    }
+
+    if(aw8695->trig[0].dual_edge) {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG1_EDGE_MASK, AW8695_BIT_TRGCFG1_TRG1_EDGE_POS_NEG);
+    } else {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG1_EDGE_MASK, AW8695_BIT_TRGCFG1_TRG1_EDGE_POS);
+    }
+    if(aw8695->trig[1].dual_edge) {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG2_EDGE_MASK, AW8695_BIT_TRGCFG1_TRG2_EDGE_POS_NEG);
+    } else {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG2_EDGE_MASK, AW8695_BIT_TRGCFG1_TRG2_EDGE_POS);
+    }
+    if(aw8695->trig[2].dual_edge) {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG3_EDGE_MASK, AW8695_BIT_TRGCFG1_TRG3_EDGE_POS_NEG);
+    } else {
+        aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG1,
+                AW8695_BIT_TRGCFG1_TRG3_EDGE_MASK, AW8695_BIT_TRGCFG1_TRG3_EDGE_POS);
+    }
+
+    if(aw8695->trig[0].frist_seq) {
+        aw8695_i2c_write(aw8695, AW8695_REG_TRG1_WAV_P, aw8695->trig[0].frist_seq);
+    }
+    if(aw8695->trig[0].second_seq && aw8695->trig[0].dual_edge) {
+        aw8695_i2c_write(aw8695, AW8695_REG_TRG1_WAV_N, aw8695->trig[0].second_seq);
+    }
+    if(aw8695->trig[1].frist_seq) {
+        aw8695_i2c_write(aw8695, AW8695_REG_TRG2_WAV_P, aw8695->trig[1].frist_seq);
+    }
+    if(aw8695->trig[1].second_seq && aw8695->trig[1].dual_edge) {
+        aw8695_i2c_write(aw8695, AW8695_REG_TRG2_WAV_N, aw8695->trig[1].second_seq);
+    }
+    if(aw8695->trig[2].frist_seq) {
+        aw8695_i2c_write(aw8695, AW8695_REG_TRG3_WAV_P, aw8695->trig[1].frist_seq);
+    }
+    if(aw8695->trig[2].second_seq && aw8695->trig[2].dual_edge) {
+        aw8695_i2c_write(aw8695, AW8695_REG_TRG3_WAV_N, aw8695->trig[1].second_seq);
+    }
 
     return 0;
 }
@@ -748,12 +827,13 @@ static int aw8695_haptic_trig_default_level(struct aw8695 *aw8695)
 static int aw8695_haptic_trig_enable_config(struct aw8695 *aw8695)
 {
     pr_debug("%s enter\n", __func__);
+
     aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG2,
-            AW8695_BIT_TRGCFG2_TRG1_ENABLE_MASK, AW8695_TRG1_DEFAULT_ENABLE);
+            AW8695_BIT_TRGCFG2_TRG1_ENABLE_MASK, aw8695->trig[0].enable);
     aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG2,
-            AW8695_BIT_TRGCFG2_TRG2_ENABLE_MASK, AW8695_TRG2_DEFAULT_ENABLE);
+            AW8695_BIT_TRGCFG2_TRG2_ENABLE_MASK, aw8695->trig[1].enable);
     aw8695_i2c_write_bits(aw8695, AW8695_REG_TRG_CFG2,
-            AW8695_BIT_TRGCFG2_TRG3_ENABLE_MASK, AW8695_TRG3_DEFAULT_ENABLE);
+            AW8695_BIT_TRGCFG2_TRG3_ENABLE_MASK, aw8695->trig[2].enable);
 
     return 0;
 }
@@ -772,9 +852,14 @@ static int aw8695_haptic_auto_boost_config(struct aw8695 *aw8695, unsigned char 
     return 0;
 }
 
-static int aw8695_haptic_vbat_mode(struct aw8695 *aw8695, unsigned char flag)
+/*****************************************************
+ *
+ * vbat mode
+ *
+ *****************************************************/
+static int aw8695_haptic_cont_vbat_mode(struct aw8695 *aw8695, unsigned char flag)
 {
-    if(flag == AW8695_HAPTIC_VBAT_HW_COMP_MODE) {
+    if(flag == AW8695_HAPTIC_CONT_VBAT_HW_COMP_MODE) {
         aw8695_i2c_write_bits(aw8695, AW8695_REG_ADCTEST,
                 AW8695_BIT_ADCTEST_VBAT_MODE_MASK, AW8695_BIT_ADCTEST_VBAT_HW_COMP);
     } else {
@@ -784,7 +869,68 @@ static int aw8695_haptic_vbat_mode(struct aw8695 *aw8695, unsigned char flag)
     return 0;
 }
 
+static int aw8695_haptic_get_vbat(struct aw8695 *aw8695)
+{
+    unsigned char reg_val = 0;
 
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+            AW8695_BIT_SYSCTRL_RAMINIT_MASK, AW8695_BIT_SYSCTRL_RAMINIT_EN);
+
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_DETCTRL,
+            AW8695_BIT_DETCTRL_DIAG_GO_MASK, AW8695_BIT_DETCTRL_DIAG_GO_ENABLE);
+    msleep(2);
+
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_DETCTRL,
+            AW8695_BIT_DETCTRL_DIAG_GO_MASK, AW8695_BIT_DETCTRL_DIAG_GO_DISABLE);
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_DETCTRL,
+            AW8695_BIT_DETCTRL_VBAT_GO_MASK, AW8695_BIT_DETCTRL_VABT_GO_ENABLE);
+    msleep(2);
+
+    aw8695_i2c_read(aw8695, AW8695_REG_VBATDET, &reg_val);
+    aw8695->vbat = 6100 * reg_val / 256;
+    if(aw8695->vbat > AW8695_VBAT_MAX) {
+        aw8695->vbat = AW8695_VBAT_MAX;
+        pr_debug("%s vbat max limit = %dmV\n", __func__, aw8695->vbat);
+    }
+    if(aw8695->vbat < AW8695_VBAT_MIN) {
+        aw8695->vbat = AW8695_VBAT_MIN;
+        pr_debug("%s vbat min limit = %dmV\n", __func__, aw8695->vbat);
+    }
+
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+            AW8695_BIT_SYSCTRL_RAMINIT_MASK, AW8695_BIT_SYSCTRL_RAMINIT_OFF);
+
+    return 0;
+}
+
+static int aw8695_haptic_ram_vbat_comp(struct aw8695 *aw8695, bool flag)
+{
+    int temp_gain = 0;
+
+    if(flag) {
+        if(aw8695->ram_vbat_comp == AW8695_HAPTIC_RAM_VBAT_COMP_ENABLE) {
+            aw8695_haptic_get_vbat(aw8695);
+            temp_gain = aw8695->gain * AW8695_VBAT_REFER / aw8695->vbat;
+            if(temp_gain > (128*AW8695_VBAT_REFER/AW8695_VBAT_MIN)) {
+                temp_gain = 128*AW8695_VBAT_REFER/AW8695_VBAT_MIN;
+                pr_debug("%s gain limit=%d\n", __func__, temp_gain);
+            }
+            aw8695_haptic_set_gain(aw8695, temp_gain);
+        } else {
+            aw8695_haptic_set_gain(aw8695, aw8695->gain);
+        }
+    } else {
+        aw8695_haptic_set_gain(aw8695, aw8695->gain);
+    }
+
+    return 0;
+}
+
+/*****************************************************
+ *
+ * f0
+ *
+ *****************************************************/
 static int aw8695_haptic_set_f0_preset(struct aw8695 *aw8695)
 {
     unsigned int f0_reg = 0;
@@ -856,6 +1002,11 @@ static int aw8695_haptic_read_beme(struct aw8695 *aw8695)
 
 
 
+/*****************************************************
+ *
+ * rtp
+ *
+ *****************************************************/
 static void aw8695_haptic_set_rtp_aei(struct aw8695 *aw8695, bool flag)
 {
     if(flag) {
@@ -904,6 +1055,11 @@ static unsigned char aw8695_haptic_rtp_get_fifo_afi(struct aw8695 *aw8695)
     return ret;
 }
 
+/*****************************************************
+ *
+ * rtp
+ *
+ *****************************************************/
 static int aw8695_haptic_rtp_init(struct aw8695 *aw8695)
 {
     unsigned int buf_len = 0;
@@ -972,6 +1128,9 @@ static void aw8695_rtp_work_routine(struct work_struct *work)
     release_firmware(rtp_file);
 
     aw8695->rtp_init = 1;
+
+    /* gain */
+    aw8695_haptic_ram_vbat_comp(aw8695, false);
 
     /* rtp mode config */
     aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_RTP_MODE);
@@ -1529,10 +1688,17 @@ static int aw8695_haptic_init(struct aw8695 *aw8695)
             AW8695_BIT_ANADBG_IOC_MASK, AW8695_BIT_ANADBG_IOC_4P65A);
 
     aw8695_haptic_set_bst_peak_cur(aw8695, AW8695_DEFAULT_PEAKCUR);
+
     aw8695_haptic_swicth_motorprotect_config(aw8695, 0x00, 0x00);
+
     aw8695_haptic_auto_boost_config(aw8695, false);
-    aw8695_haptic_trig_default_level(aw8695);
-    aw8695_haptic_vbat_mode(aw8695, AW8695_HAPTIC_VBAT_HW_COMP_MODE);
+
+    aw8695_haptic_trig_param_init(aw8695);
+    aw8695_haptic_trig_param_config(aw8695);
+
+    aw8695_haptic_cont_vbat_mode(aw8695,
+            AW8695_HAPTIC_CONT_VBAT_HW_COMP_MODE);
+    aw8695->ram_vbat_comp = AW8695_HAPTIC_RAM_VBAT_COMP_ENABLE;
 
     mutex_unlock(&aw8695->lock);
 
@@ -1558,6 +1724,84 @@ static int aw8695_haptic_init(struct aw8695 *aw8695)
  * vibrator
  *
  *****************************************************/
+#ifdef MOTO_VIBRATOR_SUPPORT
+static void aw8695_rtp_play(struct aw8695 *aw8695, int value)
+{
+    aw8695_haptic_stop(aw8695);
+    aw8695_haptic_set_rtp_aei(aw8695, false);
+    aw8695_interrupt_clear(aw8695);
+    if(value < (sizeof(aw8695_rtp_name)/AW8695_RTP_NAME_MAX)) {
+        aw8695->rtp_file_num = value;
+        if(value) {
+            schedule_work(&aw8695->rtp_work);
+        }
+    } else {
+        pr_err("%s: rtp_file_num 0x%02x over max value \n", __func__, aw8695->rtp_file_num);
+    }
+}
+
+static void aw8695_vibrate(struct aw8695 *aw8695, int value)
+{
+    int seq = 0;
+
+    mutex_lock(&aw8695->lock);
+
+    aw8695_haptic_stop(aw8695);
+    seq = aw8695->seq[0];
+    pr_debug("%s: value=%d, seq=%d\n", __FUNCTION__, value, seq);
+
+    if (value > 0 || seq > 2) {
+        if (seq >= AW8695_SEQ_NO_RTP_BASE) {
+            aw8695->haptic_mode = HAPTIC_RTP;
+        } else if (value < 100 || seq > 2) {
+            aw8695->haptic_mode = HAPTIC_SHORT;
+        } else {
+            aw8695->haptic_mode = HAPTIC_LONG;
+        }
+
+        switch (aw8695->haptic_mode) {
+        case HAPTIC_RTP:
+            aw8695_rtp_play(aw8695, seq - AW8695_SEQ_NO_RTP_BASE);
+            break;
+        case HAPTIC_SHORT:
+            if (aw8695->seq[0] == 0)
+                aw8695->seq[0] = 0x01;
+
+            aw8695_haptic_set_wav_seq(aw8695, 0x00, aw8695->seq[0]);
+            aw8695_haptic_set_wav_loop(aw8695, 0x00, 0x00);
+            aw8695_haptic_ram_vbat_comp(aw8695, false);
+            aw8695_haptic_play_wav_seq(aw8695, 0x01);
+			break;
+        case HAPTIC_LONG:
+            aw8695->duration = value;
+            /* wav index config */
+            aw8695->index = 0x02;
+            aw8695_haptic_set_repeat_wav_seq(aw8695, aw8695->index);
+
+            /* run ms timer */
+            hrtimer_cancel(&aw8695->timer);
+            aw8695->state = 0x01;
+            if (aw8695->state)
+            {
+                hrtimer_start(&aw8695->timer,
+                    ktime_set(aw8695->duration / 1000, (value % 1000) * 1000000),
+                    HRTIMER_MODE_REL);
+            }
+            schedule_work(&aw8695->vibrator_work);
+            break;
+        default:
+	        break;
+      }
+
+      /* Restore to default short waveform */
+      if (seq > 2)
+          aw8695->seq[0] = 0;
+    }
+
+    mutex_unlock(&aw8695->lock);
+}
+#endif
+
 #ifdef TIMED_OUTPUT
 static int aw8695_vibrator_get_time(struct timed_output_dev *dev)
 {
@@ -1582,6 +1826,7 @@ static void aw8695_vibrator_enable( struct timed_output_dev *dev, int value)
     aw8695_haptic_stop(aw8695);
 
     if (value > 0) {
+        aw8695_haptic_ram_vbat_comp(aw8695, false);
         aw8695_haptic_play_wav_seq(aw8695, value);
     }
 
@@ -1611,6 +1856,7 @@ static void aw8695_haptic_brightness_set(struct led_classdev *cdev,
 
     aw8695_haptic_stop(aw8695);
     if (aw8695->amplitude > 0) {
+        aw8695_haptic_ram_vbat_comp(aw8695, false);
         aw8695_haptic_play_wav_seq(aw8695, aw8695->amplitude);
     }
 
@@ -1711,6 +1957,27 @@ static ssize_t aw8695_activate_store(struct device *dev,
     struct led_classdev *cdev = dev_get_drvdata(dev);
     struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
 #endif
+
+#ifdef MOTO_VIBRATOR_SUPPORT
+    unsigned int val = 0;
+    int rc = 0;
+
+    rc = kstrtouint(buf, 0, &val);
+    if (rc < 0)
+        return rc;
+
+    if (val != 0 && val != 1)
+        return count;
+
+    pr_debug("%s: value=%d\n", __FUNCTION__, val);
+
+    aw8695->state = val;
+
+    if (aw8695->state)
+        aw8695_vibrate(aw8695, aw8695->duration);
+    else
+        aw8695_vibrate(aw8695, 0);
+#else
     unsigned int val = 0;
     int rc = 0;;
 
@@ -1727,11 +1994,6 @@ static ssize_t aw8695_activate_store(struct device *dev,
     hrtimer_cancel(&aw8695->timer);
 
     aw8695->state = val;
-    if (aw8695->duration > 100) {
-        aw8695_haptic_set_repeat_wav_seq(aw8695, AW8695_LONG_RAM);
-    } else if (aw8695->duration < 100) {
-        aw8695_haptic_set_wav_seq(aw8695, 0x00, AW8695_SHORT_RAM_100_UP);
-    }
 
     if (aw8695->state)
     {
@@ -1744,6 +2006,7 @@ static ssize_t aw8695_activate_store(struct device *dev,
     }
     mutex_unlock(&aw8695->lock);
     schedule_work(&aw8695->vibrator_work);
+#endif
 
     return count;
 }
@@ -1878,7 +2141,6 @@ static ssize_t aw8695_gain_show(struct device *dev,
     struct led_classdev *cdev = dev_get_drvdata(dev);
     struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
 #endif
-
     return snprintf(buf, PAGE_SIZE, "0x%02x\n", aw8695->gain);
 }
 
@@ -1941,6 +2203,25 @@ static ssize_t aw8695_seq_store(struct device *dev,
     struct led_classdev *cdev = dev_get_drvdata(dev);
     struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
 #endif
+
+#ifdef MOTO_VIBRATOR_SUPPORT
+    unsigned int i = 0;
+    unsigned int val = 0;
+    int rc = 0;
+
+    rc = kstrtouint(buf, 0, &val);
+    if (rc < 0)
+        return rc;
+
+    pr_debug("%s: value=%x\n", __FUNCTION__, val);
+
+    mutex_lock(&aw8695->lock);
+    for(i=0; i<4; i++) {
+        aw8695->seq[i] = (val>>((AW8695_WAV_SEQ_SIZE-i-1)*8))&0xFF;
+        aw8695_haptic_set_wav_seq(aw8695, i, aw8695->seq[i]);
+    }
+    mutex_unlock(&aw8695->lock);
+#else
     unsigned int databuf[2] = {0, 0};
 
     if(2 == sscanf(buf, "%x %x", &databuf[0], &databuf[1])) {
@@ -1951,6 +2232,7 @@ static ssize_t aw8695_seq_store(struct device *dev,
                 aw8695->seq[databuf[0]]);
         mutex_unlock(&aw8695->lock);
     }
+#endif
     return count;
 }
 
@@ -2409,35 +2691,11 @@ static ssize_t aw8695_vbat_monitor_show(struct device *dev, struct device_attrib
     struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
 #endif
     ssize_t len = 0;
-    unsigned char reg_val = 0;
-    unsigned int vbat = 0;
 
     mutex_lock(&aw8695->lock);
     aw8695_haptic_stop(aw8695);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-            AW8695_BIT_SYSCTRL_RAMINIT_MASK, AW8695_BIT_SYSCTRL_RAMINIT_EN);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-            AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BYPASS);
-
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_DETCTRL,
-            AW8695_BIT_DETCTRL_DIAG_GO_MASK, AW8695_BIT_DETCTRL_DIAG_GO_ENABLE);
-    msleep(2);
-
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_DETCTRL,
-            AW8695_BIT_DETCTRL_DIAG_GO_MASK, AW8695_BIT_DETCTRL_DIAG_GO_DISABLE);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_DETCTRL,
-            AW8695_BIT_DETCTRL_VBAT_GO_MASK, AW8695_BIT_DETCTRL_VABT_GO_ENABLE);
-    msleep(2);
-
-    aw8695_i2c_read(aw8695, AW8695_REG_VBATDET, &reg_val);
-    vbat = 6100 * reg_val / 256;
-
-    len += snprintf(buf+len, PAGE_SIZE-len, "vbat=%dmV\n", vbat);
-
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-            AW8695_BIT_SYSCTRL_RAMINIT_MASK, AW8695_BIT_SYSCTRL_RAMINIT_OFF);
-    aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
-            AW8695_BIT_SYSCTRL_BST_MODE_MASK, AW8695_BIT_SYSCTRL_BST_MODE_BOOST);
+    aw8695_haptic_get_vbat(aw8695);
+    len += snprintf(buf+len, PAGE_SIZE-len, "vbat=%dmV\n", aw8695->vbat);
     mutex_unlock(&aw8695->lock);
 
     return len;
@@ -2461,7 +2719,6 @@ static ssize_t aw8695_lra_resistance_show(struct device *dev, struct device_attr
 #endif
     ssize_t len = 0;
     unsigned char reg_val = 0;
-    unsigned int r_lra = 0;
 
     mutex_lock(&aw8695->lock);
     aw8695_haptic_stop(aw8695);
@@ -2482,9 +2739,8 @@ static ssize_t aw8695_lra_resistance_show(struct device *dev, struct device_attr
             AW8695_BIT_DETCTRL_DIAG_GO_MASK, AW8695_BIT_DETCTRL_DIAG_GO_ENABLE);
     msleep(3);
     aw8695_i2c_read(aw8695, AW8695_REG_RLDET, &reg_val);
-    r_lra = 298 * reg_val;
-    len += snprintf(buf+len, PAGE_SIZE-len, "r_lra=%dmohm\n", r_lra);
-
+    aw8695->lra = 298 * reg_val;
+    len += snprintf(buf+len, PAGE_SIZE-len, "r_lra=%dmohm\n", aw8695->lra);
 
     aw8695_i2c_write_bits(aw8695, AW8695_REG_ANACTRL,
             AW8695_BIT_ANACTRL_HD_PD_MASK, AW8695_BIT_ANACTRL_HD_PD_EN);
@@ -2589,6 +2845,108 @@ static ssize_t aw8695_prctmode_store(struct device *dev, struct device_attribute
         aw8695_haptic_swicth_motorprotect_config(aw8695, addr, val);
         mutex_unlock(&aw8695->lock);
    }
+    return count;
+}
+
+static ssize_t aw8695_trig_show(struct device *dev, struct device_attribute *attr,
+        char *buf)
+{
+#ifdef TIMED_OUTPUT
+    struct timed_output_dev *to_dev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(to_dev, struct aw8695, to_dev);
+#else
+    struct led_classdev *cdev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
+#endif
+    ssize_t len = 0;
+    unsigned char i = 0;
+    for(i=0; i<AW8695_TRIG_NUM; i++) {
+        len += snprintf(buf+len, PAGE_SIZE-len,
+            "trig%d: enable=%d, default_level=%d, dual_edge=%d, frist_seq=%d, second_seq=%d\n",
+            i+1, aw8695->trig[i].enable, aw8695->trig[i].default_level, aw8695->trig[i].dual_edge,
+            aw8695->trig[i].frist_seq, aw8695->trig[i].second_seq);
+    }
+
+    return len;
+}
+
+static ssize_t aw8695_trig_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    #ifdef TIMED_OUTPUT
+    struct timed_output_dev *to_dev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(to_dev, struct aw8695, to_dev);
+    #else
+    struct led_classdev *cdev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
+    #endif
+    unsigned int databuf[6] = {0};
+    if(sscanf(buf, "%d %d %d %d %d %d",
+            &databuf[0], &databuf[1], &databuf[2], &databuf[3], &databuf[4], &databuf[5])) {
+        pr_debug("%s: %d, %d, %d, %d, %d, %d\n", __func__,
+            databuf[0], databuf[1], databuf[2], databuf[3], databuf[4], databuf[5]);
+        if(databuf[0] > 3) {
+            databuf[0] = 3;
+        }
+        if(databuf[0] > 0) {
+            databuf[0] -= 1;
+        }
+        aw8695->trig[databuf[0]].enable = databuf[1];
+        aw8695->trig[databuf[0]].default_level = databuf[2];
+        aw8695->trig[databuf[0]].dual_edge = databuf[3];
+        aw8695->trig[databuf[0]].frist_seq = databuf[4];
+        aw8695->trig[databuf[0]].second_seq = databuf[5];
+        mutex_lock(&aw8695->lock);
+        aw8695_haptic_trig_param_config(aw8695);
+        aw8695_haptic_trig_enable_config(aw8695);
+        mutex_unlock(&aw8695->lock);
+   }
+    return count;
+}
+
+static ssize_t aw8695_ram_vbat_comp_show(struct device *dev, struct device_attribute *attr,
+        char *buf)
+{
+#ifdef TIMED_OUTPUT
+    struct timed_output_dev *to_dev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(to_dev, struct aw8695, to_dev);
+#else
+    struct led_classdev *cdev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
+#endif
+    ssize_t len = 0;
+
+    len += snprintf(buf+len, PAGE_SIZE-len, "ram_vbat_comp=%d\n", aw8695->ram_vbat_comp);
+
+    return len;
+}
+
+
+static ssize_t aw8695_ram_vbat_comp_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+#ifdef TIMED_OUTPUT
+    struct timed_output_dev *to_dev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(to_dev, struct aw8695, to_dev);
+#else
+    struct led_classdev *cdev = dev_get_drvdata(dev);
+    struct aw8695 *aw8695 = container_of(cdev, struct aw8695, cdev);
+#endif
+    unsigned int val = 0;
+    int rc = 0;
+
+    rc = kstrtouint(buf, 0, &val);
+    if (rc < 0)
+        return rc;
+
+    mutex_lock(&aw8695->lock);
+    if(val) {
+        aw8695->ram_vbat_comp = AW8695_HAPTIC_RAM_VBAT_COMP_ENABLE;
+    } else {
+        aw8695->ram_vbat_comp = AW8695_HAPTIC_RAM_VBAT_COMP_DISABLE;
+    }
+    mutex_unlock(&aw8695->lock);
+
     return count;
 }
 
@@ -2714,6 +3072,8 @@ static DEVICE_ATTR(vbat_monitor, S_IWUSR | S_IRUGO, aw8695_vbat_monitor_show, aw
 static DEVICE_ATTR(lra_resistance, S_IWUSR | S_IRUGO, aw8695_lra_resistance_show, aw8695_lra_resistance_store);
 static DEVICE_ATTR(auto_boost, S_IWUSR | S_IRUGO, aw8695_auto_boost_show, aw8695_auto_boost_store);
 static DEVICE_ATTR(prctmode, S_IWUSR | S_IRUGO, aw8695_prctmode_show, aw8695_prctmode_store);
+static DEVICE_ATTR(trig, S_IWUSR | S_IRUGO, aw8695_trig_show, aw8695_trig_store);
+static DEVICE_ATTR(ram_vbat_comp, S_IWUSR | S_IRUGO, aw8695_ram_vbat_comp_show, aw8695_ram_vbat_comp_store);
 static DEVICE_ATTR(haptic_audio, S_IWUSR | S_IRUGO, aw8695_haptic_audio_show, aw8695_haptic_audio_store);
 static DEVICE_ATTR(haptic_audio_time, S_IWUSR | S_IRUGO, aw8695_haptic_audio_time_show, aw8695_haptic_audio_time_store);
 
@@ -2742,6 +3102,8 @@ static struct attribute *aw8695_vibrator_attributes[] = {
     &dev_attr_lra_resistance.attr,
     &dev_attr_auto_boost.attr,
     &dev_attr_prctmode.attr,
+    &dev_attr_trig.attr,
+    &dev_attr_ram_vbat_comp.attr,
     &dev_attr_haptic_audio.attr,
     &dev_attr_haptic_audio_time.attr,
     NULL
@@ -2773,6 +3135,7 @@ static void aw8695_vibrator_work_routine(struct work_struct *work)
     aw8695_haptic_stop(aw8695);
     if(aw8695->state) {
         if(aw8695->activate_mode == AW8695_HAPTIC_ACTIVATE_RAM_MODE) {
+            aw8695_haptic_ram_vbat_comp(aw8695, true);
             aw8695_haptic_play_repeat_seq(aw8695, true);
         } else if(aw8695->activate_mode == AW8695_HAPTIC_ACTIVATE_CONT_MODE) {
             aw8695_haptic_cont(aw8695);
@@ -2843,9 +3206,9 @@ static int aw8695_vibrator_init(struct aw8695 *aw8695)
 static void aw8695_interrupt_clear(struct aw8695 *aw8695)
 {
     unsigned char reg_val = 0;
-    pr_info("%s enter\n", __func__);
+    pr_debug("%s enter\n", __func__);
     aw8695_i2c_read(aw8695, AW8695_REG_SYSINT, &reg_val);
-    pr_info("%s: reg SYSINT=0x%x\n", __func__, reg_val);
+    pr_debug("%s: reg SYSINT=0x%x\n", __func__, reg_val);
 }
 
 static void aw8695_interrupt_setup(struct aw8695 *aw8695)
@@ -3165,7 +3528,7 @@ static int aw8695_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
             GPIOF_OUT_INIT_LOW, "aw8695_rst");
         if (ret){
             dev_err(&i2c->dev, "%s: rst request failed\n", __func__);
-            goto err_gpio_request;
+            goto err_reset_gpio_request;
         }
     }
 
@@ -3174,7 +3537,7 @@ static int aw8695_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
             GPIOF_DIR_IN, "aw8695_int");
         if (ret){
             dev_err(&i2c->dev, "%s: int request failed\n", __func__);
-            goto err_gpio_request;
+            goto err_irq_gpio_request;
         }
     }
 
@@ -3232,9 +3595,10 @@ err_irq:
 err_id:
     if (gpio_is_valid(aw8695->irq_gpio))
         devm_gpio_free(&i2c->dev, aw8695->irq_gpio);
+err_irq_gpio_request:
     if (gpio_is_valid(aw8695->reset_gpio))
         devm_gpio_free(&i2c->dev, aw8695->reset_gpio);
-err_gpio_request:
+err_reset_gpio_request:
 err_parse_dt:
     devm_kfree(&i2c->dev, aw8695);
     aw8695 = NULL;
