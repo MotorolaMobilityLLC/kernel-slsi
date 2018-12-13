@@ -54,13 +54,13 @@
 #define AW8695_VBAT_MAX                     4500
 
 /* motor config */
-//#define LRA_0619
-#define LRA_0832
+#define LRA_0619
+//#define LRA_0832
 
 #ifdef LRA_0619
 #define AW8695_HAPTIC_F0_PRE                1700    // 170Hz
 #define AW8695_HAPTIC_F0_CALI_PERCEN        7       // -7%~7%
-#define AW8695_HAPTIC_CONT_DRV_LVL          105     // 105*6.1/256=2.50v
+#define AW8695_HAPTIC_CONT_DRV_LVL          98     // 105*6.1/256=2.50v
 #define AW8695_HAPTIC_CONT_DRV_LVL_OV       125     // 125*6.1/256=2.98v
 #define AW8695_HAPTIC_CONT_TD               0x009a
 #define AW8695_HAPTIC_CONT_ZC_THR           0x0ff1
@@ -68,7 +68,7 @@
 #endif
 
 #ifdef LRA_0832
-#define AW8695_HAPTIC_F0_PRE                2350    // 235Hz
+#define AW8695_HAPTIC_F0_PRE                2350    // 170Hz
 #define AW8695_HAPTIC_F0_CALI_PERCEN        7       // -7%~7%
 #define AW8695_HAPTIC_CONT_DRV_LVL          98     // 98*6.1/256=2.33v
 #define AW8695_HAPTIC_CONT_DRV_LVL_OV       98     // 98*6.1/256=2.33v
