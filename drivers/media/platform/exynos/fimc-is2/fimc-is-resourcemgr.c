@@ -1444,7 +1444,7 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			set_bit(FIMC_IS_RM_ISC_POWER_ON, &resourcemgr->state);
 			set_bit(FIMC_IS_RM_POWER_ON, &resourcemgr->state);
 
-#if defined(CONFIG_SOC_EXYNOS8895)
+#if defined(CONFIG_SOC_EXYNOS8895) || defined(CONFIG_SOC_EXYNOS9610)
 			/* HACK for 8895, cpuidle on/off */
 			info("%s: call cpuidle_pause()\n", __func__);
 			cpuidle_pause();
@@ -1617,7 +1617,7 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 
 			clear_bit(FIMC_IS_RM_ISC_POWER_ON, &resourcemgr->state);
 
-#if defined(CONFIG_SOC_EXYNOS8895)
+#if defined(CONFIG_SOC_EXYNOS8895) || defined(CONFIG_SOC_EXYNOS9610)
 			/* HACK for 8895, cpuidle on/off */
 			info("%s: call cpuidle_resume()\n", __func__);
 			cpuidle_resume();
