@@ -10,6 +10,9 @@
 #define TIMED_OUTPUT
 #endif
 
+
+#define MOTO_VIBRATOR_SUPPORT
+
 /*********************************************************
  *
  * aw8695.h
@@ -36,12 +39,19 @@
 
 #define AW8695_REG_MAX                      0xff
 
+#ifdef MOTO_VIBRATOR_SUPPORT
+#define AW8695_WAV_SEQ_SIZE                 4
+#endif
 #define AW8695_SEQUENCER_SIZE               8
 #define AW8695_SEQUENCER_LOOP_SIZE          4
 
 #define AW8695_RTP_I2C_SINGLE_MAX_NUM       512
 
 #define HAPTIC_MAX_TIMEOUT                  10000
+
+#define AW8695_VBAT_REFER                   4200
+#define AW8695_VBAT_MIN                     3000
+#define AW8695_VBAT_MAX                     4500
 
 /* motor config */
 //#define LRA_0619
@@ -60,8 +70,8 @@
 #ifdef LRA_0832
 #define AW8695_HAPTIC_F0_PRE                2350    // 235Hz
 #define AW8695_HAPTIC_F0_CALI_PERCEN        7       // -7%~7%
-#define AW8695_HAPTIC_CONT_DRV_LVL          98
-#define AW8695_HAPTIC_CONT_DRV_LVL_OV       0x70     // 155*6.1/256=3.69v
+#define AW8695_HAPTIC_CONT_DRV_LVL          98     // 125*6.1/256=2.98v
+#define AW8695_HAPTIC_CONT_DRV_LVL_OV       155     // 155*6.1/256=3.69v
 #define AW8695_HAPTIC_CONT_TD               0x0073
 #define AW8695_HAPTIC_CONT_ZC_THR           0x0ff1
 #define AW8695_HAPTIC_CONT_NUM_BRK          3
@@ -72,13 +82,44 @@
 
 
 /* trig config */
+#define AW8695_TRIG_NUM                     3
 #define AW8695_TRG1_ENABLE                  1
 #define AW8695_TRG2_ENABLE                  1
 #define AW8695_TRG3_ENABLE                  1
 
+/*
+ * trig default high level
+ * ___________           _________________
+ *           |           |
+ *           |           |
+ *           |___________|
+ *        first edge
+ *                   second edge
+ *
+ *
+ * trig default low level
+ *            ___________
+ *           |           |
+ *           |           |
+ * __________|           |_________________
+ *        first edge
+ *                   second edge
+ */
 #define AW8695_TRG1_DEFAULT_LEVEL           1       // 1: high level; 0: low level
 #define AW8695_TRG2_DEFAULT_LEVEL           1       // 1: high level; 0: low level
 #define AW8695_TRG3_DEFAULT_LEVEL           1       // 1: high level; 0: low level
+
+#define AW8695_TRG1_DUAL_EDGE               1       // 1: dual edge; 0: first edge
+#define AW8695_TRG2_DUAL_EDGE               1       // 1: dual edge; 0: first edge
+#define AW8695_TRG3_DUAL_EDGE               1       // 1: dual edge; 0: first edge
+
+#define AW8695_TRG1_FIRST_EDGE_SEQ          1       // trig1: first edge waveform seq
+#define AW8695_TRG1_SECOND_EDGE_SEQ         2       // trig1: second edge waveform seq
+#define AW8695_TRG2_FIRST_EDGE_SEQ          1       // trig2: first edge waveform seq
+#define AW8695_TRG2_SECOND_EDGE_SEQ         2       // trig2: second edge waveform seq
+#define AW8695_TRG3_FIRST_EDGE_SEQ          1       // trig3: first edge waveform seq
+#define AW8695_TRG3_SECOND_EDGE_SEQ         2       // trig3: second edge waveform seq
+
 
 #if AW8695_TRG1_ENABLE
 #define AW8695_TRG1_DEFAULT_ENABLE          AW8695_BIT_TRGCFG2_TRG1_ENABLE
@@ -116,14 +157,24 @@
 #define AW8695_TRG3_DEFAULT_POLAR           AW8695_BIT_TRGCFG1_TRG3_POLAR_NEG
 #endif
 
-enum ram_mode_seq {
-    AW8695_SHORT_RAM_100_UP = 1,
-    AW8695_LONG_RAM = 2,
-    AW8695_SHORT_RAM_100_UP2 = 3,
-    AW8695_SHORT_RAM_60_UP = 4,
-    AW8695_SHORT_RAM_80_UP = 5,
-    AW8695_SHORT_RAM_20_UP = 6,
-};
+#if AW8695_TRG1_DUAL_EDGE
+#define AW8695_TRG1_DEFAULT_EDGE            AW8695_BIT_TRGCFG1_TRG1_EDGE_POS_NEG
+#else
+#define AW8695_TRG1_DEFAULT_EDGE            AW8695_BIT_TRGCFG1_TRG1_EDGE_POS
+#endif
+
+#if AW8695_TRG2_DUAL_EDGE
+#define AW8695_TRG2_DEFAULT_EDGE            AW8695_BIT_TRGCFG1_TRG2_EDGE_POS_NEG
+#else
+#define AW8695_TRG2_DEFAULT_EDGE            AW8695_BIT_TRGCFG1_TRG2_EDGE_POS
+#endif
+
+#if AW8695_TRG3_DUAL_EDGE
+#define AW8695_TRG3_DEFAULT_EDGE            AW8695_BIT_TRGCFG1_TRG3_EDGE_POS_NEG
+#else
+#define AW8695_TRG3_DEFAULT_EDGE            AW8695_BIT_TRGCFG1_TRG3_EDGE_POS
+#endif
+
 
 enum aw8695_flags {
     AW8695_FLAG_NONR = 0,
@@ -156,9 +207,14 @@ enum aw8695_haptic_activate_mode {
 };
 
 
-enum aw8695_haptic_vbat_comp_mode {
-    AW8695_HAPTIC_VBAT_SW_COMP_MODE = 0,
-    AW8695_HAPTIC_VBAT_HW_COMP_MODE = 1,
+enum aw8695_haptic_cont_vbat_comp_mode {
+    AW8695_HAPTIC_CONT_VBAT_SW_COMP_MODE = 0,
+    AW8695_HAPTIC_CONT_VBAT_HW_COMP_MODE = 1,
+};
+
+enum aw8695_haptic_ram_vbat_comp_mode {
+    AW8695_HAPTIC_RAM_VBAT_COMP_DISABLE = 0,
+    AW8695_HAPTIC_RAM_VBAT_COMP_ENABLE = 1,
 };
 
 enum aw8695_haptic_f0_flag {
@@ -171,6 +227,15 @@ enum aw8695_haptic_pwm_mode {
     AW8695_PWM_24K = 1,
     AW8695_PWM_12K = 2,
 };
+
+#ifdef MOTO_VIBRATOR_SUPPORT
+enum aw8695_haptic_mode{
+    HAPTIC_NONE = 0x00,
+    HAPTIC_SHORT = 0x01,
+    HAPTIC_LONG = 0x02,
+    HAPTIC_RTP = 0x03,
+};
+#endif
 
 /*********************************************************
  *
@@ -212,6 +277,14 @@ struct haptic_audio{
     struct haptic_ctr ctr;
 };
 
+struct trig{
+    unsigned char enable;
+    unsigned char default_level;
+    unsigned char dual_edge;
+    unsigned char frist_seq;
+    unsigned char second_seq;
+};
+
 struct aw8695 {
     struct regmap *regmap;
     struct i2c_client *i2c;
@@ -244,6 +317,9 @@ struct aw8695 {
 
     unsigned char auto_boost;
 
+#ifdef MOTO_VIBRATOR_SUPPORT
+    enum aw8695_haptic_mode haptic_mode;
+#endif
     int state;
     int duration;
     int amplitude;
@@ -271,6 +347,12 @@ struct aw8695 {
     unsigned char max_pos_beme;
     unsigned char max_neg_beme;
     unsigned char f0_cali_flag;
+
+    unsigned char ram_vbat_comp;
+    unsigned int vbat;
+    unsigned int lra;
+
+    struct trig trig[AW8695_TRIG_NUM];
 
     struct haptic_audio haptic_audio;
 };
