@@ -866,6 +866,7 @@ static int fimc_is_sensor_start(struct fimc_is_device_sensor *device)
 	ret = v4l2_subdev_call(subdev_module, video, s_stream, true);
 	if (ret) {
 		merr("v4l2_subdev_call(s_stream) is fail(%d)", device, ret);
+		set_bit(SENSOR_MODULE_GOT_INTO_TROUBLE, &device->state);
 		goto p_err;
 	}
 	set_bit(FIMC_IS_SENSOR_WAIT_STREAMING, &device->state);
@@ -1338,6 +1339,7 @@ static void fimc_is_sensor_instanton(struct work_struct *data)
 
 	clear_bit(FIMC_IS_SENSOR_FRONT_DTP_STOP, &device->state);
 	clear_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
+	clear_bit(SENSOR_MODULE_GOT_INTO_TROUBLE, &device->state);
 
 	TIME_LAUNCH_STR(LAUNCH_SENSOR_START);
 	ret = fimc_is_sensor_start(device);
@@ -1656,6 +1658,7 @@ int fimc_is_sensor_open(struct fimc_is_device_sensor *device,
 	clear_bit(FIMC_IS_SENSOR_BACK_START, &device->state);
 	clear_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->state);
 	clear_bit(FIMC_IS_SENSOR_WAIT_STREAMING, &device->state);
+	clear_bit(SENSOR_MODULE_GOT_INTO_TROUBLE, &device->state);
 	set_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
 #if defined(SECURE_CAMERA_IRIS)
 	device->smc_state = FIMC_IS_SENSOR_SMC_INIT;
@@ -3364,9 +3367,15 @@ int fimc_is_sensor_front_stop(struct fimc_is_device_sensor *device)
 	core = (struct fimc_is_core *)device->private_data;
 
 	mutex_lock(&device->mlock_state);
+
+	if (test_and_clear_bit(SENSOR_MODULE_GOT_INTO_TROUBLE, &device->state)) {
+		mwarn("sensor module have got into trouble", device);
+		goto  reset_the_others;
+	}
+
 	if (!test_bit(FIMC_IS_SENSOR_FRONT_START, &device->state)) {
 		mwarn("already front stop", device);
-		goto p_err;
+		goto already_stopped;
 	}
 
 	subdev_csi = device->subdev_csi;
@@ -3382,6 +3391,7 @@ int fimc_is_sensor_front_stop(struct fimc_is_device_sensor *device)
 	set_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
 	clear_bit(FIMC_IS_SENSOR_FRONT_START, &device->state);
 
+reset_the_others:
 	if (device->use_standby)
 		fimc_is_sensor_standby_flush(device);
 
@@ -3402,9 +3412,11 @@ int fimc_is_sensor_front_stop(struct fimc_is_device_sensor *device)
 		device->dtp_check = false;
 #endif
 
-p_err:
+already_stopped:
 	minfo("[FRT:D] %s():%d\n", device, __func__, ret);
+
 	mutex_unlock(&device->mlock_state);
+
 	return ret;
 }
 

@@ -317,7 +317,8 @@ enum fimc_is_sensor_state {
 	FIMC_IS_SENSOR_SUBDEV_MODULE_INIT,	/* Deprecated: from device-sensor_v2 */
 	FIMC_IS_SENSOR_OTF_OUTPUT,
 	FIMC_IS_SENSOR_ITF_REGISTER,	/* to check whether sensor interfaces are registered */
-	FIMC_IS_SENSOR_WAIT_STREAMING
+	FIMC_IS_SENSOR_WAIT_STREAMING,
+	SENSOR_MODULE_GOT_INTO_TROUBLE,
 };
 
 enum sensor_subdev_internel_use {
