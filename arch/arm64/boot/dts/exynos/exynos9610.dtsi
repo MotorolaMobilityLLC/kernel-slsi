@@ -2447,7 +2447,7 @@
 		};
 	};
 
-	watchdog_cl0@10050000 {
+	watchdog_cl0@10050000 { //WDT_CPUCL0
 		compatible = "samsung,exynos7-wdt";
 		reg = <0x0 0x10050000 0x100>;
 		interrupts = <0 232 0>;
@@ -2456,6 +2456,18 @@
 		timeout-sec = <30>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		index = <0>; /* if little cluster then index is 0*/
+	};
+
+	watchdog_cl1@10060000 { //WDT_CPUCL1
+		compatible = "samsung,exynos8-wdt";
+		reg = <0x0 0x10060000 0x100>;
+		interrupts = <0 233 0>;
+		clocks = <&clock OSCCLK>, <&clock GATE_WDT_CLUSTER1_QCH>;
+		clock-names = "rate_watchdog", "gate_watchdog";
+		timeout-sec = <30>;
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		index = <1>; /* if little cluster then index is 0*/
+		use_multistage_wdt;
 	};
 
 	exynos_adc: adc@11C30000 {
