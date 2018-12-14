@@ -21,7 +21,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		//use_multistage_wdt_irq = <497>;
+		use_multistage_wdt_irq = <265>;
 		dump-info@0x0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
