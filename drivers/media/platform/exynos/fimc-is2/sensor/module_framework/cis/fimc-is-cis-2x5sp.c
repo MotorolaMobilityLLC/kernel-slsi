@@ -1216,10 +1216,9 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	struct i2c_client *client;
 	cis_shared_data *cis_data;
 
-	u32 vt_pic_clk_freq_mhz = 0;
 	u32 line_length_pck = 0;
 	u16 frame_length_lines = 0;
-
+	u64 numerator;
 	u32 max_coarse_integration_time = 0;
 
 #ifdef DEBUG_SENSOR_TIME
@@ -1249,14 +1248,13 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 		frame_duration = cis_data->min_frame_us_time;
 	}
 
-	vt_pic_clk_freq_mhz = cis_data->pclk / (1000 * 1000);
 	line_length_pck = cis_data->line_length_pck;
+	numerator = (u64)cis_data->pclk * frame_duration;
+	frame_length_lines = (u16)((numerator / line_length_pck) / (1000 * 1000));
 
-	frame_length_lines = (u16)((vt_pic_clk_freq_mhz * frame_duration) / line_length_pck);
-
-	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk_freq_mhz(%#x) frame_duration = %d us, "
-			KERN_CONT"(line_length_pck%#x), frame_length_lines(%#x)\n",
-			cis->id, __func__, vt_pic_clk_freq_mhz, frame_duration, line_length_pck, frame_length_lines);
+	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk(%#x) frame_duration = %d us,"
+		KERN_CONT "(line_length_pck%#x), frame_length_lines(%#x)\n",
+		cis->id, __func__, cis_data->pclk, frame_duration, line_length_pck, frame_length_lines);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
