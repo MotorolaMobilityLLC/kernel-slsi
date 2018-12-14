@@ -1509,6 +1509,8 @@
 		samsung,pin-function = <1>;
 		samsung,pin-pud = <3>;
 		samsung,pin-val = <1>;
+		samsung,pin-con-pdn =<3>;
+		samsung,pin-pud-pdn = <3>;
 	};
 
 	pa_reset: pa-reset {
