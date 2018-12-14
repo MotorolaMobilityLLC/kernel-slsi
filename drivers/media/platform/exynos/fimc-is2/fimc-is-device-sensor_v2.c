@@ -1476,22 +1476,8 @@ static int __init fimc_is_sensor_probe(struct platform_device *pdev)
 	mutex_init(&device->mlock_state);
 	device_init_wakeup(&pdev->dev, true);
 
-	/* 3. state init*/
-	clear_bit(FIMC_IS_SENSOR_PROBE, &device->state);
-	clear_bit(FIMC_IS_SENSOR_OPEN, &device->state);
-	clear_bit(FIMC_IS_SENSOR_MCLK_ON, &device->state);
-	clear_bit(FIMC_IS_SENSOR_ICLK_ON, &device->state);
-	clear_bit(FIMC_IS_SENSOR_GPIO_ON, &device->state);
-	clear_bit(FIMC_IS_SENSOR_S_INPUT, &device->state);
-	clear_bit(FIMC_IS_SENSOR_S_CONFIG, &device->state);
-	clear_bit(FIMC_IS_SENSOR_DRIVING, &device->state);
-	clear_bit(FIMC_IS_SENSOR_STAND_ALONE, &device->state);
-	clear_bit(FIMC_IS_SENSOR_FRONT_START, &device->state);
-	clear_bit(FIMC_IS_SENSOR_FRONT_DTP_STOP, &device->state);
-	clear_bit(FIMC_IS_SENSOR_BACK_START, &device->state);
-	clear_bit(FIMC_IS_SENSOR_OTF_OUTPUT, &device->state);
-	clear_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
-	clear_bit(FIMC_IS_SENSOR_WAIT_STREAMING, &device->state);
+	/* 3. state init */
+	memset(&device->state, 0, sizeof(device->state));
 
 	atomic_set(&device->group_open_cnt, 0);
 
