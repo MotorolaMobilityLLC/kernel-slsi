@@ -1946,7 +1946,6 @@
 				firmware {
 					aov {
 						wlf,wmfw-file = "marley-dsp3-aov-control.wmfw";
-						wlf,bin-file = "marley-dsp3-aov-model.bin";
 					};
 				};
 			};
