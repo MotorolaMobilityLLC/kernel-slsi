@@ -228,6 +228,30 @@ static void dwc3_otg_ldo_control(struct otg_fsm *fsm, int on)
 
 	return;
 }
+
+static void dwc3_pm_runtime_init(struct device *dev)
+{
+	dev->power.runtime_status = RPM_SUSPENDED;
+	dev->power.idle_notification = false;
+
+	dev->power.disable_depth = 1;
+	atomic_set(&dev->power.usage_count, 0);
+
+	dev->power.runtime_error = 0;
+
+	atomic_set(&dev->power.child_count, 0);
+	pm_suspend_ignore_children(dev, false);
+	dev->power.runtime_auto = true;
+
+	dev->power.request_pending = false;
+	dev->power.request = RPM_REQ_NONE;
+	dev->power.deferred_resume = false;
+	dev->power.accounting_timestamp = jiffies;
+
+	dev->power.timer_expires = 0;
+	init_waitqueue_head(&dev->power.wait_queue);
+}
+
 static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg	*otg = fsm->otg;
@@ -273,6 +297,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		}
 
 		dwc3_otg_set_host_mode(dotg);
+		dwc3_pm_runtime_init(&dwc->xhci->dev);
 		ret = platform_device_add(dwc->xhci);
 		if (ret) {
 			dev_err(dev, "%s: cannot add xhci\n", __func__);
