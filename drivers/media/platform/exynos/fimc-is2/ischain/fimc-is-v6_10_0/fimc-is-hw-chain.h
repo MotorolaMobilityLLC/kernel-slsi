@@ -81,7 +81,7 @@ enum hwip_interrupt_map {
 #define MCSC_INTR_MASK		(0x0030007C)
 #define USE_DMA_BUFFER_INDEX	(0) /* 0 ~ 7 */
 #define MCSC_PRECISION		(20)
-#define MCSC_POLY_RATIO_UP	(10)
+#define MCSC_POLY_RATIO_UP	(16)
 #define MCSC_POLY_RATIO_DOWN	(16)
 #define MCSC_POST_RATIO_DOWN	(16)
 /* #define MCSC_POST_WA */
