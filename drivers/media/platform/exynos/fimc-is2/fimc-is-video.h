@@ -361,6 +361,7 @@ int fimc_is_queue_setup(struct fimc_is_queue *queue,
 int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	struct vb2_buffer *vb);
 int fimc_is_queue_buffer_init(struct vb2_buffer *vb);
+void fimc_is_queue_buffer_cleanup(struct vb2_buffer *vb);
 int fimc_is_queue_buffer_prepare(struct vb2_buffer *vb);
 void fimc_is_queue_wait_prepare(struct vb2_queue *vbq);
 void fimc_is_queue_wait_finish(struct vb2_queue *vbq);

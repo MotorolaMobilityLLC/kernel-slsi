@@ -1030,6 +1030,7 @@ static void fimc_is_ssx_buffer_finish(struct vb2_buffer *vb)
 const struct vb2_ops fimc_is_ssx_qops = {
 	.queue_setup		= fimc_is_ssx_queue_setup,
 	.buf_init		= fimc_is_queue_buffer_init,
+	.buf_cleanup		= fimc_is_queue_buffer_cleanup,
 	.buf_prepare		= fimc_is_queue_buffer_prepare,
 	.buf_queue		= fimc_is_ssx_buffer_queue,
 	.buf_finish		= fimc_is_ssx_buffer_finish,
