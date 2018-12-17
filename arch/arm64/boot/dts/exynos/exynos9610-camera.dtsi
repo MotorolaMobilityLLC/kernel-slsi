@@ -452,5 +452,6 @@
 		status = "ok";
 		iommus = <&sysmmu_isp0>;
 		#cooling-cells = <2>; /* min followed by max */
+		dma-coherent;
 	};
 };
