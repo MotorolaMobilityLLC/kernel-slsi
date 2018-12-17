@@ -2369,7 +2369,7 @@ static int __init is_poweroff_charging_mode(char *str)
 {
 	if (strncmp("charger", str, 7) == 0)
 		is_charging_mode = S2MU00X_POWEROFF_CHG_MODE;
-	else if (strncmp("factory", str, 7) == 0)
+	else if (strncmp("sfactory", str, 8) == 0)
 		is_charging_mode = S2MU00X_FAC_MODE;
 	else {
 		is_charging_mode = S2MU00X_NOR_MODE;
