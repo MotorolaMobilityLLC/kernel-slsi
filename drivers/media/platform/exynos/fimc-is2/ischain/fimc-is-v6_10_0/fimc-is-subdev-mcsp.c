@@ -133,7 +133,7 @@ p_err:
 	return ret;
 }
 
-#define MXP_RATIO_UP	(10)
+#define MXP_RATIO_UP	(16)
 #define MXP_RATIO_DOWN	(32)
 
 static int fimc_is_ischain_mxp_adjust_crop(struct fimc_is_device_ischain *device,
