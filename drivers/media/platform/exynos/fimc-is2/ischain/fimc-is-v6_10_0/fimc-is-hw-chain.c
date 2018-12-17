@@ -499,7 +499,19 @@ void fimc_is_hw_ischain_qe_cfg(void)
 int fimc_is_hw_ischain_cfg(void *ischain_data)
 {
 	int ret = 0;
-	/* TBD */
+	void __iomem *isp_axi2acel_reg;
+
+	isp_axi2acel_reg = ioremap_nocache(ISP_AXI2ACEL_EXT_ISP_CTRL_ADDR, SZ_4);
+
+	/* SYSREG_ISP - AXI2ACEL_EXT_ISP_CTRL
+	 * [5]  : AXI2ACEL_ISO1_I_EXT_WLU_EN
+	 * [4:3]: AXI2ACEL_ISO1_I_EXT_DOMAIN
+	 * [2]  : AXI2ACEL_ISO0_I_EXT_WLU_EN
+	 * [1:0]: AXI2ACEL_ISO0_I_EXT_DOMAIN
+	 */
+	writel(0x5, isp_axi2acel_reg);
+
+	iounmap(isp_axi2acel_reg);
 
 	return ret;
 }
