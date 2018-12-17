@@ -26,17 +26,6 @@
 			#address-cells = <2>;
 			#size-cells = <1>;
 
-			ect {
-				parameter_address = <0x90000000>;
-				parameter_size = <0x19000>;
-			};
-
-			chosen {
-				bootargs = "console=ram skip_initramfs rootwait ro init=/init clk_ignore_unused bcm_setup=0xffffff80f8e00000 androidboot.hardware=exynos9610 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware ecd_setup=disable reserve-fimc=0xffffff80fa000000 pmic_info=0x3 ccic_info=0x1 epx_activate=true ";
-				linux,initrd-start = <0x84000000>;
-				linux,initrd-end = <0x841FFFFF>;
-			};
-
 			fixed-rate-clocks {
 				oscclk {
 					compatible = "samsung,exynos9610-oscclk";
