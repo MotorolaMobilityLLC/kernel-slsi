@@ -262,8 +262,8 @@ __ATTR(_name, 0200, NULL, store_##_name)
 struct global_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct kobject *kobj,
-			struct attribute *attr, char *buf);
-	ssize_t (*store)(struct kobject *a, struct attribute *b,
+			struct kobj_attribute *attr, char *buf);
+	ssize_t (*store)(struct kobject *a, struct kobj_attribute *b,
 			 const char *c, size_t count);
 };
 
