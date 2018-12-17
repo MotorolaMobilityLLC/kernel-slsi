@@ -1056,6 +1056,16 @@ int fimc_is_queue_buffer_init(struct vb2_buffer *vb)
 	return 0;
 }
 
+void fimc_is_queue_buffer_cleanup(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
+	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
+	unsigned int pos_meta_p = vb->num_planes - NUM_OF_META_PLANE;
+
+	/* FIXME: meta plane only, doesn't support dmabuf container */
+	vbuf->ops->plane_kunmap(vbuf, pos_meta_p);
+}
+
 int fimc_is_queue_buffer_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
