@@ -29,7 +29,7 @@ u32 gamma_lut[3][65];
 u32 cgc_lut[50];
 u32 hsc_lut[35];
 
-#define TUNE_MODE_SIZE 3
+#define TUNE_MODE_SIZE 4
 u32 tune_mode[TUNE_MODE_SIZE][280];
 
 int dqe_log_level = 6;
@@ -877,6 +877,46 @@ static DEVICE_ATTR(tune_mode2, 0660,
 	NULL,
 	decon_dqe_tune_mode2_store);
 
+static ssize_t decon_dqe_tune_onoff_store(struct device *dev, struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	int ret = 0;
+	char *head = NULL;
+	struct dqe_device *dqe = dev_get_drvdata(dev);
+
+	dqe_info("%s +\n", __func__);
+
+	mutex_lock(&dqe->lock);
+
+	if (count <= 0) {
+		dqe_err("tune onoff write count error\n");
+		ret = -1;
+		goto err;
+	}
+
+	head = (char *)buffer;
+
+	ret = dqe_tune_mode_set(head, 3);
+	if (ret)
+		goto err;
+
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s -\n", __func__);
+
+	return count;
+err:
+	mutex_unlock(&dqe->lock);
+
+	dqe_info("%s : err(%d)\n", __func__, ret);
+
+	return ret;
+}
+
+static DEVICE_ATTR(tune_onoff, 0660,
+	NULL,
+	decon_dqe_tune_onoff_store);
+
 static ssize_t decon_dqe_aosp_color_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -931,42 +971,68 @@ static ssize_t decon_dqe_aosp_colors_store(struct device *dev, struct device_att
 	case 0: /* Natural */
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[1][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[1][i + 245];
 		break;
 
 	case 1:/* Boosted */
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[1][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[1][i + 245];
 		break;
 
 	case 2:/* Saturated */
 		for (i = 0; i < 50; i++)
-			cgc_lut[i] = tune_mode[0][i];
+			cgc_lut[i] = tune_mode[2][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[2][i + 245];
 		break;
 
 	case 90:/* mode0 */
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[0][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[0][i + 245];
 		break;
 
-	case 91:/* mode1 */
+	case 91:/* mode1 (sRGB) */
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[1][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[1][i + 245];
 		break;
 
-	case 92:/* mode1 */
+	case 92:/* mode2 (Native)*/
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[2][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[2][i + 245];
+		break;
+
+	case 93:/* onoff (DCI-P3)*/
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[3][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[3][i + 245];
 		break;
 
 	default:
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[0][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[0][i + 245];
 		break;
 	}
 
 	dqe_cgc_lut_set();
+	dqe_hsc_lut_set();
 
 	dqe->ctx.cgc_on = DQE_CGC_ON_MASK;
+	dqe->ctx.hsc_on = DQE_HSC_ON_MASK;
+	dqe->ctx.hsc_control = (
+		HSC_PPSC_ON(hsc_lut[0]) | HSC_YCOMP_ON(hsc_lut[7]) | HSC_TSC_ON(hsc_lut[9]) |
+		HSC_DITHER_ON(hsc_lut[11]) | HSC_PPHC_ON(hsc_lut[12]) | HSC_SKIN_ON(hsc_lut[30]));
 	dqe->ctx.need_udpate = true;
 
 	dqe_restore_context();
@@ -978,7 +1044,7 @@ static ssize_t decon_dqe_aosp_colors_store(struct device *dev, struct device_att
 err:
 	mutex_unlock(&dqe->lock);
 
-	dqe_info("%s : err(%d)\n", __func__, ret);
+	dqe_info("%s : err(%d), hsc_control=0x%04x\n", __func__, ret, dqe->ctx.hsc_control);
 
 	return ret;
 }
@@ -994,6 +1060,7 @@ static struct attribute *dqe_attrs[] = {
 	&dev_attr_xml.attr,
 	&dev_attr_tune_mode1.attr,
 	&dev_attr_tune_mode2.attr,
+	&dev_attr_tune_onoff.attr,
 	&dev_attr_aosp_colors.attr,
 	NULL,
 };
@@ -1026,29 +1093,51 @@ int decon_dqe_set_color_mode(struct decon_color_mode_with_render_intent_info *mo
 	case HAL_COLOR_MODE_SRGB:
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[1][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[1][i + 245];
+		break;
+
+	case HAL_COLOR_MODE_NATIVE:
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[2][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[2][i + 245];
 		break;
 
 	case HAL_COLOR_MODE_DCI_P3:
 		for (i = 0; i < 50; i++)
-			cgc_lut[i] = tune_mode[2][i];
+			cgc_lut[i] = tune_mode[3][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[3][i + 245];
 		break;
 
 	default:
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[0][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[0][i + 245];
 		break;
 	}
 
 	dqe_cgc_lut_set();
+	dqe_hsc_lut_set();
 	if (!dqe->ctx.night_light_on)
 		dqe_gamma_lut_set();
 
 	dqe->ctx.color_mode = mode->color_mode;
 
-	if (!dqe->ctx.night_light_on)
+	if (!dqe->ctx.night_light_on) {
 		dqe->ctx.cgc_on = DQE_CGC_ON_MASK;
-	else
+		dqe->ctx.hsc_on = DQE_HSC_ON_MASK;
+		dqe->ctx.hsc_control = (
+			HSC_PPSC_ON(hsc_lut[0]) | HSC_YCOMP_ON(hsc_lut[7]) | HSC_TSC_ON(hsc_lut[9]) |
+			HSC_DITHER_ON(hsc_lut[11]) | HSC_PPHC_ON(hsc_lut[12]) | HSC_SKIN_ON(hsc_lut[30]));
+	}
+	else {
 		dqe->ctx.cgc_on = 0;
+		dqe->ctx.hsc_on = 0;
+		dqe->ctx.hsc_control = 0;
+	}
 
 	dqe->ctx.need_udpate = true;
 
@@ -1057,8 +1146,8 @@ int decon_dqe_set_color_mode(struct decon_color_mode_with_render_intent_info *mo
 err:
 	mutex_unlock(&dqe->lock);
 
-	dqe_info("%s : ret(%d), cgc:%d, night_light:%d\n", __func__,
-		ret, dqe->ctx.cgc_on, dqe->ctx.night_light_on);
+	dqe_info("%s : ret(%d), cgc:%d, hsc:%d, hsc_control:0x%04x, night_light:%d\n", __func__,
+		ret, dqe->ctx.cgc_on, dqe->ctx.hsc_on, dqe->ctx.hsc_control, dqe->ctx.night_light_on);
 
 	return ret;
 }
