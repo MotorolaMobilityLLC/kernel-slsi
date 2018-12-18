@@ -9,14 +9,14 @@
 
 			utags {
 				compatible = "mmi,utags";
-				mmi,main-utags = "/dev/block/platform/13520000.ufs/by-name/utags";
-				mmi,backup-utags = "/dev/block/platform/13520000.ufs/by-name/utagsBackup";
+				mmi,main-utags = "/dev/block/bootdevice/by-name/utags";
+				mmi,backup-utags = "/dev/block/bootdevice/by-name/utagsBackup";
 			};
 
 			hw {
 				compatible = "mmi,utags";
 				mmi,dir-name = "hw";
-				mmi,main-utags = "/dev/block/platform/13520000.ufs/by-name/hw";
+				mmi,main-utags = "/dev/block/bootdevice/by-name/hw";
 			};
 
 			aov-trigger {
