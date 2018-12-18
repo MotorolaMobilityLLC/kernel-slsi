@@ -675,6 +675,7 @@ struct abox_data {
 	struct delayed_work tickle_work;
 	enum audio_mode audio_mode;
 	enum sound_type sound_type;
+	atomic_t suspend_state;
 };
 
 struct abox_compr_data {

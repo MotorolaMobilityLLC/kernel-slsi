@@ -5743,6 +5743,19 @@ out:
 	return NOTIFY_DONE;
 }
 
+static int abox_print_power_usage(struct device *dev, void *data)
+{
+	dev_dbg(dev, "%s\n", __func__);
+
+	if (pm_runtime_enabled(dev) && pm_runtime_active(dev)) {
+		dev_info(dev, "usage_count:%d\n",
+				atomic_read(&dev->power.usage_count));
+		device_for_each_child(dev, data, abox_print_power_usage);
+	}
+
+	return 0;
+}
+
 static int abox_pm_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
@@ -5768,13 +5781,28 @@ static int abox_pm_notifier(struct notifier_block *nb,
 			abox_cpu_gear_barrier(data);
 			flush_workqueue(data->ipc_workqueue);
 			if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND)) {
-				ret = pm_runtime_put_sync_suspend(dev);
+				ret = pm_runtime_put_sync(dev);
 				if (ret < 0) {
 					pm_runtime_get(dev);
-					dev_info(dev, "runtime suspend: %d\n",
-							ret);
+					dev_info(dev, "runtime put sync: %d\n", ret);
+					abox_print_power_usage(dev, NULL);
+					return NOTIFY_BAD;
+				} else if (ret == 0 && atomic_read(&dev->power.usage_count) > 0) {
+					dev_info(dev, "runtime put sync: %d uc(%d)\n",
+							ret, atomic_read(&dev->power.usage_count));
+					pm_runtime_get(dev);
+					abox_print_power_usage(dev, NULL);
 					return NOTIFY_BAD;
 				}
+				ret = pm_runtime_suspend(dev);
+				if (ret < 0) {
+					dev_info(dev, "runtime suspend: %d\n", ret);
+					abox_print_power_usage(dev, NULL);
+					return NOTIFY_BAD;
+				}
+				atomic_set(&data->suspend_state, 1);
+				dev_info(dev, "(%d)s suspend_state: %d\n", __LINE__,
+						atomic_read(&data->suspend_state));
 			} else {
 				ret = pm_runtime_suspend(dev);
 				if (ret < 0) {
@@ -5783,11 +5811,19 @@ static int abox_pm_notifier(struct notifier_block *nb,
 					return NOTIFY_BAD;
 				}
 			}
+		} else {
+			dev_info(dev, "abox is not clearable()\n");
 		}
 		break;
 	case PM_POST_SUSPEND:
-		if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND))
-			pm_runtime_get_sync(&data->pdev->dev);
+		if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND)) {
+			dev_info(dev, "(%d)r suspend_state: %d\n", __LINE__,
+					atomic_read(&data->suspend_state));
+			if (atomic_read(&data->suspend_state) == 1) {
+				pm_runtime_get_sync(&data->pdev->dev);
+				atomic_set(&data->suspend_state, 0);
+			}
+		}
 		break;
 	default:
 		/* Nothing to do */
@@ -5933,6 +5969,8 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 	data->pdev = pdev;
 	p_abox_data = data;
+
+	atomic_set(&data->suspend_state, 0);
 
 	abox_probe_quirks(data, np);
 	init_waitqueue_head(&data->ipc_wait_queue);
