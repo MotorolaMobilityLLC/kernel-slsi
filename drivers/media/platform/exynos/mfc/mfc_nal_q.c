@@ -1012,12 +1012,12 @@ static void __mfc_nal_q_handle_stream_copy_timestamp(struct mfc_ctx *ctx, struct
 	start_timestamp = src_mb->vb.vb2_buf.timestamp;
 	interval = NSEC_PER_SEC / p->rc_framerate;
 	if (debug_ts == 1)
-		mfc_info_ctx("[NALQ][BUFCON][TS] %dfps, start timestamp: %lld, base interval: %d\n",
+		mfc_info_ctx("[NALQ][BUFCON][TS] %dfps, start timestamp: %lld, base interval: %lld\n",
 				p->rc_framerate, start_timestamp, interval);
 
 	new_timestamp = start_timestamp + (interval * src_mb->done_index);
 	if (debug_ts == 1)
-		mfc_info_ctx("[NALQ][BUFCON][TS] new timestamp: %lld, interval: %d\n",
+		mfc_info_ctx("[NALQ][BUFCON][TS] new timestamp: %lld, interval: %lld\n",
 				new_timestamp, interval * src_mb->done_index);
 
 	/* Get the destination buffer */
