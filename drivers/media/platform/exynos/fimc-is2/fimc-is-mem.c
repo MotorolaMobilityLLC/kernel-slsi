@@ -115,13 +115,16 @@ static inline ulong is_vb2_dma_sg_plane_kmap(
 	}
 
 	vbuf->kva[plane] = (ulong)dma_buf_kmap(dbuf, buf->offset / PAGE_SIZE);
-
-	if (!vbuf->kva[plane])
+	if (!vbuf->kva[plane]) {
 		dma_buf_end_cpu_access(dbuf, buf->dma_dir);
-	else
-		vbuf->kva[plane] += buf->offset & ~PAGE_MASK;
+		dma_buf_put(dbuf);
+		pr_err("failed to kmapping dmabuf of fd: %d, plane: %d\n",
+				vb->planes[plane].m.fd, plane);
+		return 0;
+	}
 
-	dma_buf_put(dbuf);
+	vbuf->dbuf[plane] = dbuf;
+	vbuf->kva[plane] += buf->offset & ~PAGE_MASK;
 
 	return vbuf->kva[plane];
 }
@@ -129,23 +132,16 @@ static inline ulong is_vb2_dma_sg_plane_kmap(
 static inline void is_vb2_dma_sg_plane_kunmap(
 		struct fimc_is_vb2_buf *vbuf, u32 plane)
 {
-	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
-	struct dma_buf *dbuf;
-
-	dbuf = dma_buf_get(vb->planes[plane].m.fd);
-	if (IS_ERR_OR_NULL(dbuf)) {
-		pr_err("failed to get dmabuf of fd: %d, plane: %d",
-				vb->planes[plane].m.fd, plane);
-		return;
-	}
+	struct dma_buf *dbuf = vbuf->dbuf[plane];
 
 	if (vbuf->kva[plane]) {
 		dma_buf_kunmap(dbuf, 0, (void *)vbuf->kva[plane]);
 		dma_buf_end_cpu_access(dbuf, 0);
+		dma_buf_put(dbuf);
+
+		vbuf->dbuf[plane] = NULL;
 		vbuf->kva[plane] = 0;
 	}
-
-	dma_buf_put(dbuf);
 }
 
 static long is_vb2_dma_sg_remap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
