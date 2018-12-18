@@ -252,6 +252,15 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 		}
 	}
 
+	subdev_eeprom = sensor_peri->subdev_eeprom;
+	if (subdev_eeprom != NULL) {
+		ret = CALL_EEPROMOPS(sensor_peri->eeprom, eeprom_read, subdev_eeprom);
+		if (ret) {
+			err("[%s] sensor eeprom read fail\n", __func__);
+			ret = 0;
+		}
+	}
+
 	subdev_ois = sensor_peri->subdev_ois;
 #ifdef USE_OIS_INIT_WORK
 	if (subdev_ois)
@@ -290,15 +299,6 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 			err("[%s] aperture init fail\n", __func__);
 	}
 #endif
-
-	subdev_eeprom = sensor_peri->subdev_eeprom;
-	if (subdev_eeprom != NULL) {
-		ret = CALL_EEPROMOPS(sensor_peri->eeprom, eeprom_read, subdev_eeprom);
-		if (ret) {
-			err("[%s] sensor eeprom read fail\n", __func__);
-			ret = 0;
-		}
-	}
 
 	if (test_bit(FIMC_IS_SENSOR_ACTUATOR_AVAILABLE, &sensor_peri->peri_state) &&
 			pdata->af_product_name != ACTUATOR_NAME_NOTHING && sensor_peri->actuator != NULL) {
