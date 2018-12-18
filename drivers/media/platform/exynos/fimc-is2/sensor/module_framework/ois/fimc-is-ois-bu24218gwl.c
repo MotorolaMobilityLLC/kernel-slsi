@@ -19,12 +19,12 @@
 #include "fimc-is-ois.h"
 
 #define OIS_NAME "OIS_ROHM_BU24218GWL"
-#define OIS_FW_1_NAME		"bu24218_Rev1.0_S_data1.bin"
-#define OIS_FW_2_NAME		"bu24218_Rev1.0_S_data2.bin"
+#define OIS_FW_1_NAME		"bu24218_Rev1.2_S_data1.bin"
+#define OIS_FW_2_NAME		"bu24218_Rev1.2_S_data2.bin"
 #define OIS_FW_NUM		2
 #define OIS_FW_ADDR_1		0x0000
 #define OIS_FW_ADDR_2		0x1C00
-#define OIS_FW_CHECK_SUM	0x02D409
+#define OIS_FW_CHECK_SUM	0x02D806
 
 #define OIS_CAL_DATA_PATH		"/data/camera/gm1_eeprom_data.bin"
 #define OIS_CAL_DATA_PATH_DEFAULT	"/vendor/firmware/bu24218_cal_data_default.bin"
@@ -117,6 +117,7 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 	u8 *buf = NULL;
 	u16 crc_value = 0;
 	u16 crc16 = 0;
+	int i = 0;
 
 	FIMC_BUG(!ois);
 
@@ -166,7 +167,10 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 		ret = -EIO;
 		goto p_err;
 	}
-	info("ois read cal data : 0x%x,%x,%x,%x", buf[0], buf[1], buf[2], buf[3]);
+
+	for(i = 0; i < size/4; i++) {
+		info("ois cal data (%d): 0x%0x,%0x,%0x,%0x", i, buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3]);
+	}
 
 	if (crc_enable) {
 		crc16 = fimc_is_ois_check_crc(buf, OIS_CAL_DATA_SIZE);
@@ -367,7 +371,7 @@ int fimc_is_ois_fw_update(struct v4l2_subdev *subdev)
 			return 0;
 		}
 		ret = fimc_is_ois_cal_open(ois, OIS_CAL_DATA_PATH, OIS_CAL_DATA_OFFSET, OIS_CAL_DATA_SIZE, 1);
-		if (ret < 0) {
+//		if (ret < 0) {
 			info(" switch to load default OIS Cal Data %s \n", OIS_CAL_DATA_PATH_DEFAULT);
 			ret = fimc_is_ois_cal_open(ois, OIS_CAL_DATA_PATH_DEFAULT, OIS_CAL_DATA_OFFSET_DEFAULT,
 				OIS_CAL_DATA_SIZE_DEFAULT, 0);
@@ -375,7 +379,7 @@ int fimc_is_ois_fw_update(struct v4l2_subdev *subdev)
 				err("OIS %s load is fail\n", OIS_CAL_DATA_PATH_DEFAULT);
 				return 0;
 			}
-		}
+//		}
 		is_first_load = 0;
 	}
 
