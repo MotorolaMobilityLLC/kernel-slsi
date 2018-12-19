@@ -146,6 +146,7 @@ static inline void is_vb2_dma_sg_plane_kunmap(
 
 static long is_vb2_dma_sg_remap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
 {
+#if 0
 	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
 	struct vb2_dma_sg_buf *buf;
 	unsigned int plane;
@@ -192,10 +193,16 @@ err_get_sgt:
 	}
 
 	return ret;
+#else
+	info("failed remap attr : need to check ion_iovmm_map_attr func\n");
+	return 0;
+#endif
 }
 
 void is_vb2_dma_sg_unremap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
 {
+#if 0
+
 	struct vb2_buffer *vb = &vbuf->vb.vb2_buf;
 	struct vb2_dma_sg_buf *buf;
 	unsigned int plane;
@@ -207,6 +214,9 @@ void is_vb2_dma_sg_unremap_attr(struct fimc_is_vb2_buf *vbuf, int attr)
 		dma_buf_unmap_attachment(buf->db_attach, vbuf->sgt[plane], buf->dma_dir);
 		vbuf->dva[plane] = 0;
 	}
+#else
+	info("failed remap attr : need to check ion_iovmm_unmap_attr func\n");
+#endif
 }
 
 #ifdef CONFIG_DMA_BUF_CONTAINER
