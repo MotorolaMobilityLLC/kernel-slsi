@@ -736,12 +736,25 @@ static ssize_t decon_dqe_xml_show(struct device *dev,
 	struct dqe_device *dqe = dev_get_drvdata(dev);
 	char *p = buf;
 	int len;
-
-	dqe_info("%s\n", __func__);
+	char xml_path[DSIM_DDI_TYPE_LEN + 30] = {0, };
+#if defined(CONFIG_EXYNOS_DECON_LCD_MULTI)
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+#endif
+	dqe_dbg("%s\n", __func__);
 
 	mutex_lock(&dqe->lock);
 
-	len = sprintf(p, "vendor/etc/dqe/calib_data.xml\n");
+	sprintf(xml_path, "vendor/etc/dqe/");
+#if defined(CONFIG_EXYNOS_DECON_LCD_MULTI)
+	strcat(xml_path, dsim->ddi_device_type);
+#else
+	strcat(xml_path, "calib_data");
+#endif
+	strcat(xml_path, ".xml");
+
+	dqe_info("dqe xml_path: %s\n", xml_path);
+
+	len = sprintf(p, "%s\n", xml_path);
 
 	mutex_unlock(&dqe->lock);
 
