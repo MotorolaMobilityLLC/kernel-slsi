@@ -1320,6 +1320,8 @@ static void dsim_parse_lcd_info(struct dsim_device *dsim)
 		break;
 	}
 
+	snprintf(dsim->ddi_device_type, DSIM_DDI_TYPE_LEN, "%s", ddi_device_type);
+
 	node = of_find_node_by_type(node, ddi_device_type);
 
 	of_property_read_u32(node, "mode", &dsim->lcd_info.mode);
