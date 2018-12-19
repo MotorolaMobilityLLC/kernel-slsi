@@ -103,8 +103,14 @@ static unsigned int nanohub_poll(struct file *, poll_table *);
 static int nanohub_release(struct inode *, struct file *);
 static int nanohub_hw_reset(struct nanohub_data *data);
 
+static int chub_dev_open(struct inode *, struct file *);
+static ssize_t chub_dev_read(struct file *, char *, size_t, loff_t *);
+static ssize_t chub_dev_write(struct file *, const char *, size_t, loff_t *);
+
 static struct class *sensor_class;
-static int major;
+static int major, chub_dev_major;
+
+extern const char *os_image[SENSOR_VARIATION];
 
 #ifdef CONFIG_EXT_CHUB
 static const struct gpio_config gconf[] = {
@@ -127,6 +133,13 @@ static const struct file_operations nanohub_fileops = {
 	.write = nanohub_write,
 	.poll = nanohub_poll,
 	.release = nanohub_release,
+};
+
+static const struct file_operations chub_dev_fileops = {
+	.owner = THIS_MODULE,
+	.open = chub_dev_open,
+	.read = chub_dev_read,
+	.write = chub_dev_write,
 };
 
 enum {
@@ -1260,6 +1273,7 @@ done:
 static int nanohub_create_devices(struct nanohub_data *data)
 {
 	int i, ret;
+	struct device *chub_dev;
 	static const char *names[ID_NANOHUB_MAX] = {
 			"nanohub", "nanohub_comms"
 	};
@@ -1277,7 +1291,9 @@ static int nanohub_create_devices(struct nanohub_data *data)
 			goto fail_dev;
 		}
 	}
-
+	chub_dev = device_create(sensor_class, NULL, MKDEV(chub_dev_major, 0), NULL, "chub_dev");
+	if(chub_dev == NULL)
+		pr_info("nanohub: device_create failed for chub_dev!\n");
 	ret = nanohub_create_sensor(data);
 	if (!ret)
 		goto done;
@@ -1285,6 +1301,7 @@ static int nanohub_create_devices(struct nanohub_data *data)
 fail_dev:
 	for (--i; i >= 0; --i)
 		device_destroy(sensor_class, MKDEV(major, i));
+	device_destroy(sensor_class, MKDEV(chub_dev_major, 0));
 done:
 	return ret;
 }
@@ -1327,7 +1344,7 @@ static int nanohub_open(struct inode *inode, struct file *file)
 #ifdef CONFIG_NANOHUB_MAILBOX
 	struct nanohub_io *io;
 #endif
-
+	pr_info("%s\n", __func__);
 	dev = class_find_device(sensor_class, NULL, &devt, nanohub_match_devt);
 	if (dev) {
 		file->private_data = dev_get_drvdata(dev);
@@ -1425,6 +1442,68 @@ static int nanohub_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int chub_dev_open(struct inode *inode, struct file *file)
+{
+	pr_info("%s\n", __func__);
+	return 0;
+}
+
+static ssize_t chub_dev_read(struct file *file, char *buffer,
+								size_t length, loff_t *offset)
+{
+	return 0;
+}
+
+static int nanohub_match_name(struct device *dev, const void *data)
+{
+	const char *name = data;
+	if(dev->kobj.name == NULL)
+		pr_info("nanohub device name invalid\n");
+	else
+		pr_info("nanohub device name = %s\n", dev->kobj.name);
+	return !strcmp(dev->kobj.name, name);
+}
+
+static ssize_t chub_dev_write(struct file *file, const char *buffer,
+			     size_t length, loff_t *offset)
+{
+	struct device *dev_nanohub;
+	struct nanohub_data *data;
+	struct contexthub_ipc_info *ipc;
+	int8_t num_os;
+	int ret;
+
+	dev_nanohub = class_find_device(sensor_class, NULL, "nanohub", nanohub_match_name);
+	if(dev_nanohub == NULL) {
+		pr_err("%s: dev_nanohub not available\n", __func__);
+		return -EINVAL;
+	}
+
+	data = dev_get_nanohub_data(dev_nanohub);
+	if(data == NULL) {
+		pr_err("%s nanohub_data not available\n", __func__);
+		return -EINVAL;
+	}
+
+	ipc = data->pdata->mailbox_client;
+	if(ipc == NULL) {
+		pr_err("%s ipc not available\n", __func__);
+		return -EINVAL;
+	}
+
+	//read int8_t num_os
+	ret = copy_from_user(&num_os, buffer, sizeof(num_os));
+
+	if(num_os > 0 && num_os < SENSOR_VARIATION) {
+        ipc->sel_os = true;
+		pr_info("%s saved os name: %s\n", __func__, os_image[num_os]);
+        strncpy(ipc->os_name, os_image[num_os], sizeof(ipc->os_name));
+    } else
+		pr_warn("%s num_os is invalid %d\n", __func__, num_os);
+
+	return 0;
+}
+
 static void nanohub_destroy_devices(struct nanohub_data *data)
 {
 	int i;
@@ -1435,6 +1514,7 @@ static void nanohub_destroy_devices(struct nanohub_data *data)
 		device_remove_file(sensor_dev, &attributes[i]);
 	for (i = 0; i < ID_NANOHUB_MAX; ++i)
 		device_destroy(sensor_class, MKDEV(major, i));
+	device_destroy(sensor_class, MKDEV(chub_dev_major, 0));
 }
 
 #ifdef CONFIG_EXT_CHUB
@@ -2081,15 +2161,25 @@ static int __init nanohub_init(void)
 		ret = PTR_ERR(sensor_class);
 		pr_err("nanohub: class_create failed; err=%d\n", ret);
 	}
+
 	if (!ret)
 		major = __register_chrdev(0, 0, ID_NANOHUB_MAX, "nanohub",
 					  &nanohub_fileops);
+
+	chub_dev_major = __register_chrdev(0, 0, 1, "chub_dev", &chub_dev_fileops);
+	if(chub_dev_major < 0) {
+		pr_info("nanohub : can't register chub_dev; err = %d\n", chub_dev_major);
+		chub_dev_major = 0;
+	} else {
+		pr_info("nanohub : registered chub_dev; %d\n", chub_dev_major);
+	}
 
 	if (major < 0) {
 		ret = major;
 		major = 0;
 		pr_err("nanohub: can't register; err=%d\n", ret);
-	}
+	} else
+		pr_info("nanohub : registered major; %d\n", major);
 
 #ifdef CONFIG_NANOHUB_I2C
 	if (ret == 0)
@@ -2112,6 +2202,7 @@ static void __exit nanohub_cleanup(void)
 	nanohub_spi_cleanup();
 #endif
 	__unregister_chrdev(major, 0, ID_NANOHUB_MAX, "nanohub");
+	__unregister_chrdev(chub_dev_major, 0, 1, "chub_dev");
 	class_destroy(sensor_class);
 	major = 0;
 	sensor_class = 0;
