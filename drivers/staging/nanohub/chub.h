@@ -164,6 +164,7 @@ struct contexthub_ipc_info {
 	u8 rxbuf[PACKET_SIZE_MAX];
 #endif
 	struct chub_alive chub_alive_lock;
+	struct chub_alive poweron_lock;
 	void __iomem *sram;
 	void __iomem *mailbox;
 	void __iomem *chub_dumpgpr;
@@ -300,4 +301,5 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump_
 int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 int contexthub_request(struct contexthub_ipc_info *ipc);
 void contexthub_release(struct contexthub_ipc_info *ipc);
+int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf);
 #endif

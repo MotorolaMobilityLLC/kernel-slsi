@@ -294,7 +294,7 @@ static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
 	val = wait_event_timeout(ipc->chub_alive_lock.event,
 				 ipc->chub_alive_lock.flag,
 				 msecs_to_jiffies(WAIT_TIMEOUT_MS));
-
+	dev_info(ipc->dev, "%s done: ret:%d\n", __func__, val);
 	return ipc->chub_alive_lock.flag;
 }
 
@@ -421,6 +421,11 @@ static void contexthub_select_os(struct contexthub_ipc_info *ipc)
 	else
 		dev_warn(ipc->dev, "%s failed. contexthub status is %d\n",
 				__func__, atomic_read(&ipc->chub_status));
+
+	dev_info(ipc->dev, "%s done: wakeup interrupt\n", __func__);
+
+	ipc->poweron_lock.flag = 1;
+	wake_up(&ipc->poweron_lock.event);
 }
 
 static DEFINE_MUTEX(dbg_mutex);
@@ -691,6 +696,47 @@ static void contexthub_config_init(struct contexthub_ipc_info *chub)
 	ipc_set_owner(AP, chub->mailbox, IPC_SRC);
 }
 
+int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
+{
+	struct sensor_map *sensor_map;
+	int len = 0;
+	int trycnt = 0;
+	int ret;
+
+	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN) {
+		dev_warn(ipc->dev, "%s :fails chub isn't active, status:%d, inreset:%d\n",
+			__func__, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
+		return -EINVAL;
+	}
+
+	ret = contexthub_get_token(ipc);
+	if (ret) {
+		do {
+			msleep(WAIT_CHUB_MS);
+			if (++trycnt > WAIT_TRY_CNT)
+				break;
+			ret = contexthub_get_token(ipc);
+		} while (ret);
+
+		if (ret) {
+			dev_warn(ipc->dev, "%s fails to get token, status:%d, inreset:%d\n",
+				__func__, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
+			return -EINVAL;
+		}
+	}
+	sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
+
+	dev_err(ipc->dev, "%s: get sensorinfo: %p\n", __func__, sensor_map);
+	if (ipc_have_sensor_info(sensor_map)) {
+		len = ipc_get_offset(IPC_REG_IPC_SENSORINFO);
+		memcpy(buf, ipc_get_sensor_base(), len);
+	} else {
+		dev_err(ipc->dev, "%s: fails to get sensorinfo: %p\n", __func__, sensor_map);
+	}
+	contexthub_put_token(ipc);
+	return len;
+}
+
 int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 				enum mailbox_event event)
 {
@@ -880,12 +926,25 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 			return ret;
 		}
 		if (atomic_read(&ipc->chub_status) == CHUB_ST_RUN)
-			dev_info(dev, "contexthub power-on");
-		else if (ipc->sel_os == true)
-			dev_warn(dev, "contexthub failed to power-on");
+			dev_info(dev, "%s: contexthub power-on", __func__);
+		else {
+			if (ipc->sel_os)
+				dev_warn(dev, "contexthub failed to power-on");
+			else {
+				dev_info(dev, "%s: wait for multi-os poweron\n", __func__);
+
+				ipc->poweron_lock.flag = 0;
+				ret = wait_event_timeout(ipc->chub_alive_lock.event,
+								 ipc->poweron_lock.flag,
+								 msecs_to_jiffies(WAIT_TIMEOUT_MS));
+				dev_info(dev, "%s: multi-os poweron %s, ret:%d\n", __func__,
+					atomic_read(&ipc->chub_status) == CHUB_ST_RUN ? "success" : "fails",  ret);
+			}
+		}
 	} else {
 		dev_info(dev, "%s: already power-on, status: %d", __func__, atomic_read(&ipc->chub_status));
 	}
+
 	return ret;
 }
 
@@ -1502,7 +1561,7 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 			dev_warn(chub->dev, "Failed to create file: %s\n",
 				 attributes[i].attr.name);
 	}
-
+	init_waitqueue_head(&chub->poweron_lock.event);
 	init_waitqueue_head(&chub->read_lock.event);
 	init_waitqueue_head(&chub->chub_alive_lock.event);
 	INIT_WORK(&chub->debug_work, handle_debug_work_func);
