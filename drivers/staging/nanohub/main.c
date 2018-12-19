@@ -1154,17 +1154,9 @@ static ssize_t chub_sensortype_store(struct device *dev,
 static ssize_t chub_sensortype_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct sensor_map *sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
+	struct nanohub_data *data = dev_get_nanohub_data(dev);
 
-	dev_err(dev, "%s: cann't get sensorinfo: %p\n", __func__, sensor_map);
-	if (ipc_have_sensor_info(sensor_map)) {
-		memcpy(buf, ipc_get_sensor_base(), ipc_get_offset(IPC_REG_IPC_SENSORINFO));
-		return ipc_get_offset(IPC_REG_IPC_SENSORINFO);
-	}
-
-	dev_err(dev, "%s: fails to get sensorinfo:%p, magic:%s\n",
-	__func__, sensor_map, sensor_map ? sensor_map->magic : NULL);
-	return 0;
+	return contexthub_get_sensortype(data->pdata->mailbox_client, buf);
 }
 
 void nanohub_add_dump_request(struct nanohub_data *data)
