@@ -323,8 +323,8 @@ static ssize_t chipid_memsize_show(struct device *dev,
 	return snprintf(buf, 20, "%llu\n", exynos_soc_info.memsize);
 }
 
-static ssize_t chipid_board_id_show(struct kobject *kobj,
-			   struct kobj_attribute *attr, char *buf)
+static ssize_t chipid_board_id_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, 14, "%ld", board_rev);
 }
@@ -347,7 +347,7 @@ static struct device_attribute chipid_evt_ver_attr =
 static struct device_attribute chipid_memsize_attr =
 	__ATTR(memsize, 0440, chipid_memsize_show, NULL);
 
-static struct kobj_attribute chipid_board_id_attr =
+static struct device_attribute chipid_board_id_attr =
 	__ATTR(board_id, 0644, chipid_board_id_show, NULL);
 
 static struct attribute *chipid_sysfs_attrs[] = {
