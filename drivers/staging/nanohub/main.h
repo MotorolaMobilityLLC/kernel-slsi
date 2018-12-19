@@ -44,9 +44,18 @@ struct nanohub_io {
 	struct list_head buf_list;
 };
 
+struct saved_setting {
+	char magic[15];
+    int8_t num_os;
+    char readbuf[SENSOR_TYPE_MAX];
+};
+
 static inline struct nanohub_data *dev_get_nanohub_data(struct device *dev)
 {
 	struct nanohub_io *io = dev_get_drvdata(dev);
+
+	if(io == NULL)
+		pr_info("%s io not available!\n", __func__);
 
 	return io->data;
 }

@@ -31,6 +31,9 @@
 #include <linux/clk-provider.h>
 #include <linux/timekeeping.h>
 #include <linux/of_gpio.h>
+#include <linux/fcntl.h>
+#include <uapi/linux/sched/types.h>
+
 #ifdef CONFIG_EXYNOS_ITMON
 #include <soc/samsung/exynos-itmon.h>
 #endif
@@ -44,8 +47,6 @@
 #include "chub_ipc.h"
 #include "chub_dbg.h"
 #include "../../soc/samsung/cal-if/pmucal_shub.h"
-
-#define SENSOR_VARIATION 10
 
 #define WAIT_TIMEOUT_MS (1000)
 enum { CHUB_ON, CHUB_OFF };
@@ -650,7 +651,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	}
 
 	if (ipc->sel_os == false) {
-		dev_info(ipc->dev, "%s os select\n", __func__);
+		dev_info(ipc->dev, "%s -> os select\n", __func__);
 		return 0;
 	}
 
@@ -695,10 +696,11 @@ static void contexthub_config_init(struct contexthub_ipc_info *chub)
 	ipc_set_base(chub->sram);
 	ipc_set_owner(AP, chub->mailbox, IPC_SRC);
 }
-
+#define os_name_idx (11)
 int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 {
 	struct sensor_map *sensor_map;
+	struct saved_setting *pack = (struct saved_setting *) buf;
 	int len = 0;
 	int trycnt = 0;
 	int ret;
@@ -726,10 +728,11 @@ int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 	}
 	sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
 
-	dev_err(ipc->dev, "%s: get sensorinfo: %p\n", __func__, sensor_map);
 	if (ipc_have_sensor_info(sensor_map)) {
+		pack->num_os = ipc->os_name[os_name_idx] - '0';
+		dev_info(ipc->dev, "%s: get sensorinfo: %p (%d)\n", __func__, sensor_map, pack->num_os);
 		len = ipc_get_offset(IPC_REG_IPC_SENSORINFO);
-		memcpy(buf, ipc_get_sensor_base(), len);
+		memcpy(&pack->readbuf, ipc_get_sensor_base(), len);
 	} else {
 		dev_err(ipc->dev, "%s: fails to get sensorinfo: %p\n", __func__, sensor_map);
 	}
@@ -911,8 +914,11 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 			return ret;
 		}
 
-		map = ipc_get_base(IPC_REG_BL_MAP);
-		ipc->sel_os = !(map->bootmode);
+		if(!strcmp(ipc->os_name, "os.checked_0.bin") || ipc->os_name[0] != 'o') {
+			map = ipc_get_base(IPC_REG_BL_MAP);
+			ipc->sel_os = !(map->bootmode);
+		} else
+			dev_info(dev, "saved os_name: %s", ipc->os_name);
 
 		ret = contexthub_download_image(ipc, IPC_REG_OS);
 		if (ret) {
@@ -1073,11 +1079,14 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 	const struct firmware *entry;
 	int ret;
 
-	dev_info(ipc->dev, "%s: enter for bl:%d\n", __func__, reg == IPC_REG_BL);
-	if (reg == IPC_REG_BL)
+	if (reg == IPC_REG_BL) {
+		dev_info(ipc->dev, "%s: download bl\n", __func__);
 		ret = request_firmware(&entry, "bl.unchecked.bin", ipc->dev);
-	else if (reg == IPC_REG_OS)
+	}
+	else if (reg == IPC_REG_OS) {
+		dev_info(ipc->dev, "%s: download %s\n", __func__, ipc->os_name);
 		ret = request_firmware(&entry, ipc->os_name, ipc->dev);
+	}
 	else
 		ret = -EINVAL;
 
