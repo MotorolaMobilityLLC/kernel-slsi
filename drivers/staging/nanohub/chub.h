@@ -200,6 +200,8 @@ struct contexthub_ipc_info {
 #endif
 };
 
+#define SENSOR_VARIATION 10
+
 /*	PMU CHUB_CPU registers */
 #if defined(CONFIG_SOC_EXYNOS9810)
 #define REG_CHUB_CPU_STATUS (0x0)
