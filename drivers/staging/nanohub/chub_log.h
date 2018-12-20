@@ -11,9 +11,11 @@
 #define __CHUB_LOG_H_
 
 #include <linux/device.h>
+#include "chub_ipc.h"
 
 struct log_kernel_buffer {
 	char *buffer;
+	unsigned int buffer_size;
 	unsigned int index;
 	bool wrap;
 	volatile bool updated;
@@ -42,7 +44,6 @@ struct LOG_BUFFER {
 	volatile u32 index_writer;
 	volatile u32 index_reader;
 	volatile u32 size;
-	volatile u32 token;
 	volatile u32 full;
 	char buffer[0];
 };

@@ -62,6 +62,9 @@ static void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
 				  i * 4);
 		p_dump->gpr[GPR_PC_INDEX] =
 		    readl(ipc->chub_dumpgpr + REG_CHUB_DUMPGPR_PCR);
+
+		for (i = 0; i <= GPR_PC_INDEX; i++)
+			dev_info(ipc->dev, "%s: %d: 0x%x\n", __func__, i, p_dump->gpr[i]);
 	}
 }
 
@@ -148,6 +151,7 @@ static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 #ifdef USE_FW_DUMP
 	contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
 #endif
+	ipc_dump();
 	log_flush(ipc->fw_log);
 }
 
@@ -232,9 +236,6 @@ static ssize_t chub_bin_sram_read(struct file *file, struct kobject *kobj,
 				  struct bin_attribute *battr, char *buf,
 				  loff_t off, size_t size)
 {
-	struct device *dev = kobj_to_dev(kobj);
-
-	dev_info(dev, "%s(%p: %lld, %zu)\n", __func__, battr->private, off, size);
 	memcpy_fromio(buf, battr->private + off, size);
 	return size;
 }
@@ -258,14 +259,24 @@ static ssize_t chub_bin_dumped_sram_read(struct file *file, struct kobject *kobj
 	return size;
 }
 
+static ssize_t chub_bin_logbuf_dram_read(struct file *file, struct kobject *kobj,
+				  struct bin_attribute *battr, char *buf,
+				  loff_t off, size_t size)
+{
+	memcpy(buf, battr->private + off, size);
+	return size;
+}
+
 static BIN_ATTR_RO(chub_bin_sram, 0);
 static BIN_ATTR_RO(chub_bin_dram, 0);
 static BIN_ATTR_RO(chub_bin_dumped_sram, 0);
+static BIN_ATTR_RO(chub_bin_logbuf_dram, 0);
 
 static struct bin_attribute *chub_bin_attrs[] = {
 	&bin_attr_chub_bin_sram,
 	&bin_attr_chub_bin_dram,
 	&bin_attr_chub_bin_dumped_sram,
+	&bin_attr_chub_bin_logbuf_dram,
 };
 
 #define SIZE_UTC_NAME (16)
@@ -469,6 +480,40 @@ static ssize_t chub_wakeup_store(struct device *dev,
 	return ret ? ret : count;
 }
 
+static ssize_t chub_loglevel_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+	enum ipc_fw_loglevel loglevel = ipc->chub_rt_log.loglevel;
+	int index = 0;
+
+	dev_info(dev, "%s: %d\n", __func__, loglevel);
+	index += sprintf(buf, "%d:%s, %d:%s, %d:%s\n", CHUB_RT_LOG_OFF, "off", CHUB_RT_LOG_DUMP, "dump-only", CHUB_RT_LOG_DUMP_PRT, "dump-prt");
+	index += sprintf(buf + index, "cur-loglevel: %d: %s\n", loglevel, !loglevel ? "off" : ((loglevel == CHUB_RT_LOG_DUMP) ? "dump-only" : "dump-prt"));
+
+	return index;
+}
+
+static ssize_t chub_loglevel_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+	long event;
+	int ret;
+
+	ret = kstrtol(&buf[0], 10, &event);
+	if (ret)
+		return ret;
+
+	ipc->chub_rt_log.loglevel = (enum ipc_fw_loglevel)event;
+	dev_info(dev, "%s: %d->%d\n", __func__, event, ipc->chub_rt_log.loglevel);
+	contexthub_ipc_write_event(ipc, MAILBOX_EVT_RT_LOGLEVEL);
+
+	return ret ? ret : count;
+}
+
+
 static struct device_attribute attributes[] = {
 	__ATTR(get_gpr, 0440, chub_get_gpr_show, NULL),
 	__ATTR(dump_status, 0220, NULL, chub_get_dump_status_store),
@@ -477,6 +522,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(ipc_test, 0220, NULL, chub_ipc_store),
 	__ATTR(alive, 0440, chub_alive_show, NULL),
 	__ATTR(wakeup, 0220, NULL, chub_wakeup_store),
+	__ATTR(loglevel, 0664, chub_loglevel_show, chub_loglevel_store),
 };
 
 void *chub_dbg_get_memory(enum dbg_dump_area area)
@@ -501,7 +547,7 @@ void *chub_dbg_get_memory(enum dbg_dump_area area)
 	return addr;
 }
 
-int chub_dbg_init(struct contexthub_ipc_info *chub)
+int chub_dbg_init(struct contexthub_ipc_info *chub, void *kernel_logbuf, int kernel_logbuf_size)
 {
 	int i, ret = 0;
 	enum dbg_dump_area area;
@@ -528,6 +574,9 @@ int chub_dbg_init(struct contexthub_ipc_info *chub)
 
 	bin_attr_chub_bin_sram.size = ipc_get_chub_mem_size();
 	bin_attr_chub_bin_sram.private = ipc_get_base(IPC_REG_DUMP);
+
+	bin_attr_chub_bin_logbuf_dram.size = kernel_logbuf_size;
+	bin_attr_chub_bin_logbuf_dram.private = kernel_logbuf;
 
 	if (chub_rmem->size < get_dbg_dump_size())
 		dev_err(dev,
