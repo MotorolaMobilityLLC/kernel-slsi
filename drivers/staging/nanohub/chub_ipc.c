@@ -246,9 +246,15 @@ void *ipc_get_chub_map(void)
 	ipc_addr[IPC_REG_RAM].offset = map->ram_end - map->ram_start;
 	ipc_addr[IPC_REG_DUMP].offset = map->dump_end - map->dump_start;
 
+	if (ipc_get_offset(IPC_REG_IPC) < sizeof(struct ipc_map_area)) {
+		CSP_PRINTF_INFO
+			("%s: fails. ipc size (0x%x) should be increase to 0x%x\n",
+			__func__, ipc_get_offset(IPC_REG_IPC), sizeof(struct ipc_map_area));
+		return 0;
+	}
+
 	ipc_map = ipc_addr[IPC_REG_IPC].base;
-	ipc_map->logbuf.size =
-	    ipc_addr[IPC_REG_IPC].offset - sizeof(struct ipc_map_area) - CHUB_PERSISTBUF_SIZE;
+	ipc_map->logbuf.size = LOGBUF_TOTAL_SIZE;
 	strcpy(&ipc_map->magic[0], CHUB_IPC_MAGIC);
 
 	ipc_addr[IPC_REG_IPC_EVT_A2C].base = &ipc_map->evt[IPC_EVT_A2C].data;
@@ -266,17 +272,14 @@ void *ipc_get_chub_map(void)
 	ipc_addr[IPC_REG_IPC_C2A].offset = sizeof(struct ipc_buf);
 	ipc_addr[IPC_REG_IPC_A2C].offset = sizeof(struct ipc_buf);
 
-	ipc_addr[IPC_REG_LOG].base = &ipc_map->logbuf.buf;
-	ipc_addr[IPC_REG_LOG].offset = ipc_map->logbuf.size;
-	ipc_addr[IPC_REG_PERSISTBUF].base = ipc_addr[IPC_REG_LOG].base + ipc_addr[IPC_REG_LOG].offset;
+	/* for rawlevel log */
+	ipc_map->logbuf.size = LOGBUF_TOTAL_SIZE;
+	ipc_map->logbuf.logbuf.size = ipc_addr[IPC_REG_IPC].offset - sizeof(struct ipc_map_area);
+	/* for runtime log */
+	ipc_addr[IPC_REG_LOG].base = &ipc_map->logbuf.log;
+	ipc_addr[IPC_REG_LOG].offset = ipc_map->logbuf.size + ipc_map->logbuf.logbuf.size;
+	ipc_addr[IPC_REG_PERSISTBUF].base = &ipc_map->persist;
 	ipc_addr[IPC_REG_PERSISTBUF].offset = CHUB_PERSISTBUF_SIZE;
-
-	if (((u32)ipc_addr[IPC_REG_PERSISTBUF].base + ipc_addr[IPC_REG_PERSISTBUF].offset) >
-			((u32)ipc_addr[IPC_REG_IPC].base + ipc_addr[IPC_REG_IPC].offset))
-		CSP_PRINTF_INFO("%s: %s: wrong persistbuf addr:%p, %d, ipc_end:0x%x\n",
-			NAME_PREFIX, __func__,
-			ipc_addr[IPC_REG_PERSISTBUF].base, ipc_addr[IPC_REG_PERSISTBUF].offset, map->ipc_end);
-
 	ipc_addr[IPC_REG_IPC_SENSORINFO].base = &ipc_map->sensormap;
 	ipc_addr[IPC_REG_IPC_SENSORINFO].offset = sizeof(u8) * SENSOR_TYPE_MAX;
 #ifdef SEOS
@@ -284,6 +287,15 @@ void *ipc_get_chub_map(void)
 		CSP_PRINTF_INFO("%s: ipc set sensormap and maic: :%p\n", __func__, &ipc_map->sensormap);
 		memset(&ipc_map->sensormap, 0, sizeof(struct sensor_map));
 		strcpy(&ipc_map->sensormap.magic[0], SENSORMAP_MAGIC);
+		/* clear logbuf with 1st booting */
+		ipc_map->logbuf.eq = 0;
+		ipc_map->logbuf.dq = 0;
+		ipc_map->logbuf.full = 0;
+		ipc_map->logbuf.dbg_full_cnt = 0;
+		ipc_map->logbuf.loglevel = 0;
+		ipc_map->logbuf.logbuf.eq = 0;
+		ipc_map->logbuf.logbuf.dq = 0;
+		ipc_map->logbuf.logbuf.full = 0;
 	}
 #endif
 
@@ -298,15 +310,16 @@ void *ipc_get_chub_map(void)
 	     ipc_addr[IPC_REG_DUMP].base, ipc_addr[IPC_REG_DUMP].offset);
 
 	CSP_PRINTF_INFO
-		("%s: ipc_map information\n ipc(%p %d)\n data_c2a(%p %d)\n data_a2c(%p %d)\n evt_c2a(%p %d)\n evt_a2c(%p %d)\n sensormap(%p %d) \n log(%p %d)\n persistbuf(%p %d)\n",
-		NAME_PREFIX, ipc_get_base(IPC_REG_IPC), ipc_get_offset(IPC_REG_IPC),
+		("%s: ipc_map information (0x%x/0x%x)\n ipc(%p %d)\n data_c2a(%p %d)\n data_a2c(%p %d)\n evt_c2a(%p %d)\n evt_a2c(%p %d)\n sensormap(%p %d) \n persistbuf(%p %d)\n log(ch:%p %d / raw:%p %d)\n ",
+		NAME_PREFIX, sizeof(struct ipc_map_area), ipc_get_offset(IPC_REG_IPC),
+		ipc_get_base(IPC_REG_IPC), ipc_get_offset(IPC_REG_IPC),
 		ipc_get_base(IPC_REG_IPC_C2A), ipc_get_offset(IPC_REG_IPC_C2A),
 		ipc_get_base(IPC_REG_IPC_A2C), ipc_get_offset(IPC_REG_IPC_A2C),
 		ipc_get_base(IPC_REG_IPC_EVT_C2A), ipc_get_offset(IPC_REG_IPC_EVT_C2A),
 		ipc_get_base(IPC_REG_IPC_EVT_A2C), ipc_get_offset(IPC_REG_IPC_EVT_A2C),
 		ipc_get_base(IPC_REG_IPC_SENSORINFO), ipc_get_offset(IPC_REG_IPC_SENSORINFO),
-		ipc_get_base(IPC_REG_LOG), ipc_get_offset(IPC_REG_LOG),
-		ipc_get_base(IPC_REG_PERSISTBUF), ipc_get_offset(IPC_REG_PERSISTBUF));
+		ipc_get_base(IPC_REG_PERSISTBUF), ipc_get_offset(IPC_REG_PERSISTBUF),
+		ipc_get_base(IPC_REG_LOG), ipc_map->logbuf.size, ipc_map->logbuf.logbuf.buf, ipc_map->logbuf.logbuf.size);
 
 #ifndef USE_IPC_BUF
 	CSP_PRINTF_INFO
@@ -651,8 +664,11 @@ static void ipc_print_logbuf(void)
 {
 	struct ipc_logbuf *logbuf = &ipc_map->logbuf;
 
-	CSP_PRINTF_INFO("%s: token:%d, eq:%d, dq:%d, size:%d, full:%d\n",
-		NAME_PREFIX, logbuf->token, logbuf->eq, logbuf->dq, logbuf->size, logbuf->full);
+	CSP_PRINTF_INFO("%s: channel: eq:%d, dq:%d, size:%d, full:%d, dbg_full_cnt:%d, err:%d, fw:%lld, ap:%lld\n",
+		NAME_PREFIX, logbuf->eq, logbuf->dq, logbuf->size, logbuf->full, logbuf->dbg_full_cnt,
+		logbuf->errcnt, logbuf->fw_num, logbuf->ap_num);
+	CSP_PRINTF_INFO("%s: raw: eq:%d, dq:%d, size:%d, full:%d\n",
+		NAME_PREFIX, logbuf->logbuf.eq, logbuf->logbuf.dq, logbuf->logbuf.size, logbuf->logbuf.full);
 }
 
 int ipc_check_reset_valid()
@@ -703,7 +719,6 @@ void ipc_init(void)
 	}
 
 	ipc_hw_clear_all_int_pend_reg(AP);
-
 	for (j = 0; j < IPC_EVT_MAX; j++) {
 		ipc_map->evt[j].ctrl.dq = 0;
 		ipc_map->evt[j].ctrl.eq = 0;
@@ -716,6 +731,10 @@ void ipc_init(void)
 			ipc_map->evt[j].data[i].irq = IRQ_EVT_INVAL;
 		}
 	}
+	ipc_map->logbuf.dbg_full_cnt = 0;
+	ipc_map->logbuf.errcnt= 0;
+	ipc_map->logbuf.fw_num = 0;
+	ipc_map->logbuf.ap_num = 0;
 }
 
 /* evt functions */
@@ -753,6 +772,70 @@ struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
 
 #define EVT_WAIT_TIME (5)
 #define MAX_TRY_CNT (5)
+
+/* ipc_add_evt without lock and print */
+int ipc_add_evt_in_critical(enum ipc_evt_list evtq, enum irq_evt_chub evt)
+{
+	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
+	enum ipc_owner owner = (evtq < IPC_EVT_AP_MAX) ? AP : IPC_OWN_MAX;
+	struct ipc_evt_buf *cur_evt = NULL;
+	int trycnt = 0;
+	u32 pending;
+
+	if (!ipc_evt || (owner != AP)) {
+		return -1;
+	}
+
+retry:
+	if (!__raw_readl(&ipc_evt->ctrl.full)) {
+		cur_evt = &ipc_evt->data[ipc_evt->ctrl.eq];
+		if (!cur_evt) {
+			return -1;
+		}
+
+		/* wait pending clear on irq pend */
+		pending = ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq);
+		if (pending) {
+            /* don't sleep on ap */
+			do {
+				busywait(EVT_WAIT_TIME);
+			} while (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq) && (trycnt++ < MAX_TRY_CNT));
+
+			if (ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq)) {
+				return -1;
+			}
+		}
+		cur_evt->evt = evt;
+		cur_evt->status = IPC_EVT_EQ;
+		cur_evt->irq = ipc_evt->ctrl.irq;
+		ipc_evt->ctrl.eq = EVT_Q_INT(ipc_evt->ctrl.eq + 1);
+		ipc_evt->ctrl.irq = IRQ_EVT_IDX_INT(ipc_evt->ctrl.irq + 1);
+		if (ipc_evt->ctrl.eq == __raw_readl(&ipc_evt->ctrl.dq))
+			__raw_writel(1, &ipc_evt->ctrl.full);
+	} else {
+		do {
+			busywait(EVT_WAIT_TIME);
+		} while (ipc_evt->ctrl.full && (trycnt++ < MAX_TRY_CNT));
+
+		if (!__raw_readl(&ipc_evt->ctrl.full)) {
+			goto retry;
+		} else {
+			ipc_dump();
+			return -1;
+		}
+	}
+
+	if (owner != IPC_OWN_MAX) {
+#if defined(AP_IPC)
+		ipc_write_val(AP, sched_clock());
+#endif
+		if (cur_evt)
+			ipc_hw_gen_interrupt(owner, cur_evt->irq);
+		else
+			return -1;
+	}
+	return 0;
+}
 
 int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 {
@@ -812,7 +895,7 @@ retry:
 
 		if (!__raw_readl(&ipc_evt->ctrl.full)) {
 			CSP_PRINTF_INFO("%s: %s: evt %d during %d ms is full\n",
-					NAME_PREFIX, __func__, evt, EVT_WAIT_TIME * trycnt);
+				NAME_PREFIX, __func__, evt, EVT_WAIT_TIME * trycnt);
 			goto retry;
 		} else {
 			CSP_PRINTF_ERROR("%s: %s: fail to add evt by full\n", NAME_PREFIX, __func__);
@@ -872,38 +955,150 @@ void ipc_dump(void)
 	ipc_print_logbuf();
 }
 
-u32 ipc_logbuf_get_token(void)
-{
-	__raw_writel(ipc_map->logbuf.token + 1, &ipc_map->logbuf.token);
-
-	return __raw_readl(&ipc_map->logbuf.token);
-}
-
+#ifdef CHUB_IPC
 void ipc_logbuf_put_with_char(char ch)
 {
-	char *logbuf;
-	int eqNext;
-
 	if (ipc_map) {
-		eqNext = ipc_map->logbuf.eq + 1;
+		struct logbuf_raw *logbuf = &ipc_map->logbuf.logbuf;
 
+		if (logbuf->size) {
+			char *buf = (char *)&logbuf->buf[0];
+
+			*(buf + logbuf->eq) = ch;
+			logbuf->eq = (logbuf->eq + 1) % logbuf->size;
 #ifdef IPC_DEBUG
-		if (eqNext == ipc_map->logbuf.dq) {
-			ipc_write_debug_event(AP, IPC_DEBUG_CHUB_FULL_LOG);
-			ipc_add_evt(IPC_EVT_C2A, IRQ_EVT_CHUB_TO_AP_DEBUG);
-		}
+			if (logbuf->eq == logbuf->dq) {
+				ipc_write_debug_event(AP, IPC_DEBUG_CHUB_FULL_LOG);
+				ipc_add_evt(IPC_EVT_C2A, IRQ_EVT_CHUB_TO_AP_DEBUG);
+			}
 #endif
-		ipc_map->logbuf.token++;
-		logbuf = ipc_map->logbuf.buf;
-
-		*(logbuf + ipc_map->logbuf.eq) = ch;
-
-		if (eqNext == ipc_map->logbuf.size)
-			ipc_map->logbuf.eq = 0;
-		else
-			ipc_map->logbuf.eq = eqNext;
+		}
 	}
 }
+
+void *ipc_logbuf_inbase(bool force)
+{
+	if (ipc_map) {
+		struct ipc_logbuf *logbuf = &ipc_map->logbuf;
+
+		if (force || logbuf->loglevel) {
+			struct logbuf_content *log;
+			int index;
+
+			DISABLE_IRQ();
+			if (logbuf->full) /* logbuf is full overwirte */
+				logbuf->dbg_full_cnt++;
+
+			index = logbuf->eq;
+			logbuf->eq = (logbuf->eq + 1) % LOGBUF_NUM;
+			if (logbuf->eq == logbuf->dq)
+				logbuf->full = 1;
+			ENABLE_IRQ();
+
+			log = &logbuf->log[index];
+			memset(log, 0, sizeof(struct logbuf_content));
+			return log;
+		}
+	}
+	return NULL;
+}
+
+void ipc_logbuf_req_flush(struct logbuf_content *log, bool force)
+{
+	if (log) {
+		struct ipc_logbuf *logbuf = &ipc_map->logbuf;
+
+		/* debug check overwrite */
+		log->size = logbuf->fw_num++;
+		if (ipc_map) {
+			u32 eq = logbuf->eq;
+			u32 dq = logbuf->dq;
+			u32 logcnt = (eq >= dq) ? (eq - dq) : (eq + (logbuf->size - dq));
+
+			if (((ipc_get_ap_wake() == AP_WAKE) && (logcnt > LOGBUF_FLUSH_THRESHOLD)) || force) {
+				DISABLE_IRQ();
+				if (!logbuf->flush_req) {
+					logbuf->flush_req = 1;
+					ipc_add_evt_in_critical(IPC_EVT_C2A, IRQ_EVT_C2A_LOG);
+				}
+				ENABLE_IRQ();
+			}
+		}
+	}
+}
+#else
+#define ipc_logbuf_put_with_char(a) ((void)0)
+#define ipc_logbuf_inbase(a) ((void)0)
+#define ipc_logbuf_req_flush(a, c) ((void)0)
+#endif
+
+#ifdef AP_IPC
+void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf)
+{
+	if (ipc_map) {
+		struct logbuf_content *log;
+		struct ipc_logbuf *logbuf = &ipc_map->logbuf;
+		int eq;
+		int retrycnt = 0;
+
+retry:
+		eq = logbuf->eq;
+		if (logbuf->full) {
+			logbuf->full = 0;
+			logbuf->dq =  logbuf->eq;
+		}
+
+		while (eq != logbuf->dq) {
+			log = &logbuf->log[logbuf->dq];
+
+			/* debug check overwrite */
+			if (logbuf->ap_num != log->size) {
+				logbuf->ap_num = log->size;
+				logbuf->errcnt++;
+			}
+			logbuf->ap_num++;
+
+			if (logbuf->loglevel == CHUB_RT_LOG_DUMP_PRT)
+				CSP_PRINTF_INFO("%s: %s", NAME_PREFIX, (char *)log);
+
+			if (rt_buf) {
+				int len = strlen((char *)log);
+
+				if (rt_buf->write_index + len > rt_buf->buffer_size)
+					rt_buf->write_index = 0;
+				memcpy(rt_buf->buffer + rt_buf->write_index, (char *)log, len);
+				rt_buf->write_index += len;
+			}
+			logbuf->dq = (logbuf->dq + 1) % LOGBUF_NUM;
+		}
+
+		if ((eq != logbuf->eq) && !retrycnt) {
+			CSP_PRINTF_INFO("%s: retry: flush:%d, cnt:%d, eq:%d->%d, dq:%d\n",
+				NAME_PREFIX, logbuf->flush_req, logbuf->dbg_full_cnt, eq, logbuf->eq, logbuf->dq);
+			goto retry;
+		}
+
+		if (logbuf->flush_req)
+			logbuf->flush_req = 0;
+	}
+}
+
+enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set)
+{
+	if (ipc_map) {
+		struct ipc_logbuf *logbuf = &ipc_map->logbuf;
+
+		if (set)
+			logbuf->loglevel = (u8)loglevel;
+		return (enum ipc_fw_loglevel)logbuf->loglevel;
+	}
+
+	return 0;
+}
+#else
+#define ipc_logbuf_outprint(a) ((void)0)
+#define ipc_logbuf_loglevel(a, b) ((void)0)
+#endif
 
 void ipc_set_owner(enum ipc_owner owner, void *base, enum ipc_direction dir)
 {

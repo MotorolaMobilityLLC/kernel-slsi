@@ -53,4 +53,10 @@ config CONTEXTHUB_DEBUG
 	help
 	  Eanble nanohub device debug message
 
+config CONTEXTHUB_DEBUG_MODE
+	bool "Contexthub reset brings kernel panic"
+	default N
+	help
+	  Eanble kernel panic with contexthub FW error
+
 endif # NANOHUB
