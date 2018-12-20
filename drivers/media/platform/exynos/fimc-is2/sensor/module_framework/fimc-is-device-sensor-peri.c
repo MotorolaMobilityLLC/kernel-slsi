@@ -1268,8 +1268,7 @@ int fimc_is_sensor_peri_update_actuator_dm(struct v4l2_subdev *subdev, void *arg
 			return 0;
 		}
 
-		frame->shot->udm.lens.pos =
-			sensor_peri->actuator->expecting_lens_udm[index].pos;
+		frame->shot_ext->user.focus_target_pos = sensor_peri->actuator->position;
 
 		if (sensor_peri->actuator->actual_pos_support) {
 			frame->shot_ext->user.focus_actual_pos =
@@ -1278,7 +1277,7 @@ int fimc_is_sensor_peri_update_actuator_dm(struct v4l2_subdev *subdev, void *arg
 
 		dbg_sensor(1, "[%s][F:%d]: target_pos(%d), actual_pos(%s: %d)\n",
 			__func__, frame->fcount,
-			frame->shot->udm.lens.pos,
+			frame->shot_ext->user.focus_target_pos,
 			sensor_peri->actuator->actual_pos_support ? "EN" : "NA",
 			frame->shot_ext->user.focus_actual_pos);
 	}
