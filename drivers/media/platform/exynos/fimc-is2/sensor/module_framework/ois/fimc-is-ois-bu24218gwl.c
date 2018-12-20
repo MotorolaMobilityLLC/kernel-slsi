@@ -457,9 +457,6 @@ int fimc_is_set_ois_mode(struct v4l2_subdev *subdev, int mode)
 			break;
 		case OPTICAL_STABILIZATION_MODE_CENTERING:
 			fimc_is_ois_write(ois->client, 0x6020, 0x01);
-			usleep_range(100000, 100000);
-			fimc_is_ois_write(client, 0x6021, 0x63);
-			fimc_is_ois_write(client, 0x6020, 0x02); // Servo ON
 			break;
 		default:
 			err("%s: invalid ois_mode value(%d)\n", __func__, mode);
