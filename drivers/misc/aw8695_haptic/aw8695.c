@@ -1453,7 +1453,9 @@ static int aw8695_haptic_f0_calibration(struct aw8695 *aw8695)
 
     /* restore default work mode */
     aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_STANDBY_MODE);
-    aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_RAM_MODE);
+    aw8695->play_mode = AW8695_HAPTIC_RAM_MODE;
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_SYSCTRL,
+            AW8695_BIT_SYSCTRL_PLAY_MODE_MASK, AW8695_BIT_SYSCTRL_PLAY_MODE_RAM);
     aw8695_haptic_stop(aw8695);
 
     return ret;
