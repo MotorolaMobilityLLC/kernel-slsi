@@ -885,7 +885,7 @@ static ssize_t nanohub_download_bl(struct device *dev,
 
 	return ret < 0 ? ret : count;
 #elif defined(CONFIG_NANOHUB_MAILBOX)
-	ret = contexthub_reset(data->pdata->mailbox_client, 1, 0);
+	ret = contexthub_reset(data->pdata->mailbox_client, 1, CHUB_ERR_NONE);
 
 	return ret < 0 ? ret : count;
 #endif

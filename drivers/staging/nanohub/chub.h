@@ -87,6 +87,7 @@ enum mailbox_event {
 	MAILBOX_EVT_CHUB_ALIVE,
 	MAILBOX_EVT_SHUTDOWN,
 	MAILBOX_EVT_RESET,
+	MAILBOX_EVT_RT_LOGLEVEL,
 	MAILBOX_EVT_MAX,
 };
 
@@ -159,6 +160,7 @@ struct contexthub_ipc_info {
 	struct nanohub_platform_data *pdata;
 	wait_queue_head_t wakeup_wait;
 	struct work_struct debug_work;
+	struct work_struct log_work;
 	struct read_wait read_lock;
 #ifdef USE_IPC_BUF
 	u8 rxbuf[PACKET_SIZE_MAX];
@@ -177,7 +179,9 @@ struct contexthub_ipc_info {
 	struct log_buffer_info *fw_log;
 	struct log_buffer_info *dd_log;
 	struct LOG_BUFFER *dd_log_buffer;
+	struct runtimelog_buf chub_rt_log;
 	unsigned long clkrate;
+	atomic_t log_work_active;
 	atomic_t chub_status;
 	atomic_t in_reset;
 	atomic_t irq1_apInt;
@@ -299,7 +303,7 @@ int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 				uint8_t *tx, int length, int timeout);
 int contexthub_poweron(struct contexthub_ipc_info *data);
 int contexthub_download_image(struct contexthub_ipc_info *data, enum ipc_region reg);
-int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, int dump_id);
+int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub_err_type err);
 int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 int contexthub_request(struct contexthub_ipc_info *ipc);
 void contexthub_release(struct contexthub_ipc_info *ipc);
