@@ -18,7 +18,7 @@
 #define AP_IPC
 #endif
 
-#define IPC_VERSION (181024)
+#define IPC_VERSION (181213)
 
 #if defined(CHUB_IPC)
 #if defined(SEOS)
@@ -117,7 +117,6 @@ struct chub_bootargs {
  */
 #define IPC_BUF_NUM (IRQ_EVT_CH_MAX)
 #define IPC_EVT_NUM (30)
-#define IPC_LOGBUF_NUM (256)
 
 enum sr_num {
 	SR_0 = 0,
@@ -160,6 +159,7 @@ enum irq_evt_chub {
 	IRQ_EVT_C2A_ASSERT,
 	IRQ_EVT_C2A_INT,
 	IRQ_EVT_C2A_INTCLR,
+	IRQ_EVT_C2A_LOG,
 	IRQ_EVT_CHUB_EVT_MAX = 15,
 	IRQ_EVT_CHUB_ALIVE = IRQ_EVT_CHUB_EVT_MAX,
 	IRQ_EVT_CHUB_MAX = 16,	/* max irq number on mailbox */
@@ -319,13 +319,53 @@ struct ipc_log_content {
 	u8 buffer[sizeof(u64) + HOSTINTF_SENSOR_DATA_MAX - sizeof(u32)];
 };
 
+#define LOGBUF_TOTAL_SIZE (LOGBUF_SIZE * LOGBUF_NUM)
+#define LOGBUF_SIZE (64)
+#define LOGBUF_NUM (80)
+#define LOGBUF_DATA_SIZE (LOGBUF_SIZE - sizeof(u64))
+#define LOGBUF_FLUSH_THRESHOLD (LOGBUF_NUM / 4)
+
+struct logbuf_content{
+	char buf[LOGBUF_DATA_SIZE];
+	u64 size;
+};
+
+struct logbuf_raw {
+	u32 eq; /* write owner chub (index_writer) */
+	u32 dq; /* read onwer ap (index_reader) */
+	u32 size;
+	u32 full;
+	char buf[0];
+};
+
+enum ipc_fw_loglevel {
+	CHUB_RT_LOG_OFF,
+	CHUB_RT_LOG_DUMP,
+	CHUB_RT_LOG_DUMP_PRT,
+};
+
+struct runtimelog_buf {
+	char *buffer;
+	unsigned int buffer_size;
+	unsigned int write_index;
+	enum ipc_fw_loglevel loglevel;
+};
+
 struct ipc_logbuf {
+	struct logbuf_content log[LOGBUF_NUM];
 	u32 eq;	/* write owner chub (index_writer) */
 	u32 dq;	/* read onwer ap (index_reader) */
 	u32 size;
-	u32 token;
-	u32 full;
-	char buf[0];
+	u8 dbg_full_cnt;
+	u8 full;
+	u8 flush_req;
+	u8 loglevel;
+	/* for debug */
+	int errcnt;
+	u64 fw_num;
+	u64 ap_num;
+	/* rawlevel logout */
+	struct logbuf_raw logbuf;
 };
 
 #ifndef IPC_DATA_SIZE
@@ -428,6 +468,7 @@ struct ipc_map_area {
 	struct ipc_evt evt[IPC_EVT_MAX];
 	struct ipc_debug dbg;
 	struct sensor_map sensormap;
+	char persist[CHUB_PERSISTBUF_SIZE];
 	struct ipc_logbuf logbuf;
 };
 
@@ -500,11 +541,14 @@ int ipc_check_reset_valid(void);
 void ipc_init(void);
 int ipc_hw_read_int_start_index(enum ipc_owner owner);
 /* logbuf functions */
-void *ipc_get_logbuf(void);
-unsigned int ipc_logbuf_get_token(void);
+enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set);
+void *ipc_logbuf_inbase(bool force);
+void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf);
+void ipc_logbuf_req_flush(struct logbuf_content *log, bool force);
 /* evt functions */
 struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evt);
 int ipc_add_evt(enum ipc_evt_list evt, enum irq_evt_chub irq);
+int ipc_add_evt_in_critical(enum ipc_evt_list evtq, enum irq_evt_chub evt);
 void ipc_print_evt(enum ipc_evt_list evt);
 /* mailbox hw access */
 void ipc_set_owner(enum ipc_owner owner, void *base, enum ipc_direction dir);
@@ -520,7 +564,6 @@ void ipc_hw_set_mcuctrl(enum ipc_owner owner, unsigned int val);
 void ipc_hw_mask_irq(enum ipc_owner owner, int irq);
 void ipc_hw_unmask_irq(enum ipc_owner owner, int irq);
 void ipc_logbuf_put_with_char(char ch);
-int ipc_logbuf_need_flush(void);
 void ipc_write_debug_event(enum ipc_owner owner, enum ipc_debug_event action);
 u32 ipc_read_debug_event(enum ipc_owner owner);
 void ipc_write_debug_val(enum ipc_data_list dir, u32 val);
