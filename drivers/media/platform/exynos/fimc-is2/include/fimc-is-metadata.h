@@ -2060,6 +2060,7 @@ struct vra_ext_meta {
 struct camera2_shot_ext_user {
 	int		crc_result[CAMERA_CRC_INDEX_MAX];
 	int		focus_actual_pos;
+	int		focus_target_pos;
 };
 
 /** \brief
