@@ -51,7 +51,7 @@
 
 #include <linux/uaccess.h>
 #include <asm/sections.h>
-
+#include <linux/rtc.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
 
@@ -429,7 +429,9 @@ static u32 console_idx;
 static u64 clear_seq;
 static u32 clear_idx;
 
-#ifdef CONFIG_PRINTK_PROCESS
+#ifdef CONFIG_PRINTK_UTC_TIME
+#define PREFIX_MAX		100
+#elif defined(CONFIG_PRINTK_PROCESS)
 #define PREFIX_MAX		48
 #else
 #define PREFIX_MAX		32
@@ -562,6 +564,7 @@ static u32 msg_used_size(u16 text_len, u16 dict_len, u32 *pad_len)
 
 #ifdef CONFIG_PRINTK_PROCESS
 static bool printk_process = 1;
+#ifndef CONFIG_PRINTK_UTC_TIME
 static size_t print_process(const struct printk_log *msg, char *buf)
 
 {
@@ -577,12 +580,15 @@ static size_t print_process(const struct printk_log *msg, char *buf)
 			msg->process,
 			msg->pid);
 }
+#endif
 #else
 static bool printk_process = 0;
+#ifndef CONFIG_PRINTK_UTC_TIME
 static size_t print_process(const struct printk_log *msg, char *buf)
 {
 	return 0;
 }
+#endif
 #endif
 module_param_named(process, printk_process, bool, S_IRUGO | S_IWUSR);
 
@@ -648,7 +654,20 @@ static u32 truncate_msg(u16 *text_len, u16 *trunc_msg_len,
 	/* compute the size again, count also the warning message */
 	return msg_used_size(*text_len + *trunc_msg_len, 0, pad_len);
 }
+#ifdef CONFIG_PRINTK_UTC_TIME
+static void log_store_utc_time(char *buf, u32 buf_size, u16 *len) {
+	struct timespec ts;
+	struct rtc_time tm;
+	ts = current_kernel_time();
+	rtc_time_to_tm(ts.tv_sec, &tm);
 
+	*len += snprintf(buf, buf_size, "[%lu:%.2d:%.2d %.2d:%.2d:%.2d.%09lu]",
+				1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,ts.tv_nsec);
+	*len  += snprintf(buf + *len, buf_size-*len, "[pid:%d,cpu%d,%s]",
+						current->pid, smp_processor_id(), in_irq() ? "in irq" : current->comm);
+	return;
+}
+#endif
 /* insert record into the buffer, discard old ones, update heads */
 static int log_store(int facility, int level,
 		     enum log_flags flags, u64 ts_nsec,
@@ -658,7 +677,13 @@ static int log_store(int facility, int level,
 	struct printk_log *msg;
 	u32 size, pad_len;
 	u16 trunc_msg_len = 0;
+#ifdef CONFIG_PRINTK_UTC_TIME
+	char tmp_buf[100];
+	u16 tmp_len = 0;
 
+	log_store_utc_time(tmp_buf, sizeof(tmp_buf), &tmp_len);
+	text_len += tmp_len;
+#endif
 	/* number of '\0' padding bytes to next message */
 	size = msg_used_size(text_len, dict_len, &pad_len);
 
@@ -684,6 +709,13 @@ static int log_store(int facility, int level,
 	/* fill message */
 	msg = (struct printk_log *)(log_buf + log_next_idx);
 	memcpy(log_text(msg), text, text_len);
+#ifdef CONFIG_PRINTK_UTC_TIME
+	memcpy(log_text(msg), tmp_buf, tmp_len);
+	memcpy(log_text(msg)+tmp_len, text, text_len-tmp_len);
+#else
+	memcpy(log_text(msg), text, text_len);
+#endif
+
 	msg->text_len = text_len;
 	if (trunc_msg_len) {
 		memcpy(log_text(msg) + text_len, trunc_msg, trunc_msg_len);
@@ -1334,7 +1366,9 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
 	}
 
 	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
+#ifndef CONFIG_PRINTK_UTC_TIME
 	len += print_process(msg, buf ? buf + len : NULL);
+#endif
 	return len;
 }
 
