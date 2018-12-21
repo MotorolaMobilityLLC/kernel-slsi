@@ -3765,6 +3765,8 @@ static int fimc_is_sensor_shot(struct fimc_is_device_ischain *ischain,
 		goto p_err;
 	}
 
+	if (sensor->cfg->pd_mode == PD_MSPD_TAIL)
+		frame->shot->uctl.isModeUd.paf_mode = CAMERA_PAF_ON;
 #ifdef ENABLE_INIT_AWB
 	if ((frame->shot->ctl.aa.awbMode == AA_AWBMODE_WB_AUTO)
 		&& (frame->fcount <= sensor->init_wb_cnt)
