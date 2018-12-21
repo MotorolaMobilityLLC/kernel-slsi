@@ -30,7 +30,6 @@ extern int dsim_log_level;
 #define DSIM_MODULE_NAME			"exynos-dsim"
 #define MAX_DSIM_CNT				2
 #define DSIM_DDI_ID_LEN				3
-#define DSIM_DDI_TYPE_LEN 			50
 
 #define DSIM_PIXEL_FORMAT_RGB24			0x3E
 #define DSIM_PIXEL_FORMAT_RGB18_PACKED		0x1E
@@ -235,7 +234,6 @@ struct dsim_device {
 	bool esd_recovering;
 #endif
 	u32 ddi_id;
-	char ddi_device_type[DSIM_DDI_TYPE_LEN];
 };
 
 struct dsim_lcd_driver {
