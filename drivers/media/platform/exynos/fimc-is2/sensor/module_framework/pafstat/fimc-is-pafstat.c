@@ -254,7 +254,7 @@ static void pafstat_tasklet_fwin_stat(unsigned long data)
 	dbg_pafstat(1, "%s, sensor fcount: %d\n", __func__, sensor->fcount);
 }
 
-static void pafstat_worker_fwin_stat(struct work_struct *work)
+static void __nocfi pafstat_worker_fwin_stat(struct work_struct *work)
 {
 	struct fimc_is_pafstat *pafstat;
 	struct fimc_is_module_enum *module;
@@ -439,7 +439,7 @@ int pafstat_unregister_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_typ
 	return 0;
 }
 
-void pafstat_notify(struct v4l2_subdev *subdev, unsigned int type, void *data)
+void __nocfi pafstat_notify(struct v4l2_subdev *subdev, unsigned int type, void *data)
 {
 	struct fimc_is_pafstat *pafstat;
 	struct paf_action *pa, *temp;
