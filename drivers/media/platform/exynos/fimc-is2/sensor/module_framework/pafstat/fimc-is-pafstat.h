@@ -15,6 +15,11 @@
 #include "fimc-is-device-sensor.h"
 #include "fimc-is-interface-sensor.h"
 
+extern int debug_pafstat;
+
+#define dbg_pafstat(level, fmt, args...) \
+	dbg_common(((debug_pafstat) >= (level)), "[PAFSTAT]", fmt, ##args)
+
 #define MAX_NUM_OF_PAFSTAT 2
 
 int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch);

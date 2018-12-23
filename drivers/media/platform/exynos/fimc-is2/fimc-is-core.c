@@ -109,6 +109,8 @@ int debug_time_shot;
 module_param(debug_time_shot, int, 0644);
 int debug_pdp;
 module_param(debug_pdp, int, 0644);
+int debug_pafstat;
+module_param(debug_pafstat, int, 0644);
 
 struct fimc_is_device_sensor *fimc_is_get_sensor_device(struct fimc_is_core *core)
 {
