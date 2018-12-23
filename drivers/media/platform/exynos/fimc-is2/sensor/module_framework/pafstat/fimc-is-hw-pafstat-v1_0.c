@@ -93,7 +93,7 @@ int pafstat_hw_s_sensor_mode(void __iomem *base_reg, u32 pd_mode)
 		break;
 	case PD_MSPD_TAIL:
 		sensor_mode = SENSOR_MODE_MSPD_TAIL;
-		enable = 0;
+		enable = 1;
 		break;
 	default:
 		warn("PD MODE(%d) is invalid", pd_mode);
@@ -362,6 +362,7 @@ int pafstat_hw_com_s_med_line(void __iomem *base_reg)
 			max_pos_end_y = tmp;
 	}
 
+	/* TODO: modify other pd mode support, 8 is for only MSPD */
 	med_line = max_pos_end_y * 8 + margin;
 
 	fimc_is_hw_set_reg(base_reg,

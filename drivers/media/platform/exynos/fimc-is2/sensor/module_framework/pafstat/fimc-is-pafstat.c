@@ -677,6 +677,9 @@ static int pafstat_s_format(struct v4l2_subdev *subdev,
 	if (sensor->cfg) {
 		pafstat->pd_width = sensor->cfg->input[CSI_VIRTUAL_CH_1].width;
 		pafstat->pd_height = sensor->cfg->input[CSI_VIRTUAL_CH_1].height;
+		if (sensor->cfg->pd_mode == PD_MSPD_TAIL)
+			pafstat->pd_height /= 2;
+
 		pafstat_hw_s_pd_size(pafstat->regs, pafstat->pd_width, pafstat->pd_height);
 		pd_mode = sensor->cfg->pd_mode;
 	}
