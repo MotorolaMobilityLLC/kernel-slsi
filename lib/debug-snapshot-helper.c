@@ -365,7 +365,10 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 #else
 	pr_emerg("debug-snapshot: panic - normal[%s]\n", __func__);
 #endif
-	dbg_snapshot_dump_task_info();
+	/*
+	 * To get more kernel panic log
+	 * dbg_snapshot_dump_task_info();
+	 */
 	pr_emerg("linux_banner: %s\n", linux_banner);
 
 	return 0;
