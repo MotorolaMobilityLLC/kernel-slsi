@@ -321,35 +321,6 @@ static void s2mu106_alert_init(struct s2mu106_fuelgauge_data *fuelgauge)
 	s2mu106_write_reg(fuelgauge->i2c, S2MU106_REG_IRQ_LVL, data);
 }
 
-static int s2mu106_get_batt_temperature(void){
-        struct file *fp;
-        mm_segment_t old_fs;
-        char buf[20] = {0};
-        loff_t pos = 0;
-        long int val = 0;
-
-        fp = filp_open(BATT_THERMAL_PATH, O_RDONLY, 0);
-        if (IS_ERR(fp)) {
-                pr_err("%s: file open failed\n", __func__);
-                return -EINVAL;
-        }
-
-        old_fs = get_fs();
-        set_fs(KERNEL_DS);
-        vfs_read(fp, buf, sizeof(buf), &pos);
-        if (kstrtol(buf, 10, &val) < 0) {
-                return -EINVAL;
-        }
-        set_fs(old_fs);
-        filp_close(fp, NULL);
-        val = val/100;
-        if (val == BATT_NTC100K_ORIGINAL_TEMP) {
-                val = BATT_NTC100K_NOW_TEMP;
-        }
-
-        return val;
-}
-
 static int s2mu106_set_temperature(struct s2mu106_fuelgauge_data *fuelgauge,
 			int temperature)
 {
