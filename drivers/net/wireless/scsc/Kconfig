@@ -167,3 +167,10 @@ config SCSC_WLAN_SINGLE_ANTENNA
 	---help---
 	  This option tells if there is support for single
 	  antenna or dual antenna.
+config SCSC_WLAN_ACS_ENABLE
+        bool "ACS Support"
+        default y
+        ---help---
+          This option tells if automatic channel selection is
+	  supported or not.
+

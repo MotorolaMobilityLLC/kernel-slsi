@@ -85,6 +85,8 @@ char *slsi_print_event_name(int event_id)
 		return "SLSI_NL80211_RTT_RESULT_EVENT";
 	case SLSI_NL80211_RTT_COMPLETE_EVENT:
 		return "SLSI_NL80211_RTT_COMPLETE_EVENT";
+	case SLSI_NL80211_VENDOR_ACS_EVENT:
+		return "SLSI_NL80211_VENDOR_ACS_EVENT";
 	default:
 		return "UNKNOWN_EVENT";
 	}
@@ -6160,6 +6162,147 @@ exit:
 
 #endif /* CONFIG_SCSC_WLAN_ENHANCED_LOGGING */
 
+static int slsi_acs_validate_width_hw_mode(struct slsi_acs_request *request)
+{
+	if (request->hw_mode != SLSI_ACS_MODE_IEEE80211A && request->hw_mode != SLSI_ACS_MODE_IEEE80211B &&
+	    request->hw_mode != SLSI_ACS_MODE_IEEE80211G)
+		return -EINVAL;
+	if (request->ch_width != 20 && request->ch_width != 40 && request->ch_width != 80)
+		return -EINVAL;
+	return 0;
+}
+
+static int slsi_acs_init(struct wiphy *wiphy,
+			 struct wireless_dev *wdev, const void *data, int len)
+{
+	struct slsi_dev    *sdev = SDEV_FROM_WIPHY(wiphy);
+	struct net_device *dev = wdev->netdev;
+	struct netdev_vif  *ndev_vif;
+	struct slsi_acs_request *request;
+	int                      temp;
+	int                      type;
+	const struct nlattr      *attr;
+	int r = 0;
+	u32 *freq_list;
+	int freq_list_len = 0;
+
+	SLSI_INFO(sdev, "SUBCMD_ACS_INIT Received\n");
+	if (slsi_is_test_mode_enabled()) {
+		SLSI_ERR(sdev, "Not supported in WlanLite mode\n");
+		return -EOPNOTSUPP;
+	}
+	if (wdev->iftype != NL80211_IFTYPE_AP) {
+		SLSI_ERR(sdev, "Invalid iftype: %d\n", wdev->iftype);
+		return -EINVAL;
+	}
+	if (!dev) {
+		SLSI_ERR(sdev, "Dev not found!\n");
+		return -ENODEV;
+	}
+	request = kcalloc(1, sizeof(*request), GFP_KERNEL);
+	if (!request) {
+		SLSI_ERR(sdev, "No memory for request!");
+		return -ENOMEM;
+	}
+	ndev_vif = netdev_priv(dev);
+
+	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
+	nla_for_each_attr(attr, data, len, temp) {
+		type = nla_type(attr);
+		switch (type) {
+		case SLSI_ACS_ATTR_HW_MODE:
+		{
+			request->hw_mode = nla_get_u8(attr);
+			SLSI_INFO(sdev, "ACS hw mode: %d\n", request->hw_mode);
+			break;
+		}
+		case SLSI_ACS_ATTR_CHWIDTH:
+		{
+			request->ch_width = nla_get_u16(attr);
+			SLSI_INFO(sdev, "ACS ch_width: %d\n", request->ch_width);
+			break;
+		}
+		case SLSI_ACS_ATTR_FREQ_LIST:
+		{
+			freq_list =  kmalloc(nla_len(attr), GFP_KERNEL);
+			if (!freq_list) {
+				SLSI_ERR(sdev, "No memory for frequency list!");
+				kfree(request);
+				SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
+				return -ENOMEM;
+			}
+			memcpy(freq_list, nla_data(attr), nla_len(attr));
+			freq_list_len = nla_len(attr);
+			break;
+		}
+		default:
+			SLSI_ERR(sdev, "Invalid type : %d\n", type);
+			break;
+		}
+	}
+
+	r = slsi_acs_validate_width_hw_mode(request);
+	if (r == 0 && freq_list_len) {
+		struct ieee80211_channel *channels[freq_list_len];
+		struct slsi_acs_chan_info ch_info[MAX_CHAN_VALUE_ACS];
+		int i = 0, num_channels = 0;
+		int idx;
+		u32 chan_flags = (IEEE80211_CHAN_INDOOR_ONLY | IEEE80211_CHAN_RADAR |
+					      IEEE80211_CHAN_DISABLED |
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 10, 13)
+					      IEEE80211_CHAN_PASSIVE_SCAN
+#else
+					      IEEE80211_CHAN_NO_IR
+#endif
+					     );
+
+		memset(channels, 0, sizeof(channels));
+		memset(&ch_info, 0, sizeof(ch_info));
+		for (i = 0; i < freq_list_len; i++) {
+			channels[num_channels] = ieee80211_get_channel(wiphy, freq_list[i]);
+			if (!channels[num_channels]) {
+				SLSI_INFO(sdev, "Ignore invalid freq:%d in freq list\n", freq_list[i]);
+			} else if (channels[num_channels]->flags & chan_flags) {
+				SLSI_INFO(sdev, "Skip invalid channel:%d for ACS\n", channels[num_channels]->hw_value);
+			} else {
+				idx = slsi_find_chan_idx(channels[num_channels]->hw_value, request->hw_mode);
+				ch_info[idx].chan = channels[num_channels]->hw_value;
+				num_channels++;
+			}
+		}
+		for (i = 0; i < 25; i++)
+			SLSI_INFO(sdev, "Channel value:%d\n", ch_info[i].chan);      /*will remove after testing */
+		if (request->hw_mode == SLSI_ACS_MODE_IEEE80211A)
+			request->ch_list_len = 25;
+		else
+			request->ch_list_len = 14;
+		memcpy(&request->acs_chan_info[0], &ch_info[0], sizeof(ch_info));
+		ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request = request;
+		ndev_vif->scan[SLSI_SCAN_HW_ID].is_blocking_scan = false;
+		r = slsi_mlme_add_scan(sdev,
+				       dev,
+				       FAPI_SCANTYPE_AP_AUTO_CHANNEL_SELECTION,
+				       FAPI_REPORTMODE_REAL_TIME,
+				       0,    /* n_ssids */
+				       NULL, /* ssids */
+				       num_channels,
+				       channels,
+				       NULL,
+				       NULL,                   /* ie */
+				       0,                      /* ie_len */
+				       ndev_vif->scan[SLSI_SCAN_HW_ID].is_blocking_scan);
+	} else {
+		SLSI_ERR(sdev, "Invalid freq_list len:%d or ch_width:%d or hw_mode:%d\n", freq_list_len,
+			 request->ch_width, request->hw_mode);
+		r = -EINVAL;
+		kfree(request);
+	}
+	SLSI_INFO(sdev, "SUBCMD_ACS_INIT Received 7 return value:%d\n", r);   /*will remove after testing */
+	kfree(freq_list);
+	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
+	return r;
+}
+
 static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
 	{ OUI_GOOGLE, SLSI_NL80211_SIGNIFICANT_CHANGE_EVENT },
 	{ OUI_GOOGLE, SLSI_NL80211_HOTLIST_AP_FOUND_EVENT },
@@ -6187,7 +6330,8 @@ static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
 	{ OUI_GOOGLE,  SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT},
 	{ OUI_GOOGLE,  SLSI_NL80211_NAN_DISABLED_EVENT},
 	{ OUI_GOOGLE,  SLSI_NL80211_RTT_RESULT_EVENT},
-	{ OUI_GOOGLE,  SLSI_NL80211_RTT_COMPLETE_EVENT}
+	{ OUI_GOOGLE,  SLSI_NL80211_RTT_COMPLETE_EVENT},
+	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_ACS_EVENT}
 };
 
 static const struct wiphy_vendor_command     slsi_vendor_cmd[] = {
@@ -6610,7 +6754,15 @@ static const struct wiphy_vendor_command     slsi_vendor_cmd[] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = slsi_rtt_cancel_config
-	}
+	},
+	{
+		{
+			.vendor_id = OUI_SAMSUNG,
+			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_ACS_INIT
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = slsi_acs_init
+	},
 };
 
 void slsi_nl80211_vendor_deinit(struct slsi_dev *sdev)
