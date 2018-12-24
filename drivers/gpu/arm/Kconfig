@@ -11,7 +11,36 @@
 
 
 menu "ARM GPU Configuration"
-if (SOC_EXYNOS9610)
+menuconfig MALI_DDK_VERSION
+	tristate "Mali support"
+	default y
+	help
+	Enable this option to build support for the ARM Mali-T7xx GPU.
+
+	To compile this driver as a module, choose M here:
+	this will generate a single module, called mali_kbase.
+
+choice
+	prompt "version Configuration"
+	depends on MALI_DDK_VERSION
+	default MALI_BIFROST_R16P0
+	help
+	Select the gpu support version.
+
+config MALI_BIFROST_R16P0
+	depends on MALI_DDK_VERSION
+	bool "Bifrost r16p0 driver"
+
+config MALI_BIFROST_OLD
+	depends on MALI_DDK_VERSION
+	bool "Bifrost old driver"
+endchoice
+
+if MALI_BIFROST_R16P0
+source "drivers/gpu/arm/b_r16p0/Kconfig"
+endif
+
+if MALI_BIFROST_OLD
 source "drivers/gpu/arm/tHEx/Kconfig"
 endif
 endmenu
