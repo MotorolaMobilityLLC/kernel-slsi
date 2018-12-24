@@ -64,10 +64,6 @@
 
 #define S2MU106_REG_VM			0x67
 
-#define BATT_THERMAL_PATH		"/sys/class/hwmon/hwmon1/temp1_input"
-#define BATT_NTC100K_ORIGINAL_TEMP		1250
-#define BATT_NTC100K_NOW_TEMP			250
-
 enum {
 	CURRENT_MODE = 0,
 	LOW_SOC_VOLTAGE_MODE, // not used

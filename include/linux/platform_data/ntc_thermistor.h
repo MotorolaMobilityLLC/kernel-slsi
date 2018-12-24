@@ -61,4 +61,8 @@ struct ntc_thermistor_platform_data {
 	int (*read_ohm)(void);
 };
 
+#define BATT_NTC100K_ORIGINAL_TEMP		1250
+#define BATT_NTC100K_NOW_TEMP			250
+extern int ntc_show_batt_temp(void);
+
 #endif /* _LINUX_NTC_H */
