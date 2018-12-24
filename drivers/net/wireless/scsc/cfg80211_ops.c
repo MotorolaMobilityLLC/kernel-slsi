@@ -2274,6 +2274,9 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 	    || (wifi_sharing_channel_switched == 1)
 #endif
+#ifdef CONFIG_SCSC_WLAN_ACS_ENABLE
+	    || (sdev->acs_channel_switched == true)
+#endif
 	)
 		cfg80211_ch_switch_notify(dev, &settings->chandef);
 

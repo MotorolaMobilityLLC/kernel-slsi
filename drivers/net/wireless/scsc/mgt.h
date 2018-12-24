@@ -476,4 +476,7 @@ int slsi_test_send_hanged_vendor_event(struct net_device *dev);
 #endif
 void slsi_wlan_dump_public_action_subtype(struct ieee80211_mgmt *mgmt, bool tx);
 void slsi_reset_channel_flags(struct slsi_dev *sdev);
+
+int slsi_find_chan_idx(u16 chan, u8 hw_mode);
+
 #endif /*__SLSI_MGT_H__*/
