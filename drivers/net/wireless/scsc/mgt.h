@@ -480,5 +480,6 @@ void slsi_reset_channel_flags(struct slsi_dev *sdev);
 /* Sysfs based mac address override */
 void slsi_create_sysfs_macaddr(void);
 void slsi_destroy_sysfs_macaddr(void);
+int slsi_find_chan_idx(u16 chan, u8 hw_mode);
 
 #endif /*__SLSI_MGT_H__*/
