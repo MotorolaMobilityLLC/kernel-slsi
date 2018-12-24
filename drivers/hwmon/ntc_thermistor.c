@@ -258,6 +258,8 @@ struct ntc_data {
 	int n_comp;
 };
 
+struct ntc_data *data_ntc = NULL;
+
 #if defined(CONFIG_OF) && IS_ENABLED(CONFIG_IIO)
 static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 {
@@ -551,6 +553,27 @@ static ssize_t ntc_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", get_temp_mc(data, ohm));
 }
 
+int ntc_show_batt_temp()
+{
+	int ohm;
+	int temp;
+
+	if (data_ntc == NULL) {
+		pr_err("%s data is NULL!\n", __func__);
+		return 250;
+	}
+	ohm = ntc_thermistor_get_ohm(data_ntc);
+	if (ohm < 0)
+		return ohm;
+	temp = get_temp_mc(data_ntc, ohm) / 100;
+	if (temp == BATT_NTC100K_ORIGINAL_TEMP) {
+		temp = BATT_NTC100K_NOW_TEMP;
+	}
+
+	return temp;
+}
+EXPORT_SYMBOL_GPL(ntc_show_batt_temp);
+
 static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO, ntc_show_type, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ntc_show_temp, NULL, 0);
 
@@ -618,6 +641,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
 
 	data->pdata = pdata;
+	data_ntc = data;
 
 	switch (pdev_id->driver_data) {
 	case TYPE_NCPXXWB473:
