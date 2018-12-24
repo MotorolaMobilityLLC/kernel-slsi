@@ -96,6 +96,33 @@ enum SLSI_ROAM_ATTRIBUTES {
 	SLSI_NL_ATTR_ROAM_STATE
 };
 
+enum slsi_acs_attr_offload {
+	SLSI_ACS_ATTR_CHANNEL_INVALID = 0,
+	SLSI_ACS_ATTR_PRIMARY_CHANNEL,
+	SLSI_ACS_ATTR_SECONDARY_CHANNEL,
+	SLSI_ACS_ATTR_HW_MODE,
+	SLSI_ACS_ATTR_HT_ENABLED,
+	SLSI_ACS_ATTR_HT40_ENABLED,
+	SLSI_ACS_ATTR_VHT_ENABLED,
+	SLSI_ACS_ATTR_CHWIDTH,
+	SLSI_ACS_ATTR_CH_LIST,
+	SLSI_ACS_ATTR_VHT_SEG0_CENTER_CHANNEL,
+	SLSI_ACS_ATTR_VHT_SEG1_CENTER_CHANNEL,
+	SLSI_ACS_ATTR_FREQ_LIST,
+	/* keep last */
+	SLSI_ACS_ATTR_AFTER_LAST,
+	SLSI_ACS_ATTR_MAX =
+	SLSI_ACS_ATTR_AFTER_LAST - 1
+};
+
+enum slsi_acs_hw_mode {
+	SLSI_ACS_MODE_IEEE80211B,
+	SLSI_ACS_MODE_IEEE80211G,
+	SLSI_ACS_MODE_IEEE80211A,
+	SLSI_ACS_MODE_IEEE80211AD,
+	SLSI_ACS_MODE_IEEE80211ANY,
+};
+
 enum SLSI_NAN_REPLY_ATTRIBUTES {
 	NAN_REPLY_ATTR_STATUS_TYPE,
 	NAN_REPLY_ATTR_VALUE,
@@ -492,6 +519,7 @@ enum slsi_hal_vendor_subcmds {
 enum slsi_supp_vendor_subcmds {
 	SLSI_NL80211_VENDOR_SUBCMD_UNSPEC = 0,
 	SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_SET_KEY,
+	SLSI_NL80211_VENDOR_SUBCMD_ACS_INIT,
 };
 
 enum slsi_vendor_event_values {
@@ -517,7 +545,8 @@ enum slsi_vendor_event_values {
 	SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT,
 	SLSI_NL80211_NAN_DISABLED_EVENT,
 	SLSI_NL80211_RTT_RESULT_EVENT,
-	SLSI_NL80211_RTT_COMPLETE_EVENT
+	SLSI_NL80211_RTT_COMPLETE_EVENT,
+	SLSI_NL80211_VENDOR_ACS_EVENT
 };
 
 enum slsi_lls_interface_mode {
@@ -1610,6 +1639,34 @@ struct slsi_rtt_config {
 	u16 bw;                /* RTT BW to be used in the RTT frames */
 	u16 LCI_request;              /* 1: request LCI, 0: do not request LCI */
 	u16 LCR_request;              /* 1: request LCR, 0: do not request LCR */
+};
+
+#define MAX_CHAN_VALUE_ACS 25  /*Max number of supported channel is 25*/
+
+struct slsi_acs_chan_info {
+	u16 chan;
+	u8 num_ap;
+	u8 num_bss_load_ap;
+	u8 total_chan_utilization;
+	u8 avg_chan_utilization;
+	u8 rssi_factor;
+	u8 adj_rssi_factor;
+};
+
+struct slsi_acs_selected_channels {
+	u8 pri_channel;
+	u8 sec_channel;
+	u8 vht_seg0_center_ch;
+	u8 vht_seg1_center_ch;
+	u16 ch_width;
+	enum slsi_acs_hw_mode hw_mode;
+};
+
+struct slsi_acs_request {
+	struct slsi_acs_chan_info acs_chan_info[MAX_CHAN_VALUE_ACS];
+	u8 hw_mode;
+	u16 ch_width;
+	u8 ch_list_len;
 };
 
 void slsi_nl80211_vendor_init(struct slsi_dev *sdev);
