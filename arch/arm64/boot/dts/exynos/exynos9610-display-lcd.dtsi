@@ -334,10 +334,10 @@
 				size = <80 120>;
 				timing,refresh = <60>;
 				timing,h-porch = <8 22 8>;
-				timing,v-porch = <36 27 5>;
-				timing,dsi-hs-clk = <1390>;
+				timing,v-porch = <28 24 4>;
+				timing,dsi-hs-clk = <1386>;
 				/* TODO : pms value to be set */
-				timing,pmsk = <1 107 1 0>;
+				timing,pmsk = <5 533 1 0>;
 				timing,dsi-escape-clk = <10>;
 				mic_en = <0>;		/* 0: Disable, 1: Enable */
 				mic_ratio = <0>;	/* 0: 1/2 mic, 1: 1/3 mic */
