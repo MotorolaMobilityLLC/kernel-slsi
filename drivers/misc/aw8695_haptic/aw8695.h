@@ -54,8 +54,8 @@
 #define AW8695_VBAT_MAX                     4500
 
 /* motor config */
-#define LRA_0619
-//#define LRA_0832
+//#define LRA_0619
+#define LRA_0832
 
 #ifdef LRA_0619
 #define AW8695_HAPTIC_F0_PRE                1700    // 170Hz
