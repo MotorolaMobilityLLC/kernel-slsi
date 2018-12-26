@@ -70,8 +70,8 @@
 #ifdef LRA_0832
 #define AW8695_HAPTIC_F0_PRE                2350    // 235Hz
 #define AW8695_HAPTIC_F0_CALI_PERCEN        7       // -7%~7%
-#define AW8695_HAPTIC_CONT_DRV_LVL          98     // 125*6.1/256=2.98v
-#define AW8695_HAPTIC_CONT_DRV_LVL_OV       155     // 155*6.1/256=3.69v
+#define AW8695_HAPTIC_CONT_DRV_LVL          98     // 98*6.1/256=2.33v
+#define AW8695_HAPTIC_CONT_DRV_LVL_OV       98     // 98*6.1/256=2.33v
 #define AW8695_HAPTIC_CONT_TD               0x0073
 #define AW8695_HAPTIC_CONT_ZC_THR           0x0ff1
 #define AW8695_HAPTIC_CONT_NUM_BRK          3
