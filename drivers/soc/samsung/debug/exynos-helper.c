@@ -30,9 +30,7 @@
 #include <asm/smp_plat.h>
 #include <asm/core_regs.h>
 
-#ifdef CONFIG_EXYNOS_BCM_DBG
 #include <soc/samsung/exynos-bcm_dbg.h>
-#endif
 
 #if defined(CONFIG_SEC_SIPC_MODEM_IF)
 #include <soc/samsung/exynos-modem-ctrl.h>
