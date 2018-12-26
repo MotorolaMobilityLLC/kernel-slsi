@@ -2114,4 +2114,4 @@ config DEBUG_SNAPSHOT_CRASH_KEY
 config DEBUG_SNAPSHOT_MINIMIZED_MODE
 	bool "Support minimized feature configuration"
 	depends on DEBUG_SNAPSHOT_USER_MODE
-	default n
+	default y
