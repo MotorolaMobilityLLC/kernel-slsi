@@ -495,6 +495,7 @@ static int __init dbg_snapshot_item_reserved_mem_setup(struct reserved_mem *reme
 #define DECLARE_DBG_SNAPSHOT_RESERVED_REGION(compat, name) \
 RESERVEDMEM_OF_DECLARE(name, compat#name, dbg_snapshot_item_reserved_mem_setup)
 
+#if !defined(CONFIG_DEBUG_SNAPSHOT_USER_MODE)
 DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", header);
 DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_kernel);
 DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_platform);
@@ -505,6 +506,18 @@ DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_etm);
 DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_bcm);
 DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_pstore);
 DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_kevents);
+#else
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", header);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_kernel_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_platform_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_sfr_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_s2d_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_cachedump_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_etm_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_bcm_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_pstore_user);
+DECLARE_DBG_SNAPSHOT_RESERVED_REGION("debug-snapshot,", log_kevents_user);
+#endif
 #endif
 
 /*
