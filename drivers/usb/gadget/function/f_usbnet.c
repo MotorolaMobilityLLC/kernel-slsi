@@ -347,6 +347,7 @@ static netdev_tx_t usb_ether_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct usb_request *req;
 	unsigned long flags;
 	unsigned len;
+	unsigned pad;
 	int rc;
 
 	/*usbnet might be disabled before ip link down
@@ -368,16 +369,23 @@ static netdev_tx_t usb_ether_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Add 4 bytes CRC */
-	skb->len += 4;
+	pad = 4;
 
 	/* ensure that we end with a short packet */
-	len = skb->len;
+	len = skb->len + pad;
 	if (!(len & 63) || !(len & 511))
-		len++;
+		pad++;
+
+	/* ensure the added bytes are 0'd out */
+	if (skb_tailroom(skb) < pad) {
+		USBNETDBG(context, "%s: could not add CRC\n", __func__);
+		return 1;
+	}
+	memset(skb_put(skb, pad), 0, pad);
 
 	req->context = skb;
 	req->buf = skb->data;
-	req->length = len;
+	req->length = skb->len;
 
 	rc = usb_ep_queue(context->bulk_in, req, GFP_KERNEL);
 	if (rc != 0) {
