@@ -598,6 +598,7 @@ static void sx933x_reg_init(psx93XX_t this)
 static int initialize(psx93XX_t this)
 {
 	int ret, retry;
+	u32 read_val;
 	if (this)
 	{
 		LOG_DBG("SX933x income initialize\n");
@@ -613,12 +614,34 @@ static int initialize(psx93XX_t this)
 		}
 		/* wait until the reset has finished by monitoring NIRQ */
 		LOG_DBG("Sent Software Reset. Waiting until device is back from reset to continue.\n");
+
+#if 1
+		for ( retry = 10; retry > 0; retry-- )
+		{
+			msleep(5);
+			sx933x_i2c_read_16bit(this, SX933X_HOSTIRQSRC_REG, &read_val);
+
+			if( (read_val & MSK_IRQSTAT_RESET) == MSK_IRQSTAT_RESET)
+			{
+				break;
+			}
+
+			LOG_DBG("SX933x wait for reset irq retry:%d\n", 11 - retry);
+		}
+		ret = sx933x_global_variable_init(this);
+		msleep(5);
+		sx933x_reg_init(this);
+
+		//phase enable will compensate all pheases, so disable the manual compensation.
+		//manual_offset_calibration(this);
+#else
 		/* just sleep for awhile instead of using a loop with reading irq status */
 		msleep(100);
 		ret = sx933x_global_variable_init(this);
 		sx933x_reg_init(this);
 		msleep(100); /* make sure everything is running */
 		manual_offset_calibration(this);
+#endif
 
 		/* re-enable interrupt handling */
 		enable_irq(this->irq);
@@ -1125,7 +1148,8 @@ static int sx933x_suspend(struct device *dev)
 	psx93XX_t this = dev_get_drvdata(dev);
 	if (this) {
 		disable_irq(this->irq);
-		//sx933x_i2c_write_16bit(this,SX933X_CPS_CTRL0_REG,0x20);//make sx933x in Sleep mode
+		LOG_INFO("enter %s\n",__func__);
+		sx933x_i2c_write_16bit(this,SX933X_GNRLCTRL2_REG,0x001F0000);//make sx933x in Sleep mode
 	}
 	return 0;
 }
@@ -1135,7 +1159,9 @@ static int sx933x_resume(struct device *dev)
 	psx93XX_t this = dev_get_drvdata(dev);
 	if (this) {
 		enable_irq(this->irq);
-		//sx933x_i2c_write_16bit(this,SX933X_CPS_CTRL0_REG,0x27);//Exit from Sleep mode
+		LOG_INFO("enter %s\n",__func__);
+		sx933x_i2c_write_16bit(this,SX933X_GNRLCTRL2_REG,0x1F001F);//Exit from Sleep mode
+		sx933x_i2c_write_16bit(this,SX933X_CMD_REG, 0x0F);
 	}
 	return 0;
 }
