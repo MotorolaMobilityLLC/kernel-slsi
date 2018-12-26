@@ -102,35 +102,70 @@
 			#address-cells = <2>;
 			#size-cells = <1>;
 			/* If this property exist, these are modified by bootloader. */
-			//bootloader;
 
 			header {
 				compatible = "debug-snapshot,header";
 				reg = <0 DSS_HEADER_ADDR DSS_HEADER_SIZE>;
 			};
+
 			log_kernel {
 				compatible = "debug-snapshot,log_kernel";
 				reg = <0 DSS_LOG_KERNEL_ADDR DSS_LOG_KERNEL_SIZE>;
 			};
+
 			log_platform {
 				compatible = "debug-snapshot,log_platform";
 				reg = <0 DSS_LOG_PLATFORM_ADDR DSS_LOG_PLATFORM_SIZE>;
 			};
+
 			log_sfr {
 				compatible = "debug-snapshot,log_sfr";
 				reg = <0 DSS_LOG_SFR_ADDR DSS_LOG_SFR_SIZE>;
 			};
+
 			log_bcm {
 				compatible = "debug-snapshot,log_bcm";
 				reg = <0 DSS_LOG_BCM_ADDR DSS_LOG_BCM_SIZE>;
 			};
+
 			log_pstore {
 				compatible = "debug-snapshot,log_pstore";
 				reg = <0 DSS_LOG_PSTORE_ADDR DSS_LOG_PSTORE_SIZE>;
 			};
+
 			log_kevents {
 				compatible = "debug-snapshot,log_kevents";
 				reg = <0 DSS_LOG_KEVENTS_ADDR DSS_LOG_KEVENTS_SIZE>;
+			};
+
+			log_kernel_user {
+				compatible = "debug-snapshot,log_kernel_user";
+				reg = <0 DSS_LOG_KERNEL_ADDR_USER DSS_LOG_KERNEL_SIZE_USER>;
+			};
+
+			log_platform_user {
+				compatible = "debug-snapshot,log_platform_user";
+				reg = <0 DSS_LOG_PLATFORM_ADDR_USER DSS_LOG_PLATFORM_SIZE_USER>;
+			};
+
+			log_sfr_user {
+				compatible = "debug-snapshot,log_sfr_user";
+				reg = <0 DSS_LOG_SFR_ADDR_USER DSS_LOG_SFR_SIZE_USER>;
+			};
+
+			log_bcm_user {
+				compatible = "debug-snapshot,log_bcm_user";
+				reg = <0 DSS_LOG_BCM_ADDR_USER DSS_LOG_BCM_SIZE_USER>;
+			};
+
+			log_pstore_user {
+				compatible = "debug-snapshot,log_pstore_user";
+				reg = <0 DSS_LOG_PSTORE_ADDR_USER DSS_LOG_PSTORE_SIZE_USER>;
+			};
+
+			log_kevents_user {
+				compatible = "debug-snapshot,log_kevents_user";
+				reg = <0 DSS_LOG_KEVENTS_ADDR_USER DSS_LOG_KEVENTS_SIZE_USER>;
 			};
 		};
 
