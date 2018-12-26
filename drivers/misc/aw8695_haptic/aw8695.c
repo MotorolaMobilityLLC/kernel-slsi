@@ -53,7 +53,19 @@
 
 #define AW8695_MAX_DSP_START_TRY_COUNT    10
 
-
+#define ID_AW8695_RTP    0
+#define ID_ATTENTIVE    102
+#define ID_BIRD_LOOP    104
+#define ID_CRAZY_DREAM  108
+#define ID_CURVE_BALL_BLEND 109
+#define ID_ETHER_SHAKE  112
+#define ID_HELLO    118
+#define ID_MOMENTUM	127
+#define ID_MOTO     129
+#define ID_NATURAL  130
+#define ID_PYXIS    136
+#define ID_SIMPLE   140
+#define ID_SPARSE   142
 
 #define AW8695_MAX_FIRMWARE_LOAD_CNT 20
 #ifdef MOTO_VIBRATOR_SUPPORT
@@ -68,8 +80,40 @@
 static char *aw8695_ram_name = "aw8695_haptic.bin";
 static char aw8695_rtp_name[][AW8695_RTP_NAME_MAX] = {
     {"aw8695_rtp.bin"},
-    {"aw8695_rtp_lighthouse.bin"},
-    {"aw8695_rtp_silk.bin"},
+    {"aw8695_rtp_Attentive.bin"},
+    {"aw8695_rtp_Bird_Loop.bin"},
+    {"aw8695_rtp_Crazy_Dream.bin"},
+    {"aw8695_rtp_Curve_Ball_Blend.bin"},
+    {"aw8695_rtp_Ether_Shake.bin"},
+    {"aw8695_rtp_Hello.bin"},
+    {"aw8695_rtp_Momentum.bin"},
+    {"aw8695_rtp_Moto.bin"},
+    {"aw8695_rtp_Natural.bin"},
+    {"aw8695_rtp_Pyxis.bin"},
+    {"aw8695_rtp_Simple.bin"},
+    {"aw8695_rtp_Sparse.bin"},
+};
+
+struct wave_index{
+    unsigned char system_index;
+    unsigned char driver_index;
+};
+
+static const struct wave_index aw8695_rtp_wave_id[AW8695_RTP_NAME_MAX] = {
+    /*{system wave id mapping to driver bin file id}*/
+    {ID_AW8695_RTP,0},
+    {ID_ATTENTIVE,1},
+    {ID_BIRD_LOOP,2},
+    {ID_CRAZY_DREAM,3},
+    {ID_CURVE_BALL_BLEND,4},
+    {ID_ETHER_SHAKE,5},
+    {ID_HELLO,6},
+    {ID_MOMENTUM,7},
+    {ID_MOTO,8},
+    {ID_NATURAL,9},
+    {ID_PYXIS,10},
+    {ID_SIMPLE,11},
+    {ID_SPARSE,12},
 };
 
 struct aw8695_container *aw8695_rtp;
@@ -2358,10 +2402,17 @@ static ssize_t aw8695_rtp_store(struct device *dev, struct device_attribute *att
 #endif
     unsigned int val = 0;
     int rc = 0;
-
+    int index = 0;
     rc = kstrtouint(buf, 0, &val);
     if (rc < 0)
         return rc;
+
+    for(index = 0; index < AW8695_RTP_NAME_MAX; ++index){
+        if(val == aw8695_rtp_wave_id[index].system_index) {
+            val = aw8695_rtp_wave_id[index].driver_index;
+            break;
+        }
+    }
 
     aw8695_haptic_stop(aw8695);
     aw8695_haptic_set_rtp_aei(aw8695, false);
