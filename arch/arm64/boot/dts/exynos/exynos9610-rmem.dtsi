@@ -58,7 +58,7 @@
 
 		abox_rmem: abox_rmem@0xE9400000 {
                         compatible = "exynos,abox_rmem";
-                        reg = <0x0 0xE9400000 0x2800000>;
+                        reg = <0x0 0xE9400000 0x400000>;
                 };
 
 		ion_video_stream {
