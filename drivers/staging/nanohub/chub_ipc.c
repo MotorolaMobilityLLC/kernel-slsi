@@ -214,22 +214,28 @@ void *ipc_get_chub_map(void)
 	struct chub_bootargs *map = (struct chub_bootargs *)(sram_base + MAP_INFO_OFFSET);
 
 	if (strncmp(OS_UPDT_MAGIC, map->magic, sizeof(OS_UPDT_MAGIC))) {
+#ifdef AP_IPC
 		CSP_PRINTF_ERROR("%s: %s: %p has wrong magic key: %s -> %s\n",
 			NAME_PREFIX, __func__, map, OS_UPDT_MAGIC, map->magic);
+#endif
 		return 0;
 	}
 
 	if (map->ipc_version != IPC_VERSION) {
+#ifdef AP_IPC
 		CSP_PRINTF_ERROR
 		    ("%s: %s: ipc_version doesn't match: AP %d, Chub: %d\n",
 		     NAME_PREFIX, __func__, IPC_VERSION, map->ipc_version);
+#endif
 		return 0;
 	}
 
 	if (sizeof(struct chub_bootargs) > MAP_INFO_MAX_SIZE) {
+#ifdef AP_IPC
 		CSP_PRINTF_ERROR
 		    ("%s: %s: map size bigger than max %d > %d", NAME_PREFIX, __func__,
 		    sizeof(struct chub_bootargs), MAP_INFO_MAX_SIZE);
+#endif
 		return 0;
 	}
 
@@ -247,9 +253,11 @@ void *ipc_get_chub_map(void)
 	ipc_addr[IPC_REG_DUMP].offset = map->dump_end - map->dump_start;
 
 	if (ipc_get_offset(IPC_REG_IPC) < sizeof(struct ipc_map_area)) {
+#ifdef AP_IPC
 		CSP_PRINTF_INFO
 			("%s: fails. ipc size (0x%x) should be increase to 0x%x\n",
 			__func__, ipc_get_offset(IPC_REG_IPC), sizeof(struct ipc_map_area));
+#endif
 		return 0;
 	}
 
@@ -282,20 +290,24 @@ void *ipc_get_chub_map(void)
 	ipc_addr[IPC_REG_PERSISTBUF].offset = CHUB_PERSISTBUF_SIZE;
 	ipc_addr[IPC_REG_IPC_SENSORINFO].base = &ipc_map->sensormap;
 	ipc_addr[IPC_REG_IPC_SENSORINFO].offset = sizeof(u8) * SENSOR_TYPE_MAX;
+
+	ipc_map->logbuf.eq = 0;
+	ipc_map->logbuf.dq = 0;
+	ipc_map->logbuf.full = 0;
+	ipc_map->logbuf.dbg_full_cnt = 0;
+	ipc_map->logbuf.loglevel = 0;
+	ipc_map->logbuf.logbuf.eq = 0;
+	ipc_map->logbuf.logbuf.dq = 0;
+	ipc_map->logbuf.logbuf.full = 0;
+	ipc_map->logbuf.errcnt= 0;
+	ipc_map->logbuf.fw_num = 0;
+	ipc_map->logbuf.ap_num = 0;
+
 #ifdef SEOS
 	if (!ipc_have_sensor_info(&ipc_map->sensormap)) {
 		CSP_PRINTF_INFO("%s: ipc set sensormap and maic: :%p\n", __func__, &ipc_map->sensormap);
 		memset(&ipc_map->sensormap, 0, sizeof(struct sensor_map));
 		strcpy(&ipc_map->sensormap.magic[0], SENSORMAP_MAGIC);
-		/* clear logbuf with 1st booting */
-		ipc_map->logbuf.eq = 0;
-		ipc_map->logbuf.dq = 0;
-		ipc_map->logbuf.full = 0;
-		ipc_map->logbuf.dbg_full_cnt = 0;
-		ipc_map->logbuf.loglevel = 0;
-		ipc_map->logbuf.logbuf.eq = 0;
-		ipc_map->logbuf.logbuf.dq = 0;
-		ipc_map->logbuf.logbuf.full = 0;
 	}
 #endif
 
@@ -731,10 +743,6 @@ void ipc_init(void)
 			ipc_map->evt[j].data[i].irq = IRQ_EVT_INVAL;
 		}
 	}
-	ipc_map->logbuf.dbg_full_cnt = 0;
-	ipc_map->logbuf.errcnt= 0;
-	ipc_map->logbuf.fw_num = 0;
-	ipc_map->logbuf.ap_num = 0;
 }
 
 /* evt functions */
