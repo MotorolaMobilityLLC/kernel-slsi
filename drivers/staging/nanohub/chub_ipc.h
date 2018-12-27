@@ -76,9 +76,6 @@
 #define BOOTMODE_COLD       (0x7733)
 #define BOOTMODE_PWRGATING  (0x1188)
 
-#define AP_WAKE				(0x1)
-#define AP_SLEEP			(0x2)
-
 #define AP_WAKE             (0x1)
 #define AP_SLEEP            (0x2)
 
@@ -463,12 +460,12 @@ struct ipc_debug {
 };
 
 struct ipc_map_area {
+	char persist[CHUB_PERSISTBUF_SIZE];
 	char magic[16];
 	struct ipc_buf data[IPC_DATA_MAX];
 	struct ipc_evt evt[IPC_EVT_MAX];
 	struct ipc_debug dbg;
 	struct sensor_map sensormap;
-	char persist[CHUB_PERSISTBUF_SIZE];
 	struct ipc_logbuf logbuf;
 };
 
