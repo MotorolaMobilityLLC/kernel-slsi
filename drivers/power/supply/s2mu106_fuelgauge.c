@@ -357,6 +357,16 @@ static void s2mu106_reset_fg(struct s2mu106_fuelgauge_data *fuelgauge)
 	pr_info("%s: S2MU106_REG_FG_ID = 0x%02x, data ver. = 0x%x\n", __func__,
 			temp, fuelgauge->info.battery_param_ver);
 
+	/* Update battery parameter version */
+	s2mu106_read_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, &temp);
+	temp &= 0xF0;
+	temp |= (fuelgauge->info.battery_param_ver & 0x0F);
+	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, temp);
+	s2mu106_read_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, &temp);
+
+	pr_info("%s: S2MU106_REG_FG_ID = 0x%02x, data ver. = 0x%x\n", __func__,
+			temp, fuelgauge->info.battery_param_ver);
+
 	/* If it was voltage mode, recover it */
 	if (fuelgauge->mode == HIGH_SOC_VOLTAGE_MODE) {
 		s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x4A, 0xFF);
@@ -1986,6 +1996,10 @@ static int s2mu106_fuelgauge_probe(struct i2c_client *client,
 			}
 		}
 	}
+
+	s2mu106_read_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, &temp);
+	pr_info("%s: parameter ver. in IC: 0x%02x, in kernel: 0x%02x\n", __func__,
+			temp & 0x0F, fuelgauge->info.battery_param_ver);
 
 #if (TEMP_COMPEN) || (BATCAP_LEARN)
 	fuelgauge->bat_charging = false;
