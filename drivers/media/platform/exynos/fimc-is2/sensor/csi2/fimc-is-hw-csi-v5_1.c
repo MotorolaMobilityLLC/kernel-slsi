@@ -1050,7 +1050,7 @@ int csi_hw_g_dma_irq_src_vc(u32 __iomem *base_reg, struct csis_irq_src *src, u32
 	return 0;
 }
 
-int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat)
+int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 actual_vc, u32 hwformat)
 {
 	int ret = 0;
 	u32 val;
@@ -1063,59 +1063,57 @@ int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat)
 		goto p_err;
 	}
 
-	if (vc == CSI_VIRTUAL_CH_0) {
-		switch (hwformat) {
-		case HW_FORMAT_RAW10:
-		case HW_FORMAT_RAW6_DA:
-		case HW_FORMAT_RAW7_DS:
-		case HW_FORMAT_RAW8_DS:
-			otf_format = 0;
-			dma_input_path = CSIS_REG_DMA_INPUT_OTF;
-			break;
-		case HW_FORMAT_RAW12:
-			otf_format = 1;
-			dma_input_path = CSIS_REG_DMA_INPUT_OTF;
-			break;
-		case HW_FORMAT_RAW14:
-		case HW_FORMAT_RAW10_DA:
-			otf_format = 2;
-			dma_input_path = CSIS_REG_DMA_INPUT_OTF;
-			break;
-		case HW_FORMAT_RAW8:
-		case HW_FORMAT_USER:
-		case HW_FORMAT_EMBEDDED_8BIT:
-		case HW_FORMAT_YUV420_8BIT:
-		case HW_FORMAT_YUV420_10BIT:
-		case HW_FORMAT_YUV422_8BIT:
-		case HW_FORMAT_YUV422_10BIT:
-		case HW_FORMAT_RGB565:
-		case HW_FORMAT_RGB666:
-		case HW_FORMAT_RGB888:
-		case HW_FORMAT_RAW6:
-		case HW_FORMAT_RAW7:
-			otf_format = 3;
-			dma_input_path = CSIS_REG_DMA_INPUT_PRL;
-			break;
-		default:
-			err("invalid data format (%02X)", hwformat);
-			ret = -EINVAL;
-			goto p_err;
-		}
+	switch (hwformat) {
+	case HW_FORMAT_RAW10:
+	case HW_FORMAT_RAW6_DA:
+	case HW_FORMAT_RAW7_DS:
+	case HW_FORMAT_RAW8_DS:
+		otf_format = 0;
+		dma_input_path = CSIS_REG_DMA_INPUT_OTF;
+		break;
+	case HW_FORMAT_RAW12:
+		otf_format = 1;
+		dma_input_path = CSIS_REG_DMA_INPUT_OTF;
+		break;
+	case HW_FORMAT_RAW14:
+	case HW_FORMAT_RAW10_DA:
+		otf_format = 2;
+		dma_input_path = CSIS_REG_DMA_INPUT_OTF;
+		break;
+	case HW_FORMAT_RAW8:
+	case HW_FORMAT_USER:
+	case HW_FORMAT_EMBEDDED_8BIT:
+	case HW_FORMAT_YUV420_8BIT:
+	case HW_FORMAT_YUV420_10BIT:
+	case HW_FORMAT_YUV422_8BIT:
+	case HW_FORMAT_YUV422_10BIT:
+	case HW_FORMAT_RGB565:
+	case HW_FORMAT_RGB666:
+	case HW_FORMAT_RGB888:
+	case HW_FORMAT_RAW6:
+	case HW_FORMAT_RAW7:
+		otf_format = 3;
+		dma_input_path = CSIS_REG_DMA_INPUT_PRL;
+		break;
+	default:
+		err("invalid data format (%02X)", hwformat);
+		ret = -EINVAL;
+		goto p_err;
+	}
 
+	if (vc == CSI_VIRTUAL_CH_0) {
 		val = fimc_is_hw_get_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_OTF_FORMAT]);
 		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_OTF_FORMAT], otf_format);
 		fimc_is_hw_set_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_OTF_FORMAT], val);
-
-		val = fimc_is_hw_get_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL]);
-		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_DMA_INPUT_PATH_CH0],
-			dma_input_path);
-#if defined(CONFIG_SOC_EXYNOS9610)
-		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_DMA_INPUT_PATH_CH1],
-			dma_input_path);
-#endif
-		fimc_is_hw_set_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL], val);
 	}
 
+	if (actual_vc == CSI_VIRTUAL_CH_0 || actual_vc == CSI_VIRTUAL_CH_1) {
+		val = fimc_is_hw_get_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL]);
+		val = fimc_is_hw_set_field_value(val, &csi_vcdma_cmn_fields[CSIS_F_DMA_INPUT_PATH_CH0 + actual_vc],
+			dma_input_path);
+
+		fimc_is_hw_set_reg(base_reg, &csi_vcdma_cmn_regs[CSIS_R_DMA_DATA_CTRL], val);
+	}
 p_err:
 	return ret;
 }
