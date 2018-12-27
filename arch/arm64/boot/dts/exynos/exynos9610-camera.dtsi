@@ -149,7 +149,7 @@
 
 			<0 331 0>, /* VC0 DMA0 */
 			<0 332 0>, /* VC1 DMA1 */
-			<0 332 0>, /* VC2 DMA1 */
+			<0 333 0>, /* VC0 DMA2 for PAFSTAT */
 			<0 332 0>; /* VC3 DMA1 */
 		interrupt-names = "csi",
 			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3",
@@ -204,8 +204,8 @@
 				<0x14450400 0x100>, /* VC0 DMA0 COMMON */
 				<0x14460100 0x100>, /* VC1 DMA1 */
 				<0x14460400 0x100>, /* VC1 DMA1 COMMON */
-				<0x14460200 0x100>, /* VC2 DMA1 */
-				<0x14460400 0x100>, /* VC2 DMA1 COMMON */
+				<0x14470000 0x100>, /* VC0 DMA2 for PAFSTAT */
+				<0x14470400 0x100>, /* VC0 DMA2 COMMON */
 				<0x14460300 0x100>, /* VC3 DMA1 */
 				<0x14460400 0x100>; /* VC3 DMA1 COMMON */
 		};
@@ -302,7 +302,7 @@
 			<0x0 0x14420700 0x100>; /* PHY: TOP_M4S4S4_2nd */
 		reg-names = "csi", "phy";
 		interrupts = <0 327 0>, /* MIPI-CSI2 */
-			<0 333 0>, /* VC0 DMA2 */
+			<0 334 0>, /* VC0 DMA3 */
 			<0 333 0>, /* VC1 DMA2 */
 			<0 333 0>, /* VC2 DMA2 */
 			<0 333 0>; /* VC3 DMA2 */
@@ -342,8 +342,8 @@
 
 		/* without PAF HW */
 		sensor2_ch_mode0: sensor2-ch-mode0 {
-			reg = <0x14470000 0x100>, /* VC0 DMA2 */
-				<0x14470400 0x100>, /* VC0 DMA2 COMMON */
+			reg = <0x14480000 0x100>, /* VC0 DMA3 */
+				<0x14480400 0x100>, /* VC0 DMA3 COMMON */
 				<0x14470100 0x100>, /* VC1 DMA2 */
 				<0x14470400 0x100>, /* VC1 DMA2 COMMON */
 				<0x14470200 0x100>, /* VC2 DMA2 */
