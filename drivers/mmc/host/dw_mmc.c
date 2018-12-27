@@ -3476,6 +3476,14 @@ static void dw_mci_slot_of_parse(struct dw_mci_slot *slot)
 static irqreturn_t dw_mci_detect_interrupt(int irq, void *dev_id)
 {
 	struct dw_mci *host = dev_id;
+	struct mmc_host *mmc = host->slot->mmc;
+	struct dw_mci_slot *slot = host->slot;
+
+	if (!IS_ERR(mmc->supply.vmmc))
+		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+	if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled)
+		regulator_disable(mmc->supply.vqmmc);
+	slot->host->vqmmc_enabled = false;
 
 	queue_work(host->card_workqueue, &host->card_work);
 
