@@ -656,6 +656,15 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 
 
 	if (on) {
+		ret = gpio_request_one(res->lcd_reset, GPIOF_OUT_INIT_LOW,
+				"lcd_reset");
+		if (ret < 0) {
+			dsim_err("failed LCD reset off\n");
+			return -EINVAL;
+		}
+		gpio_free(res->lcd_reset);
+		usleep_range(30000, 35000);
+
 		if (res->lcd_power[0] > 0) {
 			ret = gpio_request_one(res->lcd_power[0],
 					GPIOF_OUT_INIT_HIGH, "lcd_power0");
@@ -717,14 +726,12 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 			usleep_range(5000, 6000);
 		}
 
-		ret = gpio_request_one(res->lcd_reset, GPIOF_OUT_INIT_LOW,
-				"lcd_reset");
-		if (ret < 0) {
-			dsim_err("failed LCD reset off\n");
-			return -EINVAL;
+		if (dsim->res.pinctrl && dsim->res.lcd_reset_sleep) {
+			if (pinctrl_select_state(dsim->res.pinctrl,
+						dsim->res.lcd_reset_sleep)) {
+				decon_err("failed to turn off dism reset\n");
+			}
 		}
-		gpio_free(res->lcd_reset);
-		usleep_range(1000, 2000);
 
 		if (res->lcd_power[1] > 0) {
 			ret = gpio_request_one(res->lcd_power[1],
@@ -1962,6 +1969,29 @@ static int dsim_init_resources(struct dsim_device *dsim, struct platform_device 
 
 	return 0;
 }
+int dsim_init_pinctrl(struct dsim_device *dsim)
+{
+	int ret = 0;
+
+	dsim->res.pinctrl = devm_pinctrl_get(dsim->dev);
+	if (IS_ERR(dsim->res.pinctrl)) {
+		decon_err("failed to get dsim-%d pinctrl\n", dsim->id);
+		ret = PTR_ERR(dsim->res.pinctrl);
+		dsim->res.pinctrl = NULL;
+		goto err;
+	}
+
+	dsim->res.lcd_reset_sleep = pinctrl_lookup_state(dsim->res.pinctrl, "lcd_reset");
+	if (IS_ERR(dsim->res.lcd_reset_sleep)) {
+		decon_err("failed to get hw_te_on pin state\n");
+		ret = PTR_ERR(dsim->res.lcd_reset_sleep);
+		dsim->res.lcd_reset_sleep = NULL;
+		goto err;
+	}
+
+err:
+	return ret;
+}
 
 static int dsim_probe(struct platform_device *pdev)
 {
@@ -2001,6 +2031,12 @@ static int dsim_probe(struct platform_device *pdev)
 	dsim_register_panel(dsim);
 	setup_timer(&dsim->cmd_timer, dsim_cmd_fail_detector,
 			(unsigned long)dsim);
+
+	dsim_err("%s: dsim_init_pinctrl\n", __func__);
+	ret = dsim_init_pinctrl(dsim);
+	if (ret) {
+		dsim_err("%s: failed to get pin resources\n", __func__);
+	}
 
 #if defined(CONFIG_CPU_IDLE)
 	dsim->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
