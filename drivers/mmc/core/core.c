@@ -2632,14 +2632,29 @@ void mmc_start_host(struct mmc_host *host)
 	host->rescan_disable = 0;
 	host->ios.power_mode = MMC_POWER_UNDEFINED;
 
-	if (!(host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)) {
-		mmc_claim_host(host);
-		mmc_power_up(host, host->ocr_avail);
-		mmc_release_host(host);
-	}
+	if (host->caps2 & MMC_CAP2_SKIP_INIT_NOT_TRAY) {
+		if (host->ops->get_cd && host->ops->get_cd(host)) {
+			pr_info("SD tray detect\n");
+			if (!(host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)) {
+				mmc_claim_host(host);
+				mmc_power_up(host, host->ocr_avail);
+				mmc_release_host(host);
+			}
 
-	mmc_gpiod_request_cd_irq(host);
-	_mmc_detect_change(host, 0, false);
+			mmc_gpiod_request_cd_irq(host);
+			_mmc_detect_change(host, 0, false);
+		} else
+			pr_info("SD tray not detect\n");
+	} else {
+		if (!(host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)) {
+			mmc_claim_host(host);
+			mmc_power_up(host, host->ocr_avail);
+			mmc_release_host(host);
+		}
+
+		mmc_gpiod_request_cd_irq(host);
+		_mmc_detect_change(host, 0, false);
+	}
 }
 
 void mmc_stop_host(struct mmc_host *host)
