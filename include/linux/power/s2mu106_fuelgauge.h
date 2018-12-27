@@ -106,6 +106,7 @@ struct fg_info {
 	int batcap_cell2[4];
 	int accum_cell2[2];
 	int battery_param_ver_cell2;
+	int battery_param_ver;
 };
 
 struct s2mu106_platform_data {
