@@ -1189,9 +1189,10 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 {
 	int ret = 0;
 	int i, j;
-	int temp[16];
+	int input[16], temp[16];
 	struct dqe_device *dqe = dqe_drvdata;
 	struct decon_device *decon = get_decon_drvdata(0);
+	int diag_matrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
 	mutex_lock(&dqe->lock);
 
@@ -1199,38 +1200,53 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 		if ((decon->state == DECON_STATE_OFF) ||
 			(decon->state == DECON_STATE_INIT)) {
 			dqe_err("decon is not enabled!(%d)\n", decon->state);
-			ret = -1;
 			goto err;
 		}
 	} else {
 		dqe_err("decon is NULL!\n");
-		ret = -1;
 		goto err;
 	}
 
 	if (transform->matrix[0] != 65536/*transform->hint*/) {
 		for (i = 0; i < 16; i++)
-			dqe_dbg("matrix[%d] = %d\n", i, transform->matrix[i]);
-
-		for (i = 0; i < 16; i++)
-			temp[i] = transform->matrix[i];
+			input[i] = temp[i] = transform->matrix[i];
 
 		dqe_color_transform_night_light(temp, transform->matrix);
 
 		for (i = 0; i < 16; i++)
-			dqe_dbg("night[%d] = %d\n", i, transform->matrix[i]);
+			if (transform->matrix[i] == -1 || transform->matrix[i] == 1)
+				transform->matrix[i] = 0;
+	}
+
+	for (i = 0; i < 16; i++) {
+		if (transform->matrix[i] && diag_matrix[i])
+			continue;
+		if (!transform->matrix[i] && !diag_matrix[i])
+			continue;
+
+		for (j = 0; j < 4; j++)
+			dqe_info("%6d %6d %6d %6d\n",
+				input[j * 4], input[j * 4 + 1],
+				input[j * 4 + 2], input[j * 4 + 3]);
+		for (j = 0; j < 4; j++)
+			dqe_info("%6d %6d %6d %6d\n",
+				transform->matrix[j * 4], transform->matrix[j * 4 + 1],
+				transform->matrix[j * 4 + 2], transform->matrix[j * 4 + 3]);
+		ret = -1;
+		goto err;
 	}
 
 	if (transform->matrix[0] == 65536 &&
 		transform->matrix[5] == 65536 &&
-		transform->matrix[10] == 65536)
+		transform->matrix[10] == 65536 &&
+		transform->matrix[15] == 65536)
 		dqe->ctx.night_light_on = 0;
 	else
 		dqe->ctx.night_light_on = 1;
 
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 65; j++)
-				gamma_lut[i][j] = bypass_gamma_tune[i][j];
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 65; j++)
+			gamma_lut[i][j] = bypass_gamma_tune[i][j];
 
 	for (j = 0; j < 65; j++) {
 		int inR, inG, inB, outR, outG, outB;
