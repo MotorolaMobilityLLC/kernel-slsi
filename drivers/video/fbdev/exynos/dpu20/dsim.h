@@ -197,6 +197,8 @@ struct dsim_resources {
 	void __iomem *phy_regs_ex;
 	struct regulator *regulator_1p8v;
 	struct regulator *regulator_3p3v;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *lcd_reset_sleep;
 };
 
 struct dsim_device {
