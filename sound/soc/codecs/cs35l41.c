@@ -44,6 +44,8 @@
 #include "cs35l41.h"
 #include <sound/cs35l41.h>
 
+#define CS35L41_NO_MBOX_SUPPORT
+
 static const char * const cs35l41_supplies[] = {
 	"VA",
 	"VP",
@@ -257,7 +259,10 @@ static int cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
 {
 	int		ret;
 	unsigned int	sts;
-
+    #ifdef CS35L41_NO_MBOX_SUPPORT
+		dev_warn(cs35l41->dev, "MBOX support is disabled\n");
+		return 0;
+    #endif
 	/* Reset DSP sticky bit */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ2_STATUS2,
 		     1 << CS35L41_CSPL_MBOX_CMD_DRV_SHIFT);
@@ -818,7 +823,7 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 					cs35l41_pdn_patch,
 					ARRAY_SIZE(cs35l41_pdn_patch));
 		for (int i = 0; i < 5; i++) {
-			msleep(2);
+			msleep(5);
 			regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS1 , &status);
 			dev_err(cs35l41->dev, "%s  cs35l41_main_amp_event status=%x\n",__func__,status);
 			if ((status)& CS35L41_PDN_DONE_MASK)
