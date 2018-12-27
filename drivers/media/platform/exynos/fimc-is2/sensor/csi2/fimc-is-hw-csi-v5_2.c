@@ -912,7 +912,7 @@ int csi_hw_g_dma_irq_src_vc(u32 __iomem *base_reg, struct csis_irq_src *src, u32
 	return 0;
 }
 
-int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat)
+int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 actual_vc, u32 hwformat)
 {
 	int ret = 0;
 	u32 val;

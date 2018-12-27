@@ -139,7 +139,13 @@ static inline void csi_s_config_dma(struct fimc_is_device_csi *csi, struct fimc_
 		}
 
 		csi_hw_s_config_dma(csi->vc_reg[csi->scm][vc], vc, &framecfg, vci_config[vc].hwformat);
-		csi_hw_s_config_dma_cmn(csi->cmn_reg[csi->scm][vc], vc, vci_config[vc].hwformat);
+
+		/* vc: determine for vc0 img format for otf path
+		 * dma_subdev->vc_ch[csi->scm]: actual channel at each vc used,
+		 *                              it need to csis_wdma input path select(ch0 or ch1)
+		 */
+		csi_hw_s_config_dma_cmn(csi->cmn_reg[csi->scm][vc],
+				vc, dma_subdev->vc_ch[csi->scm], vci_config[vc].hwformat);
 	}
 }
 

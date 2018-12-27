@@ -281,7 +281,7 @@ void csi_hw_s_dma_common_pattern_disable(u32 __iomem *base_reg);
 int csi_hw_s_dma_irq_msk(u32 __iomem *base_reg, bool on);
 int csi_hw_g_dma_irq_src(u32 __iomem *base_reg, struct csis_irq_src *src, bool clear);
 int csi_hw_g_dma_irq_src_vc(u32 __iomem *base_reg, struct csis_irq_src *src, u32 vc_abs, bool clear);
-int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 hwformat);
+int csi_hw_s_config_dma_cmn(u32 __iomem *base_reg, u32 vc, u32 actual_vc, u32 hwformat);
 
 int csi_hw_s_phy_default_value(u32 __iomem *base_reg, u32 instance);
 int csi_hw_s_phy_config(u32 __iomem *base_reg,
