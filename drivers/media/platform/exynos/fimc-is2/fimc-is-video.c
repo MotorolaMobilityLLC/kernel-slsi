@@ -796,6 +796,7 @@ static int fimc_is_queue_open(struct fimc_is_queue *queue,
 	clear_bit(FIMC_IS_QUEUE_BUFFER_READY, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_STREAM_ON, &queue->state);
 	clear_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_KMAP, &queue->state);
 	memset(&queue->framecfg, 0, sizeof(struct fimc_is_frame_cfg));
 	frame_manager_probe(&queue->framemgr, queue->id, queue->name);
 
@@ -812,6 +813,7 @@ static int fimc_is_queue_close(struct fimc_is_queue *queue)
 	clear_bit(FIMC_IS_QUEUE_BUFFER_READY, &queue->state);
 	clear_bit(FIMC_IS_QUEUE_STREAM_ON, &queue->state);
 	clear_bit(IS_QUEUE_NEED_TO_REMAP, &queue->state);
+	clear_bit(IS_QUEUE_NEED_TO_KMAP, &queue->state);
 	frame_manager_close(&queue->framemgr);
 
 	return ret;
@@ -929,6 +931,9 @@ int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 				queue->buf_dva[index][i] = vbuf->dva[i];
 			else
 				queue->buf_dva[index][i] = vbuf->ops->plane_dvaddr(vbuf, i);
+
+			if (test_bit(IS_QUEUE_NEED_TO_KMAP, &queue->state))
+				queue->buf_kva[index][i] = vbuf->ops->plane_kmap(vbuf, i);
 		}
 
 		num_buffers = 1;
@@ -1060,11 +1065,19 @@ void fimc_is_queue_buffer_cleanup(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
 	struct fimc_is_vb2_buf *vbuf = vb_to_fimc_is_vb2_buf(vb2_v4l2_buf);
+	struct fimc_is_video_ctx *vctx = vb->vb2_queue->drv_priv;
 	unsigned int pos_meta_p = vb->num_planes - NUM_OF_META_PLANE;
+	int i;
 
-	/* FIXME: meta plane only, doesn't support dmabuf container */
-	vbuf->ops->plane_kunmap(vbuf, pos_meta_p);
+	/* FIXME: doesn't support dmabuf container yet */
+	if (test_bit(IS_QUEUE_NEED_TO_KMAP, &vctx->queue.state)) {
+		for (i = 0; i < vb->num_planes; i++)
+			vbuf->ops->plane_kunmap(vbuf, i);
+	} else {
+		vbuf->ops->plane_kunmap(vbuf, pos_meta_p);
+	}
 }
+
 
 int fimc_is_queue_buffer_prepare(struct vb2_buffer *vb)
 {
