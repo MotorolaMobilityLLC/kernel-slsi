@@ -1331,7 +1331,7 @@
 		clock-names = "OSC_NFC";
 		clocks = <&clock OSC_NFC>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&xclkout1>;
+		pinctrl-0 = <&xclkout1 &nfc_pd>;
 	};
 };
 
@@ -1516,6 +1516,12 @@
 		samsung,pins ="gpg3-3";
 		samsung,pin-con-pdn =<3>;
 		samsung,pin-pud-pdn = <3>;
+	};
+
+	nfc_pd: nfc-pd {
+		samsung,pins ="gpg0-0";
+		samsung,pin-con-pdn =<3>;
+		samsung,pin-pud-pdn = <0>;
 	};
 };
 
