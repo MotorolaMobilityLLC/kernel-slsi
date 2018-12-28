@@ -98,7 +98,7 @@ struct chub_bootargs {
 	u32 dump_end;
 	u32 chubclk;
 	u16 bootmode;
-	u16 wake;
+	u16 runtimelog;
 #if defined(LOCAL_POWERGATE)
 	u32 psp;
 	u32 msp;
@@ -113,7 +113,7 @@ struct chub_bootargs {
  * logbuf / logbuf_ctrl
  */
 #define IPC_BUF_NUM (IRQ_EVT_CH_MAX)
-#define IPC_EVT_NUM (30)
+#define IPC_EVT_NUM (50)
 
 enum sr_num {
 	SR_0 = 0,
@@ -320,7 +320,7 @@ struct ipc_log_content {
 #define LOGBUF_SIZE (64)
 #define LOGBUF_NUM (80)
 #define LOGBUF_DATA_SIZE (LOGBUF_SIZE - sizeof(u64))
-#define LOGBUF_FLUSH_THRESHOLD (LOGBUF_NUM / 4)
+#define LOGBUF_FLUSH_THRESHOLD (LOGBUF_NUM / 2)
 
 struct logbuf_content{
 	char buf[LOGBUF_DATA_SIZE];
@@ -353,12 +353,14 @@ struct ipc_logbuf {
 	u32 eq;	/* write owner chub (index_writer) */
 	u32 dq;	/* read onwer ap (index_reader) */
 	u32 size;
-	u8 dbg_full_cnt;
 	u8 full;
 	u8 flush_req;
+	u8 flush_active;
 	u8 loglevel;
 	/* for debug */
+	int dbg_full_cnt;
 	int errcnt;
+	int reqcnt;
 	u64 fw_num;
 	u64 ap_num;
 	/* rawlevel logout */
@@ -462,6 +464,7 @@ struct ipc_debug {
 struct ipc_map_area {
 	char persist[CHUB_PERSISTBUF_SIZE];
 	char magic[16];
+	u16 wake;
 	struct ipc_buf data[IPC_DATA_MAX];
 	struct ipc_evt evt[IPC_EVT_MAX];
 	struct ipc_debug dbg;
@@ -540,7 +543,9 @@ int ipc_hw_read_int_start_index(enum ipc_owner owner);
 /* logbuf functions */
 enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set);
 void *ipc_logbuf_inbase(bool force);
-void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf);
+void ipc_logbuf_flush_on(bool on);
+bool ipc_logbuf_filled(void);
+void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop);
 void ipc_logbuf_req_flush(struct logbuf_content *log, bool force);
 /* evt functions */
 struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evt);
@@ -549,6 +554,7 @@ int ipc_add_evt_in_critical(enum ipc_evt_list evtq, enum irq_evt_chub evt);
 void ipc_print_evt(enum ipc_evt_list evt);
 /* mailbox hw access */
 void ipc_set_owner(enum ipc_owner owner, void *base, enum ipc_direction dir);
+enum ipc_direction ipc_get_owner(enum ipc_owner owner);
 unsigned int ipc_hw_read_gen_int_status_reg(enum ipc_owner owner, int irq);
 void ipc_hw_write_shared_reg(enum ipc_owner owner, unsigned int val, int num);
 unsigned int ipc_hw_read_shared_reg(enum ipc_owner owner, int num);
@@ -572,7 +578,8 @@ u64 ipc_read_val(enum ipc_owner owner);
 void ipc_write_val(enum ipc_owner owner, u64 result);
 void ipc_set_chub_clk(u32 clk);
 u32 ipc_get_chub_clk(void);
-void ipc_set_chub_bootmode(u16 bootmode);
+void ipc_set_chub_bootmode(u16 bootmode, u16 rtlog);
+u16 ipc_get_chub_rtlogmode(void);
 u16 ipc_get_chub_bootmode(void);
 void ipc_set_ap_wake(u16 wake);
 u16 ipc_get_ap_wake(void);
