@@ -15,7 +15,7 @@
 #ifndef FIMC_IS_DEVICE_OIS_H
 #define FIMC_IS_DEVICE_OIS_H
 
-#define OIS_FW_SIZE			2132
+#define OIS_FW_SIZE			2136
 #define FW_TRANS_SIZE			256
 
 #endif
