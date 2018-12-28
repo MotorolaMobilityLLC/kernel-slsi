@@ -244,9 +244,6 @@ static ssize_t chub_bin_dram_read(struct file *file, struct kobject *kobj,
 				  struct bin_attribute *battr, char *buf,
 				  loff_t off, size_t size)
 {
-	struct device *dev = kobj_to_dev(kobj);
-
-	dev_info(dev, "%s(%p: %lld, %zu)\n", __func__, battr->private, off, size);
 	memcpy(buf, battr->private + off, size);
 	return size;
 }
