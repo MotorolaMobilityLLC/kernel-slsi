@@ -32,7 +32,7 @@
 #include "sx933x.h" 	/* main struct, interrupt,init,pointers */
 
 
-#define SX933x_DEBUG 1
+#define SX933x_DEBUG 0
 #define LOG_TAG "[sar SX933x]: "
 
 #if SX933x_DEBUG
@@ -40,7 +40,7 @@
 #else
 #define LOG_INFO(fmt, args...)
 #endif
-#define LOG_DBG(fmt, args...)   pr_info(LOG_TAG fmt, ##args) 
+#define LOG_DBG(fmt, args...)   pr_info(LOG_TAG fmt, ##args)
 
 #define USE_DTS_REG
 
@@ -340,47 +340,58 @@ static ssize_t sx933x_register_read_store(struct device *dev,
 	LOG_DBG("%s - Register(0x%2x) data(0x%4x) nirq_state(%d)\n",__func__, regist, val, nirq_state);
 	return count;
 }
-static void read_dbg_raw(psx93XX_t this)
+static char* read_dbg_raw(psx93XX_t this, s32 *my_ant_raw, s32 *dlt_var_1, s32 *dlt_var_2)
 {
-	u32 uData;
-	s32 ref_raw, ant_raw;
+	u32 uData, reg_val;
+	s32 ref_raw, ant_raw, ant_use;
 
-	sx933x_i2c_read_16bit(this, 0x81A4, &uData);
-
-	//MANT_MLB
-	uData &= ~(0x7 << 3); //PH0
-	sx933x_i2c_write_16bit(this, 0x81A4, uData);
+	sx933x_i2c_read_16bit(this, 0x81A4, &reg_val);
 	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
 	ant_raw = (s32)uData>>10;
+	*my_ant_raw = ant_raw;
 
-	//MANT_REF
-	uData &= ~(0x7 << 3);
-	uData |= 4 << 3; //PH4
-	sx933x_i2c_write_16bit(this, 0x81A4, uData);
-	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
-	ref_raw = (s32)uData>>10;
+	sx933x_i2c_read_16bit(this, 0x81B4, &uData);
+	*dlt_var_1 = (s32)uData;
+	*dlt_var_2 = (s32)uData >> 3;
 
-	//MANT__HB
-	uData &= ~(0x7 << 3);
-	uData |= 1 << 3; //PH1
-	sx933x_i2c_write_16bit(this, 0x81A4, uData);
-	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
-	ant_raw = (s32)uData>>10;
+	//ph0
+	if((reg_val & (0x7 << 3)) == 0)
+	{
+		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
+		ref_raw = (s32)uData>>10;
+		sx933x_i2c_read_16bit(this, SX933X_USEPH0_REG, &uData);
+		ant_use = (s32)uData>>10;
 
-	//DIV_ANT
-	uData &= ~(0x7 << 3);
-	uData |= 3 << 3; //PH3
-	sx933x_i2c_write_16bit(this, 0x81A4, uData);
-	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
-	ant_raw = (s32)uData>>10;
+		LOG_DBG("reg_val=0x%X PH4_USE= %d PH0_USE= %d PH0_RAW= %d \n", reg_val, ref_raw, ant_use, ant_raw);
+		return "ph0_raw";
+	}
+	//ph1
+	else if((reg_val & (0x7 << 3)) == (1 << 3))
+	{		
+		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
+		ref_raw = (s32)uData>>10;
+		sx933x_i2c_read_16bit(this, SX933X_USEPH1_REG, &uData);
+		ant_use = (s32)uData>>10;
 
-	//DIV_REF
-	uData &= ~(0x7 << 3);
-	uData |= 2 << 3; //PH2
-	sx933x_i2c_write_16bit(this, 0x81A4, uData);
-	sx933x_i2c_read_16bit(this, 0x81B0, &uData);
-	ref_raw = (s32)uData>>10;
+		LOG_DBG("reg_val=0x%X PH4_USE= %d PH1_USE= %d PH1_RAW= %d \n", reg_val, ref_raw, ant_use, ant_raw);
+		return "ph1_raw";
+	}
+	//ph3
+	else if((reg_val & (0x7 << 3)) == (3 << 3))
+	{
+		sx933x_i2c_read_16bit(this, SX933X_USEPH2_REG, &uData);
+		ref_raw = (s32)uData>>10;
+		sx933x_i2c_read_16bit(this, SX933X_USEPH3_REG, &uData);
+		ant_use = (s32)uData>>10;
 
+		LOG_DBG("reg_val=0x%X PH2_USE= %d PH3_USE= %d PH3_RAW= %d \n", reg_val, ref_raw, ant_use, ant_raw);
+		return "ph3_raw";
+	}
+	else
+	{
+		LOG_DBG("invalid reg_val = 0x%X \n", reg_val);
+		return "inv_raw";
+	}
 }
 
 static void read_rawData(psx93XX_t this)
@@ -389,12 +400,25 @@ static void read_rawData(psx93XX_t this)
 	s32 useful;
 	s32 average;
 	s32 diff;
+	s32 ph2_use, ph4_use, ant_raw, dlt_var_1, dlt_var_2;
 	u32 uData;
 	u16 offset;
-	s32 state = 0;
+	int state;
+	char *ant_raw_name;
 
 	if(this)
 	{
+		sx933x_i2c_read_16bit(this, SX933X_STAT0_REG, &uData);
+		LOG_DBG("SX933X_STAT0_REG[0x8000] = 0x%08X\n", uData);
+
+		sx933x_i2c_read_16bit(this, SX933X_USEPH2_REG, &uData);
+		ph2_use = (s32)uData >> 10;
+
+		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
+		ph4_use = (s32)uData >> 10;
+
+		ant_raw_name = read_dbg_raw(this, &ant_raw, &dlt_var_1, &dlt_var_2);
+
 		for(csx =0; csx<5; csx++)
 		{
 			index = csx*4;
@@ -407,10 +431,27 @@ static void read_rawData(psx93XX_t this)
 			sx933x_i2c_read_16bit(this, SX933X_OFFSETPH0_REG + index*2, &uData);
 			offset = (u16)(uData & 0x7FFF);
 			state = psmtcButtons[csx].state;
+			if(csx == 0 || csx == 1)
+			{
+				LOG_DBG("[PH: %d] ref_use = %d Useful = %d DIFF = %d state = %d %s = %d Average = %d Offset = %d "
+                    "dlt_var_1 = %d dlt_var_2 = %d\n",
+					csx, ph4_use, useful, diff, state, ant_raw_name, ant_raw, average, offset,
+					dlt_var_1, dlt_var_2);
+			}
+			else if(csx == 3)
+			{
+				LOG_DBG("[PH: %d] ref_use = %d Useful = %d DIFF = %d state = %d %s = %d Average = %d Offset = %d "
+                    "dlt_var_1 = %d dlt_var_2 = %d\n",
+					csx, ph2_use, useful, diff, state, ant_raw_name, ant_raw, average, offset,
+					dlt_var_1, dlt_var_2);
+			}
+			else
+			{
+				LOG_DBG("[PH: %d] Useful = %d DIFF = %d state = %d Average = %d Offset = %d\n",
+					csx, useful, diff, state, average, offset);
+			}
 		}
 	}
-	read_dbg_raw(this);
-
 }
 static ssize_t sx933x_all_reg_data_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -419,12 +460,24 @@ static ssize_t sx933x_all_reg_data_show(struct device *dev, struct device_attrib
 	char *p = buf;
 	int i;
 	psx93XX_t this = dev_get_drvdata(dev);
+
+	p += snprintf(p, PAGE_SIZE, "DRV_VER=%s\n", "1_decrease_init_time");
+
 	for (i = 0; i < ARRAY_SIZE(sx933x_i2c_reg_setup); i++)
 	{
 		regist = (u16)(sx933x_i2c_reg_setup[i].reg);
 		sx933x_i2c_read_16bit(this, regist, &val);
-		p += snprintf(p, PAGE_SIZE, "reg=(0x%04x)  value=0x%04x\n",
-			regist,val);
+		
+		if (regist == SX933X_AFEPHPH0_REG ||
+			regist == SX933X_AFEPHPH1_REG ||
+			regist == SX933X_AFEPHPH2_REG ||
+			regist == SX933X_AFEPHPH3_REG ||
+			regist == SX933X_AFEPHPH4_REG)
+		{
+			val &= ~0x7FFF;
+		}
+		
+		p += snprintf(p, PAGE_SIZE, "(reg,val) = (0x%X,0x%02X);\n", regist,val);
 	}
 	return (p-buf);
 }
@@ -543,13 +596,16 @@ static void sx933x_reg_init(psx93XX_t this)
 	psx933x_t pDevice = 0;
 	psx933x_platform_data_t pdata = 0;
 	int i = 0;
+#ifndef USE_DTS_REG
 	uint32_t tmpvalue;
+#endif
 	/* configure device */
 	if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw))
 	{
 		/*******************************************************************************/
 		// try to initialize from device tree!
 		/*******************************************************************************/
+#ifndef USE_DTS_REG
 		while ( i < ARRAY_SIZE(sx933x_i2c_reg_setup))
 		{
 			/* Write all registers/values contained in i2c_reg */
@@ -566,7 +622,7 @@ static void sx933x_reg_init(psx93XX_t this)
 			sx933x_i2c_write_16bit(this, sx933x_i2c_reg_setup[i].reg, tmpvalue);
 			i++;
 		}
-#ifdef USE_DTS_REG
+#else
 		if (this->reg_in_dts == true)
 		{
 			i = 0;
@@ -1318,7 +1374,7 @@ int sx93XX_IRQ_init(psx93XX_t this)
 		INIT_DELAYED_WORK(&this->dworker, sx93XX_worker_func);
 		/* initailize interrupt reporting */
 		this->irq_disabled = 0;
-		err = request_irq(this->irq, sx93XX_irq, IRQF_TRIGGER_FALLING,
+		err = request_irq(this->irq, sx93XX_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				this->pdev->driver->name, this);
 		if (err)
 		{

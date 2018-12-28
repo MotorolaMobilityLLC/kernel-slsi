@@ -733,7 +733,7 @@ static const struct smtc_reg_data sx933x_i2c_reg_setup[] =
 	{0x814C,0x00},
 	{0x81A4,0x1C40001},
 };
-
+#define REG_PARAM_VER "21_19_2_enable_ref_adc_filter_3-0028_zero_added_ref_coef_and_thresh"
 #endif
 static struct _buttonInfo psmtcButtons[] =
 {
