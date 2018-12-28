@@ -2086,12 +2086,14 @@ int fimc_is_sensor_peri_s_sensor_stats(struct fimc_is_device_sensor *device,
 		}
 
 	} else {
-		ret = CALL_CISOPS(&sensor_peri->cis, cis_set_3hdr_stat,
+		if (data) {
+			ret = CALL_CISOPS(&sensor_peri->cis, cis_set_3hdr_stat,
 						sensor_peri->subdev_cis,
 						streaming,
 						data);
-		if (ret < 0)
-			err("failed to set 3hdr stat(%d)", ret);
+			if (ret < 0)
+				err("failed to set 3hdr stat(%d)", ret);
+		}
 	}
 p_err:
 	return ret;
