@@ -1649,7 +1649,7 @@ static void abox_tickle_work_func(struct work_struct *work)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	pm_runtime_put(dev);
+	pm_request_idle(dev);
 }
 static DECLARE_DELAYED_WORK(abox_tickle_work, abox_tickle_work_func);
 
@@ -1664,7 +1664,7 @@ static int abox_tickle_put(struct snd_kcontrol *kcontrol,
 	dev_dbg(dev, "%s(%ld)\n", __func__, val);
 
 	if (!!val) {
-		pm_runtime_get(dev);
+		pm_request_resume(dev);
 		schedule_delayed_work(&data->tickle_work, 1 * HZ);
 	}
 
