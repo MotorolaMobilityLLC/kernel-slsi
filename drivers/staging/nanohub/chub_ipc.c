@@ -164,11 +164,12 @@ u32 ipc_get_chub_clk(void)
 	return map->chubclk;
 }
 
-void ipc_set_chub_bootmode(u16 bootmode)
+void ipc_set_chub_bootmode(u16 bootmode, u16 rtlog)
 {
 	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
 
 	map->bootmode = bootmode;
+	map->runtimelog = rtlog;
 }
 
 u16 ipc_get_chub_bootmode(void)
@@ -178,16 +179,23 @@ u16 ipc_get_chub_bootmode(void)
 	return map->bootmode;
 }
 
-void ipc_set_ap_wake(u16 wake)
+u16 ipc_get_chub_rtlogmode(void)
 {
 	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
+
+	return map->runtimelog;
+}
+
+void ipc_set_ap_wake(u16 wake)
+{
+	struct ipc_map_area *map = ipc_get_base(IPC_REG_IPC);
 
 	map->wake = wake;
 }
 
 u16 ipc_get_ap_wake(void)
 {
-	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
+	struct ipc_map_area *map = ipc_get_base(IPC_REG_IPC);
 
 	return map->wake;
 }
@@ -291,19 +299,19 @@ void *ipc_get_chub_map(void)
 	ipc_addr[IPC_REG_IPC_SENSORINFO].base = &ipc_map->sensormap;
 	ipc_addr[IPC_REG_IPC_SENSORINFO].offset = sizeof(u8) * SENSOR_TYPE_MAX;
 
+#ifdef SEOS
 	ipc_map->logbuf.eq = 0;
 	ipc_map->logbuf.dq = 0;
 	ipc_map->logbuf.full = 0;
 	ipc_map->logbuf.dbg_full_cnt = 0;
-	ipc_map->logbuf.loglevel = 0;
 	ipc_map->logbuf.logbuf.eq = 0;
 	ipc_map->logbuf.logbuf.dq = 0;
 	ipc_map->logbuf.logbuf.full = 0;
 	ipc_map->logbuf.errcnt= 0;
 	ipc_map->logbuf.fw_num = 0;
 	ipc_map->logbuf.ap_num = 0;
+	ipc_map->logbuf.loglevel = ipc_get_chub_rtlogmode();
 
-#ifdef SEOS
 	if (!ipc_have_sensor_info(&ipc_map->sensormap)) {
 		CSP_PRINTF_INFO("%s: ipc set sensormap and maic: :%p\n", __func__, &ipc_map->sensormap);
 		memset(&ipc_map->sensormap, 0, sizeof(struct sensor_map));
@@ -312,8 +320,8 @@ void *ipc_get_chub_map(void)
 #endif
 
 	CSP_PRINTF_INFO
-	    ("%s: contexthub map information(v%u)\n bl(%p %d)\n os(%p %d)\n ipc(%p %d)\n ram(%p %d)\n shared(%p %d)\n dump(%p %d)\n",
-	     NAME_PREFIX, map->ipc_version,
+	    ("%s: contexthub map information(v%u, bootmode:%d, rtmode:%d)\n bl(%p %d)\n os(%p %d)\n ipc(%p %d)\n ram(%p %d)\n shared(%p %d)\n dump(%p %d)\n",
+	     NAME_PREFIX, map->ipc_version, ipc_get_chub_bootmode(), ipc_get_chub_rtlogmode(),
 	     ipc_addr[IPC_REG_BL].base, ipc_addr[IPC_REG_BL].offset,
 	     ipc_addr[IPC_REG_OS].base, ipc_addr[IPC_REG_OS].offset,
 	     ipc_addr[IPC_REG_IPC].base, ipc_addr[IPC_REG_IPC].offset,
@@ -676,9 +684,9 @@ static void ipc_print_logbuf(void)
 {
 	struct ipc_logbuf *logbuf = &ipc_map->logbuf;
 
-	CSP_PRINTF_INFO("%s: channel: eq:%d, dq:%d, size:%d, full:%d, dbg_full_cnt:%d, err:%d, fw:%lld, ap:%lld\n",
+	CSP_PRINTF_INFO("%s: channel: eq:%d, dq:%d, size:%d, full:%d, dbg_full_cnt:%d, err(overwrite):%d, ipc-reqcnt:%d, fw:%lld, ap:%lld\n",
 		NAME_PREFIX, logbuf->eq, logbuf->dq, logbuf->size, logbuf->full, logbuf->dbg_full_cnt,
-		logbuf->errcnt, logbuf->fw_num, logbuf->ap_num);
+		logbuf->errcnt, logbuf->reqcnt, logbuf->fw_num, logbuf->ap_num);
 	CSP_PRINTF_INFO("%s: raw: eq:%d, dq:%d, size:%d, full:%d\n",
 		NAME_PREFIX, logbuf->logbuf.eq, logbuf->logbuf.dq, logbuf->logbuf.size, logbuf->logbuf.full);
 }
@@ -871,8 +879,10 @@ retry:
 		/* wait pending clear on irq pend */
 		pending = ipc_hw_read_gen_int_status_reg(AP, ipc_evt->ctrl.irq);
 		if (pending) {
-			CSP_PRINTF_ERROR("%s: %s: irq:%d pending:0x%x->0x%x\n",
-				NAME_PREFIX, __func__, ipc_evt->ctrl.irq, pending, ipc_hw_read_int_status_reg(AP));
+			CSP_PRINTF_ERROR("%s: %s: irq:%d pending:0x%x->(direct-src:%d, src:0x%x, dst:0x%x)\n",
+				NAME_PREFIX, __func__, ipc_evt->ctrl.irq, pending, ipc_get_owner(AP),
+				__raw_readl((char *)ipc_own[AP].base + REG_MAILBOX_INTGR0),
+				__raw_readl((char *)ipc_own[AP].base + REG_MAILBOX_INTGR1));
             /* don't sleep on ap */
 			do {
 				busywait(EVT_WAIT_TIME);
@@ -953,7 +963,7 @@ void ipc_dump(void)
 		return;
 	}
 
-	CSP_PRINTF_INFO("%s: %s: a2x event\n", NAME_PREFIX, __func__);
+	CSP_PRINTF_INFO("%s: %s: a2x event, magic:%s\n", NAME_PREFIX, __func__, ipc_map->magic);
 	ipc_print_evt(IPC_EVT_A2C);
 	CSP_PRINTF_INFO("%s: %s: c2a event\n", NAME_PREFIX, __func__);
 	ipc_print_evt(IPC_EVT_C2A);
@@ -1011,6 +1021,7 @@ void *ipc_logbuf_inbase(bool force)
 	return NULL;
 }
 
+#undef UES_LOG_FLUSH_TRSHOLD
 void ipc_logbuf_req_flush(struct logbuf_content *log, bool force)
 {
 	if (log) {
@@ -1019,17 +1030,31 @@ void ipc_logbuf_req_flush(struct logbuf_content *log, bool force)
 		/* debug check overwrite */
 		log->size = logbuf->fw_num++;
 		if (ipc_map) {
-			u32 eq = logbuf->eq;
-			u32 dq = logbuf->dq;
-			u32 logcnt = (eq >= dq) ? (eq - dq) : (eq + (logbuf->size - dq));
+			if (!logbuf->flush_req && !logbuf->flush_active) {
+#ifdef UES_LOG_FLUSH_TRSHOLD
+				u32 eq = logbuf->eq;
+				u32 dq = logbuf->dq;
+				u32 logcnt = (eq >= dq) ? (eq - dq) : (eq + (logbuf->size - dq));
 
-			if (((ipc_get_ap_wake() == AP_WAKE) && (logcnt > LOGBUF_FLUSH_THRESHOLD)) || force) {
-				DISABLE_IRQ();
-				if (!logbuf->flush_req) {
-					logbuf->flush_req = 1;
-					ipc_add_evt_in_critical(IPC_EVT_C2A, IRQ_EVT_C2A_LOG);
+				if (((ipc_get_ap_wake() == AP_WAKE) && (logcnt > LOGBUF_FLUSH_THRESHOLD)) || force) {
+					DISABLE_IRQ();
+					if (!logbuf->flush_req) {
+						logbuf->flush_req = 1;
+						ipc_add_evt_in_critical(IPC_EVT_C2A, IRQ_EVT_C2A_LOG);
+					}
+					ENABLE_IRQ();
 				}
-				ENABLE_IRQ();
+#else
+				if ((ipc_get_ap_wake() == AP_WAKE) || force) {
+					DISABLE_IRQ();
+					if (!logbuf->flush_req) {
+						logbuf->flush_req = 1;
+						logbuf->reqcnt++;
+						ipc_add_evt_in_critical(IPC_EVT_C2A, IRQ_EVT_C2A_LOG);
+					}
+					ENABLE_IRQ();
+				}
+#endif
 			}
 		}
 	}
@@ -1041,48 +1066,71 @@ void ipc_logbuf_req_flush(struct logbuf_content *log, bool force)
 #endif
 
 #ifdef AP_IPC
-void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf)
+#define LOGFILE_NUM_SIZE (10)
+
+void ipc_logbuf_flush_on(bool on)
+{
+	struct ipc_logbuf *logbuf;
+
+	if (ipc_map) {
+		logbuf = &ipc_map->logbuf;
+		logbuf->flush_active = on;
+	}
+}
+
+bool ipc_logbuf_filled(void)
+{
+	struct ipc_logbuf *logbuf;
+
+	if (ipc_map) {
+		logbuf = &ipc_map->logbuf;
+		return logbuf->eq != logbuf->dq;
+	}
+	return 0;
+}
+
+void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop)
 {
 	if (ipc_map) {
 		struct logbuf_content *log;
 		struct ipc_logbuf *logbuf = &ipc_map->logbuf;
 		int eq;
-		int retrycnt = 0;
+		int len;
 
 retry:
 		eq = logbuf->eq;
+		if (eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM) {
+			pr_err("%s: index err:%d, eq:%d, dq:%d\n", __func__, eq, logbuf->dq);
+			return;
+		}
+
 		if (logbuf->full) {
 			logbuf->full = 0;
-			logbuf->dq =  logbuf->eq;
+			logbuf->dq =  (eq + 1) % LOGBUF_NUM;
 		}
 
 		while (eq != logbuf->dq) {
 			log = &logbuf->log[logbuf->dq];
+			len = strlen((char *)log);
 
-			/* debug check overwrite */
-			if (logbuf->ap_num != log->size) {
-				logbuf->ap_num = log->size;
-				logbuf->errcnt++;
-			}
-			logbuf->ap_num++;
+			if (len <= LOGBUF_DATA_SIZE) {
+				if (logbuf->loglevel == CHUB_RT_LOG_DUMP_PRT)
+					CSP_PRINTF_INFO("%s: %s", NAME_PREFIX, (char *)log);
 
-			if (logbuf->loglevel == CHUB_RT_LOG_DUMP_PRT)
-				CSP_PRINTF_INFO("%s: %s", NAME_PREFIX, (char *)log);
-
-			if (rt_buf) {
-				int len = strlen((char *)log);
-
-				if (rt_buf->write_index + len > rt_buf->buffer_size)
-					rt_buf->write_index = 0;
-				memcpy(rt_buf->buffer + rt_buf->write_index, (char *)log, len);
-				rt_buf->write_index += len;
+				if (rt_buf) {
+					if (rt_buf->write_index + len + LOGFILE_NUM_SIZE > rt_buf->buffer_size)
+						rt_buf->write_index = 0;
+					len = sprintf(rt_buf->buffer + rt_buf->write_index, "%8lld:%s", log->size, log);
+					rt_buf->write_index += len;
+				}
+			} else {
+				pr_err("%s: size err:%d, eq:%d, dq:%d\n", __func__, len, eq, logbuf->dq);
 			}
 			logbuf->dq = (logbuf->dq + 1) % LOGBUF_NUM;
 		}
-
-		if ((eq != logbuf->eq) && !retrycnt) {
-			CSP_PRINTF_INFO("%s: retry: flush:%d, cnt:%d, eq:%d->%d, dq:%d\n",
-				NAME_PREFIX, logbuf->flush_req, logbuf->dbg_full_cnt, eq, logbuf->eq, logbuf->dq);
+		msleep(10);
+		if ((eq != logbuf->eq) && loop) {
+			loop--;
 			goto retry;
 		}
 
@@ -1104,7 +1152,7 @@ enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set)
 	return 0;
 }
 #else
-#define ipc_logbuf_outprint(a) ((void)0)
+#define ipc_logbuf_outprint(a) ((void)0, 0)
 #define ipc_logbuf_loglevel(a, b) ((void)0)
 #endif
 
@@ -1112,6 +1160,11 @@ void ipc_set_owner(enum ipc_owner owner, void *base, enum ipc_direction dir)
 {
 	ipc_own[owner].base = base;
 	ipc_own[owner].src = dir;
+}
+
+enum ipc_direction ipc_get_owner(enum ipc_owner owner)
+{
+	return ipc_own[owner].src;
 }
 
 int ipc_hw_read_int_start_index(enum ipc_owner owner)

@@ -113,7 +113,7 @@ struct recv_ctrl {
 };
 
 struct chub_alive {
-	unsigned int flag;
+	atomic_t flag;
 	wait_queue_head_t event;
 };
 
@@ -161,13 +161,17 @@ struct contexthub_ipc_info {
 	wait_queue_head_t wakeup_wait;
 	struct work_struct debug_work;
 	struct work_struct log_work;
+	int log_work_reqcnt;
+	spinlock_t logout_lock;
 	struct read_wait read_lock;
 #ifdef USE_IPC_BUF
 	u8 rxbuf[PACKET_SIZE_MAX];
 #endif
 	struct chub_alive chub_alive_lock;
 	struct chub_alive poweron_lock;
+	struct chub_alive reset_lock;
 	void __iomem *sram;
+	u32 sram_size;
 	void __iomem *mailbox;
 	void __iomem *chub_dumpgpr;
 	void __iomem *chub_baaw;
@@ -182,8 +186,6 @@ struct contexthub_ipc_info {
 	struct runtimelog_buf chub_rt_log;
 	unsigned long clkrate;
 	atomic_t log_work_active;
-	atomic_t chub_status;
-	atomic_t in_reset;
 	atomic_t irq1_apInt;
 	atomic_t wakeup_chub;
 	atomic_t in_use_ipc;
@@ -192,6 +194,8 @@ struct contexthub_ipc_info {
 	bool irq_wdt_disabled;
 	int utc_run;
 	int powermode;
+	atomic_t chub_status;
+	atomic_t in_reset;
 	int block_reset;
 	bool sel_os;
 	bool os_load;
@@ -307,5 +311,7 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 int contexthub_request(struct contexthub_ipc_info *ipc);
 void contexthub_release(struct contexthub_ipc_info *ipc);
+void chub_wake_event(struct chub_alive *event);
 int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf);
+void contexthub_print_rtlog(struct contexthub_ipc_info *ipc, bool loop);
 #endif
