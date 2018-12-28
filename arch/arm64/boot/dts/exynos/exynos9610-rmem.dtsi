@@ -95,7 +95,7 @@
 		chub_rmem: chub_rmem {
 			compatible = "exynos,chub_rmem";
 			/* To dump SHUB SRAM out upon shub firmware crash */
-			reg = <0x0 0xFD000000 0x80000>;
+			reg = <0x0 0xFD000000 0x50000>;
 		};
 
 		debug_snapshot {
