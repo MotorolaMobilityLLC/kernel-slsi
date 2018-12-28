@@ -6018,8 +6018,8 @@ const u32 sensor_2x5sp_setfile_B_2880x2160_30fps[] = {
 	0x034E, 0x0870, 0x2,
 	0x0350, 0x0000, 0x2,
 	0x0352, 0x0000, 0x2,
-	0x0340, 0x2120, 0x2,
-	0x0342, 0x0EB0, 0x2,
+	0x0340, 0x0930, 0x2,
+	0x0342, 0x3500, 0x2,
 	0x0900, 0x0122, 0x2,
 	0x0902, 0x0001, 0x2,
 	0x0380, 0x0002, 0x2,
@@ -7565,8 +7565,8 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_2880x2160_30fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	2100000000, /* mipi_datarate */
 	957666000,	/* pclk  = VT pix CLK (this value is different by cis) */
-	0x2120, /* frame_length_lines	(0x0340) */
-	0x0EB0, /* line_length_pck	(0x0342) */
+	0x0930, /* frame_length_lines	(0x0340) */
+	0x3500, /* line_length_pck	(0x0342) */
 };
 
 const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_2880x2160_30fps_3DHDR = {
