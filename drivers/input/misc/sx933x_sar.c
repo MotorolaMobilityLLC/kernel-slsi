@@ -1374,7 +1374,7 @@ int sx93XX_IRQ_init(psx93XX_t this)
 		INIT_DELAYED_WORK(&this->dworker, sx93XX_worker_func);
 		/* initailize interrupt reporting */
 		this->irq_disabled = 0;
-		err = request_irq(this->irq, sx93XX_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+		err = request_irq(this->irq, sx93XX_irq, IRQF_TRIGGER_FALLING,
 				this->pdev->driver->name, this);
 		if (err)
 		{
