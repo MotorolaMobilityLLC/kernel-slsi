@@ -28,7 +28,7 @@
 #define USE_GROUP_PARAM_HOLD		(0)
 
 /* OTP valies */
-#define OTP_DATA_PATH			"/data/camera/2x5_otp_cal_data.bin"
+#define OTP_DATA_PATH			"/data/vendor/camera/2x5_otp_cal_data.bin"
 #define OTP_PAGE_CTRL			0x0A00
 #define OTP_PAGE_SELECT			0x0A02
 #define OTP_PAGE_BASE			0x0A04

@@ -26,7 +26,7 @@
 #define OIS_FW_ADDR_2		0x1C00
 #define OIS_FW_CHECK_SUM	0x02D9C6
 
-#define OIS_CAL_DATA_PATH		"/data/camera/gm1_eeprom_data.bin"
+#define OIS_CAL_DATA_PATH		"/data/vendor/camera/gm1_eeprom_data.bin"
 #define OIS_CAL_DATA_PATH_DEFAULT	"/vendor/firmware/bu24218_cal_data_default.bin"
 #define OIS_CAL_DATA_CRC_OFFSET	0x1DB0
 #define OIS_CAL_DATA_CRC_SIZE		2
