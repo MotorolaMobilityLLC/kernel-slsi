@@ -12,7 +12,7 @@
 #ifndef FIMC_IS_EEPROM_GM1_H
 #define FIMC_IS_EEPROM_GM1_H
 
-#define EEPROM_DATA_PATH		"/data/camera/gm1_eeprom_data.bin"
+#define EEPROM_DATA_PATH		"/data/vendor/camera/gm1_eeprom_data.bin"
 #define EEPROM_DUAL_DATA_PATH		"/data/vendor/camera/dual_cal_dump.bin"
 #define EEPROM_SERIAL_NUM_DATA_PATH	"/data/vendor/camera/serial_number.bin"
 
