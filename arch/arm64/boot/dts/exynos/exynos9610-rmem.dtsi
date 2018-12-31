@@ -14,6 +14,10 @@
 
 / {
 	ion-hpa-heap {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+		ion,hpa_limit = <0x9 0x00000000>;
 		ion_video_fw {
 			compatible = "exynos9820-ion";
 			ion,heapname = "vfw_heap";
