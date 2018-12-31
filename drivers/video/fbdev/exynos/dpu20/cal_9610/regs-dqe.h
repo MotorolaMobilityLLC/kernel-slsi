@@ -249,6 +249,10 @@
 #define DQEHSC_POLY_CURVE2		0x022c
 #define DQEHSC_SKIN_H			0x0240
 
+#define DQEHSC_FULL_PXL_NUM		0x0310
+#define DQEHSC_FULL_PXL_NUM_MASK	(0x03ffffff << 0)
+#define DQEHSC_FULL_PXL_NUM_GET(_v)	(((_v) >> 0) & 0x03ffffff)
+
 #define SHADOW_DQE_OFFSET		0x9000
 
 #endif

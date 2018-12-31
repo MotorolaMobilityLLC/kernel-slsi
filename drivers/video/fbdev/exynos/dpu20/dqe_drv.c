@@ -219,6 +219,7 @@ static int dqe_restore_context(void)
 {
 	int i;
 	struct dqe_device *dqe = dqe_drvdata;
+	struct decon_device *decon = dqe->decon;
 
 	dqe_dbg("%s\n", __func__);
 
@@ -241,6 +242,11 @@ static int dqe_restore_context(void)
 				dqe->ctx.hsc[i].val);
 
 	if (dqe->ctx.hsc_on) {
+		if (decon) {
+			dqe_reg_set_hsc_full_pxl_num(decon->lcd_info);
+			dqe_dbg("dqe DQEHSC_FULL_PXL_NUM: %d\n",
+				dqe_reg_get_hsc_full_pxl_num());
+		}
 		dqe_reg_set_hsc_control_all_reset();
 		dqe_reg_set_hsc_on(1);
 		dqe_reg_set_hsc_control(dqe->ctx.hsc_control);

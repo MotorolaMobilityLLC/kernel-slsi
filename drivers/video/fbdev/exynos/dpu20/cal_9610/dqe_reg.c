@@ -67,6 +67,20 @@ u32 dqe_reg_get_hsc_control(void)
 	return dqe_read_mask(DQEHSC_CONTROL, HSC_ALL_MASK);
 }
 
+void dqe_reg_set_hsc_full_pxl_num(struct decon_lcd *lcd_info)
+{
+	u32 val, mask;
+
+	val = (u32)(lcd_info->xres * lcd_info->yres);
+	mask = DQEHSC_FULL_PXL_NUM_MASK;
+	dqe_write_mask(DQEHSC_FULL_PXL_NUM, val, mask);
+}
+
+u32 dqe_reg_get_hsc_full_pxl_num(void)
+{
+	return dqe_read_mask(DQEHSC_FULL_PXL_NUM, DQEHSC_FULL_PXL_NUM_MASK);
+}
+
 void dqe_reg_set_img_size(u32 id, struct decon_lcd *lcd_info)
 {
 	u32 width, val, mask;

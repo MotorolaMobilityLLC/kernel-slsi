@@ -117,6 +117,8 @@ void dqe_reg_set_hsc_ppsc_on(u32 on);
 void dqe_reg_set_hsc_control(u32 val);
 void dqe_reg_set_hsc_control_all_reset(void);
 u32 dqe_reg_get_hsc_control(void);
+void dqe_reg_set_hsc_full_pxl_num(struct decon_lcd *lcd_info);
+u32 dqe_reg_get_hsc_full_pxl_num(void);
 void dqe_reg_set_aps_on(u32 on);
 void dqe_reg_hsc_sw_reset(u32 en);
 void dqe_reg_aps_sw_reset(u32 en);
