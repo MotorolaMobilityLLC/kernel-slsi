@@ -390,6 +390,8 @@ static void shmem_irq_msg_handler(void *data)
 
 	gnss_msq_get_free_slot(&shmd->rx_msq);
 
+	shmd->rx_int_count++;
+
 	/*
 	intr = recv_int2ap(shmd);
 	if (unlikely(!INT_VALID(intr))) {
@@ -821,6 +823,41 @@ shmem_dump_mbx_to_fault:
 	return err;
 }
 
+static ssize_t rx_int_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gnss_data *gnss;
+	gnss = (struct gnss_data *)dev->platform_data;
+	return sprintf(buf, "%d\n", gnss->shmd->rx_int_count);
+}
+
+static ssize_t rx_int_count_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct gnss_data *gnss;
+	int val = 0;
+	int ret;
+	gnss = (struct gnss_data *)dev->platform_data;
+	ret = sscanf(buf, "%u", &val);
+
+	if (val == 0)
+		gnss->shmd->rx_int_count = 0;
+	return count;
+}
+
+static DEVICE_ATTR_RW(rx_int_count);
+
+static struct attribute *shmem_attrs[] = {
+	&dev_attr_rx_int_count.attr,
+	NULL,
+};
+
+static const struct attribute_group shmem_group = {		\
+	.attrs = shmem_attrs,					\
+	.name = "shmem",
+};
+
 struct link_device *create_link_device_shmem(struct platform_device *pdev)
 {
 	struct shmem_link_device *shmd = NULL;
@@ -967,6 +1004,12 @@ struct link_device *create_link_device_shmem(struct platform_device *pdev)
 			ld->name, err);
 		goto error;
 	}
+
+	/* Link link device to gnss_data */
+	gnss->shmd = shmd;
+
+	if (sysfs_create_group(&pdev->dev.kobj, &shmem_group))
+		gif_err("failed to create sysfs node\n");
 
 	gif_info("---\n");
 	return ld;
