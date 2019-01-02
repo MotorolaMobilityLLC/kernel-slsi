@@ -37,8 +37,10 @@ static void exynos_build_header(struct io_device *iod, struct link_device *ld,
 
 static inline void iodev_lock_wlock(struct io_device *iod)
 {
-	if (iod->waketime > 0 && !wake_lock_active(&iod->wakelock))
+	if (iod->waketime > 0 && !wake_lock_active(&iod->wakelock)) {
+		wake_unlock(&iod->wakelock);
 		wake_lock_timeout(&iod->wakelock, iod->waketime);
+	}
 }
 
 static inline int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
@@ -246,6 +248,12 @@ static int io_dev_recv_skb_single_from_link_dev(struct io_device *iod,
 				struct link_device *ld, struct sk_buff *skb)
 {
 	int err;
+
+	if (unlikely(atomic_read(&iod->opened) <= 0)) {
+		gif_err_limited("%s<-%s: ERR! %s is not opened\n",
+			iod->name, ld->name, iod->name);
+		return -ENODEV;
+	}
 
 	iodev_lock_wlock(iod);
 
