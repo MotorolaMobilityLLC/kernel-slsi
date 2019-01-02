@@ -743,10 +743,9 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	} else if (GET_DMA_CH(dma_ch, SENSOR_POSITION_REAR)) {
 		matrix_num = 0;
 		sram0_split = max;
-		sram1_split = max; /* Due to PAFSTAT stat DMA limitation, set DMA2 split to max */
 	} else if (GET_DMA_CH(dma_ch, SENSOR_POSITION_REAR2)) {
 		matrix_num = 2;
-		sram1_split = 4; /* Rear2 uses a DMA3 as image out */
+		sram1_split = max;
 	} else if (GET_DMA_CH(dma_ch, SENSOR_POSITION_FRONT)) {
 		matrix_num = 0;
 		sram1_split = max;
