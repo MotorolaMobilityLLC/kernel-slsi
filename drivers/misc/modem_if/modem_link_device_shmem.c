@@ -1464,14 +1464,10 @@ static void shmem_qos_work_max(struct work_struct *work)
 {
 	mif_info("Request MAX QOS\n");
 
-	pm_qos_update_request(&pm_qos_req_cpu[0],
-			INT_MAX);
-	pm_qos_update_request(&pm_qos_req_cpu[1],
-			INT_MAX);
-	pm_qos_update_request(&pm_qos_req_mif,
-			INT_MAX);
-	pm_qos_update_request(&pm_qos_req_int,
-			INT_MAX);
+	pm_qos_update_request(&pm_qos_req_mif, INT_MAX);
+	pm_qos_update_request(&pm_qos_req_int, INT_MAX);
+	pm_qos_update_request(&pm_qos_req_cpu[0], INT_MAX);
+	pm_qos_update_request(&pm_qos_req_cpu[1], INT_MAX);
 
 	mcu_ipc_set_affinity(MCU_CP, 4);
 }
@@ -1482,8 +1478,8 @@ static void shmem_qos_work_normal(struct work_struct *work)
 
 	pm_qos_update_request(&pm_qos_req_cpu[0], 0);
 	pm_qos_update_request(&pm_qos_req_cpu[1], 0);
-	pm_qos_update_request(&pm_qos_req_mif, 0);
 	pm_qos_update_request(&pm_qos_req_int, 0);
+	pm_qos_update_request(&pm_qos_req_mif, 0);
 }
 #endif
 
