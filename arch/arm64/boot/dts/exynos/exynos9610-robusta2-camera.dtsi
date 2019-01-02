@@ -628,6 +628,7 @@
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
+	multi_ch = <2>;
 	use_ssvc2_internal;
 	use_ssvc3_internal;
 	status = "okay";
@@ -642,6 +643,7 @@
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
+	multi_ch = <0>;
 	status = "okay";
 	use_ssvc3_internal;
 };
@@ -655,6 +657,7 @@
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
+	multi_ch = <0>;
 	status = "okay";
 };
 
@@ -667,5 +670,6 @@
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
+	multi_ch = <0>;
 	status = "okay";
 };
