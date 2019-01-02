@@ -1916,7 +1916,7 @@
 				cirrus,micd-bias-start-time = <8>;
 				cirrus,micd-rate = <6>;
 				/*cirrus,micd-pol-gpios = <&cs47l35 4 0>;*/
-				cirrus,micd-detect-debounce-ms = <500>;
+				cirrus,micd-detect-debounce-ms = <700>;
 				/*cirrus,jd-use-jd2;*/
 				/*cirrus,micd-clamp-mode = <0x8>;*/
 			};
