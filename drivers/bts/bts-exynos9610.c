@@ -27,9 +27,7 @@ do {						\
 		pr_info(x);			\
 } while (0)
 
-#define NUM_CHANNEL		1
 #define MIF_UTIL		65
-#define INT_UTIL		70
 
 #define DEFAULT_QMAX_R		0x12
 #define DEFAULT_QMAX_W		0x3
@@ -37,7 +35,6 @@ do {						\
 
 static int exynos_bts_log;
 static unsigned int exynos_mif_util = MIF_UTIL;
-static unsigned int exynos_int_util = INT_UTIL;
 static unsigned int exynos_qmax_r[2] = {DEFAULT_QMAX_R, NO_QMAX};
 static unsigned int exynos_qmax_w[2] = {DEFAULT_QMAX_W, NO_QMAX};
 
@@ -166,7 +163,6 @@ struct trex_info {
 };
 
 static struct pm_qos_request exynos_mif_bts_qos;
-static struct pm_qos_request exynos_int_bts_qos;
 static DEFINE_SPINLOCK(bts_lock);
 static DEFINE_MUTEX(media_mutex);
 
@@ -1378,11 +1374,9 @@ void bts_update_bw(enum bts_bw_type type, struct bts_bw bw)
 {
 	static struct bts_bw ip_bw[BTS_BW_MAX];
 	unsigned int mif_freq;
-	unsigned int int_freq;
 	unsigned int total_bw = 0;
 	unsigned int bw_r = 0;
 	unsigned int bw_w = 0;
-	unsigned int int_bw = 0;
 	int i;
 
 	if (type >= BTS_BW_MAX)
@@ -1395,29 +1389,21 @@ void bts_update_bw(enum bts_bw_type type, struct bts_bw bw)
 
 	ip_bw[type] = bw;
 	for (i = 0; i < BTS_BW_MAX; i++) {
-		if (int_bw < ip_bw[i].peak)
-			int_bw = ip_bw[i].peak;
 		bw_r += ip_bw[i].read;
 		bw_w += ip_bw[i].write;
 	}
 	total_bw = bw_r + bw_w;
-	if (int_bw < (bw_w / NUM_CHANNEL))
-		int_bw = bw_w / NUM_CHANNEL;
-	if (int_bw < (bw_r / NUM_CHANNEL))
-		int_bw = bw_r / NUM_CHANNEL;
 
 	/* MIF minimum frequency calculation as per BTS guide */
 	mif_freq = total_bw * 100 / BUS_WIDTH / exynos_mif_util;
-	int_freq = int_bw * 100 / BUS_WIDTH / exynos_int_util;
 
 	pm_qos_update_request(&exynos_mif_bts_qos, mif_freq);
-	pm_qos_update_request(&exynos_int_bts_qos, int_freq);
 
 	BTS_DBG("[BTS] BW(KB/s): type%i bw %up %ur %uw,\n",
 				type, bw.peak, bw.read, bw.write);
-	BTS_DBG("[BTS] BW(KB/s, calc): int %u total %u, read %u, write %u,\n",
-				int_bw, total_bw, bw_r, bw_w);
-	BTS_DBG("[BTS] freq(Khz): mif %u, int %u\n", mif_freq, int_freq);
+	BTS_DBG("[BTS] BW(KB/s, calc): total %u, read %u, write %u,\n",
+				total_bw, bw_r, bw_w);
+	BTS_DBG("[BTS] freq(Khz): mif %u\n", mif_freq);
 
 	mutex_unlock(&media_mutex);
 }
@@ -3302,8 +3288,6 @@ static void bts_debugfs(void)
 		pr_err("[BTS]: could't create debugfs bts log\n");
 	if (!debugfs_create_u32("mif_util", 0644, den, &exynos_mif_util))
 		pr_err("[BTS]: could't create debugfs mif util\n");
-	if (!debugfs_create_u32("int_util", 0644, den, &exynos_int_util))
-		pr_err("[BTS]: could't create debugfs int util\n");
 }
 #else
 static void bts_debugfs(void)
@@ -3364,7 +3348,6 @@ static int __init exynos_bts_init(void)
 	bts_initialize_domains();
 
 	pm_qos_add_request(&exynos_mif_bts_qos, PM_QOS_BUS_THROUGHPUT, 0);
-	pm_qos_add_request(&exynos_int_bts_qos, PM_QOS_DEVICE_THROUGHPUT, 0);
 	register_syscore_ops(&exynos_bts_syscore_ops);
 
 	bts_debugfs();
