@@ -220,12 +220,14 @@ static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp,
 			    cs35l41_pcm_sftramp_text);
 
 static const char * const cs35l41_cspl_cmd_text[] = {
+	"CSPL_MBOX_CMD_PAUSE",
 	"CSPL_MBOX_CMD_RESUME",
 	"CSPL_MBOX_CMD_REINIT",
 	"CSPL_MBOX_CMD_STOP_PRE_REINIT",
 };
 
 static const unsigned int cs35l41_cspl_cmd_val[] = {
+	(unsigned int)CSPL_MBOX_CMD_PAUSE,
 	(unsigned int)CSPL_MBOX_CMD_RESUME,
 	(unsigned int)CSPL_MBOX_CMD_REINIT,
 	(unsigned int)CSPL_MBOX_CMD_STOP_PRE_REINIT,
@@ -257,12 +259,18 @@ static bool cs35l41_is_csplmboxsts_correct(enum cs35l41_cspl_mboxcmd cmd,
 static int cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
 				   enum cs35l41_cspl_mboxcmd cmd)
 {
-	int		ret;
-	unsigned int	sts;
-    #ifdef CS35L41_NO_MBOX_SUPPORT
-		dev_warn(cs35l41->dev, "MBOX support is disabled\n");
-		return 0;
-    #endif
+	int		ret = 0;
+	unsigned int	sts, i;
+	bool		ack = false;
+#ifdef CS35L41_NO_MBOX_SUPPORT
+	if(CSPL_MBOX_CMD_PAUSE==cmd)
+	{
+		regmap_write(cs35l41->regmap, CS35L41_CSPL_MBOX_CMD_DRV, cmd);
+		msleep(1);
+	}
+	dev_warn(cs35l41->dev, "MBOX support is disabled\n");
+	return 0;
+#endif
 	/* Reset DSP sticky bit */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ2_STATUS2,
 		     1 << CS35L41_CSPL_MBOX_CMD_DRV_SHIFT);
@@ -274,26 +282,33 @@ static int cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
 	/*
 	 * Set mailbox cmd
 	 */
-	reinit_completion(&cs35l41->mbox_cmd);
+
 	/* Unmask DSP INT */
 	regmap_update_bits(cs35l41->regmap, CS35L41_IRQ2_MASK2,
 			   1 << CS35L41_CSPL_MBOX_CMD_DRV_SHIFT, 0);
 	/* Unmask AP INT */
-	regmap_update_bits(cs35l41->regmap, CS35L41_IRQ1_MASK2,
-			   1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT, 0);
 	regmap_write(cs35l41->regmap, CS35L41_CSPL_MBOX_CMD_DRV, cmd);
-	ret = wait_for_completion_timeout(&cs35l41->mbox_cmd,
-					  msecs_to_jiffies(CS35L41_MBOXWAIT));
-	if (ret == 0) {
+
+	for (i = 0; i < 5; i++) {
+		usleep_range(1000, 1010);
+		regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS2, &sts);
+		if (sts & (1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT)) {
+			dev_dbg(cs35l41->dev,
+				"%u: Received ACK in EINT for mbox cmd (%d)\n",
+				i, cmd);
+			regmap_write(cs35l41->regmap, CS35L41_IRQ1_STATUS2,
+			     1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT);
+			ack = true;
+			break;
+		}
+	}
+	if (!ack) {
 		dev_err(cs35l41->dev,
 			"Timout waiting for DSP to set mbox cmd\n");
 		ret = -ETIMEDOUT;
 	}
 
 	/* Mask AP INT */
-	regmap_update_bits(cs35l41->regmap, CS35L41_IRQ1_MASK2,
-			   1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT,
-			   1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT);
 	/* Mask DSP INT */
 	regmap_update_bits(cs35l41->regmap, CS35L41_IRQ2_MASK2,
 			   1 << CS35L41_CSPL_MBOX_CMD_DRV_SHIFT,
@@ -323,12 +338,15 @@ static int cs35l41_cspl_cmd_put(struct snd_kcontrol *kcontrol,
 	struct cs35l41_private	*cs35l41 = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum		*soc_enum;
 	unsigned int		i = ucontrol->value.enumerated.item[0];
-	int			ret = 0;
 
 	soc_enum = (struct soc_enum *)kcontrol->private_value;
+	if (i >= soc_enum->items) {
+		dev_err(codec->dev, "Invalid mixer input (%u)\n", i);
+		return -EINVAL;
+	}
 	cs35l41->cspl_cmd = soc_enum->values[i];
 
-	return ret;
+	return 0;
 }
 
 static int cs35l41_cspl_cmd_get(struct snd_kcontrol *kcontrol,
@@ -479,12 +497,17 @@ static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
 			 0, 7, 0),
 	SOC_SINGLE_RANGE("ASPTX4 Slot Position", CS35L41_SP_FRAME_TX_SLOT, 24,
 			 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPRX1 Slot Position", CS35L41_SP_FRAME_RX_SLOT, 0,
+			 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPRX2 Slot Position", CS35L41_SP_FRAME_RX_SLOT, 8,
+			 0, 7, 0),
 	SOC_ENUM("PCM Soft Ramp", pcm_sft_ramp),
 	SOC_ENUM("Boost Enable", bst_en_ctl),
 	SOC_VALUE_ENUM_EXT("CSPL Command", cs35l41_cspl_cmd,
 			   cs35l41_cspl_cmd_get, cs35l41_cspl_cmd_put),
 	SOC_SINGLE_EXT("DSP Booted", SND_SOC_NOPM, 0, 1, 0,
 			cs35l41_halo_booted_get, cs35l41_halo_booted_put),
+	SOC_SINGLE("GLOBAL_EN from GPIO", CS35L41_PWR_CTRL1, 8, 1, 0),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 };
 
@@ -638,11 +661,6 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 		!(status[2] & ~masks[2]) && !(status[3] & ~masks[3]))
 		return IRQ_NONE;
 
-	if (status[1] & (1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT)) {
-		regmap_write(cs35l41->regmap, CS35L41_IRQ1_STATUS2,
-			     1 << CS35L41_CSPL_MBOX_CMD_FW_SHIFT);
-		complete(&cs35l41->mbox_cmd);
-	}
 
 	if (status[0] & CS35L41_PUP_DONE_MASK) {
 		regmap_write(cs35l41->regmap, CS35L41_IRQ1_STATUS1,
@@ -803,6 +821,12 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 				ret = cs35l41_set_csplmboxcmd(cs35l41,
 							cs35l41->cspl_cmd);
 		}
+		regmap_update_bits(cs35l41->regmap, CS35L41_AMP_OUT_MUTE,
+				CS35L41_AMP_MUTE_MASK, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_update_bits(cs35l41->regmap, CS35L41_AMP_OUT_MUTE,
+				CS35L41_AMP_MUTE_MASK, CS35L41_AMP_MUTE_MASK);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (cs35l41->halo_booted) {
@@ -867,7 +891,8 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", CS35L41_PWR_CTRL2, 0, 0, NULL, 0,
 				cs35l41_main_amp_event,
-				SND_SOC_DAPM_POST_PMD |	SND_SOC_DAPM_POST_PMU),
+				SND_SOC_DAPM_POST_PMD |	SND_SOC_DAPM_POST_PMU
+				| SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_INPUT("VP"),
 	SND_SOC_DAPM_INPUT("VBST"),
@@ -996,12 +1021,12 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		asp_fmt = 0;
 		cs35l41->i2s_mode = false;
-		cs35l41->tdm_mode = true;
+		cs35l41->dspa_mode = true;
 		break;
 	case SND_SOC_DAIFMT_I2S:
 		asp_fmt = 2;
 		cs35l41->i2s_mode = true;
-		cs35l41->tdm_mode = false;
+		cs35l41->dspa_mode = false;
 		break;
 	default:
 		dev_warn(cs35l41->dev, "cs35l41_set_dai_fmt: Invalid or unsupported DAI format\n");
@@ -1203,7 +1228,7 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(cs35l41->regmap, CS35L41_SP_RX_WL,
 				CS35L41_ASP_RX_WL_MASK,
 				asp_wl << CS35L41_ASP_RX_WL_SHIFT);
-		if (cs35l41->i2s_mode || cs35l41->tdm_mode) {
+		if (cs35l41->i2s_mode) {
 			regmap_update_bits(cs35l41->regmap,
 					CS35L41_SP_FRAME_RX_SLOT,
 					CS35L41_ASP_RX1_SLOT_MASK,
@@ -1723,12 +1748,27 @@ static const struct reg_sequence cs35l41_reva0_errata_patch[] = {
 	{0x00000040,			0x00005555},
 	{0x00000040,			0x0000AAAA},
 	{0x00003854,			0x05180240},
+	{CS35L41_VIMON_SPKMON_RESYNC,	0x00000000},
 	{CS35L41_OTP_TRIM_30,		0x9091A1C8},
 	{0x00003014,			0x0200EE0E},
 	{CS35L41_BSTCVRT_DCM_CTRL,	0x00000051},
 	{0x00000054,			0x00000004},
 	{CS35L41_IRQ1_DB3,		0x00000000},
 	{CS35L41_IRQ2_DB3,		0x00000000},
+	{CS35L41_DSP1_YM_ACCEL_PL0_PRI,	0x00000000},
+	{CS35L41_DSP1_XM_ACCEL_PL0_PRI,	0x00000000},
+	{CS35L41_ASP_CONTROL4,		0x00000000},
+	{0x00000040,			0x0000CCCC},
+	{0x00000040,			0x00003333},
+};
+static const struct reg_sequence cs35l41_revb0_errata_patch[] = {
+	{0x00000040,			0x00005555},
+	{0x00000040,			0x0000AAAA},
+	{CS35L41_VIMON_SPKMON_RESYNC,	0x00000000},
+	{CS35L41_BSTCVRT_DCM_CTRL,	0x00000051},
+	{CS35L41_DSP1_YM_ACCEL_PL0_PRI,	0x00000000},
+	{CS35L41_DSP1_XM_ACCEL_PL0_PRI,	0x00000000},
+	{CS35L41_ASP_CONTROL4,		0x00000000},
 	{0x00000040,			0x0000CCCC},
 	{0x00000040,			0x00003333},
 };
@@ -1885,7 +1925,6 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 	init_completion(&cs35l41->global_pdn_done);
 	init_completion(&cs35l41->global_pup_done);
 
-	init_completion(&cs35l41->mbox_cmd);
 
 	ret = devm_request_threaded_irq(cs35l41->dev, cs35l41->irq, NULL,
 				cs35l41_irq, IRQF_ONESHOT | irq_pol,
@@ -1913,7 +1952,14 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 		}
 		break;
 	case CS35L41_REVID_B0:
-		regmap_write(cs35l41->regmap, CS35L41_BSTCVRT_DCM_CTRL, 0x51);
+		ret = regmap_multi_reg_write(cs35l41->regmap,
+				cs35l41_revb0_errata_patch,
+				ARRAY_SIZE(cs35l41_revb0_errata_patch));
+		if (ret < 0) {
+			dev_err(cs35l41->dev,
+				"Failed to apply B0 errata patch %d\n", ret);
+			goto err;
+		}
 		break;
 	}
 
