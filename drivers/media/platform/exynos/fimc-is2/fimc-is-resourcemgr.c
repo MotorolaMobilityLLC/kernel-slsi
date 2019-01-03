@@ -338,6 +338,18 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 
 	info("[RSC] TNR_DMA memory size: %08lx\n", tnr_size);
 #endif
+
+#if defined (ENABLE_DNR_IN_MCSC)
+	minfo->pb_mcsc_dnr = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, MCSC_DNR_DMA_SIZE, 16, NULL);
+	if (IS_ERR_OR_NULL(minfo->pb_mcsc_dnr)) {
+		err("failed to allocate buffer for MCSC DNR");
+		return -ENOMEM;
+	}
+	minfo->total_size += minfo->pb_mcsc_dnr->size;
+
+	info("[RSC] TDNR_DMA memory size: %08lx\n", MCSC_DNR_DMA_SIZE);
+#endif
+
 #endif
 
 #if defined (ENABLE_FD_SW)
@@ -356,15 +368,6 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 		return -ENOMEM;
 	}
 	minfo->total_size += minfo->pb_vra->size;
-#endif
-
-#if defined (ENABLE_DNR_IN_MCSC)
-	minfo->pb_mcsc_dnr = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, MCSC_DNR_DMA_SIZE, 16, NULL);
-	if (IS_ERR_OR_NULL(minfo->pb_mcsc_dnr)) {
-		err("failed to allocate buffer for MCSC DNR");
-		return -ENOMEM;
-	}
-	minfo->total_size += minfo->pb_mcsc_dnr->size;
 #endif
 
 #if defined (ENABLE_ODC)
@@ -427,6 +430,14 @@ static int fimc_is_resourcemgr_initmem(struct fimc_is_resourcemgr *resourcemgr)
 #if !defined(ENABLE_DYNAMIC_MEM)
 	resourcemgr->minfo.dvaddr_taaisp = CALL_BUFOP(minfo->pb_taaisp, dvaddr, minfo->pb_taaisp);
 	resourcemgr->minfo.kvaddr_taaisp = CALL_BUFOP(minfo->pb_taaisp, kvaddr, minfo->pb_taaisp);
+
+#if defined(ENABLE_DNR_IN_MCSC)
+	resourcemgr->minfo.dvaddr_mcsc_dnr = CALL_BUFOP(minfo->pb_mcsc_dnr, dvaddr, minfo->pb_mcsc_dnr);
+	resourcemgr->minfo.kvaddr_mcsc_dnr = CALL_BUFOP(minfo->pb_mcsc_dnr, kvaddr, minfo->pb_mcsc_dnr);
+#else
+	resourcemgr->minfo.dvaddr_mcsc_dnr = 0;
+	resourcemgr->minfo.kvaddr_mcsc_dnr = 0;
+#endif
 #endif
 #if defined(ENABLE_FD_SW)
 	resourcemgr->minfo.dvaddr_lhfd = CALL_BUFOP(minfo->pb_lhfd, dvaddr, minfo->pb_lhfd);
@@ -442,14 +453,6 @@ static int fimc_is_resourcemgr_initmem(struct fimc_is_resourcemgr *resourcemgr)
 #else
 	resourcemgr->minfo.dvaddr_vra = 0;
 	resourcemgr->minfo.kvaddr_vra = 0;
-#endif
-
-#if defined(ENABLE_DNR_IN_MCSC)
-	resourcemgr->minfo.dvaddr_mcsc_dnr = CALL_BUFOP(minfo->pb_mcsc_dnr, dvaddr, minfo->pb_mcsc_dnr);
-	resourcemgr->minfo.kvaddr_mcsc_dnr = CALL_BUFOP(minfo->pb_mcsc_dnr, kvaddr, minfo->pb_mcsc_dnr);
-#else
-	resourcemgr->minfo.dvaddr_mcsc_dnr = 0;
-	resourcemgr->minfo.kvaddr_mcsc_dnr = 0;
 #endif
 
 #if defined(ENABLE_ODC) || defined(ENABLE_VDIS) || defined(ENABLE_DNR_IN_TPU)
@@ -506,6 +509,20 @@ static int fimc_is_resourcemgr_alloc_dynamic_mem(struct fimc_is_resourcemgr *res
 	info("[RSC] TNR_DMA memory size: %08lx\n", tnr_size);
 #endif
 
+#if defined (ENABLE_DNR_IN_MCSC)
+	minfo->pb_mcsc_dnr = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, MCSC_DNR_DMA_SIZE, 16, NULL);
+	if (IS_ERR_OR_NULL(minfo->pb_mcsc_dnr)) {
+		CALL_VOID_BUFOP(minfo->pb_taaisp, free, minfo->pb_taaisp);
+#if defined(ENABLE_TNR)
+		CALL_VOID_BUFOP(minfo->pb_tnr, free, minfo->pb_tnr);
+#endif
+		err("failed to allocate buffer for MCSC DNR");
+		return -ENOMEM;
+	}
+
+	info("[RSC] TDNR_DMA memory size: %08lx\n", MCSC_DNR_DMA_SIZE);
+#endif
+
 	return 0;
 }
 
@@ -530,6 +547,16 @@ static int fimc_is_resourcemgr_init_dynamic_mem(struct fimc_is_resourcemgr *reso
 	info("[RSC] TAAISP_DMA memory kva(%#lx), dva(%#lx)\n",
 		resourcemgr->minfo.kvaddr_taaisp, resourcemgr->minfo.dvaddr_taaisp);
 
+#if defined(ENABLE_DNR_IN_MCSC)
+	resourcemgr->minfo.dvaddr_mcsc_dnr = CALL_BUFOP(minfo->pb_mcsc_dnr, dvaddr, minfo->pb_mcsc_dnr);
+	resourcemgr->minfo.kvaddr_mcsc_dnr = CALL_BUFOP(minfo->pb_mcsc_dnr, kvaddr, minfo->pb_mcsc_dnr);
+	info("[RSC] MCSC_DNR_DMA memory kva(%#lx), dva(%#lx)\n",
+		resourcemgr->minfo.kvaddr_mcsc_dnr, resourcemgr->minfo.dvaddr_mcsc_dnr);
+#else
+	resourcemgr->minfo.dvaddr_mcsc_dnr = 0;
+	resourcemgr->minfo.kvaddr_mcsc_dnr = 0;
+#endif
+
 	info("[RSC] %s done\n", __func__);
 p_err:
 	return ret;
@@ -541,6 +568,10 @@ static int fimc_is_resourcemgr_deinit_dynamic_mem(struct fimc_is_resourcemgr *re
 
 #if defined(ENABLE_TNR)
 	CALL_VOID_BUFOP(minfo->pb_tnr, free, minfo->pb_tnr);
+#endif
+
+#if defined(ENABLE_DNR_IN_MCSC)
+	CALL_VOID_BUFOP(minfo->pb_mcsc_dnr, free, minfo->pb_mcsc_dnr);
 #endif
 	CALL_VOID_BUFOP(minfo->pb_taaisp, free, minfo->pb_taaisp);
 
