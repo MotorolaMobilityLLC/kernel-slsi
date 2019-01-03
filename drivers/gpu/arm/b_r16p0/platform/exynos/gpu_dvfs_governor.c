@@ -112,7 +112,7 @@ static int gpu_dvfs_governor_default(struct exynos_context *platform, int utiliz
 	return 0;
 }
 
-int gpu_dvfs_governor_interactive(struct exynos_context *platform, int utilization)
+static int gpu_dvfs_governor_interactive(struct exynos_context *platform, int utilization)
 {
 	DVFS_ASSERT(platform);
 
