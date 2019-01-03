@@ -62,7 +62,7 @@ struct cs35l41_private {
 	int extclk_cfg;
 	int sclk;
 	unsigned int cspl_cmd;
-	bool tdm_mode;
+	bool dspa_mode;
 	bool i2s_mode;
 	bool swire_mode;
 	bool halo_booted;
@@ -72,7 +72,6 @@ struct cs35l41_private {
 	struct gpio_desc *reset_gpio;
 	struct completion global_pup_done;
 	struct completion global_pdn_done;
-	struct completion mbox_cmd;
 };
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,
