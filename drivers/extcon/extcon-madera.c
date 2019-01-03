@@ -2333,7 +2333,7 @@ static irqreturn_t madera_micdet(int irq, void *data)
 	 * and prevent race conditions if an IRQ occurs while
 	 * running the delayed work
 	 */
-	dev_warn(info->dev, "micdet IRQ debounce is %d ",msecs_to_jiffies(debounce));
+	dev_warn(info->dev, "micdet IRQ debounce  msecs_to_jiffies is %d ",msecs_to_jiffies(debounce));
 	schedule_delayed_work(&info->micd_detect_work,
 			      msecs_to_jiffies(debounce));
 
