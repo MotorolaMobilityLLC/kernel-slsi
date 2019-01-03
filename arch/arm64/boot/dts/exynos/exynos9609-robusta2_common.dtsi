@@ -1564,7 +1564,7 @@
 /* USI_0_SHUB */
 &usi_0_shub {
 	usi_v2_mode = "spi";
-	status = "okay";
+	status = "disabled";
 };
 
 /* USI_SHUB_0_I2C */
