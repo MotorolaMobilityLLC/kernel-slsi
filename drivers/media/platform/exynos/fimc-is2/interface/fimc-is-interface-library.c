@@ -2623,7 +2623,9 @@ int fimc_is_load_bin(void)
 		mblk_init(&lib->mb_dma_taaisp, lib->minfo->pb_taaisp,
 				MT_TYPE_MB_DMA_TAAISP, "DMA_TAAISP");
 
+#if defined(ENABLE_TNR)
 	mblk_init(&lib->mb_dma_tnr, lib->minfo->pb_tnr, MT_TYPE_MB_DMA_TNR, "DMA_TNR");
+#endif
 	mblk_init(&lib->mb_vra, lib->minfo->pb_vra, MT_TYPE_MB_VRA, "VRA");
 
 	spin_lock_init(&lib->slock_nmb);
