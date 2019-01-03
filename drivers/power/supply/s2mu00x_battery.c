@@ -40,8 +40,8 @@
 #endif
 
 #define FAKE_BAT_LEVEL	50
-#define DEFAULT_ALARM_INTERVAL	10
-#define SLEEP_ALARM_INTERVAL	30
+#define DEFAULT_ALARM_INTERVAL	30
+#define SLEEP_ALARM_INTERVAL	60
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -3842,7 +3842,7 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 
 	pr_info("%s: start heatbeat\n", __func__);
 
-	smbchg_stay_awake(chip);
+	//smbchg_stay_awake(chip);
 	//dump register of charger
 	get_property_from_charger(chip, POWER_SUPPLY_PROP_PRESENT, &state);
 
@@ -4039,7 +4039,7 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 		schedule_delayed_work(&chip->heartbeat_work,
 				      msecs_to_jiffies(HEARTBEAT_HOLDOFF_MS));
 
-	smbchg_relax(chip);
+//	smbchg_relax(chip);
 }
 
 static bool smbchg_charger_mmi_factory(void)
@@ -4583,7 +4583,6 @@ static int s2mu00x_battery_resume(struct device *dev)
 static void s2mu00x_battery_complete(struct device *dev)
 {
 	struct s2mu00x_battery_info *battery = dev_get_drvdata(dev);
-
 	if (battery->monitor_alarm_interval != DEFAULT_ALARM_INTERVAL) {
 		battery->monitor_alarm_interval = DEFAULT_ALARM_INTERVAL;
 		pr_info("%s: Recover battery monitoring interval -> %d\n",
