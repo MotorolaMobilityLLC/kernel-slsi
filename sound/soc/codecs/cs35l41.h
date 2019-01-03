@@ -71,6 +71,7 @@
 #define CS35L41_BSTCVRT_DCM_MODE_FORCE	0x00003820
 #define CS35L41_BSTCVRT_OVERVOLT_CTRL	0x00003830
 #define CS35L41_VI_VOL_POL		0x00004000
+#define CS35L41_VIMON_SPKMON_RESYNC	0x00004100
 #define CS35L41_DTEMP_WARN_THLD		0x00004220
 #define CS35L41_DTEMP_CFG		0x00004224
 #define CS35L41_DTEMP_EN		0x00004308
@@ -83,6 +84,7 @@
 #define CS35L41_SP_FRAME_RX_SLOT	0x00004820
 #define CS35L41_SP_TX_WL		0x00004830
 #define CS35L41_SP_RX_WL		0x00004840
+#define CS35L41_ASP_CONTROL4		0x00004854
 #define CS35L41_DAC_PCM1_SRC		0x00004C00
 #define CS35L41_ASP_TX1_SRC		0x00004C20
 #define CS35L41_ASP_TX2_SRC		0x00004C24
@@ -536,7 +538,7 @@
 #define CS35L41_MAX_CACHE_REG		0x0000006B
 #define CS35L41_OTP_SIZE_WORDS		32
 #define CS35L41_NUM_OTP_ELEM		100
-#define CS35L41_NUM_OTP_MAPS		4
+#define CS35L41_NUM_OTP_MAPS		3
 
 #define CS35L41_VALID_PDATA		0x80000000
 
@@ -654,6 +656,7 @@
 #define CS35L41_BST_EN_DEFAULT		0x2
 #define CS35L41_BST_EN_BYPASS		1
 
+#define CS35L41_AMP_MUTE_MASK		0x10
 #define CS35L41_PDN_DONE_MASK		0x00800000
 #define CS35L41_PDN_DONE_SHIFT		23
 #define CS35L41_PUP_DONE_MASK		0x01000000
@@ -710,6 +713,7 @@
 				| SNDRV_PCM_FMTBIT_S32_LE)
 
 bool cs35l41_readable_reg(struct device *dev, unsigned int reg);
+bool cs35l41_precious_reg(struct device *dev, unsigned int reg);
 bool cs35l41_volatile_reg(struct device *dev, unsigned int reg);
 
 struct cs35l41_otp_packed_element_t {
@@ -731,7 +735,6 @@ extern const struct cs35l41_otp_map_element_t
 				cs35l41_otp_map_map[CS35L41_NUM_OTP_MAPS];
 
 #define CS35L41_REGSTRIDE			4
-#define CS35L41_MBOXWAIT			50
 
 #define CS35L41_DSP_VIRT1_MBOX_SHIFT		20
 #define CS35L41_DSP_VIRT2_MBOX_SHIFT		21
