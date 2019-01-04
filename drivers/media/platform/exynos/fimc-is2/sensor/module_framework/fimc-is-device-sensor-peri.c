@@ -1802,7 +1802,13 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			sensor_peri->cis.sensor_ctls[i].force_update = false;
 			memset(&sensor_peri->cis.sensor_ctls[i].cur_cam20_flash_udctrl, 0, sizeof(camera2_flash_uctl_t));
 			sensor_peri->cis.sensor_ctls[i].valid_flash_udctrl = false;
+
+			memset(&sensor_peri->cis.sensor_ctls[i].roi_control, 0, sizeof(struct roi_setting_t));
+			memset(&sensor_peri->cis.sensor_ctls[i].stat_control, 0,
+					sizeof(struct sensor_lsi_3hdr_stat_control_per_frame));
 		}
+		sensor_peri->cis.sensor_stats = NULL;
+
 		sensor_peri->use_sensor_work = false;
 	}
 	if (ret < 0) {
