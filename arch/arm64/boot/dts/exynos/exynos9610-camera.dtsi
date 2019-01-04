@@ -148,9 +148,9 @@
 			<0 331 0>, /* VC3 DMA0 */
 
 			<0 331 0>, /* VC0 DMA0 */
-			<0 332 0>, /* VC1 DMA1 */
+			<0 331 0>, /* VC1 DMA1 */
 			<0 333 0>, /* VC0 DMA2 for PAFSTAT */
-			<0 332 0>; /* VC3 DMA1 */
+			<0 331 0>; /* VC3 DMA1 */
 		interrupt-names = "csi",
 			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3",
 			"mode1_VC0", "mode1_VC1","mode1_VC2","mode1_VC3";
@@ -202,12 +202,12 @@
 		sensor0_ch_mode1: sensor0-ch-mode1 {
 			reg = <0x14450000 0x100>, /* VC0 DMA0 */
 				<0x14450400 0x100>, /* VC0 DMA0 COMMON */
-				<0x14460100 0x100>, /* VC1 DMA1 */
-				<0x14460400 0x100>, /* VC1 DMA1 COMMON */
+				<0x14450100 0x100>, /* VC1 DMA1 */
+				<0x14450400 0x100>, /* VC1 DMA1 COMMON */
 				<0x14470000 0x100>, /* VC0 DMA2 for PAFSTAT */
 				<0x14470400 0x100>, /* VC0 DMA2 COMMON */
-				<0x14460300 0x100>, /* VC3 DMA1 */
-				<0x14460400 0x100>; /* VC3 DMA1 COMMON */
+				<0x14450300 0x100>, /* VC3 DMA1 */
+				<0x14450400 0x100>; /* VC3 DMA1 COMMON */
 		};
 	};
 
