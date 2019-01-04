@@ -1649,8 +1649,8 @@ struct slsi_acs_chan_info {
 	u8 num_bss_load_ap;
 	u8 total_chan_utilization;
 	u8 avg_chan_utilization;
-	u8 rssi_factor;
-	u8 adj_rssi_factor;
+	int rssi_factor;
+	int adj_rssi_factor;
 };
 
 struct slsi_acs_selected_channels {
