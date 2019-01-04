@@ -2752,9 +2752,14 @@ int put_vc_dma_buf(struct fimc_is_sensor_interface *itf,
 
 	switch (request_data_type) {
 	case VC_BUF_DATA_TYPE_SENSOR_STAT1:
-	case VC_BUF_DATA_TYPE_SENSOR_STAT2:
 		for (ch = CSI_VIRTUAL_CH_1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
 			if (sensor->cfg->output[ch].type == VC_TAILPDAF)
+				break;
+		}
+		break;
+	case VC_BUF_DATA_TYPE_SENSOR_STAT2:
+		for (ch = CSI_VIRTUAL_CH_1; ch < CSI_VIRTUAL_CH_MAX; ch++) {
+			if (sensor->cfg->output[ch].type == VC_EMBEDDED)
 				break;
 		}
 		break;
