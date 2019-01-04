@@ -59,7 +59,7 @@
 				};
 
 				internal_vc {
-					vc_list = <2 VC_MIPISTAT 0 3 VC_PRIVATE 0>;
+					vc_list = <1 VC_PRIVATE 0 2 VC_MIPISTAT 0>;
 				};
 			};
 
@@ -629,8 +629,8 @@
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	multi_ch = <2>;
+	use_ssvc1_internal;
 	use_ssvc2_internal;
-	use_ssvc3_internal;
 	status = "okay";
 };
 
