@@ -6232,11 +6232,13 @@ static int slsi_acs_init(struct wiphy *wiphy,
 				return -ENOMEM;
 			}
 			memcpy(freq_list, nla_data(attr), nla_len(attr));
-			freq_list_len = nla_len(attr);
+			freq_list_len = nla_len(attr) / sizeof(u32);
+			SLSI_INFO(sdev, "ACS freq_list_len: %d\n", freq_list_len);
 			break;
 		}
 		default:
-			SLSI_ERR(sdev, "Invalid type : %d\n", type);
+			if (type > SLSI_ACS_ATTR_MAX)
+				SLSI_ERR(sdev, "Invalid type : %d\n", type);
 			break;
 		}
 	}
