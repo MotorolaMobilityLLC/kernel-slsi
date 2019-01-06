@@ -551,8 +551,6 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 		clear_err_cnt(ipc, CHUB_ERR_READ_FAIL);
 		ret = contexthub_read_process(rx, rxbuf, size);
 	}
-
-	ipc_logbuf_outprint(&ipc->chub_rt_log, 0);
 	contexthub_put_token(ipc);
 	return ret;
 
@@ -632,11 +630,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	ipc->read_lock.flag = 0;
 	ipc_hw_write_shared_reg(AP, ipc->os_load, SR_BOOT_MODE);
 	ipc_set_chub_clk((u32)ipc->clkrate);
-#ifdef CONFIG_CONTEXTHUB_DEBUG_MODE
 	ipc->chub_rt_log.loglevel = CHUB_RT_LOG_DUMP;
-#else
-	ipc->chub_rt_log.loglevel = CHUB_RT_LOG_OFF;
-#endif
 	ipc_set_chub_bootmode(BOOTMODE_COLD, ipc->chub_rt_log.loglevel);
 	switch (event) {
 	case MAILBOX_EVT_POWER_ON:
@@ -755,6 +749,7 @@ static void contexthub_config_init(struct contexthub_ipc_info *chub)
 	ipc_set_owner(AP, chub->mailbox, IPC_SRC);
 }
 #define os_name_idx (11)
+
 int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 {
 	struct sensor_map *sensor_map;
@@ -762,6 +757,8 @@ int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 	int len = 0;
 	int trycnt = 0;
 	int ret;
+	unsigned int *tmp = (unsigned int *)pack;
+	int i;
 
 	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN) {
 		dev_warn(ipc->dev, "%s :fails chub isn't active, status:%d, inreset:%d\n",
@@ -784,17 +781,24 @@ int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 		}
 	}
 	sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
-
 	if (ipc_have_sensor_info(sensor_map)) {
+
 		pack->num_os = ipc->os_name[os_name_idx] - '0';
-		dev_info(ipc->dev, "%s: get sensorinfo: %p (%d)\n", __func__, sensor_map, pack->num_os);
 		len = ipc_get_offset(IPC_REG_IPC_SENSORINFO);
+		dev_info(ipc->dev, "%s: get sensorinfo: %p (os:%d, size:%d, %d / %d %d %d)\n", __func__, sensor_map, pack->num_os, len, sizeof(struct saved_setting),
+			sizeof(pack->magic), sizeof(pack->num_os), sizeof(pack->readbuf));
 		memcpy(&pack->readbuf, ipc_get_sensor_base(), len);
+		for (i = 0; i < SENSOR_TYPE_MAX; i++)
+			if (sensor_map->active_sensor_list[i])
+				dev_info(ipc->dev, "%s: get sensorinfo: type:%d, id:%d - %d\n", __func__, i, sensor_map->active_sensor_list[i], pack->readbuf[i]);
 	} else {
 		dev_err(ipc->dev, "%s: fails to get sensorinfo: %p\n", __func__, sensor_map);
 	}
 	contexthub_put_token(ipc);
-	return len;
+
+	for (i = 0; i < sizeof(struct saved_setting) / sizeof(int); i++, tmp++)
+		pr_info("%s: %d: 0x%x\n", __func__, i, *tmp);
+	return sizeof(struct saved_setting);
 }
 
 int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
@@ -1023,8 +1027,6 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 					atomic_read(&ipc->chub_status), ret, ipc->poweron_lock.flag);
 			}
 		}
-	} else {
-		dev_info(dev, "%s: already power-on, status: %d", __func__, atomic_read(&ipc->chub_status));
 	}
 
 	return ret;
