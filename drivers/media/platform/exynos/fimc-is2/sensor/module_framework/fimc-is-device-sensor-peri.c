@@ -567,7 +567,7 @@ void fimc_is_sensor_setting_mode_change(struct fimc_is_device_sensor_peri *senso
 	}
 
 	CALL_CISOPS(&sensor_peri->cis, cis_adjust_frame_duration, sensor_peri->subdev_cis,
-		MAX(expo.long_val, MAX(expo.short_val, expo.middle_val)), &frame_duration);
+			expo.long_val, &frame_duration);
 	fimc_is_sensor_peri_s_frame_duration(device, frame_duration);
 
 	fimc_is_sensor_peri_s_analog_gain(device, again);
