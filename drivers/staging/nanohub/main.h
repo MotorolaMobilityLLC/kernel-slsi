@@ -46,8 +46,8 @@ struct nanohub_io {
 
 struct saved_setting {
 	char magic[15];
-    int8_t num_os;
-    char readbuf[SENSOR_TYPE_MAX];
+	char num_os;
+	char readbuf[SENSOR_TYPE_MAX];
 };
 
 static inline struct nanohub_data *dev_get_nanohub_data(struct device *dev)
