@@ -65,8 +65,7 @@ static int sensor_dw9839_init(struct fimc_is_actuator *actuator)
 	client = actuator->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	/* delay after power on */
@@ -74,7 +73,6 @@ static int sensor_dw9839_init(struct fimc_is_actuator *actuator)
 
 	if (actuator->init_cal_setting)
 		goto skip_cal;
-
 #ifdef MANUAL_PID_CAL_SETTING
 	/* =============  PID initial code ===================*/
 	ret = fimc_is_sensor_addr8_write8(client, 0x40, 0xf1);
@@ -168,15 +166,13 @@ static int sensor_dw9839_write_position(struct i2c_client *client, u32 val)
 
 	if (!client->adapter) {
 		err("Could not find adapter!\n");
-		ret = -ENODEV;
-		goto p_err;
+		return -ENODEV;
 	}
 
 	if (val > DW9839_POS_MAX_SIZE) {
 		err("Invalid af position(position : %d, Max : %d).\n",
 					val, DW9839_POS_MAX_SIZE);
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	val_msb = (val >> 2) & 0x00FF;
@@ -290,15 +286,16 @@ int sensor_dw9839_actuator_init(struct v4l2_subdev *subdev, u32 val)
 	actuator = (struct fimc_is_actuator *)v4l2_get_subdevdata(subdev);
 	if (!actuator) {
 		err("actuator is not detect!\n");
-		goto p_err;
+		return -ENODEV;
 	}
 
 	client = actuator->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
+
+	I2C_MUTEX_LOCK(actuator->i2c_lock);
 
 	ret = sensor_dw9839_init(actuator);
 	if (ret < 0)
@@ -314,6 +311,8 @@ int sensor_dw9839_actuator_init(struct v4l2_subdev *subdev, u32 val)
 #endif
 
 p_err:
+	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
+
 	return ret;
 }
 
@@ -381,21 +380,21 @@ int sensor_dw9839_actuator_set_position(struct v4l2_subdev *subdev, u32 *info)
 	client = actuator->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	position = *info;
 	if (position > DW9839_POS_MAX_SIZE) {
 		err("Invalid af position(position : %d, Max : %d).\n",
 					position, DW9839_POS_MAX_SIZE);
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	/* debug option : fixed position testing */
 	if (sysfs_actuator.enable_fixed)
 		position = sysfs_actuator.fixed_position;
+
+	I2C_MUTEX_LOCK(actuator->i2c_lock);
 
 	/* position Set */
 	ret = sensor_dw9839_write_position(client, position);
@@ -410,6 +409,8 @@ int sensor_dw9839_actuator_set_position(struct v4l2_subdev *subdev, u32 *info)
 	pr_info("[%s] time %lu us", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 p_err:
+	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
+
 	return ret;
 }
 
@@ -438,12 +439,13 @@ int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *
 	client = actuator->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	FIMC_BUG(!actuator->priv_info);
 	actuator_info = (struct dw9839_actuator_info *)actuator->priv_info;
+
+	I2C_MUTEX_LOCK(actuator->i2c_lock);
 
 	ret = fimc_is_sensor_addr8_write8(client, REG_ADC_R_EN, 1);
 	if (ret < 0)
@@ -476,6 +478,8 @@ int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *
 #endif
 
 p_err:
+	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
+
 	return ret;
 }
 
