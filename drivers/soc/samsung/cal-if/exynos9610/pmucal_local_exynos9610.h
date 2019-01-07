@@ -398,6 +398,7 @@ struct pmucal_seq dispaud_save[] = {
 };
 
 struct pmucal_seq dispaud_off[] = {
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PAD_RETENTION_DISPAUD_SYS_PWR_REG", 0x11860000, 0x1208, (0x1 << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "DISPAUD_CONFIGURATION", 0x11860000, 0x4000, (0xf << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WAIT, "DISPAUD_STATUS", 0x11860000, 0x4004, (0xf << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 };
