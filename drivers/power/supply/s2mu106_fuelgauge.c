@@ -1016,7 +1016,7 @@ static int s2mu106_get_rawsoc(struct s2mu106_fuelgauge_data *fuelgauge)
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_TEMP, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
-	fuelgauge->temperature = value.intval;
+	fuelgauge->temperature = ntc_show_batt_temp();
 #else
 	fuelgauge->temperature = s2mu106_get_temperature(fuelgauge);
 #endif
