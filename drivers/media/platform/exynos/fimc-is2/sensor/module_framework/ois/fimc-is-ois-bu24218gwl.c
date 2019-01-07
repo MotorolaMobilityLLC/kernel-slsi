@@ -218,11 +218,14 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 
 	info("%s: E", __func__);
 
+	I2C_MUTEX_LOCK(ois->i2c_lock);
+
 	/* Step 1 Enable download*/
 	ret = fimc_is_ois_write(ois->client, 0xF010, 0x00);
 	if (ret < 0) {
 		err("ois start download write is fail");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 
 	/* wait over 200us */
@@ -244,7 +247,8 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 				send_data, FW_TRANS_SIZE + 2);
 			if (ret < 0) {
 				err("ois fw download is fail");
-				return 0;
+				ret = 0;
+				goto p_err;
 			}
 			position += FW_TRANS_SIZE;
 		}
@@ -255,7 +259,8 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 		}
 		if (ret < 0) {
 			err("ois fw download is fail");
-			return 0;
+			ret = 0;
+			goto p_err;
 		}
 		info("ois fw %d download size:%d", fw_num, position + remainder);
 	}
@@ -264,13 +269,15 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 	ret = fimc_is_ois_read_multi(ois->client, 0xF008, check_sum, 4);
 	if (ret < 0) {
 		err("ois read check sum fail");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 	sum = ((check_sum[0]<<24) | (check_sum[1]<<16) | (check_sum[2]<<8) | (check_sum[3]));
 	info("ois check sum value:0x%0x, expected value:0x%0x", sum, OIS_FW_CHECK_SUM);
 	if (OIS_FW_CHECK_SUM != sum) {
 		err("ois check sum fail, force return");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 
 	/* Step 4 Calibration data download */
@@ -278,7 +285,8 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 	ret = fimc_is_ois_write_multi(ois->client, OIS_CAL_ADDR, ois_cal_data, ois_cal_data_size + 2);
 	if (ret < 0) {
 		err("ois cal data download is fail");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 	info("ois cal data download size :%d", ois_cal_data_size);
 
@@ -286,7 +294,8 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 	ret = fimc_is_ois_write(ois->client, 0xF006, 0x00);
 	if (ret < 0) {
 		err("ois write download complete is fail");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 
 	/* wait 18ms */
@@ -303,10 +312,14 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 	}
 	if (ois_status != 1) {
 		err("ois_status is 0,force return error");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 
 	info("%s: ois fw download success\n", __func__);
+p_err:
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
+
 	return ret;
 }
 
@@ -391,6 +404,8 @@ int fimc_is_set_ois_mode(struct v4l2_subdev *subdev, int mode)
 		return ret;
 	}
 
+	I2C_MUTEX_LOCK(ois->i2c_lock);
+
 #ifdef OIS_DEBUG
 	ret != fimc_is_ois_read(ois->client, 0x6021, &ois_mode);
 	info("last ois mode is 0x%x", ois_mode);
@@ -400,7 +415,7 @@ int fimc_is_set_ois_mode(struct v4l2_subdev *subdev, int mode)
 #ifdef OIS_DEBUG
 		info("skip set same ois mode:%d", mode);
 #endif
-		return ret;
+		goto p_err;
 	} else {
 		info("set ois mode:%d", mode);
 		switch(mode) {
@@ -438,6 +453,8 @@ int fimc_is_set_ois_mode(struct v4l2_subdev *subdev, int mode)
 	ret != fimc_is_ois_read_multi(ois->client, 0x6042, ois_gyro_data, 2);
 	info("ois Gyro output2 is 0x%x%x", ois_gyro_data[0], ois_gyro_data[1]);
 #endif
+p_err:
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
 
 	return ret;
 }
@@ -460,11 +477,14 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 		return ret;
 	}
 
+	I2C_MUTEX_LOCK(ois->i2c_lock);
+
 	/* Servo ON for OIS */
 	ret = fimc_is_ois_write(ois->client, 0x6020, 0x01);
 	if (ret < 0) {
 		err("ois servo on write is fail");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 	/* wait 100ms */
 	usleep_range(100000, 100000);
@@ -491,12 +511,14 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 	}
 	if (ois_status != 1) {
 		err("ois_status is 0, force return error");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 	ret != fimc_is_ois_write(ois->client, 0x6020, 0x02);
 	if (ret < 0) {
 		err("ois gyro on write is fail");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 
 	usleep_range(200, 200);
@@ -509,7 +531,8 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 	}
 	if (ois_status != 1) {
 		err("ois_status is 0, force return error");
-		return 0;
+		ret = 0;
+		goto p_err;
 	}
 	ois_previous_mode = OPTICAL_STABILIZATION_MODE_STILL;
 
@@ -521,6 +544,8 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 #endif
 
 	info("%s: X", __func__);
+p_err:
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
 
 	return ret;
 }
