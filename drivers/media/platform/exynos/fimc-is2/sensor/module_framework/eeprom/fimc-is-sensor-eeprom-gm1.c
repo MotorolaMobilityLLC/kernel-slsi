@@ -479,12 +479,15 @@ int fimc_is_eeprom_gm1_get_cal_data(struct v4l2_subdev *subdev)
 	 */
 	ret = fimc_is_eeprom_file_read(EEPROM_DATA_PATH, (void *)eeprom->data, EEPROM_DATA_SIZE);
 	if (ret) {
+		I2C_MUTEX_LOCK(eeprom->i2c_lock);
 		/* I2C read to Sensor EEPROM cal data */
 		ret = fimc_is_eeprom_module_read(client, EEPROM_ADD_CRC_FST, eeprom->data, EEPROM_DATA_SIZE);
 		if (ret < 0) {
 			err("%s(): eeprom i2c read failed(%d)\n", __func__, ret);
+			I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
 			return ret;
 		}
+		I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
 
 		/* CRC check to each section cal data */
 		ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
