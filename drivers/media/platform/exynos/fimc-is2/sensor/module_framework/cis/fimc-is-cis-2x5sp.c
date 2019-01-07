@@ -136,8 +136,7 @@ int sensor_2x5sp_cis_check_rev(struct v4l2_subdev *subdev)
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		return ret;
+		return -EINVAL;
 	}
 
 	memset(cis->cis_data, 0, sizeof(cis_shared_data));
@@ -405,20 +404,20 @@ int sensor_2x5sp_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	if (!cis) {
 		err("cis is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -ENODEV;
-		goto p_err;
+		return -ENODEV;
 	}
 
 	dbg_sensor(1, "%s, 1. sensor initial setting", __func__);
 	CALL_CISOPS(cis, cis_set_global_setting, subdev);
 	CALL_CISOPS(cis, cis_mode_change, subdev, 0);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	dbg_sensor(1, "%s, 2. sensor stream on", __func__);
 	fimc_is_sensor_write16(client, 0x6028, 0x4000);
@@ -454,7 +453,8 @@ int sensor_2x5sp_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_
 	fimc_is_sensor_write8(client, 0x0100, 0x00);
 	msleep(20);
 	info("OTP end!!!!!\n");
-p_err:
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }
@@ -617,16 +617,16 @@ int sensor_2x5sp_cis_log_status(struct v4l2_subdev *subdev)
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	if (!cis) {
 		err("cis is NULL");
-		ret = -ENODEV;
-		goto p_err;
+		return -ENODEV;
 	}
 
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -ENODEV;
-		goto p_err;
+		return -ENODEV;
 	}
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	pr_err("[SEN:DUMP] *******************************\n");
 	fimc_is_sensor_read16(client, 0x0000, &data16);
@@ -640,9 +640,10 @@ int sensor_2x5sp_cis_log_status(struct v4l2_subdev *subdev)
 
 	sensor_cis_dump_registers(subdev, sensor_2x5sp_setfiles[0], sensor_2x5sp_setfile_sizes[0]);
 
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	pr_err("[SEN:DUMP] *******************************\n");
 
-p_err:
 	return ret;
 }
 
@@ -705,11 +706,15 @@ int sensor_2x5sp_cis_group_param_hold(struct v4l2_subdev *subdev, bool hold)
 	FIMC_BUG(!cis);
 	FIMC_BUG(!cis->cis_data);
 
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+
 	ret = sensor_2x5sp_cis_group_param_hold_func(subdev, hold);
 	if (ret < 0)
 		goto p_err;
 
 p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -723,6 +728,8 @@ int sensor_2x5sp_cis_set_global_setting(struct v4l2_subdev *subdev)
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	FIMC_BUG(!cis);
 
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+
 	ret = sensor_cis_set_registers(subdev, sensor_2x5sp_global, sensor_2x5sp_global_size);
 
 	if (ret < 0) {
@@ -733,6 +740,8 @@ int sensor_2x5sp_cis_set_global_setting(struct v4l2_subdev *subdev)
 	dbg_sensor(1, "[%s] global setting done\n", __func__);
 
 p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -749,11 +758,12 @@ int sensor_2x5sp_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 
 	if (mode > sensor_2x5sp_max_setfile_num) {
 		err("invalid mode(%d)!!", mode);
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	sensor_2x5sp_cis_data_calculation(sensor_2x5sp_pllinfos[mode], cis->cis_data);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	ret = sensor_cis_set_registers(subdev, sensor_2x5sp_setfiles[mode], sensor_2x5sp_setfile_sizes[mode]);
 	if (ret < 0) {
@@ -769,6 +779,8 @@ int sensor_2x5sp_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	dbg_sensor(1, "[%s] mode changed(%d)\n", __func__, mode);
 
 p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -801,13 +813,14 @@ int sensor_2x5sp_cis_stream_on(struct v4l2_subdev *subdev)
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
 
 	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	ret = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x00);
 	if (ret < 0)
@@ -852,7 +865,8 @@ int sensor_2x5sp_cis_stream_on(struct v4l2_subdev *subdev)
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
-p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -879,13 +893,14 @@ int sensor_2x5sp_cis_stream_off(struct v4l2_subdev *subdev)
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
 
 	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	ret = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x00);
 	if (ret < 0)
@@ -902,7 +917,8 @@ int sensor_2x5sp_cis_stream_off(struct v4l2_subdev *subdev)
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
-p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -938,15 +954,13 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	if ((target_exposure->long_val <= 0) || (target_exposure->short_val <= 0)) {
 		err("[%s] invalid target exposure(%d, %d)\n", __func__,
 				target_exposure->long_val, target_exposure->short_val);
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
@@ -999,6 +1013,8 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 		middle_coarse_int = cis_data->min_coarse_integration_time;
 	}
 
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
@@ -1038,6 +1054,8 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }
@@ -1237,8 +1255,7 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
@@ -1255,6 +1272,8 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk(%#x) frame_duration = %d us,"
 		KERN_CONT "(line_length_pck%#x), frame_length_lines(%#x)\n",
 		cis->id, __func__, cis_data->pclk, frame_duration, line_length_pck, frame_length_lines);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
@@ -1283,6 +1302,8 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }
@@ -1417,8 +1438,7 @@ int sensor_2x5sp_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	analog_gain = (u16)sensor_cis_calc_again_code(again->val);
@@ -1431,6 +1451,8 @@ int sensor_2x5sp_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_param
 
 	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_again = %d us, analog_gain(%#x)\n",
 		cis->id, __func__, cis->cis_data->sen_vsync_count, again->long_val, analog_gain);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
@@ -1453,6 +1475,8 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }
@@ -1482,9 +1506,10 @@ int sensor_2x5sp_cis_get_analog_gain(struct v4l2_subdev *subdev, u32 *again)
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
@@ -1512,6 +1537,8 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }
@@ -1542,11 +1569,12 @@ int sensor_2x5sp_cis_get_min_analog_gain(struct v4l2_subdev *subdev, u32 *min_ag
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	fimc_is_sensor_read16(client, 0x0084, &read_value);
 
@@ -1563,7 +1591,8 @@ int sensor_2x5sp_cis_get_min_analog_gain(struct v4l2_subdev *subdev, u32 *min_ag
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
-p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -1593,11 +1622,12 @@ int sensor_2x5sp_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_ag
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	fimc_is_sensor_read16(client, 0x0086, &read_value);
 
@@ -1614,7 +1644,8 @@ int sensor_2x5sp_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_ag
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
-p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -1648,8 +1679,7 @@ int sensor_2x5sp_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_para
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
@@ -1679,6 +1709,8 @@ int sensor_2x5sp_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_para
 	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_dgain = %d/%d/%d us, gain(L:%#x, S:%#x, M:%#x)\n",
 		cis->id, __func__, cis->cis_data->sen_vsync_count, dgain->long_val,
 		dgain->short_val, dgain->middle_val, long_gain, short_gain, middle_gain);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
@@ -1718,6 +1750,8 @@ p_err:
 			ret = hold;
 	}
 
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -1746,9 +1780,10 @@ int sensor_2x5sp_cis_get_digital_gain(struct v4l2_subdev *subdev, u32 *dgain)
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
@@ -1776,6 +1811,8 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }
@@ -1806,11 +1843,12 @@ int sensor_2x5sp_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_d
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	fimc_is_sensor_read16(client, 0x1084, &read_value);
 
@@ -1828,7 +1866,8 @@ int sensor_2x5sp_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_d
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
-p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -1858,11 +1897,12 @@ int sensor_2x5sp_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max_d
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	cis_data = cis->cis_data;
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	fimc_is_sensor_read16(client, 0x1086, &read_value);
 
@@ -1880,7 +1920,8 @@ int sensor_2x5sp_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max_d
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
-p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -1911,8 +1952,7 @@ int sensor_2x5sp_cis_set_wb_gain(struct v4l2_subdev *subdev, struct wb_gains wb_
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	dbg_sensor(1, "[SEN:%d]%s:DDK vlaue: wb_gain_gr(%d), wb_gain_r(%d), wb_gain_b(%d)\n",
@@ -1929,6 +1969,7 @@ int sensor_2x5sp_cis_set_wb_gain(struct v4l2_subdev *subdev, struct wb_gains wb_
 			cis->id, __func__, abs_gains[0], abs_gains[1], abs_gains[2]);
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
+
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
@@ -1952,7 +1993,9 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
 	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -1982,8 +2025,7 @@ int sensor_2x5sp_cis_set_3hdr_roi(struct v4l2_subdev *subdev, struct roi_setting
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	dbg_sensor(1, "%s: [MOD:%d] roi_control (start_x:%d, start_y:%d, end_x:%d, end_y:%d)\n",
@@ -1992,6 +2034,7 @@ int sensor_2x5sp_cis_set_3hdr_roi(struct v4l2_subdev *subdev, struct roi_setting
 		roi_control.roi_end_x, roi_control.roi_end_y);
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
+
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
@@ -2043,7 +2086,9 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
 	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
@@ -2078,11 +2123,11 @@ int sensor_2x5sp_cis_set_3hdr_stat(struct v4l2_subdev *subdev, bool streaming, v
 	client = cis->client;
 	if (unlikely(!client)) {
 		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
+		return -EINVAL;
 	}
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
+
 	hold = sensor_2x5sp_cis_group_param_hold_func(subdev, 0x01);
 	if (hold < 0) {
 		ret = hold;
@@ -2192,7 +2237,9 @@ p_err:
 		if (hold < 0)
 			ret = hold;
 	}
+
 	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
 	return ret;
 }
 
