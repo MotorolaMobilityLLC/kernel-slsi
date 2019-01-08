@@ -411,6 +411,8 @@ static int exynos_mipi_phy_probe(struct platform_device *pdev)
 			return PTR_ERR(generic_phy);
 		}
 
+		pm_runtime_no_callbacks(&generic_phy->dev);
+
 		state->phys[i].index	= i;
 		state->phys[i].phy	= generic_phy;
 		state->phys[i].data	= phy_data;
