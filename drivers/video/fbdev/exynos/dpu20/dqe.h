@@ -89,6 +89,7 @@ struct dqe_ctx {
 	bool need_udpate;
 	u32 color_mode;
 	u32 night_light_on;
+	u32 boosted_on;
 };
 
 struct dqe_device {

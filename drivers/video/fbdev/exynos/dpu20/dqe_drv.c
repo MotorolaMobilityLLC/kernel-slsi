@@ -996,19 +996,19 @@ static ssize_t decon_dqe_aosp_colors_store(struct device *dev, struct device_att
 
 	case 1:/* Boosted */
 		for (i = 0; i < 50; i++)
-			cgc_lut[i] = tune_mode[1][i];
-		for (i = 0; i < 35; i++)
-			hsc_lut[i] = tune_mode[1][i + 245];
-		break;
-
-	case 2:/* Saturated */
-		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[2][i];
 		for (i = 0; i < 35; i++)
 			hsc_lut[i] = tune_mode[2][i + 245];
 		break;
 
-	case 90:/* mode0 */
+	case 2:/* Saturated */
+		for (i = 0; i < 50; i++)
+			cgc_lut[i] = tune_mode[3][i];
+		for (i = 0; i < 35; i++)
+			hsc_lut[i] = tune_mode[3][i + 245];
+		break;
+
+	case 90:/* mode0 (bypass) */
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[0][i];
 		for (i = 0; i < 35; i++)
@@ -1110,20 +1110,21 @@ int decon_dqe_set_color_mode(struct decon_color_mode_with_render_intent_info *mo
 
 	switch (mode->color_mode) {
 	case HAL_COLOR_MODE_SRGB:
-		for (i = 0; i < 50; i++)
-			cgc_lut[i] = tune_mode[1][i];
-		for (i = 0; i < 35; i++)
-			hsc_lut[i] = tune_mode[1][i + 245];
+	case HAL_COLOR_MODE_DCI_P3:
+		if (dqe->ctx.boosted_on) {
+			for (i = 0; i < 50; i++)
+				cgc_lut[i] = tune_mode[2][i];
+			for (i = 0; i < 35; i++)
+				hsc_lut[i] = tune_mode[2][i + 245];
+		} else {
+			for (i = 0; i < 50; i++)
+				cgc_lut[i] = tune_mode[1][i];
+			for (i = 0; i < 35; i++)
+				hsc_lut[i] = tune_mode[1][i + 245];
+		}
 		break;
 
 	case HAL_COLOR_MODE_NATIVE:
-		for (i = 0; i < 50; i++)
-			cgc_lut[i] = tune_mode[2][i];
-		for (i = 0; i < 35; i++)
-			hsc_lut[i] = tune_mode[2][i + 245];
-		break;
-
-	case HAL_COLOR_MODE_DCI_P3:
 		for (i = 0; i < 50; i++)
 			cgc_lut[i] = tune_mode[3][i];
 		for (i = 0; i < 35; i++)
@@ -1202,6 +1203,8 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 
 	mutex_lock(&dqe->lock);
 
+	dqe->ctx.boosted_on = 0;
+
 	if (decon) {
 		if ((decon->state == DECON_STATE_OFF) ||
 			(decon->state == DECON_STATE_INIT)) {
@@ -1222,6 +1225,8 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 		for (i = 0; i < 16; i++)
 			if (transform->matrix[i] == -1 || transform->matrix[i] == 1)
 				transform->matrix[i] = 0;
+
+		dqe->ctx.boosted_on = 1;
 	}
 
 	for (i = 0; i < 16; i++) {
@@ -1249,6 +1254,25 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 		dqe->ctx.night_light_on = 0;
 	else
 		dqe->ctx.night_light_on = 1;
+
+	if (dqe->ctx.color_mode == HAL_COLOR_MODE_SRGB ||
+		dqe->ctx.color_mode == HAL_COLOR_MODE_DCI_P3) {
+		if (dqe->ctx.boosted_on) {
+			for (i = 0; i < 50; i++)
+				cgc_lut[i] = tune_mode[2][i];
+			for (i = 0; i < 35; i++)
+				hsc_lut[i] = tune_mode[2][i + 245];
+		} else {
+			for (i = 0; i < 50; i++)
+				cgc_lut[i] = tune_mode[1][i];
+			for (i = 0; i < 35; i++)
+				hsc_lut[i] = tune_mode[1][i + 245];
+		}
+		dqe_cgc_lut_set();
+		dqe_hsc_lut_set();
+		dqe->ctx.cgc_on = DQE_CGC_ON_MASK;
+		dqe->ctx.hsc_on = DQE_HSC_ON_MASK;
+	}
 
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 65; j++)
@@ -1282,8 +1306,8 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 err:
 	mutex_unlock(&dqe->lock);
 
-	dqe_info("%s : ret=%d color_mode=%d, hint=%d\n",
-		__func__,ret , dqe->ctx.color_mode, transform->hint);
+	dqe_info("%s : ret=%d color_mode=%d, hint=%d, boosted=%d\n",
+		__func__,ret , dqe->ctx.color_mode, transform->hint, dqe->ctx.boosted_on);
 
 	return ret;
 }
