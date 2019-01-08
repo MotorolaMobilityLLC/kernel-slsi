@@ -807,9 +807,14 @@ static void fimc_is_sensor_dtp(unsigned long data)
 		!test_bit(FIMC_IS_SENSOR_FRONT_START, &device->state))
 		return;
 
-	err("forcely reset due to 0x%08lx", device->force_stop);
 	device->dtp_check = false;
-	device->force_stop = 0;
+
+	if (device->force_stop) {
+		device->force_stop = 0;
+		err("forcely reset due to 0x%08lx", device->force_stop);
+	} else {
+		err("DTP detected");
+	}
 
 	fimc_is_sensor_dump(device);
 
