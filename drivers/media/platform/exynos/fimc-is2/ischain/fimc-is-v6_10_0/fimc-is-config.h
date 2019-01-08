@@ -201,4 +201,6 @@
 /* use OIS init thread option */
 #define USE_OIS_INIT_WORK
 
+#define FLASH_CAL_DATA_ENABLE
+
 #endif
