@@ -26,7 +26,7 @@
 #include <linux/leds-s2mu106.h>
 
 #define CAPTURE_MAX_TOTAL_CURRENT	(1500)
-#define TORCH_MAX_TOTAL_CURRENT		(250)
+#define TORCH_MAX_TOTAL_CURRENT		(150)
 #define MAX_FLASH_INTENSITY		(256)
 
 static int flash_s2mu106_init(struct v4l2_subdev *subdev, u32 val)
