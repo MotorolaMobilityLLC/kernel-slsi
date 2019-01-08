@@ -1361,7 +1361,7 @@ static void fimc_is_sensor_instanton(struct work_struct *data)
 
 #ifdef ENABLE_DTP
 	if (device->dtp_check) {
-		mod_timer(&device->dtp_timer, jiffies +  msecs_to_jiffies(300));
+		mod_timer(&device->dtp_timer, jiffies + msecs_to_jiffies(300));
 		info("DTP checking...\n");
 	}
 #endif
@@ -3376,7 +3376,7 @@ int fimc_is_sensor_front_stop(struct fimc_is_device_sensor *device)
 
 	if (test_and_clear_bit(SENSOR_MODULE_GOT_INTO_TROUBLE, &device->state)) {
 		mwarn("sensor module have got into trouble", device);
-		goto  reset_the_others;
+		goto reset_the_others;
 	}
 
 	if (!test_bit(FIMC_IS_SENSOR_FRONT_START, &device->state)) {
