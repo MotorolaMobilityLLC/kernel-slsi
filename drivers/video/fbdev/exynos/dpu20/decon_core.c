@@ -83,7 +83,7 @@ static char *decon_state_names[] = {
 	"TUI",
 };
 
-void tracing_mark_write(struct decon_device *decon, char id, char *str1, int value)
+void decon_tracing_mark_write(struct decon_device *decon, char id, char *str1, int value)
 {
 	char buf[DECON_TRACE_BUF_SIZE] = {0,};
 

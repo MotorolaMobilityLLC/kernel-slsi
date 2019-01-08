@@ -177,11 +177,11 @@ void dpu_debug_printk(const char *function_name, const char *format, ...);
 	} while (0)
 
 /* DECON systrace related */
-void tracing_mark_write(struct decon_device *decon, char id, char *str1, int value);
+void decon_tracing_mark_write(struct decon_device *decon, char id, char *str1, int value);
 #define decon_systrace(decon, id, str1, value)					\
 	do {									\
 		if (decon_systrace_enable)					\
-			tracing_mark_write(decon, id, str1, value);		\
+			decon_tracing_mark_write(decon, id, str1, value);		\
 	} while (0)
 
 enum decon_hold_scheme {
