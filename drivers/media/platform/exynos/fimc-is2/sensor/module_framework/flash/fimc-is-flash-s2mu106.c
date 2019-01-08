@@ -46,6 +46,7 @@ static int flash_s2mu106_init(struct v4l2_subdev *subdev, u32 val)
 	flash->flash_data.intensity = 100; /* TODO: Need to figure out min/max range */
 	flash->flash_data.firing_time_us = 1 * 1000 * 1000; /* Max firing time is 1sec */
 	flash->flash_data.flash_fired = false;
+	flash->flash_data.cal_en = false;
 
 	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
 		if (flash->led_ch[i] >= 0)
@@ -79,6 +80,63 @@ static int flash_s2mu106_adj_current(struct fimc_is_flash *flash, enum flash_mod
 	else
 		return 0;
 
+#ifdef FLASH_CAL_DATA_ENABLE
+	if (led_num > 2)
+		warn("Num of LED is over 2: %d\n", led_num);
+
+	led_num = 0;
+
+	if (flash->flash_data.cal_en == false) {
+	/* flash or torch set by ddk */
+		adj_current = ((max_current * intensity) / MAX_FLASH_INTENSITY);
+
+		if (adj_current > max_current) {
+			warn("flash intensity(%d) > max(%d), set to max forcely",
+					adj_current, max_current);
+			adj_current = max_current;
+		}
+
+		for (i = 0; i < FLASH_LED_CH_MAX; i++) {
+			if (flash->led_ch[i] == -1)
+				continue;
+
+			led_num++;
+			if (led_num == 1) {
+				flash->flash_data.inp_current[i] = adj_current;
+				dbg_flash("[CH: %d] Flash set with adj_current: %d\n",
+						flash->led_ch[i], flash->flash_data.inp_current[i]);
+			} else if (led_num == 2) {
+				flash->flash_data.inp_current[i] = max_current - adj_current;
+				dbg_flash("[CH: %d] Flash set with adj_current: %d\n",
+						flash->led_ch[i], flash->flash_data.inp_current[i]);
+			} else {
+				warn("skip set current value\n");
+			}
+		}
+	} else {
+	/* flash or torch set by hal */
+		for (i = 0; i < FLASH_LED_CH_MAX; i++) {
+			if (flash->led_ch[i] != -1) {
+				led_num++;
+				adj_current = flash->flash_data.inp_current[i];
+				if (adj_current > max_current) {
+					warn("flash intensity(%d) > max(%d), set to max forcely",
+							adj_current, max_current);
+					flash->flash_data.inp_current[i] = max_current;
+				}
+				dbg_flash("[CH: %d] Flash set with adj_current: %d\n",
+						flash->led_ch[i], flash->flash_data.inp_current[i]);
+			}
+		}
+	}
+
+	dbg_flash("%s: mode: %s, led_numt: %d\n", __func__,
+		mode == CAM2_FLASH_MODE_OFF ? "OFF" :
+		mode == CAM2_FLASH_MODE_SINGLE ? "FLASH" : "TORCH",
+		led_num);
+
+	return 0;
+#else
 	if (intensity > MAX_FLASH_INTENSITY) {
 		warn("flash intensity(%d) > max(%d), set to max forcely",
 				intensity, MAX_FLASH_INTENSITY);
@@ -93,6 +151,7 @@ static int flash_s2mu106_adj_current(struct fimc_is_flash *flash, enum flash_mod
 		adj_current);
 
 	return adj_current;
+#endif
 }
 
 static int flash_s2mu106_control(struct v4l2_subdev *subdev, enum flash_mode mode, u32 intensity)
@@ -117,7 +176,11 @@ static int flash_s2mu106_control(struct v4l2_subdev *subdev, enum flash_mode mod
 	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
 		if (flash->led_ch[i] == -1)
 			continue;
+#ifdef FLASH_CAL_DATA_ENABLE
+		adj_current = flash->flash_data.inp_current[i];
 
+		dbg_flash("[CH: %d] current is set with val: %d\n", flash->led_ch[i], adj_current);
+#endif
 		switch (mode) {
 		case CAM2_FLASH_MODE_OFF:
 			ret = s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_OFF);
@@ -174,6 +237,33 @@ int flash_s2mu106_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 	FIMC_BUG(!flash);
 
 	switch (ctrl->id) {
+#ifdef FLASH_CAL_DATA_ENABLE
+	case V4L2_CID_FLASH_SET_CAL_EN:
+		if (ctrl->value < 0) {
+			err("failed to flash set cal_en: %d\n", ctrl->value);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		flash->flash_data.cal_en = ctrl->value;
+		dbg_flash("cal_en ctrl set: %s\n", (flash->flash_data.cal_en ? "enable" : "disable"));
+		break;
+	case V4L2_CID_FLASH_SET_BY_CAL_CH0:
+		if (ctrl->value < 0) {
+			err("[ch0] failed to flash set current val by cal: %d\n", ctrl->value);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		flash->flash_data.inp_current[0] = ctrl->value;
+		break;
+	case V4L2_CID_FLASH_SET_BY_CAL_CH1:
+		if (ctrl->value < 0) {
+			err("[ch1] failed to flash set current val by cal: %d\n", ctrl->value);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		flash->flash_data.inp_current[1] = ctrl->value;
+		break;
+#else
 	case V4L2_CID_FLASH_SET_INTENSITY:
 		/* TODO : Check min/max intensity */
 		if (ctrl->value < 0) {
@@ -183,6 +273,7 @@ int flash_s2mu106_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 		}
 		flash->flash_data.intensity = ctrl->value;
 		break;
+#endif
 	case V4L2_CID_FLASH_SET_FIRING_TIME:
 		/* TODO : Check min/max firing time */
 		if (ctrl->value < 0) {
