@@ -201,6 +201,10 @@ struct fimc_is_flash_data {
 	enum flash_mode			mode;
 	u32				intensity;
 	u32				firing_time_us;
+#ifdef FLASH_CAL_DATA_ENABLE
+	u32				inp_current[FLASH_LED_CH_MAX];
+	bool				cal_en;
+#endif
 	bool				flash_fired;
 	struct work_struct		flash_fire_work;
 	struct timer_list		flash_expire_timer;

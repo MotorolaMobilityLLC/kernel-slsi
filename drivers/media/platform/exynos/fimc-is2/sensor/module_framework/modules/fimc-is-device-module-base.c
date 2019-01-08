@@ -754,7 +754,13 @@ int sensor_module_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 			goto p_err;
 		}
 		break;
+#ifdef FLASH_CAL_DATA_ENABLE
+	case V4L2_CID_FLASH_SET_CAL_EN:
+	case V4L2_CID_FLASH_SET_BY_CAL_CH0:
+	case V4L2_CID_FLASH_SET_BY_CAL_CH1:
+#else
 	case V4L2_CID_FLASH_SET_INTENSITY:
+#endif
 	case V4L2_CID_FLASH_SET_FIRING_TIME:
 		ret = v4l2_subdev_call(sensor_peri->subdev_flash, core, s_ctrl, ctrl);
 		if (ret) {
