@@ -1123,8 +1123,12 @@ static int fimc_is_sensor_notify_by_fend(struct fimc_is_device_sensor *device, v
 	FIMC_BUG(!device);
 
 #ifdef ENABLE_DTP
-	if (device->dtp_check)
+	if (device->dtp_check) {
 		device->dtp_check = false;
+		/* we are in softirq, so we can use 'del_timer_sync' */
+		if (timer_pending(&device->dtp_timer))
+			del_timer_sync(&device->dtp_timer);
+	}
 
 	if (device->force_stop)
 		fimc_is_sensor_dtp((unsigned long)device);
@@ -3408,8 +3412,11 @@ reset_the_others:
 	}
 
 #ifdef ENABLE_DTP
-	if (device->dtp_check)
+	if (device->dtp_check) {
 		device->dtp_check = false;
+		if (timer_pending(&device->dtp_timer))
+			del_timer_sync(&device->dtp_timer);
+	}
 #endif
 
 already_stopped:
