@@ -1358,8 +1358,6 @@ static void fimc_is_sensor_instanton(struct work_struct *data)
 			merr("v4l2_csi_call(s_stream) is fail(%d)", device, ret);
 		goto p_err;
 	}
-	set_bit(FIMC_IS_SENSOR_FRONT_START, &device->state);
-	TIME_LAUNCH_END(LAUNCH_SENSOR_START);
 
 #ifdef ENABLE_DTP
 	if (device->dtp_check) {
@@ -1367,6 +1365,10 @@ static void fimc_is_sensor_instanton(struct work_struct *data)
 		info("DTP checking...\n");
 	}
 #endif
+
+	set_bit(FIMC_IS_SENSOR_FRONT_START, &device->state);
+
+	TIME_LAUNCH_END(LAUNCH_SENSOR_START);
 
 #ifdef FW_SUSPEND_RESUME
 	if (!instant_cnt) {
