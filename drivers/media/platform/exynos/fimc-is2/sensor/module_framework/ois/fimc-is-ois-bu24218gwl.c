@@ -579,6 +579,10 @@ static struct fimc_is_ois_ops ois_ops = {
 #ifdef CONFIG_OIS_DIRECT_FW_CONTROL
 	.ois_fw_update = fimc_is_ois_fw_update,
 #endif
+#ifdef CONFIG_OIS_BU24218_FACTORY_TEST
+	.ois_factory_fw_ver = fimc_is_factory_ois_get_fw_rev,
+	.ois_factory_hea = fimc_is_factory_ois_get_hea,
+#endif
 };
 
 static int sensor_ois_bu24218gwl_probe(struct i2c_client *client,

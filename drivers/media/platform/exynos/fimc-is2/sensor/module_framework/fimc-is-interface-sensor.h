@@ -695,6 +695,10 @@ struct fimc_is_ois_ops {
 	int (*ois_center_shift)(struct v4l2_subdev *subdev);
 	int (*ois_set_center)(struct v4l2_subdev *subdev);
 	u8 (*ois_read_mode)(struct v4l2_subdev *subdev);
+#ifdef CONFIG_OIS_BU24218_FACTORY_TEST
+	int (*ois_factory_fw_ver)(struct v4l2_subdev *subdev, u32* result);
+	int (*ois_factory_hea)(struct v4l2_subdev *subdev, u32* result);
+#endif
 };
 
 struct fimc_is_sensor_interface;
