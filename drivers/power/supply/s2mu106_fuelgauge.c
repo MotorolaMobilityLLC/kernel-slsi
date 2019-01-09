@@ -238,16 +238,6 @@ static void s2mu106_reset_fg(struct s2mu106_fuelgauge_data *fuelgauge)
 	pr_info("%s: S2MU106_REG_FG_ID = 0x%02x, data ver. = 0x%x\n", __func__,
 			temp, fuelgauge->info.battery_param_ver);
 
-	/* Update battery parameter version */
-	s2mu106_read_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, &temp);
-	temp &= 0xF0;
-	temp |= (fuelgauge->info.battery_param_ver & 0x0F);
-	s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, temp);
-	s2mu106_read_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, &temp);
-
-	pr_info("%s: S2MU106_REG_FG_ID = 0x%02x, data ver. = 0x%x\n", __func__,
-			temp, fuelgauge->info.battery_param_ver);
-
 	/* If it was voltage mode, recover it */
 	if (fuelgauge->mode == HIGH_SOC_VOLTAGE_MODE) {
 		s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x4A, 0xFF);
@@ -1706,6 +1696,11 @@ static int s2mu106_fuelgauge_parse_dt(struct s2mu106_fuelgauge_data *fuelgauge)
 			if (ret < 0)
 				pr_err("%s There is no cell2 battery parameter version\n", __func__);
 
+			ret = of_property_read_u32(np, "battery,battery_param_ver_cell1",
+                                        &fuelgauge->info.battery_param_ver_cell1);
+                        if (ret < 0)
+                                pr_err("%s There is no cell1 battery parameter version\n", __func__);
+
 			ret = of_property_read_u32(np, "battery,low_temp_limit",
 					&fuelgauge->low_temp_limit);
 			if (ret < 0) {
@@ -1878,10 +1873,6 @@ static int s2mu106_fuelgauge_probe(struct i2c_client *client,
 	fuelgauge->bat_charging = false;
 #endif
 	fuelgauge->probe_done = true;
-
-	s2mu106_read_reg_byte(fuelgauge->i2c, S2MU106_REG_FG_ID, &temp);
-	pr_info("%s: parameter ver. in IC: 0x%02x, in kernel: 0x%02x\n", __func__,
-			temp & 0x0F, fuelgauge->info.battery_param_ver);
 
 	pr_info("%s: S2MU106 Fuelgauge Driver Loaded\n", __func__);
 	return 0;
