@@ -175,10 +175,20 @@ static int sx933x_i2c_read_16bit(psx93XX_t this, u16 reg_addr, u32 *data32)
 static int read_regStat(psx93XX_t this)
 {
 	u32 data = 0;
+	int ret = 0;
 	if (this)
 	{
-		if (sx933x_i2c_read_16bit(this,SX933X_HOSTIRQSRC_REG,&data) > 0) //bug
+		ret = sx933x_i2c_read_16bit(this,SX933X_HOSTIRQSRC_REG,&data);
+		if (ret > 0)
+		{
 			return (data & 0x00FF);
+		}
+		else
+		{
+			LOG_DBG("%s - i2c read reg 0x%x error %d, force to process state irqs\n",
+				__func__, SX933X_HOSTIRQSRC_REG, ret);
+			return 0x64;
+		}
 	}
 	return 0;
 }
@@ -340,6 +350,7 @@ static ssize_t sx933x_register_read_store(struct device *dev,
 	LOG_DBG("%s - Register(0x%2x) data(0x%4x) nirq_state(%d)\n",__func__, regist, val, nirq_state);
 	return count;
 }
+#if 0
 static char* read_dbg_raw(psx93XX_t this, s32 *my_ant_raw, s32 *dlt_var_1, s32 *dlt_var_2)
 {
 	u32 uData, reg_val;
@@ -367,7 +378,7 @@ static char* read_dbg_raw(psx93XX_t this, s32 *my_ant_raw, s32 *dlt_var_1, s32 *
 	}
 	//ph1
 	else if((reg_val & (0x7 << 3)) == (1 << 3))
-	{		
+	{
 		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
 		ref_raw = (s32)uData>>10;
 		sx933x_i2c_read_16bit(this, SX933X_USEPH1_REG, &uData);
@@ -393,23 +404,23 @@ static char* read_dbg_raw(psx93XX_t this, s32 *my_ant_raw, s32 *dlt_var_1, s32 *
 		return "inv_raw";
 	}
 }
-
+#endif
 static void read_rawData(psx93XX_t this)
 {
 	u8 csx, index;
 	s32 useful;
 	s32 average;
 	s32 diff;
-	s32 ph2_use, ph4_use, ant_raw, dlt_var_1, dlt_var_2;
-	u32 uData;
+	s32 ph2_use, ph4_use, prox_raw, dlt_var;
+	u32 uData, chip_state, dbg_ph_sel;
 	u16 offset;
 	int state;
-	char *ant_raw_name;
+	//char *ant_raw_name;
 
 	if(this)
 	{
-		sx933x_i2c_read_16bit(this, SX933X_STAT0_REG, &uData);
-		LOG_DBG("SX933X_STAT0_REG[0x8000] = 0x%08X\n", uData);
+		sx933x_i2c_read_16bit(this, SX933X_STAT0_REG, &chip_state);
+		LOG_DBG("SX933X_STAT0_REG[0x8000] = 0x%08X\n", chip_state);
 
 		sx933x_i2c_read_16bit(this, SX933X_USEPH2_REG, &uData);
 		ph2_use = (s32)uData >> 10;
@@ -417,11 +428,16 @@ static void read_rawData(psx93XX_t this)
 		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
 		ph4_use = (s32)uData >> 10;
 
-		ant_raw_name = read_dbg_raw(this, &ant_raw, &dlt_var_1, &dlt_var_2);
+		sx933x_i2c_read_16bit(this, 0x81A4, &dbg_ph_sel);
+		dbg_ph_sel &= ~(7<<3);
 
 		for(csx =0; csx<5; csx++)
 		{
 			index = csx*4;
+			dbg_ph_sel &= ~(7<<3);
+			dbg_ph_sel |= (csx << 3);
+			sx933x_i2c_write_16bit(this, 0x81A4, dbg_ph_sel);
+			msleep(2);
 			sx933x_i2c_read_16bit(this, SX933X_USEPH0_REG + index, &uData);
 			useful = (s32)uData>>10;
 			sx933x_i2c_read_16bit(this, SX933X_AVGPH0_REG + index, &uData);
@@ -430,20 +446,20 @@ static void read_rawData(psx93XX_t this)
 			diff = (s32)uData>>10;
 			sx933x_i2c_read_16bit(this, SX933X_OFFSETPH0_REG + index*2, &uData);
 			offset = (u16)(uData & 0x7FFF);
+			sx933x_i2c_read_16bit(this, 0x81B0, &uData);
+			prox_raw = (s32)uData>>10;
+			sx933x_i2c_read_16bit(this, 0x81B4, &uData);
+			dlt_var = (s32)uData >> 3;
 			state = psmtcButtons[csx].state;
 			if(csx == 0 || csx == 1)
 			{
-				LOG_DBG("[PH: %d] ref_use = %d Useful = %d DIFF = %d state = %d %s = %d Average = %d Offset = %d "
-                    "dlt_var_1 = %d dlt_var_2 = %d\n",
-					csx, ph4_use, useful, diff, state, ant_raw_name, ant_raw, average, offset,
-					dlt_var_1, dlt_var_2);
+				LOG_DBG("[PH:%d] ref_use= %d use= %d diff= %d state= %d chip_state= 0x%X dlt_var= %d raw= %d avg= %d offset= %d \n",
+					        csx, ph4_use,    useful, diff,    state,    chip_state,      dlt_var,    prox_raw,average,offset);
 			}
 			else if(csx == 3)
 			{
-				LOG_DBG("[PH: %d] ref_use = %d Useful = %d DIFF = %d state = %d %s = %d Average = %d Offset = %d "
-                    "dlt_var_1 = %d dlt_var_2 = %d\n",
-					csx, ph2_use, useful, diff, state, ant_raw_name, ant_raw, average, offset,
-					dlt_var_1, dlt_var_2);
+				LOG_DBG("[PH:%d] ref_use= %d use= %d diff= %d state= %d chip_state= 0x%X dlt_var= %d raw= %d avg= %d offset= %d \n",
+					        csx, ph2_use,    useful, diff,    state,    chip_state,      dlt_var,    prox_raw,average,offset);
 			}
 			else
 			{
@@ -461,7 +477,7 @@ static ssize_t sx933x_all_reg_data_show(struct device *dev, struct device_attrib
 	int i;
 	psx93XX_t this = dev_get_drvdata(dev);
 
-	p += snprintf(p, PAGE_SIZE, "DRV_VER=%s\n", "1_decrease_init_time");
+	p += snprintf(p, PAGE_SIZE, "DRV_VER=%s\n", "09_show_dlt_var");
 
 	for (i = 0; i < ARRAY_SIZE(sx933x_i2c_reg_setup); i++)
 	{
@@ -477,7 +493,7 @@ static ssize_t sx933x_all_reg_data_show(struct device *dev, struct device_attrib
 			val &= ~0x7FFF;
 		}
 		
-		p += snprintf(p, PAGE_SIZE, "(reg,val) = (0x%X,0x%02X);\n", regist,val);
+		p += snprintf(p, PAGE_SIZE, "(reg,val)= (0x%X,0x%02X);\n", regist,val);
 	}
 	return (p-buf);
 }
