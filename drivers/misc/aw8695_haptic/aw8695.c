@@ -1275,7 +1275,7 @@ static int aw8695_haptic_cont(struct aw8695 *aw8695)
     aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_CONT_MODE);
 
     /* preset f0 */
-    aw8695->f0_pre = aw8695->f0;
+    aw8695->f0_pre = AW8695_HAPTIC_F0_PRE; //set f0_pre as default in every cont vibration
     aw8695_haptic_set_f0_preset(aw8695);
 
     /* lpf */
