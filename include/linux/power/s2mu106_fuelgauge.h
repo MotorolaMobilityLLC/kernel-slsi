@@ -89,7 +89,6 @@ struct fg_info {
 	int *ocv_arr_val;
 	int *batcap;
 	int *accum;
-	int battery_param_ver;
 
 	int battery_table3_cell1[88];
 	int battery_table4_cell1[22];
