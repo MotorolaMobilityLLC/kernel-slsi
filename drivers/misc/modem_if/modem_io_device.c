@@ -139,8 +139,10 @@ static struct device_attribute attr_txlink =
 
 static inline void iodev_lock_wlock(struct io_device *iod)
 {
-	if (iod->waketime > 0 && !wake_lock_active(&iod->wakelock))
+	if (iod->waketime > 0 && !wake_lock_active(&iod->wakelock)) {
+		wake_unlock(&iod->wakelock);
 		wake_lock_timeout(&iod->wakelock, iod->waketime);
+	}
 }
 static int netif_flow_ctrl(struct link_device *ld, struct sk_buff *skb)
 {
