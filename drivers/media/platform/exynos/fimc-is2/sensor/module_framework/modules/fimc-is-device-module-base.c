@@ -651,6 +651,26 @@ int sensor_module_g_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 			goto p_err;
 		}
 		break;
+#ifdef CONFIG_OIS_BU24218_FACTORY_TEST
+	case V4L2_CID_IS_FACTORY_OIS_FW_VER:
+		ret = CALL_OISOPS(sensor_peri->ois, ois_factory_fw_ver,
+		         sensor_peri->subdev_ois, &ctrl->value);
+		if (ret < 0) {
+			err("err!!! ret(%d)", ret);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		break;
+	case V4L2_CID_IS_FACTORY_OIS_HEA:
+		ret = CALL_OISOPS(sensor_peri->ois, ois_factory_hea,
+		         sensor_peri->subdev_ois, &ctrl->value);
+		if (ret < 0) {
+			err("err!!! ret(%d)", ret);
+			ret = -EINVAL;
+			goto p_err;
+		}
+		break;
+#endif
 	default:
 		err("err!!! Unknown CID(%#x)", ctrl->id);
 		ret = -EINVAL;
