@@ -3289,6 +3289,12 @@ struct slsi_dev                           *slsi_cfg80211_new(struct device *dev)
 	wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+	/* Parameters for Scheduled Scanning Support */
+	wiphy->max_sched_scan_reqs = 1;
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI);
+#endif
+
 	/* Match the maximum number of SSIDs that could be requested from wpa_supplicant */
 	wiphy->max_sched_scan_ssids = 16;
 
