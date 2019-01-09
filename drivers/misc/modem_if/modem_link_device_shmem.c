@@ -477,7 +477,8 @@ static void cmd_crash_exit_handler(struct shmem_link_device *shmd)
 
 	ld->mode = LINK_MODE_ULOAD;
 
-	del_timer(&shmd->crash_ack_timer);
+	if (timer_pending(&shmd->crash_ack_timer))
+		del_timer(&shmd->crash_ack_timer);
 
 	if (!wake_lock_active(&shmd->wlock))
 		wake_lock(&shmd->wlock);
