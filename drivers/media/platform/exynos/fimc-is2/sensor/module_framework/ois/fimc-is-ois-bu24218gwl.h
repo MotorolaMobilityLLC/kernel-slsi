@@ -15,8 +15,11 @@
 #ifndef FIMC_IS_DEVICE_OIS_H
 #define FIMC_IS_DEVICE_OIS_H
 
+#ifdef CONFIG_OIS_BU24218_FACTORY_TEST
+#include "fimc_bu24218_factory.h"
+#endif
+
 #define OIS_FW_SIZE			2136
 #define FW_TRANS_SIZE			256
-
 #endif
 

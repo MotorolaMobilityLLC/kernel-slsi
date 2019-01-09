@@ -190,6 +190,8 @@ enum is_set_stream {
 #define V4L2_CID_IS_FDAE			(V4L2_CID_FIMC_IS_BASE + 73)
 #define V4L2_CID_IS_FACTORY_APERTURE_CONTROL	(V4L2_CID_FIMC_IS_BASE + 74)
 #define V4L2_CID_IS_G_SENSOR_FACTORY_RESULT	(V4L2_CID_FIMC_IS_BASE + 76)
+#define V4L2_CID_IS_FACTORY_OIS_FW_VER          (V4L2_CID_FIMC_IS_BASE + 77)
+#define V4L2_CID_IS_FACTORY_OIS_HEA             (V4L2_CID_FIMC_IS_BASE + 78)
 
 enum is_fw_boot_mode {
 	IS_COLD_BOOT = 0,  /* FrontCamera, 3rd-Party Camera */

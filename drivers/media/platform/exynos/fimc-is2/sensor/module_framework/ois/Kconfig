@@ -28,3 +28,10 @@ config OIS_DIRECT_FW_CONTROL
         help
           Use to ois direct FW control.
 
+config OIS_BU24218_FACTORY_TEST
+        bool "Use BU24218 factory test"
+        depends on CAMERA_OIS_BU24218GWL_OBJ
+        default n
+        help
+            Use to support BU24218 factory
+
