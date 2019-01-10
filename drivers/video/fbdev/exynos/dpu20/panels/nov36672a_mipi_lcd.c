@@ -32,6 +32,7 @@ struct panel_device {
 	struct dsim_device *dsim;
 	struct mutex lock;
 	int cabc_mode;
+	int is_suspend;
 };
 
 struct panel_device *nov36672a_panel_drvdata;
@@ -252,12 +253,10 @@ static ssize_t panel_cabc_mode_show(struct device *dev,
 	int ret = 0;
 	struct panel_device *panel = dev_get_drvdata(dev);
 
-	mutex_lock(&panel->lock);
-
-#if defined(CONFIG_EXYNOS_PANEL_CABC)
-	ret = nov36672a_cabc_mode(panel->dsim, CABC_READ_MODE);
-#endif
-	mutex_unlock(&panel->lock);
+	if(NULL==panel){
+		pr_err("dism dev is NULL, cabc mode get fail\n");
+		return -1;
+	}
 
 	count = snprintf(buf, PAGE_SIZE, "cabc_mode = %d, ret = %d\n",
 			panel->cabc_mode, ret);
@@ -272,6 +271,11 @@ static ssize_t panel_cabc_mode_store(struct device *dev,
 	unsigned int value = 0;
 	struct panel_device *panel = dev_get_drvdata(dev);
 
+	if(NULL==panel){
+		pr_err("dism dev is NULL, cabc mode get fail\n");
+		return -1;
+	}
+
 	ret = kstrtouint(buf, 0, &value);
 	if (ret < 0)
 		return ret;
@@ -280,10 +284,16 @@ static ssize_t panel_cabc_mode_store(struct device *dev,
 	panel->cabc_mode = value;
 	mutex_unlock(&panel->lock);
 
+	if(panel->is_suspend){
+		pr_info("%s: panel has sespend,cabc will set at next power on\n", __func__);
+		goto cabc_end;
+	}
+
 	pr_info("%s: %d\n", __func__, value);
 #if defined(CONFIG_EXYNOS_PANEL_CABC)
 	nov36672a_cabc_mode(panel->dsim, panel->cabc_mode);
 #endif
+cabc_end:
 	return count;
 }
 
@@ -455,6 +465,7 @@ static int nov36672a_probe(struct dsim_device *dsim)
 
 	panel->dsim = dsim;
 	panel->cabc_mode = 0;
+	panel->is_suspend = 0;
 
 	if (IS_ERR_OR_NULL(nov36672a_panel_class)) {
 		nov36672a_panel_class = class_create(THIS_MODULE, "panel");
@@ -493,9 +504,7 @@ exit0:
 
 static int nov36672a_displayon(struct dsim_device *dsim)
 {
-#if defined(CONFIG_EXYNOS_PANEL_CABC)
 	struct panel_device *panel = nov36672a_panel_drvdata;
-#endif
 	dsim_info("%s +\n", __func__);
 	nov36672a_lcd_init(dsim->id, &dsim->lcd_info);
 	nov36672a_lcd_enable(dsim->id);
@@ -508,14 +517,19 @@ static int nov36672a_displayon(struct dsim_device *dsim)
 	if (dsim->esd_recovering)
 		nov36672a_update_brightness(dsim->brightness);
 #endif
+	if(NULL != panel)
+		panel->is_suspend = 0;
 	return 1;
 }
 
 static int nov36672a_suspend(struct dsim_device *dsim)
 {
+	struct panel_device *panel = nov36672a_panel_drvdata;
 	dsim_info("%s +\n", __func__);
 	nov36672a_lcd_disable(dsim->id);
 	dsim_info("%s -\n", __func__);
+	if(NULL != panel)
+		panel->is_suspend = 1;
 	return 1;
 }
 
