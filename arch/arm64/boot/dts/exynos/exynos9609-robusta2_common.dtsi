@@ -1123,8 +1123,8 @@
 			sleep_gpio {
 				compatible = "samsung,exynos-sleepgpio";
 				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&sleep_top &sleep_fsys &sleep_shub &sleep_alive &sleep_cmgp>;
-				pinctrl-1 = <&sleep_top &sleep_fsys &sleep_shub &sleep_alive &sleep_cmgp>;
+				pinctrl-0 = <&sleep_top &sleep_fsys &sleep_shub &normal_alive &normal_cmgp>;
+				pinctrl-1 = <&sleep_top &sleep_fsys &sleep_shub &sleep_alive>;
 			};
 		}; /* end of __overlay__ */
 	}; /* end of fragment */
@@ -1485,26 +1485,48 @@
 		PIN_IN_PUD(gpa0-3, DIS);    /* SC_INTB */
 		PIN_IN_PUD(gpa0-4, DIS);    /* IF_PMIC_MRSTB */
 		PIN_EINT_PUD(gpa0-6, DIS);    /* CODEC_IRQ_N */
-		//PIN_IN_PUD(gpa0-7, DOWN);    /* SD_SIM_DET */
+		PIN_EINT_PUD(gpa0-7, DOWN);    /* SD_SIM_DET */
 
-		PIN_IN_PUD(gpa1-1, DOWN);    /* FP_RST_NT */
-		PIN_IN_PUD(gpa1-3, DOWN);    /* TP_RST_N */
+		//PIN_IN_PUD(gpa1-1, DOWN);    /* FP_RST_NT */
+		PIN_EINT_PUD(gpa1-2, DIS);    /* NFC_IRQ */
+		//PIN_IN_PUD(gpa1-3, DOWN);    /* TP_RST_N */
 		PIN_IN_PUD(gpa1-5, DIS);    /* KEY_VOL_UP */
 		PIN_IN_PUD(gpa1-6, DIS);    /* KEY_VOL_DOWN */
 		//PIN_INT_PUD(gpa1-7, DIS);    /* PMIC_ONOB */
 
-		PIN_EINT_PUD(gpa2-0, DIS);    /* PMIC_IRQB */
+		//PIN_EINT_PUD(gpa2-0, DIS);    /* PMIC_IRQB */
 		//PIN_EINT_PUD(gpa2-1, DIS);    /* IF_PMIC_IRQB */
 		PIN_EINT_PUD(gpa2-2, DIS);    /* IF_PMIC_INTB */
 		//PIN_EINT_PUD(gpa2-3, DIS);    /* FG_INTB */
-		PIN_IN_PUD(gpa2-4, DOWN);    /* TP_INT_B */
-		PIN_IN_PUD(gpa2-5, DOWN);    /* MOTOR_RSTN */
-		PIN_IN_PUD(gpa2-6, DOWN);    /* SAR_PS_INT */
-		PIN_IN_PUD(gpa2-7, DOWN);    /* MOTOR_INTN */
+		PIN_EINT_PUD(gpa2-4, DIS);    /* TP_INT_B */
+		//PIN_IN_PUD(gpa2-5, DOWN);    /* MOTOR_RSTN */
+		PIN_EINT_PUD(gpa2-6, DIS);    /* SAR_PS_INT */
+		PIN_EINT_PUD(gpa2-7, DIS);    /* MOTOR_INTN */
 
-		PIN_IN_PUD(gpq0-2, UP);    /* SPEEDY_PMIC */
+		PIN_FUNC_PUD(gpq0-2, UP);    /* SPEEDY_PMIC */
 		PIN_IN_PUD(gpq0-3, DOWN);    /* AP_UART0_RXD */
-		PIN_IN_PUD(gpq0-4, DOWN);    /* AP_UART0_TXD */
+		PIN_IN_PUD(gpq0-4, UP);    /* AP_UART0_TXD */
+	};
+
+	normal_alive: normal-state {
+		PIN_EINT_PUD(gpa0-2, DIS);    /* SPK_PA_INT */
+		PIN_IN_PUD(gpa0-3, DIS);     /* SC_INTB */
+		PIN_IN_PUD(gpa0-4, DIS);     /* IF_PMIC_MRSTB */
+		PIN_EINT_PUD(gpa0-6, DIS);    /* CODEC_IRQ_N */
+		PIN_EINT_PUD(gpa0-7, DOWN);    /* SD_SIM_DET */
+
+		PIN_EINT_PUD(gpa1-2, DIS);    /* NFC_IRQ */
+		PIN_EINT_PUD(gpa1-5, DIS);    /* KEY_VOL_UP */
+		PIN_EINT_PUD(gpa1-6, DIS);    /* KEY_VOL_DOWN */
+
+		PIN_EINT_PUD(gpa2-2, DIS);    /* IF_PMIC_INTB */
+		PIN_EINT_PUD(gpa2-4, DIS);    /* TP_INT_B */
+		PIN_EINT_PUD(gpa2-6, DIS);    /* SAR_PS_INT */
+		PIN_EINT_PUD(gpa2-7, DIS);    /* MOTOR_INTN */
+
+		PIN_FUNC_PUD(gpq0-2, UP);    /* SPEEDY_PMIC */
+		PIN_FUNC_PUD(gpq0-3, DOWN);    /* AP_UART0_RXD */
+		PIN_FUNC_PUD(gpq0-4, UP);    /* AP_UART0_TXD */
 	};
 };
 
@@ -1524,6 +1546,22 @@
 		PIN_IN_PUD(gpm17-0, DOWN);    /* NC */
 		PIN_EINT_PUD(gpm20-0, DIS);    /* PSENSOR_INT */
 		//PIN_IN_PUD(gpm22-0, DOWN);      /* NFC_PVDDEN */
+		PIN_IN_PUD(gpm25-0, DIS);       /* SPK_ID */
+	};
+
+	normal_cmgp: normal-cmgp {
+		//PIN_EINT_PUD(gpm20-0, UP);    /* PSENSOR_INT */
+		PIN_FUNC_PUD(gpm2-0, DIS);    /* LCD_SCL */
+		PIN_FUNC_PUD(gpm3-0, DIS);    /* LCD_SCA */
+		PIN_FUNC_PUD(gpm4-0, UP);    /* SENSOR_SCL_1.8V */
+		PIN_FUNC_PUD(gpm5-0, UP);    /* SENSOR_SDA_1.8V */
+		PIN_FUNC_PUD(gpm6-0, UP);    /* LT_SENSOR_SCL_1.8V */
+		PIN_FUNC_PUD(gpm7-0, UP);    /* LT_SENSOR_SDA_1.8V */
+		PIN_FUNC_PUD(gpm8-0, DIS);    /* MOTOR_I2C_SCL */
+		PIN_FUNC_PUD(gpm9-0, DIS);    /* MOTOR_I2C_SDA */
+		PIN_FUNC_PUD(gpm10-0, DIS);    /* SAR_SENSOR_SCL */
+		PIN_FUNC_PUD(gpm11-0, DIS);    /* SAR_SENSOR_SDA */
+		PIN_EINT_PUD(gpm20-0, DIS);    /* PSENSOR_INT */
 		PIN_IN_PUD(gpm25-0, DIS);       /* SPK_ID */
 	};
 };
