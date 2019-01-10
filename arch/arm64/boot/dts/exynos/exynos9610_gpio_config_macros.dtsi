@@ -58,6 +58,21 @@
 		samsung,pin-pud = <PIN_PULL_ ##_pud>;	\
 	}
 
+#define PIN_OUT_PUD(_pin, _pud)					\
+	_pin {										\
+		samsung,pins = #_pin;					\
+		samsung,pin-function = <1>;				\
+		samsung,pin-pud = <PIN_PULL_ ##_pud>;	\
+	}
+
+#define PIN_OUT_DAT(_pin, _val)					\
+	_pin {										\
+		samsung,pins = #_pin;					\
+		samsung,pin-function = <1>;				\
+		samsung,pin-val = <_val>;				\
+		samsung,pin-pud = <0>;					\
+	}
+
 #define PIN_FUNC_PUD(_pin, _pud)				\
 	_pin {										\
 		samsung,pins = #_pin;					\
