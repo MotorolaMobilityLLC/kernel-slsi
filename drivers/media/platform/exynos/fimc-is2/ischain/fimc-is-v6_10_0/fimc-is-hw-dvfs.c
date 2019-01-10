@@ -17,8 +17,9 @@
 DECLARE_DVFS_DT(FIMC_IS_SN_END,
 		{"default_",				FIMC_IS_SN_DEFAULT},
 		{"secure_front_",			FIMC_IS_SN_SECURE_FRONT},
-		{"front_preview_",			FIMC_IS_SN_FRONT_PREVIEW},
 		{"front_preview_full_",			FIMC_IS_SN_FRONT_PREVIEW_FULL},
+		{"front_preview_uhd",			FIMC_IS_SN_FRONT_PREVIEW_UHD},
+		{"front_preview_",			FIMC_IS_SN_FRONT_PREVIEW},
 		{"front_capture_",			FIMC_IS_SN_FRONT_CAPTURE},
 		{"front_video_",			FIMC_IS_SN_FRONT_CAMCORDING},
 		{"front_video_capture_",		FIMC_IS_SN_FRONT_CAMCORDING_CAPTURE},
@@ -78,6 +79,7 @@ DECLARE_DVFS_DT(FIMC_IS_SN_END,
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_SECURE_FRONT);
 
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW_FULL);
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW_UHD);
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW);
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_CAPTURE);
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_CAMCORDING);
@@ -279,13 +281,17 @@ struct fimc_is_dvfs_scenario static_scenarios[] = {
 		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_FRONT_CAMCORDING),
 		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_CAMCORDING),
 	}, {
-		.scenario_id		= FIMC_IS_SN_FRONT_PREVIEW_FULL,
-		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_FRONT_PREVIEW_FULL),
-		.check_func 		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW_FULL),
+		.scenario_id		= FIMC_IS_SN_FRONT_PREVIEW_UHD,
+		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_FRONT_PREVIEW_UHD),
+		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW_UHD),
 	}, {
 		.scenario_id		= FIMC_IS_SN_FRONT_PREVIEW,
 		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_FRONT_PREVIEW),
 		.check_func		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW),
+	}, {
+		.scenario_id		= FIMC_IS_SN_FRONT_PREVIEW_FULL,
+		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_FRONT_PREVIEW_FULL),
+		.check_func 		= GET_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW_FULL),
 	}, {
 		.scenario_id		= FIMC_IS_SN_FRONT_WIDE_SELFIE,
 		.scenario_nm		= DVFS_SN_STR(FIMC_IS_SN_FRONT_WIDE_SELFIE),
@@ -1089,10 +1095,19 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW_FULL)
 		return 0;
 }
 
+/* front preview UHD */
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW_UHD)
+{
+	if ((position == SENSOR_POSITION_FRONT) && (resol >= SIZE_12MP_UHD_BDS))
+		return 1;
+	else
+		return 0;
+}
+
 /* front preview */
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_PREVIEW)
 {
-	if (position == SENSOR_POSITION_FRONT)
+	if ((position == SENSOR_POSITION_FRONT) && (resol < SIZE_12MP_UHD_BDS))
 		return 1;
 	else
 		return 0;
