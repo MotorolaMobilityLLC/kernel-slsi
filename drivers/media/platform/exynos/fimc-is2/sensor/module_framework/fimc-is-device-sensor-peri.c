@@ -853,6 +853,34 @@ void fimc_is_sensor_ois_set_init_work(struct work_struct *data)
 	ois->initial_centering_mode = true;
 }
 
+#ifdef USE_OIS_INIT_WORK
+void fimc_is_sensor_ois_init_work(struct work_struct *data)
+{
+	int ret = 0;
+	struct fimc_is_ois *ois;
+	struct fimc_is_device_sensor_peri *sensor_peri;
+
+	WARN_ON(!data);
+
+	ois = container_of(data, struct fimc_is_ois, init_work);
+	WARN_ON(!ois);
+
+	sensor_peri = ois->sensor_peri;
+
+	if (sensor_peri->subdev_ois) {
+#ifdef CONFIG_OIS_DIRECT_FW_CONTROL
+	ret = CALL_OISOPS(ois, ois_fw_update, sensor_peri->subdev_ois);
+	if (ret < 0)
+		err("v4l2_subdev_call(ois_init) is fail(%d)", ret);
+#endif
+
+	ret = CALL_OISOPS(ois, ois_init, sensor_peri->subdev_ois);
+	if (ret < 0)
+		err("v4l2_subdev_call(ois_init) is fail(%d)", ret);
+	}
+}
+#endif
+
 void fimc_is_sensor_aperture_set_start_work(struct work_struct *data)
 {
 	int ret = 0;
@@ -1100,7 +1128,6 @@ int fimc_is_sensor_peri_notify_vsync(struct v4l2_subdev *subdev, void *arg)
 				err("err!!!(%s), sensor notify M2M actuator fail(%d)", __func__, ret);
 		}
 	}
-
 	/* Sensor Long Term Exposure mode(LTE mode) set */
 	if (cis->long_term_mode.sen_strm_off_on_enable) {
 		if ((cis->long_term_mode.frame_interval == cis->long_term_mode.frm_num_strm_off_on_interval) ||
@@ -1558,6 +1585,11 @@ void fimc_is_sensor_peri_init_work(struct fimc_is_device_sensor_peri *sensor_per
 		INIT_WORK(&sensor_peri->mcu->aperture->aperture_set_start_work, fimc_is_sensor_aperture_set_start_work);
 		INIT_WORK(&sensor_peri->mcu->aperture->aperture_set_work, fimc_is_sensor_aperture_set_work);
 	}
+
+#ifdef USE_OIS_INIT_WORK
+	if (sensor_peri->ois)
+		INIT_WORK(&sensor_peri->ois->init_work, fimc_is_sensor_ois_init_work);
+#endif
 }
 
 void fimc_is_sensor_peri_probe(struct fimc_is_device_sensor_peri *sensor_peri)

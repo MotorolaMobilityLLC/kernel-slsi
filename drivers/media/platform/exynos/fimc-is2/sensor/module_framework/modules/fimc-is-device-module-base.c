@@ -259,6 +259,10 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 	}
 
 	subdev_ois = sensor_peri->subdev_ois;
+#ifdef USE_OIS_INIT_WORK
+	if (subdev_ois)
+		schedule_work(&sensor_peri->ois->init_work);
+#else
 #if defined(CONFIG_OIS_DIRECT_FW_CONTROL)
 	if (subdev_ois != NULL) {
 		ret = CALL_OISOPS(sensor_peri->ois, ois_fw_update, subdev_ois);
@@ -283,7 +287,7 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 			return ret;
 		}
 	}
-
+#endif
 #ifndef CONFIG_CAMERA_USE_MCU
 	subdev_aperture = sensor_peri->subdev_aperture;
 	if (subdev_aperture != NULL) {

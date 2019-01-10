@@ -251,6 +251,9 @@ struct fimc_is_ois {
 	int				ois_power_mode;
 #endif
 	struct work_struct		ois_set_init_work;
+#ifdef USE_OIS_INIT_WORK
+	struct work_struct		init_work;
+#endif
 };
 
 struct fimc_is_mcu {
