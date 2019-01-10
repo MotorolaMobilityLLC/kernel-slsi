@@ -6190,7 +6190,7 @@ const u32 sensor_2x5sp_setfile_B_2880x2160_30fps[] = {
 	0x6218, 0xE9F0, 0x2,
 };
 
-const u32 sensor_2x5sp_setfile_B_5760x4320_27fps[] = {
+const u32 sensor_2x5sp_setfile_B_5760x4320_24fps[] = {
 	0x6028, 0x4000, 0x2,
 	0x6214, 0xE9F0, 0x2,
 	0x6218, 0xE150, 0x2,
@@ -6202,7 +6202,7 @@ const u32 sensor_2x5sp_setfile_B_5760x4320_27fps[] = {
 	0x034E, 0x10E0, 0x2,
 	0x0350, 0x0004, 0x2,
 	0x0352, 0x0000, 0x2,
-	0x0340, 0x1244, 0x2,
+	0x0340, 0x1480, 0x2,
 	0x0342, 0x1DA0, 0x2,
 	0x0900, 0x0011, 0x2,
 	0x0902, 0x0000, 0x2,
@@ -7284,11 +7284,11 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_2880x2160_30fps_3DHD
 	0x1B10, /* line_length_pck	(0x0342) */
 };
 
-const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_5760x4320_27fps = {
+const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_5760x4320_24fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	2100000000, /* mipi_datarate */
 	957666000,	/* pclk  = VT pix CLK (this value is different by cis) */
-	0x1244, /* frame_length_lines	(0x0340) */
+	0x1480, /* frame_length_lines	(0x0340) */
 	0x1DA0, /* line_length_pck	(0x0342) */
 };
 
@@ -7311,7 +7311,7 @@ const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_B_1280x720_240fps = {
 static const u32 *sensor_2x5sp_setfiles_B[] = {
 	sensor_2x5sp_setfile_B_2880x2160_30fps,
 	sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR,
-	sensor_2x5sp_setfile_B_5760x4320_27fps,
+	sensor_2x5sp_setfile_B_5760x4320_24fps,
 	sensor_2x5sp_setfile_B_1920x1080_120fps,
 	sensor_2x5sp_setfile_B_1280x720_240fps,
 };
@@ -7319,7 +7319,7 @@ static const u32 *sensor_2x5sp_setfiles_B[] = {
 static const u32 sensor_2x5sp_setfile_B_sizes[] = {
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_2880x2160_30fps),
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_2880x2160_30fps_3DHDR),
-	ARRAY_SIZE(sensor_2x5sp_setfile_B_5760x4320_27fps),
+	ARRAY_SIZE(sensor_2x5sp_setfile_B_5760x4320_24fps),
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_1920x1080_120fps),
 	ARRAY_SIZE(sensor_2x5sp_setfile_B_1280x720_240fps),
 };
@@ -7327,7 +7327,7 @@ static const u32 sensor_2x5sp_setfile_B_sizes[] = {
 static const struct sensor_pll_info_compact *sensor_2x5sp_pllinfos_B[] = {
 	&sensor_2x5sp_pllinfo_B_2880x2160_30fps,
 	&sensor_2x5sp_pllinfo_B_2880x2160_30fps_3DHDR,
-	&sensor_2x5sp_pllinfo_B_5760x4320_27fps,
+	&sensor_2x5sp_pllinfo_B_5760x4320_24fps,
 	&sensor_2x5sp_pllinfo_B_1920x1080_120fps,
 	&sensor_2x5sp_pllinfo_B_1280x720_240fps,
 };
