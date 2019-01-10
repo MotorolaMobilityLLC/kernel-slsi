@@ -198,4 +198,7 @@
 #define INIT_AWB_COUNT_REAR	(3)
 #define INIT_AWB_COUNT_FRONT	(7)
 
+/* use OIS init thread option */
+#define USE_OIS_INIT_WORK
+
 #endif
