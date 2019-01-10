@@ -49,6 +49,10 @@ struct lm36923_data {
 	struct mutex lock;
 	unsigned char mode;
 	char* name;
+#if defined(CONFIG_FB)
+	struct notifier_block fb_notif;
+#endif
+	unsigned char is_suspend;
 };
 
 //lm 36923
