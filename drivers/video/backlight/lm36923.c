@@ -18,6 +18,9 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#ifdef CONFIG_FB
+#include <linux/notifier.h>
+#endif
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
 #endif
@@ -85,10 +88,21 @@ static ssize_t lm36923_mode_store(struct device *dev, struct device_attribute *a
         return ret;
     }
 
+    i2c_data->mode = value;
+
+    if(i2c_data->is_suspend){
+        pr_err("device is suspend now, set HBM mode on next power on\n");
+        goto exit;
+    }
+
     pr_err("%s: current mode=%d, now write to %d\n", __func__, i2c_data->mode, value);
 
     if(1 == value){
-        mutex_lock(&i2c_data->lock);
+        if(mutex_trylock(&i2c_data->lock)==0){
+            pr_err("%s: lm36923 dev is busy\n",__func__);
+            goto exit;
+        }
+
         ret = backlight_i2c_write_bits(i2c_data,lm_hl_data[0][0],LM_LSB_MASK,lm_hl_data[0][1]);  //write LSB
         if(ret < 0){
             pr_err("HL mode:write lm chip LSB bit error\n");
@@ -102,11 +116,14 @@ static ssize_t lm36923_mode_store(struct device *dev, struct device_attribute *a
             mutex_unlock(&i2c_data->lock);
             goto exit;
         }
-        i2c_data->mode = value;
         mutex_unlock(&i2c_data->lock);
     }
     else if(0 == value){
-        mutex_lock(&i2c_data->lock);
+        if(mutex_trylock(&i2c_data->lock)==0){
+            pr_err("%s: lm36923 dev is busy\n",__func__);
+            goto exit;
+        }
+
         ret = backlight_i2c_write_bits(i2c_data,lm_nr_data[0][0],LM_LSB_MASK,lm_nr_data[0][1]);  //write LSB
         if(ret < 0){
             pr_err("NR mode:write lm chip LSB bit error\n");
@@ -120,7 +137,6 @@ static ssize_t lm36923_mode_store(struct device *dev, struct device_attribute *a
             mutex_unlock(&i2c_data->lock);
             goto exit;
         }
-        i2c_data->mode = value;
         mutex_unlock(&i2c_data->lock);
     }
     else{
@@ -231,12 +247,101 @@ static int getChipId(struct device *dev){
     return (value&BACKLIGHT_CHIP_ID_REG_MASK)>>4;
 }
 
+#if defined(CONFIG_FB)
+static int lm36923_resume(struct lm36923_data *dev_data)
+{
+    int ret = 0;
+    dev_data->is_suspend = 0;
+    if (!dev_data) {
+	    pr_err("%s: kzalloc error\n",__func__);
+	    return -ENOMEM;
+    }
+    pr_info("%s:now write mode to %d\n",__func__,dev_data->mode);
+    if(1 == dev_data->mode){
+	        if(mutex_trylock(&dev_data->lock)==0){
+	            pr_err("%s: lm36923 dev is busy\n",__func__);
+	            goto exit;
+	        }
 
+	        ret = backlight_i2c_write_bits(dev_data,lm_hl_data[0][0],LM_LSB_MASK,lm_hl_data[0][1]);  //write LSB
+	        if(ret < 0){
+	            pr_err("HL mode:write sgm chip LSB bit error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+
+	        ret = backlight_i2c_write(dev_data,lm_hl_data[1][0],lm_hl_data[1][1]); //write MSB
+	        if(ret < 0){
+	            pr_err("HL mode:write sgm chip MSB error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+	        mutex_unlock(&dev_data->lock);
+    }else if(0 == dev_data->mode){
+	        if(mutex_trylock(&dev_data->lock)==0){
+	            pr_err("%s: lm36923 dev is busy\n",__func__);
+	            goto exit;
+	        }
+
+	        ret = backlight_i2c_write_bits(dev_data,lm_nr_data[0][0],LM_LSB_MASK,lm_nr_data[0][1]);  //write LSB
+	        if(ret < 0){
+	            pr_err("NR mode:write sgm chip LSB bit error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+
+	        ret = backlight_i2c_write(dev_data,lm_nr_data[1][0],lm_nr_data[1][1]); //write MSB
+	        if(ret < 0){
+	            pr_err("NR mode:write sgm chip MSB error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+	        mutex_unlock(&dev_data->lock);
+    }
+    else{
+        pr_err("the error echo value, 0 or 1 is allowed only\n");
+    }
+exit:
+    return ret;
+}
+static int lm36923_suspend(struct lm36923_data *dev_data)
+{
+    int ret = 0;
+    dev_data->is_suspend = 1;
+    return ret;
+}
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+    int *blank;
+    struct fb_event *evdata = data;
+    struct lm36923_data *lm =
+		container_of(self, struct lm36923_data, fb_notif);
+
+    if (evdata && evdata->data && event == FB_EVENT_BLANK ) {
+		blank = evdata->data;
+	switch (*blank) {
+	case FB_BLANK_UNBLANK:
+		lm36923_resume(lm);
+		break;
+	case FB_BLANK_POWERDOWN:
+	case FB_BLANK_HSYNC_SUSPEND:
+	case FB_BLANK_VSYNC_SUSPEND:
+	case FB_BLANK_NORMAL:
+		lm36923_suspend(lm);
+		break;
+	default:
+		break;
+	}
+    }
+    return 0;
+}
+#endif
 static int lm36923_probe(struct i2c_client *client,
         const struct i2c_device_id *id)
 {
     int ret = 0;
-    struct lm36923_data *data;
+    struct lm36923_data *lm;
     struct device_node *np=client->dev.of_node;
 
     pr_err("%s: enter\n",__func__);
@@ -245,21 +350,22 @@ static int lm36923_probe(struct i2c_client *client,
         return -EIO;
     }
 
-    data = devm_kzalloc(&client->dev,sizeof(struct lm36923_data), GFP_KERNEL);
-    if (!data) {
+    lm = devm_kzalloc(&client->dev,sizeof(struct lm36923_data), GFP_KERNEL);
+    if (!lm) {
         pr_err("%s: kzalloc error\n",__func__);
         return -ENOMEM;
     }
 
-    data->bk_i2c_client = client;
-    mutex_init(&data->lock);
-    data->mode = 0;
+    lm->bk_i2c_client = client;
+    mutex_init(&lm->lock);
+    lm->mode = 0;
+	lm->is_suspend = 0;
 
-    i2c_set_clientdata(client, data);
-    lmdata=data;
+    i2c_set_clientdata(client, lm);
+    lmdata=lm;
 
     if (np) {
-        ret = lm36923_parse_dt(&client->dev, data, np);
+        ret = lm36923_parse_dt(&client->dev, lm, np);
         if (ret) {
             dev_err(&client->dev,"Unable to parse platfrom data err=%d\n", ret);
             goto kfree_exit;
@@ -276,18 +382,18 @@ static int lm36923_probe(struct i2c_client *client,
 
     if(0==chipid){
         printk(KERN_ERR "lm36923 chip\n");
-        mutex_lock(&data->lock);
-        data->name="lm36923\0";
-        ret = backlight_i2c_write_bits(data,lm_nr_data[0][0],LM_LSB_MASK,lm_nr_data[0][1]);
+        mutex_lock(&lm->lock);
+        lm->name="lm36923\0";
+        ret = backlight_i2c_write_bits(lm,lm_nr_data[0][0],LM_LSB_MASK,lm_nr_data[0][1]);
         if(ret < 0){
             pr_err("%s:NR mode:write lm chip LSB bit error\n",__func__);
         }
 
-        ret = backlight_i2c_write(data,lm_nr_data[1][0],lm_nr_data[1][1]); //write MSB
+        ret = backlight_i2c_write(lm,lm_nr_data[1][0],lm_nr_data[1][1]); //write MSB
         if(ret < 0){
             pr_err("%s:NR mode:write lm chip MSB error\n",__func__);
         }
-        mutex_unlock(&data->lock);
+        mutex_unlock(&lm->lock);
     }
     else{
         dev_err(&client->dev,"wrong chipid\n");
@@ -307,22 +413,32 @@ static int lm36923_probe(struct i2c_client *client,
         dev_err(&bd->dev,"Unable to create backlight_i2c_attribute\n");
         goto kfree_sysfs;
     }
+#if defined(CONFIG_FB)
+    lm->fb_notif.notifier_call = fb_notifier_callback;
+    ret = fb_register_client(&lm->fb_notif);
+    if (ret) {
+		pr_err("Unable to register fb_notifier: %d\n", ret);
+		goto err_register_fb_notif_failed;
+    }
+#endif
     return 0;
-
+#if defined(CONFIG_FB)
+err_register_fb_notif_failed:
+#endif
 kfree_sysfs:
     sysfs_remove_group(&bd->dev.kobj, &lm36923_attribute_group);
 kfree_node:
     backlight_device_unregister(bd);
 kfree_exit:
-    mutex_destroy(&data->lock);
+    mutex_destroy(&lm->lock);
     return ret;
 }
 
 static int lm36923_remove(struct i2c_client *client)
 {
-    struct lm36923_data *data = lmdata;
+    struct lm36923_data *lm = lmdata;
     if(lmdata != NULL)
-        mutex_destroy(&data->lock);
+        mutex_destroy(&lm->lock);
     sysfs_remove_group(&bd->dev.kobj, &lm36923_attribute_group);
     backlight_device_unregister(bd);
     return 0;
