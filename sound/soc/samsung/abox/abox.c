@@ -5414,7 +5414,7 @@ static int abox_disable(struct device *dev)
 	abox_log_drain_all(dev);
 	abox_request_dram_on(pdev, dev, false);
 	abox_save_register(data);
-	abox_cfg_gpio(dev, "idle");
+	abox_cfg_gpio(dev, "sleep");
 	abox_pad_retention(true);
 	data->enabled = false;
 	clk_disable(data->clk_cpu);
