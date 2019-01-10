@@ -1482,6 +1482,7 @@
 
 	sleep_alive: sleep-state {
 		PIN_EINT_PUD(gpa0-2, DIS);    /* SPK_PA_INT */
+		PIN_IN_PUD(gpa0-3, DIS);    /* SC_INTB */
 		PIN_IN_PUD(gpa0-4, DIS);    /* IF_PMIC_MRSTB */
 		PIN_EINT_PUD(gpa0-6, DIS);    /* CODEC_IRQ_N */
 		//PIN_IN_PUD(gpa0-7, DOWN);    /* SD_SIM_DET */
@@ -1522,7 +1523,7 @@
 		PIN_IN_PUD(gpm16-0, DOWN);    /* NC */
 		PIN_IN_PUD(gpm17-0, DOWN);    /* NC */
 		PIN_EINT_PUD(gpm20-0, DIS);    /* PSENSOR_INT */
-		PIN_IN_PUD(gpm22-0, DOWN);      /* NFC_PVDDEN */
+		//PIN_IN_PUD(gpm22-0, DOWN);      /* NFC_PVDDEN */
 		PIN_IN_PUD(gpm25-0, DIS);       /* SPK_ID */
 	};
 };
@@ -1625,9 +1626,45 @@
 		PIN_SLP(gpp0-1, IN, DIS);       /* I2C0_FG_PMIC_SCL */
 		PIN_SLP(gpp0-2, IN, DIS);       /* I2C1_IF_PMIC_SDA */
 		PIN_SLP(gpp0-3, IN, DIS);       /* I2C1_IF_PMIC_SCL */
+
+		/* Add 18.12.31 start */
+		PIN_SLP(gpp0-4, IN, DIS);       /* I2C2_NFC_SDA */
+		PIN_SLP(gpp0-5, IN, DIS);       /* I2C2_NFC_SCL */
+		PIN_SLP(gpp0-6, IN, DOWN);      /* N.C. */
+		PIN_SLP(gpp0-7, IN, DOWN);      /* N.C. */
+
+		PIN_SLP(gpp1-0, IN, DIS);       /* I2C4_TSP_SDA */
+		PIN_SLP(gpp1-1, IN, DIS);       /* I2C4_TSP_SCL */
+		PIN_SLP(gpp1-2, IN, DOWN);      /* N.C. */
+		PIN_SLP(gpp1-3, IN, DOWN);      /* N.C. */
+		PIN_SLP(gpp1-4, IN, DOWN);      /* N.C. */
+		PIN_SLP(gpp1-5, IN, DOWN);      /* N.C. */
+
+		PIN_SLP(gpc0-0, IN, DIS);       /* I2C_CAM0_REAR_MAIN_SDA */
+		PIN_SLP(gpc0-1, IN, DIS);       /* I2C_CAM0_REAR_MAIN_SCL */
+		PIN_SLP(gpc0-2, IN, DIS);       /* I2C_CAM1_REAR_SUB_SDA */
+		PIN_SLP(gpc0-3, IN, DIS);       /* I2C_CAM1_REAR_SUB_SCL */
+		PIN_SLP(gpc0-4, IN, DIS);       /* I2C_CAM2_FRONT_SDA */
+		PIN_SLP(gpc0-5, IN, DIS);       /* I2C_CAM2_FRONT_SCL */
+		PIN_SLP(gpc0-6, IN, DOWN);      /* N.C. */
+		PIN_SLP(gpc0-7, IN, DOWN);      /* N.C. */
+		/* Add 18.12.31 end */
+
+		/* ADD 19.01.01 start */
+		PIN_SLP(gpc1-2, IN, DOWN);      /* N.C. */
+
+		PIN_SLP(gpc2-3, PREV, DIS);     /* DISP_TES added 19.01.05 */
+		PIN_SLP(gpc2-4, IN, DOWN);      /* N.C. */
+
+		PIN_SLP(gpg0-0, PREV, DIS);    /* NFC_PD */
+
+		//PIN_SLP(gpg0-1, PREV, DIS);    /* NFC_CLKREQ */
+		//PIN_SLP(gpg0-2, PREV, DIS);    /* NFC_WAKE */
+		/* ADD 19.01.01 end t*/
+
 		PIN_SLP(gpg0-7, PREV, DIS);    	/* PMIC_WRSTBI */
 
-		PIN_SLP(gpg1-1, PREV, DIS);    	/* VDD_CODEC_EN */
+		//PIN_SLP(gpg1-1, PREV, DIS);    	/* VDD_CODEC_EN */
 		PIN_SLP(gpg1-4, PREV, DIS);    	/* LCD_RESET_N */
 
 		//PIN_SLP(gpg2-0, PREV, DIS);    /* FP_LDO_EN_3V3 */
