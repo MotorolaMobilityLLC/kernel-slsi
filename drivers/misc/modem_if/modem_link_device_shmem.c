@@ -103,7 +103,6 @@ static const unsigned long CRC32_TABLE[256] = {
 #ifdef CONFIG_MODEM_IF_ADAPTIVE_QOS
 static struct pm_qos_request pm_qos_req_cpu[2];
 static struct pm_qos_request pm_qos_req_mif;
-static struct pm_qos_request pm_qos_req_int;
 #endif
 
 enum smc_error_flag {
@@ -251,10 +250,24 @@ static void max_qos_timer_callback(unsigned long data)
 	schedule_work(&shmd->pm_qos_work_normal);
 }
 
-static void check_rx_shmem_status(struct shmem_link_device *shmd,
-		struct circ_status *circ)
+static enum hrtimer_restart tp_monitor_timer_func(struct hrtimer *timer)
 {
-	if (circ->size > SHM_RX_MAX_QOS_TRIGGER_BYTES) {
+	struct shmem_link_device *shmd = container_of(timer, struct shmem_link_device, tp_timer);
+
+	unsigned long rx_bytes;
+	ktime_t currtime, interval;
+
+	currtime = ktime_get();
+	interval = ktime_set(0, TIMER_INTERVAL_NS); /* 500ms */
+	hrtimer_forward(timer, currtime, interval);
+
+	rx_bytes = shmd->ndev_rx_bytes - shmd->prev_ndv_rx_bytes;
+	shmd->prev_ndv_rx_bytes = shmd->ndev_rx_bytes;
+
+	if (!shmd->ndev_rx_bytes || !rx_bytes)
+		return HRTIMER_RESTART;
+
+	if (rx_bytes > SHM_RX_MAX_QOS_TRIGGER_BYTES) {
 		/* Timer is working */
 		if (timer_pending(&shmd->max_qos_timer)) {
 			/* Expand timer value */
@@ -267,6 +280,8 @@ static void check_rx_shmem_status(struct shmem_link_device *shmd,
 				msecs_to_jiffies(SHM_RX_MIN_QOS_HOLD_MS));
 		}
 	}
+
+	return HRTIMER_RESTART;
 }
 #endif
 
@@ -991,7 +1006,9 @@ static int msg_handler(struct shmem_link_device *shmd, struct mem_status *mst,
 			return 0;
 		}
 
-		check_rx_shmem_status(shmd, &circ);
+#ifdef CONFIG_MODEM_IF_ADAPTIVE_QOS
+	shmd->ndev_rx_bytes += circ.size;
+#endif
 
 		/* Read data in the RXQ */
 		ret = rx_ipc_frames(shmd, i, &circ, *budget, &work_done);
@@ -1114,7 +1131,7 @@ static void msg_handler(struct shmem_link_device *shmd, struct mem_status *mst)
 		}
 
 #ifdef CONFIG_MODEM_IF_ADAPTIVE_QOS
-		check_rx_shmem_status(shmd, &circ);
+	shmd->ndev_rx_bytes += circ.size;
 #endif
 
 		/* Read data in the RXQ */
@@ -1466,7 +1483,6 @@ static void shmem_qos_work_max(struct work_struct *work)
 	mif_info("Request MAX QOS\n");
 
 	pm_qos_update_request(&pm_qos_req_mif, INT_MAX);
-	pm_qos_update_request(&pm_qos_req_int, INT_MAX);
 	pm_qos_update_request(&pm_qos_req_cpu[0], INT_MAX);
 	pm_qos_update_request(&pm_qos_req_cpu[1], INT_MAX);
 
@@ -1479,7 +1495,6 @@ static void shmem_qos_work_normal(struct work_struct *work)
 
 	pm_qos_update_request(&pm_qos_req_cpu[0], 0);
 	pm_qos_update_request(&pm_qos_req_cpu[1], 0);
-	pm_qos_update_request(&pm_qos_req_int, 0);
 	pm_qos_update_request(&pm_qos_req_mif, 0);
 }
 #endif
@@ -2829,6 +2844,7 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err = 0;
 	int i = 0;
+	ktime_t ktime;
 	mif_info("+++\n");
 
 	/* Get the modem (platform) data */
@@ -3025,10 +3041,15 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 	shmd->irq_cp2ap_wakelock = modem->mbx->irq_cp2ap_wake_lock;
 
 #ifdef CONFIG_MODEM_IF_ADAPTIVE_QOS
+	hrtimer_init(&shmd->tp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	shmd->tp_timer.function = tp_monitor_timer_func;
+
+	ktime = ktime_set(1, 0);
+	hrtimer_start(&shmd->tp_timer, ktime, HRTIMER_MODE_REL);
+
 	pm_qos_add_request(&pm_qos_req_cpu[0], PM_QOS_CLUSTER0_FREQ_MIN, 0);
 	pm_qos_add_request(&pm_qos_req_cpu[1], PM_QOS_CLUSTER1_FREQ_MIN, 0);
 	pm_qos_add_request(&pm_qos_req_mif, PM_QOS_BUS_THROUGHPUT, 0);
-	pm_qos_add_request(&pm_qos_req_int, PM_QOS_DEVICE_THROUGHPUT, 0);
 
 	INIT_WORK(&shmd->pm_qos_work_max, shmem_qos_work_max);
 	INIT_WORK(&shmd->pm_qos_work_normal, shmem_qos_work_normal);
