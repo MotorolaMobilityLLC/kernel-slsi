@@ -37,6 +37,10 @@ struct sgm37603a_data {
 	struct mutex lock;
 	unsigned char mode;
 	char* name;
+#if defined(CONFIG_FB)
+	struct notifier_block fb_notif;
+#endif
+	unsigned char is_suspend;
 };
 
 unsigned char sgm_nr_data[][2]=

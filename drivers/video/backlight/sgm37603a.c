@@ -18,6 +18,9 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#if defined(CONFIG_FB)
+#include <linux/notifier.h>
+#endif
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
 #endif
@@ -86,10 +89,21 @@ static ssize_t sgm37603a_mode_store(struct device *dev, struct device_attribute 
         return ret;
     }
 
+    i2c_data->mode = value;
+
+    if(i2c_data->is_suspend){
+        pr_err("device is suspend now, set HBM mode on next power on\n");
+        goto exit;
+    }
+
     pr_err("%s: current mode=%d, now write to %d\n", __func__, i2c_data->mode, value);
 
     if(1 == value){
-        mutex_lock(&i2c_data->lock);
+        if(mutex_trylock(&i2c_data->lock)==0){
+            pr_err("%s: sgm37603a dev is busy\n",__func__);
+            goto exit;
+        }
+
         ret = backlight_i2c_write_bits(i2c_data,sgm_hl_data[0][0],SGM_LSB_MASK,sgm_hl_data[0][1]);  //write LSB
         if(ret < 0){
             pr_err("HL mode:write sgm chip LSB bit error\n");
@@ -103,11 +117,14 @@ static ssize_t sgm37603a_mode_store(struct device *dev, struct device_attribute 
             mutex_unlock(&i2c_data->lock);
             goto exit;
         }
-        i2c_data->mode = value;
         mutex_unlock(&i2c_data->lock);
     }
     else if(0 == value){
-        mutex_lock(&i2c_data->lock);
+        if(mutex_trylock(&i2c_data->lock)==0){
+            pr_err("%s: sgm37603a dev is busy\n",__func__);
+            goto exit;
+        }
+
         ret = backlight_i2c_write_bits(i2c_data,sgm_nr_data[0][0],SGM_LSB_MASK,sgm_nr_data[0][1]);  //write LSB
         if(ret < 0){
             pr_err("NR mode:write sgm chip LSB bit error\n");
@@ -121,7 +138,6 @@ static ssize_t sgm37603a_mode_store(struct device *dev, struct device_attribute 
             mutex_unlock(&i2c_data->lock);
             goto exit;
         }
-        i2c_data->mode = value;
         mutex_unlock(&i2c_data->lock);
     }
     else{
@@ -158,8 +174,8 @@ static ssize_t sgm37603a_chip_reg_store(struct device *dev,
     int ret = -1;
     unsigned char reg;
     unsigned char val;
-    struct sgm37603a_data *i2c_data = sgmdata;
-    
+    struct sgm37603a_data *i2c_data = sgmdata;
+
     if(!count || i2c_data==NULL){
         pr_err("%s:count=0 or i2c_data is NULL pointer\n",__func__);
         return -EINVAL;
@@ -233,12 +249,104 @@ static int getChipId(struct device *dev){
     return (value&BACKLIGHT_CHIP_ID_REG_MASK)>>4;
 }
 
+#if defined(CONFIG_FB)
+static int sgm37603a_resume(struct sgm37603a_data *dev_data)
+{
+    int ret = 0;
 
+    dev_data->is_suspend = 0;
+    if (!dev_data) {
+	    pr_err("%s: kzalloc error\n",__func__);
+	    return -ENOMEM;
+    }
+
+    pr_info("%s:now write mode to %d\n",__func__,dev_data->mode);
+    if(1 == dev_data->mode){
+	        if(mutex_trylock(&dev_data->lock)==0){
+	            pr_err("%s: sgm37603a dev is busy\n",__func__);
+	            goto exit;
+	        }
+
+	        ret = backlight_i2c_write_bits(dev_data,sgm_hl_data[0][0],SGM_LSB_MASK,sgm_hl_data[0][1]);  //write LSB
+	        if(ret < 0){
+	            pr_err("HL mode:write sgm chip LSB bit error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+
+	        ret = backlight_i2c_write(dev_data,sgm_hl_data[1][0],sgm_hl_data[1][1]); //write MSB
+	        if(ret < 0){
+	            pr_err("HL mode:write sgm chip MSB error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+	        mutex_unlock(&dev_data->lock);
+    }else if(0 == dev_data->mode){
+	        if(mutex_trylock(&dev_data->lock)==0){
+	            pr_err("%s: sgm37603a dev is busy\n",__func__);
+	            goto exit;
+	        }
+
+	        ret = backlight_i2c_write_bits(dev_data,sgm_nr_data[0][0],SGM_LSB_MASK,sgm_nr_data[0][1]);  //write LSB
+	        if(ret < 0){
+	            pr_err("NR mode:write sgm chip LSB bit error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+
+	        ret = backlight_i2c_write(dev_data,sgm_nr_data[1][0],sgm_nr_data[1][1]); //write MSB
+	        if(ret < 0){
+	            pr_err("NR mode:write sgm chip MSB error\n");
+	            mutex_unlock(&dev_data->lock);
+	            goto exit;
+	        }
+	        mutex_unlock(&dev_data->lock);
+    }
+    else{
+        pr_err("the error echo value, 0 or 1 is allowed only\n");
+    }
+exit:
+    return ret;
+}
+static int sgm37603a_suspend(struct sgm37603a_data *dev_data)
+{
+    int ret = 0;
+    dev_data->is_suspend = 1;
+    return ret;
+}
+
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+    int *blank;
+    struct fb_event *evdata = data;
+    struct sgm37603a_data *sgm =
+		container_of(self, struct sgm37603a_data, fb_notif);
+
+    if (evdata && evdata->data && event == FB_EVENT_BLANK ) {
+		blank = evdata->data;
+		switch (*blank) {
+		case FB_BLANK_UNBLANK:
+			sgm37603a_resume(sgm);
+			break;
+		case FB_BLANK_POWERDOWN:
+		case FB_BLANK_HSYNC_SUSPEND:
+		case FB_BLANK_VSYNC_SUSPEND:
+		case FB_BLANK_NORMAL:
+			sgm37603a_suspend(sgm);
+			break;
+		default:
+			break;
+		}
+    }
+    return 0;
+}
+#endif
 static int sgm37603a_probe(struct i2c_client *client,
         const struct i2c_device_id *id)
 {
     int ret = 0;
-    struct sgm37603a_data *data;
+    struct sgm37603a_data *sgm;
     struct device_node *np=client->dev.of_node;
 
     pr_err("%s: enter\n",__func__);
@@ -248,20 +356,21 @@ static int sgm37603a_probe(struct i2c_client *client,
         return -EIO;
     }
 
-    data = devm_kzalloc(&client->dev,sizeof(struct sgm37603a_data), GFP_KERNEL);
-    if (!data) {
+    sgm = devm_kzalloc(&client->dev,sizeof(struct sgm37603a_data), GFP_KERNEL);
+    if (!sgm) {
         pr_err("%s: kzalloc error\n",__func__);
         return -ENOMEM;
     }
 
-    data->bk_i2c_client = client;
-    mutex_init(&data->lock);
-    data->mode = 0;
-    i2c_set_clientdata(client, data);
-    sgmdata=data;
+    sgm->bk_i2c_client = client;
+    mutex_init(&sgm->lock);
+    sgm->mode = 0;
+	sgm->is_suspend = 0;
+    i2c_set_clientdata(client, sgm);
+    sgmdata=sgm;
 
     if (np) {
-        ret = sgm37603a_parse_dt(&client->dev, data, np);
+        ret = sgm37603a_parse_dt(&client->dev, sgm, np);
         if (ret) {
             dev_err(&client->dev,"Unable to parse platfrom data err=%d\n", ret);
             goto kfree_exit;
@@ -277,18 +386,18 @@ static int sgm37603a_probe(struct i2c_client *client,
 
     if(1==chipid){
         printk(KERN_ERR "sgm37603 chip\n");
-        mutex_lock(&data->lock);
-        data->name="sgm37603\0";
-        ret = backlight_i2c_write_bits(data,sgm_nr_data[0][0],SGM_LSB_MASK,sgm_nr_data[0][1]);
+        mutex_lock(&sgm->lock);
+        sgm->name="sgm37603\0";
+        ret = backlight_i2c_write_bits(sgm,sgm_nr_data[0][0],SGM_LSB_MASK,sgm_nr_data[0][1]);
         if(ret < 0){
             pr_err("%s:NR mode:write sgm chip LSB bit error\n",__func__);
         }
         //backlight_i2c_write(data,sgm_nr_data[0][0],sgm_nr_data[0][1]); //write LSB
-        ret = backlight_i2c_write(data,sgm_nr_data[1][0],sgm_nr_data[1][1]); //write MSB
+        ret = backlight_i2c_write(sgm,sgm_nr_data[1][0],sgm_nr_data[1][1]); //write MSB
         if(ret < 0){
             pr_err("%s:NR mode:write sgm chip MSB error\n",__func__);
         }
-        mutex_unlock(&data->lock);
+        mutex_unlock(&sgm->lock);
     }
     else{
         dev_err(&client->dev,"wrong chipid\n");
@@ -308,22 +417,32 @@ static int sgm37603a_probe(struct i2c_client *client,
         dev_err(&bd->dev,"Unable to create backlight_i2c_attribute\n");
         goto kfree_sysfs;
     }
+#if defined(CONFIG_FB)
+    sgm->fb_notif.notifier_call = fb_notifier_callback;
+    ret = fb_register_client(&sgm->fb_notif);
+    if (ret) {
+		pr_err("Unable to register fb_notifier: %d\n", ret);
+		goto err_register_fb_notif_failed;
+    }
+#endif
     return 0;
-    
+#if defined(CONFIG_FB)
+err_register_fb_notif_failed:
+#endif
 kfree_sysfs:
     sysfs_remove_group(&bd->dev.kobj, &sgm37603a_attribute_group);
 kfree_node:
     backlight_device_unregister(bd);
 kfree_exit:
-    mutex_destroy(&data->lock);
+    mutex_destroy(&sgm->lock);
     return ret;
 }
 
 static int sgm37603a_remove(struct i2c_client *client)
 {
-    struct sgm37603a_data *data = sgmdata;
+    struct sgm37603a_data *sgm = sgmdata;
     if(sgmdata != NULL)
-        mutex_destroy(&data->lock);
+        mutex_destroy(&sgm->lock);
     sysfs_remove_group(&bd->dev.kobj, &sgm37603a_attribute_group);
     backlight_device_unregister(bd);
     return 0;
@@ -358,6 +477,7 @@ static int __init sgm37603a_init(void)
     pr_info("sgm37603a_init\n");
 
     ret = i2c_add_driver(&sgm37603a_driver);
+    pr_info("sgm37603a_init ret=%d\n",ret);
     if(ret){
         pr_err("fail to add sgm37603 driver\n");
         return ret;
