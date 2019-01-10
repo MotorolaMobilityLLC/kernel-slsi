@@ -87,7 +87,7 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #if WAKEUP_GESTURE
 extern const uint16_t gesture_key_array[];
 #endif
-#define BOOT_UPDATE_FIRMWARE 1
+#define BOOT_UPDATE_FIRMWARE 0
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw.bin"
 /* ---ESD Protect.--- */
 #define NVT_TOUCH_ESD_PROTECT 1
