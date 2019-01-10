@@ -50,8 +50,10 @@
 #define MEM_CRASH_REASON_RIL	2
 #define MEM_CRASH_REASON_SIZE	512
 
-#define SHM_RX_MAX_QOS_TRIGGER_BYTES	4000		/* 32 Mbps */
-#define SHM_RX_MIN_QOS_HOLD_MS		500		/* 500ms */
+#define SHM_RX_MAX_QOS_TRIGGER_BYTES	6250000	/* Express 100Mbps as Bytes per 0.5ms */
+#define SHM_RX_MIN_QOS_HOLD_MS		500	/* 500ms */
+
+#define TIMER_INTERVAL_NS	500000000	/* 500ms */
 
 struct crash_reason {
 	u32 owner;
@@ -244,6 +246,13 @@ struct shmem_link_device {
 
 #ifdef CONFIG_MODEM_IF_NET_GRO
 	struct timespec flush_time;
+#endif
+
+#ifdef CONFIG_MODEM_IF_ADAPTIVE_QOS
+	struct hrtimer tp_timer;
+
+	unsigned long ndev_rx_bytes;
+	unsigned long prev_ndv_rx_bytes;
 #endif
 };
 
