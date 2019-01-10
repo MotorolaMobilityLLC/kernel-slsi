@@ -18,6 +18,7 @@
 #include "himax-hx83112a-i2c.dtsi"
 #include "wing-sensor.dtsi"
 #include "exynos9610-robusta2-motor.dtsi"
+#include "exynos9610_gpio_config_macros.dtsi"
 
 / {
 	fragment@common {
@@ -1118,6 +1119,13 @@
 					};
 				};
 			};
+
+			sleep_gpio {
+				compatible = "samsung,exynos-sleepgpio";
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&sleep_top &sleep_fsys &sleep_shub &sleep_alive &sleep_cmgp>;
+				pinctrl-1 = <&sleep_top &sleep_fsys &sleep_shub &sleep_alive &sleep_cmgp>;
+			};
 		}; /* end of __overlay__ */
 	}; /* end of fragment */
 }; /* end of root */
@@ -1466,12 +1474,85 @@
 	};
 
 	lra_int_status: lra_int_status {
-                samsung,pins = "gpa2-7";
-                samsung,pin-function = <0>;
-                samsung,pin-val = <1>;
-                samsung,pin-pud = <3>;
-        };
+		samsung,pins = "gpa2-7";
+		samsung,pin-function = <0>;
+		samsung,pin-val = <1>;
+		samsung,pin-pud = <3>;
+	};
 
+	sleep_alive: sleep-state {
+		PIN_EINT_PUD(gpa0-2, DIS);    /* SPK_PA_INT */
+		PIN_IN_PUD(gpa0-4, DIS);    /* IF_PMIC_MRSTB */
+		PIN_EINT_PUD(gpa0-6, DIS);    /* CODEC_IRQ_N */
+		//PIN_IN_PUD(gpa0-7, DOWN);    /* SD_SIM_DET */
+
+		PIN_IN_PUD(gpa1-1, DOWN);    /* FP_RST_NT */
+		PIN_IN_PUD(gpa1-3, DOWN);    /* TP_RST_N */
+		PIN_IN_PUD(gpa1-5, DIS);    /* KEY_VOL_UP */
+		PIN_IN_PUD(gpa1-6, DIS);    /* KEY_VOL_DOWN */
+		//PIN_INT_PUD(gpa1-7, DIS);    /* PMIC_ONOB */
+
+		PIN_EINT_PUD(gpa2-0, DIS);    /* PMIC_IRQB */
+		//PIN_EINT_PUD(gpa2-1, DIS);    /* IF_PMIC_IRQB */
+		PIN_EINT_PUD(gpa2-2, DIS);    /* IF_PMIC_INTB */
+		//PIN_EINT_PUD(gpa2-3, DIS);    /* FG_INTB */
+		PIN_IN_PUD(gpa2-4, DOWN);    /* TP_INT_B */
+		PIN_IN_PUD(gpa2-5, DOWN);    /* MOTOR_RSTN */
+		PIN_IN_PUD(gpa2-6, DOWN);    /* SAR_PS_INT */
+		PIN_IN_PUD(gpa2-7, DOWN);    /* MOTOR_INTN */
+
+		PIN_IN_PUD(gpq0-2, UP);    /* SPEEDY_PMIC */
+		PIN_IN_PUD(gpq0-3, DOWN);    /* AP_UART0_RXD */
+		PIN_IN_PUD(gpq0-4, DOWN);    /* AP_UART0_TXD */
+	};
+};
+
+&pinctrl_1 {
+	sleep_cmgp: sleep-state {
+		PIN_IN_PUD(gpm2-0, DIS);    /* LCD_SCL */
+		PIN_IN_PUD(gpm3-0, DIS);    /* LCD_SCA */
+		PIN_IN_PUD(gpm4-0, DIS);    /* SENSOR_SCL_1.8V */
+		PIN_IN_PUD(gpm5-0, DIS);    /* SENSOR_SDA_1.8V */
+		PIN_IN_PUD(gpm6-0, DIS);    /* LT_SENSOR_SCL_1.8V */
+		PIN_IN_PUD(gpm7-0, DIS);    /* LT_SENSOR_SDA_1.8V */
+		PIN_IN_PUD(gpm8-0, DIS);    /* MOTOR_I2C_SCL */
+		PIN_IN_PUD(gpm9-0, DIS);    /* AP_UART0_TXD */
+		PIN_IN_PUD(gpm10-0, DIS);    /* SAR_SENSOR_SCL */
+		PIN_IN_PUD(gpm11-0, DIS);    /* SAR_SENSOR_SDA */
+		PIN_IN_PUD(gpm16-0, DOWN);    /* NC */
+		PIN_IN_PUD(gpm17-0, DOWN);    /* NC */
+		PIN_EINT_PUD(gpm20-0, DIS);    /* PSENSOR_INT */
+		PIN_IN_PUD(gpm22-0, DOWN);      /* NFC_PVDDEN */
+		PIN_IN_PUD(gpm25-0, DIS);       /* SPK_ID */
+	};
+};
+
+&pinctrl_2 {
+	sleep_aud: sleep-state {
+		PIN_SLP(gpb0-0, IN, DOWN);    /* NC */
+		PIN_SLP(gpb0-1, IN, DOWN);    /* I2S0_CODEC_BCLK */
+		PIN_SLP(gpb0-2, IN, DOWN);    /* I2S0_CODEC_WS */
+		PIN_SLP(gpb0-3, IN, DOWN);    /* I2S0_CODEC_SDO */
+		PIN_SLP(gpb0-4, IN, DOWN);    /* I2S0_CODEC_SDI */
+
+		PIN_SLP(gpb1-0, IN, DOWN);    /* NC */
+		PIN_SLP(gpb1-1, IN, DOWN);    /* NC */
+		PIN_SLP(gpb1-2, IN, DOWN);    /* NC */
+		PIN_SLP(gpb1-3, IN, DOWN);    /* NC */
+
+		PIN_SLP(gpb2-0, IN, DOWN);    /* I2S2_CODEC_BCLK */
+		PIN_SLP(gpb2-1, IN, DOWN);    /* I2S2_CODEC_WS */
+		PIN_SLP(gpb2-2, IN, DOWN);    /* I2S2_CODEC_SDO */
+		PIN_SLP(gpb2-3, IN, DOWN);    /* I2S2_CODEC_SDI */
+		PIN_SLP(gpb2-4, IN, DOWN);    /* FM_SPDY_S620 */
+	};
+};
+
+&pinctrl_3 {
+	sleep_fsys: sleep-fsys {
+		PIN_SLP(gpf0-0, PREV, DIS);    /* UFS_EMBD_REFCLK_OUT */
+		PIN_SLP(gpf0-1, PREV, DIS);    /* UFS_EMBD_RESETN */
+	};
 };
 
 &pinctrl_4 {
@@ -1537,6 +1618,45 @@
 		samsung,pins ="gpg0-0";
 		samsung,pin-con-pdn =<3>;
 		samsung,pin-pud-pdn = <0>;
+	};
+
+	sleep_top: sleep-top {
+		PIN_SLP(gpp0-0, IN, DIS);       /* I2C0_FG_PMIC_SDA */
+		PIN_SLP(gpp0-1, IN, DIS);       /* I2C0_FG_PMIC_SCL */
+		PIN_SLP(gpp0-2, IN, DIS);       /* I2C1_IF_PMIC_SDA */
+		PIN_SLP(gpp0-3, IN, DIS);       /* I2C1_IF_PMIC_SCL */
+		PIN_SLP(gpg0-7, PREV, DIS);    	/* PMIC_WRSTBI */
+
+		PIN_SLP(gpg1-1, PREV, DIS);    	/* VDD_CODEC_EN */
+		PIN_SLP(gpg1-4, PREV, DIS);    	/* LCD_RESET_N */
+
+		//PIN_SLP(gpg2-0, PREV, DIS);    /* FP_LDO_EN_3V3 */
+		//PIN_SLP(gpg2-1, PREV, DIS);    /* LDO_BL_EN */
+		//PIN_SLP(gpg2-2, PREV, DIS);    /* FP_LDOEN_1V8 */
+		//PIN_SLP(gpg2-3, PREV, DIS);    /* FCAM_AVDD_EN */
+		//PIN_SLP(gpg2-4, PREV, DIS);    /* FCAM_DVDD_EN */
+		//PIN_SLP(gpg2-5, PREV, DIS);    /* CAM_OVDD_EN */
+		//PIN_SLP(gpg2-6, PREV, DIS);    /* RCAM_MAIN_AVDD_EN */
+		//PIN_SLP(gpg2-7, PREV, DIS);    /* RCAM_DVDD_EN */
+
+		//PIN_SLP(gpg3-0, PREV, DIS);    /* LCD_BIAS_ENN */
+		//PIN_SLP(gpg3-1, PREV, DIS);    /* LCD_BIAS_ENP */
+		//PIN_SLP(gpg3-3, PREV, DIS);    /* AUDIO_PA_RST */
+		//PIN_SLP(gpg3-4, PREV, DIS);    /* LCD_LDO_1V8_En */
+
+		//PIN_SLP(gpg4-0, PREV, DIS);    /* XBOOTLDO */
+	};
+};
+
+&pinctrl_5 {
+	sleep_shub: sleep-shub {
+		PIN_SLP(gph0-0, IN, DOWN);    /* ACC_SPI_CLK */
+		PIN_SLP(gph0-1, IN, DOWN);    /* ACC_SPI_MOSI */
+		PIN_SLP(gph0-2, IN, DOWN);    /* ACC_SPI_MISO */
+		PIN_SLP(gph0-3, IN, DOWN);    /* ACC_SPI_CS_N */
+		PIN_SLP(gph1-0, IN, DOWN);    /* ACCEL_GRY0_INT1 */
+		PIN_SLP(gph1-1, IN, DOWN);    /* ACCEL_GRY0_INT2 */
+		PIN_SLP(gph1-2, IN, DOWN);    /* LIGHT_INT */
 	};
 };
 
