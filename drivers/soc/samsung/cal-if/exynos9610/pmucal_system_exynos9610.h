@@ -139,8 +139,10 @@ struct pmucal_seq pmucal_lpm_init[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CTRL_REFCLK_OSC__MUX_SEL", 0x11860000, 0x0c18, (0x1 << 4), (0x1 << 4), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PPC_CPUCL0__USE_PPC_BY_SW", 0x11860000, 0x0740, (0x1 << 21), (0x0 << 21), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PPC_CPUCL0__MANUAL_CONTROL_USE_PPC ", 0x11860000, 0x0740, (0x1 << 20), (0x1 << 20), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL0_QCH", 0x120f0000, 0x31cc, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL1_QCH", 0x120f0000, 0x31d0, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
 };
-unsigned int pmucal_lpm_init_size = 139;
+unsigned int pmucal_lpm_init_size = 141;
 /* individual sequence descriptor for each power mode - enter, exit, early_wakeup */
 struct pmucal_seq enter_sicd[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CLUSTER0_CPU0", 0x11860000, 0x1000, (0xf << 0), (0xF << 0), 0, 0, 0, 0),
@@ -688,6 +690,8 @@ struct pmucal_seq enter_sleep[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "GRP7_INTR_BID_ENABL", 0x11870000, 0x0700, (0x3 << 0), (0x3 << 0), 0, 0, 0, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_CONFIGURATION", 0x11860000, 0x0200, (0x1 << 16), (0x0 << 16), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_MIF_CONFIGURATION", 0x11860000, 0x0240, (0x1 << 16), (0x0 << 16), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL0_QCH", 0x120f0000, 0x31cc, (0x7 << 0), (0x4 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL1_QCH", 0x120f0000, 0x31d0, (0x7 << 0), (0x4 << 0), 0, 0, 0xffffffff, 0),
 };
 
 struct pmucal_seq save_sleep[] = {
@@ -1190,11 +1194,15 @@ struct pmucal_seq exit_sleep[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "VIPX_OPTION[31] (EMULATION)", 0x11860000, 0x40E8, (0x1 << 31), (0x0 << 31), 0, 0, 0, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_MIF_OPTION", 0x11860000, 0x0248, (0x1 << 0), (0x0 << 0), 0, 0, 0, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "GRP7_INTR_BID_ENABL", 0x11870000, 0x0700, (0x3 << 0), (0x0 << 0), 0, 0, 0, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL0_QCH", 0x120f0000, 0x31cc, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL1_QCH", 0x120f0000, 0x31d0, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
 };
 
 struct pmucal_seq earlywkup_sleep[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_CONFIGURATION", 0x11860000, 0x0200, (0x1 << 16), (0x1 << 16), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_MIF_CONFIGURATION", 0x11860000, 0x0240, (0x1 << 16), (0x1 << 16), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL0_QCH", 0x120f0000, 0x31cc, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL1_QCH", 0x120f0000, 0x31d0, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
 };
 
 struct pmucal_seq enter_sleep_usb_on[] = {
@@ -1355,6 +1363,8 @@ struct pmucal_seq enter_sleep_usb_on[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "GRP7_INTR_BID_ENABL", 0x11870000, 0x0700, (0x3 << 0), (0x3 << 0), 0, 0, 0, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_CONFIGURATION", 0x11860000, 0x0200, (0x1 << 16), (0x0 << 16), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_MIF_CONFIGURATION", 0x11860000, 0x0240, (0x1 << 16), (0x0 << 16), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL0_QCH", 0x120f0000, 0x31cc, (0x7 << 0), (0x4 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL1_QCH", 0x120f0000, 0x31d0, (0x7 << 0), (0x4 << 0), 0, 0, 0xffffffff, 0),
 };
 
 struct pmucal_seq save_sleep_usb_on[] = {
@@ -1857,11 +1867,15 @@ struct pmucal_seq exit_sleep_usb_on[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "VIPX_OPTION[31] (EMULATION)", 0x11860000, 0x40E8, (0x1 << 31), (0x0 << 31), 0, 0, 0, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_MIF_OPTION", 0x11860000, 0x0248, (0x1 << 0), (0x0 << 0), 0, 0, 0, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "GRP7_INTR_BID_ENABL", 0x11870000, 0x0700, (0x3 << 0), (0x0 << 0), 0, 0, 0, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL0_QCH", 0x120f0000, 0x31cc, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL1_QCH", 0x120f0000, 0x31d0, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
 };
 
 struct pmucal_seq earlywkup_sleep_usb_on[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_CONFIGURATION", 0x11860000, 0x0200, (0x1 << 16), (0x1 << 16), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CENTRAL_SEQ_MIF_CONFIGURATION", 0x11860000, 0x0240, (0x1 << 16), (0x1 << 16), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL0_QCH", 0x120f0000, 0x31cc, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "QCH_CON_PPMU_ACE_CPUCL1_QCH", 0x120f0000, 0x31d0, (0x7 << 0), (0x6 << 0), 0, 0, 0xffffffff, 0),
 };
 
 struct pmucal_seq enter_sleep_aud_on[] = {
