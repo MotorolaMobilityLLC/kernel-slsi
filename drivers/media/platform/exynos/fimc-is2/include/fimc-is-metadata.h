@@ -2060,10 +2060,20 @@ struct vra_ext_meta {
 	uint32_t		reserved[10];
 };
 
+struct ddk_setfile_ver
+{
+	uint32_t	header1; // 0xF85A20B4
+	uint32_t	header2; // 0xCA539ADF
+	char		ddk_version[128];
+	char		serfile_version[128];
+};
+
 struct camera2_shot_ext_user {
 	int		crc_result[CAMERA_CRC_INDEX_MAX];
 	int		focus_actual_pos;
 	int		focus_target_pos;
+
+	struct ddk_setfile_ver	ddk_version;
 };
 
 /** \brief
