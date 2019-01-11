@@ -3087,7 +3087,8 @@ int set_long_term_expo_mode(struct fimc_is_sensor_interface *itf,
 	sensor_peri = container_of(itf, struct fimc_is_device_sensor_peri, sensor_interface);
 	FIMC_BUG(!sensor_peri);
 
-	sensor_peri->cis.long_term_mode.sen_strm_off_on_enable = long_term_expo_mode->sen_strm_off_on_enable;
+	/* as this function called, always set true for operate */
+	sensor_peri->cis.long_term_mode.sen_strm_off_on_enable = true;
 	sensor_peri->cis.long_term_mode.frm_num_strm_off_on_interval = long_term_expo_mode->frm_num_strm_off_on_interval;
 
 	if (sensor_peri->cis.long_term_mode.sen_strm_off_on_enable) {
