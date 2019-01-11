@@ -2544,6 +2544,14 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 				prev->shot->ctl.aa.aeExpCompensation		= frame->shot->ctl.aa.aeExpCompensation;
 				prev->shot->ctl.aa.aeLock			= frame->shot->ctl.aa.aeLock;
 				prev->shot->ctl.lens.opticalStabilizationMode	= frame->shot->ctl.lens.opticalStabilizationMode;
+
+				if (frame->shot->ctl.aa.sceneMode == AA_SCENE_MODE_PRO_MODE
+					&& frame->shot->ctl.aa.captureIntent == AA_CAPTURE_INTENT_STILL_CAPTURE_EXPOSURE_DYNAMIC_SHOT) {
+					prev->shot->ctl.aa.sceneMode = frame->shot->ctl.aa.sceneMode;
+					prev->shot->ctl.aa.captureIntent = frame->shot->ctl.aa.captureIntent;
+					prev->shot->ctl.aa.vendor_captureExposureTime = frame->shot->ctl.aa.vendor_captureExposureTime;
+					prev->shot->ctl.aa.vendor_captureCount = frame->shot->ctl.aa.vendor_captureCount;
+				}
 			}
 		}
 #endif
