@@ -306,7 +306,8 @@ struct aw8695 {
 
     int reset_gpio;
     int irq_gpio;
-
+    struct pinctrl *pinctrl;
+    struct pinctrl_state *pinctrl_state_active;
     unsigned char hwen_flag;
     unsigned char flags;
     unsigned char chipid;
