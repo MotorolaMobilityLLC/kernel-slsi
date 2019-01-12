@@ -634,7 +634,7 @@
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
-	multi_ch = <2>;
+	multi_ch = <1>;
 	use_ssvc1_internal;
 	use_ssvc2_internal;
 	status = "okay";
