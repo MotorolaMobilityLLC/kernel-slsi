@@ -40,7 +40,7 @@
  ******************************************************/
 #define AW8695_I2C_NAME "aw8695_haptic"
 #define AW8695_HAPTIC_NAME "aw8695_haptic"
-
+#define AW8695_INT_PINCTRL_NAME "lra_int_status"
 #define AW8695_VERSION "v1.2.8"
 
 
@@ -3534,8 +3534,36 @@ static struct attribute *aw8695_attributes[] = {
 static struct attribute_group aw8695_attribute_group = {
     .attrs = aw8695_attributes
 };
+/******************************************************
+ *
+ * aw8695 pinctrl init
+ *
+ ******************************************************/
+static int aw8695_i2c_pinctrl_init(struct aw8695 *aw8695)
+{
+    int retval = 0;
+    aw8695->pinctrl = devm_pinctrl_get(&(aw8695->i2c->dev));
+    if (IS_ERR_OR_NULL(aw8695->pinctrl)) {
+        retval = PTR_ERR(aw8695->pinctrl);
+        pr_err("Target does not use pinctrl %d\n", retval);
+        goto no_pinctrl;
+    }
 
+    aw8695->pinctrl_state_active = pinctrl_lookup_state(aw8695->pinctrl, AW8695_INT_PINCTRL_NAME);
+    if (IS_ERR_OR_NULL(aw8695->pinctrl_state_active)) {
+        retval = PTR_ERR(aw8695->pinctrl);
+        pr_err("no such a pinctrl state %d\n", retval);
+       goto free_pinctrl;
+    }
 
+    retval = pinctrl_select_state(aw8695->pinctrl, aw8695->pinctrl_state_active);
+
+    return retval;
+free_pinctrl:
+    devm_pinctrl_put(aw8695->pinctrl);
+no_pinctrl:
+    return retval;
+}
 /******************************************************
  *
  * i2c driver
@@ -3593,6 +3621,7 @@ static int aw8695_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
             goto err_irq_gpio_request;
         }
     }
+    aw8695_i2c_pinctrl_init(aw8695);
 
     /* aw8695 chip id */
     ret = aw8695_read_chipid(aw8695);

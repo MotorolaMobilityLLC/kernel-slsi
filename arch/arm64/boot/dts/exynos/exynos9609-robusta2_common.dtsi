@@ -1464,6 +1464,14 @@
 		samsung,pin-val = <1>;
 		samsung,pin-pud = <1>;
 	};
+
+	lra_int_status: lra_int_status {
+                samsung,pins = "gpa2-7";
+                samsung,pin-function = <0>;
+                samsung,pin-val = <1>;
+                samsung,pin-pud = <3>;
+        };
+
 };
 
 &pinctrl_4 {
