@@ -310,6 +310,8 @@ static ssize_t manual_offset_calibration_store(struct device *dev,
 	if (val)
 		manual_offset_calibration(this);
 
+	msleep(1500);
+
 	return count;
 }
 /****************************************************************************/
