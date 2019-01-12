@@ -730,7 +730,7 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	dma_pri_1 = 1;
 
 	if (GET_DMA_CH(dma_ch, 0) && GET_DMA_CH(dma_ch, 1)) {
-		matrix_num = 2;
+		matrix_num = 0;
 		sram0_split = max;
 		sram1_split = max;
 	} else if (GET_DMA_CH(dma_ch, 0) && GET_DMA_CH(dma_ch, 2)) {
