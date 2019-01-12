@@ -20,6 +20,8 @@
 	aw8695_haptic@5A {
 		compatible = "awinic,aw8695_haptic";
 		reg = <0x5A>;
+		pinctrl-names = "lra_int_status";
+		pinctrl-0 = <&lra_int_status>;
 		reset-gpio = <&gpa2 5 0>;
 		irq-gpio = <&gpa2 7 0>;
 	};
