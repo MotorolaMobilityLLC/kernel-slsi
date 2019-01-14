@@ -179,6 +179,13 @@ static int flash_s2mu106_control(struct v4l2_subdev *subdev, enum flash_mode mod
 #ifdef FLASH_CAL_DATA_ENABLE
 		adj_current = flash->flash_data.inp_current[i];
 
+		/* If adj_current value is zero, it must be skipped to set */
+		/* Even if zero is set to flash, 50mA will flow, because 50mA is minimized value */
+		if (adj_current == 0 && mode != CAM2_FLASH_MODE_OFF) {
+			dbg_flash("[CH: %d] current value is 0, so current set need to skip\n", flash->led_ch[i]);
+			continue;
+		}
+
 		dbg_flash("[CH: %d] current is set with val: %d\n", flash->led_ch[i], adj_current);
 #endif
 		switch (mode) {
