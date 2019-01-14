@@ -1799,6 +1799,7 @@ static int charger_notifier_callback(struct notifier_block *nb,
 		unsigned long val, void *v)
 {
 	int ret = 0;
+	int charger_flag = 0;
 	struct power_supply *psy = NULL;
 	struct nvt_ts_data *ts = container_of(nb, struct nvt_ts_data, charger_notif);
 	union power_supply_propval prop;
@@ -1808,14 +1809,34 @@ static int charger_notifier_callback(struct notifier_block *nb,
 		return -EINVAL;
 		NVT_ERR("Couldn't get usbpsy\n");
 	}
-	if (!strcmp(psy->desc->name, "usb")){
+
+	if (!strcmp(psy->desc->name, "usb")) {
 		if (psy && ts && val == POWER_SUPPLY_PROP_STATUS) {
 			ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE,&prop);
 			if (ret < 0) {
 				NVT_ERR("Couldn't get POWER_SUPPLY_PROP_ONLINE rc=%d\n", ret);
 				return ret;
-			}else{
-				usb_detect_flag = prop.intval;
+			} else {
+				charger_flag |= prop.intval;
+			}
+		}
+	}
+
+	psy= power_supply_get_by_name("ac");
+	if (!psy){
+		return -EINVAL;
+		NVT_ERR("Couldn't get usbpsy\n");
+	}
+
+	if (!strcmp(psy->desc->name, "ac")) {
+		if (psy && ts && val == POWER_SUPPLY_PROP_STATUS) {
+			ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE,&prop);
+			if (ret < 0) {
+				NVT_ERR("Couldn't get POWER_SUPPLY_PROP_ONLINE rc=%d\n", ret);
+				return ret;
+			} else {
+				charger_flag |= prop.intval;
+				usb_detect_flag = charger_flag;
 				if(usb_detect_flag != ts->usb_connected) {
 					 if (USB_DETECT_IN == usb_detect_flag) {
 						  ts->usb_connected = USB_DETECT_IN;
