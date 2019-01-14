@@ -478,7 +478,7 @@ struct s2mu00x_battery_info {
 };
 
 static int is_charging_mode = S2MU00X_NOR_MODE;
-
+bool is_cable_present(struct s2mu00x_battery_info *chip);
 static void smbchg_stay_awake(struct s2mu00x_battery_info *chip);
 static void smbchg_relax(struct s2mu00x_battery_info *chip);
 bool is_dc_present(struct s2mu00x_battery_info *chip);
@@ -2731,6 +2731,28 @@ bool is_usb_present(struct s2mu00x_battery_info *chip)
 	return present;
 }
 
+bool is_cable_present(struct s2mu00x_battery_info *chip)
+{
+        int type = chip->cable_type;
+        bool present = false;
+
+        switch (type) {
+        case POWER_SUPPLY_TYPE_UNKNOWN:
+        case POWER_SUPPLY_TYPE_BATTERY:
+        case POWER_SUPPLY_TYPE_OTG:
+        case POWER_SUPPLY_TYPE_END:
+                present = false;
+                break;
+        default:
+                present = true;
+                break;
+        }
+
+        printk(KERN_ERR "%s,cable_present:%d",__func__,present);
+
+        return present;
+}
+
 bool is_sdp_cdp(struct s2mu00x_battery_info *chip)
 {
         int type = chip->cable_type;
@@ -3840,8 +3862,12 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 	int index;
 	int state;
 
-	pr_info("%s: start heatbeat\n", __func__);
+	if(!is_cable_present(chip)){
+		pr_info("%s:cable not inserted\n",__func__);
+		return;
+	}
 
+	pr_info("%s: start heatbeat\n", __func__);
 	//smbchg_stay_awake(chip);
 	//dump register of charger
 	get_property_from_charger(chip, POWER_SUPPLY_PROP_PRESENT, &state);
