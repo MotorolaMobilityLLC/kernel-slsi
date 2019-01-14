@@ -14,6 +14,7 @@
 #endif
 
 #include "mfc_watchdog.h"
+#include "mfc_otf.h"
 
 #include "mfc_sync.h"
 
@@ -393,6 +394,14 @@ static void __mfc_dump_info(struct mfc_dev *dev)
 	__mfc_save_logging_sfr(dev);
 	__mfc_dump_buffer_info(dev);
 	__mfc_dump_regs(dev);
+
+	if (dev->num_otf_inst) {
+		pr_err("-----------dumping TS-MUX info-----------\n");
+#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+		tsmux_sfr_dump();
+#endif
+	}
+
 	/* If there was fault addr, sysmmu info is already printed out */
 	if (!dev->logging_data->fault_addr)
 		exynos_sysmmu_show_status(dev->device);

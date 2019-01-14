@@ -13,6 +13,10 @@
 #ifndef __MFC_OTF_H
 #define __MFC_OTF_H __FILE__
 
+#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#include <media/exynos_tsmux.h>
+#endif
+
 #include "mfc_common.h"
 
 extern struct mfc_dev *g_mfc_dev;

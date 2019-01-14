@@ -13,9 +13,6 @@
 #ifdef CONFIG_VIDEO_EXYNOS_REPEATER
 #include <media/exynos_repeater.h>
 #endif
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
-#include <media/exynos_tsmux.h>
-#endif
 #include <media/mfc_hwfc.h>
 
 #include "mfc_otf.h"
@@ -285,6 +282,7 @@ int mfc_otf_create(struct mfc_ctx *ctx)
 		}
 	}
 
+	dev->num_otf_inst++;
 	mfc_debug(2, "[OTF] otf_create is completed\n");
 
 	mfc_debug_leave();
@@ -294,6 +292,8 @@ int mfc_otf_create(struct mfc_ctx *ctx)
 
 void mfc_otf_destroy(struct mfc_ctx *ctx)
 {
+	struct mfc_dev *dev = ctx->dev;
+
 	mfc_debug_enter();
 
 	if (!ctx) {
@@ -303,6 +303,8 @@ void mfc_otf_destroy(struct mfc_ctx *ctx)
 
 	mfc_otf_release_stream_buf(ctx);
 	__mfc_otf_destroy_handle(ctx);
+
+	dev->num_otf_inst--;
 	mfc_debug(2, "[OTF] otf_destroy is completed\n");
 
 	mfc_debug_leave();
