@@ -47,7 +47,6 @@
 		pinctrl-names = "default","release";
 		pinctrl-0 = <>;
 		pinctrl-1 = <>;
-		samsung,power-domain = <&pd_isp>;
 		clocks = <&clock UMUX_CLKCMU_CAM_BUS>,
 			<&clock GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS0>,
 			<&clock GATE_IS6P10P0_CAM_QCH_S_CAM_CSIS1>,
@@ -155,7 +154,6 @@
 		interrupt-names = "csi",
 			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3",
 			"mode1_VC0", "mode1_VC1","mode1_VC2","mode1_VC3";
-		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m4s4s4 0>;
 		phy-names = "csis_dphy";
 		clocks = <&clock CIS_CLK0>,
@@ -236,7 +234,6 @@
 		interrupt-names = "csi",
 			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3",
 			"mode1_VC0", "mode1_VC1","mode1_VC2","mode1_VC3";
-		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m2s4s4s2 0>;
 		phy-names = "csis_dphy";
 		clocks = <&clock CIS_CLK0>,
@@ -311,7 +308,6 @@
 			<0 333 0>; /* VC3 DMA2 */
 		interrupt-names = "csi",
 			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3";
-		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m4s4s4 1>;
 		phy-names = "csis_dphy";
 		clocks = <&clock CIS_CLK0>,
@@ -374,7 +370,6 @@
 			<0 334 0>; /* VC3 DMA3 */
 		interrupt-names = "csi",
 			"mode0_VC0", "mode0_VC1","mode0_VC2","mode0_VC3";
-		samsung,power-domain = <&pd_cam>;
 		phys = <&mipi_phy_csis_m2s4s4s2 2>;
 		phy-names = "csis_dphy";
 		clocks = <&clock CIS_CLK0>,
@@ -447,7 +442,6 @@
 		pinctrl-0 = <>;
 		pinctrl-1 = <>;
 		camerapp_gdc,intcam_qos_minlock = <667000>;
-		samsung,power-domain = <&pd_isp>;
 		clocks = <&clock UMUX_CLKCMU_ISP_GDC>,
 			<&clock GATE_IS6P10P0_ISP_QCH_S_ISP_GDC>;
 		clock-names = "gate",
