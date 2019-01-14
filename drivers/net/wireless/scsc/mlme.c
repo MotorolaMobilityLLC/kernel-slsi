@@ -1289,8 +1289,8 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 		0x01,				/* OUI Subtype: Scan timing */
 		0x00, 0x00, 0x00, 0x00,		/* Min_Period:  filled later in the function */
 		0x00, 0x00, 0x00, 0x00,		/* Max_Period:  filled later in the function */
-		0x00,				/* Exponent */
-		0x00,				/* Step count */
+		0x01,				/* Exponent */
+		0x01,				/* Step count */
 		0x00, 0x01			/* Skip first period: true for scheduled scans*/
 	};
 
@@ -1341,10 +1341,13 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 		return r;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-	SLSI_U32_TO_BUFF_LE(request->scan_plans->interval * 1000, &scan_timing_ie[7]);
+	SLSI_U32_TO_BUFF_LE(request->scan_plans->interval * 1000 * 1000, &scan_timing_ie[7]);
+	SLSI_U32_TO_BUFF_LE(request->scan_plans->interval * 1000 * 1000, &scan_timing_ie[11]);
 #else
 	SLSI_U32_TO_BUFF_LE(request->interval * 1000, &scan_timing_ie[7]);
+	SLSI_U32_TO_BUFF_LE(request->interval * 1000, &scan_timing_ie[11]);
 #endif
+
 	fapi_append_data(req, scan_timing_ie, sizeof(scan_timing_ie));
 	fapi_append_data(req, ies, ies_len);
 
