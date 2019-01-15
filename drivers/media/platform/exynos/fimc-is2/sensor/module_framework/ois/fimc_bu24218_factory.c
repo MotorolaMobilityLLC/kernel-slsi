@@ -95,7 +95,7 @@ int fimc_is_factory_ois_get_hea(struct v4l2_subdev  *subdev, uint32_t *result)
 	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_XCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MAX_LO);
 	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH,     (uint8_t) MOT_BU24218_VCM_DRV_MAX_HI);
 	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MAX_LO);
-	usleep_range(200, 200);
+	usleep_range(20000, 20000);
 
 	// 3. check status reg
 	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
@@ -112,7 +112,7 @@ int fimc_is_factory_ois_get_hea(struct v4l2_subdev  *subdev, uint32_t *result)
 	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_XCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MIN_LO);
 	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH,     (uint8_t) MOT_BU24218_VCM_DRV_MIN_HI);
 	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MIN_LO);
-	usleep_range(200, 200);
+	usleep_range(20000, 20000);
 
 	// 6. check status reg
 	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
