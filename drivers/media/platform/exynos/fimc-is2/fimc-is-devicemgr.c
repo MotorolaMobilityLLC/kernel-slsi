@@ -271,12 +271,11 @@ int fimc_is_devicemgr_start(struct fimc_is_devicemgr *devicemgr,
 	int ret = 0;
 	struct fimc_is_group *group = NULL;
 	struct fimc_is_device_sensor *sensor;
-#ifndef ENABLE_SENSOR_VC_FUNCTION
 	struct fimc_is_group *child_group;
 	struct devicemgr_sensor_tag_data *tag_data;
 	u32 stream;
 	int i;
-#endif
+
 	switch (type) {
 	case FIMC_IS_DEVICE_SENSOR:
 		sensor = (struct fimc_is_device_sensor *)device;
@@ -298,18 +297,19 @@ int fimc_is_devicemgr_start(struct fimc_is_devicemgr *devicemgr,
 			}
 		}
 
-#ifndef ENABLE_SENSOR_VC_FUNCTION
-		child_group = GET_HEAD_GROUP_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN, group);
-		stream = group->instance;
+		if (IS_ENABLED(CHAIN_USE_VC_TASKLET)) {
+			child_group = GET_HEAD_GROUP_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN, group);
+			stream = group->instance;
 
-		/* Only in case of OTF case, used tasklet. */
-		if (sensor->ischain && child_group) {
-			for (i = 0; i < TAG_DATA_MAX; i++) {
-				tag_data = &devicemgr->sensor_tag_data[stream][i];
-				tasklet_init(&devicemgr->tasklet_sensor_tag[stream][i], tasklet_sensor_tag, (unsigned long)tag_data);
+			/* Only in case of OTF case, used tasklet. */
+			if (sensor->ischain && child_group) {
+				for (i = 0; i < TAG_DATA_MAX; i++) {
+					tag_data = &devicemgr->sensor_tag_data[stream][i];
+					tasklet_init(&devicemgr->tasklet_sensor_tag[stream][i],
+							tasklet_sensor_tag, (unsigned long)tag_data);
+				}
 			}
 		}
-#endif
 		break;
 	case FIMC_IS_DEVICE_ISCHAIN:
 		break;
@@ -329,25 +329,23 @@ int fimc_is_devicemgr_stop(struct fimc_is_devicemgr *devicemgr,
 	int ret = 0;
 	struct fimc_is_group *group = NULL;
 	struct fimc_is_device_sensor *sensor;
-#ifndef ENABLE_SENSOR_VC_FUNCTION
 	struct fimc_is_group *child_group;
 	u32 stream;
 	int i;
-#endif
-
 
 	switch (type) {
 	case FIMC_IS_DEVICE_SENSOR:
 		sensor = (struct fimc_is_device_sensor *)device;
 		group = &sensor->group_sensor;
-#ifndef ENABLE_SENSOR_VC_FUNCTION
-		child_group = GET_HEAD_GROUP_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN, group);
-		stream = group->instance;
 
-		if (sensor->ischain && child_group)
-			for (i = 0; i < TAG_DATA_MAX; i++)
-				tasklet_kill(&devicemgr->tasklet_sensor_tag[stream][i]);
-#endif
+		if (IS_ENABLED(CHAIN_USE_VC_TASKLET)) {
+			child_group = GET_HEAD_GROUP_IN_DEVICE(FIMC_IS_DEVICE_ISCHAIN, group);
+			stream = group->instance;
+
+			if (sensor->ischain && child_group)
+				for (i = 0; i < TAG_DATA_MAX; i++)
+					tasklet_kill(&devicemgr->tasklet_sensor_tag[stream][i]);
+		}
 
 		if (!test_bit(FIMC_IS_SENSOR_STAND_ALONE, &sensor->state) && sensor->ischain) {
 			ret = fimc_is_ischain_stop_wrap(sensor->ischain, group);
@@ -478,11 +476,10 @@ int fimc_is_devicemgr_shot_callback(struct fimc_is_group *group,
 			group->head->device_type == FIMC_IS_DEVICE_SENSOR) {
 			mgrdbgs(1, " DEVICE TASKLET(%d) schedule\n", group->device, group,
 								frame, index);
-#ifndef ENABLE_SENSOR_VC_FUNCTION
-			tasklet_schedule(&devicemgr->tasklet_sensor_tag[stream][index]);
-#else
-			tasklet_sensor_tag((unsigned long)tag_data);
-#endif
+			if (IS_ENABLED(CHAIN_USE_VC_TASKLET))
+				tasklet_schedule(&devicemgr->tasklet_sensor_tag[stream][index]);
+			else
+				tasklet_sensor_tag((unsigned long)tag_data);
 		}
 		break;
 	default:
