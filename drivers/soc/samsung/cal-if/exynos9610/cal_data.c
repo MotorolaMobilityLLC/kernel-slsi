@@ -291,3 +291,46 @@ void exynos9610_cal_data_init(void)
 }
 
 void (*cal_data_init)(void) = exynos9610_cal_data_init;
+
+struct cal_wkup_reason wkup_reason[] = {
+	{ "INT_MBOX_CP2AP_S", (1 << 29) },
+	{ "APM_CPU", (1 << 27) },
+	{ "INT_MBOX_GNSS2AP", (1 << 26) },
+	{ "CP_ACTIVE", (1 << 25) },
+	{ "INT_MBOX_CP2AP", (1 << 24) },
+	{ "GNSS_ACTIVE", (1 << 23) },
+	{ "GNSS_RESET_REQ", (1 << 22) },
+	{ "GNSS_WAKEUP_REQ", (1 << 21) },
+	{ "CP_RESET_REQ", (1 << 20) },
+	{ "INT_MBOX_APM2AP", (1 << 19) },
+	{ "INT_MBOX_SHUB2AP", (1 << 18) },
+	{ "INT_MBOX_WLBT2AP", (1 << 17) },
+	{ "USBDRD20", (1 << 16) },
+	{ "CP_SCAN_DUMP_REQ", (1 << 15) },
+	{ "TIMER", (1 << 14) },
+	{ "USB_REWA", (1 << 13) },
+	{ "CMGP_EINT", (1 << 12) },
+	{ "MMC2", (1 << 11) },
+	{ "MMC0", (1 << 9) },
+	{ "WLBT_ACTIVE", (1 << 6) },
+	{ "WLBT_RESET_REQ", (1 << 5) },
+	{ "TRTC_TICK", (1 << 4) },
+	{ "TRTC_ALARM", (1 << 3) },
+	{ "RTC_TICK", (1 << 2) },
+	{ "RTC_ALARM", (1 << 1) },
+	{ "EINT", (1 << 0) },
+};
+
+char *exynos9610_cal_print_wakeup_reason(unsigned int wakeup_stat)
+{
+	int i;
+	char *ret = "UNKNOWN";
+
+	for (i = 0; i < ARRAY_SIZE(wkup_reason); i++) {
+		if (wakeup_stat & wkup_reason[i].bit_field)
+			ret = wkup_reason[i].name;
+	}
+
+	return ret;
+}
+char *(*cal_print_wakeup_reason)(unsigned int wakeup_stat) = exynos9610_cal_print_wakeup_reason;
