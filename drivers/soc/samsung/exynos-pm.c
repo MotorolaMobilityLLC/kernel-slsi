@@ -128,6 +128,7 @@ static void exynos_show_wakeup_registers(unsigned int wakeup_stat)
 		pr_info("0x%02x ", __raw_readl(EXYNOS_EINT_PEND(pm_info->eint_base, i)));
 }
 
+extern char *(*cal_print_wakeup_reason)(unsigned int wakeup_stat);
 static void exynos_show_wakeup_reason(bool sleep_abort)
 {
 	unsigned int wakeup_stat;
@@ -151,13 +152,20 @@ static void exynos_show_wakeup_reason(bool sleep_abort)
 	exynos_pmu_read(EXYNOS_PMU_WAKEUP_STAT, &wakeup_stat);
 	exynos_show_wakeup_registers(wakeup_stat);
 
-	if (wakeup_stat & WAKEUP_STAT_RTC_ALARM)
-		pr_info("%s Resume caused by RTC alarm\n", EXYNOS_PM_PREFIX);
-	else if (wakeup_stat & WAKEUP_STAT_EINT)
-		exynos_show_wakeup_reason_eint();
-	else
-		pr_info("%s Resume caused by wakeup_stat 0x%08x\n",
-			EXYNOS_PM_PREFIX, wakeup_stat);
+	if (cal_print_wakeup_reason) {
+		pr_info("%s Resume caused by %s\n", EXYNOS_PM_PREFIX,
+				cal_print_wakeup_reason(wakeup_stat));
+		if (wakeup_stat & WAKEUP_STAT_EINT)
+			exynos_show_wakeup_reason_eint();
+	} else {
+		if (wakeup_stat & WAKEUP_STAT_RTC_ALARM)
+			pr_info("%s Resume caused by RTC alarm\n", EXYNOS_PM_PREFIX);
+		else if (wakeup_stat & WAKEUP_STAT_EINT)
+			exynos_show_wakeup_reason_eint();
+		else
+			pr_info("%s Resume caused by wakeup_stat 0x%08x\n",
+				EXYNOS_PM_PREFIX, wakeup_stat);
+	}
 }
 
 #ifdef CONFIG_CPU_IDLE
