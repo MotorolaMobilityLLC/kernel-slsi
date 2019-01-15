@@ -183,4 +183,7 @@
 #define FAST_FDAE
 #define RESERVED_MEM_IN_DT
 #define BDS_IN_VIDEO /* This feature should be used when BDS is used in vdieo scenario. */
+
+#define CHAIN_USE_VC_TASKLET	1
+
 #endif
