@@ -561,9 +561,14 @@ static int cpus_busy(int target_residency, const struct cpumask *cpus)
 	return 0;
 }
 
+static int initcall_done;
 static int system_busy(void)
 {
 	int i;
+
+	/* do not allow system idle util initialization time */
+	if (!initcall_done)
+		return 1;
 
 	for (i = 0; i < NUM_IDLE_IP_REG; i++)
 		if (check_idle_ip(i))
@@ -905,6 +910,14 @@ static int __init exynos_cpupm_init(void)
 	return 0;
 }
 arch_initcall(exynos_cpupm_init);
+
+static int __init exynos_cpupm_late_init(void)
+{
+	initcall_done = true;
+
+	return 0;
+}
+late_initcall(exynos_cpupm_late_init);
 #endif
 
 static int cpuhp_cpupm_enable_idle(unsigned int cpu)
