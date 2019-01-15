@@ -248,6 +248,16 @@ static ssize_t himax_self_test_read(struct file *file, char *buf,
 	char *temp_buf;
 	I("%s: enter, %d \n", __func__, __LINE__);
 
+	if (private_ts->suspended) {
+		E("[%s][%d]:The TP current status is suspend, please don't selftest!\n", __func__, __LINE__);
+		return ret;
+	}
+
+	if (private_ts->in_self_test == 1) {
+		E("[%s][%d]:The TP selftest is doing test, please don't selftest again!\n", __func__, __LINE__);
+		return ret;
+	}
+
 	if (!HX_PROC_SEND_FLAG) {
 		temp_buf = kzalloc(len, GFP_KERNEL);
 		himax_int_enable(0);/* disable irq */
