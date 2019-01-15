@@ -94,8 +94,15 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	buffer->sg_table = table;
 
+	/*
+	 * No need to flush more than the requiered size. But clearing dirty
+	 * data from the CPU caches should be performed on the entire area
+	 * to be protected because writing back from the CPU caches with non-
+	 * secure property to the protected area results system error.
+	 */
 	if (cacheflush || protected)
-		__flush_dcache_area(page_to_virt(pages), len);
+		__flush_dcache_area(page_to_virt(pages),
+				    nr_pages << PAGE_SHIFT);
 
 	if (protected) {
 		buffer->priv_virt = ion_buffer_protect_single(
