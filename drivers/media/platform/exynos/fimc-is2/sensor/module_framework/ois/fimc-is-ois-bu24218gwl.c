@@ -44,6 +44,7 @@ static int ois_fw_data_size[OIS_FW_NUM] = {0,};
 static u8 ois_cal_data[OIS_CAL_DATA_SIZE] = {0,};
 static int ois_cal_data_size = 0;
 static int ois_previous_mode = 0;
+static int ois_isDefaultCalData = 0;
 
 static const struct v4l2_subdev_ops subdev_ops;
 
@@ -170,6 +171,12 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 
 	for(i = 0; i < size/4; i++) {
 		info("ois cal data (%d): 0x%0x,%0x,%0x,%0x", i, buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3]);
+	}
+	/* OIS cal data in buf[16]~buf[19], expected value are 0x08,0x00,0x08,0x00. If not, means wrong cal data */
+	if((buf[16] != 0x08) || (buf[17] != 0x0) || (buf[18] != 0x08) || (buf[19] != 0x0)) {
+		err("the ois cal data in eeprom can not work, return error");
+		ret = -EIO;
+		goto p_err;
 	}
 
 	if (crc_enable) {
@@ -371,7 +378,7 @@ int fimc_is_ois_fw_update(struct v4l2_subdev *subdev)
 			return 0;
 		}
 		ret = fimc_is_ois_cal_open(ois, OIS_CAL_DATA_PATH, OIS_CAL_DATA_OFFSET, OIS_CAL_DATA_SIZE, 1);
-//		if (ret < 0) {
+		if (ret < 0) {
 			info(" switch to load default OIS Cal Data %s \n", OIS_CAL_DATA_PATH_DEFAULT);
 			ret = fimc_is_ois_cal_open(ois, OIS_CAL_DATA_PATH_DEFAULT, OIS_CAL_DATA_OFFSET_DEFAULT,
 				OIS_CAL_DATA_SIZE_DEFAULT, 0);
@@ -379,8 +386,15 @@ int fimc_is_ois_fw_update(struct v4l2_subdev *subdev)
 				err("OIS %s load is fail\n", OIS_CAL_DATA_PATH_DEFAULT);
 				return 0;
 			}
-//		}
+			ois_isDefaultCalData = 1;
+		}
 		is_first_load = 0;
+	}
+
+	if (1 == ois_isDefaultCalData) {
+		info("%s OIS using default cal data", __func__);
+	} else {
+		info("%s OIS using real cal data from eeprom", __func__);
 	}
 
 	/* OIS Firmware download */
