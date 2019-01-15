@@ -1685,7 +1685,7 @@ static int dsim_probe(struct platform_device *pdev)
 	dsim_info("dsim idle_ip_index[%d]\n", dsim->idle_ip_index);
 	if (dsim->idle_ip_index < 0)
 		dsim_warn("idle ip index is not provided for dsim\n");
-	exynos_update_ip_idle_status(dsim->idle_ip_index, 1);
+	exynos_update_ip_idle_status(dsim->idle_ip_index, 0);
 #endif
 
 	if (dsim->lcd_info.mode == DECON_VIDEO_MODE)
