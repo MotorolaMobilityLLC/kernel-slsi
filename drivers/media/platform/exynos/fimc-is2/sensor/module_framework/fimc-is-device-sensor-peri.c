@@ -1009,12 +1009,13 @@ void fimc_is_sensor_aperture_set_work(struct work_struct *data)
 }
 
 int fimc_is_sensor_flash_fire(struct fimc_is_device_sensor_peri *device,
-				u32 on)
+				u32 intensity)
 {
 	int ret = 0;
 	struct v4l2_subdev *subdev_flash;
 	struct fimc_is_flash *flash;
 	struct v4l2_control ctrl;
+	bool is_on;
 
 	FIMC_BUG(!device);
 
@@ -1032,21 +1033,22 @@ int fimc_is_sensor_flash_fire(struct fimc_is_device_sensor_peri *device,
 		goto p_err;
 	}
 
-	if (flash->flash_data.mode == CAM2_FLASH_MODE_OFF && on == 1) {
+	if (flash->flash_data.mode == CAM2_FLASH_MODE_OFF && intensity > 0) {
 		err("Flash mode is off");
 		flash->flash_data.flash_fired = false;
 		goto p_err;
 	}
 
-	if (flash->flash_data.flash_fired != (bool)on) {
+	is_on = flash->flash_data.mode == CAM2_FLASH_MODE_OFF ? false : true;
+	if (flash->flash_data.flash_fired != is_on) {
 		ctrl.id = V4L2_CID_FLASH_SET_FIRE;
-		ctrl.value = on ? flash->flash_data.intensity : 0;
+		ctrl.value = intensity;
 		ret = v4l2_subdev_call(subdev_flash, core, s_ctrl, &ctrl);
 		if (ret < 0) {
 			err("err!!! ret(%d)", ret);
 			goto p_err;
 		}
-		flash->flash_data.flash_fired = (bool)on;
+		flash->flash_data.flash_fired = is_on;
 	}
 
 	if (flash->flash_data.mode == CAM2_FLASH_MODE_SINGLE ||
