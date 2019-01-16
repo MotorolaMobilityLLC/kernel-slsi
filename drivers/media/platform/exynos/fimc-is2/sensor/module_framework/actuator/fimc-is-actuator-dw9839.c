@@ -44,10 +44,7 @@
 #define REG_ADC_R_MSB	0x50 /* [D1:D0] - CUR POS[9:8] */
 #define REG_ADC_R_LSB	0x51 /* [D7:D0] - CUR POS[7:0] */
 
-#define DEF_DW9839_FIRST_POSITION		100
-#define DEF_DW9839_SECOND_POSITION		170
-#define DEF_DW9839_FIRST_DELAY			20
-#define DEF_DW9839_SECOND_DELAY			10
+#define DEF_DW9839_INIT_POSITION		300
 
 /* #define MANUAL_PID_CAL_SETTING */
 
@@ -246,22 +243,14 @@ static int sensor_dw9839_init_position(struct i2c_client *client,
 		sensor_dw9839_print_log(init_step);
 
 	} else {
-		ret = sensor_dw9839_write_position(client, DEF_DW9839_FIRST_POSITION);
+		/* REG_INIT_POS range is 0 ~ 255 (1/4 of 0 ~ 1023 position) */
+		ret = fimc_is_sensor_addr8_write8(client, REG_INIT_POS, DEF_DW9839_INIT_POSITION >> 2);
 		if (ret < 0)
 			goto p_err;
 
-		msleep(DEF_DW9839_FIRST_DELAY);
+		actuator->position = DEF_DW9839_INIT_POSITION;
 
-		ret = sensor_dw9839_write_position(client, DEF_DW9839_SECOND_POSITION);
-		if (ret < 0)
-			goto p_err;
-
-		msleep(DEF_DW9839_SECOND_DELAY);
-
-		actuator->position = DEF_DW9839_SECOND_POSITION;
-
-		dbg_actuator("initial position %d, %d setting\n",
-			DEF_DW9839_FIRST_POSITION, DEF_DW9839_SECOND_POSITION);
+		dbg_actuator("initial position %d setting\n", DEF_DW9839_INIT_POSITION);
 	}
 
 p_err:
