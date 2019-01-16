@@ -15,7 +15,7 @@
 
 /* dvfs table idx ex.different dvfa table  pure bayer or dynamic bayer */
 #define FIMC_IS_DVFS_TABLE_IDX_MAX 3
-#define FIMC_IS_DVFS_CAPTURE_TICK (KEEP_FRAME_TICK_DEFAULT + 3)
+#define FIMC_IS_DVFS_CAPTURE_TICK (KEEP_FRAME_TICK_DEFAULT + 10)
 #define FIMC_IS_DVFS_DUAL_CAPTURE_TICK (2 * FIMC_IS_DVFS_CAPTURE_TICK)
 
 /* FIMC-IS DVFS SCENARIO enum */
