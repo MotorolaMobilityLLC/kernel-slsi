@@ -530,6 +530,9 @@ static ssize_t sx933x_diff_data_show(struct device *dev, struct device_attribute
 	s32 diff;
 	u32 uData;
 	psx93XX_t this = dev_get_drvdata(dev);
+
+	msleep(1500);
+
 	if(this) {
 		for(csx =0; csx<5; csx++) {
 			sx933x_i2c_read_16bit(this, SX933X_DIFFPH0_REG + csx*4, &uData);
