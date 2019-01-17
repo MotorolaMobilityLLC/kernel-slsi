@@ -2466,11 +2466,8 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 				}
 				goto hard_reset;
 			}
-			s2mu106_usbpd_notify_detach(pdic_data);
 		}
-		else
-			dev_err(dev, "%s invalid detach detected, ignore the notify\n", __func__);
-
+		s2mu106_usbpd_notify_detach(pdic_data);
 		mutex_lock(&pdic_data->lpm_mutex);
 		if (!pdic_data->lpm_mode) {
 			if (s2mu106_usbpd_lpm_check(pdic_data) > 0) {
