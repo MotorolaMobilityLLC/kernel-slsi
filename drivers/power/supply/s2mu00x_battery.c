@@ -392,6 +392,7 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 {
 	struct s2mu00x_battery_info *battery =  power_supply_get_drvdata(psy);
 	int ret = 0;
+	union power_supply_propval value;
 
 	dev_dbg(battery->dev, "prop: %d\n", psp);
 
@@ -440,7 +441,15 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 		val->intval = battery->current_avg;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
-		val->intval = battery->full_check_cnt + 1;
+		/*Get fuelgauge psy*/
+		psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
+		if (!psy)
+			return -EINVAL;
+		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CHARGE_COUNTER, &value);
+		if (ret < 0)
+			pr_err("%s: Fail to execute property\n", __func__);
+
+		val->intval = value.intval;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		val->intval = 100;

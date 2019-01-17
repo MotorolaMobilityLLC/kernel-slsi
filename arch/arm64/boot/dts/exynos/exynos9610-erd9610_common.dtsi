@@ -1518,6 +1518,7 @@
 		pinctrl-0 = <&fuel_irq>;
 		fuelgauge,fuel_int = <&gpa2 3 0>;
 		fuelgauge,fuel_alert_soc = <1>;
+		fuelgauge,capacity_full = <2100>;
 		fuelgauge,capacity_max = <1000>;
 		fuelgauge,capacity_max_margin = <70>;
 		fuelgauge,capacity_min = <0>;
