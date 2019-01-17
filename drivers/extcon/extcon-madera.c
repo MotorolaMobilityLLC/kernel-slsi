@@ -769,7 +769,7 @@ static void madera_jds_timeout_work(struct work_struct *work)
 static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 {
 	struct madera *madera = info->madera;
-	unsigned int mask, val = 0;
+	unsigned int mask = 0, val = 0;
 	unsigned int edre_reg = 0, edre_val = 0;
 	unsigned int ep_sel = 0;
 	int ret;
