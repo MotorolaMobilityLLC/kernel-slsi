@@ -794,6 +794,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 
 	switch (madera->type) {
 	case CS47L35:
+		break;
 	case CS47L85:
 	case WM1840:
 		edre_reg = MADERA_EDRE_MANUAL;
@@ -847,6 +848,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 
 	switch (madera->type) {
 	case CS47L35:
+		break;
 	case CS47L85:
 	case WM1840:
 		ret = regmap_update_bits(madera->regmap,
