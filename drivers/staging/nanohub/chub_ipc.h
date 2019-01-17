@@ -18,7 +18,7 @@
 #define AP_IPC
 #endif
 
-#define IPC_VERSION (181213)
+#define IPC_VERSION (190116)
 
 #if defined(CHUB_IPC)
 #if defined(SEOS)
@@ -133,11 +133,10 @@ enum sr_num {
 #define SR_BOOT_MODE SR_0
 
 enum irq_chub {
-	IRQ_C2A_START,
-	IRQ_C2A_END = 2,
-	IRQ_EVT_START,
-	IRQ_EVT_END = 15,
-	IRQ_CHUB_ALIVE = 15,
+	IRQ_NUM_EVT_START,
+	IRQ_NUM_EVT_END = 14,
+	IRQ_NUM_CHUB_LOG = IRQ_NUM_EVT_END,
+	IRQ_NUM_CHUB_ALIVE,
 	IRQ_INVAL = 0xff,
 };
 
@@ -156,10 +155,10 @@ enum irq_evt_chub {
 	IRQ_EVT_C2A_ASSERT,
 	IRQ_EVT_C2A_INT,
 	IRQ_EVT_C2A_INTCLR,
-	IRQ_EVT_C2A_LOG,
-	IRQ_EVT_CHUB_EVT_MAX = 15,
-	IRQ_EVT_CHUB_ALIVE = IRQ_EVT_CHUB_EVT_MAX,
-	IRQ_EVT_CHUB_MAX = 16,	/* max irq number on mailbox */
+	IRQ_EVT_CHUB_EVT_MAX = IRQ_NUM_EVT_END, /* 14 */
+	IRQ_EVT_C2A_LOG = IRQ_NUM_CHUB_LOG, /* 14 */
+	IRQ_EVT_CHUB_ALIVE = IRQ_NUM_CHUB_ALIVE, /* 15 */
+	IRQ_EVT_CHUB_MAX = 16, /* max irq number on mailbox */
 	IRQ_EVT_INVAL = 0xff,
 };
 
@@ -317,14 +316,17 @@ struct ipc_log_content {
 };
 
 #define LOGBUF_TOTAL_SIZE (LOGBUF_SIZE * LOGBUF_NUM)
-#define LOGBUF_SIZE (64)
+#define LOGBUF_SIZE (84)
 #define LOGBUF_NUM (80)
-#define LOGBUF_DATA_SIZE (LOGBUF_SIZE - sizeof(u64))
+#define LOGBUF_DATA_SIZE (LOGBUF_SIZE - sizeof(u64) - sizeof(u16)) /* u8 error, u8 newline, u16 size, void *next(CM4) */
 #define LOGBUF_FLUSH_THRESHOLD (LOGBUF_NUM / 2)
 
 struct logbuf_content{
 	char buf[LOGBUF_DATA_SIZE];
-	u64 size;
+	u8 error;
+	u8 newline;
+	u32 size;
+	u32 nextaddr;
 };
 
 struct logbuf_raw {
@@ -361,8 +363,7 @@ struct ipc_logbuf {
 	int dbg_full_cnt;
 	int errcnt;
 	int reqcnt;
-	u64 fw_num;
-	u64 ap_num;
+	u32 fw_num;
 	/* rawlevel logout */
 	struct logbuf_raw logbuf;
 };
@@ -546,7 +547,9 @@ void *ipc_logbuf_inbase(bool force);
 void ipc_logbuf_flush_on(bool on);
 bool ipc_logbuf_filled(void);
 void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop);
-void ipc_logbuf_req_flush(struct logbuf_content *log, bool force);
+void ipc_logbuf_req_flush(struct logbuf_content *log);
+void ipc_logbuf_set_req_num(struct logbuf_content *log);
+struct logbuf_content *ipc_logbuf_get_curlogbuf(struct logbuf_content *log);
 /* evt functions */
 struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evt);
 int ipc_add_evt(enum ipc_evt_list evt, enum irq_evt_chub irq);
