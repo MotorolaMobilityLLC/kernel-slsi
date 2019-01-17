@@ -321,7 +321,7 @@ static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
 /* handle errors of chub driver and fw  */
 static void handle_debug_work(struct contexthub_ipc_info *ipc, enum chub_err_type err)
 {
-	int need_reset;
+	int need_reset = 0;
 	int alive = contexthub_lowlevel_alive(ipc);
 
 	dev_info(ipc->dev, "%s: err:%d, alive:%d, status:%d, in-reset:%d\n",
@@ -397,6 +397,16 @@ static void contexthub_handle_debug(struct contexthub_ipc_info *ipc,
 
 		ipc_write_debug_event(AP, 0);
 		contexthub_put_token(ipc);
+
+		if (ipc->err_cnt[err] > CHUB_RESET_THOLD) {
+			atomic_set(&ipc->chub_status, CHUB_ST_ERR);
+			ipc->err_cnt[err] = 0;
+			dev_info(ipc->dev, "%s: err:%d(cnt:%d), enter error status\n",
+				__func__, err, ipc->err_cnt[err]);
+		} else {
+			ipc->err_cnt[err]++;
+			return;
+		}
 	}
 
 error_handler:
@@ -456,7 +466,7 @@ static void handle_debug_work_func(struct work_struct *work)
 		return;
 	}
 
-	dev_info(ipc->dev, "%s: cur_err:0x%x\n", __func__, ipc->cur_err);
+	dev_info(ipc->dev, "%s: cur_err:0x%x, chub_stats:%d\n", __func__, ipc->cur_err, atomic_read(&ipc->chub_status));
 	for (i = 0; i < CHUB_ERR_MAX; i++) {
 		if (ipc->cur_err & (1 << i)) {
 			dev_info(ipc->dev, "%s: loop: err:%d, cur_err:0x%x\n", __func__, i, ipc->cur_err);
@@ -495,7 +505,9 @@ retry:
 		return;
 	}
 	ipc_logbuf_flush_on(1);
+	mutex_lock(&log_mutex);
 	ipc_logbuf_outprint(&ipc->chub_rt_log, 100);
+	mutex_unlock(&log_mutex);
 	ipc_logbuf_flush_on(0);
 	contexthub_put_token(ipc);
 	atomic_set(&ipc->log_work_active, 0);
@@ -923,11 +935,8 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 				__func__, event, MAILBOX_EVT_MAX, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
 			return -EINVAL;
 		}
-		if (contexthub_get_token(ipc)) {
-			dev_warn(ipc->dev, "%s event:%d/%d fails get token\n",
-				__func__, event, MAILBOX_EVT_MAX);
+		if (contexthub_get_token(ipc))
 			return -EINVAL;
-		}
 
 		/* handle ipc */
 		switch (event) {
@@ -1253,6 +1262,12 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 
 		/* set wakeup flag for chub_alive_lock */
 		chub_wake_event(&ipc->chub_alive_lock);
+	}
+	irq_num = IRQ_EVT_C2A_LOG + start_index;
+	if (status & (1 << irq_num)) {
+		status &= ~(1 << irq_num);
+		ipc_hw_clear_int_pend_reg(AP, irq_num);
+		handle_irq(ipc, IRQ_EVT_C2A_LOG);
 	}
 
 #ifndef CHECK_HW_TRIGGER
