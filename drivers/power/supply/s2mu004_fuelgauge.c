@@ -1103,6 +1103,9 @@ static int s2mu004_fg_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		return -ENODATA;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = fuelgauge->pdata->capacity_full * (fuelgauge->info.soc/10);
+		break;
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
 		val->intval = fuelgauge->pdata->capacity_full;
 		break;
