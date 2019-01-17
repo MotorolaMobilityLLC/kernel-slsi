@@ -19,6 +19,10 @@
 #include <linux/bitops.h>
 #include <soc/samsung/exynos-pmu.h>
 #include <soc/samsung/exynos-itmon.h>
+#if defined(CONFIG_SEC_MODEM_IF)
+#include <soc/samsung/exynos-modem-ctrl.h>
+#endif
+
 
 #define OFFSET_TMOUT_REG		(0x2000)
 #define OFFSET_REQ_R			(0x0)
@@ -690,7 +694,10 @@ static void itmon_post_handler_by_master(struct itmon_dev *itmon,
 		} else {
 			/* Disable busmon all interrupts */
 			itmon_init(itmon, false);
-			/* TODO: CP Crash operation */
+#if defined(CONFIG_SEC_MODEM_IF)
+			pdata->crash_in_progress = true;
+			modem_force_crash_exit_ext();
+#endif
 		}
 	}
 }
