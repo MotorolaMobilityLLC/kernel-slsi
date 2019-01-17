@@ -36,6 +36,7 @@
 #define OIS_CAL_DATA_SIZE_DEFAULT	0x28
 #define OIS_CAL_ADDR			0x1DC0
 #define OIS_CAL_ACTUAL_DL_SIZE		0x28
+#define EEPROM_INFO_TABLE_REVISION	0x64
 
 //#define OIS_DEBUG
 
@@ -150,7 +151,7 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 
 	if (crc_enable) {
 		fp->f_pos = OIS_CAL_DATA_CRC_OFFSET;
-		err("ois f_pos set offset %x", fp->f_pos);
+		info("ois f_pos set offset %x", fp->f_pos);
 		nread = vfs_read(fp, (char __user *)buf, OIS_CAL_DATA_CRC_SIZE , &fp->f_pos);
 		if (nread != OIS_CAL_DATA_CRC_SIZE) {
 			err("failed to read ois cal crc data from file, (%ld) Bytes", nread);
@@ -161,7 +162,7 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 	}
 
 	fp->f_pos = offset;
-	err("ois f_pos set offset %x", fp->f_pos);
+	info("ois f_pos set offset %x", fp->f_pos);
 	nread = vfs_read(fp, (char __user *)buf, size , &fp->f_pos);
 	if (nread != size) {
 		err("failed to read ois cal data from file, (%ld) Bytes", nread);
@@ -171,12 +172,6 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 
 	for(i = 0; i < size/4; i++) {
 		info("ois cal data (%d): 0x%0x,%0x,%0x,%0x", i, buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3]);
-	}
-	/* OIS cal data in buf[16]~buf[19], expected value are 0x08,0x00,0x08,0x00. If not, means wrong cal data */
-	if((buf[16] != 0x08) || (buf[17] != 0x0) || (buf[18] != 0x08) || (buf[19] != 0x0)) {
-		err("the ois cal data in eeprom can not work, return error");
-		ret = -EIO;
-		goto p_err;
 	}
 
 	if (crc_enable) {
@@ -194,6 +189,18 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 	memcpy(ois_cal_data, (void *)buf, OIS_CAL_ACTUAL_DL_SIZE);
 	ois_cal_data_size = OIS_CAL_ACTUAL_DL_SIZE;
 	info("%s cal data copy size:%d bytes", __func__, OIS_CAL_ACTUAL_DL_SIZE);
+
+	/* The eeprom table revision in DVT2 is 0x33, use it to check the OIS cal data should apply or not*/
+	if(OIS_CAL_DATA_OFFSET == offset) {
+		fp->f_pos = EEPROM_INFO_TABLE_REVISION;
+		nread = vfs_read(fp, (char __user *)buf, 1 , &fp->f_pos);
+		info("eeprom table revision data 0x%0x", buf[0]);
+		if ((nread != 1) ||(buf[0] < 0x33)) {
+			err("ois cal data in eeprom is wrong");
+			ret = -EIO;
+			goto p_err;
+		}
+	}
 
 p_err:
 	if (buf)
