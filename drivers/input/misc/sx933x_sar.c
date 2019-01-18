@@ -485,7 +485,7 @@ static ssize_t sx933x_all_reg_data_show(struct device *dev, struct device_attrib
 	{
 		regist = (u16)(sx933x_i2c_reg_setup[i].reg);
 		sx933x_i2c_read_16bit(this, regist, &val);
-		
+
 		if (regist == SX933X_AFEPHPH0_REG ||
 			regist == SX933X_AFEPHPH1_REG ||
 			regist == SX933X_AFEPHPH2_REG ||
@@ -494,7 +494,7 @@ static ssize_t sx933x_all_reg_data_show(struct device *dev, struct device_attrib
 		{
 			val &= ~0x7FFF;
 		}
-		
+
 		p += snprintf(p, PAGE_SIZE, "(reg,val)= (0x%X,0x%02X);\n", regist,val);
 	}
 	return (p-buf);
@@ -771,7 +771,7 @@ static void touchProcess(psx93XX_t this)
 				LOG_INFO("touchProcess %s unused, ignor this\n", buttons[counter].name);
 				continue;
 			}
-			pCurrentButton = &buttons[counter];			
+			pCurrentButton = &buttons[counter];
 			if (pCurrentButton==NULL)
 			{
 				LOG_DBG("ERROR!! current button at index: %d NULL!!!\n", counter);
@@ -992,7 +992,7 @@ static int sx933x_probe(struct i2c_client *client, const struct i2c_device_id *i
 	struct totalButtonInformation *pButtonInformationData = NULL;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 
-	LOG_DBG("sx933x_probe()\n");	
+	LOG_DBG("sx933x_probe()\n");
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA))
 	{
@@ -1116,7 +1116,7 @@ static int sx933x_probe(struct i2c_client *client, const struct i2c_device_id *i
 					pButtonInformationData->buttons[i].sensors_capsensor_cdev.type = SENSOR_TYPE_MOTO_CAPSENSE;
 					pButtonInformationData->buttons[i].sensors_capsensor_cdev.max_range = "5";
 					pButtonInformationData->buttons[i].sensors_capsensor_cdev.resolution = "5.0";
-					pButtonInformationData->buttons[i].sensors_capsensor_cdev.sensor_power = "3";
+					pButtonInformationData->buttons[i].sensors_capsensor_cdev.sensor_power = "0.5";
 					pButtonInformationData->buttons[i].sensors_capsensor_cdev.min_delay = 0;
 					pButtonInformationData->buttons[i].sensors_capsensor_cdev.fifo_reserved_event_count = 0;
 					pButtonInformationData->buttons[i].sensors_capsensor_cdev.fifo_max_event_count = 0;
@@ -1137,7 +1137,7 @@ static int sx933x_probe(struct i2c_client *client, const struct i2c_device_id *i
 			if (PTR_ERR(pplatData->cap_vdd) == -EPROBE_DEFER) {
 				err = PTR_ERR(pplatData->cap_vdd);
 				return err;
-			}    
+			}
 			LOG_DBG("%s: Failed to get regulator\n",
 					__func__);
 		} else {
@@ -1147,7 +1147,7 @@ static int sx933x_probe(struct i2c_client *client, const struct i2c_device_id *i
 				LOG_DBG("%s: Error %d enable regulator\n",
 						__func__, err);
 				return err;
-			}    
+			}
 			pplatData->cap_vdd_en = true;
 			LOG_DBG("cap_vdd regulator is %s\n",
 					regulator_is_enabled(pplatData->cap_vdd) ?
@@ -1187,22 +1187,22 @@ static int sx933x_probe(struct i2c_client *client, const struct i2c_device_id *i
 static int sx933x_remove(struct i2c_client *client)
 {
 	psx933x_platform_data_t pplatData =0;
-	psx933x_t pDevice = 0; 
+	psx933x_t pDevice = 0;
 	struct _buttonInfo *pCurrentbutton;
 	int i = 0;
 	psx93XX_t this = i2c_get_clientdata(client);
 	LOG_DBG("sx933x_remove");
 	if (this && (pDevice = this->pDevice))
-	{    
+	{
 		free_irq(this->irq, this);
-		cancel_delayed_work_sync(&(this->dworker));	
+		cancel_delayed_work_sync(&(this->dworker));
 
 		sysfs_remove_group(&client->dev.kobj, &sx933x_attr_group);
 		pplatData = client->dev.platform_data;
 		if (pplatData && pplatData->exit_platform_hw)
 			pplatData->exit_platform_hw(client);
 		if (pplatData->cap_vdd_en) {
-			regulator_disable(pplatData->cap_vdd); 
+			regulator_disable(pplatData->cap_vdd);
 			regulator_put(pplatData->cap_vdd);
 		}
 		for (i = 0; i <pDevice->pbuttonInformation->buttonSize; i++) {
