@@ -94,6 +94,7 @@ int mfc_pm_clock_on(struct mfc_dev *dev)
 	state = atomic_read(&dev->clk_ref);
 	mfc_debug(2, "+ %d\n", state);
 	MFC_TRACE_DEV("** clock_on end: ref state(%d)\n", state);
+	MFC_TRACE_LOG_DEV("c+%d", state);
 
 	return 0;
 }
@@ -160,6 +161,7 @@ void mfc_pm_clock_off(struct mfc_dev *dev)
 	state = atomic_read(&dev->clk_ref);
 	mfc_debug(2, "- %d\n", state);
 	MFC_TRACE_DEV("** clock_off end: ref state(%d)\n", state);
+	MFC_TRACE_LOG_DEV("c-%d", state);
 }
 
 int mfc_pm_power_on(struct mfc_dev *dev)
@@ -190,6 +192,7 @@ int mfc_pm_power_on(struct mfc_dev *dev)
 	atomic_inc(&dev->pm.pwr_ref);
 
 	MFC_TRACE_DEV("-- Power on: ret(%d)\n", ret);
+	MFC_TRACE_LOG_DEV("p+%d", mfc_pm_get_pwr_ref_cnt(dev));
 
 	return 0;
 
@@ -222,6 +225,7 @@ int mfc_pm_power_off(struct mfc_dev *dev)
 	atomic_dec(&dev->pm.pwr_ref);
 
 	MFC_TRACE_DEV("-- Power off: ret(%d)\n", ret);
+	MFC_TRACE_LOG_DEV("p-%d", mfc_pm_get_pwr_ref_cnt(dev));
 
 	return ret;
 }
