@@ -932,8 +932,10 @@ static int exynos_tmu_set_emulation(void *drv_data, int temp)
 	{ return -EINVAL; }
 #endif /* CONFIG_THERMAL_EMULATION */
 
-static bool cpufreq_limited;
+#if defined(CONFIG_SOC_EXYNOS9810) || defined(CONFIG_SOC_EXYNOS9610)
+static bool cpufreq_limited = false;
 static struct pm_qos_request thermal_cpu_limit_request;
+#endif
 
 static int exynos9810_tmu_read(struct exynos_tmu_data *data)
 {
@@ -965,6 +967,26 @@ static int exynos9610_tmu_read(struct exynos_tmu_data *data)
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp, &stat);
 #endif
+
+	if (data->limited_frequency) {
+		/* If cpufreq_limited flag is low and temp is higher than limited_threshold,
+		 * limited max frequency.
+		 * And cpufreq_limited flag is high and temp is lower than
+		 * limited_threshold_release, release max frequency.
+		 */
+		if ((temp > data->limited_threshold) && !cpufreq_limited) {
+			pm_qos_update_request(&thermal_cpu_limit_request,
+					data->limited_frequency);
+			cpufreq_limited = true;
+			dbg_snapshot_thermal(data->pdata, temp, "limited", data->limited_frequency);
+		} else if ((temp < data->limited_threshold_release) && cpufreq_limited) {
+			pm_qos_update_request(&thermal_cpu_limit_request,
+					PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
+			cpufreq_limited = false;
+			dbg_snapshot_thermal(data->pdata, temp, "release_limited",
+							PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
+		}
+	}
 
 	return temp;
 }
@@ -1550,7 +1572,7 @@ static int exynos_tmu_parse_ect(struct exynos_tmu_data *data)
 		void *block;
 		struct ect_pidtm_block *pidtm_block;
 		int i, temperature, value;
-		int hotplug_out_threshold = 0, hotplug_in_threshold = 0, limited_frequency = 0;
+		int hotplug_out_threshold = 0, hotplug_in_threshold = 0;
 
 		block = ect_get_block(BLOCK_PIDTM);
 		if (block == NULL) {
@@ -1623,13 +1645,38 @@ static int exynos_tmu_parse_ect(struct exynos_tmu_data *data)
 
 		if ((value = exynos_tmu_ect_get_param(pidtm_block, "limited_frequency")) != -1) {
 			pr_info("Parse from ECT limited_frequency: %d\n", value);
-			limited_frequency = value;
+			data->limited_frequency = value;
+		} else {
+			data->limited_frequency = 0;
+			pr_err("Fail to parse limited_frequency parameter\n");
 		}
+
+#if defined(CONFIG_SOC_EXYNOS9610)
+		if (data->limited_frequency) {
+			/* Check limited_threshold to ect, if limited_frequency value is existed */
+			if ((value = exynos_tmu_ect_get_param(pidtm_block, "limited_threshold")) != -1) {
+				pr_info("Parse from ECT limited_threshold: %d\n", value);
+				data->limited_threshold = value;
+			} else {
+				pr_err("Fail to parse ECT limited_threshold, disable limit frequency mode\n");
+				data->limited_frequency = 0;
+			}
+
+			/* Check limited_threshold_release to ect, if limited_frequency value is existed */
+			if ((value = exynos_tmu_ect_get_param(pidtm_block, "limited_threshold_release")) != -1) {
+				pr_info("Parse from ECT limited_threshold_release: %d\n", value);
+				data->limited_threshold_release = value;
+			} else {
+				pr_err("Fail to parse ECT limited_threshold_release, disable limit frequency mode\n");
+				data->limited_frequency = 0;
+			}
+		} else
+			pr_err("Do not parsing limited_threshold and limited_threshold_release parameter\n");
+#endif
 
 		if (hotplug_out_threshold != 0 && hotplug_in_threshold != 0) {
 			data->hotplug_out_threshold = hotplug_out_threshold;
 			data->hotplug_in_threshold = hotplug_in_threshold;
-			data->limited_frequency = limited_frequency;
 			data->hotplug_enable = true;
 		} else
 			data->hotplug_enable = false;
@@ -1669,7 +1716,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	if(data->hotplug_enable) {
 		exynos_cpuhp_register("DTM", *cpu_online_mask, 0);
 
-#if defined(CONFIG_SOC_EXYNOS9810)
+#if defined(CONFIG_SOC_EXYNOS9810) || defined(CONFIG_SOC_EXYNOS9610)
 	pm_qos_add_request(&thermal_cpu_limit_request,
 				PM_QOS_CLUSTER1_FREQ_MAX,
 				PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
