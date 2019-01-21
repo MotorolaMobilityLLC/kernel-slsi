@@ -748,6 +748,7 @@ int csi_hw_s_dma_common_dynamic(u32 __iomem *base_reg, size_t size, unsigned int
 	} else if (GET_DMA_CH(dma_ch, 2)) {
 		matrix_num = 2;
 		sram1_split = 4; /* Rear2 uses a DMA3 as image out */
+		dma_pri_1 = 2;
 	} else if (GET_DMA_CH(dma_ch, 3)) {
 		dma_pri_1 = 2;
 		matrix_num = 17;
