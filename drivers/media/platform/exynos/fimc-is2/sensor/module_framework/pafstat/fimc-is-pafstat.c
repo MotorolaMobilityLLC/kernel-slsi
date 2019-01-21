@@ -282,7 +282,13 @@ static void __nocfi pafstat_worker_fwin_stat(struct work_struct *work)
 	list_for_each_entry_safe(pa, temp, &pafstat->list_of_paf_action, list) {
 		switch (pa->type) {
 		case VC_STAT_TYPE_PAFSTAT_FLOATING:
+#ifdef ENABLE_FPSIMD_FOR_USER
+			fpsimd_get();
 			pa->notifier(pa->type, *(unsigned int *)&sensor->fcount, pa->data);
+			fpsimd_put();
+#else
+			pa->notifier(pa->type, *(unsigned int *)&sensor->fcount, pa->data);
+#endif
 			break;
 		default:
 			break;
@@ -455,7 +461,13 @@ void __nocfi pafstat_notify(struct v4l2_subdev *subdev, unsigned int type, void 
 		list_for_each_entry_safe(pa, temp, &pafstat->list_of_paf_action, list) {
 			switch (pa->type) {
 			case VC_STAT_TYPE_PAFSTAT_STATIC:
+#ifdef ENABLE_FPSIMD_FOR_USER
+				fpsimd_get();
 				pa->notifier(pa->type, *(unsigned int *)data, pa->data);
+				fpsimd_put();
+#else
+				pa->notifier(pa->type, *(unsigned int *)data, pa->data);
+#endif
 				break;
 			default:
 				break;
