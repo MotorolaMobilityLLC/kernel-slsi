@@ -222,9 +222,9 @@
 			front_preview_int = <DVFS_INT_L4>;
 			front_preview_hpg = <1>;
 
-			front_preview_full_int_cam = <DVFS_INT_CAM_L3>;
+			front_preview_full_int_cam = <DVFS_INT_CAM_L0>;
 			front_preview_full_cam = <DVFS_CAM_L2>;
-			front_preview_full_mif = <DVFS_MIF_L5>;
+			front_preview_full_mif = <DVFS_MIF_L3>;
 			front_preview_full_int = <DVFS_INT_L4>;
 			front_preview_full_hpg = <1>;
 
@@ -290,7 +290,7 @@
 
 			rear2_preview_fhd_int_cam = <DVFS_INT_CAM_L3>;
 			rear2_preview_fhd_cam = <DVFS_CAM_L4>;
-			rear2_preview_fhd_mif = <DVFS_MIF_L7>;
+			rear2_preview_fhd_mif = <DVFS_MIF_L3>;
 			rear2_preview_fhd_int = <DVFS_INT_L4>;
 			rear2_preview_fhd_hpg = <1>;
 
@@ -302,7 +302,7 @@
 
 			rear2_video_fhd_int_cam = <DVFS_INT_CAM_L3>;
 			rear2_video_fhd_cam = <DVFS_CAM_L4>;
-			rear2_video_fhd_mif = <DVFS_MIF_L7>;
+			rear2_video_fhd_mif = <DVFS_MIF_L3>;
 			rear2_video_fhd_int = <DVFS_INT_L4>;
 			rear2_video_fhd_hpg = <1>;
 
