@@ -50,6 +50,21 @@
 #define OTP_GRP2_LSC_XTC_CRC_START	(208 * OTP_PAGE_SIZE + 24)
 #define OTP_GRP2_LSC_XTC_CRC_SIZE	(2896)
 
+/* [shift value setting for 2X5SP]
+ * 1s: 2, 2s: 3, 4s: 4, 8s: 5, 16s: 6, 32s: 7
+ */
+#define GET_2X5SP_LTE_SHIFT_CNT(val)	\
+	({u8 shift_count = 1, shifter;		\
+	if (val >= 1000000) {			\
+		shifter = val / 1000000;	\
+		while (shifter) {		\
+			shifter /= 2;		\
+			shift_count++;		\
+		}				\
+	} else {				\
+		shift_count = 0;		\
+	}; shift_count;})
+
 enum otp_group {
 	OTP_GROUP_ONE = 0x1,
 	OTP_GROUP_TWO = 0x2,
