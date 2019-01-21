@@ -936,7 +936,8 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	u16 middle_coarse_int = 0;
 	u32 line_length_pck = 0;
 	u32 min_fine_int = 0;
-
+	u64 numerator;
+	u8 lte_shifter;
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
 
@@ -973,9 +974,18 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	line_length_pck = cis_data->line_length_pck;
 	min_fine_int = cis_data->min_fine_integration_time;
 
-	long_coarse_int = ((target_exposure->long_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
-	short_coarse_int = ((target_exposure->short_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
-	middle_coarse_int = ((target_exposure->middle_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
+	lte_shifter = cis->long_term_mode.sen_strm_off_on_enable ?
+		GET_2X5SP_LTE_SHIFT_CNT(target_exposure->long_val) : 0;
+
+	numerator = (u64)cis_data->pclk * target_exposure->long_val;
+	long_coarse_int = (numerator - min_fine_int)
+					/(1000 * 1000) / line_length_pck / (1 << lte_shifter);
+	numerator = (u64)cis_data->pclk * target_exposure->short_val;
+	short_coarse_int = (numerator - min_fine_int)
+					/(1000 * 1000) / line_length_pck / (1 << lte_shifter);
+	numerator = (u64)cis_data->pclk * target_exposure->middle_val;
+	middle_coarse_int = (numerator - min_fine_int)
+					/(1000 * 1000) / line_length_pck / (1 << lte_shifter);
 
 	if (long_coarse_int > cis_data->max_coarse_integration_time) {
 		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), long coarse(%d) max(%d)\n", cis->id, __func__,
@@ -1186,6 +1196,8 @@ int sensor_2x5sp_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 	u32 line_length_pck = 0;
 	u32 frame_length_lines = 0;
 	u32 frame_duration = 0;
+	u64 numerator;
+	u8 lte_shifter;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1203,12 +1215,17 @@ int sensor_2x5sp_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 
 	cis_data = cis->cis_data;
 
+	lte_shifter = cis->long_term_mode.sen_strm_off_on_enable ?
+		GET_2X5SP_LTE_SHIFT_CNT(input_exposure_time) : 0;
+
 	vt_pic_clk_freq_mhz = cis_data->pclk / (1000 * 1000);
 	line_length_pck = cis_data->line_length_pck;
-	frame_length_lines = ((vt_pic_clk_freq_mhz * input_exposure_time) / line_length_pck);
+	numerator = (u64)cis_data->pclk * input_exposure_time;
+	frame_length_lines = (u16)((numerator / (1000 * 1000))/ line_length_pck / (1 << lte_shifter));
 	frame_length_lines += cis_data->max_margin_coarse_integration_time;
 
-	frame_duration = (frame_length_lines * line_length_pck) / vt_pic_clk_freq_mhz;
+	numerator = (u64)frame_length_lines * line_length_pck;
+	frame_duration = (numerator << lte_shifter) / vt_pic_clk_freq_mhz;
 
 	dbg_sensor(1, "[%s](vsync cnt = %d) input exp(%d), adj duration, frame duraion(%d), min_frame_us(%d)\n",
 			__func__, cis_data->sen_vsync_count, input_exposure_time,
@@ -1238,6 +1255,7 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	u16 frame_length_lines = 0;
 	u64 numerator;
 	u32 max_coarse_integration_time = 0;
+	u8 lte_shifter;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1265,9 +1283,12 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 		frame_duration = cis_data->min_frame_us_time;
 	}
 
+	lte_shifter = cis->long_term_mode.sen_strm_off_on_enable ?
+		GET_2X5SP_LTE_SHIFT_CNT(frame_duration) : 0;
+
 	line_length_pck = cis_data->line_length_pck;
 	numerator = (u64)cis_data->pclk * frame_duration;
-	frame_length_lines = (u16)((numerator / line_length_pck) / (1000 * 1000));
+	frame_length_lines = (u16)((numerator / line_length_pck) / (1000 * 1000) / (1 << lte_shifter));
 
 	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk(%#x) frame_duration = %d us,"
 		KERN_CONT "(line_length_pck%#x), frame_length_lines(%#x)\n",
@@ -2224,6 +2245,43 @@ void sensor_2x5sp_cis_check_wdr_mode(struct v4l2_subdev *subdev, u32 mode_idx)
 				cis->cis_data->is_data.wdr_enable);
 }
 
+int sensor_2x5sp_cis_long_term_exposure(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct fimc_is_long_term_expo_mode *lte_mode;
+	u8 shift_count;
+
+	WARN_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	lte_mode = &cis->long_term_mode;
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+	/* LTE mode or normal mode set */
+	if (lte_mode->sen_strm_off_on_enable) {
+		shift_count = GET_2X5SP_LTE_SHIFT_CNT(lte_mode->expo[0]);
+		ret |= fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
+		ret |= fimc_is_sensor_write8(cis->client, 0x0702, shift_count);
+		ret |= fimc_is_sensor_write8(cis->client, 0x0704, shift_count);
+	} else {
+		ret |= fimc_is_sensor_write16(cis->client, 0xFCFC, 0x4000);
+		ret |= fimc_is_sensor_write8(cis->client, 0x0702, 0);
+		ret |= fimc_is_sensor_write8(cis->client, 0x0704, 0);
+	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
+	info("%s enable(%d)", __func__, lte_mode->sen_strm_off_on_enable);
+
+	if (ret < 0) {
+		pr_err("ERR[%s]: LTE register setting fail\n", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
 static struct fimc_is_cis_ops cis_ops = {
 	.cis_init = sensor_2x5sp_cis_init,
 	.cis_log_status = sensor_2x5sp_cis_log_status,
@@ -2258,6 +2316,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_set_roi_stat = sensor_2x5sp_cis_set_3hdr_roi,
 	.cis_set_3hdr_stat = sensor_2x5sp_cis_set_3hdr_stat,
 	.cis_check_wdr_mode = sensor_2x5sp_cis_check_wdr_mode,
+	.cis_set_long_term_exposure = sensor_2x5sp_cis_long_term_exposure,
 };
 
 static int cis_2x5sp_probe(struct i2c_client *client,
