@@ -688,20 +688,7 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 		memset(&applied_ae_setting, 0, sizeof(ae_setting));
 		fimc_is_sensor_ctl_adjust_ae_setting(device, &applied_ae_setting, cis_data);
 
-		/* 1. set exposureTime */
-		ret = fimc_is_sensor_ctl_adjust_exposure(device, module_ctl, &applied_ae_setting, &expo);
-		if (ret < 0)
-			err("[%s] frame number(%d) adjust exposure fail\n", __func__, applied_frame_number);
-
-		ret =  fimc_is_sensor_ctl_set_exposure(device, expo);
-		if (ret < 0)
-			err("[%s] frame number(%d) set exposure fail\n", __func__, applied_frame_number);
-
-		ret = fimc_is_sensor_ctl_update_exposure(device, dm_index, expo);
-		if (ret < 0)
-			err("[%s] frame number(%d) update exposure fail\n", __func__, applied_frame_number);
-
-		/* 2. set frame rate : Limit of max frame duration */
+		/* 1. set frame rate : Limit of max frame duration */
 		if (sensor_ctrl->frameDuration != 0 && module_ctl->valid_sensor_ctrl == true)
 			frame_duration = fimc_is_sensor_convert_ns_to_us(sensor_ctrl->frameDuration);
 		else
@@ -711,6 +698,11 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 		if (ret < 0) {
 			err("[%s] frame number(%d) set frame duration fail\n", __func__, applied_frame_number);
 		}
+
+		/* 2. set exposureTime */
+		ret = fimc_is_sensor_ctl_adjust_exposure(device, module_ctl, &applied_ae_setting, &expo);
+		if (ret < 0)
+			err("[%s] frame number(%d) adjust exposure fail\n", __func__, applied_frame_number);
 
 		/* 3. set dynamic duration */
 		ctrl.id = V4L2_CID_SENSOR_ADJUST_FRAME_DURATION;
@@ -727,7 +719,15 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 			err("[%s] frame number(%d) set frame duration fail\n", __func__, applied_frame_number);
 		}
 
-		/* 4. set analog & digital gains */
+		/* 4. update exposureTime */
+		ret =  fimc_is_sensor_ctl_set_exposure(device, expo);
+		if (ret < 0)
+			err("[%s] frame number(%d) set exposure fail\n", __func__, applied_frame_number);
+		ret = fimc_is_sensor_ctl_update_exposure(device, dm_index, expo);
+		if (ret < 0)
+			err("[%s] frame number(%d) update exposure fail\n", __func__, applied_frame_number);
+
+		/* 5. set analog & digital gains */
 		ret = fimc_is_sensor_ctl_adjust_gains(device, &applied_ae_setting, &adj_again, &adj_dgain);
 		if (ret < 0) {
 			err("[%s] frame number(%d) adjust gains fail\n", __func__, applied_frame_number);
