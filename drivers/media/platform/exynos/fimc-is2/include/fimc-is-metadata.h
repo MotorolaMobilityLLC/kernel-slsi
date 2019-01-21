@@ -1216,6 +1216,15 @@ struct camera2_reprocess_sm {
 	uint32_t	maxCaptureStall;
 };
 
+struct camera2_faceBeauty_ctl
+{
+	int32_t		strength;
+};
+
+struct camera2_faceBeauty_dm
+{
+	int32_t		strength;
+};
 
 /* android.depth */
 
@@ -1294,6 +1303,7 @@ struct camera2_ctl {
 	struct camera2_blacklevel_ctl		blacklevel;
 	struct camera2_sync_ctl			sync;
 	struct camera2_reprocess_ctl		reprocess;
+	struct camera2_faceBeauty_ctl		facebeauty;
 
 	/* vendor feature */
 	struct camera2_entry_ctl		vendor_entry;
@@ -1319,6 +1329,7 @@ struct camera2_dm {
 	struct camera2_blacklevel_dm		blacklevel;
 	struct camera2_sync_dm			sync;
 	struct camera2_reprocess_dm	 	reprocess;
+	struct camera2_faceBeauty_dm		facebeauty;
 
 	/* vendor feature */
 	struct camera2_entry_dm			vendor_entry;
