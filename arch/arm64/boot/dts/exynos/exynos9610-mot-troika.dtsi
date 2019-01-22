@@ -1,0 +1,80 @@
+
+/ {
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			model = "troika";
+			mot,soc-id = <0xE9610000>;
+			mot,board-id = <0x43 0xA100>;
+
+			utags {
+				compatible = "mmi,utags";
+				mmi,main-utags = "/dev/block/bootdevice/by-name/utags";
+				mmi,backup-utags = "/dev/block/bootdevice/by-name/utagsBackup";
+			};
+
+			hw {
+				compatible = "mmi,utags";
+				mmi,dir-name = "hw";
+				mmi,main-utags = "/dev/block/bootdevice/by-name/hw";
+			};
+
+			aov-trigger {
+				status = "okay";
+				compatible = "mmi,aov-trigger";
+			};
+
+		};
+	};
+};
+
+&exynos_adc {
+	status = "okay";
+	cpu_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 0>;
+		io-channel-names = "cpu_therm";
+	};
+	battery_thermistor {
+		compatible = "murata,ncp15xh103";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 1>;
+		io-channel-names = "bat_therm";
+	};
+	pa_thermistor {
+		compatible = "murata,ncp15xh103";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <0>;
+		pulldown-ohm = <10000>;
+		io-channels = <&exynos_adc 4>;
+		io-channel-names = "pa_therm";
+		connected-positive;
+	};
+	board_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 7>;
+		io-channel-names = "board_therm";
+	};
+	usb_con_thermistor {
+		compatible = "murata,ncp03wf104";
+		status = "okay";
+		pullup-uv = <1800000>;
+		pullup-ohm = <100000>;
+		pulldown-ohm = <0>;
+		io-channels = <&exynos_adc 8>;
+		io-channel-names = "usb_con_therm";
+	};
+};
+
