@@ -2551,6 +2551,14 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 					prev->shot->ctl.aa.captureIntent = frame->shot->ctl.aa.captureIntent;
 					prev->shot->ctl.aa.vendor_captureExposureTime = frame->shot->ctl.aa.vendor_captureExposureTime;
 					prev->shot->ctl.aa.vendor_captureCount = frame->shot->ctl.aa.vendor_captureCount;
+
+					resourcemgr->shot_timeout = FIMC_IS_SHOT_TIMEOUT * 12; /* 3000 x 12 = 36s */
+					resourcemgr->shot_timeout_tick = KEEP_FRAME_TICK_DEFAULT;
+				} else {
+					if (resourcemgr->shot_timeout_tick > 0)
+						resourcemgr->shot_timeout_tick--;
+					else
+						resourcemgr->shot_timeout = FIMC_IS_SHOT_TIMEOUT;
 				}
 			}
 		}
