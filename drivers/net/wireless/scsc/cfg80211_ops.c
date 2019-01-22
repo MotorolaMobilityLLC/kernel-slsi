@@ -552,27 +552,20 @@ int slsi_scan(struct wiphy *wiphy, struct net_device *dev,
 
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
-	if (request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		memcpy(sdev->scan_mac_addr, request->mac_addr, ETH_ALEN);
-		r = slsi_set_mac_randomisation_mask(sdev, request->mac_addr_mask);
-		if (!r)
-			sdev->scan_addr_set = 1;
-	} else
+		if (request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+			memcpy(sdev->scan_mac_addr, request->mac_addr, ETH_ALEN);
+			r = slsi_set_mac_randomisation_mask(sdev, request->mac_addr_mask);
+			if (!r)
+				sdev->scan_addr_set = 1;
+		} else
 #endif
-	if (scan_type == FAPI_SCANTYPE_GSCAN && sdev->scan_addr_set == 1) {
-		memset(mac_addr_mask, 0xFF, ETH_ALEN);
-		for (i = 3; i < ETH_ALEN; i++)
-			mac_addr_mask[i] = 0x00;
-		slsi_set_mac_randomisation_mask(sdev, mac_addr_mask);
-	} else {
 		if (sdev->scan_addr_set) {
 			memset(mac_addr_mask, 0xFF, ETH_ALEN);
 			r = slsi_set_mac_randomisation_mask(sdev, mac_addr_mask);
-			if (!r)
-				sdev->scan_addr_set = 0;
+			sdev->scan_addr_set = 0;
 		}
-	}
 #endif
+
 	r = slsi_mlme_add_scan(sdev,
 			       dev,
 			       scan_type,
