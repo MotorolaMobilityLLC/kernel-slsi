@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -27,9 +27,9 @@ unsigned long long SDA_getTsf(const unsigned char if_id)
 	read_lock(&dev_base_lock);
 	dev = first_net_device(&init_net);
 	while (dev) {
-		if (if_id == 0 && !dev->name && memcmp(dev->name, "wlan0", 5) == 0)
+		if (if_id == 0 && memcmp(dev->name, "wlan0", 5) == 0)
 			break;
-		else if (if_id == 1 && !dev->name && memcmp(dev->name, "p2p0", 4) == 0)
+		else if (if_id == 1 && memcmp(dev->name, "p2p0", 4) == 0)
 			break;
 		dev = next_net_device(dev);
 	}
