@@ -59,6 +59,10 @@ struct exynos_pm_info {
 	bool (*usb_is_connect)(void);
 	unsigned int conn_req_offset;
 	unsigned int prev_conn_req;		/* TCXO, PWR, MIF request status of masters */
+	unsigned int pmu_cp_stat_offset;
+	unsigned int pmu_gnss_stat_offset;
+	unsigned int pmu_wlbt_stat_offset;
+	unsigned int stat_access_mif_offset;
 };
 static struct exynos_pm_info *pm_info;
 
@@ -285,6 +289,16 @@ static struct syscore_ops exynos_pm_syscore_ops = {
 	.resume		= exynos_pm_syscore_resume,
 };
 
+static int exynos_pm_read_access_mif_stat(unsigned int stat_addr)
+{
+	unsigned int stat;
+
+	exynos_pmu_read(stat_addr, &stat);
+	stat = (stat >> pm_info->stat_access_mif_offset) & 0x1;
+
+	return stat;
+}
+
 static int exynos_pm_enter(suspend_state_t state)
 {
 	unsigned int psci_index;
@@ -316,11 +330,18 @@ static int exynos_pm_enter(suspend_state_t state)
 	post_mif = acpm_get_mifdn_count();
 	pr_info("%s: post mif_count %d\n",EXYNOS_PM_PREFIX, post_mif);
 
-	if (post_mif == prev_mif)
+	if (post_mif == prev_mif) {
 		pr_info("%s: MIF blocked. prev_conn_req: 0x%x\n", EXYNOS_PM_PREFIX, pm_info->prev_conn_req);
-	else
+		pr_info("%s: cp_access_mif: 0x%x\n", EXYNOS_PM_PREFIX,
+				exynos_pm_read_access_mif_stat(pm_info->pmu_cp_stat_offset));
+		pr_info("%s: gnss_access_mif: 0x%x\n", EXYNOS_PM_PREFIX,
+				exynos_pm_read_access_mif_stat(pm_info->pmu_gnss_stat_offset));
+		pr_info("%s: wlbt_access_mif: 0x%x\n", EXYNOS_PM_PREFIX,
+				exynos_pm_read_access_mif_stat(pm_info->pmu_wlbt_stat_offset));
+	} else {
 		pr_info("%s: MIF down. cur_count: %d, acc_count: %d\n",
 				EXYNOS_PM_PREFIX, post_mif - prev_mif, post_mif);
+	}
 
 	pr_info("%s: MIF_UP history: \n", EXYNOS_PM_PREFIX);
 	acpm_get_inform();
@@ -515,6 +536,30 @@ static __init int exynos_pm_drvinit(void)
 		ret = of_property_read_u32(np, "conn_req_offset", &pm_info->conn_req_offset);
 		if (ret) {
 			pr_err("%s %s: unabled to get conn_req_offset value from DT\n",
+					EXYNOS_PM_PREFIX, __func__);
+			BUG();
+		}
+		ret = of_property_read_u32(np, "pmu_cp_stat_offset", &pm_info->pmu_cp_stat_offset);
+		if (ret) {
+			pr_err("%s %s: unabled to get pmu_cp_stat_offset value from DT\n",
+					EXYNOS_PM_PREFIX, __func__);
+			BUG();
+		}
+		ret = of_property_read_u32(np, "pmu_gnss_stat_offset", &pm_info->pmu_gnss_stat_offset);
+		if (ret) {
+			pr_err("%s %s: unabled to get pmu_gnss_stat_offset value from DT\n",
+					EXYNOS_PM_PREFIX, __func__);
+			BUG();
+		}
+		ret = of_property_read_u32(np, "pmu_wlbt_stat_offset", &pm_info->pmu_wlbt_stat_offset);
+		if (ret) {
+			pr_err("%s %s: unabled to get pmu_wlbt_stat_offset value from DT\n",
+					EXYNOS_PM_PREFIX, __func__);
+			BUG();
+		}
+		ret = of_property_read_u32(np, "stat_access_mif_offset", &pm_info->stat_access_mif_offset);
+		if (ret) {
+			pr_err("%s %s: unabled to get stat_access_mif_offset value from DT\n",
 					EXYNOS_PM_PREFIX, __func__);
 			BUG();
 		}
