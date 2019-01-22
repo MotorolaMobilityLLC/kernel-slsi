@@ -18,6 +18,7 @@
 #include "wing-sensor.dtsi"
 #include "exynos9610-robusta2-motor.dtsi"
 #include "exynos9610_gpio_config_macros.dtsi"
+#include "carrier-channel-ids.dtsi"
 
 / {
 	fragment@common {
