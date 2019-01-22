@@ -101,10 +101,12 @@ extern struct ieee80211_sta_vht_cap       slsi_vht_cap;
 #define SLSI_MAX_PATTERN_LENGTH 6
 
 /*Default values of MIBS params for GET_STA_INFO driver private command */
-#define SLSI_DEFAULT_UNIFI_PEER_BANDWIDTH             -1
-#define SLSI_DEFAULT_UNIFI_PEER_NSS                          0
-#define SLSI_DEFAULT_UNIFI_PEER_RSSI                         1
-#define SLSI_DEFAULT_UNIFI_PEER_TX_DATA_RATE          0
+#define SLSI_DEFAULT_UNIFI_PEER_RX_RETRY_PACKETS 0
+#define SLSI_DEFAULT_UNIFI_PEER_RX_BC_MC_PACKETS 0
+#define SLSI_DEFAULT_UNIFI_PEER_BANDWIDTH       -1
+#define SLSI_DEFAULT_UNIFI_PEER_NSS              0
+#define SLSI_DEFAULT_UNIFI_PEER_RSSI             1
+#define SLSI_DEFAULT_UNIFI_PEER_TX_DATA_RATE     0
 
 #define SLSI_CHECK_TYPE(sdev, recv_type, exp_type) \
 	do { \

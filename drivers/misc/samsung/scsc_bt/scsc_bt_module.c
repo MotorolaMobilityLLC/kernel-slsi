@@ -1452,8 +1452,6 @@ static void slsi_bt_service_remove(struct scsc_mx_module_client *module_client,
 		goto done;
 	}
 
-	slsi_bt_notify_remove();
-
 	if (reason == SCSC_MODULE_CLIENT_REASON_RECOVERY && bt_recovery_in_progress) {
 		mutex_unlock(&bt_start_mutex);
 		wait_for_completion(&bt_service.recovery_release_complete);
@@ -1472,6 +1470,7 @@ static void slsi_bt_service_remove(struct scsc_mx_module_client *module_client,
 		bt_service.h4_write_offset = 0;
 	}
 
+	slsi_bt_notify_remove();
 	put_device(bt_service.dev);
 	common_service.maxwell_core = NULL;
 

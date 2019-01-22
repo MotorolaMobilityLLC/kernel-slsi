@@ -25,12 +25,12 @@
 #include "kic.h"
 #endif
 
-static char *mib_file = "wlan.hcf";
-module_param(mib_file, charp, S_IRUGO | S_IWUSR);
+char *slsi_mib_file = "wlan.hcf";
+module_param_named(mib_file, slsi_mib_file, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mib_file, "mib data filename");
 
-static char *mib_file2 = "wlan_sw.hcf";
-module_param(mib_file2, charp, S_IRUGO | S_IWUSR);
+char *slsi_mib_file2 = "wlan_sw.hcf";
+module_param_named(mib_file2, slsi_mib_file2, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mib_file2, "sw mib data filename");
 
 static char *local_mib_file = "localmib.hcf";
@@ -262,8 +262,8 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	sdev->p2p_certif = false;
 	sdev->allow_switch_40_mhz = true;
 	sdev->allow_switch_80_mhz = true;
-	sdev->mib[0].mib_file_name = mib_file;
-	sdev->mib[1].mib_file_name = mib_file2;
+	sdev->mib[0].mib_file_name = slsi_mib_file;
+	sdev->mib[1].mib_file_name = slsi_mib_file2;
 	sdev->local_mib.mib_file_name = local_mib_file;
 	sdev->maddr_file_name = maddr_file;
 	sdev->device_config.qos_info = -1;
@@ -367,10 +367,16 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 		SLSI_ERR(sdev, "failed to register with p2p netdev\n");
 		goto err_wlan_registered;
 	}
+
+	if (slsi_netif_register(sdev, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]) != 0) {
+		SLSI_ERR(sdev, "failed to register with p2px_wlan1 netdev\n");
+		goto err_mhs_registered;
+	}
+	rcu_assign_pointer(sdev->netdev_ap, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
 	if (slsi_netif_register(sdev, sdev->netdev[SLSI_NET_INDEX_NAN]) != 0) {
 		SLSI_ERR(sdev, "failed to register with NAN netdev\n");
-		goto err_p2p_registered;
+		goto err_mhs_registered;
 	}
 #endif
 #endif
@@ -399,6 +405,10 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 err_nan_registered:
 	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_NAN]);
 #endif
+
+err_mhs_registered:
+	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
+	rcu_assign_pointer(sdev->netdev_ap, NULL);
 
 err_p2p_registered:
 	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_P2P]);
