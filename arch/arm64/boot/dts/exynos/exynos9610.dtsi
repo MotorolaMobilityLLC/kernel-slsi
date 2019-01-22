@@ -460,6 +460,10 @@
 		usbl2_suspend_mode_idx = <12>;	/* SYS_SLEEP_USB_ON */
 		extra_wakeup_stat = <0x60c>;
 		conn_req_offset = <0x00c0>;	/* PMU_ALIVE__CONNECT_SLEEP_STATUS */
+		pmu_cp_stat_offset = <0x38>;	/* PMU_ALIVE__CP_STAT */
+		pmu_gnss_stat_offset = <0x48>;	/* PMU_ALIVE__GNSS_STAT */
+		pmu_wlbt_stat_offset = <0x58>;	/* PMU_ALIVE__WLBT_STAT */
+		stat_access_mif_offset = <4>;	/* PMU_ALIVE__*_STAT__ACCESS_MIF */
 	};
 
 	exynos-powermode {
