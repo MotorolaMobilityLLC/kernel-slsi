@@ -118,28 +118,36 @@ static int slsi_rx_amsdu_deaggregate(struct net_device *dev, struct sk_buff *skb
 
 		/* For the last subframe skb length and subframe length will be same */
 		if (skb->len == subframe_len) {
-			/* Use the original skb for the last subframe */
 			subframe = slsi_skb_copy(skb, GFP_ATOMIC);
+
+			if (!subframe) {
+				SLSI_NET_ERR(dev, "failed to alloc the SKB for A-MSDU subframe\n");
+				__skb_queue_purge(msdu_list);
+				slsi_kfree_skb(skb);
+				return -ENOMEM;
+			}
 
 			/* There is no padding for last subframe */
 			padding = 0;
 			last_sub_frame = true;
 		} else {
-			/* Clone the skb for the subframe */
+			/* Copy the skb for the subframe */
 			subframe = slsi_skb_copy(skb, GFP_ATOMIC);
+
 			if (!subframe) {
+				SLSI_NET_ERR(dev, "failed to alloc the SKB for A-MSDU subframe\n");
+				__skb_queue_purge(msdu_list);
 				slsi_kfree_skb(skb);
-				SLSI_NET_ERR(dev, "Failed to clone the SKB for A-MSDU subframe\n");
 				return -ENOMEM;
 			}
 
 			padding = (4 - (subframe_len % 4)) & 0x3;
 		}
 
-		/* Remove the other subframes by adjusting the tail pointer of the cloned skb */
+		/* Remove the other subframes by adjusting the tail pointer of the copied skb */
 		skb_trim(subframe, subframe_len);
 
-		/* Overwrite LLC+SNAP header with src & dest addr */
+		/* Overwrite LLC+SNAP header with src and dest addr */
 		SLSI_ETHER_COPY(&subframe->data[14], &subframe->data[6]);
 		SLSI_ETHER_COPY(&subframe->data[8], &subframe->data[0]);
 

@@ -1913,7 +1913,7 @@ int hip4_init(struct slsi_hip4 *hip)
 	memset(&hip->hip_priv->stats, 0, sizeof(hip->hip_priv->stats));
 	hip->hip_priv->stats.start = ktime_get();
 	hip->hip_priv->stats.procfs_dir = proc_mkdir("driver/hip4", NULL);
-	if (!hip->hip_priv->stats.procfs_dir) {
+	if (hip->hip_priv->stats.procfs_dir) {
 		proc_create_data("info", S_IRUSR | S_IRGRP,
 				 hip->hip_priv->stats.procfs_dir, &hip4_procfs_stats_fops, hip);
 		proc_create_data("history", S_IRUSR | S_IRGRP,

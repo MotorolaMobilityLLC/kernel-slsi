@@ -29,10 +29,10 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include "../../../bluetooth/h4_recv.h"
 
 #include <scsc/scsc_logring.h>
 
-static struct sk_buff_head 		txq;
 static struct hci_dev      		*hdev;
 static struct device 			*dev_ref;
 static const struct file_operations 	*bt_fs;
@@ -74,8 +74,13 @@ static int slsi_bt_close(struct hci_dev *hdev)
 	SCSC_TAG_INFO(BT_COMMON, "terminating reader thread\n");
 
 	terminate_read = true;
-	atomic_inc(error_count_ref);
-	wake_up(read_wait_ref);
+
+	if (error_count_ref != NULL)
+		atomic_inc(error_count_ref);
+
+	if (read_wait_ref != NULL)
+		wake_up(read_wait_ref);
+
 	cancel_work_sync(&read_work);
 
 	SCSC_TAG_INFO(BT_COMMON, "releasing service\n");
@@ -89,28 +94,46 @@ static int slsi_bt_close(struct hci_dev *hdev)
 
 static int slsi_bt_flush(struct hci_dev *hdev)
 {
-	skb_queue_purge(&txq);
 	return 0;
 }
 
 static int slsi_bt_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct sk_buff *transfer_skb;
-	int err;
+	int ret;
+
+	SCSC_TAG_INFO(BT_H4, "sending frame(data=%p, len=%u)\n", skb->data, skb->len);
 
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
-	skb_queue_tail(&txq, skb);
 
-	transfer_skb = skb_dequeue(&txq);
-	if (transfer_skb) {
-		SCSC_TAG_INFO(BT_H4, "sending frame(data=%p, len=%u)\n", skb->data, skb->len);
+	ret = bt_fs->write(NULL, skb->data, skb->len, NULL);
+	if (ret >= 0) {
+		kfree_skb(skb);
 
-		err = bt_fs->write(NULL, skb->data, skb->len, NULL);
-		kfree_skb(transfer_skb);
+		/* Update HCI stat counters */
+		hdev->stat.byte_tx += skb->len;
+
+		switch (hci_skb_pkt_type(skb)) {
+			case HCI_COMMAND_PKT:
+				hdev->stat.cmd_tx++;
+				break;
+
+			case HCI_ACLDATA_PKT:
+				hdev->stat.acl_tx++;
+				break;
+
+			case HCI_SCODATA_PKT:
+				hdev->stat.sco_tx++;
+				break;
+		}
 	}
 
-	return err;
+	return ret;
 }
+
+static const struct h4_recv_pkt scsc_recv_pkts[] = {
+	{ H4_RECV_ACL,   .recv = hci_recv_frame },
+	{ H4_RECV_EVENT, .recv = hci_recv_frame },
+};
 
 static void slsi_bt_fs_read_func(struct work_struct *work)
 {
@@ -122,20 +145,16 @@ static void slsi_bt_fs_read_func(struct work_struct *work)
 			break;
 
 		if (ret > 0) {
-			skb = bt_skb_alloc(ret, GFP_ATOMIC);
-			if (!skb)
-				SCSC_TAG_ERR(BT_COMMON, "bt_skb_alloc failed\n");
+			skb = h4_recv_buf(hdev, skb, receive_buffer,
+					ret, scsc_recv_pkts,
+					ARRAY_SIZE(scsc_recv_pkts));
 
-			skb->dev = (void *) hdev;
-			bt_cb(skb)->pkt_type = receive_buffer[0];
-			memcpy(skb_put(skb, ret - 1), &receive_buffer[1], ret - 1);
-
-			ret = hci_recv_frame(hdev, skb);
-			if (ret < 0) {
-				SCSC_TAG_ERR(BT_COMMON, "unable to send skb to HCI layer\n");
-				/* skb freed in HCI layer */
-				skb = NULL;
+			if (IS_ERR(skb)) {
+				SCSC_TAG_ERR(BT_COMMON, "corrupted event packet\n");
+				hdev->stat.err_rx++;
+				break;
 			}
+			hdev->stat.byte_rx += ret;
 		}
 	}
 
@@ -190,8 +209,6 @@ void slsi_bt_notify_probe(struct device *dev,
 	error_count_ref = error_count;
 	read_wait_ref   = read_wait;
 	dev_ref         = dev;
-
-	skb_queue_head_init(&txq);
 
 	wq = create_singlethread_workqueue("slsi_bt_bluez_wq");
 	INIT_WORK(&read_work, slsi_bt_fs_read_func);
