@@ -1090,6 +1090,9 @@ static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param
 	struct net_device            *dev;
 	int                          ret = 0;
 	int                          i;
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+	u8 mac_addr_mask[ETH_ALEN] = {0xFF};
+#endif
 
 	dev = slsi_gscan_get_netdev(sdev);
 
@@ -1124,6 +1127,19 @@ static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param
 		if (sdev->epno_active)
 			report_mode |= FAPI_REPORTMODE_NO_BATCH;
 
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+		if (sdev->scan_addr_set == 1) {
+			memset(mac_addr_mask, 0xFF, ETH_ALEN);
+			for (i = 3; i < ETH_ALEN; i++)
+				mac_addr_mask[i] = 0x00;
+			ret = slsi_set_mac_randomisation_mask(sdev, mac_addr_mask);
+			if (ret)
+				sdev->scan_addr_set = 0;
+		} else {
+			memset(mac_addr_mask, 0xFF, ETH_ALEN);
+			slsi_set_mac_randomisation_mask(sdev, mac_addr_mask);
+		}
+#endif
 		ret = slsi_mlme_add_scan(sdev,
 					 dev,
 					 FAPI_SCANTYPE_GSCAN,
@@ -2986,6 +3002,8 @@ static int slsi_gscan_set_oui(struct wiphy *wiphy,
 		case SLSI_NL_ATTRIBUTE_PNO_RANDOM_MAC_OUI:
 		{
 			memcpy(&scan_oui, nla_data(attr), 3);
+			memcpy(sdev->scan_mac_addr, scan_oui, 6);
+			sdev->scan_addr_set = 1;
 			break;
 		}
 		default:
@@ -2994,10 +3012,6 @@ static int slsi_gscan_set_oui(struct wiphy *wiphy,
 			break;
 		}
 	}
-
-	memcpy(sdev->scan_mac_addr, scan_oui, 6);
-	sdev->scan_addr_set = 1;
-
 	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
 #endif
 	return ret;
