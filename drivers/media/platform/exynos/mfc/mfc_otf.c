@@ -292,7 +292,7 @@ int mfc_otf_create(struct mfc_ctx *ctx)
 
 void mfc_otf_destroy(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dev *dev;
 
 	mfc_debug_enter();
 
@@ -300,6 +300,7 @@ void mfc_otf_destroy(struct mfc_ctx *ctx)
 		mfc_err_dev("[OTF] no mfc context to run\n");
 		return;
 	}
+	dev = ctx->dev;
 
 	mfc_otf_release_stream_buf(ctx);
 	__mfc_otf_destroy_handle(ctx);
