@@ -341,6 +341,11 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 			err("cis_factory_test is fail(%d)", ret);
 			goto p_err;
 		}
+	} else {
+		/* except factory scenario, cis global setting need to start
+		 * after other peri initialize finished
+		 */
+		kthread_queue_work(&sensor_peri->cis_global_worker, &sensor_peri->cis_global_work);
 	}
 
 	pr_info("[MOD:%s] %s(%d)\n", module->sensor_name, __func__, val);

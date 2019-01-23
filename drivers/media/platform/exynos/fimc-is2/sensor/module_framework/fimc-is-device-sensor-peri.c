@@ -384,6 +384,19 @@ int fimc_is_sensor_init_mode_change_thread(struct fimc_is_device_sensor_peri *se
 	/* Always first applyed to mode change when camera on */
 	sensor_peri->mode_change_first = true;
 
+	kthread_init_work(&sensor_peri->cis_global_work, fimc_is_sensor_global_setting_work_fn);
+	kthread_init_worker(&sensor_peri->cis_global_worker);
+	sensor_peri->cis_global_task = kthread_run(kthread_worker_fn,
+						&sensor_peri->cis_global_worker,
+						"fimc_is_sensor_global_setting");
+	if (IS_ERR(sensor_peri->cis_global_task)) {
+		err("failed to create kthread for global setting, err(%ld)",
+			PTR_ERR(sensor_peri->cis_global_task));
+		ret = PTR_ERR(sensor_peri->cis_global_task);
+		sensor_peri->cis_global_task = NULL;
+		return ret;
+	}
+
 	kthread_init_work(&sensor_peri->mode_change_work, fimc_is_sensor_mode_change_work_fn);
 	kthread_init_worker(&sensor_peri->mode_change_worker);
 	sensor_peri->mode_change_task = kthread_run(kthread_worker_fn,
@@ -394,6 +407,12 @@ int fimc_is_sensor_init_mode_change_thread(struct fimc_is_device_sensor_peri *se
 			PTR_ERR(sensor_peri->mode_change_task));
 		ret = PTR_ERR(sensor_peri->mode_change_task);
 		sensor_peri->mode_change_task = NULL;
+
+		if (kthread_stop(sensor_peri->cis_global_task))
+			err("kthread_stop fail");
+
+		sensor_peri->cis_global_task = NULL;
+
 		return ret;
 	}
 
@@ -407,6 +426,14 @@ void fimc_is_sensor_deinit_mode_change_thread(struct fimc_is_device_sensor_peri 
 			err("kthread_stop fail");
 
 		sensor_peri->mode_change_task = NULL;
+		info("%s:\n", __func__);
+	}
+
+	if (sensor_peri->cis_global_task != NULL) {
+		if (kthread_stop(sensor_peri->cis_global_task))
+			err("kthread_stop fail");
+
+		sensor_peri->cis_global_task = NULL;
 		info("%s:\n", __func__);
 	}
 }
@@ -446,20 +473,30 @@ int fimc_is_sensor_initial_setting_low_exposure(struct fimc_is_device_sensor_per
 	return ret;
 }
 
-void fimc_is_sensor_mode_change_work_fn(struct kthread_work *work)
+void fimc_is_sensor_global_setting_work_fn(struct kthread_work *work)
 {
 	struct fimc_is_device_sensor_peri *sensor_peri;
 	struct fimc_is_cis *cis;
 
 	TIME_LAUNCH_STR(LAUNCH_SENSOR_INIT);
+	sensor_peri = container_of(work, struct fimc_is_device_sensor_peri, cis_global_work);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(sensor_peri->subdev_cis);
+
+	CALL_CISOPS(cis, cis_set_global_setting, cis->subdev);
+}
+
+void fimc_is_sensor_mode_change_work_fn(struct kthread_work *work)
+{
+	struct fimc_is_device_sensor_peri *sensor_peri;
+	struct fimc_is_cis *cis;
+
 	sensor_peri = container_of(work, struct fimc_is_device_sensor_peri, mode_change_work);
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(sensor_peri->subdev_cis);
 
-	/* cis global setting is only set to first mode change time */
-	if (sensor_peri->mode_change_first == true) {
-		CALL_CISOPS(cis, cis_set_global_setting, cis->subdev);
-	}
+	/* wait global setting thread end */
+	kthread_flush_work(&sensor_peri->cis_global_work);
 
 	CALL_CISOPS(cis, cis_mode_change, cis->subdev, cis->cis_data->sens_config_index_cur);
 
