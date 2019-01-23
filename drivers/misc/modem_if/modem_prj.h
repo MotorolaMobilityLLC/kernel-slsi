@@ -129,10 +129,6 @@
 
 #define SOURCE_MAC_ADDR		{0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC}
 
-/* IP loopback */
-#define DATA_DRAIN_CHANNEL	30	/* Drain channel to drop RX packets */
-#define DATA_LOOPBACK_CHANNEL	31
-
 /* Debugging features */
 #define MIF_LOG_DIR		"/data/exynos/log/cbd"
 #define MIF_MAX_PATH_LEN	256

@@ -117,6 +117,7 @@ struct mif_log {
 	u8 rcs_msg;
 	u8 ppt_msg;
 	u8 debug_log;
+	u8 embms_msg;
 } __attribute__((packed));
 
 extern struct mif_log log_info;

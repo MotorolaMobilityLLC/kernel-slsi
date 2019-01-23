@@ -320,6 +320,8 @@ void log_ipc_pkt(struct sk_buff *skb, enum ipc_layer layer, enum direction dir)
 		pr_ipc_msg(log_info.rcs_msg, ch, ts, prefix, msg, msg_len);
 	else if (exynos_ppt_ch(ch))
 		pr_ipc_msg(log_info.ppt_msg, ch, ts, prefix, msg, msg_len);
+	else if (exynos_embms_ch(ch))
+		pr_ipc_msg(log_info.embms_msg, ch, ts, prefix, msg, msg_len);
 	else {
 		mif_err("unknown ipc pkt (channel=%d)\n", ch);
 		pr_ipc_msg(1, ch, ts, prefix, msg, msg_len);

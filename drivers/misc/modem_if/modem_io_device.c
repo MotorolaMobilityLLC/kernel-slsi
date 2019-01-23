@@ -424,7 +424,7 @@ static int rx_demux(struct link_device *ld, struct sk_buff *skb)
 		return netif_flow_ctrl(ld, skb);
 
 	/* IP loopback */
-	if (ch == DATA_LOOPBACK_CHANNEL && ld->msd->loopback_ipaddr)
+	if (ch == EXYNOS_CH_ID_LOOPBACK && ld->msd->loopback_ipaddr)
 		ch = EXYNOS_CH_ID_PDP_0;
 
 	iod = link_get_iod_with_channel(ld, ch);
@@ -436,12 +436,8 @@ static int rx_demux(struct link_device *ld, struct sk_buff *skb)
 	skbpriv(skb)->ld = ld;
 	skbpriv(skb)->iod = iod;
 
-	/* Don't care whether or not DATA_DRAIN_CHANNEL is opened */
-	if (iod->id == DATA_DRAIN_CHANNEL)
-		return rx_drain(skb);
-
-	/* Don't care whether or not DATA_LOOPBACK_CHANNEL is opened */
-	if (iod->id == DATA_LOOPBACK_CHANNEL)
+	/* Don't care whether or not EXYNOS_CH_ID_LOOPBACK is opened */
+	if (iod->id == EXYNOS_CH_ID_LOOPBACK)
 		return rx_loopback(skb);
 
 	/* Print recieved data from CP */
@@ -454,7 +450,7 @@ static int rx_demux(struct link_device *ld, struct sk_buff *skb)
 
 	if (exynos_fmt_ch(ch) || exynos_rcs_ch(ch) || exynos_ppt_ch(ch))
 		return rx_fmt_ipc(skb);
-	else if (exynos_ps_ch(ch))
+	else if (exynos_ps_ch(ch) || exynos_embms_ch(ch))
 		return rx_multi_pdp(skb);
 	else
 		return rx_raw_misc(skb);
@@ -1537,7 +1533,7 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (iod->msd->loopback_ipaddr &&
 		ip_header->daddr == iod->msd->loopback_ipaddr) {
 		swap(ip_header->saddr, ip_header->daddr);
-		buff[EXYNOS_CH_ID_OFFSET] = DATA_LOOPBACK_CHANNEL;
+		buff[EXYNOS_CH_ID_OFFSET] = EXYNOS_CH_ID_LOOPBACK;
 	}
 
 	if (tailroom)
