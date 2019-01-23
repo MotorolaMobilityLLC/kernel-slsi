@@ -93,6 +93,12 @@ static void free_buffer_page(struct ion_system_heap *heap,
 		return;
 	}
 
+	if (cached && (buffer->flags & ION_FLAG_SYNC_FORCE)) {
+		cached = !cached;
+		__flush_dcache_area(page_to_virt(page),
+				    1 << (PAGE_SHIFT + order));
+	}
+
 	if (!cached)
 		pool = heap->uncached_pools[order_to_index(order)];
 	else
