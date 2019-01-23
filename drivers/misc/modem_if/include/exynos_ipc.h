@@ -64,6 +64,9 @@ enum exynos_ch_id {
 
 	EXYNOS_CH_ID_BT_DUN = 21,  /*umts_router*/
 
+	EXYNOS_CH_ID_EMBMS_0 = 30,	/* Evolved Multimedia Broadcast Multicast Service */
+	EXYNOS_CH_ID_EMBMS_1,
+
 	EXYNOS_CH_ID_RFS_0 = 41,   /*umts_rfs*/
 	EXYNOS_CH_ID_RFS_1,
 	EXYNOS_CH_ID_RFS_2,
@@ -248,6 +251,11 @@ static inline bool exynos_log_ch(u8 ch)
 static inline bool exynos_router_ch(u8 ch)
 {
 	return (ch == EXYNOS_CH_ID_BT_DUN) ? true : false;
+}
+
+static inline bool exynos_embms_ch(u8 ch)
+{
+	return (ch == EXYNOS_CH_ID_EMBMS_0 || ch == EXYNOS_CH_ID_EMBMS_1) ? true : false;
 }
 
 static inline unsigned int exynos_get_total_len(u8 *frm)

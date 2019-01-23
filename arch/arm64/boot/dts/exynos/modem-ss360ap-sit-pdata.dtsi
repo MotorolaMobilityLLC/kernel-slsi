@@ -35,7 +35,7 @@
 				mif,link_types = <0x80>;	/* LINKDEV_SHMEM */
 				mif,link_name = "shmem";
 				mif,link_attrs = <0x7C8>;	/* XMIT_BTDLR(0x400) | DUMP_ALIGNED (0x200) | BOOT_ALIGNED (0x100) | MEM_DUMP (0x80) | MEM_BOOT (0x40) | DPRAM_MAGIC (0x08) */
-				mif,num_iodevs = <20>;
+				mif,num_iodevs = <22>;
 
 				/* use usb path */
 				mif,use_usb_phy = <0>;
@@ -290,6 +290,24 @@
 						iod,links = <0x80>;
 						iod,attrs = <0x82>;
 						iod,app = "WFC1";
+					};
+					io_device_20 {
+						iod,name = "embms0";
+						iod,id = <30>;
+						iod,format = <1>;	/* IPC_RAW */
+						iod,io_type = <1>;	/* IODEV_NET */
+						iod,links = <0x80>;
+						iod,attrs = <0x0>;
+						iod,app = "eMBMS";
+					};
+					io_device_21 {
+						iod,name = "embms1";
+						iod,id = <31>;
+						iod,format = <1>;	/* IPC_RAW */
+						iod,io_type = <1>;	/* IODEV_NET */
+						iod,links = <0x80>;
+						iod,attrs = <0x0>;
+						iod,app = "eMBMS";
 					};
 				}; /* end of iodevs */
 			}; /* end of mif_pdata */

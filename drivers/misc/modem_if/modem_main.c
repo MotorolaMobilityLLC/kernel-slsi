@@ -60,6 +60,7 @@ static int set_log_info(char *str)
 	log_info.router_msg = strstr(str, "router") ? 1 : 0;
 	log_info.rcs_msg = strstr(str, "rcs") ? 1 : 0;
 	log_info.ppt_msg = strstr(str, "ppt") ? 1 : 0;
+	log_info.embms_msg = strstr(str, "embms") ? 1 : 0;
 
 	mif_err("modemIF log info: %s\n", str);
 
