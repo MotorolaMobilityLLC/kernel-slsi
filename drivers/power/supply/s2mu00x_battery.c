@@ -475,6 +475,7 @@ struct s2mu00x_battery_info {
 	int				temp_allowed_fastchg_current_ma;
 	bool				enable_factory_wa;
 	int                         max_chrg_temp;
+	bool			charging_disabled;
 };
 
 static int is_charging_mode = S2MU00X_NOR_MODE;
@@ -828,6 +829,11 @@ static void set_bat_status_by_cable(struct s2mu00x_battery_info *battery)
 		return;
 	}
 
+	if (battery->charging_disabled) {
+		pr_info("%s: charging disabled. Skip!\n", __func__);
+		return;
+	}
+
 #if defined(CONFIG_CHARGER_S2MU106)
 	if (battery->cable_type == POWER_SUPPLY_TYPE_BATTERY ||
 		battery->cable_type == POWER_SUPPLY_TYPE_UNKNOWN ||
@@ -1028,6 +1034,8 @@ static int s2mu00x_battery_set_property(struct power_supply *psy,
 			smbchg_chg_system_temp_level_set(battery, val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		pr_info("%s: POWER_SUPPLY_PROP_CHARGING_ENABLED, val->intval = %d.\n", __func__, val->intval);
+		battery->charging_disabled = !val->intval;
 		smbchg_usb_en(battery, val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -4251,6 +4259,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 
 	battery->max_rawsoc = battery->pdata->max_rawsoc;
 
+	battery->charging_disabled = false;
 	battery->is_recharging = false;
 	battery->cable_type = POWER_SUPPLY_TYPE_BATTERY;
 #if defined(CHARGER_S2MU106)
