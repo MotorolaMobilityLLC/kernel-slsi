@@ -458,6 +458,10 @@ struct fimc_is_device_sensor_peri {
 	struct kthread_work		sensor_work;
 
 	/* Thread for sensor register setting */
+	struct task_struct		*cis_global_task;
+	struct kthread_worker		cis_global_worker;
+	struct kthread_work		cis_global_work;
+
 	struct task_struct		*mode_change_task;
 	struct kthread_worker		mode_change_worker;
 	struct kthread_work		mode_change_work;
@@ -470,6 +474,7 @@ struct fimc_is_device_sensor_peri {
 };
 
 void fimc_is_sensor_work_fn(struct kthread_work *work);
+void fimc_is_sensor_global_setting_work_fn(struct kthread_work *work);
 void fimc_is_sensor_mode_change_work_fn(struct kthread_work *work);
 int fimc_is_sensor_init_sensor_thread(struct fimc_is_device_sensor_peri *sensor_peri);
 void fimc_is_sensor_deinit_sensor_thread(struct fimc_is_device_sensor_peri *sensor_peri);
