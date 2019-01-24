@@ -41,17 +41,17 @@ static int flash_s2mu106_init(struct v4l2_subdev *subdev, u32 val)
 
 	FIMC_BUG(!flash);
 
+	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
+		if (flash->led_ch[i] >= 0 && flash->flash_data.flash_fired)
+			s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_OFF);
+	}
+
 	/* TODO: init flash driver */
 	flash->flash_data.mode = CAM2_FLASH_MODE_OFF;
 	flash->flash_data.intensity = 100; /* TODO: Need to figure out min/max range */
 	flash->flash_data.firing_time_us = 1 * 1000 * 1000; /* Max firing time is 1sec */
 	flash->flash_data.flash_fired = false;
 	flash->flash_data.cal_en = false;
-
-	for (i = 0; i < FLASH_LED_CH_MAX; i++) {
-		if (flash->led_ch[i] >= 0)
-			s2mu106_fled_set_mode_ctrl(flash->led_ch[i], CAM_FLASH_MODE_OFF);
-	}
 
 	return ret;
 }
