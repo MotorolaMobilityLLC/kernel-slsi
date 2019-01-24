@@ -1240,7 +1240,7 @@ static inline int slsi_set_scan_params(
 
 
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
-	if (sdev->scan_addr_set)
+	if (sdev->scan_addr_set && slsi_dev_mac_randomisation_support()) //IKSAMP-1972
 		fapi_set_memcpy(req, u.mlme_add_scan_req.device_address, sdev->scan_mac_addr);
 	else
 #endif

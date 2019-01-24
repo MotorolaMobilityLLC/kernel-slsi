@@ -677,7 +677,11 @@ int slsi_scan(struct wiphy *wiphy, struct net_device *dev,
 	 * mac radomization for scan should be disbaled to avoid WPS overlap.
 	 * Firmware also disables Mac Randomization for WPS Scan.
 	 */
-	if (request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR && !wps_sta) {
+	//BEGIN IKSAMP-1972
+	if (!slsi_dev_mac_randomisation_support()) {
+		SLSI_ERR(sdev, "mac randomisation is disabled by module parameters");
+	} else if (request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR && !wps_sta) {
+	//END IKSAMP-1972
 		if (sdev->fw_mac_randomization_enabled) {
 			memcpy(sdev->scan_mac_addr, request->mac_addr, ETH_ALEN);
 			r = slsi_set_mac_randomisation_mask(sdev, request->mac_addr_mask);
