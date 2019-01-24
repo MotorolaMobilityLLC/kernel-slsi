@@ -289,6 +289,13 @@ static int madera_runtime_resume(struct device *dev)
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
 
+ 	usleep_range(2000, 3000);
+	ret = madera_soft_reset(madera);
+	if (ret) {
+		dev_err(dev, "Failed to reset: %d\n", ret);
+		goto err;
+	}
+
 	ret = madera_wait_for_boot(madera);
 	if (ret)
 		goto err;
