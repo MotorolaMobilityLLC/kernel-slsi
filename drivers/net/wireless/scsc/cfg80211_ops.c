@@ -552,7 +552,11 @@ int slsi_scan(struct wiphy *wiphy, struct net_device *dev,
 
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
-		if (request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		//BEGIN IKSAMP-1972
+		if (!slsi_dev_mac_randomisation_support()) {
+			SLSI_ERR(sdev, "mac randomisation is disabled by module parameters");
+		} else if (request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		//END IKSAMP-1972
 			memcpy(sdev->scan_mac_addr, request->mac_addr, ETH_ALEN);
 			r = slsi_set_mac_randomisation_mask(sdev, request->mac_addr_mask);
 			if (!r)
