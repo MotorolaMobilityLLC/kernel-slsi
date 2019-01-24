@@ -987,6 +987,15 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	middle_coarse_int = (numerator - min_fine_int)
 					/(1000 * 1000) / line_length_pck / (1 << lte_shifter);
 
+	/* 4FDSUM mode should be set half of coarse integration */
+	if (cis_data->sens_config_index_cur == SENSOR_2X5SP_2880X2160_30FPS
+		|| cis_data->sens_config_index_cur == SENSOR_2X5SP_1920X1080_120FPS
+		|| cis_data->sens_config_index_cur == SENSOR_2X5SP_1280X720_240FPS) {
+		long_coarse_int /= 2;
+		short_coarse_int /= 2;
+		middle_coarse_int /= 2;
+	}
+
 	if (long_coarse_int > cis_data->max_coarse_integration_time) {
 		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), long coarse(%d) max(%d)\n", cis->id, __func__,
 			cis_data->sen_vsync_count, long_coarse_int, cis_data->max_coarse_integration_time);
