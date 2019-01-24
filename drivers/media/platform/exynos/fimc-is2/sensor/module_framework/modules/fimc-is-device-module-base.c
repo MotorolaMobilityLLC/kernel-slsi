@@ -398,6 +398,11 @@ int sensor_module_deinit(struct v4l2_subdev *subdev)
 #endif
 	}
 
+#ifdef USE_OIS_INIT_WORK
+	if (sensor_peri->subdev_ois)
+		flush_work(&sensor_peri->ois->init_work);
+#endif
+
 #ifdef CONFIG_OIS_USE_RUMBA_S6
 	if (sensor_peri->subdev_ois != NULL) {
 		ret = CALL_OISOPS(sensor_peri->ois, ois_deinit, sensor_peri->subdev_ois);
