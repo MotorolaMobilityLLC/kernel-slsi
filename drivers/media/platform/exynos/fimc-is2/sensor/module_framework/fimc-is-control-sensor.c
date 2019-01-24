@@ -135,7 +135,7 @@ void fimc_is_sensor_ctl_update_gain_to_uctl(camera2_sensor_uctl_t *sensor_uctl,
 		break;
 	case EXPOSURE_GAIN_COUNT_3:
 		sensor_uctl->analogGain = analog_gain[EXPOSURE_GAIN_SHORT];
-		sensor_uctl->digitalGain = analog_gain[EXPOSURE_GAIN_SHORT];
+		sensor_uctl->digitalGain = digital_gain[EXPOSURE_GAIN_SHORT];
 		sensor_uctl->longAnalogGain = analog_gain[EXPOSURE_GAIN_LONG];
 		sensor_uctl->longDigitalGain = digital_gain[EXPOSURE_GAIN_LONG];
 		sensor_uctl->shortAnalogGain = analog_gain[EXPOSURE_GAIN_SHORT];
