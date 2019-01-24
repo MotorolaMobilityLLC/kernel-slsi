@@ -1333,6 +1333,12 @@ int slsi_get_nan_max_ndi_ifaces(void);
 #endif
 bool slsi_dev_rtt_supported(void);
 
+//BEGIN IKSAMP-1972
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+bool slsi_dev_mac_randomisation_support(void);
+#endif
+//END IKSAMP-1972
+
 static inline u16 slsi_tx_host_tag(struct slsi_dev *sdev, enum slsi_traffic_q tq)
 {
 	u16 host_tag = 0;

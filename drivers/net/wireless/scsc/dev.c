@@ -104,6 +104,14 @@ module_param(nan_max_ndi_ifaces, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nan_max_ndi_ifaces, "max ndi interface");
 #endif
 
+//BEGIN IKSAMP-1972
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+static bool mac_randomisation_disabled;
+module_param(mac_randomisation_disabled, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(mac_randomisation_disabled, "Disable MAC Randomisation: to disable MAC randomisation set 1.");
+#endif
+//END IKSAMP-1972
+
 bool slsi_dev_gscan_supported(void)
 {
 	return !gscan_disabled;
@@ -166,6 +174,15 @@ int slsi_get_nan_max_ndi_ifaces(void)
 	return nan_max_ndi_ifaces;
 }
 #endif
+
+//BEGIN IKSAMP-1972
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+bool slsi_dev_mac_randomisation_support(void)
+{
+	return !mac_randomisation_disabled;
+}
+#endif
+//END IKSAMP-1972
 
 static int slsi_dev_inetaddr_changed(struct notifier_block *nb, unsigned long data, void *arg)
 {

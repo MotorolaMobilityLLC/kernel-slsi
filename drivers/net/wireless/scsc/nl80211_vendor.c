@@ -2645,6 +2645,13 @@ static int slsi_gscan_set_oui(struct wiphy *wiphy,
 	const struct nlattr      *attr;
 	u8 scan_oui[6];
 
+	//BEGIN IKSAMP-1972
+	if (!slsi_dev_mac_randomisation_support()) {
+		SLSI_ERR(sdev, "mac randomisation is disabled by module parameters");
+		return -EINVAL;
+	}
+	//END IKSAMP-1972
+
 	memset(&scan_oui, 0, 6);
 
 	if (!dev) {
