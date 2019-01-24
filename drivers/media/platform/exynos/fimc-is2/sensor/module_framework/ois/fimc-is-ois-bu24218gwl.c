@@ -232,15 +232,16 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 
 	info("%s: E", __func__);
 
-	I2C_MUTEX_LOCK(ois->i2c_lock);
-
 	/* Step 1 Enable download*/
+	I2C_MUTEX_LOCK(ois->i2c_lock);
 	ret = fimc_is_ois_write(ois->client, 0xF010, 0x00);
 	if (ret < 0) {
 		err("ois start download write is fail");
 		ret = 0;
+		I2C_MUTEX_UNLOCK(ois->i2c_lock);
 		goto p_err;
 	}
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
 
 	/* wait over 200us */
 	usleep_range(200,200);
@@ -257,19 +258,25 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 
 		for(i = 0; i < quotienti ; i++) {
 			memcpy(send_data, &ois_fw_data[fw_num][position], (size_t)FW_TRANS_SIZE);
+			I2C_MUTEX_LOCK(ois->i2c_lock);
 			ret = fimc_is_ois_write_multi(ois->client, fw_download_start_addr[fw_num]+position,
 				send_data, FW_TRANS_SIZE + 2);
 			if (ret < 0) {
 				err("ois fw download is fail");
 				ret = 0;
+				I2C_MUTEX_UNLOCK(ois->i2c_lock);
 				goto p_err;
 			}
+			I2C_MUTEX_UNLOCK(ois->i2c_lock);
+
 			position += FW_TRANS_SIZE;
 		}
 		if(remainder) {
+			I2C_MUTEX_LOCK(ois->i2c_lock);
 			memcpy(send_data, &ois_fw_data[fw_num][position], (size_t)remainder);
 			ret = fimc_is_ois_write_multi(ois->client, fw_download_start_addr[fw_num]+position,
 				send_data, remainder + 2);
+			I2C_MUTEX_UNLOCK(ois->i2c_lock);
 		}
 		if (ret < 0) {
 			err("ois fw download is fail");
@@ -280,12 +287,16 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 	}
 
 	/* Step 3 Sum Check*/
+	I2C_MUTEX_LOCK(ois->i2c_lock);
 	ret = fimc_is_ois_read_multi(ois->client, 0xF008, check_sum, 4);
 	if (ret < 0) {
 		err("ois read check sum fail");
 		ret = 0;
+		I2C_MUTEX_UNLOCK(ois->i2c_lock);
 		goto p_err;
 	}
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
+
 	sum = ((check_sum[0]<<24) | (check_sum[1]<<16) | (check_sum[2]<<8) | (check_sum[3]));
 	info("ois check sum value:0x%0x, expected value:0x%0x", sum, OIS_FW_CHECK_SUM);
 	if (OIS_FW_CHECK_SUM != sum) {
@@ -296,21 +307,27 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 
 	/* Step 4 Calibration data download */
 	info("ois download cal data");
+	I2C_MUTEX_LOCK(ois->i2c_lock);
 	ret = fimc_is_ois_write_multi(ois->client, OIS_CAL_ADDR, ois_cal_data, ois_cal_data_size + 2);
 	if (ret < 0) {
 		err("ois cal data download is fail");
 		ret = 0;
+		I2C_MUTEX_UNLOCK(ois->i2c_lock);
 		goto p_err;
 	}
 	info("ois cal data download size :%d", ois_cal_data_size);
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
 
 	/* Step 5 OIS download complete */
+	I2C_MUTEX_LOCK(ois->i2c_lock);
 	ret = fimc_is_ois_write(ois->client, 0xF006, 0x00);
 	if (ret < 0) {
 		err("ois write download complete is fail");
 		ret = 0;
+		I2C_MUTEX_UNLOCK(ois->i2c_lock);
 		goto p_err;
 	}
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
 
 	/* wait 18ms */
 	usleep_range(18000,18000);
@@ -321,7 +338,9 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 
 	while ((ois_status == 0) && (retry-- > 0)) {
 		usleep_range(4000, 4000);
+		I2C_MUTEX_LOCK(ois->i2c_lock);
 		ret = fimc_is_ois_read(ois->client, 0x6024, &ois_status);
+		I2C_MUTEX_UNLOCK(ois->i2c_lock);
 		info("ois status :0x%x", ois_status);
 	}
 	if (ois_status != 1) {
@@ -332,7 +351,6 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 
 	info("%s: ois fw download success\n", __func__);
 p_err:
-	I2C_MUTEX_UNLOCK(ois->i2c_lock);
 
 	return ret;
 }
@@ -507,9 +525,12 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 		ret = 0;
 		goto p_err;
 	}
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
+
 	/* wait 100ms */
 	usleep_range(100000, 100000);
 
+	I2C_MUTEX_LOCK(ois->i2c_lock);
 	/* Gyro ON for OIS */
 	ret |= fimc_is_ois_write(ois->client, 0x6023, 0x02);
 	ret |= fimc_is_ois_write(ois->client, 0x602C, 0x76);
@@ -518,7 +539,9 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 	ret != fimc_is_ois_write(ois->client, 0x602D, 0x02);
 	ret != fimc_is_ois_write(ois->client, 0x602C, 0x45);
 	ret != fimc_is_ois_write(ois->client, 0x602D, 0x58);
+	I2C_MUTEX_UNLOCK(ois->i2c_lock);
 	usleep_range(20000, 20000);
+	I2C_MUTEX_LOCK(ois->i2c_lock);
 	ret != fimc_is_ois_write(ois->client, 0x6023, 0x00);
 	ret != fimc_is_ois_write(ois->client, 0x614F, 0x01);
 	ret != fimc_is_ois_write(ois->client, 0x6021, 0x7B);
