@@ -315,7 +315,6 @@ struct slsi_scan_result {
 struct slsi_scan {
 	/* When a Scan is running this not NULL. */
 	struct cfg80211_scan_request       *scan_req;
-	struct slsi_acs_request            *acs_request;
 	struct cfg80211_sched_scan_request *sched_req;
 	bool                               requeue_timeout_work;
 
@@ -1104,7 +1103,6 @@ struct slsi_dev {
 	struct slsi_traffic_mon_clients    traffic_mon_clients;
 	/*Store vif index corresponding to rtt id for FTM*/
 	u16                             rtt_vif[8];
-	bool                            acs_channel_switched;
 };
 
 /* Compact representation of channels a ESS has been seen on
