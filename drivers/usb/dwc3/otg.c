@@ -82,8 +82,10 @@ static int dwc3_otg_statemachine(struct otg_fsm *fsm)
 			ret = otg_start_gadget(fsm, 1);
 			if (!ret)
 				otg->state = OTG_STATE_B_PERIPHERAL;
-			else
+			else {
 				pr_err("OTG SM: cannot start gadget\n");
+				otg->state = OTG_STATE_UNDEFINED;
+			}
 		}
 		break;
 	case OTG_STATE_B_PERIPHERAL:
