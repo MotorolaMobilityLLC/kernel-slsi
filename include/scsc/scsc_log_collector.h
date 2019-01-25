@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -8,7 +8,7 @@
 #define __SCSC_LOG_COLLECTOR_H__
 
 /* High nibble is Major, Low nibble is Minor */
-#define SCSC_LOG_HEADER_VERSION_MAJOR	0x02
+#define SCSC_LOG_HEADER_VERSION_MAJOR	0x01
 #define SCSC_LOG_HEADER_VERSION_MINOR	0x00
 /* Magic string. 4 bytes "SCSC"*/
 /* Header version. 1 byte */
@@ -18,7 +18,7 @@
 /* Reserved. 1 byte */
 /* Reason Code . 2 bytes */
 #define SCSC_LOG_HEADER_SIZE		(12)
-#define SCSC_LOG_FW_VERSION_SIZE	(128)
+#define SCSC_LOG_FW_VERSION_SIZE	(64)
 #define SCSC_LOG_HOST_VERSION_SIZE	(64)
 #define SCSC_LOG_FAPI_VERSION_SIZE	(64)
 /* Reserved 2 . 4 byte */
@@ -85,7 +85,6 @@ enum scsc_log_chunk_type {
 #define SCSC_LOG_HOST_WLAN_REASON_DISCONNECT_IND	0x0001
 #define SCSC_LOG_HOST_WLAN_REASON_DISCONNECTED_IND	0x0002
 #define SCSC_LOG_HOST_WLAN_REASON_DRIVERDEBUGDUMP	0x0003
-#define SCSC_LOG_HOST_WLAN_REASON_CONNECT_ERR		0x0004
 /* Reason codes for SCSC_LOG_HOST_BT */
 /* Reason codes for SCSC_LOG_HOST_COMMON */
 #define SCSC_LOG_HOST_COMMON_REASON_START		0x0000

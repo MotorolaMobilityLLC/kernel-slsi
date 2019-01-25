@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #include <linux/etherdevice.h>
@@ -1285,10 +1285,8 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 #endif
 
 	if (!ndev_vif->sta.sta_bss || !ndev_vif->sta.roam_mlme_procedure_started_ind) {
-		if (!ndev_vif->sta.sta_bss)
-			SLSI_INFO(sdev, "BSS not updated in cfg80211\n");
-		if (!ndev_vif->sta.roam_mlme_procedure_started_ind)
-			SLSI_INFO(sdev, "procedure-started-ind not received before roamed-ind\n");
+		WARN(!ndev_vif->sta.sta_bss, "bss not updated in cfg80211");
+		WARN(!ndev_vif->sta.roam_mlme_procedure_started_ind, "proc-started-ind not received before roamed-ind");
 		netif_carrier_off(dev);
 		slsi_mlme_disconnect(sdev, dev, peer->address, 0, true);
 		slsi_handle_disconnect(sdev, dev, peer->address, 0);
@@ -1623,7 +1621,6 @@ void slsi_rx_connected_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_connected_ind(vif:%d, peer_index:%d)\n",
 		      fapi_get_vif(skb),
 		      aid);
-	SLSI_INFO(sdev, "Received Association Response\n");
 
 	if (!ndev_vif->activated) {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "VIF not activated\n");
@@ -1798,7 +1795,6 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_connect_ind(vif:%d, result:%d)\n",
 		      fapi_get_vif(skb), fw_result_code);
-	SLSI_INFO(sdev, "Received Association Response\n");
 
 	if (!ndev_vif->activated) {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "VIF not activated\n");
@@ -1823,10 +1819,6 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 	sdev->assoc_result_code = fw_result_code;
 	if (fw_result_code != FAPI_RESULTCODE_SUCCESS) {
 		SLSI_NET_ERR(dev, "Connect failed. FAPI code:%d\n", fw_result_code);
-#ifdef CONFIG_SCSC_LOG_COLLECTION
-		/* Trigger log collection if fw result code is not success */
-		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_CONNECT_ERR);
-#endif
 		status = fw_result_code;
 	} else {
 		if (!peer || !peer->assoc_ie) {
@@ -1978,8 +1970,6 @@ void slsi_rx_disconnect_ind(struct slsi_dev *sdev, struct net_device *dev, struc
 #else
 	mx140_log_dump();
 #endif
-
-	SLSI_INFO(sdev, "Received DEAUTH, reason = 0\n");
 	slsi_handle_disconnect(sdev,
 			       dev,
 			       fapi_get_buff(skb, u.mlme_disconnect_ind.peer_sta_address),
@@ -1992,10 +1982,9 @@ void slsi_rx_disconnect_ind(struct slsi_dev *sdev, struct net_device *dev, struc
 void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
-	u16 reason;
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	reason = fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code);
+
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_disconnected_ind(vif:%d, reason:%d, MAC:%pM)\n",
 		      fapi_get_vif(skb),
 		      fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code),
@@ -2006,15 +1995,6 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 #else
 	mx140_log_dump();
 #endif
-	if (reason >= 0 && reason <= 0xFF) {
-		SLSI_INFO(sdev, "Received DEAUTH, reason = %d\n", reason);
-	} else if (reason >= 0x8200 && reason <= 0x82FF) {
-		reason = reason & 0x00FF;
-		SLSI_INFO(sdev, "Received DEAUTH, reason = %d\n", reason);
-	} else {
-		SLSI_INFO(sdev, "Received DEAUTH, reason = Local Disconnect <%d>\n", reason);
-	}
-
 	if (ndev_vif->vif_type == FAPI_VIFTYPE_AP) {
 		if (fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code) ==
 		    FAPI_REASONCODE_HOTSPOT_MAX_CLIENT_REACHED) {
@@ -2079,7 +2059,6 @@ void slsi_rx_procedure_started_ind(struct slsi_dev *sdev, struct net_device *dev
 		      fapi_get_vif(skb),
 		      fapi_get_u16(skb, u.mlme_procedure_started_ind.procedure_type),
 		      fapi_get_u16(skb, u.mlme_procedure_started_ind.peer_index));
-	SLSI_INFO(sdev, "Send Association Request\n");
 
 	if (!ndev_vif->activated) {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "VIF not activated\n");
@@ -2217,7 +2196,7 @@ void slsi_rx_frame_transmission_ind(struct slsi_dev *sdev, struct net_device *de
 				SLSI_P2P_STATE_CHANGE(sdev, P2P_LISTENING);
 			else
 				SLSI_P2P_STATE_CHANGE(sdev, P2P_IDLE_VIF_ACTIVE);
-		} else if (SLSI_IS_VIF_INDEX_P2P_GROUP(sdev, ndev_vif)) {
+		} else if (SLSI_IS_VIF_INDEX_P2P_GROUP(ndev_vif)) {
 			const struct ieee80211_mgmt *mgmt = (const struct ieee80211_mgmt *)ndev_vif->mgmt_tx_data.buf;
 
 			/* If frame transmission was initiated on P2P device vif by supplicant, then use the net_dev of that vif (i.e. p2p0) */
@@ -2301,9 +2280,6 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	u16 data_unit_descriptor = fapi_get_u16(skb, u.mlme_received_frame_ind.data_unit_descriptor);
 	u16 frequency = SLSI_FREQ_FW_TO_HOST(fapi_get_u16(skb, u.mlme_received_frame_ind.channel_frequency));
-	u8 *eapol = NULL;
-	u16 protocol = 0;
-	u32 dhcp_message_type = SLSI_DHCP_MESSAGE_TYPE_INVALID;
 
 	SLSI_NET_DBG2(dev, SLSI_MLME, "mlme_received_frame_ind(vif:%d, data descriptor:%d, freq:%d)\n",
 		      fapi_get_vif(skb),
@@ -2333,7 +2309,7 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 			if (mgmt->u.action.category == WLAN_CATEGORY_WMM) {
 				cac_rx_wmm_action(sdev, dev, mgmt, mgmt_len);
 			} else {
-				slsi_wlan_dump_public_action_subtype(sdev, mgmt, false);
+				slsi_wlan_dump_public_action_subtype(mgmt, false);
 				if (sdev->wlan_unsync_vif_state == WLAN_UNSYNC_VIF_TX)
 					sdev->wlan_unsync_vif_state = WLAN_UNSYNC_VIF_ACTIVE;
 			}
@@ -2378,8 +2354,7 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 			} else if ((sdev->p2p_group_exp_frame != SLSI_P2P_PA_INVALID) && (sdev->p2p_group_exp_frame == subtype)) {
 				SLSI_NET_DBG2(dev, SLSI_MLME, "Expected action frame (%s) received on Group VIF\n", slsi_p2p_pa_subtype_text(subtype));
 				slsi_clear_offchannel_data(sdev,
-							   (!SLSI_IS_VIF_INDEX_P2P_GROUP(sdev,
-											 ndev_vif)) ? true : false);
+							   (!SLSI_IS_VIF_INDEX_P2P_GROUP(ndev_vif)) ? true : false);
 			}
 		}
 
@@ -2409,57 +2384,8 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 10, 0))
 		dev->last_rx = jiffies;
 #endif
-		/* Storing Data for Logging Information */
-		if ((skb->len + sizeof(struct ethhdr)) >= 99)
-			eapol = skb->data + sizeof(struct ethhdr);
-		if (skb->len >= 285 && slsi_is_dhcp_packet(skb->data) != SLSI_TX_IS_NOT_DHCP)
-			dhcp_message_type = skb->data[284];
 
 		skb->protocol = eth_type_trans(skb, dev);
-		protocol = ntohs(skb->protocol);
-		if (protocol == ETH_P_PAE && eapol) {
-			if (eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAPOL_KEY) {
-				if ((eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_RSN_KEY ||
-				     eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_WPA_KEY) &&
-				    (eapol[SLSI_EAPOL_KEY_INFO_LOWER_BYTE_POS] &
-				     SLSI_EAPOL_KEY_INFO_KEY_TYPE_BIT_IN_LOWER_BYTE) &&
-				    (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-				     SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE) &&
-				    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_HIGHER_BYTE_POS] == 0) &&
-				    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)) {
-					SLSI_INFO(sdev, "Received 4way-H/S, M4\n");
-				} else if (!(eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-					     SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE)) {
-					SLSI_INFO(sdev, "Received 4way-H/S, M1\n");
-				} else if (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-					   SLSI_EAPOL_KEY_INFO_SECURE_BIT_IN_HIGHER_BYTE) {
-					SLSI_INFO(sdev, "Received 4way-H/S, M3\n");
-				} else {
-					SLSI_INFO(sdev, "Received 4way-H/S, M2\n");
-				}
-			}
-		} else if (protocol == ETH_P_IP) {
-			if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_DISCOVER)
-				SLSI_INFO(sdev, "Received DHCP [DISCOVER]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_OFFER)
-				SLSI_INFO(sdev, "Received DHCP [OFFER]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_REQUEST)
-				SLSI_INFO(sdev, "Received DHCP [REQUEST]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_DECLINE)
-				SLSI_INFO(sdev, "Received DHCP [DECLINE]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_ACK)
-				SLSI_INFO(sdev, "Received DHCP [ACK]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_NAK)
-				SLSI_INFO(sdev, "Received DHCP [NAK]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_RELEASE)
-				SLSI_INFO(sdev, "Received DHCP [RELEASE]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_INFORM)
-				SLSI_INFO(sdev, "Received DHCP [INFORM]\n");
-			else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_FORCERENEW)
-				SLSI_INFO(sdev, "Received DHCP [FORCERENEW]\n");
-			else
-				SLSI_INFO(sdev, "Received DHCP [INVALID]\n");
-		}
 		slsi_dbg_untrack_skb(skb);
 		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 		SLSI_DBG2(sdev, SLSI_MLME, "pass %u bytes up (proto:%d)\n", skb->len, ntohs(skb->protocol));

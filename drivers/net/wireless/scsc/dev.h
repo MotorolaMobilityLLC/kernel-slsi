@@ -559,9 +559,6 @@ struct slsi_vif_unsync {
 
 struct slsi_last_disconnected_sta {
 	u8 address[ETH_ALEN];
-	u32 rx_retry_packets;
-	u32 rx_bc_mc_packets;
-	u16 capabilities;
 	int bandwidth;
 	int antenna_mode;
 	int rssi;
@@ -762,6 +759,9 @@ struct netdev_vif {
 	struct slsi_tcp_ack_s *last_tcp_ack;
 	struct slsi_tcp_ack_s ack_suppression[TCP_ACK_SUPPRESSION_RECORDS_MAX];
 	struct slsi_tcp_ack_stats tcp_ack_stats;
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+	bool wifi_sharing;
+#endif
 	/* traffic monitor */
 	ktime_t last_timer_time;
 	u32 report_time;
@@ -972,7 +972,6 @@ struct slsi_dev {
 #endif
 	int                        netdev_up_count;
 	struct net_device          __rcu *netdev[CONFIG_SCSC_WLAN_MAX_INTERFACES + 1];               /* 0 is reserved */
-	struct net_device          __rcu *netdev_ap;
 	u8                         netdev_addresses[CONFIG_SCSC_WLAN_MAX_INTERFACES + 1][ETH_ALEN];  /* 0 is reserved */
 
 	int                        device_state;
@@ -1233,9 +1232,5 @@ static inline int slsi_get_supported_mode(const u8 *peer_ie)
 	}
 	return SLSI_80211_MODE_11B;
 }
-
-/* Names of full mode HCF files */
-extern char *slsi_mib_file;
-extern char *slsi_mib_file2;
 
 #endif

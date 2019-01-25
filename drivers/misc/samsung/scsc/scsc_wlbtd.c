@@ -4,8 +4,6 @@
  *
  ****************************************************************************/
 #include <linux/mutex.h>
-#include <linux/wakelock.h>
-
 #include "scsc_wlbtd.h"
 
 #define MAX_TIMEOUT	30000 /* in milisecounds */
@@ -16,8 +14,6 @@ static DECLARE_COMPLETION(event_done);
 static DEFINE_MUTEX(build_type_lock);
 static char *build_type;
 static DEFINE_MUTEX(sable_lock);
-
-static struct wake_lock wlbtd_wakelock;
 
 /**
  * This callback runs whenever the socket receives messages.
@@ -162,7 +158,6 @@ int scsc_wlbtd_get_and_print_build_type(void)
 	int rc = 0;
 
 	SCSC_TAG_DEBUG(WLBTD, "start\n");
-	wake_lock(&wlbtd_wakelock);
 
 	/* check if the value wasn't cached yet */
 	mutex_lock(&build_type_lock);
@@ -170,7 +165,7 @@ int scsc_wlbtd_get_and_print_build_type(void)
 		SCSC_TAG_WARNING(WLBTD, "ro.build.type = %s\n", build_type);
 		SCSC_TAG_DEBUG(WLBTD, "sync end\n");
 		mutex_unlock(&build_type_lock);
-		goto done;
+		return 0;
 	}
 	mutex_unlock(&build_type_lock);
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
@@ -208,10 +203,7 @@ int scsc_wlbtd_get_and_print_build_type(void)
 	}
 
 	SCSC_TAG_DEBUG(WLBTD, "async end\n");
-done:
-	wake_unlock(&wlbtd_wakelock);
 	return rc;
-
 error:
 	if (rc == -ESRCH) {
 		/* If no one registered to scsc_mdp_mcgrp (e.g. in case wlbtd
@@ -219,12 +211,10 @@ error:
 		 * Ignore and return.
 		 */
 		SCSC_TAG_WARNING(WLBTD, "WLBTD not running ?\n");
-		wake_unlock(&wlbtd_wakelock);
 		return rc;
 	}
 	/* free skb */
 	nlmsg_free(skb);
-	wake_unlock(&wlbtd_wakelock);
 	return -1;
 }
 
@@ -237,8 +227,6 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 	unsigned long max_timeout_jiffies = msecs_to_jiffies(MAX_TIMEOUT);
 
 	mutex_lock(&sable_lock);
-	wake_lock(&wlbtd_wakelock);
-
 	SCSC_TAG_INFO(WLBTD, "start:trigger - %s\n", trigger);
 
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
@@ -287,10 +275,10 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 			 * returns -ESRCH. Ignore and return.
 			 */
 			SCSC_TAG_WARNING(WLBTD, "WLBTD not running ?\n");
-			goto done;
+			return rc;
 		}
 		SCSC_TAG_ERR(WLBTD, "Failed to send message. rc = %d\n", rc);
-		goto done;
+		return rc;
 	}
 
 	SCSC_TAG_INFO(WLBTD, "waiting for completion\n");
@@ -310,17 +298,13 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 	reinit_completion(&event_done);
 
 	SCSC_TAG_INFO(WLBTD, "  end:trigger - %s\n", trigger);
-
-done:
-	wake_unlock(&wlbtd_wakelock);
 	mutex_unlock(&sable_lock);
+
 	return rc;
 
 error:
 	/* free skb */
 	nlmsg_free(skb);
-	wake_unlock(&wlbtd_wakelock);
-	mutex_unlock(&sable_lock);
 
 	return -1;
 }
@@ -335,8 +319,6 @@ int call_wlbtd(const char *script_path)
 	unsigned long max_timeout_jiffies = msecs_to_jiffies(MAX_TIMEOUT);
 
 	SCSC_TAG_DEBUG(WLBTD, "start\n");
-
-	wake_lock(&wlbtd_wakelock);
 
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb) {
@@ -385,10 +367,10 @@ int call_wlbtd(const char *script_path)
 			 * returns -ESRCH. Ignore and return.
 			 */
 			SCSC_TAG_WARNING(WLBTD, "WLBTD not running ?\n");
-			goto done;
+			return rc;
 		}
 		SCSC_TAG_ERR(WLBTD, "Failed to send message. rc = %d\n", rc);
-		goto done;
+		return rc;
 	}
 
 	SCSC_TAG_INFO(WLBTD, "waiting for completion\n");
@@ -410,14 +392,11 @@ int call_wlbtd(const char *script_path)
 
 	SCSC_TAG_DEBUG(WLBTD, "end\n");
 
-done:
-	wake_unlock(&wlbtd_wakelock);
 	return rc;
 
 error:
 	/* free skb */
 	nlmsg_free(skb);
-	wake_unlock(&wlbtd_wakelock);
 
 	return -1;
 }
@@ -426,16 +405,14 @@ EXPORT_SYMBOL(call_wlbtd);
 int scsc_wlbtd_init(void)
 {
 	int r = 0;
-
-	wake_lock_init(&wlbtd_wakelock, WAKE_LOCK_SUSPEND, "wlbtd_wl");
-	init_completion(&event_done);
-
 	/* register the family so that wlbtd can bind */
 	r = genl_register_family(&scsc_nlfamily);
 	if (r) {
 		SCSC_TAG_ERR(WLBTD, "Failed to register family. (%d)\n", r);
 		return -1;
 	}
+
+	init_completion(&event_done);
 
 	return r;
 }
@@ -453,7 +430,5 @@ int scsc_wlbtd_deinit(void)
 	}
 	kfree(build_type);
 	build_type = NULL;
-	wake_lock_destroy(&wlbtd_wakelock);
-
 	return ret;
 }

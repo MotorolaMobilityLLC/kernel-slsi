@@ -547,13 +547,9 @@ int slsi_start(struct slsi_dev *sdev)
 	sdev->collect_mib.enabled = false;
 #endif
 #ifndef CONFIG_SCSC_DOWNLOAD_FILE
-	/* The "_t" HCF is used in RF Test mode and wlanlite/production test mode */
-	if (slsi_is_rf_test_mode_enabled() || slsi_is_test_mode_enabled()) {
+	if (slsi_is_rf_test_mode_enabled()) {
 		sdev->mib[0].mib_file_name = mib_file_t;
 		sdev->mib[1].mib_file_name = mib_file2_t;
-	} else {
-		sdev->mib[0].mib_file_name = slsi_mib_file;
-		sdev->mib[1].mib_file_name = slsi_mib_file2;
 	}
 
 	/* Place MIB files in shared memory */
@@ -704,7 +700,7 @@ done:
 	return err;
 }
 
-struct net_device *slsi_dynamic_interface_create(struct wiphy        *wiphy,
+struct net_device *slsi_new_interface_create(struct wiphy        *wiphy,
 					     const char          *name,
 					     enum nl80211_iftype type,
 					     struct vif_params   *params)
@@ -717,7 +713,7 @@ struct net_device *slsi_dynamic_interface_create(struct wiphy        *wiphy,
 
 	SLSI_DBG1(sdev, SLSI_CFG80211, "name:%s\n", name);
 
-	iface = slsi_netif_dynamic_iface_add(sdev, name);
+	iface = slsi_netif_add(sdev, name);
 	if (iface < 0)
 		return NULL;
 
@@ -875,7 +871,7 @@ void slsi_scan_cleanup(struct slsi_dev *sdev, struct net_device *dev)
 	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
 	for (i = 0; i < SLSI_SCAN_MAX; i++) {
 		if (ndev_vif->scan[i].scan_req && !sdev->mlme_blocked &&
-		    SLSI_IS_VIF_INDEX_P2P_GROUP(sdev, ndev_vif))
+		    SLSI_IS_VIF_INDEX_P2P_GROUP(ndev_vif))
 			slsi_mlme_del_scan(sdev, dev, (ndev_vif->ifnum << 8 | i), false);
 		slsi_purge_scan_results(ndev_vif, i);
 		if (ndev_vif->scan[i].scan_req && i == SLSI_SCAN_HW_ID)
@@ -1109,7 +1105,7 @@ static int slsi_mib_get_platform(struct slsi_dev_mib_info *mib_info)
 	{
 		size_t trunc_len = plat_name_len;
 
-		if (trunc_len >= sizeof(mib_info->platform))
+		if (trunc_len > sizeof(mib_info->platform))
 			trunc_len = sizeof(mib_info->platform) - 1;
 
 		/* Extract platform name */
@@ -2415,9 +2411,6 @@ static int slsi_fill_last_disconnected_sta_info(struct slsi_dev *sdev, struct ne
 	for (i = 0; i < ARRAY_SIZE(get_values); i++)
 		get_values[i].index[0] = last_peer->aid;
 
-	ndev_vif->ap.last_disconnected_sta.rx_retry_packets = SLSI_DEFAULT_UNIFI_PEER_RX_RETRY_PACKETS;
-	ndev_vif->ap.last_disconnected_sta.rx_bc_mc_packets = SLSI_DEFAULT_UNIFI_PEER_RX_BC_MC_PACKETS;
-	ndev_vif->ap.last_disconnected_sta.capabilities = last_peer->capabilities;
 	ndev_vif->ap.last_disconnected_sta.bandwidth = SLSI_DEFAULT_UNIFI_PEER_BANDWIDTH;
 	ndev_vif->ap.last_disconnected_sta.antenna_mode = SLSI_DEFAULT_UNIFI_PEER_NSS;
 	ndev_vif->ap.last_disconnected_sta.rssi = SLSI_DEFAULT_UNIFI_PEER_RSSI;
@@ -2493,15 +2486,15 @@ int slsi_handle_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *pe
 		 * the connection with the AP has been lost
 		 */
 		if (ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTING) {
-			if (!peer_address)
+			if (peer_address)
+				SLSI_NET_WARN(dev, "Unexpected mlme_disconnect_ind - whilst connecting\n");
+			else
 				SLSI_NET_WARN(dev, "Connection failure\n");
 		} else if (ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED) {
 			if (reason == FAPI_REASONCODE_SYNCHRONISATION_LOSS)
 				reason = 0; /*reason code to recognise beacon loss */
 			else if (reason == FAPI_REASONCODE_KEEP_ALIVE_FAILURE)
 				reason = WLAN_REASON_DEAUTH_LEAVING;/* Change to a standard reason code */
-			else if (reason >= 0x8200 && reason <= 0x82FF)
-				reason = reason & 0x00FF;
 
 			if (ndev_vif->sta.is_wps) /* Ignore sending deauth or disassoc event to cfg80211 during WPS session */
 				SLSI_NET_INFO(dev, "Ignoring Deauth notification to cfg80211 from the peer during WPS procedure\n");
@@ -3879,52 +3872,23 @@ u8 slsi_p2p_get_exp_peer_frame_subtype(u8 subtype)
 	}
 }
 
-void slsi_wlan_dump_public_action_subtype(struct slsi_dev *sdev, struct ieee80211_mgmt *mgmt, bool tx)
+void slsi_wlan_dump_public_action_subtype(struct ieee80211_mgmt *mgmt, bool tx)
 {
 	u8 action_code = ((u8 *)&mgmt->u.action.u)[0];
 	u8 action_category = mgmt->u.action.category;
-	char *tx_rx_string = "Received";
-	char wnm_action_fields[28][35] = { "Event Request", "Event Report", "Diagnostic Request",
-					   "Diagnostic Report", "Location Configuration Request",
-					   "Location Configuration Response", "BSS Transition Management Query",
-					   "BSS Transition Management Request",
-					   "BSS Transition Management Response", "FMS Request", "FMS Response",
-					   "Collocated Interference Request", "Collocated Interference Report",
-					   "TFS Request", "TFS Response", "TFS Notify", "WNM Sleep Mode Request",
-					   "WNM Sleep Mode Response", "TIM Broadcast Request",
-					   "TIM Broadcast Response", "QoS Traffic Capability Update",
-					   "Channel Usage Request", "Channel Usage Response", "DMS Request",
-					   "DMS Response", "Timing Measurement Request",
-					   "WNM Notification Request", "WNM Notification Response" };
-
-	if (tx)
-		tx_rx_string = "Send";
 
 	switch (action_category) {
 	case WLAN_CATEGORY_RADIO_MEASUREMENT:
 		switch (action_code) {
-		case SLSI_RM_RADIO_MEASUREMENT_REQ:
-			SLSI_INFO(sdev, "%s Radio Measurement Frame (Radio Measurement Req)\n", tx_rx_string);
-			break;
-		case SLSI_RM_RADIO_MEASUREMENT_REP:
-			SLSI_INFO(sdev, "%s Radio Measurement Frame (Radio Measurement Rep)\n", tx_rx_string);
-			break;
-		case SLSI_RM_LINK_MEASUREMENT_REQ:
-			SLSI_INFO(sdev, "%s Radio Measurement Frame (Link Measurement Req)\n", tx_rx_string);
-			break;
-		case SLSI_RM_LINK_MEASUREMENT_REP:
-			SLSI_INFO(sdev, "%s Radio Measurement Frame (Link Measurement Rep)\n", tx_rx_string);
-			break;
 		case SLSI_RM_NEIGH_REP_REQ:
-			SLSI_INFO(sdev, "%s Radio Measurement Frame (Neighbor Report Req)\n", tx_rx_string);
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: RM Neigh Report Request\n", tx ? "TX" : "RX");
 			break;
 		case SLSI_RM_NEIGH_REP_RSP:
-			SLSI_INFO(sdev, "%s Radio Measurement Frame (Neighbor Report Resp)\n", tx_rx_string);
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: RM Neigh Report Response\n", tx ? "TX" : "RX");
 			break;
 		default:
-			SLSI_INFO(sdev, "%s Radio Measurement Frame (Reserved)\n", tx_rx_string);
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "Unknown Radio Measurement Frame : %d\n", action_code);
 		}
-		break;
 	case WLAN_CATEGORY_PUBLIC:
 		switch (action_code) {
 		case SLSI_PA_GAS_INITIAL_REQ:
@@ -3942,13 +3906,6 @@ void slsi_wlan_dump_public_action_subtype(struct slsi_dev *sdev, struct ieee8021
 		default:
 			SLSI_DBG1_NODEV(SLSI_CFG80211, "Unknown GAS Frame : %d\n", action_code);
 		}
-		break;
-	case WLAN_CATEGORY_WNM:
-		if (action_code >= SLSI_WNM_ACTION_FIELD_MIN && action_code <= SLSI_WNM_ACTION_FIELD_MAX)
-			SLSI_INFO(sdev, "%s WNM Frame (%s)\n", tx_rx_string, wnm_action_fields[action_code]);
-		else
-			SLSI_INFO(sdev, "%s WNM Frame (Reserved)\n", tx_rx_string);
-		break;
 	}
 }
 

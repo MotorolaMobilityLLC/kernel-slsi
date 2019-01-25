@@ -385,8 +385,6 @@ static int slsi_procfs_build_show(struct seq_file *m, void *v)
 #else
 	seq_puts(m, "CONFIG_SCSC_WLAN_ENHANCED_LOGGING                      : n\n");
 #endif
-	seq_printf(m, "CONFIG_SCSC_AP_INTERFACE_NAME                   : %s\n", CONFIG_SCSC_AP_INTERFACE_NAME);
-
 	return 0;
 }
 
