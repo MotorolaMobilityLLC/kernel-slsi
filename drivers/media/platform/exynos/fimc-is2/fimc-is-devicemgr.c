@@ -461,6 +461,11 @@ int fimc_is_devicemgr_shot_callback(struct fimc_is_group *group,
 
 		break;
 	case FIMC_IS_DEVICE_ISCHAIN:
+		/* Only for sensor group with OTF */
+		if (group->head->device_type != FIMC_IS_DEVICE_SENSOR ||
+			frame->type != SHOT_TYPE_EXTERNAL)
+			break;
+
 		devicemgr = group->device->devicemgr;
 		stream = group->instance;
 		index = devicemgr->tasklet_index[stream]++ % TAG_DATA_MAX;
@@ -471,16 +476,14 @@ int fimc_is_devicemgr_shot_callback(struct fimc_is_group *group,
 		tag_data->group = &devicemgr->sensor[stream]->group_sensor;
 		tag_data->stream = stream;
 
-		/* OTF */
-		if (frame->type == SHOT_TYPE_EXTERNAL &&
-			group->head->device_type == FIMC_IS_DEVICE_SENSOR) {
+		if (IS_ENABLED(CHAIN_USE_VC_TASKLET)) {
 			mgrdbgs(1, " DEVICE TASKLET(%d) schedule\n", group->device, group,
-								frame, index);
-			if (IS_ENABLED(CHAIN_USE_VC_TASKLET))
-				tasklet_schedule(&devicemgr->tasklet_sensor_tag[stream][index]);
-			else
-				tasklet_sensor_tag((unsigned long)tag_data);
+					frame, index);
+			tasklet_schedule(&devicemgr->tasklet_sensor_tag[stream][index]);
+		} else {
+			tasklet_sensor_tag((unsigned long)tag_data);
 		}
+
 		break;
 	default:
 		mgerr("device type(%d) is invalid", group, group, group->device_type);
