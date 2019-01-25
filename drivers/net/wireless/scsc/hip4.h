@@ -21,13 +21,8 @@
 #include <linux/skbuff.h>
 #include <scsc/scsc_mifram.h>
 #include <scsc/scsc_mx.h>
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
-#include <linux/netdevice.h>
-#endif
 #ifndef SLSI_TEST_DEV
-#ifdef CONFIG_ANDROID
 #include <linux/wakelock.h>
-#endif
 #endif
 #include "mbulk.h"
 #ifdef CONFIG_SCSC_SMAPPER
@@ -131,10 +126,10 @@ struct hip4_hip_config_version_4 {
 	u32 log_config_loc;     /* Logging Configuration Location in MIF_ADDR */
 	u32 log_config_sz;      /* Logging Configuration Size in MIF_ADDR */
 
-	u8 mif_fh_int_n;		/* MIF from-host interrupt bit position for all HIP queue */
+	u8 mif_fh_int_n;	/* MIF from-host interrupt bit position for all HIP queue */
 	u8 reserved1[3];
 
-	u8 mif_th_int_n[6];		/* MIF to-host interrupt bit positions for each HIP queue */
+	u8 mif_th_int_n[6];	/* MIF to-host interrupt bit positions for each HIP queue */
 	u8 reserved2[2];
 
 	u32 scbrd_loc;          /* Scoreboard locatin in MIF_ADDR */
@@ -154,6 +149,7 @@ struct hip4_hip_config_version_4 {
 	u8  smapper_pow_sz[16];     /* Power of size of entry i.e. 12 = 4096B */
 	u32 smapper_bank_addr[16]; /* Bank start addr */
 #endif
+
 	u8  reserved4[16];
 } __packed;
 
@@ -234,25 +230,19 @@ struct hip4_hip_control {
 
 struct slsi_hip4;
 
+/* #define TASKLET 1 */
 /* This struct is private to the HIP implementation */
 struct hip4_priv {
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	struct tasklet_struct        intr_tasklet;
-	struct work_struct           intr_wq_ctrl;
-	struct work_struct           intr_wq_fb;
-	struct napi_struct           napi;
+#ifdef TASKLET
+	struct tasklet_struct        intr_tq;
 #else
 	struct work_struct           intr_wq;
 #endif
-
-	/* Interrupts cache < v4 */
+	/* Interrupts cache */
 	/* TOHOST */
-	u32                          intr_tohost;
-
-	/* Interrupts cache v4 */
-	u32                          intr_tohost_mul[MIF_HIP_CFG_Q_NUM];
+	u32                          rx_intr_tohost;
 	/* FROMHOST */
-	u32                          intr_fromhost;
+	u32                          rx_intr_fromhost;
 
 	/* For workqueue */
 	struct slsi_hip4             *hip;
@@ -262,8 +252,10 @@ struct hip4_priv {
 	/* Pool for ctl frames*/
 	u8                           host_pool_id_ctl;
 
+#ifndef TASKLET
 	/* rx cycle lock */
 	spinlock_t                   rx_lock;
+#endif
 	/* tx cycle lock */
 	spinlock_t                   tx_lock;
 
@@ -276,11 +268,8 @@ struct hip4_priv {
 	spinlock_t                   watchdog_lock;
 	/* wd timer control */
 	atomic_t                     watchdog_timer_active;
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	DECLARE_BITMAP(irq_bitmap, MIF_HIP_CFG_Q_NUM);
-#endif
 
-#if !defined SLSI_TEST_DEV && defined CONFIG_ANDROID
+#ifndef SLSI_TEST_DEV
 	/* Wakelock for modem_ctl */
 	struct wake_lock             hip4_wake_lock;
 #endif
@@ -331,13 +320,13 @@ struct hip4_priv {
 	struct hip4_smapper_bank     smapper_banks[HIP4_SMAPPER_TOTAL_BANKS];
 	struct hip4_smapper_control  smapper_control;
 #endif
-#ifdef CONFIG_SCSC_QOS
+
 	/* PM QoS control */
 	struct work_struct           pm_qos_work;
 	/* PM QoS control spinlock */
 	spinlock_t                   pm_qos_lock;
 	u8                           pm_qos_state;
-#endif
+
 	/* Collection artificats */
 	void                         *mib_collect;
 	u16                          mib_sz;
@@ -368,9 +357,9 @@ int scsc_wifi_transmit_frame(struct slsi_hip4 *hip, bool ctrl_packet, struct sk_
 #define scsc_wifi_get_hip_config_version_4_u8(buff_ptr, member) le16_to_cpu((((struct hip4_hip_config_version_4 *)(buff_ptr))->member))
 #define scsc_wifi_get_hip_config_version_4_u16(buff_ptr, member) le16_to_cpu((((struct hip4_hip_config_version_4 *)(buff_ptr))->member))
 #define scsc_wifi_get_hip_config_version_4_u32(buff_ptr, member) le32_to_cpu((((struct hip4_hip_config_version_4 *)(buff_ptr))->member))
-#define scsc_wifi_get_hip_config_version_3_u8(buff_ptr, member) le16_to_cpu((((struct hip4_hip_config_version_3 *)(buff_ptr))->member))
-#define scsc_wifi_get_hip_config_version_3_u16(buff_ptr, member) le16_to_cpu((((struct hip4_hip_config_version_3 *)(buff_ptr))->member))
-#define scsc_wifi_get_hip_config_version_3_u32(buff_ptr, member) le32_to_cpu((((struct hip4_hip_config_version_3 *)(buff_ptr))->member))
+#define scsc_wifi_get_hip_config_version_3_u8(buff_ptr, member) le16_to_cpu((((struct hip4_hip_config_version_4 *)(buff_ptr))->member))
+#define scsc_wifi_get_hip_config_version_3_u16(buff_ptr, member) le16_to_cpu((((struct hip4_hip_config_version_4 *)(buff_ptr))->member))
+#define scsc_wifi_get_hip_config_version_3_u32(buff_ptr, member) le32_to_cpu((((struct hip4_hip_config_version_4 *)(buff_ptr))->member))
 #define scsc_wifi_get_hip_config_u8(buff_ptr, member, ver) le16_to_cpu((((struct hip4_hip_config_version_##ver *)(buff_ptr->config_v##ver))->member))
 #define scsc_wifi_get_hip_config_u16(buff_ptr, member, ver) le16_to_cpu((((struct hip4_hip_config_version_##ver *)(buff_ptr->config_v##ver))->member))
 #define scsc_wifi_get_hip_config_u32(buff_ptr, member, ver) le32_to_cpu((((struct hip4_hip_config_version_##ver *)(buff_ptr->config_v##ver))->member))

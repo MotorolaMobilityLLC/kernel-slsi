@@ -12,10 +12,10 @@ scsc_bt-$(CONFIG_SCSC_ANT) += scsc_ant.o
 ccflags-y += $(CONFIG_SAMSUNG_MAXWELL_EXTRA)
 ## See sibling scsc/ Makefile for an explanation of the reasons of
 ## the following ifeq/else
-ifeq ($(CONFIG_SCSC_LOGRING), m)
+ifeq ($(CONFIG_SCSC_DEBUG), m)
 ccflags-y += -DCONFIG_SCSC_PRINTK
 else
-ccflags-$(CONFIG_SCSC_LOGRING) += -DCONFIG_SCSC_PRINTK
+ccflags-$(CONFIG_SCSC_DEBUG) += -DCONFIG_SCSC_PRINTK
 endif
 
 ifeq ($(CONFIG_SCSC_BT_BLUEZ), m)

@@ -831,8 +831,6 @@ static ssize_t scsc_bt_shm_h4_read_iq_report_evt(char __user *buf, size_t len)
 		h4_iq_report_evt[index++] = td->cte_type;
 		h4_iq_report_evt[index++] = td->slot_durations;
 		h4_iq_report_evt[index++] = td->packet_status;
-		h4_iq_report_evt[index++] = td->event_count & 0xFF;
-		h4_iq_report_evt[index++] = (td->event_count >> 8) & 0xFF;
 		h4_iq_report_evt[index++] = td->sample_count;
 
 		/* Total length of hci event */
@@ -1167,9 +1165,6 @@ ssize_t scsc_bt_shm_h4_read(struct file *file, char __user *buf, size_t len, lof
 	ssize_t res;
 	bool    gen_bg_int = false;
 	bool    gen_fg_int = false;
-
-	if (len == 0)
-		return 0;
 
 	/* Only 1 reader is allowed */
 	if (1 != atomic_inc_return(&bt_service.h4_readers)) {
@@ -1530,8 +1525,6 @@ unsigned scsc_bt_shm_h4_poll(struct file *file, poll_table *wait)
 	    bt_service.bsmhcp_protocol->header.mailbox_acl_rx_read ||
 	    bt_service.bsmhcp_protocol->header.mailbox_acl_free_write !=
 	    bt_service.bsmhcp_protocol->header.mailbox_acl_free_read ||
-	    bt_service.bsmhcp_protocol->header.mailbox_iq_report_write !=
-	    bt_service.bsmhcp_protocol->header.mailbox_iq_report_read ||
 	    (bt_service.read_operation != BT_READ_OP_NONE &&
 	     bt_service.read_operation != BT_READ_OP_STOP) ||
 	    ((BT_READ_OP_STOP != bt_service.read_operation) &&

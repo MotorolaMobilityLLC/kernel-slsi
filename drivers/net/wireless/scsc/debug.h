@@ -9,13 +9,14 @@
 
 #include <linux/kernel.h>
 #include "dev.h"
-#include <scsc/scsc_logring.h>
 
 /* Logging modules
  * =======================
  */
 
-#ifndef CONFIG_SCSC_DEBUG_COMPATIBILITY
+#ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
+#include <scsc/scsc_logring.h>
+#else
 extern const int SLSI_INIT_DEINIT;
 extern const int SLSI_NETDEV;
 extern const int SLSI_CFG80211;
@@ -67,26 +68,26 @@ extern int       *slsi_dbg_filters[];
 #define SLSI_EWI_NET_DEV(ndev) (likely(ndev) ? SLSI_EWI_DEV(((struct netdev_vif *)netdev_priv(ndev))->sdev) : NULL)
 #define SLSI_EWI_NET_NAME(ndev) (likely(ndev) ? netdev_name(ndev) : NULL)
 
-#define SLSI_EWI(output, sdev, label, fmt, arg ...)     output(SLSI_EWI_DEV(sdev), SCSC_PREFIX label ": %s: " fmt, __func__, ## arg)
-#define SLSI_EWI_NET(output, ndev, label, fmt, arg ...) output(SLSI_EWI_NET_DEV(ndev), SCSC_PREFIX "%s: " label ": %s: " fmt, SLSI_EWI_NET_NAME(ndev), __func__, ## arg)
-#define SLSI_EWI_NODEV(output, label, fmt, arg ...)     output(SLSI_EWI_NODEV_LABEL SCSC_PREFIX label ": %s: " fmt, __func__, ## arg)
+#define SLSI_EWI(output, sdev, label, fmt, arg ...)     output(SLSI_EWI_DEV(sdev), "     : " label ": %s: " fmt, __func__, ## arg)
+#define SLSI_EWI_NET(output, ndev, label, fmt, arg ...) output(SLSI_EWI_NET_DEV(ndev), "%-5s: " label ": %s: " fmt, SLSI_EWI_NET_NAME(ndev), __func__, ## arg)
+#define SLSI_EWI_NODEV(output, label, fmt, arg ...)     output(SLSI_EWI_NODEV_LABEL label ": %s: " fmt, __func__, ## arg)
 
 #define SLSI_EWI_HEX(output, klevel, sdev, label, p, len, fmt, arg ...) \
 	do { \
 		SLSI_EWI(output, sdev, label, fmt, ## arg); \
-		print_hex_dump(klevel, SCSC_PREFIX, DUMP_PREFIX_OFFSET, 16, 1, p, len, 0); \
+		print_hex_dump(klevel, "", DUMP_PREFIX_OFFSET, 16, 1, p, len, 0); \
 	} while (0)
 
 #define SLSI_EWI_HEX_NET(output, klevel, dev, label, p, len, fmt, arg ...) \
 	do { \
 		SLSI_EWI_NET(output, dev, label, fmt, ## arg); \
-		print_hex_dump(klevel, SCSC_PREFIX, DUMP_PREFIX_OFFSET, 16, 1, p, len, 0); \
+		print_hex_dump(klevel, "", DUMP_PREFIX_OFFSET, 16, 1, p, len, 0); \
 	} while (0)
 
 #define SLSI_EWI_HEX_NODEV(output, klevel, label, p, len, fmt, arg ...) \
 	do { \
 		SLSI_EWI_NODEV(output, label, fmt, ## arg); \
-		print_hex_dump(klevel, SCSC_PREFIX, DUMP_PREFIX_OFFSET, 16, 1, p, len, 0);  \
+		print_hex_dump(klevel, "", DUMP_PREFIX_OFFSET, 16, 1, p, len, 0);  \
 	} while (0)
 
 #define SLSI_ERR(sdev, fmt, arg ...)                SLSI_EWI(dev_err,  sdev, "E", fmt, ## arg)

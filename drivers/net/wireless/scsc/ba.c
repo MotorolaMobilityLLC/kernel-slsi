@@ -98,7 +98,11 @@ void slsi_ba_process_complete(struct net_device *dev)
 	struct sk_buff    *skb;
 
 	while ((skb = slsi_skb_dequeue(&ndev_vif->ba_complete)) != NULL) {
-		slsi_rx_data_deliver_skb(ndev_vif->sdev, dev, skb);
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+		slsi_rx_data_napi(ndev_vif->sdev, dev, skb, true);
+#else
+		slsi_rx_data(ndev_vif->sdev, dev, skb, true);
+#endif
 	}
 }
 
@@ -107,9 +111,7 @@ static void slsi_ba_signal_process_complete(struct net_device *dev)
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 
 	atomic_set(&ndev_vif->ba_flush, 1);
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	slsi_skb_schedule_work(&ndev_vif->rx_data);
-#endif
 }
 
 static void ba_add_frame_to_ba_complete(struct net_device *dev, struct slsi_ba_frame_desc *frame_desc)
@@ -248,17 +250,9 @@ static int ba_consume_frame_or_get_buffer_index(struct net_device *dev, struct s
 	return i;
 }
 
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-static void slsi_ba_aging_timeout_handler(struct timer_list *t)
-#else
 static void slsi_ba_aging_timeout_handler(unsigned long data)
-#endif
 {
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-	struct slsi_ba_session_rx *ba_session_rx = from_timer(ba_session_rx, t, ba_age_timer);
-#else
 	struct slsi_ba_session_rx *ba_session_rx = (struct slsi_ba_session_rx *)data;
-#endif
 	u8                        i, j;
 	u8                        gap = 1;
 	u16                       temp_sn;
@@ -304,11 +298,7 @@ static void slsi_ba_aging_timeout_handler(unsigned long data)
 		}
 		slsi_spinlock_unlock(&ba_session_rx->ba_lock);
 		/* Process the data now marked as completed */
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
-		slsi_ba_process_complete(dev);
-#else
 		slsi_ba_signal_process_complete(dev);
-#endif
 	} else {
 		slsi_spinlock_unlock(&ba_session_rx->ba_lock);
 	}
@@ -504,13 +494,9 @@ static int slsi_rx_ba_start(struct net_device *dev,
 	ba_session_rx->trigger_ba_after_ssn = false;
 	ba_session_rx->tid = tid;
 	ba_session_rx->timer_on = false;
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-	timer_setup(&ba_session_rx->ba_age_timer, slsi_ba_aging_timeout_handler, 0);
-#else
 	ba_session_rx->ba_age_timer.function = slsi_ba_aging_timeout_handler;
 	ba_session_rx->ba_age_timer.data = (unsigned long)ba_session_rx;
 	init_timer(&ba_session_rx->ba_age_timer);
-#endif
 
 	ba_session_rx->active = true;
 	SLSI_NET_DBG1(dev, SLSI_RX_BA, "Started a new BA session tid=%d buffer_size=%d start_sn=%d\n",
@@ -536,6 +522,7 @@ static void slsi_ba_process_error(struct net_device *dev,
 	ba_scroll_window(dev, ba_session_rx, sequence_number);
 
 	slsi_spinlock_unlock(&ba_session_rx->ba_lock);
+
 	slsi_ba_signal_process_complete(dev);
 }
 

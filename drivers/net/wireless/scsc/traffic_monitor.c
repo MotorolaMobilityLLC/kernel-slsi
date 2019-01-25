@@ -66,18 +66,9 @@ static inline void traffic_mon_invoke_client_callback(struct slsi_dev *sdev, u32
 	}
 }
 
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-static void traffic_mon_timer(struct timer_list *t)
-#else
 static void traffic_mon_timer(unsigned long data)
-#endif
 {
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-	struct slsi_traffic_mon_clients *clients = from_timer(clients, t, timer);
-	struct slsi_dev *sdev = container_of(clients, typeof(*sdev), traffic_mon_clients);
-#else
 	struct slsi_dev *sdev = (struct slsi_dev *)data;
-#endif
 	struct net_device *dev;
 	struct netdev_vif *ndev_vif;
 	bool stop_monitor;
@@ -299,11 +290,8 @@ void slsi_traffic_mon_clients_init(struct slsi_dev *sdev)
 		SLSI_ERR_NODEV("invalid sdev\n");
 		return;
 	}
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-	timer_setup(&sdev->traffic_mon_clients.timer, traffic_mon_timer, 0);
-#else
+
 	setup_timer(&sdev->traffic_mon_clients.timer, traffic_mon_timer, (unsigned long)sdev);
-#endif
 	INIT_LIST_HEAD(&sdev->traffic_mon_clients.client_list);
 	spin_lock_init(&sdev->traffic_mon_clients.lock);
 }

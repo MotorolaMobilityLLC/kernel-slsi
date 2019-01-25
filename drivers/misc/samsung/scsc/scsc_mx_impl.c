@@ -11,12 +11,8 @@
 #include "mifintrbit.h"
 #include "miframman.h"
 #include "mifmboxman.h"
-#ifdef CONFIG_SCSC_SMAPPER
 #include "mifsmapper.h"
-#endif
-#ifdef CONFIG_SCSC_QOS
 #include "mifqos.h"
-#endif
 #include "mifproc.h"
 #include "mxman.h"
 #include "mxproc.h"
@@ -28,8 +24,6 @@
 #include "panicmon.h"
 #include "mxlog_transport.h"
 #include "suspendmon.h"
-
-#include "scsc/api/bt_audio.h"
 #ifdef CONFIG_SCSC_WLBTD
 #include "scsc_wlbtd.h"
 #endif
@@ -39,13 +33,10 @@ struct scsc_mx {
 	struct miframman        ram;
 	struct miframman        ram2;
 	struct mifmboxman       mbox;
-	struct mifabox          mifabox;
 #ifdef CONFIG_SCSC_SMAPPER
 	struct mifsmapper	smapper;
 #endif
-#ifdef CONFIG_SCSC_QOS
 	struct mifqos		qos;
-#endif
 	struct mifproc          proc;
 	struct mxman            mxman;
 	struct srvman           srvman;
@@ -125,11 +116,6 @@ struct miframman *scsc_mx_get_ramman2(struct scsc_mx *mx)
 	return &mx->ram2;
 }
 
-struct mifabox *scsc_mx_get_aboxram(struct scsc_mx *mx)
-{
-	return &mx->mifabox;
-}
-
 struct mifmboxman *scsc_mx_get_mboxman(struct scsc_mx *mx)
 {
 	return &mx->mbox;
@@ -142,12 +128,10 @@ struct mifsmapper *scsc_mx_get_smapper(struct scsc_mx *mx)
 }
 #endif
 
-#ifdef CONFIG_SCSC_QOS
 struct mifqos *scsc_mx_get_qos(struct scsc_mx *mx)
 {
 	return &mx->qos;
 }
-#endif
 
 struct device *scsc_mx_get_device(struct scsc_mx *mx)
 {

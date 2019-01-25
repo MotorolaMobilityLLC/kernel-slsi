@@ -14,6 +14,7 @@
 #include <linux/list_sort.h>
 #include <linux/limits.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 
 #include <scsc/scsc_log_collector.h>
 #include "scsc_log_collector_proc.h"
@@ -46,8 +47,6 @@ static u8 chunk_supported_sbl[SCSC_NUM_CHUNKS_SUPPORTED] = {
 };
 
 static int scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_code);
-
-static atomic_t in_collection;
 
 /* Collect logs in an intermediate buffer to be collected at later time (mmap or wq) */
 static bool collect_to_ram = true;
@@ -112,6 +111,7 @@ struct scsc_log_status {
 	struct work_struct	collect_work;
 	enum scsc_log_reason    collect_reason;
 	u16 reason_code;
+	struct completion complete;
 	struct mutex collection_serial;
 } log_status;
 
@@ -127,7 +127,7 @@ static void collection_worker(struct work_struct *work)
 	pr_info("SCSC running scheduled Log Collection - collect reason:%d reason code:%d\n",
 		 ls->collect_reason, ls->reason_code);
 	scsc_log_collector_collect(ls->collect_reason, ls->reason_code);
-	atomic_set(&in_collection, 0);
+	complete(&log_status.complete);
 }
 
 /* Module init */
@@ -151,6 +151,7 @@ int __init scsc_log_collector(void)
 		log_status.buf = NULL;
 	}
 
+	init_completion(&log_status.complete);
 	mutex_init(&log_status.collection_serial);
 
 	scsc_log_collect_proc_create();
@@ -165,7 +166,7 @@ void __exit scsc_log_collector_exit(void)
 
 	scsc_log_collect_proc_remove();
 	if (log_status.collection_workq) {
-		flush_workqueue(log_status.collection_workq);
+		cancel_work_sync(&log_status.collect_work);
 		destroy_workqueue(log_status.collection_workq);
 		log_status.collection_workq = NULL;
 	}
@@ -454,14 +455,12 @@ exit:
 			lc->collect_client->collect_end(lc->collect_client);
 	}
 
-	pr_info("Calling sable collection\n");
+	pr_info("Log collection end. Took: %lld\n", ktime_to_ns(ktime_sub(ktime_get(), start)));
 
 #ifdef CONFIG_SCSC_WLBTD
 	if (sbl_is_valid)
 		call_wlbtd_sable(scsc_loc_reason_str[reason], reason_code);
 #endif
-	pr_info("Log collection end. Took: %lld\n", ktime_to_ns(ktime_sub(ktime_get(), start)));
-
 	mutex_unlock(&log_mutex);
 
 	return ret;
@@ -487,30 +486,20 @@ static int scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_co
 
 void scsc_log_collector_schedule_collection(enum scsc_log_reason reason, u16 reason_code)
 {
+	int err;
 
 	if (log_status.collection_workq) {
 		mutex_lock(&log_status.collection_serial);
 		pr_info("Log collection Schedule");
-
-		/* Serialize with previous work if the reason is a FW panic */
-		if (reason == SCSC_LOG_FW_PANIC)
-			flush_work(&log_status.collect_work);
-		else if (atomic_read(&in_collection)) {
-			pr_info("Log collection %s reason_code 0x%x rejected. Collection already scheduled\n",
-				scsc_loc_reason_str[reason], reason_code);
-			mutex_unlock(&log_status.collection_serial);
-			return;
-		}
 		log_status.collect_reason = reason;
 		log_status.reason_code = reason_code;
-		if (!queue_work(log_status.collection_workq, &log_status.collect_work)) {
-			pr_info("Log collection %s reason_code 0x%x queue_work error\n",
+		if (!queue_work(log_status.collection_workq, &log_status.collect_work))
+			pr_info("Log collection %s reason_code 0x%x rejected. Collection already scheduled\n",
 				scsc_loc_reason_str[reason], reason_code);
-			mutex_unlock(&log_status.collection_serial);
-			return;
-		}
-		atomic_set(&in_collection, 1);
-		pr_info("Log collection Scheduled");
+		err = wait_for_completion_timeout(&log_status.complete, 5*HZ);
+		if (!err)
+			pr_err("Log collection Timeout");
+		pr_info("Log collection End");
 		mutex_unlock(&log_status.collection_serial);
 
 	} else {

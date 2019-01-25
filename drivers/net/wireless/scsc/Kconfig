@@ -119,12 +119,6 @@ config SCSC_WLAN_ENHANCED_LOGGING
 	  This option enables the Enhanced Logging
 	  Feature.
 
-config SCSC_WLAN_ACM_API
-	bool "Provide TSF read API"
-	default n
-	---help---
-	  This option provides API to read TSF.
-
 endif
 
 config SCSC_WLAN_MAC_ADDRESS_FILENAME
@@ -153,12 +147,6 @@ config SCSC_WLAN_WIFI_SHARING
 	default n
 	---help---
 	  This option tells if wifi sharing is supported or not.
-
-config SCSC_WLAN_ENABLE_MAC_RANDOMISATION
-        bool "Wifi Mac Randomization Support"
-        default n
-        ---help---
-          This option tells if mac randomization is supported or not.
 
 config SCSC_WLAN_SINGLE_ANTENNA
 	depends on SCSC_WLAN_WIFI_SHARING

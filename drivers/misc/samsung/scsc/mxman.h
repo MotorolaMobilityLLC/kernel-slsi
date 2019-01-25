@@ -10,10 +10,8 @@
 #include "fwhdr.h"
 #include "mxmgmt_transport.h"
 #include "mxproc.h"
-#include <scsc/scsc_mx.h>
-#ifdef CONFIG_ANDROID
+#include "scsc_mx.h"
 #include <linux/wakelock.h>
-#endif
 
 struct mxman;
 
@@ -68,9 +66,7 @@ struct mxman {
 	bool			check_crc;
 	char                    fw_build_id[FW_BUILD_ID_SZ]; /* Defined in SC-505846-SW */
 	struct completion       recovery_completion;
-#ifdef CONFIG_ANDROID
 	struct wake_lock	recovery_wake_lock;
-#endif
 	u32			rf_hw_ver;
 	u16			scsc_panic_code;
 	u64			last_panic_time;

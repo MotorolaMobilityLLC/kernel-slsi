@@ -8,9 +8,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/firmware.h>
-#ifdef CONFIG_ANDROID
 #include <linux/wakelock.h>
-#endif
 #include <scsc/scsc_mx.h>
 #include <scsc/scsc_logring.h>
 
@@ -22,9 +20,7 @@
 #ifdef CONFIG_SCSC_SMAPPER
 #include "mifsmapper.h"
 #endif
-#ifdef CONFIG_SCSC_QOS
 #include "mifqos.h"
-#endif
 #include "mxlogger.h"
 #include "srvman.h"
 #include "servman_messages.h"
@@ -40,6 +36,8 @@ MODULE_PARM_DESC(sm_completion_timeout_ms, "Timeout Service Manager start/stop (
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0))
 #define reinit_completion(completion) INIT_COMPLETION(*(completion))
 #endif
+
+
 
 struct scsc_service {
 	struct list_head           list;
@@ -58,9 +56,7 @@ void srvman_init(struct srvman *srvman, struct scsc_mx *mx)
 	mutex_init(&srvman->service_list_mutex);
 	mutex_init(&srvman->api_access_mutex);
 
-#ifdef CONFIG_ANDROID
 	wake_lock_init(&srvman->sm_wake_lock, WAKE_LOCK_SUSPEND, "srvman_wakelock");
-#endif
 }
 
 void srvman_deinit(struct srvman *srvman)
@@ -75,9 +71,7 @@ void srvman_deinit(struct srvman *srvman)
 	mutex_destroy(&srvman->api_access_mutex);
 	mutex_destroy(&srvman->service_list_mutex);
 
-#ifdef CONFIG_ANDROID
 	wake_lock_destroy(&srvman->sm_wake_lock);
-#endif
 }
 
 void srvman_set_error(struct srvman *srvman)
@@ -168,13 +162,8 @@ static int send_sm_msg_start_blocking(struct scsc_service *service, scsc_mifram_
 	/* Send to FW in MM stream */
 	mxmgmt_transport_send(mxmgmt_transport, MMTRANS_CHAN_ID_SERVICE_MANAGEMENT, &message, sizeof(message));
 	r = wait_for_sm_msg_start_cfm(service);
-	if (r) {
+	if (r)
 		SCSC_TAG_ERR(MXMAN, "wait_for_sm_msg_start_cfm() failed: r=%d\n", r);
-
-		/* Report the error in order to get a moredump. Avoid auto-recovering this type of failure */
-		if (mxman_recovery_disabled())
-			scsc_mx_service_service_failed(service, "SM_MSG_START_CFM timeout");
-	}
 	return r;
 }
 
@@ -258,9 +247,7 @@ int scsc_mx_service_start(struct scsc_service *service, scsc_mifram_ref ref)
 		return 0;
 #endif
 	mutex_lock(&srvman->api_access_mutex);
-#ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
-#endif
 	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
@@ -269,9 +256,7 @@ int scsc_mx_service_start(struct scsc_service *service, scsc_mifram_ref ref)
 		/* Print the last panic record to help track ancient failures */
 		mxman_show_last_panic(mxman);
 
-#ifdef CONFIG_ANDROID
 		wake_unlock(&srvman->sm_wake_lock);
-#endif
 		mutex_unlock(&srvman->api_access_mutex);
 		return -EILSEQ;
 	}
@@ -279,16 +264,12 @@ int scsc_mx_service_start(struct scsc_service *service, scsc_mifram_ref ref)
 	r = send_sm_msg_start_blocking(service, ref);
 	if (r) {
 		SCSC_TAG_ERR(MXMAN, "send_sm_msg_start_blocking() failed: r=%d\n", r);
-#ifdef CONFIG_ANDROID
 		wake_unlock(&srvman->sm_wake_lock);
-#endif
 		mutex_unlock(&srvman->api_access_mutex);
 		return r;
 	}
 
-#ifdef CONFIG_ANDROID
 	wake_unlock(&srvman->sm_wake_lock);
-#endif
 	mutex_unlock(&srvman->api_access_mutex);
 	return 0;
 }
@@ -352,9 +333,7 @@ int scsc_mx_service_stop(struct scsc_service *service)
 		return 0;
 #endif
 	mutex_lock(&srvman->api_access_mutex);
-#ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
-#endif
 	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
@@ -363,9 +342,7 @@ int scsc_mx_service_stop(struct scsc_service *service)
 		/* Print the last panic record to help track ancient failures */
 		mxman_show_last_panic(mxman);
 
-#ifdef CONFIG_ANDROID
 		wake_unlock(&srvman->sm_wake_lock);
-#endif
 		mutex_unlock(&srvman->api_access_mutex);
 
 		/* Return a special status to allow caller recovery logic to know
@@ -382,16 +359,12 @@ int scsc_mx_service_stop(struct scsc_service *service)
 	r = send_sm_msg_stop_blocking(service);
 	if (r) {
 		SCSC_TAG_ERR(MXMAN, "send_sm_msg_stop_blocking() failed: r=%d\n", r);
-#ifdef CONFIG_ANDROID
 		wake_unlock(&srvman->sm_wake_lock);
-#endif
 		mutex_unlock(&srvman->api_access_mutex);
 		return -EIO; /* operation failed */
 	}
 
-#ifdef CONFIG_ANDROID
 	wake_unlock(&srvman->sm_wake_lock);
-#endif
 	mutex_unlock(&srvman->api_access_mutex);
 	return 0;
 }
@@ -521,9 +494,7 @@ int scsc_mx_service_close(struct scsc_service *service)
 
 	SCSC_TAG_INFO(MXMAN, "\n");
 	mutex_lock(&srvman->api_access_mutex);
-#ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
-#endif
 
 	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
@@ -534,9 +505,7 @@ int scsc_mx_service_close(struct scsc_service *service)
 		mxman_show_last_panic(mxman);
 
 		mutex_unlock(&srvman->api_access_mutex);
-#ifdef CONFIG_ANDROID
 		wake_unlock(&srvman->sm_wake_lock);
-#endif
 
 		/* Return a special status when recovery is disabled, to allow
 		 * calling recovery logic to be aware that recovery is disabled,
@@ -563,9 +532,7 @@ int scsc_mx_service_close(struct scsc_service *service)
 
 	kfree(service);
 	mxman_close(mxman);
-#ifdef CONFIG_ANDROID
 	wake_unlock(&srvman->sm_wake_lock);
-#endif
 	mutex_unlock(&srvman->api_access_mutex);
 	return 0;
 }
@@ -584,18 +551,14 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 	SCSC_TAG_INFO(MXMAN, "\n");
 
 	mutex_lock(&srvman->api_access_mutex);
-#ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
-#endif
 	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
 				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
 		/* Print the last panic record to help track ancient failures */
 		mxman_show_last_panic(mxman);
-#ifdef CONFIG_ANDROID
 		wake_unlock(&srvman->sm_wake_lock);
-#endif
 		mutex_unlock(&srvman->api_access_mutex);
 		*status = -EILSEQ;
 		return NULL;
@@ -609,9 +572,7 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 						msecs_to_jiffies(SCSC_MX_SERVICE_RECOVERY_TIMEOUT));
 		if (r == 0) {
 			SCSC_TAG_ERR(MXMAN, "Recovery timeout\n");
-#ifdef CONFIG_ANDROID
 			wake_unlock(&srvman->sm_wake_lock);
-#endif
 			*status = -EIO;
 			return NULL;
 		}
@@ -625,9 +586,7 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 		ret = mxman_open(mxman);
 		if (ret) {
 			kfree(service);
-#ifdef CONFIG_ANDROID
 			wake_unlock(&srvman->sm_wake_lock);
-#endif
 			mutex_unlock(&srvman->api_access_mutex);
 			*status = ret;
 			return NULL;
@@ -650,9 +609,7 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 	} else
 		*status = -ENOMEM;
 
-#ifdef CONFIG_ANDROID
 	wake_unlock(&srvman->sm_wake_lock);
-#endif
 	mutex_unlock(&srvman->api_access_mutex);
 
 	return service;
@@ -677,26 +634,6 @@ void scsc_service_on_halt_ldos_off(struct scsc_service *service)
 }
 EXPORT_SYMBOL(scsc_service_on_halt_ldos_off);
 #endif
-
-struct scsc_bt_audio_abox *scsc_mx_service_get_bt_audio_abox(struct scsc_service *service)
-{
-	struct scsc_mx      *mx = service->mx;
-	struct mifabox      *ptr;
-
-	ptr = scsc_mx_get_aboxram(mx);
-
-	return ptr->aboxram;
-}
-
-struct mifabox *scsc_mx_service_get_aboxram(struct scsc_service *service)
-{
-	struct scsc_mx      *mx = service->mx;
-	struct mifabox      *ptr;
-
-	ptr = scsc_mx_get_aboxram(mx);
-
-	return ptr;
-}
 
 /**
  * Allocate a contiguous block of SDRAM accessible to Client Driver
@@ -973,12 +910,6 @@ struct device *scsc_service_get_device(struct scsc_service *service)
 }
 EXPORT_SYMBOL(scsc_service_get_device);
 
-struct device *scsc_service_get_device_by_mx(struct scsc_mx *mx)
-{
-	return scsc_mx_get_device(mx);
-}
-EXPORT_SYMBOL(scsc_service_get_device_by_mx);
-
 /* Force a FW panic for test purposes only */
 int scsc_service_force_panic(struct scsc_service *service)
 {
@@ -1053,7 +984,6 @@ u32 scsc_service_mifsmapper_get_bank_base_address(struct scsc_service *service, 
 EXPORT_SYMBOL(scsc_service_mifsmapper_get_bank_base_address);
 #endif
 
-#ifdef CONFIG_SCSC_QOS
 int scsc_service_pm_qos_add_request(struct scsc_service *service, enum scsc_qos_config config)
 {
 	struct scsc_mx      *mx = service->mx;
@@ -1086,7 +1016,7 @@ int scsc_service_pm_qos_remove_request(struct scsc_service *service)
 	return 0;
 }
 EXPORT_SYMBOL(scsc_service_pm_qos_remove_request);
-#endif
+
 #ifdef CONFIG_SCSC_MXLOGGER
 /* If there is no service/mxman associated, register the observer as global (will affect all the mx instanes)*/
 /* Users of these functions should ensure that the registers/unregister functions are balanced (i.e. if observer is registed as global,

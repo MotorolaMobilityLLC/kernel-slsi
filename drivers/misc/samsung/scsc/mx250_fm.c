@@ -131,15 +131,7 @@ static int open_start_close_service(void)
 	r = open_start_service();
 	if (r) {
 		SCSC_TAG_ERR(FM, "Error starting service: open_start_service(fm_service) failed %d\n", r);
-
-		if (!fm_client->ldo_on) {
-			/* Do not return here. For the case where WLBT FW is crashed, and FM off request is
-			 * rejected, it's safest to continue to let scsc_service_on_halt_ldos_off() reset
-			 * the global flag to indicate that FM is no longer needed when WLBT next boots.
-			 * Otherwise LDO could be stuck always-on.
-			 */
-		} else
-			return r;
+		return r;
 	}
 
 	if (fm_client->ldo_on)

@@ -41,9 +41,7 @@ enum scsc_service_id {
 	SCSC_SERVICE_ID_INVALID = 0xff,
 };
 
-#ifdef CONFIG_SCSC_QOS
 #define SCSC_SERVICE_TOTAL	9
-#endif
 
 enum scsc_module_client_reason {
 	SCSC_MODULE_CLIENT_REASON_HW_PROBE = 0,
@@ -52,16 +50,14 @@ enum scsc_module_client_reason {
 	SCSC_MODULE_CLIENT_REASON_INVALID = 0xff,
 };
 
-#ifdef CONFIG_SCSC_QOS
 enum scsc_qos_config {
 	SCSC_QOS_DISABLED = 0,
 	SCSC_QOS_MIN = 1,
 	SCSC_QOS_MED = 2,
 	SCSC_QOS_MAX = 3,
 };
-#endif
-
 /* Core Driver Module registration */
+
 struct scsc_mx_module_client {
 	char *name;
 	void (*probe)(struct scsc_mx_module_client *module_client, struct scsc_mx *mx, enum scsc_module_client_reason reason);
@@ -161,8 +157,6 @@ int scsc_mx_service_mifram_alloc(struct scsc_service *service, size_t nbytes, sc
 /* Same as scsc_mx_service_mifram_alloc but allows to specify flags (MIFRAMMAN_MEM_POOL_XX).
  * So, for example, to allocate memory from the logging pool use MIFRAMMAN_MEM_POOL_LOGGING. */
 int scsc_mx_service_mifram_alloc_extended(struct scsc_service *service, size_t nbytes, scsc_mifram_ref *ref, u32 align, uint32_t flags);
-struct scsc_bt_audio_abox *scsc_mx_service_get_bt_audio_abox(struct scsc_service *service);
-struct mifabox *scsc_mx_service_get_aboxram(struct scsc_service *service);
 /** Free a contiguous block of SDRAM */
 void scsc_mx_service_mifram_free(struct scsc_service *service, scsc_mifram_ref ref);
 void scsc_mx_service_mifram_free_extended(struct scsc_service *service, scsc_mifram_ref ref, uint32_t flags);
@@ -217,7 +211,6 @@ int scsc_service_mifintrbit_free_fromhost(struct scsc_service *service, int whic
  * but this may change in future.
  */
 struct device *scsc_service_get_device(struct scsc_service *service);
-struct device *scsc_service_get_device_by_mx(struct scsc_mx *mx);
 
 int scsc_service_force_panic(struct scsc_service *service);
 
@@ -244,11 +237,9 @@ u32 scsc_service_mifsmapper_get_bank_base_address(struct scsc_service *service, 
 u16 scsc_service_get_alignment(struct scsc_service *service);
 #endif
 
-#ifdef CONFIG_SCSC_QOS
 int scsc_service_pm_qos_add_request(struct scsc_service *service, enum scsc_qos_config config);
 int scsc_service_pm_qos_update_request(struct scsc_service *service, enum scsc_qos_config config);
 int scsc_service_pm_qos_remove_request(struct scsc_service *service);
-#endif
 
 /* MXLOGGER API */
 /* If there is no service/mxman associated, register the observer as global (will affect all the mx instanes)*/

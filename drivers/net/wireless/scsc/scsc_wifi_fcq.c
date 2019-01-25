@@ -373,22 +373,18 @@ static int fcq_transmit_gmod_domain(struct net_device *dev, struct scsc_wifi_fcq
 
 	/* Check first the global domain */
 	if (sdev->hip4_inst.hip_priv->saturated) {
-#ifdef CONFIG_SCSC_DEBUG
 		SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "xxxxxxxxxxxxxxxxxxxxxxx Global domain. No space. active: %d vif: %d peer: %d ac: %d gcod (%d) gmod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 				atomic_read(&sdev->hip4_inst.hip_priv->gactive), vif, peer_index, priority, atomic_read(&sdev->hip4_inst.hip_priv->gcod), atomic_read(&sdev->hip4_inst.hip_priv->gmod),
 				td[DIREC_TX][DOMAIN_G][0], td[DIREC_RX][DOMAIN_G][0], td[DIREC_TX][DOMAIN_G][2], td[DIREC_RX][DOMAIN_G][2], td[DIREC_TX][DOMAIN_G][3], td[DIREC_RX][DOMAIN_G][3]);
 		fcq_stop_all_queues(sdev);
-#endif
 		spin_unlock(&sdev->hip4_inst.hip_priv->gbot_lock);
 		return -ENOSPC;
 	}
 
 	if (!atomic_read(&sdev->hip4_inst.hip_priv->gactive) && sdev->hip4_inst.hip_priv->guard-- == 0) {
-#ifdef CONFIG_SCSC_DEBUG
 		SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "xxxxxxxxxxxxxxxxxxxxxxx Global domain. Saturating Gmod. active: %d vif: %d peer: %d ac: %d gcod (%d) gmod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 				atomic_read(&sdev->hip4_inst.hip_priv->gactive), vif, peer_index, priority, atomic_read(&sdev->hip4_inst.hip_priv->gcod), atomic_read(&sdev->hip4_inst.hip_priv->gmod),
 				td[DIREC_TX][DOMAIN_G][0], td[DIREC_RX][DOMAIN_G][0], td[DIREC_TX][DOMAIN_G][2], td[DIREC_RX][DOMAIN_G][2], td[DIREC_TX][DOMAIN_G][3], td[DIREC_RX][DOMAIN_G][3]);
-#endif
 		sdev->hip4_inst.hip_priv->saturated = true;
 	}
 
@@ -396,10 +392,10 @@ static int fcq_transmit_gmod_domain(struct net_device *dev, struct scsc_wifi_fcq
 	gcod = atomic_inc_return(&sdev->hip4_inst.hip_priv->gcod);
 #ifdef CONFIG_SCSC_DEBUG
 	fcq_update_counters(DIREC_TX, DOMAIN_G, priority);
+#endif
 	SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "tx: active: %d vif: %d peer: %d ac: %d gcod (%d) gmod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 			atomic_read(&sdev->hip4_inst.hip_priv->gactive), vif, peer_index, priority, gcod, gmod,
 			td[DIREC_TX][DOMAIN_G][0], td[DIREC_RX][DOMAIN_G][0], td[DIREC_TX][DOMAIN_G][2], td[DIREC_RX][DOMAIN_G][2], td[DIREC_TX][DOMAIN_G][3], td[DIREC_RX][DOMAIN_G][3]);
-#endif
 	if (gcod >= (atomic_read(&sdev->hip4_inst.hip_priv->gmod) - STOP_GUARD_GMOD)) {
 		fcq_stop_all_queues(sdev);
 		if (atomic_read(&sdev->hip4_inst.hip_priv->gactive)) {
@@ -440,11 +436,9 @@ static int fcq_transmit_smod_domain(struct net_device *dev, struct scsc_wifi_fcq
 	if (qs->saturated) {
 		int i;
 
-#ifdef CONFIG_SCSC_DEBUG
 		SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "xxxxxxxxxxxxxxxxxxxxxxx Smod domain. No space. active %d vif: %d peer: %d ac: %d scod (%d) smod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 				atomic_read(&qs->active), vif, peer_index, priority, atomic_read(&qs->scod), atomic_read(&qs->smod),
 				td[DIREC_TX][DOMAIN_S][0], td[DIREC_RX][DOMAIN_S][0], td[DIREC_TX][DOMAIN_S][2], td[DIREC_RX][DOMAIN_S][2], td[DIREC_TX][DOMAIN_S][3], td[DIREC_RX][DOMAIN_S][3]);
-#endif
 
 		/* Close subqueues again */
 		for (i = 0; i < SLSI_NETIF_Q_PER_PEER; i++)
@@ -454,21 +448,19 @@ static int fcq_transmit_smod_domain(struct net_device *dev, struct scsc_wifi_fcq
 	}
 	/* Pass the frame until reaching the actual saturation */
 	if (!atomic_read(&qs->active) && (qs->guard-- == 0)) {
-#ifdef CONFIG_SCSC_DEBUG
 		SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "xxxxxxxxxxxxxxxxxxxxxxx Smod domain. Going into Saturation. active %d vif: %d peer: %d ac: %d scod (%d) smod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 				atomic_read(&qs->active), vif, peer_index, priority, atomic_read(&qs->scod), atomic_read(&qs->smod),
 				td[DIREC_TX][DOMAIN_S][0], td[DIREC_RX][DOMAIN_S][0], td[DIREC_TX][DOMAIN_S][2], td[DIREC_RX][DOMAIN_S][2], td[DIREC_TX][DOMAIN_S][3], td[DIREC_RX][DOMAIN_S][3]);
-#endif
 		qs->saturated = true;
 	}
 	scod = atomic_inc_return(&qs->scod);
 	SCSC_HIP4_SAMPLER_BOT_TX(sdev->minor_prof, scod, atomic_read(&qs->smod), priority << 6 | (peer_index & 0xf) << 2 | vif);
 #ifdef CONFIG_SCSC_DEBUG
 	fcq_update_counters(DIREC_TX, DOMAIN_S, priority);
+#endif
 	SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "tx: active: %d vif: %d peer: %d ac: %d scod (%d) smod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 			atomic_read(&qs->active), vif, peer_index, priority, atomic_read(&qs->scod), atomic_read(&qs->smod),
 			td[DIREC_TX][DOMAIN_S][0], td[DIREC_RX][DOMAIN_S][0], td[DIREC_TX][DOMAIN_S][2], td[DIREC_RX][DOMAIN_S][2], td[DIREC_TX][DOMAIN_S][3], td[DIREC_RX][DOMAIN_S][3]);
-#endif
 	if (scod >= (atomic_read(&qs->smod) - STOP_GUARD_SMOD)) {
 		int i;
 #ifdef EXPERIMENTAL_DYNAMIC_SMOD_ADAPTATION
@@ -528,10 +520,10 @@ static int fcq_transmit_qmod_domain(struct net_device *dev, struct scsc_wifi_fcq
 	SCSC_HIP4_SAMPLER_BOT_QMOD_TX(sdev->minor_prof, qcod, atomic_read(&queue->qmod), priority << 6 | (peer_index & 0xf) << 2 | vif);
 #ifdef CONFIG_SCSC_DEBUG
 	fcq_update_counters(DIREC_TX, DOMAIN_Q, priority);
+#endif
 	SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "tx: active: %d vif: %d peer: %d ac: %d qcod (%d) qmod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 			atomic_read(&queue->active), vif, peer_index, priority, atomic_read(&queue->qcod), atomic_read(&queue->qmod),
 			td[DIREC_TX][DOMAIN_Q][0], td[DIREC_RX][DOMAIN_Q][0], td[DIREC_TX][DOMAIN_Q][2], td[DIREC_RX][DOMAIN_Q][2], td[DIREC_TX][DOMAIN_Q][3], td[DIREC_RX][DOMAIN_Q][3]);
-#endif
 	if (atomic_read(&queue->active) && qcod >= (atomic_read(&queue->qmod) - STOP_GUARD_QMOD)) {
 		/* Before closing check whether we could get slots from non used queues */
 #ifdef EXPERIMENTAL_DYNAMIC_SMOD_ADAPTATION
@@ -663,10 +655,10 @@ static int fcq_receive_gmod_domain(struct net_device *dev, struct scsc_wifi_fcq_
 
 #ifdef CONFIG_SCSC_DEBUG
 	fcq_update_counters(DIREC_RX, DOMAIN_G, priority);
+#endif
 	SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "rx: active: %d vif: %d peer: %d ac: %d gcod (%d) gmod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d %s\n",
 			gactive, vif, peer_index, priority, gcod, gmod,
 			td[DIREC_TX][DOMAIN_G][0], td[DIREC_RX][DOMAIN_G][0], td[DIREC_TX][DOMAIN_G][2], td[DIREC_RX][DOMAIN_G][2], td[DIREC_TX][DOMAIN_G][3], td[DIREC_RX][DOMAIN_G][3], qs ? "" : "NO PEER");
-#endif
 
 	if (!is_gmod_active(sdev) && (gcod + SCSC_WIFI_FCQ_GMOD_RESUME_HYSTERESIS / total < gmod)) {
 		SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "Global Queues Started. gcod (%d) < gmod (%d)\n", gcod, gmod);
@@ -691,10 +683,10 @@ static int fcq_receive_smod_domain(struct net_device *dev, struct scsc_wifi_fcq_
 
 #ifdef CONFIG_SCSC_DEBUG
 	fcq_update_counters(DIREC_RX, DOMAIN_S, priority);
+#endif
 	SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "rx: active: %d vif: %d peer: %d ac: %d scod (%d) smod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 			atomic_read(&qs->active), vif, peer_index, priority, atomic_read(&qs->scod), atomic_read(&qs->smod),
 			td[DIREC_TX][DOMAIN_S][0], td[DIREC_RX][DOMAIN_S][0], td[DIREC_TX][DOMAIN_S][2], td[DIREC_RX][DOMAIN_S][2], td[DIREC_TX][DOMAIN_S][3], td[DIREC_RX][DOMAIN_S][3]);
-#endif
 	/* Only support a maximum of 16 peers!!!!!!*/
 	SCSC_HIP4_SAMPLER_BOT_RX(sdev->minor_prof, scod, atomic_read(&qs->smod), priority << 6 | (peer_index & 0xf) << 2 | vif);
 	if (!is_smod_active(qs) && (scod + SCSC_WIFI_FCQ_SMOD_RESUME_HYSTERESIS / total < atomic_read(&qs->smod))) {
@@ -744,10 +736,10 @@ static int fcq_receive_qmod_domain(struct net_device *dev, struct scsc_wifi_fcq_
 
 #ifdef CONFIG_SCSC_DEBUG
 	fcq_update_counters(DIREC_RX, DOMAIN_Q, priority);
+#endif
 	SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "rx: active: %d vif: %d peer: %d ac: %d qcod (%d) qmod (%d) betx:%d berx:%d vitx:%d virx:%d votx:%d vorx:%d\n",
 			atomic_read(&queue->active), vif, peer_index, priority, atomic_read(&queue->qcod), atomic_read(&queue->qmod),
 			td[DIREC_TX][DOMAIN_Q][0], td[DIREC_RX][DOMAIN_Q][0], td[DIREC_TX][DOMAIN_Q][2], td[DIREC_RX][DOMAIN_Q][2], td[DIREC_TX][DOMAIN_Q][3], td[DIREC_RX][DOMAIN_Q][3]);
-#endif
 	SCSC_HIP4_SAMPLER_BOT_QMOD_RX(sdev->minor_prof, qcod, atomic_read(&queue->qmod), priority << 6 | (peer_index & 0xf) << 2 | vif);
 
 	if (!is_qmod_active(&qs->ac_q[priority]) && ((qcod + SCSC_WIFI_FCQ_QMOD_RESUME_HYSTERESIS / total) < atomic_read(&queue->qmod))) {
