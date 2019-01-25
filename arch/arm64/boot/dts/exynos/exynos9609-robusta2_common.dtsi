@@ -794,7 +794,7 @@
 				clock-names = "xclkout";
 				clocks = <&clock OSC_AUD>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&xclkout0>;
+				pinctrl-0 = <&xclkout0 &spk_id>;
 
 				cirrus,sysclk = <1 4 98304000>;
 				cirrus,dspclk = <8 4 147456000>;
