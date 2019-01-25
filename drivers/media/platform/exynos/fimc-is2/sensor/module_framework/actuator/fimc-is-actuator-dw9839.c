@@ -540,7 +540,8 @@ int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *
 	if (ret < 0)
 		goto p_err;
 
-	adc_pos = (pos_msb << 8) | pos_lsb;
+	/* pos_msb uses [1:0] bit */
+	adc_pos = ((pos_msb & 0x3) << 8) | pos_lsb;
 
 	/* convert adc_pos to 10bit position
 	 * ncal <= adc_pos <= pcal ------> 0 <= 10bit_pos <= 1023
@@ -551,8 +552,8 @@ int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *
 	if (*info > 1023)
 		*info = 1023;
 
-	dbg_actuator("%s: pcal(%d), ncal(%d), adc_pos(%d) --> target_pos(%d) actual pos(%d)\n",
-			__func__, actuator_info->pcal, actuator_info->ncal, adc_pos,
+	dbg_actuator("%s: cal(p:%d, n:%d), adc_pos(msb:%d, lsb:%d, sum:%d) -> target_pos(%d) actual pos(%d)\n",
+			__func__, actuator_info->pcal, actuator_info->ncal, pos_msb & 0x3, pos_lsb, adc_pos,
 			actuator->position, *info);
 
 #ifdef DEBUG_ACTUATOR_TIME
