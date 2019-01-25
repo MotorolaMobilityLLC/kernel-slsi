@@ -2613,7 +2613,7 @@ static void slsi_lls_iface_ap_stats(struct slsi_dev *sdev, struct netdev_vif *nd
 		peer_type = SLSI_LLS_PEER_STA;
 	} else if (ndev_vif->ifnum == SLSI_NET_INDEX_P2PX_SWLAN) {
 		dev = sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN];
-		if (SLSI_IS_VIF_INDEX_P2P_GROUP(sdev, ndev_vif)) {
+		if (SLSI_IS_VIF_INDEX_P2P_GROUP(ndev_vif)) {
 			iface_stat->info.mode = SLSI_LLS_INTERFACE_P2P_GO;
 			peer_type = SLSI_LLS_PEER_P2P_CLIENT;
 		}
@@ -3323,10 +3323,8 @@ void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_
 	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NLMSG_DEFAULT_SIZE, SLSI_NL80211_RTT_RESULT_EVENT,
 					     GFP_KERNEL);
 #endif
-#ifdef CONFIG_SCSC_WLAN_DEBUG
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "Event: %s(%d)\n",
 			slsi_print_event_name(SLSI_NL80211_RTT_RESULT_EVENT), SLSI_NL80211_RTT_RESULT_EVENT);
-#endif
 
 	if (!nl_skb) {
 		SLSI_ERR(sdev, "NO MEM for nl_skb!!!\n");
@@ -3412,10 +3410,8 @@ void slsi_rx_range_done_ind(struct slsi_dev *sdev, struct net_device *dev, struc
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	u16 rtt_id = fapi_get_u16(skb, u.mlme_range_ind.rtt_id);
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-#ifdef CONFIG_SCSC_WLAN_DEBUG
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "Event: %s(%d)\n",
 			slsi_print_event_name(SLSI_NL80211_RTT_COMPLETE_EVENT), SLSI_NL80211_RTT_COMPLETE_EVENT);
-#endif
 	slsi_vendor_event(sdev, SLSI_NL80211_RTT_COMPLETE_EVENT, &rtt_id, sizeof(rtt_id));
 	slsi_kfree_skb(skb);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
@@ -4792,7 +4788,6 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 	fapi_data_len = fapi_get_datalen(skb);
 	if (!fapi_data_len) {
 		SLSI_ERR(sdev, "mlme_nan_followup_ind no mbulk data\n");
-		kfree(hal_evt);
 		return;
 	}
 
@@ -4802,20 +4797,17 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 		ptr = fapi_data_p;
 		if (fapi_data_len < ptr[1] + 2) {
 			SLSI_ERR(sdev, "len err[avail:%d,ie:%d]\n", fapi_data_len, fapi_data_p[1] + 2);
-			kfree(hal_evt);
 			return;
 		}
 		if (ptr[1] < sizeof(followup_ie_header) - 2 + 6 + 1 + 1) {
 			SLSI_ERR(sdev, "len err[min:%d,ie:%d]\n", (u32)sizeof(followup_ie_header) - 2 + 6 + 1 + 1,
 				 fapi_data_p[1] + 2);
-			kfree(hal_evt);
 			return;
 		}
 		if (followup_ie_header[0] != ptr[0] ||  followup_ie_header[2] != ptr[2] ||
 		    followup_ie_header[3] != ptr[3] ||  followup_ie_header[4] != ptr[4] ||
 		    followup_ie_header[5] != ptr[5] || followup_ie_header[6] != ptr[6]) {
 			SLSI_ERR(sdev, "unknown IE:%x-%d\n", fapi_data_p[0], fapi_data_p[1] + 2);
-			kfree(hal_evt);
 			return;
 		}
 
@@ -4833,7 +4825,6 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 			ptr += 2;
 			if (fapi_data_p[1] + 2 < (ptr - fapi_data_p) + tag_len) {
 				SLSI_ERR(sdev, "TLV error\n");
-				kfree(hal_evt);
 				return;
 			}
 			if (tag_id == SLSI_FAPI_NAN_SERVICE_SPECIFIC_INFO) {

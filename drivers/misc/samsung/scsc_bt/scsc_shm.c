@@ -935,7 +935,9 @@ static ssize_t scsc_bt_shm_h4_read_hci_evt(char __user *buf, size_t len)
 			/* Update the index if all the data could be copied to the userspace buffer otherwise stop processing the HCI events */
 			if (BT_READ_OP_NONE == bt_service.read_operation)
 				BSMHCP_INCREASE_INDEX(bt_service.mailbox_hci_evt_read, BSMHCP_TRANSFER_RING_EVT_SIZE);
+#ifndef CONFIG_SCSC_BT_BLUEZ
 			else
+#endif
 				break;
 		}
 	}
@@ -975,7 +977,12 @@ static bool scsc_bt_shm_h4_acl_start_copy(char __user *buf,
 
 	BSMHCP_INCREASE_INDEX(bt_service.mailbox_acl_rx_read, BSMHCP_TRANSFER_RING_ACL_SIZE);
 
+#ifdef CONFIG_SCSC_BT_BLUEZ
+	/* If BlueZ is enabled stop processing even after one complete packet */
+	return true;
+#else
 	return false;
+#endif
 }
 
 static ssize_t scsc_bt_shm_h4_read_acl_data(char __user *buf, size_t len)
@@ -1286,28 +1293,46 @@ ssize_t scsc_bt_shm_h4_read(struct file *file, char __user *buf, size_t len, lof
 		/* First: process any pending HCI event that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_hci_evt(&buf[consumed], len - consumed);
 		if (0 < res)
+		{
 			consumed += res;
+#ifdef CONFIG_SCSC_BT_BLUEZ
+			break;
+#endif
+		}
 		else
 			ret = res;
 
 		/* Second: process any pending ACL data that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_acl_data(&buf[consumed], len - consumed);
 		if (0 < res)
+		{
 			consumed += res;
+#ifdef CONFIG_SCSC_BT_BLUEZ
+			break;
+#endif
+		}
 		else
 			ret = res;
 
 		/* Third: process any pending ACL data that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_acl_credit(&buf[consumed], len - consumed);
 		if (0 < res)
+		{
 			consumed += res;
+#ifdef CONFIG_SCSC_BT_BLUEZ
+			break;
+#endif
+		}
 		else
 			ret = res;
 
 		res = scsc_bt_shm_h4_read_iq_report_evt(&buf[consumed], len - consumed);
-		if (res > 0)
+		if (res > 0) {
 			consumed += res;
-		else
+#ifdef CONFIG_SCSC_BT_BLUEZ
+			break;
+#endif
+		} else
 			ret = res;
 	}
 

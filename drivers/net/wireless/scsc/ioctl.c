@@ -665,10 +665,22 @@ static ssize_t slsi_create_interface(struct net_device *dev, char *intf_name)
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev   *sdev = ndev_vif->sdev;
 	struct net_device   *swlan_dev;
+	struct netdev_vif *ndev_swlan_vif;
 
 	swlan_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
-	if (swlan_dev && (swlan_dev->name == intf_name))
+	if (swlan_dev) {
+		SLSI_NET_ERR(dev, "swlan already created\n");
+		return -EINVAL;
+	}
+
+	swlan_dev = slsi_new_interface_create(sdev->wiphy, intf_name, NL80211_IFTYPE_AP, NULL);
+	if (swlan_dev) {
+		ndev_swlan_vif = netdev_priv(swlan_dev);
+		SLSI_MUTEX_LOCK(ndev_swlan_vif->vif_mutex);
+		ndev_swlan_vif->wifi_sharing = true;
+		SLSI_MUTEX_UNLOCK(ndev_swlan_vif->vif_mutex);
 		return 0;
+	}
 
 	SLSI_NET_ERR(dev, "Failed to create interface %s\n", intf_name);
 	return -EINVAL;
@@ -678,18 +690,23 @@ static ssize_t slsi_delete_interface(struct net_device *dev, char *intf_name)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev   *sdev = ndev_vif->sdev;
-	struct net_device   *swlan_dev;
 
-	swlan_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
-	if (swlan_dev && (swlan_dev->name == intf_name)) {
-		ndev_vif = netdev_priv(swlan_dev);
-		if (ndev_vif->activated)
-			slsi_stop_net_dev(sdev, swlan_dev);
-		return 0;
-	}
+	if (strcmp(intf_name, "swlan0") == 0)
+		dev = sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN];
 
-	SLSI_NET_ERR(dev, "Failed to delete interface %s\n", intf_name);
-	return -EINVAL;
+	if (WARN_ON(!dev))
+		return -EINVAL;
+	ndev_vif = netdev_priv(dev);
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	ndev_vif->wifi_sharing = false;
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+
+	if (ndev_vif->activated)
+		slsi_stop_net_dev(sdev, dev);
+	slsi_netif_remove_rtlnl_locked(sdev, dev);
+
+	return 0;
 }
 
 static ssize_t slsi_set_indoor_channels(struct net_device *dev, char *arg)
@@ -2112,7 +2129,7 @@ int slsi_get_sta_info(struct net_device *dev, char *command, int buf_len)
 	if (ap_dev) {
 		ndev_ap_vif = netdev_priv(ap_dev);
 		SLSI_MUTEX_LOCK(ndev_ap_vif->vif_mutex);
-		if (SLSI_IS_VIF_INDEX_MHS(sdev, ndev_ap_vif))
+		if (SLSI_IS_INTERFACE_WIFI_SHARING_AP(ndev_ap_vif))
 			ndev_vif = ndev_ap_vif;
 		SLSI_MUTEX_UNLOCK(ndev_ap_vif->vif_mutex);
 	}
@@ -2127,17 +2144,9 @@ int slsi_get_sta_info(struct net_device *dev, char *command, int buf_len)
 		return -EINVAL;
 	}
 
-	len = snprintf(command, buf_len, "GETSTAINFO %pM Rx_Retry_Pkts=%d Rx_BcMc_Pkts=%d CAP=%04x %02x:%02x:%02x ",
-		       ndev_vif->ap.last_disconnected_sta.address,
-		       ndev_vif->ap.last_disconnected_sta.rx_retry_packets,
-		       ndev_vif->ap.last_disconnected_sta.rx_bc_mc_packets,
-		       ndev_vif->ap.last_disconnected_sta.capabilities,
-		       ndev_vif->ap.last_disconnected_sta.address[0],
-		       ndev_vif->ap.last_disconnected_sta.address[1],
-		       ndev_vif->ap.last_disconnected_sta.address[2]);
-
-	len += snprintf(&command[len], (buf_len - len), "%d %d %d %d %d %d %d %u",
-		       ieee80211_frequency_to_channel(ndev_vif->ap.channel_freq),
+	len = snprintf(command, buf_len, "wl_get_sta_info : %02x%02x%02x %u %d %d %d %d %d %d %u ",
+		       ndev_vif->ap.last_disconnected_sta.address[0], ndev_vif->ap.last_disconnected_sta.address[1],
+		       ndev_vif->ap.last_disconnected_sta.address[2], ndev_vif->ap.channel_freq,
 		       ndev_vif->ap.last_disconnected_sta.bandwidth, ndev_vif->ap.last_disconnected_sta.rssi,
 		       ndev_vif->ap.last_disconnected_sta.tx_data_rate, ndev_vif->ap.last_disconnected_sta.mode,
 		       ndev_vif->ap.last_disconnected_sta.antenna_mode,

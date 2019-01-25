@@ -33,7 +33,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 {
 	struct netdev_vif	*ndev_vif = netdev_priv(dev);
 	struct slsi_peer	*peer;
-	u8			*eapol = NULL;
+	u8			*eapol;
 	u16			msg_type = 0;
 	u16			proto = ntohs(skb->protocol);
 	int			ret = 0;
@@ -57,9 +57,8 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 		 *   - Key type bit set in key info (pairwise=1, Group=0)
 		 *   - Key Data Length would be 0
 		 */
-		if ((skb->len + sizeof(struct ethhdr)) >= 99)
-			eapol = skb->data + sizeof(struct ethhdr);
-		if (eapol && eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAPOL_KEY) {
+		eapol = skb->data + sizeof(struct ethhdr);
+		if (eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAPOL_KEY) {
 			msg_type = FAPI_MESSAGETYPE_EAPOL_KEY_M123;
 
 			if ((eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_RSN_KEY || eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_WPA_KEY) &&
@@ -67,18 +66,9 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 			    (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] & SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE) &&
 			    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_HIGHER_BYTE_POS] == 0) &&
 			    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)) {
-				SLSI_INFO(sdev, "Send 4way-H/S, M4\n");
+				SLSI_NET_DBG1(dev, SLSI_MLME, "message M4\n");
 				msg_type = FAPI_MESSAGETYPE_EAPOL_KEY_M4;
 				dwell_time = 0;
-			} else if (msg_type == FAPI_MESSAGETYPE_EAPOL_KEY_M123) {
-				if (!(eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-				      SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE))
-					SLSI_INFO(sdev, "Send 4way-H/S, M1\n");
-				else if (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-					 SLSI_EAPOL_KEY_INFO_SECURE_BIT_IN_HIGHER_BYTE)
-					SLSI_INFO(sdev, "Send 4way-H/S, M3\n");
-				else
-					SLSI_INFO(sdev, "Send 4way-H/S, M2\n");
 			}
 		} else {
 			msg_type = FAPI_MESSAGETYPE_EAP_MESSAGE;
@@ -131,7 +121,6 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	u32 dwell_time = 0;
 	u8 *frame;
 	u32 arp_opcode;
-	u32 dhcp_message_type = SLSI_DHCP_MESSAGE_TYPE_INVALID;
 
 	if (slsi_is_test_mode_enabled()) {
 		/* This signals is in XML file because parts of the Firmware need the symbols defined by them
@@ -177,30 +166,10 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 			}
 			return slsi_mlme_send_frame_data(sdev, dev, skb, FAPI_MESSAGETYPE_ARP, 0, dwell_time, 0);
 		case ETH_P_IP:
-			if (skb->len >= 285 && slsi_is_dhcp_packet(skb->data) != SLSI_TX_IS_NOT_DHCP) {
+			if (slsi_is_dhcp_packet(skb->data) != SLSI_TX_IS_NOT_DHCP) {
+				SLSI_NET_DBG2(dev, SLSI_MLME, "transmit DHCP packet from SLSI_NETIF_Q_PRIORITY\n");
 				if (skb->data[42] == 1)  /*opcode 1 refers to DHCP discover/request*/
 					dwell_time = sdev->fw_dwell_time;
-				dhcp_message_type = skb->data[284];
-				if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_DISCOVER)
-					SLSI_INFO(sdev, "Send DHCP [DISCOVER]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_OFFER)
-					SLSI_INFO(sdev, "Send DHCP [OFFER]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_REQUEST)
-					SLSI_INFO(sdev, "Send DHCP [REQUEST]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_DECLINE)
-					SLSI_INFO(sdev, "Send DHCP [DECLINE]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_ACK)
-					SLSI_INFO(sdev, "Send DHCP [ACK]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_NAK)
-					SLSI_INFO(sdev, "Send DHCP [NAK]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_RELEASE)
-					SLSI_INFO(sdev, "Send DHCP [RELEASE]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_INFORM)
-					SLSI_INFO(sdev, "Send DHCP [INFORM]\n");
-				else if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_FORCERENEW)
-					SLSI_INFO(sdev, "Send DHCP [FORCERENEW]\n");
-				else
-					SLSI_INFO(sdev, "Send DHCP [INVALID]\n");
 				return slsi_mlme_send_frame_data(sdev, dev, skb, FAPI_MESSAGETYPE_DHCP, 0, dwell_time,
 								 0);
 			}

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -195,7 +195,6 @@ static void mxlogger_message_handler(const void *message, void *data)
 {
 	struct mxlogger		__attribute__((unused)) *mxlogger = (struct mxlogger *)data;
 	const struct log_msg_packet	*msg = message;
-	u16 reason_code;
 
 	switch (msg->msg) {
 	case MM_MXLOGGER_INITIALIZED_EVT:
@@ -214,16 +213,9 @@ static void mxlogger_message_handler(const void *message, void *data)
 		complete(&mxlogger->rings_serialized_ops);
 		break;
 	case MM_MXLOGGER_COLLECTION_FW_REQ_EVT:
-		/* If arg is zero, FW is using the 16bit reason code API */
-		/* therefore, the reason code is in the payload */
-		if (msg->arg == 0x00)
-			memcpy(&reason_code, &msg->payload[0], sizeof(u16));
-		else
-			/* old API */
-			reason_code = msg->arg;
+		SCSC_TAG_INFO(MXMAN, "MXLOGGER:: FW requested collection - Reason code:%d\n", msg->arg);
 #ifdef CONFIG_SCSC_LOG_COLLECTION
-		SCSC_TAG_INFO(MXMAN, "MXLOGGER:: FW requested collection - Reason code:0x%04x\n", reason_code);
-		scsc_log_collector_schedule_collection(SCSC_LOG_FW, reason_code);
+		scsc_log_collector_schedule_collection(SCSC_LOG_FW, msg->arg);
 #endif
 		break;
 	default:
