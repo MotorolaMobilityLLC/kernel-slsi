@@ -509,7 +509,6 @@ static int fimc_is_sensor_ctl_adjust_exposure(struct fimc_is_device_sensor *devi
 	int ret = 0;
 	struct fimc_is_module_enum *module = NULL;
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
-	camera2_sensor_ctl_t *sensor_ctrl = NULL;
 
 	FIMC_BUG(!device);
 	FIMC_BUG(!module_ctl);
@@ -525,19 +524,14 @@ static int fimc_is_sensor_ctl_adjust_exposure(struct fimc_is_device_sensor *devi
 	FIMC_BUG(!module);
 
 	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
-	sensor_ctrl = &module_ctl->cur_cam20_sensor_ctrl;
 
-	if (sensor_ctrl->exposureTime != 0 && module_ctl->valid_sensor_ctrl == true) {
-		expo->val = expo->short_val = fimc_is_sensor_convert_ns_to_us(sensor_ctrl->exposureTime);
+	if (sensor_peri->sensor_interface.cis_mode == ITF_CIS_SMIA_WDR) {
+		expo->long_val = applied_ae_setting->long_exposure;
+		expo->short_val = applied_ae_setting->short_exposure;
+		expo->middle_val = applied_ae_setting->middle_exposure;
 	} else {
-		if (sensor_peri->sensor_interface.cis_mode == ITF_CIS_SMIA_WDR) {
-			expo->long_val = applied_ae_setting->long_exposure;
-			expo->short_val = applied_ae_setting->short_exposure;
-			expo->middle_val = applied_ae_setting->middle_exposure;
-		} else {
-			expo->val = expo->short_val = applied_ae_setting->exposure;
-			expo->middle_val = 0;
-		}
+		expo->val = expo->short_val = applied_ae_setting->exposure;
+		expo->middle_val = 0;
 	}
 
 p_err:
