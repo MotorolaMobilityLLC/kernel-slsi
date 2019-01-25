@@ -258,7 +258,6 @@ static int slsi_net_stop(struct net_device *dev)
 
 	sdev->allow_switch_40_mhz = true;
 	sdev->allow_switch_80_mhz = true;
-	sdev->acs_channel_switched = false;
 	slsi_wakeunlock(&sdev->wlan_wl);
 	return 0;
 }
