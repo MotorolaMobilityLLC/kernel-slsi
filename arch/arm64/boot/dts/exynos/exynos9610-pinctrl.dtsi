@@ -580,6 +580,12 @@
 			samsung,pin-pud = <0>;
 		};
 
+		spk_id: spk_id {
+			samsung,pins = "gpm25-0";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <0>;
+		};
+
 	};
 
 	/* DISPAUD */
