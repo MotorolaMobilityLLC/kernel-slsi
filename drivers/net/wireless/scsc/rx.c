@@ -575,7 +575,7 @@ int slsi_set_2g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 			     struct slsi_acs_selected_channels *acs_selected_channels,
 			     struct slsi_acs_chan_info *ch_info)
 {
-	int i = 0, j = 0, avg_load, total_num_ap, total_rssi, adjacent_rssi;
+	int i = 0, j = 0, adjacent_rssi, avg_load, total_num_ap, total_rssi;
 	bool all_bss_load = true, none_bss_load = true;
 	int  min_avg_chan_utilization = INT_MAX, min_adjacent_rssi = INT_MAX;
 	int ch_idx_min_load = 0, ch_idx_min_rssi = 0;
@@ -814,24 +814,6 @@ int slsi_set_5g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 	return ret;
 }
 
-int slsi_acs_get_rssi_factor(struct slsi_dev *sdev, int rssi, int ch_util)
-{
-	int frac_pow_val[10] = {10, 12, 15, 19, 25, 31, 39, 50, 63, 79};
-	int res = 1;
-	int i;
-
-	if (rssi < 0)
-		rssi = 0 - rssi;
-	else
-		return INT_MAX;
-	for (i = 0; i < rssi / 10; i++)
-		res *= 10;
-	res = (10000000 * ch_util / res)  / frac_pow_val[rssi % 10];
-
-	SLSI_DBG3(sdev, SLSI_MLME, "ch_util:%d\n", ch_util);
-	return res;
-}
-
 struct slsi_acs_chan_info *slsi_acs_scan_results(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif, u16 scan_id)
 {
 	struct sk_buff *scan_res;
@@ -887,14 +869,9 @@ struct slsi_acs_chan_info *slsi_acs_scan_results(struct slsi_dev *sdev, struct n
 					ch_info[idx].total_chan_utilization += ch_util;
 				}
 			}
-			if (idx == scan_channel->hw_value - 1)  {    /*if 2.4GHZ channel */
-				int res = 0;
-
-				res = slsi_acs_get_rssi_factor(sdev, fapi_get_s16(scan_res, u.mlme_scan_ind.rssi),
-							       ch_util);
-				ch_info[idx].rssi_factor += res;
-				SLSI_DBG3(sdev, SLSI_MLME, "ch_info[idx].rssi_factor:%d\n", ch_info[idx].rssi_factor);
-			}
+			if (idx == scan_channel->hw_value - 1)   /*if 2.4GHZ channel */
+				ch_info[idx].rssi_factor += 10 ^ (fapi_get_s16(scan_res,
+								  u.mlme_scan_ind.rssi) / 10) * ch_util;
 		} else {
 			goto next_scan;
 		}
