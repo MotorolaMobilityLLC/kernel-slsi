@@ -17,9 +17,7 @@ static bool msdu_enable = true;
 module_param(msdu_enable, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(msdu_enable, "MSDU frame format, Y: enable (default), N: disable");
 
-#ifdef CONFIG_ANDROID
 #include "scsc_wifilogger_rings.h"
-#endif
 
 /**
  * Needed to get HIP4_DAT)SLOTS...should be part
@@ -239,11 +237,9 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	cb->colour = (slsi_frame_priority_to_ac_queue(skb->priority) << 8) |
 		(fapi_get_u16(skb, u.ma_unitdata_req.peer_index) << 3) | ndev_vif->ifnum << 1;
 
-#ifdef CONFIG_SCSC_WIFILOGGER
 	/* Log only the linear skb chunk ... unidata anywya will be truncated to 100.*/
 	SCSC_WLOG_PKTFATE_LOG_TX_DATA_FRAME(fapi_get_u16(skb, u.ma_unitdata_req.host_tag),
 					    skb->data, skb_headlen(skb));
-#endif
 
 	/* ACCESS POINT MODE */
 	if (ndev_vif->vif_type == FAPI_VIFTYPE_AP) {
@@ -520,11 +516,9 @@ int slsi_tx_control(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 	hdr = (struct fapi_signal_header *)skb->data;
 	hdr->fw_reference = 0;
 
-#ifdef CONFIG_SCSC_WIFILOGGER
 	/* Log only the linear skb  chunk */
 	SCSC_WLOG_PKTFATE_LOG_TX_CTRL_FRAME(fapi_get_u16(skb, u.mlme_frame_transmission_ind.host_tag),
 					    skb->data, skb_headlen(skb));
-#endif
 
 	slsi_debug_frame(sdev, dev, skb, "TX");
 	res = scsc_wifi_transmit_frame(&sdev->hip4_inst, true, skb);

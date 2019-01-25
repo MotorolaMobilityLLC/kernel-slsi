@@ -9,7 +9,6 @@
 #include <linux/rtnetlink.h>
 #include <net/sch_generic.h>
 #include <linux/if_ether.h>
-#include <scsc/scsc_logring.h>
 
 #include "debug.h"
 #include "netif.h"
@@ -120,11 +119,7 @@ static uint tcp_ack_suppression_rcv_window = 128;
 module_param(tcp_ack_suppression_rcv_window, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tcp_ack_suppression_rcv_window, "Receive window size (in unit of Kbytes) that triggers Ack suppression");
 
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-static void slsi_netif_tcp_ack_suppression_timeout(struct timer_list *t);
-#else
 static void slsi_netif_tcp_ack_suppression_timeout(unsigned long data);
-#endif
 static int slsi_netif_tcp_ack_suppression_start(struct net_device *dev);
 static int slsi_netif_tcp_ack_suppression_stop(struct net_device *dev);
 static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev, struct sk_buff *skb);
@@ -494,12 +489,6 @@ static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb)
 	/* Defensive check for uninitialized mac header */
 	if (!skb_mac_header_was_set(skb))
 		skb_reset_mac_header(skb);
-
-	if (is_zero_ether_addr(ehdr->h_dest) || is_zero_ether_addr(ehdr->h_source)) {
-		SLSI_NET_WARN(dev, "invalid Ethernet addresses (dest:%pM,src:%pM)\n", ehdr->h_dest, ehdr->h_source);
-		SCSC_BIN_TAG_INFO(BINARY, skb->data, skb->len > 128 ? 128 : skb->len);
-		return SLSI_NETIF_Q_DISCARD;
-	}
 
 	proto = be16_to_cpu(eth_hdr(skb)->h_proto);
 
@@ -938,14 +927,43 @@ static netdev_features_t slsi_net_fix_features(struct net_device *dev, netdev_fe
 #endif
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI_GRO
-	SLSI_NET_DBG1(dev, SLSI_RX, "NAPI Rx GRO enabled\n");
+	SLSI_NET_DBG1(dev, SLSI_RX, "napi rx gro enabled\n");
 	features |= NETIF_F_GRO;
 #else
-	SLSI_NET_DBG1(dev, SLSI_RX, "NAPI Rx GRO disabled\n");
+	SLSI_NET_DBG1(dev, SLSI_RX, "napi rx gro enabled\n");
 	features &= ~NETIF_F_GRO;
 #endif
 	return features;
 }
+
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+int slsi_net_rx_poll(struct napi_struct *napi, int budget)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(napi->dev);
+	struct sk_buff    *skb = slsi_skb_dequeue(&ndev_vif->napi.rx_data);
+	int               npackets = 0;
+
+	while (skb) {
+		npackets++;
+		slsi_dbg_untrack_skb(skb);
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI_GRO
+		napi_gro_receive(napi, skb);
+#else
+		netif_receive_skb(skb);
+#endif
+		if (npackets == budget)
+			break;
+		skb = slsi_skb_dequeue(&ndev_vif->napi.rx_data);
+	}
+
+	if (npackets < budget) {
+		ndev_vif->napi.interrupt_enabled = true;
+		napi_complete(napi);
+	}
+
+	return npackets;
+}
+#endif
 
 static void  slsi_set_multicast_list(struct net_device *dev)
 {
@@ -1032,8 +1050,8 @@ static void slsi_if_setup(struct net_device *dev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 9))
 	dev->needs_free_netdev = true;
 #else
-	dev->destructor = free_netdev;
-#endif
+        dev->destructor = free_netdev;
+#endif	
 }
 
 int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
@@ -1123,7 +1141,7 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 
 	/* For HS2 interface */
 	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif))
-		sdev->wlan_unsync_vif_state = WLAN_UNSYNC_NO_VIF;
+		sdev->hs2_state = HS2_NO_VIF;
 
 	/* For p2p0 interface */
 	else if (SLSI_IS_VIF_INDEX_P2P(ndev_vif)) {
@@ -1134,16 +1152,13 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 
 	INIT_DELAYED_WORK(&ndev_vif->scan_timeout_work, slsi_scan_ind_timeout_handle);
 
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	ret = slsi_skb_work_init(sdev, dev, &ndev_vif->rx_data, "slsi_wlan_rx_data", slsi_rx_netdev_data_work);
 	if (ret)
 		goto exit_with_error;
-#endif
+
 	ret = slsi_skb_work_init(sdev, dev, &ndev_vif->rx_mlme, "slsi_wlan_rx_mlme", slsi_rx_netdev_mlme_work);
 	if (ret) {
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 		slsi_skb_work_deinit(&ndev_vif->rx_data);
-#endif
 		goto exit_with_error;
 	}
 
@@ -1168,6 +1183,16 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 #endif
 	SLSI_DBG1(sdev, SLSI_NETDEV, "Add:%pM\n", dev->dev_addr);
 	rcu_assign_pointer(sdev->netdev[ifnum], dev);
+
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	SLSI_NET_DBG1(dev, SLSI_RX, "napi rx enabled\n");
+	skb_queue_head_init(&ndev_vif->napi.rx_data);
+	slsi_spinlock_create(&ndev_vif->napi.lock);
+	ndev_vif->napi.interrupt_enabled = true;
+	/* TODO_HARDMAC: What weight should we use? 32 is just a Guess */
+	netif_napi_add(dev, &ndev_vif->napi.napi, slsi_net_rx_poll, 32);
+	napi_enable(&ndev_vif->napi.napi);
+#endif
 	ndev_vif->delete_probe_req_ies = false;
 	ndev_vif->probe_req_ies = NULL;
 	ndev_vif->probe_req_ie_len = 0;
@@ -1175,9 +1200,7 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	return 0;
 
 exit_with_error:
-	SLSI_MUTEX_LOCK(sdev->netdev_remove_mutex);
 	free_netdev(dev);
-	SLSI_MUTEX_UNLOCK(sdev->netdev_remove_mutex);
 	return ret;
 }
 
@@ -1319,31 +1342,31 @@ static void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *d
 	if (SLSI_IS_VIF_INDEX_P2P(ndev_vif)) {
 		slsi_p2p_deinit(sdev, ndev_vif);
 	} else if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
-		sdev->wlan_unsync_vif_state = WLAN_UNSYNC_NO_VIF;
+		sdev->hs2_state = HS2_NO_VIF;
 		ndev_vif->vif_type = SLSI_VIFTYPE_UNSPECIFIED;
 	}
 
 	cancel_delayed_work(&ndev_vif->scan_timeout_work);
 	ndev_vif->scan[SLSI_SCAN_HW_ID].requeue_timeout_work = false;
 
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	slsi_skb_work_deinit(&ndev_vif->rx_data);
-#endif
 	slsi_skb_work_deinit(&ndev_vif->rx_mlme);
 	for (i = 0; i < SLSI_SCAN_MAX; i++)
 		slsi_purge_scan_results(ndev_vif, i);
 
 	slsi_kfree_skb(ndev_vif->sta.mlme_scan_ind_skb);
 	slsi_roam_channel_cache_prune(dev, 0);
+
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	slsi_skb_queue_purge(&ndev_vif->napi.rx_data);
+#endif
 	kfree(ndev_vif->probe_req_ies);
 
 	if (atomic_read(&ndev_vif->is_registered)) {
 		atomic_set(&ndev_vif->is_registered, 0);
 		unregister_netdevice(dev);
 	} else {
-		SLSI_MUTEX_LOCK(sdev->netdev_remove_mutex);
 		free_netdev(dev);
-		SLSI_MUTEX_UNLOCK(sdev->netdev_remove_mutex);
 	}
 }
 
@@ -1402,13 +1425,9 @@ static int slsi_netif_tcp_ack_suppression_start(struct net_device *dev)
 		tcp_ack->max = 0;
 		tcp_ack->age = 0;
 		skb_queue_head_init(&tcp_ack->list);
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-		timer_setup(&tcp_ack->timer, slsi_netif_tcp_ack_suppression_timeout, 0);
-#else
 		tcp_ack->timer.function = slsi_netif_tcp_ack_suppression_timeout;
 		tcp_ack->timer.data = (unsigned long)tcp_ack;
 		init_timer(&tcp_ack->timer);
-#endif
 		tcp_ack->state = 1;
 		slsi_spinlock_create(&tcp_ack->lock);
 	}
@@ -1437,17 +1456,9 @@ static int slsi_netif_tcp_ack_suppression_stop(struct net_device *dev)
 	return 0;
 }
 
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-static void slsi_netif_tcp_ack_suppression_timeout(struct timer_list *t)
-#else
 static void slsi_netif_tcp_ack_suppression_timeout(unsigned long data)
-#endif
 {
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-	struct slsi_tcp_ack_s *tcp_ack = from_timer(tcp_ack, t, timer);
-#else
 	struct slsi_tcp_ack_s *tcp_ack = (struct slsi_tcp_ack_s *)data;
-#endif
 	struct sk_buff *skb;
 	struct netdev_vif *ndev_vif;
 	struct slsi_dev   *sdev;
@@ -1489,11 +1500,9 @@ static void slsi_netif_tcp_ack_suppression_timeout(unsigned long data)
 static int slsi_netif_tcp_ack_suppression_option(struct sk_buff *skb, u32 option)
 {
 	unsigned char *options;
-	u32 optlen = 0, len = 0;
+	u32 optlen, len;
 
-	if (tcp_hdr(skb)->doff > 5)
-		optlen = (tcp_hdr(skb)->doff - 5) * 4;
-
+	optlen = tcp_optlen(skb);
 	options = ((u8 *)tcp_hdr(skb)) + TCP_ACK_SUPPRESSION_OPTIONS_OFFSET;
 
 	while (optlen > 0) {
@@ -1522,10 +1531,8 @@ static int slsi_netif_tcp_ack_suppression_option(struct sk_buff *skb, u32 option
 			len = options[1];
 			break;
 		}
-		/* if length field in TCP options is 0, or greater than
-		 * total options length, then options are incorrect; return here
-		 */
-		if ((len == 0) || (len > optlen)) {
+		/* if length field in TCP options is 0, then options are bogus; return here */
+		if (len == 0) {
 			SLSI_DBG_HEX_NODEV(SLSI_TX, skb->data, skb->len < 128 ? skb->len : 128, "SKB:\n");
 			return 0;
 		}
@@ -1561,6 +1568,7 @@ static void slsi_netif_tcp_ack_suppression_syn(struct net_device *dev, struct sk
 				tcp_ack->saddr = 0;
 				tcp_ack->count = 0;
 				tcp_ack->ack_seq = 0;
+				tcp_ack->tcp_sk = NULL;
 				del_timer(&tcp_ack->timer);
 			}
 		}
@@ -1591,6 +1599,7 @@ static void slsi_netif_tcp_ack_suppression_syn(struct net_device *dev, struct sk
 				tcp_ack->num_bytes = 0;
 				tcp_ack->hysteresis = 0;
 			}
+			tcp_ack->tcp_sk = skb->sk;
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 			tcp_ack->stream_id = index;
 #endif
@@ -1642,6 +1651,7 @@ static void slsi_netif_tcp_ack_suppression_fin(struct net_device *dev, struct sk
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 			tcp_ack->stream_id = 0;
 #endif
+			tcp_ack->tcp_sk = NULL;
 			SCSC_HIP4_SAMPLER_TCP_FIN(ndev_vif->sdev->minor_prof, index);
 			slsi_spinlock_unlock(&tcp_ack->lock);
 			return;
@@ -1706,7 +1716,6 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 			return skb;
 		}
 		if ((tcp_ack->dport == tcp_hdr(skb)->dest) &&
-			(tcp_ack->sport == tcp_hdr(skb)->source) &&
 		    (tcp_ack->daddr == ip_hdr(skb)->daddr)) {
 			found = 1;
 			ndev_vif->tcp_ack_stats.tack_lastrecord++;
@@ -1728,7 +1737,6 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 				return skb;
 			}
 			if ((tcp_ack->dport == tcp_hdr(skb)->dest) &&
-				(tcp_ack->sport == tcp_hdr(skb)->source) &&
 			    (tcp_ack->daddr == ip_hdr(skb)->daddr)) {
 				found = 1;
 				ndev_vif->tcp_ack_stats.tack_searchrecord++;
@@ -1759,7 +1767,7 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 	/* Has data, forward straight away. */
 	if (be16_to_cpu(ip_hdr(skb)->tot_len) > ((ip_hdr(skb)->ihl * 4) + (tcp_hdr(skb)->doff * 4))) {
 		SCSC_HIP4_SAMPLER_TCP_DATA(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, be32_to_cpu(tcp_hdr(skb)->seq));
-		SCSC_HIP4_SAMPLER_TCP_CWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, (skb->sk) ? tcp_sk(skb->sk)->snd_cwnd : 0);
+		SCSC_HIP4_SAMPLER_TCP_CWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, tcp_ack->tcp_sk ? tcp_sk(tcp_ack->tcp_sk)->snd_cwnd : 0);
 		SCSC_HIP4_SAMPLER_TCP_SEND_BUF(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, sysctl_tcp_wmem[2]);
 		ndev_vif->tcp_ack_stats.tack_hasdata++;
 		forward_now = 1;

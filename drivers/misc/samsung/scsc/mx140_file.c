@@ -8,11 +8,7 @@
 #include <linux/version.h>
 #include <linux/firmware.h>
 #include <linux/fs.h>
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-#include <linux/uaccess.h>
-#else
 #include <asm/uaccess.h>
-#endif
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -34,12 +30,7 @@
 #endif
 
 /* Look for this file in <dir>/etc/wifi */
-#ifdef CONFIG_ANDROID
-#define MX140_FW_DETECT "mx"
-#else
-/* Linux host vfs_stat() doesn't find mx* with "mx" */
-#define MX140_FW_DETECT "mx140.bin"
-#endif
+#define MX140_FW_DETECT				"mx"
 
 /* Paths for vendor utilities, used when CONFIG_SCSC_CORE_FW_LOCATION_AUTO=n */
 #define MX140_EXE_DIR_VENDOR		"/vendor/bin"    /* Oreo */
@@ -105,11 +96,7 @@ module_param(firmware_hw_ver, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(firmware_hw_ver, "mx140 hw version detect, manual=disable");
 
 /* FW base dir readable by usermode script */
-#ifdef CONFIG_SCSC_CORE_FW_LOCATION_AUTO
-static char *fw_base_dir;
-#else
 static char *fw_base_dir = CONFIG_SCSC_CORE_FW_LOCATION;
-#endif
 module_param_named(base_dir, fw_base_dir, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(base_dir, "WLBT FW base directory");
 

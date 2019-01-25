@@ -11,7 +11,6 @@
 #endif
 
 /* Global module parameters */
-static int              cached_enable;
 static int              enable = DEFAULT_ENABLE_LOGRING;
 static bool             initialized;
 #ifndef CONFIG_SCSC_STATIC_RING_SIZE
@@ -468,7 +467,7 @@ void handle_klogbuf_out_binary(int level, int tag, const void *start,
 	if (IS_PRINTK_REDIRECT_ALLOWED(force, level, tag)) {
 		if (level < SCSC_MIN_DBG || level >= ARRAY_SIZE(map2kern))
 			level = ARRAY_SIZE(map2kern) - 1;
-		print_hex_dump(map2kern[level], SCSC_PREFIX"SCSC_HEX->|",
+		print_hex_dump(map2kern[level], "SCSC_HEX->|",
 			       DUMP_PREFIX_NONE, 16, 1, start, len, false);
 	}
 }
@@ -622,32 +621,6 @@ int scsc_printk_bin(int force, int tag, int dlev, const void *start, size_t len)
 	return ret;
 }
 EXPORT_SYMBOL(scsc_printk_bin);
-
-/*
- * This is a very basic mechanism to have implement the dynamic switch
- * for one user (currently WLAN). If multiple users are
- * required to use the dynamic logring switch, a new registration
- * mechanism based on requests and use_count should be implemented to avoid one service
- * re-enabling logring when some other has requested not to do so.
- */
-int scsc_logring_enable(bool logging_enable)
-{
-	scsc_printk_tag(FORCE_PRK, NO_TAG, "scsc_logring %s\n", logging_enable ? "enable" : "disable");
-	/* User has requested to disable logring */
-	if (!logging_enable && enable) {
-		cached_enable = true;
-		enable = 0;
-		scsc_printk_tag(FORCE_PRK, NO_TAG, "Logring disabled\n");
-	} else if (logging_enable && cached_enable) {
-		cached_enable = false;
-		enable = 1;
-		scsc_printk_tag(FORCE_PRK, NO_TAG, "Logring re-enabled\n");
-	} else {
-		scsc_printk_tag(FORCE_PRK, NO_TAG, "Ignored\n");
-	}
-	return 0;
-}
-EXPORT_SYMBOL(scsc_logring_enable);
 
 
 MODULE_DESCRIPTION("SCSC Event Logger");

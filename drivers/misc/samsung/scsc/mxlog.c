@@ -21,7 +21,7 @@ static inline void mxlog_phase4_message_handler(const void *message,
 {
 	unsigned char *buf = (unsigned char *)message;
 
-	SCSC_TAG_LVL(MX_FW, level, SCSC_PREFIX"%d: %s\n", (int)length, buf);
+	SCSC_TAG_LVL(MX_FW, level, "%d: %s\n", (int)length, buf);
 }
 
 /**
@@ -162,7 +162,7 @@ static inline void mxlog_phase5_message_handler(const void *message,
 		/* Add FW provided tstamp on front and proper \n at
 		 * the end when needed
 		 */
-		snprintf(spare, MAX_SPARE_FMT + TSTAMP_LEN - 2, SCSC_PREFIX"%08X %s%c",
+		snprintf(spare, MAX_SPARE_FMT + TSTAMP_LEN - 2, "%08X %s%c",
 			 elogmsg->timestamp, fmt,
 			 (fmt[fmt_sz] != '\n') ? '\n' : '\0');
 		fmt = spare;

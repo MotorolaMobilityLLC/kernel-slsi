@@ -43,7 +43,7 @@ enum events {
 };
 
 static const struct genl_multicast_group scsc_mcgrp[] = {
-	{ .name = "scsc_mdp_grp", },
+	{ .name = "scsc_mc_grp", },
 };
 
 int scsc_wlbtd_init(void);

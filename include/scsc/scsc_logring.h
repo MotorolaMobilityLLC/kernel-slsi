@@ -100,14 +100,10 @@ enum scsc_logring_tags {
 #define SCSC_NDEV_2_DEV(ndev) \
 	((ndev) ? SCSC_SDEV_2_DEV(((struct netdev_vif *)netdev_priv(ndev))->sdev) : NULL)
 
-#define SCSC_PREFIX	"wlbt: "	/* prepended to log statements */
-
-#define SCSC_TAG_FMT(tag, fmt)		SCSC_PREFIX"[" # tag "]: %-5s: - %s: "fmt
-#define SCSC_TAG_DBG_FMT(tag, fmt)	SCSC_PREFIX"[" # tag "]: %s: "fmt
-#define SCSC_DEV_FMT(fmt)		SCSC_PREFIX"%-5s: - %s: "fmt
-#define SCSC_DBG_FMT(fmt)		SCSC_PREFIX"%s: "fmt
-
-int scsc_logring_enable(bool logging_enable);
+#define SCSC_TAG_FMT(tag, fmt)		"[" # tag "]: %-5s: - %s: "fmt
+#define SCSC_TAG_DBG_FMT(tag, fmt)	"[" # tag "]: %s: "fmt
+#define SCSC_DEV_FMT(fmt)		"%-5s: - %s: "fmt
+#define SCSC_DBG_FMT(fmt)		"%s: "fmt
 
 #ifdef CONFIG_SCSC_PRINTK
 
@@ -306,38 +302,38 @@ int scsc_printk_bin(int force, int tag, int dlev, const void *start, size_t len)
 								(start), (len))
 
 #define SCSC_EMERG_FF(args ...)          scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_EMERG SCSC_PREFIX args)
+							 KERN_EMERG args)
 #define SCSC_ALERT_FF(args ...)          scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_ALERT SCSC_PREFIX args)
+							 KERN_ALERT args)
 #define SCSC_CRIT_FF(args ...)           scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_CRIT SCSC_PREFIX args)
+							 KERN_CRIT args)
 #define SCSC_ERR_FF(args ...)            scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_ERR SCSC_PREFIX args)
+							 KERN_ERR args)
 #define SCSC_WARNING_FF(args ...)        scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_WARNING SCSC_PREFIX args)
+							 KERN_WARNING args)
 #define SCSC_NOTICE_FF(args ...)         scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_NOTICE SCSC_PREFIX args)
+							 KERN_NOTICE args)
 #define SCSC_INFO_FF(args ...)           scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_INFO SCSC_PREFIX args)
+							 KERN_INFO args)
 #define SCSC_DEBUG_FF(args ...)          scsc_printk_tag(FORCE_PRK, WLBT, \
-							 KERN_DEBUG SCSC_PREFIX args)
+							 KERN_DEBUG args)
 
 #define SCSC_TAG_EMERG_FF(tag, args ...) scsc_printk_tag(FORCE_PRK, (tag), \
-							 KERN_EMERG SCSC_PREFIX args)
+							 KERN_EMERG args)
 #define SCSC_TAG_ALERT_FF(tag, args ...) scsc_printk_tag(FORCE_PRK, (tag), \
-							 KERN_ALERT SCSC_PREFIX args)
+							 KERN_ALERT args)
 #define SCSC_TAG_CRIT_FF(tag, args ...)  scsc_printk_tag(FORCE_PRK, (tag), \
-							 KERN_CRIT SCSC_PREFIX args)
+							 KERN_CRIT args)
 #define SCSC_TAG_ERR_FF(tag, args ...)   scsc_printk_tag(FORCE_PRK, (tag), \
-							 KERN_ERR SCSC_PREFIX args)
+							 KERN_ERR args)
 #define SCSC_TAG_WARNING_FF(tag, args ...) scsc_printk_tag(FORCE_PRK, (tag), \
-							   KERN_WARNING SCSC_PREFIX args)
+							   KERN_WARNING args)
 #define SCSC_TAG_NOTICE_FF(tag, args ...) scsc_printk_tag(FORCE_PRK, (tag), \
-							  KERN_NOTICE SCSC_PREFIX args)
+							  KERN_NOTICE args)
 #define SCSC_TAG_INFO_FF(tag, args ...)  scsc_printk_tag(FORCE_PRK, (tag), \
-							 KERN_INFO SCSC_PREFIX args)
+							 KERN_INFO args)
 #define SCSC_TAG_DEBUG_FF(tag, args ...) scsc_printk_tag(FORCE_PRK, (tag), \
-							 KERN_DEBUG SCSC_PREFIX args)
+							 KERN_DEBUG args)
 
 #define SCSC_BIN_EMERG_FF(start, len)   scsc_printk_bin(FORCE_PRK, 0, \
 							(start), (len))
@@ -425,18 +421,18 @@ int scsc_printk_bin(int force, int tag, int dlev, const void *start, size_t len)
 			dev_printk_emit((lvl), (dev), fmt, ## args);\
 	} while (0)
 
-#define SCSC_PRINTK(fmt, args ...)               printk(SCSC_PREFIX fmt, ## args)
-#define SCSC_PRINTK_TAG(tag, fmt, args ...)      printk(SCSC_PREFIX "[" # tag "] "fmt, ## args)
+#define SCSC_PRINTK(fmt, args ...)               printk(fmt, ## args)
+#define SCSC_PRINTK_TAG(tag, fmt, args ...)      printk("[" # tag "] "fmt, ## args)
 #define SCSC_PRINTK_BIN(start, len)              print_hex_dump(KERN_INFO, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
 
-#define SCSC_PRINTK_FF(fmt, args ...)            printk(SCSC_PREFIX fmt, ## args)
-#define SCSC_PRINTK_TAG_FF(tag, fmt, args ...)   printk(SCSC_PREFIX"[" # tag "] "fmt, ## args)
+#define SCSC_PRINTK_FF(fmt, args ...)            printk(fmt, ## args)
+#define SCSC_PRINTK_TAG_FF(tag, fmt, args ...)   printk("[" # tag "] "fmt, ## args)
 #define SCSC_PRINTK_BIN_FF(start, len)           print_hex_dump(KERN_INFO, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
@@ -469,43 +465,43 @@ int scsc_printk_bin(int force, int tag, int dlev, const void *start, size_t len)
 
 
 #define SCSC_BIN_EMERG(start, len)      print_hex_dump(KERN_EMERG, \
-						       SCSC_PREFIX"[BINARY]->|", \
+						       "[BINARY]->|", \
 						       DUMP_PREFIX_ADDRESS, \
 						       16, 4, start, \
 						       len, true)
 
 #define SCSC_BIN_ALERT(start, len)      print_hex_dump(KERN_ALERT, \
-						       SCSC_PREFIX"[BINARY]->|", \
+						       "[BINARY]->|", \
 						       DUMP_PREFIX_ADDRESS, \
 						       16, 4, start, \
 						       len, true)
 
 #define SCSC_BIN_CRIT(start, len)       print_hex_dump(KERN_CRIT, \
-						       SCSC_PREFIX"[BINARY]->|", \
+						       "[BINARY]->|", \
 						       DUMP_PREFIX_ADDRESS, \
 						       16, 4, start, \
 						       len, true)
 
 #define SCSC_BIN_ERR(start, len)        print_hex_dump(KERN_ERR, \
-						       SCSC_PREFIX"[BINARY]->|", \
+						       "[BINARY]->|", \
 						       DUMP_PREFIX_ADDRESS, \
 						       16, 4, start, \
 						       len, true)
 
 #define SCSC_BIN_WARNING(start, len)    print_hex_dump(KERN_WARNING, \
-						       SCSC_PREFIX"[BINARY]->|", \
+						       "[BINARY]->|", \
 						       DUMP_PREFIX_ADDRESS, \
 						       16, 4, start, \
 						       len, true)
 
 #define SCSC_BIN_NOTICE(start, len)     print_hex_dump(KERN_NOTICE, \
-						       SCSC_PREFIX"[BINARY]->|", \
+						       "[BINARY]->|", \
 						       DUMP_PREFIX_ADDRESS, \
 						       16, 4, start, \
 						       len, true)
 
 #define SCSC_BIN_INFO(start, len)       print_hex_dump(KERN_INFO, \
-						       SCSC_PREFIX"[BINARY]->|", \
+						       "[BINARY]->|", \
 						       DUMP_PREFIX_ADDRESS, \
 						       16, 4, start, \
 						       len, true)
@@ -514,43 +510,43 @@ int scsc_printk_bin(int force, int tag, int dlev, const void *start, size_t len)
 
 
 #define SCSC_BIN_TAG_EMERG(tag, start, len)      print_hex_dump(KERN_EMERG, \
-								SCSC_PREFIX"[" # tag "]->|", \
+								"[" # tag "]->|", \
 								DUMP_PREFIX_ADDRESS, \
 								16, 4, start, \
 								len, true)
 
 #define SCSC_BIN_TAG_ALERT(tag, start, len)      print_hex_dump(KERN_ALERT, \
-								SCSC_PREFIX"[" # tag "]->|", \
+								"[" # tag "]->|", \
 								DUMP_PREFIX_ADDRESS, \
 								16, 4, start, \
 								len, true)
 
 #define SCSC_BIN_TAG_CRIT(tag, start, len)       print_hex_dump(KERN_CRIT, \
-								SCSC_PREFIX"[" # tag "]->|", \
+								"[" # tag "]->|", \
 								DUMP_PREFIX_ADDRESS, \
 								16, 4, start, \
 								len, true)
 
 #define SCSC_BIN_TAG_ERR(tag, start, len)        print_hex_dump(KERN_ERR, \
-								SCSC_PREFIX"[" # tag "]->|", \
+								"[" # tag "]->|", \
 								DUMP_PREFIX_ADDRESS, \
 								16, 4, start, \
 								len, true)
 
 #define SCSC_BIN_TAG_WARNING(tag, start, len)    print_hex_dump(KERN_WARNING, \
-								SCSC_PREFIX"[" # tag "]->|", \
+								"[" # tag "]->|", \
 								DUMP_PREFIX_ADDRESS, \
 								16, 4, start, \
 								len, true)
 
 #define SCSC_BIN_TAG_NOTICE(tag, start, len)     print_hex_dump(KERN_NOTICE, \
-								SCSC_PREFIX"[" # tag "]->|", \
+								"[" # tag "]->|", \
 								DUMP_PREFIX_ADDRESS, \
 								16, 4, start, \
 								len, true)
 
 #define SCSC_BIN_TAG_INFO(tag, start, len)       print_hex_dump(KERN_INFO, \
-								SCSC_PREFIX"[" # tag "]->|", \
+								"[" # tag "]->|", \
 								DUMP_PREFIX_NONE, \
 								16, 1, start, \
 								len, false)
@@ -558,13 +554,13 @@ int scsc_printk_bin(int force, int tag, int dlev, const void *start, size_t len)
 #define SCSC_BIN_TAG_DEBUG(tag, start, len)       do {} while (0)
 
 
-#define SCSC_EMERG_FF(args ...)          pr_emerg(SCSC_PREFIX args)
-#define SCSC_ALERT_FF(args ...)          pr_alert(SCSC_PREFIX args)
-#define SCSC_CRIT_FF(args ...)           pr_crit(SCSC_PREFIX args)
-#define SCSC_ERR_FF(args ...)            pr_err(SCSC_PREFIX args)
-#define SCSC_WARNING_FF(args ...)        pr_warn(SCSC_PREFIX args)
-#define SCSC_NOTICE_FF(args ...)         pr_notice(SCSC_PREFIX args)
-#define SCSC_INFO_FF(args ...)           pr_info(SCSC_PREFIX args)
+#define SCSC_EMERG_FF(args ...)          pr_emerg(args)
+#define SCSC_ALERT_FF(args ...)          pr_alert(args)
+#define SCSC_CRIT_FF(args ...)           pr_crit(args)
+#define SCSC_ERR_FF(args ...)            pr_err(args)
+#define SCSC_WARNING_FF(args ...)        pr_warn(args)
+#define SCSC_NOTICE_FF(args ...)         pr_notice(args)
+#define SCSC_INFO_FF(args ...)           pr_info(args)
 #define SCSC_DEBUG_FF(args ...)          do {} while (0)
 
 
@@ -585,43 +581,43 @@ int scsc_printk_bin(int force, int tag, int dlev, const void *start, size_t len)
 #define SCSC_TAG_DEBUG_FF(tag, fmt, args ...)   do {} while (0)
 
 #define SCSC_BIN_EMERG_FF(start, len)           print_hex_dump(KERN_EMERG, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
 
 #define SCSC_BIN_ALERT_FF(start, len)           print_hex_dump(KERN_ALERT, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
 
 #define SCSC_BIN_CRIT_FF(start, len)            print_hex_dump(KERN_CRIT, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
 
 #define SCSC_BIN_ERR_FF(start, len)             print_hex_dump(KERN_ERR, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
 
 #define SCSC_BIN_WARNING_FF(start, len)         print_hex_dump(KERN_WARNING, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
 
 #define SCSC_BIN_NOTICE_FF(start, len)          print_hex_dump(KERN_NOTICE, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)
 
 #define SCSC_BIN_INFO_FF(start, len)            print_hex_dump(KERN_INFO, \
-							       SCSC_PREFIX"[BINARY]->|", \
+							       "[BINARY]->|", \
 							       DUMP_PREFIX_ADDRESS, \
 							       16, 4, start, \
 							       len, true)

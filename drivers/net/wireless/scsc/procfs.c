@@ -103,57 +103,6 @@ static ssize_t slsi_procfs_mutex_stats_read(struct file *file,  char __user *use
 }
 #endif
 
-static ssize_t slsi_procfs_throughput_stats_read(struct file *file,  char __user *user_buf, size_t count, loff_t *ppos)
-{
-	char              buf[5 * 25];
-	int               pos = 0;
-	const size_t      bufsz = sizeof(buf);
-	struct slsi_dev   *sdev = (struct slsi_dev *)file->private_data;
-	struct net_device *dev;
-	struct slsi_mib_data      mibrsp = { 0, NULL };
-	struct slsi_mib_value     *values = NULL;
-	struct slsi_mib_get_entry get_values[] = {{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 2, 0 } },
-						 { SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 3, 0 } },
-						 { SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 4, 0 } },
-						 { SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 24, 0 } },
-						 { SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 29, 0 } } };
-
-	SLSI_UNUSED_PARAMETER(file);
-
-	dev = slsi_get_netdev(sdev, 1);
-
-	mibrsp.dataLength = 15 * ARRAY_SIZE(get_values);
-	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
-	if (!mibrsp.data)
-		SLSI_ERR(sdev, "Cannot kmalloc %d bytes\n", mibrsp.dataLength);
-	values = slsi_read_mibs(sdev, dev, get_values, ARRAY_SIZE(get_values), &mibrsp);
-	if (!values) {
-		kfree(mibrsp.data);
-		return -EINVAL;
-	}
-	if (values[0].type != SLSI_MIB_TYPE_UINT)
-		SLSI_ERR(sdev, "invalid type. iter:%d", 0); /*bad_fcs_count*/
-	if (values[1].type != SLSI_MIB_TYPE_UINT)
-		SLSI_ERR(sdev, "invalid type. iter:%d", 1); /*missed_ba_count*/
-	if (values[2].type != SLSI_MIB_TYPE_UINT)
-		SLSI_ERR(sdev, "invalid type. iter:%d", 2); /*missed_ack_count*/
-	if (values[3].type != SLSI_MIB_TYPE_UINT)
-		SLSI_ERR(sdev, "invalid type. iter:%d", 3); /*mac_bad_sig_count*/
-	if (values[4].type != SLSI_MIB_TYPE_UINT)
-		SLSI_ERR(sdev, "invalid type. iter:%d", 4); /*rx_error_count*/
-
-	pos += scnprintf(buf, bufsz, "RX FCS:             %d\n", values[0].u.uintValue);
-	pos += scnprintf(buf + pos, bufsz - pos, "RX bad SIG:         %d\n", values[3].u.uintValue);
-	pos += scnprintf(buf + pos, bufsz - pos, "RX dot11 error:     %d\n", values[4].u.uintValue);
-	pos += scnprintf(buf + pos, bufsz - pos, "TX MPDU no ACK:     %d\n", values[2].u.uintValue);
-	pos += scnprintf(buf + pos, bufsz - pos, "TX A-MPDU no ACK:   %d\n", values[1].u.uintValue);
-
-	kfree(values);
-	kfree(mibrsp.data);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
 static ssize_t slsi_procfs_sta_bss_read(struct file *file,  char __user *user_buf, size_t count, loff_t *ppos)
 {
 	char              buf[100];
@@ -308,13 +257,9 @@ static int slsi_procfs_status_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "HW Version     [MIB] : 0x%.4X (%u)\n", sdev->chip_info_mib.chip_version, sdev->chip_info_mib.chip_version);
 	seq_printf(m, "Platform Build [MIB] : 0x%.4X (%u)\n", sdev->plat_info_mib.plat_build, sdev->plat_info_mib.plat_build);
-	for (i = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++) {
+	for (i  = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++)
 		seq_printf(m, "Hash         [MIB%2d] : 0x%.4X (%u)\n", i, sdev->mib[i].mib_hash, sdev->mib[i].mib_hash);
-		seq_printf(m, "Platform:    [MIB%2d] : %s\n", i, sdev->mib[i].platform);
-	}
 	seq_printf(m, "Hash           [local_MIB] : 0x%.4X (%u)\n", sdev->local_mib.mib_hash, sdev->local_mib.mib_hash);
-	seq_printf(m, "Platform:      [local_MIB] : %s\n", sdev->local_mib.platform);
-
 	return 0;
 }
 
@@ -1050,7 +995,6 @@ SLSI_PROCFS_READ_FILE_OPS(mutex_stats);
 #endif
 SLSI_PROCFS_READ_FILE_OPS(sta_bss);
 SLSI_PROCFS_READ_FILE_OPS(big_data);
-SLSI_PROCFS_READ_FILE_OPS(throughput_stats);
 SLSI_PROCFS_SEQ_FILE_OPS(tcp_ack_suppression);
 
 int slsi_create_proc_dir(struct slsi_dev *sdev)
@@ -1086,7 +1030,6 @@ int slsi_create_proc_dir(struct slsi_dev *sdev)
 #endif
 		SLSI_PROCFS_ADD_FILE(sdev, sta_bss, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		SLSI_PROCFS_ADD_FILE(sdev, big_data, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-		SLSI_PROCFS_ADD_FILE(sdev, throughput_stats, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		SLSI_PROCFS_SEQ_ADD_FILE(sdev, tcp_ack_suppression, sdev->procfs_dir, S_IRUSR | S_IRGRP);
 	}
 
@@ -1121,7 +1064,6 @@ void slsi_remove_proc_dir(struct slsi_dev *sdev)
 #endif
 		SLSI_PROCFS_REMOVE_FILE(sta_bss, sdev->procfs_dir);
 		SLSI_PROCFS_REMOVE_FILE(big_data, sdev->procfs_dir);
-		SLSI_PROCFS_REMOVE_FILE(throughput_stats, sdev->procfs_dir);
 		SLSI_PROCFS_REMOVE_FILE(tcp_ack_suppression, sdev->procfs_dir);
 
 		(void)snprintf(dir, sizeof(dir), "driver/unifi%d", sdev->procfs_instance);

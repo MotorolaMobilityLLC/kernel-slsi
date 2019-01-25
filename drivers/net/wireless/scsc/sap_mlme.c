@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2017 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #include <linux/types.h>
@@ -10,10 +10,7 @@
 #include "sap_mlme.h"
 #include "hip.h"
 #include "mgt.h"
-
-#ifdef CONFIG_ANDROID
 #include "scsc_wifilogger_rings.h"
-#endif
 
 #define SUPPORTED_OLD_VERSION   0
 
@@ -166,33 +163,20 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 	case MLME_RSSI_REPORT_IND:
 		slsi_rx_rssi_report_ind(sdev, dev, skb);
 		break;
-	case MLME_RANGE_IND:
-		slsi_rx_range_ind(sdev, dev, skb);
-		break;
-	case MLME_RANGE_DONE_IND:
-		slsi_rx_range_done_ind(sdev, dev, skb);
-		break;
-
 #endif
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
 	case MLME_EVENT_LOG_IND:
 		slsi_rx_event_log_indication(sdev, dev, skb);
-		break;
 #endif
-#ifdef CONFIG_SCSC_WLAN_GSCAN_ENABLE
 	case MLME_NAN_EVENT_IND:
 		slsi_nan_event(sdev, dev, skb);
-		slsi_kfree_skb(skb);
 		break;
 	case MLME_NAN_FOLLOWUP_IND:
 		slsi_nan_followup_ind(sdev, dev, skb);
-		slsi_kfree_skb(skb);
 		break;
 	case MLME_NAN_SERVICE_IND:
 		slsi_nan_service_ind(sdev, dev, skb);
-		slsi_kfree_skb(skb);
 		break;
-#endif
 	default:
 		slsi_kfree_skb(skb);
 		SLSI_NET_ERR(dev, "Unhandled Ind: 0x%.4x\n", id);
@@ -306,9 +290,7 @@ static int sap_mlme_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 		return 0;
 
 	if (fapi_is_ind(skb)) {
-#ifdef CONFIG_SCSC_WIFILOGGER
 		SCSC_WLOG_PKTFATE_LOG_RX_CTRL_FRAME(fapi_get_data(skb), fapi_get_datalen(skb));
-#endif
 
 		switch (fapi_get_sigid(skb)) {
 		case MLME_SCAN_DONE_IND:
@@ -343,12 +325,6 @@ static int sap_mlme_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 		case MLME_NAN_FOLLOWUP_IND:
 		case MLME_NAN_SERVICE_IND:
 			return slsi_rx_enqueue_netdev_mlme(sdev, skb, vif);
-		case MLME_RANGE_IND:
-		case MLME_RANGE_DONE_IND:
-			if (vif == 0)
-				return slsi_rx_enqueue_netdev_mlme(sdev, skb, SLSI_NET_INDEX_WLAN);
-			else
-				return slsi_rx_enqueue_netdev_mlme(sdev, skb, vif);
 #endif
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
 		case MLME_EVENT_LOG_IND:

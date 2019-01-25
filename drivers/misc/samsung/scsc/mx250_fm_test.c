@@ -9,7 +9,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/uaccess.h>
+#include <asm/uaccess.h>
 
 #include <scsc/scsc_logring.h>
 #include <scsc/scsc_mx.h>

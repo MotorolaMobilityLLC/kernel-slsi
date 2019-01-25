@@ -191,7 +191,7 @@ struct BSMHCP_TD_IQ_REPORTING_EVT {
 	uint8_t  cte_type;
 	uint8_t  slot_durations;
 	uint8_t  sample_count;
-	uint16_t event_count;
+	uint16_t reserved;
 	uint8_t  data[BSMHCP_IQ_REPORT_BUFFER_SIZE];
 };
 

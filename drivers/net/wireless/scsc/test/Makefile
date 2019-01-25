@@ -26,7 +26,7 @@ $(CONFIG_SCSC_WLAN_MODULE)-y += ../fw_test.o
 $(CONFIG_SCSC_WLAN_MODULE)-y += ../cac.o
 $(CONFIG_SCSC_WLAN_MODULE)-y += ../ioctl.o
 $(CONFIG_SCSC_WLAN_MODULE)-y += ../wakelock.o
-$(CONFIG_SCSC_WLAN_MODULE)-y += ../traffic_monitor.o
+
 # enable GSCAN
 ifeq ($(CONFIG_SCSC_WLAN_GSCAN_ENABLE),y)
 $(CONFIG_SCSC_WLAN_MODULE)-y += ../nl80211_vendor.o

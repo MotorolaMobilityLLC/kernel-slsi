@@ -7,9 +7,7 @@
 #ifndef __SCSC_MIF_ABS_H
 #define __SCSC_MIF_ABS_H
 
-#ifdef CONFIG_SCSC_QOS
 #include <linux/pm_qos.h>
-#endif
 #include <linux/types.h>
 #include <scsc/scsc_mifram.h>
 #include <scsc/scsc_mx.h>
@@ -37,14 +35,12 @@ enum scsc_mif_abs_bank_type {
 };
 #endif
 
-#ifdef CONFIG_SCSC_QOS
 struct scsc_mifqos_request {
 	struct pm_qos_request pm_qos_req_mif;
 	struct pm_qos_request pm_qos_req_int;
 	struct pm_qos_request pm_qos_req_cl0;
 	struct pm_qos_request pm_qos_req_cl1;
 };
-#endif
 /**
  * Abstraction of the Maxwell "Memory Interface" aka  MIF.
  *
@@ -197,11 +193,9 @@ struct scsc_mif_abs {
 	void (*mif_smapper_configure)(struct scsc_mif_abs *interface, u32 granularity);
 	u32  (*mif_smapper_get_bank_base_address)(struct scsc_mif_abs *interface, u8 bank);
 #endif
-#ifdef CONFIG_SCSC_QOS
 	int  (*mif_pm_qos_add_request)(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req, enum scsc_qos_config config);
 	int  (*mif_pm_qos_update_request)(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req, enum scsc_qos_config config);
 	int  (*mif_pm_qos_remove_request)(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req);
-#endif
 };
 
 struct device;

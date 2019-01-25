@@ -17,10 +17,7 @@
 #include "cac.h"
 #include "nl80211_vendor.h"
 
-#ifdef CONFIG_ANDROID
 #include "scsc_wifilogger_rings.h"
-#endif
-
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 #include <scsc/scsc_log_collector.h>
 #endif
@@ -503,8 +500,8 @@ void slsi_scan_complete(struct slsi_dev *sdev, struct net_device *dev, u16 scan_
 		}
 		scan = slsi_dequeue_cached_scan_result(&ndev_vif->scan[scan_id], result_count);
 	}
-	SLSI_INFO(sdev, "Scan count:%d APs\n", scan_results_count);
-	SLSI_NET_DBG3(dev, SLSI_MLME, "interface:%d, scan_id:%d,%s\n", ndev_vif->ifnum, scan_id,
+	SLSI_NET_DBG3(dev, SLSI_MLME, "interface:%d, scan_id:%d, scan_results_count:%d %s\n",
+		      ndev_vif->ifnum, scan_id, scan_results_count,
 		      more_than_max_count ? "Scan results overflow" : "");
 	slsi_roam_channel_cache_prune(dev, SLSI_ROAMING_CHANNEL_CACHE_TIMEOUT);
 
@@ -608,7 +605,6 @@ void slsi_rx_channel_switched_ind(struct slsi_dev *sdev, struct net_device *dev,
 	ndev_vif->ap.channel_freq = freq; /* updated for GETSTAINFO */
 
 	cfg80211_ch_switch_notify(dev, &chandef);
-	slsi_kfree_skb(skb);
 }
 
 void __slsi_rx_blockack_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
@@ -974,12 +970,10 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 
 		ndev_vif->sta.roam_in_progress = false;
 		ndev_vif->chan = ndev_vif->sta.sta_bss->channel;
-#if !defined SLSI_TEST_DEV && defined CONFIG_ANDROID
+#ifndef SLSI_TEST_DEV
 		SLSI_NET_DBG1(dev, SLSI_MLME, "Taking a wakelock for DHCP to finish after roaming\n");
 		wake_lock_timeout(&sdev->wlan_wl_roam, msecs_to_jiffies(10 * 1000));
-#ifdef CONFIG_SCSC_WIFILOGGER
 		SCSC_WLOG_WAKELOCK(WLOG_NORMAL, WL_TAKEN, "wlan_wl_roam", WL_REASON_ROAM);
-#endif
 #endif
 
 		if (!temporal_keys_required) {
@@ -1034,7 +1028,7 @@ static void slsi_tdls_event_discovered(struct slsi_dev *sdev, struct net_device 
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
-	SLSI_INFO(sdev, "\n");
+	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_tdls_event_discovered\n");
 
 	if (len != 0) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
@@ -1062,7 +1056,7 @@ static void slsi_tdls_event_connected(struct slsi_dev *sdev, struct net_device *
 
 	ndev_vif->sta.tdls_enabled = true;
 
-	SLSI_INFO(sdev, "(vif:%d, peer_index:%d mac[%pM])\n",
+	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_tdls_event_connected(vif:%d, peer_index:%d mac[%pM])\n",
 		      fapi_get_vif(skb), peer_index, fapi_get_buff(skb, u.mlme_tdls_peer_ind.peer_sta_address));
 
 	if (!ndev_vif->activated) {
@@ -1119,8 +1113,7 @@ static void slsi_tdls_event_disconnected(struct slsi_dev *sdev, struct net_devic
 	if (WARN_ON(!dev))
 		goto exit;
 
-	SLSI_INFO(sdev, "(vif:%d, MAC:%pM)\n", ndev_vif->ifnum,
-		  fapi_get_buff(skb, u.mlme_tdls_peer_ind.peer_sta_address));
+	SLSI_NET_DBG1(dev, SLSI_MLME, "slsi_tdls_event_disconnected(vif:%d, MAC:%pM)\n", ndev_vif->ifnum, fapi_get_buff(skb, u.mlme_tdls_peer_ind.peer_sta_address));
 
 	if (!ndev_vif->activated) {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "VIF not activated\n");
@@ -1775,8 +1768,8 @@ void slsi_rx_frame_transmission_ind(struct slsi_dev *sdev, struct net_device *de
 		if (tx_status != FAPI_TRANSMISSIONSTATUS_SUCCESSFUL) {
 			ack = false;
 			if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
-				if (sdev->wlan_unsync_vif_state == WLAN_UNSYNC_VIF_TX)
-					sdev->wlan_unsync_vif_state = WLAN_UNSYNC_VIF_ACTIVE; /*We wouldn't delete VIF*/
+				if (sdev->hs2_state == HS2_VIF_TX)
+					sdev->hs2_state = HS2_VIF_ACTIVE; /*We wouldn't delete VIF*/
 			} else {
 				if (sdev->p2p_group_exp_frame != SLSI_P2P_PA_INVALID)
 					slsi_clear_offchannel_data(sdev, false);
@@ -1905,9 +1898,9 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 			if (mgmt->u.action.category == WLAN_CATEGORY_WMM) {
 				cac_rx_wmm_action(sdev, dev, mgmt, mgmt_len);
 			} else {
-				slsi_wlan_dump_public_action_subtype(mgmt, false);
-				if (sdev->wlan_unsync_vif_state == WLAN_UNSYNC_VIF_TX)
-					sdev->wlan_unsync_vif_state = WLAN_UNSYNC_VIF_ACTIVE;
+				slsi_hs2_dump_public_action_subtype(mgmt, false);
+				if (sdev->hs2_state == HS2_VIF_TX)
+					sdev->hs2_state = HS2_VIF_ACTIVE;
 			}
 #ifdef CONFIG_SCSC_WLAN_WES_NCHO
 			}
@@ -1973,7 +1966,7 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 		skb_pull(skb, fapi_get_siglen(skb));
 
 		skb->dev = dev;
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		ndev_vif->stats.rx_packets++;
 		ndev_vif->stats.rx_bytes += skb->len;
@@ -2053,6 +2046,21 @@ void slsi_rx_listen_end_ind(struct net_device *dev, struct sk_buff *skb)
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	slsi_kfree_skb(skb);
 }
+
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+static int slsi_rx_msdu_napi(struct net_device *dev, struct sk_buff *skb)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+
+	slsi_skb_queue_tail(&ndev_vif->napi.rx_data, skb);
+	slsi_spinlock_lock(&ndev_vif->napi.lock);
+	if (ndev_vif->napi.interrupt_enabled) {
+		ndev_vif->napi.interrupt_enabled = false;
+		napi_schedule(&ndev_vif->napi.napi);
+	}
+	slsi_spinlock_unlock(&ndev_vif->napi.lock);
+}
+#endif
 
 static int slsi_rx_wait_ind_match(u16 recv_id, u16 wait_id)
 {

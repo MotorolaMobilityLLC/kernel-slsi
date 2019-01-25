@@ -22,6 +22,24 @@
 #define SLSI_SCAN_CHANNEL_DESCRIPTOR_SIZE	3
 #define SLSI_CHANN_INFO_HT_SCB  0x0100
 
+#define SLSI_FW_API_RATE_HT_SELECTOR_FIELD  0xc000
+#define SLSI_FW_API_RATE_NON_HT_SELECTED    0x4000
+#define SLSI_FW_API_RATE_HT_SELECTED        0x8000
+#define SLSI_FW_API_RATE_VHT_SELECTED       0xc000
+
+#define SLSI_FW_API_RATE_VHT_MCS_FIELD          0x000F
+#define SLSI_FW_API_RATE_HT_MCS_FIELD          0x003F
+#define SLSI_FW_API_RATE_INDEX_FIELD        0x1fff
+#define SLSI_FW_API_RATE_VHT_NSS_FIELD          0x0070
+#define SLSI_FW_API_RATE_HT_NSS_FIELD          0x0040
+
+#define SLSI_FW_API_RATE_BW_FIELD           0x0600
+#define SLSI_FW_API_RATE_BW_40MHZ           0x0200
+#define SLSI_FW_API_RATE_BW_20MHZ           0x0000
+
+#define SLSI_FW_API_RATE_SGI                0x0100
+#define SLSI_FW_API_RATE_GF                 0x0080
+
 #ifdef CONFIG_SCSC_WLAN_GSCAN_ENABLE
 #define SLSI_FW_MAX_BSSID_PER_TRACKING_IE   (20)
 #define SLSI_FW_BSSID_DESCRIPTOR_BSS_SIZE   (10)
@@ -71,6 +89,39 @@
 static bool missing_cfm_ind_panic = true;
 module_param(missing_cfm_ind_panic, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(missing_cfm_ind_panic, "Panic on missing confirm or indication from the chip");
+
+/* indices: 3= BW20->idx_0, BW40->idx_1, BW80->idx_2.
+ *             2= noSGI->idx_0, SGI->idx_1
+ *             10= mcs index
+ * rate units 100kbps
+ * This table for single stream Nss=1and does not include 160MHz BW and 80+80MHz BW.
+ */
+static const u16 slsi_rates_table[3][2][10] = {
+	{         /* BW20 */
+		{ /* no SGI */
+			65, 130, 195, 260, 390, 520, 585, 650, 780, 0
+		},
+		{       /* SGI */
+			72, 144, 217, 289, 433, 578, 650, 722, 867, 0
+		}
+	},
+	{         /* BW40 */
+		{ /* no SGI */
+			135, 270, 405, 540, 810, 1080, 1215, 1350, 1620, 1800
+		},
+		{       /* SGI */
+			150, 300, 450, 600, 900, 1200, 1350, 1500, 1800, 2000
+		}
+	},
+	{         /* BW80 */
+		{ /* no SGI */
+			293, 585, 878, 1170, 1755, 2340, 2633, 2925, 3510, 3900
+		},
+		{       /* SGI */
+			325, 650, 975, 1300, 1950, 2600, 2925, 3250, 3900, 4333
+		}
+	}
+};
 
 struct slsi_mlme_rsse {
 	u8       group_cs_count;
@@ -393,67 +444,50 @@ static struct ieee80211_reg_rule *slsi_get_reg_rule(u32 center_freq, struct slsi
 	return NULL;
 }
 
-u16 slsi_compute_chann_info(struct slsi_dev *sdev, u16 width, u16 center_freq0, u16 channel_freq)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
+u16 slsi_get_chann_info(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef)
 {
 	u16 chann_info;
 	u16 prim_chan_pos = 0;
 
-	SLSI_DBG3(sdev, SLSI_MLME, "compute channel info\n");
-	switch (width) {
+	SLSI_UNUSED_PARAMETER(sdev);
+
+	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_20_NOHT:
 		chann_info = 20;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		chann_info = 40;
 		/* Check HT Minus */
-		if (center_freq0 < channel_freq)
+		if (chandef->chan && chandef->center_freq1 < chandef->chan->center_freq)
 			chann_info |= SLSI_CHANN_INFO_HT_SCB;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		/* F = { F1-30, ... F1+30 } => { 0x0000, ... 0x0300} */
-		prim_chan_pos = ((30 + channel_freq - center_freq0) / 20);
+		prim_chan_pos = ((30 + chandef->chan->center_freq - chandef->center_freq1) / 20);
 		if (prim_chan_pos > 3) {
-			SLSI_ERR(sdev, "Invalid center_freq0 in chandef : %u, primary channel = %u,"
-				 "primary chan pos calculated = %d\n", center_freq0, channel_freq, prim_chan_pos);
+			SLSI_ERR(sdev, "Invalid center_freq1 in chandef : %u, primary channel = %u, primary chan pos calculated = %d\n", chandef->center_freq1, chandef->chan->center_freq, prim_chan_pos);
 			prim_chan_pos = 0;
 		}
 		prim_chan_pos = 0xFFFF & (prim_chan_pos << 8);
 		chann_info = 80 | prim_chan_pos;
 		break;
 	default:
-		SLSI_WARN(sdev, "Invalid chandef.width(0x%x)\n", width);
+		SLSI_WARN(sdev, "Invalid chandef.width(0x%x)\n", chandef->width);
 		chann_info = 0;
 		break;
 	}
 
-	SLSI_DBG3(sdev, SLSI_MLME, "channel_width:%u, chann_info:0x%x\n", width, chann_info);
+	SLSI_DBG3(sdev, SLSI_MLME, "channel_width:%u, chann_info:0x%x\n", chandef->width, chann_info);
 	return chann_info;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
-u16 slsi_get_chann_info(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef)
-{
-	u16 chann_info = 0;
-
-	SLSI_UNUSED_PARAMETER(sdev);
-
-	if (chandef->width == NL80211_CHAN_WIDTH_20 || chandef->width == NL80211_CHAN_WIDTH_20_NOHT) {
-		chann_info = 20;
-		SLSI_DBG3(sdev, SLSI_MLME, "channel_width:%u, chann_info:0x%x\n", chandef->width, chann_info);
-	} else if (chandef->chan) {
-		chann_info = slsi_compute_chann_info(sdev, chandef->width, chandef->center_freq1,
-						     chandef->chan->center_freq);
-	}
-	return chann_info;
-}
-
-int slsi_check_channelization(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef,
-			      int wifi_sharing_channel_switched)
+int slsi_check_channelization(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef)
 {
 	u8                        width;
 	struct ieee80211_reg_rule *rule = NULL;
 	struct ieee80211_channel  *channel = NULL;
-	u32 ref_flags;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20:
@@ -475,27 +509,16 @@ int slsi_check_channelization(struct slsi_dev *sdev, struct cfg80211_chan_def *c
 	if (!channel) {
 		SLSI_ERR(sdev, "Invalid channel %d used to start AP. Channel not found\n", chandef->chan->center_freq);
 		return -EINVAL;
-	}
-
-	if (wifi_sharing_channel_switched == 1) {
-		ref_flags = IEEE80211_CHAN_DISABLED
+	} else if (channel->flags & (IEEE80211_CHAN_DISABLED |
+				     IEEE80211_CHAN_RADAR
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 10, 13)
-			    | IEEE80211_CHAN_PASSIVE_SCAN
+				     | IEEE80211_CHAN_PASSIVE_SCAN
 #endif
-			    ;
-	} else {
-		ref_flags = IEEE80211_CHAN_DISABLED |
-			    IEEE80211_CHAN_RADAR
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 10, 13)
-			    | IEEE80211_CHAN_PASSIVE_SCAN
-#endif
-			    ;
-	}
-
-	if (channel->flags & ref_flags) {
+				     )) {
 		SLSI_ERR(sdev, "Invalid channel %d used to start AP\n", chandef->chan->center_freq);
 		return -EINVAL;
 	}
+
 	rule = slsi_get_reg_rule(MHZ_TO_KHZ(chandef->center_freq1), &sdev->device_config.domain_info);
 	if (!rule) {
 		SLSI_ERR(sdev, "Invalid channel %d used to start AP. No reg rule found for this channel\n", chandef->chan->center_freq);
@@ -1206,7 +1229,7 @@ static int slsi_mlme_append_channel_list(struct slsi_dev                    *sde
 		freq_fw_unit = cpu_to_le16(freq_fw_unit);
 		memcpy(p, &freq_fw_unit, sizeof(freq_fw_unit));
 
-		if (passive_scan && (scan_type != FAPI_SCANTYPE_AP_AUTO_CHANNEL_SELECTION))
+		if (passive_scan)
 			p[2] = FAPI_SCANPOLICY_PASSIVE;
 		else
 			p[2] = 0;
@@ -1233,7 +1256,7 @@ static inline int slsi_set_scan_params(
 	u8			*p = NULL;
 	u8			i;
 	struct cfg80211_ssid	*pssid = ssids;
-#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_OUI
 	struct netdev_vif        *netdev_vif = netdev_priv(dev);
 	struct slsi_dev            *sdev = netdev_vif->sdev;
 #endif
@@ -1243,9 +1266,9 @@ static inline int slsi_set_scan_params(
 	fapi_set_u16(req, u.mlme_add_scan_req.report_mode_bitmap, report_mode);
 
 
-#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
-	if (sdev->scan_addr_set)
-		fapi_set_memcpy(req, u.mlme_add_scan_req.device_address, sdev->scan_mac_addr);
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_OUI
+	if (scan_type == FAPI_SCANTYPE_GSCAN && sdev->scan_oui_active)
+		fapi_set_memcpy(req, u.mlme_add_scan_req.device_address, sdev->scan_oui);
 	else
 #endif
 	fapi_set_memcpy(req, u.mlme_add_scan_req.device_address, dev->dev_addr);
@@ -1432,8 +1455,8 @@ int slsi_mlme_add_scan(
 		return -EINVAL;
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
-	SLSI_INFO(sdev, "scan started for id:0x%x, n_channels:%d, n_ssids:%d, scan_type:%d\n",
-		  (ndev_vif->ifnum << 8 | SLSI_SCAN_HW_ID), n_channels, n_ssids, scan_type);
+	SLSI_NET_DBG3(dev, SLSI_MLME, "id:0x%x, n_channels:%d, n_ssids:%d\n", (ndev_vif->ifnum << 8 | SLSI_SCAN_HW_ID),
+		      n_channels, n_ssids);
 
 	alloc_data_size += sizeof(scan_timing_ie) +
 					ies_len +
@@ -2576,6 +2599,7 @@ void slsi_fw_tx_rate_calc(u16 fw_rate, struct rate_info *tx_rate, unsigned long 
 		/* Calculate  NSS --> bits 6 to 4*/
 		nss = ((SLSI_FW_API_RATE_VHT_NSS_FIELD & fw_rate) >> 4) + 1;
 		mcs_idx = SLSI_FW_API_RATE_VHT_MCS_FIELD & fw_rate;
+
 		/* Bandwidth (BW): 0x0= 20 MHz, 0x1= 40 MHz, 0x2= 80 MHz, 0x3= 160/ 80+80 MHz. 0x3 is not supported */
 		if ((chan_bw_idx <= 2) && (mcs_idx <= 9)) {
 			if (tx_rate)
@@ -2600,14 +2624,7 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 	static const struct slsi_mib_get_entry get_values[] = {
 		{ SLSI_PSID_UNIFI_TX_DATA_RATE, { 0, 0 } },         /* to get STATION_INFO_TX_BITRATE*/
 		{ SLSI_PSID_UNIFI_RSSI, { 0, 0 } },                 /* to get STATION_INFO_SIGNAL_AVG*/
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 2, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 3, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 4, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 24, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 29, 0 } },
 	};
-	int tx_counter = 0;
-	int rx_counter = 0;
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
 
@@ -2627,9 +2644,8 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 
 	/* Fixed fields len (5) : 2 bytes(PSID) + 2 bytes (Len) + 1 byte (VLDATA header )  [10 for 2 PSIDs]
 	 * Data : 3 bytes for SLSI_PSID_UNIFI_TX_DATA_RATE , 1 byte for SLSI_PSID_UNIFI_RSSI
-	 * 10*5 bytes for 5 Throughput Mib's
 	 */
-	mibrsp.dataLength = 64;
+	mibrsp.dataLength = 14;
 	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
 
 	if (!mibrsp.data) {
@@ -2678,30 +2694,6 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 			SLSI_DBG3(sdev, SLSI_MLME, "SLSI_PSID_UNIFI_RSSI = %d\n",
 				  values[1].u.intValue);
 		}
-
-		if (values[2].type == SLSI_MIB_TYPE_UINT)
-			rx_counter += values[2].u.uintValue; /*bad_fcs_count*/
-		else
-			SLSI_ERR(sdev, "invalid type. iter:%d", 2);
-		if (values[3].type == SLSI_MIB_TYPE_UINT)
-			tx_counter += values[3].u.uintValue; /*missed_ba_count*/
-		else
-			SLSI_ERR(sdev, "invalid type. iter:%d", 3);
-		if (values[4].type == SLSI_MIB_TYPE_UINT)
-			tx_counter += values[4].u.uintValue; /*missed_ack_count*/
-		else
-			SLSI_ERR(sdev, "invalid type. iter:%d", 4);
-		if (values[5].type == SLSI_MIB_TYPE_UINT)
-			rx_counter += values[5].u.uintValue; /*mac_bad_sig_count*/
-		else
-			SLSI_ERR(sdev, "invalid type. iter:%d", 5);
-		if (values[6].type == SLSI_MIB_TYPE_UINT)
-			rx_counter += values[6].u.uintValue; /*rx_error_count*/
-		else
-			SLSI_ERR(sdev, "invalid type. iter:%d", 6);
-
-		peer->sinfo.tx_failed = tx_counter;
-		peer->sinfo.rx_dropped_misc = rx_counter;
 	} else {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_get_req failed(result:%u)\n", r);
 	}
@@ -3782,112 +3774,6 @@ int slsi_mlme_significant_change_set(struct slsi_dev *sdev, struct net_device *d
 	return r;
 }
 
-int slsi_mlme_add_range_req(struct slsi_dev *sdev, u8 count,
-			    struct slsi_rtt_config *nl_rtt_params, u16 rtt_id, u16 vif_idx)
-{
-	struct sk_buff *req;
-	struct sk_buff *rx;
-	int            r = 0, i;
-	size_t         alloc_data_size = 0;
-	u8             fapi_ie_generic[] = { 0xdd, 0x24, 0x00, 0x16, 0x32, 0x0a, 0x01 };
-	/* calculate data size */
-	alloc_data_size += count * (fapi_ie_generic[1] + 2);
-
-	req = fapi_alloc(mlme_add_range_req, MLME_ADD_RANGE_REQ, 0, alloc_data_size);
-	if (!req) {
-		SLSI_ERR(sdev, "failed to alloc %zd\n", alloc_data_size);
-		return -ENOMEM;
-	}
-	SLSI_DBG2(sdev, SLSI_MLME, "count-->%d allocated data size: %d\n", count, alloc_data_size);
-	/*fill the data */
-	fapi_set_u16(req, u.mlme_add_range_req.vif, vif_idx);
-	fapi_set_u16(req, u.mlme_add_range_req.rtt_id, rtt_id);
-	for (i = 0; i < count; i++) {
-		fapi_append_data(req, fapi_ie_generic, sizeof(fapi_ie_generic));
-		fapi_append_data(req, nl_rtt_params[i].source_addr, ETH_ALEN);
-		fapi_append_data(req, nl_rtt_params[i].peer_addr, ETH_ALEN);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].type, 2);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].channel_freq, 2);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].channel_info, 2);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].burst_period, 1);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].num_burst, 1);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].num_frames_per_burst, 1);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].num_retries_per_ftmr, 1);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].burst_duration, 1);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].preamble, 2);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].bw, 2);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].LCI_request, 2);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].LCR_request, 2);
-	}
-	rx = slsi_mlme_req_cfm(sdev, NULL, req, MLME_ADD_RANGE_CFM);
-	SLSI_DBG2(sdev, SLSI_MLME, "(After mlme req cfm for rtt config)\n");
-	if (!rx)
-		return -EIO;
-	if (fapi_get_u16(rx, u.mlme_add_range_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_ERR(sdev, "mlme_add_range_cfm(ERROR:%x)",
-			 fapi_get_u16(rx, u.mlme_add_range_cfm.result_code));
-		r = -EINVAL;
-	}
-
-	slsi_kfree_skb(rx);
-	return r;
-}
-
-bool slsi_del_range_cfm_validate(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *cfm)
-{
-	int  result = fapi_get_u16(cfm, u.mlme_del_range_cfm.result_code);
-	bool r = false;
-
-	SLSI_UNUSED_PARAMETER(sdev);
-
-	if (WARN_ON(!dev))
-		goto exit;
-
-	if (result == FAPI_RESULTCODE_SUCCESS)
-		r = true;
-	else
-		SLSI_NET_ERR(dev, "mlme_del_range_cfm(result:%u) ERROR\n", result);
-
-exit:
-	slsi_kfree_skb(cfm);
-	return r;
-}
-
-int slsi_mlme_del_range_req(struct slsi_dev *sdev, struct net_device *dev, u16 count,
-			    u8 *addr, u16 rtt_id)
-{
-	struct sk_buff *req;
-	struct sk_buff *rx;
-	u16           *rtt_vif_idx = sdev->rtt_vif;
-	int            r = 0, i;
-	size_t         alloc_data_size = 0;
-
-	/* calculate data size-->2 bytes for vif */
-	alloc_data_size += count * sizeof(ETH_ALEN);
-	/* Alloc data size */
-	req = fapi_alloc(mlme_del_range_req, MLME_DEL_RANGE_REQ, 0, alloc_data_size);
-	if (!req) {
-		SLSI_ERR(sdev, "failed to alloc %zd\n", alloc_data_size);
-		return -ENOMEM;
-	}
-	/*fill the data */
-	fapi_set_u16(req, u.mlme_del_range_req.vif, rtt_vif_idx[rtt_id]);
-	fapi_set_u16(req, u.mlme_del_range_req.rtt_id, rtt_id);
-	fapi_set_u16(req, u.mlme_del_range_req.entries, count);
-	for (i = 0; i < count; i++)
-		fapi_append_data(req, &addr[i * ETH_ALEN], ETH_ALEN);
-
-	rx = slsi_mlme_req_cfm_ind(sdev, dev, req, MLME_DEL_RANGE_CFM, MLME_RANGE_IND, slsi_del_range_cfm_validate);
-	sdev->rtt_vif[rtt_id] = -1;
-	if (!rx) {
-		SLSI_NET_ERR(dev, "mlme_del_range_cfm() ERROR\n");
-		slsi_kfree_skb(rx);
-		return -EINVAL;
-	}
-	slsi_kfree_skb(rx);
-	return r;
-}
-
 #define SLSI_FAPI_EPNO_NETWORK_MIN_SIZE (3)
 int slsi_mlme_set_pno_list(struct slsi_dev *sdev, int count,
 			   struct slsi_epno_param *epno_param, struct slsi_epno_hs2_param *epno_hs2_param)
@@ -4792,76 +4678,3 @@ int slsi_mlme_nan_set_config(struct slsi_dev *sdev, struct net_device *dev, stru
 	slsi_kfree_skb(cfm);
 	return r;
 }
-
-#ifdef CONFIG_SCSC_WLAN_DEBUG
-#define SLSI_TEST_CONFIG_MONITOR_MODE_DESCRIPTOR_SIZE	(12)
-int slsi_test_sap_configure_monitor_mode(struct slsi_dev *sdev, struct net_device *dev, struct cfg80211_chan_def *chandef)
-{
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
-	struct sk_buff	  *req;
-	struct sk_buff	  *cfm;
-	u8                *p = NULL;
-	size_t            alloc_data_size = 0;
-	u16               center_freq1;
-	u16               center_freq2;
-	u16               chan_info;
-	int               r = 0;
-
-	const u8          monitor_config_ie_header[] = {
-		0xDD,					/* Element ID: Vendor Specific */
-		0x11,					/* Length */
-		0x00, 0x16, 0x32,       /* OUI: Samsung Electronics Co. */
-		0x10,					/* OUI Type:  Monitor mode parameters */
-		0x01					/* OUI Subtype: configuration */
-	};
-
-	if (slsi_is_test_mode_enabled()) {
-		SLSI_NET_WARN(dev, "WlanLite: NOT supported\n");
-		return -EOPNOTSUPP;
-	}
-
-	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
-
-	chan_info = slsi_get_chann_info(sdev, chandef);
-	SLSI_NET_DBG2(dev, SLSI_MLME, "test_configure_monitor_mode_req(center_freq1:%u, chan_info:%u, center_freq2:%u)\n",
-		chandef->center_freq1,
-		chan_info,
-		chandef->center_freq2);
-
-	center_freq1 = SLSI_FREQ_HOST_TO_FW(chandef->center_freq1);
-	center_freq1 = cpu_to_le16(center_freq1);
-	center_freq2 = SLSI_FREQ_HOST_TO_FW(chandef->center_freq2);
-	center_freq2 = cpu_to_le16(center_freq2);
-
-	alloc_data_size = sizeof(monitor_config_ie_header) + SLSI_TEST_CONFIG_MONITOR_MODE_DESCRIPTOR_SIZE;
-
-	req = fapi_alloc(test_configure_monitor_mode_req, TEST_CONFIGURE_MONITOR_MODE_REQ, ndev_vif->ifnum, alloc_data_size);
-	if (!req) {
-		SLSI_NET_ERR(dev, "failed to alloc Monitor mode request (len:%d)\n", alloc_data_size);
-		return -ENOMEM;
-	}
-
-	fapi_append_data(req, monitor_config_ie_header, sizeof(monitor_config_ie_header));
-	fapi_append_data(req, (const u8 *)&center_freq1, 2);
-	fapi_append_data(req, (const u8 *)&chan_info, 2);
-	p = fapi_append_data(req, (const u8 *)&center_freq2, 2);
-
-	/* MAC address filtering is not supported yet; so fill in zeros */
-	memset(p, 0, 6);
-
-	cfm = slsi_mlme_req_cfm(sdev, dev, req, TEST_CONFIGURE_MONITOR_MODE_CFM);
-	if (!cfm) {
-		SLSI_NET_ERR(dev, "failed to receive Confirm\n");
-		return -EIO;
-	}
-
-	if (fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "test_configure_monitor_mode_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.test_configure_monitor_mode_cfm.result_code));
-		r = -EINVAL;
-	}
-
-	slsi_kfree_skb(cfm);
-	return r;
-}
-
-#endif

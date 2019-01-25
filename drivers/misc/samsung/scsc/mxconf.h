@@ -48,7 +48,7 @@
  *  mismatches.
  */
 #define MXCONF_VERSION_MAJOR 0
-#define MXCONF_VERSION_MINOR 3 /* For FM status */
+#define MXCONF_VERSION_MINOR 1
 
 /* Types */
 
@@ -139,24 +139,9 @@ struct mxconf {
 	struct mxtransconf   mx_trans_conf_gdb_m4;
 
 	/**
-	 * Mxlog Event Buffer Configuration.
-	 */
+	* Mxlog Event Buffer Configuration.
+	*/
 	struct mxlogconf mxlogconf;
-
-	/* FROM MINOR_2 */
-
-	/**
-	 * SOC HW revision override from host
-	 */
-	uint32_t soc_revision;
-
-	/* FROM MINOR_3 */
-
-	/**
-	 * Setup flags
-	 */
-#define MXCONF_FLAGS_FM_ON	(BIT(0))	/* FM already on */
-	uint32_t flags;
 
 } __MXPACKED;
 

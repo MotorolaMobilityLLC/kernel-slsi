@@ -281,16 +281,15 @@ extern struct scsc_bt_service bt_service;
  * - cte type           : 1 octet
  * - Slot durations     : 1 octet
  * - packet_status      : 1 octet
- * - event_counter      : 2 octets
  * - Sample count       : 1 octet
  *********************************
- * Total                : 17 octets
+ * Total                : 15 octets
  *
  * The maximum hci event size in bytes is:
- *     (17 + (number of samples * 2 (both I and Q)))
+ *     (15 + (number of samples * 2 (both I and Q)))
  *
  */
-#define HCI_IQ_REPORT_MAX_LEN                          (17 + (2 * HCI_IQ_REPORTING_MAX_NUM_SAMPLES))
+#define HCI_IQ_REPORT_MAX_LEN                          (15 + (2 * HCI_IQ_REPORTING_MAX_NUM_SAMPLES))
 #define HCI_LE_CONNECTIONLESS_IQ_REPORT_EVENT_SUB_CODE (0x15)
 #define HCI_LE_CONNECTION_IQ_REPORT_EVENT_SUB_CODE     (0x16)
 

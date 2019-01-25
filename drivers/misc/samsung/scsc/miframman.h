@@ -8,20 +8,15 @@
 #define __MIFRAMMAN_H
 
 #include <linux/mutex.h>
-#include "scsc/api/bt_audio.h"
 
 /* TODO:  Needs to define the max mem */
 
 struct miframman;
-struct mifabox;
-
 
 void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool);
-void miframabox_init(struct mifabox *mifabox, void *start_aboxram);
 void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align);
 void miframman_free(struct miframman *ram, void *mem);
 void miframman_deinit(struct miframman *ram);
-void miframabox_deinit(struct mifabox *mifabox);
 
 #define MIFRAMMAN_MAXMEM        (16 * 1024 * 1024)
 #define MIFRAMMAN_BLOCK_SIZE    (64)
@@ -40,9 +35,5 @@ struct miframman {
 	u32          num_blocks;
 	u32          free_mem;
 	struct mutex lock;
-};
-
-struct mifabox {
-	struct scsc_bt_audio_abox *aboxram;
 };
 #endif
