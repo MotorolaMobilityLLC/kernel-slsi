@@ -43,6 +43,7 @@
 struct dwc3_exynos_rsw {
 	struct otg_fsm		*fsm;
 	struct work_struct	work;
+	struct workqueue_struct *rsw_wq;
 };
 
 struct dwc3_exynos {
@@ -257,6 +258,11 @@ int dwc3_exynos_rsw_setup(struct device *dev, struct otg_fsm *fsm)
 
 	dev_dbg(dev, "%s\n", __func__);
 
+	rsw->rsw_wq
+		= create_singlethread_workqueue("usb_rsw_wq");
+	 if (!rsw->rsw_wq)
+		pr_err("%s failed to create rsw work queue\n", __func__);
+
 	INIT_WORK(&rsw->work, dwc3_exynos_rsw_work);
 
 	rsw->fsm = fsm;
@@ -272,6 +278,7 @@ void dwc3_exynos_rsw_exit(struct device *dev)
 	dev_dbg(dev, "%s\n", __func__);
 
 	cancel_work_sync(&rsw->work);
+	destroy_workqueue(rsw->rsw_wq);
 
 	rsw->fsm = NULL;
 }
@@ -300,7 +307,8 @@ int dwc3_exynos_id_event(struct device *dev, int state)
 
 	if (fsm->id != state) {
 		fsm->id = state;
-		schedule_work(&rsw->work);
+		/* schedule_work(&rsw->work); */
+		queue_work(rsw->rsw_wq, &rsw->work);
 	}
 
 	return 0;
@@ -331,7 +339,8 @@ int dwc3_exynos_vbus_event(struct device *dev, bool vbus_active)
 
 	if (fsm->b_sess_vld != vbus_active) {
 		fsm->b_sess_vld = vbus_active;
-		schedule_work(&rsw->work);
+		/* schedule_work(&rsw->work); */
+		queue_work(rsw->rsw_wq, &rsw->work);
 	}
 
 	return 0;
