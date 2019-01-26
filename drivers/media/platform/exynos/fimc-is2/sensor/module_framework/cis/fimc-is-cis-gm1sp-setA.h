@@ -15,7 +15,7 @@
 #include "fimc-is-cis.h"
 #include "fimc-is-cis-gm1sp.h"
 
-const u32 sensor_gm1sp_setfile_A_Global[] = {
+const u32 sensor_gm1sp_setfile_A_Global_default[] = {
 	0x6028, 0x4000, 0x2,
 	0x0000, 0x0004, 0x2,
 	0x0000, 0x08D1, 0x2,
@@ -638,6 +638,14 @@ const struct sensor_pll_info_compact sensor_gm1sp_pllinfo_A_4000x3000_30fps = {
 	120790000,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x0C86, /* frame_length_lines	(0x0340) */
 	0x13A0, /* line_length_pck	(0x0342) */
+};
+
+static const u32 *sensor_gm1sp_setfile_A_Global[] = {
+	sensor_gm1sp_setfile_A_Global_default,
+};
+
+static const u32 sensor_gm1sp_setfile_A_Global_sizes[] = {
+	ARRAY_SIZE(sensor_gm1sp_setfile_A_Global_default),
 };
 
 static const u32 *sensor_gm1sp_setfiles_A[] = {
