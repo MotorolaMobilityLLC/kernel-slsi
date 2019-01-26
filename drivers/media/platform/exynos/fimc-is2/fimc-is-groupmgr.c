@@ -2520,6 +2520,12 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 			(frame->shot->uctl.opMode == CAMERA_OP_MODE_HAL3_GED)) {
 			int req_cnt = 0;
 			struct fimc_is_frame *prev;
+
+			if (resourcemgr->shot_timeout_tick > 0)
+				resourcemgr->shot_timeout_tick--;
+			else
+				resourcemgr->shot_timeout = FIMC_IS_SHOT_TIMEOUT;
+
 			list_for_each_entry_reverse(prev, &framemgr->queued_list[FS_REQUEST], list) {
 				if (++req_cnt > SENSOR_REQUEST_DELAY)
 					break;
@@ -2554,11 +2560,6 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 
 					resourcemgr->shot_timeout = FIMC_IS_SHOT_TIMEOUT * 12; /* 3000 x 12 = 36s */
 					resourcemgr->shot_timeout_tick = KEEP_FRAME_TICK_DEFAULT;
-				} else {
-					if (resourcemgr->shot_timeout_tick > 0)
-						resourcemgr->shot_timeout_tick--;
-					else
-						resourcemgr->shot_timeout = FIMC_IS_SHOT_TIMEOUT;
 				}
 			}
 		}
