@@ -1487,15 +1487,15 @@ void fimc_is_sensor_long_term_mode_set_work(struct work_struct *data)
 	sensor_peri = container_of(cis, struct fimc_is_device_sensor_peri, cis);
 	FIMC_BUG_VOID(!sensor_peri);
 
-	device = v4l2_get_subdev_hostdata(sensor_peri->subdev_flash);
-	FIMC_BUG_VOID(!device);
-
 	subdev_cis = sensor_peri->subdev_cis;
 	if (!subdev_cis) {
 		err("[%s]: no subdev_cis", __func__);
 		ret = -ENXIO;
 		return;
 	}
+
+	device = v4l2_get_subdev_hostdata(subdev_cis);
+	FIMC_BUG_VOID(!device);
 
 	info("[%s] start\n", __func__);
 	/* Sensor stream off */
