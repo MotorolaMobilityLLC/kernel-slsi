@@ -1974,7 +1974,6 @@ static ssize_t aw8695_duration_store(struct device *dev,
         return count;
 
     aw8695->duration = val;
-printk(KERN_ERR "david %s,duration:%d\n",__func__,val);
     return count;
 }
 
@@ -2258,9 +2257,8 @@ static ssize_t aw8695_seq_store(struct device *dev,
     rc = kstrtouint(buf, 0, &val);
     if (rc < 0)
         return rc;
-
+    val = ((val >> 24) -2) ;
     pr_debug("%s: value=%x\n", __FUNCTION__, val);
-    printk(KERN_ERR "david %s seq value:%d\n",__func__,val);
     mutex_lock(&aw8695->lock);
     for(i=0; i<4; i++) {
         aw8695->seq[i] = (val>>((AW8695_WAV_SEQ_SIZE-i-1)*8))&0xFF;
