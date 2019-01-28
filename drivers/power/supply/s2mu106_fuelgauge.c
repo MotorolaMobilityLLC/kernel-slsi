@@ -928,7 +928,7 @@ static int s2mu106_get_rawsoc(struct s2mu106_fuelgauge_data *fuelgauge)
 		float_voltage, avg_current, fg_mode_reg);
 
 	if ((fuelgauge->is_charging == true) &&
-		((value.intval >= 98) || ((avg_vbat > float_voltage) && (avg_current < 500)))) {
+		((fuelgauge->ui_soc >= 98) || ((avg_vbat > float_voltage) && (avg_current < 500)))) {
 		if (fuelgauge->mode == CURRENT_MODE) { /* switch to VOLTAGE_MODE */
 			fuelgauge->mode = HIGH_SOC_VOLTAGE_MODE;
 
@@ -939,7 +939,7 @@ static int s2mu106_get_rawsoc(struct s2mu106_fuelgauge_data *fuelgauge)
 
 			dev_info(&fuelgauge->i2c->dev, "%s: FG is in high soc voltage mode\n", __func__);
 		}
-	} else if (avg_current < -50) {
+	} else if ((avg_current < -50) || (avg_current >= 550)) {
 		if (fuelgauge->mode == HIGH_SOC_VOLTAGE_MODE) {
 			fuelgauge->mode = CURRENT_MODE;
 
