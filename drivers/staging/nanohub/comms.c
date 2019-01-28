@@ -321,7 +321,7 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 				       response->len);
 			ret =
 			    read_msg(data, response, data->comms.timeout_reply);
-			if (ret < 0)
+			if (ret < 0 || response->reason == CMD_COMMS_ACK)
 				ret = ERROR_NACK;
 		} else {
 			int i;
