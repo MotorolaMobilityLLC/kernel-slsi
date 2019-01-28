@@ -965,6 +965,8 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	 */
 
 	baud = uart_get_baud_rate(port, termios, old, MIN_BAUD, MAX_BAUD);
+	if (ourport->dbg_uart_ch && (baud == 9600))
+		baud = ourport->dbg_uart_baud;
 	quot = s3c24xx_serial_getclk(ourport, baud, &clk, &clk_sel);
 	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST)
 		quot = port->custom_divisor;
@@ -1028,6 +1030,24 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 		dbg("config: 8bits/char\n");
 		ulcon = S3C2410_LCON_CS8;
 		break;
+	}
+
+	if (ourport->dbg_uart_ch) {
+		switch (ourport->dbg_word_len) {
+			case 5:
+				ulcon = S3C2410_LCON_CS5;
+				break;
+			case 6:
+				ulcon = S3C2410_LCON_CS6;
+				break;
+			case 7:
+				ulcon = S3C2410_LCON_CS7;
+				break;
+			case 8:
+			default:
+				ulcon = S3C2410_LCON_CS8;
+				break;
+		}
 	}
 
 	/* preserve original lcon IR settings */
@@ -1713,6 +1733,22 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		ourport->usi_v2 = 1;
 	else
 		ourport->usi_v2 = 0;
+
+	if (of_get_property(pdev->dev.of_node, "samsung,dbg-uart-ch", NULL))
+		ourport->dbg_uart_ch = 1;
+	else
+		ourport->dbg_uart_ch = 0;
+
+	if (ourport->dbg_uart_ch == 1) {
+		if (of_property_read_u32(pdev->dev.of_node, "samsung,dbg-uart-baud", &ourport->dbg_uart_baud)) {
+			ourport->dbg_uart_baud = 115200;
+			dev_err(&pdev->dev, "No DBG baud rate value. Use 115200 Baud rate\n");
+		}
+		if (of_property_read_u32(pdev->dev.of_node, "samsung,dbg-word-len", &ourport->dbg_word_len)) {
+			ourport->dbg_word_len = 8;
+			dev_err(&pdev->dev, "No DBG word length value. Use 8 word length\n");
+		}
+	}
 
 	if (of_get_property(pdev->dev.of_node, "samsung,rts-gpio-control", NULL)) {
 		ourport->rts_control = 1;
