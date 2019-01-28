@@ -25,6 +25,7 @@ enum bts_scen_type {
 	BS_CAMERA_DEFAULT,
 	BS_MFC_UHD_ENC60,
 	BS_FHD_480_ENCODING,
+	BS_CAMERA_THERMAL,
 	BS_MAX,
 };
 
