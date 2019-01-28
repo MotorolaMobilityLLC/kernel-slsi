@@ -14,6 +14,7 @@
 #include "platform/vipx-clk.h"
 #include "platform/vipx-ctrl.h"
 #include "vipx-interface.h"
+#include "vipx-pm.h"
 #include "vipx-memory.h"
 #include "vipx-binary.h"
 #include "vipx-graphmgr.h"
@@ -29,12 +30,10 @@ struct vipx_system {
 	void __iomem			*dtcm;
 	resource_size_t			dtcm_size;
 
-	unsigned int			cam_qos;
-	unsigned int			mif_qos;
-
 	const struct vipx_clk_ops	*clk_ops;
 	const struct vipx_ctrl_ops	*ctrl_ops;
 	struct pinctrl                  *pinctrl;
+	struct vipx_pm			pm;
 	struct vipx_memory		memory;
 	struct vipx_interface		interface;
 	struct vipx_binary		binary;
@@ -45,8 +44,8 @@ struct vipx_system {
 
 int vipx_system_fw_bootup(struct vipx_system *sys);
 
-int vipx_system_resume(struct vipx_system *sys);
-int vipx_system_suspend(struct vipx_system *sys);
+int vipx_system_runtime_resume(struct vipx_system *sys);
+int vipx_system_runtime_suspend(struct vipx_system *sys);
 
 int vipx_system_start(struct vipx_system *sys);
 int vipx_system_stop(struct vipx_system *sys);

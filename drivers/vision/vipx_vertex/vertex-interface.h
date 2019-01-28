@@ -16,7 +16,6 @@
 
 #include "vertex-config.h"
 #include "platform/vertex-ctrl.h"
-#include "vertex-slab.h"
 #include "vertex-taskmgr.h"
 
 #define VERTEX_WORK_MAX_COUNT		(20)
@@ -60,7 +59,6 @@ struct vertex_work_list {
 struct vertex_interface {
 	int				irq[VERTEX_REG_MAX];
 	void __iomem			*regs;
-	struct vertex_slab_allocator	slab;
 	struct vertex_taskmgr		taskmgr;
 	void				*cookie;
 	unsigned long			state;

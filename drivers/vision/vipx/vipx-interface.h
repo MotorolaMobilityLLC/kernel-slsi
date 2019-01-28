@@ -16,12 +16,11 @@
 
 #include "vipx-config.h"
 #include "platform/vipx-ctrl.h"
-#include "vipx-slab.h"
 #include "vipx-taskmgr.h"
 
 #define VIPX_WORK_MAX_COUNT		(20)
 #define VIPX_WORK_MAX_DATA		(24)
-#define VIPX_COMMAND_TIMEOUT		(10 * HZ)
+#define VIPX_RESPONSE_TIMEOUT		(10000) /* msecs */
 
 struct vipx_system;
 
@@ -66,7 +65,6 @@ struct vipx_work_list {
 struct vipx_interface {
 	int				irq[REG_MAX];
 	void __iomem			*regs;
-	struct vipx_slab_allocator	slab;
 	struct vipx_taskmgr		taskmgr;
 	void				*cookie;
 	unsigned long			state;
@@ -80,6 +78,7 @@ struct vipx_interface {
 	struct vipx_task		*process;
 	struct vipx_work		reply[VIPX_MAX_GRAPH];
 	unsigned int			done_cnt;
+	unsigned int			wait_time;
 
 	struct vipx_mailbox_ctrl	*mctrl;
 	struct vipx_system		*system;

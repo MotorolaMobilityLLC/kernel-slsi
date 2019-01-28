@@ -21,12 +21,14 @@ struct vipx_clk {
 };
 
 struct vipx_clk_ops {
-	int (*clk_init)(struct vipx_system *sys);
-	void (*clk_deinit)(struct vipx_system *sys);
-	int (*clk_cfg)(struct vipx_system *sys);
-	int (*clk_on)(struct vipx_system *sys);
-	int (*clk_off)(struct vipx_system *sys);
-	int (*clk_dump)(struct vipx_system *sys);
+	int (*init)(struct vipx_system *sys);
+	void (*deinit)(struct vipx_system *sys);
+	int (*on)(struct vipx_system *sys);
+	int (*off)(struct vipx_system *sys);
+	int (*dump)(struct vipx_system *sys);
+	int (*get_count)(struct vipx_system *sys);
+	unsigned long (*get_freq)(struct vipx_system *sys, int id);
+	const char *(*get_name)(struct vipx_system *sys, int id);
 };
 
 extern const struct vipx_clk_ops vipx_clk_ops;

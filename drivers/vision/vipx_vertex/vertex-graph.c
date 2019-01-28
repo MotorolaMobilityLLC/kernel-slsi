@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "vertex-log.h"

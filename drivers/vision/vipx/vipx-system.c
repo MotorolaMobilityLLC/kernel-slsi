@@ -9,32 +9,11 @@
  */
 
 #include <linux/io.h>
-#include <linux/pm_qos.h>
 #include <linux/exynos_iovmm.h>
 
 #include "vipx-log.h"
 #include "vipx-device.h"
 #include "vipx-system.h"
-
-#define CAM_L0		(690000)
-#define CAM_L1		(680000)
-#define CAM_L2		(670000)
-#define CAM_L3		(660000)
-#define CAM_L4		(650000)
-
-#define MIF_L0		(2093000)
-#define MIF_L1		(2002000)
-#define MIF_L2		(1794000)
-#define MIF_L3		(1539000)
-#define MIF_L4		(1352000)
-#define MIF_L5		(1014000)
-#define MIF_L6		(845000)
-#define MIF_L7		(676000)
-
-#if defined(CONFIG_PM_DEVFREQ)
-struct pm_qos_request exynos_vipx_qos_cam;
-struct pm_qos_request exynos_vipx_qos_mem;
-#endif
 
 int vipx_system_fw_bootup(struct vipx_system *sys)
 {
@@ -52,11 +31,6 @@ int vipx_system_fw_bootup(struct vipx_system *sys)
 	} *shared_mem;
 
 	vipx_enter();
-	/* TODO check cam/bus */
-	//execl("/system/bin/cp", "/system/bin/cp", "/d/pm_qos/cam_throughput",
-	//		"/data", (char *)0);
-	//execl("/system/bin/cp", "/system/bin/cp", "/d/pm_qos/bus_throughput",
-	//		"/data", (char *)0);
 	mem = &sys->memory;
 	bin = &sys->binary;
 
@@ -129,21 +103,18 @@ p_err:
 	return ret;
 }
 
-int vipx_system_resume(struct vipx_system *sys)
+int vipx_system_runtime_resume(struct vipx_system *sys)
 {
 	int ret;
 
 	vipx_enter();
-#if defined(CONFIG_PM_DEVFREQ)
-	pm_qos_add_request(&exynos_vipx_qos_cam, PM_QOS_CAM_THROUGHPUT, CAM_L0);
-	pm_qos_add_request(&exynos_vipx_qos_mem, PM_QOS_BUS_THROUGHPUT, MIF_L0);
-#endif
+	vipx_pm_open(&sys->pm);
 
-	ret = sys->clk_ops->clk_on(sys);
+	ret = sys->clk_ops->on(sys);
 	if (ret)
 		goto p_err_clk_on;
 
-	sys->clk_ops->clk_dump(sys);
+	sys->clk_ops->dump(sys);
 
 	ret = iovmm_activate(sys->dev);
 	if (ret) {
@@ -154,29 +125,23 @@ int vipx_system_resume(struct vipx_system *sys)
 	vipx_leave();
 	return 0;
 p_err_iovmm:
-	sys->clk_ops->clk_off(sys);
+	sys->clk_ops->off(sys);
 p_err_clk_on:
-	pm_qos_remove_request(&exynos_vipx_qos_mem);
-	pm_qos_remove_request(&exynos_vipx_qos_cam);
+	vipx_pm_close(&sys->pm);
 	return ret;
 }
 
-int vipx_system_suspend(struct vipx_system *sys)
+int vipx_system_runtime_suspend(struct vipx_system *sys)
 {
 	vipx_enter();
-	iovmm_deactivate(sys->dev);
-
 	//TODO check this
 	//ret = sys->ctrl_ops->reset(sys);
 	//if (ret)
 	//	vipx_err("Failed to reset for power down (%d)\n", ret);
 
-	sys->clk_ops->clk_off(sys);
-
-#if defined(CONFIG_PM_DEVFREQ)
-	pm_qos_remove_request(&exynos_vipx_qos_mem);
-	pm_qos_remove_request(&exynos_vipx_qos_cam);
-#endif
+	iovmm_deactivate(sys->dev);
+	sys->clk_ops->off(sys);
+	vipx_pm_close(&sys->pm);
 
 	vipx_leave();
 	return 0;
@@ -309,9 +274,6 @@ int vipx_system_probe(struct vipx_device *device)
 	sys->dtcm = iomem;
 	sys->dtcm_size = resource_size(res);
 
-	sys->cam_qos = 0;
-	sys->mif_qos = 0;
-
 	sys->clk_ops = &vipx_clk_ops;
 	sys->ctrl_ops = &vipx_ctrl_ops;
 	sys->pinctrl = devm_pinctrl_get(dev);
@@ -321,7 +283,11 @@ int vipx_system_probe(struct vipx_device *device)
 		goto p_err_pinctrl;
 	}
 
-	ret = sys->clk_ops->clk_init(sys);
+	ret = vipx_pm_probe(sys);
+	if (ret)
+		goto p_err_pm;
+
+	ret = sys->clk_ops->init(sys);
 	if (ret)
 		goto p_err_clk;
 
@@ -350,8 +316,10 @@ p_err_binary:
 p_err_interface:
 	vipx_memory_remove(&sys->memory);
 p_err_memory:
-	sys->clk_ops->clk_deinit(sys);
+	sys->clk_ops->deinit(sys);
 p_err_clk:
+	vipx_pm_remove(&sys->pm);
+p_err_pm:
 	devm_pinctrl_put(sys->pinctrl);
 p_err_pinctrl:
 	devm_iounmap(dev, sys->dtcm);
@@ -376,7 +344,8 @@ void vipx_system_remove(struct vipx_system *sys)
 	vipx_binary_deinit(&sys->binary);
 	vipx_interface_remove(&sys->interface);
 	vipx_memory_remove(&sys->memory);
-	sys->clk_ops->clk_deinit(sys);
+	sys->clk_ops->deinit(sys);
+	vipx_pm_remove(&sys->pm);
 	devm_pinctrl_put(sys->pinctrl);
 	devm_iounmap(sys->dev, sys->dtcm);
 	devm_iounmap(sys->dev, sys->itcm);

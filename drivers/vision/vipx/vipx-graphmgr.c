@@ -288,263 +288,47 @@ static void __vipx_taskdesc_trans_com_to_fre(struct vipx_graphmgr *gmgr,
 static int __vipx_graphmgr_itf_init(struct vipx_interface *itf,
 		struct vipx_graph *graph)
 {
-	int ret;
-	unsigned long flags;
-	struct vipx_taskmgr *itaskmgr;
-	struct vipx_task *itask;
-
-	vipx_enter();
-	itaskmgr = &itf->taskmgr;
-
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-	if (!itask) {
-		ret = -ENOMEM;
-		vipx_err("itask is NULL\n");
-		goto p_err_pick;
-	}
-
-	itask->id = 0;
-	itask->lock = &graph->local_lock;
-	itask->findex = VIPX_MAX_TASK;
-	itask->tdindex = VIPX_MAX_TASKDESC;
-	itask->message = VIPX_TASK_INIT;
-	itask->param0 = graph->uid;
-	itask->param1 = graph->idx;
-	itask->param2 = 0;
-	itask->param3 = 0;
-
-	ret = vipx_hw_init(itf, itask);
-	if (ret)
-		goto p_err_init;
-
-	vipx_leave();
 	return 0;
-p_err_init:
-p_err_pick:
-	return ret;
 }
 
 static int __vipx_graphmgr_itf_deinit(struct vipx_interface *itf,
 		struct vipx_graph *graph)
 {
-	int ret;
-	unsigned long flags;
-	struct vipx_taskmgr *itaskmgr;
-	struct vipx_task *itask;
-
 	vipx_enter();
-	itaskmgr = &itf->taskmgr;
-
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-	if (!itask) {
-		ret = -ENOMEM;
-		vipx_err("itask is NULL\n");
-		goto p_err_pick;
-	}
-
-	itask->id = 0;
-	itask->lock = &graph->local_lock;
-	itask->findex = VIPX_MAX_TASK;
-	itask->tdindex = VIPX_MAX_TASKDESC;
-	itask->message = VIPX_TASK_DEINIT;
-	itask->param0 = graph->uid;
-	itask->param1 = graph->idx;
-	itask->param2 = 0;
-	itask->param3 = 0;
-
-	ret = vipx_hw_deinit(itf, itask);
-	if (ret)
-		goto p_err_deinit;
-
 	vipx_leave();
 	return 0;
-p_err_deinit:
-p_err_pick:
-	return ret;
 }
 
 static int __vipx_graphmgr_itf_create(struct vipx_interface *itf,
 		struct vipx_graph *graph)
 {
-	int ret;
-	unsigned long flags;
-	struct vipx_taskmgr *itaskmgr;
-	struct vipx_task *itask;
-
-	/* TODO check */
-	return 0;
 	vipx_enter();
-	itaskmgr = &itf->taskmgr;
-
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-	if (!itask) {
-		ret = -ENOMEM;
-		vipx_err("itask is NULL\n");
-		goto p_err;
-	}
-
-	itask->id = 0;
-	itask->lock = &graph->local_lock;
-	itask->findex = VIPX_MAX_TASK;
-	itask->tdindex = VIPX_MAX_TASKDESC;
-	itask->message = VIPX_TASK_CREATE;
-	itask->param0 = graph->uid;
-	itask->param1 = graph->idx;
-	itask->param2 = 0;
-	itask->param3 = 0;
-
-	ret = vipx_hw_create(itf, itask);
-	if (ret)
-		goto p_err;
-
 	vipx_leave();
 	return 0;
-p_err:
-	return ret;
 }
 
 static int __vipx_graphmgr_itf_destroy(struct vipx_interface *itf,
 		struct vipx_graph *graph)
 {
-	int ret;
-	unsigned long flags;
-	struct vipx_taskmgr *itaskmgr;
-	struct vipx_task *itask;
-
 	vipx_enter();
-	itaskmgr = &itf->taskmgr;
-
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-	if (!itask) {
-		ret = -ENOMEM;
-		vipx_err("itask is NULL\n");
-		goto p_err;
-	}
-
-	itask->id = 0;
-	itask->lock = &graph->local_lock;
-	itask->findex = VIPX_MAX_TASK;
-	itask->tdindex = VIPX_MAX_TASKDESC;
-	itask->message = VIPX_TASK_DESTROY;
-	itask->param0 = graph->uid;
-	itask->param1 = graph->idx;
-	itask->param2 = 0;
-	itask->param3 = 0;
-
-	ret = vipx_hw_destroy(itf, itask);
-	if (ret)
-		goto p_err;
-
 	vipx_leave();
 	return 0;
-p_err:
-	return ret;
 }
 
 static int __vipx_graphmgr_itf_config(struct vipx_interface *itf,
 		struct vipx_graph *graph)
 {
-	int ret;
-	unsigned long flags;
-	struct vipx_taskmgr *itaskmgr;
-	struct vipx_task *itask;
-
 	vipx_enter();
-	itaskmgr = &itf->taskmgr;
-
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-	if (!itask) {
-		ret = -ENOMEM;
-		vipx_err("itask is NULL\n");
-		goto p_err;
-	}
-
-	itask->id = 0;
-	itask->lock = &graph->local_lock;
-	itask->findex = VIPX_MAX_TASK;
-	itask->tdindex = VIPX_MAX_TASKDESC;
-	itask->message = VIPX_TASK_ALLOCATE;
-	itask->param0 = graph->uid;
-	itask->param1 = graph->idx;
-	itask->param2 = (unsigned long)&graph->inflist;
-	itask->param3 = (unsigned long)&graph->otflist;
-
-	ret = vipx_hw_config(itf, itask);
-	if (ret)
-		goto p_err;
-
 	vipx_leave();
 	return 0;
-p_err:
-	return ret;
 }
 
 static int __vipx_graphmgr_itf_process(struct vipx_interface *itf,
 		struct vipx_graph *graph, struct vipx_task *task)
 {
-	int ret;
-	unsigned long flags;
-	struct vipx_taskmgr *itaskmgr;
-	struct vipx_task *itask;
-
 	vipx_enter();
-	itaskmgr = &itf->taskmgr;
-
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
-	if (!itask) {
-		ret = -ENOMEM;
-		vipx_err("itask is NULL\n");
-		goto p_err_pick;
-	}
-
-	if (test_bit(VIPX_GRAPH_FLAG_UPDATE_PARAM, &graph->flags)) {
-		ret = graph->gops->update_param(graph, task);
-		if (ret)
-			goto p_err_update_param;
-
-		clear_bit(VIPX_GRAPH_FLAG_UPDATE_PARAM, &graph->flags);
-	}
-
-	itask->id = task->id;
-	itask->lock = &graph->local_lock;
-	itask->findex = task->index;
-	itask->tdindex = task->tdindex;
-	itask->message = VIPX_TASK_PROCESS;
-	itask->param0 = graph->uid;
-	itask->param1 = graph->idx;
-	itask->param2 = 0; /* return : DONE or NDONE */
-	itask->param3 = 0; /* return : error code if param2 is NDONE */
-	itask->flags = task->flags;
-	itask->incl = task->incl;
-	itask->otcl = task->otcl;
-
-	ret = graph->gops->process(graph, task);
-	if (ret)
-		goto p_err_process;
-
-	ret = vipx_hw_process(itf, itask);
-	if (ret)
-		goto p_err_hw_process;
-
 	vipx_leave();
 	return 0;
-p_err_hw_process:
-p_err_process:
-p_err_update_param:
-p_err_pick:
-	return ret;
 }
 
 static void __vipx_graphmgr_sched(struct vipx_graphmgr *gmgr)
@@ -1005,6 +789,13 @@ static int __vipx_graphmgr_itf_load_graph(struct vipx_interface *itf,
 	itask->param0 = (unsigned long)&gmodel->common_ginfo;
 
 	ret = vipx_hw_load_graph(itf, itask);
+
+	gmodel->time[TIME_LOAD_GRAPH] = itask->time;
+
+	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	vipx_task_trans_com_to_fre(itaskmgr, itask);
+	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+
 	if (ret)
 		goto p_err_hw_load_graph;
 
@@ -1074,6 +865,13 @@ static int __vipx_graphmgr_itf_unload_graph(struct vipx_interface *itf,
 	itask->param0 = (unsigned long)&gmodel->common_ginfo;
 
 	ret = vipx_hw_unload_graph(itf, itask);
+
+	gmodel->time[TIME_UNLOAD_GRAPH] = itask->time;
+
+	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	vipx_task_trans_com_to_fre(itaskmgr, itask);
+	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+
 	if (ret)
 		goto p_err_hw_unload_graph;
 
@@ -1149,6 +947,13 @@ static int __vipx_graphmgr_itf_execute_graph(struct vipx_interface *itf,
 	itask->param1 = (unsigned long)gmodel;
 
 	ret = vipx_hw_execute_graph(itf, itask);
+
+	gmodel->time[TIME_EXECUTE_GRAPH] = itask->time;
+
+	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	vipx_task_trans_com_to_fre(itaskmgr, itask);
+	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+
 	if (ret)
 		goto p_err_hw_load_graph;
 
@@ -1182,18 +987,14 @@ int vipx_graphmgr_execute_model(struct vipx_graphmgr *gmgr,
 
 	ret = __vipx_graphmgr_itf_execute_graph(gmgr->interface, gmodel, einfo);
 	if (ret)
-		goto p_err_register;
+		goto p_err_execute;
 
 	vipx_leave();
 	return 0;
-p_err_register:
-	mutex_lock(&gmgr->mlock);
-	gmgr->current_model = NULL;
-	mutex_unlock(&gmgr->mlock);
+p_err_execute:
 p_err:
 	return ret;
 }
-
 
 int vipx_graphmgr_open(struct vipx_graphmgr *gmgr)
 {

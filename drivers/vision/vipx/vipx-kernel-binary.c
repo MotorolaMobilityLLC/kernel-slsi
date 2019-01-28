@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
+
 #include "vipx-log.h"
 #include "vipx-common-type.h"
 #include "vipx-kernel-binary.h"
@@ -49,6 +51,23 @@ int vipx_kernel_binary_set_gmodel(struct vipx_context *vctx,
 	return 0;
 }
 
+static int __vipx_kernel_binary_check(struct vipx_context *vctx,
+		unsigned int id, int fd, unsigned int size)
+{
+	unsigned int model_id, kid;
+	struct vipx_kernel_binary *kbin, *temp;
+
+	model_id = GET_COMMON_GRAPH_MODEL_ID(id);
+	list_for_each_entry_safe(kbin, temp, &vctx->binary_list, clist) {
+		kid = GET_COMMON_GRAPH_MODEL_ID(kbin->global_id);
+		if ((model_id == kid) &&
+				(fd == kbin->buffer.m.fd) &&
+				(size == kbin->buffer.size))
+			return true;
+	}
+	return false;
+}
+
 int vipx_kernel_binary_add(struct vipx_context *vctx, unsigned int id,
 		int fd, unsigned int size)
 {
@@ -58,12 +77,19 @@ int vipx_kernel_binary_add(struct vipx_context *vctx, unsigned int id,
 	unsigned long flags;
 
 	vipx_enter();
+	ret = __vipx_kernel_binary_check(vctx, id, fd, size);
+	if (ret) {
+		vipx_leave();
+		return 0;
+	}
+
 	kbin = kzalloc(sizeof(*kbin), GFP_KERNEL);
 	if (!kbin) {
 		ret = -ENOMEM;
 		vipx_err("Failed to alloc kernel binary\n");
 		goto p_err;
 	}
+
 	kbin->global_id = id;
 	kbin->buffer.m.fd = fd;
 	kbin->buffer.size = size;

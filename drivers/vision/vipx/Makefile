@@ -14,13 +14,13 @@ obj-y					+= vipx-io.o
 obj-y					+= vipx-mailbox.o
 obj-y					+= vipx-memory.o
 obj-y					+= vipx-queue.o
-obj-y					+= vipx-slab.o
 obj-y					+= vipx-system.o
 obj-y					+= vipx-taskmgr.o
 obj-y					+= vipx-time.o
 obj-y					+= vipx-core.o
 obj-y					+= vipx-context.o
 obj-y					+= vipx-kernel-binary.o
+obj-y					+= vipx-pm.o
 obj-y					+= vipx-util.o
 
 obj-$(CONFIG_EXYNOS_VIPX_PLATFORM)	+= platform/

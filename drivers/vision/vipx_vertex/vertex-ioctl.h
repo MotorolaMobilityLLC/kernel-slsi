@@ -15,73 +15,23 @@
 #include <linux/uaccess.h>
 
 #include "vs4l.h"
-#include "vertex-common-type.h"
 
 #define VERTEX_CTRL_VERTEX_BASE		(0x00010000)
-#define VERTEX_CTRL_DUMP			(VERTEX_CTRL_VERTEX_BASE + 1)
-#define VERTEX_CTRL_MODE			(VERTEX_CTRL_VERTEX_BASE + 2)
-#define VERTEX_CTRL_TEST			(VERTEX_CTRL_VERTEX_BASE + 3)
+#define VERTEX_CTRL_DUMP		(VERTEX_CTRL_VERTEX_BASE + 1)
+#define VERTEX_CTRL_MODE		(VERTEX_CTRL_VERTEX_BASE + 2)
+#define VERTEX_CTRL_TEST		(VERTEX_CTRL_VERTEX_BASE + 3)
 
 struct vertex_context;
 
-struct vertex_ioc_load_kernel_binary {
-	unsigned int			size;
-	unsigned int			global_id;
-	int				kernel_fd;
-	unsigned int			kernel_size;
-	int				ret;
-	struct timespec			timestamp[4];
-	int				reserved[2];
-};
-
-struct vertex_ioc_load_graph_info {
-	unsigned int			size;
-	struct vertex_common_graph_info	graph_info;
-	int				ret;
-	struct timespec			timestamp[4];
-	int				reserved[2];
-};
-
-struct vertex_ioc_unload_graph_info {
-	unsigned int			size;
-	struct vertex_common_graph_info	graph_info;
-	int				ret;
-	struct timespec			timestamp[4];
-	int				reserved[2];
-};
-
-struct vertex_ioc_execute_submodel {
-	unsigned int			size;
-	struct vertex_common_execute_info	execute_info;
-	int				ret;
-	struct timespec			timestamp[4];
-	int				reserved[2];
-};
-
-#define VERTEX_IOC_LOAD_KERNEL_BINARY	\
-	_IOWR('V', 0, struct vertex_ioc_load_kernel_binary)
-#define VERTEX_IOC_LOAD_GRAPH_INFO	\
-	_IOWR('V', 1, struct vertex_ioc_load_graph_info)
-#define VERTEX_IOC_UNLOAD_GRAPH_INFO	\
-	_IOWR('V', 2, struct vertex_ioc_unload_graph_info)
-#define VERTEX_IOC_EXECUTE_SUBMODEL	\
-	_IOWR('V', 3, struct vertex_ioc_execute_submodel)
-
 union vertex_ioc_arg {
-	struct vs4l_graph			graph;
-	struct vs4l_format_list			flist;
-	struct vs4l_param_list			plist;
-	struct vs4l_ctrl			ctrl;
-	struct vs4l_container_list		clist;
-
-	struct vertex_ioc_load_kernel_binary	kernel_bin;
-	struct vertex_ioc_load_graph_info		load_ginfo;
-	struct vertex_ioc_unload_graph_info	unload_ginfo;
-	struct vertex_ioc_execute_submodel	exec;
+	struct vs4l_graph		graph;
+	struct vs4l_format_list		flist;
+	struct vs4l_param_list		plist;
+	struct vs4l_ctrl		ctrl;
+	struct vs4l_container_list	clist;
 };
 
 struct vertex_ioctl_ops {
-	/* TODO: vs4l(temp) */
 	int (*set_graph)(struct vertex_context *vctx,
 			struct vs4l_graph *graph);
 	int (*set_format)(struct vertex_context *vctx,
@@ -96,15 +46,6 @@ struct vertex_ioctl_ops {
 			struct vs4l_container_list *clist);
 	int (*streamon)(struct vertex_context *vctx);
 	int (*streamoff)(struct vertex_context *vctx);
-	/* dal */
-	int (*load_kernel_binary)(struct vertex_context *vctx,
-			struct vertex_ioc_load_kernel_binary *args);
-	int (*load_graph_info)(struct vertex_context *vctx,
-			struct vertex_ioc_load_graph_info *args);
-	int (*unload_graph_info)(struct vertex_context *vctx,
-			struct vertex_ioc_unload_graph_info *args);
-	int (*execute_submodel)(struct vertex_context *vctx,
-			struct vertex_ioc_execute_submodel *args);
 };
 
 long vertex_ioctl(struct file *file, unsigned int cmd, unsigned long arg);

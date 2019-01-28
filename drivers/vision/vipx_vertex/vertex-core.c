@@ -321,117 +321,6 @@ p_err_lock:
 	return ret;
 }
 
-static int vertex_core_load_kernel_binary(struct vertex_context *vctx,
-		struct vertex_ioc_load_kernel_binary *args)
-{
-	int ret;
-
-	vertex_enter();
-	if (mutex_lock_interruptible(&vctx->lock)) {
-		ret = -ERESTARTSYS;
-		vertex_err("Failed to lock for loading kernel binary (%d)\n",
-				ret);
-		goto p_err_lock;
-	}
-
-	ret = vctx->vops->load_kernel_binary(vctx, args);
-	if (ret)
-		goto p_err_vops;
-
-	mutex_unlock(&vctx->lock);
-	args->ret = 0;
-	vertex_leave();
-	return 0;
-p_err_vops:
-	mutex_unlock(&vctx->lock);
-p_err_lock:
-	args->ret = ret;
-	return ret;
-}
-
-static int vertex_core_load_graph_info(struct vertex_context *vctx,
-		struct vertex_ioc_load_graph_info *args)
-{
-	int ret;
-
-	vertex_enter();
-	if (mutex_lock_interruptible(&vctx->lock)) {
-		ret = -ERESTARTSYS;
-		vertex_err("Failed to lock for loadding graph info (%d)\n",
-				ret);
-		goto p_err_lock;
-	}
-
-	ret = vctx->vops->load_graph_info(vctx, args);
-	if (ret)
-		goto p_err_vops;
-
-	mutex_unlock(&vctx->lock);
-	args->ret = 0;
-	vertex_leave();
-	return 0;
-p_err_vops:
-	mutex_unlock(&vctx->lock);
-p_err_lock:
-	args->ret = ret;
-	return ret;
-}
-
-static int vertex_core_unload_graph_info(struct vertex_context *vctx,
-		struct vertex_ioc_unload_graph_info *args)
-{
-	int ret;
-
-	vertex_enter();
-	if (mutex_lock_interruptible(&vctx->lock)) {
-		ret = -ERESTARTSYS;
-		vertex_err("Failed to lock for unloading graph info (%d)\n",
-				ret);
-		goto p_err_lock;
-	}
-
-	ret = vctx->vops->unload_graph_info(vctx, args);
-	if (ret)
-		goto p_err_vops;
-
-	mutex_unlock(&vctx->lock);
-	args->ret = 0;
-	vertex_leave();
-	return 0;
-p_err_vops:
-	mutex_unlock(&vctx->lock);
-p_err_lock:
-	args->ret = ret;
-	return ret;
-}
-
-static int vertex_core_execute_submodel(struct vertex_context *vctx,
-		struct vertex_ioc_execute_submodel *args)
-{
-	int ret;
-
-	vertex_enter();
-	if (mutex_lock_interruptible(&vctx->lock)) {
-		ret = -ERESTARTSYS;
-		vertex_err("Failed to lock for executing submodel (%d)\n", ret);
-		goto p_err_lock;
-	}
-
-	ret = vctx->vops->execute_submodel(vctx, args);
-	if (ret)
-		goto p_err_vops;
-
-	mutex_unlock(&vctx->lock);
-	args->ret = 0;
-	vertex_leave();
-	return 0;
-p_err_vops:
-	mutex_unlock(&vctx->lock);
-p_err_lock:
-	args->ret = ret;
-	return ret;
-}
-
 const struct vertex_ioctl_ops vertex_core_ioctl_ops = {
 	.set_graph		= vertex_core_set_graph,
 	.set_format		= vertex_core_set_format,
@@ -441,11 +330,6 @@ const struct vertex_ioctl_ops vertex_core_ioctl_ops = {
 	.dqbuf			= vertex_core_dqbuf,
 	.streamon		= vertex_core_streamon,
 	.streamoff		= vertex_core_streamoff,
-
-	.load_kernel_binary	= vertex_core_load_kernel_binary,
-	.load_graph_info	= vertex_core_load_graph_info,
-	.unload_graph_info	= vertex_core_unload_graph_info,
-	.execute_submodel	= vertex_core_execute_submodel,
 };
 
 static int vertex_open(struct inode *inode, struct file *file)

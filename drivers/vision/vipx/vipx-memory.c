@@ -12,41 +12,11 @@
 #include <asm/cacheflush.h>
 #include <linux/ion_exynos.h>
 #include <linux/exynos_iovmm.h>
-#include <linux/of_reserved_mem.h>
 
 #include "vipx-log.h"
 #include "vipx-mailbox.h"
 #include "vipx-system.h"
 #include "vipx-memory.h"
-
-/* TODO check */
-void vipx_memory_sync_for_device(struct vipx_priv_mem *pmem,
-		off_t offset, size_t size, enum dma_data_direction dir)
-{
-	vipx_enter();
-	if (pmem->kvaddr) {
-		WARN_ON((offset < 0) || (offset > pmem->size));
-		WARN_ON((offset + size) < size);
-		WARN_ON((size > pmem->size) || ((offset + size) > pmem->size));
-
-		__dma_map_area(pmem->kvaddr + offset, size, dir);
-	}
-	vipx_leave();
-}
-
-void vipx_memory_sync_for_cpu(struct vipx_priv_mem *pmem,
-		off_t offset, size_t size, enum dma_data_direction dir)
-{
-	vipx_enter();
-	if (pmem->kvaddr) {
-		WARN_ON((offset < 0) || (offset > pmem->size));
-		WARN_ON((offset + size) < size);
-		WARN_ON((size > pmem->size) || ((offset + size) > pmem->size));
-
-		__dma_unmap_area(pmem->kvaddr + offset, size, dir);
-	}
-	vipx_leave();
-}
 
 static int vipx_memory_map_dmabuf(struct vipx_memory *mem,
 		struct vipx_buffer *buf)
@@ -73,13 +43,13 @@ static int vipx_memory_map_dmabuf(struct vipx_memory *mem,
 	}
 	buf->dbuf = dbuf;
 
-	buf->aligned_size = PAGE_ALIGN(buf->size);
-	if (buf->aligned_size > dbuf->size) {
+	if (buf->size + buf->offset > dbuf->size) {
 		ret = -EINVAL;
-		vipx_err("size is invalid (%zu/%zu/%zu)\n",
-				buf->size, buf->aligned_size, dbuf->size);
+		vipx_err("size is invalid (%zu/%u/%zu)\n",
+				buf->size, buf->offset, dbuf->size);
 		goto p_err_size;
 	}
+	buf->dbuf_size = dbuf->size;
 
 	attachment = dma_buf_attach(dbuf, mem->dev);
 	if (IS_ERR(attachment)) {
@@ -97,7 +67,7 @@ static int vipx_memory_map_dmabuf(struct vipx_memory *mem,
 	}
 	buf->sgt = sgt;
 
-	dvaddr = ion_iovmm_map(attachment, 0, buf->aligned_size,
+	dvaddr = ion_iovmm_map(attachment, 0, buf->dbuf_size,
 			DMA_BIDIRECTIONAL, 0);
 	if (IS_ERR_VALUE(dvaddr)) {
 		ret = (int)dvaddr;
@@ -106,14 +76,17 @@ static int vipx_memory_map_dmabuf(struct vipx_memory *mem,
 	}
 	buf->dvaddr = dvaddr;
 
-	/* TODO: check sync */
-	kvaddr = dma_buf_vmap(dbuf);
-	if (IS_ERR(kvaddr)) {
-		ret = PTR_ERR(kvaddr);
-		vipx_err("failed to map kvaddr (%d)\n", ret);
-		goto p_err_kva;
+	if (buf->mem_attr == VIPX_COMMON_CACHEABLE) {
+		kvaddr = dma_buf_vmap(dbuf);
+		if (IS_ERR(kvaddr)) {
+			ret = PTR_ERR(kvaddr);
+			vipx_err("failed to map kvaddr (%d)\n", ret);
+			goto p_err_kva;
+		}
+		buf->kvaddr = kvaddr;
+	} else {
+		buf->kvaddr = NULL;
 	}
-	buf->kvaddr = kvaddr;
 
 	vipx_leave();
 	return 0;
@@ -134,7 +107,9 @@ static int vipx_memory_unmap_dmabuf(struct vipx_memory *mem,
 		struct vipx_buffer *buf)
 {
 	vipx_enter();
-	dma_buf_vunmap(buf->dbuf, buf->kvaddr);
+	if (buf->kvaddr)
+		dma_buf_vunmap(buf->dbuf, buf->kvaddr);
+
 	ion_iovmm_unmap(buf->attachment, buf->dvaddr);
 	dma_buf_unmap_attachment(buf->attachment, buf->sgt, DMA_BIDIRECTIONAL);
 	dma_buf_detach(buf->dbuf, buf->attachment);
@@ -143,28 +118,99 @@ static int vipx_memory_unmap_dmabuf(struct vipx_memory *mem,
 	return 0;
 }
 
-static int vipx_memory_map_userptr(struct vipx_memory *mem,
+static int vipx_memory_sync_for_device(struct vipx_memory *mem,
 		struct vipx_buffer *buf)
 {
 	vipx_enter();
+	if (buf->mem_attr == VIPX_COMMON_NON_CACHEABLE) {
+		vipx_warn("It is not required to sync non-cacheable area(%d)\n",
+				buf->m.fd);
+		return 0;
+	}
+
+	if (!buf->kvaddr) {
+		vipx_err("kvaddr is required to sync cacheable area(%d)\n",
+				buf->m.fd);
+		return -EINVAL;
+	}
+
+	__dma_map_area(buf->kvaddr + buf->offset, buf->size, buf->direction);
+
 	vipx_leave();
-	return -EINVAL;
+	return 0;
 }
 
-static int vipx_memory_unmap_userptr(struct vipx_memory *mem,
+static int vipx_memory_sync_for_cpu(struct vipx_memory *mem,
 		struct vipx_buffer *buf)
 {
 	vipx_enter();
+	if (buf->mem_attr == VIPX_COMMON_NON_CACHEABLE) {
+		vipx_warn("It is not required to sync non-cacheable area(%d)\n",
+				buf->m.fd);
+		return 0;
+	}
+
+	if (!buf->kvaddr) {
+		vipx_err("kvaddr is required to sync cacheable area(%d)\n",
+				buf->m.fd);
+		return -EINVAL;
+	}
+
+	__dma_unmap_area(buf->kvaddr + buf->offset, buf->size, buf->direction);
+
 	vipx_leave();
-	return -EINVAL;
+	return 0;
 }
 
 const struct vipx_memory_ops vipx_memory_ops = {
-	.map_dmabuf	= vipx_memory_map_dmabuf,
-	.unmap_dmabuf	= vipx_memory_unmap_dmabuf,
-	.map_userptr	= vipx_memory_map_userptr,
-	.unmap_userptr	= vipx_memory_unmap_userptr
+	.map_dmabuf		= vipx_memory_map_dmabuf,
+	.unmap_dmabuf		= vipx_memory_unmap_dmabuf,
+	.sync_for_device	= vipx_memory_sync_for_device,
+	.sync_for_cpu		= vipx_memory_sync_for_cpu,
 };
+
+static int __vipx_memory_iovmm_map_sg(struct vipx_memory *mem,
+		struct vipx_priv_mem *pmem)
+{
+	size_t size;
+
+	vipx_enter();
+	size = iommu_map_sg(mem->domain, pmem->dvaddr, pmem->sgt->sgl,
+			pmem->sgt->nents, 0);
+	if (!size) {
+		vipx_err("Failed to map sg\n");
+		return -ENOMEM;
+	}
+
+	if (size != pmem->size) {
+		vipx_warn("pmem size(%zd) is different from mapped size(%zd)\n",
+				pmem->size, size);
+		pmem->size = size;
+	}
+
+	vipx_leave();
+	return 0;
+}
+
+extern void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
+		dma_addr_t d_start, size_t size);
+
+static int __vipx_memory_iovmm_unmap(struct vipx_memory *mem,
+		struct vipx_priv_mem *pmem)
+{
+	size_t size;
+
+	vipx_enter();
+	size = iommu_unmap(mem->domain, pmem->dvaddr, pmem->size);
+	if (size < 0) {
+		vipx_err("Failed to unmap iovmm(%zd)\n", size);
+		return size;
+	}
+	exynos_sysmmu_tlb_invalidate(mem->domain, pmem->dvaddr, pmem->size);
+
+	vipx_leave();
+	return 0;
+}
 
 static int __vipx_memory_alloc(struct vipx_memory *mem,
 		struct vipx_priv_mem *pmem)
@@ -186,6 +232,7 @@ static int __vipx_memory_alloc(struct vipx_memory *mem,
 		goto p_err_alloc;
 	}
 	pmem->dbuf = dbuf;
+	pmem->dbuf_size = dbuf->size;
 
 	attachment = dma_buf_attach(dbuf, mem->dev);
 	if (IS_ERR(attachment)) {
@@ -205,14 +252,6 @@ static int __vipx_memory_alloc(struct vipx_memory *mem,
 	}
 	pmem->sgt = sgt;
 
-	dvaddr = ion_iovmm_map(attachment, 0, pmem->size, pmem->direction, 0);
-	if (IS_ERR_VALUE(dvaddr)) {
-		ret = (int)dvaddr;
-		vipx_err("Failed to map dvaddr (%d) [%s]\n", ret, pmem->name);
-		goto p_err_map_dva;
-	}
-	pmem->dvaddr = dvaddr;
-
 	if (pmem->kmap) {
 		kvaddr = dma_buf_vmap(dbuf);
 		if (IS_ERR(kvaddr)) {
@@ -224,11 +263,28 @@ static int __vipx_memory_alloc(struct vipx_memory *mem,
 		pmem->kvaddr = kvaddr;
 	}
 
+	if (pmem->fixed_dvaddr) {
+		ret = __vipx_memory_iovmm_map_sg(mem, pmem);
+		if (ret)
+			goto p_err_map_dva;
+	} else {
+		dvaddr = ion_iovmm_map(attachment, 0, pmem->size,
+				pmem->direction, 0);
+		if (IS_ERR_VALUE(dvaddr)) {
+			ret = (int)dvaddr;
+			vipx_err("Failed to map dvaddr (%d) [%s]\n",
+					ret, pmem->name);
+			goto p_err_map_dva;
+		}
+		pmem->dvaddr = dvaddr;
+	}
+
 	vipx_leave();
 	return 0;
-p_err_kmap:
-	ion_iovmm_unmap(attachment, dvaddr);
 p_err_map_dva:
+	if (pmem->kmap)
+		dma_buf_vunmap(dbuf, kvaddr);
+p_err_kmap:
 	dma_buf_unmap_attachment(attachment, sgt, pmem->direction);
 p_err_map_attachment:
 	dma_buf_detach(dbuf, attachment);
@@ -242,143 +298,63 @@ static void __vipx_memory_free(struct vipx_memory *mem,
 		struct vipx_priv_mem *pmem)
 {
 	vipx_enter();
+	if (pmem->fixed_dvaddr)
+		__vipx_memory_iovmm_unmap(mem, pmem);
+	else
+		ion_iovmm_unmap(pmem->attachment, pmem->dvaddr);
+
 	if (pmem->kmap)
 		dma_buf_vunmap(pmem->dbuf, pmem->kvaddr);
 
-	ion_iovmm_unmap(pmem->attachment, pmem->dvaddr);
 	dma_buf_unmap_attachment(pmem->attachment, pmem->sgt, pmem->direction);
 	dma_buf_detach(pmem->dbuf, pmem->attachment);
 	dma_buf_put(pmem->dbuf);
-	dma_buf_put(pmem->dbuf);
-	vipx_leave();
-}
-
-dma_addr_t vipx_memory_allocate_heap(struct vipx_memory *mem,
-		int id, size_t size)
-{
-	int ret;
-	struct vipx_priv_mem *heap;
-
-	vipx_enter();
-	heap = &mem->heap;
-
-	snprintf(heap->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_heap_%u", id);
-	heap->size = PAGE_ALIGN(size);
-	heap->flags = 0;
-	heap->direction = DMA_BIDIRECTIONAL;
-	heap->kmap = false;
-
-	ret = __vipx_memory_alloc(mem, heap);
-	if (ret)
-		goto p_err;
-
-	vipx_leave();
-	return heap->dvaddr;
-p_err:
-	return ret;
-}
-
-void vipx_memory_free_heap(struct vipx_memory *mem)
-{
-	vipx_enter();
-	__vipx_memory_free(mem, &mem->heap);
 	vipx_leave();
 }
 
 int vipx_memory_open(struct vipx_memory *mem)
 {
 	int ret;
-	struct vipx_priv_mem *fw;
-	struct vipx_priv_mem *mbox;
-	struct vipx_priv_mem *heap;
-	struct vipx_priv_mem *debug;
 
 	vipx_enter();
-	fw = &mem->fw;
-	mbox = &mem->mbox;
-	heap = &mem->heap;
-	debug = &mem->debug;
-
-	ret = iommu_map(mem->domain, fw->dvaddr, fw->paddr, fw->size, 0);
-	if (ret) {
-		vipx_err("iommu mapping is failed (0x%x/0x%x/%zu)(%d)\n",
-				(int)fw->dvaddr, (int)fw->paddr, fw->size, ret);
+	ret = __vipx_memory_alloc(mem, &mem->fw);
+	if (ret)
 		goto p_err_map;
-	}
 
-	/* TODO check */
-	//fw->kvaddr = dmam_alloc_coherent(mem->dev, fw->size, &fw->paddr,
-	//		GFP_KERNEL);
-	//if (!fw->kvaddr) {
-	//	ret = -ENOMEM;
-	//	vipx_err("Failed to allocate coherent memory for CM7 DRAM\n");
-	//	goto p_err_cm7;
-	//}
-	//
-	//iommu_map(mem->domain, fw->dvaddr, fw->paddr, fw->size, 0);
-
-	ret = __vipx_memory_alloc(mem, mbox);
+	ret = __vipx_memory_alloc(mem, &mem->mbox);
 	if (ret)
 		goto p_err_mbox;
 
-	ret = __vipx_memory_alloc(mem, heap);
+	ret = __vipx_memory_alloc(mem, &mem->heap);
 	if (ret)
 		goto p_err_heap;
 
-	ret = __vipx_memory_alloc(mem, debug);
+	ret = __vipx_memory_alloc(mem, &mem->debug);
 	if (ret)
 		goto p_err_debug;
 
 	vipx_leave();
 	return 0;
 p_err_debug:
-	__vipx_memory_free(mem, heap);
+	__vipx_memory_free(mem, &mem->heap);
 p_err_heap:
-	__vipx_memory_free(mem, mbox);
+	__vipx_memory_free(mem, &mem->mbox);
 p_err_mbox:
-	iommu_unmap(mem->domain, fw->dvaddr, fw->size);
+	__vipx_memory_free(mem, &mem->fw);
 p_err_map:
 	return ret;
 }
 
 int vipx_memory_close(struct vipx_memory *mem)
 {
-	struct vipx_priv_mem *fw;
-	struct vipx_priv_mem *mbox;
-	struct vipx_priv_mem *heap;
-	struct vipx_priv_mem *debug;
-
 	vipx_enter();
-	fw = &mem->fw;
-	mbox = &mem->mbox;
-	heap = &mem->heap;
-	debug = &mem->debug;
-
-	__vipx_memory_free(mem, debug);
-	__vipx_memory_free(mem, heap);
-	__vipx_memory_free(mem, mbox);
-
-	iommu_unmap(mem->domain, fw->dvaddr, fw->size);
-	/* TODO check */
-	//dmam_free_coherent(mem->dev, fw->size, fw->kvaddr, fw->paddr);
-
+	__vipx_memory_free(mem, &mem->debug);
+	__vipx_memory_free(mem, &mem->heap);
+	__vipx_memory_free(mem, &mem->mbox);
+	__vipx_memory_free(mem, &mem->fw);
 	vipx_leave();
 	return 0;
 }
-
-struct reserved_mem *vipx_cm7_rmem;
-
-static int __init vipx_cm7_rmem_setup(struct reserved_mem *rmem)
-{
-	vipx_enter();
-	vipx_info("base=%pa, size=%pa\n", &rmem->base, &rmem->size);
-	vipx_cm7_rmem = rmem;
-	vipx_leave();
-	return 0;
-}
-
-RESERVEDMEM_OF_DECLARE(vipx_cm7_rmem, "exynos,vipx_fw_code_rmem",
-		vipx_cm7_rmem_setup);
 
 int vipx_memory_probe(struct vipx_system *sys)
 {
@@ -403,29 +379,33 @@ int vipx_memory_probe(struct vipx_system *sys)
 	heap = &mem->heap;
 	debug = &mem->debug;
 
-	snprintf(fw->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_cm7_dram_bin");
-	fw->size = vipx_cm7_rmem->size;
-	fw->kvaddr = phys_to_virt(vipx_cm7_rmem->base);
-	fw->paddr = vipx_cm7_rmem->base;
-	fw->dvaddr = VIPX_CM7_DRAM_BIN_DVADDR;
+	snprintf(fw->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_cc_dram_bin");
+	fw->size = PAGE_ALIGN(VIPX_CC_DRAM_BIN_SIZE);
+	fw->flags = 0;
+	fw->direction = DMA_TO_DEVICE;
+	fw->kmap = true;
+	fw->dvaddr = VIPX_CC_DRAM_BIN_DVADDR;
+	fw->fixed_dvaddr = true;
 
 	snprintf(mbox->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_mbox");
 	mbox->size = PAGE_ALIGN(sizeof(struct vipx_mailbox_ctrl));
 	mbox->flags = 0;
 	mbox->direction = DMA_BIDIRECTIONAL;
 	mbox->kmap = true;
+	mbox->fixed_dvaddr = false;
 
 	snprintf(heap->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_heap");
 	heap->size = PAGE_ALIGN(VIPX_HEAP_SIZE);
 	heap->flags = 0;
-	heap->direction = DMA_BIDIRECTIONAL;
+	heap->direction = DMA_FROM_DEVICE;
+	heap->fixed_dvaddr = false;
 
 	snprintf(debug->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_debug");
 	debug->size = PAGE_ALIGN(VIPX_DEBUG_SIZE);
 	debug->flags = 0;
 	debug->direction = DMA_BIDIRECTIONAL;
-	/* TODO remove */
 	debug->kmap = true;
+	debug->fixed_dvaddr = false;
 
 	vipx_leave();
 	return 0;

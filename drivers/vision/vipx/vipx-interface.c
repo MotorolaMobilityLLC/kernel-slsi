@@ -45,8 +45,9 @@ static inline void __vipx_interface_clear_reply(struct vipx_interface *itf,
 	vipx_leave();
 }
 
-static void __vipx_interface_send_interrupt(struct vipx_interface *itf)
+static int __vipx_interface_send_interrupt(struct vipx_interface *itf)
 {
+	int ret;
 	struct vipx_system *sys;
 	int try_count = 100;
 	unsigned int val;
@@ -65,12 +66,18 @@ static void __vipx_interface_send_interrupt(struct vipx_interface *itf)
 		try_count--;
 	}
 
-	if (!val)
-		sys->ctrl_ops->set_irq(sys, IRQ1_TO_DEVICE, 0x100);
-	else
+	if (val) {
+		ret = -EBUSY;
 		vipx_err("Failed to send interrupt(0x%x)\n", val);
+		goto p_err;
+	}
+
+	sys->ctrl_ops->set_irq(sys, IRQ1_TO_DEVICE, 0x100);
 
 	vipx_leave();
+	return 0;
+p_err:
+	return ret;
 }
 
 int vipx_hw_wait_bootup(struct vipx_interface *itf)
@@ -88,7 +95,6 @@ int vipx_hw_wait_bootup(struct vipx_interface *itf)
 	}
 
 	if (!test_bit(VIPX_ITF_STATE_BOOTUP, &itf->state)) {
-		vipx_debug_write_log_binary();
 		vipx_debug_dump_debug_regs();
 		ret = -ETIMEDOUT;
 		vipx_err("Failed to boot CM7 (%d)\n", ret);
@@ -152,14 +158,12 @@ static int __vipx_interface_wait_mailbox_reply(struct vipx_interface *itf,
 	vipx_enter();
 	timeout = wait_event_timeout(itf->reply_wq,
 			(itask->message == VIPX_TASK_DONE),
-			VIPX_COMMAND_TIMEOUT);
+			msecs_to_jiffies(itf->wait_time));
 	if (!timeout) {
-		vipx_debug_write_log_binary();
-		vipx_debug_dump_debug_regs();
 		ret = -ETIMEDOUT;
 		vipx_err("wait time(%u ms) is expired (%u)\n",
-				jiffies_to_msecs(VIPX_COMMAND_TIMEOUT),
-				itask->id);
+				itf->wait_time, itask->id);
+		vipx_debug_dump_debug_regs();
 		goto p_err;
 	}
 
@@ -190,46 +194,37 @@ static int __vipx_interface_send_mailbox(struct vipx_interface *itf,
 	enter_process_barrier(itf);
 	itf->process = itask;
 
-	ret = 0;
-#ifndef TEMP_RT_FRAMEWORK_TEST
 	ret = vipx_mailbox_check_full(mctrl, type, MAILBOX_WAIT);
-#endif
 	if (ret) {
-		vipx_err("mailbox is full (%lu/%u)\n", type, itask->id);
-		taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-		vipx_task_trans_req_to_fre(itaskmgr, itask);
-		taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+		vipx_err("mailbox is full(%lu/%u)\n", type, itask->id);
 		goto p_err_process;
 	}
 
-#ifndef TEMP_RT_FRAMEWORK_TEST
 	ret = vipx_mailbox_write(mctrl, type, msg, size);
-#endif
 	if (ret) {
-		vipx_err("Failed to write to mailbox (%lu/%u)\n",
+		vipx_err("Failed to write to mailbox(%lu/%u)\n",
 				type, itask->id);
-		taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-		vipx_task_trans_req_to_fre(itaskmgr, itask);
-		taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
 		goto p_err_process;
 	}
 
-#ifndef TEMP_RT_FRAMEWORK_TEST
-	__vipx_interface_send_interrupt(itf);
-#endif
+	ret = __vipx_interface_send_interrupt(itf);
+	if (ret) {
+		vipx_err("Failed to send interrupt(%lu/%u)\n",
+				type, itask->id);
+		goto p_err_process;
+	}
+
+	vipx_time_get_timestamp(&itask->time, TIMESTAMP_START);
 	exit_process_barrier(itf);
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
 	vipx_task_trans_req_to_pro(itaskmgr, itask);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
 
-#ifdef TEMP_RT_FRAMEWORK_TEST
-	itask->message = VIPX_TASK_DONE;
-#endif
 	ret = __vipx_interface_wait_mailbox_reply(itf, itask);
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
-	vipx_task_trans_pro_to_fre(itaskmgr, itask);
+	vipx_task_trans_pro_to_com(itaskmgr, itask);
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
 
 	enter_process_barrier(itf);
@@ -239,6 +234,10 @@ static int __vipx_interface_send_mailbox(struct vipx_interface *itf,
 	vipx_leave();
 	return ret;
 p_err_process:
+	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	vipx_task_trans_req_to_com(itaskmgr, itask);
+	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+
 	itf->process = NULL;
 	exit_process_barrier(itf);
 	return ret;
@@ -251,6 +250,7 @@ int vipx_hw_load_graph(struct vipx_interface *itf, struct vipx_task *itask)
 	struct vipx_h2d_message msg;
 	struct vipx_h2d_load_graph_req *req;
 	struct vipx_common_graph_info *ginfo;
+	int idx;
 
 	vipx_enter();
 	itaskmgr = &itf->taskmgr;
@@ -270,12 +270,10 @@ int vipx_hw_load_graph(struct vipx_interface *itf, struct vipx_task *itask)
 	itask->param2 = sizeof(msg);
 	itask->param3 = NORMAL_MSG;
 
-#ifdef DEBUG_LOG_REQUEST_DUMP
-	vipx_dbg("< load graph request >\n");
-	vipx_dbg("print graph info of load_graph_req\n");
-	for (ret = 0; ret < sizeof(req->graph_info) >> 2; ++ret)
-		vipx_dbg("[%3d] %#10x\n", ret, ((int *)&req->graph_info)[ret]);
-#endif
+	vipx_dbg("[%s] load graph (firmware)\n", __func__);
+	for (idx = 0; idx < sizeof(*ginfo) >> 2; ++idx)
+		vipx_dbg("[%3d] %#10x\n", idx, ((int *)ginfo)[idx]);
+
 	ret = __vipx_interface_send_mailbox(itf, itask);
 	if (ret)
 		goto p_err;
@@ -296,6 +294,8 @@ int vipx_hw_execute_graph(struct vipx_interface *itf, struct vipx_task *itask)
 	struct vipx_graph_model *gmodel;
 	struct vipx_kernel_binary *kbin, *temp;
 	int idx = 0;
+	int *debug_addr;
+	int iter;
 
 	vipx_enter();
 	itaskmgr = &itf->taskmgr;
@@ -324,38 +324,38 @@ int vipx_hw_execute_graph(struct vipx_interface *itf, struct vipx_task *itask)
 	itask->param2 = sizeof(msg);
 	itask->param3 = NORMAL_MSG;
 
-#ifdef DEBUG_LOG_REQUEST_DUMP
-	vipx_dbg("< execute graph request >\n");
-	vipx_dbg("print kernel_bin and execute_info of execute_graph_req\n");
+	vipx_dbg("[%s] execute graph (firmware)\n", __func__);
 	vipx_dbg("num_kernel_bin : %d\n", req->num_kernel_bin);
-	for (ret = 0; ret < req->num_kernel_bin; ++ret) {
-		vipx_dbg("[%3d] addr : %#10x\n",
-				ret, req->kernel_bin[ret].addr);
-		vipx_dbg("[%3d] size : %#10x\n",
-				ret, req->kernel_bin[ret].size);
+	for (idx = 0; idx < req->num_kernel_bin; ++idx) {
+		vipx_dbg("[%3d] kernel addr : %#10x\n",
+				idx, req->kernel_bin[idx].addr);
+		vipx_dbg("[%3d] kernel size : %#10x\n",
+				idx, req->kernel_bin[idx].size);
 	}
 
-	vipx_dbg("gid : %d\n", req->execute_info.gid);
-	vipx_dbg("macro_sc_offset : %d\n", req->execute_info.macro_sg_offset);
-	vipx_dbg("num_input : %d\n", req->execute_info.num_input);
-	for (ret = 0; ret < req->execute_info.num_input; ++ret) {
-		int *buffer = (int *)&req->execute_info.input[ret][0];
-
-		for (idx = 0; idx < sizeof(req->execute_info.input[0][0]) >> 2;
-				++idx) {
-			vipx_dbg("[%3d] %#10x\n", ret, buffer[idx]);
-		}
+	vipx_dbg("gid : %#x\n", einfo->gid);
+	vipx_dbg("macro_sc_offset : %u\n", einfo->macro_sg_offset);
+	vipx_dbg("num_input : %u\n", einfo->num_input);
+	for (idx = 0; idx < einfo->num_input; ++idx) {
+		debug_addr = (int *)&einfo->input[idx][0];
+		for (iter = 0; iter < sizeof(einfo->input[0][0]) >> 2; ++iter)
+			vipx_dbg("[%3d][%3d] %#10x\n",
+					idx, iter, debug_addr[iter]);
 	}
-	vipx_dbg("num_input : %d\n", req->execute_info.num_output);
-	for (ret = 0; ret < req->execute_info.num_output; ++ret) {
-		int *buffer = (int *)&req->execute_info.output[ret][0];
 
-		for (idx = 0; idx < sizeof(req->execute_info.output[0][0]) >> 2;
-				++idx) {
-			vipx_dbg("[%3d] %#10x\n", ret, buffer[idx]);
-		}
+	vipx_dbg("num_output : %u\n", einfo->num_output);
+	for (idx = 0; idx < einfo->num_output; ++idx) {
+		debug_addr = (int *)&einfo->output[idx][0];
+		for (iter = 0; iter < sizeof(einfo->output[0][0]) >> 2; ++iter)
+			vipx_dbg("[%3d][%3d] %#10x\n",
+					idx, iter, debug_addr[iter]);
 	}
-#endif
+
+	vipx_dbg("user_para_size(not use) : %u\n", einfo->user_para_size);
+	debug_addr = (int *)&einfo->user_param_buffer;
+	for (idx = 0; idx < sizeof(einfo->user_param_buffer) >> 2; ++idx)
+		vipx_dbg("[%3d] %#10x\n", idx, debug_addr[idx]);
+
 	ret = __vipx_interface_send_mailbox(itf, itask);
 	if (ret)
 		goto p_err;
@@ -392,11 +392,9 @@ int vipx_hw_unload_graph(struct vipx_interface *itf, struct vipx_task *itask)
 	itask->param2 = sizeof(msg);
 	itask->param3 = NORMAL_MSG;
 
-#ifdef DEBUG_LOG_REQUEST_DUMP
-	vipx_dbg("< unload graph request >\n");
-	vipx_dbg("print gid of unload_graph_req\n");
-	vipx_dbg("[gid] %#10x\n", req->gid);
-#endif
+	vipx_dbg("[%s] unload graph (firmware)\n", __func__);
+	vipx_dbg("gid : %#x\n", req->gid);
+
 	ret = __vipx_interface_send_mailbox(itf, itask);
 	if (ret)
 		goto p_err;
@@ -538,7 +536,7 @@ static void __vipx_interface_isr(void *data)
 
 		if (rsp.head.msg_id == D2H_BOOTUP_NTF) {
 			if (rsp.body.bootup_ntf.result == 0) {
-				vipx_dbg("CM7 bootup complete (%u)\n",
+				vipx_info("CM7 bootup complete (%u)\n",
 						rsp.head.trans_id);
 				set_bit(VIPX_ITF_STATE_BOOTUP, &itf->state);
 			} else {
@@ -560,6 +558,8 @@ static void __vipx_interface_isr(void *data)
 					rsp.body.load_graph_rsp.result);
 			vipx_dbg("D2H_LOAD_GRAPH_RSP(graph_id) : %d\n",
 					rsp.body.load_graph_rsp.gid);
+			vipx_time_get_timestamp(&itf->process->time,
+					TIMESTAMP_END);
 			itf->process->message = VIPX_TASK_DONE;
 			wake_up(&itf->reply_wq);
 			exit_process_barrier(itf);
@@ -578,6 +578,8 @@ static void __vipx_interface_isr(void *data)
 					rsp.body.execute_rsp.gid);
 			vipx_dbg("D2H_EXECUTE_RSP(macro) : %d\n",
 					rsp.body.execute_rsp.macro_sgid);
+			vipx_time_get_timestamp(&itf->process->time,
+					TIMESTAMP_END);
 			itf->process->message = VIPX_TASK_DONE;
 			wake_up(&itf->reply_wq);
 			exit_process_barrier(itf);
@@ -594,6 +596,8 @@ static void __vipx_interface_isr(void *data)
 					rsp.body.unload_graph_rsp.result);
 			vipx_dbg("D2H_UNLOAD_GRAPH_RSP(graph_id) : %d\n",
 					rsp.body.unload_graph_rsp.gid);
+			vipx_time_get_timestamp(&itf->process->time,
+					TIMESTAMP_END);
 			itf->process->message = VIPX_TASK_DONE;
 			wake_up(&itf->reply_wq);
 			exit_process_barrier(itf);
@@ -876,10 +880,6 @@ int vipx_interface_probe(struct vipx_system *sys)
 
 	itf->regs = sys->reg_ss[REG_SS1];
 
-	ret = vipx_slab_init(&itf->slab);
-	if (ret)
-		goto p_err_slab;
-
 	taskmgr = &itf->taskmgr;
 	spin_lock_init(&taskmgr->slock);
 	ret = vipx_task_init(taskmgr, VIPX_MAX_GRAPH, itf);
@@ -895,11 +895,11 @@ int vipx_interface_probe(struct vipx_system *sys)
 	INIT_WORK(&itf->work_queue, vipx_interface_work_reply_func);
 	__vipx_interface_work_list_init(&itf->work_list, VIPX_WORK_MAX_COUNT);
 
+	itf->wait_time = VIPX_RESPONSE_TIMEOUT;
+
 	vipx_leave();
 	return 0;
 p_err_taskmgr:
-	vipx_slab_deinit(&itf->slab);
-p_err_slab:
 	devm_free_irq(dev, itf->irq[REG_SS2], itf);
 p_err_req_irq1:
 	devm_free_irq(dev, itf->irq[REG_SS1], itf);
@@ -912,7 +912,6 @@ p_err_irq0:
 void vipx_interface_remove(struct vipx_interface *itf)
 {
 	vipx_task_deinit(&itf->taskmgr);
-	vipx_slab_deinit(&itf->slab);
 	devm_free_irq(itf->system->dev, itf->irq[REG_SS2], itf);
 	devm_free_irq(itf->system->dev, itf->irq[REG_SS1], itf);
 }

@@ -345,7 +345,8 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
-	return ret;
+	/* return value is included in args->ret */
+	return 0;
 }
 
 static int vipx_core_load_graph_info(struct vipx_context *vctx,
@@ -372,7 +373,8 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
-	return ret;
+	/* return value is included in args->ret */
+	return 0;
 }
 
 static int vipx_core_unload_graph_info(struct vipx_context *vctx,
@@ -399,7 +401,8 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
-	return ret;
+	/* return value is included in args->ret */
+	return 0;
 }
 
 static int vipx_core_execute_submodel(struct vipx_context *vctx,
@@ -426,7 +429,8 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
-	return ret;
+	/* return value is included in args->ret */
+	return 0;
 }
 
 const struct vipx_ioctl_ops vipx_core_ioctl_ops = {
@@ -508,9 +512,6 @@ static int vipx_release(struct inode *inode, struct file *file)
 	struct vipx_context *vctx;
 	struct vipx_core *core;
 
-	//TODO temp code
-	vipx_debug_write_log_binary();
-	vipx_debug_dump_debug_regs();
 	vipx_enter();
 	vctx = file->private_data;
 	core = vctx->core;

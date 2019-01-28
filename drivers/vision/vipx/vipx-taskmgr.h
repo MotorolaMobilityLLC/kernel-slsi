@@ -138,7 +138,7 @@ struct vipx_task {
 	unsigned int			tdindex;
 	void				*owner;
 
-	struct vipx_time		time[VIPX_TIME_COUNT];
+	struct vipx_time		time;
 };
 
 struct vipx_taskmgr {
