@@ -1409,6 +1409,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_bus>; /* or _bus_dual */
 		samsung,usi-serial-v2;
+		samsung,dbg-uart-ch;
+		samsung,dbg-uart-baud = <115200>;
+		samsung,dbg-word-len = <8>;
 		clocks = <&clock GATE_UART_QCH>, <&clock UART>;
 		clock-names = "gate_uart_clk0", "ipclk_uart0";
 		status = "disabled";
