@@ -11,23 +11,26 @@
 #ifndef __VIPX_TIME_H__
 #define __VIPX_TIME_H__
 
-#include <linux/time.h>
+#include <linux/ktime.h>
+
+#define TIMESTAMP_START		(1 << 0)
+#define TIMESTAMP_END		(1 << 1)
 
 enum vipx_time_measure_point {
-	VIPX_TIME_QUEUE,
-	VIPX_TIME_REQUEST,
-	VIPX_TIME_RESOURCE,
-	VIPX_TIME_PROCESS,
-	VIPX_TIME_DONE,
-	VIPX_TIME_COUNT
+	TIME_LOAD_GRAPH,
+	TIME_EXECUTE_GRAPH,
+	TIME_UNLOAD_GRAPH,
+	TIME_COUNT
 };
 
 struct vipx_time {
-	struct timeval		time;
+	struct timespec		start;
+	struct timespec		end;
+	struct timespec		interval;
 };
 
-void vipx_get_timestamp(struct vipx_time *time);
-
-#define VIPX_TIME_IN_US(v)	((v).time.tv_sec * 1000000 + (v).time.tv_usec)
+void vipx_time_get_timestamp(struct vipx_time *time, int opt);
+void vipx_time_get_interval(struct vipx_time *time);
+void vipx_time_print(struct vipx_time *time, const char *f, ...);
 
 #endif

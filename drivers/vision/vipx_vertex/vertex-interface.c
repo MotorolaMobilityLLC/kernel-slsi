@@ -1090,10 +1090,6 @@ int vertex_interface_probe(struct vertex_system *sys)
 	vertex_interface_data = itf;
 	itf->regs = sys->reg_ss[VERTEX_REG_SS1];
 
-	ret = vertex_slab_init(&itf->slab);
-	if (ret)
-		goto p_err_slab;
-
 	taskmgr = &itf->taskmgr;
 	spin_lock_init(&taskmgr->slock);
 	ret = vertex_task_init(taskmgr, VERTEX_MAX_GRAPH, itf);
@@ -1113,13 +1109,10 @@ int vertex_interface_probe(struct vertex_system *sys)
 	vertex_leave();
 	return 0;
 p_err_taskmgr:
-	vertex_slab_deinit(&itf->slab);
-p_err_slab:
 	return ret;
 }
 
 void vertex_interface_remove(struct vertex_interface *itf)
 {
 	vertex_task_deinit(&itf->taskmgr);
-	vertex_slab_deinit(&itf->slab);
 }

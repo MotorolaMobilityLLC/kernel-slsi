@@ -8,20 +8,18 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
+
 #include "vipx-log.h"
 #include "vipx-util.h"
 #include "vipx-kernel-binary.h"
+#include "vipx-memory.h"
 #include "vipx-context.h"
-
-/* Disable DEBUG_LOG */
-// #define KERNEL_BINARY_DEBUG
-// #define LOAD_GRAPH_INFO_DEBUG
-// #define UNLOAD_GRAPH_INFO_DEBUG
-// #define EXECUTE_DEBUG
 
 static struct vipx_buffer *__vipx_context_create_buffer(
 		struct vipx_context *vctx,
-		struct vipx_common_mem *common_mem)
+		struct vipx_common_mem *common_mem,
+		enum dma_data_direction dir)
 {
 	int ret;
 	struct vipx_buffer *buf;
@@ -29,34 +27,49 @@ static struct vipx_buffer *__vipx_context_create_buffer(
 
 	vipx_enter();
 
+	if (unlikely(common_mem->size == 0)) {
+		ret = -EINVAL;
+		vipx_err("memory must not be zero\n");
+		goto p_err_size;
+	}
+
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
 		vipx_err("Failed to alloc buffer\n");
-		goto p_err;
-	}
-
-	if (unlikely(common_mem->size == 0)) {
-		ret = -EINVAL;
-		vipx_err("memory size is invalid (%u)\n", common_mem->size);
-		goto p_err_size;
+		goto p_err_alloc;
 	}
 
 	mem = &vctx->core->system->memory;
+
 	buf->m.fd = common_mem->fd;
 	buf->size = common_mem->size;
+	buf->addr_type = common_mem->addr_type;
+	buf->mem_attr = common_mem->mem_attr;
+	buf->mem_type = common_mem->mem_type;
+	buf->offset = common_mem->offset;
+	buf->direction = dir;
+
 	ret = mem->mops->map_dmabuf(mem, buf);
 	if (unlikely(ret))
 		goto p_err_map;
 
-	common_mem->iova = (unsigned int)buf->dvaddr;
+	if (buf->mem_attr == VIPX_COMMON_CACHEABLE) {
+		ret = mem->mops->sync_for_device(mem, buf);
+		if (ret)
+			goto p_err_sync;
+	}
+
+	common_mem->iova = (unsigned int)buf->dvaddr + buf->offset;
 
 	vipx_leave();
 	return buf;
+p_err_sync:
+	mem->mops->unmap_dmabuf(mem, buf);
 p_err_map:
-p_err_size:
 	kfree(buf);
-p_err:
+p_err_alloc:
+p_err_size:
 	return ERR_PTR(ret);
 }
 
@@ -66,7 +79,13 @@ static void __vipx_context_destroy_buffer(struct vipx_context *vctx,
 	struct vipx_memory *mem;
 
 	vipx_enter();
+	if (!buf)
+		return;
+
 	mem = &vctx->core->system->memory;
+	if (buf->mem_attr == VIPX_COMMON_CACHEABLE)
+		mem->mops->sync_for_cpu(mem, buf);
+
 	mem->mops->unmap_dmabuf(mem, buf);
 	kfree(buf);
 	vipx_leave();
@@ -78,12 +97,10 @@ static int vipx_context_load_kernel_binary(struct vipx_context *vctx,
 	int ret;
 
 	vipx_enter();
-#ifdef KERNEL_BINARY_DEBUG
-	vipx_dbg("Load kernel binary\n");
-	vipx_dbg("global_id   : %d\n", kernel_bin->global_id);
-	vipx_dbg("kernel_fd   : %d\n", kernel_bin->kernel_fd);
-	vipx_dbg("kernel_size : %d\n", kernel_bin->kernel_size);
-#endif
+	vipx_dbg("[%s] load kernel binary (framework)\n", __func__);
+	vipx_dbg("global_id   : %#x\n", kernel_bin->global_id);
+	vipx_dbg("kernel_fd   : %#x\n", kernel_bin->kernel_fd);
+	vipx_dbg("kernel_size : %#x\n", kernel_bin->kernel_size);
 
 	ret = vipx_kernel_binary_add(vctx, kernel_bin->global_id,
 			kernel_bin->kernel_fd, kernel_bin->kernel_size);
@@ -104,49 +121,16 @@ static int vipx_context_load_graph_info(struct vipx_context *vctx,
 	struct vipx_graph_model *gmodel;
 	struct vipx_common_mem *common_mem;
 	struct vipx_buffer *buffer;
+	int idx;
+	int *debug_addr;
 
 	vipx_enter();
 	common_ginfo = &ginfo->graph_info;
 
-#ifdef LOAD_GRAPH_INFO_DEBUG
-	vipx_dbg("Load graph info\n");
-	vipx_dbg("Graph ID : %#x\n", common_ginfo->gid);
-	common_mem = &common_ginfo->graph;
-	vipx_dbg("--- Graph ---\n");
-	vipx_dbg("addr(fd) : %d\n", common_mem->fd);
-	vipx_dbg("size     : %d\n", common_mem->size);
-	vipx_dbg("offset   : %d\n", common_mem->offset);
-	vipx_dbg("addr_type: %d\n", common_mem->addr_type);
-	vipx_dbg("mem_attr : %d\n", common_mem->mem_attr);
-	vipx_dbg("mem_type : %d\n", common_mem->mem_type);
-
-	common_mem = &common_ginfo->temp_buf;
-	vipx_dbg("--- Temp_buf ---\n");
-	vipx_dbg("addr(fd) : %d\n", common_mem->fd);
-	vipx_dbg("size     : %d\n", common_mem->size);
-	vipx_dbg("offset   : %d\n", common_mem->offset);
-	vipx_dbg("addr_type: %d\n", common_mem->addr_type);
-	vipx_dbg("mem_attr : %d\n", common_mem->mem_attr);
-	vipx_dbg("mem_type : %d\n", common_mem->mem_type);
-
-	common_mem = &common_ginfo->weight;
-	vipx_dbg("--- Weight ---\n");
-	vipx_dbg("addr(fd) : %d\n", common_mem->fd);
-	vipx_dbg("size     : %d\n", common_mem->size);
-	vipx_dbg("offset   : %d\n", common_mem->offset);
-	vipx_dbg("addr_type: %d\n", common_mem->addr_type);
-	vipx_dbg("mem_attr : %d\n", common_mem->mem_attr);
-	vipx_dbg("mem_type : %d\n", common_mem->mem_type);
-
-	common_mem = &common_ginfo->bias;
-	vipx_dbg("--- Bias ---\n");
-	vipx_dbg("addr(fd) : %d\n", common_mem->fd);
-	vipx_dbg("size     : %d\n", common_mem->size);
-	vipx_dbg("offset   : %d\n", common_mem->offset);
-	vipx_dbg("addr_type: %d\n", common_mem->addr_type);
-	vipx_dbg("mem_attr : %d\n", common_mem->mem_attr);
-	vipx_dbg("mem_type : %d\n", common_mem->mem_type);
-#endif
+	vipx_dbg("[%s] load graph (framework)\n", __func__);
+	debug_addr = (int *)common_ginfo;
+	for (idx = 0; idx < sizeof(*common_ginfo) >> 2; ++idx)
+		vipx_dbg("[%3d] %#10x\n", idx, debug_addr[idx]);
 
 	gmodel = vctx->graph_ops->create_model(vctx->graph, common_ginfo);
 	if (IS_ERR(gmodel)) {
@@ -155,7 +139,7 @@ static int vipx_context_load_graph_info(struct vipx_context *vctx,
 	}
 
 	common_mem = &gmodel->common_ginfo.graph;
-	buffer = __vipx_context_create_buffer(vctx, common_mem);
+	buffer = __vipx_context_create_buffer(vctx, common_mem, DMA_TO_DEVICE);
 	if (IS_ERR(buffer)) {
 		ret = PTR_ERR(buffer);
 		vipx_err("Failed to create buffer for graph (%d)\n", ret);
@@ -164,39 +148,77 @@ static int vipx_context_load_graph_info(struct vipx_context *vctx,
 	gmodel->graph = buffer;
 
 	common_mem = &gmodel->common_ginfo.temp_buf;
-	buffer = __vipx_context_create_buffer(vctx, common_mem);
-	if (IS_ERR(buffer)) {
-		ret = PTR_ERR(buffer);
-		vipx_err("Failed to create buffer for temp_buf (%d)\n", ret);
-		goto p_err_temp_buf;
+	if (common_mem->size) {
+		buffer = __vipx_context_create_buffer(vctx, common_mem,
+				DMA_FROM_DEVICE);
+		if (IS_ERR(buffer)) {
+			ret = PTR_ERR(buffer);
+			vipx_err("Failed to create buffer for temp_buf (%d)\n",
+					ret);
+			goto p_err_temp_buf;
+		}
+		gmodel->temp_buf = buffer;
+	} else {
+		gmodel->temp_buf = NULL;
 	}
-	gmodel->temp_buf = buffer;
 
 	common_mem = &gmodel->common_ginfo.weight;
-	buffer = __vipx_context_create_buffer(vctx, common_mem);
-	if (IS_ERR(buffer)) {
-		ret = PTR_ERR(buffer);
-		vipx_err("Failed to create buffer for weight (%d)\n", ret);
-		goto p_err_weight;
+	if (common_mem->size) {
+		buffer = __vipx_context_create_buffer(vctx, common_mem,
+				DMA_TO_DEVICE);
+		if (IS_ERR(buffer)) {
+			ret = PTR_ERR(buffer);
+			vipx_err("Failed to create buffer for weight (%d)\n",
+					ret);
+			goto p_err_weight;
+		}
+		gmodel->weight = buffer;
+	} else {
+		gmodel->weight = NULL;
 	}
-	gmodel->weight = buffer;
 
 	common_mem = &gmodel->common_ginfo.bias;
-	buffer = __vipx_context_create_buffer(vctx, common_mem);
-	if (IS_ERR(buffer)) {
-		ret = PTR_ERR(buffer);
-		vipx_err("Failed to create buffer for bias (%d)\n", ret);
-		goto p_err_bias;
+	if (common_mem->size) {
+		buffer = __vipx_context_create_buffer(vctx, common_mem,
+				DMA_TO_DEVICE);
+		if (IS_ERR(buffer)) {
+			ret = PTR_ERR(buffer);
+			vipx_err("Failed to create buffer for bias (%d)\n",
+					ret);
+			goto p_err_bias;
+		}
+		gmodel->bias = buffer;
+	} else {
+		gmodel->bias = NULL;
 	}
-	gmodel->bias = buffer;
+
+	common_mem = &gmodel->common_ginfo.user_param_buffer;
+	if (common_mem->size) {
+		buffer = __vipx_context_create_buffer(vctx, common_mem,
+				DMA_TO_DEVICE);
+		if (IS_ERR(buffer)) {
+			ret = PTR_ERR(buffer);
+			vipx_err("Failed to create user_param_buffer (%d)\n",
+					ret);
+			goto p_err_user_param_buffer;
+		}
+		gmodel->user_param_buffer = buffer;
+	} else {
+		gmodel->user_param_buffer = NULL;
+	}
 
 	ret = vctx->graph_ops->register_model(vctx->graph, gmodel);
 	if (ret)
 		goto p_err_register_model;
 
+	ginfo->timestamp[0] = gmodel->time[TIME_LOAD_GRAPH].start;
+	ginfo->timestamp[1] = gmodel->time[TIME_LOAD_GRAPH].end;
+
 	vipx_leave();
 	return 0;
 p_err_register_model:
+	__vipx_context_destroy_buffer(vctx, gmodel->user_param_buffer);
+p_err_user_param_buffer:
 	__vipx_context_destroy_buffer(vctx, gmodel->bias);
 p_err_bias:
 	__vipx_context_destroy_buffer(vctx, gmodel->weight);
@@ -217,10 +239,8 @@ static int vipx_context_unload_graph_info(struct vipx_context *vctx,
 	struct vipx_graph_model *gmodel;
 
 	vipx_enter();
-#ifdef UNLOAD_GRAPH_INFO_DEBUG
-	vipx_dbg("Unload graph info\n");
-	vipx_dbg("Graph ID : %#x\n", ginfo->graph_id);
-#endif
+	vipx_dbg("[%s] unload graph (framework)\n", __func__);
+	vipx_dbg("graph_id : %#x\n", ginfo->graph_id);
 
 	gmodel = vctx->graph_ops->get_model(vctx->graph, ginfo->graph_id);
 	if (IS_ERR(gmodel)) {
@@ -230,6 +250,10 @@ static int vipx_context_unload_graph_info(struct vipx_context *vctx,
 
 	vctx->graph_ops->unregister_model(vctx->graph, gmodel);
 
+	ginfo->timestamp[0] = gmodel->time[TIME_UNLOAD_GRAPH].start;
+	ginfo->timestamp[1] = gmodel->time[TIME_UNLOAD_GRAPH].end;
+
+	__vipx_context_destroy_buffer(vctx, gmodel->user_param_buffer);
 	__vipx_context_destroy_buffer(vctx, gmodel->bias);
 	__vipx_context_destroy_buffer(vctx, gmodel->weight);
 	__vipx_context_destroy_buffer(vctx, gmodel->temp_buf);
@@ -247,18 +271,22 @@ static int vipx_context_execute_submodel(struct vipx_context *vctx,
 		struct vipx_ioc_execute_submodel *execute)
 {
 	int ret;
-	int idx;
 	int num_input, num_output;
-
 	struct vipx_common_execute_info *execute_info;
 	struct vipx_graph_model *gmodel;
 	struct vipx_common_mem *common_mem;
 	struct vipx_buffer **buffer;
 	int buffer_count = 0, translate_count = 0;
+	int idx;
+	int *debug_addr;
 
 	vipx_enter();
-
 	execute_info = &execute->execute_info;
+
+	vipx_dbg("[%s] execute (framework)\n", __func__);
+	debug_addr = (int *)execute_info;
+	for (idx = 0; idx < sizeof(*execute_info) >> 2; ++idx)
+		vipx_dbg("[%3d] %#10x\n", idx, debug_addr[idx]);
 
 	num_input = execute_info->num_input;
 	if (unlikely(num_input > MAX_INPUT_NUM)) {
@@ -280,31 +308,8 @@ static int vipx_context_execute_submodel(struct vipx_context *vctx,
 	//TODO check plane count of buffer
 	buffer_count += num_output;
 
-#ifdef EXECUTE_DEBUG
-	vipx_dbg("=====Execute submodel====\n");
-	vipx_dbg("Global ID       : %#x\n", execute_info->gid);
-	vipx_dbg("macro_sg_offset : %d\n", execute_info->macro_sg_offset);
-	vipx_dbg("num_input       : %d\n", execute_info->num_input);
-	vipx_dbg("num_output      : %d\n", execute_info->num_output);
-
-	for (idx = 0; idx < num_input; ++idx) {
-		common_mem = &execute_info->input[idx][0];
-		vipx_dbg("IN [%d/%d]\n", idx, num_input - 1);
-		vipx_dbg("fd : %d\n", common_mem->fd);
-		vipx_dbg("size : %d\n", common_mem->size);
-		vipx_dbg("addr : %u\n", common_mem->iova);
-	}
-
-	for (idx = 0; idx < num_output; ++idx) {
-		common_mem = &execute_info->output[idx][0];
-		vipx_dbg("OUT [%d/%d]\n", idx, num_output - 1);
-		vipx_dbg("fd : %d\n", common_mem->fd);
-		vipx_dbg("size : %d\n", common_mem->size);
-		vipx_dbg("addr : %u\n", common_mem->iova);
-	}
-
-	vipx_dbg("user_para_size : %d\n", execute_info->user_para_size);
-#endif
+	if (execute_info->user_param_buffer.size)
+		buffer_count++;
 
 	gmodel = vctx->graph_ops->get_model(vctx->graph, execute_info->gid);
 	if (unlikely(IS_ERR(gmodel))) {
@@ -332,7 +337,7 @@ static int vipx_context_execute_submodel(struct vipx_context *vctx,
 	for (idx = 0; idx < num_input; ++idx) {
 		common_mem = &execute_info->input[idx][0];
 		buffer[translate_count] = __vipx_context_create_buffer(vctx,
-				common_mem);
+				common_mem, DMA_TO_DEVICE);
 		if (unlikely(IS_ERR(buffer[translate_count]))) {
 			ret = PTR_ERR(buffer[translate_count]);
 			vipx_err("Failed to translate input(%d/%d,%d/%d,%d)\n",
@@ -347,7 +352,7 @@ static int vipx_context_execute_submodel(struct vipx_context *vctx,
 	for (idx = 0; idx < num_output; ++idx) {
 		common_mem = &execute_info->output[idx][0];
 		buffer[translate_count] = __vipx_context_create_buffer(vctx,
-				common_mem);
+				common_mem, DMA_FROM_DEVICE);
 		if (unlikely(IS_ERR(buffer[translate_count]))) {
 			ret = PTR_ERR(buffer[translate_count]);
 			vipx_err("Failed to translate output(%d/%d,%d/%d,%d)\n",
@@ -358,13 +363,30 @@ static int vipx_context_execute_submodel(struct vipx_context *vctx,
 		translate_count++;
 	}
 
+	if (execute_info->user_param_buffer.size) {
+		common_mem = &execute_info->user_param_buffer;
+		buffer[translate_count] = __vipx_context_create_buffer(vctx,
+				common_mem, DMA_TO_DEVICE);
+		if (unlikely(IS_ERR(buffer[translate_count]))) {
+			ret = PTR_ERR(buffer[translate_count]);
+			vipx_err("Failed to translate user_param(%d/%d,%d)\n",
+					translate_count, buffer_count, ret);
+			goto p_err_buffer;
+		}
+		translate_count++;
+	}
+
 	ret = vctx->graph_ops->execute_model(vctx->graph, gmodel, execute_info);
 	if (ret)
 		goto p_err_execute;
 
+	execute->timestamp[0] = gmodel->time[TIME_EXECUTE_GRAPH].start;
+	execute->timestamp[1] = gmodel->time[TIME_EXECUTE_GRAPH].end;
+
 	for (idx = 0; idx < translate_count; ++idx)
 		__vipx_context_destroy_buffer(vctx, buffer[idx]);
 
+	kfree(buffer);
 	vipx_leave();
 	return 0;
 p_err_execute:

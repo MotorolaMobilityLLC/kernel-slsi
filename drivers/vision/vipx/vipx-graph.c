@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "vipx-log.h"
@@ -290,13 +291,6 @@ static int vipx_graph_queue(struct vipx_graph *graph,
 	task->param1 = 0;
 	task->param2 = 0;
 	task->param3 = 0;
-	clear_bit(VS4L_CL_FLAG_TIMESTAMP, &task->flags);
-
-	if ((incl->flags & (1 << VS4L_CL_FLAG_TIMESTAMP)) ||
-		(otcl->flags & (1 << VS4L_CL_FLAG_TIMESTAMP))) {
-		set_bit(VS4L_CL_FLAG_TIMESTAMP, &task->flags);
-		vipx_get_timestamp(&task->time[VIPX_TIME_QUEUE]);
-	}
 
 	vipx_graphmgr_queue(graph->owner, task);
 
@@ -459,9 +453,6 @@ static int vipx_graph_request(struct vipx_graph *graph, struct vipx_task *task)
 	vipx_task_trans_req_to_pre(tmgr, task);
 	taskmgr_x_barrier_irqr(tmgr, 0, flags);
 
-	if (test_bit(VS4L_CL_FLAG_TIMESTAMP, &task->flags))
-		vipx_get_timestamp(&task->time[VIPX_TIME_REQUEST]);
-
 	vipx_leave();
 	return 0;
 p_err:
@@ -486,9 +477,6 @@ static int vipx_graph_process(struct vipx_graph *graph, struct vipx_task *task)
 	taskmgr_e_barrier_irqs(tmgr, TASKMGR_IDX_0, flags);
 	vipx_task_trans_pre_to_pro(tmgr, task);
 	taskmgr_x_barrier_irqr(tmgr, TASKMGR_IDX_0, flags);
-
-	if (test_bit(VS4L_CL_FLAG_TIMESTAMP, &task->flags))
-		vipx_get_timestamp(&task->time[VIPX_TIME_PROCESS]);
 
 	vipx_leave();
 	return 0;
@@ -516,16 +504,6 @@ static int vipx_graph_cancel(struct vipx_graph *graph, struct vipx_task *task)
 		vipx_err("task state(%u) is not PROCESS (graph:%u)\n",
 				task->state, graph->idx);
 		goto p_err;
-	}
-
-	if (test_bit(VS4L_CL_FLAG_TIMESTAMP, &task->flags)) {
-		vipx_get_timestamp(&task->time[VIPX_TIME_DONE]);
-
-		if (incl->flags & (1 << VS4L_CL_FLAG_TIMESTAMP))
-			memcpy(incl->timestamp, task->time, sizeof(task->time));
-
-		if (otcl->flags & (1 << VS4L_CL_FLAG_TIMESTAMP))
-			memcpy(otcl->timestamp, task->time, sizeof(task->time));
 	}
 
 	taskmgr_e_barrier_irqs(tmgr, TASKMGR_IDX_0, flags);
@@ -567,16 +545,6 @@ static int vipx_graph_done(struct vipx_graph *graph, struct vipx_task *task)
 		vipx_err("task state(%u) is not PROCESS (graph:%u)\n",
 				task->state, graph->idx);
 		goto p_err;
-	}
-
-	if (test_bit(VS4L_CL_FLAG_TIMESTAMP, &task->flags)) {
-		vipx_get_timestamp(&task->time[VIPX_TIME_DONE]);
-
-		if (incl->flags & (1 << VS4L_CL_FLAG_TIMESTAMP))
-			memcpy(incl->timestamp, task->time, sizeof(task->time));
-
-		if (otcl->flags & (1 << VS4L_CL_FLAG_TIMESTAMP))
-			memcpy(otcl->timestamp, task->time, sizeof(task->time));
 	}
 
 	taskmgr_e_barrier_irqs(tmgr, TASKMGR_IDX_0, flags);
@@ -743,6 +711,50 @@ p_err:
 	return ret;
 }
 
+static void __vipx_graph_cleanup_buffer(struct vipx_graph *graph,
+		struct vipx_buffer *buf)
+{
+	struct vipx_memory *mem;
+
+	vipx_enter();
+	if (!buf)
+		return;
+
+	mem = &graph->vctx->core->system->memory;
+	if (buf->mem_attr == VIPX_COMMON_CACHEABLE)
+		mem->mops->sync_for_cpu(mem, buf);
+
+	mem->mops->unmap_dmabuf(mem, buf);
+	kfree(buf);
+	vipx_leave();
+}
+
+static void __vipx_graph_cleanup_model(struct vipx_graph *graph)
+{
+	struct vipx_context *vctx;
+	struct vipx_graph_model *gmodel, *temp;
+
+	vipx_enter();
+
+	if (!graph->gmodel_count) {
+		vipx_leave();
+		return;
+	}
+
+	vctx = graph->vctx;
+	list_for_each_entry_safe(gmodel, temp, &graph->gmodel_list, list) {
+		vctx->graph_ops->unregister_model(graph, gmodel);
+		__vipx_graph_cleanup_buffer(graph, gmodel->user_param_buffer);
+		__vipx_graph_cleanup_buffer(graph, gmodel->bias);
+		__vipx_graph_cleanup_buffer(graph, gmodel->weight);
+		__vipx_graph_cleanup_buffer(graph, gmodel->temp_buf);
+		__vipx_graph_cleanup_buffer(graph, gmodel->graph);
+		vctx->graph_ops->destroy_model(graph, gmodel);
+	}
+
+	vipx_leave();
+}
+
 const struct vipx_context_gops vipx_context_gops = {
 	.create_model		= vipx_graph_create_model,
 	.get_model		= vipx_graph_get_model,
@@ -817,6 +829,7 @@ int vipx_graph_destroy(struct vipx_graph *graph)
 {
 	vipx_enter();
 	__vipx_graph_stop(graph);
+	__vipx_graph_cleanup_model(graph);
 	vipx_graphmgr_grp_unregister(graph->owner, graph);
 
 	kfree(graph->inflist.formats);

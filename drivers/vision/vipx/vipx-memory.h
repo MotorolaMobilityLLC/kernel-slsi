@@ -16,8 +16,8 @@
 #include "vs4l.h"
 #include "vipx-common-type.h"
 
-/* TODO temp for test */
-#define VIPX_CM7_DRAM_BIN_DVADDR	(0xB8000000)
+#define VIPX_CC_DRAM_BIN_DVADDR		(0xB8000000)
+#define VIPX_CC_DRAM_BIN_SIZE		(SZ_4M)
 #define VIPX_HEAP_SIZE			(SZ_1M)
 #define VIPX_DEBUG_SIZE			(SZ_16M)
 
@@ -31,16 +31,19 @@ struct vipx_buffer {
 	unsigned char			mem_attr;
 	unsigned char			mem_type;
 	unsigned char			reserved;
+	unsigned int			offset;
 	size_t                          size;
-	size_t				aligned_size;
+	size_t				dbuf_size;
 	union {
 		unsigned long           userptr;
 		int                     fd;
 	} m;
 
+	enum dma_data_direction		direction;
 	struct dma_buf                  *dbuf;
 	struct dma_buf_attachment       *attachment;
 	struct sg_table                 *sgt;
+
 	dma_addr_t                      dvaddr;
 	void                            *kvaddr;
 
@@ -48,26 +51,31 @@ struct vipx_buffer {
 };
 
 struct vipx_memory_ops {
-	int (*map_dmabuf)(struct vipx_memory *mem, struct vipx_buffer *buf);
-	int (*unmap_dmabuf)(struct vipx_memory *mem, struct vipx_buffer *buf);
-	int (*map_userptr)(struct vipx_memory *mem, struct vipx_buffer *buf);
-	int (*unmap_userptr)(struct vipx_memory *mem, struct vipx_buffer *buf);
+	int (*map_dmabuf)(struct vipx_memory *mem,
+			struct vipx_buffer *buf);
+	int (*unmap_dmabuf)(struct vipx_memory *mem,
+			struct vipx_buffer *buf);
+	int (*sync_for_device)(struct vipx_memory *mem,
+			struct vipx_buffer *buf);
+	int (*sync_for_cpu)(struct vipx_memory *mem,
+			struct vipx_buffer *buf);
 };
 
 struct vipx_priv_mem {
 	char				name[VIPX_PRIV_MEM_NAME_LEN];
 	size_t				size;
+	size_t				dbuf_size;
 	long				flags;
-	enum dma_data_direction		direction;
 	bool				kmap;
+	bool				fixed_dvaddr;
 
-	void				*kvaddr;
-	dma_addr_t			paddr;
-	dma_addr_t			dvaddr;
-
+	enum dma_data_direction		direction;
 	struct dma_buf			*dbuf;
 	struct dma_buf_attachment	*attachment;
 	struct sg_table			*sgt;
+
+	dma_addr_t			dvaddr;
+	void				*kvaddr;
 };
 
 struct vipx_memory {
@@ -80,10 +88,6 @@ struct vipx_memory {
 	struct vipx_priv_mem		heap;
 	struct vipx_priv_mem		debug;
 };
-
-dma_addr_t vipx_memory_allocate_heap(struct vipx_memory *mem,
-		int id, size_t size);
-void vipx_memory_free_heap(struct vipx_memory *mem);
 
 int vipx_memory_open(struct vipx_memory *mem);
 int vipx_memory_close(struct vipx_memory *mem);

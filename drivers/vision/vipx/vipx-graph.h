@@ -64,8 +64,10 @@ struct vipx_graph_model {
 	struct vipx_buffer		*temp_buf;
 	struct vipx_buffer		*weight;
 	struct vipx_buffer		*bias;
+	struct vipx_buffer		*user_param_buffer;
 
 	struct list_head		list;
+	struct vipx_time		time[TIME_COUNT];
 };
 
 struct vipx_graph {

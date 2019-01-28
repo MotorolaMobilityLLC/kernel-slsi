@@ -76,13 +76,6 @@ static void vipx_exynos9610_clk_deinit(struct vipx_system *sys)
 	vipx_leave();
 }
 
-static int vipx_exynos9610_clk_cfg(struct vipx_system *sys)
-{
-	vipx_enter();
-	vipx_leave();
-	return 0;
-}
-
 static int vipx_exynos9610_clk_on(struct vipx_system *sys)
 {
 	int ret;
@@ -127,6 +120,46 @@ static int vipx_exynos9610_clk_off(struct vipx_system *sys)
 	return 0;
 }
 
+static int vipx_exynos9610_clk_get_count(struct vipx_system *sys)
+{
+	vipx_check();
+	return VIPX_CLK_MAX;
+}
+
+static unsigned long vipx_exynos9610_clk_get_freq(struct vipx_system *sys,
+		int id)
+{
+	unsigned long freq;
+
+	vipx_enter();
+	if ((id < 0) || (id >= VIPX_CLK_MAX)) {
+		vipx_warn("request id(%d). clk id is valid from 0 to %d\n",
+				id, VIPX_CLK_MAX - 1);
+		return -EINVAL;
+	}
+	freq = clk_get_rate(vipx_exynos9610_clk_array[id].clk);
+
+	vipx_leave();
+	return freq;
+}
+
+static const char *vipx_exynos9610_clk_get_name(struct vipx_system *sys,
+		int id)
+{
+	const char *name;
+
+	vipx_enter();
+	if ((id < 0) || (id >= VIPX_CLK_MAX)) {
+		vipx_warn("request id(%d). clk id is valid from 0 to %d\n",
+				id, VIPX_CLK_MAX - 1);
+		return NULL;
+	}
+	name = vipx_exynos9610_clk_array[id].name;
+
+	vipx_leave();
+	return name;
+}
+
 static int vipx_exynos9610_clk_dump(struct vipx_system *sys)
 {
 	int index;
@@ -140,7 +173,8 @@ static int vipx_exynos9610_clk_dump(struct vipx_system *sys)
 		clk = vipx_exynos9610_clk_array[index].clk;
 
 		freq = clk_get_rate(clk);
-		vipx_info("%30s(%d) : %9lu Hz\n", name, index, freq);
+		vipx_info("%30s(%d) : %3lu.%06lu MHz\n",
+				name, index, freq / 1000000, freq % 1000000);
 	}
 
 	vipx_leave();
@@ -148,10 +182,12 @@ static int vipx_exynos9610_clk_dump(struct vipx_system *sys)
 }
 
 const struct vipx_clk_ops vipx_clk_ops = {
-	.clk_init	= vipx_exynos9610_clk_init,
-	.clk_deinit	= vipx_exynos9610_clk_deinit,
-	.clk_cfg	= vipx_exynos9610_clk_cfg,
-	.clk_on		= vipx_exynos9610_clk_on,
-	.clk_off	= vipx_exynos9610_clk_off,
-	.clk_dump	= vipx_exynos9610_clk_dump
+	.init		= vipx_exynos9610_clk_init,
+	.deinit		= vipx_exynos9610_clk_deinit,
+	.on		= vipx_exynos9610_clk_on,
+	.off		= vipx_exynos9610_clk_off,
+	.dump		= vipx_exynos9610_clk_dump,
+	.get_count	= vipx_exynos9610_clk_get_count,
+	.get_freq	= vipx_exynos9610_clk_get_freq,
+	.get_name	= vipx_exynos9610_clk_get_name,
 };

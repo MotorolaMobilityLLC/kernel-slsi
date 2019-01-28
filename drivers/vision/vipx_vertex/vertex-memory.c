@@ -12,7 +12,6 @@
 #include <asm/cacheflush.h>
 #include <linux/ion_exynos.h>
 #include <linux/exynos_iovmm.h>
-#include <linux/of_reserved_mem.h>
 
 #include "vertex-log.h"
 #include "vertex-mailbox.h"
@@ -166,6 +165,49 @@ const struct vertex_memory_ops vertex_memory_ops = {
 	.unmap_userptr	= vertex_memory_unmap_userptr
 };
 
+static int __vertex_memory_iovmm_map_sg(struct vertex_memory *mem,
+		struct vertex_priv_mem *pmem)
+{
+	size_t size;
+
+	vertex_enter();
+	size = iommu_map_sg(mem->domain, pmem->dvaddr, pmem->sgt->sgl,
+			pmem->sgt->nents, 0);
+	if (!size) {
+		vertex_err("Failed to map sg\n");
+		return -ENOMEM;
+	}
+
+	if (size != pmem->size) {
+		vertex_warn("pmem size(%zd) is different from mapped size(%zd)\n",
+				pmem->size, size);
+		pmem->size = size;
+	}
+
+	vertex_leave();
+	return 0;
+}
+
+extern void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
+		dma_addr_t d_start, size_t size);
+
+static int __vertex_memory_iovmm_unmap(struct vertex_memory *mem,
+		struct vertex_priv_mem *pmem)
+{
+	size_t size;
+
+	vertex_enter();
+	size = iommu_unmap(mem->domain, pmem->dvaddr, pmem->size);
+	if (size < 0) {
+		vertex_err("Failed to unmap iovmm(%zd)\n", size);
+		return size;
+	}
+	exynos_sysmmu_tlb_invalidate(mem->domain, pmem->dvaddr, pmem->size);
+
+	vertex_leave();
+	return 0;
+}
+
 static int __vertex_memory_alloc(struct vertex_memory *mem,
 		struct vertex_priv_mem *pmem)
 {
@@ -186,6 +228,7 @@ static int __vertex_memory_alloc(struct vertex_memory *mem,
 		goto p_err_alloc;
 	}
 	pmem->dbuf = dbuf;
+	pmem->dbuf_size = dbuf->size;
 
 	attachment = dma_buf_attach(dbuf, mem->dev);
 	if (IS_ERR(attachment)) {
@@ -205,14 +248,6 @@ static int __vertex_memory_alloc(struct vertex_memory *mem,
 	}
 	pmem->sgt = sgt;
 
-	dvaddr = ion_iovmm_map(attachment, 0, pmem->size, pmem->direction, 0);
-	if (IS_ERR_VALUE(dvaddr)) {
-		ret = (int)dvaddr;
-		vertex_err("Failed to map dvaddr (%d) [%s]\n", ret, pmem->name);
-		goto p_err_map_dva;
-	}
-	pmem->dvaddr = dvaddr;
-
 	if (pmem->kmap) {
 		kvaddr = dma_buf_vmap(dbuf);
 		if (IS_ERR(kvaddr)) {
@@ -224,11 +259,28 @@ static int __vertex_memory_alloc(struct vertex_memory *mem,
 		pmem->kvaddr = kvaddr;
 	}
 
+	if (pmem->fixed_dvaddr) {
+		ret = __vertex_memory_iovmm_map_sg(mem, pmem);
+		if (ret)
+			goto p_err_map_dva;
+	} else {
+		dvaddr = ion_iovmm_map(attachment, 0, pmem->size,
+				pmem->direction, 0);
+		if (IS_ERR_VALUE(dvaddr)) {
+			ret = (int)dvaddr;
+			vertex_err("Failed to map dvaddr (%d) [%s]\n",
+					ret, pmem->name);
+			goto p_err_map_dva;
+		}
+		pmem->dvaddr = dvaddr;
+	}
+
 	vertex_leave();
 	return 0;
-p_err_kmap:
-	ion_iovmm_unmap(attachment, dvaddr);
 p_err_map_dva:
+	if (pmem->kmap)
+		dma_buf_vunmap(dbuf, kvaddr);
+p_err_kmap:
 	dma_buf_unmap_attachment(attachment, sgt, pmem->direction);
 p_err_map_attachment:
 	dma_buf_detach(dbuf, attachment);
@@ -242,13 +294,16 @@ static void __vertex_memory_free(struct vertex_memory *mem,
 		struct vertex_priv_mem *pmem)
 {
 	vertex_enter();
+	if (pmem->fixed_dvaddr)
+		__vertex_memory_iovmm_unmap(mem, pmem);
+	else
+		ion_iovmm_unmap(pmem->attachment, pmem->dvaddr);
+
 	if (pmem->kmap)
 		dma_buf_vunmap(pmem->dbuf, pmem->kvaddr);
 
-	ion_iovmm_unmap(pmem->attachment, pmem->dvaddr);
 	dma_buf_unmap_attachment(pmem->attachment, pmem->sgt, pmem->direction);
 	dma_buf_detach(pmem->dbuf, pmem->attachment);
-	dma_buf_put(pmem->dbuf);
 	dma_buf_put(pmem->dbuf);
 	vertex_leave();
 }
@@ -288,74 +343,39 @@ void vertex_memory_free_heap(struct vertex_memory *mem)
 int vertex_memory_open(struct vertex_memory *mem)
 {
 	int ret;
-	struct vertex_priv_mem *fw;
-	struct vertex_priv_mem *mbox;
-	struct vertex_priv_mem *debug;
 
 	vertex_enter();
-	fw = &mem->fw;
-	mbox = &mem->mbox;
-	debug = &mem->debug;
-
-	ret = iommu_map(mem->domain, fw->dvaddr, fw->paddr, fw->size, 0);
-	if (ret) {
-		vertex_err("iommu mapping is failed (0x%x/0x%x/%zu)(%d)\n",
-				(int)fw->dvaddr, (int)fw->paddr, fw->size, ret);
+	ret = __vertex_memory_alloc(mem, &mem->fw);
+	if (ret)
 		goto p_err_map;
-	}
 
-	/* TODO check */
-	//fw->kvaddr = dmam_alloc_coherent(mem->dev, fw->size, &fw->paddr,
-	//		GFP_KERNEL);
-	//if (!fw->kvaddr) {
-	//	ret = -ENOMEM;
-	//	vertex_err("Failed to allocate coherent memory for CM7 DRAM\n");
-	//	goto p_err_cm7;
-	//}
-	//
-	//iommu_map(mem->domain, fw->dvaddr, fw->paddr, fw->size, 0);
-
-	ret = __vertex_memory_alloc(mem, mbox);
+	ret = __vertex_memory_alloc(mem, &mem->mbox);
 	if (ret)
 		goto p_err_mbox;
 
-	ret = __vertex_memory_alloc(mem, debug);
+	ret = __vertex_memory_alloc(mem, &mem->debug);
 	if (ret)
 		goto p_err_debug;
 
 	vertex_leave();
 	return 0;
 p_err_debug:
-	__vertex_memory_free(mem, mbox);
+	__vertex_memory_free(mem, &mem->mbox);
 p_err_mbox:
-	iommu_unmap(mem->domain, fw->dvaddr, fw->size);
+	__vertex_memory_free(mem, &mem->fw);
 p_err_map:
 	return ret;
 }
 
 int vertex_memory_close(struct vertex_memory *mem)
 {
-	struct vertex_priv_mem *fw;
-	struct vertex_priv_mem *mbox;
-	struct vertex_priv_mem *debug;
-
 	vertex_enter();
-	fw = &mem->fw;
-	mbox = &mem->mbox;
-	debug = &mem->debug;
-
-	__vertex_memory_free(mem, debug);
-	__vertex_memory_free(mem, mbox);
-
-	iommu_unmap(mem->domain, fw->dvaddr, fw->size);
-	/* TODO check */
-	//dmam_free_coherent(mem->dev, fw->size, fw->kvaddr, fw->paddr);
-
+	__vertex_memory_free(mem, &mem->debug);
+	__vertex_memory_free(mem, &mem->mbox);
+	__vertex_memory_free(mem, &mem->fw);
 	vertex_leave();
 	return 0;
 }
-
-extern struct reserved_mem *vipx_cm7_rmem;
 
 int vertex_memory_probe(struct vertex_system *sys)
 {
@@ -378,24 +398,26 @@ int vertex_memory_probe(struct vertex_system *sys)
 	mbox = &mem->mbox;
 	debug = &mem->debug;
 
-	snprintf(fw->name, VERTEX_PRIV_MEM_NAME_LEN, "vertex_cm7_dram_bin");
-	fw->size = vipx_cm7_rmem->size;
-	fw->kvaddr = phys_to_virt(vipx_cm7_rmem->base);
-	fw->paddr = vipx_cm7_rmem->base;
-	fw->dvaddr = VERTEX_CM7_DRAM_BIN_DVADDR;
+	snprintf(fw->name, VERTEX_PRIV_MEM_NAME_LEN, "vertex_cc_dram_bin");
+	fw->size = PAGE_ALIGN(VERTEX_CC_DRAM_BIN_SIZE);
+	fw->flags = 0;
+	fw->kmap = true;
+	fw->dvaddr = VERTEX_CC_DRAM_BIN_DVADDR;
+	fw->fixed_dvaddr = true;
 
 	snprintf(mbox->name, VERTEX_PRIV_MEM_NAME_LEN, "vertex_mbox");
 	mbox->size = PAGE_ALIGN(sizeof(struct vertex_mailbox_ctrl));
 	mbox->flags = 0;
 	mbox->direction = DMA_BIDIRECTIONAL;
 	mbox->kmap = true;
+	mbox->fixed_dvaddr = false;
 
 	snprintf(debug->name, VERTEX_PRIV_MEM_NAME_LEN, "vertex_debug");
 	debug->size = PAGE_ALIGN(VERTEX_DEBUG_SIZE);
 	debug->flags = 0;
 	debug->direction = DMA_BIDIRECTIONAL;
-	/* TODO remove */
 	debug->kmap = true;
+	debug->fixed_dvaddr = false;
 
 	vertex_leave();
 	return 0;

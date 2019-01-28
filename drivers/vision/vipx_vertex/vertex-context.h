@@ -28,17 +28,6 @@ enum vertex_context_state {
 
 struct vertex_context;
 
-struct vertex_context_ops {
-	int (*load_kernel_binary)(struct vertex_context *vctx,
-			struct vertex_ioc_load_kernel_binary *kernel_bin);
-	int (*load_graph_info)(struct vertex_context *vctx,
-			struct vertex_ioc_load_graph_info *ginfo);
-	int (*unload_graph_info)(struct vertex_context *vctx,
-			struct vertex_ioc_unload_graph_info *ginfo);
-	int (*execute_submodel)(struct vertex_context *vctx,
-			struct vertex_ioc_execute_submodel *execute);
-};
-
 struct vertex_context_qops {
 	int (*poll)(struct vertex_queue_list *qlist,
 			struct file *file, struct poll_table_struct *poll);
@@ -58,36 +47,12 @@ struct vertex_context_qops {
 	int (*streamoff)(struct vertex_queue_list *qlist);
 };
 
-struct vertex_context_gops {
-	struct vertex_graph_model *(*create_model)(struct vertex_graph *graph,
-			struct vertex_common_graph_info *ginfo);
-	struct vertex_graph_model *(*get_model)(struct vertex_graph *graph,
-			unsigned int id);
-	int (*destroy_model)(struct vertex_graph *graph,
-			struct vertex_graph_model *gmodel);
-	int (*register_model)(struct vertex_graph *graph,
-			struct vertex_graph_model *gmodel);
-	int (*unregister_model)(struct vertex_graph *graph,
-			struct vertex_graph_model *gmodel);
-	int (*start_model)(struct vertex_graph *graph,
-			struct vertex_graph_model *gmodel);
-	int (*stop_model)(struct vertex_graph *graph,
-			struct vertex_graph_model *gmodel);
-	int (*execute_model)(struct vertex_graph *graph,
-			struct vertex_graph_model *gmodel,
-			struct vertex_common_execute_info *einfo);
-};
-
 struct vertex_context {
 	unsigned int			state;
 	unsigned int			idx;
 	struct list_head		list;
 	struct mutex			lock;
 
-	const struct vertex_context_ops	*vops;
-	int				binary_count;
-	struct list_head		binary_list;
-	spinlock_t			binary_slock;
 	const struct vertex_context_gops	*graph_ops;
 
 	const struct vertex_context_qops	*queue_ops;

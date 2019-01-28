@@ -14,13 +14,11 @@ obj-y						+= vertex-io.o
 obj-y						+= vertex-mailbox.o
 obj-y						+= vertex-memory.o
 obj-y						+= vertex-queue.o
-obj-y						+= vertex-slab.o
 obj-y						+= vertex-system.o
 obj-y						+= vertex-taskmgr.o
 obj-y						+= vertex-time.o
 obj-y						+= vertex-core.o
 obj-y						+= vertex-context.o
-obj-y						+= vertex-kernel-binary.o
 obj-y						+= vertex-util.o
 
 obj-$(CONFIG_EXYNOS_VIPX_VERTEX_PLATFORM)	+= platform/

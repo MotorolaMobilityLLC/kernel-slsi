@@ -14,10 +14,10 @@
 #include <linux/dma-buf.h>
 
 #include "vs4l.h"
-#include "vertex-common-type.h"
 
 /* TODO temp for test */
-#define VERTEX_CM7_DRAM_BIN_DVADDR		(0xB8000000)
+#define VERTEX_CC_DRAM_BIN_DVADDR		(0xB8000000)
+#define VERTEX_CC_DRAM_BIN_SIZE			(SZ_4M)
 #define VERTEX_DEBUG_SIZE			(SZ_16M)
 
 #define VERTEX_PRIV_MEM_NAME_LEN		(30)
@@ -60,12 +60,13 @@ struct vertex_memory_ops {
 struct vertex_priv_mem {
 	char				name[VERTEX_PRIV_MEM_NAME_LEN];
 	size_t				size;
+	size_t				dbuf_size;
 	long				flags;
 	enum dma_data_direction		direction;
 	bool				kmap;
+	bool				fixed_dvaddr;
 
 	void				*kvaddr;
-	dma_addr_t			paddr;
 	dma_addr_t			dvaddr;
 
 	struct dma_buf			*dbuf;

@@ -66,7 +66,7 @@ static int vipx_device_runtime_suspend(struct device *dev)
 	vipx_enter();
 	device = dev_get_drvdata(dev);
 
-	ret = vipx_system_suspend(&device->system);
+	ret = vipx_system_runtime_suspend(&device->system);
 	if (ret)
 		goto p_err;
 
@@ -83,7 +83,7 @@ static int vipx_device_runtime_resume(struct device *dev)
 	vipx_enter();
 	device = dev_get_drvdata(dev);
 
-	ret = vipx_system_resume(&device->system);
+	ret = vipx_system_runtime_resume(&device->system);
 	if (ret)
 		goto p_err;
 
@@ -116,10 +116,6 @@ static int __vipx_device_start(struct vipx_device *device)
 	if (test_bit(VIPX_DEVICE_STATE_START, &device->state))
 		return 0;
 
-#ifdef TEMP_RT_FRAMEWORK_TEST
-	set_bit(VIPX_DEVICE_STATE_START, &device->state);
-	return 0;
-#endif
 	ret = vipx_system_start(&device->system);
 	if (ret)
 		goto p_err_system;
@@ -145,10 +141,6 @@ static int __vipx_device_stop(struct vipx_device *device)
 	if (!test_bit(VIPX_DEVICE_STATE_START, &device->state))
 		return 0;
 
-#ifdef TEMP_RT_FRAMEWORK_TEST
-	clear_bit(VIPX_DEVICE_STATE_START, &device->state);
-	return 0;
-#endif
 	vipx_debug_stop(&device->debug);
 	vipx_system_stop(&device->system);
 	clear_bit(VIPX_DEVICE_STATE_START, &device->state);
@@ -240,12 +232,6 @@ int vipx_device_open(struct vipx_device *device)
 		goto p_err_state;
 	}
 
-#ifdef TEMP_RT_FRAMEWORK_TEST
-	device->system.graphmgr.current_model = NULL;
-	set_bit(VIPX_DEVICE_STATE_OPEN, &device->state);
-	return 0;
-#endif
-
 	ret = vipx_system_open(&device->system);
 	if (ret)
 		goto p_err_system;
@@ -288,10 +274,6 @@ int vipx_device_close(struct vipx_device *device)
 	if (test_bit(VIPX_DEVICE_STATE_START, &device->state))
 		__vipx_device_stop(device);
 
-#ifdef TEMP_RT_FRAMEWORK_TEST
-	clear_bit(VIPX_DEVICE_STATE_OPEN, &device->state);
-	return 0;
-#endif
 	__vipx_device_power_off(device);
 	vipx_debug_close(&device->debug);
 	vipx_system_close(&device->system);
@@ -335,7 +317,6 @@ static int vipx_device_probe(struct platform_device *pdev)
 		goto p_err_debug;
 
 	iovmm_set_fault_handler(dev, vipx_fault_handler, NULL);
-	pm_runtime_enable(dev);
 
 	vipx_leave();
 	vipx_info("vipx device is initilized\n");

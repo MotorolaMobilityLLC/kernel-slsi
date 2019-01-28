@@ -28,8 +28,8 @@ enum vipx_common_addr_type {
 };
 
 enum vipx_common_mem_attr {
-	VIPX_COMMON_CACHEALBE,
-	VIPX_COMMON_NON_CACHEALBE,
+	VIPX_COMMON_CACHEABLE,
+	VIPX_COMMON_NON_CACHEABLE,
 };
 
 enum vipx_common_mem_type {
@@ -66,7 +66,7 @@ struct vipx_common_graph_info {
 	struct vipx_common_mem		bias;
 	unsigned int			gid;
 	unsigned int			user_para_size;
-	//unsigned char			user_para[0] // varialbe size
+	struct vipx_common_mem		user_param_buffer;
 };
 
 struct vipx_common_execute_info {
@@ -78,7 +78,7 @@ struct vipx_common_execute_info {
 	struct vipx_common_mem		output[MAX_OUTPUT_NUM][MAX_PLANE_NUM];
 	unsigned int			user_para_size;
 	unsigned int			reserved;
-	//unsigned char			user_para[0] // varialbe size
+	struct vipx_common_mem		user_param_buffer;
 };
 
 #endif

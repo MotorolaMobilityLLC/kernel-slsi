@@ -17,7 +17,6 @@
 #include "vertex-config.h"
 #include "vs4l.h"
 #include "vertex-taskmgr.h"
-#include "vertex-common-type.h"
 
 struct vips_context;
 struct vertex_graph;
@@ -54,17 +53,6 @@ struct vertex_graph_ops {
 	int (*done)(struct vertex_graph *graph, struct vertex_task *task);
 	int (*update_param)(struct vertex_graph *graph,
 			struct vertex_task *task);
-};
-
-struct vertex_graph_model {
-	unsigned int			id;
-	struct vertex_common_graph_info	common_ginfo;
-	struct vertex_buffer		*graph;
-	struct vertex_buffer		*temp_buf;
-	struct vertex_buffer		*weight;
-	struct vertex_buffer		*bias;
-
-	struct list_head		list;
 };
 
 struct vertex_graph {
