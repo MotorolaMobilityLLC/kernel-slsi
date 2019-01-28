@@ -1087,6 +1087,7 @@ int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr,
 	resourcemgr->tmu_notifier.priority = 0;
 	resourcemgr->tmu_state = ISP_NORMAL;
 	resourcemgr->limited_fps = 0;
+	resourcemgr->throttling_bts = false;
 
 	/* bus monitor unit */
 
@@ -1627,6 +1628,8 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			info("%s: call bts_update_scen(0)\n", __func__);
 			bts_update_scen(BS_CAMERA_DEFAULT, 0);
 			bts_update_scen(BS_FHD_480_ENCODING, 0);
+
+			fimc_is_hw_set_bts_ext_ctrl(BTS_SCN_THERMAL, false);
 #endif
 			break;
 		}

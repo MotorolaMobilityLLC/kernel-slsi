@@ -2526,6 +2526,10 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 			frame->shot->ctl.aa.aeTargetFpsRange[0] = resourcemgr->limited_fps;
 			frame->shot->ctl.aa.aeTargetFpsRange[1] = resourcemgr->limited_fps;
 			frame->shot->ctl.sensor.frameDuration = 1000000000/resourcemgr->limited_fps;
+
+			fimc_is_hw_set_bts_ext_ctrl(BTS_SCN_THERMAL, true);
+		} else {
+			fimc_is_hw_set_bts_ext_ctrl(BTS_SCN_THERMAL, false);
 		}
 
 #ifdef ENABLE_FAST_SHOT

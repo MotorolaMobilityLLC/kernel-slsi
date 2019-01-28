@@ -125,6 +125,7 @@ struct fimc_is_resourcemgr {
 	struct notifier_block			tmu_notifier;
 	u32					tmu_state;
 	u32					limited_fps;
+	bool					throttling_bts;
 
 	/* bus monitor */
 	struct notifier_block			bm_notifier;

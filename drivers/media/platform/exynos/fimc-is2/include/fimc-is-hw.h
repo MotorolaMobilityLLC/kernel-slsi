@@ -229,6 +229,13 @@ enum flite_hw_control_id {
 	FLITE_CTRL_LINE_RATIO,
 };
 
+
+/*
+ * This enum will be used in bts_control api to adjust BTS for specific scen.
+ */
+enum camera_bts_scn {
+	BTS_SCN_THERMAL,
+};
 /*
  * ******************
  * MIPI-CSIS H/W APIS
@@ -331,6 +338,7 @@ int fimc_is_hw_shared_meta_update(struct fimc_is_device_ischain *device,
 		struct fimc_is_group *group, struct fimc_is_frame *frame, int shot_done_flag);
 void __iomem *fimc_is_hw_get_sysreg(ulong core_regs);
 u32 fimc_is_hw_find_settle(u32 mipi_speed);
+void fimc_is_hw_set_bts_ext_ctrl(enum camera_bts_scn bts_scn, bool enable);
 #ifdef ENABLE_FULLCHAIN_OVERFLOW_RECOVERY
 int fimc_is_hw_overflow_recovery(void);
 #endif
