@@ -18,7 +18,7 @@
 #define AP_IPC
 #endif
 
-#define IPC_VERSION (190116)
+#define IPC_VERSION (190128)
 
 #if defined(CHUB_IPC)
 #if defined(SEOS)
@@ -62,6 +62,7 @@
 #endif
 #endif
 
+#define CHECK_HW_TRIGGER
 #define SENSOR_NAME_SIZE (32)
 
 /* contexthub bootargs */
@@ -287,6 +288,7 @@ enum channel_status {
 #define HOSTINTF_SENSOR_DATA_MAX    240
 #endif
 
+#define IRQ_MAX (16)
 /* event structure */
 struct ipc_evt_ctrl {
 	u32 eq;
@@ -294,6 +296,7 @@ struct ipc_evt_ctrl {
 	u32 full;
 	u32 empty;
 	u32 irq;
+	bool pending[IRQ_MAX];
 };
 
 struct ipc_evt_buf {
@@ -383,11 +386,7 @@ struct ipc_buf {
 	volatile u32 dq;
 	volatile u32 full;
 	volatile u32 empty;
-#ifdef USE_IPC_BUF
-	u8 buf[IPC_DATA_SIZE];
-#else
 	struct ipc_channel_buf ch[IPC_CH_BUF_NUM];
-#endif
 };
 
 /* sensor list and id sync with chre sensorhal */
@@ -555,10 +554,13 @@ struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evt);
 int ipc_add_evt(enum ipc_evt_list evt, enum irq_evt_chub irq);
 int ipc_add_evt_in_critical(enum ipc_evt_list evtq, enum irq_evt_chub evt);
 void ipc_print_evt(enum ipc_evt_list evt);
+int ipc_get_evt_cnt(enum ipc_evt_list evtq);
+int ipc_get_data_cnt(enum ipc_data_list evtq);
 /* mailbox hw access */
 void ipc_set_owner(enum ipc_owner owner, void *base, enum ipc_direction dir);
 enum ipc_direction ipc_get_owner(enum ipc_owner owner);
 unsigned int ipc_hw_read_gen_int_status_reg(enum ipc_owner owner, int irq);
+unsigned int ipc_hw_read_gen_int_status_reg_all(enum ipc_owner owner);
 void ipc_hw_write_shared_reg(enum ipc_owner owner, unsigned int val, int num);
 unsigned int ipc_hw_read_shared_reg(enum ipc_owner owner, int num);
 unsigned int ipc_hw_read_int_status_reg(enum ipc_owner owner);
@@ -586,17 +588,12 @@ u16 ipc_get_chub_rtlogmode(void);
 u16 ipc_get_chub_bootmode(void);
 void ipc_set_ap_wake(u16 wake);
 u16 ipc_get_ap_wake(void);
+void ipc_print_databuf(void);
 void ipc_dump(void);
 #if defined(LOCAL_POWERGATE)
 u32 *ipc_get_chub_psp(void);
 u32 *ipc_get_chub_msp(void);
 #endif
-
-#ifdef USE_IPC_BUF
-int ipc_read_data(enum ipc_data_list dir, u8 *rx);
-#else
 void *ipc_read_data(enum ipc_data_list dir, u32 *len);
-#endif
 int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length);
-
 #endif

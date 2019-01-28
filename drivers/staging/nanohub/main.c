@@ -1344,7 +1344,6 @@ static int nanohub_open(struct inode *inode, struct file *file)
 #ifdef CONFIG_NANOHUB_MAILBOX
 	struct nanohub_io *io;
 #endif
-	pr_info("%s\n", __func__);
 	dev = class_find_device(sensor_class, NULL, &devt, nanohub_match_devt);
 	if (dev) {
 		file->private_data = dev_get_drvdata(dev);
