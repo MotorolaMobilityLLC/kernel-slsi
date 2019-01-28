@@ -616,6 +616,13 @@ static int madera_amp_late_probe(struct snd_soc_card *card, int dai)
 		return ret;
 	}
 
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(amp), "SPK AMP Playback");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(amp), "SPK SPK");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(amp), "SPK VP");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(amp), "SPK VSENSE");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(amp), "SPK Main AMP");
+	snd_soc_dapm_sync(snd_soc_codec_get_dapm(amp));
+
 	return 0;
 }
 
@@ -688,6 +695,32 @@ static int exynos9610_late_probe(struct snd_soc_card *card)
 	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1 Playback");
 	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1 Capture");
 	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF3 Capture");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "MICBIAS1");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "MICBIAS2");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "MICSUPP");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "MICBIAS1A");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "MICBIAS1B");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "MICBIAS2A");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "MICBIAS2B");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "IN1AL");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "IN1AR");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "IN1BL");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "IN1BR");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1TX1");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1TX2");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1RX1");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF1RX2");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF2TX1");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF2TX2");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF2RX1");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "AIF2RX2");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "IN2AL");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "IN2R");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "DSP2 Virtual Output");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "DSP3 Virtual Output");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "DSP Virtual Input");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "DSP2 Trigger Out");
+	snd_soc_dapm_ignore_suspend(snd_soc_codec_get_dapm(codec), "DSP3 Trigger Out");
 	snd_soc_dapm_sync(snd_soc_codec_get_dapm(codec));
 
 	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA0 Playback");
