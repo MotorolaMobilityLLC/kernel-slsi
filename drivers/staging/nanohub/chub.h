@@ -164,9 +164,6 @@ struct contexthub_ipc_info {
 	int log_work_reqcnt;
 	spinlock_t logout_lock;
 	struct read_wait read_lock;
-#ifdef USE_IPC_BUF
-	u8 rxbuf[PACKET_SIZE_MAX];
-#endif
 	struct chub_alive chub_alive_lock;
 	struct chub_alive poweron_lock;
 	struct chub_alive reset_lock;

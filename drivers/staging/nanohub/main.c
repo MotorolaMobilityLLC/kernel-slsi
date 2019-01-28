@@ -1344,7 +1344,6 @@ static int nanohub_open(struct inode *inode, struct file *file)
 #ifdef CONFIG_NANOHUB_MAILBOX
 	struct nanohub_io *io;
 #endif
-	pr_info("%s\n", __func__);
 	dev = class_find_device(sensor_class, NULL, &devt, nanohub_match_devt);
 	if (dev) {
 		file->private_data = dev_get_drvdata(dev);
@@ -1675,6 +1674,9 @@ static int nanohub_kthread(void *arg)
 				dev_info(sensor_dev,
 					 "%s: request_wakeup_timeout: ret=%d\n",
 					 __func__, ret);
+#ifdef CONFIG_NANOHUB_MAILBOX
+				ipc_dump();
+#endif
 				continue;
 			}
 
@@ -1708,6 +1710,9 @@ static int nanohub_kthread(void *arg)
 						"%s: kthread_err_cnt=%d\n",
 						__func__,
 						data->kthread_err_cnt);
+#ifdef CONFIG_NANOHUB_MAILBOX
+					ipc_dump();
+#endif
 					nanohub_set_state(data, ST_ERROR);
 					continue;
 				}
