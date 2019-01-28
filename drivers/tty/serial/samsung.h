@@ -91,6 +91,9 @@ struct s3c24xx_uart_port {
 	unsigned int			in_band_wakeup;
 	unsigned int dbg_mode;
 
+	unsigned int dbg_uart_ch;
+	unsigned int dbg_uart_baud;
+	unsigned int dbg_word_len;
 };
 
 /* conversion functions */
