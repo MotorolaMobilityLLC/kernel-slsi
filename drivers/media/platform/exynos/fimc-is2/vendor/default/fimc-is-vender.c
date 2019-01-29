@@ -154,6 +154,37 @@ int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is
 	return ret;
 }
 #else
+static int fimc_is_led_cal_file_read(const char *file_name, const void *data, unsigned long size)
+{
+	int ret = 0;
+	long fsize, nread;
+	mm_segment_t old_fs;
+	struct file *fp;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	fp = filp_open(file_name, O_RDONLY, 0);
+	if (IS_ERR_OR_NULL(fp)) {
+		ret = PTR_ERR(fp);
+		err("file_open(%s) fail(%d)!!\n", file_name, ret);
+		goto p_err;
+	}
+
+	fsize = fp->f_path.dentry->d_inode->i_size;
+
+	nread = vfs_read(fp, (char __user *)data, size, &fp->f_pos);
+
+	info("%s(): read to file(%s) size(%ld)\n", __func__, file_name, nread);
+p_err:
+	if (!IS_ERR_OR_NULL(fp))
+		filp_close(fp, NULL);
+
+	set_fs(old_fs);
+
+	return ret;
+}
+
 int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is_vender *vender,
 	void *module_data)
 {
@@ -191,6 +222,16 @@ int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is
 	else
 		memcpy((void *)(cal_addr), (void *)sensor->otp_cal_buf, sizeof(sensor->otp_cal_buf));
 
+	ret = fimc_is_led_cal_file_read(FIMC_IS_LED_CAL_DATA_PATH, (void *)(cal_addr + CAL_DATA_SIZE),
+			LED_CAL_DATA_SIZE);
+
+	/* if getting led_cal_data_file is failed, fill buf with 0xff */
+	if (ret) {
+		memset((void *)(cal_addr + CAL_DATA_SIZE), 0xff, LED_CAL_DATA_SIZE);
+		warn("get led_cal_data fail\n");
+	} else {
+		info("get led_cal_data success\n");
+	}
 exit:
 	if (ret)
 		err("CAL data loading is fail: skip");
