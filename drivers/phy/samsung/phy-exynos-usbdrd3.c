@@ -439,6 +439,9 @@ static void exynos_usbdrd_pipe3_phy_isol(struct phy_usb_instance *inst,
 	struct exynos_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 	unsigned int val;
 
+	if (phy_drd->usb3phy_isolation == 1)
+		return ;
+
 	if (!inst->reg_pmu)
 		return;
 
@@ -1164,11 +1167,24 @@ static int exynos_usbdrd_get_iptype(struct exynos_usbdrd_phy *phy_drd)
 		break;
 	}
 
+	if (!of_property_read_u32(dev->of_node, "usb3phy-isolation", &value)) {
+		if (value == 1)
+			dev_info(dev, "USB3.0 PHY Isolation is ENABLED!!!\n");
+		phy_drd->usb3phy_isolation = value;
+	} else {
+		phy_drd->usb3phy_isolation = 0;
+	}
+
 	return 0;
 }
 
 static void exynos_usbdrd_pipe3_init(struct exynos_usbdrd_phy *phy_drd)
 {
+	if (phy_drd->usb3phy_isolation == 1) {
+		dev_info(phy_drd->dev, "USB3.0 PHY is isolated...\n");
+		return ;
+	}
+
 	exynos_usbdrd_check_connection(phy_drd);
 	phy_exynos_usb_v3p1_enable(&phy_drd->usbphy_info);
 }
@@ -1207,7 +1223,12 @@ static void exynos_usbdrd_utmi_init(struct exynos_usbdrd_phy *phy_drd)
 	 *
 	 * phy_exynos_usb_v3p1_pipe_ovrd(&phy_drd->usbphy_info);
 	 */
-	phy_exynos_usb_v3p1_pipe_ready(&phy_drd->usbphy_info);
+
+	if (phy_drd->usb3phy_isolation == 1)
+		phy_exynos_usb_v3p1_pipe_ovrd(&phy_drd->usbphy_info);
+	else
+		phy_exynos_usb_v3p1_pipe_ready(&phy_drd->usbphy_info);
+
 	if (phy_drd->use_phy_umux) {
 		/* USB User MUX enable */
 		ret = exynos_usbdrd_clk_enable(phy_drd, true);
@@ -1286,6 +1307,9 @@ static void exynos_usbdrd_pipe3_tune(struct exynos_usbdrd_phy *phy_drd,
 	struct exynos_usb_tune_param *ss_tune_param =
 					phy_drd->usbphy_info.ss_tune_param;
 	int i = 0;
+
+	if (phy_drd->usb3phy_isolation == 1)
+		return ;
 
 	exynos_usbdrd_check_connection(phy_drd);
 

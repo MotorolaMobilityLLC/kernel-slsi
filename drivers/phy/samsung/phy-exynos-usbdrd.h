@@ -186,6 +186,7 @@ struct exynos_usbdrd_phy {
 	int irq_conn;
 	int is_conn;
 	int is_irq_enabled;
+	int usb3phy_isolation;
 	u32 phy_port;
 };
 
