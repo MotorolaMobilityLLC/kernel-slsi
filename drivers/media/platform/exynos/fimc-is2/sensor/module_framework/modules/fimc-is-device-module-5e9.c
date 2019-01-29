@@ -330,6 +330,7 @@ static int __init sensor_module_5e9_probe(struct platform_device *pdev)
 	struct device *dev;
 	struct pinctrl_state *s;
 	int power_seq_idx = 0;
+	int setfile_idx = 0;
 
 	FIMC_BUG(!fimc_is_dev);
 
@@ -358,6 +359,17 @@ static int __init sensor_module_5e9_probe(struct platform_device *pdev)
 	probe_info("%s power_seq_idx(%d)\n", __func__, power_seq_idx);
 
 	fimc_is_module_parse_dt(dev, sensor_module_5e9_power_setpin[power_seq_idx]);
+
+	if (of_property_read_bool(dev->of_node, "setfile_idx")) {
+		ret = of_property_read_u32(dev->of_node, "setfile_idx", &setfile_idx);
+		if (ret) {
+			warn("setfile_idx read is fail(%d)", ret);
+			setfile_idx = 0;
+		}
+	} else {
+		setfile_idx = 0;
+	}
+	probe_info("%s setfile_idx(%d)\n", __func__, setfile_idx);
 
 	pdata = dev_get_platdata(dev);
 	device = &core->sensor[pdata->id];
@@ -391,7 +403,10 @@ static int __init sensor_module_5e9_probe(struct platform_device *pdev)
 	module->bitwidth = 10;
 	module->sensor_maker = "SLSI";
 	module->sensor_name = "S5K5E9";
-	module->setfile_name = "setfile_5e9.bin";
+	if (setfile_idx)
+		module->setfile_name = "setfile_5e9_troika.bin";
+	else
+		module->setfile_name = "setfile_5e9.bin";
 	module->cfgs = ARRAY_SIZE(config_module_5e9);
 	module->cfg = config_module_5e9;
 	module->ops = NULL;
