@@ -51,6 +51,8 @@
 #define FD_SW_BIN_NAME				"fimc_is_fd.bin"
 #define FD_SW_SDCARD				"/data/fimc_is_fd.bin"
 
+#define FIMC_IS_LED_CAL_DATA_PATH		"/mnt/vendor/persist/camera/ledcal/rear"
+
 #ifdef ENABLE_IS_CORE
 #define FW_MEM_SIZE			0x02000000
 #define FW_BACKUP_SIZE			0x02000000
@@ -93,7 +95,9 @@
 
 /* reserved memory for FIMC-IS */
 #define SETFILE_SIZE		(0x0032C000)
-#define CALDATA_SIZE		(0x00010000)
+#define CAL_DATA_SIZE		(0x00010000)
+#define LED_CAL_DATA_SIZE	(0x00000400)
+#define TOTAL_CAL_DATA_SIZE	(CAL_DATA_SIZE + LED_CAL_DATA_SIZE)
 #define DEBUG_REGION_SIZE	(0x0007D000)
 #define EVENT_REGION_SIZE	(0x0007D000)
 #define FSHARED_REGION_SIZE	(0x00010000)

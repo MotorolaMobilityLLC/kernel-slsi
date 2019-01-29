@@ -259,9 +259,9 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 
 	/* calibration data for each sensor postion */
 	for (i = 0; i < SENSOR_POSITION_MAX; i++) {
-		minfo->pb_cal[i] = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, CALDATA_SIZE, 16, NULL);
+		minfo->pb_cal[i] = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, TOTAL_CAL_DATA_SIZE, 16, NULL);
 		if (IS_ERR_OR_NULL(minfo->pb_cal[i])) {
-			err("failed to allocate buffer for REAR_CALDATA");
+			err("failed to allocate buffer for REAR_CAL_DATA");
 			return -ENOMEM;
 		}
 		minfo->total_size += minfo->pb_cal[i]->size;
