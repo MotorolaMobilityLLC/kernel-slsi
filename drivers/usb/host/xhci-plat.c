@@ -254,6 +254,29 @@ int xhci_portsc_set(u32 on)
 	return -EIO;
 }
 
+static void xhci_pm_runtime_init(struct device *dev)
+{
+    dev->power.runtime_status = RPM_SUSPENDED;
+    dev->power.idle_notification = false;
+
+    dev->power.disable_depth = 1;
+    atomic_set(&dev->power.usage_count, 0);
+
+    dev->power.runtime_error = 0;
+
+    atomic_set(&dev->power.child_count, 0);
+    pm_suspend_ignore_children(dev, false);
+    dev->power.runtime_auto = true;
+
+    dev->power.request_pending = false;
+    dev->power.request = RPM_REQ_NONE;
+    dev->power.deferred_resume = false;
+    dev->power.accounting_timestamp = jiffies;
+
+    dev->power.timer_expires = 0;
+    init_waitqueue_head(&dev->power.wait_queue);
+}
+
 static int xhci_plat_probe(struct platform_device *pdev)
 {
 	struct device		*parent = pdev->dev.parent;
@@ -319,6 +342,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
+
+	xhci_pm_runtime_init(&pdev->dev);
 
 	ret = pm_runtime_set_active(&pdev->dev);
 	if (ret != 0) {
