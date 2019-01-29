@@ -19,6 +19,7 @@
 #include <linux/smc.h>
 
 #include <asm/neon.h>
+#include <soc/samsung/bts.h>
 
 #include "fimc-is-config.h"
 #include "fimc-is-param.h"
@@ -1295,6 +1296,33 @@ u32 fimc_is_hw_find_settle(u32 mipi_speed)
 	}
 
 	return fimc_is_csi_settle_table[m + 1];
+}
+
+void fimc_is_hw_set_bts_ext_ctrl(enum camera_bts_scn bts_scn, bool enable)
+{
+#ifdef CONFIG_EXYNOS_BTS
+	struct fimc_is_core *core = NULL;
+	struct fimc_is_resourcemgr *resourcemgr;
+
+	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
+	if (!core) {
+		err("core is NULL");
+		return;
+	}
+	resourcemgr = &core->resourcemgr;
+
+	switch (bts_scn) {
+	case BTS_SCN_THERMAL:
+		if (resourcemgr->throttling_bts != enable) {
+			bts_update_scen(BS_CAMERA_THERMAL, (int)enable);
+			resourcemgr->throttling_bts = enable;
+			info("call bts_update_scen(%d) for thermal\n", enable);
+		}
+		break;
+	default:
+		err("wrong bts_scn(%d)\n", bts_scn);
+	}
+#endif
 }
 
 #ifdef ENABLE_FULLCHAIN_OVERFLOW_RECOVERY
