@@ -541,9 +541,10 @@
 &hsi2c_12 {
 	gpios = <&gpc0 0 0 &gpc0 1 0>;
 	status = "okay";
-	clock-frequency = <400000>;
+	clock-frequency = <1000000>;
 	samsung,reset-before-trans;
 
+	samsung,fast-plus-mode;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
