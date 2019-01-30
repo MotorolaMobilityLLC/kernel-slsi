@@ -206,6 +206,7 @@ struct fimc_is_flash_data {
 	bool				cal_en;
 #endif
 	bool				flash_fired;
+	struct work_struct		pre_flash_work;
 	struct work_struct		flash_fire_work;
 	struct timer_list		flash_expire_timer;
 	struct work_struct		flash_expire_work;

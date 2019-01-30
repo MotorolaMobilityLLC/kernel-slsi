@@ -622,6 +622,59 @@ void fimc_is_sensor_setting_mode_change(struct fimc_is_device_sensor_peri *senso
 			&dgain.long_val);
 }
 
+void fimc_is_sensor_pre_flash_fire_work(struct work_struct *data)
+{
+	int ret = 0;
+	struct fimc_is_flash *flash = NULL;
+	struct fimc_is_flash_data *flash_data;
+	struct fimc_is_device_sensor *device;
+	struct fimc_is_sensor_ctl *sensor_ctl = NULL;
+	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+	struct v4l2_subdev *subdev_flash;
+	camera2_flash_uctl_t *flash_uctl = NULL;
+
+	FIMC_BUG_VOID(!data);
+
+	flash_data = container_of(data, struct fimc_is_flash_data, pre_flash_work);
+	FIMC_BUG_VOID(!flash_data);
+
+	flash = container_of(flash_data, struct fimc_is_flash, flash_data);
+	FIMC_BUG_VOID(!flash);
+
+	sensor_peri = flash->sensor_peri;
+	FIMC_BUG_VOID(!sensor_peri);
+
+	subdev_flash = sensor_peri->subdev_flash;
+	device = v4l2_get_subdev_hostdata(subdev_flash);
+	FIMC_BUG_VOID(!device);
+
+	flash = sensor_peri->flash;
+	FIMC_BUG_VOID(!flash);
+
+	sensor_ctl = &sensor_peri->cis.sensor_ctls[device->fcount % CAM2P0_UCTL_LIST_SIZE];
+
+	flash_uctl = &sensor_ctl->cur_cam20_flash_udctrl;
+
+	if ((flash_uctl->flashMode != flash->flash_data.mode) ||
+		(flash_uctl->flashMode != CAM2_FLASH_MODE_OFF && flash_uctl->firingPower == 0)) {
+		flash->flash_data.mode = flash_uctl->flashMode;
+		flash->flash_data.intensity = flash_uctl->firingPower;
+		flash->flash_data.firing_time_us = flash_uctl->firingTime;
+
+		info("[%s](%d) pre-flash mode(%d), pow(%d), time(%d)\n", __func__,
+			device->fcount, flash->flash_data.mode,
+			flash->flash_data.intensity, flash->flash_data.firing_time_us);
+		ret = fimc_is_sensor_flash_fire(sensor_peri, flash->flash_data.intensity);
+	}
+
+	/* HACK: reset uctl */
+	flash_uctl->flashMode = 0;
+	flash_uctl->firingPower = 0;
+	flash_uctl->firingTime = 0;
+	sensor_ctl->flash_frame_number = 0;
+	sensor_ctl->valid_flash_udctrl = false;
+}
+
 void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 {
 	int ret = 0;
@@ -1606,6 +1659,7 @@ void fimc_is_sensor_peri_init_work(struct fimc_is_device_sensor_peri *sensor_per
 	FIMC_BUG_VOID(!sensor_peri);
 
 	if (sensor_peri->flash) {
+		INIT_WORK(&sensor_peri->flash->flash_data.pre_flash_work, fimc_is_sensor_pre_flash_fire_work);
 		INIT_WORK(&sensor_peri->flash->flash_data.flash_fire_work, fimc_is_sensor_flash_fire_work);
 		INIT_WORK(&sensor_peri->flash->flash_data.flash_expire_work, fimc_is_sensor_flash_expire_work);
 	}
