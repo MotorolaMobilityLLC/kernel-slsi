@@ -1816,6 +1816,10 @@ static void reg_set_request_processed(void)
 	bool need_more_processing = false;
 	struct regulatory_request *lr = get_last_request();
 
+#ifdef CONFIG_CFG80211_NO_BEACON_HINT
+	return;
+#endif
+
 	lr->processed = true;
 
 	spin_lock(&reg_requests_lock);
@@ -2359,6 +2363,11 @@ static void reg_todo(struct work_struct *work)
 
 static void queue_regulatory_request(struct regulatory_request *request)
 {
+#ifdef CONFIG_CFG80211_NO_BEACON_HINT
+	kfree(request);
+	return;
+#endif
+
 	request->alpha2[0] = toupper(request->alpha2[0]);
 	request->alpha2[1] = toupper(request->alpha2[1]);
 
@@ -2631,6 +2640,10 @@ static void restore_regulatory_settings(bool reset_user)
 	LIST_HEAD(tmp_reg_req_list);
 	struct cfg80211_registered_device *rdev;
 
+#ifdef CONFIG_CFG80211_NO_BEACON_HINT
+	return;
+#endif
+
 	ASSERT_RTNL();
 
 	/*
@@ -2733,6 +2746,10 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 {
 	struct reg_beacon *reg_beacon;
 	bool processing;
+
+#ifdef CONFIG_CFG80211_NO_BEACON_HINT
+	return 0;
+#endif
 
 	if (beacon_chan->beacon_found ||
 	    beacon_chan->flags & IEEE80211_CHAN_RADAR ||
