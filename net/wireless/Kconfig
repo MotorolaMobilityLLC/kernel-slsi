@@ -187,6 +187,13 @@ config CFG80211_WEXT_EXPORT
 	  Drivers should select this option if they require cfg80211's
 	  wext compatibility symbols to be exported.
 
+config CFG80211_NO_BEACON_HINT
+	bool "Do not update Regulatory configuration"
+	depends on CFG80211
+	default n
+	help
+	  Do not update regulatory rules based on beacon hints.
+
 config LIB80211
 	tristate
 	default n
