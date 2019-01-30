@@ -773,9 +773,13 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 		}
 	}
 
-	if (sensor_peri->subdev_flash != NULL) {
+	if (sensor_peri->subdev_flash != NULL && module_ctl->valid_flash_udctrl) {
 		/* Pre-Flash on, Torch on/off */
+#if defined(USE_PRE_FLASH_FIRE_WORK)
+		schedule_work(&sensor_peri->flash->flash_data.pre_flash_work);
+#else
 		ret = fimc_is_sensor_peri_pre_flash_fire(device->subdev_module, &vsync_count);
+#endif
 	}
 
 	if (sensor_peri->ois) {
