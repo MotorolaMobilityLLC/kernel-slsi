@@ -198,8 +198,9 @@
 #define INIT_AWB_COUNT_REAR	(3)
 #define INIT_AWB_COUNT_FRONT	(7)
 
-/* use OIS init thread option */
+/* sensor module use_work option */
 #define USE_OIS_INIT_WORK
+#define USE_PRE_FLASH_FIRE_WORK
 
 #define FLASH_CAL_DATA_ENABLE
 
