@@ -135,7 +135,8 @@ struct g2d_context {
 
 	struct delayed_work dwork;
 
-	struct pm_qos_request req;
+	struct pm_qos_request dev_req;
+	struct pm_qos_request bus_req;
 	struct list_head qos_node;
 	u64	r_bw;
 	u64	w_bw;
