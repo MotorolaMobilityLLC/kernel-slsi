@@ -72,7 +72,7 @@ enum task_index {
 #define TASK_AF_AFFINITY		(1)
 #define TASK_ISP_DMA_AFFINITY		(2)
 #define TASK_3AA_DMA_AFFINITY		(TASK_ISP_DMA_AFFINITY)
-#define TASK_AA_AFFINITY		(TASK_AF_AFFINITY)
+#define TASK_AA_AFFINITY		(TASK_OTF_AFFINITY)
 /* #define TASK_RTA_AFFINITY		(1) */ /* There is no need to set of cpu affinity for RTA task */
 #define TASK_VRA_AFFINITY		(2)
 
