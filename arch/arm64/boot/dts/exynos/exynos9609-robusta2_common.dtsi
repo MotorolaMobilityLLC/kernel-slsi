@@ -360,8 +360,8 @@
 
 						l38_reg: LDO38 {
 							regulator-name = "VLDO38_PMIC_RCAM_AFVCC_2P8";
-							regulator-min-microvolt = <2800000>;
-							regulator-max-microvolt = <2800000>;
+							regulator-min-microvolt = <2700000>;
+							regulator-max-microvolt = <2700000>;
 							regulator-ramp-delay = <12000>;
 						};
 
