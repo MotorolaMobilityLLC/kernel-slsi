@@ -74,7 +74,6 @@ p_err:
 int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 {
 	int ret = 0;
-	u8 product_id = 0;
 	struct fimc_is_actuator *actuator;
 	struct i2c_client *client = NULL;
 #ifdef DEBUG_ACTUATOR_TIME
@@ -104,12 +103,21 @@ int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 		goto p_err;
 	}
 
+	mdelay(8);
 	I2C_MUTEX_LOCK(actuator->i2c_lock);
+	/* Initial Data Down Load */
+	ret = fimc_is_sensor_addr8_write8(client, 0xE0, 0x01);
+	if (ret < 0)
+		goto p_err_mutex;
+	mdelay(1);
+
+#if 0
+	u8 product_id = 0;
 	ret = fimc_is_sensor_addr8_read8(client, 0x03, &product_id);
 	if (ret < 0)
 		goto p_err_mutex;
 
-#if 0
+
 	if (product_id != LC898217_PRODUCT_ID) {
 		err("LC898217 is not detected(%d), Slave: %d\n", product_id, client->addr);
 		goto p_err_mutex;

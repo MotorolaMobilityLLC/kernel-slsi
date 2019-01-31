@@ -105,7 +105,7 @@ static struct fimc_is_field sysreg_cam_fields[SYSREG_CAM_REG_FIELD_CNT] = {
  * [1] I_PAFSTAT_CORE0_IN_CSIS1_EN
  * [0] I_PAFSTAT_CORE0_IN_CSIS0_EN
  */
-#define MUX_SET_VAL_DEFAULT		(0x00582077)
+#define MUX_SET_VAL_DEFAULT		(0x005820FF)
 #define MUX_CLR_VAL_DEFAULT		(0x007FFFFF)
 
 /* Define default subdev ops if there are not used subdev IP */
