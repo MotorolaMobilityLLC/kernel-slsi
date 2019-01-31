@@ -2418,10 +2418,15 @@ int set_flash(struct fimc_is_sensor_interface *itf,
 	flash_uctl = &sensor_ctl->cur_cam20_flash_udctrl;
 
 	sensor_ctl->flash_frame_number = frame_count;
-
+#ifdef FLASH_CAL_DATA_ENABLE
+	/* when use dual flash control, intensity value is ratio between warm and cool LED */
+	{
+#else
+	/* when use single flash, intensity value zero means flash off */
 	if (intensity == 0) {
 		mode = CAM2_FLASH_MODE_OFF;
 	} else {
+#endif
 		switch (flash_mode) {
 		case CAM2_FLASH_MODE_OFF:
 		case CAM2_FLASH_MODE_SINGLE:
