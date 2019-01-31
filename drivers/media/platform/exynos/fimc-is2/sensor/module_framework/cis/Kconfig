@@ -332,6 +332,30 @@ config CAMERA_CIS_GM1SP_OBJ
 		help
 		  Use to build GM1SP camera sensor.
 
+config CAMERA_CIS_12A10_OBJ
+		bool "Use 12A10 camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 12A10 camera sensor.
+
+config CAMERA_CIS_12A10FF_OBJ
+		bool "Use 12A10FF camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 12A10FF camera sensor.
+
+config CAMERA_CIS_16885C_OBJ
+		bool "Use 16885C camera cis"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_CIS_SELECT
+		default n
+		help
+		  Use to build 16885C camera sensor.
+
 config CAMERA_CIS_VIRTUAL_OBJ
 		bool "Use VIRTUAL camera cis"
 	depends on USE_DIRECT_IS_CONTROL
