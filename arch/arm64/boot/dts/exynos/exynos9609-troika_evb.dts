@@ -12,6 +12,7 @@
 /dts-v1/;
 /plugin/;
 
+#include "exynos9610-troika-camera.dtsi"
 #include "exynos9610-troika-common.dtsi"
 
 / {
