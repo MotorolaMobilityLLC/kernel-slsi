@@ -1773,12 +1773,23 @@ static int aw8695_haptic_init(struct aw8695 *aw8695)
 #ifdef MOTO_VIBRATOR_SUPPORT
 static void aw8695_rtp_play(struct aw8695 *aw8695, int value)
 {
+    int val = value + AW8695_SEQ_NO_RTP_BASE - 2;
+    int index;
+
     aw8695_haptic_stop(aw8695);
     aw8695_haptic_set_rtp_aei(aw8695, false);
     aw8695_interrupt_clear(aw8695);
-    if(value < (sizeof(aw8695_rtp_name)/AW8695_RTP_NAME_MAX)) {
-        aw8695->rtp_file_num = value;
-        if(value) {
+
+    for(index = 0; index < AW8695_RTP_NAME_MAX; ++index){
+        if(val == aw8695_rtp_wave_id[index].system_index) {
+            val = aw8695_rtp_wave_id[index].driver_index;
+            break;
+        }
+    }
+
+    if(val < (sizeof(aw8695_rtp_name)/AW8695_RTP_NAME_MAX)) {
+        aw8695->rtp_file_num = val;
+        if(val) {
             schedule_work(&aw8695->rtp_work);
         }
     } else {
@@ -1794,7 +1805,8 @@ static void aw8695_vibrate(struct aw8695 *aw8695, int value)
 
     aw8695_haptic_stop(aw8695);
     seq = aw8695->seq[0];
-    pr_debug("%s: value=%d, seq=%d\n", __FUNCTION__, value, seq);
+
+    pr_info("%s: value=%d, seq=%d\n", __FUNCTION__, value, seq);
 
     if (value > 0 || seq > 2) {
         if (seq >= AW8695_SEQ_NO_RTP_BASE) {
@@ -2257,8 +2269,8 @@ static ssize_t aw8695_seq_store(struct device *dev,
     rc = kstrtouint(buf, 0, &val);
     if (rc < 0)
         return rc;
-    val = ((val >> 24) -2) ;
-    pr_debug("%s: value=%x\n", __FUNCTION__, val);
+
+    pr_info("%s: value=%x\n", __FUNCTION__, val);
     mutex_lock(&aw8695->lock);
     for(i=0; i<4; i++) {
         aw8695->seq[i] = (val>>((AW8695_WAV_SEQ_SIZE-i-1)*8))&0xFF;
