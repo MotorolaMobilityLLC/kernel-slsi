@@ -12,6 +12,7 @@
 /dts-v1/;
 /plugin/;
 
+#include "exynos9610-robusta2-camera.dtsi"
 #include "exynos9609-robusta2_common.dtsi"
 
 / {
