@@ -218,7 +218,7 @@
 
 			front_preview_int_cam = <DVFS_INT_CAM_L3>;
 			front_preview_cam = <DVFS_CAM_L2>;
-			front_preview_mif = <DVFS_MIF_L5>;
+			front_preview_mif = <DVFS_MIF_L3>;
 			front_preview_int = <DVFS_INT_L4>;
 			front_preview_hpg = <1>;
 
