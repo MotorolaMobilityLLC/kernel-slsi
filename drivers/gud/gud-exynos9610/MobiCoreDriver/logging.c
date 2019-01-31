@@ -242,7 +242,11 @@ int logging_init(phys_addr_t *buffer, u32 *size)
 	wake_up_process(log_ctx.thread);
 
 	/* Debugfs switch */
+#ifdef CONFIG_TRUSTONIC_TEE_DEBUG
+	log_ctx.enabled = true;
+#else
 	log_ctx.enabled = false;
+#endif
 	debugfs_create_bool("swd_debug", 0600, g_ctx.debug_dir,
 			    &log_ctx.enabled);
 	return 0;
