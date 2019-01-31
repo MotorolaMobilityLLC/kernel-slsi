@@ -13,7 +13,6 @@
 #include <dt-bindings/clock/exynos9610.h>
 #include "modem-ss360ap-sit-pdata.dtsi"
 #include "exynos9610-display-lcd.dtsi"
-#include "exynos9610-robusta2-camera.dtsi"
 #include "novatek-nt36xxx-i2c.dtsi"
 #include "himax-hx83112a-i2c.dtsi"
 #include "wing-sensor.dtsi"
