@@ -362,7 +362,7 @@ const u32 sensor_12a10_setfile_A_1280x720_120fps[] = {
 const struct sensor_pll_info_compact sensor_12a10_pllinfo_A_4096x3072_30fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1144000000, /* mipi_datarate */
-	572000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	108333333,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x0D40, /* frame_length_lines	(0x380e) */
 	0x0428, /* line_length_pck	(0x380c) */
 };
@@ -370,7 +370,7 @@ const struct sensor_pll_info_compact sensor_12a10_pllinfo_A_4096x3072_30fps = {
 const struct sensor_pll_info_compact sensor_12a10_pllinfo_A_2000x1124_60fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1144000000, /* mipi_datarate */
-	572000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	108333333,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x06A0, /* frame_length_lines	(0x380e) */
 	0x0428, /* line_length_pck	(0x380c) */
 };
@@ -378,7 +378,7 @@ const struct sensor_pll_info_compact sensor_12a10_pllinfo_A_2000x1124_60fps = {
 const struct sensor_pll_info_compact sensor_12a10_pllinfo_A_1280x720_120fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1144000000, /* mipi_datarate */
-	572000000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	108333333,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x0350, /* frame_length_lines	(0x380e) */
 	0x0428, /* line_length_pck	(0x380c) */
 };
