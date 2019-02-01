@@ -56,6 +56,9 @@ static u32 sensor_2x5sp_otp_initial_size;
 static const struct sensor_pll_info_compact **sensor_2x5sp_pllinfos;
 static u32 sensor_2x5sp_max_setfile_num;
 
+static const u32 *sensor_2x5sp_setfile_throttling;
+static const struct sensor_pll_info_compact *sensor_2x5sp_pllinfo_throttling;
+
 static void sensor_2x5sp_cis_data_calculation(const struct sensor_pll_info_compact *pll_info_compact, cis_shared_data *cis_data)
 {
 	u32 vt_pix_clk_hz = 0;
@@ -777,6 +780,41 @@ int sensor_2x5sp_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 		cis->cis_data->frame_time, cis->cis_data->rolling_shutter_skew);
 
 	dbg_sensor(1, "[%s] mode changed(%d)\n", __func__, mode);
+
+p_err:
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
+	return ret;
+}
+
+int sensor_2x5sp_cis_mode_change_throttling(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis = NULL;
+
+	FIMC_BUG(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	FIMC_BUG(!cis);
+	FIMC_BUG(!cis->cis_data);
+
+	sensor_2x5sp_cis_data_calculation(sensor_2x5sp_pllinfo_throttling, cis->cis_data);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+
+	ret = sensor_cis_set_registers(subdev, sensor_2x5sp_setfile_throttling,
+				sizeof(sensor_2x5sp_setfile_throttling) / sizeof(sensor_2x5sp_setfile_throttling[0]));
+	if (ret < 0) {
+		err("sensor_gm1sp_set_registers fail!!");
+		goto p_err;
+	}
+
+	cis->cis_data->frame_time = (cis->cis_data->line_readOut_time * cis->cis_data->cur_height / 1000);
+	cis->cis_data->rolling_shutter_skew = (cis->cis_data->cur_height - 1) * cis->cis_data->line_readOut_time;
+	dbg_sensor(1, "[%s] frame_time(%d), rolling_shutter_skew(%lld)\n", __func__,
+		cis->cis_data->frame_time, cis->cis_data->rolling_shutter_skew);
+
+	dbg_sensor(1, "[%s] throttling mode changed\n", __func__);
 
 p_err:
 	I2C_MUTEX_UNLOCK(cis->i2c_lock);
@@ -2326,6 +2364,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_set_3hdr_stat = sensor_2x5sp_cis_set_3hdr_stat,
 	.cis_check_wdr_mode = sensor_2x5sp_cis_check_wdr_mode,
 	.cis_set_long_term_exposure = sensor_2x5sp_cis_long_term_exposure,
+	.cis_mode_change_throttling = sensor_2x5sp_cis_mode_change_throttling,
 };
 
 static int cis_2x5sp_probe(struct i2c_client *client,
@@ -2445,6 +2484,10 @@ static int cis_2x5sp_probe(struct i2c_client *client,
 		sensor_2x5sp_otp_initial_size = ARRAY_SIZE(sensor_2x5sp_setfiles_A_otp_initial);
 		sensor_2x5sp_pllinfos = sensor_2x5sp_pllinfos_B;
 		sensor_2x5sp_max_setfile_num = ARRAY_SIZE(sensor_2x5sp_setfiles_B);
+
+		/* throttling setting */
+		sensor_2x5sp_setfile_throttling = sensor_2x5sp_setfile_B_2880x2160_15fps;
+		sensor_2x5sp_pllinfo_throttling = &sensor_2x5sp_pllinfo_B_2880x2160_15fps;
 	} else {
 		err("%s setfile index out of bound, take default (setfile_A)", __func__);
 		sensor_2x5sp_global = sensor_2x5sp_setfile_A_Global;
