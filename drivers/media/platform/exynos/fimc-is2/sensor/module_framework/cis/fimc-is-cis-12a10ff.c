@@ -507,6 +507,7 @@ int sensor_12a10ff_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_p
 	u16 short_coarse_int = 0;
 	u32 line_length_pck = 0;
 	u32 min_fine_int = 0;
+	u8 short_coarse_val[3] = {0};
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -579,7 +580,10 @@ int sensor_12a10ff_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_p
 	}
 
 	/* Short exposure */
-	ret = fimc_is_sensor_write16(client, 0x3500, short_coarse_int);
+	short_coarse_val[0] = (short_coarse_int & 0xF000) >> 12;
+	short_coarse_val[1] = (short_coarse_int & 0x0FF0) >> 4;
+	short_coarse_val[2] = (short_coarse_int & 0x000F) << 4;
+	ret = fimc_is_sensor_write8_array(client, 0x3500, short_coarse_val, 3);
 	if (ret < 0)
 		goto p_err;
 #if 0
@@ -1037,6 +1041,7 @@ int sensor_12a10ff_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_par
 	struct i2c_client *client;
 
 	u16 analog_gain = 0;
+	u8 analog_val[2] = {0};
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1076,7 +1081,10 @@ int sensor_12a10ff_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_par
 		goto p_err;
 	}
 
-	ret = fimc_is_sensor_write16(client, 0x3508, analog_gain);
+	analog_val[0] = (analog_gain & 0xFF00) >> 8;
+	analog_val[1] = (analog_gain & 0x00FF);
+	ret = fimc_is_sensor_write8_array(client, 0x3508, analog_val, 2);
+	ret = fimc_is_sensor_write8_array(client, 0x350c, analog_val, 2);
 	if (ret < 0)
 		goto p_err;
 
@@ -1246,14 +1254,12 @@ int sensor_12a10ff_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_
 int sensor_12a10ff_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param *dgain)
 {
 	int ret = 0;
-	int hold = 0;
 	struct fimc_is_cis *cis;
 	struct i2c_client *client;
 	cis_shared_data *cis_data;
 
 	u16 long_gain = 0;
 	u16 short_gain = 0;
-	u16 dgains[4] = {0};
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1296,33 +1302,10 @@ int sensor_12a10ff_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_pa
 		cis->id, __func__, cis->cis_data->sen_vsync_count, dgain->long_val,
 		dgain->short_val, long_gain, short_gain);
 
-	I2C_MUTEX_LOCK(cis->i2c_lock);
-
-	hold = sensor_12a10ff_cis_group_param_hold_func(subdev, 0x01);
-	if (hold < 0) {
-		ret = hold;
-		goto p_err;
-	}
-
-	dgains[0] = dgains[1] = dgains[2] = dgains[3] = short_gain;
-	/* Short digital gain */
-	ret = fimc_is_sensor_write16_array(client, 0x350a, dgains, 4);
-	if (ret < 0)
-		goto p_err;
-
 #ifdef DEBUG_SENSOR_TIME
 	do_gettimeofday(&end);
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
-
-p_err:
-	if (hold > 0) {
-		hold = sensor_12a10ff_cis_group_param_hold_func(subdev, 0x00);
-		if (hold < 0)
-			ret = hold;
-	}
-
-	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }

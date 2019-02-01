@@ -22,8 +22,8 @@
 /* TODO: Check below values are valid */
 #define SENSOR_16885C_FINE_INTEGRATION_TIME_MIN                0x0
 #define SENSOR_16885C_FINE_INTEGRATION_TIME_MAX                0x0 /* Not used */
-#define SENSOR_16885C_COARSE_INTEGRATION_TIME_MIN              0x2 /* TODO */
-#define SENSOR_16885C_COARSE_INTEGRATION_TIME_MAX_MARGIN       0x2 /* TODO */
+#define SENSOR_16885C_COARSE_INTEGRATION_TIME_MIN              0x8 /* TODO */
+#define SENSOR_16885C_COARSE_INTEGRATION_TIME_MAX_MARGIN       0xC /* TODO */
 
 #define USE_GROUP_PARAM_HOLD	(0)
 
