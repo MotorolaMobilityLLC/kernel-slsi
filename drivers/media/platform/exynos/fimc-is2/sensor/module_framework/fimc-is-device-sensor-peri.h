@@ -99,6 +99,9 @@ struct fimc_is_cis {
 
 	/* dual sync mode */
 	u32				dual_sync_mode;
+
+	struct work_struct		throttling_work;
+	bool				throttling_mode;
 };
 
 struct fimc_is_actuator_data {

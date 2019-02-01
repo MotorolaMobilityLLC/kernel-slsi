@@ -971,6 +971,54 @@ void fimc_is_sensor_ois_init_work(struct work_struct *data)
 }
 #endif
 
+void fimc_is_sensor_cis_throttling_work(struct work_struct *data)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct fimc_is_device_sensor_peri *sensor_peri;
+
+	WARN_ON(!data);
+
+	cis = container_of(data, struct fimc_is_cis, throttling_work);
+	WARN_ON(!cis);
+
+	cis->throttling_mode = cis->throttling_mode ? false : true;
+
+	sensor_peri = container_of(cis, struct fimc_is_device_sensor_peri, cis);
+	/* sensor stream off */
+	ret = CALL_CISOPS(cis, cis_stream_off, sensor_peri->subdev_cis);
+	if (ret < 0) {
+		err("[%s] stream off fail\n", __func__);
+		return;
+	}
+
+	ret = CALL_CISOPS(cis, cis_wait_streamoff, sensor_peri->subdev_cis);
+	if (ret < 0) {
+		err("[%s] wait stream off fail\n", __func__);
+		return;
+	}
+
+	/* TODO: setting change to normal -> throttling or throttling -> normal */
+	if (cis->throttling_mode) {
+		info("throttling!!");
+		CALL_CISOPS(cis, cis_mode_change_throttling, cis->subdev);
+	} else {
+		info("return!!");
+		CALL_CISOPS(cis, cis_mode_change, cis->subdev, cis->cis_data->sens_config_index_cur);
+	}
+
+
+	ret = CALL_CISOPS(cis, cis_stream_on, sensor_peri->subdev_cis);
+	if (ret < 0) {
+		err("[%s] stream on fail\n", __func__);
+	}
+
+	ret = CALL_CISOPS(cis, cis_wait_streamon, sensor_peri->subdev_cis);
+	if (ret < 0)
+		err("[%s] sensor wait stream on fail\n", __func__);
+
+}
+
 void fimc_is_sensor_aperture_set_start_work(struct work_struct *data)
 {
 	int ret = 0;
@@ -1179,6 +1227,7 @@ int fimc_is_sensor_peri_notify_vsync(struct v4l2_subdev *subdev, void *arg)
 	struct fimc_is_cis *cis = NULL;
 	struct fimc_is_module_enum *module;
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
+	struct fimc_is_device_sensor *device;
 
 	FIMC_BUG(!subdev);
 	FIMC_BUG(!arg);
@@ -1196,6 +1245,12 @@ int fimc_is_sensor_peri_notify_vsync(struct v4l2_subdev *subdev, void *arg)
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(sensor_peri->subdev_cis);
 
 	cis->cis_data->sen_vsync_count = vsync_count;
+
+	device = v4l2_get_subdev_hostdata(sensor_peri->subdev_cis);
+	FIMC_BUG(!device);
+	if ((device->resourcemgr->limited_fps && !cis->throttling_mode)
+		|| (device->resourcemgr->limited_fps == 0 && cis->throttling_mode))
+		schedule_work(&sensor_peri->cis.throttling_work);
 
 	if (sensor_peri->sensor_task != NULL
 		|| sensor_peri->use_sensor_work) {
@@ -1683,6 +1738,8 @@ void fimc_is_sensor_peri_init_work(struct fimc_is_device_sensor_peri *sensor_per
 	if (sensor_peri->ois)
 		INIT_WORK(&sensor_peri->ois->init_work, fimc_is_sensor_ois_init_work);
 #endif
+	INIT_WORK(&sensor_peri->cis.throttling_work, fimc_is_sensor_cis_throttling_work);
+	sensor_peri->cis.throttling_mode = false;
 }
 
 void fimc_is_sensor_peri_probe(struct fimc_is_device_sensor_peri *sensor_peri)
