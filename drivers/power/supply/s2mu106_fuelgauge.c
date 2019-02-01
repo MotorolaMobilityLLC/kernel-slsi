@@ -433,7 +433,7 @@ static void s2mu106_temperature_compensation(struct s2mu106_fuelgauge_data *fuel
 {
 	bool flag_mapping = false;
 	int soc_map = 0;
-	int ui_soc = 0;
+	s16 diff_soc = 0;
 	u8 data[2];
 
 	fuelgauge->comp_socr =
@@ -455,22 +455,29 @@ static void s2mu106_temperature_compensation(struct s2mu106_fuelgauge_data *fuel
 		if (fuelgauge->init_start) {
 			s2mu106_read_reg(fuelgauge->i2c, S2MU106_REG_RSOC_R, data);
 
-			if (data[1] == 0) {
-				ui_soc = (data[1] << 8) | (data[0]);
+			if (data[1] & 0x80) {
+				if (data[1] & 0x40)
+					data[1] = data[1] | 0x80;
+				else
+					data[1] = data[1] & 0x7F;
 
-				pr_info("%s: init, use saved UI SOC(%d)"
+				diff_soc = (data[1] << 8) | data[0];
+
+				pr_info("%s: init, use saved diff_soc(%d)"
 						" data[1] = 0x%02x, data[0] = 0x%02x\n",
-						__func__, ui_soc, data[1], data[0]);
+						__func__, diff_soc, data[1], data[0]);
 
-				fuelgauge->ui_soc = ui_soc;
+				fuelgauge->soc_r = fuelgauge->rsoc + diff_soc;
 
-				/* UI SOC unit is 1% */
-				ui_soc = ui_soc * 100;
+				if (fuelgauge->soc_r > 10000)
+					fuelgauge->soc_r = 10000;
+				else if (fuelgauge->soc_r < 0)
+					fuelgauge->soc_r = 0;
 
-				fuelgauge->socni = ui_soc;
+				fuelgauge->socni = fuelgauge->soc_r;
 				fuelgauge->soc0i = fuelgauge->rsoc;
 			} else {
-				pr_info("%s: init, UI SOC is not saved\n",
+				pr_info("%s: init, diff_soc is not saved\n",
 						__func__);
 
 				fuelgauge->socni = fuelgauge->rsoc;
@@ -524,16 +531,32 @@ static void s2mu106_temperature_compensation(struct s2mu106_fuelgauge_data *fuel
 	fuelgauge->pre_is_charging = fuelgauge->is_charging;
 	fuelgauge->pre_bat_charging = fuelgauge->bat_charging;
 
-	/* Save UI SOC for maintain SOC, after low temperature reset */
-	data[0] = fuelgauge->ui_soc;
-	data[1] = 0;
+	/* Save diff_soc for maintain SOC, after reboot */
+	diff_soc = fuelgauge->soc_r - fuelgauge->rsoc;
+
+	if (diff_soc > 10000)
+		diff_soc = 10000;
+	else if (diff_soc < -10000)
+		diff_soc = -10000;
+
+	data[1] = ((diff_soc & 0xFF00) >> 8) & 0xFF;
+	data[1] = data[1] | 0x80;
+	data[0] = diff_soc & 0xFF;
+
 	s2mu106_write_reg(fuelgauge->i2c, S2MU106_REG_RSOC_R, data);
 
-	/* TODO: Print UI SOC & saved value for debugging */
+	/* TODO: Print diff_soc & saved value for debugging */
 	s2mu106_read_reg(fuelgauge->i2c, S2MU106_REG_RSOC_R, data);
-	ui_soc = (data[1] << 8) | (data[0]);
-	pr_info("%s: saved UI SOC = %d, data[1] = 0x%02x, data[0] = 0x%02x\n",
-			__func__, ui_soc, data[1], data[0]);
+
+	if (data[1] & 0x40)
+		data[1] = data[1] | 0x80;
+	else
+		data[1] = data[1] & 0x7F;
+
+	diff_soc = (data[1] << 8) | data[0];
+
+	pr_info("%s: diff_soc = %d, data[1] = 0x%02x, data[0] = 0x%02x\n",
+			__func__, diff_soc, data[1], data[0]);
 }
 #endif
 
