@@ -204,6 +204,7 @@ struct fm_rds_parser_info {
 	struct rtp_info rtp_data;
 
 	u8 grp;
+	u8 pty;
 	bool drop_blk;
 	u8 rds_event;
 };
@@ -447,6 +448,7 @@ struct s610_radio {
 	const char **clk_ids;
 	int tc_on;
 	int trf_on;
+	int trf_spur;
 	int dual_clk_on;
 	int vol_num;
 	u32 *vol_level_mod;

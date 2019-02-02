@@ -49,7 +49,7 @@
 
 static int radio_region;
 module_param(radio_region, int, 0);
-MODULE_PARM_DESC(radio_region, "Region: 0=Europe/US, 1=Japan");
+MODULE_PARM_DESC(radio_region, "Region: 0=Europe/US, 1=Japan, 2=Custom");
 
 struct s610_radio;
 
@@ -131,7 +131,7 @@ static struct v4l2_ctrl_config s610_ctrls[] = {
 				.type	= V4L2_CTRL_TYPE_INTEGER,
 				.name	= "Channel Band",
 				.min	= 0,
-				.max	= 1,
+				.max	= 0xFFFFFFF,
 				.step	= 1,
 		},
 		[S610_IDX_SOFT_STEREO_BLEND] = { /*0x03*/
@@ -280,6 +280,19 @@ static const struct v4l2_frequency_band s610_bands[] = {
 				.rangehigh	= 90000*FAC_VALUE,
 				.modulation	= V4L2_BAND_MODULATION_FM,
 		},
+		[2] = {
+				.type		= V4L2_TUNER_RADIO,
+				.index		= S610_BAND_FM,
+				.capability = V4L2_TUNER_CAP_LOW
+				| V4L2_TUNER_CAP_STEREO
+				| V4L2_TUNER_CAP_RDS
+				| V4L2_TUNER_CAP_RDS_BLOCK_IO
+				| V4L2_TUNER_CAP_FREQ_BANDS,
+				/* custom region */
+				.rangelow	= 76000*FAC_VALUE,
+				.rangehigh	= 108000*FAC_VALUE,
+				.modulation = V4L2_BAND_MODULATION_FM,
+		},
 };
 
 /* Region info */
@@ -298,6 +311,14 @@ static struct region_info region_configs[] = {
 			.top_freq = 90000,	/* 90 MHz */
 			.fm_band = 1,
 		},
+		/* Custom */
+		{
+			.chanl_space = FM_CHANNEL_SPACING_200KHZ * FM_FREQ_MUL,
+			.bot_freq = 76000,	/* 76 MHz */
+			.top_freq = 108000,	/* 90 MHz */
+			.fm_band = 2,
+		},
+
 };
 
 static inline bool s610_radio_freq_is_inside_of_the_band(u32 freq, int band)
@@ -1276,12 +1297,17 @@ static int s610_radio_s_ctrl(struct v4l2_ctrl *ctrl)
 			__func__, ctrl->val,  ret);
 		break;
 	case V4L2_CID_S610_CH_BAND:
-		radio_region = ctrl->val;
-		radio->radio_region = ctrl->val;
-		payload = ctrl->val;
+		FDEBUG(radio, "%s(), ctrl->val: 0x%08X, ret : %d\n", __func__, ctrl->val);
+		radio_region = (ctrl->val & 0xF);
+		radio->radio_region = (ctrl->val & 0xF);
+		if (2 == radio_region) {
+			region_configs[radio_region].top_freq = ((ctrl->val & 0xFFF0000) >> 16) * 50;
+			region_configs[radio_region].bot_freq = ((ctrl->val & 0xFFF0) >> 4) * 50;
+		}
+		payload = (ctrl->val & 0xF);;
 		fm_set_band(radio, payload);
 		FDEBUG(radio, "%s(), BAND val:%d, ret : %d\n",
-				__func__, ctrl->val,  ret);
+				__func__, radio_region,  ret);
 		break;
 	case V4L2_CID_S610_SOFT_STEREO_BLEND:
 		ret = low_set_most_blend(radio, ctrl->val);
@@ -1598,8 +1624,6 @@ static int s610_radio_fops_open(struct file *file)
 		/*Must be done after s610_core_unlock to prevent a deadlock*/
 		v4l2_ctrl_handler_setup(&radio->ctrl_handler);
 	}
-
-	fm_set_audio_gain(radio, 7);
 
 	FUNC_EXIT(radio);
 
@@ -2310,6 +2334,11 @@ skip_tc_off:
 		goto skip_trf_off;
 	}
 	dev_info(radio->dev, "number TRF On Freq: %d\n", radio->trf_on);
+
+	ret = of_property_read_u32(dnode, "spur-trfon-freq", &radio->trf_spur);
+	if (ret)
+		radio->trf_spur = 0;
+
 skip_trf_off:
 
 	ret = of_property_read_u32(dnode, "num-dual-clkon-freq", &radio->dual_clk_on);
