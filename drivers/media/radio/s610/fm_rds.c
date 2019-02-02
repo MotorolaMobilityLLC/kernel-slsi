@@ -980,6 +980,9 @@ void find_group_data(struct fm_rds_parser_info *pi, u16 info)
 
 	pi->grp = (info >> 11) & 0x1f;
 
+	pi->pty = (info >> 5) & 0x1f;
+	pi->rds_event |= RDS_EVENT_PTY_MASK;
+
 	switch (pi->grp) {
 	case RDS_GRPTYPE_0A:
 	case RDS_GRPTYPE_0B:
@@ -1283,6 +1286,18 @@ void fm_rds_write_data_pi(struct s610_radio *radio,
 			RDSEBUG(radio, "[%d,%d,%d]\n", pi->rtp_data.tag[1].content_type, pi->rtp_data.tag[1].start_pos, pi->rtp_data.tag[1].len);
 
 			total_size += sizeof(struct rtp_info) + 2;
+		} else if (pi->rds_event & RDS_EVENT_PTY_MASK) {
+			pi->rds_event &= ~RDS_EVENT_PTY_MASK;
+
+			buf_ptr[total_size] = RDS_EVENT_PTY;
+			buf_ptr[total_size+1] = 1;
+			buf_ptr[total_size+2] = pi->pty;
+			RDSEBUG(radio,
+				"[RDS] Enqueue PTY data[%02X:%02X:%02X]. total=%d\n",
+				buf_ptr[total_size],buf_ptr[total_size+1],buf_ptr[total_size+2],
+				total_size+3);
+
+			total_size += 3;
 		}
 
 		if (!pi->rds_event && total_size) {
