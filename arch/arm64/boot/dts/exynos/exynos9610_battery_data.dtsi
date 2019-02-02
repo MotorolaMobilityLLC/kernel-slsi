@@ -61,8 +61,9 @@
 					<500 450 500 3000 500 1500 1500 1000 1500 1800
 					1000 500 500 1500 2500 500 450>;
 				battery,full_check_current =
-					<150 0 150 150 150 150 150 150 150 150
-					150 150 150 150 150 150 0>;
+					<175 0 175 175 175 175 175 175 175 175
+					175 175 175 175 175 175 0>;
+
 
 				/*moto begin*/
 				moto,fastchg-current-ma = <3000>;
@@ -79,12 +80,12 @@
 				moto,stepchg-voltage-mv = <4200>;
 				moto,stepchg-current-ma = <2000>;
 				moto,stepchg-taper-ma = <1800>;
-				moto,stepchg-iterm-ma = <125>;
+				moto,stepchg-iterm-ma = <150>;
 				moto,enable-hvdcp-9v;
 				moto,weak-charger-check-enable;
-				moto,temp-warm-current-ma = <1460>;
-				moto,temp-cool-current-ma = <582>;
-				moto,temp-slightly-cool-current-ma = <1460>;
+				moto,temp-warm-current-ma = <1700>;
+				moto,temp-cool-current-ma = <680>;
+				moto,temp-slightly-cool-current-ma = <1700>;
 				moto,slightly-cool-temp-c = <15>;
 				moto,enable-charging-limit;
 				moto,upper-limit-capacity = <75>;
