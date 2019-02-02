@@ -19,7 +19,7 @@
 #include "fimc_bu24218_factory.h"
 #endif
 
-#define OIS_FW_SIZE			2136
+#define OIS_FW_SIZE			2692
 #define FW_TRANS_SIZE			256
 #endif
 
