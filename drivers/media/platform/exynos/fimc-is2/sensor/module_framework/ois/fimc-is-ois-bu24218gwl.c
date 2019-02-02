@@ -19,12 +19,12 @@
 #include "fimc-is-ois.h"
 
 #define OIS_NAME "OIS_ROHM_BU24218GWL"
-#define OIS_FW_1_NAME		"bu24218_Rev1.3_S_data1.bin"
-#define OIS_FW_2_NAME		"bu24218_Rev1.3_S_data2.bin"
+#define OIS_FW_1_NAME		"bu24218_Rev1.5_S_data1.bin"
+#define OIS_FW_2_NAME		"bu24218_Rev1.5_S_data2.bin"
 #define OIS_FW_NUM		2
 #define OIS_FW_ADDR_1		0x0000
 #define OIS_FW_ADDR_2		0x1C00
-#define OIS_FW_CHECK_SUM	0x02D9C6
+#define OIS_FW_CHECK_SUM	0x038B41
 
 #define OIS_CAL_DATA_PATH		"/data/vendor/camera/gm1_eeprom_data.bin"
 #define OIS_CAL_DATA_PATH_DEFAULT	"/vendor/firmware/bu24218_cal_data_default.bin"
