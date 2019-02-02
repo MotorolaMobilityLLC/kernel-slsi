@@ -925,7 +925,7 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 		val->intval = value.intval;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		val->intval = 100;
+		val->intval = 3500;
 		break;
 	case POWER_SUPPLY_PROP_CALIBRATE:
 		val->intval = battery->is_factory;
@@ -961,7 +961,7 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		val->intval = 3000;
+		val->intval = 3500;
 		break;
 	case POWER_SUPPLY_PROP_SOH:
 		val->intval = battery->soh;
