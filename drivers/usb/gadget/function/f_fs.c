@@ -128,7 +128,7 @@ struct ffs_ep {
 struct ffs_epfile {
 	/* Protects ep->ep and ep->req. */
 	struct mutex			mutex;
-
+	atomic_t			error;
 	struct ffs_data			*ffs;
 	struct ffs_ep			*ep;	/* P: ffs->eps_lock */
 
@@ -883,6 +883,10 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 	char *data = NULL;
 	ssize_t ret, data_len = -EINVAL;
 	int halt;
+	/* to get updated error atomic variable value */
+	smp_mb__before_atomic();
+	if (atomic_read(&epfile->error))
+		return -ENODEV;
 
 	/* Are we still active? */
 	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE))
@@ -893,11 +897,24 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 	if (!ep) {
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
+		/* Don't wait on write if device is offline */
+		if (!io_data->read)
+			return -ENODEV;
+		/* to get updated error atomic variable value */
+		smp_mb__before_atomic();
 
-		ret = wait_event_interruptible(
+		/*
+		 * if ep is disabled, this fails all current IOs
+		 * and wait for next epfile open to happen
+		 */
+		if (!atomic_read(&epfile->error)) {
+			ret = wait_event_interruptible(
 				epfile->ffs->wait, (ep = epfile->ep));
-		if (ret)
-			return -EINTR;
+			if (ret)
+				return -EINTR;
+		}
+		if (!ep)
+			return -ENODEV;
 	}
 
 	/* Do we halt? */
@@ -1076,7 +1093,9 @@ ffs_epfile_open(struct inode *inode, struct file *file)
 
 	file->private_data = epfile;
 	ffs_data_opened(epfile->ffs);
-
+	/* to get updated opened atomic variable value */
+	smp_mb__before_atomic();
+	atomic_set(&epfile->error, 0);
 	return 0;
 }
 
@@ -1192,6 +1211,7 @@ ffs_epfile_release(struct inode *inode, struct file *file)
 	ENTER();
 
 	__ffs_epfile_read_buffer_free(epfile);
+	atomic_set(&epfile->error, 1);
 	ffs_data_closed(epfile->ffs);
 
 	return 0;
@@ -1840,7 +1860,11 @@ static void ffs_func_eps_disable(struct ffs_function *func)
 	unsigned long flags;
 
 	spin_lock_irqsave(&func->ffs->eps_lock, flags);
-	while (count--) {
+	do {
+
+		if (epfile)
+			atomic_set(&epfile->error, 1);
+
 		/* pending requests get nuked */
 		if (likely(ep->ep))
 			usb_ep_disable(ep->ep);
@@ -1851,7 +1875,7 @@ static void ffs_func_eps_disable(struct ffs_function *func)
 			__ffs_epfile_read_buffer_free(epfile);
 			++epfile;
 		}
-	}
+	} while (--count);
 	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 }
 
@@ -1865,7 +1889,7 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 	int ret = 0;
 
 	spin_lock_irqsave(&func->ffs->eps_lock, flags);
-	while(count--) {
+	do {
 		ep->ep->driver_data = ep;
 
 		ret = config_ep_by_speed(func->gadget, &func->function, ep->ep);
@@ -1886,7 +1910,7 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 
 		++ep;
 		++epfile;
-	}
+	} while (--count);
 
 	wake_up_interruptible(&ffs->wait);
 	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
@@ -3459,12 +3483,12 @@ static void ffs_func_unbind(struct usb_configuration *c,
 
 	/* cleanup after autoconfig */
 	spin_lock_irqsave(&func->ffs->eps_lock, flags);
-	while (count--) {
+	do {
 		if (ep->ep && ep->req)
 			usb_ep_free_request(ep->ep, ep->req);
 		ep->req = NULL;
 		++ep;
-	}
+	} while (--count);
 	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 	kfree(func->eps);
 	func->eps = NULL;
