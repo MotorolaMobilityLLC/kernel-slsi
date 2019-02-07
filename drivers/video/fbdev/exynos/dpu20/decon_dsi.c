@@ -593,6 +593,7 @@ static ssize_t decon_show_psr_info(struct device *dev,
 				(res.src_f_h.min * sz_align),
 				mres_info->res_info[i].dsc_en);
 	}
+	len += sprintf(p + len, "%d\n", lcd_info->fps);
 	return len;
 }
 static DEVICE_ATTR(psr_info, S_IRUGO, decon_show_psr_info, NULL);
