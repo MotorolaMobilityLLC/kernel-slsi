@@ -70,7 +70,6 @@ static DEFINE_MUTEX(pmu_shutdown_mutex);
 static DEFINE_MUTEX(log_mutex);
 static DEFINE_MUTEX(wt_mutex);
 
-
 void chub_wake_event(struct chub_alive *event)
 {
 	atomic_set(&event->flag, 1);
@@ -286,21 +285,6 @@ static inline int get_recv_channel(struct recv_ctrl *recv)
 		recv->container[min_order_evt] = 0;
 
 	return min_order_evt;
-}
-
-static inline bool read_is_locked(struct contexthub_ipc_info *ipc)
-{
-	return atomic_read(&ipc->read_lock.cnt) != 0;
-}
-
-static inline void read_get_locked(struct contexthub_ipc_info *ipc)
-{
-	atomic_inc(&ipc->read_lock.cnt);
-}
-
-static inline void read_put_unlocked(struct contexthub_ipc_info *ipc)
-{
-	atomic_dec(&ipc->read_lock.cnt);
 }
 
 /* simple alive check function : don't use ipc map */
@@ -524,45 +508,48 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 	int size = 0;
 	int ret;
 	void *rxbuf;
+	u64 time = 0; /* for debug */
 
-	if (!ipc->read_lock.flag) {
+	if (!atomic_read(&ipc->read_lock.cnt)) {
+		time = sched_clock();
+
 		spin_lock_irqsave(&ipc->read_lock.event.lock, flag);
-		read_get_locked(ipc);
+		atomic_inc(&ipc->read_lock.flag);
 		ret =
 			wait_event_interruptible_timeout_locked(ipc->read_lock.event,
-								ipc->read_lock.flag,
+								atomic_read(&ipc->read_lock.cnt),
 								msecs_to_jiffies(timeout));
-		read_put_unlocked(ipc);
+		atomic_dec(&ipc->read_lock.flag);
 		spin_unlock_irqrestore(&ipc->read_lock.event.lock, flag);
 		if (ret < 0)
 			dev_warn(ipc->dev,
-				 "fails to get read ret:%d timeout:%d, flag:0x%x",
-				 ret, timeout, ipc->read_lock.flag);
-
-		if (!ipc->read_lock.flag)
-			goto fail_get_channel;
+				 "fails to get read ret:%d timeout:%d\n", ret, timeout);
 	}
-
-	ipc->read_lock.flag--;
 
 	if (contexthub_get_token(ipc)) {
 		dev_warn(ipc->dev, "no-active: read fails\n");
 		return 0;
 	}
 
-	rxbuf = ipc_read_data(IPC_DATA_C2A, &size);
-
-	if (size > 0)
-		ret = contexthub_read_process(rx, rxbuf, size);
+	if (atomic_read(&ipc->read_lock.cnt)) {
+		rxbuf = ipc_read_data(IPC_DATA_C2A, &size);
+		if (size > 0) {
+			ret = contexthub_read_process(rx, rxbuf, size);
+			atomic_dec(&ipc->read_lock.cnt);
+		}
+	} else {
+		dev_warn(ipc->dev, "%s: read timeout(%d): c2aq_cnt:%d, recv_cnt:%d during %lld ns\n",
+			__func__, ipc->err_cnt[CHUB_ERR_READ_FAIL],
+			ipc_get_data_cnt(IPC_DATA_C2A), atomic_read(&ipc->read_lock.cnt),
+			sched_clock() - time);
+		if (ipc_get_data_cnt(IPC_DATA_C2A)) {
+			ipc->err_cnt[CHUB_ERR_READ_FAIL]++;
+			ipc_dump();
+		}
+		ret = -EINVAL;
+	}
 	contexthub_put_token(ipc);
 	return ret;
-
-fail_get_channel:
-	if (ipc_get_data_cnt(IPC_DATA_C2A)) {
-		dev_warn(ipc->dev, "%s: read timeout\n", __func__);
-		ipc->err_cnt[CHUB_ERR_READ_FAIL]++;
-	}
-	return -EINVAL;
 }
 
 int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
@@ -625,7 +612,8 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	/* clear ipc value */
 	atomic_set(&ipc->wakeup_chub, CHUB_OFF);
 	atomic_set(&ipc->irq1_apInt, C2A_OFF);
-	atomic_set(&ipc->read_lock.cnt, 0x0);
+	atomic_set(&ipc->read_lock.cnt, 0);
+	atomic_set(&ipc->read_lock.flag, 0);
 	atomic_set(&ipc->log_work_active, 0);
 
 	/* chub err init */
@@ -635,7 +623,6 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 		ipc->err_cnt[i] = 0;
 	}
 
-	ipc->read_lock.flag = 0;
 	ipc_hw_write_shared_reg(AP, ipc->os_load, SR_BOOT_MODE);
 	ipc_set_chub_clk((u32)ipc->clkrate);
 	ipc->chub_rt_log.loglevel = CHUB_RT_LOG_DUMP;
@@ -968,19 +955,19 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 		case MAILBOX_EVT_WAKEUP_CLR:
 			if (atomic_read(&ipc->wakeup_chub) == CHUB_ON) {
 				ret = ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_WAKEUP_CLR);
-				if (!ret)
+				if (ret >= 0)
 					atomic_set(&ipc->wakeup_chub, CHUB_OFF);
 				else
-					dev_warn(ipc->dev, "%s: fails to set wakeup", __func__);
+					dev_warn(ipc->dev, "%s: fails to set wakeup. ret:%d", __func__, ret);
 			}
 			break;
 		case MAILBOX_EVT_WAKEUP:
 			if (atomic_read(&ipc->wakeup_chub) == CHUB_OFF) {
 				ret = ipc_add_evt(IPC_EVT_A2C, IRQ_EVT_A2C_WAKEUP);
-				if (!ret)
+				if (ret >= 0)
 					atomic_set(&ipc->wakeup_chub, CHUB_ON);
 				else
-					dev_warn(ipc->dev, "%s: fails to set wakeupclr", __func__);
+					dev_warn(ipc->dev, "%s: fails to set wakeupclr. ret:%d", __func__, ret);
 			}
 			break;
 		default:
@@ -996,7 +983,7 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 		}
 		contexthub_put_token(ipc);
 
-		if (ret)
+		if (ret < 0)
 			ipc->err_cnt[CHUB_ERR_EVTQ_ADD]++;
 	}
 	return ret;
@@ -1240,10 +1227,10 @@ static void handle_irq(struct contexthub_ipc_info *ipc, enum irq_evt_chub evt)
 		if (evt < IRQ_EVT_CH_MAX) {
 			int lock;
 
-			ipc->read_lock.flag++;
+			atomic_inc(&ipc->read_lock.cnt);
 			/* TODO: requered.. ? */
 			spin_lock(&ipc->read_lock.event.lock);
-			lock = read_is_locked(ipc);
+			lock = atomic_read(&ipc->read_lock.flag);
 			spin_unlock(&ipc->read_lock.event.lock);
 			if (lock)
 				wake_up_interruptible_sync(&ipc->read_lock.event);
