@@ -103,7 +103,7 @@ enum chub_status {
 
 struct read_wait {
 	atomic_t cnt;
-	volatile u32 flag;
+	atomic_t flag;
 	wait_queue_head_t event;
 };
 

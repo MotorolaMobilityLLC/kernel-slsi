@@ -220,7 +220,7 @@ u32 *ipc_get_chub_msp(void)
 }
 #endif
 
-static void dump_mailbox_sfr(void)
+static void ipc_dump_mailbox_sfr(void)
 {
 	int i = 0;
 	u32 val;
@@ -228,7 +228,7 @@ static void dump_mailbox_sfr(void)
 	for (i = 0; i <= REG_MAILBOX_INTMSR1; i += 4) {
 		val = __raw_readl(ipc_own[AP].base + i);
 		if (val)
-			CSP_PRINTF_ERROR("%s:sfr:+0x%x:0x%x\n", NAME_PREFIX, i, val);
+			CSP_PRINTF_ERROR("%s: sfr:+0x%x:0x%x\n", __func__, i, val);
 	}
 }
 
@@ -517,8 +517,8 @@ retry:
 		cur_evt = &ipc_evt->data[ipc_evt->ctrl.eq];
 		if (!cur_evt) {
 			CSP_PRINTF_ERROR("%s:%s: invalid cur_evt\n", NAME_PREFIX, __func__);
-			ret = -EINVAL;
-			goto out;
+			ENABLE_IRQ(LOCK_ADD_EVT, &flag);
+			return -EINVAL;
 		}
 
 		/* get evt channel */
@@ -711,17 +711,22 @@ int ipc_get_data_cnt(enum ipc_data_list dataq)
 		return ipc_data->eq + (IPC_CH_BUF_NUM - ipc_data->dq);
 }
 
-void ipc_print_databuf(void)
+static void ipc_print_databuf(void)
 {
-	struct ipc_buf *ipc_data = ipc_get_base(IPC_REG_IPC_A2C);
+	struct ipc_buf *ipc_data;
+	int i;
+	int j;
 
-	CSP_PRINTF_INFO("%s: a2c: eq:%d dq:%d full:%d empty:%d\n",
-		NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+	for (j = 0; j < IPC_DATA_MAX; j++) {
+		ipc_data = (j == IPC_DATA_C2A) ? ipc_get_base(IPC_REG_IPC_C2A) : ipc_get_base(IPC_REG_IPC_A2C);
+		CSP_PRINTF_INFO("%s: %s: eq:%d dq:%d\n",
+			__func__, (j == IPC_DATA_C2A) ? "c2a" : "a2c", ipc_data->eq, ipc_data->dq);
 
-	ipc_data = ipc_get_base(IPC_REG_IPC_C2A);
-
-	CSP_PRINTF_INFO("%s: c2a: eq:%d dq:%d full:%d empty:%d\n",
-		NAME_PREFIX, ipc_data->eq, ipc_data->dq, ipc_data->full, ipc_data->empty);
+		if (ipc_get_data_cnt(j))
+			for (i = 0; i < IPC_CH_BUF_NUM; i++)
+				CSP_PRINTF_INFO("%s: ch%d(size:0x%x)\n",
+						__func__, i, ipc_data->ch[i].size);
+	}
 }
 
 static void ipc_print_logbuf(void)
@@ -729,43 +734,14 @@ static void ipc_print_logbuf(void)
 	struct ipc_logbuf *logbuf = &ipc_map->logbuf;
 
 	CSP_PRINTF_INFO("%s: channel: eq:%d, dq:%d, size:%d, full:%d, dbg_full_cnt:%d, err(overwrite):%d, ipc-reqcnt:%d, fw:%d\n",
-		NAME_PREFIX, logbuf->eq, logbuf->dq, logbuf->size, logbuf->full, logbuf->dbg_full_cnt,
+		__func__, logbuf->eq, logbuf->dq, logbuf->size, logbuf->full, logbuf->dbg_full_cnt,
 		logbuf->errcnt, logbuf->reqcnt, logbuf->fw_num);
 	CSP_PRINTF_INFO("%s: raw: eq:%d, dq:%d, size:%d, full:%d\n",
-		NAME_PREFIX, logbuf->logbuf.eq, logbuf->logbuf.dq, logbuf->logbuf.size, logbuf->logbuf.full);
-}
+		__func__, logbuf->logbuf.eq, logbuf->logbuf.dq, logbuf->logbuf.size, logbuf->logbuf.full);
 
-int ipc_check_reset_valid()
-{
-	int i;
-	int ret = 0;
-	struct ipc_map_area *map = ipc_get_base(IPC_REG_IPC);
 
-	for (i = 0; i < IPC_DATA_MAX; i++)
-		if (map->data[i].dq || map->data[i].eq ||
-			map->data[i].full || (map->data[i].empty != 1)) {
-			CSP_PRINTF_INFO("%s: %s: ipc_data_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
-			NAME_PREFIX, __func__, i ? "a2c" : "c2a",
-			map->data[i].eq,
-			map->data[i].dq,
-			map->data[i].full,
-			map->data[i].empty);
-			ret = -EINVAL;
-		}
 
-	for (i = 0; i < IPC_EVT_MAX; i++)
-		if (map->evt[i].ctrl.eq || map->evt[i].ctrl.dq ||
-			map->evt[i].ctrl.full || (map->evt[i].ctrl.empty != 1)) {
-			CSP_PRINTF_INFO("%s: %s: ipc_evt_%s invalid: eq:%d, dq:%d, full:%d, empty:%d\n",
-			NAME_PREFIX, __func__, i ? "a2c" : "c2a",
-			map->evt[i].ctrl.eq,
-			map->evt[i].ctrl.eq,
-			map->evt[i].ctrl.full,
-			map->evt[i].ctrl.empty);
-			ret = -EINVAL;
-		}
 
-	return ret;
 }
 
 void ipc_init(void)
@@ -778,16 +754,12 @@ void ipc_init(void)
 	for (i = 0; i < IPC_DATA_MAX; i++) {
 		ipc_map->data[i].eq = 0;
 		ipc_map->data[i].dq = 0;
-		ipc_map->data[i].full = 0;
-		ipc_map->data[i].empty = 1;
 	}
 
 	ipc_hw_clear_all_int_pend_reg(AP);
 	for (j = 0; j < IPC_EVT_MAX; j++) {
 		ipc_map->evt[j].ctrl.dq = 0;
 		ipc_map->evt[j].ctrl.eq = 0;
-		ipc_map->evt[j].ctrl.full = 0;
-		ipc_map->evt[j].ctrl.empty = 1;
 		ipc_map->evt[j].ctrl.irq = 0;
 		for (i = 0 ; i < IRQ_MAX; i++)
 			ipc_map->evt[j].ctrl.pending[i] = 0;
@@ -806,19 +778,18 @@ void ipc_print_evt(enum ipc_evt_list evtq)
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
 	int i;
 
-	CSP_PRINTF_INFO("%s: evt(%p)-%s: eq:%d dq:%d full:%d irq:%d\n",
-			NAME_PREFIX, ipc_evt, IPC_GET_EVT_NAME(evtq), ipc_evt->ctrl.eq,
-			ipc_evt->ctrl.dq, ipc_evt->ctrl.full,
-			ipc_evt->ctrl.irq);
+	CSP_PRINTF_INFO("%s: evt(%p)-%s: eq:%d dq:%d irq:%d\n",
+			__func__, ipc_evt, IPC_GET_EVT_NAME(evtq), ipc_evt->ctrl.eq,
+			ipc_evt->ctrl.dq, ipc_evt->ctrl.irq);
 
-	for (i = 0; i < IRQ_MAX; i++) {
+	for (i = 0; i < IRQ_MAX; i++)
 		if (ipc_evt->ctrl.pending[i])
-			CSP_PRINTF_INFO("%s: irq:%d filled", __func__, i);
-	}
+			CSP_PRINTF_INFO("%s: irq:%d filled\n", __func__, i);
+
 	for (i = 0; i < IPC_EVT_NUM; i++) {
 		if (ipc_evt->data[i].status)
 			CSP_PRINTF_INFO("%s: evt%d(evt:%d,irq:%d,f:%d)\n",
-				NAME_PREFIX, i, ipc_evt->data[i].evt,
+				__func__, i, ipc_evt->data[i].evt,
 				ipc_evt->data[i].irq, ipc_evt->data[i].status);
 	}
 }
@@ -826,19 +797,16 @@ void ipc_print_evt(enum ipc_evt_list evtq)
 void ipc_dump(void)
 {
 	if (strncmp(CHUB_IPC_MAGIC, ipc_map->magic, sizeof(CHUB_IPC_MAGIC))) {
-		CSP_PRINTF_INFO("%s: %s: ipc crash\n", NAME_PREFIX, __func__);
+		CSP_PRINTF_INFO("%s: [%s]: ipc crash\n", NAME_PREFIX, __func__);
 		return;
 	}
 
-	CSP_PRINTF_INFO("%s: %s: a2x event, magic:%s\n", NAME_PREFIX, __func__, ipc_map->magic);
+	CSP_PRINTF_INFO("[%s]: magic:%s\n", __func__, ipc_map->magic);
 	ipc_print_evt(IPC_EVT_A2C);
-	CSP_PRINTF_INFO("%s: %s: c2a event\n", NAME_PREFIX, __func__);
 	ipc_print_evt(IPC_EVT_C2A);
-	CSP_PRINTF_INFO("%s: %s: data buffer\n", NAME_PREFIX, __func__);
 	ipc_print_databuf();
-	CSP_PRINTF_INFO("%s: %s: log buffer\n", NAME_PREFIX, __func__);
 	ipc_print_logbuf();
-	dump_mailbox_sfr();
+	ipc_dump_mailbox_sfr();
 }
 
 #ifdef CHUB_IPC

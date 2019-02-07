@@ -537,7 +537,6 @@ void ipc_set_base(void *addr);
 void *ipc_get_base(enum ipc_region area);
 u32 ipc_get_offset(enum ipc_region area);
 void *ipc_get_addr(enum ipc_region area, int buf_num);
-int ipc_check_reset_valid(void);
 void ipc_init(void);
 int ipc_hw_read_int_start_index(enum ipc_owner owner);
 /* logbuf functions */
@@ -588,7 +587,6 @@ u16 ipc_get_chub_rtlogmode(void);
 u16 ipc_get_chub_bootmode(void);
 void ipc_set_ap_wake(u16 wake);
 u16 ipc_get_ap_wake(void);
-void ipc_print_databuf(void);
 void ipc_dump(void);
 #if defined(LOCAL_POWERGATE)
 u32 *ipc_get_chub_psp(void);

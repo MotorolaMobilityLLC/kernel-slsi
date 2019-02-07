@@ -321,8 +321,13 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 				       response->len);
 			ret =
 			    read_msg(data, response, data->comms.timeout_reply);
+#ifdef CONFIG_NANOHUB_MAILBOX /* remove invalid error check */
 			if (ret < 0 || response->reason == CMD_COMMS_ACK)
 				ret = ERROR_NACK;
+#else
+			if (ret < 0)
+				ret = ERROR_NACK;
+#endif
 		} else {
 			int i;
 			uint8_t *b = (uint8_t *) response;
