@@ -21,9 +21,9 @@
 #define __S2MU004_MUIC_H__
 
 #include <linux/wakelock.h>
-#include <linux/muic/muic_core.h>
-#include <linux/muic/muic_interface.h>
-#include <linux/muic/s2mu004-muic-hv.h>
+#include <linux/muic_mu004/muic_core.h>
+#include <linux/muic_mu004/muic_interface.h>
+#include <linux/muic_mu004/s2mu004-muic-hv.h>
 
 #define MUIC_DEV_NAME	"muic-s2mu004"
 

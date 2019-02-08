@@ -1,4 +1,4 @@
-/* drivers/muic/muic-core.c
+/* drivers/muic_mu004/muic-core.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -42,10 +42,10 @@
 #include <linux/mfd/max77888-private.h>
 #endif
 
-#include <linux/muic/muic.h>
+#include <linux/muic_mu004/muic.h>
 
 #if defined(CONFIG_MUIC_NOTIFIER)
-#include <linux/muic/muic_notifier.h>
+#include <linux/muic_mu004/muic_notifier.h>
 #endif /* CONFIG_MUIC_NOTIFIER */
 
 #if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)

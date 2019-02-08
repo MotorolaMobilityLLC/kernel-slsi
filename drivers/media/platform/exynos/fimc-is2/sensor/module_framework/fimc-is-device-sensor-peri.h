@@ -14,9 +14,14 @@
 
 #ifdef CONFIG_MUIC_NOTIFIER
 #include <linux/device.h>
+#if defined(CONFIG_MUIC_S2MU004)
+#include <linux/muic_mu004/muic.h>
+#include <linux/muic_mu004/muic_notifier.h>
+#else /* CONFIG_MUIC_S2MU004 */
 #include <linux/muic/muic.h>
 #include <linux/muic/muic_notifier.h>
 #endif
+#endif /* CONFIG_MUIC_S2MU004 */
 
 #include <linux/interrupt.h>
 #include "fimc-is-mem.h"

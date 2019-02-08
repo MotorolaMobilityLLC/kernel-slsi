@@ -22,11 +22,25 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/wakelock.h>
+
 #include <linux/workqueue.h>
 #include <linux/power_supply.h>
 #include <linux/power/s2mu00x_battery.h>
 #include <linux/alarmtimer.h>
 
+#if defined(CONFIG_MUIC_S2MU004)
+#if defined(CONFIG_MUIC_NOTIFIER)
+#include <linux/muic_mu004/s2mu004-muic-notifier.h>
+#include <linux/muic_mu004/muic.h>
+#endif /* CONFIG_MUIC_NOTIFIER */
+
+#if defined(CONFIG_IFCONN_NOTIFIER)
+#include <linux/ifconn/ifconn_notifier.h>
+#include <linux/ifconn/ifconn_manager.h>
+#include <linux/muic_mu004/s2mu004-muic-notifier.h>
+#include <linux/muic_mu004/muic.h>
+#endif
+#else /* CONFIG_MUIC_S2MU004 */
 #if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/s2mu004-muic-notifier.h>
 #include <linux/muic/muic.h>
@@ -38,6 +52,7 @@
 #include <linux/muic/s2mu004-muic-notifier.h>
 #include <linux/muic/muic.h>
 #endif
+#endif /* CONFIG_MUIC_S2MU004 */
 
 #define FAKE_BAT_LEVEL	50
 #define DEFAULT_ALARM_INTERVAL	10

@@ -16,6 +16,18 @@
 #include <linux/sec_sysfs.h>
 #include <linux/mcu_ipc.h>
 
+#if defined(CONFIG_MUIC_S2MU004)
+#if defined(CONFIG_MUIC_NOTIFIER)
+#include <linux/muic_mu004/muic_notifier.h>
+#elif defined(CONFIG_IFCONN_NOTIFIER)
+#include <linux/ifconn/ifconn_notifier.h>
+#include <linux/ifconn/ifconn_manager.h>
+#include <linux/muic_mu004/s2mu004-muic.h>
+#endif
+#if defined(CONFIG_MUIC_NOTIFIER) || defined(CONFIG_IFCONN_NOTIFIER)
+#include <linux/muic_mu004/muic.h>
+#endif
+#else /* CONFIG_MUIC_S2MU004 */
 #if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/muic_notifier.h>
 #elif defined(CONFIG_IFCONN_NOTIFIER)
@@ -26,6 +38,7 @@
 #if defined(CONFIG_MUIC_NOTIFIER) || defined(CONFIG_IFCONN_NOTIFIER)
 #include <linux/muic/muic.h>
 #endif
+#endif /* CONFIG_MUIC_S2MU004 */
 
 #include <soc/samsung/exynos-pmu.h>
 #include "modem_utils.h"

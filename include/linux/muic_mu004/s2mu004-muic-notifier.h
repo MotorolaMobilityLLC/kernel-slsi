@@ -1,5 +1,5 @@
 /*
- * include/linux/muic/muic_notifier.h
+ * include/linux/muic_mu004/muic_notifier.h
  *
  * header file supporting MUIC notifier call chain information
  *
@@ -24,7 +24,7 @@
 #ifndef __MUIC_NOTIFIER_H__
 #define __MUIC_NOTIFIER_H__
 
-#include <linux/muic/muic.h>
+#include <linux/muic_mu004/muic.h>
 #if defined(CONFIG_CCIC_NOTIFIER)
 #include <linux/ccic/ccic_notifier.h>
 #endif
@@ -55,7 +55,6 @@ typedef enum {
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 	MUIC_NOTIFY_DEV_MANAGER,
 #endif
-	MUIC_NOTIFY_DEV_CABLE_DATA,
 } muic_notifier_device_t;
 
 struct muic_notifier_struct {
@@ -80,9 +79,8 @@ extern void muic_pdic_notifier_attach_attached_dev(muic_attached_dev_t new_dev);
 extern void muic_pdic_notifier_detach_attached_dev(muic_attached_dev_t new_dev);
 extern void muic_notifier_logically_attach_attached_dev(muic_attached_dev_t new_dev);
 extern void muic_notifier_logically_detach_attached_dev(muic_attached_dev_t cur_dev);
-extern void muic_notifier_chg_off(muic_attached_dev_t new_dev);
 
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 extern int muic_ccic_notifier_register(struct notifier_block *nb,
 		notifier_fn_t notifier, muic_notifier_device_t listener);
 extern int muic_ccic_notifier_unregister(struct notifier_block *nb);
