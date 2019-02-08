@@ -1,5 +1,5 @@
 /*
- * include/linux/muic/muic.h
+ * include/linux/muic_mu004/muic.h
  *
  * header file supporting MUIC common information
  *
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __MUIC_CORE_H__
-#define __MUIC_CORE_H__
+#ifndef __MUIC_H__
+#define __MUIC_H__
 
 #ifdef CONFIG_IFCONN_NOTIFIER
 #include <linux/ifconn/ifconn_notifier.h>

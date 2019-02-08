@@ -123,18 +123,46 @@ typedef enum {
 	IFCONN_NOTIFY_DP_PIN_F,
 } ifconn_notifier_dp_pinconf_t;
 
+typedef enum
+{
+	RP_CURRENT_LEVEL_NONE = 0,
+	RP_CURRENT_LEVEL_DEFAULT,
+	RP_CURRENT_LEVEL2,
+	RP_CURRENT_LEVEL3,
+} RP_CURRENT_LEVEL;
+
 typedef struct _ifconn_power_list {
 	int max_voltage;
 	int max_current;
 } IFCONN_POWER_LIST;
 
-struct ifconn_pd_sink_status {
+typedef struct ifconn_pd_sink_status {
 	IFCONN_POWER_LIST power_list[MAX];
 	int available_pdo_num; // the number of available PDO
 	int selected_pdo_num; // selected number of PDO to change
 	int current_pdo_num; // current number of PDO
 	unsigned int rp_currentlvl; // rp current level by ccic
+} ifconn_pd_sink_status_t;
+
+#ifndef CONFIG_USBPD_S2MM005
+typedef enum {
+	RID_UNDEFINED = 0,
+	RID_000K,
+	RID_001K,
+	RID_255K,
+	RID_301K,
+	RID_523K,
+	RID_619K,
+	RID_OPEN,
+} ifconn_notifier_rid_t;
+
+struct pdic_notifier_data {
+	ifconn_pd_sink_status_t sink_status;
+	int event;
+	void *pusbpd;
+	struct usbpd_data *pd_data;
 };
+#endif
 
 struct ifconn_notifier_template {
 	uint64_t src:4;

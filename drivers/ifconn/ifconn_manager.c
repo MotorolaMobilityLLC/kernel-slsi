@@ -2,7 +2,11 @@
 #include <linux/module.h>
 #include <linux/ifconn/ifconn_notifier.h>
 #include <linux/ifconn/ifconn_manager.h>
+#ifdef CONFIG_MUIC_S2MU004
+#include <linux/muic_mu004/muic.h>
+#else
 #include <linux/muic/muic.h>
+#endif
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>

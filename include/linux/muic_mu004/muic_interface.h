@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2019 Samsung Electronics
- * Sejong Park <sejong123.park@samsung.com>
- * Taejung Kim <tj.kim@samsung.com>
+ * Copyright (C) 2010 Samsung Electronics
+ * Thomas Ryu <smilesr.ryu@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +21,7 @@
 #ifndef __MUIC_INTERNAL_H__
 #define __MUIC_INTERNAL_H__
 
-#include <linux/muic/muic.h>
-
-#if defined(CONFIG_MUIC_SUPPORT_POWERMETER)
-#include <linux/power_supply.h>
-#endif
+#include <linux/muic_mu004/muic_core.h>
 
 #define muic_err(fmt, ...)					\
 	do {							\
@@ -44,8 +39,8 @@
 	} while (0)
 
 enum muic_op_mode {
-	OPMODE_MUIC = 0<<0,
-	OPMODE_CCIC = 1<<0,
+	OPMODE_SMD_ARRAY = 0<<0,
+	OPMODE_DEVICE = 1<<0,
 };
 
 /* Slave addr = 0x4A: MUIC */
@@ -171,10 +166,10 @@ struct ccic_desc_t {
 	struct ccic_rid_desc_t *rid_desc;
 };
 
-typedef enum {
+enum {
 	MUIC_NORMAL_OTG,
 	MUIC_ABNORMAL_OTG,
-} muic_usb_killer_t;
+};
 
 struct muic_interface_t {
 	struct device *dev;
@@ -222,7 +217,6 @@ struct muic_interface_t {
 	bool			is_dcdtmr_intr;
 	bool			is_dcp_charger;
 	bool			is_afc_reset;
-	bool			is_afc_pdic_ready;
 
 	struct hv_data		*phv;
 
@@ -235,10 +229,6 @@ struct muic_interface_t {
 	/* legacy TA or USB for CCIC */
 	muic_attached_dev_t	legacy_dev;
 
-#ifdef CONFIG_IFCONN_NOTIFIER
-	struct notifier_block	ifconn_nb;
-#endif
-
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 	struct notifier_block	manager_nb;
 #else
@@ -250,13 +240,7 @@ struct muic_interface_t {
 	/* Operation Mode */
 	enum muic_op_mode	opmode;
 
-#if defined(CONFIG_MUIC_SUPPORT_POWERMETER)
-	struct power_supply *psy_muic;
-	struct power_supply_desc psy_muic_desc;
-#endif
-
 	/* function pointer should be registered from each specific driver file */
-	int (*set_com_to_open_with_vbus)(void *);
 	int (*set_com_to_open)(void *);
 	int (*set_switch_to_usb)(void *);
 	int (*set_switch_to_uart)(void *);
@@ -268,53 +252,20 @@ struct muic_interface_t {
 	void (*set_afc_ready)(void *, bool en);
 	int (*bcd_rescan)(void *);
 	int (*control_rid_adc)(void *, bool enable);
-	int (*get_vbus_voltage)(void *);
-
-#if defined(CONFIG_HV_MUIC_S2MU004_AFC) || defined(CONFIG_MUIC_HV)
+#if defined(CONFIG_MUIC_S2MU004_HV)
 	int (*set_afc_reset)(void *);
 	muic_attached_dev_t (*check_id_err)(void *, muic_attached_dev_t new_dev);
 	int (*reset_hvcontrol_reg)(void *);
 	int (*check_afc_ready)(void *);
-	int (*get_afc_ready)(void *);
 	int (*reset_afc_register)(void *);
-#if defined(CONFIG_MUIC_SUPPORT_POWERMETER)
-	int (*pm_chgin_irq)(void *, int vol);
-#endif
-#if IS_ENABLED(CONFIG_HV_MUIC_VOLTAGE_CTRL)
-	int (*set_afc_voltage)(void *, int vol);
-#endif
-	void (*hv_reset)(void *);
-	void (*hv_dcp_charger)(void *);
-	void (*hv_fast_charge_adaptor)(void *);
-	void (*hv_fast_charge_communication)(void *);
-	void (*hv_afc_5v_charger)(void *);
-	void (*hv_afc_9v_charger)(void *);
-	void (*hv_qc_charger)(void *);
-	void (*hv_qc_5v_charger)(void *);
-	void (*hv_qc_9v_charger)(void *);
 #endif
 	void (*set_water_detect)(void *, bool val);
-#ifndef CONFIG_SEC_FACTORY
-	void (*set_water_detect_from_boot)(void *, bool val);
-#endif
-
 	int (*set_com_to_audio)(void *);
 	int (*set_com_to_otg)(void *);
 	int (*set_gpio_usb_sel)(void *, int usb_path);
 	int (*set_gpio_uart_sel)(void *, int uart_path);
 	int (*get_vbus)(void *);
 	int (*get_adc)(void *);
-	int (*check_usb_killer)(void *);
-#ifdef CONFIG_MUIC_SYSFS
-	int (*show_register)(void *, char *mesg);
-#if IS_ENABLED(CONFIG_SEC_FACTORY) && IS_ENABLED(CONFIG_USB_HOST_NOTIFY)
-	int (*set_otg_reg)(void *, bool enable);
-#endif
-#endif
-#if IS_ENABLED(CONFIG_HICCUP_CHARGER)
-	int (*set_hiccup_mode)(void *, bool en);
-	int (*get_hiccup_mode)(void *);
-#endif
 };
 
 extern struct device *switch_device;
@@ -325,8 +276,5 @@ int muic_manager_get_legacy_dev(struct muic_interface_t *muic_if);
 void muic_manager_set_legacy_dev(struct muic_interface_t *muic_if, int new_dev);
 void muic_manager_handle_ccic_detach(struct muic_interface_t *muic_if);
 int muic_manager_dcd_rescan(struct muic_interface_t *muic_if);
-#if defined(CONFIG_MUIC_SUPPORT_POWERMETER)
-int muic_manager_psy_init(struct muic_interface_t *muic_if, struct device *parent);
-#endif
 
 #endif /* __MUIC_INTERNAL_H__ */

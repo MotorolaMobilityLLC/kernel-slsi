@@ -4,17 +4,17 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/switch.h>
-#include <linux/muic/muic.h>
-#include <linux/muic/muic_notifier.h>
+#include <linux/muic_mu004/muic_core.h>
+#include <linux/muic_mu004/s2mu004-muic-notifier.h>
 #include <linux/sec_sysfs.h>
 
 /*
-  * The src & dest addresses of the noti.
-  * keep the same value defined in ccic_notifier.h
-  *     b'0001 : CCIC
-  *     b'0010 : MUIC
-  *     b'1111 : Broadcasting
-  */
+ * The src & dest addresses of the noti.
+ * keep the same value defined in ccic_notifier.h
+ *     b'0001 : CCIC
+ *     b'0010 : MUIC
+ *     b'1111 : Broadcasting
+ */
 #define NOTI_ADDR_SRC (1 << 1)
 #define NOTI_ADDR_DST (0xf)
 
@@ -30,12 +30,12 @@
 		SET_MUIC_NOTIFIER_BLOCK(nb, NULL, -1)
 
 static struct muic_notifier_struct muic_notifier;
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 static struct muic_notifier_struct muic_ccic_notifier;
 #endif
 
 static int muic_uses_new_noti;
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 static int muic_ccic_uses_new_noti;
 #endif
 
@@ -81,7 +81,7 @@ static void __set_noti_cxt(int attach, int type)
 #endif
 }
 
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 static void __set_ccic_noti_cxt(int attach, int type)
 {
 	if (type < 0) {
@@ -181,10 +181,7 @@ static int muic_notifier_notify(void)
 	else
 		send_muic_cable_intent(0);
 #else
-	if (muic_notifier.cmd != 0)
-		send_muic_cable_intent(muic_notifier.attached_dev);
-	else
-		send_muic_cable_intent(0);
+	send_muic_cable_intent(muic_notifier.attached_dev);
 #endif	/* CONFIG_MUIC_SUPPORT_CCIC */
 #endif	/* CONFIG_SEC_FACTORY */
 
@@ -205,7 +202,7 @@ static int muic_notifier_notify(void)
 	return ret;
 }
 
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 int muic_ccic_notifier_register(struct notifier_block *nb, notifier_fn_t notifier,
 			muic_notifier_device_t listener)
 {
@@ -223,7 +220,7 @@ int muic_ccic_notifier_register(struct notifier_block *nb, notifier_fn_t notifie
 				__func__, ret);
 
 #if defined(CONFIG_MUIC_MANAGER) && defined(CONFIG_CCIC_NOTIFIER)
-	pcxt = muic_ccic_uses_new_noti ? &(muic_ccic_notifier.cxt) : \
+	pcxt = muic_ccic_uses_new_noti ? &(muic_ccic_notifier.cxt) :
 			(void *)&(muic_ccic_notifier.attached_dev);
 
 	/* current muic's attached_device status notify */
@@ -260,7 +257,7 @@ static int muic_ccic_notifier_notify(void)
 	pr_info("%s: CMD=%d, DATA=%d\n", __func__, muic_ccic_notifier.cxt.attach,
 			muic_ccic_notifier.cxt.cable_type);
 
-	pcxt = muic_ccic_uses_new_noti ? &(muic_ccic_notifier.cxt) : \
+	pcxt = muic_ccic_uses_new_noti ? &(muic_ccic_notifier.cxt) :
 			(void *)&(muic_ccic_notifier.attached_dev);
 
 	ret = blocking_notifier_call_chain(&(muic_ccic_notifier.notifier_call_chain),
@@ -304,7 +301,7 @@ void muic_pdic_notifier_attach_attached_dev(muic_attached_dev_t new_dev)
 {
 	pr_info("%s: (%d)\n", __func__, new_dev);
 
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 	__set_ccic_noti_cxt(MUIC_PDIC_NOTIFY_CMD_ATTACH, new_dev);
 
 	/* muic's attached_device attach broadcast */
@@ -321,7 +318,7 @@ void muic_pdic_notifier_detach_attached_dev(muic_attached_dev_t new_dev)
 {
 	pr_info("%s: (%d)\n", __func__, new_dev);
 
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 	__set_ccic_noti_cxt(MUIC_PDIC_NOTIFY_CMD_DETACH, new_dev);
 
 	/* muic's attached_device attach broadcast */
@@ -394,7 +391,7 @@ static int __init muic_notifier_init(void)
 #endif
 	BLOCKING_INIT_NOTIFIER_HEAD(&(muic_notifier.notifier_call_chain));
 	__set_noti_cxt(0, ATTACHED_DEV_UNKNOWN_MUIC);
-#if defined(CONFIG_CCIC_S2MU004) || defined(CONFIG_CCIC_S2MU106)
+#if defined(CONFIG_CCIC_S2MU004)
 	BLOCKING_INIT_NOTIFIER_HEAD(&(muic_ccic_notifier.notifier_call_chain));
 	__set_ccic_noti_cxt(0, ATTACHED_DEV_UNKNOWN_MUIC);
 	muic_ccic_uses_new_noti = 1;
@@ -409,3 +406,4 @@ static int __init muic_notifier_init(void)
 	return ret;
 }
 device_initcall(muic_notifier_init);
+

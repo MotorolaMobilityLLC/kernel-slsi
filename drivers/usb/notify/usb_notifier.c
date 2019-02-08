@@ -22,12 +22,21 @@
 #if defined(CONFIG_CCIC_NOTIFIER)
 #include <linux/ccic/ccic_notifier.h>
 #endif
+#if defined(CONFIG_MUIC_S2MU004)
+#if defined(CONFIG_MUIC_NOTIFIER) || defined(CONFIG_IFCONN_NOTIFIER)
+#include <linux/muic_mu004/muic.h>
+#endif
+#if defined(CONFIG_MUIC_NOTIFIER)
+#include <linux/muic_mu004/muic_notifier.h>
+#endif
+#else /* CONFIG_MUIC_S2MU004 */
 #if defined(CONFIG_MUIC_NOTIFIER) || defined(CONFIG_IFCONN_NOTIFIER)
 #include <linux/muic/muic.h>
 #endif
 #if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/muic_notifier.h>
 #endif
+#endif /* CONFIG_MUIC_S2MU004 */
 #if defined(CONFIG_VBUS_NOTIFIER)
 #include <linux/vbus_notifier.h>
 #endif

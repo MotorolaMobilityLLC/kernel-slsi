@@ -70,7 +70,11 @@ obj-$(CONFIG_CONNECTOR)		+= connector/
 obj-$(CONFIG_FB_I810)           += video/fbdev/i810/
 obj-$(CONFIG_FB_INTEL)          += video/fbdev/intelfb/
 
+ifdef CONFIG_MUIC_S2MU004
+obj-$(CONFIG_USE_MUIC)		+= muic_mu004/
+else
 obj-$(CONFIG_USE_MUIC)		+= muic/
+endif
 obj-$(CONFIG_IFCONN_MANAGER)    += ifconn/
 obj-$(CONFIG_PARPORT)		+= parport/
 obj-$(CONFIG_NVM)		+= lightnvm/
