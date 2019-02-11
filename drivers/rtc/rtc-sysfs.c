@@ -219,6 +219,76 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(wakealarm);
 
+#ifdef CONFIG_RTC_BOOT_ALARM
+static ssize_t
+bootalarm_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	ssize_t retval;
+	struct rtc_wkalrm alarm;
+
+	/* Don't show disabled alarms.  For uniformity, RTC alarms are
+	 * conceptually one-shot, even though some common RTCs (on PCs)
+	 * don't actually work that way.
+	 *
+	 * NOTE: RTC implementations where the alarm doesn't match an
+	 * exact YYYY-MM-DD HH:MM[:SS] date *must* disable their RTC
+	 * alarms after they trigger, to ensure one-shot semantics.
+	 */
+
+	retval = rtc_read_boot_alarm(to_rtc_device(dev), &alarm);
+	if (retval == 0) {
+		retval = sprintf(buf, "%04d/%02d/%02d %02d:%02d:%02d(%d) [%s, %s]\n",
+				alarm.time.tm_year + 1900, alarm.time.tm_mon + 1, alarm.time.tm_mday,
+				alarm.time.tm_hour, alarm.time.tm_min, alarm.time.tm_sec,
+				alarm.time.tm_wday,
+				((alarm.enabled == 1) ? "Enable" : "Disable"),
+				((alarm.pending == 1 ) ? "Pending" : "Not Pending"));
+	}
+
+	return retval;
+}
+
+static ssize_t
+bootalarm_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t n)
+{
+	ssize_t retval;
+	unsigned long now, alrm_long;
+	struct rtc_wkalrm alarm;
+	struct rtc_device *rtc = to_rtc_device(dev);
+	char *buf_ptr;
+	int adjust = 0;
+
+	/* Only request alarms to be triggered in the future.
+	 * by write another time, e.g. 0 meaning Jan 1 1970 UTC.
+	 */
+
+	retval = rtc_read_time(rtc, &alarm.time);
+	if (retval < 0)
+		return retval;
+	rtc_tm_to_time(&alarm.time, &now);
+
+	buf_ptr = (char *)buf;
+	if (*buf_ptr == '+') {
+		buf_ptr++;
+		adjust = 1;
+	}
+
+	alrm_long = simple_strtoul(buf_ptr, NULL, 0);
+
+	if (adjust)
+		alrm_long += now;
+
+	rtc_time_to_tm(alrm_long, &alarm.time);
+
+	alarm.enabled = 1;
+	retval = rtc_set_boot_alarm(rtc, &alarm);
+	return (retval < 0) ? retval : n;
+}
+static DEVICE_ATTR_RW(bootalarm);
+#endif
+
 static ssize_t
 offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -256,6 +326,9 @@ static struct attribute *rtc_attrs[] = {
 	&dev_attr_hctosys.attr,
 	&dev_attr_wakealarm.attr,
 	&dev_attr_offset.attr,
+#ifdef CONFIG_RTC_BOOT_ALARM
+	&dev_attr_bootalarm.attr,
+#endif
 	NULL,
 };
 
