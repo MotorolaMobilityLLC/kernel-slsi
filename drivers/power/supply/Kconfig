@@ -648,4 +648,18 @@ config CHARGER_S2MU106
       S2MU106 incluse pmic, led driver.
       You have to define MFD_S2MU106
 
+config SMALL_CHARGER
+	tristate "Small charger support"
+	depends on I2C
+	help
+	  Say Y here to enable support for Small Charger.
+
+config CHARGER_S2MCS02
+	tristate "S2MCS02 small charger support"
+	depends on SMALL_CHARGER
+	help
+	  Say Y here to enable support for the S2MCS02 charger.
+
+
+
 endif # POWER_SUPPLY
