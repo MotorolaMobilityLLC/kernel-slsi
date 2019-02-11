@@ -871,4 +871,14 @@ config INPUT_HISI_POWERKEY
 	  To compile this driver as a module, choose M here: the
 	  module will be called hisi_powerkey.
 
+config INPUT_S2MU106_HAPTIC
+	tristate "s2mu106 haptic driver"
+	default n
+	depends on PWM
+	help
+	 Say Y to include support for System LSI s2mu106
+	 Haptic driver.
+	 The Haptic Motor driver support both ERM and
+	 LRA type actuators.
+
 endif
