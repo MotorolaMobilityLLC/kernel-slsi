@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "exynos9610_battery_data.dtsi"
+#include "exynos9610_erd_battery_data.dtsi"
 #include <dt-bindings/clock/exynos9610.h>
 #include "modem-ss360ap-sit-pdata.dtsi"
 #include "exynos9610-display-lcd.dtsi"
