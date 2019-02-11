@@ -85,6 +85,10 @@ struct rtc_class_ops {
 	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
 	int (*read_offset)(struct device *, long *offset);
 	int (*set_offset)(struct device *, long offset);
+#ifdef CONFIG_RTC_BOOT_ALARM
+	int (*read_boot_alarm)(struct device *, struct rtc_wkalrm *);
+	int (*set_boot_alarm)(struct device *, struct rtc_wkalrm *);
+#endif
 };
 
 #define RTC_DEVICE_NAME_SIZE 20
@@ -179,6 +183,10 @@ extern int rtc_read_alarm(struct rtc_device *rtc,
 			struct rtc_wkalrm *alrm);
 extern int rtc_set_alarm(struct rtc_device *rtc,
 				struct rtc_wkalrm *alrm);
+#ifdef CONFIG_RTC_BOOT_ALARM
+extern int rtc_read_boot_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm);
+extern int rtc_set_boot_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm);
+#endif
 extern int rtc_initialize_alarm(struct rtc_device *rtc,
 				struct rtc_wkalrm *alrm);
 extern void rtc_update_irq(struct rtc_device *rtc,

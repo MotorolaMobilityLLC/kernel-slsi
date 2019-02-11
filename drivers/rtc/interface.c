@@ -379,6 +379,46 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 }
 EXPORT_SYMBOL_GPL(rtc_set_alarm);
 
+#ifdef CONFIG_RTC_BOOT_ALARM
+int rtc_read_boot_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
+{
+	int err;
+
+	err = mutex_lock_interruptible(&rtc->ops_lock);
+	if (err)
+		return err;
+
+	if (rtc->ops->read_boot_alarm)
+		err = rtc->ops->read_boot_alarm(rtc->dev.parent, alarm);
+	else
+		err = -EINVAL;
+
+	mutex_unlock(&rtc->ops_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(rtc_read_boot_alarm);
+
+int rtc_set_boot_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
+{
+	int err;
+
+	err = mutex_lock_interruptible(&rtc->ops_lock);
+	if (err)
+		return err;
+
+	if (rtc->ops->set_boot_alarm)
+		err = rtc->ops->set_boot_alarm(rtc->dev.parent, alarm);
+	else
+		err = -EINVAL;
+
+	mutex_unlock(&rtc->ops_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(rtc_set_boot_alarm);
+#endif
+
 /* Called once per device from rtc_device_register */
 int rtc_initialize_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 {
