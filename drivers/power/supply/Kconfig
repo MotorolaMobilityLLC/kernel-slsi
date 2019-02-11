@@ -632,4 +632,20 @@ config BATTERY_S2MU00X
 	help
 	  Say Y here to enable support for S2MU00x battery driver.
 
+config FUELGAUGE_S2MU106
+    tristate "S2MU106 fuelgauge driver"
+    default n
+    depends on I2C
+    help
+      say y to include support
+      for s.lsi S2MU106 fuelgauge driver.
+
+config CHARGER_S2MU106
+    tristate "S2MU106 charger support"
+    depends on (MFD_S2MU106) && I2C
+    help
+      Say Y here to enable support for the S2MU106 charger
+      S2MU106 incluse pmic, led driver.
+      You have to define MFD_S2MU106
+
 endif # POWER_SUPPLY

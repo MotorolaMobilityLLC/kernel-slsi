@@ -702,6 +702,20 @@ config LEDS_S2MPB02
 	help
 	  This option enables support for the LEDs on the S2MPB02.
 
+config LEDS_S2MU106_FLASH
+	bool "FLASH LED support for the S2MU106"
+    depends on (MFD_S2MU106) && I2C
+	help
+	  If you say yes here you will get support for
+	  for the LEDS_S2MU106_FLASH led chip.
+
+config LEDS_S2MU106_RGB
+	bool "RGB LED support for the S2MU106"
+    depends on (MFD_S2MU106) && I2C
+	help
+	  If you say yes here you will get support for
+	  for the LEDS_S2MU106_RGB led chip.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
