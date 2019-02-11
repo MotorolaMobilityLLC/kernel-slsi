@@ -1,5 +1,5 @@
 /*
- * s2mu00x_battery.c - Example battery driver for S2MU00x series
+ * s2mu00x_erd_battery.c - Example battery driver for Exynos9610 ERD board
  *
  * Copyright (C) 2017 Samsung Electronics Co.Ltd
  *
@@ -24,10 +24,22 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/power_supply.h>
-#include <linux/power/s2mu00x_battery.h>
-#include <linux/power/s2mu106_pmeter.h>
+#include <linux/power/s2mu00x_erd_battery.h>
 #include <linux/alarmtimer.h>
 
+#if defined(CONFIG_MUIC_S2MU004)
+#if defined(CONFIG_MUIC_NOTIFIER)
+#include <linux/muic_mu004/s2mu004-muic-notifier.h>
+#include <linux/muic_mu004/muic.h>
+#endif /* CONFIG_MUIC_NOTIFIER */
+
+#if defined(CONFIG_IFCONN_NOTIFIER)
+#include <linux/ifconn/ifconn_notifier.h>
+#include <linux/ifconn/ifconn_manager.h>
+#include <linux/muic_mu004/s2mu004-muic-notifier.h>
+#include <linux/muic_mu004/muic.h>
+#endif
+#else /* CONFIG_MUIC_S2MU004 */
 #if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/s2mu004-muic-notifier.h>
 #include <linux/muic/muic.h>
@@ -36,8 +48,10 @@
 #if defined(CONFIG_IFCONN_NOTIFIER)
 #include <linux/ifconn/ifconn_notifier.h>
 #include <linux/ifconn/ifconn_manager.h>
+#include <linux/muic/s2mu004-muic-notifier.h>
 #include <linux/muic/muic.h>
 #endif
+#endif /* CONFIG_MUIC_S2MU004 */
 
 #define FAKE_BAT_LEVEL	50
 #define DEFAULT_ALARM_INTERVAL	10
@@ -78,10 +92,6 @@ static enum power_supply_property s2mu00x_battery_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_TEMP,
-	POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION,
-	POWER_SUPPLY_PROP_CALIBRATE,
-	POWER_SUPPLY_PROP_SOH,
 };
 
 static enum power_supply_property s2mu00x_power_props[] = {
@@ -91,30 +101,15 @@ static enum power_supply_property s2mu00x_power_props[] = {
 typedef struct s2mu00x_battery_platform_data {
 	s2mu00x_charging_current_t *charging_current;
 	char *charger_name;
-#if defined(CONFIG_SMALL_CHARGER)
-	char *smallcharger_name;
-#endif
 	char *fuelgauge_name;
 
 	int max_input_current;
 	int max_charging_current;
 
-#if defined(CONFIG_SMALL_CHARGER)
-	int small_input_current;
-	int small_charging_current;
-#endif
-
-#if defined(CONFIG_USE_CCIC)
-	int pdo_max_input_vol;
-	int pdo_max_chg_power;
-#endif
-
 	int temp_high;
 	int temp_high_recovery;
 	int temp_low;
 	int temp_low_recovery;
-
-	int chg_float_voltage;
 
 	/* full check */
 	unsigned int full_check_count;
@@ -147,7 +142,6 @@ struct s2mu00x_battery_info {
 	struct wake_lock monitor_wake_lock;
 	struct workqueue_struct *monitor_wqueue;
 	struct delayed_work monitor_work;
-	struct delayed_work soc_control;
 	struct wake_lock vbus_wake_lock;
 
 	struct alarm monitor_alarm;
@@ -157,16 +151,6 @@ struct s2mu00x_battery_info {
 	int max_input_current;
 	int charging_current;
 	int max_charging_current;
-
-#if defined(CONFIG_USE_CCIC)
-	int pdo_max_input_vol;
-	int pdo_max_chg_power;
-
-	int pdo_sel_num;
-	int pdo_sel_vol;
-	int pdo_sel_cur;
-#endif
-
 	int topoff_current;
 	int cable_type;
 	unsigned int charging_mode;
@@ -182,8 +166,6 @@ struct s2mu00x_battery_info {
 	/* charging */
 	bool is_recharging;
 
-	bool is_factory;	/* factory image support mode */
-
 	bool battery_valid;
 	int status;
 	int health;
@@ -195,17 +177,9 @@ struct s2mu00x_battery_info {
 	unsigned int capacity;
 	unsigned int max_rawsoc;
 
-	int soh;	/* State of Health (%) */
-
-	int current_now;	/* current (mA) */
-	int current_avg;	/* average current (mA) */
-	int current_max;	/* input current limit (mA) */
-	int current_chg;	/* charge current limit (mA) */
-
-#if defined(CONFIG_SMALL_CHARGER)
-	int small_input;	/* input current limit (mA) */
-	int small_chg;	/* charge current limit (mA) */
-#endif
+	int current_now;        /* current (mA) */
+	int current_avg;        /* average current (mA) */
+	int current_max;        /* input current limit (mA) */
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 	struct notifier_block cable_check;
@@ -217,18 +191,12 @@ struct s2mu00x_battery_info {
 	int temp_high_recovery;
 	int temp_low;
 	int temp_low_recovery;
-	int vchg_voltage;
-	int vchg_current;
-	int charge_temp;
 };
-
-static int is_charging_mode = S2MU00X_NOR_MODE;
-
 
 static char *s2mu00x_supplied_to[] = {
 	"s2mu00x-battery",
 };
-#if defined(CONFIG_CHARGER_S2MU106)
+
 static void get_charging_current(struct s2mu00x_battery_info *battery,
 		int *input_current, int *charging_current)
 {
@@ -262,7 +230,7 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 	mutex_lock(&battery->iolock);
 
 	/*Limit input & charging current according to the max current*/
-	get_charging_current(battery, &input_current, &charging_current);\
+	get_charging_current(battery, &input_current, &charging_current);
 
 	/* set input current limit */
 	if (battery->input_current != input_current) {
@@ -303,26 +271,7 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 
 		battery->topoff_current = topoff_current;
 	}
-#if defined(CONFIG_SMALL_CHARGER)
-	if (battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
-		battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
-		value.intval = battery->pdata->small_input_current;
-		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-		if (!psy)
-			return -EINVAL;
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &value);
-		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
 
-		value.intval = battery->pdata->small_charging_current;
-		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-		if (!psy)
-			return -EINVAL;
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
-		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
-	}
-#endif
 	mutex_unlock(&battery->iolock);
 	return 0;
 }
@@ -361,45 +310,20 @@ static int set_charger_mode(
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
 
-#if defined(CONFIG_SMALL_CHARGER)
-	if (charger_mode == S2MU00X_BAT_CHG_MODE_CHARGING &&
-			(battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
-			 battery->cable_type == POWER_SUPPLY_TYPE_USB_PD)) {
-		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-		if (!psy)
-			return -EINVAL;
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGING_ENABLED, &val);
-		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
-	} else if (charger_mode != S2MU00X_BAT_CHG_MODE_CHARGING) {
-		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-		if (!psy)
-			return -EINVAL;
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGING_ENABLED, &val);
-		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
-	}
-#endif
-
 	return 0;
 }
 
-#endif
 static int set_battery_status(struct s2mu00x_battery_info *battery,
 		int status)
 {
 	union power_supply_propval value;
-#if defined(CONFIG_CHARGER_S2MU106)
 	struct power_supply *psy;
-	int ret;
-#endif
+		int ret;
+
 	pr_info("%s: current status = %d, new status = %d\n", __func__, battery->status, status);
-#if 0
 	if (battery->status == status)
 		return 0;
-#endif
 
-#if defined(CONFIG_CHARGER_S2MU106)
 	switch (status) {
 	case POWER_SUPPLY_STATUS_CHARGING:
 		/* notify charger cable type */
@@ -412,19 +336,6 @@ static int set_battery_status(struct s2mu00x_battery_info *battery,
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 
-#if defined(CONFIG_SMALL_CHARGER)
-		if (battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
-			battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
-			psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-			if (!psy)
-				return -EINVAL;
-			ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
-			if (ret < 0)
-				pr_err("%s: Fail to execute property\n", __func__);
-		}
-#endif
-
-		/* charger on */
 		set_charger_mode(battery, S2MU00X_BAT_CHG_MODE_CHARGING);
 		set_charging_current(battery);
 		break;
@@ -434,18 +345,6 @@ static int set_battery_status(struct s2mu00x_battery_info *battery,
 
 		/* notify charger cable type */
 		value.intval = battery->cable_type;
-
-#if defined(CONFIG_SMALL_CHARGER)
-		if (battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
-			battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
-			psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-			if (!psy)
-				return -EINVAL;
-			ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
-			if (ret < 0)
-				pr_err("%s: Fail to execute property\n", __func__);
-		}
-#endif
 
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
 		if (!psy)
@@ -470,38 +369,27 @@ static int set_battery_status(struct s2mu00x_battery_info *battery,
 		set_charger_mode(battery, S2MU00X_BAT_CHG_MODE_CHARGING_OFF);
 		break;
 	}
-#endif
+
 	/* battery status update */
 	battery->status = status;
 	value.intval = battery->status;
-#if defined(CONFIG_CHARGER_S2MU106)
+
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
 		return -EINVAL;
 	ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
-#endif
+
 	return 0;
 }
 
 static void set_bat_status_by_cable(struct s2mu00x_battery_info *battery)
 {
-	if (battery->is_factory) {
-		pr_info("%s: factory image support mode. Skip!\n", __func__);
-		return;
-	}
-
-#if defined(CONFIG_CHARGER_S2MU106)
 	if (battery->cable_type == POWER_SUPPLY_TYPE_BATTERY ||
 		battery->cable_type == POWER_SUPPLY_TYPE_UNKNOWN ||
 		battery->cable_type == POWER_SUPPLY_TYPE_OTG) {
 		battery->is_recharging = false;
-#if defined(CONFIG_USE_CCIC)
-		battery->pdo_sel_num = 0;
-		battery->pdo_sel_vol = 0;
-		battery->pdo_sel_cur = 0;
-#endif
 		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
 		return;
 	}
@@ -511,7 +399,6 @@ static void set_bat_status_by_cable(struct s2mu00x_battery_info *battery)
 	}
 
 	dev_info(battery->dev, "%s: abnormal cable_type or status", __func__);
-#endif
 }
 
 static int s2mu00x_battery_get_property(struct power_supply *psy,
@@ -548,9 +435,6 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = battery->temperature;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_TEMP:
-		val->intval = battery->charge_temp;
-		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		val->intval = battery->charging_mode;
 		break;
@@ -584,15 +468,6 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		val->intval = 100;
 		break;
-	case POWER_SUPPLY_PROP_CALIBRATE:
-		val->intval = battery->is_factory;
-		break;
-	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
-		val->intval = battery->vchg_voltage;
-		break;
-	case POWER_SUPPLY_PROP_SOH:
-		val->intval = battery->soh;
-		break;
 	default:
 		ret = -ENODATA;
 	}
@@ -605,9 +480,6 @@ static int s2mu00x_battery_set_property(struct power_supply *psy,
 {
 	struct s2mu00x_battery_info *battery = power_supply_get_drvdata(psy);
 	int ret = 0;
-	union power_supply_propval value;
-	struct power_supply *psy_dest;
-
 
 	dev_dbg(battery->dev, "prop: %d\n", psp);
 	switch (psp) {
@@ -620,58 +492,8 @@ static int s2mu00x_battery_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		battery->cable_type = val->intval;
 		break;
-	case POWER_SUPPLY_PROP_CALIBRATE:
-		if (val->intval == S2MU00X_BAT_FAC_MODE_VBAT) {
-			battery->is_factory = true;
-			pr_info("%s: VBat factory image support mode\n", __func__);
-
-			value.intval = S2MU00X_BAT_FAC_MODE_VBAT;
-			psy_dest = power_supply_get_by_name(battery->pdata->charger_name);
-			if (!psy_dest)
-				return -EINVAL;
-			ret = power_supply_set_property(psy_dest, POWER_SUPPLY_PROP_CALIBRATE, &value);
-			if (ret < 0)
-				pr_err("%s: Fail to execute property\n", __func__);
-		} else if (val->intval == S2MU00X_BAT_FAC_MODE_VBUS) {
-			battery->is_factory = true;
-			pr_info("%s: VBUS charging factory image support mode\n", __func__);
-
-			value.intval = S2MU00X_BAT_FAC_MODE_VBUS;
-			psy_dest = power_supply_get_by_name(battery->pdata->charger_name);
-			if (!psy_dest)
-				return -EINVAL;
-			ret = power_supply_set_property(psy_dest, POWER_SUPPLY_PROP_CALIBRATE, &value);
-			if (ret < 0)
-				pr_err("%s: Fail to execute property\n", __func__);
-		} else {
-			battery->is_factory = false;
-			pr_info("%s: disable factory image support mode\n", __func__);
-
-			/* Reset current setting for recovering */
-			battery->input_current = 0;
-			battery->charging_current = 0;
-			battery->topoff_current = 0;
-
-			set_bat_status_by_cable(battery);
-		}
-		break;
 	default:
 		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-static int s2mu00x_battery_property_is_writeable(struct power_supply *psy,
-		enum power_supply_property psp)
-{
-	int ret;
-	switch (psp) {
-		case POWER_SUPPLY_PROP_CALIBRATE:
-			ret = 1;
-			break;
-		default:
-			ret = 0;
 	}
 
 	return ret;
@@ -720,7 +542,6 @@ static int s2mu00x_ac_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_TYPE_UNKNOWN:
 	case POWER_SUPPLY_TYPE_PREPARE_TA:
 	case POWER_SUPPLY_TYPE_HV_MAINS:
-	case POWER_SUPPLY_TYPE_USB_PD:
 		val->intval = 1;
 		break;
 	default:
@@ -771,6 +592,9 @@ static int s2mu00x_bat_cable_check(struct s2mu00x_battery_info *battery,
 		break;
 	case ATTACHED_DEV_AFC_CHARGER_9V_MUIC:
 	case ATTACHED_DEV_QC_CHARGER_9V_MUIC:
+#if defined(CONFIG_HV_MUIC_S2MU004_PE)
+	case ATTACHED_DEV_PE_CHARGER_9V_MUIC:
+#endif
 		current_cable_type = POWER_SUPPLY_TYPE_HV_MAINS;
 		break;
 	case ATTACHED_DEV_UNDEFINED_CHARGING_MUIC:
@@ -794,13 +618,6 @@ static int s2mu00x_bat_cable_check(struct s2mu00x_battery_info *battery,
 		current_cable_type = POWER_SUPPLY_TYPE_UNKNOWN;
 		break;
 #endif
-#if defined(CONFIG_HV_MUIC_TURBO_CHARGER)
-	case ATTACHED_DEV_TURBO_CHARGER:
-		current_cable_type = POWER_SUPPLY_TYPE_HV_MAINS;
-		pr_info("[%s]Turbo charger ATTACHED\n", __func__);
-		break;
-#endif
-
 	default:
 		current_cable_type = POWER_SUPPLY_TYPE_BATTERY;
 		pr_err("%s: invalid type for charger:%d\n",
@@ -854,7 +671,7 @@ static int s2mu00x_battery_handle_notification(struct notifier_block *nb,
 	pr_info("%s: CMD=%s, attached_dev=%d battery_cable=%d\n",
 			__func__, cmd, attached_dev, battery->cable_type);
 
-#if defined(CONFIG_CHARGER_S2MU106)
+
 	if (attached_dev == ATTACHED_DEV_OTG_MUIC) {
 		if (!strcmp(cmd, "ATTACH")) {
 			value.intval = true;
@@ -893,7 +710,7 @@ static int s2mu00x_battery_handle_notification(struct notifier_block *nb,
 				set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
 		}
 	}
-#endif
+
 	pr_info(
 			"%s: Status(%s), Health(%s), Cable(%d), Recharging(%d))"
 			"\n", __func__,
@@ -911,95 +728,6 @@ static int s2mu00x_battery_handle_notification(struct notifier_block *nb,
 }
 #endif
 #if defined(CONFIG_IFCONN_NOTIFIER)
-#if defined(CONFIG_USE_CCIC)
-static int s2mu00x_bat_set_pdo(struct s2mu00x_battery_info *battery,
-		ifconn_pd_sink_status_t *pdo_data)
-{
-	int ret = -1;
-	int pdo_num = battery->pdo_sel_num;
-
-	if (pdo_num > pdo_data->available_pdo_num + 1 || pdo_num < 1) {
-		dev_info(battery->dev, "%s: wrong pdo number. Stop pdo select.\n",
-				__func__);
-		return ret;
-	}
-
-	ret = ifconn_notifier_notify(IFCONN_NOTIFY_BATTERY,
-			IFCONN_NOTIFY_MANAGER,
-			IFCONN_NOTIFY_ID_SELECT_PDO,
-			pdo_num,
-			IFCONN_NOTIFY_PARAM_DATA,
-			NULL);
-	if (ret < 0) {
-		pr_err("%s: Fail to send noti\n", __func__);
-		return ret;
-	}
-
-	ret = POWER_SUPPLY_TYPE_PREPARE_TA;
-
-	return ret;
-}
-
-static int s2mu00x_bat_pdo_check(struct s2mu00x_battery_info *battery,
-		struct ifconn_notifier_template *pdo_info)
-{
-	int current_cable = -1;
-	int i;
-	int pd_input_current_limit =
-		battery->pdata->charging_current[POWER_SUPPLY_TYPE_USB_PD].input_current_limit;
-	ifconn_pd_sink_status_t *pdo_data = pdo_info->data;
-
-	dev_info(battery->dev, "%s: available_pdo_num:%d, selected_pdo_num:%d,"
-		"current_pdo_num:%d\n",
-		__func__, pdo_data->available_pdo_num, pdo_data->selected_pdo_num,
-		pdo_data->current_pdo_num);
-
-	dev_info(battery->dev, "%s: pdo_max_input_vol:%d, pdo_max_chg_power:%d, "
-			"pdo_sel_num:%d\n",
-			__func__, battery->pdo_max_input_vol, battery->pdo_max_chg_power,
-			battery->pdo_sel_num);
-
-	if (pdo_data->available_pdo_num < 0)
-		return current_cable;
-
-	if (battery->pdo_sel_num == pdo_data->selected_pdo_num) {
-		dev_info(battery->dev, "%s: Already done. Finish pdo check.\n",
-				__func__);
-		current_cable = POWER_SUPPLY_TYPE_USB_PD;
-		goto end_pdo_check;
-	}
-
-	for (i = 1; i <= pdo_data->available_pdo_num + 1; i++) {
-		dev_info(battery->dev, "%s: pdo_num:%d, max_voltage:%d, max_current:%d\n",
-				__func__, i, pdo_data->power_list[i].max_voltage,
-				pdo_data->power_list[i].max_current);
-
-		if (pdo_data->power_list[i].max_voltage > battery->pdo_max_input_vol)
-			continue;
-
-		pd_input_current_limit = (pd_input_current_limit > pdo_data->power_list[i].max_current)?
-			pdo_data->power_list[i].max_current:pd_input_current_limit;
-
-		if (((pdo_data->power_list[i].max_voltage/1000) * pd_input_current_limit) <=
-				battery->pdo_max_chg_power) {
-				battery->pdo_sel_num = i;
-				battery->pdo_sel_vol = pdo_data->power_list[i].max_voltage;
-				battery->pdo_sel_cur = pdo_data->power_list[i].max_current;
-				dev_info(battery->dev, "%s: new pdo_sel_num:%d\n",
-						__func__, battery->pdo_sel_num);
-		}
-	}
-
-	if (battery->pdo_sel_num == 0) {
-		dev_info(battery->dev, "%s: There is no proper pdo. Do normal TA setting\n", __func__);
-		current_cable = POWER_SUPPLY_TYPE_MAINS;
-	} else
-		current_cable = s2mu00x_bat_set_pdo(battery, pdo_data);
-
-end_pdo_check:
-	return current_cable;
-}
-#endif
 static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
@@ -1029,35 +757,9 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 		cable_type = POWER_SUPPLY_TYPE_BATTERY;
 		break;
 	case IFCONN_NOTIFY_ID_ATTACH:
-#if defined(CONFIG_USE_CCIC)
-		if (battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
-			pr_info("%s: PD TA is attached. Skip cable check\n", __func__);
-			cable_type =  POWER_SUPPLY_TYPE_USB_PD;
-			cmd = "PD ATTACH";
-			break;
-		}
-#endif
 		cmd = "ATTACH";
 		cable_type = s2mu00x_bat_cable_check(battery, attached_dev);
 		break;
-#if defined(CONFIG_USE_CCIC)
-	case IFCONN_NOTIFY_ID_POWER_STATUS:
-		cable_type = s2mu00x_bat_pdo_check(battery, ifconn_info);
-		switch (cable_type) {
-			case POWER_SUPPLY_TYPE_USB_PD:
-				cmd = "PD ATTACH";
-				attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
-				break;
-			case POWER_SUPPLY_TYPE_PREPARE_TA:
-				cmd = "PD PREPARE";
-				attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
-				break;
-			default:
-				cmd = "PD FAIL";
-				break;
-		}
-		break;
-#endif
 	default:
 		cmd = "ERROR";
 		cable_type = -1;
@@ -1072,11 +774,6 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 		pr_info("%s: Battery is disconnected\n", __func__);
 
 	battery->cable_type = cable_type;
-
-#if 0 // defined(CONFIG_USE_CCIC)
-	if (cable_type == POWER_SUPPLY_TYPE_PREPARE_TA)
-		goto end_ifconn_handle;
-#endif
 
 	if (attached_dev == ATTACHED_DEV_OTG_MUIC) {
 		if (!strcmp(cmd, "ATTACH")) {
@@ -1105,9 +802,6 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 	}
 	set_bat_status_by_cable(battery);
 
-#if 0 //defined(CONFIG_USE_CCIC)
-end_ifconn_handle:
-#endif
 	pr_info("%s: Status(%s), Health(%s), Cable(%d), Recharging(%d)\n",
 			__func__, bat_status_str[battery->status], health_str[battery->health],
 			battery->cable_type, battery->is_recharging);
@@ -1127,7 +821,6 @@ static void get_battery_capacity(struct s2mu00x_battery_info *battery)
 	struct power_supply *psy;
 	int ret;
 	unsigned int raw_soc = 0;
-	int new_capacity = 0;
 
 	psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
@@ -1138,21 +831,9 @@ static void get_battery_capacity(struct s2mu00x_battery_info *battery)
 	if (battery->status == POWER_SUPPLY_STATUS_FULL)
 		battery->max_rawsoc = raw_soc;
 
-	new_capacity = (raw_soc * 100) / battery->max_rawsoc;
-	if (new_capacity > 100)
-		new_capacity = 100;
-
-	if (new_capacity > battery->capacity)
-		new_capacity = battery->capacity + 1;
-	else if (new_capacity < battery->capacity)
-		new_capacity = battery->capacity - 1;
-
-	if (new_capacity > 100)
-		new_capacity = 100;
-	else if (new_capacity < 0)
-		new_capacity = 0;
-
-	battery->capacity = new_capacity;
+	battery->capacity = (raw_soc*100)/battery->max_rawsoc;
+	if (battery->capacity > 100)
+		battery->capacity = 100;
 
 	dev_info(battery->dev, "%s: SOC(%u), rawsoc(%d), max_rawsoc(%u).\n",
 		__func__, battery->capacity, raw_soc, battery->max_rawsoc);
@@ -1198,20 +879,9 @@ static int get_battery_info(struct s2mu00x_battery_info *battery)
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
 	battery->temperature = value.intval;
-	/* Get charge temperature info */
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CHARGE_TEMP, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->charge_temp = value.intval;
 
 	get_battery_capacity(battery);
 
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_SOH, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->soh = value.intval;
-
-#if defined(CONFIG_CHARGER_S2MU106)
 	/*Get charger psy*/
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
@@ -1223,12 +893,6 @@ static int get_battery_info(struct s2mu00x_battery_info *battery)
 		pr_err("%s: Fail to execute property\n", __func__);
 	battery->current_max = value.intval;
 
-	/* Get charge current limit */
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->current_chg = value.intval;
-
 	/* Get charger status*/
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
 	if (ret < 0)
@@ -1237,57 +901,29 @@ static int get_battery_info(struct s2mu00x_battery_info *battery)
 	if (battery->status != value.intval)
 		pr_err("%s: battery status = %d, charger status = %d\n",
 				__func__, battery->status, value.intval);
-#endif
-
-	/* Get input voltage & current from powermeter */
-	battery->vchg_voltage = s2mu106_powermeter_get_vchg_voltage();
-	battery->vchg_current = s2mu106_powermeter_get_vchg_current();
 
 	dev_info(battery->dev,
-			"%s:Vnow(%dmV),Inow(%dmA),Imax(%dmA),Ichg(%dmA),SOC(%d%%),Tbat(%d),SOH(%d%%)"
-			",Vbus(%dmV),Ibus(%dmA)"
+			"%s:Vnow(%dmV),Inow(%dmA),Imax(%dmA),SOC(%d%%),Tbat(%d)"
 			"\n", __func__,
 			battery->voltage_now, battery->current_now,
-			battery->current_max, battery->current_chg, battery->capacity,
-			battery->temperature, battery->soh,
-			battery->vchg_voltage, battery->vchg_current
+			battery->current_max, battery->capacity,
+			battery->temperature
 			);
 	dev_dbg(battery->dev,
 			"%s,Vavg(%dmV),Vocv(%dmV),Iavg(%dmA)\n",
 			battery->battery_valid ? "Connected" : "Disconnected",
 			battery->voltage_avg, battery->voltage_ocv, battery->current_avg);
 
-#if defined(CONFIG_SMALL_CHARGER)
-	psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-	if (!psy)
-		return -EINVAL;
-
-	/* Get input current limit */
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->small_input = value.intval;
-
-	/* Get charge current limit */
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->small_chg = value.intval;
-
-	dev_info(battery->dev,
-			"%s: small Imax(%dmA), Ichg(%dmA)\n", __func__,
-			battery->small_input, battery->small_chg);
-#endif
 	return 0;
 }
 
 static int get_battery_health(struct s2mu00x_battery_info *battery)
 {
-	int health = POWER_SUPPLY_HEALTH_UNKNOWN;
-#if defined(CONFIG_CHARGER_S2MU106)
-	struct power_supply *psy;
 	union power_supply_propval value;
+	int health = POWER_SUPPLY_HEALTH_UNKNOWN;
+	struct power_supply *psy;
 	int ret;
+
 	/* Get health status from charger */
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
@@ -1297,9 +933,6 @@ static int get_battery_health(struct s2mu00x_battery_info *battery)
 		pr_err("%s: Fail to execute property\n", __func__);
 
 	health = value.intval;
-#else
-	health = POWER_SUPPLY_HEALTH_GOOD;
-#endif
 
 	return health;
 }
@@ -1439,13 +1072,12 @@ static void bat_monitor_work(struct work_struct *work)
 {
 	struct s2mu00x_battery_info *battery =
 		container_of(work, struct s2mu00x_battery_info, monitor_work.work);
-#if defined(CONFIG_CHARGER_S2MU106)
 	union power_supply_propval value;
 	struct power_supply *psy;
 	int ret;
-#endif
+
 	pr_info("%s: start monitoring\n", __func__);
-#if defined(CONFIG_CHARGER_S2MU106)
+
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
 		return;
@@ -1459,24 +1091,16 @@ static void bat_monitor_work(struct work_struct *work)
 		goto continue_monitor;
 	} else
 		battery->battery_valid = true;
-#else
-	battery->battery_valid = true;
-#endif
+
 	get_battery_info(battery);
 
 	check_health(battery);
 
 	check_charging_full(battery);
 
-	if (is_charging_mode == S2MU00X_FAC_MODE) {
-		pr_info("%s: Factory boot mode and reinsert adapter, stop charging\n", __func__);
-		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
-	}
-
 	power_supply_changed(battery->psy_battery);
-#if defined(CONFIG_CHARGER_S2MU106)
+
 continue_monitor:
-#endif
 	pr_err(
 		 "%s: Status(%s), Health(%s), Cable(%d), Recharging(%d))"
 		 "\n", __func__,
@@ -1516,13 +1140,6 @@ static int s2mu00x_battery_parse_dt(struct device *dev,
 			"battery,charger_name", (char const **)&pdata->charger_name);
 	if (ret)
 		pr_info("%s: Charger name is empty\n", __func__);
-
-#if defined(CONFIG_SMALL_CHARGER)
-	ret = of_property_read_string(np,
-			"battery,smallcharger_name", (char const **)&pdata->smallcharger_name);
-	if (ret)
-		pr_info("%s: Small charger name is empty\n", __func__);
-#endif
 
 	ret = of_property_read_string(np,
 			"battery,fuelgauge_name", (char const **)&pdata->fuelgauge_name);
@@ -1600,34 +1217,6 @@ static int s2mu00x_battery_parse_dt(struct device *dev,
 	if (ret)
 		pr_info("%s : max_charging_current is empty\n", __func__);
 
-#if defined(CONFIG_SMALL_CHARGER)
-	ret = of_property_read_u32(np, "battery,small_input_current",
-			&pdata->small_input_current);
-	if (ret) {
-		pr_info("%s : small_input_current is empty\n", __func__);
-		pdata->small_input_current = 500;
-	}
-
-	ret = of_property_read_u32(np, "battery,small_charging_current",
-			&pdata->small_charging_current);
-	if (ret) {
-		pr_info("%s : small_charging_current is empty\n", __func__);
-		pdata->small_charging_current = 800;
-	}
-#endif
-
-#if defined(CONFIG_USE_CCIC)
-	ret = of_property_read_u32(np, "battery,pdo_max_chg_power",
-			&pdata->pdo_max_chg_power);
-	if (ret)
-		pr_info("%s : pdo_max_chg_power is empty\n", __func__);
-
-	ret = of_property_read_u32(np, "battery,pdo_max_input_vol",
-			&pdata->pdo_max_input_vol);
-	if (ret)
-		pr_info("%s : pdo_max_input_vol is empty\n", __func__);
-#endif
-
 	ret = of_property_read_u32(np, "battery,temp_high", &temp);
 	if (ret) {
 		pr_info("%s : temp_high is empty\n", __func__);
@@ -1660,13 +1249,6 @@ static int s2mu00x_battery_parse_dt(struct device *dev,
 			__func__,
 			pdata->temp_high, pdata->temp_high_recovery,
 			pdata->temp_low, pdata->temp_low_recovery);
-
-	ret = of_property_read_u32(np, "battery,chg_float_voltage",
-			&pdata->chg_float_voltage);
-	if (ret) {
-		pr_info("%s : chg_float_voltage is empty\n", __func__);
-		pdata->chg_float_voltage = 4200;
-	}
 
 	ret = of_property_read_u32(np, "battery,full_check_count",
 			&pdata->full_check_count);
@@ -1717,22 +1299,6 @@ static enum alarmtimer_restart bat_monitor_alarm(
 	return ALARMTIMER_NORESTART;
 }
 
-static void soc_control_worker(struct work_struct *work)
-{
-	struct s2mu00x_battery_info *battery =
-		container_of(work, struct s2mu00x_battery_info, soc_control.work);
-
-	pr_info("%s: S2MU00x battery capacity = %d, status = %d\n",
-		__func__, battery->capacity, battery->status);
-
-	if ((battery->capacity >= 75) && (battery->status == POWER_SUPPLY_STATUS_CHARGING)) {
-		pr_info("%s: Capacity is more than 75, stop charging\n", __func__);
-		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
-	}
-
-	queue_delayed_work(battery->monitor_wqueue, &battery->soc_control, 10*HZ);
-}
-
 static int s2mu00x_battery_probe(struct platform_device *pdev)
 {
 	struct s2mu00x_battery_info *battery;
@@ -1744,7 +1310,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	int i;
 #endif
 
-	pr_info("%s: S2MU00x battery driver loading\n", __func__);
+	pr_info("%s: S2MU00x ERD battery driver loading\n", __func__);
 
 	/* Allocate necessary device data structures */
 	battery = kzalloc(sizeof(*battery), GFP_KERNEL);
@@ -1794,10 +1360,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 
 	battery->max_input_current = battery->pdata->max_input_current;
 	battery->max_charging_current = battery->pdata->max_charging_current;
-#if defined(CONFIG_USE_CCIC)
-	battery->pdo_max_input_vol = battery->pdata->pdo_max_input_vol;
-	battery->pdo_max_chg_power = battery->pdata->pdo_max_chg_power;
-#endif
+
 	battery->temp_high = battery->pdata->temp_high;
 	battery->temp_high_recovery = battery->pdata->temp_high_recovery;
 	battery->temp_low = battery->pdata->temp_low;
@@ -1805,11 +1368,9 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 
 	battery->max_rawsoc = battery->pdata->max_rawsoc;
 
-	battery->is_factory = false;
-
 	battery->is_recharging = false;
 	battery->cable_type = POWER_SUPPLY_TYPE_BATTERY;
-#if defined(CONFIG_CHARGER_S2MU106)
+
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
 		return -EINVAL;
@@ -1821,15 +1382,12 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 		battery->battery_valid = false;
 	else
 		battery->battery_valid = true;
-#else
-	battery->battery_valid = true;
-#endif
+
 	/* Register battery as "POWER_SUPPLY_TYPE_BATTERY" */
 	battery->psy_battery_desc.name = "battery";
 	battery->psy_battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->psy_battery_desc.get_property =  s2mu00x_battery_get_property;
 	battery->psy_battery_desc.set_property =  s2mu00x_battery_set_property;
-	battery->psy_battery_desc.property_is_writeable =  s2mu00x_battery_property_is_writeable;
 	battery->psy_battery_desc.properties = s2mu00x_battery_props;
 	battery->psy_battery_desc.num_properties =  ARRAY_SIZE(s2mu00x_battery_props);
 
@@ -1900,21 +1458,11 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 
 	battery->capacity = value.intval;
 
-	/* Set float voltage for charger */
-	psy = power_supply_get_by_name(battery->pdata->charger_name);
-	if (!psy)
-		return -EINVAL;
-	value.intval = battery->pdata->chg_float_voltage;
-	ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-
-
 #if defined(CONFIG_IFCONN_NOTIFIER)
 	ifconn_notifier_register(&battery->ifconn_nb,
 			s2mu00x_ifconn_handle_notification,
 			IFCONN_NOTIFY_BATTERY,
-			IFCONN_NOTIFY_MANAGER);
+			IFCONN_NOTIFY_MUIC);
 #elif defined(CONFIG_MUIC_NOTIFIER)
 	pr_info("%s: Register MUIC notifier\n", __func__);
 	muic_notifier_register(&battery->batt_nb, s2mu00x_battery_handle_notification,
@@ -1925,19 +1473,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	pr_info("%s: start battery monitoring work\n", __func__);
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 5*HZ);
 
-	if ((is_charging_mode == S2MU00X_POWEROFF_CHG_MODE) ||
-		(is_charging_mode == S2MU00X_NOR_MODE)) {
-		pr_info("%s: Poweroff charger mode, enable charging\n", __func__);
-		INIT_DELAYED_WORK(&battery->soc_control, soc_control_worker);
-		queue_delayed_work(battery->monitor_wqueue, &battery->soc_control, 5*HZ);
-	} else if (is_charging_mode == S2MU00X_FAC_MODE) {
-		pr_info("%s: Factory boot mode, stop charging\n", __func__);
-		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
-	} else {
-
-	}
-
-	dev_info(battery->dev, "%s: Battery driver is loaded\n", __func__);
+	dev_info(battery->dev, "%s: ERD Battery driver is loaded\n", __func__);
 	return 0;
 
 err_unreg_usb:
@@ -1969,7 +1505,6 @@ static int s2mu00x_battery_prepare(struct device *dev)
 	struct s2mu00x_battery_info *battery = dev_get_drvdata(dev);
 
 	alarm_cancel(&battery->monitor_alarm);
-	cancel_delayed_work_sync(&battery->monitor_work);
 	wake_unlock(&battery->monitor_wake_lock);
 	/* If charger is connected, monitoring is required*/
 	if (battery->cable_type != POWER_SUPPLY_TYPE_BATTERY) {
@@ -2045,19 +1580,6 @@ static void __exit s2mu00x_battery_exit(void)
 	platform_driver_unregister(&s2mu00x_battery_driver);
 }
 module_exit(s2mu00x_battery_exit);
-
-static int __init is_poweroff_charging_mode(char *str)
-{
-	if (strncmp("charger", str, 7) == 0)
-		is_charging_mode = S2MU00X_POWEROFF_CHG_MODE;
-	else if (strncmp("factory", str, 7) == 0)
-		is_charging_mode = S2MU00X_FAC_MODE;
-	else {
-		is_charging_mode = S2MU00X_NOR_MODE;
-	}
-
-	return 0;
-} early_param("androidboot.mode", is_poweroff_charging_mode);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Samsung Electronics");

@@ -50,7 +50,7 @@ static struct mfd_cell s2mu004_devs[] = {
 #if defined(CONFIG_CHARGER_S2MU004)
 	{ .name = "s2mu004-charger", },
 #endif
-#if defined(CONFIG_BATTERY_S2MU00X)
+#if defined(CONFIG_BATTERY_S2MU00X_ERD)
 	{ .name = "s2mu00x-battery", },
 #endif
 #if defined(CONFIG_LEDS_S2MU004_RGB)

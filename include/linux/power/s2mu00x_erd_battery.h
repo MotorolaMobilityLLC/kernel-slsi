@@ -1,5 +1,5 @@
 /*
- * s2mu00x_battery.h
+ * s2mu00x_erd_battery.h
  *
  * Copyright (C) 2017 Samsung Electronics, Inc.
  *
@@ -46,17 +46,6 @@ enum s2mu00x_battery_charger_mode {
 	S2MU00X_BAT_CHG_MODE_BUCK_OFF,
 };
 
-enum s2mu00x_battery_factory_mode {
-	S2MU00X_BAT_FAC_MODE_VBAT = 0,
-	S2MU00X_BAT_FAC_MODE_VBUS,
-	S2MU00X_BAT_FAC_MODE_NORMAL,
-};
-
-enum s2mu00x_battery_charge_mode {
-	S2MU00X_POWEROFF_CHG_MODE = 0,
-	S2MU00X_FAC_MODE,
-	S2MU00X_NOR_MODE,
-};
 struct s2mu00x_charging_current {
 #ifdef CONFIG_OF
 	unsigned int input_current_limit;
