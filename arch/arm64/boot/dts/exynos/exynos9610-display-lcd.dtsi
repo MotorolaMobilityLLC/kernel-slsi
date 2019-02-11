@@ -331,7 +331,7 @@
 				device_type = "hixmax-hix83112a";
 				mode = <0>; /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <1080 2520>;
-				size = <80 120>;
+				size = <64 148>;
 				timing,refresh = <60>;
 				timing,h-porch = <8 22 8>;
 				timing,v-porch = <28 24 4>;
@@ -367,7 +367,7 @@
 				device_type = "novatek-nov36672a";
 				mode = <0>; /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 				resolution = <1080 2520>;
-				size = <80 120>;
+				size = <64 148>;
 				timing,refresh = <60>;
 				timing,h-porch = <40 40 20>;
 				timing,v-porch = <8 10 2>;
