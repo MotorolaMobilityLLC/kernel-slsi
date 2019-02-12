@@ -25,6 +25,9 @@
 static u8 rta_static_data[STATIC_DATA_SIZE];
 static u8 ddk_static_data[STATIC_DATA_SIZE];
 
+u32 get_vc_dma_error_occur_count;
+u32 get_vc_dma_error_frame_count;
+
 /* helper functions */
 static struct fimc_is_module_enum *get_subdev_module_enum(struct fimc_is_sensor_interface *itf)
 {
@@ -2702,6 +2705,11 @@ int get_vc_dma_buf(struct fimc_is_sensor_interface *itf,
 		goto err_get_framemgr;
 	}
 
+	if (frame_count < get_vc_dma_error_frame_count) {
+		get_vc_dma_error_frame_count = 0;
+		get_vc_dma_error_occur_count = 0;
+	}
+
 	frame = find_frame(framemgr, FS_FREE, frame_fcount, (void *)(ulong)frame_count);
 	if (frame) {
 		/* cache invalidate */
@@ -2717,7 +2725,14 @@ int get_vc_dma_buf(struct fimc_is_sensor_interface *itf,
 
 		trans_frame(framemgr, frame, FS_PROCESS);
 	} else {
-		err("failed to get a frame: fcount: %d", frame_count);
+		if (frame_count != get_vc_dma_error_frame_count) {
+			err("failed to get a frame: fcount: %d", frame_count);
+			err("%d time occured previous frame: fcount: %d\n",
+				get_vc_dma_error_occur_count, get_vc_dma_error_frame_count);
+			get_vc_dma_error_frame_count = frame_count;
+			get_vc_dma_error_occur_count = 0;
+		}
+		get_vc_dma_error_occur_count++;
 		ret = -EINVAL;
 		goto err_invalid_frame;
 	}
