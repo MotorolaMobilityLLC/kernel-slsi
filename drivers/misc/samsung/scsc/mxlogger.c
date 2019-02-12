@@ -279,9 +279,13 @@ static int __mxlogger_generate_sync_record(struct mxlogger *mxlogger, enum mxlog
 
 	/* Do the processing */
 	if (sync_r_mem->fw_wrap == 0 && sync_r_mem->fw_time == 0) {
-		/* FW didn't update the record (FW panic?). Do not create a SYNC record */
+		/* FW didn't update the record (FW panic?) */
 		SCSC_TAG_INFO(MXMAN, "FW failure updating the FW time\n");
 		SCSC_TAG_INFO(MXMAN, "Sync delta %lld\n", ktime_to_ns(ktime_sub(t2, t1)));
+		sync_r_mem->tv_sec = (u64)t.tv_sec;
+		sync_r_mem->tv_usec = (u64)t.tv_usec;
+		sync_r_mem->kernel_time = ktime_to_ns(t2);
+		sync_r_mem->sync_event = event;
 		return 0;
 	}
 

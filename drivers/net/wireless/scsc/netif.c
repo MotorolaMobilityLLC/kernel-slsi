@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -1176,9 +1176,9 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	return 0;
 
 exit_with_error:
-	SLSI_MUTEX_LOCK(sdev->netdev_remove_mutex);
+	mutex_lock(&sdev->netdev_remove_mutex);
 	free_netdev(dev);
-	SLSI_MUTEX_UNLOCK(sdev->netdev_remove_mutex);
+	mutex_unlock(&sdev->netdev_remove_mutex);
 	return ret;
 }
 
@@ -1189,11 +1189,17 @@ int slsi_netif_dynamic_iface_add(struct slsi_dev *sdev, const char *name)
 
 	SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
 
+#if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
 	if (sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN] == sdev->netdev_ap) {
 		rcu_assign_pointer(sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN], NULL);
 		err = slsi_netif_add_locked(sdev, name, SLSI_NET_INDEX_P2PX_SWLAN);
 		index = err ? err : SLSI_NET_INDEX_P2PX_SWLAN;
 	}
+#else
+	err = slsi_netif_add_locked(sdev, name, SLSI_NET_INDEX_P2PX_SWLAN);
+	index = err ? err : SLSI_NET_INDEX_P2PX_SWLAN;
+#endif
+
 	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 	return index;
 }
@@ -1222,7 +1228,7 @@ int slsi_netif_init(struct slsi_dev *sdev)
 		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 		return -EINVAL;
 	}
-
+#if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
 	if (slsi_netif_add_locked(sdev, CONFIG_SCSC_AP_INTERFACE_NAME, SLSI_NET_INDEX_P2PX_SWLAN) != 0) {
 		rtnl_lock();
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_WLAN]);
@@ -1231,12 +1237,15 @@ int slsi_netif_init(struct slsi_dev *sdev)
 		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 		return -EINVAL;
 	}
+#endif
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
 	if (slsi_netif_add_locked(sdev, "nan%d", SLSI_NET_INDEX_NAN) != 0) {
 		rtnl_lock();
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_WLAN]);
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_P2P]);
+#if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
+#endif
 		rtnl_unlock();
 		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 		return -EINVAL;
@@ -1343,9 +1352,9 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 		atomic_set(&ndev_vif->is_registered, 0);
 		unregister_netdevice(dev);
 	} else {
-		SLSI_MUTEX_LOCK(sdev->netdev_remove_mutex);
+		mutex_lock(&sdev->netdev_remove_mutex);
 		free_netdev(dev);
-		SLSI_MUTEX_UNLOCK(sdev->netdev_remove_mutex);
+		mutex_unlock(&sdev->netdev_remove_mutex);
 	}
 }
 

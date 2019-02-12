@@ -715,7 +715,8 @@ int slsi_mlme_set_ipv6_address(struct slsi_dev *sdev, struct net_device *dev)
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_ip_address_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_ip_address_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_set_ip_address_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_set_ip_address_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_ip_address_cfm.result_code));
 		r = -EINVAL;
 	}
 	slsi_kfree_skb(cfm);
@@ -840,7 +841,8 @@ int slsi_mlme_add_vif(struct slsi_dev *sdev, struct net_device *dev, u8 *interfa
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_add_vif_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_add_vif_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_add_vif_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_add_vif_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_add_vif_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -874,7 +876,8 @@ void slsi_mlme_del_vif(struct slsi_dev *sdev, struct net_device *dev)
 		return;
 
 	if (fapi_get_u16(cfm, u.mlme_del_vif_cfm.result_code) != FAPI_RESULTCODE_SUCCESS)
-		SLSI_NET_ERR(dev, "mlme_del_vif_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_del_vif_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_del_vif_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_del_vif_cfm.result_code));
 
 	if (((ndev_vif->iftype == NL80211_IFTYPE_P2P_CLIENT) || (ndev_vif->iftype == NL80211_IFTYPE_STATION)) &&
 	    (ndev_vif->delete_probe_req_ies)) {
@@ -919,7 +922,8 @@ int slsi_mlme_set_channel(struct slsi_dev *sdev, struct net_device *dev, struct 
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_channel_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_set_channel_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -947,7 +951,7 @@ int slsi_mlme_spare_signal_1(struct slsi_dev *sdev, struct net_device *dev)
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_spare_channel_cfm(result:%u) ERROR\n",
+		SLSI_NET_ERR(dev, "mlme_spare_channel_cfm(result:0x%04x) ERROR\n",
 			     fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code));
 		r = -EINVAL;
 	}
@@ -999,7 +1003,8 @@ static bool slsi_scan_cfm_validate(struct slsi_dev *sdev, struct net_device *dev
 	bool r = true;
 
 	if (fapi_get_u16(cfm, u.mlme_add_scan_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_ERR_NODEV("mlme_add_scan_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_add_scan_cfm.result_code));
+		SLSI_ERR_NODEV("mlme_add_scan_cfm(result:0x%04x) ERROR\n",
+			       fapi_get_u16(cfm, u.mlme_add_scan_cfm.result_code));
 		r = false;
 	}
 
@@ -1073,7 +1078,7 @@ int slsi_mlme_set_bssid_hotlist_req(struct slsi_dev *sdev, struct net_device *de
 
 	SLSI_DBG2(sdev, SLSI_GSCAN, "mlme_set_bssid_hotlist_cfm(datalen:%u)\n", fapi_get_datalen(cfm));
 	if (fapi_get_u16(cfm, u.mlme_set_bssid_hotlist_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_bssid_hotlist_cfm(result: %#x) ERROR\n",
+		SLSI_NET_ERR(dev, "mlme_set_bssid_hotlist_cfm(result:0x%04x) ERROR\n",
 			     fapi_get_u16(cfm, u.mlme_set_bssid_hotlist_cfm.result_code));
 		slsi_kfree_skb(cfm);
 		return -EINVAL;
@@ -1380,7 +1385,8 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 		return -EIO;
 
 	if (fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_add_scan_cfm(result:%u) ERROR\n", fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_add_scan_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -1513,7 +1519,8 @@ int slsi_mlme_add_scan(
 		if (!rx)
 			return -EIO;
 		if (fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-			SLSI_NET_ERR(dev, "mlme_add_scan_cfm(result:%u) ERROR\n", fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code));
+			SLSI_NET_ERR(dev, "mlme_add_scan_cfm(result:0x%04x) ERROR\n",
+				     fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code));
 			r = -EINVAL;
 		}
 	}
@@ -1549,7 +1556,8 @@ int slsi_mlme_del_scan(struct slsi_dev *sdev, struct net_device *dev, u16 scan_i
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_del_scan_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_del_scan_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_del_scan_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_del_scan_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_del_scan_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -1947,7 +1955,8 @@ int slsi_mlme_start(struct slsi_dev *sdev, struct net_device *dev, u8 *bssid, st
 	if (!cfm)
 		return -EIO;
 	if (fapi_get_u16(cfm, u.mlme_start_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_start_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_start_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_start_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_start_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -2116,7 +2125,8 @@ static int slsi_mlme_connect_info_elements(struct slsi_dev *sdev, struct net_dev
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_add_info_elements_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_add_info_elements_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_connect_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_add_info_elements_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_connect_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -2238,7 +2248,8 @@ int slsi_mlme_connect(struct slsi_dev *sdev, struct net_device *dev, struct cfg8
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_connect_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_connect_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_connect_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_connect_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_connect_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -2322,7 +2333,8 @@ bool slsi_disconnect_cfm_validate(struct slsi_dev *sdev, struct net_device *dev,
 		r = true;
 	/* Not present code would mean peer is already disconnected and hence no ind (could be race scenario), don't log as error */
 	else if (result != FAPI_RESULTCODE_NOT_PRESENT)
-		SLSI_NET_ERR(dev, "mlme_disconnect_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_disconnect_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_disconnect_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_disconnect_cfm.result_code));
 
 exit:
 	slsi_kfree_skb(cfm);
@@ -2365,7 +2377,8 @@ int slsi_mlme_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *mac,
 		rx = slsi_mlme_req_cfm(sdev, dev, req, MLME_DISCONNECT_CFM);
 		if (rx) {
 			if (fapi_get_u16(rx, u.mlme_disconnect_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-				SLSI_NET_ERR(dev, "mlme_disconnect_cfm(result:%u) ERROR\n", fapi_get_u16(rx, u.mlme_disconnect_cfm.result_code));
+				SLSI_NET_ERR(dev, "mlme_disconnect_cfm(result:0x%04x) ERROR\n",
+					     fapi_get_u16(rx, u.mlme_disconnect_cfm.result_code));
 				r = -EINVAL;
 			}
 		} else {
@@ -2438,7 +2451,8 @@ int slsi_mlme_set_key(struct slsi_dev *sdev, struct net_device *dev, u16 key_id,
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_setkeys_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_setkeys_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_setkeys_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_setkeys_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_setkeys_cfm.result_code));
 		r = -EINVAL;
 	}
 	slsi_kfree_skb(cfm);
@@ -2466,7 +2480,8 @@ int slsi_mlme_get_key(struct slsi_dev *sdev, struct net_device *dev, u16 key_id,
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_get_key_sequence_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_get_key_sequence_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_get_key_sequence_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_get_key_sequence_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_get_key_sequence_cfm.result_code));
 		r = -ENOENT;
 	} else {
 		int i;
@@ -2596,11 +2611,10 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 	static const struct slsi_mib_get_entry get_values[] = {
 		{ SLSI_PSID_UNIFI_TX_DATA_RATE, { 0, 0 } },         /* to get STATION_INFO_TX_BITRATE*/
 		{ SLSI_PSID_UNIFI_RSSI, { 0, 0 } },                 /* to get STATION_INFO_SIGNAL_AVG*/
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 2, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 3, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 4, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 24, 0 } },
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 29, 0 } },
+		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 3, 0 } },     /* bad_fcs_count*/
+		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 10, 0 } },    /* mpdus_failed_transmit*/
+		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 25, 0 } },    /* mac_bad_sig_count*/
+		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 30, 0 } },    /* rx_error_count*/
 	};
 	int tx_counter = 0;
 	int rx_counter = 0;
@@ -2679,27 +2693,29 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 			rx_counter += values[2].u.uintValue; /*bad_fcs_count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 2);
+
 		if (values[3].type == SLSI_MIB_TYPE_UINT)
-			tx_counter += values[3].u.uintValue; /*missed_ba_count*/
+			tx_counter += values[3].u.uintValue; /*mpdus_failed_transmit*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 3);
 		if (values[4].type == SLSI_MIB_TYPE_UINT)
-			tx_counter += values[4].u.uintValue; /*missed_ack_count*/
+			rx_counter += values[4].u.uintValue; /*mac_bad_sig_count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 4);
 		if (values[5].type == SLSI_MIB_TYPE_UINT)
-			rx_counter += values[5].u.uintValue; /*mac_bad_sig_count*/
+			rx_counter += values[5].u.uintValue; /*rx_error_count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 5);
-		if (values[6].type == SLSI_MIB_TYPE_UINT)
-			rx_counter += values[6].u.uintValue; /*rx_error_count*/
-		else
-			SLSI_ERR(sdev, "invalid type. iter:%d", 6);
 
 		peer->sinfo.tx_failed = tx_counter;
 		peer->sinfo.rx_dropped_misc = rx_counter;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
+		peer->sinfo.filled |= BIT(NL80211_STA_INFO_TX_FAILED) | BIT(NL80211_STA_INFO_RX_DROP_MISC) |
+				      BIT(NL80211_STA_INFO_TX_PACKETS);
+#endif
 	} else {
-		SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_get_req failed(result:%u)\n", r);
+		SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_get_req failed(result:0x%4x)\n", r);
 	}
 
 	kfree(mibrsp.data);
@@ -2847,7 +2863,8 @@ int slsi_mlme_powermgt_unlocked(struct slsi_dev *sdev, struct net_device *dev, u
 	if (fapi_get_u16(rx, u.mlme_powermgt_cfm.result_code) == FAPI_RESULTCODE_SUCCESS) {
 		ndev_vif->power_mode = power_mode;
 	} else {
-		SLSI_NET_ERR(dev, "mlme_powermgt_cfm(result:%u) ERROR\n", fapi_get_u16(rx, u.mlme_powermgt_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_powermgt_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(rx, u.mlme_powermgt_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -2887,7 +2904,8 @@ int slsi_mlme_register_action_frame(struct slsi_dev *sdev, struct net_device *de
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_register_action_frame_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_register_action_frame_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_register_action_frame_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_register_action_frame_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_register_action_frame_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -2917,7 +2935,8 @@ int slsi_mlme_channel_switch(struct slsi_dev *sdev, struct net_device *dev,  u16
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_channel_switch_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_channel_switch_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_channel_switch_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_channel_switch_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_channel_switch_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -2955,7 +2974,8 @@ int slsi_mlme_add_info_elements(struct slsi_dev *sdev, struct net_device *dev,  
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_add_info_elements_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_add_info_elements_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_add_info_elements_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_add_info_elements_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_add_info_elements_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3088,7 +3108,8 @@ int slsi_mlme_send_frame_mgmt(struct slsi_dev *sdev, struct net_device *dev, con
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_send_frame_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_send_frame_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_send_frame_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_send_frame_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_send_frame_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3117,7 +3138,8 @@ int slsi_mlme_reset_dwell_time(struct slsi_dev *sdev, struct net_device *dev)
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_reset_dwell_time_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_reset_dwell_time_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_reset_dwell_time_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_reset_dwell_time_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_reset_dwell_time_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3205,7 +3227,8 @@ int slsi_mlme_set_pmk(struct slsi_dev *sdev, struct net_device *dev, const u8 *p
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_pmk_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_pmk_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_set_pmk_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_set_pmk_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_pmk_cfm.result_code));
 		r = -EINVAL;
 	}
 	slsi_kfree_skb(cfm);
@@ -3234,7 +3257,8 @@ int slsi_mlme_roam(struct slsi_dev *sdev, struct net_device *dev, const u8 *bssi
 	if (!cfm)
 		return -EIO;
 	if (fapi_get_u16(cfm, u.mlme_roam_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_roam_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_roam_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_roam_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_roam_cfm.result_code));
 		r = -EINVAL;
 	}
 	slsi_kfree_skb(cfm);
@@ -3305,7 +3329,8 @@ int slsi_mlme_set_cached_channels(struct slsi_dev *sdev, struct net_device *dev,
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_cached_channels_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_cached_channels_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_set_cached_channels_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_set_cached_channels_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_cached_channels_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3343,7 +3368,8 @@ int slsi_mlme_set_acl(struct slsi_dev *sdev, struct net_device *dev, u16 ifnum, 
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_acl_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_acl_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_set_acl_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_set_acl_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_acl_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3386,7 +3412,8 @@ int slsi_mlme_set_traffic_parameters(struct slsi_dev *sdev, struct net_device *d
 		return -EIO;
 
 	if (fapi_get_u16(rx, u.mlme_set_traffic_parameters_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_traffic_parameters_cfm(result:%u) ERROR\n", fapi_get_u16(rx, u.mlme_set_traffic_parameters_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_set_traffic_parameters_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(rx, u.mlme_set_traffic_parameters_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3420,7 +3447,8 @@ int slsi_mlme_del_traffic_parameters(struct slsi_dev *sdev, struct net_device *d
 		return -EIO;
 
 	if (fapi_get_u16(rx, u.mlme_del_traffic_parameters_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_del_traffic_parameters_cfm(result:%u) ERROR\n", fapi_get_u16(rx, u.mlme_del_traffic_parameters_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_del_traffic_parameters_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(rx, u.mlme_del_traffic_parameters_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3580,7 +3608,8 @@ int slsi_mlme_tdls_action(struct slsi_dev *sdev, struct net_device *dev, const u
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_tdls_action_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_tdls_action_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.mlme_tdls_action_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_tdls_action_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_tdls_action_cfm.result_code));
 		r = -EINVAL;
 	}
 
@@ -3610,9 +3639,11 @@ int slsi_mlme_reassociate(struct slsi_dev *sdev, struct net_device *dev)
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_reassociate_cfm.result_code) == FAPI_RESULTCODE_HOST_REQUEST_SUCCESS) {
-		SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_reassoc_cfm(result:0x%4x)\n", fapi_get_u16(cfm, u.mlme_reassociate_cfm.result_code));
+		SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_reassoc_cfm(result:0x%04x)\n",
+			      fapi_get_u16(cfm, u.mlme_reassociate_cfm.result_code));
 	} else {
-		SLSI_NET_ERR(dev, "mlme_reassoc_cfm(result:0x%4x) ERROR\n", fapi_get_u16(cfm, u.mlme_reassociate_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_reassoc_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_reassociate_cfm.result_code));
 		r = -EINVAL;
 	}
 	slsi_kfree_skb(cfm);
@@ -3768,7 +3799,7 @@ int slsi_mlme_significant_change_set(struct slsi_dev *sdev, struct net_device *d
 		return -EIO;
 	} else if (fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
 		gscan->bucket[0]->for_change_tracking = false;
-		SLSI_NET_ERR(dev, "mlme_add_scan_cfm(ERROR:%u)", fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code));
+		SLSI_NET_ERR(dev, "mlme_add_scan_cfm(ERROR:0x%04x)", fapi_get_u16(rx, u.mlme_add_scan_cfm.result_code));
 		r = -EINVAL;
 	} else {
 		gscan->bucket[0]->for_change_tracking = true;
@@ -3820,7 +3851,7 @@ int slsi_mlme_add_range_req(struct slsi_dev *sdev, u8 count,
 	if (!rx)
 		return -EIO;
 	if (fapi_get_u16(rx, u.mlme_add_range_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_ERR(sdev, "mlme_add_range_cfm(ERROR:%x)",
+		SLSI_ERR(sdev, "mlme_add_range_cfm(ERROR:0x%04x)",
 			 fapi_get_u16(rx, u.mlme_add_range_cfm.result_code));
 		r = -EINVAL;
 	}
@@ -3842,7 +3873,7 @@ bool slsi_del_range_cfm_validate(struct slsi_dev *sdev, struct net_device *dev, 
 	if (result == FAPI_RESULTCODE_SUCCESS)
 		r = true;
 	else
-		SLSI_NET_ERR(dev, "mlme_del_range_cfm(result:%u) ERROR\n", result);
+		SLSI_NET_ERR(dev, "mlme_del_range_cfm(result:0x%04x) ERROR\n", result);
 
 exit:
 	slsi_kfree_skb(cfm);
@@ -3991,7 +4022,7 @@ int slsi_mlme_set_pno_list(struct slsi_dev *sdev, int count,
 	if (!rx)
 		return -EIO;
 	if (fapi_get_u16(rx, u.mlme_set_pno_list_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_ERR(sdev, "mlme_set_pno_list_cfm(ERROR:%u)",
+		SLSI_ERR(sdev, "mlme_set_pno_list_cfm(ERROR:0x%04x)",
 			 fapi_get_u16(rx, u.mlme_set_pno_list_cfm.result_code));
 		r = -EINVAL;
 	}
@@ -4022,7 +4053,7 @@ int slsi_mlme_start_link_stats_req(struct slsi_dev *sdev, u16 mpdu_size_threshol
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_start_link_statistics_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_ERR(sdev, "mlme_start_link_statistics_cfm (result: %u) ERROR\n",
+		SLSI_ERR(sdev, "mlme_start_link_statistics_cfm (result:0x%04x) ERROR\n",
 			 fapi_get_u16(cfm, u.mlme_start_link_statistics_cfm.result_code));
 		r = -EINVAL;
 		}
@@ -4051,7 +4082,7 @@ int slsi_mlme_stop_link_stats_req(struct slsi_dev *sdev, u16 stats_stop_mask)
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_stop_link_statistics_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_ERR(sdev, "mlme_stop_link_statistics_cfm (result: %u) ERROR\n",
+		SLSI_ERR(sdev, "mlme_stop_link_statistics_cfm (result:0x%04x) ERROR\n",
 			 fapi_get_u16(cfm, u.mlme_stop_link_statistics_cfm.result_code));
 		r = -EINVAL;
 	}
@@ -4144,7 +4175,7 @@ int slsi_mlme_set_ctwindow(struct slsi_dev *sdev, struct net_device *dev, unsign
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_ctwindow_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_ctwindow_cfm(result:%u) ERROR\n",
+		SLSI_NET_ERR(dev, "mlme_set_ctwindow_cfm(result:0x%04x) ERROR\n",
 			     fapi_get_u16(cfm, u.mlme_set_ctwindow_cfm.result_code));
 		r = -EINVAL;
 	}
@@ -4182,7 +4213,7 @@ int slsi_mlme_set_p2p_noa(struct slsi_dev *sdev, struct net_device *dev, unsigne
 		return -EIO;
 
 	if (fapi_get_u16(cfm, u.mlme_set_noa_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "mlme_set_noa_cfm(result:%u) ERROR\n",
+		SLSI_NET_ERR(dev, "mlme_set_noa_cfm(result:0x%04x) ERROR\n",
 			     fapi_get_u16(cfm, u.mlme_set_noa_cfm.result_code));
 		r = -EINVAL;
 	}
@@ -4852,7 +4883,8 @@ int slsi_test_sap_configure_monitor_mode(struct slsi_dev *sdev, struct net_devic
 	}
 
 	if (fapi_get_u16(cfm, u.mlme_set_channel_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
-		SLSI_NET_ERR(dev, "test_configure_monitor_mode_cfm(result:%u) ERROR\n", fapi_get_u16(cfm, u.test_configure_monitor_mode_cfm.result_code));
+		SLSI_NET_ERR(dev, "test_configure_monitor_mode_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.test_configure_monitor_mode_cfm.result_code));
 		r = -EINVAL;
 	}
 

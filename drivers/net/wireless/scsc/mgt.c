@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
@@ -65,6 +65,74 @@ static int slsi_5ghz_all_channels[] = {5180, 5200, 5220, 5240, 5260, 5280, 5300,
 				       5540, 5560, 5580, 5600, 5620, 5640, 5660, 5680, 5700, 5720,
 				       5745, 5765, 5785, 5805, 5825 };
 #endif
+
+/* MAC address override stored in /sys/wifi/mac_addr */
+static ssize_t sysfs_show_macaddr(struct kobject *kobj, struct kobj_attribute *attr,
+				  char *buf);
+static ssize_t sysfs_store_macaddr(struct kobject *kobj, struct kobj_attribute *attr,
+				   const char *buf, size_t count);
+
+static struct kobject *wifi_kobj_ref;
+static char sysfs_mac_override[] = "ff:ff:ff:ff:ff:ff";
+static struct kobj_attribute mac_attr = __ATTR(mac_addr, 0660, sysfs_show_macaddr, sysfs_store_macaddr);
+
+/* Retrieve mac address in sysfs global */
+static ssize_t sysfs_show_macaddr(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  char *buf)
+{
+	return snprintf(buf, sizeof(sysfs_mac_override), "%s", sysfs_mac_override);
+}
+
+/* Update mac address in sysfs global */
+static ssize_t sysfs_store_macaddr(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf,
+				   size_t count)
+{
+	int r;
+
+	SLSI_INFO_NODEV("Override WLAN MAC address %s\n", buf);
+
+	/* size of macaddr string */
+	r = sscanf(buf, "%18s", &sysfs_mac_override);
+
+	return (r > 0) ? count : 0;
+}
+
+/* Register sysfs mac address override */
+void slsi_create_sysfs_macaddr(void)
+{
+	int r;
+
+	wifi_kobj_ref = mxman_wifi_kobject_ref_get();
+	pr_info("wifi_kobj_ref: 0x%p\n", wifi_kobj_ref);
+
+	if (wifi_kobj_ref) {
+		/* Create sysfs file /sys/wifi/mac_addr */
+		r = sysfs_create_file(wifi_kobj_ref, &mac_attr.attr);
+		if (r) {
+			/* Failed, so clean up dir */
+			pr_err("Can't create /sys/wifi/mac_addr\n");
+			return;
+		}
+	} else {
+		pr_err("failed to create /sys/wifi/mac_addr\n");
+	}
+}
+
+/* Unregister sysfs mac address override */
+void slsi_destroy_sysfs_macaddr(void)
+{
+	if (!wifi_kobj_ref)
+		return;
+
+	/* Destroy /sys/wifi/mac_addr file */
+	sysfs_remove_file(wifi_kobj_ref, &mac_attr.attr);
+
+	/* Destroy /sys/wifi virtual dir */
+	mxman_wifi_kobject_ref_put();
+}
 
 void slsi_purge_scan_results_locked(struct netdev_vif *ndev_vif, u16 scan_id)
 {
@@ -368,7 +436,6 @@ struct scsc_log_collector_client slsi_hcf_client = {
 };
 #endif
 
-#define SLSI_SM_WLAN_SERVICE_RECOVERY_COMPLETED_TIMEOUT 20000
 int slsi_start(struct slsi_dev *sdev)
 {
 #ifndef CONFIG_SCSC_DOWNLOAD_FILE
@@ -398,7 +465,7 @@ int slsi_start(struct slsi_dev *sdev)
 
 	if (sdev->recovery_status) {
 		r = wait_for_completion_timeout(&sdev->recovery_completed,
-						msecs_to_jiffies(SLSI_SM_WLAN_SERVICE_RECOVERY_COMPLETED_TIMEOUT));
+						msecs_to_jiffies(sdev->recovery_timeout));
 		if (r == 0)
 			SLSI_INFO(sdev, "recovery_completed timeout\n");
 
@@ -532,7 +599,7 @@ int slsi_start(struct slsi_dev *sdev)
 	} else {
 		offset = snprintf(buf + offset, sizeof(buf), "#softap.info\n");
 		offset += snprintf(buf + offset, sizeof(buf), "DualBandConcurrency=%s\n", sdev->dualband_concurrency ? "yes" : "no");
-#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+#if defined(ANDROID_VERSION) && (ANDROID_VERSION >= 90000)
 		offset += snprintf(buf + offset, sizeof(buf), "DualInterface=%s\n", "yes");
 #else
 		offset += snprintf(buf + offset, sizeof(buf), "DualInterface=%s\n", "no");
@@ -773,7 +840,7 @@ void slsi_scan_cleanup(struct slsi_dev *sdev, struct net_device *dev)
 
 		if (ndev_vif->scan[i].sched_req && i == SLSI_SCAN_SCHED_ID)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
-			cfg80211_sched_scan_stopped(sdev->wiphy, SLSI_SCAN_SCHED_ID);
+			cfg80211_sched_scan_stopped(sdev->wiphy, ndev_vif->scan[i].sched_req->reqid);
 #else
 			cfg80211_sched_scan_stopped(sdev->wiphy);
 #endif
@@ -1369,6 +1436,22 @@ int slsi_set_mib_roam(struct slsi_dev *dev, struct net_device *ndev, u16 psid, i
 		}
 
 	return error;
+}
+
+void slsi_reset_throughput_stats(struct net_device *dev)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct slsi_dev *sdev = ndev_vif->sdev;
+	struct slsi_mib_data mib_data = { 0, NULL };
+	int error = SLSI_MIB_STATUS_FAILURE;
+
+	if (slsi_mib_encode_int(&mib_data, SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, 0, 0) == SLSI_MIB_STATUS_SUCCESS)
+		if (mib_data.dataLength) {
+			error = slsi_mlme_set(sdev, dev, mib_data.data, mib_data.dataLength);
+			if (error)
+				SLSI_ERR(sdev, "Err Setting MIB failed. error = %d\n", error);
+			kfree(mib_data.data);
+		}
 }
 
 int slsi_get_mib_roam(struct slsi_dev *sdev, u16 psid, int *mib_value)

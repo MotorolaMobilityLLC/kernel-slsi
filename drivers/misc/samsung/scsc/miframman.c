@@ -87,7 +87,8 @@ void *__miframman_alloc(struct miframman *ram, size_t nbytes)
 			index = index + available + 1;
 	}
 end:
-	SCSC_TAG_INFO(MIF, "Not enough memory\n");
+	SCSC_TAG_INFO(MIF, "Not enough shared memory (nbytes %zd, free_mem %u)\n",
+		      nbytes, ram->free_mem);
 	return NULL;
 exit:
 	return free_mem;
@@ -107,8 +108,10 @@ void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align)
 	void *mem, *align_mem = NULL;
 
 	mutex_lock(&ram->lock);
-	if (!is_power_of_2(align) || nbytes == 0)
+	if (!is_power_of_2(align) || nbytes == 0) {
+		SCSC_TAG_ERR(MIF, "Failed size/alignment check (nbytes %zd, align %zd)\n", nbytes, align);
 		goto end;
+	}
 
 	if (align < sizeof(void *))
 		align = sizeof(void *);

@@ -1689,9 +1689,7 @@ void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_
 void slsi_rx_range_done_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 int slsi_tx_rate_calc(struct sk_buff *nl_skb, u16 fw_rate, int res, bool tx_rate);
 void slsi_check_num_radios(struct slsi_dev *sdev);
-#ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
 void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
-#endif
 void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);

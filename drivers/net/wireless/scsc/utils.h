@@ -26,6 +26,19 @@ struct slsi_skb_cb {
 	struct sk_buff *skb_addr;
 };
 
+static inline u32  slsi_convert_tlv_data_to_value(u8 *data, u16 length)
+{
+	u32 value = 0;
+	int i;
+
+	if (length > 4)
+		return 0;
+	for (i = 0; i < length; i++)
+		value |= ((u32)data[i]) << i * 8;
+
+	return value;
+}
+
 static inline struct slsi_skb_cb *slsi_skb_cb_get(struct sk_buff *skb)
 {
 	return (struct slsi_skb_cb *)skb->cb;

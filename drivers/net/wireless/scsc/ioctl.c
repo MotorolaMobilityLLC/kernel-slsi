@@ -106,6 +106,7 @@
 #define CMD_SET_TX_POWER_CALLING "SET_TX_POWER_CALLING"
 
 #define CMD_DRIVERDEBUGDUMP "DEBUG_DUMP"
+#define CMD_DRIVERDEBUGCOMMAND "DEBUG_COMMAND"
 #define CMD_TESTFORCEHANG "SLSI_TEST_FORCE_HANG"
 #define CMD_GETREGULATORY "GETREGULATORY"
 
@@ -660,17 +661,26 @@ static ssize_t slsi_rx_filter_num_write(struct net_device *dev, int add_remove, 
 }
 
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+#if !defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION < 90000)
 static ssize_t slsi_create_interface(struct net_device *dev, char *intf_name)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev   *sdev = ndev_vif->sdev;
-	struct net_device   *swlan_dev;
+	struct net_device   *ap_dev;
 
-	swlan_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
-	if (swlan_dev && (swlan_dev->name == intf_name))
+	ap_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
+	if (ap_dev && (strcmp(ap_dev->name, intf_name) == 0)) {
+		SLSI_NET_ERR(dev, "%s already created\n", intf_name);
+		return -EINVAL;
+	}
+
+	ap_dev = slsi_dynamic_interface_create(sdev->wiphy, intf_name, NL80211_IFTYPE_AP, NULL);
+	if (ap_dev) {
+		sdev->netdev_ap = ap_dev;
 		return 0;
+	}
 
-	SLSI_NET_ERR(dev, "Failed to create interface %s\n", intf_name);
+	SLSI_NET_ERR(dev, "Failed to create AP interface %s\n", intf_name);
 	return -EINVAL;
 }
 
@@ -678,19 +688,26 @@ static ssize_t slsi_delete_interface(struct net_device *dev, char *intf_name)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev   *sdev = ndev_vif->sdev;
-	struct net_device   *swlan_dev;
 
-	swlan_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
-	if (swlan_dev && (swlan_dev->name == intf_name)) {
-		ndev_vif = netdev_priv(swlan_dev);
-		if (ndev_vif->activated)
-			slsi_stop_net_dev(sdev, swlan_dev);
-		return 0;
+	if (strcmp(intf_name, CONFIG_SCSC_AP_INTERFACE_NAME) == 0)
+		dev = sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN];
+
+	if (!dev) {
+		SLSI_WARN(sdev, "AP dev is NULL");
+		return -EINVAL;
 	}
+	ndev_vif = netdev_priv(dev);
 
-	SLSI_NET_ERR(dev, "Failed to delete interface %s\n", intf_name);
-	return -EINVAL;
+	if (ndev_vif->activated)
+		slsi_stop_net_dev(sdev, dev);
+	slsi_netif_remove_rtlnl_locked(sdev, dev);
+
+	sdev->netdev_ap = NULL;
+	SLSI_DBG1_NODEV(SLSI_MLME, "Successfully deleted AP interface %s ", intf_name);
+
+	return 0;
 }
+#endif
 
 static ssize_t slsi_set_indoor_channels(struct net_device *dev, char *arg)
 {
@@ -2127,6 +2144,7 @@ int slsi_get_sta_info(struct net_device *dev, char *command, int buf_len)
 		return -EINVAL;
 	}
 
+#if defined(ANDROID_VERSION) && (ANDROID_VERSION >= 90000)
 	len = snprintf(command, buf_len, "GETSTAINFO %pM Rx_Retry_Pkts=%d Rx_BcMc_Pkts=%d CAP=%04x %02x:%02x:%02x ",
 		       ndev_vif->ap.last_disconnected_sta.address,
 		       ndev_vif->ap.last_disconnected_sta.rx_retry_packets,
@@ -2142,6 +2160,15 @@ int slsi_get_sta_info(struct net_device *dev, char *command, int buf_len)
 		       ndev_vif->ap.last_disconnected_sta.tx_data_rate, ndev_vif->ap.last_disconnected_sta.mode,
 		       ndev_vif->ap.last_disconnected_sta.antenna_mode,
 		       ndev_vif->ap.last_disconnected_sta.mimo_used, ndev_vif->ap.last_disconnected_sta.reason);
+#else
+	len = snprintf(command, buf_len, "wl_get_sta_info : %02x%02x%02x %u %d %d %d %d %d %d %u ",
+		       ndev_vif->ap.last_disconnected_sta.address[0], ndev_vif->ap.last_disconnected_sta.address[1],
+		       ndev_vif->ap.last_disconnected_sta.address[2], ndev_vif->ap.channel_freq,
+		       ndev_vif->ap.last_disconnected_sta.bandwidth, ndev_vif->ap.last_disconnected_sta.rssi,
+		       ndev_vif->ap.last_disconnected_sta.tx_data_rate, ndev_vif->ap.last_disconnected_sta.mode,
+		       ndev_vif->ap.last_disconnected_sta.antenna_mode,
+		       ndev_vif->ap.last_disconnected_sta.mimo_used, ndev_vif->ap.last_disconnected_sta.reason);
+#endif
 
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
@@ -2253,6 +2280,7 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 		ret = slsi_rx_filter_num_write(dev, 0, filter_num);
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+#if !defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION < 90000)
 	} else if (strncasecmp(command, CMD_INTERFACE_CREATE, strlen(CMD_INTERFACE_CREATE)) == 0) {
 		char *intf_name = command + strlen(CMD_INTERFACE_CREATE) + 1;
 
@@ -2261,6 +2289,7 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		char *intf_name = command + strlen(CMD_INTERFACE_DELETE) + 1;
 
 		ret = slsi_delete_interface(dev, intf_name);
+#endif
 	} else if (strncasecmp(command, CMD_SET_INDOOR_CHANNELS, strlen(CMD_SET_INDOOR_CHANNELS)) == 0) {
 		char *arg = command + strlen(CMD_SET_INDOOR_CHANNELS) + 1;
 
@@ -2474,10 +2503,11 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			(strncasecmp(command, CMD_SETSINGLEANT, strlen(CMD_SETSINGLEANT)) == 0)) {
 		ret  = -ENOTSUPP;
 #ifndef SLSI_TEST_DEV
-	} else if (strncasecmp(command, CMD_DRIVERDEBUGDUMP, strlen(CMD_DRIVERDEBUGDUMP)) == 0) {
+	} else if ((strncasecmp(command, CMD_DRIVERDEBUGDUMP, strlen(CMD_DRIVERDEBUGDUMP)) == 0) ||
+		(strncasecmp(command, CMD_DRIVERDEBUGCOMMAND, strlen(CMD_DRIVERDEBUGCOMMAND)) == 0)) {
 		slsi_dump_stats(dev);
 #ifdef CONFIG_SCSC_LOG_COLLECTION
-		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DRIVERDEBUGDUMP);
+		scsc_log_collector_schedule_collection(SCSC_LOG_DUMPSTATE, SCSC_LOG_DUMPSTATE_REASON_DRIVERDEBUGDUMP);
 #else
 		ret = mx140_log_dump();
 #endif

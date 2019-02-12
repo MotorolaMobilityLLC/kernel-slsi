@@ -665,7 +665,7 @@ irqreturn_t platform_wdog_isr(int irq, void *data)
  * be programmed using the CBUS during the config phase.
  */
 uint32_t ka_patch[] = {
-	/* Power save fix #2
+	/* Low temp fix 28/1
 	 * Maxwell142 PMU+PROC combined boot ROM
 	 * IP Version: 0xA3
 	 * Major Version: 0xF, Minor Version: 0xF
@@ -711,9 +711,9 @@ uint32_t ka_patch[] = {
 	0x019e7522,
 	0x75cfc175,
 	0xc375a4c2,
-	0x47c4750a,
+	0x47c4754a,
 	0x75a4c575,
-	0xc7756cc6,
+	0xc7756dc6,
 	0x03d27540,
 	0x7510d375,
 	0xca7500c9,
@@ -724,8 +724,8 @@ uint32_t ka_patch[] = {
 	0x78009d75,
 	0x12827402,
 	0xc6438b80,
-	0x74057802,
-	0x8b8012d0,
+	0x74097802,
+	0x8b8012e7,
 	0x75d09075,
 	0x9e750291,
 	0x01a97502,

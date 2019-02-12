@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2017 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -26,11 +26,11 @@ void mxman_freeze(struct mxman *mxman);
 int mxman_force_panic(struct mxman *mxman);
 int mxman_suspend(struct mxman *mxman);
 void mxman_resume(struct mxman *mxman);
-bool mxman_recovery_disabled(void);
 void mxman_show_last_panic(struct mxman *mxman);
 #ifdef CONFIG_SCSC_FM
 void mxman_on_halt_ldos_on(struct mxman *mxman);
 void mxman_on_halt_ldos_off(struct mxman *mxman);
+int mxman_fm_set_params(struct mxman *mxman, struct wlbt_fm_params *params);
 #endif
 
 enum mxman_state {
@@ -80,6 +80,9 @@ struct mxman {
 	u32			on_halt_ldos_on;
 #endif
 	char			failure_reason[SCSC_FAILURE_REASON_LEN]; /* previous failure reason */
+	struct wlbt_fm_params	fm_params;		/* FM freq info */
+	int			fm_params_pending;	/* FM freq info waiting to be delivered to FW */
+
 };
 
 void mxman_register_gdb_channel(struct scsc_mx *mx, mxmgmt_channel_handler handler, void *data);

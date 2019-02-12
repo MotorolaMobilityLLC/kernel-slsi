@@ -411,6 +411,7 @@ static ssize_t scsc_bt_shm_h4_acl_write(const unsigned char *data, size_t count)
 	return count;
 }
 
+#ifdef CONFIG_SCSC_PRINTK
 static const char *scsc_hci_evt_decode_event_code(u8 hci_event_code, u8 hci_ulp_sub_code)
 {
 	const char *ret = "NA";
@@ -508,6 +509,7 @@ static const char *scsc_hci_evt_decode_event_code(u8 hci_event_code, u8 hci_ulp_
 
 	return ret;
 }
+#endif
 
 static ssize_t scsc_iq_report_evt_read(char __user *buf, size_t len)
 {
@@ -558,7 +560,7 @@ static ssize_t scsc_hci_evt_read(char __user *buf, size_t len)
 
 	/* Is this the start of the copy operation */
 	if (0 == bt_service.read_offset) {
-		SCSC_TAG_INFO(BT_RX, "HCI Event [type=%s (0x%02x), length=%u]\n",
+		SCSC_TAG_DEBUG(BT_RX, "HCI Event [type=%s (0x%02x), length=%u]\n",
 			scsc_hci_evt_decode_event_code(td->data[0], td->data[2]), td->data[0], td->data[1]);
 
 		if (td->data[1] + HCI_EVENT_HEADER_LENGTH != td->length) {
