@@ -1383,7 +1383,6 @@ mtp_function_bind(struct usb_configuration *c, struct usb_function *f)
 		mtp_ss_out_comp_desc.bMaxBurst = max_burst;
 	}
 
-	fi_mtp->func_inst.f = &dev->function;
 	DBG(cdev, "%s speed %s: IN/%s, OUT/%s\n",
 		gadget_is_superspeed(c->cdev->gadget) ? "super" :
 		(gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full"),
@@ -1415,7 +1414,6 @@ mtp_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	spin_unlock_irq(&dev->lock);
 	kfree(f->os_desc_table);
 	f->os_desc_n = 0;
-	fi_mtp->func_inst.f = NULL;
 }
 
 static int mtp_function_set_alt(struct usb_function *f,
