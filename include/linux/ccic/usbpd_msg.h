@@ -1,6 +1,11 @@
 #ifndef __USBPD_MSG_H__
 #define __USBPD_MSG_H__
 
+/* for header */
+#define USBPD_REV_20	(1)
+#define PD_SID		(0xFF00)
+#define PD_SID_1	(0xFF01)
+
 typedef union {
 	u16 word;
 	u8  byte[2];
@@ -53,19 +58,6 @@ typedef union {
 	} power_data_obj_sink;
 
 	struct {
-		unsigned max_current:10;        /* 10mA units */
-		unsigned voltage:10;            /* 50mV units */
-		unsigned peak_current:2;
-		unsigned:3;
-		unsigned data_role_swap:1;
-		unsigned usb_comm_capable:1;
-		unsigned externally_powered:1;
-		unsigned usb_suspend_support:1;
-		unsigned dual_role_power:1;
-		unsigned supply_type:2;
-	} power_data_obj_fixed;
-
-	struct {
 		unsigned max_current:10;	/* 10mA units */
 		unsigned min_voltage:10;	/* 50mV units */
 		unsigned max_voltage:10;	/* 50mV units */
@@ -110,6 +102,15 @@ typedef union {
 	} unstructured_vdm;
 
 	struct {
+		unsigned data:8;
+		unsigned total_number_of_uvdm_set:4;
+		unsigned rsvd:1;
+		unsigned cmd_type:2;
+		unsigned data_type:1;
+		unsigned pid:16;
+	} sec_uvdm_header;
+
+	struct {
 		unsigned command:5;
 		unsigned:1;
 		unsigned command_type:2;
@@ -121,33 +122,17 @@ typedef union {
 	} structured_vdm;
 
 	struct {
-		unsigned usb_vendor_id:16;
-		unsigned:10;
-		unsigned modal_operation:1;
-		unsigned product_type:3;
-		unsigned data_capable_usb_device:1;
-		unsigned data_capable_usb_host:1;
-	} discover_identity_id_header;
+		unsigned USB_Vendor_ID:16;
+		unsigned rsvd:10;
+		unsigned Product_Type:3;
+		unsigned Data_Capable_USB_Device:1;
+		unsigned Data_Capable_USB_Host:1;
+	} id_header_vdo;
 
 	struct {
-		unsigned device_version:16;
-		unsigned usb_product_id:16;
-	} discover_identity_product_vdo;
-
-	struct {
-		unsigned svid_1:16;
-		unsigned svid_0:16;
-	} discover_svids_vdo;
-
-	struct {
-		unsigned port_capability:2;
-		unsigned signalling_dp:4;
-		unsigned receptacle_indication:1;
-		unsigned usb_2p0_not_used:1;
-		unsigned dfp_d_pin_assignments:8;
-		unsigned ufp_d_pin_assignments:8;
-		unsigned dp_mode_vdo_reserved:8;
-	} discover_mode_dp_capability;
+		unsigned Device_Version:16;
+		unsigned USB_Product_ID:16;
+	} product_vdo;
 
 	struct {
 		unsigned port_capability:2;
@@ -169,7 +154,7 @@ typedef union {
 		unsigned hpd_state:1;
 		unsigned irq_hpd:1;
 		unsigned rsvd:23;
-	} dp_status;
+	} displayport_status;
 
 	struct{
 		unsigned select_configuration:2;
@@ -177,12 +162,209 @@ typedef union {
 		unsigned rsvd1:2;
 		unsigned ufp_u_pin_assignment:8;
 		unsigned rsvd2:16;
-	} dp_configurations;
+	} displayport_configurations;
 
 	struct{
 		unsigned svid_1:16;
 		unsigned svid_0:16;
 	} vdm_svid;
 } data_obj_type;
+
+typedef union {
+	u32 object;
+	u16 word[2];
+	u8  byte[4];
+	struct {
+		unsigned vendor_defined:15;
+		unsigned vdm_type:1;
+		unsigned vendor_id:16;
+	};
+} uvdm_header;
+
+typedef union {
+	u32 object;
+	u16 word[2];
+	u8  byte[4];
+
+	struct{
+		unsigned data:8;
+		unsigned total_set_num:4;
+		unsigned direction:1;
+		unsigned cmd_type:2;
+		unsigned data_type:1;
+		unsigned pid:16;
+	};
+} s_uvdm_header;
+	
+typedef union {
+	u32 object;
+	u16 word[2];
+	u8  byte[4];
+
+	struct{
+		unsigned cur_size:8;
+		unsigned total_size:8;
+		unsigned reserved:12;
+		unsigned order_cur_set:4;
+	};
+} s_tx_header;
+
+typedef union {
+	u32 object;
+	u16 word[2];
+	u8  byte[4];
+
+	struct{
+		unsigned checksum:16;
+		unsigned reserved:16;
+	};
+} s_tx_tailer;
+
+typedef union {
+	u32 object;
+	u16 word[2];
+	u8  byte[4];
+
+	struct{
+		unsigned reserved:18;
+		unsigned result_value:2;
+		unsigned rcv_data_size:8;
+		unsigned order_cur_set:4;
+	};
+} s_rx_header;
+
+typedef enum {
+	POWER_TYPE_FIXED = 0,
+	POWER_TYPE_BATTERY,
+	POWER_TYPE_VARIABLE,
+} power_supply_type;
+
+typedef enum {
+	SOP_TYPE_SOP,
+	SOP_TYPE_SOP1,
+	SOP_TYPE_SOP2,
+	SOP_TYPE_SOP1_DEBUG,
+	SOP_TYPE_SOP2_DEBUG
+} sop_type;
+
+enum usbpd_control_msg_type {
+	USBPD_GoodCRC        = 0x1,
+	USBPD_GotoMin        = 0x2,
+	USBPD_Accept         = 0x3,
+	USBPD_Reject         = 0x4,
+	USBPD_Ping           = 0x5,
+	USBPD_PS_RDY         = 0x6,
+	USBPD_Get_Source_Cap = 0x7,
+	USBPD_Get_Sink_Cap   = 0x8,
+	USBPD_DR_Swap        = 0x9,
+	USBPD_PR_Swap        = 0xA,
+	USBPD_VCONN_Swap     = 0xB,
+	USBPD_Wait           = 0xC,
+	USBPD_Soft_Reset     = 0xD,
+	USBPD_UVDM_MSG       = 0xE
+};
+
+enum usbpd_check_msg_pass {
+	NONE_CHECK_MSG_PASS,
+	CHECK_MSG_PASS,
+};
+
+enum usbpd_port_data_role {
+	USBPD_UFP,
+	USBPD_DFP,
+};
+
+enum usbpd_port_power_role {
+	USBPD_SINK,
+	USBPD_SOURCE,
+	USBPD_DRP,
+};
+
+enum usbpd_port_vconn_role {
+	USBPD_VCONN_OFF,
+	USBPD_VCONN_ON,
+};
+
+enum usbpd_port_role {
+	USBPD_Rp	= 0x01,
+	USBPD_Rd	= 0x01 << 1,
+	USBPD_Ra	= 0x01 << 2,
+};
+
+enum usbpd_port_rp_level {
+	USBPD_56k	= 1,
+	USBPD_22k	= 3,
+	USBPD_10k	= 7,
+};
+
+enum {
+	USBPD_CC_OFF,
+	USBPD_CC_ON,
+};
+
+enum usbpd_connect_type {
+	USBPD_UP_SIDE	= 1,
+	USBPD_DOWN_SIDE	= 2,
+	USBPD_UNDEFFINED_SIDE	= 3,
+};
+
+enum vdm_command_type{
+	Initiator       = 0,
+	Responder_ACK   = 1,
+	Responder_NAK   = 2,
+	Responder_BUSY  = 3
+};
+
+enum vdm_type{
+	Unstructured_VDM = 0,
+	Structured_VDM = 1
+};
+
+enum vdm_configure_type{
+	USB		= 0,
+	USB_U_AS_DFP_D	= 1,
+	USB_U_AS_UFP_D	= 2
+};
+
+enum vdm_displayport_protocol{
+	UNSPECIFIED	= 0,
+	DP_V_1_3	= 1,
+	GEN_2		= 1 << 1
+};
+
+enum dp_support {
+	USBPD_NOT_DP = 0,
+	USBPD_DP_SUPPORT = 1,
+};
+
+enum vdm_pin_assignment{
+	DE_SELECT_PIN		= 0,
+	PIN_ASSIGNMENT_A	= 1,
+	PIN_ASSIGNMENT_B	= 1 << 1,
+	PIN_ASSIGNMENT_C	= 1 << 2,
+	PIN_ASSIGNMENT_D	= 1 << 3,
+	PIN_ASSIGNMENT_E	= 1 << 4,
+	PIN_ASSIGNMENT_F	= 1 << 5,
+};
+
+enum vdm_command_msg {
+	Discover_Identity		= 1,
+	Discover_SVIDs			= 2,
+	Discover_Modes			= 3,
+	Enter_Mode			= 4,
+	Exit_Mode			= 5,
+	Attention			= 6,
+	DisplayPort_Status_Update	= 0x10,
+	DisplayPort_Configure		= 0x11,
+};
+
+enum usbpd_data_msg_type {
+	USBPD_Source_Capabilities	= 0x1,
+	USBPD_Request		        = 0x2,
+	USBPD_BIST			= 0x3,
+	USBPD_Sink_Capabilities		= 0x4,
+	USBPD_Vendor_Defined		= 0xF,
+};
+
 #endif
 

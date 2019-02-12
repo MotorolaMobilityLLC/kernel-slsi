@@ -1,5 +1,5 @@
 #include <linux/ccic/core.h>
-#include <linux/ccic/usbpd_msg.h>
+#include <linux/ccic/s2mm005_usbpd_msg.h>
 #include <linux/ccic/usbpd_typec.h>
 #include <linux/power_supply.h>
 #include <linux/delay.h>
