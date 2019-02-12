@@ -52,8 +52,8 @@
 #ifdef CONFIG_SCSC_BT_BLUEZ
 #define SCSC_BT_ADDR      "/csa/bluetooth/.bd_addr"
 #define SCSC_BT_ADDR_LEN  (3)
-#else
-#define SCSC_BT_ADDR      "/mnt/vendor/efs/bluetooth/bt_addr"
+#elif defined CONFIG_SCSC_BT_ADDRESS_IN_FILE
+#define SCSC_BT_ADDR      CONFIG_SCSC_BT_ADDRESS_FILENAME
 #define SCSC_BT_ADDR_LEN  (6)
 #endif
 
