@@ -3,7 +3,7 @@
 
 #include <linux/device.h>
 #include <linux/types.h>
-#include <linux/ccic/usbpd_msg.h>
+#include <linux/ccic/s2mm005_usbpd_msg.h>
 #include <linux/ccic/usbpd_typec.h>
 #include <linux/ccic/usbpd_config.h>
 #if defined(CONFIG_SAMSUNG_BATTERY)

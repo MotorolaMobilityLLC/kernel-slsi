@@ -22,7 +22,7 @@
 #include <linux/ccic/s2mm005_usbpd.h>
 #include <linux/ccic/s2mm005_usbpd_phy.h>
 #include <linux/ccic/usbpd_typec.h>
-#include <linux/ccic/usbpd_msg.h>
+#include <linux/ccic/s2mm005_usbpd_msg.h>
 
 static char VDM_MSG_IRQ_State_Print[9][40] = {
     {"bFLAG_Vdm_Reserve_b0"},

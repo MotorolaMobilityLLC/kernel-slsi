@@ -10,3 +10,7 @@ obj-$(CONFIG_CCIC_S2MM005)		+= s2mm005_fw.o s2mm005_cc.o s2mm005_pd.o sec_pd.o s
 obj-$(CONFIG_CCIC_MAX77705)		+= max77705_cc.o max77705_pd.o sec_pd.o max77705_usbc.o max77705_alternate.o
 obj-$(CONFIG_CCIC_MAX77705_DEBUG)	+= max77705_debug.o
 obj-$(CONFIG_USBPD_S2MM005)		+= s2mm005_usbpd_fw.o s2mm005_usbpd_phy.o s2mm005_usbpd.o s2mm005_usbpd_i2c.o s2mm005_usbpd_interface.o usbpd_sysfs.o
+obj-$(CONFIG_CCIC_S2MU106)  += s2mu106-usbpd.o
+obj-$(CONFIG_USE_CCIC)      += usbpd.o usbpd_cc.o
+obj-$(CONFIG_USE_CCIC)      += usbpd_policy.o usbpd_manager.o
+obj-$(CONFIG_CCIC_SYSFS)        += usbpd_sysfs.o
