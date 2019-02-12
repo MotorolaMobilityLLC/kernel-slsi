@@ -81,7 +81,7 @@ static int ant_service_start_count;
 
 static u64 bluetooth_address;
 #ifdef CONFIG_ARCH_EXYNOS
-static char *bluetooth_address_fallback = "00:00:00:00:00:00";
+static char bluetooth_address_fallback[] = "00:00:00:00:00:00";
 #endif
 static u32 bt_info_trigger;
 static u32 bt_info_interrupt;
@@ -100,7 +100,8 @@ MODULE_PARM_DESC(bluetooth_address,
 		 "Bluetooth address");
 
 #ifdef CONFIG_ARCH_EXYNOS
-module_param(bluetooth_address_fallback, charp, 0444);
+module_param_string(bluetooth_address_fallback, bluetooth_address_fallback,
+		    sizeof(bluetooth_address_fallback), 0444);
 MODULE_PARM_DESC(bluetooth_address_fallback,
 		 "Bluetooth address as proposed by the driver");
 #endif
@@ -639,7 +640,8 @@ static int setup_bhcs(struct scsc_service *service,
 			(bluetooth_address & 0x000000FFFFFF);
 	}
 
-	/* Request the EFS Bluetooth address file */
+#ifdef SCSC_BT_ADDR
+	/* Request the Bluetooth address file */
 	SCSC_TAG_DEBUG(BT_COMMON,
 		"loading Bluetooth address configuration file: "
 		SCSC_BT_ADDR "\n");
@@ -682,6 +684,7 @@ static int setup_bhcs(struct scsc_service *service,
 		mx140_release_file(common_service.maxwell_core, firm);
 		firm = NULL;
 	}
+#endif
 
 #ifdef CONFIG_SCSC_DEBUG
 	SCSC_TAG_DEBUG(BT_COMMON, "Bluetooth address: %04X:%02X:%06X\n",
