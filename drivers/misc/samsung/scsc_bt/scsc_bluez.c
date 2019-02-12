@@ -49,87 +49,6 @@ static struct file			s_file;
 static struct platform_device *slsi_btz_pdev;
 static struct rfkill *btz_rfkill;
 
-static int slsi_bt_open(struct hci_dev *hdev)
-{
-	int err;
-
-	SCSC_TAG_INFO(BT_COMMON, "enter\n");
-
-	err = bt_fs->open(NULL, NULL);
-
-	if (0 == err) {
-		terminate_read = false;
-		queue_work(wq, &read_work);
-	}
-
-	SCSC_TAG_INFO(BT_COMMON, "done\n");
-
-	return err;
-}
-
-static int slsi_bt_close(struct hci_dev *hdev)
-{
-	int ret;
-
-	SCSC_TAG_INFO(BT_COMMON, "terminating reader thread\n");
-
-	terminate_read = true;
-
-	if (error_count_ref != NULL)
-		atomic_inc(error_count_ref);
-
-	if (read_wait_ref != NULL)
-		wake_up(read_wait_ref);
-
-	cancel_work_sync(&read_work);
-
-	SCSC_TAG_INFO(BT_COMMON, "releasing service\n");
-
-	ret = bt_fs->release(NULL, NULL);
-
-	SCSC_TAG_INFO(BT_COMMON, "done\n");
-
-	return ret;
-}
-
-static int slsi_bt_flush(struct hci_dev *hdev)
-{
-	return 0;
-}
-
-static int slsi_bt_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
-{
-	int ret;
-
-	SCSC_TAG_INFO(BT_H4, "sending frame(data=%p, len=%u)\n", skb->data, skb->len);
-
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
-
-	ret = bt_fs->write(NULL, skb->data, skb->len, NULL);
-	if (ret >= 0) {
-		kfree_skb(skb);
-
-		/* Update HCI stat counters */
-		hdev->stat.byte_tx += skb->len;
-
-		switch (hci_skb_pkt_type(skb)) {
-			case HCI_COMMAND_PKT:
-				hdev->stat.cmd_tx++;
-				break;
-
-			case HCI_ACLDATA_PKT:
-				hdev->stat.acl_tx++;
-				break;
-
-			case HCI_SCODATA_PKT:
-				hdev->stat.sco_tx++;
-				break;
-		}
-	}
-
-	return ret;
-}
-
 static const struct h4_recv_pkt scsc_recv_pkts[] = {
 	{ H4_RECV_ACL,   .recv = hci_recv_frame },
 	{ H4_RECV_EVENT, .recv = hci_recv_frame },
@@ -158,7 +77,97 @@ static void slsi_bt_fs_read_func(struct work_struct *work)
 		}
 	}
 
-	SCSC_TAG_INFO(BT_COMMON, "BT BlueZ: Exiting %s \n", __func__);
+	SCSC_TAG_INFO(BT_COMMON, "BT BlueZ: Exiting %s\n", __func__);
+}
+
+static int slsi_bt_open(struct hci_dev *hdev)
+{
+	int err;
+
+	SCSC_TAG_INFO(BT_COMMON, "enter\n");
+
+	err = bt_fs->open(NULL, NULL);
+
+	if (0 == err) {
+		terminate_read = false;
+		if (wq == NULL) {
+			wq = create_singlethread_workqueue("slsi_bt_bluez_wq");
+			INIT_WORK(&read_work, slsi_bt_fs_read_func);
+		}
+		queue_work(wq, &read_work);
+	}
+
+	SCSC_TAG_INFO(BT_COMMON, "done\n");
+
+	return err;
+}
+
+static int slsi_bt_close(struct hci_dev *hdev)
+{
+	int ret;
+
+	SCSC_TAG_INFO(BT_COMMON, "terminating reader thread\n");
+
+	terminate_read = true;
+
+	if (error_count_ref != NULL)
+		atomic_inc(error_count_ref);
+
+	if (read_wait_ref != NULL)
+		wake_up(read_wait_ref);
+
+	cancel_work_sync(&read_work);
+
+	SCSC_TAG_INFO(BT_COMMON, "releasing service\n");
+
+	ret = bt_fs->release(NULL, NULL);
+
+	if (wq != NULL) {
+		destroy_workqueue(wq);
+		wq = NULL;
+	}
+
+	SCSC_TAG_INFO(BT_COMMON, "done\n");
+
+	return ret;
+}
+
+static int slsi_bt_flush(struct hci_dev *hdev)
+{
+	return 0;
+}
+
+static int slsi_bt_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	int ret;
+
+	SCSC_TAG_DEBUG(BT_H4, "sending frame(data=%p, len=%u)\n", skb->data, skb->len);
+
+	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+
+	ret = bt_fs->write(NULL, skb->data, skb->len, NULL);
+	if (ret >= 0) {
+		kfree_skb(skb);
+
+		/* Update HCI stat counters */
+		hdev->stat.byte_tx += skb->len;
+
+		switch (hci_skb_pkt_type(skb)) {
+			case HCI_COMMAND_PKT:
+				hdev->stat.cmd_tx++;
+				break;
+
+			case HCI_ACLDATA_PKT:
+				hdev->stat.acl_tx++;
+				break;
+
+			case HCI_SCODATA_PKT:
+				hdev->stat.sco_tx++;
+				break;
+		}
+	}
+
+	return ret;
 }
 
 static void slsi_bt_open_worker(struct work_struct *work)
@@ -209,9 +218,6 @@ void slsi_bt_notify_probe(struct device *dev,
 	error_count_ref = error_count;
 	read_wait_ref   = read_wait;
 	dev_ref         = dev;
-
-	wq = create_singlethread_workqueue("slsi_bt_bluez_wq");
-	INIT_WORK(&read_work, slsi_bt_fs_read_func);
 
 	SCSC_TAG_INFO(BT_COMMON, "SLSI BT BlueZ probe\n");
 }

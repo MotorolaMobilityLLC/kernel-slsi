@@ -142,10 +142,16 @@ static int open_start_close_service(void)
 			return r;
 	}
 
-	if (fm_client->ldo_on)
+	if (fm_client->ldo_on) {
+		/* FM turning on */
 		scsc_service_on_halt_ldos_on(fm_client->fm_service);
-	else
+	} else {
+		/* FM turning off */
 		scsc_service_on_halt_ldos_off(fm_client->fm_service);
+
+		/* Invalidate stored FM params */
+		scsc_service_fm_set_params(fm_client->fm_service, NULL);
+	}
 
 	r = stop_close_service();
 	if (r) {
@@ -233,6 +239,9 @@ static int mx250_fm_re(bool ldo_on)
 
 }
 
+/*
+ * FM Radio is starting, tell WLBT drivers
+ */
 int mx250_fm_request(void)
 {
 
@@ -241,12 +250,35 @@ int mx250_fm_request(void)
 }
 EXPORT_SYMBOL(mx250_fm_request);
 
+/*
+ * FM Radio is stopping, tell WLBT drivers
+ */
 int mx250_fm_release(void)
 {
 	SCSC_TAG_DEBUG(FM, "mx250: %s\n", __func__);
 	return mx250_fm_re(false);
 }
 EXPORT_SYMBOL(mx250_fm_release);
+
+/*
+ * FM Radio parameters are changing, tell WLBT drivers
+ */
+void mx250_fm_set_params(struct wlbt_fm_params *info)
+{
+	SCSC_TAG_DEBUG(FM, "mx250: %s\n", __func__);
+
+	if (!info)
+		return;
+
+	mutex_lock(&ss_lock);
+
+	SCSC_TAG_INFO(FM, "freq %u\n", info->freq);
+
+	scsc_service_fm_set_params(fm_client->fm_service, info);
+
+	mutex_unlock(&ss_lock);
+}
+EXPORT_SYMBOL(mx250_fm_set_params);
 
 void fm_client_module_probe(struct scsc_mx_module_client *module_client, struct scsc_mx *mx,
 		enum scsc_module_client_reason reason)

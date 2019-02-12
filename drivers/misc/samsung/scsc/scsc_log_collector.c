@@ -1,6 +1,6 @@
 /********************************************************************************
  *
- *   Copyright (c) 2016 - 2018 Samsung Electronics Co., Ltd. All rights reserved.
+ *   Copyright (c) 2016 - 2019 Samsung Electronics Co., Ltd. All rights reserved.
  *
  ********************************************************************************/
 #include <linux/uaccess.h>
@@ -316,12 +316,6 @@ static inline int __scsc_log_collector_collect_to_ram(enum scsc_log_reason reaso
 #define align_chunk(ppos) (((ppos) + (SCSC_LOG_CHUNK_ALIGN - 1)) & \
 			  ~(SCSC_LOG_CHUNK_ALIGN - 1))
 
-const char *scsc_loc_reason_str[] = { "unknown", "scsc_log_fw_panic",
-				      "scsc_log_user",
-				      "scsc_log_fw", "scsc_log_dumpstate",
-				      "scsc_log_host_wlan", "scsc_log_host_bt",
-				      "scsc_log_host_common"/* Add others */};
-
 static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_code, u8 buffer)
 {
 	struct scsc_log_client *lc, *next;
@@ -341,13 +335,14 @@ static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u16 
 
 	mutex_lock(&log_mutex);
 
-	pr_info("Log collection triggered %s reason_code 0x%x\n", scsc_loc_reason_str[reason], reason_code);
+	pr_info("Log collection triggered %s reason_code 0x%x\n",
+		scsc_get_trigger_str((int)reason), reason_code);
 
 	start = ktime_get();
 
 	if (buffer == TO_FILE) {
 		snprintf(memdump_path, sizeof(memdump_path), "%s/%s.sbl",
-			 collection_dir_buf, scsc_loc_reason_str[reason]);
+			collection_dir_buf, scsc_get_trigger_str((int)reason));
 
 		/* change to KERNEL_DS address limit */
 		old_fs = get_fs();
@@ -458,7 +453,7 @@ exit:
 
 #ifdef CONFIG_SCSC_WLBTD
 	if (sbl_is_valid)
-		call_wlbtd_sable(scsc_loc_reason_str[reason], reason_code);
+		call_wlbtd_sable((u8)reason, reason_code);
 #endif
 	pr_info("Log collection end. Took: %lld\n", ktime_to_ns(ktime_sub(ktime_get(), start)));
 
@@ -497,7 +492,7 @@ void scsc_log_collector_schedule_collection(enum scsc_log_reason reason, u16 rea
 			flush_work(&log_status.collect_work);
 		else if (atomic_read(&in_collection)) {
 			pr_info("Log collection %s reason_code 0x%x rejected. Collection already scheduled\n",
-				scsc_loc_reason_str[reason], reason_code);
+				scsc_get_trigger_str((int)reason), reason_code);
 			mutex_unlock(&log_status.collection_serial);
 			return;
 		}
@@ -505,7 +500,7 @@ void scsc_log_collector_schedule_collection(enum scsc_log_reason reason, u16 rea
 		log_status.reason_code = reason_code;
 		if (!queue_work(log_status.collection_workq, &log_status.collect_work)) {
 			pr_info("Log collection %s reason_code 0x%x queue_work error\n",
-				scsc_loc_reason_str[reason], reason_code);
+				scsc_get_trigger_str((int)reason), reason_code);
 			mutex_unlock(&log_status.collection_serial);
 			return;
 		}

@@ -3373,7 +3373,7 @@
 
 	boot_cfg: syscon@14C60000 {
 		compatible = "boot_cfg", "syscon";
-		reg = <0x0 0x14C60000 0x1100>;
+		reg = <0x0 0x14C60000 0x1200>;
 	};
 
 	/* MAILBOX_AP2WLBT */

@@ -676,6 +676,15 @@ void scsc_service_on_halt_ldos_off(struct scsc_service *service)
 	mxman_on_halt_ldos_off(mxman);
 }
 EXPORT_SYMBOL(scsc_service_on_halt_ldos_off);
+
+int scsc_service_fm_set_params(struct scsc_service *service, struct wlbt_fm_params *params)
+{
+	/* We allow this to be called when service is off and store parameters */
+	(void)service;
+
+	return mxman_fm_set_params(NULL, params);
+}
+EXPORT_SYMBOL(scsc_service_fm_set_params);
 #endif
 
 struct scsc_bt_audio_abox *scsc_mx_service_get_bt_audio_abox(struct scsc_service *service)

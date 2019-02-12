@@ -1,10 +1,16 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #include <net/genetlink.h>
 #include <scsc/scsc_logring.h>
+#include <scsc/scsc_mx.h>
+
+/* module parameter value to indicate control of recovery via .memdump.info file */
+#define MEMDUMP_FILE_FOR_RECOVERY 2
+/* content of .memdump.info file indicating to panic kernel */
+#define MEMDUMP_FILE_KERNEL_PANIC 3
 
 /**
  * Attributes are fields of data your messages will contain.
@@ -12,16 +18,14 @@
  * data to the packet payload.
  */
 enum attributes {
-	/*
-	 * The first one has to be a throwaway empty attribute; I don't know
-	 * why.
-	 * If you remove it, ATTR_HELLO (the first one) stops working, because
-	 * it then becomes the throwaway.
-	 */
+	 /* The first one has to be a throwaway empty attribute */
 	ATTR_UNSPEC,
 
 	ATTR_STR,
 	ATTR_INT,
+	ATTR_PATH,
+	ATTR_CONTENT,
+	ATTR_INT8,
 
 	/* This must be last! */
 	__ATTR_MAX,
@@ -49,5 +53,5 @@ static const struct genl_multicast_group scsc_mcgrp[] = {
 int scsc_wlbtd_init(void);
 int scsc_wlbtd_deinit(void);
 int call_wlbtd(const char *script_path);
-int call_wlbtd_sable(const char *trigger, u16 reason_code);
+int call_wlbtd_sable(u8 trigger_code, u16 reason_code);
 int scsc_wlbtd_get_and_print_build_type(void);

@@ -82,6 +82,18 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 			}
 		} else {
 			msg_type = FAPI_MESSAGETYPE_EAP_MESSAGE;
+			if ((skb->len + sizeof(struct ethhdr)) >= 5)
+				eapol = skb->data + sizeof(struct ethhdr);
+			if (eapol && eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAP_PACKET) {
+				if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST)
+					SLSI_INFO(sdev, "Send EAP-Request\n");
+				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
+					SLSI_INFO(sdev, "Send EAP-Response\n");
+				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_SUCCESS)
+					SLSI_INFO(sdev, "Send EAP-Success\n");
+				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_FAILURE)
+					SLSI_INFO(sdev, "Send EAP-Failure\n");
+			}
 			dwell_time = 0;
 		}
 	break;

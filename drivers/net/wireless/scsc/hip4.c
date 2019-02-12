@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
@@ -58,7 +58,7 @@ static bool hip4_smapper_is_enabled;
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 /* run NAPI poll on a specific CPU (preferably a big CPU if online) */
-static int napi_select_cpu = 4; /* CPU number */
+static int napi_select_cpu; /* CPU number */
 module_param(napi_select_cpu, int, 0644);
 MODULE_PARM_DESC(napi_select_cpu, "select a specific CPU to execute NAPI poll");
 #endif
@@ -722,7 +722,7 @@ static struct mbulk *hip4_skb_to_mbulk(struct hip4_priv *hip, struct sk_buff *sk
 }
 
 /* Transform mbulk to skb (fapi_signal + payload) */
-static struct sk_buff *hip4_mbulk_to_skb(struct scsc_service *service, struct mbulk *m, scsc_mifram_ref *to_free, bool cfm)
+static struct sk_buff *hip4_mbulk_to_skb(struct scsc_service *service, struct hip4_priv *hip_priv, struct mbulk *m, scsc_mifram_ref *to_free, bool atomic)
 {
 	struct slsi_skb_cb        *cb;
 	struct mbulk              *next_mbulk[MBULK_MAX_CHAIN];
@@ -735,8 +735,10 @@ static struct sk_buff *hip4_mbulk_to_skb(struct scsc_service *service, struct mb
 	size_t                    bytes_to_alloc = 0;
 
 	/* Get the mif ref pointer, check for incorrect mbulk */
-	if (scsc_mx_service_mif_ptr_to_addr(service, m, &ref))
+	if (scsc_mx_service_mif_ptr_to_addr(service, m, &ref)) {
+		SLSI_ERR_NODEV("mbulk address conversion failed\n");
 		return NULL;
+	}
 
 	/* Track mbulk that should be freed */
 	to_free[free++] = ref;
@@ -780,9 +782,15 @@ static struct sk_buff *hip4_mbulk_to_skb(struct scsc_service *service, struct mb
 	}
 
 cont:
-	skb = slsi_alloc_skb(bytes_to_alloc, GFP_ATOMIC);
+	if (atomic)
+		skb = slsi_alloc_skb(bytes_to_alloc, GFP_ATOMIC);
+	else {
+		spin_unlock_bh(&hip_priv->rx_lock);
+		skb = slsi_alloc_skb(bytes_to_alloc, GFP_KERNEL);
+		spin_lock_bh(&hip_priv->rx_lock);
+	}
 	if (!skb) {
-		SLSI_ERR_NODEV("Error allocating skb\n");
+		SLSI_ERR_NODEV("Error allocating skb %d bytes\n", bytes_to_alloc);
 		return NULL;
 	}
 
@@ -1027,7 +1035,10 @@ consume_fb_mbulk:
 	if (no_change)
 		atomic_inc(&hip->hip_priv->stats.spurious_irqs);
 
-	scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
+	if (!atomic_read(&hip->hip_priv->closing)) {
+		atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
+		scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
+	}
 	SCSC_HIP4_SAMPLER_INT_OUT_BH(hip->hip_priv->minor, 2);
 	bh_end_fb = ktime_get();
 	spin_unlock_bh(&hip_priv->rx_lock);
@@ -1108,10 +1119,9 @@ static void hip4_wq_ctrl(struct work_struct *data)
 		mem = scsc_mx_service_mif_addr_to_ptr(service, ref);
 		m = (struct mbulk *)(mem);
 		/* Process Control Signal */
-
-		skb = hip4_mbulk_to_skb(service, m, to_free, false);
+		skb = hip4_mbulk_to_skb(service, hip_priv, m, to_free, false);
 		if (!skb) {
-			SLSI_ERR_NODEV("Ctrl: Error parsing skb\n");
+			SLSI_ERR_NODEV("Ctrl: Error parsing or allocating skb\n");
 			hip4_dump_dbg(hip, m, skb, service);
 			goto consume_ctl_mbulk;
 		}
@@ -1159,7 +1169,10 @@ consume_ctl_mbulk:
 	if (no_change)
 		atomic_inc(&hip->hip_priv->stats.spurious_irqs);
 
-	scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_CTRL]);
+	if (!atomic_read(&hip->hip_priv->closing)) {
+		atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
+		scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_CTRL]);
+	}
 	SCSC_HIP4_SAMPLER_INT_OUT_BH(hip->hip_priv->minor, 1);
 	bh_end_ctrl = ktime_get();
 	spin_unlock_bh(&hip_priv->rx_lock);
@@ -1225,8 +1238,11 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 		SLSI_DBG4(sdev, SLSI_RX, "nothing to do, NAPI Complete\n");
 		bh_end_data = ktime_get();
 		napi_complete(napi);
-		/* Nothing more to drain, unmask interrupt */
-		scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+		if (!atomic_read(&hip->hip_priv->closing)) {
+			atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
+			/* Nothing more to drain, unmask interrupt */
+			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+		}
 		goto end;
 	}
 
@@ -1253,9 +1269,9 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 #endif
 		mem = scsc_mx_service_mif_addr_to_ptr(service, ref);
 		m = (struct mbulk *)(mem);
-		skb = hip4_mbulk_to_skb(service, m, to_free, false);
+		skb = hip4_mbulk_to_skb(service, hip_priv, m, to_free, true);
 		if (!skb) {
-			SLSI_ERR_NODEV("Dat: Error parsing skb\n");
+			SLSI_ERR_NODEV("Dat: Error parsing or allocating skb\n");
 			hip4_dump_dbg(hip, m, skb, service);
 			goto consume_dat_mbulk;
 		}
@@ -1302,8 +1318,11 @@ consume_dat_mbulk:
 		SLSI_DBG4(sdev, SLSI_RX, "NAPI Complete\n");
 		bh_end_data = ktime_get();
 		napi_complete(napi);
-		/* Nothing more to drain, unmask interrupt */
-		scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+		if (!atomic_read(&hip->hip_priv->closing)) {
+			atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
+			/* Nothing more to drain, unmask interrupt */
+			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+		}
 	}
 end:
 	SLSI_DBG4(sdev, SLSI_RX, "work done:%d\n", work_done);
@@ -1372,7 +1391,9 @@ static bool slsi_check_rx_flowcontrol(struct slsi_dev *sdev)
 	if (ndev_vif)
 		qlen = skb_queue_len(&ndev_vif->rx_data.queue);
 
-	SLSI_MUTEX_LOCK(sdev->netdev_remove_mutex);
+	if (!mutex_trylock(&sdev->netdev_remove_mutex))
+		goto evaluate;
+
 #if defined(SLSI_NET_INDEX_P2PX_SWLAN)
 	if (sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]) {
 		ndev_vif = netdev_priv(sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
@@ -1386,8 +1407,9 @@ static bool slsi_check_rx_flowcontrol(struct slsi_dev *sdev)
 			qlen += skb_queue_len(&ndev_vif->rx_data.queue);
 	}
 #endif
-	SLSI_MUTEX_UNLOCK(sdev->netdev_remove_mutex);
+	mutex_unlock(&sdev->netdev_remove_mutex);
 
+evaluate:
 	if (qlen > max_buffered_frames) {
 		SLSI_DBG1_NODEV(SLSI_HIP, "max qlen reached: %d\n", qlen);
 		return true;
@@ -1426,13 +1448,15 @@ static void hip4_wq(struct work_struct *data)
 		return;
 	}
 
+	service = sdev->service;
+
+	atomic_set(&hip->hip_priv->in_rx, 1);
 	if (slsi_check_rx_flowcontrol(sdev))
 		rx_flowcontrol = true;
 
-	service = sdev->service;
-
+	atomic_set(&hip->hip_priv->in_rx, 2);
 	spin_lock_bh(&hip_priv->rx_lock);
-	atomic_set(&hip->hip_priv->in_rx, 1);
+	atomic_set(&hip->hip_priv->in_rx, 3);
 
 	bh_init = ktime_get();
 
@@ -1522,7 +1546,7 @@ consume_fb_mbulk:
 	}
 	SCSC_HIP4_SAMPLER_INT_OUT_BH(hip_priv->minor, 2);
 
-	atomic_set(&hip->hip_priv->in_rx, 2);
+	atomic_set(&hip->hip_priv->in_rx, 4);
 
 	idx_r = hip4_read_index(hip, HIP4_MIF_Q_TH_CTRL, ridx);
 	idx_w = hip4_read_index(hip, HIP4_MIF_Q_TH_CTRL, widx);
@@ -1556,10 +1580,9 @@ consume_fb_mbulk:
 			goto consume_ctl_mbulk;
 		}
 		/* Process Control Signal */
-
-		skb = hip4_mbulk_to_skb(service, m, to_free, false);
+		skb = hip4_mbulk_to_skb(service, hip_priv, m, to_free, false);
 		if (!skb) {
-			SLSI_ERR_NODEV("Ctrl: Error parsing skb\n");
+			SLSI_ERR_NODEV("Ctrl: Error parsing or allocating skb\n");
 			hip4_dump_dbg(hip, m, skb, service);
 			goto consume_ctl_mbulk;
 		}
@@ -1619,7 +1642,7 @@ consume_ctl_mbulk:
 	if (rx_flowcontrol)
 		goto skip_data_q;
 
-	atomic_set(&hip->hip_priv->in_rx, 3);
+	atomic_set(&hip->hip_priv->in_rx, 5);
 
 	idx_r = hip4_read_index(hip, HIP4_MIF_Q_TH_DAT, ridx);
 	idx_w = hip4_read_index(hip, HIP4_MIF_Q_TH_DAT, widx);
@@ -1676,9 +1699,9 @@ consume_ctl_mbulk:
 			goto consume_dat_mbulk;
 		}
 
-		skb = hip4_mbulk_to_skb(service, m, to_free, false);
+		skb = hip4_mbulk_to_skb(service, hip_priv, m, to_free, false);
 		if (!skb) {
-			SLSI_ERR_NODEV("Dat: Error parsing skb\n");
+			SLSI_ERR_NODEV("Dat: Error parsing or allocating skb\n");
 			hip4_dump_dbg(hip, m, skb, service);
 			goto consume_dat_mbulk;
 		}
@@ -1801,7 +1824,7 @@ static void hip4_irq_handler(int irq, void *data)
 		SLSI_ERR_NODEV("bh_init %lld\n", ktime_to_ns(bh_init));
 		SLSI_ERR_NODEV("bh_end  %lld\n", ktime_to_ns(bh_end));
 		SLSI_ERR_NODEV("hip4_wq work_busy %d\n", work_busy(&hip->hip_priv->intr_wq));
-		SLSI_ERR_NODEV("hip4_priv->in_rx  %d\n", atomic_read(&hip->hip_priv->in_rx));
+		SLSI_ERR_NODEV("hip4_priv->in_rx %d\n", atomic_read(&hip->hip_priv->in_rx));
 	}
 	/* If system is not in suspend, mask interrupt to avoid interrupt storm and let BH run */
 	if (!atomic_read(&hip->hip_priv->in_suspend)) {

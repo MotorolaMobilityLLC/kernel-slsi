@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -155,7 +155,8 @@ static inline void ethr_ii_to_subframe_msdu(struct sk_buff *skb)
 #define MAX_CHANNEL_LIST 20
 #define SLSI_MAX_RX_BA_SESSIONS (8)
 #define SLSI_STA_ACTION_FRAME_BITMAP (SLSI_ACTION_FRAME_PUBLIC | SLSI_ACTION_FRAME_WMM | SLSI_ACTION_FRAME_WNM |\
-				      SLSI_ACTION_FRAME_QOS | SLSI_ACTION_FRAME_PROTECTED_DUAL)
+				      SLSI_ACTION_FRAME_QOS | SLSI_ACTION_FRAME_PROTECTED_DUAL |\
+				      SLSI_ACTION_FRAME_RADIO_MEASUREMENT)
 
 /* Default value for MIB SLSI_PSID_UNIFI_DISCONNECT_TIMEOUT + 1 sec*/
 #define SLSI_DEFAULT_AP_DISCONNECT_IND_TIMEOUT 3000
@@ -963,13 +964,12 @@ struct slsi_dev {
 
 #ifdef CONFIG_SCSC_WLAN_MUTEX_DEBUG
 	struct slsi_mutex          netdev_add_remove_mutex;
-	struct slsi_mutex          netdev_remove_mutex;
 #else
 	/* a std mutex */
 	struct mutex               netdev_add_remove_mutex;
-	/* a std mutex */
-	struct mutex               netdev_remove_mutex;
 #endif
+	/* mutex to protect dynamic netdev removal */
+	struct mutex               netdev_remove_mutex;
 	int                        netdev_up_count;
 	struct net_device          __rcu *netdev[CONFIG_SCSC_WLAN_MAX_INTERFACES + 1];               /* 0 is reserved */
 	struct net_device          __rcu *netdev_ap;
@@ -1094,18 +1094,17 @@ struct slsi_dev {
 	u32                        fw_dwell_time;
 	int                        lls_num_radio;
 
-#ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
 #ifdef CONFIG_SCSC_WLAN_MUTEX_DEBUG
 	struct slsi_mutex          logger_mutex;
 #else
 	/* a std mutex */
 	struct mutex               logger_mutex;
 #endif
-#endif
 	struct slsi_traffic_mon_clients    traffic_mon_clients;
 	/*Store vif index corresponding to rtt id for FTM*/
 	u16                             rtt_vif[8];
 	bool                            acs_channel_switched;
+	int                        recovery_timeout; /* ms autorecovery completion timeout */
 };
 
 /* Compact representation of channels a ESS has been seen on

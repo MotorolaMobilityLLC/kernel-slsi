@@ -181,8 +181,10 @@ static int mxmgmt_thread_start(struct mxmgmt_transport *mxmgmt_transport)
 
 	/* Start the kernel thread */
 	th->task = kthread_run(mxmgmt_thread_function, mxmgmt_transport, "%s", th->name);
-	if (IS_ERR(th->task))
+	if (IS_ERR(th->task)) {
+		SCSC_TAG_ERR(MXMGT_TRANS, "error creating kthread\n");
 		return (int)PTR_ERR(th->task);
+	}
 
 	SCSC_TAG_DEBUG(MXMGT_TRANS, "Started thread %s\n", th->name);
 
@@ -254,16 +256,20 @@ int mxmgmt_transport_init(struct mxmgmt_transport *mxmgmt_transport, struct scsc
 	mutex_init(&mxmgmt_transport->channel_handler_mutex);
 	mxmgmt_transport->mx = mx;
 	r = mif_stream_init(&mxmgmt_transport->mif_istream, SCSC_MIF_ABS_TARGET_R4, MIF_STREAM_DIRECTION_IN, num_packets, packet_size, mx, MIF_STREAM_INTRBIT_TYPE_ALLOC, input_irq_handler, mxmgmt_transport);
-	if (r)
+	if (r) {
+		SCSC_TAG_ERR(MXMGT_TRANS, "mif_stream_init IN failed %d\n", r);
 		return r;
+	}
 	r = mif_stream_init(&mxmgmt_transport->mif_ostream, SCSC_MIF_ABS_TARGET_R4, MIF_STREAM_DIRECTION_OUT, num_packets, packet_size, mx, MIF_STREAM_INTRBIT_TYPE_ALLOC, output_irq_handler, mxmgmt_transport);
 	if (r) {
+		SCSC_TAG_ERR(MXMGT_TRANS, "mif_stream_init OUT failed %d\n", r);
 		mif_stream_release(&mxmgmt_transport->mif_istream);
 		return r;
 	}
 
 	r = mxmgmt_thread_start(mxmgmt_transport);
 	if (r) {
+		SCSC_TAG_ERR(MXMGT_TRANS, "mxmgmt_thread_start failed %d\n", r);
 		mif_stream_release(&mxmgmt_transport->mif_istream);
 		mif_stream_release(&mxmgmt_transport->mif_ostream);
 		return r;

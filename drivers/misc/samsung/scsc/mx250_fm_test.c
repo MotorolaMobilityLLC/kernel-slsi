@@ -35,20 +35,20 @@ static int mx250_fm_test_dev_release(struct inode *inode, struct file *file)
 static ssize_t mx250_fm_test_dev_write(struct file *file, const char *data, size_t len, loff_t *offset)
 {
 	unsigned long count;
-	char          str[2]; /* One value and carry return */
-	long int      val = 0;
-
-	if (len > 2) {
-		SCSC_TAG_ERR(FM_TEST, "Incorrect value len %zd\n", len);
-		goto error;
-	}
+	char          str[20]; /* One value and carry return */
+	long          val = 0;
+	struct wlbt_fm_params params;
+	int r;
 
 	count = copy_from_user(str, data, len);
 
-	str[1] = 0;
+	str[sizeof(str) - 1] = 0;
+	if (len < sizeof(str))
+		str[len - 1] = 0;
 
-	if (kstrtol(str, 10, &val)) {
-		SCSC_TAG_ERR(FM_TEST, "Invalid value\n");
+	r = kstrtol(str, 0, &val);
+	if (r) {
+		SCSC_TAG_ERR(FM_TEST, "parse error %d, l=%zd\n", r, len);
 		goto error;
 	}
 
@@ -56,8 +56,14 @@ static ssize_t mx250_fm_test_dev_write(struct file *file, const char *data, size
 		mx250_fm_request();
 	else if (val == 0)
 		mx250_fm_release();
-	else
-		SCSC_TAG_INFO(FM_TEST, "val %ld is not valid, 1 - on, 0 - off\n", val);
+	else {
+		/* All other values are frequency info */
+		params.freq = (u32)val;
+
+		SCSC_TAG_INFO(FM_TEST, "FM freq=%u\n", params.freq);
+
+		mx250_fm_set_params(&params);
+	}
 error:
 	return len;
 }

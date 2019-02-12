@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #include <linux/mutex.h>
@@ -19,23 +19,24 @@ static DEFINE_MUTEX(sable_lock);
 
 static struct wake_lock wlbtd_wakelock;
 
+/* module parameter controlling recovery handling */
+extern int disable_recovery_handling;
+
 /**
  * This callback runs whenever the socket receives messages.
  */
 static int msg_from_wlbtd_cb(struct sk_buff *skb, struct genl_info *info)
 {
-	int status;
+	int status = 0;
 
 	if (info->attrs[1])
-		SCSC_TAG_INFO(WLBTD, "returned data : %s\n",
+		SCSC_TAG_INFO(WLBTD, "ATTR_STR: %s\n",
 				(char *)nla_data(info->attrs[1]));
 
 	if (info->attrs[2]) {
 		status = *((__u32 *)nla_data(info->attrs[2]));
-		if (!status)
-			SCSC_TAG_INFO(WLBTD, "returned status : %u\n", status);
-		else
-			SCSC_TAG_ERR(WLBTD, "returned error : %u\n", status);
+		if (status)
+			SCSC_TAG_ERR(WLBTD, "ATTR_INT: %u\n", status);
 	}
 
 	complete(&event_done);
@@ -45,18 +46,25 @@ static int msg_from_wlbtd_cb(struct sk_buff *skb, struct genl_info *info)
 
 static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 {
-	int status;
+	int status = 0;
 
 	if (info->attrs[1])
-		SCSC_TAG_INFO(WLBTD, "returned data : %s\n",
+		SCSC_TAG_INFO(WLBTD, "%s\n",
 				(char *)nla_data(info->attrs[1]));
 
 	if (info->attrs[2]) {
 		status = nla_get_u16(info->attrs[2]);
-		if (!status)
-			SCSC_TAG_INFO(WLBTD, "returned status : %u\n", status);
-		else
-			SCSC_TAG_ERR(WLBTD, "returned error : %u\n", status);
+		if (status)
+			SCSC_TAG_ERR(WLBTD, "%u\n", status);
+	}
+
+	if (disable_recovery_handling == MEMDUMP_FILE_FOR_RECOVERY) {
+		if (status == MEMDUMP_FILE_KERNEL_PANIC) {
+			/* Auto recovery off + moredump + kernel panic */
+			SCSC_TAG_INFO(WLBTD, "Deliberately panic the kernel due to WLBT firmware failure!\n");
+			SCSC_TAG_INFO(WLBTD, "calling BUG_ON(1)\n");
+			BUG_ON(1);
+		}
 	}
 
 	complete(&event_done);
@@ -106,8 +114,8 @@ static struct nla_policy policies[] = {
 };
 
 static struct nla_policy policy_sable[] = {
-	[ATTR_STR] = { .type = NLA_STRING, },
 	[ATTR_INT] = { .type = NLA_U16, },
+	[ATTR_INT8] = { .type = NLA_U8, },
 };
 
 static struct nla_policy policies_build_type[] = {
@@ -228,7 +236,7 @@ error:
 	return -1;
 }
 
-int call_wlbtd_sable(const char *trigger, u16 reason_code)
+int call_wlbtd_sable(u8 trigger_code, u16 reason_code)
 {
 	struct sk_buff *skb;
 	void *msg;
@@ -239,7 +247,8 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 	mutex_lock(&sable_lock);
 	wake_lock(&wlbtd_wakelock);
 
-	SCSC_TAG_INFO(WLBTD, "start:trigger - %s\n", trigger);
+	SCSC_TAG_INFO(WLBTD, "start:trigger - %s\n",
+		scsc_get_trigger_str((int)trigger_code));
 
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb) {
@@ -267,9 +276,9 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 		goto error;
 	}
 
-	rc = nla_put_string(skb, ATTR_STR, trigger);
+	rc = nla_put_u8(skb, ATTR_INT8, trigger_code);
 	if (rc) {
-		SCSC_TAG_ERR(WLBTD, "nla_put_string failed. rc = %d\n", rc);
+		SCSC_TAG_ERR(WLBTD, "nla_put_u8 failed. rc = %d\n", rc);
 		genlmsg_cancel(skb, msg);
 		goto error;
 	}
@@ -309,7 +318,8 @@ int call_wlbtd_sable(const char *trigger, u16 reason_code)
 	/* reinit so completion can be re-used */
 	reinit_completion(&event_done);
 
-	SCSC_TAG_INFO(WLBTD, "  end:trigger - %s\n", trigger);
+	SCSC_TAG_INFO(WLBTD, "  end:trigger - %s\n",
+		scsc_get_trigger_str((int)trigger_code));
 
 done:
 	wake_unlock(&wlbtd_wakelock);
