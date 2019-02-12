@@ -963,6 +963,7 @@ void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop)
 		struct ipc_logbuf *logbuf = &ipc_map->logbuf;
 		u32 eq;
 		u32 len;
+		u32 lenout;
 
 retry:
 		eq = logbuf->eq;
@@ -987,13 +988,15 @@ retry:
 					CSP_PRINTF_INFO("%s: FW-ERR: %s", NAME_PREFIX, (char *)log);
 
 				if (rt_buf) {
-					if (rt_buf->write_index + len + LOGFILE_NUM_SIZE > rt_buf->buffer_size)
+					if (rt_buf->write_index + len + LOGFILE_NUM_SIZE >= rt_buf->buffer_size)
 						rt_buf->write_index = 0;
-					len = sprintf(rt_buf->buffer + rt_buf->write_index, "%10d:%s", log->size, log);
-					rt_buf->write_index += len;
+					lenout = snprintf(rt_buf->buffer + rt_buf->write_index, LOGFILE_NUM_SIZE + len, "%10d:%s\n", log->size, log);
+					rt_buf->write_index += lenout;
+					if (lenout != (LOGFILE_NUM_SIZE + len))
+						pr_info("%s: %s: size-n missmatch: %d -> %d\n", NAME_PREFIX, __func__, LOGFILE_NUM_SIZE + len, lenout);
 				}
 			} else {
-				pr_err("%s: size err:%d, eq:%d, dq:%d\n", __func__, len, eq, logbuf->dq);
+				pr_err("%s: %s: size err:%d, eq:%d, dq:%d\n", NAME_PREFIX, __func__, len, eq, logbuf->dq);
 			}
 			logbuf->dq = (logbuf->dq + 1) % LOGBUF_NUM;
 		}
