@@ -20,6 +20,7 @@
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 #include "main.h"
 #endif
+#include "linux/dropbox.h"
 
 #define NUM_OF_GPR (17)
 #define GPR_PC_INDEX (16)
@@ -155,6 +156,14 @@ static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
 	log_flush(ipc->fw_log);
 }
 
+static void dropbox_report_event(struct contexthub_ipc_info *ipc, enum chub_err_type err)
+{
+	char dropbox_msg[256];
+
+	dev_info(ipc->dev, "%s: reporting dropbox\n", __func__);
+	snprintf(dropbox_msg, sizeof(dropbox_msg), "reason: %d", err);
+	dropbox_queue_event_text("chub_issue", dropbox_msg, strlen(dropbox_msg));
+}
 
 void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
 {
@@ -166,6 +175,8 @@ void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	nanohub_add_dump_request(ipc->data);
 #endif
+
+	dropbox_report_event(ipc, reason);
 
 #ifdef SUPPORT_DUMP_ON_DRIVER
 	/* dosen't support on android-p */
