@@ -16,32 +16,6 @@
 #include "vipx-context.h"
 #include "vipx-core.h"
 
-static inline int __vref_get(struct vipx_core_refcount *vref)
-{
-	int ret;
-
-	vipx_enter();
-	ret = (atomic_inc_return(&vref->refcount) == 1) ?
-		vref->first(vref->core) : 0;
-	if (ret)
-		atomic_dec(&vref->refcount);
-	vipx_leave();
-	return ret;
-}
-
-static inline int __vref_put(struct vipx_core_refcount *vref)
-{
-	int ret;
-
-	vipx_enter();
-	ret = (atomic_dec_return(&vref->refcount) == 0) ?
-		vref->final(vref->core) : 0;
-	if (ret)
-		atomic_inc(&vref->refcount);
-	vipx_leave();
-	return ret;
-}
-
 static int vipx_core_set_graph(struct vipx_context *vctx,
 		struct vs4l_graph *ginfo)
 {
@@ -238,7 +212,7 @@ p_err_lock:
 static int vipx_core_streamon(struct vipx_context *vctx)
 {
 	int ret;
-	struct vipx_core *core;
+	struct vipx_device *vdev;
 
 	vipx_enter();
 	if (mutex_lock_interruptible(&vctx->lock)) {
@@ -255,12 +229,10 @@ static int vipx_core_streamon(struct vipx_context *vctx)
 		goto p_err_state;
 	}
 
-	core = vctx->core;
-	ret = __vref_get(&core->start_cnt);
-	if (ret) {
-		vipx_err("vref_get(start) is fail(%d)\n", ret);
-		goto p_err_vref;
-	}
+	vdev = vctx->core->device;
+	ret = vipx_device_start(vdev);
+	if (ret)
+		goto p_err_start;
 
 	ret = vctx->queue_ops->streamon(&vctx->queue_list);
 	if (ret)
@@ -271,7 +243,8 @@ static int vipx_core_streamon(struct vipx_context *vctx)
 	vipx_leave();
 	return 0;
 p_err_queue_ops:
-p_err_vref:
+	vipx_device_stop(vdev);
+p_err_start:
 p_err_state:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
@@ -281,7 +254,6 @@ p_err_lock:
 static int vipx_core_streamoff(struct vipx_context *vctx)
 {
 	int ret;
-	struct vipx_core *core;
 
 	vipx_enter();
 	if (mutex_lock_interruptible(&vctx->lock)) {
@@ -301,18 +273,12 @@ static int vipx_core_streamoff(struct vipx_context *vctx)
 	if (ret)
 		goto p_err_queue_ops;
 
-	core = vctx->core;
-	ret = __vref_put(&core->start_cnt);
-	if (ret) {
-		vipx_err("vref_put(start) is fail(%d)\n", ret);
-		goto p_err_vref;
-	}
+	vipx_device_stop(vctx->core->device);
 
 	vctx->state = BIT(VIPX_CONTEXT_STOP);
 	mutex_unlock(&vctx->lock);
 	vipx_leave();
 	return 0;
-p_err_vref:
 p_err_queue_ops:
 p_err_state:
 	mutex_unlock(&vctx->lock);
@@ -483,15 +449,15 @@ static int vipx_open(struct inode *inode, struct file *file)
 {
 	int ret;
 	struct miscdevice *miscdev;
-	struct vipx_device *device;
+	struct vipx_device *vdev;
 	struct vipx_core *core;
 	struct vipx_context *vctx;
 	struct vipx_graph *graph;
 
 	vipx_enter();
 	miscdev = file->private_data;
-	device = dev_get_drvdata(miscdev->parent);
-	core = &device->core;
+	vdev = dev_get_drvdata(miscdev->parent);
+	core = &vdev->core;
 
 	if (mutex_lock_interruptible(&core->lock)) {
 		ret = -ERESTARTSYS;
@@ -499,11 +465,9 @@ static int vipx_open(struct inode *inode, struct file *file)
 		goto p_err_lock;
 	}
 
-	ret = __vref_get(&core->open_cnt);
-	if (ret) {
-		vipx_err("vref_get(open) is fail(%d)", ret);
-		goto p_err_vref;
-	}
+	ret = vipx_device_open(vdev);
+	if (ret)
+		goto p_err_device;
 
 	vctx = vipx_context_create(core);
 	if (IS_ERR(vctx)) {
@@ -528,8 +492,8 @@ static int vipx_open(struct inode *inode, struct file *file)
 	return 0;
 p_err_graph:
 p_err_vctx:
-	__vref_put(&core->open_cnt);
-p_err_vref:
+	vipx_device_close(vdev);
+p_err_device:
 	mutex_unlock(&core->lock);
 	vipx_err("Failed to open the vipx [%d]\n", ret);
 p_err_lock:
@@ -554,7 +518,7 @@ static int vipx_release(struct inode *inode, struct file *file)
 
 	vipx_graph_destroy(vctx->graph);
 	vipx_context_destroy(vctx);
-	__vref_put(&core->open_cnt);
+	vipx_device_close(core->device);
 
 	mutex_unlock(&core->lock);
 	vipx_info("The vipx has been closed\n");
@@ -595,73 +559,33 @@ const struct file_operations vipx_file_ops = {
 	.compat_ioctl	= vipx_compat_ioctl
 };
 
-static int __vref_open(struct vipx_core *core)
-{
-	vipx_check();
-	atomic_set(&core->start_cnt.refcount, 0);
-	return vipx_device_open(core->device);
-}
-
-static int __vref_close(struct vipx_core *core)
-{
-	vipx_check();
-	return vipx_device_close(core->device);
-}
-
-static int __vref_start(struct vipx_core *core)
-{
-	vipx_check();
-	return vipx_device_start(core->device);
-}
-
-static int __vref_stop(struct vipx_core *core)
-{
-	vipx_check();
-	return vipx_device_stop(core->device);
-}
-
-static inline void __vref_init(struct vipx_core_refcount *vref,
-	struct vipx_core *core,
-	int (*first)(struct vipx_core *core),
-	int (*final)(struct vipx_core *core))
-{
-	vipx_enter();
-	vref->core = core;
-	vref->first = first;
-	vref->final = final;
-	atomic_set(&vref->refcount, 0);
-	vipx_leave();
-}
-
 /* Top-level data for debugging */
-static struct vipx_dev *vdev;
+static struct vipx_miscdev *misc_vdev;
 
-int vipx_core_probe(struct vipx_device *device)
+int vipx_core_probe(struct vipx_device *vdev)
 {
 	int ret;
 	struct vipx_core *core;
 
 	vipx_enter();
-	core = &device->core;
-	core->device = device;
-	core->system = &device->system;
-	vdev = &core->vdev;
+	core = &vdev->core;
+	core->device = vdev;
+	core->system = &vdev->system;
+	misc_vdev = &core->misc_vdev;
 
 	mutex_init(&core->lock);
-	__vref_init(&core->open_cnt, core, __vref_open, __vref_close);
-	__vref_init(&core->start_cnt, core, __vref_start, __vref_stop);
 	core->ioc_ops = &vipx_core_ioctl_ops;
 
 	vipx_util_bitmap_init(core->vctx_map, VIPX_MAX_CONTEXT);
 	INIT_LIST_HEAD(&core->vctx_list);
 	core->vctx_count = 0;
 
-	vdev->miscdev.minor = MISC_DYNAMIC_MINOR;
-	vdev->miscdev.name = VIPX_DEV_NAME;
-	vdev->miscdev.fops = &vipx_file_ops;
-	vdev->miscdev.parent = device->dev;
+	core->misc_vdev.miscdev.minor = MISC_DYNAMIC_MINOR;
+	core->misc_vdev.miscdev.name = VIPX_DEV_NAME;
+	core->misc_vdev.miscdev.fops = &vipx_file_ops;
+	core->misc_vdev.miscdev.parent = vdev->dev;
 
-	ret = misc_register(&vdev->miscdev);
+	ret = misc_register(&core->misc_vdev.miscdev);
 	if (ret) {
 		vipx_err("miscdevice is not registered (%d)\n", ret);
 		goto p_err_misc;
@@ -677,7 +601,7 @@ p_err_misc:
 void vipx_core_remove(struct vipx_core *core)
 {
 	vipx_enter();
-	misc_deregister(&core->vdev.miscdev);
+	misc_deregister(&core->misc_vdev.miscdev);
 	mutex_destroy(&core->lock);
 	vipx_leave();
 }

@@ -19,23 +19,22 @@
 
 struct vipx_device;
 
-enum vipx_device_state {
-	VIPX_DEVICE_STATE_OPEN,
-	VIPX_DEVICE_STATE_START
-};
-
 struct vipx_device {
 	struct device		*dev;
-	unsigned long		state;
+	struct mutex		open_lock;
+	unsigned int		open_count;
+	struct mutex		start_lock;
+	unsigned int		start_count;
+	bool			suspended;
 
 	struct vipx_system	system;
 	struct vipx_core	core;
 	struct vipx_debug	debug;
 };
 
-int vipx_device_open(struct vipx_device *device);
-int vipx_device_close(struct vipx_device *device);
-int vipx_device_start(struct vipx_device *device);
-int vipx_device_stop(struct vipx_device *device);
+int vipx_device_open(struct vipx_device *vdev);
+int vipx_device_close(struct vipx_device *vdev);
+int vipx_device_start(struct vipx_device *vdev);
+int vipx_device_stop(struct vipx_device *vdev);
 
 #endif
