@@ -431,6 +431,27 @@ int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **f
 
 	fs = get_fs();
 	set_fs(get_ds());
+
+	/* Special case if file length is reported as zero - try to read until it fails.
+	 * This allows us to read /proc
+	 */
+	if (whats_left == 0) {
+		do {
+			r = vfs_read(f, p, max_read_size, &f->f_pos);
+			if (r < 0) {
+				SCSC_TAG_INFO(MX_FILE, "No more data %s\n", path);
+				break;
+			}
+			p += r;
+			if (r < max_read_size) {
+				SCSC_TAG_INFO(MX_FILE, "Read %zd from %s\n", (ptrdiff_t)(p - buf), path);
+				break;
+			}
+		} while (r > 0);
+
+		goto done;
+	}
+
 	/* Read at most max_read_size in each read. Loop until the whole file has
 	 * been copied to the local buffer.
 	 */
@@ -446,6 +467,7 @@ int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **f
 		whats_left -= r;
 		p += r;
 	}
+done:
 	set_fs(fs);
 	filp_close(f, NULL);
 

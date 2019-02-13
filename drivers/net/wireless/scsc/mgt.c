@@ -192,6 +192,7 @@ void slsi_get_hw_mac_address(struct slsi_dev *sdev, u8 *addr)
 	u32                   u[ETH_ALEN];
 	char                  path_name[MX_WLAN_FILE_PATH_LEN_MAX];
 	int                   r;
+	bool                  valid = false;
 
 	/* read maddr_file */
 	if (sdev->maddr_file_name) {
@@ -228,14 +229,29 @@ mac_efs:
 	}
 	r = sscanf(e->data, "%02X:%02X:%02X:%02X:%02X:%02X", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
 	if (r != ETH_ALEN) {
-		SLSI_ERR(sdev, "%s exists, but format is incorrect (should be e.g. xx:xx:xx:xx:xx:xx)\n", path_name);
+		SLSI_ERR(sdev, "%s exists, but format is incorrect (%d) [%20s] (should be e.g. xx:xx:xx:xx:xx:xx)\n",
+			 CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, r, e->data);
 		goto mac_default;
 	}
-	for (i = 0; i < ETH_ALEN; i++)
+	for (i = 0; i < ETH_ALEN; i++) {
+		if (u[i] != 0xff)
+			valid = true;
 		addr[i] = u[i] & 0xff;
-	SLSI_INFO(sdev, "MAC address loaded from %s: %02X:%02X:%02X:%02X:%02X:%02X\n", CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, u[0], u[1], u[2], u[3], u[4], u[5]);
-	mx140_release_file(sdev->maxwell_core, e);
-	return;
+	}
+
+	/* If MAC address seems valid, finished */
+	if (valid) {
+		SLSI_INFO(sdev, "MAC address loaded from %s: %02X:%02X:%02X:%02X:%02X:%02X\n",
+			  CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, u[0], u[1], u[2], u[3], u[4], u[5]);
+
+		/* MAC address read could hold invalid values, try to fix it to normal address */
+		if (addr[0] & 0x01) {
+			addr[0] = addr[0] & 0xfe;
+			SLSI_INFO(sdev, "MAC address invalid, fixed address: %pM\n", addr);
+		}
+		mx140_release_file(sdev->maxwell_core, e);
+		return;
+	}
 #endif
 
 mac_default:
