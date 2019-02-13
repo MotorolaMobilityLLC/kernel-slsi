@@ -28,6 +28,8 @@ int vipx_kernel_binary_set_gmodel(struct vipx_context *vctx,
 		struct vipx_graph_model *gmodel);
 int vipx_kernel_binary_add(struct vipx_context *vctx, unsigned int id,
 		int fd, unsigned int size);
+int vipx_kernel_binary_unload(struct vipx_context *vctx,
+		unsigned int global_id);
 void vipx_kernel_binary_remove(struct vipx_kernel_binary *kbin);
 void vipx_kernel_binary_all_remove(struct vipx_context *vctx);
 

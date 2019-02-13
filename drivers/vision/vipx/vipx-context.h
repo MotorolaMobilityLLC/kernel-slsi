@@ -31,6 +31,8 @@ struct vipx_context;
 struct vipx_context_ops {
 	int (*load_kernel_binary)(struct vipx_context *vctx,
 			struct vipx_ioc_load_kernel_binary *kernel_bin);
+	int (*unload_kernel_binary)(struct vipx_context *vctx,
+			struct vipx_ioc_unload_kernel_binary *unload_kbin);
 	int (*load_graph_info)(struct vipx_context *vctx,
 			struct vipx_ioc_load_graph_info *ginfo);
 	int (*unload_graph_info)(struct vipx_context *vctx,

@@ -34,6 +34,14 @@ struct vipx_ioc_load_kernel_binary {
 	int				reserved[2];
 };
 
+struct vipx_ioc_unload_kernel_binary {
+	unsigned int			size;
+	unsigned int			global_id;
+	int				ret;
+	struct timespec			timestamp[4];
+	int				reserved[2];
+};
+
 struct vipx_ioc_load_graph_info {
 	unsigned int			size;
 	struct vipx_common_graph_info	graph_info;
@@ -60,12 +68,14 @@ struct vipx_ioc_execute_submodel {
 
 #define VIPX_IOC_LOAD_KERNEL_BINARY	\
 	_IOWR('V', 0, struct vipx_ioc_load_kernel_binary)
+#define VIPX_IOC_UNLOAD_KERNEL_BINARY	\
+	_IOWR('V', 1, struct vipx_ioc_unload_kernel_binary)
 #define VIPX_IOC_LOAD_GRAPH_INFO	\
-	_IOWR('V', 1, struct vipx_ioc_load_graph_info)
+	_IOWR('V', 2, struct vipx_ioc_load_graph_info)
 #define VIPX_IOC_UNLOAD_GRAPH_INFO	\
-	_IOWR('V', 2, struct vipx_ioc_unload_graph_info)
+	_IOWR('V', 3, struct vipx_ioc_unload_graph_info)
 #define VIPX_IOC_EXECUTE_SUBMODEL	\
-	_IOWR('V', 3, struct vipx_ioc_execute_submodel)
+	_IOWR('V', 4, struct vipx_ioc_execute_submodel)
 
 union vipx_ioc_arg {
 	struct vs4l_graph			graph;
@@ -75,6 +85,7 @@ union vipx_ioc_arg {
 	struct vs4l_container_list		clist;
 
 	struct vipx_ioc_load_kernel_binary	kernel_bin;
+	struct vipx_ioc_unload_kernel_binary	unload_kbin;
 	struct vipx_ioc_load_graph_info		load_ginfo;
 	struct vipx_ioc_unload_graph_info	unload_ginfo;
 	struct vipx_ioc_execute_submodel	exec;
@@ -99,6 +110,8 @@ struct vipx_ioctl_ops {
 	/* dal */
 	int (*load_kernel_binary)(struct vipx_context *vctx,
 			struct vipx_ioc_load_kernel_binary *args);
+	int (*unload_kernel_binary)(struct vipx_context *vctx,
+			struct vipx_ioc_unload_kernel_binary *args);
 	int (*load_graph_info)(struct vipx_context *vctx,
 			struct vipx_ioc_load_graph_info *args);
 	int (*unload_graph_info)(struct vipx_context *vctx,

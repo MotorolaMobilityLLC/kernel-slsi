@@ -349,6 +349,35 @@ p_err_lock:
 	return 0;
 }
 
+static int vipx_core_unload_kernel_binary(struct vipx_context *vctx,
+		struct vipx_ioc_unload_kernel_binary *args)
+{
+	int ret;
+
+	vipx_enter();
+	if (mutex_lock_interruptible(&vctx->lock)) {
+		ret = -ERESTARTSYS;
+		vipx_err("Failed to lock for loading kernel binary (%d)\n",
+				ret);
+		goto p_err_lock;
+	}
+
+	ret = vctx->vops->unload_kernel_binary(vctx, args);
+	if (ret)
+		goto p_err_vops;
+
+	mutex_unlock(&vctx->lock);
+	args->ret = 0;
+	vipx_leave();
+	return 0;
+p_err_vops:
+	mutex_unlock(&vctx->lock);
+p_err_lock:
+	args->ret = ret;
+	/* return value is included in args->ret */
+	return 0;
+}
+
 static int vipx_core_load_graph_info(struct vipx_context *vctx,
 		struct vipx_ioc_load_graph_info *args)
 {
@@ -444,6 +473,7 @@ const struct vipx_ioctl_ops vipx_core_ioctl_ops = {
 	.streamoff		= vipx_core_streamoff,
 
 	.load_kernel_binary	= vipx_core_load_kernel_binary,
+	.unload_kernel_binary	= vipx_core_unload_kernel_binary,
 	.load_graph_info	= vipx_core_load_graph_info,
 	.unload_graph_info	= vipx_core_unload_graph_info,
 	.execute_submodel	= vipx_core_execute_submodel,

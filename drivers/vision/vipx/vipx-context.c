@@ -113,6 +113,25 @@ p_err:
 	return ret;
 }
 
+static int vipx_context_unload_kernel_binary(struct vipx_context *vctx,
+		struct vipx_ioc_unload_kernel_binary *unload_kbin)
+{
+	int ret;
+
+	vipx_enter();
+	vipx_dbg("[%s] unload kernel binary (framework)\n", __func__);
+	vipx_dbg("model_id    : %#x\n", unload_kbin->global_id);
+
+	ret = vipx_kernel_binary_unload(vctx, unload_kbin->global_id);
+	if (ret)
+		goto p_err;
+
+	vipx_leave();
+	return 0;
+p_err:
+	return ret;
+}
+
 static int vipx_context_load_graph_info(struct vipx_context *vctx,
 		struct vipx_ioc_load_graph_info *ginfo)
 {
@@ -404,6 +423,7 @@ p_err_num:
 
 static const struct vipx_context_ops vipx_context_ops = {
 	.load_kernel_binary	= vipx_context_load_kernel_binary,
+	.unload_kernel_binary	= vipx_context_unload_kernel_binary,
 	.load_graph_info	= vipx_context_load_graph_info,
 	.unload_graph_info	= vipx_context_unload_graph_info,
 	.execute_submodel	= vipx_context_execute_submodel

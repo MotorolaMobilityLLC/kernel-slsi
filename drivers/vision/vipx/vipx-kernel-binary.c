@@ -113,6 +113,22 @@ p_err:
 	return ret;
 }
 
+int vipx_kernel_binary_unload(struct vipx_context *vctx, unsigned int global_id)
+{
+	struct vipx_kernel_binary *kbin, *temp;
+	unsigned int kid, mid;
+
+	vipx_enter();
+	mid = GET_COMMON_GRAPH_MODEL_ID(global_id);
+	list_for_each_entry_safe(kbin, temp, &vctx->binary_list, clist) {
+		kid = GET_COMMON_GRAPH_MODEL_ID(kbin->global_id);
+		if (kid == mid)
+			vipx_kernel_binary_remove(kbin);
+	}
+	vipx_leave();
+	return 0;
+}
+
 void vipx_kernel_binary_remove(struct vipx_kernel_binary *kbin)
 {
 	struct vipx_context *vctx;

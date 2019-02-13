@@ -302,6 +302,42 @@ static void __vipx_ioctl_put_load_kernel_binary(
 	vipx_leave();
 }
 
+static int __vipx_ioctl_get_unload_kernel_binary(
+		struct vipx_ioc_unload_kernel_binary *karg,
+		struct vipx_ioc_unload_kernel_binary __user *uarg)
+{
+	int ret;
+
+	vipx_enter();
+	ret = copy_from_user(karg, uarg, sizeof(*uarg));
+	if (ret) {
+		vipx_err("Copy failed [Unload kernel binary] (%d)\n", ret);
+		goto p_err;
+	}
+
+	memset(karg->timestamp, 0, sizeof(karg->timestamp));
+	memset(karg->reserved, 0, sizeof(karg->reserved));
+
+	vipx_leave();
+	return 0;
+p_err:
+	return ret;
+}
+
+static void __vipx_ioctl_put_unload_kernel_binary(
+		struct vipx_ioc_unload_kernel_binary *karg,
+		struct vipx_ioc_unload_kernel_binary __user *uarg)
+{
+	int ret;
+
+	vipx_enter();
+	ret = copy_to_user(uarg, karg, sizeof(*karg));
+	if (ret)
+		vipx_err("Copy failed to user [Unload kernel binary]\n");
+
+	vipx_leave();
+}
+
 static int __vipx_ioctl_get_load_graph_info(
 		struct vipx_ioc_load_graph_info *karg,
 		struct vipx_ioc_load_graph_info __user *uarg)
@@ -486,6 +522,15 @@ long vipx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		ret = ops->load_kernel_binary(vctx, &karg.kernel_bin);
 		__vipx_ioctl_put_load_kernel_binary(&karg.kernel_bin, uarg);
+		break;
+	case VIPX_IOC_UNLOAD_KERNEL_BINARY:
+		ret = __vipx_ioctl_get_unload_kernel_binary(&karg.unload_kbin,
+				uarg);
+		if (ret)
+			goto p_err;
+
+		ret = ops->unload_kernel_binary(vctx, &karg.unload_kbin);
+		__vipx_ioctl_put_unload_kernel_binary(&karg.unload_kbin, uarg);
 		break;
 	case VIPX_IOC_LOAD_GRAPH_INFO:
 		ret = __vipx_ioctl_get_load_graph_info(&karg.load_ginfo,

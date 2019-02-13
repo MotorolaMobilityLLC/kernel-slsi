@@ -114,6 +114,14 @@ struct vipx_ioc_load_kernel_binary32 {
 	int				reserved[2];
 };
 
+struct vipx_ioc_unload_kernel_binary32 {
+	unsigned int			size;
+	unsigned int			global_id;
+	int				ret;
+	struct compat_timespec		timestamp[4];
+	int				reserved[2];
+};
+
 struct vipx_ioc_load_graph_info32 {
 	unsigned int			size;
 	struct vipx_common_graph_info	graph_info;
@@ -140,12 +148,14 @@ struct vipx_ioc_execute_submodel32 {
 
 #define VIPX_IOC_LOAD_KERNEL_BINARY32	\
 	_IOWR('V', 0, struct vipx_ioc_load_kernel_binary32)
+#define VIPX_IOC_UNLOAD_KERNEL_BINARY32	\
+	_IOWR('V', 1, struct vipx_ioc_unload_kernel_binary32)
 #define VIPX_IOC_LOAD_GRAPH_INFO32	\
-	_IOWR('V', 1, struct vipx_ioc_load_graph_info32)
+	_IOWR('V', 2, struct vipx_ioc_load_graph_info32)
 #define VIPX_IOC_UNLOAD_GRAPH_INFO32	\
-	_IOWR('V', 2, struct vipx_ioc_unload_graph_info32)
+	_IOWR('V', 3, struct vipx_ioc_unload_graph_info32)
 #define VIPX_IOC_EXECUTE_SUBMODEL32	\
-	_IOWR('V', 3, struct vipx_ioc_execute_submodel32)
+	_IOWR('V', 4, struct vipx_ioc_execute_submodel32)
 
 static int __vipx_ioctl_get_graph32(struct vs4l_graph *karg,
 		struct vs4l_graph32 __user *uarg)
@@ -550,6 +560,56 @@ static void __vipx_ioctl_put_load_kernel_binary32(
 	vipx_leave();
 }
 
+static int __vipx_ioctl_get_unload_kernel_binary32(
+		struct vipx_ioc_unload_kernel_binary *karg,
+		struct vipx_ioc_unload_kernel_binary32 __user *uarg)
+{
+	int ret;
+
+	vipx_enter();
+	if (get_user(karg->size, &uarg->size) ||
+			get_user(karg->global_id, &uarg->global_id)) {
+		ret = -EFAULT;
+		vipx_err("Copy failed [Unload Kernel Binary(32)]\n");
+		goto p_err;
+	}
+
+	memset(karg->timestamp, 0, sizeof(karg->timestamp));
+	memset(karg->reserved, 0, sizeof(karg->reserved));
+
+	vipx_leave();
+	return 0;
+p_err:
+	return ret;
+}
+
+static void __vipx_ioctl_put_unload_kernel_binary32(
+		struct vipx_ioc_unload_kernel_binary *karg,
+		struct vipx_ioc_unload_kernel_binary32 __user *uarg)
+{
+	vipx_enter();
+	if (put_user(karg->ret, &uarg->ret) ||
+			put_user(karg->timestamp[0].tv_sec,
+				&uarg->timestamp[0].tv_sec) ||
+			put_user(karg->timestamp[0].tv_nsec,
+				&uarg->timestamp[0].tv_nsec) ||
+			put_user(karg->timestamp[1].tv_sec,
+				&uarg->timestamp[1].tv_sec) ||
+			put_user(karg->timestamp[1].tv_nsec,
+				&uarg->timestamp[1].tv_nsec) ||
+			put_user(karg->timestamp[2].tv_sec,
+				&uarg->timestamp[2].tv_sec) ||
+			put_user(karg->timestamp[2].tv_nsec,
+				&uarg->timestamp[2].tv_nsec) ||
+			put_user(karg->timestamp[3].tv_sec,
+				&uarg->timestamp[3].tv_sec) ||
+			put_user(karg->timestamp[3].tv_nsec,
+				&uarg->timestamp[3].tv_nsec)) {
+		vipx_err("Copy failed to user [Unload kernel binary(32)]\n");
+	}
+	vipx_leave();
+}
+
 static int __vipx_ioctl_get_load_graph_info32(
 		struct vipx_ioc_load_graph_info *karg,
 		struct vipx_ioc_load_graph_info32 __user *uarg)
@@ -651,7 +711,7 @@ static void __vipx_ioctl_put_unload_graph_info32(
 				&uarg->timestamp[3].tv_sec) ||
 			put_user(karg->timestamp[3].tv_nsec,
 				&uarg->timestamp[3].tv_nsec)) {
-		vipx_err("Copy failed to user [Load kernel binary(32)]\n");
+		vipx_err("Copy failed to user [Unload graph_info(32)]\n");
 	}
 	vipx_leave();
 }
@@ -788,6 +848,16 @@ long vipx_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		ret = ops->load_kernel_binary(vctx, &karg.kernel_bin);
 		__vipx_ioctl_put_load_kernel_binary32(&karg.kernel_bin, uarg);
+		break;
+	case VIPX_IOC_UNLOAD_KERNEL_BINARY32:
+		ret = __vipx_ioctl_get_unload_kernel_binary32(&karg.unload_kbin,
+				uarg);
+		if (ret)
+			goto p_err;
+
+		ret = ops->unload_kernel_binary(vctx, &karg.unload_kbin);
+		__vipx_ioctl_put_unload_kernel_binary32(&karg.unload_kbin,
+				uarg);
 		break;
 	case VIPX_IOC_LOAD_GRAPH_INFO32:
 		ret = __vipx_ioctl_get_load_graph_info32(&karg.load_ginfo,
