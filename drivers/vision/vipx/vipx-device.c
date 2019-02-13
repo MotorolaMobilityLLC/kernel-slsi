@@ -16,28 +16,25 @@
 #include <linux/exynos_iovmm.h>
 
 #include "vipx-log.h"
+#include "vipx-mailbox.h"
 #include "vipx-graph.h"
 #include "vipx-device.h"
-
-static void __vipx_fault_handler(struct vipx_device *vdev)
-{
-	vipx_enter();
-	vipx_leave();
-}
 
 static int __attribute__((unused)) vipx_fault_handler(
 		struct iommu_domain *domain, struct device *dev,
 		unsigned long fault_addr, int fault_flag, void *token)
 {
 	struct vipx_device *vdev;
+	struct vipx_mailbox_ctrl *mctrl;
 
 	pr_err("< VIPX FAULT HANDLER >\n");
 	pr_err("Device virtual(0x%lX) is invalid access\n", fault_addr);
 
 	vdev = dev_get_drvdata(dev);
-	vipx_debug_dump_debug_regs();
+	mctrl = vdev->system.interface.mctrl;
 
-	__vipx_fault_handler(vdev);
+	vipx_debug_dump_debug_regs();
+	vipx_mailbox_dump(mctrl);
 
 	return -EINVAL;
 }

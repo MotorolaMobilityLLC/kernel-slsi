@@ -278,6 +278,8 @@ static int __vipx_memory_alloc(struct vipx_memory *mem,
 		}
 		pmem->dvaddr = dvaddr;
 	}
+	vipx_info("[%20s] memory is allocated(%#p,%#x,%zu)",
+			pmem->name, kvaddr, (int)pmem->dvaddr, pmem->size);
 
 	vipx_leave();
 	return 0;
