@@ -307,14 +307,6 @@ void mx140_file_release_conf(struct scsc_mx *mx, const struct firmware *conf);
  */
 int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **firmp);
 
-/* Read device configuration proc file into memory.
- *
- * Path is absolute.
- * Returns pointer to data or NULL if file not found.
- * Call mx140_release_file() to release the memory.
- */
-int mx140_request_proc_file(struct scsc_mx *mx, char *path, const struct firmware **firmp);
-
 /* Release configuration file memory allocated with mx140_request_file()
  *
  * If firmp is NULL, has no effect.
