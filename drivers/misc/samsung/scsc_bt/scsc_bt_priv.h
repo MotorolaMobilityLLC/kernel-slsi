@@ -53,7 +53,7 @@
 #define SCSC_BT_ADDR      "/csa/bluetooth/.bd_addr"
 #define SCSC_BT_ADDR_LEN  (3)
 #else
-#define SCSC_BT_ADDR      "/proc/config/bt_mac/ascii"
+#define SCSC_BT_ADDR      "/mnt/vendor/efs/bluetooth/bt_addr"
 #define SCSC_BT_ADDR_LEN  (6)
 #endif
 
