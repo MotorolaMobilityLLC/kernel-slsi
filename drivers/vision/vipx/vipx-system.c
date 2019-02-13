@@ -34,9 +34,7 @@ int vipx_system_fw_bootup(struct vipx_system *sys)
 	mem = &sys->memory;
 	bin = &sys->binary;
 
-	ret = sys->ctrl_ops->reset(sys);
-	if (ret)
-		goto p_err;
+	sys->ctrl_ops->reset(sys);
 
 	ret = vipx_binary_read(bin, NULL, VIPX_FW_DRAM_NAME, mem->fw.kvaddr,
 			mem->fw.size);
@@ -61,9 +59,7 @@ int vipx_system_fw_bootup(struct vipx_system *sys)
 	if (ret)
 		goto p_err;
 
-	ret = sys->ctrl_ops->start(sys);
-	if (ret)
-		goto p_err;
+	sys->ctrl_ops->start(sys);
 
 	ret = vipx_hw_wait_bootup(&sys->interface);
 	if (ret)
@@ -103,6 +99,43 @@ p_err:
 	return ret;
 }
 
+int vipx_system_resume(struct vipx_system *sys)
+{
+	int ret;
+	struct vipx_pm *pm;
+
+	vipx_enter();
+	pm = &sys->pm;
+
+	if (vipx_pm_qos_active(pm)) {
+		vipx_pm_qos_resume(pm);
+		ret = vipx_system_fw_bootup(sys);
+		if (ret)
+			goto p_err;
+	}
+
+	vipx_leave();
+	return 0;
+p_err:
+	return ret;
+}
+
+int vipx_system_suspend(struct vipx_system *sys)
+{
+	struct vipx_pm *pm;
+
+	vipx_enter();
+	pm = &sys->pm;
+
+	if (vipx_pm_qos_active(pm)) {
+		sys->ctrl_ops->reset(sys);
+		vipx_pm_qos_suspend(&sys->pm);
+	}
+
+	vipx_leave();
+	return 0;
+}
+
 int vipx_system_runtime_resume(struct vipx_system *sys)
 {
 	int ret;
@@ -134,11 +167,7 @@ p_err_clk_on:
 int vipx_system_runtime_suspend(struct vipx_system *sys)
 {
 	vipx_enter();
-	//TODO check this
-	//ret = sys->ctrl_ops->reset(sys);
-	//if (ret)
-	//	vipx_err("Failed to reset for power down (%d)\n", ret);
-
+	sys->ctrl_ops->reset(sys);
 	iovmm_deactivate(sys->dev);
 	sys->clk_ops->off(sys);
 	vipx_pm_close(&sys->pm);

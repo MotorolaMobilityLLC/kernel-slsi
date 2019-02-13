@@ -44,6 +44,8 @@ struct vipx_system {
 
 int vipx_system_fw_bootup(struct vipx_system *sys);
 
+int vipx_system_resume(struct vipx_system *sys);
+int vipx_system_suspend(struct vipx_system *sys);
 int vipx_system_runtime_resume(struct vipx_system *sys);
 int vipx_system_runtime_suspend(struct vipx_system *sys);
 

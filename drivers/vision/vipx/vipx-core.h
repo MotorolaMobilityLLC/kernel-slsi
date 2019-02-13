@@ -24,24 +24,15 @@
 struct vipx_device;
 struct vipx_core;
 
-struct vipx_core_refcount {
-	atomic_t			refcount;
-	struct vipx_core		*core;
-	int				(*first)(struct vipx_core *core);
-	int				(*final)(struct vipx_core *core);
-};
-
-struct vipx_dev {
+struct vipx_miscdev {
 	int                             minor;
 	char                            name[VIPX_DEV_NAME_LEN];
 	struct miscdevice               miscdev;
 };
 
 struct vipx_core {
-	struct vipx_dev			vdev;
+	struct vipx_miscdev		misc_vdev;
 	struct mutex			lock;
-	struct vipx_core_refcount	open_cnt;
-	struct vipx_core_refcount	start_cnt;
 	const struct vipx_ioctl_ops	*ioc_ops;
 	DECLARE_BITMAP(vctx_map, VIPX_MAX_CONTEXT);
 	struct list_head		vctx_list;

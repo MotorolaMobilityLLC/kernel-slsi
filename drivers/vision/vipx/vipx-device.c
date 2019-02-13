@@ -19,7 +19,7 @@
 #include "vipx-graph.h"
 #include "vipx-device.h"
 
-void __vipx_fault_handler(struct vipx_device *device)
+static void __vipx_fault_handler(struct vipx_device *vdev)
 {
 	vipx_enter();
 	vipx_leave();
@@ -29,44 +29,122 @@ static int __attribute__((unused)) vipx_fault_handler(
 		struct iommu_domain *domain, struct device *dev,
 		unsigned long fault_addr, int fault_flag, void *token)
 {
-	struct vipx_device *device;
+	struct vipx_device *vdev;
 
 	pr_err("< VIPX FAULT HANDLER >\n");
 	pr_err("Device virtual(0x%lX) is invalid access\n", fault_addr);
 
-	device = dev_get_drvdata(dev);
+	vdev = dev_get_drvdata(dev);
 	vipx_debug_dump_debug_regs();
 
-	__vipx_fault_handler(device);
+	__vipx_fault_handler(vdev);
 
 	return -EINVAL;
+}
+
+static int __vipx_device_start(struct vipx_device *vdev)
+{
+	int ret;
+
+	vipx_enter();
+	ret = vipx_system_start(&vdev->system);
+	if (ret)
+		goto p_err_system;
+
+	ret = vipx_debug_start(&vdev->debug);
+	if (ret)
+		goto p_err_debug;
+
+	vipx_leave();
+	return 0;
+p_err_debug:
+	vipx_system_stop(&vdev->system);
+p_err_system:
+	return ret;
+}
+
+static int __vipx_device_stop(struct vipx_device *vdev)
+{
+	vipx_enter();
+	vipx_debug_stop(&vdev->debug);
+	vipx_system_stop(&vdev->system);
+	vipx_leave();
+	return 0;
 }
 
 #if defined(CONFIG_PM_SLEEP)
 static int vipx_device_suspend(struct device *dev)
 {
+	int ret;
+	struct vipx_device *vdev;
+
 	vipx_enter();
+	vdev = dev_get_drvdata(dev);
+
+	mutex_lock(&vdev->open_lock);
+	if (!vdev->open_count) {
+		vipx_warn("device is already closed\n");
+		mutex_unlock(&vdev->open_lock);
+		return 0;
+	}
+
+	mutex_lock(&vdev->start_lock);
+	vdev->suspended = true;
+	if (vdev->start_count)
+		__vipx_device_stop(vdev);
+	mutex_unlock(&vdev->start_lock);
+
+	ret = vipx_system_suspend(&vdev->system);
+	if (ret)
+		goto p_err;
+
 	vipx_leave();
-	return 0;
+p_err:
+	mutex_unlock(&vdev->open_lock);
+	return ret;
 }
 
 static int vipx_device_resume(struct device *dev)
 {
+	int ret;
+	struct vipx_device *vdev;
+
 	vipx_enter();
+	vdev = dev_get_drvdata(dev);
+
+	mutex_lock(&vdev->open_lock);
+	if (!vdev->open_count) {
+		vipx_warn("device is already closed\n");
+		mutex_unlock(&vdev->open_lock);
+		return 0;
+	}
+
+	ret = vipx_system_resume(&vdev->system);
+	if (ret)
+		goto p_err;
+
+	mutex_lock(&vdev->start_lock);
+	vdev->suspended = false;
+	if (vdev->start_count)
+		__vipx_device_start(vdev);
+	mutex_unlock(&vdev->start_lock);
+
 	vipx_leave();
-	return 0;
+p_err:
+	mutex_unlock(&vdev->open_lock);
+	return ret;
 }
 #endif
 
 static int vipx_device_runtime_suspend(struct device *dev)
 {
 	int ret;
-	struct vipx_device *device;
+	struct vipx_device *vdev;
 
 	vipx_enter();
-	device = dev_get_drvdata(dev);
+	vdev = dev_get_drvdata(dev);
 
-	ret = vipx_system_runtime_suspend(&device->system);
+	ret = vipx_system_runtime_suspend(&vdev->system);
 	if (ret)
 		goto p_err;
 
@@ -78,12 +156,12 @@ p_err:
 static int vipx_device_runtime_resume(struct device *dev)
 {
 	int ret;
-	struct vipx_device *device;
+	struct vipx_device *vdev;
 
 	vipx_enter();
-	device = dev_get_drvdata(dev);
+	vdev = dev_get_drvdata(dev);
 
-	ret = vipx_system_runtime_resume(&device->system);
+	ret = vipx_system_runtime_resume(&vdev->system);
 	if (ret)
 		goto p_err;
 
@@ -102,66 +180,60 @@ static const struct dev_pm_ops vipx_pm_ops = {
 			NULL)
 };
 
-static int __vipx_device_start(struct vipx_device *device)
+int vipx_device_start(struct vipx_device *vdev)
 {
 	int ret;
 
 	vipx_enter();
-	if (!test_bit(VIPX_DEVICE_STATE_OPEN, &device->state)) {
-		ret = -EINVAL;
-		vipx_err("device was not opend yet (%lx)\n", device->state);
-		goto p_err_state;
+	mutex_lock(&vdev->start_lock);
+	if (vdev->suspended) {
+		ret = -ENOSTR;
+		vipx_err("Failed to start device as it was suspended(%d)\n",
+				ret);
+		goto p_err;
 	}
 
-	if (test_bit(VIPX_DEVICE_STATE_START, &device->state))
+	if (vdev->start_count) {
+		vdev->start_count++;
+		mutex_unlock(&vdev->start_lock);
 		return 0;
+	}
 
-	ret = vipx_system_start(&device->system);
+	ret = __vipx_device_start(vdev);
 	if (ret)
-		goto p_err_system;
+		goto p_err;
 
-	ret = vipx_debug_start(&device->debug);
-	if (ret)
-		goto p_err_debug;
-
-	set_bit(VIPX_DEVICE_STATE_START, &device->state);
-
+	vdev->start_count = 1;
 	vipx_leave();
-	return 0;
-p_err_debug:
-	vipx_system_stop(&device->system);
-p_err_system:
-p_err_state:
+p_err:
+	mutex_unlock(&vdev->start_lock);
 	return ret;
 }
 
-static int __vipx_device_stop(struct vipx_device *device)
+int vipx_device_stop(struct vipx_device *vdev)
 {
 	vipx_enter();
-	if (!test_bit(VIPX_DEVICE_STATE_START, &device->state))
-		return 0;
-
-	vipx_debug_stop(&device->debug);
-	vipx_system_stop(&device->system);
-	clear_bit(VIPX_DEVICE_STATE_START, &device->state);
-
+	mutex_lock(&vdev->start_lock);
+	if (!(--vdev->start_count) && !vdev->suspended)
+		__vipx_device_stop(vdev);
+	mutex_unlock(&vdev->start_lock);
 	vipx_leave();
 	return 0;
 }
 
-static int __vipx_device_power_on(struct vipx_device *device)
+static int __vipx_device_power_on(struct vipx_device *vdev)
 {
 	int ret;
 
 	vipx_enter();
 #if defined(CONFIG_PM)
-	ret = pm_runtime_get_sync(device->dev);
+	ret = pm_runtime_get_sync(vdev->dev);
 	if (ret) {
 		vipx_err("Failed to get pm_runtime sync (%d)\n", ret);
 		goto p_err;
 	}
 #else
-	ret = vipx_device_runtime_resume(device->dev);
+	ret = vipx_device_runtime_resume(vdev->dev);
 	if (ret)
 		goto p_err;
 #endif
@@ -171,19 +243,19 @@ p_err:
 	return ret;
 }
 
-static int __vipx_device_power_off(struct vipx_device *device)
+static int __vipx_device_power_off(struct vipx_device *vdev)
 {
 	int ret;
 
 	vipx_enter();
 #if defined(CONFIG_PM)
-	ret = pm_runtime_put_sync(device->dev);
+	ret = pm_runtime_put_sync(vdev->dev);
 	if (ret) {
 		vipx_err("Failed to put pm_runtime sync (%d)\n", ret);
 		goto p_err;
 	}
 #else
-	ret = vipx_device_runtime_suspend(device->dev);
+	ret = vipx_device_runtime_suspend(vdev->dev);
 	if (ret)
 		goto p_err;
 #endif
@@ -193,94 +265,79 @@ p_err:
 	return ret;
 }
 
-int vipx_device_start(struct vipx_device *device)
+int vipx_device_open(struct vipx_device *vdev)
 {
 	int ret;
 
 	vipx_enter();
-	ret = __vipx_device_start(device);
-	if (ret)
-		goto p_err;
-
-	vipx_leave();
-p_err:
-	return ret;
-}
-
-int vipx_device_stop(struct vipx_device *device)
-{
-	int ret;
-
-	vipx_enter();
-	ret = __vipx_device_stop(device);
-	if (ret)
-		goto p_err;
-
-	vipx_leave();
-p_err:
-	return ret;
-}
-
-int vipx_device_open(struct vipx_device *device)
-{
-	int ret;
-
-	vipx_enter();
-	if (test_bit(VIPX_DEVICE_STATE_OPEN, &device->state)) {
-		ret = -EINVAL;
-		vipx_warn("device was already opened\n");
-		goto p_err_state;
+	mutex_lock(&vdev->open_lock);
+	if (vdev->open_count) {
+		vdev->open_count++;
+		mutex_unlock(&vdev->open_lock);
+		return 0;
 	}
 
-	ret = vipx_system_open(&device->system);
+	ret = vipx_system_open(&vdev->system);
 	if (ret)
 		goto p_err_system;
 
-	ret = vipx_debug_open(&device->debug);
+	ret = vipx_debug_open(&vdev->debug);
 	if (ret)
 		goto p_err_debug;
 
-	ret = __vipx_device_power_on(device);
+	ret = __vipx_device_power_on(vdev);
 	if (ret)
 		goto p_err_power;
 
-	ret = vipx_system_fw_bootup(&device->system);
+	ret = vipx_system_fw_bootup(&vdev->system);
 	if (ret)
 		goto p_err_boot;
 
-	set_bit(VIPX_DEVICE_STATE_OPEN, &device->state);
+	vdev->open_count = 1;
+	mutex_lock(&vdev->start_lock);
+	vdev->start_count = 0;
+	vdev->suspended = false;
+	mutex_unlock(&vdev->start_lock);
+	mutex_unlock(&vdev->open_lock);
 
 	vipx_leave();
 	return 0;
 p_err_boot:
-	__vipx_device_power_off(device);
+	__vipx_device_power_off(vdev);
 p_err_power:
-	vipx_debug_close(&device->debug);
+	vipx_debug_close(&vdev->debug);
 p_err_debug:
-	vipx_system_close(&device->system);
+	vipx_system_close(&vdev->system);
 p_err_system:
-p_err_state:
+	mutex_unlock(&vdev->open_lock);
 	return ret;
 }
 
-int vipx_device_close(struct vipx_device *device)
+int vipx_device_close(struct vipx_device *vdev)
 {
 	vipx_enter();
-	if (!test_bit(VIPX_DEVICE_STATE_OPEN, &device->state)) {
+	mutex_lock(&vdev->open_lock);
+	if (!vdev->open_count) {
 		vipx_warn("device is already closed\n");
-		goto p_err;
+		goto p_end;
 	}
 
-	if (test_bit(VIPX_DEVICE_STATE_START, &device->state))
-		__vipx_device_stop(device);
+	if (!(--vdev->open_count)) {
+		mutex_lock(&vdev->start_lock);
+		if (vdev->start_count) {
+			__vipx_device_stop(vdev);
+			vdev->start_count = 0;
+		}
+		mutex_unlock(&vdev->start_lock);
 
-	__vipx_device_power_off(device);
-	vipx_debug_close(&device->debug);
-	vipx_system_close(&device->system);
-	clear_bit(VIPX_DEVICE_STATE_OPEN, &device->state);
+		__vipx_device_power_off(vdev);
+		vipx_debug_close(&vdev->debug);
+		vipx_system_close(&vdev->system);
+	}
 
 	vipx_leave();
-p_err:
+p_end:
+	mutex_unlock(&vdev->open_lock);
 	return 0;
 }
 
@@ -288,31 +345,36 @@ static int vipx_device_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *dev;
-	struct vipx_device *device;
+	struct vipx_device *vdev;
 
 	vipx_enter();
 	dev = &pdev->dev;
 
-	device = devm_kzalloc(dev, sizeof(*device), GFP_KERNEL);
-	if (!device) {
+	vdev = devm_kzalloc(dev, sizeof(*vdev), GFP_KERNEL);
+	if (!vdev) {
 		ret = -ENOMEM;
 		vipx_err("Fail to alloc device structure\n");
 		goto p_err_alloc;
 	}
 
 	get_device(dev);
-	device->dev = dev;
-	dev_set_drvdata(dev, device);
+	vdev->dev = dev;
+	dev_set_drvdata(dev, vdev);
 
-	ret = vipx_system_probe(device);
+	mutex_init(&vdev->open_lock);
+	vdev->open_count = 0;
+	mutex_init(&vdev->start_lock);
+	vdev->start_count = 0;
+
+	ret = vipx_system_probe(vdev);
 	if (ret)
 		goto p_err_system;
 
-	ret = vipx_core_probe(device);
+	ret = vipx_core_probe(vdev);
 	if (ret)
 		goto p_err_core;
 
-	ret = vipx_debug_probe(device);
+	ret = vipx_debug_probe(vdev);
 	if (ret)
 		goto p_err_debug;
 
@@ -322,11 +384,11 @@ static int vipx_device_probe(struct platform_device *pdev)
 	vipx_info("vipx device is initilized\n");
 	return 0;
 p_err_debug:
-	vipx_core_remove(&device->core);
+	vipx_core_remove(&vdev->core);
 p_err_core:
-	vipx_system_remove(&device->system);
+	vipx_system_remove(&vdev->system);
 p_err_system:
-	devm_kfree(dev, device);
+	devm_kfree(dev, vdev);
 p_err_alloc:
 	vipx_err("vipx device is not registered (%d)\n", ret);
 	return ret;
@@ -334,25 +396,25 @@ p_err_alloc:
 
 static int vipx_device_remove(struct platform_device *pdev)
 {
-	struct vipx_device *device;
+	struct vipx_device *vdev;
 
 	vipx_enter();
-	device = dev_get_drvdata(&pdev->dev);
+	vdev = dev_get_drvdata(&pdev->dev);
 
-	vipx_debug_remove(&device->debug);
-	vipx_core_remove(&device->core);
-	vipx_system_remove(&device->system);
-	devm_kfree(device->dev, device);
+	vipx_debug_remove(&vdev->debug);
+	vipx_core_remove(&vdev->core);
+	vipx_system_remove(&vdev->system);
+	devm_kfree(vdev->dev, vdev);
 	vipx_leave();
 	return 0;
 }
 
 static void vipx_device_shutdown(struct platform_device *pdev)
 {
-	struct vipx_device *device;
+	struct vipx_device *vdev;
 
 	vipx_enter();
-	device = dev_get_drvdata(&pdev->dev);
+	vdev = dev_get_drvdata(&pdev->dev);
 	vipx_leave();
 }
 
