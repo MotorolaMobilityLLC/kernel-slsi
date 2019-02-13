@@ -51,6 +51,7 @@ struct vipx_mailbox_ctrl {
 	struct vipx_d2h_message		d2h_urgent_data[MAX_URGENT_MSG_COUNT];
 };
 
+void vipx_mailbox_dump(struct vipx_mailbox_ctrl *mctrl);
 int vipx_mailbox_check_full(struct vipx_mailbox_ctrl *mctrl, unsigned int type,
 		int wait);
 int vipx_mailbox_write(struct vipx_mailbox_ctrl *mctrl, unsigned int type,

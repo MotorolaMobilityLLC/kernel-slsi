@@ -197,6 +197,7 @@ static int __vipx_interface_send_mailbox(struct vipx_interface *itf,
 	ret = vipx_mailbox_check_full(mctrl, type, MAILBOX_WAIT);
 	if (ret) {
 		vipx_err("mailbox is full(%lu/%u)\n", type, itask->id);
+		vipx_mailbox_dump(mctrl);
 		goto p_err_process;
 	}
 
@@ -222,6 +223,8 @@ static int __vipx_interface_send_mailbox(struct vipx_interface *itf,
 	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
 
 	ret = __vipx_interface_wait_mailbox_reply(itf, itask);
+	if (ret)
+		vipx_mailbox_dump(mctrl);
 
 	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
 	vipx_task_trans_pro_to_com(itaskmgr, itask);

@@ -311,6 +311,7 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
+	vipx_err("Failed to load kernel binary(%d)\n", ret);
 	/* return value is included in args->ret */
 	return 0;
 }
@@ -340,6 +341,7 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
+	vipx_err("Failed to unload kernel binary(%d)\n", ret);
 	/* return value is included in args->ret */
 	return 0;
 }
@@ -368,6 +370,7 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
+	vipx_err("Failed to load graph(%d)\n", ret);
 	/* return value is included in args->ret */
 	return 0;
 }
@@ -396,6 +399,7 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
+	vipx_err("Failed to unload graph(%d)\n", ret);
 	/* return value is included in args->ret */
 	return 0;
 }
@@ -424,6 +428,7 @@ p_err_vops:
 	mutex_unlock(&vctx->lock);
 p_err_lock:
 	args->ret = ret;
+	vipx_err("Failed to execute submodel(%d)\n", ret);
 	/* return value is included in args->ret */
 	return 0;
 }
@@ -486,7 +491,8 @@ static int vipx_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&core->lock);
 
-	vipx_info("The vipx has been successfully opened\n");
+	vipx_info("The vipx has been successfully opened(count:%d)\n",
+			vdev->open_count);
 
 	vipx_leave();
 	return 0;
@@ -495,7 +501,8 @@ p_err_vctx:
 	vipx_device_close(vdev);
 p_err_device:
 	mutex_unlock(&core->lock);
-	vipx_err("Failed to open the vipx [%d]\n", ret);
+	vipx_err("Failed to open the vipx(count:%d)(%d)\n",
+			vdev->open_count, ret);
 p_err_lock:
 	return ret;
 }
@@ -521,7 +528,8 @@ static int vipx_release(struct inode *inode, struct file *file)
 	vipx_device_close(core->device);
 
 	mutex_unlock(&core->lock);
-	vipx_info("The vipx has been closed\n");
+	vipx_info("The vipx has been closed(count:%d)\n",
+			core->device->open_count);
 	vipx_leave();
 	return 0;
 }

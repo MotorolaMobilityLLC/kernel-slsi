@@ -14,6 +14,74 @@
 #include "vipx-io.h"
 #include "vipx-mailbox.h"
 
+static inline int __vipx_mailbox_is_empty(struct vipx_mailbox_head *head)
+{
+	vipx_check();
+	return head->wmsg_idx == head->rmsg_idx;
+}
+
+static void __vipx_mailbox_dump(struct vipx_mailbox_head *head, void *data)
+{
+	int idx;
+
+	vipx_enter();
+	vipx_info("mailbox haed (%u,%u,%u,%u)\n",
+			head->rmsg_idx, head->wmsg_idx,
+			head->mbox_size, head->elem_size);
+
+	for (idx = 0; idx < head->mbox_size; ++idx) {
+		vipx_info("mailbox data (%d/%u)\n", idx, head->mbox_size - 1);
+		print_hex_dump(KERN_INFO, "[VIPx]:", DUMP_PREFIX_OFFSET, 32, 4,
+				data + (idx * head->elem_size),
+				head->elem_size, false);
+	}
+	vipx_leave();
+}
+
+void vipx_mailbox_dump(struct vipx_mailbox_ctrl *mctrl)
+{
+	int ret;
+
+	vipx_enter();
+	ret = __vipx_mailbox_is_empty(&mctrl->h2d_normal_head);
+	if (ret) {
+		vipx_info("h2d normal mailbox is empty\n");
+	} else {
+		vipx_info("h2d normal mailbox dump\n");
+		__vipx_mailbox_dump(&mctrl->h2d_normal_head,
+				mctrl->h2d_normal_data);
+	}
+
+	ret = __vipx_mailbox_is_empty(&mctrl->h2d_urgent_head);
+	if (ret) {
+		vipx_info("h2d urgent mailbox is empty\n");
+	} else {
+		vipx_info("h2d urgent mailbox dump\n");
+		__vipx_mailbox_dump(&mctrl->h2d_urgent_head,
+				&mctrl->h2d_urgent_data);
+	}
+
+	ret = __vipx_mailbox_is_empty(&mctrl->d2h_normal_head);
+	if (ret) {
+		vipx_info("d2h normal mailbox is empty\n");
+	} else {
+		vipx_info("d2h normal mailbox dump\n");
+		__vipx_mailbox_dump(&mctrl->d2h_normal_head,
+				&mctrl->d2h_normal_data);
+	}
+
+	ret = __vipx_mailbox_is_empty(&mctrl->d2h_urgent_head);
+	if (ret) {
+		vipx_info("d2h urgent mailbox is empty\n");
+	} else {
+		vipx_info("d2h urgent mailbox dump\n");
+		__vipx_mailbox_dump(&mctrl->d2h_urgent_head,
+				&mctrl->d2h_urgent_data);
+	}
+
+	vipx_leave();
+}
+
 static ssize_t __vipx_mailbox_get_remain_size(struct vipx_mailbox_head *head)
 {
 	unsigned int rmsg_idx, wmsg_idx, mbox_size;
@@ -159,12 +227,6 @@ int vipx_mailbox_write(struct vipx_mailbox_ctrl *mctrl, unsigned int type,
 	return 0;
 p_err:
 	return ret;
-}
-
-static inline int __vipx_mailbox_is_empty(struct vipx_mailbox_head *head)
-{
-	vipx_check();
-	return head->wmsg_idx == head->rmsg_idx;
 }
 
 int vipx_mailbox_check_reply(struct vipx_mailbox_ctrl *mctrl, unsigned int type,
