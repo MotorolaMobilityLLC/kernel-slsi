@@ -2048,7 +2048,7 @@ config DEBUG_SNAPSHOT_PMU
 
 config DEBUG_SNAPSHOT_FREQ
 	bool "Enable debugging of frequence event by kevent(EXPERIMENTAL)"
-	depends on DEBUG_SNAPSHOT && PM_DEVFREQ && !DEBUG_SNAPSHOT_MINIMIZED_MODE
+	depends on DEBUG_SNAPSHOT && PM_DEVFREQ
 	default y
 
 config DEBUG_SNAPSHOT_DM
