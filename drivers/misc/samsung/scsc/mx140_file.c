@@ -52,8 +52,6 @@
 
 #define MX140_FW_VARIANT_DEFAULT        "mx140"
 
-#define MX140_FW_MAC_FILE_SIZE          (24)
-
 /* Table of suffixes to append to f/w name */
 struct fw_suffix {
 	char suffix[6];
@@ -467,89 +465,6 @@ int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **f
 
 }
 EXPORT_SYMBOL(mx140_request_file);
-
-int mx140_request_proc_file(struct scsc_mx *mx, char *path, const struct firmware **firmp)
-{
-	struct file *f;
-	mm_segment_t fs;
-	struct kstat stat;
-	int r;
-	struct firmware *firm;
-	char *buf;
-
-	SCSC_TAG_DEBUG(MX_FILE, "request proc %s\n", path);
-
-	*firmp = NULL;
-
-	/* Current segment. */
-	fs = get_fs();
-	/* Set to kernel segment. */
-	set_fs(get_ds());
-
-	/* Check f/w bin */
-	r = vfs_stat(path, &stat);
-	if (r != 0) {
-		set_fs(fs);
-		SCSC_TAG_ERR(MX_FILE, "vfs_stat() failed for %s\n", path);
-		return -ENOENT;
-	}
-	/* Revert to original segment. */
-	set_fs(fs);
-
-	/* Get memory for file contents. */
-	buf = vzalloc(MX140_FW_MAC_FILE_SIZE);
-	if (!buf) {
-		SCSC_TAG_ERR(MX_FILE, "kzalloc(%d) failed for %s\n", MX140_FW_MAC_FILE_SIZE, path);
-		return -ENOMEM;
-	}
-
-	/* Get firmware structure. */
-	firm = kzalloc(sizeof(*firm), GFP_KERNEL);
-	if (!firm) {
-		vfree(buf);
-		SCSC_TAG_ERR(MX_FILE, "kzalloc(%zu) failed for %s\n", sizeof(*firmp), path);
-		return -ENOMEM;
-	}
-
-	/* Open the file for reading. */
-	f = filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(f)) {
-		vfree(buf);
-		kfree(firm);
-		SCSC_TAG_ERR(MX_FILE, "filp_open() failed for %s with %ld\n", path, PTR_ERR(f));
-		return -ENOENT;
-	}
-
-	fs = get_fs();
-	set_fs(get_ds());
-
-	r = vfs_read(f, buf, MX140_FW_MAC_FILE_SIZE, &f->f_pos);
-	if (r < 0) {
-		SCSC_TAG_ERR(MX_FILE, "error reading %s\n", path);
-	}
-
-	set_fs(fs);
-	filp_close(f, NULL);
-
-	if (r >= 0) {
-		r = 0;
-		/* Pass to caller. Caller will free allocated memory through
-		 * mx140_release_file().
-		 */
-		firm->size = MX140_FW_MAC_FILE_SIZE;
-		firm->data = buf;
-		*firmp = firm;
-	} else {
-		vfree(buf);
-		kfree(firm);
-	}
-	if (r < 0)
-		return -ENOENT;
-	else
-		return r;
-}
-EXPORT_SYMBOL(mx140_request_proc_file);
-
 
 int mx140_release_file(struct scsc_mx *mx, const struct firmware *firmp)
 {
