@@ -158,8 +158,6 @@
 #define SLSI_RX_SEQ_NUM_MASK        0xFFF
 #define SLSI_RX_VIA_TDLS_LINK       0x8000
 
-#define SLSI_WIFI_ADDR      "/proc/config/wifi_mac/ascii"
-
 #define SET_ETHERTYPE_PATTERN_DESC(pd, ethertype) \
 	pd.offset  = 0x0C; \
 	pd.mask_length = 2; \
