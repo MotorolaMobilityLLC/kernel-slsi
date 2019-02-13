@@ -1125,6 +1125,7 @@ static int __mfc_register_resource(struct platform_device *pdev, struct mfc_dev 
 	struct device_node *iommu;
 	struct device_node *hwfc;
 	struct device_node *mmcache;
+	struct device_node *cmu = NULL;
 	struct resource *res;
 	int ret;
 
@@ -1187,6 +1188,36 @@ static int __mfc_register_resource(struct platform_device *pdev, struct mfc_dev 
 		} else {
 			dev->has_mmcache = 1;
 		}
+
+		cmu = of_get_child_by_name(np, "cmu");
+		if (cmu) {
+			dev->cmu_busc_base = of_iomap(cmu, 0);
+			if (dev->cmu_busc_base == NULL) {
+				dev_err(&pdev->dev, "failed to iomap busc address region\n");
+				goto err_ioremap_cmu_busc;
+			}
+			dev->cmu_mif0_base = of_iomap(cmu, 1);
+			if (dev->cmu_mif0_base == NULL) {
+				dev_err(&pdev->dev, "failed to iomap mif0 address region\n");
+				goto err_ioremap_cmu_mif0;
+			}
+			dev->cmu_mif1_base = of_iomap(cmu, 2);
+			if (dev->cmu_mif1_base == NULL) {
+				dev_err(&pdev->dev, "failed to iomap mif1 address region\n");
+				goto err_ioremap_cmu_mif1;
+			}
+			dev->cmu_mif2_base = of_iomap(cmu, 3);
+			if (dev->cmu_mif2_base == NULL) {
+				dev_err(&pdev->dev, "failed to iomap mif2 address region\n");
+				goto err_ioremap_cmu_mif2;
+			}
+			dev->cmu_mif3_base = of_iomap(cmu, 4);
+			if (dev->cmu_mif3_base == NULL) {
+				dev_err(&pdev->dev, "failed to iomap mif3 address region\n");
+				goto err_ioremap_cmu_mif3;
+			}
+			dev->has_cmu = 1;
+		}
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -1205,6 +1236,21 @@ static int __mfc_register_resource(struct platform_device *pdev, struct mfc_dev 
 	return 0;
 
 err_res_irq:
+	if (cmu)
+		iounmap(dev->cmu_mif3_base);
+err_ioremap_cmu_mif3:
+	if (cmu)
+		iounmap(dev->cmu_mif2_base);
+err_ioremap_cmu_mif2:
+	if (cmu)
+		iounmap(dev->cmu_mif1_base);
+err_ioremap_cmu_mif1:
+	if (cmu)
+		iounmap(dev->cmu_mif0_base);
+err_ioremap_cmu_mif0:
+	if (cmu)
+		iounmap(dev->cmu_busc_base);
+err_ioremap_cmu_busc:
 	if (dev->has_mmcache)
 		iounmap(dev->mmcache.base);
 err_ioremap_mmcache:
