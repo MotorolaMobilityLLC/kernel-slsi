@@ -1,0 +1,49 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	fragment@battery {
+		__overlay__ {
+			battery {
+
+				battery,max_input_current = <2000>;
+				battery,max_charging_current = <2000>;
+
+				/* Order of current setting must be same with
+				* POWER_SUPPLY_TYPE_ of power_supply.h
+				*/
+				battery,input_current_limit =
+					<500 450 500 2000 500 1500 1500 1000 1500 1500
+					1000 500 500 2000 1200 500 450>;
+				battery,fast_charging_current =
+					<500 450 500 2000 500 1500 1500 1000 1500 1800
+					1000 500 500 2000 2000 500 450>;
+				battery,full_check_current =
+					<175 0 175 175 175 175 175 175 175 175
+					175 175 175 175 175 175 0>;
+
+				/*moto begin*/
+				moto,fastchg-current-ma = <2000>;
+				moto,chg-thermal-mitigation = <2000>, <1600>,<1400>, <1300>,
+								<1000>,<700>, <600>;
+				/delete-property/ moto,dc-thermal-mitigation;
+				moto,parallel-charge-current-map = <2000 2000 0>,
+								<1600 1600 0>,
+								<1400 1400 0>,
+								<1300 1300 0>,
+								<1000 1000 0>,
+								<700 700 0>,
+								<600 600 0>;
+
+			};
+		};
+	};
+};

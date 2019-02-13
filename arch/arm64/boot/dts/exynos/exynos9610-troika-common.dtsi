@@ -12,5 +12,5 @@
 
 
 #include "exynos9609-robusta2_common.dtsi"
-
+#include "exynos9610_troika_battery_data.dtsi"
 
