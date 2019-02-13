@@ -2076,7 +2076,7 @@ struct ddk_setfile_ver
 	uint32_t	header1; // 0xF85A20B4
 	uint32_t	header2; // 0xCA539ADF
 	char		ddk_version[128];
-	char		serfile_version[128];
+	char		setfile_version[128];
 };
 
 struct camera2_shot_ext_user {
