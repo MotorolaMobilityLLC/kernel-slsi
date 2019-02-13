@@ -1008,6 +1008,13 @@ int fimc_is_sensor_dm_tag(struct fimc_is_device_sensor *device,
 #ifdef DBG_JITTER
 		fimc_is_jitter(frame->shot->dm.sensor.timeStamp);
 #endif
+		strncpy(frame->shot_ext->user.ddk_version.ddk_version,
+			fimc_is_ischain_get_version(FIMC_IS_BIN_DDK_LIBRARY), 60);
+		strncpy(frame->shot_ext->user.ddk_version.setfile_version,
+			fimc_is_ischain_get_version(FIMC_IS_BIN_SETFILE), 60);
+
+		frame->shot_ext->user.ddk_version.header1 = 0xF85A20B4;
+		frame->shot_ext->user.ddk_version.header2 = 0xCA539ADF;
 	}
 
 	ret = v4l2_subdev_call(device->subdev_module, core, ioctl,
