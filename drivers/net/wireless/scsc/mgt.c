@@ -52,6 +52,14 @@ static char *mib_file2_t = "wlan_t_sw.hcf";
 module_param(mib_file2_t, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mib_file2_t, "mib data filename");
 
+/* MAC address override. If set to FF's, then
+ * the address is taken from config files or
+ * default derived from HW ID.
+ */
+static char mac_addr_override[] = "ff:ff:ff:ff:ff:ff";
+module_param_string(mac_addr, mac_addr_override, sizeof(mac_addr_override), S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(mac_addr_override, "WLAN MAC address override");
+
 static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *mib_info, const struct firmware **fw);
 static int slsi_mib_close_file(struct slsi_dev *sdev, const struct firmware *e);
 static int slsi_mib_download_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *mib_info);
