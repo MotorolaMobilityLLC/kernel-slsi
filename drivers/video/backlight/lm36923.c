@@ -256,6 +256,16 @@ static int lm36923_resume(struct lm36923_data *dev_data)
 	    pr_err("%s: kzalloc error\n",__func__);
 	    return -ENOMEM;
     }
+	if(mutex_trylock(&dev_data->lock)==0){
+		pr_err("%s: lm36923 dev is busy\n",__func__);
+		goto exit;
+	}
+	ret = backlight_i2c_write(dev_data, LM_PWMCTL_REG, 0xEE);
+	if(ret < 0) {
+		pr_err("%s: write new value[0xEE] to reg[0x%x] error\n", __func__, LM_PWMCTL_REG);
+	}
+	mutex_unlock(&dev_data->lock);
+
     pr_info("%s:now write mode to %d\n",__func__,dev_data->mode);
     if(1 == dev_data->mode){
 	        if(mutex_trylock(&dev_data->lock)==0){
@@ -392,6 +402,10 @@ static int lm36923_probe(struct i2c_client *client,
         ret = backlight_i2c_write(lm,lm_nr_data[1][0],lm_nr_data[1][1]); //write MSB
         if(ret < 0){
             pr_err("%s:NR mode:write lm chip MSB error\n",__func__);
+        }
+        ret = backlight_i2c_write(lm, LM_PWMCTL_REG, 0xEE);
+		if(ret < 0) {
+            pr_err("%s: write new value[0xEE] to reg[0x%x] error\n", __func__, LM_PWMCTL_REG);
         }
         mutex_unlock(&lm->lock);
     }
