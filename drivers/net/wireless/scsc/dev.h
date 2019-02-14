@@ -551,11 +551,13 @@ struct slsi_vif_unsync {
 	struct delayed_work roc_expiry_work;   /* Work on ROC duration expiry */
 	struct delayed_work del_vif_work;      /* Work on unsync vif retention timeout */
 	struct delayed_work hs2_del_vif_work;  /* Work on HS2 unsync vif retention timeout */
+	struct delayed_work unset_channel_expiry_work;  /*unset channel after a timer */
 	u64                 roc_cookie;        /* Cookie id for ROC */
 	u8                  *probe_rsp_ies;    /* Probe response IEs to be configured in firmware */
 	size_t              probe_rsp_ies_len; /* Probe response IE length */
 	bool                ies_changed;       /* To indicate if Probe Response IEs have changed from that previously stored */
 	bool                listen_offload;    /* To indicate if Listen Offload is started */
+	bool                slsi_p2p_continuous_fullscan;
 };
 
 struct slsi_last_disconnected_sta {
