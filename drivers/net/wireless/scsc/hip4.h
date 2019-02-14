@@ -349,6 +349,8 @@ struct hip4_priv {
 	u16                          mib_sz;
 	/* Mutex to protect hcf file collection if a tear down is triggered */
 	struct mutex                 in_collection;
+
+	struct workqueue_struct *hip4_workq;
 };
 
 struct scsc_service;
