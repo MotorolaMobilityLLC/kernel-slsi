@@ -2321,6 +2321,12 @@ exit:
 	return retval;
 }
 
+static ssize_t himax_sysfs_ic_ver_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "[FW]%04x,[IC]%s\n", ic_data->vendor_config_ver, himax_ic_type_to_string());
+}
+
 static struct device_attribute attrs[] = {
 	__ATTR(poweron, S_IRUSR | S_IRGRP,
 			himax_sysfs_poweron_show,
@@ -2340,6 +2346,9 @@ static struct device_attribute attrs[] = {
 	__ATTR(forcereflash, S_IWUSR | S_IWGRP,
 			NULL,
 			himax_sysfs_force_reflash_store),
+	__ATTR(ic_ver, S_IRUGO,
+			himax_sysfs_ic_ver_show,
+			NULL),
 };
 
 #include <linux/major.h>
