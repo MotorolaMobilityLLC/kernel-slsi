@@ -29,6 +29,10 @@
 
 #include "debug.h"
 
+static bool hip4_system_wq;
+module_param(hip4_system_wq, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(hip4_system_wq, "Use system wq instead of named workqueue. (default: N)");
+
 #ifdef CONFIG_SCSC_LOGRING
 static bool hip4_dynamic_logging = true;
 module_param(hip4_dynamic_logging, bool, S_IRUGO | S_IWUSR);
@@ -1146,7 +1150,10 @@ static void hip4_irq_handler_fb(int irq, void *data)
 	set_bit(HIP4_MIF_Q_FH_RFB, hip->hip_priv->irq_bitmap);
 
 	scsc_service_mifintrbit_bit_mask(sdev->service, irq);
-	schedule_work(&hip->hip_priv->intr_wq_fb);
+	if (hip4_system_wq)
+		schedule_work(&hip->hip_priv->intr_wq_fb);
+	else
+		queue_work(hip->hip_priv->hip4_workq, &hip->hip_priv->intr_wq_fb);
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(sdev->service, irq);
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 2);
@@ -1320,7 +1327,10 @@ static void hip4_irq_handler_ctrl(int irq, void *data)
 
 	scsc_service_mifintrbit_bit_mask(sdev->service, irq);
 
-	schedule_work(&hip->hip_priv->intr_wq_ctrl);
+	if (hip4_system_wq)
+		schedule_work(&hip->hip_priv->intr_wq_ctrl);
+	else
+		queue_work(hip->hip_priv->hip4_workq, &hip->hip_priv->intr_wq_ctrl);
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(sdev->service, irq);
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 1);
@@ -2014,7 +2024,11 @@ static void hip4_irq_handler(int irq, void *data)
 	}
 
 	atomic_inc(&hip->hip_priv->stats.irqs);
-	schedule_work(&hip->hip_priv->intr_wq);
+
+	if (hip4_system_wq)
+		schedule_work(&hip->hip_priv->intr_wq);
+	else
+		queue_work(hip->hip_priv->hip4_workq, &hip->hip_priv->intr_wq);
 end:
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(sdev->service, hip->hip_priv->intr_tohost);
@@ -2341,6 +2355,11 @@ int hip4_init(struct slsi_hip4 *hip)
 	atomic_set(&hip->hip_priv->in_tx, 0);
 
 	/* Init work structs */
+	hip->hip_priv->hip4_workq = create_singlethread_workqueue("hip4_work");
+	if (!hip->hip_priv->hip4_workq) {
+		SLSI_ERR_NODEV("Error creating singlethread_workqueue\n");
+		return -ENOMEM;
+	}
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 	tasklet_init(&hip->hip_priv->intr_tasklet, hip4_irq_data_tasklet, (unsigned long)hip);
 	INIT_WORK(&hip->hip_priv->intr_wq_ctrl, hip4_wq_ctrl);
@@ -2733,6 +2752,8 @@ void hip4_freeze(struct slsi_hip4 *hip)
 	scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
 	cancel_work_sync(&hip->hip_priv->intr_wq);
 #endif
+	flush_workqueue(hip->hip_priv->hip4_workq);
+	destroy_workqueue(hip->hip_priv->hip4_workq);
 	atomic_set(&hip->hip_priv->rx_ready, 0);
 	atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
 
@@ -2802,6 +2823,9 @@ void hip4_deinit(struct slsi_hip4 *hip)
 	scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
 	cancel_work_sync(&hip->hip_priv->intr_wq);
 	scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost);
+
+	flush_workqueue(hip->hip_priv->hip4_workq);
+	destroy_workqueue(hip->hip_priv->hip4_workq);
 
 	scsc_service_mifintrbit_free_fromhost(service, hip->hip_priv->intr_fromhost, SCSC_MIFINTR_TARGET_R4);
 
