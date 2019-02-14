@@ -810,8 +810,10 @@ static int arch_timer_starting_cpu(unsigned int cpu)
 	 * it doesn't need to setup clockevent configuration.
 	 * this is only for exynos soc
 	 */
-	if (arch_timer_use_clocksource_only)
+	if (arch_timer_use_clocksource_only) {
+		arch_timer_check_ool_workaround(ate_match_local_cap_id, NULL);
 		goto skip_clockevent_setup;
+	}
 
 	__arch_timer_setup(ARCH_TIMER_TYPE_CP15, clk);
 
