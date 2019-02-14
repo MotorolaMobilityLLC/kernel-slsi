@@ -40,17 +40,29 @@ static void s2mu106_test_read(struct i2c_client *i2c)
 	char str[1016] = {0,};
 	int i;
 
-	for (i = 0x0A; i <= 0x24; i++) {
+	for (i = 0x08; i <= 0x24; i++) {
 		s2mu106_read_reg(i2c, i, &data);
 
 		sprintf(str+strlen(str), "0x%02x:0x%02x, ", i, data);
 	}
+	s2mu106_read_reg(i2c, 0x2F, &data);
+	sprintf(str+strlen(str), "0x2F:0x%02x, ", data);
 
 	s2mu106_read_reg(i2c, 0x33, &data);
 	sprintf(str+strlen(str), "0x33:0x%02x, ", data);
 
+	s2mu106_read_reg(i2c, 0x35, &data);
+	sprintf(str+strlen(str), "0x35:0x%02x, ", data);
+
+	s2mu106_read_reg(i2c, 0x71, &data);
+	sprintf(str+strlen(str), "0x71:0x%02x, ", data);
+
 	s2mu106_read_reg(i2c, 0x7A, &data);
-	pr_err("%s: %s0x7A:0x%02x\n", __func__, str, data);
+	sprintf(str+strlen(str), "0x7A:0x%02x, ", data);
+
+	s2mu106_read_reg(i2c, 0x8B, &data);
+	pr_err("%s: %s0x8B:0x%02x\n", __func__, str, data);
+
 }
 
 static int s2mu106_charger_otg_control(
@@ -772,8 +784,18 @@ static irqreturn_t s2mu106_event_isr(int irq, void *data)
 	u8 val;
 	u8 fault;
 	int ret = 0;
+	u8 sts0, sts1, sts2, sts3, sts5;
 
-	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS0, &val);
+	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS0, &sts0);
+	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS1, &sts1);
+	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS2, &sts2);
+	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS3, &sts3);
+	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS5, &sts5);
+
+	pr_info("[IRQ] %s, STATUS0:0x%02x, STATUS1:0x%02x, STATUS2:0x%02x, STATUS3:0x%02x, STATUS5:0x%02x\n",
+			__func__, sts0, sts1, sts2, sts3, sts5);
+
+	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS1, &val);
 	pr_info("%s , %02x\n", __func__, val);
 
 	fault = (val & CHG_FAULT_STATUS_MASK) >> CHG_FAULT_STATUS_SHIFT;
@@ -979,6 +1001,33 @@ static int s2mu106_charger_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(s2mu106->dev, "%s: Fail to request SYS in IRQ: %d: %d\n",
 				__func__, charger->irq_sys, ret);
+		goto err_reg_irq;
+	}
+
+	charger->irq_bat = pdata->irq_base + S2MU106_CHG2_IRQ_BAT;
+	ret = request_threaded_irq(charger->irq_bat, NULL,
+			s2mu106_event_isr, 0, "bat-irq", charger);
+	if (ret < 0) {
+		dev_err(s2mu106->dev, "%s: Fail to request BAT in IRQ: %d: %d\n",
+				__func__, charger->irq_bat, ret);
+		goto err_reg_irq;
+	}
+
+	charger->irq_micd = pdata->irq_base + S2MU106_CHG2_IRQ_AICL;
+	ret = request_threaded_irq(charger->irq_micd, NULL,
+			s2mu106_event_isr, 0, "micd-irq", charger);
+	if (ret < 0) {
+		dev_err(s2mu106->dev, "%s: Fail to request MICD in IRQ: %d: %d\n",
+				__func__, charger->irq_micd, ret);
+		goto err_reg_irq;
+	}
+
+	charger->irq_ivr = pdata->irq_base + S2MU106_CHG2_IRQ_IVR;
+	ret = request_threaded_irq(charger->irq_ivr, NULL,
+			s2mu106_event_isr, 0, "ivr-irq", charger);
+	if (ret < 0) {
+		dev_err(s2mu106->dev, "%s: Fail to request IVR in IRQ: %d: %d\n",
+				__func__, charger->irq_ivr, ret);
 		goto err_reg_irq;
 	}
 

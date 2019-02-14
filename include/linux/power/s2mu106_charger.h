@@ -33,7 +33,7 @@
 #define ENABLE_MIVR 0
 
 /* define IRQ function if need */
-#define EN_BAT_DET_IRQ 0
+#define EN_BAT_DET_IRQ 1
 #define EN_CHG1_IRQ_CHGIN 0
 
 /* Test debug log enable */
@@ -385,6 +385,9 @@ struct s2mu106_charger_data {
 	int irq_done;
 	int irq_sys;
 	int irq_event;
+	int irq_bat;
+	int irq_micd;
+	int irq_ivr;
 
 	int charge_mode;
 
