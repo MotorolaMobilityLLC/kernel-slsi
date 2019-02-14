@@ -976,6 +976,7 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	u32 min_fine_int = 0;
 	u64 numerator;
 	u8 lte_shifter;
+	u32 multiple_ratio = 1;
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
 
@@ -1015,13 +1016,19 @@ int sensor_2x5sp_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	lte_shifter = cis->long_term_mode.sen_strm_off_on_enable ?
 		GET_2X5SP_LTE_SHIFT_CNT(target_exposure->long_val) : 0;
 
-	numerator = (u64)cis_data->pclk * target_exposure->long_val;
+	/* In 24M remosaic mode, set 4 times of exposure val */
+	if (cis_data->sens_config_index_cur == SENSOR_2X5SP_5760X4320_24FPS) {
+		multiple_ratio = 4;
+		dbg_sensor(1, "[mod:d:%d] %s, Set 4 times of coarse_int for 24M mode\n", cis->id, __func__);
+	}
+
+	numerator = (u64)cis_data->pclk * target_exposure->long_val * multiple_ratio;
 	long_coarse_int = (numerator - min_fine_int)
 					/(1000 * 1000) / line_length_pck / (1 << lte_shifter);
-	numerator = (u64)cis_data->pclk * target_exposure->short_val;
+	numerator = (u64)cis_data->pclk * target_exposure->short_val * multiple_ratio;
 	short_coarse_int = (numerator - min_fine_int)
 					/(1000 * 1000) / line_length_pck / (1 << lte_shifter);
-	numerator = (u64)cis_data->pclk * target_exposure->middle_val;
+	numerator = (u64)cis_data->pclk * target_exposure->middle_val * multiple_ratio;
 	middle_coarse_int = (numerator - min_fine_int)
 					/(1000 * 1000) / line_length_pck / (1 << lte_shifter);
 
@@ -1180,6 +1187,7 @@ int sensor_2x5sp_cis_get_max_exposure_time(struct v4l2_subdev *subdev, u32 *max_
 	u32 vt_pic_clk_freq_mhz = 0;
 	u32 line_length_pck = 0;
 	u32 frame_length_lines = 0;
+	u32 multiple_ratio = 1;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1214,9 +1222,15 @@ int sensor_2x5sp_cis_get_max_exposure_time(struct v4l2_subdev *subdev, u32 *max_
 
 	*max_expo = max_integration_time;
 
+	/* In 24M remosaic mode, set 4 times of max_coarse_integration_time */
+	if (cis_data->sens_config_index_cur == SENSOR_2X5SP_5760X4320_24FPS) {
+		multiple_ratio = 4;
+		dbg_sensor(1, "[mod:d:%d] %s, Set 4 times of coarse_int for 24M mode\n", cis->id, __func__);
+	}
+
 	/* TODO: Is this values update here? */
 	cis_data->max_margin_fine_integration_time = max_fine_margin;
-	cis_data->max_coarse_integration_time = max_coarse;
+	cis_data->max_coarse_integration_time = max_coarse * multiple_ratio;
 
 	dbg_sensor(1, "[%s] max integration time %d, max margin fine integration %d, max coarse integration %d\n",
 			__func__, max_integration_time, cis_data->max_margin_fine_integration_time,
@@ -1303,6 +1317,7 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	u64 numerator;
 	u32 max_coarse_integration_time = 0;
 	u8 lte_shifter;
+	u32 multiple_ratio = 1;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1333,8 +1348,14 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	lte_shifter = cis->long_term_mode.sen_strm_off_on_enable ?
 		GET_2X5SP_LTE_SHIFT_CNT(frame_duration) : 0;
 
+	/* In 24M remosaic mode, set 4 times of frame_length_lines */
+	if (cis_data->sens_config_index_cur == SENSOR_2X5SP_5760X4320_24FPS) {
+		multiple_ratio = 4;
+		dbg_sensor(1, "[mod:d:%d] %s, Set 4 times of coarse_int for 24M mode\n", cis->id, __func__);
+	}
+
 	line_length_pck = cis_data->line_length_pck;
-	numerator = (u64)cis_data->pclk * frame_duration;
+	numerator = (u64)cis_data->pclk * frame_duration * multiple_ratio;
 	frame_length_lines = (u16)((numerator / line_length_pck) / (1000 * 1000) / (1 << lte_shifter));
 
 	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk(%#x) frame_duration = %d us,"
