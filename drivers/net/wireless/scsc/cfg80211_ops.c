@@ -486,11 +486,13 @@ int slsi_scan(struct wiphy *wiphy, struct net_device *dev,
 		channels[i] = request->channels[i];
 	chan_count = request->n_channels;
 
-	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif))
+	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
 		if (sdev->initial_scan) {
 			sdev->initial_scan = false;
 			scan_type = FAPI_SCANTYPE_INITIAL_SCAN;
 		}
+		ndev_vif->unsync.slsi_p2p_continuous_fullscan = false;
+	}
 
 	/* Update scan timing for P2P social channels scan. */
 	if ((request->ie) &&
@@ -500,11 +502,35 @@ int slsi_scan(struct wiphy *wiphy, struct net_device *dev,
 		 * with GO's operating channel comes on P2P device. Hence added the
 		 * check for n_channels as 1
 		 */
+		if (!ndev_vif->drv_in_p2p_procedure) {
+			if (delayed_work_pending(&ndev_vif->unsync.unset_channel_expiry_work)) {
+				cancel_delayed_work(&ndev_vif->unsync.unset_channel_expiry_work);
+				slsi_mlme_spare_signal_1(sdev, dev);
+				ndev_vif->driver_channel = 0;
+				}
+		}
 		if (request->n_channels == SLSI_P2P_SOCIAL_CHAN_COUNT || request->n_channels == 1) {
 			p2p_state = P2P_SCANNING;
 			scan_type = FAPI_SCANTYPE_P2P_SCAN_SOCIAL;
+			ndev_vif->unsync.slsi_p2p_continuous_fullscan = false;
 		} else if (request->n_channels > SLSI_P2P_SOCIAL_CHAN_COUNT) {
-			scan_type = FAPI_SCANTYPE_P2P_SCAN_FULL;
+			if (!ndev_vif->unsync.slsi_p2p_continuous_fullscan) {
+				scan_type = FAPI_SCANTYPE_P2P_SCAN_FULL;
+				ndev_vif->unsync.slsi_p2p_continuous_fullscan = true;
+			} else {
+				int count = 0, chann = 0;
+
+				scan_type = FAPI_SCANTYPE_P2P_SCAN_SOCIAL;
+				ndev_vif->unsync.slsi_p2p_continuous_fullscan = false;
+				for (i = 0; i < request->n_channels; i++) {
+					chann = channels[i]->hw_value & 0xFF;
+					if (chann == 1 || chann == 6 || chann == 11) {
+						channels[count] = request->channels[i];
+						count++;
+					}
+				}
+				chan_count = count;
+			}
 		}
 	}
 
@@ -1656,6 +1682,9 @@ int slsi_remain_on_channel(struct wiphy              *wiphy,
 	 */
 	cancel_delayed_work(&ndev_vif->unsync.roc_expiry_work);
 
+	if (delayed_work_pending(&ndev_vif->unsync.unset_channel_expiry_work))
+		cancel_delayed_work(&ndev_vif->unsync.unset_channel_expiry_work);
+
 	/* If action frame tx is in progress and ROC comes, then it would mean action frame tx was done in ROC and
 	 * frame tx ind is awaited, don't change state. Also allow back to back ROC in case it comes.
 	 */
@@ -1700,8 +1729,13 @@ int slsi_remain_on_channel(struct wiphy              *wiphy,
 	SLSI_P2P_STATE_CHANGE(sdev, P2P_LISTENING);
 
 exit_with_roc:
+	/* Cancel remain on channel is sent to the supplicant 10ms before the duration
+	 *This is to avoid the race condition of supplicant sending cancel remain on channel and
+	 *drv sending cancel_remain on channel because of roc expiry.
+	 *This race condition causes delay to the next p2p search
+	 */
 	queue_delayed_work(sdev->device_wq, &ndev_vif->unsync.roc_expiry_work,
-			   msecs_to_jiffies(duration + SLSI_P2P_ROC_EXTRA_MSEC));
+			   msecs_to_jiffies(duration - SLSI_P2P_ROC_EXTRA_MSEC));
 
 	slsi_assign_cookie_id(cookie, &ndev_vif->unsync.roc_cookie);
 	SLSI_NET_DBG2(dev, SLSI_CFG80211, "Cookie = 0x%llx\n", *cookie);
@@ -1766,23 +1800,18 @@ int slsi_cancel_remain_on_channel(struct wiphy      *wiphy,
 
 	cancel_delayed_work(&ndev_vif->unsync.roc_expiry_work);
 
-	/* Supplicant has stopped FIND/LISTEN. Clear Probe Response IEs in firmware and driver */
-	if (slsi_mlme_add_info_elements(sdev, dev, FAPI_PURPOSE_PROBE_RESPONSE, NULL, 0) != 0)
-		SLSI_NET_ERR(dev, "Clearing Probe Response IEs failed for unsync vif\n");
-	slsi_unsync_vif_set_probe_rsp_ie(ndev_vif, NULL, 0);
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 	cfg80211_remain_on_channel_expired(&ndev_vif->wdev, ndev_vif->unsync.roc_cookie, ndev_vif->chan, GFP_KERNEL);
 #else
 	cfg80211_remain_on_channel_expired(ndev_vif->wdev.netdev, ndev_vif->unsync.roc_cookie,
 					   ndev_vif->chan, ndev_vif->channel_type, GFP_KERNEL);
 #endif
-
-	if (!ndev_vif->drv_in_p2p_procedure) {
-		slsi_mlme_spare_signal_1(sdev, dev);
-		ndev_vif->driver_channel = 0;
-	}
-
+		if (!ndev_vif->drv_in_p2p_procedure) {
+			if (delayed_work_pending(&ndev_vif->unsync.unset_channel_expiry_work))
+				cancel_delayed_work(&ndev_vif->unsync.unset_channel_expiry_work);
+			queue_delayed_work(sdev->device_wq, &ndev_vif->unsync.unset_channel_expiry_work,
+					   msecs_to_jiffies(SLSI_P2P_UNSET_CHANNEL_EXTRA_MSEC));
+		}
 	/* Queue work to delete unsync vif */
 	slsi_p2p_queue_unsync_vif_del_work(ndev_vif, SLSI_P2P_UNSYNC_VIF_EXTRA_MSEC);
 	SLSI_P2P_STATE_CHANGE(sdev, P2P_IDLE_VIF_ACTIVE);

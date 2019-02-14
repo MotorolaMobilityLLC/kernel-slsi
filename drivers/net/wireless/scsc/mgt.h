@@ -94,8 +94,7 @@
 #define SLSI_P2P_ROC_EXTRA_MSEC 10
 
 /* Extra duration to retain unsync vif even after ROC/mgmt_tx completes */
-#define SLSI_P2P_UNSYNC_VIF_EXTRA_MSEC  1000
-
+#define SLSI_P2P_UNSYNC_VIF_EXTRA_MSEC  2000
 /* Extra duration to retain HS2 unsync vif even after mgmt_tx completes */
 #define SLSI_HS2_UNSYNC_VIF_EXTRA_MSEC  1000
 
@@ -104,6 +103,10 @@
  */
 #define SLSI_P2P_NEG_PROC_UNSYNC_VIF_RETAIN_DURATION 3000
 
+/* Increased wait duration to send unset channel to Fw.
+ * This would increase the listen time.
+ */
+#define SLSI_P2P_UNSET_CHANNEL_EXTRA_MSEC 600
 /* Extra duration in addition to mgmt tx wait */
 #define SLSI_P2P_MGMT_TX_EXTRA_MSEC  100
 

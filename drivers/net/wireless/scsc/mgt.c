@@ -3439,9 +3439,11 @@ static void slsi_p2p_roc_duration_expiry_work(struct work_struct *work)
 		/* After sucessful frame transmission,  we will move to LISTENING or VIF ACTIVE state.
 		 * Unset channel should not be sent down during p2p procedure.
 		 */
-		if (ndev_vif->drv_in_p2p_procedure == 0) {
-			slsi_mlme_spare_signal_1(ndev_vif->sdev, ndev_vif->wdev.netdev);
-			ndev_vif->driver_channel = 0;
+		if (!ndev_vif->drv_in_p2p_procedure) {
+			if (delayed_work_pending(&ndev_vif->unsync.unset_channel_expiry_work))
+				cancel_delayed_work(&ndev_vif->unsync.unset_channel_expiry_work);
+			queue_delayed_work(ndev_vif->sdev->device_wq, &ndev_vif->unsync.unset_channel_expiry_work,
+					   msecs_to_jiffies(SLSI_P2P_UNSET_CHANNEL_EXTRA_MSEC));
 		}
 		slsi_p2p_queue_unsync_vif_del_work(ndev_vif, SLSI_P2P_UNSYNC_VIF_EXTRA_MSEC);
 		SLSI_P2P_STATE_CHANGE(ndev_vif->sdev, P2P_IDLE_VIF_ACTIVE);
@@ -3472,6 +3474,35 @@ static void slsi_p2p_unsync_vif_delete_work(struct work_struct *work)
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 }
 
+/**
+ * Work to be done after roc expiry or cancel remain on channel:
+ * Unset channel to be sent to Fw.
+ */
+static void slsi_p2p_unset_channel_expiry_work(struct work_struct *work)
+{
+	struct netdev_vif *ndev_vif = container_of((struct delayed_work *)work, struct netdev_vif,
+						   unsync.unset_channel_expiry_work);
+	struct slsi_dev           *sdev = ndev_vif->sdev;
+	struct net_device *dev = ndev_vif->wdev.netdev;
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	SLSI_NET_DBG1(ndev_vif->wdev.netdev, SLSI_CFG80211, "Unset channel expiry work-Send Unset Channel\n");
+
+	if (!ndev_vif->drv_in_p2p_procedure) {
+		/* Supplicant has stopped FIND/LISTEN. Clear Probe Response IEs in firmware and driver */
+		if (slsi_mlme_add_info_elements(sdev, dev, FAPI_PURPOSE_PROBE_RESPONSE, NULL, 0) != 0)
+			SLSI_NET_ERR(dev, "Clearing Probe Response IEs failed for unsync vif\n");
+		slsi_unsync_vif_set_probe_rsp_ie(ndev_vif, NULL, 0);
+
+		/* Send Unset Channel */
+		if (ndev_vif->driver_channel != 0) {
+			slsi_mlme_spare_signal_1(sdev, dev);
+			ndev_vif->driver_channel = 0;
+		}
+	}
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+}
+
 /* Initializations for P2P - Change vif type to unsync, create workqueue and init work */
 int slsi_p2p_init(struct slsi_dev *sdev, struct netdev_vif *ndev_vif)
 {
@@ -3480,10 +3511,12 @@ int slsi_p2p_init(struct slsi_dev *sdev, struct netdev_vif *ndev_vif)
 	sdev->p2p_group_exp_frame = SLSI_P2P_PA_INVALID;
 
 	ndev_vif->vif_type = FAPI_VIFTYPE_UNSYNCHRONISED;
+	ndev_vif->unsync.slsi_p2p_continuous_fullscan = false;
+
 
 	INIT_DELAYED_WORK(&ndev_vif->unsync.roc_expiry_work, slsi_p2p_roc_duration_expiry_work);
 	INIT_DELAYED_WORK(&ndev_vif->unsync.del_vif_work, slsi_p2p_unsync_vif_delete_work);
-
+	INIT_DELAYED_WORK(&ndev_vif->unsync.unset_channel_expiry_work, slsi_p2p_unset_channel_expiry_work);
 	return 0;
 }
 
