@@ -92,9 +92,7 @@ static bool disable_service;
 
 /* Audio */
 static struct device *audio_device;
-static struct device *previous_audio_device;
 static bool audio_device_probed;
-static bool audio_device_been_probed;
 static struct scsc_bt_audio bt_audio;
 
 module_param(bluetooth_address, ullong, S_IRUGO | S_IWUSR);
@@ -269,16 +267,16 @@ static int slsi_bt_audio_probe(void)
 	return bt_audio.dev_iommu_map(audio_device, paddr, size);
 }
 
+/* Note A-Box memory should only be unmapped when A-Box driver is finished with it */
 static void slsi_bt_audio_remove(void)
 {
 	size_t size;
 
-	if (previous_audio_device == NULL || bt_audio.dev_iommu_unmap == NULL)
+	if (audio_device == NULL || bt_audio.dev_iommu_unmap == NULL || bt_audio.abox_physical == NULL)
 		return;
 
 	size = PAGE_ALIGN(sizeof(*bt_audio.abox_physical));
-	bt_audio.dev_iommu_unmap(previous_audio_device, size);
-	previous_audio_device = NULL;
+	bt_audio.dev_iommu_unmap(audio_device, size);
 }
 
 #ifdef CONFIG_SCSC_LOG_COLLECTION
@@ -344,7 +342,6 @@ static int slsi_sm_bt_service_cleanup(bool allow_service_stop)
 			bt_audio.dev			= NULL;
 			bt_audio.abox_virtual		= NULL;
 			bt_audio.abox_physical		= NULL;
-			audio_device_probed		= false;
 		}
 		mutex_unlock(&bt_audio_mutex);
 
@@ -807,11 +804,9 @@ int slsi_sm_bt_service_start(void)
 		 * to 4kB (which maybe will be always the case).
 		 */
 
-		/* unmap previously mapped memory if necessary */
-		if (audio_device_been_probed) {
-			slsi_bt_audio_remove();
-			/* audio_device_been_probed is always true once set */
-		}
+		/* On 9610, do not unmap previously mapped memory from IOMMU.
+		 * It may still be used by A-Box.
+		 */
 
 		err = scsc_mx_service_mif_ptr_to_addr(bt_service.service,
 				scsc_mx_service_get_bt_audio_abox(bt_service.service),
@@ -822,9 +817,6 @@ int slsi_sm_bt_service_start(void)
 			goto exit;
 		}
 		/* irrespective of the technical definition of probe - wrt to memory allocation it has been */
-		audio_device_been_probed = true;
-		/* ...and this is the audio_device it was associated with */
-		previous_audio_device = audio_device;
 
 		bt_audio.abox_virtual = (struct scsc_bt_audio_abox *)
 						scsc_mx_service_mif_addr_to_ptr(
@@ -1896,6 +1888,17 @@ int scsc_bt_audio_unregister(struct device *dev)
 	mutex_lock(&bt_audio_mutex);
 
 	if (audio_device != NULL && dev == audio_device) {
+
+		/* Unmap ringbuffer IOMMU now that A-Box is finished with it,
+		 * but for safety don't allow this if BT is running.
+		 *
+		 * In practice, A-Box driver only unregisters if platform
+		 * driver unloads at shutdown, so it would be safe to leave the
+		 * memmory mapped.
+		 */
+		if (atomic_read(&bt_service.service_users) == 0 && audio_device_probed)
+			slsi_bt_audio_remove();
+
 		bt_audio.dev			= NULL;
 		bt_audio.abox_virtual		= NULL;
 		bt_audio.abox_physical		= NULL;
