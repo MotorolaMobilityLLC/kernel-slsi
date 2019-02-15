@@ -8,8 +8,8 @@
 #define __SCSC_LOG_COLLECTOR_H__
 
 /* High nibble is Major, Low nibble is Minor */
-#define SCSC_LOG_HEADER_VERSION_MAJOR	0x02
-#define SCSC_LOG_HEADER_VERSION_MINOR	0x01
+#define SCSC_LOG_HEADER_VERSION_MAJOR	0x03
+#define SCSC_LOG_HEADER_VERSION_MINOR	0x00
 /* Magic string. 4 bytes "SCSC"*/
 /* Header version. 1 byte */
 /* Num chunks. 1 byte */
@@ -57,7 +57,9 @@ extern const char *scsc_loc_reason_str[];
  */
 enum scsc_log_chunk_type {
 	SCSC_LOG_CHUNK_SYNC, /* SYNC should be the first chunk to collect */
-	SCSC_LOG_CHUNK_IMP,
+	SCSC_LOG_MINIMOREDUMP,
+	/* Add other chunks */
+	SCSC_LOG_CHUNK_IMP = 127,
 	SCSC_LOG_CHUNK_MXL,
 	SCSC_LOG_CHUNK_UDI,
 	SCSC_LOG_CHUNK_BT_HCF,
@@ -67,8 +69,8 @@ enum scsc_log_chunk_type {
 	SCSC_LOG_RESERVED_BT,
 	SCSC_LOG_RESERVED_WLAN,
 	SCSC_LOG_RESERVED_RADIO,
-	SCSC_LOG_CHUNK_LOGRING = 254,
 	/* Add other chunks */
+	SCSC_LOG_CHUNK_LOGRING = 254,
 	SCSC_LOG_CHUNK_INVALID = 255,
 };
 

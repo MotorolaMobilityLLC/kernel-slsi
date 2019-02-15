@@ -184,6 +184,35 @@ static ssize_t sysfs_store_memdump(struct kobject *kobj, struct kobj_attribute *
 static struct kobj_attribute memdump_attr =
 		__ATTR(memdump, 0660, sysfs_show_memdump, sysfs_store_memdump);
 
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+static int mxman_minimoredump_collect(struct scsc_log_collector_client *collect_client, size_t size)
+{
+	int ret = 0;
+	struct mxman *mxman = (struct mxman *) collect_client->prv;
+
+	if (!mxman || !mxman->start_dram)
+		return ret;
+
+	SCSC_TAG_INFO(MXMAN, "Collecting Minimoredump runtime_length %d fw_image_size %d\n",
+		mxman->fwhdr.fw_runtime_length, mxman->fw_image_size);
+	/* collect RAM sections of FW */
+	ret = scsc_log_collector_write(mxman->start_dram + mxman->fw_image_size,
+		mxman->fwhdr.fw_runtime_length - mxman->fw_image_size, 1);
+
+	return ret;
+}
+
+struct scsc_log_collector_client mini_moredump_client = {
+	.name = "minimoredump",
+	.type = SCSC_LOG_MINIMOREDUMP,
+	.collect_init = NULL,
+	.collect = mxman_minimoredump_collect,
+	.collect_end = NULL,
+	.prv = NULL,
+};
+#endif
+
 /* Retrieve memdump in sysfs global */
 static ssize_t sysfs_show_memdump(struct kobject *kobj,
 				  struct kobj_attribute *attr,
@@ -1113,6 +1142,12 @@ static int mxman_start(struct mxman *mxman)
 	mxlog_init(scsc_mx_get_mxlog(mxman->mx), mxman->mx, mxman->fw_build_id);
 #ifdef CONFIG_SCSC_MXLOGGER
 	mxlogger_init(mxman->mx, scsc_mx_get_mxlogger(mxman->mx), MXL_POOL_SZ);
+
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	/* Register minimoredump  client */
+	mini_moredump_client.prv = mxman;
+	scsc_log_collector_register_client(&mini_moredump_client);
+#endif
 #endif
 #ifdef CONFIG_SCSC_SMAPPER
 	/* Initialize SMAPPER */
@@ -1912,6 +1947,10 @@ void mxman_close(struct mxman *mxman)
 			return;
 		}
 #ifdef CONFIG_SCSC_MXLOGGER
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+		/* Unregister minimoredump client */
+		scsc_log_collector_unregister_client(&mini_moredump_client);
+#endif
 		/**
 		 * Deinit mxlogger on last service stop...BUT before asking for HALT
 		 */
@@ -1939,6 +1978,10 @@ void mxman_close(struct mxman *mxman)
 			return;
 		}
 #ifdef CONFIG_SCSC_MXLOGGER
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+		/* Unregister minimoredump client */
+		scsc_log_collector_unregister_client(&mini_moredump_client);
+#endif
 		/**
 		 * Deinit mxlogger on last service stop...BUT before asking for HALT
 		 */
