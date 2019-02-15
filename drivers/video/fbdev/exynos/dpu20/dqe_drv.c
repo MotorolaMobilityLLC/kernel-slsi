@@ -15,6 +15,7 @@
 #include <linux/stat.h>
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/console.h>
 
 #include "dqe.h"
 #include "decon.h"
@@ -48,6 +49,29 @@ const u32 bypass_gamma_tune[3][65] = {
 const s32 bypass_hsc_tune[35] = {
 	0,0,0,0,0,0,0,1,15,1,0,1,0,0,0,0,0,0,0,5,-10,0,10,30,170,230,240,155,70,32,1,10,64,51,204
 };
+
+static void dqe_dump(void)
+{
+	int acquired = console_trylock();
+	struct decon_device *decon = get_decon_drvdata(0);
+
+	if (IS_DECON_OFF_STATE(decon)) {
+		decon_info("%s: DECON%d is disabled, state(%d)\n",
+				__func__, decon->id, decon->state);
+		return;
+	}
+
+	decon_info("\n=== DQE SFR DUMP ===\n");
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			decon->res.regs + DQE_BASE , 0x600, false);
+
+	decon_info("\n=== DQE SHADOW SFR DUMP ===\n");
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
+			decon->res.regs + SHADOW_DQE_OFFSET, 0x600, false);
+
+	if (acquired)
+		console_unlock();
+}
 
 static void dqe_load_context(void)
 {
@@ -1072,6 +1096,25 @@ static DEVICE_ATTR(aosp_colors, 0660,
 	decon_dqe_aosp_color_show,
 	decon_dqe_aosp_colors_store);
 
+static ssize_t decon_dqe_dump_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int val = 0;
+	ssize_t count = 0;
+
+	dqe_info("%s\n", __func__);
+
+	dqe_dump();
+
+	count = snprintf(buf, PAGE_SIZE, "dump = %d\n", val);
+
+	return count;
+}
+
+static DEVICE_ATTR(dump, 0440,
+	decon_dqe_dump_show,
+	NULL);
+
 static struct attribute *dqe_attrs[] = {
 	&dev_attr_gamma.attr,
 	&dev_attr_cgc.attr,
@@ -1081,6 +1124,7 @@ static struct attribute *dqe_attrs[] = {
 	&dev_attr_tune_mode2.attr,
 	&dev_attr_tune_onoff.attr,
 	&dev_attr_aosp_colors.attr,
+	&dev_attr_dump.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(dqe);
