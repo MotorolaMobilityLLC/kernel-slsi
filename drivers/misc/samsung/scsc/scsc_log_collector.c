@@ -25,7 +25,7 @@
 #include "scsc_wlbtd.h"
 #endif
 
-#define SCSC_NUM_CHUNKS_SUPPORTED	12
+#define SCSC_NUM_CHUNKS_SUPPORTED	13
 
 #define TO_RAM				0
 #define TO_FILE				1
@@ -42,6 +42,7 @@ static u8 chunk_supported_sbl[SCSC_NUM_CHUNKS_SUPPORTED] = {
 	SCSC_LOG_RESERVED_BT,
 	SCSC_LOG_RESERVED_WLAN,
 	SCSC_LOG_RESERVED_RADIO,
+	SCSC_LOG_MINIMOREDUMP,
 	SCSC_LOG_CHUNK_LOGRING,
 };
 
