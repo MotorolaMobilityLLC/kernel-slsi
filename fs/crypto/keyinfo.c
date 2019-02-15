@@ -172,11 +172,22 @@ static void put_crypt_info(struct fscrypt_info *ci)
 		return;
 
 #if defined(CONFIG_CRYPTO_DISKCIPHER)
-	if (ci->ci_dtfm)
+	if ((ci->ci_dtfm && ci->ci_ctfm) || (ci->ci_dtfm && !virt_addr_valid(ci->ci_dtfm)) ||
+		(ci->ci_ctfm && !virt_addr_valid(ci->ci_ctfm)) ||
+		(ci->ci_essiv_tfm && !virt_addr_valid(ci->ci_essiv_tfm)))
+		pr_warn("fscrypto: mode:d:%d,f:%d, dt:%p(%d), ct:%p(%d), ess:%p(%d)\n",
+					ci->ci_data_mode, ci->ci_filename_mode,
+					ci->ci_dtfm, virt_addr_valid(ci->ci_dtfm),
+					ci->ci_ctfm, virt_addr_valid(ci->ci_ctfm),
+					ci->ci_essiv_tfm, virt_addr_valid(ci->ci_essiv_tfm));
+
+	if (ci->ci_dtfm && virt_addr_valid(ci->ci_dtfm))
 		crypto_free_req_diskcipher(ci->ci_dtfm);
 #endif
-	crypto_free_skcipher(ci->ci_ctfm);
-	crypto_free_cipher(ci->ci_essiv_tfm);
+	if (ci->ci_ctfm && virt_addr_valid(ci->ci_ctfm))
+		crypto_free_skcipher(ci->ci_ctfm);
+	if (ci->ci_essiv_tfm && virt_addr_valid(ci->ci_essiv_tfm))
+		crypto_free_cipher(ci->ci_essiv_tfm);
 	kmem_cache_free(fscrypt_info_cachep, ci);
 }
 
