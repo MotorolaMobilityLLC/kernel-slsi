@@ -83,6 +83,7 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 	int gpio_none = 0;
 	int gpio_avdd_en = 0;
 	int gpio_iovdd_en = 0;
+	int gpio_mclk = 0;
 	struct fimc_is_core *core;
 
 	FIMC_BUG(!dev);
@@ -126,6 +127,18 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 		gpio_free(gpio_iovdd_en);
 	} else {
 		dev_err(dev, "%s: failed to get iovdd_en\n", __func__);
+		return -EINVAL;
+	}
+
+	gpio_mclk = of_get_named_gpio(dnode, "gpio_mclk", 0);
+	if (gpio_is_valid(gpio_mclk)) {
+		if (gpio_request_one(gpio_mclk, GPIOF_OUT_INIT_LOW, "CAM_MCLK_OUTPUT_LOW")) {
+			dev_err(dev, "%s: failed to gpio request mclk\n", __func__);
+			return -ENODEV;
+		}
+		gpio_free(gpio_mclk);
+	} else {
+		dev_err(dev, "%s: failed to get mclk\n", __func__);
 		return -EINVAL;
 	}
 
