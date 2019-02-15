@@ -294,7 +294,7 @@ static void *vb2_dma_sg_get_userptr(struct device *dev, unsigned long vaddr,
 	buf->num_pages = frame_vector_count(vec);
 
 	if (sg_alloc_table_from_pages(buf->dma_sgt, buf->pages,
-			buf->num_pages, buf->offset, size, 0))
+			buf->num_pages, buf->offset, size, GFP_KERNEL))
 		goto userptr_fail_sgtable;
 
 	sgt = &buf->sg_table;
