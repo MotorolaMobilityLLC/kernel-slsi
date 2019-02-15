@@ -261,6 +261,19 @@ struct ntc_data {
 struct ntc_data *data_ntc = NULL;
 
 #if defined(CONFIG_OF) && IS_ENABLED(CONFIG_IIO)
+static bool battery_therm_data(struct ntc_data *data, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+
+	if (!np)
+		return false;
+
+	if (memcmp(np->name, "battery_thermistor", 18) == 0) {
+		data_ntc = data;
+	}
+
+	return true;
+}
 static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 {
 	struct iio_channel *channel = pdata->chan;
@@ -641,7 +654,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
 
 	data->pdata = pdata;
-	data_ntc = data;
+	battery_therm_data(data, dev);
 
 	switch (pdev_id->driver_data) {
 	case TYPE_NCPXXWB473:
