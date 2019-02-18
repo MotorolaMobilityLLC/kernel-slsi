@@ -1218,7 +1218,6 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
-	SLSI_INFO(sdev, "Received Association Response\n");
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_roamed_ind(vif:%d) Roaming to %pM\n",
 		      fapi_get_vif(skb),
 		      mgmt->bssid);
@@ -1770,7 +1769,6 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_connect_ind(vif:%d, result:0x%04x)\n",
 		      fapi_get_vif(skb), fw_result_code);
-	SLSI_INFO(sdev, "Received Association Response\n");
 
 	if (!ndev_vif->activated) {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "VIF not activated\n");
@@ -1794,18 +1792,26 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 	}
 	sdev->assoc_result_code = fw_result_code;
 	if (fw_result_code != FAPI_RESULTCODE_SUCCESS) {
-		if (fw_result_code == FAPI_RESULTCODE_AUTH_NO_ACK)
+		if (fw_result_code == FAPI_RESULTCODE_AUTH_NO_ACK) {
 			SLSI_INFO(sdev, "Connect failed,Result code:AUTH_NO_ACK\n");
-		else if (fw_result_code == FAPI_RESULTCODE_ASSOC_NO_ACK)
+		} else if (fw_result_code == FAPI_RESULTCODE_ASSOC_NO_ACK) {
 			SLSI_INFO(sdev, "Connect failed,Result code:ASSOC_NO_ACK\n");
-		else
+		} else if (fw_result_code >= 0x8100 && fw_result_code <= 0x81FF) {
+			fw_result_code = fw_result_code & 0x00FF;
+			SLSI_INFO(sdev, "Connect failed(Auth failure), Result code:0x%04x\n", fw_result_code);
+		} else if (fw_result_code >= 0x8200 && fw_result_code <= 0x82FF) {
+			fw_result_code = fw_result_code & 0x00FF;
+			SLSI_INFO(sdev, "Connect failed(Assoc Failure), Result code:0x%04x\n", fw_result_code);
+		} else {
 			SLSI_INFO(sdev, "Connect failed,Result code:0x%04x\n", fw_result_code);
+		}
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 		/* Trigger log collection if fw result code is not success */
 		scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_CONNECT_ERR);
 #endif
 		status = fw_result_code;
 	} else {
+		SLSI_INFO(sdev, "Received Association Response\n");
 		if (!peer || !peer->assoc_ie) {
 			if (peer)
 				WARN(!peer->assoc_ie, "proc-started-ind not received before connect-ind");
@@ -1985,9 +1991,12 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 #endif
 	if (reason >= 0 && reason <= 0xFF) {
 		SLSI_INFO(sdev, "Received DEAUTH, reason = %d\n", reason);
-	} else if (reason >= 0x8200 && reason <= 0x82FF) {
+	} else if (reason >= 0x8100 && reason <= 0x81FF) {
 		reason = reason & 0x00FF;
 		SLSI_INFO(sdev, "Received DEAUTH, reason = %d\n", reason);
+	} else if (reason >= 0x8200 && reason <= 0x82FF) {
+		reason = reason & 0x00FF;
+		SLSI_INFO(sdev, "Received DISASSOC, reason = %d\n", reason);
 	} else {
 		SLSI_INFO(sdev, "Received DEAUTH, reason = Local Disconnect <%d>\n", reason);
 	}
@@ -2278,10 +2287,10 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	u16 data_unit_descriptor = fapi_get_u16(skb, u.mlme_received_frame_ind.data_unit_descriptor);
 	u16 frequency = SLSI_FREQ_FW_TO_HOST(fapi_get_u16(skb, u.mlme_received_frame_ind.channel_frequency));
-	u8 *eapol = NULL;
 	u8 *eap = NULL;
 	u16 protocol = 0;
 	u32 dhcp_message_type = SLSI_DHCP_MESSAGE_TYPE_INVALID;
+	u16                 eap_length = 0;
 
 	SLSI_NET_DBG2(dev, SLSI_MLME, "mlme_received_frame_ind(vif:%d, data descriptor:%d, freq:%d)\n",
 		      fapi_get_vif(skb),
@@ -2388,44 +2397,25 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 		dev->last_rx = jiffies;
 #endif
 		/* Storing Data for Logging Information */
-		if ((skb->len + sizeof(struct ethhdr)) >= 99)
-			eapol = skb->data + sizeof(struct ethhdr);
-		if ((skb->len + sizeof(struct ethhdr)) >= 5)
+		if ((skb->len - sizeof(struct ethhdr)) >= 9) {
+			eap_length = (skb->len - sizeof(struct ethhdr)) - 4;
 			eap = skb->data + sizeof(struct ethhdr);
+		}
 		if (skb->len >= 285 && slsi_is_dhcp_packet(skb->data) != SLSI_TX_IS_NOT_DHCP)
 			dhcp_message_type = skb->data[284];
 
 		skb->protocol = eth_type_trans(skb, dev);
 		protocol = ntohs(skb->protocol);
 		if (protocol == ETH_P_PAE) {
-			if (eapol && eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAPOL_KEY) {
-				if ((eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_RSN_KEY ||
-				     eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_WPA_KEY) &&
-				    (eapol[SLSI_EAPOL_KEY_INFO_LOWER_BYTE_POS] &
-				     SLSI_EAPOL_KEY_INFO_KEY_TYPE_BIT_IN_LOWER_BYTE) &&
-				    (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-				     SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE) &&
-				    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_HIGHER_BYTE_POS] == 0) &&
-				    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)) {
-					SLSI_INFO(sdev, "Received 4way-H/S, M4\n");
-				} else if (!(eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-					     SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE)) {
-					SLSI_INFO(sdev, "Received 4way-H/S, M1\n");
-				} else if (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-					   SLSI_EAPOL_KEY_INFO_SECURE_BIT_IN_HIGHER_BYTE) {
-					SLSI_INFO(sdev, "Received 4way-H/S, M3\n");
-				} else {
-					SLSI_INFO(sdev, "Received 4way-H/S, M2\n");
-				}
-			} else if (eap && eap[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAP_PACKET) {
+			if (eap && eap[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAP_PACKET) {
 				if (eap[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST)
-					SLSI_INFO(sdev, "Received EAP-Request\n");
+					SLSI_INFO(sdev, "Received EAP-Request (%d)\n", eap_length);
 				else if (eap[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
-					SLSI_INFO(sdev, "Received EAP-Response\n");
+					SLSI_INFO(sdev, "Received EAP-Response (%d)\n", eap_length);
 				else if (eap[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_SUCCESS)
-					SLSI_INFO(sdev, "Received EAP-Success\n");
+					SLSI_INFO(sdev, "Received EAP-Success (%d)\n", eap_length);
 				else if (eap[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_FAILURE)
-					SLSI_INFO(sdev, "Received EAP-Failure\n");
+					SLSI_INFO(sdev, "Received EAP-Failure (%d)\n", eap_length);
 			}
 		} else if (protocol == ETH_P_IP) {
 			if (dhcp_message_type == SLSI_DHCP_MESSAGE_TYPE_DISCOVER)

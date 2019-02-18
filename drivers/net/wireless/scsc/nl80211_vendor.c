@@ -17,9 +17,16 @@
 #include "mib.h"
 #include "nl80211_vendor.h"
 
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_LOGGING
 #include "scsc_wifilogger.h"
 #include "scsc_wifilogger_rings.h"
 #include "scsc_wifilogger_types.h"
+#endif
+#define SLSI_WIFI_TAG_RSSI               21
+#define SLSI_WIFI_TAG_REASON_CODE        14
+#define SLSI_WIFI_TAG_VENDOR_SPECIFIC    0
+#define SLSI_WIFI_TAG_EAPOL_MESSAGE_TYPE 29
+#define SLSI_WIFI_TAG_STATUS             4
 
 #define SLSI_GSCAN_INVALID_RSSI        0x7FFF
 #define SLSI_EPNO_AUTH_FIELD_WEP_OPEN  1
@@ -27,17 +34,22 @@
 #define SLSI_EPNO_AUTH_FIELD_WPA_EAP   4
 #define WIFI_EVENT_FW_BTM_FRAME_REQUEST   56  // Request for a BTM frame is received
 #define WIFI_EVENT_FW_BTM_FRAME_RESPONSE  57     // A BTM frame is transmitted.
+#define WIFI_EVENT_FW_NR_FRAME_REQUEST      58
+#define WIFI_EVENT_FW_RM_FRAME_RESPONSE    59
 
-#define WIFI_TAG_VD_CHANNEL_UTILISATION   0xf01a
-#define WIFI_TAG_VD_ROAMING_REASON           0xf019
-#define WIFI_TAG_VD_BTM_REQUEST_MODE      0xf01b
-#define WIFI_TAG_VD_BTM_RESPONSE_STATUS  0xf01c
-#define WIFI_TAG_VD_RETRY_COUNT                   0xf00f
-#define WIFI_ROAMING_SEARCH_REASON_RESERVED   0
-#define WIFI_ROAMING_SEARCH_REASON_LOW_RSSI             1
-#define WIFI_ROAMING_SEARCH_REASON_LINK_LOSS             2
-#define WIFI_ROAMING_SEARCH_REASON_BTM_REQ                3
-#define WIFI_ROAMING_SEARCH_REASON_CU_TRIGGER           4
+#define SLSI_WIFI_TAG_VD_CHANNEL_UTILISATION   0xf01a
+#define SLSI_WIFI_TAG_VD_ROAMING_REASON           0xf019
+#define SLSI_WIFI_TAG_VD_BTM_REQUEST_MODE      0xf01b
+#define SLSI_WIFI_TAG_VD_BTM_RESPONSE_STATUS  0xf01c
+#define SLSI_WIFI_TAG_VD_RETRY_COUNT                   0xf00f
+#define SLSI_WIFI_TAG_VD_EAPOL_KEY_TYPE             0xF008
+#define SLSI_WIFI_EAPOL_KEY_TYPE_GTK                      0x0000
+#define SLSI_WIFI_EAPOL_KEY_TYPE_PTK                      0x0001
+#define SLSI_WIFI_ROAMING_SEARCH_REASON_RESERVED   0
+#define SLSI_WIFI_ROAMING_SEARCH_REASON_LOW_RSSI             1
+#define SLSI_WIFI_ROAMING_SEARCH_REASON_LINK_LOSS             2
+#define SLSI_WIFI_ROAMING_SEARCH_REASON_BTM_REQ                3
+#define SLSI_WIFI_ROAMING_SEARCH_REASON_CU_TRIGGER           4
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -5323,15 +5335,15 @@ exit:
 char *slsi_get_roam_reason_str(int roam_reason)
 {
 	switch (roam_reason) {
-	case WIFI_ROAMING_SEARCH_REASON_RESERVED:
+	case SLSI_WIFI_ROAMING_SEARCH_REASON_RESERVED:
 		return "WIFI_ROAMING_SEARCH_REASON_RESERVED";
-	case WIFI_ROAMING_SEARCH_REASON_LOW_RSSI:
+	case SLSI_WIFI_ROAMING_SEARCH_REASON_LOW_RSSI:
 		return "WIFI_ROAMING_SEARCH_REASON_LOW_RSSI";
-	case WIFI_ROAMING_SEARCH_REASON_LINK_LOSS:
+	case SLSI_WIFI_ROAMING_SEARCH_REASON_LINK_LOSS:
 		return "WIFI_ROAMING_SEARCH_REASON_LINK_LOSS";
-	case WIFI_ROAMING_SEARCH_REASON_BTM_REQ:
+	case SLSI_WIFI_ROAMING_SEARCH_REASON_BTM_REQ:
 		return "WIFI_ROAMING_SEARCH_REASON_BTM_REQ";
-	case WIFI_ROAMING_SEARCH_REASON_CU_TRIGGER:
+	case SLSI_WIFI_ROAMING_SEARCH_REASON_CU_TRIGGER:
 		return "WIFI_ROAMING_SEARCH_REASON_CU_TRIGGER";
 	default:
 		return "UNKNOWN_REASON";
@@ -5344,8 +5356,8 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 	u64 timestamp = 0;
 	u8 *tlv_data;
 	u32 roam_reason, chan_utilisation, btm_request_mode, btm_response, eapol_msg_type;
-	u32 deauth_reason, eapol_retry_count, roam_rssi, eapol_result_code;
-	u16 vendor_len, tag_id, tag_len, vtag_id;
+	u32 deauth_reason, eapol_retry_count, roam_rssi, status_code;
+	u16 vendor_len, tag_id, tag_len, vtag_id, eapol_key_type;
 	u32 tag_value, vtag_value, rssi_bits = 0;
 	int roam_rssi_val;
 	__le16               *le16_ptr = NULL;
@@ -5376,7 +5388,7 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 		}
 		tag_value = slsi_convert_tlv_data_to_value(&tlv_data[i], tag_len);
 		switch (tag_id) {
-		case WIFI_TAG_RSSI:
+		case SLSI_WIFI_TAG_RSSI:
 			roam_rssi = tag_value;
 			while (roam_rssi) {
 				rssi_bits++;
@@ -5385,62 +5397,87 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 			roam_rssi_val = ((1 << rssi_bits) - 1) ^ tag_value;
 			roam_rssi_val = -(roam_rssi_val + 1);
 			break;
-		case WIFI_TAG_REASON_CODE:
+		case SLSI_WIFI_TAG_REASON_CODE:
 			deauth_reason = tag_value;
 			break;
-		case WIFI_TAG_VENDOR_SPECIFIC:
+		case SLSI_WIFI_TAG_VENDOR_SPECIFIC:
 			vendor_len = tag_len - 2;
 			le16_ptr = (__le16 *)&tlv_data[i];
 			vtag_id = le16_to_cpu(*le16_ptr);
 			vtag_value = slsi_convert_tlv_data_to_value(&tlv_data[i + 2], vendor_len);
 			switch (vtag_id) {
-			case WIFI_TAG_VD_CHANNEL_UTILISATION:
+			case SLSI_WIFI_TAG_VD_CHANNEL_UTILISATION:
 				chan_utilisation = vtag_value;
 				break;
-			case WIFI_TAG_VD_ROAMING_REASON:
+			case SLSI_WIFI_TAG_VD_ROAMING_REASON:
 				roam_reason = vtag_value;
 				break;
-			case WIFI_TAG_VD_BTM_REQUEST_MODE:
+			case SLSI_WIFI_TAG_VD_BTM_REQUEST_MODE:
 				btm_request_mode = vtag_value;
 				break;
-			case WIFI_TAG_VD_BTM_RESPONSE_STATUS:
+			case SLSI_WIFI_TAG_VD_BTM_RESPONSE_STATUS:
 				btm_response = vtag_value;
 				break;
-			case WIFI_TAG_VD_RETRY_COUNT:
+			case SLSI_WIFI_TAG_VD_RETRY_COUNT:
 				eapol_retry_count = vtag_value;
+				break;
+			case SLSI_WIFI_TAG_VD_EAPOL_KEY_TYPE:
+				eapol_key_type = vtag_value;
 				break;
 			}
 			break;
-		case WIFI_TAG_EAPOL_MESSAGE_TYPE:
+		case SLSI_WIFI_TAG_EAPOL_MESSAGE_TYPE:
 			eapol_msg_type = tag_value;
 			break;
-		case WIFI_TAG_STATUS:
-			eapol_result_code = tag_value;
+		case SLSI_WIFI_TAG_STATUS:
+			status_code = tag_value;
 			break;
 		}
 		i += tag_len;
 	}
 	switch (event_id) {
-	case WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_START:
-		SLSI_INFO(sdev, "WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_START, Send 4way-H/S, M%d\n", eapol_msg_type);
+	case FAPI_EVENT_WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_START:
+		if (eapol_key_type == SLSI_WIFI_EAPOL_KEY_TYPE_GTK)
+			SLSI_INFO(sdev, "WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_START, Send GTK, G%d\n", eapol_msg_type);
+		else if (eapol_key_type == SLSI_WIFI_EAPOL_KEY_TYPE_PTK)
+			SLSI_INFO(sdev, "WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_START, Send 4way-H/S, M%d\n",
+				  eapol_msg_type);
 		break;
-	case WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_STOP:
+	case FAPI_EVENT_WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_STOP:
 		SLSI_INFO(sdev, "WIFI_EVENT_FW_EAPOL_FRAME_TRANSMIT_STOP,Result Code:%d, Retry Count:%d\n",
-			  eapol_result_code, eapol_retry_count);
+			  status_code, eapol_retry_count);
 		break;
-	case WIFI_EVENT_FW_EAPOL_FRAME_RECEIVED:
-		SLSI_INFO(sdev, "WIFI_EVENT_FW_EAPOL_FRAME_RECEIVED, Received 4way-H/S, M%d\n", eapol_msg_type);
+	case FAPI_EVENT_WIFI_EVENT_FW_EAPOL_FRAME_RECEIVED:
+		if (eapol_key_type == SLSI_WIFI_EAPOL_KEY_TYPE_GTK)
+			SLSI_INFO(sdev, "WIFI_EVENT_FW_EAPOL_FRAME_RECEIVED, Received GTK, G%d\n", eapol_msg_type);
+		else if (eapol_key_type == SLSI_WIFI_EAPOL_KEY_TYPE_PTK)
+			SLSI_INFO(sdev, "WIFI_EVENT_FW_EAPOL_FRAME_RECEIVED, Received 4way-H/S, M%d\n", eapol_msg_type);
 		break;
 	case WIFI_EVENT_FW_BTM_FRAME_REQUEST:
 		SLSI_INFO(sdev, "WIFI_EVENT_FW_BTM_FRAME_REQUEST,Request Mode:%d\n", btm_request_mode);
 		break;
 	case WIFI_EVENT_FW_BTM_FRAME_RESPONSE:
-		SLSI_INFO(sdev, "WIFI_EVENT_FW_BTM_FRAME_RESPONSE:%s\n", btm_response ? "Success" : "Failure");
+		SLSI_INFO(sdev, "WIFI_EVENT_FW_BTM_FRAME_RESPONSE,Status code:%d\n", btm_response);
 		break;
-	case WIFI_EVENT_ROAM_SEARCH_STARTED:
+	case FAPI_EVENT_WIFI_EVENT_ROAM_SEARCH_STARTED:
 		SLSI_INFO(sdev, "WIFI_EVENT_ROAM_SEARCH_STARTED, RSSI:%d, Deauth Reason:0x%04x, Channel Utilisation:%d,"
 			  "Roam Reason: %s\n", roam_rssi_val, deauth_reason, chan_utilisation,
 			  slsi_get_roam_reason_str(roam_reason));
+		break;
+	case FAPI_EVENT_WIFI_EVENT_FW_AUTH_STARTED:
+		SLSI_INFO(sdev, "WIFI_EVENT_FW_AUTH_STARTED\n");
+		break;
+	case FAPI_EVENT_WIFI_EVENT_AUTH_COMPLETE:
+		SLSI_INFO(sdev, "WIFI_EVENT_AUTH_COMPLETE,Status code:%d\n", status_code);
+		break;
+	case FAPI_EVENT_WIFI_EVENT_ROAM_ASSOC_COMPLETE:
+		SLSI_INFO(sdev, "WIFI_EVENT_ROAM_ASSOC_COMPLETE\n");
+		break;
+	case WIFI_EVENT_FW_NR_FRAME_REQUEST:
+		SLSI_INFO(sdev, "Send Radio Measurement Frame (Neighbor Report Req)\n");
+		break;
+	case WIFI_EVENT_FW_RM_FRAME_RESPONSE:
+		SLSI_INFO(sdev, "Received Radio Measurement Frame (Radio Measurement Rep)\n");
 		break;
 	}
 
