@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -241,9 +241,8 @@ struct hip4_priv {
 	struct work_struct           intr_wq_ctrl;
 	struct work_struct           intr_wq_fb;
 	struct napi_struct           napi;
-#else
-	struct work_struct           intr_wq;
 #endif
+	struct work_struct           intr_wq;
 
 	/* Interrupts cache < v4 */
 	/* TOHOST */

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -105,9 +105,17 @@ void slsi_ba_process_complete(struct net_device *dev)
 static void slsi_ba_signal_process_complete(struct net_device *dev)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	struct slsi_dev *sdev = ndev_vif->sdev;
+	u32 conf_hip4_ver = 0;
+#endif
 
 	atomic_set(&ndev_vif->ba_flush, 1);
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
+	if (conf_hip4_ver == 3)
+		slsi_skb_schedule_work(&ndev_vif->rx_data);
+#else
 	slsi_skb_schedule_work(&ndev_vif->rx_data);
 #endif
 }
@@ -263,6 +271,11 @@ static void slsi_ba_aging_timeout_handler(unsigned long data)
 	u8                        gap = 1;
 	u16                       temp_sn;
 	struct net_device         *dev = ba_session_rx->dev;
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	struct netdev_vif         *ndev_vif = netdev_priv(dev);
+	struct slsi_dev           *sdev = ndev_vif->sdev;
+	u32                       conf_hip4_ver = 0;
+#endif
 
 	SLSI_NET_DBG3(dev, SLSI_RX_BA, "\n");
 
@@ -305,7 +318,11 @@ static void slsi_ba_aging_timeout_handler(unsigned long data)
 		slsi_spinlock_unlock(&ba_session_rx->ba_lock);
 		/* Process the data now marked as completed */
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-		slsi_ba_process_complete(dev);
+		conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
+		if (conf_hip4_ver == 4)
+			slsi_ba_process_complete(dev);
+		else
+			slsi_ba_signal_process_complete(dev);
 #else
 		slsi_ba_signal_process_complete(dev);
 #endif

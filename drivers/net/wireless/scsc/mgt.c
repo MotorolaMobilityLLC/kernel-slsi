@@ -2056,9 +2056,8 @@ void slsi_vif_deactivated(struct slsi_dev *sdev, struct net_device *dev)
 
 	/* MUST be done first to ensure that other code doesn't treat the VIF as still active */
 	ndev_vif->activated = false;
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	slsi_skb_queue_purge(&ndev_vif->rx_data.queue);
-#endif
+
 	for (i = 0; i < (SLSI_ADHOC_PEER_CONNECTIONS_MAX); i++) {
 		struct slsi_peer *peer = ndev_vif->peer_sta_record[i];
 

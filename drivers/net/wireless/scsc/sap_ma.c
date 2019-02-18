@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #include <linux/types.h>
@@ -198,6 +198,9 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 	struct ethhdr *eth_hdr;
 	bool is_amsdu = slsi_rx_is_amsdu(skb);
 	u8 trafic_q = slsi_frame_priority_to_ac_queue(fapi_get_u16(skb, u.ma_unitdata_ind.priority));
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 
 	__skb_queue_head_init(&msdu_list);
 
@@ -314,10 +317,17 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 		slsi_dbg_untrack_skb(rx_skb);
 
 		SLSI_DBG4(sdev, SLSI_RX, "pass %u bytes to local stack\n", rx_skb->len);
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+		conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
+		if (conf_hip4_ver == 4) {
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI_GRO
-		napi_gro_receive(&sdev->hip4_inst.hip_priv->napi, rx_skb);
-#elif defined(CONFIG_SCSC_WLAN_RX_NAPI)
-		netif_receive_skb(rx_skb);
+			napi_gro_receive(&sdev->hip4_inst.hip_priv->napi, rx_skb);
+#else
+			netif_receive_skb(rx_skb);
+#endif
+		} else {
+			netif_rx_ni(rx_skb);
+		}
 #else
 		netif_rx_ni(rx_skb);
 #endif
@@ -487,7 +497,7 @@ static int slsi_rx_napi_process(struct slsi_dev *sdev, struct sk_buff *skb)
 	}
 	return 0;
 }
-#else
+#endif
 void slsi_rx_netdev_data_work(struct work_struct *work)
 {
 	struct slsi_skb_work *w = container_of(work, struct slsi_skb_work, work);
@@ -571,10 +581,12 @@ static int slsi_rx_queue_data(struct slsi_dev *sdev, struct sk_buff *skb)
 err:
 	return -EINVAL;
 }
-#endif
 
 static int sap_ma_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 {
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 #ifdef CONFIG_SCSC_SMAPPER
 	u16 sig_len;
 	u32 err;
@@ -595,7 +607,11 @@ static int sap_ma_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 #endif
 	case MA_UNITDATA_CFM:
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-		return slsi_rx_napi_process(sdev, skb);
+		conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
+		if (conf_hip4_ver == 4)
+			return slsi_rx_napi_process(sdev, skb);
+		else
+			return slsi_rx_queue_data(sdev, skb);
 #else
 		return slsi_rx_queue_data(sdev, skb);
 #endif
