@@ -359,6 +359,10 @@ int fimc_is_sensor_parse_dt(struct platform_device *pdev)
 		probe_info("skip multi_ch bool data read (%d)", ret);
 	}
 
+	ret = of_property_read_u32(dnode, "camif_mux_val", &pdata->camif_mux_val);
+	if (ret)
+		probe_info("skip camif sysreg mux default value read (%d)", ret);
+
 	elems = of_property_count_u32_elems(dnode, "dma_ch");
 	if (elems >= CSI_VIRTUAL_CH_MAX) {
 		if (elems % CSI_VIRTUAL_CH_MAX) {
