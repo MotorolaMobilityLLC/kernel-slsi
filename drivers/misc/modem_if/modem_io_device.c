@@ -254,7 +254,7 @@ static int gather_multi_frame(struct exynos_link_header *hdr,
 		}
 		mif_info("Total multi-frame packet size is %d\n", total_len);
 
-		skb_new = alloc_skb(total_len, GFP_KERNEL);
+		skb_new = alloc_skb(total_len, GFP_ATOMIC);
 		if (unlikely(skb_new == NULL)) {
 			mif_err("ERR - alloc_skb fail\n");
 			skb_queue_purge(multi_q);
