@@ -108,7 +108,7 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 
 static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 			      unsigned long size, enum dma_data_direction dma_dir,
-			      gfp_t gfp_flags)
+			      gfp_t gfp_flags, int memflags)
 {
 	struct vb2_dma_sg_buf *buf;
 	struct sg_table *sgt;
@@ -202,7 +202,7 @@ static void vb2_dma_sg_put(void *buf_priv)
 	}
 }
 
-static void vb2_dma_sg_prepare(void *buf_priv, size_t size)
+static void vb2_dma_sg_prepare(void *buf_priv, size_t size, int memflags)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
@@ -229,7 +229,7 @@ static void vb2_dma_sg_prepare(void *buf_priv, size_t size)
 	}
 }
 
-static void vb2_dma_sg_finish(void *buf_priv, size_t size)
+static void vb2_dma_sg_finish(void *buf_priv, size_t size, int memflags)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
@@ -258,7 +258,8 @@ static void vb2_dma_sg_finish(void *buf_priv, size_t size)
 
 static void *vb2_dma_sg_get_userptr(struct device *dev, unsigned long vaddr,
 				    unsigned long size,
-				    enum dma_data_direction dma_dir)
+				    enum dma_data_direction dma_dir,
+				    int memflags)
 {
 	struct vb2_dma_sg_buf *buf;
 	struct sg_table *sgt;
@@ -586,7 +587,7 @@ static struct dma_buf *vb2_dma_sg_get_dmabuf(void *buf_priv, unsigned long flags
 /*       callbacks for DMABUF buffers        */
 /*********************************************/
 
-static int vb2_dma_sg_map_dmabuf(void *mem_priv, size_t size)
+static int vb2_dma_sg_map_dmabuf(void *mem_priv, size_t size, int memflags)
 {
 	struct vb2_dma_sg_buf *buf = mem_priv;
 	struct sg_table *sgt;
