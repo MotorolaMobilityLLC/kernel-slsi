@@ -29,6 +29,20 @@ MODULE_PARM_DESC(msdu_enable, "MSDU frame format, Y: enable (default), N: disabl
 
 #include <linux/spinlock.h>
 
+int slsi_is_wps_msg_start_or_m17(u8 *eapol, u16 eap_length)
+{
+	/* Note that Message should not be M8.This check is to identify only WSC_START message or M1-M7 */
+	/*Return 1 If opcode type WSC msg and Msg Type M1-M7 or if opcode is WSC start.*/
+	if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST ||
+	    eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
+		if (eapol[SLSI_EAP_TYPE_POS] == SLSI_EAP_TYPE_EXPANDED && eap_length >= SLSI_EAP_OPCODE_POS - 3 &&
+		    ((eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_MSG && eap_length >= SLSI_EAP_MSGTYPE_POS - 3 &&
+		    eapol[SLSI_EAP_MSGTYPE_POS] != SLSI_EAP_MSGTYPE_M8) ||
+		    eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_START))
+			return 1;
+	return 0;
+}
+
 static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
 {
 	struct netdev_vif	*ndev_vif = netdev_priv(dev);
@@ -39,6 +53,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 	int			ret = 0;
 	u32              dwell_time = sdev->fw_dwell_time;
 	u64			tx_bytes_tmp = 0;
+	u16                 eap_length = 0;
 
 	slsi_spinlock_lock(&ndev_vif->peer_lock);
 	peer = slsi_get_peer_from_mac(sdev, dev, eth_hdr(skb)->h_dest);
@@ -57,7 +72,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 		 *   - Key type bit set in key info (pairwise=1, Group=0)
 		 *   - Key Data Length would be 0
 		 */
-		if ((skb->len + sizeof(struct ethhdr)) >= 99)
+		if ((skb->len - sizeof(struct ethhdr)) >= 99)
 			eapol = skb->data + sizeof(struct ethhdr);
 		if (eapol && eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAPOL_KEY) {
 			msg_type = FAPI_MESSAGETYPE_EAPOL_KEY_M123;
@@ -67,43 +82,29 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 			    (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] & SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE) &&
 			    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_HIGHER_BYTE_POS] == 0) &&
 			    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)) {
-				SLSI_INFO(sdev, "Send 4way-H/S, M4\n");
 				msg_type = FAPI_MESSAGETYPE_EAPOL_KEY_M4;
 				dwell_time = 0;
-			} else if (msg_type == FAPI_MESSAGETYPE_EAPOL_KEY_M123) {
-				if (!(eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-				      SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE))
-					SLSI_INFO(sdev, "Send 4way-H/S, M1\n");
-				else if (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
-					 SLSI_EAPOL_KEY_INFO_SECURE_BIT_IN_HIGHER_BYTE)
-					SLSI_INFO(sdev, "Send 4way-H/S, M3\n");
-				else
-					SLSI_INFO(sdev, "Send 4way-H/S, M2\n");
 			}
 		} else {
 			msg_type = FAPI_MESSAGETYPE_EAP_MESSAGE;
-			if ((skb->len - sizeof(struct ethhdr)) >= 5)
+			if ((skb->len - sizeof(struct ethhdr)) >= 9)
 				eapol = skb->data + sizeof(struct ethhdr);
 
 			dwell_time = 0;
 			if (eapol && eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAP_PACKET) {
+				eap_length = (skb->len - sizeof(struct ethhdr)) - 4;
 				if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST)
-					SLSI_INFO(sdev, "Send EAP-Request\n");
+					SLSI_INFO(sdev, "Send EAP-Request (%d)\n", eap_length);
 				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
-					SLSI_INFO(sdev, "Send EAP-Response\n");
+					SLSI_INFO(sdev, "Send EAP-Response (%d)\n", eap_length);
 				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_SUCCESS)
-					SLSI_INFO(sdev, "Send EAP-Success\n");
+					SLSI_INFO(sdev, "Send EAP-Success (%d)\n", eap_length);
 				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_FAILURE)
-					SLSI_INFO(sdev, "Send EAP-Failure\n");
+					SLSI_INFO(sdev, "Send EAP-Failure (%d)\n", eap_length);
 
 				/*Identify WPS_START & M1-M7 and set dwell time to 100ms */
-				if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST ||
-				    eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
-					if (eapol[SLSI_EAP_TYPE_POS] == SLSI_EAP_TYPE_EXPANDED &&
-					    ((eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_MSG &&
-					    eapol[SLSI_EAP_MSGTYPE_POS] != SLSI_EAP_MSGTYPE_M8) ||
-					    eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_START))
-						dwell_time = SLSI_EAP_WPS_DWELL_TIME;
+				if (slsi_is_wps_msg_start_or_m17(eapol, eap_length))
+					dwell_time = SLSI_EAP_WPS_DWELL_TIME;
 			}
 		}
 	break;
