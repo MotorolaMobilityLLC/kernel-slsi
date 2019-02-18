@@ -59,7 +59,7 @@
 				};
 
 				internal_vc {
-					vc_list = <1 VC_PRIVATE 0 2 VC_MIPISTAT 0>;
+					vc_list = <1 VC_PRIVATE 1 2 VC_MIPISTAT 1>;
 				};
 			};
 
