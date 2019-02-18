@@ -364,6 +364,8 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 
 	/* default PIP set by DT */
 	multi_ch = pdata->multi_ch;
+	if (pdata->camif_mux_val)
+		mux_set_val = pdata->camif_mux_val;
 
 	for (i = 0; i < FIMC_IS_SENSOR_COUNT; i++) {
 		if (test_bit(FIMC_IS_SENSOR_OPEN, &(core->sensor[i].state))
