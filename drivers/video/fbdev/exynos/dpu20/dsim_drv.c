@@ -758,6 +758,24 @@ int dsim_set_panel_power(struct dsim_device *dsim, bool on)
 	return 0;
 }
 
+static void dsim_phy_status(struct phy *phy)
+{
+	void __iomem *phy_iso_regs;
+	u32 phy_iso = 0;
+	/* 1: Isolation bypassed, 0: Isolation enabled */
+
+	dsim_dbg("%s, PHY count : %d\n", __func__, phy->power_count);
+	phy_iso_regs = ioremap(MIPI_PHY_M4S4_CON, 0x10);
+	phy_iso = readl(phy_iso_regs);
+	if ((phy_iso & M4S4_TOP_ISO_BYPASS) != M4S4_TOP_ISO_BYPASS) {
+		dsim_err("Isolation bypass should be set\n");
+		phy_iso = M4S4_TOP_ISO_BYPASS;
+		writel(phy_iso, phy_iso_regs);
+		dsim_err("Isolation bypass was set\n");
+	}
+	iounmap(phy_iso_regs);
+}
+
 static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 {
 	bool panel_ctrl;
@@ -785,6 +803,9 @@ static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 	phy_power_on(dsim->phy);
 	if (dsim->phy_ex)
 		phy_power_on(dsim->phy_ex);
+
+	/* DPHY status */
+	dsim_phy_status(dsim->phy);
 
 	panel_ctrl = (state == DSIM_STATE_ON) ? true : false;
 	dsim_reg_init(dsim->id, &dsim->lcd_info, &dsim->clks, panel_ctrl);
@@ -1018,6 +1039,9 @@ static int dsim_exit_ulps(struct dsim_device *dsim)
 	phy_power_on(dsim->phy);
 	if (dsim->phy_ex)
 		phy_power_on(dsim->phy_ex);
+
+	/* DPHY status */
+	dsim_phy_status(dsim->phy);
 
 	dsim_reg_init(dsim->id, &dsim->lcd_info, &dsim->clks, false);
 	ret = dsim_reg_exit_ulps_and_start(dsim->id, dsim->lcd_info.ddi_type,
