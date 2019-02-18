@@ -363,6 +363,7 @@ struct exynos_platform_fimc_is_sensor {
 	unsigned long internal_state;
 	u32 csi_mux;
 	u32 multi_ch;
+	u32 camif_mux_val;
 };
 
 int exynos_fimc_is_sensor_iclk_cfg(struct device *dev,
