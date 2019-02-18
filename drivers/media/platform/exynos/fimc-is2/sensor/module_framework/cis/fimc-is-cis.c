@@ -279,6 +279,7 @@ int sensor_cis_compensate_gain_for_extremely_br(struct v4l2_subdev *subdev, u32 
 	u32 min_fine_int = 0;
 	u16 coarse_int = 0;
 	u32 compensated_again = 0;
+	u32 coarse_int_standard;
 
 	FIMC_BUG(!subdev);
 	FIMC_BUG(!again);
@@ -308,7 +309,14 @@ int sensor_cis_compensate_gain_for_extremely_br(struct v4l2_subdev *subdev, u32 
 		coarse_int = cis_data->min_coarse_integration_time;
 	}
 
-	if (coarse_int <= 15) {
+	coarse_int_standard = 15;
+#ifdef CONFIG_CAMERA_CIS_2X5SP_OBJ
+	/* if cis is 2x5sp, coarse_integration is not applyed */
+	if (cis->id == SENSOR_NAME_S5K2X5SP)
+		coarse_int_standard = 2;
+	dbg_sensor(1, "[MOD:D:%d] %s, coarse_int_standard(%d)\n", cis->id, __func__, coarse_int_standard);
+#endif
+	if (coarse_int <= coarse_int_standard) {
 		compensated_again = (*again * ((expo * vt_pic_clk_freq_mhz) - min_fine_int)) / (line_length_pck * coarse_int);
 
 		if (compensated_again < cis_data->min_analog_gain[1]) {
