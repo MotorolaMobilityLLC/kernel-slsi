@@ -684,9 +684,8 @@ struct netdev_vif {
 	struct mutex                vif_mutex;
 #endif
 	struct slsi_sig_send        sig_wait;
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
+
 	struct slsi_skb_work        rx_data;
-#endif
 	struct slsi_skb_work        rx_mlme;
 	u16                         ifnum;
 	enum nl80211_iftype         iftype;
@@ -1136,9 +1135,6 @@ struct llc_snap_hdr {
 	u16 snap_type;
 } __packed;
 
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
-int slsi_rx_data_napi(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, bool from_ba);
-#endif
 void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_rx_dbg_sap_work(struct work_struct *work);
 void slsi_rx_netdev_data_work(struct work_struct *work);

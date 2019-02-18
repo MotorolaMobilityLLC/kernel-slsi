@@ -1135,16 +1135,13 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 
 	INIT_DELAYED_WORK(&ndev_vif->scan_timeout_work, slsi_scan_ind_timeout_handle);
 
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	ret = slsi_skb_work_init(sdev, dev, &ndev_vif->rx_data, "slsi_wlan_rx_data", slsi_rx_netdev_data_work);
 	if (ret)
 		goto exit_with_error;
-#endif
+
 	ret = slsi_skb_work_init(sdev, dev, &ndev_vif->rx_mlme, "slsi_wlan_rx_mlme", slsi_rx_netdev_mlme_work);
 	if (ret) {
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 		slsi_skb_work_deinit(&ndev_vif->rx_data);
-#endif
 		goto exit_with_error;
 	}
 
@@ -1337,10 +1334,9 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 	cancel_delayed_work(&ndev_vif->scan_timeout_work);
 	ndev_vif->scan[SLSI_SCAN_HW_ID].requeue_timeout_work = false;
 
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	slsi_skb_work_deinit(&ndev_vif->rx_data);
-#endif
 	slsi_skb_work_deinit(&ndev_vif->rx_mlme);
+
 	for (i = 0; i < SLSI_SCAN_MAX; i++)
 		slsi_purge_scan_results(ndev_vif, i);
 

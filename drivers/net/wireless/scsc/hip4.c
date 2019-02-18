@@ -77,11 +77,11 @@ static ktime_t bh_end_ctrl;
 static ktime_t intr_received_data;
 static ktime_t bh_init_data;
 static ktime_t bh_end_data;
-#else
+#endif
 static ktime_t intr_received;
 static ktime_t bh_init;
 static ktime_t bh_end;
-#endif
+
 static ktime_t wdt;
 static ktime_t send;
 static ktime_t closing;
@@ -533,11 +533,18 @@ static void hip4_dump_dbg(struct slsi_hip4 *hip, struct mbulk *m, struct sk_buff
 {
 	unsigned int        i = 0;
 	scsc_mifram_ref     ref;
-
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	SLSI_ERR_NODEV("intr_tohost_fb 0x%x\n", hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
-	SLSI_ERR_NODEV("intr_tohost_ctrl 0x%x\n", hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_CTRL]);
-	SLSI_ERR_NODEV("intr_tohost_dat 0x%x\n", hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+	u32 conf_hip4_ver = 0;
+
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
+
+	if (conf_hip4_ver == 4) {
+		SLSI_ERR_NODEV("intr_tohost_fb 0x%x\n", hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
+		SLSI_ERR_NODEV("intr_tohost_ctrl 0x%x\n", hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_CTRL]);
+		SLSI_ERR_NODEV("intr_tohost_dat 0x%x\n", hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+	} else {
+		SLSI_ERR_NODEV("intr_tohost 0x%x\n", hip->hip_priv->intr_tohost);
+	}
 #else
 	SLSI_ERR_NODEV("intr_tohost 0x%x\n", hip->hip_priv->intr_tohost);
 #endif
@@ -564,15 +571,21 @@ static void hip4_dump_dbg(struct slsi_hip4 *hip, struct mbulk *m, struct sk_buff
 	SLSI_ERR_NODEV("time: wdt     %lld\n", ktime_to_ns(wdt));
 	SLSI_ERR_NODEV("time: send    %lld\n", ktime_to_ns(send));
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	SLSI_ERR_NODEV("time: intr_fb      %lld\n", ktime_to_ns(intr_received_fb));
-	SLSI_ERR_NODEV("time: bh_init_fb   %lld\n", ktime_to_ns(bh_init_fb));
-	SLSI_ERR_NODEV("time: bh_end_fb    %lld\n", ktime_to_ns(bh_end_fb));
-	SLSI_ERR_NODEV("time: intr_ctrl    %lld\n", ktime_to_ns(intr_received_ctrl));
-	SLSI_ERR_NODEV("time: bh_init_ctrl %lld\n", ktime_to_ns(bh_init_ctrl));
-	SLSI_ERR_NODEV("time: bh_end_ctrl  %lld\n", ktime_to_ns(bh_end_ctrl));
-	SLSI_ERR_NODEV("time: intr_data    %lld\n", ktime_to_ns(intr_received_data));
-	SLSI_ERR_NODEV("time: bh_init_data %lld\n", ktime_to_ns(bh_init_data));
-	SLSI_ERR_NODEV("time: bh_end_data  %lld\n", ktime_to_ns(bh_end_data));
+	if (conf_hip4_ver == 4) {
+		SLSI_ERR_NODEV("time: intr_fb      %lld\n", ktime_to_ns(intr_received_fb));
+		SLSI_ERR_NODEV("time: bh_init_fb   %lld\n", ktime_to_ns(bh_init_fb));
+		SLSI_ERR_NODEV("time: bh_end_fb    %lld\n", ktime_to_ns(bh_end_fb));
+		SLSI_ERR_NODEV("time: intr_ctrl    %lld\n", ktime_to_ns(intr_received_ctrl));
+		SLSI_ERR_NODEV("time: bh_init_ctrl %lld\n", ktime_to_ns(bh_init_ctrl));
+		SLSI_ERR_NODEV("time: bh_end_ctrl  %lld\n", ktime_to_ns(bh_end_ctrl));
+		SLSI_ERR_NODEV("time: intr_data    %lld\n", ktime_to_ns(intr_received_data));
+		SLSI_ERR_NODEV("time: bh_init_data %lld\n", ktime_to_ns(bh_init_data));
+		SLSI_ERR_NODEV("time: bh_end_data  %lld\n", ktime_to_ns(bh_end_data));
+	} else {
+		SLSI_ERR_NODEV("time: intr    %lld\n", ktime_to_ns(intr_received));
+		SLSI_ERR_NODEV("time: bh_init %lld\n", ktime_to_ns(bh_init));
+		SLSI_ERR_NODEV("time: bh_end  %lld\n", ktime_to_ns(bh_end));
+	}
 #else
 	SLSI_ERR_NODEV("time: intr    %lld\n", ktime_to_ns(intr_received));
 	SLSI_ERR_NODEV("time: bh_init %lld\n", ktime_to_ns(bh_init));
@@ -878,6 +891,9 @@ static void hip4_watchdog(unsigned long data)
 	struct scsc_service     *service;
 	ktime_t                 intr_ov;
 	unsigned long           flags;
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 
 	if (!hip || !sdev || !sdev->service || !hip->hip_priv)
 		return;
@@ -889,13 +905,25 @@ static void hip4_watchdog(unsigned long data)
 	wdt = ktime_get();
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	/* if intr_received > wdt skip as intr has been unblocked */
-	if (test_and_clear_bit(HIP4_MIF_Q_FH_RFB, hip->hip_priv->irq_bitmap))
-		intr_ov = ktime_add_ms(intr_received_fb, jiffies_to_msecs(HZ));
-	if (test_and_clear_bit(HIP4_MIF_Q_TH_CTRL, hip->hip_priv->irq_bitmap))
-		intr_ov = ktime_add_ms(intr_received_ctrl, jiffies_to_msecs(HZ));
-	if (test_and_clear_bit(HIP4_MIF_Q_TH_DAT, hip->hip_priv->irq_bitmap))
-		intr_ov = ktime_add_ms(intr_received_data, jiffies_to_msecs(HZ));
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
+
+	if (conf_hip4_ver == 4) {
+		/* if intr_received > wdt skip as intr has been unblocked */
+		if (test_and_clear_bit(HIP4_MIF_Q_FH_RFB, hip->hip_priv->irq_bitmap))
+			intr_ov = ktime_add_ms(intr_received_fb, jiffies_to_msecs(HZ));
+		if (test_and_clear_bit(HIP4_MIF_Q_TH_CTRL, hip->hip_priv->irq_bitmap))
+			intr_ov = ktime_add_ms(intr_received_ctrl, jiffies_to_msecs(HZ));
+		if (test_and_clear_bit(HIP4_MIF_Q_TH_DAT, hip->hip_priv->irq_bitmap))
+			intr_ov = ktime_add_ms(intr_received_data, jiffies_to_msecs(HZ));
+	} else {
+		/* if intr_received > wdt skip as intr has been unblocked */
+		if (ktime_compare(intr_received, wdt) > 0) {
+			wdt = ktime_set(0, 0);
+			goto exit;
+		}
+
+		intr_ov = ktime_add_ms(intr_received, jiffies_to_msecs(HZ));
+	}
 #else
 	/* if intr_received > wdt skip as intr has been unblocked */
 	if (ktime_compare(intr_received, wdt) > 0) {
@@ -924,11 +952,19 @@ static void hip4_watchdog(unsigned long data)
 	SLSI_INFO_NODEV("Hip4 watchdog triggered\n");
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++) {
-		if (scsc_service_mifintrbit_bit_mask_status_get(service) & (1 << hip->hip_priv->intr_tohost_mul[i])) {
+	if (conf_hip4_ver == 4) {
+		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++) {
+			if (scsc_service_mifintrbit_bit_mask_status_get(service) & (1 << hip->hip_priv->intr_tohost_mul[i])) {
+				/* Interrupt might be pending! */
+				SLSI_INFO_NODEV("%d: Interrupt Masked. Unmask to restart Interrupt processing\n", i);
+				scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[i]);
+			}
+		}
+	} else {
+		if (scsc_service_mifintrbit_bit_mask_status_get(service) & (1 << hip->hip_priv->intr_tohost)) {
 			/* Interrupt might be pending! */
-			SLSI_INFO_NODEV("%d: Interrupt Masked. Unmask to restart Interrupt processing\n", i);
-			scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[i]);
+			SLSI_INFO_NODEV("Interrupt Masked. Unmask to restart Interrupt processing\n");
+			scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost);
 		}
 	}
 #else
@@ -945,8 +981,16 @@ exit:
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 static void hip4_irq_handler_stub(int irq, void *data)
 {
+	struct slsi_hip4	*hip = (struct slsi_hip4 *)data;
+	struct slsi_dev     *sdev = container_of(hip, struct slsi_dev, hip4_inst);
+
 	/* should not happen */
 	WARN_ON(1);
+
+	/* mask all interrupts or else will get stuck in interrupt loop */
+	scsc_service_mifintrbit_bit_mask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_CTRL]);
+	scsc_service_mifintrbit_bit_mask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_DAT]);
+	scsc_service_mifintrbit_bit_mask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_RFB]);
 }
 
 static void hip4_wq_fb(struct work_struct *data)
@@ -1380,7 +1424,7 @@ static void hip4_irq_handler_dat(int irq, void *data)
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 0);
 }
 
-#else /* #ifdef CONFIG_SCSC_WLAN_RX_NAPI */
+#endif /* #ifdef CONFIG_SCSC_WLAN_RX_NAPI */
 
 static bool slsi_check_rx_flowcontrol(struct slsi_dev *sdev)
 {
@@ -1849,7 +1893,6 @@ end:
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 1);
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 2);
 }
-#endif /* #ifdef CONFIG_SCSC_WLAN_RX_NAPI */
 
 #ifdef CONFIG_SCSC_QOS
 static void hip4_pm_qos_work(struct work_struct *data)
@@ -2007,8 +2050,9 @@ int hip4_init(struct slsi_hip4 *hip)
 	/* Set driver is not ready to receive interrupts */
 	atomic_set(&hip->hip_priv->rx_ready, 0);
 
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	/***** VERSION 4 *******/
 	/* TOHOST Handler allocator */
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
 	/* Q0 FH CTRL */
 	hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_CTRL] =
 		scsc_service_mifintrbit_register_tohost(service, hip4_irq_handler_stub, hip);
@@ -2030,14 +2074,14 @@ int hip4_init(struct slsi_hip4 *hip)
 	scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
 	/* Q5 TH RFB - Use the same stub interrupt handler */
 	hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_RFB] = hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_CTRL];
-#else
+#endif
+	/***** VERSION 3 *******/
 	/* TOHOST Handler allocator */
 	hip->hip_priv->intr_tohost =
 		scsc_service_mifintrbit_register_tohost(service, hip4_irq_handler, hip);
 
 	/* Mask the interrupt to prevent intr been kicked during start */
 	scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
-#endif
 
 	/* FROMHOST Handler allocator */
 	hip->hip_priv->intr_fromhost =
@@ -2172,9 +2216,8 @@ int hip4_init(struct slsi_hip4 *hip)
 	tasklet_init(&hip->hip_priv->intr_tasklet, hip4_irq_data_tasklet, (unsigned long)hip);
 	INIT_WORK(&hip->hip_priv->intr_wq_ctrl, hip4_wq_ctrl);
 	INIT_WORK(&hip->hip_priv->intr_wq_fb, hip4_wq_fb);
-#else
-	INIT_WORK(&hip->hip_priv->intr_wq, hip4_wq);
 #endif
+	INIT_WORK(&hip->hip_priv->intr_wq, hip4_wq);
 
 	rwlock_init(&hip->hip_priv->rw_scoreboard);
 
@@ -2412,9 +2455,13 @@ int hip4_setup(struct slsi_hip4 *hip)
 	atomic_set(&hip->hip_priv->rx_ready, 1);
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
-	scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_CTRL]);
-	scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+	if (conf_hip4_ver == 4) {
+		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
+		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_CTRL]);
+		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+	} else {
+		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost);
+	}
 #else
 	scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost);
 #endif
@@ -2426,6 +2473,9 @@ void hip4_suspend(struct slsi_hip4 *hip)
 {
 	struct slsi_dev *sdev;
 	struct scsc_service *service;
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 
 	if (!hip || !hip->hip_priv)
 		return;
@@ -2445,8 +2495,14 @@ void hip4_suspend(struct slsi_hip4 *hip)
 	atomic_set(&hip->hip_priv->in_suspend, 1);
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
-		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[i]);
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
+
+	if (conf_hip4_ver == 4) {
+		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+			scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[i]);
+	} else {
+		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost);
+	}
 #else
 	scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost);
 #endif
@@ -2473,6 +2529,9 @@ void hip4_freeze(struct slsi_hip4 *hip)
 {
 	struct slsi_dev *sdev;
 	struct scsc_service *service;
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 
 	if (!hip || !hip->hip_priv)
 		return;
@@ -2491,12 +2550,19 @@ void hip4_freeze(struct slsi_hip4 *hip)
 
 	hip4_dump_dbg(hip, NULL, NULL, service);
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
-		scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
 
-	tasklet_kill(&hip->hip_priv->intr_tasklet);
-	cancel_work_sync(&hip->hip_priv->intr_wq_ctrl);
-	cancel_work_sync(&hip->hip_priv->intr_wq_fb);
+	if (conf_hip4_ver == 4) {
+		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+			scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
+
+		tasklet_kill(&hip->hip_priv->intr_tasklet);
+		cancel_work_sync(&hip->hip_priv->intr_wq_ctrl);
+		cancel_work_sync(&hip->hip_priv->intr_wq_fb);
+	} else {
+		scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
+		cancel_work_sync(&hip->hip_priv->intr_wq);
+	}
 #else
 	scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
 	cancel_work_sync(&hip->hip_priv->intr_wq);
@@ -2512,6 +2578,9 @@ void hip4_deinit(struct slsi_hip4 *hip)
 {
 	struct slsi_dev     *sdev = container_of(hip, struct slsi_dev, hip4_inst);
 	struct scsc_service *service;
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 
 	if (!sdev || !sdev->service)
 		return;
@@ -2543,16 +2612,24 @@ void hip4_deinit(struct slsi_hip4 *hip)
 	atomic_set(&hip->hip_priv->closing, 1);
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
-		scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
 
-	netif_napi_del(&hip->hip_priv->napi);
-	tasklet_kill(&hip->hip_priv->intr_tasklet);
-	cancel_work_sync(&hip->hip_priv->intr_wq_ctrl);
-	cancel_work_sync(&hip->hip_priv->intr_wq_fb);
+	if (conf_hip4_ver == 4) {
+		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+			scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
 
-	for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
-		scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost_mul[i]);
+		netif_napi_del(&hip->hip_priv->napi);
+		tasklet_kill(&hip->hip_priv->intr_tasklet);
+		cancel_work_sync(&hip->hip_priv->intr_wq_ctrl);
+		cancel_work_sync(&hip->hip_priv->intr_wq_fb);
+
+		for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+			scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost_mul[i]);
+	} else {
+		scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
+		cancel_work_sync(&hip->hip_priv->intr_wq);
+		scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost);
+	}
 #else
 	scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
 	cancel_work_sync(&hip->hip_priv->intr_wq);
