@@ -1098,7 +1098,7 @@ static int fimc_is_sensor_notify_by_fstr(struct fimc_is_device_sensor *device, v
 				framemgr_x_barrier(framemgr, 0);
 				return -EINVAL;
 			}
-			frameptr = (ctrl.value + 1) % framemgr->num_frames;
+			frameptr = (ctrl.value + dma_subdev->vc_buffer_offset) % framemgr->num_frames;
 			frame = &framemgr->frames[frameptr];
 			frame->fcount = device->fcount;
 
