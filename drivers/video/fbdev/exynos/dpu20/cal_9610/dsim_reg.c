@@ -204,6 +204,7 @@ const u32 dphy_timing[][10] = {
 	{1310, 12, 22, 8, 9, 12, 9, 13, 9, 8},
 	{1300, 12, 21, 8, 9, 12, 8, 13, 9, 7},
 	{1290, 12, 21, 8, 9, 12, 8, 13, 9, 7},
+	{1284, 12, 21, 8, 9, 12, 8, 12, 9, 7},
 	{1280, 12, 21, 8, 9, 12, 8, 12, 9, 7},
 	{1270, 12, 21, 8, 9, 12, 8, 12, 9, 7},
 	{1260, 12, 20, 8, 8, 12, 8, 12, 9, 7},
@@ -1276,33 +1277,39 @@ static int dsim_reg_wait_exit_ulps_state(u32 id)
 static int dsim_reg_get_dphy_timing(u32 hs_clk, u32 esc_clk,
 		struct dphy_timing_value *t)
 {
-	int val;
+	u32 index = 0;
+	u32 timing_counts = sizeof(dphy_timing) / sizeof(dphy_timing[0]);
 
-	val  = (dphy_timing[0][0] - hs_clk) / 10;
+	for(index = 0;index < timing_counts;index++){
+		if(hs_clk==dphy_timing[index][0])
+			break;
+	}
+	dsim_info("index = %d,timing_counts=%d.\n",index,timing_counts);
 
-	if (val > ((sizeof(dphy_timing) / sizeof(dphy_timing[0])) - 1)) {
+	if(index >= timing_counts){
 		dsim_err("%u Mhz hs clock can't find proper dphy timing values\n",
 				hs_clk);
 		return -EINVAL;
 	}
 
-	t->bps = hs_clk;
-	t->clk_prepare = dphy_timing[val][1];
-	t->clk_zero = dphy_timing[val][2];
-	t->clk_post = dphy_timing[val][3];
-	t->clk_trail = dphy_timing[val][4];
-	t->hs_prepare = dphy_timing[val][5];
-	t->hs_zero = dphy_timing[val][6];
-	t->hs_trail = dphy_timing[val][7];
-	t->lpx = dphy_timing[val][8];
-	t->hs_exit = dphy_timing[val][9];
 
-	dsim_dbg("%s: bps(%u) clk_prepare(%u) clk_zero(%u) clk_post(%u)\n",
+	t->bps = hs_clk;
+	t->clk_prepare = dphy_timing[index][1];
+	t->clk_zero = dphy_timing[index][2];
+	t->clk_post = dphy_timing[index][3];
+	t->clk_trail = dphy_timing[index][4];
+	t->hs_prepare = dphy_timing[index][5];
+	t->hs_zero = dphy_timing[index][6];
+	t->hs_trail = dphy_timing[index][7];
+	t->lpx = dphy_timing[index][8];
+	t->hs_exit = dphy_timing[index][9];
+
+	dsim_info("%s: bps(%u) clk_prepare(%u) clk_zero(%u) clk_post(%u)\n",
 			__func__, t->bps, t->clk_prepare, t->clk_zero,
 			t->clk_post);
-	dsim_dbg("clk_trail(%u) hs_prepare(%u) hs_zero(%u) hs_trail(%u)\n",
+	dsim_info("clk_trail(%u) hs_prepare(%u) hs_zero(%u) hs_trail(%u)\n",
 			t->clk_trail, t->hs_prepare, t->hs_zero, t->hs_trail);
-	dsim_dbg("lpx(%u) hs_exit(%u)\n", t->lpx, t->hs_exit);
+	dsim_info("lpx(%u) hs_exit(%u)\n", t->lpx, t->hs_exit);
 
 	if ((esc_clk > 20) || (esc_clk < 7)) {
 		dsim_err("%u Mhz cann't be used as escape clock\n", esc_clk);
