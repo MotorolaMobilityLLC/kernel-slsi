@@ -26,8 +26,8 @@ int vipx_system_fw_bootup(struct vipx_system *sys)
 		unsigned int mbox_size;
 		unsigned int heap_addr;
 		unsigned int heap_size;
-		unsigned int debug_addr;
-		unsigned int debug_size;
+		unsigned int log_addr;
+		unsigned int log_size;
 	} *shared_mem;
 
 	vipx_enter();
@@ -36,12 +36,12 @@ int vipx_system_fw_bootup(struct vipx_system *sys)
 
 	sys->ctrl_ops->reset(sys);
 
-	ret = vipx_binary_read(bin, NULL, VIPX_FW_DRAM_NAME, mem->fw.kvaddr,
+	ret = vipx_binary_firmware_load(bin, VIPX_FW_DRAM_NAME, mem->fw.kvaddr,
 			mem->fw.size);
 	if (ret)
 		goto p_err;
 
-	ret = vipx_binary_read(bin, NULL, VIPX_FW_DTCM_NAME, sys->dtcm,
+	ret = vipx_binary_firmware_load(bin, VIPX_FW_DTCM_NAME, sys->dtcm,
 			sys->dtcm_size);
 	if (ret)
 		goto p_err;
@@ -51,11 +51,11 @@ int vipx_system_fw_bootup(struct vipx_system *sys)
 	shared_mem->mbox_size = mem->mbox.size;
 	shared_mem->heap_addr = mem->heap.dvaddr;
 	shared_mem->heap_size = mem->heap.size;
-	shared_mem->debug_addr = mem->debug.dvaddr;
-	shared_mem->debug_size = mem->debug.size;
+	shared_mem->log_addr = mem->log.dvaddr;
+	shared_mem->log_size = mem->log.size;
 
-	ret = vipx_binary_read(bin, NULL, VIPX_FW_ITCM_NAME,
-			sys->itcm, sys->itcm_size);
+	ret = vipx_binary_firmware_load(bin, VIPX_FW_ITCM_NAME, sys->itcm,
+			sys->itcm_size);
 	if (ret)
 		goto p_err;
 

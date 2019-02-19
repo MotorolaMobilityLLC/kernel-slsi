@@ -16,10 +16,15 @@
 #include "vs4l.h"
 #include "vipx-common-type.h"
 
-#define VIPX_CC_DRAM_BIN_DVADDR		(0xB8000000)
+#define VIPX_CC_DRAM_BIN_DVADDR		(0x10000000)
 #define VIPX_CC_DRAM_BIN_SIZE		(SZ_4M)
+#define VIPX_MBOX_DVADDR		(0x11000000)
+#define VIPX_MBOX_SIZE			(SZ_32K)
+#define VIPX_HEAP_DVADDR		(0x12000000)
 #define VIPX_HEAP_SIZE			(SZ_1M)
-#define VIPX_DEBUG_SIZE			(SZ_16M)
+#define VIPX_LOG_DVADDR			(0x13000000)
+#define VIPX_LOG_SIZE			(SZ_1M)
+#define VIPX_MEMORY_MAX_SIZE		(SZ_16M)
 
 #define VIPX_PRIV_MEM_NAME_LEN		(30)
 
@@ -86,7 +91,7 @@ struct vipx_memory {
 	struct vipx_priv_mem		fw;
 	struct vipx_priv_mem		mbox;
 	struct vipx_priv_mem		heap;
-	struct vipx_priv_mem		debug;
+	struct vipx_priv_mem		log;
 };
 
 int vipx_memory_open(struct vipx_memory *mem);

@@ -35,6 +35,7 @@ static int __attribute__((unused)) vipx_fault_handler(
 
 	vipx_debug_dump_debug_regs();
 	vipx_mailbox_dump(mctrl);
+	vipx_debug_log_flush(&vdev->debug);
 
 	return -EINVAL;
 }
@@ -80,7 +81,6 @@ static int vipx_device_suspend(struct device *dev)
 
 	mutex_lock(&vdev->open_lock);
 	if (!vdev->open_count) {
-		vipx_warn("device is already closed\n");
 		mutex_unlock(&vdev->open_lock);
 		return 0;
 	}
@@ -111,7 +111,6 @@ static int vipx_device_resume(struct device *dev)
 
 	mutex_lock(&vdev->open_lock);
 	if (!vdev->open_count) {
-		vipx_warn("device is already closed\n");
 		mutex_unlock(&vdev->open_lock);
 		return 0;
 	}

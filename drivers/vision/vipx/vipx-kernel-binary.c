@@ -113,17 +113,30 @@ p_err:
 	return ret;
 }
 
-int vipx_kernel_binary_unload(struct vipx_context *vctx, unsigned int global_id)
+int vipx_kernel_binary_unload(struct vipx_context *vctx, unsigned int id,
+	int fd, unsigned int size)
 {
+	unsigned int model_id, kid;
 	struct vipx_kernel_binary *kbin, *temp;
-	unsigned int kid, mid;
+	bool found;
 
 	vipx_enter();
-	mid = GET_COMMON_GRAPH_MODEL_ID(global_id);
+	found = false;
+	model_id = GET_COMMON_GRAPH_MODEL_ID(id);
 	list_for_each_entry_safe(kbin, temp, &vctx->binary_list, clist) {
 		kid = GET_COMMON_GRAPH_MODEL_ID(kbin->global_id);
-		if (kid == mid)
+		if ((model_id == kid) &&
+			(fd == kbin->buffer.m.fd) &&
+			(size == kbin->buffer.size)) {
 			vipx_kernel_binary_remove(kbin);
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		vipx_err("There is no kernel binary to unload\n");
+		vipx_leave();
+		return -ENOENT;
 	}
 	vipx_leave();
 	return 0;

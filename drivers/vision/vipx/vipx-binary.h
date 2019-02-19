@@ -28,10 +28,8 @@ struct vipx_binary {
 	struct device		*dev;
 };
 
-int vipx_binary_read(struct vipx_binary *bin, const char *path,
-		const char *name, void *target, size_t size);
-int vipx_binary_write(struct vipx_binary *bin, const char *path,
-		const char *name, void *target, size_t size);
+int vipx_binary_firmware_load(struct vipx_binary *bin, const char *name,
+		void *target, size_t size);
 
 int vipx_binary_init(struct vipx_system *sys);
 void vipx_binary_deinit(struct vipx_binary *bin);

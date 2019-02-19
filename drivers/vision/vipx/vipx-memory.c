@@ -278,8 +278,9 @@ static int __vipx_memory_alloc(struct vipx_memory *mem,
 		}
 		pmem->dvaddr = dvaddr;
 	}
-	vipx_info("[%20s] memory is allocated(%#p,%#x,%zu)",
-			pmem->name, kvaddr, (int)pmem->dvaddr, pmem->size);
+	vipx_info("[%20s] memory is allocated(%#p,%#x,%zuKB)",
+			pmem->name, kvaddr, (int)pmem->dvaddr,
+			pmem->size / SZ_1K);
 
 	vipx_leave();
 	return 0;
@@ -323,6 +324,13 @@ int vipx_memory_open(struct vipx_memory *mem)
 	if (ret)
 		goto p_err_map;
 
+	if (mem->mbox.size < sizeof(struct vipx_mailbox_ctrl)) {
+		vipx_err("mailbox(%zu) is larger than allocated memory(%zu)\n",
+				sizeof(struct vipx_mailbox_ctrl),
+				mem->mbox.size);
+		goto p_err_mbox;
+	}
+
 	ret = __vipx_memory_alloc(mem, &mem->mbox);
 	if (ret)
 		goto p_err_mbox;
@@ -331,7 +339,7 @@ int vipx_memory_open(struct vipx_memory *mem)
 	if (ret)
 		goto p_err_heap;
 
-	ret = __vipx_memory_alloc(mem, &mem->debug);
+	ret = __vipx_memory_alloc(mem, &mem->log);
 	if (ret)
 		goto p_err_debug;
 
@@ -350,7 +358,7 @@ p_err_map:
 int vipx_memory_close(struct vipx_memory *mem)
 {
 	vipx_enter();
-	__vipx_memory_free(mem, &mem->debug);
+	__vipx_memory_free(mem, &mem->log);
 	__vipx_memory_free(mem, &mem->heap);
 	__vipx_memory_free(mem, &mem->mbox);
 	__vipx_memory_free(mem, &mem->fw);
@@ -365,7 +373,7 @@ int vipx_memory_probe(struct vipx_system *sys)
 	struct vipx_priv_mem *fw;
 	struct vipx_priv_mem *mbox;
 	struct vipx_priv_mem *heap;
-	struct vipx_priv_mem *debug;
+	struct vipx_priv_mem *log;
 
 	vipx_enter();
 	dev = sys->dev;
@@ -379,9 +387,9 @@ int vipx_memory_probe(struct vipx_system *sys)
 	fw = &mem->fw;
 	mbox = &mem->mbox;
 	heap = &mem->heap;
-	debug = &mem->debug;
+	log = &mem->log;
 
-	snprintf(fw->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_cc_dram_bin");
+	snprintf(fw->name, VIPX_PRIV_MEM_NAME_LEN, "CC_DRAM_BIN");
 	fw->size = PAGE_ALIGN(VIPX_CC_DRAM_BIN_SIZE);
 	fw->flags = 0;
 	fw->direction = DMA_TO_DEVICE;
@@ -389,25 +397,28 @@ int vipx_memory_probe(struct vipx_system *sys)
 	fw->dvaddr = VIPX_CC_DRAM_BIN_DVADDR;
 	fw->fixed_dvaddr = true;
 
-	snprintf(mbox->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_mbox");
-	mbox->size = PAGE_ALIGN(sizeof(struct vipx_mailbox_ctrl));
+	snprintf(mbox->name, VIPX_PRIV_MEM_NAME_LEN, "MBOX");
+	mbox->size = PAGE_ALIGN(VIPX_MBOX_SIZE);
 	mbox->flags = 0;
 	mbox->direction = DMA_BIDIRECTIONAL;
 	mbox->kmap = true;
-	mbox->fixed_dvaddr = false;
+	mbox->dvaddr = VIPX_MBOX_DVADDR;
+	mbox->fixed_dvaddr = true;
 
-	snprintf(heap->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_heap");
+	snprintf(heap->name, VIPX_PRIV_MEM_NAME_LEN, "HEAP");
 	heap->size = PAGE_ALIGN(VIPX_HEAP_SIZE);
 	heap->flags = 0;
 	heap->direction = DMA_FROM_DEVICE;
-	heap->fixed_dvaddr = false;
+	heap->dvaddr = VIPX_HEAP_DVADDR;
+	heap->fixed_dvaddr = true;
 
-	snprintf(debug->name, VIPX_PRIV_MEM_NAME_LEN, "vipx_debug");
-	debug->size = PAGE_ALIGN(VIPX_DEBUG_SIZE);
-	debug->flags = 0;
-	debug->direction = DMA_BIDIRECTIONAL;
-	debug->kmap = true;
-	debug->fixed_dvaddr = false;
+	snprintf(log->name, VIPX_PRIV_MEM_NAME_LEN, "LOG");
+	log->size = PAGE_ALIGN(VIPX_LOG_SIZE);
+	log->flags = 0;
+	log->direction = DMA_BIDIRECTIONAL;
+	log->kmap = true;
+	log->dvaddr = VIPX_LOG_DVADDR;
+	log->fixed_dvaddr = true;
 
 	vipx_leave();
 	return 0;
