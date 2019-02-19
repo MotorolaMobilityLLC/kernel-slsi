@@ -314,9 +314,9 @@ static bool s2mu106_chg_init(struct s2mu106_charger_data *charger)
 	*/
 	s2mu106_update_reg(charger->i2c, 0x8b, 0x00, 0x01 << 4);
 
-	/* Set battery OCP 6A */
+	/* Set battery OCP 7A */
 	s2mu106_update_reg(charger->i2c, S2MU106_CHG_CTRL9,
-			S2MU106_SET_BAT_OCP_6000mA, BAT_OCP_MASK);
+			S2MU106_SET_BAT_OCP_7000mA, BAT_OCP_MASK);
 
 	/* Type-C reset off */
 	s2mu106_update_reg(charger->i2c, 0xEC, 0x00, 0x80);
