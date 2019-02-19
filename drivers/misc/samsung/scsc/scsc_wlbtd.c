@@ -12,6 +12,7 @@
 
 /* completion to indicate when moredump is done */
 static DECLARE_COMPLETION(event_done);
+static DECLARE_COMPLETION(fw_panic_done);
 
 static DEFINE_MUTEX(build_type_lock);
 static char *build_type;
@@ -47,10 +48,10 @@ static int msg_from_wlbtd_cb(struct sk_buff *skb, struct genl_info *info)
 static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 {
 	int status = 0;
+	const char *data = (const char *)nla_data(info->attrs[1]);
 
 	if (info->attrs[1])
-		SCSC_TAG_INFO(WLBTD, "%s\n",
-				(char *)nla_data(info->attrs[1]));
+		SCSC_TAG_INFO(WLBTD, "%s\n", data);
 
 	if (info->attrs[2]) {
 		status = nla_get_u16(info->attrs[2]);
@@ -67,7 +68,15 @@ static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	complete(&event_done);
+	if (strstr(data, "scsc_log_fw_panic") != NULL) {
+		SCSC_TAG_INFO(WLBTD, "completing fw_panic_done\n");
+		complete(&fw_panic_done);
+	}
+
+	if (strstr(data, ".sbl") != NULL) {
+		SCSC_TAG_INFO(WLBTD, "completing event_done\n");
+		complete(&event_done);
+	}
 
 	return 0;
 }
@@ -305,7 +314,11 @@ int call_wlbtd_sable(u8 trigger_code, u16 reason_code)
 	SCSC_TAG_INFO(WLBTD, "waiting for completion\n");
 
 	/* wait for script to finish */
-	completion_jiffies = wait_for_completion_timeout(&event_done,
+	if (trigger_code == SCSC_LOG_FW_PANIC)
+		completion_jiffies = wait_for_completion_timeout(&fw_panic_done,
+						max_timeout_jiffies);
+	else
+		completion_jiffies = wait_for_completion_timeout(&event_done,
 						max_timeout_jiffies);
 
 	if (completion_jiffies) {
@@ -313,10 +326,14 @@ int call_wlbtd_sable(u8 trigger_code, u16 reason_code)
 		SCSC_TAG_INFO(WLBTD, "sable generated in %dms\n",
 			(int)jiffies_to_msecs(completion_jiffies) ? : 1);
 	} else
-		SCSC_TAG_ERR(WLBTD, "wait for completion timed out !\n");
+		SCSC_TAG_ERR(WLBTD, "wait for completion timed out for %s\n",
+				scsc_get_trigger_str((int)trigger_code));
 
 	/* reinit so completion can be re-used */
-	reinit_completion(&event_done);
+	if (trigger_code == SCSC_LOG_FW_PANIC)
+		reinit_completion(&fw_panic_done);
+	else
+		reinit_completion(&event_done);
 
 	SCSC_TAG_INFO(WLBTD, "  end:trigger - %s\n",
 		scsc_get_trigger_str((int)trigger_code));
@@ -439,6 +456,7 @@ int scsc_wlbtd_init(void)
 
 	wake_lock_init(&wlbtd_wakelock, WAKE_LOCK_SUSPEND, "wlbtd_wl");
 	init_completion(&event_done);
+	init_completion(&fw_panic_done);
 
 	/* register the family so that wlbtd can bind */
 	r = genl_register_family(&scsc_nlfamily);

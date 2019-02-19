@@ -6,6 +6,7 @@
 #include <net/genetlink.h>
 #include <scsc/scsc_logring.h>
 #include <scsc/scsc_mx.h>
+#include <scsc/scsc_log_collector.h>
 
 /* module parameter value to indicate control of recovery via .memdump.info file */
 #define MEMDUMP_FILE_FOR_RECOVERY 2
