@@ -1022,7 +1022,7 @@ batcap_learn_init:
 #endif
 
 	/* Low voltage W/A, make 0% */
-	if ((avg_vbat < 3450) && (avg_current < -50) && (fuelgauge->rsoc > 100)) {
+	if ((avg_vbat < 3400) && (avg_current < -50) && (fuelgauge->rsoc > 100)) {
 		if (fuelgauge->temperature > fuelgauge->low_temp_limit) {
 			dev_info(&fuelgauge->i2c->dev, "%s: Low voltage WA. Make rawsoc 0\n", __func__);
 
