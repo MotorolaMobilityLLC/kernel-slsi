@@ -3979,6 +3979,7 @@ decon_init_done:
 
 	decon->state = DECON_STATE_INIT;
 #if defined(CONFIG_EXYNOS_DECON_DQE)
+	decon_dqe_sw_reset(decon);
 	decon_dqe_enable(decon);
 #endif
 	return 0;

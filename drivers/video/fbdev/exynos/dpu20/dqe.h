@@ -99,6 +99,8 @@ struct dqe_device {
 	struct dqe_ctx ctx;
 };
 
+extern int dqe_log_level;
+
 /* CAL APIs list */
 void dqe_reg_module_on_off(bool en_she, bool en_cgc, bool en_gamma,
 		bool en_hsc, bool en_aps);
@@ -113,6 +115,7 @@ void dqe_reg_set_gamma_on(u32 on);
 u32 dqe_reg_get_gamma_on(void);
 void dqe_reg_set_hsc_on(u32 on);
 u32 dqe_reg_get_hsc_on(void);
+void dqe_reg_hsc_sw_reset(u32 id);
 void dqe_reg_set_hsc_pphc_on(u32 on);
 void dqe_reg_set_hsc_ppsc_on(u32 on);
 void dqe_reg_set_hsc_control(u32 val);
@@ -121,8 +124,6 @@ u32 dqe_reg_get_hsc_control(void);
 void dqe_reg_set_hsc_full_pxl_num(struct decon_lcd *lcd_info);
 u32 dqe_reg_get_hsc_full_pxl_num(void);
 void dqe_reg_set_aps_on(u32 on);
-void dqe_reg_hsc_sw_reset(u32 en);
-void dqe_reg_aps_sw_reset(u32 en);
 void dqe_reg_reset(u32 en);
 void dqe_reg_set_gammagray_on(u32 on);
 void dqe_reg_lpd_mode_exit(u32 en);
@@ -153,6 +154,7 @@ void dqe_reg_set_hsc_pphcgain_rgb(u32 r, u32 g, u32 b);
 void dqe_reg_set_hsc_pphcgain_cmy(u32 c, u32 m, u32 y);
 void dqe_reg_set_hsc_tsc_ycomp(u32 ratio, u32 gain);
 
+void decon_dqe_sw_reset(struct decon_device *decon);
 void decon_dqe_enable(struct decon_device *decon);
 void decon_dqe_disable(struct decon_device *decon);
 int decon_dqe_create_interface(struct decon_device *decon);
