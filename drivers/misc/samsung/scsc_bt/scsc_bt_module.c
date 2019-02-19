@@ -359,12 +359,7 @@ static int slsi_sm_bt_service_cleanup(bool allow_service_stop)
 
 		/* Release the shared memory */
 		SCSC_TAG_DEBUG(BT_COMMON,
-			"free memory allocated in the 4MB DRAM pool\n");
-		if (bt_service.abox_ref != 0) {
-			scsc_mx_service_mifram_free(bt_service.service,
-					bt_service.abox_ref);
-			bt_service.abox_ref = 0;
-		}
+			"free memory allocated in the shared DRAM pool\n");
 		if (bt_service.config_ref != 0) {
 			scsc_mx_service_mifram_free(bt_service.service,
 					bt_service.config_ref);
@@ -483,7 +478,7 @@ static int slsi_sm_ant_service_cleanup(bool allow_service_stop)
 
 		/* Release the shared memory */
 		SCSC_TAG_DEBUG(BT_COMMON,
-			"free memory allocated in the 4MB DRAM pool\n");
+			"free memory allocated in the shared DRAM pool\n");
 		if (ant_service.config_ref != 0) {
 			scsc_mx_service_mifram_free(ant_service.service,
 					ant_service.config_ref);
