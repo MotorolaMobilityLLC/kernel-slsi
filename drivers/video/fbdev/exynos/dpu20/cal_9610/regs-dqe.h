@@ -4,6 +4,11 @@
 #define DQE_BASE			0x2000
 /* DQECON_SET */
 #define DQECON				0x0000
+#define DQE_APS_SW_RESET_MASK		(1 << 18)
+#define DQE_APS_SW_RESET_GET(_v)	(((_v) >> 18) & 0x1)
+#define DQE_HSC_SW_RESET_MASK		(1 << 16)
+#define DQE_HSC_SW_RESET_GET(_v)	(((_v) >> 16) & 0x1)
+
 #define DQE_HSC_ON_MASK			(1 << 3)
 #define DQE_HSC_ON_GET(_v)		(((_v) >> 3) & 0x1)
 #define DQE_GAMMA_ON_MASK		(1 << 2)

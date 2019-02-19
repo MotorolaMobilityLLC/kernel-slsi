@@ -42,6 +42,27 @@ u32 dqe_reg_get_hsc_on(void)
 	return dqe_read_mask(DQECON, DQE_HSC_ON_MASK);
 }
 
+void dqe_reg_hsc_sw_reset(u32 id)
+{
+	u32 cnt = 5000; /* 3 frame */
+	u32 state;
+
+	dqe_write_mask(DQECON, ~0, DQE_HSC_SW_RESET_MASK);
+	decon_reg_update_req_dqe(id);
+
+	do {
+		state = dqe_read_mask(DQECON, DQE_HSC_SW_RESET_MASK);
+		cnt--;
+		udelay(10);
+	} while (state && cnt);
+
+	if (!cnt)
+		dqe_err("%s is timeout.\n", __func__);
+
+	dqe_dbg("dqe hsc_sw_reset:%d cnt:%d\n",
+		DQE_HSC_SW_RESET_GET(dqe_read(DQECON)), cnt);
+}
+
 void dqe_reg_set_hsc_pphc_on(u32 on)
 {
 	dqe_write_mask(DQEHSC_CONTROL, ~0, HSC_PPHC_ON_MASK);
