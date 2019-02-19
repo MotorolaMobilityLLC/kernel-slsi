@@ -1128,6 +1128,12 @@
 				pinctrl-0 = <&sleep_top &sleep_fsys &sleep_shub &normal_alive &normal_cmgp>;
 				pinctrl-1 = <&sleep_top &sleep_fsys &sleep_shub &sleep_alive>;
 			};
+
+			exynos-bcmdbg {
+				initial_run_bcm_ip = <0>, <1>, <2>, <3>, <4>, <6>, <7>, <8>, <9>, <10>,
+						 <11>, <12>, <13>, <14>, <15>, <16>, <17>, <18>, <19>, <20>,
+						 <21>, <22>, <23>, <24>, <25>, <26>, <27>, <28>, <29>, <30>;
+			};
 		}; /* end of __overlay__ */
 	}; /* end of fragment */
 }; /* end of root */
