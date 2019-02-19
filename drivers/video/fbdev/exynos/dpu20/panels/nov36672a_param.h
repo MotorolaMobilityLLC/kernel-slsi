@@ -40,5 +40,78 @@ static const unsigned char SEQ_CMD_1[] = {
 static const unsigned char SEQ_CMD_2[] = {
 	0x55, 0x01
 };
+static const unsigned char SEQ_CMD_3[] = {
+	0xFF, 0x20
+};
+static const unsigned char SEQ_CMD_4[] = {
+	0xFB, 0x01
+};
+
+static const unsigned char SEQ_CMD_5[] = {
+	0x62, 0xB8
+};
+static const unsigned char SEQ_CMD_6[] = {
+	0xFF, 0x24
+};
+static const unsigned char SEQ_CMD_7[] = {
+	0xFB, 0x01
+};
+
+static const unsigned char SEQ_CMD_8[] = {
+	0x92, 0x79
+};
+static const unsigned char SEQ_CMD_9[] = {
+	0xFF, 0x25
+};
+static const unsigned char SEQ_CMD_10[] = {
+	0xFB, 0x01
+};
+static const unsigned char SEQ_CMD_11[] = {
+	0x24, 0x79
+};
+
+static const unsigned char SEQ_CMD_12[] = {
+	0x25, 0x79
+};
+
+static const unsigned char SEQ_CMD_13[] = {
+	0x30, 0x30
+};
+
+static const unsigned char SEQ_CMD_14[] = {
+	0x38, 0x30
+};
+
+static const unsigned char SEQ_CMD_15[] = {
+	0x40, 0x63
+};
+
+static const unsigned char SEQ_CMD_16[] = {
+	0x4C, 0x63
+};
+static const unsigned char SEQ_CMD_17[] = {
+	0xFF, 0x26
+};
+static const unsigned char SEQ_CMD_18[] = {
+	0xFB, 0x01
+};
+static const unsigned char SEQ_CMD_19[] = {
+	0x19, 0x0B
+};
+
+static const unsigned char SEQ_CMD_20[] = {
+	0x1A, 0x16
+};
+
+static const unsigned char SEQ_CMD_21[] = {
+	0x1E, 0x99
+};
+static const unsigned char SEQ_CMD_22[] = {
+	0xFF, 0x10
+};
+static const unsigned char SEQ_CMD_23[] = {
+	0xFB, 0x01
+};
+
 
 #endif /* __NOV36672A_GAMMA_H__ */
