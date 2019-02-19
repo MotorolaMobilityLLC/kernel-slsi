@@ -72,19 +72,50 @@ void hix83112a_lcd_init(int id, struct decon_lcd *lcd)
 {
 	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_CMD_0,
 				ARRAY_SIZE(SEQ_CMD_0)) < 0)
-		dsim_err("fail to send SEQ_CMD_0 command.\n");
+	dsim_err("fail to send SEQ_CMD_0 command.\n");
 	mdelay(1);
 
 	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
 				SEQ_CMD_1[0],
 				SEQ_CMD_1[1]) < 0)
-		dsim_err("fail to send SEQ_CMD_1 command.\n");
+	dsim_err("fail to send SEQ_CMD_1 command.\n");
 	mdelay(1);
 
 	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
 				SEQ_CMD_2[0],
 				SEQ_CMD_2[1]) < 0)
-		dsim_err("fail to send SEQ_CMD_2 command.\n");
+	dsim_err("fail to send SEQ_CMD_2 command.\n");
+	mdelay(1);
+
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_PASSWORD,
+		ARRAY_SIZE(SEQ_PASSWORD)) < 0)
+	dsim_err("fail to send SEQ_PASSWORD command.\n");
+	mdelay(1);
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_CMD_3,
+		ARRAY_SIZE(SEQ_CMD_3)) < 0)
+	dsim_err("fail to send SEQ_CMD_3 command.\n");
+	mdelay(1);
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_CMD_4,
+		ARRAY_SIZE(SEQ_CMD_4)) < 0)
+	dsim_err("fail to send SEQ_CMD_4 command.\n");
+	mdelay(1);
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_5[0],
+		SEQ_CMD_5[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_5 command.\n");
+	mdelay(1);
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_CMD_6,
+		ARRAY_SIZE(SEQ_CMD_6)) < 0)
+	dsim_err("fail to send SEQ_CMD_6 command.\n");
+	mdelay(1);
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_7[0],
+		SEQ_CMD_7[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_7 command.\n");
+	mdelay(1);
+	if (dsim_wr_data(id, MIPI_DSI_DCS_LONG_WRITE, (unsigned long)SEQ_OTP_DISABLE,
+		ARRAY_SIZE(SEQ_OTP_DISABLE)) < 0)
+	dsim_err("fail to send SEQ_OTP_DISABLE command.\n");
 	mdelay(1);
 
 	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE, SEQ_SLEEP_OUT[0], 0) < 0)
