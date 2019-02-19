@@ -107,7 +107,7 @@ void fm_initialize(struct s610_radio *radio)
 	APIEBUG(radio, "%s(): 0xFFF2C2:0x%x %d %d", __func__,
 		fmspeedy_get_reg(0xFFF2C2), radio->low->fm_config.rssi_adj_ini, radio->rssi_adjust);
 
-	fmspeedy_set_reg(0xFFF299, 0xFF64);
+	fmspeedy_set_reg(0xFFF299, 0xFF0F);
 
 #ifdef USE_IQ_IMBAL_SMOOTH
 	fmspeedy_set_reg(0xFFF2B6, 0x081C);
@@ -251,7 +251,7 @@ static bool is_freq_in_spur(int freq, u32 *freq_array, int max_freq) {
 }
 
 #define AGC_CONFIG_WBRSSI_DISABLE	0x9D1
-#define AGC_CONFIG_WBRSSI_ENABLE	0x95F
+#define AGC_CONFIG_WBRSSI_ENABLE	0x91F
 
 void enable_agc_config_wbrssi(struct s610_radio *radio, bool onoff)
 {
@@ -1250,7 +1250,7 @@ void fm_rx_ana_start(void)
 	adc_config1 = 0x01EF7A53;
 
 	/* RF setting */
-	fmspeedy_set_reg(0xFFF263, 0xFC1CDFFF);
+	fmspeedy_set_reg(0xFFF263, 0xFC08DFFF);
 	/* fmspeedy_set_reg(0xFFF265, 0x80988002); */
 	fmspeedy_set_reg(0xFFF265, 0x81788002);
 	fmspeedy_set_reg(0xFFF264, 0x040003FD);
