@@ -70,6 +70,7 @@ extern int dpu_bts_log_level;
 extern int win_update_log_level;
 extern int dpu_mres_log_level;
 extern int decon_systrace_enable;
+extern int esd_bypass_cnt;
 extern struct decon_bts_ops decon_bts_control;
 
 #define DECON_MODULE_NAME	"exynos-decon"
@@ -85,6 +86,7 @@ extern struct decon_bts_ops decon_bts_control;
 #define FD_TRY_CNT		3
 #define VALID_FD_VAL		3
 #define DECON_TRACE_BUF_SIZE	40
+#define MAX_BYPASS_CNT		20
 
 #define DECON_WIN_UPDATE_IDX	MAX_DECON_WIN
 

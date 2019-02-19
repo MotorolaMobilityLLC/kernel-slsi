@@ -69,6 +69,7 @@ module_param(win_update_log_level, int, 0644);
 int dpu_mres_log_level = 6;
 module_param(dpu_mres_log_level, int, 0644);
 int decon_systrace_enable;
+int esd_bypass_cnt;
 
 struct decon_device *decon_drvdata[MAX_DECON_CNT];
 EXPORT_SYMBOL(decon_drvdata);
@@ -2473,6 +2474,14 @@ static int decon_set_win_config(struct decon_device *decon,
 		decon_warn("decon-%d skip win_config(state:%s, bypass:%s)\n",
 				decon->id, decon_state_names[decon->state],
 				decon_is_bypass(decon) ? "on" : "off");
+		if (decon_is_bypass(decon)) {
+			if (esd_bypass_cnt < MAX_BYPASS_CNT) {
+				esd_bypass_cnt++;
+			} else {
+				decon_set_bypass(decon, false);
+				esd_bypass_cnt = 0;
+			}
+		}
 #else
 		decon_warn("decon-%d skip win_config(state:%s)\n",
 				decon->id, decon_state_names[decon->state]);
@@ -4021,6 +4030,9 @@ static int decon_probe(struct platform_device *pdev)
 	/* systrace */
 	decon_systrace_enable = 0;
 	decon->systrace.pid = 0;
+
+	/* esd_thread */
+	esd_bypass_cnt = 0;
 
 	ret = decon_init_resources(decon, pdev, device_name);
 	if (ret)

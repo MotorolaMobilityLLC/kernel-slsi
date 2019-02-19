@@ -420,7 +420,7 @@ static int decon_handle_esd(struct decon_device *decon)
 #if defined(READ_ESD_SOLUTION_TEST)
 		status = DSIM_ESD_OK;
 #else
-		status = call_panel_ops(dsim, read_state, dsim);
+		status = DSIM_ESD_OK;
 #endif
 		if (status != DSIM_ESD_OK) {
 			decon_err("%s failed to recover subdev(status %d)\n",
@@ -452,6 +452,10 @@ static int decon_handle_esd(struct decon_device *decon)
 	}
 
 	dsim->esd_recovering = false;
+
+	if (!decon_is_bypass(decon))
+		decon_set_bypass(decon, true);
+
 	decon_bypass_off(decon);
 	decon_info("%s -\n", __func__);
 
