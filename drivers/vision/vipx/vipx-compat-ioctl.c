@@ -117,6 +117,8 @@ struct vipx_ioc_load_kernel_binary32 {
 struct vipx_ioc_unload_kernel_binary32 {
 	unsigned int			size;
 	unsigned int			global_id;
+	int				kernel_fd;
+	unsigned int			kernel_size;
 	int				ret;
 	struct compat_timespec		timestamp[4];
 	int				reserved[2];
@@ -568,7 +570,9 @@ static int __vipx_ioctl_get_unload_kernel_binary32(
 
 	vipx_enter();
 	if (get_user(karg->size, &uarg->size) ||
-			get_user(karg->global_id, &uarg->global_id)) {
+			get_user(karg->global_id, &uarg->global_id) ||
+			get_user(karg->kernel_fd, &uarg->kernel_fd) ||
+			get_user(karg->kernel_size, &uarg->kernel_size)) {
 		ret = -EFAULT;
 		vipx_err("Copy failed [Unload Kernel Binary(32)]\n");
 		goto p_err;

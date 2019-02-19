@@ -122,7 +122,8 @@ static int vipx_context_unload_kernel_binary(struct vipx_context *vctx,
 	vipx_dbg("[%s] unload kernel binary (framework)\n", __func__);
 	vipx_dbg("model_id    : %#x\n", unload_kbin->global_id);
 
-	ret = vipx_kernel_binary_unload(vctx, unload_kbin->global_id);
+	ret = vipx_kernel_binary_unload(vctx, unload_kbin->global_id,
+			unload_kbin->kernel_fd, unload_kbin->kernel_size);
 	if (ret)
 		goto p_err;
 

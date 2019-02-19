@@ -472,7 +472,11 @@ static int vipx_open(struct inode *inode, struct file *file)
 
 	ret = vipx_device_open(vdev);
 	if (ret)
-		goto p_err_device;
+		goto p_err_device_open;
+
+	ret = vipx_device_start(vdev);
+	if (ret)
+		goto p_err_device_start;
 
 	vctx = vipx_context_create(core);
 	if (IS_ERR(vctx)) {
@@ -498,8 +502,10 @@ static int vipx_open(struct inode *inode, struct file *file)
 	return 0;
 p_err_graph:
 p_err_vctx:
+	vipx_device_stop(vdev);
+p_err_device_start:
 	vipx_device_close(vdev);
-p_err_device:
+p_err_device_open:
 	mutex_unlock(&core->lock);
 	vipx_err("Failed to open the vipx(count:%d)(%d)\n",
 			vdev->open_count, ret);
@@ -525,6 +531,7 @@ static int vipx_release(struct inode *inode, struct file *file)
 
 	vipx_graph_destroy(vctx->graph);
 	vipx_context_destroy(vctx);
+	vipx_device_stop(core->device);
 	vipx_device_close(core->device);
 
 	mutex_unlock(&core->lock);

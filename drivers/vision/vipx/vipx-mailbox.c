@@ -40,45 +40,22 @@ static void __vipx_mailbox_dump(struct vipx_mailbox_head *head, void *data)
 
 void vipx_mailbox_dump(struct vipx_mailbox_ctrl *mctrl)
 {
-	int ret;
-
 	vipx_enter();
-	ret = __vipx_mailbox_is_empty(&mctrl->h2d_normal_head);
-	if (ret) {
-		vipx_info("h2d normal mailbox is empty\n");
-	} else {
-		vipx_info("h2d normal mailbox dump\n");
-		__vipx_mailbox_dump(&mctrl->h2d_normal_head,
-				mctrl->h2d_normal_data);
-	}
+	vipx_info("h2d normal mailbox dump\n");
+	__vipx_mailbox_dump(&mctrl->h2d_normal_head,
+			mctrl->h2d_normal_data);
 
-	ret = __vipx_mailbox_is_empty(&mctrl->h2d_urgent_head);
-	if (ret) {
-		vipx_info("h2d urgent mailbox is empty\n");
-	} else {
-		vipx_info("h2d urgent mailbox dump\n");
-		__vipx_mailbox_dump(&mctrl->h2d_urgent_head,
-				&mctrl->h2d_urgent_data);
-	}
+	vipx_info("h2d urgent mailbox dump\n");
+	__vipx_mailbox_dump(&mctrl->h2d_urgent_head,
+			&mctrl->h2d_urgent_data);
 
-	ret = __vipx_mailbox_is_empty(&mctrl->d2h_normal_head);
-	if (ret) {
-		vipx_info("d2h normal mailbox is empty\n");
-	} else {
-		vipx_info("d2h normal mailbox dump\n");
-		__vipx_mailbox_dump(&mctrl->d2h_normal_head,
-				&mctrl->d2h_normal_data);
-	}
+	vipx_info("d2h normal mailbox dump\n");
+	__vipx_mailbox_dump(&mctrl->d2h_normal_head,
+			&mctrl->d2h_normal_data);
 
-	ret = __vipx_mailbox_is_empty(&mctrl->d2h_urgent_head);
-	if (ret) {
-		vipx_info("d2h urgent mailbox is empty\n");
-	} else {
-		vipx_info("d2h urgent mailbox dump\n");
-		__vipx_mailbox_dump(&mctrl->d2h_urgent_head,
-				&mctrl->d2h_urgent_data);
-	}
-
+	vipx_info("d2h urgent mailbox dump\n");
+	__vipx_mailbox_dump(&mctrl->d2h_urgent_head,
+			&mctrl->d2h_urgent_data);
 	vipx_leave();
 }
 

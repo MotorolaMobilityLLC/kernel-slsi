@@ -269,9 +269,9 @@ static int vipx_graph_queue(struct vipx_graph *graph,
 		otcl->id = incl->id;
 	}
 
-	taskmgr_e_barrier_irqs(tmgr, 0, flags);
+	spin_lock_irqsave(&tmgr->slock, flags);
 	task = vipx_task_pick_fre_to_req(tmgr);
-	taskmgr_x_barrier_irqr(tmgr, 0, flags);
+	spin_unlock_irqrestore(&tmgr->slock, flags);
 	if (!task) {
 		ret = -ENOMEM;
 		vipx_err("free task is not remained (%u)\n", graph->idx);
@@ -361,9 +361,9 @@ static int vipx_graph_deque(struct vipx_graph *graph,
 	if (task->incl || task->otcl)
 		return 0;
 
-	taskmgr_e_barrier_irqs(tmgr, 0, flags);
+	spin_lock_irqsave(&tmgr->slock, flags);
 	vipx_task_trans_com_to_fre(tmgr, task);
-	taskmgr_x_barrier_irqr(tmgr, 0, flags);
+	spin_unlock_irqrestore(&tmgr->slock, flags);
 
 	vipx_leave();
 	return 0;
@@ -449,9 +449,9 @@ static int vipx_graph_request(struct vipx_graph *graph, struct vipx_task *task)
 		goto p_err;
 	}
 
-	taskmgr_e_barrier_irqs(tmgr, 0, flags);
+	spin_lock_irqsave(&tmgr->slock, flags);
 	vipx_task_trans_req_to_pre(tmgr, task);
-	taskmgr_x_barrier_irqr(tmgr, 0, flags);
+	spin_unlock_irqrestore(&tmgr->slock, flags);
 
 	vipx_leave();
 	return 0;
@@ -474,9 +474,9 @@ static int vipx_graph_process(struct vipx_graph *graph, struct vipx_task *task)
 		goto p_err;
 	}
 
-	taskmgr_e_barrier_irqs(tmgr, TASKMGR_IDX_0, flags);
+	spin_lock_irqsave(&tmgr->slock, flags);
 	vipx_task_trans_pre_to_pro(tmgr, task);
-	taskmgr_x_barrier_irqr(tmgr, TASKMGR_IDX_0, flags);
+	spin_unlock_irqrestore(&tmgr->slock, flags);
 
 	vipx_leave();
 	return 0;
@@ -506,9 +506,9 @@ static int vipx_graph_cancel(struct vipx_graph *graph, struct vipx_task *task)
 		goto p_err;
 	}
 
-	taskmgr_e_barrier_irqs(tmgr, TASKMGR_IDX_0, flags);
+	spin_lock_irqsave(&tmgr->slock, flags);
 	vipx_task_trans_pro_to_com(tmgr, task);
-	taskmgr_x_barrier_irqr(tmgr, TASKMGR_IDX_0, flags);
+	spin_unlock_irqrestore(&tmgr->slock, flags);
 
 	graph->recent = task->id;
 	graph->done_cnt++;
@@ -547,9 +547,9 @@ static int vipx_graph_done(struct vipx_graph *graph, struct vipx_task *task)
 		goto p_err;
 	}
 
-	taskmgr_e_barrier_irqs(tmgr, TASKMGR_IDX_0, flags);
+	spin_lock_irqsave(&tmgr->slock, flags);
 	vipx_task_trans_pro_to_com(tmgr, task);
-	taskmgr_x_barrier_irqr(tmgr, TASKMGR_IDX_0, flags);
+	spin_unlock_irqrestore(&tmgr->slock, flags);
 
 	graph->recent = task->id;
 	graph->done_cnt++;

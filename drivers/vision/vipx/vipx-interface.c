@@ -23,11 +23,6 @@
 #include "vipx-system.h"
 #include "vipx-interface.h"
 
-#define enter_request_barrier(task)	mutex_lock(task->lock)
-#define exit_request_barrier(task)	mutex_unlock(task->lock)
-#define enter_process_barrier(itf)	spin_lock_irq(&itf->process_barrier)
-#define exit_process_barrier(itf)	spin_unlock_irq(&itf->process_barrier)
-
 static inline void __vipx_interface_set_reply(struct vipx_interface *itf,
 		unsigned int gidx)
 {
@@ -181,7 +176,7 @@ static int __vipx_interface_send_mailbox(struct vipx_interface *itf,
 	struct vipx_mailbox_ctrl *mctrl;
 	void *msg;
 	unsigned long size, type;
-	unsigned long flags;
+	unsigned long flags, process_flags;
 
 	vipx_enter();
 	itaskmgr = &itf->taskmgr;
@@ -191,7 +186,7 @@ static int __vipx_interface_send_mailbox(struct vipx_interface *itf,
 	size = itask->param2;
 	type = itask->param3;
 
-	enter_process_barrier(itf);
+	spin_lock_irqsave(&itf->process_barrier, process_flags);
 	itf->process = itask;
 
 	ret = vipx_mailbox_check_full(mctrl, type, MAILBOX_WAIT);
@@ -216,33 +211,33 @@ static int __vipx_interface_send_mailbox(struct vipx_interface *itf,
 	}
 
 	vipx_time_get_timestamp(&itask->time, TIMESTAMP_START);
-	exit_process_barrier(itf);
+	spin_unlock_irqrestore(&itf->process_barrier, process_flags);
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	vipx_task_trans_req_to_pro(itaskmgr, itask);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 
 	ret = __vipx_interface_wait_mailbox_reply(itf, itask);
 	if (ret)
 		vipx_mailbox_dump(mctrl);
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	vipx_task_trans_pro_to_com(itaskmgr, itask);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 
-	enter_process_barrier(itf);
+	spin_lock_irqsave(&itf->process_barrier, process_flags);
 	itf->process = NULL;
-	exit_process_barrier(itf);
+	spin_unlock_irqrestore(&itf->process_barrier, process_flags);
 
 	vipx_leave();
 	return ret;
 p_err_process:
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	vipx_task_trans_req_to_com(itaskmgr, itask);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 
 	itf->process = NULL;
-	exit_process_barrier(itf);
+	spin_unlock_irqrestore(&itf->process_barrier, process_flags);
 	return ret;
 }
 
@@ -506,6 +501,7 @@ static void __vipx_interface_isr(void *data)
 	struct work_struct *work_queue;
 	struct vipx_work *work;
 	struct vipx_d2h_message rsp;
+	unsigned long flags;
 
 	vipx_enter();
 	itf = (struct vipx_interface *)data;
@@ -550,10 +546,11 @@ static void __vipx_interface_isr(void *data)
 			}
 			break;
 		} else if (rsp.head.msg_id == D2H_LOAD_GRAPH_RSP) {
-			enter_process_barrier(itf);
+			spin_lock_irqsave(&itf->process_barrier, flags);
 			if (!itf->process) {
 				vipx_err("process task is empty\n");
-				exit_process_barrier(itf);
+				spin_unlock_irqrestore(&itf->process_barrier,
+						flags);
 				continue;
 			}
 
@@ -565,13 +562,14 @@ static void __vipx_interface_isr(void *data)
 					TIMESTAMP_END);
 			itf->process->message = VIPX_TASK_DONE;
 			wake_up(&itf->reply_wq);
-			exit_process_barrier(itf);
+			spin_unlock_irqrestore(&itf->process_barrier, flags);
 			continue;
 		} else if (rsp.head.msg_id == D2H_EXECUTE_RSP) {
-			enter_process_barrier(itf);
+			spin_lock_irqsave(&itf->process_barrier, flags);
 			if (!itf->process) {
 				vipx_err("process task is empty\n");
-				exit_process_barrier(itf);
+				spin_unlock_irqrestore(&itf->process_barrier,
+						flags);
 				continue;
 			}
 
@@ -585,13 +583,14 @@ static void __vipx_interface_isr(void *data)
 					TIMESTAMP_END);
 			itf->process->message = VIPX_TASK_DONE;
 			wake_up(&itf->reply_wq);
-			exit_process_barrier(itf);
+			spin_unlock_irqrestore(&itf->process_barrier, flags);
 			continue;
 		} else if (rsp.head.msg_id == D2H_UNLOAD_GRAPH_RSP) {
-			enter_process_barrier(itf);
+			spin_lock_irqsave(&itf->process_barrier, flags);
 			if (!itf->process) {
 				vipx_err("process task is empty\n");
-				exit_process_barrier(itf);
+				spin_unlock_irqrestore(&itf->process_barrier,
+						flags);
 				continue;
 			}
 
@@ -603,7 +602,7 @@ static void __vipx_interface_isr(void *data)
 					TIMESTAMP_END);
 			itf->process->message = VIPX_TASK_DONE;
 			wake_up(&itf->reply_wq);
-			exit_process_barrier(itf);
+			spin_unlock_irqrestore(&itf->process_barrier, flags);
 			continue;
 		}
 		work = __vipx_interface_work_list_dequeue_free(work_list);
@@ -710,7 +709,7 @@ static void __vipx_interface_cleanup(struct vipx_interface *itf)
 		/* TODO remove debug log */
 		vipx_task_print_all(&itf->taskmgr);
 
-		taskmgr_e_barrier_irqs(taskmgr, 0, flags);
+		spin_lock_irqsave(&taskmgr->slock, flags);
 
 		for (idx = 1; idx < taskmgr->tot_cnt; ++idx) {
 			task = &taskmgr->task[idx];
@@ -721,7 +720,7 @@ static void __vipx_interface_cleanup(struct vipx_interface *itf)
 			task_count--;
 		}
 
-		taskmgr_x_barrier_irqr(taskmgr, 0, flags);
+		spin_unlock_irqrestore(&taskmgr->slock, flags);
 	}
 }
 
@@ -817,9 +816,9 @@ static void vipx_interface_work_reply_func(struct work_struct *data)
 			__vipx_interface_set_reply(itf, gidx);
 			break;
 		case VIPX_TASK_PROCESS:
-			taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+			spin_lock_irqsave(&itaskmgr->slock, flags);
 			vipx_task_trans_pro_to_com(itaskmgr, itask);
-			taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+			spin_unlock_irqrestore(&itaskmgr->slock, flags);
 
 			itask->param2 = 0;
 			itask->param3 = 0;

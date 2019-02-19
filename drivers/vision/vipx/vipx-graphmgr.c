@@ -551,9 +551,9 @@ static void vipx_interface_thread(struct kthread_work *work)
 		}
 
 		/* itask cleanup */
-		taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+		spin_lock_irqsave(&itaskmgr->slock, flags);
 		vipx_task_trans_com_to_fre(itaskmgr, itask);
-		taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+		spin_unlock_irqrestore(&itaskmgr->slock, flags);
 		break;
 	case VIPX_TASK_PROCESS:
 		taskdesc_index = itask->tdindex;
@@ -569,9 +569,9 @@ static void vipx_interface_thread(struct kthread_work *work)
 					taskdesc_index);
 
 			/* itask cleanup */
-			taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+			spin_lock_irqsave(&itaskmgr->slock, flags);
 			vipx_task_trans_com_to_fre(itaskmgr, itask);
-			taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+			spin_unlock_irqrestore(&itaskmgr->slock, flags);
 			break;
 		}
 
@@ -608,9 +608,9 @@ static void vipx_interface_thread(struct kthread_work *work)
 		__vipx_taskdesc_trans_com_to_fre(gmgr, taskdesc);
 
 		/* itask cleanup */
-		taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+		spin_lock_irqsave(&itaskmgr->slock, flags);
 		vipx_task_trans_com_to_fre(itaskmgr, itask);
-		taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+		spin_unlock_irqrestore(&itaskmgr->slock, flags);
 		break;
 	default:
 		vipx_err("message of task is invalid (%d)\n", itask->message);
@@ -775,9 +775,9 @@ static int __vipx_graphmgr_itf_load_graph(struct vipx_interface *itf,
 	vipx_enter();
 	itaskmgr = &itf->taskmgr;
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 	if (!itask) {
 		ret = -ENOMEM;
 		vipx_err("itask is NULL\n");
@@ -792,9 +792,9 @@ static int __vipx_graphmgr_itf_load_graph(struct vipx_interface *itf,
 
 	gmodel->time[TIME_LOAD_GRAPH] = itask->time;
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	vipx_task_trans_com_to_fre(itaskmgr, itask);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 
 	if (ret)
 		goto p_err_hw_load_graph;
@@ -851,9 +851,9 @@ static int __vipx_graphmgr_itf_unload_graph(struct vipx_interface *itf,
 	vipx_enter();
 	itaskmgr = &itf->taskmgr;
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 	if (!itask) {
 		ret = -ENOMEM;
 		vipx_err("itask is NULL\n");
@@ -868,9 +868,9 @@ static int __vipx_graphmgr_itf_unload_graph(struct vipx_interface *itf,
 
 	gmodel->time[TIME_UNLOAD_GRAPH] = itask->time;
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	vipx_task_trans_com_to_fre(itaskmgr, itask);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 
 	if (ret)
 		goto p_err_hw_unload_graph;
@@ -932,9 +932,9 @@ static int __vipx_graphmgr_itf_execute_graph(struct vipx_interface *itf,
 	vipx_enter();
 	itaskmgr = &itf->taskmgr;
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	itask = vipx_task_pick_fre_to_req(itaskmgr);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 	if (!itask) {
 		ret = -ENOMEM;
 		vipx_err("itask is NULL\n");
@@ -950,9 +950,9 @@ static int __vipx_graphmgr_itf_execute_graph(struct vipx_interface *itf,
 
 	gmodel->time[TIME_EXECUTE_GRAPH] = itask->time;
 
-	taskmgr_e_barrier_irqs(itaskmgr, 0, flags);
+	spin_lock_irqsave(&itaskmgr->slock, flags);
 	vipx_task_trans_com_to_fre(itaskmgr, itask);
-	taskmgr_x_barrier_irqr(itaskmgr, 0, flags);
+	spin_unlock_irqrestore(&itaskmgr->slock, flags);
 
 	if (ret)
 		goto p_err_hw_load_graph;

@@ -37,6 +37,8 @@ struct vipx_ioc_load_kernel_binary {
 struct vipx_ioc_unload_kernel_binary {
 	unsigned int			size;
 	unsigned int			global_id;
+	int				kernel_fd;
+	unsigned int			kernel_size;
 	int				ret;
 	struct timespec			timestamp[4];
 	int				reserved[2];

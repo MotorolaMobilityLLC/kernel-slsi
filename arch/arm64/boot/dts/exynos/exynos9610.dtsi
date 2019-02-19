@@ -3026,7 +3026,7 @@
 		/* ranges; */
 		#dma-address-cells = <1>;
 		#dma-size-cells = <1>;
-		dma-window = <0x30000000 0xB0000000>;
+		dma-window = <0x40000000 0xA0000000>;
 
 		domain-clients = <&vipx>, <&vipx_vertex>;
 	};
