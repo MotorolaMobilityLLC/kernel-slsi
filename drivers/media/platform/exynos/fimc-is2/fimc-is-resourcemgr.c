@@ -1429,8 +1429,10 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 		struct fimc_is_resource *resource_ischain;
 		resource_ischain = GET_RESOURCE(resourcemgr, RESOURCE_TYPE_ISCHAIN);
 		if ((rsc_type != RESOURCE_TYPE_ISCHAIN)	&& rsccount == 1) {
-			if (atomic_read(&resource_ischain->rsccount) == 1)
+			if (atomic_read(&resource_ischain->rsccount) == 1) {
 				fimc_is_kernel_log_dump(false);
+				BUG_ON(1);
+			}
 		}
 	}
 #endif
