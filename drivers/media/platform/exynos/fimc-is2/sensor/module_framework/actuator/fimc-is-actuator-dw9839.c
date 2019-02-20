@@ -492,6 +492,8 @@ int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *
 	pr_info("[%s] time %lu us", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
+	/* dw9839 actuator do not use af cal */
+	actuator->actuator_data.actuator_init = false;
 p_err:
 	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
 
