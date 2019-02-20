@@ -1169,6 +1169,14 @@ static struct notifier_block notify_reboot_block = {
 };
 #endif
 
+#if defined(CONFIG_SOC_EXYNOS9610)
+static void fimc_is_resourcemgr_c2_disable_work(struct work_struct *data)
+{
+	info("%s: call cpuidle_pause()\n", __func__);
+	cpuidle_pause();
+}
+#endif
+
 int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr,
 	void *private_data, struct platform_device *pdev)
 {
@@ -1294,6 +1302,10 @@ int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr,
 	mutex_init(&resourcemgr->global_param.lock);
 	resourcemgr->global_param.video_mode = 0;
 	resourcemgr->global_param.state = 0;
+
+#if defined(CONFIG_SOC_EXYNOS9610)
+	INIT_WORK(&resourcemgr->c2_disable_work, fimc_is_resourcemgr_c2_disable_work);
+#endif
 
 p_err:
 	probe_info("[RSC] %s(%d)\n", __func__, ret);
@@ -1589,8 +1601,12 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 
 #if defined(CONFIG_SOC_EXYNOS8895) || defined(CONFIG_SOC_EXYNOS9610)
 			/* HACK for 8895, cpuidle on/off */
+#if defined(CONFIG_SOC_EXYNOS9610)
+			schedule_work(&resourcemgr->c2_disable_work);
+#else
 			info("%s: call cpuidle_pause()\n", __func__);
 			cpuidle_pause();
+#endif
 #endif
 
 #ifdef CONFIG_EXYNOS_BTS
@@ -1776,6 +1792,9 @@ int fimc_is_resource_put(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 #if defined(CONFIG_SOC_EXYNOS8895) || defined(CONFIG_SOC_EXYNOS9610)
 			/* HACK for 8895, cpuidle on/off */
 			info("%s: call cpuidle_resume()\n", __func__);
+#if defined(CONFIG_SOC_EXYNOS9610)
+			flush_work(&resourcemgr->c2_disable_work);
+#endif
 			cpuidle_resume();
 #endif
 
