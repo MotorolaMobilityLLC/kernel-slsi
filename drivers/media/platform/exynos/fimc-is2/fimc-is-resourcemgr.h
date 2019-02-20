@@ -154,6 +154,10 @@ struct fimc_is_resourcemgr {
 
 	u32					shot_timeout;
 	int					shot_timeout_tick;
+
+#if defined(CONFIG_SOC_EXYNOS9610)
+	struct work_struct			c2_disable_work;
+#endif
 };
 
 int fimc_is_resourcemgr_probe(struct fimc_is_resourcemgr *resourcemgr, void *private_data, struct platform_device *pdev);
