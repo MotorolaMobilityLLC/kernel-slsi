@@ -506,6 +506,13 @@ void scsc_log_collector_schedule_collection(enum scsc_log_reason reason, u16 rea
 		}
 		atomic_set(&in_collection, 1);
 		pr_info("Log collection Scheduled");
+
+		/* If dumping a FW panic (i.e. collecting a moredump), we need
+		 * to wait for the collection to finish before returning.
+		 */
+		if (reason == SCSC_LOG_FW_PANIC)
+			flush_work(&log_status.collect_work);
+
 		mutex_unlock(&log_status.collection_serial);
 
 	} else {
