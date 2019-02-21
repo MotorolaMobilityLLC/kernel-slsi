@@ -264,12 +264,12 @@ static int gather_multi_frame(struct exynos_link_header *hdr,
 		while (!skb_queue_empty(multi_q)) {
 			skb_tmp = skb_dequeue(multi_q);
 			memcpy(skb_put(skb_new, skb_tmp->len), skb_tmp->data, skb_tmp->len);
+			dev_kfree_skb_any(skb_tmp);
 		}
 
 		skb_trim(skb_new, skb_new->len);
 		skb_queue_tail(rxq, skb_new);
 
-		skb_queue_purge(multi_q);
 		skb_queue_head_init(multi_q);
 
 		wake_up(&iod->wq);
