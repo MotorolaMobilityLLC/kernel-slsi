@@ -258,7 +258,7 @@ unsigned char *scsc_log_collector_get_buffer(void)
 	return log_status.buf;
 }
 
-static inline int __scsc_log_collector_write_to_ram(char __user *buf, size_t count, u8 align)
+static int __scsc_log_collector_write_to_ram(char __user *buf, size_t count, u8 align)
 {
 	if (!log_status.in_collection || !log_status.buf)
 		return -EIO;
@@ -277,7 +277,7 @@ static inline int __scsc_log_collector_write_to_ram(char __user *buf, size_t cou
 	return 0;
 }
 
-static inline int __scsc_log_collector_write_to_file(char __user *buf, size_t count, u8 align)
+static int __scsc_log_collector_write_to_file(char __user *buf, size_t count, u8 align)
 {
 	int ret = 0;
 
@@ -308,15 +308,10 @@ int scsc_log_collector_write(char __user *buf, size_t count, u8 align)
 }
 EXPORT_SYMBOL(scsc_log_collector_write);
 
-static inline int __scsc_log_collector_collect_to_ram(enum scsc_log_reason reason)
-{
-	return 0;
-}
-
 #define align_chunk(ppos) (((ppos) + (SCSC_LOG_CHUNK_ALIGN - 1)) & \
 			  ~(SCSC_LOG_CHUNK_ALIGN - 1))
 
-static inline int __scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_code, u8 buffer)
+static int __scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_code, u8 buffer)
 {
 	struct scsc_log_client *lc, *next;
 	mm_segment_t old_fs;
