@@ -12,10 +12,10 @@
 
 #include "scsc/api/bt_audio.h"
 #include "miframman.h"
-
+#include "mifproc.h"
 
 /* Caller should provide locking */
-void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool)
+void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool, void *start_region)
 {
 	mutex_init(&ram->lock);
 
@@ -34,9 +34,12 @@ void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool)
 
 	memset(ram->bitmap, BLOCK_FREE, sizeof(ram->bitmap));
 
+	ram->start_region = start_region;  /* For monitoring purposes only */
 	ram->start_dram = start_dram;
 	ram->size_pool = size_pool;
 	ram->free_mem = ram->num_blocks * MIFRAMMAN_BLOCK_SIZE;
+
+	mifproc_create_ramman_proc_dir(ram);
 }
 
 void miframabox_init(struct mifabox *mifabox, void *start_aboxram)
@@ -183,6 +186,8 @@ void miframman_deinit(struct miframman *ram)
 	ram->start_dram = NULL;
 	ram->size_pool = 0;
 	ram->free_mem = 0;
+
+	mifproc_remove_ramman_proc_dir(ram);
 }
 
 void miframabox_deinit(struct mifabox *mifabox)
