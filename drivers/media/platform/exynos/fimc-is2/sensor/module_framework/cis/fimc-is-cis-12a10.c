@@ -927,17 +927,17 @@ p_err:
 #define REG_1X_BASE_VALUE	1000
 #define REG_1X_BASE		0x0080
 #define REG_2X_BASE_VALUE	2000
-#define REG_2X_BASE		0x0178
+#define REG_2X_BASE		0x0100
 #define REG_4X_BASE_VALUE	4000
-#define REG_4X_BASE		0x0374
+#define REG_4X_BASE		0x0200
 #define REG_8X_BASE_VALUE	8000
-#define REG_8X_BASE		0x0778
+#define REG_8X_BASE		0x0400
 #define REG_UPPER_BOUND         15500
 
 #define REG_1X_MIN_VALUE	0x0080
 #define REG_1X_MAX_VALUE	0x00F8
-#define REG_2X_MAX_VALUE	0x01F4
-#define REG_4X_MAX_VALUE	0x03F2
+#define REG_2X_MAX_VALUE	0x01F0
+#define REG_4X_MAX_VALUE	0x03E0
 #define REG_8X_MAX_VALUE	0x07F0
 
 static u32 sensor_12a10_again_to_reg_value(u32 again)
@@ -945,22 +945,22 @@ static u32 sensor_12a10_again_to_reg_value(u32 again)
 	u32 level;
 	u32 reg_value;
 
-	/* 1x ~ 1.9375x: 0x0080 ~ 0x00F8 */
-	/* 2x ~ 3.9375x: 0x0178 ~ 0x01F4 */
-	/* 4x ~ 7.9375x: 0x0374 ~ 0x03F2 */
-	/* 8x ~   15.5x: 0x0778 ~ 0x07F0 */
+	/* 1x ~ 1.9375x: 0x0080 ~ 0x00F8, step = 0.0625x, 0x08 */
+	/* 2x ~ 3.875 x: 0x0100 ~ 0x01F0, step = 0.125x,  0x10 */
+	/* 4x ~ 7.75  x: 0x0200 ~ 0x03E0, step = 0.25x,   0x20 */
+	/* 8x ~ 15.5  x: 0x0400 ~ 0x07F0, step = 0.5x,    0x40 */
 	if (again < REG_2X_BASE_VALUE) {
-		level = ((again - REG_1X_BASE_VALUE) << 4) / 1000;
-		reg_value = REG_1X_BASE + level * 8;
+		level = ((again - REG_1X_BASE_VALUE) << 4) / 1000; /* step_num */
+		reg_value = REG_1X_BASE + level * 8;               /* reg_val = reg_base + step_num * step */
 	} else if (again < REG_4X_BASE_VALUE) {
-		level = ((again - REG_2X_BASE_VALUE) << 4) / 1000;
-		reg_value = REG_2X_BASE + level * 4;
+		level = ((again - REG_2X_BASE_VALUE) << 3) / 1000;
+		reg_value = REG_2X_BASE + level * 16;
 	} else if (again < REG_8X_BASE_VALUE) {
-		level = ((again - REG_4X_BASE_VALUE) << 4) / 1000;
-		reg_value = REG_4X_BASE + level * 2;
+		level = ((again - REG_4X_BASE_VALUE) << 2) / 1000;
+		reg_value = REG_4X_BASE + level * 32;
 	} else if (again < REG_UPPER_BOUND) {
-		level = ((again - REG_8X_BASE_VALUE) << 4) / 1000;
-		reg_value = REG_8X_BASE + level * 1;
+		level = ((again - REG_8X_BASE_VALUE) << 1) / 1000;
+		reg_value = REG_8X_BASE + level * 64;
 	} else {
 		reg_value = REG_8X_MAX_VALUE;
 	}
@@ -1195,7 +1195,7 @@ int sensor_12a10_cis_get_min_analog_gain(struct v4l2_subdev *subdev, u32 *min_ag
 	}
 
 	cis_data = cis->cis_data;
-	cis_data->min_analog_gain[0] = 0x10;
+	cis_data->min_analog_gain[0] = REG_1X_MIN_VALUE;
 	cis_data->min_analog_gain[1] = 1000;
 	*min_again = cis_data->min_analog_gain[1];
 
@@ -1237,7 +1237,7 @@ int sensor_12a10_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_ag
 	}
 
 	cis_data = cis->cis_data;
-	cis_data->max_analog_gain[0] = 0xF8;
+	cis_data->max_analog_gain[0] = REG_8X_MAX_VALUE;
 	cis_data->max_analog_gain[1] = 15500;
 	*max_again = cis_data->max_analog_gain[1];
 
