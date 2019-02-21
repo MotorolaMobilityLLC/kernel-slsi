@@ -5442,8 +5442,6 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 			  "Roam Reason: %s\n", roam_rssi_val, deauth_reason, chan_utilisation,
 			  slsi_get_roam_reason_str(roam_reason));
 		break;
-	default:
-		SLSI_INFO(sdev, "Unknown Event_ID:%d\n", event_id);
 	}
 
 	slsi_kfree_skb(skb);
@@ -6385,6 +6383,7 @@ static int slsi_acs_init(struct wiphy *wiphy,
 	if (r == 0 && freq_list_len) {
 		struct ieee80211_channel *channels[freq_list_len];
 		struct slsi_acs_chan_info ch_info[MAX_CHAN_VALUE_ACS];
+		struct slsi_acs_selected_channels acs_selected_channels;
 		int i = 0, num_channels = 0;
 		int idx;
 		u32 chan_flags = (IEEE80211_CHAN_INDOOR_ONLY | IEEE80211_CHAN_RADAR |
@@ -6410,8 +6409,20 @@ static int slsi_acs_init(struct wiphy *wiphy,
 				num_channels++;
 			}
 		}
-		for (i = 0; i < 25; i++)
-			SLSI_INFO(sdev, "Channel value:%d\n", ch_info[i].chan);      /*will remove after testing */
+
+		if (num_channels == 1) {
+			memset(&acs_selected_channels, 0, sizeof(acs_selected_channels));
+			acs_selected_channels.ch_width = 20;
+			acs_selected_channels.hw_mode = request->hw_mode;
+			acs_selected_channels.pri_channel = channels[0]->hw_value;
+			r = slsi_send_acs_event(sdev, acs_selected_channels);
+			sdev->acs_channel_switched = true;
+			kfree(freq_list);
+			kfree(request);
+			SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
+			return r;
+		}
+
 		if (request->hw_mode == SLSI_ACS_MODE_IEEE80211A)
 			request->ch_list_len = 25;
 		else
@@ -6437,7 +6448,6 @@ static int slsi_acs_init(struct wiphy *wiphy,
 		r = -EINVAL;
 		kfree(request);
 	}
-	SLSI_INFO(sdev, "SUBCMD_ACS_INIT Received 7 return value:%d\n", r);   /*will remove after testing */
 	kfree(freq_list);
 	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
 	return r;

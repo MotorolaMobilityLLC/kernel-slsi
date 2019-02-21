@@ -565,6 +565,9 @@ static void hip4_dump_dbg(struct slsi_hip4 *hip, struct mbulk *m, struct sk_buff
 		SLSI_ERR_NODEV("m: %p 0x%x\n", m, ref);
 		print_hex_dump(KERN_ERR, SCSC_PREFIX "mbulk ", DUMP_PREFIX_NONE, 16, 1, m, sizeof(struct mbulk), 0);
 	}
+	if (m && mbulk_has_signal(m))
+		print_hex_dump(KERN_ERR, SCSC_PREFIX "sig   ", DUMP_PREFIX_NONE, 16, 1, mbulk_get_signal(m),
+			       MBULK_SEG_SIG_BUFSIZE(m), 0);
 	if (skb)
 		print_hex_dump(KERN_ERR, SCSC_PREFIX "skb   ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len > 0xff ? 0xff : skb->len, 0);
 

@@ -77,12 +77,11 @@ struct mxman {
 	u32			last_panic_rec_r[PANIC_RECORD_SIZE]; /* Must be at least SCSC_R4_V2_MINOR_53 */
 	u16			last_panic_rec_sz;
 #ifdef CONFIG_SCSC_FM
-	u32			on_halt_ldos_on;
+	u32                   on_halt_ldos_on;
+	struct wlbt_fm_params fm_params;		 /* FM freq info */
+	int                   fm_params_pending; /* FM freq info waiting to be delivered to FW */
 #endif
 	char			failure_reason[SCSC_FAILURE_REASON_LEN]; /* previous failure reason */
-	struct wlbt_fm_params	fm_params;		/* FM freq info */
-	int			fm_params_pending;	/* FM freq info waiting to be delivered to FW */
-
 };
 
 void mxman_register_gdb_channel(struct scsc_mx *mx, mxmgmt_channel_handler handler, void *data);

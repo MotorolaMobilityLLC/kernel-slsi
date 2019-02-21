@@ -534,43 +534,6 @@ void slsi_scan_complete(struct slsi_dev *sdev, struct net_device *dev, u16 scan_
 	SLSI_MUTEX_UNLOCK(ndev_vif->scan_result_mutex);
 }
 
-int slsi_send_acs_event(struct slsi_dev *sdev, struct slsi_acs_selected_channels acs_selected_channels)
-{
-	struct sk_buff                         *skb = NULL;
-	u8 err = 0;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
-	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE,
-					  SLSI_NL80211_VENDOR_ACS_EVENT, GFP_KERNEL);
-#else
-	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NLMSG_DEFAULT_SIZE,
-					  SLSI_NL80211_VENDOR_ACS_EVENT, GFP_KERNEL);
-#endif
-	if (!skb) {
-		SLSI_ERR_NODEV("Failed to allocate skb for VENDOR ACS event\n");
-		return -ENOMEM;
-	}
-	err |= nla_put_u8(skb, SLSI_ACS_ATTR_PRIMARY_CHANNEL, acs_selected_channels.pri_channel);
-	err |= nla_put_u8(skb, SLSI_ACS_ATTR_SECONDARY_CHANNEL, acs_selected_channels.sec_channel);
-	err |= nla_put_u8(skb, SLSI_ACS_ATTR_VHT_SEG0_CENTER_CHANNEL, acs_selected_channels.vht_seg0_center_ch);
-	err |= nla_put_u8(skb, SLSI_ACS_ATTR_VHT_SEG1_CENTER_CHANNEL, acs_selected_channels.vht_seg1_center_ch);
-	err |= nla_put_u16(skb, SLSI_ACS_ATTR_CHWIDTH, acs_selected_channels.ch_width);
-	err |= nla_put_u8(skb, SLSI_ACS_ATTR_HW_MODE, acs_selected_channels.hw_mode);
-	SLSI_DBG3(sdev, SLSI_MLME, "pri_channel=%d,sec_channel=%d,vht_seg0_center_ch=%d,"
-				"vht_seg1_center_ch=%d, ch_width=%d, hw_mode=%d\n",
-				acs_selected_channels.pri_channel, acs_selected_channels.sec_channel,
-				acs_selected_channels.vht_seg0_center_ch, acs_selected_channels.vht_seg1_center_ch,
-				acs_selected_channels.ch_width, acs_selected_channels.hw_mode);
-	if (err) {
-		SLSI_ERR_NODEV("Failed nla_put err=%d\n", err);
-		slsi_kfree_skb(skb);
-		return -EINVAL;
-	}
-	SLSI_INFO(sdev, "Event: SLSI_NL80211_VENDOR_ACS_EVENT(%d)\n", SLSI_NL80211_VENDOR_ACS_EVENT);
-	cfg80211_vendor_event(skb, GFP_KERNEL);
-	return 0;
-}
-
 int slsi_set_2g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif,
 			     struct slsi_acs_selected_channels *acs_selected_channels,
 			     struct slsi_acs_chan_info *ch_info)
@@ -625,12 +588,7 @@ int slsi_set_2g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 			  ch_info[i].num_bss_load_ap);
 	}
 
-	if (acs_selected_channels->ch_width == 20) {
-		if (all_bss_load)
-			acs_selected_channels->pri_channel = ch_info[ch_idx_min_load_20].chan;
-		else
-			acs_selected_channels->pri_channel = ch_info[ch_idx_min_rssi_20].chan;
-	} else if (acs_selected_channels->ch_width == 40) {
+	if (acs_selected_channels->ch_width == 40) {
 		for (i = 0; i < ch_list_len; i++) {
 			if (i + 4 >= ch_list_len || !ch_info[i + 4].chan || !ch_info[i].chan)
 				continue;
@@ -662,6 +620,16 @@ int slsi_set_2g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 			acs_selected_channels->pri_channel = ch_info[ch_idx_min_rssi].chan;
 			acs_selected_channels->sec_channel = ch_info[ch_idx_min_rssi].chan + 4;
 		}
+
+		if (!acs_selected_channels->pri_channel)
+			acs_selected_channels->ch_width = 20;
+	}
+
+	if (acs_selected_channels->ch_width == 20) {
+		if (all_bss_load)
+			acs_selected_channels->pri_channel = ch_info[ch_idx_min_load_20].chan;
+		else
+			acs_selected_channels->pri_channel = ch_info[ch_idx_min_rssi_20].chan;
 	}
 	return ret;
 }
@@ -739,12 +707,45 @@ int slsi_set_5g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 			  ch_info[i].avg_chan_utilization, ch_info[i].num_bss_load_ap);
 	}
 
-	if (acs_selected_channels->ch_width == 20) {
-		if (all_bss_load || min_avg_chan_utilization_20 < 128)
-			acs_selected_channels->pri_channel = ch_info[ch_idx_min_load_20].chan;
-		else if (none_bss_load || min_avg_chan_utilization_20 >= 128)
-			acs_selected_channels->pri_channel = ch_info[ch_idx_min_ap_20].chan;
-	} else if (acs_selected_channels->ch_width == 40) {
+	if (acs_selected_channels->ch_width == 80) {
+		for (i = 0; i < ch_list_len; i++) {
+			if (i + 3 >= ch_list_len)
+				continue;
+			if (!ch_info[i].chan || !ch_info[i + 1].chan || !ch_info[i + 2].chan || !ch_info[i + 3].chan)
+				continue;
+			if (slsi_is_80mhz_5gchan(ch_info[i].chan, ch_info[i + 3].chan)) {
+				avg_load = ch_info[i].avg_chan_utilization + ch_info[i + 1].avg_chan_utilization +
+					   ch_info[i + 2].avg_chan_utilization + ch_info[i + 3].avg_chan_utilization;
+				total_num_ap = ch_info[i].num_ap + ch_info[i + 1].num_ap + ch_info[i + 2].num_ap +
+						   ch_info[i + 3].num_ap;
+				if (avg_load < min_avg_chan_utilization) {
+					min_avg_chan_utilization = avg_load;
+					ch_idx_min_load = i;
+				} else if (avg_load == min_avg_chan_utilization && total_num_ap <
+					   (ch_info[ch_idx_min_load].num_ap + ch_info[ch_idx_min_load + 1].num_ap +
+						ch_info[ch_idx_min_load + 2].num_ap +
+						ch_info[ch_idx_min_load + 3].num_ap)) {
+					ch_idx_min_load = i;
+				}
+				if (total_num_ap < min_num_ap) {
+					min_num_ap = total_num_ap;
+					ch_idx_min_ap = i;
+				}
+			}
+		}
+		if (all_bss_load || min_avg_chan_utilization <= 512) {
+			acs_selected_channels->pri_channel = ch_info[ch_idx_min_load].chan;
+			acs_selected_channels->vht_seg0_center_ch = ch_info[ch_idx_min_load].chan + 6;
+		} else if (none_bss_load || min_avg_chan_utilization > 512) {
+			acs_selected_channels->pri_channel = ch_info[ch_idx_min_ap].chan;
+			acs_selected_channels->vht_seg0_center_ch = ch_info[ch_idx_min_ap].chan + 6;
+		}
+
+		if (!acs_selected_channels->pri_channel)
+			acs_selected_channels->ch_width = 40;
+	}
+
+	if (acs_selected_channels->ch_width == 40) {
 		for (i = 0; i < ch_list_len; i++) {
 			if (!ch_info[i].chan || i + 1 >= ch_list_len || !ch_info[i + 1].chan)
 				continue;
@@ -762,9 +763,6 @@ int slsi_set_5g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 					min_num_ap = total_num_ap;
 					ch_idx_min_ap = i;
 				}
-			} else {
-				SLSI_DBG3(sdev, SLSI_MLME, "Invalid channels: %d, %d\n", ch_info[i].chan,
-					  ch_info[i + 1].chan); /*will remove after testing */
 			}
 		}
 		if (all_bss_load || min_avg_chan_utilization <= 256) {
@@ -774,42 +772,16 @@ int slsi_set_5g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 			acs_selected_channels->pri_channel = ch_info[ch_idx_min_ap].chan;
 			acs_selected_channels->sec_channel = ch_info[ch_idx_min_ap + 1].chan;
 		}
-	} else if (acs_selected_channels->ch_width == 80) {
-		for (i = 0; i < ch_list_len; i++) {
-			if (i + 3 >= ch_list_len)
-				continue;
-			if (!ch_info[i].chan || !ch_info[i + 1].chan || !ch_info[i + 2].chan || !ch_info[i + 3].chan)
-				continue;
-			if (slsi_is_80mhz_5gchan(ch_info[i].chan, ch_info[i + 3].chan)) {
-				avg_load = ch_info[i].avg_chan_utilization + ch_info[i + 1].avg_chan_utilization +
-					   ch_info[i + 2].avg_chan_utilization + ch_info[i + 3].avg_chan_utilization;
-				total_num_ap = ch_info[i].num_ap + ch_info[i + 1].num_ap + ch_info[i + 2].num_ap +
-					       ch_info[i + 3].num_ap;
-				if (avg_load < min_avg_chan_utilization) {
-					min_avg_chan_utilization = avg_load;
-					ch_idx_min_load = i;
-				} else if (avg_load == min_avg_chan_utilization && total_num_ap <
-					   (ch_info[ch_idx_min_load].num_ap + ch_info[ch_idx_min_load + 1].num_ap +
-					    ch_info[ch_idx_min_load + 2].num_ap +
-					    ch_info[ch_idx_min_load + 3].num_ap)) {
-					ch_idx_min_load = i;
-				}
-				if (total_num_ap < min_num_ap) {
-					min_num_ap = total_num_ap;
-					ch_idx_min_ap = i;
-				}
-			} else {
-				SLSI_DBG3(sdev, SLSI_MLME, "Invalid channels: %d, %d\n", ch_info[i].chan,
-					  ch_info[i + 3].chan);      /*will remove after testing */
-			}
-		}
-		if (all_bss_load || min_avg_chan_utilization <= 512) {
-			acs_selected_channels->pri_channel = ch_info[ch_idx_min_load].chan;
-			acs_selected_channels->vht_seg0_center_ch = ch_info[ch_idx_min_load].chan + 6;
-		} else if (none_bss_load || min_avg_chan_utilization > 512) {
-			acs_selected_channels->pri_channel = ch_info[ch_idx_min_ap].chan;
-			acs_selected_channels->vht_seg0_center_ch = ch_info[ch_idx_min_ap].chan + 6;
-		}
+
+		if (!acs_selected_channels->pri_channel)
+			acs_selected_channels->ch_width = 20;
+	}
+
+	if (acs_selected_channels->ch_width == 20) {
+		if (all_bss_load || min_avg_chan_utilization_20 < 128)
+			acs_selected_channels->pri_channel = ch_info[ch_idx_min_load_20].chan;
+		else if (none_bss_load || min_avg_chan_utilization_20 >= 128)
+			acs_selected_channels->pri_channel = ch_info[ch_idx_min_ap_20].chan;
 	}
 	return ret;
 }
@@ -903,7 +875,6 @@ next_scan:
 	}
 	SLSI_MUTEX_UNLOCK(ndev_vif->scan_result_mutex);
 	slsi_skb_queue_purge(&unique_scan_results);
-	SLSI_DBG3(sdev, SLSI_MLME, "slsi_acs_scan_results Received end point\n");      /*will remove after testing */
 	return ch_info;
 }
 

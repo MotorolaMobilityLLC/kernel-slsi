@@ -82,8 +82,10 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 			}
 		} else {
 			msg_type = FAPI_MESSAGETYPE_EAP_MESSAGE;
-			if ((skb->len + sizeof(struct ethhdr)) >= 5)
+			if ((skb->len - sizeof(struct ethhdr)) >= 5)
 				eapol = skb->data + sizeof(struct ethhdr);
+
+			dwell_time = 0;
 			if (eapol && eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAP_PACKET) {
 				if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST)
 					SLSI_INFO(sdev, "Send EAP-Request\n");
@@ -93,8 +95,16 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 					SLSI_INFO(sdev, "Send EAP-Success\n");
 				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_FAILURE)
 					SLSI_INFO(sdev, "Send EAP-Failure\n");
+
+				/*Identify WPS_START & M1-M7 and set dwell time to 100ms */
+				if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST ||
+				    eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
+					if (eapol[SLSI_EAP_TYPE_POS] == SLSI_EAP_TYPE_EXPANDED &&
+					    ((eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_MSG &&
+					    eapol[SLSI_EAP_MSGTYPE_POS] != SLSI_EAP_MSGTYPE_M8) ||
+					    eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_START))
+						dwell_time = SLSI_EAP_WPS_DWELL_TIME;
 			}
-			dwell_time = 0;
 		}
 	break;
 	case ETH_P_WAI:
@@ -576,10 +586,12 @@ int slsi_tx_control(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 
 		SLSI_NET_ERR(dev, "%s (signal %d)\n", res == -ENOSPC ? "Queue is full. Flow control" : "Failed to transmit", fapi_get_sigid(skb));
 
-		snprintf(reason, sizeof(reason), "Failed to transmit signal 0x%04X (err:%d)", fapi_get_sigid(skb), res);
-		slsi_sm_service_failed(sdev, reason);
+		if (!in_interrupt()) {
+			snprintf(reason, sizeof(reason), "Failed to transmit signal 0x%04X (err:%d)", fapi_get_sigid(skb), res);
+			slsi_sm_service_failed(sdev, reason);
 
-		res = -EIO;
+			res = -EIO;
+		}
 	}
 exit:
 	return res;

@@ -3989,6 +3989,24 @@ int slsi_is_dhcp_packet(u8 *data)
 	return ret;
 }
 
+int slsi_is_dns_packet(u8 *data)
+{
+	u8 *p;
+
+	p = data + SLSI_IP_TYPE_OFFSET;
+
+	if (*p == SLSI_IP_TYPE_UDP) {
+		u16 dest_port;
+
+		p = data + SLSI_IP_DEST_PORT_OFFSET;
+		dest_port = p[0] << 8 | p[1];
+		if (dest_port == SLSI_DNS_DEST_PORT) /* 0x0035 */
+			return 1;
+	}
+
+	return 0;
+}
+
 int slsi_ap_prepare_add_info_ies(struct netdev_vif *ndev_vif, const u8 *ies, size_t ies_len)
 {
 	const u8 *wps_p2p_ies = NULL;
@@ -4249,6 +4267,43 @@ int slsi_roaming_scan_configure_channels(struct slsi_dev *sdev, struct net_devic
 	SLSI_NET_DBG3(dev, SLSI_MLME, "Roaming Scan Channels. %d cached\n", cached_channels_count);
 
 	return cached_channels_count;
+}
+
+int slsi_send_acs_event(struct slsi_dev *sdev, struct slsi_acs_selected_channels acs_selected_channels)
+{
+	struct sk_buff                         *skb = NULL;
+	u8 err = 0;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
+	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE,
+					  SLSI_NL80211_VENDOR_ACS_EVENT, GFP_KERNEL);
+#else
+	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NLMSG_DEFAULT_SIZE,
+					  SLSI_NL80211_VENDOR_ACS_EVENT, GFP_KERNEL);
+#endif
+	if (!skb) {
+		SLSI_ERR_NODEV("Failed to allocate skb for VENDOR ACS event\n");
+		return -ENOMEM;
+	}
+	err |= nla_put_u8(skb, SLSI_ACS_ATTR_PRIMARY_CHANNEL, acs_selected_channels.pri_channel);
+	err |= nla_put_u8(skb, SLSI_ACS_ATTR_SECONDARY_CHANNEL, acs_selected_channels.sec_channel);
+	err |= nla_put_u8(skb, SLSI_ACS_ATTR_VHT_SEG0_CENTER_CHANNEL, acs_selected_channels.vht_seg0_center_ch);
+	err |= nla_put_u8(skb, SLSI_ACS_ATTR_VHT_SEG1_CENTER_CHANNEL, acs_selected_channels.vht_seg1_center_ch);
+	err |= nla_put_u16(skb, SLSI_ACS_ATTR_CHWIDTH, acs_selected_channels.ch_width);
+	err |= nla_put_u8(skb, SLSI_ACS_ATTR_HW_MODE, acs_selected_channels.hw_mode);
+	SLSI_DBG3(sdev, SLSI_MLME, "pri_channel=%d,sec_channel=%d,vht_seg0_center_ch=%d,"
+				"vht_seg1_center_ch=%d, ch_width=%d, hw_mode=%d\n",
+				acs_selected_channels.pri_channel, acs_selected_channels.sec_channel,
+				acs_selected_channels.vht_seg0_center_ch, acs_selected_channels.vht_seg1_center_ch,
+				acs_selected_channels.ch_width, acs_selected_channels.hw_mode);
+	if (err) {
+		SLSI_ERR_NODEV("Failed nla_put err=%d\n", err);
+		slsi_kfree_skb(skb);
+		return -EINVAL;
+	}
+	SLSI_INFO(sdev, "Event: SLSI_NL80211_VENDOR_ACS_EVENT(%d)\n", SLSI_NL80211_VENDOR_ACS_EVENT);
+	cfg80211_vendor_event(skb, GFP_KERNEL);
+	return 0;
 }
 
 #ifdef CONFIG_SCSC_WLAN_WES_NCHO
