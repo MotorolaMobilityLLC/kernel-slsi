@@ -30,10 +30,14 @@
 #include <linux/power/s2mu106_fuelgauge.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_data/ntc_thermistor.h>
+#include <soc/samsung/exynos-pmu.h>
 
 static enum power_supply_property s2mu106_fuelgauge_props[] = {
 };
 
+#define PS_HOLD_CONTROL			(0x330C)
+
+static void low_vbat_power_off(void);
 static int s2mu106_get_vbat(struct s2mu106_fuelgauge_data *fuelgauge);
 static int s2mu106_get_ocv(struct s2mu106_fuelgauge_data *fuelgauge);
 static int s2mu106_get_current(struct s2mu106_fuelgauge_data *fuelgauge);
@@ -927,6 +931,12 @@ static int s2mu106_get_rawsoc(struct s2mu106_fuelgauge_data *fuelgauge)
 		fuelgauge->ui_soc, fuelgauge->is_charging, avg_vbat,
 		float_voltage, avg_current, fg_mode_reg);
 
+	if (fuelgauge->ui_soc == 0 && avg_vbat <= 3250 && avg_current <= 5) {
+		pr_info("%s, UI SOC 0%! VBAT 3250!\n", __func__);
+
+		low_vbat_power_off();
+	}
+
 	if ((fuelgauge->is_charging == true) &&
 		((fuelgauge->ui_soc >= 98) || ((avg_vbat > float_voltage) && (avg_current < 500)))) {
 		if (fuelgauge->mode == CURRENT_MODE) { /* switch to VOLTAGE_MODE */
@@ -1401,6 +1411,18 @@ static int s2mu106_fg_set_property(struct power_supply *psy,
 	}
 
 	return 0;
+}
+
+static void low_vbat_power_off(void)
+{
+	u32 ps_hold_data;
+
+	pr_info("%s, Set PS_HOLD Low\n", __func__);
+
+	mdelay(3000);
+
+	exynos_pmu_read(PS_HOLD_CONTROL, &ps_hold_data);
+	exynos_pmu_write(PS_HOLD_CONTROL, ps_hold_data & 0xFFFFFEFF);
 }
 
 static void s2mu106_fg_isr_work(struct work_struct *work)
