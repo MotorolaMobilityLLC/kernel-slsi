@@ -703,6 +703,7 @@ static int muic_core_handle_attached_prev_dev(struct muic_platform_data *muic_pd
 	muic_attached_dev_t new_dev, bool *noti)
 {
 	int ret = 0;
+	bool detach_noti = *noti;
 
 	pr_info("%s attached_dev: %d, new_dev: %d\n",
 		__func__, muic_pdata->attached_dev, new_dev);
@@ -773,18 +774,21 @@ static int muic_core_handle_attached_prev_dev(struct muic_platform_data *muic_pd
 				ret = muic_core_detach_deskdock(muic_pdata);
 			else {
 				*noti = false;
+				detach_noti = false;
 				ret = muic_core_detach_jig_uart_boot_on(muic_pdata);
 			}
 		}
 		break;
 	case ATTACHED_DEV_NONE_MUIC:
+		detach_noti = false;
+		break;
 	default:
 		break;
 	}
 
-	if (*noti) {
+	if (detach_noti) {
 		if (!muic_pdata->suspended) {
-			MUIC_SEND_NOTI_DETACH(muic_pdata->attached_dev);
+			MUIC_SEND_NOTI_DETACH_ALL(muic_pdata->attached_dev);
 		} else
 			muic_pdata->need_to_noti = true;
 	}
@@ -820,7 +824,7 @@ static int muic_core_handle_attached_new_dev(struct muic_platform_data *muic_pda
 #if defined(CONFIG_HV_MUIC_S2MU004_AFC) || defined(CONFIG_MUIC_HV)
 		MUIC_PDATA_FUNC(muic_if->check_afc_ready, muic_pdata->drv_data, &ret);
 #endif /* CONFIG_HV_MUIC_S2MU004_AFC */
-		MUIC_PDATA_FUNC(muic_if->set_com_to_open_with_vbus, muic_pdata->drv_data, &ret);
+		MUIC_PDATA_FUNC(muic_if->set_com_to_open, muic_pdata->drv_data, &ret);
 		break;
 	case ATTACHED_DEV_JIG_UART_OFF_VB_OTG_MUIC:
 	case ATTACHED_DEV_JIG_UART_OFF_VB_FG_MUIC:
@@ -937,7 +941,7 @@ int muic_core_handle_attach(struct muic_platform_data *muic_pdata,
 
 	if (noti) {
 		if (!muic_pdata->suspended) {
-			MUIC_SEND_NOTI_ATTACH(new_dev);
+			MUIC_SEND_NOTI_ATTACH_ALL(new_dev);
 		} else
 			muic_pdata->need_to_noti = true;
 	}
@@ -951,13 +955,16 @@ int muic_core_handle_detach(struct muic_platform_data *muic_pdata)
 	int ret = 0;
 	bool noti = true;
 	struct muic_interface_t *muic_if = (struct muic_interface_t *)muic_pdata->muic_if;
+	muic_attached_dev_t prev_dev = muic_pdata->attached_dev;
+
+	pr_info("%s attached_dev: %d\n",
+		__func__, muic_pdata->attached_dev);
 
 	MUIC_PDATA_FUNC(muic_if->set_com_to_open, muic_pdata->drv_data, &ret);
 #if defined(CONFIG_MUIC_SUPPORT_TYPEB)
 	muic_pdata->is_jig_on = false;
 	MUIC_PDATA_FUNC(muic_if->set_jig_ctrl_on, muic_pdata->drv_data, &ret);
 #endif
-
 
 	switch (muic_pdata->attached_dev) {
 	case ATTACHED_DEV_JIG_USB_OFF_MUIC:
@@ -1038,7 +1045,7 @@ int muic_core_handle_detach(struct muic_platform_data *muic_pdata)
 
 	if (noti) {
 		if (!muic_pdata->suspended) {
-			MUIC_SEND_NOTI_DETACH(muic_pdata->attached_dev);
+			MUIC_SEND_NOTI_DETACH_ALL(prev_dev);
 		} else
 			muic_pdata->need_to_noti = true;
 	}
