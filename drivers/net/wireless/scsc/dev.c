@@ -57,7 +57,7 @@ static bool lls_disabled;
 module_param(lls_disabled, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(lls_disabled, "Disable LLS: to disable LLS set 1");
 
-static bool gscan_disabled = 1;
+static bool gscan_disabled = 0;
 module_param(gscan_disabled, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(gscan_disabled, "Disable gscan: to disable gscan set 1");
 

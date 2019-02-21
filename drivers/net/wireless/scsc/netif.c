@@ -549,11 +549,15 @@ static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb)
 		} else
 #endif
 		{
+			if (proto == ETH_P_IP && slsi_is_dns_packet(skb->data)) {
+				skb->priority = FAPI_PRIORITY_QOS_UP7;
+			} else {
 #ifdef CONFIG_SCSC_USE_WMM_TOS
-			skb->priority = slsi_get_priority_from_tos(skb->data + ETH_HLEN, proto);
+				skb->priority = slsi_get_priority_from_tos(skb->data + ETH_HLEN, proto);
 #else
-			skb->priority = slsi_get_priority_from_tos_dscp(skb->data + ETH_HLEN, proto);
+				skb->priority = slsi_get_priority_from_tos_dscp(skb->data + ETH_HLEN, proto);
 #endif
+			}
 		}
 	} else{
 		skb->priority = FAPI_PRIORITY_QOS_UP0;

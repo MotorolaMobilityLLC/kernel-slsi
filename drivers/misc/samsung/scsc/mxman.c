@@ -215,7 +215,7 @@ static ssize_t sysfs_store_memdump(struct kobject *kobj,
 
 	SCSC_TAG_INFO(MXMAN, "memdump: %d\n", memdump);
 
-	return (r > 0) ? count : 0;
+	return (r == 0) ? count : 0;
 }
 
 struct kobject *mxman_wifi_kobject_ref_get(void)
@@ -356,15 +356,6 @@ struct ma_msg_packet {
 	uint32_t arg;	/* Optional arg set by f/w in some to-host messages */
 } __packed;
 
-/**
- * Special case Maxwell management, carrying FM radio configuration structure
- */
-struct ma_msg_packet_fm_radio_config {
-
-	uint8_t ma_msg;				/* Message from ma_msg enum */
-	struct wlbt_fm_params fm_params;	/* FM Radio parameters */
-} __packed;
-
 static bool send_fw_config_to_active_mxman(uint32_t fw_runtime_flags)
 {
 	bool ret = false;
@@ -400,6 +391,16 @@ static bool send_fw_config_to_active_mxman(uint32_t fw_runtime_flags)
 
 	return ret;
 }
+
+/**
+ * Special case Maxwell management, carrying FM radio configuration structure
+ */
+#ifdef CONFIG_SCSC_FM
+struct ma_msg_packet_fm_radio_config {
+
+	uint8_t ma_msg;				/* Message from ma_msg enum */
+	struct wlbt_fm_params fm_params;	/* FM Radio parameters */
+} __packed;
 
 static bool send_fm_params_to_active_mxman(struct wlbt_fm_params *params)
 {
@@ -437,6 +438,7 @@ static bool send_fm_params_to_active_mxman(struct wlbt_fm_params *params)
 
 	return ret;
 }
+#endif
 
 static void mxman_stop(struct mxman *mxman);
 static void print_mailboxes(struct mxman *mxman);
@@ -1790,11 +1792,13 @@ int mxman_open(struct mxman *mxman)
 			break; /* Running or given up */
 	}
 
+#ifdef CONFIG_SCSC_FM
 	/* If we have stored FM radio parameters, deliver them to FW now */
 	if (r == 0 && mxman->fm_params_pending) {
 		SCSC_TAG_INFO(MXMAN, "Send pending FM params\n");
 		mxman_fm_set_params(mxman, &mxman->fm_params);
 	}
+#endif
 
 	return r;
 }
@@ -2318,10 +2322,12 @@ bool mxman_recovery_disabled(void)
 	if (disable_recovery_until_reboot)
 		return true;
 
+#ifdef CONFIG_SCSC_WLBTD
 	if (disable_recovery_handling == MEMDUMP_FILE_FOR_RECOVERY)
 		return disable_recovery_from_memdump_file;
-	else
-		return disable_recovery_handling ? true : false;
+#endif
+
+	return disable_recovery_handling ? true : false;
 }
 EXPORT_SYMBOL(mxman_recovery_disabled);
 
