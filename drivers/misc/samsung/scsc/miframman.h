@@ -16,7 +16,7 @@ struct miframman;
 struct mifabox;
 
 
-void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool);
+void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool, void *start_region);
 void miframabox_init(struct mifabox *mifabox, void *start_aboxram);
 void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align);
 void miframman_free(struct miframman *ram, void *mem);
@@ -34,11 +34,12 @@ void miframabox_deinit(struct mifabox *mifabox);
 
 /* Inclusion in core.c treat it as opaque */
 struct miframman {
-	void         *start_dram;
-	size_t       size_pool;
+	void         *start_region;                /* Base address of region containing the pool */
+	void         *start_dram;                  /* Base address of allocator pool */
+	size_t       size_pool;                    /* Size of allocator pool */
 	char         bitmap[MIFRAMMAN_NUM_BLOCKS]; /* Zero initialized-> all blocks free */
-	u32          num_blocks;
-	u32          free_mem;
+	u32          num_blocks;                   /* Blocks of MIFRAMMAN_BLOCK_SIZE in pool */
+	u32          free_mem;                     /* Bytes remaining in allocator pool */
 	struct mutex lock;
 };
 

@@ -1068,8 +1068,8 @@ static int mxman_start(struct mxman *mxman)
 	length_mifram_heap2 = MX_DRAM_SIZE_SECTION_2 -
 			((sizeof(struct scsc_bt_audio_abox) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
 
-	miframman_init(scsc_mx_get_ramman(mxman->mx), start_mifram_heap, length_mifram_heap);
-	miframman_init(scsc_mx_get_ramman2(mxman->mx), start_mifram_heap2, length_mifram_heap2);
+	miframman_init(scsc_mx_get_ramman(mxman->mx), start_mifram_heap, length_mifram_heap, start_dram);
+	miframman_init(scsc_mx_get_ramman2(mxman->mx), start_mifram_heap2, length_mifram_heap2, start_mifram_heap2);
 	miframabox_init(scsc_mx_get_aboxram(mxman->mx), start_mifram_heap2 + length_mifram_heap2);
 	mifmboxman_init(scsc_mx_get_mboxman(mxman->mx));
 	mifintrbit_init(scsc_mx_get_intrbit(mxman->mx), mif);
