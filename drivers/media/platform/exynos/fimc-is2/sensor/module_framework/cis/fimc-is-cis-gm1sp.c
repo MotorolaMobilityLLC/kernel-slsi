@@ -47,8 +47,8 @@
 
 static const struct v4l2_subdev_ops subdev_ops;
 
-static const u32 **sensor_gm1sp_global;
-static const u32 *sensor_gm1sp_global_sizes;
+static const u32 *sensor_gm1sp_global;
+static u32 sensor_gm1sp_global_size;
 static const u32 **sensor_gm1sp_setfiles;
 static const u32 *sensor_gm1sp_setfile_sizes;
 static const struct sensor_pll_info_compact **sensor_gm1sp_pllinfos;
@@ -337,7 +337,6 @@ int sensor_gm1sp_cis_set_global_setting(struct v4l2_subdev *subdev)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis = NULL;
-	int idx = 0;
 
 	FIMC_BUG(!subdev);
 
@@ -346,12 +345,8 @@ int sensor_gm1sp_cis_set_global_setting(struct v4l2_subdev *subdev)
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
 
-	/* TODO: w/gyro index setting needed */
-	info("[%s] setting %s_gyro\n",
-		__func__, idx == 1 ? "with" : "without");
+	ret = sensor_cis_set_registers(subdev, sensor_gm1sp_global, sensor_gm1sp_global_size);
 
-	ret = sensor_cis_set_registers(subdev,
-			sensor_gm1sp_global[idx], sensor_gm1sp_global_sizes[idx]);
 	if (ret < 0) {
 		err("sensor_gm1sp_set_registers fail!!");
 		goto p_err;
@@ -1788,7 +1783,7 @@ static int cis_gm1sp_probe(struct i2c_client *client,
 			strcmp(setfile, "setA") == 0) {
 		probe_info("%s setfile_A\n", __func__);
 		sensor_gm1sp_global = sensor_gm1sp_setfile_A_Global;
-		sensor_gm1sp_global_sizes = sensor_gm1sp_setfile_A_Global_sizes;
+		sensor_gm1sp_global_size = ARRAY_SIZE(sensor_gm1sp_setfile_A_Global);
 		sensor_gm1sp_setfiles = sensor_gm1sp_setfiles_A;
 		sensor_gm1sp_setfile_sizes = sensor_gm1sp_setfile_A_sizes;
 		sensor_gm1sp_pllinfos = sensor_gm1sp_pllinfos_A;
@@ -1796,7 +1791,7 @@ static int cis_gm1sp_probe(struct i2c_client *client,
 	} else if (strcmp(setfile, "setB") == 0) {
 		probe_info("%s setfile_B\n", __func__);
 		sensor_gm1sp_global = sensor_gm1sp_setfile_B_Global;
-		sensor_gm1sp_global_sizes = sensor_gm1sp_setfile_B_Global_sizes;
+		sensor_gm1sp_global_size = ARRAY_SIZE(sensor_gm1sp_setfile_B_Global);
 		sensor_gm1sp_setfiles = sensor_gm1sp_setfiles_B;
 		sensor_gm1sp_setfile_sizes = sensor_gm1sp_setfile_B_sizes;
 		sensor_gm1sp_pllinfos = sensor_gm1sp_pllinfos_B;
@@ -1808,7 +1803,7 @@ static int cis_gm1sp_probe(struct i2c_client *client,
 	} else {
 		err("%s setfile index out of bound, take default (setfile_A)", __func__);
 		sensor_gm1sp_global = sensor_gm1sp_setfile_A_Global;
-		sensor_gm1sp_global_sizes = sensor_gm1sp_setfile_A_Global_sizes;
+		sensor_gm1sp_global_size = ARRAY_SIZE(sensor_gm1sp_setfile_A_Global);
 		sensor_gm1sp_setfiles = sensor_gm1sp_setfiles_A;
 		sensor_gm1sp_setfile_sizes = sensor_gm1sp_setfile_A_sizes;
 		sensor_gm1sp_pllinfos = sensor_gm1sp_pllinfos_A;
