@@ -91,6 +91,7 @@ enum exynos_ch_id {
 	EXYNOS_CH_ID_DUMP = 242,
 
 	EXYNOS_CH_ID_FMT_0 = 245,   /*umts_ipc0*/
+	EXYNOS_CH_ID_FMT_1 = 246,   /*umts_ipc1*/
 	EXYNOS_CH_ID_MAX = 255,
 	EXYNOS_CH_ID_FLOW_CTRL = 255
 };
@@ -206,7 +207,7 @@ static inline unsigned int exynos_get_frame_len(u8 *frm)
 
 static inline bool exynos_fmt_ch(u8 ch)
 {
-	return (ch == EXYNOS_CH_ID_FMT_0) ? true : false;
+	return (ch == EXYNOS_CH_ID_FMT_0 || ch == EXYNOS_CH_ID_FMT_1) ? true : false;
 }
 
 static inline bool exynos_rfs_ch(u8 ch)
