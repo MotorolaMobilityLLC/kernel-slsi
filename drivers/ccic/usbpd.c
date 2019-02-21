@@ -19,6 +19,46 @@
 extern struct pdic_notifier_data pd_noti;
 #endif
 
+#define MS_TO_NS(msec)		((msec) * 1000 * 1000)
+
+void usbpd_timer1_start(struct usbpd_data *pd_data)
+{
+	do_gettimeofday(&pd_data->time1);
+}
+
+int usbpd_check_time1(struct usbpd_data *pd_data)
+{
+	int ms = 0;
+	int sec = 0;
+	struct timeval time;
+
+	do_gettimeofday(&time);
+
+	sec = time.tv_sec - pd_data->time1.tv_sec;
+	ms = (time.tv_usec - pd_data->time1.tv_usec) / 1000;
+
+	return (sec * 1000) + ms;
+}
+
+void usbpd_timer2_start(struct usbpd_data *pd_data)
+{
+	do_gettimeofday(&pd_data->time2);
+}
+
+int usbpd_check_time2(struct usbpd_data *pd_data)
+{
+	int ms = 0;
+	int sec = 0;
+	struct timeval time;
+
+	do_gettimeofday(&time);
+
+	sec = time.tv_sec - pd_data->time2.tv_sec;
+	ms = (time.tv_usec - pd_data->time2.tv_usec) / 1000;
+
+	return (sec * 1000) + ms;
+}
+
 static void increase_message_id_counter(struct usbpd_data *pd_data)
 {
 	pd_data->counter.message_id_counter++;
@@ -66,6 +106,7 @@ void usbpd_init_protocol(struct usbpd_data *pd_data)
 {
 	rx_layer_init(&pd_data->protocol_rx);
 	tx_layer_init(&pd_data->protocol_tx);
+	pd_data->id_matched = 0;
 }
 
 void usbpd_init_counters(struct usbpd_data *pd_data)
@@ -274,6 +315,7 @@ void usbpd_set_ops(struct device *dev, usbpd_phy_ops_type *ops)
 	pd_data->phy_ops.tx_msg = ops->tx_msg;
 	pd_data->phy_ops.rx_msg = ops->rx_msg;
 	pd_data->phy_ops.hard_reset = ops->hard_reset;
+	pd_data->phy_ops.soft_reset = ops->soft_reset;
 	pd_data->phy_ops.set_power_role = ops->set_power_role;
 	pd_data->phy_ops.get_power_role = ops->get_power_role;
 	pd_data->phy_ops.set_data_role = ops->set_data_role;
@@ -285,9 +327,11 @@ void usbpd_set_ops(struct device *dev, usbpd_phy_ops_type *ops)
 	pd_data->phy_ops.poll_status = ops->poll_status;
 	pd_data->phy_ops.driver_reset = ops->driver_reset;
 	pd_data->phy_ops.set_otg_control = ops->set_otg_control;
-	pd_data->phy_ops.get_vbus_short_check = ops->get_vbus_short_check;
 	pd_data->phy_ops.set_cc_control = ops->set_cc_control;
 	pd_data->phy_ops.get_side_check = ops->get_side_check;
+	pd_data->phy_ops.pr_swap = ops->pr_swap;
+	pd_data->phy_ops.vbus_on_check = ops->vbus_on_check;
+	pd_data->phy_ops.check_bist_message = ops->check_bist_message;
 }
 
 protocol_state usbpd_protocol_rx_layer_reset_for_receive(struct protocol_data *rx)
@@ -322,8 +366,12 @@ protocol_state usbpd_protocol_rx_wait_for_phy_message(struct protocol_data *rx)
 			dev_err(pd_data->dev, "[Rx] Got SOFTRESET.\n");
 			state = PRL_Rx_Layer_Reset_for_Receive;
 		} else {
-			if (rx->stored_message_id == rx->msg_header.msg_id)
+			if (rx->stored_message_id == rx->msg_header.msg_id) {
+				pd_data->id_matched = 0;
 				return state;
+			}
+
+			pd_data->id_matched = 1;
 
 			dev_err(pd_data->dev, "[Rx] [0x%x] [0x%x]\n",
 					rx->msg_header.word, rx->data_obj[0].object);
@@ -581,7 +629,7 @@ int usbpd_init(struct device *dev, void *phy_driver_data)
 		ret = sysfs_create_group(&pd_data->ccic_dev->kobj, &ccic_sysfs_group);
 		if (ret)
 			pr_err("%s: ccic sysfs fail, ret %d", __func__, ret);
-		else 
+		else
 			dev_set_drvdata(pd_data->ccic_dev, pd_data);
 	}
 #endif
@@ -596,7 +644,13 @@ int usbpd_init(struct device *dev, void *phy_driver_data)
 	usbpd_init_policy(pd_data);
 	usbpd_init_manager(pd_data);
 
+	pd_data->policy_wqueue =
+		create_singlethread_workqueue(dev_name(dev));
+	if (!pd_data->policy_wqueue)
+		pr_err("%s: Fail to Create Workqueue\n", __func__);
+
 	INIT_WORK(&pd_data->worker, usbpd_policy_work);
+
 	init_completion(&pd_data->msg_arrived);
 
 	return 0;

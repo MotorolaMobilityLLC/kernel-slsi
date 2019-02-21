@@ -60,15 +60,6 @@ void s2mu106_select_pdo(int num)
 {
 	struct usbpd_data *pd_data = pd_noti.pd_data;
 	struct usbpd_manager_data *manager = &pd_data->manager;
-	bool vbus_short;
-
-	pd_data->phy_ops.get_vbus_short_check(pd_data, &vbus_short);
-
-	if (vbus_short) {
-		pr_info(" %s : PDO(%d) is ignored becasue of vbus short\n",
-				__func__, pd_noti.sink_status.selected_pdo_num);
-		return;
-	}
 
 	if (pd_noti.sink_status.selected_pdo_num == num)
 		return;
@@ -142,6 +133,13 @@ void usbpd_manager_start_discover_msg_cancel(struct device *dev)
 	cancel_delayed_work_sync(&manager->start_discover_msg_handler);
 }
 
+void usbpd_manager_send_pr_swap(struct device *dev)
+{
+	pr_info("%s: call send pr swap msg\n", __func__);
+
+	usbpd_manager_inform_event(pd_noti.pd_data, MANAGER_SEND_PR_SWAP);
+}
+
 static void init_source_cap_data(struct usbpd_manager_data *_data)
 {
 /*	struct usbpd_data *pd_data = manager_to_usbpd(_data);
@@ -187,12 +185,12 @@ static void init_sink_cap_data(struct usbpd_manager_data *_data)
 	data_obj->power_data_obj_sink.usb_comm_capable = 1;
 	data_obj->power_data_obj_sink.data_role_swap = 1;
 	data_obj->power_data_obj_sink.voltage = 5000/50;
-	data_obj->power_data_obj_sink.op_current = 500/10;
+	data_obj->power_data_obj_sink.op_current = 3000/10;
 
 	(data_obj + 1)->power_data_obj_variable.supply_type = POWER_TYPE_VARIABLE;
 	(data_obj + 1)->power_data_obj_variable.max_voltage = _data->sink_cap_max_volt / 50;
 	(data_obj + 1)->power_data_obj_variable.min_voltage = 5000 / 50;
-	(data_obj + 1)->power_data_obj_variable.max_current = 500 / 10;
+	(data_obj + 1)->power_data_obj_variable.max_current = 3000 / 10;
 }
 
 void usbpd_manager_receive_samsung_uvdm_message(struct usbpd_data *pd_data)
@@ -215,12 +213,24 @@ void usbpd_manager_plug_attach(struct device *dev)
 	manager->template.data = &pd_noti.sink_status;
 	ifconn_event_work(pdic_data, IFCONN_NOTIFY_MANAGER,
 		IFCONN_NOTIFY_ID_POWER_STATUS, IFCONN_NOTIFY_EVENT_ATTACH, &pd_noti);
+	manager->pd_attached = 1;
 #endif
+	pr_info("%s: usbpd plug atached\n", __func__);
 }
 
 void usbpd_manager_plug_detach(struct device *dev, bool notify)
 {
+#if defined(CONFIG_IFCONN_NOTIFIER)
 	struct usbpd_data *pd_data = dev_get_drvdata(dev);
+	struct s2mu106_usbpd_data *pdic_data = pd_data->phy_driver_data;
+	struct usbpd_manager_data *manager = &pd_data->manager;
+
+	if (manager->pd_attached && pdic_data->power_role == PDIC_SINK) {
+		ifconn_event_work(pdic_data, IFCONN_NOTIFY_BATTERY,
+								IFCONN_NOTIFY_ID_DETACH, 0, 0);
+		manager->pd_attached = 0;
+	}
+#endif
 
 	pr_info("%s: usbpd plug detached\n", __func__);
 
@@ -228,18 +238,18 @@ void usbpd_manager_plug_detach(struct device *dev, bool notify)
 }
 
 void usbpd_manager_acc_detach(struct device *dev)
-{	
+{
 	struct usbpd_data *pd_data = dev_get_drvdata(dev);
 	struct usbpd_manager_data *manager = &pd_data->manager;
 
 	pr_info("%s\n", __func__);
-	if ( manager->acc_type != CCIC_DOCK_DETACHED ) {
+	if (manager->acc_type != CCIC_DOCK_DETACHED) {
 		pr_info("%s: schedule_delayed_work \n", __func__);
-		if ( manager->acc_type == CCIC_DOCK_HMT )
+		if (manager->acc_type == CCIC_DOCK_HMT)
 			schedule_delayed_work(&manager->acc_detach_handler, msecs_to_jiffies(1000));
 		else
 			schedule_delayed_work(&manager->acc_detach_handler, msecs_to_jiffies(0));
-	}	
+	}
 }
 
 int usbpd_manager_command_to_policy(struct device *dev,
@@ -315,6 +325,10 @@ void usbpd_manager_inform_event(struct usbpd_data *pd_data,
 	case MANAGER_START_DISCOVER_IDENTITY:
 		usbpd_manager_command_to_policy(pd_data->dev,
 					MANAGER_REQ_VDM_DISCOVER_IDENTITY);
+		break;
+	case MANAGER_SEND_PR_SWAP:
+		usbpd_manager_command_to_policy(pd_data->dev,
+					MANAGER_REQ_PR_SWAP);
 		break;
 	default:
 		pr_info("%s: not matched event(%d)\n", __func__, event);
@@ -513,7 +527,7 @@ static int usbpd_manager_check_accessory(struct usbpd_manager_data *manager)
 				break;
 			}
 		} else if (vid == SAMSUNG_MPA_VENDOR_ID) {
-			switch(pid) {
+			switch (pid) {
 			case MPA_PRODUCT_ID:
 				acc_type = CCIC_DOCK_MPA;
 				pr_info("%s : Samsung MPA connected.\n", __func__);
@@ -525,10 +539,10 @@ static int usbpd_manager_check_accessory(struct usbpd_manager_data *manager)
 			}
 		}
 		manager->acc_type = acc_type;
-	} else 
+	} else
 		acc_type = manager->acc_type;
 
-	if (acc_type != CCIC_DOCK_NEW) 
+	if (acc_type != CCIC_DOCK_NEW)
 		usbpd_manager_send_dock_intent(acc_type);
 
 	usbpd_manager_send_dock_uevent(vid, pid, acc_type);
@@ -704,27 +718,27 @@ int usbpd_manager_get_status(struct usbpd_data *pd_data)
 		multi_func_preference = pd_obj->displayport_status.multi_function_preferred;
 
 		if (multi_func_preference) {
-			if(manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
+			if (manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_D;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_B;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_F;
 			} else {
 				pr_info("wrong pin assignment value\n");
 			}
 		} else {
-			if(manager->pin_assignment & DP_PIN_ASSIGNMENT_C) {
+			if (manager->pin_assignment & DP_PIN_ASSIGNMENT_C) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_C;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_E) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_E) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_E;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_A) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_A) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_A;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_D;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_B;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_F;
 			} else {
 				pr_info("wrong pin assignment value\n");
@@ -761,7 +775,7 @@ int usbpd_manager_get_configure(struct usbpd_data *pd_data)
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_MANAGER,
 						IFCONN_NOTIFY_ID_DP_LINK_CONF,
 						IFCONN_NOTIFY_EVENT_ATTACH, manager);
-	
+
 	return 0;
 }
 
@@ -790,27 +804,27 @@ int usbpd_manager_get_attention(struct usbpd_data *pd_data)
 		multi_func_preference = pd_obj->displayport_status.multi_function_preferred;
 
 		if (multi_func_preference) {
-			if(manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
+			if (manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_D;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_B;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_F;
 			} else {
 				pr_info("wrong pin assignment value\n");
 			}
 		} else {
-			if(manager->pin_assignment & DP_PIN_ASSIGNMENT_C) {
+			if (manager->pin_assignment & DP_PIN_ASSIGNMENT_C) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_C;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_E) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_E) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_E;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_A) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_A) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_A;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_D) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_D;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_B) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_B;
-			} else if(manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
+			} else if (manager->pin_assignment & DP_PIN_ASSIGNMENT_F) {
 				pin_assignment = IFCONN_NOTIFY_DP_PIN_F;
 			} else {
 				pr_info("wrong pin assignment value\n");
@@ -943,7 +957,7 @@ int usbpd_manager_match_request(struct usbpd_data *pd_data)
 
 	unsigned supply_type
 	= pd_data->source_request_obj.power_data_obj_supply_type.supply_type;
-	unsigned mismatch, max_min, op, pos;
+	unsigned src_max_current,  mismatch, max_min, op, pos;
 
 	if (supply_type == POWER_TYPE_FIXED) {
 		pr_info("REQUEST: FIXED\n");
@@ -960,19 +974,26 @@ int usbpd_manager_match_request(struct usbpd_data *pd_data)
 	}
 
 log_fixed_variable:
+    /* Tx Source PDO */
+    src_max_current = pd_data->source_data_obj.power_data_obj.max_current;
+
+    /* Rx Request RDO */
 	mismatch = pd_data->source_request_obj.request_data_object.capability_mismatch;
 	max_min = pd_data->source_request_obj.request_data_object.min_current;
 	op = pd_data->source_request_obj.request_data_object.op_current;
 	pos = pd_data->source_request_obj.request_data_object.object_position;
-	pr_info("Obj position: %d\n", pos);
-	pr_info("Mismatch: %d\n", mismatch);
-	pr_info("Operating Current: %d mA\n", op*10);
-	if (pd_data->source_request_obj.request_data_object.give_back)
-		pr_info("Min current: %d mA\n", max_min*10);
-	else
-		pr_info("Max current: %d mA\n", max_min*10);
 
-	return 0;
+	pr_info("%s %x\n", __func__, pd_data->source_request_obj.object);
+
+    /*src_max_current is already *10 value ex) src_max_current 500mA */
+	//pr_info("Tx SourceCap Current : %dmA\n", src_max_current*10);
+	//pr_info("Rx Request Current : %dmA\n", max_min*10);
+
+    /* Compare Pdo and Rdo */
+    if ((src_max_current >= max_min) && (pos == 1))
+		return 0;
+    else
+		return -1;
 
 log_battery:
 	mismatch = pd_data->source_request_obj.request_data_object_battery.capability_mismatch;
@@ -1088,9 +1109,10 @@ int usbpd_init_manager(struct usbpd_data *pd_data)
 #endif
 	mutex_init(&manager->vdm_mutex);
 	manager->pd_data = pd_data;
+	manager->pd_attached = 0;
 	manager->power_role_swap = true;
 	manager->data_role_swap = true;
-	manager->vconn_source_swap = true;
+	manager->vconn_source_swap = false;
 	manager->alt_sended = 0;
 	manager->vdm_en = 0;
 	manager->acc_type = 0;

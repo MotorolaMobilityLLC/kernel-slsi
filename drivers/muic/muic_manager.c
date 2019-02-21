@@ -711,6 +711,40 @@ static int muic_manager_handle_ccic_TA(struct muic_interface_t *muic_if, void *d
 #endif
 #endif
 
+static int muic_manager_handle_ccic_role_swap(struct muic_interface_t *muic_if, void *data)
+{
+#ifdef CONFIG_IFCONN_NOTIFIER
+	struct ifconn_notifier_template *pnoti = (struct ifconn_notifier_template *)data;
+#else
+	CC_NOTI_TYPEDEF *pnoti = (CC_NOTI_TYPEDEF *)data;
+#endif
+	struct ccic_desc_t *ccic = muic_if->ccic;
+	
+	pr_info("%s: src:%d dest:%d sub1:%d\n", __func__,
+		pnoti->src, pnoti->dest, pnoti->sub1);
+	
+	if (pnoti->sub1 == true) {
+		/* sink -> src */
+		ccic->ccic_evt_rprd = 1;
+		ccic->ccic_evt_roleswap = 1;
+		ccic->attached_dev = ATTACHED_DEV_OTG_MUIC;
+		if (muic_if->set_cable_state)
+			muic_if->set_cable_state(muic_if->muic_data, ccic->attached_dev);
+	} else {
+		/* src -> sink */
+		muic_manager_handle_ccic_detach(muic_if);
+
+		ccic->ccic_evt_attached = MUIC_CCIC_NOTI_ATTACH;
+		ccic->ccic_evt_rprd = 1;
+		ccic->ccic_evt_roleswap = 1;
+		ccic->attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
+		if (muic_if->set_cable_state)
+			muic_if->set_cable_state(muic_if->muic_data, ccic->attached_dev);
+	}
+
+	return 0;	
+}
+
 static int muic_manager_handle_otg(struct muic_interface_t *muic_if, void *data)
 {
 	int ret = MUIC_NORMAL_OTG;
@@ -767,6 +801,7 @@ static int muic_manager_handle_notification(struct notifier_block *nb,
 	int water = IFCONN_NOTIFY_ID_WATER;
 	int otg = IFCONN_NOTIFY_ID_OTG;
 	int ta = IFCONN_NOTIFY_ID_TA;
+	int role_swap = IFCONN_NOTIFY_ID_ROLE_SWAP;
 #else
 	CC_NOTI_TYPEDEF *pnoti = (CC_NOTI_TYPEDEF *) data;
 	int attach = CCIC_NOTIFY_ID_ATTACH;
@@ -814,6 +849,9 @@ static int muic_manager_handle_notification(struct notifier_block *nb,
 		muic_manager_handle_ccic_TA(muic_if, data);
 #endif
 #endif
+	} else if (pnoti->id == role_swap) {
+		pr_info("%s: NOTIFY_ID_ROLE_SWAP\n", __func__);
+		muic_manager_handle_ccic_role_swap(muic_if, data);
 	} else {
 		pr_info("%s: Undefined Noti. ID\n", __func__);
 	}

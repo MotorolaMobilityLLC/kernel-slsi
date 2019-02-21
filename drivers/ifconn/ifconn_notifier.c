@@ -149,24 +149,24 @@ int ifconn_notifier_notify(ifconn_notifier_t src,
 				memcpy(&(pnoti[src].ifconn_template[listener]), template,
 					   sizeof(struct ifconn_notifier_template));
 			}
-			return -1;
+			ret = NOTIFY_BAD;
+		} else {
+			nb = pnoti[src].nb[listener];
+			ret = nb->notifier_call(nb, (unsigned long)noti_id, template);
 		}
-
-		nb = pnoti[src].nb[listener];
-		ret = nb->notifier_call(nb, (unsigned long)noti_id, template);
 	}
 
 	switch (ret) {
 	case NOTIFY_STOP_MASK:
 	case NOTIFY_BAD:
-		pr_err("%s: notify error occur(0x%x)\n", __func__, ret);
+		pr_err("%s: src(%d) notify error occur(0x%x)\n", __func__, src, ret);
 		break;
 	case NOTIFY_DONE:
 	case NOTIFY_OK:
-		pr_info("%s: notify done(0x%x)\n", __func__, ret);
+		pr_info("%s: src(%d) notify done(0x%x)\n", __func__, src, ret);
 		break;
 	default:
-		pr_info("%s: notify status unknown(0x%x)\n", __func__, ret);
+		pr_info("%s: src(%d) notify status unknown(0x%x)\n", __func__, src, ret);
 		break;
 	}
 

@@ -49,7 +49,7 @@
 
 /* powermeter */
 #if defined(CONFIG_PM_S2MU106)
-#include "../battery_v2/include/s2mu106_pmeter.h"
+#include <linux/power/s2mu106_pmeter.h>
 #endif
 
 static struct s2mu106_muic_data *static_data;

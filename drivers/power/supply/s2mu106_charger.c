@@ -68,7 +68,7 @@ static void s2mu106_test_read(struct i2c_client *i2c)
 static int s2mu106_charger_otg_control(
 		struct s2mu106_charger_data *charger, bool enable)
 {
-	u8 chg_sts2, chg_ctrl0, temp;
+	u8 chg_sts2, chg_ctrl0;
 	pr_info("%s: called charger otg control : %s\n", __func__,
 			enable ? "ON" : "OFF");
 
@@ -87,14 +87,12 @@ static int s2mu106_charger_otg_control(
 	if (!enable) {
 		s2mu106_update_reg(charger->i2c,
 				S2MU106_CHG_CTRL0, CHG_MODE, REG_MODE_MASK);
-		s2mu106_update_reg(charger->i2c, 0xAE, 0x80, 0xF0);
 	} else {
 		s2mu106_update_reg(charger->i2c,
 				S2MU106_CHG_CTRL3,
 				S2MU106_SET_OTG_OCP_1500mA << SET_OTG_OCP_SHIFT,
 				SET_OTG_OCP_MASK);
-		msleep(30);
-		s2mu106_update_reg(charger->i2c, 0xAE, 0x00, 0xF0);
+//		msleep(30);
 		s2mu106_update_reg(charger->i2c,
 				S2MU106_CHG_CTRL0, OTG_BST_MODE, REG_MODE_MASK);
 		charger->cable_type = POWER_SUPPLY_TYPE_OTG;
@@ -104,10 +102,8 @@ static int s2mu106_charger_otg_control(
 
 	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS2, &chg_sts2);
 	s2mu106_read_reg(charger->i2c, S2MU106_CHG_CTRL0, &chg_ctrl0);
-	s2mu106_read_reg(charger->i2c, 0xAE, &temp);
 	pr_info("%s S2MU106_CHG_STATUS2: 0x%x\n", __func__, chg_sts2);
 	pr_info("%s S2MU106_CHG_CTRL0: 0x%x\n", __func__, chg_ctrl0);
-	pr_info("%s 0xAE: 0x%x\n", __func__, temp);
 
 	power_supply_changed(charger->psy_otg);
 	return enable;
@@ -119,6 +115,7 @@ static void s2mu106_enable_charger_switch(
 
 	if (charger->otg_on) {
 		pr_info("[DEBUG] %s: skipped set(%d) : OTG is on\n", __func__, onoff);
+		charger->is_charging = false;
 		return;
 	}
 
@@ -624,6 +621,12 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 				charger->is_charging = true;
 				break;
 			}
+
+			if (buck_state)
+				s2mu106_enable_charger_switch(charger, charger->is_charging);
+			else
+				s2mu106_set_buck(charger, buck_state);
+
 			value.intval = charger->is_charging;
 
 			psy = power_supply_get_by_name(charger->pdata->fuelgauge_name);
@@ -633,10 +636,6 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 			if (ret < 0)
 				pr_err("%s: Fail to execute property\n", __func__);
 
-			if (buck_state)
-				s2mu106_enable_charger_switch(charger, charger->is_charging);
-			else
-				s2mu106_set_buck(charger, buck_state);
 		} else {
 			pr_info("[DEBUG]%s: SKIP CHARGING CONTROL while OTG(%d)\n",
 					__func__, value.intval);

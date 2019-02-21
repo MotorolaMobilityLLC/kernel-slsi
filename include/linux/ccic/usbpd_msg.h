@@ -6,13 +6,33 @@
 #define PD_SID		(0xFF00)
 #define PD_SID_1	(0xFF01)
 
+#define MAX_INPUT_DATA (255)
+#define SEC_UVDM_ALIGN (4)
+#define SEC_UVDM_WAIT_MS (5000)
+#define SEC_UVDM_MAXDATA_FIRST (12)
+#define SEC_UVDM_MAXDATA_NORMAL (16)
+#define SEC_UVDM_CHECKSUM_COUNT (20)
+
+enum uvdm_res_type {
+	RES_INIT = 0,
+	RES_ACK,
+	RES_NAK,
+	RES_BUSY,
+};
+
+enum uvdm_rx_type {
+	RX_ACK = 0,
+	RX_NAK,
+	RX_BUSY,
+};
+
 typedef union {
 	u16 word;
 	u8  byte[2];
 
 	struct {
 		unsigned msg_type:4;
-		unsigned:1;
+		unsigned rsvd:1;
 		unsigned port_data_role:1;
 		unsigned spec_revision:2;
 		unsigned port_power_role:1;
@@ -36,7 +56,7 @@ typedef union {
 		unsigned max_current:10;        /* 10mA units */
 		unsigned voltage:10;            /* 50mV units */
 		unsigned peak_current:2;
-		unsigned:3;
+		unsigned rsvd:3;
 		unsigned data_role_swap:1;
 		unsigned usb_comm_capable:1;
 		unsigned externally_powered:1;
@@ -48,7 +68,7 @@ typedef union {
 	struct {
 		unsigned op_current:10;	/* 10mA units */
 		unsigned voltage:10;	/* 50mV units */
-		unsigned:5;
+		unsigned rsvd:5;
 		unsigned data_role_swap:1;
 		unsigned usb_comm_capable:1;
 		unsigned externally_powered:1;
@@ -74,7 +94,7 @@ typedef union {
 	struct {
 		unsigned min_current:10;	/* 10mA units */
 		unsigned op_current:10;		/* 10mA units */
-		unsigned:4;
+		unsigned rsvd:4;
 		unsigned no_usb_suspend:1;
 		unsigned usb_comm_capable:1;
 		unsigned capability_mismatch:1;
@@ -86,7 +106,7 @@ typedef union {
 	struct {
 		unsigned max_power:10;		/* 250mW units */
 		unsigned op_power:10;		/* 250mW units */
-		unsigned:4;
+		unsigned rsvd:4;
 		unsigned no_usb_suspend:1;
 		unsigned usb_comm_capable:1;
 		unsigned capability_mismatch:1;
@@ -112,10 +132,10 @@ typedef union {
 
 	struct {
 		unsigned command:5;
-		unsigned:1;
+		unsigned reserved:1;
 		unsigned command_type:2;
 		unsigned obj_pos:3;
-		unsigned:2;
+		unsigned rsvd:2;
 		unsigned version:2;
 		unsigned vdm_type:1;
 		unsigned svid:16;
@@ -195,7 +215,7 @@ typedef union {
 		unsigned pid:16;
 	};
 } s_uvdm_header;
-	
+
 typedef union {
 	u32 object;
 	u16 word[2];
@@ -285,6 +305,13 @@ enum usbpd_port_vconn_role {
 	USBPD_VCONN_ON,
 };
 
+enum usbpd_power_role_swap {
+	USBPD_SINK_OFF,
+	USBPD_SINK_ON,
+	USBPD_SOURCE_OFF,
+	USBPD_SOURCE_ON,
+};
+
 enum usbpd_port_role {
 	USBPD_Rp	= 0x01,
 	USBPD_Rd	= 0x01 << 1,
@@ -292,20 +319,14 @@ enum usbpd_port_role {
 };
 
 enum usbpd_port_rp_level {
-	USBPD_56k	= 1,
-	USBPD_22k	= 3,
-	USBPD_10k	= 7,
+    USBPD_56k   = 1,
+    USBPD_22k   = 3,
+    USBPD_10k   = 7,
 };
 
 enum {
 	USBPD_CC_OFF,
 	USBPD_CC_ON,
-};
-
-enum usbpd_connect_type {
-	USBPD_UP_SIDE	= 1,
-	USBPD_DOWN_SIDE	= 2,
-	USBPD_UNDEFFINED_SIDE	= 3,
 };
 
 enum vdm_command_type{
@@ -357,6 +378,13 @@ enum vdm_command_msg {
 	DisplayPort_Status_Update	= 0x10,
 	DisplayPort_Configure		= 0x11,
 };
+
+enum usbpd_connect_type {
+	USBPD_UP_SIDE	= 1,
+	USBPD_DOWN_SIDE	= 2,
+	USBPD_UNDEFFINED_SIDE	= 3,
+};
+
 
 enum usbpd_data_msg_type {
 	USBPD_Source_Capabilities	= 0x1,

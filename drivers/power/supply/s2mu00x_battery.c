@@ -143,6 +143,7 @@ struct s2mu00x_battery_info {
 	struct power_supply_desc psy_ac_desc;
 
 	struct mutex iolock;
+	struct mutex ifconn_lock;
 
 	struct wake_lock monitor_wake_lock;
 	struct workqueue_struct *monitor_wqueue;
@@ -159,12 +160,16 @@ struct s2mu00x_battery_info {
 	int max_charging_current;
 
 #if defined(CONFIG_USE_CCIC)
+	struct delayed_work select_pdo_work;
 	int pdo_max_input_vol;
 	int pdo_max_chg_power;
 
 	int pdo_sel_num;
 	int pdo_sel_vol;
 	int pdo_sel_cur;
+
+	int pd_input_current;
+	bool pd_attach;
 #endif
 
 	int topoff_current;
@@ -205,6 +210,7 @@ struct s2mu00x_battery_info {
 #if defined(CONFIG_SMALL_CHARGER)
 	int small_input;	/* input current limit (mA) */
 	int small_chg;	/* charge current limit (mA) */
+	int small_input_flag;
 #endif
 
 #if defined(CONFIG_MUIC_NOTIFIER)
@@ -255,22 +261,37 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 		topoff_current =
 			battery->pdata->charging_current[battery->cable_type].full_check_current;
 	struct power_supply *psy;
-	int ret;
+	int ret = 0;
 
 	pr_info("%s: cable_type(%d), current(%d, %d, %d)\n", __func__,
 			battery->cable_type, input_current, charging_current, topoff_current);
 	mutex_lock(&battery->iolock);
 
 	/*Limit input & charging current according to the max current*/
-	get_charging_current(battery, &input_current, &charging_current);\
+	if (battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
+		battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
+		pr_info("%s, %d, %d\n", __func__, input_current, battery->pd_input_current);
+		input_current = battery->pd_input_current;
+
+		if (input_current >= 1500)
+			input_current = input_current - 50;
+
+		if (input_current > 2000) {
+			battery->small_input_flag = input_current - 2000;
+			input_current = 2000;
+		}
+	} else
+		get_charging_current(battery, &input_current, &charging_current);
 
 	/* set input current limit */
 	if (battery->input_current != input_current) {
 		value.intval = input_current;
 
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
-		if (!psy)
-			return -EINVAL;
+		if (!psy) {
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
@@ -282,8 +303,10 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 		value.intval = charging_current;
 
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
-		if (!psy)
-			return -EINVAL;
+		if (!psy) {
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
@@ -295,8 +318,10 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 		value.intval = topoff_current;
 
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
-		if (!psy)
-			return -EINVAL;
+		if (!psy) {
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_FULL, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
@@ -306,25 +331,36 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 #if defined(CONFIG_SMALL_CHARGER)
 	if (battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
 		battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
-		value.intval = battery->pdata->small_input_current;
+
+		if (battery->small_input_flag == 0) {
+			ret = 0;
+			goto out;
+		}
+
+		value.intval = battery->small_input_flag;
 		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-		if (!psy)
-			return -EINVAL;
+		if (!psy) {
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 
 		value.intval = battery->pdata->small_charging_current;
 		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
-		if (!psy)
-			return -EINVAL;
+		if (!psy) {
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 	}
 #endif
+out:
 	mutex_unlock(&battery->iolock);
-	return 0;
+	return ret;
 }
 
 
@@ -365,6 +401,10 @@ static int set_charger_mode(
 	if (charger_mode == S2MU00X_BAT_CHG_MODE_CHARGING &&
 			(battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
 			 battery->cable_type == POWER_SUPPLY_TYPE_USB_PD)) {
+
+		if (battery->small_input_flag == 0)
+			return 0;
+
 		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
 		if (!psy)
 			return -EINVAL;
@@ -372,6 +412,7 @@ static int set_charger_mode(
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 	} else if (charger_mode != S2MU00X_BAT_CHG_MODE_CHARGING) {
+		battery->small_input_flag = 0;
 		psy = power_supply_get_by_name(battery->pdata->smallcharger_name);
 		if (!psy)
 			return -EINVAL;
@@ -464,6 +505,7 @@ static int set_battery_status(struct s2mu00x_battery_info *battery,
 		battery->input_current = 0;
 		battery->charging_current = 0;
 		battery->topoff_current = 0;
+		battery->small_input_flag = 0;
 		break;
 
 	case POWER_SUPPLY_STATUS_FULL:
@@ -910,8 +952,28 @@ static int s2mu00x_battery_handle_notification(struct notifier_block *nb,
 	return 0;
 }
 #endif
+
 #if defined(CONFIG_IFCONN_NOTIFIER)
 #if defined(CONFIG_USE_CCIC)
+static void usbpd_select_pdo_work(struct work_struct *work)
+{
+	struct s2mu00x_battery_info *battery =
+		container_of(work, struct s2mu00x_battery_info, select_pdo_work.work);
+
+	int pdo_num = battery->pdo_sel_num;
+	int ret = -1;
+
+	ret = ifconn_notifier_notify(IFCONN_NOTIFY_BATTERY,
+			IFCONN_NOTIFY_MANAGER,
+			IFCONN_NOTIFY_ID_SELECT_PDO,
+			pdo_num,
+			IFCONN_NOTIFY_PARAM_DATA,
+			NULL);
+	if (ret < 0)
+		pr_err("%s: Fail to send noti\n", __func__);
+
+}
+
 static int s2mu00x_bat_set_pdo(struct s2mu00x_battery_info *battery,
 		ifconn_pd_sink_status_t *pdo_data)
 {
@@ -924,19 +986,9 @@ static int s2mu00x_bat_set_pdo(struct s2mu00x_battery_info *battery,
 		return ret;
 	}
 
-	ret = ifconn_notifier_notify(IFCONN_NOTIFY_BATTERY,
-			IFCONN_NOTIFY_MANAGER,
-			IFCONN_NOTIFY_ID_SELECT_PDO,
-			pdo_num,
-			IFCONN_NOTIFY_PARAM_DATA,
-			NULL);
-	if (ret < 0) {
-		pr_err("%s: Fail to send noti\n", __func__);
-		return ret;
-	}
-
 	ret = POWER_SUPPLY_TYPE_PREPARE_TA;
 
+	schedule_delayed_work(&battery->select_pdo_work, msecs_to_jiffies(50));
 	return ret;
 }
 
@@ -969,7 +1021,7 @@ static int s2mu00x_bat_pdo_check(struct s2mu00x_battery_info *battery,
 		goto end_pdo_check;
 	}
 
-	for (i = 1; i <= pdo_data->available_pdo_num + 1; i++) {
+	for (i = 1; i <= pdo_data->available_pdo_num; i++) {
 		dev_info(battery->dev, "%s: pdo_num:%d, max_voltage:%d, max_current:%d\n",
 				__func__, i, pdo_data->power_list[i].max_voltage,
 				pdo_data->power_list[i].max_current);
@@ -989,6 +1041,8 @@ static int s2mu00x_bat_pdo_check(struct s2mu00x_battery_info *battery,
 						__func__, battery->pdo_sel_num);
 		}
 	}
+
+	battery->pd_input_current = pd_input_current_limit;
 
 	if (battery->pdo_sel_num == 0) {
 		dev_info(battery->dev, "%s: There is no proper pdo. Do normal TA setting\n", __func__);
@@ -1013,24 +1067,39 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 	struct power_supply *psy;
 	int ret;
 
-	dev_info(battery->dev, "%s: action (%ld) dump(0x%01x, 0x%01x, 0x%02x, 0x%04x, 0x%04x, 0x%04x, 0x%04x)\n",
+	dev_info(battery->dev, "%s: action(%ld) dump(0x%01x, 0x%01x, 0x%02x, 0x%04x, 0x%04x, 0x%04x, 0x%04x)\n",
 		__func__, action, ifconn_info->src, ifconn_info->dest, ifconn_info->id,
 		ifconn_info->attach, ifconn_info->rprd, ifconn_info->cable_type, ifconn_info->event);
+
 	ifconn_info->cable_type = (muic_attached_dev_t)ifconn_info->event;
-
+#if defined(CONFIG_USE_CCIC)
+	dev_info(battery->dev, "%s: pd_attach(%d)\n", __func__, battery->pd_attach);
+#endif
 	action = ifconn_info->id;
+	mutex_lock(&battery->ifconn_lock);
 
-	if (attached_dev == ATTACHED_DEV_MHL_MUIC)
+	if (attached_dev == ATTACHED_DEV_MHL_MUIC) {
+		mutex_unlock(&battery->ifconn_lock);
 		return 0;
+	}
 
 	switch (action) {
 	case IFCONN_NOTIFY_ID_DETACH:
+#if defined(CONFIG_USE_CCIC)
+		if ((ifconn_info->src == IFCONN_NOTIFY_MANAGER) && battery->pd_attach) {
+			pr_info("%s, Skip cable check when PD TA attaching\n", __func__);
+			mutex_unlock(&battery->ifconn_lock);
+			return 0;
+		}
+
+		battery->pd_attach = false;
+#endif
 		cmd = "DETACH";
 		cable_type = POWER_SUPPLY_TYPE_BATTERY;
 		break;
 	case IFCONN_NOTIFY_ID_ATTACH:
 #if defined(CONFIG_USE_CCIC)
-		if (battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
+		if ((ifconn_info->src == IFCONN_NOTIFY_MANAGER) && battery->pd_attach) {
 			pr_info("%s: PD TA is attached. Skip cable check\n", __func__);
 			cable_type =  POWER_SUPPLY_TYPE_USB_PD;
 			cmd = "PD ATTACH";
@@ -1043,6 +1112,7 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 #if defined(CONFIG_USE_CCIC)
 	case IFCONN_NOTIFY_ID_POWER_STATUS:
 		cable_type = s2mu00x_bat_pdo_check(battery, ifconn_info);
+		battery->pd_attach = true;
 		switch (cable_type) {
 			case POWER_SUPPLY_TYPE_USB_PD:
 				cmd = "PD ATTACH";
@@ -1083,8 +1153,10 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 			value.intval = true;
 
 			psy = power_supply_get_by_name(battery->pdata->charger_name);
-			if (!psy)
+			if (!psy) {
+				mutex_unlock(&battery->ifconn_lock);
 				return -EINVAL;
+			}
 			ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_OTG_CONTROL, &value);
 			if (ret < 0)
 				pr_err("%s: Fail to execute property\n", __func__);
@@ -1094,8 +1166,10 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 			value.intval = false;
 
 			psy = power_supply_get_by_name(battery->pdata->charger_name);
-			if (!psy)
+			if (!psy) {
+				mutex_unlock(&battery->ifconn_lock);
 				return -EINVAL;
+			}
 			ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_OTG_CONTROL, &value);
 			if (ret < 0)
 				pr_err("%s: Fail to execute property\n", __func__);
@@ -1116,6 +1190,7 @@ end_ifconn_handle:
 	alarm_cancel(&battery->monitor_alarm);
 	wake_lock(&battery->monitor_wake_lock);
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+	mutex_unlock(&battery->ifconn_lock);
 	return 0;
 }
 #endif
@@ -1238,10 +1313,14 @@ static int get_battery_info(struct s2mu00x_battery_info *battery)
 		pr_err("%s: battery status = %d, charger status = %d\n",
 				__func__, battery->status, value.intval);
 #endif
+	psy = power_supply_get_by_name("s2mu106_pmeter");
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VCHGIN, &value);
 
 	/* Get input voltage & current from powermeter */
-	battery->vchg_voltage = s2mu106_powermeter_get_vchg_voltage();
-	battery->vchg_current = s2mu106_powermeter_get_vchg_current();
+	battery->vchg_voltage = value.intval;
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ICHGIN, &value);
+	battery->vchg_current = value.intval;
 
 	dev_info(battery->dev,
 			"%s:Vnow(%dmV),Inow(%dmA),Imax(%dmA),Ichg(%dmA),SOC(%d%%),Tbat(%d),SOH(%d%%)"
@@ -1778,6 +1857,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->dev = &pdev->dev;
 
 	mutex_init(&battery->iolock);
+	mutex_init(&battery->ifconn_lock);
 
 	wake_lock_init(&battery->monitor_wake_lock, WAKE_LOCK_SUSPEND,
 			"sec-battery-monitor");
@@ -1791,12 +1871,15 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->input_current = 0;
 	battery->charging_current = 0;
 	battery->topoff_current = 0;
+	battery->small_input_flag = 0;
 
 	battery->max_input_current = battery->pdata->max_input_current;
 	battery->max_charging_current = battery->pdata->max_charging_current;
 #if defined(CONFIG_USE_CCIC)
 	battery->pdo_max_input_vol = battery->pdata->pdo_max_input_vol;
 	battery->pdo_max_chg_power = battery->pdata->pdo_max_chg_power;
+	battery->pd_input_current = 2000;
+	battery->pd_attach = false;
 #endif
 	battery->temp_high = battery->pdata->temp_high;
 	battery->temp_high_recovery = battery->pdata->temp_high_recovery;
@@ -1809,6 +1892,8 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 
 	battery->is_recharging = false;
 	battery->cable_type = POWER_SUPPLY_TYPE_BATTERY;
+	battery->pd_attach = false;
+
 #if defined(CONFIG_CHARGER_S2MU106)
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
@@ -1859,6 +1944,9 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	alarm_init(&battery->monitor_alarm, ALARM_BOOTTIME, bat_monitor_alarm);
 	battery->monitor_alarm_interval = DEFAULT_ALARM_INTERVAL;
 
+#if defined(CONFIG_USE_CCIC)
+	INIT_DELAYED_WORK(&battery->select_pdo_work, usbpd_select_pdo_work);
+#endif
 	/* Register power supply to framework */
 	psy_cfg.drv_data = battery;
 	psy_cfg.supplied_to = s2mu00x_supplied_to;
@@ -1915,6 +2003,10 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 			s2mu00x_ifconn_handle_notification,
 			IFCONN_NOTIFY_BATTERY,
 			IFCONN_NOTIFY_MANAGER);
+	ifconn_notifier_register(&battery->ifconn_nb,
+			s2mu00x_ifconn_handle_notification,
+			IFCONN_NOTIFY_BATTERY,
+			IFCONN_NOTIFY_CCIC);
 #elif defined(CONFIG_MUIC_NOTIFIER)
 	pr_info("%s: Register MUIC notifier\n", __func__);
 	muic_notifier_register(&battery->batt_nb, s2mu00x_battery_handle_notification,
@@ -1950,6 +2042,7 @@ err_irr:
 	wake_lock_destroy(&battery->monitor_wake_lock);
 	wake_lock_destroy(&battery->vbus_wake_lock);
 	mutex_destroy(&battery->iolock);
+	mutex_destroy(&battery->ifconn_lock);
 err_parse_dt_nomem:
 	kfree(battery->pdata);
 err_bat_free:
