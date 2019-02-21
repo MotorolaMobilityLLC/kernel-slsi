@@ -548,7 +548,7 @@ static int vbus_handle_notification(struct notifier_block *nb,
 
 static int otg_accessory_power(bool enable)
 {
-#if !defined(CONFIG_CCIC_S2MM005)
+#if 0
 	u8 on = (u8)!!enable;
 	union power_supply_propval val;
 

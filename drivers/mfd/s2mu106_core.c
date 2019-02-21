@@ -28,10 +28,6 @@
 #include <linux/mfd/samsung/s2mu106.h>
 #include <linux/of_gpio.h>
 
-#if defined(CONFIG_CHARGER_S2MU106)
-#define CONFIG_PM_S2MU106
-#endif
-
 static struct mfd_cell s2mu106_devs[] = {
 #if defined(CONFIG_CHARGER_S2MU106)
 	{ .name = "s2mu106-charger", },

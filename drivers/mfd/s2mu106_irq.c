@@ -32,6 +32,9 @@
 #if defined(CONFIG_MUIC_S2MU106)
 #include <linux/muic/s2mu106-muic.h>
 #endif
+#if defined(CONFIG_PM_S2MU106)
+#include <linux/power/s2mu106_pmeter.h>
+#endif
 /* TODO : add IP Header file include*/
 
 static const u8 s2mu106_mask_reg[] = {
@@ -78,7 +81,7 @@ static struct i2c_client *get_i2c(struct s2mu106_dev *s2mu106,
 		return s2mu106->muic;
 #endif
 #if defined(CONFIG_PM_S2MU106)
-	case PM_VAL_UP1 ... PM_INT2:
+	case PM_VALUP1 ... PM_INT2:
 		return s2mu106->muic;
 #endif
 #if defined(CONFIG_MST_S2MU106)
@@ -334,6 +337,12 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 #endif
 #if defined(CONFIG_PM_S2MU106)
 	if (irq_src & S2MU106_IRQSRC_PM) {
+        s2mu106_read_reg(s2mu106->muic, S2MU106_PM_VALUP1, &irq_reg[PM_VALUP1]);
+        s2mu106_read_reg(s2mu106->muic, S2MU106_PM_VALUP2, &irq_reg[PM_VALUP2]);
+        s2mu106_read_reg(s2mu106->muic, S2MU106_PM_INT1, &irq_reg[PM_INT1]);
+        s2mu106_read_reg(s2mu106->muic, S2MU106_PM_INT2, &irq_reg[PM_INT2]);
+        pr_info("%s: powermeter interrupt(0x%02x, 0x%02x, 0x%02x, 0x%02x)\n", __func__,
+				irq_reg[PM_VALUP1], irq_reg[PM_VALUP2], irq_reg[PM_INT1], irq_reg[PM_INT2]);
 	}
 #endif
 #if defined(CONFIG_MST_S2MU106)
