@@ -103,9 +103,12 @@
 #define MIF_PROCFS_REMOVE_FILE(name, parent) remove_proc_entry(# name, parent)
 
 struct scsc_mif_abs;
+struct miframman;
 
 int mifproc_create_proc_dir(struct scsc_mif_abs *mif);
 void mifproc_remove_proc_dir(void);
+int mifproc_create_ramman_proc_dir(struct miframman *miframman);
+void mifproc_remove_ramman_proc_dir(struct miframman *miframman);
 
 struct mifproc {
 };

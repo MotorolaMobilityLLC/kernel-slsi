@@ -9,8 +9,12 @@
 #include <scsc/scsc_logring.h>
 #include "mifproc.h"
 #include "scsc_mif_abs.h"
+#include "miframman.h"
+
+#define MX_MAX_PROC_RAMMAN 2	/* Number of RAMMANs to track */
 
 static struct proc_dir_entry *procfs_dir;
+static struct proc_dir_entry *procfs_dir_ramman[MX_MAX_PROC_RAMMAN];
 
 /* WARNING --- SINGLETON FOR THE TIME BEING */
 /* EXTEND PROC ENTRIES IF NEEDED!!!!! */
@@ -28,6 +32,14 @@ MIF_PROCFS_RW_FILE_OPS(mif_reg);
 /*
 MIF_PROCFS_SEQ_FILE_OPS(mif_dbg);
 */
+
+/* miframman ops */
+MIF_PROCFS_RO_FILE_OPS(ramman_total);
+MIF_PROCFS_RO_FILE_OPS(ramman_offset);
+MIF_PROCFS_RO_FILE_OPS(ramman_start);
+MIF_PROCFS_RO_FILE_OPS(ramman_free);
+MIF_PROCFS_RO_FILE_OPS(ramman_used);
+MIF_PROCFS_RO_FILE_OPS(ramman_size);
 
 static ssize_t mifprocfs_mif_reg_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
 {
@@ -262,14 +274,115 @@ static int mifprocfs_mif_dbg_show(struct seq_file *m, void *v)
 }
 */
 
+/* Total space in the memory region containing this ramman (assumes one region per ramman) */
+static ssize_t mifprocfs_ramman_total_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char         buf[128];
+	int          pos = 0;
+	const size_t bufsz = sizeof(buf);
+	struct miframman *ramman = (struct miframman *)file->private_data;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%zd\n", (ptrdiff_t)(ramman->start_dram - ramman->start_region) + ramman->size_pool);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+/* Offset of the pool within the region (the space before is reserved by FW) */
+static ssize_t mifprocfs_ramman_offset_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char         buf[128];
+	int          pos = 0;
+	const size_t bufsz = sizeof(buf);
+	struct miframman *ramman = (struct miframman *)file->private_data;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%zd\n", (ptrdiff_t)(ramman->start_dram - ramman->start_region));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+/* Start address of the pool within the region */
+static ssize_t mifprocfs_ramman_start_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char         buf[128];
+	int          pos = 0;
+	const size_t bufsz = sizeof(buf);
+	struct miframman *ramman = (struct miframman *)file->private_data;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%p\n", ramman->start_dram);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+/* Size of the pool */
+static ssize_t mifprocfs_ramman_size_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char         buf[128];
+	int          pos = 0;
+	const size_t bufsz = sizeof(buf);
+	struct miframman *ramman = (struct miframman *)file->private_data;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%zd\n", ramman->size_pool);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+/* Space remaining within the pool */
+static ssize_t mifprocfs_ramman_free_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char         buf[128];
+	int          pos = 0;
+	const size_t bufsz = sizeof(buf);
+	struct miframman *ramman = (struct miframman *)file->private_data;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%u\n", ramman->free_mem);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+/* Bytes used within the pool */
+static ssize_t mifprocfs_ramman_used_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char         buf[128];
+	int          pos = 0;
+	const size_t bufsz = sizeof(buf);
+	struct miframman *ramman = (struct miframman *)file->private_data;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%zd\n", ramman->size_pool - (size_t)ramman->free_mem);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 static const char *procdir = "driver/mif_ctrl";
+static int refcount;
 
 #define MIF_DIRLEN 128
+
+static struct proc_dir_entry *create_procfs_dir(void)
+{
+	char dir[MIF_DIRLEN];
+
+	if (refcount++ == 0) {
+		(void)snprintf(dir, sizeof(dir), "%s", procdir);
+		 procfs_dir = proc_mkdir(dir, NULL);
+	}
+	return procfs_dir;
+}
+
+static void destroy_procfs_dir(void)
+{
+	char dir[MIF_DIRLEN];
+
+	if (--refcount == 0) {
+		(void)snprintf(dir, sizeof(dir), "%s", procdir);
+		remove_proc_entry(dir, NULL);
+		procfs_dir = NULL;
+	}
+	WARN_ON(refcount < 0);
+}
 
 
 int mifproc_create_proc_dir(struct scsc_mif_abs *mif)
 {
-	char                  dir[MIF_DIRLEN];
 	struct proc_dir_entry *parent;
 
 	/* WARNING --- SINGLETON FOR THE TIME BEING */
@@ -277,14 +390,12 @@ int mifproc_create_proc_dir(struct scsc_mif_abs *mif)
 	if (mif_global)
 		return -EBUSY;
 
-	(void)snprintf(dir, sizeof(dir), "%s", procdir);
-	parent = proc_mkdir(dir, NULL);
+	/* Ref the root dir */
+	parent = create_procfs_dir();
 	if (parent) {
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 4, 0))
 		parent->data = NULL;
 #endif
-		procfs_dir = parent;
-
 		MIF_PROCFS_ADD_FILE(NULL, mif_writemem, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		MIF_PROCFS_ADD_FILE(NULL, mif_dump, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		MIF_PROCFS_ADD_FILE(NULL, mif_reg, parent, S_IRUSR | S_IRGRP);
@@ -308,8 +419,6 @@ err:
 void mifproc_remove_proc_dir(void)
 {
 	if (procfs_dir) {
-		char dir[MIF_DIRLEN];
-
 		MIF_PROCFS_REMOVE_FILE(mif_writemem, procfs_dir);
 		MIF_PROCFS_REMOVE_FILE(mif_dump, procfs_dir);
 		MIF_PROCFS_REMOVE_FILE(mif_reg, procfs_dir);
@@ -317,10 +426,86 @@ void mifproc_remove_proc_dir(void)
 		MIF_PROCFS_REMOVE_FILE(mif_dbg, procfs_dir);
 		*/
 
-		(void)snprintf(dir, sizeof(dir), "%s", procdir);
-		remove_proc_entry(dir, NULL);
-		procfs_dir = NULL;
+		/* De-ref the root dir */
+		destroy_procfs_dir();
 	}
 
 	mif_global = NULL;
+}
+
+/* /proc/driver/mif_ctrl/rammanX */
+static const char *ramman_procdir = "ramman";
+struct miframman *proc_miframman[MX_MAX_PROC_RAMMAN];
+static int ramman_instance;
+
+int mifproc_create_ramman_proc_dir(struct miframman *ramman)
+{
+	char                  dir[MIF_DIRLEN];
+	struct proc_dir_entry *parent;
+	struct proc_dir_entry *root;
+
+	if ((ramman_instance > ARRAY_SIZE(proc_miframman) - 1))
+		return -EINVAL;
+
+	/* Ref the root dir /proc/driver/mif_ctrl */
+	root = create_procfs_dir();
+	if (!root)
+		return -EINVAL;
+
+	(void)snprintf(dir, sizeof(dir), "%s%d", ramman_procdir, ramman_instance);
+	parent = proc_mkdir(dir, root);
+	if (parent) {
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 4, 0))
+		parent->data = NULL;
+#endif
+		MIF_PROCFS_ADD_FILE(ramman, ramman_total, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		MIF_PROCFS_ADD_FILE(ramman, ramman_offset, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		MIF_PROCFS_ADD_FILE(ramman, ramman_start, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		MIF_PROCFS_ADD_FILE(ramman, ramman_size, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		MIF_PROCFS_ADD_FILE(ramman, ramman_free, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		MIF_PROCFS_ADD_FILE(ramman, ramman_used, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+
+		procfs_dir_ramman[ramman_instance] = parent;
+		proc_miframman[ramman_instance] = ramman;
+
+		ramman_instance++;
+
+	} else {
+		SCSC_TAG_INFO(MIF, "failed to create /proc dir\n");
+		destroy_procfs_dir();
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void mifproc_remove_ramman_proc_dir(struct miframman *ramman)
+{
+	(void)ramman;
+
+	if (ramman_instance <= 0) {
+		WARN_ON(ramman_instance < 0);
+		return;
+	}
+
+	--ramman_instance;
+
+	if (procfs_dir_ramman[ramman_instance]) {
+		char dir[MIF_DIRLEN];
+
+		MIF_PROCFS_REMOVE_FILE(ramman_total, procfs_dir_ramman[ramman_instance]);
+		MIF_PROCFS_REMOVE_FILE(ramman_offset, procfs_dir_ramman[ramman_instance]);
+		MIF_PROCFS_REMOVE_FILE(ramman_start, procfs_dir_ramman[ramman_instance]);
+		MIF_PROCFS_REMOVE_FILE(ramman_size, procfs_dir_ramman[ramman_instance]);
+		MIF_PROCFS_REMOVE_FILE(ramman_free, procfs_dir_ramman[ramman_instance]);
+		MIF_PROCFS_REMOVE_FILE(ramman_used, procfs_dir_ramman[ramman_instance]);
+
+		(void)snprintf(dir, sizeof(dir), "%s%d", ramman_procdir, ramman_instance);
+		remove_proc_entry(dir, procfs_dir);
+		procfs_dir_ramman[ramman_instance] = NULL;
+		proc_miframman[ramman_instance] = NULL;
+	}
+
+	/* De-ref the root dir */
+	destroy_procfs_dir();
 }
