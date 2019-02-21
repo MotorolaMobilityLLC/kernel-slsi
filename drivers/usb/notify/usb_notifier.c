@@ -425,6 +425,9 @@ static int muic_usb_handle_notification(struct notifier_block *nb,
 	switch (attached_dev) {
 #if defined(CONFIG_IFCONN_NOTIFIER)
 	case ATTACHED_DEV_TA_MUIC:
+#if defined(CONFIG_HV_MUIC_TURBO_CHARGER)
+	case ATTACHED_DEV_TURBO_CHARGER:
+#endif
 		if (action == IFCONN_NOTIFY_ID_DETACH)
 			send_otg_notify(o_notify, NOTIFY_EVENT_CHARGER, 0);
 		else if (action == IFCONN_NOTIFY_ID_ATTACH)
