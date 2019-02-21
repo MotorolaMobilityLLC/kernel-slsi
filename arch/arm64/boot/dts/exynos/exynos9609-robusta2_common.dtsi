@@ -1173,7 +1173,7 @@
 			source,max_power = <2500>;
 
 			/* sink cap */
-			sink,capable_max_voltage = <9000>;
+			sink,capable_max_voltage = <5000>;
 		};
 	};
 };
