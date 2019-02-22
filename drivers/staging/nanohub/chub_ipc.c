@@ -993,7 +993,7 @@ retry:
 					lenout = snprintf(rt_buf->buffer + rt_buf->write_index, LOGFILE_NUM_SIZE + len, "%10d:%s\n", log->size, log);
 					rt_buf->write_index += lenout;
 					if (lenout != (LOGFILE_NUM_SIZE + len))
-						pr_info("%s: %s: size-n missmatch: %d -> %d\n", NAME_PREFIX, __func__, LOGFILE_NUM_SIZE + len, lenout);
+						pr_debug("%s: %s: size-n missmatch: %d -> %d\n", NAME_PREFIX, __func__, LOGFILE_NUM_SIZE + len, lenout);
 				}
 			} else {
 				pr_err("%s: %s: size err:%d, eq:%d, dq:%d\n", NAME_PREFIX, __func__, len, eq, logbuf->dq);

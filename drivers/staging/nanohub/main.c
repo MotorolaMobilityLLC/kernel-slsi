@@ -1408,9 +1408,14 @@ static ssize_t nanohub_write(struct file *file, const char *buffer,
 			"%s fails. nanohub isn't running\n", __func__);
 		return -EINVAL;
 	}
-#endif
+
+	/* wakeup timeout should be bigger than timeout_write (544) to support both usecase */
+	ret = request_wakeup_timeout(data, 644);
+#else
 
 	ret = request_wakeup_timeout(data, 500);
+#endif
+
 	if (ret)
 		return ret;
 
