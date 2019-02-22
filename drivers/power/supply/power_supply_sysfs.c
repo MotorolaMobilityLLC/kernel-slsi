@@ -74,6 +74,10 @@ static const char * const power_supply_scope_text[] = {
 	"Unknown", "System", "Device"
 };
 
+static const char * const power_supply_charge_rate_text[] = {
+        "None","Normal","Weak","Turbo"
+};
+
 static ssize_t power_supply_show_property(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf) {
@@ -104,6 +108,9 @@ static ssize_t power_supply_show_property(struct device *dev,
 	else if (off == POWER_SUPPLY_PROP_CHARGE_TYPE)
 		return sprintf(buf, "%s\n",
 			       power_supply_charge_type_text[value.intval]);
+	else if (off == POWER_SUPPLY_PROP_CHARGE_RATE)
+		return sprintf(buf,"%s\n",
+				power_supply_charge_rate_text[value.intval]);
 	else if (off == POWER_SUPPLY_PROP_HEALTH)
 		return sprintf(buf, "%s\n",
 			       power_supply_health_text[value.intval]);
@@ -284,6 +291,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(rr_enable),
 	POWER_SUPPLY_ATTR(usbpd_reset),
 	POWER_SUPPLY_ATTR(usbpd_test_read),
+	POWER_SUPPLY_ATTR(charge_rate),
 };
 
 static struct attribute *
