@@ -203,6 +203,12 @@ static inline int s2mu106_hv_muic_get_vdnmon_status(struct s2mu106_muic_data* mu
 	return ((s2mu106_hv_muic_read_reg(muic_data, S2MU106_REG_AFC_STATUS) >> STATUS_VDNMON_SHIFT) & 0x1);
 }
 
+static inline int s2mu106_hv_muic_get_vbus_state(struct s2mu106_muic_data *muic_data)
+{
+	return (s2mu106_i2c_read_byte(muic_data->i2c, S2MU106_REG_DEVICE_APPLE)
+		& DEVICE_APPLE_VBUS_WAKEUP_MASK) >> DEVICE_APPLE_VBUS_WAKEUP_SHIFT;
+}
+
 #if defined(CONFIG_MUIC_SUPPORT_POWERMETER)
 static int s2mu106_hv_muic_get_vbus_voltage(struct s2mu106_muic_data *muic_data)
 {
@@ -768,7 +774,11 @@ static irqreturn_t s2mu106_hv_muic_vdnmon_isr(int irq, void *data)
 	pr_info("%s vdnmon(%s)\n", __func__, (vdnmon ? "High" : "Low"));
 
 	if (muic_data->is_dp_drive && !vdnmon) {
+		msleep(50);
+		if (s2mu106_hv_muic_get_vbus_state(muic_data))
 		muic_core_hv_state_manager(muic_pdata, HV_TRANS_VDNMON_LOW);
+		else
+			pr_info("%s skip to handle vdnmon low: Invalid VBUS\n", __func__);
 	}
 
 	mutex_unlock(&muic_data->afc_mutex);
