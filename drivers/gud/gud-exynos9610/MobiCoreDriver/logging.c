@@ -49,6 +49,9 @@
 #define LOG_CPUID_MASK            (0xF000)
 #define LOG_CPUID_SHIFT           12
 
+#define TEE_COMMANDLINE_PARAM_LENGTH	10
+static char teedebugenable[TEE_COMMANDLINE_PARAM_LENGTH];
+
 struct mc_logmsg {
 	u16	ctrl;		/* Type and format of data */
 	u16	source;		/* Unique value for each event source */
@@ -83,6 +86,14 @@ static struct logging_ctx {
 #endif
 	bool	dead;
 } log_ctx;
+
+static int __init tee_debug_enable_param(char *line)
+{
+	strlcpy(teedebugenable, line, sizeof(teedebugenable));
+	return 1;
+}
+
+__setup("androidboot.teedebugenable=", tee_debug_enable_param);
 
 static inline void log_eol(u16 source, u32 cpuid)
 {
@@ -245,7 +256,10 @@ int logging_init(phys_addr_t *buffer, u32 *size)
 #ifdef CONFIG_TRUSTONIC_TEE_DEBUG
 	log_ctx.enabled = true;
 #else
-	log_ctx.enabled = false;
+	if(!strncmp(teedebugenable, "enable", sizeof("enable")))
+		log_ctx.enabled = true;
+	else
+		log_ctx.enabled = false;
 #endif
 	debugfs_create_bool("swd_debug", 0600, g_ctx.debug_dir,
 			    &log_ctx.enabled);
