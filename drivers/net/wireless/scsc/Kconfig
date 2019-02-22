@@ -39,14 +39,12 @@ config SCSC_WLAN_SKB_TRACKING
 
 config SCSC_WLAN_RX_NAPI
 	bool "Enable use of net device napi rx polling api"
-	default y
 	---help---
 	  This option enables the drivers use of the napi api
 
 config SCSC_WLAN_RX_NAPI_GRO
 	bool "Enable use of net device napi rx GRO"
 	depends on SCSC_WLAN_RX_NAPI
-	default y
 	---help---
 	  This option enables the drivers use of the napi Generic Receive Offload
 

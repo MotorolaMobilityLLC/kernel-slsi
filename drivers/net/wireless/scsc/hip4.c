@@ -58,7 +58,7 @@ static bool hip4_smapper_is_enabled;
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 /* run NAPI poll on a specific CPU (preferably a big CPU if online) */
-static int napi_select_cpu; /* CPU number */
+static int napi_select_cpu = 4; /* CPU number */
 module_param(napi_select_cpu, int, 0644);
 MODULE_PARM_DESC(napi_select_cpu, "select a specific CPU to execute NAPI poll");
 #endif
