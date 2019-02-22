@@ -538,7 +538,7 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 			atomic_dec(&ipc->read_lock.cnt);
 		}
 	} else {
-		dev_warn(ipc->dev, "%s: read timeout(%d): c2aq_cnt:%d, recv_cnt:%d during %lld ns\n",
+		dev_dbg(ipc->dev, "%s: read timeout(%d): c2aq_cnt:%d, recv_cnt:%d during %lld ns\n",
 			__func__, ipc->err_cnt[CHUB_ERR_READ_FAIL],
 			ipc_get_data_cnt(IPC_DATA_C2A), atomic_read(&ipc->read_lock.cnt),
 			sched_clock() - time);
