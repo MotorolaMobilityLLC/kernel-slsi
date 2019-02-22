@@ -89,6 +89,7 @@ static enum power_supply_property s2mu00x_battery_props[] = {
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_RATE,
 };
 
 static enum power_supply_property s2mu00x_power_props[] = {
@@ -856,6 +857,28 @@ static void set_bat_status_by_cable(struct s2mu00x_battery_info *battery)
 #endif
 }
 
+#define WEAK_CHRG_THRSH 450
+static void get_prop_charge_rate(struct s2mu00x_battery_info *battery)
+{
+	int prev_chg_rate = battery->charger_rate;
+	char *charge_rate[] = {
+		"None", "Normal", "Weak", "Turbo"
+	};
+
+	if (!is_usb_present(battery)) {
+		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
+		return;
+	}
+
+	if(battery->cable_type == POWER_SUPPLY_TYPE_HV_MAINS)
+		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_TURBO;
+	else
+		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
+
+	if(prev_chg_rate != battery->charger_rate)
+		printk(KERN_ERR "%s,charge_rate:%s\n",__func__,charge_rate[battery->charger_rate]);
+}
+
 static int s2mu00x_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -965,6 +988,10 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_SOH:
 		val->intval = battery->soh;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_RATE:
+		get_prop_charge_rate(battery);
+		val->intval = battery->charger_rate;
 		break;
 	default:
 		ret = -ENODATA;
@@ -1628,7 +1655,9 @@ end_ifconn_handle:
 		battery->stepchg_state = STEP_NONE;
 		battery->charging_limit_modes = CHARGING_LIMIT_OFF;
 		set_max_allowed_current_ma(battery,battery->stepchg_current_ma);
+		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
 	} else {
+		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
 		smbchg_stay_awake(battery);
 		cancel_delayed_work(&battery->heartbeat_work);
 		schedule_delayed_work(&battery->heartbeat_work, msecs_to_jiffies(0));
@@ -2727,6 +2756,11 @@ bool is_usb_present(struct s2mu00x_battery_info *chip)
 	case POWER_SUPPLY_TYPE_HV_MAINS:
 	case POWER_SUPPLY_TYPE_PREPARE_TA:
 	case POWER_SUPPLY_TYPE_UNKNOWN:
+        case POWER_SUPPLY_TYPE_USB_ACA:              /* Accessory Charger Adapters */
+        case POWER_SUPPLY_TYPE_USB_TYPE_C:           /* Type C Port */
+        case POWER_SUPPLY_TYPE_USB_PD:               /* Power Delivery Port */
+        case POWER_SUPPLY_TYPE_USB_PD_DRP:           /* PD Dual Role Port */
+        case POWER_SUPPLY_TYPE_APPLE_BRICK_ID:       /* Apple Charging Method */
 		present = true;
 		break;
 	default:
@@ -2775,7 +2809,7 @@ bool is_dc_present(struct s2mu00x_battery_info *chip)
 {
 	int type = chip->cable_type;
 
-	if (type == POWER_SUPPLY_TYPE_USB_DCP || type == POWER_SUPPLY_TYPE_MAINS)
+	if (type == POWER_SUPPLY_TYPE_USB_DCP || type == POWER_SUPPLY_TYPE_MAINS || type == POWER_SUPPLY_TYPE_HV_MAINS)
 		return true;
 	else
 		return false;
@@ -4424,6 +4458,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->is_weak_charger = false;
 	battery->usb_online = -EINVAL;
 	battery->stepchg_state = STEP_NONE;
+	battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
 	rc = device_create_file(battery->dev,
 				&dev_attr_force_demo_mode);
 	if (rc) {
