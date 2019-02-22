@@ -2584,7 +2584,6 @@ void hip4_deinit(struct slsi_hip4 *hip)
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 	u32 conf_hip4_ver = 0;
 #endif
-
 	if (!sdev || !sdev->service)
 		return;
 
@@ -2615,29 +2614,26 @@ void hip4_deinit(struct slsi_hip4 *hip)
 	atomic_set(&hip->hip_priv->closing, 1);
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+		scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
+
+	tasklet_kill(&hip->hip_priv->intr_tasklet);
+	cancel_work_sync(&hip->hip_priv->intr_wq_ctrl);
+	cancel_work_sync(&hip->hip_priv->intr_wq_fb);
+
+	for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+		scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost_mul[i]);
+
+	/* Get the Version reported by the FW */
 	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
 
 	if (conf_hip4_ver == 4) {
-		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
-			scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
-
 		netif_napi_del(&hip->hip_priv->napi);
-		tasklet_kill(&hip->hip_priv->intr_tasklet);
-		cancel_work_sync(&hip->hip_priv->intr_wq_ctrl);
-		cancel_work_sync(&hip->hip_priv->intr_wq_fb);
-
-		for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
-			scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost_mul[i]);
-	} else {
-		scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
-		cancel_work_sync(&hip->hip_priv->intr_wq);
-		scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost);
 	}
-#else
+#endif
 	scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost);
 	cancel_work_sync(&hip->hip_priv->intr_wq);
 	scsc_service_mifintrbit_unregister_tohost(service, hip->hip_priv->intr_tohost);
-#endif
 
 	scsc_service_mifintrbit_free_fromhost(service, hip->hip_priv->intr_fromhost, SCSC_MIFINTR_TARGET_R4);
 
