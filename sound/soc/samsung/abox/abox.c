@@ -1614,6 +1614,7 @@ static const char * const abox_sound_type_enum_texts[] = {
 	"HEADSET",
 	"BTVOICE",
 	"USB",
+	"LINEOUT",
 };
 static const unsigned int abox_sound_type_enum_values[] = {
 	SOUND_TYPE_VOICE,
@@ -1621,6 +1622,7 @@ static const unsigned int abox_sound_type_enum_values[] = {
 	SOUND_TYPE_HEADSET,
 	SOUND_TYPE_BTVOICE,
 	SOUND_TYPE_USB,
+	SOUND_TYPE_LINEOUT,
 };
 SOC_VALUE_ENUM_SINGLE_DECL(abox_sound_type_enum, SND_SOC_NOPM, 0, 0,
 		abox_sound_type_enum_texts, abox_sound_type_enum_values);

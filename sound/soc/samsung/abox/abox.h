@@ -489,6 +489,7 @@ enum sound_type {
 	SOUND_TYPE_HEADSET,
 	SOUND_TYPE_BTVOICE,
 	SOUND_TYPE_USB,
+	SOUND_TYPE_LINEOUT,
 };
 
 enum qchannel {
