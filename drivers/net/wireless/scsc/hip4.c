@@ -152,6 +152,9 @@ static int q_idx_layout[6][2] = {
 /* MAX_STORM. Max Interrupts allowed when platform is in suspend */
 #define MAX_STORM            5
 
+/* Timeout for Wakelocks in HIP  */
+#define SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS   (1000)
+
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 
 static u64 histogram_1;
@@ -1087,6 +1090,13 @@ consume_fb_mbulk:
 		scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
 	}
 	SCSC_HIP4_SAMPLER_INT_OUT_BH(hip->hip_priv->minor, 2);
+
+#ifdef CONFIG_ANDROID
+	if (wake_lock_active(&hip->hip_priv->hip4_wake_lock_tx)) {
+		wake_unlock(&hip->hip_priv->hip4_wake_lock_tx);
+		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_RELEASED, "hip4_wake_lock_tx", WL_REASON_RX);
+	}
+#endif
 	bh_end_fb = ktime_get();
 	spin_unlock_bh(&hip_priv->rx_lock);
 }
@@ -1098,6 +1108,13 @@ static void hip4_irq_handler_fb(int irq, void *data)
 
 	SCSC_HIP4_SAMPLER_INT(hip->hip_priv->minor, 2);
 	intr_received_fb = ktime_get();
+
+#ifdef CONFIG_ANDROID
+	if (!wake_lock_active(&hip->hip_priv->hip4_wake_lock_tx)) {
+		wake_lock_timeout(&hip->hip_priv->hip4_wake_lock_tx, msecs_to_jiffies(SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS));
+		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_TAKEN, "hip4_wake_lock_tx", WL_REASON_RX);
+	}
+#endif
 
 	if (!atomic_read(&hip->hip_priv->watchdog_timer_active)) {
 		atomic_set(&hip->hip_priv->watchdog_timer_active, 1);
@@ -1173,6 +1190,16 @@ static void hip4_wq_ctrl(struct work_struct *data)
 			goto consume_ctl_mbulk;
 		}
 
+#ifdef CONFIG_SCSC_WLAN_DEBUG
+		if (m->flag & MBULK_F_WAKEUP) {
+			SLSI_INFO(sdev, "WIFI wakeup by MLME frame 0x%x:\n", fapi_get_sigid(skb));
+			SCSC_BIN_TAG_INFO(BINARY, skb->data, skb->len > 128 ? 128 : skb->len);
+		}
+#else
+		if (m->flag & MBULK_F_WAKEUP)
+			SLSI_INFO(sdev, "WIFI wakeup by MLME frame 0x%x\n", fapi_get_sigid(skb));
+#endif
+
 #if defined(CONFIG_SCSC_WLAN_DEBUG) || defined(CONFIG_SCSC_WLAN_HIP4_PROFILING)
 		id = fapi_get_sigid(skb);
 #endif
@@ -1221,6 +1248,12 @@ consume_ctl_mbulk:
 		scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_CTRL]);
 	}
 	SCSC_HIP4_SAMPLER_INT_OUT_BH(hip->hip_priv->minor, 1);
+#ifdef CONFIG_ANDROID
+	if (wake_lock_active(&hip->hip_priv->hip4_wake_lock_ctrl)) {
+		wake_unlock(&hip->hip_priv->hip4_wake_lock_ctrl);
+		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_RELEASED, "hip4_wake_lock_ctrl", WL_REASON_RX);
+	}
+#endif
 	bh_end_ctrl = ktime_get();
 	spin_unlock_bh(&hip_priv->rx_lock);
 }
@@ -1232,6 +1265,13 @@ static void hip4_irq_handler_ctrl(int irq, void *data)
 
 	SCSC_HIP4_SAMPLER_INT(hip->hip_priv->minor, 1);
 	intr_received_ctrl = ktime_get();
+
+#ifdef CONFIG_ANDROID
+	if (!wake_lock_active(&hip->hip_priv->hip4_wake_lock_ctrl)) {
+		wake_lock_timeout(&hip->hip_priv->hip4_wake_lock_ctrl, msecs_to_jiffies(SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS));
+		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_TAKEN, "hip4_wake_lock_ctrl", WL_REASON_RX);
+	}
+#endif
 
 	if (!atomic_read(&hip->hip_priv->watchdog_timer_active)) {
 		atomic_set(&hip->hip_priv->watchdog_timer_active, 1);
@@ -1290,6 +1330,12 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 			/* Nothing more to drain, unmask interrupt */
 			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
 		}
+#ifdef CONFIG_ANDROID
+		if (wake_lock_active(&hip->hip_priv->hip4_wake_lock_data)) {
+			wake_unlock(&hip->hip_priv->hip4_wake_lock_data);
+			SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_RELEASED, "hip4_wake_lock_data", WL_REASON_RX);
+		}
+#endif
 		goto end;
 	}
 
@@ -1322,6 +1368,17 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 			hip4_dump_dbg(hip, m, skb, service);
 			goto consume_dat_mbulk;
 		}
+#ifdef CONFIG_SCSC_WLAN_DEBUG
+		if (m->flag & MBULK_F_WAKEUP) {
+			SLSI_INFO(sdev, "WIFI wakeup by DATA frame:\n");
+			SCSC_BIN_TAG_INFO(BINARY, skb->data, skb->len > 128 ? 128 : skb->len);
+		}
+#else
+		if (m->flag & MBULK_F_WAKEUP) {
+			SLSI_INFO(sdev, "WIFI wakeup by DATA frame:\n");
+			SCSC_BIN_TAG_INFO(BINARY, skb->data, fapi_get_siglen(skb) + ETH_HLEN);
+		}
+#endif
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 		id = fapi_get_sigid(skb);
 		hip4_history_record_add(TH, id);
@@ -1370,6 +1427,12 @@ consume_dat_mbulk:
 			/* Nothing more to drain, unmask interrupt */
 			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
 		}
+#ifdef CONFIG_ANDROID
+		if (wake_lock_active(&hip->hip_priv->hip4_wake_lock_data)) {
+			wake_unlock(&hip->hip_priv->hip4_wake_lock_data);
+			SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_RELEASED, "hip4_wake_lock_data", WL_REASON_RX);
+		}
+#endif
 	}
 end:
 	SLSI_DBG4(sdev, SLSI_RX, "work done:%d\n", work_done);
@@ -1409,6 +1472,12 @@ static void hip4_irq_handler_dat(int irq, void *data)
 	SCSC_HIP4_SAMPLER_INT(hip->hip_priv->minor, 0);
 	intr_received_data = ktime_get();
 
+#ifdef CONFIG_ANDROID
+	if (!wake_lock_active(&hip->hip_priv->hip4_wake_lock_data)) {
+		wake_lock_timeout(&hip->hip_priv->hip4_wake_lock_data, msecs_to_jiffies(SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS));
+		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_TAKEN, "hip4_wake_lock_data", WL_REASON_RX);
+	}
+#endif
 	if (!atomic_read(&hip->hip_priv->watchdog_timer_active)) {
 		atomic_set(&hip->hip_priv->watchdog_timer_active, 1);
 		mod_timer(&hip->hip_priv->watchdog, jiffies + HZ);
@@ -1855,7 +1924,7 @@ static void hip4_irq_handler(int irq, void *data)
 
 #ifdef CONFIG_ANDROID
 	if (!wake_lock_active(&hip->hip_priv->hip4_wake_lock)) {
-		wake_lock(&hip->hip_priv->hip4_wake_lock);
+		wake_lock_timeout(&hip->hip_priv->hip4_wake_lock, msecs_to_jiffies(SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS));
 		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_TAKEN, "hip4_wake_lock", WL_REASON_RX);
 	}
 #endif
@@ -2239,6 +2308,11 @@ int hip4_init(struct slsi_hip4 *hip)
 	hip->hip_priv->saturated = 0;
 
 #ifdef CONFIG_ANDROID
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	wake_lock_init(&hip->hip_priv->hip4_wake_lock_tx, WAKE_LOCK_SUSPEND, "hip4_wake_lock_tx");
+	wake_lock_init(&hip->hip_priv->hip4_wake_lock_ctrl, WAKE_LOCK_SUSPEND, "hip4_wake_lock_ctrl");
+	wake_lock_init(&hip->hip_priv->hip4_wake_lock_data, WAKE_LOCK_SUSPEND, "hip4_wake_lock_data");
+#endif
 	wake_lock_init(&hip->hip_priv->hip4_wake_lock, WAKE_LOCK_SUSPEND, "hip4_wake_lock");
 #endif
 
@@ -2300,6 +2374,9 @@ int scsc_wifi_transmit_frame(struct slsi_hip4 *hip, bool ctrl_packet, struct sk_
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 	struct slsi_skb_cb *cb = slsi_skb_cb_get(skb);
 #endif
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 
 	if (!hip || !sdev || !sdev->service || !skb || !hip->hip_priv)
 		return -EINVAL;
@@ -2308,10 +2385,25 @@ int scsc_wifi_transmit_frame(struct slsi_hip4 *hip, bool ctrl_packet, struct sk_
 	atomic_set(&hip->hip_priv->in_tx, 1);
 
 #ifdef CONFIG_ANDROID
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
+	if (conf_hip4_ver == 4) {
+		if (!wake_lock_active(&hip->hip_priv->hip4_wake_lock_tx)) {
+			wake_lock_timeout(&hip->hip_priv->hip4_wake_lock_tx, msecs_to_jiffies(SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS));
+			SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_TAKEN, "hip4_wake_lock_tx", WL_REASON_TX);
+		}
+	} else {
+		if (!wake_lock_active(&hip->hip_priv->hip4_wake_lock)) {
+			wake_lock_timeout(&hip->hip_priv->hip4_wake_lock, msecs_to_jiffies(SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS));
+			SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_TAKEN, "hip4_wake_lock", WL_REASON_TX);
+		}
+	}
+#else
 	if (!wake_lock_active(&hip->hip_priv->hip4_wake_lock)) {
-		wake_lock(&hip->hip_priv->hip4_wake_lock);
+		wake_lock_timeout(&hip->hip_priv->hip4_wake_lock, msecs_to_jiffies(SLSI_HIP_WAKELOCK_TIME_OUT_IN_MS));
 		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_TAKEN, "hip4_wake_lock", WL_REASON_TX);
 	}
+#endif
 #endif
 
 	service = sdev->service;
@@ -2380,10 +2472,24 @@ int scsc_wifi_transmit_frame(struct slsi_hip4 *hip, bool ctrl_packet, struct sk_
 
 error:
 #ifdef CONFIG_ANDROID
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	if (conf_hip4_ver == 4) {
+		if (wake_lock_active(&hip->hip_priv->hip4_wake_lock_tx)) {
+			wake_unlock(&hip->hip_priv->hip4_wake_lock_tx);
+			SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_RELEASED, "hip4_wake_lock_tx", WL_REASON_TX);
+		}
+	} else {
+		if (wake_lock_active(&hip->hip_priv->hip4_wake_lock)) {
+			wake_unlock(&hip->hip_priv->hip4_wake_lock);
+			SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_RELEASED, "hip4_wake_lock", WL_REASON_TX);
+		}
+	}
+#else
 	if (wake_lock_active(&hip->hip_priv->hip4_wake_lock)) {
 		wake_unlock(&hip->hip_priv->hip4_wake_lock);
 		SCSC_WLOG_WAKELOCK(WLOG_LAZY, WL_RELEASED, "hip4_wake_lock", WL_REASON_TX);
 	}
+#endif
 #endif
 	atomic_set(&hip->hip_priv->in_tx, 0);
 	spin_unlock_bh(&hip->hip_priv->tx_lock);
@@ -2607,6 +2713,11 @@ void hip4_deinit(struct slsi_hip4 *hip)
 	}
 #endif
 #ifdef CONFIG_ANDROID
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_tx);
+	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_ctrl);
+	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_data);
+#endif
 	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock);
 #endif
 

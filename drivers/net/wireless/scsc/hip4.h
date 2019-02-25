@@ -280,6 +280,11 @@ struct hip4_priv {
 #endif
 
 #if !defined SLSI_TEST_DEV && defined CONFIG_ANDROID
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	struct wake_lock             hip4_wake_lock_tx;
+	struct wake_lock             hip4_wake_lock_ctrl;
+	struct wake_lock             hip4_wake_lock_data;
+#endif
 	/* Wakelock for modem_ctl */
 	struct wake_lock             hip4_wake_lock;
 #endif
