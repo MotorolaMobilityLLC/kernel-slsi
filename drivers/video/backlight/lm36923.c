@@ -260,7 +260,7 @@ static int lm36923_resume(struct lm36923_data *dev_data)
 		pr_err("%s: lm36923 dev is busy\n",__func__);
 		goto exit;
 	}
-	ret = backlight_i2c_write(dev_data, LM_PWMCTL_REG, 0xEE);
+	ret = backlight_i2c_write(dev_data, LM_PWMCTL_REG, 0xFA);
 	if(ret < 0) {
 		pr_err("%s: write new value[0xEE] to reg[0x%x] error\n", __func__, LM_PWMCTL_REG);
 	}
@@ -403,7 +403,7 @@ static int lm36923_probe(struct i2c_client *client,
         if(ret < 0){
             pr_err("%s:NR mode:write lm chip MSB error\n",__func__);
         }
-        ret = backlight_i2c_write(lm, LM_PWMCTL_REG, 0xEE);
+        ret = backlight_i2c_write(lm, LM_PWMCTL_REG, 0xFA);
 		if(ret < 0) {
             pr_err("%s: write new value[0xEE] to reg[0x%x] error\n", __func__, LM_PWMCTL_REG);
         }
