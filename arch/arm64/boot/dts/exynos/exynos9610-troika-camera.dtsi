@@ -52,6 +52,10 @@
 					product_name = <100>; /* NOTHING */
 				};
 
+				eeprom {
+                                        product_name = <3>; /* EEPROM_NAME_OV12A10 */
+                                };
+
 				internal_vc {
 					vc_list = <1 VC_PRIVATE 0 2 VC_MIPISTAT 0>;
 				};
@@ -135,6 +139,10 @@
 					product_name = <100>; /* NOTHING */
 				};
 
+				eeprom {
+                                        product_name = <4>; /* EEPROM_NAME_OV12A10FF */
+                                };
+
 				internal_vc {
 					/* DUMMY */
 				};
@@ -175,6 +183,10 @@
 				ois {
 					product_name = <100>; /* NOTHING */
 				};
+
+				eeprom {
+                                        product_name = <5>; /* EEPROM_NAME_OV16885C */
+                                };
 
 				internal_vc {
 					vc_list = <3 VC_EMBEDDED 0>;
@@ -596,6 +608,12 @@
 		id = <0>; /* matching fimc_is_sensor id */
 		place = <0>;
 	};
+
+        fimc-is-eeprom@50 {
+                compatible = "samsung,exynos5-fimc-is-sensor-eeprom-12a10";
+                reg = <0x50>;
+                id = <0>;
+        };
 };
 
 /* I2C_CAM1 */ /* SENSOR_CONTROL_I2C1 */
@@ -615,6 +633,12 @@
 		setfile = "setA";
 		use_initial_ae; /* for initial AE */
 	};
+
+        fimc-is-eeprom@50 {
+                compatible = "samsung,exynos5-fimc-is-sensor-eeprom-12a10ff";
+                reg = <0x50>;
+                id = <2>;
+        };
 };
 
 /* I2C_CAM2 */ /* SENSOR_CONTROL_I2C2 */
@@ -634,6 +658,12 @@
 		setfile = "setA";
 		use_initial_ae; /* for initial AE */
 	};
+
+        fimc-is-eeprom@50 {
+                compatible = "samsung,exynos5-fimc-is-sensor-eeprom-16885c";
+                reg = <0x50>;
+                id = <1>;
+        };
 };
 
 /* I2C_CAM3 */ /* SENSOR_CONTROL_I2C1 */
