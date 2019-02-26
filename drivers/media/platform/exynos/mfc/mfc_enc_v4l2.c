@@ -478,10 +478,9 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
 
-	if (mfc_ctx_ready(ctx))
-		mfc_set_bit(ctx->num, &dev->work_bits);
-	if (ctx->otf_handle && mfc_otf_ctx_ready(ctx))
-		mfc_set_bit(ctx->num, &dev->work_bits);
+	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
+	if (ctx->otf_handle)
+		mfc_otf_ctx_ready_set_bit(ctx, &dev->work_bits);
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 
