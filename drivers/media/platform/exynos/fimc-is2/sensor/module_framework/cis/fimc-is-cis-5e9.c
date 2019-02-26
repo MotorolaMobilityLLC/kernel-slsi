@@ -193,11 +193,244 @@ int sensor_5e9_cis_check_rev(struct v4l2_subdev *subdev)
 	return ret;
 }
 
+int sensor_5e9_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
+{
+	int ret = 0;
+
+	float r_g_min = (float)(limit[0]) / 1000;
+	float r_g_max = (float)(limit[1]) / 1000;
+	float b_g_min = (float)(limit[2]) / 1000;
+	float b_g_max = (float)(limit[3]) / 1000;
+
+	/* read by little endian */
+	float rg = (float) ((unit[1] << 8) | (unit[0])) / 16384;
+	float bg = (float) ((unit[3] << 8) | (unit[2])) / 16384;
+
+	float golden_rg = (float) ((golden[1] << 8) | (golden[0])) / 16384;
+	float golden_bg = (float) ((golden[3] << 8) | (golden[2])) / 16384;
+
+	if (rg < (golden_rg - r_g_min) || rg > (golden_rg + r_g_max)) {
+		err("%s(): Final RG calibration factors out of range! rg=0x%x golden_rg=0x%x",
+			__func__, (unit[1] << 8 | unit[0]), (golden[1] << 8 | golden[0]));
+		ret = 1;
+	}
+
+	if (bg < (golden_bg - b_g_min) || bg > (golden_bg + b_g_max)) {
+		err("%s(): Final BG calibration factors out of range! bg=0x%x, golden_bg=0x%x",
+			__func__, (unit[3] << 8 | unit[2]), (golden[3] << 8 | golden[2]));
+		ret = 1;
+	}
+
+	return ret;
+}
+
+int sensor_5e9_cis_otp_check_crc(struct v4l2_subdev *subdev,
+		struct fimc_is_device_sensor *device, int grp_offset)
+{
+	int ret = 0;
+	u16 crc_value = 0;
+	u16 crc16 = 0;
+	char *check_buf = (char *)&device->otp_cal_buf[0][0];
+	int group = (grp_offset == 0) ? 1 : 2;
+
+	/* ADDR CRC check */
+	crc_value = ((check_buf[grp_offset + OTP_GRP_ADDR_CHKSUM + 1] << 8)
+			| (check_buf[grp_offset + OTP_GRP_ADDR_CHKSUM]));
+	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_ADDR_CRC_START],
+						OTP_GRP_ADDR_CRC_SIZE);
+	if (crc_value != crc16) {
+		err("GR%d: Error to ADDR CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
+		ret = -EINVAL;
+	} else
+		info("GR%d: ADDR CRC16 : 0x%x, cal buffer CRC: 0x%x\n", group, crc16, crc_value);
+
+	/* INFO CRC check */
+	crc_value = ((check_buf[grp_offset + OTP_GRP_INFO_CHKSUM + 1] << 8)
+			| (check_buf[grp_offset + OTP_GRP_INFO_CHKSUM]));
+	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_INFO_CRC_START],
+						OTP_GRP_INFO_CRC_SIZE);
+	if (crc_value != crc16) {
+		err("GR%d: Error to INFO CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
+		ret = -EINVAL;
+	} else
+		info("GR%d: INFO CRC16 : 0x%x, cal buffer CRC: 0x%x\n", group, crc16, crc_value);
+
+	/* AWB CRC check */
+	crc_value = ((check_buf[grp_offset + OTP_GRP_AWB_CHKSUM + 1] << 8)
+			| (check_buf[grp_offset + OTP_GRP_AWB_CHKSUM]));
+	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_AWB_CRC_START],
+						OTP_GRP_AWB_CRC_SIZE);
+	if (crc_value != crc16) {
+		err("GR%d: Error to AWB CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
+		ret = -EINVAL;
+	} else
+		info("GR%d: AWB CRC16 : 0x%x, cal buffer CRC: 0x%x\n", group, crc16, crc_value);
+
+	/* LSC_XTC CRC check */
+	crc_value = ((check_buf[grp_offset + OTP_GRP_LSC_XTC_CHKSUM + 1] << 8)
+			| (check_buf[grp_offset + OTP_GRP_LSC_XTC_CHKSUM]));
+	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_LSC_XTC_CRC_START],
+						OTP_GRP_LSC_XTC_CRC_SIZE);
+	if (crc_value != crc16) {
+		err("GR%d: Error to LSC_XTC CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
+		ret = -EINVAL;
+	} else
+		info("GR%d: LSC_XTC CRC16 : 0x%x, cal buffer CRC: 0x%x\n", group, crc16, crc_value);
+
+	/* LSC_XTC CRC check */
+	crc_value = ((check_buf[grp_offset + OTP_GRP_AE_SYNC_CHKSUM + 1] << 8)
+			| (check_buf[grp_offset + OTP_GRP_AE_SYNC_CHKSUM]));
+	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_AE_SYNC_CRC_START],
+						OTP_GRP_AE_SYNC_CRC_SIZE);
+	if (crc_value != crc16) {
+		err("GR%d: Error to AE_SYNC CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
+		ret = -EINVAL;
+	} else
+		info("GR%d: AE_SYNC CRC16 : 0x%x, cal buffer CRC: 0x%x\n", group, crc16, crc_value);
+
+	return ret;
+}
+
+int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_sensor *device)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+	u8 val, page;
+	int i;
+	int retry = 200;
+
+	FIMC_BUG(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	if (!cis) {
+		err("cis is NULL");
+		return -EINVAL;
+	}
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		return -ENODEV;
+	}
+
+	dbg_sensor(1, "%s, 1. sensor initial setting", __func__);
+	CALL_CISOPS(cis, cis_set_global_setting, subdev);
+	CALL_CISOPS(cis, cis_mode_change, subdev, 0);
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+
+	dbg_sensor(1, "%s, 2. sensor stream on", __func__);
+	fimc_is_sensor_write8(client, 0x0100, 0x01);
+
+	/* wait 50ms */
+	msleep(50);
+
+	dbg_sensor(1, "%s, 3. page select & read cal", __func__);
+	for (page = OTP_PAGE_START; page <= OTP_PAGE_END; page++) {
+		/* page select & read start */
+		fimc_is_sensor_write8(client, OTP_PAGE_SELECT, page);
+		fimc_is_sensor_write8(client, OTP_PAGE_CTRL, 0x01);
+		usleep_range(1000, 1001);
+
+		/* wait 0x0A01 == 1 [0]: read completed with no errors */
+		while (retry--) {
+			fimc_is_sensor_read8(client, OTP_PAGE_ERRCHK, &val);
+			if (val == 1)
+				break;
+
+			usleep_range(100, 100);
+		}
+
+		for (i = 0; i < OTP_PAGE_SIZE; i++) {
+			fimc_is_sensor_read8(client, OTP_PAGE_BASE + i, &device->otp_cal_buf[page][i]);
+			dbg_sensor(2, "cal: [%d][0x%x]: %x\n", page, OTP_PAGE_BASE + i, device->otp_cal_buf[page][i]);
+		}
+
+		/* make initial state */
+		fimc_is_sensor_write8(client, OTP_PAGE_CTRL, 0x04);
+		fimc_is_sensor_write8(client, OTP_PAGE_CTRL, 0x00);
+	}
+
+	fimc_is_sensor_write8(client, 0x0100, 0x00);
+	msleep(20);
+	info("OTP end!!!!!\n");
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
+	return ret;
+}
+
+int sensor_5e9_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_sensor *device)
+{
+	int ret = 0;
+	int otp_group = 0x0;
+	int offset = 0;
+	char *otp_buf = (char *)&device->otp_cal_buf[0][0];
+	char file_str[60];
+
+	snprintf(file_str, sizeof(file_str), "%s%s", OTP_DATA_PATH, device->otp_filename);
+	ret = sensor_cis_otp_read_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
+	if (ret) {
+		/* OTP data read */
+		ret = sensor_5e9_cis_otp_read(subdev, device);
+		if (ret < 0) {
+			err("Don't read to 5E9 OTP data");
+			goto p_err;
+		}
+
+		/* Write to OTP data at file */
+		ret = sensor_cis_otp_write_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
+		if (ret < 0) {
+			err("5E9 OTP data don't file write");
+			goto p_err;
+		}
+	}
+
+	/* Need to first check GROUP2 */
+	if (otp_buf[OTP_GRP_FLAG + OTP_GRP2_OFFSET * OTP_PAGE_SIZE] == OTP_DATA_VALID) {
+		otp_group = OTP_GROUP_TWO;
+		offset = OTP_GRP2_OFFSET * OTP_PAGE_SIZE;
+	} else if (otp_buf[OTP_GRP_FLAG] == OTP_DATA_VALID) {
+		otp_group = OTP_GROUP_ONE;
+		offset = 0;
+	} else {
+		err("All OTP data are invalid, check module");
+		goto p_err;
+	}
+
+	/* OTP CRC check */
+	ret = sensor_5e9_cis_otp_check_crc(subdev, device, offset);
+	if (ret < 0) {
+		err("All OTP data CRC check fail, check module");
+
+		device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_ERROR;
+		goto p_err;
+	} else {
+		u8 *awb_base = &otp_buf[offset + OTP_GRP_AWB_CHKSUM];
+
+		device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_NO_ERROR;
+		ret = sensor_5e9_cis_otp_check_awb_ratio(&awb_base[CURRENT_RG_RATIO_OFFSET],
+				&awb_base[MASTER_RG_RATIO_OFFSET],
+				&awb_base[RG_MIN_LIMIT_OFFSET]);
+		if (ret) {
+			err("%s(): 5E9 OTP AWB Group%d ratio out of limit(%d)", __func__, otp_group, ret);
+			device->cal_status[CAMERA_CRC_INDEX_AWB] = LIMIT_FAILURE;
+			ret = -1;
+		}
+	}
+
+p_err:
+	return ret;
+}
+
 /* CIS OPS */
 int sensor_5e9_cis_init(struct v4l2_subdev *subdev)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
+	struct fimc_is_module_enum *module;
+	struct fimc_is_device_sensor *device = NULL;
 	u32 setfile_index = 0;
 	cis_setting_info setinfo;
 
@@ -213,6 +446,15 @@ int sensor_5e9_cis_init(struct v4l2_subdev *subdev)
 	setinfo.return_value = 0;
 
 	FIMC_BUG(!subdev);
+
+	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
+
+	device = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(module->subdev);
+	if (!device) {
+		err("device sensor is NULL");
+		ret = -ENODEV;
+		goto p_err;
+	}
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	if (!cis) {
@@ -367,6 +609,14 @@ int sensor_5e9_cis_init(struct v4l2_subdev *subdev)
 	do_gettimeofday(&end);
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec)*1000000 + (end.tv_usec - st.tv_usec));
 #endif
+
+	if (device->use_otp_cal) {
+		ret = sensor_5e9_cis_otp(subdev, device);
+		if (ret < 0) {
+			err("5E9 OTP data have problem, check module");
+			ret = 0;
+		}
+	}
 
 p_err:
 	return ret;
@@ -1925,6 +2175,7 @@ static int cis_5e9_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	int ret = 0;
+	int i;
 	struct fimc_is_core *core = NULL;
 	struct v4l2_subdev *subdev_cis = NULL;
 	struct fimc_is_cis *cis = NULL;
@@ -2072,6 +2323,20 @@ static int cis_5e9_probe(struct i2c_client *client,
 
 	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
 	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
+
+	device->use_otp_cal = of_property_read_bool(dnode, "use_otp_cal");
+	probe_info("%s use otp_cal(%d)\n", __func__, device->use_otp_cal);
+	if (device->use_otp_cal) {
+		ret = of_property_read_string(dnode, "otp_filename", &device->otp_filename);
+		if (ret) {
+			err("OTP filename read fail(%d), take default name", ret);
+			device->otp_filename = "5e9_otp_cal_data.bin";
+		}
+		probe_info("%s otp_filename(%s)\n", __func__, device->otp_filename);
+	}
+
+	for (i = 0; i < CAMERA_CRC_INDEX_MAX; i++)
+		device->cal_status[i] = CRC_NO_ERROR;
 
 	v4l2_i2c_subdev_init(subdev_cis, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_cis, cis);
