@@ -1570,14 +1570,12 @@ irqreturn_t mfc_irq(int irq, void *priv)
 	/* clean-up interrupt */
 	mfc_clear_int();
 
-	if ((ctx->state != MFCINST_RES_CHANGE_INIT) && (mfc_ctx_ready(ctx) == 0))
-		mfc_clear_bit(ctx->num, &dev->work_bits);
+	if (ctx->state != MFCINST_RES_CHANGE_INIT)
+		mfc_ctx_ready_clear_bit(ctx, &dev->work_bits);
 
 	if (ctx->otf_handle) {
-		if (mfc_otf_ctx_ready(ctx))
-			mfc_set_bit(ctx->num, &dev->work_bits);
-		else
-			mfc_clear_bit(ctx->num, &dev->work_bits);
+		if (mfc_otf_ctx_ready_set_bit(ctx, &dev->work_bits) == 0)
+			mfc_otf_ctx_ready_clear_bit(ctx, &dev->work_bits);
 	}
 
 	mfc_hwlock_handler_irq(dev, ctx, reason, err);

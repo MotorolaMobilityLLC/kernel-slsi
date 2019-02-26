@@ -262,9 +262,7 @@ static int mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct mfc_dev *dev = ctx->dev;
 
 	/* If context is ready then dev = work->data;schedule it to run */
-	if (mfc_ctx_ready(ctx))
-		mfc_set_bit(ctx->num, &dev->work_bits);
-
+	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
 	mfc_try_run(dev);
 
 	return 0;
@@ -427,8 +425,7 @@ static void mfc_dec_stop_streaming(struct vb2_queue *q)
 	mfc_clear_bit(ctx->num, &dev->work_bits);
 	mfc_release_hwlock_ctx(ctx);
 
-	if (mfc_ctx_ready(ctx))
-		mfc_set_bit(ctx->num, &dev->work_bits);
+	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 }
@@ -480,10 +477,8 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 		mfc_err_ctx("Unsupported buffer type (%d)\n", vq->type);
 	}
 
-	if (mfc_ctx_ready(ctx)) {
-		mfc_set_bit(ctx->num, &dev->work_bits);
+	if (mfc_ctx_ready_set_bit(ctx, &dev->work_bits))
 		mfc_try_run(dev);
-	}
 
 	mfc_debug_leave();
 }

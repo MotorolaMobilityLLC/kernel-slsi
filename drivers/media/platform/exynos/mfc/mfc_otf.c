@@ -355,10 +355,12 @@ void mfc_otf_deinit(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
-int mfc_otf_ctx_ready(struct mfc_ctx *ctx)
+int mfc_otf_ctx_ready_set_bit(struct mfc_ctx *ctx, struct mfc_bits *data)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct _otf_handle *handle;
+	unsigned long flags;
+	int is_ready = 0;
 
 	mfc_debug_enter();
 
@@ -373,21 +375,76 @@ int mfc_otf_ctx_ready(struct mfc_ctx *ctx)
 	if (dev->shutdown)
 		return 0;
 
+	/* The ready condition check and set work_bit should be synchronized */
+	spin_lock_irqsave(&data->lock, flags);
+
 	/* Context is to parse header */
 	if (ctx->state == MFCINST_GOT_INST)
-		return 1;
+		is_ready = 1;
 
 	/* Context is to set buffers */
-	if (ctx->state == MFCINST_HEAD_PARSED)
-		return 1;
+	else if (ctx->state == MFCINST_HEAD_PARSED)
+		is_ready = 1;
 
-	if (ctx->state == MFCINST_RUNNING && handle->otf_work_bit)
-		return 1;
-	mfc_debug(2, "[OTF] ctx is not ready\n");
+	else if (ctx->state == MFCINST_RUNNING && handle->otf_work_bit)
+		is_ready = 1;
+
+	if (is_ready == 1)
+		__set_bit(ctx->num, &data->bits);
+	else
+		mfc_debug(2, "[OTF] ctx is not ready\n");
+
+	spin_unlock_irqrestore(&data->lock, flags);
 
 	mfc_debug_leave();
 
-	return 0;
+	return is_ready;
+}
+
+int mfc_otf_ctx_ready_clear_bit(struct mfc_ctx *ctx, struct mfc_bits *data)
+{
+	struct mfc_dev *dev = ctx->dev;
+	struct _otf_handle *handle;
+	unsigned long flags;
+	int is_ready = 0;
+
+	mfc_debug_enter();
+
+	if (!ctx->otf_handle)
+		return 0;
+
+	handle = ctx->otf_handle;
+
+	mfc_debug(1, "[OTF] [c:%d] state = %d, otf_work_bit = %d\n",
+			ctx->num, ctx->state, handle->otf_work_bit);
+	/* If shutdown is called, do not try any cmd */
+	if (dev->shutdown)
+		return 0;
+
+	/* The ready condition check and set work_bit should be synchronized */
+	spin_lock_irqsave(&data->lock, flags);
+
+	/* Context is to parse header */
+	if (ctx->state == MFCINST_GOT_INST)
+		is_ready = 1;
+
+	/* Context is to set buffers */
+	else if (ctx->state == MFCINST_HEAD_PARSED)
+		is_ready = 1;
+
+	else if (ctx->state == MFCINST_RUNNING && handle->otf_work_bit)
+		is_ready = 1;
+
+	if (is_ready == 0)
+		__clear_bit(ctx->num, &data->bits);
+	else
+		mfc_debug(2, "[OTF] ctx is ready\n");
+
+	spin_unlock_irqrestore(&data->lock, flags);
+
+	mfc_debug_leave();
+
+	return is_ready;
 }
 
 static int __check_disable_header_gen(struct mfc_dev *dev)
@@ -734,8 +791,7 @@ int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 	handle->otf_job_id = job_id;
 	handle->otf_time_stamp = param->time_stamp;
 
-	if (mfc_otf_ctx_ready(ctx))
-		mfc_set_bit(ctx->num, &dev->work_bits);
+	mfc_otf_ctx_ready_set_bit(ctx, &dev->work_bits);
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 
