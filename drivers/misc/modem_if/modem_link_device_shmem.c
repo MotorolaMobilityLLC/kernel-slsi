@@ -2589,7 +2589,7 @@ static int shmem_crash_reason(struct link_device *ld, struct io_device *iod,
 }
 
 #ifdef CONFIG_MODEM_IF_NET_GRO
-static long gro_flush_time = 100000L;
+static long gro_flush_time = 0;
 module_param(gro_flush_time, long, 0644);
 
 static void gro_flush_timer(struct link_device *ld)
@@ -2597,8 +2597,10 @@ static void gro_flush_timer(struct link_device *ld)
 	struct shmem_link_device *shmd = to_shmem_link_device(ld);
 	struct timespec curr, diff;
 
-	if (!gro_flush_time)
+	if (!gro_flush_time) {
+		napi_gro_flush(&shmd->mld_napi, false);
 		return;
+	}
 
 	if (unlikely(shmd->flush_time.tv_sec == 0)) {
 		getnstimeofday(&shmd->flush_time);
