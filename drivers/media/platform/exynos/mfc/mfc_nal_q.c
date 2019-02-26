@@ -500,11 +500,9 @@ void mfc_nal_q_cleanup_queue(struct mfc_dev *dev)
 		ctx = dev->ctx[i];
 		if (ctx) {
 			mfc_cleanup_nal_queue(ctx);
-			if (mfc_ctx_ready(ctx)) {
-				mfc_set_bit(ctx->num, &dev->work_bits);
+			if (mfc_ctx_ready_set_bit(ctx, &dev->work_bits))
 				mfc_debug(2, "[NALQ] set work_bits after cleanup,"
 						" ctx: %d\n", ctx->num);
-			}
 		}
 	}
 
