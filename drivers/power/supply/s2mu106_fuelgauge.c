@@ -26,16 +26,13 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
-
+#include <linux/reboot.h>
 #include <linux/power/s2mu106_fuelgauge.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_data/ntc_thermistor.h>
-#include <soc/samsung/exynos-pmu.h>
 
 static enum power_supply_property s2mu106_fuelgauge_props[] = {
 };
-
-#define PS_HOLD_CONTROL			(0x330C)
 
 static void low_vbat_power_off(void);
 static int s2mu106_get_vbat(struct s2mu106_fuelgauge_data *fuelgauge);
@@ -168,9 +165,9 @@ static void s2mu106_fg_test_read(struct i2c_client *client)
 	static int reg_list[] = {
 		0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0E, 0x0F,
 		0x10, 0x11, 0x14, 0x1A, 0x1B, 0x1E, 0x1F, 0x24, 0x25, 0x26,
-		0x27, 0x28, 0x29, 0x40, 0x41, 0x43, 0x44, 0x45, 0x48, 0x4A,
-		0x4B, 0x50, 0x51, 0x52, 0x53, 0x58, 0x59, 0x5A, 0x5B, 0x5C,
-		0x67
+		0x27, 0x28, 0x29, 0x40, 0x41, 0x43, 0x44, 0x45, 0x48, 0x49,
+		0x4A, 0x4B, 0x50, 0x51, 0x52, 0x53, 0x58, 0x59, 0x5A, 0x5B,
+		0x5C, 0x67
 	};
 	u8 data = 0;
 	char str[1016] = {0,};
@@ -934,6 +931,11 @@ static int s2mu106_get_rawsoc(struct s2mu106_fuelgauge_data *fuelgauge)
 	if (fuelgauge->ui_soc == 0 && avg_vbat <= 3250 && avg_current <= 5) {
 		pr_info("%s, UI SOC 0%! VBAT 3250!\n", __func__);
 
+		/* low vbat power off flag */
+		s2mu106_read_reg_byte(fuelgauge->i2c, 0x49, &temp);
+		temp |= 0x80;
+		s2mu106_write_and_verify_reg_byte(fuelgauge->i2c, 0x49, temp);
+
 		low_vbat_power_off();
 	}
 
@@ -1415,14 +1417,11 @@ static int s2mu106_fg_set_property(struct power_supply *psy,
 
 static void low_vbat_power_off(void)
 {
-	u32 ps_hold_data;
+	pr_info("%s, Set Power off\n", __func__);
 
-	pr_info("%s, Set PS_HOLD Low\n", __func__);
+	mdelay(300);
 
-	mdelay(3000);
-
-	exynos_pmu_read(PS_HOLD_CONTROL, &ps_hold_data);
-	exynos_pmu_write(PS_HOLD_CONTROL, ps_hold_data & 0xFFFFFEFF);
+	orderly_poweroff(true);
 }
 
 static void s2mu106_fg_isr_work(struct work_struct *work)
