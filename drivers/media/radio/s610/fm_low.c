@@ -282,25 +282,36 @@ void reset_agc_gain(void)
 
 #define NEW_TRF_ENABLE (0x1)
 #define NEW_TRF_ALWAYS_ADAPT (0x1 << 1)
-int set_new_trj_ref_angle(int tune_freq, int spur_freq)
+int set_new_trj_ref_angle(struct s610_radio *radio, int tune_freq, int spur_freq[], int num_spur)
 {
-	int result;
-	int harmonic;
-	int quotient;
-	int spur_harmonic;
-	int small, big;
-	int diff;
+	int i;
+	int result = 0;
+	int spur_freq_sel;
+	int diff = 999999;
 	int angle_first, angle_last;
 
-	harmonic = spur_freq;// / 2;
-	quotient = tune_freq / harmonic;
-	small = (harmonic * quotient);
-	big = (harmonic * (quotient + 1));
+	for (i = 0; i < num_spur; i++) {
+		int quotient;
+		int small, big;
+		int spur_harmonic;
+		int temp_diff;
 
-	spur_harmonic = ((tune_freq - small) < (big - tune_freq)) ? small : big;
-	diff = spur_harmonic - tune_freq;
+		quotient = tune_freq / spur_freq[i];
+		small = (spur_freq[i] * quotient);
+		big = (spur_freq[i] * (quotient + 1));
 
-	if (((-100 <= diff) && (diff <= 100)) && (ABS(diff) != (spur_freq / 2))) {
+		spur_harmonic = ((tune_freq - small) < (big - tune_freq)) ? small : big;
+		temp_diff = spur_harmonic - tune_freq;
+
+		if(ABS(diff) > ABS(temp_diff)) {
+			spur_freq_sel = spur_freq[i];
+			diff = temp_diff;
+		}
+	}
+
+	if (((-100 <= diff) && (diff <= 100)) && (ABS(diff) != (spur_freq_sel / 2))) {
+		dev_info(radio->dev, "[%06d] new TRF enable for %dkHz harmonic spur",
+			radio->low->fm_state.freq, spur_freq_sel);
 		result = NEW_TRF_ENABLE;
 		if (0 != diff) {
 			angle_first = ((diff * 1000000000000000) / 298023224) & 0x3fffffff;
@@ -315,7 +326,6 @@ int set_new_trj_ref_angle(int tune_freq, int spur_freq)
 
 	return result;
 }
-
 
 void fm_set_freq(struct s610_radio *radio, u32 freq, bool mix_hi)
 {
@@ -412,7 +422,9 @@ void fm_set_freq(struct s610_radio *radio, u32 freq, bool mix_hi)
 			if (!is_freq_in_spur(radio->low->fm_state.freq, fm_spur_trf_init, radio->trf_on) &&
 				!is_freq_in_spur(radio->low->fm_state.freq, fm_dual_clk_init, radio->dual_clk_on)) {
 				int ret;
-				ret = set_new_trj_ref_angle(radio->low->fm_state.freq, 320);
+				int spur_freq[2] = {320, 512};
+				ret = set_new_trj_ref_angle(radio, radio->low->fm_state.freq,
+					spur_freq, sizeof(spur_freq) / sizeof(int));
 				if (NEW_TRF_ENABLE & ret) {
 					dev_info(radio->dev, "[%06d] new TRF On", radio->low->fm_state.freq);
 					fmspeedy_set_reg_field(0xFFF2A9, 7, (0x0001<<7), 0x0);
