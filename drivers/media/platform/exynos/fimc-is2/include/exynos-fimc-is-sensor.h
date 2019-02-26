@@ -248,6 +248,9 @@ enum aperture_name {
 enum eeprom_name {
 	EEPROM_NAME_GM1		= 1,
 	EEPROM_NAME_5E9		= 2,
+	EEPROM_NAME_12A10 	= 3,
+	EEPROM_NAME_12A10FF	= 4,
+	EEPROM_NAME_16885C 	= 5,
 	EEPROM_NAME_END,
 	EEPROM_NAME_NOTHING	= 100,
 };

@@ -20,3 +20,26 @@ config CAMERA_EEPROM_5E9_OBJ
 	help
 	  Use to build 5E9 eeprom driver.
 
+config CAMERA_EEPROM_12A10_OBJ
+	bool "Use 12A10 EEPROM"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_EEPROM_SELECT
+	default n
+	help
+	  Use to build 12A10 eeprom driver.
+
+config CAMERA_EEPROM_12A10FF_OBJ
+	bool "Use 12A10FF EEPROM"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_EEPROM_SELECT
+	default n
+	help
+	  Use to build 12A10FF eeprom driver.
+
+config CAMERA_EEPROM_16885C_OBJ
+	bool "Use 16885C EEPROM"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_EEPROM_SELECT
+	default n
+	help
+	  Use to build 16885C eeprom driver.
