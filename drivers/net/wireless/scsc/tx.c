@@ -127,10 +127,9 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 	/* EAPOL/WAI frames are send via the MLME */
 	tx_bytes_tmp = skb->len; // len copy to avoid null pointer of skb
 	ret = slsi_mlme_send_frame_data(sdev, dev, skb, msg_type, 0, dwell_time, 0);
-	if (!ret) {
-		peer->sinfo.tx_packets++;
+	if (!ret)
 		peer->sinfo.tx_bytes += tx_bytes_tmp; //skb->len;
-	}
+
 	slsi_spinlock_unlock(&ndev_vif->peer_lock);
 	return ret;
 }
@@ -410,7 +409,6 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	/* What about the original if we passed in a copy ? */
 	if (original_skb)
 		slsi_kfree_skb(original_skb);
-	peer->sinfo.tx_packets++;
 	peer->sinfo.tx_bytes += len;
 	return ret;
 }
