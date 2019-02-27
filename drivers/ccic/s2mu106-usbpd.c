@@ -2317,6 +2317,8 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data)
 		/* muic */
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_MUIC,
 				IFCONN_NOTIFY_ID_ATTACH, IFCONN_NOTIFY_EVENT_ATTACH, NULL);
+		ifconn_event_work(pdic_data, IFCONN_NOTIFY_MUIC,
+				IFCONN_NOTIFY_ID_TA, IFCONN_NOTIFY_EVENT_ATTACH, NULL);
 		if (!(pdic_data->rid == REG_RID_523K || pdic_data->rid == REG_RID_619K)) {
 			if (pdic_data->is_client == CLIENT_OFF && pdic_data->is_host == HOST_OFF) {
 				/* usb */
