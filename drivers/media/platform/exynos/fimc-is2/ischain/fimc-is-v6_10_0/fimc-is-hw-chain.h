@@ -94,8 +94,14 @@ enum hwip_interrupt_map {
 #define MAX_MCSC_DNR_HEIGHT		(4320)
 #define MAX_MCSC_DNR_NUM_BUFFER		(2)
 
+#ifdef USE_DNR_YIC_MODE_ALWAYS
+#define MCSC_DNR_WIDTH                  (((((MAX_MCSC_DNR_WIDTH) * 2 + 32) / 32) + ((MAX_MCSC_DNR_WIDTH) / 2)) * 2)
+#define MCSC_DNR_HEIGHT			(MAX_MCSC_DNR_HEIGHT / 2)
+#else
 #define MCSC_DNR_WIDTH			(MAX_MCSC_DNR_WIDTH)
 #define MCSC_DNR_HEIGHT			(MAX_MCSC_DNR_HEIGHT)
+#endif
+
 #define FIMC_IS_MCSC_DNR_SIZE		ALIGN(MCSC_DNR_WIDTH * MCSC_DNR_HEIGHT * 2 \
 						* MAX_MCSC_DNR_NUM_BUFFER, 16)
 
