@@ -1452,10 +1452,11 @@ int fimc_is_sensor_peri_pre_flash_fire(struct v4l2_subdev *subdev, void *arg)
 	flash = sensor_peri->flash;
 	FIMC_BUG(!flash);
 
-	if (sensor_ctl->valid_flash_udctrl == false)
-		goto p_err;
-
 	flash_uctl = &sensor_ctl->cur_cam20_flash_udctrl;
+
+	if ((sensor_ctl->valid_flash_udctrl == false)
+		|| (vsync_count != sensor_ctl->flash_frame_number))
+		goto p_err;
 
 	if ((flash_uctl->flashMode != flash->flash_data.mode) ||
 		(flash_uctl->flashMode != CAM2_FLASH_MODE_OFF && flash_uctl->firingPower == 0)) {
@@ -1473,6 +1474,7 @@ int fimc_is_sensor_peri_pre_flash_fire(struct v4l2_subdev *subdev, void *arg)
 #endif
 	}
 
+p_err:
 	/* HACK: reset uctl */
 	flash_uctl->flashMode = 0;
 	flash_uctl->firingPower = 0;
@@ -1480,7 +1482,6 @@ int fimc_is_sensor_peri_pre_flash_fire(struct v4l2_subdev *subdev, void *arg)
 	sensor_ctl->flash_frame_number = 0;
 	sensor_ctl->valid_flash_udctrl = false;
 
-p_err:
 	return ret;
 }
 
@@ -1798,6 +1799,17 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			fimc_is_sensor_ois_start((struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module));
 #endif
 
+		/* off flash when flash mode == off with fired */
+		if (sensor_peri->flash != NULL && dual_info->mode == FIMC_IS_DUAL_MODE_NOTHING) {
+			if ((sensor_peri->flash->flash_data.flash_fired == true)
+				&& (device->group_sensor.aeflashMode == AA_FLASHMODE_OFF)) {
+				sensor_peri->flash->flash_data.mode = CAM2_FLASH_MODE_OFF;
+				ret = fimc_is_sensor_flash_fire(sensor_peri, 0);
+				if (ret)
+					err("failed to turn off flash at flash expired handler\n");
+			}
+		}
+
 		/* For dual camera project to  reduce power consumption of ois */
 #ifndef CONFIG_CAMERA_USE_MCU
 #ifdef CAMERA_REAR2_OIS
@@ -1928,16 +1940,6 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 			}
 		}
 #endif
-
-		if (sensor_peri->flash != NULL && dual_info->mode == FIMC_IS_DUAL_MODE_NOTHING) {
-			sensor_peri->flash->flash_data.mode = CAM2_FLASH_MODE_OFF;
-			if (sensor_peri->flash->flash_data.flash_fired == true) {
-				ret = fimc_is_sensor_flash_fire(sensor_peri, 0);
-				if (ret) {
-					err("failed to turn off flash at flash expired handler\n");
-				}
-			}
-		}
 
 		if (subdev_preprocessor){
 			ret = CALL_PREPROPOPS(preprocessor, preprocessor_stream_off, subdev_preprocessor);
