@@ -604,3 +604,115 @@ int sensor_cis_factory_test(struct v4l2_subdev *subdev)
 
 	return ret;
 }
+
+u16 sensor_cis_otp_get_crc16(char *data, int count)
+{
+	char *tmp = data;
+	u32 crc[16];
+	int i, j;
+	u16 crc16 = 0;
+
+	memset(crc, 0, sizeof(crc));
+	for (i = 0; i < count; i++) {
+		for (j = 7; j >= 0; j--) {
+			/* isolate the bit in the byte */
+			u32 doInvert = *tmp & (1 << j);
+
+			/* shift the bit to LSB in the byte */
+			doInvert = doInvert >> j;
+
+			/* XOR required? */
+			doInvert = doInvert ^ crc[15];
+
+			crc[15] = crc[14] ^ doInvert;
+			crc[14] = crc[13];
+			crc[13] = crc[12];
+			crc[12] = crc[11];
+			crc[11] = crc[10];
+			crc[10] = crc[9];
+			crc[9] = crc[8];
+			crc[8] = crc[7];
+			crc[7] = crc[6];
+			crc[6] = crc[5];
+			crc[5] = crc[4];
+			crc[4] = crc[3];
+			crc[3] = crc[2];
+			crc[2] = crc[1] ^ doInvert;
+			crc[1] = crc[0];
+			crc[0] = doInvert;
+		}
+		tmp++;
+	}
+
+	/* convert bits to CRC word */
+	for (i = 0; i < 16; i++)
+		crc16 = crc16 + (crc[i] << i);
+
+	return crc16;
+}
+
+int sensor_cis_otp_read_file(const char *file_name, const void *data, unsigned long size)
+{
+	int ret = 0;
+	long nread;
+	struct file *fp = NULL;
+	mm_segment_t old_fs;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	fp = filp_open(file_name, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		ret = PTR_ERR(fp);
+		pr_err("%s(): open file error(%d)\n", __func__, ret);
+		goto exit;
+	}
+
+	nread = vfs_read(fp, (char __user *)data, size, &fp->f_pos);
+	if (nread != size) {
+		err("failed to read otp file, (%ld) Bytes", nread);
+		ret = -EIO;
+	}
+
+exit:
+	if (!IS_ERR(fp))
+		filp_close(fp, NULL);
+
+	set_fs(old_fs);
+
+	return ret;
+}
+
+int sensor_cis_otp_write_file(const char *file_name, const void *data, unsigned long size)
+{
+	int ret = 0;
+	struct file *fp = NULL;
+	mm_segment_t old_fs;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	pr_info("%s(), open file %s\n", __func__, file_name);
+
+	fp = filp_open(file_name, O_WRONLY|O_CREAT, 0644);
+	if (IS_ERR(fp)) {
+		ret = PTR_ERR(fp);
+		pr_err("%s(): open file error(%d)\n", __func__, ret);
+		goto exit;
+	}
+
+	pr_info("%s(), write to %s\n", __func__, file_name);
+
+	ret = vfs_write(fp, (const char *)data,
+			size, &fp->f_pos);
+	if (ret < 0)
+		pr_err("%s:write file %s error(%d)\n", __func__, file_name, ret);
+
+exit:
+	if (!IS_ERR(fp))
+		filp_close(fp, NULL);
+
+	set_fs(old_fs);
+
+	return 0;
+}
