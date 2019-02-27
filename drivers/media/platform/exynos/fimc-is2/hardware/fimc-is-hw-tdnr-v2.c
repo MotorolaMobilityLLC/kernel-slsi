@@ -985,10 +985,12 @@ int fimc_is_hw_mcsc_update_tdnr_register(struct fimc_is_hw_ip *hw_ip,
 	tdnr_mode = fimc_is_hw_mcsc_check_tdnr_mode_pre(hw_ip, head,
 			frame, tpu_param, mcs_param, hw_mcsc->cur_tdnr_mode);
 
+#if !defined(USE_DNR_YIC_MODE_ALWAYS)
 	if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &head->state))
 		hw_mcsc->yic_en = TDNR_YIC_DISABLE;
 	else
 		hw_mcsc->yic_en = TDNR_YIC_ENABLE;
+#endif
 	fimc_is_scaler_set_tdnr_yic_ctrl(hw_ip->regs, hw_mcsc->yic_en);
 
 	fimc_is_scaler_set_tdnr_image_size(hw_ip->regs,
