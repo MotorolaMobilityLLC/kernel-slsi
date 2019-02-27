@@ -61,6 +61,7 @@
 /* #define ENABLE_DIS */
 /* #define ENABLE_DNR_IN_TPU */
 #define ENABLE_DNR_IN_MCSC
+#define USE_DNR_YIC_MODE_ALWAYS
 #define ENABLE_10BIT_MCSC
 /* #define ENABLE_DJAG_IN_MCSC */
 #define ENABLE_VRA
