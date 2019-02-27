@@ -481,8 +481,11 @@ static int s2mcs02_charger_probe(struct i2c_client *client,
 	pr_info("%s: S2MCS02 Charger Driver Loading\n", __func__);
 
 	charger = kzalloc(sizeof(*charger), GFP_KERNEL);
-	if (!charger)
-		return -ENOMEM;
+	if (!charger) {
+		pr_err("%s: Failed to allocate memory\n", __func__);
+		ret = -ENOMEM;
+		goto err_nomem;
+	}
 
 	if (of_node) {
 		pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -495,13 +498,6 @@ static int s2mcs02_charger_probe(struct i2c_client *client,
 			goto err_parse_dt;
 	} else {
 		pdata = client->dev.platform_data;
-	}
-
-	charger = kzalloc(sizeof(*charger), GFP_KERNEL);
-	if (!charger) {
-		pr_err("%s: Failed to allocate memory\n", __func__);
-		ret = -ENOMEM;
-		goto err_nomem;
 	}
 
 	mutex_init(&charger->io_lock);
