@@ -267,6 +267,21 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(model_name),
 	POWER_SUPPLY_ATTR(manufacturer),
 	POWER_SUPPLY_ATTR(serial_number),
+
+	POWER_SUPPLY_ATTR(vchgin),
+	POWER_SUPPLY_ATTR(vwcin),
+	POWER_SUPPLY_ATTR(vbyp),
+	POWER_SUPPLY_ATTR(vsys),
+	POWER_SUPPLY_ATTR(vbat),
+	POWER_SUPPLY_ATTR(vgpadc),
+	POWER_SUPPLY_ATTR(vcc1),
+	POWER_SUPPLY_ATTR(vcc2),
+	POWER_SUPPLY_ATTR(ichgin),
+	POWER_SUPPLY_ATTR(iwcin),
+	POWER_SUPPLY_ATTR(iotg),
+	POWER_SUPPLY_ATTR(itx),
+	POWER_SUPPLY_ATTR(co_enable),
+	POWER_SUPPLY_ATTR(rr_enable),
 	POWER_SUPPLY_ATTR(usbpd_reset),
 };
 
