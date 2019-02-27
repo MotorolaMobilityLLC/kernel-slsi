@@ -525,7 +525,7 @@ void slsi_scan_complete(struct slsi_dev *sdev, struct net_device *dev, u16 scan_
 		ndev_vif->scan[scan_id].requeue_timeout_work = false;
 	}
 
-	if (scan_id == SLSI_SCAN_SCHED_ID)
+	if (scan_id == SLSI_SCAN_SCHED_ID && scan_results_count > 0)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 		cfg80211_sched_scan_results(sdev->wiphy, ndev_vif->scan[scan_id].sched_req->reqid);
 #else
