@@ -454,13 +454,15 @@ struct fimc_is_device_sensor {
 	float					chk_wb[WB_GAIN_COUNT];
 	u32					init_wb_cnt;
 #endif
-	bool					use_otp_cal;
-	u32					cal_status[CAMERA_CRC_INDEX_MAX];
-	u8					otp_cal_buf[SENSOR_OTP_PAGE][SENSOR_OTP_PAGE_SIZE];
 
 #ifdef ENABLE_REMOSAIC_CAPTURE_WITH_ROTATION
 	struct fimc_is_frame				*mode_chg_frame;
 #endif
+
+	bool					use_otp_cal;
+	const char				*otp_filename;
+	u32					cal_status[CAMERA_CRC_INDEX_MAX];
+	u8					otp_cal_buf[SENSOR_OTP_PAGE][SENSOR_OTP_PAGE_SIZE];
 };
 
 int fimc_is_sensor_open(struct fimc_is_device_sensor *device,

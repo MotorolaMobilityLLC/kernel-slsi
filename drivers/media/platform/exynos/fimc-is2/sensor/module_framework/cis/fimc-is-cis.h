@@ -74,4 +74,8 @@ int sensor_cis_wait_streamon(struct v4l2_subdev *subdev);
 int sensor_cis_set_initial_exposure(struct v4l2_subdev *subdev);
 int sensor_cis_factory_test(struct v4l2_subdev *subdev);
 
+/* OTP function */
+u16 sensor_cis_otp_get_crc16(char *data, int count);
+int sensor_cis_otp_read_file(const char *file_name, const void *data, unsigned long size);
+int sensor_cis_otp_write_file(const char *file_name, const void *data, unsigned long size);
 #endif

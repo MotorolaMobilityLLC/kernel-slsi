@@ -161,52 +161,6 @@ int sensor_2x5sp_cis_check_rev(struct v4l2_subdev *subdev)
 	return ret;
 }
 
-u16 sensor_2x5sp_cis_otp_get_crc16(char *data, int count)
-{
-	char *tmp = data;
-	u32 crc[16];
-	int i, j;
-	u16 crc16 = 0;
-
-	memset(crc, 0, sizeof(crc));
-	for (i = 0; i < count; i++) {
-		for (j = 7; j >= 0; j--) {
-			/* isolate the bit in the byte */
-			u32 doInvert = *tmp & (1 << j);
-
-			/* shift the bit to LSB in the byte */
-			doInvert = doInvert >> j;
-
-			/* XOR required? */
-			doInvert = doInvert ^ crc[15];
-
-			crc[15] = crc[14] ^ doInvert;
-			crc[14] = crc[13];
-			crc[13] = crc[12];
-			crc[12] = crc[11];
-			crc[11] = crc[10];
-			crc[10] = crc[9];
-			crc[9] = crc[8];
-			crc[8] = crc[7];
-			crc[7] = crc[6];
-			crc[6] = crc[5];
-			crc[5] = crc[4];
-			crc[4] = crc[3];
-			crc[3] = crc[2];
-			crc[2] = crc[1] ^ doInvert;
-			crc[1] = crc[0];
-			crc[0] = doInvert;
-		}
-		tmp++;
-	}
-
-	/* convert bits to CRC word */
-	for (i = 0; i < 16; i++)
-		crc16 = crc16 + (crc[i] << i);
-
-	return crc16;
-}
-
 int sensor_2x5sp_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
 {
 	int ret = 0;
@@ -249,7 +203,7 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	case OTP_GROUP_ONE:
 		/* OTP Group1 CRC check */
 		crc_value = ((device->otp_cal_buf[254][60] << 8) | (device->otp_cal_buf[254][61]));
-		crc16 = sensor_2x5sp_cis_otp_get_crc16(&check_buf[OTP_GRP1_AWB_CRC_START], OTP_GRP1_AWB_CRC_SIZE);
+		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP1_AWB_CRC_START], OTP_GRP1_AWB_CRC_SIZE);
 		if (crc_value != crc16) {
 			err("GR1: Error to AWB CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
@@ -257,7 +211,7 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 			info("GR1: AWB CRC16 : 0x%x, cal buffer CRC: 0x%x\n", crc16, crc_value);
 
 		crc_value = ((device->otp_cal_buf[254][62] << 8) | (device->otp_cal_buf[254][63]));
-		crc16 = sensor_2x5sp_cis_otp_get_crc16(&check_buf[OTP_GRP1_LSC_XTC_CRC_START], OTP_GRP1_LSC_XTC_CRC_SIZE);
+		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP1_LSC_XTC_CRC_START], OTP_GRP1_LSC_XTC_CRC_SIZE);
 		if (crc_value != crc16) {
 			err("GR1: Error to LSC & XTC CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
@@ -267,7 +221,7 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	case OTP_GROUP_TWO:
 		/* OTP Group2 CRC check */
 		crc_value = ((device->otp_cal_buf[255][60] << 8) | (device->otp_cal_buf[255][61]));
-		crc16 = sensor_2x5sp_cis_otp_get_crc16(&check_buf[OTP_GRP2_AWB_CRC_START], OTP_GRP2_AWB_CRC_SIZE);
+		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP2_AWB_CRC_START], OTP_GRP2_AWB_CRC_SIZE);
 		if (crc_value != crc16) {
 			err("GR2: Error to AWB CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
@@ -275,7 +229,7 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 			info("GR2: AWB CRC16 : 0x%x, cal buffer CRC: 0x%x\n", crc16, crc_value);
 
 		crc_value = ((device->otp_cal_buf[255][62] << 8) | (device->otp_cal_buf[255][63]));
-		crc16 = sensor_2x5sp_cis_otp_get_crc16(&check_buf[OTP_GRP2_LSC_XTC_CRC_START], OTP_GRP2_LSC_XTC_CRC_SIZE);
+		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP2_LSC_XTC_CRC_START], OTP_GRP2_LSC_XTC_CRC_SIZE);
 		if (crc_value != crc16) {
 			err("GR2: Error to LSC & XTC CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
@@ -286,38 +240,6 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 		err("invalid OTP group when crc check(%d), check map data", group);
 		break;
 	}
-
-	return ret;
-}
-
-static int sensor_2x5sp_cis_otp_read_file(const char *file_name, const void *data, unsigned long size)
-{
-	int ret = 0;
-	long nread;
-	struct file *fp = NULL;
-	mm_segment_t old_fs;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	fp = filp_open(file_name, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		ret = PTR_ERR(fp);
-		pr_err("%s(): open file error(%d)\n", __func__, ret);
-		goto exit;
-	}
-
-	nread = vfs_read(fp, (char __user *)data, size, &fp->f_pos);
-	if (nread != size) {
-		err("failed to read otp file, (%ld) Bytes", nread);
-		ret = -EIO;
-	}
-
-exit:
-	if (!IS_ERR(fp))
-		filp_close(fp, NULL);
-
-	set_fs(old_fs);
 
 	return ret;
 }
@@ -357,40 +279,6 @@ static int sensor_2x5sp_cis_otp_check(struct fimc_is_device_sensor *device, int 
 	}
 
 	return ret;
-}
-
-static int sensor_2x5sp_cis_otp_write_file(const char *file_name, const void *data, unsigned long size)
-{
-	int ret = 0;
-	struct file *fp = NULL;
-	mm_segment_t old_fs;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	pr_info("%s(), open file %s\n", __func__, file_name);
-
-	fp = filp_open(file_name, O_WRONLY|O_CREAT, 0644);
-	if (IS_ERR(fp)) {
-		ret = PTR_ERR(fp);
-		pr_err("%s(): open file error(%d)\n", __func__, ret);
-		goto exit;
-	}
-
-	pr_info("%s(), write to %s\n", __func__, file_name);
-
-	ret = vfs_write(fp, (const char *)data,
-			size, &fp->f_pos);
-	if (ret < 0)
-		pr_err("%s:write file %s error(%d)\n", __func__, file_name, ret);
-
-exit:
-	if (!IS_ERR(fp))
-		filp_close(fp, NULL);
-
-	set_fs(old_fs);
-
-	return 0;
 }
 
 int sensor_2x5sp_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_sensor *device)
@@ -469,7 +357,7 @@ int sensor_2x5sp_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_senso
 	int otp_group = 0x0;
 	char *otp_buf = (char *)&device->otp_cal_buf[0][0];
 
-	ret = sensor_2x5sp_cis_otp_read_file(OTP_DATA_PATH, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 256);
+	ret = sensor_cis_otp_read_file(OTP_DATA_PATH, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 256);
 	if (ret) {
 		/* OTP data read */
 		ret = sensor_2x5sp_cis_otp_read(subdev, device);
@@ -479,7 +367,7 @@ int sensor_2x5sp_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_senso
 		}
 
 		/* Write to OTP data at file */
-		ret = sensor_2x5sp_cis_otp_write_file(OTP_DATA_PATH, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 256);
+		ret = sensor_cis_otp_write_file(OTP_DATA_PATH, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 256);
 		if (ret < 0) {
 			err("2x5 OTP data don't file write");
 			goto p_err;
