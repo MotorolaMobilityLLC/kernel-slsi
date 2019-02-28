@@ -289,7 +289,7 @@ static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 			__raw_writel(REBOOT_MODE_FASTBOOT, addr);
 		} else if (!strcmp(cmd, "recovery")) {
 			__raw_writel(REBOOT_MODE_RECOVERY, addr);
-		} else if (!strcmp(cmd, "factory")) {
+		} else if (!strcmp(cmd, "sfactory")) {
 			__raw_writel(REBOOT_MODE_FACTORY, addr);
 		}
 	}
