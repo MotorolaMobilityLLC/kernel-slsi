@@ -196,19 +196,7 @@ int fimc_is_vender_cal_load(struct fimc_is_device_sensor *sensor, struct fimc_is
 	core = container_of(vender, struct fimc_is_core, vender);
 
 	if (sensor->use_otp_cal || sensor->subdev_eeprom) {
-		if (module->position == SENSOR_POSITION_REAR || module->position == SENSOR_POSITION_REAR2) {
-#ifdef ENABLE_IS_CORE
-			cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET0;
-#else
-			cal_addr = core->resourcemgr.minfo.kvaddr_cal[SENSOR_POSITION_REAR];
-#endif
-		} else if (module->position == SENSOR_POSITION_FRONT || module->position == SENSOR_POSITION_FRONT2) {
-#ifdef ENABLE_IS_CORE
-			cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET1;
-#else
-			cal_addr = core->resourcemgr.minfo.kvaddr_cal[SENSOR_POSITION_FRONT];
-#endif
-		}
+		cal_addr = core->resourcemgr.minfo.kvaddr_cal[module->position];
 	} else {
 		err("[Vendor]: Invalid sensor position: %d", module->position);
 		module->ext.sensor_con.cal_address = 0;
