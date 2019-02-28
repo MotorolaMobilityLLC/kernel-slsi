@@ -277,8 +277,12 @@ static int s2mu106_usbpd_check_vbus(struct s2mu106_usbpd_data *pdic_data,
 		ret = s2mu106_usbpd_get_pmeter_volt(pdic_data);
 		if (ret < 0)
 			return ret;
-		if (pdic_data->pm_chgin > volt)
+		if (pdic_data->pm_chgin > volt) {
+			pr_info("%s vbus volt(%d->%d) mode(%d)!\n",
+					__func__, volt, pdic_data->pm_chgin, mode);
 			return true;
+		} else
+			return false;
 	}
 
 	pr_info("%s failed check vbus volt(%d->%d) mode(%d)!\n",
@@ -1042,7 +1046,7 @@ static int s2mu106_vbus_on_check(void *_data)
 	struct usbpd_data *data = (struct usbpd_data *) _data;
 	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
 
-	return s2mu106_usbpd_check_vbus(pdic_data, 4600, VBUS_ON);
+	return s2mu106_usbpd_check_vbus(pdic_data, 4500, VBUS_ON);
 }
 
 static int s2mu106_check_bist_message(void *_data)
