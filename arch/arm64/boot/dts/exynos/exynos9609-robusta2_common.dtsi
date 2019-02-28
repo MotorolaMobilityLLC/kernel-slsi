@@ -1492,7 +1492,7 @@
 		PIN_IN_PUD(gpa0-3, DIS);    /* SC_INTB */
 		PIN_IN_PUD(gpa0-4, DIS);    /* IF_PMIC_MRSTB */
 		PIN_EINT_PUD(gpa0-6, DIS);    /* CODEC_IRQ_N */
-		PIN_EINT_PUD(gpa0-7, DOWN);    /* SD_SIM_DET */
+		PIN_EINT_PUD(gpa0-7, DIS);    /* SD_SIM_DET */
 
 		//PIN_IN_PUD(gpa1-1, DOWN);    /* FP_RST_NT */
 		PIN_EINT_PUD(gpa1-2, DIS);    /* NFC_IRQ */
@@ -1520,7 +1520,7 @@
 		PIN_IN_PUD(gpa0-3, DIS);     /* SC_INTB */
 		PIN_IN_PUD(gpa0-4, DIS);     /* IF_PMIC_MRSTB */
 		PIN_EINT_PUD(gpa0-6, DIS);    /* CODEC_IRQ_N */
-		PIN_EINT_PUD(gpa0-7, DOWN);    /* SD_SIM_DET */
+		PIN_EINT_PUD(gpa0-7, DIS);    /* SD_SIM_DET */
 
 		PIN_EINT_PUD(gpa1-2, DIS);    /* NFC_IRQ */
 		PIN_EINT_PUD(gpa1-5, DIS);    /* KEY_VOL_UP */
