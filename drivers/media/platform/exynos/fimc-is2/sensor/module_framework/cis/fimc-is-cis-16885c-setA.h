@@ -497,8 +497,7 @@ const u32 sensor_16885c_setfile_A_2336x1752_60fps[] = {
 	0x481f, 0x26, 0x01,
 	0x4837, 0x14, 0x01,
 };
-
-
+#if 0
 const u32 sensor_16885c_setfile_A_1920x1080_60fps[] = {
 	0x0304, 0x46, 0x01,
 	0x3501, 0x40, 0x01,
@@ -529,7 +528,7 @@ const u32 sensor_16885c_setfile_A_1920x1080_60fps[] = {
 	0x481f, 0x36, 0x01,
 	0x4837, 0x0a, 0x01,
 };
-
+#endif
 const u32 sensor_16885c_setfile_A_1920x1080_120fps[] = {
 	0x0304, 0x46, 0x01,
 	0x3501, 0x40, 0x01,
@@ -576,7 +575,7 @@ const struct sensor_pll_info_compact sensor_16885c_pllinfo_A_2336x1752_60fps = {
 	0x0774, /* frame_length_lines	(0x380e) */
 	0x0578, /* line_length_pck	(0x380c) */
 };
-
+#if 0
 const struct sensor_pll_info_compact sensor_16885c_pllinfo_A_1920x1080_60fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1456000000, /* mipi_datarate */
@@ -584,7 +583,7 @@ const struct sensor_pll_info_compact sensor_16885c_pllinfo_A_1920x1080_60fps = {
 	0x0824, /* frame_length_lines	(0x380e) */
 	0x0500, /* line_length_pck	(0x380c) */
 };
-
+#endif
 const struct sensor_pll_info_compact sensor_16885c_pllinfo_A_1920x1080_120fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1456000000, /* mipi_datarate */
@@ -596,21 +595,21 @@ const struct sensor_pll_info_compact sensor_16885c_pllinfo_A_1920x1080_120fps = 
 static const u32 *sensor_16885c_setfiles_A[] = {
 	sensor_16885c_setfile_A_2336x1752_30fps,
 	sensor_16885c_setfile_A_2336x1752_60fps,
-	sensor_16885c_setfile_A_1920x1080_60fps,
+	/*sensor_16885c_setfile_A_1920x1080_60fps,*/
 	sensor_16885c_setfile_A_1920x1080_120fps,
 };
 
 static const u32 sensor_16885c_setfile_A_sizes[] = {
 	ARRAY_SIZE(sensor_16885c_setfile_A_2336x1752_30fps),
 	ARRAY_SIZE(sensor_16885c_setfile_A_2336x1752_60fps),
-	ARRAY_SIZE(sensor_16885c_setfile_A_1920x1080_60fps),
+	/*ARRAY_SIZE(sensor_16885c_setfile_A_1920x1080_60fps),*/
 	ARRAY_SIZE(sensor_16885c_setfile_A_1920x1080_120fps),
 };
 
 static const struct sensor_pll_info_compact *sensor_16885c_pllinfos_A[] = {
 	&sensor_16885c_pllinfo_A_2336x1752_30fps,
 	&sensor_16885c_pllinfo_A_2336x1752_60fps,
-	&sensor_16885c_pllinfo_A_1920x1080_60fps,
+	/*&sensor_16885c_pllinfo_A_1920x1080_60fps,*/
 	&sensor_16885c_pllinfo_A_1920x1080_120fps,
 };
 #endif
