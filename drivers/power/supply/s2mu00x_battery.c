@@ -950,7 +950,15 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 		val->intval = value.intval;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		val->intval = 3500;
+		/*Get fuelgauge psy*/
+		psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
+		if (!psy)
+			return -EINVAL;
+		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL, &value);
+		if (ret < 0)
+			pr_err("%s: Fail to execute property\n", __func__);
+
+		val->intval = value.intval;
 		break;
 	case POWER_SUPPLY_PROP_CALIBRATE:
 		val->intval = battery->is_factory;

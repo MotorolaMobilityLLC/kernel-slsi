@@ -1295,7 +1295,8 @@ static int s2mu106_fg_get_property(struct power_supply *psy,
 		val->intval = fuelgauge->rmc * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		val->intval = fuelgauge->fcc;
+		/* Full charged capacity unit is uAh */
+		val->intval = fuelgauge->fcc * 1000;
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
 		break;
