@@ -63,7 +63,7 @@ MODULE_PARM_DESC(hip4_qos_med_tput_in_mbps, "throughput (in Mbps) to apply Media
 #ifdef CONFIG_SCSC_SMAPPER
 static bool hip4_smapper_enable = true;
 module_param(hip4_smapper_enable, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(hip4_smapper_enable, "enable HIP4 SMAPPER. (default: Y)");
+MODULE_PARM_DESC(hip4_smapper_enable, "enable HIP4 SMAPPER. (default: N)");
 static bool hip4_smapper_is_enabled;
 #endif
 
