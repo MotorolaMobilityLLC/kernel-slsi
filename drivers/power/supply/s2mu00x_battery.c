@@ -4268,6 +4268,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->dev = &pdev->dev;
 
 	mutex_init(&battery->iolock);
+	mutex_init(&battery->ifconn_lock);
 
 	wake_lock_init(&battery->monitor_wake_lock, WAKE_LOCK_SUSPEND,
 			"sec-battery-monitor");
@@ -4281,12 +4282,15 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->input_current = 0;
 	battery->charging_current = 0;
 	battery->topoff_current = 0;
+	battery->small_input_flag = 0;
 
 	battery->max_input_current = battery->pdata->max_input_current;
 	battery->max_charging_current = battery->pdata->max_charging_current;
 #if defined(CONFIG_USE_CCIC)
 	battery->pdo_max_input_vol = battery->pdata->pdo_max_input_vol;
 	battery->pdo_max_chg_power = battery->pdata->pdo_max_chg_power;
+	battery->pd_input_current= 2000;
+	battery->pd_attach = false;
 #endif
 	battery->temp_high = battery->pdata->temp_high;
 	battery->temp_high_recovery = battery->pdata->temp_high_recovery;
@@ -4298,6 +4302,8 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->charging_disabled = false;
 	battery->is_recharging = false;
 	battery->cable_type = POWER_SUPPLY_TYPE_BATTERY;
+	battery->pd_attach = false;
+
 #if defined(CHARGER_S2MU106)
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
@@ -4401,7 +4407,6 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
 
-
 #if 0
 #if defined(CONFIG_IFCONN_NOTIFIER)
 	ifconn_notifier_register(&battery->ifconn_nb,
@@ -4417,7 +4422,6 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	muic_notifier_register(&battery->batt_nb, s2mu00x_battery_handle_notification,
 			MUIC_NOTIFY_DEV_CHARGER);
 #endif
-
 	/* Kick off monitoring thread */
 	pr_info("%s: start battery monitoring work\n", __func__);
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 5*HZ);
@@ -4552,6 +4556,11 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	muic_notifier_register(&battery->batt_nb, s2mu00x_battery_handle_notification,
 			MUIC_NOTIFY_DEV_CHARGER);
 #endif
+       ifconn_notifier_register(&battery->ifconn_nb,
+                        s2mu00x_ifconn_handle_notification,
+                        IFCONN_NOTIFY_BATTERY,
+                        IFCONN_NOTIFY_CCIC);
+
 
 	/* Kick off monitoring thread */
 	pr_info("%s: start battery monitoring work\n", __func__);
