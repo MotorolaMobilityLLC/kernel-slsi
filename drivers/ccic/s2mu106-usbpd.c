@@ -1048,7 +1048,7 @@ static int s2mu106_vbus_on_check(void *_data)
 	struct usbpd_data *data = (struct usbpd_data *) _data;
 	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
 
-	return s2mu106_usbpd_check_vbus(pdic_data, 4500, VBUS_ON);
+	return s2mu106_usbpd_check_vbus(pdic_data, 3500, VBUS_ON);
 }
 
 static int s2mu106_check_bist_message(void *_data)
