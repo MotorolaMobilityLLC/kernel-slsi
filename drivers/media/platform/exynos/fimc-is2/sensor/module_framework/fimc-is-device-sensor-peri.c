@@ -927,7 +927,11 @@ void fimc_is_sensor_ois_init_work(struct work_struct *data)
 
 	if (sensor_peri->subdev_ois) {
 #ifdef CONFIG_OIS_DIRECT_FW_CONTROL
+#ifdef CONFIG_CAMERA_OIS_BU24218GWL_OBJ
+	ret = CALL_OISOPS(ois, ois_fw_update, sensor_peri->subdev_ois , sensor_peri->subdev_eeprom);
+#else
 	ret = CALL_OISOPS(ois, ois_fw_update, sensor_peri->subdev_ois);
+#endif
 	if (ret < 0)
 		err("v4l2_subdev_call(ois_init) is fail(%d)", ret);
 #endif
