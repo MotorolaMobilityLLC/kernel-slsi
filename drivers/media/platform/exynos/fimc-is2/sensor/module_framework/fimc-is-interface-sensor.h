@@ -666,7 +666,11 @@ struct fimc_is_ois_ops {
 	int (*ois_set_mode)(struct v4l2_subdev *subdev, int mode);
 	int (*ois_shift_compensation)(struct v4l2_subdev *subdev, int position, int resolution);
 #ifdef CONFIG_OIS_DIRECT_FW_CONTROL
+#ifdef CONFIG_CAMERA_OIS_BU24218GWL_OBJ
+	int (*ois_fw_update)(struct v4l2_subdev *subdev, struct v4l2_subdev *eeprom_subdev);
+#else
 	int (*ois_fw_update)(struct v4l2_subdev *subdev);
+#endif
 #else
 	void (*ois_fw_update)(struct fimc_is_core *core);
 #endif
