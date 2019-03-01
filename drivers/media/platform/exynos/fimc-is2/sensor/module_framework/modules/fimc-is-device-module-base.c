@@ -268,7 +268,11 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 #else
 #if defined(CONFIG_OIS_DIRECT_FW_CONTROL)
 	if (subdev_ois != NULL) {
+#ifdef CONFIG_CAMERA_OIS_BU24218GWL_OBJ
+		ret = CALL_OISOPS(sensor_peri->ois, ois_fw_update, subdev_ois, subdev_eeprom);
+#else
 		ret = CALL_OISOPS(sensor_peri->ois, ois_fw_update, subdev_ois);
+#endif
 		if (ret < 0) {
 			err("v4l2_subdev_call(ois_fw_update) is fail(%d)", ret);
 			return ret;
