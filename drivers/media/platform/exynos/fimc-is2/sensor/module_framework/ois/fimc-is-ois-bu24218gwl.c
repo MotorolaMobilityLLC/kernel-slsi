@@ -26,10 +26,9 @@
 #define OIS_FW_ADDR_2		0x1C00
 #define OIS_FW_CHECK_SUM	0x038B41
 
-#define OIS_CAL_DATA_PATH		"/data/vendor/camera/gm1_eeprom_data.bin"
 #define OIS_CAL_DATA_PATH_DEFAULT	"/vendor/firmware/bu24218_cal_data_default.bin"
-#define OIS_CAL_DATA_CRC_OFFSET	0x1DB0
-#define OIS_CAL_DATA_CRC_SIZE		2
+#define OIS_CAL_DATA_CRC_FST		0x1DB0
+#define OIS_CAL_DATA_CRC_SEC		0x1DB1
 #define OIS_CAL_DATA_OFFSET		0x1DB4
 #define OIS_CAL_DATA_SIZE		0x4C
 #define OIS_CAL_DATA_OFFSET_DEFAULT	0
@@ -110,16 +109,13 @@ int fimc_is_ois_check_crc(char *data, size_t size)
 	return crc16;
 }
 
-int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int size, int crc_enable)
+int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int size)
 {
 	int ret = 0;
 	long fsize, nread;
 	mm_segment_t old_fs;
 	struct file *fp;
 	u8 *buf = NULL;
-	u16 crc_value = 0;
-	u16 crc16 = 0;
-	int i = 0;
 
 	FIMC_BUG(!ois);
 
@@ -149,18 +145,6 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 		goto p_err;
 	}
 
-	if (crc_enable) {
-		fp->f_pos = OIS_CAL_DATA_CRC_OFFSET;
-		info("ois f_pos set offset %x", fp->f_pos);
-		nread = vfs_read(fp, (char __user *)buf, OIS_CAL_DATA_CRC_SIZE , &fp->f_pos);
-		if (nread != OIS_CAL_DATA_CRC_SIZE) {
-			err("failed to read ois cal crc data from file, (%ld) Bytes", nread);
-			ret = -EIO;
-			goto p_err;
-		}
-		crc_value = ((buf[0] << 8) | (buf[1]));
-	}
-
 	fp->f_pos = offset;
 	info("ois f_pos set offset %x", fp->f_pos);
 	nread = vfs_read(fp, (char __user *)buf, size , &fp->f_pos);
@@ -170,37 +154,10 @@ int fimc_is_ois_cal_open(struct fimc_is_ois *ois, char *name, int offset,int siz
 		goto p_err;
 	}
 
-	for(i = 0; i < size/4; i++) {
-		info("ois cal data (%d): 0x%0x,%0x,%0x,%0x", i, buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3]);
-	}
-
-	if (crc_enable) {
-		crc16 = fimc_is_ois_check_crc(buf, OIS_CAL_DATA_SIZE);
-		if (crc_value != crc16) {
-			err("Error to OIS CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-			ret = -EIO;
-			goto p_err;
-		}
-		else {
-			info("OIS CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
-		}
-	}
 	/* Cal data save */
 	memcpy(ois_cal_data, (void *)buf, OIS_CAL_ACTUAL_DL_SIZE);
 	ois_cal_data_size = OIS_CAL_ACTUAL_DL_SIZE;
 	info("%s cal data copy size:%d bytes", __func__, OIS_CAL_ACTUAL_DL_SIZE);
-
-	/* The eeprom table revision in DVT2 is 0x33, use it to check the OIS cal data should apply or not*/
-	if(OIS_CAL_DATA_OFFSET == offset) {
-		fp->f_pos = EEPROM_INFO_TABLE_REVISION;
-		nread = vfs_read(fp, (char __user *)buf, 1 , &fp->f_pos);
-		info("eeprom table revision data 0x%0x", buf[0]);
-		if ((nread != 1) ||(buf[0] < 0x33)) {
-			err("ois cal data in eeprom is wrong");
-			ret = -EIO;
-			goto p_err;
-		}
-	}
 
 p_err:
 	if (buf)
@@ -355,22 +312,26 @@ p_err:
 	return ret;
 }
 
-int fimc_is_ois_fw_update(struct v4l2_subdev *subdev)
+int fimc_is_ois_fw_update(struct v4l2_subdev *subdev, struct v4l2_subdev *eeprom_subdev)
 {
 	int ret = 0;
+	int i = 0;
+	u16 crc_value = 0;
+	u16 crc16 = 0;
 	struct fimc_is_ois *ois = NULL;
+	struct fimc_is_eeprom *eeprom= NULL;
 	static int is_first_load = 1;
 
 	FIMC_BUG(!subdev);
+	FIMC_BUG(!eeprom_subdev);
 
 	info("%s: E", __func__);
 
 	ois = (struct fimc_is_ois *)v4l2_get_subdevdata(subdev);
-	if (!ois) {
-		err("ois is NULL");
-		ret = -EINVAL;
-		return ret;
-	}
+	eeprom = (struct fimc_is_eeprom *)v4l2_get_subdevdata(eeprom_subdev);
+
+	FIMC_BUG(!ois);
+	FIMC_BUG(!eeprom);
 
 	/* OIS Firmware load*/
 	if (1 == is_first_load) {
@@ -384,16 +345,42 @@ int fimc_is_ois_fw_update(struct v4l2_subdev *subdev)
 			err("OIS %s load is fail\n", OIS_FW_2_NAME);
 			return 0;
 		}
-		ret = fimc_is_ois_cal_open(ois, OIS_CAL_DATA_PATH, OIS_CAL_DATA_OFFSET, OIS_CAL_DATA_SIZE, 1);
+
+		crc_value = ((eeprom->data[OIS_CAL_DATA_CRC_FST] << 8) | (eeprom->data[OIS_CAL_DATA_CRC_SEC]));
+
+		crc16 = fimc_is_ois_check_crc(&eeprom->data[OIS_CAL_DATA_OFFSET], OIS_CAL_DATA_SIZE);
+		if (crc_value != crc16) {
+			err("Error to OIS CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
+			ret = -EINVAL;
+		} else {
+			info("OIS CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
+			/* The eeprom table revision in DVT2 is 0x33, use it to check the OIS cal data should apply or not*/
+			if (eeprom->data[EEPROM_INFO_TABLE_REVISION] < 0x33) {
+				err("ois cal data in eeprom is wrong");
+				ret = -EINVAL;
+			} else {
+				/* Cal data save */
+				memcpy(ois_cal_data, &eeprom->data[OIS_CAL_DATA_OFFSET], OIS_CAL_ACTUAL_DL_SIZE);
+				ois_cal_data_size = OIS_CAL_ACTUAL_DL_SIZE;
+				info("%s cal data copy size:%d bytes", __func__, OIS_CAL_ACTUAL_DL_SIZE);
+				ret = 0;
+			}
+			info("eeprom table revision data 0x%0x", eeprom->data[EEPROM_INFO_TABLE_REVISION]);
+		}
+
 		if (ret < 0) {
 			info(" switch to load default OIS Cal Data %s \n", OIS_CAL_DATA_PATH_DEFAULT);
 			ret = fimc_is_ois_cal_open(ois, OIS_CAL_DATA_PATH_DEFAULT, OIS_CAL_DATA_OFFSET_DEFAULT,
-				OIS_CAL_DATA_SIZE_DEFAULT, 0);
+				OIS_CAL_DATA_SIZE_DEFAULT);
 			if (ret < 0) {
 				err("OIS %s load is fail\n", OIS_CAL_DATA_PATH_DEFAULT);
 				return 0;
 			}
 			ois_isDefaultCalData = 1;
+		}
+		for(i = 0; i < ois_cal_data_size/4; i++) {
+			info("ois cal data (%d): 0x%0x,%0x,%0x,%0x", i, ois_cal_data[4*i+0], ois_cal_data[4*i+1],
+				ois_cal_data[4*i+2], ois_cal_data[4*i+3]);
 		}
 		is_first_load = 0;
 	}
