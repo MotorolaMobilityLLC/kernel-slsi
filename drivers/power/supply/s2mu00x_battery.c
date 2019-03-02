@@ -243,7 +243,6 @@ struct s2mu00x_battery_info {
 
 	int topoff_current;
 	int cable_type;
-	unsigned int charging_mode;
 
 #if defined(CONFIG_IFCONN_NOTIFIER)
 	struct notifier_block ifconn_nb;
@@ -922,9 +921,6 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_TEMP:
 		val->intval = battery->charge_temp;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		val->intval = battery->charging_mode;
-		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!battery->battery_valid)
 			val->intval = FAKE_BAT_LEVEL;
@@ -938,6 +934,7 @@ static int s2mu00x_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		val->intval = battery->current_avg;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		/*Get fuelgauge psy*/
 		psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
