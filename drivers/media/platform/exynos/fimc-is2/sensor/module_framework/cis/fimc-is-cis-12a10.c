@@ -880,6 +880,12 @@ int sensor_12a10_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	ret = fimc_is_sensor_write16(client, 0x380e, frame_length_lines);
 	if (ret < 0)
 		goto p_err;
+	ret = fimc_is_sensor_write8(client, 0x3826, ((frame_length_lines * 2 - 4) & 0xFF00) >> 8);
+	if (ret < 0)
+		goto p_err;
+	ret = fimc_is_sensor_write8(client, 0x3827, (frame_length_lines * 2 - 4) & 0xFF);
+	if (ret < 0)
+		goto p_err;
 
 	cis_data->cur_frame_us_time = frame_duration;
 	cis_data->frame_length_lines = frame_length_lines;
@@ -1753,6 +1759,76 @@ int sensor_12a10_cis_long_term_exposure(struct v4l2_subdev *subdev)
 		return ret;
 	}
 
+	return ret;
+}
+
+static int sensor_12a10_cis_set_dual_slave_setting(struct fimc_is_cis *cis)
+{
+	int ret = 0;
+	struct i2c_client *client;
+
+	cis_shared_data *cis_data;
+	FIMC_BUG(!cis);
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
+
+	cis_data = cis->cis_data;
+
+	/* Vsync Input Source Select */
+	fimc_is_sensor_write8(client, 0x3002, 0x21);
+	fimc_is_sensor_write8(client, 0x3643, 0x22);
+	fimc_is_sensor_write8(client, 0x3822, 0xa1);
+	fimc_is_sensor_write8(client, 0x3823, 0x78);
+	fimc_is_sensor_write8(client, 0x3824, 0x02);
+	fimc_is_sensor_write8(client, 0x3825, 0x14);
+	fimc_is_sensor_write8(client, 0x3826, 0x1A);// 2 * 0xD40 - 4 = 0x1A7C
+	fimc_is_sensor_write8(client, 0x3827, 0x7C);
+	fimc_is_sensor_write8(client, 0x3c80, 0x08);
+
+p_err:
+	return ret;
+}
+
+int sensor_12a10_cis_set_dual_setting(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+
+	FIMC_BUG(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+
+	FIMC_BUG(!cis);
+
+	client = cis->client;
+	if (unlikely(!client)) {
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	switch (cis->dual_sync_mode) {
+	case DUAL_SYNC_MASTER:
+		break;
+	case DUAL_SYNC_SLAVE:
+		ret = sensor_12a10_cis_set_dual_slave_setting(cis);
+		if (ret)
+			err("12a10 dual slave setting fail");
+		break;
+	default:
+		err("invalid cis->dual_sync_mode(%d)\n", cis->dual_sync_mode);
+		ret = -EINVAL;
+	}
+
+p_err:
 	return ret;
 }
 
