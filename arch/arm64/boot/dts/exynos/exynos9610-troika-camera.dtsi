@@ -599,7 +599,7 @@
 		id = <0>; /* matching fimc_is_sensor id */
 		setfile = "setA";
 		use_initial_ae; /* for initial AE */
-		/*dual_sync_mode = <DUAL_SYNC_MASTER>;*/
+		dual_sync_mode = <DUAL_SYNC_SLAVE>;
 	};
 
 	fimc-is-actuator@72 {
@@ -682,7 +682,7 @@
 		id = <3>; /* matching fimc_is_sensor id */
 		setfile = "setC";
 		use_initial_ae; /* for initial AE */
-		/*dual_sync_mode = <DUAL_SYNC_MASTER>;*/
+		dual_sync_mode = <DUAL_SYNC_MASTER>;
 		use_otp_cal; /* for use OTP */
 		otp_filename = "dump_5e9_troika_eeprom_data.bin";
 	};
