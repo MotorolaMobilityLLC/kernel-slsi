@@ -394,5 +394,10 @@ enum usbpd_data_msg_type {
 	USBPD_Vendor_Defined		= 0xF,
 };
 
+enum usbpd_msg_type {
+	USBPD_CTRL_MSG		= 0,
+	USBPD_DATA_MSG		= 1,
+};
+
 #endif
 
