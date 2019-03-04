@@ -107,6 +107,7 @@ void usbpd_init_protocol(struct usbpd_data *pd_data)
 	rx_layer_init(&pd_data->protocol_rx);
 	tx_layer_init(&pd_data->protocol_tx);
 	pd_data->id_matched = 0;
+	pd_data->msg_id = USBPD_nMessageIDCount + 1;
 }
 
 void usbpd_init_counters(struct usbpd_data *pd_data)
@@ -331,7 +332,6 @@ void usbpd_set_ops(struct device *dev, usbpd_phy_ops_type *ops)
 	pd_data->phy_ops.get_side_check = ops->get_side_check;
 	pd_data->phy_ops.pr_swap = ops->pr_swap;
 	pd_data->phy_ops.vbus_on_check = ops->vbus_on_check;
-	pd_data->phy_ops.check_bist_message = ops->check_bist_message;
 }
 
 protocol_state usbpd_protocol_rx_layer_reset_for_receive(struct protocol_data *rx)
@@ -355,6 +355,8 @@ protocol_state usbpd_protocol_rx_wait_for_phy_message(struct protocol_data *rx)
 	struct usbpd_data *pd_data = protocol_rx_to_usbpd(rx);
 	protocol_state state = PRL_Rx_Wait_for_PHY_Message;
 
+	pd_data->msg_received = 0;
+
 	if (pd_data->phy_ops.rx_msg(pd_data, &rx->msg_header, rx->data_obj)) {
 		dev_err(pd_data->dev, "%s IO Error\n", __func__);
 		return state;
@@ -372,6 +374,7 @@ protocol_state usbpd_protocol_rx_wait_for_phy_message(struct protocol_data *rx)
 			}
 
 			pd_data->id_matched = 1;
+			pd_data->msg_received = 1;
 
 			dev_err(pd_data->dev, "[Rx] [0x%x] [0x%x]\n",
 					rx->msg_header.word, rx->data_obj[0].object);
@@ -394,6 +397,7 @@ protocol_state usbpd_protocol_rx_store_messageid(struct protocol_data *rx)
 
 	rx->stored_message_id = rx->msg_header.msg_id;
 	usbpd_read_msg(pd_data);
+
 /*
 	return PRL_Rx_Wait_for_PHY_Message;
 */
@@ -643,6 +647,8 @@ int usbpd_init(struct device *dev, void *phy_driver_data)
 	usbpd_init_protocol(pd_data);
 	usbpd_init_policy(pd_data);
 	usbpd_init_manager(pd_data);
+
+	mutex_init(&pd_data->accept_mutex);
 
 	pd_data->policy_wqueue =
 		create_singlethread_workqueue(dev_name(dev));

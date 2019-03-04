@@ -160,7 +160,7 @@ static void init_source_cap_data(struct usbpd_manager_data *_data)
 	data_obj->power_data_obj.data_role_swap = 1;
 	data_obj->power_data_obj.dual_role_power = 1;
 	data_obj->power_data_obj.usb_suspend_support = 1;
-	data_obj->power_data_obj.usb_comm_capable = 1;
+	data_obj->power_data_obj.usb_comm_capable = 0;
 
 }
 
@@ -176,21 +176,22 @@ static void init_sink_cap_data(struct usbpd_manager_data *_data)
 	msg_header->port_data_role = USBPD_UFP;
 	msg_header->spec_revision = 1;
 	msg_header->port_power_role = USBPD_SINK;
-	msg_header->num_data_objs = 2;
+	msg_header->num_data_objs = 1;
 
 	data_obj->power_data_obj_sink.supply_type = POWER_TYPE_FIXED;
 	data_obj->power_data_obj_sink.dual_role_power = 1;
 	data_obj->power_data_obj_sink.higher_capability = 1;
 	data_obj->power_data_obj_sink.externally_powered = 0;
-	data_obj->power_data_obj_sink.usb_comm_capable = 1;
+	data_obj->power_data_obj_sink.usb_comm_capable = 0;
 	data_obj->power_data_obj_sink.data_role_swap = 1;
 	data_obj->power_data_obj_sink.voltage = 5000/50;
 	data_obj->power_data_obj_sink.op_current = 3000/10;
-
+#if 0
 	(data_obj + 1)->power_data_obj_variable.supply_type = POWER_TYPE_VARIABLE;
 	(data_obj + 1)->power_data_obj_variable.max_voltage = _data->sink_cap_max_volt / 50;
 	(data_obj + 1)->power_data_obj_variable.min_voltage = 5000 / 50;
 	(data_obj + 1)->power_data_obj_variable.max_current = 3000 / 10;
+#endif
 }
 
 void usbpd_manager_receive_samsung_uvdm_message(struct usbpd_data *pd_data)
@@ -880,7 +881,7 @@ data_obj_type usbpd_manager_select_capability(struct usbpd_data *pd_data)
 	int pdo_num = pd_noti.sink_status.selected_pdo_num;
 #endif
 	obj.request_data_object.no_usb_suspend = 1;
-	obj.request_data_object.usb_comm_capable = 1;
+	obj.request_data_object.usb_comm_capable = 0;
 	obj.request_data_object.capability_mismatch = 0;
 	obj.request_data_object.give_back = 0;
 #ifdef CONFIG_IFCONN_NOTIFIER
@@ -959,13 +960,11 @@ int usbpd_manager_match_request(struct usbpd_data *pd_data)
 	= pd_data->source_request_obj.power_data_obj_supply_type.supply_type;
 	unsigned src_max_current,  mismatch, max_min, op, pos;
 
-	if (supply_type == POWER_TYPE_FIXED) {
+	if (supply_type == POWER_TYPE_FIXED)
 		pr_info("REQUEST: FIXED\n");
-		goto log_fixed_variable;
-	} else if (supply_type == POWER_TYPE_VARIABLE) {
+	else if (supply_type == POWER_TYPE_VARIABLE)
 		pr_info("REQUEST: VARIABLE\n");
-		goto log_fixed_variable;
-	} else if (supply_type == POWER_TYPE_BATTERY) {
+	else if (supply_type == POWER_TYPE_BATTERY) {
 		pr_info("REQUEST: BATTERY\n");
 		goto log_battery;
 	} else {
@@ -973,7 +972,6 @@ int usbpd_manager_match_request(struct usbpd_data *pd_data)
 		return -1;
 	}
 
-log_fixed_variable:
     /* Tx Source PDO */
     src_max_current = pd_data->source_data_obj.power_data_obj.max_current;
 
@@ -983,8 +981,9 @@ log_fixed_variable:
 	op = pd_data->source_request_obj.request_data_object.op_current;
 	pos = pd_data->source_request_obj.request_data_object.object_position;
 
+#if 0
 	pr_info("%s %x\n", __func__, pd_data->source_request_obj.object);
-
+#endif
     /*src_max_current is already *10 value ex) src_max_current 500mA */
 	//pr_info("Tx SourceCap Current : %dmA\n", src_max_current*10);
 	//pr_info("Rx Request Current : %dmA\n", max_min*10);
