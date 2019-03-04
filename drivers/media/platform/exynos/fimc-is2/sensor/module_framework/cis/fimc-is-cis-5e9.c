@@ -2068,6 +2068,31 @@ p_err:
 	return ret;
 }
 
+static int sensor_5e9_cis_set_dual_master_setting(struct fimc_is_cis *cis)
+{
+	int ret = 0;
+	struct i2c_client *client;
+
+	FIMC_BUG(!cis);
+
+	client = cis->client;
+	if (unlikely(!client)) {
+	       err("client is NULL");
+	       ret = -EINVAL;
+	       goto p_err;
+	}
+
+	dbg_sensor(1, "[MOD:D:%d] %s\n", cis->id, __func__);
+
+	/* Vsync out */
+	ret = fimc_is_sensor_write8(client, 0x3C03, 0x0F);
+	if (unlikely(ret))
+	       err("i2c treansfer fail addr(%x), val(%x), ret(%d)\n", 0x3C03, 0x0F, ret);
+
+p_err:
+	return ret;
+}
+
 static int sensor_5e9_cis_set_dual_slave_setting(struct fimc_is_cis *cis)
 {
 	int ret = 0;
@@ -2122,6 +2147,9 @@ int sensor_5e9_cis_set_dual_setting(struct v4l2_subdev *subdev)
 
 	switch (cis->dual_sync_mode) {
 	case DUAL_SYNC_MASTER:
+		ret = sensor_5e9_cis_set_dual_master_setting(cis);
+		if (ret)
+			err("5e9 dual master setting fail");
 		break;
 	case DUAL_SYNC_SLAVE:
 		ret = sensor_5e9_cis_set_dual_slave_setting(cis);
