@@ -2503,12 +2503,6 @@ static int s2mu106_muic_probe(struct platform_device *pdev)
 	}
 #endif /* CONFIG_HV_MUIC_S2MU106_AFC */
 
-	ret = s2mu106_muic_irq_init(muic_data);
-	if (ret) {
-		pr_err("%s failed to init irq(%d)\n", __func__, ret);
-		goto fail_init_irq;
-	}
-
 	pr_info("%s muic_if->opmode(%d)\n", __func__, muic_if->opmode);
 
 	INIT_DELAYED_WORK(&muic_data->dcd_recheck, s2mu106_muic_dcd_recheck);
@@ -2543,6 +2537,12 @@ static int s2mu106_muic_probe(struct platform_device *pdev)
 		pr_err("%s failed to init psy(%d)\n", __func__, ret);
 	}
 #endif
+
+	ret = s2mu106_muic_irq_init(muic_data);
+	if (ret) {
+		pr_err("%s failed to init irq(%d)\n", __func__, ret);
+		goto fail_init_irq;
+	}
 
 	if (muic_if->opmode == OPMODE_MUIC) {
 #if IS_ENABLED(CONFIG_MUIC_S2MU106_RID)
