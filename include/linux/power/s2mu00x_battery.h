@@ -30,6 +30,12 @@
 #include <linux/device.h>
 #include <linux/power_supply.h>
 
+enum sec_battery_rp_curr {
+	RP_CURRENT1 = 500,
+	RP_CURRENT2 = 1500,
+	RP_CURRENT3 = 3000,
+};
+
 enum s2mu00x_battery_voltage_mode {
 	S2MU00X_BATTERY_VOLTAGE_AVERAGE = 0,
 	S2MU00X_BATTERY_VOLTAGE_OCV,

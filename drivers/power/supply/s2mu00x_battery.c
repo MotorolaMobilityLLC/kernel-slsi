@@ -170,6 +170,9 @@ struct s2mu00x_battery_info {
 
 	int pd_input_current;
 	bool pd_attach;
+	bool rp_attach;
+	int rp_input_current;
+	int rp_charging_current;
 #endif
 
 	int topoff_current;
@@ -280,8 +283,17 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 			battery->small_input_flag = input_current - 2000;
 			input_current = 2000;
 		}
-	} else
+	} else {
+		if (battery->rp_attach) {
+			input_current = battery->rp_input_current > input_current?
+				battery->rp_input_current:input_current;
+			charging_current = battery->rp_charging_current > charging_current?
+				battery->rp_charging_current:charging_current;
+			pr_info("%s: Rp attached! use input: %d, chg: %d\n",
+					__func__, input_current, charging_current);
+		}
 		get_charging_current(battery, &input_current, &charging_current);
+	}
 
 	/* set input current limit */
 	if (battery->input_current != input_current) {
@@ -992,6 +1004,33 @@ static int s2mu00x_bat_set_pdo(struct s2mu00x_battery_info *battery,
 	return ret;
 }
 
+static void s2mu00x_bat_set_rp_current(struct s2mu00x_battery_info *battery,
+		struct ifconn_notifier_template *pd_info)
+{
+	ifconn_pd_sink_status_t *pd_data =
+		&((struct pdic_notifier_data *)pd_info->data)->sink_status;
+
+	switch (pd_data->rp_currentlvl) {
+		case RP_CURRENT_LEVEL3:
+			battery->rp_input_current = RP_CURRENT3;
+			battery->rp_charging_current = RP_CURRENT3;
+			break;
+		case RP_CURRENT_LEVEL2:
+			battery->rp_input_current = RP_CURRENT2;
+			battery->rp_charging_current = RP_CURRENT2;
+			break;
+		case RP_CURRENT_LEVEL_DEFAULT:
+		default:
+			battery->rp_input_current = RP_CURRENT1;
+			battery->rp_charging_current = RP_CURRENT1;
+			break;
+	}
+
+	dev_info(battery->dev, "%s: rp_currentlvl(%d), input: %d, chg: %d\n",
+			__func__, pd_data->rp_currentlvl,
+			battery->rp_input_current, battery->rp_charging_current);
+}
+
 static int s2mu00x_bat_pdo_check(struct s2mu00x_battery_info *battery,
 		struct ifconn_notifier_template *pdo_info)
 {
@@ -999,7 +1038,8 @@ static int s2mu00x_bat_pdo_check(struct s2mu00x_battery_info *battery,
 	int i;
 	int pd_input_current_limit =
 		battery->pdata->charging_current[POWER_SUPPLY_TYPE_USB_PD].input_current_limit;
-	ifconn_pd_sink_status_t *pdo_data = pdo_info->data;
+	ifconn_pd_sink_status_t *pdo_data =
+		&((struct pdic_notifier_data *)pdo_info->data)->sink_status;
 
 	dev_info(battery->dev, "%s: available_pdo_num:%d, selected_pdo_num:%d,"
 		"current_pdo_num:%d\n",
@@ -1066,6 +1106,9 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 	union power_supply_propval value;
 	struct power_supply *psy;
 	int ret;
+#if defined(CONFIG_USE_CCIC)
+	struct pdic_notifier_data *pdic_info;
+#endif
 
 	dev_info(battery->dev, "%s: action(%ld) dump(0x%01x, 0x%01x, 0x%02x, 0x%04x, 0x%04x, 0x%04x, 0x%04x)\n",
 		__func__, action, ifconn_info->src, ifconn_info->dest, ifconn_info->id,
@@ -1073,7 +1116,8 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 
 	ifconn_info->cable_type = (muic_attached_dev_t)ifconn_info->event;
 #if defined(CONFIG_USE_CCIC)
-	dev_info(battery->dev, "%s: pd_attach(%d)\n", __func__, battery->pd_attach);
+	dev_info(battery->dev, "%s: pd_attach(%d) rp_attach(%d)\n",
+			__func__, battery->pd_attach, battery->rp_attach);
 #endif
 	action = ifconn_info->id;
 	mutex_lock(&battery->ifconn_lock);
@@ -1093,6 +1137,10 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 		}
 
 		battery->pd_attach = false;
+
+		battery->rp_attach = false;
+		battery->rp_input_current = 0;
+		battery->rp_charging_current = 0;
 #endif
 		cmd = "DETACH";
 		cable_type = POWER_SUPPLY_TYPE_BATTERY;
@@ -1111,20 +1159,44 @@ static int s2mu00x_ifconn_handle_notification(struct notifier_block *nb,
 		break;
 #if defined(CONFIG_USE_CCIC)
 	case IFCONN_NOTIFY_ID_POWER_STATUS:
-		cable_type = s2mu00x_bat_pdo_check(battery, ifconn_info);
-		battery->pd_attach = true;
-		switch (cable_type) {
-			case POWER_SUPPLY_TYPE_USB_PD:
-				cmd = "PD ATTACH";
-				attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
-				break;
-			case POWER_SUPPLY_TYPE_PREPARE_TA:
-				cmd = "PD PREPARE";
-				attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
-				break;
-			default:
-				cmd = "PD FAIL";
-				break;
+		pdic_info = (struct pdic_notifier_data *)ifconn_info->data;
+
+		if (pdic_info->event == IFCONN_NOTIFY_EVENT_RP_ATTACH) {
+			if (battery->pd_attach) {
+				pr_info("%s: Skip Rp current setting when PD TA attached\n",
+						__func__);
+				mutex_unlock(&battery->ifconn_lock);
+				return 0;
+			}
+			/* Do Rp current setting*/
+			s2mu00x_bat_set_rp_current(battery, ifconn_info);
+			cmd = "Rp ATTACH";
+			battery->rp_attach = true;
+			cable_type = battery->cable_type;
+			attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
+		} else {
+			cable_type = s2mu00x_bat_pdo_check(battery, ifconn_info);
+			battery->pd_attach = true;
+			if (battery->rp_attach) {
+				pr_info("%s: PD TA attached after Rp current setting!"
+						"Clear rp_attach flag\n",
+						__func__);
+				battery->rp_attach = false;
+			}
+
+			switch (cable_type) {
+				case POWER_SUPPLY_TYPE_USB_PD:
+					cmd = "PD ATTACH";
+					attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
+					break;
+				case POWER_SUPPLY_TYPE_PREPARE_TA:
+					cmd = "PD PREPARE";
+					attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
+					break;
+				default:
+					cmd = "PD FAIL";
+					break;
+			}
 		}
 		break;
 #endif
@@ -1880,6 +1952,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->pdo_max_chg_power = battery->pdata->pdo_max_chg_power;
 	battery->pd_input_current = 2000;
 	battery->pd_attach = false;
+	battery->rp_attach = false;
 #endif
 	battery->temp_high = battery->pdata->temp_high;
 	battery->temp_high_recovery = battery->pdata->temp_high_recovery;
