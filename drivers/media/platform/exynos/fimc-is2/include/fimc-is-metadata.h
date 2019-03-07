@@ -1934,7 +1934,8 @@ struct camera2_udm {
 	enum aa_fallback		fallback;
 	uint32_t			frame_id;
 	enum camera2_scene_index	scene_index;
-	uint32_t			reserved[10];
+	uint32_t			flicker_detect;
+	uint32_t			reserved[9];
 };
 
 struct camera2_shot {
