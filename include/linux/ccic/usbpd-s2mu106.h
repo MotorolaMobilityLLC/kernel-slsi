@@ -401,7 +401,7 @@ enum s2mu106_usbpd_reg {
     S2MU106_REG_ADC_STATUS         = 0xB2,
     S2MU106_REG_PLUG_MON1          = 0xB3,
     S2MU106_REG_PLUG_MON2          = 0xB4,
-    S2MU106_REG_PLUG_FSM_MON       = 0xB5,
+    S2MU106_REG_PLUG_FSM_MON       = 0xB7,
 
     S2MU106_REG_MSG_SEND_CON       = 0x90,
     S2MU106_REG_MSG_TX_HEADER_L    = 0x91,
