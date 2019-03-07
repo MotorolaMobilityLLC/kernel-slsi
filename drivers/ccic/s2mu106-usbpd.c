@@ -2101,6 +2101,35 @@ static void s2mu106_usbpd_prevent_watchdog_reset(
 	mutex_unlock(&pdic_data->lpm_mutex);
 }
 
+static void s2mu106_usbpd_rp_current_check(struct s2mu106_usbpd_data *pdic_data)
+{
+	struct i2c_client *i2c = pdic_data->i2c;
+	struct device *dev = pdic_data->dev;
+	u8 val = 0;
+	u8 cc1_val = 0, cc2_val = 0;
+	u8 rp_currentlvl = 0;
+
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_FSM_MON, &val);
+
+	cc1_val = val & S2MU106_REG_CTRL_MON_CC1_MASK;
+	cc2_val = (val & S2MU106_REG_CTRL_MON_CC2_MASK) >> S2MU106_REG_CTRL_MON_CC2_SHIFT;
+
+	dev_info(dev, "%s, rp check : cc1_val(%x), cc2_val(%x)\n",
+					__func__, cc1_val, cc2_val);
+
+	if (cc1_val == USBPD_10k || cc2_val == USBPD_10k)
+		rp_currentlvl = RP_CURRENT_LEVEL3;
+	else if (cc1_val == USBPD_22k || cc2_val == USBPD_22k)
+		rp_currentlvl = RP_CURRENT_LEVEL2;
+	else if (cc1_val == USBPD_56k || cc2_val == USBPD_56k)
+		rp_currentlvl = RP_CURRENT_LEVEL_DEFAULT;
+
+	pd_noti.sink_status.rp_currentlvl = rp_currentlvl;
+	pd_noti.event = IFCONN_NOTIFY_EVENT_RP_ATTACH;
+	ifconn_event_work(pdic_data, IFCONN_NOTIFY_MANAGER,
+			IFCONN_NOTIFY_ID_POWER_STATUS, IFCONN_NOTIFY_EVENT_ATTACH, &pd_noti);
+}
+
 static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data)
 {
 	struct device *dev = pdic_data->dev;
@@ -2336,6 +2365,7 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data)
 			}
 		}
 #endif
+		s2mu106_usbpd_rp_current_check(pdic_data);
 	} else if ((data & S2MU106_PR_MASK) == S2MU106_PDIC_SOURCE) {
 		dev_info(dev, "SOURCE\n");
 		ret = s2mu106_usbpd_check_accessory(pdic_data);
