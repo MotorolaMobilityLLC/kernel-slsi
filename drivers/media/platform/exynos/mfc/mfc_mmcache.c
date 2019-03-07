@@ -190,15 +190,15 @@ void mfc_mmcache_disable(struct mfc_dev *dev)
 	mfc_debug_leave();
 }
 
-void __mfc_mmcache_dump_info(struct mfc_dev *dev)
+void mfc_mmcache_dump_info(struct mfc_dev *dev)
 {
-	pr_err("-----------dumping MMCACHE registers (SFR base = 0x%#lx, dev = 0x%pK)\n",
-				(unsigned long)dev->mmcache.base, dev);
-	print_hex_dump(KERN_ERR, "[MMCACHE] ", DUMP_PREFIX_ADDRESS, 32, 4, dev->mmcache.base, 0x10, false);
+	if (dev->has_mmcache) {
+		pr_err("-----------dumping MMCACHE registers (SFR base = 0x%#lx)\n", (unsigned long)dev->mmcache.base);
+		print_hex_dump(KERN_ERR, "[MMCACHE] ", DUMP_PREFIX_ADDRESS, 32, 4, dev->mmcache.base, 0x10, false);
+	}
 
 	if (dev->has_cmu) {
-		pr_err("-----------dumping CMU BUSC registers (SFR base = 0x%#lx, dev = 0x%pK)\n",
-				(unsigned long)dev->cmu_busc_base, dev);
+		pr_err("-----------dumping CMU BUSC registers (SFR base = 0x%#lx)\n", (unsigned long)dev->cmu_busc_base);
 		/* PLL_CON0_MUX_CLKCMU_BUSC_BUS_USER (0x140) */
 		print_hex_dump(KERN_ERR, "[MMCACHE][BUSC] ", DUMP_PREFIX_ADDRESS, 32, 4, dev->cmu_busc_base + 0x140, 0xc, false);
 		/* CMU_BUSC (0x60ec) */
@@ -206,8 +206,7 @@ void __mfc_mmcache_dump_info(struct mfc_dev *dev)
 		/* DBG_NFO_QCH_CON_MMCACHE_QCH (0x7184) */
 		print_hex_dump(KERN_ERR, "[MMCACHE][BUSC] ", DUMP_PREFIX_ADDRESS, 32, 4, dev->cmu_busc_base + 0x7180, 0x10, false);
 
-		pr_err("-----------dumping CMU MIF0~3 registers (SFR base = 0x%#lx, dev = 0x%pK)\n",
-				(unsigned long)dev->cmu_mif0_base, dev);
+		pr_err("-----------dumping CMU MIF0~3 registers (SFR base = 0x%#lx)\n", (unsigned long)dev->cmu_mif0_base);
 		/* CMU_MIF0 (0x7018 ~ 0x7024) */
 		print_hex_dump(KERN_ERR, "[MMCACHE][MIF0] ", DUMP_PREFIX_ADDRESS, 32, 4, dev->cmu_mif0_base + 0x7018, 0x10, false);
 		/* CMU_MIF1 (0x7018 ~ 0x7024) */
@@ -229,7 +228,7 @@ void mfc_invalidate_mmcache(struct mfc_dev *dev)
 	ret = exynos_smc(SMC_CMD_MM_CACHE_OPERATION, MMCACHE_GROUP2, 0x0, 0x0);
 	if (ret != DRMDRV_OK) {
 		mfc_err_dev("[MMCACHE] Fail to invalidation 0x%x\n", ret);
-		__mfc_mmcache_dump_info(dev);
+		mfc_mmcache_dump_info(dev);
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 	}
 	mfc_debug(2, "[MMCACHE] invalidated\n");
