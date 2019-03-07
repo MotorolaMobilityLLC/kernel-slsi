@@ -37,6 +37,10 @@ DECLARE_DVFS_DT(FIMC_IS_SN_END,
 		{"rear3_preview_",			FIMC_IS_SN_REAR3_PREVIEW},
 		{"rear3_capture_",			FIMC_IS_SN_REAR3_CAPTURE},
 		{"rear3_video_",			FIMC_IS_SN_REAR3_CAMCORDING},
+		{"rear3_video_high_speed_60fps_",	FIMC_IS_SN_REAR_VIDEO_HIGH_SPEED_60FPS},
+		{"rear3_video_high_speed_120fps_",	FIMC_IS_SN_REAR_VIDEO_HIGH_SPEED_120FPS},
+		{"rear3_video_fhd_capture_",		FIMC_IS_SN_REAR3_CAMCORDING_FHD_CAPTURE},
+		{"rear3_video_hd_capture_",		FIMC_IS_SN_REAR3_CAMCORDING_HD_CAPTURE},
 		{"rear_preview_full_",			FIMC_IS_SN_REAR_PREVIEW_FULL},
 		{"rear_preview_fhd_",			FIMC_IS_SN_REAR_PREVIEW_FHD},
 		{"rear_preview_hd_",			FIMC_IS_SN_REAR_PREVIEW_HD},
@@ -482,7 +486,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR_VIDEO_HIGH_SPEED_60FPS)
 	u32 mask = (device->setfile & FIMC_IS_SETFILE_MASK);
 	bool setfile_flag = (mask == ISS_SUB_SCENARIO_FHD_60FPS);
 
-	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2) &&
+	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2 || position == SENSOR_POSITION_REAR3) &&
 			(fps >= 60) &&
 			(fps < 120) && setfile_flag)
 		return 1;
@@ -496,7 +500,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR_VIDEO_HIGH_SPEED_120FPS)
 	u32 mask = (device->setfile & FIMC_IS_SETFILE_MASK);
 	bool setfile_flag = (mask == ISS_SUB_SCENARIO_VIDEO_HIGH_SPEED);
 
-	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2) &&
+	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2 || position == SENSOR_POSITION_REAR3) &&
 			(fps > 60) &&
 			(fps <= 120) &&
 			setfile_flag)
@@ -511,7 +515,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR_VIDEO_HIGH_SPEED_240FPS)
 	u32 mask = (device->setfile & FIMC_IS_SETFILE_MASK);
 	bool setfile_flag = (mask == ISS_SUB_SCENARIO_FHD_240FPS);
 
-	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2) &&
+	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2 || position == SENSOR_POSITION_REAR3) &&
 			(fps >= 240) &&
 			setfile_flag)
 		return 1;
@@ -568,7 +572,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_VIDEO_HIGH_SPEED_480FPS)
 	u32 mask = (device->setfile & FIMC_IS_SETFILE_MASK);
 	bool setfile_flag = (mask == ISS_SUB_SCENARIO_FHD_240FPS);
 
-	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2) &&
+	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2 || position == SENSOR_POSITION_REAR3) &&
 			(fps >= 480) &&  setfile_flag)
 		return 1;
 	else
@@ -1035,6 +1039,34 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR3_CAMCORDING)
 		return 0;
 }
 
+/* REAR3 camcording capture */
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR3_CAMCORDING_HD_CAPTURE)
+{
+	struct fimc_is_dvfs_scenario_ctrl *static_ctrl = device->resourcemgr->dvfs_ctrl.static_ctrl;
+
+	if ((position == SENSOR_POSITION_REAR3) &&
+		test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state) &&
+		(static_ctrl->cur_scenario_id == FIMC_IS_SN_REAR3_CAMCORDING)
+		)
+		return 1;
+	else
+		return 0;
+}
+
+DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR3_CAMCORDING_FHD_CAPTURE)
+{
+	struct fimc_is_dvfs_scenario_ctrl *static_ctrl = device->resourcemgr->dvfs_ctrl.static_ctrl;
+
+	if ((position == SENSOR_POSITION_REAR3) &&
+		test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state) &&
+		(static_ctrl->cur_scenario_id == FIMC_IS_SN_REAR3_CAMCORDING)
+		)
+		return 1;
+	else
+		return 0;
+}
+
+
 /* front vt1 */
 DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_VT1)
 {
@@ -1164,7 +1196,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR_CAMCORDING_HD_CAPTURE)
 {
 	struct fimc_is_dvfs_scenario_ctrl *static_ctrl = device->resourcemgr->dvfs_ctrl.static_ctrl;
 
-	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2) &&
+	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2 || position == SENSOR_POSITION_REAR3) &&
 		test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state) &&
 		(static_ctrl->cur_scenario_id == FIMC_IS_SN_REAR_CAMCORDING_HD)
 		)
@@ -1177,7 +1209,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_REAR_CAMCORDING_UHD_CAPTURE)
 {
 	struct fimc_is_dvfs_scenario_ctrl *static_ctrl = device->resourcemgr->dvfs_ctrl.static_ctrl;
 
-	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2) &&
+	if ((position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2 || position == SENSOR_POSITION_REAR3) &&
 		test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state) &&
 		 (static_ctrl->cur_scenario_id == FIMC_IS_SN_REAR_CAMCORDING_UHD)
 		)
@@ -1210,7 +1242,7 @@ DECLARE_DVFS_CHK_FUNC(FIMC_IS_SN_FRONT_WIDE_SELFIE)
 
 DECLARE_EXT_DVFS_CHK_FUNC(FIMC_IS_SN_EXT_REAR)
 {
-	if (position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2)
+	if (position == SENSOR_POSITION_REAR || position == SENSOR_POSITION_REAR2 || position == SENSOR_POSITION_REAR3)
 		return 1;
 	else
 		return 0;
