@@ -4296,6 +4296,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->pdo_max_chg_power = battery->pdata->pdo_max_chg_power;
 	battery->pd_input_current= 2000;
 	battery->pd_attach = false;
+	battery->rp_attach = false;
 #endif
 	battery->temp_high = battery->pdata->temp_high;
 	battery->temp_high_recovery = battery->pdata->temp_high_recovery;
