@@ -1273,6 +1273,7 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 	struct mfc_dev *dev;
 	struct itmon_notifier *itmon_info = nb_data;
 	int is_mfc_itmon = 0, is_master = 0;
+	int is_mmcache_itmon = 0;
 
 	dev = container_of(nb, struct mfc_dev, itmon_nb);
 
@@ -1291,13 +1292,20 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 			strncmp("MFC", itmon_info->dest, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
 		is_master = 0;
+	} else if (itmon_info->port &&
+			strncmp("M-CACHE", itmon_info->port, sizeof("M-CACHE") - 1) == 0) {
+		is_mmcache_itmon = 1;
+		is_master = 1;
 	}
 
-	if (is_mfc_itmon) {
-		pr_err("mfc_itmon_notifier: MFC +\n");
-		pr_err("MFC is %s\n", is_master ? "master" : "dest");
+	if (is_mfc_itmon || is_mmcache_itmon) {
+		pr_err("mfc_itmon_notifier: %s +\n", is_mfc_itmon ? "MFC" : "MMCACHE");
+		pr_err("%s is %s\n", is_mfc_itmon ? "MFC" : "MMCACHE",
+				is_master ? "master" : "dest");
 		if (!dev->itmon_notified) {
-			pr_err("dump MFC information\n");
+			pr_err("dump MFC %s information\n", is_mmcache_itmon ? "MMCACHE" : "");
+			if (is_mmcache_itmon)
+				mfc_mmcache_dump_info(dev);
 			if (is_master || (!is_master && itmon_info->onoff))
 				call_dop(dev, dump_info, dev);
 			else
@@ -1305,7 +1313,7 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 		} else {
 			pr_err("MFC notifier has already been called. skip MFC information\n");
 		}
-		pr_err("mfc_itmon_notifier: MFC -\n");
+		pr_err("mfc_itmon_notifier: %s -\n", is_mfc_itmon ? "MFC" : "MMCACHE");
 		dev->itmon_notified = 1;
 	}
 	return NOTIFY_DONE;
