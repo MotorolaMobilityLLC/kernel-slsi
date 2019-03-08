@@ -431,7 +431,7 @@ static inline int show_fault_information(struct sysmmu_drvdata *drvdata,
 
 		writel(0x1, drvdata->sfrbase + REG_INT_CLEAR);
 
-		return IRQ_HANDLED;
+		return -EAGAIN;
 	}
 
 	dump_sysmmu_status(drvdata, pgtable);
