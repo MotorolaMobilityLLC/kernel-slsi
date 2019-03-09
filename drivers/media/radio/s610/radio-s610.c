@@ -1509,11 +1509,6 @@ static int set_eLNA_gpio(struct s610_radio *radio, int stat)
 
 static int s610_radio_fops_open(struct file *file)
 {
-#ifdef CONFIG_SCSC_FM
-	int i;
-	int ret_mx250;
-	int xtal_clkdet;
-#endif /* CONFIG_SCSC_FM */
 	int ret;
 	struct s610_radio *radio = video_drvdata(file);
 
@@ -1528,7 +1523,12 @@ static int s610_radio_fops_open(struct file *file)
 	if (v4l2_fh_is_singular_file(file)) {
 #ifdef CONFIG_SCSC_FM
 		/* Start FM/WLBT LDO */
-		ret_mx250 = mx250_fm_request();
+		ret = mx250_fm_request();
+		if (ret < 0) {
+			dev_err(radio->v4l2dev.dev,
+				"mx250_fm_request() failed with err %d\n", ret);
+			return ret;
+		}
 #endif /* CONFIG_SCSC_FM */
 
 #ifdef USE_FM_LNA_ENABLE
@@ -1566,29 +1566,6 @@ static int s610_radio_fops_open(struct file *file)
 		}
 
 		fmspeedy_wakeup();
-
-#ifdef CONFIG_SCSC_FM
-		i = 0;
-		do {
-			if (i > 10) {
-				dev_err(radio->v4l2dev.dev, "mx250_fm_request() failed\n");
-				ret = -1;
-				goto err_open;
-			}
-
-			if (i > 0)
-				ret_mx250 = mx250_fm_request();
-
-			msleep(200);
-			xtal_clkdet = fmspeedy_get_reg_field(0xFFF25B, 7, (0x0001 << 7));
-
-			dev_err(radio->v4l2dev.dev,
-				"#%d, mx250_fm_request ret : %d, xtal_clkdet : %d\n",
-				i, ret_mx250, xtal_clkdet);
-
-			i++;
-		} while ((xtal_clkdet != 1) || (ret_mx250 < 0));
-#endif /* CONFIG_SCSC_FM */
 
 		fm_get_version_number();
 
