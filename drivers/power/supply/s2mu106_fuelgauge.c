@@ -1331,11 +1331,8 @@ static int s2mu106_fg_get_property(struct power_supply *psy,
 		if (val->intval < 0)
 			val->intval = 0;
 
-		/* get only integer part */
-		val->intval /= 10;
-
 		/* check whether doing the wake_unlock */
-		if ((val->intval > fuelgauge->pdata->fuel_alert_soc) &&
+		if (((val->intval / 10) > fuelgauge->pdata->fuel_alert_soc) &&
 				fuelgauge->is_fuel_alerted) {
 			wake_unlock(&fuelgauge->fuel_alert_wake_lock);
 			s2mu106_fuelgauge_fuelalert_init(fuelgauge->i2c,

@@ -123,6 +123,7 @@ typedef struct s2mu00x_battery_platform_data {
 
 	/* Initial maximum raw SOC */
 	unsigned int max_rawsoc;
+	unsigned int max_rawsoc_offset;
 
 	/* battery */
 	char *vendor;
@@ -202,6 +203,7 @@ struct s2mu00x_battery_info {
 
 	unsigned int capacity;
 	unsigned int max_rawsoc;
+	unsigned int max_rawsoc_offset;
 
 	int soh;	/* State of Health (%) */
 
@@ -1282,8 +1284,11 @@ static void get_battery_capacity(struct s2mu00x_battery_info *battery)
 		pr_err("%s: Fail to execute property\n", __func__);
 	raw_soc = value.intval;
 
-	if (battery->status == POWER_SUPPLY_STATUS_FULL)
-		battery->max_rawsoc = raw_soc;
+	if (battery->status == POWER_SUPPLY_STATUS_FULL) {
+		battery->max_rawsoc = raw_soc - battery->max_rawsoc_offset;
+		if (battery->max_rawsoc <= 0)
+			battery->max_rawsoc = 10;
+	}
 
 	new_capacity = (raw_soc * 100) / battery->max_rawsoc;
 	if (new_capacity > 100)
@@ -1839,6 +1844,11 @@ static int s2mu00x_battery_parse_dt(struct device *dev,
 	if (ret)
 		pr_info("%s : max_rawsoc is empty\n", __func__);
 
+	ret = of_property_read_u32(np, "battery,max_rawsoc_offset",
+			&pdata->max_rawsoc_offset);
+	if (ret)
+		pr_info("%s : max_rawsoc_offset is empty\n", __func__);
+
 	pr_info("%s:DT parsing is done, vendor : %s, technology : %d\n",
 			__func__, pdata->vendor, pdata->technology);
 	return ret;
@@ -1960,6 +1970,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->temp_low_recovery = battery->pdata->temp_low_recovery;
 
 	battery->max_rawsoc = battery->pdata->max_rawsoc;
+	battery->max_rawsoc_offset = battery->pdata->max_rawsoc_offset;
 
 	battery->is_factory = false;
 
@@ -2059,7 +2070,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
 
-	battery->capacity = value.intval;
+	battery->capacity = value.intval / 10;
 
 	/* Set float voltage for charger */
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
