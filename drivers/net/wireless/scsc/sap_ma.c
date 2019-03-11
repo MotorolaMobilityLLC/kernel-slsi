@@ -190,7 +190,7 @@ static inline bool slsi_rx_is_amsdu(struct sk_buff *skb)
 	return (fapi_get_u16(skb, u.ma_unitdata_ind.data_unit_descriptor) == FAPI_DATAUNITDESCRIPTOR_AMSDU);
 }
 
-void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
+void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, bool from_ba_timer)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff_head msdu_list;
@@ -321,7 +321,10 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 		conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
 		if (conf_hip4_ver == 4) {
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI_GRO
-			napi_gro_receive(&sdev->hip4_inst.hip_priv->napi, rx_skb);
+			if (!from_ba_timer)
+				napi_gro_receive(&sdev->hip4_inst.hip_priv->napi, rx_skb);
+			else
+				netif_receive_skb(rx_skb);
 #else
 			netif_receive_skb(rx_skb);
 #endif
@@ -412,7 +415,7 @@ static void slsi_rx_data_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 			SLSI_NET_WARN(dev, "Packet received from TDLS but no TDLS exists (seq: %x) Skip BA\n", seq_num);
 
 		/* Skip BA reorder and pass the frames Up */
-		slsi_rx_data_deliver_skb(sdev, dev, skb);
+		slsi_rx_data_deliver_skb(sdev, dev, skb, false);
 		return;
 	}
 
@@ -434,7 +437,7 @@ static void slsi_rx_data_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 			return;
 
 	/* Pass to next receive process */
-	slsi_rx_data_deliver_skb(sdev, dev, skb);
+	slsi_rx_data_deliver_skb(sdev, dev, skb, false);
 }
 
 static int slsi_rx_data_cfm(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
@@ -484,7 +487,7 @@ static int slsi_rx_napi_process(struct slsi_dev *sdev, struct sk_buff *skb)
 		/* SKBs in a BA session are not passed yet */
 		if (atomic_read(&ndev_vif->ba_flush)) {
 			atomic_set(&ndev_vif->ba_flush, 0);
-			slsi_ba_process_complete(dev);
+			slsi_ba_process_complete(dev, false);
 		}
 		break;
 	case MA_UNITDATA_CFM:
@@ -521,7 +524,7 @@ void slsi_rx_netdev_data_work(struct work_struct *work)
 
 		if (atomic_read(&ndev_vif->ba_flush)) {
 			atomic_set(&ndev_vif->ba_flush, 0);
-			slsi_ba_process_complete(dev);
+			slsi_ba_process_complete(dev, false);
 		}
 
 		skb = slsi_skb_work_dequeue(w);

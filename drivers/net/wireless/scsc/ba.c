@@ -92,14 +92,13 @@ static void slsi_rx_ba_free_buffer(struct net_device *dev, struct slsi_peer *pee
  * is called in the data workqueue context with the
  * netdev_vif mutex held.
  */
-void slsi_ba_process_complete(struct net_device *dev)
+void slsi_ba_process_complete(struct net_device *dev, bool from_ba_timer)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff    *skb;
 
-	while ((skb = slsi_skb_dequeue(&ndev_vif->ba_complete)) != NULL) {
-		slsi_rx_data_deliver_skb(ndev_vif->sdev, dev, skb);
-	}
+	while ((skb = slsi_skb_dequeue(&ndev_vif->ba_complete)) != NULL)
+		slsi_rx_data_deliver_skb(ndev_vif->sdev, dev, skb, from_ba_timer);
 }
 
 static void slsi_ba_signal_process_complete(struct net_device *dev)
@@ -320,7 +319,7 @@ static void slsi_ba_aging_timeout_handler(unsigned long data)
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 		conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
 		if (conf_hip4_ver == 4)
-			slsi_ba_process_complete(dev);
+			slsi_ba_process_complete(dev, true);
 		else
 			slsi_ba_signal_process_complete(dev);
 #else

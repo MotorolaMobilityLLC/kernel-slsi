@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2016 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -16,7 +16,7 @@ void slsi_handle_blockack(struct net_device *dev, struct slsi_peer *peer,
 int slsi_ba_process_frame(struct net_device *dev, struct slsi_peer *peer,
 			  struct sk_buff *skb, u16 sequence_number, u16 tid);
 
-void slsi_ba_process_complete(struct net_device *dev);
+void slsi_ba_process_complete(struct net_device *dev, bool from_ba_timer);
 
 bool slsi_ba_check(struct slsi_peer *peer, u16 tid);
 
