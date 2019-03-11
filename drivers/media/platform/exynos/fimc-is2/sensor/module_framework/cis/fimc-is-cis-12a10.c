@@ -511,8 +511,8 @@ int sensor_12a10_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	cis_shared_data *cis_data;
 
 	u32 vt_pic_clk_freq_mhz = 0;
-	u16 long_coarse_int = 0;
-	u16 short_coarse_int = 0;
+	u32 long_coarse_int = 0;
+	u32 short_coarse_int = 0;
 	u32 line_length_pck = 0;
 	u32 min_fine_int = 0;
 	u8 short_coarse_val[3] = {0};
@@ -555,6 +555,32 @@ int sensor_12a10_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	long_coarse_int = ((target_exposure->long_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
 	short_coarse_int = ((target_exposure->short_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
 
+	if (cis->long_term_mode.sen_strm_off_on_enable) {
+		u32 reg_long_exp;
+		u8 temp;
+
+		/* Long Exposure Time register caculated by below formula
+		 * value = ((Long exp coarse int - normal max coarse int (VTS-8)) / 256) * line_length_pck(HTS)
+		 */
+		reg_long_exp = ((long_coarse_int - cis_data->max_coarse_integration_time) / 256) * line_length_pck;
+
+		temp = reg_long_exp & 0xff;
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c95, temp);
+		temp = (reg_long_exp >> 8) & 0xff;
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c94, temp);
+		temp = (reg_long_exp >> 16) & 0xff;
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c93, temp);
+		temp = (reg_long_exp >> 24) & 0xff;
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c92, temp);
+
+		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), reg_val for LTE(%d)\n", cis->id, __func__,
+			cis_data->sen_vsync_count, reg_long_exp);
+
+		/* set normal exposure value to normal max when LTE mode */
+		long_coarse_int = cis_data->max_coarse_integration_time;
+		short_coarse_int = cis_data->max_coarse_integration_time;
+	}
+
 	if (long_coarse_int > cis_data->max_coarse_integration_time) {
 		dbg_sensor(1, "[MOD:D:%d] %s, vsync_cnt(%d), long coarse(%d) max(%d)\n", cis->id, __func__,
 			cis_data->sen_vsync_count, long_coarse_int, cis_data->max_coarse_integration_time);
@@ -588,9 +614,9 @@ int sensor_12a10_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	}
 
 	/* Short exposure */
-	short_coarse_val[0] = (short_coarse_int & 0xF000) >> 12;
-	short_coarse_val[1] = (short_coarse_int & 0x0FF0) >> 4;
-	short_coarse_val[2] = (short_coarse_int & 0x000F) << 4;
+	short_coarse_val[0] = (u8)((short_coarse_int & 0xF000) >> 12);
+	short_coarse_val[1] = (u8)((short_coarse_int & 0x0FF0) >> 4);
+	short_coarse_val[2] = (u8)((short_coarse_int & 0x000F) << 4);
 	ret = fimc_is_sensor_write8_array(client, 0x3500, short_coarse_val, 3);
 	if (ret < 0)
 		goto p_err;
@@ -768,11 +794,16 @@ int sensor_12a10_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 
 	cis_data = cis->cis_data;
 
+	if (cis->long_term_mode.sen_strm_off_on_enable) {
+		dbg_sensor(1, "[%s] LTE mode, use exp to input(%d) -> based(%d)\n",
+			__func__, input_exposure_time, cis->long_term_mode.expo[1]);
+		input_exposure_time = cis->long_term_mode.expo[1];
+	}
+
 	vt_pic_clk_freq_mhz = cis_data->pclk / (1000 * 1000);
 	line_length_pck = cis_data->line_length_pck;
 	frame_length_lines = ((vt_pic_clk_freq_mhz * input_exposure_time) / line_length_pck);
 	frame_length_lines += cis_data->max_margin_coarse_integration_time;
-
 	frame_duration = (frame_length_lines * line_length_pck) / vt_pic_clk_freq_mhz;
 
 	dbg_sensor(1, "[%s](vsync cnt = %d) input exp(%d), adj duration, frame duraion(%d), min_frame_us(%d)\n",
@@ -1667,6 +1698,64 @@ p_err:
 	return ret;
 }
 
+int sensor_12a10_cis_long_term_exposure(struct v4l2_subdev *subdev)
+{
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct fimc_is_long_term_expo_mode *lte_mode;
+
+	WARN_ON(!subdev);
+
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	lte_mode = &cis->long_term_mode;
+
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+	/* LTE mode or normal mode set */
+	if (lte_mode->sen_strm_off_on_enable) {
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c80, 0x0c);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c90, 0x01);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3826, 0X0d);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3827, 0x04);
+		ret |= fimc_is_sensor_write8(cis->client, 0x401a, 0x40);
+		ret |= fimc_is_sensor_write8(cis->client, 0x4902, 0x01);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3640, 0x14);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3714, 0x20);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5203, 0x0c);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5204, 0x11);
+		ret |= fimc_is_sensor_write8(cis->client, 0x520d, 0xf5);
+		ret |= fimc_is_sensor_write8(cis->client, 0x520e, 0xf5);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5208, 0xff);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5201, 0xa8);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5200, 0x01);
+	} else {
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c80, 0x00);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3c90, 0x00);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3827, 0x00);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3826, 0x00);
+		ret |= fimc_is_sensor_write8(cis->client, 0x401a, 0x58);
+		ret |= fimc_is_sensor_write8(cis->client, 0x4902, 0x00);
+		ret |= fimc_is_sensor_write8(cis->client, 0x3714, 0x24);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5203, 0x24);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5204, 0x12);
+		ret |= fimc_is_sensor_write8(cis->client, 0x520d, 0x0f);
+		ret |= fimc_is_sensor_write8(cis->client, 0x520e, 0xfd);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5208, 0x40);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5201, 0x94);
+		ret |= fimc_is_sensor_write8(cis->client, 0x5200, 0x03);
+	}
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
+
+	info("%s enable(%d)", __func__, lte_mode->sen_strm_off_on_enable);
+
+	if (ret < 0) {
+		pr_err("ERR[%s]: LTE register setting fail\n", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
 static struct fimc_is_cis_ops cis_ops = {
 	.cis_init = sensor_12a10_cis_init,
 	.cis_log_status = sensor_12a10_cis_log_status,
@@ -1698,6 +1787,7 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_wait_streamoff = sensor_12a10_cis_wait_streamoff,
 	.cis_wait_streamon = sensor_12a10_cis_wait_streamon,
 	.cis_set_dual_setting = sensor_12a10_cis_set_dual_setting,
+	.cis_set_long_term_exposure = sensor_12a10_cis_long_term_exposure,
 };
 
 static int cis_12a10_probe(struct i2c_client *client,
