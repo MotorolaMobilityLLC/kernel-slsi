@@ -802,7 +802,13 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 		ret = i2c->msg_idx;
 
 		if (ret != num)
-			dev_dbg(i2c->dev, "incomplete xfer (%d)\n", ret);
+			dev_err(i2c->dev, "QUIRK_POLL incomplete xfer (%d)\n"
+				"I2C Stat Reg dump:\n"
+				"IIC STAT = 0x%08x\n"
+				"IIC CON = 0x%08x\n"
+				, ret
+				, readl(i2c->regs + S3C2410_IICSTAT)
+				, readl(i2c->regs + S3C2410_IICCON));
 
 		goto out;
 	}
@@ -817,7 +823,13 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	if (timeout == 0)
 		dev_err(i2c->dev, "timeout\n");
 	else if (ret != num)
-		dev_err(i2c->dev, "incomplete xfer (%d)\n", ret);
+		dev_err(i2c->dev, "incomplete xfer (%d)\n"
+				"I2C Stat Reg dump:\n"
+				"IIC STAT = 0x%08x\n"
+				"IIC CON = 0x%08x\n"
+				, ret
+				, readl(i2c->regs + S3C2410_IICSTAT)
+				, readl(i2c->regs + S3C2410_IICCON));
 
 	/* For QUIRK_HDMIPHY, bus is already disabled */
 	if (i2c->quirks & QUIRK_HDMIPHY)
