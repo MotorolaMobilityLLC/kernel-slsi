@@ -416,6 +416,11 @@ static void exynos_usbdrd_usb_txco_enable(struct phy_usb_instance *inst, int on)
 	u32	reg;
 
 	base = ioremap(0x11860000, 0x100000);
+	if(!base) {
+		dev_err(phy_drd->dev, "[%s] Unable to map I/O memory\n",
+							__func__);
+		return;
+	}
 	reg = readl(base + EXYNOS_USBDEV_PHY_CONTROL);
 
 	dev_info(phy_drd->dev, "[%s] ++USB DEVCTRL reg 0x%x \n",
@@ -431,6 +436,7 @@ static void exynos_usbdrd_usb_txco_enable(struct phy_usb_instance *inst, int on)
 	reg = readl(base + EXYNOS_USBDEV_PHY_CONTROL);
 	dev_info(phy_drd->dev, "[%s] --USB DEVCTRL reg 0x%x \n",
 							__func__, reg);
+	iounmap(base);
 }
 
 static void exynos_usbdrd_pipe3_phy_isol(struct phy_usb_instance *inst,
