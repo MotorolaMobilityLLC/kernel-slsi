@@ -72,18 +72,18 @@ static int s2mu106_charger_otg_control(
 	pr_info("%s: called charger otg control : %s\n", __func__,
 			enable ? "ON" : "OFF");
 
+	mutex_lock(&charger->charger_mutex);
 	if (charger->is_charging) {
 		pr_info("%s: Charger is enabled and OTG noti received!!!\n", __func__);
 		pr_info("%s: is_charging: %d, otg_on: %d",
 				__func__, charger->is_charging, charger->otg_on);
 		s2mu106_test_read(charger->i2c);
-		return 0;
+		goto out;
 	}
 
 	if (charger->otg_on == enable)
-		return 0;
+		goto out;
 
-	mutex_lock(&charger->charger_mutex);
 	if (!enable) {
 		s2mu106_update_reg(charger->i2c,
 				S2MU106_CHG_CTRL0, CHG_MODE, REG_MODE_MASK);
@@ -92,12 +92,13 @@ static int s2mu106_charger_otg_control(
 				S2MU106_CHG_CTRL3,
 				S2MU106_SET_OTG_OCP_1500mA << SET_OTG_OCP_SHIFT,
 				SET_OTG_OCP_MASK);
-//		msleep(30);
 		s2mu106_update_reg(charger->i2c,
 				S2MU106_CHG_CTRL0, OTG_BST_MODE, REG_MODE_MASK);
 		charger->cable_type = POWER_SUPPLY_TYPE_OTG;
 	}
 	charger->otg_on = enable;
+
+out:
 	mutex_unlock(&charger->charger_mutex);
 
 	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS2, &chg_sts2);
@@ -113,10 +114,11 @@ static void s2mu106_enable_charger_switch(
 	struct s2mu106_charger_data *charger, int onoff)
 {
 
+	mutex_lock(&charger->charger_mutex);
 	if (charger->otg_on) {
 		pr_info("[DEBUG] %s: skipped set(%d) : OTG is on\n", __func__, onoff);
 		charger->is_charging = false;
-		return;
+		goto out;
 	}
 
 	if (onoff > 0) {
@@ -133,6 +135,8 @@ static void s2mu106_enable_charger_switch(
 
 		s2mu106_update_reg(charger->i2c, S2MU106_CHG_CTRL0, BUCK_MODE, REG_MODE_MASK);
 	}
+out:
+	mutex_unlock(&charger->charger_mutex);
 }
 
 static void s2mu106_set_buck(
@@ -196,7 +200,7 @@ static void s2mu106_set_input_current_limit(
 
 	pr_info("[DEBUG]%s: current  %d, 0x%x\n", __func__, charging_current, data);
 
-#if EN_TEST_READ
+#if 0
 	s2mu106_test_read(charger->i2c);
 #endif
 }
@@ -236,7 +240,7 @@ static void s2mu106_set_fast_charging_current(
 
 	pr_info("[DEBUG]%s: current  %d, 0x%02x\n", __func__, charging_current, data);
 
-#if EN_TEST_READ
+#if 0
 	s2mu106_test_read(charger->i2c);
 #endif
 }

@@ -162,7 +162,6 @@ policy_state usbpd_policy_src_send_capabilities(struct policy_data *policy)
 		if (pd_data->phy_ops.get_status(pd_data, MSG_REQUEST)) {
 			pd_data->counter.hard_reset_counter = 0;
 			pd_data->counter.caps_counter = 0;
-			usbpd_protocol_rx(pd_data);
 			pd_data->source_request_obj.object
 				= policy->rx_data_obj[0].object;
 			dev_info(pd_data->dev, "got Request.\n");
@@ -218,6 +217,7 @@ policy_state usbpd_policy_src_negotiate_capability(struct policy_data *policy)
 {
 	struct usbpd_data *pd_data = policy_to_usbpd(policy);
 	int ret = PE_SRC_Negotiate_Capability;
+	int data_role = 0;
 
 	/**********************************************
 	Actions on entry:
@@ -233,13 +233,19 @@ policy_state usbpd_policy_src_negotiate_capability(struct policy_data *policy)
 	/* 1) PD State Inform for AP */
 	dev_info(pd_data->dev, "%s\n", __func__);
 
+	pd_data->phy_ops.get_data_role(pd_data, &data_role);
+
+	mutex_lock(&pd_data->accept_mutex);
 	/* 2) Analysis Received Request Message */
 	if (usbpd_manager_match_request(pd_data) == 0) {
-		usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header, USBPD_Accept, USBPD_DFP, USBPD_SOURCE);
+		usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header, USBPD_Accept,
+													data_role, USBPD_SOURCE);
+		dev_info(pd_data->dev, "%s sended accept\n", __func__);
 		ret = PE_SRC_Transition_Supply; /* Accept */
 	} else {
 		ret = PE_SRC_Capability_Response; /* Reject */
 	}
+	mutex_unlock(&pd_data->accept_mutex);
 
 	return ret;
 }
@@ -304,7 +310,7 @@ policy_state usbpd_policy_src_transition_supply(struct policy_data *policy)
 			break;
 		}
 
-		if (ms1 >= 5) {
+		if (ms1 >= 8) {
 			ret = PE_SRC_Hard_Reset;
 			break;
 		}
@@ -338,6 +344,7 @@ policy_state usbpd_policy_src_ready(struct policy_data *policy)
 	CHECK_MSG(pd_data, MSG_GET_SNK_CAP, PE_DR_SRC_Give_Sink_Cap);
 	CHECK_MSG(pd_data, MSG_SOFTRESET, PE_SRC_Soft_Reset);
 	CHECK_MSG(pd_data, MSG_ERROR, PE_SRC_Send_Soft_Reset);
+	CHECK_MSG(pd_data, MSG_BIST, PE_BIST_Receive_Mode);
 #if 0
 	CHECK_MSG(pd_data, VDM_DISCOVER_IDENTITY, PE_UFP_VDM_Get_Identity);
 	CHECK_MSG(pd_data, VDM_DISCOVER_SVID, PE_UFP_VDM_Get_SVIDs);
@@ -365,14 +372,6 @@ policy_state usbpd_policy_src_ready(struct policy_data *policy)
 	CHECK_CMD(pd_data, MANAGER_REQ_VDM_STATUS_UPDATE, PE_DFP_VDM_Status_Update);
 	CHECK_CMD(pd_data, MANAGER_REQ_VDM_DisplayPort_Configure, PE_DFP_VDM_DisplayPort_Configure);
 	CHECK_CMD(pd_data, MANAGER_REQ_VDM_ATTENTION, PE_UFP_VDM_Attention_Request);
-
-	/* 7) Check bist message */
-	if (pd_data->phy_ops.check_bist_message(pd_data) == 0)	{
-		dev_info(pd_data->dev, "check_bist_message : Rx_Msg is BIST\n");
-		return PE_BIST_Receive_Mode;
-	} else {
-		dev_info(pd_data->dev, "check_bist_message : Rx_Msg is NOT BIST\n");
-	}
 
 
 /*	for data role swap test
@@ -968,9 +967,6 @@ policy_state usbpd_policy_snk_evaluate_capability(struct policy_data *policy)
 	/* 1) PD State Inform to AP */
 	dev_info(pd_data->dev, "%s\n", __func__);
 
-	/* 3) Get Rx Buffer */
-	usbpd_protocol_rx(pd_data);
-
 	/* 4) Select PDO */
 #if defined(CONFIG_IFCONN_NOTIFIER)
 	if (pd_noti.sink_status.selected_pdo_num == 0) {
@@ -1152,6 +1148,7 @@ policy_state usbpd_policy_snk_ready(struct policy_data *policy)
 	CHECK_MSG(pd_data, MSG_DR_SWAP, PE_DRS_Evaluate_Port);
 	CHECK_MSG(pd_data, MSG_VCONN_SWAP, PE_VCS_Evaluate_Swap);
 	CHECK_MSG(pd_data, MSG_GET_SRC_CAP, PE_DR_SNK_Give_Source_Cap);
+	CHECK_MSG(pd_data, MSG_BIST, PE_BIST_Receive_Mode);
 
 #if 0
 	CHECK_MSG(pd_data, VDM_DISCOVER_IDENTITY, PE_UFP_VDM_Get_Identity);
@@ -1180,14 +1177,6 @@ policy_state usbpd_policy_snk_ready(struct policy_data *policy)
 
 	/* 6) Data Role Check */
 	pd_data->phy_ops.get_data_role(pd_data, &data_role);
-
-	/* 7) Check bist message */
-	if (pd_data->phy_ops.check_bist_message(pd_data) == 0)	{
-		dev_info(pd_data->dev, "check_bist_message : Rx_Msg is BIST\n");
-		return PE_BIST_Receive_Mode;
-	} else {
-		dev_info(pd_data->dev, "check_bist_message : Rx_Msg is NOT BIST\n");
-	}
 
 #if 0
 	if (data_role == USBPD_DFP)
@@ -1285,8 +1274,9 @@ policy_state usbpd_policy_snk_give_sink_cap(struct policy_data *policy)
 	policy->tx_msg_header.word = pd_data->sink_msg_header.word;
 	policy->tx_msg_header.port_data_role = data_role;
 	policy->tx_data_obj[0].object = pd_data->sink_data_obj[0].object;
+#if 0
 	policy->tx_data_obj[1].object = pd_data->sink_data_obj[1].object;
-
+#endif
 	policy->sink_cap_received = 1;
 
 	/* 4) Send Message */
@@ -1572,12 +1562,14 @@ policy_state usbpd_policy_drs_dfp_ufp_accept_dr_swap(struct policy_data *policy)
 
 	pd_data->phy_ops.get_power_role(pd_data, &power_role);
 
-	if (usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header,
-			USBPD_Accept, USBPD_DFP, power_role)) {
-		return PE_DRS_DFP_UFP_Change_to_UFP;
-	}
+	mutex_lock(&pd_data->accept_mutex);
+	usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header,
+						USBPD_Accept, USBPD_DFP, power_role);
 
-	return PE_DRS_DFP_UFP_Accept_DR_Swap;
+	pd_data->phy_ops.set_data_role(pd_data, USBPD_UFP);
+	mutex_unlock(&pd_data->accept_mutex);
+
+	return PE_DRS_DFP_UFP_Change_to_UFP;
 }
 
 policy_state usbpd_policy_drs_dfp_ufp_change_to_ufp(struct policy_data *policy)
@@ -1593,7 +1585,6 @@ policy_state usbpd_policy_drs_dfp_ufp_change_to_ufp(struct policy_data *policy)
 
 	dev_info(pd_data->dev, "%s\n", __func__);
 
-	pd_data->phy_ops.set_data_role(pd_data, USBPD_UFP);
 	pd_data->phy_ops.get_power_role(pd_data, &power_role);
 
 	if (power_role == USBPD_SOURCE)
@@ -1710,11 +1701,12 @@ policy_state usbpd_policy_drs_ufp_dfp_accept_dr_swap(struct policy_data *policy)
 	dev_info(pd_data->dev, "%s\n", __func__);
 	pd_data->phy_ops.get_power_role(pd_data, &power_role);
 
-	if (usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header,
-				USBPD_Accept, USBPD_UFP, power_role)) {
-		return PE_DRS_UFP_DFP_Change_to_DFP;
-	}
-	return PE_DRS_UFP_DFP_Accept_DR_Swap;
+	mutex_lock(&pd_data->accept_mutex);
+	usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header,
+					USBPD_Accept, USBPD_UFP, power_role);
+	pd_data->phy_ops.set_data_role(pd_data, USBPD_DFP);
+	mutex_unlock(&pd_data->accept_mutex);
+	return PE_DRS_UFP_DFP_Change_to_DFP;
 }
 
 policy_state usbpd_policy_drs_ufp_dfp_change_to_dfp(struct policy_data *policy)
@@ -1729,7 +1721,6 @@ policy_state usbpd_policy_drs_ufp_dfp_change_to_dfp(struct policy_data *policy)
 
 	dev_info(pd_data->dev, "%s\n", __func__);
 
-	pd_data->phy_ops.set_data_role(pd_data, USBPD_DFP);
 	pd_data->phy_ops.get_power_role(pd_data, &power_role);
 
 	if (power_role == USBPD_SOURCE)
@@ -2046,11 +2037,9 @@ policy_state usbpd_policy_prs_src_snk_wait_source_on(struct policy_data *policy)
 		if (pd_data->phy_ops.get_status(pd_data, MSG_PSRDY)) {
 			dev_info(pd_data->dev, "got PSRDY.\n");
 			pd_data->counter.swap_hard_reset_counter = 0;
-			mdelay(15);
-
 			/* Self SoftReset for Message ID Clear */
 			pd_data->phy_ops.soft_reset(pd_data);
-
+			mdelay(15);
 			ret = PE_SNK_Startup;
 			break;
 		}
@@ -2202,7 +2191,6 @@ policy_state usbpd_policy_prs_snk_src_transition_to_off(struct policy_data *poli
 	dev_info(pd_data->dev, "%s\n", __func__);
 
 	pd_data->phy_ops.pr_swap(pd_data, USBPD_SINK_OFF);
-	usbpd_manager_turn_off_power_sink(pd_data);
 
 	/* Start Timer 750ms */
 	usbpd_timer1_start(pd_data);
@@ -4057,8 +4045,6 @@ policy_state usbpd_policy_dr_snk_give_source_cap(struct policy_data *policy)
 
 	/* 1) PD State Inform to AP */
 	dev_info(pd_data->dev, "%s\n", __func__);
-
-	usbpd_protocol_rx(pd_data);
 
 	if (!pd_data->id_matched)
 		return PE_SNK_Ready;

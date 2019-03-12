@@ -73,9 +73,7 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data);
 static int s2mu106_usbpd_reg_init(struct s2mu106_usbpd_data *_data);
 static void s2mu106_dfp(struct i2c_client *i2c);
 static void s2mu106_ufp(struct i2c_client *i2c);
-#ifdef CONFIG_CCIC_VDM
-static int s2mu106_usbpd_check_vdm_msg(void *_data, u64 *val);
-#endif
+static int s2mu106_usbpd_check_msg(void *_data, u64 *val);
 static void s2mu106_src(struct i2c_client *i2c);
 static void s2mu106_snk(struct i2c_client *i2c);
 static void s2mu106_assert_rd(void *_data);
@@ -483,6 +481,16 @@ static int s2mu106_usbpd_update_bit(struct i2c_client *i2c,
 	return ret;
 }
 
+static int s2mu106_write_msg_all(struct i2c_client *i2c, int count, u8 *buf)
+{
+	int ret;
+
+	ret = s2mu106_usbpd_bulk_write(i2c, S2MU106_REG_MSG_TX_HEADER_L,
+												2 + (count * 4), buf);
+
+	return ret;
+}
+#if 0
 static int s2mu106_write_msg_header(struct i2c_client *i2c, u8 *buf)
 {
 	int ret;
@@ -509,7 +517,7 @@ static int s2mu106_write_msg_obj(struct i2c_client *i2c, int count, data_obj_typ
 
 	return ret;
 }
-
+#endif
 static int s2mu106_send_msg(struct i2c_client *i2c)
 {
 	int ret;
@@ -519,7 +527,8 @@ static int s2mu106_send_msg(struct i2c_client *i2c)
 
 	s2mu106_usbpd_write_reg(i2c, reg, val);
 
-	ret = s2mu106_usbpd_write_reg(i2c, reg, S2MU106_REG_MSG_SEND_CON_OP_MODE);
+	ret = s2mu106_usbpd_write_reg(i2c, reg, S2MU106_REG_MSG_SEND_CON_OP_MODE |
+										S2MU106_REG_MSG_SEND_CON_HARD_EN);
 
 	return ret;
 }
@@ -704,13 +713,15 @@ static unsigned s2mu106_get_status(void *_data, unsigned flag)
 static bool s2mu106_poll_status(void *_data)
 {
 	struct usbpd_data *data = (struct usbpd_data *) _data;
-	struct policy_data *policy = &data->policy;
 	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
 	struct i2c_client *i2c = pdic_data->i2c;
 	struct device *dev = &i2c->dev;
 	u8 intr[S2MU106_MAX_NUM_INT_STATUS] = {0};
 	int ret = 0, retry = 0;
 	u64 status_reg_val = 0;
+	msg_header_type header;
+	int data_obj_num = 0;
+	int msg_id = 0;
 
 	ret = s2mu106_usbpd_bulk_read(i2c, S2MU106_REG_INT_STATUS0,
 			S2MU106_MAX_NUM_INT_STATUS, intr);
@@ -718,18 +729,13 @@ static bool s2mu106_poll_status(void *_data)
 	dev_info(dev, "%s status[0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]\n",
 			__func__, intr[0], intr[1], intr[2], intr[3], intr[4], intr[5], intr[6]);
 
-	if ((intr[0] | intr[1] | intr[2] | intr[3] | intr[4] | intr[5]) == 0) {
-		status_reg_val |= MSG_NONE;
+	if ((intr[0] | intr[1] | intr[2] | intr[3] | intr[4] | intr[5]) == 0)
 		goto out;
-	}
 
 	if ((intr[2] & S2MU106_REG_INT_STATUS2_WAKEUP) ||
 		(intr[4] & S2MU106_REG_INT_STATUS4_CC12_DET_IRQ))
 		s2mu106_set_irq_enable(pdic_data, ENABLED_INT_0, ENABLED_INT_1,
 				ENABLED_INT_2, ENABLED_INT_3, ENABLED_INT_4, ENABLED_INT_5);
-
-	if (intr[5] & S2MU106_REG_INT_STATUS5_HARD_RESET)
-		status_reg_val |= MSG_HARDRESET;
 
 	/* when occur detach & attach atomic */
 	if (intr[4] & S2MU106_REG_INT_STATUS4_USB_DETACH) {
@@ -755,112 +761,72 @@ static bool s2mu106_poll_status(void *_data)
 		mutex_unlock(&pdic_data->lpm_mutex);
 	}
 
-	pdic_data->check_msg_pass = 1;
-#ifdef CONFIG_CCIC_VDM
-	/* function that support dp control */
-	if (pdic_data->check_msg_pass) {
-		if (intr[4] & S2MU106_REG_INT_STATUS4_MSG_PASS)
-			status_reg_val |= MSG_PASS;
-	}
-#endif
-/* #if defined(CONFIG_CCIC_FACTORY) */
-	if ((intr[4] & S2MU106_REG_INT_STATUS4_MSG_PASS) &&
-		(intr[3] & S2MU106_REG_INT_STATUS3_UNS_CMD_DATA)) {
-		status_reg_val |= MSG_RID;
-	}
-/* #endif */
+	if (intr[5] & S2MU106_REG_INT_STATUS5_HARD_RESET)
+		status_reg_val |= MSG_HARDRESET;
 
-	if (intr[0] & S2MU106_REG_INT_STATUS0_MSG_GOODCRC
-			|| intr[4] & S2MU106_REG_INT_STATUS4_MSG_SENT)
+	if (intr[0] & S2MU106_REG_INT_STATUS0_MSG_GOODCRC)
 		status_reg_val |= MSG_GOODCRC;
-
-	if (intr[0] & S2MU106_REG_INT_STATUS0_MSG_ACCEPT)
-		status_reg_val |= MSG_ACCEPT;
-
-	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_PSRDY)
-		status_reg_val |= MSG_PSRDY;
-
-	if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_REQUEST)
-		status_reg_val |= MSG_REQUEST;
-
-	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_REJECT)
-		status_reg_val |= MSG_REJECT;
-
-	if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_WAIT)
-		status_reg_val |= MSG_WAIT;
-
-	if (intr[4] & S2MU106_REG_INT_STATUS4_MSG_ERROR)
-		status_reg_val |= MSG_ERROR;
-
-	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_PING)
-		status_reg_val |= MSG_PING;
-
-	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_GETSNKCAP)
-		status_reg_val |= MSG_GET_SNK_CAP;
-
-	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_GETSRCCAP)
-		status_reg_val |= MSG_GET_SRC_CAP;
-
-	if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_SRC_CAP) {
-		if (!policy->plug_valid)
-			pdic_data->status_reg |= PLUG_ATTACH;
-		status_reg_val |= MSG_SRC_CAP;
-	}
-
-	if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_SNK_CAP)
-		status_reg_val |= MSG_SNK_CAP;
-
-	if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_SOFTRESET)
-		status_reg_val |= MSG_SOFTRESET;
 
 	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_PR_SWAP)
 		status_reg_val |= MSG_PR_SWAP;
 
-	if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_VCONN_SWAP)
-		status_reg_val |= MSG_VCONN_SWAP;
+	if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_SOFTRESET)
+		status_reg_val |= MSG_SOFTRESET;
 
 	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_DR_SWAP)
 		status_reg_val |= MSG_DR_SWAP;
 
-	if (intr[0] & S2MU106_REG_INT_STATUS0_VDM_DISCOVER_ID)
-		status_reg_val |= VDM_DISCOVER_IDENTITY;
+	/* function that support dp control */
+	if (intr[4] & S2MU106_REG_INT_STATUS4_MSG_PASS) {
+		if (intr[3] & S2MU106_REG_INT_STATUS3_UNS_CMD_DATA)
+			status_reg_val |= MSG_RID;
+		else {
+			usbpd_protocol_rx(data);
+			header = data->protocol_rx.msg_header;
+			data_obj_num = header.num_data_objs;
+			msg_id = header.msg_id;
+			pr_info("%s, prev msg_id =(%d), received msg_id =(%d)\n", __func__,
+										data->msg_id, msg_id);
 
-	if (intr[0] & S2MU106_REG_INT_STATUS0_VDM_DISCOVER_SVID)
-		status_reg_val |= VDM_DISCOVER_SVID;
+			if (msg_id == data->msg_id)
+				goto out;
+			else
+				data->msg_id = msg_id;
 
-	if (intr[0] & S2MU106_REG_INT_STATUS0_VDM_DISCOVER_MODE)
-		status_reg_val |= VDM_DISCOVER_MODE;
+			if (data_obj_num > 0)
+				s2mu106_usbpd_check_msg(data, &status_reg_val);
 
-	if (intr[0] & S2MU106_REG_INT_STATUS0_VDM_ENTER)
-		status_reg_val |= VDM_ENTER_MODE;
+			if (intr[0] & S2MU106_REG_INT_STATUS0_MSG_ACCEPT)
+				status_reg_val |= MSG_ACCEPT;
 
-	if (intr[0] & S2MU106_REG_INT_STATUS0_VDM_EXIT)
-		status_reg_val |= VDM_EXIT_MODE;
+			if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_PSRDY)
+				status_reg_val |= MSG_PSRDY;
 
-	if (intr[0] & S2MU106_REG_INT_STATUS0_VDM_ATTENTION)
-		status_reg_val |= VDM_ATTENTION;
-/* disable function that support dp control */
-#ifdef CONFIG_CCIC_VDM
-	/* read message if data object message */
-	if (status_reg_val &
-			(MSG_PSRDY | MSG_REQUEST | MSG_SNK_CAP
-			| VDM_DISCOVER_IDENTITY | VDM_DISCOVER_SVID
-			| VDM_DISCOVER_MODE | VDM_ENTER_MODE | VDM_EXIT_MODE
-			| VDM_ATTENTION | MSG_PASS)) {
-		usbpd_protocol_rx(data);
-		if (status_reg_val & MSG_PASS)
-			s2mu106_usbpd_check_vdm_msg(data, &status_reg_val);
+			if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_REQUEST)
+				status_reg_val |= MSG_REQUEST;
+
+			if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_REJECT)
+				status_reg_val |= MSG_REJECT;
+
+			if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_WAIT)
+				status_reg_val |= MSG_WAIT;
+
+			if (intr[4] & S2MU106_REG_INT_STATUS4_MSG_ERROR)
+				status_reg_val |= MSG_ERROR;
+
+			if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_PING)
+				status_reg_val |= MSG_PING;
+
+			if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_GETSNKCAP)
+				status_reg_val |= MSG_GET_SNK_CAP;
+
+			if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_GETSRCCAP)
+				status_reg_val |= MSG_GET_SRC_CAP;
+
+			if (intr[2] & S2MU106_REG_INT_STATUS2_MSG_VCONN_SWAP)
+				status_reg_val |= MSG_VCONN_SWAP;
+		}
 	}
-#else
-	/* read message if data object message */
-	if (status_reg_val &
-			(MSG_PSRDY | MSG_REQUEST | MSG_SNK_CAP
-			| VDM_DISCOVER_IDENTITY | VDM_DISCOVER_SVID
-			| VDM_DISCOVER_MODE | VDM_ENTER_MODE | VDM_EXIT_MODE
-			| VDM_ATTENTION)) {
-		usbpd_protocol_rx(data);
-	}
-#endif
 out:
 	pdic_data->status_reg |= status_reg_val;
 
@@ -958,36 +924,41 @@ static int s2mu106_tx_msg(void *_data,
 	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
 	struct i2c_client *i2c = pdic_data->i2c;
 	int ret = 0;
+	int i = 0;
 	int count = 0;
-	u8 reg_data = 0;
-	u8 msg_id = 0;
+	u8 send_msg[30];
 
-	mutex_lock(&pdic_data->cc_mutex);
+	pr_info("%s, \n", __func__);
+
 	/* if there is no attach, skip tx msg */
 	if (pdic_data->detach_valid)
 		goto done;
 
+#if 0
 	/* using msg id counter at s2mu106 */
 	s2mu106_usbpd_read_reg(pdic_data->i2c, S2MU106_REG_ID_MONITOR, &reg_data);
 	msg_id = reg_data & S2MU106_REG_ID_MONITOR_MSG_ID_MASK;
 	header->msg_id = msg_id;
-
-	ret = s2mu106_write_msg_header(i2c, header->byte);
-	if (ret < 0)
-		goto done;
+#endif
+	send_msg[0] = header->byte[0];
+	send_msg[1] = header->byte[1];
 
 	count = header->num_data_objs;
 
-	if (count > 0) {
-		ret = s2mu106_write_msg_obj(i2c, count, obj);
-		if (ret < 0)
-			goto done;
+	for (i = 0; i < count; i++) {
+		send_msg[2 + (i * 4)] = obj[i].byte[0];
+		send_msg[3 + (i * 4)] = obj[i].byte[1];
+		send_msg[4 + (i * 4)] = obj[i].byte[2];
+		send_msg[5 + (i * 4)] = obj[i].byte[3];
 	}
+
+	ret = s2mu106_write_msg_all(i2c, count, send_msg);
+	if (ret < 0)
+		goto done;
 
 	s2mu106_send_msg(i2c);
 
 done:
-	mutex_unlock(&pdic_data->cc_mutex);
 	return ret;
 }
 
@@ -1047,38 +1018,6 @@ static int s2mu106_vbus_on_check(void *_data)
 	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
 
 	return s2mu106_usbpd_check_vbus(pdic_data, 4500, VBUS_ON);
-}
-
-static int s2mu106_check_bist_message(void *_data)
-{
-	struct usbpd_data *data = (struct usbpd_data *) _data;
-	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
-	struct i2c_client *i2c = pdic_data->i2c;
-	u8 reg_data = 0;
-	msg_header_type rx_msg_header;
-
-	/* 1) PD State Inform to AP */
-	dev_info(data->dev, "%s\n", __func__);
-
-	/* 2) Get Rx Message ID */
-	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_MSG_RX_HEADER_H, &reg_data);
-	rx_msg_header.byte[1] = reg_data;
-	dev_info(data->dev, "rx_msg_header.byte[1] = 0x%02X.\n", rx_msg_header.byte[1]);
-
-	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_MSG_RX_HEADER_L, &reg_data);
-	rx_msg_header.byte[0] = reg_data;
-	dev_info(data->dev, "rx_msg_header.byte[0] = 0x%02X.\n", rx_msg_header.byte[0]);
-
-	dev_info(data->dev, "rx_msg_header.word = 0x%04X.\n", rx_msg_header.word);
-
-	/* 3) Check Bist Message */
-	if ((rx_msg_header.msg_type == 3) && (rx_msg_header.num_data_objs != 0)) {
-		dev_info(data->dev, "got check_bist_message is BIST.\n");
-		return 0;
-	} else {
-		dev_info(data->dev, "got check_bist_message is NOT BIST.\n");
-		return -1;
-	}
 }
 
 #if defined(CONFIG_CHECK_CTYPE_SIDE) || defined(CONFIG_CCIC_SYSFS)
@@ -1321,54 +1260,88 @@ static void s2mu106_usbpd_set_rp_scr_sel(struct s2mu106_usbpd_data *pdic_data,
 }
 #endif
 
-#ifdef CONFIG_CCIC_VDM
-int s2mu106_usbpd_check_vdm_msg(void *_data, u64 *val)
+int s2mu106_usbpd_check_msg(void *_data, u64 *val)
 {
 	struct usbpd_data *data = (struct usbpd_data *) _data;
-	int vdm_command = 0, vdm_type = 0;
+	int data_type = 0;
+	int msg_type = 0;
+	int vdm_type = 0;
+	int vdm_command = 0;
 
-	dev_info(data->dev, "%s ++\n", __func__);
-	if (data->protocol_rx.msg_header.num_data_objs == 0) {
-		dev_info(data->dev, "%s data_obj null\n", __func__);
+	dev_info(data->dev, "%s\n", __func__);
+
+	if (data->protocol_rx.msg_header.num_data_objs == 0)
+		data_type = USBPD_CTRL_MSG;
+	else
+		data_type = USBPD_DATA_MSG;
+
+	msg_type = data->protocol_rx.msg_header.msg_type;
+
+	if (data_type == USBPD_CTRL_MSG)
 		return 0;
+
+	if (data_type == USBPD_DATA_MSG) {
+		switch (msg_type) {
+		case USBPD_Source_Capabilities:
+			*val |= MSG_SRC_CAP;
+			break;
+		case USBPD_Request:
+			*val |= MSG_REQUEST;
+			break;
+		case USBPD_Sink_Capabilities:
+			*val |= MSG_SNK_CAP;
+			break;
+		case USBPD_BIST:
+			*val |= MSG_BIST;
+			break;
+		case USBPD_Vendor_Defined:
+			vdm_command = data->protocol_rx.data_obj[0].structured_vdm.command;
+			vdm_type = data->protocol_rx.data_obj[0].structured_vdm.vdm_type;
+
+			if (vdm_type == Unstructured_VDM) {
+				dev_info(data->dev, "%s : uvdm msg received!\n", __func__);
+				*val |=  UVDM_MSG;
+				break;
+			}
+
+			switch (vdm_command) {
+				case DisplayPort_Status_Update:
+					*val |= VDM_DP_STATUS_UPDATE;
+					break;
+				case DisplayPort_Configure:
+					*val |= VDM_DP_CONFIGURE;
+					break;
+				case Attention:
+					*val |= VDM_ATTENTION;
+					break;
+				case Exit_Mode:
+					*val |= VDM_EXIT_MODE;
+					break;
+				case Enter_Mode:
+					*val |= VDM_ENTER_MODE;
+					break;
+				case Discover_Modes:
+					*val |= VDM_ENTER_MODE;
+					break;
+				case Discover_SVIDs:
+					*val |= VDM_DISCOVER_SVID;
+					break;
+				case Discover_Identity:
+					*val |= VDM_DISCOVER_IDENTITY;
+					break;
+				default:
+					break;
+			}
+			break;
+		default:
+			break;
+		}
 	}
 
-	if (data->protocol_rx.msg_header.msg_type == USBPD_Source_Capabilities) {
-		*val |= MSG_SRC_CAP;
-		return 0;
-	}
-
-	if (data->protocol_rx.msg_header.msg_type != USBPD_Vendor_Defined) {
-		dev_info(data->dev, "%s msg type is wrong\n", __func__);
-		return 0;
-	}
-
-	vdm_command = data->protocol_rx.data_obj[0].structured_vdm.command;
-	vdm_type = data->protocol_rx.data_obj[0].structured_vdm.vdm_type;
-
-	if (vdm_type == Unstructured_VDM) {
-		dev_info(data->dev, "%s : uvdm msg received!\n", __func__);
-		*val |=  UVDM_MSG;
-		return 0;
-	}
-
-#if 0
-	switch (vdm_command) {
-	case DisplayPort_Status_Update:
-		*val |= VDM_DP_STATUS_UPDATE;
-		break;
-	case DisplayPort_Configure:
-		*val |= VDM_DP_CONFIGURE;
-		break;
-	default:
-		return 0;
-	}
-#endif
-	dev_info(data->dev, "%s: check vdm mag val(%d)\n", __func__, vdm_command);
+	dev_info(data->dev, "%s: msg status(%lld)\n", __func__, *val);
 
 	return 0;
 }
-#endif
 
 static int s2mu106_usbpd_set_cc_control(struct s2mu106_usbpd_data  *pdic_data, int val)
 {
@@ -1575,9 +1548,8 @@ int s2mu106_set_normal_mode(struct s2mu106_usbpd_data *pdic_data)
 
 	pdic_data->lpm_mode = false;
 
-	s2mu106_set_irq_enable(pdic_data, 0, 0,
-		S2MU106_REG_INT_STATUS2_MSG_SRC_CAP, ENABLED_INT_3,
-				ENABLED_INT_4, 0);
+	s2mu106_set_irq_enable(pdic_data, ENABLED_INT_0, ENABLED_INT_1,
+				ENABLED_INT_2, ENABLED_INT_3, ENABLED_INT_4, ENABLED_INT_5);
 
 	dev_info(dev, "%s s2mu106 exit lpm mode\n", __func__);
 
@@ -2455,6 +2427,9 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 
 	dev_info(dev, "%s\n", __func__);
 
+	mutex_lock(&pd_data->accept_mutex);
+	mutex_unlock(&pd_data->accept_mutex);
+
 	mutex_lock(&pdic_data->_mutex);
 
 	s2mu106_poll_status(pd_data);
@@ -2464,7 +2439,7 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 		goto out;
 #endif
 
-	if (s2mu106_get_status(pd_data, MSG_NONE))
+	if (pdic_data->status_reg == 0)
 		goto out;
 
 	if (s2mu106_get_status(pd_data, MSG_SOFTRESET))
@@ -2512,6 +2487,10 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 		mutex_unlock(&pdic_data->cc_mutex);
 		s2mu106_self_soft_reset(i2c);
 		pdic_data->status_reg = 0;
+		if (pdic_data->power_role == PDIC_SOURCE)
+			s2mu106_dfp(i2c);
+		else
+			s2mu106_ufp(i2c);
 		usbpd_rx_hard_reset(dev);
 		usbpd_kick_policy_work(dev);
 		goto out;
@@ -2734,7 +2713,8 @@ static int s2mu106_usbpd_irq_init(struct s2mu106_usbpd_data *_data)
 	if (_data->lpm_mode)
 		s2mu106_set_irq_enable(_data, 0, 0, 0, 0, 0, 0);
 	else
-		s2mu106_set_irq_enable(_data, 0, 0, 0, 0, ENABLED_INT_4, 0);
+		s2mu106_set_irq_enable(_data, ENABLED_INT_0, ENABLED_INT_1,
+				ENABLED_INT_2, ENABLED_INT_3, ENABLED_INT_4, ENABLED_INT_5);
 
 	return ret;
 }
@@ -3035,7 +3015,6 @@ static usbpd_phy_ops_type s2mu106_ops = {
 	.get_side_check		= s2mu106_get_side_check,
 	.pr_swap			= s2mu106_pr_swap,
 	.vbus_on_check		= s2mu106_vbus_on_check,
-	.check_bist_message = s2mu106_check_bist_message,
 };
 
 #if defined CONFIG_PM
