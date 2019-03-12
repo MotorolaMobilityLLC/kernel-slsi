@@ -37,7 +37,7 @@
 #define OIS_CAL_ACTUAL_DL_SIZE		0x28
 #define EEPROM_INFO_TABLE_REVISION	0x64
 
-//#define OIS_DEBUG
+#define OIS_DEBUG
 
 static u8 ois_fw_data[OIS_FW_NUM][OIS_FW_SIZE] = {{0},};
 static int ois_fw_data_size[OIS_FW_NUM] = {0,};
@@ -203,7 +203,7 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 	/* wait over 200us */
 	usleep_range(200,200);
 	ret = fimc_is_ois_read(ois->client, 0x6024, &ois_status);
-	info("ois status:0x%x", ois_status);
+	info("ois status(0x6024):0x%x", ois_status);
 
 	/* Step 2 Download FW*/
 	for(fw_num = 0; fw_num < OIS_FW_NUM; fw_num++) {
@@ -291,14 +291,14 @@ int fimc_is_ois_fw_download(struct fimc_is_ois *ois)
 
 	/* OIS status */
 	ret = fimc_is_ois_read(ois->client, 0x6024, &ois_status);
-	info("ois status after D/L complete :0x%x", ois_status);
+	info("ois status(0x6024) after D/L complete :0x%x", ois_status);
 
 	while ((ois_status == 0) && (retry-- > 0)) {
 		usleep_range(4000, 4000);
 		I2C_MUTEX_LOCK(ois->i2c_lock);
 		ret = fimc_is_ois_read(ois->client, 0x6024, &ois_status);
 		I2C_MUTEX_UNLOCK(ois->i2c_lock);
-		info("ois status :0x%x", ois_status);
+		info("ois status(0x6024) :0x%x", ois_status);
 	}
 	if (ois_status != 1) {
 		err("ois_status is 0,force return error");
@@ -411,7 +411,13 @@ int fimc_is_set_ois_mode(struct v4l2_subdev *subdev, int mode)
 	struct i2c_client *client = NULL;
 #ifdef OIS_DEBUG
 	u8 ois_mode = 0;
-	u8 ois_gyro_data[2] = {0};
+	u8 ois_gyro_mode = 0;
+	u8 ois_gyro_output1[2] = {0};
+	u8 ois_gyro_output2[2] = {0};
+	u8 ois_gyro_output3[2] = {0};
+	u8 ois_gyro_output4[2] = {0};
+	u8 ois_hall_x = 0;
+	u8 ois_hall_y = 0;
 #endif
 
 	FIMC_BUG(!subdev);
@@ -434,12 +440,31 @@ int fimc_is_set_ois_mode(struct v4l2_subdev *subdev, int mode)
 
 #ifdef OIS_DEBUG
 	ret != fimc_is_ois_read(ois->client, 0x6021, &ois_mode);
-	info("last ois mode is 0x%x", ois_mode);
+	info("last ois mode(0x6021) is 0x%x", ois_mode);
+	ret != fimc_is_ois_read(ois->client, 0x6023, &ois_gyro_mode);
+	info("ois Gyro mode(0x6023) is 0x%x", ois_gyro_mode);
 #endif
 
 	if (ois_previous_mode == mode) {
 #ifdef OIS_DEBUG
-		info("skip set same ois mode:%d", mode);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6040, ois_gyro_output1, 2);
+	info("ois Gyro output1(0x6040) is 0x%x%x", ois_gyro_output1[0], ois_gyro_output1[1]);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6042, ois_gyro_output2, 2);
+	info("ois Gyro output2(0x6042) is 0x%x%x", ois_gyro_output2[0], ois_gyro_output2[1]);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6044, ois_gyro_output3, 2);
+	info("ois Gyro output3(0x6044) is 0x%x%x", ois_gyro_output3[0], ois_gyro_output3[1]);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6046, ois_gyro_output4, 2);
+	info("ois Gyro output4(0x6046) is 0x%x%x", ois_gyro_output4[0], ois_gyro_output4[1]);
+	ret != fimc_is_ois_read(ois->client, 0x6058, &ois_hall_x);
+	info("ois Hall X(0x6058) is 0x%x", ois_hall_x);
+	ret != fimc_is_ois_read(ois->client, 0x6059, &ois_hall_y);
+	info("ois Hall Y(0x6059) is 0x%x", ois_hall_y);
+	info("set ois mode:%d %s", mode,
+		mode == OPTICAL_STABILIZATION_MODE_STILL ? "OPTICAL_STABILIZATION_MODE_STILL" :
+		mode == OPTICAL_STABILIZATION_MODE_STILL_ZOOM ? "OPTICAL_STABILIZATION_MODE_STILL_ZOOM" :
+		mode == OPTICAL_STABILIZATION_MODE_VIDEO ? "OPTICAL_STABILIZATION_MODE_VIDEO" :
+		mode == OPTICAL_STABILIZATION_MODE_CENTERING ? "OPTICAL_STABILIZATION_MODE_CENTERING" :
+		mode == 0 ? "OFF" : "other");
 #endif
 		goto p_err;
 	} else {
@@ -474,10 +499,18 @@ int fimc_is_set_ois_mode(struct v4l2_subdev *subdev, int mode)
 	}
 
 #ifdef OIS_DEBUG
-	ret != fimc_is_ois_read_multi(ois->client, 0x6040, ois_gyro_data, 2);
-	info("ois Gyro output1 is 0x%x%x", ois_gyro_data[0], ois_gyro_data[1]);
-	ret != fimc_is_ois_read_multi(ois->client, 0x6042, ois_gyro_data, 2);
-	info("ois Gyro output2 is 0x%x%x", ois_gyro_data[0], ois_gyro_data[1]);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6040, ois_gyro_output1, 2);
+	info("ois Gyro output1(0x6040) is 0x%x%x", ois_gyro_output1[0], ois_gyro_output1[1]);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6042, ois_gyro_output2, 2);
+	info("ois Gyro output2(0x6042) is 0x%x%x", ois_gyro_output2[0], ois_gyro_output2[1]);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6044, ois_gyro_output3, 2);
+	info("ois Gyro output3(0x6044) is 0x%x%x", ois_gyro_output3[0], ois_gyro_output3[1]);
+	ret != fimc_is_ois_read_multi(ois->client, 0x6046, ois_gyro_output4, 2);
+	info("ois Gyro output4(0x6046) is 0x%x%x", ois_gyro_output4[0], ois_gyro_output4[1]);
+	ret != fimc_is_ois_read(ois->client, 0x6058, &ois_hall_x);
+	info("ois Hall X(0x6058) is 0x%x", ois_hall_x);
+	ret != fimc_is_ois_read(ois->client, 0x6059, &ois_hall_y);
+	info("ois Hall Y(0x6059) is 0x%x", ois_hall_y);
 #endif
 p_err:
 	I2C_MUTEX_UNLOCK(ois->i2c_lock);
@@ -534,11 +567,11 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 	ret != fimc_is_ois_write(ois->client, 0x6021, 0x7B);
 	usleep_range(300, 300);
 	ret != fimc_is_ois_read(ois->client, 0x6024, &ois_status);
-	info("ois status is 0x%x", ois_status);
+	info("ois status(0x6024) is 0x%x", ois_status);
 	while ((ois_status == 0) && (retry-- > 0)) {
 		usleep_range(3000, 3000);
 		ret != fimc_is_ois_read(ois->client, 0x6024, &ois_status);
-		info("retry ois status is 0x%x", ois_status);
+		info("retry ois status(0x6024) is 0x%x", ois_status);
 	}
 	if (ois_status != 1) {
 		err("ois_status is 0, force return error");
@@ -554,11 +587,11 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 
 	usleep_range(200, 200);
 	ret != fimc_is_ois_read(ois->client, 0x6024, &ois_status);
-	info("ois status after OIS ON is 0x%x", ois_status);
+	info("ois status(0x6024) after OIS ON is 0x%x", ois_status);
 	while ((ois_status == 0) && (retry-- > 0)) {
 		usleep_range(300, 300);
 		ret != fimc_is_ois_read(ois->client, 0x6024, &ois_status);
-		info("ois status after OIS ON is 0x%x", ois_status);
+		info("ois status(0x6024) after OIS ON is 0x%x", ois_status);
 	}
 	if (ois_status != 1) {
 		err("ois_status is 0, force return error");
@@ -569,9 +602,9 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 
 #ifdef OIS_DEBUG
 	ret != fimc_is_ois_read(ois->client, 0x6021, &ois_status);
-	info("ois mode is 0x%x", ois_status);
+	info("ois mode(0x6021) is 0x%x", ois_status);
 	ret != fimc_is_ois_read(ois->client, 0x6023, &ois_status);
-	info("ois Gyro mode is 0x%x", ois_status);
+	info("ois Gyro mode(0x6023) is 0x%x", ois_status);
 #endif
 
 	info("%s: X", __func__);
