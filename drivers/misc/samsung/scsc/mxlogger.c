@@ -758,8 +758,14 @@ int mxlogger_start(struct mxlogger *mxlogger)
 		 */
 		mxlogger_enable(mxlogger, true);
 		mxlogger_to_shared_dram(mxlogger);
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+		scsc_log_collector_is_observer(false);
+#endif
 	} else {
 		mxlogger_to_host(mxlogger);
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+		scsc_log_collector_is_observer(true);
+#endif
 		/* Enabling AFTER communicating direction HOST
 		 * to avoid wrongly spilling messages into the
 		 * rings early at start (like at boot).
@@ -802,6 +808,9 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	mxlogger->configured = false;
 	mxlogger->initialized = false;
 	mxlogger_to_host(mxlogger);
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_is_observer(true);
+#endif
 	mxlogger_enable(mxlogger, false);
 	mxmgmt_transport_register_channel_handler(scsc_mx_get_mxmgmt_transport(mxlogger->mx),
 						  MMTRANS_CHAN_ID_MAXWELL_LOGGING,
@@ -836,6 +845,9 @@ int mxlogger_register_observer(struct mxlogger *mxlogger, char *name)
 
 	/* Switch logs to host */
 	mxlogger_to_host(mxlogger);
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+	scsc_log_collector_is_observer(true);
+#endif
 
 	mutex_unlock(&mxlogger->lock);
 
@@ -857,8 +869,12 @@ int mxlogger_unregister_observer(struct mxlogger *mxlogger, char *name)
 	SCSC_TAG_INFO(MXMAN, "UN-register observer[%d] --  %s\n",
 		      mxlogger->observers, name);
 
-	if (mxlogger->observers == 0)
+	if (mxlogger->observers == 0) {
 		mxlogger_to_shared_dram(mxlogger);
+#ifdef CONFIG_SCSC_LOG_COLLECTION
+		scsc_log_collector_is_observer(false);
+#endif
+	}
 
 	mutex_unlock(&mxlogger->lock);
 
