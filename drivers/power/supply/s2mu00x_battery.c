@@ -1291,6 +1291,13 @@ static void get_battery_capacity(struct s2mu00x_battery_info *battery)
 	}
 
 	new_capacity = (raw_soc * 100) / battery->max_rawsoc;
+
+	if ((new_capacity == 0) && (raw_soc != 0)) {
+		dev_info(battery->dev, "%s: new_capacity is 0, "
+				"but raw_soc is not 0. Maintain SOC 1\n", __func__);
+		new_capacity = 1;
+	}
+
 	if (new_capacity > 100)
 		new_capacity = 100;
 
