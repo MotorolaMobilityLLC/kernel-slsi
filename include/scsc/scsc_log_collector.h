@@ -9,7 +9,7 @@
 
 /* High nibble is Major, Low nibble is Minor */
 #define SCSC_LOG_HEADER_VERSION_MAJOR	0x02
-#define SCSC_LOG_HEADER_VERSION_MINOR	0x00
+#define SCSC_LOG_HEADER_VERSION_MINOR	0x01
 /* Magic string. 4 bytes "SCSC"*/
 /* Header version. 1 byte */
 /* Num chunks. 1 byte */
@@ -17,12 +17,13 @@
 /* Collection reason. 1 byte */
 /* Reserved. 1 byte */
 /* Reason Code . 2 bytes */
-#define SCSC_LOG_HEADER_SIZE		(12)
+/* Observer present . 1 bytes */
+#define SCSC_LOG_HEADER_SIZE		(13)
 #define SCSC_LOG_FW_VERSION_SIZE	(128)
 #define SCSC_LOG_HOST_VERSION_SIZE	(64)
 #define SCSC_LOG_FAPI_VERSION_SIZE	(64)
 /* Reserved 2 . 4 byte */
-#define SCSC_LOG_RESERVED_2		4
+#define SCSC_LOG_RESERVED_2		3
 /* Ideally header + versions should be 16 bytes aligne*/
 #define SCSC_SUPPORTED_CHUNKS_HEADER    48
 
@@ -105,6 +106,7 @@ struct scsc_log_sbl_header {
 	char host_version[SCSC_LOG_HOST_VERSION_SIZE];
 	char fapi_version[SCSC_LOG_FAPI_VERSION_SIZE];
 	u16  reason_code;
+	bool observer;
 	u8   reserved2[SCSC_LOG_RESERVED_2];
 	char supported_chunks[SCSC_SUPPORTED_CHUNKS_HEADER];
 } __packed;
@@ -132,6 +134,9 @@ unsigned char *scsc_log_collector_get_buffer(void);
 
 /* Public method to register FAPI version. */
 void scsc_log_collector_write_fapi(char __user *buf, size_t len);
+
+/* Public method to notify the presence/absense of observers */
+void scsc_log_collector_is_observer(bool observer);
 
 void scsc_log_collector_schedule_collection(enum scsc_log_reason reason, u16 reason_code);
 int scsc_log_collector_write(char __user *buf, size_t count, u8 align);
