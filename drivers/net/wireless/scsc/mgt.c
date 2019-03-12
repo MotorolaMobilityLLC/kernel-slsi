@@ -1264,8 +1264,9 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 							       { SLSI_PSID_UNIFI_MAX_CLIENT, {0, 0} },
 #endif
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
-							       { SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION_ACTIVATED, {0, 0} }
+							       { SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION_ACTIVATED, {0, 0} },
 #endif
+							       { SLSI_PSID_UNIFI_DEFAULT_COUNTRY_WITHOUT_CH12_CH13, {0, 0} }
 							      };/*Check the mibrsp.dataLength when a new mib is added*/
 
 	/* 40 MHz bandwidth is not supported in 2.4 GHz in AP/GO Mode Currently.
@@ -1276,7 +1277,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 	if (r != SLSI_MIB_STATUS_SUCCESS)
 		return -ENOMEM;
 
-	mibrsp.dataLength = 164;
+	mibrsp.dataLength = 174;
 	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
 	if (!mibrsp.data) {
 		kfree(mibreq.data);
@@ -1423,6 +1424,11 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		else
 			SLSI_WARN(sdev, "Error reading Mac Randomization Support\n");
 #endif
+		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE)  /* Disable ch12/ch13 */
+			sdev->device_config.disable_ch12_ch13 = values[mib_index].u.boolValue;
+		else
+			SLSI_WARN(sdev, "Error reading default country without ch12/13 mib\n");
+
 		kfree(values);
 	}
 	kfree(mibrsp.data);
