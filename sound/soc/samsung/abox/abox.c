@@ -5481,9 +5481,6 @@ static void abox_start_timer(struct abox_data *data)
 	struct regmap *regmap = data->regmap;
 
 	regmap_write(regmap, ABOX_TIMER_CTRL0(0), 1 << ABOX_TIMER_START_L);
-	regmap_write(regmap, ABOX_TIMER_CTRL0(1), 1 << ABOX_TIMER_START_L);
-	regmap_write(regmap, ABOX_TIMER_CTRL0(2), 1 << ABOX_TIMER_START_L);
-	regmap_write(regmap, ABOX_TIMER_CTRL0(3), 1 << ABOX_TIMER_START_L);
 }
 
 static int abox_enable(struct device *dev)
