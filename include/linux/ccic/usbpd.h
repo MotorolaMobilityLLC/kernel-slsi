@@ -33,7 +33,7 @@
 #define tSenderResponse		(25)	/* 24~30ms */
 #define tSenderResponseSRC	(300)	/* 1000 ms */
 #define tSendSourceCap		(10)	/* 1~2 s */
-#define tPSHardReset		(25)	/* 25~35 ms */
+#define tPSHardReset		(17)	/* 25~35 ms */
 #define tSinkWaitCap		(2500)	/* 2.1~2.5 s  */
 #define tPSTransition		(450)	/* 450~550 ms */
 #define tVCONNSourceOn		(100)	/* 24~30 ms */
@@ -288,7 +288,7 @@ enum usbpd_msg_status {
 	UVDM_MSG		= 1<<28,
 	MSG_PASS		= 1<<29,
 	MSG_RID			= 1<<30,
-	MSG_NONE		= 1<<31,
+	MSG_BIST		= 1<<31,
 };
 
 /* Timer */
@@ -350,7 +350,6 @@ typedef struct usbpd_phy_ops {
 	int    (*set_cc_control)(void *, int);
 	void    (*pr_swap)(void *, int);
 	int    (*vbus_on_check)(void *);
-	int    (*check_bist_message)(void *);
 	int		(*get_side_check)(void *_data);
 } usbpd_phy_ops_type;
 
@@ -488,6 +487,9 @@ struct usbpd_data {
 	unsigned                wait_for_msg_arrived;
 	int					lc_test;
 	int					id_matched;
+	bool				msg_received;
+	int					msg_id;
+	struct mutex		accept_mutex;
 
 	struct timeval		time1;
 	struct timeval		time2;
