@@ -847,6 +847,7 @@ struct slsi_dev_config {
 
 	int                                      rssi_boost_5g;
 	int                                      rssi_boost_2g;
+	bool                                   disable_ch12_ch13;
 };
 
 #define SLSI_DEVICE_STATE_ATTACHING 0

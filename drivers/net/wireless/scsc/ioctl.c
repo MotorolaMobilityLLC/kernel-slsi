@@ -1922,6 +1922,9 @@ static int slsi_get_supported_channels(struct slsi_dev *sdev, struct net_device 
 		chan_count = supported_chan_mib.data[i*2 + 1];
 		if (chan_start == 1) { /* for 2.4GHz */
 			supported_channels[supp_chan_length].start_chan_num = 1;
+			if (!(sdev->device_config.host_state & FAPI_HOSTSTATE_CELLULAR_ACTIVE) &&
+			    chan_count > 11 && sdev->device_config.disable_ch12_ch13)
+				chan_count = 11;
 			supported_channels[supp_chan_length].channel_count = chan_count;
 			supported_channels[supp_chan_length].increment = 1;
 			supported_channels[supp_chan_length].band = NL80211_BAND_2GHZ;
@@ -2010,6 +2013,19 @@ static int slsi_get_regulatory(struct net_device *dev, char *buf, int buf_len)
 		return -ENOMEM;
 }
 
+void slsi_disable_ch12_13(struct slsi_dev *sdev)
+{
+	struct wiphy *wiphy = sdev->wiphy;
+	struct ieee80211_channel *chan;
+
+	if (wiphy->bands[0]) {
+		chan = &wiphy->bands[0]->channels[11];
+		chan->flags |= IEEE80211_CHAN_DISABLED;
+		chan = &wiphy->bands[0]->channels[12];
+		chan->flags |= IEEE80211_CHAN_DISABLED;
+	}
+}
+
 int slsi_set_fcc_channel(struct net_device *dev, char *cmd, int cmd_len)
 {
 	struct netdev_vif    *ndev_vif = netdev_priv(dev);
@@ -2045,6 +2061,8 @@ int slsi_set_fcc_channel(struct net_device *dev, char *cmd, int cmd_len)
 				slsi_reset_channel_flags(sdev);
 				wiphy_apply_custom_regulatory(sdev->wiphy, sdev->device_config.domain_info.regdomain);
 				slsi_update_supported_channels_regd_flags(sdev);
+				if (flight_mode_ena && sdev->device_config.disable_ch12_ch13)
+					slsi_disable_ch12_13(sdev);
 			}
 		}
 	}
