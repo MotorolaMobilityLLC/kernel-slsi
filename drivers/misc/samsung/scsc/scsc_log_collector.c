@@ -113,6 +113,7 @@ struct scsc_log_status {
 	enum scsc_log_reason    collect_reason;
 	u16 reason_code;
 	struct mutex collection_serial;
+	bool observer_present;
 } log_status;
 
 static DEFINE_MUTEX(log_mutex);
@@ -404,6 +405,7 @@ static int __scsc_log_collector_collect(enum scsc_log_reason reason, u16 reason_
 	sbl_header.num_chunks = num_chunks;
 	sbl_header.trigger = reason;
 	sbl_header.reason_code = reason_code;
+	sbl_header.observer = log_status.observer_present;
 	sbl_header.offset_data = first_chunk_pos;
 	mxman_get_fw_version(version_fw, SCSC_LOG_FW_VERSION_SIZE);
 	memcpy(sbl_header.fw_version, version_fw, SCSC_LOG_FW_VERSION_SIZE);
@@ -523,6 +525,12 @@ void scsc_log_collector_write_fapi(char __user *buf, size_t len)
 	memcpy(log_status.fapi_ver, buf, len);
 }
 EXPORT_SYMBOL(scsc_log_collector_write_fapi);
+
+void scsc_log_collector_is_observer(bool observer)
+{
+	log_status.observer_present = observer;
+}
+EXPORT_SYMBOL(scsc_log_collector_is_observer);
 
 MODULE_DESCRIPTION("SCSC Log collector");
 MODULE_AUTHOR("SLSI");
