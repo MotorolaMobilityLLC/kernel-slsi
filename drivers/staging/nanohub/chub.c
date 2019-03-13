@@ -1138,7 +1138,11 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 
 	/* image download */
 	dev_info(ipc->dev, "%s: clear ipc:%p, %d\n", __func__, ipc_get_base(IPC_REG_IPC), ipc_get_offset(IPC_REG_IPC));
-	memset_io(ipc_get_base(IPC_REG_IPC), 0x0, ipc_get_offset(IPC_REG_IPC));
+	memset_io(ipc_get_base(IPC_REG_IPC_A2C), 0, ipc_get_offset(IPC_REG_IPC_A2C));
+	memset_io(ipc_get_base(IPC_REG_IPC_C2A), 0, ipc_get_offset(IPC_REG_IPC_C2A));
+	memset_io(ipc_get_base(IPC_REG_IPC_EVT_A2C), 0, ipc_get_offset(IPC_REG_IPC_EVT_A2C));
+	memset_io(ipc_get_base(IPC_REG_IPC_EVT_C2A), 0, ipc_get_offset(IPC_REG_IPC_EVT_C2A));
+	memset_io(ipc_get_base(IPC_REG_LOG), 0, ipc_get_offset(IPC_REG_LOG));
 	if (ipc->block_reset || force_load) {
 		ret = contexthub_download_image(ipc, IPC_REG_BL);
 		if (!ret) {
