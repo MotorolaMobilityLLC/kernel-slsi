@@ -1677,6 +1677,12 @@ static void get_battery_capacity(struct s2mu00x_battery_info *battery)
 	}
 
 	new_capacity = (raw_soc * 100) / battery->max_rawsoc;
+	if ((new_capacity == 0) && (raw_soc != 0)) {
+		dev_info(battery->dev, "%s: new_capacity is 0, "
+				"but raw_soc is not 0. Maintain SOC 1\n", __func__);
+		new_capacity = 1;
+	}
+
 	if (new_capacity > 100)
 		new_capacity = 100;
 
@@ -1956,7 +1962,7 @@ static void check_charging_full(
 	}
 
 	/* 2. Full charged check */
-	if ((battery->current_now > 0 && battery->current_now <
+	if ((battery->current_now >= 0 && battery->current_now <
 				battery->pdata->charging_current[
 				battery->cable_type].full_check_current) &&
 			(battery->voltage_avg > battery->pdata->chg_full_vcell)) {
@@ -3646,7 +3652,7 @@ static int get_property_from_fg(struct s2mu00x_battery_info *chip,
 	return rc;
 }
 
-#define DEFAULT_BATT_CAPACITY	50
+#define DEFAULT_BATT_CAPACITY	500
 static int get_prop_batt_capacity(struct s2mu00x_battery_info *chip)
 {
 	int capacity, rc;
@@ -3660,7 +3666,7 @@ static int get_prop_batt_capacity(struct s2mu00x_battery_info *chip)
 		pr_smb(PR_STATUS, "Couldn't get capacity rc = %d\n", rc);
 		capacity = DEFAULT_BATT_CAPACITY;
 	}
-	return capacity;
+	return capacity / 10;
 }
 
 #define DEFAULT_BATT_TEMP		200
