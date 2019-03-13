@@ -871,7 +871,8 @@ static void get_prop_charge_rate(struct s2mu00x_battery_info *battery)
 
 	if(battery->cable_type == POWER_SUPPLY_TYPE_HV_MAINS ||
 		battery->cable_type == POWER_SUPPLY_TYPE_USB_PD ||
-		battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA )
+		battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
+		((battery->rp_attach)&&(battery->rp_input_current == RP_CURRENT3)) )
 		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_TURBO;
 	else
 		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
