@@ -2054,7 +2054,7 @@ int mxman_suspend(struct mxman *mxman)
 	if (srvman && srvman->error) {
 		mutex_unlock(&mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	/* Call Service suspend callbacks */
