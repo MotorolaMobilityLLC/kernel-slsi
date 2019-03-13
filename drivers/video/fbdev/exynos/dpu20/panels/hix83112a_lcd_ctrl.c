@@ -118,6 +118,12 @@ void hix83112a_lcd_init(int id, struct decon_lcd *lcd)
 	dsim_err("fail to send SEQ_OTP_DISABLE command.\n");
 	mdelay(1);
 
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_8[0],
+		SEQ_CMD_8[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_8 command.\n");
+	mdelay(5);
+
 	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE, SEQ_SLEEP_OUT[0], 0) < 0)
 		dsim_err("fail to send SEQ_SLEEP_OUT command.\n");
 	mdelay(125);
