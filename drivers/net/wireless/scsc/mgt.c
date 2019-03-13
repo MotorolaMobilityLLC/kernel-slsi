@@ -1259,7 +1259,10 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 #endif
 #ifdef CONFIG_SCSC_WLAN_AP_INFO_FILE
 							       { SLSI_PSID_UNIFI_DUAL_BAND_CONCURRENCY, {0, 0} },
-							       { SLSI_PSID_UNIFI_MAX_CLIENT, {0, 0} }
+							       { SLSI_PSID_UNIFI_MAX_CLIENT, {0, 0} },
+#endif
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+							       { SLSI_PSID_UNIFI_MAC_ADDRESS_RANDOMISATION_ACTIVATED, {0, 0} }
 #endif
 							      };/*Check the mibrsp.dataLength when a new mib is added*/
 
@@ -1271,7 +1274,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 	if (r != SLSI_MIB_STATUS_SUCCESS)
 		return -ENOMEM;
 
-	mibrsp.dataLength = 154;
+	mibrsp.dataLength = 164;
 	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
 	if (!mibrsp.data) {
 		kfree(mibreq.data);
@@ -1412,7 +1415,12 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		else
 			SLSI_WARN(sdev, "Error reading SoftAP max client\n");
 #endif
-
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE)  /* Mac Randomization enable? */
+			sdev->fw_mac_randomization_enabled = values[mib_index].u.boolValue;
+		else
+			SLSI_WARN(sdev, "Error reading Mac Randomization Support\n");
+#endif
 		kfree(values);
 	}
 	kfree(mibrsp.data);
