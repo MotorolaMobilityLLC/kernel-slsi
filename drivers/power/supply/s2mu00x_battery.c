@@ -3780,7 +3780,7 @@ static int get_property_from_fg(struct s2mu00x_battery_info *chip,
 	return rc;
 }
 
-#define DEFAULT_BATT_CAPACITY	50
+#define DEFAULT_BATT_CAPACITY	500
 static int get_prop_batt_capacity(struct s2mu00x_battery_info *chip)
 {
 	int capacity, rc;
@@ -3794,7 +3794,7 @@ static int get_prop_batt_capacity(struct s2mu00x_battery_info *chip)
 		pr_smb(PR_STATUS, "Couldn't get capacity rc = %d\n", rc);
 		capacity = DEFAULT_BATT_CAPACITY;
 	}
-	return capacity;
+	return capacity / 10;
 }
 
 #define DEFAULT_BATT_TEMP		200
@@ -4303,6 +4303,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->temp_low_recovery = battery->pdata->temp_low_recovery;
 
 	battery->max_rawsoc = battery->pdata->max_rawsoc;
+	battery->max_rawsoc_offset = battery->pdata->max_rawsoc_offset;
 
 	battery->charging_disabled = false;
 	battery->is_recharging = false;
