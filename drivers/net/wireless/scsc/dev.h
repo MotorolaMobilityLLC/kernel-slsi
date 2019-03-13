@@ -1106,6 +1106,9 @@ struct slsi_dev {
 	u16                             rtt_vif[8];
 	bool                            acs_channel_switched;
 	int                        recovery_timeout; /* ms autorecovery completion timeout */
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+	bool                            fw_mac_randomization_enabled;
+#endif
 };
 
 /* Compact representation of channels a ESS has been seen on
