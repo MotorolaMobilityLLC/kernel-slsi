@@ -410,7 +410,6 @@ void *scsc_wlog_register_debugfs_entry(const char *ring_name,
 no_ringdir:
 no_rootdir:
 	SCSC_TAG_ERR(WLOG, "Failed WiFiLogger Debugfs basic initialization\n");
-	kfree(di);
 	return NULL;
 }
 
