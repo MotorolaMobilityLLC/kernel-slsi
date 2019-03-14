@@ -392,6 +392,14 @@ static int fimc_is_eeprom_12a10_check_dual(struct v4l2_subdev *subdev)
 	else
 		info("DUAL CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
+	crc_value = ((eeprom->data[EEPROM_DUAL_VER_CRC_SEC] << 8) | (eeprom->data[EEPROM_DUAL_VER_CRC_FST]));
+
+	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_DUAL_VER_CRC_CHK_START], EEPROM_DUAL_VER_CRC_CHK_SIZE);
+	if (crc_value != crc16)
+		err("Error to DUAL VER CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
+	else
+		info("DUAL VER CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
+
 	return ret;
 }
 
