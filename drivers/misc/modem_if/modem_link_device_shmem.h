@@ -53,11 +53,19 @@
 #define SHM_RX_MAX_QOS_TRIGGER_BYTES	6250000	/* Express 100Mbps as Bytes per 0.5ms */
 #define SHM_RX_MIN_QOS_HOLD_MS		500	/* 500ms */
 
+#define SHMEM_SRINFO_OFFSET	0x800	/* 4KB - 2KB */
+#define SHMEM_SRINFO_SIZE		0x400	/* 1KB */
+
 #define TIMER_INTERVAL_NS	500000000	/* 500ms */
 
 struct crash_reason {
 	u32 owner;
 	char string[MEM_CRASH_REASON_SIZE];
+};
+
+struct shmem_srinfo {
+	unsigned int size;
+	char buf[0];
 };
 
 struct shmem_4mb_phys_map {

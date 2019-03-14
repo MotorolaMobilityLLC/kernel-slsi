@@ -2360,6 +2360,66 @@ static void shmem_link_terminate(struct link_device *ld, struct io_device *iod)
 	}
 }
 
+static char *shmem_get_srinfo_address(struct link_device *ld)
+{
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+	char *base = (u8 __iomem *)shmd->base + SHMEM_SRINFO_OFFSET;
+
+	return base;
+}
+
+static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
+		       unsigned int cmd, unsigned long arg)
+{
+	mif_err("%s: cmd 0x%08X\n", ld->name, cmd);
+
+	switch (cmd) {
+	case IOCTL_MODEM_GET_SHMEM_SRINFO:
+	{
+		struct shmem_srinfo __user *sr_arg =
+			(struct shmem_srinfo __user *)arg;
+		unsigned count, size = SHMEM_SRINFO_SIZE;
+
+		if (copy_from_user(&count, &sr_arg->size, sizeof(unsigned)))
+			return -EFAULT;
+
+		mif_info("get srinfo:%s, size = %d\n", iod->name, count);
+
+		size = min(size, count);
+		if (copy_to_user(&sr_arg->size, &size, sizeof(unsigned)))
+			return -EFAULT;
+
+		if (copy_to_user(sr_arg->buf, shmem_get_srinfo_address(ld),
+			size))
+			return -EFAULT;
+		break;
+	}
+
+	case IOCTL_MODEM_SET_SHMEM_SRINFO:
+	{
+		struct shmem_srinfo __user *sr_arg =
+			(struct shmem_srinfo __user *)arg;
+		unsigned count, size = SHMEM_SRINFO_SIZE;
+
+		if (copy_from_user(&count, &sr_arg->size, sizeof(unsigned)))
+			return -EFAULT;
+
+		mif_info("set srinfo:%s, size = %d\n", iod->name, count);
+
+		if (copy_from_user(shmem_get_srinfo_address(ld), sr_arg->buf,
+			min(count, size)))
+			return -EFAULT;
+		break;
+	}
+
+	default:
+		mif_err("%s: ERR! invalid cmd 0x%08X\n", ld->name, cmd);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static inline bool valid_bin_range(struct modem_data *modem, struct data_info *di)
 {
 	u32 resmem_start, resmem_end;
@@ -2837,7 +2897,6 @@ static const struct attribute_group napi_group = {	\
 	.name = "napi",
 };
 #endif /* CONFIG_LINK_DEVICE_NAPI */
-
 struct link_device *shmem_create_link_device(struct platform_device *pdev)
 {
 	struct shmem_link_device *shmd = NULL;
@@ -2877,6 +2936,9 @@ struct link_device *shmem_create_link_device(struct platform_device *pdev)
 	ld->name = modem->link_name;
 	ld->aligned = 1;
 	ld->max_ipc_dev = MAX_EXYNOS_DEVICES;
+
+	/* Set up link device methods */
+	ld->ioctl = shmem_ioctl;
 
 	/* Set attributes as a link device */
 	ld->terminate_comm = shmem_link_terminate;
