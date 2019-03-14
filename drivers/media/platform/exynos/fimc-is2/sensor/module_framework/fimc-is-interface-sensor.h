@@ -248,6 +248,22 @@ struct sensor_lsi_3hdr_stat_control_per_frame {
 	int r_weight;
 	int b_weight;
 	int g_weight;
+
+	/* stat for 3dhdr motion */
+	u32 motion_indication;
+	u32 motion_high_end_ty2ty1;
+	u32 motion_high_start_ty2ty1;
+	u32 motion_low_end_ty2ty1;
+	u32 motion_low_start_ty2ty1;
+	u32 motion_high_end_ty3ty2;
+	u32 motion_high_start_ty3ty2;
+	u32 motion_low_end_ty3ty2;
+	u32 motion_low_start_ty3ty2;
+	u32 decision_thresh_override;
+	u32 motion_abs_high_ty3ty2;
+	u32 motion_abs_low_ty3ty2;
+	u32 motion_abs_high_ty2ty1;
+	u32 motion_abs_low_ty2ty1;
 };
 
 typedef struct {

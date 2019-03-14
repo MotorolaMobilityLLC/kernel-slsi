@@ -2192,6 +2192,67 @@ int sensor_2x5sp_cis_set_3hdr_stat(struct v4l2_subdev *subdev, bool streaming, v
 		ret = fimc_is_sensor_write16(client, 0x4E06, y_sum_roi.roi_start_y);
 		if (ret < 0)
 			goto p_err;
+	} else {
+		/* update 3hdr motion stat */
+		ret = fimc_is_sensor_write16(client, 0x6028, 0x2001);
+		if (ret < 0)
+			goto p_err;
+
+		ret |= fimc_is_sensor_write16(client, 0x602A, 0x29D8);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_indication);
+
+		ret |= fimc_is_sensor_write16(client, 0x602A, 0x2A52);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_high_end_ty2ty1);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_high_end_ty3ty2);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_high_start_ty2ty1);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_high_start_ty3ty2);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_low_end_ty2ty1);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_low_end_ty3ty2);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_low_start_ty2ty1);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_low_start_ty3ty2);
+
+		dbg_sensor(2, "[%s] motion idc(%d) high21(e:%d, s:%d), low21(e:%d, s:%d)\n",
+				__func__,
+				(u16)per_frame_stat.motion_indication,
+				(u16)per_frame_stat.motion_high_end_ty2ty1,
+				(u16)per_frame_stat.motion_high_start_ty2ty1,
+				(u16)per_frame_stat.motion_low_end_ty2ty1,
+				(u16)per_frame_stat.motion_low_start_ty2ty1);
+		dbg_sensor(2, "[%s] motion high32(e:%d, s:%d), low32(e:%d, s:%d)\n",
+				__func__,
+				(u16)per_frame_stat.motion_high_end_ty3ty2,
+				(u16)per_frame_stat.motion_high_start_ty3ty2,
+				(u16)per_frame_stat.motion_low_end_ty3ty2,
+				(u16)per_frame_stat.motion_low_start_ty3ty2);
+
+		ret |= fimc_is_sensor_write16(client, 0x602A, 0x2A68);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.decision_thresh_override);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_abs_high_ty3ty2);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_abs_low_ty3ty2);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_abs_high_ty2ty1);
+		ret |= fimc_is_sensor_write16(client, 0x6F12,
+				(u16)per_frame_stat.motion_abs_low_ty2ty1);
+
+		dbg_sensor(2, "[%s] motion DTO(%d), abs(h32:%d, l32:%d), abs(h21:%d, l21:%d)\n",
+				__func__,
+				(u16)per_frame_stat.decision_thresh_override,
+				(u16)per_frame_stat.motion_abs_high_ty3ty2,
+				(u16)per_frame_stat.motion_abs_low_ty3ty2,
+				(u16)per_frame_stat.motion_abs_high_ty2ty1,
+				(u16)per_frame_stat.motion_abs_low_ty2ty1);
 	}
 
 	/* restore 0x4000_XXXX */
