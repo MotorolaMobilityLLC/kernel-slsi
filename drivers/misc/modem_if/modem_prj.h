@@ -78,6 +78,9 @@
 #define IOCTL_MODEM_XMIT_BOOT		_IO('o', 0x40)
 #define IOCTL_MODEM_GET_SHMEM_INFO	_IO('o', 0x41)
 
+#define IOCTL_MODEM_GET_SHMEM_SRINFO	_IO('o', 0x45)
+#define IOCTL_MODEM_SET_SHMEM_SRINFO	_IO('o', 0x46)
+
 /* ioctl command for IPC Logger */
 #define IOCTL_MIF_LOG_DUMP		_IO('o', 0x51)
 
