@@ -372,21 +372,69 @@ struct class capsense_class = {
 	.class_groups           = capsense_class_groups,
 };
 
-static void read_rawData(psx93XX_t this)
-{
+static void read_dbg_raw(psx93XX_t this) {
+	int ph;
+	u32 uData, ph_sel;
+	s32 ant_use, ref_use, ant_raw;
+	s32 adc_min, adc_max, use_flt_dlt_var;
+
+	sx933x_i2c_read_16bit(this, SX933X_REG_DBG_PHASE_SEL, &ph_sel);
+	sx933x_i2c_read_16bit(this, SX933X_REG_PROX_ADC_MIN, &uData);
+	adc_min = (s32)uData>>10;
+
+	sx933x_i2c_read_16bit(this, SX933X_REG_PROX_ADC_MIN, &uData);
+	adc_max = (s32)uData>>10;
+
+	sx933x_i2c_read_16bit(this, SX933X_REG_PROX_RAW, &uData);
+	ant_raw = (s32)uData>>10;
+
+	sx933x_i2c_read_16bit(this, SX933X_REG_DLT_VAR, &uData);
+	use_flt_dlt_var = (s32)uData>>3;
+
+	/* ph0 */
+	if (((ph_sel >> 3) & 0x7) == 0) {
+		sx933x_i2c_read_16bit(this, SX933X_USEPH0_REG, &uData);
+		ant_use = (s32)uData>>10;
+		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
+		ref_use = (s32)uData>>10;
+		ph = 0;
+	} else if (((ph_sel >> 3) & 0x7) == 1) { /* ph1 */
+		sx933x_i2c_read_16bit(this, SX933X_USEPH1_REG, &uData);
+		ant_use = (s32)uData>>10;
+
+		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
+		ref_use = (s32)uData>>10;
+		ph = 1;
+	} else if (((ph_sel >> 3) & 0x7) == 3) { /* ph3 */
+		sx933x_i2c_read_16bit(this, SX933X_USEPH3_REG, &uData);
+		ant_use = (s32)uData>>10;
+
+		sx933x_i2c_read_16bit(this, SX933X_USEPH2_REG, &uData);
+		ref_use = (s32)uData>>10;
+		ph = 3;
+	} else {
+		LOG_INFO("read_dbg_raw(): invalid reg_val= 0x%X\n", ph_sel);
+		ph = -1;
+	}
+
+	if(ph != -1) {
+		LOG_INFO("SMTC_DBG PH= %d USE= %d RAW= %d REF= %d MIN= %d MAX= %d DLT= %d\n",
+			ph, ant_use, ant_raw, ref_use, adc_min, adc_max, use_flt_dlt_var);
+	}
+}
+
+static void read_rawData(psx93XX_t this) {
 	u8 csx, index;
-	s32 useful;
-	s32 average;
-	s32 diff;
-	s32 ph2_use, ph4_use, prox_raw, dlt_var;
-	u32 uData, chip_state, dbg_ph_sel;
+	s32 useful, average, diff;
+	s32 ph2_use, ph4_use, ref_use;
+	u32 uData;
 	u16 offset;
 	int state;
 
 	if(this) {
-		sx933x_i2c_read_16bit(this, SX933X_STAT0_REG, &chip_state);
+		sx933x_i2c_read_16bit(this, SX933X_STAT0_REG, &uData);
 		if (debug_enable)
-			LOG_INFO("SX933X_STAT0_REG[0x8000] = 0x%08X\n", chip_state);
+			LOG_INFO("SX933X_STAT0_REG[0x8000] = 0x%08X\n", uData);
 
 		sx933x_i2c_read_16bit(this, SX933X_USEPH2_REG, &uData);
 		ph2_use = (s32)uData >> 10;
@@ -394,42 +442,35 @@ static void read_rawData(psx93XX_t this)
 		sx933x_i2c_read_16bit(this, SX933X_USEPH4_REG, &uData);
 		ph4_use = (s32)uData >> 10;
 
-		sx933x_i2c_read_16bit(this, 0x81A4, &dbg_ph_sel);
-		dbg_ph_sel &= ~(7<<3);
-
 		for(csx =0; csx<5; csx++) {
 			index = csx*4;
-			dbg_ph_sel &= ~(7<<3);
-			dbg_ph_sel |= (csx << 3);
-			sx933x_i2c_write_16bit(this, 0x81A4, dbg_ph_sel);
-			msleep(2);
 			sx933x_i2c_read_16bit(this, SX933X_USEPH0_REG + index, &uData);
 			useful = (s32)uData>>10;
+
 			sx933x_i2c_read_16bit(this, SX933X_AVGPH0_REG + index, &uData);
 			average = (s32)uData>>10;
+
 			sx933x_i2c_read_16bit(this, SX933X_DIFFPH0_REG + index, &uData);
 			diff = (s32)uData>>10;
+
 			sx933x_i2c_read_16bit(this, SX933X_OFFSETPH0_REG + index*2, &uData);
 			offset = (u16)(uData & 0x7FFF);
-			sx933x_i2c_read_16bit(this, 0x81B0, &uData);
-			prox_raw = (s32)uData>>10;
-			sx933x_i2c_read_16bit(this, 0x81B4, &uData);
-			dlt_var = (s32)uData >> 3;
+
 			state = psmtcButtons[csx].state;
+
 			if(csx == 0 || csx == 1) {
-				if (debug_enable)
-					LOG_INFO("[PH:%d] ref_use= %d use= %d diff=%d state=%d chip_state=0x%X dlt_var=%d raw=%d avg=%d offset=%d\n",
-					csx, ph4_use, useful, diff, state, chip_state, dlt_var, prox_raw,average, offset);
+				ref_use = ph4_use;
 			} else if(csx == 3) {
-				if (debug_enable)
-					LOG_INFO("[PH:%d] ref_use=%d use=%d diff=%d state=%d chip_state= 0x%X dlt_var=%d raw=%d avg=%d offset=%d\n",
-					csx, ph2_use, useful, diff, state, chip_state, dlt_var, prox_raw, average, offset);
+				ref_use = ph2_use;
 			} else {
-				if (debug_enable)
-					LOG_INFO("[PH:%d] Useful=%d DIFF=%d state=%d Average=%d Offset=%d\n",
-					csx, useful, diff, state, average, offset);
+				ref_use = 0;
 			}
+			if (debug_enable)
+				LOG_INFO("SMTC_DAT PH= %d DIFF= %d USE= %d REF= %d STATE= %d OFF=%d AVG=%d\n",
+					csx, diff, useful, ref_use, state, offset, average);
 		}
+		if (debug_enable)
+			read_dbg_raw(this);
 	}
 }
 
