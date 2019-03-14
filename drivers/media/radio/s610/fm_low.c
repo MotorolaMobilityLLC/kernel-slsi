@@ -1465,7 +1465,7 @@ void fm_sx_reset(void)
 
 	/* Reset the FM_SX registers */
 	if (gradio->rfchip_ver == S620_REV_0) {
-		fmspeedy_set_reg(0xFFF240, 0x00302A);
+		fmspeedy_set_reg(0xFFF240, 0x00B03E);
 		fmspeedy_set_reg(0xFFF241, 0x004600);
 		fmspeedy_set_reg(0xFFF242, 0x27365E);
 		fmspeedy_set_reg(0xFFF243, 0x10BDC8);
@@ -1517,11 +1517,11 @@ void fm_sx_start(void)
 		fmspeedy_set_reg(0xFFF253, 0x0F8840);
 		udelay(50);
 
-		fmspeedy_set_reg(0xFFF240, 0x3C302A);
+		fmspeedy_set_reg(0xFFF240, 0x3CB03E);
 		udelay(20);
 
 		fmspeedy_set_reg(0xFFF253, 0x0F8840);
-		fmspeedy_set_reg(0xFFF240, 0x14302A);
+		fmspeedy_set_reg(0xFFF240, 0x14B03E);
 	} else {
 		fmspeedy_set_reg(0xFFF253, 0x0F883C);
 		udelay(50);
