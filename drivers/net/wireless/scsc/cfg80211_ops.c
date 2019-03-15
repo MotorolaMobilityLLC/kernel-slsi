@@ -1095,6 +1095,11 @@ int slsi_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	 */
 	if (!ndev_vif->activated) {
 		r = 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0))
+		cfg80211_disconnected(dev, reason_code, NULL, 0, false, GFP_KERNEL);
+#else
+		cfg80211_disconnected(dev, reason_code, NULL, 0, GFP_KERNEL);
+#endif
 		SLSI_NET_INFO(dev, "Vif is already Deactivated\n");
 		goto exit;
 	}
