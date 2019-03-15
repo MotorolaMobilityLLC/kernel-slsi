@@ -1,12 +1,13 @@
 /******************************************************************************
  *
- * Copyright (c) 2014 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
 #include <scsc/scsc_mx.h>
 #include <scsc/scsc_mifram.h>
 #include <scsc/scsc_logring.h>
+#include <linux/ratelimit.h>
 
 #include "debug.h"
 #include "dev.h"
@@ -164,8 +165,25 @@ static void hip4_smapper_refill_isr(int irq, void *data)
 	struct hip4_smapper_bank *bank;
 	enum smapper_banks i;
 	unsigned long flags;
+	static DEFINE_RATELIMIT_STATE(ratelimit, 1 * HZ, 1);
 
 	control = &(hip->hip_priv->smapper_control);
+#ifdef CONFIG_SCSC_QOS
+	/* Ignore request if TPUT is low or platform is in suspend */
+	if (hip->hip_priv->pm_qos_state == SCSC_QOS_DISABLED ||
+	    atomic_read(&hip->hip_priv->in_suspend) ||
+	    *control->mbox_ptr == 0x0) {
+#else
+	/* Ignore if platform is in suspend */
+	if (atomic_read(&hip->hip_priv->in_suspend) ||
+	    *control->mbox_ptr == 0x0) {
+#endif
+		if (__ratelimit(&ratelimit))
+			SLSI_DBG1_NODEV(SLSI_SMAPPER, "Ignore SMAPPER request. Invalid state.\n");
+		/* Clear interrupt */
+		scsc_service_mifintrbit_bit_clear(sdev->service, control->th_req);
+		return;
+	}
 
 	spin_lock_irqsave(&control->smapper_lock, flags);
 	/* Check if FW has requested a BANK configuration */

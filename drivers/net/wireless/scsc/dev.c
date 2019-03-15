@@ -365,6 +365,7 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 		SLSI_ERR(sdev, "failed to register with p2p netdev\n");
 		goto err_wlan_registered;
 	}
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 #if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
 	if (slsi_netif_register(sdev, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]) != 0) {
 		SLSI_ERR(sdev, "failed to register with p2px_wlan1 netdev\n");
@@ -372,14 +373,11 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	}
 	rcu_assign_pointer(sdev->netdev_ap, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
 #endif
+#endif
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
 	if (slsi_netif_register(sdev, sdev->netdev[SLSI_NET_INDEX_NAN]) != 0) {
 		SLSI_ERR(sdev, "failed to register with NAN netdev\n");
-#if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
-		slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
-		rcu_assign_pointer(sdev->netdev_ap, NULL);
-#endif
-		goto err_p2p_registered;
+		goto err_p2px_wlan_registered;
 	}
 #endif
 #endif
@@ -399,7 +397,15 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
 		goto err_nan_registered;
 #else
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+#if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
+		goto err_p2px_wlan_registered;
+#else
 		goto err_p2p_registered;
+#endif
+#else
+		goto err_p2p_registered;
+#endif
 #endif
 	}
 	return sdev;
@@ -407,6 +413,14 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
 err_nan_registered:
 	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_NAN]);
+#endif
+
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+#if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
+err_p2px_wlan_registered:
+	slsi_netif_remove(sdev, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
+	rcu_assign_pointer(sdev->netdev_ap, NULL);
+#endif
 #endif
 
 err_p2p_registered:

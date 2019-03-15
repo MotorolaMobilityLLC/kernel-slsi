@@ -153,6 +153,8 @@ struct hip4_hip_config_version_4 {
 	u8  smapper_entries_banks[16];  /* num entries banks */
 	u8  smapper_pow_sz[16];     /* Power of size of entry i.e. 12 = 4096B */
 	u32 smapper_bank_addr[16]; /* Bank start addr */
+#else
+	u8  reserved_nosmapper[99];
 #endif
 	u8  reserved4[16];
 } __packed;

@@ -29,17 +29,23 @@ MODULE_PARM_DESC(msdu_enable, "MSDU frame format, Y: enable (default), N: disabl
 
 #include <linux/spinlock.h>
 
-int slsi_is_wps_msg_start_or_m17(u8 *eapol, u16 eap_length)
+int slsi_get_dwell_time_for_wps(struct slsi_dev *sdev, struct netdev_vif *ndev_vif, u8 *eapol, u16 eap_length)
 {
 	/* Note that Message should not be M8.This check is to identify only WSC_START message or M1-M7 */
-	/*Return 1 If opcode type WSC msg and Msg Type M1-M7 or if opcode is WSC start.*/
+	/*Return 100ms If opcode type WSC msg and Msg Type M1-M7 or if opcode is WSC start.*/
 	if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST ||
-	    eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
+	    eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE) {
 		if (eapol[SLSI_EAP_TYPE_POS] == SLSI_EAP_TYPE_EXPANDED && eap_length >= SLSI_EAP_OPCODE_POS - 3 &&
 		    ((eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_MSG && eap_length >= SLSI_EAP_MSGTYPE_POS - 3 &&
 		    eapol[SLSI_EAP_MSGTYPE_POS] != SLSI_EAP_MSGTYPE_M8) ||
 		    eapol[SLSI_EAP_OPCODE_POS] == SLSI_EAP_OPCODE_WSC_START))
-			return 1;
+			return SLSI_EAP_WPS_DWELL_TIME;
+		/* This is to check if a frame is EAP request identity and on P2P vif.If yes then set dwell time to 100ms */
+		if (SLSI_IS_VIF_INDEX_P2P_GROUP(sdev, ndev_vif) &&
+		    eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST &&
+		    eapol[SLSI_EAP_TYPE_POS] == SLSI_EAP_TYPE_IDENTITY)
+			return SLSI_EAP_WPS_DWELL_TIME;
+	}
 	return 0;
 }
 
@@ -101,10 +107,8 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 					SLSI_INFO(sdev, "Send EAP-Success (%d)\n", eap_length);
 				else if (eapol[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_FAILURE)
 					SLSI_INFO(sdev, "Send EAP-Failure (%d)\n", eap_length);
-
-				/*Identify WPS_START & M1-M7 and set dwell time to 100ms */
-				if (slsi_is_wps_msg_start_or_m17(eapol, eap_length))
-					dwell_time = SLSI_EAP_WPS_DWELL_TIME;
+				/* Need to set dwell time for wps exchange and EAP identity frame for P2P */
+				dwell_time = slsi_get_dwell_time_for_wps(sdev, ndev_vif, eapol, eap_length);
 			}
 		}
 	break;
@@ -123,10 +127,9 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 	/* EAPOL/WAI frames are send via the MLME */
 	tx_bytes_tmp = skb->len; // len copy to avoid null pointer of skb
 	ret = slsi_mlme_send_frame_data(sdev, dev, skb, msg_type, 0, dwell_time, 0);
-	if (!ret) {
-		peer->sinfo.tx_packets++;
+	if (!ret)
 		peer->sinfo.tx_bytes += tx_bytes_tmp; //skb->len;
-	}
+
 	slsi_spinlock_unlock(&ndev_vif->peer_lock);
 	return ret;
 }
@@ -406,7 +409,6 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	/* What about the original if we passed in a copy ? */
 	if (original_skb)
 		slsi_kfree_skb(original_skb);
-	peer->sinfo.tx_packets++;
 	peer->sinfo.tx_bytes += len;
 	return ret;
 }

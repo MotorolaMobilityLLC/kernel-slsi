@@ -711,6 +711,8 @@ static void slsi_stop_chip(struct slsi_dev *sdev)
 	if (sdev->netdev_up_count)
 		return;
 
+	complete_all(&sdev->sig_wait.completion);
+
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 	sdev->collect_mib.enabled = false;
 	scsc_log_collector_unregister_client(&slsi_hcf_client);
@@ -869,8 +871,7 @@ static void slsi_stop_net_dev_locked(struct slsi_dev *sdev, struct net_device *d
 		return;
 	}
 
-	if (!hw_available)
-		complete_all(&ndev_vif->sig_wait.completion);
+	complete_all(&ndev_vif->sig_wait.completion);
 
 	slsi_scan_cleanup(sdev, dev);
 
