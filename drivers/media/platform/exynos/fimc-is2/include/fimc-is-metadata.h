@@ -1127,7 +1127,7 @@ struct camera2_aa_dm {
 	uint32_t			vendor_fusionCaptureAfInfo;
 	uint32_t			vendor_colorTempIndex;
 	uint32_t			vendor_luxIndex;
-	uint32_t			vendor_luxStandard;
+	float				vendor_luxStandard;
 	uint32_t			vendor_reserved[6];
 };
 
