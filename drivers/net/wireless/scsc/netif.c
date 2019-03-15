@@ -1041,6 +1041,80 @@ static void slsi_if_setup(struct net_device *dev)
 #endif
 }
 
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+
+#ifdef CONFIG_SOC_EXYNOS9610
+#define SCSC_NETIF_RPS_CPUS_MASK "fe"
+#else
+#define SCSC_NETIF_RPS_CPUS_MASK "0"
+#endif
+
+static void slsi_netif_rps_map_clear(struct net_device *dev)
+{
+	struct rps_map *map;
+
+	map = rcu_dereference_protected(dev->_rx->rps_map, 1);
+	if (map) {
+		RCU_INIT_POINTER(dev->_rx->rps_map, NULL);
+		kfree_rcu(map, rcu);
+		SLSI_NET_INFO(dev, "clear rps_cpus map\n");
+	}
+}
+
+static int slsi_netif_rps_map_set(struct net_device *dev, char *buf, size_t len)
+{
+	struct rps_map *old_map, *map;
+	cpumask_var_t mask;
+	int err, cpu, i;
+	static DEFINE_SPINLOCK(rps_map_lock);
+
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	err = bitmap_parse(buf, len, cpumask_bits(mask), nr_cpumask_bits);
+	if (err) {
+		free_cpumask_var(mask);
+		SLSI_NET_WARN(dev, "CPU bitmap parse failed\n");
+		return err;
+	}
+
+	map = kzalloc(max_t(unsigned int, RPS_MAP_SIZE(cpumask_weight(mask)), L1_CACHE_BYTES), GFP_KERNEL);
+	if (!map) {
+		free_cpumask_var(mask);
+		SLSI_NET_WARN(dev, "CPU mask alloc failed\n");
+		return -ENOMEM;
+	}
+
+	i = 0;
+	for_each_cpu_and(cpu, mask, cpu_online_mask)
+		map->cpus[i++] = cpu;
+
+	if (i) {
+		map->len = i;
+	} else {
+		kfree(map);
+		map = NULL;
+	}
+
+	spin_lock(&rps_map_lock);
+	old_map = rcu_dereference_protected(dev->_rx->rps_map, lockdep_is_held(&rps_map_lock));
+	rcu_assign_pointer(dev->_rx->rps_map, map);
+	spin_unlock(&rps_map_lock);
+
+	if (map)
+		static_key_slow_inc(&rps_needed);
+	if (old_map)
+		static_key_slow_dec(&rps_needed);
+
+	if (old_map)
+		kfree_rcu(old_map, rcu);
+
+	free_cpumask_var(mask);
+	SLSI_NET_INFO(dev, "rps_cpus map set(%s)\n", buf);
+	return len;
+}
+#endif
+
 int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 {
 	struct net_device   *dev = NULL;
@@ -1174,6 +1248,10 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	ndev_vif->probe_req_ies = NULL;
 	ndev_vif->probe_req_ie_len = 0;
 	ndev_vif->drv_in_p2p_procedure = false;
+
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
+#endif
 	return 0;
 
 exit_with_error:
@@ -1229,6 +1307,7 @@ int slsi_netif_init(struct slsi_dev *sdev)
 		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 		return -EINVAL;
 	}
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 #if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
 	if (slsi_netif_add_locked(sdev, CONFIG_SCSC_AP_INTERFACE_NAME, SLSI_NET_INDEX_P2PX_SWLAN) != 0) {
 		rtnl_lock();
@@ -1239,13 +1318,16 @@ int slsi_netif_init(struct slsi_dev *sdev)
 		return -EINVAL;
 	}
 #endif
+#endif
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
 	if (slsi_netif_add_locked(sdev, "nan%d", SLSI_NET_INDEX_NAN) != 0) {
 		rtnl_lock();
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_WLAN]);
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_P2P]);
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 #if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_P2PX_SWLAN]);
+#endif
 #endif
 		rtnl_unlock();
 		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
@@ -1348,6 +1430,9 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 	slsi_roam_channel_cache_prune(dev, 0);
 	kfree(ndev_vif->probe_req_ies);
 
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	slsi_netif_rps_map_clear(dev);
+#endif
 	if (atomic_read(&ndev_vif->is_registered)) {
 		atomic_set(&ndev_vif->is_registered, 0);
 		unregister_netdevice(dev);

@@ -1260,7 +1260,7 @@ static void print_panic_code(u16 code)
 		break;
 	case SCSC_PANIC_ORIGIN_HOST:
 		SCSC_TAG_INFO(MXMAN, "WLBT HOST detected FW failure, service:\n");
-		switch (subcode) {
+		switch (subcode >> SCSC_SYSERR_HOST_SERVICE_SHIFT) {
 		case SCSC_SERVICE_ID_WLAN:
 			SCSC_TAG_INFO(MXMAN, " WLAN\n");
 			break;

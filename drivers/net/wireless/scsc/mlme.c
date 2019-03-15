@@ -2612,11 +2612,12 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 		{ SLSI_PSID_UNIFI_TX_DATA_RATE, { 0, 0 } },         /* to get STATION_INFO_TX_BITRATE*/
 		{ SLSI_PSID_UNIFI_RSSI, { 0, 0 } },                 /* to get STATION_INFO_SIGNAL_AVG*/
 		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 3, 0 } },     /* bad_fcs_count*/
-		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 10, 0 } },    /* mpdus_failed_transmit*/
 		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 25, 0 } },    /* mac_bad_sig_count*/
 		{ SLSI_PSID_UNIFI_THROUGHPUT_DEBUG, { 30, 0 } },    /* rx_error_count*/
+		{ SLSI_PSID_UNIFI_FRAME_TX_COUNTERS, { 1, 0 } },    /*tx good count*/
+		{ SLSI_PSID_UNIFI_FRAME_TX_COUNTERS, { 2, 0 } },    /*tx bad count*/
+		{ SLSI_PSID_UNIFI_FRAME_RX_COUNTERS, { 1, 0 } },    /*rx good count*/
 	};
-	int tx_counter = 0;
 	int rx_counter = 0;
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
@@ -2637,9 +2638,9 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 
 	/* Fixed fields len (5) : 2 bytes(PSID) + 2 bytes (Len) + 1 byte (VLDATA header )  [10 for 2 PSIDs]
 	 * Data : 3 bytes for SLSI_PSID_UNIFI_TX_DATA_RATE , 1 byte for SLSI_PSID_UNIFI_RSSI
-	 * 10*5 bytes for 5 Throughput Mib's
+	 * 10*6 bytes for 3 Throughput Mib's and 3 counter Mib's
 	 */
-	mibrsp.dataLength = 64;
+	mibrsp.dataLength = 74;
 	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
 
 	if (!mibrsp.data) {
@@ -2693,26 +2694,32 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 			rx_counter += values[2].u.uintValue; /*bad_fcs_count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 2);
-
 		if (values[3].type == SLSI_MIB_TYPE_UINT)
-			tx_counter += values[3].u.uintValue; /*mpdus_failed_transmit*/
+			rx_counter += values[3].u.uintValue; /*mac_bad_sig_count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 3);
 		if (values[4].type == SLSI_MIB_TYPE_UINT)
-			rx_counter += values[4].u.uintValue; /*mac_bad_sig_count*/
+			rx_counter += values[4].u.uintValue; /*rx_error_count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 4);
 		if (values[5].type == SLSI_MIB_TYPE_UINT)
-			rx_counter += values[5].u.uintValue; /*rx_error_count*/
+			peer->sinfo.tx_packets = values[5].u.uintValue; /*tx good count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 5);
+		if (values[6].type == SLSI_MIB_TYPE_UINT)
+			peer->sinfo.tx_failed = values[6].u.uintValue; /*tx bad count*/
+		else
+			SLSI_ERR(sdev, "invalid type. iter:%d", 6);
+		if (values[7].type == SLSI_MIB_TYPE_UINT)
+			peer->sinfo.rx_packets = values[7].u.uintValue; /*rx good count*/
+		else
+			SLSI_ERR(sdev, "invalid type. iter:%d", 7);
 
-		peer->sinfo.tx_failed = tx_counter;
 		peer->sinfo.rx_dropped_misc = rx_counter;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 		peer->sinfo.filled |= BIT(NL80211_STA_INFO_TX_FAILED) | BIT(NL80211_STA_INFO_RX_DROP_MISC) |
-				      BIT(NL80211_STA_INFO_TX_PACKETS);
+				      BIT(NL80211_STA_INFO_TX_PACKETS) | BIT(NL80211_STA_INFO_RX_PACKETS);
 #endif
 	} else {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_get_req failed(result:0x%4x)\n", r);

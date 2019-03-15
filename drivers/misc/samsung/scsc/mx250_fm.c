@@ -245,7 +245,7 @@ static int mx250_fm_re(bool ldo_on)
 int mx250_fm_request(void)
 {
 
-	SCSC_TAG_DEBUG(FM, "mx250: %s\n", __func__);
+	SCSC_TAG_INFO(FM, "request\n");
 	return mx250_fm_re(true);
 }
 EXPORT_SYMBOL(mx250_fm_request);
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(mx250_fm_request);
  */
 int mx250_fm_release(void)
 {
-	SCSC_TAG_DEBUG(FM, "mx250: %s\n", __func__);
+	SCSC_TAG_INFO(FM, "release\n");
 	return mx250_fm_re(false);
 }
 EXPORT_SYMBOL(mx250_fm_release);

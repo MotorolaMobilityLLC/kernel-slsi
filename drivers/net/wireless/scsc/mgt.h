@@ -58,6 +58,7 @@
 #define SLSI_EAP_MSGTYPE_POS                    (27)
 #define SLSI_EAP_MSGTYPE_M8                    (12)
 #define SLSI_EAP_WPS_DWELL_TIME           (100000)       /*100 ms */
+#define SLSI_EAP_TYPE_IDENTITY           (1)
 
 #define SLSI_80211_AC_VO 0
 #define SLSI_80211_AC_VI 1

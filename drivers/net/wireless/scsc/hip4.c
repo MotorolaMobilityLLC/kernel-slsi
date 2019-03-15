@@ -486,8 +486,9 @@ static inline ktime_t ktime_add_ms(const ktime_t kt, const u64 msec)
 }
 #endif
 
-#define FB_NO_SPC_NUM_RET    10
+#define FB_NO_SPC_NUM_RET    100
 #define FB_NO_SPC_SLEEP_MS   10
+#define FB_NO_SPC_DELAY_US   1000
 
 /* Update scoreboard index */
 /* Function can be called from BH context */
@@ -1311,8 +1312,12 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 
 	spin_lock_bh(&hip_priv->rx_lock);
 	SCSC_HIP4_SAMPLER_INT_BH(hip->hip_priv->minor, 0);
-	if (ktime_compare(bh_init_data, bh_end_data) < 0)
+	if (ktime_compare(bh_init_data, bh_end_data) <= 0) {
 		bh_init_data = ktime_get();
+		if (!atomic_read(&hip->hip_priv->closing)) {
+			atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
+		}
+	}
 	clear_bit(HIP4_MIF_Q_TH_DAT, hip->hip_priv->irq_bitmap);
 
 	idx_r = hip4_read_index(hip, HIP4_MIF_Q_TH_DAT, ridx);
@@ -1326,7 +1331,6 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 		bh_end_data = ktime_get();
 		napi_complete(napi);
 		if (!atomic_read(&hip->hip_priv->closing)) {
-			atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
 			/* Nothing more to drain, unmask interrupt */
 			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
 		}
@@ -1395,14 +1399,14 @@ consume_dat_mbulk:
 
 		while ((ref = to_free[i++])) {
 			/* Set the number of retries */
-			retry = 100;
+			retry = FB_NO_SPC_NUM_RET;
 			while (hip4_q_add_signal(hip, HIP4_MIF_Q_TH_RFB, ref, service) && retry > 0) {
 				SLSI_WARN_NODEV("Dat: Not enough space in FB, retry: %d/%d\n", retry, FB_NO_SPC_NUM_RET);
-				udelay(FB_NO_SPC_SLEEP_MS);
+				udelay(FB_NO_SPC_DELAY_US);
 				retry--;
 
 				if (retry == 0)
-					SLSI_ERR_NODEV("Dat: FB has not been freed for %d us\n", FB_NO_SPC_NUM_RET * FB_NO_SPC_SLEEP_MS);
+					SLSI_ERR_NODEV("Dat: FB has not been freed for %d us\n", FB_NO_SPC_NUM_RET * FB_NO_SPC_DELAY_US);
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 				SCSC_HIP4_SAMPLER_QFULL(hip_priv->minor, HIP4_MIF_Q_TH_RFB);
 #endif
@@ -1423,7 +1427,6 @@ consume_dat_mbulk:
 		bh_end_data = ktime_get();
 		napi_complete(napi);
 		if (!atomic_read(&hip->hip_priv->closing)) {
-			atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
 			/* Nothing more to drain, unmask interrupt */
 			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
 		}

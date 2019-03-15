@@ -88,11 +88,11 @@ void mxman_register_gdb_channel(struct scsc_mx *mx, mxmgmt_channel_handler handl
 void mxman_send_gdb_channel(struct scsc_mx *mx, void *data, size_t length);
 
 #ifdef CONFIG_SCSC_CHV_SUPPORT
-
 #define SCSC_CHV_ARGV_ADDR_OFFSET 0x200008
 
 extern int chv_run;
-
 #endif
+
+#define SCSC_SYSERR_HOST_SERVICE_SHIFT 4
 
 #endif
