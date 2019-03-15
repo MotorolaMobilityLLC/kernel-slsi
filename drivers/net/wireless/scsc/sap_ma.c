@@ -301,7 +301,6 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 		}
 
 		if (peer) {
-			peer->sinfo.rx_packets++;
 			peer->sinfo.rx_bytes += rx_skb->len;
 		}
 		ndev_vif->stats.rx_packets++;

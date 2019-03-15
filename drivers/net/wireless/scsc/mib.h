@@ -732,7 +732,7 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  * TYPE          : SlsiUint16
  * MIN           : 1
  * MAX           : 100
- * DEFAULT       : 30
+ * DEFAULT       : 25
  * DESCRIPTION   :
  *  The threshold in percentage of CCA busy time when a channel would be
  *  considered busy
@@ -2009,17 +2009,18 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
 #define SLSI_PSID_UNIFI_TRAFFIC_THRESHOLD_TO_SETUP_BA 0x08AE
 
 /*******************************************************************************
- * NAME          : UnifiDplaneTxAmsduFrameSizeMax
+ * NAME          : UnifiDplaneTxAmsduHwCapability
  * PSID          : 2223 (0x08AF)
  * PER INTERFACE?: NO
  * TYPE          : SlsiUint16
  * MIN           : 0
  * MAX           : 65535
- * DEFAULT       : 4098
+ * DEFAULT       :
  * DESCRIPTION   :
- *  Defines the maximum A-MSDU frame size
+ *  Returns 0 if A-MSDU size limited to 4K. Returns 1 is A-MSDU size is
+ *  limited to 8K. This value is chip specific and limited by HW.
  *******************************************************************************/
-#define SLSI_PSID_UNIFI_DPLANE_TX_AMSDU_FRAME_SIZE_MAX 0x08AF
+#define SLSI_PSID_UNIFI_DPLANE_TX_AMSDU_HW_CAPABILITY 0x08AF
 
 /*******************************************************************************
  * NAME          : UnifiDplaneTxAmsduSubframeCountMax
@@ -2028,7 +2029,7 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  * TYPE          : SlsiUint16
  * MIN           : 1
  * MAX           : 4
- * DEFAULT       : 2
+ * DEFAULT       : 3
  * DESCRIPTION   :
  *  Defines the maximum number of A-MSDU sub-frames per A-MSDU. A value of 1
  *  indicates A-MSDU aggregation has been disabled
@@ -2188,6 +2189,20 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  *  required
  *******************************************************************************/
 #define SLSI_PSID_UNIFI_RADIO_ON_TIME_NAN 0x08BC
+
+/*******************************************************************************
+ * NAME          : UnifiOutputRadioInfoToKernelLog
+ * PSID          : 2239 (0x08BF)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiBool
+ * MIN           : 0
+ * MAX           : 1
+ * DEFAULT       : FALSE
+ * DESCRIPTION   :
+ *  Print messages about the radio status to the Android Kernel Log. See
+ *  document SC-508266-TC.
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_OUTPUT_RADIO_INFO_TO_KERNEL_LOG 0x08BF
 
 /*******************************************************************************
  * NAME          : UnifiNoAckActivationCount
@@ -2869,9 +2884,10 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  * DESCRIPTION   :
  *  Enable reporting of the following events for Android logging: - firmware
  *  connectivity events - fate of management frames sent by the host through
- *  the MLME SAP It can take the following values: - 0: reporting is disabled
- *  - 1: partial reporting is enabled. Beacons and EAPOL frames will not be
- *  reported - 2: full reporting is enabled. Beacons and EAPOL frames are
+ *  the MLME SAP It can take the following values: - 0: reporting for non
+ *  mandetory triggers disabled. EAPOL, security, btm frames and roam
+ *  triggers are reported. - 1: partial reporting is enabled. Beacons frames
+ *  will not be reported. - 2: full reporting is enabled. Beacons frames are
  *  included.
  *******************************************************************************/
 #define SLSI_PSID_UNIFI_LOGGER_ENABLED 0x0910
@@ -2889,6 +2905,32 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  *  value will be updated if "unifiRameUpdateMibs" mib is toggled
  *******************************************************************************/
 #define SLSI_PSID_UNIFI_MA_PACKET_FATE_ENABLED 0x0911
+
+/*******************************************************************************
+ * NAME          : UnifiFrameRxCounters
+ * PSID          : 2326 (0x0916)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiUint32
+ * MIN           : 0
+ * MAX           : 4294967295
+ * DEFAULT       :
+ * DESCRIPTION   :
+ *  Frame RX Counters used by the host. These are required by MCD.
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_FRAME_RX_COUNTERS 0x0916
+
+/*******************************************************************************
+ * NAME          : UnifiFrameTxCounters
+ * PSID          : 2327 (0x0917)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiUint32
+ * MIN           : 0
+ * MAX           : 4294967295
+ * DEFAULT       :
+ * DESCRIPTION   :
+ *  Frame TX Counters used by the host. These are required by MCD.
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_FRAME_TX_COUNTERS 0x0917
 
 /*******************************************************************************
  * NAME          : UnifiLaaNssSpeculationIntervalSlotTime
@@ -4581,9 +4623,9 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  * PSID          : 2583 (0x0A17)
  * PER INTERFACE?: NO
  * TYPE          : SlsiUint16
- * MIN           : 0
- * MAX           : 65535
- * DEFAULT       : 3
+ * MIN           : 3
+ * MAX           : 10
+ * DEFAULT       : 8
  * DESCRIPTION   :
  *  Channel switch announcement count which will be used in the Channel
  *  announcement IE when using wifi sharing
@@ -7082,6 +7124,19 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  *  VSDB). Set in the respective platform htf file.
  *******************************************************************************/
 #define SLSI_PSID_UNIFI_DUAL_BAND_CONCURRENCY 0x17EB
+
+/*******************************************************************************
+ * NAME          : UnifiLoggerMaxDelayedEvents
+ * PSID          : 6124 (0x17EC)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiUint16
+ * MIN           : 0
+ * MAX           : 65535
+ * DEFAULT       : 10
+ * DESCRIPTION   :
+ *  Maximum number of events to keep when host is suspended.
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_LOGGER_MAX_DELAYED_EVENTS 0x17EC
 
 /*******************************************************************************
  * NAME          : UnifiRegulatoryParameters
