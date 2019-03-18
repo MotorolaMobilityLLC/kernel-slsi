@@ -22,20 +22,36 @@
 		#size-cells = <1>;
 
 		//use_multistage_wdt_irq = <497>;
-		/* -----------<< Example >>-------------------
 		dump-info@0x0 {
-			sfr-dump-list = "sfr-dump-cmu-peris", "sfr-dump-cmu-abox";
-			sfr-dump-cmu-peris {
-				reg = <0x10010100 0x4000>;
-				addr = <0x10010100 0x10010104 0x10010108 0xFFFFFFFF>;
-			};
+			sfr-dump-list = "sfr-dump-gic-setenable", "sfr-dump-gic-setpend", "sfr-dump-gic-setactive";
 
-			sfr-dump-cmu-abox {
-				reg = <0x103e0000 0x4000>;
-				addr = <0x103e0100 0x103e0104 0x103e0108 0xFFFFFFFF>;
+                        sfr-dump-gic-setenable {
+                                reg = <0x12301100 0x100>;
+                                addr = <0x12301100 0x12301104 0x12301108 0x1230110C
+                                        0x12301110 0x12301114 0x12301118 0x1230111C
+                                        0x12301120 0x12301124 0x12301128 0x1230112C
+                                        0x12301130 0x12301134 0x12301138 0x1230113C
+                                        0xFFFFFFFF>;
+                        };
+
+                        sfr-dump-gic-setpend {
+                                reg = <0x12301200 0x100>;
+                                addr = <0x12301200 0x12301204 0x12301208 0x1230120C
+                                        0x12301210 0x12301214 0x12301218 0x1230121C
+                                        0x12301220 0x12301224 0x12301228 0x1230122C
+                                        0x12301230 0x12301234 0x12301238 0x1230123C
+                                        0xFFFFFFFF>;
+                        };
+
+                        sfr-dump-gic-setactive {
+                                reg = <0x12301300 0x100>;
+                                addr = <0x12301300 0x12301304 0x12301308 0x1230130C
+                                        0x12301310 0x12301314 0x12301318 0x1230131C
+                                        0x12301320 0x12301324 0x12301328 0x1230132C
+                                        0x12301330 0x12301334 0x12301338 0x1230133C
+                                        0xFFFFFFFF>;
 			};
 		};
-		*/
 	};
 
 	exynos-helper {
