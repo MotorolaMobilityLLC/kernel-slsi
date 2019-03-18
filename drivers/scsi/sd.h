@@ -16,7 +16,7 @@
 /*
  * Time out in seconds for disks and Magneto-opticals (which are slower).
  */
-#define SD_TIMEOUT		(30 * HZ)
+#define SD_TIMEOUT		(5 * HZ)
 #define SD_MOD_TIMEOUT		(75 * HZ)
 /*
  * Flush timeout is a multiplier over the standard device timeout which is
