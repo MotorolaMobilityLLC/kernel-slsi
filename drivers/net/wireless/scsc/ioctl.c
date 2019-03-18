@@ -2154,12 +2154,13 @@ int slsi_get_sta_info(struct net_device *dev, char *command, int buf_len)
 		       ndev_vif->ap.last_disconnected_sta.address[1],
 		       ndev_vif->ap.last_disconnected_sta.address[2]);
 
-	len += snprintf(&command[len], (buf_len - len), "%d %d %d %d %d %d %d %u",
+	len += snprintf(&command[len], (buf_len - len), "%d %d %d %d %d %d %d %u %d",
 		       ieee80211_frequency_to_channel(ndev_vif->ap.channel_freq),
 		       ndev_vif->ap.last_disconnected_sta.bandwidth, ndev_vif->ap.last_disconnected_sta.rssi,
 		       ndev_vif->ap.last_disconnected_sta.tx_data_rate, ndev_vif->ap.last_disconnected_sta.mode,
 		       ndev_vif->ap.last_disconnected_sta.antenna_mode,
-		       ndev_vif->ap.last_disconnected_sta.mimo_used, ndev_vif->ap.last_disconnected_sta.reason);
+		       ndev_vif->ap.last_disconnected_sta.mimo_used, ndev_vif->ap.last_disconnected_sta.reason,
+		       ndev_vif->ap.last_disconnected_sta.support_mode);
 #else
 	len = snprintf(command, buf_len, "wl_get_sta_info : %02x%02x%02x %u %d %d %d %d %d %d %u ",
 		       ndev_vif->ap.last_disconnected_sta.address[0], ndev_vif->ap.last_disconnected_sta.address[1],
