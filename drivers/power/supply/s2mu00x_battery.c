@@ -2605,8 +2605,6 @@ static int smbchg_chg_system_temp_level_set(struct s2mu00x_battery_info *chip,
 	if (lvl_sel == chip->chg_therm_lvl_sel)
 		return 0;
 
-	pr_info("%s,set thermal level:%d", lvl_sel);
-
 //	mutex_lock(&chip->current_change_lock);
 	prev_therm_lvl = chip->chg_therm_lvl_sel;
 	chip->chg_therm_lvl_sel = lvl_sel;
@@ -2614,6 +2612,8 @@ static int smbchg_chg_system_temp_level_set(struct s2mu00x_battery_info *chip,
 	chip->allowed_fastchg_current_ma =
 		chip->chg_thermal_mitigation[lvl_sel];
 	chip->update_allowed_fastchg_current_ma = true;
+
+	pr_info("%s,set thermal level:%d\n",__func__,lvl_sel);
 
 	cancel_delayed_work(&chip->heartbeat_work);
 	schedule_delayed_work(&chip->heartbeat_work,
