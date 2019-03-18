@@ -572,6 +572,7 @@ struct slsi_last_disconnected_sta {
 	u16 tx_data_rate;
 	bool mimo_used;
 	u16 reason;
+	int support_mode;
 };
 
 struct slsi_vif_ap {

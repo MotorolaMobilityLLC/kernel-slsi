@@ -2153,6 +2153,14 @@ static int slsi_get_sta_mode(struct net_device *dev, const u8 *last_peer_mac)
 		return -EINVAL;
 	}
 
+	ndev_vif->ap.last_disconnected_sta.support_mode = 0;
+	if (cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, last_peer->assoc_ie->data,
+			     last_peer->assoc_ie->len))
+		ndev_vif->ap.last_disconnected_sta.support_mode = 3;
+	else if (cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, last_peer->assoc_ie->data,
+				  last_peer->assoc_ie->len))
+		ndev_vif->ap.last_disconnected_sta.support_mode = 1;
+
 	if (ndev_vif->ap.mode == SLSI_80211_MODE_11AC) { /*AP supports VHT*/
 		peer_ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, last_peer->assoc_ie->data,
 					   last_peer->assoc_ie->len);
