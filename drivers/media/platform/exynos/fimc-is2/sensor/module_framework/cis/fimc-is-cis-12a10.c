@@ -880,15 +880,6 @@ int sensor_12a10_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	ret = fimc_is_sensor_write16(client, 0x380e, frame_length_lines);
 	if (ret < 0)
 		goto p_err;
-	if(cis_data->dual_sync_enable)
-	{
-		ret = fimc_is_sensor_write8(client, 0x3826, ((frame_length_lines * 2 - 4) & 0xFF00) >> 8);
-		if (ret < 0)
-			goto p_err;
-		ret = fimc_is_sensor_write8(client, 0x3827, (frame_length_lines * 2 - 4) & 0xFF);
-		if (ret < 0)
-			goto p_err;
-	}
 
 	cis_data->cur_frame_us_time = frame_duration;
 	cis_data->frame_length_lines = frame_length_lines;
@@ -1789,10 +1780,10 @@ static int sensor_12a10_cis_set_dual_slave_setting(struct fimc_is_cis *cis)
 	fimc_is_sensor_write8(client, 0x3643, 0x22);
 	fimc_is_sensor_write8(client, 0x3822, 0xa1);
 	fimc_is_sensor_write8(client, 0x3823, 0x78);
-	fimc_is_sensor_write8(client, 0x3824, 0x02);
-	fimc_is_sensor_write8(client, 0x3825, 0x14);
-	fimc_is_sensor_write8(client, 0x3826, 0x1A);// 2 * 0xD40 - 4 = 0x1A7C
-	fimc_is_sensor_write8(client, 0x3827, 0x7C);
+	fimc_is_sensor_write8(client, 0x3824, 0x00);// frame start sync
+	fimc_is_sensor_write8(client, 0x3825, 0x20);
+	fimc_is_sensor_write8(client, 0x3826, 0x00);
+	fimc_is_sensor_write8(client, 0x3827, 0x08);
 	fimc_is_sensor_write8(client, 0x3c80, 0x08);
 
 p_err:
