@@ -42,6 +42,13 @@
 		compatible = "samsung,exynos-helper";
 	};
 
+	exynos-handler {
+		compatible = "samsung,exynos-handler";
+		interrupts =	<0 95 0>,	/* INTREQ__CPUCL0_nINTERRIRQ */
+				<0 109 0>;	/* INTREQ__CPUCL1_nECCERRIRQ */
+		handler_nr_irq = <2>;
+	};
+
         coresight@16000000 {
 		compatible = "exynos,coresight";
 		base = <0x16000000>;
