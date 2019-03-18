@@ -2383,7 +2383,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	r = slsi_read_disconnect_ind_timeout(sdev, SLSI_PSID_UNIFI_DISCONNECT_TIMEOUT);
 	if (r != 0)
-		sdev->device_config.ap_disconnect_ind_timeout = *sdev->sig_wait_cfm_timeout + 2000;
+		sdev->device_config.ap_disconnect_ind_timeout = *sdev->sig_wait_cfm_timeout;
 
 	SLSI_NET_DBG2(dev, SLSI_CFG80211, "slsi_read_disconnect_ind_timeout: timeout = %d", sdev->device_config.ap_disconnect_ind_timeout);
 	goto exit_with_vif_mutex;
