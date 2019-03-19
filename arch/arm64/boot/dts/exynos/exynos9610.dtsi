@@ -3538,15 +3538,13 @@
 		compatible = "samsung,exynos9610-fm";
 		reg = <0x0 0x14AC0000 0x2000>,
 			<0x0 0x14800800 0x10>;
-		elna_gpio = <&gpg1 0 0x1>; /* FM_LNA_EN */
-		pinctrl-names = "default";
-		pinctrl-0 = <&fm_lna_en>;
 		clocks = <&clock MUX_AUD_FM>,
 			<&clock GATE_ABOX_QCH_FM>,
 			<&clock DOUT_CLK_AUD_FM>;  /* mux_aud_fm, qch_fm, clk_aud_fm */
 		clock-names = "mux_aud_fm", "qch_fm", "clk_aud_fm";
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		samsung,power-domain = <&pd_dispaud>;
+		without_elna = <1>;
 		status = "ok";
 	};
 
