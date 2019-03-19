@@ -37,7 +37,7 @@
 #define OIS_CAL_ACTUAL_DL_SIZE		0x28
 #define EEPROM_INFO_TABLE_REVISION	0x64
 
-#define OIS_DEBUG
+//#define OIS_DEBUG
 
 static u8 ois_fw_data[OIS_FW_NUM][OIS_FW_SIZE] = {{0},};
 static int ois_fw_data_size[OIS_FW_NUM] = {0,};
@@ -545,13 +545,8 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 		ret = 0;
 		goto p_err;
 	}
-	I2C_MUTEX_UNLOCK(ois->i2c_lock);
-
-	/* wait 100ms */
-	usleep_range(100000, 100000);
-
-	I2C_MUTEX_LOCK(ois->i2c_lock);
 	/* Gyro ON for OIS */
+	ret != fimc_is_ois_write(ois->client, 0x614F, 0x01);
 	ret |= fimc_is_ois_write(ois->client, 0x6023, 0x02);
 	ret |= fimc_is_ois_write(ois->client, 0x602C, 0x76);
 	ret != fimc_is_ois_write(ois->client, 0x602D, 0x02);
@@ -560,10 +555,9 @@ int fimc_is_ois_init(struct v4l2_subdev *subdev)
 	ret != fimc_is_ois_write(ois->client, 0x602C, 0x45);
 	ret != fimc_is_ois_write(ois->client, 0x602D, 0x58);
 	I2C_MUTEX_UNLOCK(ois->i2c_lock);
-	usleep_range(20000, 20000);
+	usleep_range(30000, 30000);
 	I2C_MUTEX_LOCK(ois->i2c_lock);
 	ret != fimc_is_ois_write(ois->client, 0x6023, 0x00);
-	ret != fimc_is_ois_write(ois->client, 0x614F, 0x01);
 	ret != fimc_is_ois_write(ois->client, 0x6021, 0x7B);
 	usleep_range(300, 300);
 	ret != fimc_is_ois_read(ois->client, 0x6024, &ois_status);
