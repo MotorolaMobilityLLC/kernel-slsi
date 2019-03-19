@@ -70,4 +70,19 @@ static const unsigned char SEQ_OTP_DISABLE[] = {
 static const unsigned char SEQ_CMD_8[] = {
 	0xBB,0x00
 };
+static const unsigned char SEQ_CMD_12[] = {
+	0xBD, 0x01
+};
+static const unsigned char SEQ_CMD_13[] = {
+	0xE9, 0xC4
+};
+static const unsigned char SEQ_CMD_14[] = {
+	0xBF, 0x0F
+};
+static const unsigned char SEQ_CMD_15[] = {
+	0xE9, 0x3F
+};
+static const unsigned char SEQ_CMD_16[] = {
+	0xBD, 0x00
+};
 #endif /* __HIX83112A_PARAM_H__ */
