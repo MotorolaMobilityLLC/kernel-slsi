@@ -124,6 +124,36 @@ void hix83112a_lcd_init(int id, struct decon_lcd *lcd)
 	dsim_err("fail to send SEQ_CMD_8 command.\n");
 	mdelay(5);
 
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_12[0],
+		SEQ_CMD_12[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_12 command.\n");
+	mdelay(1);
+
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_13[0],
+		SEQ_CMD_13[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_13 command.\n");
+	mdelay(1);
+
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_14[0],
+		SEQ_CMD_14[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_14 command.\n");
+	mdelay(1);
+
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_15[0],
+		SEQ_CMD_15[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_15 command.\n");
+	mdelay(1);
+
+	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		SEQ_CMD_16[0],
+		SEQ_CMD_16[1]) < 0)
+	dsim_err("fail to send SEQ_CMD_16 command.\n");
+	mdelay(1);
+
 	if (dsim_wr_data(id, MIPI_DSI_DCS_SHORT_WRITE, SEQ_SLEEP_OUT[0], 0) < 0)
 		dsim_err("fail to send SEQ_SLEEP_OUT command.\n");
 	mdelay(125);
