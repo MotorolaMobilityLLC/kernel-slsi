@@ -21,7 +21,7 @@
 	status = "okay";
 	samsung,reset-before-trans;
 	clock-frequency = <400000>;
-	sx933x@28 {
+	sar_sx933x:sx933x@28 {
 		compatible = "Semtech,sx933x";
 		reg = <0x28>;
 		Semtech,nirq-gpio = <&gpa2 6 0>; /* IRQ */
