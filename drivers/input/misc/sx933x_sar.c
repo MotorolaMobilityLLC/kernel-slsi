@@ -382,7 +382,7 @@ static void read_dbg_raw(psx93XX_t this) {
 	sx933x_i2c_read_16bit(this, SX933X_REG_PROX_ADC_MIN, &uData);
 	adc_min = (s32)uData>>10;
 
-	sx933x_i2c_read_16bit(this, SX933X_REG_PROX_ADC_MIN, &uData);
+	sx933x_i2c_read_16bit(this, SX933X_REG_PROX_ADC_MAX, &uData);
 	adc_max = (s32)uData>>10;
 
 	sx933x_i2c_read_16bit(this, SX933X_REG_PROX_RAW, &uData);
