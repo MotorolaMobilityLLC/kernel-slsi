@@ -907,6 +907,15 @@ static int s2mu106_receive_message(void *data)
 	if (ret < 0)
 		dev_err(dev, "%s read msg header error\n", __func__);
 
+	if (pdic_data->header.spec_revision < 2 &&
+			pdic_data->header.num_data_objs > 0 &&
+			pdic_data->header.msg_type == 6) {
+		usleep_range(500, 900);
+		ret = s2mu106_read_msg_header(i2c, &pdic_data->header);
+		if (ret < 0)
+			dev_err(dev, "%s read msg header error\n", __func__);
+	}
+
 	obj_num = pdic_data->header.num_data_objs;
 
 	if (obj_num > 0) {
