@@ -1149,6 +1149,7 @@ policy_state usbpd_policy_snk_ready(struct policy_data *policy)
 	CHECK_MSG(pd_data, MSG_VCONN_SWAP, PE_VCS_Evaluate_Swap);
 	CHECK_MSG(pd_data, MSG_GET_SRC_CAP, PE_DR_SNK_Give_Source_Cap);
 	CHECK_MSG(pd_data, MSG_BIST, PE_BIST_Receive_Mode);
+	CHECK_MSG(pd_data, MSG_SRC_CAP, PE_SNK_Evaluate_Capability);
 
 #if 0
 	CHECK_MSG(pd_data, VDM_DISCOVER_IDENTITY, PE_UFP_VDM_Get_Identity);
