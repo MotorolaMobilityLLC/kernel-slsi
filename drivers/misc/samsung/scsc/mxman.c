@@ -1796,7 +1796,7 @@ int mxman_open(struct mxman *mxman)
 	/* If we have stored FM radio parameters, deliver them to FW now */
 	if (r == 0 && mxman->fm_params_pending) {
 		SCSC_TAG_INFO(MXMAN, "Send pending FM params\n");
-		mxman_fm_set_params(mxman, &mxman->fm_params);
+		mxman_fm_set_params(&mxman->fm_params);
 	}
 #endif
 
@@ -2079,9 +2079,15 @@ int mxman_suspend(struct mxman *mxman)
 }
 
 #ifdef CONFIG_SCSC_FM
-void mxman_on_halt_ldos_on(struct mxman *mxman)
+void mxman_fm_on_halt_ldos_on(void)
 {
-	mxman->on_halt_ldos_on = 1;
+	/* Should always be an active mxman unless module is unloaded */
+	if (!active_mxman) {
+		SCSC_TAG_ERR(MXMAN, "No active MXMAN\n");
+		return;
+	}
+
+	active_mxman->on_halt_ldos_on = 1;
 
 	/* FM status to pass into FW at next FW init,
 	 * by which time driver context is lost.
@@ -2095,25 +2101,28 @@ void mxman_on_halt_ldos_on(struct mxman *mxman)
 	is_fm_on = 1;
 }
 
-void mxman_on_halt_ldos_off(struct mxman *mxman)
+void mxman_fm_on_halt_ldos_off(void)
 {
+	/* Should always be an active mxman unless module is unloaded */
+	if (!active_mxman) {
+		SCSC_TAG_ERR(MXMAN, "No active MXMAN\n");
+		return;
+	}
+
 	/* Newer FW no longer need set shared LDOs
 	 * always-off at WLBT halt, as TCXO gating
 	 * has the same effect. But pass the "off"
 	 * request for backwards compatibility
 	 * with old FW.
 	 */
-	mxman->on_halt_ldos_on = 0;
+	active_mxman->on_halt_ldos_on = 0;
 	is_fm_on = 0;
 }
 
 /* Update parameters passed to WLBT FM */
-int mxman_fm_set_params(struct mxman *mxman, struct wlbt_fm_params *params)
+int mxman_fm_set_params(struct wlbt_fm_params *params)
 {
-	/* May be called when WLBT is off, so find the context in this case */
-	if (!mxman)
-		mxman = active_mxman;
-
+	/* Should always be an active mxman unless module is unloaded */
 	if (!active_mxman) {
 		SCSC_TAG_ERR(MXMAN, "No active MXMAN\n");
 		return -EINVAL;
@@ -2121,14 +2130,14 @@ int mxman_fm_set_params(struct mxman *mxman, struct wlbt_fm_params *params)
 
 	/* Params are no longer valid (FM stopped) */
 	if (!params) {
-		mxman->fm_params_pending = 0;
+		active_mxman->fm_params_pending = 0;
 		SCSC_TAG_INFO(MXMAN, "FM params cleared\n");
 		return 0;
 	}
 
 	/* Once set the value needs to be remembered for each time WLBT starts */
-	mxman->fm_params = *params;
-	mxman->fm_params_pending = 1;
+	active_mxman->fm_params = *params;
+	active_mxman->fm_params_pending = 1;
 
 	if (send_fm_params_to_active_mxman(params)) {
 		SCSC_TAG_INFO(MXMAN, "FM params sent to FW\n");

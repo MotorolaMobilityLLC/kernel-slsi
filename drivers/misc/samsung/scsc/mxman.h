@@ -27,10 +27,11 @@ int mxman_force_panic(struct mxman *mxman);
 int mxman_suspend(struct mxman *mxman);
 void mxman_resume(struct mxman *mxman);
 void mxman_show_last_panic(struct mxman *mxman);
+
 #ifdef CONFIG_SCSC_FM
-void mxman_on_halt_ldos_on(struct mxman *mxman);
-void mxman_on_halt_ldos_off(struct mxman *mxman);
-int mxman_fm_set_params(struct mxman *mxman, struct wlbt_fm_params *params);
+void mxman_fm_on_halt_ldos_on(void);
+void mxman_fm_on_halt_ldos_off(void);
+int mxman_fm_set_params(struct wlbt_fm_params *params);
 #endif
 
 enum mxman_state {
