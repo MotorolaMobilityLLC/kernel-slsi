@@ -5369,11 +5369,11 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 	u16 event_id = 0;
 	u64 timestamp = 0;
 	u8 *tlv_data;
-	u32 roam_reason, chan_utilisation, btm_request_mode, btm_response, eapol_msg_type;
-	u32 deauth_reason, eapol_retry_count, roam_rssi, status_code;
-	u16 vendor_len, tag_id, tag_len, vtag_id, eapol_key_type;
+	u32 roam_reason = 0, chan_utilisation = 0, btm_request_mode = 0, btm_response = 0, eapol_msg_type = 0;
+	u32 deauth_reason = 0, eapol_retry_count = 0, roam_rssi, status_code = 0;
+	u16 vendor_len, tag_id, tag_len, vtag_id, eapol_key_type = 0;
 	u32 tag_value, vtag_value, rssi_bits = 0;
-	int roam_rssi_val;
+	int roam_rssi_val = 0;
 	__le16               *le16_ptr = NULL;
 	int tlv_buffer__len = fapi_get_datalen(skb), i = 0;
 
