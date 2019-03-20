@@ -896,7 +896,7 @@ static void hip4_watchdog(unsigned long data)
 #endif
 	struct slsi_dev         *sdev = container_of(hip, struct slsi_dev, hip4_inst);
 	struct scsc_service     *service;
-	ktime_t                 intr_ov;
+	ktime_t                 intr_ov = ktime_set(0, 0);
 	unsigned long           flags;
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 	u32 conf_hip4_ver = 0;
@@ -922,6 +922,12 @@ static void hip4_watchdog(unsigned long data)
 			intr_ov = ktime_add_ms(intr_received_ctrl, jiffies_to_msecs(HZ));
 		if (test_and_clear_bit(HIP4_MIF_Q_TH_DAT, hip->hip_priv->irq_bitmap))
 			intr_ov = ktime_add_ms(intr_received_data, jiffies_to_msecs(HZ));
+
+		/* if no intr bit is set; intr_ov has the initial value of 0; then intr has been unblocked */
+		if (!ktime_compare(intr_ov, 0)) {
+			wdt = ktime_set(0, 0);
+			goto exit;
+		}
 	} else {
 		/* if intr_received > wdt skip as intr has been unblocked */
 		if (ktime_compare(intr_received, wdt) > 0) {
@@ -1003,18 +1009,34 @@ static void hip4_irq_handler_stub(int irq, void *data)
 static void hip4_wq_fb(struct work_struct *data)
 {
 	struct hip4_priv        *hip_priv = container_of(data, struct hip4_priv, intr_wq_fb);
-	struct slsi_hip4        *hip = hip_priv->hip;
-	struct hip4_hip_control *ctrl = hip->hip_control;
+	struct slsi_hip4        *hip;
+	struct hip4_hip_control *ctrl;
 	struct scsc_service     *service;
-	struct slsi_dev         *sdev = container_of(hip, struct slsi_dev, hip4_inst);
+	struct slsi_dev         *sdev;
 	bool                    no_change = true;
 	u8                      idx_r;
 	u8                      idx_w;
 	scsc_mifram_ref         ref;
 	void                    *mem;
 
-	if (!hip || !sdev || !sdev->service || !hip->hip_priv)
+	if (!hip_priv || !hip_priv->hip) {
+		SLSI_ERR_NODEV("hip_priv or hip_priv->hip is Null\n");
 		return;
+	}
+
+	hip = hip_priv->hip;
+	ctrl = hip->hip_control;
+
+	if (!ctrl) {
+		SLSI_ERR_NODEV("hip->hip_control is Null\n");
+		return;
+	}
+	sdev = container_of(hip, struct slsi_dev, hip4_inst);
+
+	if (!sdev || !sdev->service) {
+		SLSI_ERR_NODEV("sdev or sdev->service is Null\n");
+		return;
+	}
 
 	spin_lock_bh(&hip_priv->rx_lock);
 	service = sdev->service;
@@ -1133,10 +1155,10 @@ static void hip4_irq_handler_fb(int irq, void *data)
 static void hip4_wq_ctrl(struct work_struct *data)
 {
 	struct hip4_priv        *hip_priv = container_of(data, struct hip4_priv, intr_wq_ctrl);
-	struct slsi_hip4        *hip = hip_priv->hip;
-	struct hip4_hip_control *ctrl = hip->hip_control;
+	struct slsi_hip4        *hip;
+	struct hip4_hip_control *ctrl;
 	struct scsc_service     *service;
-	struct slsi_dev         *sdev = container_of(hip, struct slsi_dev, hip4_inst);
+	struct slsi_dev         *sdev;
 	u8						retry;
 	bool                    no_change = true;
 	u8                      idx_r;
@@ -1148,8 +1170,24 @@ static void hip4_wq_ctrl(struct work_struct *data)
 	int                     id;
 #endif
 
-	if (!hip || !sdev || !sdev->service || !hip->hip_priv)
+	if (!hip_priv || !hip_priv->hip) {
+		SLSI_ERR_NODEV("hip_priv or hip_priv->hip is Null\n");
 		return;
+	}
+
+	hip = hip_priv->hip;
+	ctrl = hip->hip_control;
+
+	if (!ctrl) {
+		SLSI_ERR_NODEV("hip->hip_control is Null\n");
+		return;
+	}
+	sdev = container_of(hip, struct slsi_dev, hip4_inst);
+
+	if (!sdev || !sdev->service) {
+		SLSI_ERR_NODEV("sdev or sdev->service is Null\n");
+		return;
+	}
 
 	spin_lock_bh(&hip_priv->rx_lock);
 	service = sdev->service;
@@ -1291,10 +1329,10 @@ static void hip4_irq_handler_ctrl(int irq, void *data)
 static int hip4_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct hip4_priv        *hip_priv = container_of(napi, struct hip4_priv, napi);
-	struct slsi_hip4        *hip = hip_priv->hip;
-	struct hip4_hip_control *ctrl = hip->hip_control;
+	struct slsi_hip4        *hip;
+	struct hip4_hip_control *ctrl;
 	struct scsc_service     *service;
-	struct slsi_dev         *sdev = container_of(hip, struct slsi_dev, hip4_inst);
+	struct slsi_dev         *sdev;
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 	int                     id;
@@ -1307,8 +1345,24 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 	u8                      retry;
 	int work_done = 0;
 
-	if (!hip || !sdev || !sdev->service || !hip->hip_priv)
+	if (!hip_priv || !hip_priv->hip) {
+		SLSI_ERR_NODEV("hip_priv or hip_priv->hip is Null\n");
 		return 0;
+	}
+
+	hip = hip_priv->hip;
+	ctrl = hip->hip_control;
+
+	if (!ctrl) {
+		SLSI_ERR_NODEV("hip->hip_control is Null\n");
+		return 0;
+	}
+	sdev = container_of(hip, struct slsi_dev, hip4_inst);
+
+	if (!sdev || !sdev->service) {
+		SLSI_ERR_NODEV("sdev or sdev->service is Null\n");
+		return 0;
+	}
 
 	spin_lock_bh(&hip_priv->rx_lock);
 	SCSC_HIP4_SAMPLER_INT_BH(hip->hip_priv->minor, 0);
