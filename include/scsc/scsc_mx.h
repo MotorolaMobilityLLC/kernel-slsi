@@ -151,16 +151,6 @@ int scsc_mx_service_mif_dump_registers(struct scsc_service *service);
  * their stop_on_failure() handler as a side-effect. */
 void scsc_mx_service_service_failed(struct scsc_service *service, const char *reason);
 
-#ifdef CONFIG_SCSC_FM
-/*
- * This must be used by FM Radio Service only. Other services must not use it.
- * Leave leave sharedLDOs on or turn them off on halt.
- */
-void scsc_service_on_halt_ldos_on(struct scsc_service *service);
-void scsc_service_on_halt_ldos_off(struct scsc_service *service);
-int scsc_service_fm_set_params(struct scsc_service *service, struct wlbt_fm_params *params);
-#endif
-
 /* MEMORY Interface*/
 /** Allocate a contiguous block of SDRAM accessible to Client Driver. The memory will be allocated
  * from generic pool (MIFRAMMAN_MEM_POOL_GENERIC) */
