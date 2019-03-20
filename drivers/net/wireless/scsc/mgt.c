@@ -3672,7 +3672,7 @@ static void slsi_p2p_unset_channel_expiry_work(struct work_struct *work)
 
 			/* Send Unset Channel */
 			if (ndev_vif->driver_channel != 0) {
-				slsi_mlme_spare_signal_1(sdev, dev);
+			slsi_mlme_unset_channel_req(sdev, dev);
 				ndev_vif->driver_channel = 0;
 			}
 		}
