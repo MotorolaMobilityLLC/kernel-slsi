@@ -847,8 +847,48 @@ static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct 
 	return max_framerate;
 }
 
-void mfc_qos_update_framerate(struct mfc_ctx *ctx)
+static void __mfc_qos_get_bps(struct mfc_ctx *ctx, u32 bytesused)
 {
+	struct mfc_dev *dev = ctx->dev;
+	struct list_head *head = &ctx->bitrate_list;
+	struct mfc_bitrate *temp_bitrate;
+	struct mfc_bitrate *new_bitrate = &ctx->bitrate_array[ctx->bitrate_index];
+	unsigned long sum_size = 0, avg_Kbits;
+	int count = 0;
+
+	if (ctx->bitrate_is_full) {
+		temp_bitrate = list_entry(head->next, struct mfc_bitrate, list);
+		list_del(&temp_bitrate->list);
+	}
+
+	new_bitrate->bytesused = bytesused;
+	list_add_tail(&new_bitrate->list, head);
+
+	list_for_each_entry(temp_bitrate, head, list) {
+		mfc_debug(4, "[QoS][%d] strm_size %d\n", count, temp_bitrate->bytesused);
+		sum_size += temp_bitrate->bytesused;
+		count++;
+	}
+
+	avg_Kbits = ((sum_size * BITS_PER_BYTE) / count) / 1024;
+	ctx->Kbps = (int)(avg_Kbits * (ctx->last_framerate / 1000));
+	/* Standardization to high bitrate spec */
+	if (!CODEC_HIGH_PERF(ctx))
+		ctx->Kbps = dev->bps_ratio * ctx->Kbps;
+	mfc_debug(3, "[QoS] %d Kbps, average %lld Kbits per frame\n", ctx->Kbps, avg_Kbits);
+
+	ctx->bitrate_index++;
+	if (ctx->bitrate_index == MFC_TIME_INDEX) {
+		ctx->bitrate_is_full = 1;
+		ctx->bitrate_index %= MFC_TIME_INDEX;
+	}
+}
+
+void mfc_qos_update_framerate(struct mfc_ctx *ctx, u32 bytesused)
+{
+	if (ctx->type == MFCINST_DECODER)
+		__mfc_qos_get_bps(ctx, bytesused);
+
 	if (ctx->last_framerate != 0 && ctx->last_framerate != ctx->framerate) {
 		mfc_debug(2, "[QoS] fps changed: %ld -> %ld, qos ratio: %d\n",
 				ctx->framerate, ctx->last_framerate, ctx->qos_ratio);
