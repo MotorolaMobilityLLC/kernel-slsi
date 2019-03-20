@@ -61,18 +61,12 @@ static char *mem_dump_buffer;
 char *slsi_print_event_name(int event_id)
 {
 	switch (event_id) {
-	case SLSI_NL80211_SIGNIFICANT_CHANGE_EVENT:
-		return "SIGNIFICANT_CHANGE_EVENT";
-	case SLSI_NL80211_HOTLIST_AP_FOUND_EVENT:
-		return "HOTLIST_AP_FOUND_EVENT";
 	case SLSI_NL80211_SCAN_RESULTS_AVAILABLE_EVENT:
 		return "SCAN_RESULTS_AVAILABLE_EVENT";
 	case SLSI_NL80211_FULL_SCAN_RESULT_EVENT:
 		return "FULL_SCAN_RESULT_EVENT";
 	case SLSI_NL80211_SCAN_EVENT:
 		return "BUCKET_SCAN_DONE_EVENT";
-	case SLSI_NL80211_HOTLIST_AP_LOST_EVENT:
-		return "HOTLIST_AP_LOST_EVENT";
 #ifdef CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD
 	case SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH:
 		return "KEY_MGMT_ROAM_AUTH";
@@ -198,21 +192,6 @@ static void slsi_gscan_add_dump_params(struct slsi_nl_gscan_param *nl_gscan_para
 		for (j = 0; j < nl_gscan_param->nl_bucket[i].num_channels; j++)
 			SLSI_DBG2_NODEV(SLSI_GSCAN, "\tchannel_list[%d]: %d\n",
 					j, nl_gscan_param->nl_bucket[i].channels[j].channel);
-	}
-}
-
-static void slsi_gscan_set_hotlist_dump_params(struct slsi_nl_hotlist_param *nl_hotlist_param)
-{
-	int i;
-
-	SLSI_DBG2_NODEV(SLSI_GSCAN, "Parameters for SUBCMD_SET_BSSID_HOTLIST sub-command:\n");
-	SLSI_DBG2_NODEV(SLSI_GSCAN, "lost_ap_sample_size: %d, num_bssid: %d\n",
-			nl_hotlist_param->lost_ap_sample_size, nl_hotlist_param->num_bssid);
-
-	for (i = 0; i < nl_hotlist_param->num_bssid; i++) {
-		SLSI_DBG2_NODEV(SLSI_GSCAN, "AP[%d]\n", i);
-		SLSI_DBG2_NODEV(SLSI_GSCAN, "\tBSSID:%pM rssi_low:%d rssi_high:%d\n",
-				nl_hotlist_param->ap[i].bssid, nl_hotlist_param->ap[i].low, nl_hotlist_param->ap[i].high);
 	}
 }
 
@@ -437,145 +416,6 @@ struct slsi_gscan_result *slsi_prepare_scan_result(struct sk_buff *skb, u16 anqp
 	return scan_res;
 }
 
-void slsi_hotlist_ap_lost_indication(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
-{
-	struct slsi_nl_scan_result_param *nl_scan_res;
-	struct slsi_hotlist_result       *hotlist, *temp;
-	struct netdev_vif                *ndev_vif = netdev_priv(dev);
-	u8                               *mac_addr;
-	u16                              num_entries;
-	int                              mem_reqd;
-	bool                             found = false;
-	int                              offset = 0;
-	int                              i;
-
-	if (!ndev_vif) {
-		SLSI_WARN_NODEV("ndev_vif is NULL\n");
-		slsi_kfree_skb(skb);
-		return;
-	}
-
-	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
-
-	num_entries = fapi_get_s16(skb, u.mlme_ap_loss_ind.entries);
-	mac_addr = fapi_get_data(skb);
-
-	SLSI_NET_DBG1(dev, SLSI_GSCAN, "Hotlist AP Lost Indication: num_entries %d\n", num_entries);
-
-	mem_reqd = num_entries * sizeof(struct slsi_nl_scan_result_param);
-	nl_scan_res = kmalloc(mem_reqd, GFP_KERNEL);
-	if (nl_scan_res == NULL) {
-		SLSI_NET_ERR(dev, "Failed to allocate memory for hotlist lost\n");
-		goto out;
-	}
-
-	for (i = 0; i < num_entries; i++) {
-		SLSI_NET_DBG3(dev, SLSI_GSCAN,
-			      "Remove the GSCAN results for the lost AP: %pM\n", &mac_addr[ETH_ALEN * i]);
-		slsi_gscan_hash_remove(sdev, &mac_addr[ETH_ALEN * i]);
-
-		list_for_each_entry_safe(hotlist, temp, &sdev->hotlist_results, list) {
-			if (memcmp(hotlist->nl_scan_res.bssid, &mac_addr[ETH_ALEN * i], ETH_ALEN) == 0) {
-				SLSI_NET_DBG2(dev, SLSI_GSCAN, "Lost AP [%d]: %pM\n", i, &mac_addr[ETH_ALEN * i]);
-				list_del(&hotlist->list);
-
-				hotlist->nl_scan_res.ie_length = 0; /* Not sending the IE for hotlist lost event */
-				memcpy(&nl_scan_res[offset], &hotlist->nl_scan_res, sizeof(struct slsi_nl_scan_result_param));
-				offset++;
-
-				kfree(hotlist);
-				found = true;
-				break;
-			}
-		}
-
-		if (!found)
-			SLSI_NET_ERR(dev, "Hostlist record is not available in scan result\n");
-
-		found = false;
-	}
-
-	slsi_vendor_event(sdev, SLSI_NL80211_HOTLIST_AP_LOST_EVENT,
-			  nl_scan_res, (offset * sizeof(struct slsi_nl_scan_result_param)));
-
-	kfree(nl_scan_res);
-out:
-	slsi_kfree_skb(skb);
-	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
-}
-
-void slsi_hotlist_ap_found_indication(struct slsi_dev *sdev, struct net_device *dev, struct slsi_gscan_result *scan_res)
-{
-	struct slsi_hotlist_result *hotlist, *temp;
-	int                        num_hotlist_results = 0;
-	struct netdev_vif          *ndev_vif = netdev_priv(dev);
-	int                        mem_reqd;
-	u8                         *event_buffer;
-	int                        offset;
-
-	if (!ndev_vif) {
-		SLSI_WARN_NODEV("ndev_vif is NULL\n");
-		return;
-	}
-
-	if (!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex))
-		SLSI_WARN_NODEV("ndev_vif->scan_mutex is not locked\n");
-
-	SLSI_NET_DBG1(dev, SLSI_GSCAN, "Hotlist AP Found Indication: %pM\n", scan_res->nl_scan_res.bssid);
-
-	/* Check if the hotlist result is already available */
-	list_for_each_entry_safe(hotlist, temp, &sdev->hotlist_results, list) {
-		if (memcmp(hotlist->nl_scan_res.bssid, scan_res->nl_scan_res.bssid, ETH_ALEN) == 0) {
-			SLSI_DBG3(sdev, SLSI_GSCAN, "Hotlist result already available for: %pM\n", scan_res->nl_scan_res.bssid);
-			/* Delete the old result - store the new result */
-			list_del(&hotlist->list);
-			kfree(hotlist);
-			break;
-		}
-	}
-
-	/* Allocating memory for storing the hostlist result */
-	mem_reqd = scan_res->scan_res_len + (sizeof(struct slsi_hotlist_result) - sizeof(struct slsi_nl_scan_result_param));
-	SLSI_DBG3(sdev, SLSI_GSCAN, "hotlist result alloc size: %d\n", mem_reqd);
-	hotlist = kmalloc(mem_reqd, GFP_KERNEL);
-	if (hotlist == NULL) {
-		SLSI_ERR(sdev, "Failed to allocate memory for hotlist\n");
-		return;
-	}
-
-	hotlist->scan_res_len = scan_res->scan_res_len;
-	memcpy(&hotlist->nl_scan_res, &scan_res->nl_scan_res, scan_res->scan_res_len);
-
-	INIT_LIST_HEAD(&hotlist->list);
-	list_add(&hotlist->list, &sdev->hotlist_results);
-
-	/* Calculate the number of hostlist results and mem required */
-	mem_reqd = 0;
-	offset = 0;
-	list_for_each_entry_safe(hotlist, temp, &sdev->hotlist_results, list) {
-		mem_reqd += sizeof(struct slsi_nl_scan_result_param); /* If IE required use: hotlist->scan_res_len */
-		num_hotlist_results++;
-	}
-	SLSI_DBG3(sdev, SLSI_GSCAN, "num_hotlist_results = %d, mem_reqd = %d\n", num_hotlist_results, mem_reqd);
-
-	/* Allocate event buffer */
-	event_buffer = kmalloc(mem_reqd, GFP_KERNEL);
-	if (event_buffer == NULL) {
-		SLSI_ERR_NODEV("Failed to allocate memory for event_buffer\n");
-		return;
-	}
-
-	/* Prepare the event buffer */
-	list_for_each_entry_safe(hotlist, temp, &sdev->hotlist_results, list) {
-		memcpy(&event_buffer[offset], &hotlist->nl_scan_res, sizeof(struct slsi_nl_scan_result_param));
-		offset += sizeof(struct slsi_nl_scan_result_param); /* If IE required use: hotlist->scan_res_len */
-	}
-
-	slsi_vendor_event(sdev, SLSI_NL80211_HOTLIST_AP_FOUND_EVENT, event_buffer, offset);
-
-	kfree(event_buffer);
-}
-
 static void slsi_gscan_hash_add(struct slsi_dev *sdev, struct slsi_gscan_result *scan_res)
 {
 	u8                key = SLSI_GSCAN_GET_HASH_KEY(scan_res->nl_scan_res.bssid[5]);
@@ -747,10 +587,8 @@ void slsi_gscan_handle_scan_result(struct slsi_dev *sdev, struct net_device *dev
 		goto out;
 	}
 
-	/* Check for hotlist AP or ePNO networks */
-	if (fapi_get_u16(skb, u.mlme_scan_ind.hotlisted_ap)) {
-		slsi_hotlist_ap_found_indication(sdev, dev, scan_res);
-	} else if (fapi_get_u16(skb, u.mlme_scan_ind.preferrednetwork_ap)) {
+	/* Check for ePNO networks */
+	if (fapi_get_u16(skb, u.mlme_scan_ind.preferrednetwork_ap)) {
 		if (anqp_length == 0)
 			slsi_vendor_event(sdev, SLSI_NL80211_EPNO_EVENT,
 					  &scan_res->nl_scan_res, scan_res->scan_res_len);
@@ -1052,29 +890,6 @@ void slsi_gscan_flush_scan_results(struct slsi_dev *sdev)
 	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
 }
 
-void slsi_gscan_flush_hotlist_results(struct slsi_dev *sdev)
-{
-	struct slsi_hotlist_result *hotlist, *temp;
-	struct netdev_vif          *ndev_vif;
-
-	ndev_vif = slsi_gscan_get_vif(sdev);
-	if (!ndev_vif) {
-		SLSI_WARN_NODEV("ndev_vif is NULL\n");
-		return;
-	}
-
-	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
-
-	list_for_each_entry_safe(hotlist, temp, &sdev->hotlist_results, list) {
-		list_del(&hotlist->list);
-		kfree(hotlist);
-	}
-
-	INIT_LIST_HEAD(&sdev->hotlist_results);
-
-	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
-}
-
 static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param *nl_gscan_param, struct slsi_gscan *gscan)
 {
 	struct slsi_gscan_param      gscan_param;
@@ -1106,7 +921,7 @@ static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param
 			if (gscan_param.bucket->report_events & SLSI_REPORT_EVENTS_NO_BATCH)
 				report_mode |= FAPI_REPORTMODE_NO_BATCH;
 		} else {
-			report_mode = FAPI_REPORTMODE_BUFFER_FULL;
+			report_mode = FAPI_REPORTMODE_RESERVED;
 		}
 
 		if (report_mode == 0) {
@@ -1393,318 +1208,6 @@ exit:
 	return ret;
 }
 
-static int slsi_gscan_set_hotlist_read_params(struct slsi_nl_hotlist_param *nl_hotlist_param, const void *data, int len)
-{
-	int                               tmp, tmp1, tmp2, type, j = 0;
-	const struct nlattr               *outer, *inner, *iter;
-	struct slsi_nl_ap_threshold_param *nl_ap;
-	int                               flush;
-
-	nla_for_each_attr(iter, data, len, tmp2) {
-		type = nla_type(iter);
-		switch (type) {
-		case GSCAN_ATTRIBUTE_HOTLIST_BSSIDS:
-			nla_for_each_nested(outer, iter, tmp) {
-				nl_ap = &nl_hotlist_param->ap[j];
-				nla_for_each_nested(inner, outer, tmp1) {
-					type = nla_type(inner);
-					switch (type) {
-					case GSCAN_ATTRIBUTE_BSSID:
-						SLSI_ETHER_COPY(&nl_ap->bssid[0], nla_data(inner));
-						break;
-					case GSCAN_ATTRIBUTE_RSSI_LOW:
-						nl_ap->low = nla_get_s8(inner);
-						break;
-					case GSCAN_ATTRIBUTE_RSSI_HIGH:
-						nl_ap->high = nla_get_s8(inner);
-						break;
-					default:
-						SLSI_ERR_NODEV("Unknown type %d\n", type);
-						break;
-					}
-				}
-				j++;
-			}
-			nl_hotlist_param->num_bssid = j;
-			break;
-		case GSCAN_ATTRIBUTE_HOTLIST_FLUSH:
-			flush = nla_get_u8(iter);
-			break;
-		case GSCAN_ATTRIBUTE_LOST_AP_SAMPLE_SIZE:
-			nl_hotlist_param->lost_ap_sample_size = nla_get_u32(iter);
-			break;
-		default:
-			SLSI_ERR_NODEV("No ATTRIBUTE_HOTLIST - %d\n", type);
-			break;
-		}
-	}
-
-	return 0;
-}
-
-static int slsi_gscan_set_hotlist(struct wiphy *wiphy,
-				  struct wireless_dev *wdev, const void *data, int len)
-{
-	struct slsi_dev              *sdev = SDEV_FROM_WIPHY(wiphy);
-	struct slsi_nl_hotlist_param *nl_hotlist_param;
-	struct net_device            *dev;
-	struct netdev_vif            *ndev_vif;
-	int                          ret = 0;
-
-	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_SET_BSSID_HOTLIST\n");
-
-	dev = slsi_gscan_get_netdev(sdev);
-	if (!dev) {
-		SLSI_WARN_NODEV("dev is NULL\n");
-		return -EINVAL;
-	}
-
-	ndev_vif = netdev_priv(dev);
-
-	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
-	/* Allocate memory for the received scan params */
-	nl_hotlist_param = kzalloc(sizeof(*nl_hotlist_param), GFP_KERNEL);
-	if (nl_hotlist_param == NULL) {
-		SLSI_ERR_NODEV("Failed for allocate memory for gscan hotlist_param\n");
-		ret = -ENOMEM;
-		goto exit;
-	}
-
-	slsi_gscan_set_hotlist_read_params(nl_hotlist_param, data, len);
-
-#ifdef CONFIG_SCSC_WLAN_DEBUG
-	slsi_gscan_set_hotlist_dump_params(nl_hotlist_param);
-#endif
-	ret = slsi_mlme_set_bssid_hotlist_req(sdev, dev, nl_hotlist_param);
-	if (ret)
-		SLSI_ERR_NODEV("Failed to set hostlist\n");
-
-	kfree(nl_hotlist_param);
-	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
-exit:
-	return ret;
-}
-
-static int slsi_gscan_reset_hotlist(struct wiphy *wiphy,
-				    struct wireless_dev *wdev, const void *data, int len)
-{
-	struct slsi_dev   *sdev = SDEV_FROM_WIPHY(wiphy);
-	struct net_device *dev;
-	int               ret = 0;
-	struct netdev_vif *ndev_vif;
-
-	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_RESET_BSSID_HOTLIST\n");
-
-	dev = slsi_gscan_get_netdev(sdev);
-	if (!dev) {
-		SLSI_WARN_NODEV("dev is NULL\n");
-		return -EINVAL;
-	}
-	ndev_vif = netdev_priv(dev);
-
-	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
-	ret = slsi_mlme_set_bssid_hotlist_req(sdev, dev, NULL);
-	if (ret)
-		SLSI_ERR_NODEV("Failed to reset hostlist\n");
-
-	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
-
-	slsi_gscan_flush_hotlist_results(sdev);
-
-	return ret;
-}
-
-static struct slsi_gscan *slsi_mlme_get_tracking_scan_id(struct slsi_dev                          *sdev,
-							 struct slsi_nl_significant_change_params *significant_param_ptr)
-{
-	/* If channel hint is not in significant change req, link to previous gscan, else new gscan */
-	struct slsi_gscan *ret_gscan;
-
-	if (sdev->gscan != NULL) {
-		ret_gscan = sdev->gscan;
-		SLSI_DBG3(sdev, SLSI_GSCAN, "Existing Scan for tracking\n");
-	} else {
-		struct slsi_gscan *gscan;
-		/* Allocate Memory for the new gscan */
-		gscan = kzalloc(sizeof(*gscan), GFP_KERNEL);
-		if (gscan == NULL) {
-			SLSI_ERR(sdev, "Failed to allocate memory for gscan\n");
-			return NULL;
-		}
-		gscan->num_buckets = 1;
-		if (slsi_gscan_alloc_buckets(sdev, gscan, gscan->num_buckets) != 0) {
-			SLSI_ERR(sdev, "NO free buckets. Abort tracking\n");
-			kfree(gscan);
-			return NULL;
-		}
-		/*Build nl_bucket based on channels in significant_param_ptr->ap array*/
-		gscan->nl_bucket.band = WIFI_BAND_UNSPECIFIED;
-		gscan->nl_bucket.num_channels = 0;
-		gscan->nl_bucket.period = 5 * 1000; /* Default */
-		slsi_gscan_add_to_list(&sdev->gscan, gscan);
-		ret_gscan = gscan;
-		SLSI_DBG3(sdev, SLSI_GSCAN, "New Scan for tracking\n");
-	}
-	SLSI_DBG3(sdev, SLSI_GSCAN, "tracking channel num:%d\n", ret_gscan->nl_bucket.num_channels);
-	return ret_gscan;
-}
-
-static int slsi_gscan_set_significant_change(struct wiphy *wiphy,
-					     struct wireless_dev *wdev, const void *data, int len)
-{
-	int                                      ret = 0;
-	struct slsi_dev                          *sdev = SDEV_FROM_WIPHY(wiphy);
-	struct slsi_nl_significant_change_params *significant_change_param;
-	u8                                       bss_count = 0;
-	struct slsi_nl_ap_threshold_param        *bss_param_ptr;
-	int                                      tmp, tmp1, tmp2, type;
-	const struct nlattr                      *outer, *inner, *iter;
-	struct net_device                        *net_dev;
-	struct slsi_gscan                        *gscan;
-	struct netdev_vif                        *ndev_vif;
-
-	SLSI_DBG3(sdev, SLSI_GSCAN, "SUBCMD_SET_SIGNIFICANT_CHANGE Received\n");
-
-	significant_change_param = kmalloc(sizeof(*significant_change_param), GFP_KERNEL);
-	if (!significant_change_param) {
-		SLSI_ERR(sdev, "NO mem for significant_change_param\n");
-		return -ENOMEM;
-	}
-	memset(significant_change_param, 0, sizeof(struct slsi_nl_significant_change_params));
-	nla_for_each_attr(iter, data, len, tmp2) {
-		type = nla_type(iter);
-		switch (type) {
-		case GSCAN_ATTRIBUTE_RSSI_SAMPLE_SIZE:
-			significant_change_param->rssi_sample_size = nla_get_u16(iter);
-			SLSI_DBG3(sdev, SLSI_GSCAN, "rssi_sample_size %d\n", significant_change_param->rssi_sample_size);
-			break;
-		case GSCAN_ATTRIBUTE_LOST_AP_SAMPLE_SIZE:
-			significant_change_param->lost_ap_sample_size = nla_get_u16(iter);
-			SLSI_DBG3(sdev, SLSI_GSCAN, "lost_ap_sample_size %d\n", significant_change_param->lost_ap_sample_size);
-			break;
-		case GSCAN_ATTRIBUTE_MIN_BREACHING:
-			significant_change_param->min_breaching = nla_get_u16(iter);
-			SLSI_DBG3(sdev, SLSI_GSCAN, "min_breaching %d\n", significant_change_param->min_breaching);
-			break;
-		case GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_BSSIDS:
-			nla_for_each_nested(outer, iter, tmp) {
-				bss_param_ptr = &significant_change_param->ap[bss_count];
-				bss_count++;
-				SLSI_DBG3(sdev, SLSI_GSCAN, "bssids[%d]:\n", bss_count);
-				if (bss_count == SLSI_GSCAN_MAX_SIGNIFICANT_CHANGE_APS) {
-					SLSI_ERR(sdev, "Can support max:%d aps. Skipping excess\n", SLSI_GSCAN_MAX_SIGNIFICANT_CHANGE_APS);
-					break;
-				}
-				nla_for_each_nested(inner, outer, tmp1) {
-					switch (nla_type(inner)) {
-					case GSCAN_ATTRIBUTE_BSSID:
-						SLSI_ETHER_COPY(&bss_param_ptr->bssid[0], nla_data(inner));
-						SLSI_DBG3(sdev, SLSI_GSCAN, "\tbssid %pM\n", bss_param_ptr->bssid);
-						break;
-					case GSCAN_ATTRIBUTE_RSSI_HIGH:
-						bss_param_ptr->high = nla_get_s8(inner);
-						SLSI_DBG3(sdev, SLSI_GSCAN, "\thigh %d\n", bss_param_ptr->high);
-						break;
-					case GSCAN_ATTRIBUTE_RSSI_LOW:
-						bss_param_ptr->low = nla_get_s8(inner);
-						SLSI_DBG3(sdev, SLSI_GSCAN, "\tlow %d\n", bss_param_ptr->low);
-						break;
-					default:
-						SLSI_ERR(sdev, "unknown attribute:%d\n", type);
-						break;
-					}
-				}
-			}
-			break;
-		default:
-			SLSI_ERR(sdev, "Unknown type:%d\n", type);
-			break;
-		}
-	}
-	significant_change_param->num_bssid = bss_count;
-	net_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
-	ndev_vif = netdev_priv(net_dev);
-
-	SLSI_MUTEX_LOCK(ndev_vif->scan_mutex);
-	gscan = slsi_mlme_get_tracking_scan_id(sdev, significant_change_param);
-	if (gscan) {
-		if (slsi_mlme_significant_change_set(sdev, net_dev, significant_change_param)) {
-			SLSI_ERR(sdev, "Could not set GSCAN significant cfg\n");
-			ret = -EINVAL;
-		}
-	} else {
-		ret = -ENOMEM;
-	}
-	SLSI_MUTEX_UNLOCK(ndev_vif->scan_mutex);
-	kfree(significant_change_param);
-	return ret;
-}
-
-void slsi_rx_significant_change_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
-{
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
-	u32               eventdata_len;
-	u16               bssid_count = fapi_get_buff(skb, u.mlme_significant_change_ind.number_of_results);
-	u16               rssi_entry_count = fapi_get_buff(skb, u.mlme_significant_change_ind.number_of_rssi_entries);
-	u32               i, j;
-	u8                *eventdata  = NULL;
-	u8                *op_ptr, *ip_ptr;
-	u16               *le16_ptr;
-
-	/* convert fapi buffer to wifi-hal structure
-	 *   fapi buffer: [mac address 6 bytes] [chan_freq 2 bytes]
-	 *                [riis history N*2 bytes]
-	 *   wifi-hal structure
-	 *      typedef struct {
-	 *              uint16_t channel;
-	 *              mac_addr bssid;
-	 *              short rssi_history[8];
-	 *      } ChangeInfo;
-	 */
-
-	SLSI_DBG3(sdev, SLSI_GSCAN, "No BSSIDs:%d\n", bssid_count);
-
-	eventdata_len = (8 + (8 * 2)) * bssid_count; /* see wifi-hal structure in above comments */
-	eventdata = kmalloc(eventdata_len, GFP_KERNEL);
-	if (!eventdata) {
-		SLSI_ERR(sdev, "no mem for event data\n");
-		slsi_kfree_skb(skb);
-		return;
-	}
-
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	op_ptr = eventdata;
-	ip_ptr = fapi_get_data(skb);
-	for (i = 0; i < bssid_count; i++) {
-		le16_ptr = (u16 *)&ip_ptr[6]; /* channel: required unit MHz. received unit 512KHz */
-		*(u16 *)op_ptr = le16_to_cpu(*le16_ptr) / 2;
-		SLSI_DBG3(sdev, SLSI_GSCAN, "[%d] channel:%d\n", i, *(u16 *)op_ptr);
-		op_ptr += 2;
-
-		SLSI_ETHER_COPY(op_ptr, ip_ptr); /* mac_addr */
-		SLSI_DBG3(sdev, SLSI_GSCAN, "[%d] mac:%pM\n", i, op_ptr);
-		op_ptr += ETH_ALEN;
-
-		for (j = 0; j < 8; j++) {
-			if (j < rssi_entry_count) {
-				*op_ptr = ip_ptr[8 + j * 2];
-				*(op_ptr + 1) = ip_ptr[9 + j * 2];
-			} else {
-				s16 invalid_rssi = SLSI_GSCAN_INVALID_RSSI;
-				*(u16 *)op_ptr = invalid_rssi;
-			}
-			op_ptr += 2;
-		}
-		ip_ptr += 8 + (rssi_entry_count * 2);
-	}
-	SLSI_DBG_HEX(sdev, SLSI_GSCAN, eventdata, eventdata_len, "significant change event buffer:\n");
-	SLSI_DBG_HEX(sdev, SLSI_GSCAN, fapi_get_data(skb), fapi_get_datalen(skb), "significant change skb buffer:\n");
-	slsi_vendor_event(sdev, SLSI_NL80211_SIGNIFICANT_CHANGE_EVENT, eventdata, eventdata_len);
-	kfree(eventdata);
-	slsi_kfree_skb(skb);
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-}
-
 void slsi_rx_rssi_report_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -1717,38 +1220,6 @@ void slsi_rx_rssi_report_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 	slsi_vendor_event(sdev, SLSI_NL80211_RSSI_REPORT_EVENT, &event_data, sizeof(event_data));
 	slsi_kfree_skb(skb);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-}
-
-static int slsi_gscan_reset_significant_change(struct wiphy *wiphy,
-					       struct wireless_dev *wdev, const void *data, int len)
-{
-	struct slsi_dev    *sdev = SDEV_FROM_WIPHY(wiphy);
-	struct net_device  *net_dev;
-	struct netdev_vif  *ndev_vif;
-	struct slsi_bucket *bucket = NULL;
-	u32                i;
-
-	SLSI_DBG3(sdev, SLSI_GSCAN, "SUBCMD_RESET_SIGNIFICANT_CHANGE Received\n");
-
-	net_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
-	ndev_vif = netdev_priv(net_dev);
-
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	for (i = 0; i < SLSI_GSCAN_MAX_BUCKETS; i++) {
-		bucket = &sdev->bucket[i];
-		if (!bucket->used || !bucket->for_change_tracking)
-			continue;
-
-		(void)slsi_mlme_del_scan(sdev, net_dev, bucket->scan_id, false);
-		bucket->for_change_tracking = false;
-		bucket->used = false;
-		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-		return 0;
-	}
-	SLSI_DBG3(sdev, SLSI_GSCAN, "Significant change scan not found\n");
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-
-	return 0;
 }
 
 #ifdef CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD
@@ -1941,7 +1412,7 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 	  */
 	slsi_mlme_send_frame_mgmt(sdev, net_dev, NULL, 0,
 				  FAPI_DATAUNITDESCRIPTOR_IEEE802_3_FRAME,
-				  FAPI_MESSAGETYPE_PERIODIC_OFFLOAD,
+				  FAPI_MESSAGETYPE_ANY_OTHER,
 				  ndev_vif->sta.keepalive_host_tag[index - 1], 0, 0, 0);
 
 	skb = slsi_alloc_skb_headroom(sizeof(struct ethhdr) + ip_pkt_len, GFP_KERNEL);
@@ -1980,7 +1451,7 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 	ip_send_check(ip_hdr(skb));
 
 	host_tag = slsi_tx_mgmt_host_tag(sdev);
-	r = slsi_mlme_send_frame_data(sdev, net_dev, skb, FAPI_MESSAGETYPE_PERIODIC_OFFLOAD, host_tag,
+	r = slsi_mlme_send_frame_data(sdev, net_dev, skb, FAPI_MESSAGETYPE_ANY_OTHER, host_tag,
 				      0, (period * 1000));
 	if (r == 0)
 		ndev_vif->sta.keepalive_host_tag[index - 1] = host_tag;
@@ -2047,7 +1518,7 @@ static int slsi_stop_keepalive_offload(struct wiphy *wiphy, struct wireless_dev 
 	}
 
 	r = slsi_mlme_send_frame_mgmt(sdev, net_dev, NULL, 0, FAPI_DATAUNITDESCRIPTOR_IEEE802_3_FRAME,
-				      FAPI_MESSAGETYPE_PERIODIC_OFFLOAD, ndev_vif->sta.keepalive_host_tag[index - 1], 0, 0, 0);
+				      FAPI_MESSAGETYPE_ANY_OTHER, ndev_vif->sta.keepalive_host_tag[index - 1], 0, 0, 0);
 	ndev_vif->sta.keepalive_host_tag[index - 1] = 0;
 
 exit:
@@ -3114,12 +2585,13 @@ static int slsi_rtt_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 #endif
 	struct slsi_rtt_config *nl_rtt_params;
 	const struct nlattr *iter, *outer, *inner;
+	u8 source_addr[ETH_ALEN];
 	int tmp, tmp1, tmp2;
 	u16 rtt_id = 0;
 	u8 num_devices = 0;
 	u16 rtt_peer = SLSI_RTT_PEER_AP;
 	u16 vif_idx = 0;
-	u16 center_freq0 = 0, center_freq1 = 0, channel_freq = 0, width = 0;
+	u16 channel_freq = 0;
 
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_RTT_RANGE_START\n");
 	if (!slsi_dev_rtt_supported()) {
@@ -3172,15 +2644,6 @@ static int slsi_rtt_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 						channel_freq = nla_get_u16(inner);
 						nl_rtt_params[j].channel_freq = channel_freq * 2;
 						break;
-					case SLSI_RTT_ATTRIBUTE_TARGET_CHAN_WIDTH:
-						width = nla_get_u16(inner);
-						break;
-					case SLSI_RTT_ATTRIBUTE_TARGET_CHAN_FREQ0:
-						center_freq0 = nla_get_u16(inner);
-						break;
-					case SLSI_RTT_ATTRIBUTE_TARGET_CHAN_FREQ1:
-						center_freq1 = nla_get_u16(inner);
-						break;
 					case SLSI_RTT_ATTRIBUTE_TARGET_PERIOD:
 						nl_rtt_params[j].burst_period = nla_get_u8(inner);
 						break;
@@ -3212,21 +2675,7 @@ static int slsi_rtt_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 						SLSI_ERR_NODEV("Unknown RTT INFO ATTRIBUTE type: %d\n", type);
 						break;
 					}
-					if (rtt_peer == SLSI_RTT_PEER_NAN) {
-#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
-						SLSI_ETHER_COPY(nl_rtt_params[j].source_addr,
-								sdev->netdev_addresses[SLSI_NET_INDEX_NAN]);
-#else
-						SLSI_ERR(sdev, "NAN not supported(mib:%d)\n", sdev->nan_enabled);
-#endif
-					} else {
-						SLSI_ETHER_COPY(nl_rtt_params[j].source_addr,
-								sdev->netdev_addresses[SLSI_NET_INDEX_WLAN]);
-					}
 				}
-				/* width+1:to match RTT width enum value with NL enums */
-				nl_rtt_params[j].channel_info = slsi_compute_chann_info(sdev, width + 1, center_freq0,
-											channel_freq);
 				j++;
 			}
 			break;
@@ -3234,6 +2683,15 @@ static int slsi_rtt_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 			SLSI_ERR_NODEV("No ATTRIBUTE_Target cnt - %d\n", type);
 			break;
 		}
+	}
+	if (rtt_peer == SLSI_RTT_PEER_NAN) {
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+		SLSI_ETHER_COPY(source_addr, sdev->netdev_addresses[SLSI_NET_INDEX_NAN]);
+#else
+		SLSI_ERR(sdev, "NAN not supported(mib:%d)\n", sdev->nan_enabled);
+#endif
+	} else {
+		SLSI_ETHER_COPY(source_addr, sdev->netdev_addresses[SLSI_NET_INDEX_WLAN]);
 	}
 	if (rtt_peer == SLSI_RTT_PEER_AP) {
 		vif_idx = 0;
@@ -3257,7 +2715,7 @@ static int slsi_rtt_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 		return -ENOTSUPP;
 #endif
 	}
-	r = slsi_mlme_add_range_req(sdev, num_devices, nl_rtt_params, rtt_id, vif_idx);
+	r = slsi_mlme_add_range_req(sdev, num_devices, nl_rtt_params, rtt_id, vif_idx, source_addr);
 	if (r) {
 		r = -EINVAL;
 		SLSI_ERR_NODEV("Failed to set rtt config\n");
@@ -3416,8 +2874,11 @@ void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_
 		tm = *ip_ptr;
 		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_TIMESTAMP_US, tkernel - (tmac - tm));
 		ip_ptr += 4;
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_BURST_DURATION_MSN, *ip_ptr);
-		ip_ptr += 2;
+		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_DISTANCE_MM, *ip_ptr);
+		ip_ptr += 4;
+		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_DISTANCE_SD_MM, *ip_ptr);
+		ip_ptr += 4;
+		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_BURST_DURATION_MSN, *ip_ptr++);
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_NEGOTIATED_BURST_NUM, *ip_ptr++);
 		for (rep_cnt = 0; rep_cnt < 2; rep_cnt++) {
 			if (ip_ptr - start_ptr < data_len && ip_ptr[0] == WLAN_EID_MEASURE_REPORT) {
@@ -4834,12 +4295,9 @@ static int slsi_acs_init(struct wiphy *wiphy,
 }
 
 static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
-	{ OUI_GOOGLE, SLSI_NL80211_SIGNIFICANT_CHANGE_EVENT },
-	{ OUI_GOOGLE, SLSI_NL80211_HOTLIST_AP_FOUND_EVENT },
 	{ OUI_GOOGLE, SLSI_NL80211_SCAN_RESULTS_AVAILABLE_EVENT },
 	{ OUI_GOOGLE, SLSI_NL80211_FULL_SCAN_RESULT_EVENT },
 	{ OUI_GOOGLE, SLSI_NL80211_SCAN_EVENT },
-	{ OUI_GOOGLE, SLSI_NL80211_HOTLIST_AP_LOST_EVENT },
 #ifdef CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD
 	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH },
 #endif
@@ -4904,38 +4362,6 @@ static const struct wiphy_vendor_command     slsi_vendor_cmd[] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = slsi_gscan_get_scan_results
-	},
-	{
-		{
-			.vendor_id = OUI_GOOGLE,
-			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_SET_BSSID_HOTLIST
-		},
-		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
-		.doit = slsi_gscan_set_hotlist
-	},
-	{
-		{
-			.vendor_id = OUI_GOOGLE,
-			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_RESET_BSSID_HOTLIST
-		},
-		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
-		.doit = slsi_gscan_reset_hotlist
-	},
-	{
-		{
-			.vendor_id = OUI_GOOGLE,
-			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_SET_SIGNIFICANT_CHANGE
-		},
-		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
-		.doit = slsi_gscan_set_significant_change
-	},
-	{
-		{
-			.vendor_id = OUI_GOOGLE,
-			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_RESET_SIGNIFICANT_CHANGE
-		},
-		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
-		.doit = slsi_gscan_reset_significant_change
 	},
 	{
 		{
@@ -5308,8 +4734,6 @@ void slsi_nl80211_vendor_deinit(struct slsi_dev *sdev)
 	SLSI_DBG2(sdev, SLSI_GSCAN, "Gscan cleanup\n");
 	slsi_gscan_flush_scan_results(sdev);
 
-	SLSI_DBG2(sdev, SLSI_GSCAN, "Hotlist cleanup\n");
-	slsi_gscan_flush_hotlist_results(sdev);
 }
 
 void slsi_nl80211_vendor_init(struct slsi_dev *sdev)

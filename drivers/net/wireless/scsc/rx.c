@@ -2410,7 +2410,7 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 				if ((subtype == SLSI_P2P_PA_GO_NEG_CFM) || (subtype == SLSI_P2P_PA_PROV_DISC_RSP)) {
 					ndev_vif->drv_in_p2p_procedure = false;
 					if (!delayed_work_pending(&ndev_vif->unsync.roc_expiry_work)) {
-						slsi_mlme_spare_signal_1(ndev_vif->sdev, ndev_vif->wdev.netdev);
+						slsi_mlme_unset_channel_req(ndev_vif->sdev, ndev_vif->wdev.netdev);
 						ndev_vif->driver_channel = 0;
 					}
 				}

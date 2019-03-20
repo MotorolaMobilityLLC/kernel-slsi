@@ -1368,7 +1368,7 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 		return;
 	}
 	hal_evt->publish_subscribe_id = fapi_get_u16(skb, u.mlme_nan_followup_ind.publish_subscribe_id);
-	hal_evt->requestor_instance_id = fapi_get_u16(skb, u.mlme_nan_followup_ind.requestor_instance_id);
+	hal_evt->requestor_instance_id = fapi_get_u16(skb, u.mlme_nan_followup_ind.peer_id);
 	ptr = stitched_ie_p + 7; /* 7 = ie_id(1), ie_len(1), oui(3) type/subtype(2)*/
 
 	ether_addr_copy(hal_evt->addr, ptr);
@@ -1479,7 +1479,7 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 		return;
 	}
 	hal_evt->publish_subscribe_id = fapi_get_u16(skb, u.mlme_nan_service_ind.publish_subscribe_id);
-	hal_evt->requestor_instance_id = fapi_get_u32(skb, u.mlme_nan_service_ind.requestor_instance_id);
+	hal_evt->requestor_instance_id = fapi_get_u32(skb, u.mlme_nan_service_ind.peer_id);
 
 	/* 7 = ie_id(1), ie_len(1), oui(3) type/subtype(2)*/
 	ptr = stitched_ie_p + 7;

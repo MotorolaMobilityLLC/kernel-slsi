@@ -157,12 +157,6 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 		slsi_kfree_skb(skb);
 		break;
 #ifdef CONFIG_SCSC_WLAN_GSCAN_ENABLE
-	case MLME_AP_LOSS_IND:
-		slsi_hotlist_ap_lost_indication(sdev, dev, skb);
-		break;
-	case MLME_SIGNIFICANT_CHANGE_IND:
-		slsi_rx_significant_change_ind(sdev, dev, skb);
-		break;
 	case MLME_RSSI_REPORT_IND:
 		slsi_rx_rssi_report_ind(sdev, dev, skb);
 		break;
@@ -191,7 +185,7 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 		break;
 #endif
 #ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
-	case MLME_SPARE_SIGNAL_1_IND:
+	case MLME_SYNCHRONISED_IND:
 		slsi_rx_synchronised_ind(sdev, dev, skb);
 		slsi_kfree_skb(skb);
 		break;
@@ -337,11 +331,6 @@ static int sap_mlme_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 			}
 			return slsi_rx_action_enqueue_netdev_mlme(sdev, skb, vif);
 #ifdef CONFIG_SCSC_WLAN_GSCAN_ENABLE
-		case MLME_AP_LOSS_IND:
-			return slsi_rx_enqueue_netdev_mlme(sdev, skb,  SLSI_NET_INDEX_WLAN);
-		case MLME_SIGNIFICANT_CHANGE_IND:
-			return slsi_rx_enqueue_netdev_mlme(sdev, skb, SLSI_NET_INDEX_WLAN);
-
 		case MLME_NAN_EVENT_IND:
 		case MLME_NAN_FOLLOWUP_IND:
 		case MLME_NAN_SERVICE_IND:

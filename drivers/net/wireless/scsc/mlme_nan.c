@@ -163,13 +163,14 @@ int slsi_mlme_nan_enable(struct slsi_dev *sdev, struct net_device *dev, struct s
 		return -ENOMEM;
 	}
 
-	if (hal_req->config_cluster_attribute_val)
-		nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_CLUSTER_SDF;
+	/* if (hal_req->config_cluster_attribute_val)
+	 * nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_CLUSTER_SDF;
+	 */
 	nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_MAC_ADDRESS_EVENT | FAPI_NANOPERATIONCONTROL_START_CLUSTER_EVENT |
 			FAPI_NANOPERATIONCONTROL_JOINED_CLUSTER_EVENT;
 
-	fapi_set_u16(req, u.mlme_nan_start_req.cluster_low, hal_req->cluster_low);
-	fapi_set_u16(req, u.mlme_nan_start_req.cluster_high, hal_req->cluster_high);
+	//fapi_set_u16(req, u.mlme_nan_start_req.cluster_low, hal_req->cluster_low);
+	//fapi_set_u16(req, u.mlme_nan_start_req.cluster_high, hal_req->cluster_high);
 	fapi_set_u16(req, u.mlme_nan_start_req.nan_operation_control_flags, nan_oper_ctrl);
 
 	slsi_mlme_nan_enable_fapi_data(req, hal_req);
@@ -480,11 +481,13 @@ int slsi_mlme_nan_tx_followup(struct slsi_dev *sdev, struct net_device *dev,
 	/* Set/Enable corresponding bits to disable responses after followUp.
 	 * BIT0 - Disable followUp response from FW.
 	 */
-	if (hal_req->recv_indication_cfg & BIT(0))
-		nan_sdf_flags |= FAPI_NANSDFCONTROL_DISABLE_RESPONSES_AFTER_FOLLOWUP;
+	/* if (hal_req->recv_indication_cfg & BIT(0))
+	 *  nan_sdf_flags |= FAPI_NANSDFCONTROL_DISABLE_RESPONSES_AFTER_FOLLOWUP;
+	 */
 
 	fapi_set_u16(req, u.mlme_nan_followup_req.publish_subscribe_id, hal_req->publish_subscribe_id);
-	fapi_set_u16(req, u.mlme_nan_followup_req.requestor_instance_id, hal_req->requestor_instance_id);
+	fapi_set_u16(req, u.mlme_nan_followup_req.peer_id, hal_req->requestor_instance_id);
+	/*fapi_set_u16(req, u.mlme_nan_followup_req.requestor_instance_id, hal_req->requestor_instance_id);*/
 	fapi_set_u16(req, u.mlme_nan_subscribe_req.nan_sdf_flags, nan_sdf_flags);
 
 	slsi_mlme_nan_followup_fapi_data(req, hal_req);
@@ -589,8 +592,9 @@ int slsi_mlme_nan_set_config(struct slsi_dev *sdev, struct net_device *dev, stru
 		return -ENOMEM;
 	}
 
-	if (hal_req->config_cluster_attribute_val)
-		nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_CLUSTER_SDF;
+	/* if (hal_req->config_cluster_attribute_val)
+	 *  nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_CLUSTER_SDF;
+	 */
 	nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_MAC_ADDRESS_EVENT | FAPI_NANOPERATIONCONTROL_START_CLUSTER_EVENT |
 			FAPI_NANOPERATIONCONTROL_JOINED_CLUSTER_EVENT;
 	fapi_set_u16(req, u.mlme_nan_config_req.nan_operation_control_flags, nan_oper_ctrl);
