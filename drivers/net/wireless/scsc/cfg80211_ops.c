@@ -504,7 +504,7 @@ int slsi_scan(struct wiphy *wiphy, struct net_device *dev,
 		if (!ndev_vif->drv_in_p2p_procedure) {
 			if (delayed_work_pending(&ndev_vif->unsync.unset_channel_expiry_work)) {
 				cancel_delayed_work(&ndev_vif->unsync.unset_channel_expiry_work);
-				slsi_mlme_spare_signal_1(sdev, dev);
+				slsi_mlme_unset_channel_req(sdev, dev);
 				ndev_vif->driver_channel = 0;
 				}
 		}
@@ -2728,7 +2728,8 @@ static int slsi_wlan_mgmt_tx(struct slsi_dev *sdev, struct net_device *dev,
 		/* vif is active*/
 		if (ieee80211_is_auth(mgmt->frame_control)) {
 			SLSI_NET_DBG1(dev, SLSI_CFG80211, "Transmit on the current frequency\n");
-			r = slsi_mlme_send_frame_mgmt(sdev, dev, buf, len, FAPI_DATAUNITDESCRIPTOR_IEEE802_11_FRAME, FAPI_MESSAGETYPE_IEEE80211_MGMT_NOT_ACTION, host_tag, 0, wait * 1000, 0);
+			r = slsi_mlme_send_frame_mgmt(sdev, dev, buf, len, FAPI_DATAUNITDESCRIPTOR_IEEE802_11_FRAME,
+						      FAPI_MESSAGETYPE_IEEE80211_MGMT, host_tag, 0, wait * 1000, 0);
 			if (r)
 				return r;
 		} else if (ndev_vif->vif_type == FAPI_VIFTYPE_UNSYNCHRONISED) {

@@ -154,23 +154,6 @@ enum GSCAN_ATTRIBUTE {
 	GSCAN_ATTRIBUTE_SCAN_BUCKET_BIT,
 
 	/* remaining reserved for additional attributes */
-	GSCAN_ATTRIBUTE_SSID = 40,
-	GSCAN_ATTRIBUTE_BSSID,
-	GSCAN_ATTRIBUTE_CHANNEL,
-	GSCAN_ATTRIBUTE_RSSI,
-	GSCAN_ATTRIBUTE_TIMESTAMP,
-	GSCAN_ATTRIBUTE_RTT,
-	GSCAN_ATTRIBUTE_RTTSD,
-
-	/* remaining reserved for additional attributes */
-	GSCAN_ATTRIBUTE_HOTLIST_BSSIDS = 50,
-	GSCAN_ATTRIBUTE_RSSI_LOW,
-	GSCAN_ATTRIBUTE_RSSI_HIGH,
-	GSCAN_ATTRIBUTE_HOTLIST_ELEM,
-	GSCAN_ATTRIBUTE_HOTLIST_FLUSH,
-	GSCAN_ATTRIBUTE_CHANNEL_NUMBER,
-
-	/* remaining reserved for additional attributes */
 	GSCAN_ATTRIBUTE_RSSI_SAMPLE_SIZE = 60,
 	GSCAN_ATTRIBUTE_LOST_AP_SAMPLE_SIZE,
 	GSCAN_ATTRIBUTE_MIN_BREACHING,
@@ -270,11 +253,6 @@ enum slsi_hal_vendor_subcmds {
 	SLSI_NL80211_VENDOR_SUBCMD_ADD_GSCAN,
 	SLSI_NL80211_VENDOR_SUBCMD_DEL_GSCAN,
 	SLSI_NL80211_VENDOR_SUBCMD_GET_SCAN_RESULTS,
-	SLSI_NL80211_VENDOR_SUBCMD_SET_BSSID_HOTLIST,
-	SLSI_NL80211_VENDOR_SUBCMD_RESET_BSSID_HOTLIST,
-	SLSI_NL80211_VENDOR_SUBCMD_GET_HOTLIST_RESULTS,
-	SLSI_NL80211_VENDOR_SUBCMD_SET_SIGNIFICANT_CHANGE,
-	SLSI_NL80211_VENDOR_SUBCMD_RESET_SIGNIFICANT_CHANGE,
 	SLSI_NL80211_VENDOR_SUBCMD_SET_GSCAN_OUI,
 	SLSI_NL80211_VENDOR_SUBCMD_SET_NODFS,
 	SLSI_NL80211_VENDOR_SUBCMD_START_KEEP_ALIVE_OFFLOAD,
@@ -327,12 +305,9 @@ enum slsi_supp_vendor_subcmds {
 };
 
 enum slsi_vendor_event_values {
-	SLSI_NL80211_SIGNIFICANT_CHANGE_EVENT,
-	SLSI_NL80211_HOTLIST_AP_FOUND_EVENT,
 	SLSI_NL80211_SCAN_RESULTS_AVAILABLE_EVENT,
 	SLSI_NL80211_FULL_SCAN_RESULT_EVENT,
 	SLSI_NL80211_SCAN_EVENT,
-	SLSI_NL80211_HOTLIST_AP_LOST_EVENT,
 	SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH,
 	SLSI_NL80211_VENDOR_HANGED_EVENT,
 	SLSI_NL80211_EPNO_EVENT,
@@ -523,10 +498,7 @@ enum slsi_rtt_attribute {
 	SLSI_RTT_ATTRIBUTE_TARGET_MAC,
 	SLSI_RTT_ATTRIBUTE_TARGET_TYPE,
 	SLSI_RTT_ATTRIBUTE_TARGET_PEER,
-	SLSI_RTT_ATTRIBUTE_TARGET_CHAN_WIDTH,
 	SLSI_RTT_ATTRIBUTE_TARGET_CHAN_FREQ,
-	SLSI_RTT_ATTRIBUTE_TARGET_CHAN_FREQ0,
-	SLSI_RTT_ATTRIBUTE_TARGET_CHAN_FREQ1,
 	SLSI_RTT_ATTRIBUTE_TARGET_PERIOD,
 	SLSI_RTT_ATTRIBUTE_TARGET_NUM_BURST,
 	SLSI_RTT_ATTRIBUTE_TARGET_NUM_FTM_BURST,
@@ -627,18 +599,6 @@ struct slsi_nl_scan_result_param {
 	u8  ie_data[1];                       /* beacon IE */
 };
 
-struct slsi_nl_ap_threshold_param {
-	u8  bssid[6];          /* AP BSSID */
-	s16 low;               /* low threshold */
-	s16 high;              /* high threshold */
-};
-
-struct slsi_nl_hotlist_param {
-	u8                                lost_ap_sample_size;
-	u8                                num_bssid;                          /* number of hotlist APs */
-	struct slsi_nl_ap_threshold_param ap[SLSI_GSCAN_MAX_HOTLIST_APS];  /* hotlist APs */
-};
-
 struct slsi_bucket {
 	bool              used;                /* to identify if this entry is free */
 	bool              for_change_tracking; /* Indicates if this scan_id is used for change_tracking */
@@ -664,25 +624,11 @@ struct slsi_gscan_param {
 	struct slsi_bucket          *bucket;
 };
 
-struct slsi_nl_significant_change_params {
-	int                               rssi_sample_size;    /* number of samples for averaging RSSI */
-	int                               lost_ap_sample_size; /* number of samples to confirm AP loss */
-	int                               min_breaching;       /* number of APs breaching threshold */
-	int                               num_bssid;              /* max 64 */
-	struct slsi_nl_ap_threshold_param ap[SLSI_GSCAN_MAX_SIGNIFICANT_CHANGE_APS];
-};
-
 struct slsi_gscan_result {
 	struct slsi_gscan_result         *hnext;
 	int                              scan_cycle;
 	int                              scan_res_len;
 	int                              anqp_length;
-	struct slsi_nl_scan_result_param nl_scan_res;
-};
-
-struct slsi_hotlist_result {
-	struct list_head                 list;
-	int                              scan_res_len;
 	struct slsi_nl_scan_result_param nl_scan_res;
 };
 
@@ -905,7 +851,6 @@ struct slsi_rtt_capabilities {
 
 /* RTT configuration */
 struct slsi_rtt_config {
-	u8 source_addr[ETH_ALEN];
 	u8 peer_addr[ETH_ALEN];                 /* peer device mac address */
 	u16 type;            /* 1-sided or 2-sided RTT */
 	u16 channel_freq;     /* Required for STA-AP mode, optional for P2P, NBD etc. */
@@ -984,8 +929,6 @@ void slsi_nl80211_vendor_init(struct slsi_dev *sdev);
 void slsi_nl80211_vendor_deinit(struct slsi_dev *sdev);
 u8 slsi_gscan_get_scan_policy(enum wifi_band band);
 void slsi_gscan_handle_scan_result(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, u16 scan_id, bool scan_done);
-int slsi_mlme_set_bssid_hotlist_req(struct slsi_dev *sdev, struct net_device *dev, struct slsi_nl_hotlist_param *nl_hotlist_param);
-void slsi_hotlist_ap_lost_indication(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_gscan_hash_remove(struct slsi_dev *sdev, u8 *mac);
 void slsi_rx_significant_change_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 int slsi_gscan_alloc_buckets(struct slsi_dev *sdev, struct slsi_gscan *gscan, int num_buckets);
@@ -994,7 +937,7 @@ int slsi_mib_get_gscan_cap(struct slsi_dev *sdev, struct slsi_nl_gscan_capabilit
 void slsi_rx_rssi_report_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 int slsi_mib_get_rtt_cap(struct slsi_dev *sdev, struct net_device *dev, struct slsi_rtt_capabilities *cap);
 int slsi_mlme_add_range_req(struct slsi_dev *sdev, u8 count, struct slsi_rtt_config *nl_rtt_params,
-			    u16 rtt_id, u16 vif_idx);
+			    u16 rtt_id, u16 vif_idx, u8 *source_addr);
 int slsi_mlme_del_range_req(struct slsi_dev *sdev, struct net_device *dev, u16 count, u8 *addr, u16 rtt_id);
 void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_rx_range_done_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
