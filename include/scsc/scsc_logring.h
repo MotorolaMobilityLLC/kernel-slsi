@@ -89,6 +89,7 @@ enum scsc_logring_tags {
 	SLSI_FLOWC,
 	SLSI_SMAPPER,
 #endif
+	LERNA,
 	TEST_ME,
 	MAX_TAG = TEST_ME /* keep it last */
 };

@@ -50,6 +50,8 @@
 static struct work_struct	wlbtd_work;
 #endif
 
+#include "scsc_lerna.h"
+
 #include <asm/page.h>
 #include <scsc/api/bt_audio.h>
 
@@ -344,6 +346,7 @@ enum {
 	MM_FW_CONFIG = 5,
 	MM_HALT_RSP = 6,
 	MM_FM_RADIO_CONFIG = 7,
+	MM_LERNA_CONFIG = 8
 } ma_msg;
 
 /**
@@ -625,7 +628,12 @@ static void mxman_message_handler(const void *message, void *data)
 		break;
 	case MM_HALT_RSP:
 		complete(&mxman->mm_msg_halt_rsp_completion);
-		SCSC_TAG_INFO(MXMAN, "Received MM_HALT_RSP message from the firmware");
+		SCSC_TAG_INFO(MXMAN, "Received MM_HALT_RSP message from the firmware\n");
+		break;
+	case MM_LERNA_CONFIG:
+		/* Message response to a firmware configuration query. */
+		SCSC_TAG_INFO(MXMAN, "Received MM_LERNA_CONFIG message from firmware\n");
+		scsc_lerna_response(message);
 		break;
 	default:
 		/* HERE: Unknown message, raise fault */
@@ -1999,10 +2007,12 @@ void mxman_init(struct mxman *mxman, struct scsc_mx *mx)
 #if defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000
 	mxman_create_sysfs_memdump();
 #endif
+	scsc_lerna_init();
 }
 
 void mxman_deinit(struct mxman *mxman)
 {
+	scsc_lerna_deinit();
 #if defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000
 	mxman_destroy_sysfs_memdump();
 #endif
@@ -2377,3 +2387,44 @@ int mxman_unregister_firmware_notifier(struct notifier_block *nb)
 	return blocking_notifier_chain_unregister(&firmware_chain, nb);
 }
 EXPORT_SYMBOL(mxman_unregister_firmware_notifier);
+
+
+int mxman_lerna_send(struct mxman *mxman, void *message, u32 message_size)
+{
+	struct srvman *srvman = NULL;
+
+	/* May be called when WLBT is off, so find the context in this case */
+	if (!mxman)
+		mxman = active_mxman;
+
+	if (!active_mxman) {
+		SCSC_TAG_ERR(MXMAN, "No active MXMAN\n");
+		return -EINVAL;
+	}
+
+	if (!message || (message_size == 0)) {
+		SCSC_TAG_INFO(MXMAN, "No lerna request provided.\n");
+		return 0;
+	}
+
+	mutex_lock(&active_mxman->mxman_mutex);
+	srvman = scsc_mx_get_srvman(active_mxman->mx);
+	if (srvman && srvman->error) {
+		mutex_unlock(&active_mxman->mxman_mutex);
+		SCSC_TAG_INFO(MXMAN, "Lerna configuration called during error - ignore\n");
+		return 0;
+	}
+
+	if (active_mxman->mxman_state == MXMAN_STATE_STARTED) {
+		SCSC_TAG_INFO(MXMAN, "MM_LERNA_CONFIG\n");
+		mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(active_mxman->mx),
+				MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT, message,
+				message_size);
+		mutex_unlock(&active_mxman->mxman_mutex);
+		return 0;
+	}
+
+	SCSC_TAG_INFO(MXMAN, "MXMAN is NOT STARTED...cannot send MM_LERNA_CONFIG msg.\n");
+	mutex_unlock(&active_mxman->mxman_mutex);
+	return -EAGAIN;
+}
