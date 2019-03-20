@@ -150,6 +150,7 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	INIT_LIST_HEAD(&ctx->qos_list);
 #endif
+	INIT_LIST_HEAD(&ctx->bitrate_list);
 	INIT_LIST_HEAD(&ctx->ts_list);
 
 	dec->display_delay = -1;
@@ -1075,6 +1076,9 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32(np, "qos_weight_num_of_tile", &pdata->qos_weight.weight_num_of_tile);
 	of_property_read_u32(np, "qos_weight_super64_bframe", &pdata->qos_weight.weight_super64_bframe);
 #endif
+	/* Bitrate control for QoS */
+	of_property_read_u32_array(np, "max_Kbps", pdata->max_Kbps, MAX_NUM_MFC_BPS);
+	dev->bps_ratio = pdata->max_Kbps[0] / dev->pdata->max_Kbps[1];
 }
 
 static void *__mfc_get_drv_data(struct platform_device *pdev);

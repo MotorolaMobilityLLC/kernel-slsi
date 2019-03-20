@@ -59,7 +59,9 @@
 
 #define MAX_NUM_IMAGES_IN_VB		8
 #define MAX_NUM_BUFCON_BUFS		32
+
 #define MAX_NUM_CLUSTER			3
+#define MAX_NUM_MFC_BPS			2
 
 /*
  *  MFC region id for smc
@@ -483,6 +485,7 @@ struct mfc_platdata {
 	struct mfc_qos *qos_table;
 	struct mfc_qos_boost *qos_boost_table;
 #endif
+	unsigned int max_Kbps[MAX_NUM_MFC_BPS];
 	/* NAL-Q size */
 	unsigned int nal_q_entry_size;
 	unsigned int nal_q_dump_size;
@@ -851,6 +854,8 @@ struct mfc_dev {
 	int qos_has_enc_ctx;
 	struct mutex qos_mutex;
 #endif
+	int bps_ratio;
+
 	int id;
 	atomic_t clk_ref;
 
@@ -1347,6 +1352,11 @@ struct mfc_timestamp {
 	int interval;
 };
 
+struct mfc_bitrate {
+	struct list_head list;
+	int bytesused;
+};
+
 struct mfc_dec {
 	int total_dpb_count;
 
@@ -1553,6 +1563,12 @@ struct mfc_ctx {
 	struct list_head ts_list;
 	int ts_count;
 	int ts_is_full;
+
+	struct mfc_bitrate bitrate_array[MFC_TIME_INDEX];
+	struct list_head bitrate_list;
+	int bitrate_index;
+	int bitrate_is_full;
+	int Kbps;
 
 	int buf_process_type;
 
