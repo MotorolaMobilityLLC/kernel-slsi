@@ -272,8 +272,11 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 			struct ethhdr *ehdr = (struct ethhdr *)(rx_skb->data);
 
 			if (is_multicast_ether_addr(ehdr->h_dest)) {
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+				struct sk_buff *rebroadcast_skb = slsi_skb_copy(rx_skb, GFP_ATOMIC);
+#else
 				struct sk_buff *rebroadcast_skb = slsi_skb_copy(rx_skb, GFP_KERNEL);
-
+#endif
 				if (!rebroadcast_skb) {
 					SLSI_WARN(sdev, "Intra BSS: failed to alloc new SKB for broadcast\n");
 				} else {
