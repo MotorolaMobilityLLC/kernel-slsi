@@ -839,14 +839,16 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (WARN_ON(sme->ssid_len > IEEE80211_MAX_SSID_LEN))
 		goto exit_with_error;
 
-	if ((SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) && (sdev->p2p_state == P2P_GROUP_FORMED_CLI)) {
-		p2p_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
-		if (p2p_dev) {
-			ndev_p2p_vif  = netdev_priv(p2p_dev);
-			if (ndev_p2p_vif->sta.sta_bss) {
-				if (SLSI_ETHER_EQUAL(ndev_p2p_vif->sta.sta_bss->bssid, sme->bssid)) {
-					SLSI_NET_ERR(dev, "Connect Request Rejected\n");
-					goto exit_with_error;
+	if (sme->bssid) {
+		if ((SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) && (sdev->p2p_state == P2P_GROUP_FORMED_CLI)) {
+			p2p_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
+			if (p2p_dev) {
+				ndev_p2p_vif  = netdev_priv(p2p_dev);
+				if (ndev_p2p_vif->sta.sta_bss) {
+					if (SLSI_ETHER_EQUAL(ndev_p2p_vif->sta.sta_bss->bssid, sme->bssid)) {
+						SLSI_NET_ERR(dev, "Connect Request Rejected\n");
+						goto exit_with_error;
+					}
 				}
 			}
 		}
