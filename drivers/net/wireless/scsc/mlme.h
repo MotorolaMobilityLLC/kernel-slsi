@@ -153,7 +153,7 @@ void slsi_mlme_del_vif(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_mlme_set_channel(struct slsi_dev *sdev, struct net_device *dev, struct ieee80211_channel *chan, u16 duration, u16 interval, u16 count);
 void slsi_ap_obss_scan_done_ind(struct net_device *dev, struct netdev_vif *ndev_vif);
 
-int slsi_mlme_spare_signal_1(struct slsi_dev *sdev, struct net_device *dev);
+int slsi_mlme_unset_channel_req(struct slsi_dev *sdev, struct net_device *dev);
 
 u16 slsi_compute_chann_info(struct slsi_dev *sdev, u16 width, u16 center_freq0, u16 channel_freq);
 /**
@@ -238,7 +238,6 @@ int slsi_mlme_set_traffic_parameters(struct slsi_dev *sdev, struct net_device *d
 int slsi_mlme_del_traffic_parameters(struct slsi_dev *sdev, struct net_device *dev, u16 user_priority);
 
 #ifdef CONFIG_SCSC_WLAN_GSCAN_ENABLE
-int slsi_mlme_significant_change_set(struct slsi_dev *sdev, struct net_device *dev, struct slsi_nl_significant_change_params *significant_param_ptr);
 int slsi_mlme_set_pno_list(struct slsi_dev *sdev, int count,
 			   struct slsi_epno_param *epno_param, struct slsi_epno_hs2_param *epno_hs2_param);
 int slsi_mlme_start_link_stats_req(struct slsi_dev *sdev, u16 mpdu_size_threshold, bool aggressive_statis_enabled);
