@@ -33,6 +33,7 @@ void mxman_fm_on_halt_ldos_on(void);
 void mxman_fm_on_halt_ldos_off(void);
 int mxman_fm_set_params(struct wlbt_fm_params *params);
 #endif
+int mxman_lerna_send(struct mxman *mxman, void *data, u32 size);
 
 enum mxman_state {
 	MXMAN_STATE_STOPPED,
