@@ -1295,30 +1295,34 @@ ssize_t scsc_bt_shm_h4_read(struct file *file, char __user *buf, size_t len, lof
 
 		/* First: process any pending HCI event that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_hci_evt(&buf[consumed], len - consumed);
-		if (0 < res)
-			consumed += res;
-		else
+		if (res < 0) {
 			ret = res;
+			break;
+		}
+		consumed += res;
 
 		/* Second: process any pending ACL data that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_acl_data(&buf[consumed], len - consumed);
-		if (0 < res)
-			consumed += res;
-		else
+		if (res < 0) {
 			ret = res;
+			break;
+		}
+		consumed += res;
 
 		/* Third: process any pending ACL data that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_acl_credit(&buf[consumed], len - consumed);
-		if (0 < res)
-			consumed += res;
-		else
+		if (res < 0) {
 			ret = res;
+			break;
+		}
+		consumed += res;
 
 		res = scsc_bt_shm_h4_read_iq_report_evt(&buf[consumed], len - consumed);
-		if (res > 0)
-			consumed += res;
-		else
+		if (res < 0) {
 			ret = res;
+			break;
+		}
+		consumed += res;
 	}
 
 	if (0 == ret && 0 == consumed) {
