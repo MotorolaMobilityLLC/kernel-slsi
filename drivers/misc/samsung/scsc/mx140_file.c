@@ -526,7 +526,6 @@ int mx140_request_proc_file(struct scsc_mx *mx, char *path, const struct firmwar
 	r = vfs_read(f, buf, MX140_FW_MAC_FILE_SIZE, &f->f_pos);
 	if (r < 0) {
 		SCSC_TAG_ERR(MX_FILE, "error reading %s\n", path);
-		return -ENOENT;
 	}
 
 	set_fs(fs);
@@ -544,7 +543,10 @@ int mx140_request_proc_file(struct scsc_mx *mx, char *path, const struct firmwar
 		vfree(buf);
 		kfree(firm);
 	}
-	return r;
+	if (r < 0)
+		return -ENOENT;
+	else
+		return r;
 }
 EXPORT_SYMBOL(mx140_request_proc_file);
 
