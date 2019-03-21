@@ -2315,7 +2315,7 @@
 			"UFS_EMBD";
 
 		/* PM QoS for INT power domain */
-/*		ufs-pm-qos-int = <400000>;*/
+		ufs-pm-qos-int = <533000>;
 
 		/* DMA coherent callback, should be coupled with 'ufs-sys' */
 		dma-coherent;
