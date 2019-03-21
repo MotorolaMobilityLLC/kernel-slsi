@@ -1251,6 +1251,17 @@ int sensor_12a10ff_cis_get_max_analog_gain(struct v4l2_subdev *subdev, u32 *max_
 	return ret;
 }
 
+#define REG_1X_BASE_DGAIN_VALUE	1000
+#define REG_1X_BASE_DGAIN	    0x0400
+
+u32 sensor_12a10ff_dgain_to_reg_value(u32 permile)
+{
+	u32 reg_dgain;
+	reg_dgain = permile * REG_1X_BASE_DGAIN / REG_1X_BASE_DGAIN_VALUE;
+
+	return reg_dgain;
+}
+
 int sensor_12a10ff_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_param *dgain)
 {
 	int ret = 0;
@@ -1260,6 +1271,7 @@ int sensor_12a10ff_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_pa
 
 	u16 long_gain = 0;
 	u16 short_gain = 0;
+	u8 reg_short_gain[2] = {0};
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1283,8 +1295,8 @@ int sensor_12a10ff_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_pa
 
 	cis_data = cis->cis_data;
 
-	long_gain = (u16)sensor_cis_calc_dgain_code(dgain->long_val);
-	short_gain = (u16)sensor_cis_calc_dgain_code(dgain->short_val);
+	long_gain = (u16)sensor_12a10ff_dgain_to_reg_value(dgain->long_val);
+	short_gain = (u16)sensor_12a10ff_dgain_to_reg_value(dgain->short_val);
 
 	if (long_gain < cis->cis_data->min_digital_gain[0])
 		long_gain = cis->cis_data->min_digital_gain[0];
@@ -1297,6 +1309,11 @@ int sensor_12a10ff_cis_set_digital_gain(struct v4l2_subdev *subdev, struct ae_pa
 
 	if (short_gain > cis->cis_data->max_digital_gain[0])
 		short_gain = cis->cis_data->max_digital_gain[0];
+
+	reg_short_gain[0] = (short_gain & 0x3FFF) >> 8;
+	reg_short_gain[1] = (short_gain & 0xFF);
+	fimc_is_sensor_write8(client, 0x350A, reg_short_gain[0]);
+	fimc_is_sensor_write8(client, 0x350B, reg_short_gain[1]);
 
 	dbg_sensor(1, "[MOD:D:%d] %s(vsync cnt = %d), input_dgain = %d/%d us, long_gain(%#x), short_gain(%#x)\n",
 		cis->id, __func__, cis->cis_data->sen_vsync_count, dgain->long_val,
@@ -1400,8 +1417,8 @@ int sensor_12a10ff_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min
 	}
 
 	cis_data = cis->cis_data;
-    cis_data->min_digital_gain[0] = 0x100;
-    cis_data->min_digital_gain[1] = 1000;
+    cis_data->min_digital_gain[0] = REG_1X_BASE_DGAIN;
+    cis_data->min_digital_gain[1] = REG_1X_BASE_DGAIN_VALUE;
 	*min_dgain = cis_data->min_digital_gain[1];
 
 	dbg_sensor(1, "[%s] code %d, permile %d\n", __func__,
@@ -1443,8 +1460,8 @@ int sensor_12a10ff_cis_get_max_digital_gain(struct v4l2_subdev *subdev, u32 *max
 	}
 
 	cis_data = cis->cis_data;
-	cis_data->max_digital_gain[0] = 0x100;
-	cis_data->max_digital_gain[1] = 1000;
+	cis_data->max_digital_gain[0] = 0x3FFF;
+	cis_data->max_digital_gain[1] = 16000;
 	*max_dgain = cis_data->max_digital_gain[1];
 
 	dbg_sensor(1, "[%s] code %d, permile %d\n", __func__,
