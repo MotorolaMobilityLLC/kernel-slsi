@@ -144,7 +144,7 @@ out:
 	skcipher_request_complete(req, err);
 }
 
-static int crypto_cts_encrypt(struct skcipher_request *req)
+static int __nocfi crypto_cts_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_cts_reqctx *rctx = skcipher_request_ctx(req);
