@@ -84,10 +84,8 @@ static size_t g_dbg_snapshot_vaddr_base = DSS_FIXED_VIRT_BASE;
 
 int dbg_snapshot_set_debug_level(int level)
 {
-	int i;
-
 	if (level > -1 && level < ARRAY_SIZE(debug_level_val)) {
-		dss_desc.debug_level = i;
+		dss_desc.debug_level = level;
 	} else {
 #if !IS_ENABLED(CONFIG_DEBUG_SNAPSHOT_USER_MODE)
 		dss_desc.debug_level = DSS_DEBUG_LEVEL_MID;
