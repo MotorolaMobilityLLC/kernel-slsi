@@ -2092,7 +2092,7 @@ static void fm_search_check_signal1(struct s610_radio *radio, bool rssi_oor)
 					radio->tune_fniarg = 0;
 					radio->dwork_tune_counter++;
 					schedule_delayed_work(&radio->dwork_tune,
-						msecs_to_jiffies(TUNE_TIME_FAST_MS));
+						msecs_to_jiffies(0));
 				}
 			} else {
 				flag = fm_update_rx_status(radio, d_status);
@@ -2130,14 +2130,14 @@ static void fm_search_check_signal1(struct s610_radio *radio, bool rssi_oor)
 				radio->tune_fniarg = 0;
 				radio->dwork_tune_counter++;
 				schedule_delayed_work(&radio->dwork_tune,
-					msecs_to_jiffies(TUNE_TIME_FAST_MS));
+					msecs_to_jiffies(0));
 			}
 		}
 	} else {
 			radio->sig2_fniarg = 1;
 			radio->dwork_sig2_counter++;
 			schedule_delayed_work(&radio->dwork_sig2,
-				msecs_to_jiffies(SEARCH_DELAY_MS));
+				msecs_to_jiffies(0));
 	}
 	/*	API_EXIT(radio);*/
 }
@@ -2149,11 +2149,12 @@ static void fm_search_tuned(unsigned long data)
 
 	API_ENTRY(radio);
 
-	count = (fmspeedy_get_reg(0xFFF2B2) * 5) / 10;
-
+	mdelay(TUNE_TIME_FAST_MS);
 	if (fm_check_rssi_level(radio->low->fm_state.rssi_limit_search)) {
 		fm_search_check_signal1(radio, TRUE);
 	} else {
+		count = (fmspeedy_get_reg(0xFFF2B2) * 5) / 10;
+
 		fm_start_if_counter();
 
 		fmspeedy_set_reg_field(0xFFF302, 0, 1, 1); /* Clear Int. */
@@ -2299,7 +2300,7 @@ static void fm_start_tune(struct s610_radio *radio, fm_tuner_state new_state)
 		radio->tune_fniarg = 0;
 		radio->dwork_tune_counter++;
 		schedule_delayed_work(&radio->dwork_tune,
-			msecs_to_jiffies(TUNE_TIME_FAST_MS));
+			msecs_to_jiffies(0));
 		break;
 	default:
 		break;
