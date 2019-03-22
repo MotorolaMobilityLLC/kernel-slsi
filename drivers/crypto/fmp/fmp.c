@@ -101,7 +101,7 @@ static inline int check_aes_xts_key(char *key,
 int fmplib_set_algo_mode(struct fmp_table_setting *table,
 			 struct fmp_crypto_info *crypto, bool cmdq_enabled)
 {
-	int ret;
+	int ret = 0;
 	enum fmp_crypto_algo_mode algo_mode = crypto->algo_mode;
 
 	if (algo_mode == EXYNOS_FMP_ALGO_MODE_AES_XTS) {
@@ -129,10 +129,9 @@ int fmplib_set_algo_mode(struct fmp_table_setting *table,
 	default:
 		pr_err("%s: Invalid fmp enc mode %d\n", __func__,
 		       crypto->enc_mode);
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	return 0;
+	return ret;
 }
 
 static int fmplib_set_file_key(struct fmp_table_setting *table,
@@ -275,16 +274,32 @@ static int fmplib_set_iv(struct fmp_table_setting *table,
 	return 0;
 }
 
+static inline bool check_valid_address(void *va)
+{
+	if(!va || (va && !virt_addr_valid(va)))
+		return 1;
+	else
+		return 0;
+}
+
 int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 {
-	struct exynos_fmp *fmp = ci->ctx;
+	struct exynos_fmp *fmp;
 	struct fmp_request *r = priv;
 	int ret = 0;
 	u8 iv[FMP_IV_SIZE_16];
 	bool test_mode = 0;
 
-	if (!r || !fmp) {
-		pr_err("%s: invalid req:%p, fmp:%p\n", __func__, r, fmp);
+	if (!r || check_valid_address(ci)) {
+		pr_err("%s: invalid req:%p(v:%d), ci:%p(v:%d)\n",
+			__func__, r, virt_addr_valid(r), ci, virt_addr_valid(ci));
+		return -EINVAL;
+	}
+
+	fmp = ci->ctx;
+	if (!fmp || !r->table) {
+		pr_err("%s: invalid fmp:%p(v:%d), r->table:%p(v:%d)\n",
+			__func__, fmp, virt_addr_valid(fmp), r->table, virt_addr_valid(r->table));
 		return -EINVAL;
 	}
 
@@ -322,8 +337,7 @@ int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 	/* check crypto info & input param */
 	if (!ci->algo_mode || !is_supported_ivsize(r->ivsize) ||
 			!r->table || !r->iv) {
-		dev_err(fmp->dev,
-			"%s: invalid mode:%d iv:%p ivsize:%d table:%p\n",
+		pr_err("%s: invalid mode:%d iv:%p ivsize:%d table:%p\n",
 			__func__, ci->algo_mode, r->iv, r->ivsize, r->table);
 		ret = -EINVAL;
 		goto out;
@@ -332,7 +346,7 @@ int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 	/* set algo & enc mode into table */
 	ret = fmplib_set_algo_mode(r->table, ci, r->cmdq_enabled);
 	if (ret) {
-		dev_err(fmp->dev, "%s: Fail to set FMP encryption mode\n",
+		pr_err("%s: Fail to set FMP encryption mode\n",
 			__func__);
 		ret = -EINVAL;
 		goto out;
@@ -343,7 +357,7 @@ int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 	case EXYNOS_FMP_FILE_ENC:
 		ret = fmplib_set_file_key(r->table, ci);
 		if (ret) {
-			dev_err(fmp->dev, "%s: Fail to set FMP key\n",
+			pr_err("%s: Fail to set FMP key\n",
 				__func__);
 			ret = -EINVAL;
 			goto out;
@@ -354,15 +368,14 @@ int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 			exynos_smc(SMC_CMD_FMP_DISK_KEY_SET, 0, 0, 0);
 			fmp->status_disk_key = KEY_SET;
 		} else if (!is_set_fmp_disk_key(fmp)) {
-			dev_err(fmp->dev,
-				"%s: Cannot configure FMP because disk key is clear\n",
+			pr_err("%s: Cannot configure FMP because disk key is clear\n",
 				__func__);
 			ret = -EINVAL;
 			goto out;
 		}
 		break;
 	default:
-		dev_err(fmp->dev, "%s: Invalid fmp enc mode %d\n", __func__,
+		pr_err("%s: Invalid fmp enc mode %d\n", __func__,
 			ci->enc_mode);
 		ret = -EINVAL;
 		goto out;
@@ -371,7 +384,7 @@ int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 	/* set key size into table */
 	ret = fmplib_set_key_size(r->table, ci, r->cmdq_enabled);
 	if (ret) {
-		dev_err(fmp->dev, "%s: Fail to set FMP key size\n", __func__);
+		pr_err("%s: Fail to set FMP key size\n", __func__);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -381,7 +394,7 @@ int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv)
 	memcpy(iv, r->iv, r->ivsize);
 	ret = fmplib_set_iv(r->table, ci, iv);
 	if (ret) {
-		dev_err(fmp->dev, "%s: Fail to set FMP IV\n", __func__);
+		pr_err("%s: Fail to set FMP IV\n", __func__);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -403,22 +416,25 @@ int exynos_fmp_clear(struct fmp_crypto_info *ci, void *priv)
 {
 	struct fmp_request *r = priv;
 #ifdef CONFIG_EXYNOS_FMP_FIPS
-	struct exynos_fmp *fmp = ci->ctx;
+	struct exynos_fmp *fmp;
 	struct exynos_fmp_fips_test_vops *test_vops = fmp->test_vops;
 	int ret;
 #endif
 
-	if (!r) {
-		pr_err("%s: Invalid input\n", __func__);
-		return -EINVAL;
-	}
-
-	if (!r->table) {
-		pr_err("%s: Invalid input table\n", __func__);
+	if (!r || check_valid_address(ci)) {
+		pr_err("%s: invalid req:%p(v:%d), ci:%p(v:%d)\n",
+			__func__, r, virt_addr_valid(r), ci, virt_addr_valid(ci));
 		return -EINVAL;
 	}
 
 #ifdef CONFIG_EXYNOS_FMP_FIPS
+	fmp = ci->ctx;
+	if (!fmp || !r->table) {
+		pr_err("%s: invalid fmp:%p(v:%d), r->table:%p(v:%d)\n",
+			__func__, fmp, virt_addr_valid(fmp), r->table, virt_addr_valid(r->table));
+		return -EINVAL;
+	}
+
 	if (test_vops) {
 		ret = test_vops->zeroization(r->table, "before");
 		if (ret)
