@@ -730,16 +730,16 @@ int __nocfi fimc_is_lib_isp_set_ctrl(struct fimc_is_hw_ip *hw_ip,
 	return 0;
 }
 
-void __nocfi fimc_is_lib_isp_shot(struct fimc_is_hw_ip *hw_ip,
+int __nocfi fimc_is_lib_isp_shot(struct fimc_is_hw_ip *hw_ip,
 	struct fimc_is_lib_isp *this, void *param_set, struct camera2_shot *shot)
 {
 	int ret = 0;
 
-	FIMC_BUG_VOID(!hw_ip);
-	FIMC_BUG_VOID(!this);
-	FIMC_BUG_VOID(!param_set);
-	FIMC_BUG_VOID(!this->func);
-	FIMC_BUG_VOID(!this->object);
+	FIMC_BUG(!hw_ip);
+	FIMC_BUG(!this);
+	FIMC_BUG(!param_set);
+	FIMC_BUG(!this->func);
+	FIMC_BUG(!this->object);
 
 	switch (hw_ip->id) {
 	case DEV_HW_3AA0:
@@ -778,6 +778,8 @@ void __nocfi fimc_is_lib_isp_shot(struct fimc_is_hw_ip *hw_ip,
 		err_lib("invalid hw (%d)", hw_ip->id);
 		break;
 	}
+
+	return ret;
 }
 
 int __nocfi fimc_is_lib_isp_get_meta(struct fimc_is_hw_ip *hw_ip,
