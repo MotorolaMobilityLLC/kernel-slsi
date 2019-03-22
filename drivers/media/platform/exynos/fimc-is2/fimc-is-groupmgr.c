@@ -597,6 +597,9 @@ void fimc_is_group_subdev_cancel(struct fimc_is_group *group,
 #endif
 				}
 			} while (sub_frame && flush);
+
+			if (sub_vctx->video->try_smp)
+				up(&sub_vctx->video->smp_multi_input);
 		}
 
 		group = group->child;
