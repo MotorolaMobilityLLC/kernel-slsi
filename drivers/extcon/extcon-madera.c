@@ -769,7 +769,9 @@ static void madera_jds_timeout_work(struct work_struct *work)
 static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 {
 	struct madera *madera = info->madera;
-	unsigned int mask = 0, ep_mask = 0, val = 0;
+	unsigned int mask = 0, val = 0;
+	unsigned int edre_reg = 0, edre_val = 0;
+	unsigned int ep_sel = 0;
 	int ret;
 
 	snd_soc_dapm_mutex_lock(madera->dapm);
@@ -777,14 +779,38 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 	switch (madera->type) {
 	case CS47L15:
 	case CS47L35:
-		ep_mask = MADERA_EP_SEL_MASK;
+	case CS47L92:
+	case CS47L93:
+		/*
+		 * check whether audio is routed to EPOUT, do not disable OUT1
+		 * in that case
+		 */
+		regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
+		ep_sel &= MADERA_EP_SEL_MASK;
+		break;
+	default:
+		break;
+	};
+
+	switch (madera->type) {
+	case CS47L35:
 		break;
 	case CS47L85:
 	case WM1840:
+		edre_reg = MADERA_EDRE_MANUAL;
+		mask = MADERA_HP1L_SHRTO | MADERA_HP1L_FLWR | MADERA_HP1L_SHRTI;
+		if (clamp) {
+			val = MADERA_HP1L_SHRTO;
+			edre_val = MADERA_EDRE_OUT1L_MANUAL |
+				   MADERA_EDRE_OUT1R_MANUAL;
+		} else {
+			val = MADERA_HP1L_FLWR | MADERA_HP1L_SHRTI;
+			edre_val = 0;
+		}
 		break;
 	default:
 		mask = MADERA_HPD_OVD_ENA_SEL_MASK;
-		if (!clamp)
+		if (clamp)
 			val = MADERA_HPD_OVD_ENA_SEL_MASK;
 		else
 			val = 0;
@@ -793,14 +819,13 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 
 	madera->out_clamp[0] = clamp;
 
-	/* Keep the HP output stages disabled while disabling the clamp */
-	if (!clamp) {
+	/* Keep the HP output stages disabled while doing the clamp */
+	if (clamp && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
-					 ep_mask |
-					 ((MADERA_OUT1L_ENA |
+					 (MADERA_OUT1L_ENA |
 					  MADERA_OUT1R_ENA) <<
-					 (2 * (info->pdata->output - 1))),
+					 (2 * (info->pdata->output - 1)),
 					 0);
 		if (ret)
 			dev_warn(info->dev,
@@ -808,13 +833,33 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 				 ret);
 	}
 
-	dev_dbg(info->dev, "%s clamp mask=0x%x val=0x%x\n",
+	if (edre_reg && !ep_sel) {
+		ret = regmap_update_bits(madera->regmap, edre_reg,
+					 MADERA_EDRE_OUT1L_MANUAL_MASK |
+					 MADERA_EDRE_OUT1R_MANUAL_MASK,
+					 edre_val);
+		if (ret)
+			dev_warn(info->dev,
+				 "Failed to set EDRE Manual: %d\n", ret);
+	}
+
+	dev_warn(info->dev, "%s clamp mask=0x%x val=0x%x\n",
 		clamp ? "Setting" : "Clearing", mask, val);
 
 	switch (madera->type) {
 	case CS47L35:
+		break;
 	case CS47L85:
 	case WM1840:
+		ret = regmap_update_bits(madera->regmap,
+					 MADERA_HP_CTRL_1L, mask, val);
+		if (ret)
+			dev_warn(info->dev, "Failed to do clamp: %d\n", ret);
+
+		ret = regmap_update_bits(madera->regmap,
+					 MADERA_HP_CTRL_1R, mask, val);
+		if (ret)
+			dev_warn(info->dev, "Failed to do clamp: %d\n", ret);
 		break;
 	default:
 		ret = regmap_update_bits(madera->regmap,
@@ -826,22 +871,12 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 		break;
 	}
 
-	/* Restore the desired state when restoring the clamp */
-	if (clamp) {
-		if (ep_mask) {
-			ret = regmap_update_bits(madera->regmap,
-						 MADERA_OUTPUT_ENABLES_1,
-						 ep_mask, madera->ep_sel);
-			if (ret)
-				dev_warn(info->dev,
-					 "Failed to restore output demux: %d\n",
-					 ret);
-		}
-
+	/* Restore the desired state while not doing the clamp */
+	if (!clamp) {
 		madera->out_shorted[0] = (madera->hp_impedance_x100[0] <=
 					  info->hpdet_short_x100);
 
-		if (!madera->out_shorted[0]) {
+		if (!madera->out_shorted[0] && !ep_sel) {
 			ret = regmap_update_bits(madera->regmap,
 						 MADERA_OUTPUT_ENABLES_1,
 						 (MADERA_OUT1L_ENA |
