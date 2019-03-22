@@ -51,7 +51,7 @@ static void ccic_event_notifier(struct work_struct *data)
 	CC_NOTI_TYPEDEF ccic_noti;
 
 	switch (event_work->dest) {
-	case CCIC_NOTIFY_DEV_USB:
+		case CCIC_NOTIFY_DEV_USB:
 		pr_info("usb:%s, dest=%s, id=%s, attach=%s, drp=%s, event_work=%p\n", __func__,
 				CCIC_NOTI_DEST_Print[event_work->dest],
 				CCIC_NOTI_ID_Print[event_work->id],
@@ -227,51 +227,51 @@ extern void ifconn_event_work(void *pd_data, int dest, int id, int event, void *
 		}
 	}
 #elif defined(CONFIG_TYPEC)
-	if (id == IFCONN_NOTIFY_ID_USB) {
-		if (usbpd_data->typec_try_state_change &&
-			(event != IFCONN_NOTIFY_EVENT_DETACH)) {
-			/* Role change try and new mode detected */
-			pr_info("usb: %s, role_reverse_completion\n", __func__);
-			complete(&usbpd_data->role_reverse_completion);
-		}
+	    if (id == IFCONN_NOTIFY_ID_USB) {
+			if (usbpd_data->typec_try_state_change &&
+			    (event != IFCONN_NOTIFY_EVENT_DETACH)) {
+			    /* Role change try and new mode detected */
+			    pr_info("usb: %s, role_reverse_completion\n", __func__);
+			    complete(&usbpd_data->role_reverse_completion);
+			}
 
-		if (usbpd_data->partner == NULL) {
-			if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP) {
-				pr_info("usb: %s, line : %d\n", __func__, __LINE__);
-				mode = typec_get_pd_support(usbpd_data);
-				typec_set_pwr_opmode(usbpd_data->port, mode);
-				desc.usb_pd = mode == TYPEC_PWR_MODE_PD;
-				desc.accessory = TYPEC_ACCESSORY_NONE; /* XXX: handle accessories */
-				desc.identity = NULL;
-				usbpd_data->typec_data_role = TYPEC_DEVICE;
-				typec_set_pwr_role(usbpd_data->port, usbpd_data->typec_power_role);
-				typec_set_data_role(usbpd_data->port, TYPEC_DEVICE);
-				usbpd_data->partner = typec_register_partner(usbpd_data->port, &desc);
-			} else if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP) {
-				pr_info("usb: %s, line : %d\n", __func__, __LINE__);
-				mode = typec_get_pd_support(usbpd_data);
-				typec_set_pwr_opmode(usbpd_data->port, mode);
-				desc.usb_pd = mode == TYPEC_PWR_MODE_PD;
-				desc.accessory = TYPEC_ACCESSORY_NONE; /* XXX: handle accessories */
-				desc.identity = NULL;
-				usbpd_data->typec_data_role = TYPEC_HOST;
-				typec_set_pwr_role(usbpd_data->port, usbpd_data->typec_power_role);
-				typec_set_data_role(usbpd_data->port, TYPEC_HOST);
-				usbpd_data->partner = typec_register_partner(usbpd_data->port, &desc);
-			} else
-				pr_info("usb: %s, line : %d\n", __func__, __LINE__);
-		} else {
-			if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP) {
-				pr_info("usb: %s, line : %d\n", __func__, __LINE__);
-				usbpd_data->typec_data_role = TYPEC_DEVICE;
-				typec_set_data_role(usbpd_data->port, TYPEC_DEVICE);
-			} else if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP) {
-				usbpd_data->typec_data_role = TYPEC_HOST;
-				typec_set_data_role(usbpd_data->port, TYPEC_HOST);
-			} else
-				pr_info("usb: %s, line : %d\n", __func__, __LINE__);
-		}
-	}
+			if (usbpd_data->partner == NULL) {
+				if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP) {
+				    pr_info("usb: %s, line : %d\n", __func__, __LINE__);
+				    mode = typec_get_pd_support(usbpd_data);
+				    typec_set_pwr_opmode(usbpd_data->port, mode);
+				    desc.usb_pd = mode == TYPEC_PWR_MODE_PD;
+				    desc.accessory = TYPEC_ACCESSORY_NONE; /* XXX: handle accessories */
+				    desc.identity = NULL;
+				    usbpd_data->typec_data_role = TYPEC_DEVICE;
+				    typec_set_pwr_role(usbpd_data->port, usbpd_data->typec_power_role);
+				    typec_set_data_role(usbpd_data->port, TYPEC_DEVICE);
+				    usbpd_data->partner = typec_register_partner(usbpd_data->port, &desc);
+				} else if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP) {
+				    pr_info("usb: %s, line : %d\n", __func__, __LINE__);
+				    mode = typec_get_pd_support(usbpd_data);
+				    typec_set_pwr_opmode(usbpd_data->port, mode);
+				    desc.usb_pd = mode == TYPEC_PWR_MODE_PD;
+				    desc.accessory = TYPEC_ACCESSORY_NONE; /* XXX: handle accessories */
+				    desc.identity = NULL;
+				    usbpd_data->typec_data_role = TYPEC_HOST;
+				    typec_set_pwr_role(usbpd_data->port, usbpd_data->typec_power_role);
+				    typec_set_data_role(usbpd_data->port, TYPEC_HOST);
+				    usbpd_data->partner = typec_register_partner(usbpd_data->port, &desc);
+				} else
+				    pr_info("usb: %s, line : %d\n", __func__, __LINE__);
+			} else {
+				if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP) {
+				    pr_info("usb: %s, line : %d\n", __func__, __LINE__);
+				    usbpd_data->typec_data_role = TYPEC_DEVICE;
+				    typec_set_data_role(usbpd_data->port, TYPEC_DEVICE);
+				} else if (event == IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP) {
+				    usbpd_data->typec_data_role = TYPEC_HOST;
+				    typec_set_data_role(usbpd_data->port, TYPEC_HOST);
+				} else
+				    pr_info("usb: %s, line : %d\n", __func__, __LINE__);
+			}
+	    }
 #endif
 
 	if (queue_work(usbpd_data->ifconn_wq, &event_work->ifconn_work) == 0) {
