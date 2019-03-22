@@ -278,16 +278,16 @@ int crypto_diskcipher_set_crypt(struct crypto_diskcipher *tfm, void *req)
 	struct crypto_tfm *base = crypto_diskcipher_tfm(tfm);
 	struct diskcipher_alg *cra = NULL;
 
-	if (!base) {
-		pr_err("%s: doesn't exist cra. base:%p", __func__, base);
+	if (!base || (base && !virt_addr_valid(base))) {
+		pr_err("%s: doesn't exist base, tfm:%p, base:%p(vaild:%d)\n",
+			__func__, tfm, base, virt_addr_valid(base));
 		ret = -EINVAL;
 		goto out;
 	}
 
 	cra = crypto_diskcipher_alg(base->__crt_alg);
-
 	if (!cra) {
-		pr_err("%s: doesn't exist cra. base:%p\n", __func__, base);
+		pr_err("%s: doesn't exist cra:%p base:%p\n",__func__, cra, base);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -299,7 +299,6 @@ int crypto_diskcipher_set_crypt(struct crypto_diskcipher *tfm, void *req)
 	}
 
 	ret = cra->crypt(base, req);
-
 #ifdef USE_FREE_REQ
 	if (!list_empty(&cra->freectrl.freelist)) {
 		if (!atomic_read(&cra->freectrl.freewq_active)) {
@@ -321,16 +320,16 @@ int crypto_diskcipher_clear_crypt(struct crypto_diskcipher *tfm, void *req)
 	struct crypto_tfm *base = crypto_diskcipher_tfm(tfm);
 	struct diskcipher_alg *cra = NULL;
 
-	if (!base) {
-		pr_err("%s: doesn't exist base, tfm:%p\n", __func__, tfm);
+	if (!base || (base && !virt_addr_valid(base))) {
+		pr_err("%s: doesn't exist base, tfm:%p, base:%p(vaild:%d)\n",
+			__func__, tfm, base, virt_addr_valid(base));
 		ret = -EINVAL;
 		goto out;
 	}
 
 	cra = crypto_diskcipher_alg(base->__crt_alg);
-
 	if (!cra) {
-		pr_err("%s: doesn't exist cra. base:%p\n", __func__, base);
+		pr_err("%s: doesn't exist cra:%p base:%p\n",__func__, cra, base);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -493,7 +492,10 @@ void crypto_free_diskcipher(struct crypto_diskcipher *tfm)
 {
 	crypto_diskcipher_debug(DISKC_API_FREE, 0);
 	atomic_set(&tfm->status, DISKC_ST_FREE);
-	crypto_destroy_tfm(tfm, crypto_diskcipher_tfm(tfm));
+	if (tfm && virt_addr_valid(tfm))
+		crypto_destroy_tfm(tfm, crypto_diskcipher_tfm(tfm));
+	else
+		pr_warn("%s: invalid tfm:%p(valid:%d)\n", __func__, tfm, virt_addr_valid(tfm));
 }
 
 int crypto_register_diskcipher(struct diskcipher_alg *alg)
