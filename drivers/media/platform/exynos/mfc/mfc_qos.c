@@ -763,9 +763,9 @@ static int __mfc_qos_add_timestamp(struct mfc_ctx *ctx,
 	curr_ts->index = ctx->ts_count;
 	ctx->ts_count++;
 
-	if (ctx->ts_count == MFC_TIME_INDEX) {
+	if (ctx->ts_count == MAX_TIME_INDEX) {
 		ctx->ts_is_full = 1;
-		ctx->ts_count %= MFC_TIME_INDEX;
+		ctx->ts_count %= MAX_TIME_INDEX;
 	}
 
 	return 0;
@@ -878,9 +878,9 @@ static void __mfc_qos_get_bps(struct mfc_ctx *ctx, u32 bytesused)
 	mfc_debug(3, "[QoS] %d Kbps, average %lld Kbits per frame\n", ctx->Kbps, avg_Kbits);
 
 	ctx->bitrate_index++;
-	if (ctx->bitrate_index == MFC_TIME_INDEX) {
+	if (ctx->bitrate_index == MAX_TIME_INDEX) {
 		ctx->bitrate_is_full = 1;
-		ctx->bitrate_index %= MFC_TIME_INDEX;
+		ctx->bitrate_index %= MAX_TIME_INDEX;
 	}
 }
 
