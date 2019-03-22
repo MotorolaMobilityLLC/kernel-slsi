@@ -957,6 +957,22 @@ int mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *device,
 	return 0;
 }
 
+static void __mfc_create_bitrate_table(struct mfc_dev *dev)
+{
+	struct mfc_platdata *pdata = dev->pdata;
+	int i, interval;
+
+	interval = pdata->max_Kbps[0] / pdata->num_mfc_freq;
+	dev->bps_ratio = pdata->max_Kbps[0] / dev->pdata->max_Kbps[1];
+	for (i = 0; i < pdata->num_mfc_freq; i++) {
+		dev->bitrate_table[i].bps_interval = interval * (i + 1);
+		dev->bitrate_table[i].mfc_freq = pdata->mfc_freqs[i];
+		mfc_info_dev("[QoS] bitrate table[%d] %dKHz: ~ %dKbps\n",
+				i, dev->bitrate_table[i].mfc_freq,
+				dev->bitrate_table[i].bps_interval);
+	}
+}
+
 static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 {
 	struct mfc_platdata	*pdata = mfc->pdata;
@@ -1077,8 +1093,11 @@ static void __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32(np, "qos_weight_super64_bframe", &pdata->qos_weight.weight_super64_bframe);
 #endif
 	/* Bitrate control for QoS */
+	of_property_read_u32(np, "num_mfc_freq", &pdata->num_mfc_freq);
+	if (pdata->num_mfc_freq)
+		of_property_read_u32_array(np, "mfc_freqs", pdata->mfc_freqs, pdata->num_mfc_freq);
 	of_property_read_u32_array(np, "max_Kbps", pdata->max_Kbps, MAX_NUM_MFC_BPS);
-	dev->bps_ratio = pdata->max_Kbps[0] / dev->pdata->max_Kbps[1];
+	__mfc_create_bitrate_table(mfc);
 }
 
 static void *__mfc_get_drv_data(struct platform_device *pdev);
