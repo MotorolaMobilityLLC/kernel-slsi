@@ -2263,11 +2263,10 @@ static void s2mu106_usbpd_notify_detach(struct s2mu106_usbpd_data *pdic_data)
 		}
 		pdic_data->typec_power_role = TYPEC_SINK;
 		pdic_data->typec_data_role = TYPEC_DEVICE;
+#endif
 		/* USB */
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_USB, IFCONN_NOTIFY_ID_USB,
 										IFCONN_NOTIFY_EVENT_DETACH, NULL);
-
-#endif
 	}
 #else
 	usbpd_manager_plug_detach(dev, 1);
