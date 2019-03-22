@@ -847,6 +847,11 @@ struct slsi_acs_chan_info *slsi_acs_scan_results(struct slsi_dev *sdev, struct n
 
 		idx = slsi_find_chan_idx(scan_channel->hw_value, ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode);
 		SLSI_DBG3(sdev, SLSI_MLME, "chan_idx:%d chan_value: %d\n", idx, ch_info[idx].chan);
+
+		if ((idx < 0) || (idx > 24)) {
+			SLSI_DBG3(sdev, SLSI_MLME, "idx is not in range idx=%d\n", idx);
+			goto next_scan;
+		}
 		if (ch_info[idx].chan) {
 			ch_info[idx].num_ap += 1;
 			ie = cfg80211_find_ie(WLAN_EID_QBSS_LOAD, mgmt->u.beacon.variable, ies_len);
