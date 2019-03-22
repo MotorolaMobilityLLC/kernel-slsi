@@ -514,7 +514,7 @@ config:
 			frame->instance, hw_ip);
 	}
 
-	fimc_is_lib_isp_shot(hw_ip, &hw_3aa->lib[frame->instance], param_set, frame->shot);
+	ret = fimc_is_lib_isp_shot(hw_ip, &hw_3aa->lib[frame->instance], param_set, frame->shot);
 
 	set_bit(HW_CONFIG, &hw_ip->state);
 
