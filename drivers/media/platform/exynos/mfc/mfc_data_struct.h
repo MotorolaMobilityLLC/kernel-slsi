@@ -865,6 +865,7 @@ struct mfc_dev {
 	struct pm_qos_request qos_req_cluster[MAX_NUM_CLUSTER];
 	int qos_has_enc_ctx;
 	struct mutex qos_mutex;
+	int mfc_freq_by_bps;
 #endif
 	struct mfc_bitrate_table bitrate_table[MAX_NUM_MFC_FREQ];
 	int bps_ratio;
@@ -1583,6 +1584,7 @@ struct mfc_ctx {
 	int bitrate_index;
 	int bitrate_is_full;
 	int Kbps;
+	int last_bps_section;
 
 	int buf_process_type;
 
