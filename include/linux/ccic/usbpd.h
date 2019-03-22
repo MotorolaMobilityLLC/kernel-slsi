@@ -41,7 +41,7 @@
 #define tVDMWaitModeEntry	(50)	/* 40~50  ms */
 #define tVDMWaitModeExit	(50)    /* 40~50  ms */
 #define tDiscoverIdentity	(50)	/* 40~50  ms */
-#define tSwapSourceStart        (20)	/* 20  ms */
+#define tSwapSourceStart        (30)	/* 30  ms */
 #define tTypeCSinkWaitCap       (310)	/* 310~620 ms */
 #define tTypeCSendSourceCap (100) /* 100~200ms */
 #define tSrcRecover (880) /* 660~1000ms */
@@ -254,6 +254,7 @@ typedef enum usbpd_manager_event {
 	MANAGER_UVDM_RECEIVE_MESSAGE		= 17,
 	MANAGER_START_DISCOVER_IDENTITY	= 18,
 	MANAGER_SEND_PR_SWAP	= 19,
+	MANAGER_SEND_DR_SWAP	= 20,
 } usbpd_manager_event_type;
 
 enum usbpd_msg_status {
@@ -351,6 +352,7 @@ typedef struct usbpd_phy_ops {
 	void    (*pr_swap)(void *, int);
 	int    (*vbus_on_check)(void *);
 	int		(*get_side_check)(void *_data);
+	void	(*set_pwr_opmode)(void *_data, int mode);
 } usbpd_phy_ops_type;
 
 struct policy_data {
@@ -493,6 +495,8 @@ struct usbpd_data {
 
 	struct timeval		time1;
 	struct timeval		time2;
+
+	int					pd_support;
 };
 
 static inline struct usbpd_data *protocol_rx_to_usbpd(struct protocol_data *rx)
@@ -548,6 +552,7 @@ extern bool usbpd_manager_vdm_request_enabled(struct usbpd_data *);
 extern void usbpd_manager_acc_handler_cancel(struct device *);
 extern void usbpd_manager_acc_detach_handler(struct work_struct *);
 extern void usbpd_manager_send_pr_swap(struct device *);
+extern void usbpd_manager_send_dr_swap(struct device *);
 extern void usbpd_policy_work(struct work_struct *);
 extern void usbpd_protocol_tx(struct usbpd_data *);
 extern void usbpd_protocol_rx(struct usbpd_data *);
