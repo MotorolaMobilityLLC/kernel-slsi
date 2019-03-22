@@ -39,16 +39,17 @@
 #define MFC_MAX_DPBS			32
 #define MFC_MAX_BUFFERS			32
 #define MFC_MAX_EXTRA_BUF		10
-#define MFC_TIME_INDEX			15
 #define MFC_SFR_LOGGING_COUNT_SET0	10
 #define MFC_SFR_LOGGING_COUNT_SET1	28
 #define MFC_SFR_LOGGING_COUNT_SET2	32
 #define MFC_LOGGING_DATA_SIZE		950
 #define MFC_MAX_DEFAULT_PARAM		100
 
+/* OTF */
 #define HWFC_MAX_BUF			10
 #define OTF_MAX_BUF			30
 
+/* HDR */
 #define HDR_MAX_WINDOWS			3
 #define HDR_MAX_SCL			3
 #define HDR_MAX_DISTRIBUTION		15
@@ -57,11 +58,15 @@
 /* Maximum number of temporal layers */
 #define VIDEO_MAX_TEMPORAL_LAYERS	7
 
+/* Batch mode */
 #define MAX_NUM_IMAGES_IN_VB		8
 #define MAX_NUM_BUFCON_BUFS		32
 
+/* QoS */
+#define MAX_TIME_INDEX			15
 #define MAX_NUM_CLUSTER			3
 #define MAX_NUM_MFC_BPS			2
+#define MAX_NUM_MFC_FREQ		10
 
 /*
  *  MFC region id for smc
@@ -485,6 +490,8 @@ struct mfc_platdata {
 	struct mfc_qos *qos_table;
 	struct mfc_qos_boost *qos_boost_table;
 #endif
+	int num_mfc_freq;
+	unsigned int mfc_freqs[MAX_NUM_MFC_FREQ];
 	unsigned int max_Kbps[MAX_NUM_MFC_BPS];
 	/* NAL-Q size */
 	unsigned int nal_q_entry_size;
@@ -766,6 +773,11 @@ struct mfc_mmcache {
 	int is_on_status;
 };
 
+struct mfc_bitrate_table {
+	int mfc_freq;
+	int bps_interval;
+};
+
 /**
  * struct mfc_dev - The struct containing driver internal parameters.
  */
@@ -854,6 +866,7 @@ struct mfc_dev {
 	int qos_has_enc_ctx;
 	struct mutex qos_mutex;
 #endif
+	struct mfc_bitrate_table bitrate_table[MAX_NUM_MFC_FREQ];
 	int bps_ratio;
 
 	int id;
@@ -1559,12 +1572,13 @@ struct mfc_ctx {
 	struct list_head qos_list;
 #endif
 
-	struct mfc_timestamp ts_array[MFC_TIME_INDEX];
+	struct mfc_timestamp ts_array[MAX_TIME_INDEX];
 	struct list_head ts_list;
 	int ts_count;
 	int ts_is_full;
 
-	struct mfc_bitrate bitrate_array[MFC_TIME_INDEX];
+	/* bitrate control for QoS*/
+	struct mfc_bitrate bitrate_array[MAX_TIME_INDEX];
 	struct list_head bitrate_list;
 	int bitrate_index;
 	int bitrate_is_full;
