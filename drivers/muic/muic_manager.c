@@ -720,8 +720,16 @@ static int muic_manager_handle_ccic_role_swap(struct muic_interface_t *muic_if, 
 
 	pr_info("%s: event:%d\n", __func__, pnoti->event);
 
-	if (pnoti->event == IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP)
+	if (pnoti->event == IFCONN_NOTIFY_EVENT_PD_SINK) {
 		ccic->ccic_evt_roleswap = 1;
+	} else if (pnoti->event == IFCONN_NOTIFY_EVENT_PD_SOURCE) {
+		MUIC_SEND_NOTI_TO_CCIC_ATTACH(ATTACHED_DEV_OTG_MUIC);
+		ccic->ccic_evt_rprd = 1;
+		ccic->attached_dev = ATTACHED_DEV_OTG_MUIC;
+		if (muic_if->set_cable_state)
+			muic_if->set_cable_state(muic_if->muic_data, ccic->attached_dev);
+		muic_manager_switch_path(muic_if, MUIC_PATH_USB_AP);
+	}
 #endif
 	return 0;
 }

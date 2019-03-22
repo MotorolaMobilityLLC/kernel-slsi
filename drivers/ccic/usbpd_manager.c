@@ -140,6 +140,13 @@ void usbpd_manager_send_pr_swap(struct device *dev)
 	usbpd_manager_inform_event(pd_noti.pd_data, MANAGER_SEND_PR_SWAP);
 }
 
+void usbpd_manager_send_dr_swap(struct device *dev)
+{
+	pr_info("%s: call send pr swap msg\n", __func__);
+
+	usbpd_manager_inform_event(pd_noti.pd_data, MANAGER_SEND_DR_SWAP);
+}
+
 static void init_source_cap_data(struct usbpd_manager_data *_data)
 {
 /*	struct usbpd_data *pd_data = manager_to_usbpd(_data);
@@ -160,7 +167,7 @@ static void init_source_cap_data(struct usbpd_manager_data *_data)
 	data_obj->power_data_obj.data_role_swap = 1;
 	data_obj->power_data_obj.dual_role_power = 1;
 	data_obj->power_data_obj.usb_suspend_support = 1;
-	data_obj->power_data_obj.usb_comm_capable = 0;
+	data_obj->power_data_obj.usb_comm_capable = 1;
 
 }
 
@@ -182,7 +189,7 @@ static void init_sink_cap_data(struct usbpd_manager_data *_data)
 	data_obj->power_data_obj_sink.dual_role_power = 1;
 	data_obj->power_data_obj_sink.higher_capability = 1;
 	data_obj->power_data_obj_sink.externally_powered = 0;
-	data_obj->power_data_obj_sink.usb_comm_capable = 0;
+	data_obj->power_data_obj_sink.usb_comm_capable = 1;
 	data_obj->power_data_obj_sink.data_role_swap = 1;
 	data_obj->power_data_obj_sink.voltage = 5000/50;
 	data_obj->power_data_obj_sink.op_current = 3000/10;
@@ -330,6 +337,10 @@ void usbpd_manager_inform_event(struct usbpd_data *pd_data,
 	case MANAGER_SEND_PR_SWAP:
 		usbpd_manager_command_to_policy(pd_data->dev,
 					MANAGER_REQ_PR_SWAP);
+		break;
+	case MANAGER_SEND_DR_SWAP:
+		usbpd_manager_command_to_policy(pd_data->dev,
+					MANAGER_REQ_DR_SWAP);
 		break;
 	default:
 		pr_info("%s: not matched event(%d)\n", __func__, event);
@@ -881,7 +892,7 @@ data_obj_type usbpd_manager_select_capability(struct usbpd_data *pd_data)
 	int pdo_num = pd_noti.sink_status.selected_pdo_num;
 #endif
 	obj.request_data_object.no_usb_suspend = 1;
-	obj.request_data_object.usb_comm_capable = 0;
+	obj.request_data_object.usb_comm_capable = 1;
 	obj.request_data_object.capability_mismatch = 0;
 	obj.request_data_object.give_back = 0;
 #ifdef CONFIG_IFCONN_NOTIFIER
