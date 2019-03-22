@@ -1033,7 +1033,8 @@ int fimc_is_hardware_shot(struct fimc_is_hardware *hardware, u32 instance,
 			if (!valid_hw_slot_id(hw_slot)) {
 				merr_hw("invalid slot (%d,%d)", instance,
 					hw_id, hw_slot);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto shot_err_cancel;
 			}
 
 			hw_ip = &hardware->hw_ip[hw_slot];
@@ -1053,11 +1054,12 @@ int fimc_is_hardware_shot(struct fimc_is_hardware *hardware, u32 instance,
 			hw_ip->debug_index[0] = frame->fcount;
 			hw_ip->debug_info[index].cpuid[DEBUG_POINT_HW_SHOT] = raw_smp_processor_id();
 			hw_ip->debug_info[index].time[DEBUG_POINT_HW_SHOT] = local_clock();
+
 			ret = CALL_HW_OPS(hw_ip, shot, frame, hw_map);
 			if (ret) {
 				mserr_hw("shot fail (%d)[F:%d]", instance, hw_ip,
 					hw_slot, frame->fcount);
-				return -EINVAL;
+				goto shot_err_cancel;
 			}
 		}
 		child = child->parent;
@@ -1071,6 +1073,24 @@ int fimc_is_hardware_shot(struct fimc_is_hardware *hardware, u32 instance,
 			frame->fcount, GROUP_ID(group->id),
 			frame->bak_flag, frame->out_flag, frame->core_flag, framenum);
 #endif
+
+	return ret;
+
+shot_err_cancel:
+	mwarn_hw("[F:%d] Canceled by hardware shot err", instance, hw_ip, frame->fcount);
+
+	framemgr_e_barrier_common(framemgr, 0, flags);
+	trans_frame(framemgr, frame, FS_HW_FREE);
+	framemgr_x_barrier_common(framemgr, 0, flags);
+
+	if (child && child->tail) {
+		struct fimc_is_group *restore_grp = child->tail;
+
+		while (restore_grp && (restore_grp->id != child->id)) {
+			fimc_is_hardware_restore_by_group(hardware, restore_grp, instance);
+			restore_grp = restore_grp->parent;
+		}
+	}
 
 	return ret;
 }
