@@ -703,7 +703,7 @@ int scsc_mx_service_mifram_alloc_extended(struct scsc_service *service, size_t n
 		return -ENOMEM;
 	}
 
-	mem = miframman_alloc(ramman, nbytes, align);
+	mem = miframman_alloc(ramman, nbytes, align, service->id);
 	if (!mem) {
 		SCSC_TAG_ERR(MXMAN, "miframman_alloc() failed\n");
 		*ref = SCSC_MIFRAM_INVALID_REF;

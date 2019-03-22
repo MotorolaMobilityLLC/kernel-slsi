@@ -18,19 +18,28 @@ struct mifabox;
 
 void miframman_init(struct miframman *ram, void *start_dram, size_t size_pool, void *start_region);
 void miframabox_init(struct mifabox *mifabox, void *start_aboxram);
-void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align);
+void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align, int tag);
 void miframman_free(struct miframman *ram, void *mem);
 void miframman_deinit(struct miframman *ram);
 void miframabox_deinit(struct mifabox *mifabox);
+void miframman_log(struct miframman *ram, struct seq_file *fd);
 
 #define MIFRAMMAN_MAXMEM        (16 * 1024 * 1024)
 #define MIFRAMMAN_BLOCK_SIZE    (64)
 
 #define MIFRAMMAN_NUM_BLOCKS    ((MIFRAMMAN_MAXMEM) / (MIFRAMMAN_BLOCK_SIZE))
 
+/* Block status in lower nibble */
+#define MIFRAMMAN_BLOCK_STATUS_MASK	0x0f
 #define BLOCK_FREE      0
 #define BLOCK_INUSE     1
-#define BLOCK_BOUND     2
+#define BLOCK_BOUND     2	/* Block allocation boundary */
+
+/* Block owner in upper nibble */
+#define MIFRAMMAN_BLOCK_OWNER_MASK	0xf0
+#define MIFRAMMAN_BLOCK_OWNER_SHIFT	4
+
+#define MIFRAMMAN_OWNER_COMMON	0	/* Owner tag for Common driver */
 
 /* Inclusion in core.c treat it as opaque */
 struct miframman {

@@ -789,7 +789,7 @@ static int transports_init(struct mxman *mxman)
 	 * Allocate & Initialise Infrastructre Config Structure
 	 * including the mx management stack config information.
 	 */
-	mxconf = miframman_alloc(scsc_mx_get_ramman(mx), sizeof(struct mxconf), 4);
+	mxconf = miframman_alloc(scsc_mx_get_ramman(mx), sizeof(struct mxconf), 4, MIFRAMMAN_OWNER_COMMON);
 	if (!mxconf) {
 		SCSC_TAG_ERR(MXMAN, "miframman_alloc() failed\n");
 		gdb_transport_release(scsc_mx_get_gdb_transport_m4(mx));
