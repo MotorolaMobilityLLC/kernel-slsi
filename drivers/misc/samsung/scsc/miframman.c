@@ -48,7 +48,7 @@ void miframabox_init(struct mifabox *mifabox, void *start_aboxram)
 	mifabox->aboxram = (struct scsc_bt_audio_abox *)start_aboxram;
 }
 
-void *__miframman_alloc(struct miframman *ram, size_t nbytes)
+void *__miframman_alloc(struct miframman *ram, size_t nbytes, int tag)
 {
 	unsigned int index = 0;
 	unsigned int available;
@@ -79,10 +79,17 @@ void *__miframman_alloc(struct miframman *ram, size_t nbytes)
 			free_mem = ram->start_dram +
 				   MIFRAMMAN_BLOCK_SIZE * index;
 
-			/* Mark the blocks as used */
-			ram->bitmap[index++] = BLOCK_BOUND;
-			for (i = 1; i < num_blocks; i++)
-				ram->bitmap[index++] = BLOCK_INUSE;
+			/* Mark the block boundary as used */
+			ram->bitmap[index] = BLOCK_BOUND;
+			ram->bitmap[index] |= (u8)(tag <<  MIFRAMMAN_BLOCK_OWNER_SHIFT); /* Add owner tack for tracking */
+			index++;
+
+			/* Additional blocks in this allocation */
+			for (i = 1; i < num_blocks; i++) {
+				ram->bitmap[index] = BLOCK_INUSE;
+				ram->bitmap[index] |= (u8)(tag <<  MIFRAMMAN_BLOCK_OWNER_SHIFT); /* Add owner tack for tracking */
+				index++;
+			}
 
 			ram->free_mem -= num_blocks * MIFRAMMAN_BLOCK_SIZE;
 			goto exit;
@@ -106,7 +113,19 @@ exit:
 	(*(((void **)((uintptr_t)(mem) & \
 		      (~(uintptr_t)(sizeof(void *) - 1)))) - 1))
 
-void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align)
+/*
+ * Allocate shared DRAM block
+ *
+ * Parameters:
+ *  ram		- pool identifier
+ *  nbytes	- allocation size
+ *  align	- allocation alignment
+ *  tag		- owner identifier (typically service ID), 4 bits.
+ *
+ * Returns
+ *  Pointer to allocated area, or NULL
+ */
+void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align, int tag)
 {
 	void *mem, *align_mem = NULL;
 
@@ -119,7 +138,7 @@ void *miframman_alloc(struct miframman *ram, size_t nbytes, size_t align)
 	if (align < sizeof(void *))
 		align = sizeof(void *);
 
-	mem = __miframman_alloc(ram, nbytes + align + sizeof(void *));
+	mem = __miframman_alloc(ram, nbytes + align + sizeof(void *), tag);
 	if (!mem)
 		goto end;
 
@@ -132,6 +151,13 @@ end:
 	return align_mem;
 }
 
+/*
+ * Free shared DRAM block
+ *
+ * Parameters:
+ *  ram		- pool identifier
+ *  mem		- buffer to free
+ */
 void __miframman_free(struct miframman *ram, void *mem)
 {
 	unsigned int index, num_blocks = 0;
@@ -152,14 +178,15 @@ void __miframman_free(struct miframman *ram, void *mem)
 	}
 
 	/* Check it is a Boundary block */
-	if (ram->bitmap[index] != BLOCK_BOUND) {
+	if ((ram->bitmap[index] & MIFRAMMAN_BLOCK_STATUS_MASK) != BLOCK_BOUND) {
 		SCSC_TAG_ERR(MIF, "Incorrect Block descriptor\n");
 		return;
 	}
-
 	ram->bitmap[index++] = BLOCK_FREE;
+
+	/* Free remaining blocks */
 	num_blocks++;
-	while (index < ram->num_blocks && ram->bitmap[index] == BLOCK_INUSE) {
+	while (index < ram->num_blocks && (ram->bitmap[index] & MIFRAMMAN_BLOCK_STATUS_MASK) == BLOCK_INUSE) {
 		ram->bitmap[index++] = BLOCK_FREE;
 		num_blocks++;
 	}
@@ -179,7 +206,7 @@ void miframman_free(struct miframman *ram, void *mem)
 /* Caller should provide locking */
 void miframman_deinit(struct miframman *ram)
 {
-	/* Mark all the blocks as INUSE to prevent new allocations */
+	/* Mark all the blocks as INUSE (by Common) to prevent new allocations */
 	memset(ram->bitmap, BLOCK_INUSE, sizeof(ram->bitmap));
 
 	ram->num_blocks = 0;
@@ -197,3 +224,44 @@ void miframabox_deinit(struct mifabox *mifabox)
 	mifabox->aboxram = NULL;
 }
 
+/* Log current allocations in a ramman in proc */
+void miframman_log(struct miframman *ram, struct seq_file *fd)
+{
+	unsigned int b;
+	unsigned int i;
+	int tag;
+	size_t num_blocks = 0;
+
+	if (!ram)
+		return;
+
+	seq_printf(fd, "ramman: start_dram %p, size %zd, free_mem %u\n\n",
+		ram->start_region, ram->size_pool, ram->free_mem);
+
+	for (b = 0; b < ram->num_blocks; b++) {
+		if ((ram->bitmap[b] & MIFRAMMAN_BLOCK_STATUS_MASK) == BLOCK_BOUND) {
+			/* Found a boundary allocation */
+			num_blocks++;
+			tag = (ram->bitmap[b] & MIFRAMMAN_BLOCK_OWNER_MASK) >> MIFRAMMAN_BLOCK_OWNER_SHIFT;
+
+			/* Count subsequent blocks in this group */
+			for (i = 1;
+			     i < ram->num_blocks && (ram->bitmap[b + i] & MIFRAMMAN_BLOCK_STATUS_MASK) == BLOCK_INUSE;
+			     i++) {
+				/* Check owner matches boundary block */
+				int newtag = (ram->bitmap[b + i] & MIFRAMMAN_BLOCK_OWNER_MASK) >> MIFRAMMAN_BLOCK_OWNER_SHIFT;
+				if (newtag != tag) {
+					seq_printf(fd, "Allocated block tag %d doesn't match boundary tag %d, index %d, %p\n",
+						newtag, tag, b + i,
+						ram->start_dram + (b + i) * MIFRAMMAN_BLOCK_SIZE);
+				}
+				num_blocks++;
+			}
+			seq_printf(fd, "index %8d, svc %d, bytes %12d, blocks %10d, %p\n",
+				b, tag,
+				(i * MIFRAMMAN_BLOCK_SIZE),
+				i,
+				ram->start_dram + (b  * MIFRAMMAN_BLOCK_SIZE));
+		}
+	}
+}

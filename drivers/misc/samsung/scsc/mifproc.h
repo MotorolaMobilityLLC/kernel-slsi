@@ -42,7 +42,7 @@
 		struct proc_dir_entry *entry;               \
 		entry = proc_create_data(# name, mode, parent, &mifprocfs_ ## name ## _fops, _sdev); \
 		if (!entry) {                               \
-			goto err;                           \
+			break;                              \
 		}                                           \
 		MIF_PROCFS_SET_UID_GID(entry);                            \
 	} while (0)
