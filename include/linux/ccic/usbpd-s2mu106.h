@@ -38,7 +38,7 @@
 #define TA_WATER_CHK_DURATION_MS	5000
 
 /* define timer */
-#define S2MU106_ROLE_SWAP_TIME_MS		(1350)
+#define S2MU106_ROLE_SWAP_TIME_MS		(500)
 #define S2MU106_HARD_RESET_DELAY_MS		(300)
 #define S2MU106_WAIT_RD_DETACH_DELAY_MS		(200)
 #define S2MU106_WAIT_ATTACH_DELAY_MS		(30)
@@ -588,6 +588,8 @@ typedef enum {
 	TYPE_C_ATTACH_DFP = 1, /* Host */
 	TYPE_C_ATTACH_UFP = 2, /* Device */
 	TYPE_C_ATTACH_DRP = 3, /* Dual role */
+	TYPE_C_PR_SWAP = 4,
+	TYPE_C_DR_SWAP = 5,
 } CCIC_OTP_MODE;
 
 typedef enum {
@@ -661,6 +663,8 @@ struct s2mu106_usbpd_data {
 	bool vbus_short_check;
 	bool vbus_short;
 	bool vbus_access;
+	int cc1_val;
+	int cc2_val;
 #ifndef CONFIG_SEC_FACTORY
 	bool lpcharge_water;
 #endif
@@ -699,6 +703,7 @@ struct s2mu106_usbpd_data {
 	struct notifier_block type3_nb;
 	struct workqueue_struct *pdic_queue;
 	struct delayed_work plug_work;
+	struct delayed_work dr_work;
 	struct delayed_work water_detect_handler;
 	struct delayed_work ta_water_detect_handler;
 	struct delayed_work water_dry_handler;

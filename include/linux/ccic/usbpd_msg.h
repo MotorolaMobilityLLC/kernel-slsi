@@ -310,6 +310,7 @@ enum usbpd_power_role_swap {
 	USBPD_SINK_ON,
 	USBPD_SOURCE_OFF,
 	USBPD_SOURCE_ON,
+	USBPD_PR_DONE,
 };
 
 enum usbpd_port_role {
