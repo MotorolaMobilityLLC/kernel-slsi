@@ -287,6 +287,11 @@ config SOC_EXYNOS9610
 	select PINCTRL
 	select SAMSUNG_DMADEV
 
+config SOC_EXYNOS9610_ANDROID_VERSION_Q
+	bool "Samsung EXYNOS9610 Android version Q"
+	help
+	  This enables support for Android version Q for EXYNOS9610
+
 config ARCH_EXYNOS9
 	bool "ARMv8 based Samsung Exynos9"
 	select HAVE_ARM_SCU if SMP
