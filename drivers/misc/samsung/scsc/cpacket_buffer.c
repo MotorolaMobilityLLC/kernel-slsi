@@ -126,17 +126,17 @@ int cpacketbuffer_init(struct cpacketbuffer *buffer, uint32_t num_packets, uint3
 	buffer->mx = mx;
 
 	miframman = scsc_mx_get_ramman(mx);
-	mem = miframman_alloc(miframman, num_packets * packet_size, 4);
+	mem = miframman_alloc(miframman, num_packets * packet_size, 4, MIFRAMMAN_OWNER_COMMON);
 	if (!mem)
 		return -ENOMEM;
 
-	ridx = miframman_alloc(miframman, sizeof(uint32_t), 4);
+	ridx = miframman_alloc(miframman, sizeof(uint32_t), 4, MIFRAMMAN_OWNER_COMMON);
 	if (!ridx) {
 		miframman_free(miframman, mem);
 		return -ENOMEM;
 	}
 
-	widx = miframman_alloc(miframman, sizeof(uint32_t), 4);
+	widx = miframman_alloc(miframman, sizeof(uint32_t), 4, MIFRAMMAN_OWNER_COMMON);
 	if (!widx) {
 		miframman_free(miframman, ridx);
 		miframman_free(miframman, mem);

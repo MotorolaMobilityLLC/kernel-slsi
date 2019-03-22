@@ -546,7 +546,7 @@ void mxlogger_print_mapping(struct mxlogger_config_area *cfg)
 
 }
 
-/* Lock should be adquired by caller */
+/* Lock should be acquired by caller */
 int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz)
 {
 	struct miframman *miframman;
@@ -569,7 +569,7 @@ int mxlogger_init(struct scsc_mx *mx, struct mxlogger *mxlogger, uint32_t mem_sz
 	miframman = scsc_mx_get_ramman2(mx);
 	if (!miframman)
 		return -ENOMEM;
-	mxlogger->mem = miframman_alloc(miframman, mem_sz, 32);
+	mxlogger->mem = miframman_alloc(miframman, mem_sz, 32, MIFRAMMAN_OWNER_COMMON);
 	if (!mxlogger->mem) {
 		SCSC_TAG_ERR(MXMAN, "Error allocating memory for MXLOGGER\n");
 		return -ENOMEM;
