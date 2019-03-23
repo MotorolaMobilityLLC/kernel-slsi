@@ -1105,8 +1105,15 @@ static irqreturn_t fimc_is_isr_csi_dma(int irq, void *data)
 	if (dma_frame_end) {
 #if !defined(SUPPORTED_EARLYBUF_DONE_HW)
 		/* VC0 */
-		if (csi->dma_subdev[CSI_VIRTUAL_CH_0] && (dma_frame_end & (1 << CSI_VIRTUAL_CH_0)))
-			csi_wq_func_schedule(csi, &csi->wq_csis_dma[CSI_VIRTUAL_CH_0]);
+		if (csi->dma_subdev[CSI_VIRTUAL_CH_0] && (dma_frame_end & (1 << CSI_VIRTUAL_CH_0))) {
+			if (IS_ENABLED(CHAIN_USE_VC_TASKLET)) {
+				csi_wq_func_schedule(csi, &csi->wq_csis_dma[CSI_VIRTUAL_CH_0]);
+			} else {
+				framemgr = csis_get_vc_framemgr(csi, CSI_VIRTUAL_CH_0);
+				if (framemgr)
+					csi_dma_tag(*csi->subdev, csi, framemgr, CSI_VIRTUAL_CH_0);
+			}
+		}
 #endif
 		for (vc = CSI_VIRTUAL_CH_1; vc < CSI_VIRTUAL_CH_MAX; vc++) {
 			if ((dma_frame_end & (1 << vc)) && csi->dma_subdev[vc]) {
