@@ -584,8 +584,8 @@ int s2mu106_muic_bcd_rescan(struct s2mu106_muic_data *muic_data)
 		pr_err("%s, fail to open mansw\n", __func__);
 #if IS_ENABLED(CONFIG_S2MU106_TYPEC_WATER)
 	_s2mu106_muic_control_rid_adc(muic_data, MUIC_DISABLE);
-	msleep(150);
 #endif /* CONFIG_MUIC_S2MU106_RID */
+	msleep(150);
 	_s2mu106_muic_set_bcd_rescan_reg(muic_data);
 
     return 0;
@@ -1208,25 +1208,8 @@ static int s2mu106_muic_detect_dev_bc1p2(struct s2mu106_muic_data *muic_data)
 	switch (muic_data->reg[DEVICE_TYPE2]) {
 	case DEVICE_TYP2_SDP_1P8S_MASK:
 		if (muic_data->vbvolt) {
-#if IS_ENABLED(CONFIG_SEC_FACTORY)
-			pr_info("%s:%s: SDP_1P8S=>USB DETECTED\n", MUIC_DEV_NAME, __func__);
+			pr_info("SDP_1P8S=>USB DETECTED\n");
 			muic_data->new_dev = ATTACHED_DEV_USB_MUIC;
-#else
-			pr_info("%s:%s: SDP_1P8S DETECTED\n", MUIC_DEV_NAME, __func__);
-#if IS_ENABLED(CONFIG_MUIC_MANAGER)
-			muic_data->new_dev = ATTACHED_DEV_TIMEOUT_OPEN_MUIC;
-			muic_if->is_dcdtmr_intr = true;
-			schedule_delayed_work(&muic_data->dcd_recheck, 0);
-#else
-			if (muic_data->bcd_rescanned) {
-				muic_data->new_dev = ATTACHED_DEV_TIMEOUT_OPEN_MUIC;
-			} else {
-				muic_data->bcd_rescanned = true;
-				schedule_delayed_work(&muic_data->dcd_recheck, 0);
-				return S2MU106_DETECT_SKIP;
-			}
-#endif
-#endif
 		}
 		break;
 	default:
@@ -2566,8 +2549,14 @@ static int s2mu106_muic_probe(struct platform_device *pdev)
 #else
 		s2mu106_muic_attach_isr(-1, muic_data);
 #if IS_ENABLED(CONFIG_S2MU106_SPECOUT_CHARGER)
-		cancel_delayed_work(&muic_data->cable_timeout);
-		schedule_delayed_work(&muic_data->cable_timeout, msecs_to_jiffies(800));
+		if (_s2mu106_muic_get_vbus_state(muic_data)) {
+			if (muic_pdata->attached_dev == ATTACHED_DEV_NONE_MUIC ||
+					muic_pdata->attached_dev == ATTACHED_DEV_UNKNOWN_MUIC) {
+				s2mu106_muic_bcd_rescan(muic_data);
+				cancel_delayed_work(&muic_data->cable_timeout);
+				schedule_delayed_work(&muic_data->cable_timeout, msecs_to_jiffies(1000));
+			}
+		}
 #endif
 #endif
 	}
