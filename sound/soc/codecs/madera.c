@@ -522,20 +522,21 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int ep_sel, mux, change;
-	int ret, demux_change_ret;
+	unsigned int mux, change;
+	int ret, demux_change_ret = 0;
 	bool out_mono, restore_out = true;
 
 	if (ucontrol->value.enumerated.item[0] > e->items - 1)
 		return -EINVAL;
 
 	mux = ucontrol->value.enumerated.item[0];
-	ep_sel = mux << MADERA_EP_SEL_SHIFT;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
+	madera->ep_sel = mux << MADERA_EP_SEL_SHIFT;
+
 	change = snd_soc_test_bits(codec, MADERA_OUTPUT_ENABLES_1,
-				   MADERA_EP_SEL_MASK, ep_sel);
+				   MADERA_EP_SEL_MASK, madera->ep_sel);
 	if (!change)
 		goto end;
 
@@ -550,23 +551,25 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	usleep_range(2000, 3000); /* wait for wseq to complete */
 
 	/*
-	 * if HP detection clamp is applied while switching to HPOUT
-	 * OUT1 should remain disabled and EDRE should be set to manual
+	 * if HPDET has disabled the clamp while switching to HPOUT
+	 * OUT1 should remain disabled
 	 */
-	if (!ep_sel &&
-	    (madera->out_clamp[0] || madera->out_shorted[0]))
+	if (!madera->ep_sel &&
+	    (!madera->out_clamp[0] || madera->out_shorted[0]))
 		restore_out = false;
 
 	/* change demux setting */
-	demux_change_ret = regmap_update_bits(madera->regmap,
-					      MADERA_OUTPUT_ENABLES_1,
-					      MADERA_EP_SEL_MASK, ep_sel);
+	if (madera->out_clamp[0])
+		demux_change_ret = regmap_update_bits(madera->regmap,
+						      MADERA_OUTPUT_ENABLES_1,
+						      MADERA_EP_SEL_MASK,
+						      madera->ep_sel);
 	if (demux_change_ret) {
 		dev_err(madera->dev, "Failed to set OUT1 demux: %d\n",
 			demux_change_ret);
 	} else {
 		/* apply correct setting for mono mode */
-		if (!ep_sel && !madera->pdata.codec.out_mono[0])
+		if (!madera->ep_sel && !madera->pdata.codec.out_mono[0])
 			out_mono = false; /* stereo HP */
 		else
 			out_mono = true; /* EP or mono HP */
@@ -605,11 +608,14 @@ int madera_out1_demux_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	unsigned int val;
-	val = snd_soc_read(codec, MADERA_OUTPUT_ENABLES_1);
-	val &= MADERA_EP_SEL_MASK;
-	val >>= MADERA_EP_SEL_SHIFT;
-	ucontrol->value.enumerated.item[0] = val;
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct madera *madera = dev_get_drvdata(codec->dev->parent);
+
+	snd_soc_dapm_mutex_lock(dapm);
+	ucontrol->value.enumerated.item[0] = madera->ep_sel >> MADERA_EP_SEL_SHIFT;
+	snd_soc_dapm_mutex_unlock(dapm);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(madera_out1_demux_get);
@@ -2742,9 +2748,9 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 	regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
 	ep_sel &= MADERA_EP_SEL_MASK;
 
-	/* Force off if HPDET clamp is active for this output */
+	/* Force off if HPDET disabled the clamp for this output */
 	if (!ep_sel &&
-	    (madera->out_clamp[out_num] || madera->out_shorted[out_num]))
+	    (!madera->out_clamp[out_num] || madera->out_shorted[out_num]))
 		val = 0;
 
 	regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1, mask, val);
