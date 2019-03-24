@@ -74,6 +74,7 @@ static void pdp_tasklet_stat0(unsigned long data)
 	struct fimc_is_frame *frame;
 	unsigned int frameptr;
 	int ch;
+	unsigned long flags;
 
 	pdp = (struct fimc_is_pdp *)data;
 	if (!pdp) {
@@ -109,7 +110,7 @@ static void pdp_tasklet_stat0(unsigned long data)
 				continue;
 			}
 
-			framemgr_e_barrier(framemgr, FMGR_IDX_29);
+			framemgr_e_barrier_irqs(framemgr, FMGR_IDX_29, flags);
 
 			frameptr = atomic_read(&pdp->frameptr_stat0) % framemgr->num_frames;
 			frame = &framemgr->frames[frameptr];
@@ -120,7 +121,7 @@ static void pdp_tasklet_stat0(unsigned long data)
 
 			atomic_inc(&pdp->frameptr_stat0);
 
-			framemgr_x_barrier(framemgr, FMGR_IDX_29);
+			framemgr_x_barrier_irqr(framemgr, FMGR_IDX_29, flags);
 		}
 	}
 
