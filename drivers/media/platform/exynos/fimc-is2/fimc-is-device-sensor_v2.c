@@ -1073,6 +1073,7 @@ static int fimc_is_sensor_notify_by_fstr(struct fimc_is_device_sensor *device, v
 	struct fimc_is_subdev *dma_subdev;
 	struct v4l2_control ctrl;
 	u32 frameptr;
+	unsigned long flags;
 #if defined(MEASURE_TIME) && defined(MONITOR_TIME)
 	struct fimc_is_group *group;
 #endif
@@ -1125,14 +1126,14 @@ static int fimc_is_sensor_notify_by_fstr(struct fimc_is_device_sensor *device, v
 			continue;
 		}
 
-		framemgr_e_barrier(framemgr, 0);
+		framemgr_e_barrier_irqs(framemgr, 0, flags);
 
 		if (test_bit(FIMC_IS_SUBDEV_INTERNAL_USE, &dma_subdev->state)) {
 			ctrl.id = V4L2_CID_IS_G_VC1_FRAMEPTR + (i - 1);
 			ret = v4l2_subdev_call(device->subdev_csi, core, g_ctrl, &ctrl);
 			if (ret) {
 				err("csi_g_ctrl fail");
-				framemgr_x_barrier(framemgr, 0);
+				framemgr_x_barrier_irqr(framemgr, 0, flags);
 				return -EINVAL;
 			}
 			frameptr = (ctrl.value + dma_subdev->vc_buffer_offset) % framemgr->num_frames;
@@ -1143,7 +1144,7 @@ static int fimc_is_sensor_notify_by_fstr(struct fimc_is_device_sensor *device, v
 						i, frameptr, frame->fcount);
 		}
 
-		framemgr_x_barrier(framemgr, 0);
+		framemgr_x_barrier_irqr(framemgr, 0, flags);
 	}
 
 	return ret;
@@ -1159,6 +1160,7 @@ static int fimc_is_sensor_notify_by_fend(struct fimc_is_device_sensor *device, v
 	struct fimc_is_group *group;
 	struct fimc_is_framemgr *framemgr;
 	struct fimc_is_video_ctx *vctx;
+	unsigned long flags;
 
 	FIMC_BUG(!device);
 
@@ -1184,7 +1186,7 @@ static int fimc_is_sensor_notify_by_fend(struct fimc_is_device_sensor *device, v
 
 	vctx = group->head->leader.vctx;
 
-	framemgr_e_barrier(framemgr, 0);
+	framemgr_e_barrier_irqs(framemgr, 0, flags);
 	frame = peek_frame(framemgr, FS_PROCESS);
 
 	/*
@@ -1221,7 +1223,7 @@ static int fimc_is_sensor_notify_by_fend(struct fimc_is_device_sensor *device, v
 		CALL_VOPS(vctx, done, frame->index, done_state);
 	}
 
-	framemgr_x_barrier(framemgr, 0);
+	framemgr_x_barrier_irqr(framemgr, 0, flags);
 
 p_err:
 	return ret;
@@ -1277,6 +1279,7 @@ static int fimc_is_sensor_notify_by_line(struct fimc_is_device_sensor *device,
 	struct fimc_is_group *group;
 	struct fimc_is_framemgr *framemgr;
 	struct fimc_is_frame *frame;
+	unsigned long flags;
 
 	FIMC_BUG(!device);
 
@@ -1286,9 +1289,9 @@ static int fimc_is_sensor_notify_by_line(struct fimc_is_device_sensor *device,
 	framemgr = GET_SUBDEV_FRAMEMGR(&group->head->leader);
 	FIMC_BUG(!framemgr);
 
-	framemgr_e_barrier(framemgr, 0);
+	framemgr_e_barrier_irqs(framemgr, 0, flags);
 	frame = find_frame(framemgr, FS_PROCESS, frame_fcount, (void *)(ulong)device->line_fcount);
-	framemgr_x_barrier(framemgr, 0);
+	framemgr_x_barrier_irqr(framemgr, 0, flags);
 
 	/* There's no shot */
 	if (!frame ||
