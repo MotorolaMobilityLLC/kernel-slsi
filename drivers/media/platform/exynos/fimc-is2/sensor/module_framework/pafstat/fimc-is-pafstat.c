@@ -196,6 +196,7 @@ static void pafstat_tasklet_fwin_stat(unsigned long data)
 	struct fimc_is_frame *frame;
 	unsigned int frameptr;
 	int ch;
+	unsigned long flags;
 
 	pafstat = (struct fimc_is_pafstat *)data;
 	if (!pafstat) {
@@ -231,7 +232,7 @@ static void pafstat_tasklet_fwin_stat(unsigned long data)
 				continue;
 			}
 
-			framemgr_e_barrier(framemgr, FMGR_IDX_29);
+			framemgr_e_barrier_irqs(framemgr, FMGR_IDX_29, flags);
 
 			frameptr = atomic_read(&pafstat->frameptr_fwin_stat) % framemgr->num_frames;
 			frame = &framemgr->frames[frameptr];
@@ -242,7 +243,7 @@ static void pafstat_tasklet_fwin_stat(unsigned long data)
 
 			atomic_inc(&pafstat->frameptr_fwin_stat);
 
-			framemgr_x_barrier(framemgr, FMGR_IDX_29);
+			framemgr_x_barrier_irqr(framemgr, FMGR_IDX_29, flags);
 		}
 	}
 
