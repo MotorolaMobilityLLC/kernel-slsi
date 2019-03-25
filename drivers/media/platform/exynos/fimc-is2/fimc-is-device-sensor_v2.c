@@ -969,6 +969,7 @@ int fimc_is_sensor_buf_tag(struct fimc_is_device_sensor *device,
 		frame->fcount = ldr_frame->fcount;
 		frame->stream->findex = ldr_frame->index;
 		frame->stream->fcount = ldr_frame->fcount;
+		frame->result = 0;
 
 		ret = v4l2_subdev_call(v_subdev, video, s_rx_buffer, (void *)frame, NULL);
 		if (ret) {
