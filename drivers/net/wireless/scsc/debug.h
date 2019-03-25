@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -47,6 +47,7 @@ extern const int SLSI_TDLS;
 extern const int SLSI_GSCAN;
 extern const int SLSI_MBULK;
 extern const int SLSI_FLOWC;
+extern const int SLSI_SMAPPER;
 #endif /* CONFIG_SCSC_DEBUG_COMPATIBILITY */
 
 extern int       *slsi_dbg_filters[];
