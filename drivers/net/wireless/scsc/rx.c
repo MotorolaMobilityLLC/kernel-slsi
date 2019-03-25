@@ -355,7 +355,7 @@ void slsi_rx_scan_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_b
 		SLSI_NET_DBG1(dev, SLSI_MLME, "Connect/Roaming scan indication received, bssid:%pM\n", fapi_get_mgmt(skb)->bssid);
 		slsi_kfree_skb(ndev_vif->sta.mlme_scan_ind_skb);
 		ndev_vif->sta.mlme_scan_ind_skb = skb;
-	} else {
+	} else if (ndev_vif->scan[scan_id].scan_req || ndev_vif->scan[scan_id].acs_request) {
 		slsi_roam_channel_cache_add(sdev, dev, skb);
 		if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif))
 			slsi_add_to_scan_list(sdev, ndev_vif, skb, scan_ssid, scan_id);
