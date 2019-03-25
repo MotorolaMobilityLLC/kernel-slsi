@@ -465,6 +465,52 @@
 		stat_access_mif_offset = <4>;	/* PMU_ALIVE__*_STAT__ACCESS_MIF */
 			   /* WAKEUP_STAT	WAKEUP_STAT4 */
 		wakeup_stat = <0x600>,		<0x60c>;
+
+		wakeup_stats {
+			wakeup_stat {
+				ws-name =
+					"EINT",			/* [ 0] */
+					"RTC_ALARM",		/* [ 1] */
+					"RTC_TICK",		/* [ 2] */
+					"TRTC_ALARM",		/* [ 3] */
+					"TRTC_TICK",		/* [ 4] */
+					"WLBT_RESET_REQ",	/* [ 5] */
+					"WLBT_ACTIVE",		/* [ 6] */
+					"RESERVED",		/* [ 7] */
+					"RESERVED",		/* [ 8] */
+					"MMC0",			/* [ 9] */
+					"RESERVED",		/* [10] */
+					"MMC2",			/* [11] */
+					"CMGP_EINT",		/* [12] */
+					"USB_REWA",		/* [13] */
+					"TIMER",		/* [14] */
+					"CP_SCAN_DUMP_REQ",	/* [15] */
+					"USBDRD20",		/* [16] */
+					"INT_MBOX_WLBT2AP",	/* [17] */
+					"INT_MBOX_SHUB2AP",	/* [18] */
+					"INT_MBOX_APM2AP",	/* [19] */
+					"CP_RESET_REQ",		/* [20] */
+					"GNSS_WAKEUP_REQ",	/* [21] */
+					"GNSS_RESET_REQ",	/* [22] */
+					"GNSS_ACTIVE",		/* [23] */
+					"INT_MBOX_CP2AP",	/* [24] */
+					"CP_ACTIVE",		/* [25] */
+					"INT_MBOX_GNSS2AP",	/* [26] */
+					"APM_CPU",		/* [27] */
+					"RESERVED",		/* [28] */
+					"INT_MBOX_CP2AP_S",	/* [29] */
+					"RESERVED",		/* [30] */
+					"RESERVED";		/* [31] */
+			};
+			wakeup_stat4 {
+				ws-name =
+					"RESERVED",		/* [ 0] */
+					"INT_SHUB_WDT",		/* [ 1] */
+					"SPEEDY2_DDI",		/* [ 2] */
+					"UART_BT_CTS",		/* [ 3] */
+					"UART_BT_RXD";		/* [ 4] */
+			};
+		};
 	};
 
 	exynos-powermode {
