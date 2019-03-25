@@ -264,6 +264,7 @@ static void csis_disable_all_vc_dma_buf(struct fimc_is_device_csi *csi)
 	u32 vc;
 	int cur_dma_enable;
 	struct fimc_is_framemgr *framemgr;
+	struct fimc_is_frame *frame;
 	struct fimc_is_subdev *dma_subdev;
 	unsigned long flags;
 
@@ -286,6 +287,18 @@ static void csis_disable_all_vc_dma_buf(struct fimc_is_device_csi *csi)
 		framemgr = GET_SUBDEV_FRAMEMGR(dma_subdev);
 		framemgr_e_barrier_irqs(framemgr, 0, flags);
 		if (likely(framemgr)) {
+			/* process to NDONE if set to bad frame */
+			if (framemgr->queued_count[FS_PROCESS]) {
+				frame = peek_frame(framemgr, FS_PROCESS);
+
+				if (frame->result) {
+					mserr("[F%d] NDONE(%d, E%X)\n", dma_subdev, dma_subdev,
+						frame->fcount, frame->index, frame->result);
+					trans_frame(framemgr, frame, FS_COMPLETE);
+					CALL_VOPS(dma_subdev->vctx, done, frame->index, VB2_BUF_STATE_ERROR);
+				}
+			}
+
 			/*
 			 * W/A: DMA should be on forcely at invalid frame state.
 			 * The invalid state indicates that there is process frame at DMA off.
@@ -1865,6 +1878,9 @@ static int csi_s_buffer(struct v4l2_subdev *subdev, void *buf, unsigned int *siz
 	if (csi_hw_g_output_dma_enable(csi->vc_reg[csi->scm][vc], vc)) {
 		err("[VC%d][F%d] already DMA enabled!!", vc, frame->fcount);
 		ret = -EINVAL;
+
+		frame->result = IS_SHOT_BAD_FRAME;
+		trans_frame(framemgr, frame, FS_PROCESS);
 	} else {
 		csi_s_buf_addr(csi, frame, 0, vc);
 		csi_s_output_dma(csi, vc, true);
