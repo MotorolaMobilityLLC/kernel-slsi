@@ -32,7 +32,6 @@
 /*
  * PMU register offset
  */
-#define EXYNOS_PMU_WAKEUP_STAT		0x0600
 #define EXYNOS_PMU_EINT_WAKEUP_MASK	0x0650
 #define BOOT_CPU			0
 
@@ -51,8 +50,6 @@ struct exynos_pm_info {
 	unsigned int suspend_psci_idx;		/* psci index to be used in suspend scenario */
 	unsigned int cp_call_mode_idx;		/* power mode to be used in cp_call scenario */
 	unsigned int cp_call_psci_idx;		/* psci index to be used in cp_call scenario */
-	u8 num_extra_stat;			/* Total number of extra wakeup_stat */
-	unsigned int *extra_wakeup_stat;	/* Extra wakeup stat SFRs offset */
 
 	unsigned int usbl2_suspend_available;
 	unsigned int usbl2_suspend_mode_idx;		/* power mode to be used in suspend scenario */
@@ -63,6 +60,8 @@ struct exynos_pm_info {
 	unsigned int pmu_gnss_stat_offset;
 	unsigned int pmu_wlbt_stat_offset;
 	unsigned int stat_access_mif_offset;
+	unsigned int *wakeup_stat;
+	u8 num_wakeup_stat;
 };
 static struct exynos_pm_info *pm_info;
 
@@ -114,13 +113,11 @@ static void exynos_show_wakeup_reason_eint(void)
 static void exynos_show_wakeup_registers(unsigned int wakeup_stat)
 {
 	int i, size;
-	int extra_wakeup_stat;
 
 	pr_info("WAKEUP_STAT:\n");
-	pr_info("0x%08x\n", wakeup_stat);
-	for (i = 0; i < pm_info->num_extra_stat; i++) {
-		exynos_pmu_read(pm_info->extra_wakeup_stat[i], &extra_wakeup_stat);
-		pr_info("0x%08x\n", extra_wakeup_stat);
+	for (i = 0; i < pm_info->num_wakeup_stat; i++) {
+		exynos_pmu_read(pm_info->wakeup_stat[i], &wakeup_stat);
+		pr_info("0x%08x\n", wakeup_stat);
 	}
 
 	pr_info("EINT_PEND: ");
@@ -148,16 +145,23 @@ static void exynos_show_wakeup_reason(bool sleep_abort)
 		return ;
 	}
 
-	exynos_pmu_read(EXYNOS_PMU_WAKEUP_STAT, &wakeup_stat);
+	if (!pm_info->num_wakeup_stat)
+		return;
+
+	exynos_pmu_read(pm_info->wakeup_stat[0], &wakeup_stat);
 	exynos_show_wakeup_registers(wakeup_stat);
 
 	if (wakeup_stat & WAKEUP_STAT_RTC_ALARM)
 		pr_info("%s Resume caused by RTC alarm\n", EXYNOS_PM_PREFIX);
 	else if (wakeup_stat & WAKEUP_STAT_EINT)
 		exynos_show_wakeup_reason_eint();
-	else
-		pr_info("%s Resume caused by wakeup_stat 0x%08x\n",
-			EXYNOS_PM_PREFIX, wakeup_stat);
+	else {
+		for (i = 0; i < pm_info->num_wakeup_stat; i++) {
+			exynos_pmu_read(pm_info->wakeup_stat[i], &wakeup_stat);
+			pr_info("%s Resume caused by wakeup%d_stat 0x%08x\n",
+					EXYNOS_PM_PREFIX, i + 1, wakeup_stat);
+		}
+	}
 }
 
 #ifdef CONFIG_CPU_IDLE
@@ -522,17 +526,6 @@ static __init int exynos_pm_drvinit(void)
 			}
 		}
 
-		ret = of_property_count_u32_elems(np, "extra_wakeup_stat");
-		if (!ret) {
-			pr_err("%s %s: unabled to get wakeup_stat value from DT\n",
-					EXYNOS_PM_PREFIX, __func__);
-			BUG();
-		} else {
-			pm_info->num_extra_stat = ret;
-			pm_info->extra_wakeup_stat = kzalloc(sizeof(unsigned int) * ret, GFP_KERNEL);
-			of_property_read_u32_array(np, "extra_wakeup_stat", pm_info->extra_wakeup_stat, ret);
-		}
-
 		ret = of_property_read_u32(np, "conn_req_offset", &pm_info->conn_req_offset);
 		if (ret) {
 			pr_err("%s %s: unabled to get conn_req_offset value from DT\n",
@@ -564,6 +557,17 @@ static __init int exynos_pm_drvinit(void)
 			BUG();
 		}
 		pm_info->prev_conn_req = 0;
+
+		ret = of_property_count_u32_elems(np, "wakeup_stat");
+		if (!ret) {
+			pr_err("%s %s: unabled to get wakeup_stat value from DT\n",
+					EXYNOS_PM_PREFIX, __func__);
+			BUG();
+		} else if (ret > 0) {
+			pm_info->num_wakeup_stat = ret;
+			pm_info->wakeup_stat = kzalloc(sizeof(unsigned int) * ret, GFP_KERNEL);
+			of_property_read_u32_array(np, "wakeup_stat", pm_info->wakeup_stat, ret);
+		}
 	} else {
 		pr_err("%s %s: failed to have populated device tree\n",
 					EXYNOS_PM_PREFIX, __func__);
