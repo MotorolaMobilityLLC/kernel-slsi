@@ -78,8 +78,4 @@ struct pmucal_seq {
 }
 #endif
 
-struct cal_wkup_reason {
-	char name[20];
-	u32 bit_field;
-};
 #endif
