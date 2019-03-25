@@ -317,7 +317,8 @@ int fimc_is_ois_fw_update(struct v4l2_subdev *subdev, struct v4l2_subdev *eeprom
 	int ret = 0;
 	int i = 0;
 	u16 crc_value = 0;
-	u16 crc16 = 0;
+	u16 crc16_dvt = 0;
+	u16 crc16_pvt = 0;
 	struct fimc_is_ois *ois = NULL;
 	struct fimc_is_eeprom *eeprom= NULL;
 	static int is_first_load = 1;
@@ -348,12 +349,13 @@ int fimc_is_ois_fw_update(struct v4l2_subdev *subdev, struct v4l2_subdev *eeprom
 
 		crc_value = ((eeprom->data[OIS_CAL_DATA_CRC_FST] << 8) | (eeprom->data[OIS_CAL_DATA_CRC_SEC]));
 
-		crc16 = fimc_is_ois_check_crc(&eeprom->data[OIS_CAL_DATA_OFFSET], OIS_CAL_DATA_SIZE);
-		if (crc_value != crc16) {
-			err("Error to OIS CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
+		crc16_dvt = fimc_is_ois_check_crc(&eeprom->data[OIS_CAL_DATA_OFFSET], OIS_CAL_DATA_SIZE);
+		crc16_pvt = fimc_is_ois_check_crc(&eeprom->data[OIS_CAL_DATA_OFFSET], OIS_CAL_DATA_SIZE + 4);
+		if ((crc_value != crc16_dvt) && (crc_value != crc16_pvt)) {
+			err("Error to OIS CRC16 dvt 0x%x, pvt:0x%x, cal_buffer CRC: 0x%x", crc16_dvt, crc16_pvt, crc_value);
 			ret = -EINVAL;
 		} else {
-			info("OIS CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
+			info("OIS CRC16 dvt 0x%x, pvt:0x%x, cal_buffer CRC: 0x%x", crc16_dvt, crc16_pvt, crc_value);
 			/* The eeprom table revision in DVT2 is 0x33, use it to check the OIS cal data should apply or not*/
 			if (eeprom->data[EEPROM_INFO_TABLE_REVISION] < 0x33) {
 				err("ois cal data in eeprom is wrong");
