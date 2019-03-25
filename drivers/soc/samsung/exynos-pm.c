@@ -38,6 +38,12 @@
 extern u32 exynos_eint_to_pin_num(int eint);
 #define EXYNOS_EINT_PEND(b, x)      ((b) + 0xA00 + (((x) >> 3) * 4))
 
+#define WAKEUP_STAT_SYSINT_MASK		~((1 << 31) | (1 << 0))
+
+struct wakeup_stat_name {
+	const char *name[32];
+};
+
 struct exynos_pm_info {
 	void __iomem *eint_base;		/* GPIO_ALIVE base to check wkup reason */
 	void __iomem *gic_base;			/* GICD_ISPENDRn base to check wkup reason */
@@ -62,6 +68,7 @@ struct exynos_pm_info {
 	unsigned int stat_access_mif_offset;
 	unsigned int *wakeup_stat;
 	u8 num_wakeup_stat;
+	struct wakeup_stat_name *ws_names;	/* Names of each bits of wakeup_stat */
 };
 static struct exynos_pm_info *pm_info;
 
@@ -125,6 +132,48 @@ static void exynos_show_wakeup_registers(unsigned int wakeup_stat)
 		pr_info("0x%02x ", __raw_readl(EXYNOS_EINT_PEND(pm_info->eint_base, i)));
 }
 
+static void exynos_show_wakeup_reason_sysint(unsigned int stat,
+					struct wakeup_stat_name *ws_names)
+{
+	int bit;
+	unsigned long int lstat = stat;
+	const char *name;
+
+	for_each_set_bit(bit, &lstat, 32) {
+		name = ws_names->name[bit];
+
+		if (!name)
+			continue;
+#ifdef CONFIG_SUSPEND
+		log_wakeup_reason_name(name);
+#endif
+	}
+}
+
+static void exynos_show_wakeup_reason_detail(unsigned int wakeup_stat)
+{
+	int i;
+	unsigned int wss;
+
+	if (wakeup_stat & WAKEUP_STAT_EINT)
+		exynos_show_wakeup_reason_eint();
+
+	if (unlikely(!pm_info->ws_names))
+		return;
+
+	for (i = 0; i < pm_info->num_wakeup_stat; i++) {
+		if (i == 0)
+			wss = wakeup_stat & WAKEUP_STAT_SYSINT_MASK;
+		else
+			exynos_pmu_read(pm_info->wakeup_stat[i], &wss);
+
+		if (!wss)
+			continue;
+
+		exynos_show_wakeup_reason_sysint(wss, &pm_info->ws_names[i]);
+	}
+}
+
 static void exynos_show_wakeup_reason(bool sleep_abort)
 {
 	unsigned int wakeup_stat;
@@ -151,10 +200,10 @@ static void exynos_show_wakeup_reason(bool sleep_abort)
 	exynos_pmu_read(pm_info->wakeup_stat[0], &wakeup_stat);
 	exynos_show_wakeup_registers(wakeup_stat);
 
+	exynos_show_wakeup_reason_detail(wakeup_stat);
+
 	if (wakeup_stat & WAKEUP_STAT_RTC_ALARM)
 		pr_info("%s Resume caused by RTC alarm\n", EXYNOS_PM_PREFIX);
-	else if (wakeup_stat & WAKEUP_STAT_EINT)
-		exynos_show_wakeup_reason_eint();
 	else {
 		for (i = 0; i < pm_info->num_wakeup_stat; i++) {
 			exynos_pmu_read(pm_info->wakeup_stat[i], &wakeup_stat);
@@ -430,6 +479,44 @@ static void __init exynos_pm_debugfs_init(void)
 }
 #endif
 
+static void parse_dt_wakeup_stat_names(struct device_node *np)
+{
+	struct device_node *root, *child;
+	int ret;
+	int size, n, idx = 0;
+
+	root = of_find_node_by_name(np, "wakeup_stats");
+	n = of_get_child_count(root);
+
+	if (pm_info->num_wakeup_stat != n || !n) {
+		pr_err("%s: failed to get wakeup_stats(%d)\n", __func__, n);
+		return;
+	}
+
+	pm_info->ws_names = kzalloc(sizeof(*pm_info->ws_names)* n, GFP_KERNEL);
+	if (!pm_info->ws_names)
+		return;
+
+	for_each_child_of_node(root, child) {
+		size = of_property_count_strings(child, "ws-name");
+		if (size <= 0 || size > 32) {
+			pr_err("%s: failed to get wakeup_stat name cnt(%d)\n",
+					__func__, size);
+			return;
+		}
+
+		ret = of_property_read_string_array(child, "ws-name",
+				pm_info->ws_names[idx].name, size);
+		if (ret < 0) {
+			pr_err("%s: failed to read wakeup_stat name(%d)\n",
+					__func__, ret);
+			return;
+		}
+
+		idx++;
+	}
+}
+
 static __init int exynos_pm_drvinit(void)
 {
 	int ret;
@@ -568,6 +655,7 @@ static __init int exynos_pm_drvinit(void)
 			pm_info->wakeup_stat = kzalloc(sizeof(unsigned int) * ret, GFP_KERNEL);
 			of_property_read_u32_array(np, "wakeup_stat", pm_info->wakeup_stat, ret);
 		}
+		parse_dt_wakeup_stat_names(np);
 	} else {
 		pr_err("%s %s: failed to have populated device tree\n",
 					EXYNOS_PM_PREFIX, __func__);
