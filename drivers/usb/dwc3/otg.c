@@ -706,6 +706,7 @@ int dwc3_otg_init(struct dwc3 *dwc)
 #if defined(CONFIG_TYPEC_DEFAULT)
 	struct intf_typec	*typec;
 	struct typec_partner_desc partner;
+	memset(&partner, 0x00, sizeof(partner));
 #endif
 
 	dev_info(dwc->dev, "%s\n", __func__);
