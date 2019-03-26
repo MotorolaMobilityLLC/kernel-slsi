@@ -104,16 +104,9 @@ static void dbg_snapshot_report_reason(unsigned int val)
 		__raw_writel(val, dbg_snapshot_get_base_vaddr() + DSS_OFFSET_EMERGENCY_REASON);
 }
 
-void dbg_snapshot_set_debug_level_reg(void)
-{
-	if (dbg_snapshot_get_enable("header"))
-		__raw_writel(dss_desc.debug_level | DSS_DEBUG_LEVEL_PREFIX,
-			dbg_snapshot_get_base_vaddr() + DSS_OFFSET_DEBUG_LEVEL);
-}
-
 int dbg_snapshot_get_debug_level_reg(void)
 {
-	int ret = DSS_DEBUG_LEVEL_NONE;
+	int ret = DSS_DEBUG_LEVEL_MID;
 
 	if (dbg_snapshot_get_enable("header")) {
 		int val = __raw_readl(dbg_snapshot_get_base_vaddr() + DSS_OFFSET_DEBUG_LEVEL);
