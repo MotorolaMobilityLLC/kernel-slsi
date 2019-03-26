@@ -3383,7 +3383,7 @@
 		/* BAAW-P-APM-SHUB */
 		baaw,baaw-p-apm-chub = <0x40300 0x40800 0x11900>;
 		/* none, pass, os.checked.bin, Exynos9610.bin */
-		os-type = "os.checked.bin";
+		os-type = "os.checked_0.bin";
 		reset-mode = "block";
 	};
 
