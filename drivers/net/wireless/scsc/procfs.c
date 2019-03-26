@@ -14,6 +14,7 @@
 #include "hip.h"
 #include "netif.h"
 #include "ioctl.h"
+#include "nl80211_vendor.h"
 
 #include "mib.h"
 
@@ -1044,6 +1045,19 @@ static int slsi_procfs_tcp_ack_suppression_show(struct seq_file *m, void *v)
 	return 0;
 }
 
+static ssize_t slsi_procfs_nan_mac_addr_read(struct file *file,	char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char              buf[20];
+	char              nan_mac[ETH_ALEN];
+	int               pos = 0;
+	struct slsi_dev  *sdev = (struct slsi_dev *)file->private_data;
+
+	SLSI_UNUSED_PARAMETER(file);
+	slsi_nan_get_mac(sdev, nan_mac);
+	pos = scnprintf(buf, sizeof(buf), "%pM", nan_mac);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 SLSI_PROCFS_SEQ_FILE_OPS(vifs);
 SLSI_PROCFS_SEQ_FILE_OPS(mac_addr);
 SLSI_PROCFS_WRITE_FILE_OPS(uapsd);
@@ -1066,6 +1080,8 @@ SLSI_PROCFS_READ_FILE_OPS(sta_bss);
 SLSI_PROCFS_READ_FILE_OPS(big_data);
 SLSI_PROCFS_READ_FILE_OPS(throughput_stats);
 SLSI_PROCFS_SEQ_FILE_OPS(tcp_ack_suppression);
+SLSI_PROCFS_READ_FILE_OPS(nan_mac_addr);
+
 
 int slsi_create_proc_dir(struct slsi_dev *sdev)
 {
@@ -1102,6 +1118,7 @@ int slsi_create_proc_dir(struct slsi_dev *sdev)
 		SLSI_PROCFS_ADD_FILE(sdev, big_data, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		SLSI_PROCFS_ADD_FILE(sdev, throughput_stats, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		SLSI_PROCFS_SEQ_ADD_FILE(sdev, tcp_ack_suppression, sdev->procfs_dir, S_IRUSR | S_IRGRP);
+		SLSI_PROCFS_ADD_FILE(sdev, nan_mac_addr, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		return 0;
 	}
 
@@ -1139,6 +1156,7 @@ void slsi_remove_proc_dir(struct slsi_dev *sdev)
 		SLSI_PROCFS_REMOVE_FILE(big_data, sdev->procfs_dir);
 		SLSI_PROCFS_REMOVE_FILE(throughput_stats, sdev->procfs_dir);
 		SLSI_PROCFS_REMOVE_FILE(tcp_ack_suppression, sdev->procfs_dir);
+		SLSI_PROCFS_REMOVE_FILE(nan_mac_addr, sdev->procfs_dir);
 
 		(void)snprintf(dir, sizeof(dir), "driver/unifi%d", sdev->procfs_instance);
 		remove_proc_entry(dir, NULL);
