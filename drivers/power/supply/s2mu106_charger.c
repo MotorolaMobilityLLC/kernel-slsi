@@ -54,6 +54,9 @@ static void s2mu106_test_read(struct i2c_client *i2c)
 	s2mu106_read_reg(i2c, 0x35, &data);
 	sprintf(str+strlen(str), "0x35:0x%02x, ", data);
 
+	s2mu106_read_reg(i2c, 0x3D, &data);
+	sprintf(str+strlen(str), "0x3D:0x%02x, ", data);
+
 	s2mu106_read_reg(i2c, 0x71, &data);
 	sprintf(str+strlen(str), "0x71:0x%02x, ", data);
 
