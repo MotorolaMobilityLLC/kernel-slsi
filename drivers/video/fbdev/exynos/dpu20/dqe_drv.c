@@ -1240,7 +1240,8 @@ int decon_dqe_set_color_transform(struct decon_color_transform_info *transform)
 {
 	int ret = 0;
 	int i, j;
-	int input[16], temp[16];
+	int input[16] = {0,};
+	int temp[16] = {0,};
 	struct dqe_device *dqe = dqe_drvdata;
 	struct decon_device *decon = get_decon_drvdata(0);
 	int diag_matrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
