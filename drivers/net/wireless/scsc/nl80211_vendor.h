@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #ifndef __SLSI_NL80211_VENDOR_H_
@@ -1117,6 +1117,35 @@ enum slsi_wifi_hal_api_return_types {
 	WIFI_HAL_ERROR_OUT_OF_MEMORY = -9
 };
 
+enum slsi_wifi_hal_nan_status_type {
+	/* NAN Protocol Response Codes */
+	SLSI_HAL_NAN_STATUS_SUCCESS = 0,
+	/*  NAN Discovery Engine/Host driver failures */
+	SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE = 1,
+	/*  NAN OTA failures */
+	SLSI_HAL_NAN_STATUS_PROTOCOL_FAILURE = 2,
+	/* if the publish/subscribe id is invalid */
+	SLSI_HAL_NAN_STATUS_INVALID_PUBLISH_SUBSCRIBE_ID = 3,
+	/* If we run out of resources allocated */
+	SLSI_HAL_NAN_STATUS_NO_RESOURCE_AVAILABLE = 4,
+	/* if invalid params are passed */
+	SLSI_HAL_NAN_STATUS_INVALID_PARAM = 5,
+	/*  if the requestor instance id is invalid */
+	SLSI_HAL_NAN_STATUS_INVALID_REQUESTOR_INSTANCE_ID = 6,
+	/*  if the ndp id is invalid */
+	SLSI_HAL_NAN_STATUS_INVALID_NDP_ID = 7,
+	/* if NAN is enabled when wifi is turned off */
+	SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED = 8,
+	/* if over the air ack is not received */
+	SLSI_HAL_NAN_STATUS_NO_OTA_ACK = 9,
+	/* If NAN is already enabled and we are try to re-enable the same */
+	SLSI_HAL_NAN_STATUS_ALREADY_ENABLED = 10,
+	/* If followup message internal queue is full */
+	SLSI_HAL_NAN_STATUS_FOLLOWUP_QUEUE_FULL = 11,
+	/* Unsupported concurrency session enabled, NAN disabled notified */
+	SLSI_HAL_NAN_STATUS_UNSUPPORTED_CONCURRENCY_NAN_DISABLED = 12
+};
+
 enum slsi_nan_status_type {
 	/* NAN Protocol Response Codes */
 	NAN_STATUS_SUCCESS = 0,
@@ -1693,6 +1722,8 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
+void slsi_nan_get_mac(struct slsi_dev *sdev, char *nan_mac_addr);
+
 
 static inline bool slsi_is_gscan_id(u16 scan_id)
 {
