@@ -40,10 +40,10 @@
 
 static struct fimc_is_sensor_cfg config_module_12a10[] = {
 			/* width, height, fps, settle, mode, lane, speed, interleave, pd_mode */
-	FIMC_IS_SENSOR_CFG(4096, 3072, 30, 0, 0, CSI_DATA_LANES_4, 1144, CSI_MODE_VC_DT, PD_NONE,
+	FIMC_IS_SENSOR_CFG(4096, 3072, 30, 0, 0, CSI_DATA_LANES_4, 1144, CSI_MODE_VC_DT, PD_MSPD,
 		VC_IN(0, HW_FORMAT_RAW10, 4096, 3072), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 4096, 3072),
-		VC_IN(1, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
-		VC_IN(2, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0),
+		VC_IN(1, HW_FORMAT_RAW10, 256, 384), VC_OUT(HW_FORMAT_USER, VC_PRIVATE, 256, 384),
+		VC_IN(2, HW_FORMAT_UNKNOWN, 0, 0), VC_OUT(HW_FORMAT_USER, VC_MIPISTAT, 256, 384),
 		VC_IN(0, HW_FORMAT_EMBEDDED_8BIT, 0, 0), VC_OUT(HW_FORMAT_UNKNOWN, VC_NOTHING, 0, 0)),
 	FIMC_IS_SENSOR_CFG(2048, 1536, 60, 0, 1, CSI_DATA_LANES_4, 1144, CSI_MODE_VC_DT, PD_NONE,
 		VC_IN(0, HW_FORMAT_RAW10, 2048, 1536), VC_OUT(HW_FORMAT_RAW10, VC_NOTHING, 2048, 1536),
@@ -346,19 +346,19 @@ static int __init sensor_module_12a10_probe(struct platform_device *pdev)
 				module->vc_extra_info[t].stat_type
 					= VC_STAT_TYPE_PAFSTAT_FLOATING;
 
-				module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_ULTRA_PD_TAIL;
-				module->vc_extra_info[t].max_width = 4032;
-				module->vc_extra_info[t].max_height = 1;
-				module->vc_extra_info[t].max_element = 1;
+				module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_OV_PDAF;
+				module->vc_extra_info[t].max_width = 256;
+				module->vc_extra_info[t].max_height = 768;
+				module->vc_extra_info[t].max_element = 2;
 				break;
 			case VC_BUF_DATA_TYPE_GENERAL_STAT2:
 				module->vc_extra_info[t].stat_type
 					= VC_STAT_TYPE_PAFSTAT_STATIC;
 
-				module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_ULTRA_PD_TAIL;
-				module->vc_extra_info[t].max_width = 127680;
-				module->vc_extra_info[t].max_height = 1;
-				module->vc_extra_info[t].max_element = 1;
+				module->vc_extra_info[t].sensor_mode = VC_SENSOR_MODE_OV_PDAF;
+				module->vc_extra_info[t].max_width = 256;
+				module->vc_extra_info[t].max_height = 768;
+				module->vc_extra_info[t].max_element = 2;
 				break;
 			}
 		}
