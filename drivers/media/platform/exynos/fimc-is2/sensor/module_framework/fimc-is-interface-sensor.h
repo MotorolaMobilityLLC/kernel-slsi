@@ -153,6 +153,9 @@ enum itf_vc_sensor_mode {
 	/* 3HDR */
 	VC_SENSOR_MODE_3HDR_LSI = 600,
 	VC_SENSOR_MODE_3HDR_IMX,
+
+	/* OV PDAF */
+	VC_SENSOR_MODE_OV_PDAF = 700,
 };
 
 struct vc_buf_info_t {
@@ -299,6 +302,8 @@ typedef struct {
 	unsigned int cur_coarse_integration_time_step;
 
 	unsigned int cur_frame_us_time;
+	unsigned int cur_pos_x;
+	unsigned int cur_pos_y;
 	unsigned int cur_width;
 	unsigned int cur_height;
 	unsigned int pre_width;
@@ -801,6 +806,8 @@ struct fimc_is_cis_interface_ops {
 				u32 *max_margin_cit);
 
 	int (*get_sensor_cur_size)(struct fimc_is_sensor_interface *itf,
+				u32 *cur_pos_x,
+				u32 *cur_pos_y,
 				u32 *cur_width,
 				u32 *cur_height);
 

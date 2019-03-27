@@ -25,6 +25,11 @@ struct sensor_pll_info_compact {
 	u32 line_length_pck;
 };
 
+struct sensor_crop_info {
+	u32 out_crop_x;
+	u32 out_crop_y;
+};
+
 struct sensor_pll_info {
 	u32 ext_clk;
 	u32 vt_pix_clk_div;
