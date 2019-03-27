@@ -4733,6 +4733,11 @@ int slsi_set_mib_wifi_sharing_5ghz_channel(struct slsi_dev *sdev, u16 psid, int 
 	mib_entry.value.u.octetValue.dataLength = 8;
 	mib_entry.value.u.octetValue.data = kmalloc(64, GFP_KERNEL);
 
+	if (!mib_entry.value.u.octetValue.data) {
+		error = -ENOMEM;
+		goto exit;
+	}
+
 	for (i = 0; i < 8; i++)
 		mib_entry.value.u.octetValue.data[i] = sdev->wifi_sharing_5ghz_channel[i];
 
