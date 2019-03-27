@@ -187,7 +187,7 @@ int fimc_is_hw_mcsc_update_cac_register(struct fimc_is_hw_ip *hw_ip,
 	}
 
 	sensor_position = hw_ip->hardware->sensor_position[instance];
-	setfile = hw_mcsc->cur_setfile[sensor_position];
+	setfile = hw_mcsc->cur_setfile[sensor_position][instance];
 
 	/* calculate cac parameters */
 #ifdef FIXED_TDNR_NOISE_INDEX
@@ -536,7 +536,7 @@ int fimc_is_hw_mcsc_update_uvsp_register(struct fimc_is_hw_ip *hw_ip,
 		return ret;
 
 	sensor_position = hw_ip->hardware->sensor_position[instance];
-	setfile = hw_mcsc->cur_setfile[sensor_position];
+	setfile = hw_mcsc->cur_setfile[sensor_position][instance];
 	cal_info = &hw_ip->hardware->cal_info[sensor_position];
 
 	sdbg_hw(10, "TEST: get_lnr_intprl(11, 20, 1, 1, 3) = %d\n",
