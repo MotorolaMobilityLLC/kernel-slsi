@@ -1320,6 +1320,8 @@ int get_sensor_frame_timing(struct fimc_is_sensor_interface *itf,
 }
 
 int get_sensor_cur_size(struct fimc_is_sensor_interface *itf,
+			u32 *cur_pos_x,
+			u32 *cur_pos_y,
 			u32 *cur_width,
 			u32 *cur_height)
 {
@@ -1334,6 +1336,8 @@ int get_sensor_cur_size(struct fimc_is_sensor_interface *itf,
 	FIMC_BUG(!sensor_peri);
 	FIMC_BUG(!sensor_peri->cis.cis_data);
 
+	*cur_pos_x = sensor_peri->cis.cis_data->cur_pos_x;
+	*cur_pos_y = sensor_peri->cis.cis_data->cur_pos_y;
 	*cur_width = sensor_peri->cis.cis_data->cur_width;
 	*cur_height = sensor_peri->cis.cis_data->cur_height;
 
@@ -3635,6 +3639,8 @@ int init_sensor_interface(struct fimc_is_sensor_interface *itf)
 	itf->paf_itf_ops.reserved[1] = paf_reserved;
 	itf->paf_itf_ops.reserved[2] = paf_reserved;
 	itf->paf_itf_ops.reserved[3] = paf_reserved;
+	itf->paf_itf_ops.reserved[4] = paf_reserved;
+	itf->paf_itf_ops.reserved[5] = paf_reserved;
 
 	/* MIPI-CSI interface */
 	itf->csi_itf_ops.get_vc_dma_buf = get_vc_dma_buf;
