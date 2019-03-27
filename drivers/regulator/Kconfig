@@ -745,6 +745,14 @@ config REGULATOR_S2MPU09
 	 via I2C bus. S2MPU09 is comprised of high efficient Buck converters
 	 including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
 
+config REGULATOR_S2MPU09_BUCK8_1V35
+	tristate "    Set S2MPU09 BUCK8 output 1.35V"
+	depends on REGULATOR_S2MPU09
+	default n
+	help
+	 Enable config to set S2MPU09 BUCK8 output voltage to 1.35V from the
+	 default vaule (1.3V).
+
 config REGULATOR_S2MPB02
 	tristate "Samsung S2MPB02 regulator"
 	depends on MFD_S2MPB02
