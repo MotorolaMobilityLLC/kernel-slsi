@@ -736,6 +736,14 @@ static int s2mpu09_pmic_probe(struct platform_device *pdev)
 	pr_info("%s s2mpu09 pmic driver Loading end\n", __func__);
 	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_RTCBUF, 0x4, 0x4);
 
+#ifdef CONFIG_REGULATOR_S2MPU09_BUCK8_1V35
+	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_B8OUT1, 0xA8, 0xff);
+	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_B8OUT2, 0xA8, 0xff);
+#else
+	/* BUCK8 DVS-L voltage: 1.25V */
+	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_B8OUT2, 0x98, 0xff);
+#endif
+
 	return 0;
 err:
 	for (i = 0; i < S2MPU09_REGULATOR_MAX; i++)
