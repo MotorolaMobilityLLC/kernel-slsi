@@ -489,6 +489,31 @@ const struct sensor_pll_info_compact sensor_12a10_pllinfo_A_1280x720_120fps = {
 	0x0428, /* line_length_pck	(0x380c) */
 };
 
+const struct sensor_crop_info sensor_12a10_crop_info_A_4096x3072_30fps = {
+	0, /*  cal_crop_x */
+	0, /*  cal_crop_y */
+};
+#if 0
+const struct sensor_crop_info sensor_12a10_crop_info_A_2048x1536_60fps = {
+	0, /*  cal_crop_x */
+	0, /*  cal_crop_y */
+};
+
+const struct sensor_crop_info sensor_12a10_crop_info_A_2000x1124_60fps = {
+	24, /*  cal_crop_x */
+	206, /*  cal_crop_y */
+};
+
+const struct sensor_crop_info sensor_12a10_crop_info_A_1920x1080_60fps = {
+	64, /*  cal_crop_x */
+	228, /*  cal_crop_y */
+};
+
+const struct sensor_crop_info sensor_12a10_crop_info_A_1280x720_120fps = {
+	384, /*  cal_crop_x */
+	408, /*  cal_crop_y */
+};
+#endif
 static const u32 *sensor_12a10_setfiles_A[] = {
 	sensor_12a10_setfile_A_4096x3072_30fps,
 	sensor_12a10_setfile_A_2048x1536_60fps,
@@ -511,5 +536,13 @@ static const struct sensor_pll_info_compact *sensor_12a10_pllinfos_A[] = {
 	/*&sensor_12a10_pllinfo_A_2000x1124_60fps,
 	&sensor_12a10_pllinfo_A_1920x1080_60fps,*/
 	&sensor_12a10_pllinfo_A_1280x720_120fps,
+};
+
+static const struct sensor_crop_info *sensor_12a10_crop_infos_A[] = {
+	&sensor_12a10_crop_info_A_4096x3072_30fps,
+	/*&sensor_12a10_crop_info_A_2048x1536_60fps,
+	&sensor_12a10_crop_info_A_2000x1124_60fps,
+	&sensor_12a10_crop_info_A_1920x1080_60fps,
+	&sensor_12a10_crop_info_A_1280x720_120fps,*/
 };
 #endif

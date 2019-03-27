@@ -50,6 +50,7 @@ static u32 sensor_12a10_global_size;
 static const u32 **sensor_12a10_setfiles;
 static const u32 *sensor_12a10_setfile_sizes;
 static const struct sensor_pll_info_compact **sensor_12a10_pllinfos;
+static const struct sensor_crop_info **sensor_12a10_crop_infos;
 static u32 sensor_12a10_max_setfile_num;
 
 static void sensor_12a10_cis_data_calculation(const struct sensor_pll_info_compact *pll_info_compact, cis_shared_data *cis_data)
@@ -365,6 +366,13 @@ int sensor_12a10_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	}
 
 	sensor_12a10_cis_data_calculation(sensor_12a10_pllinfos[mode], cis->cis_data);
+
+	if (cis->cis_data->is_data.paf_mode) {
+		cis->cis_data->cur_pos_x = 0;
+		cis->cis_data->cur_pos_y = 0;
+		info("get cur_pos_x/y value for MS paf mode x: %d, y: %d\n",
+			cis->cis_data->cur_pos_x, cis->cis_data->cur_pos_y);
+	}
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
 
@@ -1806,6 +1814,7 @@ static int cis_12a10_probe(struct i2c_client *client,
 		sensor_12a10_setfile_sizes = sensor_12a10_setfile_A_sizes;
 		sensor_12a10_pllinfos = sensor_12a10_pllinfos_A;
 		sensor_12a10_max_setfile_num = ARRAY_SIZE(sensor_12a10_setfiles_A);
+		sensor_12a10_crop_infos = sensor_12a10_crop_infos_A;
 	}
 
 	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
