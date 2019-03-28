@@ -12,6 +12,11 @@
 #include <linux/soc/samsung/exynos-soc.h>
 #endif
 
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+#include <linux/if_ether.h>
+#include <linux/in.h>
+#endif
+
 #include <scsc/scsc_mx.h>
 #include "mgt.h"
 #include "debug.h"
@@ -3023,6 +3028,96 @@ int  slsi_set_arp_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
 	return ret;
 }
 
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+static int slsi_set_opt_out_unicast_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
+{
+	struct slsi_mlme_pattern_desc pattern_desc;
+	u8 pkt_filters_len = 0;
+	int ret = 0;
+	struct slsi_mlme_pkt_filter_elem pkt_filter_elem;
+
+	/* IPv4 packet */
+	pattern_desc.offset = 0; /* destination mac address*/
+	pattern_desc.mask_length = ETH_ALEN;
+	memset(pattern_desc.mask, 0xff, ETH_ALEN);
+	memcpy(pattern_desc.pattern, sdev->hw_addr, ETH_ALEN);
+
+	slsi_create_packet_filter_element(SLSI_OPT_OUT_ALL_FILTER_ID,
+					  FAPI_PACKETFILTERMODE_OPT_OUT_SLEEP,
+					  1, &pattern_desc,
+					  &pkt_filter_elem, &pkt_filters_len);
+
+	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, 1, &pkt_filter_elem);
+
+	return ret;
+}
+
+static int  slsi_set_opt_in_tcp4_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
+{
+	struct slsi_mlme_pattern_desc pattern_desc[2];
+	u8 pkt_filters_len = 0;
+	int ret = 0;
+	struct slsi_mlme_pkt_filter_elem pkt_filter_elem;
+
+	/* IPv4 packet */
+	pattern_desc[0].offset = ETH_ALEN + ETH_ALEN; /* ethhdr->h_proto */
+	pattern_desc[0].mask_length = 2;
+	pattern_desc[0].mask[0] = 0xff; /* Big endian 0xffff */
+	pattern_desc[0].mask[1] = 0xff;
+	pattern_desc[0].pattern[0] = 0x08; /* Big endian 0x0800 */
+	pattern_desc[0].pattern[1] = 0x00;
+
+	/* dest.addr(6) + src.addr(6) + Protocol(2) = sizeof(struct ethhdr) = 14 */
+	/* VER(1) + Svc(1) + TotalLen(2) + ID(2) + Flag&Fragmentation(2) + TTL(1) = 9 */
+	pattern_desc[1].offset = 23; /* iphdr->protocol */
+	pattern_desc[1].mask_length = 1;
+	pattern_desc[1].mask[0] = 0xff;
+	pattern_desc[1].pattern[0] = IPPROTO_TCP; /* 0x11 */
+	slsi_create_packet_filter_element(SLSI_OPT_IN_TCP4_FILTER_ID,
+					  FAPI_PACKETFILTERMODE_OPT_IN_SLEEP,
+					  2,
+					  pattern_desc,
+					  &pkt_filter_elem,
+					  &pkt_filters_len);
+
+	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, 1, &pkt_filter_elem);
+
+	return ret;
+}
+
+static int  slsi_set_opt_in_tcp6_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
+{
+	struct slsi_mlme_pattern_desc pattern_desc[2];
+	u8 pkt_filters_len = 0;
+	int ret = 0;
+	struct slsi_mlme_pkt_filter_elem pkt_filter_elem;
+
+	/* IPv6 packet */
+	pattern_desc[0].offset = ETH_ALEN + ETH_ALEN; /* ethhdr->h_proto */
+	pattern_desc[0].mask_length = 2;
+	pattern_desc[0].mask[0] = 0xff; /* Big endian 0xffff */
+	pattern_desc[0].mask[1] = 0xff;
+	pattern_desc[0].pattern[0] = 0x86; /* Big endian 0x86DD */
+	pattern_desc[0].pattern[1] = 0xdd;
+
+	pattern_desc[1].offset = sizeof(struct ethhdr) + 6; /*filtering on ipv6->next header*/
+	pattern_desc[1].mask_length = 1;
+	pattern_desc[1].mask[0] = 0xff;
+	pattern_desc[1].pattern[0] = IPPROTO_TCP;
+
+	slsi_create_packet_filter_element(SLSI_OPT_IN_TCP6_FILTER_ID,
+					  FAPI_PACKETFILTERMODE_OPT_IN_SLEEP,
+					  2,
+					  pattern_desc,
+					  &pkt_filter_elem,
+					  &pkt_filters_len);
+
+	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, 1, &pkt_filter_elem);
+
+	return ret;
+}
+#endif
+
 static int  slsi_set_multicast_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 {
 	struct slsi_mlme_pattern_desc pattern_desc;
@@ -3052,10 +3147,15 @@ static int  slsi_set_multicast_packet_filters(struct slsi_dev *sdev, struct net_
 	for (i = 0; i < mc_filter_count; i++) {
 		SLSI_ETHER_COPY(pattern_desc.pattern, ndev_vif->sta.regd_mc_addr[i]);
 		mc_filter_id = SLSI_REGD_MC_FILTER_ID + i;
-
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+		slsi_create_packet_filter_element(mc_filter_id,
+						  FAPI_PACKETFILTERMODE_OPT_IN,
+						  1, &pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
+#else
 		slsi_create_packet_filter_element(mc_filter_id,
 						  FAPI_PACKETFILTERMODE_OPT_IN | FAPI_PACKETFILTERMODE_OPT_IN_SLEEP,
 						  1, &pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
+#endif
 		num_filters++;
 	}
 
@@ -3095,6 +3195,12 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 #endif
 	}
 
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+	num_filters++; /*All OPT OUT*/
+	num_filters++; /*TCP IPv4 OPT IN*/
+	num_filters++; /*TCP IPv6 OPT IN*/
+#endif
+
 	pkt_filter_elem = kmalloc((num_filters * sizeof(struct slsi_mlme_pkt_filter_elem)), GFP_KERNEL);
 	if (!pkt_filter_elem) {
 		SLSI_NET_ERR(dev, "ERROR Memory allocation failure");
@@ -3119,6 +3225,19 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	slsi_create_packet_filter_element(SLSI_ALL_BC_MC_FILTER_ID, 0, 0, NULL, &pkt_filter_elem[num_filters], &pkt_filters_len);
 	num_filters++;
 
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+	slsi_create_packet_filter_element(SLSI_OPT_OUT_ALL_FILTER_ID, 0, 0, NULL,
+					  &pkt_filter_elem[num_filters], &pkt_filters_len);
+	num_filters++;
+	slsi_create_packet_filter_element(SLSI_OPT_IN_TCP4_FILTER_ID, 0, 0, NULL,
+					  &pkt_filter_elem[num_filters], &pkt_filters_len);
+	num_filters++;
+	slsi_create_packet_filter_element(SLSI_OPT_IN_TCP6_FILTER_ID, 0, 0, NULL,
+					  &pkt_filter_elem[num_filters], &pkt_filters_len);
+	num_filters++;
+	SLSI_INFO(sdev, "Enhanced packet filter is removed.");
+#endif
+
 	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, num_filters, pkt_filter_elem);
 	kfree(pkt_filter_elem);
 	return ret;
@@ -3141,6 +3260,18 @@ int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+	ret = slsi_set_opt_out_unicast_packet_filter(sdev, dev);
+	if (ret)
+		return ret;
+	ret = slsi_set_opt_in_tcp4_packet_filter(sdev, dev);
+	if (ret)
+		return ret;
+	ret = slsi_set_opt_in_tcp6_packet_filter(sdev, dev);
+	if (ret)
+		return ret;
+	SLSI_INFO(sdev, "Enhanced packet filter is installed.");
+#endif
 	return slsi_set_common_packet_filters(sdev, dev);
 }
 
