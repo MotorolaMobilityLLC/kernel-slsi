@@ -637,9 +637,6 @@ int slsi_sched_scan_start(struct wiphy                       *wiphy,
 	size_t            scan_ie_len;
 	bool              strip_wsc = false;
 	bool              strip_p2p = false;
-#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
-	u8 mac_addr_mask[ETH_ALEN];
-#endif
 
 	if (slsi_is_test_mode_enabled()) {
 		SLSI_NET_INFO(dev, "Skip sending signal, WlanLite FW does not support MLME_ADD_SCAN.request\n");
@@ -702,14 +699,6 @@ int slsi_sched_scan_start(struct wiphy                       *wiphy,
 	}
 
 	slsi_purge_scan_results(ndev_vif, SLSI_SCAN_SCHED_ID);
-
-#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
-	/* Mac Randomization is not currently advertised for scheduled scan, so do not randomise. */
-	sdev->scan_addr_set = 0;
-	memset(mac_addr_mask, 0xFF, ETH_ALEN);
-	slsi_set_mac_randomisation_mask(sdev, mac_addr_mask);
-#endif
-
 	r = slsi_mlme_add_sched_scan(sdev, dev, request, scan_ie, scan_ie_len);
 
 	if (strip_p2p || strip_wsc)
