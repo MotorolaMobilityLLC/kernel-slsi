@@ -372,6 +372,29 @@ out:
 	return err;
 }
 
+static loff_t sdcardfs_wrapper_file_llseek(struct file *file, loff_t offset, int whence)
+{
+	loff_t pos;
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = d_inode(dentry);
+	struct file *lower_file;
+
+	lower_file = sdcardfs_lower_file(file);
+
+	if (lower_file) {
+		if (sizeof(loff_t) > sizeof(long))
+			inode_lock(inode);
+		fsstack_copy_inode_size(inode, file_inode(lower_file));
+		fsstack_copy_attr_times(inode, file_inode(lower_file));
+		if (sizeof(loff_t) > sizeof(long))
+			inode_unlock(inode);
+	}
+	pos = generic_file_llseek(file, offset, whence);
+//	printk(KERN_ERR "sdcardfs file llseek %s, whence: %lld, returns:%lld\n", dentry->d_name.name, whence, pos);
+
+	return pos;
+}
+
 /*
  * Sdcardfs read_iter, redirect modified iocb to lower read_iter
  */
@@ -433,7 +456,7 @@ out:
 }
 
 const struct file_operations sdcardfs_main_fops = {
-	.llseek		= generic_file_llseek,
+	.llseek		= sdcardfs_wrapper_file_llseek,
 	.read		= sdcardfs_read,
 	.write		= sdcardfs_write,
 	.unlocked_ioctl	= sdcardfs_unlocked_ioctl,
