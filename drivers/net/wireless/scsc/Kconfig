@@ -189,3 +189,10 @@ config SCSC_WLAN_MHS_STATIC_INTERFACE
         ---help---
           This option tells if AP interface has been created
           statically or dynamically.
+
+config SCSC_WLAN_ENHANCED_PKT_FILTER
+        bool "Enable enhanced packet filtering in suspend"
+        default n
+        ---help---
+          This option tells if UDP packet filtering in suspend is
+          supported or not.
