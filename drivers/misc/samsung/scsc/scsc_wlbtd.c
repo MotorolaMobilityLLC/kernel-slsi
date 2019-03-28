@@ -40,7 +40,8 @@ static int msg_from_wlbtd_cb(struct sk_buff *skb, struct genl_info *info)
 			SCSC_TAG_ERR(WLBTD, "ATTR_INT: %u\n", status);
 	}
 
-	complete(&event_done);
+	if (!completion_done(&event_done))
+		complete(&event_done);
 
 	return 0;
 }
@@ -68,12 +69,29 @@ static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	if (strstr(data, "scsc_log_fw_panic") != NULL) {
+	/* completion cases :
+	 * 1) for trigger scsc_log_fw_panic only one response from wlbtd when tar done
+	 *    ---> complete fw_panic_done
+	 * 2) for all other triggers, we get 2 responses
+	 *	a) Once .sbl is written
+	 *    ---> complete event_done
+	 *	b) 2nd time when sable tar is done
+	 *	   ignore this response and Don't complete
+	 * 3) When we get rapid requests for SABLE generation,
+	 *    to serialise while processing current request,
+	 *    we ignore requests other than "fw_panic" in wlbtd and
+	 *    send a msg "ignoring" back to kernel.
+	 *    ---> complete event_done
+	 * 4) when something failed, file not found
+	 *    ---> complete the completion with waiter(s)
+	 */
+
+	if (!completion_done(&fw_panic_done)) {
 		SCSC_TAG_INFO(WLBTD, "completing fw_panic_done\n");
 		complete(&fw_panic_done);
 	}
 
-	if (strstr(data, ".sbl") != NULL) {
+	if (!completion_done(&event_done)) {
 		SCSC_TAG_INFO(WLBTD, "completing event_done\n");
 		complete(&event_done);
 	}
