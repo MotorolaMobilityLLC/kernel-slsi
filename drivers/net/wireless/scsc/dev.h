@@ -448,7 +448,12 @@ enum slsi_filter_id {
 #ifndef CONFIG_SCSC_WLAN_DISABLE_NAT_KA
 	SLSI_NAT_IPSEC_FILTER_ID,						/* 0x84 */
 #endif
-	SLSI_REGD_MC_FILTER_ID = 0x85
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+	SLSI_OPT_OUT_ALL_FILTER_ID,						/* 0x85 */
+	SLSI_OPT_IN_TCP4_FILTER_ID,						/* 0x86 */
+	SLSI_OPT_IN_TCP6_FILTER_ID,						/* 0x87 */
+#endif
+	SLSI_REGD_MC_FILTER_ID,							/* 0x88 */
 };
 #else
 
@@ -462,7 +467,12 @@ enum slsi_filter_id {
 #ifndef CONFIG_SCSC_WLAN_DISABLE_NAT_KA
 	SLSI_NAT_IPSEC_FILTER_ID,						/* 0x85 */
 #endif
-	SLSI_REGD_MC_FILTER_ID = 0x86
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+	SLSI_OPT_OUT_ALL_FILTER_ID,						/* 0x86 */
+	SLSI_OPT_IN_TCP4_FILTER_ID,						/* 0x87 */
+	SLSI_OPT_IN_TCP6_FILTER_ID,						/* 0x88 */
+#endif
+	SLSI_REGD_MC_FILTER_ID,							/* 0x89 */
 };
 
 #endif
