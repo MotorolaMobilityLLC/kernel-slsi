@@ -713,7 +713,7 @@
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
-	multi_ch = <1>;
+	multi_ch = <2>;
 	use_ssvc1_internal;
 	use_ssvc2_internal;
 	status = "okay";
@@ -736,23 +736,23 @@
 &fimc_is_sensor2 {
 	scenario = <SENSOR_SCENARIO_NORMAL>;	/* Normal, Vision, OIS etc */
 	interrupts = <0 327 0>, /* MIPI-CSI2 */
-		<0 333 0>, /* VC0 DMA2 */
+		<0 334 0>, /* VC0 DMA3 */
 		<0 333 0>, /* VC1 DMA2 */
 		<0 333 0>, /* VC2 DMA2 */
 		<0 333 0>; /* VC3 DMA2 */
 	id = <2>;
 	csi_ch = <2>;
-	dma_ch = <2 2 2 2>;
-	vc_ch = <0 1 2 3>;
+	dma_ch = <3 2 2 2>;
+	vc_ch = <1 1 2 3>;
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	multi_ch = <0>;
-	camif_mux_val = <0x000020FF>;
+	camif_mux_val = <0x005820FF>;
 	status = "okay";
 	sensor2_ch_mode0: sensor2-ch-mode0 {
-		reg = <0x14470000 0x100>, /* VC0 DMA2 */
-			<0x14470400 0x100>, /* VC0 DMA2 COMMON */
+		reg = <0x14480100 0x100>, /* VC0 DMA3 */
+			<0x14480400 0x100>, /* VC0 DMA3 COMMON */
 			<0x14470100 0x100>, /* VC1 DMA2 */
 			<0x14470400 0x100>, /* VC1 DMA2 COMMON */
 			<0x14470200 0x100>, /* VC2 DMA2 */
