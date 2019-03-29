@@ -17,6 +17,9 @@
 #if defined CONFIG_IFCONN_NOTIFIER
 #include <linux/ifconn/ifconn_notifier.h>
 #endif
+#if defined(CONFIG_TYPEC)
+#include <linux/usb/typec.h>
+#endif
 
 #include <linux/power_supply.h>
 
@@ -39,9 +42,7 @@
 #define S2MU106_HARD_RESET_DELAY_MS		(300)
 #define S2MU106_WAIT_RD_DETACH_DELAY_MS		(200)
 #define S2MU106_WAIT_ATTACH_DELAY_MS		(30)
-#if defined(CONFIG_DUAL_ROLE_USB_INTF)
 #define DUAL_ROLE_SET_MODE_WAIT_MS		(2000)
-#endif
 #define S2MU106_WATER_CHK_INTERVAL_TIME		(300)
 #define S2MU106_ATTACH_STATE_CHECK_TIME		(1000)
 
@@ -684,6 +685,16 @@ struct s2mu106_usbpd_data {
 	struct completion reverse_completion;
 	int try_state_change;
 	struct delayed_work role_swap_work;
+#elif defined(CONFIG_TYPEC)
+	struct typec_port *port;
+	struct typec_partner *partner;
+	struct usb_pd_identity partner_identity;
+	struct typec_capability typec_cap;
+	struct completion role_reverse_completion;
+	int typec_power_role;
+	int typec_data_role;
+	int typec_try_state_change;
+	struct delayed_work typec_role_swap_work;
 #endif
 	struct notifier_block type3_nb;
 	struct workqueue_struct *pdic_queue;
@@ -694,6 +705,7 @@ struct s2mu106_usbpd_data {
     int pm_cc1;
     int pm_cc2;
     int pm_chgin;
+    int pm_chgin_i;
 	struct power_supply_desc ccic_desc;
 	struct power_supply *psy_pm;
 	struct power_supply *psy_ccic;
@@ -709,9 +721,7 @@ extern void s2mu106_usbpd_set_muic_type(int type);
 #if defined(CONFIG_CCIC_NOTIFIER)
 extern void s2mu106_control_option_command(struct s2mu106_usbpd_data *usbpd_data, int cmd);
 #endif
-#if defined(CONFIG_DUAL_ROLE_USB_INTF)
 extern void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode);
-#endif
 extern void vbus_turn_on_ctrl(struct s2mu106_usbpd_data *usbpd_data, bool enable);
 extern int s2mu106_set_lpm_mode(struct s2mu106_usbpd_data *pdic_data);
 extern int s2mu106_set_normal_mode(struct s2mu106_usbpd_data *pdic_data);

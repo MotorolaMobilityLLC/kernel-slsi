@@ -78,8 +78,7 @@ static void s2mu106_src(struct i2c_client *i2c);
 static void s2mu106_snk(struct i2c_client *i2c);
 static void s2mu106_assert_rd(void *_data);
 static void s2mu106_assert_rp(void *_data);
-static int s2mu106_set_attach(struct s2mu106_usbpd_data *pdic_data, u8 mode);
-static int s2mu106_set_detach(struct s2mu106_usbpd_data *pdic_data, u8 mode);
+static void s2mu106_assert_drp(void *_data);
 static void s2mu106_usbpd_check_rid(struct s2mu106_usbpd_data *pdic_data);
 static int s2mu106_usbpd_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest);
 static int s2mu106_usbpd_write_reg(struct i2c_client *i2c, u8 reg, u8 value);
@@ -90,6 +89,8 @@ static void s2mu106_usbpd_notify_detach(struct s2mu106_usbpd_data *pdic_data);
 #endif
 static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data);
 static int s2mu106_usbpd_set_cc_control(struct s2mu106_usbpd_data  *pdic_data, int val);
+static void s2mu106_usbpd_set_rp_scr_sel(struct s2mu106_usbpd_data *pdic_data,
+							CCIC_RP_SCR_SEL scr_sel);
 
 char *rid_text[] = {
 	"UNDEFINED",
@@ -114,15 +115,19 @@ static void s2mu106_usbpd_test_read(struct s2mu106_usbpd_data *usbpd_data)
 	s2mu106_usbpd_read_reg(i2c, 0xe2, &data[5]);
 	s2mu106_usbpd_read_reg(i2c, 0xb3, &data[6]);
 	s2mu106_usbpd_read_reg(i2c, 0xb4, &data[7]);
+	s2mu106_usbpd_read_reg(i2c, 0xf7, &data[8]);
 
-	pr_info("%s, 0x1(%x) 0x18(%x) 0x27(%x) 0x28(%x) 0x40(%x) 0xe2(%x) 0xb3(%x) 0xb4(%x)\n",
-			__func__, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+	pr_info("%s, 0x1(%x) 0x18(%x) 0x27(%x) 0x28(%x) 0x40(%x) 0xe2(%x) 0xb3(%x) 0xb4(%x) 0xf7(%X)\n",
+					__func__, data[0], data[1], data[2], data[3], data[4],
+										data[5], data[6], data[7], data[8]);
 }
 
 void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode)
 {
 	u8 data = 0;
 	struct i2c_client *i2c = usbpd_data->i2c;
+	struct device *dev = &i2c->dev;
+	struct usbpd_data *pd_data = dev_get_drvdata(dev);
 	pr_info("%s, mode=0x%x\n", __func__, mode);
 
 	mutex_lock(&usbpd_data->lpm_mutex);
@@ -131,14 +136,28 @@ void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode)
 
 	switch (mode) {
 	case TYPE_C_ATTACH_DFP: /* SRC */
-		s2mu106_set_detach(usbpd_data, mode);
+		s2mu106_usbpd_set_cc_control(usbpd_data, USBPD_CC_OFF);
+		usbpd_data->status_reg |= PLUG_DETACH;
+		s2mu106_usbpd_set_rp_scr_sel(usbpd_data, PLUG_CTRL_RP0);
+		s2mu106_assert_rp(pd_data);
+		msleep(50);
+		s2mu106_usbpd_set_rp_scr_sel(usbpd_data, PLUG_CTRL_RP80);
 		msleep(S2MU106_ROLE_SWAP_TIME_MS);
-		s2mu106_set_attach(usbpd_data, mode);
+		s2mu106_assert_drp(pd_data);
 		break;
 	case TYPE_C_ATTACH_UFP: /* SNK */
-		s2mu106_set_detach(usbpd_data, mode);
+		ifconn_event_work(usbpd_data, IFCONN_NOTIFY_MUIC,
+			IFCONN_NOTIFY_ID_ROLE_SWAP,
+			IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP, NULL);
+		s2mu106_usbpd_set_cc_control(usbpd_data, USBPD_CC_OFF);
+		usbpd_data->status_reg |= PLUG_DETACH;
+		s2mu106_assert_rp(pd_data);
+		s2mu106_usbpd_set_rp_scr_sel(usbpd_data, PLUG_CTRL_RP0);
+		msleep(50);
+		s2mu106_assert_rd(pd_data);
+		s2mu106_usbpd_set_rp_scr_sel(usbpd_data, PLUG_CTRL_RP80);
 		msleep(S2MU106_ROLE_SWAP_TIME_MS);
-		s2mu106_set_attach(usbpd_data, mode);
+		s2mu106_assert_drp(pd_data);
 		break;
 	case TYPE_C_ATTACH_DRP: /* DRP */
 		s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, &data);
@@ -148,6 +167,24 @@ void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode)
 	};
 skip:
 	mutex_unlock(&usbpd_data->lpm_mutex);
+}
+
+void usbpd_charger_test_read(struct s2mu106_usbpd_data *usbpd_data)
+{
+	struct power_supply *psy_charger;
+	union power_supply_propval val;
+	int ret = 0;
+
+	psy_charger = power_supply_get_by_name("s2mu106-charger");
+
+	if (psy_charger) {
+		ret = psy_charger->desc->set_property(psy_charger,
+							POWER_SUPPLY_PROP_USBPD_TEST_READ, &val);
+	} else {
+		pr_err("%s: Fail to get psy battery\n", __func__);
+
+		return;
+	}
 }
 
 void vbus_turn_on_ctrl(struct s2mu106_usbpd_data *usbpd_data, bool enable)
@@ -227,9 +264,9 @@ static int s2mu106_usbpd_get_pmeter_volt(struct s2mu106_usbpd_data *pdic_data)
 	union power_supply_propval val;
 	int ret = 0;
 
-	if (psy_pm) {
+	if (psy_pm)
 		ret = psy_pm->desc->get_property(psy_pm, POWER_SUPPLY_PROP_VCHGIN, &val);
-	} else {
+	else {
 		pr_err("%s: Fail to get pmeter\n", __func__);
 		return -1;
 	}
@@ -241,6 +278,31 @@ static int s2mu106_usbpd_get_pmeter_volt(struct s2mu106_usbpd_data *pdic_data)
 	}
 
 	pdic_data->pm_chgin = val.intval;
+
+	return 0;
+}
+
+static int s2mu106_usbpd_get_pmeter_current(struct s2mu106_usbpd_data *pdic_data)
+{
+
+	struct power_supply *psy_pm = pdic_data->psy_pm;
+	union power_supply_propval val;
+	int ret = 0;
+
+	if (psy_pm)
+		psy_pm->desc->get_property(psy_pm, POWER_SUPPLY_PROP_ICHGIN, &val);
+	else {
+		pr_err("%s: Fail to get pmeter\n", __func__);
+		return -1;
+	}
+
+	if (ret) {
+			pr_err("%s: fail to set power_suppy pmeter property(%d)\n",
+		__func__, ret);
+		return -1;
+	}
+
+	pdic_data->pm_chgin_i = val.intval;
 
 	return 0;
 }
@@ -344,17 +406,23 @@ static void s2mu106_pr_swap(void *_data, int val)
 	else if (val == USBPD_SOURCE_ON) {
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 		pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_SRC;
+#elif defined(CONFIG_TYPEC)
+		pdic_data->typec_power_role = TYPEC_SOURCE;
+		typec_set_pwr_role(pdic_data->port, pdic_data->typec_power_role);
+#endif
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_MUIC,
 								IFCONN_NOTIFY_ID_ROLE_SWAP, 1/* source */, 0);
-#endif
 	} else if (val == USBPD_SOURCE_OFF) {
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_BATTERY,
 								IFCONN_NOTIFY_ID_DETACH, 0, 0);
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 		pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_SNK;
+#elif defined(CONFIG_TYPEC)
+		pdic_data->typec_power_role = TYPEC_SINK;
+		typec_set_pwr_role(pdic_data->port, pdic_data->typec_power_role);
+#endif
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_MUIC,
 								IFCONN_NOTIFY_ID_ROLE_SWAP, 0/* sink */, 0);
-#endif
 	}
 }
 
@@ -721,7 +789,6 @@ static bool s2mu106_poll_status(void *_data)
 	u64 status_reg_val = 0;
 	msg_header_type header;
 	int data_obj_num = 0;
-	int msg_id = 0;
 
 	ret = s2mu106_usbpd_bulk_read(i2c, S2MU106_REG_INT_STATUS0,
 			S2MU106_MAX_NUM_INT_STATUS, intr);
@@ -776,28 +843,23 @@ static bool s2mu106_poll_status(void *_data)
 	if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_DR_SWAP)
 		status_reg_val |= MSG_DR_SWAP;
 
+	if (intr[0] & S2MU106_REG_INT_STATUS0_MSG_ACCEPT)
+		status_reg_val |= MSG_ACCEPT;
+
 	/* function that support dp control */
 	if (intr[4] & S2MU106_REG_INT_STATUS4_MSG_PASS) {
 		if (intr[3] & S2MU106_REG_INT_STATUS3_UNS_CMD_DATA)
 			status_reg_val |= MSG_RID;
 		else {
 			usbpd_protocol_rx(data);
+			if (data->msg_received == 0)
+				goto out;
+
 			header = data->protocol_rx.msg_header;
 			data_obj_num = header.num_data_objs;
-			msg_id = header.msg_id;
-			pr_info("%s, prev msg_id =(%d), received msg_id =(%d)\n", __func__,
-										data->msg_id, msg_id);
-
-			if (msg_id == data->msg_id)
-				goto out;
-			else
-				data->msg_id = msg_id;
 
 			if (data_obj_num > 0)
 				s2mu106_usbpd_check_msg(data, &status_reg_val);
-
-			if (intr[0] & S2MU106_REG_INT_STATUS0_MSG_ACCEPT)
-				status_reg_val |= MSG_ACCEPT;
 
 			if (intr[1] & S2MU106_REG_INT_STATUS1_MSG_PSRDY)
 				status_reg_val |= MSG_PSRDY;
@@ -1242,6 +1304,12 @@ static void s2mu106_usbpd_set_rp_scr_sel(struct s2mu106_usbpd_data *pdic_data,
 	u8 data = 0;
 	pr_info("%s: scr_sel : (%d)\n", __func__, scr_sel);
 	switch (scr_sel) {
+	case PLUG_CTRL_RP0:
+		s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, &data);
+		data &= ~S2MU106_REG_PLUG_CTRL_RP_SEL_MASK;
+		data |= S2MU106_REG_PLUG_CTRL_RP0;
+		s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, data);
+		break;
 	case PLUG_CTRL_RP80:
 		s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, &data);
 		data &= ~S2MU106_REG_PLUG_CTRL_RP_SEL_MASK;
@@ -1480,61 +1548,6 @@ static void s2mu106_usbpd_check_rid(struct s2mu106_usbpd_data *pdic_data)
 			return;
 		}
 	}
-}
-
-static int s2mu106_set_attach(struct s2mu106_usbpd_data *pdic_data, u8 mode)
-{
-	u8 data;
-	int ret = 0;
-	struct i2c_client *i2c = pdic_data->i2c;
-	struct device *dev = &i2c->dev;
-
-	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, &data);
-	data &= ~(S2MU106_REG_PLUG_CTRL_MODE_MASK | S2MU106_REG_PLUG_CTRL_RP_SEL_MASK);
-	data |= mode | S2MU106_REG_PLUG_CTRL_RP180;
-	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, data);
-
-	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PD_CTRL, &data);
-	data &= ~S2MU106_REG_LPM_EN;
-	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PD_CTRL, data);
-
-	dev_info(dev, "%s s2mu106 force to attach\n", __func__);
-
-	return ret;
-}
-
-static int s2mu106_set_detach(struct s2mu106_usbpd_data *pdic_data, u8 mode)
-{
-	u8 data;
-	int ret = 0;
-	struct i2c_client *i2c = pdic_data->i2c;
-	struct device *dev = &i2c->dev;
-
-	if (mode == TYPE_C_ATTACH_DFP) {
-		s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_RpRd, &data);
-		data |= S2MU106_REG_PLUG_CTRL_RpRd_Rp_Source_Mode;
-		s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_RpRd, data);
-	} else if (mode == TYPE_C_ATTACH_UFP) {
-		s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_RpRd, &data);
-		data |= S2MU106_REG_PLUG_CTRL_RpRd_Rd_Sink_Mode;
-		s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_RpRd, data);
-	}
-
-	msleep(50);
-
-	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_RpRd, S2MU106_RESET_REG_00);
-	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, &data);
-	data &= ~(S2MU106_REG_PLUG_CTRL_MODE_MASK | S2MU106_REG_PLUG_CTRL_RP_SEL_MASK);
-	data |= S2MU106_REG_PLUG_CTRL_DFP | S2MU106_REG_PLUG_CTRL_RP0;
-	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_PORT, data);
-
-	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PD_CTRL, &data);
-	data |= S2MU106_REG_LPM_EN;
-	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PD_CTRL, data);
-
-	dev_info(dev, "%s s2mu106 force to detach\n", __func__);
-
-	return ret;
 }
 
 int s2mu106_set_normal_mode(struct s2mu106_usbpd_data *pdic_data)
@@ -1914,6 +1927,9 @@ static void s2mu106_usbpd_otg_attach(struct s2mu106_usbpd_data *pdic_data)
 	pdic_data->is_host = HOST_ON;
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 	pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_SRC;
+#elif defined(CONFIG_TYPEC)
+	pdic_data->typec_power_role = TYPEC_SOURCE;
+	typec_set_pwr_role(pdic_data->port, pdic_data->typec_power_role);
 #endif
 #if defined(CONFIG_IFCONN_NOTIFIER)
 	/* USB */
@@ -2071,8 +2087,19 @@ static void s2mu106_usbpd_prevent_watchdog_reset(
 			s2mu106_usbpd_read_reg(i2c, S2MU106_REG_INT_STATUS2, &val);
 			if (val & S2MU106_REG_INT_STATUS2_WAKEUP)
 				pr_info("%s auto wakeup success\n", __func__);
+			else {
+				msleep(22);
+				s2mu106_usbpd_set_vbus_wakeup(pdic_data, VBUS_WAKEUP_DISABLE);
+				usleep_range(1000, 1200);
+				s2mu106_usbpd_set_vbus_wakeup(pdic_data, VBUS_WAKEUP_ENABLE);
+				usleep_range(1000, 1200);
+				s2mu106_usbpd_read_reg(i2c, S2MU106_REG_INT_STATUS2, &val);
+				if (val & S2MU106_REG_INT_STATUS2_WAKEUP)
+					pr_info("%s auto wakeup success\n", __func__);
 			else
 				s2mu106_usbpd_set_mode(pdic_data, PD_NORMAL_MODE);
+			}
+
 			s2mu106_set_irq_enable(pdic_data, ENABLED_INT_0, ENABLED_INT_1,
 								ENABLED_INT_2, ENABLED_INT_3, ENABLED_INT_4,
 																ENABLED_INT_5);
@@ -2124,6 +2151,10 @@ static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data)
 	s2mu106_usbpd_set_cc_control(pdic_data, USBPD_CC_OFF);
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 	if (pdic_data->power_role_dual == DUAL_ROLE_PROP_PR_SRC) {
+		vbus_turn_on_ctrl(pdic_data, VBUS_OFF);
+	}
+#elif defined(CONFIG_TYPEC)
+	if (pdic_data->typec_power_role == TYPEC_SOURCE) {
 		vbus_turn_on_ctrl(pdic_data, VBUS_OFF);
 	}
 #endif
@@ -2183,6 +2214,11 @@ static void s2mu106_usbpd_notify_detach(struct s2mu106_usbpd_data *pdic_data)
 		pdic_data->is_client = CLIENT_OFF;
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 		pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_NONE;
+#elif defined(CONFIG_TYPEC)
+		pdic_data->typec_power_role = TYPEC_SINK;
+		typec_set_pwr_role(pdic_data->port, TYPEC_SINK);
+		pdic_data->typec_data_role = TYPEC_DEVICE;
+		typec_set_data_role(pdic_data->port, TYPEC_DEVICE);
 #endif
 		/* USB */
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_USB, IFCONN_NOTIFY_ID_USB,
@@ -2238,6 +2274,9 @@ static void s2mu106_usbpd_check_host(struct s2mu106_usbpd_data *pdic_data,
 				IFCONN_NOTIFY_ID_ATTACH, IFCONN_NOTIFY_EVENT_DETACH, NULL);
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 		pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_NONE;
+#elif defined(CONFIG_TYPEC)
+		pdic_data->typec_power_role = TYPEC_SINK;
+		typec_set_pwr_role(pdic_data->port, pdic_data->typec_power_role);
 #endif
 		/* add to turn off external 5V */
 		vbus_turn_on_ctrl(pdic_data, VBUS_OFF);
@@ -2262,6 +2301,9 @@ static void s2mu106_usbpd_check_client(struct s2mu106_usbpd_data *pdic_data,
 				IFCONN_NOTIFY_ID_ATTACH, IFCONN_NOTIFY_EVENT_DETACH, NULL);
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 		pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_NONE;
+#elif defined(CONFIG_TYPEC)
+		pdic_data->typec_power_role = TYPEC_SINK;
+		typec_set_pwr_role(pdic_data->port, pdic_data->typec_power_role);
 #endif
 		ifconn_event_work(pdic_data, IFCONN_NOTIFY_USB,
 				IFCONN_NOTIFY_ID_USB, IFCONN_NOTIFY_EVENT_DETACH, NULL);
@@ -2339,6 +2381,9 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data)
 				pdic_data->is_client = CLIENT_ON;
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 				pdic_data->power_role_dual = DUAL_ROLE_PROP_PR_SNK;
+#elif defined(CONFIG_TYPEC)
+				pdic_data->typec_power_role = TYPEC_SINK;
+				typec_set_pwr_role(pdic_data->port, pdic_data->typec_power_role);
 #endif
 				ifconn_event_work(pdic_data,
 						IFCONN_NOTIFY_USB, IFCONN_NOTIFY_ID_USB,
@@ -2466,6 +2511,7 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 		attach_status = s2mu106_get_status(pd_data, PLUG_ATTACH);
 		rid_status = s2mu106_get_status(pd_data, MSG_RID);
 		s2mu106_usbpd_detach_init(pdic_data);
+		s2mu106_usbpd_notify_detach(pdic_data);
 		if (attach_status) {
 			ret = s2mu106_check_port_detect(pdic_data);
 			if (ret >= 0) {
@@ -2476,7 +2522,7 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 				goto hard_reset;
 			}
 		}
-		s2mu106_usbpd_notify_detach(pdic_data);
+#if 0
 		mutex_lock(&pdic_data->lpm_mutex);
 		if (!pdic_data->lpm_mode) {
 			if (s2mu106_usbpd_lpm_check(pdic_data) > 0) {
@@ -2487,6 +2533,7 @@ static irqreturn_t s2mu106_irq_thread(int irq, void *data)
 				ENABLED_INT_2, ENABLED_INT_3, ENABLED_INT_4, ENABLED_INT_5);
 		}
 		mutex_unlock(&pdic_data->lpm_mutex);
+#endif
 		goto out;
 	}
 
@@ -2730,7 +2777,15 @@ static int s2mu106_usbpd_irq_init(struct s2mu106_usbpd_data *_data)
 
 static void s2mu106_usbpd_init_configure(struct s2mu106_usbpd_data *_data)
 {
+	s2mu106_usbpd_test_read(_data);
+	s2mu106_usbpd_get_pmeter_volt(_data);
+	s2mu106_usbpd_get_pmeter_current(_data);
+	pr_info("%s, chgin(%d), chgin_i(%d)\n", __func__,
+							_data->pm_chgin, _data->pm_chgin_i);
+	usbpd_charger_test_read(_data);
 	s2mu106_set_normal_mode(_data);
+	pr_info("%s, usbpd irq gpio value(%d)\n", __func__,
+									gpio_get_value(_data->irq_gpio));
 	msleep(25);
 	_data->detach_valid = true;
 	s2mu106_set_lpm_mode(_data);
@@ -2763,6 +2818,10 @@ static void s2mu106_usbpd_pdic_data_init(struct s2mu106_usbpd_data *_data)
 	_data->lpcharge_water = false;
 #endif
 	_data->check_rid_wa = false;
+#if defined(CONFIG_TYPEC)
+	_data->typec_power_role = TYPEC_SINK;
+	_data->typec_data_role = TYPEC_DEVICE;
+#endif
 }
 
 static int of_s2mu106_dt(struct device *dev,
@@ -2782,6 +2841,8 @@ static int of_s2mu106_dt(struct device *dev,
 						_data->irq_gpio);
 			_data->irq_gpio = 0;
 		}
+		ret = gpio_get_value(_data->irq_gpio);
+		pr_info("%s, usbpd irq gpio value(%d)\n", __func__, ret);
 		if (of_find_property(np_usbpd, "vconn-en", NULL))
 			_data->vconn_en = true;
 		else
@@ -2839,6 +2900,14 @@ static int s2mu106_usbpd_probe(struct i2c_client *i2c,
 	mutex_init(&pdic_data->cc_mutex);
 	wake_lock_init(&pdic_data->wake_lock, WAKE_LOCK_SUSPEND, "pdic_wake");
 
+#ifdef CONFIG_PM_S2MU106
+	pdic_data->psy_pm = power_supply_get_by_name("s2mu106_pmeter");
+	if (!pdic_data->psy_pm)
+		pr_err("%s: Fail to get pmeter\n", __func__);
+	s2mu106_usbpd_set_pmeter_mode(pdic_data, PM_TYPE_VCHGIN);
+	s2mu106_usbpd_set_pmeter_mode(pdic_data, PM_TYPE_ICHGIN);
+#endif
+
 	s2mu106_usbpd_init_configure(pdic_data);
 	s2mu106_usbpd_pdic_data_init(pdic_data);
 
@@ -2859,11 +2928,6 @@ static int s2mu106_usbpd_probe(struct i2c_client *i2c,
 
 	usbpd_set_ops(dev, &s2mu106_ops);
 
-#ifdef CONFIG_PM_S2MU106
-	pdic_data->psy_pm = power_supply_get_by_name("s2mu106_pmeter");
-	if (!pdic_data->psy_pm)
-		pr_err("%s: Fail to get pmeter\n", __func__);
-#endif
 	s2mu106_usbpd_reg_init(pdic_data);
 
 	pdic_data->pdic_queue =
@@ -2886,6 +2950,13 @@ static int s2mu106_usbpd_probe(struct i2c_client *i2c,
 #endif
 	if (pdic_data->rid == REG_RID_UNDF)
 		pdic_data->rid = REG_RID_MAX;
+#if defined(CONFIG_TYPEC)
+	ret = typec_init(pdic_data);
+	if (ret < 0) {
+		pr_err("failed to init typec\n");
+		goto err_return;
+	}
+#endif
 
 	ret = s2mu106_usbpd_irq_init(pdic_data);
 	if (ret) {
@@ -2975,6 +3046,8 @@ static int s2mu106_usbpd_remove(struct i2c_client *i2c)
 		devm_dual_role_instance_unregister(_data->dev,
 						_data->dual_role);
 		devm_kfree(_data->dev, _data->desc);
+#elif defined(CONFIG_TYPEC)
+		typec_unregister_port(_data->port);
 #endif
 		disable_irq_wake(_data->i2c->irq);
 		free_irq(_data->i2c->irq, _data);

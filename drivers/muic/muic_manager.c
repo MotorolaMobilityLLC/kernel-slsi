@@ -230,7 +230,7 @@ void muic_manager_handle_ccic_detach(struct muic_interface_t *muic_if)
 	ccic->attached_dev = 0;
 	ccic->ccic_evt_rid = 0;
 	ccic->ccic_evt_rprd = 0;
-	ccic->ccic_evt_roleswap = 0;
+	//ccic->ccic_evt_roleswap = 0;
 	ccic->ccic_evt_dcdcnt = 0;
 	ccic->ccic_evt_attached = MUIC_CCIC_NOTI_UNDEFINED;
 
@@ -715,39 +715,19 @@ static int muic_manager_handle_ccic_role_swap(struct muic_interface_t *muic_if, 
 {
 #ifdef CONFIG_IFCONN_NOTIFIER
 	struct ifconn_notifier_template *pnoti = (struct ifconn_notifier_template *)data;
-#else
-	CC_NOTI_TYPEDEF *pnoti = (CC_NOTI_TYPEDEF *)data;
-#endif
+
 	struct ccic_desc_t *ccic = muic_if->ccic;
-	
-	pr_info("%s: src:%d dest:%d sub1:%d\n", __func__,
-		pnoti->src, pnoti->dest, pnoti->sub1);
-	
-	if (pnoti->sub1 == true) {
-		/* sink -> src */
-		ccic->ccic_evt_rprd = 1;
-		ccic->ccic_evt_roleswap = 1;
-		ccic->attached_dev = ATTACHED_DEV_OTG_MUIC;
-		if (muic_if->set_cable_state)
-			muic_if->set_cable_state(muic_if->muic_data, ccic->attached_dev);
-	} else {
-		/* src -> sink */
-		muic_manager_handle_ccic_detach(muic_if);
 
-		ccic->ccic_evt_attached = MUIC_CCIC_NOTI_ATTACH;
-		ccic->ccic_evt_rprd = 1;
-		ccic->ccic_evt_roleswap = 1;
-		ccic->attached_dev = ATTACHED_DEV_TYPE3_CHARGER_MUIC;
-		if (muic_if->set_cable_state)
-			muic_if->set_cable_state(muic_if->muic_data, ccic->attached_dev);
-	}
+	pr_info("%s: event:%d\n", __func__, pnoti->event);
 
-	return 0;	
+	if (pnoti->event == IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP)
+		ccic->ccic_evt_roleswap = 1;
+#endif
+	return 0;
 }
 
 static int muic_manager_handle_otg(struct muic_interface_t *muic_if, void *data)
 {
-	int ret = MUIC_NORMAL_OTG;
 	struct ccic_desc_t *ccic = muic_if->ccic;
 #ifdef CONFIG_IFCONN_NOTIFIER
 	struct ifconn_notifier_template *pnoti = (struct ifconn_notifier_template *)data;
@@ -761,20 +741,12 @@ static int muic_manager_handle_otg(struct muic_interface_t *muic_if, void *data)
 #ifndef CONFIG_IFCONN_NOTIFIER
 	if (pnoti->sub1 == true) {
 #endif
-		/* OTG Attach */
-		if (muic_if->check_usb_killer) {
-			ret = muic_if->check_usb_killer(muic_if->muic_data);
-		}
-
-		if (ret == MUIC_NORMAL_OTG) {
-			MUIC_SEND_NOTI_TO_CCIC_ATTACH(ATTACHED_DEV_OTG_MUIC);
-			ccic->ccic_evt_rprd = 1;
-			ccic->attached_dev = ATTACHED_DEV_OTG_MUIC;
-			if (muic_if->set_cable_state)
-				muic_if->set_cable_state(muic_if->muic_data, ccic->attached_dev);
-			muic_manager_switch_path(muic_if, MUIC_PATH_USB_AP);
-		} else
-			pr_info("[MUIC] %s USB Killer Detected!!!\n", __func__);
+		MUIC_SEND_NOTI_TO_CCIC_ATTACH(ATTACHED_DEV_OTG_MUIC);
+		ccic->ccic_evt_rprd = 1;
+		ccic->attached_dev = ATTACHED_DEV_OTG_MUIC;
+		if (muic_if->set_cable_state)
+			muic_if->set_cable_state(muic_if->muic_data, ccic->attached_dev);
+		muic_manager_switch_path(muic_if, MUIC_PATH_USB_AP);
 #ifndef CONFIG_IFCONN_NOTIFIER
 	}
 #endif

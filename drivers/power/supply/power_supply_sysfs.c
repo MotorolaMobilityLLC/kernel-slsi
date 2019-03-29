@@ -283,6 +283,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(co_enable),
 	POWER_SUPPLY_ATTR(rr_enable),
 	POWER_SUPPLY_ATTR(usbpd_reset),
+	POWER_SUPPLY_ATTR(usbpd_test_read),
 };
 
 static struct attribute *
