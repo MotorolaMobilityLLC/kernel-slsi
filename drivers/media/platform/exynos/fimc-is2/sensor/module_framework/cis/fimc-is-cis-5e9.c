@@ -298,7 +298,7 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 	struct i2c_client *client;
 	u8 val, page;
 	int i;
-	int retry = 200;
+	int retry;
 
 	FIMC_BUG(!subdev);
 
@@ -314,6 +314,7 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 		return -ENODEV;
 	}
 
+	info("OTP read start\n");
 	dbg_sensor(1, "%s, 1. sensor initial setting", __func__);
 	CALL_CISOPS(cis, cis_set_global_setting, subdev);
 	CALL_CISOPS(cis, cis_mode_change, subdev, 0);
@@ -334,13 +335,19 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 		usleep_range(1000, 1001);
 
 		/* wait 0x0A01 == 1 [0]: read completed with no errors */
-		while (retry--) {
+		retry = 500;
+		while (retry > 0) {
 			fimc_is_sensor_read8(client, OTP_PAGE_ERRCHK, &val);
 			if (val == 1)
 				break;
 
 			usleep_range(100, 100);
+			retry--;
 		}
+
+		if (!retry)
+			err("%s: OTP page[%d] read fail with err(%d)\n",
+				__func__, page, val);
 
 		for (i = 0; i < OTP_PAGE_SIZE; i++) {
 			fimc_is_sensor_read8(client, OTP_PAGE_BASE + i, &device->otp_cal_buf[page][i]);
