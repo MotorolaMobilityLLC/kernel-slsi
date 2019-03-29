@@ -989,7 +989,7 @@ int usbpd_manager_match_request(struct usbpd_data *pd_data)
 	//pr_info("Rx Request Current : %dmA\n", max_min*10);
 
     /* Compare Pdo and Rdo */
-    if ((src_max_current >= max_min) && (pos == 1))
+    if ((src_max_current >= op) && (pos == 1))
 		return 0;
     else
 		return -1;

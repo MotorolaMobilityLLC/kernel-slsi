@@ -551,6 +551,7 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 	int buck_state = ENABLE;
 	union power_supply_propval value;
 	int ret;
+	u8 data = 0;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -662,11 +663,19 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 		}
 		break;
 	case POWER_SUPPLY_PROP_FUELGAUGE_RESET:
-		s2mu106_update_reg(charger->i2c, 0xE3, 0x03 << 6, 0x03 << 6);
+		s2mu106_read_reg(charger->i2c, 0xE3, &data);
+		data |= 0x03 << 6;
+		s2mu106_write_reg(charger->i2c, 0xE3, data);
 		msleep(1000);
-		s2mu106_update_reg(charger->i2c, 0xE3, 0x00 << 6, 0x03 << 6);
+		data &= ~(0x03 << 6);
+		s2mu106_write_reg(charger->i2c, 0xE3, data);
 		msleep(50);
 		pr_info("%s: reset fuelgauge when surge occur!\n", __func__);
+		break;
+	case POWER_SUPPLY_PROP_USBPD_TEST_READ:
+		s2mu106_test_read(charger->i2c);
+		s2mu106_read_reg(charger->i2c, 0xEC, &data);
+		pr_info("%s, charger 0xEC=(%x)\n", __func__, data);
 		break;
 	default:
 		return -EINVAL;
