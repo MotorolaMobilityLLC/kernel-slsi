@@ -368,6 +368,8 @@ protocol_state usbpd_protocol_rx_wait_for_phy_message(struct protocol_data *rx)
 			dev_err(pd_data->dev, "[Rx] Got SOFTRESET.\n");
 			state = PRL_Rx_Layer_Reset_for_Receive;
 		} else {
+			pr_info("%s, prev msg_id =(%d), received msg_id =(%d)\n", __func__,
+									rx->stored_message_id, rx->msg_header.msg_id);
 			if (rx->stored_message_id == rx->msg_header.msg_id) {
 				pd_data->id_matched = 0;
 				return state;
