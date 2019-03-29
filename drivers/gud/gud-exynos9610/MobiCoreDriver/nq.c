@@ -513,6 +513,8 @@ static void nq_handle_tee_crash(void)
 	 */
 	nq_dump_status();
 	blocking_notifier_call_chain(&l_ctx.tee_stop_notifiers, 0, NULL);
+	/* ExySp */
+	panic("t-base halt");
 }
 
 static inline void set_sleep_mode_rq(u16 sleep_req)
