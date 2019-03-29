@@ -226,14 +226,16 @@ static int s2mu106_pm_get_ichgin(struct s2mu106_pmeter_data *pmeter)
 
 	s2mu106_read_reg(pmeter->i2c, S2MU106_PM_VAL1_ICHGIN, &data1);
 	s2mu106_read_reg(pmeter->i2c, S2MU106_PM_VAL2_ICHGIN, &data2);
-	
+
 	if (data1 < 0 || data2 < 0)
 		return -EINVAL;
 
 	charge_current = (int)((data1 << 4) | (data2 >> 4));
 
+#if 0
 	pr_info ("%s, data1 : 0x%2x, data2 : 0x%2x, current = %d\n",
 			__func__, data1, data2, charge_current);
+#endif
 	return charge_current;
 }
 
