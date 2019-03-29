@@ -137,7 +137,7 @@
 				};
 
 				flash {
-					product_name = <100>; /* NOTHING */
+					product_name = <14>; /* NOTHING */
 				};
 
 				ois {
@@ -155,6 +155,13 @@
 				led_ch = <1 2>; /* CH1 ~ CH4, CH0 not exist */
 				status = "okay";
 			};
+
+                        fimc_is_flash_s2mu106_action: fimc-is-flash-s2mu106_action@14 {
+                                compatible = "samsung,sensor-flash-s2mu106";
+                                id = <1>;
+                                led_ch = <1 2>; /* CH1 ~ CH4, CH0 not exist */
+                                status = "okay";
+                        };
 
 		}; /* end of __overlay__ */
 	}; /* end of fragment */
