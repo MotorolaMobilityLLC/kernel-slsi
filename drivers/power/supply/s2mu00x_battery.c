@@ -1988,7 +1988,7 @@ static void check_charging_full(
 	}
 
 	/* 2. Full charged check */
-	if ((battery->current_now >= 0 && battery->current_now <
+	if ((battery->current_now >= (-10) && battery->current_now <
 				battery->pdata->charging_current[
 				battery->cable_type].full_check_current) &&
 			(battery->voltage_avg > battery->pdata->chg_full_vcell)) {
