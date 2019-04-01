@@ -625,7 +625,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 
 	ipc_hw_write_shared_reg(AP, ipc->os_load, SR_BOOT_MODE);
 	ipc_set_chub_clk((u32)ipc->clkrate);
-	ipc->chub_rt_log.loglevel = CHUB_RT_LOG_DUMP;
+	ipc->chub_rt_log.loglevel = CHUB_RT_LOG_DUMP_PRT;
 	ipc_set_chub_bootmode(BOOTMODE_COLD, ipc->chub_rt_log.loglevel);
 	switch (event) {
 	case MAILBOX_EVT_POWER_ON:
