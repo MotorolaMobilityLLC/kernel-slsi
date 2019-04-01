@@ -1416,8 +1416,8 @@ int sensor_16885c_cis_get_min_digital_gain(struct v4l2_subdev *subdev, u32 *min_
 	}
 
 	cis_data = cis->cis_data;
-    cis_data->min_digital_gain[0] = REG_1X_BASE_DGAIN;
-    cis_data->min_digital_gain[1] = REG_1X_BASE_DGAIN_VALUE;
+	cis_data->min_digital_gain[0] = REG_1X_BASE_DGAIN;
+	cis_data->min_digital_gain[1] = REG_1X_BASE_DGAIN_VALUE;
 	*min_dgain = cis_data->min_digital_gain[1];
 
 	dbg_sensor(1, "[%s] code %d, permile %d\n", __func__,
@@ -1487,28 +1487,28 @@ int sensor_16885c_cis_wait_streamon(struct v4l2_subdev *subdev)
 
 	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
 	if (unlikely(!cis)) {
-	    err("cis is NULL");
-	    ret = -EINVAL;
-	    goto p_err;
+		err("cis is NULL");
+		ret = -EINVAL;
+		goto p_err;
 	}
 
 	cis_data = cis->cis_data;
 	if (unlikely(!cis_data)) {
-	    err("cis_data is NULL");
-	    ret = -EINVAL;
-	    goto p_err;
+		err("cis_data is NULL");
+		ret = -EINVAL;
+		goto p_err;
 	}
 
 	client = cis->client;
 	if (unlikely(!client)) {
-	    err("client is NULL");
-	    ret = -EINVAL;
-	    goto p_err;
+		err("client is NULL");
+		ret = -EINVAL;
+		goto p_err;
 	}
 
 	ret = fimc_is_sensor_read8(client, 0x485F, &sensor_fcount);
 	if (ret < 0)
-	    err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
+		err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
 
 	/*
 	 * Read sensor frame counter (sensor_fcount address = 0x485F)
@@ -1520,11 +1520,11 @@ int sensor_16885c_cis_wait_streamon(struct v4l2_subdev *subdev)
 
 		ret = fimc_is_sensor_read8(client, 0x485F, &sensor_fcount);
 		if (ret < 0)
-		    err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
+			err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
 
 		if (wait_cnt >= time_out_cnt) {
 			err("[MOD:D:%d] %s, Don't sensor stream on and time out, wait_limit(%d) > time_out(%d), sensor_fcount(%d)",
-				cis->id, __func__, wait_cnt, time_out_cnt, sensor_fcount);
+					cis->id, __func__, wait_cnt, time_out_cnt, sensor_fcount);
 			ret = -EINVAL;
 			goto p_err;
 		}
@@ -1544,49 +1544,49 @@ p_err:
 
 int sensor_16885c_cis_wait_streamoff(struct v4l2_subdev *subdev)
 {
-        int ret = 0;
-        struct fimc_is_cis *cis;
-        struct i2c_client *client;
-        cis_shared_data *cis_data;
-        u32 wait_cnt = 0, time_out_cnt = 250;
-        u8 sensor_fcount = 0;
+	int ret = 0;
+	struct fimc_is_cis *cis;
+	struct i2c_client *client;
+	cis_shared_data *cis_data;
+	u32 wait_cnt = 0, time_out_cnt = 250;
+	u8 sensor_fcount = 0;
 
-        BUG_ON(!subdev);
+	BUG_ON(!subdev);
 
-        cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
-        cis_data = cis->cis_data;
-        client = cis->client;
+	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
+	cis_data = cis->cis_data;
+	client = cis->client;
 
-        I2C_MUTEX_LOCK(cis->i2c_lock);
-        ret = fimc_is_sensor_read8(client, 0x485F, &sensor_fcount);
-        I2C_MUTEX_UNLOCK(cis->i2c_lock);
+	I2C_MUTEX_LOCK(cis->i2c_lock);
+	ret = fimc_is_sensor_read8(client, 0x485F, &sensor_fcount);
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
-        if (ret < 0)
-                err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
+	if (ret < 0)
+		err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
 
-        while (sensor_fcount != 0x00) {
-                I2C_MUTEX_LOCK(cis->i2c_lock);
-                ret = fimc_is_sensor_read8(client, 0x485F, &sensor_fcount);
-                I2C_MUTEX_UNLOCK(cis->i2c_lock);
-                if (ret < 0)
-                        err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
+	while (sensor_fcount != 0x00) {
+		I2C_MUTEX_LOCK(cis->i2c_lock);
+		ret = fimc_is_sensor_read8(client, 0x485F, &sensor_fcount);
+		I2C_MUTEX_UNLOCK(cis->i2c_lock);
+		if (ret < 0)
+			err("i2c transfer fail addr(%x), val(%x), ret = %d\n", 0x485F, sensor_fcount, ret);
 
-				usleep_range(CIS_STREAM_OFF_WAIT_TIME, CIS_STREAM_OFF_WAIT_TIME);
-                wait_cnt++;
+		usleep_range(CIS_STREAM_OFF_WAIT_TIME, CIS_STREAM_OFF_WAIT_TIME);
+		wait_cnt++;
 
-                if (wait_cnt >= time_out_cnt) {
-                        err("[MOD:D:%d] %s, time out, wait_limit(%d) > time_out(%d), sensor_fcount(%d)",
-                                        cis->id, __func__, wait_cnt, time_out_cnt, sensor_fcount);
-                        ret = -EINVAL;
-                        goto p_err;
-                }
+		if (wait_cnt >= time_out_cnt) {
+			err("[MOD:D:%d] %s, time out, wait_limit(%d) > time_out(%d), sensor_fcount(%d)",
+					cis->id, __func__, wait_cnt, time_out_cnt, sensor_fcount);
+			ret = -EINVAL;
+			goto p_err;
+		}
 
-                dbg_sensor(1, "[MOD:D:%d] %s, sensor_fcount(%d), (wait_limit(%d) < time_out(%d))\n",
-                                cis->id, __func__, sensor_fcount, wait_cnt, time_out_cnt);
-        }
+		dbg_sensor(1, "[MOD:D:%d] %s, sensor_fcount(%d), (wait_limit(%d) < time_out(%d))\n",
+				cis->id, __func__, sensor_fcount, wait_cnt, time_out_cnt);
+	}
 
 p_err:
-        return ret;
+	return ret;
 }
 
 static struct fimc_is_cis_ops cis_ops = {
