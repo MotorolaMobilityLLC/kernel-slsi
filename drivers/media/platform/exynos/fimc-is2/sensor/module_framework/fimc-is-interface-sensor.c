@@ -3110,6 +3110,7 @@ int set_long_term_expo_mode(struct fimc_is_sensor_interface *itf,
 	/* as this function called, always set true for operate */
 	sensor_peri->cis.long_term_mode.sen_strm_off_on_enable = true;
 	sensor_peri->cis.long_term_mode.frm_num_strm_off_on_interval = long_term_expo_mode->frm_num_strm_off_on_interval;
+	sensor_peri->cis.long_term_mode.sen_strm_off_on_step = 0;
 
 	if (sensor_peri->cis.long_term_mode.sen_strm_off_on_enable) {
 		for (i = 0; i < 2; i++) {

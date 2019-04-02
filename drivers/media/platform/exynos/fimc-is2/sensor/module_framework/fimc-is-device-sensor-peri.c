@@ -1927,6 +1927,12 @@ int fimc_is_sensor_peri_s_stream(struct fimc_is_device_sensor *device,
 		ret = CALL_CISOPS(cis, cis_stream_off, subdev_cis);
 		if (ret == 0)
 			ret = CALL_CISOPS(cis, cis_wait_streamoff, subdev_cis);
+
+		if (cis->long_term_mode.sen_strm_off_on_enable) {
+			cis->long_term_mode.sen_strm_off_on_enable = 0;
+			ret = CALL_CISOPS(cis, cis_set_long_term_exposure, subdev_cis);
+			info("[%s] cancelled long_exp_capture mode\n", __func__);
+		}
 		mutex_unlock(&cis->control_lock);
 
 #ifdef USE_OIS_SLEEP_MODE
