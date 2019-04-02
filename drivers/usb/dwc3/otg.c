@@ -29,11 +29,25 @@
 #include <soc/samsung/exynos-pm.h>
 #endif
 
+#if defined(CONFIG_TYPEC_DEFAULT)
+#include <linux/usb/typec.h>
+#endif
+
 #include "core.h"
 #include "otg.h"
 #include "io.h"
 
 /* -------------------------------------------------------------------------- */
+
+#if defined(CONFIG_TYPEC_DEFAULT)
+struct intf_typec {
+	/* struct mutex lock; */ /* device lock */
+	struct device *dev;
+	struct typec_port *port;
+	struct typec_capability cap;
+	struct typec_partner *partner;
+};
+#endif
 
 int otg_connection;
 static int dwc3_otg_statemachine(struct otg_fsm *fsm)
@@ -689,6 +703,10 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	struct dwc3_otg *dotg;
 	struct dwc3_ext_otg_ops *ops = NULL;
 	int ret = 0;
+#if defined(CONFIG_TYPEC_DEFAULT)
+	struct intf_typec	*typec;
+	struct typec_partner_desc partner;
+#endif
 
 	dev_info(dwc->dev, "%s\n", __func__);
 
@@ -747,6 +765,33 @@ int dwc3_otg_init(struct dwc3 *dwc)
 		}
 	}
 
+#if defined(CONFIG_TYPEC_DEFAULT)
+	typec = devm_kzalloc(dwc->dev, sizeof(*typec), GFP_KERNEL);
+	if (!typec)
+		return -ENOMEM;
+
+	/* mutex_init(&md05->lock); */
+	typec->dev = dwc->dev;
+
+	typec->cap.type = TYPEC_PORT_DRP;
+	typec->cap.revision = USB_TYPEC_REV_1_1;
+	typec->cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+
+	typec->port = typec_register_port(dwc->dev, &typec->cap);
+	if (!typec->port)
+		return -ENODEV;
+
+	typec_set_data_role(typec->port, TYPEC_DEVICE);
+	typec_set_pwr_role(typec->port, TYPEC_SINK);
+	typec_set_pwr_opmode(typec->port, TYPEC_PWR_MODE_USB);
+
+	dotg->typec = typec;
+
+	typec->partner = typec_register_partner(typec->port, &partner);
+	if (!dotg->typec->partner)
+		dev_err(dwc->dev, "failed register partner\n");
+#endif
+
 	wake_lock_init(&dotg->wakelock, WAKE_LOCK_SUSPEND, "dwc3-otg");
 
 	ret = sysfs_create_group(&dwc->dev->kobj, &dwc3_otg_attr_group);
@@ -766,6 +811,11 @@ void dwc3_otg_exit(struct dwc3 *dwc)
 
 	if (!dotg->ext_otg_ops)
 		return;
+
+#if defined(CONFIG_TYPEC_DEFAULT)
+	typec_unregister_partner(dotg->typec->partner);
+	typec_unregister_port(dotg->typec->port);
+#endif
 
 	dwc3_ext_otg_exit(dotg);
 
