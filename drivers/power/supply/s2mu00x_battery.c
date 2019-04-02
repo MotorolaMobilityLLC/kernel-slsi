@@ -289,7 +289,10 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 			input_current = 2000;
 		}
 	} else {
-		if (battery->rp_attach) {
+		if (battery->rp_attach &&
+				!(battery->cable_type == POWER_SUPPLY_TYPE_BATTERY ||
+					battery->cable_type == POWER_SUPPLY_TYPE_UNKNOWN ||
+					battery->cable_type == POWER_SUPPLY_TYPE_OTG)) {
 			input_current = battery->rp_input_current > input_current?
 				battery->rp_input_current:input_current;
 			charging_current = battery->rp_charging_current > charging_current?
