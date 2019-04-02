@@ -4,6 +4,12 @@ menu "USB Power Delivery and Type-C drivers"
 config TYPEC
 	tristate
 
+config TYPEC_DEFAULT
+	bool "TYPEC for Default Setting"
+	depends on TYPEC && USBPD_S2MM005
+	help
+	  Select this when you want to use TYPEC in ERD.
+
 config TYPEC_WCOVE
 	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
 	depends on ACPI
