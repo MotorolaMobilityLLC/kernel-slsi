@@ -756,7 +756,7 @@ static int __init fimc_is_lib_mem_alloc(char *str)
 __setup("reserve-fimc=", fimc_is_lib_mem_alloc);
 #endif
 
-static int __init fimc_is_lib_mem_map(void)
+static int fimc_is_lib_mem_map(void)
 {
 	int page_size, i;
 	struct page *page;
@@ -786,7 +786,7 @@ static int __init fimc_is_lib_mem_map(void)
 	return 0;
 }
 
-static int __init fimc_is_heap_mem_map(struct fimc_is_resourcemgr *resourcemgr,
+static int fimc_is_heap_mem_map(struct fimc_is_resourcemgr *resourcemgr,
 	struct vm_struct *vm, int heap_size)
 {
 	struct fimc_is_mem *mem = &resourcemgr->mem;
