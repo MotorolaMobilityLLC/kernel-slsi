@@ -2758,17 +2758,18 @@ bool is_usb_present(struct s2mu00x_battery_info *chip)
 
 	switch (type) {
 	case POWER_SUPPLY_TYPE_USB:
+	case POWER_SUPPLY_TYPE_UPS:
 	case POWER_SUPPLY_TYPE_USB_CDP:
 	case POWER_SUPPLY_TYPE_USB_DCP:
 	case POWER_SUPPLY_TYPE_MAINS:
 	case POWER_SUPPLY_TYPE_HV_MAINS:
 	case POWER_SUPPLY_TYPE_PREPARE_TA:
 	case POWER_SUPPLY_TYPE_UNKNOWN:
-        case POWER_SUPPLY_TYPE_USB_ACA:              /* Accessory Charger Adapters */
-        case POWER_SUPPLY_TYPE_USB_TYPE_C:           /* Type C Port */
-        case POWER_SUPPLY_TYPE_USB_PD:               /* Power Delivery Port */
-        case POWER_SUPPLY_TYPE_USB_PD_DRP:           /* PD Dual Role Port */
-        case POWER_SUPPLY_TYPE_APPLE_BRICK_ID:       /* Apple Charging Method */
+	case POWER_SUPPLY_TYPE_USB_ACA:              /* Accessory Charger Adapters */
+	case POWER_SUPPLY_TYPE_USB_TYPE_C:           /* Type C Port */
+	case POWER_SUPPLY_TYPE_USB_PD:               /* Power Delivery Port */
+	case POWER_SUPPLY_TYPE_USB_PD_DRP:           /* PD Dual Role Port */
+	case POWER_SUPPLY_TYPE_APPLE_BRICK_ID:       /* Apple Charging Method */
 		present = true;
 		break;
 	default:
@@ -2787,10 +2788,10 @@ bool is_cable_present(struct s2mu00x_battery_info *chip)
         bool present = false;
 
         switch (type) {
-        case POWER_SUPPLY_TYPE_UNKNOWN:
-        case POWER_SUPPLY_TYPE_BATTERY:
-        case POWER_SUPPLY_TYPE_OTG:
-        case POWER_SUPPLY_TYPE_END:
+	case POWER_SUPPLY_TYPE_BATTERY:
+	case POWER_SUPPLY_TYPE_OTG:
+	case POWER_SUPPLY_TYPE_SMART_NOTG:
+	case POWER_SUPPLY_TYPE_END:
                 present = false;
                 break;
         default:
@@ -2816,11 +2817,28 @@ bool is_sdp_cdp(struct s2mu00x_battery_info *chip)
 bool is_dc_present(struct s2mu00x_battery_info *chip)
 {
 	int type = chip->cable_type;
+	bool present = false;
 
-	if (type == POWER_SUPPLY_TYPE_USB_DCP || type == POWER_SUPPLY_TYPE_MAINS || type == POWER_SUPPLY_TYPE_HV_MAINS)
-		return true;
-	else
-		return false;
+	switch (type) {
+	case POWER_SUPPLY_TYPE_USB_DCP:
+	case POWER_SUPPLY_TYPE_UPS:
+	case POWER_SUPPLY_TYPE_MAINS:
+	case POWER_SUPPLY_TYPE_HV_MAINS:
+	case POWER_SUPPLY_TYPE_PREPARE_TA:
+	case POWER_SUPPLY_TYPE_UNKNOWN:
+	case POWER_SUPPLY_TYPE_USB_ACA:              /* Accessory Charger Adapters */
+	case POWER_SUPPLY_TYPE_USB_TYPE_C:           /* Type C Port */
+	case POWER_SUPPLY_TYPE_USB_PD:               /* Power Delivery Port */
+	case POWER_SUPPLY_TYPE_USB_PD_DRP:           /* PD Dual Role Port */
+	case POWER_SUPPLY_TYPE_APPLE_BRICK_ID:       /* Apple Charging Method */
+		present = true;
+	 	break;
+        default:
+                present = false;
+                break;
+        }
+
+	return present;
 }
 
 static void smbchg_stay_awake(struct s2mu00x_battery_info *chip)
@@ -3889,6 +3907,32 @@ static void set_max_allowed_current_ma(struct s2mu00x_battery_info *chip,
 	       chip->target_fastchg_current_ma);
 }
 
+static int set_property_on_smallcharger(struct s2mu00x_battery_info *chip,
+		enum power_supply_property prop, int val)
+{
+	int rc;
+	union power_supply_propval ret = {0, };
+	struct power_supply		*smallcharger_psy;
+
+	if (chip->pdata->smallcharger_name)
+		smallcharger_psy =
+			power_supply_get_by_name(chip->pdata->smallcharger_name);
+
+	if (!smallcharger_psy) {
+		pr_smb(PR_STATUS, "no small charger psy found\n");
+		return -EINVAL;
+	}
+
+	ret.intval = val;
+	rc = power_supply_set_property(smallcharger_psy, prop, &ret);
+	if (rc)
+		pr_smb(PR_STATUS,
+			"small charger psy does not allow updating prop %d rc = %d\n",
+			prop, rc);
+
+	return rc;
+}
+
 #define HEARTBEAT_DELAY_MS 30000
 #define HEARTBEAT_HOLDOFF_MS 10000
 #define STEPCHG_MAX_FV_COMP 60
@@ -4091,13 +4135,40 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 				      chip->stepchg_current_ma);
 
 		pr_info("%s, target_fastchg_current_ma:%d\n", __func__, chip->target_fastchg_current_ma);
+
 		if (is_sdp_cdp(chip)) {
 			pr_info("%s, usb\n",__func__);
 			//need test usb charging.
-			chip->update_allowed_fastchg_current_ma = false;
+			//chip->update_allowed_fastchg_current_ma = false;
 		} else if (is_dc_present(chip)) {
+#if defined(CONFIG_SMALL_CHARGER)
+			if (chip->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
+				chip->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
+				int main_charger_current = chip->target_fastchg_current_ma;
+				int small_charger_current = 1000;
+
+				if (chip->target_fastchg_current_ma <= 2300) {
+					main_charger_current = chip->target_fastchg_current_ma - 300;
+					small_charger_current = 300;
+				}else {
+					main_charger_current = 2000 ;
+					small_charger_current = chip->target_fastchg_current_ma - 2000 ;
+				}
+
+				pr_info("%s, dc, target_fastchg_current_ma:%d, main current:%d, small current:%d \n", __func__,
+						chip->target_fastchg_current_ma,main_charger_current,small_charger_current);
+
+				set_property_on_charger(chip, POWER_SUPPLY_PROP_CURRENT_NOW, main_charger_current);
+				set_property_on_smallcharger(chip, POWER_SUPPLY_PROP_CURRENT_MAX, small_charger_current);
+				set_property_on_smallcharger(chip, POWER_SUPPLY_PROP_CURRENT_NOW, small_charger_current);
+			} else {
+				pr_info("%s, dc,current:%d\n", __func__, chip->target_fastchg_current_ma);
+				set_property_on_charger(chip, POWER_SUPPLY_PROP_CURRENT_NOW, chip->target_fastchg_current_ma);
+			}
+#else
 			pr_info("%s, dc,current:%d\n", __func__, chip->target_fastchg_current_ma);
 			set_property_on_charger(chip, POWER_SUPPLY_PROP_CURRENT_NOW, chip->target_fastchg_current_ma);
+#endif
 		}
 	}
 
