@@ -46,6 +46,8 @@
 #include <scsi/ufs/ioctl.h>
 #include <linux/of.h>
 #include <linux/blkdev.h>
+#include <linux/gpio.h>
+
 #include "ufshcd.h"
 #include "ufs_quirks.h"
 #include "unipro.h"
@@ -249,6 +251,8 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 				     enum ufs_dev_pwr_mode pwr_mode);
 static int ufshcd_send_request_sense(struct ufs_hba *hba,
                                struct scsi_device *sdp);
+static void ufshcd_vreg_set_lpm(struct ufs_hba *hba);
+static int ufshcd_vreg_set_hpm(struct ufs_hba *hba);
 static inline bool ufshcd_valid_tag(struct ufs_hba *hba, int tag)
 {
 	return tag >= 0 && tag < hba->nutrs;
@@ -5422,6 +5426,7 @@ out:
 static void ufshcd_err_handler(struct work_struct *work)
 {
 	struct ufs_hba *hba;
+	struct ufs_vreg_info *info = &hba->vreg_info;
 	struct exynos_ufs *ufs;
 	unsigned long flags;
 	u32 err_xfer = 0;
@@ -5445,6 +5450,12 @@ static void ufshcd_err_handler(struct work_struct *work)
 
 	/* Dump debugging information to system memory */
 	ufshcd_vops_dbg_register_dump(hba);
+
+	/* Dump UFS power & reset_n GPIO status */
+	if (gpio_is_valid(info->ufs_power_gpio))
+		dev_info(hba->dev, "%s: UFS power pin: 0x%08x\n", __func__, gpio_get_value(info->ufs_power_gpio));
+	if (gpio_is_valid(info->ufs_reset_n_gpio))
+		dev_info(hba->dev, "%s: RESET_N: 0x%08x\n", __func__, gpio_get_value(info->ufs_reset_n_gpio));
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	if (hba->ufshcd_state == UFSHCD_STATE_RESET)
@@ -6711,19 +6722,36 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 {
 	struct ufs_dev_desc card = {0};
 	struct ufs_pa_layer_attr *pwr_info = &hba->max_pwr_info.info;
+	struct ufs_vreg_info *info = &hba->vreg_info;
 	int re_cnt = 0;
-	int ret;
+	int ret, link_startup_fail = 0;
 	ktime_t start = ktime_get();
 	unsigned long flags;
 
 retry:
+	/* For deivce power control when link startup fail. */
+	if (link_startup_fail) {
+		ufshcd_vreg_set_lpm(hba);
+		ret = ufshcd_vreg_set_hpm(hba);
+
+		if (gpio_is_valid(info->ufs_power_gpio))
+			dev_info(hba->dev, "%s: UFS power pin: 0x%08x\n", __func__, gpio_get_value(info->ufs_power_gpio));
+		if (gpio_is_valid(info->ufs_reset_n_gpio))
+			dev_info(hba->dev, "%s: RESET_N: 0x%08x\n", __func__, gpio_get_value(info->ufs_reset_n_gpio));
+		if (ret)
+			goto out;
+	}
+
 	ret = ufshcd_hba_enable(hba);
 	if (ret)
 		goto out;
 
 	ret = ufshcd_link_startup(hba);
-	if (ret)
+	if (ret) {
+		link_startup_fail = 1;
 		goto out;
+	}
+	link_startup_fail = 0;
 
 	dev_info(hba->dev, "UFS link established\n");
 

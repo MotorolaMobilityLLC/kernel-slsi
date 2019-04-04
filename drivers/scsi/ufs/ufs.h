@@ -550,6 +550,8 @@ struct ufs_vreg_info {
 	struct ufs_vreg *vccq;
 	struct ufs_vreg *vccq2;
 	struct ufs_vreg *vdd_hba;
+	int ufs_power_gpio;
+	int ufs_reset_n_gpio;
 };
 
 struct ufs_dev_info {
