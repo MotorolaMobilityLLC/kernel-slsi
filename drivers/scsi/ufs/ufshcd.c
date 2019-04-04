@@ -5749,6 +5749,10 @@ static void ufshcd_sl_intr(struct ufs_hba *hba, u32 intr_status)
 
 	if (intr_status & UTP_TRANSFER_REQ_COMPL)
 		ufshcd_transfer_req_compl(hba, 0);
+
+	/* Interrupt disable for stop UIC interrupts storm */
+	if (hba->saved_uic_err && (hba->ufshcd_state != UFSHCD_STATE_RESET))
+		ufshcd_disable_intr(hba, UIC_ERROR);
 }
 
 /**
