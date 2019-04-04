@@ -5384,7 +5384,7 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 	tlv_data = fapi_get_data(skb);
 
 	SLSI_DBG3(sdev, SLSI_GSCAN,
-		  "slsi_rx_event_log_indication, event id = %d, len = %d\n", event_id, tlv_buffer__len);
+		  "slsi_rx_event_log_indication,event id = %d, len = %d\n", event_id, tlv_buffer__len);
 
 #ifdef CONFIG_SCSC_WIFILOGGER
 	SCSC_WLOG_FW_EVENT(WLOG_NORMAL, event_id, timestamp, fapi_get_data(skb), fapi_get_datalen(skb));
@@ -5486,7 +5486,7 @@ void slsi_rx_event_log_indication(struct slsi_dev *sdev, struct net_device *dev,
 		SLSI_INFO(sdev, "WIFI_EVENT_AUTH_COMPLETE,Status code:%d\n", status_code);
 		break;
 	case FAPI_EVENT_WIFI_EVENT_ROAM_ASSOC_COMPLETE:
-		SLSI_INFO(sdev, "WIFI_EVENT_ROAM_ASSOC_COMPLETE\n");
+		SLSI_INFO(sdev, "Received Association Response\n");
 		break;
 	case WIFI_EVENT_FW_NR_FRAME_REQUEST:
 		SLSI_INFO(sdev, "Send Radio Measurement Frame (Neighbor Report Req)\n");
