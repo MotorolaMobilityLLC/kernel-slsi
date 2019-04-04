@@ -2336,7 +2336,8 @@
 
 		vcc-supply = <&ufs_fixed_vcc>;
 		vcc-fixed-regulator;
-
+		ufs-power-gpio = <&gpg4 0 0>;
+		ufs-reset-n-gpio = <&gpf0 1 0>;
 
 		/* ----------------------- */
 		/* 3. UFS EXYNOS           */
