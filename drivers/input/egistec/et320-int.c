@@ -51,6 +51,8 @@
 
 #define FP_SPICLK_ENABLE			0xaa
 #define FP_SPICLK_DISABLE			0xab
+#define FP_ENABLE_WAKELOCK			0xb1
+#define FP_DISABLE_WAKELOCK			0xb2
 
 #define EDGE_TRIGGER_FALLING    0x0
 #define	EDGE_TRIGGER_RAISING    0x1
@@ -573,6 +575,12 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		DEBUG_PRINT("fp_ioctl <<< FP_SPICLK_ENABLE_DISABLE -------  \n");
 		DEBUG_PRINT("etspi:fp_ioctl spi_clk_enable = %x\n", data.clk_enable);
 		spi_clk_enable(etspi, data.clk_enable);
+		goto done;
+	case FP_ENABLE_WAKELOCK:
+		wake_lock_timeout(&et320_wake_lock, msecs_to_jiffies(1500));
+		goto done;
+	case FP_DISABLE_WAKELOCK:
+		wake_unlock(&et320_wake_lock);
 		goto done;
 	default:
 	retval = -ENOTTY;
