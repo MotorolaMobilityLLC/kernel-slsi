@@ -120,7 +120,6 @@ static void s2mu106_usbpd_test_read(struct s2mu106_usbpd_data *usbpd_data)
 										data[5], data[6], data[7], data[8]);
 }
 
-#if defined(CONFIG_DUAL_ROLE_USB_INTF)
 void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode)
 {
 	u8 data = 0;
@@ -176,7 +175,6 @@ void s2mu106_rprd_mode_change(struct s2mu106_usbpd_data *usbpd_data, u8 mode)
 skip:
 	mutex_unlock(&usbpd_data->_mutex);
 }
-#endif
 
 void usbpd_charger_test_read(struct s2mu106_usbpd_data *usbpd_data)
 {
