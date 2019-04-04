@@ -868,8 +868,17 @@ int sensor_2x5sp_cis_stream_off(struct v4l2_subdev *subdev)
 	if (ret < 0)
 		err("group_param_hold_func failed at stream off");
 
-	/* Sensor stream off */
 	fimc_is_sensor_write16(client, 0x6028, 0x4000);
+
+	/* during LEC mode, clear 0x0BCC before stream off for next frame
+	 * After cancelled, restore value
+	 */
+	if (cis->long_term_mode.sen_strm_off_on_enable)
+		fimc_is_sensor_write8(client, 0x0BCC, 0);
+	else
+		fimc_is_sensor_write8(client, 0x0BCC, 0x1);
+
+	/* Sensor stream off */
 	fimc_is_sensor_write8(client, 0x0100, 0x00);
 
 	cis_data->stream_on = false;
