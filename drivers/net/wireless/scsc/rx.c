@@ -2293,6 +2293,7 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	u16 data_unit_descriptor = fapi_get_u16(skb, u.mlme_received_frame_ind.data_unit_descriptor);
 	u16 frequency = SLSI_FREQ_FW_TO_HOST(fapi_get_u16(skb, u.mlme_received_frame_ind.channel_frequency));
+	u8 *eapol = NULL;
 	u8 *eap = NULL;
 	u16 protocol = 0;
 	u32 dhcp_message_type = SLSI_DHCP_MESSAGE_TYPE_INVALID;
@@ -2403,6 +2404,9 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 		dev->last_rx = jiffies;
 #endif
 		/* Storing Data for Logging Information */
+		if ((skb->len - sizeof(struct ethhdr)) >= 99)
+			eapol = skb->data + sizeof(struct ethhdr);
+
 		if ((skb->len - sizeof(struct ethhdr)) >= 9) {
 			eap_length = (skb->len - sizeof(struct ethhdr)) - 4;
 			eap = skb->data + sizeof(struct ethhdr);
@@ -2413,7 +2417,26 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 		skb->protocol = eth_type_trans(skb, dev);
 		protocol = ntohs(skb->protocol);
 		if (protocol == ETH_P_PAE) {
-			if (eap && eap[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAP_PACKET) {
+			if (eapol && eapol[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAPOL_KEY) {
+				if ((eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_RSN_KEY ||
+				     eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_WPA_KEY) &&
+				    (eapol[SLSI_EAPOL_KEY_INFO_LOWER_BYTE_POS] &
+				     SLSI_EAPOL_KEY_INFO_KEY_TYPE_BIT_IN_LOWER_BYTE) &&
+				    (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
+				     SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE) &&
+				    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_HIGHER_BYTE_POS] == 0) &&
+				    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)) {
+					SLSI_INFO(sdev, "Received 4way-H/S, M4\n");
+				} else if (!(eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
+					     SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE)) {
+					SLSI_INFO(sdev, "Received 4way-H/S, M1\n");
+				} else if (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] &
+					   SLSI_EAPOL_KEY_INFO_SECURE_BIT_IN_HIGHER_BYTE) {
+					SLSI_INFO(sdev, "Received 4way-H/S, M3\n");
+				} else {
+					SLSI_INFO(sdev, "Received 4way-H/S, M2\n");
+				}
+			} else if (eap && eap[SLSI_EAPOL_IEEE8021X_TYPE_POS] == SLSI_IEEE8021X_TYPE_EAP_PACKET) {
 				if (eap[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_REQUEST)
 					SLSI_INFO(sdev, "Received EAP-Request (%d)\n", eap_length);
 				else if (eap[SLSI_EAP_CODE_POS] == SLSI_EAP_PACKET_RESPONSE)
