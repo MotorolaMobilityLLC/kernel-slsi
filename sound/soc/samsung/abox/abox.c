@@ -5629,6 +5629,19 @@ static int abox_disable(struct device *dev)
 	return 0;
 }
 
+void abox_check_sysmmu_status(struct device *dev)
+{
+	void __iomem *sysmmu_sfr;
+	unsigned int sysmmu_status;
+
+	sysmmu_sfr = ioremap(0x14920000, SZ_4K);
+	sysmmu_status = readl(sysmmu_sfr + 0x8);
+	if (sysmmu_status & 0x1E)
+		dev_warn(dev, "SYSMMU transaction is pending\n");
+	dev_info(dev, "SYSMMU_STATUS = [%08x]\n", sysmmu_status);
+	iounmap(sysmmu_sfr);
+}
+
 void abox_poweroff(void)
 {
 	struct platform_device *pdev = p_abox_data->pdev;
@@ -5642,6 +5655,8 @@ void abox_poweroff(void)
 	dev_info(dev, "%s\n", __func__);
 
 	abox_disable(dev);
+
+	abox_check_sysmmu_status(dev);
 
 	exynos_sysmmu_control(dev, false);
 }
