@@ -1183,6 +1183,7 @@ int sensor_2x5sp_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 	u32 frame_duration = 0;
 	u64 numerator;
 	u8 lte_shifter;
+	u32 multiple_ratio = 1;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1203,9 +1204,15 @@ int sensor_2x5sp_cis_adjust_frame_duration(struct v4l2_subdev *subdev,
 	lte_shifter = cis->long_term_mode.sen_strm_off_on_enable ?
 		GET_2X5SP_LTE_SHIFT_CNT(input_exposure_time) : 0;
 
+	/* In 24M remosaic mode, set 4 times of frame_length_lines */
+	if (cis_data->sens_config_index_cur == SENSOR_2X5SP_5760X4320_24FPS) {
+		multiple_ratio = 4;
+		dbg_sensor(1, "[mod:d:%d] %s, Set 4 times of coarse_int for 24M mode\n", cis->id, __func__);
+	}
+
 	vt_pic_clk_freq_mhz = cis_data->pclk / (1000 * 1000);
 	line_length_pck = cis_data->line_length_pck;
-	numerator = (u64)cis_data->pclk * input_exposure_time;
+	numerator = (u64)cis_data->pclk * input_exposure_time * multiple_ratio;
 	frame_length_lines = (u16)((numerator / (1000 * 1000))/ line_length_pck / (1 << lte_shifter));
 	frame_length_lines += cis_data->max_margin_coarse_integration_time;
 
@@ -1241,7 +1248,6 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	u64 numerator;
 	u32 max_coarse_integration_time = 0;
 	u8 lte_shifter;
-	u32 multiple_ratio = 1;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -1272,14 +1278,8 @@ int sensor_2x5sp_cis_set_frame_duration(struct v4l2_subdev *subdev, u32 frame_du
 	lte_shifter = cis->long_term_mode.sen_strm_off_on_enable ?
 		GET_2X5SP_LTE_SHIFT_CNT(frame_duration) : 0;
 
-	/* In 24M remosaic mode, set 4 times of frame_length_lines */
-	if (cis_data->sens_config_index_cur == SENSOR_2X5SP_5760X4320_24FPS) {
-		multiple_ratio = 4;
-		dbg_sensor(1, "[mod:d:%d] %s, Set 4 times of coarse_int for 24M mode\n", cis->id, __func__);
-	}
-
 	line_length_pck = cis_data->line_length_pck;
-	numerator = (u64)cis_data->pclk * frame_duration * multiple_ratio;
+	numerator = (u64)cis_data->pclk * frame_duration;
 	frame_length_lines = (u16)((numerator / line_length_pck) / (1000 * 1000) / (1 << lte_shifter));
 
 	dbg_sensor(1, "[MOD:D:%d] %s, vt_pic_clk(%#x) frame_duration = %d us,"
