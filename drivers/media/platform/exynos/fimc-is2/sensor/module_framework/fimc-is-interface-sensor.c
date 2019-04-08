@@ -1320,8 +1320,10 @@ int get_sensor_frame_timing(struct fimc_is_sensor_interface *itf,
 }
 
 int get_sensor_cur_size(struct fimc_is_sensor_interface *itf,
+#ifdef CONFIG_CAMERA_CIS_12A10_OBJ
 			u32 *cur_pos_x,
 			u32 *cur_pos_y,
+#endif
 			u32 *cur_width,
 			u32 *cur_height)
 {
@@ -1336,8 +1338,10 @@ int get_sensor_cur_size(struct fimc_is_sensor_interface *itf,
 	FIMC_BUG(!sensor_peri);
 	FIMC_BUG(!sensor_peri->cis.cis_data);
 
+#ifdef CONFIG_CAMERA_CIS_12A10_OBJ
 	*cur_pos_x = sensor_peri->cis.cis_data->cur_pos_x;
 	*cur_pos_y = sensor_peri->cis.cis_data->cur_pos_y;
+#endif
 	*cur_width = sensor_peri->cis.cis_data->cur_width;
 	*cur_height = sensor_peri->cis.cis_data->cur_height;
 
