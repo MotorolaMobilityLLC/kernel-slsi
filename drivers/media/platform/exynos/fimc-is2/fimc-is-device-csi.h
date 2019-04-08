@@ -96,6 +96,7 @@ struct fimc_is_device_csi {
 	struct work_struct		wq_csis_dma[CSI_VIRTUAL_CH_MAX];
 	struct workqueue_struct		*workqueue;
 	int				pre_dma_enable[CSI_VIRTUAL_CH_MAX];
+	int				cur_dma_enable[CSI_VIRTUAL_CH_MAX];
 
 	/* subdev slots for dma */
 	struct fimc_is_subdev		*dma_subdev[CSI_VIRTUAL_CH_MAX];
