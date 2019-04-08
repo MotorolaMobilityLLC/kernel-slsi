@@ -2620,6 +2620,9 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 		{ SLSI_PSID_UNIFI_FRAME_TX_COUNTERS, { 1, 0 } },    /*tx good count*/
 		{ SLSI_PSID_UNIFI_FRAME_TX_COUNTERS, { 2, 0 } },    /*tx bad count*/
 		{ SLSI_PSID_UNIFI_FRAME_RX_COUNTERS, { 1, 0 } },    /*rx good count*/
+#ifdef CONFIG_SCSC_ENHANCED_PACKET_STATS
+		{ SLSI_PSID_UNIFI_FRAME_TX_COUNTERS, { 3, 0 } },    /*tx retry count*/
+#endif
 	};
 	int rx_counter = 0;
 
@@ -2641,9 +2644,9 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 
 	/* Fixed fields len (5) : 2 bytes(PSID) + 2 bytes (Len) + 1 byte (VLDATA header )  [10 for 2 PSIDs]
 	 * Data : 3 bytes for SLSI_PSID_UNIFI_TX_DATA_RATE , 1 byte for SLSI_PSID_UNIFI_RSSI
-	 * 10*6 bytes for 3 Throughput Mib's and 3 counter Mib's
+	 * 10*7 bytes for 3 Throughput Mib's and 4 counter Mib's
 	 */
-	mibrsp.dataLength = 74;
+	mibrsp.dataLength = 84;
 	mibrsp.data = kmalloc(mibrsp.dataLength, GFP_KERNEL);
 
 	if (!mibrsp.data) {
@@ -2717,12 +2720,21 @@ int slsi_mlme_get_sinfo_mib(struct slsi_dev *sdev, struct net_device *dev,
 			peer->sinfo.rx_packets = values[7].u.uintValue; /*rx good count*/
 		else
 			SLSI_ERR(sdev, "invalid type. iter:%d", 7);
+#ifdef CONFIG_SCSC_ENHANCED_PACKET_STATS
+		if (values[8].type == SLSI_MIB_TYPE_UINT)
+			peer->sinfo.tx_retries = values[8].u.uintValue; /*tx retry count*/
+		else
+			SLSI_ERR(sdev, "invalid type. iter:%d", 8);
+#endif
 
 		peer->sinfo.rx_dropped_misc = rx_counter;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 		peer->sinfo.filled |= BIT(NL80211_STA_INFO_TX_FAILED) | BIT(NL80211_STA_INFO_RX_DROP_MISC) |
 				      BIT(NL80211_STA_INFO_TX_PACKETS) | BIT(NL80211_STA_INFO_RX_PACKETS);
+#ifdef CONFIG_SCSC_ENHANCED_PACKET_STATS
+		peer->sinfo.filled |= BIT(NL80211_STA_INFO_TX_RETRIES);
+#endif
 #endif
 	} else {
 		SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_get_req failed(result:0x%4x)\n", r);
