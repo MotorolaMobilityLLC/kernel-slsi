@@ -806,8 +806,10 @@ struct fimc_is_cis_interface_ops {
 				u32 *max_margin_cit);
 
 	int (*get_sensor_cur_size)(struct fimc_is_sensor_interface *itf,
+#ifdef CONFIG_CAMERA_CIS_12A10_OBJ
 				u32 *cur_pos_x,
 				u32 *cur_pos_y,
+#endif
 				u32 *cur_width,
 				u32 *cur_height);
 
