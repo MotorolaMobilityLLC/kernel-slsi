@@ -278,16 +278,19 @@ static int set_charging_current(struct s2mu00x_battery_info *battery)
 	/*Limit input & charging current according to the max current*/
 	if (battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
 		battery->cable_type == POWER_SUPPLY_TYPE_USB_PD) {
+#if defined(CONFIG_USE_CCIC)
 		pr_info("%s, %d, %d\n", __func__, input_current, battery->pd_input_current);
 		input_current = battery->pd_input_current;
+#endif
 
 		if (input_current >= 1500)
 			input_current = input_current - 50;
-
+#if defined(CONFIG_SMALL_CHARGER)
 		if (input_current > 2000) {
 			battery->small_input_flag = input_current - 2000;
 			input_current = 2000;
 		}
+#endif
 	} else {
 		if (battery->rp_attach &&
 				!(battery->cable_type == POWER_SUPPLY_TYPE_BATTERY ||
@@ -532,7 +535,9 @@ static int set_battery_status(struct s2mu00x_battery_info *battery,
 		battery->input_current = 0;
 		battery->charging_current = 0;
 		battery->topoff_current = 0;
+#if defined(CONFIG_SMALL_CHARGER)
 		battery->small_input_flag = 0;
+#endif
 		break;
 
 	case POWER_SUPPLY_STATUS_FULL:
@@ -2080,7 +2085,9 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->input_current = 0;
 	battery->charging_current = 0;
 	battery->topoff_current = 0;
+#if defined(CONFIG_SMALL_CHARGER)
 	battery->small_input_flag = 0;
+#endif
 
 	battery->max_input_current = battery->pdata->max_input_current;
 	battery->max_charging_current = battery->pdata->max_charging_current;
