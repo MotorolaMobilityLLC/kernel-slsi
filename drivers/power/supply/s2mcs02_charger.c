@@ -227,12 +227,13 @@ static void s2mcs02_set_input_current(struct s2mcs02_charger_data *charger,
 	pr_info("%s: input_current(%d) : 0x%x\n", __func__, input_current, reg_data);
 }
 
-static void s2mcs02_charger_initialize(struct s2mcs02_charger_data *charger)
+static int s2mcs02_charger_initialize(struct s2mcs02_charger_data *charger)
 {
 	u8 reg_data;
 
 	pr_info("%s:\n", __func__);
-	s2mcs02_read_reg(charger->i2c, S2MCS02_PMIC_REV, &reg_data);
+	if (s2mcs02_read_reg(charger->i2c, S2MCS02_PMIC_REV, &reg_data) < 0)
+		return -EIO;
 
 	if (reg_data == 0x00) {
 		s2mcs02_update_reg(charger->i2c, 0x45, BIT(5), BIT(5));
@@ -254,6 +255,8 @@ static void s2mcs02_charger_initialize(struct s2mcs02_charger_data *charger)
 
 	/* Set CV_FLG to 4.7V */
 	s2mcs02_update_reg(charger->i2c, S2MCS02_CHG_SC_CTRL9, 0x28, CV_FLG_MASK);
+
+	return 0;
 }
 
 static irqreturn_t s2mcs02_irq_handler(int irq, void *data)
@@ -523,7 +526,12 @@ static int s2mcs02_charger_probe(struct i2c_client *client,
 
 	charger->cable_type = POWER_SUPPLY_TYPE_BATTERY;
 
-	s2mcs02_charger_initialize(charger);
+	ret = s2mcs02_charger_initialize(charger);
+	if (ret < 0) {
+		dev_err(charger->dev, "s2mcs02_charger_initialize failed.\n");
+		ret = -ENXIO;
+		goto err_i2cfunc_not_support;
+	}
 
 	psy_cfg.drv_data = charger;
 	psy_cfg.supplied_to = s2mcs02_supplied_to;
