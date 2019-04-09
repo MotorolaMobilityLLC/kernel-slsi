@@ -283,12 +283,12 @@ static int sensor_module_5e9_power_setpin_1(struct device *dev,
 	/* TODO: need to check */
 	/* SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VLDO41_PMIC_FCAM_AVDD_2P8", PIN_REGULATOR, 1, 0); */
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 1000);
 	SET_PIN_SHARED(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, SRT_ACQUIRE,
 			&core->shared_rsc_slock[SHARED_PIN0], &core->shared_rsc_count[SHARED_PIN0], 1);
 
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 1000);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 2000);
 
 	/* Normal Off */
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 0, 0);
@@ -307,9 +307,9 @@ static int sensor_module_5e9_power_setpin_1(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_reset, "sen_rst low", PIN_OUTPUT, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "VLDO44_PMIC_DCAM_DVDD_1P2", PIN_REGULATOR, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 1000);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 1000);
+	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 2000);
 
 	/* Normal Off */
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 0, 0);
