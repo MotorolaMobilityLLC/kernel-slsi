@@ -223,7 +223,7 @@
 			front_preview_uhd_int = <DVFS_INT_L4>;
 			front_preview_uhd_hpg = <1>;
 
-			front_preview_int_cam = <DVFS_INT_CAM_L3>;
+			front_preview_int_cam = <DVFS_INT_CAM_L2>;
 			front_preview_cam = <DVFS_CAM_L2>;
 			front_preview_mif = <DVFS_MIF_L3>;
 			front_preview_int = <DVFS_INT_L4>;
@@ -243,7 +243,7 @@
 
 			front_video_int_cam = <DVFS_INT_CAM_L2>;
 			front_video_cam = <DVFS_CAM_L2>;
-			front_video_mif = <DVFS_MIF_L4>;
+			front_video_mif = <DVFS_MIF_L5>;
 			front_video_int = <DVFS_INT_L4>;
 			front_video_hpg = <1>;
 
