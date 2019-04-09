@@ -183,12 +183,12 @@ static int sensor_module_gm1sp_power_setpin(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VLDO38_PMIC_RCAM_AFVCC_2P8", PIN_REGULATOR, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_dvdd_en, "dvdd_en", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 50);
 	SET_PIN_SHARED(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, SRT_ACQUIRE,
 			&core->shared_rsc_slock[SHARED_PIN0], &core->shared_rsc_count[SHARED_PIN0], 1);
 
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 2000);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 3000);
 
 	/* BACK CAEMRA - POWER OFF */
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_reset, "sen_rst", PIN_RESET, 0, 10);
@@ -236,10 +236,10 @@ static int sensor_module_gm1sp_power_setpin(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "VLDO38_PMIC_RCAM_AFVCC_2P8", PIN_REGULATOR, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_dvdd_en, "dvdd_en", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 50);
 
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 2000);
+	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 3000);
 
 
 	/* REAR VISION CAEMRA - POWER OFF */
