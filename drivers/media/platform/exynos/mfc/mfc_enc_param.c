@@ -15,7 +15,6 @@
 #include "mfc_reg_api.h"
 
 /* Definition */
-#define FRAME_DELTA_DEFAULT		1
 #define CBR_FIX_MAX			10
 #define CBR_I_LIMIT_MAX			5
 #define BPG_EXTENSION_TAG_SIZE		5
@@ -221,9 +220,20 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 	mfc_clear_set_bits(reg, 0x1, 8, p->rc_mb);
 	/* frame-level rate control */
 	mfc_clear_set_bits(reg, 0x1, 9, p->rc_frame);
-	/* 'DROP_CONTROL_ENABLE', disable */
-	mfc_clear_bits(reg, 0x1, 10);
+	/* drop control */
+	mfc_clear_set_bits(reg, 0x1, 10, p->drop_control);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
+
+	/*
+	 * frame rate
+	 * delta is timestamp diff
+	 * ex) 30fps: 33, 60fps: 16
+	 */
+	p->rc_frame_delta = FRAME_RATE_RESOLUTION / p->rc_framerate;
+	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
+	mfc_clear_set_bits(reg, 0xFFFF, 16, FRAME_RATE_RESOLUTION);
+	mfc_clear_set_bits(reg, 0xFFFF, 0, p->rc_frame_delta);
+	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* bit rate */
 	ctx->Kbps = p->rc_bitrate / 1024;
@@ -477,14 +487,6 @@ static void __mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 		mfc_set_bits(reg, 0x1, 11, 0x1);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
 
-	/* frame rate */
-	/* Fix value for H.264, H.263 in the driver */
-	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
-	mfc_clear_set_bits(reg, 0xFFFF, 16, p->rc_framerate);
-	mfc_clear_set_bits(reg, 0xFFFF, 0, p->rc_frame_delta);
-	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
-
 	/* max & min value of QP for I frame */
 	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
 	/** max I frame QP */
@@ -619,13 +621,6 @@ static void __mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
 	mfc_clear_set_bits(reg, 0xFF, 0, p_mpeg4->rc_frame_qp);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
 
-	/* frame rate */
-	p->rc_frame_delta = p_mpeg4->vop_frm_delta;
-	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
-	mfc_clear_set_bits(reg, 0xFFFF, 16, p_mpeg4->vop_time_res);
-	mfc_clear_set_bits(reg, 0xFFFF, 0, p_mpeg4->vop_frm_delta);
-	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
-
 	/* rate control config. */
 	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
 	/** frame QP */
@@ -682,14 +677,6 @@ static void __mfc_set_enc_params_h263(struct mfc_ctx *ctx)
 	mfc_clear_set_bits(reg, 0xFF, 8, p_mpeg4->rc_p_frame_qp);
 	mfc_clear_set_bits(reg, 0xFF, 0, p_mpeg4->rc_frame_qp);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
-
-	/* frame rate */
-	/* Fix value for H.264, H.263 in the driver */
-	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
-	mfc_clear_set_bits(reg, 0xFFFF, 16, p->rc_framerate);
-	mfc_clear_set_bits(reg, 0xFFFF, 0, p->rc_frame_delta);
-	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* rate control config. */
 	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
@@ -797,13 +784,6 @@ static void __mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
 	mfc_clear_set_bits(reg, 0xFF, 8, p_vp8->rc_p_frame_qp);
 	mfc_clear_set_bits(reg, 0xFF, 0, p_vp8->rc_frame_qp);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
-
-	/* frame rate */
-	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
-	mfc_clear_set_bits(reg, 0xFFFF, 16, p->rc_framerate);
-	mfc_clear_set_bits(reg, 0xFFFF, 0, p->rc_frame_delta);
-	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* rate control config. */
 	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
@@ -922,13 +902,6 @@ static void __mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 	mfc_clear_set_bits(reg, 0xFF, 8, p_vp9->rc_p_frame_qp);
 	mfc_clear_set_bits(reg, 0xFF, 0, p_vp9->rc_frame_qp);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
-
-	/* frame rate */
-	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
-	mfc_clear_set_bits(reg, 0xFFFF, 16, p->rc_framerate);
-	mfc_clear_set_bits(reg, 0xFFFF, 0, p->rc_frame_delta);
-	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* rate control config. */
 	reg = MFC_RAW_READL(MFC_REG_E_RC_CONFIG);
@@ -1115,13 +1088,6 @@ static void __mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 	/** frame QP */
 	mfc_clear_set_bits(reg, 0xFF, 0, p_hevc->rc_frame_qp);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_CONFIG);
-
-	/* frame rate */
-	p->rc_frame_delta = FRAME_DELTA_DEFAULT;
-	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
-	mfc_clear_set_bits(reg, 0xFFFF, 16, p->rc_framerate);
-	mfc_clear_set_bits(reg, 0xFFFF, 0, p->rc_frame_delta);
-	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
 	/* max & min value of QP for I frame */
 	reg = MFC_RAW_READL(MFC_REG_E_RC_QP_BOUND);
