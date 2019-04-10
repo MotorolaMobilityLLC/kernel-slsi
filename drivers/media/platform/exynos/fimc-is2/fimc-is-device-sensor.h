@@ -287,6 +287,7 @@ struct fimc_is_module_enum {
 	struct fimc_is_sensor_cfg			*cfg;
 	struct fimc_is_sensor_vc_extra_info		vc_extra_info[VC_BUF_DATA_TYPE_MAX];
 	u32						vc_buffer_offset[CSI_VIRTUAL_CH_MAX];
+	u32						power_retry;
 	struct i2c_client				*client;
 	struct sensor_open_extended			ext;
 	struct fimc_is_sensor_ops			*ops;
