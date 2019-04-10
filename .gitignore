@@ -126,3 +126,8 @@ all.config
 
 # fetched Android config fragments
 kernel/configs/android-*.cfg
+
+# Android Q
+arch/arm64/lib/lib.a.symversions
+dtbo.img
+lib/lib.a.symversions
