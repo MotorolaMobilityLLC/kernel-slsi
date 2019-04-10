@@ -476,6 +476,7 @@ struct s2mu00x_battery_info {
 	bool				enable_factory_wa;
 	int                         max_chrg_temp;
 	bool			charging_disabled;
+	int			cable_attach_flag;
 };
 
 static int is_charging_mode = S2MU00X_NOR_MODE;
@@ -1661,12 +1662,14 @@ end_ifconn_handle:
 		smbchg_relax(battery);
 		cancel_delayed_work_sync(&battery->heartbeat_work);
 		battery->stepchg_state = STEP_NONE;
+		battery->cable_attach_flag = 0;
 		battery->charging_limit_modes = CHARGING_LIMIT_OFF;
 		set_max_allowed_current_ma(battery,battery->stepchg_current_ma);
 		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
 	} else {
 		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
 		smbchg_stay_awake(battery);
+		battery->cable_attach_flag = 1;
 		cancel_delayed_work(&battery->heartbeat_work);
 		schedule_delayed_work(&battery->heartbeat_work, msecs_to_jiffies(0));
 	}
@@ -4123,9 +4126,11 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 	if ((prev_batt_health != chip->temp_state) ||
 	    (prev_ext_lvl != chip->ext_high_temp) ||
 	    (prev_step != chip->stepchg_state) ||
-	    (chip->update_allowed_fastchg_current_ma)) {
+	    (chip->update_allowed_fastchg_current_ma) ||
+		(chip->cable_attach_flag == 1)) {
 		pr_info("%s, temp state: %d\n",
 			__func__, chip->temp_state);
+		chip->cable_attach_flag = 0;
 		smbchg_set_temp_chgpath(chip, prev_batt_health);
 		if (chip->stepchg_state == STEP_MAX)
 			set_max_allowed_current_ma(chip,
@@ -4538,6 +4543,7 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->test_mode_temp = DEFAULT_TEST_MODE_TEMP;
 	battery->test_mode = qpnp_smbcharger_test_mode();
 	battery->max_chrg_temp = 0;
+	battery->cable_attach_flag = 0;
 	if (battery->test_mode)
 		pr_err("Test Mode Enabled\n");
 	battery->is_weak_charger = false;
