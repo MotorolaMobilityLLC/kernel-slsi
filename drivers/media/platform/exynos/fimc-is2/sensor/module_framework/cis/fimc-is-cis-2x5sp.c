@@ -306,17 +306,35 @@ int sensor_2x5sp_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_
 
 	info("OTP read start\n");
 	dbg_sensor(1, "%s, 1. sensor initial setting", __func__);
-	CALL_CISOPS(cis, cis_set_global_setting, subdev);
-	CALL_CISOPS(cis, cis_mode_change, subdev, 0);
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
+
+	/* Basic settings for OTP R/W */
+	fimc_is_sensor_write16(client, 0x6028, 0x4000);
+	fimc_is_sensor_write16(client, 0x6018, 0x0001);
+	fimc_is_sensor_write16(client, 0x7002, 0x020C);
+	fimc_is_sensor_write16(client, 0x6014, 0x0001);
+
+	usleep_range(3000, 3001);
+
+	fimc_is_sensor_write16(client, 0x0136, 0x1A00);
+	fimc_is_sensor_write16(client, 0x0300, 0x0003);
+	fimc_is_sensor_write16(client, 0x0302, 0x0001);
+	fimc_is_sensor_write16(client, 0x0304, 0x0004);
+	fimc_is_sensor_write16(client, 0x0306, 0x00DD);
+	fimc_is_sensor_write16(client, 0x030C, 0x0001);
+	fimc_is_sensor_write16(client, 0x0308, 0x0008);
+	fimc_is_sensor_write16(client, 0x030A, 0x0001);
+	fimc_is_sensor_write16(client, 0x030E, 0x0004);
+	fimc_is_sensor_write16(client, 0x0310, 0x014A);
+	fimc_is_sensor_write16(client, 0x0312, 0x0000);
 
 	dbg_sensor(1, "%s, 2. sensor stream on", __func__);
 	fimc_is_sensor_write16(client, 0x6028, 0x4000);
 	fimc_is_sensor_write8(client, 0x0100, 0x01);
 
-	/* wait 1ms */
-	usleep_range(1000, 1000);
+	/* wait streamon */
+	CALL_CISOPS(cis, cis_wait_streamon, subdev);
 
 	dbg_sensor(1, "%s, 3. page select & read cal", __func__);
 	for (page = OTP_PAGE_START; page <= OTP_PAGE_END; page++) {
