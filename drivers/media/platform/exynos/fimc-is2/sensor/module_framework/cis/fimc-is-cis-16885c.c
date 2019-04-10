@@ -938,7 +938,7 @@ p_err:
 #define REG_1X_MAX_VALUE	0x00F8
 #define REG_2X_MAX_VALUE	0x01F0
 #define REG_4X_MAX_VALUE	0x03E0
-#define REG_8X_MAX_VALUE	0x07F0
+#define REG_8X_MAX_VALUE	0x07C0
 
 static u32 sensor_16885c_again_to_reg_value(u32 again)
 {
@@ -1082,7 +1082,6 @@ int sensor_16885c_cis_set_analog_gain(struct v4l2_subdev *subdev, struct ae_para
 
 	analog_val[0] = (analog_gain & 0xFF00) >> 8;
 	analog_val[1] = (analog_gain & 0x00FF);
-	ret = fimc_is_sensor_write8_array(client, 0x3508, analog_val, 2);
 	ret = fimc_is_sensor_write8_array(client, 0x350c, analog_val, 2);
 	if (ret < 0)
 		goto p_err;
@@ -1140,7 +1139,7 @@ int sensor_16885c_cis_get_analog_gain(struct v4l2_subdev *subdev, u32 *again)
 		goto p_err;
 	}
 
-	ret = fimc_is_sensor_read16(client, 0x3508, &analog_gain);
+	ret = fimc_is_sensor_read16(client, 0x350C, &analog_gain);
 	if (ret < 0)
 		goto p_err;
 
