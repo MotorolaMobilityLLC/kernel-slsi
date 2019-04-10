@@ -172,6 +172,10 @@ static int exynos_fimc_is_module_pin_control(struct fimc_is_module_enum *module,
 	case PIN_I2C:
 		ret = fimc_is_i2c_pin_control(module, scenario, value);
 		break;
+	case PIN_RETRY:
+		if (module->power_retry)
+			usleep_range(delay, delay);
+		break;
 	default:
 		pr_err("unknown act for pin\n");
 		break;
