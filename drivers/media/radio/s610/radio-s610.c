@@ -105,7 +105,10 @@ enum s610_ctrl_idx {
 	S610_IDX_IF_COUNT2 = 0x0C,
 	S610_IDX_RSSI_TH	= 0x0D,
 	S610_IDX_KERNEL_VER	= 0x0E,
-	S610_IDX_SOFT_STEREO_BLEND_REF	= 0x0F
+	S610_IDX_SOFT_STEREO_BLEND_REF	= 0x0F,
+	S610_IDX_REG_RW_ADDR = 0x10,
+	S610_IDX_REG_RW = 0x11,
+
 };
 
 static struct v4l2_ctrl_config s610_ctrls[] = {
@@ -249,6 +252,24 @@ static struct v4l2_ctrl_config s610_ctrls[] = {
 				.name	= "Soft Stereo Blend Ref",
 				.min	=	  0,
 				.max	= 0xffff,
+				.step	= 1,
+		},
+		[S610_IDX_REG_RW_ADDR] = { /*0x10*/
+				.ops	= &s610_ctrl_ops,
+				.id = V4L2_CID_S610_REG_RW_ADDR,
+				.type	= V4L2_CTRL_TYPE_INTEGER,
+				.name	= "REG_RW_ADDR",
+				.min	=	  0,
+				.max	= 0xffffff,
+				.step	= 1,
+		},
+		[S610_IDX_REG_RW] = { /*0x11*/
+				.ops	= &s610_ctrl_ops,
+				.id = V4L2_CID_S610_REG_RW,
+				.type	= V4L2_CTRL_TYPE_INTEGER,
+				.name	= "REG_RW",
+				.min	=	  0,
+				.max	= 0x7fffffff,
 				.step	= 1,
 		},
 };
@@ -1258,7 +1279,16 @@ static int s610_radio_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		FDEBUG(radio, "%s(), SOFT_STEREO_BLEND_REF val:%d, ret : %d\n",
 				__func__, ctrl->val,  ret);
 		break;
-
+	case V4L2_CID_S610_REG_RW_ADDR:
+		ctrl->val = radio->speedy_reg_addr;
+		FDEBUG(radio, "%s(), REG_RW_ADDR val:0x%xh, ret : %d\n",
+			__func__, ctrl->val, ret);
+		break;
+	case V4L2_CID_S610_REG_RW:
+		ctrl->val = fmspeedy_get_reg(radio->speedy_reg_addr);
+		FDEBUG(radio, "%s(), REG_RW val:0x%xh, ret : %d\n",
+			__func__, ctrl->val, ret);
+		break;
 	default:
 		ret = -EINVAL;
 		dev_err(radio->v4l2dev.dev,
@@ -1414,7 +1444,16 @@ static int s610_radio_s_ctrl(struct v4l2_ctrl *ctrl)
 		FDEBUG(radio, "%s(), SOFT_STEREO_BLEND_REF val:%d, ret : %d\n",
 				__func__, ctrl->val,  ret);
 		break;
-
+	case V4L2_CID_S610_REG_RW_ADDR:
+		radio->speedy_reg_addr = (u32)ctrl->val;
+		FDEBUG(radio, "%s(), REG_RW_ADDR  val:0x%xh, ret : %d\n",
+			__func__, ctrl->val,  ret);
+		break;
+	case V4L2_CID_S610_REG_RW:
+		fmspeedy_set_reg(radio->speedy_reg_addr, (u32)ctrl->val);
+		FDEBUG(radio, "%s(), REG_RW  val:0x%xh, ret : %d\n",
+			__func__, ctrl->val, ret);
+		break;
 	default:
 		ret = -EINVAL;
 		dev_err(radio->v4l2dev.dev, "s_ctrl Unknown IOCTL: 0x%x\n",
@@ -2234,6 +2273,14 @@ static int s610_radio_probe(struct platform_device *pdev)
 		goto exit;
 	ret = s610_radio_add_new_custom(radio, S610_IDX_SOFT_STEREO_BLEND_REF,
 			V4L2_CTRL_FLAG_EXECUTE_ON_WRITE|V4L2_CTRL_FLAG_VOLATILE); /*0x0F*/
+	if (ret < 0)
+		goto exit;
+	ret = s610_radio_add_new_custom(radio, S610_IDX_REG_RW_ADDR,
+		V4L2_CTRL_FLAG_EXECUTE_ON_WRITE|V4L2_CTRL_FLAG_VOLATILE); /*0x10*/
+	if (ret < 0)
+		goto exit;
+	ret = s610_radio_add_new_custom(radio, S610_IDX_REG_RW,
+		V4L2_CTRL_FLAG_EXECUTE_ON_WRITE|V4L2_CTRL_FLAG_VOLATILE); /*0x11*/
 	if (ret < 0)
 		goto exit;
 

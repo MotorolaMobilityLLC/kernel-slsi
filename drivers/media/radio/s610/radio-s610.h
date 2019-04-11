@@ -103,6 +103,8 @@ enum s610_ctrl_id {
 	V4L2_CID_S610_RSSI_TH = (V4L2_CID_USER_S610_BASE + 0x0D),
 	V4L2_CID_S610_KERNEL_VER = (V4L2_CID_USER_S610_BASE + 0x0E),
 	V4L2_CID_S610_SOFT_STEREO_BLEND_REF = (V4L2_CID_USER_S610_BASE+0x0F),
+	V4L2_CID_S610_REG_RW_ADDR = (V4L2_CID_USER_S610_BASE + 0x10),
+	V4L2_CID_S610_REG_RW = (V4L2_CID_USER_S610_BASE + 0x11),
 };
 
 enum fm_flag_get {
@@ -461,6 +463,7 @@ struct s610_radio {
 	u16 rssi_adjust;
 	bool rssi_ref_enable;
 	u32 agc_enable;
+	u32 speedy_reg_addr;
 /*	debug print counter */
 	int idle_cnt_mod;
 	int rds_cnt_mod;
