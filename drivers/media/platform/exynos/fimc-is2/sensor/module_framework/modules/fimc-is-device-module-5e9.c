@@ -81,7 +81,6 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 	struct device_node *dnode;
 	int gpio_reset = 0;
 	int gpio_none = 0;
-	int gpio_avdd_en = 0;
 	int gpio_iovdd_en = 0;
 	int gpio_mclk = 0;
 	struct fimc_is_core *core;
@@ -104,18 +103,6 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 	} else {
 		gpio_request_one(gpio_reset, GPIOF_OUT_INIT_LOW, "CAM_GPIO_OUTPUT_LOW");
 		gpio_free(gpio_reset);
-	}
-
-	gpio_avdd_en = of_get_named_gpio(dnode, "gpio_avdd_en", 0);
-	if (gpio_is_valid(gpio_avdd_en)) {
-		if (gpio_request_one(gpio_avdd_en, GPIOF_OUT_INIT_LOW, "CAM_AVDD_EN_LOW")) {
-			dev_err(dev, "%s: failed to gpio request avdd_en\n", __func__);
-			return -ENODEV;
-		}
-		gpio_free(gpio_avdd_en);
-	} else {
-		dev_err(dev, "%s: failed to get avdd_en\n", __func__);
-		return -EINVAL;
 	}
 
 	gpio_iovdd_en = of_get_named_gpio(dnode, "gpio_iovdd_en", 0);
@@ -152,7 +139,6 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VLDO44_PMIC_DCAM_DVDD_1P2", PIN_REGULATOR, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "VLDO41_PMIC_FCAM_AVDD_2P8", PIN_REGULATOR, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 1000);
 	SET_PIN_SHARED(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, SRT_ACQUIRE,
 			&core->shared_rsc_slock[SHARED_PIN0], &core->shared_rsc_count[SHARED_PIN0], 1);
@@ -166,7 +152,6 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_reset, "sen_rst", PIN_OUTPUT, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VLDO44_PMIC_DCAM_DVDD_1P2", PIN_REGULATOR, 0, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 0, 0);
 
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VLDO41_PMIC_FCAM_AVDD_2P8", PIN_REGULATOR, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 0, 0);
@@ -175,10 +160,8 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 
 	/* SENSOR FACTORY TEST - POWER ON */
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_reset, "sen_rst low", PIN_OUTPUT, 0, 0);
-
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "VLDO44_PMIC_DCAM_DVDD_1P2", PIN_REGULATOR, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "VLDO41_PMIC_FCAM_AVDD_2P8", PIN_REGULATOR, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 1000);
 	SET_PIN_SHARED(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, SRT_ACQUIRE,
 			&core->shared_rsc_slock[SHARED_PIN0], &core->shared_rsc_count[SHARED_PIN0], 1);
@@ -192,7 +175,6 @@ static int sensor_module_5e9_power_setpin_0(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_OFF, gpio_reset, "sen_rst", PIN_OUTPUT, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_OFF, gpio_none, "VLDO44_PMIC_DCAM_DVDD_1P2", PIN_REGULATOR, 0, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_OFF, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 0, 0);
 
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_OFF, gpio_none, "VLDO41_PMIC_FCAM_AVDD_2P8", PIN_REGULATOR, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_OFF, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 0, 0);
