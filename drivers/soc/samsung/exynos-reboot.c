@@ -344,11 +344,11 @@ static void exynos_reboot(enum reboot_mode mode, const char *cmd)
 					     restart_reason);
 			}
 		} else if (!strncmp(cmd, "post-wdt", 8)) {
-			__raw_writel(0x77665508, restart_reason);
+			__raw_writel(0x77665518, restart_reason);
 		} else if (!strncmp(cmd, "post-pmicwdt", 12)) {
-			__raw_writel(0x77665507, restart_reason);
+			__raw_writel(0x77665517, restart_reason);
 		} else if (!strncmp(cmd, "post-panic", 10)) {
-			__raw_writel(0x77665506, restart_reason);
+			__raw_writel(0x77665516, restart_reason);
 		} else if (!strncmp(cmd, "panic", 5)) {
 			__raw_writel(0x77665505, restart_reason);
 		} else {
