@@ -358,14 +358,28 @@ static void slsi_rx_data_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 	/* pass the data up "As is" if the VIF type is Monitor */
 	if (ndev_vif->vif_type == FAPI_VIFTYPE_MONITOR) {
-		/* strip signal */
+#ifdef CONFIG_SCSC_SMAPPER
+		/* Check if the payload is in the SMAPPER entry */
+		if (fapi_get_u16(skb, u.ma_unitdata_ind.bulk_data_descriptor) == FAPI_BULKDATADESCRIPTOR_SMAPPER) {
+			/* Retrieve the associated smapper skb */
+			skb = slsi_hip_get_skb_from_smapper(sdev, skb);
+			if (!skb) {
+				SLSI_NET_DBG2(dev, SLSI_RX, "SKB from SMAPPER is NULL\n");
+				return;
+			}
+		} else {
+			/* strip signal and any signal/bulk roundings/offsets */
+			skb_pull(skb, fapi_get_siglen(skb));
+		}
+#else
 		skb_pull(skb, fapi_get_siglen(skb));
-
+#endif
 		skb_reset_mac_header(skb);
 		skb->dev = dev;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->pkt_type = PACKET_OTHERHOST;
 		netif_rx_ni(skb);
+		return;
 	}
 #endif
 
