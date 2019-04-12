@@ -2892,6 +2892,7 @@ int slsi_mlme_powermgt(struct slsi_dev *sdev, struct net_device *dev, u16 power_
 	return slsi_mlme_powermgt_unlocked(sdev, dev, power_mode);
 }
 
+#ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
 int slsi_mlme_synchronised_response(struct slsi_dev *sdev, struct net_device *dev,
 				    struct cfg80211_external_auth_params *params)
 {
@@ -2919,6 +2920,8 @@ int slsi_mlme_synchronised_response(struct slsi_dev *sdev, struct net_device *de
 
 	return 0;
 }
+#endif
+
 int slsi_mlme_register_action_frame(struct slsi_dev *sdev, struct net_device *dev, u32 af_bitmap_active, u32 af_bitmap_suspended)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
