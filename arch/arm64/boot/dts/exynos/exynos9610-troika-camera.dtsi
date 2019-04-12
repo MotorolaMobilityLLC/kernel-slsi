@@ -79,7 +79,6 @@
 				gpio_mclk = <&gpg3 5 0x1>;
 				gpio_reset = <&gpc1 1 0x1>; /* sensor reset */
 
-				gpio_avdd_en = <&gpg2 3 0x1>; /* FCAM_AVDD_EN */
 				gpio_iovdd_en = <&gpg2 5 0x1>; /* CAM_IOVDD_EN */
 
 				power_seq_idx = <0>; /* power on/off sequence index */
