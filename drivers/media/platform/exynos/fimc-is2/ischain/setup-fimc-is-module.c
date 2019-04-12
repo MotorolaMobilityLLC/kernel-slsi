@@ -81,7 +81,7 @@ static int exynos_fimc_is_module_pin_control(struct fimc_is_module_enum *module,
 
 	switch (act) {
 	case PIN_NONE:
-		usleep_range(delay, delay);
+		udelay(delay);
 		break;
 	case PIN_OUTPUT:
 		if (gpio_is_valid(pin)) {
@@ -89,7 +89,7 @@ static int exynos_fimc_is_module_pin_control(struct fimc_is_module_enum *module,
 				gpio_request_one(pin, GPIOF_OUT_INIT_HIGH, "CAM_GPIO_OUTPUT_HIGH");
 			else
 				gpio_request_one(pin, GPIOF_OUT_INIT_LOW, "CAM_GPIO_OUTPUT_LOW");
-			usleep_range(delay, delay);
+			udelay(delay);
 			gpio_free(pin);
 		}
 		break;
@@ -119,7 +119,7 @@ static int exynos_fimc_is_module_pin_control(struct fimc_is_module_enum *module,
 				pr_err("pinctrl_select_state(%s) is fail(%d)\n", name, ret);
 				return ret;
 			}
-			usleep_range(delay, delay);
+			udelay(delay);
 		}
 		break;
 	case PIN_REGULATOR:
@@ -165,7 +165,7 @@ static int exynos_fimc_is_module_pin_control(struct fimc_is_module_enum *module,
 				}
 			}
 
-			usleep_range(delay, delay);
+			udelay(delay);
 			regulator_put(regulator);
 		}
 		break;
