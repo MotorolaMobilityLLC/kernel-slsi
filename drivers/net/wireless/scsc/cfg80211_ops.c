@@ -1075,6 +1075,8 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 	 */
 	netif_carrier_on(dev);
 	ndev_vif->sta.vif_status = SLSI_VIF_STATUS_CONNECTING;
+
+#ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
 	if (sme->auth_type == NL80211_AUTHTYPE_SAE && (sme->flags & CONNECT_REQ_EXTERNAL_AUTH_SUPPORT)) {
 		const u8 *rsn;
 
@@ -1091,6 +1093,7 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 	} else {
 		ndev_vif->sta.crypto.wpa_versions = 0;
 	}
+#endif
 
 	r = slsi_mlme_connect(sdev, dev, sme, channel, bssid);
 	if (r != 0) {
@@ -2936,6 +2939,7 @@ int slsi_set_txq_params(struct wiphy *wiphy, struct net_device *ndev,
 	return r;
 }
 
+#ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
 int slsi_synchronised_response(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_external_auth_params *params)
 {
@@ -2948,6 +2952,8 @@ int slsi_synchronised_response(struct wiphy *wiphy, struct net_device *dev,
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	return r;
 }
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 static int slsi_update_ft_ies(struct wiphy *wiphy, struct net_device *dev, struct cfg80211_update_ft_ies_params *ftie)
 {
@@ -3040,7 +3046,9 @@ static struct cfg80211_ops slsi_ops = {
 	.mgmt_tx = slsi_mgmt_tx,
 	.mgmt_tx_cancel_wait = slsi_mgmt_tx_cancel_wait,
 	.set_txq_params = slsi_set_txq_params,
+#ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
 	.external_auth = slsi_synchronised_response,
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 	.set_mac_acl = slsi_set_mac_acl,
 	.update_ft_ies = slsi_update_ft_ies,
