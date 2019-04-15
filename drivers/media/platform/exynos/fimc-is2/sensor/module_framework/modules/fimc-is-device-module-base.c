@@ -212,13 +212,16 @@ int sensor_module_init(struct v4l2_subdev *subdev, u32 val)
 	if (ret < 0) {
 		if (ret == -EAGAIN) {
 			err("Checking sensor revision is fail. So retry camera power sequence.");
+			module->power_retry = true;
 			sensor_module_power_reset(subdev, device);
 			ret = CALL_CISOPS(&sensor_peri->cis, cis_check_rev, subdev_cis);
 			if (ret < 0) {
+				module->power_retry = false;
 				goto p_err;
 			}
 		}
 	}
+	module->power_retry = false;
 
 	/* init kthread for sensor register setting when s_format */
 	ret = fimc_is_sensor_init_mode_change_thread(sensor_peri);
