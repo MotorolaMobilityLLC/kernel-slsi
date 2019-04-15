@@ -2142,7 +2142,6 @@ static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data)
 {
 	struct device *dev = pdic_data->dev;
 	struct usbpd_data *pd_data = dev_get_drvdata(dev);
-	struct i2c_client *i2c = pdic_data->i2c;
 	int ret = 0;
 
 	dev_info(dev, "%s\n", __func__);
@@ -2167,8 +2166,6 @@ static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data)
 
 	pdic_data->status_reg = 0;
 	usbpd_reinit(dev);
-	/* for ccic hw detect */
-	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_MSG_SEND_CON, S2MU106_RESET_REG_00);
 	pdic_data->rid = REG_RID_MAX;
 	pdic_data->check_rid_wa = false;
 	pdic_data->is_factory_mode = false;
