@@ -1961,6 +1961,11 @@
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-aac.bin";
 					};
+					protectionsp_indmusic_aac {
+                                                cirrus,full-name;
+                                                cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+                                                cirrus,bin-file = "cs35l41-dsp1-spk-prot-indmusic-aac.bin";
+                                        };
 					protectionsp_voice_aac {
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
@@ -1980,6 +1985,11 @@
 						cirrus,full-name;
 						cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-prot-music-qisheng.bin";
+					};
+					protectionsp_indmusic_qisheng {
+                                                cirrus,full-name;
+                                                cirrus,wmfw-file = "cs35l41-dsp1-prot.wmfw";
+                                                cirrus,bin-file = "cs35l41-dsp1-spk-prot-indmusic-qisheng.bin";
 					};
 					protectionsp_voice_qisheng {
 						cirrus,full-name;
