@@ -2870,10 +2870,10 @@
 			samsung,offset = <0x7F0000>;
 		};
 		ext_bin_2: ext_bin@2 {
-			status = "disabled";
-			samsung,name = "APBargeIn_AUDIO_SLSI.bin";
+			status = "okay";
+			samsung,name = "audio_se.bin";
 			samsung,area = <1>;
-			samsung,offset = <0x7EC000>;
+			samsung,offset = <0x602000>;
 		};
 		ext_bin_3: ext_bin@3 {
 			status = "disabled";
