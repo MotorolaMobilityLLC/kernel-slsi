@@ -62,6 +62,7 @@
 #define PIN_FUNCTION	4
 #define PIN_REGULATOR	5
 #define PIN_I2C		6
+#define PIN_RETRY	8
 
 #define DT_SET_PIN(p, n, a, v, t) \
 			seq@__LINE__ { \
