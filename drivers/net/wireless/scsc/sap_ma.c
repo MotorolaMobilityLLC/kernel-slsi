@@ -465,10 +465,12 @@ static int slsi_rx_data_cfm(struct slsi_dev *sdev, struct net_device *dev, struc
 		      fapi_get_vif(skb),
 		      host_tag,
 		      fapi_get_u16(skb, u.ma_unitdata_cfm.transmission_status));
+#ifdef CONFIG_SCSC_WLAN_DEBUG
 	if (fapi_get_u16(skb, u.ma_unitdata_cfm.transmission_status) == FAPI_TRANSMISSIONSTATUS_TX_LIFETIME) {
 		if (printk_ratelimit())
 			SLSI_NET_WARN(dev, "ma_unitdata_cfm: tx_lifetime(vif:%d, host_tag:0x%x)\n", fapi_get_vif(skb), host_tag);
 	}
+#endif
 	if (fapi_get_u16(skb, u.ma_unitdata_cfm.transmission_status) == FAPI_TRANSMISSIONSTATUS_RETRY_LIMIT)
 		ndev_vif->tx_no_ack[SLSI_HOST_TAG_TRAFFIC_QUEUE(host_tag)]++;
 
