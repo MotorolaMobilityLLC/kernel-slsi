@@ -259,7 +259,7 @@ static void csis_s_vc_dma_multibuf(struct fimc_is_device_csi *csi)
 	}
 }
 
-static void csis_disable_all_vc_dma_buf(struct fimc_is_device_csi *csi)
+static void csis_check_vc_dma_buf(struct fimc_is_device_csi *csi)
 {
 	u32 vc;
 	struct fimc_is_framemgr *framemgr;
@@ -529,8 +529,8 @@ void tasklet_csis_str_otf(unsigned long data)
 	}
 
 trigger_skip:
-	/* disable all virtual channel's dma */
-	csis_disable_all_vc_dma_buf(csi);
+	/* check all virtual channel's dma */
+	csis_check_vc_dma_buf(csi);
 	/* re-set internal vc dma if flushed */
 	csis_s_vc_dma_multibuf(csi);
 
@@ -559,8 +559,8 @@ void tasklet_csis_str_m2m(unsigned long data)
 #ifdef TASKLET_MSG
 	pr_info("S%d\n", fcount);
 #endif
-	/* disable all virtual channel's dma */
-	csis_disable_all_vc_dma_buf(csi);
+	/* check all virtual channel's dma */
+	csis_check_vc_dma_buf(csi);
 	/* re-set internal vc dma if flushed */
 	csis_s_vc_dma_multibuf(csi);
 
