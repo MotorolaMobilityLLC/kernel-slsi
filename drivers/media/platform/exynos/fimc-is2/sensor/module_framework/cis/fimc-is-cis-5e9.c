@@ -316,16 +316,14 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 
 	info("OTP read start\n");
 	dbg_sensor(1, "%s, 1. sensor initial setting", __func__);
-	CALL_CISOPS(cis, cis_set_global_setting, subdev);
-	CALL_CISOPS(cis, cis_mode_change, subdev, 0);
 
 	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	dbg_sensor(1, "%s, 2. sensor stream on", __func__);
 	fimc_is_sensor_write8(client, 0x0100, 0x01);
 
-	/* wait 50ms */
-	msleep(50);
+	/* wait streamon */
+	CALL_CISOPS(cis, cis_wait_streamon, subdev);
 
 	dbg_sensor(1, "%s, 3. page select & read cal", __func__);
 	for (page = OTP_PAGE_START; page <= OTP_PAGE_END; page++) {
