@@ -189,12 +189,12 @@ static int sensor_module_12a10ff_power_setpin(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_dvdd_en, "dvdd_en", PIN_OUTPUT, 1, 0);
 	SET_PIN_SHARED(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, SRT_ACQUIRE,
 			&core->shared_rsc_slock[SHARED_PIN0], &core->shared_rsc_count[SHARED_PIN0], 1);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 1000);
 	SET_PIN_SHARED(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, SRT_ACQUIRE,
 			&core->shared_rsc_slock[SHARED_PIN1], &core->shared_rsc_count[SHARED_PIN1], 1);
 
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 5000);
-	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 6000);
+	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 1000);//8192extclk = 328us
 
 	/* BACK CAEMRA - POWER OFF */
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 0, 0);
@@ -216,10 +216,10 @@ static int sensor_module_12a10ff_power_setpin(struct device *dev,
 
 	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_dvdd_en, "dvdd_en", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 1000);
 
-	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 5000);
-	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 6000);
+	SET_PIN(pdata, SENSOR_SCENARIO_VISION, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 1000);//8192extclk = 328us
 
 
 	/* REAR VISION CAEMRA - POWER OFF */
@@ -239,10 +239,10 @@ static int sensor_module_12a10ff_power_setpin(struct device *dev,
 
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_avdd_en, "avdd_en", PIN_OUTPUT, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_dvdd_en, "dvdd_en", PIN_OUTPUT, 1, 0);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_iovdd_en, "iovdd_en", PIN_OUTPUT, 1, 1000);
 
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 5000);
-	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 0);
+	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_reset, "sen_rst high", PIN_OUTPUT, 1, 6000);
+	SET_PIN(pdata, SENSOR_SCENARIO_FACTORY, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 2, 1000);//8192extclk = 328us
 
 
 	/* REAR VISION CAEMRA - POWER OFF */
