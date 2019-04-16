@@ -1287,9 +1287,11 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 		0x01,				/* OUI Subtype: Scan timing */
 		0x00, 0x00, 0x00, 0x00,		/* Min_Period:  filled later in the function */
 		0x00, 0x00, 0x00, 0x00,		/* Max_Period:  filled later in the function */
-		0x01,				/* Exponent */
-		0x01,				/* Step count */
-		0x00, 0x00			/* Skip first period: false*/
+		/* BEGIN IKSAMP-7392, optimize pno scanning interval */
+		0x0a,				/* Exponent */
+		0x07,				/* Step count */
+		/* END IKSAMP-7392 */
+		0x00, 0x01			/* Skip first period: true for scheduled scans*/
 	};
 
 	u8 ssid_filter_ie_hdr[] = {
@@ -1354,8 +1356,10 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 		return r;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-	SLSI_U32_TO_BUFF_LE(request->scan_plans->interval * 1000 * 1000, &scan_timing_ie[7]);
-	SLSI_U32_TO_BUFF_LE(request->scan_plans->interval * 1000 * 1000, &scan_timing_ie[11]);
+	// BEGIN IKSAMP-7392, optimize pno scanning interval
+	SLSI_U32_TO_BUFF_LE(48 * 1000 * 1000, &scan_timing_ie[7]);
+	SLSI_U32_TO_BUFF_LE(500 * 1000 * 1000, &scan_timing_ie[11]);
+	// END IKSAMP-7392
 #else
 	SLSI_U32_TO_BUFF_LE(request->interval * 1000, &scan_timing_ie[7]);
 	SLSI_U32_TO_BUFF_LE(request->interval * 1000, &scan_timing_ie[11]);
