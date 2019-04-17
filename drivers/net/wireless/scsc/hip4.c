@@ -37,6 +37,10 @@ MODULE_PARM_DESC(hip4_system_wq, "Use system wq instead of named workqueue. (def
 static bool hip4_dynamic_logging = true;
 module_param(hip4_dynamic_logging, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(hip4_dynamic_logging, "Dynamic logging, logring is disabled if tput > hip4_qos_med_tput_in_mbps. (default: Y)");
+
+static int hip4_dynamic_logging_tput_in_mbps = 150;
+module_param(hip4_dynamic_logging_tput_in_mbps, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(hip4_dynamic_logging_tput_in_mbps, "throughput (in Mbps) to apply dynamic logring logging");
 #endif
 
 #ifdef CONFIG_SCSC_QOS
@@ -2067,27 +2071,36 @@ static void hip4_traffic_monitor_cb(void *client_ctx, u32 state, u32 tput_tx, u3
 
 	spin_lock_bh(&hip->hip_priv->pm_qos_lock);
 	SLSI_DBG1(sdev, SLSI_HIP, "event (state:%u, tput_tx:%u bps, tput_rx:%u bps)\n", state, tput_tx, tput_rx);
-	if (state == TRAFFIC_MON_CLIENT_STATE_HIGH) {
+	if (state == TRAFFIC_MON_CLIENT_STATE_HIGH)
 		hip->hip_priv->pm_qos_state = SCSC_QOS_MAX;
-#ifdef CONFIG_SCSC_LOGRING
-		if (hip4_dynamic_logging)
-			scsc_logring_enable(false);
-#endif
-	} else if (state == TRAFFIC_MON_CLIENT_STATE_MID) {
+	else if (state == TRAFFIC_MON_CLIENT_STATE_MID)
 		hip->hip_priv->pm_qos_state = SCSC_QOS_MED;
-#ifdef CONFIG_SCSC_LOGRING
-		if (hip4_dynamic_logging)
-			scsc_logring_enable(false);
-#endif
-	} else {
+	else
 		hip->hip_priv->pm_qos_state = SCSC_QOS_DISABLED;
-#ifdef CONFIG_SCSC_LOGRING
-		scsc_logring_enable(true);
-#endif
-	}
+
 	spin_unlock_bh(&hip->hip_priv->pm_qos_lock);
 
 	schedule_work(&hip->hip_priv->pm_qos_work);
+}
+#endif
+
+#ifdef CONFIG_SCSC_LOGRING
+static void hip4_traffic_monitor_logring_cb(void *client_ctx, u32 state, u32 tput_tx, u32 tput_rx)
+{
+	struct hip4_priv *hip_priv = (struct hip4_priv *)client_ctx;
+	struct slsi_hip4 *hip = hip_priv->hip;
+	struct slsi_dev *sdev = container_of(hip, struct slsi_dev, hip4_inst);
+
+	if (!sdev)
+		return;
+
+	SLSI_DBG1(sdev, SLSI_HIP, "event (state:%u, tput_tx:%u bps, tput_rx:%u bps)\n", state, tput_tx, tput_rx);
+	if (state == TRAFFIC_MON_CLIENT_STATE_HIGH || state == TRAFFIC_MON_CLIENT_STATE_MID) {
+		if (hip4_dynamic_logging)
+			scsc_logring_enable(false);
+	} else {
+		scsc_logring_enable(true);
+	}
 }
 #endif
 
@@ -2418,6 +2431,11 @@ int hip4_init(struct slsi_hip4 *hip)
 			SLSI_WARN(sdev, "failed to add PM QoS request\n");
 		}
 	}
+#endif
+#ifdef CONFIG_SCSC_LOGRING
+	/* register to traffic monitor for dynamic logring logging */
+	if (slsi_traffic_mon_client_register(sdev, hip->hip_priv, TRAFFIC_MON_CLIENT_MODE_EVENTS, 0, (hip4_dynamic_logging_tput_in_mbps * 1000 * 1000), hip4_traffic_monitor_logring_cb))
+		SLSI_WARN(sdev, "failed to add Logring client to traffic monitor\n");
 #endif
 	return 0;
 }
@@ -2773,11 +2791,12 @@ void hip4_deinit(struct slsi_hip4 *hip)
 
 	service = sdev->service;
 
-#ifdef CONFIG_SCSC_QOS
 #ifdef CONFIG_SCSC_LOGRING
+	slsi_traffic_mon_client_unregister(sdev, hip->hip_priv);
 	/* Reenable logring in case was disabled */
 	scsc_logring_enable(true);
 #endif
+#ifdef CONFIG_SCSC_QOS
 	/* de-register with traffic monitor */
 	slsi_traffic_mon_client_unregister(sdev, hip);
 	scsc_service_pm_qos_remove_request(service);
