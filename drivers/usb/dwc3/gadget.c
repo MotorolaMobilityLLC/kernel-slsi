@@ -3336,10 +3336,6 @@ static void dwc3_gadget_suspend_interrupt(struct dwc3 *dwc,
 {
 	enum dwc3_link_state next = evtinfo & DWC3_LINK_STATE_MASK;
 
-	/* WA for Lhotse U3 */
-	if (dwc->gadget.speed >= USB_SPEED_SUPER)
-		phy_ilbk(dwc->usb3_generic_phy);
-
 	if (dwc->link_state != next && next == DWC3_LINK_STATE_U3)
 		dwc3_suspend_gadget(dwc);
 
