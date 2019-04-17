@@ -1176,10 +1176,6 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp = readl(port_array[wIndex]);
 			bus_state->suspended_ports |= 1 << wIndex;
 
-			/* WA for Lhotse U3 Suspend */
-			if (xhci_hub_check_speed(hcd))
-				phy_ilbk(xhci->main_hcd->phy);
-
 			break;
 		case USB_PORT_FEAT_LINK_STATE:
 			temp = readl(port_array[wIndex]);
