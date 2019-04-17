@@ -1124,6 +1124,10 @@ struct slsi_dev {
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 	bool                            fw_mac_randomization_enabled;
 #endif
+
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+	bool                       enhanced_pkt_filter_enabled;
+#endif
 };
 
 /* Compact representation of channels a ESS has been seen on
