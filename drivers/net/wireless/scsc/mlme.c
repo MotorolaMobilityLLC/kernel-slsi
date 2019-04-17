@@ -4490,6 +4490,7 @@ static void slsi_mlme_nan_publish_fapi_data(struct sk_buff *req, struct slsi_hal
 	u8  nan_publish_fields_header[] = {0xdd, 0x00, 0x00, 0x16, 0x32, 0x0b, 0x02};
 	u8 *header_ptr, *end_ptr;
 	__le16 le16val;
+	u32 binding_mask = 0;
 
 	header_ptr = fapi_append_data(req, nan_publish_fields_header, sizeof(nan_publish_fields_header));
 	le16val = cpu_to_le16(hal_req->ttl);
@@ -4501,8 +4502,8 @@ static void slsi_mlme_nan_publish_fapi_data(struct sk_buff *req, struct slsi_hal
 	fapi_append_data(req, &hal_req->publish_count, 1);
 	fapi_append_data(req, &hal_req->publish_match_indicator, 1);
 	fapi_append_data(req, &hal_req->rssi_threshold_flag, 1);
-	end_ptr = fapi_append_data(req, &hal_req->connmap, 1);
-	end_ptr += 1;
+	end_ptr = fapi_append_data(req, (u8 *)&binding_mask, 4);
+	end_ptr += 4;
 
 	if (hal_req->service_name_len)
 		slsi_mlme_nan_append_tlv(req, cpu_to_le16 (SLSI_FAPI_NAN_SERVICE_NAME),
@@ -4596,6 +4597,7 @@ static void slsi_mlme_nan_subscribe_fapi_data(struct sk_buff *req, struct slsi_h
 	u8  nan_subscribe_fields_header[] = {0xdd, 0x00, 0x00, 0x16, 0x32, 0x0b, 0x03};
 	u8 *header_ptr, *end_ptr;
 	__le16 le16val;
+	u32 binding_mask = 0;
 
 	header_ptr = fapi_append_data(req, nan_subscribe_fields_header, sizeof(nan_subscribe_fields_header));
 	le16val = cpu_to_le16(hal_req->ttl);
@@ -4610,8 +4612,8 @@ static void slsi_mlme_nan_subscribe_fapi_data(struct sk_buff *req, struct slsi_h
 	fapi_append_data(req, &hal_req->subscribe_match_indicator, 1);
 	fapi_append_data(req, &hal_req->subscribe_count, 1);
 	fapi_append_data(req, &hal_req->rssi_threshold_flag, 1);
-	end_ptr = fapi_append_data(req, &hal_req->connmap, 1);
-	end_ptr += 1;
+	end_ptr = fapi_append_data(req, (u8 *)&binding_mask, 4);
+	end_ptr += 4;
 
 	if (hal_req->service_name_len)
 		slsi_mlme_nan_append_tlv(req, cpu_to_le16 (SLSI_FAPI_NAN_SERVICE_NAME),
