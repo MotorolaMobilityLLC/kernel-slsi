@@ -3029,6 +3029,27 @@ int  slsi_set_arp_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
 }
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+int slsi_set_enhanced_pkt_filter(struct net_device *dev, u8 pkt_filter_enable)
+{
+	struct netdev_vif *netdev_vif = netdev_priv(dev);
+	struct slsi_dev   *sdev = netdev_vif->sdev;
+	int ret = 0;
+	int is_suspend = 0;
+
+	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
+	is_suspend = sdev->device_config.user_suspend_mode;
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+
+	if (is_suspend) {
+		SLSI_ERR(sdev, "Host is in early suspend state.\n");
+		return -EPERM; /* set_enhanced_pkt_filter should not be called after suspend */
+	}
+
+	sdev->enhanced_pkt_filter_enabled = pkt_filter_enable;
+	SLSI_INFO(sdev, "Enhanced packet filter is %s", (pkt_filter_enable ? "enabled" : "disabled"));
+	return ret;
+}
+
 static int slsi_set_opt_out_unicast_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
 {
 	struct slsi_mlme_pattern_desc pattern_desc;
@@ -3148,14 +3169,18 @@ static int  slsi_set_multicast_packet_filters(struct slsi_dev *sdev, struct net_
 		SLSI_ETHER_COPY(pattern_desc.pattern, ndev_vif->sta.regd_mc_addr[i]);
 		mc_filter_id = SLSI_REGD_MC_FILTER_ID + i;
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
-		slsi_create_packet_filter_element(mc_filter_id,
-						  FAPI_PACKETFILTERMODE_OPT_IN,
-						  1, &pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
-#else
-		slsi_create_packet_filter_element(mc_filter_id,
-						  FAPI_PACKETFILTERMODE_OPT_IN | FAPI_PACKETFILTERMODE_OPT_IN_SLEEP,
-						  1, &pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
+		if (sdev->enhanced_pkt_filter_enabled)
+			slsi_create_packet_filter_element(mc_filter_id,
+							  FAPI_PACKETFILTERMODE_OPT_IN,
+							  1, &pattern_desc,
+							  &pkt_filter_elem[num_filters], &pkt_filters_len);
+		else
 #endif
+			slsi_create_packet_filter_element(mc_filter_id,
+							  FAPI_PACKETFILTERMODE_OPT_IN |
+							  FAPI_PACKETFILTERMODE_OPT_IN_SLEEP,
+							  1, &pattern_desc,
+							  &pkt_filter_elem[num_filters], &pkt_filters_len);
 		num_filters++;
 	}
 
@@ -3196,9 +3221,11 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	}
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
-	num_filters++; /*All OPT OUT*/
-	num_filters++; /*TCP IPv4 OPT IN*/
-	num_filters++; /*TCP IPv6 OPT IN*/
+	if (sdev->enhanced_pkt_filter_enabled) {
+		num_filters++; /*All OPT OUT*/
+		num_filters++; /*TCP IPv4 OPT IN*/
+		num_filters++; /*TCP IPv6 OPT IN*/
+	}
 #endif
 
 	pkt_filter_elem = kmalloc((num_filters * sizeof(struct slsi_mlme_pkt_filter_elem)), GFP_KERNEL);
@@ -3226,18 +3253,18 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	num_filters++;
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
-	slsi_create_packet_filter_element(SLSI_OPT_OUT_ALL_FILTER_ID, 0, 0, NULL,
-					  &pkt_filter_elem[num_filters], &pkt_filters_len);
-	num_filters++;
-	slsi_create_packet_filter_element(SLSI_OPT_IN_TCP4_FILTER_ID, 0, 0, NULL,
-					  &pkt_filter_elem[num_filters], &pkt_filters_len);
-	num_filters++;
-	slsi_create_packet_filter_element(SLSI_OPT_IN_TCP6_FILTER_ID, 0, 0, NULL,
-					  &pkt_filter_elem[num_filters], &pkt_filters_len);
-	num_filters++;
-	SLSI_INFO(sdev, "Enhanced packet filter is removed.");
+	if (sdev->enhanced_pkt_filter_enabled) {
+		slsi_create_packet_filter_element(SLSI_OPT_OUT_ALL_FILTER_ID, 0, 0, NULL,
+						  &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
+		slsi_create_packet_filter_element(SLSI_OPT_IN_TCP4_FILTER_ID, 0, 0, NULL,
+						  &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
+		slsi_create_packet_filter_element(SLSI_OPT_IN_TCP6_FILTER_ID, 0, 0, NULL,
+						  &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
+	}
 #endif
-
 	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, num_filters, pkt_filter_elem);
 	kfree(pkt_filter_elem);
 	return ret;
@@ -3261,16 +3288,17 @@ int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		return ret;
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
-	ret = slsi_set_opt_out_unicast_packet_filter(sdev, dev);
-	if (ret)
-		return ret;
-	ret = slsi_set_opt_in_tcp4_packet_filter(sdev, dev);
-	if (ret)
-		return ret;
-	ret = slsi_set_opt_in_tcp6_packet_filter(sdev, dev);
-	if (ret)
-		return ret;
-	SLSI_INFO(sdev, "Enhanced packet filter is installed.");
+	if (sdev->enhanced_pkt_filter_enabled) {
+		ret = slsi_set_opt_out_unicast_packet_filter(sdev, dev);
+		if (ret)
+			return ret;
+		ret = slsi_set_opt_in_tcp4_packet_filter(sdev, dev);
+		if (ret)
+			return ret;
+		ret = slsi_set_opt_in_tcp6_packet_filter(sdev, dev);
+		if (ret)
+			return ret;
+	}
 #endif
 	return slsi_set_common_packet_filters(sdev, dev);
 }
