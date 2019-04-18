@@ -134,6 +134,13 @@ config U_SERIAL_CONSOLE
 	help
 	   It supports the serial gadget can be used as a console.
 
+config USB_ANDROID_SAMSUNG_COMPOSITE
+	bool "Samsung Composite function"
+	help
+	  Provides SAMSUNG composite driver.
+	  Multi Configuration.
+	  If you enable this option, android composite will be changed.
+
 source "drivers/usb/gadget/udc/Kconfig"
 
 #
