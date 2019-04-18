@@ -40,8 +40,7 @@ static int msg_from_wlbtd_cb(struct sk_buff *skb, struct genl_info *info)
 			SCSC_TAG_ERR(WLBTD, "ATTR_INT: %u\n", status);
 	}
 
-	if (!completion_done(&event_done))
-		complete(&event_done);
+	complete(&event_done);
 
 	return 0;
 }
@@ -86,14 +85,24 @@ static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 	 *    ---> complete the completion with waiter(s)
 	 */
 
-	if (!completion_done(&fw_panic_done)) {
-		SCSC_TAG_INFO(WLBTD, "completing fw_panic_done\n");
-		complete(&fw_panic_done);
-	}
+	if ((strstr(data, "scsc_log_fw_panic") != NULL) ||
+			(strstr(data, "not found.") != NULL) ||
+			(strstr(data, "failed"))) {
+		if (!completion_done(&fw_panic_done)) {
+			SCSC_TAG_INFO(WLBTD, "completing fw_panic_done\n");
+			complete(&fw_panic_done);
+			return 0;
+		}
+ 	}
 
-	if (!completion_done(&event_done)) {
-		SCSC_TAG_INFO(WLBTD, "completing event_done\n");
-		complete(&event_done);
+	if ((strstr(data, ".sbl") != NULL) ||
+			(strstr(data, "ignoring") != NULL) ||
+			(strstr(data, "not found.") != NULL) ||
+			(strstr(data, "failed"))) {
+		if (!completion_done(&event_done)) {
+			SCSC_TAG_INFO(WLBTD, "completing event_done\n");
+			complete(&event_done);
+		}
 	}
 
 	return 0;
