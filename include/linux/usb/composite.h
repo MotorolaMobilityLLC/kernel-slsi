@@ -516,6 +516,14 @@ struct usb_composite_dev {
 	/* public: */
 	unsigned int			setup_pending:1;
 	unsigned int			os_desc_pending:1;
+
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+	/* used by enable_store function of android.c
+	 * to avoid signalling switch changes
+	 */
+	bool				mute_switch;
+	bool				force_disconnect;
+#endif
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);

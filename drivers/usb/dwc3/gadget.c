@@ -31,12 +31,36 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/samsung_usb.h>
 #include <linux/phy/phy.h>
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+#include <linux/usb/composite.h>
+#endif
 
 #include "debug.h"
 #include "core.h"
 #include "otg.h"
 #include "gadget.h"
 #include "io.h"
+
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+static void dwc3_disconnect_gadget(struct dwc3 *dwc);
+static void dwc3_gadget_cable_connect(struct dwc3 *dwc, bool connect)
+{
+	static bool last_connect;
+	struct usb_composite_dev *cdev;
+
+	if (last_connect != connect) {
+		if (!connect) {
+			cdev = get_gadget_data(&dwc->gadget);
+			if (cdev != NULL) {
+				cdev->mute_switch = 0;
+				cdev->force_disconnect = 1;
+				dev_info(dwc->dev, "Force Disconnect set to 1\n");
+			}
+		}
+		last_connect = connect;
+	}
+}
+#endif
 
 /**
  * dwc3_gadget_set_test_mode - enables usb2 test modes
@@ -2051,7 +2075,17 @@ static int dwc3_gadget_vbus_session(struct usb_gadget *g, int is_active)
 			 */
 			ret = dwc3_gadget_run_stop_vbus(dwc, 1, false);
 		} else {
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+			dwc3_gadget_cable_connect(dwc, false);
+			dwc->start_config_issued = false;
+			dwc->gadget.speed = USB_SPEED_UNKNOWN;
+			dwc->setup_packet_pending = false;
+#endif
 			ret = dwc3_gadget_run_stop_vbus(dwc, 0, false);
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+			dwc3_disconnect_gadget(dwc);
+			printk("usb: %s : link state = %d\n", __func__, dwc3_gadget_get_link_state(dwc));
+#endif
 		}
 	}
 
@@ -3371,12 +3405,18 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 {
 	switch (event->type) {
 	case DWC3_DEVICE_EVENT_DISCONNECT:
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+		dwc3_gadget_cable_connect(dwc, false);
+#endif
 		dwc3_gadget_disconnect_interrupt(dwc);
 		break;
 	case DWC3_DEVICE_EVENT_RESET:
 		dwc3_gadget_reset_interrupt(dwc);
 		break;
 	case DWC3_DEVICE_EVENT_CONNECT_DONE:
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+		dwc3_gadget_cable_connect(dwc, true);
+#endif
 		dwc3_gadget_conndone_interrupt(dwc);
 		break;
 	case DWC3_DEVICE_EVENT_WAKEUP:
