@@ -5685,7 +5685,6 @@ static void ufshcd_check_errors(struct ufs_hba *hba)
 
 	if (hba->errors & UIC_ERROR) {
 		hba->uic_error = 0;
-		udelay(10);
 		ufshcd_update_uic_error(hba);
 		if (hba->uic_error)
 			queue_eh_work = true;
@@ -5774,9 +5773,6 @@ static irqreturn_t ufshcd_intr(int irq, void *__hba)
 	intr_status = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
 	enabled_intr_status =
 		intr_status & ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
-
-	if (enabled_intr_status & UIC_ERROR)
-		udelay(10);
 
 	if (intr_status)
 		ufshcd_writel(hba, intr_status, REG_INTERRUPT_STATUS);
