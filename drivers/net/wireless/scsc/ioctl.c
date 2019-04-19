@@ -113,6 +113,10 @@
 #define CMD_SET_TX_POWER_SAR "SET_TX_POWER_SAR"
 #define CMD_GET_TX_POWER_SAR "GET_TX_POWER_SAR"
 
+#ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
+#define CMD_SET_NUM_ANTENNAS "SET_NUM_ANTENNAS"
+#endif
+
 #define ROAMOFFLAPLIST_MIN 1
 #define ROAMOFFLAPLIST_MAX 100
 
@@ -2530,6 +2534,17 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #else
 		ret = mx140_log_dump();
 #endif
+#endif
+#ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
+	} else if (strncasecmp(command, CMD_SET_NUM_ANTENNAS, strlen(CMD_SET_NUM_ANTENNAS)) == 0) {
+		struct netdev_vif *ndev_vif = netdev_priv(dev);
+		const u16 num_of_antennas = *(command + strlen(CMD_SET_NUM_ANTENNAS) + 1) - '0';
+
+		/* We cannot lock in slsi_set_num_antennas as
+		   this is also called in slsi_start_ap with netdev_vif lock. */
+		SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+		ret = slsi_set_num_antennas(dev, num_of_antennas);
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 #endif
 	} else {
 		ret  = -ENOTSUPP;
