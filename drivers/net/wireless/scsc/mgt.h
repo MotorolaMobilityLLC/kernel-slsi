@@ -528,5 +528,7 @@ void slsi_wlan_dump_public_action_subtype(struct slsi_dev *sdev, struct ieee8021
 void slsi_reset_channel_flags(struct slsi_dev *sdev);
 
 int slsi_find_chan_idx(u16 chan, u8 hw_mode);
-
+#ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
+int slsi_set_num_antennas(struct net_device *dev, const u16 num_of_antennas);
+#endif
 #endif /*__SLSI_MGT_H__*/
