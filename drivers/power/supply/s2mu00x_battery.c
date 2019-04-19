@@ -4281,7 +4281,7 @@ void factory_usb_shutdown(struct s2mu00x_battery_info *chip)
 	if (chip->factory_cable) {
 		if (!factory_kill_disable) {
 			printk(KERN_ERR "SMB - Factory Cable removed, power-off\n");
-			kernel_power_off();
+			orderly_poweroff(true);
 		} else
 			pr_err("SMB - Factory cable removed - kill disabled\n");
 		chip->factory_cable = false;
