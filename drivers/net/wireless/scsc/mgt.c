@@ -5511,3 +5511,48 @@ int slsi_find_chan_idx(u16 chan, u8 hw_mode)
 	}
 	return idx;
 }
+
+#ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
+/* Note : netdev_vif lock should be taken care by caller. */
+int slsi_set_num_antennas(struct net_device *dev, const u16 num_of_antennas)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct slsi_dev   *sdev = ndev_vif->sdev;
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	int               ret = 0;
+	const bool        is_sta = (ndev_vif->iftype == NL80211_IFTYPE_STATION);
+	const bool        is_softap = (ndev_vif->iftype == NL80211_IFTYPE_AP);
+
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+
+	if (num_of_antennas > 2 || num_of_antennas == 0) {
+		SLSI_NET_ERR(dev, "Invalid num_of_antennas %hu\n", num_of_antennas);
+		return -EINVAL;
+	}
+	if (!is_sta && !is_softap) {
+		SLSI_NET_ERR(dev, "Invalid interface type %s\n", dev->name);
+		return -EPERM;
+	}
+	if (is_sta && (ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED)) {
+		SLSI_NET_ERR(dev, "sta is not in connected state\n");
+		return -EPERM;
+	}
+	SLSI_NET_INFO(dev, "mlme_set_num_antennas_req(vif:%u num_of_antennas:%u)\n", ndev_vif->ifnum, num_of_antennas);
+	/* TODO: Change signal name to MLME_SET_NUM_ANTENNAS_REQ and MLME_SET_NUM_ANTENNAS_CFM. */
+	req = fapi_alloc(mlme_set_nss_req, MLME_SET_NSS_REQ, ndev_vif->ifnum, 0);
+	fapi_set_u16(req, u.mlme_set_nss_req.vif, ndev_vif->ifnum);
+	fapi_set_u16(req, u.mlme_set_nss_req.rx_nss, num_of_antennas);
+	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_SET_NSS_CFM);
+	if (!cfm)
+		return -EIO;
+
+	if (fapi_get_u16(cfm, u.mlme_set_nss_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_NET_ERR(dev, "mlme_set_nss_cfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_nss_cfm.result_code));
+		ret = -EINVAL;
+	}
+	slsi_kfree_skb(cfm);
+	return ret;
+}
+#endif
