@@ -2386,7 +2386,6 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (SLSI_IS_VIF_INDEX_MHS(sdev, ndev_vif))
 		ndev_vif->chan = settings->chandef.chan;
 #endif
-
 	if (r != 0) {
 		SLSI_NET_ERR(dev, "Start ap failed: resultcode = %d frequency = %d\n", r,
 			     settings->chandef.chan->center_freq);
@@ -2394,7 +2393,12 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	} else if (ndev_vif->iftype == NL80211_IFTYPE_P2P_GO) {
 		SLSI_P2P_STATE_CHANGE(sdev, P2P_GROUP_FORMED_GO);
 	}
-
+#ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
+	if (ndev_vif->iftype == NL80211_IFTYPE_AP) {
+		/* Don't care results. */
+		slsi_set_num_antennas(dev, 1 /*SISO*/);
+	}
+#endif
 	ndev_vif->ap.beacon_interval = settings->beacon_interval;
 	ndev_vif->ap.ssid_len = settings->ssid_len;
 	memcpy(ndev_vif->ap.ssid, settings->ssid, settings->ssid_len);
