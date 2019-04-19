@@ -1261,7 +1261,11 @@ int fimc_is_sensor_peri_notify_vsync(struct v4l2_subdev *subdev, void *arg)
 	if (cis->long_term_mode.sen_strm_off_on_enable) {
 		if ((cis->long_term_mode.frame_interval == cis->long_term_mode.frm_num_strm_off_on_interval) ||
 				(cis->long_term_mode.frame_interval <= 0)) {
-			schedule_work(&sensor_peri->cis.long_term_mode_work);
+
+			/* HACK: activate work at end time only for 2X5SP */
+			if (cis->id != SENSOR_NAME_S5K2X5SP ||
+				(cis->id == SENSOR_NAME_S5K2X5SP && cis->long_term_mode.sen_strm_off_on_step < 1))
+				schedule_work(&sensor_peri->cis.long_term_mode_work);
 		}
 		if (cis->long_term_mode.frame_interval > 0)
 			cis->long_term_mode.frame_interval--;
@@ -1312,6 +1316,12 @@ int fimc_is_sensor_peri_notify_vblank(struct v4l2_subdev *subdev, void *arg)
 			return -EINVAL;
 		}
 	}
+
+
+	/* HACK: activate work at end time only for 2X5SP */
+	if (sensor_peri->cis.id == SENSOR_NAME_S5K2X5SP && (sensor_peri->cis.long_term_mode.sen_strm_off_on_enable)
+	&& (sensor_peri->cis.long_term_mode.sen_strm_off_on_step == 1))
+		schedule_work(&sensor_peri->cis.long_term_mode_work);
 
 	return ret;
 }
@@ -1595,6 +1605,11 @@ void fimc_is_sensor_long_term_mode_set_work(struct work_struct *data)
 	FIMC_BUG_VOID(!device);
 
 	info("[%s] start\n", __func__);
+
+	step = cis->long_term_mode.sen_strm_off_on_step;
+	if (step >= 1)
+		cis->long_term_mode.sen_strm_off_on_enable = 0;
+
 	/* Sensor stream off */
 	ret = CALL_CISOPS(cis, cis_stream_off, subdev_cis);
 	if (ret < 0) {
@@ -1618,10 +1633,6 @@ void fimc_is_sensor_long_term_mode_set_work(struct work_struct *data)
 		}
 	}
 	dbg_sensor(1, "[%s] stream off done\n", __func__);
-
-	step = cis->long_term_mode.sen_strm_off_on_step;
-	if (step >= 1)
-		cis->long_term_mode.sen_strm_off_on_enable = 0;
 
 	/* LTE mode setting */
 	ret = CALL_CISOPS(cis, cis_set_long_term_exposure, subdev_cis);
