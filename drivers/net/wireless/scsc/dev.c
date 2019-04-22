@@ -373,7 +373,15 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
 	if (slsi_netif_register(sdev, sdev->netdev[SLSI_NET_INDEX_NAN]) != 0) {
 		SLSI_ERR(sdev, "failed to register with NAN netdev\n");
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+#if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(ANDROID_VERSION) && ANDROID_VERSION >= 90000)
 		goto err_p2px_wlan_registered;
+#else
+		goto err_p2p_registered;
+#endif
+#else
+		goto err_p2p_registered;
+#endif
 	}
 #endif
 #endif
