@@ -4817,7 +4817,33 @@ bool slsi_if_valid_wifi_sharing_channel(struct slsi_dev *sdev, int freq)
 	return 0;
 }
 
-void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device *dev,
+int slsi_check_if_non_indoor_channel(struct slsi_dev *sdev, int freq)
+{
+	struct ieee80211_channel  *channel = NULL;
+	u32 chan_flags = 0;
+
+	channel =  ieee80211_get_channel(sdev->wiphy, freq);
+	if (!channel) {
+		SLSI_ERR(sdev, "Invalid frequency %d used to start AP. Channel not found\n", freq);
+		return 0;
+	}
+
+	chan_flags = (IEEE80211_CHAN_INDOOR_ONLY |
+			      IEEE80211_CHAN_DISABLED |
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 10, 13)
+			      IEEE80211_CHAN_PASSIVE_SCAN
+#else
+			      IEEE80211_CHAN_NO_IR
+#endif
+			     );
+
+	if ((channel->flags) & chan_flags)
+		return 0;
+
+	return 1;
+}
+
+int slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device *dev,
 					 struct cfg80211_ap_settings *settings,
 					 struct slsi_dev *sdev, int *wifi_sharing_channel_switched)
 {
@@ -4840,7 +4866,8 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 		if ((((settings->chandef.chan->center_freq) / 1000) == 5) &&
 		    !(slsi_check_if_channel_restricted_already(sdev,
 		    ieee80211_frequency_to_channel(settings->chandef.chan->center_freq))) &&
-		    slsi_if_valid_wifi_sharing_channel(sdev, settings->chandef.chan->center_freq)) {
+		    slsi_if_valid_wifi_sharing_channel(sdev, settings->chandef.chan->center_freq) &&
+		    slsi_check_if_non_indoor_channel(sdev, settings->chandef.chan->center_freq)) {
 			settings->chandef.chan = ieee80211_get_channel(wiphy, settings->chandef.chan->center_freq);
 			settings->chandef.center_freq1 = settings->chandef.chan->center_freq;
 		} else {
@@ -4856,6 +4883,8 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 	else { /* For 5GHz */
 		/* For single antenna */
 #ifdef CONFIG_SCSC_WLAN_SINGLE_ANTENNA
+		if (!slsi_check_if_non_indoor_channel(sdev, sta_frequency))
+			return 1; /*AP cannot start on indoor channel so we will reject request from the host*/
 		if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
 			*wifi_sharing_channel_switched = 1;
 			settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
@@ -4867,7 +4896,8 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 		if (((settings->chandef.chan->center_freq) / 1000) == 5) {
 			if (!(slsi_check_if_channel_restricted_already(sdev,
 			      ieee80211_frequency_to_channel(sta_frequency))) &&
-			    slsi_if_valid_wifi_sharing_channel(sdev, sta_frequency)) {
+			    slsi_if_valid_wifi_sharing_channel(sdev, sta_frequency) &&
+			    slsi_check_if_non_indoor_channel(sdev, sta_frequency)) {
 				if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
 					*wifi_sharing_channel_switched = 1;
 					settings->chandef.chan = ieee80211_get_channel(wiphy, sta_frequency);
@@ -4882,6 +4912,7 @@ void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device 
 	}
 
 	SLSI_DBG1(sdev, SLSI_CFG80211, "AP frequency chosen: %d\n", settings->chandef.chan->center_freq);
+	return 0;
 }
 
 int slsi_get_byte_position(int bit)
