@@ -482,7 +482,8 @@ void slsi_modify_ies_on_channel_switch(struct net_device *dev, struct cfg80211_a
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 bool slsi_if_valid_wifi_sharing_channel(struct slsi_dev *sdev, int freq);
 void slsi_extract_valid_wifi_sharing_channels(struct slsi_dev *sdev);
-void slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device *dev,
+int slsi_check_if_non_indoor_channel(struct slsi_dev *sdev, int freq);
+int slsi_select_wifi_sharing_ap_channel(struct wiphy *wiphy, struct net_device *dev,
 					 struct cfg80211_ap_settings *settings, struct slsi_dev *sdev,
 					 int *wifi_sharing_channel_switched);
 int slsi_set_mib_wifi_sharing_5ghz_channel(struct slsi_dev *sdev, u16 psid, int value,
