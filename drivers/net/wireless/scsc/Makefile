@@ -80,6 +80,10 @@ ifeq ($(CONFIG_SCSC_WLAN_GSCAN_ENABLE),y)
 scsc_wlan-$(CONFIG_SCSC_WLAN) += nl80211_vendor.o
 ccflags-y += -DCONFIG_SCSC_WLAN_GSCAN_ENABLE
 endif
+ifeq ($(CONFIG_SCSC_WIFI_NAN_ENABLE),y)
+scsc_wlan-$(CONFIG_SCSC_WLAN) += nl80211_vendor_nan.o
+scsc_wlan-$(CONFIG_SCSC_WLAN) += mlme_nan.o
+endif
 
 ifeq ($(CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD),y)
 ccflags-y += -DCONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD
