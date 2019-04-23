@@ -47,6 +47,30 @@ enum events {
 	__EVENT_MAX,
 };
 
+enum scsc_wlbtd_response_codes {
+	/* NOTE: keep the enum in sync with userspace wlbtd */
+	/* parse failed */
+	SCSC_WLBTD_ERR_PARSE_FAILED,
+
+	/* fw_panic trigger */
+	SCSC_WLBTD_FW_PANIC_TAR_GENERATED,
+	SCSC_WLBTD_FW_PANIC_ERR_SCRIPT_FILE_NOT_FOUND,
+	SCSC_WLBTD_FW_PANIC_ERR_NO_DEV,
+	SCSC_WLBTD_FW_PANIC_ERR_MMAP,
+	SCSC_WLBTD_FW_PANIC_ERR_SABLE_FILE,
+	SCSC_WLBTD_FW_PANIC_ERR_TAR,
+
+	/* other triggers */
+	SCSC_WLBTD_OTHER_SBL_GENERATED,
+	SCSC_WLBTD_OTHER_TAR_GENERATED,
+	SCSC_WLBTD_OTHER_ERR_SCRIPT_FILE_NOT_FOUND,
+	SCSC_WLBTD_OTHER_ERR_NO_DEV,
+	SCSC_WLBTD_OTHER_ERR_MMAP,
+	SCSC_WLBTD_OTHER_ERR_SABLE_FILE,
+	SCSC_WLBTD_OTHER_ERR_TAR,
+	SCSC_WLBTD_OTHER_IGNORE_TRIGGER,
+};
+
 static const struct genl_multicast_group scsc_mcgrp[] = {
 	{ .name = "scsc_mdp_grp", },
 };
