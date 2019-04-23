@@ -41,10 +41,6 @@ static char *maddr_file = "mac.txt";
 module_param(maddr_file, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(maddr_file, "mac address filename");
 
-static char *mac_addr = "00:00:00:00:00:00";
-module_param(mac_addr, charp, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(mac_addr, "wifi mac address");
-
 static bool term_udi_users = true;
 module_param(term_udi_users, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(term_udi_users, "Try to terminate UDI user space users (applications) connected on the cdev (0, 1)");
