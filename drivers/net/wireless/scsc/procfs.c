@@ -399,6 +399,11 @@ static int slsi_procfs_build_show(struct seq_file *m, void *v)
 #ifdef CONFIG_SCSC_AP_INTERFACE_NAME
 	seq_printf(m, "CONFIG_SCSC_AP_INTERFACE_NAME                   : %s\n", CONFIG_SCSC_AP_INTERFACE_NAME);
 #endif
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	seq_puts(m, "CONFIG_SCSC_WIFI_NAN_ENABLE                       : y\n");
+#else
+	seq_puts(m, "CONFIG_SCSC_WIFI_NAN_ENABLE                       : n\n");
+#endif
 
 	return 0;
 }
@@ -1050,10 +1055,15 @@ static ssize_t slsi_procfs_nan_mac_addr_read(struct file *file,	char __user *use
 	char              buf[20];
 	char              nan_mac[ETH_ALEN];
 	int               pos = 0;
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 	struct slsi_dev  *sdev = (struct slsi_dev *)file->private_data;
 
-	SLSI_UNUSED_PARAMETER(file);
 	slsi_nan_get_mac(sdev, nan_mac);
+#else
+
+	SLSI_UNUSED_PARAMETER(file);
+	memset(nan_mac, 0, ETH_ALEN);
+#endif
 	pos = scnprintf(buf, sizeof(buf), "%pM", nan_mac);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
