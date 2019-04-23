@@ -1979,6 +1979,7 @@ int i2c_master_send(const struct i2c_client *client, const char *buf, int count)
 	msg.flags = client->flags & I2C_M_TEN;
 	msg.len = count;
 	msg.buf = (char *)buf;
+	msg.freq = client->frequency;
 
 	ret = i2c_transfer(adap, &msg, 1);
 
