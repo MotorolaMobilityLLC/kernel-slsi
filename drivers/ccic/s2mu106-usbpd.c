@@ -2141,6 +2141,7 @@ static void s2mu106_usbpd_detach_init(struct s2mu106_usbpd_data *pdic_data)
 
 	/* wait flushing policy engine work */
 	usbpd_cancel_policy_work(dev);
+	s2mu106_self_soft_reset(pdic_data->i2c);
 
 	pdic_data->status_reg = 0;
 	usbpd_reinit(dev);
@@ -2784,6 +2785,7 @@ static void s2mu106_usbpd_init_configure(struct s2mu106_usbpd_data *_data)
 									gpio_get_value(_data->irq_gpio));
 	msleep(25);
 	_data->detach_valid = true;
+	s2mu106_self_soft_reset(_data->i2c);
 	s2mu106_set_lpm_mode(_data);
 	_data->detach_valid = false;
 	s2mu106_usbpd_set_cc_control(_data, USBPD_CC_OFF);
