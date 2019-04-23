@@ -3662,19 +3662,22 @@ static void slsi_p2p_unset_channel_expiry_work(struct work_struct *work)
 	struct net_device *dev = ndev_vif->wdev.netdev;
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	SLSI_NET_DBG1(ndev_vif->wdev.netdev, SLSI_CFG80211, "Unset channel expiry work-Send Unset Channel\n");
+	if (ndev_vif->activated) {
+		SLSI_NET_DBG1(ndev_vif->wdev.netdev, SLSI_CFG80211, "Unset channel expiry work-Send Unset Channel\n");
+		if (!ndev_vif->drv_in_p2p_procedure) {
+			/* Supplicant has stopped FIND/LISTEN. Clear Probe Response IEs in firmware and driver */
+			if (slsi_mlme_add_info_elements(sdev, dev, FAPI_PURPOSE_PROBE_RESPONSE, NULL, 0) != 0)
+				SLSI_NET_ERR(dev, "Clearing Probe Response IEs failed for unsync vif\n");
+			slsi_unsync_vif_set_probe_rsp_ie(ndev_vif, NULL, 0);
 
-	if (!ndev_vif->drv_in_p2p_procedure) {
-		/* Supplicant has stopped FIND/LISTEN. Clear Probe Response IEs in firmware and driver */
-		if (slsi_mlme_add_info_elements(sdev, dev, FAPI_PURPOSE_PROBE_RESPONSE, NULL, 0) != 0)
-			SLSI_NET_ERR(dev, "Clearing Probe Response IEs failed for unsync vif\n");
-		slsi_unsync_vif_set_probe_rsp_ie(ndev_vif, NULL, 0);
-
-		/* Send Unset Channel */
-		if (ndev_vif->driver_channel != 0) {
-			slsi_mlme_spare_signal_1(sdev, dev);
-			ndev_vif->driver_channel = 0;
+			/* Send Unset Channel */
+			if (ndev_vif->driver_channel != 0) {
+				slsi_mlme_spare_signal_1(sdev, dev);
+				ndev_vif->driver_channel = 0;
+			}
 		}
+	} else {
+		SLSI_NET_ERR(dev, "P2P vif is not activated\n");
 	}
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 }
