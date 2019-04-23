@@ -239,6 +239,7 @@ struct i2c_driver {
  * managing the device.
  */
 struct i2c_client {
+	unsigned int frequency;
 	unsigned short flags;		/* div., see below		*/
 	unsigned short addr;		/* chip address - NOTE: 7bit	*/
 					/* addresses are stored in the	*/
