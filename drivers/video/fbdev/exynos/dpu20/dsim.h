@@ -240,6 +240,9 @@ struct dsim_device {
 	int max_brightness;
 	int brightness;
 	int log_brightness;
+
+	unsigned int ddi_seq_size;
+	unsigned char ddi_seq[512];
 };
 
 struct dsim_lcd_driver {

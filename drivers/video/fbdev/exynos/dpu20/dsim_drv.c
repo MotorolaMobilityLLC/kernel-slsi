@@ -40,7 +40,7 @@
 #if defined(CONFIG_SUPPORT_LEGACY_ION)
 #include <linux/exynos_iovmm.h>
 #endif
-
+#include <linux/string.h>
 #include <linux/of_reserved_mem.h>
 #include "../../../../../mm/internal.h"
 
@@ -1294,14 +1294,194 @@ static ssize_t dsim_cmd_sysfs_store(struct device *dev,
 }
 static DEVICE_ATTR(cmd_rw, 0644, dsim_cmd_sysfs_show, dsim_cmd_sysfs_store);
 
+static ssize_t dsim_ddi_addr_sysfs_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+	int size = 0;
+	int count;
+
+	size = (ssize_t)sprintf(buf, "addr : 0x%02x   ", dsim->ddi_seq[0]);
+	size = (ssize_t)sprintf(buf + size, "size : %d\n", dsim->ddi_seq_size);
+
+	count = strlen(buf);
+	return count;
+}
+
+static ssize_t dsim_ddi_addr_sysfs_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+	unsigned int res;
+	int ret;
+
+	char *cnt;
+	char *addr;
+
+	cnt = (char *)buf;
+	addr = strsep(&cnt, " ");
+	if (addr == NULL) {
+		dsim_err("Usage : echo addr size > sysfs\n");
+		goto end_func;
+	}
+
+	ret = kstrtoint(addr, 0, &res);
+	if ((ret != 0) || (res > 255)) {
+		dsim_err("Fail : addr(0x%x) value should be less than 0xFF\n", res);
+		goto end_func;
+	}
+	dsim->ddi_seq[0] = (unsigned char)res;
+
+	ret = kstrtoint(cnt, 0, &res);
+	if (ret != 0)  {
+		dsim_err("Fail : cnt wrong value\n");
+		goto end_func;
+	}
+	dsim->ddi_seq_size = res;
+
+	dsim_info("ddi_addr : 0x%x\n", dsim->ddi_seq[0]);
+	dsim_info("ddi_seq_size : 0x%x\n", dsim->ddi_seq_size);
+
+end_func:
+	return count;
+}
+static DEVICE_ATTR(ddi_addr, 0600, dsim_ddi_addr_sysfs_show, dsim_ddi_addr_sysfs_store);
+
+static ssize_t dsim_ddi_read_sysfs_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+	int ret = 0;
+	int offset = 0;
+	int i;
+	int count;
+
+	/* dsim read */
+	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ, dsim->ddi_seq[0], dsim->ddi_seq_size, &dsim->ddi_seq[1]);
+
+	if (ret < 0) {
+		dsim_err("Failed to write test data!\n");
+		count = 0;
+		goto end_func;
+	} else
+		dsim_dbg("Succeeded to write test data!\n");
+
+
+	/* print */
+	for (i = 1; i <= dsim->ddi_seq_size; i++) {
+		ret = sprintf(buf + offset, "0x%02x ", dsim->ddi_seq[i]);
+		offset = offset + ret;
+	}
+	ret = sprintf(buf + offset, "\n");
+	count = strlen(buf);
+
+end_func:
+	return count;
+}
+static DEVICE_ATTR(ddi_read, 0400, dsim_ddi_read_sysfs_show, NULL);
+
+static ssize_t dsim_ddi_write_sysfs_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	char *start;
+	char *find;
+	char token[] = "\0\0\0\0\0\0\0\0\0\0";
+	unsigned int num;
+	unsigned int exit = 1;
+
+	unsigned int val;
+	int ret;
+	int i = 0;
+
+	start = (char *)buf;
+
+	while (exit) {
+		/* parsing */
+		find = strchr(start, ' ');
+		if (find == NULL) {
+			find = strchr(start, '\0');
+			exit = 0;
+		}
+
+		num = find - start;
+		strncpy(token, start, num);
+		token[num] = '\0';
+
+		find++;
+		start = find;
+
+		/* convert str to number */
+		if ((strncmp("0x", token, 2) == 0) || (strncmp("0X", token, 2) == 0))
+			ret = kstrtouint(token+2, 16, &val);
+		else
+			ret = kstrtouint(token, 16, &val);
+
+		if (ret != 0) {
+			dsim_err("Fail : data(%d) wrong value (should 0 ~ 0xff)\n", (unsigned int)val);
+			goto end_func;
+		}
+
+		if (val > 255) {
+			dsim_err("Fail : data(%d) value should be less than 0xFF\n", (unsigned int)val);
+			goto end_func;
+		}
+
+		dsim->ddi_seq[i] = (unsigned char)val;
+		dsim_info("%d\n", (unsigned int)dsim->ddi_seq[i]); // for debug
+		i++;
+	}
+	dsim->ddi_seq_size = i - 1; // for except addr
+
+	/* dsim write */
+	if (dsim->ddi_seq_size == 1)
+		ret = dsim_write_data(dsim, MIPI_DSI_DCS_SHORT_WRITE, dsim->ddi_seq[0], 0);
+	else if (dsim->ddi_seq_size == 2)
+		ret = dsim_write_data(dsim, MIPI_DSI_DCS_SHORT_WRITE_PARAM, dsim->ddi_seq[0], dsim->ddi_seq[1]);
+	else
+		ret = dsim_write_data(dsim, MIPI_DSI_DCS_LONG_WRITE,
+				(unsigned long)dsim->ddi_seq, dsim->ddi_seq_size + 1);
+
+	if (ret < 0)
+		dsim_err("Failed to write test data!\n");
+	else
+		dsim_dbg("Succeeded to write test data!\n");
+
+end_func:
+	return count;
+}
+static DEVICE_ATTR(ddi_write, 0200, NULL, dsim_ddi_write_sysfs_store);
+
 int dsim_create_cmd_rw_sysfs(struct dsim_device *dsim)
 {
 	int ret = 0;
 
 	ret = device_create_file(dsim->dev, &dev_attr_cmd_rw);
-	if (ret)
+	if (ret) {
 		dsim_err("failed to create command read & write sysfs\n");
+		goto error;
+	}
 
+	ret = device_create_file(dsim->dev, &dev_attr_ddi_addr);
+	if (ret) {
+		dsim_err("failed to create ddi_addr sysfs\n");
+		goto error;
+	}
+
+	ret = device_create_file(dsim->dev, &dev_attr_ddi_read);
+	if (ret) {
+		dsim_err("failed to create ddi_read sysfs\n");
+		goto error;
+	}
+
+	ret = device_create_file(dsim->dev, &dev_attr_ddi_write);
+	if (ret) {
+		dsim_err("failed to create ddi_write sysfs\n");
+		goto error;
+	}
+
+error:
 	return ret;
 }
 
