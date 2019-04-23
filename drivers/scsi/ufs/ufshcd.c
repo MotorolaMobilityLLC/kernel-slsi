@@ -5457,21 +5457,6 @@ static void ufshcd_err_handler(struct work_struct *work)
 	if (gpio_is_valid(info->ufs_reset_n_gpio))
 		dev_info(hba->dev, "%s: RESET_N: 0x%08x\n", __func__, gpio_get_value(info->ufs_reset_n_gpio));
 
-	/* dump controller state before resetting */
-	if (hba->saved_err & (INT_FATAL_ERRORS | UIC_ERROR)) {
-		bool pr_prdt = !!(hba->saved_err &
-				SYSTEM_BUS_FATAL_ERROR);
-
-		dev_err(hba->dev, "%s: saved_err 0x%x saved_uic_err 0x%x\n",
-				__func__, hba->saved_err,
-				hba->saved_uic_err);
-
-		ufshcd_print_host_regs(hba);
-		ufshcd_print_pwr_info(hba);
-		ufshcd_print_tmrs(hba, hba->outstanding_tasks);
-		ufshcd_print_trs(hba, hba->outstanding_reqs, pr_prdt);
-	}
-
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	if (hba->ufshcd_state == UFSHCD_STATE_RESET)
 		goto out;
@@ -5705,6 +5690,21 @@ static void ufshcd_check_errors(struct ufs_hba *hba)
 
 			hba->ufshcd_state = UFSHCD_STATE_EH_SCHEDULED;
 
+			/* dump controller state before resetting */
+			if (hba->saved_err & (INT_FATAL_ERRORS | UIC_ERROR)) {
+				bool pr_prdt = !!(hba->saved_err &
+						SYSTEM_BUS_FATAL_ERROR);
+
+				dev_err(hba->dev, "%s: saved_err 0x%x saved_uic_err 0x%x\n",
+					__func__, hba->saved_err,
+					hba->saved_uic_err);
+
+				ufshcd_print_host_regs(hba);
+				ufshcd_print_pwr_info(hba);
+				ufshcd_print_tmrs(hba, hba->outstanding_tasks);
+				ufshcd_print_trs(hba, hba->outstanding_reqs,
+							pr_prdt);
+			}
 			schedule_work(&hba->eh_work);
 		}
 	}
