@@ -1507,16 +1507,18 @@ static const char *fg_get_mmi_battid(void)
 static int fg_get_serialnumber(struct s2mu106_fuelgauge_data *chip,
 					       struct device_node *np)
 {
-	const char *sn_buf, *df_sn, *dev_sn;
+	const char *sn_buf, *df_sn, *dev_sn,*sn_buf_local_buy;
 	int rc;
 	int battery_cell1 = 0;
 	int battery_cell2 = 1;
 	int battery_index = 0;
+	int battery_default_index = 0;
 	bool battery_matched = false;
 
 	dev_sn = NULL;
 	df_sn = NULL;
 	sn_buf = NULL;
+	sn_buf_local_buy = NULL;
 	chip->battery_profile_index = 0;
 
 	dev_sn = fg_get_mmi_battid();
@@ -1536,30 +1538,70 @@ static int fg_get_serialnumber(struct s2mu106_fuelgauge_data *chip,
 	if (rc)
 		pr_info("%s, No cell1 Serial Number defined", __func__);
 	else {
-		if ((dev_sn && strnstr(dev_sn, sn_buf, 32)) || (df_sn && strnstr(df_sn, sn_buf, 32))) {
+		if (dev_sn && strnstr(dev_sn, sn_buf, 32) ) {
 				battery_matched = true;
 				battery_index = battery_cell1;
 		}
+
+		if (df_sn && strnstr(df_sn, sn_buf, 32)) {
+                                battery_default_index = battery_cell1;
+                }
 	}
+
+	rc = of_property_read_string(np, "serialnum_cell1_local_buy",
+                                     &sn_buf_local_buy);
+        if (rc)
+                pr_info("%s, No cell1 Serial local buy Number defined", __func__);
+        else {
+                if ((dev_sn && strnstr(dev_sn, sn_buf_local_buy, 32)) ) {
+                                battery_matched = true;
+                                battery_index = battery_cell1;
+                }
+
+                if ((df_sn && strnstr(df_sn, sn_buf_local_buy, 32))) {
+                                battery_default_index = battery_cell1;
+                }
+        }
 
 	rc = of_property_read_string(np, "serialnum_cell2",
 				     &sn_buf);
 	if (rc)
 		pr_info("%s,No cell2 Serial Number defined", __func__);
 	else {
-		if ((dev_sn && strnstr(dev_sn, sn_buf, 32)) || (df_sn && strnstr(df_sn, sn_buf, 32))) {
+		if ((dev_sn && strnstr(dev_sn, sn_buf, 32)) ) {
 				battery_matched = true;
 				battery_index = battery_cell2;
 		}
+
+		if ((df_sn && strnstr(df_sn, sn_buf, 32))) {
+                                battery_default_index = battery_cell2;
+                }
 	}
-	if (battery_matched)
+
+	rc = of_property_read_string(np, "serialnum_cell2_local_buy",
+                                     &sn_buf_local_buy);
+        if (rc)
+                pr_info("%s,No cell2 local buy Serial Number defined", __func__);
+        else {
+                if ((dev_sn && strnstr(dev_sn, sn_buf_local_buy, 32)) ) {
+                                battery_matched = true;
+                                battery_index = battery_cell2;
+                }
+
+		if ((df_sn && strnstr(df_sn, sn_buf_local_buy, 32))) {
+                                battery_default_index = battery_cell2;
+                }
+        }
+
+	if (battery_matched){
 		pr_info("%s, battery matched index:%d", __func__, battery_index);
-	else
-		pr_info("%s, battery did not matched , use default index:%d", __func__, battery_index);		
+		chip->battery_profile_index = battery_index;
+	} else {
+		pr_info("%s, battery did not matched , use default index:%d", __func__, battery_default_index);
+		chip->battery_profile_index = battery_default_index;
+	}
 
-	chip->battery_profile_index = battery_index;
-
-	return battery_index;
+	return chip->battery_profile_index;
 }
 
 static void s2mu106_fuelgauge_select_table(struct s2mu106_fuelgauge_data *fuelgauge)
