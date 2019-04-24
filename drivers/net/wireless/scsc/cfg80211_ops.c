@@ -2828,7 +2828,7 @@ int slsi_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 		r = -EINVAL;
 		goto exit;
 	}
-	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
+	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif) || (ndev_vif->iftype == NL80211_IFTYPE_AP && (ieee80211_is_auth(mgmt->frame_control)))) {
 		r = slsi_wlan_mgmt_tx(SDEV_FROM_WIPHY(wiphy), dev, chan, wait, buf, len, dont_wait_for_ack, cookie);
 		goto exit;
 	}
