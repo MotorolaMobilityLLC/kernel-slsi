@@ -2555,13 +2555,15 @@ int fimc_is_group_buffer_queue(struct fimc_is_groupmgr *groupmgr,
 		 * it need to copy "afMode & afTrigger" in queued frame
 		 * at only AF mode == CONTINUOUS_PICTURE or CONTINUOUS_VIDEO
 		 *         AF trigger == START
+		 *         PreCaptureTrigger != START
 		 */
 		if (test_bit(FIMC_IS_GROUP_OTF_INPUT, &group->state)) {
 			struct fimc_is_frame *prev;
 
-			if ((frame->shot->ctl.aa.afMode == AA_AFMODE_CONTINUOUS_VIDEO ||
-				frame->shot->ctl.aa.afMode == AA_AFMODE_CONTINUOUS_PICTURE)
-				&& frame->shot->ctl.aa.afTrigger == AA_AF_TRIGGER_START) {
+			if (((frame->shot->ctl.aa.afMode == AA_AFMODE_CONTINUOUS_VIDEO ||
+				frame->shot->ctl.aa.afMode == AA_AFMODE_CONTINUOUS_PICTURE) &&
+				frame->shot->ctl.aa.afTrigger == AA_AF_TRIGGER_START) &&
+				frame->shot->ctl.aa.aePrecaptureTrigger != AA_AE_PRECAPTURE_TRIGGER_START) {
 
 				list_for_each_entry_reverse(prev, &framemgr->queued_list[FS_REQUEST], list) {
 					prev->shot->ctl.aa.afMode = frame->shot->ctl.aa.afMode;
