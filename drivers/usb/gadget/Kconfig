@@ -234,6 +234,9 @@ config USB_F_AUDIO_SRC
 config USB_F_ACC
 	tristate
 
+config USB_F_SIMMIAN
+	tristate
+
 # this first set of drivers all depend on bulk-capable hardware.
 
 config USB_CONFIGFS
@@ -400,6 +403,13 @@ config USB_CONFIGFS_F_ADB
 	select USB_F_ADB
 	help
 	  USB gadget ADB support
+
+config USB_CONFIGFS_F_SIMMIAN
+       bool "Android gadget SIMMIAN function"
+       depends on USB_CONFIGFS
+       select USB_F_SIMMIAN
+       help
+         Provides SIMMIAN function for android gadget driver.
 
 config USB_CONFIGFS_F_MTP
 	boolean "MTP gadget"
