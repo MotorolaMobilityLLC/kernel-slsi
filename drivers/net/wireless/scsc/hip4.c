@@ -2711,17 +2711,38 @@ void hip4_suspend(struct slsi_hip4 *hip)
 #endif
 }
 
-/* TH interrupts can be masked/unmasked */
 void hip4_resume(struct slsi_hip4 *hip)
 {
 	struct slsi_dev *sdev;
+	struct scsc_service *service;
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u32 conf_hip4_ver = 0;
+#endif
 
 	if (!hip || !hip->hip_priv)
 		return;
 
 	sdev = container_of(hip, struct slsi_dev, hip4_inst);
-	if (!sdev)
+	if (!sdev || !sdev->service)
 		return;
+
+	if (atomic_read(&sdev->hip.hip_state) != SLSI_HIP_STATE_STARTED)
+		return;
+
+	service = sdev->service;
+
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
+
+	if (conf_hip4_ver == 4) {
+		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+			scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[i]);
+	} else {
+		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost);
+	}
+#else
+	scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost);
+#endif
 
 	slsi_log_client_msg(sdev, UDI_DRV_RESUME_IND, 0, NULL);
 	SCSC_HIP4_SAMPLER_RESUME(hip->hip_priv->minor);
