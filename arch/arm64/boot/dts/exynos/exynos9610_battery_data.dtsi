@@ -116,6 +116,7 @@
 
 				/* battery data for cell1 */
 				serialnum_cell1 = "SB18C43602";
+				serialnum_cell1_local_buy = "SB18C45533";
 				battery,battery_table3_cell1 =
 					<88 11 214 10 84 10 218 9 100 9
 					243 8 140 8 34 8 205 7 123 7
@@ -145,7 +146,8 @@
 					36236 32120>;
 
 				/* battery data for cell2 */
-				serialnum_cell2 = "SB18C30735";
+				serialnum_cell2 = "SB18C43601";
+				serialnum_cell2_local_buy = "SB18C45532";
 				battery,battery_table3_cell2 =
 					<88 11 214 10 84 10 218 9 100 9
 					243 8 140 8 34 8 205 7 123 7
