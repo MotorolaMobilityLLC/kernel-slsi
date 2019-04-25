@@ -483,14 +483,6 @@ static int fimc_is_ischain_mxp_tag(struct fimc_is_subdev *subdev,
 		index = PARAM_MCS_OUTPUT3;
 		target_addr = ldr_frame->sc3TargetAddress;
 		break;
-	case FIMC_IS_VIDEO_M4P_NUM:
-		index = PARAM_MCS_OUTPUT4;
-		target_addr = ldr_frame->sc4TargetAddress;
-		break;
-	case FIMC_IS_VIDEO_M5P_NUM:
-		index = PARAM_MCS_OUTPUT5;
-		target_addr = ldr_frame->sc5TargetAddress;
-		break;
 	default:
 		mserr("vid(%d) is not matched", device, subdev, node->vid);
 		ret = -EINVAL;
