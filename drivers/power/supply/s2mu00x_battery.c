@@ -3909,7 +3909,7 @@ static void set_max_allowed_current_ma(struct s2mu00x_battery_info *chip,
 	       chip->temp_allowed_fastchg_current_ma,
 	       chip->target_fastchg_current_ma);
 }
-
+#if defined(CONFIG_SMALL_CHARGER)
 static int set_property_on_smallcharger(struct s2mu00x_battery_info *chip,
 		enum power_supply_property prop, int val)
 {
@@ -3935,6 +3935,7 @@ static int set_property_on_smallcharger(struct s2mu00x_battery_info *chip,
 
 	return rc;
 }
+#endif
 
 #define HEARTBEAT_DELAY_MS 30000
 #define HEARTBEAT_HOLDOFF_MS 10000
@@ -4364,8 +4365,9 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->input_current = 0;
 	battery->charging_current = 0;
 	battery->topoff_current = 0;
+#if defined(CONFIG_SMALL_CHARGER)
 	battery->small_input_flag = 0;
-
+#endif
 	battery->max_input_current = battery->pdata->max_input_current;
 	battery->max_charging_current = battery->pdata->max_charging_current;
 #if defined(CONFIG_USE_CCIC)
