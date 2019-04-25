@@ -3401,7 +3401,8 @@ int fimc_is_group_done(struct fimc_is_groupmgr *groupmgr,
 				break;
 			}
 
-			if (device->sensor->subdev_eeprom || device->sensor->use_otp_cal) {
+			if (device->sensor &&
+				(device->sensor->subdev_eeprom || device->sensor->use_otp_cal)) {
 				/* Sensor EEPROM CAL data status update */
 				for (i = 0; i < CAMERA_CRC_INDEX_MAX; i++)
 					frame->shot_ext->user.crc_result[i] = device->sensor->cal_status[i];
