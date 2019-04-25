@@ -452,8 +452,10 @@ void __nocfi pafstat_notify(struct v4l2_subdev *subdev, unsigned int type, void 
 	unsigned long flag;
 
 	pafstat = (struct fimc_is_pafstat *)v4l2_get_subdevdata(subdev);
-	if (!pafstat)
+	if (!pafstat) {
 		err("%s, failed to get PAFSTAT", __func__);
+		return;
+	}
 
 	switch (type) {
 	case CSIS_NOTIFY_DMA_END_VC_MIPISTAT:
@@ -722,8 +724,6 @@ int fimc_is_pafstat_reset_recovery(struct v4l2_subdev *subdev, u32 reset_mode, i
 {
 	int ret = 0;
 	struct fimc_is_pafstat *pafstat;
-	struct v4l2_subdev_pad_config *cfg = NULL;
-	struct v4l2_subdev_format *fmt = NULL;
 
 	pafstat = v4l2_get_subdevdata(subdev);
 	if (!pafstat) {
@@ -735,7 +735,25 @@ int fimc_is_pafstat_reset_recovery(struct v4l2_subdev *subdev, u32 reset_mode, i
 		pafstat_hw_com_s_output_mask(pafstat->regs_com, 1);
 		pafstat_hw_sw_reset(pafstat->regs);
 	} else {
-		pafstat_s_format(subdev, cfg, fmt);
+		struct fimc_is_module_enum *module;
+		struct v4l2_subdev_pad_config *cfg = NULL;
+		struct v4l2_subdev_format fmt;
+
+		module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(subdev);
+		if (!module) {
+			err("[PAFSTAT:%d] A host data of PAFSTAT is null", pafstat->id);
+			return -ENODEV;
+		}
+
+		if (!module->cfg) {
+			err("module->cfg is NULL");
+			return -EINVAL;
+		}
+
+		fmt.format.width = module->cfg->width;
+		fmt.format.height = module->cfg->height;
+
+		pafstat_s_format(subdev, cfg, &fmt);
 		pafstat_s_stream(subdev, 1);
 		pafstat_hw_com_s_output_mask(pafstat->regs_com, 0);
 	}
