@@ -869,7 +869,7 @@ static void get_prop_charge_rate(struct s2mu00x_battery_info *battery)
 		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
 		return;
 	}
-
+#if defined(CONFIG_SMALL_CHARGER)
 	if(battery->cable_type == POWER_SUPPLY_TYPE_HV_MAINS ||
 		battery->cable_type == POWER_SUPPLY_TYPE_USB_PD ||
 		battery->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
@@ -877,7 +877,9 @@ static void get_prop_charge_rate(struct s2mu00x_battery_info *battery)
 		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_TURBO;
 	else
 		battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
-
+#else
+	battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
+#endif
 	if(prev_chg_rate != battery->charger_rate)
 		printk(KERN_ERR "%s,charge_rate:%s\n",__func__,charge_rate[battery->charger_rate]);
 }
