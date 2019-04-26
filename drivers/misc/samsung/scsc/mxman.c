@@ -952,6 +952,7 @@ static int fw_init(struct mxman *mxman, void *start_dram, size_t size_dram, bool
 {
 	int                 r;
 	char                *build_id;
+	char                *ttid;
 	u32                 fw_image_size;
 	struct fwhdr        *fwhdr = &mxman->fwhdr;
 	char                *fw = start_dram;
@@ -1001,6 +1002,12 @@ static int fw_init(struct mxman *mxman, void *start_dram, size_t size_dram, bool
 			slsi_kic_service_information(slsi_kic_technology_type_common, &kic_info);
 		} else
 			SCSC_TAG_ERR(MXMAN, "Failed to get Firmware BUILD_ID\n");
+
+		ttid = fwhdr_get_ttid(fw, fwhdr);
+		if (ttid) {
+			(void)snprintf(mxman->fw_ttid, sizeof(mxman->fw_ttid), "%s", ttid);
+			SCSC_TAG_INFO(MXMAN, "Firmware ttid: %s\n", mxman->fw_ttid);
+		}
 	}
 
 	SCSC_TAG_DEBUG(MXMAN, "firmware_entry_point=0x%x fw_runtime_length=%d\n", fwhdr->firmware_entry_point, fwhdr->fw_runtime_length);
@@ -2001,6 +2008,7 @@ void mxman_init(struct mxman *mxman, struct scsc_mx *mx)
 	(void)snprintf(mxman->fw_build_id, sizeof(mxman->fw_build_id), "unknown");
 	memcpy(saved_fw_build_id, mxman->fw_build_id,
 	       sizeof(saved_fw_build_id));
+	(void)snprintf(mxman->fw_ttid, sizeof(mxman->fw_ttid), "unknown");
 	mxproc_create_info_proc_dir(&mxman->mxproc, mxman);
 	active_mxman = mxman;
 
