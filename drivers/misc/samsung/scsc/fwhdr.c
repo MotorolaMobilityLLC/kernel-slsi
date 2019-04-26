@@ -28,6 +28,8 @@
 #define FWHDR_02_BUILD_ID_OFFSET 48
 #define FWHDR_02_R4_PANIC_RECORD_OFFSET_OFFSET 176
 #define FWHDR_02_M4_PANIC_RECORD_OFFSET_OFFSET 180
+#define FWHDR_02_TTID_OFFSET 184
+
 /*
  * Firmware header format for version 1.0 is same as version for 0.2
  */
@@ -80,6 +82,15 @@ static char *fwhdr_get_build_id_v02(char *fw, struct fwhdr *fwhdr)
 	return NULL;
 }
 
+static char *fwhdr_get_ttid_v02(char *fw, struct fwhdr *fwhdr)
+{
+	if (fwhdr->hdr_length < FWHDR_02_TTID_OFFSET)
+		return NULL;
+	if (!memcmp(fw + FWHDR_02_MAGIC_OFFSET, FWHDR_MAGIC_STRING, sizeof(FWHDR_MAGIC_STRING) - 1))
+		return fw + FWHDR_02_TTID_OFFSET;
+	return NULL;
+}
+
 bool fwhdr_parse(char *fw, struct fwhdr *fwhdr)
 {
 	return fwhdr_parse_v02(fw, fwhdr);
@@ -90,3 +101,7 @@ char *fwhdr_get_build_id(char *fw, struct fwhdr *fwhdr)
 	return fwhdr_get_build_id_v02(fw, fwhdr);
 }
 
+char *fwhdr_get_ttid(char *fw, struct fwhdr *fwhdr)
+{
+	return fwhdr_get_ttid_v02(fw, fwhdr);
+}
