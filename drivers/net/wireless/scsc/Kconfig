@@ -204,7 +204,7 @@ config SCSC_WLAN_ENHANCED_PKT_FILTER
           supported or not.
 
 config SCSC_ENHANCED_PACKET_STATS
-        string "Enable enhanced packet stats"
+        bool "Enable enhanced packet stats"
         default n
         ---help---
           This option tells whether enhanced packet stats collection
