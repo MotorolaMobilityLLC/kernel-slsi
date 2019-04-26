@@ -486,6 +486,30 @@ static ssize_t mx_procfs_mx_release_read(struct file *file, char __user *user_bu
 
 MX_PROCFS_RO_FILE_OPS(mx_release);
 
+static ssize_t mx_procfs_mx_ttid_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char buf[256];
+	int bytes;
+	struct mxproc *mxproc = file->private_data;
+	char *id = 0;
+
+	OS_UNUSED_PARAMETER(file);
+
+	if (mxproc && mxproc->mxman)
+		id = mxproc->mxman->fw_ttid;
+
+	memset(buf, '\0', sizeof(buf));
+
+	bytes = snprintf(buf, sizeof(buf), "%s\n", id);
+
+	if (bytes > sizeof(buf))
+		bytes = sizeof(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, bytes);
+}
+
+MX_PROCFS_RO_FILE_OPS(mx_ttid);
+
 int mxproc_create_info_proc_dir(struct mxproc *mxproc, struct mxman *mxman)
 {
 	char                  dir[MX_DIRLEN];
@@ -506,6 +530,7 @@ int mxproc_create_info_proc_dir(struct mxproc *mxproc, struct mxman *mxman)
 	MX_PROCFS_ADD_FILE(mxproc, mx_rf_hw_ver, parent, S_IRUSR | S_IRGRP | S_IROTH);
 	MX_PROCFS_ADD_FILE(mxproc, mx_rf_hw_name, parent, S_IRUSR | S_IRGRP | S_IROTH);
 	MX_PROCFS_ADD_FILE(mxproc, mx_boot_count, parent, S_IRUSR | S_IRGRP | S_IROTH);
+	MX_PROCFS_ADD_FILE(mxproc, mx_ttid, parent, S_IRUSR | S_IRGRP | S_IROTH);
 	SCSC_TAG_DEBUG(MX_PROC, "created %s proc dir\n", dir);
 
 	return 0;
@@ -516,6 +541,7 @@ void mxproc_remove_info_proc_dir(struct mxproc *mxproc)
 	if (mxproc->procfs_info_dir) {
 		char dir[MX_DIRLEN];
 
+		MX_PROCFS_REMOVE_FILE(mx_ttid, mxproc->procfs_ctrl_dir);
 		MX_PROCFS_REMOVE_FILE(mx_boot_count, mxproc->procfs_ctrl_dir);
 		MX_PROCFS_REMOVE_FILE(mx_release, mxproc->procfs_info_dir);
 		MX_PROCFS_REMOVE_FILE(mx_rf_hw_ver, mxproc->procfs_info_dir);
