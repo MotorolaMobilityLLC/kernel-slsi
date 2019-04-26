@@ -1752,8 +1752,9 @@ static int aw8695_haptic_init(struct aw8695 *aw8695)
     /* f0 calibration */
     mutex_lock(&aw8695->lock);
     aw8695->f0_pre = AW8695_HAPTIC_F0_PRE;
-    aw8695->cont_drv_lvl = AW8695_HAPTIC_CONT_DRV_LVL;
-    aw8695->cont_drv_lvl_ov = AW8695_HAPTIC_CONT_DRV_LVL_OV;
+    /*CONT_DRV configed in dtsi, parse_dt will set value, so delete code below*/
+    /*aw8695->cont_drv_lvl = AW8695_HAPTIC_CONT_DRV_LVL;*/
+    /*aw8695->cont_drv_lvl_ov = AW8695_HAPTIC_CONT_DRV_LVL_OV;*/
     aw8695->cont_td = AW8695_HAPTIC_CONT_TD;
     aw8695->cont_zc_thr = AW8695_HAPTIC_CONT_ZC_THR;
     aw8695->cont_num_brk = AW8695_HAPTIC_CONT_NUM_BRK;
@@ -3383,6 +3384,8 @@ static irqreturn_t aw8695_irq(int irq, void *data)
  *****************************************************/
 static int aw8695_parse_dt(struct device *dev, struct aw8695 *aw8695,
         struct device_node *np) {
+    int ret = -1;
+
     aw8695->reset_gpio = of_get_named_gpio(np, "reset-gpio", 0);
     if (aw8695->reset_gpio < 0) {
         dev_err(dev, "%s: no reset gpio provided, will not HW reset device\n", __func__);
@@ -3395,6 +3398,18 @@ static int aw8695_parse_dt(struct device *dev, struct aw8695 *aw8695,
         dev_err(dev, "%s: no irq gpio provided.\n", __func__);
     } else {
         dev_info(dev, "%s: irq gpio provided ok.\n", __func__);
+    }
+
+    ret = of_property_read_u32(np, "aw8695,cont_drv_lvl", &aw8695->cont_drv_lvl);
+    if (0 > ret) {
+        aw8695->cont_drv_lvl = AW8695_HAPTIC_CONT_DRV_LVL;
+        pr_err("%s:get drv_lvl faild %d",__func__, aw8695->cont_drv_lvl);
+    }
+
+    ret = of_property_read_u32(np, "aw8695,cont_drv_lvl_ov", &aw8695->cont_drv_lvl_ov);
+    if (0 > ret) {
+        aw8695->cont_drv_lvl_ov = AW8695_HAPTIC_CONT_DRV_LVL_OV;
+        pr_err("%s:get drv_lvl faild use default=%d",__func__, aw8695->cont_drv_lvl_ov);
     }
 
     return 0;
