@@ -24,7 +24,7 @@
 		pinctrl-0 = <&lra_int_status>;
 		reset-gpio = <&gpa2 5 0>;
 		irq-gpio = <&gpa2 7 0>;
-		aw8695,cont_drv_lvl = <98>;
-		aw8695,cont_drv_lvl_ov = <98>;
+		aw8695,cont_drv_lvl = <112>;
+		aw8695,cont_drv_lvl_ov = <112>;
 	};
 };
