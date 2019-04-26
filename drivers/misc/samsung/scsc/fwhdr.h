@@ -8,6 +8,7 @@
 #define FWHDR_H
 
 #define FW_BUILD_ID_SZ	128
+#define FW_TTID_SZ	32
 
 struct fwhdr {
 	u16 hdr_major;
@@ -31,5 +32,6 @@ struct fwhdr {
 
 bool fwhdr_parse(char *fw, struct fwhdr *fwhdr);
 char *fwhdr_get_build_id(char *fw, struct fwhdr *fwhdr);
+char *fwhdr_get_ttid(char *fw, struct fwhdr *fwhdr);
 
 #endif /* FWHDR_H */
