@@ -321,7 +321,8 @@ int set_new_trj_ref_angle(struct s610_radio *radio, int tune_freq, int spur_freq
 			fmspeedy_set_reg(0xFFF2DA, angle_last);
 
 			result |= NEW_TRF_ALWAYS_ADAPT;
-		}
+		} else
+			fmspeedy_set_reg_field(0xFFF2A9, 16, (0x000F<<16), 0x2);
 	}
 
 	return result;
@@ -418,6 +419,22 @@ void fm_set_freq(struct s610_radio *radio, u32 freq, bool mix_hi)
 			fmspeedy_set_reg_field(0xFFF2A9, 6, (0x0001<<6), 0x1);
 			fmspeedy_set_reg(0xFFF2D9, 0x10000000);
 			fmspeedy_set_reg(0xFFF2DA, 0x30000000);
+		} else if (88100 == freq) {
+			dev_info(radio->dev, "[%06d] new TRF On", radio->low->fm_state.freq);
+			fmspeedy_set_reg_field(0xFFF2A9, 16, (0x000F<<16), 0x2);
+			fmspeedy_set_reg_field(0xFFF2A9, 8, (0x0001<<8), 0x1);
+			fmspeedy_set_reg_field(0xFFF2A9, 7, (0x0001<<7), 0x0);
+			fmspeedy_set_reg_field(0xFFF2A9, 6, (0x0001<<6), 0x1);
+			fmspeedy_set_reg(0xFFF2D9, 0x3C000000);
+			fmspeedy_set_reg(0xFFF2DA, 0x04000000);
+		} else if (96000 == freq) {
+			dev_info(radio->dev, "[%06d] new TRF On", radio->low->fm_state.freq);
+			fmspeedy_set_reg_field(0xFFF2A9, 16, (0x000F<<16), 0x2);
+			fmspeedy_set_reg_field(0xFFF2A9, 8, (0x0001<<8), 0x1);
+			fmspeedy_set_reg_field(0xFFF2A9, 7, (0x0001<<7), 0x0);
+			fmspeedy_set_reg_field(0xFFF2A9, 6, (0x0001<<6), 0x1);
+			fmspeedy_set_reg(0xFFF2D9, 0x2C000000);
+			fmspeedy_set_reg(0xFFF2DA, 0x14000000);
 		} else {
 			if (!is_freq_in_spur(radio->low->fm_state.freq, fm_spur_trf_init, radio->trf_on) &&
 				!is_freq_in_spur(radio->low->fm_state.freq, fm_dual_clk_init, radio->dual_clk_on)) {
@@ -857,6 +874,8 @@ bool fm_check_rssi_level(u16 limit)
 
 	rssi = (rssi & 0x80) ? rssi - 256 : rssi;
 	thres = (thres & 0x80) ? thres - 256 : thres;
+
+	dev_info(gradio->dev, "fm_check_rssi_level rssi:%d thres:%d", rssi, thres);
 
 	return (rssi < thres);
 }
@@ -1905,6 +1924,7 @@ static void fm_search_check_signal2(unsigned long data)
 #ifdef USE_NEW_SCAN
 	int rssi;
 	u16 d_rssi, gain, adjust;
+	u16 snr;
 #endif
 	bool check_ok = TRUE;
 	bool done = FALSE;
@@ -1926,20 +1946,20 @@ static void fm_search_check_signal2(unsigned long data)
 		d_rssi = fmspeedy_get_reg(0xFFF2AD);
 		gain = fmspeedy_get_reg(0xFFF285);
 		adjust = fmspeedy_get_reg(0xFFF2C2);
+		snr = fmspeedy_get_reg(0xFFF2C5);
 
 		rssi = rssi_device_to_host(d_rssi, gain, adjust);
 		rssi = (rssi & 0x80) ? rssi - 256 : rssi;
-
-	APIEBUG(radio, "SIG2> rssi %d", rssi);
-	APIEBUG(radio, "SIG2> weak ifca_m %d", radio->low->fm_config.search_conf.weak_ifca_m);
-	APIEBUG(radio, "SIG2> normal ifca_m %d", radio->low->fm_config.search_conf.normal_ifca_m);
-	APIEBUG(radio, "SIG2> RSSI limit %d %d",
+		dev_info(radio->dev, "SIG2> rssi %d, snr %d", rssi, snr);
+		dev_info(radio->dev, "SIG2> weak ifca_m %d", radio->low->fm_config.search_conf.weak_ifca_m);
+		dev_info(radio->dev, "SIG2> normal ifca_m %d", radio->low->fm_config.search_conf.normal_ifca_m);
+		APIEBUG(radio, "SIG2> RSSI limit %d %d",
 			aggr_rssi_device_to_host(radio->low->fm_state.rssi_limit_search),
 			radio->low->fm_state.rssi_limit_search);
-	APIEBUG(radio, "SIG2> with eLNA %d RSSI ADJUST %x %x",
+		APIEBUG(radio, "SIG2> with eLNA %d RSSI ADJUST %x %x",
 		radio->without_elna, RSSI_ADJUST_WITHOUT_ELNA_VALUE, radio->low->fm_config.rssi_adj_ini);
-	APIEBUG(radio, "SIG2> seek weak rssi %d", radio->seek_weak_rssi);
-	APIEBUG(radio, "SIG2> Current Freq %d", radio->low->fm_state.freq);
+		APIEBUG(radio, "SIG2> seek weak rssi %d", radio->seek_weak_rssi);
+		dev_info(radio->dev, "SIG2> Current Freq %d", radio->low->fm_state.freq);
 
 	if (rssi < radio->seek_weak_rssi)
 		radio->low->fm_config.search_conf.weak_sig = TRUE;
@@ -1961,36 +1981,36 @@ static void fm_search_check_signal2(unsigned long data)
 #ifdef USE_NEW_SCAN
 		if (radio->low->fm_config.search_conf.weak_sig) {
 			if (ifc_abs < radio->low->fm_config.search_conf.weak_ifca_l) {
-				APIEBUG(radio, "SIG> weak good %d", ifc_abs);
+				dev_info(radio->dev, "SIG2> weak good %d", ifc_abs);
 				done = TRUE;
 				check_ok = TRUE;
 			}
 
 			else if (ifc_abs > radio->low->fm_config.search_conf.weak_ifca_h) {
-				APIEBUG(radio, "SIG> weak bad %d", ifc_abs);
+				dev_info(radio->dev, "SIG2> weak bad %d", ifc_abs);
 				done = TRUE;
 				check_ok = FALSE;
 			}
 
 			else if (ifc_abs < min_weak_ifc_abs) {
-				APIEBUG(radio, "SIG> weak mid %d %d", ifc_abs, min_weak_ifc_abs);
+				dev_info(radio->dev, "SIG2> weak mid %d %d", ifc_abs, min_weak_ifc_abs);
 				min_weak_ifc_abs = ifc_abs;
 			}
 		} else {
 			if (ifc_abs < radio->low->fm_config.search_conf.normal_ifca_l) {
-				APIEBUG(radio, "SIG> normal good %d", ifc_abs);
+				dev_info(radio->dev, "SIG2> normal good %d", ifc_abs);
 				done = TRUE;
 				check_ok = TRUE;
 			}
 
 			else if (ifc_abs > radio->low->fm_config.search_conf.normal_ifca_h) {
-				APIEBUG(radio, "SIG> normal bad %d", ifc_abs);
+				dev_info(radio->dev, "SIG2> normal bad %d", ifc_abs);
 				done = TRUE;
 				check_ok = FALSE;
 			}
 
 			else if (ifc_abs < min_normal_ifc_abs) {
-				APIEBUG(radio, "SIG> normal mid %d %d", ifc_abs, min_weak_ifc_abs);
+				dev_info(radio->dev, "SIG2> normal mid %d %d", ifc_abs, min_normal_ifc_abs);
 				min_normal_ifc_abs = ifc_abs;
 			}
 		}
@@ -2016,7 +2036,7 @@ static void fm_search_check_signal2(unsigned long data)
 			|| ((min_normal_ifc_abs < 0xffff)
 			&& (min_normal_ifc_abs > radio->low->fm_config.search_conf.normal_ifca_m))) {
 			check_ok = FALSE;
-			APIEBUG(radio, "SIG> check mid fail");
+			APIEBUG(radio, "SIG2> check mid fail");
 		}
 	}
 #else
@@ -2063,8 +2083,9 @@ static void fm_search_check_signal1(struct s610_radio *radio, bool rssi_oor)
 #endif	/* RDS_POLLING_ENABLE */
 
 	d_status = fmspeedy_get_reg(0xFFF2CB);
-
+	dev_info(radio->dev, "SIG1> rssi_oor : %d, d_status : %d\n", rssi_oor?1:0, d_status);
 	if (rssi_oor || !!(d_status & (0x0001 << 7))) {
+		dev_info(radio->dev, "SIG1> next freq");
 		if (radio->low->fm_tuner_state.hit_band_limit) {
 			APIEBUG(radio, "SIG1> IF_OOR 0x%x,0x%x,0x%x",
 					radio->wrap_around, radio->seek_freq,
@@ -2137,7 +2158,7 @@ static void fm_search_check_signal1(struct s610_radio *radio, bool rssi_oor)
 			radio->sig2_fniarg = 1;
 			radio->dwork_sig2_counter++;
 			schedule_delayed_work(&radio->dwork_sig2,
-				msecs_to_jiffies(0));
+				msecs_to_jiffies(SEARCH_DELAY_MS));
 	}
 	/*	API_EXIT(radio);*/
 }
@@ -2546,8 +2567,7 @@ extern u32 *fm_spur_init;
 #endif
 #ifdef	USE_S612_DUAL_CLOCKING
 u32 filter_freq_spur_case_1[] = {
-		87900, 88000, 88100, 95900, 96000, 96100, 99900, 100100,
-		89600, 91200, 92800, 94400, 97600, 99200, 100800, 102400, 105600, 107200 };
+		87900, 88000, 88100, 95900, 96000, 96100, 99900, 100100 };
 #endif	/* USE_S612_DUAL_CLOCKING */
 
 #ifdef USE_SPUR_CANCEL_TRF
