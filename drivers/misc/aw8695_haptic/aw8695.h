@@ -342,8 +342,8 @@ struct aw8695 {
     unsigned int cont_f0;
     unsigned int cont_td;
     unsigned int cont_zc_thr;
-    unsigned char cont_drv_lvl;
-    unsigned char cont_drv_lvl_ov;
+    unsigned int cont_drv_lvl;
+    unsigned int cont_drv_lvl_ov;
     unsigned char cont_num_brk;
     unsigned char max_pos_beme;
     unsigned char max_neg_beme;
