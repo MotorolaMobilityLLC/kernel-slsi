@@ -84,6 +84,7 @@ struct mxman {
 	int                   fm_params_pending; /* FM freq info waiting to be delivered to FW */
 #endif
 	char			failure_reason[SCSC_FAILURE_REASON_LEN]; /* previous failure reason */
+	char                    fw_ttid[FW_TTID_SZ]; /* Defined in SC-505846-SW */
 };
 
 void mxman_register_gdb_channel(struct scsc_mx *mx, mxmgmt_channel_handler handler, void *data);
