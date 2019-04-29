@@ -174,6 +174,7 @@
 #define SLSI_DHCP_SERVER_PORT 67
 #define SLSI_DHCP_CLIENT_PORT 68
 #define SLSI_DNS_DEST_PORT 53
+#define SLSI_MDNS_DEST_PORT 5353
 
 #define SLSI_DHCP_MSG_MAGIC_OFFSET 278
 #define SLSI_DHCP_OPTION 53
@@ -461,7 +462,13 @@ u8 slsi_p2p_get_exp_peer_frame_subtype(u8 subtype);
 int slsi_send_txq_params(struct slsi_dev *sdev, struct net_device *ndev);
 void slsi_abort_sta_scan(struct slsi_dev *sdev);
 int slsi_is_dhcp_packet(u8 *data);
+
+#ifdef CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES
 int slsi_is_dns_packet(u8 *data);
+int slsi_is_mdns_packet(u8 *data);
+int slsi_is_tcp_sync_packet(struct net_device *dev, struct sk_buff *skb);
+#endif
+
 void slsi_set_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
 int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
 int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
