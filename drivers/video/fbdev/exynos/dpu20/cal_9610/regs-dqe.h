@@ -8,7 +8,8 @@
 #define DQE_APS_SW_RESET_GET(_v)	(((_v) >> 18) & 0x1)
 #define DQE_HSC_SW_RESET_MASK		(1 << 16)
 #define DQE_HSC_SW_RESET_GET(_v)	(((_v) >> 16) & 0x1)
-
+#define DQE_APS_ON_MASK			(1 << 4)
+#define DQE_APS_ON_GET(_v)		(((_v) >> 4) & 0x1)
 #define DQE_HSC_ON_MASK			(1 << 3)
 #define DQE_HSC_ON_GET(_v)		(((_v) >> 3) & 0x1)
 #define DQE_GAMMA_ON_MASK		(1 << 2)
@@ -173,6 +174,64 @@
 #define DQEGAMMALUT_B_63_62		0x01b8
 #define DQEGAMMALUT_B_64		0x01bc
 
+/*APS_SET*/
+#define DQEAPSLUT_MAX			(15)
+#define DQEAPSLUT_BASE			0x01C0
+
+#define DQEAPSLUT_ST(_v)		(((_v) & 0xff) << 16)
+#define DQEAPSLUT_NS(_v)		(((_v) & 0xff) << 8)
+#define DQEAPSLUT_LT(_v)		(((_v) & 0xff) << 0)
+#define DQEAPSLUT_PL_W2(_v)		(((_v) & 0xf) << 16)
+#define DQEAPSLUT_PL_W1(_v)		(((_v) & 0xf) << 0)
+#define DQEAPSLUT_CTMODE(_v)		(((_v) & 0x3) << 0)
+#define DQEAPSLUT_PP_EN(_v)		(((_v) & 0x1) << 0)
+#define DQEAPSLUT_TDR_MAX(_v)		(((_v) & 0x3ff) << 16)
+#define DQEAPSLUT_TDR_MIN(_v)		(((_v) & 0x3ff) << 0)
+#define DQEAPSLUT_AMBIENT_LIGHT(_v)	(((_v) & 0xff) << 0)
+#define DQEAPSLUT_BACK_LIGHT(_v)	(((_v) & 0xff) << 0)
+#define DQEAPSLUT_DSTEP(_v)		(((_v) & 0x3f) << 0)
+#define DQEAPSLUT_SCALE_MODE(_v)	(((_v) & 0x3) << 0)
+#define DQEAPSLUT_THRESHOLD_3(_v)	(((_v) & 0x3) << 4)
+#define DQEAPSLUT_THRESHOLD_2(_v)	(((_v) & 0x3) << 2)
+#define DQEAPSLUT_THRESHOLD_1(_v)	(((_v) & 0x3) << 0)
+#define DQEAPSLUT_GAIN_LIMIT(_v)	(((_v) & 0x3ff) << 0)
+#define DQEAPSLUT_ROI_SAME(_v)		(((_v) & 0x1) << 2)
+#define DQEAPSLUT_UPDATE_METHOD(_v)	(((_v) & 0x1) << 1)
+#define DQEAPSLUT_PARTIAL_FRAME(_v)	(((_v) & 0x1) << 0)
+#define DQEAPSLUT_ROI_Y1(_v)		(((_v) & 0x1fff) << 16)
+#define DQEAPSLUT_ROI_X1(_v)		(((_v) & 0x1fff) << 0)
+#define DQEAPSLUT_IBSI_01(_v)		(((_v) & 0xffff) << 16)
+#define DQEAPSLUT_IBSI_00(_v)		(((_v) & 0xffff) << 0)
+#define DQEAPSLUT_IBSI_11(_v)		(((_v) & 0xffff) << 16)
+#define DQEAPSLUT_IBSI_10(_v)		(((_v) & 0xffff) << 0)
+
+#define DQEAPS_GAIN			0x01C0
+#define DQEAPS_WEIGHT			0x01C4
+#define DQEAPS_CTMODE			0x01C8
+#define DQEAPS_PPEN			0x01CC
+#define DQEAPS_TDRMINMAX		0x01D0
+#define DQEAPS_AMBIENT_LIGHT		0x01D4
+#define DQEAPS_BACK_LIGHT		0x01D8
+#define DQEAPS_DSTEP			0x01DC
+#define DQEAPS_SCALE_MODE		0x01E0
+#define DQEAPS_THRESHOLD		0x01E4
+#define DQEAPS_GAIN_LIMIT		0x01E8
+#define DQEAPS_DIMMING_DONE_INTR	0x01EC
+
+#define DQEAPS_PARTIAL_CON		0x0234
+
+#define DQEAPS_FULL_IMG_SIZESET	0x0238
+#define DQEAPS_FULL_IMG_VSIZE_F(_v)	((_v) << 16)
+#define DQEAPS_FULL_IMG_VSIZE_MASK	(0x1fff << 16)
+#define DQEAPS_FULL_IMG_VSIZE_GET(_v)	(((_v) >> 16) & 0x1fff)
+#define DQEAPS_FULL_IMG_HSIZE_F(_v)	((_v) << 0)
+#define DQEAPS_FULL_IMG_HSIZE_MASK	(0x1fff << 0)
+#define DQEAPS_FULL_IMG_HSIZE_GET(_v)	(((_v) >> 0) & 0x1fff)
+
+#define DQEAPS_PARTIAL_ROI_UP_LEFT_POS	0x023C
+#define DQEAPS_PARTIAL_IBSI_01_00	0x0308
+#define DQEAPS_PARTIAL_IBSI_11_10	0x030C
+
 /*HSC_SET */
 #define DQEHSCLUT_MAX			(11)
 #define DQEHSCLUT_BASE			0x0208
@@ -211,11 +270,11 @@
 #define DQEHSCLUT_POLY_CURVE8(_v)	(((_v) & 0x3ff) << 10)
 #define DQEHSCLUT_POLY_CURVE7(_v)	(((_v) & 0x3ff) << 0)
 
-#define DQEHSCLUT_SKIN_S2(_v)		(((_v) & 0x1ff) << 16)
+#define DQEHSCLUT_SKIN_S2(_v)		(((_v) & 0x3ff) << 16)
 #define DQEHSCLUT_SKIN_S1(_v)		(((_v) & 0x3ff) << 0)
 
 #define DQEHSCLUT_SKIN_H2(_v)		(((_v) & 0x1ff) << 16)
-#define DQEHSCLUT_SKIN_H1(_v)		(((_v) & 0x3ff) << 0)
+#define DQEHSCLUT_SKIN_H1(_v)		(((_v) & 0x1ff) << 0)
 
 #define DQEHSCLUT_YCOMP_RATIO(_v)	(((_v) & 0xf) << 12)
 #define DQEHSCLUT_TSC_GAIN(_v)		(((_v) & 0x3ff) << 0)
@@ -257,6 +316,10 @@
 #define DQEHSC_FULL_PXL_NUM		0x0310
 #define DQEHSC_FULL_PXL_NUM_MASK	(0x03ffffff << 0)
 #define DQEHSC_FULL_PXL_NUM_GET(_v)	(((_v) >> 0) & 0x03ffffff)
+
+#define DQEAPS_FULL_PXL_NUM		0x0320
+#define DQEAPS_FULL_PXL_NUM_MASK	(0x03ffffff << 0)
+#define DQEAPS_FULL_PXL_NUM_GET(_v)	(((_v) >> 0) & 0x03ffffff)
 
 #define SHADOW_DQE_OFFSET		0x9000
 

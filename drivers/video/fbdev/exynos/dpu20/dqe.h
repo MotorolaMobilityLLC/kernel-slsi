@@ -73,6 +73,13 @@ static inline void dqe_write_mask(u32 reg_id, u32 val, u32 mask)
 	writel(val, decon->res.regs + DQE_BASE + reg_id);
 }
 
+static inline bool IS_DQE_OFF_STATE(struct decon_device *decon)
+{
+	return decon == NULL ||
+		decon->state == DECON_STATE_OFF ||
+		decon->state == DECON_STATE_INIT;
+}
+
 struct dqe_reg_dump {
 	u32 addr;
 	u32 val;
@@ -82,10 +89,13 @@ struct dqe_ctx {
 	struct dqe_reg_dump cgc[DQECGC1LUT_MAX + DQECGC2LUT_MAX];
 	struct dqe_reg_dump gamma[DQEGAMMALUT_MAX];
 	struct dqe_reg_dump hsc[DQEHSCLUT_MAX];
+	struct dqe_reg_dump aps[DQEAPSLUT_MAX];
 	u32 cgc_on;
 	u32 gamma_on;
 	u32 hsc_on;
 	u32 hsc_control;
+	u32 aps_on;
+	u32 aps_lux;
 	bool need_udpate;
 	u32 color_mode;
 	u32 night_light_on;
@@ -102,13 +112,9 @@ struct dqe_device {
 extern int dqe_log_level;
 
 /* CAL APIs list */
-void dqe_reg_module_on_off(bool en_she, bool en_cgc, bool en_gamma,
-		bool en_hsc, bool en_aps);
-void dqe_reg_module_reset(bool en_hsc, bool en_aps, bool en_rst);
 void dqe_reg_start(u32 id, struct decon_lcd *lcd_info);
 void dqe_reg_stop(u32 id);
 
-void dqe_reg_set_she_on(u32 on);
 void dqe_reg_set_cgc_on(u32 on);
 u32 dqe_reg_get_cgc_on(void);
 void dqe_reg_set_gamma_on(u32 on);
@@ -124,36 +130,13 @@ u32 dqe_reg_get_hsc_control(void);
 void dqe_reg_set_hsc_full_pxl_num(struct decon_lcd *lcd_info);
 u32 dqe_reg_get_hsc_full_pxl_num(void);
 void dqe_reg_set_aps_on(u32 on);
-void dqe_reg_reset(u32 en);
-void dqe_reg_set_gammagray_on(u32 on);
-void dqe_reg_lpd_mode_exit(u32 en);
+u32 dqe_reg_get_aps_on(void);
+void dqe_reg_set_aps_full_pxl_num(struct decon_lcd *lcd_info);
+u32 dqe_reg_get_aps_full_pxl_num(void);
+void dqe_reg_set_aps_img_size(struct decon_lcd *lcd_info);
 
-void dqe_reg_module_on_off(bool en_she, bool en_cgc, bool en_gamma,
-		bool en_hsc, bool en_aps);
-void dqe_reg_module_reset(bool en_hsc, bool en_aps, bool en_rst);
-
-void dqe_reg_set_img_size0(u32 width, u32 height);
-void dqe_reg_set_img_size1(u32 width, u32 height);
-void dqe_reg_set_img_size2(u32 width, u32 height);
-
-/* DQE_HSC register set */
-void dqe_reg_set_hsc_ppsc_on(u32 en);
-void dqe_reg_set_hsc_ycomp_on(u32 en);
-void dqe_reg_set_hsc_tsc_on(u32 en);
-void dqe_reg_set_hsc_dither_on(u32 en);
-void dqe_reg_set_hsc_pphc_on(u32 en);
-void dqe_reg_set_hsc_skin_on(u32 en);
-void dqe_reg_set_hsc_ppscgain_rgb(u32 r, u32 g, u32 b);
-void dqe_reg_set_hsc_ppsc_gain_cmy(u32 c, u32 m, u32 y);
-void dqe_reg_set_hsc_alphascale_shift(u32 alpha_shift1, u32 alpha_shift2,
-		u32 alpha_scale);
-void dqe_reg_set_hsc_poly_curve0(u32 curve1, u32 curve2, u32 curve3, u32 curve4);
-void dqe_reg_set_hsc_poly_curve1(u32 curve5, u32 curve6, u32 curve7, u32 curve8);
-void dqe_reg_set_hsc_skin(u32 skin_h1, u32 skin_h2, u32 skin_s1, u32 skin_s2);
-void dqe_reg_set_hsc_pphcgain_rgb(u32 r, u32 g, u32 b);
-void dqe_reg_set_hsc_pphcgain_cmy(u32 c, u32 m, u32 y);
-void dqe_reg_set_hsc_tsc_ycomp(u32 ratio, u32 gain);
-
+int dqe_save_context(void);
+int dqe_restore_context(void);
 void decon_dqe_sw_reset(struct decon_device *decon);
 void decon_dqe_enable(struct decon_device *decon);
 void decon_dqe_disable(struct decon_device *decon);
@@ -161,5 +144,15 @@ int decon_dqe_create_interface(struct decon_device *decon);
 
 int decon_dqe_set_color_mode(struct decon_color_mode_with_render_intent_info *color_mode);
 int decon_dqe_set_color_transform(struct decon_color_transform_info *transform);
+
+/* APS GAMMA */
+#define APS_GAMMA_BIT_LENGTH			(8)
+#define APS_GAMMA_BIT				(8)
+#define APS_GAMMA_PHASE_SHIFT			(APS_GAMMA_BIT - 6)
+#define APS_GAMMA_INPUT_MASK			(0x3f << APS_GAMMA_PHASE_SHIFT)
+#define APS_GAMMA_PHASE_MASK			((1 << APS_GAMMA_PHASE_SHIFT)-1)
+#define APS_GAMMA_PIXEL_MAX			((1 << APS_GAMMA_BIT)-1)
+#define APS_GAMMA_INTP_LIMIT			(0x7 << APS_GAMMA_BIT)
+#define APS_GAMMA_DEFAULT_VALUE_ALIGN		(APS_GAMMA_BIT-8)
 
 #endif
