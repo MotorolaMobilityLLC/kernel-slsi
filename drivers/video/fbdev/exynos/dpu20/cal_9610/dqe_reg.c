@@ -102,6 +102,39 @@ u32 dqe_reg_get_hsc_full_pxl_num(void)
 	return dqe_read_mask(DQEHSC_FULL_PXL_NUM, DQEHSC_FULL_PXL_NUM_MASK);
 }
 
+void dqe_reg_set_aps_on(u32 on)
+{
+	dqe_write_mask(DQECON, on ? ~0 : 0, DQE_APS_ON_MASK);
+}
+
+u32 dqe_reg_get_aps_on(void)
+{
+	return dqe_read_mask(DQECON, DQE_APS_ON_MASK);
+}
+
+void dqe_reg_set_aps_full_pxl_num(struct decon_lcd *lcd_info)
+{
+	u32 val, mask;
+
+	val = (u32)(lcd_info->xres * lcd_info->yres);
+	mask = DQEAPS_FULL_PXL_NUM_MASK;
+	dqe_write_mask(DQEAPS_FULL_PXL_NUM, val, mask);
+}
+
+u32 dqe_reg_get_aps_full_pxl_num(void)
+{
+	return dqe_read_mask(DQEAPS_FULL_PXL_NUM, DQEAPS_FULL_PXL_NUM_MASK);
+}
+
+void dqe_reg_set_aps_img_size(struct decon_lcd *lcd_info)
+{
+	u32 val, mask;
+
+	val = DQEAPS_FULL_IMG_VSIZE_F(lcd_info->yres) | DQEAPS_FULL_IMG_HSIZE_F(lcd_info->xres);
+	mask = DQEAPS_FULL_IMG_VSIZE_MASK | DQEAPS_FULL_IMG_HSIZE_MASK;
+	dqe_write_mask(DQEAPS_FULL_IMG_SIZESET, val, mask);
+}
+
 void dqe_reg_set_img_size(u32 id, struct decon_lcd *lcd_info)
 {
 	u32 width, val, mask;
