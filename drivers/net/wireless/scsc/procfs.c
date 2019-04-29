@@ -374,7 +374,11 @@ static int slsi_procfs_build_show(struct seq_file *m, void *v)
 #else
 	seq_puts(m, "CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD                 : n\n");
 #endif
-
+#ifdef CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES
+	seq_puts(m, "CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES            : y\n");
+#else
+	seq_puts(m, "CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES            : n\n");
+#endif
 	seq_puts(m, "-------------------------------------------------\n");
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 	seq_puts(m, "CONFIG_SCSC_WLAN_DEBUG                            : y\n");

@@ -4199,6 +4199,28 @@ int slsi_is_dhcp_packet(u8 *data)
 	return ret;
 }
 
+#ifdef CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES
+int slsi_is_tcp_sync_packet(struct net_device *dev, struct sk_buff *skb)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+
+	/* for AP type (AP or P2P Go) check if the packet is local or intra BSS. If intra BSS then
+	 * the IP header and TCP header are not set; so return 0
+	 */
+	if ((ndev_vif->vif_type == FAPI_VIFTYPE_AP) && (compare_ether_addr(eth_hdr(skb)->h_source, dev->dev_addr) != 0))
+		return 0;
+	if (be16_to_cpu(eth_hdr(skb)->h_proto) != ETH_P_IP)
+		return 0;
+	if (ip_hdr(skb)->protocol != IPPROTO_TCP)
+		return 0;
+	if (!skb_transport_header_was_set(skb))
+		return 0;
+	if (tcp_hdr(skb)->syn)
+		return 1;
+
+	return 0;
+}
+
 int slsi_is_dns_packet(u8 *data)
 {
 	u8 *p;
@@ -4216,6 +4238,24 @@ int slsi_is_dns_packet(u8 *data)
 
 	return 0;
 }
+
+int slsi_is_mdns_packet(u8 *data)
+{
+	u8 *p;
+
+	p = data + SLSI_IP_TYPE_OFFSET;
+
+	if (*p == SLSI_IP_TYPE_UDP) {
+		u16 dest_port;
+
+		p = data + SLSI_IP_DEST_PORT_OFFSET;
+		dest_port = p[0] << 8 | p[1];
+		if (dest_port == SLSI_MDNS_DEST_PORT)
+			return 1;
+	}
+	return 0;
+}
+#endif
 
 int slsi_ap_prepare_add_info_ies(struct netdev_vif *ndev_vif, const u8 *ies, size_t ies_len)
 {
