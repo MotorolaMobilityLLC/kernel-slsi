@@ -549,9 +549,14 @@ static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb)
 		} else
 #endif
 		{
-			if (proto == ETH_P_IP && slsi_is_dns_packet(skb->data)) {
+#ifdef CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES
+			if ((proto == ETH_P_IP && slsi_is_dns_packet(skb->data)) ||
+				(proto == ETH_P_IP && slsi_is_mdns_packet(skb->data)) ||
+				(proto == ETH_P_IP && slsi_is_tcp_sync_packet(dev, skb))) {
 				skb->priority = FAPI_PRIORITY_QOS_UP7;
-			} else {
+			} else
+#endif
+			{
 #ifdef CONFIG_SCSC_USE_WMM_TOS
 				skb->priority = slsi_get_priority_from_tos(skb->data + ETH_HLEN, proto);
 #else
