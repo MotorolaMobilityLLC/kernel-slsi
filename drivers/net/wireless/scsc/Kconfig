@@ -209,6 +209,14 @@ config SCSC_ENHANCED_PACKET_STATS
         ---help---
           This option tells whether enhanced packet stats collection
           is enabled or not.
+
+config SCSC_WLAN_PRIORITISE_IMP_FRAMES
+        bool "Change priority of important frames such as DNS, MDNS, TCP SYN"
+        default y
+        ---help---
+          The option enables the driver to prioritise important frames
+          (such as DNS, MDNS, TCP SYN) so that they are sent ahead of others.
+
 config SCSC_WIFI_NAN_ENABLE
         bool "Enable WiFi NAN"
         default n
