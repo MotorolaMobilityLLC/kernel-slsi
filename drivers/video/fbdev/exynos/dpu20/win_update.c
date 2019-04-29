@@ -14,6 +14,9 @@
 #include "decon.h"
 #include "dpp.h"
 #include "dsim.h"
+#if defined(CONFIG_EXYNOS_DECON_DQE)
+#include "dqe.h"
+#endif
 
 static void win_update_adjust_region(struct decon_device *decon,
 		struct decon_win_config *win_config,
@@ -521,6 +524,9 @@ static void win_update_set_partial_size(struct decon_device *decon,
 	decon_reg_set_partial_update(decon->id, decon->dt.dsi_mode,
 			decon->lcd_info, in_slice,
 			lcd_info.xres, lcd_info.yres);
+#if defined(CONFIG_EXYNOS_DECON_DQE)
+	dqe_reg_start(decon->id, &lcd_info);
+#endif
 	DPU_DEBUG_WIN("SET: vfp %d vbp %d vsa %d hfp %d hbp %d hsa %d w %d h %d\n",
 			lcd_info.vfp, lcd_info.vbp, lcd_info.vsa,
 			lcd_info.hfp, lcd_info.hbp, lcd_info.hsa,
