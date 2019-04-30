@@ -55,6 +55,9 @@
 #elif defined CONFIG_SCSC_BT_ADDRESS_IN_FILE
 #define SCSC_BT_ADDR      CONFIG_SCSC_BT_ADDRESS_FILENAME
 #define SCSC_BT_ADDR_LEN  (6)
+#else
+#define SCSC_BT_ADDR      "/proc/config/bt_mac/ascii"
+#define SCSC_BT_ADDR_LEN  (6)
 #endif
 
 #define SCSC_H4_DEVICE_NAME             "scsc_h4_0"
