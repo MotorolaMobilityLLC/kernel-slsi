@@ -238,10 +238,8 @@ static int cs47l35_get_dsp_state(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)
 		kcontrol->private_value;
 	struct wm_adsp *dsp = &dsps[mc->shift];
-	unsigned int val;
 
-	regmap_read(dsp->regmap, dsp->base + ADSP2_CONTROL, &val);
-	if (val & ADSP2_CORE_ENA)
+	if (dsp != NULL && dsp->running)
 		ucontrol->value.integer.value[0] = 1;
 	else
 		ucontrol->value.integer.value[0] = 0;
