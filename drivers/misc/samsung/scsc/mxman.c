@@ -1572,6 +1572,12 @@ static void mxman_failure_work(struct work_struct *work)
 							 panic_record_dump + used,
 							 PANIC_RECORD_DUMP_BUFFER_SZ - used);
 
+				/* Print the host code/reason again so it's near the FW panic
+				 * record in the kernel log
+				 */
+				print_panic_code(mxman->scsc_panic_code);
+				SCSC_TAG_INFO(MXMAN, "Reason: '%s'\n", mxman->failure_reason[0] ? mxman->failure_reason : "<null>");
+
 				blocking_notifier_call_chain(&firmware_chain,
 							     SCSC_FW_EVENT_MOREDUMP_COMPLETE,
 							     &panic_record_dump);
