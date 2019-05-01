@@ -84,6 +84,8 @@ int mx_mmap_open(struct inode *inode, struct file *filp)
 
 	dev = container_of(inode->i_cdev, struct mx_mmap_dev, cdev);
 
+	SCSC_TAG_INFO(MX_MMAP, "open %p\n", filp);
+
 	filp->private_data = dev;
 
 	return 0;
@@ -126,6 +128,8 @@ int mx_mmap_mmap(struct file *filp, struct vm_area_struct *vma)
 
 int mx_mmap_release(struct inode *inode, struct file *filp)
 {
+	SCSC_TAG_INFO(MX_MMAP, "close %p\n", filp);
+
 	/* TODO : Unmap pfn_range */
 	return 0;
 }
@@ -143,6 +147,8 @@ int mx_gdb_open(struct inode *inode, struct file *filp)
 	int                ret;
 
 	mx_dev = container_of(inode->i_cdev, struct mx_mmap_dev, cdev);
+
+	SCSC_TAG_INFO(MX_MMAP, "open %p\n", filp);
 
 	filp->private_data = mx_dev;
 	mx_dev->filp = filp;
@@ -257,6 +263,8 @@ int mx_gdb_release(struct inode *inode, struct file *filp)
 	struct mx_mmap_dev *mx_dev;
 
 	mx_dev = container_of(inode->i_cdev, struct mx_mmap_dev, cdev);
+
+	SCSC_TAG_INFO(MX_MMAP, "close %p\n", filp);
 
 	if (mx_dev->filp == NULL) {
 		SCSC_TAG_ERR(MX_MMAP, "Device already closed\n");
