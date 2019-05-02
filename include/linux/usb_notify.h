@@ -131,6 +131,9 @@ struct otg_notify {
 	int charger_detect;
 	int usb_noti_done;
 #endif
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+	int muic_sw_switch;
+#endif
 	const char *muic_name;
 	int (*pre_gpio)(int gpio, int use);
 	int (*post_gpio)(int gpio, int use);
