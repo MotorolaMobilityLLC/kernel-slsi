@@ -556,21 +556,13 @@ EXPORT_SYMBOL_GPL(cpufreq_policy_transition_delay_us);
  *                          SYSFS INTERFACE                          *
  *********************************************************************/
 static ssize_t show_boost(struct kobject *kobj,
-<<<<<<< HEAD
-				 struct kobj_attribute *attr, char *buf)
-=======
 			  struct kobj_attribute *attr, char *buf)
->>>>>>> android-4.14-p
 {
 	return sprintf(buf, "%d\n", cpufreq_driver->boost_enabled);
 }
 
 static ssize_t store_boost(struct kobject *kobj, struct kobj_attribute *attr,
-<<<<<<< HEAD
-				  const char *buf, size_t count)
-=======
 			   const char *buf, size_t count)
->>>>>>> android-4.14-p
 {
 	int ret, enable;
 

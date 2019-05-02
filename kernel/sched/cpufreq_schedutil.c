@@ -664,15 +664,8 @@ fail:
 	policy->governor_data = NULL;
 	sugov_tunables_free(tunables);
 
-<<<<<<< HEAD
 free_sg_policy:
-=======
-stop_kthread:
-	sugov_kthread_stop(sg_policy);
->>>>>>> android-4.14-p
 	mutex_unlock(&global_tunables_lock);
-
-free_sg_policy:
 	sugov_policy_free(sg_policy);
 
 disable_fast_switch:
@@ -841,9 +834,9 @@ static void sugov_stop_slack(int cpu)
 		del_timer_sync(&sg_exynos->timer);
 }
 
-static s64 get_next_event_time_ms(void)
+static s64 get_next_event_time_ms(int cpu)
 {
-	return ktime_to_us(tick_nohz_get_sleep_length());
+	return ktime_to_us(ktime_sub(*(get_next_event_cpu(cpu)), ktime_get()));
 }
 
 static int sugov_need_slack_timer(unsigned int cpu)
@@ -855,7 +848,7 @@ static int sugov_need_slack_timer(unsigned int cpu)
 		return 0;
 
 	if (sg_cpu->util > sg_exynos->min &&
-		get_next_event_time_ms() > sg_exynos->expired_time)
+		get_next_event_time_ms(cpu) > sg_exynos->expired_time)
 		return 1;
 
 	return 0;

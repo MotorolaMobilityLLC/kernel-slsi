@@ -87,11 +87,6 @@ SCHED_FEAT(WA_WEIGHT, true)
 SCHED_FEAT(WA_BIAS, true)
 
 /*
- * UtilEstimation. Use estimated CPU utilization.
- */
-SCHED_FEAT(UTIL_EST, true)
-
-/*
  * Energy aware scheduling. Use platform energy model to guide scheduling
  * decisions optimizing for energy efficiency.
  */
@@ -124,9 +119,7 @@ SCHED_FEAT(EAS_PREFER_IDLE, true)
 SCHED_FEAT(FIND_BEST_TARGET, true)
 SCHED_FEAT(FBT_STRICT_ORDER, true)
 
-<<<<<<< HEAD
 SCHED_FEAT(EXYNOS_MS, true)
-=======
 /*
  * Apply schedtune boost hold to tasks of all sched classes.
  * If enabled, schedtune will hold the boost applied to a CPU
@@ -137,4 +130,3 @@ SCHED_FEAT(EXYNOS_MS, true)
  * RT class.
  */
 SCHED_FEAT(SCHEDTUNE_BOOST_HOLD_ALL, false)
->>>>>>> android-4.14-p

@@ -1097,15 +1097,15 @@ static ssize_t store_cpufreq_max_limit(struct kobject *kobj, struct kobj_attribu
 	return count;
 }
 
-static struct global_attr cpufreq_table =
+static struct kobj_attribute cpufreq_table =
 __ATTR(cpufreq_table, S_IRUGO, show_cpufreq_table, NULL);
-static struct global_attr cpufreq_min_limit =
+static struct kobj_attribute cpufreq_min_limit =
 __ATTR(cpufreq_min_limit, S_IRUGO | S_IWUSR,
 		show_cpufreq_min_limit, store_cpufreq_min_limit);
-static struct global_attr cpufreq_min_limit_wo_boost =
+static struct kobj_attribute cpufreq_min_limit_wo_boost =
 __ATTR(cpufreq_min_limit_wo_boost, S_IRUGO | S_IWUSR,
 		show_cpufreq_min_limit, store_cpufreq_min_limit_wo_boost);
-static struct global_attr cpufreq_max_limit =
+static struct kobj_attribute cpufreq_max_limit =
 __ATTR(cpufreq_max_limit, S_IRUGO | S_IWUSR,
 		show_cpufreq_max_limit, store_cpufreq_max_limit);
 

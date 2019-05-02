@@ -536,7 +536,7 @@ void enable_power_mode(int cpu, int type)
 /* get sleep length of given cpu from tickless framework */
 static s64 get_sleep_length(int cpu)
 {
-	return ktime_to_us(tick_nohz_get_sleep_length_cpu(cpu));
+	return ktime_to_us(ktime_sub(*(get_next_event_cpu(cpu)), ktime_get()));
 }
 
 static int cpus_busy(int target_residency, const struct cpumask *cpus)

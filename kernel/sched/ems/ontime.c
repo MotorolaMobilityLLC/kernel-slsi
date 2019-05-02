@@ -9,13 +9,14 @@
 #include <linux/cpuidle.h>
 #include <linux/pm_qos.h>
 #include <linux/ems.h>
-#include <linux/sched_energy.h>
+#include <linux/sched/energy.h>
 
 #include <trace/events/ems.h>
 
 #include "../sched.h"
 #include "../tune.h"
 #include "./ems.h"
+#include "../sched-pelt.h"
 
 /****************************************************************/
 /*			On-time migration			*/
