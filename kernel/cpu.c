@@ -685,14 +685,10 @@ static void cpuhp_thread_fun(unsigned int cpu)
 	 */
 	smp_mb();
 
-<<<<<<< HEAD
 	if (WARN_ON_ONCE(!st->should_run))
 		return;
 
 	lock_map_acquire(&cpuhp_state_lock_map);
-=======
-	cpuhp_lock_acquire(bringup);
->>>>>>> android-4.14-p
 
 	if (st->single) {
 		state = st->cb_state;
