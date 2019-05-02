@@ -325,8 +325,6 @@ err_no_vma:
 	return vma ? -ENOMEM : -ESRCH;
 }
 
-<<<<<<< HEAD
-=======
 static inline void binder_alloc_set_vma(struct binder_alloc *alloc,
 		struct vm_area_struct *vma)
 {
@@ -355,7 +353,6 @@ static inline struct vm_area_struct *binder_alloc_get_vma(
 	return vma;
 }
 
->>>>>>> android-4.14-p
 static struct binder_buffer *binder_alloc_new_buf_locked(
 				struct binder_alloc *alloc,
 				size_t data_size,
@@ -951,7 +948,6 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 	index = page - alloc->pages;
 	page_addr = (uintptr_t)alloc->buffer + index * PAGE_SIZE;
-<<<<<<< HEAD
 
 	mm = alloc->vma_vm_mm;
 	if (!mmget_not_zero(mm))
@@ -959,17 +955,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 	if (!down_write_trylock(&mm->mmap_sem))
 		goto err_down_write_mmap_sem_failed;
 
-	vma = alloc->vma;
-=======
 	vma = binder_alloc_get_vma(alloc);
-	if (vma) {
-		if (!mmget_not_zero(alloc->vma_vm_mm))
-			goto err_mmget;
-		mm = alloc->vma_vm_mm;
-		if (!down_write_trylock(&mm->mmap_sem))
-			goto err_down_write_mmap_sem_failed;
-	}
->>>>>>> android-4.14-p
 
 	list_lru_isolate(lru, item);
 	spin_unlock(lock);

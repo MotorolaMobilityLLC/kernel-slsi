@@ -3244,12 +3244,9 @@ static void binder_transaction(struct binder_proc *proc,
 		extra_buffers_size += ALIGN(secctx_sz, sizeof(u64));
 	}
 
-<<<<<<< HEAD
 #ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
 	dss_binder_transaction(reply, t, t->from ? t->from : thread, target_node ? target_node->debug_id : 0);
 #endif
-=======
->>>>>>> android-4.14-p
 	trace_binder_transaction(reply, t, target_node);
 
 	t->buffer = binder_alloc_new_buf(&target_proc->alloc, tr->data_size,
@@ -3790,7 +3787,6 @@ static int binder_thread_write(struct binder_proc *proc,
 			if (IS_ERR_OR_NULL(buffer)) {
 				if (PTR_ERR(buffer) == -EPERM) {
 					binder_user_error(
-<<<<<<< HEAD
 						"%d:%d(%s:%s) BC_FREE_BUFFER u%016llx matched unreturned or currently freeing buffer\n",
 						proc->pid, thread->pid, proc->tsk->comm, thread->task->comm,
 						(u64)data_ptr);
@@ -3798,15 +3794,6 @@ static int binder_thread_write(struct binder_proc *proc,
 					binder_user_error(
 						"%d:%d(%s:%s) BC_FREE_BUFFER u%016llx no match\n",
 						proc->pid, thread->pid, proc->tsk->comm, thread->task->comm,
-=======
-						"%d:%d BC_FREE_BUFFER u%016llx matched unreturned or currently freeing buffer\n",
-						proc->pid, thread->pid,
-						(u64)data_ptr);
-				} else {
-					binder_user_error(
-						"%d:%d BC_FREE_BUFFER u%016llx no match\n",
-						proc->pid, thread->pid,
->>>>>>> android-4.14-p
 						(u64)data_ptr);
 				}
 				break;
@@ -5121,13 +5108,8 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 
 err_bad_arg:
-<<<<<<< HEAD
 	pr_err("%s: %d(%s) %lx-%lx %s failed %d\n", __func__,
 		proc->pid, proc->tsk->comm, vma->vm_start, vma->vm_end, failure_string, ret);
-=======
-	pr_err("%s: %d %lx-%lx %s failed %d\n", __func__,
-	       proc->pid, vma->vm_start, vma->vm_end, failure_string, ret);
->>>>>>> android-4.14-p
 	return ret;
 }
 
@@ -5136,14 +5118,9 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	struct binder_proc *proc;
 	struct binder_device *binder_dev;
 
-<<<<<<< HEAD
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE, "%s: %d:%d (%s:%s)\n", __func__,
 		     current->group_leader->pid, current->pid,
 		     current->group_leader->comm, current->comm);
-=======
-	binder_debug(BINDER_DEBUG_OPEN_CLOSE, "%s: %d:%d\n", __func__,
-		     current->group_leader->pid, current->pid);
->>>>>>> android-4.14-p
 
 	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
 	if (proc == NULL)
