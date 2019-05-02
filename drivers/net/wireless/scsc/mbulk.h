@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2014 - 2017 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
@@ -50,20 +50,11 @@
 struct mbulk;
 
 /**
- * mbulk pool ID
+ * mbulk host pool ID
  */
-#define MBULK_POOL_ID_MIN        (0)
-#define MBULK_POOL_ID_MAX_FW     (4) /* 0 ~ 3 used for firmware pools */
-#ifdef JAVA_VIRT_HOST
-#define MBULK_POOL_ID_MIN_HOST   (MBULK_POOL_ID_MAX_FW)
-#define MBULK_POOL_ID_MAX_HOST   (MBULK_POOL_ID_MIN_HOST + 2)
-#define MBULK_POOL_ID_MAX        (MBULK_POOL_ID_MAX_HOST)
-#else
-#define MBULK_POOL_ID_MAX        (MBULK_POOL_ID_MAX_FW)
-#endif
-
-/* Max number of mbulk to be freed by the Host */
-#define MBULK_MAX_HOST_TO_FREE          2
+#define MBULK_POOL_ID_DATA      (0)
+#define MBULK_POOL_ID_CTRL      (1)
+#define MBULK_POOL_ID_MAX       (2)
 
 /**
  * mbulk buffer classification
@@ -72,12 +63,16 @@ struct mbulk;
  * compiler assigns the smallest integral type (u8).
  */
 enum mbulk_class {
-	MBULK_CLASS_FROM_HOST_DAT    = 0,
-	MBULK_CLASS_FROM_HOST_CTL    = 1,
-	MBULK_CLASS_FROM_RADIO       = 2,
-	MBULK_CLASS_CONTRL           = 3,
-	MBULK_CLASS_DEBUG            = 4,
-	MBULK_CLASS_OTHERS           = 5,
+	MBULK_CLASS_CONTROL                 = 0,
+	MBULK_CLASS_HOSTIO                  = 1,
+	MBULK_CLASS_DEBUG                   = 2,
+
+	MBULK_CLASS_FROM_HOST_DAT           = 3,
+	MBULK_CLASS_FROM_HOST_CTL           = 4,
+	MBULK_CLASS_FROM_RADIO              = 5,
+	MBULK_CLASS_DPLP                    = 6,
+	MBULK_CLASS_OTHERS                  = 7,
+	MBULK_CLASS_FROM_RADIO_FORWARDED    = 8,
 	MBULK_CLASS_MAX
 } __packed;
 
