@@ -7950,9 +7950,11 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	rtnl_unlock();
 
 #ifdef CONFIG_PM
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
+	if (!runtime) {
+		retval = pci_save_state(pdev);
+		if (retval)
+			return retval;
+	}
 #endif
 
 	status = rd32(E1000_STATUS);
@@ -8376,12 +8378,17 @@ static void igb_rar_set_index(struct igb_adapter *adapter, u32 index)
 		if (is_valid_ether_addr(addr))
 			rar_high |= E1000_RAH_AV;
 
-		if (hw->mac.type == e1000_82575)
+		switch (hw->mac.type) {
+		case e1000_82575:
+		case e1000_i210:
 			rar_high |= E1000_RAH_POOL_1 *
 				    adapter->mac_table[index].queue;
-		else
+			break;
+		default:
 			rar_high |= E1000_RAH_POOL_1 <<
 				    adapter->mac_table[index].queue;
+			break;
+		}
 	}
 
 	wr32(E1000_RAL(index), rar_low);

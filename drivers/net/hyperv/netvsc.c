@@ -62,6 +62,41 @@ void netvsc_switch_datapath(struct net_device *ndev, bool vf)
 			       VM_PKT_DATA_INBAND, 0);
 }
 
+/* Worker to setup sub channels on initial setup
+ * Initial hotplug event occurs in softirq context
+ * and can't wait for channels.
+ */
+static void netvsc_subchan_work(struct work_struct *w)
+{
+	struct netvsc_device *nvdev =
+		container_of(w, struct netvsc_device, subchan_work);
+	struct rndis_device *rdev;
+	int i, ret;
+
+	/* Avoid deadlock with device removal already under RTNL */
+	if (!rtnl_trylock()) {
+		schedule_work(w);
+		return;
+	}
+
+	rdev = nvdev->extension;
+	if (rdev) {
+		ret = rndis_set_subchannel(rdev->ndev, nvdev);
+		if (ret == 0) {
+			netif_device_attach(rdev->ndev);
+		} else {
+			/* fallback to only primary channel */
+			for (i = 1; i < nvdev->num_chn; i++)
+				netif_napi_del(&nvdev->chan_table[i].napi);
+
+			nvdev->max_chn = 1;
+			nvdev->num_chn = 1;
+		}
+	}
+
+	rtnl_unlock();
+}
+
 static struct netvsc_device *alloc_net_device(void)
 {
 	struct netvsc_device *net_device;
@@ -72,13 +107,14 @@ static struct netvsc_device *alloc_net_device(void)
 
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->destroy = false;
+	net_device->tx_disable = false;
 	atomic_set(&net_device->open_cnt, 0);
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
 
 	init_completion(&net_device->channel_init_wait);
 	init_waitqueue_head(&net_device->subchan_open);
-	INIT_WORK(&net_device->subchan_work, rndis_set_subchannel);
+	INIT_WORK(&net_device->subchan_work, netvsc_subchan_work);
 
 	return net_device;
 }
@@ -677,7 +713,7 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 	} else {
 		struct netdev_queue *txq = netdev_get_tx_queue(ndev, q_idx);
 
-		if (netif_tx_queue_stopped(txq) &&
+		if (netif_tx_queue_stopped(txq) && !net_device->tx_disable &&
 		    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
 		     queue_sends < 1)) {
 			netif_tx_wake_queue(txq);
@@ -830,7 +866,8 @@ static inline int netvsc_send_pkt(
 			netif_tx_stop_queue(txq);
 	} else if (ret == -EAGAIN) {
 		netif_tx_stop_queue(txq);
-		if (atomic_read(&nvchan->queue_sends) < 1) {
+		if (atomic_read(&nvchan->queue_sends) < 1 &&
+		    !net_device->tx_disable) {
 			netif_tx_wake_queue(txq);
 			ret = -ENOSPC;
 		}
@@ -1215,6 +1252,7 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	struct hv_device *device = netvsc_channel_to_device(channel);
 	struct net_device *ndev = hv_get_drvdata(device);
 	int work_done = 0;
+	int ret;
 
 	/* If starting a new interval */
 	if (!nvchan->desc)
@@ -1226,16 +1264,18 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 		nvchan->desc = hv_pkt_iter_next(channel, nvchan->desc);
 	}
 
-	/* If send of pending receive completions suceeded
-	 *   and did not exhaust NAPI budget this time
-	 *   and not doing busy poll
+	/* Send any pending receive completions */
+	ret = send_recv_completions(ndev, net_device, nvchan);
+
+	/* If it did not exhaust NAPI budget this time
+	 *  and not doing busy poll
 	 * then re-enable host interrupts
-	 *     and reschedule if ring is not empty.
+	 *  and reschedule if ring is not empty
+	 *   or sending receive completion failed.
 	 */
-	if (send_recv_completions(ndev, net_device, nvchan) == 0 &&
-	    work_done < budget &&
+	if (work_done < budget &&
 	    napi_complete_done(napi, work_done) &&
-	    hv_end_read(&channel->inbound) &&
+	    (ret || hv_end_read(&channel->inbound)) &&
 	    napi_schedule_prep(napi)) {
 		hv_begin_read(&channel->inbound);
 		__napi_schedule(napi);

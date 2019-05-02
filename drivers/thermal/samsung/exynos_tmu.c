@@ -488,9 +488,16 @@ static int exynos9610_tmu_initialize(struct platform_device *pdev)
 		if (!data->sensor_info[count].temp_error1)
 			data->sensor_info[count].temp_error1 = pdata->efuse_value & EXYNOS_TMU_TEMP_MASK;
 
+<<<<<<< HEAD
 		/* Check temp_error2 if calibration type is TYPE_TWO_POINT_TRIMMING */
 		if (data->sensor_info[count].cal_type == TYPE_TWO_POINT_TRIMMING) {
 			data->sensor_info[count].temp_error2 = temp_error2;
+=======
+		rising_threshold = readl(data->base + rising_reg_offset);
+		rising_threshold &= ~(0xff << j * 8);
+		rising_threshold |= (threshold_code << j * 8);
+		writel(rising_threshold, data->base + rising_reg_offset);
+>>>>>>> android-4.14-p
 
 			if (!data->sensor_info[count].temp_error2)
 				data->sensor_info[count].temp_error2 =

@@ -1997,6 +1997,7 @@ static int s3c64xx_spi_resume_operation(struct device *dev)
 
 	if (sci->domain == DOMAIN_TOP) {
 
+<<<<<<< HEAD
 		/* Enable the clock */
 #ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(sdd->idle_ip_index, 0);
@@ -2013,6 +2014,11 @@ static int s3c64xx_spi_resume_operation(struct device *dev)
 			exynos_usi_init(sdd);
 			s3c64xx_spi_hwinit(sdd, sdd->port_id);
 		}
+=======
+	return spi_master_resume(master);
+}
+#endif /* CONFIG_PM_SLEEP */
+>>>>>>> android-4.14-p
 
 #ifdef CONFIG_PM
 		/* Disable the clock */
@@ -2068,8 +2074,14 @@ static int s3c64xx_spi_resume(struct device *dev)
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
+<<<<<<< HEAD
 	if (sci->dma_mode != DMA_MODE)
 		return 0;
+=======
+	s3c64xx_spi_hwinit(sdd, sdd->port_id);
+
+	return 0;
+>>>>>>> android-4.14-p
 
 	dev_dbg(dev, "spi resume is handled in device resume, dma mode = %d\n",
 			sci->dma_mode);
