@@ -917,12 +917,8 @@ static void vb2_process_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state
 	    state != VB2_BUF_STATE_REQUEUEING) {
 		/* sync buffers */
 		for (plane = 0; plane < vb->num_planes; ++plane)
-<<<<<<< HEAD
 			call_void_memop(vb, finish, vb->planes[plane].mem_priv,
 					vb->planes[plane].bytesused, memflags);
-=======
-			call_void_memop(vb, finish, vb->planes[plane].mem_priv);
->>>>>>> android-4.14-p
 	}
 
 	spin_lock_irqsave(&q->done_lock, flags);
