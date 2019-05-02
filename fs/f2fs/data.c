@@ -515,14 +515,9 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	fio->op_flags |= fio->encrypted_page ? REQ_NOENCRYPT : 0;
 	bio_set_op_attrs(bio, fio->op, fio->op_flags);
 
-<<<<<<< HEAD
 	if (f2fs_may_encrypt_bio(inode, fio))
 		fscrypt_set_bio(inode, bio, PG_DUN(inode, fio->page));
 
-	__submit_bio(fio->sbi, bio, fio->type);
-
-=======
->>>>>>> android-4.14-p
 	if (!is_read_io(fio->op))
 		inc_page_count(fio->sbi, WB_DATA_TYPE(fio->page));
 
