@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
@@ -589,7 +589,7 @@ int scsc_wifi_fcq_transmit_data(struct net_device *dev, struct scsc_wifi_fcq_dat
 	if (WARN_ON(priority >= ARRAY_SIZE(qs->ac_q)))
 		return -EINVAL;
 
-	spin_lock(&qs->cp_lock);
+	spin_lock_bh(&qs->cp_lock);
 	/* Check caller matches an existing peer record */
 	list_for_each_entry_safe(pc_node, next, &peers_cache_list, list) {
 		if (pc_node->qs == qs && pc_node->peer_index == peer_index &&
@@ -598,18 +598,18 @@ int scsc_wifi_fcq_transmit_data(struct net_device *dev, struct scsc_wifi_fcq_dat
 		}
 	}
 	SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "Packet dropped. Detected incorrect peer record\n");
-	spin_unlock(&qs->cp_lock);
+	spin_unlock_bh(&qs->cp_lock);
 	return -EINVAL;
 found:
 	/* Controlled port is not yet open; so can't send data frame */
 	if (qs->controlled_port_state == SCSC_WIFI_FCQ_8021x_STATE_BLOCKED) {
 		SLSI_DBG1_NODEV(SLSI_WIFI_FCQ, "8021x_STATE_BLOCKED\n");
-		spin_unlock(&qs->cp_lock);
+		spin_unlock_bh(&qs->cp_lock);
 		return -EPERM;
 	}
 	rc = fcq_transmit_gmod_domain(dev, qs, priority, sdev, vif, peer_index);
 	if (rc) {
-		spin_unlock(&qs->cp_lock);
+		spin_unlock_bh(&qs->cp_lock);
 		return rc;
 	}
 
@@ -621,7 +621,7 @@ found:
 		 * happen if flow control works as expected.
 		 */
 		atomic_dec(&sdev->hip4_inst.hip_priv->gcod);
-		spin_unlock(&qs->cp_lock);
+		spin_unlock_bh(&qs->cp_lock);
 		return rc;
 	}
 
@@ -635,13 +635,13 @@ found:
 		 */
 		atomic_dec(&qs->scod);
 		atomic_dec(&sdev->hip4_inst.hip_priv->gcod);
-		spin_unlock(&qs->cp_lock);
+		spin_unlock_bh(&qs->cp_lock);
 		SLSI_DBG4_NODEV(SLSI_WIFI_FCQ, "xxxxxxxxxxxxxxxxxxxxxxx scsc_wifi_fcq_transmit_data: Flow control not respected. Packet will be dropped.\n");
 		return rc;
 	}
 #endif
 
-	spin_unlock(&qs->cp_lock);
+	spin_unlock_bh(&qs->cp_lock);
 	return 0;
 }
 
@@ -815,7 +815,7 @@ int scsc_wifi_fcq_receive_data(struct net_device *dev, struct scsc_wifi_fcq_data
 		return -EINVAL;
 
 	/* The read/modify/write of the scod here needs synchronisation. */
-	spin_lock(&qs->cp_lock);
+	spin_lock_bh(&qs->cp_lock);
 
 	rc = fcq_receive_gmod_domain(dev, qs, sdev, priority, peer_index, vif);
 	if (rc)
@@ -829,7 +829,7 @@ int scsc_wifi_fcq_receive_data(struct net_device *dev, struct scsc_wifi_fcq_data
 	rc = fcq_receive_qmod_domain(dev, qs, sdev, priority, peer_index, vif);
 #endif
 end:
-	spin_unlock(&qs->cp_lock);
+	spin_unlock_bh(&qs->cp_lock);
 	return rc;
 }
 
@@ -862,9 +862,9 @@ int scsc_wifi_fcq_8021x_port_state(struct net_device *dev, struct scsc_wifi_fcq_
 	if (WARN_ON(!qs))
 		return -EINVAL;
 
-	spin_lock(&qs->cp_lock);
+	spin_lock_bh(&qs->cp_lock);
 	qs->controlled_port_state = state;
-	spin_unlock(&qs->cp_lock);
+	spin_unlock_bh(&qs->cp_lock);
 	SLSI_NET_DBG1(dev, SLSI_WIFI_FCQ, "802.1x: Queue set 0x%p is %s\n", qs,
 		      state == SCSC_WIFI_FCQ_8021x_STATE_OPEN ? "Open" : "Blocked");
 	return 0;
@@ -992,7 +992,7 @@ static void fcq_qset_init(struct net_device *dev, struct slsi_dev *sdev, enum sc
 	atomic_set(&qs->smod, type == SCSC_WIFI_FCQ_QUEUE_SET_TYPE_UNICAST ? scsc_wifi_fcq_smod : scsc_wifi_fcq_mcast_smod);
 	atomic_set(&qs->scod, 0);
 
-	spin_lock(&qs->cp_lock);
+	spin_lock_bh(&qs->cp_lock);
 	qs->peer_ps_state = SCSC_WIFI_FCQ_PS_STATE_ACTIVE;
 	qs->saturated = false;
 	atomic_set(&qs->active, 1);
@@ -1011,7 +1011,7 @@ static void fcq_qset_init(struct net_device *dev, struct slsi_dev *sdev, enum sc
 	}
 	/* Give all qmod to BE */
 	qs->ac_inuse = 1;
-	spin_unlock(&qs->cp_lock);
+	spin_unlock_bh(&qs->cp_lock);
 }
 
 int scsc_wifi_fcq_unicast_qset_init(struct net_device *dev, struct scsc_wifi_fcq_data_qset *qs, u8 qs_num, struct slsi_dev *sdev, u8 vif, struct slsi_peer *peer)
