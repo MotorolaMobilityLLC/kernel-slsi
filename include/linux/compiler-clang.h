@@ -34,14 +34,13 @@
 #define __nocfi		__attribute__((no_sanitize("cfi")))
 #endif
 
-<<<<<<< HEAD
 /* all clang versions usable with the kernel support KASAN ABI version 5 */
 #define KASAN_ABI_VERSION 5
 
 /* emulate gcc's __SANITIZE_ADDRESS__ flag */
 #if __has_feature(address_sanitizer)
 #define __SANITIZE_ADDRESS__
-=======
+#endif
 /*
  * Not all versions of clang implement the the type-generic versions
  * of the builtin overflow checkers. Fortunately, clang implements
@@ -54,5 +53,4 @@
     __has_builtin(__builtin_add_overflow) && \
     __has_builtin(__builtin_sub_overflow)
 #define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
->>>>>>> android-4.14-p
 #endif
