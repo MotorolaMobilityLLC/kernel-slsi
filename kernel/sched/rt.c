@@ -8,13 +8,11 @@
 
 #include <linux/slab.h>
 #include <linux/irq_work.h>
-<<<<<<< HEAD
 #include <linux/ems.h>
-=======
 #include "tune.h"
->>>>>>> android-4.14-p
 
 #include "walt.h"
+#include "sched-pelt.h"
 #include <trace/events/sched.h>
 
 #ifdef CONFIG_SCHED_USE_FLUID_RT

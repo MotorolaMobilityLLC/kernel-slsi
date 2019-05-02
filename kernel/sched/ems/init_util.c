@@ -9,6 +9,7 @@
 
 #include "ems.h"
 #include "../sched.h"
+#include "../sched-pelt.h"
 
 enum {
 	TYPE_BASE_CFS_RQ_UTIL = 0,

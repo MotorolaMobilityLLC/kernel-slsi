@@ -44,6 +44,11 @@ struct tick_sched *tick_get_tick_sched(int cpu)
 	return &per_cpu(tick_cpu_sched, cpu);
 }
 
+ktime_t *get_next_event_cpu(unsigned int cpu)
+{
+	return &(per_cpu(tick_cpu_device, cpu).evtdev->next_event);
+}
+
 #if defined(CONFIG_NO_HZ_COMMON) || defined(CONFIG_HIGH_RES_TIMERS)
 /*
  * The time, when the last jiffy update happened. Protected by jiffies_lock.
@@ -1106,19 +1111,6 @@ ktime_t tick_nohz_get_sleep_length(ktime_t *delta_next)
 			   hrtimer_next_event_without(&ts->sched_timer));
 
 	return ktime_sub(next_event, now);
-}
-
-/**
- * tick_nohz_get_sleep_length_cpu - return the length of the current sleep
- * for a particular CPU.
- *
- * Called from power state control code with interrupts disabled
- */
-ktime_t tick_nohz_get_sleep_length_cpu(int cpu)
-{
-	struct tick_sched *ts = tick_get_tick_sched(cpu);
-
-	return ts->sleep_length;
 }
 
 /**
