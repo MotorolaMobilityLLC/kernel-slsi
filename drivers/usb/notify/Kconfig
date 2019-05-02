@@ -82,3 +82,7 @@ config USB_HW_PARAM
     help
       Added USB H/W Parameter for DQA Agent.
       You need more works for USB PDIC driver.
+
+config USB_OTG_SW_SWITCH
+	boolean "USB Host S/W Switch"
+	depends on USB

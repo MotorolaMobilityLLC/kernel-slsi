@@ -806,6 +806,14 @@ static int set_online(int event, int state)
 
 static int exynos_set_host(bool enable)
 {
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+	struct otg_notify *o_notify = get_otg_notify();
+
+	if (!o_notify->muic_sw_switch) {
+		pr_info("%s: OTG Switch Disabled\n", __func__);
+		return 0;
+	}
+#endif
 	if (!enable) {
 		pr_info("%s USB_HOST_DETACHED\n", __func__);
 #ifdef CONFIG_OF
@@ -913,6 +921,52 @@ static struct otg_notify dwc_lsi_notify = {
 #endif
 };
 
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+static ssize_t otg_host_mode_enable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	char value[32];
+	struct otg_notify *o_notify = get_otg_notify();
+
+	if (!o_notify)
+		return -ENODEV;
+
+	if (sscanf(buf, "%s", value) != 1)
+		return -EINVAL;
+
+	if (!strncmp(value, "enabled", 6)) {
+		pr_info("%s: otg switch enabled\n", __func__);
+		o_notify->muic_sw_switch = true;
+	} else if (!strncmp(value, "disabled", 6)) {
+		pr_info("%s: otg switch disabled\n", __func__);
+		o_notify->muic_sw_switch = false;
+	} else {
+		return -EINVAL;
+	}
+
+	return size;
+}
+
+static ssize_t otg_host_mode_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct otg_notify *o_notify = get_otg_notify();
+	ssize_t size;
+
+	if (!o_notify)
+		return -ENODEV;
+
+	if (o_notify->muic_sw_switch)
+		size = snprintf(buf, PAGE_SIZE, "%s", "enabled\n");
+	else
+		size = snprintf(buf, PAGE_SIZE, "%s", "disabled\n");
+
+	return size;
+}
+
+static DEVICE_ATTR(host_mode, S_IRUGO | S_IWUSR, otg_host_mode_enable_show, otg_host_mode_enable_store);
+#endif
+
 static int usb_notifier_probe(struct platform_device *pdev)
 {
 	struct usb_notifier_platform_data *pdata = NULL;
@@ -977,7 +1031,9 @@ static int usb_notifier_probe(struct platform_device *pdev)
 			       VBUS_NOTIFY_DEV_MANAGER);
 #endif
 #endif
-
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+	device_create_file(&pdev->dev, &dev_attr_host_mode);
+#endif
 	dev_info(&pdev->dev, "usb notifier probe\n");
 	return 0;
 }
