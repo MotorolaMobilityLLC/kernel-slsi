@@ -620,7 +620,7 @@ static struct mbulk *hip4_skb_to_mbulk(struct hip4_priv *hip, struct sk_buff *sk
 	struct mbulk        *m = NULL;
 	void                *sig = NULL, *b_data = NULL;
 	size_t              payload = 0;
-	u8                  pool_id = ctrl_packet ? MBULK_CLASS_FROM_HOST_CTL : MBULK_CLASS_FROM_HOST_DAT;
+	u8                  pool_id = ctrl_packet ? MBULK_POOL_ID_CTRL : MBULK_POOL_ID_DATA;
 	u8                  headroom = 0, tailroom = 0;
 	enum mbulk_class    clas = ctrl_packet ? MBULK_CLASS_FROM_HOST_CTL : MBULK_CLASS_FROM_HOST_DAT;
 	struct slsi_skb_cb *cb = slsi_skb_cb_get(skb);
@@ -1086,7 +1086,7 @@ static void hip4_wq_fb(struct work_struct *data)
 		 */
 		colour = ((m->clas & 0xc0) << 2) | (m->pid & 0xfe);
 		/* Account ONLY for data RFB */
-		if ((m->pid & 0x1)  == MBULK_CLASS_FROM_HOST_DAT) {
+		if ((m->pid & 0x1) == MBULK_POOL_ID_DATA) {
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor, 0, (colour & 0x6) >> 1, (colour & 0xf8) >> 3);
 			/* to profile round-trip */
@@ -1705,7 +1705,7 @@ static void hip4_wq(struct work_struct *data)
 		 */
 		colour = ((m->clas & 0xc0) << 2) | (m->pid & 0xfe);
 		/* Account ONLY for data RFB */
-		if ((m->pid & 0x1)  == MBULK_CLASS_FROM_HOST_DAT) {
+		if ((m->pid & 0x1) == MBULK_POOL_ID_DATA) {
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor, 0, (colour & 0x6) >> 1, (colour & 0xf8) >> 3);
 			/* to profile round-trip */
@@ -2158,8 +2158,8 @@ int hip4_init(struct slsi_hip4 *hip)
 
 	service = sdev->service;
 
-	hip->hip_priv->host_pool_id_dat = MBULK_CLASS_FROM_HOST_DAT;
-	hip->hip_priv->host_pool_id_ctl = MBULK_CLASS_FROM_HOST_CTL;
+	hip->hip_priv->host_pool_id_dat = MBULK_POOL_ID_DATA;
+	hip->hip_priv->host_pool_id_ctl = MBULK_POOL_ID_CTRL;
 
 	/* hip_ref contains the reference of the start of shared memory allocated for WLAN */
 	/* hip_ptr is the kernel address of hip_ref*/
@@ -2167,7 +2167,7 @@ int hip4_init(struct slsi_hip4 *hip)
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
 	/* Configure mbulk allocator - Data QUEUES */
-	ret = mbulk_pool_add(MBULK_CLASS_FROM_HOST_DAT, hip_ptr + HIP4_WLAN_TX_DAT_OFFSET,
+	ret = mbulk_pool_add(MBULK_POOL_ID_DATA, hip_ptr + HIP4_WLAN_TX_DAT_OFFSET,
 			     hip_ptr + HIP4_WLAN_TX_DAT_OFFSET + HIP4_WLAN_TX_DAT_SIZE,
 			     (HIP4_WLAN_TX_DAT_SIZE / HIP4_DAT_SLOTS) - sizeof(struct mbulk), 5,
 			     hip->hip_priv->minor);
@@ -2175,7 +2175,7 @@ int hip4_init(struct slsi_hip4 *hip)
 		return ret;
 
 	/* Configure mbulk allocator - Control QUEUES */
-	ret = mbulk_pool_add(MBULK_CLASS_FROM_HOST_CTL, hip_ptr + HIP4_WLAN_TX_CTL_OFFSET,
+	ret = mbulk_pool_add(MBULK_POOL_ID_CTRL, hip_ptr + HIP4_WLAN_TX_CTL_OFFSET,
 			     hip_ptr + HIP4_WLAN_TX_CTL_OFFSET + HIP4_WLAN_TX_CTL_SIZE,
 			     (HIP4_WLAN_TX_CTL_SIZE / HIP4_CTL_SLOTS) - sizeof(struct mbulk), 0,
 			     hip->hip_priv->minor);
@@ -2183,14 +2183,14 @@ int hip4_init(struct slsi_hip4 *hip)
 		return ret;
 #else
 	/* Configure mbulk allocator - Data QUEUES */
-	ret = mbulk_pool_add(MBULK_CLASS_FROM_HOST_DAT, hip_ptr + HIP4_WLAN_TX_DAT_OFFSET,
+	ret = mbulk_pool_add(MBULK_POOL_ID_DATA, hip_ptr + HIP4_WLAN_TX_DAT_OFFSET,
 			     hip_ptr + HIP4_WLAN_TX_DAT_OFFSET + HIP4_WLAN_TX_DAT_SIZE,
 			     (HIP4_WLAN_TX_DAT_SIZE / HIP4_DAT_SLOTS) - sizeof(struct mbulk), 5);
 	if (ret)
 		return ret;
 
 	/* Configure mbulk allocator - Control QUEUES */
-	ret = mbulk_pool_add(MBULK_CLASS_FROM_HOST_CTL, hip_ptr + HIP4_WLAN_TX_CTL_OFFSET,
+	ret = mbulk_pool_add(MBULK_POOL_ID_CTRL, hip_ptr + HIP4_WLAN_TX_CTL_OFFSET,
 			     hip_ptr + HIP4_WLAN_TX_CTL_OFFSET + HIP4_WLAN_TX_CTL_SIZE,
 			    (HIP4_WLAN_TX_CTL_SIZE / HIP4_CTL_SLOTS) - sizeof(struct mbulk), 0);
 	if (ret)
@@ -2446,7 +2446,7 @@ int hip4_init(struct slsi_hip4 *hip)
  */
 int hip4_free_ctrl_slots_count(struct slsi_hip4 *hip)
 {
-	return mbulk_pool_get_free_count(MBULK_CLASS_FROM_HOST_CTL);
+	return mbulk_pool_get_free_count(MBULK_POOL_ID_CTRL);
 }
 
 /**
