@@ -1579,10 +1579,6 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol)
 		else
 			dep->flags |= DWC3_EP_STALL;
 	} else {
-<<<<<<< HEAD
-=======
-
->>>>>>> android-4.14-p
 		ret = dwc3_send_clear_stall_ep_cmd(dep);
 		if (ret)
 			dev_err(dwc->dev, "failed to clear STALL on %s\n",
@@ -3745,7 +3741,6 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 		goto err4;
 	}
 
-<<<<<<< HEAD
 	if (dwc->dotg) {
 		ret = otg_set_peripheral(&dwc->dotg->otg, &dwc->gadget);
 		if (ret) {
@@ -3753,9 +3748,10 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 			goto err4;
 		}
 	}
-=======
-	dwc3_gadget_set_speed(&dwc->gadget, dwc->maximum_speed);
->>>>>>> android-4.14-p
+
+	/* Kernel minor update
+	 * dwc3_gadget_set_speed(&dwc->gadget, dwc->maximum_speed);
+	 */
 
 	return 0;
 

@@ -1858,14 +1858,6 @@ struct xhci_hcd {
 #define XHCI_NO_64BIT_SUPPORT	BIT_ULL(23)
 #define XHCI_MISSING_CAS	BIT_ULL(24)
 /* For controller with a broken Port Disable implementation */
-<<<<<<< HEAD
-#define XHCI_BROKEN_PORT_PED	(1 << 25)
-#define XHCI_LIMIT_ENDPOINT_INTERVAL_7	(1 << 26)
-#define XHCI_U2_DISABLE_WAKE	(1 << 27)
-#define XHCI_ASMEDIA_MODIFY_FLOWCONTROL	(1 << 28)
-#define XHCI_L2_SUPPORT	(1 << 29)
-#define XHCI_SUSPEND_DELAY	(1 << 30)
-=======
 #define XHCI_BROKEN_PORT_PED	BIT_ULL(25)
 #define XHCI_LIMIT_ENDPOINT_INTERVAL_7	BIT_ULL(26)
 #define XHCI_U2_DISABLE_WAKE	BIT_ULL(27)
@@ -1875,7 +1867,7 @@ struct xhci_hcd {
 #define XHCI_INTEL_USB_ROLE_SW	BIT_ULL(31)
 #define XHCI_RESET_PLL_ON_DISCONNECT	BIT_ULL(34)
 #define XHCI_SNPS_BROKEN_SUSPEND    BIT_ULL(35)
->>>>>>> android-4.14-p
+#define XHCI_L2_SUPPORT		 BIT_ULL(63)
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;

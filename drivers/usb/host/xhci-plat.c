@@ -542,7 +542,7 @@ static int xhci_plat_remove(struct platform_device *dev)
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct clk *clk = xhci->clk;
-<<<<<<< HEAD
+	struct usb_hcd *shared_hcd = xhci->shared_hcd;
 	int timeout = 0;
 
 	dev_info(&dev->dev, "XHCI PLAT REMOVE\n");
@@ -564,9 +564,6 @@ static int xhci_plat_remove(struct platform_device *dev)
 		}
 	}
 	xhci_dbg(xhci, "%s: waited %dmsec", __func__, timeout);
-=======
-	struct usb_hcd *shared_hcd = xhci->shared_hcd;
->>>>>>> android-4.14-p
 
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 	xhci->xhci_alloc->offset = 0;
