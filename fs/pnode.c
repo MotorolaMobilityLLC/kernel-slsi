@@ -608,6 +608,29 @@ int propagate_umount(struct list_head *list)
 	return 0;
 }
 
+<<<<<<< HEAD
+=======
+/*
+ *  Iterates over all slaves, and slaves of slaves.
+ */
+static struct mount *next_descendent(struct mount *root, struct mount *cur)
+{
+	if (!IS_MNT_NEW(cur) && !list_empty(&cur->mnt_slave_list))
+		return first_slave(cur);
+	do {
+		struct mount *master = cur->mnt_master;
+
+		if (!master || cur->mnt_slave.next != &master->mnt_slave_list) {
+			struct mount *next = next_slave(cur);
+
+			return (next == root) ? NULL : next;
+		}
+		cur = master;
+	} while (cur != root);
+	return NULL;
+}
+
+>>>>>>> android-4.14-p
 void propagate_remount(struct mount *mnt)
 {
 	struct mount *parent = mnt->mnt_parent;

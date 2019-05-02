@@ -20,7 +20,7 @@
 #include "sched.h"
 #include "tune.h"
 
-unsigned long boosted_cpu_util(int cpu);
+unsigned long boosted_cpu_util(int cpu, unsigned long other_util);
 
 struct sugov_tunables {
 	struct gov_attr_set attr_set;
@@ -271,7 +271,7 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 
 	rt = sched_get_rt_rq_util(cpu);
 
-	*util = boosted_cpu_util(cpu) + rt;
+	*util = boosted_cpu_util(cpu, rt);
 	*util = min(*util, max_cap);
 	*max = max_cap;
 }
@@ -664,9 +664,15 @@ fail:
 	policy->governor_data = NULL;
 	sugov_tunables_free(tunables);
 
+<<<<<<< HEAD
 free_sg_policy:
+=======
+stop_kthread:
+	sugov_kthread_stop(sg_policy);
+>>>>>>> android-4.14-p
 	mutex_unlock(&global_tunables_lock);
 
+free_sg_policy:
 	sugov_policy_free(sg_policy);
 
 disable_fast_switch:
