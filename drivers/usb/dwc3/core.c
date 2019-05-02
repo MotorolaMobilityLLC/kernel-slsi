@@ -984,33 +984,15 @@ int dwc3_core_init(struct dwc3 *dwc)
 			dwc->maximum_speed = USB_SPEED_HIGH;
 	}
 
-<<<<<<< HEAD
-	ret = dwc3_core_get_phy(dwc);
-	if (ret) {
-		dev_err(dwc->dev, "Can't get PHY structure!!!\n");
-=======
-	ret = dwc3_phy_setup(dwc);
-	if (ret)
->>>>>>> android-4.14-p
-		goto err0;
-	}
-
 	/* Adjust SOF accuracy only for revisions >= 2.50a */
 	if (dwc->revision < DWC3_REVISION_250A)
 		dwc->adj_sof_accuracy = 0;
 
-<<<<<<< HEAD
-	ret = dwc3_core_soft_reset(dwc);
-	if (ret) {
-		dev_err(dwc->dev, "Can't core_soft_reset!!!(%d)\n", ret);
-		goto err0;
-=======
 	if (!dwc->ulpi_ready) {
 		ret = dwc3_core_ulpi_init(dwc);
 		if (ret)
 			goto err0;
 		dwc->ulpi_ready = true;
->>>>>>> android-4.14-p
 	}
 
 	if (!dwc->phys_ready) {
@@ -1116,16 +1098,13 @@ err1:
 	phy_exit(dwc->usb2_generic_phy);
 	phy_exit(dwc->usb3_generic_phy);
 
-<<<<<<< HEAD
 	phy_power_off(dwc->usb2_generic_phy);
 	phy_power_off(dwc->usb3_generic_phy);
 
 	dwc->link_state = DWC3_LINK_STATE_SS_DIS;
-=======
 err0a:
 	dwc3_ulpi_exit(dwc);
 
->>>>>>> android-4.14-p
 err0:
 	return ret;
 }

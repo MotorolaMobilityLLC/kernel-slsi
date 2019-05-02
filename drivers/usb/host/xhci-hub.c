@@ -1516,13 +1516,9 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	unsigned long flags;
-<<<<<<< HEAD
 	int is_port_connect = 0;
-	int ret;
-=======
 	u32 portsc_buf[USB_MAXCHILDREN];
 	bool wake_enabled;
->>>>>>> android-4.14-p
 
 	max_ports = xhci_get_ports(hcd, &port_array);
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
@@ -1551,12 +1547,6 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 		t2 = xhci_port_state_to_neutral(t1);
 		portsc_buf[port_index] = 0;
 
-<<<<<<< HEAD
-		if ((t1 & PORT_PE) && !(t1 & PORT_PLS_MASK)) {
-			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
-					port_index + 1);
-			if (slot_id) {
-=======
 		/* Bail out if a USB3 port has a new device in link training */
 		if ((hcd->speed >= HCD_USB3) &&
 		    (t1 & PORT_PLS_MASK) == XDEV_POLLING) {
@@ -1570,7 +1560,6 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 		if ((t1 & PORT_PE) && (t1 & PORT_PLS_MASK) == XDEV_U0) {
 			if ((t1 & PORT_CSC) && wake_enabled) {
 				bus_state->bus_suspended = 0;
->>>>>>> android-4.14-p
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				xhci_dbg(xhci, "Bus suspend bailout, port connect change\n");
 				return -EBUSY;
@@ -1598,21 +1587,6 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 		}
 
 		t1 = xhci_port_state_to_neutral(t1);
-<<<<<<< HEAD
-		if (t1 != t2) {
-			writel(t2, port_array[port_index]);
-		}
-	}
-
-	if (is_port_connect && usb_hcd_is_primary_hcd(hcd)) {
-		xhci_info(xhci, "port is connected, phy vendor set\n");
-		ret = phy_vendor_set(xhci->main_hcd->phy, 1, 0);
-		if (ret) {
-			xhci_info(xhci, "phy vendor set fail\n");
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			return ret;
-		}
-=======
 		if (t1 != t2)
 			portsc_buf[port_index] = t2;
 	}
@@ -1634,7 +1608,6 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 			}
 		}
 		writel(portsc_buf[port_index], port_array[port_index]);
->>>>>>> android-4.14-p
 	}
 
 	xhci_info(xhci, "%s 'HC_STATE_SUSPENDED' portcon: %d primary_hcd: %d\n",
