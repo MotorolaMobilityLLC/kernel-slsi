@@ -1924,26 +1924,6 @@ int vprintk_store(int facility, int level,
 	char *text = textbuf;
 	size_t text_len;
 	enum log_flags lflags = 0;
-<<<<<<< HEAD
-	unsigned long flags;
-	int this_cpu;
-	int printed_len;
-	bool in_sched = false;
-
-	if (level == LOGLEVEL_SCHED) {
-		level = LOGLEVEL_DEFAULT;
-		in_sched = true;
-	}
-
-	boot_delay_msec(level);
-	printk_delay();
-
-	/* This stops the holder of console_sem just where we want him */
-	logbuf_lock_irqsave(flags);
-	this_cpu = smp_processor_id();
-=======
-
->>>>>>> android-4.14-p
 	/*
 	 * The printf needs to come first; we need the syslog
 	 * prefix which might be passed-in as a parameter.
