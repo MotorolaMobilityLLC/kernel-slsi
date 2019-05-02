@@ -2562,19 +2562,14 @@ static int crypt_ctr_cipher_old(struct dm_target *ti, char *cipher_in, char *key
 		goto bad_mem;
 
 	chainmode = strsep(&tmp, "-");
-<<<<<<< HEAD
-	*ivopts = strsep(&tmp, "-");
-	*ivmode = strsep(&*ivopts, ":");
+	*ivmode = strsep(&tmp, ":");
+	*ivopts = tmp;
 
 	if (*ivmode && (!strcmp(*ivmode, "disk") || !strcmp(*ivmode, "fmp")))
 		set_bit(CRYPT_MODE_DISKCIPHER, &cc->cipher_flags);
 
 	if (tmp)
 		DMWARN("Ignoring unexpected additional cipher options");
-=======
-	*ivmode = strsep(&tmp, ":");
-	*ivopts = tmp;
->>>>>>> android-4.14-p
 
 	/*
 	 * For compatibility with the original dm-crypt mapping format, if
@@ -3183,22 +3178,14 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	limits->max_segment_size = PAGE_SIZE;
 
-<<<<<<< HEAD
-	if (cc->sector_size != (1 << SECTOR_SHIFT)) {
-		limits->logical_block_size = cc->sector_size;
-		limits->physical_block_size = cc->sector_size;
-		blk_limits_io_min(limits, cc->sector_size);
-	}
-
-	if (crypt_mode_diskcipher(cc))
-		limits->logical_block_size = PAGE_SIZE;
-=======
 	limits->logical_block_size =
 		max_t(unsigned short, limits->logical_block_size, cc->sector_size);
 	limits->physical_block_size =
 		max_t(unsigned, limits->physical_block_size, cc->sector_size);
 	limits->io_min = max_t(unsigned, limits->io_min, cc->sector_size);
->>>>>>> android-4.14-p
+
+	if (crypt_mode_diskcipher(cc))
+		limits->logical_block_size = PAGE_SIZE;
 }
 
 static struct target_type crypt_target = {
