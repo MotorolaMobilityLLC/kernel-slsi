@@ -110,10 +110,7 @@ __setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
  * SOFTLOCKUP_DETECTOR Kconfig.
  */
 
-#ifdef CONFIG_HARDLOCKUP_DETECTOR_OTHER_CPU
-static int watchdog_nmi_enable(unsigned int cpu);
-static void watchdog_nmi_disable(unsigned int cpu);
-#else
+#ifndef CONFIG_HARDLOCKUP_DETECTOR_OTHER_CPU
 int __weak watchdog_nmi_enable(unsigned int cpu)
 {
 	hardlockup_detector_perf_enable();
@@ -915,7 +912,7 @@ void touch_nmi_watchdog(void)
 }
 EXPORT_SYMBOL(touch_nmi_watchdog);
 
-static int watchdog_nmi_enable(unsigned int cpu)
+int watchdog_nmi_enable(unsigned int cpu)
 {
 	/*
 	 * The new cpu will be marked online before the first hrtimer interrupt
@@ -931,7 +928,7 @@ static int watchdog_nmi_enable(unsigned int cpu)
 	return 0;
 }
 
-static void watchdog_nmi_disable(unsigned int cpu)
+void watchdog_nmi_disable(unsigned int cpu)
 {
 	unsigned int next_cpu = watchdog_next_cpu(cpu);
 
