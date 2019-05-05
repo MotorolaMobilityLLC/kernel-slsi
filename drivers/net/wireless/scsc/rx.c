@@ -655,7 +655,10 @@ int slsi_set_2g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 	int min_avg_chan_utilization_20 = INT_MAX, min_adjacent_rssi_20 = INT_MAX;
 	int ch_idx_min_load_20 = 0, ch_idx_min_rssi_20 = 0;
 	int ret = 0;
-	int ch_list_len = MAX_24G_CHANNELS;
+	/* BEGIN IKSAMP-8520 limit 2.4G ACS channels to 11 */
+	// int ch_list_len = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->ch_list_len;
+	int ch_list_len = 11;
+	/* END IKSAMP-8520 */
 
 	acs_selected_channels->ch_width = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->ch_width;
 	acs_selected_channels->hw_mode = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode;
