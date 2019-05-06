@@ -483,7 +483,7 @@ int slsi_mlme_nan_tx_followup(struct slsi_dev *sdev, struct net_device *dev,
 	if (hal_req->recv_indication_cfg & BIT(0))
 		nan_sdf_flags |= FAPI_NANSDFCONTROL_DISABLE_RESPONSES_AFTER_FOLLOWUP;
 
-	fapi_set_u16(req, u.mlme_nan_followup_req.requestor_instance_id, hal_req->publish_subscribe_id);
+	fapi_set_u16(req, u.mlme_nan_followup_req.publish_subscribe_id, hal_req->publish_subscribe_id);
 	fapi_set_u16(req, u.mlme_nan_followup_req.requestor_instance_id, hal_req->requestor_instance_id);
 	fapi_set_u16(req, u.mlme_nan_subscribe_req.nan_sdf_flags, nan_sdf_flags);
 
