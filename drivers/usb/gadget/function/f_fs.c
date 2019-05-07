@@ -2938,8 +2938,6 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	if (ret)
 		return ERR_PTR(ret);
 
-	pr_info("KS : No waiting!!!\n");
-
 	func->conf = c;
 	func->gadget = c->cdev->gadget;
 
