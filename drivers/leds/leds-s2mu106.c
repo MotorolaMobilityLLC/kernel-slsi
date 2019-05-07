@@ -29,6 +29,13 @@ static char *s2mu106_fled_mode_string[] = {
 	"FLASH",
 };
 
+static char *s2mu106_fled_operating_mode_string[] = {
+	"AUTO",
+	"BOOST",
+	"TA",
+	"SYS",
+};
+
 /* IC current limit */
 static int s2mu106_fled_torch_curr_max[] = {
 	0, 320, 320, 320
@@ -244,6 +251,23 @@ static int s2mu106_fled_set_torch_curr(struct s2mu106_fled_data *fled,
 
 }
 
+static void s2mu106_fled_operating_mode(struct s2mu106_fled_data *fled,
+					int mode)
+{
+	u8 value;
+
+	if (mode < 0 || mode > 3) {
+		pr_info ("%s, wrong mode\n", __func__);
+		mode = AUTO_MODE;
+	}
+
+	pr_info ("%s = %s\n", __func__,
+		 s2mu106_fled_operating_mode_string[mode]);
+
+	value = mode << 6;
+	s2mu106_update_reg(fled->i2c, S2MU106_FLED_CTRL0, value, 0xC0);
+}
+
 static int s2mu106_fled_get_mode(struct s2mu106_fled_data *fled, int chan)
 {
 	u8 status;
@@ -314,6 +338,7 @@ static int s2mu106_fled_set_mode(struct s2mu106_fled_data *fled,
 			bit = S2MU106_FLED_EN << 3;
 			break;
 		case S2MU106_FLED_MODE_TORCH:
+			s2mu106_fled_operating_mode(fled, SYS_MODE);
 			mask = S2MU106_CHX_TORCH_FLED_EN;
 			bit = S2MU106_FLED_EN;
 			break;
@@ -349,6 +374,9 @@ static int s2mu106_fled_set_mode(struct s2mu106_fled_data *fled,
 					0, S2MU106_EN_FLED_PRE);
 	}
 	s2mu106_update_reg(fled->i2c, dest, bit, mask);
+
+	if (mode == S2MU106_FLED_MODE_OFF)
+		s2mu106_fled_operating_mode(fled, AUTO_MODE);
 
 	return 0;
 }
