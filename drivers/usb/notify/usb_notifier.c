@@ -53,6 +53,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/workqueue.h>
 
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+#define OTG_DISABLED_DELAY_TIME  (300000*HZ/1000) /*5 min*/
+#endif
+
 struct usb_notifier_platform_data {
 #if defined(CONFIG_CCIC_NOTIFIER) || defined(CONFIG_IFCONN_NOTIFIER)
 	struct	notifier_block ccic_usb_nb;
@@ -75,6 +79,11 @@ struct usb_notifier_platform_data {
 	const char *hs_vdd;
 	const char *ss_vdd;
 	const char *dp_vdd;
+#endif
+
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+	struct delayed_work usbid_work;
+	struct timer_list otg_disabled_timer;
 #endif
 };
 
@@ -386,7 +395,11 @@ static int ccic_usb_handle_notification(struct notifier_block *nb,
 	switch (usb_status.event){
 		case IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP:
 			pr_info("%s: Turn On Host(DFP)\n", __func__);
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+			o_notify->muic_hw_switch = OTG_NOTI_ATTACH;
+#else
 			send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 1);
+#endif
 			pdata->is_host = 1;
 			break;
 		case IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP:
@@ -398,7 +411,11 @@ static int ccic_usb_handle_notification(struct notifier_block *nb,
 		case IFCONN_NOTIFY_EVENT_DETACH:
 			if(pdata->is_host) {
 				pr_info("%s: Turn Off Host(DFP)\n", __func__);
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+				o_notify->muic_hw_switch = OTG_NOTI_DETACH;
+#else
 				send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 0);
+#endif
 				pdata->is_host = 0;
 			} else {
 				pr_info("%s: Turn Off Device(UFP)\n", __func__);
@@ -450,12 +467,21 @@ static int muic_usb_handle_notification(struct notifier_block *nb,
 			pr_err("%s - ACTION Error!\n", __func__);
 		break;
 	case ATTACHED_DEV_OTG_MUIC:
-		if (action == IFCONN_NOTIFY_ID_DETACH)
+		if (action == IFCONN_NOTIFY_ID_DETACH) {
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+			o_notify->muic_hw_switch = OTG_NOTI_ATTACH;
+#else
 			send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 0);
-		else if (action == IFCONN_NOTIFY_ID_ATTACH)
+#endif
+		} else if (action == IFCONN_NOTIFY_ID_ATTACH) {
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+			o_notify->muic_hw_switch = OTG_NOTI_DETACH;
+#else
 			send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 1);
-		else
+#endif
+		} else {
 			pr_err("%s - ACTION Error!\n", __func__);
+		}
 		break;
 	case ATTACHED_DEV_HMT_MUIC:
 		if (action == IFCONN_NOTIFY_ID_DETACH)
@@ -579,7 +605,11 @@ static int ccic_usb_handle_notification(struct notifier_block *nb,
 	switch (usb_status.drp) {
 	case USB_STATUS_NOTIFY_ATTACH_DFP:
 		pr_info("%s: Turn On Host(DFP)\n", __func__);
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+		o_notify->muic_hw_switch = OTG_NOTI_ATTACH;
+#else
 		send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 1);
+#endif
 		pdata->is_host = 1;
 		break;
 	case USB_STATUS_NOTIFY_ATTACH_UFP:
@@ -591,7 +621,11 @@ static int ccic_usb_handle_notification(struct notifier_block *nb,
 	case USB_STATUS_NOTIFY_DETACH:
 		if (pdata->is_host) {
 			pr_info("%s: Turn Off Host(DFP)\n", __func__);
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+			o_notify->muic_hw_switch = OTG_NOTI_DETACH;
+#else
 			send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 0);
+#endif
 			pdata->is_host = 0;
 		} else {
 			pr_info("%s: Turn Off Device(UFP)\n", __func__);
@@ -635,12 +669,21 @@ static int muic_usb_handle_notification(struct notifier_block *nb,
 			pr_err("%s - ACTION Error!\n", __func__);
 		break;
 	case ATTACHED_DEV_OTG_MUIC:
-		if (action == MUIC_NOTIFY_CMD_DETACH)
+		if (action == MUIC_NOTIFY_CMD_DETACH) {
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+			o_notify->muic_hw_switch = OTG_NOTI_DETACH;
+#else
 			send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 0);
-		else if (action == MUIC_NOTIFY_CMD_ATTACH)
+#endif
+		} else if (action == MUIC_NOTIFY_CMD_ATTACH) {
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+			o_notify->muic_hw_switch = OTG_NOTI_ATTACH;
+#else
 			send_otg_notify(o_notify, NOTIFY_EVENT_HOST, 1);
-		else
+#endif
+		} else {
 			pr_err("%s - ACTION Error!\n", __func__);
+		}
 		break;
 	case ATTACHED_DEV_HMT_MUIC:
 		if (action == MUIC_NOTIFY_CMD_DETACH)
@@ -806,14 +849,6 @@ static int set_online(int event, int state)
 
 static int exynos_set_host(bool enable)
 {
-#if defined(CONFIG_USB_OTG_SW_SWITCH)
-	struct otg_notify *o_notify = get_otg_notify();
-
-	if (!o_notify->muic_sw_switch) {
-		pr_info("%s: OTG Switch Disabled\n", __func__);
-		return 0;
-	}
-#endif
 	if (!enable) {
 		pr_info("%s USB_HOST_DETACHED\n", __func__);
 #ifdef CONFIG_OF
@@ -922,11 +957,77 @@ static struct otg_notify dwc_lsi_notify = {
 };
 
 #if defined(CONFIG_USB_OTG_SW_SWITCH)
+static void otg_disabled_func(unsigned long data)
+{
+	struct usb_notifier_platform_data *pdata = (struct usb_notifier_platform_data *)data;
+	struct otg_notify *o_notify = get_otg_notify();
+
+	pr_info("%s: otg connection timeout!!\n");
+
+	if (!o_notify->muic_hw_switch)
+		o_notify->muic_sw_switch = SW_SWITCH_OFF;
+	cancel_delayed_work(&pdata->usbid_work);
+}
+
+static void otg_usbid_work(struct work_struct *w)
+{
+	struct usb_notifier_platform_data *pdata = container_of(w,
+						struct usb_notifier_platform_data,
+						usbid_work.work);
+	struct otg_notify *o_notify = get_otg_notify();
+	struct power_supply *psy;
+	union power_supply_propval value;
+	static int pre_notify;
+	int ret = 0;
+
+	psy = power_supply_get_by_name("s2mu004-charger");
+
+	if (o_notify->muic_sw_switch == SW_SWITCH_OFF) {
+
+		del_timer_sync(&pdata->otg_disabled_timer);
+		exynos_set_host(0);
+
+		value.intval = false;
+		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_OTG_CONTROL, &value);
+		if (ret < 0)
+			pr_err("%s: Fail to execute property\n", __func__);
+
+		return;
+	}
+
+	if (pre_notify != o_notify->muic_hw_switch) {
+
+		if (o_notify->muic_hw_switch == OTG_NOTI_ATTACH) {
+			del_timer_sync(&pdata->otg_disabled_timer);
+			value.intval = true;
+			exynos_set_host(1);
+		} else {
+			mod_timer(&pdata->otg_disabled_timer, jiffies + OTG_DISABLED_DELAY_TIME);
+			value.intval = false;
+			exynos_set_host(0);
+		}
+
+		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_OTG_CONTROL, &value);
+		if (ret < 0)
+			pr_err("%s: Fail to execute property\n", __func__);
+
+		pr_info("%s: change otg_hw_switch state! [%08X->%08X]\n", __func__, pre_notify, o_notify->muic_hw_switch);
+
+		pre_notify = o_notify->muic_hw_switch;
+	} else {
+		goto restart;
+	}
+
+restart:
+	schedule_delayed_work(&pdata->usbid_work, msecs_to_jiffies(500));
+}
+
 static ssize_t otg_host_mode_enable_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	char value[32];
 	struct otg_notify *o_notify = get_otg_notify();
+	struct usb_notifier_platform_data *pdata = dev->platform_data;;
 
 	if (!o_notify)
 		return -ENODEV;
@@ -936,13 +1037,22 @@ static ssize_t otg_host_mode_enable_store(struct device *dev,
 
 	if (!strncmp(value, "enabled", 6)) {
 		pr_info("%s: otg switch enabled\n", __func__);
-		o_notify->muic_sw_switch = true;
+		o_notify->muic_sw_switch = SW_SWITCH_ON;
+
+		init_timer(&pdata->otg_disabled_timer);
+		pdata->otg_disabled_timer.expires = jiffies + OTG_DISABLED_DELAY_TIME;
+		pdata->otg_disabled_timer.function = otg_disabled_func;
+		pdata->otg_disabled_timer.data = (unsigned long)pdata;
+
+		add_timer(&pdata->otg_disabled_timer);
 	} else if (!strncmp(value, "disabled", 6)) {
 		pr_info("%s: otg switch disabled\n", __func__);
-		o_notify->muic_sw_switch = false;
+		o_notify->muic_sw_switch = SW_SWITCH_OFF;
 	} else {
 		return -EINVAL;
 	}
+
+	schedule_delayed_work(&pdata->usbid_work, msecs_to_jiffies(0));
 
 	return size;
 }
@@ -1033,6 +1143,8 @@ static int usb_notifier_probe(struct platform_device *pdev)
 #endif
 #if defined(CONFIG_USB_OTG_SW_SWITCH)
 	device_create_file(&pdev->dev, &dev_attr_host_mode);
+	INIT_DELAYED_WORK(&pdata->usbid_work, otg_usbid_work);
+
 #endif
 	dev_info(&pdev->dev, "usb notifier probe\n");
 	return 0;
