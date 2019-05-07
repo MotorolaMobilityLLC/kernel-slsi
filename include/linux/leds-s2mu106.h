@@ -95,6 +95,14 @@
 #define S2MU106_F2C_LC_IBAT	MASK(6,0)
 #define S2MU106_F2C_SYS_MIN_REG	MASK(3,0)
 
+/* FLED operating mode enable */
+enum operating_mode {
+	AUTO_MODE = 0,
+	BOOST_MODE,
+	TA_MODE,
+	SYS_MODE,
+};
+
 enum cam_flash_mode{
 	CAM_FLASH_MODE_NONE=0,		//CAM2_FLASH_MODE_NONE=0,
 	CAM_FLASH_MODE_OFF,			//CAM2_FLASH_MODE_OFF,
