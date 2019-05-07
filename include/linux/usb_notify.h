@@ -114,6 +114,15 @@ enum otg_notify_data_role {
 	HNOTIFY_DFP,
 };
 
+#if defined(CONFIG_USB_OTG_SW_SWITCH)
+enum otg_notify_sw_switch {
+	SW_SWITCH_OFF		= 0,
+	SW_SWITCH_ON		= 1,
+	OTG_NOTI_DETACH		= 0,
+	OTG_NOTI_ATTACH		= 1,
+};
+#endif
+
 struct otg_notify {
 	int vbus_detect_gpio;
 	int redriver_en_gpio;
@@ -133,6 +142,7 @@ struct otg_notify {
 #endif
 #if defined(CONFIG_USB_OTG_SW_SWITCH)
 	int muic_sw_switch;
+	int muic_hw_switch;
 #endif
 	const char *muic_name;
 	int (*pre_gpio)(int gpio, int use);
