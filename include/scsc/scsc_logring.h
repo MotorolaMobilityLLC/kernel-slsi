@@ -16,6 +16,8 @@
 /* NOTE_CREATING_TAGS: when adding a tag here REMEMBER to add it also
  * where required, taking care to maintain the same ordering.
  * (Search 4 NOTE_CREATING_TAGS)
+ *
+ * You must update "int *scsc_droplevels[]" to match.
  */
 enum scsc_logring_tags {
 	FIRST_TAG,
@@ -59,6 +61,7 @@ enum scsc_logring_tags {
 	KIC_COMMON,
 	WLBTD,
 	WLOG,
+	LERNA,
 #ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
 	SLSI_INIT_DEINIT,
 	SLSI_NETDEV,
@@ -89,7 +92,6 @@ enum scsc_logring_tags {
 	SLSI_FLOWC,
 	SLSI_SMAPPER,
 #endif
-	LERNA,
 	TEST_ME,
 	MAX_TAG = TEST_ME /* keep it last */
 };
