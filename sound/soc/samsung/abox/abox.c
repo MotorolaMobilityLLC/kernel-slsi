@@ -5485,6 +5485,27 @@ static void abox_start_timer(struct abox_data *data)
 	regmap_write(regmap, ABOX_TIMER_CTRL0(0), 1 << ABOX_TIMER_START_L);
 }
 
+static void abox_clear_bclk(struct device *dev, struct abox_data *data)
+{
+	int val, i, ret, mask;
+	struct regmap *regmap = data->regmap;
+
+	mask = (ABOX_SPK_ENABLE_MASK|ABOX_MIC_ENABLE_MASK);
+
+	for (i = 0; i <= 3; i++) {
+		ret = regmap_read(regmap, ABOX_UAIF_CTRL0(i), &val);
+		if (ret < 0) {
+			dev_err(dev, "Failed to get UAIF%d_CTRL0: %d\n", i, ret);
+		} else {
+			if (val & mask) {
+				dev_info(dev, "UAIF%d_CTRL0: %08x\n", i, val);
+				val &= ~mask;
+				regmap_write(regmap, ABOX_UAIF_CTRL0(i), val);
+			}
+		}
+	}
+}
+
 static int abox_enable(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -5599,6 +5620,7 @@ static int abox_disable(struct device *dev)
 	clk_set_rate(data->clk_pll, AUD_PLL_RATE_HZ_FOR_48000);
 
 	data->calliope_state = CALLIOPE_DISABLING;
+	abox_clear_bclk(dev, data);
 	abox_cache_components(dev, data);
 	abox_ima_reclaim(data->ima_client, dev, data);
 	abox_clear_l2c_requests(dev, data);
