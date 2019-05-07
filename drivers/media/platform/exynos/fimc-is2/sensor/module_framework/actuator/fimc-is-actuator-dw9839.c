@@ -124,15 +124,15 @@ static int sensor_dw9839_init(struct fimc_is_actuator *actuator)
 
 skip_cal:
 	/* set Active Mode */
-	ret = fimc_is_sensor_addr8_write8(client, REG_ACTIVE_EN, 0x00);
 	ret = fimc_is_sensor_addr8_write8(client, REG_ACTIVE_EN, 0x01);
-	usleep_range(5000, 5010);
+	ret = fimc_is_sensor_addr8_write8(client, 0x40, 0xF1);
+	ret = fimc_is_sensor_addr8_write8(client, 0x54, 0x0E);
 	ret = fimc_is_sensor_addr8_write8(client, REG_ACTIVE_EN, 0x11);
 	if (ret < 0)
 		goto p_err;
 
 	/* delay after active mode */
-	usleep_range(5000, 5010);
+	usleep_range(3000, 3010);
 	ret = fimc_is_sensor_addr8_write8(client, REG_ACT_MODE, 0x00);
 	if (ret < 0)
 		goto p_err;
