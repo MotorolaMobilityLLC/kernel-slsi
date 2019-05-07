@@ -220,6 +220,7 @@ ADD_DEBUG_MODULE_PARAM(plat_mif, SCSC_DBG1, PLAT_MIF);
 ADD_DEBUG_MODULE_PARAM(kic_common, SCSC_FULL_DEBUG, KIC_COMMON);
 ADD_DEBUG_MODULE_PARAM(wlbtd, SCSC_FULL_DEBUG, WLBTD);
 ADD_DEBUG_MODULE_PARAM(wlog, SCSC_DEBUG, WLOG);
+ADD_DEBUG_MODULE_PARAM(lerna, SCSC_FULL_DEBUG, LERNA);
 #ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
 ADD_DEBUG_MODULE_PARAM(init_deinit,  SCSC_FULL_DEBUG, SLSI_INIT_DEINIT);
 ADD_DEBUG_MODULE_PARAM(netdev,  SCSC_DBG4, SLSI_NETDEV);
@@ -252,6 +253,9 @@ ADD_DEBUG_MODULE_PARAM(flowc, SCSC_FULL_DEBUG, SLSI_FLOWC);
 #endif
 ADD_DEBUG_MODULE_PARAM(test_me, SCSC_FULL_DEBUG, TEST_ME);
 
+/* Extend this list when you add ADD_DEBUG_MODULE_PARAM, above.
+ * You must also extend "enum scsc_logring_tags"
+ */
 int *scsc_droplevels[] = {
 	&scsc_droplevel_binary,
 	&scsc_droplevel_bin_wifi_ctrl_rx,
@@ -290,6 +294,7 @@ int *scsc_droplevels[] = {
 	&scsc_droplevel_kic_common,
 	&scsc_droplevel_wlbtd,
 	&scsc_droplevel_wlog,
+	&scsc_droplevel_lerna,
 #ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
 	&scsc_droplevel_init_deinit,
 	&scsc_droplevel_netdev,
@@ -320,7 +325,7 @@ int *scsc_droplevels[] = {
 	&scsc_droplevel_flowc,
 	&scsc_droplevel_smapper,
 #endif
-	&scsc_droplevel_test_me,
+	&scsc_droplevel_test_me, /* Must be last */
 };
 
 #ifdef CONFIG_SCSC_LOG_COLLECTION
