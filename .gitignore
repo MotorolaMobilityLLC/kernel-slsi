@@ -126,3 +126,9 @@ all.config
 
 # fetched Android config fragments
 kernel/configs/android-*.cfg
+
+# Generated during kernel build by Android
+arch/arm64/lib/lib.a.symversions
+dtbo.img
+lib/lib.a.symversions
+
