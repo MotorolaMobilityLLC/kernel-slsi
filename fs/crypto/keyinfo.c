@@ -137,6 +137,7 @@ static const struct {
 					     FS_AES_128_CTS_KEY_SIZE },
 	[FS_ENCRYPTION_MODE_SPECK128_256_XTS] = { "xts(speck128)",	64 },
 	[FS_ENCRYPTION_MODE_SPECK128_256_CTS] = { "cts(cbc(speck128))",	32 },
+	[FS_ENCRYPTION_MODE_PRIVATE] = {"xts(aes)-disk", 64},
 };
 
 static int determine_cipher_type(struct fscrypt_info *ci, struct inode *inode,
@@ -340,6 +341,9 @@ int fscrypt_get_encryption_info(struct inode *inode)
 #if defined(CONFIG_CRYPTO_DISKCIPHER)
 	if (S_ISREG(inode->i_mode)) {
 		/* try discipher first */
+		bool force = /* force can use skcipher */
+		    (crypt_info->ci_data_mode == FS_ENCRYPTION_MODE_PRIVATE) ? 0 : 1;
+
 		crypt_info->ci_dtfm = crypto_alloc_diskcipher(cipher_str, 0, 0, 1);
 		if (crypt_info->ci_dtfm && !IS_ERR(crypt_info->ci_dtfm)) {
 			res = crypto_diskcipher_setkey(crypt_info->ci_dtfm,
@@ -360,6 +364,12 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		pr_debug("%s: (inode %lu) fails to get diskcipher (%s, %d)\n",
 			 __func__, inode->i_ino, cipher_str, res);
 		crypt_info->ci_dtfm = NULL;
+		if (!force) {
+			pr_debug("error to use diskciher '%s' transform for inode %lu: %d, force:%d",
+			    cipher_str, inode->i_ino, res, force);
+			res = -EINVAL;
+			goto out;
+		}
 	}
 #endif
 	ctfm = crypto_alloc_skcipher(cipher_str, 0, 0);
