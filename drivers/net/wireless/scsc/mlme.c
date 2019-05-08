@@ -1272,6 +1272,7 @@ static inline int slsi_set_scan_params(
 	return 0;
 }
 
+#define SLSI_MAX_SSID_DESC_IN_SSID_FILTER_ELEM 7
 int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 			     struct net_device                  *dev,
 			     struct cfg80211_sched_scan_request *request,
@@ -1283,7 +1284,8 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 	struct sk_buff                     *rx;
 	int                                r = 0;
 	size_t                             alloc_data_size = 0;
-	u32                                i;
+	u32                                i, j;
+	u32                                num_ssid_filter_elements = 0;
 
 	/* Scan Timing IE: default values */
 	u8 scan_timing_ie[] = {
@@ -1317,19 +1319,18 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->scan_mutex));
 
-	alloc_data_size += sizeof(scan_timing_ie) +
-					ies_len +
-					SLSI_SCAN_PRIVATE_IE_SSID_FILTER_HEADER_LEN +
-					(SLSI_SCAN_PRIVATE_IE_CHANNEL_LIST_HEADER_LEN + (request->n_channels * SLSI_SCAN_CHANNEL_DESCRIPTOR_SIZE));
+	alloc_data_size += sizeof(scan_timing_ie) + ies_len + SLSI_SCAN_PRIVATE_IE_CHANNEL_LIST_HEADER_LEN +
+					(request->n_channels * SLSI_SCAN_CHANNEL_DESCRIPTOR_SIZE);
 
 	for (i = 0; i < request->n_ssids; i++) {
 		/* 2 bytes for SSID EID and length field +  variable length SSID */
 		alloc_data_size += (2 + request->ssids[i].ssid_len);
 	}
 
-	for (i = 0; i < request->n_match_sets; i++) {
-		/* 1 byte for SSID_length field + variable length SSID */
-		alloc_data_size += (1 + request->match_sets[i].ssid.ssid_len);
+	if (request->n_match_sets) {
+		num_ssid_filter_elements = (request->n_match_sets / SLSI_MAX_SSID_DESC_IN_SSID_FILTER_ELEM) + 1;
+		/* EID(1) + len(1) + oui(3) + type/subtype(2) + 7 ssid descriptors(7 * 33) */
+		alloc_data_size += 238 * num_ssid_filter_elements;
 	}
 
 	req = fapi_alloc(mlme_add_scan_req, MLME_ADD_SCAN_REQ, 0, alloc_data_size);
@@ -1358,18 +1359,24 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 
 	if (request->n_match_sets) {
 		struct cfg80211_match_set *match_sets = request->match_sets;
-		u8 *ssid_filter_ie = fapi_append_data(req, ssid_filter_ie_hdr, sizeof(ssid_filter_ie_hdr));
+		u8 *ssid_filter_ie;
 
-		if  (!ssid_filter_ie) {
-			slsi_kfree_skb(req);
-			SLSI_ERR(sdev, "ssid_filter_ie append failed\n");
-			return -EIO;
-		}
-		for (i = 0; i < request->n_match_sets; i++, match_sets++) {
-			SLSI_NET_DBG2(dev, SLSI_MLME, "SSID: %.*s",  match_sets->ssid.ssid_len,  match_sets->ssid.ssid);
-			ssid_filter_ie[1] += (1 + match_sets->ssid.ssid_len);
-			fapi_append_data(req, &match_sets->ssid.ssid_len, 1);
-			fapi_append_data(req, match_sets->ssid.ssid, match_sets->ssid.ssid_len);
+		for (j = 0; j < num_ssid_filter_elements; j++) {
+			ssid_filter_ie = fapi_append_data(req, ssid_filter_ie_hdr, sizeof(ssid_filter_ie_hdr));
+			if  (!ssid_filter_ie) {
+				slsi_kfree_skb(req);
+				SLSI_ERR(sdev, "ssid_filter_ie append failed\n");
+				return -EIO;
+			}
+			for (i = 0; i < SLSI_MAX_SSID_DESC_IN_SSID_FILTER_ELEM; i++, match_sets++) {
+				if ((j * SLSI_MAX_SSID_DESC_IN_SSID_FILTER_ELEM) + i >= request->n_match_sets)
+					break;
+				SLSI_NET_DBG2(dev, SLSI_MLME, "SSID: %.*s",
+					      match_sets->ssid.ssid_len, match_sets->ssid.ssid);
+				ssid_filter_ie[1] += (1 + match_sets->ssid.ssid_len);
+				fapi_append_data(req, &match_sets->ssid.ssid_len, 1);
+				fapi_append_data(req, match_sets->ssid.ssid, match_sets->ssid.ssid_len);
+			}
 		}
 	}
 
