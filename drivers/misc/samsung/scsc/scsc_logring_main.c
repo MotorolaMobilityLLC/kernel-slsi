@@ -82,8 +82,9 @@ int __init samlog_init(void)
 	pr_info("Samlog Loaded.\n");
 	scsc_printk_tag(FORCE_PRK, NO_TAG, "Samlog Started.\n");
 	scsc_printk_tag(NO_ECHO_PRK, NO_TAG,
-			"Allocated ring buffer of size %zd bytes.\n",
-			rb->bsz);
+	                "Allocated ring buffer of size %zd bytes at %p - %p\n",
+	                rb->bsz, virt_to_phys((const volatile void *)rb->buf),
+	                virt_to_phys((const volatile void *)(rb->buf + rb->bsz)));
 	scsc_printk_tag(NO_ECHO_PRK, NO_TAG,
 			"Using THROWAWAY DYNAMIC per-reader buffer.\n");
 
