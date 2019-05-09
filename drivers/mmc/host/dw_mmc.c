@@ -2507,6 +2507,20 @@ static bool dw_mci_clear_pending_cmd_complete(struct dw_mci *host)
 	return true;
 }
 
+static void dw_mci_sd_power_off(unsigned long priv)
+{
+	struct dw_mci *host = (struct dw_mci *)priv;
+	struct mmc_host *mmc = host->slot->mmc;
+	struct dw_mci_slot *slot = host->slot;
+
+	if (!IS_ERR(mmc->supply.vmmc))
+		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+	if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled)
+		regulator_disable(mmc->supply.vqmmc);
+	slot->host->vqmmc_enabled = false;
+
+}
+
 static void dw_mci_tasklet_func(unsigned long priv)
 {
 	struct dw_mci *host = (struct dw_mci *)priv;
@@ -3475,14 +3489,9 @@ static void dw_mci_slot_of_parse(struct dw_mci_slot *slot)
 static irqreturn_t dw_mci_detect_interrupt(int irq, void *dev_id)
 {
 	struct dw_mci *host = dev_id;
-	struct mmc_host *mmc = host->slot->mmc;
-	struct dw_mci_slot *slot = host->slot;
 
-	if (!IS_ERR(mmc->supply.vmmc))
-		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
-	if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled)
-		regulator_disable(mmc->supply.vqmmc);
-	slot->host->vqmmc_enabled = false;
+	/* sdcard power off */
+	tasklet_schedule(&host->pw_tasklet);
 
 	queue_work(host->card_workqueue, &host->card_work);
 
@@ -4290,6 +4299,7 @@ int dw_mci_probe(struct dw_mci *host)
 		host->fifo_reg = host->regs + DATA_240A_OFFSET;
 
 	tasklet_init(&host->tasklet, dw_mci_tasklet_func, (unsigned long)host);
+	tasklet_init(&host->pw_tasklet, dw_mci_sd_power_off, (unsigned long)host);
 
 	host->card_workqueue = alloc_workqueue("dw-mci-card", WQ_MEM_RECLAIM, 1);
 	if (!host->card_workqueue) {
