@@ -72,6 +72,7 @@ struct gdb_transport {
 	gdb_channel_handler     channel_handler_fn;
 	void                    *channel_handler_data;
 	struct mutex            channel_handler_mutex;
+	struct mutex            channel_open_mutex;
 	/* Transport processor type  */
 	enum gdb_transport_enum type;
 };

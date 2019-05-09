@@ -153,16 +153,27 @@ int mx_gdb_open(struct inode *inode, struct file *filp)
 
 	SCSC_TAG_INFO(MX_MMAP, "open %p\n", filp);
 
+	if (!mx_dev->gdb_transport) {
+		SCSC_TAG_ERR(MX_MMAP, "no transport %p\n", filp);
+		return -ENODEV;
+	}
+
 	if (test_and_set_bit_lock(0, &mx_dev->lock)) {
 		SCSC_TAG_ERR(MX_MMAP, "already open %p\n", filp);
 		return -EBUSY;
 	}
 
+	/* Prevent channel teardown while client has open */
+	mutex_lock(&mx_dev->gdb_transport->channel_open_mutex);
+
 	filp->private_data = mx_dev;
 	mx_dev->filp = filp;
 	ret = kfifo_alloc(&mx_dev->fifo, GDB_TRANSPORT_BUF_LENGTH, GFP_KERNEL);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&mx_dev->gdb_transport->channel_open_mutex);
+		clear_bit_unlock(0, &mx_dev->lock);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -284,11 +295,14 @@ int mx_gdb_release(struct inode *inode, struct file *filp)
 		return -EIO;
 	}
 
+
 	clear_bit_unlock(0, &mx_dev->lock);
 
 	filp->private_data = NULL;
 	mx_dev->filp = NULL;
 	kfifo_free(&mx_dev->fifo);
+
+	mutex_unlock(&mx_dev->gdb_transport->channel_open_mutex);
 
 	return 0;
 }

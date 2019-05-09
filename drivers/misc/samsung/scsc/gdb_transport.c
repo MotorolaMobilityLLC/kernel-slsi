@@ -110,10 +110,14 @@ void gdb_transport_release(struct gdb_transport *gdb_transport)
 	list_for_each_entry_safe(gdb_transport_node, gdb_transport_node_next, &gdb_transport_module.gdb_transport_list, list) {
 		if (gdb_transport_node->gdb_transport == gdb_transport) {
 			match = true;
+			SCSC_TAG_INFO(GDB_TRANS, "release client\n");
+			/* Wait for client to close */
+			mutex_lock(&gdb_transport->channel_open_mutex);
 			/* Need to notify clients using the transport has been released */
 			list_for_each_entry_safe(gdb_client_node, gdb_client_next, &gdb_transport_module.clients_list, list) {
 				gdb_client_node->gdb_client->remove(gdb_client_node->gdb_client, gdb_transport);
 			}
+			mutex_unlock(&gdb_transport->channel_open_mutex);
 			list_del(&gdb_transport_node->list);
 			kfree(gdb_transport_node);
 		}
@@ -149,6 +153,7 @@ int gdb_transport_init(struct gdb_transport *gdb_transport, struct scsc_mx *mx, 
 	memset(gdb_transport, 0, sizeof(struct gdb_transport));
 	num_packets = mem_length / packet_size;
 	mutex_init(&gdb_transport->channel_handler_mutex);
+	mutex_init(&gdb_transport->channel_open_mutex);
 	gdb_transport->mx = mx;
 
 	if (type == GDB_TRANSPORT_M4)
