@@ -2294,7 +2294,7 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 	}
 
 	/* L2 suspend only support USB2.0port */
-	if ((hcd->state == HC_STATE_SUSPENDED) && !hcd->driver->hub_check_speed(hcd->shared_hcd)) {
+	if (hcd->state == HC_STATE_SUSPENDED) {
 		dev_info(&rhdev->dev, "HCD STATE IS SUSPENDED, NEED WAKE UNLOCK\n");
 		hcd->driver->wake_lock(hcd, 0);
 	}
