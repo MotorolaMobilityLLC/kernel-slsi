@@ -203,6 +203,7 @@ struct dw_mci {
 	u32 dir_status;
 	struct tasklet_struct tasklet;
 	u32 tasklet_state;
+	struct tasklet_struct pw_tasklet;
 	struct work_struct card_work;
 	unsigned long pending_events;
 	unsigned long completed_events;
