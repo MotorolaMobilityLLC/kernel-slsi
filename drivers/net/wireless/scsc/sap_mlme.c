@@ -172,11 +172,10 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 	case MLME_RANGE_DONE_IND:
 		slsi_rx_range_done_ind(sdev, dev, skb);
 		break;
-
-#endif
 	case MLME_EVENT_LOG_IND:
 		slsi_rx_event_log_indication(sdev, dev, skb);
 		break;
+#endif
 #ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 	case MLME_NAN_EVENT_IND:
 		slsi_nan_event(sdev, dev, skb);
