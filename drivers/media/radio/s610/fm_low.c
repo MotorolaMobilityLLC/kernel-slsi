@@ -250,8 +250,8 @@ static bool is_freq_in_spur(int freq, u32 *freq_array, int max_freq) {
 	return FALSE;
 }
 
-#define AGC_CONFIG_WBRSSI_DISABLE	0x10D1
-#define AGC_CONFIG_WBRSSI_ENABLE	0x105F
+#define AGC_CONFIG_WBRSSI_DISABLE	0x20D1
+#define AGC_CONFIG_WBRSSI_ENABLE	0x201F
 
 void enable_agc_config_wbrssi(struct s610_radio *radio, bool onoff)
 {
