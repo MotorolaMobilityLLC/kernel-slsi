@@ -415,9 +415,6 @@ static int set_charger_mode(
 	struct power_supply *psy;
 		int ret;
 
-	if (charger_mode != S2MU00X_BAT_CHG_MODE_CHARGING)
-		battery->full_check_cnt = 0;
-
 	val.intval = charger_mode;
 
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
@@ -1582,6 +1579,7 @@ static void check_charging_full(
 			(battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING)) {
 		dev_dbg(battery->dev,
 				"%s: No Need to Check Full-Charged\n", __func__);
+		battery->full_check_cnt = 0;
 		return;
 	}
 
