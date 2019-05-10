@@ -264,8 +264,6 @@ void *abox_addr_to_kernel_addr(struct abox_data *data, unsigned int addr)
 		ret = data->sram_base + addr;
 	else if (addr >= IOVA_DRAM_FIRMWARE && addr < IOVA_IVA_FIRMWARE)
 		ret = data->dram_base + (addr - IOVA_DRAM_FIRMWARE);
-	else if (addr >= IOVA_IVA_FIRMWARE && addr < IOVA_VSS_FIRMWARE)
-		ret = data->iva_base + (addr - IOVA_IVA_FIRMWARE);
 	else if (addr >= IOVA_VSS_FIRMWARE && addr <  IOVA_DUMP_BUFFER)
 		ret = phys_to_virt(shm_get_vss_base() +
 				(addr - IOVA_VSS_FIRMWARE));
@@ -4563,14 +4561,6 @@ static void abox_system_ipc_handler(struct device *dev,
 		abox_dump_period_elapsed(system_msg->param1,
 				system_msg->param2);
 		break;
-	case ABOX_END_CLAIM_SRAM:
-		data->ima_claimed = true;
-		wake_up(&data->ipc_wait_queue);
-		break;
-	case ABOX_END_RECLAIM_SRAM:
-		data->ima_claimed = false;
-		wake_up(&data->ipc_wait_queue);
-		break;
 	case ABOX_REPORT_COMPONENT:
 		abox_register_component(dev,
 				abox_addr_to_kernel_addr(data,
@@ -5046,7 +5036,6 @@ static void abox_complete_sram_firmware_request(const struct firmware *fw,
 	dev_info(dev, "SRAM firmware loaded at %p (%zu)\n", fw->data, fw->size);
 
 	abox_request_firmware(dev, &data->firmware_dram, "calliope_dram.bin");
-	abox_request_firmware(dev, &data->firmware_iva, "calliope_iva.bin");
 	abox_request_extra_firmware(data);
 
 	if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND))
@@ -5086,15 +5075,6 @@ static int abox_download_firmware(struct platform_device *pdev)
 	memset(data->dram_base + data->firmware_dram->size, 0,
 			DRAM_FIRMWARE_SIZE - data->firmware_dram->size);
 
-	if (unlikely(!data->firmware_iva)) {
-		dev_warn(dev, "IVA firmware is not loaded\n");
-	} else {
-		memcpy(data->iva_base, data->firmware_iva->data,
-				data->firmware_iva->size);
-		memset(data->iva_base + data->firmware_iva->size, 0,
-				IVA_FIRMWARE_SIZE - data->firmware_iva->size);
-	}
-
 	abox_download_extra_firmware(data);
 
 	return 0;
@@ -5131,218 +5111,6 @@ static void work_temp_function(struct work_struct *work)
 static DECLARE_DELAYED_WORK(work_temp, work_temp_function);
 #endif
 
-#undef IVA_SRAM_SHARING
-#ifdef IVA_SRAM_SHARING
-#include <misc/exynos_ima.h>
-
-int abox_ima_claim(struct device *dev, struct abox_data *data,
-		phys_addr_t *addr)
-{
-	ABOX_IPC_MSG msg;
-	struct IPC_SYSTEM_MSG *system_msg = &msg.msg.system;
-	phys_addr_t paddr;
-	int ret;
-
-	dev_info(dev, "%s\n", __func__);
-
-	mutex_lock(&data->ima_lock);
-
-	if (data->ima_claimed) {
-		mutex_unlock(&data->ima_lock);
-		return 0;
-	}
-
-	data->ima_vaddr = ima_alloc(data->ima_client, IVA_FIRMWARE_SIZE, 0);
-	if (IS_ERR_OR_NULL(data->ima_vaddr)) {
-		dev_err(dev, "%s: ima_alloc failed: %ld\n", __func__,
-				PTR_ERR(data->ima_vaddr));
-		ret = data->ima_vaddr ? PTR_ERR(data->ima_vaddr) : -ENOMEM;
-		goto error;
-	}
-	paddr = ima_get_dma_addr(data->ima_client, data->ima_vaddr);
-	if (addr)
-		*addr = paddr;
-
-	ret = iommu_map(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY_PREPARE), paddr,
-			IVA_FIRMWARE_SIZE, 0);
-	if (ret < 0) {
-		dev_err(dev, "%s: iommu mapping failed(%d)\n", __func__,
-				ret);
-		goto error;
-	}
-
-	msg.ipcid = IPC_SYSTEM;
-	system_msg->msgtype = ABOX_START_CLAIM_SRAM;
-	system_msg->param1 = ABOX_IVA_MEMORY_PREPARE;
-	system_msg->param2 = IOVA_IVA(ABOX_IVA_MEMORY_PREPARE);
-	system_msg->param3 = IVA_FIRMWARE_SIZE;
-	ret = abox_request_ipc(&data->pdev->dev, msg.ipcid, &msg,
-			sizeof(msg), 0, 0);
-	if (ret < 0)
-		goto error;
-
-	ret = wait_event_timeout(data->ipc_wait_queue,
-			data->ima_claimed, msecs_to_jiffies(1000));
-	if (data->ima_claimed) {
-		ret = 0;
-	} else {
-		dev_err(dev, "IVA memory claim failed\n");
-		ret = -ETIME;
-		goto error;
-	}
-
-	iommu_unmap(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY),
-			IVA_FIRMWARE_SIZE);
-	iommu_unmap(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY_PREPARE),
-			IVA_FIRMWARE_SIZE);
-	exynos_sysmmu_tlb_invalidate(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY), IVA_FIRMWARE_SIZE);
-	exynos_sysmmu_tlb_invalidate(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY_PREPARE), IVA_FIRMWARE_SIZE);
-
-	ret = iommu_map(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY),
-			paddr, IVA_FIRMWARE_SIZE, 0);
-	if (ret < 0) {
-		dev_err(dev, "%s: iommu mapping failed(%d)\n", __func__,
-				ret);
-		goto error;
-	}
-	ret = iommu_map(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY_PREPARE),
-			data->iva_base_phys, IVA_FIRMWARE_SIZE, 0);
-	if (ret < 0) {
-		dev_err(dev, "%s: iommu mapping failed(%d)\n", __func__,
-				ret);
-		goto error;
-	}
-
-	system_msg->msgtype = ABOX_REPORT_SRAM;
-	system_msg->param1 = ABOX_IVA_MEMORY;
-	system_msg->param2 = IOVA_IVA(ABOX_IVA_MEMORY);
-	system_msg->param3 = IVA_FIRMWARE_SIZE;
-	ret = abox_request_ipc(&data->pdev->dev, msg.ipcid, &msg,
-			sizeof(msg), 0, 1);
-	if (ret < 0)
-		goto error;
-
-	mutex_unlock(&data->ima_lock);
-	return ret;
-
-error:
-	iommu_unmap(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY),
-			IVA_FIRMWARE_SIZE);
-	iommu_unmap(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY_PREPARE),
-			IVA_FIRMWARE_SIZE);
-	exynos_sysmmu_tlb_invalidate(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY), IVA_FIRMWARE_SIZE);
-	exynos_sysmmu_tlb_invalidate(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY_PREPARE), IVA_FIRMWARE_SIZE);
-	iommu_map(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY),
-			data->iva_base_phys, IVA_FIRMWARE_SIZE, 0);
-	ima_free(data->ima_client, data->ima_vaddr);
-	mutex_unlock(&data->ima_lock);
-	return ret;
-}
-
-static int abox_ima_reclaim(struct ima_client *client, struct device *dev,
-		void *priv)
-{
-	ABOX_IPC_MSG msg;
-	struct IPC_SYSTEM_MSG *system_msg = &msg.msg.system;
-	struct abox_data *data = priv;
-	long ret;
-
-	dev_info(dev, "%s\n", __func__);
-
-	mutex_lock(&data->ima_lock);
-
-	if (!data->ima_claimed) {
-		ret = 0;
-		goto error;
-	}
-
-	msg.ipcid = IPC_SYSTEM;
-	system_msg->msgtype = ABOX_START_RECLAIM_SRAM;
-	system_msg->param1 = ABOX_IVA_MEMORY;
-	system_msg->param2 = IOVA_IVA(ABOX_IVA_MEMORY_PREPARE);
-	system_msg->param3 = IVA_FIRMWARE_SIZE;
-
-	abox_request_ipc(dev, msg.ipcid, &msg, sizeof(msg), 0, 0);
-
-	ret = wait_event_timeout(data->ipc_wait_queue,
-			!data->ima_claimed, msecs_to_jiffies(1000));
-	if (!data->ima_claimed) {
-		ret = 0;
-	} else {
-		dev_err(dev, "IVA memory reclamation failed\n");
-		ret = -ETIME;
-	}
-
-	iommu_unmap(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY),
-			IVA_FIRMWARE_SIZE);
-	iommu_unmap(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY_PREPARE),
-			IVA_FIRMWARE_SIZE);
-	exynos_sysmmu_tlb_invalidate(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY), IVA_FIRMWARE_SIZE);
-	exynos_sysmmu_tlb_invalidate(data->iommu_domain,
-			IOVA_IVA(ABOX_IVA_MEMORY_PREPARE), IVA_FIRMWARE_SIZE);
-
-	ret = iommu_map(data->iommu_domain, IOVA_IVA(ABOX_IVA_MEMORY),
-			data->iva_base_phys, IVA_FIRMWARE_SIZE, 0);
-	if (ret < 0) {
-		dev_err(dev, "%s: iommu mapping failed(%ld)\n", __func__,
-				ret);
-		goto error;
-	}
-
-	ima_free(data->ima_client, data->ima_vaddr);
-
-	system_msg->msgtype = ABOX_REPORT_DRAM;
-	system_msg->param1 = ABOX_IVA_MEMORY;
-	system_msg->param2 = IOVA_IVA(ABOX_IVA_MEMORY);
-	system_msg->param3 = IVA_FIRMWARE_SIZE;
-	ret = abox_request_ipc(dev, msg.ipcid, &msg, sizeof(msg), 0, 1);
-	if (ret < 0)
-		goto error;
-
-error:
-	mutex_unlock(&data->ima_lock);
-	return (int)ret;
-}
-
-static int abox_ima_init(struct device *dev, struct abox_data *data)
-{
-	dev_dbg(dev, "%s\n", __func__);
-
-	mutex_init(&data->ima_lock);
-	data->ima_client = ima_create_client(dev, abox_ima_reclaim, data);
-	if (IS_ERR(data->ima_client)) {
-		dev_err(dev, "ima_create_client failed: %ld\n",
-				PTR_ERR(data->ima_client));
-		return PTR_ERR(data->ima_client);
-	}
-
-	return 0;
-}
-#else
-int abox_ima_claim(struct device *dev, struct abox_data *data,
-		phys_addr_t *addr)
-{
-	return 0;
-}
-
-static int abox_ima_reclaim(struct ima_client *client, struct device *dev,
-		void *priv)
-{
-	return 0;
-}
-
-static int abox_ima_init(struct device *dev, struct abox_data *data)
-{
-	return 0;
-}
-#endif
 static void __abox_control_l2c(struct abox_data *data, bool enable)
 {
 	ABOX_IPC_MSG msg;
@@ -5622,7 +5390,6 @@ static int abox_disable(struct device *dev)
 	data->calliope_state = CALLIOPE_DISABLING;
 	abox_clear_bclk(dev, data);
 	abox_cache_components(dev, data);
-	abox_ima_reclaim(data->ima_client, dev, data);
 	abox_clear_l2c_requests(dev, data);
 	flush_work(&data->boot_done_work);
 	flush_work(&data->l2c_work);
@@ -6111,19 +5878,6 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	iommu_map(data->iommu_domain, IOVA_DRAM_FIRMWARE, data->dram_base_phys,
 			DRAM_FIRMWARE_SIZE, 0);
 
-	data->iva_base = dmam_alloc_coherent(dev, IVA_FIRMWARE_SIZE,
-			&data->iva_base_phys, GFP_KERNEL);
-	if (IS_ERR_OR_NULL(data->iva_base)) {
-		dev_err(dev, "Failed to allocate coherent memory: %ld\n",
-				PTR_ERR(data->iva_base));
-		return PTR_ERR(data->iva_base);
-	}
-	dev_info(&pdev->dev, "%s(%pa) is mapped on %p with size of %d\n",
-			"iva firmware", &data->iva_base_phys, data->iva_base,
-			IVA_FIRMWARE_SIZE);
-	iommu_map(data->iommu_domain, IOVA_IVA_FIRMWARE, data->iva_base_phys,
-			IVA_FIRMWARE_SIZE, 0);
-
 	paddr = shm_get_vss_base();
 	dev_info(&pdev->dev, "%s(%pa) is mapped on %p with size of %d\n",
 			"vss firmware", &paddr, phys_to_virt(paddr),
@@ -6283,7 +6037,6 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	itmon_notifier_chain_register(&data->itmon_nb);
 #endif
 
-	abox_ima_init(dev, data);
 	abox_failsafe_init(dev);
 
 	ret = device_create_file(dev, &dev_attr_calliope_version);
