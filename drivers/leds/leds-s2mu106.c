@@ -871,6 +871,23 @@ static int s2mu106_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void s2mu106_led_shutdown(struct platform_device *pdev)
+{
+	struct s2mu106_fled_data *fled_data =
+		platform_get_drvdata(pdev);
+	int chan;
+
+	if (!fled_data->i2c) {
+		pr_err("%s: no i2c client\n", __func__);
+		return;
+	}
+
+	/* Turn off all leds when power off */
+	pr_info("%s: turn off all leds\n", __func__);
+	for (chan = 1; chan <= S2MU106_CH_MAX; chan++)
+		s2mu106_fled_set_mode(fled_data, chan, S2MU106_FLED_MODE_OFF);
+}
+
 static struct platform_driver s2mu106_led_driver = {
 	.driver = {
 		.name  = "leds-s2mu106",
@@ -878,6 +895,7 @@ static struct platform_driver s2mu106_led_driver = {
 		},
 	.probe  = s2mu106_led_probe,
 	.remove = s2mu106_led_remove,
+	.shutdown = s2mu106_led_shutdown,
 };
 
 static int __init s2mu106_led_driver_init(void)
