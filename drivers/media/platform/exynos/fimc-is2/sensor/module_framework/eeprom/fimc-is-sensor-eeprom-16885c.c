@@ -58,7 +58,7 @@ int fimc_is_eeprom_16885c_check_all_crc(struct v4l2_subdev *subdev)
 
 		/* All calibration data is zero set only Address section is invalid CRC */
 		fimc_is_eeprom_cal_data_set(eeprom->data, "all",
-				EEPROM_ADD_CRC_SEC, EEPROM_DATA_SIZE, 0xff);
+				EEPROM_ADD_CRC_FST, EEPROM_DATA_SIZE, 0xff);
 
 		/*Set all cal_status to ERROR if Address cal data invalid*/
 		for (int i = 0; i < CAMERA_CRC_INDEX_MAX; i++)
@@ -75,7 +75,7 @@ int fimc_is_eeprom_16885c_check_all_crc(struct v4l2_subdev *subdev)
 
 		/* All calibration data is 0xff set but exception Address section */
 		fimc_is_eeprom_cal_data_set(eeprom->data, "Information - End",
-				EEPROM_INFO_CRC_SEC, EEPROM_ADD_CAL_SIZE, 0xff);
+				EEPROM_INFO_CRC_FST, EEPROM_ADD_CAL_SIZE, 0xff);
 
 		sensor->cal_status[CAMERA_CRC_INDEX_MNF] = CRC_ERROR;
 
@@ -91,7 +91,7 @@ int fimc_is_eeprom_16885c_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): 16885C EEPROM AWB section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "AWB",
-				EEPROM_AWB_CRC_SEC, EEPROM_AWB_CAL_SIZE, 0xff);
+				EEPROM_AWB_CRC_FST, EEPROM_AWB_CAL_SIZE, 0xff);
 
 		sensor->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_ERROR;
 
@@ -115,7 +115,7 @@ int fimc_is_eeprom_16885c_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): 16885C EEPROM LSC section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "LSC",
-				EEPROM_LSC_CRC_SEC, EEPROM_LSC_CAL_SIZE, 0xff);
+				EEPROM_LSC_CRC_FST, EEPROM_LSC_CAL_SIZE, 0xff);
 
 	} else
 		info("16885C EEPROM LSC section CRC check success\n");
@@ -126,16 +126,10 @@ int fimc_is_eeprom_16885c_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): EEPROM SFR section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "SFR",
-				EEPROM_SFR_CRC_SEC, EEPROM_SFR_CAL_SIZE, 0xff);
+				EEPROM_SFR_CRC_FST, EEPROM_SFR_CAL_SIZE, 0xff);
 
 	} else
 		info("16885C EEPROM SFR section CRC check success\n");
-
-	/* Write file to serial number of Information calibration data */
-	ret = fimc_is_eeprom_file_write(EEPROM_SERIAL_NUM_DATA_PATH,
-			(void *)&eeprom->data[EEPROM_INFO_SERIAL_NUM_START], EEPROM_INFO_SERIAL_NUM_SIZE);
-	if (ret < 0)
-		err("%s(), DUAL cal file write fail(%d)", __func__, ret);
 
 	return ret;
 }
@@ -182,9 +176,11 @@ static int fimc_is_eeprom_16885c_check_info(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_INFO_CRC_SEC] << 8) | (eeprom->data[EEPROM_INFO_CRC_FST]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_INFO_CRC_CHK_START], EEPROM_INFO_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to INFO CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("INFO CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -206,9 +202,11 @@ static int fimc_is_eeprom_16885c_check_awb(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_AWB_CRC_SEC] << 8) | (eeprom->data[EEPROM_AWB_CRC_FST]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_AWB_CRC_CHK_START], EEPROM_AWB_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to AWB CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("AWB CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -230,9 +228,11 @@ static int fimc_is_eeprom_16885c_check_lsc(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_LSC_CRC_SEC] << 8) | (eeprom->data[EEPROM_LSC_CRC_FST]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_LSC_CRC_CHK_START], EEPROM_LSC_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to LSC CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("LSC CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -254,9 +254,11 @@ static int fimc_is_eeprom_16885c_check_sfr(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_SFR_CRC_SEC] << 8) | (eeprom->data[EEPROM_SFR_CRC_FST]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_SFR_CRC_CHK_START], EEPROM_SFR_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to SFR CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("SFR CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -288,12 +290,15 @@ int fimc_is_eeprom_16885c_get_cal_data(struct v4l2_subdev *subdev)
 	 */
 	ret = fimc_is_eeprom_file_read(EEPROM_DATA_PATH, (void *)eeprom->data, EEPROM_DATA_SIZE);
 	if (ret) {
+		I2C_MUTEX_LOCK(eeprom->i2c_lock);
 		/* I2C read to Sensor EEPROM cal data */
 		ret = fimc_is_eeprom_module_read(client, EEPROM_ADD_CRC_FST, eeprom->data, EEPROM_DATA_SIZE);
 		if (ret < 0) {
 			err("%s(): eeprom i2c read failed(%d)\n", __func__, ret);
+			I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
 			return ret;
 		}
+		I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
 
 		/* CRC check to each section cal data */
 		ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
