@@ -13,7 +13,6 @@
 #define FIMC_IS_EEPROM_12A10FF_H
 
 #define EEPROM_DATA_PATH		"/data/vendor/camera/dump_12a10ff_eeprom_data.bin"
-#define EEPROM_SERIAL_NUM_DATA_PATH	"/data/vendor/camera/serial_number_12a10ff.bin"
 
 /* Total Cal data size */
 #define EEPROM_DATA_SIZE		SZ_8K
