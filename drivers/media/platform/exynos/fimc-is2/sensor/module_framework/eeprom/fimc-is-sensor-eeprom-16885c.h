@@ -13,7 +13,6 @@
 #define FIMC_IS_EEPROM_16885C_H
 
 #define EEPROM_DATA_PATH		"/data/vendor/camera/dump_16885c_eeprom_data.bin"
-#define EEPROM_SERIAL_NUM_DATA_PATH	"/data/vendor/camera/serial_number_16885c.bin"
 
 /* Total Cal data size */
 #define EEPROM_DATA_SIZE		SZ_8K
