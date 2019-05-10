@@ -54,6 +54,8 @@
 #include <linux/workqueue.h>
 
 #if defined(CONFIG_USB_OTG_SW_SWITCH)
+#include <linux/wakelock.h>
+
 #define OTG_DISABLED_DELAY_TIME  (300000*HZ/1000) /*5 min*/
 #endif
 
@@ -84,6 +86,8 @@ struct usb_notifier_platform_data {
 #if defined(CONFIG_USB_OTG_SW_SWITCH)
 	struct delayed_work usbid_work;
 	struct timer_list otg_disabled_timer;
+
+	struct wake_lock	switch_wakelock;
 #endif
 };
 
@@ -967,6 +971,9 @@ static void otg_disabled_func(unsigned long data)
 	if (!o_notify->muic_hw_switch)
 		o_notify->muic_sw_switch = SW_SWITCH_OFF;
 	cancel_delayed_work(&pdata->usbid_work);
+
+	if (wake_lock_active(&pdata->switch_wakelock))
+		wake_unlock(&pdata->switch_wakelock);
 }
 
 static void otg_usbid_work(struct work_struct *w)
@@ -992,6 +999,8 @@ static void otg_usbid_work(struct work_struct *w)
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 
+		if (wake_lock_active(&pdata->switch_wakelock))
+			wake_unlock(&pdata->switch_wakelock);
 		return;
 	}
 
@@ -1039,6 +1048,7 @@ static ssize_t otg_host_mode_enable_store(struct device *dev,
 		pr_info("%s: otg switch enabled\n", __func__);
 		o_notify->muic_sw_switch = SW_SWITCH_ON;
 
+		wake_lock(&pdata->switch_wakelock);
 		init_timer(&pdata->otg_disabled_timer);
 		pdata->otg_disabled_timer.expires = jiffies + OTG_DISABLED_DELAY_TIME;
 		pdata->otg_disabled_timer.function = otg_disabled_func;
@@ -1145,6 +1155,7 @@ static int usb_notifier_probe(struct platform_device *pdev)
 	device_create_file(&pdev->dev, &dev_attr_host_mode);
 	INIT_DELAYED_WORK(&pdata->usbid_work, otg_usbid_work);
 
+	wake_lock_init(&pdata->switch_wakelock, WAKE_LOCK_SUSPEND, "otg_sw_switch");
 #endif
 	dev_info(&pdev->dev, "usb notifier probe\n");
 	return 0;
@@ -1169,6 +1180,7 @@ static int usb_notifier_remove(struct platform_device *pdev)
 #endif
 #if defined(CONFIG_VBUS_NOTIFIER)
 	vbus_notifier_unregister(&pdata->vbus_nb);
+	wake_lock_destroy(&pdata->switch_wakelock);
 #endif
 #endif
 	return 0;
