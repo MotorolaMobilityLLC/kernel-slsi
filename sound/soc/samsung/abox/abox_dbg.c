@@ -76,7 +76,6 @@ void abox_dbg_print_gpr(struct device *dev, struct abox_data *data)
 
 struct abox_dbg_dump {
 	char sram[SZ_512K];
-	char iva[IVA_FIRMWARE_SIZE];
 	char dram[DRAM_FIRMWARE_SIZE];
 	u32 sfr[SZ_64K / sizeof(u32)];
 	u32 sfr_gic_gicd[SZ_4K / sizeof(u32)];
@@ -87,7 +86,6 @@ struct abox_dbg_dump {
 
 struct abox_dbg_dump_min {
 	char sram[SZ_512K];
-	char iva[IVA_FIRMWARE_SIZE];
 	void *dram;
 	struct page **pages;
 	u32 sfr[SZ_64K / sizeof(u32)];
@@ -231,12 +229,6 @@ void abox_dbg_dump_mem(struct device *dev, struct abox_data *data,
 		p_dump->time = sched_clock();
 		strncpy(p_dump->reason, reason, sizeof(p_dump->reason) - 1);
 		memcpy_fromio(p_dump->sram, data->sram_base, data->sram_size);
-		if (data->ima_claimed)
-			memcpy_fromio(p_dump->iva, data->ima_vaddr,
-					sizeof(p_dump->iva));
-		else
-			memcpy(p_dump->iva, data->iva_base,
-					sizeof(p_dump->iva));
 		memcpy(p_dump->dram, data->dram_base, sizeof(p_dump->dram));
 		memcpy_fromio(p_dump->sfr, data->sfr_base, sizeof(p_dump->sfr));
 		memcpy_fromio(p_dump->sfr_gic_gicd, gic_data->gicd_base,
@@ -246,12 +238,6 @@ void abox_dbg_dump_mem(struct device *dev, struct abox_data *data,
 		p_dump->time = sched_clock();
 		strncpy(p_dump->reason, reason, sizeof(p_dump->reason) - 1);
 		memcpy_fromio(p_dump->sram, data->sram_base, data->sram_size);
-		if (data->ima_claimed)
-			memcpy_fromio(p_dump->iva, data->ima_vaddr,
-					sizeof(p_dump->iva));
-		else
-			memcpy(p_dump->iva, data->iva_base,
-					sizeof(p_dump->iva));
 		memcpy_fromio(p_dump->sfr, data->sfr_base, sizeof(p_dump->sfr));
 		memcpy_fromio(p_dump->sfr_gic_gicd, gic_data->gicd_base,
 				sizeof(p_dump->sfr_gic_gicd));
@@ -276,7 +262,6 @@ void abox_dbg_dump_gpr_mem(struct device *dev, struct abox_data *data,
 
 struct abox_dbg_dump_simple {
 	char sram[SZ_512K];
-	char iva[IVA_FIRMWARE_SIZE];
 	u32 sfr[SZ_64K / sizeof(u32)];
 	u32 sfr_gic_gicd[SZ_4K / sizeof(u32)];
 	unsigned int gpr[17];
@@ -307,13 +292,6 @@ void abox_dbg_dump_simple(struct device *dev, struct abox_data *data,
 	abox_dump_simple.gpr[i++] = readl(data->sfr_base + ABOX_CPU_PC);
 	abox_dump_simple.gpr[i++] = readl(data->sfr_base + ABOX_CPU_L2C_STATUS);
 	memcpy_fromio(abox_dump_simple.sram, data->sram_base, data->sram_size);
-	if (data->ima_claimed) {
-		memcpy_fromio(abox_dump_simple.iva, data->ima_vaddr,
-				sizeof(abox_dump_simple.iva));
-	} else {
-		memcpy(abox_dump_simple.iva, data->iva_base,
-				sizeof(abox_dump_simple.iva));
-	}
 	memcpy_fromio(abox_dump_simple.sfr, data->sfr_base,
 			sizeof(abox_dump_simple.sfr));
 	memcpy_fromio(abox_dump_simple.sfr_gic_gicd, gic_data->gicd_base,
