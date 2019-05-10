@@ -450,6 +450,8 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 	int ret = 0;
 	struct fimc_is_eeprom *eeprom;
 	struct i2c_client *client;
+	char serial_id[EEPROM_INFO_SERIAL_NUM_SIZE + 1];
+	char serial_id_dump[EEPROM_INFO_SERIAL_NUM_SIZE + 1];
 
 	FIMC_BUG(!subdev);
 
@@ -463,6 +465,16 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 		ret = -EINVAL;
 		return ret;
 	}
+
+	I2C_MUTEX_LOCK(eeprom->i2c_lock);
+	ret = fimc_is_eeprom_module_read(client, EEPROM_INFO_SERIAL_NUM_START, serial_id, EEPROM_INFO_SERIAL_NUM_SIZE);
+	if (ret < 0) {
+		err("%s(): eeprom i2c read failed(%d)\n", __func__, ret);
+		I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
+		return ret;
+	}
+	I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
+	serial_id[EEPROM_INFO_SERIAL_NUM_SIZE] = '\0';
 
 	/*
 	 * If already read at EEPROM data in module
@@ -493,10 +505,44 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 			return ret;
 		}
 	} else {
-		/* CRC check to each section cal data */
-		ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
-		if (ret < 0)
-			err("%s(): eeprom data invalid(%d)\n", __func__, ret);
+		memcpy(serial_id_dump, &eeprom->data[EEPROM_INFO_SERIAL_NUM_START],
+				EEPROM_INFO_SERIAL_NUM_SIZE);
+		serial_id_dump[EEPROM_INFO_SERIAL_NUM_SIZE] = '\0';
+
+		if(memcmp(serial_id, serial_id_dump, EEPROM_INFO_SERIAL_NUM_SIZE))
+		{
+			/* Read Sensor EEPROM cause change a module */
+			info("%s() : Different new module, so read eeprom\n", __func__);
+
+			I2C_MUTEX_LOCK(eeprom->i2c_lock);
+			/* I2C read to Sensor EEPROM cal data */
+			ret = fimc_is_eeprom_module_read(client, EEPROM_ADD_CRC_FST, eeprom->data, EEPROM_DATA_SIZE);
+			if (ret < 0) {
+				err("%s(): eeprom i2c read failed(%d)\n", __func__, ret);
+				I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
+				return ret;
+			}
+			I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
+
+			/* CRC check to each section cal data */
+			ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
+			if (ret < 0)
+				err("%s(): eeprom data invalid(%d)\n", __func__, ret);
+
+			/* Write file to Cal data */
+			ret = fimc_is_eeprom_file_write(EEPROM_DATA_PATH, (void *)eeprom->data, EEPROM_DATA_SIZE);
+			if (ret < 0) {
+				err("%s(), eeprom file write fail(%d)\n", __func__, ret);
+				return ret;
+			}
+		} else {
+			info("%s(): Same module and file dump so use file dump data\n", __func__);
+
+			/* CRC check to each section cal data */
+			ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
+			if (ret < 0)
+				err("%s(): eeprom data invalid(%d)\n", __func__, ret);
+		}
 	}
 
 	return ret;
