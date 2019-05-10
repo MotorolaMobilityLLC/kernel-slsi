@@ -291,7 +291,9 @@ int sensor_5e9_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	return ret;
 }
 
-int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_sensor *device)
+int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_sensor *device,
+		u32 page_start, u32 page_end,
+		u32 page_base, u32 page_index_start, u32 page_index_end)
 {
 	int ret = 0;
 	struct fimc_is_cis *cis;
@@ -326,7 +328,7 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 	CALL_CISOPS(cis, cis_wait_streamon, subdev);
 
 	dbg_sensor(1, "%s, 3. page select & read cal", __func__);
-	for (page = OTP_PAGE_START; page <= OTP_PAGE_END; page++) {
+	for (page = page_start; page <= page_end; page++) {
 		/* page select & read start */
 		fimc_is_sensor_write8(client, OTP_PAGE_SELECT, page);
 		fimc_is_sensor_write8(client, OTP_PAGE_CTRL, 0x01);
@@ -347,8 +349,8 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 			err("%s: OTP page[%d] read fail with err(%d)\n",
 				__func__, page, val);
 
-		for (i = 0; i < OTP_PAGE_SIZE; i++) {
-			fimc_is_sensor_read8(client, OTP_PAGE_BASE + i, &device->otp_cal_buf[page][i]);
+		for (i = page_index_start; i <= page_index_end; i++) {
+			fimc_is_sensor_read8(client, page_base + i, &device->otp_cal_buf[page][i]);
 			dbg_sensor(2, "cal: [%d][0x%x]: %x\n", page, OTP_PAGE_BASE + i, device->otp_cal_buf[page][i]);
 		}
 
@@ -374,11 +376,30 @@ int sensor_5e9_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_sensor 
 	char *otp_buf = (char *)&device->otp_cal_buf[0][0];
 	char file_str[60];
 
+	u8 serial_id[OTP_SERIAL_PAGE_MAX][OTP_SERIAL_NUMBER_SIZE];
+	int i,j;
+
+	for (i = 0; i < OTP_SERIAL_PAGE_MAX; i++) {
+		ret = sensor_5e9_cis_otp_read(subdev, device,
+			i * OTP_GRP2_OFFSET + OTP_SERIAL_PAGE_START, i * OTP_GRP2_OFFSET + OTP_SERIAL_PAGE_END,
+			OTP_PAGE_BASE, OTP_SERIAL_INDEX_START, OTP_SERIAL_INDEX_END);
+		if (ret) {
+			err("Don't read to serial number at OTP");
+			goto p_err;
+		}
+		for (j = OTP_SERIAL_INDEX_START; j <= OTP_SERIAL_INDEX_END; j++) {
+			serial_id[i][j - OTP_SERIAL_INDEX_START] =
+				device->otp_cal_buf[OTP_SERIAL_PAGE_START + i * OTP_GRP2_OFFSET][j];
+		}
+	}
+
 	snprintf(file_str, sizeof(file_str), "%s%s", OTP_DATA_PATH, device->otp_filename);
 	ret = sensor_cis_otp_read_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
 	if (ret) {
-		/* OTP data read */
-		ret = sensor_5e9_cis_otp_read(subdev, device);
+		/* All OTP data read */
+		ret = sensor_5e9_cis_otp_read(subdev, device,
+				OTP_PAGE_START, OTP_PAGE_END,
+				OTP_PAGE_BASE, OTP_PAGE_START, OTP_PAGE_SIZE);
 		if (ret < 0) {
 			err("Don't read to 5E9 OTP data");
 			goto p_err;
@@ -386,10 +407,32 @@ int sensor_5e9_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_sensor 
 
 		/* Write to OTP data at file */
 		ret = sensor_cis_otp_write_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
-		if (ret < 0) {
+		if (ret < 0)
 			err("5E9 OTP data don't file write");
-			goto p_err;
-		}
+
+		goto p_err;
+	} else {
+		if (memcmp(serial_id[0], &device->otp_cal_buf[OTP_SERIAL_PAGE_START][OTP_SERIAL_INDEX_START], OTP_SERIAL_NUMBER_SIZE)
+		|| memcmp(serial_id[1], &device->otp_cal_buf[OTP_SERIAL_PAGE_START + OTP_GRP2_OFFSET][OTP_SERIAL_INDEX_START], OTP_SERIAL_NUMBER_SIZE)) {
+			info("%s() : Different new module, so read OTP\n", __func__);
+
+			/* All OTP data read */
+			ret = sensor_5e9_cis_otp_read(subdev, device,
+				OTP_PAGE_START, OTP_PAGE_END,
+				OTP_PAGE_BASE, OTP_PAGE_START, OTP_PAGE_END);
+			if (ret < 0) {
+				err("Don't read to 2x5 OTP data");
+				goto p_err;
+			}
+
+			/* Write to OTP data at file */
+			ret = sensor_cis_otp_write_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
+			if (ret < 0) {
+				err("5E9 OTP data don't file write");
+				goto p_err;
+			}
+		} else
+			info("%s(): Same module and file dump, use file dump data\n", __func__);
 	}
 
 	/* Need to first check GROUP2 */
