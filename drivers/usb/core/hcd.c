@@ -2293,12 +2293,13 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 				"suspend", status);
 	}
 
+#ifndef CONFIG_USB_OTG_SW_SWITCH
 	/* L2 suspend only support USB2.0port */
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		dev_info(&rhdev->dev, "HCD STATE IS SUSPENDED, NEED WAKE UNLOCK\n");
 		hcd->driver->wake_lock(hcd, 0);
 	}
-
+#endif
 	return status;
 }
 
@@ -2326,11 +2327,12 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 		struct usb_device *udev;
 		int port1;
 
+#ifndef CONFIG_USB_OTG_SW_SWITCH
 		if (hcd->state == HC_STATE_RESUMING) {
 			dev_info(&rhdev->dev, "HCD STATE IS RESUMING, NEED WAKE LOCK\n");
 			hcd->driver->wake_lock(hcd, 1);
 		}
-
+#endif
 		spin_lock_irq(&hcd_root_hub_lock);
 		if (!HCD_DEAD(hcd)) {
 			usb_set_device_state(rhdev, rhdev->actconfig
