@@ -434,11 +434,6 @@
 		((month - 1 + 'A') << 8) | \
 		((minor + '0') << 0))
 
-enum abox_sram {
-	ABOX_IVA_MEMORY,
-	ABOX_IVA_MEMORY_PREPARE,
-};
-
 enum abox_dai {
 	ABOX_RDMA0,
 	ABOX_RDMA1,
@@ -578,8 +573,6 @@ struct abox_data {
 	size_t sram_size;
 	void *dram_base;
 	dma_addr_t dram_base_phys;
-	void *iva_base;
-	dma_addr_t iva_base_phys;
 	void *dump_base;
 	phys_addr_t dump_base_phys;
 	struct iommu_domain *iommu_domain;
@@ -594,7 +587,6 @@ struct abox_data {
 	unsigned int calliope_version;
 	const struct firmware *firmware_sram;
 	const struct firmware *firmware_dram;
-	const struct firmware *firmware_iva;
 	struct abox_extra_firmware firmware_extra[8];
 	struct device *dev_gic;
 	struct device *dev_bt;
@@ -668,10 +660,6 @@ struct abox_data {
 	struct notifier_block itmon_nb;
 	int pm_qos_int[5];
 	int pm_qos_aud[5];
-	struct ima_client *ima_client;
-	void *ima_vaddr;
-	bool ima_claimed;
-	struct mutex ima_lock;
 	struct work_struct boot_done_work;
 	struct delayed_work tickle_work;
 	enum audio_mode audio_mode;
@@ -1028,15 +1016,6 @@ extern int abox_request_l2c_sync(struct device *dev, struct abox_data *data,
  */
 extern void abox_request_dram_on(struct platform_device *pdev_abox, void *id,
 		bool on);
-
-/**
- * claim IVA memory
- * @param[in]	dev		pointer to struct dev which invokes this API
- * @param[in]	data		pointer to abox_data structure
- * @param[out]	addr		optional argument to get physical address
- */
-extern int abox_ima_claim(struct device *dev, struct abox_data *data,
-		phys_addr_t *addr);
 
 /**
  * disable or enable qchannel of a clock
