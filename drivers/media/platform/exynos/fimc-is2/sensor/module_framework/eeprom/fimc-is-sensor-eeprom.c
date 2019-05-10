@@ -27,7 +27,7 @@ void fimc_is_eeprom_cal_data_set(char *data, char *name,
 	int i;
 
 	/* value setting to (name) cal data section */
-	for (i = addr; i < size; i++)
+	for (i = addr; i < addr + size; i++)
 		data[i] = value;
 
 	info("%s() Done: %s calibration data is %d set\n", __func__, name, value);
