@@ -823,6 +823,8 @@ struct dwc3_scratchpad_array {
 	__le64	dma_adr[DWC3_MAX_HIBER_SCRATCHBUFS];
 };
 
+#define	CHG_CONNECTED_DELAY_TIME	(10000*HZ/1000) /* 10s */
+
 /**
  * struct dwc3 - representation of our controller
  * @drd_work: workqueue used for role swapping
@@ -949,6 +951,9 @@ struct dwc3 {
 	dma_addr_t		scratch_addr;
 	struct dwc3_request	ep0_usb_req;
 	struct completion	ep0_in_setup;
+
+	/* check device state */
+	struct timer_list	usb_connect_timer;
 
 	/* device lock */
 	spinlock_t		lock;

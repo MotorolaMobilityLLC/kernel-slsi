@@ -25,6 +25,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/samsung_usb.h>
 #include <linux/mfd/samsung/s2mps18-private.h>
+#include <linux/usb/composite.h>
 #ifdef CONFIG_EXYNOS_PD
 #include <soc/samsung/exynos-pm.h>
 #endif
@@ -320,6 +321,54 @@ err1:
 	return ret;
 }
 
+static void retry_configuration(unsigned long data)
+{
+	struct dwc3 *dwc = (struct dwc3 *)data;
+	struct usb_gadget	*gadget = &dwc->gadget;
+	struct usb_composite_dev *cdev = get_gadget_data(gadget);
+	u32		reg;
+
+	pr_info("%s: +++\n", __func__);
+
+	if (!cdev->config) {
+
+		if (dwc->dr_mode == USB_DR_MODE_HOST)
+			return;
+
+		pr_info("%s: retry USB enumeration\n", __func__);
+
+		/* stop */
+		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+		reg &= ~DWC3_DCTL_RUN_STOP;
+
+		if (dwc->has_hibernation)
+			reg &= ~DWC3_DCTL_KEEP_CONNECT;
+
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+		mdelay(500);
+
+		/* run */
+		if (dwc->revision <= DWC3_REVISION_187A) {
+			reg &= ~DWC3_DCTL_TRGTULST_MASK;
+			reg |= DWC3_DCTL_TRGTULST_RX_DET;
+		}
+
+		if (dwc->revision >= DWC3_REVISION_194A)
+			reg &= ~DWC3_DCTL_KEEP_CONNECT;
+
+		reg |= DWC3_DCTL_RUN_STOP;
+
+		if (dwc->has_hibernation)
+			reg |= DWC3_DCTL_KEEP_CONNECT;
+
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+
+	} else {
+		pr_info("%s: already configuration done!!\n", __func__);
+	}
+	pr_info("%s: ---\n", __func__);
+}
+
 static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg	*otg = fsm->otg;
@@ -363,7 +412,17 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			goto err2;
 		}
 
+		pr_info("%s: start check usb configuration timer\n", __func__);
+		init_timer(&dwc->usb_connect_timer);
+		dwc->usb_connect_timer.expires = jiffies + CHG_CONNECTED_DELAY_TIME;
+		dwc->usb_connect_timer.function = retry_configuration;
+		dwc->usb_connect_timer.data = (unsigned long)dwc;
+		add_timer(&dwc->usb_connect_timer);
+
+
 	} else {
+		del_timer_sync(&dwc->usb_connect_timer);
+
 		if (dwc->is_not_vbus_pad)
 			dwc3_gadget_disconnect_proc(dwc);
 		/* avoid missing disconnect interrupt */
