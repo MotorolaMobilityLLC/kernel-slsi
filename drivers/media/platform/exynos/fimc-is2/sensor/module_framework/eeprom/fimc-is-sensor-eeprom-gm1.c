@@ -58,7 +58,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 
 		/* All calibration data is zero set only Address section is invalid CRC */
 		fimc_is_eeprom_cal_data_set(eeprom->data, "all",
-				EEPROM_ADD_CRC_SEC, EEPROM_DATA_SIZE, 0xff);
+				EEPROM_ADD_CRC_FST, EEPROM_DATA_SIZE, 0xff);
 
         /*Set all cal_status to ERROR if Address cal data invalid*/
 		for (int i = 0; i < CAMERA_CRC_INDEX_MAX; i++)
@@ -74,7 +74,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 
 		/* All calibration data is 0xff set but exception Address section */
 		fimc_is_eeprom_cal_data_set(eeprom->data, "Information - End",
-				EEPROM_INFO_CRC_SEC, EEPROM_ADD_CAL_SIZE, 0xff);
+				EEPROM_INFO_CRC_FST, EEPROM_ADD_CAL_SIZE, 0xff);
 
 		sensor->cal_status[CAMERA_CRC_INDEX_MNF] = CRC_ERROR;
 	} else {
@@ -89,7 +89,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): GM1 EEPROM AWB section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "AWB",
-				EEPROM_AWB_CRC_SEC, EEPROM_AWB_CAL_SIZE, 0xff);
+				EEPROM_AWB_CRC_FST, EEPROM_AWB_CAL_SIZE, 0xff);
 
 		sensor->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_ERROR;
 	} else {
@@ -112,7 +112,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): GM1 EEPROM AF section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "AF",
-				EEPROM_AF_CRC_SEC, EEPROM_AF_CAL_SIZE, 0xff);
+				EEPROM_AF_CRC_FST, EEPROM_AF_CAL_SIZE, 0xff);
 
 		sensor->cal_status[CAMERA_CRC_INDEX_AF] = CRC_ERROR;
 	} else {
@@ -127,7 +127,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): GM1 EEPROM LSC section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "LSC",
-				EEPROM_LSC_CRC_SEC, EEPROM_LSC_CAL_SIZE, 0xff);
+				EEPROM_LSC_CRC_FST, EEPROM_LSC_CAL_SIZE, 0xff);
 	} else
 		info("GM1 EEPROM LSC section CRC check success\n");
 
@@ -137,7 +137,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): GM1 EEPROM PDAF section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "PDAF",
-				EEPROM_PDAF_CRC_SEC, EEPROM_PDAF_CAL_SIZE, 0xff);
+				EEPROM_PDAF_CRC_FST, EEPROM_PDAF_CAL_SIZE, 0xff);
 
 		sensor->cal_status[CAMERA_CRC_INDEX_PDAF] = CRC_ERROR;
 	} else {
@@ -152,7 +152,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): GM1 EEPROM OIS section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "OIS",
-				EEPROM_OIS_CRC_SEC, EEPROM_OIS_CAL_SIZE, 0xff);
+				EEPROM_OIS_CRC_FST, EEPROM_OIS_CAL_SIZE, 0xff);
 	} else
 		info("GM1 EEPROM OIS section CRC check success\n");
 
@@ -162,7 +162,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): GM1 EEPROM AE section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "AE",
-				EEPROM_AE_CRC_SEC, EEPROM_AE_CAL_SIZE, 0xff);
+				EEPROM_AE_CRC_FST, EEPROM_AE_CAL_SIZE, 0xff);
 	} else
 		info("GM1 EEPROM AE section CRC check success\n");
 
@@ -172,7 +172,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): EEPROM Dual section check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "DUAL",
-				EEPROM_DUAL_CRC_SEC, EEPROM_DUAL_CAL_SIZE, 0xff);
+				EEPROM_DUAL_CRC_FST, EEPROM_DUAL_CAL_SIZE, 0xff);
 
 		sensor->cal_status[CAMERA_CRC_INDEX_DUAL] = CRC_ERROR;
 	} else {
@@ -187,7 +187,7 @@ int fimc_is_eeprom_gm1_check_all_crc(struct v4l2_subdev *subdev)
 		err("%s(): EEPROM SFR section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "SFR",
-				EEPROM_SFR_CRC_SEC, EEPROM_SFR_CAL_SIZE, 0xff);
+				EEPROM_SFR_CRC_FST, EEPROM_SFR_CAL_SIZE, 0xff);
 	} else
 		info("GM1 EEPROM SFR section CRC check success\n");
 
@@ -253,9 +253,11 @@ static int fimc_is_eeprom_gm1_check_info(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_INFO_CRC_FST] << 8) | (eeprom->data[EEPROM_INFO_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_INFO_CRC_CHK_START], EEPROM_INFO_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to INFO CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("INFO CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -277,9 +279,11 @@ static int fimc_is_eeprom_gm1_check_awb(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_AWB_CRC_FST] << 8) | (eeprom->data[EEPROM_AWB_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_AWB_CRC_CHK_START], EEPROM_AWB_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to AWB CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("AWB CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -301,9 +305,11 @@ static int fimc_is_eeprom_gm1_check_af(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_AF_CRC_FST] << 8) | (eeprom->data[EEPROM_AF_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_AF_CRC_CHK_START], EEPROM_AF_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to AF CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("AF CRC16: %x, cal_buffer CRC: %x\n", crc16, crc_value);
 
 	return ret;
@@ -325,9 +331,11 @@ static int fimc_is_eeprom_gm1_check_ae(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_AE_CRC_FST] << 8) | (eeprom->data[EEPROM_AE_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_AE_CRC_CHK_START], EEPROM_AE_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to AE CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("AE CRC16: %x, cal_buffer CRC: %x\n", crc16, crc_value);
 
 	return ret;
@@ -349,9 +357,11 @@ static int fimc_is_eeprom_gm1_check_lsc(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_LSC_CRC_FST] << 8) | (eeprom->data[EEPROM_LSC_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_LSC_CRC_CHK_START], EEPROM_LSC_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to LSC CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("LSC CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -375,9 +385,11 @@ static int fimc_is_eeprom_gm1_check_ois(struct v4l2_subdev *subdev)
 
 	crc16_dvt = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_OIS_CRC_CHK_START], EEPROM_OIS_CRC_CHK_SIZE);
 	crc16_pvt = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_OIS_CRC_CHK_START], EEPROM_OIS_CRC_CHK_SIZE + 4);
-	if ((crc_value != crc16_dvt) && (crc_value != crc16_pvt))
+	if ((crc_value != crc16_dvt) && (crc_value != crc16_pvt)) {
 		err("Error to OIS CRC16 dvt 0x%x, pvt:0x%x, cal_buffer CRC: 0x%x", crc16_dvt, crc16_pvt, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("OIS CRC16 dvt 0x%x, pvt:0x%x, cal_buffer CRC: 0x%x\n", crc16_dvt, crc16_pvt, crc_value);
 
 	return ret;
@@ -399,9 +411,11 @@ static int fimc_is_eeprom_gm1_check_pdaf(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_PDAF_CRC_FST] << 8) | (eeprom->data[EEPROM_PDAF_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_PDAF_CRC_CHK_START], EEPROM_PDAF_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to PDAF CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("PDAF CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -423,9 +437,11 @@ static int fimc_is_eeprom_gm1_check_dual(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_DUAL_CRC_FST] << 8) | (eeprom->data[EEPROM_DUAL_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_DUAL_CRC_CHK_START], EEPROM_DUAL_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to DUAL CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("DUAL CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
@@ -447,9 +463,11 @@ static int fimc_is_eeprom_gm1_check_sfr(struct v4l2_subdev *subdev)
 	crc_value = ((eeprom->data[EEPROM_SFR_CRC_FST] << 8) | (eeprom->data[EEPROM_SFR_CRC_SEC]));
 
 	crc16 = fimc_is_sensor_eeprom_check_crc(&eeprom->data[EEPROM_SFR_CRC_CHK_START], EEPROM_SFR_CRC_CHK_SIZE);
-	if (crc_value != crc16)
+	if (crc_value != crc16) {
 		err("Error to SFR CRC16: 0x%x, cal_buffer CRC: 0x%x", crc16, crc_value);
-	else
+
+		ret = -EINVAL;
+	} else
 		info("SFR CRC16: 0x%x, cal_buffer CRC: 0x%x\n", crc16, crc_value);
 
 	return ret;
