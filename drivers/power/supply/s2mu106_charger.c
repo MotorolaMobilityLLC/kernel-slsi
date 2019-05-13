@@ -831,6 +831,48 @@ static irqreturn_t s2mu106_event_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t s2mu106_ivr_isr(int irq, void *data)
+{
+	struct s2mu106_charger_data *charger = data;
+	union power_supply_propval value;
+	struct power_supply *psy;
+	int ret = 0;
+	u8 sts;
+	int input_curr;
+
+	s2mu106_read_reg(charger->i2c, S2MU106_CHG_STATUS5, &sts);
+
+	pr_info("%s: IVR interrupt! STATUS5:0x%02x\n", __func__, sts);
+
+	psy = power_supply_get_by_name("s2mu106_pmeter");
+	if (!psy)
+		return -EINVAL;
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ICHGIN, &value);
+	if (ret < 0) {
+		pr_err("%s: Fail to execute property\n", __func__);
+		return IRQ_HANDLED;
+	}
+
+	input_curr = value.intval;
+	pr_info("%s: input_curr = %d, cable_type = %d\n",
+			__func__, input_curr, charger->cable_type);
+
+	/* cable_type / status check */
+	if (charger->cable_type == POWER_SUPPLY_TYPE_HV_MAINS &&
+			(sts & IVR_STATUS_MASK)) {
+		input_curr = input_curr - (input_curr % 100);
+		input_curr -= HV_MAINS_IVR_STEP;
+
+		if (input_curr < HV_MAINS_IVR_INPUT)
+			input_curr = HV_MAINS_IVR_INPUT;
+
+		s2mu106_set_input_current_limit(charger, input_curr);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t s2mu106_ovp_isr(int irq, void *data)
 {
 	struct s2mu106_charger_data *charger = data;
@@ -1039,7 +1081,7 @@ static int s2mu106_charger_probe(struct platform_device *pdev)
 
 	charger->irq_ivr = pdata->irq_base + S2MU106_CHG2_IRQ_IVR;
 	ret = request_threaded_irq(charger->irq_ivr, NULL,
-			s2mu106_event_isr, 0, "ivr-irq", charger);
+			s2mu106_ivr_isr, 0, "ivr-irq", charger);
 	if (ret < 0) {
 		dev_err(s2mu106->dev, "%s: Fail to request IVR in IRQ: %d: %d\n",
 				__func__, charger->irq_ivr, ret);
