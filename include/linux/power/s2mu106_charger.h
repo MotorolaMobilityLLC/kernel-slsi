@@ -261,6 +261,9 @@
 
 #define FAKE_BAT_LEVEL          50
 
+#define HV_MAINS_IVR_INPUT		2000
+#define HV_MAINS_IVR_STEP		300
+
 enum {
 	CHIP_ID = 0,
 };
