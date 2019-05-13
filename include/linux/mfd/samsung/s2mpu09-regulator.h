@@ -273,6 +273,7 @@ enum s2mpu09_irq_source {
 };
 
 #define S2MPU09_NUM_IRQ_PMIC_REGS	5
+#define S2MPU09_NUM_SC_LDO_IRQ		6
 
 enum s2mpu09_irq {
 	/* PMIC */
