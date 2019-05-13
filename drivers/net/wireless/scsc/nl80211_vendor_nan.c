@@ -1359,7 +1359,7 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 		kfree(stitched_ie_p);
 		return;
 	}
-	memset(&hal_evt, 0, sizeof(hal_evt));
+	memset(hal_evt, 0, sizeof(*hal_evt));
 	stitched_ie_len = slsi_nan_stitch_ie(fapi_get_data(skb), stitched_ie_len, 0x050b, stitched_ie_p);
 	if (!stitched_ie_len) {
 		SLSI_ERR(sdev, "No followup ind IE\n");
@@ -1448,7 +1448,6 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 	struct slsi_hal_nan_receive_post_discovery *discovery_attr;
 	struct slsi_hal_nan_further_availability_channel *famchan;
 	struct nlattr *nlattr_nested;
-
 
 	SLSI_DBG3(sdev, SLSI_GSCAN, "\n");
 
