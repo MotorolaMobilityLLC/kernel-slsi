@@ -29,9 +29,12 @@
 #include <linux/mutex.h>
 #include <linux/debug-snapshot.h>
 #include <linux/debugfs.h>
+#include <linux/interrupt.h>
 
 static struct s2mpu09_info *static_info;
 static struct regulator_desc regulators[S2MPU09_REGULATOR_MAX];
+static char sc_ldo_irq_name [S2MPU09_NUM_SC_LDO_IRQ][20] =
+	{"SC_LDO2_IRQ", "SC_LDO18_IRQ", "SC_LDO19_IRQ", "SC_LDO33_IRQ", "SC_LDO34_IRQ", "SC_LDO35_IRQ"};
 
 #ifdef CONFIG_DEBUG_FS
 static u8 i2caddr = 0;
@@ -49,6 +52,7 @@ struct s2mpu09_info {
 	struct s2mpu09_dev *iodev;
 	struct mutex lock;
 	struct i2c_client *i2c;
+	int sc_ldo_irq[S2MPU09_NUM_SC_LDO_IRQ];
 };
 
 static unsigned int s2mpu09_of_map_mode(unsigned int val) {
@@ -282,6 +286,24 @@ static int s2m_set_voltage_time_sel(struct regulator_dev *rdev,
 		return DIV_ROUND_UP(new_volt - old_volt, ramp_delay);
 
 	return 0;
+}
+
+static irqreturn_t s2mpu09_sc_ldo_irq(int irq, void *data)
+{
+	int i;
+
+	for (i = 0; i <S2MPU09_NUM_SC_LDO_IRQ; i++) {
+		if(irq == static_info->sc_ldo_irq[i])
+			break;
+	}
+
+	if (i == S2MPU09_NUM_SC_LDO_IRQ) {
+		pr_err("%s : wrong irq num\n", __func__);
+		return IRQ_HANDLED;
+	}
+
+	pr_info("%s : %s\n", __func__, sc_ldo_irq_name[i]);
+	return IRQ_HANDLED;
 }
 
 static struct regulator_ops s2mpu09_ldo_ops = {
@@ -622,6 +644,7 @@ static int s2mpu09_pmic_probe(struct platform_device *pdev)
 	struct s2mpu09_info *s2mpu09;
 	int i, ret;
 	u8 val;
+	int irq_base;
 
 	pr_info("%s s2mpu09 pmic driver Loading start\n", __func__);
 
@@ -640,6 +663,12 @@ static int s2mpu09_pmic_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!s2mpu09)
 		return -ENOMEM;
+
+	irq_base = pdata->irq_base;
+	if (!irq_base) {
+		dev_err(&pdev->dev, "Failed to get irq base %d\n", irq_base);
+		return -ENODEV;
+	}
 
 	s2mpu09->iodev = iodev;
 	s2mpu09->i2c = iodev->pmic;
@@ -692,6 +721,17 @@ static int s2mpu09_pmic_probe(struct platform_device *pdev)
 	pr_info("%s: PWRONSRC 0x%x ", __func__, val);
 	s2mpu09_read_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_OFFSRC, &val);
 	pr_info("OFFSRC 0x%x\n", __func__, val);
+
+	for (i = 0; i < S2MPU09_NUM_SC_LDO_IRQ; i++) {
+		s2mpu09->sc_ldo_irq[i] = irq_base + S2MPU09_PMIC_IRQ_SCLDO2_INT5 + i;
+
+		ret = devm_request_threaded_irq(&pdev->dev, s2mpu09->sc_ldo_irq[i], NULL,
+			s2mpu09_sc_ldo_irq, 0, sc_ldo_irq_name[i], s2mpu09);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to request SC LDO IRQ: %d: %d\n",
+				s2mpu09->sc_ldo_irq[i], ret);
+		}
+	}
 
 	pr_info("%s s2mpu09 pmic driver Loading end\n", __func__);
 	s2mpu09_update_reg(s2mpu09->i2c, S2MPU09_PMIC_REG_RTCBUF, 0x4, 0x4);
