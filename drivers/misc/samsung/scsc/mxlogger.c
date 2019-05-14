@@ -243,6 +243,10 @@ static int __mxlogger_generate_sync_record(struct mxlogger *mxlogger, enum mxlog
 	void *mem;
 	ktime_t t1, t2;
 
+	/* Assume mxlogger->lock mutex is held */
+	if (!mxlogger || !mxlogger->configured)
+		return -EIO;
+
 	msg.msg = MM_MXLOGGER_SYNC_RECORD;
 	msg.arg = MM_MXLOGGER_SYNC_INDEX;
 	memcpy(&msg.payload, &mxlogger->sync_buffer_index, sizeof(mxlogger->sync_buffer_index));
@@ -398,12 +402,15 @@ static int mxlogger_send_config(struct mxlogger *mxlogger)
 
 static void mxlogger_to_shared_dram(struct mxlogger *mxlogger)
 {
+	int r;
 	struct log_msg_packet msg = { .msg = MM_MXLOGGER_DIRECTION_CMD,
 				      .arg = MM_MXLOGGER_DIRECTION_DRAM };
 
 	SCSC_TAG_INFO(MXMAN, "MXLOGGER -- NO active observers detected. Send logs to DRAM\n");
 
-	__mxlogger_generate_sync_record(mxlogger, MXLOGGER_SYN_TORAM);
+	r = __mxlogger_generate_sync_record(mxlogger, MXLOGGER_SYN_TORAM);
+	if (r)
+		return;	/* mxlogger is not configured */
 
 	mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxlogger->mx),
 			      MMTRANS_CHAN_ID_MAXWELL_LOGGING,
@@ -412,12 +419,15 @@ static void mxlogger_to_shared_dram(struct mxlogger *mxlogger)
 
 static void mxlogger_to_host(struct mxlogger *mxlogger)
 {
+	int r;
 	struct log_msg_packet msg = { .msg = MM_MXLOGGER_DIRECTION_CMD,
 				      .arg = MM_MXLOGGER_DIRECTION_HOST };
 
 	SCSC_TAG_INFO(MXMAN, "MXLOGGER -- active observers detected. Send logs to host\n");
 
-	__mxlogger_generate_sync_record(mxlogger, MXLOGGER_SYN_TOHOST);
+	r = __mxlogger_generate_sync_record(mxlogger, MXLOGGER_SYN_TOHOST);
+	if (r)
+		return; /* mxlogger is not configured */
 
 	mxmgmt_transport_send(scsc_mx_get_mxmgmt_transport(mxlogger->mx),
 			      MMTRANS_CHAN_ID_MAXWELL_LOGGING,
@@ -805,9 +815,11 @@ void mxlogger_deinit(struct scsc_mx *mx, struct mxlogger *mxlogger)
 	scsc_log_collector_unregister_client(&mxlogger_collect_client_udi);
 #endif
 	mutex_lock(&mxlogger->lock);
+
+	mxlogger_to_host(mxlogger);	/* immediately before deconfigure to get a last sync rec */
 	mxlogger->configured = false;
 	mxlogger->initialized = false;
-	mxlogger_to_host(mxlogger);
+
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 	scsc_log_collector_is_observer(true);
 #endif
