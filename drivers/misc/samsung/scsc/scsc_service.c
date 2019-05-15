@@ -252,7 +252,7 @@ int scsc_mx_service_start(struct scsc_service *service, scsc_mifram_ref ref)
 	int                 r;
 	struct timeval tval = {};
 
-	SCSC_TAG_INFO(MXMAN, "\n");
+	SCSC_TAG_INFO(MXMAN, "%d\n", service->id);
 #ifdef CONFIG_SCSC_CHV_SUPPORT
 	if (chv_run)
 		return 0;
@@ -346,7 +346,7 @@ int scsc_mx_service_stop(struct scsc_service *service)
 	int r;
 	struct timeval tval = {};
 
-	SCSC_TAG_INFO(MXMAN, "\n");
+	SCSC_TAG_INFO(MXMAN, "%d\n", service->id);
 #ifdef CONFIG_SCSC_CHV_SUPPORT
 	if (chv_run)
 		return 0;
@@ -519,7 +519,8 @@ int scsc_mx_service_close(struct scsc_service *service)
 	bool           empty;
 	struct timeval tval = {};
 
-	SCSC_TAG_INFO(MXMAN, "\n");
+	SCSC_TAG_INFO(MXMAN, "%d\n", service->id);
+
 	mutex_lock(&srvman->api_access_mutex);
 #ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
@@ -581,7 +582,7 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 	bool                empty;
 	struct timeval tval = {};
 
-	SCSC_TAG_INFO(MXMAN, "\n");
+	SCSC_TAG_INFO(MXMAN, "%d\n", service->id);
 
 	mutex_lock(&srvman->api_access_mutex);
 #ifdef CONFIG_ANDROID
@@ -964,6 +965,8 @@ EXPORT_SYMBOL(scsc_service_get_device_by_mx);
 int scsc_service_force_panic(struct scsc_service *service)
 {
 	struct mxman   *mxman = scsc_mx_get_mxman(service->mx);
+
+	SCSC_TAG_INFO(MXMAN, "%d\n", service->id);
 
 	return mxman_force_panic(mxman);
 }
