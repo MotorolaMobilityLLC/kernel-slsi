@@ -694,7 +694,7 @@ int sensor_cis_otp_write_file(const char *file_name, const void *data, unsigned 
 
 	pr_info("%s(), open file %s\n", __func__, file_name);
 
-	fp = filp_open(file_name, O_WRONLY|O_CREAT, 0644);
+	fp = filp_open(file_name, O_WRONLY | O_CREAT | O_TRUNC | O_SYNC, 0644);
 	if (IS_ERR(fp)) {
 		ret = PTR_ERR(fp);
 		pr_err("%s(): open file error(%d)\n", __func__, ret);
