@@ -335,6 +335,11 @@ static void retry_configuration(unsigned long data)
 		if (dwc->dr_mode == USB_DR_MODE_HOST)
 			return;
 
+		if (dwc->retry_cnt > MAX_RETRY_CNT) {
+			pr_err("%s: Re-try 5 times, But usb enumeration fail\n");
+			return;
+		}
+
 		pr_info("%s: retry USB enumeration\n", __func__);
 
 		/* stop */
@@ -363,10 +368,18 @@ static void retry_configuration(unsigned long data)
 
 		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
+		dwc->retry_cnt += 1;
+		goto retry_check;
+
 	} else {
 		pr_info("%s: already configuration done!!\n", __func__);
+		return;
 	}
+
 	pr_info("%s: ---\n", __func__);
+
+retry_check:
+	mod_timer(&dwc->usb_connect_timer, jiffies + CHG_CONNECTED_DELAY_TIME);
 }
 
 static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
@@ -417,10 +430,12 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		dwc->usb_connect_timer.expires = jiffies + CHG_CONNECTED_DELAY_TIME;
 		dwc->usb_connect_timer.function = retry_configuration;
 		dwc->usb_connect_timer.data = (unsigned long)dwc;
+		dwc->retry_cnt = 0;
 		add_timer(&dwc->usb_connect_timer);
 
 
 	} else {
+		dwc->retry_cnt = MAX_RETRY_CNT;
 		del_timer_sync(&dwc->usb_connect_timer);
 
 		if (dwc->is_not_vbus_pad)

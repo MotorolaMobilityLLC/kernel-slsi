@@ -823,7 +823,8 @@ struct dwc3_scratchpad_array {
 	__le64	dma_adr[DWC3_MAX_HIBER_SCRATCHBUFS];
 };
 
-#define	CHG_CONNECTED_DELAY_TIME	(10000*HZ/1000) /* 10s */
+#define	CHG_CONNECTED_DELAY_TIME	(3000*HZ/1000) /* 3s */
+#define MAX_RETRY_CNT			5
 
 /**
  * struct dwc3 - representation of our controller
@@ -954,6 +955,7 @@ struct dwc3 {
 
 	/* check device state */
 	struct timer_list	usb_connect_timer;
+	int			retry_cnt;
 
 	/* device lock */
 	spinlock_t		lock;
