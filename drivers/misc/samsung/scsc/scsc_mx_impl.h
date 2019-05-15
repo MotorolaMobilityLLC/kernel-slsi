@@ -19,7 +19,6 @@ struct mxman;
 struct srvman;
 struct mxmgmt_transport;
 struct mxproc;
-struct mxfwconfig;
 
 struct scsc_mx          *scsc_mx_create(struct scsc_mif_abs *mif);
 void scsc_mx_destroy(struct scsc_mx *mx);
@@ -48,8 +47,6 @@ struct mxlog_transport  *scsc_mx_get_mxlog_transport(struct scsc_mx *mx);
 struct mxlogger         *scsc_mx_get_mxlogger(struct scsc_mx *mx);
 struct panicmon         *scsc_mx_get_panicmon(struct scsc_mx *mx);
 struct suspendmon	*scsc_mx_get_suspendmon(struct scsc_mx *mx);
-struct mxfwconfig	*scsc_mx_get_mxfwconfig(struct scsc_mx *mx);
-
 int mx140_file_download_fw(struct scsc_mx *mx, void *dest, size_t dest_size, u32 *fw_image_size);
 int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **firmp);
 int mx140_release_file(struct scsc_mx *mx, const struct firmware *firmp);

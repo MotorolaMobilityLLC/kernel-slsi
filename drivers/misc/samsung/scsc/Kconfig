@@ -162,10 +162,3 @@ config SCSC_LOG_COLLECTION
 	---help---
 	  Enable LOG collection to collect Chunks (host and FW) and generate a SBL file
 
-config SCSC_COMMON_HCF
-	bool "Enable Common HCF loader"
-	depends on SCSC_CORE
-	default n
-	---help---
-	  Enable Common HCF loader
-
