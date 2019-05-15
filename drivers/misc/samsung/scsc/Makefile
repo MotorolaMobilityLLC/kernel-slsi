@@ -87,9 +87,8 @@ scsc_mx-$(CONFIG_SCSC_CORE_CM) += \
 	mifstream.o \
 	mxmgmt_transport.o \
 	gdb_transport.o \
-	scsc_lerna.o \
-	mxfwconfig.o \
-	mx140_file.o
+	mx140_file.o \
+	scsc_lerna.o
 
 # Maxwell logger
 scsc_mx-$(CONFIG_SCSC_MXLOGGER) += mxlogger.o
