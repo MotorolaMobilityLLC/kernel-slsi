@@ -464,6 +464,7 @@ struct fimc_is_device_sensor {
 	const char				*otp_filename;
 	u32					cal_status[CAMERA_CRC_INDEX_MAX];
 	u8					otp_cal_buf[SENSOR_OTP_PAGE][SENSOR_OTP_PAGE_SIZE];
+	u32					otp_file_write;
 };
 
 int fimc_is_sensor_open(struct fimc_is_device_sensor *device,
