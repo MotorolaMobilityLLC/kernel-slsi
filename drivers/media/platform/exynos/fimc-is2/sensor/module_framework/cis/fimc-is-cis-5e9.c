@@ -368,6 +368,40 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 	return ret;
 }
 
+int sensor_5e9_cis_otp_group_check(struct fimc_is_device_sensor *device)
+{
+	char *otp_buf = (char *)&device->otp_cal_buf[0][0];
+	int otp_group = 0;
+
+	if (otp_buf[OTP_GRP_FLAG + OTP_GRP2_OFFSET * OTP_PAGE_SIZE] == OTP_DATA_VALID)
+		otp_group = OTP_GROUP_TWO;
+	else if (otp_buf[OTP_GRP_FLAG] == OTP_DATA_VALID)
+		otp_group = OTP_GROUP_ONE;
+	else
+		err("All OTP data are invalid, check module");
+
+	return otp_group;
+
+}
+
+int sensor_5e9_cis_otp_offset_check(int otp_group)
+{
+	int offset = -1;
+
+	switch (otp_group) {
+		case OTP_GROUP_TWO:
+			offset = OTP_GRP2_OFFSET * OTP_PAGE_SIZE;
+			break;
+		case OTP_GROUP_ONE:
+			offset = 0;
+			break;
+		default:
+			break;
+	}
+
+	return offset;
+}
+
 int sensor_5e9_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_sensor *device)
 {
 	int ret = 0;
@@ -375,27 +409,9 @@ int sensor_5e9_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_sensor 
 	int offset = 0;
 	char *otp_buf = (char *)&device->otp_cal_buf[0][0];
 	char file_str[60];
+	int recheck_flag = 0;
 
-	u8 serial_id[OTP_SERIAL_PAGE_MAX][OTP_SERIAL_NUMBER_SIZE];
-	int i,j;
-
-	for (i = 0; i < OTP_SERIAL_PAGE_MAX; i++) {
-		ret = sensor_5e9_cis_otp_read(subdev, device,
-			i * OTP_GRP2_OFFSET + OTP_SERIAL_PAGE_START, i * OTP_GRP2_OFFSET + OTP_SERIAL_PAGE_END,
-			OTP_PAGE_BASE, OTP_SERIAL_INDEX_START, OTP_SERIAL_INDEX_END);
-		if (ret) {
-			err("Don't read to serial number at OTP");
-			goto p_err;
-		}
-		for (j = OTP_SERIAL_INDEX_START; j <= OTP_SERIAL_INDEX_END; j++) {
-			serial_id[i][j - OTP_SERIAL_INDEX_START] =
-				device->otp_cal_buf[OTP_SERIAL_PAGE_START + i * OTP_GRP2_OFFSET][j];
-		}
-	}
-
-	snprintf(file_str, sizeof(file_str), "%s%s", OTP_DATA_PATH, device->otp_filename);
-	ret = sensor_cis_otp_read_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
-	if (ret) {
+	if (!device->otp_file_write) {
 		/* All OTP data read */
 		ret = sensor_5e9_cis_otp_read(subdev, device,
 				OTP_PAGE_START, OTP_PAGE_END,
@@ -405,58 +421,67 @@ int sensor_5e9_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_sensor 
 			goto p_err;
 		}
 
+		otp_group = sensor_5e9_cis_otp_group_check(device);
+		if (!otp_group) {
+			ret = -EINVAL;
+			goto p_err;
+		}
+
+		offset = sensor_5e9_cis_otp_offset_check(otp_group);
+		ret = sensor_5e9_cis_otp_check_crc(subdev, device, offset);
+		if (ret < 0) {
+			err("OTP data CRC check fail, check module");
+			goto p_err;
+		}
+
+		snprintf(file_str, sizeof(file_str), "%s%s", OTP_DATA_PATH, device->otp_filename);
 		/* Write to OTP data at file */
 		ret = sensor_cis_otp_write_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
 		if (ret < 0)
 			err("5E9 OTP data don't file write");
-
+		else {
+			info("success to write 5E9 OTP file\n");
+			device->otp_file_write = 1;
+		}
 		goto p_err;
-	} else {
-		if (memcmp(serial_id[0], &device->otp_cal_buf[OTP_SERIAL_PAGE_START][OTP_SERIAL_INDEX_START], OTP_SERIAL_NUMBER_SIZE)
-		|| memcmp(serial_id[1], &device->otp_cal_buf[OTP_SERIAL_PAGE_START + OTP_GRP2_OFFSET][OTP_SERIAL_INDEX_START], OTP_SERIAL_NUMBER_SIZE)) {
-			info("%s() : Different new module, so read OTP\n", __func__);
+	}
 
-			/* All OTP data read */
-			ret = sensor_5e9_cis_otp_read(subdev, device,
+	otp_group = sensor_5e9_cis_otp_group_check(device);
+	if (!otp_group) {
+reloading:
+		err("reload OTP data\n");
+		recheck_flag++;
+		ret = sensor_5e9_cis_otp_read(subdev, device,
 				OTP_PAGE_START, OTP_PAGE_END,
-				OTP_PAGE_BASE, OTP_PAGE_START, OTP_PAGE_END);
-			if (ret < 0) {
-				err("Don't read to 2x5 OTP data");
-				goto p_err;
-			}
+				OTP_PAGE_BASE, OTP_PAGE_START, OTP_PAGE_SIZE);
+		if (ret < 0) {
+			err("Don't read to 5E9 OTP data");
+			goto p_err;
+		}
 
-			/* Write to OTP data at file */
-			ret = sensor_cis_otp_write_file(file_str, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 64);
-			if (ret < 0) {
-				err("5E9 OTP data don't file write");
-				goto p_err;
-			}
-		} else
-			info("%s(): Same module and file dump, use file dump data\n", __func__);
+		otp_group = sensor_5e9_cis_otp_group_check(device);
+		if (!otp_group) {
+			ret = -EINVAL;
+			goto p_err;
+		}
 	}
-
-	/* Need to first check GROUP2 */
-	if (otp_buf[OTP_GRP_FLAG + OTP_GRP2_OFFSET * OTP_PAGE_SIZE] == OTP_DATA_VALID) {
-		otp_group = OTP_GROUP_TWO;
-		offset = OTP_GRP2_OFFSET * OTP_PAGE_SIZE;
-	} else if (otp_buf[OTP_GRP_FLAG] == OTP_DATA_VALID) {
-		otp_group = OTP_GROUP_ONE;
-		offset = 0;
-	} else {
-		err("All OTP data are invalid, check module");
-		goto p_err;
-	}
+	offset = sensor_5e9_cis_otp_offset_check(otp_group);
 
 	/* OTP CRC check */
 	ret = sensor_5e9_cis_otp_check_crc(subdev, device, offset);
 	if (ret < 0) {
-		err("All OTP data CRC check fail, check module");
+		err("OTP data CRC check fail, check module");
+		err("try to reload OTP data\n");
+		/* All OTP data read */
+		if (!recheck_flag)
+			goto reloading;
 
 		device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_ERROR;
 		goto p_err;
 	} else {
 		u8 *awb_base = &otp_buf[offset + OTP_GRP_AWB_CHKSUM];
 
+		info("OTP data CRC check success\n");
 		device->cal_status[CAMERA_CRC_INDEX_AWB] = CRC_NO_ERROR;
 		ret = sensor_5e9_cis_otp_check_awb_ratio(&awb_base[CURRENT_RG_RATIO_OFFSET],
 				&awb_base[MASTER_RG_RATIO_OFFSET],
@@ -2410,6 +2435,7 @@ static int cis_5e9_probe(struct i2c_client *client,
 		}
 		probe_info("%s otp_filename(%s)\n", __func__, device->otp_filename);
 	}
+	device->otp_file_write = 0;
 
 	for (i = 0; i < CAMERA_CRC_INDEX_MAX; i++)
 		device->cal_status[i] = CRC_NO_ERROR;
