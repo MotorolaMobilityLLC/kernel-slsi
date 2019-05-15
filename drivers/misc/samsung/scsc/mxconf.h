@@ -48,7 +48,7 @@
  *  mismatches.
  */
 #define MXCONF_VERSION_MAJOR 0
-#define MXCONF_VERSION_MINOR 4 /* For Common HCF override */
+#define MXCONF_VERSION_MINOR 3 /* For FM status */
 
 /* Types */
 
@@ -107,16 +107,6 @@ struct mxlogconf
 	struct mxstreamconf stream_conf;
 } __MXPACKED;
 
-
-/**
- * Maxwell Infrastructure Configuration Override (HCF block)
- */
-struct mxmibref {
-	uint32_t offset;
-	uint32_t size;
-} __MXPACKED;
-
-
 /**
  * Maxwell Infrastructure Configuration
  */
@@ -167,13 +157,6 @@ struct mxconf {
 	 */
 #define MXCONF_FLAGS_FM_ON	(BIT(0))	/* FM already on */
 	uint32_t flags;
-
-	/* FROM MINOR_4 */
-
-	/**
-	 * Common HCF offset
-	 */
-	struct mxmibref fwconfig;
 
 } __MXPACKED;
 

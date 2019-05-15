@@ -222,7 +222,6 @@ ADD_DEBUG_MODULE_PARAM(kic_common, SCSC_FULL_DEBUG, KIC_COMMON);
 ADD_DEBUG_MODULE_PARAM(wlbtd, SCSC_FULL_DEBUG, WLBTD);
 ADD_DEBUG_MODULE_PARAM(wlog, SCSC_DEBUG, WLOG);
 ADD_DEBUG_MODULE_PARAM(lerna, SCSC_FULL_DEBUG, LERNA);
-ADD_DEBUG_MODULE_PARAM(mxcfg, SCSC_FULL_DEBUG, MX_CFG);
 #ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
 ADD_DEBUG_MODULE_PARAM(init_deinit,  SCSC_FULL_DEBUG, SLSI_INIT_DEINIT);
 ADD_DEBUG_MODULE_PARAM(netdev,  SCSC_DBG4, SLSI_NETDEV);
@@ -297,7 +296,6 @@ int *scsc_droplevels[] = {
 	&scsc_droplevel_wlbtd,
 	&scsc_droplevel_wlog,
 	&scsc_droplevel_lerna,
-	&scsc_droplevel_mxcfg,
 #ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
 	&scsc_droplevel_init_deinit,
 	&scsc_droplevel_netdev,
