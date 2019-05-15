@@ -45,6 +45,7 @@
 
 #define FMT_WAKE_TIME	(HZ/2)
 #define RAW_WAKE_TIME	(HZ*6)
+#define NET_WAKE_TIME	(HZ/2)
 
 struct mif_log log_info;
 
@@ -243,17 +244,17 @@ static int attach_devices(struct io_device *iod, enum modem_link tx_link)
 
 	case IPC_RAW:
 		wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
-		iod->waketime = RAW_WAKE_TIME;
+		iod->waketime = NET_WAKE_TIME;
 		break;
 
 	case IPC_RFS:
 		wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
-		iod->waketime = RAW_WAKE_TIME;
+		iod->waketime = FMT_WAKE_TIME;
 		break;
 
 	case IPC_MULTI_RAW:
 		wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
-		iod->waketime = RAW_WAKE_TIME;
+		iod->waketime = NET_WAKE_TIME;
 		break;
 
 	case IPC_BOOT:
