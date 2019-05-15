@@ -202,6 +202,8 @@ struct fimc_is_eeprom {
 
 	char					*data;
 	u32					total_size;
+
+	u32					file_write;
 };
 
 #define FLASH_LED_CH_MAX	(4)

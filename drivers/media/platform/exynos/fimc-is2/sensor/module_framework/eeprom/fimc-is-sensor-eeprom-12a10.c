@@ -34,6 +34,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	struct fimc_is_module_enum *module;
 	struct fimc_is_eeprom *eeprom = NULL;
 	struct fimc_is_device_sensor *sensor = NULL;
+	int ret_sum = 0;
 
 	FIMC_BUG(!subdev);
 
@@ -70,6 +71,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	/* Check CRC to Information cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_info, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): 12A10 EEPROM Information CRC section check fail(%d)", __func__, ret);
 
 		/* All calibration data is 0xff set but exception Address section */
@@ -81,11 +83,12 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 		info("12A10 EEPROM Informaion section CRC check success\n");
 
 		sensor->cal_status[CAMERA_CRC_INDEX_MNF] = CRC_NO_ERROR;
-    }
+	}
 
 	/* Check CRC to AWB cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_awb, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): 12A10 EEPROM AWB section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "AWB",
@@ -100,6 +103,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 		ret = fimc_is_sensor_eeprom_check_awb_ratio(&eeprom->data[EEPROM_AWB_UNIT_OFFSET],
 			&eeprom->data[EEPROM_AWB_GOLDEN_OFFSET],&eeprom->data[EEPROM_AWB_LIMIT_OFFSET]);
 		if (ret) {
+			ret_sum++;
 			err("%s(): 12A10 EEPROM AWB ratio out of limit(%d)", __func__, ret);
 
 			sensor->cal_status[CAMERA_CRC_INDEX_AWB] = LIMIT_FAILURE;
@@ -109,6 +113,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	/* Check CRC to AF cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_af, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): 12A10 EEPROM AF section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "AF",
@@ -124,6 +129,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	/* Check CRC to LSC cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_lsc, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): 12A10 EEPROM LSC section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "LSC",
@@ -134,6 +140,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	/* Check CRC to PDAF cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_pdaf, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): 12A10 EEPROM PDAF section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "PDAF",
@@ -149,6 +156,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	/* Check CRC to AE Sync cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_ae, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): 12A10 EEPROM AE section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "AE",
@@ -159,6 +167,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	/* Check CRC to Dual cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_dual, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): EEPROM Dual section check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "DUAL",
@@ -174,6 +183,7 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	/* Check CRC to SFR cal data */
 	ret = CALL_EEPROMOPS(eeprom, eeprom_check_sfr, subdev);
 	if (ret) {
+		ret_sum++;
 		err("%s(): EEPROM SFR section CRC check fail(%d)", __func__, ret);
 
 		fimc_is_eeprom_cal_data_set(eeprom->data, "SFR",
@@ -185,20 +195,23 @@ int fimc_is_eeprom_12a10_check_all_crc(struct v4l2_subdev *subdev)
 	 * Write files to serial number and Dual cal data when success of
 	 * Address, Info, Dual calibration data
 	 */
-	if (!sensor->cal_status[CAMERA_CRC_INDEX_DUAL]) {
+	if (!sensor->cal_status[CAMERA_CRC_INDEX_DUAL] && !eeprom->file_write) {
 		ret = fimc_is_eeprom_file_write(EEPROM_SERIAL_NUM_DATA_PATH,
 				(void *)&eeprom->data[EEPROM_INFO_SERIAL_NUM_START], EEPROM_INFO_SERIAL_NUM_SIZE);
-		if (ret < 0)
+		if (ret < 0) {
 			err("%s(), Serial number file write fail(%d)", __func__, ret);
-
+			ret_sum++;
+		}
 		/* Write file to Dual calibration data */
 		ret = fimc_is_eeprom_file_write(EEPROM_DUAL_DATA_PATH,
 				(void *)&eeprom->data[EEPROM_DUAL_CRC_CHK_START], EEPROM_DUAL_CAL_SIZE);
-		if (ret < 0)
+		if (ret < 0) {
+			ret_sum++;
 			err("%s(), DUAL cal file write fail(%d)", __func__, ret);
+		}
 	}
 
-	return ret;
+	return ret_sum;
 }
 
 static int fimc_is_eeprom_12a10_check_address(struct v4l2_subdev *subdev)
@@ -450,8 +463,6 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 	int ret = 0;
 	struct fimc_is_eeprom *eeprom;
 	struct i2c_client *client;
-	char serial_id[EEPROM_INFO_SERIAL_NUM_SIZE + 1];
-	char serial_id_dump[EEPROM_INFO_SERIAL_NUM_SIZE + 1];
 
 	FIMC_BUG(!subdev);
 
@@ -466,23 +477,11 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 		return ret;
 	}
 
-	I2C_MUTEX_LOCK(eeprom->i2c_lock);
-	ret = fimc_is_eeprom_module_read(client, EEPROM_INFO_SERIAL_NUM_START, serial_id, EEPROM_INFO_SERIAL_NUM_SIZE);
-	if (ret < 0) {
-		err("%s(): eeprom i2c read failed(%d)\n", __func__, ret);
-		I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
-		return ret;
-	}
-	I2C_MUTEX_UNLOCK(eeprom->i2c_lock);
-	serial_id[EEPROM_INFO_SERIAL_NUM_SIZE] = '\0';
-
 	/*
-	 * If already read at EEPROM data in module
-	 * don't again read at EEPROM but there isn't file or
-	 * data is NULL read EEPROM data
+	 * EEPROM data file(.bin) will be deleted at every reboot
+	 * so, when eeprom->file_write is zero, there is no eeprom data file
 	 */
-	ret = fimc_is_eeprom_file_read(EEPROM_DATA_PATH, (void *)eeprom->data, EEPROM_DATA_SIZE);
-	if (ret) {
+	if (!eeprom->file_write) {
 		I2C_MUTEX_LOCK(eeprom->i2c_lock);
 		/* I2C read to Sensor EEPROM cal data */
 		ret = fimc_is_eeprom_module_read(client, EEPROM_ADD_CRC_FST, eeprom->data, EEPROM_DATA_SIZE);
@@ -495,7 +494,7 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 
 		/* CRC check to each section cal data */
 		ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
-		if (ret < 0)
+		if (ret)
 			err("%s(): eeprom data invalid(%d)\n", __func__, ret);
 
 		/* Write file to Cal data */
@@ -504,15 +503,12 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 			err("%s(), eeprom file write fail(%d)\n", __func__, ret);
 			return ret;
 		}
+		eeprom->file_write = 1;
 	} else {
-		memcpy(serial_id_dump, &eeprom->data[EEPROM_INFO_SERIAL_NUM_START],
-				EEPROM_INFO_SERIAL_NUM_SIZE);
-		serial_id_dump[EEPROM_INFO_SERIAL_NUM_SIZE] = '\0';
-
-		if(memcmp(serial_id, serial_id_dump, EEPROM_INFO_SERIAL_NUM_SIZE))
-		{
-			/* Read Sensor EEPROM cause change a module */
-			info("%s() : Different new module, so read eeprom\n", __func__);
+		ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
+		if (ret) {
+			err("%s(): eeprom data invalid(%d)\n", __func__, ret);
+			err("retry to read data from eeprom module and update file\n");
 
 			I2C_MUTEX_LOCK(eeprom->i2c_lock);
 			/* I2C read to Sensor EEPROM cal data */
@@ -526,21 +522,7 @@ int fimc_is_eeprom_12a10_get_cal_data(struct v4l2_subdev *subdev)
 
 			/* CRC check to each section cal data */
 			ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
-			if (ret < 0)
-				err("%s(): eeprom data invalid(%d)\n", __func__, ret);
-
-			/* Write file to Cal data */
-			ret = fimc_is_eeprom_file_write(EEPROM_DATA_PATH, (void *)eeprom->data, EEPROM_DATA_SIZE);
-			if (ret < 0) {
-				err("%s(), eeprom file write fail(%d)\n", __func__, ret);
-				return ret;
-			}
-		} else {
-			info("%s(): Same module and file dump so use file dump data\n", __func__);
-
-			/* CRC check to each section cal data */
-			ret = CALL_EEPROMOPS(eeprom, eeprom_check_all_crc, subdev);
-			if (ret < 0)
+			if (ret)
 				err("%s(): eeprom data invalid(%d)\n", __func__, ret);
 		}
 	}
