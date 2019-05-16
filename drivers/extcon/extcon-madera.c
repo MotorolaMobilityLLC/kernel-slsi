@@ -1830,9 +1830,9 @@ int madera_hpdet_reading(struct madera_extcon *info, int val)
 	madera_set_headphone_imp(info, val);
 
 	/* Report high impedence cables as line outputs */
-       if(val>= 500000)
+	if(!info->have_mic && val>= 500000)
 	    madera_extcon_report(info, EXTCON_JACK_LINE_OUT, true);
-	 else
+	else
 	    madera_extcon_report(info, EXTCON_JACK_HEADPHONE, true);
 
 	if (info->have_mic)
