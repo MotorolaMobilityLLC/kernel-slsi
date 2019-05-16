@@ -307,6 +307,9 @@ ssize_t s2mu106_chg_show_attrs(struct device *dev,
 ssize_t s2mu106_chg_store_attrs(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count);
 
+#define HV_MAINS_IVR_INPUT		2000
+#define HV_MAINS_IVR_STEP		300
+
 #define S2MU106_CHARGER_ATTR(_name)				\
 {							                    \
 	.attr = {.name = #_name, .mode = 0664},	    \
