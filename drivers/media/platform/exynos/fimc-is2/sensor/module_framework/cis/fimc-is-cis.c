@@ -605,6 +605,17 @@ int sensor_cis_factory_test(struct v4l2_subdev *subdev)
 	return ret;
 }
 
+void sensor_cis_otp_data_set(char *data, char *name, u32 size, u32 value)
+{
+	int i;
+
+	/* value setting to (name) cal data section */
+	for (i = 0; i < size; i++)
+		data[i] = value;
+
+	info("%s() Done: %s calibration data is %d set\n", __func__, name, value);
+}
+
 u16 sensor_cis_otp_get_crc16(char *data, int count)
 {
 	char *tmp = data;
