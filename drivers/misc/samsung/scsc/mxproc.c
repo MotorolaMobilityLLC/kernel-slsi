@@ -356,6 +356,34 @@ static ssize_t mx_procfs_mx_services_read(struct file *file, char __user *user_b
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t mx_procfs_mx_wlbt_stat_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	struct mxproc *mxproc = file->private_data;
+	struct scsc_mif_abs *mif_abs;
+	int pos = 0;
+	int r;
+	char buf[32];
+	const size_t bufsz = sizeof(buf);
+	u32 val = 0xff;
+
+	OS_UNUSED_PARAMETER(file);
+
+	if (!mxproc || !mxproc->mxman || !mxproc->mxman->mx)
+		return 0;
+
+	mif_abs = scsc_mx_get_mif_abs(mxproc->mxman->mx);
+
+	/* Read WLBT_STAT register */
+	if (mif_abs->mif_read_register) {
+		r = mif_abs->mif_read_register(mif_abs, SCSC_REG_READ_WLBT_STAT, &val);
+		if (r)
+			val = 0xff; /* failed */
+	}
+
+	pos += scnprintf(buf + pos, bufsz - pos, "0x%x\n", val);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
 
 MX_PROCFS_RW_FILE_OPS(mx_fail);
 MX_PROCFS_RW_FILE_OPS(mx_freeze);
@@ -367,6 +395,7 @@ MX_PROCFS_RO_FILE_OPS(mx_boot_count);
 MX_PROCFS_RO_FILE_OPS(mx_status);
 MX_PROCFS_RO_FILE_OPS(mx_services);
 MX_PROCFS_RO_FILE_OPS(mx_lastpanic);
+MX_PROCFS_RO_FILE_OPS(mx_wlbt_stat);
 
 static u32 proc_count;
 
@@ -396,6 +425,7 @@ int mxproc_create_ctrl_proc_dir(struct mxproc *mxproc, struct mxman *mxman)
 	MX_PROCFS_ADD_FILE(mxproc, mx_status, parent, S_IRUSR | S_IRGRP | S_IROTH);
 	MX_PROCFS_ADD_FILE(mxproc, mx_services, parent, S_IRUSR | S_IRGRP | S_IROTH);
 	MX_PROCFS_ADD_FILE(mxproc, mx_lastpanic, parent, S_IRUSR | S_IRGRP | S_IROTH);
+	MX_PROCFS_ADD_FILE(mxproc, mx_wlbt_stat, parent, S_IRUSR | S_IRGRP | S_IROTH);
 
 	SCSC_TAG_DEBUG(MX_PROC, "created %s proc dir\n", dir);
 	proc_count++;
@@ -417,6 +447,7 @@ void mxproc_remove_ctrl_proc_dir(struct mxproc *mxproc)
 		MX_PROCFS_REMOVE_FILE(mx_status, mxproc->procfs_ctrl_dir);
 		MX_PROCFS_REMOVE_FILE(mx_services, mxproc->procfs_ctrl_dir);
 		MX_PROCFS_REMOVE_FILE(mx_lastpanic, mxproc->procfs_ctrl_dir);
+		MX_PROCFS_REMOVE_FILE(mx_wlbt_stat, mxproc->procfs_ctrl_dir);
 		(void)snprintf(dir, sizeof(dir), "%s%d", procdir_ctrl, mxproc->procfs_ctrl_dir_num);
 		remove_proc_entry(dir, NULL);
 		mxproc->procfs_ctrl_dir = NULL;
