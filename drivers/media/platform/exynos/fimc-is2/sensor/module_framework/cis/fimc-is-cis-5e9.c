@@ -349,7 +349,7 @@ int sensor_5e9_cis_otp_read(struct v4l2_subdev *subdev, struct fimc_is_device_se
 			err("%s: OTP page[%d] read fail with err(%d)\n",
 				__func__, page, val);
 
-		for (i = page_index_start; i <= page_index_end; i++) {
+		for (i = page_index_start; i < page_index_end; i++) {
 			fimc_is_sensor_read8(client, page_base + i, &device->otp_cal_buf[page][i]);
 			dbg_sensor(2, "cal: [%d][0x%x]: %x\n", page, OTP_PAGE_BASE + i, device->otp_cal_buf[page][i]);
 		}
