@@ -50,7 +50,7 @@ typedef u32 TIME;
 #define	TUNE_TIME_FAST_MS	(30)
 #define	TUNE_TIME_SLOW_MS	(60)
 #ifdef USE_NEW_SCAN
-#define	SEARCH_DELAY_MS	(10)
+#define	SEARCH_DELAY_MS	(20)
 #else
 #define	SEARCH_DELAY_MS	(15)
 #endif
