@@ -989,7 +989,6 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 #endif
 						 capability);
 	if (!ndev_vif->sta.sta_bss) {
-		if (!sme->bssid) {
 			struct cfg80211_ssid ssid;
 
 			SLSI_NET_DBG3(dev, SLSI_CFG80211, "BSS info is not available - Perform scan\n");
@@ -1020,10 +1019,6 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 			}
 			channel = ndev_vif->sta.sta_bss->channel;
 			bssid = ndev_vif->sta.sta_bss->bssid;
-		} else {
-			/* The cfg80211 timeout for bss is 3 seconds so the sta_bss can be NULL */
-			SLSI_NET_DBG1(dev, SLSI_CFG80211, "sta_bss is not available for %.*s, %pM\n", (int)sme->ssid_len, sme->ssid, sme->bssid);
-		}
 	} else {
 		channel = ndev_vif->sta.sta_bss->channel;
 		bssid = ndev_vif->sta.sta_bss->bssid;
