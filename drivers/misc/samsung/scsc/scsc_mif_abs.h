@@ -45,6 +45,9 @@ struct scsc_mifqos_request {
 	struct pm_qos_request pm_qos_req_cl1;
 };
 #endif
+
+#define SCSC_REG_READ_WLBT_STAT		0
+
 /**
  * Abstraction of the Maxwell "Memory Interface" aka  MIF.
  *
@@ -202,6 +205,7 @@ struct scsc_mif_abs {
 	int  (*mif_pm_qos_update_request)(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req, enum scsc_qos_config config);
 	int  (*mif_pm_qos_remove_request)(struct scsc_mif_abs *interface, struct scsc_mifqos_request *qos_req);
 #endif
+	int (*mif_read_register)(struct scsc_mif_abs *interface, u64 id, u32 *val);
 };
 
 struct device;

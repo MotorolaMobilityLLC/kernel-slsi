@@ -481,6 +481,7 @@ struct scsc_mif_abs *pcie_mif_create(struct pci_dev *pdev, const struct pci_devi
 	pcie_if->get_mif_device = pcie_mif_get_mif_device;
 	pcie_if->irq_clear = pcie_mif_irq_clear;
 	pcie_if->mif_dump_registers = pcie_mif_dump_register;
+	pcie_if->mif_read_register = NULL;
 #ifdef CONFIG_SCSC_QOS
 	pcie_if->mif_pm_qos_add_request = pcie_mif_pm_qos_add_request;
 	pcie_if->mif_pm_qos_update_request = pcie_mif_pm_qos_update_request;
