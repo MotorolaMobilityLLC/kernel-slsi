@@ -1955,6 +1955,18 @@ static void platform_mif_irq_clear(void)
 	/* Implement if required */
 }
 
+static int platform_mif_read_register(struct scsc_mif_abs *interface, u64 id, u32 *val)
+{
+	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
+
+	if (id == SCSC_REG_READ_WLBT_STAT) {
+		regmap_read(platform->pmureg, WLBT_STAT, val);
+		return 0;
+	}
+
+	return -EIO;
+}
+
 static void platform_mif_dump_register(struct scsc_mif_abs *interface)
 {
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
@@ -2127,6 +2139,7 @@ struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 	platform_if->get_mif_device = platform_mif_get_mif_device;
 	platform_if->irq_clear = platform_mif_irq_clear;
 	platform_if->mif_dump_registers = platform_mif_dump_register;
+	platform_if->mif_read_register = platform_mif_read_register;
 	platform_if->mif_cleanup = platform_mif_cleanup;
 	platform_if->mif_restart = platform_mif_restart;
 #ifdef CONFIG_SCSC_SMAPPER
