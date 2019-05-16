@@ -128,7 +128,13 @@ enum SLSI_NAN_REQ_ATTRIBUTES {
 	NAN_REQ_ATTR_FOLLOWUP_SERVICE_NAME_LEN,
 	NAN_REQ_ATTR_FOLLOWUP_SERVICE_NAME,
 	NAN_REQ_ATTR_FOLLOWUP_TX_WINDOW,
-	NAN_REQ_ATTR_FOLLOWUP_RECV_IND_CFG
+	NAN_REQ_ATTR_FOLLOWUP_RECV_IND_CFG,
+	NAN_REQ_ATTR_SUBSCRIBE_SID_BEACON_VAL,
+	NAN_REQ_ATTR_DW_2G4_INTERVAL,
+	NAN_REQ_ATTR_DW_5G_INTERVAL,
+	NAN_REQ_ATTR_DISC_MAC_ADDR_RANDOM_INTERVAL,
+	NAN_REQ_ATTR_PUBLISH_SDEA_LEN,
+	NAN_REQ_ATTR_PUBLISH_SDEA
 };
 
 enum SLSI_NAN_RESP_ATTRIBUTES {
@@ -202,7 +208,10 @@ enum SLSI_NAN_EVT_ATTRIBUTES {
 	NAN_EVT_ATTR_FOLLOWUP_SERVICE_SPECIFIC_INFO,
 	NAN_EVT_ATTR_DISCOVERY_ENGINE_EVT_TYPE,
 	NAN_EVT_ATTR_DISCOVERY_ENGINE_MAC_ADDR,
-	NAN_EVT_ATTR_DISCOVERY_ENGINE_CLUSTER
+	NAN_EVT_ATTR_DISCOVERY_ENGINE_CLUSTER,
+
+	NAN_EVT_ATTR_SDEA,
+	NAN_EVT_ATTR_SDEA_LEN
 };
 
 #define SLSI_FAPI_NAN_CONFIG_PARAM_SID_BEACON 0X0003
@@ -228,6 +237,8 @@ enum SLSI_NAN_EVT_ATTRIBUTES {
 #define SLSI_FAPI_NAN_TX_MATCH_FILTER 0X0023
 #define SLSI_FAPI_NAN_SDF_MATCH_FILTER 0X0024
 #define SLSI_FAPI_NAN_CLUSTER_ATTRIBUTE 0X0025
+#define SLSI_FAPI_NAN_INTERFACE_ADDRESS_SET 0X0026
+#define SLSI_FAPI_NAN_SDEA 0X0027
 
 #define SLSI_HAL_NAN_MAX_SOCIAL_CHANNELS 3
 #define SLSI_HAL_NAN_MAX_SERVICE_NAME_LEN 255
@@ -235,6 +246,7 @@ enum SLSI_NAN_EVT_ATTRIBUTES {
 #define SLSI_HAL_NAN_MAX_MATCH_FILTER_LEN 255
 #define SLSI_HAL_NAN_MAX_SUBSCRIBE_MAX_ADDRESS 42
 #define SLSI_HAL_NAN_MAX_POSTDISCOVERY_LEN 5
+#define SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPECIFIC_INFO_LEN 1024
 
 enum slsi_wifi_hal_nan_status_type {
 	/* NAN Protocol Response Codes */
@@ -471,6 +483,15 @@ struct slsi_hal_nan_enable_req {
 
 	u8 config_5g_channel;
 	int channel_5g_val;
+	u8 config_subscribe_sid_beacon;
+	u32 subscribe_sid_beacon_val;
+
+	/*NanConfigDW config_dw*/
+	u8 config_2dot4g_dw_band;
+	u32 dw_2dot4g_interval_val;
+	u8 config_5g_dw_band;
+	u32 dw_5g_interval_val;
+	u32 disc_mac_addr_rand_interval_sec;
 };
 
 struct slsi_hal_nan_publish_req {
@@ -520,6 +541,9 @@ struct slsi_hal_nan_publish_req {
 	 * BIT2 - Disable followUp indication received (OTA).
 	 */
 	u8 recv_indication_cfg;
+
+	u16 sdea_service_specific_info_len;
+	u8 sdea_service_specific_info[SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPECIFIC_INFO_LEN];
 };
 
 struct slsi_hal_nan_subscribe_req {
@@ -610,6 +634,9 @@ struct slsi_hal_nan_subscribe_req {
 	 * BIT2 - Disable followUp indication received (OTA).
 	 */
 	u8 recv_indication_cfg;
+
+	u16 sdea_service_specific_info_len;
+	u8 sdea_service_specific_info[SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPECIFIC_INFO_LEN];
 };
 
 struct slsi_hal_nan_transmit_followup_req {
@@ -634,6 +661,9 @@ struct slsi_hal_nan_transmit_followup_req {
 	 * BIT0 - Disable followUp response from FW.
 	 */
 	u8 recv_indication_cfg;
+
+	u16 sdea_service_specific_info_len;
+	u8 sdea_service_specific_info[SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPECIFIC_INFO_LEN];
 };
 
 struct slsi_hal_nan_config_req {
@@ -680,6 +710,18 @@ struct slsi_hal_nan_config_req {
 	/* NAN Further availability Map */
 	u8 config_fam;
 	struct slsi_hal_nan_further_availability_map fam_val;
+
+	int channel_5g_val;
+	u8 config_subscribe_sid_beacon;
+	u32 subscribe_sid_beacon_val;
+
+	/*NanConfigDW config_dw*/
+	u8 config_2dot4g_dw_band;
+	u32 dw_2dot4g_interval_val;
+	u8 config_5g_dw_band;
+	u32 dw_5g_interval_val;
+	u32 disc_mac_addr_rand_interval_sec;
+
 };
 
 struct slsi_hal_nan_capabilities {
@@ -704,6 +746,8 @@ struct slsi_hal_nan_followup_ind {
 	u8 dw_or_faw;
 	u16 service_specific_info_len;
 	u8 service_specific_info[SLSI_HAL_NAN_MAX_SERVICE_SPECIFIC_INFO_LEN];
+	u16 sdea_service_specific_info_len;
+	u8 sdea_service_specific_info[SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPECIFIC_INFO_LEN];
 };
 
 struct slsi_hal_nan_match_ind {
@@ -725,6 +769,8 @@ struct slsi_hal_nan_match_ind {
 	struct slsi_hal_nan_further_availability_channel famchan[32];
 	u8 cluster_attribute_len;
 	u8 cluster_attribute[32];
+	u16 sdea_service_specific_info_len;
+	u8 sdea_service_specific_info[SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPECIFIC_INFO_LEN];
 };
 
 void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
