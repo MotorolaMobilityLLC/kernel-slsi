@@ -239,6 +239,8 @@ int sensor_5e9_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_ADDR_CRC_START],
 						OTP_GRP_ADDR_CRC_SIZE);
 	if (crc_value != crc16) {
+		sensor_cis_otp_data_set(&check_buf[grp_offset + OTP_GRP_ADDR_CRC_START], "addr",
+						OTP_GRP_ADDR_CRC_SIZE, 0xff);
 		err("GR%d: Error to ADDR CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
 		ret = -EINVAL;
 	} else
@@ -250,6 +252,8 @@ int sensor_5e9_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_INFO_CRC_START],
 						OTP_GRP_INFO_CRC_SIZE);
 	if (crc_value != crc16) {
+		sensor_cis_otp_data_set(&check_buf[grp_offset + OTP_GRP_INFO_CRC_START], "info",
+						OTP_GRP_INFO_CRC_SIZE, 0xff);
 		err("GR%d: Error to INFO CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
 		ret = -EINVAL;
 	} else
@@ -261,6 +265,8 @@ int sensor_5e9_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_AWB_CRC_START],
 						OTP_GRP_AWB_CRC_SIZE);
 	if (crc_value != crc16) {
+		sensor_cis_otp_data_set(&check_buf[grp_offset + OTP_GRP_AWB_CRC_START], "awb",
+						OTP_GRP_AWB_CRC_SIZE, 0xff);
 		err("GR%d: Error to AWB CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
 		ret = -EINVAL;
 	} else
@@ -272,6 +278,8 @@ int sensor_5e9_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_LSC_XTC_CRC_START],
 						OTP_GRP_LSC_XTC_CRC_SIZE);
 	if (crc_value != crc16) {
+		sensor_cis_otp_data_set(&check_buf[grp_offset + OTP_GRP_LSC_XTC_CRC_START], "lsc_xtc",
+						OTP_GRP_LSC_XTC_CRC_SIZE, 0xff);
 		err("GR%d: Error to LSC_XTC CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
 		ret = -EINVAL;
 	} else
@@ -283,6 +291,8 @@ int sensor_5e9_cis_otp_check_crc(struct v4l2_subdev *subdev,
 	crc16 = sensor_cis_otp_get_crc16(&check_buf[grp_offset + OTP_GRP_AE_SYNC_CRC_START],
 						OTP_GRP_AE_SYNC_CRC_SIZE);
 	if (crc_value != crc16) {
+		sensor_cis_otp_data_set(&check_buf[grp_offset + OTP_GRP_AE_SYNC_CRC_START], "ae_sync",
+						OTP_GRP_AE_SYNC_CRC_SIZE, 0xff);
 		err("GR%d: Error to AE_SYNC CRC16 : 0x%x, cal buffer CRC: 0x%x", group, crc16, crc_value);
 		ret = -EINVAL;
 	} else
@@ -417,22 +427,22 @@ int sensor_5e9_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_sensor 
 				OTP_PAGE_START, OTP_PAGE_END,
 				OTP_PAGE_BASE, OTP_PAGE_START, OTP_PAGE_SIZE);
 		if (ret < 0) {
+			sensor_cis_otp_data_set(&otp_buf[0], "all", OTP_PAGE_SIZE * 64, 0xff);
 			err("Don't read to 5E9 OTP data");
 			goto p_err;
 		}
 
 		otp_group = sensor_5e9_cis_otp_group_check(device);
 		if (!otp_group) {
+			sensor_cis_otp_data_set(&otp_buf[0], "all", OTP_PAGE_SIZE * 64, 0xff);
 			ret = -EINVAL;
 			goto p_err;
 		}
 
 		offset = sensor_5e9_cis_otp_offset_check(otp_group);
 		ret = sensor_5e9_cis_otp_check_crc(subdev, device, offset);
-		if (ret < 0) {
+		if (ret < 0)
 			err("OTP data CRC check fail, check module");
-			goto p_err;
-		}
 
 		snprintf(file_str, sizeof(file_str), "%s%s", OTP_DATA_PATH, device->otp_filename);
 		/* Write to OTP data at file */
@@ -455,12 +465,14 @@ reloading:
 				OTP_PAGE_START, OTP_PAGE_END,
 				OTP_PAGE_BASE, OTP_PAGE_START, OTP_PAGE_SIZE);
 		if (ret < 0) {
+			sensor_cis_otp_data_set(&otp_buf[0], "all", OTP_PAGE_SIZE * 64, 0xff);
 			err("Don't read to 5E9 OTP data");
 			goto p_err;
 		}
 
 		otp_group = sensor_5e9_cis_otp_group_check(device);
 		if (!otp_group) {
+			sensor_cis_otp_data_set(&otp_buf[0], "all", OTP_PAGE_SIZE * 64, 0xff);
 			ret = -EINVAL;
 			goto p_err;
 		}
