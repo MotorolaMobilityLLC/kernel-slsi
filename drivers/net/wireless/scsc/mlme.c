@@ -25,44 +25,6 @@
 #define SLSI_NOA_CONFIG_REQUEST_ID          (1)
 #define SLSI_MLME_ARP_DROP_FREE_SLOTS_COUNT 16
 
-#define SLSI_FAPI_NAN_ATTRIBUTE_PUT_U8(req, attribute, val) \
-{ \
-	u16 attribute_len = 1; \
-	struct sk_buff *req_p = req; \
-	fapi_append_data((req_p), (u8 *)&(attribute), 2); \
-	fapi_append_data((req_p), (u8 *)&attribute_len, 2); \
-	fapi_append_data((req_p), (u8 *)&(val), 1); \
-}
-
-#define SLSI_FAPI_NAN_ATTRIBUTE_PUT_U16(req, attribute, val) \
-{ \
-	u16 attribute_len = 2; \
-	__le16 le16val = cpu_to_le16(val); \
-	struct sk_buff *req_p = req; \
-	fapi_append_data((req_p), (u8 *)&(attribute), 2); \
-	fapi_append_data((req_p), (u8 *)&attribute_len, 2); \
-	fapi_append_data((req_p), (u8 *)&le16val, 2); \
-}
-
-#define SLSI_FAPI_NAN_ATTRIBUTE_PUT_U32(req, attribute, val) \
-{ \
-	u16 attribute_len = 4; \
-	__le32 le32val = cpu_to_le32(val);\
-	struct sk_buff *req_p = req; \
-	fapi_append_data((req_p), (u8 *)&(attribute), 2); \
-	fapi_append_data((req_p), (u8 *)&attribute_len, 2); \
-	fapi_append_data((req_p), (u8 *)&le32val, 4); \
-}
-
-#define SLSI_FAPI_NAN_ATTRIBUTE_PUT_DATA(req, attribute, val, val_len) \
-{ \
-	u16 attribute_len = (val_len); \
-	struct sk_buff *req_p = req; \
-	fapi_append_data((req_p), (u8 *)&(attribute), 2); \
-	fapi_append_data((req_p), (u8 *)&attribute_len, 2); \
-	fapi_append_data((req_p), (val), (attribute_len)); \
-}
-
 static bool missing_cfm_ind_panic = true;
 module_param(missing_cfm_ind_panic, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(missing_cfm_ind_panic, "Panic on missing confirm or indication from the chip");

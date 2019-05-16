@@ -275,6 +275,29 @@ static int slsi_nan_enable_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_
 			hal_req->config_5g_channel = 1;
 			break;
 
+		case NAN_REQ_ATTR_SUBSCRIBE_SID_BEACON_VAL:
+			hal_req->subscribe_sid_beacon_val = nla_get_u8(iter);
+			hal_req->config_subscribe_sid_beacon = 1;
+			break;
+
+		case NAN_REQ_ATTR_DW_2G4_INTERVAL:
+			hal_req->dw_2dot4g_interval_val = nla_get_u8(iter);
+			/* valid range for 2.4G is 1-5 */
+			if (hal_req->dw_2dot4g_interval_val > 0  && hal_req->dw_2dot4g_interval_val < 5)
+				hal_req->config_2dot4g_dw_band = 1;
+			break;
+
+		case NAN_REQ_ATTR_DW_5G_INTERVAL:
+			hal_req->dw_5g_interval_val = nla_get_u8(iter);
+			/* valid range for 5g is 0-5 */
+			if (hal_req->dw_5g_interval_val < 5)
+				hal_req->config_5g_dw_band = 1;
+			break;
+
+		case NAN_REQ_ATTR_DISC_MAC_ADDR_RANDOM_INTERVAL:
+			hal_req->disc_mac_addr_rand_interval_sec = nla_get_u8(iter);
+			break;
+
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN enable attribute TYPE:%d\n", type);
 			return SLSI_HAL_NAN_STATUS_INVALID_PARAM;
@@ -460,6 +483,15 @@ static int slsi_nan_publish_get_nl_params(struct slsi_dev *sdev, struct slsi_hal
 
 		case NAN_REQ_ATTR_PUBLISH_RECV_IND_CFG:
 			hal_req->recv_indication_cfg = nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_PUBLISH_SDEA_LEN:
+			hal_req->sdea_service_specific_info_len = nla_get_u16(iter);
+			break;
+
+		case NAN_REQ_ATTR_PUBLISH_SDEA:
+			memcpy(hal_req->sdea_service_specific_info, nla_data(iter),
+			       hal_req->sdea_service_specific_info_len);
 			break;
 
 		default:
@@ -686,6 +718,15 @@ static int slsi_nan_subscribe_get_nl_params(struct slsi_dev *sdev, struct slsi_h
 			hal_req->recv_indication_cfg = nla_get_u8(iter);
 			break;
 
+		case NAN_REQ_ATTR_PUBLISH_SDEA_LEN:
+			hal_req->sdea_service_specific_info_len = nla_get_u16(iter);
+			break;
+
+		case NAN_REQ_ATTR_PUBLISH_SDEA:
+			memcpy(hal_req->sdea_service_specific_info, nla_data(iter),
+			       hal_req->sdea_service_specific_info_len);
+			break;
+
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN subscribe attribute TYPE:%d\n", type);
 			return SLSI_HAL_NAN_STATUS_INVALID_PARAM;
@@ -853,6 +894,15 @@ static int slsi_nan_followup_get_nl_params(struct slsi_dev *sdev, struct slsi_ha
 
 		case NAN_REQ_ATTR_FOLLOWUP_RECV_IND_CFG:
 			hal_req->recv_indication_cfg = nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_PUBLISH_SDEA_LEN:
+			hal_req->sdea_service_specific_info_len =  nla_get_u16(iter);
+			break;
+
+		case NAN_REQ_ATTR_PUBLISH_SDEA:
+			memcpy(hal_req->sdea_service_specific_info, nla_data(iter),
+			       hal_req->sdea_service_specific_info_len);
 			break;
 
 		default:
@@ -1113,6 +1163,30 @@ static int slsi_nan_config_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_
 				}
 			}
 			break;
+
+		case NAN_REQ_ATTR_SUBSCRIBE_SID_BEACON_VAL:
+			hal_req->subscribe_sid_beacon_val = nla_get_u8(iter);
+			hal_req->config_subscribe_sid_beacon = 1;
+			break;
+
+		case NAN_REQ_ATTR_DW_2G4_INTERVAL:
+			hal_req->dw_2dot4g_interval_val = nla_get_u8(iter);
+			/* valid range for 2.4G is 1-5 */
+			if (hal_req->dw_2dot4g_interval_val > 0  && hal_req->dw_2dot4g_interval_val < 6)
+				hal_req->config_2dot4g_dw_band = 1;
+			break;
+
+		case NAN_REQ_ATTR_DW_5G_INTERVAL:
+			hal_req->dw_5g_interval_val = nla_get_u8(iter);
+			/* valid range for 5g is 0-5 */
+			if (hal_req->dw_5g_interval_val < 6)
+				hal_req->config_5g_dw_band = 1;
+			break;
+
+		case NAN_REQ_ATTR_DISC_MAC_ADDR_RANDOM_INTERVAL:
+			hal_req->disc_mac_addr_rand_interval_sec = nla_get_u8(iter);
+			break;
+
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN config attribute TYPE:%d\n", type);
 			return SLSI_HAL_NAN_STATUS_INVALID_PARAM;
@@ -1389,6 +1463,9 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 		if (tag_id == SLSI_FAPI_NAN_SERVICE_SPECIFIC_INFO) {
 			hal_evt->service_specific_info_len = tag_len;
 			memcpy(hal_evt->service_specific_info, ptr, tag_len);
+		} else if (tag_id == SLSI_FAPI_NAN_SDEA) {
+			hal_evt->sdea_service_specific_info_len = tag_len;
+			memcpy(hal_evt->sdea_service_specific_info, ptr, tag_len);
 		}
 		ptr += tag_len;
 	}
@@ -1422,6 +1499,10 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 	if (hal_evt->service_specific_info_len)
 		res |= nla_put(nl_skb, NAN_EVT_ATTR_FOLLOWUP_SERVICE_SPECIFIC_INFO, hal_evt->service_specific_info_len,
 			       hal_evt->service_specific_info);
+	res |= nla_put_u16(nl_skb, NAN_EVT_ATTR_SDEA_LEN, hal_evt->sdea_service_specific_info_len);
+	if (hal_evt->sdea_service_specific_info_len)
+		res |= nla_put(nl_skb, NAN_EVT_ATTR_SDEA, hal_evt->sdea_service_specific_info_len,
+			       hal_evt->sdea_service_specific_info);
 
 	if (res) {
 		SLSI_ERR(sdev, "Error in nla_put*:%x\n", res);
@@ -1444,10 +1525,7 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 	int stitched_ie_len;
 	struct slsi_hal_nan_match_ind *hal_evt;
 	struct sk_buff *nl_skb;
-	int res, i;
-	struct slsi_hal_nan_receive_post_discovery *discovery_attr;
-	struct slsi_hal_nan_further_availability_channel *famchan;
-	struct nlattr *nlattr_nested;
+	int res;
 
 	SLSI_DBG3(sdev, SLSI_GSCAN, "\n");
 
@@ -1479,7 +1557,7 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 		return;
 	}
 	hal_evt->publish_subscribe_id = fapi_get_u16(skb, u.mlme_nan_service_ind.publish_subscribe_id);
-	hal_evt->requestor_instance_id = fapi_get_u32(skb, u.mlme_nan_service_ind.peer_id);
+	hal_evt->requestor_instance_id = fapi_get_u16(skb, u.mlme_nan_service_ind.peer_id);
 
 	/* 7 = ie_id(1), ie_len(1), oui(3) type/subtype(2)*/
 	ptr = stitched_ie_p + 7;
@@ -1490,7 +1568,7 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 	hal_evt->out_of_resource_flag = *ptr;
 	ptr += 1;
 	hal_evt->rssi_value = *ptr;
-	ptr += 1;
+	ptr += 1 + 8; /* skip 8 bytes related to datapath and ranging*/
 	while (stitched_ie_len > (ptr - stitched_ie_p) + 4) {
 		tag_id = *(u16 *)ptr;
 		ptr += 2;
@@ -1507,40 +1585,15 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 			hal_evt->service_specific_info_len = tag_len;
 			memcpy(hal_evt->service_specific_info, ptr, tag_len);
 			break;
-		case SLSI_FAPI_NAN_CONFIG_PARAM_CONNECTION_CAPAB:
-			hal_evt->is_conn_capability_valid = 1;
-			if (*ptr & BIT(0))
-				hal_evt->conn_capability.is_wfd_supported = 1;
-			if (*ptr & BIT(1))
-				hal_evt->conn_capability.is_wfds_supported = 1;
-			if (*ptr & BIT(2))
-				hal_evt->conn_capability.is_tdls_supported = 1;
-			if (*ptr & BIT(3))
-				hal_evt->conn_capability.wlan_infra_field = 1;
+
+		case SLSI_FAPI_NAN_SDEA:
+			hal_evt->sdea_service_specific_info_len = tag_len;
+			memcpy(hal_evt->sdea_service_specific_info, ptr, tag_len);
 			break;
-		case SLSI_FAPI_NAN_CONFIG_PARAM_POST_DISCOVER_PARAM:
-			discovery_attr = &hal_evt->discovery_attr[hal_evt->num_rx_discovery_attr];
-			discovery_attr->type = ptr[0];
-			discovery_attr->role = ptr[1];
-			discovery_attr->duration = ptr[2];
-			discovery_attr->avail_interval_bitmap = le32_to_cpu(*(__le32 *)&ptr[3]);
-			ether_addr_copy(discovery_attr->addr, &ptr[7]);
-			discovery_attr->infrastructure_ssid_len = ptr[13];
-			if (discovery_attr->infrastructure_ssid_len)
-				memcpy(discovery_attr->infrastructure_ssid_val, &ptr[14],
-				       discovery_attr->infrastructure_ssid_len);
-			hal_evt->num_rx_discovery_attr++;
-			break;
-		case SLSI_FAPI_NAN_CONFIG_PARAM_FURTHER_AVAIL_CHANNEL_MAP:
-			famchan = &hal_evt->famchan[hal_evt->num_chans];
-			famchan->entry_control = ptr[0];
-			famchan->class_val =  ptr[1];
-			famchan->channel = ptr[2];
-			famchan->mapid = ptr[3];
-			famchan->avail_interval_bitmap = le32_to_cpu(*(__le32 *)&ptr[4]);
-			hal_evt->num_chans++;
-			break;
-		case SLSI_FAPI_NAN_CLUSTER_ATTRIBUTE:
+
+		case SLSI_FAPI_NAN_SDF_MATCH_FILTER:
+			hal_evt->sdf_match_filter_len = tag_len;
+			memcpy(hal_evt->sdf_match_filter, ptr, tag_len);
 			break;
 		}
 		ptr += tag_len;
@@ -1573,82 +1626,14 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 	if (hal_evt->sdf_match_filter_len)
 		res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_SDF_MATCH_FILTER, hal_evt->sdf_match_filter_len,
 			hal_evt->sdf_match_filter);
+	res |= nla_put_u16(nl_skb, NAN_EVT_ATTR_SDEA_LEN, hal_evt->sdea_service_specific_info_len);
+	if (hal_evt->sdea_service_specific_info_len)
+		res |= nla_put(nl_skb, NAN_EVT_ATTR_SDEA, hal_evt->sdea_service_specific_info_len,
+			hal_evt->sdea_service_specific_info);
 
 	res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_MATCH_OCCURRED_FLAG, hal_evt->match_occurred_flag);
 	res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_OUT_OF_RESOURCE_FLAG, hal_evt->out_of_resource_flag);
 	res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_RSSI_VALUE, hal_evt->rssi_value);
-	res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CONN_CAPABILITY_IS_IBSS_SUPPORTED,
-		hal_evt->is_conn_capability_valid);
-	if (hal_evt->is_conn_capability_valid) {
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CONN_CAPABILITY_IS_IBSS_SUPPORTED,
-			hal_evt->conn_capability.is_ibss_supported);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CONN_CAPABILITY_IS_WFD_SUPPORTED,
-			hal_evt->conn_capability.is_wfd_supported);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CONN_CAPABILITY_IS_WFDS_SUPPORTED,
-			hal_evt->conn_capability.is_wfds_supported);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CONN_CAPABILITY_IS_TDLS_SUPPORTED,
-			hal_evt->conn_capability.is_tdls_supported);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CONN_CAPABILITY_IS_MESH_SUPPORTED,
-			hal_evt->conn_capability.is_mesh_supported);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CONN_CAPABILITY_WLAN_INFRA_FIELD,
-			hal_evt->conn_capability.wlan_infra_field);
-	}
-
-	res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_NUM_RX_DISCOVERY_ATTR, hal_evt->num_rx_discovery_attr);
-	for (i = 0; i < hal_evt->num_rx_discovery_attr; i++) {
-		nlattr_nested = nla_nest_start(nl_skb, NAN_EVT_ATTR_MATCH_RX_DISCOVERY_ATTR);
-		if (!nlattr_nested) {
-			SLSI_ERR(sdev, "Error in nla_nest_start\n");
-			/* Dont use slsi skb wrapper for this free */
-			kfree_skb(nl_skb);
-			kfree(hal_evt);
-			kfree(stitched_ie_p);
-			return;
-		}
-		discovery_attr = &hal_evt->discovery_attr[i];
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_TYPE, discovery_attr->type);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_ROLE, discovery_attr->role);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_DURATION, discovery_attr->duration);
-		res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_AVAIL_INTERVAL_BITMAP,
-		       discovery_attr->avail_interval_bitmap);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_MAPID, discovery_attr->mapid);
-		res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_ADDR, ETH_ALEN, discovery_attr->addr);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_MESH_ID_LEN, discovery_attr->mesh_id_len);
-		if (discovery_attr->mesh_id_len)
-			res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_MESH_ID, discovery_attr->mesh_id_len,
-			       discovery_attr->mesh_id);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_INFRASTRUCTURE_SSID_LEN,
-		       discovery_attr->infrastructure_ssid_len);
-		if (discovery_attr->infrastructure_ssid_len)
-			res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_DISC_ATTR_INFRASTRUCTURE_SSID_VAL,
-			       discovery_attr->infrastructure_ssid_len, discovery_attr->infrastructure_ssid_val);
-		nla_nest_end(nl_skb, nlattr_nested);
-	}
-
-	res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_NUM_CHANS, hal_evt->num_chans);
-	for (i = 0; i < hal_evt->num_chans; i++) {
-		nlattr_nested = nla_nest_start(nl_skb, NAN_EVT_ATTR_MATCH_FAMCHAN);
-		if (!nlattr_nested) {
-			SLSI_ERR(sdev, "Error in nla_nest_start\n");
-			/* Dont use slsi skb wrapper for this free */
-			kfree_skb(nl_skb);
-			kfree(hal_evt);
-			kfree(stitched_ie_p);
-			return;
-		}
-		famchan = &hal_evt->famchan[i];
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_FAM_ENTRY_CONTROL, famchan->entry_control);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_FAM_CLASS_VAL, famchan->class_val);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_FAM_CHANNEL, famchan->channel);
-		res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_FAM_MAPID, famchan->mapid);
-		res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_MATCH_FAM_AVAIL_INTERVAL_BITMAP,
-				   famchan->avail_interval_bitmap);
-	}
-
-	res |= nla_put_u8(nl_skb, NAN_EVT_ATTR_MATCH_CLUSTER_ATTRIBUTE_LEN, hal_evt->cluster_attribute_len);
-	if (hal_evt->cluster_attribute_len)
-		res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_CLUSTER_ATTRIBUTE, hal_evt->cluster_attribute_len,
-			       hal_evt->cluster_attribute);
 
 	if (res) {
 		SLSI_ERR(sdev, "Error in nla_put*:%x\n", res);
