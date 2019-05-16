@@ -582,7 +582,7 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 	bool                empty;
 	struct timeval tval = {};
 
-	SCSC_TAG_INFO(MXMAN, "%d\n", service->id);
+	SCSC_TAG_INFO(MXMAN, "%d\n", id);
 
 	mutex_lock(&srvman->api_access_mutex);
 #ifdef CONFIG_ANDROID
