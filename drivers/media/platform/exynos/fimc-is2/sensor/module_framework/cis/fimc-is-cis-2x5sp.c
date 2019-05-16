@@ -205,6 +205,8 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 		crc_value = ((device->otp_cal_buf[254][60] << 8) | (device->otp_cal_buf[254][61]));
 		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP1_AWB_CRC_START], OTP_GRP1_AWB_CRC_SIZE);
 		if (crc_value != crc16) {
+			sensor_cis_otp_data_set(&check_buf[OTP_GRP1_AWB_CRC_START], "awb",
+				OTP_GRP1_AWB_CRC_SIZE, 0xff);
 			err("GR1: Error to AWB CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
 		} else
@@ -213,6 +215,8 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 		crc_value = ((device->otp_cal_buf[254][62] << 8) | (device->otp_cal_buf[254][63]));
 		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP1_LSC_XTC_CRC_START], OTP_GRP1_LSC_XTC_CRC_SIZE);
 		if (crc_value != crc16) {
+			sensor_cis_otp_data_set(&check_buf[OTP_GRP1_LSC_XTC_CRC_START], "lsc_xtc",
+				OTP_GRP1_LSC_XTC_CRC_SIZE, 0xff);
 			err("GR1: Error to LSC & XTC CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
 		} else
@@ -223,6 +227,8 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 		crc_value = ((device->otp_cal_buf[255][60] << 8) | (device->otp_cal_buf[255][61]));
 		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP2_AWB_CRC_START], OTP_GRP2_AWB_CRC_SIZE);
 		if (crc_value != crc16) {
+			sensor_cis_otp_data_set(&check_buf[OTP_GRP2_AWB_CRC_START], "awb",
+				OTP_GRP2_AWB_CRC_SIZE, 0xff);
 			err("GR2: Error to AWB CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
 		} else
@@ -231,6 +237,8 @@ int sensor_2x5sp_cis_otp_check_crc(struct v4l2_subdev *subdev,
 		crc_value = ((device->otp_cal_buf[255][62] << 8) | (device->otp_cal_buf[255][63]));
 		crc16 = sensor_cis_otp_get_crc16(&check_buf[OTP_GRP2_LSC_XTC_CRC_START], OTP_GRP2_LSC_XTC_CRC_SIZE);
 		if (crc_value != crc16) {
+			sensor_cis_otp_data_set(&check_buf[OTP_GRP2_LSC_XTC_CRC_START], "lsc_xtc",
+				OTP_GRP2_LSC_XTC_CRC_SIZE, 0xff);
 			err("GR2: Error to LSC & XTC CRC16 : 0x%x, cal buffer CRC: 0x%x", crc16, crc_value);
 			ret = -EINVAL;
 		} else
@@ -387,6 +395,7 @@ int sensor_2x5sp_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_senso
 		/* OTP data read */
 		ret = sensor_2x5sp_cis_otp_read(subdev, device);
 		if (ret < 0) {
+			sensor_cis_otp_data_set(&otp_buf[0], "all", OTP_PAGE_SIZE * 256, 0xff);
 			err("Don't read to 2x5 OTP data");
 			goto p_err;
 		}
@@ -394,6 +403,7 @@ int sensor_2x5sp_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_senso
 		/* Write to OTP data at file */
 		ret = sensor_cis_otp_write_file(OTP_DATA_PATH, (void *)device->otp_cal_buf, OTP_PAGE_SIZE * 256);
 		if (ret < 0) {
+			sensor_cis_otp_data_set(&otp_buf[0], "all", OTP_PAGE_SIZE * 256, 0xff);
 			err("2x5 OTP data don't file write");
 			goto p_err;
 		}
@@ -405,6 +415,7 @@ int sensor_2x5sp_cis_otp(struct v4l2_subdev *subdev, struct fimc_is_device_senso
 		otp_group = sensor_2x5sp_cis_otp_check(device, i);
 		if (otp_group < 0) {
 			if (i == OTP_GROUP_ONE) {
+				sensor_cis_otp_data_set(&otp_buf[0], "all", OTP_PAGE_SIZE * 256, 0xff);
 				err("All OTP data are invalid, check module");
 				goto p_err;
 			} else {
