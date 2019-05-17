@@ -4295,9 +4295,16 @@ static int slsi_acs_init(struct wiphy *wiphy,
 }
 
 static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
+	/**********Deprecated now due to fapi updates.Do not remove*/
+	{ OUI_GOOGLE, SLSI_NL80211_SIGNIFICANT_CHANGE_EVENT },
+	{ OUI_GOOGLE, SLSI_NL80211_HOTLIST_AP_FOUND_EVENT },
+	/******************************************/
 	{ OUI_GOOGLE, SLSI_NL80211_SCAN_RESULTS_AVAILABLE_EVENT },
 	{ OUI_GOOGLE, SLSI_NL80211_FULL_SCAN_RESULT_EVENT },
 	{ OUI_GOOGLE, SLSI_NL80211_SCAN_EVENT },
+	/**********Deprecated now due to fapi updates.Do not remove*/
+	{ OUI_GOOGLE, SLSI_NL80211_HOTLIST_AP_LOST_EVENT },
+	/******************************************/
 #ifdef CONFIG_SCSC_WLAN_KEY_MGMT_OFFLOAD
 	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_ROAM_AUTH },
 #endif
