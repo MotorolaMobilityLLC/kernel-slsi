@@ -542,7 +542,7 @@ static struct v4l2_queryctrl controls[] = {
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "H264 Frame rate",
 		.minimum = 1,
-		.maximum = (1 << 16) - 1,
+		.maximum = FRAME_RATE_RESOLUTION,
 		.step = 1,
 		.default_value = 1,
 	},
