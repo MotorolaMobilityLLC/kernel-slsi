@@ -1861,13 +1861,6 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 			if (ctx_ctrl->id == ctrl->id) {
 				ctx_ctrl->has_new = 1;
 				ctx_ctrl->val = ctrl->value;
-				if (ctx_ctrl->id == \
-					V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH) {
-					ctx_ctrl->val &= ~(0xFFFF << 16);
-					ctx_ctrl->val |= ctx_ctrl->val << 16;
-					ctx_ctrl->val &= ~(0xFFFF);
-					ctx_ctrl->val |= p->rc_frame_delta & 0xFFFF;
-				}
 				if ((ctx_ctrl->id == \
 					V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER_CH) ||
 					(ctx_ctrl->id == \
