@@ -112,7 +112,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
 		.addr = MFC_REG_E_RC_FRAME_RATE,
-		.mask = 0xFFFFFFFF,
+		.mask = 0x0000FFFF,
 		.shft = 0,
 		.flag_mode = MFC_CTRL_MODE_SFR,
 		.flag_addr = MFC_REG_E_PARAM_CHANGE,
@@ -1141,6 +1141,15 @@ static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
 				buf_ctrl->val);
 	}
 
+	/* set frame rate change with delta */
+	if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH) {
+		p->rc_frame_delta = FRAME_RATE_RESOLUTION / buf_ctrl->val;
+		value = MFC_READL(buf_ctrl->addr);
+		value &= ~(buf_ctrl->mask << buf_ctrl->shft);
+		value |= ((p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft);
+		MFC_WRITEL(value, buf_ctrl->addr);
+	}
+
 	/* set drop control */
 	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_DROP_CONTROL) {
 		if (!ctx->ts_last_interval) {
@@ -1274,9 +1283,12 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			param_change = 1;
 			break;
 		case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH:
+			p->rc_frame_delta = FRAME_RATE_RESOLUTION / buf_ctrl->val;
+			pInStr->RcFrameRate &= ~(0xFFFF << 16);
+			pInStr->RcFrameRate |= (FRAME_RATE_RESOLUTION & 0xFFFF) << 16;
 			pInStr->RcFrameRate &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->RcFrameRate |=
-				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
+				(p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft;
 			param_change = 1;
 			break;
 		case V4L2_CID_MPEG_MFC51_VIDEO_BIT_RATE_CH:
