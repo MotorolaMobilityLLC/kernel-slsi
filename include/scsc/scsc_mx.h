@@ -432,6 +432,7 @@ static inline const char *scsc_get_trigger_str(int code)
 	case 5:	return "scsc_log_host_wlan";
 	case 6:	return "scsc_log_host_bt";
 	case 7:	return "scsc_log_host_common";
+	case 8:	return "scsc_log_sys_error";
 	case 0:
 	default:
 		return "unknown";
