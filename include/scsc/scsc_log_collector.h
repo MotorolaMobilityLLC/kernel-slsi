@@ -42,6 +42,7 @@ enum scsc_log_reason {
 	SCSC_LOG_HOST_WLAN,
 	SCSC_LOG_HOST_BT,
 	SCSC_LOG_HOST_COMMON,
+	SCSC_LOG_SYS_ERR,
 	/* Add others */
 };
 
