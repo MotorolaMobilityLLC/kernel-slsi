@@ -448,7 +448,11 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 	data = readl(reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 	data &= ~(mask << shift);
 	data |= func->val << shift;
+
 	writel(data, reg + type->reg_offset[PINCFG_TYPE_FUNC]);
+
+	drvdata->pin_groups[grp->pins[0] - drvdata->pin_base].state[PINCFG_TYPE_FUNC] =
+		((data >> shift) & mask);
 
 	spin_unlock_irqrestore(&bank->slock, flags);
 }
@@ -503,8 +507,11 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 	if (set) {
 		cfg_value = PINCFG_UNPACK_VALUE(*config);
 		data &= ~(mask << shift);
+
 		data |= (cfg_value << shift);
 		writel(data, reg_base + cfg_reg);
+		drvdata->pin_groups[pin - drvdata->pin_base].state[cfg_type] =
+			((data >> shift) & mask);
 	} else {
 		data >>= shift;
 		data &= mask;
@@ -636,15 +643,18 @@ static void samsung_gpio_set_value(struct gpio_chip *gc,
 	struct samsung_pin_bank *bank = gpiochip_get_data(gc);
 	const struct samsung_pin_bank_type *type = bank->type;
 	void __iomem *reg;
-	u32 data;
+	u32 data, pin;
 
 	reg = bank->pctl_base + bank->pctl_offset;
+	pin = bank->grange.pin_base + offset - bank->drvdata->pin_base;
 
 	data = readl(reg + type->reg_offset[PINCFG_TYPE_DAT]);
 	data &= ~(1 << offset);
 	if (value)
 		data |= 1 << offset;
 	writel(data, reg + type->reg_offset[PINCFG_TYPE_DAT]);
+
+	bank->drvdata->pin_groups[pin].state[PINCFG_TYPE_DAT] = value;
 }
 
 /* gpiolib gpio_set callback function */
@@ -686,13 +696,14 @@ static int samsung_gpio_set_direction(struct gpio_chip *gc,
 	const struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	void __iomem *reg;
-	u32 data, mask, shift;
+	u32 pin, data, mask, shift;
 
 	bank = gpiochip_get_data(gc);
 	type = bank->type;
 
 	reg = bank->pctl_base + bank->pctl_offset
 			+ type->reg_offset[PINCFG_TYPE_FUNC];
+	pin = bank->grange.pin_base + offset - bank->drvdata->pin_base;
 
 	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
 	shift = offset * type->fld_width[PINCFG_TYPE_FUNC];
@@ -704,8 +715,12 @@ static int samsung_gpio_set_direction(struct gpio_chip *gc,
 
 	data = readl(reg);
 	data &= ~(mask << shift);
-	if (!input)
+
+	if (!input) {
 		data |= EXYNOS_PIN_FUNC_OUTPUT << shift;
+		bank->drvdata->pin_groups[pin].state[PINCFG_TYPE_FUNC] = EXYNOS_PIN_FUNC_OUTPUT;
+	} else
+		bank->drvdata->pin_groups[pin].state[PINCFG_TYPE_FUNC] = EXYNOS_PIN_FUNC_INPUT;
 	writel(data, reg);
 
 	return 0;
@@ -1064,6 +1079,47 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 	return 0;
 }
 
+static int samsung_pinctrl_debug_set(struct samsung_pinctrl_drv_data *drvdata) {
+	struct samsung_pin_bank *bank;
+	void __iomem *reg_base;
+	u32 pin_offset;
+	unsigned long flags;
+	enum pincfg_type cfg_type;
+	const struct samsung_pin_bank_type *type;
+	u32 data, width, mask, shift, cfg_reg;
+	int i;
+
+	for (i = 0; i < drvdata->pctl_dev->desc->npins; i++) {
+
+		pin_to_reg_bank(drvdata, i, &reg_base,
+				&pin_offset, &bank);
+		drvdata->pin_groups[i].state_num = 0;
+		for (cfg_type = 0; cfg_type < PINCFG_TYPE_NUM; cfg_type++) {
+
+			type = bank->type;
+			if (!type->fld_width[cfg_type])
+				continue;
+
+			spin_lock_irqsave(&bank->slock, flags);
+			width = type->fld_width[cfg_type];
+			cfg_reg = type->reg_offset[cfg_type];
+			mask = (1 << width) - 1;
+			shift = pin_offset * width;
+
+			data = readl(reg_base + cfg_reg);
+
+			data >>= shift;
+			data &= mask;
+
+			drvdata->pin_groups[i].state[cfg_type] = data;
+			drvdata->pin_groups[i].state_num++;
+			spin_unlock_irqrestore(&bank->slock, flags);
+		}
+	}
+
+	return 0;
+}
+
 static const struct samsung_pin_ctrl *
 samsung_pinctrl_get_soc_data_for_of_alias(struct platform_device *pdev)
 {
@@ -1225,6 +1281,7 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	/* Add to the global list */
 	list_add_tail(&drvdata->node, &drvdata_list);
 
+	samsung_pinctrl_debug_set(drvdata);
 	return 0;
 }
 
