@@ -161,7 +161,9 @@ struct s2mu00x_battery_info {
 	int max_charging_current;
 
 #if defined(CONFIG_USE_CCIC)
+#if defined(CONFIG_USE_PDO_SELECT)
 	struct delayed_work select_pdo_work;
+#endif
 	int pdo_max_input_vol;
 	int pdo_max_chg_power;
 
@@ -984,6 +986,7 @@ static int s2mu00x_battery_handle_notification(struct notifier_block *nb,
 
 #if defined(CONFIG_IFCONN_NOTIFIER)
 #if defined(CONFIG_USE_CCIC)
+#if defined(CONFIG_USE_PDO_SELECT)
 static void usbpd_select_pdo_work(struct work_struct *work)
 {
 	struct s2mu00x_battery_info *battery =
@@ -1002,7 +1005,7 @@ static void usbpd_select_pdo_work(struct work_struct *work)
 		pr_err("%s: Fail to send noti\n", __func__);
 
 }
-
+#endif
 static int s2mu00x_bat_set_pdo(struct s2mu00x_battery_info *battery,
 		ifconn_pd_sink_status_t *pdo_data)
 {
@@ -1014,10 +1017,15 @@ static int s2mu00x_bat_set_pdo(struct s2mu00x_battery_info *battery,
 				__func__);
 		return ret;
 	}
-
+#if defined(CONFIG_USE_PDO_SELECT)
 	ret = POWER_SUPPLY_TYPE_PREPARE_TA;
 
 	schedule_delayed_work(&battery->select_pdo_work, msecs_to_jiffies(50));
+#else
+	dev_info(battery->dev, "%s: skip select pdo work\n",
+			__func__);
+	ret = POWER_SUPPLY_TYPE_USB_PD;
+#endif
 	return ret;
 }
 
@@ -2161,7 +2169,9 @@ static int s2mu00x_battery_probe(struct platform_device *pdev)
 	battery->monitor_alarm_interval = DEFAULT_ALARM_INTERVAL;
 
 #if defined(CONFIG_USE_CCIC)
+#if defined(CONFIG_USE_PDO_SELECT)
 	INIT_DELAYED_WORK(&battery->select_pdo_work, usbpd_select_pdo_work);
+#endif
 #endif
 	/* Register power supply to framework */
 	psy_cfg.drv_data = battery;
