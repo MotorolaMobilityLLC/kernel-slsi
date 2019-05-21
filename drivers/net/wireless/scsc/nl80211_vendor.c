@@ -5044,7 +5044,9 @@ static int slsi_acs_init(struct wiphy *wiphy,
 			}
 		}
 
-		if (num_channels == 1) {
+		/* BEGIN IKSAMP-9148, moto acs policy for vendor.wifi.certchannel */
+		if (num_channels == 1 && freq_list_len != 1) {
+		/* END IKSAMP-9148, moto acs policy */
 			memset(&acs_selected_channels, 0, sizeof(acs_selected_channels));
 			acs_selected_channels.ch_width = 20;
 			acs_selected_channels.hw_mode = request->hw_mode;
