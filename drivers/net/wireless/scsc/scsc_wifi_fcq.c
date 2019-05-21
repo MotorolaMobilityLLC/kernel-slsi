@@ -67,6 +67,10 @@ uint scsc_wifi_fcq_minimum_smod = 50;
 module_param(scsc_wifi_fcq_minimum_smod, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(scsc_wifi_fcq_minimum_smod, "Initial value of minimum smod - peer normal (default = 50)");
 
+uint scsc_wifi_fcq_distribution_delay_ms;
+module_param(scsc_wifi_fcq_distribution_delay_ms, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(scsc_wifi_fcq_distribution_delay_ms, "Distribution time in ms (default = 0)");
+
 #define SCSC_WIFI_FCQ_SMOD_RESUME_HYSTERESIS 10
 #define SCSC_WIFI_FCQ_QMOD_RESUME_HYSTERESIS 10
 #define SCSC_WIFI_FCQ_GMOD_RESUME_HYSTERESIS 30
@@ -231,7 +235,7 @@ static bool fcq_redistribute_qmod_before_stopping(struct scsc_wifi_fcq_data_qset
 	for (i = 1; i < SLSI_NETIF_Q_PER_PEER; i++) {
 		queue = &qs->ac_q[i].head;
 		if (queue->can_be_distributed &&
-		    (ktime_compare(ktime_get(), ktime_add_ms(queue->empty_t, 5000)) > 0)) {
+		    (ktime_compare(ktime_get(), ktime_add_ms(queue->empty_t, scsc_wifi_fcq_distribution_delay_ms)) > 0)) {
 			/* This queue could be redistributed */
 			qs->ac_inuse &= ~(1 << i);
 			/* To prevent further reallocation */
