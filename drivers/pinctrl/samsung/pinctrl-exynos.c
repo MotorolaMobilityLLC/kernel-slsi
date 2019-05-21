@@ -154,7 +154,7 @@ static int exynos_irq_request_resources(struct irq_data *irqd)
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 	const struct samsung_pin_bank_type *bank_type = bank->type;
 	unsigned long reg_con, flags;
-	unsigned int shift, mask, con;
+	unsigned int shift, mask, con, pin;
 	int ret;
 
 	ret = gpiochip_lock_as_irq(&bank->gpio_chip, irqd->hwirq);
@@ -176,6 +176,8 @@ static int exynos_irq_request_resources(struct irq_data *irqd)
 	con |= EXYNOS_PIN_FUNC_EINT << shift;
 	writel(con, bank->pctl_base + reg_con);
 
+	pin = bank->grange.pin_base + irqd->hwirq - bank->drvdata->pin_base;
+	bank->drvdata->pin_groups[pin].state[PINCFG_TYPE_FUNC] = EXYNOS_PIN_FUNC_EINT;
 	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return 0;
