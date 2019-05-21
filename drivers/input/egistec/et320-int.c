@@ -60,7 +60,10 @@
 #define	LEVEL_TRIGGER_HIGH      0x3
 #define EGIS_NAVI_INPUT 1  /* 1:open ; 0:close */
 struct wake_lock et320_wake_lock;
-
+/*
+ * spinlock for protecting interrupt flag
+ */
+static DEFINE_SPINLOCK(interrupt_lock);
 /*
  * FPS interrupt table
  */
@@ -240,13 +243,20 @@ static irqreturn_t fp_eint_func(int irq, void *dev_id)
 static irqreturn_t fp_eint_func_ll(int irq , void *dev_id)
 {
 	pr_debug("etspi: fp_eint_func_ll\n");
+	spin_lock(&interrupt_lock);
 	fps_ints.finger_on = 1;
-	/* fps_ints.int_count = 0; */
-	disable_irq_nosync(gpio_irq);
-	fps_ints.drdy_irq_flag = DRDY_IRQ_DISABLE;
+	if(fps_ints.drdy_irq_flag == DRDY_IRQ_DISABLE) {
+		DEBUG_PRINT("irq_flag is disabled\n");
+	} else {
+		/* fps_ints.int_count = 0; */
+		fps_ints.drdy_irq_flag = DRDY_IRQ_DISABLE;
+		disable_irq_nosync(gpio_irq);
+	}
+	spin_unlock(&interrupt_lock);
 	wake_up_interruptible(&interrupt_waitq);
 	/* printk_ratelimited(KERN_WARNING "-----------   zq fp fp_eint_func  ,fps_ints.int_count=%d",fps_ints.int_count);*/
 	wake_lock_timeout(&et320_wake_lock, msecs_to_jiffies(1500));
+
 	return IRQ_RETVAL(IRQ_HANDLED);
 }
 
@@ -274,6 +284,7 @@ int Interrupt_Init(struct etspi_data *etspi, int int_mode, int detect_period, in
 	int err = 0;
 	int status = 0;
 	static unsigned long jt;
+	unsigned long flags;
 
 	pr_debug("etspi: --  %s mode = %d period = %d threshold = %d\n",\
 		__func__, int_mode, detect_period, detect_threshold);
@@ -284,7 +295,7 @@ int Interrupt_Init(struct etspi_data *etspi, int int_mode, int detect_period, in
 	fps_ints.detect_period = detect_period;
 	fps_ints.detect_threshold = detect_threshold;
 	fps_ints.int_count = 0;
-	fps_ints.finger_on = 0;
+
 
 
 	if (request_irq_done == 0)	{
@@ -332,21 +343,25 @@ int Interrupt_Init(struct etspi_data *etspi, int int_mode, int detect_period, in
 		DEBUG_PRINT("etspi:Interrupt_Init:gpio_to_irq return: %d\n", gpio_irq);
 		DEBUG_PRINT("etspi:Interrupt_Init:request_irq return: %d\n", err);
 		/* disable_irq_nosync(gpio_irq); */
+		spin_lock_irqsave(&interrupt_lock, flags);
 		fps_ints.drdy_irq_flag = DRDY_IRQ_ENABLE;
 		enable_irq_wake(gpio_irq);
 		request_irq_done = 1;
+		spin_unlock_irqrestore(&interrupt_lock, flags);
 	}
 
 
+	spin_lock_irqsave(&interrupt_lock, flags);
+	fps_ints.finger_on = 0;
 	if (fps_ints.drdy_irq_flag == DRDY_IRQ_DISABLE) {
 		fps_ints.drdy_irq_flag = DRDY_IRQ_ENABLE;
-		enable_irq_wake(gpio_irq);
 		enable_irq(gpio_irq);
 		if (printk_timed_ratelimit(&jt, 500))
 			DEBUG_PRINT("etspi: Interrupt_Init: %s irq/done:%d %d mode:%d\
 			period:%d \threshold:%d \n", __func__, gpio_irq, request_irq_done,\
 			int_mode, detect_period, detect_threshold);
 	}
+	spin_unlock_irqrestore(&interrupt_lock, flags);
 done:
 	return 0;
 }
@@ -364,15 +379,19 @@ done:
 
 int Interrupt_Free(struct etspi_data *etspi)
 {
+	unsigned long flags;
 	pr_debug("etspi: %s\n", __func__);
+	spin_lock_irqsave(&interrupt_lock, flags);
 	fps_ints.finger_on = 0;
-
 	if (fps_ints.drdy_irq_flag == DRDY_IRQ_ENABLE) {
 		DEBUG_PRINT("etspi: %s (DISABLE IRQ)\n", __func__);
 		disable_irq_nosync(gpio_irq);
+		fps_ints.drdy_irq_flag = DRDY_IRQ_DISABLE;
+		spin_unlock_irqrestore(&interrupt_lock, flags);
 		/* disable_irq(gpio_irq); */
 		del_timer_sync(&fps_ints.timer);
-		fps_ints.drdy_irq_flag = DRDY_IRQ_DISABLE;
+	} else {
+		spin_unlock_irqrestore(&interrupt_lock, flags);
 	}
 	return 0;
 }
@@ -1072,7 +1091,7 @@ static int etspi_probe(struct platform_device *pdev)
 		pr_err("%s platforminit failed\n", __func__);
 		goto etspi_probe_platformInit_failed;
 	}
-
+	//intialize irq flag to disable during probe
 	fps_ints.drdy_irq_flag = DRDY_IRQ_DISABLE;
 
 #ifdef ETSPI_NORMAL_MODE
@@ -1127,8 +1146,6 @@ static int etspi_probe(struct platform_device *pdev)
 		goto etspi_probe_failed;
 	}
 	etspi_reset(etspi);
-
-	fps_ints.drdy_irq_flag = DRDY_IRQ_DISABLE;
 
 	/* the timer is for ET310 */
 	setup_timer(&fps_ints.timer, interrupt_timer_routine, (unsigned long)&fps_ints);
