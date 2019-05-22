@@ -99,6 +99,8 @@
 		mfc_freq_control = <0>;
 		mo_control = <1>;
 		bw_control = <1>;
+		num_mfc_freq = <5>;
+		mfc_freqs = <100000 200000 400000 533000 666000>;
 		/* spec: H264(240M) VP8(80M) */
 		max_Kbps = <245760 81920>;
 
