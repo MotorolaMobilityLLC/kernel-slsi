@@ -330,13 +330,19 @@ static void retry_configuration(unsigned long data)
 
 	pr_info("%s: +++\n", __func__);
 
+	if (cdev == NULL) {
+		pr_err("Stop retry configuration(cdev is NULL)\n");
+		return ;
+	}
+
 	if (!cdev->config) {
 
 		if (dwc->dr_mode == USB_DR_MODE_HOST)
 			return;
 
 		if (dwc->retry_cnt > MAX_RETRY_CNT) {
-			pr_err("%s: Re-try 5 times, But usb enumeration fail\n");
+			pr_err("%s: Re-try 5 times, But usb enumeration fail\n",
+					__func__);
 			return;
 		}
 
