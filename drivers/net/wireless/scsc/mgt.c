@@ -3199,6 +3199,64 @@ static int  slsi_set_opt_in_tcp6_packet_filter(struct slsi_dev *sdev, struct net
 }
 #endif
 
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+int slsi_set_abnormal_multicast_pkt_filter(struct net_device *dev, u8 enabled)
+{
+	struct netdev_vif *netdev_vif = netdev_priv(dev);
+	struct slsi_dev   *sdev = netdev_vif->sdev;
+	int ret = 0;
+	int is_suspend = 0;
+
+	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
+	is_suspend = sdev->device_config.user_suspend_mode;
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+
+	if (is_suspend) {
+		SLSI_ERR(sdev, "Host is in early suspend state.\n");
+		return -EPERM; /* set_enhanced_pkt_filter should not be called after suspend */
+	}
+
+	sdev->abnormal_multicast_pkt_filter_enabled = enabled;
+	SLSI_INFO(sdev, "Abnormal multicast packet filter is %s", (enabled ? "enabled" : "disabled"));
+	return ret;
+}
+
+static int slsi_set_opt_out_abnormal_multicast_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
+{
+	struct slsi_mlme_pattern_desc pattern_desc[3];
+	u8 pkt_filters_len = 0;
+	int ret = 0;
+	struct slsi_mlme_pkt_filter_elem pkt_filter_elem;
+
+	/* IPv4 packet */
+	pattern_desc[0].offset = 0; /* destination mac address*/
+	pattern_desc[0].mask_length = ETH_ALEN;
+	memset(pattern_desc[0].mask, 0xff, ETH_ALEN);
+	memcpy(pattern_desc[0].pattern, sdev->hw_addr, ETH_ALEN);
+
+	pattern_desc[1].offset = ETH_ALEN + ETH_ALEN; /* ethhdr->h_proto == IPv4 */
+	pattern_desc[1].mask_length = 2;
+	pattern_desc[1].mask[0] = 0xff; /* Big endian 0xffff */
+	pattern_desc[1].mask[1] = 0xff;
+	pattern_desc[1].pattern[0] = 0x08; /* Big endian 0x0800 */
+	pattern_desc[1].pattern[1] = 0x00;
+
+	pattern_desc[2].offset = sizeof(struct ethhdr) + offsetof(struct iphdr, daddr); /* iphdr->daddr starts with 1110 */
+	pattern_desc[2].mask_length = 1;
+	pattern_desc[2].mask[0] = 0xf0;
+	pattern_desc[2].pattern[0] = 0xe0; /* 224 */
+
+	slsi_create_packet_filter_element(SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID,
+					  FAPI_PACKETFILTERMODE_OPT_OUT_SLEEP,
+					  3, pattern_desc,
+					  &pkt_filter_elem, &pkt_filters_len);
+
+	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, 1, &pkt_filter_elem);
+
+	return ret;
+}
+#endif
+
 static int  slsi_set_multicast_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 {
 	struct slsi_mlme_pattern_desc pattern_desc;
@@ -3287,7 +3345,10 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		num_filters++; /*TCP IPv6 OPT IN*/
 	}
 #endif
-
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	if (sdev->abnormal_multicast_pkt_filter_enabled)
+		num_filters++;/* clear abnormal multicast packet */
+#endif
 	pkt_filter_elem = kmalloc((num_filters * sizeof(struct slsi_mlme_pkt_filter_elem)), GFP_KERNEL);
 	if (!pkt_filter_elem) {
 		SLSI_NET_ERR(dev, "ERROR Memory allocation failure");
@@ -3325,6 +3386,13 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		num_filters++;
 	}
 #endif
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	if (sdev->abnormal_multicast_pkt_filter_enabled) {
+		slsi_create_packet_filter_element(SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID, 0, 0, NULL,
+						  &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
+	}
+#endif
 	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, num_filters, pkt_filter_elem);
 	kfree(pkt_filter_elem);
 	return ret;
@@ -3356,6 +3424,14 @@ int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		if (ret)
 			return ret;
 		ret = slsi_set_opt_in_tcp6_packet_filter(sdev, dev);
+		if (ret)
+			return ret;
+	}
+#endif
+	/* install abnormal multicast packet filter */
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	if (sdev->abnormal_multicast_pkt_filter_enabled) {
+		ret = slsi_set_opt_out_abnormal_multicast_packet_filter(sdev, dev);
 		if (ret)
 			return ret;
 	}
@@ -3464,7 +3540,6 @@ void slsi_set_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		slsi_create_packet_filter_element(SLSI_PROXY_ARP_NA_FILTER_ID, FAPI_PACKETFILTERMODE_OPT_OUT,
 						  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
 		num_filters++;
-
 #endif
 	}
 
