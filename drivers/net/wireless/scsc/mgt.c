@@ -65,6 +65,10 @@ static char mac_addr_override[] = "ff:ff:ff:ff:ff:ff";
 module_param_string(mac_addr, mac_addr_override, sizeof(mac_addr_override), S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mac_addr_override, "WLAN MAC address override");
 
+static bool abnormal_multicast_filter = true;
+module_param(abnormal_multicast_filter, bool, 0644);
+MODULE_PARM_DESC(abnormal_multicast_filter, "Install packet filter for abnormal multicast");
+
 static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *mib_info, const struct firmware **fw);
 static int slsi_mib_close_file(struct slsi_dev *sdev, const struct firmware *e);
 static int slsi_mib_download_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *mib_info);
@@ -3187,6 +3191,41 @@ static int  slsi_set_opt_in_tcp6_packet_filter(struct slsi_dev *sdev, struct net
 }
 #endif
 
+static int slsi_set_opt_out_abnormal_multicast_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
+{
+	struct slsi_mlme_pattern_desc pattern_desc[3];
+	u8 pkt_filters_len = 0;
+	int ret = 0;
+	struct slsi_mlme_pkt_filter_elem pkt_filter_elem;
+
+	/* IPv4 packet */
+	pattern_desc[0].offset = 0; /* destination mac address*/
+	pattern_desc[0].mask_length = ETH_ALEN;
+	memset(pattern_desc[0].mask, 0xff, ETH_ALEN);
+	memcpy(pattern_desc[0].pattern, sdev->hw_addr, ETH_ALEN);
+
+	pattern_desc[1].offset = ETH_ALEN + ETH_ALEN; /* ethhdr->h_proto */
+	pattern_desc[1].mask_length = 2;
+	pattern_desc[1].mask[0] = 0xff; /* Big endian 0xffff */
+	pattern_desc[1].mask[1] = 0xff;
+	pattern_desc[1].pattern[0] = 0x08; /* Big endian 0x0800 */
+	pattern_desc[1].pattern[1] = 0x00;
+
+	pattern_desc[2].offset = sizeof(struct ethhdr) + offsetof(struct iphdr, daddr); /* iphdr->protocol */
+	pattern_desc[2].mask_length = 1;
+	pattern_desc[2].mask[0] = 0xf0;
+	pattern_desc[2].pattern[0] = 0xe0; /* 224 */
+
+	slsi_create_packet_filter_element(SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID,
+					  FAPI_PACKETFILTERMODE_OPT_OUT_SLEEP,
+					  3, pattern_desc,
+					  &pkt_filter_elem, &pkt_filters_len);
+
+	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, 1, &pkt_filter_elem);
+
+	return ret;
+}
+
 static int  slsi_set_multicast_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 {
 	struct slsi_mlme_pattern_desc pattern_desc;
@@ -3268,6 +3307,8 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 #endif
 	}
 
+	if (abnormal_multicast_filter)
+		num_filters++;/* clear abnormal multicast packet */
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 	if (sdev->enhanced_pkt_filter_enabled) {
 		num_filters++; /*All OPT OUT*/
@@ -3300,6 +3341,10 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	slsi_create_packet_filter_element(SLSI_ALL_BC_MC_FILTER_ID, 0, 0, NULL, &pkt_filter_elem[num_filters], &pkt_filters_len);
 	num_filters++;
 
+	if (abnormal_multicast_filter)
+		slsi_create_packet_filter_element(SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID, 0, 0, NULL,
+						  &pkt_filter_elem[num_filters], &pkt_filters_len);
+	num_filters++;
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 	if (sdev->enhanced_pkt_filter_enabled) {
 		slsi_create_packet_filter_element(SLSI_OPT_OUT_ALL_FILTER_ID, 0, 0, NULL,
@@ -3335,6 +3380,13 @@ int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	if (ret)
 		return ret;
 
+	/* install abnormal multicast packet filter */
+	if (abnormal_multicast_filter) {
+		ret = slsi_set_opt_out_abnormal_multicast_packet_filter(sdev, dev);
+		if (ret)
+			return ret;
+		SLSI_INFO(sdev, "Abnormal multicast filter is installed.");
+	}
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 	if (sdev->enhanced_pkt_filter_enabled) {
 		ret = slsi_set_opt_out_unicast_packet_filter(sdev, dev);
@@ -3452,7 +3504,6 @@ void slsi_set_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		slsi_create_packet_filter_element(SLSI_PROXY_ARP_NA_FILTER_ID, FAPI_PACKETFILTERMODE_OPT_OUT,
 						  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
 		num_filters++;
-
 #endif
 	}
 
