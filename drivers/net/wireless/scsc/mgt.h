@@ -483,6 +483,9 @@ int slsi_is_tcp_sync_packet(struct net_device *dev, struct sk_buff *skb);
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 int slsi_set_enhanced_pkt_filter(struct net_device *dev, u8 pkt_filter_enable);
 #endif
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+int slsi_set_abnormal_multicast_pkt_filter(struct net_device *dev, u8 enabled);
+#endif
 void slsi_set_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
 int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
 int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
