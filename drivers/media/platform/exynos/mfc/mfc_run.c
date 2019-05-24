@@ -581,16 +581,14 @@ int mfc_run_enc_frame(struct mfc_ctx *ctx)
 
 int mfc_run_enc_last_frames(struct mfc_ctx *ctx)
 {
-	struct mfc_buf *dst_mb;
+	struct mfc_buf *dst_mb = NULL;
 	struct mfc_raw_info *raw;
 
 	raw = &ctx->raw_buf;
 
 	dst_mb = mfc_get_buf(&ctx->buf_queue_lock, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
-	if (!dst_mb) {
-		mfc_debug(2, "no dst buffers\n");
-		return -EAGAIN;
-	}
+	if (!dst_mb)
+		mfc_debug(2, "no dst buffers set to zero\n");
 
 	mfc_debug(2, "Set address zero for all planes\n");
 	mfc_set_enc_frame_buffer(ctx, 0, raw->num_planes);
