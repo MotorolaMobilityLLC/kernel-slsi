@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/soc/samsung/exynos-soc.h>
+#include <soc/samsung/exynos-debug.h>
 #include <linux/debug-snapshot.h>
 #include "../../../lib/debug-snapshot-local.h"
 

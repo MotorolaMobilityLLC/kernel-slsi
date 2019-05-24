@@ -160,16 +160,6 @@ void dbg_snapshot_check_crash_key(unsigned int code, int value);
 #define dbg_snapshot_check_crash_key(a,b)	do { } while(0)
 #endif
 
-#ifdef CONFIG_S3C2410_WATCHDOG
-extern int s3c2410wdt_set_emergency_stop(int index);
-extern int s3c2410wdt_set_emergency_reset(unsigned int timeout, int index);
-extern int s3c2410wdt_keepalive_emergency(bool reset, int index);
-#else
-#define s3c2410wdt_set_emergency_stop(a) 	(-1)
-#define s3c2410wdt_set_emergency_reset(a, b)	do { } while(0)
-#define s3c2410wdt_keepalive_emergency(a, b)	do { } while(0)
-#endif
-
 #ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
 extern void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
 				struct trace_binder_transaction *transaction,
@@ -214,7 +204,6 @@ extern void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
 #define dbg_snapshot_post_panic()		do { } while(0)
 #define dbg_snapshot_post_reboot(a)	do { } while(0)
 #define dbg_snapshot_set_hardlockup(a)	do { } while(0)
-#define dbg_snapshot_get_hardlockup()	do { } while(0)
 #define dbg_snapshot_get_debug_level()	do { } while(0)
 #define dbg_snapshot_get_debug_level_reg()     do { } while (0)
 #define dbg_snapshot_check_crash_key(a,b)	do { } while(0)
@@ -225,6 +214,8 @@ extern void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
 #define dbg_snapshot_hook_hardlockup_entry(a) do { } while(0)
 #define dbg_snapshot_hook_hardlockup_exit() do { } while(0)
 #define dbg_snapshot_binder(a,b,c)	do { } while(0)
+#define dbg_snapshot_print_notifier_call(a,b,c) do { } while(0)
+#define dbg_snapshot_save_log(a,b)	do { } while(0)
 
 static inline unsigned int dbg_snapshot_get_item_size(char *name)
 {
@@ -243,11 +234,13 @@ static inline bool dbg_snapshot_dumper_one(void *v_dumper,
 {
 	return false;
 }
-static int dbg_snapshot_add_bl_item_info(const char *name,
-				unsigned int paddr, unsigned int size)
+static inline int dbg_snapshot_get_hardlockup(void)
 {
 	return 0;
 }
+
+#define dbg_snapshot_add_bl_item_info(a,b,c) 	do { } while(0)
+
 #endif /* CONFIG_DEBUG_SNAPSHOT */
 
 extern void dbg_snapshot_soc_helper_init(void);
