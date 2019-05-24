@@ -28,7 +28,7 @@ extern void dbg_snapshot_init_utils(void);
 extern void dbg_snapshot_init_helper(void);
 extern void __iomem *dbg_snapshot_get_base_vaddr(void);
 extern void __iomem *dbg_snapshot_get_base_paddr(void);
-extern void dbg_snapshot_scratch_reg(unsigned int val);
+
 extern void dbg_snapshot_print_panic_report(void);
 extern void dbg_snapshot_dump_task_info(void);
 
