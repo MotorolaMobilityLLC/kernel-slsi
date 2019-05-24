@@ -262,3 +262,9 @@ config SCSC_WLAN_STA_ENHANCED_ARP_DETECT
         ---help---
           This option tells whether enhanced arp detection
           is enabled or not.
+
+config SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+        bool "Enable abnormal multicast packet filtering in suspend"
+        default n
+        ---help---
+          This option tells if abnormal multicast packet filtering in suspend is supported or not.

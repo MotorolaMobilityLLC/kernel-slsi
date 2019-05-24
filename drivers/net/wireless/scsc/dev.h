@@ -471,6 +471,7 @@ enum slsi_filter_id {
 	SLSI_OPT_IN_TCP4_FILTER_ID,						/* 0x87 */
 	SLSI_OPT_IN_TCP6_FILTER_ID,						/* 0x88 */
 #endif
+	SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID,					/* 0x88 */
 	SLSI_REGD_MC_FILTER_ID,							/* 0x89 */
 };
 #else
@@ -491,7 +492,8 @@ enum slsi_filter_id {
 	SLSI_OPT_IN_TCP4_FILTER_ID,						/* 0x88 */
 	SLSI_OPT_IN_TCP6_FILTER_ID,						/* 0x89 */
 #endif
-	SLSI_REGD_MC_FILTER_ID,							/* 0x8A */
+	SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID,					/* 0x89 */
+	SLSI_REGD_MC_FILTER_ID,							/* 0x8a */
 };
 
 #endif
@@ -1163,6 +1165,9 @@ struct slsi_dev {
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 	bool                       enhanced_pkt_filter_enabled;
+#endif
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	bool                       abnormal_multicast_pkt_filter_enabled;
 #endif
 };
 
