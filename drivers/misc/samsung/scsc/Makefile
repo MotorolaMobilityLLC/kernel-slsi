@@ -61,8 +61,21 @@ scsc_pcie_mif-$(CONFIG_SCSC_PCIE) += \
 # Platform MIF
 obj-$(CONFIG_SCSC_PLATFORM) += scsc_platform_mif.o
 scsc_platform_mif-$(CONFIG_SCSC_PLATFORM) += \
-	platform_mif_module.o \
-	platform_mif.o
+	platform_mif_module.o
+
+ifeq ($(CONFIG_SOC_EXYNOS9610),y)
+	scsc_platform_mif-$(CONFIG_SCSC_PLATFORM) += platform_mif_9610.o
+endif
+
+ifeq ($(CONFIG_SOC_EXYNOS7570),y)
+	scsc_platform_mif-$(CONFIG_SCSC_PLATFORM) += platform_mif.o
+endif
+ifeq ($(CONFIG_SOC_EXYNOS7872),y)
+	scsc_platform_mif-$(CONFIG_SCSC_PLATFORM) += platform_mif.o
+endif
+ifeq ($(CONFIG_SOC_EXYNOS7885),y)
+	scsc_platform_mif-$(CONFIG_SCSC_PLATFORM) += platform_mif.o
+endif
 
 # Maxwell manager
 obj-$(CONFIG_SCSC_CORE_CM) += scsc_mx.o
