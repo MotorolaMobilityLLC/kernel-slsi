@@ -127,6 +127,9 @@
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 #define CMD_ENHANCED_PKT_FILTER "ENHANCED_PKT_FILTER"
 #endif
+#ifdef SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+#define CMD_ABNORMAL_MULTICAST_PKT_FILTER "ABNORMAL_MULTICAST_PKT_FILTER"
+#endif
 
 #define ROAMOFFLAPLIST_MIN 1
 #define ROAMOFFLAPLIST_MAX 100
@@ -2666,6 +2669,12 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		const u8 enable = *(command + strlen(CMD_ENHANCED_PKT_FILTER) + 1) - '0';
 
 		ret = slsi_set_enhanced_pkt_filter(dev, enable);
+#endif
+#ifdef SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	} else if ((strncasecmp(command, CMD_ABNORMAL_MULTICAST_PKT_FILTER, strlen(CMD_ABNORMAL_MULTICAST_PKT_FILTER)) == 0)) {
+		const u8 enable = *(command + strlen(CMD_ABNORMAL_MULTICAST_PKT_FILTER) + 1) - '0';
+
+		ret = slsi_set_abnormal_multicast_pkt_filter(dev, enable);
 #endif
 	} else {
 		ret  = -ENOTSUPP;
