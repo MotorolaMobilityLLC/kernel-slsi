@@ -56,6 +56,8 @@
 #define NUM_MPEG4_LF_BUF	2
 
 #define DEFAULT_TAG		(0xE05)
+#define IGNORE_TAG		(0xD5C) /* ex) encoder DRC */
+#define HEADER_TAG		(0xC5D)
 
 #define MFC_NO_INSTANCE_SET	-1
 
