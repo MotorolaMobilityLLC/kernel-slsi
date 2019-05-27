@@ -348,6 +348,11 @@ static int __init exynos_reboot_setup(struct device_node *np)
 	of_node_put(np);
 
 	pr_info("[Exynos Reboot]: Success to register arm_pm_restart\n");
+
+#ifndef CONFIG_DEBUG_SNAPSHOT
+	/* If Debug-Snapshot is disabed, This code prevents entering fastboot */
+	writel(0, exynos_pmu_base + RESET_SEQUENCER_CONFIGURATION);
+#endif
 	big_reset_control(1);
 	return err;
 }
