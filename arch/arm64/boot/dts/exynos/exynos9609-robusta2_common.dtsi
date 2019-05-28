@@ -2112,7 +2112,7 @@
 			regulator-max-microvolt = <3000000>;
 		};
 
-		MICBIAS1 {
+		audio_micbias1:MICBIAS1 {
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
 			cirrus,ext-cap = <1>;
