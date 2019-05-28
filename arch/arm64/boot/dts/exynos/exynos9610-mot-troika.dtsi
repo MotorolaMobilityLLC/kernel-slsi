@@ -164,3 +164,7 @@
 		0x814C 0x00
 		0x81A4 0x1D40008>;
 };
+
+&audio_micbias1 {
+	/delete-property/ cirrus,ext-cap;
+};
