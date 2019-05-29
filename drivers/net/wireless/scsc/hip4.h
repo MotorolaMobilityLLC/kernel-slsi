@@ -85,6 +85,8 @@
 
 #define MIF_HIP_CFG_Q_NUM       6
 
+#define MIF_NO_IRQ		0xff
+
 /* Current versions supported by this HIP */
 #define HIP4_SUPPORTED_V1	3
 #define HIP4_SUPPORTED_V2	4
