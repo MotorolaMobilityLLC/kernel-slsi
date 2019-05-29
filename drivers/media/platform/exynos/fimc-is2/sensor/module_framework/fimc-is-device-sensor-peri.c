@@ -653,6 +653,8 @@ void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 	struct fimc_is_device_sensor_peri *sensor_peri;
 	struct v4l2_subdev *subdev_flash;
 	struct ae_param expo, dgain, again;
+	struct fimc_is_sensor_ctl module_ctl;
+	u32 m_fcount[2];
 	u32 tgain[EXPOSURE_GAIN_MAX];
 	u32 step = 0;
 	FIMC_BUG_VOID(!data);
@@ -752,6 +754,14 @@ void fimc_is_sensor_flash_fire_work(struct work_struct *data)
 			&again.val,
 			&dgain.val);
 	}
+
+	/* update exp/gain/sensitivity meta for apply flash capture frame */
+	m_fcount[0] = m_fcount[1] = (device->fcount + 1) % EXPECT_DM_NUM;
+	module_ctl.cur_cam20_sensor_udctrl.sensitivity =
+			fimc_is_sensor_calculate_sensitivity_by_tgain(tgain[0]);
+	module_ctl.valid_sensor_ctrl = false;
+	fimc_is_sensor_ctl_update_gains(device, &module_ctl, m_fcount, again, dgain);
+	fimc_is_sensor_ctl_update_exposure(device, m_fcount, expo);
 
 	dbg_flash("[%s][FLASH] mode %d, intensity %d, firing time %d us, step %d\n", __func__,
 			flash->flash_data.mode,

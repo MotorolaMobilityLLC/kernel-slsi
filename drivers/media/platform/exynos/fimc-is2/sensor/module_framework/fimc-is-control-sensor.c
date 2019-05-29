@@ -49,6 +49,12 @@ u32 fimc_is_sensor_calculate_tgain(u32 dgain, u32 again)
 	return tgain;
 }
 
+u32 fimc_is_sensor_calculate_sensitivity_by_tgain(u32 tgain)
+{
+	/* ISO(sensitivity) 40 = gain 1x */
+	return (tgain * 40) / 1000;
+}
+
 u32 fimc_is_sensor_ctl_get_csi_vsync_cnt(struct fimc_is_device_sensor *device)
 {
 	struct fimc_is_device_csi *csi = NULL;
@@ -409,7 +415,7 @@ p_err:
 	return ret;
 }
 
-static int fimc_is_sensor_ctl_update_gains(struct fimc_is_device_sensor *device,
+int fimc_is_sensor_ctl_update_gains(struct fimc_is_device_sensor *device,
 				struct fimc_is_sensor_ctl *module_ctl,
 				u32 *dm_index,
 				struct ae_param adj_again,
@@ -558,7 +564,7 @@ static int fimc_is_sensor_ctl_set_exposure(struct fimc_is_device_sensor *device,
 	return ret;
 }
 
-static int fimc_is_sensor_ctl_update_exposure(struct fimc_is_device_sensor *device,
+int fimc_is_sensor_ctl_update_exposure(struct fimc_is_device_sensor *device,
 					u32 *dm_index,
 					struct ae_param expo)
 {
