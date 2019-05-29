@@ -2372,6 +2372,7 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data)
 		s2mu106_usbpd_rp_current_check(pdic_data);
 	} else if ((data & S2MU106_PR_MASK) == S2MU106_PDIC_SOURCE) {
 		dev_info(dev, "SOURCE\n");
+		s2mu106_usbpd_set_rp_scr_sel(pdic_data, PLUG_CTRL_RP180);
 		ret = s2mu106_usbpd_check_accessory(pdic_data);
 		if (ret < 0) {
 			dev_info(&i2c->dev, "%s attach accessory\n", __func__);
