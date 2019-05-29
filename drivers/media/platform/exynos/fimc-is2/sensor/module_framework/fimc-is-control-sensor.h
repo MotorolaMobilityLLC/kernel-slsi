@@ -28,6 +28,7 @@
 u64 fimc_is_sensor_convert_us_to_ns(u32 usec);
 u32 fimc_is_sensor_convert_ns_to_us(u64 nsec);
 u32 fimc_is_sensor_calculate_tgain(u32 dgain, u32 again);
+u32 fimc_is_sensor_calculate_sensitivity_by_tgain(u32 tgain);
 
 struct fimc_is_device_sensor;
 void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device);
@@ -45,6 +46,14 @@ void fimc_is_sensor_ctl_update_exposure_to_uctl(camera2_sensor_uctl_t *sensor_uc
 void fimc_is_sensor_ctl_update_gain_to_uctl(camera2_sensor_uctl_t *sensor_uctl,
 	enum fimc_is_exposure_gain_count num_data,
 	u32 *analog_gain, u32 *digital_gain);
+int fimc_is_sensor_ctl_update_gains(struct fimc_is_device_sensor *device,
+				struct fimc_is_sensor_ctl *module_ctl,
+				u32 *dm_index,
+				struct ae_param adj_again,
+				struct ae_param adj_dgain);
+int fimc_is_sensor_ctl_update_exposure(struct fimc_is_device_sensor *device,
+					u32 *dm_index,
+					struct ae_param expo);
 
 /* Actuator funtion */
 int fimc_is_actuator_ctl_set_position(struct fimc_is_device_sensor *device, u32 position);
