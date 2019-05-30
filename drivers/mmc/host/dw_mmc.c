@@ -2505,18 +2505,18 @@ static bool dw_mci_clear_pending_cmd_complete(struct dw_mci *host)
 	return true;
 }
 
-static void dw_mci_sd_power_off(unsigned long priv)
+static void dw_mci_sd_power_off(struct work_struct *work)
 {
-	struct dw_mci *host = (struct dw_mci *)priv;
+	struct dw_mci *host = container_of(work, struct dw_mci, card_det_work);
 	struct mmc_host *mmc = host->slot->mmc;
 	struct dw_mci_slot *slot = host->slot;
 
 	if (!IS_ERR(mmc->supply.vmmc))
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
-	if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled)
+	if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled) {
 		regulator_disable(mmc->supply.vqmmc);
-	slot->host->vqmmc_enabled = false;
-
+		slot->host->vqmmc_enabled = false;
+	}
 }
 
 static void dw_mci_tasklet_func(unsigned long priv)
@@ -3489,8 +3489,7 @@ static irqreturn_t dw_mci_detect_interrupt(int irq, void *dev_id)
 	struct dw_mci *host = dev_id;
 
 	/* sdcard power off */
-	tasklet_schedule(&host->pw_tasklet);
-
+	queue_work(host->sd_card_det_workqueue, &host->card_det_work);
 	queue_work(host->card_workqueue, &host->card_work);
 
 	return IRQ_HANDLED;
@@ -4297,7 +4296,6 @@ int dw_mci_probe(struct dw_mci *host)
 		host->fifo_reg = host->regs + DATA_240A_OFFSET;
 
 	tasklet_init(&host->tasklet, dw_mci_tasklet_func, (unsigned long)host);
-	tasklet_init(&host->pw_tasklet, dw_mci_sd_power_off, (unsigned long)host);
 
 	host->card_workqueue = alloc_workqueue("dw-mci-card", WQ_MEM_RECLAIM, 1);
 	if (!host->card_workqueue) {
@@ -4305,6 +4303,14 @@ int dw_mci_probe(struct dw_mci *host)
 		goto err_dmaunmap;
 	}
 	INIT_WORK(&host->card_work, dw_mci_work_routine_card);
+
+	/* For SD card power control */
+	host->sd_card_det_workqueue = alloc_workqueue("sd-card-det-wq", WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_HIGHPRI, 1);
+	if (!host->sd_card_det_workqueue) {
+		ret = -ENOMEM;
+		goto err_dmaunmap;
+	}
+	INIT_WORK(&host->card_det_work, dw_mci_sd_power_off);
 
 	/* INT min lock */
 	pm_workqueue = create_freezable_workqueue("dw_mci_clk_ctrl");
@@ -4377,6 +4383,7 @@ int dw_mci_probe(struct dw_mci *host)
 
  err_workqueue:
 	destroy_workqueue(host->card_workqueue);
+	destroy_workqueue(host->sd_card_det_workqueue);
 	destroy_workqueue(pm_workqueue);
 	pm_qos_remove_request(&host->pm_qos_lock);
 
@@ -4418,6 +4425,7 @@ void dw_mci_remove(struct dw_mci *host)
 
 	del_timer_sync(&host->timer);
 	destroy_workqueue(host->card_workqueue);
+	destroy_workqueue(host->sd_card_det_workqueue);
 	destroy_workqueue(pm_workqueue);
 	pm_qos_remove_request(&host->pm_qos_lock);
 
