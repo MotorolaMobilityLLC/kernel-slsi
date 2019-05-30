@@ -61,8 +61,8 @@ int slsi_hip_sap_setup(struct slsi_dev *sdev)
 	if (hip_sap_cont.sap[SAP_MLME]->sap_version_supported) {
 		if (conf_hip4_ver == 4)
 			version = scsc_wifi_get_hip_config_version_4_u16(&sdev->hip4_inst.hip_control->config_v4, sap_mlme_ver);
-		if (conf_hip4_ver == 3)
-			version = scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_mlme_ver);
+		if (conf_hip4_ver == 5)
+			version = scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_mlme_ver);
 		if (hip_sap_cont.sap[SAP_MLME]->sap_version_supported(version))
 			return -ENODEV;
 	} else {
@@ -72,8 +72,8 @@ int slsi_hip_sap_setup(struct slsi_dev *sdev)
 	if (hip_sap_cont.sap[SAP_MA]->sap_version_supported) {
 		if (conf_hip4_ver == 4)
 			version = scsc_wifi_get_hip_config_version_4_u16(&sdev->hip4_inst.hip_control->config_v4, sap_ma_ver);
-		if (conf_hip4_ver == 3)
-			version = scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_ma_ver);
+		if (conf_hip4_ver == 5)
+			version = scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_ma_ver);
 		if (hip_sap_cont.sap[SAP_MA]->sap_version_supported(version))
 			return -ENODEV;
 	} else {
@@ -83,8 +83,8 @@ int slsi_hip_sap_setup(struct slsi_dev *sdev)
 	if (hip_sap_cont.sap[SAP_DBG]->sap_version_supported) {
 		if (conf_hip4_ver == 4)
 			version = scsc_wifi_get_hip_config_version_4_u16(&sdev->hip4_inst.hip_control->config_v4, sap_debug_ver);
-		if (conf_hip4_ver == 3)
-			version = scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_debug_ver);
+		if (conf_hip4_ver == 5)
+			version = scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_debug_ver);
 		if (hip_sap_cont.sap[SAP_DBG]->sap_version_supported(version))
 			return -ENODEV;
 	} else {
@@ -94,8 +94,8 @@ int slsi_hip_sap_setup(struct slsi_dev *sdev)
 	if (hip_sap_cont.sap[SAP_TST]->sap_version_supported) {
 		if (conf_hip4_ver == 4)
 			version = scsc_wifi_get_hip_config_version_4_u16(&sdev->hip4_inst.hip_control->config_v4, sap_test_ver);
-		if (conf_hip4_ver == 3)
-			version = scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_test_ver);
+		if (conf_hip4_ver == 5)
+			version = scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_test_ver);
 		if (hip_sap_cont.sap[SAP_TST]->sap_version_supported(version))
 			return -ENODEV;
 	} else {
