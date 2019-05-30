@@ -294,19 +294,19 @@ static int slsi_procfs_status_show(struct seq_file *m, void *v)
 			seq_printf(m, "Chip FAPI Version (v4): TEST SAP       : %d.%d\n",
 				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_4_u16(&sdev->hip4_inst.hip_control->config_v4, sap_test_ver)),
 				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_4_u16(&sdev->hip4_inst.hip_control->config_v4, sap_test_ver)));
-		} else if (conf_hip4_ver == 3) {
-			seq_printf(m, "Chip FAPI Version (v3): MA SAP         : %d.%d\n",
-				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_ma_ver)),
-				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_ma_ver)));
-			seq_printf(m, "Chip FAPI Version (v3): MLME SAP       : %d.%d\n",
-				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_mlme_ver)),
-				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_mlme_ver)));
-			seq_printf(m, "Chip FAPI Version (v3): DEBUG SAP      : %d.%d\n",
-				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_debug_ver)),
-				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_debug_ver)));
-			seq_printf(m, "Chip FAPI Version (v3): TEST SAP       : %d.%d\n",
-				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_test_ver)),
-				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_3_u16(&sdev->hip4_inst.hip_control->config_v3, sap_test_ver)));
+		} else if (conf_hip4_ver == 5) {
+			seq_printf(m, "Chip FAPI Version (v5): MA SAP         : %d.%d\n",
+				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_ma_ver)),
+				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_ma_ver)));
+			seq_printf(m, "Chip FAPI Version (v5): MLME SAP       : %d.%d\n",
+				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_mlme_ver)),
+				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_mlme_ver)));
+			seq_printf(m, "Chip FAPI Version (v5): DEBUG SAP      : %d.%d\n",
+				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_debug_ver)),
+				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_debug_ver)));
+			seq_printf(m, "Chip FAPI Version (v5): TEST SAP       : %d.%d\n",
+				   FAPI_MAJOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_test_ver)),
+				   FAPI_MINOR_VERSION(scsc_wifi_get_hip_config_version_5_u16(&sdev->hip4_inst.hip_control->config_v5, sap_test_ver)));
 		}
 	}
 

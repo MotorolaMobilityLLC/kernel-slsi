@@ -112,7 +112,7 @@ static void slsi_ba_signal_process_complete(struct net_device *dev)
 	atomic_set(&ndev_vif->ba_flush, 1);
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 	conf_hip4_ver = scsc_wifi_get_hip_config_version(&sdev->hip4_inst.hip_control->init);
-	if (conf_hip4_ver == 3)
+	if (conf_hip4_ver == 5)
 		slsi_skb_schedule_work(&ndev_vif->rx_data);
 #else
 	slsi_skb_schedule_work(&ndev_vif->rx_data);
