@@ -26,9 +26,11 @@
 #define FIELD_TO_DSCP			2
 
 /* DSCP */
+/* (RFC5865) */
+#define DSCP_VA		0x2C
+/* (RFC3246) */
+#define DSCP_EF		0x2E
 /* (RFC2597) */
-#define DSCP_EF_PHB	0x2E
-#define DSCP_EF		0x2C
 #define DSCP_AF43	0x26
 #define DSCP_AF42	0x24
 #define DSCP_AF41	0x22
@@ -48,8 +50,9 @@
 #define CS4		0x20
 #define CS3		0x18
 #define CS2		0x10
-#define CS1		0x08
 #define CS0		0x00
+/* (RFC3662) */
+#define CS1		0x08
 
 #ifndef CONFIG_ARM
 static bool tcp_ack_suppression_disable;
@@ -323,10 +326,45 @@ static u16 slsi_get_priority_from_tos_dscp(u8 *frame, u16 proto)
 	default:
 		return FAPI_PRIORITY_QOS_UP0;
 	}
-
+/* DSCP table based in RFC8325 from Android 10 */
+#if (defined(ANDROID_VERSION) && ANDROID_VERSION >= 100000)
 	switch (dscp) {
-	case DSCP_EF_PHB:
+	case CS7:
+		return FAPI_PRIORITY_QOS_UP7;
+	case CS6:
 	case DSCP_EF:
+	case DSCP_VA:
+		return FAPI_PRIORITY_QOS_UP6;
+	case CS5:
+		return FAPI_PRIORITY_QOS_UP5;
+	case DSCP_AF41:
+	case DSCP_AF42:
+	case DSCP_AF43:
+	case CS4:
+	case DSCP_AF31:
+	case DSCP_AF32:
+	case DSCP_AF33:
+	case CS3:
+		return FAPI_PRIORITY_QOS_UP4;
+	case DSCP_AF21:
+	case DSCP_AF22:
+	case DSCP_AF23:
+		return FAPI_PRIORITY_QOS_UP3;
+	case CS2:
+	case DSCP_AF11:
+	case DSCP_AF12:
+	case DSCP_AF13:
+	case CS0:
+		return FAPI_PRIORITY_QOS_UP0;
+	case CS1:
+		return FAPI_PRIORITY_QOS_UP1;
+	default:
+		return FAPI_PRIORITY_QOS_UP0;
+	}
+#else
+	switch (dscp) {
+	case DSCP_EF:
+	case DSCP_VA:
 		return FAPI_PRIORITY_QOS_UP6;
 	case DSCP_AF43:
 	case DSCP_AF42:
@@ -361,6 +399,7 @@ static u16 slsi_get_priority_from_tos_dscp(u8 *frame, u16 proto)
 	default:
 		return FAPI_PRIORITY_QOS_UP0;
 	}
+#endif
 }
 
 #endif
