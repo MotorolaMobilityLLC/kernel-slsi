@@ -5291,8 +5291,9 @@ static int abox_enable(struct device *dev)
 
 	abox_gic_enable_irq(data->dev_gic);
 
-	abox_request_cpu_gear_sync(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
-			ABOX_CPU_GEAR_MAX);
+	ret = clk_set_rate(data->clk_pll, AUD_PLL_RATE_HZ_FOR_48000);
+	if (ret < 0)
+		dev_warn(dev, "setting audio pll clock to 1.2Ghz is failed: %d\n",	ret);
 
 	if (is_secure_gic()) {
 		exynos_pmu_write(ABOX_MAGIC, 0);
