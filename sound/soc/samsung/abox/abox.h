@@ -665,6 +665,7 @@ struct abox_data {
 	enum audio_mode audio_mode;
 	enum sound_type sound_type;
 	atomic_t suspend_state;
+	struct wakeup_source ws_boot;
 };
 
 struct abox_compr_data {

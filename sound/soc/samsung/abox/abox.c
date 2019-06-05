@@ -3237,6 +3237,7 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* new */
 			dev_dbg(dev, "%s(%p): new\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
+			__pm_stay_awake(&data->ws_boot);
 			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, true);
 		}
 	} else {
@@ -3245,6 +3246,7 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* on */
 			dev_dbg(dev, "%s(%p): on\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
+			__pm_stay_awake(&data->ws_boot);
 			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, true);
 		} else if ((old_gear < ABOX_CPU_GEAR_MIN) &&
 				(gear >= ABOX_CPU_GEAR_MIN)) {
@@ -4390,6 +4392,9 @@ static void abox_boot_done_work_func(struct work_struct *work)
 	abox_restore_data(dev);
 	abox_request_cpu_gear(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
 			ABOX_CPU_GEAR_MIN);
+
+	__pm_relax(&data->ws_boot);
+	dev_info(dev, "%s:release wake lock\n", __func__);
 }
 
 static void abox_boot_done(struct device *dev, unsigned int version)
@@ -6039,6 +6044,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 
 	abox_failsafe_init(dev);
 
+	wakeup_source_init(&data->ws_boot, "abox_boot");
 	ret = device_create_file(dev, &dev_attr_calliope_version);
 	if (ret < 0)
 		dev_warn(dev, "Failed to create file: %s\n", "version");
@@ -6089,6 +6095,7 @@ static int samsung_abox_remove(struct platform_device *pdev)
 #ifdef EMULATOR
 	iounmap(pmu_alive);
 #endif
+	wakeup_source_trash(&data->ws_boot);
 	return 0;
 }
 
