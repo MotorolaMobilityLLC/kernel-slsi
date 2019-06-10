@@ -584,7 +584,7 @@ static noinline_for_stack
 char *string(char *buf, char *end, const char *s, struct printf_spec spec)
 {
 	int len = 0;
-	size_t lim = spec.precision;
+	int lim = spec.precision;
 
 	if ((unsigned long)s < PAGE_SIZE)
 		s = "(null)";
