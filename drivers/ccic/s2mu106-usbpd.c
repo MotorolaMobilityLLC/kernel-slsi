@@ -1281,6 +1281,24 @@ static int s2mu106_set_check_msg_pass(void *_data, int val)
 
 	return 0;
 }
+
+static void s2mu106_usbpd_set_threshold(struct s2mu106_usbpd_data *pdic_data,
+			CCIC_RP_RD_SEL port_sel, CCIC_THRESHOLD_SEL threshold_sel)
+{
+	struct i2c_client *i2c = pdic_data->i2c;
+
+	if (threshold_sel > S2MU106_THRESHOLD_MAX)
+		dev_err(pdic_data->dev, "%s : threshold overflow!!\n", __func__);
+	else {
+		if (port_sel == PLUG_CTRL_RD)
+			s2mu106_usbpd_write_reg(i2c,
+				S2MU106_REG_PLUG_CTRL_SET_RD, threshold_sel);
+		else if (port_sel == PLUG_CTRL_RP)
+			s2mu106_usbpd_write_reg(i2c,
+				S2MU106_REG_PLUG_CTRL_SET_RP, threshold_sel);
+	}
+}
+
 #ifndef CONFIG_SEC_FACTORY
 static void s2mu106_usbpd_set_rp_scr_sel(struct s2mu106_usbpd_data *pdic_data,
 							CCIC_RP_SCR_SEL scr_sel)
@@ -2086,6 +2104,22 @@ static void s2mu106_usbpd_prevent_watchdog_reset(
 	mutex_unlock(&pdic_data->lpm_mutex);
 }
 
+static int s2mu106_usbpd_check_abnormal_attach(struct s2mu106_usbpd_data *pdic_data)
+{
+	struct i2c_client *i2c = pdic_data->i2c;
+	u8 data = 0;
+
+	s2mu106_usbpd_set_threshold(pdic_data, PLUG_CTRL_RP,
+										S2MU106_THRESHOLD_1371MV);
+	msleep(20);
+
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_MON2, &data);
+	if ((data & S2MU106_PR_MASK) == S2MU106_PDIC_SOURCE)
+		return true;
+	else
+		return false;
+}
+
 static void s2mu106_usbpd_rp_current_check(struct s2mu106_usbpd_data *pdic_data)
 {
 	struct i2c_client *i2c = pdic_data->i2c;
@@ -2372,6 +2406,11 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data)
 		s2mu106_usbpd_rp_current_check(pdic_data);
 	} else if ((data & S2MU106_PR_MASK) == S2MU106_PDIC_SOURCE) {
 		dev_info(dev, "SOURCE\n");
+		ret = s2mu106_usbpd_check_abnormal_attach(pdic_data);
+		if (ret == false) {
+			dev_err(&i2c->dev, "%s, abnormal attach\n", __func__);
+			return -1;
+		}
 		s2mu106_usbpd_set_rp_scr_sel(pdic_data, PLUG_CTRL_RP180);
 		ret = s2mu106_usbpd_check_accessory(pdic_data);
 		if (ret < 0) {
