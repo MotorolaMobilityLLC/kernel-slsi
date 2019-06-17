@@ -2918,6 +2918,7 @@ static void synaptics_rmi4_free_fh(struct synaptics_rmi4_data *rmi4_data,
 {
 #ifdef PROXIMITY_MODE
 	struct synaptics_rmi4_f51_handle *f51 = rmi4_data->f51;
+	static int is_f51_free = 0;
 #endif
 
 	if (fhandler->fn_number == SYNAPTICS_RMI4_F1A) {
@@ -2925,8 +2926,13 @@ static void synaptics_rmi4_free_fh(struct synaptics_rmi4_data *rmi4_data,
 	} else {
 #ifdef PROXIMITY_MODE
 		if (fhandler->fn_number == SYNAPTICS_RMI4_F51) {
-			kfree(f51);
-			f51 = NULL;
+			if (!is_f51_free) {
+				kfree(f51);
+				f51 = NULL;
+				is_f51_free = 1;
+			}
+			else
+				f51 = NULL;
 		}
 #endif
 		kfree(fhandler->data);
