@@ -1143,7 +1143,7 @@ static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
 
 	/* set frame rate change with delta */
 	if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH) {
-		p->rc_frame_delta = FRAME_RATE_RESOLUTION / buf_ctrl->val;
+		p->rc_frame_delta = p->rc_framerate_res / buf_ctrl->val;
 		value = MFC_READL(buf_ctrl->addr);
 		value &= ~(buf_ctrl->mask << buf_ctrl->shft);
 		value |= ((p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft);
@@ -1153,10 +1153,13 @@ static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
 	/* set drop control */
 	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_DROP_CONTROL) {
 		if (!ctx->ts_last_interval) {
-			p->rc_frame_delta = FRAME_RATE_RESOLUTION / p->rc_framerate;
+			p->rc_frame_delta = p->rc_framerate_res / p->rc_framerate;
 			mfc_debug(3, "[DROPCTRL] default delta: %d\n", p->rc_frame_delta);
 		} else {
-			p->rc_frame_delta = ctx->ts_last_interval / FRAME_RATE_RESOLUTION;
+			if (IS_H263_ENC(ctx))
+				p->rc_frame_delta = (ctx->ts_last_interval / 100) / p->rc_framerate_res;
+			else
+				p->rc_frame_delta = ctx->ts_last_interval / p->rc_framerate_res;
 		}
 		value = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
 		value &= ~(0xFFFF);
@@ -1283,9 +1286,9 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			param_change = 1;
 			break;
 		case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH:
-			p->rc_frame_delta = FRAME_RATE_RESOLUTION / buf_ctrl->val;
+			p->rc_frame_delta = p->rc_framerate_res / buf_ctrl->val;
 			pInStr->RcFrameRate &= ~(0xFFFF << 16);
-			pInStr->RcFrameRate |= (FRAME_RATE_RESOLUTION & 0xFFFF) << 16;
+			pInStr->RcFrameRate |= (p->rc_framerate_res & 0xFFFF) << 16;
 			pInStr->RcFrameRate &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->RcFrameRate |=
 				(p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft;
@@ -1470,13 +1473,16 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			break;
 		case V4L2_CID_MPEG_VIDEO_DROP_CONTROL:
 			if (!ctx->ts_last_interval) {
-				p->rc_frame_delta = FRAME_RATE_RESOLUTION / p->rc_framerate;
+				p->rc_frame_delta = p->rc_framerate_res / p->rc_framerate;
 				mfc_debug(3, "[NALQ][DROPCTRL] default delta: %d\n", p->rc_frame_delta);
 			} else {
-				p->rc_frame_delta = ctx->ts_last_interval / FRAME_RATE_RESOLUTION;
+				if (IS_H263_ENC(ctx))
+					p->rc_frame_delta = (ctx->ts_last_interval / 100) / p->rc_framerate_res;
+				else
+					p->rc_frame_delta = ctx->ts_last_interval / p->rc_framerate_res;
 			}
 			pInStr->RcFrameRate &= ~(0xFFFF << 16);
-			pInStr->RcFrameRate |= (FRAME_RATE_RESOLUTION & 0xFFFF) << 16;
+			pInStr->RcFrameRate |= (p->rc_framerate_res & 0xFFFF) << 16;
 			pInStr->RcFrameRate &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->RcFrameRate |=
 				(p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft;
