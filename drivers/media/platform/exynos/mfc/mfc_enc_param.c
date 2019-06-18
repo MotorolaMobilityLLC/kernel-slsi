@@ -229,9 +229,9 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 	 * delta is timestamp diff
 	 * ex) 30fps: 33, 60fps: 16
 	 */
-	p->rc_frame_delta = FRAME_RATE_RESOLUTION / p->rc_framerate;
+	p->rc_frame_delta = p->rc_framerate_res / p->rc_framerate;
 	reg = MFC_RAW_READL(MFC_REG_E_RC_FRAME_RATE);
-	mfc_clear_set_bits(reg, 0xFFFF, 16, FRAME_RATE_RESOLUTION);
+	mfc_clear_set_bits(reg, 0xFFFF, 16, p->rc_framerate_res);
 	mfc_clear_set_bits(reg, 0xFFFF, 0, p->rc_frame_delta);
 	MFC_RAW_WRITEL(reg, MFC_REG_E_RC_FRAME_RATE);
 
@@ -393,6 +393,7 @@ static void __mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
+	p->rc_framerate_res = FRAME_RATE_RESOLUTION;
 	__mfc_set_enc_params(ctx);
 
 	if (p_264->num_hier_layer & 0x7) {
@@ -597,6 +598,7 @@ static void __mfc_set_enc_params_mpeg4(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
+	p->rc_framerate_res = FRAME_RATE_RESOLUTION;
 	__mfc_set_enc_params(ctx);
 
 	/* set gop_size with I_FRM_CTRL mode */
@@ -664,6 +666,8 @@ static void __mfc_set_enc_params_h263(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
+	/* For H.263 only 8 bit is used and maximum value can be 0xFF */
+	p->rc_framerate_res = 100;
 	__mfc_set_enc_params(ctx);
 
 	/* set gop_size with I_FRM_CTRL mode */
@@ -714,6 +718,7 @@ static void __mfc_set_enc_params_vp8(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
+	p->rc_framerate_res = FRAME_RATE_RESOLUTION;
 	__mfc_set_enc_params(ctx);
 
 	if (p_vp8->num_hier_layer & 0x3) {
@@ -821,6 +826,7 @@ static void __mfc_set_enc_params_vp9(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
+	p->rc_framerate_res = FRAME_RATE_RESOLUTION;
 	__mfc_set_enc_params(ctx);
 
 	if (p_vp9->num_hier_layer & 0x3) {
@@ -954,6 +960,7 @@ static void __mfc_set_enc_params_hevc(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
+	p->rc_framerate_res = FRAME_RATE_RESOLUTION;
 	__mfc_set_enc_params(ctx);
 
 	if (p_hevc->num_hier_layer & 0x7) {
@@ -1196,6 +1203,7 @@ static void __mfc_set_enc_params_bpg(struct mfc_ctx *ctx)
 	struct mfc_bpg_enc_params *p_bpg = &p->codec.bpg;
 	unsigned int reg = 0;
 
+	p->rc_framerate_res = FRAME_RATE_RESOLUTION;
 	__mfc_set_enc_params(ctx);
 
 	/* extension tag */

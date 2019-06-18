@@ -1135,6 +1135,7 @@ struct mfc_enc_params {
 	u32 rc_framerate;
 	u16 rc_reaction_coeff;
 	u16 rc_frame_delta;	/* MFC6.1 Only */
+	u32 rc_framerate_res;
 
 	u32 config_qp;
 	u32 dynamic_qp;
