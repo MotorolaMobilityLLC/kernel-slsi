@@ -594,7 +594,7 @@ int mfc_run_enc_last_frames(struct mfc_ctx *ctx)
 	mfc_set_enc_frame_buffer(ctx, 0, raw->num_planes);
 
 	/* encoder dst buffer CFW PROT */
-	if (ctx->is_drm) {
+	if (dst_mb && ctx->is_drm) {
 		int index = dst_mb->vb.vb2_buf.index;
 
 		mfc_stream_protect(ctx, dst_mb, index);
