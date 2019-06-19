@@ -46,6 +46,7 @@
 char *i_CTPM_firmware_name = "Himax_firmware.bin";
 bool g_auto_update_flag = false;
 #endif
+bool g_fw_checksum = false;
 #if defined(HX_AUTO_UPDATE_FW)
 unsigned char *i_CTPM_FW = NULL;
 int i_CTPM_FW_len;
@@ -2142,6 +2143,7 @@ static int himax_fw_updater (struct himax_ts_data *ts, const char *fileName) {
 	const struct firmware *fw = NULL;
 	int fw_type = 0;
 	int result;
+	int update_times = 0;
 
 	himax_int_enable(0);
 
@@ -2155,6 +2157,7 @@ static int himax_fw_updater (struct himax_ts_data *ts, const char *fileName) {
 
 	fw_type = (fw->size)/1024;
 	I("Now FW size is : %dk\n", fw_type);
+update_retry:
 	switch (fw_type) {
 	case 32:
 		result = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_32k(
@@ -2200,14 +2203,20 @@ static int himax_fw_updater (struct himax_ts_data *ts, const char *fileName) {
 		E("%s: Flash command fail: %d\n", __func__, __LINE__);
 		break;
 	}
-	if (result == 0)
-		private_ts->fw_upgrade_status = FW_NOT_READY;
-	else
+
+	if (result == 0) {
+		update_times++;
+		if(update_times < 3)
+			goto update_retry;
+		else
+			private_ts->fw_upgrade_status = FW_NOT_READY;
+	} else {
+		g_core_fp.fp_read_FW_ver();
+		g_core_fp.fp_touch_information();
 		private_ts->fw_upgrade_status = READY_TO_SERVE;
+	}
 
 	release_firmware(fw);
-	g_core_fp.fp_read_FW_ver();
-	g_core_fp.fp_touch_information();
 
 #ifdef HX_RST_PIN_FUNC
 	g_core_fp.fp_ic_reset(true, false);
@@ -2596,9 +2605,13 @@ int himax_chip_common_init(void)
 	g_auto_update_flag |= g_core_fp.fp_flash_lastdata_check();
 	if (g_auto_update_flag)
 		goto FW_force_upgrade;
+#else
+	g_fw_checksum = (!g_core_fp.fp_calculateChecksum(false));
+	g_fw_checksum |= g_core_fp.fp_flash_lastdata_check();
 #endif
 #ifndef HX_ZERO_FLASH
-	g_core_fp.fp_read_FW_ver();
+	if(g_fw_checksum == false)
+		g_core_fp.fp_read_FW_ver();
 #endif
 
 #ifdef HX_AUTO_UPDATE_FW
