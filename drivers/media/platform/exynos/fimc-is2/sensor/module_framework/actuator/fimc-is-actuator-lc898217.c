@@ -39,7 +39,6 @@
 #define REG_ADC_LOW       	0x0B /* actual POS[7:4] */
 
 
-extern struct fimc_is_lib_support gPtr_lib_support;
 extern struct fimc_is_sysfs_actuator sysfs_actuator;
 
 static int sensor_lc898217_write_position(struct i2c_client *client, u32 val)
@@ -84,8 +83,6 @@ int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 	do_gettimeofday(&st);
 #endif
 
-	long cal_addr;
-	u32 cal_data;
 
 	int first_position = DEF_LC898217_FIRST_POSITION;
 
@@ -126,19 +123,6 @@ int sensor_lc898217_actuator_init(struct v4l2_subdev *subdev, u32 val)
 		goto p_err_mutex;
 	}
 #endif
-
-	/* EEPROM AF calData address */
-	if (gPtr_lib_support.binary_load_flg) {
-		/* get pan_focus */
-		cal_addr = gPtr_lib_support.minfo->kvaddr_cal[SENSOR_POSITION_REAR] + EEPROM_OEM_BASE;
-		memcpy((void *)&cal_data, (void *)cal_addr, sizeof(cal_data));
-
-		if (cal_data > 0)
-			first_position = cal_data;
-	} else {
-		warn("SDK library is not loaded");
-	}
-
 	ret = sensor_lc898217_write_position(client, first_position);
 	if (ret < 0)
 		goto p_err_mutex;
