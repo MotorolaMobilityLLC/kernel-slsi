@@ -424,6 +424,34 @@ static irqreturn_t s2m_rtc_alarm_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int s2m_rtc_stop_boot_alarm0(struct s2m_rtc_info *info)
+{
+	u8 data[7];
+	int ret, i;
+	struct rtc_time tm;
+
+	ret = s2mpu09_bulk_read(info->i2c, S2MP_RTC_REG_A0SEC, NR_RTC_CNT_REGS, data);
+	if (ret < 0)
+		return ret;
+
+	s2m_data_to_tm(data, &tm);
+
+	dev_info(info->dev, "%s: %d-%02d-%02d %02d:%02d:%02d(%d)\n", __func__,
+			1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
+			tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_wday);
+
+	for (i = 0; i < 7; i++)
+		data[i] &= ~ALARM_ENABLE_MASK;
+
+	ret = s2mpu09_bulk_write(info->i2c, S2MP_RTC_REG_A0SEC, NR_RTC_CNT_REGS, data);
+	if (ret < 0)
+		return ret;
+
+	ret = s2m_rtc_update(info, S2M_RTC_WRITE_ALARM);
+
+	return ret;
+}
+
 #ifdef CONFIG_RTC_BOOT_ALARM
 static int s2m_rtc_stop_boot_alarm(struct s2m_rtc_info *info)
 {
@@ -949,6 +977,7 @@ static int s2m_rtc_remove(struct platform_device *pdev)
 
 static void s2m_rtc_shutdown(struct platform_device *pdev)
 {
+
 	/*disable wtsr, smpl */
 	struct s2m_rtc_info *info = platform_get_drvdata(pdev);
 	struct s2mpu09_platform_data *pdata =
@@ -956,6 +985,9 @@ static void s2m_rtc_shutdown(struct platform_device *pdev)
 
 	if (info->wtsr_en || info->smpl_en)
 		s2m_rtc_disable_wtsr_smpl(info, pdata);
+
+	s2m_rtc_stop_boot_alarm0(info);
+
 }
 
 static const struct platform_device_id s2m_rtc_id[] = {
