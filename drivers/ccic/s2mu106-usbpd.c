@@ -2830,7 +2830,10 @@ static void s2mu106_usbpd_init_configure(struct s2mu106_usbpd_data *_data)
 	_data->detach_valid = false;
 	s2mu106_usbpd_set_cc_control(_data, USBPD_CC_OFF);
 	_data->lpm_mode = true;
-	msleep(150); /* for abnormal PD TA */
+	if (_data->pm_chgin > 4800 && _data->pm_chgin_i > 1000)
+		msleep(500); /* for abnormal PD TA */
+	else
+		msleep(150);
 	_data->is_factory_mode = false;
 	s2mu106_set_normal_mode(_data);
 	_data->lpm_mode = false;
