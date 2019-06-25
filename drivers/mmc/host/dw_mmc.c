@@ -3358,8 +3358,10 @@ static int dw_mci_init_slot_caps(struct dw_mci_slot *slot)
 	if (host->pdata->caps)
 		mmc->caps |= host->pdata->caps;
 
-	if (host->pdata->pm_caps)
+	if (host->pdata->pm_caps) {
 		mmc->pm_caps |= host->pdata->pm_caps;
+		host->slot->mmc->pm_flags |= mmc->pm_caps;
+	}
 
 	if (host->dev->of_node) {
 		ctrl_id = of_alias_get_id(host->dev->of_node, "mshc");
@@ -4028,6 +4030,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_find_property(np, "pm-skip-mmc-resume-init", NULL))
 		pdata->pm_caps |= MMC_PM_SKIP_MMC_RESUME_INIT;
+	if (of_find_property(np, "pm-ignore-notify", NULL))
+		pdata->pm_caps |= MMC_PM_IGNORE_PM_NOTIFY;
 	if (of_find_property(np, "card-detect-invert-gpio", NULL))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	if (of_find_property(np, "card-detect-gpio", NULL))
