@@ -28,7 +28,7 @@ int fimc_is_factory_ois_get_fw_rev(struct v4l2_subdev *subdev, uint32_t *result)
 
 	ois = (struct fimc_is_ois *)v4l2_get_subdevdata(subdev);
 	if(!ois) {
-		err("%s, ois subdev is NULL", __func__);
+		err("%s: ois subdev is NULL", __func__);
 		ret = -EINVAL;
 		return ret;
 	}
@@ -47,7 +47,7 @@ int fimc_is_factory_ois_get_fw_rev(struct v4l2_subdev *subdev, uint32_t *result)
 	ret = fimc_is_ois_read(ois->client, MOT_BU24218_REG_FW_VERSION + 3, &version[3]);
 	check_result(ret);
 
-	info("%s: fw version:%d, %d, %d, %d",  __func__, version[0], version[1], version[2], version[3]);
+	info("%s: version %d %d %d %d",  __func__, version[0], version[1], version[2], version[3]);
 	*result = version[0] | (version[1] << 8) | (version[2] << 16) | (version[3] << 24);
 
 	return 0;
@@ -57,10 +57,10 @@ ERROR:
 }
 
 
-int fimc_is_factory_ois_get_hea(struct v4l2_subdev  *subdev, uint32_t *result)
+int fimc_is_factory_ois_get_hea(struct v4l2_subdev  *subdev, struct fimc_is_ois_hea_parameters *result)
 {
 	int ret = 0;
-	char data[4] = {0, 0, 0, 0};
+	uint32_t data[4] = {0, 0, 0, 0};
 	struct fimc_is_ois *ois = NULL;
 
 	FIMC_BUG(!subdev);
@@ -69,7 +69,7 @@ int fimc_is_factory_ois_get_hea(struct v4l2_subdev  *subdev, uint32_t *result)
 
 	ois = (struct fimc_is_ois *)v4l2_get_subdevdata(subdev);
 	if(!ois) {
-		err("%s, ois subdev is NULL", __func__);
+		err("%s: ois subdev is NULL", __func__);
 		ret = -EINVAL;
 		return ret;
 	}
@@ -77,59 +77,56 @@ int fimc_is_factory_ois_get_hea(struct v4l2_subdev  *subdev, uint32_t *result)
 	WARN_ON(!ois);
 
 	// 1. change to calibration mode
-	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
+	ret = fimc_is_factory_ois_calibration_mode(ois->client);
 	check_result(ret);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_MODE, 0x01);
-	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
+	usleep_range(500,500);
+	
+	// 2. set to zero position
+	ret = fimc_is_factory_ois_set_zero_pos(ois->client);
 	check_result(ret);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_MODE, 0x00);
-	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
+	usleep_range(20000,20000);
+	
+	// 3. set x max position and read ADC
+	ret = fimc_is_factory_ois_set_x_pos(ois->client, MOT_BU24218_VCM_DRV_MAX_HI, MOT_BU24218_VCM_DRV_MAX_LO);
 	check_result(ret);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_MODE, 0x04);
-	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
+	usleep_range(20000,20000);
+	ret = fimc_is_factory_ois_get_x_adc(ois->client,&data[0]);
 	check_result(ret);
-	usleep_range(500, 500);
+	
+	// 4. set x min position and read ADC
+	ret = fimc_is_factory_ois_set_x_pos(ois->client, MOT_BU24218_VCM_DRV_MIN_HI, MOT_BU24218_VCM_DRV_MIN_LO);
+	check_result(ret);
+	usleep_range(20000,20000);
+	ret = fimc_is_factory_ois_get_x_adc(ois->client,&data[1]);
+	check_result(ret);
+	
+	// 5. set to zero position
+	ret = fimc_is_factory_ois_set_zero_pos(ois->client);
+	check_result(ret);
+	usleep_range(20000,20000);
+	
+	// 6. set y max position and read ADC
+	ret = fimc_is_factory_ois_set_y_pos(ois->client, MOT_BU24218_VCM_DRV_MAX_HI, MOT_BU24218_VCM_DRV_MAX_LO);
+	check_result(ret);
+	usleep_range(20000,20000);
+	ret = fimc_is_factory_ois_get_y_adc(ois->client,&data[2]);
+	check_result(ret);
+	
+	// 7. set y min position and read ADC
+	ret = fimc_is_factory_ois_set_y_pos(ois->client, MOT_BU24218_VCM_DRV_MIN_HI, MOT_BU24218_VCM_DRV_MIN_LO);
+	check_result(ret);
+	usleep_range(20000,20000);
+	ret = fimc_is_factory_ois_get_y_adc(ois->client,&data[3]);
+	check_result(ret);
+	
+	result->x_max = data[0];
+	result->x_min = data[1];
+	result->y_max = data[2];
+	result->y_min = data[3];
 
-	// 2. set max postion
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_XCH,     (uint8_t) MOT_BU24218_VCM_DRV_MAX_HI);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_XCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MAX_LO);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH,     (uint8_t) MOT_BU24218_VCM_DRV_MAX_HI);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MAX_LO);
-	usleep_range(200, 200);
-
-	// 3. check status reg
-	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
-	check_result(ret);
-
-	// 4. read lens position
-	ret = fimc_is_ois_read(ois->client, MOT_BU24218_REG_LENS_XCH, &data[0]);
-	check_result(ret);
-	ret = fimc_is_ois_read(ois->client, MOT_BU24218_REG_LENS_YCH, &data[1]);
-	check_result(ret);
-
-	// 5. set min postion
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_XCH,     (uint8_t) MOT_BU24218_VCM_DRV_MIN_HI);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_XCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MIN_LO);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH,     (uint8_t) MOT_BU24218_VCM_DRV_MIN_HI);
-	fimc_is_ois_write(ois->client, MOT_BU24218_REG_POS_YCH + 1, (uint8_t) MOT_BU24218_VCM_DRV_MIN_LO);
-	usleep_range(200, 200);
-
-	// 6. check status reg
-	ret = fimc_is_factory_ois_poll(ois->client, MOT_BU24218_REG_STATUS, 0x01);
-	check_result(ret);
-
-	usleep_range(200, 200);
-	// 7. read lens position
-	ret = fimc_is_ois_read(ois->client, MOT_BU24218_REG_LENS_XCH, &data[2]);
-	check_result(ret);
-	ret = fimc_is_ois_read(ois->client, MOT_BU24218_REG_LENS_YCH, &data[3]);
-	check_result(ret);
-
-	info("%s: actual pos:(%d, %d, %d, %d)", __func__,
-		data[0], data[2], data[1], data[3]);
-	// follow the format, Xmax, Xmin, Ymax, Ymin
-	*result = data[0] | (data[2] << 8) | (data[1] << 16) | (data[3] << 24);
-
+	info("%s: result %d %d %d %d", __func__,
+		result->x_max, result->x_min, result->y_max, result->y_min);
+	
 	return 0;
 
 ERROR:
@@ -157,4 +154,132 @@ int fimc_is_factory_ois_poll(struct i2c_client *client,
 ERROR:
 	err("%s: Failed with %d", __func__, ret);
 	return -1;
+}
+
+
+int fimc_is_factory_ois_calibration_mode(struct i2c_client *client)
+{
+	int ret = 0;
+	
+	fimc_is_ois_write(client, MOT_BU24218_REG_MODE, 0x01);
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_STATUS, 0x01);
+	if (ret < 0) {
+		err("fail at calib 01");
+		return ret;
+	}
+	fimc_is_ois_write(client, MOT_BU24218_REG_LINEARITY, 0x00);
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_LINEARITY, 0x00);
+	if (ret < 0) {
+		err("fail at linearity");
+		return ret;
+	}
+	fimc_is_ois_write(client, MOT_BU24218_REG_GYRO_ACCESS, 0x02);
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_STATUS, 0x01);
+	if (ret < 0) {
+		err("fail at gyro access");
+		return ret;
+	}
+	fimc_is_ois_write(client, MOT_BU24218_REG_MODE, 0x00);
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_STATUS, 0x01);
+	if (ret < 0) {
+		err("fail at calib 00");
+		return ret;
+	}
+	fimc_is_ois_write(client, MOT_BU24218_REG_MODE, 0x04);
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_STATUS, 0x01);
+	if (ret < 0) {
+		err("fail at calib 04");
+		return ret;
+	}
+	
+	return ret;
+}
+
+int fimc_is_factory_ois_set_zero_pos(struct i2c_client *client)
+{
+	int ret = 0;
+	fimc_is_factory_ois_set_x_pos(client, MOT_BU24218_VCM_DRV_ZERO_HI, MOT_BU24218_VCM_DRV_ZERO_LO);
+	fimc_is_factory_ois_set_y_pos(client, MOT_BU24218_VCM_DRV_ZERO_HI, MOT_BU24218_VCM_DRV_ZERO_LO);
+	
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_STATUS, 0x01);
+	if (ret < 0) {
+		err("fail at set to zero");
+	}
+    return ret;
+}
+
+int fimc_is_factory_ois_set_x_pos(struct i2c_client *client, uint8_t hi, uint8_t lo)
+{
+	int ret = 0;
+	fimc_is_ois_write(client, MOT_BU24218_REG_POS_XCH,     hi);
+	fimc_is_ois_write(client, MOT_BU24218_REG_POS_XCH + 1, lo);	
+	
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_STATUS, 0x01);
+	if (ret < 0) {
+		err("fail at %s",__func__);
+	}
+    return ret;
+}
+
+int fimc_is_factory_ois_set_y_pos(struct i2c_client *client, uint8_t hi, uint8_t lo)
+{
+	int ret = 0;
+	fimc_is_ois_write(client, MOT_BU24218_REG_POS_YCH,     hi);
+	fimc_is_ois_write(client, MOT_BU24218_REG_POS_YCH + 1, lo);	
+	
+	ret = fimc_is_factory_ois_poll(client, MOT_BU24218_REG_STATUS, 0x01);
+	if (ret < 0) {
+		err("fail at %s",__func__);
+	}
+    return ret;
+}
+
+int fimc_is_factory_ois_get_x_adc(struct i2c_client *client, uint32_t* data)
+{
+	int ret = 0;
+	uint8_t raw_adc_hi = 0, raw_adc_lo = 0;
+
+    fimc_is_ois_write(client, MOT_BU24218_REG_ADC_LATCH, MOT_BU24218_ADC_LATCH_X);
+	usleep_range(11000,11000);
+
+    ret = fimc_is_ois_read(client, MOT_BU24218_REG_ADC_VAL, &raw_adc_hi);
+	if (ret < 0) {
+		err("fail at %s",__func__);
+		return ret;
+	}
+	usleep_range(500,500);
+    ret = fimc_is_ois_read(client, MOT_BU24218_REG_ADC_VAL+1, &raw_adc_lo);
+	if (ret < 0) {
+		err("fail at %s",__func__);
+		return ret;
+	}
+	usleep_range(500,500);
+
+	*data = (uint32_t)(raw_adc_hi << 8) + raw_adc_lo;
+	return ret;
+}
+
+int fimc_is_factory_ois_get_y_adc(struct i2c_client *client, uint32_t* data)
+{
+	int ret = 0;
+	uint8_t raw_adc_hi = 0, raw_adc_lo = 0;
+
+    fimc_is_ois_write(client, MOT_BU24218_REG_ADC_LATCH, MOT_BU24218_ADC_LATCH_Y);
+	usleep_range(11000,11000);
+
+    ret = fimc_is_ois_read(client, MOT_BU24218_REG_ADC_VAL, &raw_adc_hi);
+	if (ret < 0) {
+		err("fail at %s",__func__);
+		return ret;
+	}
+	usleep_range(500,500);
+    ret = fimc_is_ois_read(client, MOT_BU24218_REG_ADC_VAL+1, &raw_adc_lo);
+	if (ret < 0) {
+		err("fail at %s",__func__);
+		return ret;
+	}
+	usleep_range(500,500);
+
+	*data = (uint32_t)(raw_adc_hi << 8) + raw_adc_lo;
+    return ret;
 }

@@ -665,15 +665,6 @@ int sensor_module_g_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 			goto p_err;
 		}
 		break;
-	case V4L2_CID_IS_FACTORY_OIS_HEA:
-		ret = CALL_OISOPS(sensor_peri->ois, ois_factory_hea,
-		         sensor_peri->subdev_ois, &ctrl->value);
-		if (ret < 0) {
-			err("err!!! ret(%d)", ret);
-			ret = -EINVAL;
-			goto p_err;
-		}
-		break;
 #endif
 	default:
 		err("err!!! Unknown CID(%#x)", ctrl->id);
@@ -945,6 +936,30 @@ int sensor_module_s_ext_ctrls(struct v4l2_subdev *subdev, struct v4l2_ext_contro
 #endif
 			break;
 		}
+
+#ifdef CONFIG_OIS_BU24218_FACTORY_TEST
+		case V4L2_CID_IS_FACTORY_OIS_HEA: {
+			struct fimc_is_ois_hea_parameters ois_hea_params = {0,0,0,0};
+
+			ret = CALL_OISOPS(sensor_peri->ois, ois_factory_hea,
+					sensor_peri->subdev_ois, &ois_hea_params);
+			if (ret < 0) {
+				err("err!!! ois_factory_hea ret(%d)", ret);
+				ret = -EINVAL;
+				goto p_err;
+			}
+			info("%s: ois_hea_params (%d %d %d %d)", __func__,
+				ois_hea_params.x_max,ois_hea_params.x_min,ois_hea_params.y_max,ois_hea_params.y_min);
+
+			ret = copy_to_user(ext_ctrl->ptr, &ois_hea_params, sizeof(ois_hea_params));
+			if (ret) {
+				err("failed copying %d bytes of data\n", ret);
+				ret = -EINVAL;
+				goto p_err;
+			}
+			break;
+		}
+#endif
 
 		default:
 			ctrl.id = ext_ctrl->id;
