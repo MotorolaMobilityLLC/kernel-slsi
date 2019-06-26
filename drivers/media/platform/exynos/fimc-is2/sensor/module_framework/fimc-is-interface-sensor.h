@@ -659,6 +659,15 @@ struct fimc_is_long_term_expo_mode {
 };
 
 /* OIS */
+#ifdef CONFIG_OIS_BU24218_FACTORY_TEST
+struct fimc_is_ois_hea_parameters {
+    uint32_t x_max;
+    uint32_t x_min;
+    uint32_t y_max;
+    uint32_t y_min;
+};
+#endif
+
 struct fimc_is_ois_ops {
 	int (*ois_init)(struct v4l2_subdev *subdev);
 #if defined (CONFIG_OIS_USE_RUMBA_S6) || defined (CONFIG_CAMERA_USE_MCU)
@@ -706,7 +715,7 @@ struct fimc_is_ois_ops {
 	u8 (*ois_read_mode)(struct v4l2_subdev *subdev);
 #ifdef CONFIG_OIS_BU24218_FACTORY_TEST
 	int (*ois_factory_fw_ver)(struct v4l2_subdev *subdev, u32* result);
-	int (*ois_factory_hea)(struct v4l2_subdev *subdev, u32* result);
+	int (*ois_factory_hea)(struct v4l2_subdev  *subdev, struct fimc_is_ois_hea_parameters *result);
 #endif
 };
 
