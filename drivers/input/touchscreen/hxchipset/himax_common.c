@@ -42,11 +42,11 @@
 #define TS_WAKE_LOCK_TIMEOUT (2 * HZ)
 #define FRAME_COUNT 5
 
+bool g_auto_update_flag = false;
 #if defined(HX_AUTO_UPDATE_FW) || defined(HX_ZERO_FLASH)
 char *i_CTPM_firmware_name = "Himax_firmware.bin";
-bool g_auto_update_flag = false;
+
 #endif
-bool g_fw_checksum = false;
 #if defined(HX_AUTO_UPDATE_FW)
 unsigned char *i_CTPM_FW = NULL;
 int i_CTPM_FW_len;
@@ -2143,7 +2143,7 @@ static int himax_fw_updater (struct himax_ts_data *ts, const char *fileName) {
 	const struct firmware *fw = NULL;
 	int fw_type = 0;
 	int result;
-	int update_times = 0;
+	int upgrade_times = 0;
 
 	himax_int_enable(0);
 
@@ -2205,18 +2205,25 @@ update_retry:
 	}
 
 	if (result == 0) {
-		update_times++;
-		if(update_times < 3)
+		upgrade_times++;
+		E("%s: TP upgrade error, upgrade_times = %d\n", __func__, upgrade_times);
+		if (upgrade_times < 3) {
 			goto update_retry;
-		else
+		}
+	}
+
+	if (result == 0) {
 			private_ts->fw_upgrade_status = FW_NOT_READY;
+		I("%s:FW_NOT_READY", __func__);
 	} else {
-		g_core_fp.fp_read_FW_ver();
-		g_core_fp.fp_touch_information();
 		private_ts->fw_upgrade_status = READY_TO_SERVE;
+		g_auto_update_flag = false;
+		I("%s:READY_TO_SERVE", __func__);
 	}
 
 	release_firmware(fw);
+	g_core_fp.fp_read_FW_ver();
+	g_core_fp.fp_touch_information();
 
 #ifdef HX_RST_PIN_FUNC
 	g_core_fp.fp_ic_reset(true, false);
@@ -2254,6 +2261,11 @@ static ssize_t himax_sysfs_productinfo_show(struct device *dev,
 static ssize_t himax_sysfs_buildid_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
+	if (g_auto_update_flag) {
+		I("%s:Force update fw, the cfg ver:%d\n", __func__, ic_data->vendor_touch_cfg_ver);
+		ic_data->vendor_touch_cfg_ver = 0;
+		I("%s:changed the cfg ver:%d\n", __func__, ic_data->vendor_touch_cfg_ver);
+	}
 	return snprintf(buf, PAGE_SIZE, "%X-%02X%02X\n",
 		ic_data->vendor_fw_ver,
 		ic_data->vendor_touch_cfg_ver,
@@ -2600,17 +2612,15 @@ int himax_chip_common_init(void)
 		ts->button = pdata->virtual_key;
 	}
 
-#ifdef HX_AUTO_UPDATE_FW
 	g_auto_update_flag = (!g_core_fp.fp_calculateChecksum(false));
+	I("%s:num 1 g_auto_update_flag=%d\n", __func__, g_auto_update_flag);
 	g_auto_update_flag |= g_core_fp.fp_flash_lastdata_check();
+	I("%s:num 2 g_auto_update_flag=%d\n", __func__, g_auto_update_flag);
+#ifdef HX_AUTO_UPDATE_FW
 	if (g_auto_update_flag)
 		goto FW_force_upgrade;
-#else
-	g_fw_checksum = (!g_core_fp.fp_calculateChecksum(false));
-	g_fw_checksum |= g_core_fp.fp_flash_lastdata_check();
 #endif
 #ifndef HX_ZERO_FLASH
-	if(g_fw_checksum == false)
 		g_core_fp.fp_read_FW_ver();
 #endif
 
