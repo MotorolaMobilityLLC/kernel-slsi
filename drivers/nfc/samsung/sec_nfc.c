@@ -478,6 +478,17 @@ static void sec_nfc_set_mode(struct sec_nfc_info *info,
 #endif
     }
 
+    if (mode == SEC_NFC_MODE_OFF) {
+        if (gpio_get_value(pdata->ven) == SEC_NFC_PW_ON) {
+            gpio_set_value(pdata->ven, SEC_NFC_PW_OFF);
+            pr_err("Retry ven pin PW_OFF!");
+        }
+        if (gpio_get_value(pdata->firm) == SEC_NFC_FW_ON) {
+            gpio_set_value(pdata->firm, SEC_NFC_FW_OFF);
+            pr_err("Retry Firm pin FW_OFF!");
+        }
+    }
+
     if (wake_lock_active(&info->nfc_wake_lock))
         wake_unlock(&info->nfc_wake_lock);
 
