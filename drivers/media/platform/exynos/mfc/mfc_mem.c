@@ -110,7 +110,6 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 	if (IS_ERR(special_buf->dma_buf)) {
 		mfc_err_ctx("Failed to allocate buffer (err %ld)\n",
 				PTR_ERR(special_buf->dma_buf));
-		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_ion_alloc;
 	}
 
@@ -118,7 +117,6 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 	if (IS_ERR(special_buf->attachment)) {
 		mfc_err_ctx("Failed to get dma_buf_attach (err %ld)\n",
 				PTR_ERR(special_buf->attachment));
-		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_attach;
 	}
 
@@ -127,7 +125,6 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 	if (IS_ERR(special_buf->sgt)) {
 		mfc_err_ctx("Failed to get sgt (err %ld)\n",
 				PTR_ERR(special_buf->sgt));
-		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_map;
 	}
 
@@ -136,7 +133,6 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 	if (IS_ERR_VALUE(special_buf->daddr)) {
 		mfc_err_ctx("Failed to allocate iova (err 0x%p)\n",
 				&special_buf->daddr);
-		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_iovmm;
 	}
 
@@ -144,7 +140,6 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 	if (IS_ERR(special_buf->vaddr)) {
 		mfc_err_ctx("Failed to get vaddr (err 0x%p)\n",
 				&special_buf->vaddr);
-		call_dop(dev, dump_and_stop_debug_mode, dev);
 		goto err_vaddr;
 	}
 
