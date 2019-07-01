@@ -489,8 +489,16 @@ static void s2mu106_temperature_compensation(struct s2mu106_fuelgauge_data *fuel
 			   If mapping occurs continuously, SOC is not changed.
 			   So SOC_R need to be updated before mapping.
 			 */
-			fuelgauge->soc_r = s2mu106_get_soc_map(fuelgauge,
-					fuelgauge->pre_bat_charging, fuelgauge->pre_comp_socr);
+			pr_info("%s: original SOC_R = %d, pre_bat_charging = %d, bat_charging = %d\n",
+					__func__, fuelgauge->soc_r, fuelgauge->pre_bat_charging,
+					fuelgauge->bat_charging);
+
+			if (!(fuelgauge->pre_bat_charging && !fuelgauge->bat_charging)) {
+				fuelgauge->soc_r = s2mu106_get_soc_map(fuelgauge,
+						fuelgauge->pre_bat_charging, fuelgauge->pre_comp_socr);
+
+				pr_info("%s: use %d for SOCni\n", __func__, fuelgauge->soc_r);
+			}
 
 			fuelgauge->socni = fuelgauge->soc_r;
 			fuelgauge->soc0i = fuelgauge->rsoc;
