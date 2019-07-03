@@ -1224,9 +1224,13 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 
 static void handle_irq(struct contexthub_ipc_info *ipc, enum irq_evt_chub evt)
 {
+	int err;
+
 	switch (evt) {
 	case IRQ_EVT_C2A_DEBUG:
-		contexthub_handle_debug(ipc, CHUB_ERR_NANOHUB, 1);
+		err = (ipc_read_debug_event(AP) == IPC_DEBUG_CHUB_FAULT) ? CHUB_ERR_FW_FAULT : CHUB_ERR_NANOHUB;
+		dev_err(ipc->dev, "%s: c2a_debug: debug:%d, err:%d\n", __func__, ipc_read_debug_event(AP), err);
+		contexthub_handle_debug(ipc, err, 1);
 		break;
 	case IRQ_EVT_C2A_INT:
 		if (atomic_read(&ipc->irq1_apInt) == C2A_OFF) {

@@ -287,7 +287,7 @@ void *ipc_get_chub_map(void)
 
 	ipc_map = ipc_addr[IPC_REG_IPC].base;
 	ipc_map->logbuf.size = LOGBUF_TOTAL_SIZE;
-	strcpy(&ipc_map->magic[0], CHUB_IPC_MAGIC);
+	strncpy(&ipc_map->magic[0], CHUB_IPC_MAGIC, sizeof(CHUB_IPC_MAGIC));
 
 	ipc_addr[IPC_REG_IPC_EVT_A2C].base = &ipc_map->evt[IPC_EVT_A2C].data;
 	ipc_addr[IPC_REG_IPC_EVT_A2C].offset = sizeof(struct ipc_evt);
@@ -320,7 +320,7 @@ void *ipc_get_chub_map(void)
 	if (!ipc_have_sensor_info(&ipc_map->sensormap)) {
 		CSP_PRINTF_INFO("%s:ipc set sensormap and magic:%p\n", __func__, &ipc_map->sensormap);
 		memset(&ipc_map->sensormap, 0, sizeof(struct sensor_map));
-		strcpy(&ipc_map->sensormap.magic[0], SENSORMAP_MAGIC);
+		strncpy(&ipc_map->sensormap.magic[0], SENSORMAP_MAGIC, sizeof(SENSORMAP_MAGIC));
 	}
 #endif
 
@@ -453,6 +453,10 @@ struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
 	}
 
 retry:
+	if (ipc_evt->ctrl.dq >= IPC_EVT_NUM) {
+		CSP_PRINTF_ERROR("%s:%s: invalid dq:%d\n", NAME_PREFIX, __func__, ipc_evt->ctrl.dq);
+		return NULL;
+	}
 	/* only called by isr DISABLE_IRQ(); */
 	if (!__ipc_evt_queue_empty(&ipc_evt->ctrl)) {
 		cur_evt = &ipc_evt->data[ipc_evt->ctrl.dq];
@@ -532,6 +536,10 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 	}
 
 retry:
+	if (ipc_evt->ctrl.eq >= IPC_EVT_NUM) {
+		CSP_PRINTF_ERROR("%s:%s: invalid eq:%d\n", NAME_PREFIX, __func__, ipc_evt->ctrl.eq);
+		return -EINVAL;
+	}
 	DISABLE_IRQ(LOCK_ADD_EVT, &flag);
 	if (!__ipc_evt_queue_full(&ipc_evt->ctrl)) {
 		cur_evt = &ipc_evt->data[ipc_evt->ctrl.eq];
@@ -652,6 +660,10 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 
 	if (length <= PACKET_SIZE_MAX) {
 retry:
+		if (ipc_data->eq >= IPC_CH_BUF_NUM) {
+			CSP_PRINTF_ERROR("%s:%s: invalid eq:%d\n", NAME_PREFIX, __func__, ipc_data->eq);
+			return -EINVAL;
+		}
 		DISABLE_IRQ(LOCK_WT_DATA, &flag);
 
 		if (!__ipc_queue_full(ipc_data)) {
@@ -713,6 +725,11 @@ void *ipc_read_data(enum ipc_data_list dir, u32 *len)
 
 	DISABLE_IRQ(LOCK_RD_DATA, NULL);
 retry:
+	if (ipc_data->dq >= IPC_CH_BUF_NUM) {
+		CSP_PRINTF_ERROR("%s:%s: invalid dq:%d\n", NAME_PREFIX, __func__, ipc_data->dq);
+		ENABLE_IRQ(LOCK_RD_DATA, NULL);
+		return NULL;
+	}
 	if (!__ipc_queue_empty(ipc_data)) {
 		struct ipc_channel_buf *ipc;
 
@@ -873,6 +890,8 @@ void *ipc_logbuf_inbase(bool force)
 			struct logbuf_content *log;
 			int index;
 
+			if (logbuf->eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM)
+				return NULL;
 			if (!trylockTryTake(&ipcLockLog))
 				return NULL;
 			if (logbuf->full) /* logbuf is full overwirte */
@@ -1053,6 +1072,9 @@ retry:
 	return 0;
 }
 
+#else
+#define ipc_logbuf_outprint(a) ((void)0, 0)
+#endif
 enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set)
 {
 	if (ipc_map) {
@@ -1065,10 +1087,6 @@ enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set)
 
 	return 0;
 }
-#else
-#define ipc_logbuf_outprint(a) ((void)0, 0)
-#define ipc_logbuf_loglevel(a, b) ((void)0)
-#endif
 
 void ipc_set_owner(enum ipc_owner owner, void *base, enum ipc_direction dir)
 {
