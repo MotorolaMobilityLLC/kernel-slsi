@@ -294,9 +294,6 @@ static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 	} else {
 		/* Assume 12 bit ADC with vref at pullup_uv */
 			uv = (pdata->pullup_uv * (s64)raw) >> 12;
-		}
-	} else {
-		uv = (pdata->pullup_uv * (s64)raw) >> 12;
 	}
 
 	return uv;
