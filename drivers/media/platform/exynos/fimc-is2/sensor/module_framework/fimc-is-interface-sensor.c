@@ -3518,19 +3518,6 @@ int set_sensor_info_mfhdr_mode_change(struct fimc_is_sensor_interface *itf,
 	return 0;
 }
 
-int request_wb_gain(struct fimc_is_sensor_interface *itf,
-		u32 gr_gain, u32 r_gain, u32 b_gain, u32 gb_gain)
-{
-	return 0;
-}
-
-int set_sensor_info_mfhdr_mode_change(struct fimc_is_sensor_interface *itf,
-		u32 count, u32 *long_expo, u32 *long_again, u32 *long_dgain,
-		u32 *expo, u32 *again, u32 *dgain)
-{
-	return 0;
-}
-
 int init_sensor_interface(struct fimc_is_sensor_interface *itf)
 {
 	int ret = 0;

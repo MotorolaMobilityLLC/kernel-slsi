@@ -249,7 +249,6 @@ struct dsim_device {
 	unsigned int ddi_seq_size;
 	unsigned char ddi_seq[512];
 	int user_brightness;
-	char ddi_device_type[DSIM_DDI_TYPE_LEN];
 };
 
 struct dsim_lcd_driver {
