@@ -36,7 +36,7 @@ KERNEL_CROSS_COMPILE := $(CROSS_COMPILE)
 endif
 
 SOONG_GLOBAL_CONFIG := build/soong/cc/config/global.go
-CLANG_VERSION := $(shell  grep "ClangDefaultVersion" $(SOONG_GLOBAL_CONFIG) | grep -o "clang-[0-9][0-9]*")
+CLANG_VERSION := clang-4691093
 CLANG_PATH := prebuilts/clang/host/linux-x86
 CC :=$(PWD)/$(CLANG_PATH)/$(CLANG_VERSION)/bin/clang
 
