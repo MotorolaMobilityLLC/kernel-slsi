@@ -296,6 +296,8 @@ struct aw8695 {
     struct work_struct vibrator_work;
     struct work_struct rtp_work;
     struct delayed_work ram_work;
+    struct timeval current_time;
+    struct timeval pre_enter_time;
 #ifdef TIMED_OUTPUT
     struct timed_output_dev to_dev;
 #else
@@ -356,6 +358,7 @@ struct aw8695 {
     struct trig trig[AW8695_TRIG_NUM];
 
     struct haptic_audio haptic_audio;
+    unsigned int interval_us;
 };
 
 struct aw8695_container{
