@@ -307,6 +307,10 @@ static void _s2mu106_hv_muic_reset(struct s2mu106_muic_data *muic_data)
 
 	pr_info("%s enter\n", __func__);
 	/* set reg default value */
+#if defined(CONFIG_HV_MUIC_TURBO_CHARGER)
+	s2mu106_hv_muic_write_reg(muic_data, S2MU106_REG_AFC_OTP3, 0x21);
+	s2mu106_hv_muic_write_reg(muic_data, S2MU106_REG_AFC_OTP4, 0x02);
+#endif
 	s2mu106_hv_muic_write_reg(muic_data, S2MU106_REG_AFC_CTRL1, 0);
 	s2mu106_hv_muic_write_reg(muic_data, S2MU106_REG_AFC_CTRL2, 0);
 	s2mu106_hv_muic_write_reg(muic_data, S2MU106_REG_AFC_TX_BYTE, 0);
@@ -380,6 +384,10 @@ static void s2mu106_if_hv_muic_dcp_charger(void *mdata)
 
 	pr_info("%s\n", __func__);
 
+#if defined(CONFIG_HV_MUIC_TURBO_CHARGER)
+	s2mu106_hv_muic_write_reg(muic_data, S2MU106_REG_AFC_OTP3, 0x41);
+	s2mu106_hv_muic_write_reg(muic_data, S2MU106_REG_AFC_OTP4, 0x80);
+#endif
 	msleep(200);
 
 	/* Enable Afc Block */
