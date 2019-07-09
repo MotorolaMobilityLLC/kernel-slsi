@@ -161,6 +161,7 @@ int sensor_2x5sp_cis_check_rev(struct v4l2_subdev *subdev)
 	return ret;
 }
 
+#if 0
 int sensor_2x5sp_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
 {
 	int ret = 0;
@@ -190,6 +191,7 @@ int sensor_2x5sp_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
 
 	return ret;
 }
+#endif
 
 int sensor_2x5sp_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
 {
