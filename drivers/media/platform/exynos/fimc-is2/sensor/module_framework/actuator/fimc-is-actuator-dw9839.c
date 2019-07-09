@@ -427,7 +427,7 @@ p_err:
 
 	return ret;
 }
-
+#if 0
 int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *info)
 {
 	int ret = 0;
@@ -499,6 +499,7 @@ p_err:
 
 	return ret;
 }
+#endif
 
 int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *info)
 {
