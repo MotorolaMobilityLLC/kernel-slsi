@@ -2975,7 +2975,6 @@ static struct fimc_is_cis_ops cis_ops_2l3 = {
 	.cis_set_long_term_exposure = sensor_2l3_cis_long_term_exposure,
 	.cis_set_frs_control = sensor_2l3_cis_set_frs_control,
 	.cis_set_super_slow_motion_roi = sensor_2l3_cis_set_super_slow_motion_roi,
-	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 	.cis_check_rev = sensor_2l3_cis_check_rev,
 	.cis_set_super_slow_motion_threshold = sensor_2l3_cis_set_super_slow_motion_threshold,
 	.cis_get_super_slow_motion_threshold = sensor_2l3_cis_get_super_slow_motion_threshold,
@@ -3088,9 +3087,6 @@ static int cis_2l3_probe(struct i2c_client *client,
 		v4l2_set_subdev_hostdata(subdev_cis, device);
 		snprintf(subdev_cis->name, V4L2_SUBDEV_NAME_SIZE, "cis-subdev.%d", cis->id);
 	}
-
-	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
-	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
 
 	ret = of_property_read_string(dnode, "setfile", &setfile);
 	if (ret) {

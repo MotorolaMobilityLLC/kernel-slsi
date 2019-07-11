@@ -738,7 +738,7 @@ static ssize_t store_pattern_en(struct device *dev,
 			sysfs_debug.pattern_en = cmd;
 		break;
 	default:
-		pr_warn("%s: invalid paramter (%d)\n", __func__, cmd);
+		pr_warn("%s: invalid paramter (%lu)\n", __func__, cmd);
 		break;
 	}
 

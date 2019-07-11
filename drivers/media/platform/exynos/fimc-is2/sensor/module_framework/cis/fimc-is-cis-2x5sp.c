@@ -161,38 +161,6 @@ int sensor_2x5sp_cis_check_rev(struct v4l2_subdev *subdev)
 	return ret;
 }
 
-#if 0
-int sensor_2x5sp_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
-{
-	int ret = 0;
-
-	float r_g_min = (float)(limit[0]) / 1000;
-	float r_g_max = (float)(limit[1]) / 1000;
-	float b_g_min = (float)(limit[2]) / 1000;
-	float b_g_max = (float)(limit[3]) / 1000;
-
-	float rg = (float) ((unit[1]) | (unit[0] << 8)) / 16384;
-	float bg = (float) ((unit[3]) | (unit[2] << 8)) / 16384;
-
-	float golden_rg = (float) ((golden[1]) | (golden[0] << 8)) / 16384;
-	float golden_bg = (float) ((golden[3]) | (golden[2] << 8)) / 16384;
-
-	if (rg < (golden_rg - r_g_min) || rg > (golden_rg + r_g_max)) {
-		err("%s(): Final RG calibration factors out of range! rg=0x%x golden_rg=0x%x",
-			__func__, (unit[1] | unit[0] << 8), (golden[1] | golden[0] << 8));
-		ret = 1;
-	}
-
-	if (bg < (golden_bg - b_g_min) || bg > (golden_bg + b_g_max)) {
-		err("%s(): Final BG calibration factors out of range! bg=0x%x, golden_bg=0x%x",
-			__func__, (unit[3] | unit[2] << 8), (golden[3] | golden[2] << 8));
-		ret = 1;
-	}
-
-	return ret;
-}
-#endif
-
 int sensor_2x5sp_cis_otp_check_awb_ratio(char *unit, char *golden, char *limit)
 {
 	int ret = 0;
@@ -2465,7 +2433,7 @@ static int cis_2x5sp_probe(struct i2c_client *client,
 
 	subdev_cis = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (!subdev_cis) {
-		err("subdev_cis NULL");
+		probe_err("subdev_cis NULL");
 		ret = -ENOMEM;
 		goto p_err;
 	}

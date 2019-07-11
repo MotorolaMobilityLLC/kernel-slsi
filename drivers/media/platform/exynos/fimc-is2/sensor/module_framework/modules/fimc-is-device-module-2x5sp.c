@@ -119,12 +119,12 @@ static int sensor_module_2x5sp_power_setpin(struct device *dev,
 
 	/* TODO */
 	gpio_reset = of_get_named_gpio(dnode, "gpio_reset", 0);
-	if (gpio_is_valid(gpio_reset)) {
-		gpio_request_one(gpio_reset, GPIOF_OUT_INIT_LOW, "CAM_GPIO_OUTPUT_LOW");
-		gpio_free(gpio_reset);
-	} else {
+	if (!gpio_is_valid(gpio_reset)) {
 		dev_err(dev, "failed to get PIN_RESET\n");
 		return -EINVAL;
+	} else {
+		gpio_request_one(gpio_reset, GPIOF_OUT_INIT_LOW, "CAM_GPIO_OUTPUT_LOW");
+		gpio_free(gpio_reset);
 	}
 
 	gpio_avdd_en = of_get_named_gpio(dnode, "gpio_avdd_en", 0);
@@ -298,7 +298,7 @@ static int __init sensor_module_2x5sp_probe(struct platform_device *pdev)
 
 	subdev_module = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (!subdev_module) {
-		err("subdev_module is NULL");
+		probe_err("subdev_module is NULL");
 		ret = -ENOMEM;
 		goto p_err;
 	}
@@ -357,7 +357,7 @@ static int __init sensor_module_2x5sp_probe(struct platform_device *pdev)
 	/* Sensor peri */
 	module->private_data = kzalloc(sizeof(struct fimc_is_device_sensor_peri), GFP_KERNEL);
 	if (!module->private_data) {
-		err("fimc_is_device_sensor_peri is NULL");
+		probe_err("fimc_is_device_sensor_peri is NULL");
 		ret = -ENOMEM;
 		goto p_err;
 	}
