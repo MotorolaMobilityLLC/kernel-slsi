@@ -1931,7 +1931,6 @@ static struct fimc_is_cis_ops cis_ops_imx320 = {
 	.cis_wait_streamoff = sensor_cis_wait_streamoff,
 	.cis_wait_streamon = sensor_cis_wait_streamon,
 	.cis_data_calculation = sensor_imx320_cis_data_calc,
-	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 };
 
 static int cis_imx320_probe(struct i2c_client *client,
@@ -2043,9 +2042,6 @@ static int cis_imx320_probe(struct i2c_client *client,
 		v4l2_set_subdev_hostdata(subdev_cis, device);
 		snprintf(subdev_cis->name, V4L2_SUBDEV_NAME_SIZE, "cis-subdev.%d", cis->id);
 	}
-
-	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
-	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
 
 	ret = of_property_read_string(dnode, "setfile", &setfile);
 	if (ret) {

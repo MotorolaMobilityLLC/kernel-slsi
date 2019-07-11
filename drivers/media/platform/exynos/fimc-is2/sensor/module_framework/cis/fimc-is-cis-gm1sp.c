@@ -189,12 +189,6 @@ int sensor_gm1sp_cis_init(struct v4l2_subdev *subdev)
 	cis->cis_data->low_expo_start = 33000;
 	cis->need_mode_change = false;
 
-	cis->gyro_test_val.x = 0;
-	cis->gyro_test_val.y = 0;
-	cis->gyro_test_val.z = 0;
-	cis->gyro_test_val.state = SENSOR_GYRO_INFO_STATE_BASE;
-	cis->gyro_self_test_step = 0;
-
 	sensor_gm1sp_cis_data_calculation(sensor_gm1sp_pllinfos[setfile_index], cis->cis_data);
 
 	setinfo.return_value = 0;
@@ -352,6 +346,7 @@ int sensor_gm1sp_cis_set_global_setting(struct v4l2_subdev *subdev)
 	I2C_MUTEX_LOCK(cis->i2c_lock);
 
 	ret = sensor_cis_set_registers(subdev, sensor_gm1sp_global, sensor_gm1sp_global_size);
+
 	if (ret < 0) {
 		err("sensor_gm1sp_set_registers fail!!");
 		goto p_err;
@@ -379,14 +374,6 @@ int sensor_gm1sp_cis_mode_change(struct v4l2_subdev *subdev, u32 mode)
 	if (mode > sensor_gm1sp_max_setfile_num) {
 		err("invalid mode(%d)!!", mode);
 		return -EINVAL;
-	}
-
-	if (cis->gyro_self_test_step == 1) {
-		mode = GYRO_SELF_TEST_STEP1_SET_NUM;
-		info("%d setfile will be set for gyro self test step1\n", mode);
-	} else if (cis->gyro_self_test_step == 2) {
-		mode = GYRO_SELF_TEST_STEP2_SET_NUM;
-		info("%d setfile will be set for gyro self test step2\n", mode);
 	}
 
 	sensor_gm1sp_cis_data_calculation(sensor_gm1sp_pllinfos[mode], cis->cis_data);
@@ -459,8 +446,6 @@ int sensor_gm1sp_cis_stream_on(struct v4l2_subdev *subdev)
 	struct fimc_is_cis *cis;
 	struct i2c_client *client;
 	cis_shared_data *cis_data;
-	u32 err_check = 0;
-	u8 read_val;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -518,49 +503,10 @@ int sensor_gm1sp_cis_stream_on(struct v4l2_subdev *subdev)
 	dbg_sensor(1, "______ line_length_pck(%x)\n", pll);
 	}
 #endif
+
 	/* Sensor stream on */
 	fimc_is_sensor_write16(client, 0x6028, 0x4000);
 	fimc_is_sensor_write8(client, 0x0100, 0x01);
-
-	/* In second test step, get x,y,z gyro val by i2c transfer */
-	if (cis->gyro_self_test_step == 2) {
-		fimc_is_sensor_write16(client, 0x602c, 0x2000);
-		fimc_is_sensor_write16(client, 0x602e, 0x604e);
-		ret = fimc_is_sensor_read8(client, 0x6f12, &(read_val));
-		if (ret) {
-			err_check++;
-			err("fail to get gyro test x value\n");
-		} else {
-			cis->gyro_test_val.x = (u32)read_val;
-		}
-
-		fimc_is_sensor_write16(client, 0x602e, 0x604f);
-		ret = fimc_is_sensor_read8(client, 0x6f12, &(read_val));
-		if (ret) {
-			err_check++;
-			err("fail to get gyro test y value\n");
-		} else {
-			cis->gyro_test_val.y = (u32)read_val;
-		}
-
-		fimc_is_sensor_write16(client, 0x602e, 0x6050);
-		ret = fimc_is_sensor_read8(client, 0x6f12, &(read_val));
-		if (ret) {
-			err_check++;
-			err("fail to get gyro test z value\n");
-		} else {
-			cis->gyro_test_val.z = (u32)read_val;
-		}
-
-		if (!err_check) {
-			cis->gyro_test_val.state = SENSOR_GYRO_INFO_STATE_SUCCESS;
-			info("success to get gyro test x(%d), y(%d), z(%d) value\n",
-				cis->gyro_test_val.x, cis->gyro_test_val.y, cis->gyro_test_val.z);
-		} else {
-			cis->gyro_test_val.state = SENSOR_GYRO_INFO_STATE_FAIL;
-			err("Fail to get gyro test value\n");
-		}
-	}
 
 	/* WDR */
 	if (fimc_is_vender_wdr_mode_on(cis_data))
@@ -626,6 +572,8 @@ int sensor_gm1sp_cis_stream_off(struct v4l2_subdev *subdev)
 	do_gettimeofday(&end);
 	dbg_sensor(1, "[%s] time %lu us\n", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
+
+	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
 	return ret;
 }
@@ -1778,7 +1726,7 @@ static int cis_gm1sp_probe(struct i2c_client *client,
 
 	subdev_cis = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (!subdev_cis) {
-		err("subdev_cis NULL");
+		probe_err("subdev_cis NULL");
 		ret = -ENOMEM;
 		goto p_err;
 	}

@@ -276,7 +276,7 @@ static int sensor_12a10ff_cis_group_param_hold_func(struct v4l2_subdev *subdev, 
 		ret = fimc_is_sensor_write8(client, 0x3208, 0x10);
 		ret = fimc_is_sensor_write8(client, 0x320b, 0x00);
 		ret = fimc_is_sensor_write8(client, 0x3208, 0xa0);
-
+    
 	if (ret < 0)
 		goto p_err;
 
