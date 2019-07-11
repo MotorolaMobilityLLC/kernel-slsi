@@ -16,8 +16,8 @@
 		target-path = "/";
 		__overlay__ {
 			/* Rear Master */
-			fimc_is_sensor_gm1sp: fimc-is_sensor_gm1sp@43 {
-				compatible = "samsung,sensor-module-gm1sp";
+			fimc_is_sensor_12a10: fimc-is_sensor_12a10@208 {
+				compatible = "samsung,sensor-module-12a10";
 
 				pinctrl-names = "pin0", "pin1", "pin2", "release";
 				pinctrl-0 = <>;
@@ -34,13 +34,13 @@
 				gpio_reset = <&gpc1 0 0x1>; /* sensor reset */
 
 				gpio_avdd_en = <&gpg2 6 0x1>; /* RCAM_MAIN_AVDD_EN */
-				gpio_dvdd_en = <&gpg2 7 0x1>; /* RCAM_DVDD_EN */
+				gpio_dvdd_en = <&gpg2 4 0x1>; /* RCAM_DVDD_EN */
 				gpio_iovdd_en = <&gpg2 5 0x1>; /* CAM_IOVDD_EN */
 
 				status = "okay";
 
 				af {
-					product_name = <23>; /* ACTUATOR_NAME_DW9839 */
+					product_name = <20>; /* ACTUATOR_NAME_LC898217 20 */
 					i2c_ch = <0>; /* SENSOR_CONTROL_I2C0 */
 				};
 
@@ -49,17 +49,15 @@
 				};
 
 				ois {
-					product_name = <3>; /* OIS_NAME_ROHM_BU24218GWL */
-					i2c_addr = <0x7c>;
-					i2c_ch = <0>; /* SENSOR_CONTROL_I2C0 */
+					product_name = <100>; /* NOTHING */
 				};
 
 				eeprom {
-					product_name = <1>; /* EEPROM_NAME_GM1 */
-				};
+                                        product_name = <3>; /* EEPROM_NAME_OV12A10 */
+                                };
 
 				internal_vc {
-					vc_list = <1 VC_PRIVATE 1 2 VC_MIPISTAT 1>;
+					vc_list = <1 VC_PRIVATE 0 2 VC_MIPISTAT 0>;
 				};
 			};
 
@@ -69,22 +67,22 @@
 
 				pinctrl-names = "pin0", "pin1", "pin2", "release";
 				pinctrl-0 = <>;
-				pinctrl-1 = <&fimc_is_mclk1_out>;
-				pinctrl-2 = <&fimc_is_mclk1_fn>;
+				pinctrl-1 = <&fimc_is_mclk3_out>;
+				pinctrl-2 = <&fimc_is_mclk3_fn>;
 				pinctrl-3 = <>;
 
 				position = <2>;	/* Rear:0. Front:1. Rear_sub:2. Secure:3. */
-				id = <2>; /* fimc_is_sensor id */
-				mclk_ch = <1>;
-				sensor_i2c_ch = <1>; /* SENSOR_CONTROL_I2C1 */
+				id = <3>; /* fimc_is_sensor id */
+				mclk_ch = <3>;
+				sensor_i2c_ch = <3>; /* SENSOR_CONTROL_I2C1 */
 
-				gpio_mclk = <&gpc2 1 0x1>;
+				gpio_mclk = <&gpg3 5 0x1>;
 				gpio_reset = <&gpc1 1 0x1>; /* sensor reset */
 
-				gpio_avdd_en = <&gpg2 3 0x1>; /* FCAM_AVDD_EN */
 				gpio_iovdd_en = <&gpg2 5 0x1>; /* CAM_IOVDD_EN */
 
-				power_seq_idx = <1>; /* power on/off sequence index */
+				power_seq_idx = <0>; /* power on/off sequence index */
+				setfile_idx = <1>; /* setfile index */
 				status = "okay";
 
 				af {
@@ -99,31 +97,27 @@
 					product_name = <100>; /* NOTHING */
 				};
 
-				eeprom {
-					product_name = <2>; /* EEPROM_NAME_5E9 */
-				};
-
 				internal_vc {
 					/* DUMMY */
 				};
 			};
 
 			/* Front */
-			fimc_is_sensor_2x5sp: fimc-is_sensor_2x5sp@42 {
-				compatible = "samsung,sensor-module-2x5sp";
+			fimc_is_sensor_12a10ff: fimc-is_sensor_12a10ff@209 {
+				compatible = "samsung,sensor-module-12a10ff";
 
 				pinctrl-names = "pin0", "pin1", "pin2", "release";
 				pinctrl-0 = <>;
-				pinctrl-1 = <&fimc_is_mclk2_out>;
-				pinctrl-2 = <&fimc_is_mclk2_fn>;
+				pinctrl-1 = <&fimc_is_mclk1_out>;
+				pinctrl-2 = <&fimc_is_mclk1_fn>;
 				pinctrl-3 = <>;
 
 				position = <1>;	/* Rear:0. Front:1. Rear_sub:2. Secure:3. */
-				id = <1>; /* fimc_is_sensor id */
-				mclk_ch = <2>;
-				sensor_i2c_ch = <2>; /* SENSOR_CONTROL_I2C2 */
+				id = <2>; /* fimc_is_sensor id */
+				mclk_ch = <1>;
+				sensor_i2c_ch = <1>; /* SENSOR_CONTROL_I2C1 */
 
-				gpio_mclk = <&gpc2 2 0x1>;
+				gpio_mclk = <&gpc2 1 0x1>;
 				gpio_reset = <&gpc1 3 0x1>; /* sensor reset */
 
 				gpio_avdd_en = <&gpg2 3 0x1>; /* FCAM_AVDD_EN */
@@ -144,6 +138,55 @@
 					product_name = <100>; /* NOTHING */
 				};
 
+				eeprom {
+                                        product_name = <4>; /* EEPROM_NAME_OV12A10FF */
+                                };
+
+				internal_vc {
+					/* DUMMY */
+				};
+			};
+
+			/* Rear Action */
+			fimc_is_sensor_16885c: fimc-is_sensor_16885c@210 {
+				compatible = "samsung,sensor-module-16885c";
+
+				pinctrl-names = "pin0", "pin1", "pin2", "release";
+				pinctrl-0 = <>;
+				pinctrl-1 = <&fimc_is_mclk2_out>;
+				pinctrl-2 = <&fimc_is_mclk2_fn>;
+				pinctrl-3 = <>;
+
+				position = <4>;	/* Rear:0. Front:1. Rear_sub:2. Secure:3. */
+				id = <1>; /* fimc_is_sensor id */
+				mclk_ch = <2>;
+				sensor_i2c_ch = <2>; /* SENSOR_CONTROL_I2C2 */
+
+				gpio_mclk = <&gpc2 2 0x1>;
+				gpio_reset = <&gpc1 2 0x1>; /* sensor reset */
+
+				gpio_avdd_en = <&gpm24 0 0x1>; /* CAM3_AVDD_EN */
+				gpio_dvdd_en = <&gpg2 7 0x1>; /* CAM3_DVDD_EN */
+				gpio_iovdd_en = <&gpg2 5 0x1>; /* CAM_IOVDD_EN */
+
+				status = "okay";
+
+				af {
+					product_name = <100>; /* NOTHING */
+				};
+
+				flash {
+					product_name = <14>; /* NOTHING */
+				};
+
+				ois {
+					product_name = <100>; /* NOTHING */
+				};
+
+				eeprom {
+                                        product_name = <5>; /* EEPROM_NAME_OV16885C */
+                                };
+
 				internal_vc {
 					vc_list = <3 VC_EMBEDDED 0>;
 				};
@@ -156,6 +199,13 @@
 				status = "okay";
 			};
 
+                        fimc_is_flash_s2mu106_action: fimc-is-flash-s2mu106_action@14 {
+                                compatible = "samsung,sensor-flash-s2mu106";
+                                id = <1>;
+                                led_ch = <1 2>; /* CH1 ~ CH4, CH0 not exist */
+                                status = "okay";
+                        };
+
 		}; /* end of __overlay__ */
 	}; /* end of fragment */
 }; /* end of root */
@@ -164,9 +214,10 @@
 
 &fimc_is {
 	vender {
-		rear_sensor_id = <43>; /* 43: GM1SP */
-		front_sensor_id = <42>; /* 42: 2X5SP */
+		rear_sensor_id = <208>; /* 208: 12a10 */
+		front_sensor_id = <209>; /* 209: 12a10ff */
 		rear2_sensor_id = <41>; /* 41: 5E9  */
+		rear3_sensor_id = <210>; /* 210: 16885c  */
 	};
 
 	fimc_is_dvfs {
@@ -202,7 +253,7 @@
 		#define DVFS_MIF_L9 419000
 
 		table0 {
-			desc = "dvfs table v0.2.a for Robusta2";
+			desc = "dvfs table v0.2.a for Robusta2 Play";
 
 			default_int_cam = <DVFS_INT_CAM_L0>;
 			default_cam = <DVFS_CAM_L0>;
@@ -216,15 +267,15 @@
 			front_preview_uhd_int = <DVFS_INT_L4>;
 			front_preview_uhd_hpg = <1>;
 
-			front_preview_int_cam = <DVFS_INT_CAM_L3>;
+			front_preview_int_cam = <DVFS_INT_CAM_L2>;
 			front_preview_cam = <DVFS_CAM_L2>;
-			front_preview_mif = <DVFS_MIF_L3>;
+			front_preview_mif = <DVFS_MIF_L5>;
 			front_preview_int = <DVFS_INT_L4>;
 			front_preview_hpg = <1>;
 
-			front_preview_full_int_cam = <DVFS_INT_CAM_L0>;
+			front_preview_full_int_cam = <DVFS_INT_CAM_L3>;
 			front_preview_full_cam = <DVFS_CAM_L2>;
-			front_preview_full_mif = <DVFS_MIF_L3>;
+			front_preview_full_mif = <DVFS_MIF_L5>;
 			front_preview_full_int = <DVFS_INT_L4>;
 			front_preview_full_hpg = <1>;
 
@@ -234,7 +285,7 @@
 			front_capture_int = <DVFS_INT_L4>;
 			front_capture_hpg = <1>;
 
-			front_video_int_cam = <DVFS_INT_CAM_L3>;
+			front_video_int_cam = <DVFS_INT_CAM_L2>;
 			front_video_cam = <DVFS_CAM_L2>;
 			front_video_mif = <DVFS_MIF_L5>;
 			front_video_int = <DVFS_INT_L4>;
@@ -290,7 +341,7 @@
 
 			rear2_preview_fhd_int_cam = <DVFS_INT_CAM_L3>;
 			rear2_preview_fhd_cam = <DVFS_CAM_L4>;
-			rear2_preview_fhd_mif = <DVFS_MIF_L3>;
+			rear2_preview_fhd_mif = <DVFS_MIF_L7>;
 			rear2_preview_fhd_int = <DVFS_INT_L4>;
 			rear2_preview_fhd_hpg = <1>;
 
@@ -302,7 +353,7 @@
 
 			rear2_video_fhd_int_cam = <DVFS_INT_CAM_L3>;
 			rear2_video_fhd_cam = <DVFS_CAM_L4>;
-			rear2_video_fhd_mif = <DVFS_MIF_L3>;
+			rear2_video_fhd_mif = <DVFS_MIF_L7>;
 			rear2_video_fhd_int = <DVFS_INT_L4>;
 			rear2_video_fhd_hpg = <1>;
 
@@ -395,6 +446,84 @@
 			rear_video_high_speed_240fps_mif = <DVFS_MIF_L2>;
 			rear_video_high_speed_240fps_int = <DVFS_INT_L4>;
 			rear_video_high_speed_240fps_hpg = <1>;
+
+			rear3_preview_fhd_int_cam = <DVFS_INT_CAM_L2>;
+			rear3_preview_fhd_cam = <DVFS_CAM_L4>;
+			rear3_preview_fhd_mif = <DVFS_MIF_L5>;
+			rear3_preview_fhd_int = <DVFS_INT_L4>;
+			rear3_preview_fhd_hpg = <1>;
+
+			rear3_preview_hd_int_cam = <DVFS_INT_CAM_L2>;
+			rear3_preview_hd_cam = <DVFS_CAM_L4>;
+			rear3_preview_hd_mif = <DVFS_MIF_L5>;
+			rear3_preview_hd_int = <DVFS_INT_L4>;
+			rear3_preview_hd_hpg = <1>;
+
+			rear3_preview_uhd_int_cam = <DVFS_INT_CAM_L2>;
+			rear3_preview_uhd_cam = <DVFS_CAM_L4>;
+			rear3_preview_uhd_mif = <DVFS_MIF_L5>;
+			rear3_preview_uhd_int = <DVFS_INT_L4>;
+			rear3_preview_uhd_hpg = <1>;
+
+			rear3_preview_full_int_cam = <DVFS_INT_CAM_L2>;
+			rear3_preview_full_cam = <DVFS_CAM_L4>;
+			rear3_preview_full_mif = <DVFS_MIF_L5>;
+			rear3_preview_full_int = <DVFS_INT_L4>;
+			rear3_preview_full_hpg = <1>;
+
+			rear3_capture_int_cam = <DVFS_INT_CAM_L1>;
+			rear3_capture_cam = <DVFS_CAM_L2>;
+			rear3_capture_mif = <DVFS_MIF_L3>;
+			rear3_capture_int = <DVFS_INT_L4>;
+			rear3_capture_hpg = <1>;
+
+			rear3_video_fhd_int_cam = <DVFS_INT_CAM_L2>;
+			rear3_video_fhd_cam = <DVFS_CAM_L4>;
+			rear3_video_fhd_mif = <DVFS_MIF_L5>;
+			rear3_video_fhd_int = <DVFS_INT_L4>;
+			rear3_video_fhd_hpg = <1>;
+
+			rear3_video_hd_int_cam = <DVFS_INT_CAM_L2>;
+			rear3_video_hd_cam = <DVFS_CAM_L4>;
+			rear3_video_hd_mif = <DVFS_MIF_L6>;
+			rear3_video_hd_int = <DVFS_INT_L4>;
+			rear3_video_hd_hpg = <1>;
+
+			rear3_video_uhd_int_cam = <DVFS_INT_CAM_L2>;
+			rear3_video_uhd_cam = <DVFS_CAM_L4>;
+			rear3_video_uhd_mif = <DVFS_MIF_L4>;
+			rear3_video_uhd_int = <DVFS_INT_L4>;
+			rear3_video_uhd_hpg = <1>;
+
+			rear3_video_fhd_capture_int_cam = <DVFS_INT_CAM_L1>;
+			rear3_video_fhd_capture_cam = <DVFS_CAM_L2>;
+			rear3_video_fhd_capture_mif = <DVFS_MIF_L3>;
+			rear3_video_fhd_capture_int = <DVFS_INT_L4>;
+			rear3_video_fhd_capture_hpg = <1>;
+
+			rear3_video_hd_capture_int_cam = <DVFS_INT_CAM_L1>;
+			rear3_video_hd_capture_cam = <DVFS_CAM_L2>;
+			rear3_video_hd_capture_mif = <DVFS_MIF_L3>;
+			rear3_video_hd_capture_int = <DVFS_INT_L4>;
+			rear3_video_hd_capture_hpg = <1>;
+
+			rear3_video_uhd_capture_int_cam = <DVFS_INT_CAM_L1>;
+			rear3_video_uhd_capture_cam = <DVFS_CAM_L2>;
+			rear3_video_uhd_capture_mif = <DVFS_MIF_L3>;
+			rear3_video_uhd_capture_int = <DVFS_INT_L4>;
+			rear3_video_uhd_capture_hpg = <1>;
+
+			rear3_video_high_speed_60fps_int_cam = <DVFS_INT_CAM_L3>;
+			rear3_video_high_speed_60fps_cam = <DVFS_CAM_L4>;
+			rear3_video_high_speed_60fps_mif = <DVFS_MIF_L4>;
+			rear3_video_high_speed_60fps_int = <DVFS_INT_L4>;
+			rear3_video_high_speed_60fps_hpg = <1>;
+
+			rear3_video_high_speed_120fps_int_cam = <DVFS_INT_CAM_L3>;
+			rear3_video_high_speed_120fps_cam = <DVFS_CAM_L4>;
+			rear3_video_high_speed_120fps_mif = <DVFS_MIF_L3>;
+			rear3_video_high_speed_120fps_int = <DVFS_INT_L4>;
+			rear3_video_high_speed_120fps_hpg = <1>;
 
 			dual_preview_int_cam = <DVFS_INT_CAM_L2>;
 			dual_preview_cam = <DVFS_CAM_L2>;
@@ -541,46 +670,65 @@
 &hsi2c_12 {
 	gpios = <&gpc0 0 0 &gpc0 1 0>;
 	status = "okay";
-	clock-frequency = <1000000>;
+	clock-frequency = <900000>;
 	samsung,reset-before-trans;
 
 	samsung,fast-plus-mode;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	fimc-is-gm1sp@2d {
-		compatible = "samsung,exynos5-fimc-is-cis-gm1sp";
-		reg = <0x2d>; /* TODO: need to check */
+	fimc-is-12a10@36 {
+		compatible = "samsung,exynos5-fimc-is-cis-12a10";
+		reg = <0x36>;
 		id = <0>; /* matching fimc_is_sensor id */
-		setfile = "setB";
+		setfile = "setA";
 		use_initial_ae; /* for initial AE */
-		dual_sync_mode = <DUAL_SYNC_MASTER>;
+		dual_sync_mode = <DUAL_SYNC_SLAVE>;
 	};
 
 	fimc-is-actuator@72 {
-		compatible = "samsung,exynos5-fimc-is-actuator-dw9839";
-		reg = <0x0C>;
+		compatible = "samsung,exynos5-fimc-is-actuator-lc898217";
+		reg = <0x72>;
 		id = <0>; /* matching fimc_is_sensor id */
 		place = <0>;
 	};
 
-	fimc-is-ois@3e {
-		compatible = "samsung,exynos5-fimc-is-ois-bu24218gwl";
-		reg = <0x3e>;
-		id = <0>;
-		place = <0>;
-	};
-
-	fimc-is-eeprom@51 {
-		compatible = "samsung,exynos5-fimc-is-sensor-eeprom-gm1";
-		reg = <0x51>;
-		id = <0>;
-	};
+        fimc-is-eeprom@50 {
+                compatible = "samsung,exynos5-fimc-is-sensor-eeprom-12a10";
+                reg = <0x50>;
+                id = <0>;
+        };
 };
 
 /* I2C_CAM1 */ /* SENSOR_CONTROL_I2C1 */
 &hsi2c_13 {
 	gpios = <&gpc0 2 0 &gpc0 3 0>;
+	status = "okay";
+	clock-frequency = <900000>;
+	samsung,reset-before-trans;
+
+	samsung,fast-plus-mode;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	fimc-is-12a10ff@10 {
+		compatible = "samsung,exynos5-fimc-is-cis-12a10ff";
+		reg = <0x10>; /* 1 bit right shift */
+		id = <2>; /* matching fimc_is_sensor id */
+		setfile = "setA";
+		use_initial_ae; /* for initial AE */
+	};
+
+        fimc-is-eeprom@50 {
+                compatible = "samsung,exynos5-fimc-is-sensor-eeprom-12a10ff";
+                reg = <0x50>;
+                id = <2>;
+        };
+};
+
+/* I2C_CAM2 */ /* SENSOR_CONTROL_I2C2 */
+&hsi2c_14 {
+	gpios = <&gpc0 4 0 &gpc0 5 0>;
 	status = "okay";
 	clock-frequency = <400000>;
 	samsung,reset-before-trans;
@@ -588,40 +736,40 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	fimc-is-5e9@10 {
-		compatible = "samsung,exynos5-fimc-is-cis-5e9";
+	fimc-is-16885c@10 {
+		compatible = "samsung,exynos5-fimc-is-cis-16885c";
 		reg = <0x10>; /* 1 bit right shift */
-		id = <2>; /* matching fimc_is_sensor id */
-		setfile = "setC";
+		id = <1>; /* matching fimc_is_sensor id */
+		setfile = "setA";
 		use_initial_ae; /* for initial AE */
-		dual_sync_mode = <DUAL_SYNC_SLAVE>;
 	};
 
-	fimc-is-eeprom@54 {
-		compatible = "samsung,exynos5-fimc-is-sensor-eeprom-5e9";
-		reg = <0x54>;
-		id = <2>;
-	};
+        fimc-is-eeprom@50 {
+                compatible = "samsung,exynos5-fimc-is-sensor-eeprom-16885c";
+                reg = <0x50>;
+                id = <1>;
+        };
 };
 
-/* I2C_CAM2 */ /* SENSOR_CONTROL_I2C2 */
-&hsi2c_14 {
-	gpios = <&gpc0 4 0 &gpc0 5 0>;
+/* I2C_CAM3 */ /* SENSOR_CONTROL_I2C1 */
+&hsi2c_15 {
+	gpios = <&gpc0 6 0 &gpc0 7 0>;
 	status = "okay";
-	clock-frequency = <1000000>;
+	clock-frequency = <400000>;
 	samsung,reset-before-trans;
 
-	samsung,fast-plus-mode;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	fimc-is-2x5sp@10 {
-		compatible = "samsung,exynos5-fimc-is-cis-2x5sp";
-		reg = <0x10>; /* 1 bit right shift */
-		id = <1>; /* matching fimc_is_sensor id */
-		setfile = "setB";
+	fimc-is-5e9@2d {
+		compatible = "samsung,exynos5-fimc-is-cis-5e9";
+		reg = <0x2d>; /* 1 bit right shift */
+		id = <3>; /* matching fimc_is_sensor id */
+		setfile = "setC";
 		use_initial_ae; /* for initial AE */
+		dual_sync_mode = <DUAL_SYNC_MASTER>;
 		use_otp_cal; /* for use OTP */
+		otp_filename = "dump_5e9_troika_eeprom_data.bin";
 	};
 };
 
@@ -634,7 +782,7 @@
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
-	multi_ch = <1>;
+	multi_ch = <2>;
 	use_ssvc1_internal;
 	use_ssvc2_internal;
 	status = "okay";
@@ -651,24 +799,39 @@
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	multi_ch = <0>;
 	status = "okay";
-	use_ssvc3_internal;
 };
 
 &fimc_is_sensor2 {
 	scenario = <SENSOR_SCENARIO_NORMAL>;	/* Normal, Vision, OIS etc */
+	interrupts = <0 327 0>, /* MIPI-CSI2 */
+		<0 334 0>, /* VC0 DMA3 */
+		<0 333 0>, /* VC1 DMA2 */
+		<0 333 0>, /* VC2 DMA2 */
+		<0 333 0>; /* VC3 DMA2 */
 	id = <2>;
 	csi_ch = <2>;
 	dma_ch = <3 2 2 2>;
-	vc_ch = <0 1 2 3>;
+	vc_ch = <1 1 2 3>;
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	multi_ch = <0>;
+	camif_mux_val = <0x005820FF>;
 	status = "okay";
+	sensor2_ch_mode0: sensor2-ch-mode0 {
+		reg = <0x14480100 0x100>, /* VC0 DMA3 */
+			<0x14480400 0x100>, /* VC0 DMA3 COMMON */
+			<0x14470100 0x100>, /* VC1 DMA2 */
+			<0x14470400 0x100>, /* VC1 DMA2 COMMON */
+			<0x14470200 0x100>, /* VC2 DMA2 */
+			<0x14470400 0x100>, /* VC2 DMA2 COMMON */
+			<0x14470300 0x100>, /* VC3 DMA2 */
+			<0x14470400 0x100>; /* VC3 DMA2 COMMON */
+	};
 };
 
 &fimc_is_sensor3 {
-	scenario = <SENSOR_SCENARIO_SECURE>;	/* Normal, Vision, OIS etc */
+	scenario = <SENSOR_SCENARIO_NORMAL>;	/* Normal, Vision, OIS etc */
 	id = <3>;
 	csi_ch = <3>;
 	dma_ch = <3 3 3 3>;
