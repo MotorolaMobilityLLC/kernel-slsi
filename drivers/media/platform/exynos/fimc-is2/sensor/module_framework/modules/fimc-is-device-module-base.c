@@ -817,15 +817,6 @@ int sensor_module_s_ctrl(struct v4l2_subdev *subdev, struct v4l2_control *ctrl)
 			goto p_err;
 		}
 		break;
-	case V4L2_CID_GYRO_SELF_TEST:
-		if (ctrl->value > 2) {
-			err("Gyro self test step(%d) is over 2\n", ctrl->value);
-			ret = -EINVAL;
-			goto p_err;
-		}
-		sensor_peri->cis.gyro_self_test_step = ctrl->value;
-		info("Gyro self test step(%d) is enabled\n", sensor_peri->cis.gyro_self_test_step);
-		break;
 	default:
 		err("err!!! Unknown CID(%#x)", ctrl->id);
 		ret = -EINVAL;
@@ -1157,7 +1148,7 @@ int sensor_module_s_format(struct v4l2_subdev *subdev,
 	}
 
 	if (cis->cis_data->sens_config_index_cur != device->cfg->mode
-		|| sensor_peri->mode_change_first == true || cis->gyro_self_test_step != 0) {
+		|| sensor_peri->mode_change_first == true) {
 		dbg_sensor(1, "[%s] mode changed(%d->%d)\n", __func__,
 				cis->cis_data->sens_config_index_cur, device->cfg->mode);
 

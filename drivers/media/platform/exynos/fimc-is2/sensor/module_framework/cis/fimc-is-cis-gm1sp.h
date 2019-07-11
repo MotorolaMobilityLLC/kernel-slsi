@@ -29,8 +29,5 @@
 
 #define USE_GROUP_PARAM_HOLD	(0)
 
-#define GYRO_SELF_TEST_STEP1_SET_NUM	(4)
-#define GYRO_SELF_TEST_STEP2_SET_NUM	(5)
-
 #endif
 

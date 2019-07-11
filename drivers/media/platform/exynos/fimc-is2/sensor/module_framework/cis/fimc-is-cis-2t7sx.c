@@ -143,41 +143,6 @@ static int sensor_2t7sx_wait_stream_off_status(cis_shared_data *cis_data)
 	return ret;
 }
 
-void sensor_2t7sx_cis_select_setfile(struct v4l2_subdev *subdev)
-{
-	u8 rev = 0;
-	struct fimc_is_cis *cis = NULL;
-
-	WARN_ON(!subdev);
-
-	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev);
-	WARN_ON(!cis);
-	WARN_ON(!cis->cis_data);
-
-	rev = cis->cis_data->cis_rev;
-
-	switch (rev) {
-	case 0xA0: /* 2T7SX */
-		pr_info("%s setfile_A(2T7SX)\n", __func__);
-		sensor_2t7sx_global = sensor_2t7sx_setfile_A_Global;
-		sensor_2t7sx_global_size = ARRAY_SIZE(sensor_2t7sx_setfile_A_Global);
-		sensor_2t7sx_setfiles = sensor_2t7sx_setfiles_A;
-		sensor_2t7sx_setfile_sizes = sensor_2t7sx_setfile_A_sizes;
-		sensor_2t7sx_max_setfile_num = ARRAY_SIZE(sensor_2t7sx_setfiles_A);
-		sensor_2t7sx_pllinfos = sensor_2t7sx_pllinfos_A;
-		break;
-	default:
-		err("Unsupported 2p7sq sensor revision(%#x) use setfile_A for default\n", rev);
-		sensor_2t7sx_global = sensor_2t7sx_setfile_A_Global;
-		sensor_2t7sx_global_size = ARRAY_SIZE(sensor_2t7sx_setfile_A_Global);
-		sensor_2t7sx_setfiles = sensor_2t7sx_setfiles_A;
-		sensor_2t7sx_setfile_sizes = sensor_2t7sx_setfile_A_sizes;
-		sensor_2t7sx_max_setfile_num = ARRAY_SIZE(sensor_2t7sx_setfiles_A);
-		sensor_2t7sx_pllinfos = sensor_2t7sx_pllinfos_A;
-		break;
-	}
-}
-
 /* CIS OPS */
 int sensor_2t7sx_cis_init(struct v4l2_subdev *subdev)
 {
@@ -209,8 +174,6 @@ int sensor_2t7sx_cis_init(struct v4l2_subdev *subdev)
 		cis->rev_flag = true;
 		ret = 0;
 	}
-
-	sensor_2t7sx_cis_select_setfile(subdev);
 
 	cis->cis_data->cur_width = SENSOR_2T7SX_MAX_WIDTH;
 	cis->cis_data->cur_height = SENSOR_2T7SX_MAX_HEIGHT;
@@ -1786,6 +1749,33 @@ static int cis_2t7sx_probe(struct i2c_client *client,
 	if (ret) {
 		err("setfile index read fail(%d), take default setfile!!", ret);
 		setfile = "default";
+	}
+
+	if (strcmp(setfile, "default") == 0 ||
+			strcmp(setfile, "setA") == 0) {
+		probe_info("%s setfile_A\n", __func__);
+		sensor_2t7sx_global = sensor_2t7sx_setfile_A_Global;
+		sensor_2t7sx_global_size = ARRAY_SIZE(sensor_2t7sx_setfile_A_Global);
+		sensor_2t7sx_setfiles = sensor_2t7sx_setfiles_A;
+		sensor_2t7sx_setfile_sizes = sensor_2t7sx_setfile_A_sizes;
+		sensor_2t7sx_pllinfos = sensor_2t7sx_pllinfos_A;
+		sensor_2t7sx_max_setfile_num = ARRAY_SIZE(sensor_2t7sx_setfiles_A);
+	} else if (strcmp(setfile, "setB") == 0) {
+		probe_info("%s setfile_B\n", __func__);
+		sensor_2t7sx_global = sensor_2t7sx_setfile_B_Global;
+		sensor_2t7sx_global_size = ARRAY_SIZE(sensor_2t7sx_setfile_B_Global);
+		sensor_2t7sx_setfiles = sensor_2t7sx_setfiles_B;
+		sensor_2t7sx_setfile_sizes = sensor_2t7sx_setfile_B_sizes;
+		sensor_2t7sx_pllinfos = sensor_2t7sx_pllinfos_B;
+		sensor_2t7sx_max_setfile_num = ARRAY_SIZE(sensor_2t7sx_setfiles_B);
+	} else {
+		err("%s setfile index out of bound, take default (setfile_A)", __func__);
+		sensor_2t7sx_global = sensor_2t7sx_setfile_A_Global;
+		sensor_2t7sx_global_size = ARRAY_SIZE(sensor_2t7sx_setfile_A_Global);
+		sensor_2t7sx_setfiles = sensor_2t7sx_setfiles_A;
+		sensor_2t7sx_setfile_sizes = sensor_2t7sx_setfile_A_sizes;
+		sensor_2t7sx_pllinfos = sensor_2t7sx_pllinfos_A;
+		sensor_2t7sx_max_setfile_num = ARRAY_SIZE(sensor_2t7sx_setfiles_A);
 	}
 
 	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");

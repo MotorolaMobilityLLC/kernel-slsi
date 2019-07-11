@@ -1800,7 +1800,6 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_retention_prepare = sensor_2l7_cis_retention_prepare,
 	.cis_retention_crc_check = sensor_2l7_cis_retention_crc_check,
 #endif
-	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 };
 
 static int cis_2l7_probe(struct i2c_client *client,
@@ -1939,9 +1938,6 @@ static int cis_2l7_probe(struct i2c_client *client,
 		sensor_2l7_max_retention_num = sizeof(sensor_2l7_setfiles_A_retention) / sizeof(sensor_2l7_setfiles_A_retention[0]);
 #endif
 	}
-
-	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
-	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
 
 	v4l2_i2c_subdev_init(subdev_cis, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_cis, cis);

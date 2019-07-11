@@ -994,35 +994,9 @@ int fimc_is_sensor_dm_tag(struct fimc_is_device_sensor *device,
 {
 	int ret = 0;
 	u32 hashkey;
-	struct v4l2_subdev *subdev_module;
-	struct fimc_is_module_enum *module;
-	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
-	struct v4l2_subdev *subdev_cis = NULL;
-	struct fimc_is_cis *cis = NULL;
 
 	FIMC_BUG(!device);
 	FIMC_BUG(!frame);
-
-	subdev_module = device->subdev_module;
-	if (!subdev_module) {
-		err("subdev_module is NULL");
-		return -EINVAL;
-	}
-
-	module = v4l2_get_subdevdata(subdev_module);
-	if (!module) {
-		err("module is NULL");
-		return -EINVAL;
-	}
-	sensor_peri = (struct fimc_is_device_sensor_peri *)module->private_data;
-
-	subdev_cis = sensor_peri->subdev_cis;
-	if (!subdev_cis) {
-		err("[SEN:%d] no subdev_cis", module->sensor_id);
-		return -ENXIO;
-	}
-	cis = (struct fimc_is_cis *)v4l2_get_subdevdata(subdev_cis);
-	FIMC_BUG(!cis);
 
 	hashkey = frame->fcount % FIMC_IS_TIMESTAMP_HASH_KEY;
 	if (frame->shot) {
@@ -1034,14 +1008,6 @@ int fimc_is_sensor_dm_tag(struct fimc_is_device_sensor *device,
 		 * So, embedded data should be extraced before frame end.
 		 */
 		frame->shot->udm.frame_id = device->frame_id[hashkey];
-
-		/* get gyro self test value from cis */
-		if (cis->gyro_self_test_step == 2) {
-			frame->shot_ext->user.gyro_info.x = cis->gyro_test_val.x;
-			frame->shot_ext->user.gyro_info.y = cis->gyro_test_val.y;
-			frame->shot_ext->user.gyro_info.z = cis->gyro_test_val.z;
-			frame->shot_ext->user.gyro_info.state = cis->gyro_test_val.state;
-		}
 #ifdef DBG_JITTER
 		fimc_is_jitter(frame->shot->dm.sensor.timeStamp);
 #endif

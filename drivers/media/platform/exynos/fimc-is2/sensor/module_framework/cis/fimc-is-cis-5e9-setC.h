@@ -63,7 +63,7 @@ const u32 sensor_5e9_setfile_C_Global[] = {
 	0x3C35, 0x5C, 0x1,
 };
 
-/* 26Mhz, 5E9_2592x1944_30fps_MCLK26_0917.txt */
+/* S5K5E9_2592x1944_30fps_871Mbps_MCLK26_1109.txt */
 const u32 sensor_5e9_setfile_C_2592x1944_30fps[] = {
 	0x0136, 0x1A, 0x1,
 	0x0137, 0x00, 0x1,
@@ -113,6 +113,7 @@ const u32 sensor_5e9_setfile_C_2592x1944_30fps[] = {
 	0x30B8, 0x2E, 0x1,
 	0x30BA, 0x36, 0x1,
 	/* dual slave setting */
+	/* TODO: dual slave setting */
 #if 0
 	0x3C02, 0x01, 0x1,
 	0x3C05, 0x1D, 0x1,

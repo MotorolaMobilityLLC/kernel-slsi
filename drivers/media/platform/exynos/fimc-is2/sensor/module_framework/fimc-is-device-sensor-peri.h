@@ -102,11 +102,6 @@ struct fimc_is_cis {
 
 	struct work_struct		throttling_work;
 	bool				throttling_mode;
-
-	/* step1: get gyro stat data by VC3 */
-	/* step2: get gyro stat data by VC3 and x,y,z value by meta */
-	struct sensor_gyro_info		gyro_test_val;
-	u32				gyro_self_test_step;
 };
 
 struct fimc_is_actuator_data {

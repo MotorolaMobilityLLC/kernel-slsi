@@ -309,7 +309,7 @@ static int sensor_module_5e9_power_setpin_1(struct device *dev,
 	return 0;
 }
 
-static int (*sensor_module_5e9_power_setpin[MAX_5E9_SETPIN_CNT])(struct device *dev,
+static int (* sensor_module_5e9_power_setpin[MAX_5E9_SETPIN_CNT])(struct device *dev,
 	struct exynos_platform_fimc_is_module *pdata) = {
 	sensor_module_5e9_power_setpin_0,
 	sensor_module_5e9_power_setpin_1

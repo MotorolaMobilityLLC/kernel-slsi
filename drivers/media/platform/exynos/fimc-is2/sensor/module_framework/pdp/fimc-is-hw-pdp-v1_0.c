@@ -63,7 +63,7 @@ int pdp_hw_g_stat0(void __iomem *base, void *buf, size_t len)
 
 	if (len < stat0_len) {
 		stat0_len = len;
-		warn("the size of STAT0 buffer is too small: %zd < %zd",
+		warn("the size of STAT0 buffer is too small: %d < %d",
 							len, stat0_len);
 	}
 
