@@ -6762,7 +6762,7 @@ const u32 sensor_2x5sp_setfiles_A_otp_initial[] = {
 const struct sensor_pll_info_compact sensor_2x5sp_pllinfo_A_2880x2160_30fps = {
 	EXT_CLK_Mhz * 1000 * 1000, /* ext_clk */
 	1200000000, /* mipi_datarate */
-	957670000,	/* pclk  = VT pix CLK (this value is different by cis) */
+	478830000,	/* pclk  = VT pix CLK (this value is different by cis) */
 	0x13C8, /* frame_length_lines	(0x0340) */
 	0x189A, /* line_length_pck	(0x0342) */
 };

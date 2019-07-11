@@ -154,24 +154,6 @@ skip_cal:
 	actuator_info->pcal = (pcal_msb << 8) | pcal_lsb;
 	actuator_info->ncal = (ncal_msb << 8) | ncal_lsb;
 
-	/* read pcal, ncal */
-	actuator_info = (struct dw9839_actuator_info *)actuator->priv_info;
-	ret = fimc_is_sensor_addr8_read8(client, REG_PCAL_MSB, &pcal_msb);
-	if (ret < 0)
-		goto p_err;
-	ret = fimc_is_sensor_addr8_read8(client, REG_PCAL_LSB, &pcal_lsb);
-	if (ret < 0)
-		goto p_err;
-	ret = fimc_is_sensor_addr8_read8(client, REG_NCAL_MSB, &ncal_msb);
-	if (ret < 0)
-		goto p_err;
-	ret = fimc_is_sensor_addr8_read8(client, REG_NCAL_LSB, &ncal_lsb);
-	if (ret < 0)
-		goto p_err;
-
-	actuator_info->pcal = (pcal_msb << 8) | pcal_lsb;
-	actuator_info->ncal = (ncal_msb << 8) | ncal_lsb;
-
 	info("%s done\n", __func__);
 p_err:
 	return ret;
@@ -427,7 +409,7 @@ p_err:
 
 	return ret;
 }
-#if 0
+
 int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *info)
 {
 	int ret = 0;
@@ -492,79 +474,9 @@ int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *
 	pr_info("[%s] time %lu us", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
 #endif
 
-	/* dw9839 actuator do not use af cal */
-	actuator->actuator_data.actuator_init = false;
 p_err:
 	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
 
-	return ret;
-}
-#endif
-
-int sensor_dw9839_actuator_get_actual_position(struct v4l2_subdev *subdev, u32 *info)
-{
-	int ret = 0;
-	struct fimc_is_actuator *actuator;
-	struct i2c_client *client;
-	struct dw9839_actuator_info *actuator_info;
-	u8 pos_msb = 0, pos_lsb = 0;
-	u32 adc_pos;
-	u64 temp;
-
-#ifdef DEBUG_ACTUATOR_TIME
-	struct timeval st, end;
-
-	do_gettimeofday(&st);
-#endif
-
-	FIMC_BUG(!subdev);
-	FIMC_BUG(!info);
-
-	actuator = (struct fimc_is_actuator *)v4l2_get_subdevdata(subdev);
-	FIMC_BUG(!actuator);
-
-	client = actuator->client;
-	if (unlikely(!client)) {
-		err("client is NULL");
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	FIMC_BUG(!actuator->priv_info);
-	actuator_info = (struct dw9839_actuator_info *)actuator->priv_info;
-
-	ret = fimc_is_sensor_addr8_write8(client, REG_ADC_R_EN, 1);
-	if (ret < 0)
-		goto p_err;
-	ret = fimc_is_sensor_addr8_read8(client, REG_ADC_R_MSB, &pos_msb);
-	if (ret < 0)
-		goto p_err;
-	ret = fimc_is_sensor_addr8_read8(client, REG_ADC_R_LSB, &pos_lsb);
-	if (ret < 0)
-		goto p_err;
-
-	/* pos_msb uses [1:0] bit */
-	adc_pos = ((pos_msb & 0x3) << 8) | pos_lsb;
-
-	/* convert adc_pos to 10bit position
-	 * ncal <= adc_pos <= pcal ------> 0 <= 10bit_pos <= 1023
-	 */
-	temp = (u64)(adc_pos - actuator_info->ncal) << ACTUATOR_POS_SIZE_10BIT;
-	*info = (u32)(temp / (u64)(actuator_info->pcal - actuator_info->ncal));
-
-	if (*info > 1023)
-		*info = 1023;
-
-	dbg_actuator("%s: cal(p:%d, n:%d), adc_pos(msb:%d, lsb:%d, sum:%d) -> target_pos(%d) actual pos(%d)\n",
-			__func__, actuator_info->pcal, actuator_info->ncal, pos_msb & 0x3, pos_lsb, adc_pos,
-			actuator->position, *info);
-
-#ifdef DEBUG_ACTUATOR_TIME
-	do_gettimeofday(&end);
-	pr_info("[%s] time %lu us", __func__, (end.tv_sec - st.tv_sec) * 1000000 + (end.tv_usec - st.tv_usec));
-#endif
-
-p_err:
 	return ret;
 }
 

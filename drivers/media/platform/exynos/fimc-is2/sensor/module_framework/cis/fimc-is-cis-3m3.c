@@ -2077,7 +2077,6 @@ static struct fimc_is_cis_ops cis_ops = {
 #ifdef CAMERA_REAR2_SENSOR_SHIFT_CROP
 	.cis_update_pdaf_tail_size = sensor_3m3_cis_update_pdaf_tail_size,
 #endif
-	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
 	.cis_check_rev = sensor_3m3_cis_check_rev,
 };
 
@@ -2209,9 +2208,6 @@ static int cis_3m3_probe(struct i2c_client *client,
 		err("setfile index read fail(%d), take default setfile!!", ret);
 		setfile = "default";
 	}
-
-	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
-	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
 
 	v4l2_i2c_subdev_init(subdev_cis, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_cis, cis);

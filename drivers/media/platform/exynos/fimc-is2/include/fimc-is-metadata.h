@@ -2052,13 +2052,6 @@ enum camera_crc_index {
 	CAMERA_CRC_INDEX_MAX,
 };
 
-enum sensor_gyro_info_state {
-	SENSOR_GYRO_INFO_STATE_BASE = 0,
-	SENSOR_GYRO_INFO_STATE_SUCCESS,
-	SENSOR_GYRO_INFO_STATE_FAIL,
-	SENSOR_GYRO_INFO_STATE_MAX,
-};
-
 struct facial_score {
 	int32_t			left_eye;
 	int32_t			right_eye;
@@ -2087,21 +2080,12 @@ struct ddk_setfile_ver
 	char		setfile_version[128];
 };
 
-struct sensor_gyro_info {
-	int32_t x;
-	int32_t y;
-	int32_t z;
-	enum sensor_gyro_info_state state;
-};
-
 struct camera2_shot_ext_user {
 	int		crc_result[CAMERA_CRC_INDEX_MAX];
 	int		focus_actual_pos;
 	int		focus_target_pos;
 
 	struct ddk_setfile_ver	ddk_version;
-
-	struct sensor_gyro_info gyro_info;
 };
 
 /** \brief

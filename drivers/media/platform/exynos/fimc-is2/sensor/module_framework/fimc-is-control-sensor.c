@@ -707,7 +707,7 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 		/* 3. set dynamic duration */
 		ctrl.id = V4L2_CID_SENSOR_ADJUST_FRAME_DURATION;
 		ctrl.value = 0;
-		ret = fimc_is_sensor_peri_adj_ctrl(device, expo.long_val, &ctrl);
+		ret = fimc_is_sensor_peri_adj_ctrl(device, MAX(expo.long_val,expo.short_val), &ctrl);
 		if (ret < 0)
 			err("err!!! ret(%d)", ret);
 
