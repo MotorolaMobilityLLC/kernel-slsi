@@ -1979,7 +1979,6 @@ int sensor_2x5sp_cis_set_3hdr_roi(struct v4l2_subdev *subdev, struct roi_setting
 	struct fimc_is_cis *cis;
 	struct i2c_client *client;
 	u16 roi_val[4];
-	int i;
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
 
@@ -2026,12 +2025,9 @@ int sensor_2x5sp_cis_set_3hdr_roi(struct v4l2_subdev *subdev, struct roi_setting
 	roi_val[2] = roi_control.roi_end_x; /* 0x20004B2A: bot_right_x */
 	roi_val[3] = roi_control.roi_end_y; /* 0x20004B2C: bot_right_y */
 
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4B26);
-	for (i = 0; i < 4; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, roi_val[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4B26, roi_val, 4);
+	if (ret < 0)
+		goto p_err;
 
 	/* t_isp_rgby_hist_grid_grid & thstat_grid_area */
 	roi_val[0] = roi_control.roi_end_x - roi_control.roi_start_x; /* 0x20004BEE & 0x20004E44: width */
@@ -2039,19 +2035,13 @@ int sensor_2x5sp_cis_set_3hdr_roi(struct v4l2_subdev *subdev, struct roi_setting
 	roi_val[2] = (roi_control.roi_start_x + roi_control.roi_end_x) / 2; /* center_x */
 	roi_val[3] = (roi_control.roi_start_y + roi_control.roi_end_y) / 2; /* center_y */
 
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4BEE);
-	for (i = 0; i < 4; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, roi_val[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4BEE, roi_val, 4);
+	if (ret < 0)
+		goto p_err;
 
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4E44);
-	for (i = 0; i < 2; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, roi_val[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4E44, roi_val, 2);
+	if (ret < 0)
+		goto p_err;
 
 	/* restore 0x4000_XXXX */
 	ret = fimc_is_sensor_write16(client, 0x6028, 0x4000);
@@ -2079,7 +2069,6 @@ int sensor_2x5sp_cis_set_3hdr_stat(struct v4l2_subdev *subdev, bool streaming, v
 {
 	int ret = 0;
 	int hold = 0;
-	int i;
 	struct fimc_is_cis *cis;
 	struct i2c_client *client;
 	u16 weight[3];
@@ -2142,146 +2131,67 @@ int sensor_2x5sp_cis_set_3hdr_stat(struct v4l2_subdev *subdev, bool streaming, v
 		goto p_err;
 
 	/* t_isp_rgby_hist_short_exp_weight */
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4BBC);
-	for (i = 0; i < 3; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, weight[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4BBC, weight, 3);
+	if (ret < 0)
+		goto p_err;
 
 	/* t_isp_rgby_hist_long_exp_weight */
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4BCA);
-	for (i = 0; i < 3; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, weight[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4BCA, weight, 3);
+	if (ret < 0)
+		goto p_err;
 
 	/* t_isp_rgby_hist_medium_exp_weight */
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4BD8);
-	for (i = 0; i < 3; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, weight[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4BD8, weight, 3);
+	if (ret < 0)
+		goto p_err;
 
 	/* t_isp_rgby_hist_mixed_exp_weight */
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4BE6);
-	for (i = 0; i < 3; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, weight[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4BE6, weight, 3);
+	if (ret < 0)
+		goto p_err;
 
 	/* t_isp_drc_thstat_rgb_weights */
-	ret = fimc_is_sensor_write16(client, 0x602A, 0x4E2C);
-	for (i = 0; i < 3; i++) {
-		ret = fimc_is_sensor_write16(client, 0x6F12, weight[i]);
-		if (ret < 0)
-			goto p_err;
-	}
+	ret = fimc_is_sensor_write16_array(client, 0x4E2C, weight, 3);
+	if (ret < 0)
+		goto p_err;
 
 	if (!streaming) {
 		/* t_isp_drc_thstat_u_low_tresh_red */
-		ret = fimc_is_sensor_write16(client, 0x602A, 0x4E1A);
-		ret = fimc_is_sensor_write16(client, 0x6F12, low_gate_thr);
+		ret = fimc_is_sensor_write16(client, 0x4E1A, low_gate_thr);
 		if (ret < 0)
 			goto p_err;
 		/* t_isp_drc_thstat_u_high_tresh_red */
-		ret = fimc_is_sensor_write16(client, 0x6F12, high_gate_thr);
+		ret = fimc_is_sensor_write16(client, 0x4E1C, high_gate_thr);
 		if (ret < 0)
 			goto p_err;
 
 		/* t_isp_drc_thstat_u_low_tresh_green */
-		ret = fimc_is_sensor_write16(client, 0x6F12, low_gate_thr);
+		ret = fimc_is_sensor_write16(client, 0x4E1E, low_gate_thr);
 		if (ret < 0)
 			goto p_err;
 
 		/* t_isp_drc_thstat_u_high_tresh_green */
-		ret = fimc_is_sensor_write16(client, 0x6F12, high_gate_thr);
+		ret = fimc_is_sensor_write16(client, 0x4E20, high_gate_thr);
 		if (ret < 0)
 			goto p_err;
 
 		/* t_isp_drc_thstat_u_low_tresh_blue */
-		ret = fimc_is_sensor_write16(client, 0x6F12, low_gate_thr);
+		ret = fimc_is_sensor_write16(client, 0x4E22, low_gate_thr);
 		if (ret < 0)
 			goto p_err;
 
 		/* t_isp_drc_thstat_u_high_tresh_blue */
-		ret = fimc_is_sensor_write16(client, 0x6F12, high_gate_thr);
+		ret = fimc_is_sensor_write16(client, 0x4E24, high_gate_thr);
 		if (ret < 0)
 			goto p_err;
 
 		/* t_isp_y_sum_top_left_x */
-		ret = fimc_is_sensor_write16(client, 0x602A, 0x4E04);
-		ret = fimc_is_sensor_write16(client, 0x6F12, y_sum_roi.roi_start_x);
+		ret = fimc_is_sensor_write16(client, 0x4E04, y_sum_roi.roi_start_x);
 		if (ret < 0)
 			goto p_err;
-		ret = fimc_is_sensor_write16(client, 0x6F12, y_sum_roi.roi_start_y);
+		ret = fimc_is_sensor_write16(client, 0x4E06, y_sum_roi.roi_start_y);
 		if (ret < 0)
 			goto p_err;
-	} else {
-		/* update 3hdr motion stat */
-		ret = fimc_is_sensor_write16(client, 0x6028, 0x2001);
-		if (ret < 0)
-			goto p_err;
-
-		ret |= fimc_is_sensor_write16(client, 0x602A, 0x29D8);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_indication);
-
-		ret |= fimc_is_sensor_write16(client, 0x602A, 0x2A52);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_high_end_ty2ty1);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_high_end_ty3ty2);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_high_start_ty2ty1);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_high_start_ty3ty2);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_low_end_ty2ty1);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_low_end_ty3ty2);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_low_start_ty2ty1);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_low_start_ty3ty2);
-
-		dbg_sensor(2, "[%s] motion idc(%d) high21(e:%d, s:%d), low21(e:%d, s:%d)\n",
-				__func__,
-				(u16)per_frame_stat.motion_indication,
-				(u16)per_frame_stat.motion_high_end_ty2ty1,
-				(u16)per_frame_stat.motion_high_start_ty2ty1,
-				(u16)per_frame_stat.motion_low_end_ty2ty1,
-				(u16)per_frame_stat.motion_low_start_ty2ty1);
-		dbg_sensor(2, "[%s] motion high32(e:%d, s:%d), low32(e:%d, s:%d)\n",
-				__func__,
-				(u16)per_frame_stat.motion_high_end_ty3ty2,
-				(u16)per_frame_stat.motion_high_start_ty3ty2,
-				(u16)per_frame_stat.motion_low_end_ty3ty2,
-				(u16)per_frame_stat.motion_low_start_ty3ty2);
-
-		ret |= fimc_is_sensor_write16(client, 0x602A, 0x2A68);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.decision_thresh_override);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_abs_high_ty3ty2);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_abs_low_ty3ty2);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_abs_high_ty2ty1);
-		ret |= fimc_is_sensor_write16(client, 0x6F12,
-				(u16)per_frame_stat.motion_abs_low_ty2ty1);
-
-		dbg_sensor(2, "[%s] motion DTO(%d), abs(h32:%d, l32:%d), abs(h21:%d, l21:%d)\n",
-				__func__,
-				(u16)per_frame_stat.decision_thresh_override,
-				(u16)per_frame_stat.motion_abs_high_ty3ty2,
-				(u16)per_frame_stat.motion_abs_low_ty3ty2,
-				(u16)per_frame_stat.motion_abs_high_ty2ty1,
-				(u16)per_frame_stat.motion_abs_low_ty2ty1);
-
 	}
 
 	/* restore 0x4000_XXXX */
