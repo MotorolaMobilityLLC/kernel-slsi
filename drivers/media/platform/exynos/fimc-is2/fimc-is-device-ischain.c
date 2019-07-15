@@ -6880,7 +6880,7 @@ static int fimc_is_ischain_paf_shot(struct fimc_is_device_ischain *device,
 	if (!framemgr) {
 		merr("framemgr is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto framemgr_err;
 	}
 
 	frame = peek_frame(framemgr, FS_REQUEST);
@@ -6888,7 +6888,7 @@ static int fimc_is_ischain_paf_shot(struct fimc_is_device_ischain *device,
 	if (unlikely(!frame)) {
 		merr("frame is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto frame_err;
 	}
 
 	if (unlikely(frame != check_frame)) {
@@ -7068,6 +7068,8 @@ p_err:
 		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_25, flags);
 	}
 
+frame_err:
+framemgr_err:
 	return ret;
 }
 
@@ -7104,7 +7106,7 @@ static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,
 	if (!framemgr) {
 		merr("framemgr is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto framemgr_err;
 	}
 
 	frame = peek_frame(framemgr, FS_REQUEST);
@@ -7112,7 +7114,7 @@ static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,
 	if (unlikely(!frame)) {
 		merr("frame is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto frame_err;
 	}
 
 	if (unlikely(frame != check_frame)) {
@@ -7303,6 +7305,8 @@ p_err:
 		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_25, flags);
 	}
 
+frame_err:
+framemgr_err:
 	return ret;
 }
 
@@ -7331,7 +7335,7 @@ static int fimc_is_ischain_isp_shot(struct fimc_is_device_ischain *device,
 	if (!framemgr) {
 		merr("framemgr is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto framemgr_err;
 	}
 
 	frame = peek_frame(framemgr, FS_REQUEST);
@@ -7339,7 +7343,7 @@ static int fimc_is_ischain_isp_shot(struct fimc_is_device_ischain *device,
 	if (unlikely(!frame)) {
 		merr("frame is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto frame_err;
 	}
 
 	if (unlikely(frame != check_frame)) {
@@ -7470,6 +7474,8 @@ p_err:
 		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_26, flags);
 	}
 
+frame_err:
+framemgr_err:
 	return ret;
 }
 
@@ -7496,7 +7502,7 @@ static int fimc_is_ischain_dis_shot(struct fimc_is_device_ischain *device,
 	if (!framemgr) {
 		merr("framemgr is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto framemgr_err;
 	}
 
 	frame = peek_frame(framemgr, FS_REQUEST);
@@ -7504,7 +7510,7 @@ static int fimc_is_ischain_dis_shot(struct fimc_is_device_ischain *device,
 	if (unlikely(!frame)) {
 		merr("frame is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto frame_err;
 	}
 
 	if (unlikely(frame != check_frame)) {
@@ -7598,6 +7604,8 @@ p_err:
 		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_27, flags);
 	}
 
+frame_err:
+framemgr_err:
 	return ret;
 }
 
@@ -7624,7 +7632,7 @@ static int fimc_is_ischain_dcp_shot(struct fimc_is_device_ischain *device,
 	if (!framemgr) {
 		merr("framemgr is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto framemgr_err;
 	}
 
 	frame = peek_frame(framemgr, FS_REQUEST);
@@ -7632,7 +7640,7 @@ static int fimc_is_ischain_dcp_shot(struct fimc_is_device_ischain *device,
 	if (unlikely(!frame)) {
 		merr("frame is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto frame_err;
 	}
 
 	if (unlikely(frame != check_frame)) {
@@ -7712,6 +7720,8 @@ p_err:
 		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_28, flags);
 	}
 
+frame_err:
+framemgr_err:
 	return ret;
 }
 
@@ -7739,7 +7749,7 @@ static int fimc_is_ischain_mcs_shot(struct fimc_is_device_ischain *device,
 	if (!framemgr) {
 		merr("framemgr is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto framemgr_err;
 	}
 
 	frame = peek_frame(framemgr, FS_REQUEST);
@@ -7747,7 +7757,7 @@ static int fimc_is_ischain_mcs_shot(struct fimc_is_device_ischain *device,
 	if (unlikely(!frame)) {
 		merr("frame is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto frame_err;
 	}
 
 	if (unlikely(frame != check_frame)) {
@@ -7849,6 +7859,8 @@ p_err:
 		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_29, flags);
 	}
 
+frame_err:
+framemgr_err:
 	return ret;
 }
 
@@ -7876,7 +7888,7 @@ static int fimc_is_ischain_vra_shot(struct fimc_is_device_ischain *device,
 	if (!framemgr) {
 		merr("framemgr is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto framemgr_err;
 	}
 
 	frame = peek_frame(framemgr, FS_REQUEST);
@@ -7884,7 +7896,7 @@ static int fimc_is_ischain_vra_shot(struct fimc_is_device_ischain *device,
 	if (unlikely(!frame)) {
 		merr("frame is NULL", device);
 		ret = -EINVAL;
-		goto p_err;
+		goto frame_err;
 	}
 
 	if (unlikely(frame != check_frame)) {
@@ -7972,6 +7984,9 @@ p_err:
 		trans_frame(framemgr, frame, FS_PROCESS);
 		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_30, flags);
 	}
+
+frame_err:
+framemgr_err:
 	return ret;
 }
 
