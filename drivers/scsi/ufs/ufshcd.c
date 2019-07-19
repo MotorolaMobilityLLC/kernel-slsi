@@ -7797,8 +7797,10 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 	 * callbacks hence set the RQF_PM flag so that it doesn't resume the
 	 * already suspended childs.
 	 */
+	pr_info("%s %d\n", __func__, __LINE__);
 	ret = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
-			START_STOP_TIMEOUT, 0, 0, RQF_PM, NULL);
+			(5 * HZ), 0, 0, RQF_PM, NULL);
+	pr_info("%s %d\n", __func__, __LINE__);
 	if (ret) {
 		sdev_printk(KERN_WARNING, sdp,
 			    "START_STOP failed for power mode: %d, result %x\n",
@@ -8131,9 +8133,7 @@ enable_gating:
 	ufshcd_release(hba);
 out:
 	hba->pm_op_in_progress = 0;
-
-	if (hba->monitor.flag & UFSHCD_MONITOR_LEVEL1)
-		dev_info(hba->dev, "UFS suspend done\n");
+	dev_info(hba->dev, "UFS suspend done\n");
 
 	return ret;
 }
