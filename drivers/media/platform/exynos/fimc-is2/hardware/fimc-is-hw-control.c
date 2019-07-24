@@ -2219,6 +2219,10 @@ int fimc_is_hardware_close(struct fimc_is_hardware *hardware,u32 hw_id, u32 inst
 	refcount = atomic_dec_return(&hw_ip->rsccount);
 	if (refcount == 0) {
 		u32 group_id = get_group_id_from_hw_ip(hw_ip->id);
+		if (group_id >= GROUP_ID_MAX) {
+			merr_hw("[ID:%d]invalid group_id %d", instance, hw_ip->id, group_id);
+			return -EINVAL;
+		}
 
 		msdbg_hw(1, "%s: [G:0x%x], framemgr[ID:0x%x]->framemgr[ID:0x%x]\n",
 			instance, hw_ip, __func__, GROUP_ID(group_id),
