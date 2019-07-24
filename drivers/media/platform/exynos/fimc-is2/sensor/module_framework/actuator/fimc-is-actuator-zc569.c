@@ -543,8 +543,16 @@ int sensor_zc569_actuator_probe(struct i2c_client *client,
 
 	snprintf(subdev_actuator->name, V4L2_SUBDEV_NAME_SIZE, "actuator-subdev.%d", actuator->id);
 
-p_err:
 	probe_info("%s done\n", __func__);
+	return ret;
+
+p_err:
+	if (actuator)
+		kzfree(actuator);
+
+	if (subdev_actuator)
+		kzfree(subdev_actuator);
+
 	return ret;
 }
 
