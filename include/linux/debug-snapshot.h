@@ -157,7 +157,10 @@ void dbg_snapshot_dm(int type, unsigned long min, unsigned long max, s32 wait_t,
 #ifdef CONFIG_DEBUG_SNAPSHOT_CRASH_KEY
 void dbg_snapshot_check_crash_key(unsigned int code, int value);
 #else
-#define dbg_snapshot_check_crash_key(a,b)	do { } while(0)
+static inline void dbg_snapshot_check_crash_key(unsigned int code, int value)
+{
+	pr_info("KEY %d %s\n", code, value ? "pressed" : "released");
+}
 #endif
 
 #ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
