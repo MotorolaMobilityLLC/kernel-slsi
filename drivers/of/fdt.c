@@ -27,6 +27,7 @@
 #include <linux/debugfs.h>
 #include <linux/serial_core.h>
 #include <linux/sysfs.h>
+#include <linux/debug-snapshot.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
@@ -604,6 +605,9 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 	while (len >= t_len) {
 		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
 		size = dt_mem_next_cell(dt_root_size_cells, &prop);
+
+		if (dbg_snapshot_reserved_mem_check(node, (unsigned long)size))
+			return -EINVAL;
 
 		if (size &&
 		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)

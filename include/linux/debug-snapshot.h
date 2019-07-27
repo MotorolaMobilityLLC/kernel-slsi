@@ -168,7 +168,16 @@ extern void dbg_snapshot_binder(struct trace_binder_transaction_base *base,
 #define dbg_snapshot_binder(a,b,c)	do { } while(0)
 #endif
 
+#ifdef CONFIG_OF_RESERVED_MEM
+extern int dbg_snapshot_reserved_mem_check(unsigned long node, unsigned long size);
 #else
+static inline int dbg_snapshot_reserved_mem_check(unsigned long node, unsigned long size)
+{
+	return 0;
+}
+#endif
+
+#else /* CONFIG_DEBUG_SNAPSHOT */
 #define dbg_snapshot_acpm(a,b,c)		do { } while(0)
 #define dbg_snapshot_task(a,b)		do { } while(0)
 #define dbg_snapshot_work(a,b,c,d)		do { } while(0)
@@ -241,6 +250,10 @@ static inline int dbg_snapshot_get_hardlockup(void)
 
 #define dbg_snapshot_add_bl_item_info(a,b,c) 	do { } while(0)
 
+static inline int dbg_snapshot_reserved_mem_check(unsigned long node, unsigned long size)
+{
+	return 0;
+}
 #endif /* CONFIG_DEBUG_SNAPSHOT */
 
 extern void dbg_snapshot_soc_helper_init(void);
