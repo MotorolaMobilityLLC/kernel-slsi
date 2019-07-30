@@ -33,11 +33,14 @@
 #include "modem_utils.h"
 #include "modem_link_device_shmem.h"
 #include "uart_switch.h"
+#include "../../video/fbdev/exynos/dpu20/decon.h"
 
 #define MIF_INIT_TIMEOUT	(15 * HZ)
 #define MBREG_MAX_NUM 64
 
 static struct modem_ctl *g_mc;
+static int s333ap_lcd_notifier(struct notifier_block *notifier,
+                                      unsigned long event, void *v);
 
 static ssize_t modem_ctrl_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -347,11 +350,14 @@ static int sh333ap_on(struct modem_ctl *mc)
 
 	spin_unlock_irqrestore(&mc->ap_status_lock, flags);
 
+	mif_info("LCD_ON Notificaion\n");
 	spin_lock_irqsave(&mc->ap_status_lock, flags);
 	mbox_update_value(MCU_CP, mc->mbx_ap_status, 1,
 		mc->sbi_pda_active_mask, mc->sbi_pda_active_pos);
 	mbox_update_value(MCU_CP, mc->mbx_ap_status, 1,
 		mc->sbi_ap_status_mask, mc->sbi_ap_status_pos);
+	mbox_update_value(MCU_CP, mc->mbx_ap_status, 1,
+			mc->sbi_lcd_status_mask, mc->sbi_lcd_status_pos);
 	spin_unlock_irqrestore(&mc->ap_status_lock, flags);
 
 	if (mc->ap2cp_cfg_ioaddr) {
@@ -511,10 +517,22 @@ exit:
 
 static int sh333ap_boot_done(struct modem_ctl *mc)
 {
+	int ret;
+
 	mif_info("+++\n");
 
 	if (wake_lock_active(&mc->mc_wake_lock))
 		wake_unlock(&mc->mc_wake_lock);
+
+	if (mc->lcd_notifier.notifier_call == NULL) {
+		mif_info("Register lcd notifier\n");
+		mc->lcd_notifier.notifier_call = s333ap_lcd_notifier;
+		ret = register_lcd_status_notifier(&mc->lcd_notifier);
+		if (ret) {
+			mif_err("failed to register LCD notifier");
+			return ret;
+		}
+	}
 
 #ifdef CONFIG_UART_SWITCH
 	mif_err("Recheck UART direction.\n");
@@ -726,6 +744,44 @@ static void sh333ap_get_pdata(struct modem_ctl *mc, struct modem_data *modem)
 	mc->sbi_uart_noti_mask = mbx->sbi_uart_noti_mask;
 	mc->sbi_uart_noti_pos = mbx->sbi_uart_noti_pos;
 
+	mc->sbi_lcd_status_mask = mbx->sbi_lcd_status_mask;
+	mc->sbi_lcd_status_pos = mbx->sbi_lcd_status_pos;
+	mc->int_ap2cp_lcd_status = mbx->int_ap2cp_lcd_status;
+
+}
+
+static int s333ap_lcd_notifier(struct notifier_block *notifier,
+                                      unsigned long event, void *v)
+{
+	struct modem_ctl *mc =
+		container_of(notifier, struct modem_ctl, lcd_notifier);
+	unsigned long int flags;
+
+	switch (event) {
+		case LCD_OFF:
+			mif_info("LCD_OFF Notification\n");
+			spin_lock_irqsave(&mc->ap_status_lock, flags);
+			mbox_update_value(MCU_CP, mc->mbx_ap_status, 0,
+					mc->sbi_lcd_status_mask,
+					mc->sbi_lcd_status_pos);
+			spin_unlock_irqrestore(&mc->ap_status_lock, flags);
+			mbox_set_interrupt(MCU_CP, mc->int_ap2cp_lcd_status);
+			break;
+
+		case LCD_ON:
+			mif_info("LCD_ON Notificaion\n");
+			mbox_update_value(MCU_CP, mc->mbx_ap_status, 1,
+					mc->sbi_lcd_status_mask,
+					mc->sbi_lcd_status_pos);
+			mbox_set_interrupt(MCU_CP, mc->int_ap2cp_lcd_status);
+			break;
+
+		default:
+			mif_info("lcd_event %ld\n", event);
+			break;
+	}
+
+	return NOTIFY_OK;
 }
 
 int init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)

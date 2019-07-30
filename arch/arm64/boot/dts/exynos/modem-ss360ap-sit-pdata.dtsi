@@ -48,6 +48,7 @@
 				mif,int_ap2cp_wakeup = <1>;
 				mif,int_ap2cp_status = <2>;
 				mif,int_ap2cp_active = <3>;
+				mif,int_ap2cp_lcd_status = <4>;
 				mif,int_ap2cp_uart_noti = <15>;
 
 				/* Mailbox interrupt number from CP to AP */
@@ -73,6 +74,8 @@
 				mbx_cp2ap_pcie_l1ss_disable = <17>;
 
 				/* Status bit info for mbx_ap2cp_united_status */
+				sbi_lcd_status_mask = <0x1>;
+				sbi_lcd_status_pos = <27>;
 				sbi_uart_noti_mask = <0x1>;
 				sbi_uart_noti_pos = <16>;
 				sbi_ds_det_mask = <0x3>;
