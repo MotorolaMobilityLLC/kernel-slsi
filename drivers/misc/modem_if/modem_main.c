@@ -313,6 +313,7 @@ static int parse_dt_mbox_pdata(struct device *dev, struct device_node *np,
 	mif_dt_read_u32 (np, "mif,int_ap2cp_wakeup", mbox->int_ap2cp_wakeup);
 	mif_dt_read_u32 (np, "mif,int_ap2cp_status", mbox->int_ap2cp_status);
 	mif_dt_read_u32 (np, "mif,int_ap2cp_active", mbox->int_ap2cp_active);
+	mif_dt_read_u32 (np, "mif,int_ap2cp_lcd_status", mbox->int_ap2cp_lcd_status);
 
 	mif_dt_read_u32 (np, "mif,irq_cp2ap_msg", mbox->irq_cp2ap_msg);
 	mif_dt_read_u32 (np, "mif,irq_cp2ap_status", mbox->irq_cp2ap_status);
@@ -351,6 +352,8 @@ static int parse_dt_mbox_pdata(struct device *dev, struct device_node *np,
 	mif_dt_read_u32 (np, "sbi_sys_rev_pos", mbox->sbi_sys_rev_pos);
 	mif_dt_read_u32 (np, "sbi_ds_det_mask", mbox->sbi_ds_det_mask);
 	mif_dt_read_u32 (np, "sbi_ds_det_pos", mbox->sbi_ds_det_pos);
+	mif_dt_read_u32 (np, "sbi_lcd_status_mask", mbox->sbi_lcd_status_mask);
+	mif_dt_read_u32 (np, "sbi_lcd_status_pos", mbox->sbi_lcd_status_pos);
 
 	return 0;
 }
