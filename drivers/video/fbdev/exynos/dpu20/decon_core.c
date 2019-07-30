@@ -35,6 +35,7 @@
 #endif
 #include <linux/highmem.h>
 #include <linux/memblock.h>
+#include <linux/notifier.h>
 #include <linux/bug.h>
 #include <linux/of_address.h>
 #include <linux/debugfs.h>
@@ -954,9 +955,11 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 			decon_err("failed to disable decon\n");
 			goto blank_exit;
 		}
+		lcd_status_notifier(LCD_OFF);
 		break;
 	case FB_BLANK_UNBLANK:
 		DPU_EVENT_LOG(DPU_EVT_UNBLANK, &decon->sd, ktime_set(0, 0));
+		lcd_status_notifier(LCD_ON);
 		ret = decon_update_pwr_state(decon, DISP_PWR_NORMAL);
 		if (ret) {
 			decon_err("failed to enable decon\n");
@@ -4086,6 +4089,7 @@ static int decon_probe(struct platform_device *pdev)
 	decon->bts.ops->bts_init(decon);
 #endif
 
+	ATOMIC_INIT_NOTIFIER_HEAD(&decon->lcd_status_notifier_list);
 	platform_set_drvdata(pdev, decon);
 	pm_runtime_enable(dev);
 
