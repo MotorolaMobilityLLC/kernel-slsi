@@ -784,6 +784,8 @@ struct modem_ctl {
 	int int_ap_status;
 	spinlock_t ap_status_lock;
 
+	int int_ap2cp_lcd_status;
+
 	unsigned int gpio_cp_wakeup;
 	unsigned int mbx_cp_wakeup;
 	int int_cp_wakeup;
@@ -847,14 +849,14 @@ struct modem_ctl {
 	unsigned int sbi_lte_active_pos;
 	unsigned int sbi_cp_status_mask;
 	unsigned int sbi_cp_status_pos;
-
 	unsigned int sbi_pda_active_mask;
 	unsigned int sbi_pda_active_pos;
 	unsigned int sbi_ap_status_mask;
 	unsigned int sbi_ap_status_pos;
-
 	unsigned int sbi_uart_noti_mask;
 	unsigned int sbi_uart_noti_pos;
+	unsigned int sbi_lcd_status_mask;
+	unsigned int sbi_lcd_status_pos;
 
 	unsigned int ap2cp_cfg_addr;
 	void __iomem *ap2cp_cfg_ioaddr;
@@ -939,6 +941,8 @@ struct modem_ctl {
 	struct freq_table cpu_table;
 
 	struct clk *qch_cp;
+
+	struct notifier_block lcd_notifier;
 };
 
 static inline bool cp_offline(struct modem_ctl *mc)
