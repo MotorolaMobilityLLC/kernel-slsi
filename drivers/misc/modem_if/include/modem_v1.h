@@ -190,6 +190,7 @@ struct modem_mbox {
 	int int_ap2cp_wakeup;
 	int int_ap2cp_active;
 	int int_ap2cp_status;
+	int int_ap2cp_lcd_status;
 
 	int irq_cp2ap_msg;
 	int irq_cp2ap_active;
@@ -232,6 +233,9 @@ struct modem_mbox {
 
 	unsigned int sbi_uart_noti_mask;
 	unsigned int sbi_uart_noti_pos;
+
+	unsigned int sbi_lcd_status_mask;
+	unsigned int sbi_lcd_status_pos;
 
 	/* System (H/W) revision */
 	unsigned int mbx_ap2cp_sys_rev;
