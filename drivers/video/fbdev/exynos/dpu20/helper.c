@@ -675,6 +675,30 @@ static int dpu_dump_buffer_data(struct dpp_device *dpp)
 }
 #endif
 
+int register_lcd_status_notifier(struct notifier_block *nb)
+{
+	struct decon_device *decon = get_decon_drvdata(0);
+	return atomic_notifier_chain_register(&decon->lcd_status_notifier_list, nb);
+}
+EXPORT_SYMBOL(register_lcd_status_notifier);
+
+int unregister_lcd_status_notifier(struct notifier_block *nb)
+{
+	struct decon_device *decon = get_decon_drvdata(0);
+	return atomic_notifier_chain_unregister(&decon->lcd_status_notifier_list, nb);
+}
+EXPORT_SYMBOL(unregister_lcd_status_notifier);
+
+/* If lcd status is
+ * 	0 : LCD ON
+ * 	1 : LCD OFF
+ */
+void lcd_status_notifier(u32 lcd_status)
+{
+	struct decon_device *decon = get_decon_drvdata(0);
+	atomic_notifier_call_chain(&decon->lcd_status_notifier_list, lcd_status , NULL);
+}
+
 int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
 	struct device *dev, unsigned long iova, int flags, void *token)
 {
