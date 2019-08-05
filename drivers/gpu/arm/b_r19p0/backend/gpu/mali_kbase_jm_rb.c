@@ -479,6 +479,8 @@ static inline bool kbase_gpu_in_protected_mode(struct kbase_device *kbdev)
 	return kbdev->protected_mode;
 }
 
+/* MALI_SEC_SECURE_RENDERING */
+#ifndef CONFIG_MALI_EXYNOS_SECURE_RENDERING
 static void kbase_gpu_disable_coherent(struct kbase_device *kbdev)
 {
 	lockdep_assert_held(&kbdev->hwaccess_lock);
@@ -532,7 +534,28 @@ static int kbase_gpu_protected_mode_reset(struct kbase_device *kbdev)
 	 */
 	return kbase_reset_gpu_silent(kbdev);
 }
+#endif
 
+#ifdef CONFIG_MALI_EXYNOS_SECURE_RENDERING
+void kbasep_js_cacheclean(struct kbase_device *kbdev)
+{
+    /* Limit the number of loops to avoid a hang if the interrupt is missed */
+    u32 max_loops = KBASE_CLEAN_CACHE_MAX_LOOPS;
+
+    GPU_LOG(DVFS_INFO, LSI_SECURE_CACHE, 0u, 0u, "GPU CACHE WORKING for Secure Rendering\n");
+    /* use GPU_COMMAND completion solution */
+    /* clean the caches */
+    kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND), GPU_COMMAND_CLEAN_CACHES);
+
+    /* wait for cache flush to complete before continuing */
+    while (--max_loops && (kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_RAWSTAT)) & CLEAN_CACHES_COMPLETED) == 0)
+        ;
+
+    /* clear the CLEAN_CACHES_COMPLETED irq */
+    kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), CLEAN_CACHES_COMPLETED);
+    GPU_LOG(DVFS_INFO, LSI_SECURE_CACHE_END, 0u, 0u, "GPU CACHE WORKING for Secure Rendering\n");
+}
+#else
 static int kbase_jm_protected_entry(struct kbase_device *kbdev,
 				struct kbase_jd_atom **katom, int idx, int js)
 {
@@ -595,11 +618,30 @@ static int kbase_jm_protected_entry(struct kbase_device *kbdev,
 
 	return err;
 }
+#endif
 
 static int kbase_jm_enter_protected_mode(struct kbase_device *kbdev,
 		struct kbase_jd_atom **katom, int idx, int js)
 {
 	int err = 0;
+#ifdef CONFIG_MALI_EXYNOS_SECURE_RENDERING
+    if (kbase_gpu_atoms_submitted_any(kbdev))
+        return -EAGAIN;
+
+    if (kbdev->protected_ops) {
+        /* Switch GPU to protected mode */
+        kbasep_js_cacheclean(kbdev);
+        err = kbdev->protected_ops->protected_mode_enable(
+                kbdev->protected_dev);
+
+        if (err)
+            dev_warn(kbdev->dev, "Failed to enable protected mode: %d\n",
+                    err);
+        else
+            kbdev->protected_mode = true;
+    }
+    return 0;
+#else
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
@@ -748,12 +790,31 @@ static int kbase_jm_enter_protected_mode(struct kbase_device *kbdev,
 	}
 
 	return 0;
+#endif  /* MALI_SEC_SECURE_RENDERING */
 }
 
 static int kbase_jm_exit_protected_mode(struct kbase_device *kbdev,
 		struct kbase_jd_atom **katom, int idx, int js)
 {
 	int err = 0;
+#ifdef CONFIG_MALI_EXYNOS_SECURE_RENDERING
+    if (kbase_gpu_atoms_submitted_any(kbdev))
+        return -EAGAIN;
+
+    if (kbdev->protected_ops) {
+        /* Switch GPU to protected mode */
+        kbasep_js_cacheclean(kbdev);
+        err = kbdev->protected_ops->protected_mode_disable(
+                kbdev->protected_dev);
+
+        if (err)
+            dev_warn(kbdev->dev, "Failed to enable protected mode: %d\n",
+                    err);
+        else
+            kbdev->protected_mode = false;
+    }
+    return 0;
+#else
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
@@ -846,6 +907,7 @@ static int kbase_jm_exit_protected_mode(struct kbase_device *kbdev,
 	}
 
 	return 0;
+#endif  /* MALI_SEC_SECURE_RENDERING */
 }
 
 void kbase_backend_slot_update(struct kbase_device *kbdev)

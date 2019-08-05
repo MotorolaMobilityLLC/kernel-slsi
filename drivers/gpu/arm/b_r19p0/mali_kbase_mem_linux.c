@@ -1333,7 +1333,17 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx,
 		return NULL;
 	}
 
+#ifdef CONFIG_MALI_EXYNOS_SECURE_RENDERING
+#ifdef CONFIG_HPA
+    if (*flags & BASE_MEM_SECURE)
+        *va_pages = (PAGE_ALIGN((ION_HPA_PAGE_COUNT(dma_buf->size) * ION_HPA_DEFAULT_SIZE)) >> PAGE_SHIFT) + padding;
+    else
+#endif
+		*va_pages = (PAGE_ALIGN(dma_buf->size) >> PAGE_SHIFT) + padding;
+#else /* CONFIG_MALI_EXYNOS_SECURE_RENDERING: below code is orignal */
 	*va_pages = (PAGE_ALIGN(dma_buf->size) >> PAGE_SHIFT) + padding;
+#endif
+
 	if (!*va_pages) {
 		dma_buf_detach(dma_buf, dma_attachment);
 		dma_buf_put(dma_buf);
