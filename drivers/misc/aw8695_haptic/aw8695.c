@@ -583,14 +583,14 @@ static int aw8695_haptic_play_go(struct aw8695 *aw8695, bool flag)
 static int aw8695_haptic_stop_delay(struct aw8695 *aw8695)
 {
     unsigned char reg_val = 0;
-    unsigned int cnt = 100;
+    unsigned int cnt = 10;
 
     while(cnt--) {
         aw8695_i2c_read(aw8695, AW8695_REG_GLB_STATE, &reg_val);
         if((reg_val&0x0f) == 0x00) {
             return 0;
         }
-        msleep(2);
+        msleep(10);
         pr_debug("%s wait for standby, reg glb_state=0x%02x\n",
             __func__, reg_val);
     }
