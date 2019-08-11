@@ -644,8 +644,10 @@ static void s2mu106_muic_cable_timeout(struct work_struct *work)
 	struct s2mu106_muic_data *muic_data =
 		container_of(work, struct s2mu106_muic_data, cable_timeout.work);
 	struct muic_platform_data *muic_pdata = muic_data->pdata;
+	int vbus = _s2mu106_muic_get_vbus_state(muic_data);
 
-	if (_s2mu106_muic_get_vbus_state(muic_data)) {
+	pr_info("%s vbus(%d)\n", __func__, vbus);
+	if (vbus) {
 		if (muic_pdata->attached_dev == ATTACHED_DEV_NONE_MUIC ||
 				muic_pdata->attached_dev == ATTACHED_DEV_UNKNOWN_MUIC) {
 			pr_info("SPECOUT CHARGER DETECTED\n");
@@ -1248,19 +1250,6 @@ static int s2mu106_muic_detect_dev_bc1p2(struct s2mu106_muic_data *muic_data)
 		muic_data->new_dev = ATTACHED_DEV_TA_MUIC;
 		muic_data->afc_check = false;
 		pr_info("CHG_TYPE DETECTED\n");
-#if IS_ENABLED(CONFIG_MUIC_MANAGER)
-		muic_if->is_dcdtmr_intr = true;
-		schedule_delayed_work(&muic_data->dcd_recheck, 0);
-#else
-		if (muic_data->bcd_rescanned) {
-			muic_data->new_dev = ATTACHED_DEV_TA_MUIC;
-			muic_data->afc_check = false;
-		} else {
-			muic_data->bcd_rescanned = true;
-			schedule_delayed_work(&muic_data->dcd_recheck, 0);
-			return S2MU106_DETECT_SKIP;
-		}
-#endif
 	}
 
 detect_done:
@@ -2491,6 +2480,7 @@ static int s2mu106_muic_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&muic_data->dcd_recheck, s2mu106_muic_dcd_recheck);
 #if IS_ENABLED(CONFIG_S2MU106_SPECOUT_CHARGER)
 	INIT_DELAYED_WORK(&muic_data->cable_timeout, s2mu106_muic_cable_timeout);
+	pr_info("%s support specout chg\n", __func__);
 #endif
 
 #if IS_ENABLED(CONFIG_S2MU106_TYPEC_WATER)
