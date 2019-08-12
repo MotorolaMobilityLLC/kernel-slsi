@@ -119,6 +119,7 @@ static const struct wave_index aw8695_rtp_wave_id[AW8695_RTP_NAME_MAX] = {
 struct aw8695_container *aw8695_rtp;
 struct aw8695 *g_aw8695;
 
+static char f0_cali_lra = 0;
 /******************************************************
  *
  * functions
@@ -129,6 +130,7 @@ static int aw8695_haptic_trig_enable_config(struct aw8695 *aw8695);
 #ifdef MOTO_VIBRATOR_SUOOPRT
 static void aw8695_vibrate(struct aw8695 *aw8695, int value);
 #endif
+static int aw8695_haptic_reset_init(struct aw8695 *aw8695);
 
  /******************************************************
  *
@@ -595,7 +597,7 @@ static int aw8695_haptic_stop_delay(struct aw8695 *aw8695)
             __func__, reg_val);
     }
     pr_err("%s do not enter standby automatically\n", __func__);
-
+	aw8695_haptic_reset_init(aw8695);
     return 0;
 }
 
@@ -1438,7 +1440,6 @@ static int aw8695_haptic_f0_calibration(struct aw8695 *aw8695)
     int ret = 0;
     unsigned char reg_val = 0;
     unsigned int f0_limit = 0;
-    char f0_cali_lra = 0;
     int f0_cali_step = 0;
     int f0_dft_step = 0;
 
@@ -1764,6 +1765,63 @@ static int aw8695_haptic_init(struct aw8695 *aw8695)
     return ret;
 }
 
+
+static int aw8695_haptic_reset_init(struct aw8695 *aw8695)
+{
+    int ret = 0;
+    unsigned char i = 0;
+    unsigned char reg_val = 0;
+
+    pr_info("%s enter\n", __func__);
+
+    aw8695_haptic_softreset(aw8695);
+    /* haptic init */
+
+    ret = aw8695_i2c_read(aw8695, AW8695_REG_WAVSEQ1, &reg_val);
+    aw8695->index = reg_val & 0x7F;
+    ret = aw8695_i2c_read(aw8695, AW8695_REG_DATDBG, &reg_val);
+    aw8695->gain = reg_val & 0xFF;
+    ret = aw8695_i2c_read(aw8695, AW8695_REG_BSTDBG4, &reg_val);
+    aw8695->vmax = (reg_val>>1)&0x1F;
+    for(i=0; i<AW8695_SEQUENCER_SIZE; i++) {
+        ret = aw8695_i2c_read(aw8695, AW8695_REG_WAVSEQ1+i, &reg_val);
+        aw8695->seq[i] = reg_val;
+    }
+
+    aw8695_haptic_play_mode(aw8695, AW8695_HAPTIC_STANDBY_MODE);
+
+    aw8695_haptic_set_pwm(aw8695, AW8695_PWM_24K);
+
+    aw8695_i2c_write(aw8695, AW8695_REG_BSTDBG1, 0x30);
+    aw8695_i2c_write(aw8695, AW8695_REG_BSTDBG2, 0xeb);
+    aw8695_i2c_write(aw8695, AW8695_REG_BSTDBG3, 0xd4);
+    aw8695_i2c_write(aw8695, AW8695_REG_TSET, 0x12);
+    aw8695_i2c_write(aw8695, AW8695_REG_R_SPARE, 0x68);
+
+    aw8695_i2c_write_bits(aw8695, AW8695_REG_ANADBG,
+            AW8695_BIT_ANADBG_IOC_MASK, AW8695_BIT_ANADBG_IOC_4P65A);
+
+    aw8695_haptic_set_bst_peak_cur(aw8695, AW8695_DEFAULT_PEAKCUR);
+
+    aw8695_haptic_swicth_motorprotect_config(aw8695, 0x00, 0x00);
+
+    aw8695_haptic_auto_boost_config(aw8695, false);
+
+    aw8695_haptic_trig_param_init(aw8695);
+    aw8695_haptic_trig_param_config(aw8695);
+
+    aw8695_haptic_cont_vbat_mode(aw8695,
+            AW8695_HAPTIC_CONT_VBAT_HW_COMP_MODE);
+    aw8695->ram_vbat_comp = AW8695_HAPTIC_RAM_VBAT_COMP_ENABLE;
+
+
+    /* update cali step */
+    aw8695_i2c_write(aw8695, AW8695_REG_TRIM_LRA, (char)f0_cali_lra);
+    aw8695_i2c_read(aw8695, AW8695_REG_TRIM_LRA, &reg_val);
+    pr_info("%s final trim_lra=0x%02x\n", __func__, reg_val);
+
+    return ret;
+}
 
 
 /*****************************************************
