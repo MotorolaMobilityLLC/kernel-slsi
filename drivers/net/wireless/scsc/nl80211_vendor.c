@@ -1359,7 +1359,7 @@ static int slsi_set_bssid_blacklist(struct wiphy *wiphy, struct wireless_dev *wd
 				goto exit;
 			}
 
-			if (nla_len(attr) != (SLSI_NL_ATTRIBUTE_U8_LEN - NLA_HDRLEN)) {
+			if (nla_len(attr) != 6) { /*Attribute length should be equal to length of mac address which is 6 bytes.*/
 				ret = -EINVAL;
 				goto exit;
 			}
