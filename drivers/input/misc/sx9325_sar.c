@@ -1080,7 +1080,7 @@ static int sx9325_probe(struct i2c_client *client,
 	if (sx9325_detect(client) == 0)
 		return -ENODEV;
 
-	pplatData = kzalloc(sizeof(pplatData), GFP_KERNEL);
+	pplatData = kzalloc(sizeof(sx9325_platform_data_t), GFP_KERNEL);
 	sx9325_platform_data_of_init(client, pplatData);
 	client->dev.platform_data = pplatData;
 
