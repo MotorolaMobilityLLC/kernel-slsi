@@ -1943,9 +1943,12 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		if (!ndev_vif->sta.sta_bss) {
 			if (peer)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
-				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, NULL, peer->address, NULL, 0,  IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
+				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, ndev_vif->chan, peer->address,
+									 NULL, 0,  IEEE80211_BSS_TYPE_ANY,
+									 IEEE80211_PRIVACY_ANY);
 #else
-				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, NULL, peer->address, NULL, 0,  0, 0);
+				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, ndev_vif->chan, peer->address,
+									 NULL, 0,  0, 0);
 #endif
 			if (!ndev_vif->sta.sta_bss) {
 				SLSI_NET_ERR(dev, "sta_bss is not available, terminating the connection (peer: %p)\n", peer);
@@ -1954,14 +1957,21 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		}
 	}
 
-	/* cfg80211_connect_result will take a copy of any ASSOC or ASSOC RSP IEs passed to it */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+	cfg80211_ref_bss(sdev->wiphy, ndev_vif->sta.sta_bss);
+	cfg80211_connect_bss(dev, bssid, ndev_vif->sta.sta_bss, assoc_ie, assoc_ie_len, assoc_rsp_ie,
+			     assoc_rsp_ie_len, status, GFP_KERNEL, NL80211_TIMEOUT_UNSPECIFIED);
+#else
+	/* cfg80211_connect_result will take a copy of any ASSOC or
+	 * ASSOC RSP IEs passed to it
+	 */
 	cfg80211_connect_result(dev,
 				bssid,
 				assoc_ie, assoc_ie_len,
 				assoc_rsp_ie, assoc_rsp_ie_len,
 				status,
 				GFP_KERNEL);
-
+#endif
 	if (status == WLAN_STATUS_SUCCESS) {
 		ndev_vif->sta.vif_status = SLSI_VIF_STATUS_CONNECTED;
 
