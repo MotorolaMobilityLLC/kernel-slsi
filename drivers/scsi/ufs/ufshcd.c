@@ -7799,7 +7799,7 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 	 */
 	pr_info("%s %d\n", __func__, __LINE__);
 	ret = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
-			(5 * HZ), 0, 0, RQF_PM, NULL);
+			(23 * HZ), 0, 0, RQF_PM, NULL);
 	pr_info("%s %d\n", __func__, __LINE__);
 	if (ret) {
 		sdev_printk(KERN_WARNING, sdp,
