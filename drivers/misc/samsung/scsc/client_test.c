@@ -54,14 +54,27 @@ static dev_t        client_test_dev_t;
 static struct class *client_test_class;
 static struct cdev  *client_test_cdev;
 
-static void test_stop_on_failure(struct scsc_service_client *client)
+static u8 test_failure_notification(struct scsc_service_client *client, struct mx_syserr_decode *err)
 {
+	(void) client;
 	SCSC_TAG_DEBUG(MXMAN_TEST, "OK\n");
+	return err->level;
 }
 
-static void test_failure_reset(struct scsc_service_client *client, u16 scsc_panic_code)
+
+static bool test_stop_on_failure(struct scsc_service_client *client, struct mx_syserr_decode *err)
 {
-	(void)scsc_panic_code;
+	(void) client;
+	(void) err;
+	SCSC_TAG_DEBUG(MXMAN_TEST, "OK\n");
+	return false;
+}
+
+static void test_failure_reset(struct scsc_service_client *client, u8 level, u16 scsc_syserr_code)
+{
+	(void)client;
+	(void)level;
+	(void)scsc_syserr_code;
 	SCSC_TAG_ERR(MXMAN_TEST, "OK\n");
 }
 
@@ -224,8 +237,9 @@ void client_module_probe(struct scsc_mx_module_client *module_client, struct scs
 	if (!test)
 		return;
 
-	test->test_service_client.stop_on_failure   = test_stop_on_failure;
-	test->test_service_client.failure_reset     = test_failure_reset;
+	test->test_service_client.failure_notification = test_failure_notification;
+	test->test_service_client.stop_on_failure_v2   = test_stop_on_failure;
+	test->test_service_client.failure_reset_v2     = test_failure_reset;
 	test->mx = mx;
 
 	switch (auto_start) {

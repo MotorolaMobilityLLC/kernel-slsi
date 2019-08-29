@@ -124,8 +124,8 @@ static void collection_worker(struct work_struct *work)
 	struct scsc_log_status *ls;
 
 	ls = container_of(work, struct scsc_log_status, collect_work);
-	if (!ls)
-		return;
+	/* ls cannot be NULL due to pointer arithmetic */
+
 	pr_info("SCSC running scheduled Log Collection - collect reason:%d reason code:%d\n",
 		 ls->collect_reason, ls->reason_code);
 	scsc_log_collector_collect(ls->collect_reason, ls->reason_code);

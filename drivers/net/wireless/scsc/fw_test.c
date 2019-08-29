@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 #include <net/cfg80211.h>
@@ -581,8 +581,11 @@ static void slsi_fw_test_disconnect_station(struct slsi_dev *sdev, struct net_de
 		return;
 
 	netif_carrier_off(dev);
-	if (peer)
+	if (peer) {
+		slsi_spinlock_lock(&ndev_vif->peer_lock);
 		slsi_peer_remove(sdev, dev, peer);
+		slsi_spinlock_unlock(&ndev_vif->peer_lock);
+	}
 	slsi_vif_deactivated(sdev, dev);
 }
 
@@ -603,8 +606,11 @@ static void slsi_fw_test_disconnect_network(struct slsi_dev *sdev, struct net_de
 
 	SLSI_NET_DBG1(dev, SLSI_FW_TEST, "Network Peer Disconnect(vif:%d)\n", ndev_vif->ifnum);
 
-	if (peer)
+	if (peer) {
+		slsi_spinlock_lock(&ndev_vif->peer_lock);
 		slsi_peer_remove(sdev, dev, peer);
+		slsi_spinlock_unlock(&ndev_vif->peer_lock);
+	}
 }
 
 static void slsi_fw_test_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, struct slsi_fw_test *fwtest, struct sk_buff *skb)
@@ -691,6 +697,7 @@ static void slsi_fw_test_tdls_event_disconnected(struct slsi_dev *sdev, struct n
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	SLSI_NET_DBG1(dev, SLSI_MLME, "TDLS dis-connect (vif:%d, mac:%pM)\n", ndev_vif->ifnum, fapi_get_buff(skb, u.mlme_tdls_peer_ind.peer_sta_address));
 
+	slsi_spinlock_lock(&ndev_vif->peer_lock);
 	peer = slsi_get_peer_from_mac(sdev, dev, fapi_get_buff(skb, u.mlme_tdls_peer_ind.peer_sta_address));
 	if (!peer || (peer->aid == 0)) {
 		WARN_ON(!peer || (peer->aid == 0));
@@ -703,8 +710,8 @@ static void slsi_fw_test_tdls_event_disconnected(struct slsi_dev *sdev, struct n
 	/* move TDLS packets from TDLS Q to STA Q */
 	slsi_tdls_move_packets(sdev, dev, ndev_vif->peer_sta_record[SLSI_STA_PEER_QUEUESET], peer, false);
 	slsi_peer_remove(sdev, dev, peer);
-
 out:
+	slsi_spinlock_unlock(&ndev_vif->peer_lock);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 }
 

@@ -293,9 +293,6 @@ struct hip4_priv {
 	struct wake_lock             hip4_wake_lock;
 #endif
 
-	/* Control the hip4 init */
-	atomic_t                     rx_ready;
-
 	/* Control the hip4 deinit */
 	atomic_t                     closing;
 	atomic_t                     in_tx;

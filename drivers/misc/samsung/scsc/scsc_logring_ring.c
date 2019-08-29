@@ -21,7 +21,7 @@ SCSC_MODPARAM_DESC(scsc_decode_binary_len,
  * it also where required, taking care to maintain the same ordering.
  * (Search 4 NOTE_CREATING_TAGS)
  */
-const char *tagstr[] = {
+const char *tagstr[MAX_TAG + 1] = {
 	"binary",
 	"bin_wifi_ctrl_rx",
 	"bin_wifi_data_rx",
@@ -59,6 +59,8 @@ const char *tagstr[] = {
 	"kic_common",
 	"wlbtd",
 	"wlog",
+	"lerna",
+	"mx_cfg",
 #ifdef CONFIG_SCSC_DEBUG_COMPATIBILITY
 	"init_deinit",
 	"netdev",

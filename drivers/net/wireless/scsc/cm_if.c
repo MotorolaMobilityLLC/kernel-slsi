@@ -665,12 +665,22 @@ void slsi_sm_wlan_service_close(struct slsi_dev *sdev)
 	mutex_lock(&slsi_start_mutex);
 	cm_if_state = atomic_read(&sdev->cm_if.cm_if_state);
 	if (cm_if_state != SCSC_WIFI_CM_IF_STATE_STOPPED) {
-		SLSI_INFO(sdev, "Service not stopped\n");
+		SLSI_INFO(sdev, "Service not stopped. cm_if_state = %d\n", cm_if_state);
+
+		/**
+		 * Close the service if failure has occurred after service has successfully opened
+		 * but before service has attempted to start
+		 */
+		if (cm_if_state == SCSC_WIFI_CM_IF_STATE_PROBED) {
+			SLSI_INFO_NODEV("Closing WLAN service on error\n");
+			r = scsc_mx_service_close(sdev->service);
+		}
 		goto exit;
 	}
 
 	SLSI_INFO_NODEV("Closing WLAN service\n");
 	scsc_mx_service_mifram_free(sdev->service, sdev->hip4_inst.hip_ref);
+
 	r = scsc_mx_service_close(sdev->service);
 	if (r == -EIO) {
 		int retry_counter;

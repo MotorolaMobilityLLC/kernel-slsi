@@ -373,8 +373,8 @@ void hip4_sampler_tput_monitor(void *client_ctx, u32 state, u32 tput_tx, u32 tpu
 	if ((g_tput_tx == tput_tx) && (g_tput_rx == tput_rx))
 		return;
 
-	g_tput_rx == tput_tx;
-	g_tput_rx == tput_rx;
+	g_tput_tx = tput_tx;
+	g_tput_rx = tput_rx;
 
 	if (hip4_sampler_dynamic) {
 		/* Call the dynamic switcher with the computed bps

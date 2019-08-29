@@ -41,20 +41,30 @@ static int service_id = SCSC_SERVICE_ID_FM;
 
 static DEFINE_MUTEX(ss_lock);
 
-
-static void fm_client_stop_on_failure(struct scsc_service_client *client)
+static u8 fm_client_failure_notification(struct scsc_service_client *client, struct mx_syserr_decode *err)
 {
 	(void)client;
+	SCSC_TAG_DEBUG(FM, "OK\n");
+	return err->level;
+}
+
+
+static bool fm_client_stop_on_failure(struct scsc_service_client *client, struct mx_syserr_decode *err)
+{
+	(void)client;
+	(void)err;
 	mutex_lock(&ss_lock);
 	fm_client->fm_api_available = false;
 	mutex_unlock(&ss_lock);
 	SCSC_TAG_DEBUG(FM, "OK\n");
+	return false;
 }
 
-static void fm_client_failure_reset(struct scsc_service_client *client, u16 scsc_panic_code)
+static void fm_client_failure_reset(struct scsc_service_client *client, u8 level, u16 scsc_syserr_code)
 {
 	(void)client;
-	(void)scsc_panic_code;
+	(void)level;
+	(void)scsc_syserr_code;
 	SCSC_TAG_DEBUG(FM, "OK\n");
 }
 
@@ -307,8 +317,9 @@ void fm_client_module_probe(struct scsc_mx_module_client *module_client, struct 
 		}
 		init_completion(&fm_client->fm_client_work_completion);
 		fm_client_wq_init();
-		fm_client->fm_service_client.stop_on_failure   = fm_client_stop_on_failure;
-		fm_client->fm_service_client.failure_reset     = fm_client_failure_reset;
+		fm_client->fm_service_client.failure_notification = fm_client_failure_notification;
+		fm_client->fm_service_client.stop_on_failure_v2   = fm_client_stop_on_failure;
+		fm_client->fm_service_client.failure_reset_v2     = fm_client_failure_reset;
 		fm_client->mx = mx;
 	}
 	fm_client->fm_api_available = true;

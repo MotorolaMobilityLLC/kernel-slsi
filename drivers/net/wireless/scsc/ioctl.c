@@ -78,6 +78,7 @@
 #define CMD_SET_LATENCY_MODE "SET_LATENCY_MODE"
 #define CMD_SET_POWER_MGMT "SET_POWER_MGMT"
 #endif
+#define CMD_SET_DISCONNECT_IES "SET_DISCONNECT_IES"
 
 #define CMD_SETBAND "SETBAND"
 #define CMD_GETBAND "GETBAND"
@@ -132,6 +133,7 @@
 #ifdef SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
 #define CMD_ABNORMAL_MULTICAST_PKT_FILTER "ABNORMAL_MULTICAST_PKT_FILTER"
 #endif
+#define CMD_GET_MAX_LINK_SPEED "GET_MAX_LINK_SPEED"
 
 #ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
 #define CMD_SET_NUM_ANTENNAS "SET_NUM_ANTENNAS"
@@ -1367,7 +1369,7 @@ static ssize_t slsi_auto_chan_read(struct net_device *dev, char *command, int bu
 	return result;
 }
 
-static ssize_t slsi_auto_chan_write(struct net_device *dev, char *command, int buf_len)
+static ssize_t slsi_auto_chan_write(struct net_device *dev, char *command)
 {
 	struct netdev_vif        *ndev_vif = netdev_priv(dev);
 	struct slsi_dev          *sdev = ndev_vif->sdev;
@@ -1376,13 +1378,14 @@ static ssize_t slsi_auto_chan_write(struct net_device *dev, char *command, int b
 	int                      count_channels;
 	int                      offset;
 	int                      chan;
+	int                      index = 0;
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 	struct net_device *sta_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
 	struct netdev_vif *ndev_sta_vif  = netdev_priv(sta_dev);
 	int sta_frequency;
 #endif
 
-	offset = slsi_str_to_int(&command[21], &n_channels);
+	offset = slsi_str_to_int(&command[index], &n_channels);
 	if (!offset) {
 		SLSI_ERR(sdev, "channel count: failed to read a numeric value");
 		return -EINVAL;
@@ -2310,6 +2313,34 @@ static int slsi_get_bss_info(struct net_device *dev, char *command, int buf_len)
 	return len;
 }
 
+static int slsi_get_linkspeed(struct net_device *dev, char *command, int buf_len)
+{
+	struct netdev_vif    *ndev_vif = netdev_priv(dev);
+	struct slsi_dev      *sdev = ndev_vif->sdev;
+	int len = 0;
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	if (!ndev_vif->activated) {
+		SLSI_ERR(sdev, "Not Activated, Command not allowed vif.activated:%d, vif.type:%d\n",
+			 ndev_vif->activated, ndev_vif->vif_type);
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+		return -EINVAL;
+	}
+
+	if ((ndev_vif->vif_type != FAPI_VIFTYPE_STATION) && (ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED)) {
+		SLSI_NET_ERR(dev, "sta is not in connected state\n");
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+		return -EPERM;
+	}
+
+	len = snprintf(command, buf_len, "MAX_SPEED %u CURRENT_LINK_SPEED %u",
+		       ndev_vif->sta.max_rate_mbps, ndev_vif->sta.data_rate_mbps);
+
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+
+	return len;
+}
+
 static int slsi_get_assoc_reject_info(struct net_device *dev, char *command, int buf_len)
 {
 	struct netdev_vif    *ndev_vif = netdev_priv(dev);
@@ -2323,19 +2354,6 @@ static int slsi_get_assoc_reject_info(struct net_device *dev, char *command, int
 }
 
 #ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
-int slsi_set_latency_mode(struct net_device *dev, char *cmd, int cmd_len)
-{
-	struct netdev_vif    *ndev_vif = netdev_priv(dev);
-	struct slsi_dev      *sdev = ndev_vif->sdev;
-	bool                 enable_roaming;
-
-	/* latency_mode =0 (Normal), latency_mode =1 (Low) */
-	enable_roaming = (cmd[0] == '0') ? true : false;
-	SLSI_DBG1(sdev, SLSI_CFG80211, "Setting latency mode %d\n", cmd[0] - '0');
-
-	return slsi_set_mib_soft_roaming_enabled(sdev, dev, enable_roaming);
-}
-
 static int slsi_set_power_mode(struct net_device *dev, char *command, int buf_len)
 {
 	struct netdev_vif    *ndev_vif = netdev_priv(dev);
@@ -2358,6 +2376,65 @@ static int slsi_set_power_mode(struct net_device *dev, char *command, int buf_le
 	return status;
 }
 #endif
+
+int slsi_set_disconnect_ies(struct net_device *dev, char *cmd, int cmd_len)
+{
+	struct netdev_vif       *ndev_vif = netdev_priv(dev);
+	struct slsi_dev         *sdev = ndev_vif->sdev;
+	char                    *disconnect_ies = cmd + strlen(CMD_SET_DISCONNECT_IES) + 1;
+	int                     ie_len = 0;
+	u8                      *disconnect_ies_bin;
+	u8                      temp_byte;
+	int                     i;
+	int                     j;
+	int                     len;
+
+	SLSI_DBG1(sdev, SLSI_CFG80211, "Setting disconnect IE's\n");
+	while (disconnect_ies[ie_len])
+		ie_len++;
+
+	/* ie_len has been trimmed to even, as odd length would mean that ie is invalid */
+	ie_len &= (~0x01);
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	ndev_vif->sta.vendor_disconnect_ies_len = (ie_len / 2);
+	disconnect_ies_bin = kmalloc(ndev_vif->sta.vendor_disconnect_ies_len, GFP_KERNEL);
+	if (!disconnect_ies_bin) {
+		SLSI_ERR(sdev, "Malloc  failed\n");
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+		return -ENOMEM;
+	}
+
+	for (i = 0, j = 0; j < ie_len; j += 2) {
+		temp_byte = slsi_parse_hex(disconnect_ies[j]) << 4 | slsi_parse_hex(disconnect_ies[j + 1]);
+		disconnect_ies_bin[i++] = temp_byte;
+	}
+
+	/* check if the IE is valid */
+	for (i = 0; i < ndev_vif->sta.vendor_disconnect_ies_len;) {
+		if (disconnect_ies_bin[i] == 0xdd) {
+			len = disconnect_ies_bin[i + 1];
+			if ((ndev_vif->sta.vendor_disconnect_ies_len - (i + 2)) < len) {
+				SLSI_WARN(sdev, "The length of disconnect IE's is not proper\n");
+				ndev_vif->sta.vendor_disconnect_ies_len = 0;
+				kfree(disconnect_ies_bin);
+				SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+				return -EINVAL;
+			}
+
+			i = i + 2 + len;
+		} else {
+			SLSI_WARN(sdev, "The tag of disconnect IE's is not proper\n");
+			ndev_vif->sta.vendor_disconnect_ies_len = 0;
+			kfree(disconnect_ies_bin);
+			SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+			return -EINVAL;
+		}
+	}
+	ndev_vif->sta.vendor_disconnect_ies = disconnect_ies_bin;
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+
+	return 0;
+}
 
 #ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
 static int slsi_enhanced_arp_start_stop(struct net_device *dev, char *command, int buf_len)
@@ -2627,7 +2704,9 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	} else if (strncasecmp(command, CMD_HAPD_GET_CHANNEL, strlen(CMD_HAPD_GET_CHANNEL)) == 0) {
 		ret = slsi_auto_chan_read(dev, command, priv_cmd.total_len);
 	} else if (strncasecmp(command, CMD_SET_SAP_CHANNEL_LIST, strlen(CMD_SET_SAP_CHANNEL_LIST)) == 0) {
-		ret = slsi_auto_chan_write(dev, command, priv_cmd.total_len);
+		int skip = strlen(CMD_SET_SAP_CHANNEL_LIST) + 1;
+
+		ret = slsi_auto_chan_write(dev, command + skip);
 	} else if (strncasecmp(command, CMD_REASSOC, strlen(CMD_REASSOC)) == 0) {
 		int skip = strlen(CMD_REASSOC) + 1;
 
@@ -2704,12 +2783,16 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = slsi_get_assoc_reject_info(dev, command, priv_cmd.total_len);
 #ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
 	} else if (strncasecmp(command, CMD_SET_LATENCY_MODE, strlen(CMD_SET_LATENCY_MODE)) == 0) {
-		ret = slsi_set_latency_mode(dev, command + strlen(CMD_SET_LATENCY_MODE) + 1,
-					    priv_cmd.total_len - (strlen(CMD_SET_LATENCY_MODE) + 1));
+		int latency_mode = *(command + strlen(CMD_SET_LATENCY_MODE) + 1) - '0';
+		int cmd_len = priv_cmd.total_len - (strlen(CMD_SET_LATENCY_MODE) + 1);
+
+		ret = slsi_set_latency_mode(dev, latency_mode, cmd_len);
 	} else if (strncasecmp(command, CMD_SET_POWER_MGMT, strlen(CMD_SET_POWER_MGMT)) == 0) {
 		ret = slsi_set_power_mode(dev, command + strlen(CMD_SET_POWER_MGMT) + 1,
 					  priv_cmd.total_len - (strlen(CMD_SET_POWER_MGMT) + 1));
 #endif
+	} else if (strncasecmp(command, CMD_SET_DISCONNECT_IES, strlen(CMD_SET_DISCONNECT_IES)) == 0) {
+		ret = slsi_set_disconnect_ies(dev, command, priv_cmd.total_len);
 #ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
 	} else if (strncasecmp(command, CMD_SET_ENHANCED_ARP_TARGET, strlen(CMD_SET_ENHANCED_ARP_TARGET)) == 0) {
 		int skip = strlen(CMD_SET_ENHANCED_ARP_TARGET) + 1;
@@ -2770,6 +2853,8 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = slsi_set_num_antennas(dev, num_of_antennas);
 		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 #endif
+	} else if ((strncasecmp(command, CMD_GET_MAX_LINK_SPEED, strlen(CMD_GET_MAX_LINK_SPEED)) == 0)) {
+		ret = slsi_get_linkspeed(dev, command, priv_cmd.total_len);
 	} else {
 		ret  = -ENOTSUPP;
 	}

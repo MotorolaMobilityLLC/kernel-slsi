@@ -126,15 +126,28 @@ static struct {
 
 static int recovery_in_progress;
 
-static void mx_dbg_sampler_stop_on_failure(struct scsc_service_client *client)
+static u8 mx_dbg_sampler_failure_notification(struct scsc_service_client *client, struct mx_syserr_decode *err)
 {
-	SCSC_TAG_INFO(MX_SAMPLER, "TODO\n");
-	recovery_in_progress = 1;
+	(void)client;
+	SCSC_TAG_INFO(MX_SAMPLER, "OK\n");
+	return err->level;
 }
 
-static void mx_dbg_sampler_failure_reset(struct scsc_service_client *client, u16 scsc_panic_code)
+
+static bool mx_dbg_sampler_stop_on_failure(struct scsc_service_client *client, struct mx_syserr_decode *err)
 {
-	(void)scsc_panic_code;
+	(void)client;
+	(void)err;
+	SCSC_TAG_INFO(MX_SAMPLER, "TODO\n");
+	recovery_in_progress = 1;
+	return false;
+}
+
+static void mx_dbg_sampler_failure_reset(struct scsc_service_client *client, u8 level, u16 scsc_syserr_code)
+{
+	(void)client;
+	(void)level;
+	(void)scsc_syserr_code;
 	SCSC_TAG_INFO(MX_SAMPLER, "TODO\n");
 }
 
@@ -619,8 +632,9 @@ void mx_dbg_sampler_probe(struct scsc_mx_module_client *module_client, struct sc
 		}
 
 		mx_dbg_sampler.devs[minor].mx = mx;
-		mx_dbg_sampler.devs[minor].mx_client.stop_on_failure = mx_dbg_sampler_stop_on_failure;
-		mx_dbg_sampler.devs[minor].mx_client.failure_reset = mx_dbg_sampler_failure_reset;
+		mx_dbg_sampler.devs[minor].mx_client.failure_notification = mx_dbg_sampler_failure_notification;
+		mx_dbg_sampler.devs[minor].mx_client.stop_on_failure_v2 = mx_dbg_sampler_stop_on_failure;
+		mx_dbg_sampler.devs[minor].mx_client.failure_reset_v2 = mx_dbg_sampler_failure_reset;
 
 		mutex_init(&mx_dbg_sampler.devs[minor].mutex);
 		spin_lock_init(&mx_dbg_sampler.devs[minor].spinlock);

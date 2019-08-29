@@ -345,9 +345,9 @@ int slsi_mlme_nan_publish(struct slsi_dev *sdev, struct net_device *dev, struct 
 	}
 
 	if (hal_req && !r)
-		ndev_vif->nan.publish_id_map |= BIT(publish_id);
+		ndev_vif->nan.publish_id_map |= (u32)BIT(publish_id);
 	else
-		ndev_vif->nan.publish_id_map &= ~BIT(publish_id);
+		ndev_vif->nan.publish_id_map &= (u32)~BIT(publish_id);
 	slsi_kfree_skb(cfm);
 	return r;
 }
@@ -479,9 +479,9 @@ int slsi_mlme_nan_subscribe(struct slsi_dev *sdev, struct net_device *dev, struc
 	}
 
 	if (hal_req && !r)
-		ndev_vif->nan.subscribe_id_map |= BIT(subscribe_id);
+		ndev_vif->nan.subscribe_id_map |= (u32)BIT(subscribe_id);
 	else
-		ndev_vif->nan.subscribe_id_map &= ~BIT(subscribe_id);
+		ndev_vif->nan.subscribe_id_map &= (u32)~BIT(subscribe_id);
 	slsi_kfree_skb(cfm);
 	return r;
 }
@@ -532,7 +532,7 @@ int slsi_mlme_nan_tx_followup(struct slsi_dev *sdev, struct net_device *dev,
 
 	fapi_set_u16(req, u.mlme_nan_followup_req.publish_subscribe_id, hal_req->publish_subscribe_id);
 	fapi_set_u16(req, u.mlme_nan_followup_req.peer_id, hal_req->requestor_instance_id);
-	fapi_set_u16(req, u.mlme_nan_subscribe_req.nan_sdf_flags, nan_sdf_flags);
+	fapi_set_u16(req, u.mlme_nan_followup_req.nan_sdf_flags, nan_sdf_flags);
 
 	slsi_mlme_nan_followup_fapi_data(req, hal_req);
 
