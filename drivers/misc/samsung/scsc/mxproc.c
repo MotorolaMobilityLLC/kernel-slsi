@@ -331,8 +331,8 @@ static ssize_t mx_procfs_mx_status_read(struct file *file, char __user *user_buf
 	case MXMAN_STATE_FAILED:
 		pos += scnprintf(buf + pos, bufsz - pos, "%s\n", "MXMAN_STATE_FAILED");
 		break;
-	case MXMAN_STATE_FREEZED:
-		pos += scnprintf(buf + pos, bufsz - pos, "%s\n", "MXMAN_STATE_FREEZED");
+	case MXMAN_STATE_FROZEN:
+		pos += scnprintf(buf + pos, bufsz - pos, "%s\n", "MXMAN_STATE_FROZEN");
 		break;
 	default:
 		return 0;

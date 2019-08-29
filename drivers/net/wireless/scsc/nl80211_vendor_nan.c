@@ -187,7 +187,7 @@ static int slsi_nan_get_ranging_cfg_nl(struct slsi_dev *sdev, struct slsi_nan_ra
 static int slsi_nan_get_security_info_nl(struct slsi_dev *sdev, struct slsi_nan_security_info *sec_info,
 					 const struct nlattr *iter, int nl_attr_id)
 {
-	u32 len;
+	u32 len = 0;
 
 	switch (nl_attr_id) {
 	case NAN_REQ_ATTR_CIPHER_TYPE:
@@ -1449,7 +1449,7 @@ int slsi_nan_get_capabilities(struct wiphy *wiphy, struct wireless_dev *wdev, co
 		goto exit_with_mibrsp;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(get_values); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(get_values); i++) {
 		if (values[i].type == SLSI_MIB_TYPE_UINT) {
 			*capabilities_mib_val[i] = values[i].u.uintValue;
 			SLSI_DBG2(sdev, SLSI_GSCAN, "MIB value = %ud\n", *capabilities_mib_val[i]);
@@ -1484,7 +1484,22 @@ void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 	event = fapi_get_u16(skb, u.mlme_nan_event_ind.event);
 	identifier = fapi_get_u16(skb, u.mlme_nan_event_ind.identifier);
 	mac_addr = fapi_get_buff(skb, u.mlme_nan_event_ind.address_or_identifier);
-	evt_reason = fapi_get_u16(skb, u.mlme_nan_event_ind.reason_code);
+
+	switch(fapi_get_u16(skb, u.mlme_nan_event_ind.reason_code)) {
+	case FAPI_REASONCODE_NAN_SERVICE_TERMINATED_TIMEOUT:
+	case FAPI_REASONCODE_NAN_SERVICE_TERMINATED_COUNT_REACHED:
+	case FAPI_REASONCODE_NAN_SERVICE_TERMINATED_DISCOVERY_SHUTDOWN:
+	case FAPI_REASONCODE_NAN_SERVICE_TERMINATED_USER_REQUEST:
+	case FAPI_REASONCODE_NAN_TRANSMIT_FOLLOWUP_SUCCESS:
+		evt_reason = SLSI_HAL_NAN_STATUS_SUCCESS;
+		break;
+	case FAPI_REASONCODE_NAN_TRANSMIT_FOLLOWUP_FAILURE:
+		evt_reason = SLSI_HAL_NAN_STATUS_PROTOCOL_FAILURE;
+		break;
+	default :
+		evt_reason = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
+		break;
+	}
 
 	switch (event) {
 	case FAPI_EVENT_WIFI_EVENT_NAN_PUBLISH_TERMINATED:
@@ -1508,6 +1523,9 @@ void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 		disc_event_type = NAN_EVENT_ID_JOINED_CLUSTER;
 		hal_event = SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT;
 		break;
+	case FAPI_EVENT_WIFI_EVENT_NAN_TRANSMIT_FOLLOWUP:
+		hal_event = SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS;
+		break;
 	default:
 		return;
 	}
@@ -1527,20 +1545,18 @@ void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 		return;
 	}
 
+	res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_STATUS, evt_reason);
 	switch (hal_event) {
 	case SLSI_NL80211_NAN_PUBLISH_TERMINATED_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_PUBLISH_ID, identifier);
-		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_PUBLISH_ID, evt_reason);
-		ndev_vif->nan.publish_id_map &= ~BIT(identifier);
+		ndev_vif->nan.publish_id_map &= (u32)~BIT(identifier);
 		break;
 	case SLSI_NL80211_NAN_MATCH_EXPIRED_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_MATCH_PUBLISH_SUBSCRIBE_ID, identifier);
-		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_MATCH_REQUESTOR_INSTANCE_ID, evt_reason);
 		break;
 	case SLSI_NL80211_NAN_SUBSCRIBE_TERMINATED_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_SUBSCRIBE_ID, identifier);
-		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_SUBSCRIBE_REASON, evt_reason);
-		ndev_vif->nan.subscribe_id_map &= ~BIT(identifier);
+		ndev_vif->nan.subscribe_id_map &= (u32)~BIT(identifier);
 		break;
 	case SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_DISCOVERY_ENGINE_EVT_TYPE, disc_event_type);
@@ -1610,6 +1626,7 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 		if (stitched_ie_p[1] + 2 < (ptr - stitched_ie_p) + tag_len) {
 			SLSI_ERR(sdev, "TLV error\n");
 			kfree(hal_evt);
+			kfree(stitched_ie_p);
 			return;
 		}
 		if (tag_id == SLSI_FAPI_NAN_SERVICE_SPECIFIC_INFO) {
@@ -1761,9 +1778,10 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 		ie_ptr = cfg80211_find_vendor_ie(SLSI_OUI, SLSI_OUI_TYPE_NAN_PARAMS, ie_ptr, ie_len);
 		if (!ie_ptr)
 			break;
-		if (ie_len > 9 && ie_ptr[1] > 5 && ie_ptr[6] == 9)
+		if (ie_len > 9 && ie_ptr[1] > 5 && ie_ptr[6] == 9) {
 			hal_evt->sec_info.cipher_type = ie_ptr[8];
 			break;
+		}
 		ie_len -= ie_ptr[1] + 2;
 		if (ie_len < 3)
 			ie_ptr = NULL;

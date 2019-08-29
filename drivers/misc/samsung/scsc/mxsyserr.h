@@ -22,6 +22,7 @@ struct mx_syserr_msg {
 	struct mx_syserr syserr;
 } __packed;
 
+void mx_syserr_init(void);
 void mx_syserr_handler(struct mxman *mx, const void *message);
 
 #endif

@@ -22,11 +22,13 @@ void mxman_deinit(struct mxman *mxman);
 int mxman_open(struct mxman *mxman);
 void mxman_close(struct mxman *mxman);
 void mxman_fail(struct mxman *mxman, u16 scsc_panic_code, const char *reason);
+void mxman_syserr(struct mxman *mxman, struct mx_syserr_decode *syserr);
 void mxman_freeze(struct mxman *mxman);
 int mxman_force_panic(struct mxman *mxman);
 int mxman_suspend(struct mxman *mxman);
 void mxman_resume(struct mxman *mxman);
 void mxman_show_last_panic(struct mxman *mxman);
+void mxman_subserv_recovery(struct mxman *mxman, struct mx_syserr_decode *syserr_decode);
 
 #ifdef CONFIG_SCSC_FM
 void mxman_fm_on_halt_ldos_on(void);
@@ -40,7 +42,7 @@ enum mxman_state {
 	MXMAN_STATE_STARTING,
 	MXMAN_STATE_STARTED,
 	MXMAN_STATE_FAILED,
-	MXMAN_STATE_FREEZED,
+	MXMAN_STATE_FROZEN,
 };
 
 #define SCSC_FAILURE_REASON_LEN 256
@@ -51,8 +53,10 @@ struct mxman {
 	void                    *start_dram;
 	struct workqueue_struct *fw_crc_wq;
 	struct delayed_work     fw_crc_work;
-	struct workqueue_struct *failure_wq;
-	struct work_struct      failure_work;
+	struct workqueue_struct *failure_wq; /* For recovery from chip restart */
+	struct work_struct      failure_work; /* For recovery from chip restart */
+	struct workqueue_struct *syserr_recovery_wq; /* For recovery from syserr sub-system restart */
+	struct work_struct      syserr_recovery_work; /* For recovery from syserr sub-system restart */
 	char                    *fw;
 	u32                     fw_image_size;
 	struct completion       mm_msg_start_ind_completion;
@@ -62,6 +66,7 @@ struct mxman {
 	enum mxman_state        mxman_state;
 	enum mxman_state        mxman_next_state;
 	struct mutex            mxman_mutex;
+	struct mutex            mxman_recovery_mutex; /* Syserr sub-sytem and full chip restart co-ordination */
 	struct mxproc           mxproc;
 	int			suspended;
 	atomic_t		suspend_count;
@@ -71,13 +76,18 @@ struct mxman {
 	char                    fw_build_id[FW_BUILD_ID_SZ]; /* Defined in SC-505846-SW */
 	struct completion       recovery_completion;
 #ifdef CONFIG_ANDROID
-	struct wake_lock	recovery_wake_lock;
+	struct wake_lock	failure_recovery_wake_lock; /* For recovery from chip restart */
+	struct wake_lock	syserr_recovery_wake_lock; /* For recovery from syserr sub-system restart */
 #endif
 	u32			rf_hw_ver;
 	u16			scsc_panic_code;
 	u64			last_panic_time;
 	u32			last_panic_rec_r[PANIC_RECORD_SIZE]; /* Must be at least SCSC_R4_V2_MINOR_53 */
 	u16			last_panic_rec_sz;
+	struct mx_syserr_decode	last_syserr;
+	unsigned long		last_syserr_recovery_time; /* In jiffies */
+	bool			notify;
+	bool			syserr_recovery_in_progress;
 #ifdef CONFIG_SCSC_FM
 	u32			on_halt_ldos_on;
 #endif

@@ -57,13 +57,16 @@
 
 /* POWER */
 
+#define VGPIO_TX_MONITOR	0x1700
+#define VGPIO_TX_MON_BIT29	BIT(29)
+
 /* Exynos 9630 UM - 9.8.719 */
 #define WLBT_CONFIGURATION	0x3300
 #define LOCAL_PWR_CFG		BIT(0) /* Control power state 0: Power down 1: Power on */
 
 /* Exynos 9630 UM - 9.8.720 */
 #define WLBT_STATUS		0x3304
-#define STATUS			BIT(0) /* Status 0 : Power down 1 : Power on */
+#define WLBT_STATUS_BIT0	BIT(0) /* Status 0 : Power down 1 : Power on */
 
 /* Exynos 9630 UM - 9.8.721 */
 #define WLBT_STATES		0x3308 /* STATES [7:0] States index for debugging
@@ -71,6 +74,10 @@
 					* 0x10 : Power up
 					* 0x80 : Power down
 					* */
+
+/* Exynos 9630 UM - 9.8.722 */
+#define WLBT_OPTION		0x330C
+#define WLBT_OPTION_DATA	BIT(3)
 
 /* Exynos 9630 UM - 9.8.723 */
 #define WLBT_CTRL_NS            0x3310 /* WLBT Control SFR non-secure */
@@ -193,7 +200,7 @@
 #define WLBT_ACCESS_MIF		BIT(4) /* Check whether WLBT accesses MIF domain */
 
 /* Exynos 9630 UM - 9.8.11 */
-#define WLBT_DEBUG		0x005c /* MIF sleep, wakeup debugging control */
+#define WLBT_DEBUG		0x005C /* MIF sleep, wakeup debugging control */
 /* need to find where have they moved */
 //#define EN_MIF_REQ		BIT(0) /* Control MIF_REQ through GPIO_ALIVE. */
 //#define EN_WLBT_ACTIVE	BIT(2) /* Control WLBT_ACTIVE through GPIO_ALIVE. */
@@ -212,15 +219,15 @@
 #define CLEANY_BUS_WLBT_CONFIGURATION 0x3b20
 #define CLEANY_CFG_MASK 0x1
 
-#define CLEANY_BUS_WLBT_STATUS	0x3b24
+#define CLEANY_BUS_WLBT_STATUS	0x3B24
 #define CLEANY_STATUS_MASK	(BIT(17)|BIT(16))
 
 /* Exynos 9630 UM - 9.8.763 */
-#define SYSTEM_OUT		0x3a20
+#define SYSTEM_OUT		0x3A20
 #define PWRRGTON_CON		BIT(9) /* XPWRRTON_CON control 0: Disable 1: Enable */
 
 /* Exynos 9630 UM - 9.8.812 */
-#define TCXO_BUF_CTRL		0x3c10
+#define TCXO_BUF_CTRL		0x3C10
 #define TCXO_BUF_BIAS_EN_WLBT	BIT(2)
 #define TCXO_BUF_EN_WLBT	BIT(3)
 

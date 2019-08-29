@@ -209,9 +209,18 @@ static void mx140_clk20mhz_remove_ctrl_proc_dir(struct mx140_clk20mhz *clk20mhz)
 	}
 }
 
-/* Maxwell manager has detected an issue and the service should freeze */
-static void mx140_clk20mhz_stop_on_failure(struct scsc_service_client *client)
+/* Maxwell manager has detected a recoverable issue no action needed */
+static u8 mx140_clk20mhz_failure_notification(struct scsc_service_client *client, struct mx_syserr_decode *err)
 {
+	(void) client;
+	SCSC_TAG_INFO(CLK20, "\n");
+	return err->level;
+}
+
+/* Maxwell manager has detected an issue and the service should freeze */
+static bool mx140_clk20mhz_stop_on_failure(struct scsc_service_client *client, struct mx_syserr_decode *err)
+{
+	(void) err;
 	atomic_set(&clk20mhz.mx140_clk20mhz_service_failed, 1);
 
 	mutex_lock(&clk_work_lock);
@@ -226,12 +235,15 @@ static void mx140_clk20mhz_stop_on_failure(struct scsc_service_client *client)
 #endif
 
 	SCSC_TAG_INFO(CLK20, "\n");
+
+	return false;
 }
 
 /* Maxwell manager has handled a failure and the chip has been resat. */
-static void mx140_clk20mhz_failure_reset(struct scsc_service_client *client, u16 scsc_panic_code)
+static void mx140_clk20mhz_failure_reset(struct scsc_service_client *client, u8 level, u16 scsc_syserr_code)
 {
-	(void)scsc_panic_code;
+	(void)level;
+	(void)scsc_syserr_code;
 	atomic_set(&clk20mhz.mx140_clk20mhz_service_failed, 1);
 
 #ifdef MX140_CLK_VERBOSE_CALLBACKS
@@ -592,8 +604,9 @@ void mx140_clk20mhz_probe(struct scsc_mx_module_client *module_client, struct sc
 	} else {
 		SCSC_TAG_INFO(CLK20, "Maxwell probed\n");
 		clk20mhz.mx = mx;
-		clk20mhz.mx140_clk20mhz_service_client.stop_on_failure   = mx140_clk20mhz_stop_on_failure;
-		clk20mhz.mx140_clk20mhz_service_client.failure_reset     = mx140_clk20mhz_failure_reset;
+		clk20mhz.mx140_clk20mhz_service_client.failure_notification   = mx140_clk20mhz_failure_notification;
+		clk20mhz.mx140_clk20mhz_service_client.stop_on_failure_v2   = mx140_clk20mhz_stop_on_failure;
+		clk20mhz.mx140_clk20mhz_service_client.failure_reset_v2     = mx140_clk20mhz_failure_reset;
 
 		mx140_clk20mhz_create_ctrl_proc_dir(&clk20mhz);
 

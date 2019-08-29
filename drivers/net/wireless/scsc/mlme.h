@@ -24,6 +24,7 @@ enum slsi_ac_index_wmm_pe {
 
 #define SLSI_WLAN_EID_VENDOR_SPECIFIC 0xdd
 #define SLSI_WLAN_EID_INTERWORKING 107
+#define SLSI_WLAN_EID_EXTENSION 255
 
 #define SLSI_WLAN_OUI_TYPE_WFA_HS20_IND 0x10
 #define SLSI_WLAN_OUI_TYPE_WFA_OSEN 0x12
@@ -272,7 +273,7 @@ int slsi_mlme_arp_detect_request(struct slsi_dev *sdev, struct net_device *dev, 
 int slsi_mlme_set_ctwindow(struct slsi_dev *sdev, struct net_device *dev, unsigned int ct_param);
 int slsi_mlme_set_p2p_noa(struct slsi_dev *sdev, struct net_device *dev, unsigned int noa_count,
 			  unsigned int interval, unsigned int duration);
-void slsi_fw_tx_rate_calc(u16 fw_rate, struct rate_info *tx_rate, unsigned long *data_rate_mbps);
+void slsi_decode_fw_rate(u16 fw_rate, struct rate_info *rate, unsigned long *data_rate_mbps);
 int slsi_test_sap_configure_monitor_mode(struct slsi_dev *sdev, struct net_device *dev, struct cfg80211_chan_def *chandef);
 
 struct sk_buff *slsi_mlme_req_cfm(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, u16 cfm_id);

@@ -61,6 +61,71 @@ enum scsc_qos_config {
 };
 #endif
 
+/* SYSTEM ERROR SUB-SYSTEMS */
+#define SYSERR_SUBSYS_COMMON		(0)
+#define SYSERR_SUBSYS_BT		(1)
+#define SYSERR_SUBSYS_WLAN		(2)
+#define SYSERR_SUBSYS_HOST		(8)
+
+
+/* SYSTEM ERROR levels */
+
+/* System Error level 1
+ * Minor warning from firmware
+ * Should not be escalted by driver
+ */
+#define MX_SYSERR_LEVEL_1		(1)
+
+/* System Error level 2
+ * More severe warning from firmware
+ * May be escalated by driver
+ */
+#define MX_SYSERR_LEVEL_2		(2)
+
+/* System Error level 2
+ * Minor error handled in firmware
+ * may be escalated by driver
+ */
+#define MX_SYSERR_LEVEL_3		(3)
+
+/* System Error level 3
+ * More severe error handled in firmware
+ * May be escalated by driver
+ */
+#define MX_SYSERR_LEVEL_4		(4)
+
+/* System Error level 5
+ * Firmware requested service restart
+ * May be escalated by driver
+ */
+#define MX_SYSERR_LEVEL_5		(5)
+
+/* System Error level 5
+ * Firmware requested service restart (firmware may have restarted some hardware)
+ * May be escalated by driver
+ */
+#define MX_SYSERR_LEVEL_6		(6)
+
+/* System Error level 7
+ * Firmware halt and full restart required
+ */
+#define MX_SYSERR_LEVEL_7		(7)
+
+/* Null error code */
+#define MX_NULL_SYSERR			(0xFFFF)
+
+/* Details for decoding */
+#define SYSERR_SUB_CODE_POSN			(0)
+#define SYSERR_SUB_CODE_MASK			(0xFFFF)
+#define SYSERR_SUB_SYSTEM_POSN			(12)
+#define SYSERR_SUB_SYSTEM_MASK			(0xF)
+#define SYSERR_LEVEL_POSN			(24)
+#define SYSERR_LEVEL_MASK			(0xF)
+#define SYSERR_TYPE_POSN			(28)
+#define SYSERR_TYPE_MASK			(0xFF)
+#define SYSERR_SUB_SYSTEM_HOST			(8)
+
+
 /* Core Driver Module registration */
 struct scsc_mx_module_client {
 	char *name;
@@ -70,16 +135,42 @@ struct scsc_mx_module_client {
 
 /* Service Client interface */
 
+/* Decoded syserr_code */
+struct mx_syserr_decode {
+	u8      subsys;
+	u8      level;
+	u16     type;
+	u16     subcode;
+};
+
 struct scsc_service_client;
 
 struct scsc_service_client {
-	/** Called on Maxwell failure. The Client should Stop all SDRAM & MIF
-	 * Mailbox access as fast as possible and inform the Manager by calling
-	 * client_stopped() */
+	/** Called on Maxwell System Error. The Client should use its internal state information
+	 * and the information provided by this call to return an appropriate recovery level
+	 * which must be greater than or equal to that passed in as parameter within the
+	 * mx_syserr_decode structure.
+	 */
+	u8 (*failure_notification)(struct scsc_service_client *client, struct mx_syserr_decode *err);
+	/** Called on Maxwell failure requiring a service restart or full chip restart.
+	 * The level within the mx_syserr_decode structure indicates the recover level taking place.
+	 * The Client should Stop all SDRAM & MIF Mailbox access as fast as possible
+	 * and inform the Manager by calling client_stopped(). The boolean return value
+	 * indicates that this failure should trigger an slsi_send_hanged_vendor_event
+	 * if WLAN is active (common code will ensure this happens by passing scsc_syserr_code
+	 * parameter with a value other than MX_NULL_SYSERR when failure_reset is called subsequently)
+	 */
+	bool (*stop_on_failure_v2)(struct scsc_service_client *client, struct mx_syserr_decode *err);
+	/* Old version to be depricated */
 	void (*stop_on_failure)(struct scsc_service_client *client);
-	/** Called when Maxwell failure has handled and the Maxwell has been
-	 * reset. The Client should assume that any Maxwell resources it held are
-	 * invalid */
+	/** Called when Maxwell failure has been handled and the Maxwell has been
+	 * reset if the level has demanded it. The Client should assume that any Maxwell
+	 * resources it held are invalid. If a scsc_syserr_code other than MX_NULL_SYSERR is provided,
+	 * then this may be propogated by the WLAN driver as a slsi_send_hanged_vendor_event
+	 * to notify the host of the failure and its cause
+	 */
+	void (*failure_reset_v2)(struct scsc_service_client *client, u8 level, u16 scsc_syserr_code);
+	/* Old version to be depricated */
 	void (*failure_reset)(struct scsc_service_client *client, u16 scsc_panic_code);
 	/* called when AP processor is going into suspend. */
 	int (*suspend)(struct scsc_service_client *client);
@@ -89,7 +180,6 @@ struct scsc_service_client {
 	void (*log)(struct scsc_service_client *client, u16 reason);
 };
 
-#ifdef CONFIG_SCSC_FM
 /*
  * This must be used by FM Radio Service only. Other services must not use it.
  * FM Radio client must allocate memory for this structure using scsc_mx_service_mifram_alloc()
@@ -110,7 +200,6 @@ struct wlbt_fm_params {
 	u32 freq;		/* Frequency (Hz) in use by FM radio */
 };
 
-#endif
 
 #define PANIC_RECORD_SIZE			64
 #define PANIC_RECORD_DUMP_BUFFER_SZ		4096
@@ -147,7 +236,7 @@ int scsc_mx_service_close(struct scsc_service *service);
 int scsc_mx_service_mif_dump_registers(struct scsc_service *service);
 
 /** Signal a failure detected by the Client. This will trigger the systemwide
- * failure handling procedure: _All_ Clients will be called back via
+ * MX_SYSERR_LEVEL_7 failure handling procedure: _All_ Clients will be called back via
  * their stop_on_failure() handler as a side-effect. */
 void scsc_mx_service_service_failed(struct scsc_service *service, const char *reason);
 

@@ -3049,6 +3049,22 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
 #define SLSI_PSID_UNIFI_MA_PACKET_FATE_ENABLED 0x0911
 
 /*******************************************************************************
+ * NAME          : unifiStaVifLinkNss
+ * PSID          : 2324 (0x0914)
+ * PER INTERFACE?: NO
+ * TYPE          : unifiAntennaMode
+ * MIN           : 0
+ * MAX           : 255
+ * DEFAULT       :
+ * DESCRIPTION   :
+ *  Sta Vif (Not P2P) while connected to an AP.
+ *  Specifies the max number of NSS that the link can use : 0 = SISO, 1 = MIMO (2x2), 2 = MIMO
+ *  (3x3), 3 = MIMO (4x4)
+ *******************************************************************************/
+/* TODO : MIB autogen */
+#define SLSI_PSID_UNIFI_STA_VIF_LINK_NSS 0x0914
+
+/*******************************************************************************
  * NAME          : UnifiFrameRxCounters
  * PSID          : 2326 (0x0916)
  * PER INTERFACE?: NO
@@ -3727,6 +3743,80 @@ void slsi_mib_buf_append(struct slsi_mib_data *dst, size_t bufferLength, u8 *buf
  *  timeout to start polling, in seconds.
  *******************************************************************************/
 #define SLSI_PSID_UNIFI_MLMEGO_KEEP_ALIVE_TIMEOUT_CHECK 0x09B7
+
+/*******************************************************************************
+ * NAME          : UnifiBssMaxIdlePeriod
+ * PSID          : 2488 (0x09B8)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiUint16
+ * UNITS         : second
+ * MIN           : 0
+ * MAX           : 300
+ * DEFAULT       : 300
+ * DESCRIPTION   :
+ *  BSS Idle MAX Period. Used to cap the value coming from BSS Max Idle
+ *  Period IE, in seconds
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_BSS_MAX_IDLE_PERIOD 0x09B8
+
+/*******************************************************************************
+ * NAME          : UnifiIdlemodeListenIntervalSkippingDtim
+ * PSID          : 2495 (0x09BF)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiUint32
+ * UNITS         : DTIM intervals
+ * MIN           : 0
+ * MAX           : 4294967295
+ * DEFAULT       : 0X00054645
+ * DESCRIPTION   :
+ *  Listen interval of beacons when in single-vif power saving mode,
+ *  receiving DTIMs is enabled and idle mode enabled. No DTIMs are skipped
+ *  during MVIF operation. A maximum of the listen interval beacons are
+ *  skipped, which may be less than the number of DTIMs that can be skipped.
+ *  The value is a lookup table for DTIM counts. Each 4bits, in LSB order,
+ *  represent DTIM1, DTIM2, DTIM3, DTIM4, DTIM5, (unused). This key is only
+ *  used for STA VIF, connected to an AP. For P2P group client intervals,
+ *  refer to unifiIdlemodeP2PListenIntervalSkippingDTIM, PSID=2496.
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_IDLEMODE_LISTEN_INTERVAL_SKIPPING_DTIM 0x09BF
+
+/*******************************************************************************
+ * NAME          : UnifiIdlemodeP2PListenIntervalSkippingDtim
+ * PSID          : 2496 (0x09C0)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiUint32
+ * UNITS         : DTIM intervals
+ * MIN           : 0
+ * MAX           : 4294967295
+ * DEFAULT       : 0X00000002
+ * DESCRIPTION   :
+ *  Listen interval of beacons when in single-vif, P2P client power saving
+ *  mode,receiving DTIMs and idle mode enabled. No DTIMs are skipped during
+ *  MVIF operation. A maximum of (listen interval - 1) beacons are skipped,
+ *  which may be less than the number of DTIMs that can be skipped. The value
+ *  is a lookup table for DTIM counts. Each 4bits, in LSB order, represent
+ *  DTIM1, DTIM2, DTIM3, DTIM4, DTIM5, (unused). This key is only used for
+ *  P2P group client. For STA connected to an AP, refer to
+ *  unifiIdlemodeListenIntervalSkippingDTIM, PSID=2495.
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_IDLEMODE_P2_PLISTEN_INTERVAL_SKIPPING_DTIM 0x09C0
+
+/*******************************************************************************
+ * NAME          : UnifiApIdleModeEnabled
+ * PSID          : 2497 (0x09C1)
+ * PER INTERFACE?: NO
+ * TYPE          : SlsiBool
+ * MIN           : 0
+ * MAX           : 1
+ * DEFAULT       : FALSE
+ * DESCRIPTION   :
+ *  Enables AP Idle mode which can transmit beacons in MIFLess mode, if
+ *  softAP is active, and there has been no activity for a time. This mib has
+ *  priority over unifiIdleModeLiteEnabled. If unifiAPIdleEnabled is enabled,
+ *  Idle Mode Lite won't be activated. This mib value will be runtime
+ *  (post-wlan enable) applied only if "unifiRameUpdateMibs" mib is toggled
+ *******************************************************************************/
+#define SLSI_PSID_UNIFI_AP_IDLE_MODE_ENABLED 0x09C1
 
 /*******************************************************************************
  * NAME          : UnifiBssMaxIdlePeriod

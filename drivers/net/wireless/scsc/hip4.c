@@ -1164,6 +1164,7 @@ static void hip4_irq_handler_fb(int irq, void *data)
 		schedule_work(&hip->hip_priv->intr_wq_fb);
 	else
 		queue_work(hip->hip_priv->hip4_workq, &hip->hip_priv->intr_wq_fb);
+
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(sdev->service, irq);
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 2);
@@ -1341,6 +1342,7 @@ static void hip4_irq_handler_ctrl(int irq, void *data)
 		schedule_work(&hip->hip_priv->intr_wq_ctrl);
 	else
 		queue_work(hip->hip_priv->hip4_workq, &hip->hip_priv->intr_wq_ctrl);
+
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(sdev->service, irq);
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 1);
@@ -1568,6 +1570,7 @@ static void hip4_irq_handler_dat(int irq, void *data)
 
 	/* Mask interrupt to avoid interrupt storm and let BH run */
 	scsc_service_mifintrbit_bit_mask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 0);
@@ -1993,9 +1996,6 @@ static void hip4_irq_handler(int irq, void *data)
 	SCSC_HIP4_SAMPLER_INT(hip->hip_priv->minor, 0);
 	SCSC_HIP4_SAMPLER_INT(hip->hip_priv->minor, 1);
 	SCSC_HIP4_SAMPLER_INT(hip->hip_priv->minor, 2);
-	if (!atomic_read(&hip->hip_priv->rx_ready))
-		goto end;
-
 	intr_received = ktime_get();
 
 #ifdef CONFIG_ANDROID
@@ -2037,7 +2037,7 @@ static void hip4_irq_handler(int irq, void *data)
 		schedule_work(&hip->hip_priv->intr_wq);
 	else
 		queue_work(hip->hip_priv->hip4_workq, &hip->hip_priv->intr_wq);
-end:
+
 	/* Clear interrupt */
 	scsc_service_mifintrbit_bit_clear(sdev->service, hip->hip_priv->intr_tohost);
 	SCSC_HIP4_SAMPLER_INT_OUT(hip->hip_priv->minor, 0);
@@ -2206,9 +2206,6 @@ int hip4_init(struct slsi_hip4 *hip)
 
 	/* Reset Sample q values sending 0xff */
 	SCSC_HIP4_SAMPLER_RESET(hip->hip_priv->minor);
-
-	/* Set driver is not ready to receive interrupts */
-	atomic_set(&hip->hip_priv->rx_ready, 0);
 
 	/***** VERSION 4 *******/
 	/* TOHOST Handler allocator */
@@ -2652,9 +2649,6 @@ int hip4_setup(struct slsi_hip4 *hip)
 
 	atomic_set(&hip->hip_priv->closing, 0);
 
-	/* Driver is ready to process IRQ */
-	atomic_set(&hip->hip_priv->rx_ready, 1);
-
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 	if (conf_hip4_ver == 4) {
 		scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_FH_RFB]);
@@ -2794,7 +2788,6 @@ void hip4_freeze(struct slsi_hip4 *hip)
 #endif
 	flush_workqueue(hip->hip_priv->hip4_workq);
 	destroy_workqueue(hip->hip_priv->hip4_workq);
-	atomic_set(&hip->hip_priv->rx_ready, 0);
 	atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
 
 	/* Deactive the wd timer prior its expiration */
@@ -2831,14 +2824,6 @@ void hip4_deinit(struct slsi_hip4 *hip)
 		hip4_smapper_deinit(sdev, hip);
 	}
 #endif
-#ifdef CONFIG_ANDROID
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_tx);
-	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_ctrl);
-	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_data);
-#endif
-	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock);
-#endif
 	closing = ktime_get();
 	atomic_set(&hip->hip_priv->closing, 1);
 
@@ -2871,11 +2856,19 @@ void hip4_deinit(struct slsi_hip4 *hip)
 
 	scsc_service_mifintrbit_free_fromhost(service, hip->hip_priv->intr_fromhost, SCSC_MIFINTR_TARGET_R4);
 
+#ifdef CONFIG_ANDROID
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_tx);
+	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_ctrl);
+	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock_data);
+#endif
+	wake_lock_destroy(&hip->hip_priv->hip4_wake_lock);
+#endif
+
 	/* If we get to that point with rx_lock/tx_lock claimed, trigger BUG() */
 	WARN_ON(atomic_read(&hip->hip_priv->in_tx));
 	WARN_ON(atomic_read(&hip->hip_priv->in_rx));
 
-	atomic_set(&hip->hip_priv->rx_ready, 0);
 	atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
 	/* Deactive the wd timer prior its expiration */
 	del_timer_sync(&hip->hip_priv->watchdog);

@@ -50,6 +50,11 @@ struct scsc_service {
 	struct completion          sm_msg_stop_completion;
 };
 
+/* true if a service is part of a sub-system that is reported by system error */
+#define SERVICE_IN_SUBSYSTEM(service, subsys) \
+	(((subsys == SYSERR_SUBSYS_WLAN) && (service == SCSC_SERVICE_ID_WLAN)) || \
+	((subsys == SYSERR_SUBSYS_BT) && ((service == SCSC_SERVICE_ID_BT) || (service == SCSC_SERVICE_ID_ANT))))
+
 void srvman_init(struct srvman *srvman, struct scsc_mx *mx)
 {
 	SCSC_TAG_INFO(MXMAN, "\n");
@@ -445,15 +450,21 @@ int srvman_resume_services(struct srvman *srvman)
 	return 0;
 }
 
-void srvman_freeze_services(struct srvman *srvman)
+void srvman_freeze_services(struct srvman *srvman, struct mx_syserr_decode *syserr)
 {
 	struct scsc_service *service;
 	struct mxman        *mxman = scsc_mx_get_mxman(srvman->mx);
 
 	SCSC_TAG_INFO(MXMAN, "\n");
+	mxman->notify = false;
 	mutex_lock(&srvman->service_list_mutex);
 	list_for_each_entry(service, &srvman->service_list, list) {
-		service->client->stop_on_failure(service->client);
+		if (service->client->stop_on_failure) {
+			service->client->stop_on_failure(service->client);
+			mxman->notify = true;
+		} else if ((service->client->stop_on_failure_v2) &&
+			   (service->client->stop_on_failure_v2(service->client, syserr)))
+			mxman->notify = true;
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -465,18 +476,103 @@ void srvman_freeze_services(struct srvman *srvman)
 	SCSC_TAG_INFO(MXMAN, "OK\n");
 }
 
-void srvman_unfreeze_services(struct srvman *srvman, u16 scsc_panic_code)
+void srvman_freeze_sub_system(struct srvman *srvman, struct mx_syserr_decode *syserr)
 {
 	struct scsc_service *service;
+	struct mxman        *mxman = scsc_mx_get_mxman(srvman->mx);
 
 	SCSC_TAG_INFO(MXMAN, "\n");
+	mxman->notify = false;
 	mutex_lock(&srvman->service_list_mutex);
 	list_for_each_entry(service, &srvman->service_list, list) {
-		service->client->failure_reset(service->client, scsc_panic_code);
+		if ((SERVICE_IN_SUBSYSTEM(service->id, syserr->subsys) && (service->client->stop_on_failure_v2)))
+			if (service->client->stop_on_failure_v2(service->client, syserr))
+				mxman->notify = true;
 	}
 	mutex_unlock(&srvman->service_list_mutex);
 	SCSC_TAG_INFO(MXMAN, "OK\n");
 }
+
+void srvman_unfreeze_services(struct srvman *srvman, u16 scsc_panic_code)
+{
+	struct scsc_service *service;
+	struct mxman        *mxman = scsc_mx_get_mxman(srvman->mx);
+
+	SCSC_TAG_INFO(MXMAN, "\n");
+	mutex_lock(&srvman->service_list_mutex);
+	list_for_each_entry(service, &srvman->service_list, list) {
+		if (service->client->failure_reset)
+			service->client->failure_reset(service->client, scsc_panic_code);
+		else if (service->client->failure_reset_v2)
+			service->client->failure_reset_v2(service->client, MX_SYSERR_LEVEL_7,
+							  mxman->notify ? scsc_panic_code : MX_NULL_SYSERR);
+	}
+	mutex_unlock(&srvman->service_list_mutex);
+	SCSC_TAG_INFO(MXMAN, "OK\n");
+}
+
+void srvman_unfreeze_sub_system(struct srvman *srvman, struct mx_syserr_decode *syserr)
+{
+	struct scsc_service *service;
+	struct mxman        *mxman = scsc_mx_get_mxman(srvman->mx);
+
+	SCSC_TAG_INFO(MXMAN, "\n");
+	mutex_lock(&srvman->service_list_mutex);
+	list_for_each_entry(service, &srvman->service_list, list) {
+		if ((SERVICE_IN_SUBSYSTEM(service->id, syserr->subsys) && (service->client->failure_reset_v2)))
+			service->client->failure_reset_v2(service->client, syserr->level,
+							  mxman->notify ? syserr->subcode : MX_NULL_SYSERR);
+	}
+	mutex_unlock(&srvman->service_list_mutex);
+	SCSC_TAG_INFO(MXMAN, "OK\n");
+}
+
+u8 srvman_notify_sub_system(struct srvman *srvman, struct mx_syserr_decode *syserr)
+{
+	struct scsc_service *service;
+	u8 initial_level = syserr->level;
+	u8 final_level = syserr->level;
+	bool wlan_active = false;
+	bool bt_active = false;
+	bool affected_service_found = false;
+
+	SCSC_TAG_INFO(MXMAN, "\n");
+	mutex_lock(&srvman->service_list_mutex);
+	list_for_each_entry(service, &srvman->service_list, list) {
+		if (SERVICE_IN_SUBSYSTEM(service->id, SYSERR_SUBSYS_WLAN))
+			wlan_active = true;
+		else if (SERVICE_IN_SUBSYSTEM(service->id, SYSERR_SUBSYS_BT))
+			bt_active = true;
+		if ((SERVICE_IN_SUBSYSTEM(service->id, syserr->subsys) && (service->client->failure_notification))) {
+			u8 level = service->client->failure_notification(service->client, syserr);
+
+			affected_service_found = true;
+			if (level > final_level)
+				final_level = level;
+		}
+	}
+	mutex_unlock(&srvman->service_list_mutex);
+
+	if (final_level == MX_SYSERR_LEVEL_7)
+		SCSC_TAG_INFO(MXMAN, "System error level %d raised to full reset", initial_level);
+	else if ((!(wlan_active && bt_active)) && (final_level >= MX_SYSERR_LEVEL_5)) {
+		final_level = MX_SYSERR_LEVEL_6; /* Still a sub-system reset even though we will do a full restart */
+		SCSC_TAG_INFO(MXMAN, "System error %d now level %d with 1 service active", initial_level, final_level);
+	}
+
+	SCSC_TAG_INFO(MXMAN, "OK\n");
+
+	/* Handle race condition with affected service being closed by demoting severity to stop any recovery
+	 * should not be possible, but best be careful anyway
+	 */
+	if ((!affected_service_found) && (final_level >= MX_SYSERR_LEVEL_5)) {
+		SCSC_TAG_INFO(MXMAN, "System error %d demoted to 4 as no services affected", final_level);
+		final_level = MX_SYSERR_LEVEL_4;
+	}
+
+	return final_level;
+}
+
 
 /** Signal a failure detected by the Client. This will trigger the systemwide
  * failure handling procedure: _All_ Clients will be called back via
@@ -526,6 +622,9 @@ int scsc_mx_service_close(struct scsc_service *service)
 	wake_lock(&srvman->sm_wake_lock);
 #endif
 
+	/* TODO - Race conditions here unless we protect better
+	 * code assumes srvman->error and mxman->state can't change, but they can
+	 */
 	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
@@ -560,9 +659,29 @@ int scsc_mx_service_close(struct scsc_service *service)
 		/* unregister channel handler */
 		mxmgmt_transport_register_channel_handler(scsc_mx_get_mxmgmt_transport(mx), MMTRANS_CHAN_ID_SERVICE_MANAGEMENT,
 							  NULL, NULL);
+		/* Clear any system error information */
+		mxman->syserr_recovery_in_progress = false;
+		mxman->last_syserr_recovery_time = 0;
+	} else if (mxman->syserr_recovery_in_progress) {
+		/* If we have syserr_recovery_in_progress and all the services we have asked to close are now closed,
+		 * we can clear it now - don't wait for open as it may not come - do it now!
+		 */
+		struct scsc_service *serv;
+		bool all_cleared = true;
+
+		mutex_lock(&srvman->service_list_mutex);
+		list_for_each_entry(serv, &srvman->service_list, list) {
+			if (SERVICE_IN_SUBSYSTEM(serv->id, mxman->last_syserr.subsys))
+				all_cleared = false;
+		}
+		mutex_unlock(&srvman->service_list_mutex);
+
+		if (all_cleared)
+			mxman->syserr_recovery_in_progress = false;
 	}
 
 	kfree(service);
+
 	mxman_close(mxman);
 #ifdef CONFIG_ANDROID
 	wake_unlock(&srvman->sm_wake_lock);
@@ -588,7 +707,11 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 #ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
 #endif
-	if (srvman->error) {
+	/* TODO - need to close potential race conditions - see close */
+	/* Have to check for disabled here as there is a small window where error is asserted
+	 * even if we are going to allow recovery later on - in these cases we will want to block
+	 */
+	if ((srvman->error) && (mxman_recovery_disabled())) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
 				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);

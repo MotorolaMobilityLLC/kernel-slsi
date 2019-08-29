@@ -29,6 +29,7 @@
 #define SLSI_IEEE8021X_TYPE_EAP_PACKET   0
 
 #define SLSI_EAPOL_KEY_INFO_KEY_TYPE_BIT_IN_LOWER_BYTE      BIT(3) /* Group = 0, Pairwise = 1 */
+#define SLSI_EAPOL_KEY_INFO_ACK_BIT_IN_LOWER_BYTE           BIT(7)
 #define SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE          BIT(0)
 #define SLSI_EAPOL_KEY_INFO_SECURE_BIT_IN_HIGHER_BYTE       BIT(1)
 /* pkt_data would start from 802.1X Authentication field (pkt_data[0] = Version).
@@ -449,9 +450,11 @@ int slsi_del_station(struct wiphy *wiphy, struct net_device *dev, const u8 *mac)
 int slsi_del_station(struct wiphy *wiphy, struct net_device *dev, u8 *mac);
 #endif
 
+int slsi_sta_ieee80211_mode(struct net_device *dev, u16 current_bss_channel_frequency);
 int slsi_vif_activated(struct slsi_dev *sdev, struct net_device *dev);
 void slsi_vif_deactivated(struct slsi_dev *sdev, struct net_device *dev);
-int slsi_handle_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *peer_address, u16 reason);
+int slsi_handle_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *peer_address, u16 reason,
+			   u8 *disassoc_rsp_ie, int disassoc_rsp_ie_len);
 int slsi_band_update(struct slsi_dev *sdev, int band);
 int slsi_ip_address_changed(struct slsi_dev *sdev, struct net_device *dev, __be32 ipaddress);
 int slsi_send_gratuitous_arp(struct slsi_dev *sdev, struct net_device *dev);
@@ -567,4 +570,5 @@ int slsi_find_chan_idx(u16 chan, u8 hw_mode);
 #ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
 int slsi_set_num_antennas(struct net_device *dev, const u16 num_of_antennas);
 #endif
+int slsi_set_latency_mode(struct net_device *dev, int latency_mode, int cmd_len);
 #endif /*__SLSI_MGT_H__*/

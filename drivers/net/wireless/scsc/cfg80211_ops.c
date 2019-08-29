@@ -1104,7 +1104,6 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 		ndev_vif->sta.crypto.wpa_versions = 0;
 	}
 #endif
-
 	r = slsi_mlme_connect(sdev, dev, sme, channel, bssid);
 	if (r != 0) {
 		ndev_vif->sta.is_wps = false;
@@ -1198,7 +1197,7 @@ int slsi_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		if (r != 0)
 			SLSI_NET_ERR(dev, "Disconnection returned with failure\n");
 		/* Even if we fail to disconnect cleanly, tidy up. */
-		r = slsi_handle_disconnect(sdev, dev, peer->address, 0);
+		r = slsi_handle_disconnect(sdev, dev, peer->address, 0, NULL, 0);
 
 		break;
 	}
@@ -1390,7 +1389,7 @@ int slsi_del_station(struct wiphy *wiphy, struct net_device *dev,
 			if (r != 0)
 				SLSI_NET_ERR(dev, "Disconnection returned with failure\n");
 			/* Even if we fail to disconnect cleanly, tidy up. */
-			r = slsi_handle_disconnect(sdev, dev, peer->address, WLAN_REASON_DEAUTH_LEAVING);
+			r = slsi_handle_disconnect(sdev, dev, peer->address, WLAN_REASON_DEAUTH_LEAVING, NULL, 0);
 		}
 	}
 
@@ -1967,13 +1966,13 @@ static int slsi_ap_start_validate(struct net_device *dev, struct slsi_dev *sdev,
 		goto exit_with_error;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
-	if ((ndev_vif->chan->hw_value <= 14) && (!sdev->fw_2g_40mhz_enabled) &&
+	if ((ndev_vif->chan->hw_value <= 14) && (!sdev->fw_SoftAp_2g_40mhz_enabled) &&
 	    (ndev_vif->chandef->width == NL80211_CHAN_WIDTH_40)) {
 		SLSI_NET_ERR(dev, "Configuration error: 40 MHz on 2.4 GHz is not supported. Channel_no: %d Channel_width: %d\n", ndev_vif->chan->hw_value, slsi_get_chann_info(sdev, ndev_vif->chandef));
 		goto exit_with_error;
 	}
 #else
-	if ((ndev_vif->chan->hw_value <= 14) && (!sdev->fw_2g_40mhz_enabled) &&
+	if ((ndev_vif->chan->hw_value <= 14) && (!sdev->fw_SoftAp_2g_40mhz_enabled) &&
 	    (ndev_vif->channel_type > NL80211_CHAN_HT20)) {
 		SLSI_NET_ERR(dev, "Configuration error: 40 MHz on 2.4 GHz is not supported. Channel_no: %d Channel_width: %d\n", ndev_vif->chan->hw_value, slsi_get_chann_info(sdev, ndev_vif->channel_type));
 		goto exit_with_error;
@@ -2057,21 +2056,23 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 	ndev_sta_vif = netdev_priv(wlan_dev);
 	if (SLSI_IS_VIF_INDEX_MHS(sdev, ndev_vif)) {
-		SLSI_MUTEX_LOCK(ndev_sta_vif->vif_mutex);
-		if ((ndev_sta_vif->activated) && (ndev_sta_vif->vif_type == FAPI_VIFTYPE_STATION) &&
-		    (ndev_sta_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTING ||
-		     ndev_sta_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED)) {
-			invalid_channel = slsi_select_wifi_sharing_ap_channel(wiphy, dev, settings, sdev,
-									      &wifi_sharing_channel_switched);
-			skip_indoor_check_for_wifi_sharing = 1;
-			if (invalid_channel) {
-				SLSI_NET_ERR(dev, "Rejecting AP start req at host (invalid channel)\n");
-				SLSI_MUTEX_UNLOCK(ndev_sta_vif->vif_mutex);
-				r = -EINVAL;
-				goto exit_with_vif_mutex;
+		if (ndev_sta_vif) {
+			SLSI_MUTEX_LOCK(ndev_sta_vif->vif_mutex);
+			if ((ndev_sta_vif->activated) && (ndev_sta_vif->vif_type == FAPI_VIFTYPE_STATION) &&
+			    (ndev_sta_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTING ||
+			     ndev_sta_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED)) {
+				invalid_channel = slsi_select_wifi_sharing_ap_channel(wiphy, dev, settings, sdev,
+										      &wifi_sharing_channel_switched);
+				skip_indoor_check_for_wifi_sharing = 1;
+				if (invalid_channel) {
+					SLSI_NET_ERR(dev, "Rejecting AP start req at host (invalid channel)\n");
+					SLSI_MUTEX_UNLOCK(ndev_sta_vif->vif_mutex);
+					r = -EINVAL;
+					goto exit_with_vif_mutex;
+				}
 			}
+			SLSI_MUTEX_UNLOCK(ndev_sta_vif->vif_mutex);
 		}
-		SLSI_MUTEX_UNLOCK(ndev_sta_vif->vif_mutex);
 	}
 #endif
 
@@ -2137,8 +2138,11 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		goto exit_with_vif_mutex;
 
 	if (ndev_vif->iftype == NL80211_IFTYPE_P2P_GO) {
+		struct net_device   *p2p_dev;
+
 		slsi_p2p_group_start_remove_unsync_vif(sdev);
-		SLSI_ETHER_COPY(device_address, dev->dev_addr);
+		p2p_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2P);
+		SLSI_ETHER_COPY(device_address, p2p_dev->dev_addr);
 		if (keep_alive_period != SLSI_P2PGO_KEEP_ALIVE_PERIOD_SEC)
 			if (slsi_set_uint_mib(sdev, NULL, SLSI_PSID_UNIFI_MLMEGO_KEEP_ALIVE_TIMEOUT,
 					      keep_alive_period) != 0) {
@@ -2184,7 +2188,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	} else if (sdev->fw_ht_enabled && sdev->allow_switch_40_mhz &&
 			   slsi_get_max_bw_mhz(sdev, ndev_vif->chandef->chan->center_freq) >= 40 &&
 			   ((ndev_vif->chandef->chan->hw_value < 165 && ndev_vif->chandef->chan->hw_value >= 36) ||
-			   (ndev_vif->chandef->chan->hw_value < 12 && sdev->fw_2g_40mhz_enabled &&
+			   (ndev_vif->chandef->chan->hw_value < 12 && sdev->fw_SoftAp_2g_40mhz_enabled &&
 			   ndev_vif->iftype == NL80211_IFTYPE_P2P_GO))) {
 		/* HT40 configuration (5GHz/2GHz and HT) */
 		u16  oper_chan = ndev_vif->chandef->chan->hw_value;
@@ -3242,7 +3246,12 @@ static const u32                   slsi_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_CCMP,
 	WLAN_CIPHER_SUITE_AES_CMAC,
 	WLAN_CIPHER_SUITE_SMS4,
-	WLAN_CIPHER_SUITE_PMK
+	WLAN_CIPHER_SUITE_PMK,
+	WLAN_CIPHER_SUITE_GCMP,
+	WLAN_CIPHER_SUITE_GCMP_256,
+	WLAN_CIPHER_SUITE_CCMP_256,
+	WLAN_CIPHER_SUITE_BIP_GMAC_128,
+	WLAN_CIPHER_SUITE_BIP_GMAC_256
 };
 
 static const struct ieee80211_txrx_stypes
@@ -3480,6 +3489,7 @@ struct slsi_dev                           *slsi_cfg80211_new(struct device *dev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 	wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+	wiphy->features |= NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR;
 #endif
 #endif
 #ifdef CONFIG_SCSC_WLAN_SAE_CONFIG

@@ -20,6 +20,7 @@
 #include "mifproc.h"
 #include "mxman.h"
 #include "mxproc.h"
+#include "mxsyserr.h"
 #include "srvman.h"
 #include "mxmgmt_transport.h"
 #include "gdb_transport.h"
@@ -87,6 +88,7 @@ struct scsc_mx *scsc_mx_create(struct scsc_mif_abs *mif)
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_init();
 #endif
+	mx_syserr_init();
 	SCSC_TAG_DEBUG(MXMAN, "Hurray Maxwell is here with %p\n", mx);
 	return mx;
 }
