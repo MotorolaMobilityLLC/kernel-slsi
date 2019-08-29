@@ -67,8 +67,7 @@ extern "C" {
 
 extern uint slsi_sg_host_align_mask;
 #define SLSI_HIP_FH_SIG_PREAMBLE_LEN 4
-#define SLSI_SKB_GET_ALIGNMENT_OFFSET(skb) (offset_in_page(skb->data + SLSI_NETIF_SKB_HEADROOM - SLSI_HIP_FH_SIG_PREAMBLE_LEN) \
-					    & slsi_sg_host_align_mask)
+#define SLSI_SKB_GET_ALIGNMENT_OFFSET(skb) (0)
 
 /* Get the Compiler to ignore Unused parameters */
 #define SLSI_UNUSED_PARAMETER(x) ((void)(x))

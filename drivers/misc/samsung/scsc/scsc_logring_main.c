@@ -258,7 +258,7 @@ ADD_DEBUG_MODULE_PARAM(test_me, SCSC_FULL_DEBUG, TEST_ME);
 /* Extend this list when you add ADD_DEBUG_MODULE_PARAM, above.
  * You must also extend "enum scsc_logring_tags"
  */
-int *scsc_droplevels[] = {
+int *scsc_droplevels[MAX_TAG + 1] = {
 	&scsc_droplevel_binary,
 	&scsc_droplevel_bin_wifi_ctrl_rx,
 	&scsc_droplevel_bin_wifi_data_rx,

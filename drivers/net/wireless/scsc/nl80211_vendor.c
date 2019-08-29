@@ -105,6 +105,8 @@ char *slsi_print_event_name(int event_id)
 		return "SLSI_NL80211_RTT_COMPLETE_EVENT";
 	case SLSI_NL80211_VENDOR_ACS_EVENT:
 		return "SLSI_NL80211_VENDOR_ACS_EVENT";
+	case SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS:
+		return "SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS";
 	default:
 		return "UNKNOWN_EVENT";
 	}
@@ -279,10 +281,16 @@ static int slsi_gscan_get_valid_channel(struct wiphy *wiphy,
 	u32             chan_count = 0, mem_len = 0;
 	struct sk_buff  *reply;
 
+	if (len < SLSI_NL_VENDOR_DATA_OVERHEAD)
+		return -EINVAL;
+
 	type = nla_type(data);
 
-	if (type == GSCAN_ATTRIBUTE_BAND)
+	if (type == GSCAN_ATTRIBUTE_BAND) {
+		if (nla_len((struct nlattr *)data) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+			return -EINVAL;
 		band = nla_get_u32(data);
+	}
 	else
 		return -EINVAL;
 
@@ -691,18 +699,28 @@ static int slsi_gscan_add_read_params(struct slsi_nl_gscan_param *nl_gscan_param
 
 		switch (type) {
 		case GSCAN_ATTRIBUTE_BASE_PERIOD:
+			if (nla_len(iter) != SLSI_NL_ATTRIBUTE_U32_LEN)
+				return -EINVAL;
 			nl_gscan_param->base_period = nla_get_u32(iter);
 			break;
 		case GSCAN_ATTRIBUTE_NUM_AP_PER_SCAN:
+			if (nla_len(iter) != SLSI_NL_ATTRIBUTE_U32_LEN)
+				return -EINVAL;
 			nl_gscan_param->max_ap_per_scan = nla_get_u32(iter);
 			break;
 		case GSCAN_ATTRIBUTE_REPORT_THRESHOLD:
+			if (nla_len(iter) != SLSI_NL_ATTRIBUTE_U32_LEN)
+				return -EINVAL;
 			nl_gscan_param->report_threshold_percent = nla_get_u32(iter);
 			break;
 		case GSCAN_ATTRIBUTE_REPORT_THRESHOLD_NUM_SCANS:
+			if (nla_len(iter) != SLSI_NL_ATTRIBUTE_U32_LEN)
+				return -EINVAL;
 			nl_gscan_param->report_threshold_num_scans = nla_get_u32(iter);
 			break;
 		case GSCAN_ATTRIBUTE_NUM_BUCKETS:
+			if (nla_len(iter) != SLSI_NL_ATTRIBUTE_U32_LEN)
+				return -EINVAL;
 			nl_gscan_param->num_buckets = nla_get_u32(iter);
 			break;
 		case GSCAN_ATTRIBUTE_CH_BUCKET_1:
@@ -715,38 +733,61 @@ static int slsi_gscan_add_read_params(struct slsi_nl_gscan_param *nl_gscan_param
 		case GSCAN_ATTRIBUTE_CH_BUCKET_8:
 			nla_for_each_nested(iter1, iter, tmp1) {
 				type = nla_type(iter1);
+
 				nl_bucket = nl_gscan_param->nl_bucket;
 
 				switch (type) {
 				case GSCAN_ATTRIBUTE_BUCKET_ID:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].bucket_index = nla_get_u32(iter1);
 					break;
 				case GSCAN_ATTRIBUTE_BUCKET_PERIOD:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].period = nla_get_u32(iter1);
 					break;
 				case GSCAN_ATTRIBUTE_BUCKET_NUM_CHANNELS:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].num_channels = nla_get_u32(iter1);
 					break;
 				case GSCAN_ATTRIBUTE_BUCKET_CHANNELS:
 					nla_for_each_nested(iter2, iter1, tmp2) {
+						if (k >= SLSI_GSCAN_MAX_CHANNELS)
+							break;
+
+						if (nla_len(iter2) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+							return -EINVAL;
+
 						nl_bucket[j].channels[k].channel = nla_get_u32(iter2);
 						k++;
 					}
 					k = 0;
 					break;
 				case GSCAN_ATTRIBUTE_BUCKETS_BAND:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].band = nla_get_u32(iter1);
 					break;
 				case GSCAN_ATTRIBUTE_REPORT_EVENTS:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].report_events = nla_get_u32(iter1);
 					break;
 				case GSCAN_ATTRIBUTE_BUCKET_EXPONENT:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].exponent = nla_get_u32(iter1);
 					break;
 				case GSCAN_ATTRIBUTE_BUCKET_STEP_COUNT:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].step_count = nla_get_u32(iter1);
 					break;
 				case GSCAN_ATTRIBUTE_BUCKET_MAX_PERIOD:
+					if (nla_len(iter1) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN))
+						return -EINVAL;
 					nl_bucket[j].max_period = nla_get_u32(iter1);
 					break;
 				default:
@@ -897,7 +938,7 @@ static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param
 	int                          ret = 0;
 	int                          i;
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
-	u8 mac_addr_mask[ETH_ALEN] = {0xFF};
+	u8 mac_addr_mask[ETH_ALEN];
 #endif
 
 	dev = slsi_gscan_get_netdev(sdev);
@@ -934,17 +975,15 @@ static int slsi_gscan_add_mlme(struct slsi_dev *sdev, struct slsi_nl_gscan_param
 			report_mode |= FAPI_REPORTMODE_NO_BATCH;
 
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+		memset(mac_addr_mask, 0xFF, ETH_ALEN);
 		if (sdev->scan_addr_set == 1) {
-			memset(mac_addr_mask, 0xFF, ETH_ALEN);
 			for (i = 3; i < ETH_ALEN; i++)
 				mac_addr_mask[i] = 0x00;
 			ret = slsi_set_mac_randomisation_mask(sdev, mac_addr_mask);
 			if (ret)
 				sdev->scan_addr_set = 0;
-		} else {
-			memset(mac_addr_mask, 0xFF, ETH_ALEN);
+		} else
 			slsi_set_mac_randomisation_mask(sdev, mac_addr_mask);
-		}
 #endif
 		ret = slsi_mlme_add_scan(sdev,
 					 dev,
@@ -1134,6 +1173,8 @@ static int slsi_gscan_get_scan_results(struct wiphy *wiphy,
 
 		switch (type) {
 		case GSCAN_ATTRIBUTE_NUM_OF_RESULTS:
+			if (nla_len(attr) != SLSI_NL_ATTRIBUTE_U32_LEN)
+				return -EINVAL;
 			nl_num_results = nla_get_u32(attr);
 			break;
 		default:
@@ -2463,6 +2504,10 @@ static int slsi_gscan_set_oui(struct wiphy *wiphy,
 		switch (type) {
 		case SLSI_NL_ATTRIBUTE_PNO_RANDOM_MAC_OUI:
 		{
+			if (nla_len(attr) != 3) {
+				ret = -EINVAL;
+				break;
+			}
 			memcpy(&scan_oui, nla_data(attr), 3);
 			memcpy(sdev->scan_mac_addr, scan_oui, 6);
 			sdev->scan_addr_set = 1;
@@ -2640,7 +2685,7 @@ static int slsi_apf_set_filter(struct wiphy *wiphy, struct wireless_dev *wdev, c
 	int                      type;
 	const struct nlattr      *attr;
 	u32 program_len = 0;
-	u8 *program;
+	u8 *program = NULL;
 
 	SLSI_DBG3(sdev, SLSI_GSCAN, "Received apf_set_filter command\n");
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
@@ -2663,6 +2708,10 @@ static int slsi_apf_set_filter(struct wiphy *wiphy, struct wireless_dev *wdev, c
 		{
 			program_len = nla_get_u32(attr);
 			program = kmalloc(program_len, GFP_KERNEL);
+			if (!program) {
+				ret = -ENOMEM;
+				goto exit;
+			}
 			break;
 		}
 		case SLSI_APF_ATTR_PROGRAM:
@@ -2684,6 +2733,7 @@ static int slsi_apf_set_filter(struct wiphy *wiphy, struct wireless_dev *wdev, c
 		goto exit;
 	}
 exit:
+	kfree(program);
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 	return ret;
 }
@@ -4424,6 +4474,41 @@ static int slsi_acs_init(struct wiphy *wiphy,
 	return r;
 }
 
+static int slsi_configure_latency_mode(struct wiphy *wiphy, struct wireless_dev *wdev, const void *data, int len)
+{
+	struct slsi_dev     *sdev = SDEV_FROM_WIPHY(wiphy);
+	struct net_device   *dev = wdev->netdev;
+	int                 temp = 0;
+	int                 type = 0;
+	const struct nlattr *attr;
+	int                 ret = 0;
+	int                 low_latency_mode = 0;
+
+	if (!dev) {
+		SLSI_ERR(sdev, "dev is NULL!!\n");
+		return -EINVAL;
+	}
+
+	nla_for_each_attr(attr, data, len, temp) {
+		type = nla_type(attr);
+		switch (type) {
+		case SLSI_NL_ATTRIBUTE_LATENCY_MODE:
+			low_latency_mode = nla_get_u8(attr);
+			break;
+		default:
+			SLSI_ERR_NODEV("Unknown attribute: %d\n", type);
+			ret = -EINVAL;
+			goto exit;
+		}
+	}
+
+	ret = slsi_set_latency_mode(dev, low_latency_mode, len);
+	if (ret)
+		SLSI_ERR(sdev, "Error in setting low latency mode ret:%d\n", ret);
+exit:
+	return ret;
+}
+
 static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
 	/**********Deprecated now due to fapi updates.Do not remove*/
 	{ OUI_GOOGLE, SLSI_NL80211_SIGNIFICANT_CHANGE_EVENT },
@@ -4458,7 +4543,8 @@ static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
 	{ OUI_GOOGLE,  SLSI_NL80211_RTT_COMPLETE_EVENT},
 	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_ACS_EVENT},
 	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_FORWARD_BEACON},
-	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_FORWARD_BEACON_ABORT}
+	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_FORWARD_BEACON_ABORT},
+	{ OUI_GOOGLE,  SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS}
 };
 
 static const struct wiphy_vendor_command     slsi_vendor_cmd[] = {
@@ -4883,6 +4969,14 @@ static const struct wiphy_vendor_command     slsi_vendor_cmd[] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = slsi_apf_read_filter
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_SET_LATENCY_MODE
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = slsi_configure_latency_mode
 	}
 };
 

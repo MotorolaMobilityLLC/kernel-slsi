@@ -190,7 +190,7 @@ static void mxfwconfig_get_dram_ref(struct scsc_mx *mx, struct mxmibref *cfg_ref
 		cfg_ref->size = 0;
 	} else {
 		mif->get_mifram_ref(mif, mxfwconfig->shdram, &cfg_ref->offset);
-		cfg_ref->size = mxfwconfig->shtotal;
+		cfg_ref->size = (uint32_t)mxfwconfig->shtotal;
 	}
 
 	SCSC_TAG_INFO(MX_CFG, "cfg_ref: 0x%x, size %u\n", cfg_ref->offset, cfg_ref->size);

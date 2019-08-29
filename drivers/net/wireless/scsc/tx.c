@@ -76,7 +76,9 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 		 *  In M4 packet,
 		 *   - MIC bit set in key info
 		 *   - Key type bit set in key info (pairwise=1, Group=0)
-		 *   - Key Data Length would be 0
+		 *   - ACK bit will not be set
+		 *   - Secure bit will be set in key type RSN (WPA2/WPA3 Personal/WPA3 Enterprise)
+		 *   - Key Data length check for Zero is for WPA as Secure bit will not be set
 		 */
 		if ((skb->len - sizeof(struct ethhdr)) >= 99)
 			eapol = skb->data + sizeof(struct ethhdr);
@@ -85,9 +87,10 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 
 			if ((eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_RSN_KEY || eapol[SLSI_EAPOL_TYPE_POS] == SLSI_EAPOL_TYPE_WPA_KEY) &&
 			    (eapol[SLSI_EAPOL_KEY_INFO_LOWER_BYTE_POS] & SLSI_EAPOL_KEY_INFO_KEY_TYPE_BIT_IN_LOWER_BYTE) &&
+			    (!(eapol[SLSI_EAPOL_KEY_INFO_LOWER_BYTE_POS] & SLSI_EAPOL_KEY_INFO_ACK_BIT_IN_LOWER_BYTE)) &&
 			    (eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] & SLSI_EAPOL_KEY_INFO_MIC_BIT_IN_HIGHER_BYTE) &&
-			    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_HIGHER_BYTE_POS] == 0) &&
-			    (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)) {
+			    ((eapol[SLSI_EAPOL_KEY_INFO_HIGHER_BYTE_POS] & SLSI_EAPOL_KEY_INFO_SECURE_BIT_IN_HIGHER_BYTE) ||
+			    ((eapol[SLSI_EAPOL_KEY_DATA_LENGTH_HIGHER_BYTE_POS] == 0) && (eapol[SLSI_EAPOL_KEY_DATA_LENGTH_LOWER_BYTE_POS] == 0)))) {
 				msg_type = FAPI_MESSAGETYPE_EAPOL_KEY_M4;
 				dwell_time = 0;
 			}

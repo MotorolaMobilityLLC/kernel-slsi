@@ -1352,7 +1352,7 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 			SLSI_INFO(sdev, "procedure-started-ind not received before roamed-ind\n");
 		netif_carrier_off(dev);
 		slsi_mlme_disconnect(sdev, dev, peer->address, 0, true);
-		slsi_handle_disconnect(sdev, dev, peer->address, 0);
+		slsi_handle_disconnect(sdev, dev, peer->address, 0, NULL, 0);
 	} else {
 		u8  *assoc_ie = NULL;
 		int assoc_ie_len = 0;
@@ -1540,14 +1540,16 @@ static void slsi_tdls_event_connected(struct slsi_dev *sdev, struct net_device *
 	if (WARN(ndev_vif->vif_type != FAPI_VIFTYPE_STATION, "STA VIF"))
 		goto exit_with_lock;
 
-	/* Check for MAX client */
-	if ((ndev_vif->sta.tdls_peer_sta_records) + 1 > SLSI_TDLS_PEER_CONNECTIONS_MAX) {
-		SLSI_NET_ERR(dev, "MAX TDLS peer limit reached. Ignore ind for peer_index:%d\n", peer_index);
+	if (peer_index < SLSI_TDLS_PEER_INDEX_MIN || peer_index > SLSI_TDLS_PEER_INDEX_MAX) {
+		SLSI_NET_ERR(dev, "Received incorrect peer_index: %d\n", peer_index);
 		goto exit_with_lock;
 	}
 
-	if (peer_index < SLSI_TDLS_PEER_INDEX_MIN || peer_index > SLSI_TDLS_PEER_INDEX_MAX) {
-		SLSI_NET_ERR(dev, "Received incorrect peer_index: %d\n", peer_index);
+	slsi_spinlock_lock(&ndev_vif->peer_lock);
+	/* Check for MAX client */
+	if ((ndev_vif->sta.tdls_peer_sta_records) + 1 > SLSI_TDLS_PEER_CONNECTIONS_MAX) {
+		SLSI_NET_ERR(dev, "MAX TDLS peer limit reached. Ignore ind for peer_index:%d\n", peer_index);
+		slsi_spinlock_unlock(&ndev_vif->peer_lock);
 		goto exit_with_lock;
 	}
 
@@ -1555,6 +1557,7 @@ static void slsi_tdls_event_connected(struct slsi_dev *sdev, struct net_device *
 
 	if (!peer) {
 		SLSI_NET_ERR(dev, "Peer NOT Created\n");
+		slsi_spinlock_unlock(&ndev_vif->peer_lock);
 		goto exit_with_lock;
 	}
 
@@ -1565,6 +1568,7 @@ static void slsi_tdls_event_connected(struct slsi_dev *sdev, struct net_device *
 
 	/* Move TDLS packets from STA_Q to TDLS_Q */
 	slsi_tdls_move_packets(sdev, dev, ndev_vif->peer_sta_record[SLSI_STA_PEER_QUEUESET], peer, true);
+	slsi_spinlock_unlock(&ndev_vif->peer_lock);
 
 	/* Handling MLME-TDLS-PEER.response */
 	slsi_mlme_tdls_peer_resp(sdev, dev, peer_index, tdls_event);
@@ -1594,11 +1598,13 @@ static void slsi_tdls_event_disconnected(struct slsi_dev *sdev, struct net_devic
 		goto exit;
 	}
 
+	slsi_spinlock_lock(&ndev_vif->peer_lock);
 	peer = slsi_get_peer_from_mac(sdev, dev, fapi_get_buff(skb, u.mlme_tdls_peer_ind.peer_sta_address));
 
 	if (!peer || (peer->aid == 0)) {
 		WARN_ON(!peer || (peer->aid == 0));
 		SLSI_NET_DBG1(dev, SLSI_MLME, "peer NOT found by MAC address\n");
+		slsi_spinlock_unlock(&ndev_vif->peer_lock);
 		goto exit;
 	}
 
@@ -1608,11 +1614,11 @@ static void slsi_tdls_event_disconnected(struct slsi_dev *sdev, struct net_devic
 	slsi_tdls_move_packets(sdev, dev, ndev_vif->peer_sta_record[SLSI_STA_PEER_QUEUESET], peer, false);
 
 	slsi_peer_remove(sdev, dev, peer);
+	slsi_spinlock_unlock(&ndev_vif->peer_lock);
 
 	slsi_mlme_tdls_peer_resp(sdev, dev, pid, tdls_event);
 exit:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-
 	slsi_kfree_skb(skb);
 }
 
@@ -1920,6 +1926,22 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		} else if (fw_result_code >= 0x8200 && fw_result_code <= 0x82FF) {
 			fw_result_code = fw_result_code & 0x00FF;
 			SLSI_INFO(sdev, "Connect failed(Assoc Failure), Result code:0x%04x\n", fw_result_code);
+			if (fapi_get_datalen(skb)) {
+				int mgmt_hdr_len;
+				struct ieee80211_mgmt *mgmt = fapi_get_mgmt(skb);
+
+				if (ieee80211_is_assoc_resp(mgmt->frame_control)) {
+					mgmt_hdr_len = (mgmt->u.assoc_resp.variable - (u8 *)mgmt);
+				} else if (ieee80211_is_reassoc_resp(mgmt->frame_control)) {
+					mgmt_hdr_len = (mgmt->u.reassoc_resp.variable - (u8 *)mgmt);
+				} else {
+					SLSI_NET_DBG1(dev, SLSI_MLME, "Assoc/Reassoc response not found!\n");
+					goto exit_with_lock;
+				}
+
+				assoc_rsp_ie = (char *)mgmt + mgmt_hdr_len;
+				assoc_rsp_ie_len = fapi_get_datalen(skb) - mgmt_hdr_len;
+			}
 		} else {
 			SLSI_INFO(sdev, "Connect failed,Result code:0x%04x\n", fw_result_code);
 		}
@@ -2006,9 +2028,12 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		if (!ndev_vif->sta.sta_bss) {
 			if (peer)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
-				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, NULL, peer->address, NULL, 0,  IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
+				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, ndev_vif->chan, peer->address,
+									 NULL, 0,  IEEE80211_BSS_TYPE_ANY,
+									 IEEE80211_PRIVACY_ANY);
 #else
-				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, NULL, peer->address, NULL, 0,  0, 0);
+				ndev_vif->sta.sta_bss = cfg80211_get_bss(sdev->wiphy, ndev_vif->chan, peer->address,
+									 NULL, 0,  0, 0);
 #endif
 			if (!ndev_vif->sta.sta_bss) {
 				SLSI_NET_ERR(dev, "sta_bss is not available, terminating the connection (peer: %p)\n", peer);
@@ -2017,14 +2042,21 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		}
 	}
 
-	/* cfg80211_connect_result will take a copy of any ASSOC or ASSOC RSP IEs passed to it */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+	cfg80211_ref_bss(sdev->wiphy, ndev_vif->sta.sta_bss);
+	cfg80211_connect_bss(dev, bssid, ndev_vif->sta.sta_bss, assoc_ie, assoc_ie_len, assoc_rsp_ie,
+			     assoc_rsp_ie_len, status, GFP_KERNEL, NL80211_TIMEOUT_UNSPECIFIED);
+#else
+	/* cfg80211_connect_result will take a copy of any ASSOC or
+	 * ASSOC RSP IEs passed to it
+	 */
 	cfg80211_connect_result(dev,
 				bssid,
 				assoc_ie, assoc_ie_len,
 				assoc_rsp_ie, assoc_rsp_ie_len,
 				status,
 				GFP_KERNEL);
-
+#endif
 	if (status == WLAN_STATUS_SUCCESS) {
 		ndev_vif->sta.vif_status = SLSI_VIF_STATUS_CONNECTED;
 
@@ -2075,9 +2107,9 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		 */
 		if ((fw_result_code == FAPI_RESULTCODE_SUCCESS) && peer) {
 			slsi_mlme_disconnect(sdev, dev, peer->address, FAPI_REASONCODE_UNSPECIFIED_REASON, true);
-			slsi_handle_disconnect(sdev, dev, peer->address, FAPI_REASONCODE_UNSPECIFIED_REASON);
+			slsi_handle_disconnect(sdev, dev, peer->address, FAPI_REASONCODE_UNSPECIFIED_REASON, NULL, 0);
 		} else {
-			slsi_handle_disconnect(sdev, dev, NULL, FAPI_REASONCODE_UNSPECIFIED_REASON);
+			slsi_handle_disconnect(sdev, dev, NULL, FAPI_REASONCODE_UNSPECIFIED_REASON, NULL, 0);
 		}
 	}
 
@@ -2106,6 +2138,8 @@ void slsi_rx_disconnect_ind(struct slsi_dev *sdev, struct net_device *dev, struc
 	slsi_handle_disconnect(sdev,
 			       dev,
 			       fapi_get_buff(skb, u.mlme_disconnect_ind.peer_sta_address),
+			       0,
+			       NULL,
 			       0);
 
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
@@ -2116,6 +2150,8 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	u16 reason;
+	u8 *disassoc_rsp_ie = NULL;
+	int disassoc_rsp_ie_len = 0;
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	reason = fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code);
@@ -2129,7 +2165,7 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 #else
 	mx140_log_dump();
 #endif
-	if (reason >= 0 && reason <= 0xFF) {
+	if (reason <= 0xFF) {
 		SLSI_INFO(sdev, "Received DEAUTH, reason = %d\n", reason);
 	} else if (reason >= 0x8100 && reason <= 0x81FF) {
 		reason = reason & 0x00FF;
@@ -2139,6 +2175,20 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 		SLSI_INFO(sdev, "Received DISASSOC, reason = %d\n", reason);
 	} else {
 		SLSI_INFO(sdev, "Received DEAUTH, reason = Local Disconnect <%d>\n", reason);
+	}
+
+	if (fapi_get_datalen(skb)) {
+		struct ieee80211_mgmt *mgmt = fapi_get_mgmt(skb);
+
+		if (ieee80211_is_deauth(mgmt->frame_control)) {
+			disassoc_rsp_ie = (char *)&mgmt->u.deauth.reason_code + 2;
+			disassoc_rsp_ie_len = fapi_get_datalen(skb) - 2;
+		} else if (ieee80211_is_disassoc(mgmt->frame_control)) {
+			disassoc_rsp_ie = (char *)&mgmt->u.disassoc.reason_code + 2;
+			disassoc_rsp_ie_len = fapi_get_datalen(skb) - 2;
+		} else {
+			SLSI_NET_DBG1(dev, SLSI_MLME, "Not a disassoc/deauth packet\n");
+		}
 	}
 
 	if (ndev_vif->vif_type == FAPI_VIFTYPE_AP) {
@@ -2155,7 +2205,9 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 	slsi_handle_disconnect(sdev,
 			       dev,
 			       fapi_get_buff(skb, u.mlme_disconnected_ind.peer_sta_address),
-			       fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code));
+			       fapi_get_u16(skb, u.mlme_disconnected_ind.reason_code),
+			       disassoc_rsp_ie,
+			       disassoc_rsp_ie_len);
 
 exit:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);

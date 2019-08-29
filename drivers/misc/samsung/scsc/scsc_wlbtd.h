@@ -80,4 +80,5 @@ int scsc_wlbtd_deinit(void);
 int call_wlbtd(const char *script_path);
 int wlbtd_write_file(const char *path, const char *content);
 int call_wlbtd_sable(u8 trigger_code, u16 reason_code);
+void scsc_wlbtd_wait_for_sable_logging(void);
 int scsc_wlbtd_get_and_print_build_type(void);

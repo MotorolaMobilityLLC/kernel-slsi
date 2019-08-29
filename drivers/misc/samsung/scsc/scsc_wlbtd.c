@@ -135,7 +135,7 @@ static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 		}
 		if (!completion_done(&event_done)) {
 			SCSC_TAG_INFO(WLBTD, "completing event_done\n");
-			complete(&event_done);
+			complete_all(&event_done);
 		}
 		break;
 	case SCSC_WLBTD_FW_PANIC_TAR_GENERATED:
@@ -161,7 +161,7 @@ static int msg_from_wlbtd_sable_cb(struct sk_buff *skb, struct genl_info *info)
 	case SCSC_WLBTD_OTHER_IGNORE_TRIGGER:
 		if (!completion_done(&event_done)) {
 			SCSC_TAG_INFO(WLBTD, "completing event_done\n");
-			complete(&event_done);
+			complete_all(&event_done);
 		}
 		break;
 	default:
@@ -568,6 +568,19 @@ error:
 	return -1;
 }
 EXPORT_SYMBOL(call_wlbtd_sable);
+
+void scsc_wlbtd_wait_for_sable_logging(void)
+{
+	unsigned long completion_jiffies = 0;
+	unsigned long max_timeout_jiffies = msecs_to_jiffies(MAX_TIMEOUT);
+	/* Just waits for the log collection not tarring */
+	completion_jiffies = wait_for_completion_timeout(&event_done,
+						max_timeout_jiffies);
+	if (!completion_jiffies)
+		SCSC_TAG_ERR(WLBTD, "wait for sable logging timed out !\n");
+}
+EXPORT_SYMBOL(scsc_wlbtd_wait_for_sable_logging);
+
 
 int call_wlbtd(const char *script_path)
 {

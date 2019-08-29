@@ -573,6 +573,8 @@ struct slsi_vif_sta {
 
 	struct slsi_wmm_ac wmm_ac[4];
 	bool                    nd_offload_enabled;
+	unsigned long           data_rate_mbps;
+	unsigned long           max_rate_mbps;
 
 	/*This structure is used to store last disconnected bss info and valid even when vif is deactivated. */
 	struct slsi_last_connected_bss last_connected_bss;
@@ -580,6 +582,8 @@ struct slsi_vif_sta {
 
 	/* Variable to indicate if roamed_ind needs to be dropped in driver, to maintain roam synchronization. */
 	atomic_t                drop_roamed_ind;
+	u8                      *vendor_disconnect_ies;
+	int                     vendor_disconnect_ies_len;
 };
 
 struct slsi_vif_unsync {
@@ -1135,7 +1139,7 @@ struct slsi_dev {
 	int                        wifi_sharing_5g_restricted_channels[25];
 	int                        num_5g_restricted_channels;
 #endif
-	bool                       fw_2g_40mhz_enabled;
+	bool                       fw_SoftAp_2g_40mhz_enabled;
 	bool                       nan_enabled;
 	u16                        assoc_result_code; /* Status of latest association in STA mode */
 	bool                       allow_switch_40_mhz; /* Used in AP cert to disable HT40 when not configured */
