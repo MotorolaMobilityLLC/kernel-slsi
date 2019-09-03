@@ -1777,28 +1777,32 @@ static int contexthub_suspend(struct device *dev)
 #endif
 }
 
-static int contexthub_resume(struct device *dev)
+static void contexthub_resume(struct device *dev)
 {
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	struct nanohub_data *data = ipc->data;
 #endif
 
+	int ret;
 	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
-		return 0;
+		ret = 0;
 
 	dev_info(dev, "nanohub log to kernel on\n");
 	ipc_hw_write_shared_reg(AP, AP_WAKE, SR_3);
 	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
 
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
-	return nanohub_resume(data->iio_dev);
-#else
-	return 0;
+	ret = nanohub_resume(data->iio_dev);
 #endif
+	return;
 }
 
-static SIMPLE_DEV_PM_OPS(contexthub_pm_ops, contexthub_suspend, contexthub_resume);
+//static SIMPLE_DEV_PM_OPS(contexthub_pm_ops, contexthub_suspend, contexthub_resume);
+static const struct dev_pm_ops contexthub_pm_ops = {
+	.prepare = contexthub_suspend,
+	.complete = contexthub_resume,
+};
 
 static const struct of_device_id contexthub_ipc_match[] = {
 	{.compatible = "samsung,exynos-nanohub"},
