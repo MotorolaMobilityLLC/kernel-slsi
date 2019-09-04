@@ -656,6 +656,7 @@
 				card-init-hwacg-ctrl;
 				skip-init-mmc-scan;
 				skip-init-no-tray;
+				pm-ignore-notify;
 				qos-dvfs-level = <100000>;
 				fifo-depth = <0x40>;
 				desc-size = <4>;
