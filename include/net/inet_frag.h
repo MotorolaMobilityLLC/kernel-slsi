@@ -96,7 +96,11 @@ struct inet_frags {
 	void			(*constructor)(struct inet_frag_queue *q,
 					       const void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+	void			(*frag_expire)(unsigned long t);
+#else
 	void			(*frag_expire)(struct timer_list *t);
+#endif
 	struct kmem_cache	*frags_cachep;
 	const char		*frags_cache_name;
 	struct rhashtable_params rhash_params;
