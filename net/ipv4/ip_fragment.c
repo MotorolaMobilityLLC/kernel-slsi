@@ -183,9 +183,13 @@ static bool frag_expire_skip_icmp(u32 user)
 /*
  * Oops, a fragment queue timed out.  Kill it and send an ICMP reply.
  */
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+static void ip_expire(unsigned long t)
+#else
 static void ip_expire(struct timer_list *t)
+#endif
 {
-	struct inet_frag_queue *frag = from_timer(frag, t, timer);
+	struct inet_frag_queue *frag = from_timer(frag, (struct timer_list *)t, timer);
 	const struct iphdr *iph;
 	struct sk_buff *head = NULL;
 	struct net *net;
