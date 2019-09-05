@@ -150,9 +150,13 @@ static inline u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
 	return 1 << (ipv6_get_dsfield(ipv6h) & INET_ECN_MASK);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+static void nf_ct_frag6_expire(unsigned long t)
+#else
 static void nf_ct_frag6_expire(struct timer_list *t)
+#endif
 {
-	struct inet_frag_queue *frag = from_timer(frag, t, timer);
+	struct inet_frag_queue *frag = from_timer(frag, (struct timer_list *)t, timer);
 	struct frag_queue *fq;
 	struct net *net;
 
