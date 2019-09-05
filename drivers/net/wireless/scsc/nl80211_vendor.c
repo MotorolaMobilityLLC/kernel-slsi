@@ -2707,6 +2707,7 @@ static int slsi_apf_set_filter(struct wiphy *wiphy, struct wireless_dev *wdev, c
 		case SLSI_APF_ATTR_PROGRAM_LEN:
 		{
 			program_len = nla_get_u32(attr);
+			kfree(program);
 			program = kmalloc(program_len, GFP_KERNEL);
 			if (!program) {
 				ret = -ENOMEM;
