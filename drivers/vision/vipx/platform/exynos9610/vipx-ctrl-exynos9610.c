@@ -183,7 +183,7 @@ static int vipx_exynos9610_ctrl_clear_irq(struct vipx_system *sys,
 		offset = regs_ss1[REG_SS1_IRQ_FROM_DEVICE].offset;
 		writel(val, sys->reg_ss[REG_SS1] + offset);
 	} else {
-		val = -EINVAL;
+		ret = -EINVAL;
 		vipx_err("direction of irq is invalid (%d)\n", direction);
 		goto p_err;
 	}

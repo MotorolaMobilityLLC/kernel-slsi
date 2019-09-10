@@ -334,6 +334,7 @@ static int __vipx_queue_bundle_prepare(struct vipx_queue *queue,
 			}
 			break;
 		default:
+			ret = -EINVAL;
 			vipx_err("container memory type is invalid (%u)\n",
 					con[c_cnt].memory);
 			goto p_err;
@@ -381,6 +382,7 @@ static int __vipx_queue_bundle_unprepare(struct vipx_queue *queue,
 				__vipx_queue_unmap_dmabuf(queue, &buf[b_cnt]);
 			break;
 		default:
+			ret = -EINVAL;
 			vipx_err("container memory type is invalid (%u)\n",
 					con[c_cnt].memory);
 			goto p_err;
