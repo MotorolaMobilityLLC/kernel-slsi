@@ -335,6 +335,7 @@ static int __vertex_queue_bundle_prepare(struct vertex_queue *queue,
 			}
 			break;
 		default:
+			ret = -EINVAL;
 			vertex_err("container memory type is invalid (%u)\n",
 					con[c_cnt].memory);
 			goto p_err;
@@ -382,6 +383,7 @@ static int __vertex_queue_bundle_unprepare(struct vertex_queue *queue,
 				__vertex_queue_unmap_dmabuf(queue, &buf[b_cnt]);
 			break;
 		default:
+			ret = -EINVAL;
 			vertex_err("container memory type is invalid (%u)\n",
 					con[c_cnt].memory);
 			goto p_err;
