@@ -3241,7 +3241,7 @@ int  slsi_set_arp_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
 	struct slsi_mlme_pattern_desc pattern_desc[SLSI_MAX_PATTERN_DESC];
 	int num_pattern_desc = 0;
 	u8 pkt_filters_len = 0, num_filters = 0;
-	struct slsi_mlme_pkt_filter_elem pkt_filter_elem[2];
+	struct slsi_mlme_pkt_filter_elem pkt_filter_elem[3];
 	int ret;
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_peer *peer = slsi_get_peer_from_qs(sdev, dev, SLSI_STA_PEER_QUEUESET);
@@ -3263,15 +3263,31 @@ int  slsi_set_arp_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
 
 	SLSI_NET_DBG2(dev, SLSI_MLME, "Set ARP filter\n");
 
-	/*Opt in the broadcast ARP packets for Local IP address*/
+	/* Opt out all ARP requests*/
 	num_pattern_desc = 0;
-	pattern_desc[num_pattern_desc].offset = 0; /*filtering on MAC destination Address*/
-	pattern_desc[num_pattern_desc].mask_length = ETH_ALEN;
-	SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].mask, addr_mask);
-	SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].pattern, addr_mask);
+	SET_ETHERTYPE_PATTERN_DESC(pattern_desc[num_pattern_desc], ETH_P_ARP);
 	num_pattern_desc++;
 
-	/*filter on ethertype ARP*/
+	/* ARP - Request */
+	pattern_desc[num_pattern_desc].offset = 0x14; /*sizeof(struct ethhdr) + offsetof(ar_op)*/
+	pattern_desc[num_pattern_desc].mask_length = 2;
+	pattern_desc[num_pattern_desc].mask[0] = 0xff;
+	pattern_desc[num_pattern_desc].mask[1] = 0xff;
+	pattern_desc[num_pattern_desc].pattern[0] = 0x00;
+	pattern_desc[num_pattern_desc].pattern[1] = 0x01;
+	num_pattern_desc++;
+
+	slsi_create_packet_filter_element(SLSI_ALL_ARP_FILTER_ID,
+					  FAPI_PACKETFILTERMODE_OPT_OUT | FAPI_PACKETFILTERMODE_OPT_OUT_SLEEP,
+					  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
+	num_filters++;
+
+	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, num_filters, pkt_filter_elem);
+	if (ret)
+		return ret;
+
+	/*Opt-in arp pakcet for device IP address*/
+	num_pattern_desc = 0;
 	SET_ETHERTYPE_PATTERN_DESC(pattern_desc[num_pattern_desc], ETH_P_ARP);
 	num_pattern_desc++;
 
@@ -3281,7 +3297,8 @@ int  slsi_set_arp_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
 	memcpy(pattern_desc[num_pattern_desc].pattern, &ndev_vif->ipaddress, pattern_desc[num_pattern_desc].mask_length);
 	num_pattern_desc++;
 
-	slsi_create_packet_filter_element(SLSI_LOCAL_ARP_FILTER_ID, FAPI_PACKETFILTERMODE_OPT_IN,
+	slsi_create_packet_filter_element(SLSI_LOCAL_ARP_FILTER_ID,
+					  FAPI_PACKETFILTERMODE_OPT_IN | FAPI_PACKETFILTERMODE_OPT_IN_SLEEP,
 					  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
 	num_filters++;
 
@@ -3441,6 +3458,64 @@ static int  slsi_set_opt_in_tcp6_packet_filter(struct slsi_dev *sdev, struct net
 }
 #endif
 
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+int slsi_set_abnormal_multicast_pkt_filter(struct net_device *dev, u8 enabled)
+{
+	struct netdev_vif *netdev_vif = netdev_priv(dev);
+	struct slsi_dev   *sdev = netdev_vif->sdev;
+	int ret = 0;
+	int is_suspend = 0;
+
+	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
+	is_suspend = sdev->device_config.user_suspend_mode;
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+
+	if (is_suspend) {
+		SLSI_ERR(sdev, "Host is in early suspend state.\n");
+		return -EPERM; /* set_enhanced_pkt_filter should not be called after suspend */
+	}
+
+	sdev->abnormal_multicast_pkt_filter_enabled = enabled;
+	SLSI_INFO(sdev, "Abnormal multicast packet filter is %s", (enabled ? "enabled" : "disabled"));
+	return ret;
+}
+
+static int slsi_set_opt_out_abnormal_multicast_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
+{
+	struct slsi_mlme_pattern_desc pattern_desc[3];
+	u8 pkt_filters_len = 0;
+	int ret = 0;
+	struct slsi_mlme_pkt_filter_elem pkt_filter_elem;
+
+	/* IPv4 packet */
+	pattern_desc[0].offset = 0; /* destination mac address*/
+	pattern_desc[0].mask_length = ETH_ALEN;
+	memset(pattern_desc[0].mask, 0xff, ETH_ALEN);
+	memcpy(pattern_desc[0].pattern, sdev->hw_addr, ETH_ALEN);
+
+	pattern_desc[1].offset = ETH_ALEN + ETH_ALEN; /* ethhdr->h_proto == IPv4 */
+	pattern_desc[1].mask_length = 2;
+	pattern_desc[1].mask[0] = 0xff; /* Big endian 0xffff */
+	pattern_desc[1].mask[1] = 0xff;
+	pattern_desc[1].pattern[0] = 0x08; /* Big endian 0x0800 */
+	pattern_desc[1].pattern[1] = 0x00;
+
+	pattern_desc[2].offset = sizeof(struct ethhdr) + offsetof(struct iphdr, daddr); /* iphdr->daddr starts with 1110 */
+	pattern_desc[2].mask_length = 1;
+	pattern_desc[2].mask[0] = 0xf0;
+	pattern_desc[2].pattern[0] = 0xe0; /* 224 */
+
+	slsi_create_packet_filter_element(SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID,
+					  FAPI_PACKETFILTERMODE_OPT_OUT_SLEEP,
+					  3, pattern_desc,
+					  &pkt_filter_elem, &pkt_filters_len);
+
+	ret = slsi_mlme_set_packet_filter(sdev, dev, pkt_filters_len, 1, &pkt_filter_elem);
+
+	return ret;
+}
+#endif
+
 static int  slsi_set_multicast_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 {
 	struct slsi_mlme_pattern_desc pattern_desc;
@@ -3517,6 +3592,7 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	num_filters = ndev_vif->sta.regd_mc_addr_count + SLSI_SCREEN_OFF_FILTERS_COUNT;
 	if ((slsi_is_proxy_arp_supported_on_ap(peer->assoc_resp_ie)) == false) {
 		num_filters++;
+		num_filters++;
 #ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 		num_filters++;
 #endif
@@ -3529,7 +3605,10 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		num_filters++; /*TCP IPv6 OPT IN*/
 	}
 #endif
-
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	if (sdev->abnormal_multicast_pkt_filter_enabled)
+		num_filters++;/* clear abnormal multicast packet */
+#endif
 	pkt_filter_elem = kmalloc((num_filters * sizeof(struct slsi_mlme_pkt_filter_elem)), GFP_KERNEL);
 	if (!pkt_filter_elem) {
 		SLSI_NET_ERR(dev, "ERROR Memory allocation failure");
@@ -3544,6 +3623,8 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	}
 	if ((slsi_is_proxy_arp_supported_on_ap(peer->assoc_resp_ie)) == false) {
 		slsi_create_packet_filter_element(SLSI_LOCAL_ARP_FILTER_ID, 0, 0, NULL, &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
+		slsi_create_packet_filter_element(SLSI_ALL_ARP_FILTER_ID, 0, 0, NULL, &pkt_filter_elem[num_filters], &pkt_filters_len);
 		num_filters++;
 #ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 		slsi_create_packet_filter_element(SLSI_LOCAL_NS_FILTER_ID, 0, 0, NULL, &pkt_filter_elem[num_filters], &pkt_filters_len);
@@ -3563,6 +3644,13 @@ int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 						  &pkt_filter_elem[num_filters], &pkt_filters_len);
 		num_filters++;
 		slsi_create_packet_filter_element(SLSI_OPT_IN_TCP6_FILTER_ID, 0, 0, NULL,
+						  &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
+	}
+#endif
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	if (sdev->abnormal_multicast_pkt_filter_enabled) {
+		slsi_create_packet_filter_element(SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID, 0, 0, NULL,
 						  &pkt_filter_elem[num_filters], &pkt_filters_len);
 		num_filters++;
 	}
@@ -3598,6 +3686,14 @@ int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 		if (ret)
 			return ret;
 		ret = slsi_set_opt_in_tcp6_packet_filter(sdev, dev);
+		if (ret)
+			return ret;
+	}
+#endif
+	/* install abnormal multicast packet filter */
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	if (sdev->abnormal_multicast_pkt_filter_enabled) {
+		ret = slsi_set_opt_out_abnormal_multicast_packet_filter(sdev, dev);
 		if (ret)
 			return ret;
 	}
@@ -3661,60 +3757,57 @@ void slsi_set_packet_filters(struct slsi_dev *sdev, struct net_device *dev)
 	if (ie) {
 		SLSI_NET_DBG1(dev, SLSI_CFG80211, "Connected to HS2 AP ");
 
-		if (slsi_is_proxy_arp_supported_on_ap(peer->assoc_resp_ie)) {
-			SLSI_NET_DBG1(dev, SLSI_CFG80211, "Proxy ARP service supported on HS2 AP ");
+	if (slsi_is_proxy_arp_supported_on_ap(peer->assoc_resp_ie)) {
+		SLSI_NET_DBG1(dev, SLSI_CFG80211, "Proxy ARP service supported on HS2 AP ");
 
-			/* Opt out Gratuitous ARP packets (ARP Announcement) in active and suspended mode.
-			 * For suspended mode, gratituous ARP is dropped by "opt out all broadcast" that will be
-			 * set  in slsi_set_common_packet_filters on screen off
-			 */
-			num_pattern_desc = 0;
-			pattern_desc[num_pattern_desc].offset = 0; /*filtering on MAC destination Address*/
-			pattern_desc[num_pattern_desc].mask_length = ETH_ALEN;
-			SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].mask, addr_mask);
-			SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].pattern, addr_mask);
-			num_pattern_desc++;
+		/* Opt out Gratuitous ARP packets (ARP Announcement) in active and suspended mode.
+		 * For suspended mode, gratituous ARP is dropped by "opt out all broadcast" that will be
+		 * set  in slsi_set_common_packet_filters on screen off
+		 */
+		num_pattern_desc = 0;
+		pattern_desc[num_pattern_desc].offset = 0; /*filtering on MAC destination Address*/
+		pattern_desc[num_pattern_desc].mask_length = ETH_ALEN;
+		SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].mask, addr_mask);
+		SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].pattern, addr_mask);
+		num_pattern_desc++;
 
-			SET_ETHERTYPE_PATTERN_DESC(pattern_desc[num_pattern_desc], ETH_P_ARP);
-			num_pattern_desc++;
+		SET_ETHERTYPE_PATTERN_DESC(pattern_desc[num_pattern_desc], ETH_P_ARP);
+		num_pattern_desc++;
 
-			slsi_create_packet_filter_element(SLSI_PROXY_ARP_FILTER_ID, FAPI_PACKETFILTERMODE_OPT_OUT,
-							  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters],
-							  &pkt_filters_len);
-			num_filters++;
+		slsi_create_packet_filter_element(SLSI_PROXY_ARP_FILTER_ID, FAPI_PACKETFILTERMODE_OPT_OUT,
+						  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
 
 #ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
-			/* Opt out unsolicited Neighbor Advertisement packets .For suspended mode, NA is dropped by
-			 * "opt out all IPv6 multicast" already set in slsi_create_common_packet_filters
-			 */
+		/* Opt out unsolicited Neighbor Advertisement packets .For suspended mode, NA is dropped by
+		 * "opt out all IPv6 multicast" already set in slsi_create_common_packet_filters
+		 */
+		num_pattern_desc = 0;
+		
+		pattern_desc[num_pattern_desc].offset = 0; /*filtering on MAC destination Address*/
+		pattern_desc[num_pattern_desc].mask_length = ETH_ALEN;
+		SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].mask, addr_mask);
+		SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].pattern, solicited_node_addr_mask);
+		num_pattern_desc++;
 
-			num_pattern_desc = 0;
+		SET_ETHERTYPE_PATTERN_DESC(pattern_desc[num_pattern_desc], 0x86DD);
+		num_pattern_desc++;
 
-			pattern_desc[num_pattern_desc].offset = 0; /*filtering on MAC destination Address*/
-			pattern_desc[num_pattern_desc].mask_length = ETH_ALEN;
-			SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].mask, addr_mask);
-			SLSI_ETHER_COPY(pattern_desc[num_pattern_desc].pattern, solicited_node_addr_mask);
-			num_pattern_desc++;
+		pattern_desc[num_pattern_desc].offset = 0x14; /*filtering on next header*/
+		pattern_desc[num_pattern_desc].mask_length = 1;
+		pattern_desc[num_pattern_desc].mask[0] = 0xff;
+		pattern_desc[num_pattern_desc].pattern[0] = 0x3a;
+		num_pattern_desc++;
 
-			SET_ETHERTYPE_PATTERN_DESC(pattern_desc[num_pattern_desc], 0x86DD);
-			num_pattern_desc++;
+		pattern_desc[num_pattern_desc].offset = 0x36; /*filtering on ICMP6 packet type*/
+		pattern_desc[num_pattern_desc].mask_length = 1;
+		pattern_desc[num_pattern_desc].mask[0] = 0xff;
+		pattern_desc[num_pattern_desc].pattern[0] = 0x88; /* Neighbor Advertisement type in ICMPv6 */
+		num_pattern_desc++;
 
-			pattern_desc[num_pattern_desc].offset = 0x14; /*filtering on next header*/
-			pattern_desc[num_pattern_desc].mask_length = 1;
-			pattern_desc[num_pattern_desc].mask[0] = 0xff;
-			pattern_desc[num_pattern_desc].pattern[0] = 0x3a;
-			num_pattern_desc++;
-
-			pattern_desc[num_pattern_desc].offset = 0x36; /*filtering on ICMP6 packet type*/
-			pattern_desc[num_pattern_desc].mask_length = 1;
-			pattern_desc[num_pattern_desc].mask[0] = 0xff;
-			pattern_desc[num_pattern_desc].pattern[0] = 0x88; /* Neighbor Advertisement type in ICMPv6 */
-			num_pattern_desc++;
-
-			slsi_create_packet_filter_element(SLSI_PROXY_ARP_NA_FILTER_ID, FAPI_PACKETFILTERMODE_OPT_OUT,
-							  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters],
-							  &pkt_filters_len);
-			num_filters++;
+		slsi_create_packet_filter_element(SLSI_PROXY_ARP_NA_FILTER_ID, FAPI_PACKETFILTERMODE_OPT_OUT,
+						  num_pattern_desc, pattern_desc, &pkt_filter_elem[num_filters], &pkt_filters_len);
+		num_filters++;
 #endif
 		}
 	}
