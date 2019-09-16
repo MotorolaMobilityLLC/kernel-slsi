@@ -464,29 +464,11 @@ struct slsi_wmm_parameter_element {
 #ifdef CONFIG_SCSC_WLAN_BLOCK_IPV6
 
 enum slsi_filter_id {
-	SLSI_LOCAL_ARP_FILTER_ID = SLSI_MIN_FILTER_ID,	/* 0x80 */
-	SLSI_ALL_BC_MC_FILTER_ID,						/* 0x81 */
-	SLSI_PROXY_ARP_FILTER_ID,						/* 0x82 */
-	SLSI_ALL_IPV6_PKTS_FILTER_ID,					/* 0x83 */
-#ifndef CONFIG_SCSC_WLAN_DISABLE_NAT_KA
-	SLSI_NAT_IPSEC_FILTER_ID,						/* 0x84 */
-#endif
-#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
-	SLSI_OPT_OUT_ALL_FILTER_ID,						/* 0x85 */
-	SLSI_OPT_IN_TCP4_FILTER_ID,						/* 0x86 */
-	SLSI_OPT_IN_TCP6_FILTER_ID,						/* 0x87 */
-#endif
-	SLSI_REGD_MC_FILTER_ID,							/* 0x88 */
-};
-#else
-
-/* for STA */
-enum slsi_filter_id {
-	SLSI_LOCAL_ARP_FILTER_ID = SLSI_MIN_FILTER_ID,	/* 0x80 */
-	SLSI_ALL_BC_MC_FILTER_ID,						/* 0x81 */
-	SLSI_PROXY_ARP_FILTER_ID,						/* 0x82 */
-	SLSI_LOCAL_NS_FILTER_ID,						/* 0x83 */
-	SLSI_PROXY_ARP_NA_FILTER_ID,					/* 0x84 */
+	SLSI_ALL_ARP_FILTER_ID = SLSI_MIN_FILTER_ID,	/* 0x80 */
+	SLSI_LOCAL_ARP_FILTER_ID,						/* 0x81 */
+	SLSI_ALL_BC_MC_FILTER_ID,						/* 0x82 */
+	SLSI_PROXY_ARP_FILTER_ID,						/* 0x83 */
+	SLSI_ALL_IPV6_PKTS_FILTER_ID,					/* 0x84 */
 #ifndef CONFIG_SCSC_WLAN_DISABLE_NAT_KA
 	SLSI_NAT_IPSEC_FILTER_ID,						/* 0x85 */
 #endif
@@ -495,7 +477,29 @@ enum slsi_filter_id {
 	SLSI_OPT_IN_TCP4_FILTER_ID,						/* 0x87 */
 	SLSI_OPT_IN_TCP6_FILTER_ID,						/* 0x88 */
 #endif
-	SLSI_REGD_MC_FILTER_ID,							/* 0x89 */
+	SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID,				/* 0x89 */
+	SLSI_REGD_MC_FILTER_ID,							/* 0x8A */
+};
+#else
+
+/* for STA */
+enum slsi_filter_id {
+	SLSI_ALL_ARP_FILTER_ID = SLSI_MIN_FILTER_ID,	/* 0x80 */
+	SLSI_LOCAL_ARP_FILTER_ID,						/* 0x81 */
+	SLSI_ALL_BC_MC_FILTER_ID,						/* 0x82 */
+	SLSI_PROXY_ARP_FILTER_ID,						/* 0x83 */
+	SLSI_LOCAL_NS_FILTER_ID,						/* 0x84 */
+	SLSI_PROXY_ARP_NA_FILTER_ID,					/* 0x85 */
+#ifndef CONFIG_SCSC_WLAN_DISABLE_NAT_KA
+	SLSI_NAT_IPSEC_FILTER_ID,						/* 0x86 */
+#endif
+#ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
+	SLSI_OPT_OUT_ALL_FILTER_ID,						/* 0x87 */
+	SLSI_OPT_IN_TCP4_FILTER_ID,						/* 0x88 */
+	SLSI_OPT_IN_TCP6_FILTER_ID,						/* 0x89 */
+#endif
+	SLSI_OPT_OUT_ABNORMAL_MULTICAST_ID,				/* 0x8a */
+	SLSI_REGD_MC_FILTER_ID,							/* 0x8b */
 };
 
 #endif
@@ -1171,6 +1175,9 @@ struct slsi_dev {
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 	bool                       enhanced_pkt_filter_enabled;
+#endif
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	bool                       abnormal_multicast_pkt_filter_enabled;
 #endif
 };
 
