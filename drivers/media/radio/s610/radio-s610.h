@@ -11,7 +11,7 @@
 /*#undef	ENABLE_IF_WORK_QUEUE*/
 
 #define	USE_FM_LNA_ENABLE
-/*#undef	USE_FM_LNA_ENABLE*/
+#undef	USE_FM_LNA_ENABLE
 
 #define	RDS_POLLING_ENABLE
 
