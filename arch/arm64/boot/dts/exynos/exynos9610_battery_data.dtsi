@@ -35,7 +35,7 @@
 				battery,chg_full_vcell = <4360>;
 				battery,chg_recharge_vcell = <4300>;
 
-				battery,max_rawsoc = <1000>;
+				battery,max_rawsoc = <990>;
 				battery,max_rawsoc_offset = <10>;
 
 				battery,default_input_current = <1000>;
