@@ -956,7 +956,11 @@ struct slsi_rtt_config {
 	u16 LCR_request;              /* 1: request LCR, 0: do not request LCR */
 };
 
-#define MAX_CHAN_VALUE_ACS 25  /*Max number of supported channel is 25*/
+#define MAX_CHAN_VALUE_ACS 39  /*Max number of supported channel is 39*/
+#define MAX_24G_CHANNELS 14  /*Max number of 2.4G channels*/
+#define MAX_5G_CHANNELS 25  /*Max number of 5G channels*/
+#define MAX_AP_THRESHOLD 10  /*Max AP threshold in ACS*/
+
 
 struct slsi_acs_chan_info {
 	u16 chan;
