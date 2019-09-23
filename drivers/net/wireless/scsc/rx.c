@@ -629,7 +629,7 @@ int slsi_set_2g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 	int min_avg_chan_utilization_20 = INT_MAX, min_adjacent_rssi_20 = INT_MAX;
 	int ch_idx_min_load_20 = 0, ch_idx_min_rssi_20 = 0;
 	int ret = 0;
-	int ch_list_len = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->ch_list_len;
+	int ch_list_len = MAX_24G_CHANNELS;
 
 	acs_selected_channels->ch_width = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->ch_width;
 	acs_selected_channels->hw_mode = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode;
@@ -757,7 +757,7 @@ int slsi_set_5g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 	int min_avg_chan_utilization_20 = INT_MAX, min_num_ap_20 = INT_MAX;
 	int ch_idx_min_load_20 = 0, ch_idx_min_ap_20 = 0;
 	int ret = 0;
-	int ch_list_len = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->ch_list_len;
+	int ch_list_len = MAX_5G_CHANNELS;
 
 	acs_selected_channels->ch_width = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->ch_width;
 	acs_selected_channels->hw_mode = ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode;
@@ -870,6 +870,81 @@ int slsi_set_5g_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif
 	return ret;
 }
 
+int slsi_set_band_any_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *ndev_vif,
+			     struct slsi_acs_selected_channels *acs_selected_channels,
+			     struct slsi_acs_chan_info *ch_info)
+{
+	struct slsi_acs_chan_info ch_info_2g[MAX_24G_CHANNELS];
+	struct slsi_acs_chan_info ch_info_5g[MAX_5G_CHANNELS];
+	struct slsi_acs_selected_channels acs_selected_channels_5g;
+	struct slsi_acs_selected_channels acs_selected_channels_2g;
+	int Best_channel_5g = -1;
+	int Best_channel_5g_num_ap = 0;
+	int Best_channel_2g = -1;
+	int Best_channel_2g_num_ap = 0;
+	int i, ret = 0;
+	int j = 0;
+
+	memset(&acs_selected_channels_5g, 0, sizeof(acs_selected_channels_5g));
+	memset(&acs_selected_channels_2g, 0, sizeof(acs_selected_channels_2g));
+	memset(&ch_info_5g, 0, sizeof(ch_info_5g));
+	memset(&ch_info_2g, 0, sizeof(ch_info_2g));
+
+	for(i = MAX_24G_CHANNELS; i < MAX_CHAN_VALUE_ACS; i++) {
+		ch_info_5g[j] = ch_info[i];
+		j++;
+	}
+	ret = slsi_set_5g_auto_channel(sdev, ndev_vif, &acs_selected_channels_5g, ch_info_5g);
+
+	if(ret == 0) {
+		Best_channel_5g = acs_selected_channels_5g.pri_channel;
+		for(i = 0; i < MAX_5G_CHANNELS; i++) {
+			if (ch_info_5g[i].chan == Best_channel_5g) {
+				Best_channel_5g_num_ap = ch_info_5g[i].num_ap;
+				break;
+			}
+		}
+		SLSI_DBG3(sdev, SLSI_MLME, "Best 5G channel = %d, num_ap = %d\n", Best_channel_5g,
+									Best_channel_5g_num_ap);
+
+		if (Best_channel_5g_num_ap < MAX_AP_THRESHOLD) {
+			*acs_selected_channels = acs_selected_channels_5g;
+			return ret;
+		}
+	}
+
+	SLSI_DBG3(sdev, SLSI_MLME, "5G AP threshold exceed, trying to select from 2G band\n");
+
+	for(i =0; i < MAX_24G_CHANNELS; i++) {
+		ch_info_2g[i] = ch_info[i];
+	}
+	ret = slsi_set_2g_auto_channel(sdev, ndev_vif, &acs_selected_channels_2g, ch_info_2g);
+
+	if(ret == 0) {
+		Best_channel_2g = acs_selected_channels_2g.pri_channel;
+		for(i =0; i < MAX_24G_CHANNELS; i++) {
+			if (ch_info_2g[i].chan == Best_channel_2g) {
+				Best_channel_2g_num_ap = ch_info_2g[i].num_ap;
+				break;
+			}
+		}
+		SLSI_DBG3(sdev, SLSI_MLME, "Best 2G channel = %d, num_ap = %d\n", Best_channel_2g,
+								Best_channel_2g_num_ap);
+		if (Best_channel_5g == -1) {
+			*acs_selected_channels = acs_selected_channels_2g;
+			return ret;
+		} else {
+			/* Based on min no of APs selecting channel from that band */
+			/* If no. of APs are equal, selecting the 5G channel */
+			if(Best_channel_5g_num_ap > Best_channel_2g_num_ap)
+				*acs_selected_channels = acs_selected_channels_2g;
+			else
+				*acs_selected_channels = acs_selected_channels_5g;
+		}
+	}
+	return ret;
+}
+
 int slsi_acs_get_rssi_factor(struct slsi_dev *sdev, int rssi, int ch_util)
 {
 	int frac_pow_val[10] = {10, 12, 15, 19, 25, 31, 39, 50, 63, 79};
@@ -932,7 +1007,7 @@ struct slsi_acs_chan_info *slsi_acs_scan_results(struct slsi_dev *sdev, struct n
 		idx = slsi_find_chan_idx(scan_channel->hw_value, ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode);
 		SLSI_DBG3(sdev, SLSI_MLME, "chan_idx:%d chan_value: %d\n", idx, ch_info[idx].chan);
 
-		if ((idx < 0) || (idx > 24)) {
+		if ((idx < 0) || (idx == MAX_CHAN_VALUE_ACS)) {
 			SLSI_DBG3(sdev, SLSI_MLME, "idx is not in range idx=%d\n", idx);
 			goto next_scan;
 		}
@@ -980,6 +1055,8 @@ void slsi_acs_scan_complete(struct slsi_dev *sdev, struct netdev_vif *ndev_vif, 
 	else if (ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode == SLSI_ACS_MODE_IEEE80211B ||
 		 ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode == SLSI_ACS_MODE_IEEE80211G)
 		r = slsi_set_2g_auto_channel(sdev, ndev_vif, &acs_selected_channels, ch_info);
+	else if (ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode == SLSI_ACS_MODE_IEEE80211ANY)
+		r = slsi_set_band_any_auto_channel(sdev, ndev_vif, &acs_selected_channels, ch_info);
 	else
 		r = -EINVAL;
 	if (!r) {

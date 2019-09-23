@@ -6061,19 +6061,33 @@ int slsi_find_chan_idx(u16 chan, u8 hw_mode)
 {
 	int idx = 0, i = 0;
 	u16 slsi_5ghz_channels_list[25] = {36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132,
-				      136, 140, 144, 149, 153, 157, 161, 165};
+				136, 140, 144, 149, 153, 157, 161, 165};
 
 	if (hw_mode == SLSI_ACS_MODE_IEEE80211B || hw_mode == SLSI_ACS_MODE_IEEE80211G) {
 		idx = chan - 1;
 		return idx;
-	}
-	for (i = 0; i < 25; i++) {
-		if (chan == slsi_5ghz_channels_list[i]) {
-			idx = i;
-			break;
+	} else if (hw_mode == SLSI_ACS_MODE_IEEE80211A) {
+		for (i = 0; i < MAX_5G_CHANNELS; i++) {
+			if (chan == slsi_5ghz_channels_list[i]) {
+				idx = i;
+				break;
+			}
+		}
+		return idx;
+	} else {
+		if (chan <=MAX_24G_CHANNELS) {
+			idx = chan -1;
+			return idx;
+		} else {
+			for (i = 0; i < MAX_5G_CHANNELS; i++) {
+				if (chan == slsi_5ghz_channels_list[i]) {
+					idx = i;
+					break;
+				}
+			}
+			return (idx + MAX_24G_CHANNELS);
 		}
 	}
-	return idx;
 }
 
 #ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
