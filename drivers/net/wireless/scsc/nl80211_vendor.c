@@ -4384,7 +4384,7 @@ exit:
 static int slsi_acs_validate_width_hw_mode(struct slsi_acs_request *request)
 {
 	if (request->hw_mode != SLSI_ACS_MODE_IEEE80211A && request->hw_mode != SLSI_ACS_MODE_IEEE80211B &&
-	    request->hw_mode != SLSI_ACS_MODE_IEEE80211G)
+	    request->hw_mode != SLSI_ACS_MODE_IEEE80211G && request->hw_mode != SLSI_ACS_MODE_IEEE80211ANY)
 		return -EINVAL;
 	if (request->ch_width != 20 && request->ch_width != 40 && request->ch_width != 80)
 		return -EINVAL;
@@ -4527,9 +4527,12 @@ static int slsi_acs_init(struct wiphy *wiphy,
 		}
 
 		if (request->hw_mode == SLSI_ACS_MODE_IEEE80211A)
-			request->ch_list_len = 25;
+			request->ch_list_len = MAX_5G_CHANNELS;
+		else if (request->hw_mode == SLSI_ACS_MODE_IEEE80211B || request->hw_mode == SLSI_ACS_MODE_IEEE80211G)
+			request->ch_list_len = MAX_24G_CHANNELS;
 		else
-			request->ch_list_len = 14;
+			request->ch_list_len = MAX_CHAN_VALUE_ACS;
+
 		memcpy(&request->acs_chan_info[0], &ch_info[0], sizeof(ch_info));
 		ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request = request;
 		ndev_vif->scan[SLSI_SCAN_HW_ID].is_blocking_scan = false;
