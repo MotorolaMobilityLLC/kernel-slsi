@@ -563,7 +563,7 @@ out:
 #endif
 	if (!get_evt) {
 		CSP_PRINTF_ERROR("%s:%s: fails pending wait (%d): irq:%d, evt:%d\n",
-			NAME_PREFIX, __func__, trycnt, cur_evt->irq, cur_evt->evt);
+			NAME_PREFIX, __func__, trycnt, cur_evt ? cur_evt->irq : -1, cur_evt ? cur_evt->evt : -1);
 		ipc_dump();
 	}
 	ENABLE_IRQ(LOCK_ADD_EVT, &flag);
@@ -956,7 +956,7 @@ bool ipc_logbuf_filled(void)
 	return 0;
 }
 
-void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop)
+int ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop)
 {
 	if (ipc_map) {
 		struct logbuf_content *log;
@@ -969,7 +969,8 @@ retry:
 		eq = logbuf->eq;
 		if (eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM) {
 			pr_err("%s: index err:%d, eq:%d, dq:%d\n", __func__, eq, logbuf->dq);
-			return;
+			logbuf->eq = logbuf->dq = 0;
+			return -1;
 		}
 
 		if (logbuf->full) {
@@ -1009,6 +1010,7 @@ retry:
 		if (logbuf->flush_req)
 			logbuf->flush_req = 0;
 	}
+	return 0;
 }
 
 enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set)
