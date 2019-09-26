@@ -1546,7 +1546,7 @@ static void process_panic_record(struct mxman *mxman)
 #ifdef CONFIG_SCSC_MX450_GDB_SUPPORT
 		} else if (mxman->fwhdr.m4_1_panic_record_offset) {
 			m4_1_panic_record = (u32 *)(mxman->fw + mxman->fwhdr.m4_1_panic_record_offset);
-			m4_1_panic_record_ok = fw_parse_m4_panic_record(m4_panic_record, &m4_1_panic_record_length);
+			m4_1_panic_record_ok = fw_parse_m4_panic_record(m4_1_panic_record, &m4_1_panic_record_length);
 #endif
 		} else {
 			SCSC_TAG_INFO(MXMAN, "M4 panic record doesn't exist in the firmware header\n");

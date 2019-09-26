@@ -268,3 +268,9 @@ config SCSC_WLAN_SILENT_RECOVERY
 	default y
 	---help---
 	This option tells if silent recovery is enabled or not.
+
+config SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+        bool "Enable abnormal multicast packet filtering in suspend"
+        default n
+        ---help---
+          This option tells if abnormal multicast packet filtering in suspend is supported or not.
