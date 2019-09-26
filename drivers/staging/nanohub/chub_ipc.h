@@ -544,7 +544,7 @@ enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel, int set)
 void *ipc_logbuf_inbase(bool force);
 void ipc_logbuf_flush_on(bool on);
 bool ipc_logbuf_filled(void);
-void ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop);
+int ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop);
 void ipc_logbuf_req_flush(struct logbuf_content *log);
 void ipc_logbuf_set_req_num(struct logbuf_content *log);
 struct logbuf_content *ipc_logbuf_get_curlogbuf(struct logbuf_content *log);

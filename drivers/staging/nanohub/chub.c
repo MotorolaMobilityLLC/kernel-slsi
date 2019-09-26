@@ -465,7 +465,8 @@ void contexthub_print_rtlog(struct contexthub_ipc_info *ipc, bool loop)
 			dev_warn(ipc->dev, "%s: get token\n", __func__);
 			return;
 		}
-		ipc_logbuf_outprint(&ipc->chub_rt_log, loop);
+		if (ipc_logbuf_outprint(&ipc->chub_rt_log, loop))
+			chub_dbg_dump_hw(ipc, CHUB_ERR_NANOHUB);
 		contexthub_put_token(ipc);
 	}
 }
@@ -488,7 +489,8 @@ retry:
 	}
 	ipc_logbuf_flush_on(1);
 	mutex_lock(&log_mutex);
-	ipc_logbuf_outprint(&ipc->chub_rt_log, 100);
+	if (ipc_logbuf_outprint(&ipc->chub_rt_log, 100))
+		chub_dbg_dump_hw(ipc, CHUB_ERR_NANOHUB);
 	mutex_unlock(&log_mutex);
 	ipc_logbuf_flush_on(0);
 	contexthub_put_token(ipc);
@@ -506,7 +508,7 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 {
 	unsigned long flag;
 	int size = 0;
-	int ret;
+	int ret = 0;
 	void *rxbuf;
 	u64 time = 0; /* for debug */
 
@@ -1307,8 +1309,8 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 		} else {
 			err = CHUB_ERR_EVTQ_EMTPY;
 			CSP_PRINTF_ERROR
-					 ("%s: evt-empty irq:%d(%d+%d), evt:%d, status:0x%x->0x%x(SR:0x%x)\n", __func__,
-					  irq_num, cur_evt->irq, start_index, evt, status_org, status, ipc_hw_read_int_status_reg(AP));
+					 ("%s: evt-empty irq:%d(%d), evt:%d, status:0x%x->0x%x(SR:0x%x)\n", __func__,
+					  irq_num, start_index, evt, status_org, status, ipc_hw_read_int_status_reg(AP));
 			break;
 		}
 		ipc_hw_clear_int_pend_reg(AP, irq_num);
