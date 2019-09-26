@@ -392,6 +392,9 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 	sdev->enhanced_pkt_filter_enabled = true;
 #endif
+#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
+	sdev->abnormal_multicast_pkt_filter_enabled = true;
+#endif
 	sdev->device_state = SLSI_DEVICE_STATE_STOPPED;
 	sdev->current_tspec_id = -1;
 	sdev->tspec_error_code = -1;
