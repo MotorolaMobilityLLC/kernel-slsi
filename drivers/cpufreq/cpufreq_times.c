@@ -220,8 +220,8 @@ static int uid_time_in_state_seq_show(struct seq_file *m, void *v)
 		for (i = 0; i < uid_entry->max_state; ++i) {
 			if (freq_index_invalid(i))
 				continue;
-			seq_printf(m, " %lu", (unsigned long)nsec_to_clock_t(
-					   uid_entry->time_in_state[i]));
+			time = nsec_to_clock_t(uid_entry->time_in_state[i]);
+			seq_put_decimal_ull(m, " ", time);
 		}
 		if (uid_entry->max_state)
 			seq_putc(m, '\n');
@@ -229,6 +229,86 @@ static int uid_time_in_state_seq_show(struct seq_file *m, void *v)
 
 	rcu_read_unlock();
 	return 0;
+}
+
+static int concurrent_time_seq_show(struct seq_file *m, void *v,
+		atomic64_t *(*get_times)(struct concurrent_times *))
+{
+	struct uid_entry *uid_entry;
+	int i, num_possible_cpus = num_possible_cpus();
+
+	rcu_read_lock();
+
+	hlist_for_each_entry_rcu(uid_entry, (struct hlist_head *)v, hash) {
+		atomic64_t *times = get_times(uid_entry->concurrent_times);
+
+		seq_put_decimal_ull(m, "", (u64)uid_entry->uid);
+		seq_putc(m, ':');
+
+		for (i = 0; i < num_possible_cpus; ++i) {
+			u64 time = nsec_to_clock_t(atomic64_read(&times[i]));
+
+			seq_put_decimal_ull(m, " ", time);
+		}
+		seq_putc(m, '\n');
+	}
+
+	rcu_read_unlock();
+
+	return 0;
+}
+
+static inline atomic64_t *get_active_times(struct concurrent_times *times)
+{
+	return times->active;
+}
+
+static int concurrent_active_time_seq_show(struct seq_file *m, void *v)
+{
+	if (v == uid_hash_table) {
+		seq_put_decimal_ull(m, "cpus: ", num_possible_cpus());
+		seq_putc(m, '\n');
+	}
+
+	return concurrent_time_seq_show(m, v, get_active_times);
+}
+
+static inline atomic64_t *get_policy_times(struct concurrent_times *times)
+{
+	return times->policy;
+}
+
+static int concurrent_policy_time_seq_show(struct seq_file *m, void *v)
+{
+	int i;
+	struct cpu_freqs *freqs, *last_freqs = NULL;
+
+	if (v == uid_hash_table) {
+		int cnt = 0;
+
+		for_each_possible_cpu(i) {
+			freqs = all_freqs[i];
+			if (!freqs)
+				continue;
+			if (freqs != last_freqs) {
+				if (last_freqs) {
+					seq_put_decimal_ull(m, ": ", cnt);
+					seq_putc(m, ' ');
+					cnt = 0;
+				}
+				seq_put_decimal_ull(m, "policy", i);
+
+				last_freqs = freqs;
+			}
+			cnt++;
+		}
+		if (last_freqs) {
+			seq_put_decimal_ull(m, ": ", cnt);
+			seq_putc(m, '\n');
+		}
+	}
+
+	return concurrent_time_seq_show(m, v, get_policy_times);
 }
 
 void cpufreq_task_times_init(struct task_struct *p)
