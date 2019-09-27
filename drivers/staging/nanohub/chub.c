@@ -1788,7 +1788,7 @@ static void contexthub_resume(struct device *dev)
 
 	int ret;
 	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
-		ret = 0;
+		return;
 
 	dev_info(dev, "nanohub log to kernel on\n");
 	ipc_hw_write_shared_reg(AP, AP_WAKE, SR_3);
