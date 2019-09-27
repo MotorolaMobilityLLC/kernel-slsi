@@ -357,8 +357,11 @@ static int __vipx_queue_bundle_unprepare(struct vipx_queue *queue,
 	unsigned int c_cnt, count, b_cnt;
 
 	vipx_enter();
-	if (!test_bit(VS4L_CL_FLAG_PREPARE, &bundle->flags))
+	if (!test_bit(VS4L_CL_FLAG_PREPARE, &bundle->flags)) {
+		ret = -EINVAL;
+		vipx_err("bundle status is not prepare\n");
 		goto p_err;
+	}
 
 	con = bundle->clist.containers;
 	for (c_cnt = 0; c_cnt < bundle->clist.count; ++c_cnt) {
