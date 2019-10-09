@@ -971,7 +971,8 @@ int request_sensitivity(struct fimc_is_sensor_interface *itf,
 	}
 
 	if(sensor_ctl->exposureTime != 0 && module_ctl->valid_sensor_ctrl == true) {
-		if(sensor_ctl->exposureTime != sensor_peri->cis.expecting_sensor_dm[index].exposureTime) {
+		if((sensor_ctl->exposureTime != sensor_peri->cis.expecting_sensor_dm[index].exposureTime) &&
+		(sensor_peri->cis.expecting_sensor_dm[index].exposureTime == 0)) {
 			sensor_peri->cis.expecting_sensor_dm[index].exposureTime = sensor_ctl->exposureTime;
 		}
 	}
