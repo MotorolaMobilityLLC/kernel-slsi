@@ -1461,10 +1461,13 @@ static ssize_t chub_dev_read(struct file *file, char *buffer,
 static int nanohub_match_name(struct device *dev, const void *data)
 {
 	const char *name = data;
-	if(dev->kobj.name == NULL)
+
+	if(dev->kobj.name == NULL) {
 		pr_info("nanohub device name invalid\n");
-	else
-		pr_info("nanohub device name = %s\n", dev->kobj.name);
+		return 0;
+	}
+
+	pr_info("nanohub device name = %s\n", dev->kobj.name);
 	return !strcmp(dev->kobj.name, name);
 }
 
