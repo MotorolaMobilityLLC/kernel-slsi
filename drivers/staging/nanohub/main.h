@@ -54,8 +54,10 @@ static inline struct nanohub_data *dev_get_nanohub_data(struct device *dev)
 {
 	struct nanohub_io *io = dev_get_drvdata(dev);
 
-	if(io == NULL)
+	if(io == NULL) {
 		pr_info("%s io not available!\n", __func__);
+		return NULL;
+	}
 
 	return io->data;
 }
