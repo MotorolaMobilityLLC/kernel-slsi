@@ -3858,6 +3858,7 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 	int prev_step;
 	int index;
 	int state;
+	int cdp_target_current = 0;
 
 	if(!is_cable_present(chip)){
 		pr_info("%s:cable not inserted\n",__func__);
@@ -4043,8 +4044,14 @@ static void smbchg_heartbeat_work(struct work_struct *work)
 
 		if (is_sdp_cdp(chip)) {
 			pr_info("%s, usb\n",__func__);
-			//need test usb charging.
-			//chip->update_allowed_fastchg_current_ma = false;
+			if(chip->cable_type == POWER_SUPPLY_TYPE_USB_CDP) {
+				cdp_target_current  = min(chip->target_fastchg_current_ma, (int)chip->pdata->charging_current[chip->cable_type].fast_charging_current);
+				pr_info("%s,cdp set current:%d\n",__func__,cdp_target_current);
+				set_property_on_charger(chip, POWER_SUPPLY_PROP_CURRENT_NOW, cdp_target_current);
+			} else {
+				pr_info("%s, usb sdp heartbeat\n", __func__);
+			}
+
 		} else if (is_dc_present(chip)) {
 #if defined(CONFIG_SMALL_CHARGER)
 			if (chip->cable_type == POWER_SUPPLY_TYPE_PREPARE_TA ||
