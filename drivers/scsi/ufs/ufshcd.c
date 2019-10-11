@@ -6730,15 +6730,16 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	struct ufs_pa_layer_attr *pwr_info = &hba->max_pwr_info.info;
 	struct ufs_vreg_info *info = &hba->vreg_info;
 	int re_cnt = 0;
-	int ret, link_startup_fail = 0;
+	int ret, link_startup_fail = 0, device_reset = 0;
 	ktime_t start = ktime_get();
 	unsigned long flags;
 
 retry:
 	/* For deivce power control when link startup fail. */
-	if (link_startup_fail) {
+	if (link_startup_fail || device_reset) {
 		ufshcd_vreg_set_lpm(hba);
 		ret = ufshcd_vreg_set_hpm(hba);
+		device_reset = 0;
 
 		if (gpio_is_valid(info->ufs_power_gpio))
 			dev_info(hba->dev, "%s: UFS power pin: 0x%08x\n", __func__, gpio_get_value(info->ufs_power_gpio));
@@ -6844,9 +6845,15 @@ retry:
 
 		/* clear any previous UFS device information */
 		memset(&hba->dev_info, 0, sizeof(hba->dev_info));
-		if (!ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG,
-				QUERY_FLAG_IDN_PWR_ON_WPE, &flag))
+		ret = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG,
+				QUERY_FLAG_IDN_PWR_ON_WPE, &flag);
+		if (!ret)
 			hba->dev_info.f_power_on_wp_en = flag;
+		else {
+			device_reset = 1;
+			goto out;
+		}
+		device_reset = 0;
 
 		if (!hba->is_init_prefetch)
 			ufshcd_init_icc_levels(hba);
