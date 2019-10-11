@@ -434,6 +434,11 @@ static inline bool __ipc_evt_queue_full(struct ipc_evt_ctrl *ipc_evt)
 	return (((ipc_evt->eq + 1) % IPC_EVT_NUM) == ipc_evt->dq);
 }
 
+static inline bool __ipc_evt_queue_index_check(struct ipc_evt_ctrl *ipc_evt)
+{
+	return ((ipc_evt->eq > IPC_EVT_NUM) || (ipc_evt->dq > IPC_EVT_NUM));
+}
+
 struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
 {
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
@@ -441,6 +446,11 @@ struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
 #ifdef IPC_DEBUG
 	bool retried = 0;
 #endif
+
+	if (__ipc_evt_queue_index_check(&ipc_evt->ctrl)) {
+		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
+		return NULL;
+	}
 
 retry:
 	/* only called by isr DISABLE_IRQ(); */
@@ -472,6 +482,11 @@ static inline int __ipc_evt_wait_full(struct ipc_evt *ipc_evt)
 	volatile u32 pass = 0;
 	int trycnt = 0;
 	u64 time = CUR_TIME();
+
+	if (__ipc_evt_queue_index_check(&ipc_evt->ctrl)) {
+		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
+		return -1;
+	}
 
 	/* don't sleep on ap */
 	do {
@@ -508,6 +523,11 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 
 	if (!ipc_evt || (owner != AP)) {
 		CSP_PRINTF_ERROR("%s:%s: invalid ipc_evt, owner:%d\n", NAME_PREFIX, __func__, owner);
+		return -EINVAL;
+	}
+
+	if (__ipc_evt_queue_index_check(&ipc_evt->ctrl)) {
+		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
 		return -EINVAL;
 	}
 
@@ -582,11 +602,21 @@ static inline bool __ipc_queue_full(struct ipc_buf *ipc_data)
 	return (((ipc_data->eq + 1) % IPC_CH_BUF_NUM) == __raw_readl(&ipc_data->dq));
 }
 
+static inline bool __ipc_queue_index_check(struct ipc_buf *ipc_data)
+{
+	return ((ipc_data->eq > IPC_CH_BUF_NUM) || (ipc_data->dq > IPC_CH_BUF_NUM));
+}
+
 static inline int __ipc_data_wait_full(struct ipc_buf *ipc_data)
 {
 	volatile u32 pass;
 	int trycnt = 0;
 	u64 time = CUR_TIME();
+
+	if (__ipc_queue_index_check(ipc_data)) {
+		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
+		return -EINVAL;
+	}
 
 	/* don't sleep on ap */
 	do {
@@ -614,6 +644,11 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 	enum ipc_evt_list evtq = (dir == IPC_DATA_C2A) ? IPC_EVT_C2A : IPC_EVT_A2C;
 	int trycnt = 0;
 	unsigned long flag;
+
+	if (__ipc_queue_index_check(ipc_data)) {
+		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
+		return -EINVAL;
+	}
 
 	if (length <= PACKET_SIZE_MAX) {
 retry:
@@ -670,6 +705,11 @@ void *ipc_read_data(enum ipc_data_list dir, u32 *len)
 	enum ipc_region reg = (dir == IPC_DATA_C2A) ? IPC_REG_IPC_C2A : IPC_REG_IPC_A2C;
 	struct ipc_buf *ipc_data = ipc_get_base(reg);
 	void *buf = NULL;
+
+	if (__ipc_queue_index_check(ipc_data)) {
+		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
+		return NULL;
+	}
 
 	DISABLE_IRQ(LOCK_RD_DATA, NULL);
 retry:

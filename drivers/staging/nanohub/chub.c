@@ -528,6 +528,11 @@ int contexthub_ipc_read(struct contexthub_ipc_info *ipc, uint8_t *rx, int max_le
 				 "fails to get read ret:%d timeout:%d\n", ret, timeout);
 	}
 
+	if (__raw_readl(&ipc->chub_status) != CHUB_ST_RUN) {
+		dev_warn(ipc->dev, "%s: chub isn't run:%d\n", __raw_readl(&ipc->chub_status));
+		return 0;
+	}
+
 	if (contexthub_get_token(ipc)) {
 		dev_warn(ipc->dev, "no-active: read fails\n");
 		return 0;
@@ -558,6 +563,11 @@ int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
 				uint8_t *tx, int length, int timeout)
 {
 	int ret;
+
+	if (__raw_readl(&ipc->chub_status) != CHUB_ST_RUN) {
+		dev_warn(ipc->dev, "%s: chub isn't run:%d\n", __raw_readl(&ipc->chub_status));
+		return 0;
+	}
 
 	if (contexthub_get_token(ipc)) {
 		dev_warn(ipc->dev, "no-active: write fails\n");
