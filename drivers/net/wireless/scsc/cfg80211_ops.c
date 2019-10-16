@@ -257,7 +257,8 @@ int slsi_add_key(struct wiphy *wiphy, struct net_device *dev,
 			r = -EINVAL;
 			goto exit;
 		}
-	} else if (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+	} else if (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC || params->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
+				params->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256) {
 		key_type = FAPI_KEYTYPE_IGTK;
 	}
 
