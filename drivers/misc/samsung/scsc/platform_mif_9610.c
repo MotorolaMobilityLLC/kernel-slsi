@@ -56,7 +56,6 @@
 #ifdef CONFIG_OF_RESERVED_MEM
 #include <linux/of_reserved_mem.h>
 #endif
-bool first_booting = true;
 static unsigned long sharedmem_base;
 static size_t sharedmem_size;
 
@@ -950,12 +949,12 @@ static void platform_mif_destroy(struct scsc_mif_abs *interface)
 static char *platform_mif_get_uid(struct scsc_mif_abs *interface)
 {
 	/* Avoid unused parameter error */
-	interface;
+	(void)interface;
 	return "0";
 }
 
 /* WLBT Power domain */
-/*static int platform_mif_power(struct scsc_mif_abs *interface, bool power)
+static int platform_mif_power(struct scsc_mif_abs *interface, bool power)
 {
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
 	u32                 val = 0;
@@ -966,7 +965,7 @@ static char *platform_mif_get_uid(struct scsc_mif_abs *interface)
 	if (power)
 		val = MASK_PWR_REQ;
 
-	* See sequence in 9.6.6 *
+	/* See sequence in 9.6.6 */
 	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
 				 MASK_PWR_REQ, val);
 	if (ret < 0) {
@@ -978,7 +977,7 @@ static char *platform_mif_get_uid(struct scsc_mif_abs *interface)
 	return 0;
 }
 
-* WLBT RESET *
+/* WLBT RESET */
 static int platform_mif_hold_reset(struct scsc_mif_abs *interface, bool reset)
 {
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
@@ -988,7 +987,7 @@ static int platform_mif_hold_reset(struct scsc_mif_abs *interface, bool reset)
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "reset %d\n", reset);
 	if (reset)
 		val = WLBT_RESET_SET;
-	* See sequence in 9.6.6 *
+	/* See sequence in 9.6.6 */
 	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
 				 WLBT_RESET_SET, val);
 	if (ret < 0) {
@@ -999,14 +998,13 @@ static int platform_mif_hold_reset(struct scsc_mif_abs *interface, bool reset)
 #endif
 	return 0;
 }
-*/
+
 /* WLBT START */
 static int platform_mif_start(struct scsc_mif_abs *interface, bool start)
 {
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
 	u32                 val = 0;
-//	int					ret = 0;
-
+	s32                 ret = 0;
 
 #ifdef CONFIG_SOC_EXYNOS9610
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "start %d\n", start);
@@ -1014,7 +1012,7 @@ static int platform_mif_start(struct scsc_mif_abs *interface, bool start)
 		val = WLBT_START;
 
 	/* See sequence in 9.6.6 */
-/*	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_S,
+	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_S,
 				 WLBT_START, val);
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
@@ -1023,7 +1021,7 @@ static int platform_mif_start(struct scsc_mif_abs *interface, bool start)
 	}
 	SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 			"update WIFI_CTRL_S[WIFI_START]: %d\n", ret);
-*/
+
 	/* At this point WLBT should assert the CFG_REQ IRQ, so wait for it */
 	if (start &&
 	    wait_for_completion_timeout(&platform->cfg_ack, WLBT_BOOT_TIMEOUT) == 0) {
@@ -1043,116 +1041,8 @@ static int platform_mif_start(struct scsc_mif_abs *interface, bool start)
 	return 0;
 }
 
-static int platform_mif_pmu_initialize(struct scsc_mif_abs *interface)
-{
-    unsigned long       timeout = 0;
-    u32                 val = 0;
-    int                 ret = 0;
-    struct platform_mif *platform = platform_mif_from_mif_abs(interface);
-
-#ifdef CONFIG_SOC_EXYNOS9610
-    /* We're now ready for the IRQ */
-    platform->boot_state = WLBT_BOOT_WAIT_CFG_REQ;
-    smp_wmb(); /* commit before irq */
-#endif
-
-    /* WLBT initialize */
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Init\n");
-
-    /* WLBT_CTRL_NS[MASK_PWR_REQ] = 0x1 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            MASK_PWR_REQ, MASK_PWR_REQ);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[MASK_PWR_REQ] : %d\n", ret);
-        return ret;
-    }
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-        "updated successfully WLBT_CTRL_NS[MASK_PWR_REQ]: 0x%x\n", ret);
-
-
-    /*WLBT_CTRL_S[WLBT_START] = 0x1 power on*/
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_S,
-            WLBT_START, WLBT_START);
-    if(ret < 0 ) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_S[WLBT_START] : %d\n", ret);
-        return ret;
-    }
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-        "updated successfully WLBT_CTRL_S[WLBT_START]: 0x%x\n", ret);
-
-    /* wait for RESET_SEQUENCER_STATUS = 0x5 */
-    timeout = jiffies + msecs_to_jiffies(500);
-    do {
-        regmap_read(platform->pmureg, RESET_SEQUENCER_STATUS, &val);
-        val &= (u32)RESET_SEQUENCER_STATUS__WLBT_STATE;
-        val >>= 8;
-        if(val == 0x5){
-            SCSC_TAG_INFO(PLAT_MIF, "RESET_SEQUENCER_STATUS 0x%x\n", val);
-            break;
-        }
-    }while (time_before(jiffies, timeout));
-
-    if(val != 0x5) {
-        regmap_read(platform->pmureg, RESET_SEQUENCER_STATUS, &val);
-        SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for RESET_SEQUENCER_STATUS timeout: "
-                "RESET_SEQUENCER_STATUS 0x%x\n", val);
-        return -ETIME;
-    }
-
-    /* wait for POWER_SHARED_PWR_REQ_WLBT_CONTROL[STATUS] = 0x1 */
-    timeout = jiffies + msecs_to_jiffies(500);
-    do {
-        regmap_read(platform->pmureg, POWER_SHARED_PWR_REQ_WLBT_CONTROL, &val);
-        val &= (u32)POWER_SHARED_PWR_REQ_WLBT_CONTROL__STATUS;
-        if(val == 0x1){
-            SCSC_TAG_INFO(PLAT_MIF, "POWER_SHARED_PWR_REQ_WLBT_CONTROL 0x%x\n", val);
-            break;
-        }
-    }while (time_before(jiffies, timeout));
-
-    if(val != 0x1) {
-        regmap_read(platform->pmureg, POWER_SHARED_PWR_REQ_WLBT_CONTROL, &val);
-        SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for POWER_SHARED_PWR_REQ_WLBT_CONTROL timeout: "
-                "POWER_SHARED_PWR_REQ_WLBT_CONTROL 0x%x\n", val);
-        return -ETIME;
-    }
-
-    /* WLBT_CTRL_NS[MASK_TCXO_REQ] = 0x0 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            MASK_TCXO_REQ, 0);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[MASK_TCXO_REQ] : %d\n", ret);
-        return ret;
-    }
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-        "updated successfully WLBT_CTRL_NS[MASK_TCXO_REQ]: 0x%x\n", ret);
-
-    /* WLBT_CTRL_NS[MASK_PWR_REQ] = 0x0 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            MASK_PWR_REQ, 0);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[MASK_PWR_REQ] : %d\n", ret);
-        return ret;
-    }
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-        "updated successfully WLBT_CTRL_NS[MASK_PWR_REQ]: 0x%x\n", ret);
-
-
-    ret = platform_mif_start(interface, true);
-    if (ret)
-		return ret;
-
-	return ret;
-}
-
 static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 {
-	unsigned long 		timeout = 0;
-	u32					val = 0;
 	int                 ret = 0;
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
 
@@ -1161,153 +1051,12 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	platform->boot_state = WLBT_BOOT_WAIT_CFG_REQ;
 	smp_wmb(); /* commit before irq */
 #endif
-/*	ret = platform_mif_power(interface, true);
+	ret = platform_mif_power(interface, true);
 	if (ret)
 		return ret;
 	ret = platform_mif_hold_reset(interface, false);
 	if (ret)
 		return ret;
-*/
-
-    /* Update new Sequence */
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Reset release\n");
-
-    /* WLBT reset_release */
-    /* WLBT_CTRL_NS[WLBT_PWRON] = 0x1 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            WLBT_PWRON, WLBT_PWRON);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[PWRON] : %d\n", ret);
-        return ret;
-    }
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-        "updated successfully WLBT_CTRL_NS[PWRON]: 0x%x\n", ret);
-
-    /* WLBT_CTRL_NS[MASK_TCXO_REQ] = 0x1 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            MASK_TCXO_REQ, MASK_TCXO_REQ);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[MASK_TCXO_REQ] : %d\n", ret);
-        return ret;
-    }
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-        "updated successfully WLBT_CTRL_NS[MASK_TCXO_REQ]: 0x%x\n", ret);
-
-    /* WLBT_CTRL_NS[SWEEPER_BYPASS_DATA_EN] = 0x1 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            SWEEPER_BYPASS_DATA_EN, SWEEPER_BYPASS_DATA_EN);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[SWEEPER_BYPASS_DATA_EN] : %d\n", ret);
-        return ret;
-    }
-    SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-        "updated successfully WLBT_CTRL_NS[SWEEPER_BYPASS_DATA_EN]: 0x%x\n", ret);
-
-    /* WLBT_CTRL_NS[WLBT_RESET_SET] = 0x0 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            WLBT_RESET_SET, 0);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[WLBT_RESET_SET] : %d\n", ret);
-        return ret;
-    }
-
-    /* wait for CENTRAL_SEQ_WLBT_STATUS[STATES] = 0x0 */
-    timeout = jiffies + msecs_to_jiffies(500);
-    do {
-        regmap_read(platform->pmureg, CENTRAL_SEQ_WLBT_STATUS , &val);
-        val &= (u32)STATES;
-        val >>= 16;
-        if(!val){
-            SCSC_TAG_INFO(PLAT_MIF, "CENTRAL_SEQ_WLBT_STATUS 0x%x\n", val);
-            break;
-        }
-    }while (time_before(jiffies, timeout));
-
-    if(val) {
-        regmap_read(platform->pmureg, CENTRAL_SEQ_WLBT_STATUS, &val);
-        SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for CENTRAL_SEQ_WLBT_STATUS timeout: "
-                "CENTRAL_SEQ_WLBT_STATUS 0x%x\n", val);
-        //return -ETIME;
-    }
-
-    //Young-need to check again, POWER_SHARED_PWR_REQ_CP_CONTROL in Document
-    /* wait for POWER_SHARED_PWR_REQ_WLBT_CONTROL[STATUS] = 0x1 */
-    timeout = jiffies + msecs_to_jiffies(500);
-    do {
-        regmap_read(platform->pmureg, POWER_SHARED_PWR_REQ_WLBT_CONTROL, &val);
-        val &= (u32)POWER_SHARED_PWR_REQ_WLBT_CONTROL__STATUS;
-        if(val == 1){
-            SCSC_TAG_INFO(PLAT_MIF, "POWER_SHARED_PWR_REQ_WLBT_CONTROL 0x%x\n", val);
-            break;
-        }
-    }while (time_before(jiffies, timeout));
-
-    if(val != 1) {
-        regmap_read(platform->pmureg, POWER_SHARED_PWR_REQ_WLBT_CONTROL, &val);
-        SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for POWER_SHARED_PWR_REQ_WLBT_CONTROL timeout: "
-                "POWER_SHARED_PWR_REQ_WLBT_CONTROL 0x%x\n", val);
-		return -ETIME;
-    }
-
-    /* WLBT_CLEANY_BUS_WLBT_CONFIGURATION = 0x0 */
-    ret = regmap_update_bits(platform->pmureg, CLEANY_BUS_WLBT_CONFIGURATION,
-            0, 1);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update CLEANY_BUS_WLBT_CONFIGURATION : %d\n", ret);
-        return ret;
-    }
-
-    /* wait for CLEANY_BUS_WLBT_STATUS  = 0x0 */
-    timeout = jiffies + msecs_to_jiffies(500);
-    do {
-        regmap_read(platform->pmureg, CLEANY_BUS_WLBT_STATUS, &val);
-        val&= CLEANY_BUS_WLBT_STATUS__STATES;
-        val >>= 16;
-        if(!val){
-            SCSC_TAG_INFO(PLAT_MIF, "CLEANY_BUS_WLBT_STATUS 0x%x\n", val);
-            break;
-        }
-    }while (time_before(jiffies, timeout));
-
-    if(val) {
-        regmap_read(platform->pmureg, CLEANY_BUS_WLBT_STATUS, &val);
-        SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for CLEANY_BUS_WLBT_STATUS clear timeout: "
-                "CLEANY_BUS_WLBT_STATUS 0x%x\n", val);
-        return -ETIME;
-    }
-
-    /* WLBT_CTRL_NS[SWEEPER_BYPASS_DATA_EN] = 0x0 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            SWEEPER_BYPASS_DATA_EN, 0);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[SWEEPER_BYPASS_DATA_EN] : %d\n", ret);
-        return ret;
-    }
-
-    /* WLBT_CTRL_NS[MASK_TCXO_REQ] = 0x0 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            MASK_TCXO_REQ, 0);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[MASK_TCXO_REQ] : %d\n", ret);
-        return ret;
-    }
-
-    /* WLBT_CTRL_NS[WLBT_PWRON] = 0x0 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            WLBT_PWRON, 0);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[PWRON] : %d\n", ret);
-        return ret;
-    }
-
 	ret = platform_mif_start(interface, true);
 	if (ret)
 		return ret;
@@ -1315,7 +1064,7 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	return ret;
 }
 
-static int platform_mif_pmu_reset_assert(struct scsc_mif_abs *interface, u8 rst_case)
+static int platform_mif_pmu_reset(struct scsc_mif_abs *interface, u8 rst_case)
 {
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
 	unsigned long       timeout;
@@ -1332,39 +1081,12 @@ static int platform_mif_pmu_reset_assert(struct scsc_mif_abs *interface, u8 rst_
 
 	/* Revert power control ownership to AP, as WLBT is going down (S9.6.6). */
 	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-				 MASK_TCXO_REQ, MASK_TCXO_REQ);
+				 MASK_PWR_REQ, MASK_PWR_REQ);
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"Failed to update WLBT_CTRL_NS[MASK_TCXO_REQ]: %d\n", ret);
+			"Failed to update WLBT_CTRL_NS[MASK_PWR_REQ]: %d\n", ret);
 		return ret;
 	}
- 
-	/* WLBT_CTRL_NS[WLBT_PWRON] = 0x1 */
-    ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-            WLBT_PWRON, WLBT_PWRON);
-    if(ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-                "Failed to update WLBT_CTRL_NS[PWRON] : %d\n", ret);
-        return ret;
-	}
-		/* wait for EXT_REGULATOR_CON_STATUS  = 0x1 */
-    timeout = jiffies + msecs_to_jiffies(500);
-    do {
-        regmap_read(platform->pmureg, EXT_REGULATOR_CON_STATUS, &val);
-        val&= EXT_REGULATOR_CON_STATUS__STATUS;
-        if(val==1){
-            SCSC_TAG_INFO(PLAT_MIF, "EXT_REGULATOR_CON_STATUS 0x%x\n", val);
-            break;
-        }
-    }while (time_before(jiffies, timeout));
-
-    if(!val) {
-        regmap_read(platform->pmureg, EXT_REGULATOR_CON_STATUS__STATUS, &val);
-        SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for EXT_REGULATOR_CON_STATUS__STATUS clear timeout: "
-                "EXT_REGULATOR_CON_STATUS__STATUS 0x%x\n", val);
-		return -ETIME;
-    }
-
 
 	/* reset sequence as per excite implementation for Leman */
 	ret = regmap_update_bits(platform->pmureg, CENTRAL_SEQ_WLBT_CONFIGURATION,
@@ -1424,15 +1146,10 @@ static int platform_mif_pmu_reset_assert(struct scsc_mif_abs *interface, u8 rst_
 	}
 
 	/* rst_case is always 2 on 9610 */
-	//ret = platform_mif_hold_reset(interface, true);
+	ret = platform_mif_hold_reset(interface, true);
 
-	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-                 WLBT_RESET_SET, WLBT_RESET_SET);
-    if (ret < 0) {
-        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-            "Failed to update WLBT_CTRL_NS[WLBT_RESET_SET]: %d\n", ret);
-    	return ret;
-	}
+	if (ret)
+		return ret;
 
 	timeout = jiffies + msecs_to_jiffies(500);
 	do {
@@ -1445,7 +1162,7 @@ static int platform_mif_pmu_reset_assert(struct scsc_mif_abs *interface, u8 rst_
 			 * The SW PWR_REQ remains asserted, but as ownership is now FW,
 			 * it'll be ignored. This leaves it as we found it.
 			 */
-			//platform_mif_power(interface, false);
+			platform_mif_power(interface, false);
 
 			return 0; /* OK - return */
 		}
@@ -1477,17 +1194,10 @@ static int platform_mif_reset(struct scsc_mif_abs *interface, bool reset)
 				"SOC_VERSION: product_id 0x%x, rev 0x%x\n",
 				exynos_soc_info.product_id, exynos_soc_info.revision);
 #endif
-			if(first_booting){
-				first_booting = false;
-				ret = platform_mif_pmu_initialize(interface);
-			}
-			else{
-				/*reset release*/
-				ret = platform_mif_pmu_reset_release(interface);
-			}
+			ret = platform_mif_pmu_reset_release(interface);
 		} else {
 			/* Put back into reset */
-			ret = platform_mif_pmu_reset_assert(interface, 2);
+			ret = platform_mif_pmu_reset(interface, 2);
 		}
 	} else
 		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Not resetting ARM Cores - enable_platform_mif_arm_reset: %d\n",
