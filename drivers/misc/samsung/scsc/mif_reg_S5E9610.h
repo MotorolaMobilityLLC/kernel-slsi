@@ -43,7 +43,7 @@
 /* Exynos 9610 UM - 9.9.1.16 */
 #define WLBT_CTRL_NS            0x0050 /* WLBT Control SFR non-secure */
 
-#define WLBT_PWRON              BIT(18)
+#define WLBT_PWRON              BIT(1)
 #define WLBT_RESET_SET          BIT(0)  /* WLBT reset assertion control by using
 					 * PMU_ALIVE_WLBT.
 					 * 0x1: Reset Assertion,
@@ -179,16 +179,4 @@
 /* TZASC (TrustZone Address Space Controller) configuration for Katmai onwards */
 #define EXYNOS_SET_CONN_TZPC    0
 //#define SMC_CMD_CONN_IF         0x82000710
-
-#define RESET_SEQUENCER_STATUS              0x0504
-#define POWER_SHARED_PWR_REQ_WLBT_CONTROL   0x8008
-#define CLEANY_BUS_WLBT_CONFIGURATION       0x3B20
-#define CLEANY_BUS_WLBT_STATUS              0x3B24
-#define EXT_REGULATOR_CON_STATUS            0x3644
-
-#define RESET_SEQUENCER_STATUS__WLBT_STATE  (BIT(10) | BIT(9) | BIT(8))
-#define POWER_SHARED_PWR_REQ_WLBT_CONTROL__STATUS   BIT(0)
-#define CLEANY_BUS_WLBT_STATUS__STATES  (BIT(17) | BIT(16))
-#define EXT_REGULATOR_CON_STATUS__STATUS BIT(0)
-
 #endif /* __MIF_REG_9610_H */
