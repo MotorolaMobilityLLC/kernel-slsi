@@ -995,8 +995,13 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 		}
 		contexthub_put_token(ipc);
 
-		if (ret < 0)
-			ipc->err_cnt[CHUB_ERR_EVTQ_ADD]++;
+		/* add slient reset with write event error */
+		if ((event == MAILBOX_EVT_WAKEUP_CLR) || (event == MAILBOX_EVT_WAKEUP)) {
+			if (ret < 0)
+				contexthub_handle_debug(ipc, CHUB_ERR_EVTQ_ADD, 0);
+			else
+				clear_err_cnt(ipc, CHUB_ERR_EVTQ_ADD);
+		}
 	}
 	return ret;
 }

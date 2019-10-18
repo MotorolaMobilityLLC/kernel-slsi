@@ -89,6 +89,7 @@ bool ipc_have_sensor_info(struct sensor_map *sensor_map)
 	return false;
 }
 
+#ifdef CHUB_IPC
 void ipc_set_sensor_id(enum sensor_type type, enum vendor_sensor_list_id id)
 {
 	struct sensor_map *ipc_sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
@@ -97,18 +98,6 @@ void ipc_set_sensor_id(enum sensor_type type, enum vendor_sensor_list_id id)
 		ipc_sensor_map->active_sensor_list[type] = id;
 		ipc_sensor_map->index++;
 	}
-}
-
-void *ipc_get_sensor_base(void)
-{
-	struct sensor_map *ipc_sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
-
-	if (ipc_have_sensor_info(ipc_sensor_map))
-		return &ipc_sensor_map->active_sensor_list[0];
-
-	CSP_PRINTF_INFO("%s: fails to get ipc_sensor_map:%p, magic:%s\n",
-		__func__, ipc_sensor_map, ipc_sensor_map ? ipc_sensor_map->magic : NULL);
-	return NULL;
 }
 
 enum vendor_sensor_list_id ipc_get_sensor_id(enum sensor_type type)
@@ -121,6 +110,19 @@ enum vendor_sensor_list_id ipc_get_sensor_id(enum sensor_type type)
 	CSP_PRINTF_INFO("%s: fails to get ipc_sensor_map:%p, type:%d, magic:%s\n",
 		__func__, ipc_sensor_map, type, ipc_sensor_map ? ipc_sensor_map->magic : NULL);
 	return sensor_list_no_active;
+}
+#endif
+
+void *ipc_get_sensor_base(void)
+{
+	struct sensor_map *ipc_sensor_map = ipc_get_base(IPC_REG_IPC_SENSORINFO);
+
+	if (ipc_have_sensor_info(ipc_sensor_map))
+		return &ipc_sensor_map->active_sensor_list[0];
+
+	CSP_PRINTF_INFO("%s: fails to get ipc_sensor_map:%p, magic:%s\n",
+		__func__, ipc_sensor_map, ipc_sensor_map ? ipc_sensor_map->magic : NULL);
+	return NULL;
 }
 
 /* ipc address control functions */
@@ -436,7 +438,7 @@ static inline bool __ipc_evt_queue_full(struct ipc_evt_ctrl *ipc_evt)
 
 static inline bool __ipc_evt_queue_index_check(struct ipc_evt_ctrl *ipc_evt)
 {
-	return ((ipc_evt->eq > IPC_EVT_NUM) || (ipc_evt->dq > IPC_EVT_NUM));
+	return ((ipc_evt->eq >= IPC_EVT_NUM) || (ipc_evt->dq >= IPC_EVT_NUM));
 }
 
 struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
@@ -447,14 +449,10 @@ struct ipc_evt_buf *ipc_get_evt(enum ipc_evt_list evtq)
 	bool retried = 0;
 #endif
 
-	if (__ipc_evt_queue_index_check(&ipc_evt->ctrl)) {
-		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
-		return NULL;
-	}
 
 retry:
-	if (ipc_evt->ctrl.dq >= IPC_EVT_NUM) {
-		CSP_PRINTF_ERROR("%s:%s: invalid dq:%d\n", NAME_PREFIX, __func__, ipc_evt->ctrl.dq);
+	if (__ipc_evt_queue_index_check(&ipc_evt->ctrl)) {
+		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
 		return NULL;
 	}
 	/* only called by isr DISABLE_IRQ(); */
@@ -498,10 +496,8 @@ static inline int __ipc_evt_wait_full(struct ipc_evt *ipc_evt)
 	} while (pass && (trycnt++ < MAX_TRY_CNT));
 
 	if (pass) {
-#ifdef IPC_DEBUG
 		CSP_PRINTF_ERROR("%s:%s: fails full:0x%x,t:%lld\n",
 			NAME_PREFIX, __func__, pass, (u64)DIFF_TIME(time));
-#endif
 		ipc_dump();
 		return -1;
 	} else {
@@ -530,14 +526,9 @@ int ipc_add_evt(enum ipc_evt_list evtq, enum irq_evt_chub evt)
 		return -EINVAL;
 	}
 
+retry:
 	if (__ipc_evt_queue_index_check(&ipc_evt->ctrl)) {
 		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
-		return -EINVAL;
-	}
-
-retry:
-	if (ipc_evt->ctrl.eq >= IPC_EVT_NUM) {
-		CSP_PRINTF_ERROR("%s:%s: invalid eq:%d\n", NAME_PREFIX, __func__, ipc_evt->ctrl.eq);
 		return -EINVAL;
 	}
 	DISABLE_IRQ(LOCK_ADD_EVT, &flag);
@@ -576,10 +567,9 @@ retry:
 	} else {
 		ENABLE_IRQ(LOCK_ADD_EVT, &flag);
 		ret = __ipc_evt_wait_full(ipc_evt);
-		if (ret) {
-			ret = -EINVAL;
-			goto out;
-		} else
+		if (ret)
+			return -EINVAL;
+		else
 			goto retry;
 	}
 out:
@@ -612,7 +602,7 @@ static inline bool __ipc_queue_full(struct ipc_buf *ipc_data)
 
 static inline bool __ipc_queue_index_check(struct ipc_buf *ipc_data)
 {
-	return ((ipc_data->eq > IPC_CH_BUF_NUM) || (ipc_data->dq > IPC_CH_BUF_NUM));
+	return ((ipc_data->eq >= IPC_CH_BUF_NUM) || (ipc_data->dq >= IPC_CH_BUF_NUM));
 }
 
 static inline int __ipc_data_wait_full(struct ipc_buf *ipc_data)
@@ -653,15 +643,10 @@ int ipc_write_data(enum ipc_data_list dir, void *tx, u16 length)
 	int trycnt = 0;
 	unsigned long flag;
 
-	if (__ipc_queue_index_check(ipc_data)) {
-		CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
-		return -EINVAL;
-	}
-
 	if (length <= PACKET_SIZE_MAX) {
 retry:
-		if (ipc_data->eq >= IPC_CH_BUF_NUM) {
-			CSP_PRINTF_ERROR("%s:%s: invalid eq:%d\n", NAME_PREFIX, __func__, ipc_data->eq);
+		if (__ipc_queue_index_check(ipc_data)) {
+			CSP_PRINTF_ERROR("%s:%s: failed by ipc index corrupt\n", NAME_PREFIX, __func__);
 			return -EINVAL;
 		}
 		DISABLE_IRQ(LOCK_WT_DATA, &flag);
@@ -725,11 +710,6 @@ void *ipc_read_data(enum ipc_data_list dir, u32 *len)
 
 	DISABLE_IRQ(LOCK_RD_DATA, NULL);
 retry:
-	if (ipc_data->dq >= IPC_CH_BUF_NUM) {
-		CSP_PRINTF_ERROR("%s:%s: invalid dq:%d\n", NAME_PREFIX, __func__, ipc_data->dq);
-		ENABLE_IRQ(LOCK_RD_DATA, NULL);
-		return NULL;
-	}
 	if (!__ipc_queue_empty(ipc_data)) {
 		struct ipc_channel_buf *ipc;
 
@@ -771,18 +751,21 @@ int ipc_get_data_cnt(enum ipc_data_list dataq)
 static void ipc_print_databuf(void)
 {
 	struct ipc_buf *ipc_data;
-	int i;
 	int j;
+#ifdef IPC_DEBUG
+	int i;
+#endif
 
 	for (j = 0; j < IPC_DATA_MAX; j++) {
 		ipc_data = (j == IPC_DATA_C2A) ? ipc_get_base(IPC_REG_IPC_C2A) : ipc_get_base(IPC_REG_IPC_A2C);
 		CSP_PRINTF_INFO("%s: %s: eq:%d dq:%d\n",
 			__func__, (j == IPC_DATA_C2A) ? "c2a" : "a2c", ipc_data->eq, ipc_data->dq);
-
+#ifdef IPC_DEBUG
 		if (ipc_get_data_cnt(j))
 			for (i = 0; i < IPC_CH_BUF_NUM; i++)
 				CSP_PRINTF_INFO("%s: ch%d(size:0x%x)\n",
 						__func__, i, ipc_data->ch[i].size);
+#endif
 	}
 }
 
@@ -795,10 +778,6 @@ static void ipc_print_logbuf(void)
 		logbuf->errcnt, logbuf->reqcnt, logbuf->fw_num);
 	CSP_PRINTF_INFO("%s: raw: eq:%d, dq:%d, size:%d, full:%d\n",
 		__func__, logbuf->logbuf.eq, logbuf->logbuf.dq, logbuf->logbuf.size, logbuf->logbuf.full);
-
-
-
-
 }
 
 void ipc_init(void)
@@ -833,12 +812,15 @@ void ipc_init(void)
 void ipc_print_evt(enum ipc_evt_list evtq)
 {
 	struct ipc_evt *ipc_evt = &ipc_map->evt[evtq];
+#ifdef IPC_DEBUG
 	int i;
+#endif
 
 	CSP_PRINTF_INFO("%s: evt(%p)-%s: eq:%d dq:%d irq:%d\n",
 			__func__, ipc_evt, IPC_GET_EVT_NAME(evtq), ipc_evt->ctrl.eq,
 			ipc_evt->ctrl.dq, ipc_evt->ctrl.irq);
 
+#ifdef IPC_DEBUG
 	for (i = 0; i < IRQ_MAX; i++)
 		if (ipc_evt->ctrl.pending[i])
 			CSP_PRINTF_INFO("%s: irq:%d filled\n", __func__, i);
@@ -849,6 +831,7 @@ void ipc_print_evt(enum ipc_evt_list evtq)
 				__func__, i, ipc_evt->data[i].evt,
 				ipc_evt->data[i].irq, ipc_evt->data[i].status);
 	}
+#endif
 }
 
 void ipc_dump(void)
@@ -871,6 +854,11 @@ void ipc_logbuf_put_with_char(char ch)
 {
 	if (ipc_map) {
 		struct logbuf_raw *logbuf = &ipc_map->logbuf.logbuf;
+		if ((void *) logbuf < (void *) ipc_addr[IPC_REG_IPC].base ||
+			(void *) logbuf > (void *) (ipc_addr[IPC_REG_IPC].base + ipc_addr[IPC_REG_IPC].offset))
+			return;
+		if (logbuf->eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM)
+			return;
 
 		if (logbuf->size) {
 			char *buf = (char *)&logbuf->buf[0];
@@ -886,14 +874,20 @@ void *ipc_logbuf_inbase(bool force)
 	if (ipc_map) {
 		struct ipc_logbuf *logbuf = &ipc_map->logbuf;
 
+		if (logbuf->eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM)
+			return NULL;
+
 		if (force || logbuf->loglevel) {
 			struct logbuf_content *log;
 			int index;
 
+			/* check the validataion of ipc index */
 			if (logbuf->eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM)
 				return NULL;
+
 			if (!trylockTryTake(&ipcLockLog))
 				return NULL;
+
 			if (logbuf->full) /* logbuf is full overwirte */
 				logbuf->dbg_full_cnt++;
 
