@@ -443,12 +443,13 @@ enum sensor_type {
     SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED = 35,
     SENSOR_TYPE_MAX,
 };
-
+#ifdef CHUB_IPC
 struct sensor_info {
 	bool active;
 	int type;
 	enum vendor_sensor_list_id id;
 };
+#endif
 
 struct sensor_map {
 	char magic[16];
@@ -525,8 +526,10 @@ struct ipc_map_area {
 	__raw_write32((val), (base) + REG_MAILBOX_MCUCTL)
 
 bool ipc_have_sensor_info(struct sensor_map *sensor_map);
+#ifdef CHUB_IPC
 void ipc_set_sensor_id(enum sensor_type type, enum vendor_sensor_list_id id);
 enum vendor_sensor_list_id ipc_get_sensor_id(enum sensor_type type);
+#endif
 void *ipc_get_sensor_base(void);
 
 /* channel ctrl functions */
