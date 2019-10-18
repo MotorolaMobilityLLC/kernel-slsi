@@ -1337,6 +1337,7 @@ int nanohub_reset(struct nanohub_data *data)
 #endif
 }
 
+static int nanohub_kthread(void *arga);
 static int nanohub_open(struct inode *inode, struct file *file)
 {
 	dev_t devt = inode->i_rdev;
@@ -1351,6 +1352,8 @@ static int nanohub_open(struct inode *inode, struct file *file)
 #ifdef CONFIG_NANOHUB_MAILBOX
 		io = file->private_data;
 		nanohub_reset(io->data);
+		io->data->thread = kthread_run(nanohub_kthread, io->data, "nanohub");
+		udelay(30);
 #endif
 		return 0;
 	}
@@ -1680,8 +1683,18 @@ static int nanohub_kthread(void *arg)
 			ret = request_wakeup_timeout(data, 600);
 			if (ret) {
 				dev_info(sensor_dev,
-					 "%s: request_wakeup_timeout: ret=%d\n",
-					 __func__, ret);
+					 "%s: request_wakeup_timeout: ret=%d, err_cnt:%d\n",
+					 __func__, ret, data->kthread_err_cnt);
+#ifdef CONFIG_NANOHUB_MAILBOX
+				data->kthread_err_cnt++;
+				if (data->kthread_err_cnt >= KTHREAD_WARN_CNT) {
+					dev_err(sensor_dev,
+						"%s: kthread_err_cnt=%d\n",
+						__func__,
+						data->kthread_err_cnt);
+					nanohub_set_state(data, ST_ERROR);
+				}
+#endif
 				continue;
 			}
 
@@ -2064,8 +2077,9 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 	if (ret)
 		goto fail_dev;
 
+#ifdef CONFIG_EXT_CHUB
 	data->thread = kthread_run(nanohub_kthread, data, "nanohub");
-
+#endif
 	udelay(30);
 
 	return iio_dev;
