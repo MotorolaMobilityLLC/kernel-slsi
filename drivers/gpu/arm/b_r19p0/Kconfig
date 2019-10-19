@@ -228,7 +228,7 @@ config MALI_DMA_BUF_MAP_ON_DEMAND
 config MALI_DMA_BUF_LEGACY_COMPAT
 	bool "Enable legacy compatibility cache flush on dma-buf map"
 	depends on MALI_MIDGARD && !MALI_DMA_BUF_MAP_ON_DEMAND
-	default n
+	default y
 	help
 	  This option enables compatibility with legacy dma-buf mapping
 	  behavior, then the dma-buf is mapped on import, by adding cache
