@@ -1056,10 +1056,20 @@ exit:
 
 static int  slsi_set_mac_address(struct net_device *dev, void *addr)
 {
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct slsi_dev   *sdev = ndev_vif->sdev;
 	struct sockaddr *sa = (struct sockaddr *)addr;
 
 	SLSI_NET_DBG1(dev, SLSI_NETDEV, "slsi_set_mac_address %pM\n", sa->sa_data);
 	SLSI_ETHER_COPY(dev->dev_addr, sa->sa_data);
+
+	// Setting of MAC Address is called, when the Mac Address is changed.
+	// And Mac Address is changed during the Mac Randomization Cases.
+	// During Connected Mac Randomization, enabling the initial scan for faster reconnection.
+	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
+		sdev->initial_scan = true;
+		SLSI_NET_DBG1(dev, SLSI_NETDEV, "slsi_set_mac_address : Value of initial_scan is %d\n", sdev->initial_scan);
+	}
 	return 0;
 }
 
