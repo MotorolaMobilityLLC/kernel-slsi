@@ -2154,6 +2154,7 @@
 				cirrus,micd-detect-debounce-ms = <700>;
 				/*cirrus,jd-use-jd2;*/
 				/*cirrus,micd-clamp-mode = <0x8>;*/
+				cirrus,micd-manual-debounce = <2>;
 			};
 		};
 
