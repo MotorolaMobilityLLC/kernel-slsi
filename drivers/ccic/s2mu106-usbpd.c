@@ -317,28 +317,22 @@ static int s2mu106_usbpd_get_pmeter_current(struct s2mu106_usbpd_data *pdic_data
 static int s2mu106_usbpd_check_vbus(struct s2mu106_usbpd_data *pdic_data,
 												int volt, CCIC_VBUS_SEL mode)
 {
-	int delay = 20;
-	int retry = 100;
-	int i = 0;
 	int ret = 0;
 
 	if (mode == VBUS_OFF) {
-		for (i = 0; i < retry; i++) {
-			ret = s2mu106_usbpd_get_pmeter_volt(pdic_data);
-			if (ret < 0)
-				return ret;
+		ret = s2mu106_usbpd_get_pmeter_volt(pdic_data);
+		if (ret < 0)
+			return ret;
 
-			if (pdic_data->pm_chgin < volt) {
-				pr_info("%s chgin volt(%d) finish!\n", __func__,
-												pdic_data->pm_chgin);
-				return true;
-			} else {
-				pr_info("%s chgin volt(%d) waiting 400ms!\n",
-										__func__, pdic_data->pm_chgin);
-				msleep(400);
-				return true;
-			}
-			msleep(delay);
+		if (pdic_data->pm_chgin < volt) {
+			pr_info("%s chgin volt(%d) finish!\n", __func__,
+											pdic_data->pm_chgin);
+			return true;
+		} else {
+			pr_info("%s chgin volt(%d) waiting 400ms!\n",
+									__func__, pdic_data->pm_chgin);
+			msleep(400);
+			return true;
 		}
 	} else if (mode == VBUS_ON) {
 		ret = s2mu106_usbpd_get_pmeter_volt(pdic_data);
