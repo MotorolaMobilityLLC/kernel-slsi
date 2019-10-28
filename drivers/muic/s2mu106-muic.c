@@ -1062,6 +1062,11 @@ static int s2mu106_muic_reg_init(struct s2mu106_muic_data *muic_data)
 	if (data)
 		_s2mu106_muic_sel_path(muic_data, S2MU106_PATH_OPEN);
 
+	reg_val = s2mu106_i2c_read_byte(i2c, S2MU106_REG_TIMER_SET3);
+	reg_val &= ~(TIMER_SET3_DCDTMRSET_MASK);
+	reg_val |= TIMER_SET3_DCDTMRSET_1p2s_MASK;
+	s2mu106_i2c_write_byte(i2c, S2MU106_REG_TIMER_SET3, reg_val);
+
 #if IS_ENABLED(CONFIG_S2MU106_TYPEC_WATER)
 	/*
 	 * These registers represents the RID ADC LDO voltage control.
@@ -1968,7 +1973,7 @@ static irqreturn_t s2mu106_muic_vbus_on_isr(int irq, void *data)
 
 #if IS_ENABLED(CONFIG_S2MU106_SPECOUT_CHARGER)
 	cancel_delayed_work(&muic_data->cable_timeout);
-	schedule_delayed_work(&muic_data->cable_timeout, msecs_to_jiffies(800));
+	schedule_delayed_work(&muic_data->cable_timeout, msecs_to_jiffies(1400));
 #endif
 
 	pr_info("%s done(%s)\n", __func__, dev_to_str(muic_pdata->attached_dev));
@@ -2544,7 +2549,7 @@ static int s2mu106_muic_probe(struct platform_device *pdev)
 					muic_pdata->attached_dev == ATTACHED_DEV_UNKNOWN_MUIC) {
 				s2mu106_muic_bcd_rescan(muic_data);
 				cancel_delayed_work(&muic_data->cable_timeout);
-				schedule_delayed_work(&muic_data->cable_timeout, msecs_to_jiffies(1000));
+				schedule_delayed_work(&muic_data->cable_timeout, msecs_to_jiffies(1400));
 			}
 		}
 #endif
