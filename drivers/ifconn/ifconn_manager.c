@@ -658,9 +658,6 @@ static int ifconn_manager_probe(struct platform_device *pdev)
 		ifconn_manager->pdata = pdata;
 	}
 
-	if (ret < 0)
-		goto ERROR_PDATA_FREE;
-
 	mutex_init(&ifconn_manager->noti_mutex);
 	mutex_init(&ifconn_manager->workqueue_mutex);
 #ifdef CONFIG_IFCONN_SUPPORT_THREAD
