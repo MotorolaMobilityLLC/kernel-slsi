@@ -378,8 +378,8 @@ static int _s2mu106_muic_sel_path(struct s2mu106_muic_data *muic_data,
 			reg_val2 |= MANUAL_SW_CTRL_UART1_MASK;
 #else
 			reg_val2 |= MANUAL_SW_CTRL_UART2_MASK;
-			break;
 #endif
+			break;
 		case S2MU106_PATH_OPEN:
 		default:
 			reg_val2 |= MANUAL_SW_CTRL_OPEN_MASK;
