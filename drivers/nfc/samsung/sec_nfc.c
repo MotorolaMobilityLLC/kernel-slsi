@@ -41,7 +41,9 @@
 #ifdef CONFIG_SEC_NFC_CLK_REQ
 #include <linux/interrupt.h>
 #endif
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
 #include <linux/wakelock.h>
+#endif
 #include <linux/of_gpio.h>
 #include <linux/clk.h>
 
@@ -86,7 +88,9 @@ struct sec_nfc_info {
     struct device *dev;
     struct sec_nfc_platform_data *pdata;
     struct sec_nfc_i2c_info i2c_info;
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
     struct wake_lock nfc_wake_lock;
+#endif
 #ifdef  CONFIG_SEC_NFC_CLK_REQ
     bool clk_ctl;
     bool clk_state;
@@ -118,7 +122,9 @@ static irqreturn_t sec_nfc_irq_thread_fn(int irq, void *dev_id)
     mutex_unlock(&info->i2c_info.read_mutex);
 
     wake_up_interruptible(&info->i2c_info.read_wait);
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
     wake_lock_timeout(&info->nfc_wake_lock, 2*HZ);
+#endif
 
     return IRQ_HANDLED;
 }
@@ -478,8 +484,10 @@ static void sec_nfc_set_mode(struct sec_nfc_info *info,
 #endif
     }
 
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
     if (wake_lock_active(&info->nfc_wake_lock))
         wake_unlock(&info->nfc_wake_lock);
+#endif
 
     pr_info("%s NFC mode is : %d\n", __func__, mode);
 }
@@ -520,8 +528,10 @@ static long sec_nfc_ioctl(struct file *file, unsigned int cmd,
 #elif defined(CONFIG_SEC_NFC_PRODUCT_N5) || defined(CONFIG_SEC_NFC_PRODUCT_N7)
     case SEC_NFC_SLEEP:
         if (info->mode != SEC_NFC_MODE_BOOTLOADER) {
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
             if (wake_lock_active(&info->nfc_wake_lock))
                 wake_unlock(&info->nfc_wake_lock);
+#endif
             gpio_set_value(pdata->wake, SEC_NFC_WAKE_SLEEP);
         }
         break;
@@ -529,8 +539,10 @@ static long sec_nfc_ioctl(struct file *file, unsigned int cmd,
     case SEC_NFC_WAKEUP:
         if (info->mode != SEC_NFC_MODE_BOOTLOADER) {
             gpio_set_value(pdata->wake, SEC_NFC_WAKE_UP);
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
             if (!wake_lock_active(&info->nfc_wake_lock))
                 wake_lock(&info->nfc_wake_lock);
+#endif
         }
         break;
 #endif
@@ -725,7 +737,9 @@ static int __sec_nfc_probe(struct device *dev)
         gpio_direction_output(pdata->firm, SEC_NFC_FW_OFF);
     }
 
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
     wake_lock_init(&info->nfc_wake_lock, WAKE_LOCK_SUSPEND, "nfc_wake_lock");
+#endif
 
     dev_info(dev, "%s: success info: %p, pdata %p\n", __func__, info, pdata);
 
@@ -763,7 +777,9 @@ static int __sec_nfc_remove(struct device *dev)
     if (pdata->firm)
         gpio_free(pdata->firm);
 
+#ifdef CONFIG_SEC_NFC_WAKE_LOCK
     wake_lock_destroy(&info->nfc_wake_lock);
+#endif
 
     kfree(info);
 
