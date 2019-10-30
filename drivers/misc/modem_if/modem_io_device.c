@@ -178,6 +178,7 @@ static inline int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
 			iod->name, iod->app ? iod->app : "corresponding",
 			rxq->qlen, MAX_IOD_RXQ_LEN);
 
+		dev_kfree_skb_any(skb);
 		wake_up(&iod->wq);
 
 		return -ENOSPC;
@@ -188,12 +189,6 @@ static inline int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
 	mif_debug("%s: rxq->qlen = %d\n", iod->name, rxq->qlen);
 	wake_up(&iod->wq);
 
-	return 0;
-}
-
-static int rx_drain(struct sk_buff *skb)
-{
-	dev_kfree_skb_any(skb);
 	return 0;
 }
 
@@ -663,7 +658,6 @@ static int rx_frame_done(struct io_device *iod, struct link_device *ld,
 	err = rx_demux(ld, skb);
 	if (err < 0) {
 		mif_err_limited("ERR! rx_demux(err %d)\n", err);
-		rx_drain(skb);
 	}
 
 	return err;
@@ -844,7 +838,6 @@ static int io_dev_recv_skb_from_link_dev(struct io_device *iod,
 	err = rx_demux(ld, skb);
 	if (err < 0) {
 		mif_err_limited("ERR! rx_demux(err %d)\n", err);
-		rx_drain(skb);
 	}
 
 	return err;
@@ -864,7 +857,6 @@ static int io_dev_recv_skb_single_from_link_dev(struct io_device *iod,
 	err = rx_demux(ld, skb);
 	if (err < 0) {
 		mif_err_limited("ERR! rx_demux(err %d)\n", err);
-		rx_drain(skb);
 	}
 
 	return err;
