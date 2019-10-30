@@ -55,4 +55,7 @@ config SEC_NFC_CLK_REQ
 config SEC_NFC_LDO_EN
         bool "SEC NFC LDO"
         default y
+config SEC_NFC_PMIC_LDO
+        bool "SEC NFC PMIC LDO"
+        default n
 endmenu

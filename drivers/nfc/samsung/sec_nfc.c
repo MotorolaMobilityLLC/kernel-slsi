@@ -645,6 +645,10 @@ static int sec_nfc_parse_dt(struct device *dev,
 #ifdef CONFIG_SEC_NFC_LDO_EN
     pdata->pvdd_en = of_get_named_gpio(np, "sec-nfc,ldo_en",0);
 #endif
+#ifdef CONFIG_SEC_NFC_PMIC_LDO
+    if (of_property_read_string(np, "sec-nfc,pmic-ldo", &pdata->pvdd_regulator_name))
+        pr_err("%s: Failed to get %s regulator.\n", __func__, pdata->pvdd_regulator_name);
+#endif
 
 #ifdef CONFIG_SEC_NFC_CLK_REQ
     pdata->clk_req = of_get_named_gpio(np, "sec-nfc,clk_req-gpio", 0);
@@ -716,17 +720,28 @@ static int __sec_nfc_probe(struct device *dev)
             pr_err("failed to request about pvdd_en pin\n");
             goto err_dev_reg;
         }
-        //if (!lpcharge)
+        if (!is_charging_mode)
             gpio_direction_output(pdata->pvdd_en, NFC_I2C_LDO_ON);
         pr_info("pvdd en: %d\n", gpio_get_value(pdata->pvdd_en));
     }
 #endif
+#ifdef CONFIG_SEC_NFC_PMIC_LDO
+    if (!is_charging_mode) {
+        pdata->pvdd_regulator = regulator_get(NULL, pdata->pvdd_regulator_name);
+        if (IS_ERR(pdata->pvdd_regulator))
+            pr_err("%s: Failed to get %s pmic regulator.\n", __func__, pdata->pvdd_regulator);
+        ret = regulator_enable(pdata->pvdd_regulator);
+        pr_err("%s: Failed to enable pmic regulator: %d\n", __func__, ret);
+    }
+#endif
+
     ret = gpio_request(pdata->ven, "nfc_ven");
     if (ret) {
         dev_err(dev, "failed to get gpio ven\n");
         goto err_gpio_ven;
     }
-    gpio_direction_output(pdata->ven, SEC_NFC_PW_OFF);
+    if (!is_charging_mode)
+        gpio_direction_output(pdata->ven, SEC_NFC_PW_OFF);
 
     if (pdata->firm) {
         ret = gpio_request(pdata->firm, "nfc_firm");
@@ -862,6 +877,16 @@ static struct i2c_driver sec_nfc_driver = {
         .of_match_table = nfc_match_table,
     },
 };
+
+static int __init is_poweroff_charging_mode(char *str)
+{
+    if (strncmp("charger", str, 7) == 0)
+        is_charging_mode = true;
+    else {
+        is_charging_mode = false;
+    }
+    return 0;
+} early_param("androidboot.mode", is_poweroff_charging_mode);
 
 static int __init sec_nfc_init(void)
 {
