@@ -327,7 +327,8 @@
 							regulator-min-microvolt = <1620000>;
 							regulator-max-microvolt = <1900000>;
 							regulator-ramp-delay = <12000>;
-							regulator-always-on;
+							/* regulator-always-on; */
+							regulator-initial-mode = <3>;
 						};
 
 						l38_reg: LDO38 {
@@ -1503,6 +1504,8 @@
 
 	nfc_pd: nfc-pd {
 		samsung,pins ="gpg0-0";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
 		samsung,pin-con-pdn =<3>;
 		samsung,pin-pud-pdn = <0>;
 	};
@@ -1591,6 +1594,7 @@
 
 		sec-nfc,irq-gpio = <&gpa1 2 0>;
 		sec-nfc,clk_req-gpio = <&gpg0 1 0>;
+		sec-nfc,pmic-ldo = "vdd_ldo37";
 
 		clock-names = "OSC_NFC";
 		clocks = <&clock OSC_NFC>;
