@@ -275,7 +275,7 @@ static int madera_runtime_resume(struct device *dev)
 	struct madera *madera = dev_get_drvdata(dev);
 	int ret;
 
-	dev_dbg(dev, "Leaving sleep mode\n");
+	dev_err(dev, "Leaving sleep mode\n");
 
 	madera_enable_hard_reset(madera);
 
@@ -285,14 +285,14 @@ static int madera_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	if (IS_ENABLED(CONFIG_REGULATOR_S2MPU09))
-		msleep(10);
+	 msleep(10);
 
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
 
 	madera_disable_hard_reset(madera);
 
+	msleep(2);
 	if (!madera->reset_gpio) {
 		ret = madera_wait_for_boot(madera);
 		if (ret)
