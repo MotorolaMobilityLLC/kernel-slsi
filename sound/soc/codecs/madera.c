@@ -25,7 +25,7 @@
 #include <dt-bindings/sound/madera.h>
 
 #include "madera.h"
-
+#define __FIX_SAMPLE_RATE_REWRITE_
 #define MADERA_AIF_BCLK_CTRL			0x00
 #define MADERA_AIF_TX_PIN_CTRL			0x01
 #define MADERA_AIF_RX_PIN_CTRL			0x02
@@ -3299,6 +3299,10 @@ static int madera_hw_params_rate(struct snd_pcm_substream *substream,
 	unsigned int cur, tar;
 	bool change_rate_domain = false;
 
+#ifdef __FIX_SAMPLE_RATE_REWRITE_
+	int sr_status,sr_val_update;
+#endif
+
 	for (i = 0; i < ARRAY_SIZE(madera_sr_vals); i++)
 		if (madera_sr_vals[i] == params_rate(params))
 			break;
@@ -3367,6 +3371,36 @@ static int madera_hw_params_rate(struct snd_pcm_substream *substream,
 			snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
 					    MADERA_AIF1_RATE_MASK,
 					    0 << MADERA_AIF1_RATE_SHIFT);
+#ifdef __FIX_SAMPLE_RATE_REWRITE_
+		sr_status = snd_soc_read(codec, MADERA_SAMPLE_RATE_1_STATUS);
+		madera_aif_err(dai, "Sample Rate should be pair %d,%d\n",sr_status,sr_val);
+		if(sr_status != sr_val) {
+			madera_aif_err(dai, "Illegal Sample Rate appear %d\n",sr_status);
+			/*Then we need to rewrite the Sample Rate value and make it work, need different value*/
+			sr_val_update=0x11;
+			snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_1,
+				    MADERA_SAMPLE_RATE_1_MASK, sr_val_update);
+			snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_2,
+				    MADERA_SAMPLE_RATE_2_MASK, sr_val_update);
+			snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_3,
+				    MADERA_SAMPLE_RATE_3_MASK, sr_val_update);
+
+			sr_val_update=sr_val;
+			snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_1,
+				    MADERA_SAMPLE_RATE_1_MASK, sr_val_update);
+
+			sr_val_update=0x3;
+			snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_3,
+				    MADERA_SAMPLE_RATE_3_MASK, sr_val_update);
+
+			sr_val_update=0x12;
+			snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_2,
+				    MADERA_SAMPLE_RATE_2_MASK, sr_val_update);
+
+			sr_status = snd_soc_read(codec, MADERA_SAMPLE_RATE_1_STATUS);
+			madera_aif_err(dai, "Read Sample Rate status again %d\n",sr_status);
+		}
+#endif
 		break;
 	case MADERA_CLK_SYSCLK_2:
 		snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_2,
