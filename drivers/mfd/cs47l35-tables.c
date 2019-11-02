@@ -92,9 +92,9 @@ static const struct reg_default cs47l35_reg_default[] = {
 	{ 0x000000A0, 0x0000 }, /* R160 (0xa0) - Comfort Noise Generator */
 	{ 0x00000100, 0x0002 }, /* R256 (0x100) - Clock 32k 1 */
 	{ 0x00000101, 0x0404 }, /* R257 (0x101) - System Clock 1 */
-	{ 0x00000102, 0x0003 }, /* R258 (0x102) - Sample rate 1 */
-	{ 0x00000103, 0x0012 }, /* R259 (0x103) - Sample rate 2 */
-	{ 0x00000104, 0x0003 }, /* R260 (0x104) - Sample rate 3 */
+	{ 0x00000102, 0x0011 }, /* R258 (0x102) - Sample rate 1 */
+	{ 0x00000103, 0x0011 }, /* R259 (0x103) - Sample rate 2 */
+	{ 0x00000104, 0x0011 }, /* R260 (0x104) - Sample rate 3 */
 	{ 0x00000120, 0x0305 }, /* R288 (0x120) - DSP Clock 1 */
 	{ 0x00000122, 0x0000 }, /* R290 (0x122) - DSP Clock 2 */
 	{ 0x00000149, 0x0000 }, /* R329 (0x149) - Output system clock */
