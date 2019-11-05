@@ -1072,6 +1072,18 @@ static int s2mu106_set_cc_control(void *_data, int val)
 	return ret;
 }
 
+static int s2mu106_set_rp_control(void *_data, int val)
+{
+	struct usbpd_data *data = (struct usbpd_data *) _data;
+	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
+
+	mutex_lock(&pdic_data->cc_mutex);
+	s2mu106_usbpd_set_rp_scr_sel(pdic_data, val);
+	mutex_unlock(&pdic_data->cc_mutex);
+
+	return 0;
+}
+
 static int s2mu106_vbus_on_check(void *_data)
 {
 	struct usbpd_data *data = (struct usbpd_data *) _data;
@@ -2405,7 +2417,6 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data)
 			dev_err(&i2c->dev, "%s, abnormal attach\n", __func__);
 			return -1;
 		}
-		s2mu106_usbpd_set_rp_scr_sel(pdic_data, PLUG_CTRL_RP180);
 		ret = s2mu106_usbpd_check_accessory(pdic_data);
 		if (ret < 0) {
 			dev_info(&i2c->dev, "%s attach accessory\n", __func__);
@@ -3136,6 +3147,7 @@ static usbpd_phy_ops_type s2mu106_ops = {
 	.pr_swap			= s2mu106_pr_swap,
 	.vbus_on_check		= s2mu106_vbus_on_check,
 	.set_pwr_opmode		= s2mu106_set_pwr_opmode,
+	.set_rp_control		= s2mu106_set_rp_control,
 };
 
 #if defined CONFIG_PM

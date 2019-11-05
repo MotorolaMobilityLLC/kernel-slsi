@@ -332,6 +332,7 @@ void usbpd_set_ops(struct device *dev, usbpd_phy_ops_type *ops)
 	pd_data->phy_ops.get_side_check = ops->get_side_check;
 	pd_data->phy_ops.pr_swap = ops->pr_swap;
 	pd_data->phy_ops.vbus_on_check = ops->vbus_on_check;
+	pd_data->phy_ops.set_rp_control = ops->set_rp_control;
 	pd_data->phy_ops.set_pwr_opmode = ops->set_pwr_opmode;
 }
 
