@@ -563,12 +563,12 @@
 	scenario = <SENSOR_SCENARIO_NORMAL>;	/* Normal, Vision, OIS etc */
 	id = <0>;
 	csi_ch = <0>;
-	dma_ch = <0 0 0 0 0 1 1 1>;
-	vc_ch = <0 1 2 3 0 1 2 3>;
+	dma_ch = <0 0 0 0>;
+	vc_ch = <0 1 2 3>;
 	flite_ch = <FLITE_ID_NOTHING>;
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
-	multi_ch = <2>;
+	multi_ch = <1>;
 	/* use_ssvc1_internal; */
 	/* use_ssvc2_internal; */
 	status = "okay";
@@ -597,6 +597,7 @@
 	is_bns = <0>;
 	csi_mux = <0>;  /* CSIS_DPHY[2:0] = [0 0 0] */
 	multi_ch = <0>;
+	camif_mux_val = <0x005820FF>;
 	status = "okay";
 };
 
