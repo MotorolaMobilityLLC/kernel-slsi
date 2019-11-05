@@ -2000,9 +2000,9 @@ void himax_ts_work(struct himax_ts_data *ts)
 	if (debug_data != NULL)
 		debug_data->fp_ts_dbg_func(ts, HX_FINGER_ON);
 
-#if defined(HX_USB_DETECT_GLOBAL)
+/* #if defined(HX_USB_DETECT_GLOBAL)
 	himax_cable_detect_func(false);
-#endif
+#endif */
 
 	ts_path = himax_ts_work_status(ts);
 	switch (ts_path) {
@@ -2516,6 +2516,7 @@ static int charger_notifier_callback(struct notifier_block *nb,
 			} else {
 				charger_flag |= prop.intval;
 				USB_detect_flag = charger_flag;
+				himax_cable_detect_func(false);
 			}
 		}
 	}
