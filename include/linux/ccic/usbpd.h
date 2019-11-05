@@ -351,6 +351,7 @@ typedef struct usbpd_phy_ops {
 	int    (*set_cc_control)(void *, int);
 	void    (*pr_swap)(void *, int);
 	int    (*vbus_on_check)(void *);
+	int		(*set_rp_control)(void *, int);
 	int		(*get_side_check)(void *_data);
 	void	(*set_pwr_opmode)(void *_data, int mode);
 } usbpd_phy_ops_type;
