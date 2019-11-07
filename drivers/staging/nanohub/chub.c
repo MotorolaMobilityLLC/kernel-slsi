@@ -1786,7 +1786,7 @@ static int contexthub_suspend(struct device *dev)
 #endif
 }
 
-static void contexthub_resume(struct device *dev)
+static int contexthub_resume(struct device *dev)
 {
 	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
@@ -1795,7 +1795,7 @@ static void contexthub_resume(struct device *dev)
 
 	int ret;
 	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
-		return;
+		return 0;
 
 	dev_info(dev, "nanohub log to kernel on\n");
 	ipc_hw_write_shared_reg(AP, AP_WAKE, SR_3);
@@ -1804,13 +1804,13 @@ static void contexthub_resume(struct device *dev)
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	ret = nanohub_resume(data->iio_dev);
 #endif
-	return;
+	return 0;
 }
 
 //static SIMPLE_DEV_PM_OPS(contexthub_pm_ops, contexthub_suspend, contexthub_resume);
 static const struct dev_pm_ops contexthub_pm_ops = {
-	.prepare = contexthub_suspend,
-	.complete = contexthub_resume,
+	.suspend = contexthub_suspend,
+	.resume = contexthub_resume,
 };
 
 static const struct of_device_id contexthub_ipc_match[] = {
