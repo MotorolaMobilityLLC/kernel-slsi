@@ -1685,16 +1685,6 @@ static int nanohub_kthread(void *arg)
 				dev_info(sensor_dev,
 					 "%s: request_wakeup_timeout: ret=%d, err_cnt:%d\n",
 					 __func__, ret, data->kthread_err_cnt);
-#ifdef CONFIG_NANOHUB_MAILBOX
-				data->kthread_err_cnt++;
-				if (data->kthread_err_cnt >= KTHREAD_WARN_CNT) {
-					dev_err(sensor_dev,
-						"%s: kthread_err_cnt=%d\n",
-						__func__,
-						data->kthread_err_cnt);
-					nanohub_set_state(data, ST_ERROR);
-				}
-#endif
 				continue;
 			}
 
