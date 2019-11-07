@@ -572,7 +572,7 @@ struct scsc_log_collector_client slsi_hcf_client = {
 int slsi_start(struct slsi_dev *sdev)
 {
 #ifndef CONFIG_SCSC_DOWNLOAD_FILE
-	const struct firmware *fw = NULL;
+	const struct firmware *fw[SLSI_WLAN_MAX_MIB_FILE] = { NULL, NULL };
 #endif
 	int  err = 0, r;
 	int i;
@@ -653,8 +653,8 @@ int slsi_start(struct slsi_dev *sdev)
 	}
 
 	/* Place MIB files in shared memory */
-	for (i  = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++) {
-		err = slsi_mib_open_file(sdev, &sdev->mib[i], &fw);
+	for (i = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++) {
+		err = slsi_mib_open_file(sdev, &sdev->mib[i], &fw[i]);
 
 		/* Only the first file is mandatory */
 		if (i == 0 && err) {
@@ -667,11 +667,13 @@ int slsi_start(struct slsi_dev *sdev)
 	err = slsi_sm_wlan_service_start(sdev);
 	if (err) {
 		SLSI_ERR(sdev, "slsi_sm_wlan_service_start failed: err=%d\n", err);
-		slsi_mib_close_file(sdev, fw);
+		for (i = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++)
+			slsi_mib_close_file(sdev, fw[i]);
 		slsi_sm_wlan_service_close(sdev);
 		goto err_done;
 	}
-	slsi_mib_close_file(sdev, fw);
+	for (i = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++)
+		slsi_mib_close_file(sdev, fw[i]);
 #else
 	/* Download main MIB file via mlme_set */
 	err = slsi_sm_wlan_service_start(sdev);
@@ -6270,7 +6272,7 @@ void slsi_subsystem_reset(struct work_struct *work)
 	int err = 0, i;
 	int level;
 #ifndef CONFIG_SCSC_DOWNLOAD_FILE
-	const struct firmware *fw = NULL;
+	const struct firmware *fw[SLSI_WLAN_MAX_MIB_FILE] = { NULL, NULL };
 #endif
 	level = atomic_read(&sdev->cm_if.reset_level);
 	SLSI_INFO_NODEV("Inside subsytem_reset\n");
@@ -6312,7 +6314,7 @@ void slsi_subsystem_reset(struct work_struct *work)
 	sdev->collect_mib.num_files = 0;
 	/* Place MIB files in shared memory */
 	for (i  = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++) {
-		err = slsi_mib_open_file(sdev, &sdev->mib[i], &fw);
+		err = slsi_mib_open_file(sdev, &sdev->mib[i], &fw[i]);
 
 		/* Only the first file is mandatory */
 		if (i == 0 && err) {
@@ -6325,12 +6327,14 @@ void slsi_subsystem_reset(struct work_struct *work)
 	err = slsi_sm_recovery_service_start(sdev);
 	if (err) {
 		SLSI_ERR(sdev, "slsi_sm_wlan_service_start failed: err=%d\n", err);
-		slsi_mib_close_file(sdev, fw);
+		for (i = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++)
+			slsi_mib_close_file(sdev, fw[i]);
 		slsi_sm_recovery_service_close(sdev);
 		sdev->device_state = SLSI_DEVICE_STATE_STOPPED;
 		return;
 	}
-	slsi_mib_close_file(sdev, fw);
+	for (i = 0; i < SLSI_WLAN_MAX_MIB_FILE; i++)
+		slsi_mib_close_file(sdev, fw[i]);
 #else
 	/* Download main MIB file via mlme_set */
 	err = slsi_sm_recovery_service_start(sdev);
