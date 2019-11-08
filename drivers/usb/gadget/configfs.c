@@ -1776,6 +1776,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 #else
 		cdev->next_string_id = 0;
 #endif
+	if (!dev->secure) {
 		if (!gadget) {
 			pr_info("%s: Gadget is NULL: %p\n", __func__, gadget);
 			mutex_unlock(&dev->lock);
@@ -1783,6 +1784,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		}
 
 		usb_gadget_connect(gadget);
+	}
 		dev->enabled = true;
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 		set_usb_enable_state();
@@ -1896,8 +1898,10 @@ static ssize_t secure_store(struct device *pdev, struct device_attribute *attr,
 			pr_err("Failed detaching UDC from gadget %d\n", ret);
 	} else {
 		ret = usb_gadget_probe_driver(&gi->composite.gadget_driver);
-		if (ret)
+		if (ret) {
+			gi->composite.gadget_driver.udc_name = NULL;
 			pr_err("Failed attaching UDC to gadget %d\n", ret);
+		}
 	}
 	mutex_unlock(&gi->lock);
 
