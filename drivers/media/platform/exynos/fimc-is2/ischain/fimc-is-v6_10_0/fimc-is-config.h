@@ -145,7 +145,7 @@
 #define USE_3AA_CROP_AFTER_BDS
 
 /* #define ENABLE_ULTRA_FAST_SHOT */
-#define ENABLE_FAST_AF_TRIGGER
+/* #define ENABLE_FAST_AF_TRIGGER */
 #define ENABLE_HWFC
 /* #define FW_SUSPEND_RESUME */
 /* #define TPU_COMPRESSOR */
