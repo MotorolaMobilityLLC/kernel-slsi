@@ -1776,6 +1776,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 #else
 		cdev->next_string_id = 0;
 #endif
+	if (!dev->secure) {
 		if (!gadget) {
 			pr_info("%s: Gadget is NULL: %p\n", __func__, gadget);
 			mutex_unlock(&dev->lock);
@@ -1783,6 +1784,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		}
 
 		usb_gadget_connect(gadget);
+	}
 		dev->enabled = true;
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 		set_usb_enable_state();
