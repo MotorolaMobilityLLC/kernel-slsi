@@ -275,7 +275,7 @@ static int madera_runtime_resume(struct device *dev)
 	struct madera *madera = dev_get_drvdata(dev);
 	int ret;
 
-	dev_dbg(dev, "Leaving sleep mode\n");
+	dev_err(dev, "Leaving sleep mode\n");
 
 	madera_enable_hard_reset(madera);
 
