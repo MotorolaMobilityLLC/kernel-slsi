@@ -1484,6 +1484,7 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 			}
 			SLSI_DBG1(sdev, SLSI_CFG80211, "Value for Supported Channels mib: %s\n",
 				  supported_channels_buffer);
+			kfree(supported_channels_buffer);
 		}
 
 		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) /* HT enabled? */
