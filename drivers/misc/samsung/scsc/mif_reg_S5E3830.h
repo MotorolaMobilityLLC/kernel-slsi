@@ -129,7 +129,10 @@
 
 /* Exynos 3830 UM - TODO */
 #define TOP_OUT			0x3920
-#define PWRRGTON_CP		BIT(1) /* XPWRRTON_CP control 0: Disable 1: Enable */
+#define PWRRGTON_CP		BIT(1) /* XPWRRTON_CP contr */
+
+#define WAKEUP_INT_TYPE 0x3948
+#define RESETREQ_WLBT   BIT(25) /* Interrupt type 0:Edge, 1:Level */
 
 /* Exynos 3830 UM - TODO */
 #define TCXO_BUF_CTRL		0x3B78

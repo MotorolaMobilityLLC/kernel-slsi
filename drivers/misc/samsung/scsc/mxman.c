@@ -1347,7 +1347,7 @@ static bool is_bug_on_enabled(struct scsc_mx *mx)
 	const struct firmware *firm;
 	int r;
 
-	if (memdump == 3)
+	if ((memdump == 3) && (disable_recovery_handling == MEMDUMP_FILE_FOR_RECOVERY))
 		bug_on_enabled = true;
 	else
 		bug_on_enabled = false;

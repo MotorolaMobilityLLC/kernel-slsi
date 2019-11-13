@@ -88,6 +88,20 @@ MODULE_PARM_DESC(mac_randomisation_disabled, "Disable MAC Randomisation: to disa
 #endif
 //END IKSAMP-1972
 
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+static bool nan_include_ipv6_tlv = true;
+module_param(nan_include_ipv6_tlv, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(nan_include_ipv6_tlv, "include ipv6 address tlv: to disable NAN set 0. Enabled by default");
+
+static int nan_max_ndp_instances = 1;
+module_param(nan_max_ndp_instances, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(nan_max_ndp_instances, "max ndp sessions");
+
+static int nan_max_ndi_ifaces = 1;
+module_param(nan_max_ndi_ifaces, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(nan_max_ndi_ifaces, "max ndi interface");
+#endif
+
 bool slsi_dev_gscan_supported(void)
 {
 	return !gscan_disabled;
@@ -142,6 +156,23 @@ bool slsi_dev_mac_randomisation_support(void)
 }
 #endif
 //END IKSAMP-1972
+
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+bool slsi_dev_nan_is_ipv6_link_tlv_include(void)
+{
+	return nan_include_ipv6_tlv;
+}
+
+int slsi_get_nan_max_ndp_instances(void)
+{
+	return nan_max_ndp_instances;
+}
+
+int slsi_get_nan_max_ndi_ifaces(void)
+{
+	return nan_max_ndi_ifaces;
+}
+#endif
 
 static int slsi_dev_inetaddr_changed(struct notifier_block *nb, unsigned long data, void *arg)
 {
@@ -209,40 +240,6 @@ static int slsi_dev_inet6addr_changed(struct notifier_block *nb, unsigned long d
 	return 0;
 }
 #endif
-
-void slsi_regd_init(struct slsi_dev *sdev)
-{
-	struct ieee80211_regdomain *slsi_world_regdom_custom = sdev->device_config.domain_info.regdomain;
-	struct ieee80211_reg_rule  reg_rules[] = {
-		/* Channel 1 - 11*/
-		REG_RULE(2412 - 10, 2462 + 10, 40, 0, 20, 0),
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
-		/* Channel 12 - 13 NO_IR*/
-		REG_RULE(2467 - 10, 2472 + 10, 40, 0, 20, NL80211_RRF_NO_IR),
-#endif
-		/* Channel 36 - 48 */
-		REG_RULE(5180 - 10, 5240 + 10, 80, 0, 20, 0),
-		/* Channel 52 - 64 */
-		REG_RULE(5260 - 10, 5320 + 10, 80, 0, 20, NL80211_RRF_DFS),
-		/* Channel 100 - 140 */
-		REG_RULE(5500 - 10, 5700 + 10, 80, 0, 20, NL80211_RRF_DFS),
-		/* Channel 149 - 165 */
-		REG_RULE(5745 - 10, 5825 + 10, 80, 0, 20, 0),
-	};
-
-	int                        i;
-
-	SLSI_DBG1_NODEV(SLSI_INIT_DEINIT, "regulatory init\n");
-	slsi_world_regdom_custom->n_reg_rules = 6;
-	for (i = 0; i < slsi_world_regdom_custom->n_reg_rules; i++)
-		slsi_world_regdom_custom->reg_rules[i] = reg_rules[i];
-
-	/* Country code '00' indicates world regulatory domain */
-	slsi_world_regdom_custom->alpha2[0] = '0';
-	slsi_world_regdom_custom->alpha2[1] = '0';
-
-	wiphy_apply_custom_regulatory(sdev->wiphy, slsi_world_regdom_custom);
-}
 
 struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struct scsc_service_client *mx_wlan_client)
 {
@@ -409,9 +406,6 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 	sdev->enhanced_pkt_filter_enabled = true;
 #endif
-#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
-	sdev->abnormal_multicast_pkt_filter_enabled = true;
-#endif
 	sdev->device_state = SLSI_DEVICE_STATE_STOPPED;
 	sdev->current_tspec_id = -1;
 	sdev->tspec_error_code = -1;
@@ -436,6 +430,8 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	}
 #ifdef CONFIG_SCSC_WLAN_SILENT_RECOVERY
 	INIT_WORK(&sdev->recovery_work, slsi_subsystem_reset);
+	INIT_WORK(&sdev->recovery_work_on_stop, slsi_failure_reset);
+	INIT_WORK(&sdev->recovery_work_on_start, slsi_chip_recovery);
 #endif
 	return sdev;
 

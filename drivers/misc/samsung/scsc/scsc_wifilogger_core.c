@@ -13,6 +13,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <scsc/scsc_logring.h>
+#include <linux/timer.h>
 
 /* Implements */
 #include "scsc_wifilogger_core.h"
@@ -29,10 +30,17 @@ static void wlog_drain_worker(struct work_struct *work)
 		r->ops.drain_ring(r, r->flushing ? r->st.rb_byte_size : DEFAULT_DRAIN_CHUNK_SZ(r));
 }
 
+#if KERNEL_VERSION(4, 19, 0) <= LINUX_VERSION_CODE
+static void drain_timer_callback(struct timer_list *t)
+#else
 static void drain_timer_callback(unsigned long data)
+#endif
 {
+#if KERNEL_VERSION(4, 19, 0) <= LINUX_VERSION_CODE
+	struct scsc_wlog_ring *r = from_timer(r, t, drain_timer);
+#else
 	struct scsc_wlog_ring *r = (struct scsc_wlog_ring *)data;
-
+#endif
 	SCSC_TAG_DBG4(WLOG, "TIMER DRAIN : %p\n", r);
 	/* we should kick the workqueue here...no sleep */
 	queue_work(r->drain_workq, &r->drain_work);
@@ -60,8 +68,11 @@ static int wlog_ring_init(struct scsc_wlog_ring *r)
 
 	r->drain_workq = create_workqueue("wifilogger");
 	INIT_WORK(&r->drain_work, wlog_drain_worker);
-	setup_timer(&r->drain_timer, drain_timer_callback, (unsigned long)r);
-
+#if KERNEL_VERSION(4,19,0) <= LINUX_VERSION_CODE
+       timer_setup(&r->drain_timer, drain_timer_callback, 0);
+#else
+       setup_timer(&r->drain_timer, drain_timer_callback, (unsigned long)r);
+#endif
 	r->st.ring_id = atomic_read(&next_ring_id);
 	atomic_inc(&next_ring_id);
 

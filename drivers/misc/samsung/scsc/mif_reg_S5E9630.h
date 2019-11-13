@@ -222,6 +222,10 @@
 #define CLEANY_BUS_WLBT_STATUS	0x3B24
 #define CLEANY_STATUS_MASK	(BIT(17)|BIT(16))
 
+/* Exynos9630 UM_REV0.31 - 9.7.1.748 */
+#define WAKEUP_INT_TYPE 0x3948
+#define RESETREQ_WLBT   BIT(18) /* Interrupt type 0:Edge, 1:Level */
+
 /* Exynos 9630 UM - 9.8.763 */
 #define SYSTEM_OUT		0x3A20
 #define PWRRGTON_CON		BIT(9) /* XPWRRTON_CON control 0: Disable 1: Enable */

@@ -10,6 +10,7 @@
 #include <linux/mutex.h>
 
 #include "dev.h"
+#include "reg_info.h"
 #include "debug.h"
 
 /* For 3.4.11 kernel support */
@@ -205,6 +206,13 @@
 	#define WLAN_CATEGORY_WNM 10
 #endif
 
+#ifdef CONFIG_SCSC_WLAN_SILENT_RECOVERY
+#define SLSI_RECOVERY_SERVICE_STARTED   0
+#define SLSI_RECOVERY_SERVICE_STOPPED    1
+#define SLSI_RECOVERY_SERVICE_CLOSED   2
+#define SLSI_RECOVERY_SERVICE_OPENED    3
+#endif
+
 enum slsi_dhcp_tx {
 	SLSI_TX_IS_NOT_DHCP,
 	SLSI_TX_IS_DHCP_SERVER,
@@ -277,7 +285,27 @@ static inline struct slsi_peer *slsi_get_peer_from_mac(struct slsi_dev *sdev, st
 			if (ndev_vif->peer_sta_record[i] && ndev_vif->peer_sta_record[i]->valid &&
 			    compare_ether_addr(ndev_vif->peer_sta_record[i]->address, mac) == 0)
 				return ndev_vif->peer_sta_record[i];
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	} else if (ndev_vif->ifnum >= SLSI_NAN_DATA_IFINDEX_START) {
+		int i = 0;
+
+		for (i = 0; i < SLSI_PEER_INDEX_MAX; i++) {
+			if (ndev_vif->peer_sta_record[i] && ndev_vif->peer_sta_record[i]->valid &&
+			    compare_ether_addr(ndev_vif->peer_sta_record[i]->address, mac) == 0)
+				return ndev_vif->peer_sta_record[i];
+		}
+
+		if (is_multicast_ether_addr(mac)) {
+			for (i = 0; i < SLSI_PEER_INDEX_MAX; i++)
+			if (ndev_vif->peer_sta_record[i] && ndev_vif->peer_sta_record[i]->valid) {
+				SLSI_NET_DBG1(dev, SLSI_TX, "multicast/broadcast packet on NAN netif (dest:%pM, change to peer: %pM)\n", mac, ndev_vif->peer_sta_record[i]->address);
+				return ndev_vif->peer_sta_record[i];
+			}
+		}
 	}
+#else
+	}
+#endif
 	return NULL;
 }
 
@@ -486,9 +514,6 @@ int slsi_is_tcp_sync_packet(struct net_device *dev, struct sk_buff *skb);
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 int slsi_set_enhanced_pkt_filter(struct net_device *dev, u8 pkt_filter_enable);
 #endif
-#ifdef CONFIG_SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
-int slsi_set_abnormal_multicast_pkt_filter(struct net_device *dev, u8 enabled);
-#endif
 void slsi_set_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
 int  slsi_update_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
 int  slsi_clear_packet_filters(struct slsi_dev *sdev, struct net_device *dev);
@@ -496,6 +521,7 @@ int slsi_ap_prepare_add_info_ies(struct netdev_vif *ndev_vif, const u8 *ies, siz
 int slsi_set_mib_roam(struct slsi_dev *dev, struct net_device *ndev, u16 psid, int value);
 #ifdef CONFIG_SCSC_WLAN_SET_PREFERRED_ANTENNA
 int slsi_set_mib_preferred_antenna(struct slsi_dev *dev, u16 value);
+bool slsi_read_preferred_antenna_from_file(struct slsi_dev *sdev, char *ant_file);
 #endif
 void slsi_reset_throughput_stats(struct net_device *dev);
 int slsi_set_mib_rssi_boost(struct slsi_dev *sdev, struct net_device *dev, u16 psid, int index, int boost);
@@ -536,6 +562,7 @@ int slsi_read_unifi_countrylist(struct slsi_dev *sdev, u16 psid);
 int slsi_read_default_country(struct slsi_dev *sdev, u8 *alpha2, u16 index);
 int slsi_read_disconnect_ind_timeout(struct slsi_dev *sdev, u16 psid);
 int slsi_read_regulatory_rules(struct slsi_dev *sdev, struct slsi_802_11d_reg_domain *domain_info, const char *alpha2);
+int slsi_read_regulatory_rules_fw(struct slsi_dev *sdev, struct slsi_802_11d_reg_domain *domain_info, const char *alpha2);
 int slsi_send_acs_event(struct slsi_dev *sdev, struct slsi_acs_selected_channels acs_selected_channels);
 #ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
 int slsi_set_mac_randomisation_mask(struct slsi_dev *sdev, u8 *mac_address_mask);
@@ -576,9 +603,8 @@ int slsi_set_latency_mode(struct net_device *dev, int latency_mode, int cmd_len)
 int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		  struct cfg80211_ap_settings *settings);
 void slsi_subsystem_reset(struct work_struct *work);
-void slsi_failure_reset(struct slsi_dev *sdev);
-void slsi_chip_recovery(struct slsi_dev *sdev);
-void slsi_ap_cleanup(struct slsi_dev *sdev, struct net_device *dev);
+void slsi_failure_reset(struct work_struct *work);
+void slsi_chip_recovery(struct work_struct *work);
 #endif
 
 #endif /*__SLSI_MGT_H__*/

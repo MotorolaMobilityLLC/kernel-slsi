@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
@@ -169,11 +169,16 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 		SLSI_NET_WARN(dev, "WlanLite: NOT supported\n");
 		return -EOPNOTSUPP;
 	}
-
-	if (!ndev_vif->activated) {
-		SLSI_NET_WARN(dev, "vif NOT activated\n");
-		return -EINVAL;
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	if (ndev_vif->ifnum < SLSI_NAN_DATA_IFINDEX_START) {
+#endif
+		if (!ndev_vif->activated) {
+			SLSI_NET_WARN(dev, "vif NOT activated\n");
+			return -EINVAL;
+		}
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 	}
+#endif
 
 	if ((ndev_vif->vif_type == FAPI_VIFTYPE_AP) && !ndev_vif->peer_sta_records) {
 		SLSI_NET_DBG3(dev, SLSI_TX, "AP with no STAs associated, drop Tx frame\n");
@@ -298,12 +303,12 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	/* colour is defined as: */
 	/* u16 register bits:
 	 * 0      - do not use
-	 * [2:1]  - vif
-	 * [7:3]  - peer_index
+	 * [3:1]  - vif
+	 * [7:4]  - peer_index
 	 * [10:8] - ac queue
 	 */
 	cb->colour = (slsi_frame_priority_to_ac_queue(skb->priority) << 8) |
-		(fapi_get_u16(skb, u.ma_unitdata_req.peer_index) << 3) | ndev_vif->ifnum << 1;
+		(fapi_get_u16(skb, u.ma_unitdata_req.peer_index) << 4) | ndev_vif->ifnum << 1;
 
 #ifdef CONFIG_SCSC_WIFILOGGER
 	/* Log only the linear skb chunk ... unidata anywya will be truncated to 100.*/
@@ -320,8 +325,8 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 							  &ndev_vif->ap.group_data_qs,
 							  slsi_frame_priority_to_ac_queue(skb->priority),
 							  sdev,
-							  (cb->colour & 0x6) >> 1,
-							  (cb->colour & 0xf8) >> 3);
+							  (cb->colour & 0xE) >> 1,
+							  (cb->colour & 0xF0) >> 4);
 			if (ret < 0) {
 				SLSI_NET_WARN(dev, "no fcq for groupcast, drop Tx frame\n");
 				/* Free the local copy here ..if any */
@@ -344,8 +349,8 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 							   &ndev_vif->ap.group_data_qs,
 							   slsi_frame_priority_to_ac_queue(skb->priority),
 							   sdev,
-							   (cb->colour & 0x6) >> 1,
-							   (cb->colour & 0xf8) >> 3);
+							   (cb->colour & 0xE) >> 1,
+							   (cb->colour & 0xF0) >> 4);
 				if (original_skb)
 					slsi_kfree_skb(skb);
 				return ret;
@@ -375,13 +380,26 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 	if (peer->qos_enabled)
 		fapi_set_u16(skb, u.ma_unitdata_req.priority, skb->priority);
 
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	/* For NAN vif_index is set to ndl_vif */
+	if (ndev_vif->ifnum >= SLSI_NAN_DATA_IFINDEX_START) {
+		if (is_multicast_ether_addr(eth_hdr(skb)->h_dest)) {
+			memcpy(eth_hdr(skb)->h_dest, peer->address, ETH_ALEN);
+			SLSI_NET_DBG1(dev, SLSI_TX, "multicast on NAN interface: changed to peer=%pM\n", eth_hdr(skb)->h_dest);
+		}
+		fapi_set_u16(skb, u.ma_unitdata_req.vif, peer->ndl_vif);
+		cb->colour = (slsi_frame_priority_to_ac_queue(skb->priority) << 8) |
+		(fapi_get_u16(skb, u.ma_unitdata_req.peer_index) << 4) | peer->ndl_vif << 1;
+	}
+#endif
+
 	slsi_debug_frame(sdev, dev, skb, "TX");
 
 	ret = scsc_wifi_fcq_transmit_data(dev, &peer->data_qs,
 					  slsi_frame_priority_to_ac_queue(skb->priority),
 					  sdev,
-					  (cb->colour & 0x6) >> 1,
-					  (cb->colour & 0xf8) >> 3);
+					  (cb->colour & 0xE) >> 1,
+					  (cb->colour & 0xF0) >> 4);
 	if (ret < 0) {
 		SLSI_NET_WARN(dev, "no fcq for %pM, drop Tx frame\n", eth_hdr(skb)->h_dest);
 		slsi_spinlock_unlock(&ndev_vif->peer_lock);
@@ -399,8 +417,8 @@ int slsi_tx_data(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *
 		/* scsc_wifi_transmit_frame failed, decrement BoT counters */
 		scsc_wifi_fcq_receive_data(dev, &peer->data_qs, slsi_frame_priority_to_ac_queue(skb->priority),
 					   sdev,
-					   (cb->colour & 0x6) >> 1,
-					   (cb->colour & 0xf8) >> 3);
+					   (cb->colour & 0xE) >> 1,
+					   (cb->colour & 0xF0) >> 4);
 
 		if (ret == -ENOSPC) {
 			slsi_spinlock_unlock(&ndev_vif->peer_lock);
@@ -474,8 +492,8 @@ int slsi_tx_data_lower(struct slsi_dev *sdev, struct sk_buff *skb)
 		if (scsc_wifi_fcq_transmit_data(dev, &ndev_vif->ap.group_data_qs,
 						slsi_frame_priority_to_ac_queue(skb->priority),
 						sdev,
-						(cb->colour & 0x6) >> 1,
-						(cb->colour & 0xf8) >> 3) < 0) {
+						(cb->colour & 0xE) >> 1,
+						(cb->colour & 0xF0) >> 4) < 0) {
 			SLSI_NET_DBG3(dev, SLSI_TX, "no fcq for groupcast, dropping TX frame\n");
 			return -EINVAL;
 		}
@@ -494,8 +512,8 @@ int slsi_tx_data_lower(struct slsi_dev *sdev, struct sk_buff *skb)
 		scsc_wifi_fcq_receive_data(dev, &ndev_vif->ap.group_data_qs,
 					   slsi_frame_priority_to_ac_queue(skb->priority),
 					   sdev,
-					   (cb->colour & 0x6) >> 1,
-					   (cb->colour & 0xf8) >> 3);
+					   (cb->colour & 0xE) >> 1,
+					   (cb->colour & 0xF0) >> 4);
 		return ret;
 	}
 
@@ -517,8 +535,8 @@ int slsi_tx_data_lower(struct slsi_dev *sdev, struct sk_buff *skb)
 	if (scsc_wifi_fcq_transmit_data(dev, &peer->data_qs,
 					slsi_frame_priority_to_ac_queue(skb->priority),
 					sdev,
-					(cb->colour & 0x6) >> 1,
-					(cb->colour & 0xf8) >> 3) < 0) {
+					(cb->colour & 0xE) >> 1,
+					(cb->colour & 0xF0) >> 4) < 0) {
 		SLSI_NET_DBG3(dev, SLSI_TX, "no fcq for %02x:%02x:%02x:%02x:%02x:%02x, dropping TX frame\n",
 			      eth_hdr(skb)->h_dest[0], eth_hdr(skb)->h_dest[1], eth_hdr(skb)->h_dest[2], eth_hdr(skb)->h_dest[3], eth_hdr(skb)->h_dest[4], eth_hdr(skb)->h_dest[5]);
 		slsi_spinlock_unlock(&ndev_vif->peer_lock);
@@ -534,8 +552,8 @@ int slsi_tx_data_lower(struct slsi_dev *sdev, struct sk_buff *skb)
 		scsc_wifi_fcq_receive_data(dev, &ndev_vif->ap.group_data_qs,
 					   slsi_frame_priority_to_ac_queue(skb->priority),
 					   sdev,
-					   (cb->colour & 0x6) >> 1,
-					   (cb->colour & 0xf8) >> 3);
+					   (cb->colour & 0xE) >> 1,
+					   (cb->colour & 0xF0) >> 4);
 		if (ret == -ENOSPC)
 			SLSI_NET_DBG1(dev, SLSI_TX,
 				      "TX_LOWER...Queue Full...BUT Dropping packet\n");

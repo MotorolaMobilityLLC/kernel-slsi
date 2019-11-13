@@ -130,9 +130,6 @@
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 #define CMD_ENHANCED_PKT_FILTER "ENHANCED_PKT_FILTER"
 #endif
-#ifdef SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
-#define CMD_ABNORMAL_MULTICAST_PKT_FILTER "ABNORMAL_MULTICAST_PKT_FILTER"
-#endif
 #define CMD_GET_MAX_LINK_SPEED "GET_MAX_LINK_SPEED"
 
 #ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
@@ -2030,8 +2027,6 @@ int slsi_set_fcc_channel(struct net_device *dev, char *cmd, int cmd_len)
 	int                  status;
 	bool                 flight_mode_ena;
 	u8                   host_state;
-	int                  err;
-	char                 alpha2[3];
 
 	/* SET_FCC_CHANNEL 0 when device is in flightmode */
 	flight_mode_ena = (cmd[0]  == '0');
@@ -2048,20 +2043,8 @@ int slsi_set_fcc_channel(struct net_device *dev, char *cmd, int cmd_len)
 	if (status) {
 		SLSI_ERR(sdev, "Err setting MMaxPowerEna. error = %d\n", status);
 	} else {
-		err = slsi_read_default_country(sdev, alpha2, 1);
-		if (err) {
-			SLSI_WARN(sdev, "Err updating reg_rules = %d\n", err);
-		} else {
-			memcpy(sdev->device_config.domain_info.regdomain->alpha2, alpha2, 2);
-			/* Read the regulatory params for the country.*/
-			if (slsi_read_regulatory_rules(sdev, &sdev->device_config.domain_info, alpha2) == 0) {
-				slsi_reset_channel_flags(sdev);
-				wiphy_apply_custom_regulatory(sdev->wiphy, sdev->device_config.domain_info.regdomain);
-				slsi_update_supported_channels_regd_flags(sdev);
-				if (flight_mode_ena && sdev->device_config.disable_ch12_ch13)
-					slsi_disable_ch12_13(sdev);
-			}
-		}
+		if (flight_mode_ena && sdev->device_config.disable_ch12_ch13)
+			slsi_disable_ch12_13(sdev);
 	}
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 
@@ -2610,10 +2593,11 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	} else if (strncasecmp(command, CMD_GETWESMODE, strlen(CMD_GETWESMODE)) == 0) {
 		ret = slsi_wes_mode_read(dev, command, priv_cmd.total_len);
 	} else if (strncasecmp(command, CMD_SETROAMSCANCHANNELS, strlen(CMD_SETROAMSCANCHANNELS)) == 0) {
-		int skip = strlen(CMD_SETROAMSCANCHANNELS) + 1;
-
-		ret = slsi_roam_scan_channels_write(dev, command + skip,
+		u8 skip = strlen(CMD_SETROAMSCANCHANNELS) + 1;
+		if (skip <= priv_cmd.total_len) {
+			ret = slsi_roam_scan_channels_write(dev, command + skip,
 						    priv_cmd.total_len - skip);
+		}
 	} else if (strncasecmp(command, CMD_GETROAMSCANCHANNELS, strlen(CMD_GETROAMSCANCHANNELS)) == 0) {
 		ret = slsi_roam_scan_channels_read(dev, command, priv_cmd.total_len);
 #endif
@@ -2622,9 +2606,10 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	} else if (strncasecmp(command, CMD_HAPD_GET_CHANNEL, strlen(CMD_HAPD_GET_CHANNEL)) == 0) {
 		ret = slsi_auto_chan_read(dev, command, priv_cmd.total_len);
 	} else if (strncasecmp(command, CMD_SET_SAP_CHANNEL_LIST, strlen(CMD_SET_SAP_CHANNEL_LIST)) == 0) {
-		int skip = strlen(CMD_SET_SAP_CHANNEL_LIST) + 1;
-
-		ret = slsi_auto_chan_write(dev, command + skip);
+		u8 skip = strlen(CMD_SET_SAP_CHANNEL_LIST) + 1;
+		if (skip <= priv_cmd.total_len) {
+			ret = slsi_auto_chan_write(dev, command + skip);
+		}
 	} else if (strncasecmp(command, CMD_REASSOC, strlen(CMD_REASSOC)) == 0) {
 		int skip = strlen(CMD_REASSOC) + 1;
 
@@ -2749,12 +2734,6 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		const u8 enable = *(command + strlen(CMD_ENHANCED_PKT_FILTER) + 1) - '0';
 
 		ret = slsi_set_enhanced_pkt_filter(dev, enable);
-#endif
-#ifdef SCSC_WLAN_ABNORMAL_MULTICAST_PKT_FILTER
-	} else if ((strncasecmp(command, CMD_ABNORMAL_MULTICAST_PKT_FILTER, strlen(CMD_ABNORMAL_MULTICAST_PKT_FILTER)) == 0)) {
-		const u8 enable = *(command + strlen(CMD_ABNORMAL_MULTICAST_PKT_FILTER) + 1) - '0';
-
-		ret = slsi_set_abnormal_multicast_pkt_filter(dev, enable);
 #endif
 #ifdef CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
 	} else if (strncasecmp(command, CMD_SET_NUM_ANTENNAS, strlen(CMD_SET_NUM_ANTENNAS)) == 0) {

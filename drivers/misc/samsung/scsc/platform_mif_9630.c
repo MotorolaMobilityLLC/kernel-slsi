@@ -31,6 +31,7 @@
 #include <scsc/scsc_logring.h>
 #include "mif_reg_S5E9630.h"
 #include "platform_mif_module.h"
+#include "mxman.h"
 #ifdef CONFIG_ARCH_EXYNOS
 #include <linux/soc/samsung/exynos-soc.h>
 #endif
@@ -72,9 +73,11 @@ static bool enable_platform_mif_arm_reset = true;
 module_param(enable_platform_mif_arm_reset, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_platform_mif_arm_reset, "Enables WIFIBT ARM cores reset");
 
-static bool disable_apm_setup;
+static bool disable_apm_setup = true;
 module_param(disable_apm_setup, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(disable_apm_setup, "Disable host APM setup");
+
+static bool init_done;
 
 #ifdef CONFIG_SCSC_QOS
 struct qos_table {
@@ -587,6 +590,7 @@ irqreturn_t platform_alive_isr(int irq, void *data)
 
 irqreturn_t platform_wdog_isr(int irq, void *data)
 {
+	int ret = 0;
 	struct platform_mif *platform = (struct platform_mif *)data;
 
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "INT received\n");
@@ -598,6 +602,15 @@ irqreturn_t platform_wdog_isr(int irq, void *data)
 		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Disabling unhandled WDOG IRQ.\n");
 		disable_irq_nosync(platform->wlbt_irq[PLATFORM_MIF_WDOG].irq_num);
 		atomic_inc(&platform->wlbt_irq[PLATFORM_MIF_WDOG].irq_disabled_cnt);
+	}
+
+	/* The wakeup source isn't cleared until WLBT is reset, so change the interrupt type to suppress this */
+	if (mxman_recovery_disabled()) {
+		ret = regmap_update_bits(platform->pmureg, WAKEUP_INT_TYPE,
+				RESETREQ_WLBT, 0);
+		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Set RESETREQ_WLBT wakeup interrput type to EDGE.\n");
+		if (ret < 0)
+			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev, "Failed to Set WAKEUP_INT_TYPE[RESETREQ_WLBT]: %d\n", ret);
 	}
 
 	return IRQ_HANDLED;
@@ -672,7 +685,7 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 	/*s32 ret = 0;*/
 	unsigned int ka_addr = 0x1000;
 	uint32_t *ka_patch_addr = ka_patch;
-	u32 id;
+	unsigned int id;
 
 #define CHECK(x) do { \
 	int retval = (x); \
@@ -814,7 +827,7 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 
 	while (ka_patch_addr < (ka_patch + ARRAY_SIZE(ka_patch))) {
 		CHECK(regmap_write(platform->boot_cfg, ka_addr, *ka_patch_addr));
-		ka_addr += sizeof(ka_patch[0]);
+		ka_addr += (unsigned int)sizeof(ka_patch[0]);
 		ka_patch_addr++;
 	}
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "KA patch done\n");
@@ -1083,17 +1096,20 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	 */
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "init\n");
 
-	/* WLBT_CTRL_S[WLBT_START] = 1 enable */
-	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_S,
-			WLBT_START, WLBT_START);
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-				"Failed to update WLBT_CTRL_S[WLBT_START]: %d\n", ret);
-		return ret;
+	if (!init_done) {
+		/* WLBT_CTRL_S[WLBT_START] = 1 enable */
+		ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_S,
+				WLBT_START, WLBT_START);
+		if (ret < 0) {
+			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+					"Failed to update WLBT_CTRL_S[WLBT_START]: %d\n", ret);
+			return ret;
+		}
+		regmap_read(platform->pmureg, WLBT_CTRL_S, &val);
+		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+			"updated successfully WLBT_CTRL_S[WLBT_START]: 0x%x\n", val);
+		init_done = true;
 	}
-	regmap_read(platform->pmureg, WLBT_CTRL_S, &val);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-		"updated successfully WLBT_CTRL_S[WLBT_START]: 0x%x\n", val);
 
 	/* WLBT_OPTION[WLBT_OPTION_DATA] = 1 Power On */
 	ret = regmap_update_bits(platform->pmureg, WLBT_OPTION,
@@ -1119,6 +1135,25 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 		"updated successfully SYSTEM_OUT[PWRRGTON_CON]: 0x%x\n", val);
 
+	/* VGPIO_TX_MONITOR[VGPIO_TX_MON_BIT29] = 0x1 */
+	timeout = jiffies + msecs_to_jiffies(500);
+	do {
+		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
+		val &= (u32)VGPIO_TX_MON_BIT29;
+		if (val) {
+			SCSC_TAG_INFO(PLAT_MIF, "read VGPIO_TX_MONITOR 0x%x\n", val);
+			break;
+		}
+	} while (time_before(jiffies, timeout));
+
+	if (!val) {
+		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
+		SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for VGPIO_TX_MONITOR time-out: "
+					"VGPIO_TX_MONITOR 0x%x\n", val);
+	}
+
+	udelay(1000);
+
 	/* WLBT_CONFIGURATION[LOCAL_PWR_CFG] = 1 Power On */
 	ret = regmap_update_bits(platform->pmureg, WLBT_CONFIGURATION,
 			LOCAL_PWR_CFG, LOCAL_PWR_CFG);
@@ -1130,23 +1165,6 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	regmap_read(platform->pmureg, WLBT_CONFIGURATION, &val);
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 		"updated successfully WLBT_CONFIGURATION[PWRRGTON_CON]: 0x%x\n", val);
-
-	/* VGPIO_TX_MONITOR[VGPIO_TX_MON_BIT29] = 0x1 */
-	timeout = jiffies + msecs_to_jiffies(500);
-	do {
-		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
-		val &= (u32)VGPIO_TX_MON_BIT29;
-		if (val) {
-			SCSC_TAG_INFO(PLAT_MIF, "VGPIO_TX_MONITOR 0x%x\n", val);
-			break;
-		}
-	} while (time_before(jiffies, timeout));
-
-	if (!val) {
-		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
-		SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for VGPIO_TX_MONITOR time-out: "
-					"VGPIO_TX_MONITOR 0x%x\n", val);
-	}
 
 	/* wait for power up complete WLBT_STATUS[WLBT_STATUS_BIT0] = 1 for Power On */
 	timeout = jiffies + msecs_to_jiffies(500);
@@ -1317,7 +1335,7 @@ static int platform_mif_reset(struct scsc_mif_abs *interface, bool reset)
 
 static void __iomem *platform_mif_map_region(unsigned long phys_addr, size_t size)
 {
-	int         i;
+	size_t      i;
 	struct page **pages;
 	void        *vmem;
 

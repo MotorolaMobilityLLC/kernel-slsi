@@ -2491,8 +2491,6 @@ void slsi_calc_max_data_rate(struct net_device *dev, u8 bandwidth, u8 antenna_mo
 			mcs_index = 9;
 		ndev_vif->sta.max_rate_mbps = (unsigned long)(slsi_rates_table[bandwidth_index][1][mcs_index] * (antenna_mode + 1)) / 10;
 	}
-	SLSI_NET_INFO(dev, "sta_mode : %u, freq : %u, bandwidth : %u, antenna_mode : %u, max_rate_mbps : %u\n",
-		        sta_mode, ndev_vif->sta.sta_bss->channel->center_freq, bandwidth, antenna_mode, ndev_vif->sta.max_rate_mbps);
 }
 
 void slsi_decode_fw_rate(u16 fw_rate, struct rate_info *rate, unsigned long *data_rate_mbps)
@@ -4447,5 +4445,116 @@ int slsi_test_sap_configure_monitor_mode(struct slsi_dev *sdev, struct net_devic
 	slsi_kfree_skb(cfm);
 	return r;
 }
+#endif
 
+int slsi_mlme_set_country(struct slsi_dev *sdev, char *alpha2)
+{
+	struct slsi_mib_data mib_data = { 0, NULL };
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	int country_index = 0;
+	u32 rules_len = 0;
+	u16 country_code = 0;
+	u8 append_byte = 0;
+	u8 dfs_region = 0;
+	int i = 0;
+	int error = 0;
+
+	if (sdev->regdb.regdb_state == SLSI_REG_DB_SET) {
+		for (i = 0; i < sdev->regdb.num_countries; i++) {
+			if ((sdev->regdb.country[i].alpha2[0] == alpha2[0]) && (sdev->regdb.country[i].alpha2[1] == alpha2[1])) {
+				country_index = i;
+				break;
+			}
+		}
+
+		/* 7 octets for each rule */
+		rules_len = 7 * sdev->regdb.country[country_index].collection->reg_rule_num;
+		dfs_region = sdev->regdb.country[country_index].dfs_region;
+	}
+
+	/* last parameter should be length of bulk data */
+	req = fapi_alloc(mlme_set_country_req, MLME_SET_COUNTRY_REQ, 0, rules_len);
+	if (!req)
+		return -ENOMEM;
+
+	country_code = (((u16)alpha2[0] << 8) | (u16)alpha2[1]);
+	fapi_set_u16(req, u.mlme_set_country_req.country_code, country_code);
+	fapi_set_u16(req, u.mlme_set_country_req.dfs_regulatory_domain, dfs_region);
+	if (rules_len) {
+		for (i = 0; i < sdev->regdb.country[country_index].collection->reg_rule_num; i++) {
+			append_byte = (sdev->regdb.country[country_index].collection->reg_rule[i]->freq_range->start_freq * 2) & 0xFF;
+			fapi_append_data(req, &append_byte, 1);
+			append_byte = ((sdev->regdb.country[country_index].collection->reg_rule[i]->freq_range->start_freq * 2) >> 8) & 0xFF;
+			fapi_append_data(req, &append_byte, 1);
+			append_byte = (sdev->regdb.country[country_index].collection->reg_rule[i]->freq_range->end_freq * 2) & 0xFF;
+			fapi_append_data(req, &append_byte, 1);
+			append_byte = ((sdev->regdb.country[country_index].collection->reg_rule[i]->freq_range->end_freq * 2) >> 8) & 0xFF;
+			fapi_append_data(req, &append_byte, 1);
+			append_byte = sdev->regdb.country[country_index].collection->reg_rule[i]->freq_range->max_bandwidth & 0xFF;
+			fapi_append_data(req, &append_byte, 1);
+			append_byte = sdev->regdb.country[country_index].collection->reg_rule[i]->max_eirp & 0xFF;
+			fapi_append_data(req, &append_byte, 1);
+			append_byte = sdev->regdb.country[country_index].collection->reg_rule[i]->flags & 0xFF;
+			fapi_append_data(req, &append_byte, 1);
+		}
+	}
+
+	SLSI_DBG2(sdev, SLSI_MLME, "mlme_set_country_req(country:%c%c, dfs_regulatory_domain:%x)\n", alpha2[0], alpha2[1], dfs_region);
+	cfm = slsi_mlme_req_cfm(sdev, NULL, req, MLME_SET_COUNTRY_CFM);
+	if (!cfm)
+		return -EIO;
+
+	if (fapi_get_u16(cfm, u.mlme_set_country_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_ERR(sdev, "mlme_set_country_cfm(result:0x%04x) ERROR\n",
+			 fapi_get_u16(cfm, u.mlme_set_country_cfm.result_code));
+		slsi_kfree_skb(cfm);
+		error = slsi_mib_encode_octet(&mib_data, SLSI_PSID_UNIFI_DEFAULT_COUNTRY, 3, alpha2, 0);
+		if (error != SLSI_MIB_STATUS_SUCCESS)
+			return -ENOMEM;
+
+		if (WARN_ON(mib_data.dataLength == 0))
+			return -EINVAL;
+
+		error = slsi_mlme_set(sdev, NULL, mib_data.data, mib_data.dataLength);
+		if (error)
+			return -EINVAL;
+
+		kfree(mib_data.data);
+		return 0;
+	}
+
+	slsi_kfree_skb(cfm);
+	return 0;
+}
+
+#ifdef CONFIG_SCSC_WLAN_SILENT_RECOVERY
+void slsi_mlme_set_country_for_recovery(struct slsi_dev *sdev)
+{
+	int ret = 0;
+	struct slsi_mib_data mib_data = { 0, NULL };
+
+	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
+	ret = slsi_mib_encode_octet(&mib_data, SLSI_PSID_UNIFI_DEFAULT_COUNTRY, 3, sdev->device_config.domain_info.regdomain->alpha2, 0);
+	if (ret != SLSI_MIB_STATUS_SUCCESS) {
+		ret = -ENOMEM;
+		SLSI_ERR(sdev, "Err setting country error = %d\n", ret);
+		SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+		return ;
+	}
+
+	if (mib_data.dataLength == 0) {
+		ret = -EINVAL;
+		SLSI_ERR(sdev, "Err setting country error = %d\n", ret);
+		SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+		return ;
+	}
+
+	ret = slsi_mlme_set(sdev, NULL, mib_data.data, mib_data.dataLength);
+	kfree(mib_data.data);
+
+	if (ret)
+		SLSI_ERR(sdev, "Err setting country error = %d\n", ret);
+	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+}
 #endif

@@ -529,7 +529,23 @@ static int slsi_rx_napi_process(struct slsi_dev *sdev, struct sk_buff *skb)
 	vif = fapi_get_vif(skb);
 
 	rcu_read_lock();
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	if (vif >= SLSI_NAN_DATA_IFINDEX_START && fapi_get_sigid(skb) == MA_UNITDATA_IND) {
+		struct ethhdr *eth_hdr = (struct ethhdr *)fapi_get_data(skb);
+		u32 data_len = fapi_get_datalen(skb);
+
+		if (!eth_hdr || data_len < sizeof(*eth_hdr)) {
+			SLSI_WARN(sdev, "Unexpected datalen:%d\n", data_len);
+			rcu_read_unlock();
+			return -EINVAL;
+		}
+		dev = slsi_get_netdev_by_mac_addr_lockless(sdev, eth_hdr->h_dest, SLSI_NAN_DATA_IFINDEX_START);
+	} else {
+		dev = slsi_get_netdev_rcu(sdev, vif);
+	}
+#else
 	dev = slsi_get_netdev_rcu(sdev, vif);
+#endif
 	if (!dev) {
 		SLSI_ERR(sdev, "netdev(%d) No longer exists\n", vif);
 		rcu_read_unlock();
@@ -630,7 +646,24 @@ static int slsi_rx_queue_data(struct slsi_dev *sdev, struct sk_buff *skb)
 	vif = fapi_get_vif(skb);
 
 	rcu_read_lock();
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	if (vif >= SLSI_NAN_DATA_IFINDEX_START && fapi_get_sigid(skb) == MA_UNITDATA_IND) {
+		struct ethhdr *eth_hdr = (struct ethhdr *)fapi_get_data(skb);
+		u32 data_len = fapi_get_datalen(skb);
+
+		if (!eth_hdr || data_len < sizeof(*eth_hdr)) {
+			SLSI_ERR(sdev, "ma_untidata_ind dropped. datalen:%d\n", data_len);
+			rcu_read_unlock();
+			return 0; /* return success */
+		}
+		dev = slsi_get_netdev_by_mac_addr_locked(sdev, eth_hdr->h_dest, SLSI_NAN_DATA_IFINDEX_START);
+	} else {
+		dev = slsi_get_netdev_rcu(sdev, vif);
+	}
+#else
 	dev = slsi_get_netdev_rcu(sdev, vif);
+#endif
+
 	if (!dev) {
 		SLSI_ERR(sdev, "netdev(%d) No longer exists\n", vif);
 		rcu_read_unlock();
@@ -702,12 +735,12 @@ static int sap_ma_txdone(struct slsi_dev *sdev, u16 colour)
 	/* colour is defined as: */
 	/* u16 register bits:
 	 * 0      - do not use
-	 * [2:1]  - vif
-	 * [7:3]  - peer_index
+	 * [3:1]  - vif
+	 * [7:4]  - peer_index
 	 * [10:8] - ac queue
 	 */
-	vif = (colour & 0x6) >> 1;
-	peer_index = (colour & 0xf8) >> 3;
+	vif = (colour & 0xE) >> 1;
+	peer_index = (colour & 0xF0) >> 4;
 	ac = (colour & 0x300) >> 8;
 
 	rcu_read_lock();

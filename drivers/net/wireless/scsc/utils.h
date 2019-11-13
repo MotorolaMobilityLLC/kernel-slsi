@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2012 - 2018 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
@@ -646,6 +646,38 @@ static inline u32 slsi_get_center_freq1(struct slsi_dev *sdev, u16 chann_info, u
 		break;
 	}
 	return center_freq1;
+}
+
+/* Name: strtoint
+ * Desc: Converts a string to a decimal or hexadecimal integer
+ * s: the string to be converted
+ * res: pointer to the calculated integer
+ * return: 0 (success), 1(failure)
+ */
+static inline int strtoint(const char *s, int *res)
+{
+	int base = 10;
+
+	if (strlen(s) > 2)
+		if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+			base = 16;
+	return kstrtoint(s, base, res);
+}
+
+static inline u8 *slsi_mem_dup(u8 *src, size_t len)
+{
+	u8 *dest;
+
+	dest = kmalloc(len, GFP_KERNEL);
+	if (!dest)
+		return NULL;
+	memcpy(dest, src, len);
+	return dest;
+}
+
+static inline void slsi_get_random_bytes(u8 *byte_buffer, u32 buffer_len)
+{
+	return get_random_bytes(byte_buffer, buffer_len);
 }
 
 #ifdef __cplusplus

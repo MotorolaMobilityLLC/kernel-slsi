@@ -12,6 +12,8 @@
 struct net_device *slsi_nan_get_netdev(struct slsi_dev *sdev)
 {
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
+	if (sdev->recovery_status)
+		return slsi_get_netdev_locked(sdev, SLSI_NET_INDEX_NAN);
 	return slsi_get_netdev(sdev, SLSI_NET_INDEX_NAN);
 #else
 	return NULL;
@@ -31,22 +33,132 @@ static int slsi_nan_get_new_id(u32 id_map, int max_ids)
 
 static int slsi_nan_get_new_publish_id(struct netdev_vif *ndev_vif)
 {
-	return slsi_nan_get_new_id(ndev_vif->nan.publish_id_map, SLSI_NAN_MAX_PUBLISH_ID);
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+	return slsi_nan_get_new_id(ndev_vif->nan.service_id_map, SLSI_NAN_MAX_SERVICE_ID);
 }
 
 static int slsi_nan_get_new_subscribe_id(struct netdev_vif *ndev_vif)
 {
-	return slsi_nan_get_new_id(ndev_vif->nan.subscribe_id_map, SLSI_NAN_MAX_SUBSCRIBE_ID);
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+	return slsi_nan_get_new_id(ndev_vif->nan.service_id_map, SLSI_NAN_MAX_SERVICE_ID);
 }
 
 static bool slsi_nan_is_publish_id_active(struct netdev_vif *ndev_vif, u32 id)
 {
-	return ndev_vif->nan.publish_id_map & BIT(id);
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+	return ndev_vif->nan.service_id_map & BIT(id);
 }
 
 static bool slsi_nan_is_subscribe_id_active(struct netdev_vif *ndev_vif, u32 id)
 {
-	return ndev_vif->nan.subscribe_id_map & BIT(id);
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+	return ndev_vif->nan.service_id_map & BIT(id);
+}
+
+static int slsi_nan_get_new_ndp_id(struct netdev_vif *ndev_vif)
+{
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+	return slsi_nan_get_new_id(ndev_vif->nan.ndp_id_map, SLSI_NAN_MAX_NDP_INSTANCES);
+}
+
+static void slsi_nan_pre_check(struct slsi_dev *sdev, struct net_device *dev, int *ret, int *reply_status)
+{
+	*ret = WIFI_HAL_SUCCESS;
+	*reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
+	if (!dev) {
+		SLSI_ERR(sdev, "No NAN interface\n");
+		*ret = -WIFI_HAL_ERROR_NOT_SUPPORTED;
+		*reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+	}
+
+	if (!slsi_dev_nan_supported(sdev)) {
+		SLSI_ERR(sdev, "NAN not allowed(mib:%d)\n", sdev->nan_enabled);
+		*ret = WIFI_HAL_ERROR_NOT_SUPPORTED;
+		*reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+	}
+}
+
+int slsi_nan_ndp_new_entry(struct slsi_dev *sdev, struct net_device *dev, u32 ndp_id,
+			   u16 ndl_vif_id, u8 *local_ndi, u8 *peer_nmi)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	u16 ndl_id;
+
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+
+	if (ndl_vif_id < SLSI_NAN_DATA_IFINDEX_START ||
+	    ndl_vif_id >= SLSI_NAN_DATA_IFINDEX_START + SLSI_NAN_MAX_NDP_INSTANCES) {
+		SLSI_ERR(sdev, "Invalid ndl_vif:%d\n", ndl_vif_id);
+		return 1;
+	}
+
+	if (ndp_id == 0 || ndp_id > SLSI_NAN_MAX_NDP_INSTANCES) {
+		SLSI_ERR(sdev, "Invalid ndp:%d\n", ndp_id);
+		return 1;
+	}
+
+	ndl_id = ndl_vif_id - SLSI_NAN_DATA_IFINDEX_START;
+	if (ndev_vif->nan.ndl_list[ndl_id].ndp_count < 0 ||
+	    ndev_vif->nan.ndl_list[ndl_id].ndp_count > SLSI_NAN_MAX_NDP_INSTANCES) {
+		SLSI_WARN(sdev, "improper ndp count(%d) for vif_id(%d)\n",
+			  ndev_vif->nan.ndl_list[ndl_id].ndp_count, ndl_vif_id);
+	}
+
+	ndev_vif->nan.ndp_id_map |= (u32)BIT(ndp_id);
+	if (peer_nmi)
+		ether_addr_copy(ndev_vif->nan.ndl_list[ndl_id].peer_nmi, peer_nmi);
+	ndev_vif->nan.ndl_list[ndl_id].ndp_count++;
+	if (local_ndi)
+		ether_addr_copy(ndev_vif->nan.ndp_ndi[ndp_id - 1], local_ndi);
+	ndev_vif->nan.ndp_id2ndl_vif[ndp_id - 1] = ndl_vif_id;
+	ndev_vif->nan.ndp_state[ndp_id - 1] = ndp_slot_status_in_use;
+	return 0;
+}
+
+void slsi_nan_ndp_del_entry(struct slsi_dev *sdev, struct net_device *dev, u32 ndp_id)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	u16 ndl_vif_id, ndl_id;
+
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+
+	if (ndp_id == 0 || ndp_id > SLSI_NAN_MAX_NDP_INSTANCES) {
+		SLSI_WARN(sdev, "Invalid ndp:%d\n", ndp_id);
+		return;
+	}
+
+	ndl_vif_id = ndev_vif->nan.ndp_id2ndl_vif[ndp_id - 1];
+	if (ndl_vif_id < SLSI_NAN_DATA_IFINDEX_START ||
+	    ndl_vif_id >= SLSI_NAN_DATA_IFINDEX_START + SLSI_NAN_MAX_NDP_INSTANCES) {
+		SLSI_WARN(sdev, "Invalid ndl_vif:%d\n", ndl_vif_id);
+		return;
+	}
+
+	ndl_id = ndl_vif_id - SLSI_NAN_DATA_IFINDEX_START;
+	ndev_vif->nan.ndp_id_map &= ~(u32)BIT(ndp_id);
+	ndev_vif->nan.ndl_list[ndl_id].ndp_count--;
+	if (ndev_vif->nan.ndl_list[ndl_id].ndp_count == 0)
+		slsi_eth_zero_addr(ndev_vif->nan.ndl_list[ndl_id].peer_nmi);
+	ndev_vif->nan.ndp_id2ndl_vif[ndp_id - 1] = 0;
+	slsi_eth_zero_addr(ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+	if (ndev_vif->nan.ndl_list[ndl_id].ndp_count < 0)
+		SLSI_WARN(sdev, "ndp_count is negative %d for ndl idx %d\n",
+			  ndev_vif->nan.ndl_list[ndl_id].ndp_count, ndl_id);
+	ndev_vif->nan.ndp_state[ndp_id - 1] = ndp_slot_status_free;
+}
+
+u16 slsi_nan_ndp_get_ndl_vif_id(u8 *peer_mni, struct slsi_nan_ndl_info *ndl_list)
+{
+	u16 i, free_idx = SLSI_NAN_MAX_NDP_INSTANCES + SLSI_NAN_DATA_IFINDEX_START;
+
+	for (i = 0; i < SLSI_NAN_MAX_NDP_INSTANCES; i++) {
+		if (ether_addr_equal(peer_mni, ndl_list[i].peer_nmi))
+			return i + SLSI_NAN_DATA_IFINDEX_START;
+		if (free_idx == SLSI_NAN_MAX_NDP_INSTANCES + SLSI_NAN_DATA_IFINDEX_START &&
+		    ndl_list[i].ndp_count == 0)
+			free_idx = i + SLSI_NAN_DATA_IFINDEX_START;
+	}
+	return free_idx;
 }
 
 void slsi_nan_get_mac(struct slsi_dev *sdev, char *nan_mac_addr)
@@ -59,7 +171,7 @@ void slsi_nan_get_mac(struct slsi_dev *sdev, char *nan_mac_addr)
 }
 
 static void slsi_vendor_nan_command_reply(struct wiphy *wiphy, u32 status, u32 error, u32 response_type,
-					  u16 publish_subscribe_id, struct slsi_hal_nan_capabilities *capabilities)
+					  u16 id, struct slsi_hal_nan_capabilities *capabilities, u16 req_id)
 {
 	int reply_len;
 	struct sk_buff  *reply;
@@ -75,6 +187,7 @@ static void slsi_vendor_nan_command_reply(struct wiphy *wiphy, u32 status, u32 e
 	nla_put_u32(reply, NAN_REPLY_ATTR_STATUS_TYPE, status);
 	nla_put_u32(reply, NAN_REPLY_ATTR_VALUE, error);
 	nla_put_u32(reply, NAN_REPLY_ATTR_RESPONSE_TYPE, response_type);
+	nla_put_u16(reply, NAN_REPLY_ATTR_HAL_TRANSACTION_ID, req_id);
 
 	if (capabilities) {
 		nla_put_u32(reply, NAN_REPLY_ATTR_CAP_MAX_CONCURRENT_CLUSTER,
@@ -92,8 +205,11 @@ static void slsi_vendor_nan_command_reply(struct wiphy *wiphy, u32 status, u32 e
 		nla_put_u32(reply, NAN_REPLY_ATTR_CAP_MAX_NDI_INTERFACES, capabilities->max_ndi_interfaces);
 		nla_put_u32(reply, NAN_REPLY_ATTR_CAP_MAX_NDP_SESSIONS, capabilities->max_ndp_sessions);
 		nla_put_u32(reply, NAN_REPLY_ATTR_CAP_MAX_APP_INFO_LEN, capabilities->max_app_info_len);
-	} else if (publish_subscribe_id) {
-		nla_put_u16(reply, NAN_REPLY_ATTR_PUBLISH_SUBSCRIBE_TYPE, publish_subscribe_id);
+	} else if (id) {
+		if (response_type < NAN_DP_INTERFACE_CREATE)
+			nla_put_u16(reply, NAN_REPLY_ATTR_PUBLISH_SUBSCRIBE_TYPE, id);
+		else
+			nla_put_u16(reply, NAN_REPLY_ATTR_NDP_INSTANCE_ID, id);
 	}
 
 	if (cfg80211_vendor_cmd_reply(reply))
@@ -182,6 +298,8 @@ static int slsi_nan_get_security_info_nl(struct slsi_dev *sdev, struct slsi_nan_
 		sec_info->scid_len = nla_get_u32(iter);
 		break;
 	case NAN_REQ_ATTR_SCID:
+		if (sec_info->scid_len > sizeof(sec_info->scid))
+			sec_info->scid_len = sizeof(sec_info->scid);
 		memcpy(sec_info->scid, nla_data(iter), sec_info->scid_len);
 		break;
 	default:
@@ -215,6 +333,8 @@ static int slsi_nan_get_range_resp_cfg_nl(struct slsi_dev *sdev, struct slsi_nan
 	}
 	return 0;
 }
+
+/* NAN HAL REQUESTS */
 
 static int slsi_nan_enable_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_nan_enable_req *hal_req,
 					 const void *data, int len)
@@ -382,9 +502,12 @@ static int slsi_nan_enable_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_
 			hal_req->disc_mac_addr_rand_interval_sec = nla_get_u32(iter);
 			break;
 
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			hal_req->transaction_id = nla_get_u16(iter);
+			break;
+
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN enable attribute TYPE:%d\n", type);
-			return SLSI_HAL_NAN_STATUS_INVALID_PARAM;
 		}
 	}
 	return SLSI_HAL_NAN_STATUS_SUCCESS;
@@ -401,19 +524,10 @@ int slsi_nan_enable(struct wiphy *wiphy, struct wireless_dev *wdev, const void *
 	u8 broadcast_mac[ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "No NAN interface\n");
-		ret = -ENOTSUPP;
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+	hal_req.transaction_id = 0;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
-	}
-
-	if (!slsi_dev_nan_supported(sdev)) {
-		SLSI_ERR(sdev, "NAN not allowed(mib:%d)\n", sdev->nan_enabled);
-		ret = WIFI_HAL_ERROR_NOT_SUPPORTED;
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
-		goto exit;
-	}
 
 	ndev_vif = netdev_priv(dev);
 
@@ -431,6 +545,8 @@ int slsi_nan_enable(struct wiphy *wiphy, struct wireless_dev *wdev, const void *
 	}
 	ndev_vif->vif_type = FAPI_VIFTYPE_NAN;
 
+	slsi_net_randomize_nmi_ndi(sdev);
+
 	if (hal_req.config_intf_addr)
 		ether_addr_copy(nan_vif_mac_address, hal_req.intf_addr_val);
 	else
@@ -447,17 +563,32 @@ int slsi_nan_enable(struct wiphy *wiphy, struct wireless_dev *wdev, const void *
 			reply_status = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
 			slsi_mlme_del_vif(sdev, dev);
 			ndev_vif->activated = false;
-			ndev_vif->nan.subscribe_id_map = 0;
-			ndev_vif->nan.publish_id_map = 0;
+			ndev_vif->nan.service_id_map = 0;
 		} else {
 			slsi_vif_activated(sdev, dev);
+			ndev_vif->nan.master_pref_value = hal_req.master_pref;
+			ether_addr_copy(ndev_vif->nan.local_nmi, nan_vif_mac_address);
+			ndev_vif->nan.state = 1;
+			if (hal_req.config_24g_channel)
+				ndev_vif->nan.operating_channel[0] = hal_req.channel_24g_val;
+			if (hal_req.config_5g_channel)
+				ndev_vif->nan.operating_channel[1] = hal_req.channel_5g_val;
+			if (hal_req.config_hop_count_limit)
+				ndev_vif->nan.hopcount = hal_req.hop_count_limit_val;
+			slsi_eth_zero_addr(ndev_vif->nan.cluster_id);
+			ndev_vif->nan.random_mac_interval_sec = hal_req.disc_mac_addr_rand_interval_sec;
+			SLSI_INFO(sdev,
+				  "trans_id:%d master_pref:%d 2gChan:%d 5gChan:%d mac_random_interval:%d\n",
+				  hal_req.transaction_id, hal_req.master_pref, hal_req.channel_24g_val,
+				  hal_req.channel_5g_val, hal_req.disc_mac_addr_rand_interval_sec);
 		}
 	}
+	ether_addr_copy(ndev_vif->nan.local_nmi, nan_vif_mac_address);
 
 exit_with_mutex:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_ENABLED, 0, NULL);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_ENABLED, 0, NULL, hal_req.transaction_id);
 	return ret;
 }
 
@@ -465,25 +596,52 @@ int slsi_nan_disable(struct wiphy *wiphy, struct wireless_dev *wdev, const void 
 {
 	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct net_device *dev = slsi_nan_get_netdev(sdev);
-	struct netdev_vif *ndev_vif;
+	struct net_device *data_dev;
+	struct netdev_vif *ndev_vif, *data_ndev_vif;
+	u8 disable_cluster_merge, i;
+	int type, tmp;
+	const struct nlattr *iter;
+	u16 transaction_id = 0;
 
+	nla_for_each_attr(iter, data, len, tmp) {
+		type = nla_type(iter);
+		switch (type) {
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			transaction_id = nla_get_u16(iter);
+			break;
+		default:
+			break;
+		}
+	}
+
+	SLSI_INFO(sdev, "transaction_id:%d\n", transaction_id);
 	if (dev) {
 		ndev_vif = netdev_priv(dev);
 		SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 		if (ndev_vif->activated) {
 			slsi_mlme_del_vif(sdev, dev);
 			ndev_vif->activated = false;
-			ndev_vif->nan.subscribe_id_map = 0;
-			ndev_vif->nan.publish_id_map = 0;
 		} else {
 			SLSI_WARN(sdev, "NAN FWif not active!!");
 		}
+		for (i = SLSI_NAN_DATA_IFINDEX_START; i < CONFIG_SCSC_WLAN_MAX_INTERFACES + 1; i++) {
+			data_dev = slsi_get_netdev(sdev, i);
+			if (data_dev) {
+				data_ndev_vif = netdev_priv(data_dev);
+				SLSI_MUTEX_LOCK(data_ndev_vif->vif_mutex);
+				slsi_vif_cleanup(sdev, data_dev, true);
+				SLSI_MUTEX_UNLOCK(data_ndev_vif->vif_mutex);
+			}
+		}
+		disable_cluster_merge = ndev_vif->nan.disable_cluster_merge;
+		memset(&ndev_vif->nan, 0, sizeof(ndev_vif->nan));
+		ndev_vif->nan.disable_cluster_merge = disable_cluster_merge;
 		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	} else {
 		SLSI_WARN(sdev, "No NAN interface!!");
 	}
 
-	slsi_vendor_nan_command_reply(wiphy, SLSI_HAL_NAN_STATUS_SUCCESS, 0, NAN_RESPONSE_DISABLED, 0, NULL);
+	slsi_vendor_nan_command_reply(wiphy, SLSI_HAL_NAN_STATUS_SUCCESS, 0, NAN_RESPONSE_DISABLED, 0, NULL, transaction_id);
 
 	return 0;
 }
@@ -582,6 +740,10 @@ static int slsi_nan_publish_get_nl_params(struct slsi_dev *sdev, struct slsi_hal
 			hal_req->ranging_auto_response = nla_get_u8(iter);
 			break;
 
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			hal_req->transaction_id = nla_get_u16(iter);
+			break;
+
 		default:
 			r = slsi_nan_get_sdea_params_nl(sdev, &hal_req->sdea_params, iter, type);
 			if (r)
@@ -608,13 +770,11 @@ int slsi_nan_publish(struct wiphy *wiphy, struct wireless_dev *wdev, const void 
 	int ret;
 	u32 reply_status;
 	u32 publish_id = 0;
+	u16 transaction_id = 0;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "NAN netif not active!!\n");
-		ret = -EINVAL;
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
-	}
 
 	hal_req = kmalloc(sizeof(*hal_req), GFP_KERNEL);
 	if (!hal_req) {
@@ -631,6 +791,7 @@ int slsi_nan_publish(struct wiphy *wiphy, struct wireless_dev *wdev, const void 
 		ret = -EINVAL;
 		goto exit;
 	}
+	transaction_id = hal_req->transaction_id;
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
@@ -645,7 +806,7 @@ int slsi_nan_publish(struct wiphy *wiphy, struct wireless_dev *wdev, const void 
 		hal_req->publish_id = slsi_nan_get_new_publish_id(ndev_vif);
 	} else if (!slsi_nan_is_publish_id_active(ndev_vif, hal_req->publish_id)) {
 		SLSI_WARN(sdev, "Publish id %d not found. map:%x\n", hal_req->publish_id,
-			  ndev_vif->nan.publish_id_map);
+			  ndev_vif->nan.service_id_map);
 		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PUBLISH_SUBSCRIBE_ID;
 		ret = -EINVAL;
 		goto exit_with_lock;
@@ -653,21 +814,26 @@ int slsi_nan_publish(struct wiphy *wiphy, struct wireless_dev *wdev, const void 
 
 	if (hal_req->publish_id) {
 		ret = slsi_mlme_nan_publish(sdev, dev, hal_req, hal_req->publish_id);
-		if (ret)
+		if (ret) {
 			reply_status = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
-		else
+		} else {
 			publish_id = hal_req->publish_id;
+			SLSI_INFO(sdev,
+				  "trans_id:%d, publish_id:%d type:%d rec_ind_cfg:0x%x\n",
+				  hal_req->transaction_id, hal_req->publish_id, hal_req->publish_type,
+				  hal_req->recv_indication_cfg);
+		}
 	} else {
 		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PUBLISH_SUBSCRIBE_ID;
 		SLSI_WARN(sdev, "Too Many concurrent PUBLISH REQ(map:%x)\n",
-			  ndev_vif->nan.publish_id_map);
+			  ndev_vif->nan.service_id_map);
 		ret = -ENOTSUPP;
 	}
 exit_with_lock:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	kfree(hal_req);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_PUBLISH, publish_id, NULL);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_PUBLISH, publish_id, NULL, transaction_id);
 	return ret;
 }
 
@@ -678,16 +844,13 @@ int slsi_nan_publish_cancel(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct net_device *dev = slsi_nan_get_netdev(sdev);
 	struct netdev_vif *ndev_vif;
 	int type, tmp, ret = 0;
-	u16 publish_id = 0;
+	u16 publish_id = 0, transaction_id = 0;
 	const struct nlattr *iter;
 	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "NAN netif not active!!");
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = -EINVAL;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
-	}
 
 	ndev_vif = netdev_priv(dev);
 	nla_for_each_attr(iter, data, len, tmp) {
@@ -696,11 +859,15 @@ int slsi_nan_publish_cancel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		case NAN_REQ_ATTR_PUBLISH_ID:
 			publish_id = nla_get_u16(iter);
 			break;
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			transaction_id = nla_get_u16(iter);
+			break;
+
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN publishcancel attribute TYPE:%d\n", type);
 		}
 	}
-
+	SLSI_INFO(sdev, "transaction_id:%d publish_id:%d\n", transaction_id, publish_id);
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	if (!ndev_vif->activated) {
 		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
@@ -710,7 +877,7 @@ int slsi_nan_publish_cancel(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (!publish_id || !slsi_nan_is_publish_id_active(ndev_vif, publish_id)) {
 		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PUBLISH_SUBSCRIBE_ID;
 		SLSI_WARN(sdev, "Publish_id(%d) not active. map:%x\n",
-			  publish_id, ndev_vif->nan.publish_id_map);
+			  publish_id, ndev_vif->nan.service_id_map);
 	} else {
 		ret = slsi_mlme_nan_publish(sdev, dev, NULL, publish_id);
 		if (ret)
@@ -719,7 +886,7 @@ int slsi_nan_publish_cancel(struct wiphy *wiphy, struct wireless_dev *wdev,
 exit_with_lock:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_PUBLISH_CANCEL, publish_id, NULL);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_PUBLISH_CANCEL, publish_id, NULL, transaction_id);
 	return ret;
 }
 
@@ -838,6 +1005,10 @@ static int slsi_nan_subscribe_get_nl_params(struct slsi_dev *sdev, struct slsi_h
 			hal_req->ranging_auto_response = nla_get_u8(iter);
 			break;
 
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			hal_req->transaction_id = nla_get_u16(iter);
+			break;
+
 		default:
 			r = slsi_nan_get_sdea_params_nl(sdev, &hal_req->sdea_params, iter, type);
 			if (r)
@@ -864,13 +1035,11 @@ int slsi_nan_subscribe(struct wiphy *wiphy, struct wireless_dev *wdev, const voi
 	int ret;
 	u32 reply_status;
 	u32 subscribe_id = 0;
+	u16 transaction_id = 0;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "NAN netif not active!!\n");
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = -EINVAL;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
-	}
 
 	hal_req = kmalloc(sizeof(*hal_req), GFP_KERNEL);
 	if (!hal_req) {
@@ -887,7 +1056,7 @@ int slsi_nan_subscribe(struct wiphy *wiphy, struct wireless_dev *wdev, const voi
 		ret = -EINVAL;
 		goto exit;
 	}
-
+	transaction_id = hal_req->transaction_id;
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	if (!ndev_vif->activated) {
 		SLSI_WARN(sdev, "NAN vif not activated\n");
@@ -900,23 +1069,26 @@ int slsi_nan_subscribe(struct wiphy *wiphy, struct wireless_dev *wdev, const voi
 		hal_req->subscribe_id = slsi_nan_get_new_subscribe_id(ndev_vif);
 	} else if (!slsi_nan_is_subscribe_id_active(ndev_vif, hal_req->subscribe_id)) {
 		SLSI_WARN(sdev, "Subscribe id %d not found. map:%x\n", hal_req->subscribe_id,
-			  ndev_vif->nan.subscribe_id_map);
+			  ndev_vif->nan.service_id_map);
 		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PUBLISH_SUBSCRIBE_ID;
 		ret = -EINVAL;
 		goto exit_with_lock;
 	}
 
 	ret = slsi_mlme_nan_subscribe(sdev, dev, hal_req, hal_req->subscribe_id);
-	if (ret)
+	if (ret) {
 		reply_status = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
-	else
+	} else {
+		SLSI_INFO(sdev, "trans_id:%d subscribe_id:%d type:%d\n",
+			  hal_req->transaction_id, hal_req->subscribe_id, hal_req->subscribe_type);
 		subscribe_id = hal_req->subscribe_id;
+	}
 
 exit_with_lock:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	kfree(hal_req);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_SUBSCRIBE, subscribe_id, NULL);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_SUBSCRIBE, subscribe_id, NULL, transaction_id);
 	return ret;
 }
 
@@ -926,16 +1098,13 @@ int slsi_nan_subscribe_cancel(struct wiphy *wiphy, struct wireless_dev *wdev, co
 	struct net_device *dev = slsi_nan_get_netdev(sdev);
 	struct netdev_vif *ndev_vif;
 	int type, tmp, ret = WIFI_HAL_ERROR_UNKNOWN;
-	u16 subscribe_id = 0;
+	u16 subscribe_id = 0, transaction_id = 0;
 	const struct nlattr *iter;
 	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "NAN netif not active!!");
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
-	}
 
 	ndev_vif = netdev_priv(dev);
 
@@ -945,18 +1114,21 @@ int slsi_nan_subscribe_cancel(struct wiphy *wiphy, struct wireless_dev *wdev, co
 		case NAN_REQ_ATTR_SUBSCRIBE_ID:
 			subscribe_id = nla_get_u16(iter);
 			break;
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			transaction_id = nla_get_u16(iter);
+			break;
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN subscribecancel attribute TYPE:%d\n", type);
 			reply_status = SLSI_HAL_NAN_STATUS_INVALID_PARAM;
 			goto exit;
 		}
 	}
-
+	SLSI_INFO(sdev, "trans_id:%d subscribe_id:%d\n", transaction_id, subscribe_id);
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	if (ndev_vif->activated) {
 		if (!subscribe_id || !slsi_nan_is_subscribe_id_active(ndev_vif, subscribe_id)) {
 			SLSI_WARN(sdev, "subscribe_id(%d) not active. map:%x\n",
-				  subscribe_id, ndev_vif->nan.subscribe_id_map);
+				  subscribe_id, ndev_vif->nan.service_id_map);
 			reply_status = SLSI_HAL_NAN_STATUS_INVALID_PUBLISH_SUBSCRIBE_ID;
 		} else {
 			ret = slsi_mlme_nan_subscribe(sdev, dev, NULL, subscribe_id);
@@ -970,7 +1142,7 @@ int slsi_nan_subscribe_cancel(struct wiphy *wiphy, struct wireless_dev *wdev, co
 	}
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_SUBSCRIBE_CANCEL, subscribe_id, NULL);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_SUBSCRIBE_CANCEL, subscribe_id, NULL, transaction_id);
 	return ret;
 }
 
@@ -1025,6 +1197,10 @@ static int slsi_nan_followup_get_nl_params(struct slsi_dev *sdev, struct slsi_ha
 			       hal_req->sdea_service_specific_info_len);
 			break;
 
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			hal_req->transaction_id = nla_get_u16(iter);
+			break;
+
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN followup attribute TYPE:%d\n", type);
 			return SLSI_HAL_NAN_STATUS_INVALID_PARAM;
@@ -1039,15 +1215,13 @@ int slsi_nan_transmit_followup(struct wiphy *wiphy, struct wireless_dev *wdev, c
 	struct net_device *dev = slsi_nan_get_netdev(sdev);
 	struct netdev_vif *ndev_vif;
 	struct slsi_hal_nan_transmit_followup_req hal_req;
-	int ret;
+	int ret = 0;
 	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "NAN netif not active!!");
-		ret = -EINVAL;
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+	hal_req.transaction_id = 0;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
-	}
 
 	ndev_vif = netdev_priv(dev);
 	reply_status = slsi_nan_followup_get_nl_params(sdev, &hal_req, data, len);
@@ -1068,20 +1242,31 @@ int slsi_nan_transmit_followup(struct wiphy *wiphy, struct wireless_dev *wdev, c
 	    !(slsi_nan_is_subscribe_id_active(ndev_vif, hal_req.publish_subscribe_id) ||
 	    slsi_nan_is_publish_id_active(ndev_vif, hal_req.publish_subscribe_id))) {
 		SLSI_WARN(sdev, "publish/Subscribe id %d not found. map:%x\n", hal_req.publish_subscribe_id,
-			  ndev_vif->nan.subscribe_id_map);
+			  ndev_vif->nan.service_id_map);
 		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PUBLISH_SUBSCRIBE_ID;
 		ret = -EINVAL;
 		goto exit_with_lock;
 	}
 
 	ret = slsi_mlme_nan_tx_followup(sdev, dev, &hal_req);
-	if (ret)
-		reply_status = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
+	if (ret) {
+		if (ret == SLSI_HAL_NAN_STATUS_FOLLOWUP_QUEUE_FULL) {
+			reply_status = ret;
+			ret = 0;
+		} else {
+			reply_status = ret == SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
+		}
+	} else {
+		SLSI_INFO(sdev,
+			  "transId:%d serviceId:%d instanceId:%d\n",
+			  hal_req.transaction_id, hal_req.publish_subscribe_id, hal_req.requestor_instance_id);
+		ndev_vif->nan.followup_trans_id = hal_req.transaction_id;
+	}
 
 exit_with_lock:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_TRANSMIT_FOLLOWUP, 0, NULL);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_TRANSMIT_FOLLOWUP, 0, NULL, hal_req.transaction_id);
 	return ret;
 }
 
@@ -1093,7 +1278,6 @@ static int slsi_nan_config_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_
 	struct slsi_hal_nan_post_discovery_param *disc_attr;
 	struct slsi_hal_nan_further_availability_channel *famchan;
 
-	memset(hal_req, 0, sizeof(*hal_req));
 	nla_for_each_attr(iter, data, len, tmp) {
 		type = nla_type(iter);
 		switch (type) {
@@ -1307,6 +1491,10 @@ static int slsi_nan_config_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_
 			hal_req->disc_mac_addr_rand_interval_sec = nla_get_u8(iter);
 			break;
 
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			hal_req->transaction_id = nla_get_u16(iter);
+			break;
+
 		default:
 			SLSI_ERR(sdev, "Unexpected NAN config attribute TYPE:%d\n", type);
 			return SLSI_HAL_NAN_STATUS_INVALID_PARAM;
@@ -1320,37 +1508,43 @@ int slsi_nan_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, const vo
 	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct net_device *dev = slsi_nan_get_netdev(sdev);
 	struct netdev_vif *ndev_vif;
-	struct slsi_hal_nan_config_req hal_req;
+	u16 transaction_id = 0;
 	int ret;
 	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "NAN netif not active!!");
-		ret = -EINVAL;
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
-	}
 
 	ndev_vif = netdev_priv(dev);
-	reply_status = slsi_nan_config_get_nl_params(sdev, &hal_req, data, len);
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	reply_status = slsi_nan_config_get_nl_params(sdev, &ndev_vif->nan.config, data, len);
 	if (reply_status) {
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 		ret = -EINVAL;
 		goto exit;
 	}
-
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	transaction_id = ndev_vif->nan.config.transaction_id;
 	if (!ndev_vif->activated) {
 		SLSI_WARN(sdev, "NAN vif not activated\n");
 		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
 		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
 	} else {
-		ret = slsi_mlme_nan_set_config(sdev, dev, &hal_req);
-		if (ret)
+		ret = slsi_mlme_nan_set_config(sdev, dev, &ndev_vif->nan.config);
+		if (ret) {
 			reply_status = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
+		} else {
+			if (ndev_vif->nan.config.config_master_pref)
+				ndev_vif->nan.master_pref_value = ndev_vif->nan.config.master_pref;
+			ndev_vif->nan.random_mac_interval_sec = ndev_vif->nan.config.disc_mac_addr_rand_interval_sec;
+			SLSI_INFO(sdev, "transId:%d masterPref:%d\n",
+				  ndev_vif->nan.config.transaction_id, ndev_vif->nan.config.master_pref);
+		}
 	}
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_CONFIG, 0, NULL);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_CONFIG, 0, NULL, transaction_id);
 	return ret;
 }
 
@@ -1377,23 +1571,34 @@ int slsi_nan_get_capabilities(struct wiphy *wiphy, struct wireless_dev *wdev, co
 						  { SLSI_PSID_UNIFI_NAN_MAX_NDP_SESSIONS, { 0, 0 } },
 						  { SLSI_PSID_UNIFI_NAN_MAX_APP_INFO_LENGTH, { 0, 0 } } };
 	u32 *capabilities_mib_val[] = { &nan_capabilities.max_concurrent_nan_clusters,
-									&nan_capabilities.max_publishes,
-									&nan_capabilities.max_subscribes,
-									&nan_capabilities.max_service_name_len,
-									&nan_capabilities.max_match_filter_len,
-									&nan_capabilities.max_total_match_filter_len,
-									&nan_capabilities.max_service_specific_info_len,
-									&nan_capabilities.max_vsa_data_len,
-									&nan_capabilities.max_mesh_data_len,
-									&nan_capabilities.max_ndi_interfaces,
-									&nan_capabilities.max_ndp_sessions,
-									&nan_capabilities.max_app_info_len };
+					&nan_capabilities.max_publishes,
+					&nan_capabilities.max_subscribes,
+					&nan_capabilities.max_service_name_len,
+					&nan_capabilities.max_match_filter_len,
+					&nan_capabilities.max_total_match_filter_len,
+					&nan_capabilities.max_service_specific_info_len,
+					&nan_capabilities.max_vsa_data_len,
+					&nan_capabilities.max_mesh_data_len,
+					&nan_capabilities.max_ndi_interfaces,
+					&nan_capabilities.max_ndp_sessions,
+					&nan_capabilities.max_app_info_len };
+	int type, tmp;
+	const struct nlattr *iter;
+	u16 transaction_id = 0;
 
-	if (!dev) {
-		SLSI_ERR(sdev, "NAN netif not active!!");
-		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
-		ret = -EINVAL;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
 		goto exit;
+
+	nla_for_each_attr(iter, data, len, tmp) {
+		type = nla_type(iter);
+		switch (type) {
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			transaction_id = nla_get_u16(iter);
+			break;
+		default:
+			break;
+		}
 	}
 
 	ndev_vif = netdev_priv(dev);
@@ -1420,7 +1625,7 @@ int slsi_nan_get_capabilities(struct wiphy *wiphy, struct wireless_dev *wdev, co
 	for (i = 0; i < (int)ARRAY_SIZE(get_values); i++) {
 		if (values[i].type == SLSI_MIB_TYPE_UINT) {
 			*capabilities_mib_val[i] = values[i].u.uintValue;
-			SLSI_DBG2(sdev, SLSI_GSCAN, "MIB value = %ud\n", *capabilities_mib_val[i]);
+			SLSI_DBG2(sdev, SLSI_GSCAN, "MIB value = %u\n", *capabilities_mib_val[i]);
 		} else {
 			SLSI_ERR(sdev, "invalid type(%d). iter:%d\n", values[i].type, i);
 			ret = 0xFFFFFFFF;
@@ -1429,14 +1634,477 @@ int slsi_nan_get_capabilities(struct wiphy *wiphy, struct wireless_dev *wdev, co
 		}
 	}
 
+	if (!nan_capabilities.max_ndi_interfaces)
+		nan_capabilities.max_ndi_interfaces = slsi_get_nan_max_ndi_ifaces();
+	if (!nan_capabilities.max_ndp_sessions)
+		nan_capabilities.max_ndi_interfaces = slsi_get_nan_max_ndp_instances();
+
+	if (nan_capabilities.max_ndi_interfaces > SLSI_NAN_MAX_NDP_INSTANCES) {
+		SLSI_ERR(sdev, "max ndp if's:%d but supported:%d\n", nan_capabilities.max_ndi_interfaces,
+			 SLSI_NAN_MAX_NDP_INSTANCES);
+		nan_capabilities.max_ndi_interfaces = SLSI_NAN_MAX_NDP_INSTANCES;
+	}
+
+	if (nan_capabilities.max_ndp_sessions > SLSI_NAN_MAX_NDP_INSTANCES) {
+		SLSI_ERR(sdev, "max ndp if's:%d but supported:%d\n", nan_capabilities.max_ndp_sessions,
+			 SLSI_NAN_MAX_NDP_INSTANCES);
+		nan_capabilities.max_ndi_interfaces = SLSI_NAN_MAX_NDP_INSTANCES;
+	}
+
+	SLSI_INFO(sdev, "transId:%d\n", transaction_id);
+
 	kfree(values);
 exit_with_mibrsp:
 	kfree(mibrsp.data);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 exit:
-	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_GET_CAPABILITIES, 0, &nan_capabilities);
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_RESPONSE_GET_CAPABILITIES, 0, &nan_capabilities, transaction_id);
 	return ret;
 }
+
+int slsi_nan_data_iface_create(struct wiphy *wiphy, struct wireless_dev *wdev, const void *data, int len)
+{
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
+	u8 *iface_name = NULL;
+	int ret = 0, if_idx, type, tmp, err;
+	struct net_device *dev = slsi_nan_get_netdev(sdev);
+	struct net_device *dev_ndp = NULL;
+	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
+	const struct nlattr *iter;
+	u16 transaction_id = 0;
+
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
+		goto exit;
+
+	nla_for_each_attr(iter, data, len, tmp) {
+		type = nla_type(iter);
+		if (type == NAN_REQ_ATTR_DATA_INTERFACE_NAME)
+			iface_name = nla_data(iter);
+		else if (type == NAN_REQ_ATTR_HAL_TRANSACTION_ID)
+			transaction_id = nla_get_u16(iter);
+	}
+	if (!iface_name) {
+		SLSI_ERR(sdev, "No NAN data interface name\n");
+		ret = WIFI_HAL_ERROR_INVALID_ARGS;
+		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PARAM;
+		goto exit;
+	}
+
+	SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
+	/* Find unused netdev idx */
+	for (if_idx = SLSI_NAN_DATA_IFINDEX_START; if_idx < CONFIG_SCSC_WLAN_MAX_INTERFACES + 1; if_idx++) {
+		dev_ndp = slsi_get_netdev_locked(sdev, if_idx);
+		if (!dev_ndp)
+			break;
+	}
+
+	if (if_idx >= CONFIG_SCSC_WLAN_MAX_INTERFACES + 1) {
+		SLSI_ERR(sdev, "NAN no free NAN data interfaces\n");
+		ret = WIFI_HAL_ERROR_TOO_MANY_REQUESTS;
+		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PARAM;
+		goto exit_with_lock;
+	}
+
+	err = slsi_netif_add_locked(sdev, iface_name, if_idx);
+	if (err) {
+		SLSI_ERR(sdev, "NAN fail net_if_add if_name:%s, if_idx:%d\n", iface_name, if_idx);
+		ret = WIFI_HAL_ERROR_OUT_OF_MEMORY;
+		reply_status = SLSI_HAL_NAN_STATUS_NO_RESOURCE_AVAILABLE;
+		goto exit_with_lock;
+	}
+
+	dev_ndp = slsi_get_netdev_locked(sdev, if_idx);
+	err = slsi_netif_register_locked(sdev, dev_ndp);
+	if (err) {
+		SLSI_ERR(sdev, "NAN fail netdev err:%d if_name:%s, if_idx:%d\n", err);
+		ret = WIFI_HAL_ERROR_UNKNOWN;
+		reply_status = SLSI_HAL_NAN_STATUS_NO_RESOURCE_AVAILABLE;
+	} else {
+		SLSI_INFO(sdev, "trans_id:%d, if_name:%s, if_idx:%d\n", transaction_id, iface_name, if_idx);
+	}
+
+exit_with_lock:
+	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+exit:
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_DP_INTERFACE_CREATE, 0, NULL, transaction_id);
+	return ret;
+}
+
+int slsi_nan_data_iface_delete(struct wiphy *wiphy, struct wireless_dev *wdev, const void *data, int len)
+{
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
+	u8 *iface_name = NULL;
+	int ret = 0, if_idx, type, tmp;
+	struct net_device *dev = slsi_nan_get_netdev(sdev);
+	struct net_device *dev_ndp = NULL;
+	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
+	const struct nlattr *iter;
+	u16 transaction_id = 0;
+
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
+		goto exit;
+
+	nla_for_each_attr(iter, data, len, tmp) {
+		type = nla_type(iter);
+		if (type == NAN_REQ_ATTR_DATA_INTERFACE_NAME)
+			iface_name = nla_data(iter);
+		else if (type == NAN_REQ_ATTR_HAL_TRANSACTION_ID)
+			transaction_id = nla_get_u16(iter);
+	}
+	if (!iface_name) {
+		SLSI_ERR(sdev, "No NAN data interface name\n");
+		ret = WIFI_HAL_ERROR_INVALID_ARGS;
+		reply_status = SLSI_HAL_NAN_STATUS_INVALID_PARAM;
+		goto exit;
+	}
+
+	SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
+	for (if_idx = SLSI_NAN_DATA_IFINDEX_START; if_idx < CONFIG_SCSC_WLAN_MAX_INTERFACES + 1; if_idx++) {
+		dev_ndp = slsi_get_netdev_locked(sdev, if_idx);
+		if (dev_ndp && strcmp(iface_name, dev_ndp->name) == 0)
+			break;
+		dev_ndp = NULL;
+	}
+
+	if (dev_ndp) {
+		slsi_netif_remove_locked(sdev, dev_ndp);
+		SLSI_INFO(sdev, "Success transId:%d ifaceName:%s\n", transaction_id, iface_name);
+	}
+
+	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+exit:
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_DP_INTERFACE_DELETE, 0, NULL, transaction_id);
+	return ret;
+}
+
+int slsi_nan_ndp_initiate_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_nan_data_path_initiator_req *hal_req,
+					const void *data, int len)
+{
+	int type, tmp, r;
+	const struct nlattr *iter;
+
+	memset(hal_req, 0, sizeof(*hal_req));
+	nla_for_each_attr(iter, data, len, tmp) {
+		type = nla_type(iter);
+		switch (type) {
+		case NAN_REQ_ATTR_REQ_INSTANCE_ID:
+			hal_req->requestor_instance_id = nla_get_u32(iter);
+			break;
+
+		case NAN_REQ_ATTR_CHAN_REQ_TYPE:
+			hal_req->channel_request_type = nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_CHAN:
+			hal_req->channel = nla_get_u32(iter);
+			break;
+
+		case NAN_REQ_ATTR_MAC_ADDR_VAL:
+			ether_addr_copy(hal_req->peer_disc_mac_addr, nla_data(iter));
+			break;
+
+		case NAN_REQ_ATTR_DATA_INTERFACE_NAME:
+			memcpy(hal_req->ndp_iface, nla_data(iter), IFNAMSIZ);
+			break;
+
+		case NAN_REQ_ATTR_DATA_INTERFACE_NAME_LEN:
+			break;
+
+		case NAN_REQ_ATTR_SDEA_PARAM_SECURITY_CFG:
+			hal_req->ndp_cfg.security_cfg = nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_SDEA_PARAM_QOS_CFG:
+			hal_req->ndp_cfg.qos_cfg =  nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_APP_INFO_LEN:
+			hal_req->app_info.ndp_app_info_len = nla_get_u16(iter);
+			break;
+
+		case NAN_REQ_ATTR_APP_INFO:
+			memcpy(hal_req->app_info.ndp_app_info, nla_data(iter), hal_req->app_info.ndp_app_info_len);
+			break;
+
+		case NAN_REQ_ATTR_SERVICE_NAME_LEN:
+			hal_req->service_name_len = nla_get_u32(iter);
+			break;
+
+		case NAN_REQ_ATTR_SERVICE_NAME:
+			memcpy(hal_req->service_name, nla_data(iter), hal_req->service_name_len);
+			break;
+
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			hal_req->transaction_id = nla_get_u16(iter);
+			break;
+
+		default:
+			r = slsi_nan_get_security_info_nl(sdev, &hal_req->key_info, iter, type);
+			if (r)
+				SLSI_ERR(sdev, "Unexpected NAN ndp attribute TYPE:%d\n", type);
+		}
+	}
+	return SLSI_HAL_NAN_STATUS_SUCCESS;
+}
+
+int slsi_nan_ndp_initiate(struct wiphy *wiphy, struct wireless_dev *wdev, const void *data, int len)
+{
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
+	struct net_device *dev = slsi_nan_get_netdev(sdev);
+	struct netdev_vif *ndev_vif;
+	struct slsi_hal_nan_data_path_initiator_req *hal_req = NULL;
+	int ret;
+	u32 ndp_id = 0;
+	u16 ndl_vif_id, transaction_id = 0;
+	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
+
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
+		goto exit;
+
+	hal_req = kmalloc(sizeof(*hal_req), GFP_KERNEL);
+	if (!hal_req) {
+		SLSI_ERR(sdev, "Failed to alloc hal_req structure!!!\n");
+		reply_status = SLSI_HAL_NAN_STATUS_NO_RESOURCE_AVAILABLE;
+		ret = WIFI_HAL_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+
+	ndev_vif = netdev_priv(dev);
+	reply_status = slsi_nan_ndp_initiate_get_nl_params(sdev, hal_req, data, len);
+	if (reply_status) {
+		ret = WIFI_HAL_ERROR_INVALID_ARGS;
+		goto exit;
+	}
+	transaction_id = hal_req->transaction_id;
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	if (!ndev_vif->activated) {
+		SLSI_WARN(sdev, "NAN vif not activated\n");
+		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
+		goto exit_with_lock;
+	}
+
+	ndp_id = slsi_nan_get_new_ndp_id(ndev_vif);
+	if (!ndp_id) {
+		SLSI_WARN(sdev, "NAN no free ndp slots\n");
+		reply_status = SLSI_HAL_NAN_STATUS_NO_RESOURCE_AVAILABLE;
+		ret = WIFI_HAL_ERROR_TOO_MANY_REQUESTS;
+		goto exit_with_lock;
+	}
+
+	ndl_vif_id = slsi_nan_ndp_get_ndl_vif_id(hal_req->peer_disc_mac_addr, ndev_vif->nan.ndl_list);
+	if (ndl_vif_id >= SLSI_NAN_MAX_NDP_INSTANCES + SLSI_NAN_DATA_IFINDEX_START) {
+		SLSI_WARN(sdev, "NAN no free ndl slots\n");
+		reply_status = SLSI_HAL_NAN_STATUS_NO_RESOURCE_AVAILABLE;
+		ret = WIFI_HAL_ERROR_TOO_MANY_REQUESTS;
+		goto exit_with_lock;
+	}
+	ret = slsi_mlme_ndp_request(sdev, dev, hal_req, ndp_id, ndl_vif_id);
+	if (ret) {
+		reply_status = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
+		ret = WIFI_HAL_ERROR_UNKNOWN;
+	} else {
+		SLSI_INFO(sdev, "transId:%d ndpId:%d ndlVifId:%d iface:%s\n",
+			  hal_req->transaction_id, ndp_id, ndl_vif_id, hal_req->ndp_iface);
+		ret = WIFI_HAL_SUCCESS;
+	}
+
+exit_with_lock:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+exit:
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_DP_INITIATOR_RESPONSE, (u16)ndp_id, NULL, transaction_id);
+	kfree(hal_req);
+	return ret;
+}
+
+int slsi_nan_ndp_respond_get_nl_param(struct slsi_dev *sdev, struct slsi_hal_nan_data_path_indication_response *hal_req,
+				      const void *data, int len)
+{
+	int type, tmp, r;
+	const struct nlattr *iter;
+
+	memset(hal_req, 0, sizeof(*hal_req));
+	nla_for_each_attr(iter, data, len, tmp) {
+		type = nla_type(iter);
+		switch (type) {
+		case NAN_REQ_ATTR_NDP_INSTANCE_ID:
+			hal_req->ndp_instance_id = nla_get_u32(iter);
+			break;
+
+		case NAN_REQ_ATTR_DATA_INTERFACE_NAME:
+			memcpy(hal_req->ndp_iface, nla_data(iter), IFNAMSIZ);
+			break;
+		case NAN_REQ_ATTR_DATA_INTERFACE_NAME_LEN:
+			break;
+
+		case NAN_REQ_ATTR_SDEA_PARAM_SECURITY_CFG:
+			hal_req->ndp_cfg.security_cfg = nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_SDEA_PARAM_QOS_CFG:
+			hal_req->ndp_cfg.qos_cfg =  nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_APP_INFO_LEN:
+			hal_req->app_info.ndp_app_info_len = nla_get_u16(iter);
+			break;
+
+		case NAN_REQ_ATTR_APP_INFO:
+			memcpy(hal_req->app_info.ndp_app_info, nla_data(iter), hal_req->app_info.ndp_app_info_len);
+			break;
+
+		case NAN_REQ_ATTR_NDP_RESPONSE_CODE:
+			hal_req->rsp_code = nla_get_u8(iter);
+			break;
+
+		case NAN_REQ_ATTR_SERVICE_NAME_LEN:
+			hal_req->service_name_len = nla_get_u32(iter);
+			break;
+
+		case NAN_REQ_ATTR_SERVICE_NAME:
+			memcpy(hal_req->service_name, nla_data(iter), hal_req->service_name_len);
+			break;
+
+		case NAN_REQ_ATTR_HAL_TRANSACTION_ID:
+			hal_req->transaction_id = nla_get_u16(iter);
+			break;
+
+		default:
+			r = 0;
+			r = slsi_nan_get_security_info_nl(sdev, &hal_req->key_info, iter, type);
+			if (r)
+				SLSI_ERR(sdev, "Unexpected NAN ndp attribute TYPE:%d\n", type);
+		}
+	}
+	return SLSI_HAL_NAN_STATUS_SUCCESS;
+}
+
+int slsi_nan_ndp_respond(struct wiphy *wiphy, struct wireless_dev *wdev, const void *data, int len)
+{
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
+	struct net_device *dev = slsi_nan_get_netdev(sdev);
+	struct netdev_vif *ndev_vif;
+	struct slsi_hal_nan_data_path_indication_response *hal_req = NULL;
+	int ret;
+	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
+	u16 transaction_id = 0, ndp_instance_id = 0;
+
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
+		goto exit;
+
+	hal_req = kmalloc(sizeof(*hal_req), GFP_KERNEL);
+	if (!hal_req) {
+		SLSI_ERR(sdev, "Failed to alloc hal_req structure!!!\n");
+		reply_status = SLSI_HAL_NAN_STATUS_NO_RESOURCE_AVAILABLE;
+		ret = WIFI_HAL_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+
+	ndev_vif = netdev_priv(dev);
+	reply_status = slsi_nan_ndp_respond_get_nl_param(sdev, hal_req, data, len);
+	transaction_id = hal_req->transaction_id;
+	ndp_instance_id = hal_req->ndp_instance_id;
+	if (reply_status) {
+		ret = WIFI_HAL_ERROR_INVALID_ARGS;
+		goto exit;
+	}
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	if (!ndev_vif->activated) {
+		SLSI_WARN(sdev, "NAN vif not activated\n");
+		reply_status = SLSI_HAL_NAN_STATUS_NAN_NOT_ALLOWED;
+		ret = WIFI_HAL_ERROR_NOT_AVAILABLE;
+		goto exit_with_lock;
+	}
+
+	ret = slsi_mlme_ndp_response(sdev, dev, hal_req, ndev_vif->nan.ndp_local_ndp_id[hal_req->ndp_instance_id - 1]);
+	if (ret) {
+		reply_status = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
+		ret = WIFI_HAL_ERROR_UNKNOWN;
+	} else {
+		SLSI_INFO(sdev, "transId:%d ndpId:%d iface:%s\n",
+			  hal_req->transaction_id, hal_req->ndp_instance_id, hal_req->ndp_iface);
+		ret = WIFI_HAL_SUCCESS;
+	}
+
+exit_with_lock:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+exit:
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_DP_RESPONDER_RESPONSE,
+				      ndp_instance_id, NULL, transaction_id);
+	kfree(hal_req);
+	return ret;
+}
+
+int slsi_nan_ndp_end_get_nl_params(struct slsi_dev *sdev, struct slsi_hal_nan_data_end *hal_req,
+				   const void *data, int len)
+{
+	int type, tmp;
+	const struct nlattr *iter;
+
+	memset(hal_req, 0, sizeof(*hal_req));
+	nla_for_each_attr(iter, data, len, tmp) {
+		type = nla_type(iter);
+		if (type == NAN_REQ_ATTR_NDP_INSTANCE_ID && hal_req->num_ndp_instances < SLSI_NAN_MAX_NDP_INSTANCES)
+			hal_req->ndp_instance_id[hal_req->num_ndp_instances++] = nla_get_u32(iter);
+		else if (type == NAN_REQ_ATTR_HAL_TRANSACTION_ID)
+			hal_req->transaction_id = nla_get_u16(iter);
+	}
+	return SLSI_HAL_NAN_STATUS_SUCCESS;
+}
+
+int slsi_nan_ndp_end(struct wiphy *wiphy, struct wireless_dev *wdev, const void *data, int len)
+{
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
+	struct net_device *dev = slsi_nan_get_netdev(sdev);
+	struct netdev_vif *ndev_vif;
+	struct slsi_hal_nan_data_end hal_req;
+	int ret, i;
+	u32 reply_status = SLSI_HAL_NAN_STATUS_SUCCESS;
+
+	hal_req.transaction_id = 0;
+	slsi_nan_pre_check(sdev, dev, &ret, &reply_status);
+	if (ret != WIFI_HAL_SUCCESS)
+		goto exit;
+
+	ndev_vif = netdev_priv(dev);
+	reply_status = slsi_nan_ndp_end_get_nl_params(sdev, &hal_req, data, len);
+
+	if (reply_status) {
+		ret = WIFI_HAL_ERROR_INVALID_ARGS;
+		goto exit;
+	}
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	if (!ndev_vif->activated) {
+		SLSI_WARN(sdev, "NAN vif not activated\n");
+		slsi_nan_ndp_termination_handler(sdev, dev, 0, 0, NULL);
+		ret = WIFI_HAL_SUCCESS;
+		goto exit_with_lock;
+	}
+	for (i = 0; i < hal_req.num_ndp_instances; i++)
+		if (hal_req.ndp_instance_id[i] > 0 && hal_req.ndp_instance_id[i] <= SLSI_NAN_MAX_NDP_INSTANCES) {
+			ndev_vif->nan.ndp_state[hal_req.ndp_instance_id[i] - 1] = ndp_slot_status_terminating;
+			slsi_mlme_ndp_terminate(sdev, dev, hal_req.ndp_instance_id[i]);
+			SLSI_INFO(sdev, "transId:%d ndpId:%d [%d/%d]\n",
+				  hal_req.transaction_id, hal_req.ndp_instance_id[i], i, hal_req.num_ndp_instances);
+		} else {
+			SLSI_ERR(sdev, "Ignore invalid ndp_id:%d\n", hal_req.ndp_instance_id[i]);
+		}
+
+exit_with_lock:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+exit:
+	slsi_vendor_nan_command_reply(wiphy, reply_status, ret, NAN_DP_END, 0, NULL, hal_req.transaction_id);
+	return ret;
+}
+
+/* NAN HAL EVENTS */
 
 void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
 {
@@ -1452,6 +2120,8 @@ void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 	event = fapi_get_u16(skb, u.mlme_nan_event_ind.event);
 	identifier = fapi_get_u16(skb, u.mlme_nan_event_ind.identifier);
 	mac_addr = fapi_get_buff(skb, u.mlme_nan_event_ind.address_or_identifier);
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
 	switch (fapi_get_u16(skb, u.mlme_nan_event_ind.reason_code)) {
 	case FAPI_REASONCODE_NAN_SERVICE_TERMINATED_TIMEOUT:
@@ -1471,36 +2141,49 @@ void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 
 	switch (event) {
 	case FAPI_EVENT_WIFI_EVENT_NAN_PUBLISH_TERMINATED:
+		ndev_vif->nan.service_id_map &= (u32)~BIT(identifier);
+		if (ndev_vif->nan.nan_sdf_flags[identifier] & FAPI_NANSDFCONTROL_PUBLISH_END_EVENT)
+			goto exit;
 		hal_event = SLSI_NL80211_NAN_PUBLISH_TERMINATED_EVENT;
 		break;
 	case FAPI_EVENT_WIFI_EVENT_NAN_MATCH_EXPIRED:
+		if (ndev_vif->nan.nan_sdf_flags[identifier] & FAPI_NANSDFCONTROL_MATCH_EXPIRED_EVENT)
+			goto exit;
 		hal_event = SLSI_NL80211_NAN_MATCH_EXPIRED_EVENT;
 		break;
 	case FAPI_EVENT_WIFI_EVENT_NAN_SUBSCRIBE_TERMINATED:
+		ndev_vif->nan.service_id_map &= (u32)~BIT(identifier);
+		if (ndev_vif->nan.nan_sdf_flags[identifier] & FAPI_NANSDFCONTROL_SUBSCRIBE_END_EVENT)
+			goto exit;
 		hal_event = SLSI_NL80211_NAN_SUBSCRIBE_TERMINATED_EVENT;
 		break;
 	case FAPI_EVENT_WIFI_EVENT_NAN_ADDRESS_CHANGED:
 		disc_event_type = NAN_EVENT_ID_DISC_MAC_ADDR;
 		hal_event = SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT;
+		ether_addr_copy(ndev_vif->nan.local_nmi, mac_addr);
 		break;
 	case FAPI_EVENT_WIFI_EVENT_NAN_CLUSTER_STARTED:
 		disc_event_type = NAN_EVENT_ID_STARTED_CLUSTER;
 		hal_event = SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT;
+		ether_addr_copy(ndev_vif->nan.cluster_id, mac_addr);
 		break;
 	case FAPI_EVENT_WIFI_EVENT_NAN_CLUSTER_JOINED:
 		disc_event_type = NAN_EVENT_ID_JOINED_CLUSTER;
 		hal_event = SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT;
+		ether_addr_copy(ndev_vif->nan.cluster_id, mac_addr);
 		break;
 	case FAPI_EVENT_WIFI_EVENT_NAN_TRANSMIT_FOLLOWUP:
+		if (ndev_vif->nan.nan_sdf_flags[identifier] & FAPI_NANSDFCONTROL_FOLLOWUP_TRANSMIT_STATUS)
+			goto exit;
 		hal_event = SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS;
 		break;
 	default:
-		return;
+		goto exit;
 	}
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
-	SLSI_DBG1_NODEV(SLSI_GSCAN, "Event: %s(%d)\n",
-			slsi_print_event_name(hal_event), hal_event);
+	SLSI_INFO(sdev, "Event: %s(%d)\n",
+		  slsi_print_event_name(hal_event), hal_event);
 #endif
 
 #if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
@@ -1510,25 +2193,27 @@ void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 #endif
 	if (!nl_skb) {
 		SLSI_ERR(sdev, "NO MEM for nl_skb!!!\n");
-		return;
+		goto exit;
 	}
 
 	res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_STATUS, evt_reason);
 	switch (hal_event) {
 	case SLSI_NL80211_NAN_PUBLISH_TERMINATED_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_PUBLISH_ID, identifier);
-		ndev_vif->nan.publish_id_map &= (u32)~BIT(identifier);
 		break;
 	case SLSI_NL80211_NAN_MATCH_EXPIRED_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_MATCH_PUBLISH_SUBSCRIBE_ID, identifier);
 		break;
 	case SLSI_NL80211_NAN_SUBSCRIBE_TERMINATED_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_SUBSCRIBE_ID, identifier);
-		ndev_vif->nan.subscribe_id_map &= (u32)~BIT(identifier);
 		break;
 	case SLSI_NL80211_NAN_DISCOVERY_ENGINE_EVENT:
 		res |= nla_put_be16(nl_skb, NAN_EVT_ATTR_DISCOVERY_ENGINE_EVT_TYPE, disc_event_type);
 		res |= nla_put(nl_skb, NAN_EVT_ATTR_DISCOVERY_ENGINE_MAC_ADDR, ETH_ALEN, mac_addr);
+		break;
+	case SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS:
+		res |= nla_put_u16(nl_skb, NAN_EVT_ATTR_HAL_TRANSACTION_ID, ndev_vif->nan.followup_trans_id);
+		ndev_vif->nan.followup_trans_id = 0;
 		break;
 	}
 
@@ -1536,10 +2221,14 @@ void slsi_nan_event(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 		SLSI_ERR(sdev, "Error in nla_put*:%x\n", res);
 		/* Dont use slsi skb wrapper for this free */
 		kfree_skb(nl_skb);
-		return;
+		goto exit;
 	}
 
 	cfg80211_vendor_event(nl_skb, GFP_KERNEL);
+
+exit:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	slsi_kfree_skb(skb);
 }
 
 void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
@@ -1550,59 +2239,59 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 	struct sk_buff *nl_skb;
 	int res;
 	int sig_data_len;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
 
 	SLSI_DBG3(sdev, SLSI_GSCAN, "\n");
 
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	sig_data_len = fapi_get_datalen(skb);
-	if (sig_data_len <= 4) {
-		SLSI_ERR(sdev, "Invalid data len(%d)\n", sig_data_len);
-		return;
-	}
 
 	hal_evt = kmalloc(sizeof(*hal_evt), GFP_KERNEL);
 	if (!hal_evt) {
 		SLSI_ERR(sdev, "No memory for followup_ind\n");
-		return;
+		goto exit;
 	}
 	memset(hal_evt, 0, sizeof(*hal_evt));
 
-	hal_evt->publish_subscribe_id = fapi_get_u16(skb, u.mlme_nan_followup_ind.publish_subscribe_id);
+	hal_evt->publish_subscribe_id = fapi_get_u16(skb, u.mlme_nan_followup_ind.session_id);
 	hal_evt->requestor_instance_id = fapi_get_u16(skb, u.mlme_nan_followup_ind.match_id);
 	ether_addr_copy(hal_evt->addr,
 			fapi_get_buff(skb, u.mlme_nan_followup_ind.peer_nan_management_interface_address));
 
 	ptr = fapi_get_data(skb);
-	tag_id = le16_to_cpu(*(u16 *)ptr);
-	tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
+	if (ptr) {
+		tag_id = le16_to_cpu(*(u16 *)ptr);
+		tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
 
-	while (sig_data_len >= tag_len + 4) {
-		if (tag_id == SLSI_NAN_TLV_TAG_SERVICE_SPECIFIC_INFO) {
-			hal_evt->service_specific_info_len = tag_len > SLSI_HAL_NAN_MAX_SERVICE_SPECIFIC_INFO_LEN ?
-						SLSI_HAL_NAN_MAX_SERVICE_SPECIFIC_INFO_LEN : tag_len;
-			memcpy(hal_evt->service_specific_info, ptr + 4, hal_evt->service_specific_info_len);
-		} else if (tag_id == SLSI_NAN_TLV_TAG_EXT_SERVICE_SPECIFIC_INFO) {
-			if (tag_len > SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPEC_INFO_LEN)
-				hal_evt->sdea_service_specific_info_len = SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPEC_INFO_LEN;
-			else
-				hal_evt->sdea_service_specific_info_len = tag_len;
-			memcpy(hal_evt->sdea_service_specific_info, ptr + 4, hal_evt->sdea_service_specific_info_len);
-		} else {
-			SLSI_WARN(sdev, "Skip processing TLV %d\n", tag_id);
-		}
-		sig_data_len -= tag_len + 4;
-		ptr += tag_len + 4;
-		if (sig_data_len > 4) {
-			tag_id = le16_to_cpu(*(u16 *)ptr);
-			tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
-		} else {
-			tag_id = 0;
-			tag_len = 0;
+		while (sig_data_len >= tag_len + 4) {
+			if (tag_id == SLSI_NAN_TLV_TAG_SERVICE_SPECIFIC_INFO) {
+				hal_evt->service_specific_info_len = tag_len > SLSI_HAL_NAN_MAX_SERVICE_SPECIFIC_INFO_LEN ?
+							SLSI_HAL_NAN_MAX_SERVICE_SPECIFIC_INFO_LEN : tag_len;
+				memcpy(hal_evt->service_specific_info, ptr + 4, hal_evt->service_specific_info_len);
+			} else if (tag_id == SLSI_NAN_TLV_TAG_EXT_SERVICE_SPECIFIC_INFO) {
+				if (tag_len > SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPEC_INFO_LEN)
+					hal_evt->sdea_service_specific_info_len = SLSI_HAL_NAN_MAX_SDEA_SERVICE_SPEC_INFO_LEN;
+				else
+					hal_evt->sdea_service_specific_info_len = tag_len;
+				memcpy(hal_evt->sdea_service_specific_info, ptr + 4, hal_evt->sdea_service_specific_info_len);
+			} else {
+				SLSI_WARN(sdev, "Skip processing TLV %d\n", tag_id);
+			}
+			sig_data_len -= tag_len + 4;
+			ptr += tag_len + 4;
+			if (sig_data_len > 4) {
+				tag_id = le16_to_cpu(*(u16 *)ptr);
+				tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
+			} else {
+				tag_id = 0;
+				tag_len = 0;
+			}
 		}
 	}
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
-	SLSI_DBG1_NODEV(SLSI_GSCAN, "Event: %s(%d)\n",
-			slsi_print_event_name(SLSI_NL80211_NAN_FOLLOWUP_EVENT), SLSI_NL80211_NAN_FOLLOWUP_EVENT);
+	SLSI_INFO(sdev, "Event: %s(%d)\n",
+		  slsi_print_event_name(SLSI_NL80211_NAN_FOLLOWUP_EVENT), SLSI_NL80211_NAN_FOLLOWUP_EVENT);
 #endif
 #if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
 	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE, SLSI_NL80211_NAN_FOLLOWUP_EVENT,
@@ -1615,7 +2304,7 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 	if (!nl_skb) {
 		SLSI_ERR(sdev, "NO MEM for nl_skb!!!\n");
 		kfree(hal_evt);
-		return;
+		goto exit;
 	}
 
 	res = nla_put_be16(nl_skb, NAN_EVT_ATTR_FOLLOWUP_PUBLISH_SUBSCRIBE_ID,
@@ -1638,11 +2327,14 @@ void slsi_nan_followup_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 		kfree(hal_evt);
 		/* Dont use slsi skb wrapper for this free */
 		kfree_skb(nl_skb);
-		return;
+		goto exit;
 	}
 
 	cfg80211_vendor_event(nl_skb, GFP_KERNEL);
 	kfree(hal_evt);
+exit:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	slsi_kfree_skb(skb);
 }
 
 void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
@@ -1654,23 +2346,24 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 	struct slsi_hal_nan_match_ind *hal_evt;
 	struct sk_buff *nl_skb;
 	int res;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
 
 	SLSI_DBG3(sdev, SLSI_GSCAN, "\n");
-
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	sig_data_len = fapi_get_datalen(skb);
 	if (sig_data_len <= 4) {
 		SLSI_ERR(sdev, "Invalid data len(%d)\n", sig_data_len);
-		return;
+		goto exit;
 	}
 
 	hal_evt = kmalloc(sizeof(*hal_evt), GFP_KERNEL);
 	if (!hal_evt) {
 		SLSI_ERR(sdev, "No memory for service_ind\n");
-		return;
+		goto exit;
 	}
 
 	memset(hal_evt, 0, sizeof(*hal_evt));
-	hal_evt->publish_subscribe_id = fapi_get_u16(skb, u.mlme_nan_service_ind.publish_subscribe_id);
+	hal_evt->publish_subscribe_id = fapi_get_u16(skb, u.mlme_nan_service_ind.session_id);
 	hal_evt->requestor_instance_id = fapi_get_u16(skb, u.mlme_nan_service_ind.match_id);
 	hal_evt->ranging_event_type = fapi_get_u16(skb, u.mlme_nan_service_ind.rangingindicationtype);
 	hal_evt->range_measurement_mm = 10 * fapi_get_u16(skb, u.mlme_nan_service_ind.ranging_measurement);
@@ -1719,6 +2412,13 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 			hal_evt->sec_info.cipher_type = *tag_data_ptr;
 			tag_data_ptr++;
 			break;
+		case SLSI_NAN_TLV_TAG_MATCH_FILTER:
+			if (tag_len > SLSI_HAL_NAN_MAX_MATCH_FILTER_LEN)
+				hal_evt->sdf_match_filter_len = SLSI_HAL_NAN_MAX_MATCH_FILTER_LEN;
+			else
+				hal_evt->sdf_match_filter_len = tag_len;
+			memcpy(hal_evt->sdf_match_filter, tag_data_ptr, hal_evt->sdf_match_filter_len);
+			break;
 		default:
 			SLSI_WARN(sdev, "Skip processing TLV %d\n", tag_id);
 			break;
@@ -1729,6 +2429,7 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 		if (sig_data_len > 4) {
 			tag_id = le16_to_cpu(*(u16 *)ptr);
 			tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
+			tag_data_ptr = ptr + 4;
 		} else {
 			tag_id = 0;
 			tag_len = 0;
@@ -1736,8 +2437,8 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 	}
 
 #ifdef CONFIG_SCSC_WLAN_DEBUG
-	SLSI_DBG1_NODEV(SLSI_GSCAN, "Event: %s(%d)\n",
-			slsi_print_event_name(SLSI_NL80211_NAN_MATCH_EVENT), SLSI_NL80211_NAN_MATCH_EVENT);
+	SLSI_INFO(sdev, "Event: %s(%d)\n",
+		  slsi_print_event_name(SLSI_NL80211_NAN_MATCH_EVENT), SLSI_NL80211_NAN_MATCH_EVENT);
 #endif
 #if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
 	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE, SLSI_NL80211_NAN_MATCH_EVENT,
@@ -1748,7 +2449,7 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 	if (!nl_skb) {
 		SLSI_ERR(sdev, "NO MEM for nl_skb!!!\n");
 		kfree(hal_evt);
-		return;
+		goto exit;
 	}
 	res = nla_put_u16(nl_skb, NAN_EVT_ATTR_MATCH_PUBLISH_SUBSCRIBE_ID, hal_evt->publish_subscribe_id);
 	res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_MATCH_REQUESTOR_INSTANCE_ID, hal_evt->requestor_instance_id);
@@ -1778,9 +2479,389 @@ void slsi_nan_service_ind(struct slsi_dev *sdev, struct net_device *dev, struct 
 		/* Dont use slsi skb wrapper for this free */
 		kfree_skb(nl_skb);
 		kfree(hal_evt);
-		return;
+		goto exit;
 	}
 
 	cfg80211_vendor_event(nl_skb, GFP_KERNEL);
 	kfree(hal_evt);
+exit:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	slsi_kfree_skb(skb);
+}
+
+static void slsi_nan_get_resp_status_code(u16 fapi_result_code, u16 *resp_code, u16 *status_code)
+{
+	switch (fapi_result_code) {
+	case FAPI_RESULTCODE_SUCCESS:
+		*resp_code = NAN_DP_REQUEST_ACCEPT;
+		*status_code = SLSI_HAL_NAN_STATUS_SUCCESS;
+		break;
+	case FAPI_RESULTCODE_NDP_REJECTED:
+		*resp_code = NAN_DP_REQUEST_REJECT;
+		*status_code = SLSI_HAL_NAN_STATUS_SUCCESS;
+		break;
+	case FAPI_RESULTCODE_NAN_NO_OTA_ACK:
+		*resp_code = NAN_DP_REQUEST_REJECT;
+		*status_code = SLSI_HAL_NAN_STATUS_NO_OTA_ACK;
+		break;
+	case FAPI_RESULTCODE_NAN_INVALID_AVAILABILITY:
+	case FAPI_RESULTCODE_NAN_IMMUTABLE_UNACCEPTABLE:
+	case FAPI_RESULTCODE_NAN_REJECTED_SECURITY_POLICY:
+	case FAPI_RESULTCODE_NDL_UNACCEPTABLE:
+		*resp_code = NAN_DP_REQUEST_REJECT;
+		*status_code = SLSI_HAL_NAN_STATUS_PROTOCOL_FAILURE;
+		break;
+	case FAPI_RESULTCODE_TRANSMISSION_FAILURE:
+	default:
+		*resp_code = NAN_DP_REQUEST_REJECT;
+		*status_code = SLSI_HAL_NAN_STATUS_INTERNAL_FAILURE;
+	}
+}
+
+u32 slsi_nan_get_ndp_from_ndl_local_ndi(struct net_device *dev, u16 ndl_vif_id, u8 *local_ndi)
+{
+	int i, j;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+
+	for (i = 0; i < SLSI_NAN_MAX_NDP_INSTANCES; i++) {
+		if (ndev_vif->nan.ndp_id2ndl_vif[i] == ndl_vif_id) {
+			for (j = 0; j < SLSI_NAN_MAX_NDP_INSTANCES; j++)
+				if (ether_addr_equal(ndev_vif->nan.ndp_ndi[j], local_ndi))
+					return i + 1;
+		}
+	}
+	return SLSI_NAN_MAX_NDP_INSTANCES + 1;
+}
+
+static int slsi_nan_put_ndp_req_ind_params(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb,
+					   struct sk_buff *nl_skb, u8 **peer_ndi, u16 *resp_code, u16 *ndp_id)
+{
+	int res;
+	u16 ndl_vif_id, status_code;
+	u8 *local_ndi;
+
+	ndl_vif_id = fapi_get_u16(skb, u.mlme_ndp_request_ind.ndl_vif_index);
+	*peer_ndi = fapi_get_buff(skb, u.mlme_ndp_request_ind.peer_ndp_interface_address);
+	local_ndi = fapi_get_buff(skb, u.mlme_ndp_request_ind.local_ndp_interface_address);
+	slsi_nan_get_resp_status_code(fapi_get_u16(skb, u.mlme_ndp_request_ind.result_code), resp_code, &status_code);
+	*ndp_id = slsi_nan_get_ndp_from_ndl_local_ndi(dev, ndl_vif_id, local_ndi);
+
+	res = nla_put_u32(nl_skb, NAN_EVT_ATTR_NDP_INSTANCE_ID, *ndp_id);
+	res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_ADDR, ETH_ALEN, *peer_ndi);
+
+	res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_NDP_RSP_CODE, *resp_code);
+	res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_STATUS_CODE, status_code);
+
+	return res;
+}
+
+static int slsi_nan_put_ndp_resp_ind_params(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb,
+					    struct sk_buff *nl_skb, u8 **peer_ndi, u16 *resp_code, u16 *ndp_id)
+{
+	int res;
+	u16 ndl_vif_id, status_code;
+	u8 *local_ndi;
+
+	ndl_vif_id = fapi_get_u16(skb, u.mlme_ndp_response_ind.ndl_vif_index);
+	*peer_ndi = fapi_get_buff(skb, u.mlme_ndp_response_ind.peer_ndp_interface_address);
+	local_ndi = fapi_get_buff(skb, u.mlme_ndp_response_ind.local_ndp_interface_address);
+	slsi_nan_get_resp_status_code(fapi_get_u16(skb, u.mlme_ndp_response_ind.result_code), resp_code, &status_code);
+	*ndp_id = slsi_nan_get_ndp_from_ndl_local_ndi(dev, ndl_vif_id, local_ndi);
+
+	res = nla_put_u32(nl_skb, NAN_EVT_ATTR_NDP_INSTANCE_ID, *ndp_id);
+	res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_ADDR, ETH_ALEN, *peer_ndi);
+
+	res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_NDP_RSP_CODE, *resp_code);
+	res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_STATUS_CODE, status_code);
+
+	return res;
+}
+
+void slsi_nan_ndp_setup_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, bool is_req_ind)
+{
+	u16 tag_id, tag_len;
+	u8  *ptr;
+	const u8 *tag_data_ptr;
+	int sig_data_len;
+	struct sk_buff *nl_skb;
+	int res;
+	u8 *peer_ndi;
+	u16 ndp_setup_response, ndp_id;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+
+	SLSI_DBG3(sdev, SLSI_GSCAN, "\n");
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	sig_data_len = fapi_get_datalen(skb);
+
+#if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
+	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE, SLSI_NAN_EVENT_NDP_CFM,
+					     GFP_KERNEL);
+#else
+	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NLMSG_DEFAULT_SIZE, SLSI_NAN_EVENT_NDP_CFM, GFP_KERNEL);
+#endif
+	if (!nl_skb) {
+		SLSI_ERR(sdev, "NO MEM for nl_skb!!!\n");
+		goto exit;
+	}
+
+	if (is_req_ind)
+		res = slsi_nan_put_ndp_req_ind_params(sdev, dev, skb, nl_skb, &peer_ndi, &ndp_setup_response, &ndp_id);
+	else
+		res = slsi_nan_put_ndp_resp_ind_params(sdev, dev, skb, nl_skb, &peer_ndi, &ndp_setup_response, &ndp_id);
+
+	if (ndp_setup_response != NAN_DP_REQUEST_ACCEPT)
+		slsi_nan_ndp_del_entry(sdev, dev, ndp_id);
+
+	ptr = fapi_get_data(skb);
+	if (ptr) {
+		tag_id = le16_to_cpu(*(u16 *)ptr);
+		tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
+		tag_data_ptr = ptr + 4;
+
+		while (sig_data_len >= tag_len + 4) {
+			if (tag_id == SLSI_NAN_TLV_TAG_APP_INFO) {
+				res |= nla_put_u16(nl_skb, NAN_EVT_ATTR_APP_INFO_LEN, tag_len);
+				res |= nla_put(nl_skb, NAN_EVT_ATTR_APP_INFO, tag_len, tag_data_ptr);
+				break;
+			}
+			sig_data_len -= tag_len + 4;
+			ptr += tag_len + 4;
+			if (sig_data_len > 4) {
+				tag_id = le16_to_cpu(*(u16 *)ptr);
+				tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
+				tag_data_ptr = ptr + 4;
+			} else {
+				tag_id = 0;
+				tag_len = 0;
+			}
+		}
+	}
+
+	if (res) {
+		SLSI_ERR(sdev, "Error in nla_put*:%x\n", res);
+		/* Dont use slsi skb wrapper for this free */
+		kfree_skb(nl_skb);
+		goto exit;
+	}
+
+#ifdef CONFIG_SCSC_WLAN_DEBUG
+	SLSI_INFO(sdev, "Event: %s(%d)\n",
+		  slsi_print_event_name(SLSI_NAN_EVENT_NDP_CFM), SLSI_NAN_EVENT_NDP_CFM);
+#endif
+
+	cfg80211_vendor_event(nl_skb, GFP_KERNEL);
+	if (ndp_setup_response == NAN_DP_REQUEST_ACCEPT) {
+		struct netdev_vif *ndev_data_vif;
+		struct net_device *data_dev = slsi_get_netdev_by_mac_addr_locked(sdev, ndev_vif->nan.ndp_ndi[ndp_id],
+									  SLSI_NAN_DATA_IFINDEX_START);
+		struct slsi_peer *peer = NULL;
+
+		if (ndp_id == 0 || ndp_id > SLSI_NAN_MAX_NDP_INSTANCES + 1) {
+			SLSI_ERR(sdev, "Invalid ndp_id:%d\n", ndp_id);
+			goto exit;
+		}
+
+		data_dev = slsi_get_netdev_by_mac_addr(sdev, ndev_vif->nan.ndp_ndi[ndp_id - 1],
+						       SLSI_NAN_DATA_IFINDEX_START);
+
+		if (!data_dev) {
+			SLSI_ERR(sdev, "no data_dev for ndp:%d ndi[%pM]\n", ndp_id, ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+			goto exit;
+		}
+		ndev_data_vif = netdev_priv(data_dev);
+		SLSI_MUTEX_LOCK(ndev_data_vif->vif_mutex);
+		peer = slsi_peer_add(sdev, data_dev, peer_ndi, ndp_id);
+		if (peer) {
+			peer->connected_state = SLSI_STA_CONN_STATE_CONNECTED;
+			slsi_ps_port_control(sdev, data_dev, peer, SLSI_STA_CONN_STATE_CONNECTED);
+			peer->ndl_vif = ndev_vif->nan.ndp_id2ndl_vif[ndp_id - 1];
+			peer->qos_enabled = true;
+		} else {
+			SLSI_ERR(sdev, "no peer for ndp:%d ndi[%d]\n", ndp_id, ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+		}
+		SLSI_MUTEX_UNLOCK(ndev_data_vif->vif_mutex);
+	}
+exit:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	slsi_kfree_skb(skb);
+}
+
+void slsi_nan_ndp_requested_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
+{
+	u16 tag_id, tag_len = 0, ndl_vif_id, local_ndp_id;
+	u8  *ptr, *peer_nmi;
+	const u8 *tag_data_ptr;
+	int sig_data_len, res;
+	struct sk_buff *nl_skb;
+	u32 ndp_id;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+
+	SLSI_DBG3(sdev, SLSI_GSCAN, "\n");
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	sig_data_len = fapi_get_datalen(skb);
+
+#if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
+	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE, SLSI_NAN_EVENT_NDP_REQ,
+					     GFP_KERNEL);
+#else
+	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NLMSG_DEFAULT_SIZE, SLSI_NAN_EVENT_NDP_REQ, GFP_KERNEL);
+#endif
+	if (!nl_skb) {
+		SLSI_ERR(sdev, "NO MEM for nl_skb!!!\n");
+		goto exit;
+	}
+
+	local_ndp_id = fapi_get_u16(skb, u.mlme_ndp_requested_ind.request_id);
+	ndp_id = slsi_nan_get_new_ndp_id(ndev_vif);
+	peer_nmi = fapi_get_buff(skb, u.mlme_ndp_requested_ind.peer_nan_management_interface_address);
+	res = nla_put_u16(nl_skb, NAN_EVT_ATTR_SERVICE_INSTANCE_ID,
+			  fapi_get_u16(skb, u.mlme_ndp_requested_ind.session_id));
+	res |= nla_put(nl_skb, NAN_EVT_ATTR_MATCH_ADDR, ETH_ALEN, peer_nmi);
+	res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_NDP_INSTANCE_ID, ndp_id);
+	res |= nla_put_u32(nl_skb, NAN_EVT_ATTR_SDEA_PARAM_SECURITY_CONFIG,
+			   fapi_get_u16(skb, u.mlme_ndp_requested_ind.security_required));
+
+	ptr = fapi_get_data(skb);
+	if (ptr) {
+		tag_id = le16_to_cpu(*(u16 *)ptr);
+		tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
+		tag_data_ptr = ptr + 4;
+
+		while (sig_data_len >= tag_len + 4) {
+			if (tag_id == SLSI_NAN_TLV_TAG_APP_INFO) {
+				res |= nla_put_u16(nl_skb, NAN_EVT_ATTR_APP_INFO_LEN, tag_len);
+				res |= nla_put(nl_skb, NAN_EVT_ATTR_APP_INFO, tag_len, tag_data_ptr);
+				break;
+			}
+			sig_data_len -= tag_len + 4;
+			ptr += tag_len + 4;
+			if (sig_data_len > 4) {
+				tag_id = le16_to_cpu(*(u16 *)ptr);
+				tag_len = le16_to_cpu(*(u16 *)(ptr + 2));
+				tag_data_ptr = ptr + 4;
+			} else {
+				tag_id = 0;
+				tag_len = 0;
+			}
+		}
+	}
+
+	if (res) {
+		SLSI_ERR(sdev, "Error in nla_put*:%x\n", res);
+		/* Dont use slsi skb wrapper for this free */
+		kfree_skb(nl_skb);
+		goto exit;
+	}
+
+#ifdef CONFIG_SCSC_WLAN_DEBUG
+	SLSI_INFO(sdev, "Event: %s(%d)\n",
+		  slsi_print_event_name(SLSI_NAN_EVENT_NDP_REQ), SLSI_NAN_EVENT_NDP_REQ);
+#endif
+	ndl_vif_id = slsi_nan_ndp_get_ndl_vif_id(peer_nmi, ndev_vif->nan.ndl_list);
+	if (slsi_nan_ndp_new_entry(sdev, dev, ndp_id, ndl_vif_id, NULL, peer_nmi) == 0) {
+		cfg80211_vendor_event(nl_skb, GFP_KERNEL);
+		ndev_vif->nan.ndp_local_ndp_id[ndp_id - 1] = local_ndp_id;
+	} else {
+		struct slsi_hal_nan_data_path_indication_response response_req;
+
+		kfree_skb(nl_skb);
+		SLSI_ERR(sdev, "invalid ndl_vifid:%d ndp_id:%d\n", ndl_vif_id, ndp_id);
+		memset(&response_req, 0, sizeof(response_req));
+		response_req.rsp_code = NAN_DP_REQUEST_REJECT;
+		slsi_mlme_ndp_response(sdev, dev, &response_req, local_ndp_id);
+	}
+
+exit:
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	slsi_kfree_skb(skb);
+}
+
+void slsi_nan_del_peer(struct slsi_dev *sdev, struct net_device *dev, u8 *local_ndi, u16 ndp_id)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct net_device *data_dev;
+	struct netdev_vif *ndev_data_vif;
+	struct slsi_peer *peer = NULL;
+
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+
+	if (!local_ndi)
+		return;
+
+	data_dev = slsi_get_netdev_by_mac_addr_locked(sdev, local_ndi, SLSI_NAN_DATA_IFINDEX_START);
+	if (!data_dev)
+		return;
+
+	if (ndp_id == 0 || ndp_id > SLSI_NAN_MAX_NDP_INSTANCES)
+		return;
+
+	ndev_data_vif = netdev_priv(data_dev);
+	SLSI_MUTEX_LOCK(ndev_data_vif->vif_mutex);
+	peer = ndev_vif->peer_sta_record[ndp_id - 1];
+	if (peer) {
+		slsi_ps_port_control(sdev, dev, peer, SLSI_STA_CONN_STATE_DISCONNECTED);
+		slsi_spinlock_lock(&ndev_data_vif->peer_lock);
+		slsi_peer_remove(sdev, dev, peer);
+		slsi_spinlock_unlock(&ndev_data_vif->peer_lock);
+	} else {
+		SLSI_ERR(sdev, "no peer for ndp:%d ndi[%pM]\n", ndp_id, ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+	}
+	SLSI_MUTEX_UNLOCK(ndev_data_vif->vif_mutex);
+}
+
+void slsi_nan_ndp_termination_handler(struct slsi_dev *sdev, struct net_device *dev, u16 ndp_id, u16 ndl_vif, u8 *ndi)
+{
+	struct sk_buff *nl_skb;
+
+	slsi_nan_ndp_del_entry(sdev, dev, ndp_id);
+	slsi_nan_del_peer(sdev, dev, ndi, ndp_id);
+
+#if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
+	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, NLMSG_DEFAULT_SIZE, SLSI_NAN_EVENT_NDP_END,
+					     GFP_KERNEL);
+#else
+	nl_skb = cfg80211_vendor_event_alloc(sdev->wiphy, NLMSG_DEFAULT_SIZE, SLSI_NAN_EVENT_NDP_END, GFP_KERNEL);
+#endif
+	if (!nl_skb) {
+		SLSI_ERR(sdev, "NO MEM for nl_skb!!!\n");
+		return;
+	}
+
+	if (nla_put_u32(nl_skb, NAN_EVT_ATTR_NDP_INSTANCE_ID, ndp_id)) {
+		SLSI_ERR(sdev, "Error in nla_put_u32\n");
+		/* Dont use slsi skb wrapper for this free */
+		kfree_skb(nl_skb);
+		return;
+	}
+#ifdef CONFIG_SCSC_WLAN_DEBUG
+	SLSI_INFO(sdev, "Event: %s(%d)\n",
+		  slsi_print_event_name(SLSI_NAN_EVENT_NDP_END), SLSI_NAN_EVENT_NDP_END);
+#endif
+	cfg80211_vendor_event(nl_skb, GFP_KERNEL);
+}
+
+void slsi_nan_ndp_termination_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb,
+				  bool is_terminated_ind)
+{
+	u16 ndl_vif_id, ndp_id;
+	u8 *local_ndi;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+
+	SLSI_DBG3(sdev, SLSI_GSCAN, "\n");
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+
+	if (is_terminated_ind) {
+		ndl_vif_id = fapi_get_u16(skb, u.mlme_ndp_terminated_ind.ndl_vif_index);
+		local_ndi = fapi_get_buff(skb, u.mlme_ndp_terminated_ind.local_ndp_interface_address);
+	} else {
+		ndl_vif_id = fapi_get_u16(skb, u.mlme_ndp_terminate_ind.ndl_vif_index);
+		local_ndi = fapi_get_buff(skb, u.mlme_ndp_terminate_ind.local_ndp_interface_address);
+	}
+
+	ndp_id = slsi_nan_get_ndp_from_ndl_local_ndi(dev, ndl_vif_id, local_ndi);
+	if (ndp_id <= SLSI_NAN_MAX_NDP_INSTANCES)
+		slsi_nan_ndp_termination_handler(sdev, dev, ndp_id, ndl_vif_id, local_ndi);
+
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	slsi_kfree_skb(skb);
 }

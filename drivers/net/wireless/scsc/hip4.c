@@ -992,7 +992,8 @@ static void hip4_watchdog(unsigned long data)
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 	if (conf_hip4_ver == 4) {
-		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++) {
+		u8 i;
+		for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++) {
 			if (hip->hip_priv->intr_tohost_mul[i] == MIF_NO_IRQ)
 				continue;
 			if (scsc_service_mifintrbit_bit_mask_status_get(service) & (1 << hip->hip_priv->intr_tohost_mul[i])) {
@@ -1086,15 +1087,15 @@ static void hip4_wq_fb(struct work_struct *data)
 		/* colour is defined as: */
 		/* u16 register bits:
 		 * 0      - do not use
-		 * [2:1]  - vif
-		 * [7:3]  - peer_index
+		 * [3:1]  - vif
+		 * [7:4]  - peer_index
 		 * [10:8] - ac queue
 		 */
 		colour = ((m->clas & 0xc0) << 2) | (m->pid & 0xfe);
 		/* Account ONLY for data RFB */
 		if ((m->pid & 0x1) == MBULK_POOL_ID_DATA) {
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
-			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor, 0, (colour & 0x6) >> 1, (colour & 0xf8) >> 3);
+			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor, 0, (colour & 0xE) >> 1, (colour & 0xF0) >> 4);
 			/* to profile round-trip */
 			{
 				u16 host_tag;
@@ -1708,15 +1709,15 @@ static void hip4_wq(struct work_struct *data)
 		/* colour is defined as: */
 		/* u16 register bits:
 		 * 0      - do not use
-		 * [2:1]  - vif
-		 * [7:3]  - peer_index
+		 * [3:1]  - vif
+		 * [7:4]  - peer_index
 		 * [10:8] - ac queue
 		 */
 		colour = ((m->clas & 0xc0) << 2) | (m->pid & 0xfe);
 		/* Account ONLY for data RFB */
 		if ((m->pid & 0x1) == MBULK_POOL_ID_DATA) {
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
-			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor, 0, (colour & 0x6) >> 1, (colour & 0xf8) >> 3);
+			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor, 0, (colour & 0xE) >> 1, (colour & 0xF0) >> 4);
 			/* to profile round-trip */
 			{
 				u16 host_tag;
@@ -2694,7 +2695,8 @@ void hip4_suspend(struct slsi_hip4 *hip)
 	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
 
 	if (conf_hip4_ver == 4) {
-		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+		u8 i;
+		for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
 			if (hip->hip_priv->intr_tohost_mul[i] != MIF_NO_IRQ)
 				scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[i]);
 	} else {
@@ -2729,7 +2731,8 @@ void hip4_resume(struct slsi_hip4 *hip)
 	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
 
 	if (conf_hip4_ver == 4) {
-		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+		u8 i;
+		for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
 			if (hip->hip_priv->intr_tohost_mul[i] != MIF_NO_IRQ)
 				scsc_service_mifintrbit_bit_unmask(service, hip->hip_priv->intr_tohost_mul[i]);
 	} else {
@@ -2772,7 +2775,8 @@ void hip4_freeze(struct slsi_hip4 *hip)
 	conf_hip4_ver = scsc_wifi_get_hip_config_version(&hip->hip_control->init);
 
 	if (conf_hip4_ver == 4) {
-		for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+		u8 i;
+		for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
 			if (hip->hip_priv->intr_tohost_mul[i] != MIF_NO_IRQ)
 				scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
 
@@ -2799,7 +2803,9 @@ void hip4_deinit(struct slsi_hip4 *hip)
 {
 	struct slsi_dev     *sdev = container_of(hip, struct slsi_dev, hip4_inst);
 	struct scsc_service *service;
-
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+	u8 i;
+#endif
 	if (!sdev || !sdev->service)
 		return;
 
@@ -2828,7 +2834,7 @@ void hip4_deinit(struct slsi_hip4 *hip)
 	atomic_set(&hip->hip_priv->closing, 1);
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	for (u8 i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
+	for (i = 0; i < MIF_HIP_CFG_Q_NUM; i++)
 		if (hip->hip_priv->intr_tohost_mul[i] != MIF_NO_IRQ)
 			scsc_service_mifintrbit_bit_mask(service, hip->hip_priv->intr_tohost_mul[i]);
 

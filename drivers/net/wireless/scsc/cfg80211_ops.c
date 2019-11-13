@@ -968,7 +968,6 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 	prev_vif_type = ndev_vif->vif_type;
 
-	prev_vif_type = ndev_vif->vif_type;
 	switch (ndev_vif->iftype) {
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
@@ -2011,37 +2010,35 @@ static int slsi_get_max_bw_mhz(struct slsi_dev *sdev, u16 prim_chan_cf)
 	return 0;
 }
 
+#ifdef CONFIG_SCSC_WLAN_SILENT_RECOVERY
 void slsi_store_settings_for_recovery(struct cfg80211_ap_settings *settings, struct netdev_vif *ndev_vif)
 {
 	ndev_vif->backup_settings = *settings;
-	ndev_vif->backup_settings.chandef.chan = kmalloc(sizeof(struct ieee80211_channel), GFP_KERNEL);
-	memcpy(ndev_vif->backup_settings.chandef.chan, settings->chandef.chan, sizeof(struct ieee80211_channel));
-	ndev_vif->backup_settings.beacon.head = kmalloc(settings->beacon.head_len, GFP_KERNEL);
-	memcpy((u8 *)ndev_vif->backup_settings.beacon.head, settings->beacon.head, settings->beacon.head_len);
-	ndev_vif->backup_settings.beacon.tail = kmalloc(settings->beacon.tail_len, GFP_KERNEL);
-	memcpy((u8 *)ndev_vif->backup_settings.beacon.tail, settings->beacon.tail, settings->beacon.tail_len);
-	ndev_vif->backup_settings.beacon.beacon_ies = kmalloc(settings->beacon.beacon_ies_len, GFP_KERNEL);
-	memcpy((u8 *)ndev_vif->backup_settings.beacon.beacon_ies, settings->beacon.beacon_ies, settings->beacon.beacon_ies_len);
-
-	ndev_vif->backup_settings.beacon.proberesp_ies = kmalloc(settings->beacon.proberesp_ies_len, GFP_KERNEL);
-	memcpy((u8 *)ndev_vif->backup_settings.beacon.proberesp_ies, settings->beacon.proberesp_ies,settings->beacon.proberesp_ies_len);
-	ndev_vif->backup_settings.beacon.assocresp_ies = kmalloc(settings->beacon.assocresp_ies_len, GFP_KERNEL);
-	memcpy((u8 *)ndev_vif->backup_settings.beacon.assocresp_ies, settings->beacon.assocresp_ies, settings->beacon.assocresp_ies_len);
-	ndev_vif->backup_settings.beacon.probe_resp = kmalloc(settings->beacon.probe_resp_len, GFP_KERNEL);
-	memcpy((u8 *)ndev_vif->backup_settings.beacon.probe_resp, settings->beacon.probe_resp, settings->beacon.probe_resp_len);
-
-	ndev_vif->backup_settings.ssid= kmalloc(settings->ssid_len, GFP_KERNEL);
-	memcpy((u8 *)ndev_vif->backup_settings.ssid, settings->ssid, settings->ssid_len);
+	if (&ndev_vif->backup_settings == settings)
+		return;
+	ndev_vif->backup_settings.chandef.chan =
+	(struct ieee80211_channel *)slsi_mem_dup((u8 *)settings->chandef.chan, sizeof(struct ieee80211_channel));
+	ndev_vif->backup_settings.beacon.head = slsi_mem_dup((u8 *)settings->beacon.head, settings->beacon.head_len);
+	ndev_vif->backup_settings.beacon.tail = slsi_mem_dup((u8 *)settings->beacon.tail, settings->beacon.tail_len);
+	ndev_vif->backup_settings.beacon.beacon_ies = slsi_mem_dup((u8 *)settings->beacon.beacon_ies,
+								   settings->beacon.beacon_ies_len);
+	ndev_vif->backup_settings.beacon.proberesp_ies = slsi_mem_dup((u8 *)settings->beacon.proberesp_ies,
+								      settings->beacon.proberesp_ies_len);
+	ndev_vif->backup_settings.beacon.assocresp_ies = slsi_mem_dup((u8 *)settings->beacon.assocresp_ies,
+								      settings->beacon.assocresp_ies_len);
+	ndev_vif->backup_settings.beacon.probe_resp = slsi_mem_dup((u8 *)settings->beacon.probe_resp,
+								   settings->beacon.probe_resp_len);
+	ndev_vif->backup_settings.ssid = slsi_mem_dup((u8 *)settings->ssid, settings->ssid_len);
 	if (settings->ht_cap) {
-		ndev_vif->backup_settings.ht_cap = kmalloc(sizeof(struct ieee80211_ht_cap), GFP_KERNEL);
-		memcpy((u8 *)ndev_vif->backup_settings.ht_cap, settings->ht_cap, sizeof(struct ieee80211_ht_cap));
+		ndev_vif->backup_settings.ht_cap =
+		(struct ieee80211_ht_cap *)slsi_mem_dup((u8 *)settings->ht_cap, sizeof(struct ieee80211_ht_cap));
 	}
 	if (settings->vht_cap) {
-		ndev_vif->backup_settings.vht_cap = kmalloc(sizeof(struct ieee80211_vht_cap), GFP_KERNEL);
-		memcpy((u8 *)ndev_vif->backup_settings.vht_cap, settings->vht_cap, sizeof(struct ieee80211_vht_cap));
+		ndev_vif->backup_settings.vht_cap =
+		(struct ieee80211_vht_cap *)slsi_mem_dup((u8 *)settings->vht_cap, sizeof(struct ieee80211_vht_cap));
 	}
-
 }
+#endif
 
 int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		  struct cfg80211_ap_settings *settings)
