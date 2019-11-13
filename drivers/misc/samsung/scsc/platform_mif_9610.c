@@ -685,7 +685,7 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 	s32 ret = 0;
 	unsigned int ka_addr = 0x1000;
 	uint32_t *ka_patch_addr = ka_patch;
-	u32 id;
+	unsigned int id;
 
 #define CHECK(x) do { \
 	int retval = (x); \
@@ -799,7 +799,7 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 
 	while (ka_patch_addr < (ka_patch + ARRAY_SIZE(ka_patch))) {
 		CHECK(regmap_write(platform->boot_cfg, ka_addr, *ka_patch_addr));
-		ka_addr += sizeof(ka_patch[0]);
+		ka_addr += (unsigned int)sizeof(ka_patch[0]);
 		ka_patch_addr++;
 	}
 
@@ -1196,7 +1196,7 @@ static int platform_mif_reset(struct scsc_mif_abs *interface, bool reset)
 
 static void __iomem *platform_mif_map_region(unsigned long phys_addr, size_t size)
 {
-	int         i;
+	size_t      i;
 	struct page **pages;
 	void        *vmem;
 

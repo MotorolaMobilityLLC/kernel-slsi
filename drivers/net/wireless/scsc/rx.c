@@ -387,13 +387,13 @@ void slsi_rx_beacon_reporting_event_ind(struct slsi_dev *sdev, struct net_device
 
 	if (!ndev_vif->is_wips_running) {
 		SLSI_ERR(sdev, "WIPS is not running. Ignore beacon_reporting_event_ind(%u)\n", reason_code);
+		slsi_kfree_skb(skb);
 		return;
 	}
 
 	ndev_vif->is_wips_running = false;
 
-	if (reason_code >= SLSI_FORWARD_BEACON_ABORT_REASON_UNSPECIFIED &&
-	    reason_code <= SLSI_FORWARD_BEACON_ABORT_REASON_SUSPENDED) {
+	if (reason_code <= SLSI_FORWARD_BEACON_ABORT_REASON_SUSPENDED) {
 		SLSI_INFO(sdev, "received abort_event from FW with reason(%u)\n", reason_code);
 	} else {
 		SLSI_ERR(sdev, "received abort_event unsupporting reason(%u)\n", reason_code);
@@ -402,6 +402,7 @@ void slsi_rx_beacon_reporting_event_ind(struct slsi_dev *sdev, struct net_device
 	ret = slsi_send_forward_beacon_abort_vendor_event(sdev, reason_code);
 	if (ret)
 		SLSI_ERR(sdev, "Failed to send forward_beacon_abort_event(err=%d)\n", ret);
+	slsi_kfree_skb(skb);
 }
 
 void slsi_handle_wips_beacon(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb,
@@ -881,10 +882,10 @@ int slsi_set_band_any_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *nd
 	struct slsi_acs_chan_info ch_info_5g[MAX_5G_CHANNELS];
 	struct slsi_acs_selected_channels acs_selected_channels_5g;
 	struct slsi_acs_selected_channels acs_selected_channels_2g;
-	int Best_channel_5g = -1;
-	int Best_channel_5g_num_ap = 0;
-	int Best_channel_2g = -1;
-	int Best_channel_2g_num_ap = 0;
+	int best_channel_5g = -1;
+	int best_channel_5g_num_ap = 0;
+	int best_channel_2g = -1;
+	int best_channel_2g_num_ap = 0;
 	int i, ret = 0;
 	int j = 0;
 
@@ -900,17 +901,17 @@ int slsi_set_band_any_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *nd
 	ret = slsi_set_5g_auto_channel(sdev, ndev_vif, &acs_selected_channels_5g, ch_info_5g);
 
 	if(ret == 0) {
-		Best_channel_5g = acs_selected_channels_5g.pri_channel;
+		best_channel_5g = acs_selected_channels_5g.pri_channel;
 		for(i = 0; i < MAX_5G_CHANNELS; i++) {
-			if (ch_info_5g[i].chan == Best_channel_5g) {
-				Best_channel_5g_num_ap = ch_info_5g[i].num_ap;
+			if (ch_info_5g[i].chan == best_channel_5g) {
+				best_channel_5g_num_ap = ch_info_5g[i].num_ap;
 				break;
 			}
 		}
-		SLSI_DBG3(sdev, SLSI_MLME, "Best 5G channel = %d, num_ap = %d\n", Best_channel_5g,
-									Best_channel_5g_num_ap);
+		SLSI_DBG3(sdev, SLSI_MLME, "Best 5G channel = %d, num_ap = %d\n", best_channel_5g,
+									best_channel_5g_num_ap);
 
-		if (Best_channel_5g_num_ap < MAX_AP_THRESHOLD) {
+		if (best_channel_5g_num_ap < MAX_AP_THRESHOLD) {
 			*acs_selected_channels = acs_selected_channels_5g;
 			return ret;
 		}
@@ -918,28 +919,28 @@ int slsi_set_band_any_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *nd
 
 	SLSI_DBG3(sdev, SLSI_MLME, "5G AP threshold exceed, trying to select from 2G band\n");
 
-	for(i =0; i < MAX_24G_CHANNELS; i++) {
+	for(i = 0; i < MAX_24G_CHANNELS; i++) {
 		ch_info_2g[i] = ch_info[i];
 	}
 	ret = slsi_set_2g_auto_channel(sdev, ndev_vif, &acs_selected_channels_2g, ch_info_2g);
 
 	if(ret == 0) {
-		Best_channel_2g = acs_selected_channels_2g.pri_channel;
-		for(i =0; i < MAX_24G_CHANNELS; i++) {
-			if (ch_info_2g[i].chan == Best_channel_2g) {
-				Best_channel_2g_num_ap = ch_info_2g[i].num_ap;
+		best_channel_2g = acs_selected_channels_2g.pri_channel;
+		for(i = 0; i < MAX_24G_CHANNELS; i++) {
+			if (ch_info_2g[i].chan == best_channel_2g) {
+				best_channel_2g_num_ap = ch_info_2g[i].num_ap;
 				break;
 			}
 		}
-		SLSI_DBG3(sdev, SLSI_MLME, "Best 2G channel = %d, num_ap = %d\n", Best_channel_2g,
-								Best_channel_2g_num_ap);
-		if (Best_channel_5g == -1) {
+		SLSI_DBG3(sdev, SLSI_MLME, "Best 2G channel = %d, num_ap = %d\n", best_channel_2g,
+								best_channel_2g_num_ap);
+		if (best_channel_5g == -1) {
 			*acs_selected_channels = acs_selected_channels_2g;
 			return ret;
 		} else {
 			/* Based on min no of APs selecting channel from that band */
 			/* If no. of APs are equal, selecting the 5G channel */
-			if(Best_channel_5g_num_ap > Best_channel_2g_num_ap)
+			if(best_channel_5g_num_ap > best_channel_2g_num_ap)
 				*acs_selected_channels = acs_selected_channels_2g;
 			else
 				*acs_selected_channels = acs_selected_channels_5g;
@@ -1010,7 +1011,7 @@ struct slsi_acs_chan_info *slsi_acs_scan_results(struct slsi_dev *sdev, struct n
 		idx = slsi_find_chan_idx(scan_channel->hw_value, ndev_vif->scan[SLSI_SCAN_HW_ID].acs_request->hw_mode);
 		SLSI_DBG3(sdev, SLSI_MLME, "chan_idx:%d chan_value: %d\n", idx, ch_info[idx].chan);
 
-		if ((idx < 0) || (idx == MAX_CHAN_VALUE_ACS)) {
+		if (idx < 0) {
 			SLSI_DBG3(sdev, SLSI_MLME, "idx is not in range idx=%d\n", idx);
 			goto next_scan;
 		}
@@ -1782,6 +1783,7 @@ void slsi_rx_synchronised_ind(struct slsi_dev *sdev, struct net_device *dev, str
 	if (r)
 		SLSI_NET_DBG1(dev, SLSI_MLME, "cfg80211_external_auth_request failed");
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	slsi_kfree_skb(skb);
 }
 #endif
 
@@ -2000,11 +2002,13 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 			SLSI_INFO(sdev, "Connect failed,Result code:AUTH_NO_ACK\n");
 		} else if (fw_result_code == FAPI_RESULTCODE_ASSOC_NO_ACK) {
 			SLSI_INFO(sdev, "Connect failed,Result code:ASSOC_NO_ACK\n");
-		} else if (fw_result_code >= 0x8100 && fw_result_code <= 0x81FF) {
-			fw_result_code = fw_result_code & 0x00FF;
+		} else if (fw_result_code >= FAPI_RESULTCODE_AUTH_FAILED_CODE && fw_result_code <= 0x81FF) {
+			if (fw_result_code != FAPI_RESULTCODE_AUTH_FAILED_CODE)
+				fw_result_code = fw_result_code & 0x00FF;
 			SLSI_INFO(sdev, "Connect failed(Auth failure), Result code:0x%04x\n", fw_result_code);
-		} else if (fw_result_code >= 0x8200 && fw_result_code <= 0x82FF) {
-			fw_result_code = fw_result_code & 0x00FF;
+		} else if (fw_result_code >= FAPI_RESULTCODE_ASSOC_FAILED_CODE && fw_result_code <= 0x82FF) {
+			if (fw_result_code != FAPI_RESULTCODE_ASSOC_FAILED_CODE)
+				fw_result_code = fw_result_code & 0x00FF;
 			SLSI_INFO(sdev, "Connect failed(Assoc Failure), Result code:0x%04x\n", fw_result_code);
 			if (fapi_get_datalen(skb)) {
 				int mgmt_hdr_len;
@@ -2404,9 +2408,10 @@ void slsi_rx_procedure_started_ind(struct slsi_dev *sdev, struct net_device *dev
 		break;
 	case FAPI_PROCEDURETYPE_DEVICE_DISCOVERED:
 		/* Expected only in P2P Device and P2P GO role */
-		if (WARN_ON(!SLSI_IS_VIF_INDEX_P2P(ndev_vif) && (ndev_vif->iftype != NL80211_IFTYPE_P2P_GO)))
+		if (!SLSI_IS_VIF_INDEX_P2P(ndev_vif) && (ndev_vif->iftype != NL80211_IFTYPE_P2P_GO)){
+			SLSI_NET_DBG1(dev, SLSI_MLME, "PROCEDURETYPE_DEVICE_DISCOVERED recd in non P2P role\n");
 			goto exit_with_lock;
-
+		}
 		/* Send probe request to supplicant only if in listening state. Issues were seen earlier if
 		 * Probe request was sent to supplicant while waiting for GO Neg Req from peer.
 		 * Send Probe request to supplicant if received in GO mode

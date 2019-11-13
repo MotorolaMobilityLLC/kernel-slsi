@@ -170,7 +170,7 @@ config SCSC_LOG_COLLECTION
 config SCSC_COMMON_HCF
 	bool "Enable Common HCF loader"
 	depends on SCSC_CORE
-	default n
+	default y
 	---help---
 	  Enable Common HCF loader
 

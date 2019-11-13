@@ -6,6 +6,7 @@
 
 #include "debug.h"
 #include "mlme.h"
+#include "nl80211_vendor_nan.h"
 
 #define SLSI_FAPI_NAN_ATTRIBUTE_PUT_U8(req, attribute, val) \
 	{ \
@@ -239,7 +240,7 @@ static u32 slsi_mlme_nan_append_ranging(struct sk_buff *req, struct slsi_nan_ran
 	u8 *p;
 
 	p = fapi_append_data_u16(req, SLSI_NAN_TLV_TAG_RANGING);
-	p = fapi_append_data_u16(req, 0x0007);
+	p = fapi_append_data_u16(req, 0x0009);
 	p = fapi_append_data_u32(req, ranging_cfg->ranging_interval_msec);
 	p = fapi_append_data_u8(req, ranging_cfg->config_ranging_indications);
 	p = fapi_append_data_u16(req, ranging_cfg->distance_ingress_mm / 10);
@@ -249,7 +250,27 @@ static u32 slsi_mlme_nan_append_ranging(struct sk_buff *req, struct slsi_nan_ran
 	return 1;
 }
 
-static u32 slsi_mlme_nan_enable_fapi_data(struct sk_buff *req, struct slsi_hal_nan_enable_req *hal_req)
+static int slsi_mlme_nan_append_ipv6_link_tlv(struct sk_buff *req, u8 *local_ndi)
+{
+	u8 *p;
+	u8 interface_identifier[8];
+
+	memcpy(&interface_identifier[0], &local_ndi[0], 3);
+	interface_identifier[3] = 0xFF;
+	interface_identifier[4] = 0xFE;
+	memcpy(&interface_identifier[5], &local_ndi[3], 3);
+
+	p = fapi_append_data_u16(req, SLSI_NAN_TLV_WFA_IPV6_LOCAL_LINK);
+	p = fapi_append_data_u16(req, 0x0008);
+	p = fapi_append_data(req, interface_identifier, 8);
+
+	if (p)
+		return 0;
+	return 1;
+}
+
+static u32 slsi_mlme_nan_enable_fapi_data(struct netdev_vif *ndev_vif, struct sk_buff *req, struct slsi_hal_nan_enable_req *hal_req,
+					  u8 cluster_merge)
 {
 	u16 publish_id_inc, service_id_inc;
 	u8  publish_id_inc_count = 0;
@@ -267,7 +288,7 @@ static u32 slsi_mlme_nan_enable_fapi_data(struct sk_buff *req, struct slsi_hal_n
 		service_id_inc_count = hal_req->subscribe_sid_beacon_val >> 1;
 	ret = slsi_mlme_nan_append_config_tlv(req, hal_req->master_pref, publish_id_inc, publish_id_inc_count,
 					      service_id_inc, service_id_inc_count, rssi_window,
-					      hal_req->disc_mac_addr_rand_interval_sec, 1);
+					      hal_req->disc_mac_addr_rand_interval_sec, cluster_merge);
 	if (ret) {
 		SLSI_WARN_NODEV("Error append config TLV\n");
 		return ret;
@@ -306,6 +327,27 @@ static u32 slsi_mlme_nan_enable_fapi_data(struct sk_buff *req, struct slsi_hal_n
 	return ret;
 }
 
+void slsi_mlme_nan_store_config(struct netdev_vif *ndev_vif, struct slsi_hal_nan_enable_req *hal_req)
+{
+	ndev_vif->nan.config.config_rssi_proximity = hal_req->config_2dot4g_rssi_proximity;
+	ndev_vif->nan.config.rssi_close_2dot4g_val = hal_req->rssi_close_2dot4g_val;
+	ndev_vif->nan.config.rssi_middle_2dot4g_val = hal_req->rssi_middle_2dot4g_val;
+	ndev_vif->nan.config.rssi_proximity = hal_req->rssi_proximity_2dot4g_val;
+	ndev_vif->nan.config.scan_params_val.dwell_time[0] =  hal_req->scan_params_val.dwell_time[0];
+	ndev_vif->nan.config.scan_params_val.scan_period[0] = hal_req->scan_params_val.scan_period[0];
+	ndev_vif->nan.config.config_2dot4g_dw_band = (u16)hal_req->config_2dot4g_dw_band;
+	ndev_vif->nan.config.dw_2dot4g_interval_val = hal_req->dw_2dot4g_interval_val;
+
+	ndev_vif->nan.config.config_5g_rssi_close_proximity = hal_req->config_5g_rssi_close_proximity;
+	ndev_vif->nan.config.rssi_close_5g_val = hal_req->rssi_close_5g_val;
+	ndev_vif->nan.config.rssi_middle_5g_val = hal_req->rssi_middle_5g_val;
+	ndev_vif->nan.config.rssi_close_proximity_5g_val = hal_req->rssi_close_proximity_5g_val;
+	ndev_vif->nan.config.scan_params_val.dwell_time[1] =  hal_req->scan_params_val.dwell_time[1];
+	ndev_vif->nan.config.scan_params_val.scan_period[1] = hal_req->scan_params_val.scan_period[1];
+	ndev_vif->nan.config.config_5g_dw_band = (u16)hal_req->config_5g_dw_band;
+	ndev_vif->nan.config.dw_5g_interval_val = hal_req->dw_5g_interval_val;
+}
+
 int slsi_mlme_nan_enable(struct slsi_dev *sdev, struct net_device *dev, struct slsi_hal_nan_enable_req *hal_req)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -323,12 +365,9 @@ int slsi_mlme_nan_enable(struct slsi_dev *sdev, struct net_device *dev, struct s
 		return -ENOMEM;
 	}
 
-	nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_MAC_ADDRESS_EVENT | FAPI_NANOPERATIONCONTROL_START_CLUSTER_EVENT |
-			 FAPI_NANOPERATIONCONTROL_JOINED_CLUSTER_EVENT;
-
 	fapi_set_u16(req, u.mlme_nan_start_req.nan_operation_control_flags, nan_oper_ctrl);
 
-	r = slsi_mlme_nan_enable_fapi_data(req, hal_req);
+	r = slsi_mlme_nan_enable_fapi_data(ndev_vif, req, hal_req, !ndev_vif->nan.disable_cluster_merge);
 	if (r) {
 		SLSI_NET_ERR(dev, "Failed to construct mbulkdata\n");
 		slsi_kfree_skb(req);
@@ -341,10 +380,11 @@ int slsi_mlme_nan_enable(struct slsi_dev *sdev, struct net_device *dev, struct s
 
 	if (fapi_get_u16(cfm, u.mlme_nan_start_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
 		SLSI_NET_ERR(dev, "MLME_NAN_START_CFM(result:0x%04x) ERROR\n",
-			     fapi_get_u16(cfm, u.mlme_host_state_cfm.result_code));
+			     fapi_get_u16(cfm, u.mlme_nan_start_cfm.result_code));
 		r = -EINVAL;
 	}
-
+	if (!r)
+		slsi_mlme_nan_store_config(ndev_vif, hal_req);
 	slsi_kfree_skb(cfm);
 	return r;
 }
@@ -452,6 +492,8 @@ int slsi_mlme_nan_publish(struct slsi_dev *sdev, struct net_device *dev, struct 
 			nan_sdf_flags |= FAPI_NANSDFCONTROL_MATCH_EXPIRED_EVENT;
 		if (hal_req->recv_indication_cfg & BIT(2))
 			nan_sdf_flags |= FAPI_NANSDFCONTROL_RECEIVED_FOLLOWUP_EVENT;
+		/* Store the SDF Flags */
+		ndev_vif->nan.nan_sdf_flags[publish_id] = nan_sdf_flags;
 	} else {
 		req = fapi_alloc(mlme_nan_publish_req, MLME_NAN_PUBLISH_REQ, ndev_vif->ifnum, 0);
 		if (!req) {
@@ -460,8 +502,8 @@ int slsi_mlme_nan_publish(struct slsi_dev *sdev, struct net_device *dev, struct 
 		}
 	}
 
-	fapi_set_u16(req, u.mlme_nan_publish_req.publish_id, publish_id);
-	fapi_set_u16(req, u.mlme_nan_publish_req.nan_sdf_flags, nan_sdf_flags);
+	fapi_set_u16(req, u.mlme_nan_publish_req.session_id, publish_id);
+	fapi_set_u16(req, u.mlme_nan_publish_req.nan_sdf_flags, 0);
 
 	if (hal_req) {
 		r = slsi_mlme_nan_publish_fapi_data(req, hal_req);
@@ -478,14 +520,14 @@ int slsi_mlme_nan_publish(struct slsi_dev *sdev, struct net_device *dev, struct 
 
 	if (fapi_get_u16(cfm, u.mlme_nan_publish_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
 		SLSI_NET_ERR(dev, "MLME_NAN_PUBLISH_CFM(result:0x%04x) ERROR\n",
-			     fapi_get_u16(cfm, u.mlme_host_state_cfm.result_code));
+			     fapi_get_u16(cfm, u.mlme_nan_publish_cfm.result_code));
 		r = -EINVAL;
 	}
 
 	if (hal_req && !r)
-		ndev_vif->nan.publish_id_map |= (u32)BIT(publish_id);
+		ndev_vif->nan.service_id_map |= (u32)BIT(publish_id);
 	else
-		ndev_vif->nan.publish_id_map &= (u32)~BIT(publish_id);
+		ndev_vif->nan.service_id_map &= (u32)~BIT(publish_id);
 	slsi_kfree_skb(cfm);
 	return r;
 }
@@ -610,6 +652,7 @@ int slsi_mlme_nan_subscribe(struct slsi_dev *sdev, struct net_device *dev, struc
 			nan_sdf_flags |= FAPI_NANSDFCONTROL_MATCH_EXPIRED_EVENT;
 		if (hal_req->recv_indication_cfg & BIT(2))
 			nan_sdf_flags |= FAPI_NANSDFCONTROL_RECEIVED_FOLLOWUP_EVENT;
+		ndev_vif->nan.nan_sdf_flags[subscribe_id] = nan_sdf_flags;
 	} else {
 		req = fapi_alloc(mlme_nan_subscribe_req, MLME_NAN_SUBSCRIBE_REQ, ndev_vif->ifnum, 0);
 		if (!req) {
@@ -618,8 +661,8 @@ int slsi_mlme_nan_subscribe(struct slsi_dev *sdev, struct net_device *dev, struc
 		}
 	}
 
-	fapi_set_u16(req, u.mlme_nan_subscribe_req.subscribe_id, subscribe_id);
-	fapi_set_u16(req, u.mlme_nan_subscribe_req.nan_sdf_flags, nan_sdf_flags);
+	fapi_set_u16(req, u.mlme_nan_subscribe_req.session_id, subscribe_id);
+	fapi_set_u16(req, u.mlme_nan_subscribe_req.nan_sdf_flags, 0);
 
 	if (hal_req) {
 		r = slsi_mlme_nan_subscribe_fapi_data(req, hal_req);
@@ -636,14 +679,14 @@ int slsi_mlme_nan_subscribe(struct slsi_dev *sdev, struct net_device *dev, struc
 
 	if (fapi_get_u16(cfm, u.mlme_nan_subscribe_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
 		SLSI_NET_ERR(dev, "MLME_NAN_SUBSCRIBE_CFM(res:0x%04x)\n",
-			     fapi_get_u16(cfm, u.mlme_host_state_cfm.result_code));
+			     fapi_get_u16(cfm, u.mlme_nan_subscribe_cfm.result_code));
 		r = -EINVAL;
 	}
 
 	if (hal_req && !r)
-		ndev_vif->nan.subscribe_id_map |= (u32)BIT(subscribe_id);
+		ndev_vif->nan.service_id_map |= (u32)BIT(subscribe_id);
 	else
-		ndev_vif->nan.subscribe_id_map &= (u32)~BIT(subscribe_id);
+		ndev_vif->nan.service_id_map &= (u32)~BIT(subscribe_id);
 	slsi_kfree_skb(cfm);
 	return r;
 }
@@ -688,7 +731,7 @@ int slsi_mlme_nan_tx_followup(struct slsi_dev *sdev, struct net_device *dev,
 		return -ENOMEM;
 	}
 
-	fapi_set_u16(req, u.mlme_nan_followup_req.publish_subscribe_id, hal_req->publish_subscribe_id);
+	fapi_set_u16(req, u.mlme_nan_followup_req.session_id, hal_req->publish_subscribe_id);
 	fapi_set_u16(req, u.mlme_nan_followup_req.match_id, hal_req->requestor_instance_id);
 	fapi_set_u16(req, u.mlme_nan_followup_req.nan_sdf_flags, nan_sdf_flags);
 
@@ -705,27 +748,37 @@ int slsi_mlme_nan_tx_followup(struct slsi_dev *sdev, struct net_device *dev,
 
 	if (fapi_get_u16(cfm, u.mlme_nan_followup_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
 		SLSI_NET_ERR(dev, "MLME_NAN_FOLLOWUP_CFM(res:0x%04x)\n",
-			     fapi_get_u16(cfm, u.mlme_host_state_cfm.result_code));
-		r = -EINVAL;
+			     fapi_get_u16(cfm, u.mlme_nan_followup_cfm.result_code));
+		if (fapi_get_u16(cfm, u.mlme_nan_followup_cfm.result_code) ==
+		    FAPI_RESULTCODE_TOO_MANY_SIMULTANEOUS_REQUESTS)
+			r = SLSI_HAL_NAN_STATUS_FOLLOWUP_QUEUE_FULL;
+		else
+			r = -EINVAL;
 	}
 
 	slsi_kfree_skb(cfm);
 	return r;
 }
 
-static u32 slsi_mlme_nan_config_fapi_data(struct sk_buff *req, struct slsi_hal_nan_config_req *hal_req)
+static u32 slsi_mlme_nan_config_fapi_data(struct netdev_vif *ndev_vif, struct sk_buff *req, struct slsi_hal_nan_config_req *hal_req, u8 cluster_merge)
 {
 	u16 rssi_window = hal_req->config_rssi_window_size ? hal_req->rssi_window_size_val : 8;
 	u32 ret;
-	u8  rssi_close = 0, rssi_middle = 0, rssi_proximity = 0;
+	u8  rssi_close = hal_req->rssi_close_2dot4g_val;
+	u8  rssi_middle = hal_req->rssi_middle_2dot4g_val;
+	u8  rssi_proximity = 0;
+
 	u16 is_sid_in_beacon = hal_req->config_subscribe_sid_beacon && (hal_req->subscribe_sid_beacon_val & 0x01);
 	u8  sid_count_in_beacon = hal_req->config_subscribe_sid_beacon ? hal_req->subscribe_sid_beacon_val >> 1 : 0;
+
+	if (!hal_req->master_pref)
+		hal_req->master_pref = ndev_vif->nan.master_pref_value;
 
 	ret = slsi_mlme_nan_append_config_tlv(req, hal_req->master_pref,
 					      hal_req->config_sid_beacon && (hal_req->sid_beacon & 0x01),
 					      hal_req->config_sid_beacon ? hal_req->sid_beacon >> 1 : 0,
 					      is_sid_in_beacon, sid_count_in_beacon, rssi_window,
-					      hal_req->disc_mac_addr_rand_interval_sec, 1);
+					      hal_req->disc_mac_addr_rand_interval_sec, cluster_merge);
 	if (ret) {
 		SLSI_WARN_NODEV("Error append config TLV\n");
 		return ret;
@@ -733,6 +786,7 @@ static u32 slsi_mlme_nan_config_fapi_data(struct sk_buff *req, struct slsi_hal_n
 
 	/* 2.4G NAN band specific config*/
 	rssi_proximity = hal_req->config_rssi_proximity ? hal_req->rssi_proximity : 0;
+
 	ret = slsi_mlme_nan_append_2g4_band_specific_config(req, rssi_close, rssi_middle, rssi_proximity,
 							    hal_req->scan_params_val.dwell_time[0],
 							    hal_req->scan_params_val.scan_period[0],
@@ -744,7 +798,10 @@ static u32 slsi_mlme_nan_config_fapi_data(struct sk_buff *req, struct slsi_hal_n
 	}
 
 	/* 5G NAN band specific config*/
+	rssi_close = hal_req->rssi_close_5g_val;
+	rssi_middle = hal_req->rssi_middle_5g_val;
 	rssi_proximity = hal_req->config_5g_rssi_close_proximity ? hal_req->rssi_close_proximity_5g_val : 0;
+
 	ret = slsi_mlme_nan_append_5g_band_specific_config(req, rssi_close, rssi_middle, rssi_proximity,
 							   hal_req->scan_params_val.dwell_time[1],
 							   hal_req->scan_params_val.scan_period[1],
@@ -771,11 +828,9 @@ int slsi_mlme_nan_set_config(struct slsi_dev *sdev, struct net_device *dev, stru
 		return -ENOMEM;
 	}
 
-	nan_oper_ctrl |= FAPI_NANOPERATIONCONTROL_MAC_ADDRESS_EVENT | FAPI_NANOPERATIONCONTROL_START_CLUSTER_EVENT |
-			FAPI_NANOPERATIONCONTROL_JOINED_CLUSTER_EVENT;
 	fapi_set_u16(req, u.mlme_nan_config_req.nan_operation_control_flags, nan_oper_ctrl);
 
-	r = slsi_mlme_nan_config_fapi_data(req, hal_req);
+	r = slsi_mlme_nan_config_fapi_data(ndev_vif, req, hal_req, !ndev_vif->nan.disable_cluster_merge);
 	if (r) {
 		SLSI_NET_ERR(dev, "Failed to construct mbulkdata\n");
 		slsi_kfree_skb(req);
@@ -786,12 +841,239 @@ int slsi_mlme_nan_set_config(struct slsi_dev *sdev, struct net_device *dev, stru
 	if (!cfm)
 		return -EIO;
 
-	if (fapi_get_u16(cfm, u.mlme_nan_followup_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+	if (fapi_get_u16(cfm, u.mlme_nan_config_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
 		SLSI_NET_ERR(dev, "MLME_NAN_FOLLOWUP_CFM(res:0x%04x)\n",
-			     fapi_get_u16(cfm, u.mlme_host_state_cfm.result_code));
+			     fapi_get_u16(cfm, u.mlme_nan_config_cfm.result_code));
 		r = -EINVAL;
 	}
 
 	slsi_kfree_skb(cfm);
 	return r;
+}
+
+static int slsi_mlme_ndp_request_fapi_data(struct sk_buff *req,
+					   struct slsi_hal_nan_data_path_initiator_req *hal_req,
+					   bool include_ipv6_addr_tlv, u8 *local_ndi)
+{
+	int ret;
+
+	ret = slsi_mlme_nan_append_data_path_sec(req, &hal_req->key_info);
+	if (ret) {
+		SLSI_WARN_NODEV("Error data_path sec TLV\n");
+		return ret;
+	}
+
+	if (hal_req->app_info.ndp_app_info_len) {
+		ret = slsi_mlme_nan_append_tlv(req, SLSI_NAN_TLV_TAG_APP_INFO, hal_req->app_info.ndp_app_info_len,
+					       hal_req->app_info.ndp_app_info);
+		if (ret) {
+			SLSI_WARN_NODEV("Error app info TLV\n");
+			return ret;
+		}
+	}
+
+	if (include_ipv6_addr_tlv) {
+		ret = slsi_mlme_nan_append_ipv6_link_tlv(req, local_ndi);
+		if (ret) {
+			SLSI_WARN_NODEV("Error ipv6 link tlv\n");
+			return ret;
+		}
+	}
+	return ret;
+}
+
+int slsi_mlme_ndp_request(struct slsi_dev *sdev, struct net_device *dev,
+			  struct slsi_hal_nan_data_path_initiator_req *hal_req, u32 ndp_id, u16 ndl_vif_id)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	int               r = 0, data_len;
+	bool              include_ipv6_link_tlv;
+	u8                *local_ndi;
+	struct net_device *data_dev;
+
+	SLSI_NET_DBG3(dev, SLSI_MLME, "\n");
+
+	data_dev = slsi_get_netdev_by_ifname(sdev, hal_req->ndp_iface);
+	if (!data_dev) {
+		SLSI_NET_ERR(dev, "no net_device for %s\n", hal_req->ndp_iface);
+		return -EINVAL;
+	}
+	local_ndi = data_dev->dev_addr;
+
+	include_ipv6_link_tlv = slsi_dev_nan_is_ipv6_link_tlv_include();
+
+	data_len = 74; /* for datapath security tlv */
+	data_len += hal_req->app_info.ndp_app_info_len ? 4 + hal_req->app_info.ndp_app_info_len : 0;
+	data_len += include_ipv6_link_tlv ? 4 + 8 : 0;
+
+	req = fapi_alloc(mlme_ndp_request_req, MLME_NDP_REQUEST_REQ, ndev_vif->ifnum, data_len);
+	if (!req) {
+		SLSI_NET_ERR(dev, "fapi alloc failure\n");
+		return -ENOMEM;
+	}
+
+	fapi_set_u16(req, u.mlme_ndp_request_req.ndl_vif_index, ndl_vif_id);
+	fapi_set_u16(req, u.mlme_ndp_request_req.match_id, hal_req->requestor_instance_id);
+	fapi_set_memcpy(req, u.mlme_ndp_request_req.local_ndp_interface_address, local_ndi);
+
+	r = slsi_mlme_ndp_request_fapi_data(req, hal_req, include_ipv6_link_tlv, local_ndi);
+	if (r) {
+		SLSI_NET_ERR(dev, "Failed to construct mbulkdata\n");
+		slsi_kfree_skb(req);
+		return -EINVAL;
+	}
+
+	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_NDP_REQUEST_CFM);
+	if (!cfm)
+		return -EIO;
+
+	if (fapi_get_u16(cfm, u.mlme_ndp_request_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_NET_ERR(dev, "MLME_NDP_REQUEST_CFM(res:0x%04x)\n",
+			     fapi_get_u16(cfm, u.mlme_ndp_request_cfm.result_code));
+		r = -EINVAL;
+	} else {
+		if (slsi_nan_ndp_new_entry(sdev, dev, ndp_id, ndl_vif_id, local_ndi, hal_req->peer_disc_mac_addr))
+			SLSI_NET_ERR(dev, "invalid ndl_vifid:%d ndp_id:%d\n", ndl_vif_id, ndp_id);
+	}
+
+	slsi_kfree_skb(cfm);
+	return r;
+}
+
+static int slsi_mlme_ndp_response_fapi_data(struct sk_buff *req,
+					    struct slsi_hal_nan_data_path_indication_response *hal_req,
+					    bool include_ipv6_link_tlv, u8 *local_ndi)
+{
+	int ret;
+
+	ret = slsi_mlme_nan_append_data_path_sec(req, &hal_req->key_info);
+	if (ret) {
+		SLSI_WARN_NODEV("Error data_path sec TLV\n");
+		return ret;
+	}
+
+	if (hal_req->app_info.ndp_app_info_len) {
+		ret = slsi_mlme_nan_append_tlv(req, SLSI_NAN_TLV_TAG_APP_INFO, hal_req->app_info.ndp_app_info_len,
+					       hal_req->app_info.ndp_app_info);
+		if (ret) {
+			SLSI_WARN_NODEV("Error app info TLV\n");
+			return ret;
+		}
+	}
+
+	if (include_ipv6_link_tlv) {
+		ret = slsi_mlme_nan_append_ipv6_link_tlv(req, local_ndi);
+		if (ret) {
+			SLSI_WARN_NODEV("Error ipv6 link tlv\n");
+			return ret;
+		}
+	}
+	return ret;
+}
+
+int slsi_mlme_ndp_response(struct slsi_dev *sdev, struct net_device *dev,
+			   struct slsi_hal_nan_data_path_indication_response *hal_req, u16 local_ndp_id)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	int               r = 0, data_len;
+	bool              include_ipv6_link_tlv;
+	u8                *local_ndi;
+	u16               ndl_vif_id, rsp_code;
+	struct net_device *data_dev;
+	u8                nomac[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
+
+	SLSI_NET_DBG3(dev, SLSI_MLME, "\n");
+	data_dev = slsi_get_netdev_by_ifname(sdev, hal_req->ndp_iface);
+	if (!data_dev)
+		local_ndi = nomac;
+	else
+		local_ndi = data_dev->dev_addr;
+
+	include_ipv6_link_tlv = slsi_dev_nan_is_ipv6_link_tlv_include();
+
+	data_len = 74; /* for datapath security tlv */
+	data_len += hal_req->app_info.ndp_app_info_len ? 4 + hal_req->app_info.ndp_app_info_len : 0;
+	data_len += include_ipv6_link_tlv ? 4 + 8 : 0;
+
+	req = fapi_alloc(mlme_ndp_response_req, MLME_NDP_RESPONSE_REQ, ndev_vif->ifnum, data_len);
+	if (!req) {
+		SLSI_NET_ERR(dev, "fapi alloc failure\n");
+		return -ENOMEM;
+	}
+	if (hal_req->ndp_instance_id)
+		ndl_vif_id = ndev_vif->nan.ndp_id2ndl_vif[hal_req->ndp_instance_id - 1];
+	else
+		ndl_vif_id = 0;
+	fapi_set_u16(req, u.mlme_ndp_response_req.ndl_vif_index, ndl_vif_id);
+	fapi_set_u16(req, u.mlme_ndp_response_req.request_id, local_ndp_id);
+	fapi_set_memcpy(req, u.mlme_ndp_response_req.local_ndp_interface_address, local_ndi);
+	rsp_code = hal_req->rsp_code == NAN_DP_REQUEST_ACCEPT ? FAPI_REASONCODE_NDP_ACCEPTED :
+		   FAPI_REASONCODE_NDP_REJECTED;
+	fapi_set_u16(req, u.mlme_ndp_response_req.reason_code, rsp_code);
+	r = slsi_mlme_ndp_response_fapi_data(req, hal_req, include_ipv6_link_tlv, local_ndi);
+	if (r) {
+		SLSI_NET_ERR(dev, "Failed to construct mbulkdata\n");
+		slsi_kfree_skb(req);
+		return -EINVAL;
+	}
+
+	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_NDP_RESPONSE_CFM);
+	if (!cfm)
+		return -EIO;
+
+	if (fapi_get_u16(cfm, u.mlme_ndp_response_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_NET_ERR(dev, "MLME_NDP_RESPONSE_CFM(res:0x%04x)\n",
+			     fapi_get_u16(cfm, u.mlme_ndp_request_cfm.result_code));
+		r = -EINVAL;
+	} else {
+		/* new ndp entry was made when received mlme-ndp-requested.ind
+		 * but local_ndi is decided now.
+		 */
+		ether_addr_copy(ndev_vif->nan.ndp_ndi[hal_req->ndp_instance_id - 1], local_ndi);
+	}
+
+	slsi_kfree_skb(cfm);
+	return r;
+}
+
+int slsi_mlme_ndp_terminate(struct slsi_dev *sdev, struct net_device *dev, u16 ndp_id)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	u16               ndl_vif_id;
+
+	if (ndev_vif->nan.ndp_state[ndp_id - 1] != ndp_slot_status_in_use) {
+		slsi_nan_ndp_termination_handler(sdev, dev, ndp_id, ndl_vif_id, ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+		return 0;
+	}
+
+	req = fapi_alloc(mlme_ndp_terminate_req, MLME_NDP_TERMINATE_REQ, ndev_vif->ifnum, 0);
+	if (!req) {
+		SLSI_NET_ERR(dev, "fapi alloc failure\n");
+		return -ENOMEM;
+	}
+
+	ndl_vif_id = ndev_vif->nan.ndp_id2ndl_vif[ndp_id - 1];
+	fapi_set_u16(req, u.mlme_ndp_terminate_req.ndl_vif_index, ndl_vif_id);
+	fapi_set_memcpy(req, u.mlme_ndp_terminate_req.local_ndp_interface_address, ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+
+	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_NDP_TERMINATE_CFM);
+	if (!cfm) {
+		slsi_nan_ndp_termination_handler(sdev, dev, ndp_id, ndl_vif_id, ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+		return -EIO;
+	}
+
+	if (fapi_get_u16(cfm, u.mlme_ndp_terminate_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_NET_ERR(dev, "MLME_NDP_TERMINATE_CFM(res:0x%04x)\n",
+			     fapi_get_u16(cfm, u.mlme_ndp_terminate_cfm.result_code));
+		slsi_nan_ndp_termination_handler(sdev, dev, ndp_id, ndl_vif_id, ndev_vif->nan.ndp_ndi[ndp_id - 1]);
+	}
+
+	slsi_kfree_skb(cfm);
+	return 0;
 }

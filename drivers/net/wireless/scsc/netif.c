@@ -133,6 +133,40 @@ static int slsi_netif_tcp_ack_suppression_stop(struct net_device *dev);
 static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev, struct sk_buff *skb);
 #endif
 
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+void slsi_net_randomize_nmi_ndi(struct slsi_dev *sdev)
+{
+	int               exor_base = 1, exor_byte = 5, i;
+	u8                random_mac[ETH_ALEN];
+
+	/* Randomize mac address */
+	SLSI_ETHER_COPY(random_mac, sdev->hw_addr);
+	/* If random number is same as actual bytes in hw_address
+	 * try random again. hope 2nd random will not be same as
+	 * bytes in hw_address
+	 */
+	slsi_get_random_bytes(&random_mac[3], 3);
+	if (!memcmp(&random_mac[3], &sdev->hw_addr[3], 3))
+		slsi_get_random_bytes(&random_mac[3], 3);
+	SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_NAN], random_mac);
+	/* Set the local bit */
+	sdev->netdev_addresses[SLSI_NET_INDEX_NAN][0] |= 0x02;
+	/* EXOR 4th byte with 0x80 */
+	sdev->netdev_addresses[SLSI_NET_INDEX_NAN][3] ^= 0x80;
+	for (i = SLSI_NAN_DATA_IFINDEX_START; i < CONFIG_SCSC_WLAN_MAX_INTERFACES + 1; i++) {
+		SLSI_ETHER_COPY(sdev->netdev_addresses[i], random_mac);
+		sdev->netdev_addresses[i][0] |= 0x02;
+		sdev->netdev_addresses[i][exor_byte] ^= exor_base;
+		exor_base++;
+		/* currently supports upto 15 mac address for nan
+		 * data interface
+		 */
+		if (exor_base > 0xf)
+			break;
+	}
+}
+#endif
+
 /* Net Device callback operations */
 static int slsi_net_open(struct net_device *dev)
 {
@@ -166,15 +200,16 @@ static int slsi_net_open(struct net_device *dev)
 		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_WLAN], sdev->hw_addr);
 
 		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2P],  sdev->hw_addr);
-		sdev->netdev_addresses[SLSI_NET_INDEX_P2P][0] |= 0x02; /* Set the local bit */
+		/* Set the local bit */
+		sdev->netdev_addresses[SLSI_NET_INDEX_P2P][0] |= 0x02;
 
 		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN], sdev->hw_addr);
-		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][0] |= 0x02; /* Set the local bit */
-		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][4] ^= 0x80; /* EXOR 5th byte with 0x80 */
-#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
-		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_NAN], sdev->hw_addr);
-		sdev->netdev_addresses[SLSI_NET_INDEX_NAN][0] |= 0x02; /* Set the local bit */
-		sdev->netdev_addresses[SLSI_NET_INDEX_NAN][3] ^= 0x80; /* EXOR 4th byte with 0x80 */
+		/* Set the local bit */
+		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][0] |= 0x02;
+		/* EXOR 5th byte with 0x80 */
+		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][4] ^= 0x80;
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4 && defined(CONFIG_SCSC_WIFI_NAN_ENABLE)
+		slsi_net_randomize_nmi_ndi(sdev);
 #endif
 		sdev->initial_scan = true;
 	}
@@ -213,6 +248,11 @@ static int slsi_net_open(struct net_device *dev)
 #endif
 #ifndef CONFIG_ARM
 	slsi_netif_tcp_ack_suppression_start(dev);
+#endif
+
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	if (ndev_vif->ifnum >= SLSI_NAN_DATA_IFINDEX_START)
+		netif_carrier_on(dev);
 #endif
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
@@ -507,8 +547,9 @@ static void slsi_net_downgrade_pri(struct net_device *dev, struct slsi_peer *pee
 	}
 	SLSI_NET_DBG4(dev, SLSI_NETDEV, "To UP:%d\n", skb->priority);
 }
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, struct net_device *sb_dev, select_queue_fallback_t fallback)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
 static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv, select_queue_fallback_t fallback)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv)
@@ -522,8 +563,9 @@ static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb)
 	struct ethhdr     *ehdr = (struct ethhdr *)skb->data;
 	int               proto = 0;
 	struct slsi_peer  *peer;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+	(void)sb_dev;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 	(void)accel_priv;
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
@@ -694,9 +736,17 @@ void slsi_tdls_move_packets(struct slsi_dev *sdev, struct net_device *dev,
 			for (j = 0; j < num_pkts; j++) {
 				qd = dev->_tx[staq + i].qdisc;
 				/* Dequeue the pkt form STAQ. This logic is similar to kernel API dequeue_skb() */
-				skb = qd->gso_skb;
+				#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0))
+					skb = skb_peek(&qd->gso_skb);
+				#else
+					skb = qd->gso_skb;
+				#endif
 				if (skb) {
+				#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0))
+					skb = __skb_dequeue(&qd->gso_skb);
+				#else
 					qd->gso_skb = NULL;
+				#endif
 					qd->q.qlen--;
 				} else {
 					skb = qd->dequeue(qd);
@@ -731,9 +781,17 @@ void slsi_tdls_move_packets(struct slsi_dev *sdev, struct net_device *dev,
 			for (j = 0; j < num_pkts; j++) {
 				/* Dequeue the pkt form TDLS_Q. This logic is similar to kernel API dequeue_skb() */
 				qd = dev->_tx[tdlsq + i].qdisc;
-				skb = qd->gso_skb;
+				#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0))
+					skb = skb_peek(&qd->gso_skb);
+				#else
+					skb = qd->gso_skb;
+				#endif
 				if (skb) {
+				#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0))
+					skb = __skb_dequeue(&qd->gso_skb);
+				#else
 					qd->gso_skb = NULL;
+				#endif
 					qd->q.qlen--;
 				} else {
 					skb = qd->dequeue(qd);
@@ -873,11 +931,17 @@ static netdev_tx_t slsi_net_hw_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	SLSI_NET_DBG3(dev, SLSI_TX, "Proto 0x%.4X\n", be16_to_cpu(eth_hdr(skb)->h_proto));
 
-	if (!ndev_vif->is_available) {
-		SLSI_NET_WARN(dev, "vif NOT available\n");
-		r = -EFAULT;
-		goto evaluate;
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+	if (ndev_vif->ifnum < SLSI_NAN_DATA_IFINDEX_START) {
+#endif
+		if (!ndev_vif->is_available) {
+			SLSI_NET_WARN(dev, "vif NOT available\n");
+			r = -EFAULT;
+			goto evaluate;
+		}
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 	}
+#endif
 	if (skb->queue_mapping == SLSI_NETIF_Q_DISCARD) {
 		SLSI_NET_WARN(dev, "Discard Queue :: Packet Dropped\n");
 		r = -EIO;
@@ -1063,12 +1127,11 @@ static int  slsi_set_mac_address(struct net_device *dev, void *addr)
 	SLSI_NET_DBG1(dev, SLSI_NETDEV, "slsi_set_mac_address %pM\n", sa->sa_data);
 	SLSI_ETHER_COPY(dev->dev_addr, sa->sa_data);
 
-	// Setting of MAC Address is called, when the Mac Address is changed.
-	// And Mac Address is changed during the Mac Randomization Cases.
-	// During Connected Mac Randomization, enabling the initial scan for faster reconnection.
+	/* Interface is pulled down before mac address is changed.
+	 * First scan initiated after interface is brought up again, should be treated as initial scan, for faster reconnection.
+	 */
 	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
 		sdev->initial_scan = true;
-		SLSI_NET_DBG1(dev, SLSI_NETDEV, "slsi_set_mac_address : Value of initial_scan is %d\n", sdev->initial_scan);
 	}
 	return 0;
 }
@@ -1393,7 +1456,7 @@ int slsi_netif_init(struct slsi_dev *sdev)
 	return 0;
 }
 
-static int slsi_netif_register_locked(struct slsi_dev *sdev, struct net_device *dev)
+int slsi_netif_register_locked(struct slsi_dev *sdev, struct net_device *dev)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	int               err;
@@ -1912,7 +1975,11 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 	if (be16_to_cpu(ip_hdr(skb)->tot_len) > ((ip_hdr(skb)->ihl * 4) + (tcp_hdr(skb)->doff * 4))) {
 		SCSC_HIP4_SAMPLER_TCP_DATA(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, be32_to_cpu(tcp_hdr(skb)->seq));
 		SCSC_HIP4_SAMPLER_TCP_CWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, (skb->sk) ? tcp_sk(skb->sk)->snd_cwnd : 0);
-		SCSC_HIP4_SAMPLER_TCP_SEND_BUF(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, sysctl_tcp_wmem[2]);
+	#if KERNEL_VERSION(4, 14, 0) >= LINUX_VERSION_CODE
+		SCSC_HIP4_SAMPLER_TCP_SEND_BUG(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, sysctl_tcp_wmem[2]);
+	#else
+		SCSC_HIP4_SAMPLER_TCP_SEND_BUF(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, sysctl_tcp_mem[2]);
+	#endif
 		ndev_vif->tcp_ack_stats.tack_hasdata++;
 		forward_now = 1;
 		goto _forward_now;

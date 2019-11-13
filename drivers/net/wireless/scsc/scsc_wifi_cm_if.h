@@ -13,7 +13,7 @@
 
 #include <scsc/scsc_mx.h>
 
-#define SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC 7
+#define SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC 8
 
 struct slsi_dev;
 

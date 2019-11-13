@@ -258,6 +258,8 @@ struct scsc_bt_service {
 	struct completion              recovery_release_complete;
 	struct completion              recovery_probe_complete;
 
+	bool                           iq_reports_enabled;
+
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 	struct scsc_bt_hcf_collection  hcf_collection;
 #endif

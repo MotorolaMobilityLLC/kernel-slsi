@@ -1097,6 +1097,75 @@ static ssize_t slsi_procfs_nan_mac_addr_read(struct file *file,	char __user *use
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+static ssize_t slsi_procfs_nan_info_read(struct file *file,  char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char              buf[300];
+	int               pos = 0;
+	const size_t      bufsz = sizeof(buf);
+	struct slsi_dev   *sdev = (struct slsi_dev *)file->private_data;
+	struct net_device *dev = slsi_nan_get_netdev(sdev);
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct slsi_vif_nan *nan_data;
+
+	SLSI_UNUSED_PARAMETER(file);
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	nan_data = &ndev_vif->nan;
+	memset(buf, 0, sizeof(buf));
+
+	pos += scnprintf(buf, bufsz, "NANMACADDRESS,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%pM", nan_data->local_nmi);
+	pos += scnprintf(buf + pos, bufsz, ",CLUSTERID,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%pM", nan_data->cluster_id);
+	pos += scnprintf(buf + pos, bufsz, ",OPERATINGCHANNEL,");
+	if (nan_data->operating_channel[0])
+		pos += scnprintf(buf + pos, bufsz - pos, "%d ", nan_data->operating_channel[0]);
+	if (nan_data->operating_channel[1])
+		pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->operating_channel[1]);
+	pos += scnprintf(buf + pos, bufsz, ",ROLE,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->role);
+	pos += scnprintf(buf + pos, bufsz, ",STATE,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->state);
+	pos += scnprintf(buf + pos, bufsz, ",MASTERPREFVAL,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->master_pref_value);
+	pos += scnprintf(buf + pos, bufsz, ",AMT,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->amt);
+	pos += scnprintf(buf + pos, bufsz, ",HOPCOUNT,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->hopcount);
+	pos += scnprintf(buf + pos, bufsz, ",NMIRANDOMINTERVAL,");
+	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->random_mac_interval_sec);
+
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t slsi_procfs_nan_exclude_ipv6_addr_tlv_write(struct file *file, const char __user *user_buf, size_t len,
+							   loff_t *ppos)
+{
+	struct slsi_dev *sdev = (struct slsi_dev *)file->private_data;
+	struct net_device *dev = slsi_nan_get_netdev(sdev);
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	char read_string[3];
+	int  val, ret;
+
+	simple_write_to_buffer(read_string, sizeof(read_string), ppos, user_buf, sizeof(read_string) - 1);
+	read_string[sizeof(read_string) - 1] = '\0';
+
+	if (strtoint(read_string, &val)) {
+		SLSI_ERR(sdev, "invalid input %s\n", read_string);
+		ret = -EINVAL;
+	} else {
+		ndev_vif->nan.disable_cluster_merge = val ? 1 : 0;
+		ret = sizeof(read_string) - 1;
+	}
+
+	kfree(read_string);
+	return ret;
+}
+
+#endif
+
 SLSI_PROCFS_SEQ_FILE_OPS(vifs);
 SLSI_PROCFS_SEQ_FILE_OPS(mac_addr);
 SLSI_PROCFS_WRITE_FILE_OPS(uapsd);
@@ -1120,7 +1189,10 @@ SLSI_PROCFS_READ_FILE_OPS(big_data);
 SLSI_PROCFS_READ_FILE_OPS(throughput_stats);
 SLSI_PROCFS_SEQ_FILE_OPS(tcp_ack_suppression);
 SLSI_PROCFS_READ_FILE_OPS(nan_mac_addr);
-
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+SLSI_PROCFS_READ_FILE_OPS(nan_info);
+SLSI_PROCFS_WRITE_FILE_OPS(nan_exclude_ipv6_addr_tlv);
+#endif
 
 int slsi_create_proc_dir(struct slsi_dev *sdev)
 {
@@ -1158,6 +1230,10 @@ int slsi_create_proc_dir(struct slsi_dev *sdev)
 		SLSI_PROCFS_ADD_FILE(sdev, throughput_stats, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 		SLSI_PROCFS_SEQ_ADD_FILE(sdev, tcp_ack_suppression, sdev->procfs_dir, S_IRUSR | S_IRGRP);
 		SLSI_PROCFS_ADD_FILE(sdev, nan_mac_addr, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+		SLSI_PROCFS_ADD_FILE(sdev, nan_info, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		SLSI_PROCFS_ADD_FILE(sdev, nan_exclude_ipv6_addr_tlv, parent, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+#endif
 		return 0;
 	}
 
@@ -1196,6 +1272,10 @@ void slsi_remove_proc_dir(struct slsi_dev *sdev)
 		SLSI_PROCFS_REMOVE_FILE(throughput_stats, sdev->procfs_dir);
 		SLSI_PROCFS_REMOVE_FILE(tcp_ack_suppression, sdev->procfs_dir);
 		SLSI_PROCFS_REMOVE_FILE(nan_mac_addr, sdev->procfs_dir);
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
+		SLSI_PROCFS_REMOVE_FILE(nan_info, sdev->procfs_dir);
+		SLSI_PROCFS_REMOVE_FILE(nan_exclude_ipv6_addr_tlv, sdev->procfs_dir);
+#endif
 
 		(void)snprintf(dir, sizeof(dir), "driver/unifi%d", sdev->procfs_instance);
 		remove_proc_entry(dir, NULL);

@@ -24,6 +24,7 @@
 #include <asm/termios.h>
 #include <linux/wakelock.h>
 #include <linux/delay.h>
+#include <linux/seq_file.h>
 
 #ifdef CONFIG_ARCH_EXYNOS
 #include <linux/soc/samsung/exynos-soc.h>
@@ -50,6 +51,8 @@
 #define SLSI_BT_SERVICE_STOP_RECOVERY_DISABLED_TIMEOUT 2000
 
 #define SCSC_ANT_MAX_TIMEOUT (20*HZ)
+
+static u16 bt_module_irq_mask;
 
 #ifdef CONFIG_SCSC_ANT
 static DECLARE_WAIT_QUEUE_HEAD(ant_recovery_complete_queue);
@@ -239,15 +242,41 @@ static struct scsc_service_client mx_ant_client = {
 
 static void slsi_sm_bt_service_cleanup_interrupts(void)
 {
-	u16 int_src = bt_service.bsmhcp_protocol->header.info_bg_to_ap_int_src;
+	u16 irq_num = 0;
 
 	SCSC_TAG_DEBUG(BT_COMMON,
 		       "unregister firmware information interrupts\n");
 
-	scsc_service_mifintrbit_unregister_tohost(bt_service.service, int_src);
-	scsc_service_mifintrbit_free_fromhost(bt_service.service,
-		bt_service.bsmhcp_protocol->header.info_ap_to_bg_int_src,
-		SCSC_MIFINTR_TARGET_R4);
+	if (bt_module_irq_mask & 1 << irq_num++)
+		scsc_service_mifintrbit_unregister_tohost(bt_service.service,
+            bt_service.bsmhcp_protocol->header.info_bg_to_ap_int_src);
+	if (bt_module_irq_mask & 1 << irq_num++)
+		scsc_service_mifintrbit_free_fromhost(bt_service.service,
+		    bt_service.bsmhcp_protocol->header.info_ap_to_bg_int_src,
+		    SCSC_MIFINTR_TARGET_R4);
+}
+
+static int slsi_sm_bt_service_init_interrupts(void) {
+	int irq_ret;
+	u16 irq_num = 0;
+
+	irq_ret = scsc_service_mifintrbit_register_tohost(bt_service.service,
+	    scsc_bt_shm_irq_handler, NULL);
+	if (irq_ret < 0)
+		return irq_ret;
+
+	bt_service.bsmhcp_protocol->header.info_bg_to_ap_int_src = irq_ret;
+	bt_module_irq_mask |= 1 << irq_num++;
+
+	irq_ret = scsc_service_mifintrbit_alloc_fromhost(bt_service.service,
+	    SCSC_MIFINTR_TARGET_R4);
+	if (irq_ret < 0)
+		return irq_ret;
+
+	bt_service.bsmhcp_protocol->header.info_ap_to_bg_int_src = irq_ret;
+	bt_module_irq_mask |= 1 << irq_num++;
+
+	return 0;
 }
 
 static int slsi_sm_bt_service_cleanup_stop_service(void)
@@ -357,8 +386,10 @@ static int slsi_sm_bt_service_cleanup(bool force_cleanup)
 		wake_up_interruptible(&bt_service.read_wait);
 
 		/* Unregister firmware information interrupts */
-		if (bt_service.bsmhcp_protocol)
+		if (bt_service.bsmhcp_protocol) {
 			slsi_sm_bt_service_cleanup_interrupts();
+			bt_module_irq_mask = 0;
+		}
 
 		/* Shut down the shared memory interface */
 		SCSC_TAG_DEBUG(BT_COMMON,
@@ -988,12 +1019,10 @@ int slsi_sm_bt_service_start(void)
 		goto exit;
 	}
 
-	bt_service.bsmhcp_protocol->header.info_ap_to_bg_int_src =
-		scsc_service_mifintrbit_alloc_fromhost(bt_service.service,
-						SCSC_MIFINTR_TARGET_R4);
-	bt_service.bsmhcp_protocol->header.info_bg_to_ap_int_src =
-		scsc_service_mifintrbit_register_tohost(bt_service.service,
-						scsc_bt_shm_irq_handler, NULL);
+	err = slsi_sm_bt_service_init_interrupts();
+	if (err < 0)
+		goto exit;
+
 	bt_service.bsmhcp_protocol->header.mxlog_filter = firmware_mxlog_filter;
 	bt_service.bsmhcp_protocol->header.firmware_control = firmware_control;
 	bt_service.bsmhcp_protocol->header.abox_offset = bt_service.abox_ref;
@@ -2053,6 +2082,7 @@ static int __init scsc_bt_module_init(void)
 
 	SCSC_TAG_INFO(BT_COMMON, "%s %s (C) %s\n",
 		      SCSC_MODDESC, SCSC_MODVERSION, SCSC_MODAUTH);
+	bt_module_irq_mask = 0;
 	bt_recovery_level = 0;
 #ifdef CONFIG_SCSC_ANT
 	ant_recovery_level = 0;

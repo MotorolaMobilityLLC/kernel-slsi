@@ -246,6 +246,7 @@ int slsi_mlme_set_pno_list(struct slsi_dev *sdev, int count,
 			   struct slsi_epno_param *epno_param, struct slsi_epno_hs2_param *epno_hs2_param);
 int slsi_mlme_start_link_stats_req(struct slsi_dev *sdev, u16 mpdu_size_threshold, bool aggressive_statis_enabled);
 int slsi_mlme_stop_link_stats_req(struct slsi_dev *sdev, u16 stats_stop_mask);
+#ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 int slsi_mlme_nan_enable(struct slsi_dev *sdev, struct net_device *dev, struct slsi_hal_nan_enable_req *hal_req);
 int slsi_mlme_nan_publish(struct slsi_dev *sdev, struct net_device *dev, struct slsi_hal_nan_publish_req *hal_req,
 			  u16 publish_id);
@@ -254,6 +255,12 @@ int slsi_mlme_nan_subscribe(struct slsi_dev *sdev, struct net_device *dev, struc
 int slsi_mlme_nan_tx_followup(struct slsi_dev *sdev, struct net_device *dev,
 			      struct slsi_hal_nan_transmit_followup_req *hal_req);
 int slsi_mlme_nan_set_config(struct slsi_dev *sdev, struct net_device *dev, struct slsi_hal_nan_config_req *hal_req);
+int slsi_mlme_ndp_request(struct slsi_dev *sdev, struct net_device *dev,
+			  struct slsi_hal_nan_data_path_initiator_req *hal_req, u32 ndp_id, u16 ndl_vif_id);
+int slsi_mlme_ndp_response(struct slsi_dev *sdev, struct net_device *dev,
+			  struct slsi_hal_nan_data_path_indication_response *hal_req, u16 local_ndp_id);
+int slsi_mlme_ndp_terminate(struct slsi_dev *sdev, struct net_device *dev, u16 ndp_id);
+#endif
 #endif
 
 int slsi_mlme_set_ext_capab(struct slsi_dev *sdev, struct net_device *dev, struct slsi_mib_value *mib_val);
@@ -277,5 +284,10 @@ void slsi_decode_fw_rate(u16 fw_rate, struct rate_info *rate, unsigned long *dat
 int slsi_test_sap_configure_monitor_mode(struct slsi_dev *sdev, struct net_device *dev, struct cfg80211_chan_def *chandef);
 
 struct sk_buff *slsi_mlme_req_cfm(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb, u16 cfm_id);
+int slsi_mlme_set_country(struct slsi_dev *sdev, char *alpha2);
+
+#ifdef CONFIG_SCSC_WLAN_SILENT_RECOVERY
+void slsi_mlme_set_country_for_recovery(struct slsi_dev *sdev);
+#endif
 
 #endif /*__SLSI_MLME_H__*/

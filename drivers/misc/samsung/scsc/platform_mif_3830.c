@@ -583,7 +583,7 @@ irqreturn_t platform_alive_isr(int irq, void *data)
 
 irqreturn_t platform_wdog_isr(int irq, void *data)
 {
-	//int ret = 0;
+	int ret = 0;
 	struct platform_mif *platform = (struct platform_mif *)data;
 
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "INT received\n");
@@ -597,15 +597,14 @@ irqreturn_t platform_wdog_isr(int irq, void *data)
 		atomic_inc(&platform->wlbt_irq[PLATFORM_MIF_WDOG].irq_disabled_cnt);
 	}
 
-	/* TODO: need to find correct register to set here */
-#if 0
-	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-				 WLBT_RESET_REQ_CLR, WLBT_RESET_REQ_CLR);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Clearing WLBT_RESET_REQ\n");
-	if (ret < 0)
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-				 "Failed to Set WLBT_CTRL_NS[WLBT_RESET_REQ_CLR]: %d\n", ret);
-#endif
+	/* The wakeup source isn't cleared until WLBT is reset, so change the interrupt type to suppress this */
+	if (mxman_recovery_disabled()) {
+		ret = regmap_update_bits(platform->pmureg, WAKEUP_INT_TYPE,
+				RESETREQ_WLBT, 0);
+		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Set RESETREQ_WLBT wakeup interrput type to EDGE.\n");
+		if (ret < 0)
+			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev, "Failed to Set WAKEUP_INT_TYPE[RESETREQ_WLBT]: %d\n", ret);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -688,7 +687,7 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 	/*s32 ret = 0;*/
 	unsigned int ka_addr = 0x1000;
 	uint32_t *ka_patch_addr = ka_patch;
-	//u32 id;
+	//unsigned int id;
 
 #define CHECK(x) do { \
 	int retval = (x); \
@@ -820,7 +819,7 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 
 	while (ka_patch_addr < (ka_patch + ARRAY_SIZE(ka_patch))) {
 		CHECK(regmap_write(platform->boot_cfg, ka_addr, *ka_patch_addr));
-		ka_addr += sizeof(ka_patch[0]);
+		ka_addr += (unsigned int)sizeof(ka_patch[0]);
 		ka_patch_addr++;
 	}
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "KA patch done\n");
@@ -840,9 +839,6 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 
 	/* Signal triggering function that the IRQ arrived and CFG was done */
 	complete(&platform->cfg_ack);
-
-	/* Re-enable IRQ here to allow spurious interrupt to be tracked */
-	enable_irq(platform->wlbt_irq[PLATFORM_MIF_CFG_REQ].irq_num);
 
 	/* as per wlbt_if_S5E3830.c - end */
 
@@ -1011,7 +1007,6 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
 	int		ret = 0;
 	u32		val = 0;
-	u32		v = 0;
 	unsigned long	timeout;
 	static bool	init_done;
 
@@ -1025,25 +1020,26 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	 * Cold reset wrt. AP power sequencer, cold reset for WLBT
 	 */
 	if (!init_done) {
-		/* init sequence from excite - PMUCAL
-		 * SetBits((uinteger)REG_WLBT_CTRL_S, WLBT_CTRL_S_START_POS, 0x1, 0x1);
-		 * SetBits((uinteger)REG_WLBT_OPTION, 3, 0x1, 0x1);
-		 * udelay(1000);
-		 * SetBits((uinteger)REG_TOP_OUT, 1, 0x1, 0x1);
-		 * while (GetBits((uinteger)REG_VGPIO_TX_MONITOR, 29, 0x1) != 1)
-		 * ;
-		 * SetBits((uinteger)REG_WLBT_CONFIGURATION, WLBT_CONFIGURATION_LOCAL_PWR_CFG_POS, 0x1, 0x1);
-		 * while (GetBits((uinteger)REG_WLBT_STATUS, 0, 0x1) != WLBT_STATUS_STATUS_POWERON)
-		 *	;
-		 * SetBits((uinteger)REG_WLBT_CTRL_NS, WLBT_CTRL_NS_ACTIVE_CLR_POS, 0x1, 0x0);
-		 * SetBits((uinteger)REG_WLBT_CTRL_NS, WLBT_CTRL_NS_ACTIVE_EN_POS, 0x1, 0x1);
+		/* init sequence from excite/email - PMUCAL v2
+		 *
+		 * access type	SFR Name		Address		Field	value
+		 * write	WLBT_CTRL_S		0x####_3114	[3]	0x1
+		 * write	WLBT_OPTION		0x####_310C	[3]	0x1
+		 * delay	delay	　	　	0x3
+		 * write	TOP_OUT			0x####_3920	[1]	0x1
+		 * read-till	VGPIO_TX_MONITOR	0x####_1700	[29]	0x1
+		 * delay	delay	　	　	0x3E8
+		 * write	WLBT_CONFIGURATION	0x####_3100	[0]	0x1
+		 * read-till	WLBT_STATUS		0x####_3104	[0]	0x1
+		 * write	WLBT_CTRL_NS		0x####_3110	[6]	0x0
+		 * write	WLBT_CTRL_NS		0x####_3110	[5]	0x1
 		 *
 		 */
 		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "init\n");
 
 		/* WLBT_CTRL_S[WLBT_START] = 1 enable */
 		ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_S,
-				WLBT_START, WLBT_START);
+				BIT(3), BIT(3)); /* WLBT_START */
 		if (ret < 0) {
 			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 					"Failed to update WLBT_CTRL_S[WLBT_START]: %d\n", ret);
@@ -1055,7 +1051,7 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 
 		/* WLBT_OPTION[WLBT_OPTION_DATA] = 1 Power On */
 		ret = regmap_update_bits(platform->pmureg, WLBT_OPTION,
-				WLBT_OPTION_DATA, WLBT_OPTION_DATA);
+				BIT(3), BIT(3)); /* WLBT_OPTION_DATA */
 		if (ret < 0) {
 			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 				"Failed to update WLBT_OPTION[WLBT_OPTION_DATA]: %d\n", ret);
@@ -1067,7 +1063,7 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 
 		/* TOP_OUT[PWRRGTON_CP] = 1 Power On */
 		ret = regmap_update_bits(platform->pmureg, TOP_OUT,
-				PWRRGTON_CP, PWRRGTON_CP);
+				BIT(1), BIT(1)); /* PWRRGTON_CP */
 		if (ret < 0) {
 			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 				"Failed to update TOP_OUT[PWRRGTON_CP]: %d\n", ret);
@@ -1081,7 +1077,7 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 		timeout = jiffies + msecs_to_jiffies(500);
 		do {
 			regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
-			val &= (u32)VGPIO_TX_MON_BIT29;
+			val &= (u32)BIT(29); /* VGPIO_TX_MON_BIT29 */
 			if (val) {
 				SCSC_TAG_INFO(PLAT_MIF, "VGPIO_TX_MONITOR 0x%x\n", val);
 				break;
@@ -1096,7 +1092,7 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 
 		/* WLBT_CONFIGURATION[LOCAL_PWR_CFG] = 1 Power On */
 		ret = regmap_update_bits(platform->pmureg, WLBT_CONFIGURATION,
-				LOCAL_PWR_CFG, 0x1);
+				BIT(0), BIT(0)); /* LOCAL_PWR_CFG */
 		if (ret < 0) {
 			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 				"Failed to update WLBT_CONFIGURATION[LOCAL_PWR_CFG]: %d\n", ret);
@@ -1110,14 +1106,10 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 		timeout = jiffies + msecs_to_jiffies(500);
 		do {
 			regmap_read(platform->pmureg, WLBT_STATUS, &val);
-			val &= (u32)WLBT_STATUS_BIT0;
+			val &= (u32)BIT(0); /* WLBT_STATUS_BIT0 */
 			if (val) {
 				/* Power On complete */
 				SCSC_TAG_INFO(PLAT_MIF, "Power On complete: WLBT_STATUS 0x%x\n", val);
-				/* re affirming power on by reading WLBT_STATES */
-				/* STATES[7:0] = 0x10 for Power Up */
-				regmap_read(platform->pmureg, WLBT_STATES, &v);
-				SCSC_TAG_INFO(PLAT_MIF, "Power On complete: WLBT_STATES 0x%x\n", v);
 				break;
 			}
 		} while (time_before(jiffies, timeout));
@@ -1125,12 +1117,12 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 		if (!val) {
 			regmap_read(platform->pmureg, WLBT_STATUS, &val);
 			SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for power on time-out: "
-						"WLBT_STATUS 0x%x, WLBT_STATES 0x%x\n", val, v);
+					"WLBT_STATUS 0x%x\n", val);
 		}
 
 		/* WLBT_CTRL_NS[WLBT_ACTIVE_CLR] = 0 Active interrupt clear */
 		ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-				WLBT_ACTIVE_CLR, 0x0);
+				BIT(6), 0x0); /* WLBT_ACTIVE_CLR */
 		if (ret < 0) {
 			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 				"Failed to update WLBT_CTRL_NS[WLBT_ACTIVE_CLR]: %d\n", ret);
@@ -1142,7 +1134,7 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 
 		/* WLBT_CTRL_NS[WLBT_ACTIVE_EN] = 1 Active interrupt enable */
 		ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-				WLBT_ACTIVE_EN, WLBT_ACTIVE_EN);
+				BIT(5), BIT(5)); /* WLBT_ACTIVE_EN */
 		if (ret < 0) {
 			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 				"Failed to update WLBT_CTRL_NS[WLBT_ACTIVE_EN]: %d\n", ret);
@@ -1158,21 +1150,88 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	}
 
 	/* RESET RELEASE - Subsequent WLBT reboots */
-	/* wlbt_if_reset_release - from excite code
-	 * SetBits((uinteger)REG_WLBT_CONFIGURATION, WLBT_CONFIGURATION_LOCAL_PWR_CFG_POS, 0x1, 0x1);
-	 * while (GetBits((uinteger)REG_WLBT_STATUS, WLBT_STATUS_STATUS_POS, 0x1) != WLBT_STATUS_STATUS_POWERON)
-	 *	;
-	 * SetBits((uinteger)REG_WLBT_INT_EN, WLBT_INT_EN_PWR_REQ__F_POS, 0x1, 0x1);
-	 * SetBits((uinteger)REG_WLBT_INT_EN, WLBT_INT_EN_TCXO_REQ__F_POS, 0x1, 0x1);
-	 * udelay(2000);
+	/* wlbt_if_reset_release - from excite/email code PMUCAL v2
+	 * access type	SFR Name		Address		Field	value
+	 *
+	 * write	WLBT_OPTION		0x####_310C	[3]	0x1
+	 * write	MIF_CTRL		0x####_3810	[0]	0x1
+	 * write	TCXO_BUF_CTRL		0x####_3b78	[0]	0x1
+	 * write	TOP_OUT			0x####_3920	[1]	0x1
+	 * read-till	VGPIO_TX_MONITOR	0x####_1700	[29]	0x1
+	 * delay	delay	　	　	0x3e8
+	 * write	WLBT_CONFIGURATION	0x####_3100	[0]	0x1
+	 * read-till	WLBT_STATUS		0x####_3104	[0]	0x1
+	 * write	WLBT_INT_EN		0x####_3144	[3]	0x1
+	 * write	WLBT_INT_EN		0x####_3144	[5]	0x1
+	 * write	WLBT_CTRL_NS		0x####_3110	[6]	0x0
+	 * write	WLBT_CTRL_NS		0x####_3110	[5]	0x1
+	 *
 	 * */
 
 	/* Warm reset wrt. AP power sequencer, but cold reset for WLBT */
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "release\n");
 
+	ret = regmap_update_bits(platform->pmureg, WLBT_OPTION,
+			BIT(3), BIT(3)); /* WLBT_OPTION_DATA */
+	if (ret < 0) {
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+			"Failed to update WLBT_OPTION[WLBT_OPTION_DATA]: %d\n", ret);
+		return ret;
+	}
+	regmap_read(platform->pmureg, WLBT_OPTION, &val);
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+		"updated successfully WLBT_OPTION[WLBT_OPTION_DATA]: 0x%x\n", val);
+
+	ret = regmap_update_bits(platform->pmureg, MIF_CTRL,
+			BIT(0), BIT(0)); /* TCXO_EN */
+	if (ret < 0) {
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+			"Failed to update MIF_CTRL[TCXO_EN]: %d\n", ret);
+		return ret;
+	}
+	regmap_read(platform->pmureg, MIF_CTRL, &val);
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+		"updated successfully MIF_CTRL[TCXO_EN]: 0x%x\n", val & TCXO_EN);
+
+	ret = regmap_update_bits(platform->pmureg, TCXO_BUF_CTRL,
+			BIT(0), BIT(0)); /* TCXO_BUF_BIAS_EN_WLBT */
+	if (ret < 0) {
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+			"Failed to update TCXO_BUF_CTRL[TCXO_BUF_BIAS_EN_WLBT]: %d\n", ret);
+		return ret;
+	}
+	regmap_read(platform->pmureg, TCXO_BUF_CTRL, &val);
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+		"updated successfully TCXO_BUF_CTRL[TCXO_BUF_BIAS_EN_WLBT]: 0x%x\n", val & TCXO_BUF_BIAS_EN_WLBT);
+
+	ret = regmap_update_bits(platform->pmureg, TOP_OUT,
+			BIT(1), BIT(1)); /* PWRRGTON_CP */
+
+	if (ret < 0) {
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+			"Failed to update TOP_OUT[PWRRGTON_CP]: %d\n", ret);
+		return ret;
+	}
+	/* VGPIO_TX_MONITOR = 0x1 */
+	timeout = jiffies + msecs_to_jiffies(500);
+	do {
+		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
+		val &= (u32)BIT(29); /* VGPIO_TX_MON_BIT29 */
+		if (val) {
+			SCSC_TAG_INFO(PLAT_MIF, "VGPIO_TX_MONITOR 0x%x\n", val);
+			break;
+		}
+	} while (time_before(jiffies, timeout));
+
+	if (!val) {
+		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
+		SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for VGPIO_TX_MONITOR time-out: "
+				"VGPIO_TX_MONITOR 0x%x\n", val);
+	}
+
 	/* Power Up */
 	ret = regmap_update_bits(platform->pmureg, WLBT_CONFIGURATION,
-			LOCAL_PWR_CFG, 0x1);
+			BIT(0), BIT(0)); /* LOCAL_PWR_CFG */
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 			"Failed to update WLBT_CONFIGURATION[LOCAL_PWR_CFG]: %d\n", ret);
@@ -1186,14 +1245,10 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	timeout = jiffies + msecs_to_jiffies(500);
 	do {
 		regmap_read(platform->pmureg, WLBT_STATUS, &val);
-		val &= (u32)WLBT_STATUS_BIT0;
+		val &= (u32)BIT(0); /* WLBT_STATUS_BIT0 */
 		if (val) {
 			/* Power up complete */
 			SCSC_TAG_INFO(PLAT_MIF, "Power up complete: WLBT_STATUS 0x%x\n", val);
-			/* re affirming power down by reading WLBT_STATES */
-			/* STATES[7:0] = 0x10 for Power Up */
-			regmap_read(platform->pmureg, WLBT_STATES, &v);
-			SCSC_TAG_INFO(PLAT_MIF, "Power up complete: WLBT_STATES 0x%x\n", v);
 			break;
 		}
 	} while (time_before(jiffies, timeout));
@@ -1201,12 +1256,12 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	if (!val) {
 		regmap_read(platform->pmureg, WLBT_STATUS, &val);
 		SCSC_TAG_INFO(PLAT_MIF, "Timeout waiting for Power up complete: "
-					"WLBT_STATUS 0x%x, WLBT_STATES 0x%x\n", val, v);
+			"WLBT_STATUS 0x%x\n", val);
 	}
 
 	/* enable PWR_REQ_F and TCXO_REQ_F interrupts */
 	ret = regmap_update_bits(platform->pmureg, WLBT_INT_EN,
-			PWR_REQ_F, PWR_REQ_F);
+			BIT(3), BIT(3)); /* PWR_REQ_F */
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 			"Failed to update WLBT_INT_EN[PWR_REQ_F]: %d\n", ret);
@@ -1217,7 +1272,7 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 		"updated successfully WLBT_INT_EN[PWR_REQ_F]: 0x%x\n", val);
 
 	ret = regmap_update_bits(platform->pmureg, WLBT_INT_EN,
-			TCXO_REQ_F, TCXO_REQ_F);
+			BIT(5), BIT(5)); /* TCXO_REQ_F */
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 			"Failed to update WLBT_INT_EN[TCXO_REQ_F]: %d\n", ret);
@@ -1226,6 +1281,30 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	regmap_read(platform->pmureg, WLBT_INT_EN, &val);
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 		"updated successfully WLBT_INT_EN[TCXO_REQ_F]: 0x%x\n", val);
+
+	/* WLBT_CTRL_NS[WLBT_ACTIVE_CLR] = 0 Active interrupt clear */
+	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
+			BIT(6), 0x0);
+	if (ret < 0) {
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+			"Failed to update WLBT_CTRL_NS[WLBT_ACTIVE_CLR]: %d\n", ret);
+		return ret;
+	}
+	regmap_read(platform->pmureg, WLBT_CTRL_NS, &val);
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+		"updated successfully WLBT_CTRL_NS[WLBT_ACTIVE_CLR]: 0x%x\n", val);
+
+	/* WLBT_CTRL_NS[WLBT_ACTIVE_EN] = 1 Active interrupt enable */
+	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
+			BIT(5), BIT(5)); /* WLBT_ACTIVE_EN */
+	if (ret < 0) {
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+			"Failed to update WLBT_CTRL_NS[WLBT_ACTIVE_EN]: %d\n", ret);
+		return ret;
+	}
+	regmap_read(platform->pmureg, WLBT_CTRL_NS, &val);
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+		"updated successfully WLBT_CTRL_NS[WLBT_ACTIVE_EN]: 0x%x\n", val);
 
 init_code_done:
 	/* Now handle the CFG_REQ IRQ */
@@ -1245,112 +1324,18 @@ static int platform_mif_pmu_reset_assert(struct scsc_mif_abs *interface)
 	int                 ret;
 	u32                 val;
 
-	/* wlbt_if_reset_assertion() - from wlbt_if_S5E3830.c - PMUCAL
-	 * SetBits((uinteger)REG_WLBT_OPTION, 3, 0x1, 0x1);
-	 * SetBits((uinteger)REG_MIF_CTRL, MIF_CTRL_TCXO_EN_POS, 0x1, 0x1);
-	 * SetBits((uinteger)REG_TCXO_BUF_CTRL, TCXO_BUF_CTRL_BIAS_EN_POS, 0x1, 0x1);
-	 * SetBits((uinteger)REG_TOP_OUT, TOP_OUT_PWRRGTON_CP_POS, 0x1, 0x1);
-	 * while (GetBits((uinteger)REG_VGPIO_TX_MONITOR, 29, 0x1) != 1)
-	 *	;
-	 * udelay(1000);	//1 msec wait???
-	 * SetBits((uinteger)REG_WLBT_INT_EN, WLBT_INT_EN_PWR_REQ__F_POS, 0x00000001, 0x00000000);
-	 * SetBits((uinteger)REG_WLBT_INT_EN, WLBT_INT_EN_TCXO_REQ__F_POS, 0x00000001, 0x00000000);
-	 * SetBits((uinteger)REG_WLBT_CTRL_NS, WLBT_CTRL_NS_ACTIVE_EN_POS, 0x1, 0x0);
-	 * SetBits((uinteger)REG_WLBT_CONFIGURATION, WLBT_CONFIGURATION_LOCAL_PWR_CFG_POS, 0x1, 0x0);
-	 * while (GetBits((uinteger)REG_WLBT_STATUS, WLBT_STATUS_STATUS_POS, 0x1) != WLBT_STATUS_STATUS_POWERDOWN)
+	/* wlbt_if_reset_assertion - from excite/email PMUCAL v2
+	 *
+	 * access type	SFR Name		Address		Field	value
+	 * write	WLBT_CTRL_NS		0x####_3110	[5]	0x0
+	 * write	WLBT_CONFIGURATION	0x####_3100	[0]	0x0
+	 * read-till	WLBT_STATUS		0x####_3104	[0]	0x0
+	 *
 	 */
-
-	/* WLBT_OPTION[WLBT_OPTION_DATA] = 1 Power On */
-	ret = regmap_update_bits(platform->pmureg, WLBT_OPTION,
-			WLBT_OPTION_DATA, WLBT_OPTION_DATA);
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-				"Failed to update WLBT_OPTION[WLBT_OPTION_DATA]: %d\n", ret);
-		return ret;
-	}
-	regmap_read(platform->pmureg, WLBT_OPTION, &val);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-			"updated successfully WLBT_OPTION[WLBT_OPTION_DATA]: 0x%x\n", val);
-
-	ret = regmap_update_bits(platform->pmureg, MIF_CTRL,
-			TCXO_EN, TCXO_EN);
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"Failed to update MIF_CTRL[TCXO_EN]: %d\n", ret);
-		return ret;
-	}
-	regmap_read(platform->pmureg, TCXO_BUF_CTRL, &val);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-		"updated successfully MIF_CTRL[TCXO_EN]: 0x%x\n", val & TCXO_EN);
-
-	ret = regmap_update_bits(platform->pmureg, TCXO_BUF_CTRL,
-			TCXO_BUF_BIAS_EN_WLBT, TCXO_BUF_BIAS_EN_WLBT);
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"Failed to update TCXO_BUF_CTRL[TCXO_BUF_BIAS_EN_WLBT]: %d\n", ret);
-		return ret;
-	}
-	regmap_read(platform->pmureg, TCXO_BUF_CTRL, &val);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-		"updated successfully TCXO_BUF_CTRL[TCXO_BUF_BIAS_EN_WLBT]: 0x%x\n", val & TCXO_BUF_BIAS_EN_WLBT);
-
-	ret = regmap_update_bits(platform->pmureg, TOP_OUT,
-			PWRRGTON_CP, PWRRGTON_CP);
-
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"Failed to update TOP_OUT[PWRRGTON_CP]: %d\n", ret);
-		return ret;
-	}
-	/* VGPIO_TX_MONITOR = 0x1 */
-	timeout = jiffies + msecs_to_jiffies(500);
-	do {
-		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
-		val &= (u32)VGPIO_TX_MON_BIT29;
-		if (val) {
-			SCSC_TAG_INFO(PLAT_MIF, "VGPIO_TX_MONITOR 0x%x\n", val);
-			break;
-		}
-	} while (time_before(jiffies, timeout));
-
-	if (!val) {
-		regmap_read(platform->i3c_apm_pmic, VGPIO_TX_MONITOR, &val);
-		SCSC_TAG_INFO(PLAT_MIF, "timeout waiting for VGPIO_TX_MONITOR time-out: "
-				"VGPIO_TX_MONITOR 0x%x\n", val);
-	}
-
-	regmap_read(platform->pmureg, TCXO_BUF_CTRL, &val);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-		"updated successfully TOP_OUT[PWRRGTON_CP]: 0x%x\n", val & PWRRGTON_CP);
-
-	udelay(1000);
-
-	/* disable PWR_REQ_F and TCXO_REQ_F interrupts */
-	ret = regmap_update_bits(platform->pmureg, WLBT_INT_EN,
-			PWR_REQ_F, 0x0);
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"Failed to update WLBT_INT_EN[PWR_REQ_F]: %d\n", ret);
-		return ret;
-	}
-	regmap_read(platform->pmureg, WLBT_INT_EN, &val);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-		"updated successfully WLBT_INT_EN[PWR_REQ_F]: 0x%x\n", val);
-
-	ret = regmap_update_bits(platform->pmureg, WLBT_INT_EN,
-			TCXO_REQ_F, 0x0);
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"Failed to update WLBT_INT_EN[TCXO_REQ_F]: %d\n", ret);
-		return ret;
-	}
-	regmap_read(platform->pmureg, WLBT_INT_EN, &val);
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
-		"updated successfully WLBT_INT_EN[TCXO_REQ_F]: 0x%x\n", val);
 
 	/* Active interrupt disable */
 	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
-		WLBT_ACTIVE_EN, 0x0);
+			BIT(5), 0x0); /* WLBT_ACTIVE_EN */
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 			"Failed to update WLBT_CTRL_NS[WLBT_ACTIVE_EN]: %d\n", ret);
@@ -1361,8 +1346,8 @@ static int platform_mif_pmu_reset_assert(struct scsc_mif_abs *interface)
 		"updated successfully WLBT_CTRL_NS[WLBT_ACTIVE_EN]: 0x%x\n", val);
 
 	/* Power Down */
-	ret = regmap_write_bits(platform->pmureg, WLBT_CONFIGURATION,
-		LOCAL_PWR_CFG, 0x0);
+	ret = regmap_update_bits(platform->pmureg, WLBT_CONFIGURATION,
+			BIT(0), 0x0); /* LOCAL_PWR_CFG */
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 			"Failed to update WLBT_CONFIGURATION[LOCAL_PWR_CFG]: %d\n", ret);
@@ -1376,14 +1361,9 @@ static int platform_mif_pmu_reset_assert(struct scsc_mif_abs *interface)
 	timeout = jiffies + msecs_to_jiffies(500);
 	do {
 		regmap_read(platform->pmureg, WLBT_STATUS, &val);
-		val &= (u32)WLBT_STATUS_BIT0;
+		val &= (u32)BIT(0); /* WLBT_STATUS_BIT0 */
 		if (val == 0) {
 			SCSC_TAG_INFO(PLAT_MIF, "WLBT_STATUS 0x%x\n", val);
-			/* re affirming power down by reading WLBT_STATES */
-			/* STATES[7:0] = 0x80 for Power Down */
-			regmap_read(platform->pmureg, WLBT_STATES, &val);
-			SCSC_TAG_INFO(PLAT_MIF, "Power down complete: WLBT_STATES 0x%x\n", val);
-
 			return 0; /* OK - return */
 		}
 	} while (time_before(jiffies, timeout));
@@ -1431,7 +1411,7 @@ static int platform_mif_reset(struct scsc_mif_abs *interface, bool reset)
 
 static void __iomem *platform_mif_map_region(unsigned long phys_addr, size_t size)
 {
-	int         i;
+	size_t      i;
 	struct page **pages;
 	void        *vmem;
 
@@ -2188,7 +2168,8 @@ void platform_mif_resume(struct scsc_mif_abs *interface)
 
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Clear WLBT_ACTIVE_CLR flag\n");
 	/* Clear WLBT_ACTIVE_CLR flag in WLBT_CTRL_NS */
-	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS, WLBT_ACTIVE_CLR, 1);
+	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_NS,
+			BIT(6), BIT(6)); /* WLBT_ACTIVE_CLR*/
 	if (ret < 0) {
 		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
 			"Failed to Set WLBT_CTRL_NS[WLBT_ACTIVE_CLR]: %d\n", ret);

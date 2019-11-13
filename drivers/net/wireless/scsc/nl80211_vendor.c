@@ -107,6 +107,12 @@ char *slsi_print_event_name(int event_id)
 		return "SLSI_NL80211_VENDOR_ACS_EVENT";
 	case SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS:
 		return "SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS";
+	case SLSI_NAN_EVENT_NDP_REQ:
+		return "SLSI_NAN_EVENT_NDP_REQ";
+	case SLSI_NAN_EVENT_NDP_CFM:
+		return "SLSI_NAN_EVENT_NDP_CFM";
+	case SLSI_NAN_EVENT_NDP_END:
+		return "SLSI_NAN_EVENT_NDP_END";
 	default:
 		return "UNKNOWN_EVENT";
 	}
@@ -221,6 +227,8 @@ static int slsi_gscan_get_capabilities(struct wiphy *wiphy,
 	struct slsi_dev                   *sdev = SDEV_FROM_WIPHY(wiphy);
 
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_GET_GSCAN_CAPABILITIES\n");
+        if (!slsi_dev_gscan_supported())
+		return -ENOTSUPP;
 
 	memset(&nl_cap, 0, sizeof(struct slsi_nl_gscan_capabilities));
 
@@ -1341,7 +1349,7 @@ static int slsi_set_bssid_blacklist(struct wiphy *wiphy, struct wireless_dev *wd
 				goto exit;
 			}
 			num_bssids = nla_get_u32(attr);
-			if (num_bssids == 0 || (num_bssids > (u32)(0xFFFFFFFF / (sizeof(*acl_data) + sizeof(struct mac_address))))) {
+			if (num_bssids == 0 || (num_bssids > (u32)((ULONG_MAX - sizeof(*acl_data)) / (sizeof(struct mac_address))))) {
 				ret = -EINVAL;
 				goto exit;
 			}
@@ -1449,6 +1457,10 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 
 		switch (type) {
 		case MKEEP_ALIVE_ATTRIBUTE_IP_PKT_LEN:
+			if (nla_len(attr) != (SLSI_NL_ATTRIBUTE_U16_LEN - NLA_HDRLEN)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			ip_pkt_len = nla_get_u16(attr);
 			break;
 
@@ -1457,6 +1469,10 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 			break;
 
 		case MKEEP_ALIVE_ATTRIBUTE_PERIOD_MSEC:
+			if (nla_len(attr) != (SLSI_NL_ATTRIBUTE_U32_LEN - NLA_HDRLEN)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			period = nla_get_u32(attr);
 			break;
 
@@ -1469,7 +1485,15 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 			break;
 
 		case MKEEP_ALIVE_ATTRIBUTE_ID:
+			if (nla_len(attr) != (SLSI_NL_ATTRIBUTE_U8_LEN - NLA_HDRLEN)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			index = nla_get_u8(attr);
+			if (index > SLSI_MAX_KEEPALIVE_ID) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 
 		default:
@@ -1579,7 +1603,15 @@ static int slsi_stop_keepalive_offload(struct wiphy *wiphy, struct wireless_dev 
 
 		switch (type) {
 		case MKEEP_ALIVE_ATTRIBUTE_ID:
+			if (nla_len(attr) != (SLSI_NL_ATTRIBUTE_U8_LEN - NLA_HDRLEN)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			index = nla_get_u8(attr);
+			if (index > SLSI_MAX_KEEPALIVE_ID) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 
 		default:
@@ -2575,6 +2607,12 @@ static int slsi_get_feature_set(struct wiphy *wiphy,
 
 	SLSI_DBG3_NODEV(SLSI_GSCAN, "\n");
 
+	feature_set |= SLSI_WIFI_HAL_FEATURE_INFRA;
+	feature_set |= SLSI_WIFI_HAL_FEATURE_INFRA_5G;
+#ifndef CONFIG_SCSC_WLAN_STA_ONLY
+	feature_set |= SLSI_WIFI_HAL_FEATURE_P2P;
+	feature_set |= SLSI_WIFI_HAL_FEATURE_SOFT_AP;
+#endif
 	feature_set |= SLSI_WIFI_HAL_FEATURE_RSSI_MONITOR;
 	feature_set |= SLSI_WIFI_HAL_FEATURE_CONTROL_ROAMING;
 	feature_set |= SLSI_WIFI_HAL_FEATURE_TDLS | SLSI_WIFI_HAL_FEATURE_TDLS_OFFCHANNEL;
@@ -2597,6 +2635,18 @@ static int slsi_get_feature_set(struct wiphy *wiphy,
 		feature_set |= SLSI_WIFI_HAL_FEATURE_D2D_RTT;
 		feature_set |= SLSI_WIFI_HAL_FEATURE_D2AP_RTT;
 	}
+
+	feature_set |= SLSI_WIFI_HAL_FEATURE_BATCH_SCAN;
+	feature_set |= SLSI_WIFI_HAL_FEATURE_PNO;
+#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
+	feature_set |= SLSI_WIFI_HAL_FEATURE_AP_STA;
+#endif
+	feature_set |= SLSI_WIFI_HAL_FEATURE_CONFIG_NDO;
+#ifdef CONFIG_SCSC_WLAN_ENABLE_MAC_RANDOMISATION
+	feature_set |= SLSI_WIFI_HAL_FEATURE_SCAN_RAND;
+#endif
+	feature_set |= SLSI_WIFI_HAL_FEATURE_LOW_LATENCY;
+	feature_set |= SLSI_WIFI_HAL_FEATURE_P2P_RAND_MAC;
 
 	ret = slsi_vendor_cmd_reply(wiphy, &feature_set, sizeof(feature_set));
 
@@ -3027,13 +3077,17 @@ void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_
 	u32 tmac = fapi_get_u32(skb, u.mlme_range_ind.spare_3);
 	int data_len = fapi_get_datalen(skb);
 	u8                *ip_ptr, *start_ptr;
-	u16 tx_data, rx_data;
+	u16 tx_data = 0, rx_data = 0;
 	struct sk_buff *nl_skb;
 	int res = 0;
 	struct nlattr *nlattr_nested;
 	struct timespec          ts;
 	u64 tkernel;
 	u8 rep_cnt = 0;
+	__le16 *le16_ptr = NULL;
+	__le32 *le32_ptr = NULL;
+	u16 value;
+	u32 temp_value;
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
@@ -3069,41 +3123,78 @@ void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_
 		ip_ptr += 7;             /*skip first 7 bytes for fapi_ie_generic */
 		res |= nla_put(nl_skb, SLSI_RTT_EVENT_ATTR_ADDR, ETH_ALEN, ip_ptr);
 		ip_ptr += 6;
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_BURST_NUM, *ip_ptr);
+
+		le16_ptr = (__le16 *)&ip_ptr[i];
+		value = le16_to_cpu(*le16_ptr);
+		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_BURST_NUM, value);
 		ip_ptr += 2;
+
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_MEASUREMENT_NUM, *ip_ptr++);
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_SUCCESS_NUM, *ip_ptr++);
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_NUM_PER_BURST_PEER, *ip_ptr++);
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_STATUS, *ip_ptr);
+
+		le16_ptr = (__le16 *)&ip_ptr[i];
+		value = le16_to_cpu(*le16_ptr);
+		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_STATUS, value);
 		ip_ptr += 2;
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_RETRY_AFTER_DURATION, *ip_ptr++);
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_TYPE, *ip_ptr);
+
+		le16_ptr = (__le16 *)&ip_ptr[i];
+		value = le16_to_cpu(*le16_ptr);
+		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_TYPE, value);
 		ip_ptr += 2;
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RSSI, *ip_ptr);
+
+		le16_ptr = (__le16 *)&ip_ptr[i];
+		value = le16_to_cpu(*le16_ptr);
+		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RSSI, value);
 		ip_ptr += 2;
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RSSI_SPREAD, *ip_ptr);
+
+		le16_ptr = (__le16 *)&ip_ptr[i];
+		value = le16_to_cpu(*le16_ptr);
+		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RSSI_SPREAD, value);
 		ip_ptr += 2;
+
 		memcpy(&tx_data, ip_ptr, 2);
 		res = slsi_tx_rate_calc(nl_skb, tx_data, res, 1);
 		ip_ptr += 2;
+
 		memcpy(&rx_data, ip_ptr, 2);
 		res = slsi_tx_rate_calc(nl_skb, rx_data, res, 0);
 		ip_ptr += 2;
-		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_RTT, *ip_ptr);
+
+		le32_ptr = (__le32 *)&ip_ptr[i];
+		temp_value = le32_to_cpu(*le32_ptr);
+		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_RTT, temp_value);
 		ip_ptr += 4;
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RTT_SD, *ip_ptr);
+
+		le16_ptr = (__le16 *)&ip_ptr[i];
+		value = le16_to_cpu(*le16_ptr);
+		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RTT_SD, value);
 		ip_ptr += 2;
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RTT_SPREAD, *ip_ptr);
+
+		le16_ptr = (__le16 *)&ip_ptr[i];
+		value = le16_to_cpu(*le16_ptr);
+		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RTT_SPREAD, value);
 		ip_ptr += 2;
+
 		get_monotonic_boottime(&ts);
 		tkernel = (u64)TIMESPEC_TO_US(ts);
-		tm = *ip_ptr;
+		le32_ptr = (__le32 *)&ip_ptr[i];
+		temp_value = le32_to_cpu(*le32_ptr);
+		tm = temp_value;
 		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_TIMESTAMP_US, tkernel - (tmac - tm));
 		ip_ptr += 4;
-		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_DISTANCE_MM, *ip_ptr);
+
+		le32_ptr = (__le32 *)&ip_ptr[i];
+		temp_value = le32_to_cpu(*le32_ptr);
+		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_DISTANCE_MM, temp_value);
 		ip_ptr += 4;
-		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_DISTANCE_SD_MM, *ip_ptr);
+
+		le32_ptr = (__le32 *)&ip_ptr[i];
+		temp_value = le32_to_cpu(*le32_ptr);
+		res |= nla_put_u32(nl_skb, SLSI_RTT_EVENT_ATTR_DISTANCE_SD_MM, temp_value);
 		ip_ptr += 4;
+
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_BURST_DURATION_MSN, *ip_ptr++);
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_NEGOTIATED_BURST_NUM, *ip_ptr++);
 		for (rep_cnt = 0; rep_cnt < 2; rep_cnt++) {
@@ -4639,7 +4730,10 @@ static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
 	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_ACS_EVENT},
 	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_FORWARD_BEACON},
 	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_FORWARD_BEACON_ABORT},
-	{ OUI_GOOGLE,  SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS}
+	{ OUI_GOOGLE,  SLSI_NL80211_NAN_TRANSMIT_FOLLOWUP_STATUS},
+	{ OUI_GOOGLE,  SLSI_NAN_EVENT_NDP_REQ},
+	{ OUI_GOOGLE,  SLSI_NAN_EVENT_NDP_CFM},
+	{ OUI_GOOGLE,  SLSI_NAN_EVENT_NDP_END}
 };
 
 static const struct wiphy_vendor_command     slsi_vendor_cmd[] = {
@@ -4991,6 +5085,47 @@ static const struct wiphy_vendor_command     slsi_vendor_cmd[] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = slsi_nan_get_capabilities
+	},
+
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_NAN_DATA_INTERFACE_CREATE
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = slsi_nan_data_iface_create
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_NAN_DATA_INTERFACE_DELETE
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = slsi_nan_data_iface_delete
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_NAN_DATA_REQUEST_INITIATOR
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = slsi_nan_ndp_initiate
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_NAN_DATA_INDICATION_RESPONSE
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = slsi_nan_ndp_respond
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = SLSI_NL80211_VENDOR_SUBCMD_NAN_DATA_END
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = slsi_nan_ndp_end
 	},
 #endif
 	{
