@@ -1059,9 +1059,11 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 					atomic_read(&ipc->chub_status), ret, ipc->poweron_lock.flag);
 			}
 		}
-	}
+	} else
+	/* CHUB already went through poweron sequence */
+		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 static int contexthub_download_and_check_image(struct contexthub_ipc_info *ipc, enum ipc_region reg)
