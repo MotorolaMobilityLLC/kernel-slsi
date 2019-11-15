@@ -1351,8 +1351,8 @@ static int nanohub_open(struct inode *inode, struct file *file)
 		nonseekable_open(inode, file);
 #ifdef CONFIG_NANOHUB_MAILBOX
 		io = file->private_data;
-		nanohub_reset(io->data);
-		io->data->thread = kthread_run(nanohub_kthread, io->data, "nanohub");
+		if (!nanohub_reset(io->data))
+			io->data->thread = kthread_run(nanohub_kthread, io->data, "nanohub");
 		udelay(30);
 #endif
 		return 0;
