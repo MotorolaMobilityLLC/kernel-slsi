@@ -1779,6 +1779,14 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 	if (!dev->secure) {
 		if (!gadget) {
 			pr_info("%s: Gadget is NULL: %p\n", __func__, gadget);
+			list_for_each_entry(c, &cdev->configs, list) {
+			cfg = container_of(c, struct config_usb_cfg, c);
+			list_for_each_entry_safe(f, tmp, &cfg->func_list, list) {
+				list_move_tail(&f->list, &dev->linked_func);
+			}
+			c->next_interface_id = 0;
+			memset(c->interface, 0, sizeof(c->interface));
+			}
 			mutex_unlock(&dev->lock);
 			return -ENODEV;
 		}
