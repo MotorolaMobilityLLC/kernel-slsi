@@ -328,6 +328,7 @@ void usbpd_set_ops(struct device *dev, usbpd_phy_ops_type *ops)
 	pd_data->phy_ops.poll_status = ops->poll_status;
 	pd_data->phy_ops.driver_reset = ops->driver_reset;
 	pd_data->phy_ops.set_otg_control = ops->set_otg_control;
+	pd_data->phy_ops.cc_instead_of_vbus = ops->cc_instead_of_vbus;
 	pd_data->phy_ops.set_cc_control = ops->set_cc_control;
 	pd_data->phy_ops.get_side_check = ops->get_side_check;
 	pd_data->phy_ops.pr_swap = ops->pr_swap;
