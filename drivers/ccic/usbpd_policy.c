@@ -303,6 +303,10 @@ policy_state usbpd_policy_src_transition_supply(struct policy_data *policy)
 				return ret;
 
 			usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header, USBPD_PS_RDY, USBPD_DFP, USBPD_SOURCE);
+
+			/* Check CC instead of Vbus */
+			pd_data->phy_ops.cc_instead_of_vbus(pd_data, 1);
+
 			pd_data->phy_ops.set_rp_control(pd_data, PLUG_CTRL_RP180);
 
 			ret = PE_SRC_Ready;

@@ -1059,6 +1059,28 @@ static int s2mu106_set_otg_control(void *_data, int val)
 	return 0;
 }
 
+static int s2mu106_cc_instead_of_vbus(void *_data, int enable)
+{
+	struct usbpd_data *data = (struct usbpd_data *)_data;
+	struct s2mu106_usbpd_data *pdic_data = data->phy_driver_data;
+	struct i2c_client *i2c = pdic_data->i2c;
+	u8 val;
+
+	//Setting for CC Detection with Vbus
+	//It is recognized that Vbus falls when CC line falls
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL_VBUS_MUX, &val);
+	val &= ~S2MU106_REG_RD_OR_VBUS_MUX_SEL;
+	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_VBUS_MUX, val);
+	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_CTRL, &val);
+	if (enable)
+		val |= S2MU106_REG_PLUG_CTRL_ATTACH_OPT_EN;
+	else
+		val &= ~S2MU106_REG_PLUG_CTRL_ATTACH_OPT_EN;
+	s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL, val);
+
+	return 0;
+}
+
 static int s2mu106_set_cc_control(void *_data, int val)
 {
 	struct usbpd_data *data = (struct usbpd_data *) _data;
@@ -3143,8 +3165,9 @@ static usbpd_phy_ops_type s2mu106_ops = {
 	.driver_reset		= s2mu106_driver_reset,
 	.set_otg_control	= s2mu106_set_otg_control,
 	.set_cc_control		= s2mu106_set_cc_control,
+	.cc_instead_of_vbus	= s2mu106_cc_instead_of_vbus,
 	.get_side_check		= s2mu106_get_side_check,
-	.pr_swap			= s2mu106_pr_swap,
+	.pr_swap		= s2mu106_pr_swap,
 	.vbus_on_check		= s2mu106_vbus_on_check,
 	.set_pwr_opmode		= s2mu106_set_pwr_opmode,
 	.set_rp_control		= s2mu106_set_rp_control,

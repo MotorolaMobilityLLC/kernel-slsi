@@ -348,6 +348,7 @@ typedef struct usbpd_phy_ops {
 	bool   (*poll_status)(void *);
 	void   (*driver_reset)(void *);
 	int    (*set_otg_control)(void *, int);
+	int	(*cc_instead_of_vbus)(void*, int);
 	int    (*set_cc_control)(void *, int);
 	void    (*pr_swap)(void *, int);
 	int    (*vbus_on_check)(void *);
