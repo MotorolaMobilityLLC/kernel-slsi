@@ -5591,6 +5591,7 @@ static int abox_pm_notifier(struct notifier_block *nb,
 {
 	struct abox_data *data = container_of(nb, struct abox_data, pm_nb);
 	struct device *dev = &data->pdev->dev;
+	int pd_status, retry = 0;
 	int ret;
 
 	dev_dbg(dev, "%s(%lu)\n", __func__, action);
@@ -5650,6 +5651,24 @@ static int abox_pm_notifier(struct notifier_block *nb,
 			dev_info(dev, "(%d)r suspend_state: %d\n", __LINE__,
 					atomic_read(&data->suspend_state));
 			if (atomic_read(&data->suspend_state) == 1) {
+				if (data->abox_pm_domain) {
+					do {
+						pd_status = exynos_pd_status(data->abox_pm_domain);
+						if (pd_status == 0) {
+							dev_info(dev, "%s is off, go to ABOX initial sequence\n",
+									data->abox_pm_domain->name);
+							break;
+						} else if (pd_status > 0) {
+							dev_info(dev, "%s is still on, wait for 10ms\n",
+									data->abox_pm_domain->name);
+							mdelay(10);
+						} else if (pd_status < 0) {
+							dev_info(dev, "%s is in abnormal state\n",
+									data->abox_pm_domain->name);
+							break;
+						}
+					} while (retry++ < 10);
+				}
 				pm_runtime_get_sync(&data->pdev->dev);
 				atomic_set(&data->suspend_state, 0);
 			}
@@ -5788,6 +5807,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	struct platform_device *pdev_tmp;
 	struct abox_data *data;
 	phys_addr_t paddr;
+	const char *pd_name;
 	int ret, i;
 
 	dev_info(dev, "%s\n", __func__);
@@ -5975,6 +5995,14 @@ static int samsung_abox_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (of_property_read_string(np, "pd_name", &pd_name)) {
+		dev_warn(dev, "no power domain\n");
+		data->abox_pm_domain = NULL;
+	} else {
+		dev_info(dev, "power domain: %s\n", pd_name);
+		data->abox_pm_domain = exynos_pd_lookup_name(pd_name);
+
+	}
 	np_tmp = of_parse_phandle(np, "abox_gic", 0);
 	if (!np_tmp) {
 		dev_err(dev, "Failed to get abox_gic device node\n");

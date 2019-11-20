@@ -14,6 +14,7 @@
 
 #include <linux/pm_wakeup.h>
 #include <sound/samsung/abox.h>
+#include <soc/samsung/exynos-pd.h>
 
 #define ABOX_MASK(name) (GENMASK(ABOX_##name##_H, ABOX_##name##_L))
 #define ABOX_MASK_ARG(name, x) (GENMASK(ABOX_##name##_H(x), ABOX_##name##_L(x)))
@@ -576,6 +577,7 @@ struct abox_data {
 	void *dump_base;
 	phys_addr_t dump_base_phys;
 	struct iommu_domain *iommu_domain;
+	struct exynos_pm_domain *abox_pm_domain;
 	unsigned int ipc_tx_offset;
 	unsigned int ipc_rx_offset;
 	unsigned int ipc_tx_ack_offset;
