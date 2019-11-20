@@ -2689,6 +2689,7 @@
 		iommus = <&sysmmu_abox>;
 		pm_qos_int = <0 0 0 0 0>;
 		pm_qos_aud = <1180000 800000 590000 394000 0>;
+		pd_name = "pd-dispaud";
 
 		abox_rdma_0: abox_rdma@0x14A51000 {
 			compatible = "samsung,abox-rdma";
