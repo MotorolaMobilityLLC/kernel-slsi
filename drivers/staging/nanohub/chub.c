@@ -75,12 +75,12 @@ void chub_wake_event(struct chub_alive *event)
 	wake_up_interruptible_sync(&event->event);
 }
 
-static int chub_wait_event(struct chub_alive *event)
+static int chub_wait_event(struct chub_alive *event, int timeout)
 {
 	atomic_set(&event->flag, 0);
 	return wait_event_interruptible_timeout(event->event,
 						 atomic_read(&event->flag),
-						 msecs_to_jiffies(WAIT_TIMEOUT_MS * 2));
+						 msecs_to_jiffies(timeout));
 }
 
 static int contexthub_get_token(struct contexthub_ipc_info *ipc)
@@ -293,7 +293,7 @@ static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *ipc)
 
 	atomic_set(&ipc->chub_alive_lock.flag, 0);
 	ipc_hw_gen_interrupt(AP, IRQ_EVT_CHUB_ALIVE);
-	ret = chub_wait_event(&ipc->chub_alive_lock);
+	ret = chub_wait_event(&ipc->chub_alive_lock, 200);
 	dev_info(ipc->dev, "%s done: ret:%d\n", __func__, ret);
 	return atomic_read(&ipc->chub_alive_lock.flag);
 }
@@ -420,7 +420,7 @@ static void contexthub_select_os(struct contexthub_ipc_info *ipc)
 	do {
 		msleep(WAIT_CHUB_MS);
 		contexthub_ipc_write_event(ipc, MAILBOX_EVT_CHUB_ALIVE);
-		if (++trycnt > WAIT_TRY_CNT)
+		if (++trycnt > 10)
 			break;
 	} while ((atomic_read(&ipc->chub_status) != CHUB_ST_RUN));
 
@@ -480,7 +480,7 @@ static void handle_log_work_func(struct work_struct *work)
 
 retry:
 	if (contexthub_get_token(ipc)) {
-		chub_wait_event(&ipc->reset_lock);
+		chub_wait_event(&ipc->reset_lock, WAIT_TIMEOUT_MS * 2);
 		if (!retrycnt) {
 			retrycnt++;
 			goto retry;
@@ -1044,7 +1044,7 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 				dev_warn(dev, "contexthub failed to power-on");
 			else {
 				dev_info(dev, "%s: wait for multi-os poweron\n", __func__);
-				ret = chub_wait_event(&ipc->poweron_lock);
+				ret = chub_wait_event(&ipc->poweron_lock, WAIT_TIMEOUT_MS * 2);
 				dev_info(dev, "%s: multi-os poweron %s, status:%d, ret:%d, flag:%d\n", __func__,
 					atomic_read(&ipc->chub_status) == CHUB_ST_RUN ? "success" : "fails",
 					atomic_read(&ipc->chub_status), ret, ipc->poweron_lock.flag);
