@@ -2137,9 +2137,10 @@ static int s2mu106_usbpd_check_abnormal_attach(struct s2mu106_usbpd_data *pdic_d
 	struct i2c_client *i2c = pdic_data->i2c;
 	u8 data = 0;
 
-	s2mu106_usbpd_set_threshold(pdic_data, PLUG_CTRL_RP,
-										S2MU106_THRESHOLD_1285MV);
-	msleep(20);
+	pr_info("%s, try 771mV\n", __func__);
+
+	s2mu106_usbpd_set_threshold(pdic_data, PLUG_CTRL_RP, S2MU106_THRESHOLD_771MV);
+	msleep(30);
 
 	s2mu106_usbpd_read_reg(i2c, S2MU106_REG_PLUG_MON2, &data);
 	if ((data & S2MU106_PR_MASK) == S2MU106_PDIC_SOURCE)
@@ -2439,6 +2440,7 @@ static int s2mu106_check_port_detect(struct s2mu106_usbpd_data *pdic_data)
 			dev_err(&i2c->dev, "%s, abnormal attach\n", __func__);
 			return -1;
 		}
+		s2mu106_usbpd_write_reg(i2c, S2MU106_REG_PLUG_CTRL_SET_RP, S2MU106_THRESHOLD_2057MV);
 		ret = s2mu106_usbpd_check_accessory(pdic_data);
 		if (ret < 0) {
 			dev_info(&i2c->dev, "%s attach accessory\n", __func__);
