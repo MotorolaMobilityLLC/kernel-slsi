@@ -5183,17 +5183,21 @@ out:
  * as well. This function would change the auto-bkops state based on
  * UFSHCD_CAP_KEEP_AUTO_BKOPS_ENABLED_EXCEPT_SUSPEND.
  */
-static void ufshcd_force_reset_auto_bkops(struct ufs_hba *hba)
+static int ufshcd_force_reset_auto_bkops(struct ufs_hba *hba)
 {
+	int ret = 0;
+
 	if (ufshcd_keep_autobkops_enabled_except_suspend(hba)) {
 		hba->auto_bkops_enabled = false;
 		hba->ee_ctrl_mask |= MASK_EE_URGENT_BKOPS;
-		ufshcd_enable_auto_bkops(hba);
+		ret = ufshcd_enable_auto_bkops(hba);
 	} else {
 		hba->auto_bkops_enabled = true;
 		hba->ee_ctrl_mask &= ~MASK_EE_URGENT_BKOPS;
-		ufshcd_disable_auto_bkops(hba);
+		ret = ufshcd_disable_auto_bkops(hba);
 	}
+
+	return ret;
 }
 
 static inline int ufshcd_get_bkops_status(struct ufs_hba *hba, u32 *status)
@@ -6808,7 +6812,11 @@ retry:
 
 	/* UFS device is also active now */
 	ufshcd_set_ufs_dev_active(hba);
-	ufshcd_force_reset_auto_bkops(hba);
+	ret = ufshcd_force_reset_auto_bkops(hba);
+	if (ret) {
+		device_reset = 1;
+		goto out;
+	}
 	hba->wlun_dev_clr_ua = true;
 
 	if (ufshcd_get_max_pwr_mode(hba)) {
