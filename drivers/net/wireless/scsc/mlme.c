@@ -2003,6 +2003,7 @@ static int slsi_mlme_connect_info_elems_ie_prep(struct slsi_dev *sdev, const u8 
 				SLSI_ERR_NODEV("Required 9bytes but left:%d\n", ie_dest_len);
 				return -EINVAL;
 			}
+			sdev->device_config.qos_info = -1;
 		} else {
 			info_elem_length += 9;
 		}
