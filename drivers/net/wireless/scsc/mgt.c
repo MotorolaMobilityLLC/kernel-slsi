@@ -2510,8 +2510,6 @@ void slsi_vif_deactivated(struct slsi_dev *sdev, struct net_device *dev)
 		}
 		ndev_vif->sta.tdls_enabled = false;
 	}
-
-	sdev->device_config.qos_info = -1;
 }
 
 int slsi_sta_ieee80211_mode(struct net_device *dev, u16 current_bss_channel_frequency)
