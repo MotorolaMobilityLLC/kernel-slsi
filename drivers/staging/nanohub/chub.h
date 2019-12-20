@@ -99,6 +99,7 @@ enum chub_status {
 	CHUB_ST_NO_RESPONSE,
 	CHUB_ST_ERR,
 	CHUB_ST_HANG,
+	CHUB_ST_RESET_FAIL,
 };
 
 struct read_wait {

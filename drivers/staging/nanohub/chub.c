@@ -1107,6 +1107,7 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 {
 	int ret;
 	int trycnt = 0;
+	bool irq_disabled;
 
 	dev_info(ipc->dev, "%s: force:%d, status:%d, in-reset:%d, err:%d, user:%d\n",
 		__func__, force_load, atomic_read(&ipc->chub_status),
@@ -1117,6 +1118,10 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 		dev_info(ipc->dev, "%s: out status:%d\n", __func__, atomic_read(&ipc->chub_status));
 		return 0;
 	}
+	/* disable mailbox interrupt to prevent sram access during chub reset */
+	disable_irq(ipc->irq_mailbox);
+	irq_disabled = true;
+
 	atomic_inc(&ipc->in_reset);
 
 	/* wait for ipc free */
@@ -1181,6 +1186,11 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 				goto out;
 		}
 	}
+
+	/* enable mailbox interrupt to get 'alive' event */
+	enable_irq(ipc->irq_mailbox);
+	irq_disabled = false;
+
 	/* reset */
 	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_RESET);
 	if (ret) {
@@ -1192,6 +1202,13 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 		atomic_set(&ipc->in_use_ipc, 0);
 	}
 out:
+	if (ret) {
+		atomic_set(&ipc->chub_status, CHUB_ST_RESET_FAIL);
+		if (irq_disabled)
+			enable_irq(ipc->irq_mailbox);
+		dev_err(ipc->dev, "%s: chub reset fail! should retry to reset (ret:%d), irq_disabled:%d\n",
+			__func__, ret, irq_disabled);
+	}
 	msleep(100); /* wakeup delay */
 	chub_wake_event(&ipc->reset_lock);
 	atomic_dec(&ipc->in_reset);
