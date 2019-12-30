@@ -297,8 +297,6 @@
 							regulator-min-microvolt = <800000>;
 							regulator-max-microvolt = <1950000>;
 							regulator-ramp-delay = <12000>;
-							regulator-always-on;
-							regulator-initial-mode = <3>;
 						};
 
 						l34_reg: LDO34 {
