@@ -64,7 +64,6 @@ const char *os_image[SENSOR_VARIATION] = {
 	"os.checked_8.bin",
 };
 
-#define USE_NO_PANIC_ON_POWERON /* hack for panic */
 static DEFINE_MUTEX(reset_mutex);
 static DEFINE_MUTEX(pmu_shutdown_mutex);
 static DEFINE_MUTEX(log_mutex);
@@ -428,10 +427,12 @@ static void contexthub_select_os(struct contexthub_ipc_info *ipc)
 	if (atomic_read(&ipc->chub_status) == CHUB_ST_RUN)
 		dev_info(ipc->dev, "%s done. contexthub status is %d\n",
 				__func__, atomic_read(&ipc->chub_status));
-	else
+	else {
 		dev_warn(ipc->dev, "%s failed. contexthub status is %d\n",
 				__func__, atomic_read(&ipc->chub_status));
-
+		atomic_set(&ipc->chub_status, CHUB_ST_NO_RESPONSE);
+		contexthub_handle_debug(ipc, CHUB_ERR_CHUB_NO_RESPONSE, 0);
+	}
 	dev_info(ipc->dev, "%s done: wakeup interrupt\n", __func__);
 	chub_wake_event(&ipc->poweron_lock);
 }
@@ -617,6 +618,7 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 	int trycnt = 0;
 	int ret = 0;
 	int i;
+	bool first_poweron = false;
 
 	dev_info(ipc->dev, "%s. status:%d\n",
 		__func__, __raw_readl(&ipc->chub_status));
@@ -645,6 +647,9 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 		check_rtc_time();
 #endif
 		if (atomic_read(&ipc->chub_status) == CHUB_ST_NO_POWER) {
+			if (ipc->sel_os == false)
+				first_poweron = true;
+
 			atomic_set(&ipc->chub_status, CHUB_ST_POWER_ON);
 
 			/* enable Dump gpr */
@@ -708,7 +713,8 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 		break;
 	}
 
-	if (ipc->sel_os == false) {
+	/* don't send alive with first poweron of multi-os */
+	if (first_poweron) {
 		dev_info(ipc->dev, "%s -> os select\n", __func__);
 		return 0;
 	}
@@ -733,6 +739,8 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *ipc,
 		} else {
 			dev_warn(ipc->dev, "%s fails. contexthub status is %d\n",
 				 __func__, atomic_read(&ipc->chub_status));
+			atomic_set(&ipc->chub_status, CHUB_ST_NO_RESPONSE);
+			contexthub_handle_debug(ipc, CHUB_ERR_CHUB_NO_RESPONSE, 0);
 			return -ETIMEDOUT;
 		}
 	}
@@ -907,23 +915,6 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *ipc,
 			dev_err(ipc->dev,
 				"%s : chub isn't alive, should be reset. status:%d, inreset:%d\n",
 				__func__, atomic_read(&ipc->chub_status), atomic_read(&ipc->in_reset));
-			if (!atomic_read(&ipc->in_reset)) {
-#ifdef USE_NO_PANIC_ON_POWERON
-				if (atomic_read(&ipc->chub_status) == CHUB_ST_POWER_ON) {
-					atomic_set(&ipc->chub_status, CHUB_ST_NO_RESPONSE);
-					/* hack don't make panic with chub poweron */
-					contexthub_reset(ipc, 1, CHUB_ERR_NONE);
-				} else {
-					atomic_set(&ipc->chub_status, CHUB_ST_NO_RESPONSE);
-					contexthub_handle_debug(ipc, CHUB_ERR_CHUB_NO_RESPONSE, 0);
-				}
-#else
-				atomic_set(&ipc->chub_status, CHUB_ST_NO_RESPONSE);
-				contexthub_handle_debug(ipc, CHUB_ERR_CHUB_NO_RESPONSE, 0);
-#endif
-			} else {
-				dev_info(ipc->dev, "%s: skip to handle debug in reset\n", __func__);
-			}
 			ret = -EINVAL;
 		}
 		break;
