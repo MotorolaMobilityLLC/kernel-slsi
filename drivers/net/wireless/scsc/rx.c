@@ -1110,6 +1110,35 @@ void slsi_rx_scan_done_ind(struct slsi_dev *sdev, struct net_device *dev, struct
 		return;
 	}
 #endif
+	/* set_cached_channels should be called here as well , apart from connect_ind as */
+	/* we can get an AP with the same SSID in the scan results after connection. */
+	/* This should only be done if we are in connected state.*/
+	if (ndev_vif->vif_type == FAPI_VIFTYPE_STATION && ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED &&
+	    ndev_vif->iftype != NL80211_IFTYPE_P2P_CLIENT) {
+		const u8 *connected_ssid = NULL;
+		struct slsi_roaming_network_map_entry *network_map;
+		u32 channels_count = 0;
+		u8  channels[SLSI_ROAMING_CHANNELS_MAX];
+		bool channel_bitmaps_matched = false;
+
+		connected_ssid = cfg80211_find_ie(WLAN_EID_SSID, ndev_vif->sta.sta_bss->ies->data,
+						  ndev_vif->sta.sta_bss->ies->len);
+		network_map = slsi_roam_channel_cache_get(dev, connected_ssid);
+		if (network_map) {
+			channel_bitmaps_matched = !(network_map->channels_24_ghz & ~ndev_vif->sta.channels_24_ghz) &&
+						  !(network_map->channels_5_ghz & ~ndev_vif->sta.channels_5_ghz);
+			if (!channel_bitmaps_matched)
+				channels_count = slsi_roam_channel_cache_get_channels_int(dev, network_map, channels);
+		}
+
+		if (channels_count) {
+			ndev_vif->sta.channels_24_ghz = network_map->channels_24_ghz;
+			ndev_vif->sta.channels_5_ghz = network_map->channels_5_ghz;
+			if (slsi_mlme_set_cached_channels(sdev, dev, channels_count, channels) != 0)
+				SLSI_NET_ERR(dev, "MLME-SET-CACHED-CHANNELS.req failed\n");
+		}
+	}
+
 	scan_id = (scan_id & 0xFF);
 
 	if (scan_id == SLSI_SCAN_HW_ID && (ndev_vif->scan[SLSI_SCAN_HW_ID].scan_req ||
@@ -2187,9 +2216,15 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		if (ndev_vif->vif_type == FAPI_VIFTYPE_STATION && ndev_vif->activated && ndev_vif->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 #endif
 			const u8 *ssid = cfg80211_find_ie(WLAN_EID_SSID, assoc_ie, assoc_ie_len);
+			struct slsi_roaming_network_map_entry *network_map;
 			u8       channels[SLSI_ROAMING_CHANNELS_MAX];
 			u32      channels_count = slsi_roaming_scan_configure_channels(sdev, dev, ssid, channels);
 
+			network_map = slsi_roam_channel_cache_get(dev, ssid);
+			if (network_map) {
+				ndev_vif->sta.channels_24_ghz = network_map->channels_24_ghz;
+				ndev_vif->sta.channels_5_ghz = network_map->channels_5_ghz;
+			}
 			if (channels_count)
 				if (slsi_mlme_set_cached_channels(sdev, dev, channels_count, channels) != 0)
 					SLSI_NET_ERR(dev, "MLME-SET-CACHED-CHANNELS.req failed\n");
@@ -2224,7 +2259,9 @@ void slsi_rx_disconnect_ind(struct slsi_dev *sdev, struct net_device *dev, struc
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DISCONNECT_IND);
 #else
+#ifndef SLSI_TEST_DEV
 	mx140_log_dump();
+#endif
 #endif
 
 	SLSI_INFO(sdev, "Received DEAUTH, reason = 0\n");
@@ -2256,7 +2293,9 @@ void slsi_rx_disconnected_ind(struct slsi_dev *sdev, struct net_device *dev, str
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 	scsc_log_collector_schedule_collection(SCSC_LOG_HOST_WLAN, SCSC_LOG_HOST_WLAN_REASON_DISCONNECTED_IND);
 #else
+#ifndef SLSI_TEST_DEV
 	mx140_log_dump();
+#endif
 #endif
 	if (reason <= 0xFF) {
 		SLSI_INFO(sdev, "Received DEAUTH, reason = %d\n", reason);

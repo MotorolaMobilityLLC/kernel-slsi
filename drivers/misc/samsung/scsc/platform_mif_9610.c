@@ -588,8 +588,6 @@ irqreturn_t platform_wdog_isr(int irq, void *data)
 	platform_int_debug(platform);
 
 	if (platform->reset_request_handler != platform_mif_irq_reset_request_default_handler) {
-		disable_irq_nosync(platform->wlbt_irq[PLATFORM_MIF_WDOG].irq_num);
-		platform->reset_request_handler(irq, platform->irq_reset_request_dev);
 		if (platform->boot_state == WLBT_BOOT_WAIT_CFG_REQ) {
 			/* Spurious interrupt from the SOC during CFG_REQ phase, just consume it */
 			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Spurious wdog irq during cfg_req phase\n");

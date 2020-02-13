@@ -3309,7 +3309,7 @@ int slsi_mlme_wifisharing_permitted_channels(struct slsi_dev *sdev, struct net_d
 	struct sk_buff    *cfm;
 	int               r = 0;
 
-	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
 	req = fapi_alloc(mlme_wifisharing_permitted_channels_req, MLME_WIFISHARING_PERMITTED_CHANNELS_REQ,
 			 ndev_vif->ifnum, 8);
@@ -3894,7 +3894,7 @@ void slsi_mlme_reassociate_resp(struct slsi_dev *sdev, struct net_device *dev)
 }
 
 int slsi_mlme_add_range_req(struct slsi_dev *sdev, u8 count,
-			    struct slsi_rtt_config *nl_rtt_params, u16 rtt_id, u16 vif_idx, u8 *source_addr)
+			    struct slsi_rtt_config *nl_rtt_params, u16 rtt_id, u8 *source_addr)
 {
 	struct sk_buff *req;
 	struct sk_buff *rx;
@@ -3912,13 +3912,14 @@ int slsi_mlme_add_range_req(struct slsi_dev *sdev, u8 count,
 	SLSI_DBG2(sdev, SLSI_MLME, "count:%d allocated data size: %d, source_addr:%pM\n",
 		  count, alloc_data_size, source_addr);
 	/*fill the data */
-	fapi_set_u16(req, u.mlme_add_range_req.vif, vif_idx);
+	fapi_set_u16(req, u.mlme_add_range_req.vif, 0);
 	fapi_set_u16(req, u.mlme_add_range_req.rtt_id, rtt_id);
 	fapi_set_memcpy(req, u.mlme_add_range_req.device_address, source_addr);
 	for (i = 0; i < count; i++) {
 		fapi_append_data(req, fapi_ie_generic, sizeof(fapi_ie_generic));
 		fapi_append_data(req, nl_rtt_params[i].peer_addr, ETH_ALEN);
-		fapi_append_data(req, (u8 *)&nl_rtt_params[i].type, 2);
+		fapi_append_data(req, (u8 *)&nl_rtt_params[i].rtt_peer, 1);
+		fapi_append_data(req, (u8 *)&nl_rtt_params[i].rtt_type, 1);
 		fapi_append_data(req, (u8 *)&nl_rtt_params[i].channel_freq, 2);
 		fapi_append_data(req, (u8 *)&nl_rtt_params[i].burst_period, 1);
 		fapi_append_data(req, (u8 *)&nl_rtt_params[i].num_burst, 1);

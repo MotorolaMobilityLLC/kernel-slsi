@@ -96,6 +96,7 @@ static struct work_struct	wlbtd_work;
 
 #define SCSC_R4_V2_MINOR_52 52
 #define SCSC_R4_V2_MINOR_53 53
+#define SCSC_R4_V2_MINOR_54 54
 
 #define MM_HALT_RSP_TIMEOUT_MS 100
 
@@ -1481,6 +1482,7 @@ static void print_panic_code(u16 code)
 void mxman_show_last_panic(struct mxman *mxman)
 {
 	u32 r4_panic_record_length = 0;	/* in u32s */
+	u32 r4_panic_stack_record_length = 0;	/* in u32s */
 
 	/* Any valid panic? */
 	if (mxman->scsc_panic_code == 0)
@@ -1495,7 +1497,8 @@ void mxman_show_last_panic(struct mxman *mxman)
 
 	case SCSC_PANIC_ORIGIN_FW:
 		SCSC_TAG_INFO(MXMAN, "Last panic was FW:\n");
-		fw_parse_r4_panic_record(mxman->last_panic_rec_r, &r4_panic_record_length);
+		fw_parse_r4_panic_record(mxman->last_panic_rec_r, &r4_panic_record_length, NULL);
+		fw_parse_r4_panic_stack_record(mxman->last_panic_stack_rec_r, &r4_panic_stack_record_length);
 		break;
 
 	default:
@@ -1519,17 +1522,21 @@ void mxman_show_last_panic(struct mxman *mxman)
 static void process_panic_record(struct mxman *mxman)
 {
 	u32 *r4_panic_record = NULL;
+	u32 *r4_panic_stack_record = NULL;
 	u32 *m4_panic_record = NULL;
 #ifdef CONFIG_SCSC_MX450_GDB_SUPPORT
 	u32 *m4_1_panic_record = NULL;
 #endif
 	u32 r4_panic_record_length = 0;	/* in u32s */
+	u32 r4_panic_stack_record_offset = 0; /* in bytes */
+	u32 r4_panic_stack_record_length = 0;	/* in u32s */
 	u32 m4_panic_record_length = 0; /* in u32s */
 #ifdef CONFIG_SCSC_MX450_GDB_SUPPORT
 	u32 m4_1_panic_record_length = 0; /* in u32s */
 #endif
 	u32 full_panic_code = 0;
 	bool r4_panic_record_ok = false;
+	bool r4_panic_stack_record_ok = false;
 	bool m4_panic_record_ok = false;
 #ifdef CONFIG_SCSC_MX450_GDB_SUPPORT
 	bool m4_1_panic_record_ok = false;
@@ -1548,7 +1555,8 @@ static void process_panic_record(struct mxman *mxman)
 	if ((mxman->scsc_panic_code & SCSC_PANIC_ORIGIN_MASK) == SCSC_PANIC_ORIGIN_FW) {
 		if (mxman->fwhdr.r4_panic_record_offset) {
 			r4_panic_record = (u32 *)(mxman->fw + mxman->fwhdr.r4_panic_record_offset);
-			r4_panic_record_ok = fw_parse_r4_panic_record(r4_panic_record, &r4_panic_record_length);
+			r4_panic_record_ok = fw_parse_r4_panic_record(r4_panic_record, &r4_panic_record_length,
+								      &r4_panic_stack_record_offset);
 		} else {
 			SCSC_TAG_INFO(MXMAN, "R4 panic record doesn't exist in the firmware header\n");
 		}
@@ -1583,11 +1591,12 @@ static void process_panic_record(struct mxman *mxman)
 			mxman->scsc_panic_code |= SCSC_PANIC_TECH_UNSP;
 			print_panic_code_legacy(mxman->scsc_panic_code);
 			break;
+		case SCSC_R4_V2_MINOR_54:
 		case SCSC_R4_V2_MINOR_53:
 			if (r4_panic_record_ok) {
 				/* Save the last R4 panic record for future display */
-				BUG_ON(sizeof(mxman->last_panic_rec_r) < SCSC_R4_V2_MINOR_53 * sizeof(u32));
-				memcpy((u8 *)mxman->last_panic_rec_r, (u8 *)r4_panic_record, SCSC_R4_V2_MINOR_53 * sizeof(u32));
+				BUG_ON(sizeof(mxman->last_panic_rec_r) < r4_panic_record_length * sizeof(u32));
+				memcpy((u8 *)mxman->last_panic_rec_r, (u8 *)r4_panic_record, r4_panic_record_length * sizeof(u32));
 				mxman->last_panic_rec_sz = r4_panic_record_length;
 
 				r4_sympathetic_panic_flag = fw_parse_get_r4_sympathetic_panic_flag(r4_panic_record);
@@ -1595,6 +1604,14 @@ static void process_panic_record(struct mxman *mxman)
 						r4_panic_record_ok,
 						r4_sympathetic_panic_flag
 					);
+				/* Check panic stack if present */
+				if (r4_panic_record_length >= SCSC_R4_V2_MINOR_54) {
+					r4_panic_stack_record = (u32 *)(mxman->fw + r4_panic_stack_record_offset);
+					r4_panic_stack_record_ok = fw_parse_r4_panic_stack_record(r4_panic_stack_record, &r4_panic_stack_record_length);
+				} else {
+					r4_panic_stack_record_ok = false;
+					r4_panic_stack_record_length = 0;
+				}
 				if (r4_sympathetic_panic_flag == false) {
 					/* process R4 record */
 					SCSC_TAG_INFO(MXMAN, "process R4 record\n");

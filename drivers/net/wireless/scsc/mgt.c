@@ -121,6 +121,7 @@ static ssize_t sysfs_store_macaddr(struct kobject *kobj,
 /* Register sysfs mac address override */
 void slsi_create_sysfs_macaddr(void)
 {
+#ifndef SLSI_TEST_DEV
 	int r;
 
 	wifi_kobj_ref = mxman_wifi_kobject_ref_get();
@@ -137,6 +138,7 @@ void slsi_create_sysfs_macaddr(void)
 	} else {
 		pr_err("failed to create /sys/wifi/mac_addr\n");
 	}
+#endif
 }
 
 /* Unregister sysfs mac address override */
@@ -356,8 +358,10 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
 		return;
 	}
 #endif
+#ifndef SLSI_TEST_DEV
 	mxman_get_fw_version(build_id_fw, 128);
 	mxman_get_driver_version(build_id_drv, 64);
+#endif
 
 	/* WARNING:
 	 * Please do not change the format of the following string
@@ -677,7 +681,6 @@ int slsi_start(struct slsi_dev *sdev)
 			goto err_hip_started;
 		}
 	}
-
 	if (sdev->regdb.regdb_state == SLSI_REG_DB_SET) {
 		sdev->reg_dom_version = ((sdev->regdb.db_major_version & 0xFF) << 8) |
 					(sdev->regdb.db_minor_version & 0xFF);
@@ -692,6 +695,7 @@ int slsi_start(struct slsi_dev *sdev)
 	}
 
 	memcpy(alpha2, sdev->device_config.domain_info.regdomain->alpha2, 2);
+
 	/* unifiDefaultCountry != world_domain */
 	if (!(alpha2[0] == '0' && alpha2[1] == '0'))
 		/* Read the regulatory params for the country*/
@@ -1305,10 +1309,12 @@ static int slsi_mib_open_file(struct slsi_dev *sdev, struct slsi_dev_mib_info *m
 
 	if (!mib_file_name || !fw)
 		return -EINVAL;
+#ifdef CONFIG_SCSC_LOG_COLLECTION
 	if (index > SLSI_WLAN_MAX_MIB_FILE + 1) {
 		SLSI_ERR(sdev, "collect mib index is invalid:%d\n", index);
 		return -EINVAL;
 	}
+#endif
 	mib_info->mib_data = NULL;
 	mib_info->mib_len = 0;
 	mib_info->mib_hash = 0; /* Reset mib hash value */
@@ -1626,9 +1632,9 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 		}
 		SLSI_DBG1(sdev, SLSI_CFG80211, "Value for NAN enabled mib : %d\n", sdev->nan_enabled);
 
-		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) { /* UnifiForcedScheduleDuration */
+		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) { /* UnifiDefaultDwellTime */
 			SLSI_CHECK_TYPE(sdev, values[mib_index].type, SLSI_MIB_TYPE_UINT);
-			sdev->fw_dwell_time = values[mib_index].u.uintValue;
+			sdev->fw_dwell_time = (values[mib_index].u.uintValue) * 1024; /* Conveting TU to Microseconds */
 		} else {
 			SLSI_WARN(sdev, "Error reading UnifiForcedScheduleDuration\n");
 		}
@@ -4605,7 +4611,7 @@ u8 slsi_get_exp_peer_frame_subtype(u8 subtype)
 
 void slsi_wlan_dump_public_action_subtype(struct slsi_dev *sdev, struct ieee80211_mgmt *mgmt, bool tx)
 {
-	u8 action_code = ((u8 *)&mgmt->u.action.u)[0];
+	int action_code = ((int *)&mgmt->u.action.u)[0];
 	u8 action_category = mgmt->u.action.category;
 	char *tx_rx_string = "Received";
 	char wnm_action_fields[28][35] = { "Event Request", "Event Report", "Diagnostic Request",
@@ -5001,7 +5007,7 @@ int slsi_roam_channel_cache_get_channels_int(struct net_device *dev, struct slsi
 	return index;
 }
 
-static struct slsi_roaming_network_map_entry *slsi_roam_channel_cache_get(struct net_device *dev, const u8 *ssid)
+struct slsi_roaming_network_map_entry *slsi_roam_channel_cache_get(struct net_device *dev, const u8 *ssid)
 {
 	struct slsi_roaming_network_map_entry *network_map = NULL;
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -5031,18 +5037,6 @@ u32 slsi_roam_channel_cache_get_channels(struct net_device *dev, const u8 *ssid,
 	return channels_count;
 }
 
-static bool slsi_roam_channel_cache_single_ap(struct net_device *dev, const u8 *ssid)
-{
-	bool only_one_ap_seen = true;
-	struct slsi_roaming_network_map_entry *network_map;
-
-	network_map = slsi_roam_channel_cache_get(dev, ssid);
-	if (network_map)
-		only_one_ap_seen = network_map->only_one_ap_seen;
-
-	return only_one_ap_seen;
-}
-
 int slsi_roaming_scan_configure_channels(struct slsi_dev *sdev, struct net_device *dev, const u8 *ssid, u8 *channels)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -5055,11 +5049,6 @@ int slsi_roaming_scan_configure_channels(struct slsi_dev *sdev, struct net_devic
 	WARN_ON(ndev_vif->vif_type != FAPI_VIFTYPE_STATION);
 
 	cached_channels_count = slsi_roam_channel_cache_get_channels(dev, ssid, channels);
-	if (slsi_roam_channel_cache_single_ap(dev,  ssid)) {
-		SLSI_NET_DBG3(dev, SLSI_MLME, "Skip Roaming Scan for Single AP %.*s\n", ssid[1], &ssid[2]);
-		return 0;
-	}
-
 	SLSI_NET_DBG3(dev, SLSI_MLME, "Roaming Scan Channels. %d cached\n", cached_channels_count);
 
 	return cached_channels_count;
