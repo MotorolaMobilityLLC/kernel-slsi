@@ -1970,11 +1970,7 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 	if (be16_to_cpu(ip_hdr(skb)->tot_len) > ((ip_hdr(skb)->ihl * 4) + (tcp_hdr(skb)->doff * 4))) {
 		SCSC_HIP4_SAMPLER_TCP_DATA(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, be32_to_cpu(tcp_hdr(skb)->seq));
 		SCSC_HIP4_SAMPLER_TCP_CWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, (skb->sk) ? tcp_sk(skb->sk)->snd_cwnd : 0);
-	#if KERNEL_VERSION(4, 14, 0) >= LINUX_VERSION_CODE
-		SCSC_HIP4_SAMPLER_TCP_SEND_BUG(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, sysctl_tcp_wmem[2]);
-	#else
-		SCSC_HIP4_SAMPLER_TCP_SEND_BUF(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, sysctl_tcp_mem[2]);
-	#endif
+		SCSC_HIP4_SAMPLER_TCP_SEND_BUF(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, (skb->sk) ? (skb->sk)->sk_sndbuf : 0);
 		ndev_vif->tcp_ack_stats.tack_hasdata++;
 		forward_now = 1;
 		goto _forward_now;

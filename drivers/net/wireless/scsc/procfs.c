@@ -995,8 +995,10 @@ static int slsi_procfs_fcq_show(struct seq_file *m, void *v)
 			u32                            peer_ps_state_transitions = 0;
 			enum scsc_wifi_fcq_8021x_state cp_state;
 
-			if (scsc_wifi_fcq_stat_queueset(&ndev_vif->ap.group_data_qs, &queue_stat, &smod, &scod, &cp_state, &peer_ps_state_transitions) != 0)
+			if (scsc_wifi_fcq_stat_queueset(&ndev_vif->ap.group_data_qs, &queue_stat, &smod, &scod, &cp_state, &peer_ps_state_transitions) != 0) {
+				SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 				continue;
+			}
 
 			seq_printf(m, "|%-12s|%-6d|%-6s|\n%d). smod:%u, scod:%u, netq stops :%u, netq resumes :%u, PS transitions :%u Controlled port :%s\n",
 				   netdev_name(dev),

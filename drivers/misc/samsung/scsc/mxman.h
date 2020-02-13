@@ -82,8 +82,10 @@ struct mxman {
 	u32			rf_hw_ver;
 	u16			scsc_panic_code;
 	u64			last_panic_time;
-	u32			last_panic_rec_r[PANIC_RECORD_SIZE]; /* Must be at least SCSC_R4_V2_MINOR_53 */
+	u32			last_panic_rec_r[PANIC_RECORD_SIZE]; /* Must be at least SCSC_R4_V2_MINOR_54 */
 	u16			last_panic_rec_sz;
+	u32			last_panic_stack_rec_r[PANIC_STACK_RECORD_SIZE]; /* Must be at least SCSC_R4_V2_MINOR_54 */
+	u16			last_panic_stack_rec_sz;
 	struct mx_syserr_decode	last_syserr;
 	unsigned long		last_syserr_recovery_time; /* In jiffies */
 	bool			notify;

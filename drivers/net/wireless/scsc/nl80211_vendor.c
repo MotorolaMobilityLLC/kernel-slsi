@@ -1758,25 +1758,46 @@ static int slsi_set_epno_ssid(struct wiphy *wiphy,
 		type = nla_type(iter);
 		switch (type) {
 		case SLSI_ATTRIBUTE_EPNO_MINIMUM_5G_RSSI:
-			slsi_util_nla_get_u16(iter, &epno_params->min_5g_rssi);
+			if (slsi_util_nla_get_u16(iter, &epno_params->min_5g_rssi)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_MINIMUM_2G_RSSI:
-			slsi_util_nla_get_u16(iter, &epno_params->min_2g_rssi);
+			if (slsi_util_nla_get_u16(iter, &epno_params->min_2g_rssi)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_INITIAL_SCORE_MAX:
-			slsi_util_nla_get_u16(iter, &epno_params->initial_score_max);
+			if (slsi_util_nla_get_u16(iter, &epno_params->initial_score_max)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_CUR_CONN_BONUS:
-			slsi_util_nla_get_u8(iter, &epno_params->current_connection_bonus);
+			if (slsi_util_nla_get_u8(iter, &epno_params->current_connection_bonus)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_SAME_NETWORK_BONUS:
-			slsi_util_nla_get_u8(iter, &epno_params->same_network_bonus);
+			if (slsi_util_nla_get_u8(iter, &epno_params->same_network_bonus)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_SECURE_BONUS:
-			slsi_util_nla_get_u8(iter, &epno_params->secure_bonus);
+			if (slsi_util_nla_get_u8(iter, &epno_params->secure_bonus)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_5G_BONUS:
-			slsi_util_nla_get_u8(iter, &epno_params->band_5g_bonus);
+			if (slsi_util_nla_get_u8(iter, &epno_params->band_5g_bonus)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_SSID_LIST:
 			nla_for_each_nested(outer, iter, tmp) {
@@ -1789,7 +1810,10 @@ static int slsi_set_epno_ssid(struct wiphy *wiphy,
 			}
 			break;
 		case SLSI_ATTRIBUTE_EPNO_SSID_NUM:
-			slsi_util_nla_get_u8(iter, &val);
+			if (slsi_util_nla_get_u8(iter, &val)) {
+				r = -EINVAL;
+				goto exit;
+			}
 			num = (int)val;
 			if (num > SLSI_GSCAN_MAX_EPNO_SSIDS) {
 				SLSI_ERR(sdev, "Cannot support %d SSIDs. max %d\n", num, SLSI_GSCAN_MAX_EPNO_SSIDS);
@@ -2930,8 +2954,7 @@ static int slsi_rtt_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 	int tmp, tmp1, tmp2;
 	u16 rtt_id = 0;
 	u8 num_devices = 0;
-	u16 rtt_peer = SLSI_RTT_PEER_AP;
-	u16 vif_idx = 0;
+	u8 rtt_peer = SLSI_RTT_PEER_AP;
 	u16 channel_freq = 0;
 
 	SLSI_DBG1_NODEV(SLSI_GSCAN, "SUBCMD_RTT_RANGE_START\n");
@@ -2983,12 +3006,13 @@ static int slsi_rtt_set_config(struct wiphy *wiphy, struct wireless_dev *wdev, c
 							return -EINVAL;
 						break;
 					case SLSI_RTT_ATTRIBUTE_TARGET_TYPE:
-						if (slsi_util_nla_get_u16(inner, &(nl_rtt_params[j].type)))
+						if (slsi_util_nla_get_u8(inner, &(nl_rtt_params[j].rtt_type)))
 							return -EINVAL;
 						break;
 					case SLSI_RTT_ATTRIBUTE_TARGET_PEER:
-						if (slsi_util_nla_get_u16(inner, &rtt_peer))
+						if (slsi_util_nla_get_u8(inner, &rtt_peer))
 							return -EINVAL;
+						nl_rtt_params[j].rtt_peer = rtt_peer;
 						break;
 					case SLSI_RTT_ATTRIBUTE_TARGET_CHAN_FREQ:
 						if (slsi_util_nla_get_u16(inner, &channel_freq))
@@ -3058,9 +3082,7 @@ exit:
 			return WIFI_HAL_ERROR_NOT_SUPPORTED;
 		}
 		ndev_vif = netdev_priv(dev);
-		if (ndev_vif->activated) {
-			vif_idx = ndev_vif->vif_type;
-		} else {
+		if (!ndev_vif->activated) {
 			SLSI_ERR(sdev, "NAN vif not activated\n");
 			kfree(nl_rtt_params);
 			return -EINVAL;
@@ -3070,12 +3092,12 @@ exit:
 		return -ENOTSUPP;
 #endif
 	}
-	r = slsi_mlme_add_range_req(sdev, num_devices, nl_rtt_params, rtt_id, vif_idx, source_addr);
+	r = slsi_mlme_add_range_req(sdev, num_devices, nl_rtt_params, rtt_id, source_addr);
 	if (r) {
 		r = -EINVAL;
 		SLSI_ERR_NODEV("Failed to set rtt config\n");
 	} else {
-		sdev->rtt_vif[rtt_id] = vif_idx;
+		sdev->rtt_vif[rtt_id] = 0;
 		SLSI_DBG1_NODEV(SLSI_GSCAN, "Successfully set rtt config\n");
 	}
 	kfree(nl_rtt_params);
@@ -3219,11 +3241,7 @@ void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_
 		ip_ptr += 2;
 		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_RETRY_AFTER_DURATION, *ip_ptr++);
 
-		le16_ptr = (__le16 *)&ip_ptr[i];
-		value = le16_to_cpu(*le16_ptr);
-		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_TYPE, value);
-		ip_ptr += 2;
-
+		res |= nla_put_u8(nl_skb, SLSI_RTT_EVENT_ATTR_TYPE, *ip_ptr++);
 		le16_ptr = (__le16 *)&ip_ptr[i];
 		value = le16_to_cpu(*le16_ptr);
 		res |= nla_put_u16(nl_skb, SLSI_RTT_EVENT_ATTR_RSSI, value);

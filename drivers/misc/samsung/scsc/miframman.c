@@ -55,7 +55,7 @@ void *__miframman_alloc(struct miframman *ram, size_t nbytes, int tag)
 	unsigned int available;
 	unsigned int i;
 	unsigned int min_available_blocks = MIFRAMMAN_NUM_BLOCKS;
-	size_t       num_blocks;
+	size_t       num_blocks = 0;
 	void         *free_mem = NULL;
 	bool 		 has_available_blocks = false;
 

@@ -611,6 +611,10 @@ struct slsi_vif_sta {
 	u8                      *rsn_ie;
 	u8                      rsn_ie_len;
 #endif
+
+	/* Storing channel bitmap to use it for setting cached channels */
+	u16                     channels_24_ghz;
+	u32                     channels_5_ghz;
 };
 
 struct slsi_vif_unsync {

@@ -371,7 +371,8 @@ static ssize_t slsi_p2p_ecsa(struct net_device *dev, char *command)
 	group_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
 	if (!group_dev) {
 		SLSI_INFO(sdev, "No Group net_dev found\n");
-		return -EINVAL;
+		result = -EINVAL;
+		goto exit;
 	}
 	readbyte = slsi_str_to_int(&ecsa_params[offset], &channel);
 	if (!readbyte) {
@@ -1008,7 +1009,7 @@ static ssize_t slsi_freq_band_write(struct net_device *dev, uint band)
 		return -EINVAL;
 	}
 
-	if (band < 0 || band > 2) {
+	if (band > 2) {
 		SLSI_ERR(sdev, "Invalid Band: Must be 0/1/2 Not '%c'\n", band);
 		SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 		return -EINVAL;
@@ -1026,6 +1027,10 @@ static ssize_t slsi_freq_band_write(struct net_device *dev, uint band)
 	SLSI_DBG1_NODEV(SLSI_MLME, "mlme_set_band_req(vif:%u band:%u)\n", ndev_vif->ifnum, band);
 
 	req = fapi_alloc(mlme_set_band_req, MLME_SET_BAND_REQ, ndev_vif->ifnum, 0);
+	if (!req) {
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+		return -EIO;
+	}
 	fapi_set_u16(req, u.mlme_set_band_req.vif, ndev_vif->ifnum);
 	fapi_set_u16(req, u.mlme_set_band_req.band, band);
 	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_SET_BAND_CFM);
@@ -1987,6 +1992,10 @@ static ssize_t slsi_set_ncho_mode(struct net_device *dev, int mode)
 	SLSI_DBG1_NODEV(SLSI_MLME, "mlme_set_roaming_type_req(vif:%u mode:%u)\n", ndev_vif->ifnum, mode);
 
 	req = fapi_alloc(mlme_set_roaming_type_req, MLME_SET_ROAMING_TYPE_REQ, ndev_vif->ifnum, 0);
+	if (!req) {
+		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+		return -EIO;
+	}
 	fapi_set_u16(req, u.mlme_set_roaming_type_req.vif, ndev_vif->ifnum);
 	fapi_set_u16(req, u.mlme_set_roaming_type_req.roaming_type, mode);
 	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_SET_ROAMING_TYPE_CFM);
@@ -3470,7 +3479,9 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 		scsc_log_collector_schedule_collection(SCSC_LOG_DUMPSTATE, SCSC_LOG_DUMPSTATE_REASON_DRIVERDEBUGDUMP);
 #else
+#ifndef SLSI_TEST_DEV
 		ret = mx140_log_dump();
+#endif
 #endif
 #endif
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER

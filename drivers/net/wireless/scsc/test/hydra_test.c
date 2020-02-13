@@ -72,3 +72,11 @@ void mx140_file_release_conf(struct scsc_mx *mx, const struct firmware *conf)
 void slsi_sm_wlan_service_close(struct slsi_dev *sdev)
 {
 }
+int slsi_sm_recovery_service_stop(struct slsi_dev *sdev)
+{
+	return 0;
+}
+int slsi_sm_recovery_service_close(struct slsi_dev *sdev)
+{
+	return 0;
+}

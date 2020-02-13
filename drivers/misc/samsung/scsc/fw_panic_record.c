@@ -14,7 +14,14 @@
  */
 #define R4_PANIC_RECORD_VERSION_2 2
 #define R4_PANIC_RECORD_LENGTH_INDEX_V2 1
+#define R4_PANIC_STACK_RECORD_OFFSET_INDEX_V2 52
 #define R4_PANIC_RECORD_MAX_LENGTH_V2 256
+
+/* Panic stack record (optional) - linked to from panic record */
+#define R4_PANIC_STACK_RECORD_VERSION_1 1
+#define R4_PANIC_STACK_RECORD_VERSION_INDEX 0
+#define R4_PANIC_STACK_RECORD_LENGTH_INDEX 1
+#define R4_PANIC_STACK_RECORD_MAX_LENGTH 256
 
 /*
  * version 1 mr4 panic record defs
@@ -48,7 +55,7 @@ static u32 xor32(uint32_t seed, const u32 data[], size_t len)
 
 static void panic_record_dump(u32 *panic_record, u32 panic_record_length, bool r4)
 {
-	int i;
+	u32 i;
 
 	SCSC_TAG_INFO(FW_PANIC, "%s panic record dump(length=%d):\n",
 		      r4 ? "R4" : "M4", panic_record_length);
@@ -57,7 +64,18 @@ static void panic_record_dump(u32 *panic_record, u32 panic_record_length, bool r
 			      r4 ? "r4" : "m4", i, panic_record[i]);
 }
 
-static bool fw_parse_r4_panic_record_v2(u32 *r4_panic_record, u32 *r4_panic_record_length)
+static void panic_stack_record_dump(u32 *panic_stack_record, u32 panic_stack_record_length, bool r4)
+{
+	u32 i;
+
+	SCSC_TAG_INFO(FW_PANIC, "%s panic stack_record dump(length=%d):\n",
+		      r4 ? "R4" : "M4", panic_stack_record_length);
+	for (i = 0; i < panic_stack_record_length; i++)
+		SCSC_TAG_INFO(FW_PANIC, "%s_panic_stack_record[%d] = %08x\n",
+			      r4 ? "r4" : "m4", i, panic_stack_record[i]);
+}
+
+static bool fw_parse_r4_panic_record_v2(u32 *r4_panic_record, u32 *r4_panic_record_length, u32 *r4_panic_stack_record_offset)
 {
 	u32 panic_record_cksum;
 	u32 calculated_cksum;
@@ -73,6 +91,10 @@ static bool fw_parse_r4_panic_record_v2(u32 *r4_panic_record, u32 *r4_panic_reco
 				      calculated_cksum);
 			panic_record_dump(r4_panic_record, panic_record_length, true);
 			*r4_panic_record_length = panic_record_length;
+			/* Optionally extract the offset of the panic stack record */
+			if (r4_panic_stack_record_offset) {
+				*r4_panic_stack_record_offset = *(r4_panic_record + R4_PANIC_STACK_RECORD_OFFSET_INDEX_V2);
+			}
 			return true;
 		} else {
 			SCSC_TAG_ERR(FW_PANIC, "BAD panic_record_cksum: 0x%x calculated_cksum: 0x%x\n",
@@ -81,6 +103,21 @@ static bool fw_parse_r4_panic_record_v2(u32 *r4_panic_record, u32 *r4_panic_reco
 	} else {
 		SCSC_TAG_ERR(FW_PANIC, "BAD panic_record_length: %d\n",
 			     panic_record_length);
+	}
+	return false;
+}
+
+static bool fw_parse_r4_panic_stack_record_v1(u32 *r4_panic_stack_record, u32 *r4_panic_stack_record_length)
+{
+	u32 panic_stack_record_length = *(r4_panic_stack_record + R4_PANIC_STACK_RECORD_LENGTH_INDEX) / 4;
+
+	if (panic_stack_record_length < R4_PANIC_STACK_RECORD_MAX_LENGTH) {
+		panic_stack_record_dump(r4_panic_stack_record, panic_stack_record_length, true);
+		*r4_panic_stack_record_length = panic_stack_record_length;
+		return true;
+	} else {
+		SCSC_TAG_ERR(FW_PANIC, "BAD panic_stack_record_length: %d\n",
+			     panic_stack_record_length);
 	}
 	return false;
 }
@@ -113,7 +150,7 @@ static bool fw_parse_m4_panic_record_v1(u32 *m4_panic_record, u32 *m4_panic_reco
 	return false;
 }
 
-bool fw_parse_r4_panic_record(u32 *r4_panic_record, u32 *r4_panic_record_length)
+bool fw_parse_r4_panic_record(u32 *r4_panic_record, u32 *r4_panic_record_length, u32 *r4_panic_stack_record_offset)
 {
 	u32 panic_record_version = *(r4_panic_record + PANIC_RECORD_R4_VERSION_INDEX);
 
@@ -125,7 +162,24 @@ bool fw_parse_r4_panic_record(u32 *r4_panic_record, u32 *r4_panic_record_length)
 			     panic_record_version);
 		break;
 	case R4_PANIC_RECORD_VERSION_2:
-		return fw_parse_r4_panic_record_v2(r4_panic_record, r4_panic_record_length);
+		return fw_parse_r4_panic_record_v2(r4_panic_record, r4_panic_record_length, r4_panic_stack_record_offset);
+	}
+	return false;
+}
+
+bool fw_parse_r4_panic_stack_record(u32 *r4_panic_stack_record, u32 *r4_panic_stack_record_length)
+{
+	u32 panic_stack_record_version = *(r4_panic_stack_record + R4_PANIC_STACK_RECORD_VERSION_INDEX);
+
+	SCSC_TAG_INFO(FW_PANIC, "panic_stack_record_version: %d\n", panic_stack_record_version);
+
+	switch (panic_stack_record_version) {
+	default:
+		SCSC_TAG_ERR(FW_PANIC, "BAD panic_stack_record_version: %d\n",
+			     panic_stack_record_version);
+		break;
+	case R4_PANIC_STACK_RECORD_VERSION_1:
+		return fw_parse_r4_panic_stack_record_v1(r4_panic_stack_record, r4_panic_stack_record_length);
 	}
 	return false;
 }

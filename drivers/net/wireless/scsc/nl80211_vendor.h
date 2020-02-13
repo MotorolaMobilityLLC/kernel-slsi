@@ -921,7 +921,8 @@ struct slsi_rtt_capabilities {
 /* RTT configuration */
 struct slsi_rtt_config {
 	u8 peer_addr[ETH_ALEN];                 /* peer device mac address */
-	u16 type;            /* 1-sided or 2-sided RTT */
+	u8 rtt_peer;                  /* optional - peer device hint (STA, P2P, AP) */
+	u8 rtt_type;            /* 1-sided or 2-sided RTT */
 	u16 channel_freq;     /* Required for STA-AP mode, optional for P2P, NBD etc. */
 	u16 channel_info;
 	u8 burst_period;         /* Time interval between bursts (units: 100 ms). */
@@ -1010,7 +1011,7 @@ void slsi_rx_rssi_report_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 int slsi_mib_get_apf_cap(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_mib_get_rtt_cap(struct slsi_dev *sdev, struct net_device *dev, struct slsi_rtt_capabilities *cap);
 int slsi_mlme_add_range_req(struct slsi_dev *sdev, u8 count, struct slsi_rtt_config *nl_rtt_params,
-			    u16 rtt_id, u16 vif_idx, u8 *source_addr);
+			    u16 rtt_id, u8 *source_addr);
 int slsi_mlme_del_range_req(struct slsi_dev *sdev, struct net_device *dev, u16 count, u8 *addr, u16 rtt_id);
 void slsi_rx_range_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_rx_range_done_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);

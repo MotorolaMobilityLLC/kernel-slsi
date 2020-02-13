@@ -4,18 +4,15 @@
  *
  ****************************************************************************/
 
+#ifndef __HIP4_SAMPLER_H__
+#define __HIP4_SAMPLER_H__
+
 #include <linux/proc_fs.h>
 #include <linux/version.h>
 #include <linux/seq_file.h>
 #include <net/tcp.h>
 
 #include "dev.h"
-
-/* TCP send buffer sizes */
-extern int sysctl_tcp_wmem[3];
-
-#ifndef __HIP4_SAMPLER_H__
-#define __HIP4_SAMPLER_H__
 
 #define HIP4_SAMPLER_SIGNAL_CTRLTX      0x20
 #define HIP4_SAMPLER_SIGNAL_CTRLRX      0x21
