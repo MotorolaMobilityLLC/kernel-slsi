@@ -5260,22 +5260,18 @@ static void abox_start_timer(struct abox_data *data)
 
 static void abox_clear_bclk(struct device *dev, struct abox_data *data)
 {
-	int val, i, ret, mask;
-	struct regmap *regmap = data->regmap;
+	int val, i, mask;
 
 	mask = (ABOX_SPK_ENABLE_MASK|ABOX_MIC_ENABLE_MASK);
 
 	for (i = 0; i <= 3; i++) {
-		ret = regmap_read(regmap, ABOX_UAIF_CTRL0(i), &val);
-		if (ret < 0) {
-			dev_err(dev, "Failed to get UAIF%d_CTRL0: %d\n", i, ret);
-		} else {
-			if (val & mask) {
-				dev_info(dev, "UAIF%d_CTRL0: %08x\n", i, val);
-				val &= ~mask;
-				regmap_write(regmap, ABOX_UAIF_CTRL0(i), val);
-			}
-		}
+		val = readl(data->sfr_base + ABOX_UAIF_CTRL0(i));
+		if (val & mask) {
+			dev_warn(dev, "Warning: UAIF%d_CTRL0 = %08x\n", i, val);
+			val &= ~mask;
+			writel(val, data->sfr_base + ABOX_UAIF_CTRL0(i));
+		} else
+			dev_info(dev, "UAIF%d_CTRL0 = %08x\n", i, val);
 	}
 }
 
