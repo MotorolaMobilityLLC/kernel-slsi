@@ -339,7 +339,15 @@ void slsi_rx_scan_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_b
 #endif
 
 	scan_ssid = cfg80211_find_ie(WLAN_EID_SSID, mgmt->u.probe_resp.variable, ie_len);
+
+	if (scan_ssid && scan_ssid[1] && scan_ssid[1] > IEEE80211_MAX_SSID_LEN) {
+		SLSI_NET_ERR(dev, "Dropping scan result due to unexpected ssid length(%d)\n", scan_ssid[1]);
+		slsi_kfree_skb(skb);
+		return;
+	}
+
 	if (scan_ssid && scan_ssid[1] && ((ie_len - (scan_ssid - mgmt->u.probe_resp.variable) + 2) < scan_ssid[1])) {
+		SLSI_NET_ERR(dev, "Dropping scan result due to skb data is less than ssid len(%d)\n", scan_ssid[1]);
 		slsi_kfree_skb(skb);
 		return;
 	}
