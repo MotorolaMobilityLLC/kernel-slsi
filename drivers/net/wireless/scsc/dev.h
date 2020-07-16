@@ -869,6 +869,8 @@ struct netdev_vif {
 #ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 	struct slsi_vif_nan         nan;
 #endif
+	bool			    mgmt_tx_gas_frame;
+	u8			    gas_frame_mac_addr[ETH_ALEN];
 	bool                        acs;
 	/* TCP ack suppression. */
 	struct slsi_tcp_ack_s *last_tcp_ack;

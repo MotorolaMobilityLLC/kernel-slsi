@@ -2969,29 +2969,33 @@ void slsi_mgmt_frame_register(struct wiphy *wiphy,
 }
 
 static int slsi_wlan_mgmt_tx(struct slsi_dev *sdev, struct net_device *dev,
-			    struct ieee80211_channel *chan, unsigned int wait,
-			    const u8 *buf, size_t len, bool dont_wait_for_ack, u64 *cookie)
+			     struct ieee80211_channel *chan, unsigned int wait,
+			     const u8 *buf, size_t len, bool dont_wait_for_ack, u64 *cookie)
 {
-	u32                host_tag = slsi_tx_mgmt_host_tag(sdev);
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
-	int                r = 0;
+	u32                   host_tag = slsi_tx_mgmt_host_tag(sdev);
+	struct netdev_vif     *ndev_vif = netdev_priv(dev);
+	int                   r = 0;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
-	u8                 exp_peer_frame = SLSI_PA_INVALID;
+	u8                    exp_peer_frame = SLSI_PA_INVALID;
+	int                   subtype = SLSI_PA_INVALID;
 
 	if (!ieee80211_is_auth(mgmt->frame_control))
 		slsi_wlan_dump_public_action_subtype(sdev, mgmt, true);
 
 	if (ieee80211_is_action(mgmt->frame_control)) {
-		int subtype = slsi_get_public_action_subtype(mgmt);
+		subtype = slsi_get_public_action_subtype(mgmt);
 
-		if (subtype == SLSI_PA_INVALID) {
-			SLSI_NET_DBG1(dev, SLSI_CFG80211, "Not a Public Action Frame subtype\n");
-		} else {
+		if (subtype != SLSI_PA_INVALID)
 			exp_peer_frame = slsi_get_exp_peer_frame_subtype(subtype);
-		}
 	}
 
 	if (!ndev_vif->activated) {
+		if (subtype >= SLSI_PA_GAS_INITIAL_REQ_SUBTYPE && subtype <= SLSI_PA_GAS_COMEBACK_RSP_SUBTYPE) {
+			ndev_vif->mgmt_tx_gas_frame = true;
+			SLSI_ETHER_COPY(ndev_vif->gas_frame_mac_addr, mgmt->sa);
+		} else {
+			ndev_vif->mgmt_tx_gas_frame = false;
+		}
 		r = slsi_wlan_unsync_vif_activate(sdev, dev, chan, wait);
 		if (r)
 			return r;
@@ -3011,15 +3015,31 @@ static int slsi_wlan_mgmt_tx(struct slsi_dev *sdev, struct net_device *dev,
 			if (r)
 				return r;
 		} else if (ndev_vif->vif_type == FAPI_VIFTYPE_UNSYNCHRONISED) {
+			if (subtype >= SLSI_PA_GAS_INITIAL_REQ_SUBTYPE && subtype <= SLSI_PA_GAS_COMEBACK_RSP_SUBTYPE) {
+				slsi_wlan_unsync_vif_deactivate(sdev, dev, true);
+				ndev_vif->mgmt_tx_gas_frame = true;
+				SLSI_ETHER_COPY(ndev_vif->gas_frame_mac_addr, mgmt->sa);
+				r = slsi_wlan_unsync_vif_activate(sdev, dev, chan, wait);
+				if (r)
+					return r;
+			} else {
+				if (ndev_vif->mgmt_tx_gas_frame) {
+					slsi_wlan_unsync_vif_deactivate(sdev, dev, true);
+					ndev_vif->mgmt_tx_gas_frame = false;
+					r = slsi_wlan_unsync_vif_activate(sdev, dev, chan, wait);
+					if (r)
+						return r;
+				}
+			}
+
 			cancel_delayed_work(&ndev_vif->unsync.hs2_del_vif_work);
 			/*even if we fail to cancel the delayed work, we shall go ahead and send action frames*/
 			if (ndev_vif->driver_channel != chan->hw_value) {
 				r = slsi_mlme_set_channel(sdev, dev, chan, SLSI_FW_CHANNEL_DURATION_UNSPECIFIED, 0, 0);
 				if (r)
 					goto exit_with_vif;
-				else {
+				else
 					ndev_vif->driver_channel = chan->hw_value;
-				}
 			}
 			SLSI_NET_DBG1(dev, SLSI_CFG80211, "HS2 vif is active ,send GAS (ANQP) request on channel freq = %d\n", chan->center_freq);
 			r = slsi_mlme_send_frame_mgmt(sdev, dev, buf, len, FAPI_DATAUNITDESCRIPTOR_IEEE802_11_FRAME, FAPI_MESSAGETYPE_IEEE80211_ACTION, host_tag, 0, wait * 1000, 0);
@@ -3771,6 +3791,9 @@ struct slsi_dev                           *slsi_cfg80211_new(struct device *dev)
 	/* Parameters for Scheduled Scanning Support */
 	wiphy->max_sched_scan_reqs = 1;
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI);
+
+	/* Randomize TA of Public Action frames. */
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA);
 #endif
 
 	/* Match the maximum number of SSIDs that could be requested from wpa_supplicant */

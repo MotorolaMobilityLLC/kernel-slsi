@@ -4611,7 +4611,7 @@ u8 slsi_get_exp_peer_frame_subtype(u8 subtype)
 
 void slsi_wlan_dump_public_action_subtype(struct slsi_dev *sdev, struct ieee80211_mgmt *mgmt, bool tx)
 {
-	int action_code = ((int *)&mgmt->u.action.u)[0];
+	u8 action_code = ((u8 *)&mgmt->u.action.u)[0];
 	u8 action_category = mgmt->u.action.category;
 	char *tx_rx_string = "Received";
 	char wnm_action_fields[28][35] = { "Event Request", "Event Report", "Diagnostic Request",
@@ -4670,7 +4670,7 @@ void slsi_wlan_dump_public_action_subtype(struct slsi_dev *sdev, struct ieee8021
 			SLSI_DBG1_NODEV(SLSI_CFG80211, "%s: GAS Comeback Response\n", tx ? "TX" : "RX");
 			break;
 		default:
-			SLSI_DBG1_NODEV(SLSI_CFG80211, "Unknown GAS Frame : %d\n", action_code);
+			SLSI_DBG1_NODEV(SLSI_CFG80211, "Unknown Public Action Frame : %d\n", action_code);
 		}
 		break;
 	case WLAN_CATEGORY_WNM:
@@ -6006,10 +6006,16 @@ int slsi_wlan_unsync_vif_activate(struct slsi_dev *sdev, struct net_device *dev,
 	/* Avoid suspend when wlan unsync VIF is active */
 	slsi_wake_lock(&sdev->wlan_wl);
 
-	/* Interface address and device address are same for unsync vif */
-	if (slsi_mlme_add_vif(sdev, dev, dev->dev_addr, device_address) != 0) {
-		SLSI_NET_ERR(dev, "add vif failed for wlan unsync vif\n");
-		goto exit_with_error;
+	if (ndev_vif->mgmt_tx_gas_frame) {
+		if (slsi_mlme_add_vif(sdev, dev, ndev_vif->gas_frame_mac_addr, device_address) != 0) {
+			SLSI_NET_ERR(dev, "add vif failed for wlan unsync vif\n");
+			goto exit_with_error;
+		}
+	} else {
+		if (slsi_mlme_add_vif(sdev, dev, dev->dev_addr, device_address) != 0) {
+			SLSI_NET_ERR(dev, "add vif failed for wlan unsync vif\n");
+			goto exit_with_error;
+		}
 	}
 
 	if (slsi_vif_activated(sdev, dev) != 0) {
