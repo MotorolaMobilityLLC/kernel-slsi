@@ -2630,15 +2630,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	r = slsi_mlme_start(sdev, dev, dev->dev_addr, settings, wpa_ie_pos, wmm_ie_pos, append_vht_ies);
 
-	if ((indoor_channel == 1)
-#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
-	    || (wifi_sharing_channel_switched == 1)
-#endif
-#ifdef CONFIG_SCSC_WLAN_ACS_ENABLE
-	    || (sdev->acs_channel_switched == true)
-#endif
-	)
-		cfg80211_ch_switch_notify(dev, &settings->chandef);
+	cfg80211_ch_switch_notify(dev, &settings->chandef);
 
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 	if (r == 0)
