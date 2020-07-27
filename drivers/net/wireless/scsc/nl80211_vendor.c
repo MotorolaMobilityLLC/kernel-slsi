@@ -2444,6 +2444,7 @@ static void slsi_lls_radio_stat_fill(struct slsi_dev *sdev, struct net_device *d
 				     struct slsi_lls_radio_stat *radio_stat,
 				     int max_chan_count, int radio_index, int twoorfive)
 {
+	struct netdev_vif         *ndev_vif;
 	struct slsi_mib_data      mibrsp = { 0, NULL };
 	struct slsi_mib_data      supported_chan_mib = { 0, NULL };
 	struct slsi_mib_value     *values = NULL;
@@ -2456,6 +2457,7 @@ static void slsi_lls_radio_stat_fill(struct slsi_dev *sdev, struct net_device *d
 						   &radio_stat->tx_time, &radio_stat->on_time};
 	int                       i, j, chan_count, chan_start, k;
 
+	ndev_vif = netdev_priv(dev);
 	radio_stat->radio = radio_index;
 
 	/* Expect each mib length in response is <= 15 So assume 15 bytes for each MIB */
@@ -2497,6 +2499,13 @@ static void slsi_lls_radio_stat_fill(struct slsi_dev *sdev, struct net_device *d
 				else
 					radio_chan->center_freq = 2407 + (chan_start + k) * 5;
 				radio_chan->width = SLSI_LLS_CHAN_WIDTH_20;
+				SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+				if (ndev_vif->vif_type == FAPI_VIFTYPE_STATION &&
+				    ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED) {
+					if (ndev_vif->chan->hw_value == (chan_start + k))
+						radio_stat->channels[radio_stat->num_channels + k].on_time = radio_stat->on_time;
+				}
+				SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 			}
 			radio_stat->num_channels += chan_count;
 		} else if (chan_start != 1 && (twoorfive & BIT(1))) {
@@ -2505,6 +2514,13 @@ static void slsi_lls_radio_stat_fill(struct slsi_dev *sdev, struct net_device *d
 				radio_chan = &radio_stat->channels[radio_stat->num_channels + k].channel;
 				radio_chan->center_freq = 5000 + (chan_start + (k * 4)) * 5;
 				radio_chan->width = SLSI_LLS_CHAN_WIDTH_20;
+				SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+				if (ndev_vif->vif_type == FAPI_VIFTYPE_STATION &&
+				    ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED) {
+					if (ndev_vif->chan->hw_value == (chan_start + (k*4)))
+						radio_stat->channels[radio_stat->num_channels + k].on_time = radio_stat->on_time;
+				}
+				SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 			}
 			radio_stat->num_channels += chan_count;
 		}
