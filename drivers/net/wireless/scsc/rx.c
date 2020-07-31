@@ -935,6 +935,7 @@ int slsi_set_band_any_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *nd
 
 		if (best_channel_5g_num_ap < MAX_AP_THRESHOLD) {
 			*acs_selected_channels = acs_selected_channels_5g;
+			acs_selected_channels->hw_mode = SLSI_ACS_MODE_IEEE80211A;
 			return ret;
 		}
 	}
@@ -958,14 +959,19 @@ int slsi_set_band_any_auto_channel(struct slsi_dev *sdev, struct netdev_vif  *nd
 								best_channel_2g_num_ap);
 		if (best_channel_5g == -1) {
 			*acs_selected_channels = acs_selected_channels_2g;
+			acs_selected_channels->hw_mode = SLSI_ACS_MODE_IEEE80211G;
 			return ret;
 		} else {
 			/* Based on min no of APs selecting channel from that band */
 			/* If no. of APs are equal, selecting the 5G channel */
-			if (best_channel_5g_num_ap > best_channel_2g_num_ap)
+			if (best_channel_5g_num_ap > best_channel_2g_num_ap) {
 				*acs_selected_channels = acs_selected_channels_2g;
-			else
+				acs_selected_channels->hw_mode = SLSI_ACS_MODE_IEEE80211G;
+			}
+			else {
 				*acs_selected_channels = acs_selected_channels_5g;
+				acs_selected_channels->hw_mode = SLSI_ACS_MODE_IEEE80211A;
+			}
 		}
 	}
 	return ret;
