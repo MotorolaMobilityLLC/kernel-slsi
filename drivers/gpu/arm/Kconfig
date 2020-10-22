@@ -36,6 +36,10 @@ config MALI_BIFROST_R19P0_Q
 	depends on MALI_DDK_VERSION
 	bool "Bifrost r19p0 driver for Android Q"
 
+config MALI_BIFROST_R26P0_R
+	depends on MALI_DDK_VERSION
+	bool "Bifrost r26p0 driver for Android R"
+
 config MALI_BIFROST_OLD
 	depends on MALI_DDK_VERSION
 	bool "Bifrost old driver"
@@ -51,6 +55,10 @@ endif
 
 if MALI_BIFROST_R16P0_Q
 source "drivers/gpu/arm/b_r16p0_Q/Kconfig"
+endif
+
+if MALI_BIFROST_R26P0_R
+source "drivers/gpu/arm/b_r26p0/Kconfig"
 endif
 
 if MALI_BIFROST_OLD
