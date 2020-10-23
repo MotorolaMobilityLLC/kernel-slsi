@@ -384,8 +384,16 @@ static void kbase_fence_debug_timeout(struct kbase_jd_atom *katom)
 }
 #endif /* CONFIG_MALI_FENCE_DEBUG */
 
+#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
 void kbasep_soft_job_timeout_worker(struct timer_list *timer)
+#else
+void kbasep_soft_job_timeout_worker(unsigned long data)
+#endif
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+	    struct timer_list *timer = (struct timer_list *)data;
+#endif
+
 	struct kbase_context *kctx = container_of(timer, struct kbase_context,
 			soft_job_timeout);
 	u32 timeout_ms = (u32)atomic_read(
