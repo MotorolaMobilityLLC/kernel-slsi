@@ -388,7 +388,11 @@ int kbase_soft_event_update(struct kbase_context *kctx,
 			    u64 event,
 			    unsigned char new_status);
 
+#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
 void kbasep_soft_job_timeout_worker(struct timer_list *timer);
+#else
+void kbasep_soft_job_timeout_worker(unsigned long data);
+#endif
 void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
 
 /* MALI_SEC_INTEGRATION */

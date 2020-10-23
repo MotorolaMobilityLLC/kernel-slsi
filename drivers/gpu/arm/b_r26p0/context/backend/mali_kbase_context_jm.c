@@ -89,7 +89,11 @@ static void kbase_context_kbase_kinstr_jm_term(struct kbase_context *kctx)
 static int kbase_context_kbase_timer_setup(struct kbase_context *kctx)
 {
 	kbase_timer_setup(&kctx->soft_job_timeout,
-			  kbasep_soft_job_timeout_worker);
+#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
+			      kbasep_soft_job_timeout_worker);
+#else
+				  (void (*)(struct timer_list *))kbasep_soft_job_timeout_worker);
+#endif
 
 	return 0;
 }
