@@ -1,0 +1,13 @@
+ARCH=arm64
+CROSS_COMPILE=aarch64-linux-android-
+CLANG_TRIPLE=aarch64-linux-gnu-
+DEFCONFIG=erd9610_pqr_defconfig
+CLANG_VERSION=clang-4691093
+KERNEL_LTO_ON=true
+TARGET_SOC=exynos9610
+FILES="
+arch/arm64/boot/Image:kernel
+arch/arm64/boot/dts/exynos/exynos9610.dtb:dtb.img
+dtbo.img:dtbo.img
+vmlinux:vmlinux
+"
