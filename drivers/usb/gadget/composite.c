@@ -2258,12 +2258,26 @@ fail:
 
 void __nocfi composite_suspend(struct usb_gadget *gadget)
 {
-	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
+	struct usb_composite_dev	*cdev = NULL;
 	struct usb_function		*f;
+	unsigned long			flags;
 
 	/* REVISIT:  should we have config level
 	 * suspend/resume callbacks?
 	 */
+
+	if (gadget == NULL) {
+		pr_info("%s: gadget is NULL\n", __func__);
+		return;
+	}
+
+	cdev = get_gadget_data(gadget);
+	if (!cdev) {
+		pr_info("%s: cdev is NULL\n", __func__);
+		return;
+	}
+
+	spin_lock_irqsave(&cdev->lock, flags);
 	DBG(cdev, "suspend\n");
 	if (cdev->config) {
 		list_for_each_entry(f, &cdev->config->functions, list) {
@@ -2273,6 +2287,8 @@ void __nocfi composite_suspend(struct usb_gadget *gadget)
 	}
 	if (cdev->driver->suspend)
 		cdev->driver->suspend(cdev);
+
+	spin_unlock_irqrestore(&cdev->lock, flags);
 
 	cdev->suspended = 1;
 
